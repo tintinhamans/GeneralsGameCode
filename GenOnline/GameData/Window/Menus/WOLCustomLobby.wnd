@@ -1060,8 +1060,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 537 50,
-                   BOTTOMRIGHT: 753 68,
+      SCREENRECT = UPPERLEFT: 537 49,
+                   BOTTOMRIGHT: 753 69,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLCustomLobby.wnd:ComboBoxGroupRooms";
       STATUS = ENABLED+IMAGE;

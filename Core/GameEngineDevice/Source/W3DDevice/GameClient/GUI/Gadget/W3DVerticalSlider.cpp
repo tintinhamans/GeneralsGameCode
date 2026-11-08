@@ -107,8 +107,8 @@ static void getKitChannel( Int columnX, Int columnWidth, Int &channelX, Int &cha
 		channelWidth = columnWidth - 2 * separator;
 	if( channelWidth < 2 )
 		channelWidth = 2;
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The list frame on the right is as thick as the separator.
-	channelX = columnX + separator + (columnWidth - 2 * separator - channelWidth) / 2;
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Centred left of the list frame on the right, as thick as the separator, like the arrow chevrons.
+	channelX = columnX + (columnWidth - separator - channelWidth) / 2;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

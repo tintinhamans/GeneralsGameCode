@@ -508,8 +508,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 241 335,
-                   BOTTOMRIGHT: 345 353,
+      SCREENRECT = UPPERLEFT: 241 334,
+                   BOTTOMRIGHT: 345 354,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxStartingCash";
       STATUS = ENABLED+IMAGE;
@@ -1417,8 +1417,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 497 295,
-                   BOTTOMRIGHT: 573 313,
+      SCREENRECT = UPPERLEFT: 497 294,
+                   BOTTOMRIGHT: 573 314,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam7";
       STATUS = ENABLED+IMAGE;
@@ -1658,8 +1658,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 497 271,
-                   BOTTOMRIGHT: 573 289,
+      SCREENRECT = UPPERLEFT: 497 270,
+                   BOTTOMRIGHT: 573 290,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam6";
       STATUS = ENABLED+IMAGE;
@@ -1899,8 +1899,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 497 247,
-                   BOTTOMRIGHT: 573 265,
+      SCREENRECT = UPPERLEFT: 497 246,
+                   BOTTOMRIGHT: 573 266,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam5";
       STATUS = ENABLED+IMAGE;
@@ -2140,8 +2140,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 497 223,
-                   BOTTOMRIGHT: 573 241,
+      SCREENRECT = UPPERLEFT: 497 222,
+                   BOTTOMRIGHT: 573 242,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam4";
       STATUS = ENABLED+IMAGE;
@@ -2381,8 +2381,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 497 199,
-                   BOTTOMRIGHT: 573 217,
+      SCREENRECT = UPPERLEFT: 497 198,
+                   BOTTOMRIGHT: 573 218,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam3";
       STATUS = ENABLED+IMAGE;
@@ -2622,8 +2622,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 497 175,
-                   BOTTOMRIGHT: 573 193,
+      SCREENRECT = UPPERLEFT: 497 174,
+                   BOTTOMRIGHT: 573 194,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam2";
       STATUS = ENABLED+IMAGE;
@@ -2863,8 +2863,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 497 151,
-                   BOTTOMRIGHT: 573 169,
+      SCREENRECT = UPPERLEFT: 497 150,
+                   BOTTOMRIGHT: 573 170,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam1";
       STATUS = ENABLED+IMAGE;
@@ -3104,8 +3104,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 497 127,
-                   BOTTOMRIGHT: 573 145,
+      SCREENRECT = UPPERLEFT: 497 126,
+                   BOTTOMRIGHT: 573 146,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam0";
       STATUS = ENABLED+IMAGE;
@@ -3394,8 +3394,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 295 295,
-                   BOTTOMRIGHT: 495 313,
+      SCREENRECT = UPPERLEFT: 295 294,
+                   BOTTOMRIGHT: 495 314,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate7";
       STATUS = ENABLED+IMAGE;
@@ -3635,8 +3635,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 295 271,
-                   BOTTOMRIGHT: 495 289,
+      SCREENRECT = UPPERLEFT: 295 270,
+                   BOTTOMRIGHT: 495 290,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate6";
       STATUS = ENABLED+IMAGE;
@@ -3876,8 +3876,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 295 247,
-                   BOTTOMRIGHT: 495 265,
+      SCREENRECT = UPPERLEFT: 295 246,
+                   BOTTOMRIGHT: 495 266,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate5";
       STATUS = ENABLED+IMAGE;
@@ -4117,8 +4117,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 295 223,
-                   BOTTOMRIGHT: 495 241,
+      SCREENRECT = UPPERLEFT: 295 222,
+                   BOTTOMRIGHT: 495 242,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate4";
       STATUS = ENABLED+IMAGE;
@@ -4358,8 +4358,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 295 199,
-                   BOTTOMRIGHT: 495 217,
+      SCREENRECT = UPPERLEFT: 295 198,
+                   BOTTOMRIGHT: 495 218,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate3";
       STATUS = ENABLED+IMAGE;
@@ -4599,8 +4599,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 295 175,
-                   BOTTOMRIGHT: 495 193,
+      SCREENRECT = UPPERLEFT: 295 174,
+                   BOTTOMRIGHT: 495 194,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate2";
       STATUS = ENABLED+IMAGE;
@@ -4840,8 +4840,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 295 151,
-                   BOTTOMRIGHT: 495 169,
+      SCREENRECT = UPPERLEFT: 295 150,
+                   BOTTOMRIGHT: 495 170,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate1";
       STATUS = ENABLED+IMAGE;
@@ -5081,8 +5081,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 295 127,
-                   BOTTOMRIGHT: 495 145,
+      SCREENRECT = UPPERLEFT: 295 126,
+                   BOTTOMRIGHT: 495 146,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate0";
       STATUS = ENABLED+IMAGE;
@@ -5371,8 +5371,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 209 295,
-                   BOTTOMRIGHT: 293 313,
+      SCREENRECT = UPPERLEFT: 209 294,
+                   BOTTOMRIGHT: 293 314,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor7";
       STATUS = ENABLED+IMAGE;
@@ -5612,8 +5612,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 209 271,
-                   BOTTOMRIGHT: 293 289,
+      SCREENRECT = UPPERLEFT: 209 270,
+                   BOTTOMRIGHT: 293 290,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor6";
       STATUS = ENABLED+IMAGE;
@@ -5853,8 +5853,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 209 247,
-                   BOTTOMRIGHT: 293 265,
+      SCREENRECT = UPPERLEFT: 209 246,
+                   BOTTOMRIGHT: 293 266,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor5";
       STATUS = ENABLED+IMAGE;
@@ -6094,8 +6094,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 209 223,
-                   BOTTOMRIGHT: 293 241,
+      SCREENRECT = UPPERLEFT: 209 222,
+                   BOTTOMRIGHT: 293 242,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor4";
       STATUS = ENABLED+IMAGE;
@@ -6335,8 +6335,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 209 199,
-                   BOTTOMRIGHT: 293 217,
+      SCREENRECT = UPPERLEFT: 209 198,
+                   BOTTOMRIGHT: 293 218,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor3";
       STATUS = ENABLED+IMAGE;
@@ -6576,8 +6576,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 209 175,
-                   BOTTOMRIGHT: 293 193,
+      SCREENRECT = UPPERLEFT: 209 174,
+                   BOTTOMRIGHT: 293 194,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor2";
       STATUS = ENABLED+IMAGE;
@@ -6817,8 +6817,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 209 151,
-                   BOTTOMRIGHT: 293 169,
+      SCREENRECT = UPPERLEFT: 209 150,
+                   BOTTOMRIGHT: 293 170,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor1";
       STATUS = ENABLED+IMAGE;
@@ -7058,8 +7058,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 209 127,
-                   BOTTOMRIGHT: 293 145,
+      SCREENRECT = UPPERLEFT: 209 126,
+                   BOTTOMRIGHT: 293 146,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor0";
       STATUS = ENABLED+IMAGE;
@@ -7348,8 +7348,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 63 295,
-                   BOTTOMRIGHT: 207 313,
+      SCREENRECT = UPPERLEFT: 63 294,
+                   BOTTOMRIGHT: 207 314,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer7";
       STATUS = ENABLED+IMAGE;
@@ -7589,8 +7589,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 63 271,
-                   BOTTOMRIGHT: 207 289,
+      SCREENRECT = UPPERLEFT: 63 270,
+                   BOTTOMRIGHT: 207 290,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer6";
       STATUS = ENABLED+IMAGE;
@@ -7830,8 +7830,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 63 247,
-                   BOTTOMRIGHT: 207 265,
+      SCREENRECT = UPPERLEFT: 63 246,
+                   BOTTOMRIGHT: 207 266,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer5";
       STATUS = ENABLED+IMAGE;
@@ -8071,8 +8071,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 63 223,
-                   BOTTOMRIGHT: 207 241,
+      SCREENRECT = UPPERLEFT: 63 222,
+                   BOTTOMRIGHT: 207 242,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer4";
       STATUS = ENABLED+IMAGE;
@@ -8312,8 +8312,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 63 199,
-                   BOTTOMRIGHT: 207 217,
+      SCREENRECT = UPPERLEFT: 63 198,
+                   BOTTOMRIGHT: 207 218,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer3";
       STATUS = ENABLED+IMAGE;
@@ -8553,8 +8553,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 63 175,
-                   BOTTOMRIGHT: 207 193,
+      SCREENRECT = UPPERLEFT: 63 174,
+                   BOTTOMRIGHT: 207 194,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer2";
       STATUS = ENABLED+IMAGE;
@@ -8794,8 +8794,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 63 151,
-                   BOTTOMRIGHT: 207 169,
+      SCREENRECT = UPPERLEFT: 63 150,
+                   BOTTOMRIGHT: 207 170,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer1";
       STATUS = ENABLED+IMAGE;
@@ -9035,8 +9035,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 63 127,
-                   BOTTOMRIGHT: 207 145,
+      SCREENRECT = UPPERLEFT: 63 126,
+                   BOTTOMRIGHT: 207 146,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer0";
       STATUS = ENABLED+IMAGE;

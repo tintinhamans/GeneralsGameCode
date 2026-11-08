@@ -1230,8 +1230,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 128 259,
-                   BOTTOMRIGHT: 396 277,
+      SCREENRECT = UPPERLEFT: 128 258,
+                   BOTTOMRIGHT: 396 278,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyLoginProfile.wnd:ComboBoxLoginName";
       STATUS = ENABLED+IMAGE;
@@ -1471,8 +1471,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 128 196,
-                   BOTTOMRIGHT: 396 214,
+      SCREENRECT = UPPERLEFT: 128 195,
+                   BOTTOMRIGHT: 396 215,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyLoginProfile.wnd:ComboBoxEmail";
       STATUS = ENABLED+IMAGE;
