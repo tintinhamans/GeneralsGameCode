@@ -5,6 +5,7 @@ Usage:
 """
 
 import colorsys
+import re
 import struct
 import sys
 import tempfile
@@ -186,6 +187,40 @@ class LogoTest(unittest.TestCase):
         self.assertEqual(Path(themes.LOGO_INI).parent.as_posix(), "Data/INI/MappedImages/TextureSize_512")
         self.assertGreater(Path(themes.LOGO_INI).name.lower(), RETAIL_LOGO_INI.lower())
 
+    def test_both_logo_inis_keep_the_logo_aspect(self):
+        self.assertEqual(themes.KEEP_ASPECT, "KEEP_ASPECT")
+        radar = dict(mapped_images(themes.logo_ini_text())["GeneralsLogo"])
+        self.assertEqual(radar["Status"], themes.KEEP_ASPECT)
+        committed = dict(mapped_images((wl.DATA / themes.BASE_LOGO_INI).read_bytes().decode("ascii"))["GeneralsLogo"])
+        self.assertEqual(committed["Status"], themes.KEEP_ASPECT)
+
+    def test_base_logo_ini_is_the_retail_definition_but_its_status(self):
+        retail = {"Texture": "SCSmShellUserInterface512_001.tga", "TextureWidth": "512", "TextureHeight": "512",
+                  "Coords": "Left:1 Top:1 Right:371 Bottom:121", "Status": "NONE"}
+        out = themes.base_logo_ini_text(retail)
+        self.assertTrue(out.endswith("End\r\n"))
+        self.assertNotIn("\n", out.replace("\r\n", ""))
+        expected = [(k, themes.KEEP_ASPECT if k == "Status" else v) for k, v in retail.items()]
+        self.assertEqual(mapped_images(out), {"GeneralsLogo": expected})
+
+    def test_logo_inis_load_after_the_retail_file_and_the_radar_one_last(self):
+        base, radar = Path(themes.BASE_LOGO_INI), Path(themes.LOGO_INI)
+        self.assertEqual(base.parent.as_posix(), "Data/INI/MappedImages/TextureSize_512")
+        self.assertEqual(radar.parent, base.parent)
+        self.assertEqual(Path(themes.LOGO_RETAIL_INI), base.parent / RETAIL_LOGO_INI)
+        names = [RETAIL_LOGO_INI, base.name, radar.name]
+        self.assertEqual(sorted(names, key=str.lower), names)
+        self.assertTrue((wl.DATA / themes.BASE_LOGO_INI).is_file())
+        self.assertFalse((themes.THEME_DIR / themes.BASE_LOGO_INI).exists())
+
+    def test_keep_aspect_is_an_engine_image_status(self):
+        header = (wl.ROOT / "Core/GameEngine/Include/GameClient/Image.h").read_text("latin-1")
+        names = re.findall(r'"(\w+)"', re.search(r"imageStatusNames\[\]\s*=\s*\{(.*?)\};", header, re.S).group(1))
+        bit = int(re.search(r"IMAGE_STATUS_KEEP_ASPECT\s*=\s*(0x[0-9A-Fa-f]+)", header).group(1), 16)
+        # INI::parseBitString32 sets bit 1 << (index of the name)
+        self.assertEqual(1 << names.index(themes.KEEP_ASPECT), bit)
+        self.assertEqual(names[:2], ["ROTATED_90_CLOCKWISE", "RAW_TEXTURE"])
+
     def test_logo_texture_is_a_32_bit_power_of_two_tga_inside_the_logo_rect(self):
         width, height, bits, rows = read_tga((themes.THEME_DIR / themes.LOGO_TGA).read_bytes())
         self.assertEqual(bits, 32)
@@ -278,6 +313,16 @@ class RulerTest(unittest.TestCase):
         self.assertEqual(self.theme[:2], self.retail[:2])
         self.assertEqual([[t[3] for t in row] for row in self.theme[2]], [[t[3] for t in row] for row in self.retail[2]])
         self.assertEqual(struct.unpack("<B", (themes.THEME_DIR / themes.RULER_TGA).read_bytes()[16:17]), (32,))
+
+    def test_base_logo_ini_matches_the_retail_logo_but_its_status(self):
+        retail = mapped_images(themes.read_big_entry(themes.RETAIL_DIR / themes.RETAIL_INI_BIG,
+                                                     themes.LOGO_RETAIL_INI).decode("latin-1"))["GeneralsLogo"]
+        base = mapped_images((wl.DATA / themes.BASE_LOGO_INI).read_bytes().decode("ascii"))
+        self.assertEqual(list(base), ["GeneralsLogo"])
+        self.assertEqual([k for k, v in base["GeneralsLogo"]], [k for k, v in retail])
+        self.assertEqual([kv for kv in base["GeneralsLogo"] if kv[0] != "Status"], [kv for kv in retail if kv[0] != "Status"])
+        self.assertIn(("Texture", "SCSmShellUserInterface512_001.tga"), base["GeneralsLogo"])
+        self.assertIn(("Coords", "Left:1 Top:1 Right:371 Bottom:121"), base["GeneralsLogo"])
 
     def test_no_retail_blue_remains(self):
         def blue(rows):

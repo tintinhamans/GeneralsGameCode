@@ -39,6 +39,7 @@
 #include "GameClient/ControlBar.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/ControlBarScheme.h"
+#include "GameClient/GadgetListBox.h"
 #include "GameClient/MapUtil.h"
 #if defined(GENONLINE)
 #include "GameClient/MapPreviewIcons.h"
@@ -693,6 +694,42 @@ void W3DNoDraw( GameWindow *window, WinInstanceData *instData )
 }
 
 void drawSkinnyBorder( Int x, Int y, Int width, Int height);
+
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 The map preview frame follows its layout border colour at the kit line weight.
+// TRUE when the kit is loaded and the window has a visible, non black enabled border colour.
+static Bool getMapPreviewKitBorder( GameWindow *window, Color *border )
+{
+	if( window == nullptr || GadgetListBoxGetKitScrollLineWidth() <= 0 )
+		return FALSE;
+
+	Color color = window->winGetEnabledBorderColor( 0 );
+	if( color == WIN_COLOR_UNDEFINED )
+		return FALSE;
+
+	// retail layouts keep black here, so they keep the retail frame
+	UnsignedByte red, green, blue, alpha;
+	GameGetColorComponents( color, &red, &green, &blue, &alpha );
+	if( alpha == 0 || (red == 0 && green == 0 && blue == 0) )
+		return FALSE;
+
+	*border = color;
+	return TRUE;
+}
+
+// Frame the preview rect just outside its edges, in the kit colour or with the retail frame art.
+static void drawMapPreviewBorder( GameWindow *window, Int x, Int y, Int width, Int height )
+{
+	Color border;
+	if( getMapPreviewKitBorder( window, &border ) == FALSE )
+	{
+		drawSkinnyBorder( x - 1, y - 1, width + 2, height + 2 );
+		return;
+	}
+
+	Int thickness = GadgetListBoxGetKitScrollLineWidth();
+	GadgetListBoxDrawKitFrame( border, x - thickness, y - thickness, width + 2 * thickness, height + 2 * thickness );
+}
+
 void W3DDrawMapPreview( GameWindow *window, WinInstanceData *instData)
 {
 	MapMetaData *mmData = (MapMetaData *)window->winGetUserData();
@@ -702,8 +739,19 @@ void W3DDrawMapPreview( GameWindow *window, WinInstanceData *instData)
 	window->winGetSize(&width, &height);
 	if(!mmData)
 	{
-		W3DGameWinDefaultDraw( window, instData );
-		drawSkinnyBorder(pixelX - 1, pixelY - 1, width + 2, height + 2);
+		Color border;
+		if( BitIsSet( window->winGetStatus(), WIN_STATUS_IMAGE ) == FALSE && getMapPreviewKitBorder( window, &border ) )
+		{
+			// only the fill: the kit frame below replaces the window's own border
+			Color fill = window->winGetEnabledColor( 0 );
+			if( fill != WIN_COLOR_UNDEFINED )
+				TheWindowManager->winFillRect( fill, 1.0f, pixelX, pixelY, pixelX + width, pixelY + height );
+		}
+		else
+		{
+			W3DGameWinDefaultDraw( window, instData );
+		}
+		drawMapPreviewBorder( window, pixelX, pixelY, width, height );
 		return;
 	}
 
@@ -780,7 +828,7 @@ void W3DDrawMapPreview( GameWindow *window, WinInstanceData *instData)
 			TheDisplay->drawImage(typedImage, pixelX + typedIt->m_pos.x, pixelY + typedIt->m_pos.y, pixelX + typedIt->m_pos.x + typedSize, pixelY + typedIt->m_pos.y + typedSize);
 	}
 #endif
-	drawSkinnyBorder(pixelX - 1, pixelY - 1, width + 2, height + 2);
+	drawMapPreviewBorder( window, pixelX, pixelY, width, height );
 }
 
 void drawSkinnyBorder( Int x, Int y, Int width, Int height)
