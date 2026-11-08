@@ -1398,13 +1398,15 @@ FontCharsClass::Blit_Char (WCHAR ch, uint16 *dest_ptr, int dest_stride, int x, i
 		//	Setup the src and destination pointers
 		//
 		int dest_inc		= (dest_stride >> 1);
-		const uint8 *src_ptr = data->Buffer;
 
 		// TheSuperHackers @bugfix arcticdolphin 08/11/2026 The left overhang lands on the previous glyph and blends with it, but never left of the surface.
 		const int left_offset = data->LeftOffset;
 		const int first_col = max (left_offset - x, 0);
 		const int blend_cols = left_offset + PixelOverlap;
 		dest_ptr				+= (dest_inc * y) + x - left_offset + first_col;
+
+		// TheSuperHackers @bugfix arcticdolphin 08/11/2026 A glyph from the alternate Unicode font holds that font's rows, not ours; copy only those, on our baseline, and clear the rest.
+		const int src_shift = CharAscent - Get_Char_Font( ch )->CharAscent;
 
 		//
 		//	TheSuperHackers @bugfix The glyph holds as many rows as the font that stored it, which is the
@@ -1414,30 +1416,22 @@ FontCharsClass::Blit_Char (WCHAR ch, uint16 *dest_ptr, int dest_stride, int x, i
 		//
 		const int glyph_rows = min( Get_Char_Font( ch )->CharHeight, CharHeight );
 
-		int row;
-
 		//
 		//	Copy the data from the src buffer to the destination, rebuilding the A4R4G4B4 texel
 		//	from the stored coverage value the same way Store_GDI_Char used to compose it.
 		//
-		for ( row = 0; row < glyph_rows; row ++ ) {
+		for ( int row = 0; row < CharHeight; row ++ ) {
+			const int src_row = row - src_shift;
+			const bool has_src = (src_row >= 0 && src_row < glyph_rows);
+			const uint8 *src_line = data->Buffer + (has_src ? src_row * data->Width : 0);
 			for ( int col = first_col; col < data->Width; col ++ ) {
-				const uint8 coverage = src_ptr[col];
+				const uint8 coverage = has_src ? src_line[col] : 0;
 				uint16 curData = (coverage != 0 ? 0x0FFF : 0) | ((uint16)(coverage >> 4) << 12);
 				if (col<blend_cols) {
 					curData |= dest_ptr[col - first_col];
 				}
 				dest_ptr[col - first_col] = curData;
 			}
-			src_ptr	+= data->Width;
-			dest_ptr	+= dest_inc;
-		}
-
-		//
-		//	The remaining rows are empty.
-		//
-		for ( ; row < CharHeight; row ++ ) {
-			::memset( dest_ptr, 0, (data->Width - first_col) * sizeof( uint16 ) );
 			dest_ptr	+= dest_inc;
 		}
 	}

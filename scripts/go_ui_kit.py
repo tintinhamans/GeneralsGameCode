@@ -157,10 +157,10 @@ SCROLL_ARROWS = {
     "Pushed": (rgba("#2F4BFF", 0.40), GLYPH_ACTIVE),
     "Disabled": (TRANSPARENT, GLYPH_DISABLED),
 }
-SCROLL_HIGHLIGHT_INSET = 2.0  # cell units: clear of the separator and the list frame
-SCROLL_HIGHLIGHT_RADIUS = 2.0
+SCROLL_HIGHLIGHT_INSET = 3.0  # cell units: clear of the list frame
+SCROLL_HIGHLIGHT_RADIUS = 3.0
 # the kit scroll column is 14 layout px wide with a 6 px channel the pill fills (W3DVerticalSlider, GadgetListBox)
-SCROLL_ARROW_SIZE = 14  # the square arrow cell, drawn at its own layout size
+SCROLL_ARROW_SIZE = 21  # the square arrow cell on the combo arrow's 21 unit grid, so drawn at the button's width the chevrons match
 SCROLL_PILL_WIDTH = 6
 # pill and track pieces: twice the pill width so the semicircle ends stay smooth when drawn larger (4K draws them 22 px wide);
 # the engine draws each end as tall as half the drawn width, so they stay true semicircles

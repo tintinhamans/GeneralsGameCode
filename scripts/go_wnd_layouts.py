@@ -47,7 +47,7 @@ scripts/wnd_sources copy, if any, is only kept for reference. All rects are in 8
   it about its centre (an odd difference rounds the top down), and so does every combo box or entry field of
   that font with the same parent, top and bottom, so a row keeps one height. Buttons, lists, sliders and labels stay;
   the drop-down button, edit box and list derive from the combo rect in the engine, which centres the text in
-  kit entries so 18 units clear the frame. Menus only, YAML-built layouts included.
+  kit entries so short boxes clear the frame. Menus only, YAML-built layouts included.
 - Map previews: a window drawn by W3DDrawMapPreview gets the kit line colour as its first enabled border
   colour, which the engine draws as a kit frame around the preview (menus and load screens alike).
 - Button groups: a colour drawn USER window with a clear fill whose children are push buttons (and NOINPUT
@@ -119,7 +119,7 @@ MIN_GAP = 2                # stacked or side by side bordered controls keep at l
 MIN_HEIGHT = 18            # a stack gap never shrinks a control below this height
 # closed menu combo box height; the edit box draws its text 5 units below its top (W3DTextEntry), so below 22 the
 # descenders of the 10 pt GO font reach the bottom line up to 1600x900 (18 fits once that text is centred)
-COMBO_HEIGHT = 18
+COMBO_HEIGHT = 20
 COMBO_FONT = 10            # combos with a larger font keep their height
 COLUMN_REACH = 8           # neighbouring columns of one row are at most this far apart
 DEFAULT_COLUMN_GAP = 4     # column gap when every gap of a row differs

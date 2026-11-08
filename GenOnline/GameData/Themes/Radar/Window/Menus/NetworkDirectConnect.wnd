@@ -585,8 +585,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 166 330,
-                   BOTTOMRIGHT: 389 348,
+      SCREENRECT = UPPERLEFT: 166 329,
+                   BOTTOMRIGHT: 389 349,
                    CREATIONRESOLUTION: 800 600;
       NAME = "NetworkDirectConnect.wnd:ComboboxRemoteIP";
       STATUS = ENABLED+IMAGE;
