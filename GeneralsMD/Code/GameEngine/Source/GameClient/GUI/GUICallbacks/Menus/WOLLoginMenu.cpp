@@ -54,6 +54,7 @@ void GenOnline_WOLLoginMenu_LoginCallback(ELoginResult loginResult);
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetComboBox.h"
 #include "GameClient/GadgetCheckBox.h"
+#include "GameClient/GadgetPushButton.h"
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/GadgetTextEntry.h"
 #include "GameClient/MessageBox.h"
@@ -412,6 +413,102 @@ static GameWindow *textEntryMonth =				NULL;
 static GameWindow *textEntryDay =				NULL;
 static GameWindow *textEntryYear =				NULL;
 
+// TheSuperHackers @feature arcticdolphin 08/11/2026 GO sign-in screen; a layout without these windows falls back to the message box login.
+static const Int SIGN_IN_PROVIDER_COUNT = 3;
+static const char *const signInProviderNames[SIGN_IN_PROVIDER_COUNT] = {
+	"GameSpyLoginProfile.wnd:ButtonProviderDiscord",
+	"GameSpyLoginProfile.wnd:ButtonProviderSteam",
+	"GameSpyLoginProfile.wnd:ButtonProviderGameReplays",
+};
+static const ELoginProvider signInProviders[SIGN_IN_PROVIDER_COUNT] = { ELoginProvider::Discord, ELoginProvider::Steam, ELoginProvider::GameReplays };
+static Bool signInScreen = FALSE;
+static GameWindow *staticTextSignInStatus =		NULL;
+static GameWindow *staticTextSignInCode =			NULL;
+static GameWindow *buttonUseAnotherAccount =	NULL;
+static GameWindow *buttonSignInCancel =				NULL;
+static GameWindow *buttonSignInProviders[SIGN_IN_PROVIDER_COUNT] = { NULL, NULL, NULL };
+static ELoginStage shownSignInStage = ELoginStage::None;
+
+static void showSignInState( ELoginStage stage )
+{
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	if (pAuthInterface == nullptr)
+		return;
+
+	UnicodeString status;
+	if (stage == ELoginStage::Failed)
+		status = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInFailed", L"Login failed.");
+	else if (stage == ELoginStage::RequestingCode || stage == ELoginStage::WaitingForProvider)
+		status = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInChoose", L"Choose how to sign in");
+	else if (stage == ELoginStage::WaitingForBrowser)
+		status = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInContinueInBrowser", L"Continue in your web browser");
+	else if (pAuthInterface->HasDisplayName())
+		status = TheGameText->FETCH_OR_SUBSTITUTE_FORMAT("GUI:GOSignInSigningInAs", L"Signing in as %ls...", pAuthInterface->GetDisplayNameW().c_str());
+	else
+		status = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInSigningIn", L"Signing in...");
+	GadgetStaticTextSetText(staticTextSignInStatus, status);
+
+	const Bool codeKnown = (stage == ELoginStage::WaitingForProvider || stage == ELoginStage::WaitingForBrowser) && !pAuthInterface->GetLoginCode().empty();
+	const Bool choosing = codeKnown || stage == ELoginStage::RequestingCode;
+	if (codeKnown)
+	{
+		std::wstring code = from_utf8(pAuthInterface->GetLoginCode());
+		std::wstring link = from_utf8(pAuthInterface->GetLoginPageURL());
+		GadgetStaticTextSetText(staticTextSignInCode, TheGameText->FETCH_OR_SUBSTITUTE_FORMAT("GUI:GOSignInCode",
+			L"Your sign-in code is %ls\nTo sign in on another device, open %ls", code.c_str(), link.c_str()));
+	}
+	staticTextSignInCode->winHide(!codeKnown);
+
+	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
+	{
+		buttonSignInProviders[i]->winHide(!choosing);
+		buttonSignInProviders[i]->winEnable(codeKnown);
+	}
+	buttonUseAnotherAccount->winHide(stage != ELoginStage::SavedLogin);
+	buttonSignInCancel->winHide(stage == ELoginStage::Finishing || stage == ELoginStage::Failed);
+}
+
+static void updateSignInScreen( Bool force )
+{
+	if (!signInScreen || buttonPushed)
+		return;
+
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	if (pAuthInterface == nullptr)
+		return;
+
+	const ELoginStage stage = pAuthInterface->GetLoginStage();
+	if (force || stage != shownSignInStage)
+	{
+		shownSignInStage = stage;
+		showSignInState(stage);
+	}
+}
+
+static Bool findSignInScreen()
+{
+	staticTextSignInStatus = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("GameSpyLoginProfile.wnd:StaticTextSignInStatus") );
+	staticTextSignInCode = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("GameSpyLoginProfile.wnd:StaticTextSignInCode") );
+	buttonUseAnotherAccount = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("GameSpyLoginProfile.wnd:ButtonUseAnotherAccount") );
+	buttonSignInCancel = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("GameSpyLoginProfile.wnd:ButtonCancel") );
+	Bool found = staticTextSignInStatus && staticTextSignInCode && buttonUseAnotherAccount && buttonSignInCancel;
+	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
+	{
+		buttonSignInProviders[i] = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY(signInProviderNames[i]) );
+		found = found && buttonSignInProviders[i] != NULL;
+	}
+	if (!found)
+		return FALSE;
+
+	GadgetButtonSetText(buttonSignInProviders[0], TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInProviderDiscord", L"Discord"));
+	GadgetButtonSetText(buttonSignInProviders[1], TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInProviderSteam", L"Steam"));
+	GadgetButtonSetText(buttonSignInProviders[2], TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInProviderGameReplays", L"GameReplays"));
+	GadgetButtonSetText(buttonUseAnotherAccount, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInUseAnotherAccount", L"Use another account"));
+	GadgetButtonSetText(buttonSignInCancel, TheGameText->FETCH_OR_SUBSTITUTE("GUI:Cancel", L"Cancel"));
+	GadgetStaticTextSetText(staticTextSignInStatus, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInSigningIn", L"Signing in..."));
+	return TRUE;
+}
+
 void EnableLoginControls( Bool state )
 {
 	if (buttonLogin)
@@ -452,10 +549,15 @@ void WOLLoginMenuInit( WindowLayout *layout, void *userData )
 	buttonPushed = false;
 	isShuttingDown = false;
 	loginAttemptTime = 0;
+	signInScreen = findSignInScreen();
+	shownSignInStage = ELoginStage::None;
 
 	// NGMP
 	ClearGSMessageBoxes();
-	GSMessageBoxNoButtons(UnicodeString(L"Logging In"), UnicodeString(L"Please wait..."), true);
+	if (!signInScreen)
+	{
+		GSMessageBoxNoButtons(UnicodeString(L"Logging In"), UnicodeString(L"Please wait..."), true);
+	}
 
 	// NGMP: Register for login callback
 	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
@@ -466,7 +568,9 @@ void WOLLoginMenuInit( WindowLayout *layout, void *userData )
 
 	// Now we can begin login
 	pAuthInterface->RegisterForLoginCallback(GenOnline_WOLLoginMenu_LoginCallback);
+	pAuthInterface->SetSignInScreen(signInScreen);
 	pAuthInterface->BeginLogin();
+	updateSignInScreen(TRUE);
 
 
 	/*
@@ -529,7 +633,7 @@ void WOLLoginMenuInit( WindowLayout *layout, void *userData )
 	EnableLoginControls(TRUE);
 
 	// Show Menu
-	layout->hide( TRUE );
+	layout->hide( !signInScreen );
 
 	// Set Keyboard to Main Parent
 
@@ -555,7 +659,9 @@ void WOLLoginMenuShutdown( WindowLayout *layout, void *userData )
 	if (pAuthInterface != nullptr)
 	{
 		pAuthInterface->DeregisterForLoginCallback();
+		pAuthInterface->SetSignInScreen(false);
 	}
+	signInScreen = FALSE;
 
 
 	isShuttingDown = true;
@@ -655,6 +761,7 @@ void GenOnline_WOLLoginMenu_LoginCallback(ELoginResult loginResult)
 		{
 			if (loginResult == ELoginResult::Failed)
 			{
+				updateSignInScreen(FALSE);
                 GSMessageBoxOk(UnicodeString(L"Logging In"), UnicodeString(L"Login failed."), []()
                     {
                         TheShell->pop();
@@ -681,6 +788,9 @@ void WOLLoginMenuUpdate( WindowLayout * layout, void *userData)
 	// We'll only be successful if we've requested to
 	if(isShuttingDown && TheShell->isAnimFinished() && TheTransitionHandler->isFinished())
 		shutdownComplete(layout);
+
+	if (!isShuttingDown)
+		updateSignInScreen(FALSE);
 
 	/*
 	if (TheShell->isAnimFinished() && !buttonPushed && TheGameSpyPeerMessageQueue)
@@ -806,8 +916,17 @@ WindowMsgHandledType WOLLoginMenuInput( GameWindow *window, UnsignedInt msg,
 					//
 					if( BitIsSet( state, KEY_STATE_UP ) )
 					{
-						TheWindowManager->winSendSystemMsg( window, GBM_SELECTED,
-																							(WindowMsgData)buttonBack, buttonBackID );
+						// TheSuperHackers @feature arcticdolphin 08/11/2026 Escape cancels the GO sign-in like its Cancel button.
+						if (signInScreen)
+						{
+							if (!buttonSignInCancel->winIsHidden())
+								TheWindowManager->winSendSystemMsg( window, GBM_SELECTED, (WindowMsgData)buttonSignInCancel, buttonSignInCancel->winGetWindowId() );
+						}
+						else
+						{
+							TheWindowManager->winSendSystemMsg( window, GBM_SELECTED,
+																								(WindowMsgData)buttonBack, buttonBackID );
+						}
 
 					}
 
@@ -1083,6 +1202,39 @@ WindowMsgHandledType WOLLoginMenuSystem( GameWindow *window, UnsignedInt msg,
 					break;
 				GameWindow *control = (GameWindow *)mData1;
 				Int controlID = control->winGetWindowId();
+
+				// TheSuperHackers @feature arcticdolphin 08/11/2026 GO sign-in screen buttons.
+				if (signInScreen)
+				{
+					GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+					if (pAuthInterface == nullptr)
+						break;
+
+					if (control == buttonSignInCancel)
+					{
+						buttonPushed = true;
+						pAuthInterface->CancelLogin();
+						break;
+					}
+					if (control == buttonUseAnotherAccount)
+					{
+						pAuthInterface->UseAnotherAccount();
+						updateSignInScreen(FALSE);
+						break;
+					}
+					Int provider = -1;
+					for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
+					{
+						if (control == buttonSignInProviders[i])
+							provider = i;
+					}
+					if (provider >= 0)
+					{
+						pAuthInterface->OpenProviderLogin(signInProviders[provider]);
+						updateSignInScreen(FALSE);
+						break;
+					}
+				}
 
 				// If we back out, just bail - we haven't gotten far enough to need to log out
 				if ( controlID == buttonBackID )

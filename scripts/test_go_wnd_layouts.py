@@ -1282,10 +1282,88 @@ class ShippedLoginLayoutTest(unittest.TestCase):
                 for name in LOGIN_SHOWN[menu]:
                     self.assertFalse(hidden[name], f"{path} {name}")
                 controls = [w for w in root.walk() if w.kind in ("PUSHBUTTON", "CHECKBOX", "ENTRYFIELD", "COMBOBOX",
-                                                                  "SCROLLLISTBOX", "RADIOBUTTON")]
+                                                                  "SCROLLLISTBOX", "RADIOBUTTON")
+                            and _short(w) not in SIGN_IN_WINDOWS.get(menu, {})]
                 self.assertTrue(controls and all(_hidden(w) for w in controls), path)
                 titles = [w for w in root.walk() if wl._is_title(w) and not _hidden(w)]
                 self.assertEqual(len(titles), 1, path)
+
+
+SIGN_IN_PROVIDERS = ("ButtonProviderDiscord", "ButtonProviderSteam", "ButtonProviderGameReplays")
+# GO sign-in screen windows on the login profile layout, looked up by WOLLoginMenu.cpp: {short NAME: hidden by default}
+SIGN_IN_WINDOWS = {"GameSpyLoginProfile": {
+    "StaticTextTitle": False, "StaticTextSignInStatus": False, "StaticTextSignInCode": True,
+    **dict.fromkeys(SIGN_IN_PROVIDERS, False), "ButtonUseAnotherAccount": False, "ButtonCancel": False}}
+
+
+def login_profile(base=wl.DATA):
+    """(root, {short NAME: window}) of the shipped GameSpyLoginProfile layout under base."""
+    root = wl.parse_windows((base / "Window/Menus/GameSpyLoginProfile.wnd").read_bytes().decode("latin-1"))
+    return root, {_short(w): w for w in root.walk() if w.name}
+
+
+class ShippedSignInScreenTest(unittest.TestCase):
+    def bases(self):
+        import go_themes
+        return (wl.DATA, go_themes.THEME_DIR)
+
+    def test_sign_in_windows_exist_with_their_default_visibility(self):
+        for base in self.bases():
+            _, wins = login_profile(base)
+            for name, hidden in SIGN_IN_WINDOWS["GameSpyLoginProfile"].items():
+                self.assertIn(name, wins, base)
+                self.assertEqual(_hidden(wins[name]), hidden, f"{base} {name}")
+
+    def test_kinds_and_kit_templates(self):
+        _, wins = login_profile()
+        for name in (*SIGN_IN_PROVIDERS, "ButtonUseAnotherAccount", "ButtonCancel"):
+            self.assertEqual((wins[name].kind, wins[name].header), ("PUSHBUTTON", "GOMainButton"), name)
+        self.assertEqual((wins["StaticTextSignInStatus"].kind, wins["StaticTextSignInStatus"].header),
+                         ("STATICTEXT", "GOMinorTitle"))
+        self.assertEqual((wins["StaticTextSignInCode"].kind, wins["StaticTextSignInCode"].header),
+                         ("STATICTEXT", "GOLabelRegular"))
+
+    def test_sign_in_windows_sit_inside_the_ruler_frame_and_their_parent(self):
+        for base in self.bases():
+            _, wins = login_profile(base)
+            self.assertEqual(wins["GadgetParent"].rect, wl.RULER_BOX, base)
+            for name in SIGN_IN_WINDOWS["GameSpyLoginProfile"]:
+                win = wins[name]
+                self.assertTrue(wl._within(win.rect, wl.RULER_BOX, 0), f"{base} {name} {win.rect}")
+                self.assertTrue(wl._within(win.rect, win.parent.rect, 0), f"{base} {name} {win.rect} {win.parent.rect}")
+
+    def test_provider_row_lines_up_with_room_for_a_fourth_button(self):
+        _, wins = login_profile()
+        status = wins["StaticTextSignInStatus"].rect
+        row = [wins[name].rect for name in SIGN_IN_PROVIDERS]
+        self.assertEqual(row[0][0], status[0])
+        self.assertEqual({r[1::2] for r in row}, {row[0][1::2]})
+        self.assertEqual({r[2] - r[0] for r in row}, {row[0][2] - row[0][0]})
+        gaps = {b[0] - a[2] for a, b in zip(row, row[1:])}
+        self.assertEqual(len(gaps), 1)
+        gap, width = gaps.pop(), row[0][2] - row[0][0]
+        self.assertGreaterEqual(gap, wl.MIN_GAP)
+        self.assertLessEqual(row[-1][2] + gap + width, status[2])
+
+    def test_rows_stack_title_status_providers_code_and_buttons(self):
+        _, wins = login_profile()
+        title, status = wins["StaticTextTitle"].rect, wins["StaticTextSignInStatus"].rect
+        provider, code = wins["ButtonProviderDiscord"].rect, wins["StaticTextSignInCode"].rect
+        other, cancel = wins["ButtonUseAnotherAccount"].rect, wins["ButtonCancel"].rect
+        self.assertLessEqual(title[3], status[1])
+        self.assertLess(status[3], provider[1])
+        self.assertLess(provider[3], code[1])
+        self.assertLess(code[3], other[1])
+        self.assertEqual(other[1::2], cancel[1::2])
+        self.assertEqual((code[0], code[2]), (status[0], status[2]))
+        self.assertEqual((other[0], cancel[2]), (status[0], status[2]))
+
+    def test_radar_copy_matches_the_geometry_and_visibility(self):
+        import go_themes
+        base, _ = login_profile()
+        theme, _ = login_profile(go_themes.THEME_DIR)
+        shape = [(w.name, w.kind, w.rect, w.status, w.header) for w in base.walk()]
+        self.assertEqual([(w.name, w.kind, w.rect, w.status, w.header) for w in theme.walk()], shape)
 
 
 class ShippedLayoutTest(unittest.TestCase):

@@ -33,9 +33,19 @@ HEADINGS = {
     },
 }
 
-# GO signs in behind a message box on the GameSpy login screen; only the backdrop, the frame and the title show there
+# GO signs in on the GameSpy login screen; only the backdrop, the frame, the title and the GO sign-in panel show there
 BLANK_LAYOUTS = {
-    "Window/Menus/GameSpyLoginProfile.wnd": ("GameSpyLoginProfile.wnd:Line",),
+    "Window/Menus/GameSpyLoginProfile.wnd": (
+        "GameSpyLoginProfile.wnd:Line",
+        # the GO sign-in panel (scripts/wnd_sources); WOLLoginMenu.cpp shows the windows of each sign-in state
+        "GameSpyLoginProfile.wnd:StaticTextSignInStatus",
+        "GameSpyLoginProfile.wnd:StaticTextSignInCode",
+        "GameSpyLoginProfile.wnd:ButtonProviderDiscord",
+        "GameSpyLoginProfile.wnd:ButtonProviderSteam",
+        "GameSpyLoginProfile.wnd:ButtonProviderGameReplays",
+        "GameSpyLoginProfile.wnd:ButtonUseAnotherAccount",
+        "GameSpyLoginProfile.wnd:ButtonCancel",
+    ),
     "Window/Menus/GameSpyLoginQuick.wnd": ("GameSpyLoginQuick.wnd:MainMenuBackground",),
 }
 
