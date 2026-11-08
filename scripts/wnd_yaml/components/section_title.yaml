@@ -1,0 +1,11 @@
+# The title of a section panel, in the panel's header band.
+extends: statictext
+params:
+  font: "Arial"
+  font_size: 12
+  header: "GOButton"
+  fill: "0 0 0 0"
+  border: "0 0 0 0"
+  spare: "255 255 255 255"
+status: [ENABLED, WRAP_CENTERED]
+place: {left: text_inset, h: header_h}

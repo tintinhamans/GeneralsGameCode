@@ -1,0 +1,5 @@
+# The dimmed full screen layer behind a popup menu.
+extends: user
+params:
+  fill: "2 2 2 126"
+  border: "2 2 2 0"

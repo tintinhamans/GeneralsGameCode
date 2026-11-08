@@ -697,6 +697,23 @@ class HiliteImageTest(unittest.TestCase):
         self.assertEqual(wl.transform(out, name=MENU), out)
 
 
+class YamlSourceTest(unittest.TestCase):
+    def test_build_uses_the_compiled_yaml_layout_as_final_output(self):
+        import wnd_yaml
+        options = "Window/Menus/OptionsMenu.wnd"
+        other = "Window/Menus/Other.wnd"
+        retail = {options.replace("Options", "options"): b"FILE_VERSION = 2;\r\n",
+                  other: layout(window("STATICTEXT", (100, 100, 300, 130))).encode("latin-1")}
+        with mock.patch.object(wl, "read_big", return_value=retail):
+            results = {name: (text, out, info) for name, text, out, info in wl.build(Path("unused.big"))}
+        expected = wnd_yaml.compile_file(wnd_yaml.sources()[options])
+        names = {name.lower(): name for name in results}
+        text, out, info = results[names[options.lower()]]
+        self.assertEqual(out, expected)
+        self.assertEqual(info["changes"], [])
+        self.assertEqual(results[other][1], wl.transform(retail[other].decode("latin-1"), name=other))
+
+
 class ShippedLayoutTest(unittest.TestCase):
     def test_custom_lobby_refresh_button_sits_inside_its_parent(self):
         # a child outside its parent draws but never gets clicks

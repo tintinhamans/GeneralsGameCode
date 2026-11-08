@@ -1,0 +1,4 @@
+# A left aligned text label above or beside a control; with w: fill it reaches a text inset from the
+# right edge of its cell.
+extends: statictext
+place: {left: text_inset, right: text_inset, w: label_w, h: label_h}

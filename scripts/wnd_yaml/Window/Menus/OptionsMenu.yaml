@@ -1,0 +1,366 @@
+# The Options menu: display, audio, control and network options, compiled by scripts/wnd_yaml.py.
+# Window names, types, status, callbacks, text and the file order of every window match the layout GO shipped
+# before this source existed (scripts/wnd_sources/Window/Menus/OptionsMenu.wnd plus the generator rules), so
+# OptionsMenu.cpp, the GO network options code and mods keep finding the same windows.
+
+layout_block: {init: OptionsMenuInit, update: OptionsMenuUpdate, shutdown: OptionsMenuShutdown}
+
+tokens:
+  frame_inset: 12     # frame edge to its content
+  frame_header: 32    # band above the frame line holding the screen title
+  body_top: 11        # frame line to the first panel: a frame inset below the header band, less the 1 unit line
+  section_gap: 10     # between section panels and above the button row
+  column_gap: 4       # between the left and right column
+  right_column: 184   # audio column and right grid column; the left column takes the rest
+  header_h: 24        # section title band above a panel's line
+  text_inset: 5       # labels and titles from the edge of their cell
+  control_inset: 12   # controls from the edge of their cell
+  label_w: 144
+  label_h: 20
+  control_h: 24
+  slider_h: 12
+  field_gap: 4        # between label + control fields
+  field_h: 44         # a label row and a control row; a slider sits at the top of its control row
+  panel_pad: 5        # last control to the bottom of its panel
+  button_w: 122
+  button_h: 32
+  tab_w: 72
+  tab_h: 16
+
+components:
+  # the Display and Audio panels and several labels and check boxes came from the retail layout and keep the
+  # retail editor's values for colours they never draw (alpha 0 fills, white unused draw slots)
+  retail_panel:
+    extends: panel
+    params: {fill: "0 0 0 255", spare: "255 255 255 255"}
+  retail_label:
+    extends: label
+    params: {fill: "0 0 0 0", border: "0 0 0 0", spare: "255 255 255 255"}
+  retail_checkbox:
+    extends: checkbox
+    params: {hilite_text_color: "168 255 12 255"}
+  retail_minor_title:
+    extends: minor_title
+    params: {fill: "0 0 0 0", border: "0 0 0 0", spare: "255 255 255 255"}
+    status: [ENABLED, WRAP_CENTERED]
+  # sliders draw no text; these two were saved with an all zero text colour
+  silent_slider:
+    extends: slider
+    params:
+      text_color: "0 0 0 0"
+      text_outline: "0 0 0 0"
+      disabled_text_color: "0 0 0 0"
+      disabled_text_outline: "0 0 0 0"
+      hilite_text_color: "0 0 0 0"
+      hilite_text_outline: "0 0 0 0"
+  # the retail advanced display dialog and its boxes
+  dialog:
+    extends: user
+    params: {border: "47 75 255 255"}
+    callbacks: {system: PassMessagesToParentSystem}
+  toggle:
+    extends: retail_checkbox
+    place: {left: 0, right: 0, h: control_h}
+
+windows:
+  - component: backdrop
+    id: backdrop
+    rect: [0, 0, 799, 599]
+    callbacks: {system: OptionsMenuSystem, input: OptionsMenuInput}
+    children:
+      - component: user
+        name: OptionsMenuParent
+        rect: [120, 12, 661, 597]
+        status: [ENABLED, NOFOCUS, SEE_THRU]
+        callbacks: {system: OptionsMenuSystem, input: OptionsMenuInput}
+        children:
+          - component: frame
+            name: OptionsMenuParentOld
+            rect: [200, 45, 599, 556]
+            # file order is draw order: the lines and the two audio sliders below are emitted after the panels
+            # they lie on, so they draw on top and the sliders get the clicks
+            order: [RadioMedium, RadioHigh, RadioLow, ButtonBack, ButtonAccept, ButtonDefaults, NetworkParent,
+                    mouse_type_label, VideoParent, ScrollParent, CheckLanguageFilter, AudioParent, SliderMusicVolume,
+                    SliderSFXVolume, ButtonKeyboardOptions, CheckBoxSaveCamera, CheckBoxUseCamera, CheckBoxDrawAnchor,
+                    CheckBoxMoveAnchor, Line, options_title, Line2, Line3, Line4, Line1, WinAdvancedDisplayOptions]
+            column:
+              items:
+                - row:
+                    h: frame_header
+                    pad: [2, 0, 0, frame_inset]
+                    items:
+                      - {component: title, id: options_title, text: "GUI:Options", left: text_inset, w: 264}
+                - {component: line, name: Line}
+                - column:
+                    pad: [body_top, frame_inset, frame_inset, frame_inset]
+                    gap: section_gap
+                    items:
+                      - row:
+                          gap: column_gap
+                          items:
+                            - component: retail_panel
+                              name: VideoParent
+                              order: [SliderGamma, GammaLabel, ComboBoxAntiAliasing, anti_aliasing_label, ComboBoxDetail,
+                                      DetailLabel, ComboBoxResolution, ResolutionLabel, display_title]
+                              column:
+                                pad: [0, 0, panel_pad, 0]
+                                items:
+                                  - {component: section_title, id: display_title, text: "GUI:DisplayOptions", w: 151}
+                                  - {component: line, name: Line1, child_of: OptionsMenuParentOld}
+                                  - column:
+                                      gap: field_gap
+                                      items:
+                                        - column:
+                                            items:
+                                              - {component: retail_label, name: ResolutionLabel, text: "GUI:Resolution"}
+                                              - component: combo
+                                                name: ComboBoxResolution
+                                                # the resolution list keeps the retail list box item images
+                                                params:
+                                                  image: BlackSquare
+                                                  item_left: ListBoxHiliteItemLeftEnd
+                                                  item_color: "255 255 0 255"
+                                                  item_right: ListBoxHiliteItemRightEnd
+                                                  item_center: ListBoxHiliteItemRepeatingCenter
+                                                  item_small_center: ListBoxHiliteItemSmallRepeatingCenter
+                                        - column:
+                                            items:
+                                              - {component: retail_label, name: DetailLabel, text: "GUI:Detail"}
+                                              - {component: combo, name: ComboBoxDetail}
+                                        - column:
+                                            items:
+                                              # wider than a label: the brightness text is long in some languages
+                                              - {component: retail_label, name: GammaLabel, text: "GUI:GammaAdjustment", w: 176}
+                                              - {component: slider, name: SliderGamma, tooltip: "TOOLTIP:Brightness"}
+                              hidden_windows:
+                                - {component: combo, name: ComboBoxAntiAliasing, rect: [199, 230, 339, 258]}
+                                - component: minor_title
+                                  id: anti_aliasing_label
+                                  rect: [179, 201, 343, 229]
+                                  text: "GUI:AntiAliasing"
+                                  params: {fill: "0 0 0 0", text_color: "254 254 254 255", centered: 1}
+                            - component: retail_panel
+                              name: AudioParent
+                              w: right_column
+                              order: [SliderVoiceVolume, VoiceVolumeLabel, MusicVolumeLabel, SFXVolumeLabel, audio_title]
+                              column:
+                                pad: [0, 0, panel_pad, 0]
+                                items:
+                                  - {component: section_title, id: audio_title, text: "GUI:AudioOptions", w: 155}
+                                  - {component: line, name: Line2, child_of: OptionsMenuParentOld}
+                                  - column:
+                                      gap: field_gap
+                                      items:
+                                        - column:
+                                            h: field_h
+                                            items:
+                                              - {component: retail_label, name: MusicVolumeLabel, text: "GUI:MusicVolume",
+                                                 tooltip: "GUI:MusicVolume", w: fill}
+                                              # the music and effects sliders are children of the frame in the
+                                              # retail layout; the code finds them by name either way
+                                              - {component: silent_slider, name: SliderMusicVolume, tooltip: "GUI:MusicVolume",
+                                                 child_of: OptionsMenuParentOld}
+                                        - column:
+                                            h: field_h
+                                            items:
+                                              - {component: retail_label, name: SFXVolumeLabel, text: "GUI:SFXVolume",
+                                                 tooltip: "GUI:SFXVolume", w: fill}
+                                              - {component: slider, name: SliderSFXVolume, tooltip: "GUI:SFXVolume",
+                                                 child_of: OptionsMenuParentOld}
+                                        - column:
+                                            items:
+                                              - {component: label, name: VoiceVolumeLabel, text: "GUI:VoiceVolume",
+                                                 tooltip: "GUI:VoiceVolume", w: fill}
+                                              - {component: slider, name: SliderVoiceVolume, tooltip: "GUI:VoiceVolume"}
+                      - component: panel
+                        name: ScrollParent
+                        order: [control_title, CheckAlternateMouse, ScrollSpeedLabel, SliderScrollSpeed,
+                                CheckDoubleClickAttackMove, Retaliation]
+                        column:
+                          pad: [0, 0, panel_pad, 0]
+                          items:
+                            - {component: section_title, id: control_title, text: "GUI:ControlOptions", status: [ENABLED]}
+                            - {component: line, name: Line3, child_of: OptionsMenuParentOld}
+                            - grid:
+                                columns: [fill, right_column]
+                                col_gap: column_gap
+                                items:
+                                  - {component: checkbox, name: CheckAlternateMouse, text: "GUI:AlternateMouse",
+                                     tooltip: "TOOLTIP:AlternateMouse"}
+                                  - {component: checkbox, name: CheckDoubleClickAttackMove, text: "GUI:DoubleClickAttackMove",
+                                     tooltip: "TOOLTIP:DoubleClickAttackMove"}
+                                  - {component: checkbox, name: Retaliation, text: "GUI:RetaliationTitle",
+                                     tooltip: "GUI:Retaliation"}
+                                  - ~
+                                  - {component: retail_label, name: ScrollSpeedLabel, text: "GUI:ScrollSpeed", w: 360, span: 2}
+                                  - {component: silent_slider, name: SliderScrollSpeed, tooltip: "ToolTip:ScrollSpeed",
+                                     params: {min: 10, max: 300}, span: 2}
+                      - component: panel
+                        name: NetworkParent
+                        status: [ENABLED, NOFOCUS]
+                        column:
+                          items:
+                            - row:
+                                h: header_h
+                                pad: [0, control_inset, 0, 0]
+                                gap: column_gap
+                                items:
+                                  - {component: section_title, id: network_title, text: "GUI:NetworkOptions"}
+                                  # the GO network options code fills in the tab text
+                                  - {component: tab_button, name: ButtonTabOnline}
+                                  - {component: tab_button, name: ButtonTabLan}
+                            - {component: line, name: Line4, child_of: OptionsMenuParentOld}
+                            # the tabs show one page at a time
+                            - overlay:
+                                items:
+                                  - component: group
+                                    name: PanelOnline
+                                    order: [StaticTextProxyMode, StaticTextProxyAddress, TextEntryProxyAddress, StaticTextServer,
+                                            StaticTextServerAddress, TextEntryServerAddress, ComboBoxServer, ComboBoxProxyMode]
+                                    grid:
+                                      columns: [fill, right_column]
+                                      col_gap: column_gap
+                                      row_gap: field_gap
+                                      pad: [0, 0, 8, 0]   # the network panel ends 8 under its last field, as shipped
+                                      items:
+                                        - column:
+                                            items:
+                                              - {component: label, name: StaticTextProxyMode}
+                                              - {component: combo, name: ComboBoxProxyMode}
+                                        - column:
+                                            items:
+                                              - {component: label, name: StaticTextProxyAddress}
+                                              - {component: text_entry, name: TextEntryProxyAddress}
+                                        - column:
+                                            items:
+                                              - {component: label, name: StaticTextServer}
+                                              - {component: combo, name: ComboBoxServer}
+                                        - column:
+                                            items:
+                                              - {component: label, name: StaticTextServerAddress}
+                                              - {component: text_entry, name: TextEntryServerAddress}
+                                  - component: group
+                                    name: PanelLan
+                                    grid:
+                                      columns: [fill, right_column]
+                                      col_gap: column_gap
+                                      items:
+                                        - column:
+                                            items:
+                                              - {component: label, name: StaticTextLANIpAddresses}
+                                              - {component: combo, name: ComboBoxIP}
+                      - row:
+                          gap: column_gap
+                          items:
+                            - {component: button, name: ButtonDefaults, text: "GUI:Defaults", tooltip: "TOOLTIP:OptionsDefaults",
+                               w: button_w}
+                            - {component: button, name: ButtonAccept, text: "GUI:Accept", tooltip: "TOOLTIP:OptionsAccept",
+                               w: button_w}
+                            - {component: button, name: ButtonBack, text: "GUI:Cancel", tooltip: "TOOLTIP:OptionsCancel",
+                               w: button_w}
+                # shown by the code when the detail combo picks Custom; the retail dialog keeps its shipped rects
+                - component: dialog
+                  name: WinAdvancedDisplayOptions
+                  rect: [151, 68, 636, 560]
+                  hidden: true
+                  children:
+                    - {component: line, name: AdvanceOptionsLine, rect: [151, 105, 636, 106]}
+                    - {component: button, name: ButtonAdvanceAccept, rect: [296, 521, 455, 553], text: "GUI:Accept",
+                       tooltip: "TOOLTIP:OptionsAccept"}
+                    - {component: button, name: ButtonAdvanceBack, rect: [467, 521, 626, 553], text: "GUI:Cancel",
+                       tooltip: "TOOLTIP:OptionsCancel"}
+                    - {component: retail_minor_title, id: advanced_title, rect: [161, 74, 575, 102],
+                       text: "GUI:AdvanceDisplayOptions"}
+                    - component: dialog
+                      id: advanced_toggles
+                      rect: [161, 112, 626, 301]
+                      order: [Check3DShadows, CheckShowProps, CheckBehindBuilding, Check2DShadows, CheckGroundLighting,
+                              CheckNoDynamicLOD, CheckHeatEffects, CheckUnlockFPS, CheckCloudShadows, CheckExtraAnimations,
+                              CheckSmoothWater, ToggleOnOffLine, toggles_title]
+                      row:
+                        pad: [32, 0, 0, 9]
+                        gap: 16
+                        items:
+                          - {component: retail_minor_title, id: toggles_title, rect: [169, 112, 609, 140],
+                             text: "GUI:AdvancedOptionsToggleOnOff"}
+                          - {component: line, name: ToggleOnOffLine, rect: [161, 139, 623, 140]}
+                          - column:
+                              w: 200
+                              items:
+                                - repeat:
+                                    each: [{name: 3DShadows, label: Shadows3D}, {name: 2DShadows, label: Shadows2D},
+                                           {name: CloudShadows, label: CloudShadows},
+                                           {name: GroundLighting, label: GroundLighting},
+                                           {name: SmoothWater, label: SmoothWater}]
+                                    item: {component: toggle, name: "Check{name}", text: "GUI:{label}",
+                                           tooltip: "TOOLTIP:{label}"}
+                          - column:
+                              w: 231
+                              items:
+                                - repeat:
+                                    each: [{name: BehindBuilding, label: BehindBuilding}, {name: ShowProps, label: ShowProps},
+                                           {name: ExtraAnimations, label: ExtraAnimations},
+                                           {name: NoDynamicLOD, label: NoDynamicLOD},
+                                           {name: HeatEffects, label: HeatEffects}]
+                                    item: {component: toggle, name: "Check{name}", text: "GUI:{label}",
+                                           tooltip: "TOOLTIP:{label}"}
+                                - {component: toggle, name: CheckUnlockFPS, text: "GUI:UnlockMaxFPS",
+                                   tooltip: "TOOLTIP:UnlockMaxFPS", hidden: true}
+                    - component: dialog
+                      name: LowResWin
+                      rect: [161, 312, 626, 399]
+                      params: {fill: "0 0 0 0"}
+                      children:
+                        - {component: minor_title, id: low_res_title, rect: [173, 315, 462, 339], text: "GUI:LowResSlider"}
+                        - component: slider
+                          name: LowResSlider
+                          rect: [241, 355, 527, 379]
+                          tooltip: "TOOLTIP:LowResSlider"
+                          params:
+                            min: 0
+                            max: 2
+                            text_color: "255 255 255 255"
+                            disabled_text_color: "62 64 92 255"
+                            disabled_text_outline: "31 32 47 255"
+                            hilite_text_color: "186 255 12 255"
+                            hilite_text_outline: "0 2 0 255"
+                        - {component: label, id: high_res_slower, rect: [428, 375, 626, 399], text: "GUI:HighResSlower"}
+                        - {component: line, name: LowResLine, rect: [161, 342, 626, 343]}
+                        - {component: label, id: low_res_faster, rect: [161, 375, 374, 399], text: "GUI:LowResFaster"}
+                    - component: dialog
+                      name: ParticleCapWin
+                      rect: [161, 416, 626, 503]
+                      children:
+                        - {component: minor_title, id: particle_cap_title, rect: [173, 419, 462, 443], text: "GUI:ParticleCap"}
+                        - {component: label, id: less_particles_faster, rect: [161, 476, 374, 500],
+                           text: "GUI:LessParticlesFaster"}
+                        - {component: label, id: more_particles_slower, rect: [413, 476, 626, 500],
+                           text: "GUI:MoreParticlesSlower"}
+                        - {component: line, name: ParticleCapLine, rect: [161, 445, 626, 446]}
+                        - component: slider
+                          name: ParticleCapSlider
+                          rect: [241, 459, 527, 483]
+                          tooltip: "TOOLTIP:ParticleCapSlider"
+                          params: {min: 100, max: 5000, text_color: "255 255 255 255"}
+            # retail controls the code still looks up; GO hides them and parks most of them off the frame
+            hidden_windows:
+              - {component: radio, name: RadioMedium, rect: [135, 215, 279, 245], text: "GUI:Medium"}
+              - {component: radio, name: RadioHigh, rect: [135, 183, 279, 213], text: "GUI:High"}
+              - {component: radio, name: RadioLow, rect: [135, 247, 279, 277], text: "GUI:Low"}
+              - component: statictext
+                id: mouse_type_label
+                rect: [731, 59, 883, 87]
+                text: "GUI:MouseType"
+                params: {font: Times New Roman, font_size: 14, header: "[NONE]", text_color: "254 254 254 255", centered: 1}
+              - {component: retail_checkbox, name: CheckLanguageFilter, rect: [723, 155, 935, 191], text: "GUI:LanguageFilter",
+                 tooltip: "GUI:LanguageFilter"}
+              - {component: button, name: ButtonKeyboardOptions, rect: [747, 127, 923, 167], text: "GUI:KeyboardOptions",
+                 params: {font: Times New Roman, font_size: 14, header: "[NONE]"}}
+              - {component: retail_checkbox, name: CheckBoxSaveCamera, rect: [647, 487, 919, 511], text: "GUI:SaveCamera",
+                 status: [ENABLED, IMAGE], params: {header: "[NONE]"}}
+              - {component: retail_checkbox, name: CheckBoxUseCamera, rect: [647, 511, 919, 535], text: "GUI:UseCamera",
+                 status: [ENABLED, IMAGE], params: {header: "[NONE]"}}
+              - {component: retail_checkbox, name: CheckBoxDrawAnchor, rect: [647, 535, 919, 559], text: "GUI:DrawScrollAnchor",
+                 status: [ENABLED, IMAGE], params: {header: "[NONE]"}}
+              - {component: retail_checkbox, name: CheckBoxMoveAnchor, rect: [647, 559, 919, 583], text: "GUI:MoveScrollAnchor",
+                 status: [ENABLED, IMAGE], params: {header: "[NONE]"}}
