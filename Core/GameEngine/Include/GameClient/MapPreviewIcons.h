@@ -44,6 +44,12 @@ const Image *getMapPreviewCategoryImage( const AsciiString &category, Bool isTec
 /// Localized category label, else the retail tech building or supply dock tooltip.
 UnicodeString getMapPreviewCategoryLabel( const AsciiString &category, Bool isTech );
 
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Typed markers scale with the layout instead of the fixed SUPPLY_TECH_SIZE.
+enum { MAP_PREVIEW_MARKER_LAYOUT_SIZE = 11 };
+
+/// Typed marker size in screen pixels: 11 layout px scaled with the screen height (20 px at 1080p, 40 px at 4K).
+Int getMapPreviewMarkerSize();
+
 /// Fills TheSupplyAndTechImageLocations.m_typedMarkers from the typed objects of the cached map, parsing the map
 /// once when it has none yet. Returns FALSE to keep the retail position lists.
 Bool positionTypedPreviewImages( const MapMetaData *mmd, const ICoord2D &ul, Int smallWidth, Int smallHeight );
@@ -65,8 +71,5 @@ typedef std::vector<MapPreviewLegendEntry> MapPreviewLegend;
 /// mapName is a MapCache path in any case. Parses the map once when it has no typed objects yet.
 /// Returns FALSE and leaves outLegend empty when the map is unknown or its typed objects cannot be read.
 Bool getMapPreviewLegend( const AsciiString &mapName, MapPreviewLegend &outLegend );
-
-/// One line legend text such as "Supply dock x2, Oil derrick x4"; empty when getMapPreviewLegend fails.
-UnicodeString getMapPreviewLegendText( const AsciiString &mapName );
 
 #endif

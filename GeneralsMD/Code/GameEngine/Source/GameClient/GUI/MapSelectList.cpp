@@ -26,6 +26,9 @@
 #include "Common/GlobalData.h"
 #include "Common/NameKeyGenerator.h"
 #include "Common/SkirmishBattleHonors.h"
+#include "GameClient/Display.h"
+#include "GameClient/DisplayString.h"
+#include "GameClient/DisplayStringManager.h"
 #include "GameClient/Gadget.h"
 #include "GameClient/GadgetComboBox.h"
 #include "GameClient/GadgetListBox.h"
@@ -56,6 +59,14 @@ static const char *const s_sourceWindowNames[MAP_SOURCE_COUNT] =
 
 static const Color s_nameColor = GameMakeColor(255, 255, 255, 255);
 static const Color s_detailColor = GameMakeColor(192, 192, 192, 255);
+
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Legend row under the preview: each category's token icon and its count.
+struct MapLegendItem
+{
+	const Image *m_image;
+	DisplayString *m_count;
+};
+static std::vector<MapLegendItem> s_legendItems;
 
 // HELPERS ////////////////////////////////////////////////////////////////////////////////////////
 
@@ -135,15 +146,68 @@ static UnicodeString sizeClassText( MapSelectSize size )
 	}
 }
 
-// The categories present on the map for the line under the preview; empty for no map.
-// the icon types on the map with their counts, empty while no map is selected
-static UnicodeString mapLegendText( const AsciiString &mapPath )
+static void clearLegendItems()
 {
-	if (mapPath.isEmpty())
+	for (size_t i = 0; i < s_legendItems.size(); ++i)
 	{
-		return UnicodeString::TheEmptyString;
+		if (s_legendItems[i].m_count != nullptr)
+			TheDisplayStringManager->freeDisplayString(s_legendItems[i].m_count);
 	}
-	return getMapPreviewLegendText(mapPath);
+	s_legendItems.clear();
+}
+
+// Draws the legend row centred in the window: icons as tall as the window, each followed by its count.
+static void drawMapLegend( GameWindow *window, WinInstanceData *instData )
+{
+	if (s_legendItems.empty())
+		return;
+
+	Int x, y, width, height;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&width, &height);
+
+	const Int iconSize = height;
+	const Int count = (Int)s_legendItems.size();
+	Int textGap = height / 6 > 2 ? height / 6 : 2;
+	Int itemGap = height / 2 > 4 ? height / 2 : 4;
+
+	Int i;
+	Int contentWidth = 0;
+	for (i = 0; i < count; ++i)
+	{
+		Int textWidth = 0;
+		Int textHeight = 0;
+		s_legendItems[i].m_count->getSize(&textWidth, &textHeight);
+		contentWidth += iconSize + textWidth;
+	}
+
+	// too wide: drop the spacing between items, then between icon and count, then clip
+	if (contentWidth + count * textGap + (count - 1) * itemGap > width)
+		itemGap = 0;
+	if (contentWidth + count * textGap > width)
+		textGap = 0;
+	const Int rowWidth = contentWidth + count * textGap + (count - 1) * itemGap;
+
+	const Int right = x + width;
+	Int cursor = rowWidth < width ? x + (width - rowWidth) / 2 : x;
+	const Color textColor = window->winGetEnabledTextColor();
+	const Color dropColor = window->winGetEnabledTextBorderColor();
+
+	for (i = 0; i < count; ++i)
+	{
+		Int textWidth = 0;
+		Int textHeight = 0;
+		s_legendItems[i].m_count->getSize(&textWidth, &textHeight);
+		if (cursor + iconSize + textGap + textWidth > right)
+			break;
+
+		if (s_legendItems[i].m_image != nullptr)
+			TheDisplay->drawImage(s_legendItems[i].m_image, cursor, y, cursor + iconSize, y + iconSize);
+		cursor += iconSize + textGap;
+
+		s_legendItems[i].m_count->draw(cursor, y + (height - textHeight) / 2, textColor, dropColor);
+		cursor += textWidth + itemGap;
+	}
 }
 
 struct MapSelectRowSort
@@ -333,8 +397,12 @@ void MapSelectList::init( GameWindow *parent, const char *layoutName, const MapS
 
 	syncControls();
 
+	clearLegendItems();
 	if (m_legend)
+	{
 		GadgetStaticTextSetText(m_legend, UnicodeString::TheEmptyString);
+		m_legend->winSetDrawFunc(drawMapLegend);
+	}
 
 	if (m_listbox)
 	{
@@ -364,6 +432,7 @@ void MapSelectList::shutdown()
 	m_size = nullptr;
 	m_count = nullptr;
 	m_legend = nullptr;
+	clearLegendItems();
 	for (Int i = 0; i < MAP_SOURCE_COUNT; ++i)
 	{
 		m_sources[i] = nullptr;
@@ -681,10 +750,28 @@ void MapSelectList::toggleFavouriteAtRow( Int row )
 
 void MapSelectList::refreshLegend( const AsciiString &mapPath )
 {
-	if (!m_legend)
+	clearLegendItems();
+	if (!m_legend || mapPath.isEmpty())
 		return;
 
-	GadgetStaticTextSetText(m_legend, mapLegendText(mapPath));
+	// the per-type names stay in the preview marker tooltips
+	MapPreviewLegend legend;
+	if (!getMapPreviewLegend(mapPath, legend))
+		return;
+
+	for (size_t i = 0; i < legend.size(); ++i)
+	{
+		MapLegendItem item;
+		item.m_image = legend[i].m_image;
+		item.m_count = TheDisplayStringManager->newDisplayString();
+		if (item.m_count == nullptr)
+			continue;
+		UnicodeString countText;
+		countText.format(L"%d", legend[i].m_count);
+		item.m_count->setFont(m_legend->winGetFont());
+		item.m_count->setText(countText);
+		s_legendItems.push_back(item);
+	}
 }
 
 AsciiString MapSelectList::getMapAtRow( Int row ) const

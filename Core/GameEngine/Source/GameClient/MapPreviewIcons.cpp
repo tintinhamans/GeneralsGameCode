@@ -29,6 +29,7 @@
 #include "Common/ThingFactory.h"
 #include "Common/ThingTemplate.h"
 #include "GameClient/GameText.h"
+#include "GameClient/GameWindowManager.h"
 #include "GameClient/Image.h"
 #include "GameClient/MapCacheJson.h"
 #include "GameClient/MapPreviewIcons.h"
@@ -403,9 +404,16 @@ static UnicodeString getMarkerTooltip( const MapPreviewMarker &marker )
 }
 
 //-------------------------------------------------------------------------------------------------
+Int getMapPreviewMarkerSize()
+{
+	return GameWindowManager::winScaleLayoutSize(MAP_PREVIEW_MARKER_LAYOUT_SIZE);
+}
+
+//-------------------------------------------------------------------------------------------------
 static void addTypedMarkers( const MapMetaData *mmd, const MapTypedObjectVector &objects, Bool isTech,
 	const ICoord2D &ul, Int smallWidth, Int smallHeight )
 {
+	const Int markerSize = getMapPreviewMarkerSize();
 	MapTypedObjectVector::const_iterator it = objects.begin();
 	for (; it != objects.end(); ++it)
 	{
@@ -417,13 +425,13 @@ static void addTypedMarkers( const MapMetaData *mmd, const MapTypedObjectVector 
 		marker.m_templateName = it->m_templateName;
 		marker.m_isTech = it->m_isTech;
 
-		// same placement as positionAdditionalImages
+		// the positionAdditionalImages placement, centred with the scaled marker size
 		Real position;
 		position = (it->m_pos.x - mmd->m_extent.lo.x) / (mmd->m_extent.hi.x - mmd->m_extent.lo.x);
-		marker.m_pos.x = (position * smallWidth) - SUPPLY_TECH_SIZE /2 + ul.x;
+		marker.m_pos.x = (position * smallWidth) - markerSize /2 + ul.x;
 
 		position = (it->m_pos.y - mmd->m_extent.lo.y) / (mmd->m_extent.hi.y - mmd->m_extent.lo.y);
-		marker.m_pos.y = ((1- position) * smallHeight) - SUPPLY_TECH_SIZE /2 + ul.y;
+		marker.m_pos.y = ((1- position) * smallHeight) - markerSize /2 + ul.y;
 		TheSupplyAndTechImageLocations.m_typedMarkers.push_back(marker);
 	}
 }
@@ -451,11 +459,12 @@ Bool positionTypedPreviewImages( const MapMetaData *mmd, const ICoord2D &ul, Int
 //-------------------------------------------------------------------------------------------------
 Bool getMapPreviewMarkerTooltip( Int x, Int y, UnicodeString &outTooltip )
 {
+	const Int markerSize = getMapPreviewMarkerSize();
 	MapPreviewMarkerList::const_iterator it = TheSupplyAndTechImageLocations.m_typedMarkers.begin();
 	for (; it != TheSupplyAndTechImageLocations.m_typedMarkers.end(); ++it)
 	{
-		if ((x > it->m_pos.x && x < it->m_pos.x + SUPPLY_TECH_SIZE)
-				&& (y > it->m_pos.y && y < it->m_pos.y + SUPPLY_TECH_SIZE))
+		if ((x > it->m_pos.x && x < it->m_pos.x + markerSize)
+				&& (y > it->m_pos.y && y < it->m_pos.y + markerSize))
 		{
 			outTooltip = getMarkerTooltip(*it);
 			return TRUE;
@@ -529,26 +538,6 @@ Bool getMapPreviewLegend( const AsciiString &mapName, MapPreviewLegend &outLegen
 			addLegendEntry(outLegend, objIt->m_category, objIt->m_isTech, 1);
 	}
 	return TRUE;
-}
-
-//-------------------------------------------------------------------------------------------------
-UnicodeString getMapPreviewLegendText( const AsciiString &mapName )
-{
-	UnicodeString text;
-	MapPreviewLegend legend;
-	if (!getMapPreviewLegend(mapName, legend))
-		return text;
-
-	for (size_t i = 0; i < legend.size(); ++i)
-	{
-		if (i > 0)
-			text.concat(L", ");
-		text.concat(legend[i].m_label);
-		UnicodeString count;
-		count.format(L" x%d", legend[i].m_count);
-		text.concat(count);
-	}
-	return text;
 }
 
 #endif
