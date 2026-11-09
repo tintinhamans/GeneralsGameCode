@@ -408,7 +408,6 @@ class ShellRoadTest(unittest.TestCase):
                      "const Int dashTop = y + (height - thickness) / 2;",
                      "const Int dashLeft = x + pad + k * period;",
                      "TheDisplay->drawImage(tint, x, y + line, litEnd, y + height - line);",
-                     "litEnd = place.x0 + goVanScale(GO_VAN_OUTLINE_LEFT, place.height);",
                      "Int litEnd = x + width * progress / 100;"):
             self.assertIn(text, self.draw)
         # the dashes stay put: nothing in the road draw reads the clock
@@ -418,15 +417,17 @@ class ShellRoadTest(unittest.TestCase):
                                                 "drawGoLoadBarVan(window, progress, place);")]
         self.assertEqual(order, sorted(order))
 
-    def test_lit_road_ends_at_the_van_rear(self):
-        road = (384, 1033, 1536, 1065)
-        for progress in (0, 35, 70, 100):
-            layout = kit.van_layout(road, progress, lambda strip: True)
-            height, (x0, _, _, _) = layout
-            self.assertEqual(kit.load_road_lit_end(road, progress, layout), max(road[0], x0 + kit.van_scale(14, height)))
-        self.assertEqual(kit.load_road_lit_end(road, 0, kit.van_layout(road, 0, lambda strip: True)), road[0])
-        # no van: the lit road shows progress itself
-        self.assertEqual(kit.load_road_lit_end(road, 50, None), road[0] + (road[2] - road[0]) // 2)
+    def test_lit_road_follows_progress_and_fills_the_road(self):
+        road = (641, 1033, 1279, 1065)
+        self.assertEqual(kit.load_road_lit_end(road, 0), road[0])
+        self.assertEqual(kit.load_road_lit_end(road, 50), road[0] + (road[2] - road[0]) // 2)
+        self.assertEqual(kit.load_road_lit_end(road, 100), road[2])
+        # the lit end stays under the van while it drives: between its rear and its front
+        for progress in (10, 35, 70, 90):
+            height, (x0, _, x1, _) = kit.van_layout(road, progress, lambda strip: True)
+            self.assertLessEqual(x0, kit.load_road_lit_end(road, progress))
+            self.assertLessEqual(kit.load_road_lit_end(road, progress), x1)
+        self.assertNotIn("place.x0 + goVanScale(GO_VAN_OUTLINE_LEFT", self.draw)
 
 
 class LoadScreenPlayerBarTest(unittest.TestCase):
@@ -979,7 +980,8 @@ class LoadSplashTest(unittest.TestCase):
                      "const Int bottom = tipY - tailHeight + over;",
                      "const Int top = bottom - height;",
                      "Int tailCenter = tipX;",
-                     "const Int alpha = shownMs >= GO_BUBBLE_FADE_MS ? 255 : (Int)(255 * shownMs / GO_BUBBLE_FADE_MS);"):
+                     "if (shownMs < GO_BUBBLE_SHOW_MS)",
+                     "const Int alpha = 255;"):
             self.assertIn(text, self.bubble)
         r, g, b = themes._rgb(kit.BUBBLE_TEXT)
         self.assertIn(f"GameMakeColor({r}, {g}, {b}, alpha)", self.bubble)
@@ -1085,11 +1087,10 @@ class LoadSplashTest(unittest.TestCase):
             self.assertEqual(centre, max(low, min(tip_x, high)))
             self.assertEqual(b["tail"][3], 300)
 
-    def test_bubble_fades_in_and_stays(self):
-        fade = kit.BUBBLE_CONSTANTS["GO_BUBBLE_FADE_MS"]
-        self.assertEqual(kit.bubble_alpha(0), 0)
-        self.assertEqual(kit.bubble_alpha(fade // 2), 127)
-        self.assertEqual({kit.bubble_alpha(t) for t in range(fade, fade + 60000, 997)}, {255})
+    def test_bubble_pops_in_whole_after_the_logo_fade_and_stays(self):
+        show = kit.BUBBLE_CONSTANTS["GO_BUBBLE_SHOW_MS"]
+        self.assertEqual({kit.bubble_alpha(t) for t in range(0, show, 7)}, {0})
+        self.assertEqual({kit.bubble_alpha(t) for t in range(show, show + 60000, 997)}, {255})
 
 
 class BubbleArtTest(unittest.TestCase):
