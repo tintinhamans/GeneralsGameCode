@@ -96,7 +96,7 @@ class LayoutPaletteTest(unittest.TestCase):
 
     def test_listed_kit_colours(self):
         listed = {"#2F4BFF": "#BF9048", "#6A7BFF": "#E3BA6C", "#8C9BFF": "#F7DB9C", "#4A4E6E": "#2C3B3F",
-                  "#070A18": "#141C1F", "#152078": "#223034", "#0A0A10": "#0B1114",
+                  "#070A18": "#0C1013", "#152078": "#161D21", "#0A0A10": "#07090B",
                   "#C9CEFF": "#F2EDE0", "#FFFFFF": "#F7DB9C", "#5D6080": "#6F7A7C"}
         for kit_color, theme in listed.items():
             self.assertEqual(themes.KIT_COLORS[kit_color], theme, kit_color)
