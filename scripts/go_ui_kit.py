@@ -982,7 +982,7 @@ BUBBLE_TAIL = (12, 10)     # width and height, the tip at the bottom centre
 BUBBLE_TAIL_OVER = 1.5     # the tail's top rows cover the bubble's bottom line, so the two read as one shape
 # the rules by their LoadScreen.cpp names: the logo van's dish rim in GOLoadLogo texels (logo_dish measures it) and the
 # fade in, from the credit's start
-BUBBLE_CONSTANTS = {"GO_LOGO_DISH_X": 306, "GO_LOGO_DISH_Y": 0, "GO_BUBBLE_FADE_MS": 600}
+BUBBLE_CONSTANTS = {"GO_LOGO_DISH_X": 306, "GO_LOGO_DISH_Y": 0, "GO_BUBBLE_SHOW_MS": 600}
 BUBBLE_MARGIN_UNITS = 8.0
 BUBBLE_TIP_GAP_UNITS = 2.0  # the tip stops this far over the dish rim, in 800x600 units
 LOGO_TEXTURE_PATH = DATA / "Art" / "Textures" / "GeneralsOnline_LoadLogo.tga"
@@ -1133,9 +1133,8 @@ def bubble_layout(tip, text_width, text_height, line_height, screen_width, scree
 
 
 def bubble_alpha(shown_ms):
-    """The fade in over GO_BUBBLE_FADE_MS from the credit's start, as the logo fades in; it stays."""
-    fade = BUBBLE_CONSTANTS["GO_BUBBLE_FADE_MS"]
-    return 255 if shown_ms >= fade else 255 * shown_ms // fade
+    """Hidden until GO_BUBBLE_SHOW_MS after the credit's start, when the logo has faded in, then whole; it stays."""
+    return 255 if shown_ms >= BUBBLE_CONSTANTS["GO_BUBBLE_SHOW_MS"] else 0
 
 
 def splash_pick(now):
@@ -1305,13 +1304,9 @@ def van_layout(road, progress, above_clear):
     return height, (x0, y0, x0 + s(VAN["GO_VAN_FRAME_WIDTH"]), y0 + s(VAN["GO_VAN_FRAME_HEIGHT"]))
 
 
-def load_road_lit_end(road, progress, layout):
-    """Where drawGoShellLoadBar ends the lit road: at the van's rear, or by progress when there is no van."""
-    if layout is None:
-        end = road[0] + (road[2] - road[0]) * max(0, min(100, progress)) // 100
-    else:
-        height, (x0, _, _, _) = layout
-        end = x0 + van_scale(VAN["GO_VAN_OUTLINE_LEFT"], height)
+def load_road_lit_end(road, progress):
+    """Where drawGoShellLoadBar ends the lit road: by progress, so it fills the whole road at 100% under the van."""
+    end = road[0] + (road[2] - road[0]) * max(0, min(100, progress)) // 100
     return max(road[0], min(road[2], end))
 
 

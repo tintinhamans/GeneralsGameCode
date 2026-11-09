@@ -376,10 +376,10 @@ static GoVanPlace placeGoVan(GameWindow *window, const IRegion2D &road, Int prog
 	return place;
 }
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 The splash line as a speech bubble from the logo van: its dish rim in GOLoadLogo texels (measured from the art), a fade in, the tip's gap over the rim and a screen margin in 800x600 units; scripts/go_ui_kit.py BUBBLE_CONSTANTS mirrors them.
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The splash line as a speech bubble from the logo van: its dish rim in GOLoadLogo texels (measured from the art), the delay before it pops in, the tip's gap over the rim and a screen margin in 800x600 units; scripts/go_ui_kit.py BUBBLE_CONSTANTS mirrors them.
 static const Int GO_LOGO_DISH_X = 306;
 static const Int GO_LOGO_DISH_Y = 0;
-static const UnsignedInt GO_BUBBLE_FADE_MS = 600;
+static const UnsignedInt GO_BUBBLE_SHOW_MS = 600;
 static const Real GO_BUBBLE_MARGIN = 8.0f;
 static const Real GO_BUBBLE_TIP_GAP = 2.0f;
 // TheSuperHackers @feature arcticdolphin 09/11/2026 The splash line wraps at this width, scaled like its font, so long lines take two lines and short ones one.
@@ -450,8 +450,12 @@ static void drawGoLogoBubble(Int tipX, Int tipY, UnsignedInt shownMs)
 		tailCenter = left + corner + tailWidth / 2;
 	}
 
-	// fades in from the credit's start, with the logo, and stays
-	const Int alpha = shownMs >= GO_BUBBLE_FADE_MS ? 255 : (Int)(255 * shownMs / GO_BUBBLE_FADE_MS);
+	// pops in whole once the logo has faded in and stays; a fade would show the seams where its pieces overlap
+	if (shownMs < GO_BUBBLE_SHOW_MS)
+	{
+		return;
+	}
+	const Int alpha = 255;
 	const Color tint = GameMakeColor(255, 255, 255, alpha);
 	const Int columns[4] = { left, left + corner, left + width - corner, left + width };
 	const Int rows[4] = { top, top + corner, bottom - corner, bottom };
@@ -617,11 +621,8 @@ static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )
 	road.hi.x = x + width;
 	road.hi.y = y + height;
 	const GoVanPlace place = placeGoVan(window, road, progress);
+	// the lit road shows progress itself, so it reaches the end at 100% and runs under the van on the way
 	Int litEnd = x + width * progress / 100;
-	if (place.placed)
-	{
-		litEnd = place.x0 + goVanScale(GO_VAN_OUTLINE_LEFT, place.height);
-	}
 	if (litEnd < x)
 	{
 		litEnd = x;
