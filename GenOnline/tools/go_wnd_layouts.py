@@ -5,8 +5,8 @@ Every retail layout in WindowZH.big is copied to GenOnline/data/zerohour at its 
 deterministic fixes. A layout GO already edited by hand (GenOnline/tools/wnd_sources) replaces the retail
 file as input, and the GO-only layouts there get the same fixes. A layout with a YAML source
 (GenOnline/tools/wnd_yaml, compiled by GenOnline/tools/wnd_yaml.py) is written as compiled: the source already holds the
-kit colours, GO header templates and hover images, so only the combo heights below apply to it, and its
-GenOnline/tools/wnd_sources copy, if any, is only kept for reference. All rects are in 800x600 units.
+kit colours, GO header templates and hover images, so only the combo heights and window fills below apply
+to it, and its GenOnline/tools/wnd_sources copy, if any, is only kept for reference. All rects are in 800x600 units.
 
 - Kit colours: the retail blue line colours in draw data and TEXTCOLOR border entries become the
   UI kit line and hilite colours; each value keeps its alpha.
@@ -60,6 +60,13 @@ GenOnline/tools/wnd_sources copy, if any, is only kept for reference. All rects 
 - Button groups: a colour drawn USER window with a clear fill whose children are push buttons (and NOINPUT
   overlays drawn on them, like the sort arrows) draws no border, so its frame does not show between the buttons
   or double their edges: its first enabled border colour gets alpha 0 (every layout that gets the fixes).
+- Window fills: a window that fills with its first draw slot colour (no IMAGE status; the default draw or
+  W3DDrawMapPreview) and whose enabled fill is retail black (every channel at most NEAR_BLACK, alpha above 0) takes
+  the Signal fill of its class (go_themes.SIGNAL_FILLS), keeping alpha, in its enabled, disabled and hilite slots that
+  are retail black: ground for a full screen USER backdrop and for fields (lists, entries, combos, progress bars, static
+  text, map previews); panel, surface and panel-3 for other windows nested one, two and three or more panels deep; an
+  opaque copy of its nearest recoloured ancestor's fill takes that ancestor's. The theme copies map each Signal fill
+  to the launcher token of its class. Menus only (the theme copies' layouts), YAML-built layouts included.
 - Setup rows: last, the Skirmish, LAN and online game setup screens lay out SLOT_ROWS player rows ROW_PITCH apart.
   Rows past the engine's ENGINE_SLOTS are copies of the last engine row with ENABLED cleared: the combos draw
   disabled and empty (a combo's TEXT is a title above its box, not its edit box text), the accept marker, ping,
@@ -264,6 +271,19 @@ PREVIEW_TOKEN_RE = re.compile(
     r"|^[ \t]*DRAWCALLBACK[ \t]*=[ \t]*\"(?P<callback>[^\"]*)\""
     r"|^[ \t]*ENABLEDDRAWDATA[ \t]*=[ \t]*IMAGE:[^,]*,[ \t]*COLOR:[^,]*,[ \t]*BORDERCOLOR:[ \t]*"
     r"(?P<border>\d+[ \t]+\d+[ \t]+\d+[ \t]+\d+)",
+    re.M,
+)
+# window fills: retail near black first slot fills of the menus take the Signal fill of their class (go_themes)
+NEAR_BLACK = 8             # a fill whose channels are all at most this is retail black; the Signal fills are brighter
+FULL_SCREEN = (790, 590)   # a USER window at least this large is a full screen backdrop
+FIELD_KINDS = {"SCROLLLISTBOX", "ENTRYFIELD", "COMBOBOX", "PROGRESSBAR", "STATICTEXT"}
+PANEL_LAYERS = ("panel", "surface", "panel-3")
+FILL_CALLBACKS = {"", "[None]", "W3DGameWinDefaultDraw", MAP_PREVIEW_CALLBACK}  # draws that fill with the first slot
+FILL_TOKEN_RE = re.compile(
+    r"^[ \t]*(?P<open>WINDOW)[ \t]*\r?$"
+    r"|^[ \t]*DRAWCALLBACK[ \t]*=[ \t]*\"(?P<callback>[^\"]*)\""
+    r"|^[ \t]*(?P<state>ENABLED|DISABLED|HILITE)DRAWDATA[ \t]*=[ \t]*IMAGE:[^,]*,[ \t]*COLOR:[ \t]*"
+    r"(?P<r>\d+)(?P<s1>[ \t]+)(?P<g>\d+)(?P<s2>[ \t]+)(?P<b>\d+)[ \t]+(?P<alpha>\d+)",
     re.M,
 )
 # the first enabled border alpha of every window, for the button group rule
@@ -1429,6 +1449,66 @@ def button_group_borders(text):
     return text
 
 
+def _fill_class(win, rgba, callback, above):
+    """(token, layer) of a near black fill under the nearest classed ancestor above, (token, layer, rgba) or None."""
+    if above and rgba == above[2] and rgba[3] == 255:
+        return above[:2]  # an opaque copy of its ancestor's fill reads as that ancestor
+    w, h = win.rect[2] - win.rect[0], win.rect[3] - win.rect[1]
+    if win.kind == "USER" and w >= FULL_SCREEN[0] and h >= FULL_SCREEN[1]:
+        return "ground", -1
+    if win.kind in FIELD_KINDS or callback == MAP_PREVIEW_CALLBACK:
+        return "ground", -1
+    layer = above[1] + 1 if above else 0
+    return PANEL_LAYERS[min(layer, len(PANEL_LAYERS) - 1)], layer
+
+
+def fill_classes(text):
+    """[(window, token, matches by state)] for every window of a layout whose first slot fill is retail near black."""
+    wins = list(parse_windows(text).walk())
+    callbacks, states, index = [""] * len(wins), [{} for _ in wins], -1
+    for m in FILL_TOKEN_RE.finditer(text):
+        if m.group("open"):
+            index += 1
+        elif index < 0:
+            continue
+        elif m.group("callback") is not None:
+            callbacks[index] = m.group("callback")
+        else:
+            states[index].setdefault(m.group("state"), m)
+    classes, out = {}, []
+    for win, callback, slots in zip(wins, callbacks, states):
+        m = slots.get("ENABLED")
+        if "IMAGE" in win.status or callback not in FILL_CALLBACKS or m is None or win.rect is None:
+            continue
+        rgba = tuple(int(m[k]) for k in ("r", "g", "b", "alpha"))
+        if rgba[3] == 0 or max(rgba[:3]) > NEAR_BLACK:
+            continue
+        anc = win.parent
+        while anc is not None and id(anc) not in classes:
+            anc = anc.parent
+        token, layer = _fill_class(win, rgba, callback, classes.get(id(anc)))
+        classes[id(win)] = (token, layer, rgba)
+        out.append((win, token, slots))
+    return out
+
+
+def window_fills(text, name):
+    """Give the retail near black first slot fills of a menu layout the Signal fill of their class, keeping alpha:
+    ground for full screen USER backdrops and for fields (lists, entries, combos, progress bars, static text and map
+    previews), panel, surface and panel-3 for panels by depth, and an opaque copy of an ancestor's fill its ancestor's."""
+    if not themed(name):
+        return text
+    edits = []
+    for win, token, slots in fill_classes(text):
+        r, g, b = go_themes._rgb(go_themes.SIGNAL_FILLS[token])
+        for m in slots.values():
+            if int(m["alpha"]) > 0 and max(int(m[k]) for k in "rgb") <= NEAR_BLACK:
+                edits.append((m.start("r"), m.end("b"), f"{r}{m['s1']}{g}{m['s2']}{b}"))
+    for start, end, value in sorted(edits, reverse=True):
+        text = text[:start] + value + text[end:]
+    return text
+
+
 def compact_combos(text, name):
     """Shrink the menu combo boxes taller than COMBO_HEIGHT about their centre, with the entry fields, push buttons and
     check boxes that share their row; a square push button keeps its left edge and stays square."""
@@ -1624,9 +1704,9 @@ def blank_layout(text, name):
 
 def finish(text, name):
     """The fixes after alignment: combo heights, GO header templates, hover images, map preview frames, button groups,
-    the game setup rows and the blank layouts."""
+    window fills, the game setup rows and the blank layouts."""
     text = button_group_borders(map_preview_borders(hilite_images(go_templates(compact_combos(text, name), name))))
-    return blank_layout(setup_rows(text, name), name)
+    return blank_layout(setup_rows(window_fills(text, name), name), name)
 
 
 def transform(text, notes=None, name=None):
@@ -1704,8 +1784,8 @@ def build(retail, game="zerohour"):
         text = inputs[name].decode("latin-1")
         if name in compiled:
             info = {"frame": False, "stats": Counter(), "notes": [], "changes": [], "uncentred": []}
-            # the YAML source is final apart from the combo height, which follows COMBO_HEIGHT like every menu
-            results.append((name, text, compact_combos(text, name), info))
+            # the YAML source is final apart from the combo height and the window fills, which follow every menu
+            results.append((name, text, window_fills(compact_combos(text, name), name), info))
             continue
         out, info = align(remap_colors(text), name)
         results.append((name, text, finish(out, name), info))
