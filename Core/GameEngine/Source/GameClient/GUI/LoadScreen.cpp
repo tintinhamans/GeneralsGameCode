@@ -1806,15 +1806,6 @@ void ShellGameLoadScreen::init( GameInfo *game )
 		firstLoad = FALSE;
 	}
 	m_progressBar->winHide(FALSE);
-	// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO bar art the bar is the road the radar van drives: a third of the screen wide, centred near the bottom.
-	if (findGoLoadBarImage() != nullptr)
-	{
-		m_progressBar->winSetDrawFunc(drawGoShellLoadBar);
-		const Int screenWidth = TheDisplay->getWidth();
-		const Int screenHeight = TheDisplay->getHeight();
-		m_progressBar->winSetPosition(goLayoutScale(GO_ROAD_LEFT, screenWidth, 800), goLayoutScale(GO_ROAD_TOP, screenHeight, 600));
-		m_progressBar->winSetSize(goLayoutScale(GO_ROAD_RIGHT - GO_ROAD_LEFT, screenWidth, 800), goLayoutScale(GO_ROAD_BOTTOM - GO_ROAD_TOP, screenHeight, 600));
-	}
 
 	// TheSuperHackers @feature arcticdolphin 09/11/2026 The first shell load after the intro shows the Generals Online credit; -nologo leaves it out.
 	static Bool firstShellLoad = TRUE;
@@ -1825,6 +1816,16 @@ void ShellGameLoadScreen::init( GameInfo *game )
 			initCredit();
 		}
 		firstShellLoad = FALSE;
+	}
+
+	// TheSuperHackers @tweak arcticdolphin 09/11/2026 On the GO credit screen the bar is the road the radar van drives: a third of the screen wide, centred near the bottom. Later shell loads keep the plain bar over the box art.
+	if (m_creditLogo != nullptr && findGoLoadBarImage() != nullptr)
+	{
+		m_progressBar->winSetDrawFunc(drawGoShellLoadBar);
+		const Int screenWidth = TheDisplay->getWidth();
+		const Int screenHeight = TheDisplay->getHeight();
+		m_progressBar->winSetPosition(goLayoutScale(GO_ROAD_LEFT, screenWidth, 800), goLayoutScale(GO_ROAD_TOP, screenHeight, 600));
+		m_progressBar->winSetSize(goLayoutScale(GO_ROAD_RIGHT - GO_ROAD_LEFT, screenWidth, 800), goLayoutScale(GO_ROAD_BOTTOM - GO_ROAD_TOP, screenHeight, 600));
 	}
 }
 
