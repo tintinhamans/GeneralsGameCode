@@ -6,6 +6,7 @@
 #include "GameClient/MapUtil.h"
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/GenOnline/LobbyConnectionPolicy.h"
+#include "Lib/PathUtil.h"
 
 extern void OnKickedFromLobby();
 
@@ -95,11 +96,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_Map(UnicodeString strMap, Ascii
 	// sanitize map path
 	// we need to parse out the map name for custom maps... its an absolute path
 	// it's safe to just get the file name, dir name and file name MUST be the same. Game enforces this
-	AsciiString sanitizedMapPath = strMapPath;
-	if (sanitizedMapPath.reverseFind('\\'))
-	{
-		sanitizedMapPath = sanitizedMapPath.reverseFind('\\') + 1;
-	}
+	AsciiString sanitizedMapPath = getFileName(strMapPath.str());
 
 	nlohmann::json j;
 	j["field"] = ELobbyUpdateField::LOBBY_MAP;
@@ -1709,11 +1706,7 @@ void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeStr
 			// sanitize map path
 			// we need to parse out the map name for custom maps... its an absolute path
 			// it's safe to just get the file name, dir name and file name MUST be the same. Game enforces this
-			AsciiString sanitizedMapPath = strInitialMapPath;
-			if (sanitizedMapPath.reverseFind('\\'))
-			{
-				sanitizedMapPath = sanitizedMapPath.reverseFind('\\') + 1;
-			}
+			AsciiString sanitizedMapPath = getFileName(strInitialMapPath.str());
 
 			nlohmann::json j;
 			j["name"] = to_utf8(strLobbyName.str());

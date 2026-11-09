@@ -626,9 +626,8 @@ Bool MapCache::addMap(
 			if (md.m_nameLookupTag.isEmpty())
 			{
 				// unofficial maps or maps without names
-				AsciiString tempdisplayname;
-				tempdisplayname = getFileName(fname.str());
-				(*this)[lowerFname].m_displayName.translate(tempdisplayname);
+				// TheSuperHackers @tweak arcticdolphin 09/11/2026 Without the .map extension.
+				(*this)[lowerFname].m_displayName = getMapNameFromPath(fname);
 				if (md.m_numPlayers >= 2)
 				{
 					UnicodeString extension;
@@ -703,9 +702,8 @@ Bool MapCache::addMap(
 	if (!exists || nameLookupTag.isEmpty())
 	{
 		DEBUG_LOG(("Missing TheKey_mapName!"));
-		AsciiString tempdisplayname;
-		tempdisplayname = getFileName(fname.str());
-		md.m_displayName.translate(tempdisplayname);
+		// TheSuperHackers @tweak arcticdolphin 09/11/2026 Without the .map extension.
+		md.m_displayName = getMapNameFromPath(fname);
 		if (md.m_numPlayers >= 2)
 		{
 			UnicodeString extension;
@@ -766,16 +764,29 @@ MapCache *TheMapCache = nullptr;
 
 // PUBLIC FUNCTIONS //////////////////////////////////////////////////////////////////////////////
 
+// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name is the file name without folders or the .map extension.
+UnicodeString getMapNameFromPath( const AsciiString& mapPath )
+{
+	AsciiString name = getFileName(mapPath.str());
+	if (name.endsWithNoCase(".map"))
+	{
+		name.truncateBy(4);
+	}
+	UnicodeString result;
+	result.translate(name);
+	return result;
+}
+
 Bool WouldMapTransfer( const AsciiString& mapName )
 {
 	return mapName.startsWithNoCase(TheMapCache->getUserMapDir());
 }
 
 //-------------------------------------------------------------------------------------------------
-typedef std::set<UnicodeString, rts::less_than_nocase<UnicodeString>/**/> MapNameList;
-typedef std::map<UnicodeString, AsciiString> MapDisplayToFileNameList;
+// Maps that share a display name each keep their own row.
+typedef std::multimap<UnicodeString, AsciiString, rts::less_than_nocase<UnicodeString> > MapDisplayToFileNameList;
 
-static void buildMapListForNumPlayers(MapNameList &outMapNames, MapDisplayToFileNameList &outFileNames, Int numPlayers)
+static void buildMapListForNumPlayers(MapDisplayToFileNameList &outFileNames, Int numPlayers)
 {
 	MapCache::iterator it = TheMapCache->begin();
 
@@ -784,8 +795,7 @@ static void buildMapListForNumPlayers(MapNameList &outMapNames, MapDisplayToFile
 		const MapMetaData &mapData = it->second;
 		if (mapData.m_numPlayers == numPlayers)
 		{
-			outMapNames.insert(it->second.m_displayName);
-			outFileNames[it->second.m_displayName] = it->first;
+			outFileNames.insert(MapDisplayToFileNameList::value_type(it->second.m_displayName, it->first));
 		}
 	}
 }
@@ -911,16 +921,12 @@ static Bool addMapToMapListbox(
 static Bool addMapCollectionToMapListbox(
 	MapListBoxData& lbData,
 	const AsciiString& mapDir,
-	const MapNameList& mapNames,
 	const MapDisplayToFileNameList& fileNames)
 {
-	MapNameList::const_iterator mapNameIt = mapNames.begin();
+	MapDisplayToFileNameList::const_iterator fileNameIt = fileNames.begin();
 
-	for (; mapNameIt != mapNames.end(); ++mapNameIt)
+	for (; fileNameIt != fileNames.end(); ++fileNameIt)
 	{
-		MapDisplayToFileNameList::const_iterator fileNameIt = fileNames.find(*mapNameIt);
-		DEBUG_ASSERTCRASH(fileNameIt != fileNames.end(), ("Map '%s' not found in file names map", mapNameIt->str()));
-
 		const AsciiString& asciiMapName = fileNameIt->second;
 
 #if RTS_ZEROHOUR
@@ -933,7 +939,7 @@ static Bool addMapCollectionToMapListbox(
 #endif
 
 		MapCache::iterator mapCacheIt = TheMapCache->find(asciiMapName);
-		DEBUG_ASSERTCRASH(mapCacheIt != TheMapCache->end(), ("Map '%s' not found in map cache.", mapNameIt->str()));
+		DEBUG_ASSERTCRASH(mapCacheIt != TheMapCache->end(), ("Map '%s' not found in map cache.", asciiMapName.str()));
 		/*
 		if (it != TheMapCache->end())
 		{
@@ -995,17 +1001,15 @@ Int populateMapListboxNoReset( GameWindow *listbox, Bool useSystemMaps, Bool isM
 	}
 	mapDir.toLower();
 
-	MapNameList mapNames;
 	MapDisplayToFileNameList fileNames;
 	Int curNumPlayersInMap = 1;
 
 	for (; curNumPlayersInMap <= MAX_SLOTS; ++curNumPlayersInMap)
 	{
-		buildMapListForNumPlayers(mapNames, fileNames, curNumPlayersInMap);
+		buildMapListForNumPlayers(fileNames, curNumPlayersInMap);
 
-		const Bool ok = addMapCollectionToMapListbox(lbData, mapDir, mapNames, fileNames);
+		const Bool ok = addMapCollectionToMapListbox(lbData, mapDir, fileNames);
 
-		mapNames.clear();
 		fileNames.clear();
 
 		if (!ok)

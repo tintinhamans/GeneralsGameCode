@@ -168,7 +168,8 @@ void LANAPI::OnHasMap( UnsignedInt playerIP, Bool status )
 			}
 			else
 			{
-				mapDisplayName.translate(m_currentGame->getMap().str());
+				// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name hides the user's folders.
+				mapDisplayName = getMapNameFromPath(m_currentGame->getMap());
 				willTransfer = WouldMapTransfer(m_currentGame->getMap());
 			}
 			if (!status)

@@ -1294,7 +1294,8 @@ static void StartPressed()
 	}
 	else
 	{
-		mapDisplayName.translate(myGame->getMap().str());
+		// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name hides the user's folders.
+		mapDisplayName = getMapNameFromPath(myGame->getMap());
 		willTransfer = WouldMapTransfer(myGame->getMap());
 	}
 	for( int i = 0; i < MAX_SLOTS; i++ )
@@ -2269,7 +2270,8 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 			}
 			else
 			{
-				mapDisplayName.translate(TheGenOnlineGame->getMap().str());
+				// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name hides the user's folders.
+				mapDisplayName = getMapNameFromPath(TheGenOnlineGame->getMap());
 				willTransfer = WouldMapTransfer(TheGenOnlineGame->getMap());
 			}
 
@@ -3510,7 +3512,8 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 										}
 										else
 										{
-											mapDisplayName.translate(TheGameState->getMapLeafName(game->getMap()).str());
+											// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name hides the user's folders.
+											mapDisplayName = getMapNameFromPath(game->getMap());
 											willTransfer = WouldMapTransfer(game->getMap());
 										}
 										if (willTransfer)
@@ -3668,7 +3671,8 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 									}
 									else
 									{
-										mapDisplayName.translate(game->getMap().str());
+										// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name hides the user's folders.
+										mapDisplayName = getMapNameFromPath(game->getMap());
 										willTransfer = WouldMapTransfer(game->getMap());
 									}
 									UnicodeString text;
