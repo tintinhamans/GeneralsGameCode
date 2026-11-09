@@ -240,6 +240,59 @@ class LoadingBarTest(unittest.TestCase):
             self.assertIn(path.relative_to(kit.DATA).as_posix().lower(), excluded)
 
 
+class LoadScreenPlayerBarTest(unittest.TestCase):
+    """LoadScreen.cpp: every bar it colours per player or faction takes the bronze bar under the GO bar art check."""
+
+    KIT_CHECK = "findGoLoadBarImage()"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.source = (kit.ROOT / "Core/GameEngine/Source/GameClient/GUI/LoadScreen.cpp").read_text("latin-1")
+
+    def body(self, signature):
+        start = self.source.index(signature)
+        return self.source[start:self.source.index("\n}\n", start)]
+
+    def test_kit_check_is_the_bronze_bar_image_from_the_go_bar_art(self):
+        # the Retail style leaves the GO bar art out, so LoadingBar_Progress is the retail image there and the check fails
+        check = self.body("static const Image *findGoLoadBarImage()")
+        self.assertIn('findImageByName("LoadingBar_Progress")', check)
+        self.assertIn(f'getFilename().compareNoCase("{kit.LOAD_BAR_TEXTURE_NAME}")', check)
+        self.assertIn("return nullptr;", check)
+
+    def test_player_bars_take_the_bronze_image_under_the_kit_check_and_the_house_image_otherwise(self):
+        sites = [m.start() for m in re.finditer(r'"LoadingBar_ProgressCenter%d"', self.source)]
+        self.assertEqual(len(sites), 2)  # MultiPlayerLoadScreen and GameSpyLoadScreen
+        for site in sites:
+            block = self.source[site:self.source.index("winSetEnabledImage( 6, houseImage );", site)]
+            # the retail house image lookup stays, and the kit image replaces it only when the check finds it
+            self.assertIn("findImageByName(imageName)", block)
+            self.assertRegex(block, r"if \(const Image \*kitImage = findGoLoadBarImage\(\)\)\s*\{\s*houseImage = kitImage;\s*\}")
+            # the Generals half has no GO bar art and keeps its house colour bar
+            generals = self.source.rindex("#if RTS_GENERALS", 0, site)
+            self.assertIn("GadgetProgressBarSetEnabledBarColor(m_progressBars[netSlot],houseColor );",
+                          self.source[generals:site])
+
+    def test_campaign_bar_takes_the_bronze_image_under_the_kit_check(self):
+        start = self.source.index('findImageByName("LoadingBar_ProgressCenter1")')
+        block = self.source[start:self.source.index("TheGameLODManager", start)]
+        self.assertRegex(block, r"if \(const Image \*goBarImage = findGoLoadBarImage\(\)\)\s*\{\s*"
+                                r"m_progressBar->winSetEnabledImage\( 6, goBarImage \);\s*\}")
+
+    def test_map_transfer_bar_takes_the_bronze_colour_under_the_kit_check(self):
+        # drawn in colour, not images: the house colour stays without the GO bar art
+        init = self.body("void MapTransferLoadScreen::init( GameInfo *game )")
+        house = "GadgetProgressBarSetEnabledBarColor(m_progressBars[netSlot], houseColor );"
+        self.assertIn(house, init)
+        r, g, b = themes._rgb(themes.PALETTE["bronze"])
+        self.assertRegex(init[init.index(house):], rf"if \({re.escape(self.KIT_CHECK)} != nullptr\)\s*\{{\s*"
+                                                   rf"GadgetProgressBarSetEnabledBarColor\(m_progressBars\[netSlot\], "
+                                                   rf"GameMakeColor\({r}, {g}, {b}, 255\) \);\s*\}}")
+
+    def test_player_names_keep_their_house_colour(self):
+        self.assertEqual(self.source.count("m_playerNames[netSlot]->winSetEnabledTextColors(houseColor"), 3)
+
+
 
 class MapKitThemeTest(unittest.TestCase):
     """The map preview icons and favourite stars atlas, per palette."""

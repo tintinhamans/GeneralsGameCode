@@ -6,20 +6,22 @@ picks the theme, so every theme file sits at the relative path of the base file 
 is today's GO kit look in the colours and with the logo of the Generals Online launcher (ui/theme.slint and
 ui/assets/generals-online-horizontal.svg in the launcher repository). The theme copies of the kit atlas and the menu
 layouts come from scripts/go_ui_kit.py and scripts/go_wnd_layouts.py with the tables below; this script writes the
-theme logo, which redefines the retail GeneralsLogo image, and the theme ruler, a recolour of the retail MainMenuRuler
-frame drawn behind the menus, which redefines that image. It also writes the base GO logo INI, the retail GeneralsLogo
-definition with the KEEP_ASPECT image status, so the logo keeps its aspect in menus stretched to a wide screen, and the
-load screen credit logo: a base copy of the theme logo texture under its own image name, GOLoadLogo, cropped to the logo,
-which every interface style and palette mounts because the credit is attribution, not theming.
+theme logo, which redefines the retail GeneralsLogo image, the theme ruler, a recolour of the retail MainMenuRuler
+frame drawn behind the menus, which redefines that image, and the theme load backdrop, a recolour of the retail
+MDSkirmishLoadB grid and panel frames behind the skirmish, LAN and online load screens, which redefines that image. It
+also writes the base GO logo INI, the retail GeneralsLogo definition with the KEEP_ASPECT image status, so the logo
+keeps its aspect in menus stretched to a wide screen, and the load screen credit logo: a base copy of the theme logo
+texture under its own image name, GOLoadLogo, cropped to the logo, which every interface style and palette mounts
+because the credit is attribution, not theming.
 
 Usage:
-    python scripts/go_themes.py                 write the logo (rasterized with Inkscape), the logo INIs and the ruler
-                                                (from the retail art)
+    python scripts/go_themes.py                 write the logo (rasterized with Inkscape), the logo INIs, the ruler and
+                                                the load backdrop (from the retail art)
     python scripts/go_themes.py --no-inkscape   write every file but the logo texture (--ruler is an alias); the
                                                 load logo is copied from the committed logo texture
-    python scripts/go_themes.py --check         exit 1 when a logo INI, the load logo or the ruler is stale, the logo texture is
-                                                malformed, the retail archives are missing or a theme file has no base
-                                                counterpart
+    python scripts/go_themes.py --check         exit 1 when a logo INI, the load logo, the ruler or the load backdrop is
+                                                stale, the logo texture is malformed, the retail archives are missing
+                                                or a theme file has no base counterpart
 """
 
 import argparse
@@ -185,7 +187,24 @@ RULER_INI = "Data/INI/MappedImages/HandCreated/ZZ_GeneralsOnline_ThemeRuler.INI"
 # body starts at the subtle fill tokens so it sits under the panels like their fills
 RULER_RAMP = ((0, P["fill-field"]), (40, P["fill-block"]), (77, P["line"]), (191, P["bronze"]), (231, P["tan"]),
               (255, P["sand"]))
-ADDITIONS = (LOGO_TGA, LOGO_INI, RULER_TGA, RULER_INI)  # theme files with no base counterpart
+
+# load backdrop: the retail MDSkirmishLoadB (the grid, ruler, scope and glowing panel frames behind the skirmish, LAN and
+# online load screens, MultiplayerLoadScreen.wnd and GameSpyLoadScreen.wnd) recoloured into its own texture; the panel
+# frames are part of this art, not window borders
+LOAD_BACKDROP_IMAGE = "MDSkirmishLoadB"
+LOAD_BACKDROP_RETAIL_INI = "Data/INI/MappedImages/TextureSize_512/HandCreatedMappedImages.INI"
+LOAD_BACKDROP_TEXTURE = "GeneralsOnline_RadarLoadBackdrop.tga"
+LOAD_BACKDROP_TGA = f"Art/Textures/{LOAD_BACKDROP_TEXTURE}"
+# the retail image is defined in TextureSize_512 only, so the redefinition sits there and sorts after the retail file
+LOAD_BACKDROP_INI = "Data/INI/MappedImages/TextureSize_512/ZZ_GeneralsOnline_ThemeLoadBackdrop.INI"
+# retail brightness (max channel) -> launcher token, like RULER_RAMP; the art is opaque and a single blue hue, and each
+# stop is one of its tones: body black, the brightest body (the world map, 112), the grid and scope lines (145), the
+# ruler line (64 91 180) and the inner frame glow (185), the outer frame glow (231) and the frame core (243); the body
+# stays in the subtle fills and the panel surface so the panels read over it, the lines take the ruler's bronze marks
+LOAD_BACKDROP_RAMP = ((0, P["fill-field"]), (112, P["surface"]), (145, P["line"]), (185, P["bronze"]), (231, P["tan"]),
+                      (255, P["sand"]))
+# theme files with no base counterpart
+ADDITIONS = (LOGO_TGA, LOGO_INI, RULER_TGA, RULER_INI, LOAD_BACKDROP_TGA, LOAD_BACKDROP_INI)
 
 
 def logo_ini_text():
@@ -381,11 +400,11 @@ def mapped_image(text, name):
     raise SystemExit(f"no MappedImage {name} in the retail INI")
 
 
-def ruler_lut():
-    """Return the theme colour of each retail brightness 0..255 along RULER_RAMP."""
+def ramp_lut(ramp=RULER_RAMP):
+    """Return the theme colour of each retail brightness 0..255 along a ramp of (brightness, token) stops."""
     lut = []
     for v in range(256):
-        for (v0, c0), (v1, c1) in zip(RULER_RAMP, RULER_RAMP[1:]):
+        for (v0, c0), (v1, c1) in zip(ramp, ramp[1:]):
             if v <= v1:
                 t = (v - v0) / (v1 - v0)
                 lut.append(tuple(round(a + (b - a) * t) for a, b in zip(_rgb(c0), _rgb(c1))))
@@ -393,40 +412,84 @@ def ruler_lut():
     return lut
 
 
-def recolor_ruler(rows):
-    """Map each texel's brightness onto RULER_RAMP; the art is a single blue hue, so brightness carries its shape."""
-    lut = ruler_lut()
+def ruler_lut():
+    """Return the theme colour of each retail brightness 0..255 along RULER_RAMP."""
+    return ramp_lut(RULER_RAMP)
+
+
+def recolor(rows, ramp):
+    """Map each texel's brightness onto a ramp, keeping its alpha; for single hue art, where brightness carries the shape."""
+    lut = ramp_lut(ramp)
     return [[lut[max(r, g, b)] + (a,) for r, g, b, a in row] for row in rows]
 
 
-def ruler_ini_text(retail):
+def recolor_ruler(rows):
+    """Map each texel's brightness onto RULER_RAMP; the art is a single blue hue, so brightness carries its shape."""
+    return recolor(rows, RULER_RAMP)
+
+
+def recolor_load_backdrop(rows):
+    """Map each texel's brightness onto LOAD_BACKDROP_RAMP; the art is a single blue hue, so brightness carries its shape."""
+    return recolor(rows, LOAD_BACKDROP_RAMP)
+
+
+def recolor_ini_text(image, texture, retail):
+    """A theme INI that redefines one retail image with every retail field, on the recoloured texture."""
     lines = [
-        f"; Generals Online theme: the retail {RULER_IMAGE} recoloured to the launcher palette.",
+        f"; Generals Online theme: the retail {image} recoloured to the launcher palette.",
         "; Generated by scripts/go_themes.py from the retail art; edit the script, not this file.",
         "",
-        f"MappedImage {RULER_IMAGE}",
+        f"MappedImage {image}",
     ]
-    lines += [f"  {key} = {RULER_TEXTURE if key == 'Texture' else value}" for key, value in retail.items()]
+    lines += [f"  {key} = {texture if key == 'Texture' else value}" for key, value in retail.items()]
     lines += ["End", ""]
     return "\r\n".join(lines)
 
 
-def build_ruler(retail_dir=RETAIL_DIR):
-    """Return (texture TGA bytes, INI text) of the theme ruler, read from the retail archives."""
+def ruler_ini_text(retail):
+    return recolor_ini_text(RULER_IMAGE, RULER_TEXTURE, retail)
+
+
+def load_backdrop_ini_text(retail):
+    return recolor_ini_text(LOAD_BACKDROP_IMAGE, LOAD_BACKDROP_TEXTURE, retail)
+
+
+def build_recolor(retail_dir, image, retail_ini, recolor_rows):
+    """Return (texture TGA bytes, retail fields) of one retail image's texture recoloured, read from the retail archives."""
     import go_ui_kit  # imported here: go_ui_kit imports this module for the kit palette
 
-    ini = read_big_entry(Path(retail_dir) / RETAIL_INI_BIG, RULER_RETAIL_INI)
+    ini = read_big_entry(Path(retail_dir) / RETAIL_INI_BIG, retail_ini)
     if ini is None:
-        raise SystemExit(f"no {RULER_RETAIL_INI} in {RETAIL_INI_BIG}")
-    retail = mapped_image(ini.decode("latin-1"), RULER_IMAGE)
+        raise SystemExit(f"no {retail_ini} in {RETAIL_INI_BIG}")
+    retail = mapped_image(ini.decode("latin-1"), image)
     texture = read_big_entry(Path(retail_dir) / RETAIL_TEXTURE_BIG, f"Art/Textures/{retail['Texture']}")
     if texture is None:
         raise SystemExit(f"no Art/Textures/{retail['Texture']} in {RETAIL_TEXTURE_BIG}")
     width, height, rows = read_tga(texture)
     if (width, height) != (int(retail["TextureWidth"]), int(retail["TextureHeight"])):
-        raise SystemExit(f"the retail {RULER_IMAGE} texture is {width}x{height}, not the size its INI names")
-    atlas = [[(r / 255.0, g / 255.0, b / 255.0, a / 255.0) for r, g, b, a in row] for row in recolor_ruler(rows)]
-    return go_ui_kit.tga_bytes(atlas), ruler_ini_text(retail)
+        raise SystemExit(f"the retail {image} texture is {width}x{height}, not the size its INI names")
+    atlas = [[(r / 255.0, g / 255.0, b / 255.0, a / 255.0) for r, g, b, a in row] for row in recolor_rows(rows)]
+    return go_ui_kit.tga_bytes(atlas), retail
+
+
+def build_ruler(retail_dir=RETAIL_DIR):
+    """Return (texture TGA bytes, INI text) of the theme ruler, read from the retail archives."""
+    texture, retail = build_recolor(retail_dir, RULER_IMAGE, RULER_RETAIL_INI, recolor_ruler)
+    return texture, ruler_ini_text(retail)
+
+
+def build_load_backdrop(retail_dir=RETAIL_DIR):
+    """Return (texture TGA bytes, INI text) of the theme load backdrop, read from the retail archives."""
+    texture, retail = build_recolor(retail_dir, LOAD_BACKDROP_IMAGE, LOAD_BACKDROP_RETAIL_INI, recolor_load_backdrop)
+    return texture, load_backdrop_ini_text(retail)
+
+
+def recolor_outputs(retail_dir=RETAIL_DIR):
+    """[(path, bytes)] of the theme ruler and load backdrop."""
+    ruler, ruler_ini = build_ruler(retail_dir)
+    backdrop, backdrop_ini = build_load_backdrop(retail_dir)
+    return [(THEME_DIR / RULER_TGA, ruler), (THEME_DIR / RULER_INI, ruler_ini.encode("ascii")),
+            (THEME_DIR / LOAD_BACKDROP_TGA, backdrop), (THEME_DIR / LOAD_BACKDROP_INI, backdrop_ini.encode("ascii"))]
 
 
 def missing_retail(retail_dir):
@@ -439,11 +502,9 @@ def check(retail_dir=RETAIL_DIR):
     missing = missing_retail(retail_dir)
     if missing:
         problems.append(f"retail archives not found in {retail_dir}: {', '.join(missing)}; "
-                        "cannot verify the ruler and the base logo INI (pass --retail)")
+                        "cannot verify the ruler, the load backdrop and the base logo INI (pass --retail)")
     else:
-        texture, ini = build_ruler(retail_dir)
-        expected = ((THEME_DIR / RULER_TGA, texture), (THEME_DIR / RULER_INI, ini.encode("ascii")),
-                    (DATA / BASE_LOGO_INI, build_base_logo(retail_dir).encode("ascii")))
+        expected = recolor_outputs(retail_dir) + [(DATA / BASE_LOGO_INI, build_base_logo(retail_dir).encode("ascii"))]
         for path, data in expected:
             if not path.exists() or path.read_bytes() != data:
                 problems.append(f"out of date: {path.relative_to(ROOT).as_posix()}")
@@ -482,9 +543,8 @@ def main():
     missing = missing_retail(args.retail)
     if missing:
         raise SystemExit(f"retail archives not found in {args.retail}: {', '.join(missing)} (pass --retail)")
-    ruler, ruler_ini = build_ruler(args.retail)
-    outputs = [(THEME_DIR / LOGO_INI, logo_ini_text().encode("ascii")), (THEME_DIR / RULER_TGA, ruler),
-               (THEME_DIR / RULER_INI, ruler_ini.encode("ascii")), (DATA / BASE_LOGO_INI, build_base_logo(args.retail).encode("ascii"))]
+    outputs = [(THEME_DIR / LOGO_INI, logo_ini_text().encode("ascii"))] + recolor_outputs(args.retail)
+    outputs.append((DATA / BASE_LOGO_INI, build_base_logo(args.retail).encode("ascii")))
     if not args.no_inkscape:
         outputs.insert(0, (THEME_DIR / LOGO_TGA, build_logo(args.svg, args.inkscape)))
     for path, data in outputs:

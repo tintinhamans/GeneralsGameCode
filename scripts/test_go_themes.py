@@ -586,5 +586,76 @@ class RulerTest(unittest.TestCase):
         self.assertEqual(blue(self.theme[2]), 0)
 
 
+class BackdropRecolourTest(unittest.TestCase):
+    """The Radar copy of the skirmish and online load screen backdrop, MDSkirmishLoadB, without the retail archives."""
+
+    def test_retail_tones_land_on_launcher_tokens_and_alpha_stays(self):
+        P = themes.PALETTE
+        cases = {(0, 0, 0, 255): (P["fill-field"], 255), (10, 19, 112, 255): (P["surface"], 255),
+                 (52, 51, 145, 255): (P["line"], 255), (64, 91, 185, 255): (P["bronze"], 255),
+                 (104, 119, 231, 255): (P["tan"], 255), (177, 183, 255, 128): (P["sand"], 128)}
+        for texel, (hex_color, alpha) in cases.items():
+            self.assertEqual(themes.recolor_load_backdrop([[texel]]), [[themes._rgb(hex_color) + (alpha,)]], texel)
+
+    def test_body_sits_under_the_panels_and_the_frames_take_the_bronze_marks(self):
+        P = themes.PALETTE
+        self.assertEqual(themes.LOAD_BACKDROP_RAMP[:2], ((0, P["fill-field"]), (112, P["surface"])))
+        self.assertEqual([c for _, c in themes.LOAD_BACKDROP_RAMP[-3:]], [P["bronze"], P["tan"], P["sand"]])
+
+    def test_only_the_multiplayer_and_online_load_screens_draw_the_backdrop(self):
+        users = {p.name for p in (wl.DATA / "Window").rglob("*.wnd")
+                 if f"IMAGE: {themes.LOAD_BACKDROP_IMAGE}," in p.read_bytes().decode("latin-1")}
+        self.assertEqual(users, {"MultiplayerLoadScreen.wnd", "GameSpyLoadScreen.wnd"})
+        self.assertFalse({Path(name).stem.lower() for name in users} & wl.IN_MATCH_MENUS)
+
+    def test_backdrop_is_a_radar_theme_addition_the_retail_style_leaves_out(self):
+        # themes/ is left out of the Retail style, and Signal has no base copy, so only Radar redraws the backdrop
+        for rel in (themes.LOAD_BACKDROP_TGA, themes.LOAD_BACKDROP_INI):
+            self.assertIn(rel, themes.ADDITIONS)
+            self.assertTrue((themes.THEME_DIR / rel).is_file(), rel)
+            self.assertFalse((wl.DATA / rel).exists(), rel)
+        self.assertEqual(themes.THEME_DIR.relative_to(wl.DATA).parts[0].lower(), "themes")
+
+
+@unittest.skipUnless(HAS_RETAIL, "the retail Zero Hour archives are not installed")
+class BackdropTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.retail_ini = mapped_images(themes.read_big_entry(themes.RETAIL_DIR / themes.RETAIL_INI_BIG,
+                                                              themes.LOAD_BACKDROP_RETAIL_INI).decode("latin-1"))
+        retail_texture = dict(cls.retail_ini[themes.LOAD_BACKDROP_IMAGE])["Texture"]
+        cls.retail = themes.read_tga(themes.read_big_entry(themes.RETAIL_DIR / themes.RETAIL_TEXTURE_BIG,
+                                                           f"Art/Textures/{retail_texture}"))
+        cls.theme = themes.read_tga((themes.THEME_DIR / themes.LOAD_BACKDROP_TGA).read_bytes())
+
+    def test_ini_redefines_only_the_backdrop_with_retail_fields_after_the_retail_file(self):
+        path = themes.THEME_DIR / themes.LOAD_BACKDROP_INI
+        retail = self.retail_ini[themes.LOAD_BACKDROP_IMAGE]
+        self.assertEqual(path.read_bytes(), themes.load_backdrop_ini_text(dict(retail)).encode("ascii"))
+        theme = mapped_images(path.read_bytes().decode("ascii"))
+        self.assertEqual(list(theme), [themes.LOAD_BACKDROP_IMAGE])
+        self.assertEqual(theme[themes.LOAD_BACKDROP_IMAGE], [(k, themes.LOAD_BACKDROP_TEXTURE if k == "Texture" else v) for k, v in retail])
+        self.assertIn(("Coords", "Left:0 Top:0 Right:799 Bottom:599"), theme[themes.LOAD_BACKDROP_IMAGE])
+        # the same folder as the retail definition, sorted after it
+        self.assertEqual(Path(themes.LOAD_BACKDROP_INI).parent, Path(themes.LOAD_BACKDROP_RETAIL_INI).parent)
+        self.assertGreater(Path(themes.LOAD_BACKDROP_INI).name.lower(), Path(themes.LOAD_BACKDROP_RETAIL_INI).name.lower())
+
+    def test_texture_keeps_the_retail_size_and_alpha(self):
+        self.assertEqual(self.theme[:2], self.retail[:2])
+        self.assertEqual((int(dict(self.retail_ini[themes.LOAD_BACKDROP_IMAGE])["TextureWidth"]),
+                          int(dict(self.retail_ini[themes.LOAD_BACKDROP_IMAGE])["TextureHeight"])), self.theme[:2])
+        self.assertEqual([[t[3] for t in row] for row in self.theme[2]], [[t[3] for t in row] for row in self.retail[2]])
+        self.assertEqual(struct.unpack("<B", (themes.THEME_DIR / themes.LOAD_BACKDROP_TGA).read_bytes()[16:17]), (32,))
+
+    def test_texture_is_the_recolour_of_the_retail_art(self):
+        self.assertEqual(self.theme[2], themes.recolor_load_backdrop(self.retail[2]))
+
+    def test_no_retail_blue_remains(self):
+        def blue(rows):
+            return sum(1 for row in rows for r, g, b, a in row if a and is_retail_blue(r, g, b))
+        self.assertGreater(blue(self.retail[2]), 300000)  # the detector sees the retail art as blue
+        self.assertEqual(blue(self.theme[2]), 0)
+
+
 if __name__ == "__main__":
     unittest.main()
