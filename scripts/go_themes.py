@@ -87,11 +87,11 @@ KIT_COLORS = {
 
 # Radar window fill of each fill class of scripts/go_wnd_layouts.py (fill_classes of the base layout, whose fills stay
 # retail black): a faint slate tint over near black, a small step per panel layer; each fill keeps its retail alpha
-BACKDROP_FILL = "#070B0D"   # full screen dim backdrops
-FIELD_FILL = "#06090B"      # lists, entries, combos, progress bars, static text backdrops and map preview wells
-PANEL_FILL = P["ground"]    # panel bodies, one panel deep
-SUBPANEL_FILL = "#0E1518"   # inner sub-panels, two deep
-DEEP_FILL = "#11191C"       # three or more deep
+BACKDROP_FILL = "#05080A"   # full screen dim backdrops
+FIELD_FILL = "#04070A"      # lists, entries, combos, progress bars, static text backdrops and map preview wells
+PANEL_FILL = "#07090B"      # panel bodies, one panel deep
+SUBPANEL_FILL = "#090C0E"   # inner sub-panels, two deep
+DEEP_FILL = "#0B0F11"       # three or more deep
 RADAR_FILLS = {
     "backdrop": BACKDROP_FILL,
     "field": FIELD_FILL,

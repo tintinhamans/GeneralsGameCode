@@ -864,7 +864,6 @@ class WindowFillTest(unittest.TestCase):
     def test_radar_fills_are_faint_slate_steps_over_near_black(self):
         rgbs = {token: wl.go_themes._rgb(hex_color) for token, hex_color in wl.go_themes.RADAR_FILLS.items()}
         self.assertEqual(set(rgbs), {"backdrop", "field", "panel", "subpanel", "deep"})
-        self.assertEqual(rgbs["panel"], wl.go_themes._rgb(wl.go_themes.P["ground"]))  # the launcher ground
         layers = [rgbs[token] for token in ("field", "panel", "subpanel", "deep")]
         self.assertEqual(layers, sorted(layers))
         for token, (r, g, b) in rgbs.items():
