@@ -960,7 +960,8 @@ LOAD_SPLASHES = (
     ("GUI:GOLoadSplash8", "Let's go where it is safe."),
     ("GUI:GOLoadSplash9", "We get signal everywhere."),
 )
-SPLASH_FONT_SIZE = 12      # Consolas bold
+SPLASH_FONT_SIZE = 16      # Consolas bold
+BUBBLE_WRAP_UNITS = 260    # the wrap width, scaled like the font: long lines take two lines, short ones one
 URL_FONT_SIZE = 14
 CREDIT_URL_TOP = 362       # LoadScreen.cpp CREDIT_URL_TOP
 LOGO_ASPECT = (1282, 494)  # GOLoadLogo Coords
@@ -973,10 +974,10 @@ BUBBLE_TITLE = "the load screen speech bubble"
 BUBBLE_FILL = rgba(go_themes.PALETTE["text"])  # cream
 BUBBLE_LINE = rgba(go_themes.PALETTE["ink"])   # the van's outline colour
 BUBBLE_TEXT = go_themes.PALETTE["ink"]
-BUBBLE_ART_HEIGHT = 20     # art units; the bubble draws at any height, every piece scaled by height / 20
-BUBBLE_CAP_WIDTH = 10
+BUBBLE_CORNER = 8          # art units of a corner piece; a 9-slice, so corners keep their size at any line count
+BUBBLE_EDGE = 4            # art units of the stretched edges and the centre
 BUBBLE_RADIUS = 7.0
-BUBBLE_LINE_WIDTH = 1.0    # about the van outline at the bubble's height over the van
+BUBBLE_LINE_WIDTH = 1.0    # about the van art's outline at the bubble's size
 BUBBLE_TAIL = (12, 10)     # width and height, the tip at the bottom centre
 BUBBLE_TAIL_OVER = 1.5     # the tail's top rows cover the bubble's bottom line, so the two read as one shape
 # the rules by their LoadScreen.cpp names: the logo van's dish rim in GOLoadLogo texels (logo_dish measures it) and the
@@ -988,20 +989,18 @@ LOGO_TEXTURE_PATH = DATA / "Art" / "Textures" / "GeneralsOnline_LoadLogo.tga"
 LOGO_COORDS = (383, 9, 1665, 503)  # GOLoadLogo Coords
 
 
-def bubble_piece(w, h, side):
-    """A rounded end (left or right) or the middle of the bubble: cream inside an ink line BUBBLE_LINE_WIDTH wide."""
-    left, right = ends(side)
+def bubble_slice(w, h, left, top, right, bottom):
+    """One slice of the bubble's 9-slice: cream inside an ink line BUBBLE_LINE_WIDTH wide, corners rounded where two
+    closed sides meet; left/top/right/bottom say which sides of the piece are the bubble's edge."""
     r = BUBBLE_RADIUS
 
     def sample(x, y):
-        d = min(y, h - y)
-        for on, cx, outside_x in ((left, r, x < r), (right, w - r, x > w - r)):
-            if on and outside_x:
-                if y < r or y > h - r:
-                    cy = r if y < r else h - r
-                    d = r - math.hypot(x - cx, y - cy)
-                else:
-                    d = min(d, x if cx == r else w - x)
+        sides = [d for d, on in ((x, left), (y, top), (w - x, right), (h - y, bottom)) if on]
+        d = min(sides) if sides else float("inf")
+        cx = r if left else (w - r if right else None)
+        cy = r if top else (h - r if bottom else None)
+        if cx is not None and cy is not None and (x < r if left else x > w - r) and (y < r if top else y > h - r):
+            d = r - math.hypot(x - cx, y - cy)
         if d < 0:
             return TRANSPARENT
         return BUBBLE_LINE if d < BUBBLE_LINE_WIDTH else BUBBLE_FILL
@@ -1028,11 +1027,18 @@ def bubble_tail(w, h):
 
 
 def bubble_pieces():
+    c, e = BUBBLE_CORNER, BUBBLE_EDGE
     tw, th = BUBBLE_TAIL
     return [
-        ("GOBubbleL", BUBBLE_CAP_WIDTH, BUBBLE_ART_HEIGHT, bubble_piece(BUBBLE_CAP_WIDTH, BUBBLE_ART_HEIGHT, "left")),
-        ("GOBubbleC", 4, BUBBLE_ART_HEIGHT, bubble_piece(4, BUBBLE_ART_HEIGHT, "middle")),
-        ("GOBubbleR", BUBBLE_CAP_WIDTH, BUBBLE_ART_HEIGHT, bubble_piece(BUBBLE_CAP_WIDTH, BUBBLE_ART_HEIGHT, "right")),
+        ("GOBubbleTL", c, c, bubble_slice(c, c, True, True, False, False)),
+        ("GOBubbleT", e, c, bubble_slice(e, c, False, True, False, False)),
+        ("GOBubbleTR", c, c, bubble_slice(c, c, False, True, True, False)),
+        ("GOBubbleL", c, e, bubble_slice(c, e, True, False, False, False)),
+        ("GOBubbleC", e, e, bubble_slice(e, e, False, False, False, False)),
+        ("GOBubbleR", c, e, bubble_slice(c, e, False, False, True, False)),
+        ("GOBubbleBL", c, c, bubble_slice(c, c, True, False, False, True)),
+        ("GOBubbleB", e, c, bubble_slice(e, c, False, False, False, True)),
+        ("GOBubbleBR", c, c, bubble_slice(c, c, False, False, True, True)),
         ("GOBubbleTail", tw, th, bubble_tail(tw, th)),
     ]
 
@@ -1047,8 +1053,21 @@ def font_scale(screen_width, screen_height):
     return min(screen_width / 800.0, screen_height / 600.0)
 
 
-def splash_text_size(text, screen_width, screen_height):
-    return text_size(text, int(SPLASH_FONT_SIZE * font_scale(screen_width, screen_height)))
+def splash_text_block(text, screen_width, screen_height):
+    """The splash as the wrapped DisplayString lays it out: (lines, width, height, line height). Greedy word wrap at
+    BUBBLE_WRAP_UNITS times the font scale, with text_size's per character estimate."""
+    scale = font_scale(screen_width, screen_height)
+    point = int(SPLASH_FONT_SIZE * scale)
+    wrap = int(BUBBLE_WRAP_UNITS * scale)
+    lines = []
+    for word in text.split(" "):
+        candidate = f"{lines[-1]} {word}" if lines else word
+        if lines and text_size(candidate, point)[0] < wrap:
+            lines[-1] = candidate
+        else:
+            lines.append(word)
+    line_height = text_size("x", point)[1]
+    return lines, max(text_size(line, point)[0] for line in lines), line_height * len(lines), line_height
 
 
 def logo_rect(screen_width, screen_height):
@@ -1091,22 +1110,24 @@ def bubble_tip(screen_width, screen_height):
     return x, y - int(BUBBLE_TIP_GAP_UNITS * screen_height / 600.0)
 
 
-def bubble_layout(tip, text_width, text_height, screen_width, screen_height):
-    """drawGoLogoBubble: {"bubble", "cap", "tail", "text"}. The bubble is 1.5 lines tall around the text, above the tip
-    and three quarters of it to the left, kept on screen with a margin; the tail hangs from its bottom to the tip, sliding
-    along the straight part of the bottom edge when the bubble is pulled back."""
+def bubble_layout(tip, text_width, text_height, line_height, screen_width, screen_height):
+    """drawGoLogoBubble: {"bubble", "corner", "tail", "text"}. Every size follows the font's line height: corners of
+    3/5 line, padding of a quarter line above and below and half a line at the sides, so the bubble grows upward by a
+    line per wrapped line from a bottom edge fixed over the tip. Three quarters of it sit left of the tip, kept on screen
+    with a margin; the tail hangs from the bottom to the tip, sliding along the straight part when it is pulled back."""
     tip_x, tip_y = tip
-    height = text_height * 3 // 2
-    cap = height // 2
-    tail_w, tail_h, over = height * 3 // 5, height // 2, height * 3 // 40
-    width = max(text_width + height * 3 // 4, height + tail_w)
+    corner = line_height * 3 // 5
+    tail_w, tail_h, over = line_height * 9 // 10, line_height * 3 // 4, line_height * 9 // 80
+    height = max(text_height + line_height // 2, 2 * corner)
+    width = max(text_width + line_height, 2 * corner + tail_w)
     margin = int(BUBBLE_MARGIN_UNITS * screen_height / 600.0)
     left = max(margin, min(tip_x - width * 3 // 4, screen_width - margin - width))
-    top = tip_y - tail_h + over - height
-    centre = max(left + cap + tail_w // 2, min(tip_x, left + width - cap - tail_w // 2))
-    tail_left, tail_top = centre - tail_w // 2, top + height - over
+    bottom = tip_y - tail_h + over
+    top = bottom - height
+    centre = max(left + corner + tail_w // 2, min(tip_x, left + width - corner - tail_w // 2))
+    tail_left, tail_top = centre - tail_w // 2, bottom - over
     text_left, text_top = left + (width - text_width) // 2, top + (height - text_height) // 2
-    return {"bubble": (left, top, left + width, top + height), "cap": cap,
+    return {"bubble": (left, top, left + width, bottom), "corner": corner,
             "tail": (tail_left, tail_top, tail_left + tail_w, tail_top + tail_h),
             "text": (text_left, text_top, text_left + text_width, text_top + text_height)}
 

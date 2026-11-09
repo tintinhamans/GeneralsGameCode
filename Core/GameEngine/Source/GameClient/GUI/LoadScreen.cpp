@@ -133,7 +133,7 @@ static const GoLoadSplash GO_LOAD_SPLASHES[] = {
 	{ "GUI:GOLoadSplash7", L"Keep me out of sight." },
 	{ "GUI:GOLoadSplash8", L"Let's go where it is safe." },
 	{ "GUI:GOLoadSplash9", L"We get signal everywhere." } };
-static const Int GO_SPLASH_FONT_SIZE = 12;
+static const Int GO_SPLASH_FONT_SIZE = 16;
 // the line of this launch and its string; file statics, so the load screen class keeps its layout
 static Int s_goSplashLine = -1;
 static DisplayString *s_goSplash = nullptr;
@@ -382,36 +382,50 @@ static const Int GO_LOGO_DISH_Y = 0;
 static const UnsignedInt GO_BUBBLE_FADE_MS = 600;
 static const Real GO_BUBBLE_MARGIN = 8.0f;
 static const Real GO_BUBBLE_TIP_GAP = 2.0f;
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The splash line wraps at this width, scaled like its font, so long lines take two lines and short ones one.
+static const Real GO_BUBBLE_WRAP = 260.0f;
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 The bubble sized to the line, above the tip with three quarters of it to the left and kept on screen; the tail slides along its bottom to keep pointing at the dish.
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The bubble around the wrapped line: a 9-slice whose corners keep their size, growing upward from a bottom fixed over the tip, three quarters of it left of the tip and kept on screen; the tail slides along its bottom to keep pointing at the dish.
 static void drawGoLogoBubble(Int tipX, Int tipY, UnsignedInt shownMs)
 {
-	const Image *bubbleLeft = TheMappedImageCollection->findImageByName("GOBubbleL");
-	const Image *bubbleCenter = TheMappedImageCollection->findImageByName("GOBubbleC");
-	const Image *bubbleRight = TheMappedImageCollection->findImageByName("GOBubbleR");
-	const Image *bubbleTail = TheMappedImageCollection->findImageByName("GOBubbleTail");
-	if (s_goSplash == nullptr || bubbleLeft == nullptr || bubbleCenter == nullptr || bubbleRight == nullptr || bubbleTail == nullptr)
+	if (s_goSplash == nullptr || s_goSplash->getFont() == nullptr)
 	{
 		return;
+	}
+	// the slices top left to bottom right, then the tail
+	static const char *const sliceNames[10] = { "GOBubbleTL", "GOBubbleT", "GOBubbleTR", "GOBubbleL", "GOBubbleC", "GOBubbleR", "GOBubbleBL", "GOBubbleB", "GOBubbleBR", "GOBubbleTail" };
+	const Image *slices[10];
+	for (Int i = 0; i < 10; ++i)
+	{
+		slices[i] = TheMappedImageCollection->findImageByName(sliceNames[i]);
+		if (slices[i] == nullptr)
+		{
+			return;
+		}
 	}
 	Int textWidth = 0;
 	Int textHeight = 0;
 	s_goSplash->getSize(&textWidth, &textHeight);
-	if (textHeight <= 0)
+	const Int lineHeight = s_goSplash->getFont()->height;
+	if (textHeight <= 0 || lineHeight <= 0)
 	{
 		return;
 	}
 
-	// a line and a half tall; every piece scales with the height, so the outline keeps the van art's weight
-	const Int height = textHeight * 3 / 2;
-	const Int capWidth = height / 2;
-	const Int tailWidth = height * 3 / 5;
-	const Int tailHeight = height / 2;
-	const Int over = height * 3 / 40;
-	Int width = textWidth + height * 3 / 4;
-	if (width < height + tailWidth)
+	// every size follows the line height, so the outline keeps the van art's weight and a second line only adds height
+	const Int corner = lineHeight * 3 / 5;
+	const Int tailWidth = lineHeight * 9 / 10;
+	const Int tailHeight = lineHeight * 3 / 4;
+	const Int over = lineHeight * 9 / 80;
+	Int height = textHeight + lineHeight / 2;
+	if (height < 2 * corner)
 	{
-		width = height + tailWidth;
+		height = 2 * corner;
+	}
+	Int width = textWidth + lineHeight;
+	if (width < 2 * corner + tailWidth)
+	{
+		width = 2 * corner + tailWidth;
 	}
 	const Int screenWidth = TheDisplay->getWidth();
 	const Int margin = REAL_TO_INT(GO_BUBBLE_MARGIN * TheDisplay->getHeight() / 600.0f);
@@ -424,25 +438,33 @@ static void drawGoLogoBubble(Int tipX, Int tipY, UnsignedInt shownMs)
 	{
 		left = margin;
 	}
-	const Int top = tipY - tailHeight + over - height;
+	const Int bottom = tipY - tailHeight + over;
+	const Int top = bottom - height;
 	Int tailCenter = tipX;
-	if (tailCenter > left + width - capWidth - tailWidth / 2)
+	if (tailCenter > left + width - corner - tailWidth / 2)
 	{
-		tailCenter = left + width - capWidth - tailWidth / 2;
+		tailCenter = left + width - corner - tailWidth / 2;
 	}
-	if (tailCenter < left + capWidth + tailWidth / 2)
+	if (tailCenter < left + corner + tailWidth / 2)
 	{
-		tailCenter = left + capWidth + tailWidth / 2;
+		tailCenter = left + corner + tailWidth / 2;
 	}
 
 	// fades in from the credit's start, with the logo, and stays
 	const Int alpha = shownMs >= GO_BUBBLE_FADE_MS ? 255 : (Int)(255 * shownMs / GO_BUBBLE_FADE_MS);
 	const Color tint = GameMakeColor(255, 255, 255, alpha);
-	TheDisplay->drawImage(bubbleLeft, left, top, left + capWidth, top + height, tint);
-	TheDisplay->drawImage(bubbleCenter, left + capWidth, top, left + width - capWidth, top + height, tint);
-	TheDisplay->drawImage(bubbleRight, left + width - capWidth, top, left + width, top + height, tint);
+	const Int columns[4] = { left, left + corner, left + width - corner, left + width };
+	const Int rows[4] = { top, top + corner, bottom - corner, bottom };
+	for (Int row = 0; row < 3; ++row)
+	{
+		for (Int column = 0; column < 3; ++column)
+		{
+			TheDisplay->drawImage(slices[row * 3 + column], columns[column], rows[row], columns[column + 1], rows[row + 1], tint);
+		}
+	}
 	const Int tailLeft = tailCenter - tailWidth / 2;
-	TheDisplay->drawImage(bubbleTail, tailLeft, top + height - over, tailLeft + tailWidth, top + height - over + tailHeight, tint);
+	TheDisplay->drawImage(slices[9], tailLeft, bottom - over, tailLeft + tailWidth, bottom - over + tailHeight, tint);
+	// the wrapped lines centred in the bubble
 	s_goSplash->draw(left + (width - textWidth) / 2, top + (height - textHeight) / 2, GameMakeColor(13, 21, 27, alpha), GameMakeColor(0, 0, 0, 0));
 }
 
@@ -1845,6 +1867,8 @@ void ShellGameLoadScreen::initCredit()
 		}
 		s_goSplash->setText(TheGameText->FETCH_OR_SUBSTITUTE(GO_LOAD_SPLASHES[s_goSplashLine].label, GO_LOAD_SPLASHES[s_goSplashLine].text));
 		s_goSplash->setFont(TheFontLibrary->getFont("Consolas", Int(GO_SPLASH_FONT_SIZE * fontScale), TRUE));
+		s_goSplash->setWordWrap(REAL_TO_INT(GO_BUBBLE_WRAP * fontScale));
+		s_goSplash->setWordWrapCentered(TRUE);
 	}
 
 	m_creditWindow = TheWindowManager->winCreate(m_loadScreen, WIN_STATUS_ENABLED | WIN_STATUS_NO_INPUT, 0, 0, screenWidth, screenHeight, nullptr);
