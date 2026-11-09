@@ -117,6 +117,27 @@ static const Real CREDIT_LOGO_TOP = 222.0f;
 static const Real CREDIT_LOGO_HEIGHT = 125.0f;
 static const Real CREDIT_URL_TOP = 362.0f;
 
+// TheSuperHackers @feature arcticdolphin 09/11/2026 Minecraft style splash lines the radar van says, translatable by label; scripts/go_ui_kit.py LOAD_SPLASHES mirrors them.
+struct GoLoadSplash
+{
+	const char *label;
+	const WideChar *text;
+};
+static const GoLoadSplash GO_LOAD_SPLASHES[] = {
+	{ "GUI:GOLoadSplash1", L"Working eyes at your disposal." },
+	{ "GUI:GOLoadSplash2", L"Let us see what they are up to." },
+	{ "GUI:GOLoadSplash3", L"Nothing is private." },
+	{ "GUI:GOLoadSplash4", L"GLA radar service." },
+	{ "GUI:GOLoadSplash5", L"What station you need, general?" },
+	{ "GUI:GOLoadSplash6", L"Better reception there?" },
+	{ "GUI:GOLoadSplash7", L"Keep me out of sight." },
+	{ "GUI:GOLoadSplash8", L"Let's go where it is safe." },
+	{ "GUI:GOLoadSplash9", L"We get signal everywhere." } };
+static const Int GO_SPLASH_FONT_SIZE = 12;
+// the line of this launch and its string; file statics, so the load screen class keeps its layout
+static Int s_goSplashLine = -1;
+static DisplayString *s_goSplash = nullptr;
+
 //-----------------------------------------------------------------------------
 // PUBLIC DATA ////////////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
@@ -141,12 +162,6 @@ static const Image *findGoLoadBarImage()
 	return image;
 }
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 True for an image of the GO bar art, which the Retail style leaves out.
-Bool isGoLoadBarImage(const Image *image)
-{
-	return image != nullptr && image->getFilename().compareNoCase("GeneralsOnline_LoadingBar.tga") == 0;
-}
-
 // TheSuperHackers @feature arcticdolphin 09/11/2026 The radar van rules in texels of its 256x156 canvas and milliseconds; scripts/go_ui_kit.py VAN_CONSTANTS mirrors them.
 static const Int GO_VAN_FRAME_WIDTH = 256;
 static const Int GO_VAN_FRAME_HEIGHT = 156;
@@ -163,7 +178,6 @@ static const UnsignedInt GO_VAN_FRAME_MS = 83;
 static const UnsignedInt GO_VAN_STALL_MS = 500;
 static const UnsignedInt GO_VAN_SETTLE_MS = 300;
 static const UnsignedInt GO_VAN_FORGET_MS = 1000;
-static const Int GO_VAN_BARS = 16;
 static const Int GO_VAN_BOB = 2;
 static const UnsignedInt GO_VAN_DISH_LAG_MS = 90;
 static const UnsignedInt GO_VAN_WAVE_MS = 10000;
@@ -188,6 +202,13 @@ static const Real GO_VAN_BOB_WEIGHT_A = 0.6f;
 static const Int GO_VAN_SPAN = GO_VAN_OUTLINE_BOTTOM - GO_VAN_OUTLINE_TOP;
 static const char *const GO_VAN_WHEEL_IMAGES[GO_VAN_WHEEL_FRAMES] = { "GOVanWheels0", "GOVanWheels1", "GOVanWheels2", "GOVanWheels3" };
 
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The shell load road in 800x600 units, half the width and centred near the bottom, and half its dash period; scripts/go_ui_kit.py LOAD_ROAD_RECT mirrors them.
+static const Int GO_ROAD_LEFT = 200;
+static const Int GO_ROAD_TOP = 574;
+static const Int GO_ROAD_RIGHT = 600;
+static const Int GO_ROAD_BOTTOM = 592;
+static const Real GO_ROAD_DASH_UNITS = 6.0f;
+
 struct GoVanPuff
 {
 	UnsignedInt born;
@@ -201,22 +222,28 @@ struct GoVanState
 {
 	GameWindow *window;
 	Int progress;
-	Int fillEnd;
+	Int position;
 	UnsignedInt changedAt;
 	UnsignedInt drawnAt;
 	UnsignedInt spawnedAt;
+	UnsignedInt appearedAt;
 	Int frame;
 	Real credit;
 	Int nextPuff;
 	GoVanPuff puffs[GO_VAN_PUFFS];
 };
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 One fixed slot per bar on screen, so the van never allocates while it draws.
-static GoVanState s_goVans[GO_VAN_BARS];
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The van's clock and a fixed ring of puffs, so it never allocates while it draws.
+static GoVanState s_goVan;
 
 static Int goVanScale(Int value, Int height)
 {
 	return (value * height + GO_VAN_SPAN / 2) / GO_VAN_SPAN;
+}
+
+static Int goLayoutScale(Int value, Int numerator, Int denominator)
+{
+	return (value * numerator + denominator / 2) / denominator;
 }
 
 static UnsignedInt goVanHash(UnsignedInt value)
@@ -234,29 +261,21 @@ static Real goVanWave(UnsignedInt now)
 	return (Real)(a + b);
 }
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 The bar's slot; a bar not drawn for a while takes the stalest slot and starts parked.
-static GoVanState *findGoVanState(GameWindow *window, Int progress, Int fillEnd, UnsignedInt now)
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The van's state for this road; a road not drawn for a while starts again parked.
+static GoVanState *findGoVanState(GameWindow *window, Int progress, Int position, UnsignedInt now)
 {
-	GoVanState *oldest = &s_goVans[0];
-	for (Int i = 0; i < GO_VAN_BARS; ++i)
+	GoVanState *state = &s_goVan;
+	if (state->window != window || now - state->drawnAt >= GO_VAN_FORGET_MS)
 	{
-		GoVanState *state = &s_goVans[i];
-		if (state->window == window && now - state->drawnAt < GO_VAN_FORGET_MS)
-		{
-			return state;
-		}
-		if (now - state->drawnAt > now - oldest->drawnAt)
-		{
-			oldest = state;
-		}
+		memset(state, 0, sizeof(*state));
+		state->window = window;
+		state->progress = progress;
+		state->position = position;
+		state->changedAt = now - GO_VAN_STALL_MS - GO_VAN_SETTLE_MS;
+		state->spawnedAt = now;
+		state->appearedAt = now;
 	}
-	memset(oldest, 0, sizeof(*oldest));
-	oldest->window = window;
-	oldest->progress = progress;
-	oldest->fillEnd = fillEnd;
-	oldest->changedAt = now - GO_VAN_STALL_MS - GO_VAN_SETTLE_MS;
-	oldest->spawnedAt = now;
-	return oldest;
+	return state;
 }
 
 // TheSuperHackers @feature arcticdolphin 09/11/2026 True when a shown window that draws, other than the bar and the windows holding it, meets the strip.
@@ -315,18 +334,17 @@ static Bool goVanStripIsClear(GameWindow *bar, const IRegion2D &strip)
 struct GoVanPlace
 {
 	Bool placed;
-	Bool inside;
 	Int height;
 	Int x0;
 	Int y0;
 };
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 Where the van goes: on the road's top edge at the fill end when there is room, else on the track ahead of the fill.
-static GoVanPlace placeGoVan(GameWindow *window, const IRegion2D &road, const IRegion2D &fill, Int fillEnd)
+// TheSuperHackers @feature arcticdolphin 09/11/2026 Where the van goes: tyres on the road's top edge, rear tyre at the road start at 0% and the front at its end at 100%; none when a window is in the way.
+static GoVanPlace placeGoVan(GameWindow *window, const IRegion2D &road, Int progress)
 {
 	GoVanPlace place;
 	place.placed = TheMappedImageCollection->findImageByName("GOVanBody") != nullptr && TheMappedImageCollection->findImageByName("GOVanDish") != nullptr;
-	// a partial set of van images gives no van and no fill cut
+	// a partial set of van images gives no van
 	for (Int wheel = 0; wheel < GO_VAN_WHEEL_FRAMES; ++wheel)
 	{
 		if (TheMappedImageCollection->findImageByName(GO_VAN_WHEEL_IMAGES[wheel]) == nullptr)
@@ -334,89 +352,111 @@ static GoVanPlace placeGoVan(GameWindow *window, const IRegion2D &road, const IR
 			place.placed = FALSE;
 		}
 	}
-	place.inside = FALSE;
 
-	// above the road: about 1.8 times its height, tyres on its top edge, when nothing else is drawn there
+	// about 1.8 times the road height, over a strip nothing else may draw in
 	Int height = (road.hi.y - road.lo.y) * 9 / 5;
 	if (height < GO_VAN_MIN_HEIGHT)
 	{
 		height = GO_VAN_MIN_HEIGHT;
 	}
-	Int left = road.lo.x;
-	Int right = road.hi.x;
-	Int tyre = road.lo.y;
 	IRegion2D strip;
-	strip.lo.x = left + goVanScale(GO_VAN_BUMPER - GO_VAN_REAR_TYRE, height) - goVanScale(GO_VAN_BUMPER, height);
-	strip.lo.y = tyre - goVanScale(GO_VAN_TYRE_BOTTOM - GO_VAN_OUTLINE_TOP + GO_VAN_BOB, height);
-	strip.hi.x = right;
-	strip.hi.y = tyre;
-	Int x0;
-	if (goVanStripIsClear(window, strip))
+	strip.lo.x = road.lo.x + goVanScale(GO_VAN_BUMPER - GO_VAN_REAR_TYRE, height) - goVanScale(GO_VAN_BUMPER, height);
+	strip.lo.y = road.lo.y - goVanScale(GO_VAN_TYRE_BOTTOM - GO_VAN_OUTLINE_TOP + GO_VAN_BOB, height);
+	strip.hi.x = road.hi.x;
+	strip.hi.y = road.lo.y;
+	if (!goVanStripIsClear(window, strip))
 	{
-		// the front bumper at the fill end, but the rear tyre no further left than the road's start
-		Int bumper = left + goVanScale(GO_VAN_BUMPER - GO_VAN_REAR_TYRE, height);
-		if (fillEnd > bumper)
-		{
-			bumper = fillEnd;
-		}
-		if (bumper > right - goVanScale(GO_VAN_OUTLINE_RIGHT - GO_VAN_BUMPER, height))
-		{
-			bumper = right - goVanScale(GO_VAN_OUTLINE_RIGHT - GO_VAN_BUMPER, height);
-		}
-		x0 = bumper - goVanScale(GO_VAN_BUMPER, height);
+		place.placed = FALSE;
 	}
-	else
-	{
-		// no room: on the dark track ahead of the fill at its height, rear at the fill end, or no van under the minimum height
-		place.inside = TRUE;
-		height = fill.hi.y - fill.lo.y;
-		if (height < GO_VAN_MIN_HEIGHT)
-		{
-			place.placed = FALSE;
-		}
-		right = fill.hi.x;
-		tyre = fill.lo.y + goVanScale(GO_VAN_TYRE_BOTTOM - GO_VAN_OUTLINE_TOP, height);
-		x0 = fillEnd - goVanScale(GO_VAN_OUTLINE_LEFT, height);
-		if (x0 > right - goVanScale(GO_VAN_OUTLINE_RIGHT, height))
-		{
-			x0 = right - goVanScale(GO_VAN_OUTLINE_RIGHT, height);
-		}
-	}
+
+	const Int first = road.lo.x + goVanScale(GO_VAN_BUMPER - GO_VAN_REAR_TYRE, height);
+	const Int last = road.hi.x - goVanScale(GO_VAN_OUTLINE_RIGHT - GO_VAN_BUMPER, height);
+	const Int bumper = first + (last - first) * progress / 100;
 	place.height = height;
-	place.x0 = x0;
-	place.y0 = tyre - goVanScale(GO_VAN_TYRE_BOTTOM, height);
+	place.x0 = bumper - goVanScale(GO_VAN_BUMPER, height);
+	place.y0 = road.lo.y - goVanScale(GO_VAN_TYRE_BOTTOM, height);
 	return place;
 }
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 Where a GO bar art fill should end: at the rear of a van driving inside the bar, so the fill never runs under it.
-Int goLoadBarVanFillEnd(GameWindow *window, const IRegion2D &road, const IRegion2D &fill, Int fillEnd)
-{
-	if (window == nullptr)
-	{
-		return fillEnd;
-	}
-	const GoVanPlace place = placeGoVan(window, road, fill, fillEnd);
-	if (!place.placed || !place.inside)
-	{
-		return fillEnd;
-	}
-	const Int rear = place.x0 + goVanScale(GO_VAN_OUTLINE_LEFT, place.height);
-	return rear < fillEnd ? rear : fillEnd;
-}
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The splash line as a speech bubble from the van: the tail tip just over the dish (canvas texels), a fade in, a screen margin in 800x600 units; scripts/go_ui_kit.py BUBBLE_CONSTANTS mirrors them.
+static const Int GO_BUBBLE_TIP_X = 78;
+static const Int GO_BUBBLE_TIP_Y = 0;
+static const UnsignedInt GO_BUBBLE_FADE_MS = 600;
+static const Real GO_BUBBLE_MARGIN = 8.0f;
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 The GO radar van at the leading edge of a GO bar art fill: wheels, puffs and bob run while progress moves and settle when it stalls.
-void drawGoLoadBarVan(GameWindow *window, Int progress, const IRegion2D &road, const IRegion2D &fill, Int fillEnd)
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The bubble sized to the line, a quarter of it left of the tip and kept on screen; the tail slides along its bottom to keep pointing at the van.
+static void drawGoVanBubble(Int tipX, Int tipY, UnsignedInt shownMs)
 {
-	const Image *body = TheMappedImageCollection->findImageByName("GOVanBody");
-	const Image *dish = TheMappedImageCollection->findImageByName("GOVanDish");
-	const Image *puffImage = TheMappedImageCollection->findImageByName("GOVanPuff");
-	if (window == nullptr || body == nullptr || dish == nullptr)
+	const Image *bubbleLeft = TheMappedImageCollection->findImageByName("GOBubbleL");
+	const Image *bubbleCenter = TheMappedImageCollection->findImageByName("GOBubbleC");
+	const Image *bubbleRight = TheMappedImageCollection->findImageByName("GOBubbleR");
+	const Image *bubbleTail = TheMappedImageCollection->findImageByName("GOBubbleTail");
+	if (s_goSplash == nullptr || bubbleLeft == nullptr || bubbleCenter == nullptr || bubbleRight == nullptr || bubbleTail == nullptr)
+	{
+		return;
+	}
+	Int textWidth = 0;
+	Int textHeight = 0;
+	s_goSplash->getSize(&textWidth, &textHeight);
+	if (textHeight <= 0)
 	{
 		return;
 	}
 
-	const GoVanPlace place = placeGoVan(window, road, fill, fillEnd);
-	const Bool placed = place.placed;
+	// a line and a half tall; every piece scales with the height, so the outline matches the van's
+	const Int height = textHeight * 3 / 2;
+	const Int capWidth = height / 2;
+	const Int tailWidth = height * 3 / 5;
+	const Int tailHeight = height / 2;
+	const Int over = height * 3 / 40;
+	Int width = textWidth + height * 3 / 4;
+	if (width < height + tailWidth)
+	{
+		width = height + tailWidth;
+	}
+	const Int screenWidth = TheDisplay->getWidth();
+	const Int margin = REAL_TO_INT(GO_BUBBLE_MARGIN * TheDisplay->getHeight() / 600.0f);
+	Int left = tipX - width / 4;
+	if (left > screenWidth - margin - width)
+	{
+		left = screenWidth - margin - width;
+	}
+	if (left < margin)
+	{
+		left = margin;
+	}
+	const Int top = tipY - tailHeight + over - height;
+	Int tailCenter = tipX;
+	if (tailCenter > left + width - capWidth - tailWidth / 2)
+	{
+		tailCenter = left + width - capWidth - tailWidth / 2;
+	}
+	if (tailCenter < left + capWidth + tailWidth / 2)
+	{
+		tailCenter = left + capWidth + tailWidth / 2;
+	}
+
+	// fades in from the van's first frame and stays
+	const Int alpha = shownMs >= GO_BUBBLE_FADE_MS ? 255 : (Int)(255 * shownMs / GO_BUBBLE_FADE_MS);
+	const Color tint = GameMakeColor(255, 255, 255, alpha);
+	TheDisplay->drawImage(bubbleLeft, left, top, left + capWidth, top + height, tint);
+	TheDisplay->drawImage(bubbleCenter, left + capWidth, top, left + width - capWidth, top + height, tint);
+	TheDisplay->drawImage(bubbleRight, left + width - capWidth, top, left + width, top + height, tint);
+	const Int tailLeft = tailCenter - tailWidth / 2;
+	TheDisplay->drawImage(bubbleTail, tailLeft, top + height - over, tailLeft + tailWidth, top + height - over + tailHeight, tint);
+	s_goSplash->draw(left + (width - textWidth) / 2, top + (height - textHeight) / 2, GameMakeColor(13, 21, 27, alpha), GameMakeColor(0, 0, 0, 0));
+}
+
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The GO radar van on the shell load road: wheels, puffs and bob run while progress moves and settle when it stalls.
+static void drawGoLoadBarVan(GameWindow *window, Int progress, const GoVanPlace &place)
+{
+	const Image *body = TheMappedImageCollection->findImageByName("GOVanBody");
+	const Image *dish = TheMappedImageCollection->findImageByName("GOVanDish");
+	const Image *puffImage = TheMappedImageCollection->findImageByName("GOVanPuff");
+	if (!place.placed || body == nullptr || dish == nullptr)
+	{
+		return;
+	}
 	const Int height = place.height;
 	const Int x0 = place.x0;
 	const Int y0 = place.y0;
@@ -425,7 +465,7 @@ void drawGoLoadBarVan(GameWindow *window, Int progress, const IRegion2D &road, c
 
 	// the clock: moving until progress stood still GO_VAN_STALL_MS, then the wiggle fades out
 	const UnsignedInt now = timeGetTime();
-	GoVanState *state = findGoVanState(window, progress, fillEnd, now);
+	GoVanState *state = findGoVanState(window, progress, x0, now);
 	state->drawnAt = now;
 	if (progress != state->progress)
 	{
@@ -448,10 +488,10 @@ void drawGoLoadBarVan(GameWindow *window, Int progress, const IRegion2D &road, c
 		}
 	}
 
-	// a puff behind the rear wheel per stretch of travel, a few at most at once, none while parked
-	const Int travel = fillEnd > state->fillEnd ? fillEnd - state->fillEnd : 0;
-	state->fillEnd = fillEnd;
-	if (!moving || !placed)
+	// a puff behind the rear wheel per stretch the van travels, a few at most at once, none while parked
+	const Int travel = x0 > state->position ? x0 - state->position : 0;
+	state->position = x0;
+	if (!moving)
 	{
 		state->credit = 0.0f;
 	}
@@ -505,10 +545,6 @@ void drawGoLoadBarVan(GameWindow *window, Int progress, const IRegion2D &road, c
 			TheDisplay->drawImage(puffImage, cx - w / 2, cy - h / 2, cx - w / 2 + w, cy - h / 2 + h, GameMakeColor(255, 255, 255, alpha));
 		}
 	}
-	if (!placed)
-	{
-		return;
-	}
 
 	const Image *wheels = TheMappedImageCollection->findImageByName(GO_VAN_WHEEL_IMAGES[state->frame]);
 	if (wheels == nullptr)
@@ -522,16 +558,20 @@ void drawGoLoadBarVan(GameWindow *window, Int progress, const IRegion2D &road, c
 	TheDisplay->drawImage(body, x0, y0 + bob, x0 + frameWidth, y0 + bob + frameHeight);
 	TheDisplay->drawImage(dish, x0 + sway, y0 + bob, x0 + sway + frameWidth, y0 + bob + frameHeight);
 	TheDisplay->drawImage(wheels, x0, y0, x0 + frameWidth, y0 + frameHeight);
+	// the van says the launch's splash line, the bubble riding the bob with it
+	drawGoVanBubble(x0 + goVanScale(GO_BUBBLE_TIP_X, height), y0 + bob + goVanScale(GO_BUBBLE_TIP_Y, height), now - state->appearedAt);
 }
 
-// TheSuperHackers @tweak arcticdolphin 09/11/2026 The GO shell load bar: the kit frame, then one stretched bronze fill a line inside it on every side.
+// TheSuperHackers @tweak arcticdolphin 09/11/2026 The GO shell load bar as a road: asphalt between kit lines with a dashed centre line, lit behind the radar van that drives it.
 static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )
 {
-	const Image *left = GadgetProgressBarGetEnabledImageLeft(window);
-	const Image *right = GadgetProgressBarGetEnabledImageRight(window);
-	const Image *center = GadgetProgressBarGetEnabledImageCenter(window);
-	const Image *fill = GadgetProgressBarGetEnabledBarImageCenter(window);
-	if (left == nullptr || right == nullptr || center == nullptr || fill == nullptr)
+	const Image *left = TheMappedImageCollection->findImageByName("GORoadL");
+	const Image *center = TheMappedImageCollection->findImageByName("GORoadC");
+	const Image *right = TheMappedImageCollection->findImageByName("GORoadR");
+	const Image *dash = TheMappedImageCollection->findImageByName("GORoadDash");
+	const Image *dashLit = TheMappedImageCollection->findImageByName("GORoadDashLit");
+	const Image *tint = TheMappedImageCollection->findImageByName("GORoadTint");
+	if (left == nullptr || center == nullptr || right == nullptr || dash == nullptr || dashLit == nullptr || tint == nullptr)
 	{
 		return;
 	}
@@ -541,53 +581,82 @@ static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )
 	window->winGetSize(&width, &height);
 	TheWindowManager->winDrawThreePieceImage(left, center, nullptr, right, x, y, width, height);
 
-	// the frame line as winDrawThreePieceImage draws the border rows, and a gap of the same width inside it
-	Int line = REAL_TO_INT_CEIL(left->getBorder() * TheDisplay->getHeight() / 600.0f - 0.01f);
-	if (line < 1)
-	{
-		line = 1;
-	}
-	const Int inset = 2 * line;
-	const Int fillWidth = width - 2 * inset;
-	const Int fillHeight = height - 2 * inset;
-	if (fillWidth <= 0 || fillHeight <= 0)
-	{
-		return;
-	}
-
 	Int progress = (Int)window->winGetUserData();
+	if (progress < 0)
+	{
+		progress = 0;
+	}
 	if (progress > 100)
 	{
 		progress = 100;
 	}
-	const Int drawWidth = fillWidth * progress / 100;
 
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 The radar van drives on the frame at the end of the fill; inside the bar it rides the track ahead of the fill, so the fill stops at its rear.
-	const Bool goVan = isGoLoadBarImage(fill);
+	// the van's position marks progress and the road behind its rear is lit; with no room for the van progress does
 	IRegion2D road;
 	road.lo.x = x;
 	road.lo.y = y;
 	road.hi.x = x + width;
 	road.hi.y = y + height;
-	IRegion2D fillArea;
-	fillArea.lo.x = x + inset;
-	fillArea.lo.y = y + inset;
-	fillArea.hi.x = x + inset + fillWidth;
-	fillArea.hi.y = y + inset + fillHeight;
-	Int fillStop = x + inset + drawWidth;
-	if (goVan)
+	const GoVanPlace place = placeGoVan(window, road, progress);
+	Int litEnd = x + width * progress / 100;
+	if (place.placed)
 	{
-		fillStop = goLoadBarVanFillEnd(window, road, fillArea, fillStop);
+		litEnd = place.x0 + goVanScale(GO_VAN_OUTLINE_LEFT, place.height);
 	}
-	if (fillStop > x + inset)
+	if (litEnd < x)
 	{
-		TheDisplay->drawImage(fill, x + inset, y + inset, fillStop, y + inset + fillHeight);
+		litEnd = x;
+	}
+	if (litEnd > x + width)
+	{
+		litEnd = x + width;
 	}
 
-	if (goVan)
+	// the edge lines as winDrawThreePieceImage draws the border rows; the tint lies between them
+	Int line = REAL_TO_INT_CEIL(left->getBorder() * TheDisplay->getHeight() / 600.0f - 0.01f);
+	if (line < 1)
 	{
-		drawGoLoadBarVan(window, progress, road, fillArea, x + inset + drawWidth);
+		line = 1;
 	}
+	if (litEnd > x)
+	{
+		TheDisplay->drawImage(tint, x, y + line, litEnd, y + height - line);
+	}
+
+	// whole pixel dashes, even in length and period, with the same padding at both ends; the road stays put as the van drives
+	const Int thickness = line + ((height - line) & 1);
+	Int half = REAL_TO_INT_FLOOR(GO_ROAD_DASH_UNITS * TheDisplay->getHeight() / 600.0f + 0.5f);
+	if (half < 2)
+	{
+		half = 2;
+	}
+	const Int period = 2 * half;
+	Int length = 2 * (half / 2);
+	if (length < 2)
+	{
+		length = 2;
+	}
+	const Int span = width - 2 * (height / 2);
+	const Int count = span >= length ? (span - length) / period + 1 : 0;
+	const Int total = count > 0 ? (count - 1) * period + length : 0;
+	const Int pad = (width - total) / 2;
+	const Int dashTop = y + (height - thickness) / 2;
+	for (Int k = 0; k < count; ++k)
+	{
+		const Int dashLeft = x + pad + k * period;
+		const Int dashRight = dashLeft + length;
+		const Int split = litEnd < dashLeft ? dashLeft : (litEnd > dashRight ? dashRight : litEnd);
+		if (split > dashLeft)
+		{
+			TheDisplay->drawImage(dashLit, dashLeft, dashTop, split, dashTop + thickness);
+		}
+		if (split < dashRight)
+		{
+			TheDisplay->drawImage(dash, split, dashTop, dashRight, dashTop + thickness);
+		}
+	}
+
+	drawGoLoadBarVan(window, progress, place);
 }
 
 //-----------------------------------------------------------------------------
@@ -1675,6 +1744,12 @@ ShellGameLoadScreen::~ShellGameLoadScreen()
 	{
 		TheDisplayStringManager->freeDisplayString(m_creditUrl);
 	}
+	// TheSuperHackers @feature arcticdolphin 09/11/2026 The splash string goes with the credit that drew it.
+	if (m_creditWindow != nullptr && s_goSplash != nullptr)
+	{
+		TheDisplayStringManager->freeDisplayString(s_goSplash);
+		s_goSplash = nullptr;
+	}
 }
 
 void ShellGameLoadScreen::init( GameInfo *game )
@@ -1705,10 +1780,14 @@ void ShellGameLoadScreen::init( GameInfo *game )
 		firstLoad = FALSE;
 	}
 	m_progressBar->winHide(FALSE);
-	// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO bar art the bar keeps the same padding on every side at any resolution.
+	// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO bar art the bar is the road the radar van drives: half the screen wide, centred near the bottom.
 	if (findGoLoadBarImage() != nullptr)
 	{
 		m_progressBar->winSetDrawFunc(drawGoShellLoadBar);
+		const Int screenWidth = TheDisplay->getWidth();
+		const Int screenHeight = TheDisplay->getHeight();
+		m_progressBar->winSetPosition(goLayoutScale(GO_ROAD_LEFT, screenWidth, 800), goLayoutScale(GO_ROAD_TOP, screenHeight, 600));
+		m_progressBar->winSetSize(goLayoutScale(GO_ROAD_RIGHT - GO_ROAD_LEFT, screenWidth, 800), goLayoutScale(GO_ROAD_BOTTOM - GO_ROAD_TOP, screenHeight, 600));
 	}
 
 	// TheSuperHackers @feature arcticdolphin 09/11/2026 The first shell load after the intro shows the Generals Online credit; -nologo leaves it out.
@@ -1732,7 +1811,7 @@ void ShellGameLoadScreen::initCredit()
 
 	// "Consolas" is Windows Vista native, can be installed in 2000, XP
 	m_creditUrl = TheDisplayStringManager->newDisplayString();
-	m_creditUrl->setText(UnicodeString(L"www.playgenerals.online"));
+	m_creditUrl->setText(UnicodeString(L"www.generals.online"));
 	m_creditUrl->setFont(TheFontLibrary->getFont("Consolas", Int(14 * fontScale), FALSE));
 	m_creditUrl->setWordWrap(screenWidth);
 	m_creditLogo = TheMappedImageCollection->findImageByName("GOLoadLogo");
@@ -1749,6 +1828,20 @@ void ShellGameLoadScreen::initCredit()
 		{
 			legal->winHide(TRUE);
 		}
+	}
+	// TheSuperHackers @feature arcticdolphin 09/11/2026 With the GO logo a splash line, picked once per launch from the clock, never from a game random stream.
+	if (m_creditLogo != nullptr)
+	{
+		if (s_goSplashLine < 0)
+		{
+			s_goSplashLine = (Int)(timeGetTime() % (sizeof(GO_LOAD_SPLASHES) / sizeof(GO_LOAD_SPLASHES[0])));
+		}
+		if (s_goSplash == nullptr)
+		{
+			s_goSplash = TheDisplayStringManager->newDisplayString();
+		}
+		s_goSplash->setText(TheGameText->FETCH_OR_SUBSTITUTE(GO_LOAD_SPLASHES[s_goSplashLine].label, GO_LOAD_SPLASHES[s_goSplashLine].text));
+		s_goSplash->setFont(TheFontLibrary->getFont("Consolas", Int(GO_SPLASH_FONT_SIZE * fontScale), TRUE));
 	}
 
 	m_creditWindow = TheWindowManager->winCreate(m_loadScreen, WIN_STATUS_ENABLED | WIN_STATUS_NO_INPUT, 0, 0, screenWidth, screenHeight, nullptr);

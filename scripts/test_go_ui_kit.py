@@ -7,6 +7,7 @@ Usage:
 import inspect
 import math
 import re
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -265,20 +266,85 @@ class LoadingBarTest(unittest.TestCase):
         self.assertTrue(kit.THEME_LOAD_BAR_TEXTURE_PATH.relative_to(kit.DATA).as_posix().lower().startswith("themes/"))
 
 
-def shell_bar_window(screen_width, screen_height):
-    """Screen rect of ShellGameLoadScreen.wnd:ProgressLoad (324 576 to 472 592 of 800x600), as parseScreenRect scales it."""
-    def scale(value, numerator, denominator):
-        return (value * numerator + denominator // 2) // denominator
-
-    x, y = scale(324, screen_width, 800), scale(576, screen_height, 600)
-    return x, y, scale(472 - 324, screen_width, 800), scale(592 - 576, screen_height, 600)
+SCREENS = ((800, 600), (1024, 768), (1366, 768), (1600, 900), (1920, 1080), (2560, 1080), (2560, 1440), (3440, 1440),
+           (3840, 2160))
 
 
-class ShellLoadBarTest(unittest.TestCase):
-    """LoadScreen.cpp drawGoShellLoadBar: the kit frame over the window, the bronze fill inset by the same gap all round."""
+class LoadRoadArtTest(unittest.TestCase):
+    """go_ui_kit.load_road_pieces: the road art the shell load bar draws, and its Radar copy."""
 
-    SCREENS = ((800, 600), (1024, 768), (1280, 720), (1366, 768), (1600, 900), (1920, 1080), (2000, 1125), (2560, 1080),
-               (2560, 1440), (3440, 1440), (3840, 2160))
+    NAMES = {"GORoadL", "GORoadC", "GORoadR", "GORoadDash", "GORoadDashLit", "GORoadTint"}
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pieces = {name: (w, h, texels) for name, w, h, texels in kit.load_road_pieces()}
+        cls.radar = {name: (w, h, texels) for name, w, h, texels in kit.load_road_pieces(themes.KIT_COLORS)}
+
+    def build(self, palette=None):
+        return kit.build(kit.load_road_pieces(palette), kit.LOAD_ROAD_TEXTURE_NAME, kit.LOAD_ROAD_ATLAS_WIDTH, kit.LOAD_ROAD_TITLE)
+
+    def assert_road(self, pieces, line):
+        line, asphalt = q(line), q(kit.LOAD_ROAD_ASPHALT)
+        band = round(kit.LINE_LAYOUT * kit.SCALE)
+        for name in ("GORoadL", "GORoadC", "GORoadR"):
+            w, h, texels = pieces[name]
+            texels = [[q(t) for t in row] for row in texels]
+            mid_x, mid_y = w * kit.SCALE // 2, h * kit.SCALE // 2
+            # edge lines top and bottom at the kit line weight, asphalt between, no line at the ends
+            self.assertEqual(texels[0][mid_x], line, name)
+            self.assertEqual(texels[band - 1][mid_x], line, name)
+            self.assertEqual(texels[band][mid_x], asphalt, name)
+            self.assertEqual(texels[-1][mid_x], line, name)
+            self.assertEqual(texels[mid_y][0], asphalt, name)
+            self.assertEqual(texels[mid_y][-1], asphalt, name)
+        # the caps round their outer corners
+        self.assertEqual(pieces["GORoadL"][2][0][0][3], 0.0)
+        self.assertEqual(pieces["GORoadR"][2][-1][-1][3], 0.0)
+        self.assertEqual(pieces["GORoadC"][2][0][0][3], 1.0)
+
+    def test_road_pieces_are_asphalt_between_kit_lines(self):
+        self.assertEqual(set(self.pieces), self.NAMES)
+        self.assert_road(self.pieces, kit.BUTTON_STATES[""][0])
+
+    def test_asphalt_is_a_warm_near_black_distinct_from_the_panel_fill(self):
+        r, g, b = q(kit.LOAD_ROAD_ASPHALT)[:3]
+        self.assertTrue(r >= g >= b and r > b, (r, g, b))  # warm
+        self.assertLess(max(r, g, b), 48)                   # near black
+        for fill in (kit.FIELD, kit.rgba(themes.PALETTE["fill-field"]), kit.rgba(themes.PALETTE["panel"])):
+            self.assertNotEqual(q(fill)[:3], (r, g, b))
+
+    def test_dashes_dim_ahead_and_lit_behind_with_a_bronze_tint(self):
+        flat = {name: {q(t) for row in texels for t in row} for name, (_, _, texels) in self.pieces.items()}
+        self.assertEqual(flat["GORoadDash"], {q(kit.rgba(themes.PALETTE["empty"], 0.55))})
+        self.assertEqual(flat["GORoadDashLit"], {q(kit.rgba(themes.PALETTE["tan"]))})
+        self.assertEqual(flat["GORoadTint"], {q(kit.rgba(themes.PALETTE["bronze"], 0.18))})
+
+    def test_radar_road_takes_the_bronze_line_and_shares_the_ini(self):
+        self.assert_road(self.radar, kit.rgba(themes.PALETTE["bronze"]))
+        for name in ("GORoadDash", "GORoadDashLit", "GORoadTint"):
+            self.assertEqual(self.radar[name], self.pieces[name], name)
+        texture, ini = self.build(themes.KIT_COLORS)
+        self.assertEqual(ini, self.build()[1])
+        self.assertEqual(kit.THEME_LOAD_ROAD_TEXTURE_PATH.read_bytes(), texture)
+        self.assertFalse((themes.THEME_DIR / kit.LOAD_ROAD_INI_PATH.relative_to(kit.DATA)).exists())
+
+    def test_ini_gives_the_road_pieces_the_kit_line_border(self):
+        _, ini = self.build()
+        borders = {block.split("\r\n")[0]: f"  Border = {kit.LINE_LAYOUT}" in block for block in ini.split("MappedImage ")[1:]}
+        self.assertEqual(borders, {"GORoadC": True, "GORoadDash": False, "GORoadDashLit": False, "GORoadL": True,
+                                   "GORoadR": True, "GORoadTint": False})
+
+    def test_committed_road_files_are_current_and_retail_leaves_them_out(self):
+        texture, ini = self.build()
+        self.assertEqual(kit.LOAD_ROAD_TEXTURE_PATH.read_bytes(), texture)
+        self.assertEqual(kit.LOAD_ROAD_INI_PATH.read_bytes(), ini.encode("ascii"))
+        excluded = retail_excluded_files()
+        for path in (kit.LOAD_ROAD_TEXTURE_PATH, kit.LOAD_ROAD_INI_PATH):
+            self.assertIn(path.relative_to(kit.DATA).as_posix().lower(), excluded)
+
+
+class ShellRoadTest(unittest.TestCase):
+    """LoadScreen.cpp drawGoShellLoadBar: the road over the wider window ShellGameLoadScreen::init sets."""
 
     @classmethod
     def setUpClass(cls):
@@ -286,49 +352,83 @@ class ShellLoadBarTest(unittest.TestCase):
         start = cls.source.index("static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )")
         cls.draw = cls.source[start:cls.source.index("\n}\n", start)]
 
-    def test_padding_is_the_same_on_every_side_at_every_resolution(self):
-        for screen in self.SCREENS:
-            x, y, w, h = shell_bar_window(*screen)
-            for percent in (0, 1, 50, 99, 100):
-                line, (left, top, right, bottom) = kit.shell_load_bar_layout(x, y, w, h, screen[1], percent)
-                self.assertGreaterEqual(line, 1, screen)
-                self.assertEqual(top - y, y + h - bottom, (screen, percent))
-                self.assertEqual(left - x, top - y, (screen, percent))
-                self.assertGreater(bottom - top, 0, screen)
-            # full: the fill ends as far from the right edge as it starts from the left one, two lines in
-            line, (left, top, right, bottom) = kit.shell_load_bar_layout(x, y, w, h, screen[1], 100)
-            self.assertEqual(left - x, x + w - right, screen)
-            self.assertEqual(left - x, 2 * line, screen)
-            # empty: nothing drawn; half: half the inside, to the pixel
-            self.assertEqual(kit.shell_load_bar_layout(x, y, w, h, screen[1], 0)[1][2], left)
-            self.assertEqual(kit.shell_load_bar_layout(x, y, w, h, screen[1], 50)[1][2] - left, (right - left) * 50 // 100)
+    def constant(self, name):
+        return re.search(rf"static const (?:Int|Real) {name} = ([\d.]+)f?;", self.source).group(1)
 
-    def test_frame_line_is_the_one_the_three_piece_bar_draws(self):
-        for _, screen_height in self.SCREENS:
-            border = math.ceil(kit.LINE_LAYOUT * screen_height / 600.0 - 0.01)
-            self.assertEqual(kit.shell_load_bar_layout(0, 0, 300, 30, screen_height, 100)[0], max(1, border))
-        three_piece = (kit.ROOT / "Core/GameEngine/Source/GameClient/GUI/GameWindowGlobal.cpp").read_text("latin-1")
-        self.assertIn("Int borderHeight = REAL_TO_INT_CEIL( left->getBorder() * bands.layoutScale - 0.01f );", three_piece)
-        self.assertIn("bands.layoutScale = (Real)TheDisplay->getHeight() / 600.0f;", three_piece)
+    def test_road_is_half_the_width_centred_near_the_bottom(self):
+        left, top, right, bottom = kit.LOAD_ROAD_RECT
+        self.assertEqual((right - left) / 800, 0.5)
+        self.assertEqual(left, 800 - right)
+        self.assertTrue(16 <= bottom - top <= 20)
+        self.assertTrue(570 <= top and bottom <= 596)
+        self.assertEqual([int(self.constant(n)) for n in ("GO_ROAD_LEFT", "GO_ROAD_TOP", "GO_ROAD_RIGHT", "GO_ROAD_BOTTOM")],
+                         list(kit.LOAD_ROAD_RECT))
+        self.assertEqual(float(self.constant("GO_ROAD_DASH_UNITS")), kit.LOAD_ROAD_DASH_UNITS)
 
-    def test_draw_follows_the_layout_rule(self):
-        self.assertIn("TheWindowManager->winDrawThreePieceImage(left, center, nullptr, right, x, y, width, height);", self.draw)
-        self.assertIn("Int line = REAL_TO_INT_CEIL(left->getBorder() * TheDisplay->getHeight() / 600.0f - 0.01f);", self.draw)
-        self.assertIn("const Int inset = 2 * line;", self.draw)
-        self.assertIn("const Int fillWidth = width - 2 * inset;", self.draw)
-        self.assertIn("const Int fillHeight = height - 2 * inset;", self.draw)
-        self.assertIn("const Int drawWidth = fillWidth * progress / 100;", self.draw)
-        # the fill runs to its end, or to the rear of a van driving inside the bar (goLoadBarVanFillEnd)
-        self.assertIn("Int fillStop = x + inset + drawWidth;", self.draw)
-        self.assertIn("TheDisplay->drawImage(fill, x + inset, y + inset, fillStop, y + inset + fillHeight);", self.draw)
-        # one stretched fill, no tiles: tiles of the fill height leave a remainder on the right
-        self.assertNotIn("for (", self.draw)
-
-    def test_shell_bar_takes_the_draw_only_with_the_go_bar_art(self):
+    def test_init_sets_the_road_rect_only_with_the_go_bar_art(self):
         source = self.source[self.source.index("void ShellGameLoadScreen::init( GameInfo *game )"):]
         init = source[:source.index("\n}\n")]
         self.assertRegex(init, r"if \(findGoLoadBarImage\(\) != nullptr\)\s*\{\s*"
-                               r"m_progressBar->winSetDrawFunc\(drawGoShellLoadBar\);\s*\}")
+                               r"m_progressBar->winSetDrawFunc\(drawGoShellLoadBar\);\s*"
+                               r"const Int screenWidth = TheDisplay->getWidth\(\);\s*"
+                               r"const Int screenHeight = TheDisplay->getHeight\(\);\s*"
+                               r"m_progressBar->winSetPosition\(goLayoutScale\(GO_ROAD_LEFT, screenWidth, 800\), "
+                               r"goLayoutScale\(GO_ROAD_TOP, screenHeight, 600\)\);\s*"
+                               r"m_progressBar->winSetSize\(goLayoutScale\(GO_ROAD_RIGHT - GO_ROAD_LEFT, screenWidth, 800\), "
+                               r"goLayoutScale\(GO_ROAD_BOTTOM - GO_ROAD_TOP, screenHeight, 600\)\);\s*\}")
+        self.assertIn("return (value * numerator + denominator / 2) / denominator;", self.source)
+
+    def test_dashes_are_whole_pixels_with_symmetric_padding(self):
+        for screen in SCREENS:
+            x, y, w, h = kit.load_road_window(*screen)
+            line, dashes = kit.load_road_dashes(x, y, w, h, screen[1])
+            self.assertGreater(len(dashes), 20, screen)
+            lengths = {d[2] - d[0] for d in dashes}
+            periods = {b[0] - a[0] for a, b in zip(dashes, dashes[1:])}
+            self.assertEqual(len(lengths), 1)
+            self.assertEqual(len(periods), 1)
+            self.assertEqual(lengths.pop() % 2, 0)
+            self.assertEqual(periods.pop() % 2, 0)
+            # centred on the road between the edge lines, at the kit line weight
+            self.assertEqual(dashes[0][1] - y, y + h - dashes[0][3], screen)
+            self.assertIn(dashes[0][3] - dashes[0][1], (line, line + 1))
+            if w % 2 == 0:
+                self.assertEqual(dashes[0][0] - x, x + w - dashes[-1][2], screen)
+            else:
+                self.assertLessEqual(abs((dashes[0][0] - x) - (x + w - dashes[-1][2])), 1, screen)
+
+    def test_draw_follows_the_road_rule(self):
+        for text in ("TheWindowManager->winDrawThreePieceImage(left, center, nullptr, right, x, y, width, height);",
+                     "Int line = REAL_TO_INT_CEIL(left->getBorder() * TheDisplay->getHeight() / 600.0f - 0.01f);",
+                     "const Int thickness = line + ((height - line) & 1);",
+                     "Int half = REAL_TO_INT_FLOOR(GO_ROAD_DASH_UNITS * TheDisplay->getHeight() / 600.0f + 0.5f);",
+                     "const Int period = 2 * half;",
+                     "Int length = 2 * (half / 2);",
+                     "const Int span = width - 2 * (height / 2);",
+                     "const Int count = span >= length ? (span - length) / period + 1 : 0;",
+                     "const Int pad = (width - total) / 2;",
+                     "const Int dashTop = y + (height - thickness) / 2;",
+                     "const Int dashLeft = x + pad + k * period;",
+                     "TheDisplay->drawImage(tint, x, y + line, litEnd, y + height - line);",
+                     "litEnd = place.x0 + goVanScale(GO_VAN_OUTLINE_LEFT, place.height);",
+                     "Int litEnd = x + width * progress / 100;"):
+            self.assertIn(text, self.draw)
+        # the dashes stay put: nothing in the road draw reads the clock
+        self.assertNotIn("timeGetTime", self.draw)
+        # road, tint, dashes, then the van
+        order = [self.draw.index(s) for s in ("winDrawThreePieceImage(", "drawImage(tint", "drawImage(dashLit",
+                                                "drawGoLoadBarVan(window, progress, place);")]
+        self.assertEqual(order, sorted(order))
+
+    def test_lit_road_ends_at_the_van_rear(self):
+        road = (384, 1033, 1536, 1065)
+        for progress in (0, 35, 70, 100):
+            layout = kit.van_layout(road, progress, lambda strip: True)
+            height, (x0, _, _, _) = layout
+            self.assertEqual(kit.load_road_lit_end(road, progress, layout), max(road[0], x0 + kit.van_scale(14, height)))
+        self.assertEqual(kit.load_road_lit_end(road, 0, kit.van_layout(road, 0, lambda strip: True)), road[0])
+        # no van: the lit road shows progress itself
+        self.assertEqual(kit.load_road_lit_end(road, 50, None), road[0] + (road[2] - road[0]) // 2)
 
 
 class LoadScreenPlayerBarTest(unittest.TestCase):
@@ -486,21 +586,17 @@ class VanArtTest(unittest.TestCase):
 
 def screen_rect(win, screen):
     """A layout rect in pixels, as parseScreenRect scales it."""
-    def scale(value, numerator, denominator):
-        return (value * numerator + denominator // 2) // denominator
-
     x0, y0, x1, y1 = win.rect
-    x, y = scale(x0, screen[0], 800), scale(y0, screen[1], 600)
-    return x, y, x + scale(x1 - x0, screen[0], 800), y + scale(y1 - y0, screen[1], 600)
+    x, y = kit.layout_scale(x0, screen[0], 800), kit.layout_scale(y0, screen[1], 600)
+    return x, y, x + kit.layout_scale(x1 - x0, screen[0], 800), y + kit.layout_scale(y1 - y0, screen[1], 600)
 
 
-def strip_clear(root, bar, screen, strip):
-    """drawGoLoadBarVan's room check: the strip lies in the bar's top window and no shown window that draws (not
-    SEE_THRU) and does not hold the bar meets it."""
+def strip_clear(root, bar, screen, strip, bar_rect):
+    """placeGoVan's room check: the strip lies in the bar's top window and no shown window that draws (not SEE_THRU) and
+    does not hold the bar meets it."""
     top = screen_rect(root, screen)
     if strip[0] < top[0] or strip[1] < top[1] or strip[2] > top[2] or strip[3] > top[3]:
         return False
-    bar_rect = screen_rect(bar, screen)
 
     def blocks(win):
         for child in win.children:
@@ -518,169 +614,79 @@ def strip_clear(root, bar, screen, strip):
     return not blocks(root)
 
 
-def go_bar_layouts():
-    """{layout name: (top window, [progress bars], framed)} of the layouts that use the GO bar art."""
+def shell_layout(legal_shown):
+    """The GO shell load layout: (top window, progress bar), with the legal text shown or hidden."""
     import go_wnd_layouts as wl
-    out = {}
-    for path in sorted((kit.DATA / "Window").rglob("*.wnd")):
-        text = path.read_bytes().decode("latin-1")
-        if "IMAGE: LoadingBar_Progress" not in text:
-            continue
-        root = wl.parse_windows(text)
-        bars = [w for w in root.walk() if w.kind == "PROGRESSBAR"]
-        out[path.stem] = (root.children[0], bars, "IMAGE: LoadingBar_L" in text)
-    return out
+    root = wl.parse_windows((kit.DATA / "Window/Menus/ShellGameLoadScreen.wnd").read_bytes().decode("latin-1"))
+    legal = next(w for w in root.walk() if w.name == "ShellGameLoadScreen.wnd:StaticTextLegal")
+    legal.status = legal.status - {"HIDDEN"} if legal_shown else legal.status | {"HIDDEN"}
+    bar = next(w for w in root.walk() if w.kind == "PROGRESSBAR")
+    return root.children[0], bar
 
 
-def w3d_bar(bar_rect, framed, percent):
-    """W3DGadgetProgressBarImageDraw's van arguments: the road (the frame, or the fill strip of a frameless bar), the fill
-    area 10 in from the sides and 5 from the top and bottom, and the end of the whole fill tiles."""
-    x0, y0, x1, y1 = bar_rect
-    fill = (x0 + 10, y0 + 5, x1 - 10, y1 - 5)
-    tile = max(1, (3 * (fill[3] - fill[1]) + 5) // 11)  # LoadingBar_Progress is 3x11
-    end = fill[0] + tile * (((x1 - x0 - 20) * percent // 100) // tile)
-    return (bar_rect if framed else fill), fill, end
+def shell_van(screen, progress, legal_shown=False):
+    """(road rect, van layout) of the shell load road at a screen size."""
+    root, bar = shell_layout(legal_shown)
+    x, y, w, h = kit.load_road_window(*screen)
+    road = (x, y, x + w, y + h)
+    return road, kit.van_layout(road, progress, lambda strip: strip_clear(root, bar, screen, strip, road))
 
 
-def w3d_drawn_end(fill, end, stop):
-    """Where W3DGadgetProgressBarImageDraw ends its fill tiles once goLoadBarVanFillEnd stops the fill before its end."""
-    if stop >= end:
-        return end
-    tile = max(1, (3 * (fill[3] - fill[1]) + 5) // 11)
-    return fill[0] + tile * ((stop - fill[0]) // tile)
+class VanRoadPlacementTest(unittest.TestCase):
+    """go_ui_kit.van_layout, the rule placeGoVan follows on the shell load road."""
 
+    def test_the_first_go_load_has_the_van_above_the_road_at_every_screen(self):
+        for screen in SCREENS:
+            for progress in (0, 35, 70, 100):
+                road, layout = shell_van(screen, progress)
+                self.assertIsNotNone(layout, (screen, progress))
 
-def van_bars(layouts, screen, percent):
-    """Every GO bar art bar of the layouts at a screen size: (layout, bar, rect, road, fill, fill end, van layout)."""
-    for name, (root, bars, framed) in layouts.items():
-        for bar in bars:
-            rect = screen_rect(bar, screen)
-            if name == "ShellGameLoadScreen":
-                # drawGoShellLoadBar: the frame is the road, the whole inside the fill area
-                args = (rect[0], rect[1], rect[2] - rect[0], rect[3] - rect[1], screen[1])
-                road, fill = rect, kit.shell_load_bar_layout(*args, 100)[1]
-                end = kit.shell_load_bar_layout(*args, percent)[1][2]
-            else:
-                road, fill, end = w3d_bar(rect, framed, percent)
-            layout = kit.van_layout(road, fill, end, lambda strip, r=root, b=bar: strip_clear(r, b, screen, strip))
-            yield name, bar, rect, road, fill, end, layout
+    def test_van_stands_on_the_road_at_about_twice_its_height(self):
+        for screen in SCREENS:
+            road, (height, (x0, y0, _, _)) = shell_van(screen, 50)
+            self.assertEqual(y0 + kit.van_scale(kit.VAN["GO_VAN_TYRE_BOTTOM"], height), road[1], screen)
+            road_height = road[3] - road[1]
+            self.assertTrue(height == kit.VAN["GO_VAN_MIN_HEIGHT"] or 1.6 * road_height <= height <= 2 * road_height, screen)
 
+    def test_van_position_marks_progress_from_the_road_start_to_its_end(self):
+        for screen in SCREENS:
+            positions = []
+            for progress in range(0, 101, 5):
+                road, (height, (x0, _, _, _)) = shell_van(screen, progress)
+                s = lambda v, h=height: kit.van_scale(v, h)  # noqa: E731
+                bumper = x0 + s(kit.VAN["GO_VAN_BUMPER"])
+                positions.append(bumper)
+                if progress == 0:
+                    self.assertEqual(bumper - s(kit.VAN["GO_VAN_BUMPER"] - kit.VAN["GO_VAN_REAR_TYRE"]), road[0], screen)
+                if progress == 100:
+                    self.assertEqual(bumper + s(kit.VAN["GO_VAN_OUTLINE_RIGHT"] - kit.VAN["GO_VAN_BUMPER"]), road[2], screen)
+            self.assertEqual(positions, sorted(positions))
+            self.assertGreater(positions[-1] - positions[0], (road[2] - road[0]) // 2)
 
-class VanPlacementTest(unittest.TestCase):
-    """go_ui_kit.van_layout, the rule drawGoLoadBarVan follows, over the GO bar art layouts."""
+    def test_retail_legal_text_takes_the_room_and_leaves_no_van(self):
+        # -nologo keeps the retail title art and its legal text over the road: the road shows progress without the van
+        self.assertIsNone(shell_van((1920, 1080), 50, legal_shown=True)[1])
 
-    SCREENS = ((800, 600), (1366, 768), (1600, 900), (1920, 1080), (2560, 1440), (3840, 2160))
-    # above: room over the bar; inside: the row above (or a label) sits right over it
-    MODES = {"ShellGameLoadScreen": "above", "SinglePlayerLoadScreen": "above", "ChallengeLoadScreen": "above",
-             "MultiplayerLoadScreen": "inside", "GameSpyLoadScreen": "inside", "DownloadMenu": "inside"}
-
-    @classmethod
-    def setUpClass(cls):
-        cls.layouts = go_bar_layouts()
-
-    def test_the_go_bar_art_layouts_are_the_load_screens_and_the_download_bar(self):
-        self.assertEqual(set(self.layouts), set(self.MODES))
-
-    def test_each_layout_takes_its_mode_at_1080p(self):
-        for name, bar, *_, layout in van_bars(self.layouts, (1920, 1080), 50):
-            self.assertEqual(layout[0], self.MODES[name], (name, bar.name))
-
-    def test_van_stands_on_the_bar_or_fits_the_fill_and_never_meets_another_window(self):
-        for screen in self.SCREENS:
-            for percent in (0, 50, 100):
-                for name, bar, rect, road, fill, end, layout in van_bars(self.layouts, screen, percent):
-                    if layout is None:
-                        # no room above and a fill under the minimum height: no van at all
-                        self.assertLess(fill[3] - fill[1], kit.VAN["GO_VAN_MIN_HEIGHT"], (name, screen))
-                        continue
-                    mode, height, (x0, y0, x1, y1) = layout
-                    s = lambda v, h=height: kit.van_scale(v, h)  # noqa: E731
-                    self.assertGreaterEqual(height, kit.VAN["GO_VAN_MIN_HEIGHT"])
-                    if mode == "above":
-                        # tyre bottoms on the bar's top edge, about 1.6 to 2 times the bar tall
-                        self.assertEqual(y0 + s(kit.VAN["GO_VAN_TYRE_BOTTOM"]), road[1], (name, screen))
-                        bar_height = road[3] - road[1]
-                        self.assertTrue(height == kit.VAN["GO_VAN_MIN_HEIGHT"] or 1.6 * bar_height <= height <= 2 * bar_height,
-                                        (name, screen, height, bar_height))
-                        self.assertTrue(strip_clear(self.layouts[name][0], bar, screen, kit.van_above(road)[1]))
-                    else:
-                        # the outline rows fill the fill area, inside the bar window
-                        self.assertEqual(height, fill[3] - fill[1])
-                        # the art offsets round one by one, so the outline top may land a pixel off the fill top
-                        self.assertLessEqual(abs(y0 + s(kit.VAN["GO_VAN_OUTLINE_TOP"]) - fill[1]), 1)
-                        self.assertLessEqual(y0 + s(kit.VAN["GO_VAN_OUTLINE_BOTTOM"]), rect[3])
-
-    def test_bumper_rides_the_fill_end_and_stays_on_the_bar(self):
-        for screen in self.SCREENS:
-            for percent in (0, 1, 10, 50, 90, 99, 100):
-                for name, bar, rect, road, fill, end, layout in van_bars(self.layouts, screen, percent):
-                    if layout is None:
-                        continue
-                    mode, height, (x0, _, _, _) = layout
-                    s = lambda v, h=height: kit.van_scale(v, h)  # noqa: E731
-                    if mode == "inside":
-                        continue  # test_inside_the_van_drives_on_the_track_ahead_of_the_fill
-                    left, right = road[0], road[2]
-                    bumper = x0 + s(kit.VAN["GO_VAN_BUMPER"])
-                    rear_tyre = bumper - s(kit.VAN["GO_VAN_BUMPER"] - kit.VAN["GO_VAN_REAR_TYRE"])
-                    outline_right = bumper + s(kit.VAN["GO_VAN_OUTLINE_RIGHT"] - kit.VAN["GO_VAN_BUMPER"])
-                    self.assertLessEqual(outline_right, right, (name, screen, percent))
-                    self.assertGreaterEqual(rear_tyre, left, (name, screen, percent))
-                    if rear_tyre > left and outline_right < right:
-                        self.assertEqual(bumper, end, (name, screen, percent))
-                    if percent == 0:
-                        self.assertEqual(rear_tyre, left, (name, screen))
-                    # above the bar the fill runs to its own end under the van
-                    self.assertEqual(kit.van_fill_end(layout, end), end)
-
-    def test_inside_the_van_drives_on_the_track_ahead_of_the_fill(self):
-        """Inside, the van's rear sits at the fill end on the dark track and the fill stops at the van's rear. In the GO
-        layouts with the legal text hidden only the W3D drawn bars go inside; VanShellFirstLoadTest covers the legal text."""
-        seen = set()
-        for screen in self.SCREENS:
-            for percent in (0, 1, 10, 50, 90, 99, 100):
-                for name, bar, rect, road, fill, end, layout in van_bars(self.layouts, screen, percent):
-                    if layout is None or layout[0] != "inside":
-                        continue
-                    seen.add(name)
-                    _, height, (x0, _, _, _) = layout
-                    s = lambda v, h=height: kit.van_scale(v, h)  # noqa: E731
-                    rear = x0 + s(kit.VAN["GO_VAN_OUTLINE_LEFT"])
-                    outline_right = x0 + s(kit.VAN["GO_VAN_OUTLINE_RIGHT"])
-                    drawn = w3d_drawn_end(fill, end, kit.van_fill_end(layout, end))
-                    key = (name, screen, percent)
-                    self.assertLessEqual(outline_right, fill[2], key)
-                    self.assertLessEqual(drawn, rear, key)  # no fill under the van
-                    if outline_right < fill[2]:
-                        self.assertEqual(rear, end, key)
-                        self.assertEqual(drawn, end, key)
-                    else:
-                        # clamped at the right end: the fill runs up to its rear, to the last whole tile
-                        tile = max(1, (3 * (fill[3] - fill[1]) + 5) // 11)
-                        self.assertGreater(drawn, rear - tile, key)
-                    if percent == 0:
-                        self.assertEqual(rear, fill[0], key)
-                        self.assertEqual(drawn, fill[0], key)
-        self.assertEqual(seen, {"MultiplayerLoadScreen", "GameSpyLoadScreen", "DownloadMenu"})
-
-    def test_without_a_van_inside_the_fill_is_untouched(self):
-        self.assertEqual(kit.van_fill_end(None, 123), 123)
-        self.assertEqual(kit.van_fill_end(("above", 52, (0, 0, 90, 55)), 123), 123)
+    def test_van_and_puffs_stay_clear_of_the_website_line(self):
+        for screen in SCREENS:
+            road, (height, (x0, y0, _, _)) = shell_van(screen, 50)
+            top = y0 + kit.van_scale(kit.VAN["GO_VAN_OUTLINE_TOP"], height) - kit.van_scale(kit.VAN["GO_VAN_BOB"], height)
+            self.assertGreater(top, kit.url_rect(*screen)[3] + 20, screen)
 
 
 class VanMotionTest(unittest.TestCase):
     """go_ui_kit.VanBar and the wiggle: what moves, how fast, and when it parks."""
 
-    LAYOUT = ("above", 52, (100, 100, 190, 155))
+    LAYOUT = (52, (100, 100, 190, 155))
 
     def drive(self, rate, until, start=1000):
-        """Run a bar whose fill end advances rate pixels per second; returns the bar and the spawn times."""
+        """Run a van whose position advances rate pixels per second; returns the bar and the spawn times."""
         bar = kit.VanBar(start, 0, 100)
         spawns = []
         for now in range(start, until, 16):
-            fill_end = 100 + int(rate * (now - start) / 1000)
+            position = 100 + int(rate * (now - start) / 1000)
             before = list(bar.puffs)
-            bar.step(now, fill_end - 100, fill_end, self.LAYOUT)
+            bar.step(now, position - 100, position, self.LAYOUT)
             if bar.puffs != before:
                 spawns.append(now)
         return bar, spawns
@@ -706,7 +712,7 @@ class VanMotionTest(unittest.TestCase):
         spawned = []
         for now in range(2000, 4000, 16):
             before = list(bar.puffs)
-            bar.step(now, bar.progress, bar.fill_end, self.LAYOUT)
+            bar.step(now, bar.progress, bar.position, self.LAYOUT)
             if bar.puffs != before:
                 spawned.append(now)
         self.assertTrue(all(now < 2000 + kit.VAN["GO_VAN_STALL_MS"] for now in spawned))
@@ -786,100 +792,59 @@ def brace_depth(text, start, end):
 
 
 class VanSourceTest(unittest.TestCase):
-    """LoadScreen.cpp drawGoLoadBarVan and its two callers."""
+    """LoadScreen.cpp drawGoLoadBarVan: drawn by the shell load road only."""
+
+    W3D = "Core/GameEngineDevice/Source/W3DDevice/GameClient/GUI/Gadget/W3DProgressBar.cpp"
+    HEADER = "Core/GameEngine/Include/GameClient/LoadScreen.h"
+    BEFORE_VAN = "554687f7b1"  # the branch before the van commits
 
     @classmethod
     def setUpClass(cls):
         cls.load = (kit.ROOT / "Core/GameEngine/Source/GameClient/GUI/LoadScreen.cpp").read_text("latin-1")
-        cls.w3d = (kit.ROOT / "Core/GameEngineDevice/Source/W3DDevice/GameClient/GUI/Gadget/W3DProgressBar.cpp").read_text("latin-1")
-        cls.header = (kit.ROOT / "Core/GameEngine/Include/GameClient/LoadScreen.h").read_text("latin-1")
-        start = cls.load.index("void drawGoLoadBarVan(GameWindow *window")
+        start = cls.load.index("static void drawGoLoadBarVan(GameWindow *window")
         cls.van = cls.load[cls.load.index("static const Int GO_VAN_"):cls.load.index("\n}\n", start)]
 
     def body(self, source, signature):
         start = source.index(signature)
         return source[start:source.index("\n}\n", start)]
 
-    def assert_guarded_call(self, body, guard):
-        self.assertEqual(body.count("drawGoLoadBarVan("), 1)
-        call = body.index("drawGoLoadBarVan(")
-        check = body.rindex(guard, 0, call)
-        low, depth = brace_depth(body, check, call)
-        self.assertGreaterEqual(low, 0)
-        self.assertGreaterEqual(depth, 1)
-
-    def test_go_art_check_is_the_bar_texture(self):
-        check = self.body(self.load, "Bool isGoLoadBarImage(const Image *image)")
-        self.assertIn(f'image->getFilename().compareNoCase("{kit.LOAD_BAR_TEXTURE_NAME}") == 0', check)
-        self.assertIn("image != nullptr", check)
-        self.assertIn("Bool isGoLoadBarImage(const Image *image);", self.header)
-        self.assertIn("void drawGoLoadBarVan(GameWindow *window, Int progress, const IRegion2D &road, const IRegion2D &fill, "
-                      "Int fillEnd);", self.header)
-
-    def test_van_is_drawn_only_behind_the_go_art_check_by_both_bar_draws(self):
-        self.assert_guarded_call(self.body(self.w3d, "void W3DGadgetProgressBarImageDraw( GameWindow *window, WinInstanceData *instData )"),
-                                 "if( goVan )")
-        shell = self.body(self.load, "static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )")
-        self.assertIn("const Bool goVan = isGoLoadBarImage(fill);", shell)
-        self.assert_guarded_call(shell, "if (goVan)")
-        self.assertNotIn("drawGoLoadBarVan(", self.body(self.w3d, "void W3DGadgetProgressBarImageDrawA("))
+    def test_only_the_shell_road_draws_the_van(self):
         callers = []
         for folder in ("Core", "Generals/Code", "GeneralsMD/Code"):
-            for path in (kit.ROOT / folder).rglob("*.cpp"):
-                if "drawGoLoadBarVan(" in path.read_text("latin-1"):
+            for path in (kit.ROOT / folder).rglob("*.[ch]*"):
+                if path.suffix in (".cpp", ".h") and "drawGoLoadBarVan(" in path.read_text("latin-1"):
                     callers.append(path.name)
-        self.assertEqual(sorted(callers), ["LoadScreen.cpp", "W3DProgressBar.cpp"])
-        self.assertEqual(self.load.count("drawGoLoadBarVan("), 2)  # the definition and the shell bar call
-
-    def test_w3d_draw_passes_the_frame_or_the_fill_strip_and_the_tile_end(self):
-        draw = self.body(self.w3d, "void W3DGadgetProgressBarImageDraw( GameWindow *window, WinInstanceData *instData )")
-        self.assertIn("const Bool goVan = isGoLoadBarImage( barCenter );", draw)
-        self.assertIn("const Int fillEnd = origin.x + 10 + barCenterWidth * pieces;", draw)
-        self.assertIn("if( isGoLoadBarImage( backLeft ) )", draw)
-        self.assertIn("drawGoLoadBarVan( window, progress, vanRoad, vanFill, fillEnd );", draw)
-        self.assertIn('#include "GameClient/LoadScreen.h"', self.w3d)
-
-    def test_w3d_draw_stops_the_fill_tiles_at_a_van_inside_the_bar_before_drawing_them(self):
-        draw = self.body(self.w3d, "void W3DGadgetProgressBarImageDraw( GameWindow *window, WinInstanceData *instData )")
-        stop = draw.index("goLoadBarVanFillEnd( window, vanRoad, vanFill, fillEnd )")
-        self.assertLess(stop, draw.index("TheWindowManager->winDrawImage( barCenter,"))
-        low, depth = brace_depth(draw, draw.rindex("if( goVan )", 0, stop), stop)
-        self.assertGreaterEqual(low, 0)
-        self.assertGreaterEqual(depth, 1)
-        self.assertRegex(draw[stop:], r"^goLoadBarVanFillEnd\( window, vanRoad, vanFill, fillEnd \);\s*"
-                                      r"if\( fillStop < fillEnd \)\s*\{\s*"
-                                      r"pieces = \( fillStop - vanFill\.lo\.x \) / barCenterWidth;\s*"
-                                      r"if\( pieces < 0 \)\s*\{\s*pieces = 0;\s*\}\s*\}")
-        self.assertIn("Int goLoadBarVanFillEnd(GameWindow *window, const IRegion2D &road, const IRegion2D &fill, Int fillEnd);",
-                      self.header)
-        callers = [p.name for folder in ("Core", "Generals/Code", "GeneralsMD/Code") for p in (kit.ROOT / folder).rglob("*.cpp")
-                   if "goLoadBarVanFillEnd(" in p.read_text("latin-1")]
-        self.assertEqual(sorted(callers), ["LoadScreen.cpp", "W3DProgressBar.cpp"])
-        self.assertEqual(self.load.count("goLoadBarVanFillEnd("), 2)  # the definition and the shell bar draw
-        # the van rear the fill stops at, from the shared placement
-        fill_end = self.body(self.load, "Int goLoadBarVanFillEnd(GameWindow *window")
-        self.assertIn("place.x0 + goVanScale(GO_VAN_OUTLINE_LEFT, place.height)", fill_end)
-        self.assertIn("!place.inside", fill_end)
-
-    def test_shell_draw_stops_its_fill_at_a_van_inside_the_bar_before_drawing_it(self):
+        self.assertEqual(callers, ["LoadScreen.cpp"])
+        self.assertEqual(self.load.count("drawGoLoadBarVan("), 2)  # the definition and the shell road call
         shell = self.body(self.load, "static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )")
-        stop = shell.index("fillStop = goLoadBarVanFillEnd(window, road, fillArea, fillStop);")
-        self.assertLess(stop, shell.index("TheDisplay->drawImage(fill,"))
-        low, depth = brace_depth(shell, shell.rindex("if (goVan)", 0, stop), stop)
-        self.assertGreaterEqual(low, 0)
-        self.assertGreaterEqual(depth, 1)
-        self.assertIn("drawGoLoadBarVan(window, progress, road, fillArea, x + inset + drawWidth);", shell)
+        self.assertIn("drawGoLoadBarVan(window, progress, place);", shell)
+        for gone in ("isGoLoadBarImage", "goLoadBarVanFillEnd", "place.inside"):
+            self.assertNotIn(gone, self.van)
+        # the shared W3D bar draw and the header carry nothing of the van
+        w3d = (kit.ROOT / self.W3D).read_text("latin-1")
+        header = (kit.ROOT / self.HEADER).read_text("latin-1")
+        for text in (w3d, header):
+            for gone in ("isGoLoadBarImage", "drawGoLoadBarVan", "goLoadBarVanFillEnd", "LoadScreen.h\""):
+                self.assertNotIn(gone, text)
+
+    def test_shared_bar_draw_is_as_before_the_van(self):
+        for path in (self.W3D, self.HEADER):
+            before = subprocess.run(["git", "show", f"{self.BEFORE_VAN}:{path}"], cwd=kit.ROOT, capture_output=True)
+            if before.returncode != 0:
+                self.skipTest("no git history")
+            self.assertEqual((kit.ROOT / path).read_bytes(), before.stdout, path)
 
     def test_van_needs_every_layer_before_it_takes_its_place(self):
         place = self.body(self.load, "static GoVanPlace placeGoVan(")
-        for name in ('"GOVanBody"', '"GOVanDish"', "GO_VAN_WHEEL_IMAGES[wheel]"):
+        for name in ('"GOVanBody"', '"GOVanDish"', "GO_VAN_WHEEL_IMAGES[wheel]", "goVanStripIsClear(window, strip)"):
             self.assertIn(name, place)
         table = re.search(r"static const char \*const GO_VAN_WHEEL_IMAGES\[GO_VAN_WHEEL_FRAMES\] = \{([^}]*)\};", self.van)
         self.assertEqual(re.findall(r'"([^"]+)"', table.group(1)), [f"GOVanWheels{k}" for k in range(kit.VAN_WHEEL_FRAMES)])
-        # one lookup by a fixed name per frame, no string built while drawing
         self.assertIn("findImageByName(GO_VAN_WHEEL_IMAGES[state->frame])", self.van)
         self.assertNotIn(".format(", self.van)
         self.assertNotIn("AsciiString", self.van)
+        # position from progress, as van_layout
+        self.assertIn("const Int bumper = first + (last - first) * progress / 100;", place)
 
     def test_wave_wraps_on_its_period_and_puff_lives_reach_the_whole_spread(self):
         self.assertIn("const double t = (now % GO_VAN_WAVE_MS) / 1000.0;", self.van)
@@ -899,65 +864,19 @@ class VanSourceTest(unittest.TestCase):
         for banned in ("setClipRegion", "enableClipping", "DRAW_IMAGE_ADDITIVE", "new ", "malloc", "std::vector"):
             self.assertNotIn(banned, self.van)
         self.assertIn("GoVanPuff puffs[GO_VAN_PUFFS];", self.van)
-        self.assertIn("static GoVanState s_goVans[GO_VAN_BARS];", self.van)
-        # puffs first, then body, dish and wheels
+        self.assertIn("static GoVanState s_goVan;", self.van)
         order = [self.van.index(s) for s in ("drawImage(puffImage", "drawImage(body", "drawImage(dish", "drawImage(wheels")]
         self.assertEqual(order, sorted(order))
 
 
-class VanShellFirstLoadTest(unittest.TestCase):
-    """The first shell load shows the legal text, which the layout puts right over the bar; with the GO logo in place of
-    the title art, ShellGameLoadScreen::initCredit hides it again, so the van keeps its place above."""
-
-    SCREENS = ((800, 600), (1366, 768), (1920, 1080), (2560, 1440), (3840, 2160))
-    LEGAL = "ShellGameLoadScreen.wnd:StaticTextLegal"
-
-    @classmethod
-    def setUpClass(cls):
-        cls.source = (kit.ROOT / "Core/GameEngine/Source/GameClient/GUI/LoadScreen.cpp").read_text("latin-1")
-        start = cls.source.index("void ShellGameLoadScreen::initCredit()")
-        cls.init_credit = cls.source[start:cls.source.index("\n}\n", start)]
-
-    def shell(self, shown=True):
-        """The shell layout with the legal text shown at its layout place, or hidden as the GO logo screen does."""
-        root, bars, _ = go_bar_layouts()["ShellGameLoadScreen"]
-        legal = next(w for w in root.walk() if w.name == self.LEGAL)
-        legal.status = (legal.status - {"HIDDEN"}) if shown else (legal.status | {"HIDDEN"})
-        return root, bars[0], legal
-
-    def mode(self, root, bar, screen):
-        rect = screen_rect(bar, screen)
-        args = (rect[0], rect[1], rect[2] - rect[0], rect[3] - rect[1], screen[1])
-        fill = kit.shell_load_bar_layout(*args, 100)[1]
-        layout = kit.van_layout(rect, fill, fill[0], lambda strip: strip_clear(root, bar, screen, strip))
-        return layout and layout[0]
-
-    def test_legal_text_at_its_layout_place_takes_the_room_above_the_bar(self):
-        root, bar, legal = self.shell()
-        self.assertNotIn("HIDDEN", legal.status)
-        self.assertNotEqual(self.mode(root, bar, (1920, 1080)), "above")
-
-    def test_first_load_with_the_legal_text_hidden_keeps_the_van_above_the_bar(self):
-        root, bar, _ = self.shell(shown=False)
-        for screen in self.SCREENS:
-            self.assertEqual(self.mode(root, bar, screen), "above", screen)
-
-    def test_initcredit_hides_the_legal_text_only_with_the_go_logo(self):
-        hide = self.init_credit.index(f'nameToKey("{self.LEGAL}")')
-        block_start = self.init_credit.rindex("if (m_creditLogo != nullptr)", 0, hide)
-        low, depth = brace_depth(self.init_credit, block_start, hide)
-        self.assertGreaterEqual(low, 0)
-        self.assertGreaterEqual(depth, 1)
-        self.assertIn("legal->winHide(TRUE);", self.init_credit)
-        self.assertNotIn("CREDIT_LEGAL_TOP", self.source)
-
-
 class VanInMatchTest(unittest.TestCase):
-    """The van rides the GO bar art only, and no in-match layout uses that art."""
+    """The van rides the shell load road only, and no in-match layout uses the GO bar art."""
 
-    def test_no_layout_names_a_van_image(self):
+    def test_no_layout_names_a_van_or_road_image(self):
         for path in list((kit.DATA / "Window").rglob("*.wnd")) + list(themes.THEME_DIR.rglob("*.wnd")):
-            self.assertNotIn("GOVan", path.read_bytes().decode("latin-1"), path.name)
+            text = path.read_bytes().decode("latin-1")
+            self.assertNotIn("GOVan", text, path.name)
+            self.assertNotIn("GORoad", text, path.name)
 
     def test_only_load_screens_and_the_download_menu_use_the_go_bar_fill(self):
         users = set()
@@ -968,15 +887,211 @@ class VanInMatchTest(unittest.TestCase):
         self.assertEqual(users, {"ShellGameLoadScreen.wnd", "SinglePlayerLoadScreen.wnd", "MultiplayerLoadScreen.wnd",
                                  "GameSpyLoadScreen.wnd", "ChallengeLoadScreen.wnd", "DownloadMenu.wnd"})
 
-    def test_only_the_load_screen_code_sets_the_go_bar_fill_or_names_the_van(self):
+    def test_only_the_load_screen_code_names_the_van_or_the_road(self):
         for folder in ("Core", "Generals/Code", "GeneralsMD/Code"):
             for path in (kit.ROOT / folder).rglob("*.[ch]*"):
                 if path.suffix not in (".cpp", ".h"):
                     continue
                 text = path.read_text("latin-1")
-                if '"LoadingBar_Progress"' in text or '"GOVan' in text:
+                if '"LoadingBar_Progress"' in text or '"GOVan' in text or '"GORoad' in text:
                     self.assertEqual(path.name, "LoadScreen.cpp")
 
+
+class LoadSplashTest(unittest.TestCase):
+    """The Minecraft style splash the van says in a speech bubble (LoadScreen.cpp GO_LOAD_SPLASHES, drawGoVanBubble)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.source = (kit.ROOT / "Core/GameEngine/Source/GameClient/GUI/LoadScreen.cpp").read_text("latin-1")
+        start = cls.source.index("void ShellGameLoadScreen::initCredit()")
+        cls.init_credit = cls.source[start:cls.source.index("\n}\n", start)]
+        start = cls.source.index("void ShellGameLoadScreen::drawCredit()")
+        cls.draw_credit = cls.source[start:cls.source.index("\n}\n", start)]
+        start = cls.source.index("static void drawGoVanBubble(")
+        cls.bubble = cls.source[start:cls.source.index("\n}\n", start)]
+
+    def test_table_holds_the_nine_lines_as_translatable_labels(self):
+        table = self.source[self.source.index("static const GoLoadSplash GO_LOAD_SPLASHES[] = {"):]
+        table = table[:table.index("};")]
+        rows = re.findall(r'\{ "([^"]+)", L"([^"]*)" \}', table)
+        self.assertEqual(rows, [(label, text) for label, text in kit.LOAD_SPLASHES])
+        self.assertEqual(len(rows), 9)
+        self.assertEqual([label for label, _ in rows], [f"GUI:GOLoadSplash{k}" for k in range(1, 10)])
+        self.assertIn("TheGameText->FETCH_OR_SUBSTITUTE(GO_LOAD_SPLASHES[s_goSplashLine].label, "
+                      "GO_LOAD_SPLASHES[s_goSplashLine].text)", self.init_credit)
+
+    def test_line_is_picked_once_per_launch_from_the_clock_and_no_random_stream(self):
+        self.assertIn("if (s_goSplashLine < 0)", self.init_credit)
+        self.assertIn("s_goSplashLine = (Int)(timeGetTime() % (sizeof(GO_LOAD_SPLASHES) / sizeof(GO_LOAD_SPLASHES[0])));",
+                      self.init_credit)
+        for text in (self.init_credit, self.draw_credit, self.bubble):
+            for banned in ("GameLogicRandomValue", "GameClientRandomValue", "GameAudioRandomValue", "rand("):
+                self.assertNotIn(banned, text)
+        self.assertEqual({kit.splash_pick(t) for t in range(100)}, set(range(9)))
+
+    def test_line_exists_only_with_the_go_logo_and_the_old_placement_is_gone(self):
+        pick = self.init_credit.index("s_goSplashLine = ")
+        block = self.init_credit.rindex("if (m_creditLogo != nullptr)", 0, pick)
+        low, depth = brace_depth(self.init_credit, block, pick)
+        self.assertGreaterEqual(low, 0)
+        self.assertGreaterEqual(depth, 1)
+        self.assertIn('TheFontLibrary->getFont("Consolas", Int(GO_SPLASH_FONT_SIZE * fontScale), TRUE)', self.init_credit)
+        self.assertEqual(int(re.search(r"GO_SPLASH_FONT_SIZE = (\d+);", self.source).group(1)), kit.SPLASH_FONT_SIZE)
+        # the van says it: nothing of the splash is left by the logo, and no pulse
+        self.assertNotIn("s_goSplash", self.draw_credit)
+        for gone in ("GO_SPLASH_PULSE_MS", "GO_SPLASH_WRAP_MS", "GO_SPLASH_LOGO_OVERLAP", "GO_SPLASH_MARGIN"):
+            self.assertNotIn(gone, self.source)
+
+    def test_bubble_draws_only_with_the_line_and_rides_the_van(self):
+        # no line (no GO logo, -nologo, a later load): no bubble
+        self.assertIn("if (s_goSplash == nullptr", self.bubble)
+        van = self.source[self.source.index("static void drawGoLoadBarVan("):]
+        van = van[:van.index("\n}\n")]
+        self.assertIn("drawGoVanBubble(x0 + goVanScale(GO_BUBBLE_TIP_X, height), y0 + bob + goVanScale(GO_BUBBLE_TIP_Y, height), "
+                      "now - state->appearedAt);", van)
+        self.assertGreater(van.index("drawGoVanBubble("), van.index("drawImage(wheels"))
+        self.assertIn("state->appearedAt = now;", self.source)
+
+    def test_bubble_draw_follows_the_layout_rule(self):
+        for text in ("const Int height = textHeight * 3 / 2;",
+                     "const Int capWidth = height / 2;",
+                     "const Int tailWidth = height * 3 / 5;",
+                     "const Int tailHeight = height / 2;",
+                     "const Int over = height * 3 / 40;",
+                     "Int width = textWidth + height * 3 / 4;",
+                     "Int left = tipX - width / 4;",
+                     "const Int top = tipY - tailHeight + over - height;",
+                     "Int tailCenter = tipX;",
+                     "const Int alpha = shownMs >= GO_BUBBLE_FADE_MS ? 255 : (Int)(255 * shownMs / GO_BUBBLE_FADE_MS);"):
+            self.assertIn(text, self.bubble)
+        r, g, b = themes._rgb(kit.BUBBLE_TEXT)
+        self.assertIn(f"GameMakeColor({r}, {g}, {b}, alpha)", self.bubble)
+        for name in ("GOBubbleL", "GOBubbleC", "GOBubbleR", "GOBubbleTail"):
+            self.assertIn(f'"{name}"', self.bubble)
+        ints = dict(re.findall(r"static const (?:Int|UnsignedInt) (GO_BUBBLE_\w+) = (\d+);", self.source))
+        self.assertEqual({k: int(v) for k, v in ints.items()}, kit.BUBBLE_CONSTANTS)
+        self.assertEqual(float(re.search(r"static const Real GO_BUBBLE_MARGIN = ([\d.]+)f;", self.source).group(1)),
+                         kit.BUBBLE_MARGIN_UNITS)
+
+    def bubbles(self):
+        for screen in SCREENS:
+            for progress in (0, 35, 70, 100):
+                road, layout = shell_van(screen, progress)
+                for bob in (-1, 0, 1):
+                    tip = kit.bubble_tip(layout, bob)
+                    for _, text in kit.LOAD_SPLASHES:
+                        w, h = kit.splash_text_size(text, *screen)
+                        yield screen, progress, bob, text, layout, tip, kit.bubble_layout(tip, w, h, *screen)
+
+    def test_bubble_stays_on_screen_and_clear_of_the_website_line(self):
+        def meets(a, b):
+            return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+        for screen, progress, bob, text, layout, tip, b in self.bubbles():
+            key = (screen, progress, text)
+            margin = int(kit.BUBBLE_MARGIN_UNITS * screen[1] / 600.0)
+            left, top, right, bottom = b["bubble"]
+            self.assertGreaterEqual(left, margin, key)
+            self.assertLessEqual(right, screen[0] - margin, key)
+            self.assertGreater(top, 0, key)
+            self.assertFalse(meets(b["bubble"], kit.url_rect(*screen)), key)
+            self.assertGreater(top, kit.url_rect(*screen)[3], key)
+            # the text fits inside the straight part and the line height
+            self.assertGreaterEqual(b["text"][0], left + b["cap"] // 2, key)
+            self.assertLessEqual(b["text"][2], right - b["cap"] // 2, key)
+            self.assertTrue(top < b["text"][1] and b["text"][3] < bottom, key)
+
+    def test_tail_tip_points_at_the_dish(self):
+        for screen, progress, bob, text, layout, tip, b in self.bubbles():
+            key = (screen, progress, text)
+            height, (x0, y0, _, _) = layout
+            dish_x = x0 + kit.van_scale(78, height)
+            dish_top = y0 + bob + kit.van_scale(5, height)
+            tail_left, tail_top, tail_right, tail_bottom = b["tail"]
+            tip_x = (tail_left + tail_right) // 2
+            self.assertEqual(tail_bottom, tip[1], key)
+            self.assertLessEqual(abs(tip_x - dish_x), 3, key)
+            self.assertTrue(0 <= dish_top - tail_bottom <= kit.van_scale(5, height) + 1, key)
+            # the tail hangs from the straight part of the bubble's bottom edge
+            self.assertGreaterEqual(tail_left, b["bubble"][0] + b["cap"], key)
+            self.assertLessEqual(tail_right, b["bubble"][2] - b["cap"] + 1, key)
+            self.assertTrue(b["bubble"][1] < tail_top <= b["bubble"][3], key)  # overlaps the bottom line
+
+    def test_bubble_moves_with_the_van_and_bobs_with_it(self):
+        screen, text = (1920, 1080), kit.LOAD_SPLASHES[2][1]
+        w, h = kit.splash_text_size(text, *screen)
+        lefts = []
+        for progress in (10, 40, 70):
+            _, layout = shell_van(screen, progress)
+            lefts.append(kit.bubble_layout(kit.bubble_tip(layout, 0), w, h, *screen)["bubble"][0])
+            up = kit.bubble_layout(kit.bubble_tip(layout, -1), w, h, *screen)["bubble"][1]
+            self.assertEqual(up, kit.bubble_layout(kit.bubble_tip(layout, 0), w, h, *screen)["bubble"][1] - 1)
+        self.assertEqual(lefts, sorted(lefts))
+        self.assertGreater(lefts[-1] - lefts[0], 300)
+
+    def test_bubble_is_pulled_back_at_a_screen_edge_and_the_tail_slides(self):
+        # the road keeps the van well inside the screen, so drive the tip to the edges directly
+        screen, text = (800, 600), kit.LOAD_SPLASHES[4][1]
+        w, h = kit.splash_text_size(text, *screen)
+        margin = int(kit.BUBBLE_MARGIN_UNITS)
+        for tip_x, edge in ((screen[0] - 120, "right"), (40, "left")):
+            b = kit.bubble_layout((tip_x, 500), w, h, *screen)
+            left, _, right, bottom = b["bubble"]
+            if edge == "right":
+                self.assertEqual(right, screen[0] - margin)
+            else:
+                self.assertEqual(left, margin)
+            self.assertNotEqual(left, tip_x - (right - left) // 4)
+            # the tail still points at the tip, or as near as the straight part of the bottom allows
+            centre = (b["tail"][0] + b["tail"][2]) // 2
+            self.assertLessEqual(abs(centre - tip_x), max(1, left + b["cap"] - tip_x + (b["tail"][2] - b["tail"][0]) // 2))
+            self.assertEqual(b["tail"][3], 500)
+
+    def test_bubble_fades_in_and_stays(self):
+        fade = kit.BUBBLE_CONSTANTS["GO_BUBBLE_FADE_MS"]
+        self.assertEqual(kit.bubble_alpha(0), 0)
+        self.assertEqual(kit.bubble_alpha(fade // 2), 127)
+        self.assertEqual({kit.bubble_alpha(t) for t in range(fade, fade + 60000, 997)}, {255})
+
+
+class BubbleArtTest(unittest.TestCase):
+    """go_ui_kit.bubble_pieces: the speech bubble in the van's colours, one art for both palettes."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pieces = {name: (w, h, texels) for name, w, h, texels in kit.bubble_pieces()}
+
+    def build(self):
+        return kit.build(kit.bubble_pieces(), kit.BUBBLE_TEXTURE_NAME, kit.BUBBLE_ATLAS_WIDTH, kit.BUBBLE_TITLE)
+
+    def test_bubble_is_cream_inside_the_van_outline_with_round_ends_and_a_tail(self):
+        cream, ink = q(kit.rgba(themes.PALETTE["text"])), q(kit.rgba(themes.PALETTE["ink"]))
+        self.assertEqual(ink[:3], (0x0D, 0x15, 0x1B))
+        self.assertEqual(set(self.pieces), {"GOBubbleL", "GOBubbleC", "GOBubbleR", "GOBubbleTail"})
+        w, h, mid = self.pieces["GOBubbleC"]
+        mid = [[q(t) for t in row] for row in mid]
+        self.assertEqual(mid[0][0], ink)
+        self.assertEqual(mid[h * kit.SCALE // 2][0], cream)
+        self.assertEqual(mid[-1][0], ink)
+        for name, corner in (("GOBubbleL", (0, 0)), ("GOBubbleR", (-1, -1))):
+            texels = self.pieces[name][2]
+            self.assertEqual(texels[corner[0]][corner[1]][3], 0.0, name)  # rounded corner
+            self.assertEqual(q(texels[len(texels) // 2][len(texels[0]) // 2]), cream, name)
+        tw, th, tail = self.pieces["GOBubbleTail"]
+        self.assertEqual(q(tail[0][tw * kit.SCALE // 2]), cream)  # the top covers the bubble line
+        self.assertEqual(tail[0][0][3], 1.0)
+        self.assertEqual(tail[-1][0][3], 0.0)                     # narrows to the tip
+        self.assertGreater(tail[-1][tw * kit.SCALE // 2][3], 0.0)
+
+    def test_committed_bubble_files_are_current_and_retail_leaves_them_out(self):
+        texture, ini = self.build()
+        self.assertEqual(kit.BUBBLE_TEXTURE_PATH.read_bytes(), texture)
+        self.assertEqual(kit.BUBBLE_INI_PATH.read_bytes(), ini.encode("ascii"))
+        self.assertNotIn("Border", ini)
+        excluded = retail_excluded_files()
+        for path in (kit.BUBBLE_TEXTURE_PATH, kit.BUBBLE_INI_PATH):
+            self.assertIn(path.relative_to(kit.DATA).as_posix().lower(), excluded)
+        self.assertFalse((themes.THEME_DIR / kit.BUBBLE_TEXTURE_PATH.relative_to(kit.DATA)).exists())
 
 
 class MapKitThemeTest(unittest.TestCase):

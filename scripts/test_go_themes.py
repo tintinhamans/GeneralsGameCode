@@ -572,7 +572,7 @@ class ShellLoadScreenLogoTest(unittest.TestCase):
         header = (wl.ROOT / "Core/GameEngine/Include/GameClient/LoadScreen.h").read_text("latin-1")
         self.assertNotIn("m_creditStrings", header)
         self.assertIn("DisplayString *m_creditUrl;", header)
-        self.assertIn('L"www.playgenerals.online"', self.init)
+        self.assertIn('L"www.generals.online"', self.init)
         self.assertIn("m_creditUrl->draw(centerX - width / 2, REAL_TO_INT(CREDIT_URL_TOP * unit)", self.draw)
         # under the logo and above the retail legal text at 540
         url_top = source_constant(self.source, "CREDIT_URL_TOP")
