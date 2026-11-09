@@ -4,6 +4,7 @@ Usage:
     python -m unittest scripts/test_go_ui_kit.py
 """
 
+import math
 import re
 import sys
 import unittest
@@ -164,6 +165,11 @@ class KitPiecesTest(unittest.TestCase):
             self.assertTrue(pushed == self.pieces[f"VSlider{direction}ButtonHilite"], direction)
 
 
+def q(colour):
+    """A float colour as the 8 bit texel the TGA stores."""
+    return tuple(round(c * 255) for c in colour)
+
+
 def retail_excluded_files():
     """The lower-case data paths the Retail style leaves out by name (ArchiveFileSystem.cpp isNotGenOnlineInterfaceFile)."""
     source = (kit.ROOT / "Core/GameEngine/Source/Common/System/ArchiveFileSystem.cpp").read_text("latin-1")
@@ -190,16 +196,16 @@ class LoadingBarTest(unittest.TestCase):
     def test_bar_pieces_replace_the_retail_images_at_their_size(self):
         self.assertEqual({name: (w, h) for name, (w, h, _) in self.pieces.items()}, self.RETAIL_SIZES)
 
-    def test_fill_is_plain_bronze_and_the_track_a_subtle_fill(self):
-        for name, token in (("LoadingBar_Progress", "bronze"), ("LoadingBar_DePowered", "fill-disabled")):
+    def test_fill_is_plain_bronze_and_the_track_the_field_back(self):
+        for name, colour in (("LoadingBar_Progress", self.colour("bronze")), ("LoadingBar_DePowered", kit.FIELD)):
             _, _, texels = self.pieces[name]
-            self.assertEqual({t for row in texels for t in row}, {self.colour(token)}, name)
+            self.assertEqual({q(t) for row in texels for t in row}, {q(colour)}, name)
 
-    def test_back_is_a_square_frame_in_the_line_colour_on_the_field_fill(self):
-        # the subtle fill tokens of the panels, so the bar sits in the menus like a field in both palettes
-        line, ground = self.colour("line"), self.colour("fill-field")
+    def assert_square_frame(self, pieces, line, ground):
+        line, ground = q(line), q(ground)
         for name, left, right in (("LoadingBar_L", True, False), ("LoadingBar_C", False, False), ("LoadingBar_R", False, True)):
-            w, h, texels = self.pieces[name]
+            w, h, texels = pieces[name]
+            texels = [[q(t) for t in row] for row in texels]
             mid_y, mid_x = h * kit.SCALE // 2, w * kit.SCALE // 2
             self.assertEqual(texels[0][mid_x], line, name)
             self.assertEqual(texels[-1][mid_x], line, name)
@@ -211,12 +217,28 @@ class LoadingBarTest(unittest.TestCase):
                 self.assertEqual(texels[0][0], line, name)
             if right:
                 self.assertEqual(texels[-1][-1], line, name)
+            # one kit line: LINE_LAYOUT pixels of line, then the back
+            band = round(kit.LINE_LAYOUT * kit.SCALE)
+            self.assertEqual(texels[band - 1][mid_x], line, name)
+            self.assertEqual(texels[band][mid_x], ground, name)
 
-    def test_bar_is_the_same_in_every_palette(self):
-        # its own atlas outside the kit the palettes recolour, with no theme copy
+    def test_back_is_a_square_kit_frame_in_the_signal_line_on_the_field_back(self):
+        self.assert_square_frame(self.pieces, kit.BUTTON_STATES[""][0], kit.FIELD)
+
+    def test_radar_bar_takes_the_radar_line_and_field_and_keeps_the_bronze_fill(self):
+        radar = {name: (w, h, texels) for name, w, h, texels in kit.load_bar_pieces(themes.KIT_COLORS)}
+        field = kit.rgba(themes.PALETTE["fill-field"], kit.FIELD[3])
+        self.assert_square_frame(radar, self.colour("bronze"), field)
+        self.assertEqual(radar["LoadingBar_Progress"], self.pieces["LoadingBar_Progress"])
+        self.assertEqual({q(t) for row in radar["LoadingBar_DePowered"][2] for t in row}, {q(field)})
+        # the kit atlas the palettes recolour has none of these names; the bar has its own atlas and its own theme copy
         kit_names = {name for name, _, _, _ in kit.pieces()}
         self.assertFalse(kit_names & set(self.pieces))
-        self.assertFalse((themes.THEME_DIR / kit.LOAD_BAR_TEXTURE_PATH.relative_to(kit.DATA)).exists())
+        texture, ini = kit.build(kit.load_bar_pieces(themes.KIT_COLORS), kit.LOAD_BAR_TEXTURE_NAME, kit.LOAD_BAR_ATLAS_WIDTH,
+                                 kit.LOAD_BAR_TITLE)
+        self.assertEqual(ini, self.build()[1])
+        self.assertEqual(kit.THEME_LOAD_BAR_TEXTURE_PATH, themes.THEME_DIR / kit.LOAD_BAR_TEXTURE_PATH.relative_to(kit.DATA))
+        self.assertEqual(kit.THEME_LOAD_BAR_TEXTURE_PATH.read_bytes(), texture)
         self.assertFalse((themes.THEME_DIR / kit.LOAD_BAR_INI_PATH.relative_to(kit.DATA)).exists())
 
     def test_ini_gives_the_frame_the_kit_line_border_only(self):
@@ -238,6 +260,73 @@ class LoadingBarTest(unittest.TestCase):
         excluded = retail_excluded_files()
         for path in (kit.LOAD_BAR_TEXTURE_PATH, kit.LOAD_BAR_INI_PATH):
             self.assertIn(path.relative_to(kit.DATA).as_posix().lower(), excluded)
+        # the Retail style mounts no palette, so the Radar copy goes with the Themes folder
+        self.assertTrue(kit.THEME_LOAD_BAR_TEXTURE_PATH.relative_to(kit.DATA).as_posix().lower().startswith("themes/"))
+
+
+def shell_bar_window(screen_width, screen_height):
+    """Screen rect of ShellGameLoadScreen.wnd:ProgressLoad (324 576 to 472 592 of 800x600), as parseScreenRect scales it."""
+    def scale(value, numerator, denominator):
+        return (value * numerator + denominator // 2) // denominator
+
+    x, y = scale(324, screen_width, 800), scale(576, screen_height, 600)
+    return x, y, scale(472 - 324, screen_width, 800), scale(592 - 576, screen_height, 600)
+
+
+class ShellLoadBarTest(unittest.TestCase):
+    """LoadScreen.cpp drawGoShellLoadBar: the kit frame over the window, the bronze fill inset by the same gap all round."""
+
+    SCREENS = ((800, 600), (1024, 768), (1280, 720), (1366, 768), (1600, 900), (1920, 1080), (2000, 1125), (2560, 1080),
+               (2560, 1440), (3440, 1440), (3840, 2160))
+
+    @classmethod
+    def setUpClass(cls):
+        cls.source = (kit.ROOT / "Core/GameEngine/Source/GameClient/GUI/LoadScreen.cpp").read_text("latin-1")
+        start = cls.source.index("static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )")
+        cls.draw = cls.source[start:cls.source.index("\n}\n", start)]
+
+    def test_padding_is_the_same_on_every_side_at_every_resolution(self):
+        for screen in self.SCREENS:
+            x, y, w, h = shell_bar_window(*screen)
+            for percent in (0, 1, 50, 99, 100):
+                line, (left, top, right, bottom) = kit.shell_load_bar_layout(x, y, w, h, screen[1], percent)
+                self.assertGreaterEqual(line, 1, screen)
+                self.assertEqual(top - y, y + h - bottom, (screen, percent))
+                self.assertEqual(left - x, top - y, (screen, percent))
+                self.assertGreater(bottom - top, 0, screen)
+            # full: the fill ends as far from the right edge as it starts from the left one, two lines in
+            line, (left, top, right, bottom) = kit.shell_load_bar_layout(x, y, w, h, screen[1], 100)
+            self.assertEqual(left - x, x + w - right, screen)
+            self.assertEqual(left - x, 2 * line, screen)
+            # empty: nothing drawn; half: half the inside, to the pixel
+            self.assertEqual(kit.shell_load_bar_layout(x, y, w, h, screen[1], 0)[1][2], left)
+            self.assertEqual(kit.shell_load_bar_layout(x, y, w, h, screen[1], 50)[1][2] - left, (right - left) * 50 // 100)
+
+    def test_frame_line_is_the_one_the_three_piece_bar_draws(self):
+        for _, screen_height in self.SCREENS:
+            border = math.ceil(kit.LINE_LAYOUT * screen_height / 600.0 - 0.01)
+            self.assertEqual(kit.shell_load_bar_layout(0, 0, 300, 30, screen_height, 100)[0], max(1, border))
+        three_piece = (kit.ROOT / "Core/GameEngine/Source/GameClient/GUI/GameWindowGlobal.cpp").read_text("latin-1")
+        self.assertIn("Int borderHeight = REAL_TO_INT_CEIL( left->getBorder() * bands.layoutScale - 0.01f );", three_piece)
+        self.assertIn("bands.layoutScale = (Real)TheDisplay->getHeight() / 600.0f;", three_piece)
+
+    def test_draw_follows_the_layout_rule(self):
+        self.assertIn("TheWindowManager->winDrawThreePieceImage(left, center, nullptr, right, x, y, width, height);", self.draw)
+        self.assertIn("Int line = REAL_TO_INT_CEIL(left->getBorder() * TheDisplay->getHeight() / 600.0f - 0.01f);", self.draw)
+        self.assertIn("const Int inset = 2 * line;", self.draw)
+        self.assertIn("const Int fillWidth = width - 2 * inset;", self.draw)
+        self.assertIn("const Int fillHeight = height - 2 * inset;", self.draw)
+        self.assertIn("const Int drawWidth = fillWidth * progress / 100;", self.draw)
+        self.assertIn("TheDisplay->drawImage(fill, x + inset, y + inset, x + inset + drawWidth, y + inset + fillHeight);",
+                      self.draw)
+        # one stretched fill, no tiles: tiles of the fill height leave a remainder on the right
+        self.assertNotIn("for (", self.draw)
+
+    def test_shell_bar_takes_the_draw_only_with_the_go_bar_art(self):
+        source = self.source[self.source.index("void ShellGameLoadScreen::init( GameInfo *game )"):]
+        init = source[:source.index("\n}\n")]
+        self.assertRegex(init, r"if \(findGoLoadBarImage\(\) != nullptr\)\s*\{\s*"
+                               r"m_progressBar->winSetDrawFunc\(drawGoShellLoadBar\);\s*\}")
 
 
 class LoadScreenPlayerBarTest(unittest.TestCase):

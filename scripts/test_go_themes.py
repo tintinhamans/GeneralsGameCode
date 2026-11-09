@@ -448,42 +448,141 @@ class LogoTest(unittest.TestCase):
         self.assertLessEqual(abs(columns[0] - (rw - 1 - columns[-1])), 1)
 
 
-class LoadLogoTest(unittest.TestCase):
-    def test_load_logo_texture_is_the_theme_logo_in_base_data(self):
-        self.assertEqual((wl.DATA / themes.LOAD_LOGO_TGA).read_bytes(), (themes.THEME_DIR / themes.LOGO_TGA).read_bytes())
-        self.assertNotEqual(themes.LOAD_LOGO_TGA, themes.LOGO_TGA)
-        self.assertFalse((themes.THEME_DIR / themes.LOAD_LOGO_TGA).exists())
-        self.assertFalse((themes.THEME_DIR / themes.LOAD_LOGO_INI).exists())
+LOAD_SCREEN_CPP = "Core/GameEngine/Source/GameClient/GUI/LoadScreen.cpp"
+RETAIL_TITLE_BIG = "EnglishZH.big"
+RETAIL_TITLE_TGA = "Data/English/Art/Textures/TitleScreenuserinterface.tga"  # the TitleScreen image, 800x600 of 1024x1024
 
-    def test_load_logo_ini_crops_the_image_to_the_logo_ink(self):
-        data = (themes.THEME_DIR / themes.LOGO_TGA).read_bytes()
-        text = themes.load_logo_ini_text(data)
+
+def ink_box(rows, threshold=0):
+    """(left, top, right, bottom), right and bottom exclusive, of the values above threshold in top-down rows."""
+    xs = [x for x in range(len(rows[0])) if any(row[x] > threshold for row in rows)]
+    ys = [y for y, row in enumerate(rows) if any(v > threshold for v in row)]
+    return xs[0], ys[0], xs[-1] + 1, ys[-1] + 1
+
+
+def source_constant(source, name):
+    return float(re.search(rf"static const Real {name} = ([0-9.]+)f;", source).group(1))
+
+
+def function_body(source, signature):
+    start = source.index(signature)
+    return source[start:source.index("\n}\n", start)]
+
+
+class LoadLogoTest(unittest.TestCase):
+    """The GO logo in place of the Zero Hour logo on the first shell load screen (LoadScreen.cpp ShellGameLoadScreen)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.data = (wl.DATA / themes.LOAD_LOGO_TGA).read_bytes()
+        cls.width, cls.height, cls.bits, rows = read_tga(cls.data)
+        cls.alpha = [[t[3] for t in row] for row in rows[::-1]]
+
+    def test_load_logo_is_its_own_raster_sharp_up_to_4k(self):
+        self.assertEqual(self.bits, 32)
+        self.assertEqual((self.width, self.height), themes.LOAD_LOGO_TEXTURE_SIZE)
+        self.assertEqual(self.width & (self.width - 1), 0)
+        self.assertEqual(self.height & (self.height - 1), 0)
+        self.assertNotEqual(self.data, (themes.THEME_DIR / themes.LOGO_TGA).read_bytes())
+        left, top, right, bottom = ink_box(self.alpha)
+        # at least one texel per pixel where the logo draws LOAD_LOGO_HEIGHT layout units tall on a 2160 line screen
+        self.assertGreaterEqual(bottom - top, themes.LOAD_LOGO_HEIGHT * 2160 / 600)
+        # clear texels all round, so bilinear sampling at the crop never reaches past the texture edge
+        self.assertTrue(left > 0 and top > 0 and right < self.width and bottom < self.height)
+        alphas = {a for row in self.alpha for a in row}
+        self.assertTrue({0, 255} <= alphas)
+        self.assertTrue(any(0 < a < 255 for a in alphas))  # anti-aliased edges
+
+    def test_load_logo_ini_crops_the_texture_to_the_logo_ink_in_texels(self):
+        text = themes.load_logo_ini_text(self.data)
         self.assertEqual((wl.DATA / themes.LOAD_LOGO_INI).read_bytes(), text.encode("ascii"))
         fields = dict(mapped_images(text)[themes.LOAD_LOGO_IMAGE])
         self.assertEqual(themes.LOAD_LOGO_IMAGE, "GOLoadLogo")
         self.assertEqual(fields["Texture"], themes.LOAD_LOGO_TEXTURE)
-        tw, th = (v // themes.LOGO_SCALE for v in themes.LOGO_TEXTURE_SIZE)
-        self.assertEqual((fields["TextureWidth"], fields["TextureHeight"]), (str(tw), str(th)))
-        width, height, _, rows = read_tga(data)
-        top_down = rows[::-1]
-        xs = [x for x in range(width) if any(row[x][3] for row in top_down)]
-        ys = [y for y in range(height) if any(t[3] for t in top_down[y])]
-        s = themes.LOGO_SCALE
-        coords = "Left:%d Top:%d Right:%d Bottom:%d" % (xs[0] // s, ys[0] // s, -(-(xs[-1] + 1) // s), -(-(ys[-1] + 1) // s))
-        self.assertEqual(fields["Coords"], coords)
+        self.assertEqual((fields["TextureWidth"], fields["TextureHeight"]), (str(self.width), str(self.height)))
+        self.assertEqual(fields["Coords"], "Left:%d Top:%d Right:%d Bottom:%d" % ink_box(self.alpha))
+        self.assertEqual(fields["Status"], "NONE")
         self.assertNotIn("Border", fields)
 
-    def test_load_logo_mounts_in_every_style(self):
-        # GO core data: neither under Themes nor in the files the Retail style leaves out
+    def test_load_logo_is_one_for_both_palettes_and_the_retail_style_leaves_it_out(self):
+        self.assertFalse((themes.THEME_DIR / themes.LOAD_LOGO_TGA).exists())
+        self.assertFalse((themes.THEME_DIR / themes.LOAD_LOGO_INI).exists())
         from test_go_ui_kit import retail_excluded_files
         excluded = retail_excluded_files()
         for rel in (themes.LOAD_LOGO_TGA, themes.LOAD_LOGO_INI):
-            self.assertNotIn(rel.lower(), excluded)
-            self.assertFalse(rel.lower().startswith(("themes/", "fonts/", "window/")))
+            self.assertIn(rel.lower(), excluded)
 
-    def test_the_load_screen_draws_the_load_logo_image(self):
-        source = (wl.ROOT / "Core/GameEngine/Source/GameClient/GUI/LoadScreen.cpp").read_text("latin-1")
-        self.assertIn(f'"{themes.LOAD_LOGO_IMAGE}"', source)
+    def test_check_and_no_inkscape_outputs_run_no_tool(self):
+        def no_tool(*args, **kwargs):
+            raise AssertionError("ran a tool")
+
+        saved = themes.subprocess.run
+        themes.subprocess.run = no_tool
+        try:
+            problems = [p for p in themes.check() if not p.startswith("retail archives not found")]
+            outputs = themes.load_logo_outputs()
+        finally:
+            themes.subprocess.run = saved
+        self.assertEqual(problems, [])
+        self.assertEqual([path for path, _ in outputs], [wl.DATA / themes.LOAD_LOGO_INI])
+
+
+class ShellLoadScreenLogoTest(unittest.TestCase):
+    """LoadScreen.cpp: the GO logo replaces the title art logo; of the old credit block only the website stays."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.source = (wl.ROOT / LOAD_SCREEN_CPP).read_text("latin-1")
+        cls.init = function_body(cls.source, "void ShellGameLoadScreen::initCredit()")
+        cls.draw = function_body(cls.source, "void ShellGameLoadScreen::drawCredit()")
+
+    def test_logo_sits_in_the_rows_of_the_title_art_logo(self):
+        self.assertEqual(source_constant(self.source, "CREDIT_LOGO_TOP"), themes.LOAD_LOGO_TOP)
+        self.assertEqual(source_constant(self.source, "CREDIT_LOGO_HEIGHT"), themes.LOAD_LOGO_HEIGHT)
+        # centred across the screen at the logo's own aspect
+        self.assertIn("const Int logoWidth = logoHeight * m_creditLogo->getImageWidth() / m_creditLogo->getImageHeight();",
+                      self.draw)
+        self.assertIn("const Int logoLeft = centerX - logoWidth / 2;", self.draw)
+
+    @unittest.skipUnless((themes.RETAIL_DIR / RETAIL_TITLE_BIG).is_file(), "no retail install")
+    def test_logo_rows_are_the_rows_of_the_retail_title_art_logo(self):
+        data = themes.read_big_entry(themes.RETAIL_DIR / RETAIL_TITLE_BIG, RETAIL_TITLE_TGA)
+        width, height, bits = struct.unpack("<HHB", data[12:17])
+        self.assertEqual((width, height, bits, data[2]), (1024, 1024, 24, 2))
+        pixels = data[18:]
+
+        def brightness(x, y):
+            at = ((height - 1 - y) * width + x) * 3  # bottom-up rows
+            return max(pixels[at:at + 3])
+
+        # the title art fills the top left 800x600 of the texture
+        _, top, _, bottom = ink_box([[brightness(x, y) for x in range(800)] for y in range(600)], 24)
+        self.assertEqual((top, bottom - top), (themes.LOAD_LOGO_TOP, themes.LOAD_LOGO_HEIGHT))
+
+    def test_go_logo_replaces_the_title_art_and_the_retail_style_keeps_it(self):
+        self.assertIn(f'm_creditLogo = TheMappedImageCollection->findImageByName("{themes.LOAD_LOGO_IMAGE}");', self.init)
+        self.assertRegex(self.init, r"if \(m_creditLogo != nullptr\)\s*\{\s*m_loadScreen->winSetEnabledImage\(0, nullptr\);\s*\}")
+        self.assertIn("TheDisplay->drawImage(m_creditLogo, logoLeft, logoTop, logoLeft + logoWidth, logoTop + logoHeight",
+                      self.draw)
+
+    def test_credit_block_is_gone_but_the_website(self):
+        for gone in ("Modernized Multiplayer Experience by", "GUI:GOCreditPretext", 'L"GeneralsOnline"', "m_creditStrings",
+                     "CREDIT_PRETEXT_TOP"):
+            self.assertNotIn(gone, self.source)
+        header = (wl.ROOT / "Core/GameEngine/Include/GameClient/LoadScreen.h").read_text("latin-1")
+        self.assertNotIn("m_creditStrings", header)
+        self.assertIn("DisplayString *m_creditUrl;", header)
+        self.assertIn('L"www.playgenerals.online"', self.init)
+        self.assertIn("m_creditUrl->draw(centerX - width / 2, REAL_TO_INT(CREDIT_URL_TOP * unit)", self.draw)
+        # under the logo and above the retail legal text at 540
+        url_top = source_constant(self.source, "CREDIT_URL_TOP")
+        self.assertGreater(url_top, themes.LOAD_LOGO_TOP + themes.LOAD_LOGO_HEIGHT)
+        self.assertLess(url_top, 520)
+
+    def test_retail_legal_text_still_shows(self):
+        init = function_body(self.source, "void ShellGameLoadScreen::init( GameInfo *game )")
+        self.assertIn('"ShellGameLoadScreen.wnd:StaticTextLegal"', init)
+        self.assertIn("win->winHide(FALSE);", init)
 
 
 

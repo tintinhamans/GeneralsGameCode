@@ -10,18 +10,18 @@ theme logo, which redefines the retail GeneralsLogo image, the theme ruler, a re
 frame drawn behind the menus, which redefines that image, and the theme load backdrop, a recolour of the retail
 MDSkirmishLoadB grid and panel frames behind the skirmish, LAN and online load screens, which redefines that image. It
 also writes the base GO logo INI, the retail GeneralsLogo definition with the KEEP_ASPECT image status, so the logo
-keeps its aspect in menus stretched to a wide screen, and the load screen credit logo: a base copy of the theme logo
-texture under its own image name, GOLoadLogo, cropped to the logo, which every interface style and palette mounts
-because the credit is attribution, not theming.
+keeps its aspect in menus stretched to a wide screen, and the load screen logo: the same SVG rasterized large enough
+for a 2160 line screen under its own image name, GOLoadLogo, cropped to the logo, which takes the place of the Zero Hour
+logo on the first shell load screen in both palettes; the Retail style leaves it out and keeps the retail title art.
 
 Usage:
-    python scripts/go_themes.py                 write the logo (rasterized with Inkscape), the logo INIs, the ruler and
-                                                the load backdrop (from the retail art)
-    python scripts/go_themes.py --no-inkscape   write every file but the logo texture (--ruler is an alias); the
-                                                load logo is copied from the committed logo texture
-    python scripts/go_themes.py --check         exit 1 when a logo INI, the load logo, the ruler or the load backdrop is
-                                                stale, the logo texture is malformed, the retail archives are missing
-                                                or a theme file has no base counterpart
+    python scripts/go_themes.py                 write the logo and the load logo (rasterized with Inkscape), the logo
+                                                INIs, the ruler and the load backdrop (from the retail art)
+    python scripts/go_themes.py --no-inkscape   write every file but the two logo textures (--ruler is an alias); the
+                                                load logo INI is cropped from the committed load logo texture
+    python scripts/go_themes.py --check         exit 1 when a logo INI, the load logo INI, the ruler or the load backdrop
+                                                is stale, a logo texture is malformed, the retail archives are missing
+                                                or a theme file has no base counterpart; it runs no Inkscape
 """
 
 import argparse
@@ -165,12 +165,18 @@ LOGO_RETAIL_INI = "Data/INI/MappedImages/TextureSize_512/SCSmShellUserInterface5
 # base GO copy of the retail logo with KEEP_ASPECT; sorts after the retail file and before the theme logo INI
 BASE_LOGO_INI = "Data/INI/MappedImages/TextureSize_512/ZZ_GeneralsOnline_Logo.INI"
 KEEP_ASPECT = "KEEP_ASPECT"  # image status (Core Image.h): window images fit their window at the image's own aspect
-# load screen credit logo (ShellGameLoadScreen): GO core data outside Themes and the Retail style's exclusions, so it shows
-# in every style and palette; its own texture name keeps the Radar GeneralsLogo override independent
+# load screen logo (ShellGameLoadScreen): base data, one for both palettes like the brand mark it is; the Retail style leaves
+# it out (ArchiveFileSystem.cpp isNotGenOnlineInterfaceFile) and keeps the retail title art
 LOAD_LOGO_TEXTURE = "GeneralsOnline_LoadLogo.tga"
 LOAD_LOGO_TGA = f"Art/Textures/{LOAD_LOGO_TEXTURE}"
 LOAD_LOGO_INI = "Data/INI/MappedImages/TextureSize_512/ZZ_GeneralsOnline_LoadLogo.INI"
 LOAD_LOGO_IMAGE = "GOLoadLogo"
+# where the retail TitleScreen draws the Zero Hour logo, in 800x600 layout units: rows 222 to 346
+LOAD_LOGO_TOP = 222
+LOAD_LOGO_HEIGHT = 125
+# texels the SVG page is rasterized to, centred in the texture: above the 450 pixels the logo ink spans on a 2160 line screen
+LOAD_LOGO_RASTER_HEIGHT = 496
+LOAD_LOGO_TEXTURE_SIZE = (2048, 512)
 
 # ruler: the retail MainMenuRuler (the grid frame with tick marks behind the menus) recoloured into its own texture
 RETAIL_DIR = Path("C:/Program Files (x86)/Steam/steamapps/common/Command & Conquer Generals - Zero Hour")
@@ -226,24 +232,21 @@ def logo_ini_text():
 
 
 def load_logo_ini_text(texture):
-    """The load logo INI: GOLoadLogo over the logo texture bytes, cropped to the texels the logo draws."""
+    """The load logo INI: GOLoadLogo over the load logo texture bytes, cropped to the texels the logo draws, in texels."""
     width, height, rows = read_tga(texture)
     xs = [x for x in range(width) if any(row[x][3] for row in rows)]
     ys = [y for y in range(height) if any(t[3] for t in rows[y])]
     if not xs:
-        raise SystemExit("the logo texture is empty")
-    s = LOGO_SCALE
-    left, top, right, bottom = xs[0] // s, ys[0] // s, -(-(xs[-1] + 1) // s), -(-(ys[-1] + 1) // s)
-    tw, th = (v // s for v in LOGO_TEXTURE_SIZE)
+        raise SystemExit("the load logo texture is empty")
     lines = [
-        "; Generals Online: the launcher logo the first shell load screen shows as the Generals Online credit.",
-        f"; Generated by scripts/go_themes.py from {LOGO_TGA} of the theme; edit the script, not this file.",
+        "; Generals Online: the launcher logo the first shell load screen shows in place of the Zero Hour logo.",
+        f"; Generated by scripts/go_themes.py from {LOAD_LOGO_TGA}; edit the script, not this file. Coords are texels.",
         "",
         f"MappedImage {LOAD_LOGO_IMAGE}",
         f"  Texture = {LOAD_LOGO_TEXTURE}",
-        f"  TextureWidth = {tw}",
-        f"  TextureHeight = {th}",
-        f"  Coords = Left:{left} Top:{top} Right:{right} Bottom:{bottom}",
+        f"  TextureWidth = {width}",
+        f"  TextureHeight = {height}",
+        f"  Coords = Left:{xs[0]} Top:{ys[0]} Right:{xs[-1] + 1} Bottom:{ys[-1] + 1}",
         "  Status = NONE",
         "End",
         "",
@@ -252,9 +255,17 @@ def load_logo_ini_text(texture):
 
 
 def load_logo_outputs():
-    """[(path, bytes)] of the load logo, from the committed theme logo texture."""
-    texture = (THEME_DIR / LOGO_TGA).read_bytes()
-    return [(DATA / LOAD_LOGO_TGA, texture), (DATA / LOAD_LOGO_INI, load_logo_ini_text(texture).encode("ascii"))]
+    """[(path, bytes)] of the load logo INI, from the committed load logo texture; no tool runs."""
+    texture = (DATA / LOAD_LOGO_TGA).read_bytes()
+    return [(DATA / LOAD_LOGO_INI, load_logo_ini_text(texture).encode("ascii"))]
+
+
+def tga_size_problem(path, size):
+    """A problem line when path is not a size[0] x size[1] 32 bit TGA, else None."""
+    data = path.read_bytes() if path.exists() else b""
+    if len(data) < 18 or data[2] not in (2, 10) or struct.unpack("<HHB", data[12:17]) != (*size, 32):
+        return f"not a {size[0]}x{size[1]} 32 bit TGA: {path.relative_to(ROOT).as_posix()}"
+    return None
 
 
 def base_logo_ini_text(retail):
@@ -318,6 +329,28 @@ def read_png(data):
         rows.append([tuple(line[x * 4:x * 4 + 4]) for x in range(width)])
         prev = line
     return width, height, rows
+
+
+def build_load_logo(svg=LOGO_SVG, inkscape=INKSCAPE):
+    """Rasterize the logo SVG page LOAD_LOGO_RASTER_HEIGHT texels tall, centred, and return the load logo texture as TGA bytes."""
+    import go_ui_kit  # imported here: go_ui_kit imports this module for the kit palette
+
+    with tempfile.TemporaryDirectory() as tmp:
+        png = Path(tmp) / "logo.png"
+        subprocess.run([str(inkscape), str(svg), "--export-type=png", "--export-png-color-mode=RGBA_8",
+                        f"--export-height={LOAD_LOGO_RASTER_HEIGHT}", f"--export-filename={png}"],
+                       check=True, capture_output=True)
+        width, height, rows = read_png(png.read_bytes())
+    tw, th = LOAD_LOGO_TEXTURE_SIZE
+    if width >= tw or height >= th:
+        raise SystemExit(f"the load logo does not fit {tw}x{th} texels with a clear edge")
+    left, top = (tw - width) // 2, (th - height) // 2
+    atlas = [[go_ui_kit.TRANSPARENT] * tw for _ in range(th)]
+    for y, row in enumerate(rows):
+        for x, (r, g, b, a) in enumerate(row):
+            if a:
+                atlas[top + y][left + x] = (r / 255.0, g / 255.0, b / 255.0, a / 255.0)
+    return go_ui_kit.tga_bytes(atlas)
 
 
 def build_logo(svg=LOGO_SVG, inkscape=INKSCAPE):
@@ -511,10 +544,12 @@ def check(retail_dir=RETAIL_DIR):
     ini = THEME_DIR / LOGO_INI
     if not ini.exists() or ini.read_bytes() != logo_ini_text().encode("ascii"):
         problems.append(f"out of date: {ini.relative_to(ROOT).as_posix()}")
-    tga = THEME_DIR / LOGO_TGA
-    data = tga.read_bytes() if tga.exists() else b""
-    if len(data) < 18 or data[2] not in (2, 10) or struct.unpack("<HHB", data[12:17]) != (*LOGO_TEXTURE_SIZE, 32):
-        problems.append(f"not a {LOGO_TEXTURE_SIZE[0]}x{LOGO_TEXTURE_SIZE[1]} 32 bit TGA: {tga.relative_to(ROOT).as_posix()}")
+    problem = tga_size_problem(THEME_DIR / LOGO_TGA, LOGO_TEXTURE_SIZE)
+    if problem:
+        problems.append(problem)
+    problem = tga_size_problem(DATA / LOAD_LOGO_TGA, LOAD_LOGO_TEXTURE_SIZE)
+    if problem:
+        problems.append(problem)
     else:
         for path, expected in load_logo_outputs():
             if not path.exists() or path.read_bytes() != expected:
@@ -547,11 +582,12 @@ def main():
     outputs.append((DATA / BASE_LOGO_INI, build_base_logo(args.retail).encode("ascii")))
     if not args.no_inkscape:
         outputs.insert(0, (THEME_DIR / LOGO_TGA, build_logo(args.svg, args.inkscape)))
+        outputs.insert(1, (DATA / LOAD_LOGO_TGA, build_load_logo(args.svg, args.inkscape)))
     for path, data in outputs:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
         print(f"wrote {path.relative_to(ROOT).as_posix()}")
-    # after the logo texture, which the load logo copies
+    # after the load logo texture, which the load logo INI crops
     for path, data in load_logo_outputs():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
