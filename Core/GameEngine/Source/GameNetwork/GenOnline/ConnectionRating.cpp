@@ -1,5 +1,6 @@
 #include "GameNetwork/GenOnline/ConnectionRating.h"
 #include "GameNetwork/NetworkDefs.h"
+#include "Common/GOUIColors.h"
 #include "GameClient/Color.h"
 #include "GameClient/Display.h"
 
@@ -202,8 +203,11 @@ void ConnectionRating::DrawSpinner(Int left, Int top, Int size)
 	const Real centerX = left + size * 0.5f;
 	const Real centerY = top + size * 0.5f;
 	const Real rotation = (timeGetTime() % 900) * twoPi / 900.0f;
-	const Color ringColor = GameMakeColor(47, 55, 168, 70); // Zero Hour UI blue
-	const Color arcColor = GameMakeColor(47, 55, 168, 255);
+	// TheSuperHackers @feature arcticdolphin 09/11/2026 The spinner takes the GO UI colour table's spinner colour, the ring at a faint alpha.
+	const Color arcColor = GOUIColor(GOUICOLOR_CONNECTION_SPINNER, GameMakeColor(47, 55, 168, 255));
+	UnsignedByte red, green, blue, alpha;
+	GameGetColorComponents(arcColor, &red, &green, &blue, &alpha);
+	const Color ringColor = GameMakeColor(red, green, blue, 70); // Zero Hour UI blue
 	for (Int segment = 0; segment < segmentCount; ++segment)
 	{
 		const Real startAngle = rotation + segment * twoPi / segmentCount;

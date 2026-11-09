@@ -53,6 +53,7 @@
 #include "Common/Language.h"
 #include "Common/Debug.h"
 #include "Common/GameAudio.h"
+#include "Common/GOUIColors.h"
 #include "GameClient/Display.h"
 #include "GameClient/DisplayStringManager.h"
 #include "GameClient/GameWindow.h"
@@ -144,6 +145,11 @@ static const Real KIT_SCROLL_CHEVRON_SHARE = 0.526f;
 static const Int KIT_COMBO_ROW_TRIM_DIVISOR = 8;
 // rows of a colour drawn list start this far into it (W3DGadgetListBoxDraw)
 static const Int KIT_COMBO_TEXT_TOP = 4;
+// TheSuperHackers @bugfix arcticdolphin 09/11/2026 Two colours with the same red, green and blue, whatever their alpha.
+static Bool sameKitFrameRGB( Color a, Color b )
+{
+	return (a & 0x00FFFFFF) == (b & 0x00FFFFFF);
+}
 
 // TheSuperHackers @feature arcticdolphin 08/11/2026 A kit combo drop-down scroll column is as wide as the combo arrow button above it.
 static void fitKitComboScrollColumn( GameWindow *listbox, ListboxData *list )
@@ -2709,7 +2715,7 @@ void GadgetListBoxDrawKitLines( Int x, Int y, Int width, Int height,
 }
 
 // GadgetListBoxGetKitFrameColor ==============================================
-/** TRUE when the kit is loaded and a layout border colour belongs to the kit blues; frameColor gets the colour to draw */
+/** TRUE when the kit is loaded and a layout border colour is drawn as a kit frame; frameColor gets the colour to draw */
 //=============================================================================
 // TheSuperHackers @tweak arcticdolphin 08/11/2026 Window frames drawn from the layout border colour use the kit line weight.
 Bool GadgetListBoxGetKitFrameColor( Color layoutBorder, Color *frameColor )
@@ -2732,7 +2738,20 @@ Bool GadgetListBoxGetKitFrameColor( Color layoutBorder, Color *frameColor )
 	// older retail blues left in the layouts take the kit line colour
 	if( red < 64 && green < 64 && blue >= 150 )
 	{
-		*frameColor = GameMakeColor( 47, 75, 255, alpha );
+		// TheSuperHackers @feature arcticdolphin 09/11/2026 The kit line colour comes from the GO UI colour table, so a palette recolours it.
+		UnsignedByte lineRed, lineGreen, lineBlue, lineAlpha;
+		GameGetColorComponents( GOUIColor( GOUICOLOR_LINE, GameMakeColor( 47, 75, 255, 255 ) ), &lineRed, &lineGreen, &lineBlue, &lineAlpha );
+		*frameColor = GameMakeColor( lineRed, lineGreen, lineBlue, alpha );
+		return TRUE;
+	}
+
+	// TheSuperHackers @bugfix arcticdolphin 09/11/2026 A border in the palette line or hilite colour, such as the Radar bronze, keeps its colour at the kit line weight.
+	Color paletteLine;
+	Color paletteHilite;
+	if( (GOUIColorFind( GOUICOLOR_LINE, &paletteLine ) && sameKitFrameRGB( layoutBorder, paletteLine ))
+		|| (GOUIColorFind( GOUICOLOR_HILITE, &paletteHilite ) && sameKitFrameRGB( layoutBorder, paletteHilite )) )
+	{
+		*frameColor = layoutBorder;
 		return TRUE;
 	}
 
