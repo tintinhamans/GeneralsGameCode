@@ -146,8 +146,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 578 378,
-                   BOTTOMRIGHT: 745 402,
+      SCREENRECT = UPPERLEFT: 578 330,
+                   BOTTOMRIGHT: 745 354,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ButtonReset";
       STATUS = ENABLED+HIDDEN+IMAGE+NOFOCUS;
@@ -242,7 +242,7 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 299 422,
+      SCREENRECT = UPPERLEFT: 299 374,
                    BOTTOMRIGHT: 745 507,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:";
@@ -289,7 +289,7 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = SCROLLLISTBOX;
-      SCREENRECT = UPPERLEFT: 302 415,
+      SCREENRECT = UPPERLEFT: 302 367,
                    BOTTOMRIGHT: 744 507,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ListboxInfo";
@@ -351,8 +351,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = HORZSLIDER;
-      SCREENRECT = UPPERLEFT: 175 382,
-                   BOTTOMRIGHT: 265 409,
+      SCREENRECT = UPPERLEFT: 175 334,
+                   BOTTOMRIGHT: 265 361,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:SliderGameSpeed";
       STATUS = ENABLED+IMAGE+TABSTOP;
@@ -428,8 +428,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 282 385,
-                   BOTTOMRIGHT: 314 406,
+      SCREENRECT = UPPERLEFT: 282 337,
+                   BOTTOMRIGHT: 314 358,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:StaticTextGameSpeed";
       STATUS = ENABLED;
@@ -476,8 +476,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 41 384,
-                   BOTTOMRIGHT: 176 408,
+      SCREENRECT = UPPERLEFT: 41 336,
+                   BOTTOMRIGHT: 176 360,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:StaticTextBattleHonors1";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -525,8 +525,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 357 381,
-                   BOTTOMRIGHT: 450 405,
+      SCREENRECT = UPPERLEFT: 357 333,
+                   BOTTOMRIGHT: 450 357,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:";
       STATUS = ENABLED+IMAGE;
@@ -575,8 +575,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = CHECKBOX;
-      SCREENRECT = UPPERLEFT: 592 383,
-                   BOTTOMRIGHT: 744 407,
+      SCREENRECT = UPPERLEFT: 592 335,
+                   BOTTOMRIGHT: 744 359,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:CheckboxLimitSuperweapons";
       STATUS = ENABLED+IMAGE;
@@ -624,8 +624,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 452 383,
-                   BOTTOMRIGHT: 556 403,
+      SCREENRECT = UPPERLEFT: 452 335,
+                   BOTTOMRIGHT: 556 355,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxStartingCash";
       STATUS = ENABLED+IMAGE;
@@ -670,7 +670,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 12,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -866,7 +866,7 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 57 422,
+      SCREENRECT = UPPERLEFT: 57 374,
                    BOTTOMRIGHT: 290 507,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:";
@@ -912,7 +912,7 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 62 485,
+        SCREENRECT = UPPERLEFT: 62 473,
                      BOTTOMRIGHT: 220 504,
                      CREATIONRESOLUTION: 800 600;
         NAME = "SkirmishGameOptionsMenu.wnd:StaticTextLosses";
@@ -961,7 +961,7 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 219 485,
+        SCREENRECT = UPPERLEFT: 219 473,
                      BOTTOMRIGHT: 285 504,
                      CREATIONRESOLUTION: 800 600;
         NAME = "SkirmishGameOptionsMenu.wnd:StaticTextLossesValue";
@@ -1010,8 +1010,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 62 465,
-                     BOTTOMRIGHT: 220 484,
+        SCREENRECT = UPPERLEFT: 62 441,
+                     BOTTOMRIGHT: 220 472,
                      CREATIONRESOLUTION: 800 600;
         NAME = "SkirmishGameOptionsMenu.wnd:StaticTextWins";
         STATUS = ENABLED+IMAGE;
@@ -1059,8 +1059,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 219 465,
-                     BOTTOMRIGHT: 285 484,
+        SCREENRECT = UPPERLEFT: 219 441,
+                     BOTTOMRIGHT: 285 472,
                      CREATIONRESOLUTION: 800 600;
         NAME = "SkirmishGameOptionsMenu.wnd:StaticTextWinsValue";
         STATUS = ENABLED+IMAGE;
@@ -1108,8 +1108,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 62 445,
-                     BOTTOMRIGHT: 221 464,
+        SCREENRECT = UPPERLEFT: 62 409,
+                     BOTTOMRIGHT: 221 440,
                      CREATIONRESOLUTION: 800 600;
         NAME = "SkirmishGameOptionsMenu.wnd:StaticTextStreak";
         STATUS = ENABLED+IMAGE;
@@ -1157,8 +1157,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 219 445,
-                     BOTTOMRIGHT: 285 464,
+        SCREENRECT = UPPERLEFT: 219 409,
+                     BOTTOMRIGHT: 285 440,
                      CREATIONRESOLUTION: 800 600;
         NAME = "SkirmishGameOptionsMenu.wnd:StaticTextStreakValue";
         STATUS = ENABLED+IMAGE;
@@ -1206,8 +1206,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 62 425,
-                     BOTTOMRIGHT: 220 444,
+        SCREENRECT = UPPERLEFT: 62 377,
+                     BOTTOMRIGHT: 220 408,
                      CREATIONRESOLUTION: 800 600;
         NAME = "SkirmishGameOptionsMenu.wnd:StaticTextBestStreak";
         STATUS = ENABLED+IMAGE;
@@ -1255,8 +1255,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 219 425,
-                     BOTTOMRIGHT: 285 444,
+        SCREENRECT = UPPERLEFT: 219 377,
+                     BOTTOMRIGHT: 285 408,
                      CREATIONRESOLUTION: 800 600;
         NAME = "SkirmishGameOptionsMenu.wnd:StaticTextBestStreakValue";
         STATUS = ENABLED+IMAGE;
@@ -2113,8 +2113,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 355,
-                   BOTTOMRIGHT: 568 375,
+      SCREENRECT = UPPERLEFT: 492 311,
+                   BOTTOMRIGHT: 568 327,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam11";
       STATUS = IMAGE;
@@ -2123,8 +2123,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -2158,7 +2158,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -2354,8 +2354,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 333,
-                   BOTTOMRIGHT: 568 353,
+      SCREENRECT = UPPERLEFT: 492 293,
+                   BOTTOMRIGHT: 568 309,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam10";
       STATUS = IMAGE;
@@ -2364,8 +2364,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -2399,7 +2399,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -2595,8 +2595,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 311,
-                   BOTTOMRIGHT: 568 331,
+      SCREENRECT = UPPERLEFT: 492 275,
+                   BOTTOMRIGHT: 568 291,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam9";
       STATUS = IMAGE;
@@ -2605,8 +2605,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -2640,7 +2640,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -2836,8 +2836,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 289,
-                   BOTTOMRIGHT: 568 309,
+      SCREENRECT = UPPERLEFT: 492 257,
+                   BOTTOMRIGHT: 568 273,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam8";
       STATUS = IMAGE;
@@ -2846,8 +2846,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -2881,7 +2881,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -3077,8 +3077,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 267,
-                   BOTTOMRIGHT: 568 287,
+      SCREENRECT = UPPERLEFT: 492 239,
+                   BOTTOMRIGHT: 568 255,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam7";
       STATUS = ENABLED+IMAGE;
@@ -3087,8 +3087,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -3122,7 +3122,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -3318,8 +3318,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 245,
-                   BOTTOMRIGHT: 568 265,
+      SCREENRECT = UPPERLEFT: 492 221,
+                   BOTTOMRIGHT: 568 237,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam6";
       STATUS = ENABLED+IMAGE;
@@ -3328,8 +3328,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -3363,7 +3363,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -3559,8 +3559,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 223,
-                   BOTTOMRIGHT: 568 243,
+      SCREENRECT = UPPERLEFT: 492 203,
+                   BOTTOMRIGHT: 568 219,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam5";
       STATUS = ENABLED+IMAGE;
@@ -3569,8 +3569,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -3604,7 +3604,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -3800,8 +3800,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 201,
-                   BOTTOMRIGHT: 568 221,
+      SCREENRECT = UPPERLEFT: 492 185,
+                   BOTTOMRIGHT: 568 201,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam4";
       STATUS = ENABLED+IMAGE;
@@ -3810,8 +3810,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -3845,7 +3845,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -4041,8 +4041,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 179,
-                   BOTTOMRIGHT: 568 199,
+      SCREENRECT = UPPERLEFT: 492 167,
+                   BOTTOMRIGHT: 568 183,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam3";
       STATUS = ENABLED+IMAGE;
@@ -4051,8 +4051,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -4086,7 +4086,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -4282,8 +4282,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 157,
-                   BOTTOMRIGHT: 568 177,
+      SCREENRECT = UPPERLEFT: 492 149,
+                   BOTTOMRIGHT: 568 165,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam2";
       STATUS = ENABLED+IMAGE;
@@ -4292,8 +4292,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -4327,7 +4327,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -4523,8 +4523,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 135,
-                   BOTTOMRIGHT: 568 155,
+      SCREENRECT = UPPERLEFT: 492 131,
+                   BOTTOMRIGHT: 568 147,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam1";
       STATUS = ENABLED+IMAGE;
@@ -4533,8 +4533,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -4568,7 +4568,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -4765,7 +4765,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 492 113,
-                   BOTTOMRIGHT: 568 133,
+                   BOTTOMRIGHT: 568 129,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam0";
       STATUS = ENABLED+IMAGE;
@@ -4774,8 +4774,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -4809,7 +4809,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -5054,8 +5054,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 355,
-                   BOTTOMRIGHT: 489 375,
+      SCREENRECT = UPPERLEFT: 282 311,
+                   BOTTOMRIGHT: 489 327,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate11";
       STATUS = IMAGE;
@@ -5064,8 +5064,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -5099,7 +5099,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -5295,8 +5295,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 333,
-                   BOTTOMRIGHT: 489 353,
+      SCREENRECT = UPPERLEFT: 282 293,
+                   BOTTOMRIGHT: 489 309,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate10";
       STATUS = IMAGE;
@@ -5305,8 +5305,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -5340,7 +5340,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -5536,8 +5536,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 311,
-                   BOTTOMRIGHT: 489 331,
+      SCREENRECT = UPPERLEFT: 282 275,
+                   BOTTOMRIGHT: 489 291,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate9";
       STATUS = IMAGE;
@@ -5546,8 +5546,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -5581,7 +5581,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -5777,8 +5777,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 289,
-                   BOTTOMRIGHT: 489 309,
+      SCREENRECT = UPPERLEFT: 282 257,
+                   BOTTOMRIGHT: 489 273,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate8";
       STATUS = IMAGE;
@@ -5787,8 +5787,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -5822,7 +5822,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -6018,8 +6018,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 267,
-                   BOTTOMRIGHT: 489 287,
+      SCREENRECT = UPPERLEFT: 282 239,
+                   BOTTOMRIGHT: 489 255,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate7";
       STATUS = ENABLED+IMAGE;
@@ -6028,8 +6028,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -6063,7 +6063,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -6259,8 +6259,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 245,
-                   BOTTOMRIGHT: 489 265,
+      SCREENRECT = UPPERLEFT: 282 221,
+                   BOTTOMRIGHT: 489 237,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate6";
       STATUS = ENABLED+IMAGE;
@@ -6269,8 +6269,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -6304,7 +6304,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -6500,8 +6500,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 223,
-                   BOTTOMRIGHT: 489 243,
+      SCREENRECT = UPPERLEFT: 282 203,
+                   BOTTOMRIGHT: 489 219,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate5";
       STATUS = ENABLED+IMAGE;
@@ -6510,8 +6510,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -6545,7 +6545,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -6741,8 +6741,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 201,
-                   BOTTOMRIGHT: 489 221,
+      SCREENRECT = UPPERLEFT: 282 185,
+                   BOTTOMRIGHT: 489 201,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate4";
       STATUS = ENABLED+IMAGE;
@@ -6751,8 +6751,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -6786,7 +6786,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -6982,8 +6982,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 179,
-                   BOTTOMRIGHT: 489 199,
+      SCREENRECT = UPPERLEFT: 282 167,
+                   BOTTOMRIGHT: 489 183,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate3";
       STATUS = ENABLED+IMAGE;
@@ -6992,8 +6992,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -7027,7 +7027,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -7223,8 +7223,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 157,
-                   BOTTOMRIGHT: 489 177,
+      SCREENRECT = UPPERLEFT: 282 149,
+                   BOTTOMRIGHT: 489 165,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate2";
       STATUS = ENABLED+IMAGE;
@@ -7233,8 +7233,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -7268,7 +7268,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -7464,8 +7464,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 135,
-                   BOTTOMRIGHT: 489 155,
+      SCREENRECT = UPPERLEFT: 282 131,
+                   BOTTOMRIGHT: 489 147,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate1";
       STATUS = ENABLED+IMAGE;
@@ -7474,8 +7474,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -7509,7 +7509,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -7706,7 +7706,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 282 113,
-                   BOTTOMRIGHT: 489 133,
+                   BOTTOMRIGHT: 489 129,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate0";
       STATUS = ENABLED+IMAGE;
@@ -7715,8 +7715,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -7750,7 +7750,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -7995,8 +7995,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 355,
-                   BOTTOMRIGHT: 279 375,
+      SCREENRECT = UPPERLEFT: 195 311,
+                   BOTTOMRIGHT: 279 327,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor11";
       STATUS = IMAGE;
@@ -8005,8 +8005,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -8040,7 +8040,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -8236,8 +8236,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 333,
-                   BOTTOMRIGHT: 279 353,
+      SCREENRECT = UPPERLEFT: 195 293,
+                   BOTTOMRIGHT: 279 309,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor10";
       STATUS = IMAGE;
@@ -8246,8 +8246,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -8281,7 +8281,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -8477,8 +8477,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 311,
-                   BOTTOMRIGHT: 279 331,
+      SCREENRECT = UPPERLEFT: 195 275,
+                   BOTTOMRIGHT: 279 291,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor9";
       STATUS = IMAGE;
@@ -8487,8 +8487,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -8522,7 +8522,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -8718,8 +8718,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 289,
-                   BOTTOMRIGHT: 279 309,
+      SCREENRECT = UPPERLEFT: 195 257,
+                   BOTTOMRIGHT: 279 273,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor8";
       STATUS = IMAGE;
@@ -8728,8 +8728,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -8763,7 +8763,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -8959,8 +8959,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 267,
-                   BOTTOMRIGHT: 279 287,
+      SCREENRECT = UPPERLEFT: 195 239,
+                   BOTTOMRIGHT: 279 255,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor7";
       STATUS = ENABLED+IMAGE;
@@ -8969,8 +8969,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -9004,7 +9004,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -9200,8 +9200,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 245,
-                   BOTTOMRIGHT: 279 265,
+      SCREENRECT = UPPERLEFT: 195 221,
+                   BOTTOMRIGHT: 279 237,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor6";
       STATUS = ENABLED+IMAGE;
@@ -9210,8 +9210,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -9245,7 +9245,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -9441,8 +9441,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 223,
-                   BOTTOMRIGHT: 279 243,
+      SCREENRECT = UPPERLEFT: 195 203,
+                   BOTTOMRIGHT: 279 219,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor5";
       STATUS = ENABLED+IMAGE;
@@ -9451,8 +9451,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -9486,7 +9486,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -9682,8 +9682,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 201,
-                   BOTTOMRIGHT: 279 221,
+      SCREENRECT = UPPERLEFT: 195 185,
+                   BOTTOMRIGHT: 279 201,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor4";
       STATUS = ENABLED+IMAGE;
@@ -9692,8 +9692,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -9727,7 +9727,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -9923,8 +9923,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 179,
-                   BOTTOMRIGHT: 279 199,
+      SCREENRECT = UPPERLEFT: 195 167,
+                   BOTTOMRIGHT: 279 183,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor3";
       STATUS = ENABLED+IMAGE;
@@ -9933,8 +9933,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -9968,7 +9968,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -10164,8 +10164,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 157,
-                   BOTTOMRIGHT: 279 177,
+      SCREENRECT = UPPERLEFT: 195 149,
+                   BOTTOMRIGHT: 279 165,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor2";
       STATUS = ENABLED+IMAGE;
@@ -10174,8 +10174,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -10209,7 +10209,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -10405,8 +10405,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 135,
-                   BOTTOMRIGHT: 279 155,
+      SCREENRECT = UPPERLEFT: 195 131,
+                   BOTTOMRIGHT: 279 147,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor1";
       STATUS = ENABLED+IMAGE;
@@ -10415,8 +10415,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -10450,7 +10450,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -10647,7 +10647,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 195 113,
-                   BOTTOMRIGHT: 279 133,
+                   BOTTOMRIGHT: 279 129,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor0";
       STATUS = ENABLED+IMAGE;
@@ -10656,8 +10656,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -10691,7 +10691,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -10936,8 +10936,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 355,
-                   BOTTOMRIGHT: 192 375,
+      SCREENRECT = UPPERLEFT: 48 311,
+                   BOTTOMRIGHT: 192 327,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer11";
       STATUS = IMAGE;
@@ -10946,8 +10946,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -10981,7 +10981,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -11177,8 +11177,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 333,
-                   BOTTOMRIGHT: 192 353,
+      SCREENRECT = UPPERLEFT: 48 293,
+                   BOTTOMRIGHT: 192 309,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer10";
       STATUS = IMAGE;
@@ -11187,8 +11187,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -11222,7 +11222,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -11418,8 +11418,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 311,
-                   BOTTOMRIGHT: 192 331,
+      SCREENRECT = UPPERLEFT: 48 275,
+                   BOTTOMRIGHT: 192 291,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer9";
       STATUS = IMAGE;
@@ -11428,8 +11428,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -11463,7 +11463,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -11659,8 +11659,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 289,
-                   BOTTOMRIGHT: 192 309,
+      SCREENRECT = UPPERLEFT: 48 257,
+                   BOTTOMRIGHT: 192 273,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer8";
       STATUS = IMAGE;
@@ -11669,8 +11669,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -11704,7 +11704,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -11900,8 +11900,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 267,
-                   BOTTOMRIGHT: 192 287,
+      SCREENRECT = UPPERLEFT: 48 239,
+                   BOTTOMRIGHT: 192 255,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer7";
       STATUS = ENABLED+IMAGE;
@@ -11910,8 +11910,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -11945,7 +11945,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -12141,8 +12141,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 245,
-                   BOTTOMRIGHT: 192 265,
+      SCREENRECT = UPPERLEFT: 48 221,
+                   BOTTOMRIGHT: 192 237,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer6";
       STATUS = ENABLED+IMAGE;
@@ -12151,8 +12151,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -12186,7 +12186,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -12382,8 +12382,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 223,
-                   BOTTOMRIGHT: 192 243,
+      SCREENRECT = UPPERLEFT: 48 203,
+                   BOTTOMRIGHT: 192 219,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer5";
       STATUS = ENABLED+IMAGE;
@@ -12392,8 +12392,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -12427,7 +12427,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -12623,8 +12623,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 201,
-                   BOTTOMRIGHT: 192 221,
+      SCREENRECT = UPPERLEFT: 48 185,
+                   BOTTOMRIGHT: 192 201,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer4";
       STATUS = ENABLED+IMAGE;
@@ -12633,8 +12633,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -12668,7 +12668,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -12864,8 +12864,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 179,
-                   BOTTOMRIGHT: 192 199,
+      SCREENRECT = UPPERLEFT: 48 167,
+                   BOTTOMRIGHT: 192 183,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer3";
       STATUS = ENABLED+IMAGE;
@@ -12874,8 +12874,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -12909,7 +12909,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -13105,8 +13105,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 157,
-                   BOTTOMRIGHT: 192 177,
+      SCREENRECT = UPPERLEFT: 48 149,
+                   BOTTOMRIGHT: 192 165,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer2";
       STATUS = ENABLED+IMAGE;
@@ -13115,8 +13115,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -13150,7 +13150,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -13346,8 +13346,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 135,
-                   BOTTOMRIGHT: 192 155,
+      SCREENRECT = UPPERLEFT: 48 131,
+                   BOTTOMRIGHT: 192 147,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer1";
       STATUS = ENABLED+IMAGE;
@@ -13356,8 +13356,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
@@ -13391,7 +13391,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -13588,7 +13588,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = ENTRYFIELD;
       SCREENRECT = UPPERLEFT: 48 113,
-                   BOTTOMRIGHT: 192 133,
+                   BOTTOMRIGHT: 192 129,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:TextEntryPlayerName";
       STATUS = ENABLED+IMAGE;
@@ -13597,8 +13597,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOTextEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXT = "Entry";
       TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,

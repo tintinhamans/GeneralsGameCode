@@ -718,7 +718,7 @@ class HeaderTemplateTest(unittest.TestCase):
     def test_every_go_template_is_defined(self):
         ini = (Path(__file__).resolve().parent.parent / "GenOnline/GameData/Data/GeneralsOnline/HeaderTemplate.ini").read_text("latin-1")
         defined = {line.split()[1] for line in ini.splitlines() if line.startswith("HeaderTemplate ")}
-        self.assertEqual(defined, {wl.GO_TEMPLATE_PREFIX + name for name in wl.RETAIL_TEMPLATES})
+        self.assertEqual(defined, {wl.GO_TEMPLATE_PREFIX + name for name in wl.RETAIL_TEMPLATES} | wl.GO_ONLY_TEMPLATES)
 
 
 class HiliteImageTest(unittest.TestCase):
@@ -1159,7 +1159,7 @@ class ComboHeightTest(unittest.TestCase):
         import go_themes
         # documented exceptions: the WOL login combos draw a 14 pt font
         exceptions = {"WOLLoginMenu.wnd:ComboBoxLoginName", "WOLLoginMenu.wnd:ComboBoxServer"}
-        seen = 0
+        seen = rows = 0
         for path in sorted((wl.DATA / "Window").rglob("*.wnd")):
             name = path.relative_to(wl.DATA).as_posix()
             if not wl.themed(name) or name.lower() in wl.GEOMETRY_KEPT:
@@ -1168,8 +1168,13 @@ class ComboHeightTest(unittest.TestCase):
                 for win in wl.parse_windows((base / name).read_bytes().decode("latin-1")).walk():
                     if win.kind == "COMBOBOX" and win.name not in exceptions:
                         seen += 1
-                        self.assertEqual(win.rect[3] - win.rect[1], wl.COMBO_HEIGHT, f"{base / name} {win.name} {win.rect}")
+                        # TheSuperHackers @tweak arcticdolphin 09/11/2026 Only the setup screens' player rows are shorter.
+                        row = name in wl.SETUP_LAYOUTS and wl.SLOT_NAME_RE.match(win.name.split(":")[-1])
+                        rows += bool(row)
+                        height = 16 if row else wl.COMBO_HEIGHT
+                        self.assertEqual(win.rect[3] - win.rect[1], height, f"{base / name} {win.name} {win.rect}")
         self.assertGreater(seen, 200)
+        self.assertEqual(rows, 2 * (3 * 4 * wl.SLOT_ROWS - 1))
 
 
 CLEAR_FRAMED_SLOT = "IMAGE: NoImage, COLOR: 2 2 2 0, BORDERCOLOR: 47 75 255 255"
@@ -1428,8 +1433,8 @@ SETUP_OVERLAPS = {
     ("StaticTextWins", "StaticTextWinsValue"),
     ("ButtonSelectMap", "TextEntryMapDisplay"),
 }
-# the retail map name also reaches 3 to 5 units into the team column beside it, on the engine rows only
-MAP_NAME_TEAM_ROWS = range(5, 8)
+# the retail map name also reaches 3 to 5 units into the team column beside it, on the rows beside it (7 to 9 online)
+MAP_NAME_TEAM_ROWS = range(5, 10)
 
 
 def _short(win):
@@ -1497,7 +1502,7 @@ class SetupRowsTest(unittest.TestCase):
             row_windows += [(0, w) for w in frame.children if _short(w) in wl.ROW_STAND_INS]
             for index, win in row_windows:
                 height = win.rect[3] - win.rect[1]
-                self.assertEqual(win.rect[1] - tops[index], (wl.COMBO_HEIGHT - height) // 2, f"{path} {win.name} {win.rect}")
+                self.assertEqual(win.rect[1] - tops[index], (wl.SETUP_COMBO_HEIGHT - height) // 2, f"{path} {win.name} {win.rect}")
 
     def test_columns_stay_aligned(self):
         for path, name, root in self.shipped():
@@ -1553,6 +1558,105 @@ class SetupRowsTest(unittest.TestCase):
         text = layout(window("COMBOBOX", (100, 100, 200, 120)))
         self.assertEqual(wl.setup_rows(text, "Window/Menus/OptionsMenu.wnd"), text)
         self.assertEqual(wl.setup_rows(text, None), text)
+
+
+# TheSuperHackers @tweak arcticdolphin 09/11/2026 Compact setup rows: 16 unit combos 18 apart, a taller chat and full drop-downs.
+SETUP_ROW_HEIGHT = 16
+SETUP_PITCH = 18
+SETUP_TEXT_KINDS = ("COMBOBOX", "ENTRYFIELD", "STATICTEXT")
+# the chat box (the skirmish info list, beside the stats panel), its retail height and its least growth
+SETUP_PANELS = {
+    "SkirmishGameOptionsMenu": ("ListboxInfo", 92, 1.4),
+    "LanGameOptionsMenu": ("ListboxChatWindowLanGame", 57, 1.6),
+    "GameSpyGameOptionsMenu": ("ListboxChatWindowGameSpyGameSetup", 62, 1.6),
+}
+# the options row between the player rows and the chat box
+SETUP_OPTIONS = {
+    "SkirmishGameOptionsMenu": ("SliderGameSpeed", "ComboBoxStartingCash", "CheckboxLimitSuperweapons"),
+    "LanGameOptionsMenu": ("ComboBoxStartingCash", "CheckboxLimitSuperweapons"),
+    "GameSpyGameOptionsMenu": ("CheckboxLimitSuperweapons", "StartingCashLabel", "ComboBoxStartingCash",
+                               "CheckBoxUseStats", "CheckBoxLimitArmies"),
+}
+MAXDISPLAY_RE = re.compile(r"MAXDISPLAY:[ \t]*(\d+)")
+
+
+def _template_points():
+    ini = (wl.DATA / "Data/GeneralsOnline/HeaderTemplate.ini").read_text("latin-1")
+    pattern = r"(?m)^HeaderTemplate (\w+)\r?\n(?:[ \t]+[^\r\n]*\r?\n)*?[ \t]+Point = (\d+)"
+    return {m[1]: int(m[2]) for m in re.finditer(pattern, ini)}
+
+
+class SetupRowSizeTest(unittest.TestCase):
+    """The setup rows are 16 unit combos with a smaller font, the chat takes the freed height and the lists open full."""
+
+    shipped = SetupRowsTest.shipped
+    slots = SetupRowsTest.slots
+
+    def row_windows(self, root):
+        slots = self.slots(root)
+        frame = slots[("ComboBoxColor", 0)].parent
+        rows = [(i, w) for (b, i), w in slots.items() if w.parent is frame]
+        return frame, rows + [(0, w) for w in frame.children if _short(w) in wl.ROW_STAND_INS]
+
+    def named(self, frame):
+        return {_short(w): w for w in frame.children}
+
+    def test_row_combos_are_16_units_18_apart(self):
+        for path, name, root in self.shipped():
+            slots = self.slots(root)
+            tops = [slots[("ComboBoxColor", i)].rect[1] for i in range(wl.SLOT_ROWS)]
+            self.assertEqual([b - a for a, b in zip(tops, tops[1:])], [SETUP_PITCH] * (wl.SLOT_ROWS - 1), path)
+            frame, rows = self.row_windows(root)
+            for index, win in rows:
+                height = win.rect[3] - win.rect[1]
+                if win.kind in SETUP_TEXT_KINDS:
+                    self.assertEqual(height, SETUP_ROW_HEIGHT, f"{path} {win.name} {win.rect}")
+                self.assertLessEqual(height, SETUP_ROW_HEIGHT, f"{path} {win.name} {win.rect}")
+                self.assertEqual(win.rect[1] - tops[index], (SETUP_ROW_HEIGHT - height) // 2, f"{path} {win.name}")
+
+    def test_row_text_uses_a_smaller_go_template(self):
+        points = _template_points()
+        for path, name, root in self.shipped():
+            frame, rows = self.row_windows(root)
+            for index, win in rows:
+                if win.kind not in SETUP_TEXT_KINDS:
+                    continue
+                self.assertTrue(win.header.startswith(wl.GO_TEMPLATE_PREFIX), f"{path} {win.name} {win.header}")
+                self.assertLess(points.get(win.header, 99), points["GOComboBoxEntry"], f"{path} {win.name} {win.header}")
+                self.assertEqual(win.font_size, points[win.header], f"{path} {win.name}")
+
+    def test_rows_and_options_sit_above_the_chat_box(self):
+        for path, name, root in self.shipped():
+            menu = Path(name).stem
+            frame, rows = self.row_windows(root)
+            wins = self.named(frame)
+            chat = wins[SETUP_PANELS[menu][0]]
+            options = [wins[n] for n in SETUP_OPTIONS[menu]]
+            last_row = max(w.rect[3] for i, w in rows)
+            for win in options:
+                self.assertGreaterEqual(win.rect[1], last_row, f"{path} {win.name} {win.rect}")
+                self.assertLessEqual(win.rect[3], chat.rect[1], f"{path} {win.name} {win.rect} {chat.rect}")
+            self.assertLess(last_row, chat.rect[1], path)
+
+    def test_chat_box_takes_the_freed_height(self):
+        for path, name, root in self.shipped():
+            panel, old, growth = SETUP_PANELS[Path(name).stem]
+            chat = self.named(self.row_windows(root)[0])[panel]
+            self.assertGreaterEqual(chat.rect[3] - chat.rect[1], growth * old, f"{path} {chat.rect}")
+
+    def test_drop_downs_open_without_scrolling_and_fit_the_screen(self):
+        # least entries each list needs: Random, 12 armies and Observer; ??? and 8 colours; no team and 4 teams
+        need = {"ComboBoxPlayerTemplate": 14, "ComboBoxColor": 9, "ComboBoxTeam": 5}
+        for path, name, root in self.shipped():
+            text = path.read_bytes().decode("latin-1")
+            for win in root.walk():
+                if win.kind != "COMBOBOX":
+                    continue
+                shown = int(MAXDISPLAY_RE.search(text, *win.block)[1])
+                slot = _slot(win)
+                self.assertGreaterEqual(shown, need.get(slot[0], 5) if slot else 5, f"{path} {win.name}")
+                # a drop-down row is at most two units per font point from 800x600 to 1080p
+                self.assertLessEqual(win.rect[3] + shown * 2 * win.font_size, wl.SCREEN[3], f"{path} {win.name}")
 
 
 def status(flags):
