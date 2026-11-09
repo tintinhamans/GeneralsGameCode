@@ -585,6 +585,53 @@ static void drawGoLoadBarVan(GameWindow *window, Int progress, const GoVanPlace 
 	TheDisplay->drawImage(wheels, x0, y0, x0 + frameWidth, y0 + frameHeight);
 }
 
+// TheSuperHackers @tweak arcticdolphin 09/11/2026 The plain GO shell load bar: the kit frame, and the fill inset by the frame line and an equal gap on every side.
+static void drawGoShellPlainBar( GameWindow *window, WinInstanceData *instData )
+{
+	const Image *left = GadgetProgressBarGetEnabledImageLeft(window);
+	const Image *right = GadgetProgressBarGetEnabledImageRight(window);
+	const Image *center = GadgetProgressBarGetEnabledImageCenter(window);
+	const Image *fill = GadgetProgressBarGetEnabledBarImageCenter(window);
+	if (left == nullptr || right == nullptr || center == nullptr || fill == nullptr)
+	{
+		return;
+	}
+
+	Int x, y, width, height;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&width, &height);
+	TheWindowManager->winDrawThreePieceImage(left, center, nullptr, right, x, y, width, height);
+
+	// the frame line as winDrawThreePieceImage draws the border rows, and a gap of the same width inside it
+	Int line = REAL_TO_INT_CEIL(left->getBorder() * TheDisplay->getHeight() / 600.0f - 0.01f);
+	if (line < 1)
+	{
+		line = 1;
+	}
+	const Int inset = 2 * line;
+	const Int fillWidth = width - 2 * inset;
+	const Int fillHeight = height - 2 * inset;
+	if (fillWidth <= 0 || fillHeight <= 0)
+	{
+		return;
+	}
+
+	Int progress = (Int)window->winGetUserData();
+	if (progress > 100)
+	{
+		progress = 100;
+	}
+	if (progress < 0)
+	{
+		progress = 0;
+	}
+	const Int drawWidth = fillWidth * progress / 100;
+	if (drawWidth > 0)
+	{
+		TheDisplay->drawImage(fill, x + inset, y + inset, x + inset + drawWidth, y + inset + fillHeight);
+	}
+}
+
 // TheSuperHackers @tweak arcticdolphin 09/11/2026 The GO shell load bar as a road: asphalt between kit lines with a dashed centre line, lit behind the radar van that drives it.
 static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )
 {
@@ -1826,6 +1873,10 @@ void ShellGameLoadScreen::init( GameInfo *game )
 		const Int screenHeight = TheDisplay->getHeight();
 		m_progressBar->winSetPosition(goLayoutScale(GO_ROAD_LEFT, screenWidth, 800), goLayoutScale(GO_ROAD_TOP, screenHeight, 600));
 		m_progressBar->winSetSize(goLayoutScale(GO_ROAD_RIGHT - GO_ROAD_LEFT, screenWidth, 800), goLayoutScale(GO_ROAD_BOTTOM - GO_ROAD_TOP, screenHeight, 600));
+	}
+	else if (findGoLoadBarImage() != nullptr)
+	{
+		m_progressBar->winSetDrawFunc(drawGoShellPlainBar);
 	}
 }
 
