@@ -85,21 +85,24 @@ KIT_COLORS = {
     "#5D6080": P["empty"],     # disabled glyph
 }
 
-# Signal (base GO) window fill of each fill class of scripts/go_wnd_layouts.py: ground for full screen backdrops and
-# fields, then panel, surface and panel-3 for panels nested one, two and three or more deep; the first three are kit
-# colours (field, button and slider block fills), panel-3 sits between the slider block and the hover fill
-SIGNAL_FILLS = {
-    "ground": "#05070F",
-    "panel": "#070A18",
-    "surface": "#0B1030",
-    "panel-3": "#10184C",
+# Radar window fill of each fill class of scripts/go_wnd_layouts.py (fill_classes of the base layout, whose fills stay
+# retail black): a faint slate tint over near black, a small step per panel layer; each fill keeps its retail alpha
+BACKDROP_FILL = "#05080A"   # full screen dim backdrops
+FIELD_FILL = "#04070A"      # lists, entries, combos, progress bars, static text backdrops and map preview wells
+PANEL_FILL = "#07090B"      # panel bodies, one panel deep
+SUBPANEL_FILL = "#090C0E"   # inner sub-panels, two deep
+DEEP_FILL = "#0B0F11"       # three or more deep
+RADAR_FILLS = {
+    "backdrop": BACKDROP_FILL,
+    "field": FIELD_FILL,
+    "panel": PANEL_FILL,
+    "subpanel": SUBPANEL_FILL,
+    "deep": DEEP_FILL,
 }
 
 # layout colour -> theme colour, by RGB, for every colour key of draw data and TEXTCOLOR; alpha stays, the rest is kept
 _LINE, _HILITE = P["bronze"], P["tan"]
 _LAYOUT_HEX = {
-    # Signal window fills -> the launcher token of the same fill class
-    **{SIGNAL_FILLS[token]: P[token] for token in SIGNAL_FILLS},
     # kit and retail blue lines and hilites (the base layouts already hold the kit colours for the COLOR_REMAP blues)
     "#2F4BFF": _LINE, "#2E37A8": _LINE, "#3137A7": _LINE, "#1D00FF": _LINE,
     "#6A7BFF": _HILITE, "#8080FF": _HILITE,
