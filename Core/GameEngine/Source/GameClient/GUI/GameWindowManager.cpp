@@ -53,6 +53,7 @@
 #include "GameClient/GadgetCheckBox.h"
 #include "GameClient/GlobalLanguage.h"
 #include "GameClient/GameWindowTransitions.h"
+#include "GameClient/Shell.h"
 #include "Common/NameKeyGenerator.h"
 #include "GameLogic/GameLogic.h"
 
@@ -1798,8 +1799,14 @@ GameWindow *GameWindowManager::gogoMessageBox(Int x, Int y, Int width, Int heigh
 	}
 	GameWindow *trueParent = nullptr;
 	//Changed by Chris
-	if(useLogo)
-		trueParent = winCreateFromScript( "Menus/QuitMessageBox.wnd" );
+	if (useLogo)
+	{
+		// TheSuperHackers @feature arcticdolphin 09/11/2026 The shell opens the GO copy of the quit box; the match, the Retail style and a missing copy open the retail one.
+		if (TheShell && TheShell->isShellActive())
+			trueParent = winCreateFromScript("Menus/GOShellQuitMessageBox.wnd");
+		if (trueParent == nullptr)
+			trueParent = winCreateFromScript("Menus/QuitMessageBox.wnd");
+	}
 	else
 		trueParent = winCreateFromScript( "Menus/MessageBox.wnd" );
 	//Added By Chris
