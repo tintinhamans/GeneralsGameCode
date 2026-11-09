@@ -400,6 +400,24 @@ class ShellRoadTest(unittest.TestCase):
                                r"goLayoutScale\(GO_ROAD_BOTTOM - GO_ROAD_TOP, screenHeight, 600\)\);\s*\}")
         self.assertIn("return (value * numerator + denominator / 2) / denominator;", self.source)
 
+    def test_later_shell_loads_draw_the_plain_bar_with_even_padding(self):
+        source = self.source[self.source.index("void ShellGameLoadScreen::init( GameInfo *game )"):]
+        init = source[:source.index("\n}\n")]
+        self.assertRegex(init, r"\}\s*else if \(findGoLoadBarImage\(\) != nullptr\)\s*\{\s*"
+                               r"m_progressBar->winSetDrawFunc\(drawGoShellPlainBar\);\s*\}")
+        start = self.source.index("static void drawGoShellPlainBar( GameWindow *window, WinInstanceData *instData )")
+        draw = self.source[start:self.source.index("\n}\n", start)]
+        # the frame, then the fill inset by the frame line and a gap of the same width on every side
+        for text in ("TheWindowManager->winDrawThreePieceImage(left, center, nullptr, right, x, y, width, height);",
+                     "Int line = REAL_TO_INT_CEIL(left->getBorder() * TheDisplay->getHeight() / 600.0f - 0.01f);",
+                     "const Int inset = 2 * line;",
+                     "const Int fillWidth = width - 2 * inset;",
+                     "const Int fillHeight = height - 2 * inset;",
+                     "const Int drawWidth = fillWidth * progress / 100;",
+                     "TheDisplay->drawImage(fill, x + inset, y + inset, x + inset + drawWidth, y + inset + fillHeight);"):
+            self.assertIn(text, draw)
+        self.assertNotIn("drawGoLoadBarVan", draw)
+
     def test_dashes_are_whole_pixels_with_symmetric_padding(self):
         for screen in SCREENS:
             x, y, w, h = kit.load_road_window(*screen)
@@ -501,9 +519,9 @@ class LoadScreenPlayerBarTest(unittest.TestCase):
         self.assertNotIn(self.KIT_CHECK, init)
         self.assertNotIn("GameMakeColor(191, 144, 72", init)
 
-    def test_kit_check_serves_only_the_campaign_bar_and_the_shell_road(self):
+    def test_kit_check_serves_only_the_campaign_bar_and_the_shell_bars(self):
         calls = self.source.count(self.KIT_CHECK) - 1  # less the definition
-        self.assertEqual(calls, 2)
+        self.assertEqual(calls, 3)  # the campaign bar, the shell road and the plain shell bar
         for screen in ("void MultiPlayerLoadScreen::init( GameInfo *game )", "void GameSpyLoadScreen::init( GameInfo *game )",
                        "void MapTransferLoadScreen::init( GameInfo *game )"):
             self.assertNotIn(self.KIT_CHECK, self.body(screen))
