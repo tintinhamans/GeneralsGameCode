@@ -542,6 +542,11 @@ static Bool isNotGenOnlineInterfaceFile(const char* path)
 	const char* name = lower.str();
 	if (strncmp(name, "window/", 7) == 0)
 	{
+		// TheSuperHackers @feature arcticdolphin 09/11/2026 The GO shell copy of the quit box goes too, so Retail opens the retail one.
+		if (strcmp(name, "window/menus/goshellquitmessagebox.wnd") == 0)
+		{
+			return FALSE;
+		}
 		return TheArchiveFileSystem == nullptr || !TheArchiveFileSystem->doesFileExist(name);
 	}
 	for (size_t p = 0; p < ARRAY_SIZE(prefixes); ++p)

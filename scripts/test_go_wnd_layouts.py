@@ -752,6 +752,54 @@ class YamlSourceTest(unittest.TestCase):
         self.assertEqual(results[other][1], wl.transform(retail[other].decode("latin-1"), name=other))
 
 
+class ShellCopyTest(unittest.TestCase):
+    """The GO shell copies of layouts the match opens too: the same input as the base, built as a shell menu."""
+
+    BASE = "Window/Menus/QuitMessageBox.wnd"
+    SHELL = "Window/Menus/GOShellQuitMessageBox.wnd"
+
+    def test_build_makes_the_shell_quit_box_from_the_quit_box_input_as_a_shell_menu(self):
+        draw = ["IMAGE: NoImage, COLOR: 0 0 0 0, BORDERCOLOR: 255 255 255 255"] + [DRAW_SLOT] * 8
+        text = layout(window("USER", (0, 0, 800, 600), [window("USER", (248, 100, 555, 432), indent=2, draw=draw)]))
+        retail = {self.BASE: text.encode("latin-1")}
+        with mock.patch.object(wl, "read_big", return_value=retail):
+            results = {name: out for name, text, out, info in wl.build(Path("unused.big"))}
+        self.assertEqual(results[self.SHELL], wl.transform(text, name=self.SHELL))
+        self.assertEqual(results[self.BASE], wl.transform(text, name=self.BASE))
+        self.assertNotEqual(results[self.SHELL], results[self.BASE])  # the shell copy takes the kit line frame
+        self.assertTrue(wl.themed(self.SHELL))
+        self.assertFalse(wl.themed(self.BASE))
+
+    def test_shipped_shell_quit_box_holds_the_quit_box_windows_under_their_quit_box_names(self):
+        base = (wl.DATA / self.BASE).read_bytes().decode("latin-1")
+        shell = (wl.DATA / self.SHELL).read_bytes().decode("latin-1")
+
+        def windows(text):
+            return [(w.name, w.kind, w.rect, sorted(w.status)) for w in wl.parse_windows(text).walk()]
+
+        self.assertEqual(windows(shell), windows(base))
+        self.assertEqual(wl.structure_counts(shell), wl.structure_counts(base))
+        # gogoMessageBox and QuitMessageBoxSystem look its windows up as QuitMessageBox.wnd:<name>
+        named = [w.name for w in wl.parse_windows(shell).walk() if w.name]
+        self.assertTrue(named and all(n.startswith("QuitMessageBox.wnd:") for n in named), named)
+        self.assertEqual(shell, wl.kit_colors(wl.go_templates(base, self.SHELL), self.SHELL))
+        self.assertIn('HEADERTEMPLATE = "GOMainButton"', shell)
+        self.assertNotIn('HEADERTEMPLATE = "MainButton"', shell)
+
+    def test_the_shell_opens_the_shell_quit_box_and_falls_back_to_the_quit_box(self):
+        for game in ("GeneralsMD", "Generals"):
+            source = (wl.ROOT / game / "Code/GameEngine/Source/GameClient/GUI/GameWindowManager.cpp").read_text("latin-1")
+            body = source[source.index("Bool useLogo"):]
+            body = body[:body.index("menuName")]
+            shell = body.index('"Menus/GOShellQuitMessageBox.wnd"')
+            self.assertLess(body.index("TheShell->isShellActive()"), shell, game)
+            self.assertLess(shell, body.index('"Menus/QuitMessageBox.wnd"'), game)
+        # the Retail style leaves the GO shell copy out, so it opens the retail quit box
+        archive = (wl.ROOT / "Core/GameEngine/Source/Common/System/ArchiveFileSystem.cpp").read_text("latin-1")
+        retail = archive[archive.index("static Bool isNotGenOnlineInterfaceFile"):]
+        self.assertIn('"window/menus/goshellquitmessagebox.wnd"', retail[:retail.index("void ArchiveFileSystem::")])
+
+
 PREVIEW_CALLBACK = 'DRAWCALLBACK = "W3DDrawMapPreview";'
 BLACK_SLOT = "IMAGE: NoImage, COLOR: 0 0 0 255, BORDERCOLOR: 0 0 0 255"
 PREVIEW_NAMES = ("MapWindow", "WinMapPreview")

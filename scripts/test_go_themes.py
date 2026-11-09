@@ -276,6 +276,18 @@ class RadarLayoutFixTest(unittest.TestCase):
         text = (wl.DATA / name).read_bytes().decode("latin-1")
         self.assertEqual(wl.kit_colors(text, name), text)  # its in-match look stays
 
+    def test_shell_quit_message_box_follows_the_palette(self):
+        name = "Window/Menus/GOShellQuitMessageBox.wnd"
+        self.assertTrue(name in self.base, name)
+        base, theme = self.base[name], self.theme[name]
+        self.assertEqual(theme, wl.theme_layout(base))
+        self.assertEqual(shape(theme), shape(base))
+        self.assertTrue(wl.fill_classes(base))
+        self.assertEqual(wl.fill_classes(theme), [])
+        self.assertEqual(slot(windows(wl.DATA, name)[1]["MessageBoxParent"], "HILITEDRAWDATA")[0][:3], wl.KIT_HILITE_FILL)
+        self.assertEqual(slot(windows(themes.THEME_DIR, name)[1]["MessageBoxParent"], "HILITEDRAWDATA")[0][:3],
+                         self.rgb("fill-hover"))
+
     def test_buddy_toast_button_takes_the_kit_button_colours(self):
         name = "Window/Menus/PopupBuddyListNotification.wnd"
         P = themes.PALETTE

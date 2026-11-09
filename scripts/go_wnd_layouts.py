@@ -92,6 +92,9 @@ scripts/wnd_sources copy, if any, is only kept for reference. All rects are in 8
   GenOnline/GameData/Themes/Radar at the same path, its final output with the colours swapped for the
   Classic (Generals Online) palette (scripts/go_themes.py LAYOUT_COLORS) and the window fills above. Only colour
   numbers differ.
+- Shell copies: SHELL_COPIES layouts (GOShellQuitMessageBox.wnd, the quit prompt of the main menu) are built from the
+  input of an in-match menu (QuitMessageBox.wnd) as menus: GO header templates, kit colours and a theme copy. Their
+  window names stay the source's, so the code finds them; the engine opens the copy only while the shell is active.
 
 A move never creates an overlap with a sibling and never pushes a window or its children further
 out of their parent; such moves are skipped and logged. Children move with their window. The rules
@@ -202,6 +205,11 @@ IN_GAME = re.compile(
 IN_MATCH_MENUS = {
     "crcmismatch", "defeat", "disconnectscreen", "localdefeat", "observerquit", "popupsaveload",
     "quitmenu", "quitmessagebox", "quitnosave", "saveload", "victorious",
+}
+# GO shell copies of in-match menus the shell opens too, built from the same input as a menu; the window names stay the
+# source's, the engine opens the copy while the shell is active (gogoMessageBox in GameWindowManager.cpp)
+SHELL_COPIES = {
+    "Window/Menus/GOShellQuitMessageBox.wnd": "Window/Menus/QuitMessageBox.wnd",
 }
 # retail header templates; the menu layouts use the GO copies in Data/GeneralsOnline/HeaderTemplate.ini instead,
 # so a mod that replaces Data/<language>/HeaderTemplate.ini cannot resize the GO menus
@@ -1856,6 +1864,12 @@ def build(retail):
         name = by_lower.get(rel.lower(), rel)
         compiled[name] = wnd_yaml.compile_file(src)
         inputs[name] = compiled[name].encode("latin-1")
+    for copy, source in SHELL_COPIES.items():
+        source = by_lower.get(source.lower(), source)
+        if source in inputs:
+            inputs[copy] = inputs[source]
+            if source in compiled:
+                compiled[copy] = compiled[source]
     results = []
     for name in sorted(inputs, key=str.lower):
         text = inputs[name].decode("latin-1")
