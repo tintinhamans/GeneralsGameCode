@@ -116,8 +116,6 @@ static const Real CREDIT_FADE_IN_MS = 500.0f;
 static const Real CREDIT_LOGO_TOP = 222.0f;
 static const Real CREDIT_LOGO_HEIGHT = 125.0f;
 static const Real CREDIT_URL_TOP = 362.0f;
-// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO logo the legal text sits under the website, clear of the radar van over the bar.
-static const Real CREDIT_LEGAL_TOP = 386.0f;
 
 //-----------------------------------------------------------------------------
 // PUBLIC DATA ////////////////////////////////////////////////////////////////
@@ -1743,16 +1741,13 @@ void ShellGameLoadScreen::initCredit()
 	{
 		m_loadScreen->winSetEnabledImage(0, nullptr);
 	}
-	// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO logo the legal text moves under the website line, so the radar van keeps the room over the bar.
+	// TheSuperHackers @tweak arcticdolphin 09/11/2026 The GO branded screen leaves out the retail legal text, which also keeps the room over the bar for the radar van.
 	if (m_creditLogo != nullptr)
 	{
 		GameWindow *legal = TheWindowManager->winGetWindowFromId(m_loadScreen, TheNameKeyGenerator->nameToKey("ShellGameLoadScreen.wnd:StaticTextLegal"));
 		if (legal != nullptr)
 		{
-			Int legalX = 0;
-			Int legalY = 0;
-			legal->winGetPosition(&legalX, &legalY);
-			legal->winSetPosition(legalX, REAL_TO_INT(CREDIT_LEGAL_TOP * screenHeight / 600.0f));
+			legal->winHide(TRUE);
 		}
 	}
 
