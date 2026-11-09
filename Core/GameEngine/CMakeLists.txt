@@ -63,6 +63,7 @@ set(GAMEENGINE_SRC
     Include/Common/GameUtility.h
 #    Include/Common/Geometry.h
 #    Include/Common/GlobalData.h
+    Include/Common/GOUIColors.h
 #    Include/Common/Handicap.h
 #    Include/Common/IgnorePreferences.h
     Include/Common/INI.h
@@ -621,6 +622,7 @@ set(GAMEENGINE_SRC
 #    Source/Common/GameMain.cpp
     Source/Common/GameUtility.cpp
 #    Source/Common/GlobalData.cpp
+    Source/Common/GOUIColors.cpp
     Source/Common/INI/INI.cpp
     Source/Common/INI/INIAiData.cpp
     Source/Common/INI/INIAnimation.cpp

@@ -179,7 +179,7 @@ void W3DGadgetStaticTextDraw( GameWindow *window, WinInstanceData *instData )
 
 	}
 
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 With the GO kit, a kit blue border draws at the kit line weight.
+	// GenOnline @tweak arcticdolphin 08/11/2026 With the GO kit, a layout border in a kit or palette line colour draws at the kit line weight.
 	Color kitFrameColor;
 	Bool kitFrame = GadgetListBoxGetKitFrameColor( backBorder, &kitFrameColor );
 

@@ -33,6 +33,7 @@
 #include "Common/MessageStream.h"
 #include "Common/GameEngine.h"
 #include "Common/GlobalData.h"
+#include "Common/GOUIColors.h"
 #include "Common/INI.h"
 #include "Common/OptionPreferences.h"
 
@@ -568,6 +569,21 @@ Mouse::~Mouse()
 
 }
 
+// TheSuperHackers @feature arcticdolphin 09/11/2026 A tooltip colour the GO UI colour table sets replaces the Mouse INI one.
+static void applyUIColor( GOUIColorRole role, RGBAColorInt *color )
+{
+	Color value;
+	if( GOUIColorFind( role, &value ) == FALSE )
+		return;
+
+	UnsignedByte red, green, blue, alpha;
+	GameGetColorComponents( value, &red, &green, &blue, &alpha );
+	color->red = red;
+	color->green = green;
+	color->blue = blue;
+	color->alpha = alpha;
+}
+
 /**Had to move this out of main init() because I need this data to properly initialize
 the Win32 version of the mouse (by preloading resources before D3D device is created).*/
 void Mouse::parseIni()
@@ -588,6 +604,11 @@ void Mouse::parseIni()
 		hand->W3DScale = m_cursorInfo[ NORMAL ].W3DScale;
 		hand->loop = m_cursorInfo[ NORMAL ].loop;
 	}
+
+	applyUIColor( GOUICOLOR_TOOLTIP_FILL, &m_tooltipColorBackground );
+	applyUIColor( GOUICOLOR_TOOLTIP_BORDER, &m_tooltipColorBorder );
+	applyUIColor( GOUICOLOR_TOOLTIP_TEXT, &m_tooltipColorText );
+	applyUIColor( GOUICOLOR_TOOLTIP_SWEEP, &m_tooltipColorHighlight );
 }
 
 //-------------------------------------------------------------------------------------------------

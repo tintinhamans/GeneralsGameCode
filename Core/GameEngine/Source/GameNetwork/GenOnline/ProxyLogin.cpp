@@ -3,6 +3,7 @@
 #include "GameNetwork/GenOnline/ProxyLogin.h"
 #include "GameNetwork/GenOnline/ServiceConnectionPolicy.h"
 #include "GameNetwork/GenOnline/GenOnlineInit.h"
+#include "Common/GOUIColors.h"
 #include "Common/NameKeyGenerator.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GameWindowManager.h"
@@ -150,7 +151,7 @@ void setState(State state, const std::string &title, const UnicodeString &messag
 
 	GadgetStaticTextSetText(dialog.title, wideText(upperText(title)));
 	GadgetStaticTextSetText(dialog.message, message);
-	dialog.message->winSetEnabledTextColors(isError ? GameMakeColor(255, 96, 96, 255) : GameMakeColor(255, 255, 255, 255), GameMakeColor(0, 0, 0, 255));
+	dialog.message->winSetEnabledTextColors(isError ? GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 96, 96, 255)) : GOUIColor(GOUICOLOR_TEXT, GameMakeColor(255, 255, 255, 255)), GameMakeColor(0, 0, 0, 255));
 	for (GameWindow *window : { dialog.proxyLabel, dialog.proxy, dialog.windows, dialog.userLabel, dialog.userName, dialog.passwordLabel, dialog.password, dialog.remember })
 	{
 		window->winHide(!form);

@@ -32,6 +32,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/AudioEventRTS.h"
+#include "Common/GOUIColors.h"
 #include "Common/PlayerList.h"
 #include "Common/Player.h"
 #include "GameClient/GameText.h"
@@ -481,7 +482,7 @@ void updateBuddyInfo( void )
 	if (!bIsAutoRefresh)
 	{
 		GadgetListBoxReset(buddyControls.listboxBuddies);
-		GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"Loading..."), GameMakeColor(255, 194, 15, 255), -1);
+		GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"Loading..."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1);
 	}
 
 	// refresh block list too (but no UI to process here)
@@ -659,7 +660,7 @@ void updateBuddyInfo( void )
                 bool isSavedIgnored = false;
                 Color nameColor = (isSavedIgnored) ?
                     GameSpyColor[GSCOLOR_PLAYER_IGNORED] :
-					friendsEntry.online ? GameSpyColor[GSCOLOR_PLAYER_BUDDY] : GameMakeColor(100, 130, 150, 255);
+					friendsEntry.online ? GameSpyColor[GSCOLOR_PLAYER_BUDDY] : GOUIColor(GOUICOLOR_OFFLINE, GameMakeColor(100, 130, 150, 255));
                 int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, nameColor, -1, -1);
 
                 if (friendsEntry.online)
@@ -2053,7 +2054,7 @@ void refreshIgnoreList()
 	}
 
 	GadgetListBoxReset(listboxIgnore);
-	GadgetListBoxAddEntryText(listboxIgnore, UnicodeString(L"Loading..."), GameMakeColor(255, 194, 15, 255), -1);
+	GadgetListBoxAddEntryText(listboxIgnore, UnicodeString(L"Loading..."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1);
 
 	pSocialInterface->GetBlockList([](BlockedResult blockResult)
 		{
@@ -2064,7 +2065,7 @@ void refreshIgnoreList()
 			for (FriendsEntry& blockedEntry : blockResult.vecBlocked)
 			{
 				UnicodeString name(from_utf8(blockedEntry.display_name).c_str());
-				Int index = GadgetListBoxAddEntryText(listboxIgnore, name, GameMakeColor(255, 100, 100, 255), -1);
+				Int index = GadgetListBoxAddEntryText(listboxIgnore, name, GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 100, 100, 255)), -1);
 				GadgetListBoxSetItemData(listboxIgnore, (void*)(blockedEntry.user_id), index, 0);
 			}
 		});
@@ -2077,7 +2078,7 @@ void refreshIgnoreList()
 	{
 		UnicodeString name;
 		name.translate(it->second);
-		Int pos = GadgetListBoxAddEntryText(listboxIgnore, name, GameMakeColor(255, 100, 100, 255), -1);
+		Int pos = GadgetListBoxAddEntryText(listboxIgnore, name, GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 100, 100, 255)), -1);
 		GadgetListBoxSetItemData(listboxIgnore, (void*)it->first, pos);
 		++it;
 	}
@@ -2089,7 +2090,7 @@ void refreshIgnoreList()
 		AsciiString aName = *iListIt;
 		UnicodeString name;
 		name.translate(aName);
-		Int pos = GadgetListBoxAddEntryText(listboxIgnore, name, GameMakeColor(255, 100, 100, 255), -1);
+		Int pos = GadgetListBoxAddEntryText(listboxIgnore, name, GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 100, 100, 255)), -1);
 		GadgetListBoxSetItemData(listboxIgnore, 0, pos);
 		++iListIt;
 	}

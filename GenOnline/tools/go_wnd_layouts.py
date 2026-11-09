@@ -60,6 +60,12 @@ GenOnline/tools/wnd_sources copy, if any, is only kept for reference. All rects 
 - Button groups: a colour drawn USER window with a clear fill whose children are push buttons (and NOINPUT
   overlays drawn on them, like the sort arrows) draws no border, so its frame does not show between the buttons
   or double their edges: its first enabled border colour gets alpha 0 (every layout that gets the fixes).
+- Kit colours: on menu layouts (not in-game nor in-match, YAML-built ones included) a default drawn USER window with a
+  white enabled border (every channel at least WHITE_MIN) on a clear or dark fill takes the kit line as that border; the
+  editor default disabled (64 64 64) and hover fills (0 128 0, pure blue, the kit hilite, white) of default drawn USER
+  and colour drawn STATICTEXT windows take the kit disabled and hover fill and line; a colour drawn push button with a
+  visible dark fill takes the kit button fill and line of each state and its pushed slots; and the retail disabled text
+  of buttons and combos (62 64 92, 122 48 1) takes KIT_DISABLED_TEXT. Alpha stays.
 - Setup rows: last, the Skirmish, LAN and online game setup screens lay out SLOT_ROWS player rows ROW_PITCH apart.
   Rows past the engine's ENGINE_SLOTS are copies of the last engine row with ENABLED cleared: the combos draw
   disabled and empty (a combo's TEXT is a title above its box, not its edit box text), the accept marker, ping,
@@ -76,7 +82,8 @@ GenOnline/tools/wnd_sources copy, if any, is only kept for reference. All rects 
   whole Online path) lives in GenOnline/tools/wnd_sources too and passes the rules unchanged.
 - Theme copies: every menu layout (not the in-game ones, nor the menus shown during a match) also goes to
   GenOnline/data/Themes/Radar at the same path, its final output with the colours swapped for the
-  Classic (Generals Online) palette (GenOnline/tools/go_themes.py LAYOUT_COLORS). Only colour numbers differ.
+  Classic (Generals Online) palette (GenOnline/tools/go_themes.py LAYOUT_COLORS) and the window fills above. Only colour
+  numbers differ.
 
 A move never creates an overlap with a sibling and never pushes a window or its children further
 out of their parent; such moves are skipped and logged. Children move with their window. The rules
@@ -257,6 +264,34 @@ COLOR_REMAP = {
 }
 KIT_LINE = (47, 75, 255)
 
+# kit colours of the menu colour fixes (kit_colors), the colours of the kit art (GenOnline/tools/go_ui_kit.py BUTTON_STATES)
+KIT_HILITE = (106, 123, 255)
+KIT_DISABLED_LINE = (74, 78, 110)
+KIT_BUTTON_FILL = (7, 10, 24)
+KIT_HILITE_FILL = (21, 32, 120)
+KIT_PUSHED_FILL = (43, 52, 184)
+KIT_PUSHED_LINE = (140, 155, 255)
+KIT_DISABLED_FILL = (10, 10, 16)
+KIT_DISABLED_TEXT = (138, 143, 176)  # #8A8FB0: 6.2:1 on the kit disabled fill
+DIM_DISABLED_TEXT = {(62, 64, 92), (122, 48, 1)}  # retail disabled button and combo text, 2.0:1 and 2.2:1 on it
+WHITE_MIN = 240            # a border whose channels are all at least this is a retail white frame
+RARE_DISABLED_FILLS = {(64, 64, 64)}  # the editor default disabled fill of panels and static text
+RARE_HILITE_FILLS = {(0, 128, 0), (0, 0, 255), (106, 123, 255), (255, 255, 255)}  # their hover fills
+# state -> (fill, line) of the normal and the selected slot of a colour drawn push button; hover selected is pushed
+KIT_BUTTON_SLOTS = {
+    "ENABLED": ((KIT_BUTTON_FILL, KIT_LINE), (KIT_PUSHED_FILL, KIT_PUSHED_LINE)),
+    "HILITE": ((KIT_HILITE_FILL, KIT_HILITE), (KIT_PUSHED_FILL, KIT_PUSHED_LINE)),
+    "DISABLED": ((KIT_DISABLED_FILL, KIT_DISABLED_LINE), (KIT_DISABLED_FILL, KIT_DISABLED_LINE)),
+}
+KIT_DRAW_RE = re.compile(r"^[ \t]*(?P<state>ENABLED|DISABLED|HILITE)DRAWDATA[ \t]*=(?P<body>[^;]*);", re.M)
+KIT_SLOT_RE = re.compile(
+    r"IMAGE:[ \t]*[^,\s]+[ \t]*,\s*COLOR:[ \t]*(?P<color>\d+[ \t]+\d+[ \t]+\d+)[ \t]+(?P<ca>\d+)[ \t]*,\s*"
+    r"BORDERCOLOR:[ \t]*(?P<border>\d+[ \t]+\d+[ \t]+\d+)[ \t]+(?P<ba>\d+)"
+)
+DEFAULT_DRAWS = {"", "[None]", "W3DGameWinDefaultDraw"}  # USER draw callbacks that draw the colour slots
+DRAW_CALLBACK_RE = re.compile(r'^[ \t]*DRAWCALLBACK[ \t]*=[ \t]*"(?P<callback>[^"]*)"', re.M)
+DISABLED_TEXT_RE = re.compile(r"(?<![A-Z])DISABLED:[ \t]*(?P<rgb>\d+[ \t]+\d+[ \t]+\d+)(?=[ \t]+\d+)")
+
 # map preview windows: their first enabled border colour is the frame colour W3DDrawMapPreview draws
 MAP_PREVIEW_CALLBACK = "W3DDrawMapPreview"
 MAP_PREVIEW_BORDER = "%d %d %d 255" % KIT_LINE
@@ -382,16 +417,6 @@ def remap_colors(text, table=COLOR_REMAP, pattern=COLOR_RE):
         r, g, b = table[rgb]
         return f"{m['key']}:{m['sp']}{r}{m['s1']}{g}{m['s2']}{b}"
     return pattern.sub(swap, text)
-
-
-def themed(name):
-    """True for the layouts the theme recolours: the menus, not the in-game layouts nor the menus shown in a match."""
-    return _uses_go_templates(name)
-
-
-def theme_layout(text):
-    """The Classic (Generals Online) copy of a final layout: draw data and text colours in the theme palette."""
-    return remap_colors(text, go_themes.LAYOUT_COLORS, THEME_COLOR_RE)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1431,6 +1456,80 @@ def button_group_borders(text):
     return text
 
 
+def _own_end(win):
+    """End of a window's own text: its first child block, else its END."""
+    return min((child.block[0] for child in win.children), default=win.block[1])
+
+
+def _own_slots(text, win):
+    """{state: [slot match]} of the ENABLED, DISABLED and HILITE draw data of a window's own text."""
+    out = {}
+    for prop in KIT_DRAW_RE.finditer(text, win.block[0], _own_end(win)):
+        out[prop["state"]] = list(KIT_SLOT_RE.finditer(text, prop.start("body"), prop.end("body")))
+    return out
+
+
+def _rgb(m, group):
+    return tuple(int(v) for v in m[group].split())
+
+
+def _renumbered(value, rgb):
+    """value with its three numbers replaced by rgb, keeping the spacing between them."""
+    parts = re.split(r"(\d+)", value)
+    parts[1::2] = [str(v) for v in rgb]
+    return "".join(parts)
+
+
+def _near_white(rgb):
+    return min(rgb) >= WHITE_MIN
+
+
+def kit_colors(text, name):
+    """Give a menu layout the kit colours where retail left white frames, editor default slots, colour drawn buttons
+    and dim disabled text; in-game layouts and the menus shown in a match are returned unchanged."""
+    if not _uses_go_templates(name):
+        return text
+    edits = []
+
+    def paint(m, fill=None, line=None):
+        for group, rgb in (("color", fill), ("border", line)):
+            if rgb is not None and _rgb(m, group) != rgb:
+                edits.append((m.start(group), m.end(group), _renumbered(m[group], rgb)))
+
+    for win in parse_windows(text).walk():
+        if win.block is None:
+            continue
+        for m in DISABLED_TEXT_RE.finditer(text, win.block[0], _own_end(win)):
+            rgb = _rgb(m, "rgb")
+            if rgb in DIM_DISABLED_TEXT:
+                edits.append((m.start("rgb"), m.end("rgb"), _renumbered(m["rgb"], KIT_DISABLED_TEXT)))
+        callback = DRAW_CALLBACK_RE.search(text, win.block[0], _own_end(win))
+        if "IMAGE" in win.status or (win.kind == "USER" and callback and callback["callback"] not in DEFAULT_DRAWS):
+            continue  # image drawn windows and USER windows with their own draw draw no colour slots
+        slots = _own_slots(text, win)
+        enabled = slots.get("ENABLED", [])
+        if win.kind == "USER" and enabled:
+            first = enabled[0]
+            fill = _rgb(first, "color")
+            clear_or_dark = first["ca"] == "0" or not _near_white(fill)
+            if _near_white(_rgb(first, "border")) and first["ba"] != "0" and clear_or_dark:
+                paint(first, line=KIT_LINE)
+        if win.kind in ("USER", "STATICTEXT"):
+            for state, fills, kit in (("DISABLED", RARE_DISABLED_FILLS, (KIT_DISABLED_FILL, KIT_DISABLED_LINE)),
+                                      ("HILITE", RARE_HILITE_FILLS, (KIT_HILITE_FILL, KIT_HILITE))):
+                first = slots.get(state, [None])[0]
+                if first is not None and _rgb(first, "color") in fills:
+                    paint(first, *kit)
+        visible = enabled and enabled[0]["ca"] != "0" and not _near_white(_rgb(enabled[0], "color"))
+        if win.kind == "PUSHBUTTON" and visible:
+            for state, kit in KIT_BUTTON_SLOTS.items():
+                for m, (fill, line) in zip(slots.get(state, []), kit):
+                    paint(m, fill, line)
+    for start, end, value in sorted(edits, reverse=True):
+        text = text[:start] + value + text[end:]
+    return text
+
+
 def compact_combos(text, name):
     """Shrink the menu combo boxes taller than COMBO_HEIGHT about their centre, with the entry fields, push buttons and
     check boxes that share their row; a square push button keeps its left edge and stays square."""
@@ -1626,9 +1725,9 @@ def blank_layout(text, name):
 
 def finish(text, name):
     """The fixes after alignment: combo heights, GO header templates, hover images, map preview frames, button groups,
-    the game setup rows and the blank layouts."""
+    the game setup rows, the kit colours and the blank layouts."""
     text = button_group_borders(map_preview_borders(hilite_images(go_templates(compact_combos(text, name), name))))
-    return blank_layout(setup_rows(text, name), name)
+    return blank_layout(kit_colors(setup_rows(text, name), name), name)
 
 
 def transform(text, notes=None, name=None):
@@ -1706,8 +1805,21 @@ def build(retail, game="zerohour"):
         text = inputs[name].decode("latin-1")
         if name in compiled:
             info = {"frame": False, "stats": Counter(), "notes": [], "changes": [], "uncentred": []}
-            # the YAML source is final apart from the combo height, which follows COMBO_HEIGHT like every menu
-            results.append((name, text, compact_combos(text, name), info))
+            # the YAML source is final apart from the combo height, which follows COMBO_HEIGHT like every menu, and the
+            # kit colours its shared components still leave retail
+            results.append((name, text, kit_colors(compact_combos(text, name), name), info))
+            continue
+        if game == "generals":
+            try:
+                out, info = align(remap_colors(text), name)
+                out = finish(out, name)
+                if name.lower() == "window/menus/wolwelcomemenu.wnd":
+                    out = generals_community_panel(out)
+                if name.lower() in GENERALS_CONTROLS:
+                    out = generals_missing_controls(out, name)
+                results.append((name, text, out, info))
+            except (ValueError, KeyError, IndexError) as error:
+                GENERALS_FAILURES.append((name, str(error)))
             continue
         out, info = align(remap_colors(text), name)
         results.append((name, text, finish(out, name), info))

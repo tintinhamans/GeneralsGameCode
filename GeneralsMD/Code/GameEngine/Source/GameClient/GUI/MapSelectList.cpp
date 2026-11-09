@@ -23,6 +23,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/GameState.h"
+#include "Common/GOUIColors.h"
 #include "Common/GlobalData.h"
 #include "Common/NameKeyGenerator.h"
 #include "Common/SkirmishBattleHonors.h"
@@ -57,8 +58,16 @@ static const char *const s_sourceWindowNames[MAP_SOURCE_COUNT] =
 	"RadioButtonMapsFavourites"
 };
 
-static const Color s_nameColor = GameMakeColor(255, 255, 255, 255);
-static const Color s_detailColor = GameMakeColor(192, 192, 192, 255);
+// TheSuperHackers @feature arcticdolphin 09/11/2026 Map names and details take the GO UI colour table's text and muted colours.
+static Color nameColor()
+{
+	return GOUIColor(GOUICOLOR_TEXT, GameMakeColor(255, 255, 255, 255));
+}
+
+static Color detailColor()
+{
+	return GOUIColor(GOUICOLOR_MUTED, GameMakeColor(192, 192, 192, 255));
+}
 
 // TheSuperHackers @feature arcticdolphin 08/11/2026 Legend row under the preview: each category's token icon and its count.
 struct MapLegendItem
@@ -388,13 +397,13 @@ void MapSelectList::init( GameWindow *parent, const char *layoutName, const MapS
 	{
 		GadgetComboBoxReset(m_players);
 		// each entry names its filter, so the combo needs no label: "Any players", "4 players"
-		Int index = GadgetComboBoxAddEntry(m_players, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOMapAnyPlayers", L"Any players"), s_nameColor);
+		Int index = GadgetComboBoxAddEntry(m_players, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOMapAnyPlayers", L"Any players"), nameColor());
 		GadgetComboBoxSetItemData(m_players, index, (void *)0);
 		for (Int numPlayers = 2; numPlayers <= MAX_SLOTS; ++numPlayers)
 		{
 			UnicodeString text;
 			text.format(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOMapNumPlayers", L"%d players").str(), numPlayers);
-			index = GadgetComboBoxAddEntry(m_players, text, s_nameColor);
+			index = GadgetComboBoxAddEntry(m_players, text, nameColor());
 			GadgetComboBoxSetItemData(m_players, index, (void *)numPlayers);
 		}
 	}
@@ -405,7 +414,7 @@ void MapSelectList::init( GameWindow *parent, const char *layoutName, const MapS
 		for (Int size = MAP_SIZE_ANY; size < MAP_SIZE_COUNT; ++size)
 		{
 			const UnicodeString text = (size == MAP_SIZE_ANY) ? TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOMapAnySize", L"Any size") : sizeClassText((MapSelectSize)size);
-			const Int index = GadgetComboBoxAddEntry(m_size, text, s_nameColor);
+			const Int index = GadgetComboBoxAddEntry(m_size, text, nameColor());
 			GadgetComboBoxSetItemData(m_size, index, (void *)size);
 		}
 	}
@@ -576,7 +585,7 @@ Int MapSelectList::setStarCell( Int row, Bool isFavourite )
 	}
 
 	// text star until the kit images exist
-	return GadgetListBoxAddEntryText(m_listbox, isFavourite ? UnicodeString(L"*") : UnicodeString(L" "), s_nameColor, row, STAR_COLUMN);
+	return GadgetListBoxAddEntryText(m_listbox, isFavourite ? UnicodeString(L"*") : UnicodeString(L" "), nameColor(), row, STAR_COLUMN);
 }
 
 void MapSelectList::updateCount( Int shown, Int total )
@@ -682,17 +691,17 @@ void MapSelectList::repopulate( const AsciiString &mapToSelect )
 			}
 
 			if (nameColumn < numColumns)
-				GadgetListBoxAddEntryText(m_listbox, entry.m_name, s_nameColor, index, nameColumn);
+				GadgetListBoxAddEntryText(m_listbox, entry.m_name, nameColor(), index, nameColumn);
 
 			if (nameColumn + 1 < numColumns)
 			{
 				UnicodeString players;
 				players.format(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOMapNumPlayers", L"%d players").str(), entry.m_numPlayers);
-				GadgetListBoxAddEntryText(m_listbox, players, s_detailColor, index, nameColumn + 1);
+				GadgetListBoxAddEntryText(m_listbox, players, detailColor(), index, nameColumn + 1);
 			}
 
 			if (nameColumn + 2 < numColumns)
-				GadgetListBoxAddEntryText(m_listbox, sizeClassText(getMapSizeClass(mapData)), s_detailColor, index, nameColumn + 2);
+				GadgetListBoxAddEntryText(m_listbox, sizeClassText(getMapSizeClass(mapData)), detailColor(), index, nameColumn + 2);
 
 			// the row owns a stable copy of the map path, the cache may change while the list is up
 			GadgetListBoxSetItemData(m_listbox, (void *)m_rows[i].m_path.str(), index);
