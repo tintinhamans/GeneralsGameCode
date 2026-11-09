@@ -811,6 +811,17 @@ void ResolutionDialogUpdate()
 }
 */
 
+// GenOnline @tweak arcticdolphin 09/11/2026 Show the main menu and the mouse the first time, the way the first mouse move does.
+static void showInitialMainMenu()
+{
+	initialGadgetDelay = 1;
+	dropDownWindows[DROPDOWN_MAIN]->winHide(FALSE);
+	TheTransitionHandler->setGroup("MainMenuFade", TRUE);
+	TheTransitionHandler->setGroup("MainMenuDefaultMenu");
+	TheMouse->setVisibility(TRUE);
+	notShown = FALSE;
+}
+
 //-------------------------------------------------------------------------------------------------
 /** Main menu update method */
 //-------------------------------------------------------------------------------------------------
@@ -849,6 +860,12 @@ void MainMenuUpdate( WindowLayout *layout, void *userData )
 		}
 		else
 			initialGadgetDelay--;
+	}
+
+	// GenOnline @tweak arcticdolphin 09/11/2026 The main menu shows after the load screen without waiting for the mouse to move.
+	if(notShown && TheTransitionHandler->isFinished())
+	{
+		showInitialMainMenu();
 	}
 
 	if(dontAllowTransitions && TheTransitionHandler->isFinished())

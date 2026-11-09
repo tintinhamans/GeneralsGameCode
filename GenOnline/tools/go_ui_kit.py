@@ -10,12 +10,13 @@ UVs from Coords / TextureWidth, so every piece keeps the size of the retail imag
 and only gets sharper. Each piece is padded and its edge texels are extruded so stretched and
 tiled pieces do not sample their neighbours.
 
-The Classic (Generals Online) theme gets the same atlas in its palette (GenOnline/tools/go_themes.py KIT_COLORS) under
-GenOnline/data/Themes/Radar; its INI would be byte-identical, so the theme has no copy of it. The second atlas
-gets a theme copy the same way, with only its glyph outline and empty star swapped (go_themes.MAP_COLORS).
+A third atlas redraws the retail load screen progress bar (LoadingBar_*) as a kit field: the kit line, the field back and
+a launcher bronze fill; the Retail interface style leaves its files out
+and keeps the retail bar.
 
-A third atlas redraws the retail load screen progress bar (LoadingBar_*) in the launcher bronze on the subtle fill tokens,
-the same in every palette; the Retail interface style leaves its files out and keeps the retail bar.
+A fourth atlas holds the radar van that drives on the GO bar art (LoadScreen.cpp drawGoLoadBarVan), from the logo
+session's layered art in GenOnline/tools/art/van-side: the body, the dish, four wheel frames and a dust puff. The Retail style
+leaves it out.
 
 Usage:
     python GenOnline/tools/go_ui_kit.py          write the atlases and the INIs into GenOnline/data/core
@@ -49,7 +50,7 @@ LINE_LAYOUT = 1.5
 BORDER_PREFIXES = ("Buttons-", "RadioButton", "TextEntry", "VSliderUpButton", "VSliderDownButton",
                    "ReturnButton", "Xbutton", "LobbyRefresh", "Active-", "Disabled-")
 # single images whose Border tells the engine the kit line thickness, and the load screen bar frame (a three-piece bar)
-BORDER_NAMES = ("GOScrollLine", "LoadingBar_L", "LoadingBar_C", "LoadingBar_R")
+BORDER_NAMES = ("GOScrollLine", "LoadingBar_L", "LoadingBar_C", "LoadingBar_R", "GORoadL", "GORoadC", "GORoadR")
 ARROW_LINE = LINE_LAYOUT  # combo arrows carry the kit line like every bordered piece
 BOX_LINE = (1.25 * 1.2, 1.45 * 1.2)  # slider blocks: 11x13 art drawn as squares, so the line differs per axis; small, so a thinner line
 
@@ -737,6 +738,95 @@ def map_edge_distance(x, y, pts):
     return best
 
 
+MAP_PIECES = {
+    "dollar": map_dollar, "crate": map_crate, "brace": map_brace, "wrench": map_wrench, "cannon": map_cannon,
+    "droplet": map_droplet, "star": lambda size: [(map_star_points(size), [], [])],
+}
+
+
+def map_mix(a, b, k):
+    """A colour k of the way from a to b, k clamped to 0 .. 1."""
+    k = max(0.0, min(1.0, k))
+    return tuple(a[i] + (b[i] - a[i]) * k for i in range(4))
+
+
+def map_ramp_color(ramp, t):
+    """The ramp colour at t, 0 at the top of the glyph and 1 at the bottom."""
+    light, mid, dark, _ = ramp
+    return map_mix(light, mid, t * 2.0) if t < 0.5 else map_mix(mid, dark, (t - 0.5) * 2.0)
+
+
+def map_depth(x, y, pieces):
+    """How far inside a part a point is: the distance to its nearest edge, the deepest piece where pieces overlap, None outside."""
+    best = None
+    for outer, holes, cuts in pieces:
+        if not map_inside(x, y, outer) or any(map_inside(x, y, h) for h in holes) or any(map_inside(x, y, c) for c in cuts):
+            continue
+        d = min([map_edge_distance(x, y, outer)] + [map_edge_distance(x, y, h) for h in holes + cuts])
+        best = d if best is None else max(best, d)
+    return best
+
+
+def map_height(x, y, pieces, bevel):
+    """The height of a part at a point: 0 outside, rising smoothly to 1 over the bevel width inside its edge."""
+    d = map_depth(x, y, pieces)
+    if d is None:
+        return 0.0
+    t = min(1.0, d / bevel)
+    return t * t * (3.0 - 2.0 * t)
+
+
+def map_lit(x, y, pieces, ramp, v, unit):
+    """The colour of a point of a part: the ramp at v, shaded by the surface normal of the rounded edge and glossed where it faces the light."""
+    bevel = MAP_BEVEL * unit
+    e = 0.15
+    hx = (map_height(x + e, y, pieces, bevel) - map_height(x - e, y, pieces, bevel)) / (2.0 * e)
+    hy = (map_height(x, y + e, pieces, bevel) - map_height(x, y - e, pieces, bevel)) / (2.0 * e)
+    nx, ny, nz = -hx * MAP_BEVEL_STRENGTH, -hy * MAP_BEVEL_STRENGTH, 1.0
+    length = math.sqrt(nx * nx + ny * ny + nz * nz)
+    nx, ny, nz = nx / length, ny / length, nz / length
+    lx, ly, lz = MAP_LIGHT
+    length = math.sqrt(lx * lx + ly * ly + lz * lz)
+    lx, ly, lz = lx / length, ly / length, lz / length
+    shade = max(0.4, min(1.7, 1.0 + 1.3 * (nx * lx + ny * ly + nz * lz - lz)))
+    gx, gy, gz = lx, ly, lz + 1.0
+    length = math.sqrt(gx * gx + gy * gy + gz * gz)
+    gloss = max(0.0, (nx * gx + ny * gy + nz * gz) / length) ** 24 * MAP_SPECULAR
+    base = map_ramp_color(ramp, v)
+    return (min(1.0, base[0] * shade + gloss), min(1.0, base[1] * shade + gloss), min(1.0, base[2] * shade + gloss), 1.0)
+
+
+def map_icon_piece(size, name):
+    """A map icon lit like the retail map icons: rounded and shaded from the top left with a gloss, a thin edge in a dark shade
+    of its own colour and a soft drop shadow, which keep it readable on snow, sand and grass."""
+    unit = size / MAP_GRID
+    parts = [(MAP_PIECES[glyph](size), ramp) for glyph, ramp in MAP_ICONS[name]]
+    ys = [y for pieces, _ in parts for outer, _, _ in pieces for _, y in outer]
+    top, bottom = min(ys), max(ys)
+    grown = [(map_offset(outer, MAP_OUTLINE * unit), [map_offset(h, -MAP_OUTLINE * unit) for h in holes], ramp)
+             for pieces, ramp in parts for outer, holes, _ in pieces]
+    shadow = (MAP_SHADOW[0] * unit, MAP_SHADOW[1] * unit)
+
+    def surface(x, y):
+        for pieces, ramp in reversed(parts):
+            if map_depth(x, y, pieces) is not None:
+                return pieces, ramp
+        return None
+
+    def sample(x, y):
+        hit = surface(x, y)
+        if hit is not None:
+            return map_lit(x, y, hit[0], hit[1], (y - top) / (bottom - top), unit)
+        for outer, holes, ramp in reversed(grown):
+            if map_inside(x, y, outer) and not any(map_inside(x, y, h) for h in holes):
+                return ramp[3]
+        if surface(x - shadow[0], y - shadow[1]) is not None:
+            return (0.0, 0.0, 0.0, MAP_SHADOW_ALPHA)
+        return TRANSPARENT
+
+    return paint(size, size, sample)
+
+
 def map_star_piece(size, fill, edge, edge_width):
     """A five point star with an edge band inside its silhouette; fill None draws the outline only.
     The silhouette is the star polygon itself, so the points and corners stay sharp and mitred."""
@@ -768,11 +858,12 @@ def pieces2():
 
 
 # =================================================================================================
-# Load screen progress bar: the retail LoadingBar_* images in the launcher bronze on the subtle fill tokens of the panels,
-# which sit on the retail black of Signal as well, so one sheet serves every palette: its own atlas with no theme copy.
-# The Retail interface style leaves both files out (ArchiveFileSystem.cpp isNotGenOnlineInterfaceFile).
+# Load screen progress bar: the retail LoadingBar_* images as a kit field, one kit line on the field back, with a launcher
+# bronze fill. Its own atlas. The Retail interface style leaves the files out (ArchiveFileSystem.cpp
+# isNotGenOnlineInterfaceFile).
 # W3DGadgetProgressBarImageDraw draws the frame as a three-piece bar over the whole window and tiles the fill (Progress)
-# and the unfilled track (DePowered) inside it.
+# and the unfilled track (DePowered) inside it, 10 pixels in from the sides and 5 from the top and bottom at any size;
+# the shell load screen draws the road instead (load_road_pieces).
 # =================================================================================================
 
 LOAD_BAR_TEXTURE_NAME = "GeneralsOnline_LoadingBar.tga"
@@ -780,14 +871,15 @@ LOAD_BAR_TEXTURE_PATH = DATA / "Art" / "Textures" / LOAD_BAR_TEXTURE_NAME
 LOAD_BAR_INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_LoadingBar.INI"
 LOAD_BAR_ATLAS_WIDTH = 64  # in retail pixels
 LOAD_BAR_TITLE = "the load screen progress bar"
-LOAD_BAR_LINE = rgba(go_themes.PALETTE["line"])
-LOAD_BAR_GROUND = rgba(go_themes.PALETTE["fill-field"])   # the framed back, like an entry field
-LOAD_BAR_TRACK = rgba(go_themes.PALETTE["fill-disabled"])  # the unfilled track, a step over the back
+LOAD_BAR_LINE = BUTTON_STATES[""][0]  # the kit line
+LOAD_BAR_GROUND = FIELD  # the framed back, an entry field
+LOAD_BAR_TRACK = FIELD   # the unfilled track is the back
 LOAD_BAR_FILL = rgba(go_themes.PALETTE["bronze"])
 
 
 def load_bar_pieces():
-    """The load screen bar at the retail Coords sizes: a square framed back, a flat bronze fill and a subtle track."""
+    """The load screen bar at the retail Coords sizes: a square kit framed field back, a flat bronze fill and a track that
+    is the back."""
     return [
         ("LoadingBar_L", 20, 20, button_piece(20, 20, "left", LOAD_BAR_LINE, LOAD_BAR_GROUND, LINE_LAYOUT)),
         ("LoadingBar_C", 10, 20, button_piece(10, 20, "middle", LOAD_BAR_LINE, LOAD_BAR_GROUND, LINE_LAYOUT)),
@@ -796,7 +888,561 @@ def load_bar_pieces():
         ("LoadingBar_DePowered", 3, 11, flat_piece(3, 11, LOAD_BAR_TRACK)),
     ]
 
+
 # ============================== end of the load screen bar section ==============================
+
+
+# =================================================================================================
+# Load road: the GO shell load bar drawn as a road seen from the side, the ground the radar van drives on. Asphalt between
+# two kit lines (the three pieces carry Border = LINE_LAYOUT, so the lines keep the kit weight), a dashed centre line, and
+# a bronze tint with lit dashes behind the van. Its own atlas. The Retail style leaves the files out and keeps the retail bar. LoadScreen.cpp drawGoShellLoadBar draws it over the
+# window ShellGameLoadScreen::init sets to LOAD_ROAD_RECT; load_road_dashes mirrors where the dashes go.
+# =================================================================================================
+
+LOAD_ROAD_TEXTURE_NAME = "GeneralsOnline_LoadRoad.tga"
+LOAD_ROAD_TEXTURE_PATH = DATA / "Art" / "Textures" / LOAD_ROAD_TEXTURE_NAME
+LOAD_ROAD_INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_LoadRoad.INI"
+LOAD_ROAD_ATLAS_WIDTH = 32  # in retail pixels
+LOAD_ROAD_TITLE = "the load screen road"
+LOAD_ROAD_RECT = (267, 574, 533, 592)  # 800x600 units: a third of the width, centred, near the bottom
+
+
+def mix(a, b, t):
+    """Blend two palette colours, t of b; alpha 1."""
+    ca, cb = rgba(a), rgba(b)
+    return tuple(round(((1 - t) * x + t * y) * 255) / 255 for x, y in zip(ca[:3], cb[:3])) + (1.0,)
+
+
+LOAD_ROAD_LINE = BUTTON_STATES[""][0]  # the kit line
+LOAD_ROAD_ASPHALT = mix(go_themes.PALETTE["ground"], go_themes.PALETTE["pushed"], 0.4)  # a warm near-black grey
+LOAD_ROAD_DASH = rgba(go_themes.PALETTE["empty"], 0.55)  # the road ahead
+LOAD_ROAD_DASH_LIT = rgba(go_themes.PALETTE["tan"])      # the road behind the van
+LOAD_ROAD_TINT = rgba(go_themes.PALETTE["bronze"], 0.18)
+LOAD_ROAD_DASH_UNITS = 6.0  # half a dash period, in 800x600 units
+
+
+def road_piece(w, h, side, line, fill, width):
+    """Asphalt between a top and a bottom edge line; caps round their outer corners by the line width."""
+    left, right = ends(side)
+
+    def sample(x, y):
+        for on, cx, outside_x in ((left, width, x < width), (right, w - width, x > w - width)):
+            if on and outside_x:
+                for cy, outside_y in ((width, y < width), (h - width, y > h - width)):
+                    if outside_y and math.hypot(x - cx, y - cy) > width:
+                        return TRANSPARENT
+        return line if min(y, h - y) < width else fill
+
+    return paint(w, h, sample)
+
+
+def load_road_pieces():
+    """The road at its art sizes: two caps and a tiled middle (Border pieces), the dash in two states and the tint."""
+    return [
+        ("GORoadL", 8, 18, road_piece(8, 18, "left", LOAD_ROAD_LINE, LOAD_ROAD_ASPHALT, LINE_LAYOUT)),
+        ("GORoadC", 8, 18, road_piece(8, 18, "middle", LOAD_ROAD_LINE, LOAD_ROAD_ASPHALT, LINE_LAYOUT)),
+        ("GORoadR", 8, 18, road_piece(8, 18, "right", LOAD_ROAD_LINE, LOAD_ROAD_ASPHALT, LINE_LAYOUT)),
+        ("GORoadDash", 4, 2, flat_piece(4, 2, LOAD_ROAD_DASH)),
+        ("GORoadDashLit", 4, 2, flat_piece(4, 2, LOAD_ROAD_DASH_LIT)),
+        ("GORoadTint", 4, 4, flat_piece(4, 4, LOAD_ROAD_TINT)),
+    ]
+
+
+def layout_scale(value, numerator, denominator):
+    """800x600 units to pixels as parseScreenRect scales a rect."""
+    return (value * numerator + denominator // 2) // denominator
+
+
+def load_road_window(screen_width, screen_height):
+    """The road window ShellGameLoadScreen::init sets, in pixels: (x, y, width, height)."""
+    left, top, right, bottom = LOAD_ROAD_RECT
+    return (layout_scale(left, screen_width, 800), layout_scale(top, screen_height, 600),
+            layout_scale(right - left, screen_width, 800), layout_scale(bottom - top, screen_height, 600))
+
+
+def load_road_dashes(x, y, width, height, screen_height):
+    """drawGoShellLoadBar's centre line: (line, [dash rects]). Dashes are whole pixels on an even period, centred in the
+    road with the same padding at both ends, and as thick as the kit line (one more pixel when that centres them)."""
+    line = max(1, math.ceil(LINE_LAYOUT * screen_height / 600.0 - 0.01))
+    thickness = line + ((height - line) & 1)
+    half = max(2, math.floor(LOAD_ROAD_DASH_UNITS * screen_height / 600.0 + 0.5))
+    period = 2 * half
+    length = max(2, 2 * (half // 2))
+    span = width - 2 * (height // 2)
+    count = (span - length) // period + 1 if span >= length else 0
+    total = (count - 1) * period + length if count else 0
+    # a road of odd width takes one more pixel per dash, so both ends keep the same whole pixel padding
+    if count and (width - total) & 1:
+        length, total = length + 1, total + 1
+    pad = (width - total) // 2
+    top = y + (height - thickness) // 2
+    return line, [(x + pad + k * period, top, x + pad + k * period + length, top + thickness) for k in range(count)]
+
+# ============================== end of the load road section ==============================
+
+
+# =================================================================================================
+# Load splash: a Minecraft style line, one per launch, picked from the wall clock (never a game random stream), said by
+# the radar van of the GO logo in a speech bubble whose tail points at its dish. LoadScreen.cpp GO_LOAD_SPLASHES holds the
+# same lines as FETCH_OR_SUBSTITUTE labels; drawGoLogoBubble draws the bubble from ShellGameLoadScreen::drawCredit and
+# bubble_layout mirrors it with an estimated text size. The bubble art is its own atlas, as it pairs
+# with the van art; the Retail style leaves it out.
+# =================================================================================================
+
+LOAD_SPLASHES = (
+    ("GUI:GOLoadSplash1", "Working eyes at your disposal."),
+    ("GUI:GOLoadSplash2", "Let us see what they are up to."),
+    ("GUI:GOLoadSplash3", "Nothing is private."),
+    ("GUI:GOLoadSplash4", "GLA radar service."),
+    ("GUI:GOLoadSplash5", "What station you need, general?"),
+    ("GUI:GOLoadSplash6", "Better reception there?"),
+    ("GUI:GOLoadSplash7", "Keep me out of sight."),
+    ("GUI:GOLoadSplash8", "Let's go where it is safe."),
+    ("GUI:GOLoadSplash9", "We get signal everywhere."),
+)
+SPLASH_FONT_SIZE = 16      # Consolas bold
+BUBBLE_WRAP_UNITS = 260    # the wrap width, scaled like the font: long lines take two lines, short ones one
+URL_FONT_SIZE = 14
+CREDIT_URL_TOP = 362       # LoadScreen.cpp CREDIT_URL_TOP
+LOGO_ASPECT = (1282, 494)  # GOLoadLogo Coords
+
+BUBBLE_TEXTURE_NAME = "GeneralsOnline_LoadBubble.tga"
+BUBBLE_TEXTURE_PATH = DATA / "Art" / "Textures" / BUBBLE_TEXTURE_NAME
+BUBBLE_INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_LoadBubble.INI"
+BUBBLE_ATLAS_WIDTH = 64  # in retail pixels
+BUBBLE_TITLE = "the load screen speech bubble"
+BUBBLE_FILL = rgba(go_themes.PALETTE["text"])  # cream
+BUBBLE_LINE = rgba(go_themes.PALETTE["ink"])   # the van's outline colour
+BUBBLE_TEXT = go_themes.PALETTE["ink"]
+BUBBLE_CORNER = 8          # art units of a corner piece; a 9-slice, so corners keep their size at any line count
+BUBBLE_EDGE = 4            # art units of the stretched edges and the centre
+BUBBLE_RADIUS = 7.0
+BUBBLE_LINE_WIDTH = 1.0    # about the van art's outline at the bubble's size
+BUBBLE_TAIL = (12, 10)     # width and height, the tip at the bottom centre
+BUBBLE_TAIL_OVER = 1.5     # the tail's top rows cover the bubble's bottom line, so the two read as one shape
+# the rules by their LoadScreen.cpp names: the logo van's dish rim in GOLoadLogo texels (logo_dish measures it) and the
+# fade in, from the credit's start
+BUBBLE_CONSTANTS = {"GO_LOGO_DISH_X": 306, "GO_LOGO_DISH_Y": 0, "GO_BUBBLE_SHOW_MS": 600}
+BUBBLE_MARGIN_UNITS = 8.0
+BUBBLE_TIP_GAP_UNITS = 2.0  # the tip stops this far over the dish rim, in 800x600 units
+LOGO_TEXTURE_PATH = DATA.parent / "zerohour" / "Art" / "Textures" / "GeneralsOnline_LoadLogo.tga"
+LOGO_COORDS = (383, 9, 1665, 503)  # GOLoadLogo Coords
+
+
+def bubble_slice(w, h, left, top, right, bottom):
+    """One slice of the bubble's 9-slice: cream inside an ink line BUBBLE_LINE_WIDTH wide, corners rounded where two
+    closed sides meet; left/top/right/bottom say which sides of the piece are the bubble's edge."""
+    r = BUBBLE_RADIUS
+
+    def sample(x, y):
+        sides = [d for d, on in ((x, left), (y, top), (w - x, right), (h - y, bottom)) if on]
+        d = min(sides) if sides else float("inf")
+        cx = r if left else (w - r if right else None)
+        cy = r if top else (h - r if bottom else None)
+        if cx is not None and cy is not None and (x < r if left else x > w - r) and (y < r if top else y > h - r):
+            d = r - math.hypot(x - cx, y - cy)
+        if d < 0:
+            return TRANSPARENT
+        return BUBBLE_LINE if d < BUBBLE_LINE_WIDTH else BUBBLE_FILL
+
+    return paint(w, h, sample)
+
+
+def bubble_tail(w, h):
+    """The tail: a triangle down to its tip at the bottom centre, lined on its two sides, its top rows all cream."""
+    half = w / 2.0
+    drop = h - BUBBLE_TAIL_OVER
+    slope = math.hypot(half, drop)
+
+    def sample(x, y):
+        if y < BUBBLE_TAIL_OVER:
+            return BUBBLE_FILL
+        reach = half * (1 - (y - BUBBLE_TAIL_OVER) / drop)
+        if abs(x - half) > reach:
+            return TRANSPARENT
+        d = (reach - abs(x - half)) * drop / slope  # to the nearer slanted side
+        return BUBBLE_LINE if d < BUBBLE_LINE_WIDTH else BUBBLE_FILL
+
+    return paint(w, h, sample)
+
+
+def bubble_pieces():
+    c, e = BUBBLE_CORNER, BUBBLE_EDGE
+    tw, th = BUBBLE_TAIL
+    return [
+        ("GOBubbleTL", c, c, bubble_slice(c, c, True, True, False, False)),
+        ("GOBubbleT", e, c, bubble_slice(e, c, False, True, False, False)),
+        ("GOBubbleTR", c, c, bubble_slice(c, c, False, True, True, False)),
+        ("GOBubbleL", c, e, bubble_slice(c, e, True, False, False, False)),
+        ("GOBubbleC", e, e, bubble_slice(e, e, False, False, False, False)),
+        ("GOBubbleR", c, e, bubble_slice(c, e, False, False, True, False)),
+        ("GOBubbleBL", c, c, bubble_slice(c, c, True, False, False, True)),
+        ("GOBubbleB", e, c, bubble_slice(e, c, False, False, False, True)),
+        ("GOBubbleBR", c, c, bubble_slice(c, c, False, False, True, True)),
+        ("GOBubbleTail", tw, th, bubble_tail(tw, th)),
+    ]
+
+
+def text_size(text, point_size):
+    """A generous estimate of a Consolas line in pixels: 0.75 of the point size per character, 1.6 tall."""
+    return math.ceil(len(text) * 0.75 * point_size), math.ceil(1.6 * point_size)
+
+
+def font_scale(screen_width, screen_height):
+    """GlobalLanguage ResolutionFontSizeMethod_Strict."""
+    return min(screen_width / 800.0, screen_height / 600.0)
+
+
+def splash_text_block(text, screen_width, screen_height):
+    """The splash as the wrapped DisplayString lays it out: (lines, width, height, line height). Greedy word wrap at
+    BUBBLE_WRAP_UNITS times the font scale, with text_size's per character estimate."""
+    scale = font_scale(screen_width, screen_height)
+    point = int(SPLASH_FONT_SIZE * scale)
+    wrap = int(BUBBLE_WRAP_UNITS * scale)
+    lines = []
+    for word in text.split(" "):
+        candidate = f"{lines[-1]} {word}" if lines else word
+        if lines and text_size(candidate, point)[0] < wrap:
+            lines[-1] = candidate
+        else:
+            lines.append(word)
+    line_height = text_size("x", point)[1]
+    return lines, max(text_size(line, point)[0] for line in lines), line_height * len(lines), line_height
+
+
+def logo_rect(screen_width, screen_height):
+    unit = screen_height / 600.0
+    top, height = int(go_themes.LOAD_LOGO_TOP * unit), int(go_themes.LOAD_LOGO_HEIGHT * unit)
+    width = height * LOGO_ASPECT[0] // LOGO_ASPECT[1]
+    left = screen_width // 2 - width // 2
+    return left, top, left + width, top + height
+
+
+def url_rect(screen_width, screen_height):
+    w, h = text_size("www.generals.online", int(URL_FONT_SIZE * font_scale(screen_width, screen_height)))
+    top = int(CREDIT_URL_TOP * screen_height / 600.0)
+    return screen_width // 2 - w // 2, top, screen_width // 2 - w // 2 + w, top + h
+
+
+def logo_dish(rows=None):
+    """The logo van's radar dish rim in GOLoadLogo texels, measured from the art: the topmost opaque row of the logo is
+    the rim of the dish pair on the mast, and the rim point is the middle of that row's opaque run."""
+    if rows is None:
+        rows = go_themes.read_tga(LOGO_TEXTURE_PATH.read_bytes())[2]
+    left, top, right, bottom = LOGO_COORDS
+    for y in range(top, bottom):
+        xs = [x for x in range(left, right) if rows[y][x][3] > 128]
+        if xs:
+            return (min(xs) + max(xs)) // 2 - left, y - top
+    raise SystemExit("the logo art is empty")
+
+
+def logo_dish_screen(screen_width, screen_height):
+    """drawCredit: the dish rim on screen, through the logo's own placement."""
+    left, top, right, bottom = logo_rect(screen_width, screen_height)
+    return (left + BUBBLE_CONSTANTS["GO_LOGO_DISH_X"] * (right - left) // LOGO_ASPECT[0],
+            top + BUBBLE_CONSTANTS["GO_LOGO_DISH_Y"] * (bottom - top) // LOGO_ASPECT[1])
+
+
+def bubble_tip(screen_width, screen_height):
+    """Where the tail points: BUBBLE_TIP_GAP_UNITS over the dish rim."""
+    x, y = logo_dish_screen(screen_width, screen_height)
+    return x, y - int(BUBBLE_TIP_GAP_UNITS * screen_height / 600.0)
+
+
+def bubble_layout(tip, text_width, text_height, line_height, screen_width, screen_height):
+    """drawGoLogoBubble: {"bubble", "corner", "tail", "text"}. Every size follows the font's line height: corners of
+    3/5 line, padding of a quarter line above and below and half a line at the sides, so the bubble grows upward by a
+    line per wrapped line from a bottom edge fixed over the tip. Three quarters of it sit left of the tip, kept on screen
+    with a margin; the tail hangs from the bottom to the tip, sliding along the straight part when it is pulled back."""
+    tip_x, tip_y = tip
+    corner = line_height * 3 // 5
+    tail_w, tail_h, over = line_height * 9 // 10, line_height * 3 // 4, line_height * 9 // 80
+    height = max(text_height + line_height // 2, 2 * corner)
+    width = max(text_width + line_height, 2 * corner + tail_w)
+    margin = int(BUBBLE_MARGIN_UNITS * screen_height / 600.0)
+    left = max(margin, min(tip_x - width * 3 // 4, screen_width - margin - width))
+    bottom = tip_y - tail_h + over
+    top = bottom - height
+    centre = max(left + corner + tail_w // 2, min(tip_x, left + width - corner - tail_w // 2))
+    tail_left, tail_top = centre - tail_w // 2, bottom - over
+    text_left, text_top = left + (width - text_width) // 2, top + (height - text_height) // 2
+    return {"bubble": (left, top, left + width, bottom), "corner": corner,
+            "tail": (tail_left, tail_top, tail_left + tail_w, tail_top + tail_h),
+            "text": (text_left, text_top, text_left + text_width, text_top + text_height)}
+
+
+def bubble_alpha(shown_ms):
+    """Hidden until GO_BUBBLE_SHOW_MS after the credit's start, when the logo has faded in, then whole; it stays."""
+    return 255 if shown_ms >= BUBBLE_CONSTANTS["GO_BUBBLE_SHOW_MS"] else 0
+
+
+def splash_pick(now):
+    """The splash index, picked once per launch from the clock."""
+    return now % len(LOAD_SPLASHES)
+
+# ============================== end of the load splash section ==============================
+
+
+# =================================================================================================
+# Load bar van: the GO radar van in side view drives along the shell load road, wheels turning while progress moves,
+# dust puffs behind the rear wheel and the body bobbing on its suspension. Every image is drawn on the same 256x156
+# canvas, so every layer shares one origin; Coords are texels. LoadScreen.cpp drawGoLoadBarVan draws it from
+# drawGoShellLoadBar only; the other bars stay plain. The van_* functions below mirror its rules.
+# =================================================================================================
+
+VAN_SOURCES = Path(__file__).resolve().parent / "art" / "van-side"
+# the layers, drawn body, dish, wheels on one canvas, and the puff; the full van frames are the reference they stack to
+VAN_LAYER_FILES = {"body": "van-layer-body-nodish.png", "dish": "van-layer-dish.png",
+                   "wheels": "van-layer-wheels-frames.png", "puff": "van-dust-puff.png"}
+VAN_FRAMES_PNG = VAN_SOURCES / "van-side-frames-256.png"  # four full frames, wheels at 0/22.5/45/67.5 degrees
+VAN_TEXTURE_NAME = "GeneralsOnline_Van.tga"
+VAN_TEXTURE_PATH = DATA / "Art" / "Textures" / VAN_TEXTURE_NAME
+VAN_INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_Van.INI"
+VAN_GAP = 2  # clear texels between images
+VAN_WHEEL_FRAMES = 4
+
+# the draw rules, by their LoadScreen.cpp names; art values are canvas texels, times milliseconds
+VAN_CONSTANTS = {
+    "GO_VAN_FRAME_WIDTH": 256, "GO_VAN_FRAME_HEIGHT": 156,
+    "GO_VAN_OUTLINE_TOP": 5, "GO_VAN_OUTLINE_BOTTOM": 152, "GO_VAN_OUTLINE_LEFT": 14, "GO_VAN_OUTLINE_RIGHT": 247,
+    "GO_VAN_TYRE_BOTTOM": 145, "GO_VAN_REAR_TYRE": 46, "GO_VAN_BUMPER": 240,
+    "GO_VAN_MIN_HEIGHT": 20, "GO_VAN_WHEEL_FRAMES": VAN_WHEEL_FRAMES, "GO_VAN_FRAME_MS": 83, "GO_VAN_STALL_MS": 500,
+    "GO_VAN_SETTLE_MS": 300, "GO_VAN_FORGET_MS": 1000, "GO_VAN_BOB": 2, "GO_VAN_DISH_LAG_MS": 90, "GO_VAN_WAVE_MS": 10000,
+    "GO_VAN_PUFFS": 12, "GO_VAN_PUFF_SPAWN_X": 44, "GO_VAN_PUFF_SPAWN_Y": 138, "GO_VAN_PUFF_JITTER": 4,
+    "GO_VAN_PUFF_DRIFT_X": 24, "GO_VAN_PUFF_DRIFT_Y": 40, "GO_VAN_PUFF_START": 16, "GO_VAN_PUFF_END": 40,
+    "GO_VAN_PUFF_LIFE_MS": 500, "GO_VAN_PUFF_LIFE_SPREAD_MS": 300, "GO_VAN_PUFF_GAP_MS": 40, "GO_VAN_PUFF_TRAVEL": 50,
+    "GO_VAN_PUFF_CREDIT": 3, "GO_VAN_PUFF_ALPHA": 255,
+}
+VAN_REAL_CONSTANTS = {"GO_VAN_BOB_HZ_A": 3.3, "GO_VAN_BOB_HZ_B": 5.1, "GO_VAN_BOB_PHASE_B": 1.3, "GO_VAN_BOB_WEIGHT_A": 0.6}
+VAN = VAN_CONSTANTS
+VAN_SPAN = VAN["GO_VAN_OUTLINE_BOTTOM"] - VAN["GO_VAN_OUTLINE_TOP"]  # the van height covers the outline rows
+
+
+def van_strip_frames(path, frames=VAN_WHEEL_FRAMES):
+    """Split a strip of frames side by side into frames of (width, height, rows of byte tuples)."""
+    width, height, rows = go_themes.read_png(path.read_bytes())
+    cell = width // frames
+    if cell * frames != width:
+        raise SystemExit(f"{path.name} is not {frames} frames wide")
+    return [(cell, height, [row[k * cell:(k + 1) * cell] for row in rows]) for k in range(frames)]
+
+
+def van_images(sources=VAN_SOURCES):
+    """The van images as (name, width, height, rows of (r, g, b, a) bytes): body, dish and wheel frames on the 256x156
+    canvas, and the puff."""
+    body = go_themes.read_png((sources / VAN_LAYER_FILES["body"]).read_bytes())
+    dish = go_themes.read_png((sources / VAN_LAYER_FILES["dish"]).read_bytes())
+    puff = go_themes.read_png((sources / VAN_LAYER_FILES["puff"]).read_bytes())
+    wheels = van_strip_frames(sources / VAN_LAYER_FILES["wheels"])
+    out = [("GOVanBody",) + body, ("GOVanDish",) + dish]
+    out += [(f"GOVanWheels{k}",) + frame for k, frame in enumerate(wheels)]
+    return out + [("GOVanPuff",) + puff]
+
+
+def van_dilate(width, height, rows):
+    """Give every clear texel the colour of its nearest drawn one, alpha kept, so filtering never pulls in the white the
+    art stores under its clear texels."""
+    out = [list(row) for row in rows]
+    frontier = [(x, y) for y in range(height) for x in range(width) if rows[y][x][3]]
+    seen = {p for p in frontier}
+    while frontier:
+        grown = []
+        for x, y in frontier:
+            for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+                if 0 <= nx < width and 0 <= ny < height and (nx, ny) not in seen:
+                    seen.add((nx, ny))
+                    out[ny][nx] = out[y][x][:3] + (0,)
+                    grown.append((nx, ny))
+        frontier = grown
+    if not seen:
+        out = [[(0, 0, 0, 0)] * width for _ in range(height)]
+    return out
+
+
+def van_pack(images):
+    """Shelf-pack the images with VAN_GAP clear texels between them into the smallest power-of-two texture; returns
+    ({name: (left, top)}, (width, height))."""
+    best = None
+    for width in (256, 512, 1024, 2048):
+        placements, x, y, shelf = {}, 0, 0, 0
+        for name, w, h, _ in sorted(images, key=lambda it: (-it[2], -it[1], it[0])):
+            if w > width:
+                break
+            if x + w > width:
+                x, y, shelf = 0, y + shelf + VAN_GAP, 0
+            placements[name] = (x, y)
+            x += w + VAN_GAP
+            shelf = max(shelf, h)
+        else:
+            height = 1
+            while height < y + shelf:
+                height *= 2
+            if best is None or width * height < best[1][0] * best[1][1]:
+                best = (placements, (width, height))
+    return best
+
+
+def build_van(sources=VAN_SOURCES):
+    """Return the van texture TGA, its INI text and the placements {name: (left, top, width, height)}."""
+    images = van_images(sources)
+    placements, (width, height) = van_pack(images)
+    atlas = [[TRANSPARENT] * width for _ in range(height)]
+    rects = {}
+    for name, w, h, rows in images:
+        left, top = placements[name]
+        rects[name] = (left, top, w, h)
+        for y, row in enumerate(van_dilate(w, h, rows)):
+            atlas[top + y][left:left + w] = [tuple(c / 255.0 for c in t) for t in row]
+    lines = [
+        f"; Generals Online load bar van: points the van images at {VAN_TEXTURE_NAME}.",
+        "; Generated by GenOnline/tools/go_ui_kit.py from GenOnline/tools/art/van-side; edit the script, not this file. Coords are texels.",
+        "",
+    ]
+    for name in sorted(rects, key=str.lower):
+        left, top, w, h = rects[name]
+        lines += [
+            f"MappedImage {name}",
+            f"  Texture = {VAN_TEXTURE_NAME}",
+            f"  TextureWidth = {width}",
+            f"  TextureHeight = {height}",
+            f"  Coords = Left:{left} Top:{top} Right:{left + w} Bottom:{top + h}",
+            "  Status = NONE",
+            "End",
+            "",
+        ]
+    return tga_bytes(atlas), "\r\n".join(lines), rects
+
+
+def van_scale(value, height):
+    """Canvas texels to pixels for a van height pixels tall over the outline rows, rounded."""
+    return (value * height + VAN_SPAN // 2) // VAN_SPAN
+
+
+def van_above(road):
+    """The van height over a bar (about 1.8 times the road height, at least GO_VAN_MIN_HEIGHT) and the strip above the
+    road it can reach at any progress, bob and puffs included: (left, top, right, bottom)."""
+    left, top, right, bottom = road
+    height = max(VAN["GO_VAN_MIN_HEIGHT"], (bottom - top) * 9 // 5)
+    s = lambda v: van_scale(v, height)  # noqa: E731
+    lowest = left + s(VAN["GO_VAN_BUMPER"] - VAN["GO_VAN_REAR_TYRE"]) - s(VAN["GO_VAN_BUMPER"])
+    return height, (lowest, top - s(VAN["GO_VAN_TYRE_BOTTOM"] - VAN["GO_VAN_OUTLINE_TOP"] + VAN["GO_VAN_BOB"]), right, top)
+
+
+def van_layout(road, progress, above_clear):
+    """Where placeGoVan puts the van on the shell road: (height, canvas rect), or None when above_clear(strip) says
+    another window is in the way. Tyres on the road's top edge; its position marks progress: the rear tyre at the road
+    start at 0%, the front of the outline at the road end at 100%."""
+    height, strip = van_above(road)
+    if not above_clear(strip):
+        return None
+    s = lambda v: van_scale(v, height)  # noqa: E731
+    first = road[0] + s(VAN["GO_VAN_BUMPER"] - VAN["GO_VAN_REAR_TYRE"])
+    last = road[2] - s(VAN["GO_VAN_OUTLINE_RIGHT"] - VAN["GO_VAN_BUMPER"])
+    bumper = first + (last - first) * max(0, min(100, progress)) // 100
+    x0, y0 = bumper - s(VAN["GO_VAN_BUMPER"]), road[1] - s(VAN["GO_VAN_TYRE_BOTTOM"])
+    return height, (x0, y0, x0 + s(VAN["GO_VAN_FRAME_WIDTH"]), y0 + s(VAN["GO_VAN_FRAME_HEIGHT"]))
+
+
+def load_road_lit_end(road, progress):
+    """Where drawGoShellLoadBar ends the lit road: by progress, so it fills the whole road at 100% under the van."""
+    end = road[0] + (road[2] - road[0]) * max(0, min(100, progress)) // 100
+    return max(road[0], min(road[2], end))
+
+
+def van_settle(now, changed_at):
+    """(moving, envelope): moving until progress has stood still GO_VAN_STALL_MS, then the wiggle fades out over
+    GO_VAN_SETTLE_MS."""
+    still = now - changed_at
+    if still < VAN["GO_VAN_STALL_MS"]:
+        return True, 1.0
+    return False, max(0.0, 1.0 - (still - VAN["GO_VAN_STALL_MS"]) / VAN["GO_VAN_SETTLE_MS"])
+
+
+def van_wheel_frame(now, moving, frame):
+    """The wheel frame: from the clock at about 12 per second while moving, the last one while parked."""
+    return (now // VAN["GO_VAN_FRAME_MS"]) % VAN["GO_VAN_WHEEL_FRAMES"] if moving else frame
+
+
+def van_wave(now):
+    """The suspension rhythm in -1..1: two sines at unrelated rates, so the bounce never repeats a beat. The clock wraps
+    first, on GO_VAN_WAVE_MS that holds whole beats of both, so the phase keeps its precision at any uptime."""
+    r = VAN_REAL_CONSTANTS
+    t = (now % VAN["GO_VAN_WAVE_MS"]) / 1000.0
+    return (r["GO_VAN_BOB_WEIGHT_A"] * math.sin(2 * math.pi * r["GO_VAN_BOB_HZ_A"] * t)
+            + (1 - r["GO_VAN_BOB_WEIGHT_A"]) * math.sin(2 * math.pi * r["GO_VAN_BOB_HZ_B"] * t + r["GO_VAN_BOB_PHASE_B"]))
+
+
+def van_wiggle(now, height, envelope):
+    """(body bob, dish sway) in whole pixels: the body bobs GO_VAN_BOB canvas texels at most, the dish follows the same
+    rhythm GO_VAN_DISH_LAG_MS later, one pixel sideways; both settle with the envelope."""
+    bob = math.floor(VAN["GO_VAN_BOB"] * height / VAN_SPAN * envelope * van_wave(now) + 0.5)
+    sway = math.floor(envelope * van_wave(now - VAN["GO_VAN_DISH_LAG_MS"]) + 0.5)
+    return bob, sway
+
+
+def van_hash(value):
+    return (value * 2654435761) & 0xFFFFFFFF
+
+
+def van_puff_life(h):
+    """A puff's life from its hash: GO_VAN_PUFF_LIFE_MS plus a slice of the hash wide enough for the whole spread."""
+    return VAN["GO_VAN_PUFF_LIFE_MS"] + (h >> 20) % VAN["GO_VAN_PUFF_LIFE_SPREAD_MS"]
+
+
+class VanBar:
+    """One bar's van state as drawGoLoadBarVan keeps it: the progress clock, the wheel frame and a fixed ring of puffs."""
+
+    def __init__(self, now, progress, position):
+        self.progress, self.position, self.changed_at = progress, position, now - VAN["GO_VAN_STALL_MS"] - VAN["GO_VAN_SETTLE_MS"]
+        self.spawned_at, self.frame, self.credit, self.next = now, 0, 0.0, 0
+        self.puffs = [None] * VAN["GO_VAN_PUFFS"]  # (born, life, x, y, height)
+
+    def step(self, now, progress, position, layout):
+        """Advance to now and return (moving, envelope); spawns a puff behind the rear wheel of the layout rect as the van
+        moves forward (position is its left edge)."""
+        if progress != self.progress:
+            self.progress, self.changed_at = progress, now
+        moving, envelope = van_settle(now, self.changed_at)
+        self.frame = van_wheel_frame(now, moving, self.frame)
+        travel = max(0, position - self.position)
+        self.position = position
+        if not moving or layout is None:
+            self.credit = 0.0
+            return moving, envelope
+        height, (x0, y0, _, _) = layout
+        self.credit = min(float(VAN["GO_VAN_PUFF_CREDIT"]),
+                          self.credit + travel / max(1, van_scale(VAN["GO_VAN_PUFF_TRAVEL"], height)))
+        if self.credit >= 1.0 and now - self.spawned_at >= VAN["GO_VAN_PUFF_GAP_MS"]:
+            self.credit -= 1.0
+            self.spawned_at = now
+            h = van_hash(now + self.next)
+            jitter = VAN["GO_VAN_PUFF_JITTER"]
+            x = x0 + van_scale(VAN["GO_VAN_PUFF_SPAWN_X"] + (h >> 8) % (2 * jitter + 1) - jitter, height)
+            y = y0 + van_scale(VAN["GO_VAN_PUFF_SPAWN_Y"] + (h >> 16) % (2 * jitter + 1) - jitter, height)
+            life = van_puff_life(h)
+            self.puffs[self.next] = (now, life, x, y, height)
+            self.next = (self.next + 1) % VAN["GO_VAN_PUFFS"]
+        return moving, envelope
+
+    def puff_rects(self, now, aspect):
+        """The live puffs as (left, top, right, bottom, alpha): they drift back and up, grow and fade over their life."""
+        out = []
+        for puff in self.puffs:
+            if puff is None or now - puff[0] >= puff[1]:
+                continue
+            born, life, x, y, height = puff
+            t = (now - born) / life
+            size = van_scale(VAN["GO_VAN_PUFF_START"], height) + (van_scale(VAN["GO_VAN_PUFF_END"], height)
+                                                                  - van_scale(VAN["GO_VAN_PUFF_START"], height)) * t
+            cx = x - van_scale(VAN["GO_VAN_PUFF_DRIFT_X"], height) * t
+            cy = y - van_scale(VAN["GO_VAN_PUFF_DRIFT_Y"], height) * t
+            w, h = int(size), int(size * aspect)
+            out.append((int(cx) - w // 2, int(cy) - h // 2, int(cx) - w // 2 + w, int(cy) - h // 2 + h,
+                        int(VAN["GO_VAN_PUFF_ALPHA"] * (1 - t))))
+        return out
+
+# ============================== end of the load bar van section ==============================
 
 
 def pack(items, atlas_width=ATLAS_WIDTH):
@@ -905,12 +1551,14 @@ def main():
     texture, ini = build()
     texture2, ini2 = build(pieces2(), TEXTURE2_NAME, ATLAS2_WIDTH, TITLE2)
     texture3, ini3 = build(load_bar_pieces(), LOAD_BAR_TEXTURE_NAME, LOAD_BAR_ATLAS_WIDTH, LOAD_BAR_TITLE)
-    theme_texture, theme_ini = build(palette=go_themes.KIT_COLORS)
-    if theme_ini != ini:
-        raise SystemExit("the theme atlas moved a piece; it needs its own INI")
+    van_texture, van_ini, _ = build_van()
+    road_texture, road_ini = build(load_road_pieces(), LOAD_ROAD_TEXTURE_NAME, LOAD_ROAD_ATLAS_WIDTH, LOAD_ROAD_TITLE)
+    bubble_texture, bubble_ini = build(bubble_pieces(), BUBBLE_TEXTURE_NAME, BUBBLE_ATLAS_WIDTH, BUBBLE_TITLE)
     outputs = ((TEXTURE_PATH, texture), (INI_PATH, ini.encode("ascii")), (TEXTURE2_PATH, texture2), (INI2_PATH, ini2.encode("ascii")),
-               (LOAD_BAR_TEXTURE_PATH, texture3), (LOAD_BAR_INI_PATH, ini3.encode("ascii")), (THEME_TEXTURE_PATH, theme_texture),
-               (THEME_TEXTURE2_PATH, theme_texture2))
+               (LOAD_BAR_TEXTURE_PATH, texture3), (LOAD_BAR_INI_PATH, ini3.encode("ascii")),
+               (VAN_TEXTURE_PATH, van_texture), (VAN_INI_PATH, van_ini.encode("ascii")),
+               (LOAD_ROAD_TEXTURE_PATH, road_texture), (LOAD_ROAD_INI_PATH, road_ini.encode("ascii")),
+               (BUBBLE_TEXTURE_PATH, bubble_texture), (BUBBLE_INI_PATH, bubble_ini.encode("ascii")))
     if args.check:
         stale = [p for p, data in outputs if not p.exists() or p.read_bytes() != data]
         for p in stale:

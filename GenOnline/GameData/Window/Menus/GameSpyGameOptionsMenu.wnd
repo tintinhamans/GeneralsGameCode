@@ -145,8 +145,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = CHECKBOX;
-      SCREENRECT = UPPERLEFT: 606 380,
-                   BOTTOMRIGHT: 734 400,
+      SCREENRECT = UPPERLEFT: 606 332,
+                   BOTTOMRIGHT: 734 352,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:CheckBoxLimitArmies";
       STATUS = ENABLED+IMAGE;
@@ -194,8 +194,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = CHECKBOX;
-      SCREENRECT = UPPERLEFT: 475 380,
-                   BOTTOMRIGHT: 604 400,
+      SCREENRECT = UPPERLEFT: 475 332,
+                   BOTTOMRIGHT: 604 352,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:CheckBoxUseStats";
       STATUS = ENABLED+IMAGE+BORDER;
@@ -243,8 +243,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 237 378,
-                   BOTTOMRIGHT: 333 402,
+      SCREENRECT = UPPERLEFT: 237 330,
+                   BOTTOMRIGHT: 333 354,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StartingCashLabel";
       STATUS = ENABLED+IMAGE;
@@ -293,8 +293,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = CHECKBOX;
-      SCREENRECT = UPPERLEFT: 79 380,
-                   BOTTOMRIGHT: 231 400,
+      SCREENRECT = UPPERLEFT: 79 332,
+                   BOTTOMRIGHT: 231 352,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:CheckboxLimitSuperweapons";
       STATUS = ENABLED+IMAGE;
@@ -539,7 +539,7 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = SCROLLLISTBOX;
-      SCREENRECT = UPPERLEFT: 79 408,
+      SCREENRECT = UPPERLEFT: 79 360,
                    BOTTOMRIGHT: 715 470,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ListboxChatWindowGameSpyGameSetup";
@@ -702,8 +702,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 333 380,
-                   BOTTOMRIGHT: 437 400,
+      SCREENRECT = UPPERLEFT: 333 332,
+                   BOTTOMRIGHT: 437 352,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxStartingCash";
       STATUS = ENABLED+IMAGE;
@@ -748,7 +748,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 12,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -944,8 +944,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 112,
-                   BOTTOMRIGHT: 60 128,
+      SCREENRECT = UPPERLEFT: 44 110,
+                   BOTTOMRIGHT: 60 126,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing0";
       STATUS = ENABLED+IMAGE;
@@ -991,8 +991,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 134,
-                   BOTTOMRIGHT: 60 150,
+      SCREENRECT = UPPERLEFT: 44 128,
+                   BOTTOMRIGHT: 60 144,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing1";
       STATUS = ENABLED+IMAGE;
@@ -1038,8 +1038,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 156,
-                   BOTTOMRIGHT: 60 172,
+      SCREENRECT = UPPERLEFT: 44 146,
+                   BOTTOMRIGHT: 60 162,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing2";
       STATUS = ENABLED+IMAGE;
@@ -1085,10 +1085,57 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 178,
-                   BOTTOMRIGHT: 60 194,
+      SCREENRECT = UPPERLEFT: 44 164,
+                   BOTTOMRIGHT: 60 180,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing3";
+      STATUS = ENABLED+IMAGE;
+      STYLE = USER;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Times New Roman", SIZE: 14, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  255 255 255 0, ENABLEDBORDER:  255 255 255 0,
+                  DISABLED: 255 255 255 0, DISABLEDBORDER: 255 255 255 0,
+                  HILITE:   255 255 255 0, HILITEBORDER:   255 255 255 0;
+      ENABLEDDRAWDATA = IMAGE: Ping01, COLOR: 2 2 2 0, BORDERCOLOR: 2 2 2 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 0 0 64 255, BORDERCOLOR: 0 0 0 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 0 0 255 255, BORDERCOLOR: 0 0 0 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = USER;
+      SCREENRECT = UPPERLEFT: 44 182,
+                   BOTTOMRIGHT: 60 198,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:GenericPing4";
       STATUS = ENABLED+IMAGE;
       STYLE = USER;
       SYSTEMCALLBACK = "[None]";
@@ -1135,53 +1182,6 @@ WINDOW
       SCREENRECT = UPPERLEFT: 44 200,
                    BOTTOMRIGHT: 60 216,
                    CREATIONRESOLUTION: 800 600;
-      NAME = "GameSpyGameOptionsMenu.wnd:GenericPing4";
-      STATUS = ENABLED+IMAGE;
-      STYLE = USER;
-      SYSTEMCALLBACK = "[None]";
-      INPUTCALLBACK = "[None]";
-      TOOLTIPCALLBACK = "[None]";
-      DRAWCALLBACK = "[None]";
-      FONT = NAME: "Times New Roman", SIZE: 14, BOLD: 0;
-      HEADERTEMPLATE = "[NONE]";
-      TOOLTIPDELAY = -1;
-      TEXTCOLOR = ENABLED:  255 255 255 0, ENABLEDBORDER:  255 255 255 0,
-                  DISABLED: 255 255 255 0, DISABLEDBORDER: 255 255 255 0,
-                  HILITE:   255 255 255 0, HILITEBORDER:   255 255 255 0;
-      ENABLEDDRAWDATA = IMAGE: Ping01, COLOR: 2 2 2 0, BORDERCOLOR: 2 2 2 0,
-                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 0 0 64 255, BORDERCOLOR: 0 0 0 255,
-                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 0 0 255 255, BORDERCOLOR: 0 0 0 255,
-                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-    END
-    CHILD
-    WINDOW
-      WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 222,
-                   BOTTOMRIGHT: 60 238,
-                   CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing5";
       STATUS = ENABLED+IMAGE;
       STYLE = USER;
@@ -1226,8 +1226,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 244,
-                   BOTTOMRIGHT: 60 260,
+      SCREENRECT = UPPERLEFT: 44 218,
+                   BOTTOMRIGHT: 60 234,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing6";
       STATUS = ENABLED+IMAGE;
@@ -1273,8 +1273,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 354,
-                   BOTTOMRIGHT: 60 370,
+      SCREENRECT = UPPERLEFT: 44 308,
+                   BOTTOMRIGHT: 60 324,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing11";
       STATUS = HIDDEN+IMAGE;
@@ -1320,8 +1320,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 332,
-                   BOTTOMRIGHT: 60 348,
+      SCREENRECT = UPPERLEFT: 44 290,
+                   BOTTOMRIGHT: 60 306,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing10";
       STATUS = HIDDEN+IMAGE;
@@ -1367,8 +1367,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 310,
-                   BOTTOMRIGHT: 60 326,
+      SCREENRECT = UPPERLEFT: 44 272,
+                   BOTTOMRIGHT: 60 288,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing9";
       STATUS = HIDDEN+IMAGE;
@@ -1414,8 +1414,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 288,
-                   BOTTOMRIGHT: 60 304,
+      SCREENRECT = UPPERLEFT: 44 254,
+                   BOTTOMRIGHT: 60 270,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing8";
       STATUS = HIDDEN+IMAGE;
@@ -1461,8 +1461,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 266,
-                   BOTTOMRIGHT: 60 282,
+      SCREENRECT = UPPERLEFT: 44 236,
+                   BOTTOMRIGHT: 60 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing7";
       STATUS = ENABLED+IMAGE;
@@ -1508,8 +1508,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 112,
-                   BOTTOMRIGHT: 77 128,
+      SCREENRECT = UPPERLEFT: 61 110,
+                   BOTTOMRIGHT: 77 126,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept0";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -1555,8 +1555,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 134,
-                   BOTTOMRIGHT: 77 150,
+      SCREENRECT = UPPERLEFT: 61 128,
+                   BOTTOMRIGHT: 77 144,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept1";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -1602,8 +1602,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 156,
-                   BOTTOMRIGHT: 77 172,
+      SCREENRECT = UPPERLEFT: 61 146,
+                   BOTTOMRIGHT: 77 162,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept2";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -1649,10 +1649,57 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 178,
-                   BOTTOMRIGHT: 77 194,
+      SCREENRECT = UPPERLEFT: 61 164,
+                   BOTTOMRIGHT: 77 180,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept3";
+      STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: ReadyDot-Green, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
+                        IMAGE: NoImage, COLOR: 47 75 255 255, BORDERCOLOR: 254 254 254 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
+      DISABLEDDRAWDATA = IMAGE: ReadyDot-Red, COLOR: 128 128 128 255, BORDERCOLOR: 192 192 192 255,
+                         IMAGE: NoImage, COLOR: 192 192 192 255, BORDERCOLOR: 128 128 128 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 0 255 0 255, BORDERCOLOR: 0 128 0 255,
+                       IMAGE: NoImage, COLOR: 47 75 255 255, BORDERCOLOR: 254 254 254 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 61 182,
+                   BOTTOMRIGHT: 77 198,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept4";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
       STYLE = PUSHBUTTON+MOUSETRACK;
       SYSTEMCALLBACK = "[None]";
@@ -1699,53 +1746,6 @@ WINDOW
       SCREENRECT = UPPERLEFT: 61 200,
                    BOTTOMRIGHT: 77 216,
                    CREATIONRESOLUTION: 800 600;
-      NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept4";
-      STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
-      STYLE = PUSHBUTTON+MOUSETRACK;
-      SYSTEMCALLBACK = "[None]";
-      INPUTCALLBACK = "[None]";
-      TOOLTIPCALLBACK = "[None]";
-      DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "[NONE]";
-      TOOLTIPDELAY = -1;
-      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
-                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
-                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
-      ENABLEDDRAWDATA = IMAGE: ReadyDot-Green, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
-                        IMAGE: NoImage, COLOR: 47 75 255 255, BORDERCOLOR: 254 254 254 255,
-                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
-      DISABLEDDRAWDATA = IMAGE: ReadyDot-Red, COLOR: 128 128 128 255, BORDERCOLOR: 192 192 192 255,
-                         IMAGE: NoImage, COLOR: 192 192 192 255, BORDERCOLOR: 128 128 128 255,
-                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
-      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 0 255 0 255, BORDERCOLOR: 0 128 0 255,
-                       IMAGE: NoImage, COLOR: 47 75 255 255, BORDERCOLOR: 254 254 254 255,
-                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
-                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
-    END
-    CHILD
-    WINDOW
-      WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 222,
-                   BOTTOMRIGHT: 77 238,
-                   CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept5";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
       STYLE = PUSHBUTTON+MOUSETRACK;
@@ -1790,8 +1790,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 244,
-                   BOTTOMRIGHT: 77 260,
+      SCREENRECT = UPPERLEFT: 61 218,
+                   BOTTOMRIGHT: 77 234,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept6";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -1837,8 +1837,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 354,
-                   BOTTOMRIGHT: 77 370,
+      SCREENRECT = UPPERLEFT: 61 308,
+                   BOTTOMRIGHT: 77 324,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept11";
       STATUS = HIDDEN+IMAGE+NOINPUT+NOFOCUS;
@@ -1884,8 +1884,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 332,
-                   BOTTOMRIGHT: 77 348,
+      SCREENRECT = UPPERLEFT: 61 290,
+                   BOTTOMRIGHT: 77 306,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept10";
       STATUS = HIDDEN+IMAGE+NOINPUT+NOFOCUS;
@@ -1931,8 +1931,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 310,
-                   BOTTOMRIGHT: 77 326,
+      SCREENRECT = UPPERLEFT: 61 272,
+                   BOTTOMRIGHT: 77 288,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept9";
       STATUS = HIDDEN+IMAGE+NOINPUT+NOFOCUS;
@@ -1978,8 +1978,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 288,
-                   BOTTOMRIGHT: 77 304,
+      SCREENRECT = UPPERLEFT: 61 254,
+                   BOTTOMRIGHT: 77 270,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept8";
       STATUS = HIDDEN+IMAGE+NOINPUT+NOFOCUS;
@@ -2025,8 +2025,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 266,
-                   BOTTOMRIGHT: 77 282,
+      SCREENRECT = UPPERLEFT: 61 236,
+                   BOTTOMRIGHT: 77 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept7";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -2880,8 +2880,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 352,
-                   BOTTOMRIGHT: 578 372,
+      SCREENRECT = UPPERLEFT: 515 308,
+                   BOTTOMRIGHT: 578 324,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam11";
       STATUS = IMAGE;
@@ -2890,8 +2890,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -2925,7 +2925,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -3121,8 +3121,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 330,
-                   BOTTOMRIGHT: 578 350,
+      SCREENRECT = UPPERLEFT: 515 290,
+                   BOTTOMRIGHT: 578 306,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam10";
       STATUS = IMAGE;
@@ -3131,8 +3131,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -3166,7 +3166,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -3362,8 +3362,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 308,
-                   BOTTOMRIGHT: 578 328,
+      SCREENRECT = UPPERLEFT: 515 272,
+                   BOTTOMRIGHT: 578 288,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam9";
       STATUS = IMAGE;
@@ -3372,8 +3372,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -3407,7 +3407,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -3603,8 +3603,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 286,
-                   BOTTOMRIGHT: 578 306,
+      SCREENRECT = UPPERLEFT: 515 254,
+                   BOTTOMRIGHT: 578 270,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam8";
       STATUS = IMAGE;
@@ -3613,8 +3613,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -3648,7 +3648,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -3844,8 +3844,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 264,
-                   BOTTOMRIGHT: 578 284,
+      SCREENRECT = UPPERLEFT: 515 236,
+                   BOTTOMRIGHT: 578 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam7";
       STATUS = ENABLED+IMAGE;
@@ -3854,8 +3854,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -3889,7 +3889,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -4085,8 +4085,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 242,
-                   BOTTOMRIGHT: 578 262,
+      SCREENRECT = UPPERLEFT: 515 218,
+                   BOTTOMRIGHT: 578 234,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam6";
       STATUS = ENABLED+IMAGE;
@@ -4095,8 +4095,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -4130,7 +4130,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -4326,8 +4326,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 220,
-                   BOTTOMRIGHT: 578 240,
+      SCREENRECT = UPPERLEFT: 515 200,
+                   BOTTOMRIGHT: 578 216,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam5";
       STATUS = ENABLED+IMAGE;
@@ -4336,8 +4336,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -4371,7 +4371,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -4567,8 +4567,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 198,
-                   BOTTOMRIGHT: 578 218,
+      SCREENRECT = UPPERLEFT: 515 182,
+                   BOTTOMRIGHT: 578 198,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam4";
       STATUS = ENABLED+IMAGE;
@@ -4577,8 +4577,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -4612,7 +4612,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -4808,8 +4808,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 176,
-                   BOTTOMRIGHT: 578 196,
+      SCREENRECT = UPPERLEFT: 515 164,
+                   BOTTOMRIGHT: 578 180,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam3";
       STATUS = ENABLED+IMAGE;
@@ -4818,8 +4818,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -4853,7 +4853,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -5049,8 +5049,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 154,
-                   BOTTOMRIGHT: 578 174,
+      SCREENRECT = UPPERLEFT: 515 146,
+                   BOTTOMRIGHT: 578 162,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam2";
       STATUS = ENABLED+IMAGE;
@@ -5059,8 +5059,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -5094,7 +5094,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -5290,8 +5290,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 132,
-                   BOTTOMRIGHT: 578 152,
+      SCREENRECT = UPPERLEFT: 515 128,
+                   BOTTOMRIGHT: 578 144,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam1";
       STATUS = ENABLED+IMAGE;
@@ -5300,8 +5300,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -5335,7 +5335,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -5532,7 +5532,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 515 110,
-                   BOTTOMRIGHT: 578 130,
+                   BOTTOMRIGHT: 578 126,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam0";
       STATUS = ENABLED+IMAGE;
@@ -5541,8 +5541,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -5576,7 +5576,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -5821,8 +5821,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 352,
-                   BOTTOMRIGHT: 513 372,
+      SCREENRECT = UPPERLEFT: 311 308,
+                   BOTTOMRIGHT: 513 324,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate11";
       STATUS = IMAGE;
@@ -5831,8 +5831,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -5866,7 +5866,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -6062,8 +6062,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 330,
-                   BOTTOMRIGHT: 513 350,
+      SCREENRECT = UPPERLEFT: 311 290,
+                   BOTTOMRIGHT: 513 306,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate10";
       STATUS = IMAGE;
@@ -6072,8 +6072,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -6107,7 +6107,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -6303,8 +6303,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 308,
-                   BOTTOMRIGHT: 513 328,
+      SCREENRECT = UPPERLEFT: 311 272,
+                   BOTTOMRIGHT: 513 288,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate9";
       STATUS = IMAGE;
@@ -6313,8 +6313,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -6348,7 +6348,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -6544,8 +6544,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 286,
-                   BOTTOMRIGHT: 513 306,
+      SCREENRECT = UPPERLEFT: 311 254,
+                   BOTTOMRIGHT: 513 270,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate8";
       STATUS = IMAGE;
@@ -6554,8 +6554,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -6589,7 +6589,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -6785,8 +6785,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 264,
-                   BOTTOMRIGHT: 513 284,
+      SCREENRECT = UPPERLEFT: 311 236,
+                   BOTTOMRIGHT: 513 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate7";
       STATUS = ENABLED+IMAGE;
@@ -6795,8 +6795,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -6830,7 +6830,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -7026,8 +7026,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 242,
-                   BOTTOMRIGHT: 513 262,
+      SCREENRECT = UPPERLEFT: 311 218,
+                   BOTTOMRIGHT: 513 234,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate6";
       STATUS = ENABLED+IMAGE;
@@ -7036,8 +7036,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -7071,7 +7071,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -7267,8 +7267,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 220,
-                   BOTTOMRIGHT: 513 240,
+      SCREENRECT = UPPERLEFT: 311 200,
+                   BOTTOMRIGHT: 513 216,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate5";
       STATUS = ENABLED+IMAGE;
@@ -7277,8 +7277,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -7312,7 +7312,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -7508,8 +7508,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 198,
-                   BOTTOMRIGHT: 513 218,
+      SCREENRECT = UPPERLEFT: 311 182,
+                   BOTTOMRIGHT: 513 198,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate4";
       STATUS = ENABLED+IMAGE;
@@ -7518,8 +7518,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -7553,7 +7553,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -7749,8 +7749,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 176,
-                   BOTTOMRIGHT: 513 196,
+      SCREENRECT = UPPERLEFT: 311 164,
+                   BOTTOMRIGHT: 513 180,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate3";
       STATUS = ENABLED+IMAGE;
@@ -7759,8 +7759,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -7794,7 +7794,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -7990,8 +7990,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 154,
-                   BOTTOMRIGHT: 513 174,
+      SCREENRECT = UPPERLEFT: 311 146,
+                   BOTTOMRIGHT: 513 162,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate2";
       STATUS = ENABLED+IMAGE;
@@ -8000,8 +8000,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -8035,7 +8035,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -8231,8 +8231,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 132,
-                   BOTTOMRIGHT: 513 152,
+      SCREENRECT = UPPERLEFT: 311 128,
+                   BOTTOMRIGHT: 513 144,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate1";
       STATUS = ENABLED+IMAGE;
@@ -8241,8 +8241,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -8276,7 +8276,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -8473,7 +8473,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 311 110,
-                   BOTTOMRIGHT: 513 130,
+                   BOTTOMRIGHT: 513 126,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate0";
       STATUS = ENABLED+IMAGE;
@@ -8482,8 +8482,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -8517,7 +8517,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -8762,8 +8762,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 352,
-                   BOTTOMRIGHT: 309 372,
+      SCREENRECT = UPPERLEFT: 225 308,
+                   BOTTOMRIGHT: 309 324,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor11";
       STATUS = IMAGE;
@@ -8772,8 +8772,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -8807,7 +8807,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -9003,8 +9003,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 330,
-                   BOTTOMRIGHT: 309 350,
+      SCREENRECT = UPPERLEFT: 225 290,
+                   BOTTOMRIGHT: 309 306,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor10";
       STATUS = IMAGE;
@@ -9013,8 +9013,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -9048,7 +9048,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -9244,8 +9244,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 308,
-                   BOTTOMRIGHT: 309 328,
+      SCREENRECT = UPPERLEFT: 225 272,
+                   BOTTOMRIGHT: 309 288,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor9";
       STATUS = IMAGE;
@@ -9254,8 +9254,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -9289,7 +9289,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -9485,8 +9485,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 286,
-                   BOTTOMRIGHT: 309 306,
+      SCREENRECT = UPPERLEFT: 225 254,
+                   BOTTOMRIGHT: 309 270,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor8";
       STATUS = IMAGE;
@@ -9495,8 +9495,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -9530,7 +9530,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -9726,8 +9726,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 264,
-                   BOTTOMRIGHT: 309 284,
+      SCREENRECT = UPPERLEFT: 225 236,
+                   BOTTOMRIGHT: 309 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor7";
       STATUS = ENABLED+IMAGE;
@@ -9736,8 +9736,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -9771,7 +9771,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -9967,8 +9967,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 242,
-                   BOTTOMRIGHT: 309 262,
+      SCREENRECT = UPPERLEFT: 225 218,
+                   BOTTOMRIGHT: 309 234,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor6";
       STATUS = ENABLED+IMAGE;
@@ -9977,8 +9977,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -10012,7 +10012,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -10208,8 +10208,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 220,
-                   BOTTOMRIGHT: 309 240,
+      SCREENRECT = UPPERLEFT: 225 200,
+                   BOTTOMRIGHT: 309 216,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor5";
       STATUS = ENABLED+IMAGE;
@@ -10218,8 +10218,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -10253,7 +10253,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -10449,8 +10449,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 198,
-                   BOTTOMRIGHT: 309 218,
+      SCREENRECT = UPPERLEFT: 225 182,
+                   BOTTOMRIGHT: 309 198,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor4";
       STATUS = ENABLED+IMAGE;
@@ -10459,8 +10459,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -10494,7 +10494,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -10690,8 +10690,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 176,
-                   BOTTOMRIGHT: 309 196,
+      SCREENRECT = UPPERLEFT: 225 164,
+                   BOTTOMRIGHT: 309 180,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor3";
       STATUS = ENABLED+IMAGE;
@@ -10700,8 +10700,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -10735,7 +10735,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -10931,8 +10931,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 154,
-                   BOTTOMRIGHT: 309 174,
+      SCREENRECT = UPPERLEFT: 225 146,
+                   BOTTOMRIGHT: 309 162,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor2";
       STATUS = ENABLED+IMAGE;
@@ -10941,8 +10941,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -10976,7 +10976,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -11172,8 +11172,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 132,
-                   BOTTOMRIGHT: 309 152,
+      SCREENRECT = UPPERLEFT: 225 128,
+                   BOTTOMRIGHT: 309 144,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor1";
       STATUS = ENABLED+IMAGE;
@@ -11182,8 +11182,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -11217,7 +11217,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -11414,7 +11414,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 225 110,
-                   BOTTOMRIGHT: 309 130,
+                   BOTTOMRIGHT: 309 126,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor0";
       STATUS = ENABLED+IMAGE;
@@ -11423,8 +11423,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -11458,7 +11458,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 9,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -11703,8 +11703,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 352,
-                   BOTTOMRIGHT: 223 372,
+      SCREENRECT = UPPERLEFT: 79 308,
+                   BOTTOMRIGHT: 223 324,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer11";
       STATUS = IMAGE;
@@ -11713,8 +11713,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -11748,7 +11748,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -11944,8 +11944,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 330,
-                   BOTTOMRIGHT: 223 350,
+      SCREENRECT = UPPERLEFT: 79 290,
+                   BOTTOMRIGHT: 223 306,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer10";
       STATUS = IMAGE;
@@ -11954,8 +11954,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -11989,7 +11989,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -12185,8 +12185,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 308,
-                   BOTTOMRIGHT: 223 328,
+      SCREENRECT = UPPERLEFT: 79 272,
+                   BOTTOMRIGHT: 223 288,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer9";
       STATUS = IMAGE;
@@ -12195,8 +12195,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -12230,7 +12230,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -12426,8 +12426,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 286,
-                   BOTTOMRIGHT: 223 306,
+      SCREENRECT = UPPERLEFT: 79 254,
+                   BOTTOMRIGHT: 223 270,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer8";
       STATUS = IMAGE;
@@ -12436,8 +12436,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -12471,7 +12471,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -12667,8 +12667,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 264,
-                   BOTTOMRIGHT: 223 284,
+      SCREENRECT = UPPERLEFT: 79 236,
+                   BOTTOMRIGHT: 223 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer7";
       STATUS = ENABLED+IMAGE;
@@ -12677,8 +12677,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -12712,7 +12712,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -12908,8 +12908,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 242,
-                   BOTTOMRIGHT: 223 262,
+      SCREENRECT = UPPERLEFT: 79 218,
+                   BOTTOMRIGHT: 223 234,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer6";
       STATUS = ENABLED+IMAGE;
@@ -12918,8 +12918,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -12953,7 +12953,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -13149,8 +13149,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 220,
-                   BOTTOMRIGHT: 223 240,
+      SCREENRECT = UPPERLEFT: 79 200,
+                   BOTTOMRIGHT: 223 216,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer5";
       STATUS = ENABLED+IMAGE;
@@ -13159,8 +13159,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -13194,7 +13194,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -13390,8 +13390,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 198,
-                   BOTTOMRIGHT: 223 218,
+      SCREENRECT = UPPERLEFT: 79 182,
+                   BOTTOMRIGHT: 223 198,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer4";
       STATUS = ENABLED+IMAGE;
@@ -13400,8 +13400,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -13435,7 +13435,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -13631,8 +13631,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 176,
-                   BOTTOMRIGHT: 223 196,
+      SCREENRECT = UPPERLEFT: 79 164,
+                   BOTTOMRIGHT: 223 180,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer3";
       STATUS = ENABLED+IMAGE;
@@ -13641,8 +13641,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -13676,7 +13676,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -13872,8 +13872,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 154,
-                   BOTTOMRIGHT: 223 174,
+      SCREENRECT = UPPERLEFT: 79 146,
+                   BOTTOMRIGHT: 223 162,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer2";
       STATUS = ENABLED+IMAGE;
@@ -13882,8 +13882,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -13917,7 +13917,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -14113,8 +14113,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 132,
-                   BOTTOMRIGHT: 223 152,
+      SCREENRECT = UPPERLEFT: 79 128,
+                   BOTTOMRIGHT: 223 144,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer1";
       STATUS = ENABLED+IMAGE;
@@ -14123,8 +14123,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -14158,7 +14158,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -14355,7 +14355,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 79 110,
-                   BOTTOMRIGHT: 223 130,
+                   BOTTOMRIGHT: 223 126,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer0";
       STATUS = ENABLED+IMAGE;
@@ -14364,8 +14364,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntry";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -14399,7 +14399,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 5,
+                    MAXDISPLAY: 14,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -14595,8 +14595,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 351,
-                   BOTTOMRIGHT: 223 373,
+      SCREENRECT = UPPERLEFT: 79 308,
+                   BOTTOMRIGHT: 223 324,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer11";
       STATUS = HIDDEN+IMAGE;
@@ -14605,8 +14605,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "[NONE]";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -14643,8 +14643,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 329,
-                   BOTTOMRIGHT: 223 351,
+      SCREENRECT = UPPERLEFT: 79 290,
+                   BOTTOMRIGHT: 223 306,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer10";
       STATUS = HIDDEN+IMAGE;
@@ -14653,8 +14653,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "[NONE]";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -14691,8 +14691,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 307,
-                   BOTTOMRIGHT: 223 329,
+      SCREENRECT = UPPERLEFT: 79 272,
+                   BOTTOMRIGHT: 223 288,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer9";
       STATUS = HIDDEN+IMAGE;
@@ -14701,8 +14701,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "[NONE]";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -14739,8 +14739,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 285,
-                   BOTTOMRIGHT: 223 307,
+      SCREENRECT = UPPERLEFT: 79 254,
+                   BOTTOMRIGHT: 223 270,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer8";
       STATUS = HIDDEN+IMAGE;
@@ -14749,8 +14749,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "[NONE]";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -14787,8 +14787,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 263,
-                   BOTTOMRIGHT: 223 285,
+      SCREENRECT = UPPERLEFT: 79 236,
+                   BOTTOMRIGHT: 223 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer7";
       STATUS = ENABLED+IMAGE;
@@ -14797,8 +14797,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "[NONE]";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -14835,8 +14835,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 241,
-                   BOTTOMRIGHT: 223 263,
+      SCREENRECT = UPPERLEFT: 79 218,
+                   BOTTOMRIGHT: 223 234,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer6";
       STATUS = ENABLED+IMAGE;
@@ -14845,8 +14845,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "[NONE]";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -14883,8 +14883,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 219,
-                   BOTTOMRIGHT: 223 241,
+      SCREENRECT = UPPERLEFT: 79 200,
+                   BOTTOMRIGHT: 223 216,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer5";
       STATUS = ENABLED+IMAGE;
@@ -14893,8 +14893,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "[NONE]";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -14931,8 +14931,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 197,
-                   BOTTOMRIGHT: 223 219,
+      SCREENRECT = UPPERLEFT: 79 182,
+                   BOTTOMRIGHT: 223 198,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer4";
       STATUS = ENABLED+IMAGE;
@@ -14941,8 +14941,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "[NONE]";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -14979,8 +14979,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 175,
-                   BOTTOMRIGHT: 223 197,
+      SCREENRECT = UPPERLEFT: 79 164,
+                   BOTTOMRIGHT: 223 180,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer3";
       STATUS = ENABLED+IMAGE;
@@ -14989,8 +14989,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "[NONE]";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -15027,8 +15027,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 153,
-                   BOTTOMRIGHT: 223 175,
+      SCREENRECT = UPPERLEFT: 79 146,
+                   BOTTOMRIGHT: 223 162,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer2";
       STATUS = ENABLED+IMAGE;
@@ -15037,8 +15037,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "[NONE]";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -15075,8 +15075,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 131,
-                   BOTTOMRIGHT: 223 153,
+      SCREENRECT = UPPERLEFT: 79 128,
+                   BOTTOMRIGHT: 223 144,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer1";
       STATUS = ENABLED+IMAGE;
@@ -15085,8 +15085,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "[NONE]";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -15123,8 +15123,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 109,
-                   BOTTOMRIGHT: 223 131,
+      SCREENRECT = UPPERLEFT: 79 110,
+                   BOTTOMRIGHT: 223 126,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer0";
       STATUS = ENABLED+IMAGE;
@@ -15133,8 +15133,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "[NONE]";
+      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntrySmall";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,

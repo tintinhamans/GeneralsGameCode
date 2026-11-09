@@ -73,6 +73,11 @@ GenOnline/tools/wnd_sources copy, if any, is only kept for reference. All rects 
   looks up rows below MAX_SLOTS, so it never enables them. The band under the rows (game speed, cash, checkboxes)
   moves to SECTION_GAP under the last row and the panels under it (chat or info and stats) take the space down to
   the next band; rows inside a panel spread evenly over it.
+- Setup row size: the player rows are SETUP_COMBO_HEIGHT tall, ROW_PITCH apart: their combos, entry fields and labels
+  shrink to that height and draw the smaller SETUP_TEMPLATE font (a GO-only header template, its drop-down list too),
+  smaller controls centre on the row. Every combo box of these screens shows up to SETUP_MAX_DISPLAY rows open (more
+  than retail's 5, so the army list opens whole), fewer when the list would pass the screen bottom at
+  SETUP_LIST_ROW_UNITS per font point a row; a combo keeps a larger retail value.
 - Blank layouts: a layout in GenOnline/tools/wnd_fixes.py BLANK_LAYOUTS (the GameSpy login forms GO replaces with its sign-in
   screen) hides every window but the named ones, their ancestors and the visible screen titles: each other window under a
   shown one gets HIDDEN, so the backdrop, frame and title stay. Every window stays in the file for the code's lookups.
@@ -80,10 +85,9 @@ GenOnline/tools/wnd_sources copy, if any, is only kept for reference. All rects 
   another account, cancel) lives in its GenOnline/tools/wnd_sources copy, over the hidden form with the same rect.
   The GO-only sign-in dialog (Window/Menus/GOSignInDialog.wnd, the card WOLLoginMenu.cpp opens over the main menu for the
   whole Online path) lives in GenOnline/tools/wnd_sources too and passes the rules unchanged.
-- Theme copies: every menu layout (not the in-game ones, nor the menus shown during a match) also goes to
-  GenOnline/data/Themes/Radar at the same path, its final output with the colours swapped for the
-  Classic (Generals Online) palette (GenOnline/tools/go_themes.py LAYOUT_COLORS) and the window fills above. Only colour
-  numbers differ.
+- Shell copies: SHELL_COPIES layouts (GOShellQuitMessageBox.wnd, the quit prompt of the main menu) are built from the
+  input of an in-match menu (QuitMessageBox.wnd) as menus: GO header templates and kit colours. Their
+  window names stay the source's, so the code finds them; the engine opens the copy only while the shell is active.
 
 A move never creates an overlap with a sibling and never pushes a window or its children further
 out of their parent; such moves are skipped and logged. Children move with their window. The rules
@@ -204,7 +208,14 @@ SETUP_LAYOUTS = {
 }
 ENGINE_SLOTS = 8           # MAX_SLOTS in Core GameNetwork/NetworkDefs.h; the menus only look up rows below it
 SLOT_ROWS = ENGINE_SLOTS    # player rows the setup screens lay out, 12 once the engine has 12 slots (arctic/go/feat/12-players)
-ROW_PITCH = 22             # top to top distance of the player rows: the COMBO_HEIGHT combos and a 2 unit gap
+# GenOnline @tweak arcticdolphin 09/11/2026 Compact player rows: 16 unit combos with an 8 pt font keep the 10 pt fit of COMBO_HEIGHT.
+SETUP_COMBO_HEIGHT = 16
+ROW_PITCH = SETUP_COMBO_HEIGHT + 2  # top to top distance of the player rows: the SETUP_COMBO_HEIGHT combos and a 2 unit gap
+SETUP_ROW_KINDS = ("COMBOBOX", "ENTRYFIELD", "STATICTEXT")  # row windows that take the row height and font
+SETUP_TEMPLATE = "GOComboBoxEntrySmall"  # GO-only header template of the row text, in Data/GeneralsOnline/HeaderTemplate.ini
+SETUP_FONT = 8             # its point size, also written as the FONT size the template replaces
+SETUP_MAX_DISPLAY = 14     # drop-down rows: Random, the 12 armies and Observer open without scrolling
+SETUP_LIST_ROW_UNITS = 2   # a kit drop-down row is at most this many units tall per font point, 800x600 to 1080p
 SECTION_GAP = 6            # gap between the player rows, the settings row and the panels under them
 PANEL_INSET = 2            # rows inside a panel under the settings row keep this inset
 MIN_PANEL = 40             # the panels under the settings row keep at least this height
@@ -216,6 +227,8 @@ SLOT_NAME_RE = re.compile(r"^(?P<base>%s)(?P<index>\d+)$" % "|".join(SLOT_BASES)
 VISIBLE_SLOT_BASES = ("ComboBoxPlayer", "ComboBoxColor", "ComboBoxPlayerTemplate", "ComboBoxTeam")
 ROW_STAND_INS = {"TextEntryPlayerName": 0}  # the skirmish player's name field in place of ComboBoxPlayer0
 STATUS_LINE_RE = re.compile(r"^[ \t]*STATUS[ \t]*=[ \t]*(?P<flags>[^;]*);", re.M)
+FONT_SIZE_RE = re.compile(r'^[ \t]*FONT[ \t]*=[ \t]*NAME:[ \t]*"[^"]*"[ \t]*,[ \t]*SIZE:[ \t]*(?P<size>\d+)', re.M)
+MAX_DISPLAY_RE = re.compile(r"MAXDISPLAY:[ \t]*(?P<rows>\d+)")
 DEFAULT_COLUMN_GAP = 4     # column gap when every gap of a row differs
 
 # shared left edge of the ruler menu titles: the most common one (GameSpy game options and WOL welcome
@@ -235,9 +248,15 @@ IN_MATCH_MENUS = {
     "crcmismatch", "defeat", "disconnectscreen", "localdefeat", "observerquit", "popupsaveload",
     "quitmenu", "quitmessagebox", "quitnosave", "saveload", "victorious",
 }
+# GO shell copies of in-match menus the shell opens too, built from the same input as a menu; the window names stay the
+# source's, the engine opens the copy while the shell is active (gogoMessageBox in GameWindowManager.cpp)
+SHELL_COPIES = {
+    "Window/Menus/GOShellQuitMessageBox.wnd": "Window/Menus/QuitMessageBox.wnd",
+}
 # retail header templates; the menu layouts use the GO copies in Data/GeneralsOnline/HeaderTemplate.ini instead,
 # so a mod that replaces Data/<language>/HeaderTemplate.ini cannot resize the GO menus
 GO_TEMPLATE_PREFIX = "GO"
+GO_ONLY_TEMPLATES = {SETUP_TEMPLATE}  # GO header templates without a retail original
 RETAIL_TEMPLATES = {
     "Title", "MainButton", "Button", "ButtonSmall", "TextEntry", "ComboBoxEntry", "MinorTitle", "LabelRegular",
     "LabelSmall", "LoadScreenCameos", "LoadScreenMissionLocation", "Arial10BoldTemplate", "Arial12BoldTemplate",
@@ -1609,7 +1628,7 @@ def setup_rows(text, name):
             slots[(m["base"], int(m["index"]))] = win
     anchor = slots[("ComboBoxColor", 0)]
     frame = anchor.parent
-    height = anchor.rect[3] - anchor.rect[1]
+    height = SETUP_COMBO_HEIGHT
     tops = [anchor.rect[1] + i * ROW_PITCH for i in range(SLOT_ROWS)]
     rows = {id(w): i for (base, i), w in slots.items() if w.parent is frame}
     rows.update({id(w): ROW_STAND_INS[w.name.split(":")[-1]] for w in frame.children
@@ -1618,8 +1637,9 @@ def setup_rows(text, name):
 
     def row_rect(win, index):
         x0, y0, x1, y1 = win.rect
-        top = tops[index] + (height - (y1 - y0)) // 2
-        return (x0, top, x1, top + y1 - y0)
+        size = min(y1 - y0, height) if win.kind in SETUP_ROW_KINDS else y1 - y0
+        top = tops[index] + (height - size) // 2
+        return (x0, top, x1, top + size)
 
     edits = []
     last = ENGINE_SLOTS - 1
@@ -1663,6 +1683,32 @@ def setup_rows(text, name):
         x0, y0, x1, y1 = win.rect
         _place(win, (x0, y0 - stretch_top + new_top, x1, new_bottom - (stretch_bottom - y1)), edits)
         _fit_child_rows(win, edits)
+    for (start, end), value in sorted(edits, reverse=True):
+        text = text[:start] + value + text[end:]
+    return _setup_fonts(text, name)
+
+
+def _setup_fonts(text, name):
+    """Give the player row text of a setup screen SETUP_TEMPLATE and SETUP_FONT, and its combo boxes their open rows."""
+    root = parse_windows(text)
+    frame = next(w for w in root.walk() if w.name.split(":")[-1] == "ComboBoxColor0").parent
+    edits = []
+    for win in root.walk():
+        start, end = win.block
+        own = min((c.block[0] for c in win.children), default=end)
+        short = win.name.split(":")[-1]
+        font = win.font_size
+        if win.parent is frame and win.kind in SETUP_ROW_KINDS and (SLOT_NAME_RE.match(short) or short in ROW_STAND_INS):
+            for pattern, group, value in ((HEADER_RE, "header", SETUP_TEMPLATE), (FONT_SIZE_RE, "size", str(SETUP_FONT))):
+                m = pattern.search(text, start, own)
+                if m is None:
+                    raise ValueError(f"{name}: {win.name} has no {group} to set")
+                edits.append((m.span(group), value))
+            font = SETUP_FONT
+        m = MAX_DISPLAY_RE.search(text, start, own) if win.kind == "COMBOBOX" else None
+        if m is not None:
+            fit = (SCREEN[3] - win.rect[3]) // (SETUP_LIST_ROW_UNITS * font)
+            edits.append((m.span("rows"), str(max(int(m["rows"]), min(SETUP_MAX_DISPLAY, fit)))))
     for (start, end), value in sorted(edits, reverse=True):
         text = text[:start] + value + text[end:]
     return text
@@ -1800,6 +1846,12 @@ def build(retail, game="zerohour"):
             name = by_lower.get(rel.lower(), rel)
             compiled[name] = wnd_yaml.compile_file(src)
             inputs[name] = compiled[name].encode("latin-1")
+    for copy, source in SHELL_COPIES.items():
+        source = by_lower.get(source.lower(), source)
+        if source in inputs:
+            inputs[copy] = inputs[source]
+            if source in compiled:
+                compiled[copy] = compiled[source]
     results = []
     for name in sorted(inputs, key=str.lower):
         text = inputs[name].decode("latin-1")

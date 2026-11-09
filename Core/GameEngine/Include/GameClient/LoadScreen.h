@@ -230,7 +230,7 @@ private:
 
 	// GenOnline @feature arcticdolphin 09/11/2026 The Generals Online credit on the first shell load screen.
 	GameWindow *m_creditWindow;
-	DisplayString *m_creditStrings[3];
+	DisplayString *m_creditUrl;
 	const Image *m_creditLogo;
 	UnsignedInt m_creditStartMs;
 	Bool m_creditEscArmed;
