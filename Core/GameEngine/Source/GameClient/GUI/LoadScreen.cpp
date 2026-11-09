@@ -131,6 +131,17 @@ bool g_bHasDoneSOGScreenshot = false;
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
 
+// TheSuperHackers @tweak arcticdolphin 09/11/2026 The bronze bar fill of the GO bar art; null in the Retail style, which leaves that art out, or without it.
+static const Image *findGoLoadBarImage()
+{
+	const Image *image = TheMappedImageCollection->findImageByName("LoadingBar_Progress");
+	if (image == nullptr || image->getFilename().compareNoCase("GeneralsOnline_LoadingBar.tga") != 0)
+	{
+		return nullptr;
+	}
+	return image;
+}
+
 //-----------------------------------------------------------------------------
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
@@ -547,6 +558,11 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 		}
 	}
 	// else leave the default background screen
+	// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO bar art the campaign bar stays bronze instead of taking the faction colour.
+	if (const Image *goBarImage = findGoLoadBarImage())
+	{
+		m_progressBar->winSetEnabledImage( 6, goBarImage );
+	}
 
 
 	if(TheGameLODManager && TheGameLODManager->didMemPass())
@@ -1560,6 +1576,11 @@ void MultiPlayerLoadScreen::init( GameInfo *game )
 		const Image *houseImage = TheMappedImageCollection->findImageByName(imageName);
 		if (! houseImage)
 			houseImage = TheMappedImageCollection->findImageByName("LoadingBar_Progress");
+		// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO bar art every player bar is bronze; the house colour stays on the player name.
+		if (const Image *kitImage = findGoLoadBarImage())
+		{
+			houseImage = kitImage;
+		}
 		m_progressBars[netSlot]->winSetEnabledImage( 6, houseImage );
 #endif
 
@@ -1850,6 +1871,11 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 		const Image *houseImage = TheMappedImageCollection->findImageByName(imageName);
 		if (! houseImage)
 			houseImage = TheMappedImageCollection->findImageByName("LoadingBar_Progress");
+		// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO bar art every player bar is bronze; the house colour stays on the player name.
+		if (const Image *kitImage = findGoLoadBarImage())
+		{
+			houseImage = kitImage;
+		}
 		m_progressBars[netSlot]->winSetEnabledImage( 6, houseImage );
 #endif
 
@@ -2163,6 +2189,11 @@ void MapTransferLoadScreen::init( GameInfo *game )
 			continue;
 		Color houseColor = TheMultiplayerSettings->getColor(slot->getApparentColor())->getColor();
 		GadgetProgressBarSetEnabledBarColor(m_progressBars[netSlot], houseColor );
+		// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO bar art this colour drawn bar takes its bronze; the house colour stays on the player name.
+		if (findGoLoadBarImage() != nullptr)
+		{
+			GadgetProgressBarSetEnabledBarColor(m_progressBars[netSlot], GameMakeColor(191, 144, 72, 255) );
+		}
 
 		UnicodeString name = slot->getName();
 		GadgetStaticTextSetText(m_playerNames[netSlot], name );
