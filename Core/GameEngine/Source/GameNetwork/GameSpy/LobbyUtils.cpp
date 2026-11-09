@@ -32,6 +32,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/GameEngine.h"
+#include "Common/GOUIColors.h"
 #include "Common/MultiplayerSettings.h"
 #include "Common/PlayerTemplate.h"
 #include "Common/Version.h"
@@ -1076,9 +1077,10 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 		const bool nonJoinable =
 				(gameColor == GameSpyColor[GSCOLOR_GAME_CRCMISMATCH]);
 
+		// GenOnline @feature arcticdolphin 09/11/2026 Lobby row colours come from the GO UI colour table, these colours without it.
 		gameColor = nonJoinable
-			? GameMakeColor(0, 98, 130, 255)   // darker cyan
-			: GameMakeColor(20, 177, 255, 255); // lighter cyan
+			? GOUIColor(GOUICOLOR_LOBBY_NOT_JOINABLE, GameMakeColor(0, 98, 130, 255))   // darker cyan
+			: GOUIColor(GOUICOLOR_LOBBY_JOINABLE, GameMakeColor(20, 177, 255, 255)); // lighter cyan
 	}
 #endif
 	std::wstring strOwnerName = L"";
@@ -1142,7 +1144,7 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 	bool bAlternate = (rowCount % 2 == 0);
 	if (bAlternate && gameColor == GameSpyColor[GSCOLOR_GAME])
 	{
-		gameColor = GameMakeColor(191, 198, 201, 255);
+		gameColor = GOUIColor(GOUICOLOR_LOBBY_ALT_ROW, GameMakeColor(191, 198, 201, 255));
 	}
 	Int index = GadgetListBoxAddEntryText(win, gameName, gameColor, -1, COLUMN_NAME);
 	if ((size_t)index >= s_lobbyRowIDs.size())
@@ -1204,8 +1206,8 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 	s.format(L"%d/%d", numPlayers, maxPlayers);
 	const bool bIsFull = (lobbyInfo.current_players == lobbyInfo.max_players || lobbyInfo.current_players == MAX_SLOTS);
 	const bool bIsAlmostFull = !bIsFull && (maxPlayers > 0) && ((float)numPlayers / (float)maxPlayers >= 0.6f);
-	Color numPlayersColor = bIsFull ? GameMakeColor(255, 80, 80, 255) 
-		: bIsAlmostFull ? GameMakeColor(16, 173, 144, 255) 
+	Color numPlayersColor = bIsFull ? GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 80, 80, 255))
+		: bIsAlmostFull ? GOUIColor(GOUICOLOR_LOBBY_ALMOST_FULL, GameMakeColor(16, 173, 144, 255))
 		: gameColor;
 	GadgetListBoxAddEntryText(win, s, numPlayersColor, index, COLUMN_NUMPLAYERS);
 
@@ -1444,7 +1446,7 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 			win->winEnable(true);
 			if (GadgetListBoxGetNumEntries(win) == 0)
 			{
-				GadgetListBoxAddEntryText(win, UnicodeString(L"Searching for public lobbies..."), GameMakeColor(255, 194, 15, 255), -1, -1);
+				GadgetListBoxAddEntryText(win, UnicodeString(L"Searching for public lobbies..."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 				GadgetListBoxSetSelected(win, -1);
 			}
 		},
@@ -1458,7 +1460,7 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 
 			if (numResults == 0)
 			{
-				GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies were found"), GameMakeColor(255, 194, 15, 255), -1, -1);
+				GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies were found"), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 				GadgetListBoxSetSelected(win, -1);
 
 			}
@@ -1485,7 +1487,7 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 					vecLobbies = filtered;
 					if (vecLobbies.empty())
 					{
-						GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies currently match this filter"), GameMakeColor(255, 194, 15, 255), -1, -1);
+						GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies currently match this filter"), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 						GadgetListBoxSetSelected(win, -1);
 						clearBuddyGames();
 						return;

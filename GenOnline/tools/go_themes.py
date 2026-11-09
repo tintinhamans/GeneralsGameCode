@@ -53,77 +53,13 @@ PALETTE = {
     "green-dark": "#3F8A37",
     "danger": "#C9584A",
     "pushed": "#3A2F1E",
+    # subtle in-game UI fills: a faint slate over near-black, below the launcher's own surfaces
+    "fill-field": "#04070A",
+    "fill-disabled": "#07090B",
+    "fill-button": "#0C1013",
+    "fill-block": "#0E1316",
+    "fill-hover": "#161D21",
 }
-P = PALETTE
-
-# kit colour (GenOnline/tools/go_ui_kit.py) -> theme colour, by RGB; every kit colour needs an entry, alpha stays
-KIT_COLORS = {
-    # edge lines
-    "#2F4BFF": P["bronze"],    # enabled line, also list selection and hover tints at their own alpha
-    "#6A7BFF": P["tan"],       # hilite line, hilite scroll pill
-    "#8C9BFF": P["sand"],      # pushed line
-    "#4A4E6E": P["line"],      # disabled line
-    "#24308C": P["line"],      # unlit slider block line
-    # fills
-    "#070A18": P["panel"],     # enabled fill
-    "#152078": P["panel-3"],   # hilite fill
-    "#2B34B8": P["pushed"],    # pushed fill, selected list row
-    "#0A0A10": P["ground"],    # disabled fill
-    "#05070F": P["ground"],    # entry field and map start fill
-    "#0B1030": P["surface"],   # unlit slider block fill
-    # slider and scroll bar
-    "#3446FF": P["bronze"],    # slider value fill, lit block, scroll pill, chosen map start
-    "#283489": P["line"],      # slider and scroll track
-    "#3A4FE0": P["bronze"],    # retail scroll thumb
-    "#404159": P["line"],      # disabled retail scroll thumb
-    "#3A3C55": P["line"],      # disabled scroll pill
-    # glyphs
-    "#C9CEFF": P["text"],
-    "#FFFFFF": P["sand"],      # active glyph
-    "#5D6080": P["empty"],     # disabled glyph
-}
-
-# Signal (base GO) window fill of each fill class of GenOnline/tools/go_wnd_layouts.py: ground for full screen backdrops and
-# fields, then panel, surface and panel-3 for panels nested one, two and three or more deep; the first three are kit
-# colours (field, button and slider block fills), panel-3 sits between the slider block and the hover fill
-SIGNAL_FILLS = {
-    "ground": "#05070F",
-    "panel": "#070A18",
-    "surface": "#0B1030",
-    "panel-3": "#10184C",
-}
-
-# layout colour -> theme colour, by RGB, for every colour key of draw data and TEXTCOLOR; alpha stays, the rest is kept
-_LINE, _HILITE = P["bronze"], P["tan"]
-_LAYOUT_HEX = {
-    # Signal window fills -> the launcher token of the same fill class
-    **{SIGNAL_FILLS[token]: P[token] for token in SIGNAL_FILLS},
-    # kit and retail blue lines and hilites (the base layouts already hold the kit colours for the COLOR_REMAP blues)
-    "#2F4BFF": _LINE, "#2E37A8": _LINE, "#3137A7": _LINE, "#1D00FF": _LINE,
-    "#6A7BFF": _HILITE, "#8080FF": _HILITE,
-    # white and near white text
-    "#FFFFFF": P["text"], "#FEFEFE": P["text"], "#FFFEFE": P["text"], "#FCF9F9": P["text"], "#FCFFFF": P["text"],
-    "#FFFFFE": P["text"], "#FFFFFC": P["text"], "#F9F9FC": P["text"], "#F9FFFF": P["text"], "#FFFEFC": P["text"],
-    "#FFFEFF": P["text"], "#FFFCFC": P["text"],
-    # retail highlight text: yellow-green, green and blue
-    "#BAFF0C": _HILITE, "#A8FF0C": _HILITE, "#D1FD04": _HILITE, "#03C400": _HILITE, "#2E5100": _HILITE,
-    "#0000FE": _HILITE, "#062BCC": _HILITE,
-    # disabled grey and retail disabled text
-    "#C0C0C0": P["legal"], "#BFBEBD": P["legal"], "#8C8A8A": P["legal"], "#3E405C": P["legal"], "#7A3001": P["legal"],
-    "#0000C0": P["legal"],
-    # navy and dark green text borders and fills
-    "#000080": P["ink"], "#00007F": P["ink"], "#000040": P["ink"], "#1F202F": P["ink"], "#004204": P["ink"],
-    "#000032": P["ink"], "#000026": P["ink"], "#03005B": P["ink"], "#030060": P["ink"], "#01007C": P["ink"],
-    # pure blue hover fill of USER windows
-    "#0000FF": P["panel-3"],
-    # progress bars and red text
-    "#FFFF00": P["tan"], "#3BFF00": P["green"], "#FF0400": P["danger"],
-}
-
-
-def _rgb(hex_color):
-    h = hex_color.lstrip("#")
-    return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
 
 # the launcher's horizontal logo
 LOGO_SVG = Path("D:/Projects/Launcher.worktrees/burn-installer/prototypes/rust-launcher/ui/assets/generals-online-horizontal.svg")
@@ -150,8 +86,10 @@ RULER_TGA = f"Art/Textures/{RULER_TEXTURE}"
 # HandCreated loads after TextureSize_<n>, so the redefinition must sit there and sort after the retail file
 RULER_INI = "Data/INI/MappedImages/HandCreated/ZZ_GeneralsOnline_ThemeRuler.INI"
 # retail brightness (max channel) -> launcher token; each stop is a tone of the retail art: transparent and fill black,
-# fill mid, brightest grid fill, frame line (70 79 191), tick marks (53 67 231) and the inner highlight (177 183 255)
-RULER_RAMP = ((0, P["ground"]), (40, P["panel"]), (77, P["line"]), (191, P["bronze"]), (231, P["tan"]), (255, P["sand"]))
+# fill mid, brightest grid fill, frame line (70 79 191), tick marks (53 67 231) and the inner highlight (177 183 255); the
+# body starts at the subtle fill tokens so it sits under the panels like their fills
+RULER_RAMP = ((0, P["fill-field"]), (40, P["fill-block"]), (77, P["line"]), (191, P["bronze"]), (231, P["tan"]),
+              (255, P["sand"]))
 ADDITIONS = (LOGO_TGA, LOGO_INI, RULER_TGA, RULER_INI)  # theme files with no base counterpart
 
 

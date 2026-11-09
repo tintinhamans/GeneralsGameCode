@@ -32,6 +32,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/GameEngine.h"
+#include "Common/GOUIColors.h"
 #include "Common/QuickmatchPreferences.h"
 #include "Common/LadderPreferences.h"
 #include "Common/MultiplayerSettings.h"
@@ -1158,8 +1159,8 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 		comboBoxColor->winEnable(FALSE);
 
 	// welcome msg + instructions
-	GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Welcome to QuickMatch. Choose Setup to select playlists and maps."), GameMakeColor(255, 194, 25, 255), -1, -1);
-	GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Special thanks to map makers Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy & Bamovich for making quickmatch possible."), GameMakeColor(255, 194, 25, 255), -1, -1);
+	GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Welcome to QuickMatch. Choose Setup to select playlists and maps."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 25, 255)), -1, -1);
+	GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Special thanks to map makers Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy & Bamovich for making quickmatch possible."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 25, 255)), -1, -1);
 
 
 	// refresh out stats, needed for ELO data
@@ -1183,7 +1184,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 #else
 					eloStr.format(L"Your current Elo rating is %d (monthly: %d) after %d match(es)", stats.elo_rating, stats.monthly_elo_rating, stats.elo_num_matches);
 #endif
-					GadgetListBoxAddEntryText(quickmatchTextWindow, eloStr, GameMakeColor(255, 194, 25, 255), -1, -1);
+					GadgetListBoxAddEntryText(quickmatchTextWindow, eloStr, GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 25, 255)), -1, -1);
 				}
 			}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
     }
@@ -1416,14 +1417,14 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 							{
 								strConnectionMessage.format(L"Connecting to %s", strDisplayName.c_str());
 
-								Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GameMakeColor(255, 194, 15, 255), -1, -1);
+								Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 								GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 							}
 							else if (connState == EConnectionState::CONNECTED_DIRECT)
 							{
 								strConnectionMessage.format(L"Connected to %s", strDisplayName.c_str());
 
-								Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GameMakeColor(255, 194, 15, 255), -1, -1);
+								Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 								GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 							}
 							else
@@ -1431,7 +1432,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 								if (connState == EConnectionState::CONNECTION_FAILED || connState == EConnectionState::CONNECTION_DISCONNECTED)
 								{
 									strConnectionMessage.format(L"Connection failed to %s", strDisplayName.c_str());
-									Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GameMakeColor(255, 194, 15, 255), -1, -1);
+									Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 									GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 								}
 							}
@@ -1683,7 +1684,7 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 				countdownMessage.format(TheGameText->fetch("LAN:GameStartTimerPlural"), secondsRemaining);
 			}
 
-			Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, countdownMessage, GameMakeColor(192, 192, 192, 255), -1, -1);
+			Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, countdownMessage, GOUIColor(GOUICOLOR_MUTED, GameMakeColor(192, 192, 192, 255)), -1, -1);
 			GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 			matchStartCountdownLastSecond = secondsRemaining;
 		}
@@ -1696,7 +1697,7 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 		matchFoundTimeoutStart = 0;
 		buttonBack->winEnable(TRUE);
 		buttonStop->winEnable(TRUE);
-		Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Match setup timed out. You may cancel or continue waiting."), GameMakeColor(255, 194, 25, 255), -1, -1);
+		Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Match setup timed out. You may cancel or continue waiting."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 25, 255)), -1, -1);
 		GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 	}
 

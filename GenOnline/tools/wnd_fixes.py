@@ -46,7 +46,8 @@ BLANK_LAYOUTS = {
         "GameSpyLoginProfile.wnd:ButtonUseAnotherAccount",
         "GameSpyLoginProfile.wnd:ButtonCancel",
     ),
-    "Window/Menus/GameSpyLoginQuick.wnd": ("GameSpyLoginQuick.wnd:MainMenuBackground",),
+    # retail only pushes the quick login; GO keeps it blank with its backdrop, without the W3DMainMenuDraw strip
+    "Window/Menus/GameSpyLoginQuick.wnd": ("GameSpyLoginQuick.wnd:WOLLoginMenuParent",),
 }
 
 # sort headers of the online game list; the columns follow the COLUMN_ enum in Core LobbyUtils.cpp

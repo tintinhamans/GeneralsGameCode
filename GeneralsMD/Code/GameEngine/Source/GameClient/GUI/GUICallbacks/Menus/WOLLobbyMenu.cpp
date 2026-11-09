@@ -32,6 +32,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/GameEngine.h"
+#include "Common/GOUIColors.h"
 #include "Common/GameState.h"
 #include "Common/MiniLog.h"
 #include "Common/MultiplayerSettings.h"
@@ -241,7 +242,7 @@ void handleNetSlashCommand(AsciiString subcommand, AsciiString value, GameWindow
 {
 	extern int g_iceImplementationOverride;
 
-	const Color netColor = GameMakeColor(255, 255, 0, 255);
+	const Color netColor = GOUIColor(GOUICOLOR_HILITE, GameMakeColor(255, 255, 0, 255));
 	UnicodeString line;
 
 	if (subcommand == "reset" && value.isEmpty())
@@ -435,7 +436,7 @@ Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited)
 #if defined(GENONLINE)
 	else if (token == "help" || token == "commands")
 	{
-		const Color helpColor = GameMakeColor(127, 127, 127, 255);
+		const Color helpColor = GOUIColor(GOUICOLOR_HELP, GameMakeColor(127, 127, 127, 255));
 		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/me <message> - Send an emote."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/name <value> - Changes your display name - Example: /name General Granger. You can also use /nick."), helpColor, -1, -1);
 		// GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/refresh - Refresh the game and player lists."), helpColor, -1, -1);
@@ -456,7 +457,7 @@ Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited)
 
 		if (newName.getLength() < 3 || newName.getLength() > 16)
 		{
-			GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Your new name must be between 3 and 16 characters."), GameMakeColor(255, 0, 0, 255), -1, -1);
+			GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Your new name must be between 3 and 16 characters."), GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255)), -1, -1);
 		}
 		else
 		{
@@ -1687,7 +1688,7 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 				const std::vector<NetworkRoom>& rooms = pRoomsInterfaceOuter->GetGroupRooms();
 				if (!success || rooms.empty())
 				{
-					GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"\t ERROR: No rooms are available. Try logging in again."), GameMakeColor(255, 0, 0, 255), -1, -1);
+					GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"\t ERROR: No rooms are available. Try logging in again."), GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255)), -1, -1);
 					return;
 				}
 
@@ -2033,7 +2034,7 @@ void WOLLobbyMenuUpdate( WindowLayout * layout, void *userData)
 		}
 		else
 		{
-			GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Your lobby list is outdated. Hit refresh to see the latest servers."), GameMakeColor(255, 194, 15, 255), -1, -1);
+			GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Your lobby list is outdated. Hit refresh to see the latest servers."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 		}
 
 	}
