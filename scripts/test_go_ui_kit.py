@@ -989,7 +989,7 @@ class LoadSplashTest(unittest.TestCase):
 
     def test_bubble_is_said_by_the_logo_van_not_the_driving_van(self):
         # no line (no GO logo, -nologo, a later load): no bubble
-        self.assertIn("if (s_goSplash == nullptr", self.bubble)
+        self.assertIn("if (s_goSplashRowCount <= 0", self.bubble)
         van = self.source[self.source.index("static void drawGoLoadBarVan("):]
         van = van[:van.index("\n}\n")]
         for gone in ("Bubble", "GO_BUBBLE_TIP"):
@@ -1009,7 +1009,7 @@ class LoadSplashTest(unittest.TestCase):
             self.assertIn(text, self.draw_credit)
 
     def test_bubble_draw_follows_the_layout_rule(self):
-        for text in ("const Int lineHeight = s_goSplash->getFont()->height;",
+        for text in ("const Int lineHeight = s_goSplashRows[0]->getFont()->height;",
                      "const Int corner = lineHeight * 3 / 5;",
                      "const Int tailWidth = lineHeight * 9 / 10;",
                      "const Int tailHeight = lineHeight * 3 / 4;",
@@ -1033,10 +1033,22 @@ class LoadSplashTest(unittest.TestCase):
                             ("GO_BUBBLE_WRAP", kit.BUBBLE_WRAP_UNITS)):
             self.assertEqual(float(re.search(rf"static const Real {name} = ([\d.]+)f;", self.source).group(1)), value)
 
-    def test_line_wraps_centred_at_the_wrap_width_scaled_like_the_font(self):
-        self.assertIn("s_goSplash->setWordWrap(REAL_TO_INT(GO_BUBBLE_WRAP * fontScale));", self.init_credit)
-        self.assertIn("s_goSplash->setWordWrapCentered(TRUE);", self.init_credit)
-        self.assertLess(self.init_credit.index("->setFont("), self.init_credit.index("->setWordWrap("))
+    def test_line_breaks_into_rows_measured_the_way_they_are_drawn(self):
+        # the engine's centred wrap counts each space twice, so it broke lines its own measure kept whole; the line is
+        # broken here greedily like splash_text_block, each row measured and drawn on its own without engine wrapping
+        for text in ("const Int wrap = REAL_TO_INT(GO_BUBBLE_WRAP * fontScale);",
+                     "while (rest.nextToken(&word, L\" \"))",
+                     "if (width < wrap || s_goSplashRowCount == GO_SPLASH_MAX_ROWS)",
+                     "row->setFont(font);",
+                     "s_goSplashRows[s_goSplashRowCount++] = row;"):
+            self.assertIn(text, self.init_credit)
+        for gone in ("setWordWrapCentered", "row->setWordWrap", "last->setWordWrap"):
+            self.assertNotIn(gone, self.init_credit)
+        self.assertLess(self.init_credit.index("freeGoSplashRows();"), self.init_credit.index("rest.nextToken("))
+        for text in ("const Int textHeight = lineHeight * s_goSplashRowCount;",
+                     "const Int textTop = top + (height - textHeight) / 2;",
+                     "s_goSplashRows[drawRow]->draw(left + (width - rowWidth) / 2, textTop + drawRow * lineHeight, "):
+            self.assertIn(text, self.bubble)
         self.assertEqual(kit.SPLASH_FONT_SIZE, 16)
 
     def test_long_lines_take_two_lines_and_short_ones_one_at_every_screen(self):
