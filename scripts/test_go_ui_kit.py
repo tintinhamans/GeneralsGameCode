@@ -318,8 +318,9 @@ class ShellLoadBarTest(unittest.TestCase):
         self.assertIn("const Int fillWidth = width - 2 * inset;", self.draw)
         self.assertIn("const Int fillHeight = height - 2 * inset;", self.draw)
         self.assertIn("const Int drawWidth = fillWidth * progress / 100;", self.draw)
-        self.assertIn("TheDisplay->drawImage(fill, x + inset, y + inset, x + inset + drawWidth, y + inset + fillHeight);",
-                      self.draw)
+        # the fill runs to its end, or to the rear of a van driving inside the bar (goLoadBarVanFillEnd)
+        self.assertIn("Int fillStop = x + inset + drawWidth;", self.draw)
+        self.assertIn("TheDisplay->drawImage(fill, x + inset, y + inset, fillStop, y + inset + fillHeight);", self.draw)
         # one stretched fill, no tiles: tiles of the fill height leave a remainder on the right
         self.assertNotIn("for (", self.draw)
 
@@ -633,8 +634,8 @@ class VanPlacementTest(unittest.TestCase):
                     self.assertEqual(kit.van_fill_end(layout, end), end)
 
     def test_inside_the_van_drives_on_the_track_ahead_of_the_fill(self):
-        """Inside, the van's rear sits at the fill end on the dark track and the fill stops at the van's rear; the shell
-        bar always has room above, so only the W3D drawn bars ever go inside."""
+        """Inside, the van's rear sits at the fill end on the dark track and the fill stops at the van's rear. In the GO
+        layouts with the legal text hidden only the W3D drawn bars go inside; VanShellFirstLoadTest covers the legal text."""
         seen = set()
         for screen in self.SCREENS:
             for percent in (0, 1, 10, 50, 90, 99, 100):
@@ -746,6 +747,24 @@ class VanMotionTest(unittest.TestCase):
         self.assertNotEqual(waves[:20], waves[20:])
         self.assertEqual({kit.van_wiggle(t, height, 0.0) for t in range(0, 2000, 7)}, {(0, 0)})
 
+    def test_wave_wraps_on_a_whole_number_of_both_beats(self):
+        # the clock wraps before the sines, so float precision never decays with uptime; the period holds whole beats of
+        # both sines, so the wrap is seamless
+        period = kit.VAN["GO_VAN_WAVE_MS"]
+        for hz in (kit.VAN_REAL_CONSTANTS["GO_VAN_BOB_HZ_A"], kit.VAN_REAL_CONSTANTS["GO_VAN_BOB_HZ_B"]):
+            self.assertAlmostEqual(hz * period / 1000.0, round(hz * period / 1000.0), places=9)
+        for t in (0, 1234, 9999):
+            self.assertAlmostEqual(kit.van_wave(t), kit.van_wave(t + 7 * period), places=9)
+        step = abs(kit.van_wave(period - 1) - kit.van_wave(period))
+        self.assertLess(step, 0.05)
+        self.assertEqual(kit.van_wave(3_000_000_000 + 1234), kit.van_wave((3_000_000_000 + 1234) % period))
+
+    def test_puff_lives_reach_the_whole_spread(self):
+        lives = {kit.van_puff_life(kit.van_hash(n)) for n in range(20000)}
+        low, spread = kit.VAN["GO_VAN_PUFF_LIFE_MS"], kit.VAN["GO_VAN_PUFF_LIFE_SPREAD_MS"]
+        self.assertEqual(min(lives), low)
+        self.assertEqual(max(lives), low + spread - 1)
+
     def test_dish_follows_the_bounce_late_by_a_pixel(self):
         sways = {kit.van_wiggle(t, 52, 1.0)[1] for t in range(0, 4000, 7)}
         self.assertEqual(sways, {-1, 0, 1})
@@ -800,8 +819,9 @@ class VanSourceTest(unittest.TestCase):
     def test_van_is_drawn_only_behind_the_go_art_check_by_both_bar_draws(self):
         self.assert_guarded_call(self.body(self.w3d, "void W3DGadgetProgressBarImageDraw( GameWindow *window, WinInstanceData *instData )"),
                                  "if( goVan )")
-        self.assert_guarded_call(self.body(self.load, "static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )"),
-                                 "if (isGoLoadBarImage(fill))")
+        shell = self.body(self.load, "static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )")
+        self.assertIn("const Bool goVan = isGoLoadBarImage(fill);", shell)
+        self.assert_guarded_call(shell, "if (goVan)")
         self.assertNotIn("drawGoLoadBarVan(", self.body(self.w3d, "void W3DGadgetProgressBarImageDrawA("))
         callers = []
         for folder in ("Core", "Generals/Code", "GeneralsMD/Code"):
@@ -828,17 +848,42 @@ class VanSourceTest(unittest.TestCase):
         self.assertGreaterEqual(depth, 1)
         self.assertRegex(draw[stop:], r"^goLoadBarVanFillEnd\( window, vanRoad, vanFill, fillEnd \);\s*"
                                       r"if\( fillStop < fillEnd \)\s*\{\s*"
-                                      r"pieces = \( fillStop - vanFill\.lo\.x \) / barCenterWidth;\s*\}")
+                                      r"pieces = \( fillStop - vanFill\.lo\.x \) / barCenterWidth;\s*"
+                                      r"if\( pieces < 0 \)\s*\{\s*pieces = 0;\s*\}\s*\}")
         self.assertIn("Int goLoadBarVanFillEnd(GameWindow *window, const IRegion2D &road, const IRegion2D &fill, Int fillEnd);",
                       self.header)
         callers = [p.name for folder in ("Core", "Generals/Code", "GeneralsMD/Code") for p in (kit.ROOT / folder).rglob("*.cpp")
                    if "goLoadBarVanFillEnd(" in p.read_text("latin-1")]
         self.assertEqual(sorted(callers), ["LoadScreen.cpp", "W3DProgressBar.cpp"])
-        self.assertEqual(self.load.count("goLoadBarVanFillEnd("), 1)  # the definition; the shell bar is always above
+        self.assertEqual(self.load.count("goLoadBarVanFillEnd("), 2)  # the definition and the shell bar draw
         # the van rear the fill stops at, from the shared placement
         fill_end = self.body(self.load, "Int goLoadBarVanFillEnd(GameWindow *window")
         self.assertIn("place.x0 + goVanScale(GO_VAN_OUTLINE_LEFT, place.height)", fill_end)
         self.assertIn("!place.inside", fill_end)
+
+    def test_shell_draw_stops_its_fill_at_a_van_inside_the_bar_before_drawing_it(self):
+        shell = self.body(self.load, "static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )")
+        stop = shell.index("fillStop = goLoadBarVanFillEnd(window, road, fillArea, fillStop);")
+        self.assertLess(stop, shell.index("TheDisplay->drawImage(fill,"))
+        low, depth = brace_depth(shell, shell.rindex("if (goVan)", 0, stop), stop)
+        self.assertGreaterEqual(low, 0)
+        self.assertGreaterEqual(depth, 1)
+        self.assertIn("drawGoLoadBarVan(window, progress, road, fillArea, x + inset + drawWidth);", shell)
+
+    def test_van_needs_every_layer_before_it_takes_its_place(self):
+        place = self.body(self.load, "static GoVanPlace placeGoVan(")
+        for name in ('"GOVanBody"', '"GOVanDish"', "GO_VAN_WHEEL_IMAGES[wheel]"):
+            self.assertIn(name, place)
+        table = re.search(r"static const char \*const GO_VAN_WHEEL_IMAGES\[GO_VAN_WHEEL_FRAMES\] = \{([^}]*)\};", self.van)
+        self.assertEqual(re.findall(r'"([^"]+)"', table.group(1)), [f"GOVanWheels{k}" for k in range(kit.VAN_WHEEL_FRAMES)])
+        # one lookup by a fixed name per frame, no string built while drawing
+        self.assertIn("findImageByName(GO_VAN_WHEEL_IMAGES[state->frame])", self.van)
+        self.assertNotIn(".format(", self.van)
+        self.assertNotIn("AsciiString", self.van)
+
+    def test_wave_wraps_on_its_period_and_puff_lives_reach_the_whole_spread(self):
+        self.assertIn("const double t = (now % GO_VAN_WAVE_MS) / 1000.0;", self.van)
+        self.assertIn("(hash >> 20) % GO_VAN_PUFF_LIFE_SPREAD_MS", self.van)
 
     def test_constants_match_the_model(self):
         ints = dict(re.findall(r"static const (?:Int|UnsignedInt) (GO_VAN_\w+) = (\d+);", self.van))
@@ -847,7 +892,7 @@ class VanSourceTest(unittest.TestCase):
         self.assertEqual({k: float(v) for k, v in reals.items()}, kit.VAN_REAL_CONSTANTS)
 
     def test_van_draws_layers_with_the_image_calls_and_no_new_render_state(self):
-        for name in ("GOVanBody", "GOVanDish", "GOVanWheels%d", "GOVanPuff"):
+        for name in ("GOVanBody", "GOVanDish", "GOVanWheels0", "GOVanPuff"):
             self.assertIn(f'"{name}"', self.van)
         self.assertIn("timeGetTime()", self.van)
         self.assertIn("TheDisplay->drawImage(", self.van)
@@ -858,6 +903,65 @@ class VanSourceTest(unittest.TestCase):
         # puffs first, then body, dish and wheels
         order = [self.van.index(s) for s in ("drawImage(puffImage", "drawImage(body", "drawImage(dish", "drawImage(wheels")]
         self.assertEqual(order, sorted(order))
+
+
+class VanShellFirstLoadTest(unittest.TestCase):
+    """The first shell load shows the legal text, which the layout puts right over the bar; with the GO logo in place of
+    the title art, ShellGameLoadScreen::initCredit moves it under the website line so the van keeps its place above."""
+
+    SCREENS = ((800, 600), (1366, 768), (1920, 1080), (2560, 1440), (3840, 2160))
+    LEGAL = "ShellGameLoadScreen.wnd:StaticTextLegal"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.source = (kit.ROOT / "Core/GameEngine/Source/GameClient/GUI/LoadScreen.cpp").read_text("latin-1")
+        start = cls.source.index("void ShellGameLoadScreen::initCredit()")
+        cls.init_credit = cls.source[start:cls.source.index("\n}\n", start)]
+
+    def constant(self, name):
+        return float(re.search(rf"static const Real {name} = ([\d.]+)f;", self.source).group(1))
+
+    def shell(self, legal_top=None):
+        """The shell layout with the legal text shown, at its layout place or moved to legal_top (800x600 units)."""
+        root, bars, _ = go_bar_layouts()["ShellGameLoadScreen"]
+        legal = next(w for w in root.walk() if w.name == self.LEGAL)
+        legal.status = legal.status - {"HIDDEN"}
+        if legal_top is not None:
+            x0, y0, x1, y1 = legal.rect
+            legal.rect = (x0, int(legal_top), x1, int(legal_top) + y1 - y0)
+        return root, bars[0], legal
+
+    def mode(self, root, bar, screen):
+        rect = screen_rect(bar, screen)
+        args = (rect[0], rect[1], rect[2] - rect[0], rect[3] - rect[1], screen[1])
+        fill = kit.shell_load_bar_layout(*args, 100)[1]
+        layout = kit.van_layout(rect, fill, fill[0], lambda strip: strip_clear(root, bar, screen, strip))
+        return layout and layout[0]
+
+    def test_legal_text_at_its_layout_place_takes_the_room_above_the_bar(self):
+        root, bar, legal = self.shell()
+        self.assertNotIn("HIDDEN", legal.status)
+        self.assertNotEqual(self.mode(root, bar, (1920, 1080)), "above")
+
+    def test_first_load_with_the_legal_text_moved_keeps_the_van_above_the_bar(self):
+        root, bar, _ = self.shell(self.constant("CREDIT_LEGAL_TOP"))
+        for screen in self.SCREENS:
+            self.assertEqual(self.mode(root, bar, screen), "above", screen)
+
+    def test_legal_text_sits_under_the_website_line(self):
+        legal_top, url_top = self.constant("CREDIT_LEGAL_TOP"), self.constant("CREDIT_URL_TOP")
+        self.assertGreaterEqual(legal_top, url_top + 16)  # the 14 point website line and a gap
+        _, _, legal = self.shell(legal_top)
+        self.assertLess(legal.rect[3], 576 - 40)  # well clear of the bar at 576
+
+    def test_initcredit_moves_the_legal_text_only_with_the_go_logo(self):
+        move = self.init_credit.index(f'nameToKey("{self.LEGAL}")')
+        block_start = self.init_credit.rindex("if (m_creditLogo != nullptr)", 0, move)
+        low, depth = brace_depth(self.init_credit, block_start, move)
+        self.assertGreaterEqual(low, 0)
+        self.assertGreaterEqual(depth, 1)
+        self.assertIn("legal->winSetPosition(legalX, REAL_TO_INT(CREDIT_LEGAL_TOP * screenHeight / 600.0f));",
+                      self.init_credit)
 
 
 class VanInMatchTest(unittest.TestCase):

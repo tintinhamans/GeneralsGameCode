@@ -881,7 +881,7 @@ VAN_CONSTANTS = {
     "GO_VAN_OUTLINE_TOP": 5, "GO_VAN_OUTLINE_BOTTOM": 152, "GO_VAN_OUTLINE_LEFT": 14, "GO_VAN_OUTLINE_RIGHT": 247,
     "GO_VAN_TYRE_BOTTOM": 145, "GO_VAN_REAR_TYRE": 46, "GO_VAN_BUMPER": 240,
     "GO_VAN_MIN_HEIGHT": 20, "GO_VAN_WHEEL_FRAMES": VAN_WHEEL_FRAMES, "GO_VAN_FRAME_MS": 83, "GO_VAN_STALL_MS": 500,
-    "GO_VAN_SETTLE_MS": 300, "GO_VAN_FORGET_MS": 1000, "GO_VAN_BARS": 16, "GO_VAN_BOB": 2, "GO_VAN_DISH_LAG_MS": 90,
+    "GO_VAN_SETTLE_MS": 300, "GO_VAN_FORGET_MS": 1000, "GO_VAN_BARS": 16, "GO_VAN_BOB": 2, "GO_VAN_DISH_LAG_MS": 90, "GO_VAN_WAVE_MS": 10000,
     "GO_VAN_PUFFS": 12, "GO_VAN_PUFF_SPAWN_X": 44, "GO_VAN_PUFF_SPAWN_Y": 138, "GO_VAN_PUFF_JITTER": 4,
     "GO_VAN_PUFF_DRIFT_X": 24, "GO_VAN_PUFF_DRIFT_Y": 40, "GO_VAN_PUFF_START": 16, "GO_VAN_PUFF_END": 40,
     "GO_VAN_PUFF_LIFE_MS": 500, "GO_VAN_PUFF_LIFE_SPREAD_MS": 300, "GO_VAN_PUFF_GAP_MS": 40, "GO_VAN_PUFF_TRAVEL": 50,
@@ -1052,9 +1052,10 @@ def van_wheel_frame(now, moving, frame):
 
 
 def van_wave(now):
-    """The suspension rhythm in -1..1: two sines at unrelated rates, so the bounce never repeats a beat."""
+    """The suspension rhythm in -1..1: two sines at unrelated rates, so the bounce never repeats a beat. The clock wraps
+    first, on GO_VAN_WAVE_MS that holds whole beats of both, so the phase keeps its precision at any uptime."""
     r = VAN_REAL_CONSTANTS
-    t = now / 1000.0
+    t = (now % VAN["GO_VAN_WAVE_MS"]) / 1000.0
     return (r["GO_VAN_BOB_WEIGHT_A"] * math.sin(2 * math.pi * r["GO_VAN_BOB_HZ_A"] * t)
             + (1 - r["GO_VAN_BOB_WEIGHT_A"]) * math.sin(2 * math.pi * r["GO_VAN_BOB_HZ_B"] * t + r["GO_VAN_BOB_PHASE_B"]))
 
@@ -1069,6 +1070,11 @@ def van_wiggle(now, height, envelope):
 
 def van_hash(value):
     return (value * 2654435761) & 0xFFFFFFFF
+
+
+def van_puff_life(h):
+    """A puff's life from its hash: GO_VAN_PUFF_LIFE_MS plus a slice of the hash wide enough for the whole spread."""
+    return VAN["GO_VAN_PUFF_LIFE_MS"] + (h >> 20) % VAN["GO_VAN_PUFF_LIFE_SPREAD_MS"]
 
 
 class VanBar:
@@ -1100,7 +1106,7 @@ class VanBar:
             jitter = VAN["GO_VAN_PUFF_JITTER"]
             x = x0 + van_scale(VAN["GO_VAN_PUFF_SPAWN_X"] + (h >> 8) % (2 * jitter + 1) - jitter, height)
             y = y0 + van_scale(VAN["GO_VAN_PUFF_SPAWN_Y"] + (h >> 16) % (2 * jitter + 1) - jitter, height)
-            life = VAN["GO_VAN_PUFF_LIFE_MS"] + (h >> 24) % VAN["GO_VAN_PUFF_LIFE_SPREAD_MS"]
+            life = van_puff_life(h)
             self.puffs[self.next] = (now, life, x, y, height)
             self.next = (self.next + 1) % VAN["GO_VAN_PUFFS"]
         return moving, envelope

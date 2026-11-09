@@ -337,6 +337,10 @@ void W3DGadgetProgressBarImageDraw( GameWindow *window, WinInstanceData *instDat
 		if( fillStop < fillEnd )
 		{
 			pieces = ( fillStop - vanFill.lo.x ) / barCenterWidth;
+			if( pieces < 0 )
+			{
+				pieces = 0;
+			}
 		}
 	}
 

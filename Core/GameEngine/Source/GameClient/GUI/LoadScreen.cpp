@@ -116,6 +116,8 @@ static const Real CREDIT_FADE_IN_MS = 500.0f;
 static const Real CREDIT_LOGO_TOP = 222.0f;
 static const Real CREDIT_LOGO_HEIGHT = 125.0f;
 static const Real CREDIT_URL_TOP = 362.0f;
+// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO logo the legal text sits under the website, clear of the radar van over the bar.
+static const Real CREDIT_LEGAL_TOP = 386.0f;
 
 //-----------------------------------------------------------------------------
 // PUBLIC DATA ////////////////////////////////////////////////////////////////
@@ -166,6 +168,7 @@ static const UnsignedInt GO_VAN_FORGET_MS = 1000;
 static const Int GO_VAN_BARS = 16;
 static const Int GO_VAN_BOB = 2;
 static const UnsignedInt GO_VAN_DISH_LAG_MS = 90;
+static const UnsignedInt GO_VAN_WAVE_MS = 10000;
 static const Int GO_VAN_PUFFS = 12;
 static const Int GO_VAN_PUFF_SPAWN_X = 44;
 static const Int GO_VAN_PUFF_SPAWN_Y = 138;
@@ -185,6 +188,7 @@ static const Real GO_VAN_BOB_HZ_B = 5.1f;
 static const Real GO_VAN_BOB_PHASE_B = 1.3f;
 static const Real GO_VAN_BOB_WEIGHT_A = 0.6f;
 static const Int GO_VAN_SPAN = GO_VAN_OUTLINE_BOTTOM - GO_VAN_OUTLINE_TOP;
+static const char *const GO_VAN_WHEEL_IMAGES[GO_VAN_WHEEL_FRAMES] = { "GOVanWheels0", "GOVanWheels1", "GOVanWheels2", "GOVanWheels3" };
 
 struct GoVanPuff
 {
@@ -225,7 +229,8 @@ static UnsignedInt goVanHash(UnsignedInt value)
 // TheSuperHackers @feature arcticdolphin 09/11/2026 The suspension rhythm in -1..1: two sines at unrelated rates, so the bounce never repeats a beat.
 static Real goVanWave(UnsignedInt now)
 {
-	const double t = now / 1000.0;
+	// wrapped on whole beats of both sines first, so the phase keeps its precision under the 24 bit FPU mode at any uptime
+	const double t = (now % GO_VAN_WAVE_MS) / 1000.0;
 	const double a = GO_VAN_BOB_WEIGHT_A * sin(TWO_PI * GO_VAN_BOB_HZ_A * t);
 	const double b = (1.0 - GO_VAN_BOB_WEIGHT_A) * sin(TWO_PI * GO_VAN_BOB_HZ_B * t + GO_VAN_BOB_PHASE_B);
 	return (Real)(a + b);
@@ -323,6 +328,14 @@ static GoVanPlace placeGoVan(GameWindow *window, const IRegion2D &road, const IR
 {
 	GoVanPlace place;
 	place.placed = TheMappedImageCollection->findImageByName("GOVanBody") != nullptr && TheMappedImageCollection->findImageByName("GOVanDish") != nullptr;
+	// a partial set of van images gives no van and no fill cut
+	for (Int wheel = 0; wheel < GO_VAN_WHEEL_FRAMES; ++wheel)
+	{
+		if (TheMappedImageCollection->findImageByName(GO_VAN_WHEEL_IMAGES[wheel]) == nullptr)
+		{
+			place.placed = FALSE;
+		}
+	}
 	place.inside = FALSE;
 
 	// above the road: about 1.8 times its height, tyres on its top edge, when nothing else is drawn there
@@ -464,7 +477,7 @@ void drawGoLoadBarVan(GameWindow *window, Int progress, const IRegion2D &road, c
 			const Int spread = 2 * GO_VAN_PUFF_JITTER + 1;
 			GoVanPuff &puff = state->puffs[state->nextPuff];
 			puff.born = now;
-			puff.life = GO_VAN_PUFF_LIFE_MS + (hash >> 24) % GO_VAN_PUFF_LIFE_SPREAD_MS;
+			puff.life = GO_VAN_PUFF_LIFE_MS + (hash >> 20) % GO_VAN_PUFF_LIFE_SPREAD_MS;
 			puff.x = x0 + goVanScale(GO_VAN_PUFF_SPAWN_X + (Int)((hash >> 8) % spread) - GO_VAN_PUFF_JITTER, height);
 			puff.y = y0 + goVanScale(GO_VAN_PUFF_SPAWN_Y + (Int)((hash >> 16) % spread) - GO_VAN_PUFF_JITTER, height);
 			puff.height = height;
@@ -499,9 +512,7 @@ void drawGoLoadBarVan(GameWindow *window, Int progress, const IRegion2D &road, c
 		return;
 	}
 
-	AsciiString wheelName;
-	wheelName.format("GOVanWheels%d", state->frame);
-	const Image *wheels = TheMappedImageCollection->findImageByName(wheelName);
+	const Image *wheels = TheMappedImageCollection->findImageByName(GO_VAN_WHEEL_IMAGES[state->frame]);
 	if (wheels == nullptr)
 	{
 		return;
@@ -552,24 +563,31 @@ static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )
 		progress = 100;
 	}
 	const Int drawWidth = fillWidth * progress / 100;
-	if (drawWidth > 0)
+
+	// TheSuperHackers @feature arcticdolphin 09/11/2026 The radar van drives on the frame at the end of the fill; inside the bar it rides the track ahead of the fill, so the fill stops at its rear.
+	const Bool goVan = isGoLoadBarImage(fill);
+	IRegion2D road;
+	road.lo.x = x;
+	road.lo.y = y;
+	road.hi.x = x + width;
+	road.hi.y = y + height;
+	IRegion2D fillArea;
+	fillArea.lo.x = x + inset;
+	fillArea.lo.y = y + inset;
+	fillArea.hi.x = x + inset + fillWidth;
+	fillArea.hi.y = y + inset + fillHeight;
+	Int fillStop = x + inset + drawWidth;
+	if (goVan)
 	{
-		TheDisplay->drawImage(fill, x + inset, y + inset, x + inset + drawWidth, y + inset + fillHeight);
+		fillStop = goLoadBarVanFillEnd(window, road, fillArea, fillStop);
+	}
+	if (fillStop > x + inset)
+	{
+		TheDisplay->drawImage(fill, x + inset, y + inset, fillStop, y + inset + fillHeight);
 	}
 
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 The radar van drives on the frame at the end of the fill.
-	if (isGoLoadBarImage(fill))
+	if (goVan)
 	{
-		IRegion2D road;
-		road.lo.x = x;
-		road.lo.y = y;
-		road.hi.x = x + width;
-		road.hi.y = y + height;
-		IRegion2D fillArea;
-		fillArea.lo.x = x + inset;
-		fillArea.lo.y = y + inset;
-		fillArea.hi.x = x + inset + fillWidth;
-		fillArea.hi.y = y + inset + fillHeight;
 		drawGoLoadBarVan(window, progress, road, fillArea, x + inset + drawWidth);
 	}
 }
@@ -1724,6 +1742,18 @@ void ShellGameLoadScreen::initCredit()
 	if (m_creditLogo != nullptr)
 	{
 		m_loadScreen->winSetEnabledImage(0, nullptr);
+	}
+	// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO logo the legal text moves under the website line, so the radar van keeps the room over the bar.
+	if (m_creditLogo != nullptr)
+	{
+		GameWindow *legal = TheWindowManager->winGetWindowFromId(m_loadScreen, TheNameKeyGenerator->nameToKey("ShellGameLoadScreen.wnd:StaticTextLegal"));
+		if (legal != nullptr)
+		{
+			Int legalX = 0;
+			Int legalY = 0;
+			legal->winGetPosition(&legalX, &legalY);
+			legal->winSetPosition(legalX, REAL_TO_INT(CREDIT_LEGAL_TOP * screenHeight / 600.0f));
+		}
 	}
 
 	m_creditWindow = TheWindowManager->winCreate(m_loadScreen, WIN_STATUS_ENABLED | WIN_STATUS_NO_INPUT, 0, 0, screenWidth, screenHeight, nullptr);
