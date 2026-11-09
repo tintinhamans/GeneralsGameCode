@@ -23,6 +23,7 @@ from test_go_wnd_layouts import DRAW_SLOT, layout, window  # noqa: E402
 
 RETAIL_LOGO_INI = "SCSmShellUserInterface512.INI"  # the retail file that defines GeneralsLogo
 RETAIL_RULER_INI = "HandCreatedMappedImages.INI"  # the retail file in MappedImages/HandCreated that defines MainMenuRuler
+FILL_PROPS = ("ENABLEDDRAWDATA", "DISABLEDDRAWDATA", "HILITEDRAWDATA")  # the window fill slots, not gadget parts
 HAS_RETAIL = all((themes.RETAIL_DIR / big).is_file() for big in (themes.RETAIL_INI_BIG, themes.RETAIL_TEXTURE_BIG))
 
 
@@ -93,18 +94,6 @@ class LayoutPaletteTest(unittest.TestCase):
         for theme in themes.LAYOUT_COLORS.values():
             self.assertIn("#%02X%02X%02X" % theme, palette)
 
-    def test_signal_fills_map_to_their_launcher_token_and_are_never_retail_black(self):
-        rgbs = [themes._rgb(hex_color) for hex_color in themes.SIGNAL_FILLS.values()]
-        self.assertEqual(len(set(rgbs)), len(rgbs))
-        self.assertEqual(themes.SIGNAL_FILLS["ground"], "#05070F")  # the kit field fill
-        self.assertEqual(themes.SIGNAL_FILLS["panel"], "#070A18")   # the kit button fill
-        self.assertEqual(themes.SIGNAL_FILLS["surface"], "#0B1030")  # the kit slider block fill
-        for token, hex_color in themes.SIGNAL_FILLS.items():
-            self.assertEqual(themes.LAYOUT_COLORS[themes._rgb(hex_color)], themes._rgb(themes.P[token]), token)
-            self.assertGreater(max(themes._rgb(hex_color)), wl.NEAR_BLACK, token)  # the fill step stays idempotent
-            if hex_color in themes.KIT_COLORS:
-                self.assertEqual(themes.KIT_COLORS[hex_color], themes.P[token], token)  # same token as the kit art
-
     def test_listed_kit_colours(self):
         listed = {"#2F4BFF": "#BF9048", "#6A7BFF": "#E3BA6C", "#8C9BFF": "#F7DB9C", "#4A4E6E": "#2C3B3F",
                   "#070A18": "#141C1F", "#152078": "#223034", "#0A0A10": "#0B1114",
@@ -150,23 +139,40 @@ class LayoutCopyTest(unittest.TestCase):
             return sorted((f.rule, f.file, f.name, f.detail) for f in lint.lint_layouts(texts))
         self.assertEqual(findings(self.theme), findings(self.base))
 
-    def test_radar_window_fills_take_the_launcher_token_of_their_class_and_keep_alpha(self):
-        signal = {themes._rgb(hex_color): token for token, hex_color in themes.SIGNAL_FILLS.items()}
-        seen = Counter()
+    def test_radar_window_fills_take_the_fill_of_their_base_class_and_keep_alpha(self):
+        seen, changed = Counter(), Counter()
         for name, text in self.base.items():
             theme = (themes.THEME_DIR / name).read_bytes().decode("latin-1")
+            classes = {(win.name, tuple(win.rect)): token for win, token, slots in wl.fill_classes(text)}
             for base_win, theme_win in zip(wl.parse_windows(text).walk(), wl.parse_windows(theme).walk()):
+                token = classes.get((base_win.name, tuple(base_win.rect or ())))
+                if token is None:
+                    continue
+                seen[token] += 1
+                fill = themes._rgb(themes.RADAR_FILLS[token])
                 for (prop, slots), (_, theme_slots) in zip(base_win.draws, theme_win.draws):
                     color, theme_color = slots[0][1], theme_slots[0][1]
-                    token = signal.get(tuple(int(v) for v in color[:3]))
-                    if token is None:
-                        continue
-                    seen[token] += 1
-                    self.assertEqual(tuple(int(v) for v in theme_color[:3]), themes._rgb(themes.P[token]), (name, base_win.name))
-                    self.assertEqual(theme_color[3], color[3], (name, base_win.name))
-        self.assertEqual(set(seen), set(themes.SIGNAL_FILLS))
+                    self.assertEqual(theme_color[3], color[3], (name, base_win.name, prop))  # retail alpha
+                    retail_black = int(color[3]) > 0 and max(int(v) for v in color[:3]) <= wl.NEAR_BLACK
+                    if retail_black and prop in FILL_PROPS:
+                        self.assertEqual(tuple(int(v) for v in theme_color[:3]), fill, (name, base_win.name, prop))
+                        changed[name] += 1
+        self.assertEqual(set(seen), set(themes.RADAR_FILLS))
         self.assertGreater(sum(seen.values()), 150)
         self.assertGreater(seen["panel"], 50)
+        self.assertIn("Window/Menus/OptionsMenu.wnd", changed)  # built from YAML
+
+    def test_radar_fills_of_the_sign_in_panel_and_options(self):
+        def enabled(name, window):
+            text = (themes.THEME_DIR / name).read_bytes().decode("latin-1")
+            win = next(w for w in wl.parse_windows(text).walk() if w.name.endswith(":" + window))
+            return [int(v) for v in dict(win.draws)["ENABLEDDRAWDATA"][0][1]]
+        fill = {token: list(themes._rgb(hex_color)) for token, hex_color in themes.RADAR_FILLS.items()}
+        self.assertEqual(enabled("Window/Menus/GameSpyLoginProfile.wnd", "GadgetParent"), fill["panel"] + [129])
+        self.assertEqual(enabled("Window/Menus/OptionsMenu.wnd", "OptionsMenuParent"), fill["panel"] + [255])
+        self.assertEqual(enabled("Window/Menus/OptionsMenu.wnd", "OptionsMenuParentOld"), fill["subpanel"] + [175])
+        self.assertEqual(enabled("Window/Menus/OptionsMenu.wnd", "VideoParent"), fill["deep"] + [255])
+        self.assertEqual(enabled("Window/Menus/LanLobbyMenu.wnd", "ListboxGames"), fill["field"] + [126])
 
     def test_radar_copies_keep_no_retail_black_fill(self):
         for name in self.base:

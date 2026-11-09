@@ -397,8 +397,7 @@ class TitleTest(unittest.TestCase):
         self.assertEqual(by_kind(out, "STATICTEXT"), [(wl.TITLE_LEFT, 44, wl.TITLE_LEFT + 209, 80)])
         self.assertIn("STATICTEXTDATA = CENTERED: 0;", out)
         self.assertNotIn("CENTERED: 1", out)
-        # only the title rect, its GO template and the black fill of the colour drawn ruler parent change
-        self.assertEqual(len(out), len(wl.window_fills(wl.go_templates(text, MENU), MENU)))
+        self.assertEqual(len(out), len(wl.go_templates(text, MENU)))  # only the title rect and its GO template change
         self.assertTrue(any(n.startswith("titles:") and "STATICTEXT48_43" in n for n in notes), notes)
 
     def test_title_taller_than_its_band_fills_the_band(self):
@@ -744,7 +743,7 @@ class YamlSourceTest(unittest.TestCase):
                   other: layout(window("STATICTEXT", (100, 100, 300, 130))).encode("latin-1")}
         with mock.patch.object(wl, "read_big", return_value=retail):
             results = {name: (text, out, info) for name, text, out, info in wl.build(Path("unused.big"))}
-        expected = wl.window_fills(wl.compact_combos(wnd_yaml.compile_file(wnd_yaml.sources()[options]), options), options)
+        expected = wl.compact_combos(wnd_yaml.compile_file(wnd_yaml.sources()[options]), options)
         names = {name.lower(): name for name in results}
         text, out, info = results[names[options.lower()]]
         self.assertEqual(out, expected)
@@ -755,7 +754,7 @@ class YamlSourceTest(unittest.TestCase):
 PREVIEW_CALLBACK = 'DRAWCALLBACK = "W3DDrawMapPreview";'
 BLACK_SLOT = "IMAGE: NoImage, COLOR: 0 0 0 255, BORDERCOLOR: 0 0 0 255"
 PREVIEW_NAMES = ("MapWindow", "WinMapPreview")
-FILLS = {token: [str(v) for v in wl.go_themes._rgb(hex_color)] for token, hex_color in wl.go_themes.SIGNAL_FILLS.items()}
+FILLS = {token: [str(v) for v in wl.go_themes._rgb(hex_color)] for token, hex_color in wl.go_themes.RADAR_FILLS.items()}
 
 
 def enabled_slots(text):
@@ -773,11 +772,9 @@ class MapPreviewBorderTest(unittest.TestCase):
         for name in (MENU, "Window/Menus/MultiplayerLoadScreen.wnd", "Window/ControlBar.wnd"):
             slots = enabled_slots(wl.transform(self.preview_layout(), name=name))
             preview, other = slots["Test.wnd:USER100_100"], slots["Test.wnd:USER400_100"]
-            # menus also give the black fills their Signal fill: the preview a field, the other window a panel
-            well, body = (FILLS["ground"], FILLS["panel"]) if wl.themed(name) else (["0", "0", "0"],) * 2
-            self.assertEqual(preview[0], ("NoImage", well + ["255"], ["47", "75", "255", "255"]), name)
+            self.assertEqual(preview[0], ("NoImage", ["0", "0", "0", "255"], ["47", "75", "255", "255"]), name)
             self.assertEqual(preview[1:], other[1:], name)  # only slot 0 changes
-            self.assertEqual(other[0], ("NoImage", body + ["255"], ["0", "0", "0", "255"]), name)
+            self.assertEqual(other[0], ("NoImage", ["0", "0", "0", "255"], ["0", "0", "0", "255"]), name)
 
     def test_map_preview_border_is_idempotent_and_build_applies_it(self):
         once = wl.transform(self.preview_layout(), name=MENU)
@@ -843,73 +840,86 @@ class WindowFillTest(unittest.TestCase):
         ], indent=2, draw=fill_slot("0 0 0 255"), props=[hilite, disabled])
         return layout(window("USER", (0, 0, 800, 600), [dialog], draw=fill_slot("2 2 2 126")))
 
-    def test_fills_take_the_signal_fill_of_their_class_and_keep_alpha(self):
-        out = first_fills(wl.window_fills(self.dialog(), self.DIALOG))
+    def test_radar_fills_take_the_fill_of_their_class_and_keep_alpha(self):
+        out = first_fills(wl.theme_layout(self.dialog()))
         enabled = {name: fills["ENABLEDDRAWDATA"] for name, fills in out.items()}
         expected = {
-            "USER0_0": FILLS["ground"] + ["126"],            # full screen dim backdrop
+            "USER0_0": FILLS["backdrop"] + ["126"],          # full screen dim backdrop
             "USER200_100": FILLS["panel"] + ["255"],         # the dialog body
-            "USER210_110": FILLS["surface"] + ["175"],       # a panel inside it
-            "USER220_120": FILLS["panel-3"] + ["255"],       # three deep
-            "USER230_130": FILLS["panel-3"] + ["200"],       # deeper stays panel-3
+            "USER210_110": FILLS["subpanel"] + ["175"],      # a panel inside it
+            "USER220_120": FILLS["deep"] + ["255"],          # three deep
+            "USER230_130": FILLS["deep"] + ["200"],          # deeper stays deep
             "USER210_310": FILLS["panel"] + ["255"],         # an opaque copy of the dialog fill reads as the dialog
-            "SCROLLLISTBOX210_410": FILLS["ground"] + ["126"],  # a field
+            "SCROLLLISTBOX210_410": FILLS["field"] + ["126"],  # a field
             "STATICTEXT210_484": ["0", "0", "0", "0"],       # clear: left alone
             "USER310_484": ["0", "0", "0", "255"],           # image drawn
             "USER410_484": ["0", "0", "0", "255"],           # not drawn
-            "USER510_484": ["0", "0", "128", "255"],         # not retail black
+            "USER510_484": ["13", "21", "27", "255"],        # navy: the palette's ink, not a fill class
         }
         self.assertEqual({name.split(":")[1]: fill for name, fill in enabled.items()}, expected)
         dialog = out["Test.wnd:USER200_100"]
         self.assertEqual(dialog["HILITEDRAWDATA"], FILLS["panel"] + ["162"])    # a black hover fill follows
         self.assertEqual(dialog["DISABLEDDRAWDATA"], ["64", "64", "64", "255"])  # the grey disabled fill stays
 
+    def test_radar_fills_are_faint_slate_steps_over_near_black(self):
+        rgbs = {token: wl.go_themes._rgb(hex_color) for token, hex_color in wl.go_themes.RADAR_FILLS.items()}
+        self.assertEqual(set(rgbs), {"backdrop", "field", "panel", "subpanel", "deep"})
+        self.assertEqual(rgbs["panel"], wl.go_themes._rgb(wl.go_themes.P["ground"]))  # the launcher ground
+        layers = [rgbs[token] for token in ("field", "panel", "subpanel", "deep")]
+        self.assertEqual(layers, sorted(layers))
+        for token, (r, g, b) in rgbs.items():
+            self.assertTrue(r <= g <= b, token)                     # slate: blue and green over red
+            self.assertLessEqual(max(r, g, b), 0x20, token)         # near black
+            self.assertGreater(max(r, g, b), wl.NEAR_BLACK, token)  # never retail black: the pass stays idempotent
+            self.assertNotIn((r, g, b), wl.go_themes.LAYOUT_COLORS, token)  # the palette swap leaves them
+
     def test_only_fill_numbers_change(self):
         text = self.dialog()
-        out = wl.window_fills(text, self.DIALOG)
+        out = wl.window_fills(text)
         strip = lambda t: re.sub(r"COLOR: \d+ \d+ \d+", "COLOR:", t)  # noqa: E731
         self.assertEqual(strip(out), strip(text))
         self.assertEqual(out.count("\r\n"), text.count("\r\n"))
 
-    def test_in_game_and_in_match_layouts_keep_their_fills(self):
-        for name in ("Window/ControlBar.wnd", "Window/InGameChat.wnd", "Window/Menus/QuitMenu.wnd"):
-            self.assertEqual(wl.window_fills(self.dialog(), name), self.dialog(), name)
-            self.assertEqual(wl.transform(self.dialog(), name=name).count("COLOR: 2 2 2 126"), 1, name)
+    def test_base_layouts_keep_their_retail_fills(self):
+        for name in (self.DIALOG, MENU, "Window/ControlBar.wnd", "Window/InGameChat.wnd", "Window/Menus/QuitMenu.wnd"):
+            out = wl.transform(self.dialog(), name=name)
+            self.assertEqual(sorted(first_fills(out)["Test.wnd:USER200_100"].items()),
+                             [("DISABLEDDRAWDATA", ["64", "64", "64", "255"]), ("ENABLEDDRAWDATA", ["0", "0", "0", "255"]),
+                              ("HILITEDRAWDATA", ["2", "2", "2", "162"])], name)
+            self.assertEqual(out.count("COLOR: 2 2 2 126"), 1, name)
+            self.assertEqual(len(wl.fill_classes(out)), 7, name)
 
-    def test_fills_are_idempotent_and_transform_applies_them(self):
-        once = wl.window_fills(self.dialog(), self.DIALOG)
-        self.assertEqual(wl.window_fills(once, self.DIALOG), once)
+    def test_radar_fills_are_idempotent(self):
+        once = wl.theme_layout(self.dialog())
+        self.assertEqual(wl.theme_layout(once), once)
+        self.assertEqual(wl.window_fills(once), once)
         self.assertEqual(wl.fill_classes(once), [])
-        moved = wl.transform(self.dialog(), name=self.DIALOG)
-        self.assertEqual(wl.transform(moved, name=self.DIALOG), moved)
-        self.assertEqual(wl.fill_classes(moved), [])
 
-    def test_shipped_menus_keep_no_retail_black_fill(self):
-        menus = 0
+    def test_shipped_menus_keep_their_retail_fills(self):
+        login = first_fills((wl.DATA / "Window/Menus/GameSpyLoginProfile.wnd").read_bytes().decode("latin-1"))
+        self.assertEqual(login["GameSpyLoginProfile.wnd:GadgetParent"]["ENABLEDDRAWDATA"], ["0", "0", "0", "129"])
+        options = first_fills((wl.DATA / "Window/Menus/OptionsMenu.wnd").read_bytes().decode("latin-1"))  # YAML built
+        self.assertEqual(options["OptionsMenu.wnd:OptionsMenuParent"]["ENABLEDDRAWDATA"], ["0", "0", "0", "255"])
+        self.assertEqual(options["OptionsMenu.wnd:OptionsMenuParentOld"]["ENABLEDDRAWDATA"], ["2", "2", "2", "175"])
+        self.assertEqual(options["OptionsMenu.wnd:VideoParent"]["ENABLEDDRAWDATA"], ["0", "0", "0", "255"])
+        lobby = first_fills((wl.DATA / "Window/Menus/LanLobbyMenu.wnd").read_bytes().decode("latin-1"))
+        self.assertEqual(lobby["LanLobbyMenu.wnd:GadgetParent"]["ENABLEDDRAWDATA"], ["2", "2", "2", "190"])
+        self.assertEqual(lobby["LanLobbyMenu.wnd:StaticTextGameInfo"]["ENABLEDDRAWDATA"], ["1", "0", "0", "126"])
+        main = first_fills((wl.DATA / "Window/Menus/MainMenu.wnd").read_bytes().decode("latin-1"))
+        self.assertEqual(main["MainMenu.wnd:MapBorder"]["ENABLEDDRAWDATA"], ["0", "0", "0", "126"])
+        classed = 0
         for path in sorted((wl.DATA / "Window").rglob("*.wnd")):
             name = path.relative_to(wl.DATA).as_posix()
-            if not wl.themed(name):
-                continue
-            menus += 1
-            text = path.read_bytes().decode("latin-1")
-            self.assertEqual([w.name for w, token, slots in wl.fill_classes(text)], [], name)
-        self.assertGreater(menus, 50)
+            if wl.themed(name):
+                classed += len(wl.fill_classes(path.read_bytes().decode("latin-1")))
+        self.assertGreater(classed, 150)  # the base keeps every retail black fill for the theme pass to classify
 
-    def test_shipped_fills_of_the_sign_in_panel_and_options(self):
-        login = first_fills((wl.DATA / "Window/Menus/GameSpyLoginProfile.wnd").read_bytes().decode("latin-1"))
-        self.assertEqual(login["GameSpyLoginProfile.wnd:GadgetParent"]["ENABLEDDRAWDATA"], FILLS["panel"] + ["129"])
-        options = first_fills((wl.DATA / "Window/Menus/OptionsMenu.wnd").read_bytes().decode("latin-1"))
-        self.assertEqual(options["OptionsMenu.wnd:OptionsMenuParent"]["ENABLEDDRAWDATA"], FILLS["panel"] + ["255"])
-        self.assertEqual(options["OptionsMenu.wnd:OptionsMenuParentOld"]["ENABLEDDRAWDATA"], FILLS["surface"] + ["175"])
-        self.assertEqual(options["OptionsMenu.wnd:VideoParent"]["ENABLEDDRAWDATA"], FILLS["panel-3"] + ["255"])
-
-    def test_shipped_in_game_layouts_keep_their_fills(self):
+    def test_shipped_in_game_layouts_keep_their_fills_and_get_no_theme_copy(self):
         names = in_game_names()
         texts = {name: (wl.DATA / name).read_bytes().decode("latin-1") for name in names}
-        for name, text in texts.items():
-            self.assertEqual(wl.window_fills(text, name), text, name)
-        # the rule would recolour them: they still hold retail black fills
         self.assertTrue(any(wl.fill_classes(text) for text in texts.values()))
+        for name in names:
+            self.assertFalse((wl.go_themes.THEME_DIR / name).exists(), name)
 
 
 BIG_FONT = 'FONT = NAME: "Arial", SIZE: 14, BOLD: 0;'
