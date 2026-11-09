@@ -14,8 +14,9 @@ The Classic (Generals Online) theme gets the same atlas in its palette (scripts/
 GenOnline/GameData/Themes/Radar; its INI would be byte-identical, so the theme has no copy of it. The second atlas
 gets a theme copy the same way, with only its glyph outline and empty star swapped (go_themes.MAP_COLORS).
 
-A third atlas redraws the retail load screen progress bar (LoadingBar_*) in the launcher bronze on the subtle fill tokens,
-the same in every palette; the Retail interface style leaves its files out and keeps the retail bar.
+A third atlas redraws the retail load screen progress bar (LoadingBar_*) as a kit field: the kit line, the field back and
+a launcher bronze fill, with a theme copy in the palette's line and field; the Retail interface style leaves its files out
+and keeps the retail bar.
 
 Usage:
     python scripts/go_ui_kit.py          write the atlases, the theme atlases and the INIs into GenOnline/GameData
@@ -803,33 +804,51 @@ def _pieces2():
 
 
 # =================================================================================================
-# Load screen progress bar: the retail LoadingBar_* images in the launcher bronze on the subtle fill tokens of the panels,
-# which sit on the retail black of Signal as well, so one sheet serves every palette: its own atlas with no theme copy.
-# The Retail interface style leaves both files out (ArchiveFileSystem.cpp isNotGenOnlineInterfaceFile).
+# Load screen progress bar: the retail LoadingBar_* images as a kit field, one kit line in the palette's line colour on the
+# field back, with a launcher bronze fill in every palette. Its own atlas; the Radar copy swaps only the line and the field
+# (go_themes.KIT_COLORS), so both share one INI. The Retail interface style leaves the files out (ArchiveFileSystem.cpp
+# isNotGenOnlineInterfaceFile and the Themes folder).
 # W3DGadgetProgressBarImageDraw draws the frame as a three-piece bar over the whole window and tiles the fill (Progress)
-# and the unfilled track (DePowered) inside it.
+# and the unfilled track (DePowered) inside it, 10 pixels in from the sides and 5 from the top and bottom at any size;
+# the shell load screen draws its own bar instead (shell_load_bar_layout).
 # =================================================================================================
 
 LOAD_BAR_TEXTURE_NAME = "GeneralsOnline_LoadingBar.tga"
 LOAD_BAR_TEXTURE_PATH = DATA / "Art" / "Textures" / LOAD_BAR_TEXTURE_NAME
+THEME_LOAD_BAR_TEXTURE_PATH = go_themes.THEME_DIR / LOAD_BAR_TEXTURE_PATH.relative_to(DATA)
 LOAD_BAR_INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_LoadingBar.INI"
 LOAD_BAR_ATLAS_WIDTH = 64  # in retail pixels
 LOAD_BAR_TITLE = "the load screen progress bar"
-LOAD_BAR_LINE = rgba(go_themes.PALETTE["line"])
-LOAD_BAR_GROUND = rgba(go_themes.PALETTE["fill-field"])   # the framed back, like an entry field
-LOAD_BAR_TRACK = rgba(go_themes.PALETTE["fill-disabled"])  # the unfilled track, a step over the back
+LOAD_BAR_LINE = BUTTON_STATES[""][0]  # the kit line, bronze in Radar
+LOAD_BAR_GROUND = FIELD  # the framed back, an entry field
+LOAD_BAR_TRACK = FIELD   # the unfilled track is the back
 LOAD_BAR_FILL = rgba(go_themes.PALETTE["bronze"])
+# the module colours a palette swaps; the bronze fill stays
+LOAD_BAR_COLOR_NAMES = ("LOAD_BAR_LINE", "LOAD_BAR_GROUND", "LOAD_BAR_TRACK")
 
 
-def load_bar_pieces():
-    """The load screen bar at the retail Coords sizes: a square framed back, a flat bronze fill and a subtle track."""
-    return [
-        ("LoadingBar_L", 20, 20, button_piece(20, 20, "left", LOAD_BAR_LINE, LOAD_BAR_GROUND, LINE_LAYOUT)),
-        ("LoadingBar_C", 10, 20, button_piece(10, 20, "middle", LOAD_BAR_LINE, LOAD_BAR_GROUND, LINE_LAYOUT)),
-        ("LoadingBar_R", 20, 20, button_piece(20, 20, "right", LOAD_BAR_LINE, LOAD_BAR_GROUND, LINE_LAYOUT)),
-        ("LoadingBar_Progress", 3, 11, flat_piece(3, 11, LOAD_BAR_FILL)),
-        ("LoadingBar_DePowered", 3, 11, flat_piece(3, 11, LOAD_BAR_TRACK)),
-    ]
+def load_bar_pieces(palette=None):
+    """The load screen bar at the retail Coords sizes: a square kit framed field back, a flat bronze fill and a track that
+    is the back; palette (go_themes.KIT_COLORS) swaps the line and the field."""
+    with recolored(palette, LOAD_BAR_COLOR_NAMES):
+        return [
+            ("LoadingBar_L", 20, 20, button_piece(20, 20, "left", LOAD_BAR_LINE, LOAD_BAR_GROUND, LINE_LAYOUT)),
+            ("LoadingBar_C", 10, 20, button_piece(10, 20, "middle", LOAD_BAR_LINE, LOAD_BAR_GROUND, LINE_LAYOUT)),
+            ("LoadingBar_R", 20, 20, button_piece(20, 20, "right", LOAD_BAR_LINE, LOAD_BAR_GROUND, LINE_LAYOUT)),
+            ("LoadingBar_Progress", 3, 11, flat_piece(3, 11, LOAD_BAR_FILL)),
+            ("LoadingBar_DePowered", 3, 11, flat_piece(3, 11, LOAD_BAR_TRACK)),
+        ]
+
+
+def shell_load_bar_layout(x, y, width, height, screen_height, percent):
+    """The shell load bar as LoadScreen.cpp drawGoShellLoadBar draws it over a window rect in pixels: the frame line in
+    pixels, as winDrawThreePieceImage draws the LINE_LAYOUT border, and the fill rect (left, top, right, bottom). The fill
+    sits one line inside the frame on every side, so the padding is the same all round, and spans the inside by percent."""
+    line = max(1, math.ceil(LINE_LAYOUT * screen_height / 600.0 - 0.01))
+    inset = 2 * line
+    fill_width, fill_height = width - 2 * inset, height - 2 * inset
+    draw_width = fill_width * percent // 100
+    return line, (x + inset, y + inset, x + inset + draw_width, y + inset + fill_height)
 
 # ============================== end of the load screen bar section ==============================
 
@@ -944,12 +963,16 @@ def main():
     if theme_ini2 != ini2:
         raise SystemExit("the theme map icon atlas moved a piece; it needs its own INI")
     texture3, ini3 = build(load_bar_pieces(), LOAD_BAR_TEXTURE_NAME, LOAD_BAR_ATLAS_WIDTH, LOAD_BAR_TITLE)
+    theme_texture3, theme_ini3 = build(load_bar_pieces(go_themes.KIT_COLORS), LOAD_BAR_TEXTURE_NAME, LOAD_BAR_ATLAS_WIDTH,
+                                       LOAD_BAR_TITLE)
+    if theme_ini3 != ini3:
+        raise SystemExit("the theme load bar atlas moved a piece; it needs its own INI")
     theme_texture, theme_ini = build(palette=go_themes.KIT_COLORS)
     if theme_ini != ini:
         raise SystemExit("the theme atlas moved a piece; it needs its own INI")
     outputs = ((TEXTURE_PATH, texture), (INI_PATH, ini.encode("ascii")), (TEXTURE2_PATH, texture2), (INI2_PATH, ini2.encode("ascii")),
                (LOAD_BAR_TEXTURE_PATH, texture3), (LOAD_BAR_INI_PATH, ini3.encode("ascii")), (THEME_TEXTURE_PATH, theme_texture),
-               (THEME_TEXTURE2_PATH, theme_texture2))
+               (THEME_TEXTURE2_PATH, theme_texture2), (THEME_LOAD_BAR_TEXTURE_PATH, theme_texture3))
     if args.check:
         stale = [p for p, data in outputs if not p.exists() or p.read_bytes() != data]
         for p in stale:

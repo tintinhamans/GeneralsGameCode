@@ -112,11 +112,10 @@ extern HWND ApplicationHWnd;
 // TheSuperHackers @feature arcticdolphin 09/11/2026 The Generals Online credit stays at least this long unless Esc is pressed.
 static const UnsignedInt CREDIT_MIN_MS = 3000;
 static const Real CREDIT_FADE_IN_MS = 500.0f;
-// credit layout in 800x600 units, between the title art logo and the legal text at 540
-static const Real CREDIT_PRETEXT_TOP = 366.0f;
-static const Real CREDIT_LOGO_TOP = 386.0f;
-static const Real CREDIT_LOGO_HEIGHT = 70.0f;
-static const Real CREDIT_URL_TOP = 464.0f;
+// TheSuperHackers @tweak arcticdolphin 09/11/2026 In 800x600 units: the GO logo in rows 222 to 346, where the title art draws the Zero Hour logo, and the website under it.
+static const Real CREDIT_LOGO_TOP = 222.0f;
+static const Real CREDIT_LOGO_HEIGHT = 125.0f;
+static const Real CREDIT_URL_TOP = 362.0f;
 
 //-----------------------------------------------------------------------------
 // PUBLIC DATA ////////////////////////////////////////////////////////////////
@@ -140,6 +139,49 @@ static const Image *findGoLoadBarImage()
 		return nullptr;
 	}
 	return image;
+}
+
+// TheSuperHackers @tweak arcticdolphin 09/11/2026 The GO shell load bar: the kit frame, then one stretched bronze fill a line inside it on every side.
+static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )
+{
+	const Image *left = GadgetProgressBarGetEnabledImageLeft(window);
+	const Image *right = GadgetProgressBarGetEnabledImageRight(window);
+	const Image *center = GadgetProgressBarGetEnabledImageCenter(window);
+	const Image *fill = GadgetProgressBarGetEnabledBarImageCenter(window);
+	if (left == nullptr || right == nullptr || center == nullptr || fill == nullptr)
+	{
+		return;
+	}
+
+	Int x, y, width, height;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&width, &height);
+	TheWindowManager->winDrawThreePieceImage(left, center, nullptr, right, x, y, width, height);
+
+	// the frame line as winDrawThreePieceImage draws the border rows, and a gap of the same width inside it
+	Int line = REAL_TO_INT_CEIL(left->getBorder() * TheDisplay->getHeight() / 600.0f - 0.01f);
+	if (line < 1)
+	{
+		line = 1;
+	}
+	const Int inset = 2 * line;
+	const Int fillWidth = width - 2 * inset;
+	const Int fillHeight = height - 2 * inset;
+	if (fillWidth <= 0 || fillHeight <= 0)
+	{
+		return;
+	}
+
+	Int progress = (Int)window->winGetUserData();
+	if (progress > 100)
+	{
+		progress = 100;
+	}
+	const Int drawWidth = fillWidth * progress / 100;
+	if (drawWidth > 0)
+	{
+		TheDisplay->drawImage(fill, x + inset, y + inset, x + inset + drawWidth, y + inset + fillHeight);
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -1208,10 +1250,7 @@ ShellGameLoadScreen::ShellGameLoadScreen()
 {
 	m_progressBar = nullptr;
 	m_creditWindow = nullptr;
-	for (size_t i = 0; i < ARRAY_SIZE(m_creditStrings); ++i)
-	{
-		m_creditStrings[i] = nullptr;
-	}
+	m_creditUrl = nullptr;
 	m_creditLogo = nullptr;
 	m_creditStartMs = 0;
 	m_creditEscArmed = FALSE;
@@ -1226,12 +1265,9 @@ ShellGameLoadScreen::~ShellGameLoadScreen()
 		m_creditWindow->winSetUserData(nullptr);
 		m_creditWindow->winHide(TRUE);
 	}
-	for (size_t i = 0; i < ARRAY_SIZE(m_creditStrings); ++i)
+	if (m_creditUrl != nullptr)
 	{
-		if (m_creditStrings[i] != nullptr)
-		{
-			TheDisplayStringManager->freeDisplayString(m_creditStrings[i]);
-		}
+		TheDisplayStringManager->freeDisplayString(m_creditUrl);
 	}
 }
 
@@ -1263,6 +1299,11 @@ void ShellGameLoadScreen::init( GameInfo *game )
 		firstLoad = FALSE;
 	}
 	m_progressBar->winHide(FALSE);
+	// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO bar art the bar keeps the same padding on every side at any resolution.
+	if (findGoLoadBarImage() != nullptr)
+	{
+		m_progressBar->winSetDrawFunc(drawGoShellLoadBar);
+	}
 
 	// TheSuperHackers @feature arcticdolphin 09/11/2026 The first shell load after the intro shows the Generals Online credit; -nologo leaves it out.
 	static Bool firstShellLoad = TRUE;
@@ -1284,17 +1325,16 @@ void ShellGameLoadScreen::initCredit()
 	const Int screenHeight = TheDisplay->getHeight();
 
 	// "Consolas" is Windows Vista native, can be installed in 2000, XP
-	static const WideChar* const texts[] = { L"Modernized Multiplayer Experience by", L"GeneralsOnline", L"www.playgenerals.online" };
-	static const Int sizes[] = { 14, 28, 14 };
-	static const Bool bolds[] = { FALSE, TRUE, FALSE };
-	for (size_t i = 0; i < ARRAY_SIZE(m_creditStrings); ++i)
-	{
-		m_creditStrings[i] = TheDisplayStringManager->newDisplayString();
-		m_creditStrings[i]->setText(i == 0 ? TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOCreditPretext", texts[i]) : UnicodeString(texts[i]));
-		m_creditStrings[i]->setFont(TheFontLibrary->getFont("Consolas", Int(sizes[i] * fontScale), bolds[i]));
-		m_creditStrings[i]->setWordWrap(screenWidth);
-	}
+	m_creditUrl = TheDisplayStringManager->newDisplayString();
+	m_creditUrl->setText(UnicodeString(L"www.playgenerals.online"));
+	m_creditUrl->setFont(TheFontLibrary->getFont("Consolas", Int(14 * fontScale), FALSE));
+	m_creditUrl->setWordWrap(screenWidth);
 	m_creditLogo = TheMappedImageCollection->findImageByName("GOLoadLogo");
+	// TheSuperHackers @tweak arcticdolphin 09/11/2026 The GO logo replaces the title art; the Retail style leaves the logo out and keeps the title art.
+	if (m_creditLogo != nullptr)
+	{
+		m_loadScreen->winSetEnabledImage(0, nullptr);
+	}
 
 	m_creditWindow = TheWindowManager->winCreate(m_loadScreen, WIN_STATUS_ENABLED | WIN_STATUS_NO_INPUT, 0, 0, screenWidth, screenHeight, nullptr);
 	if (m_creditWindow != nullptr)
@@ -1371,15 +1411,9 @@ void ShellGameLoadScreen::drawCredit()
 		fade = 1.0f;
 	}
 	const Int alpha = REAL_TO_INT(255.0f * fade);
-	// launcher palette: text for the pretext, tan for the name and the website
-	const Color textColor = GameMakeColor(242, 237, 224, alpha);
+	// TheSuperHackers @tweak arcticdolphin 09/11/2026 The launcher tan for the website.
 	const Color tanColor = GameMakeColor(227, 186, 108, alpha);
 	const Color dropColor = GameMakeColor(0, 0, 0, alpha);
-
-	Int width = 0;
-	Int height = 0;
-	m_creditStrings[0]->getSize(&width, &height);
-	m_creditStrings[0]->draw(centerX - width / 2, REAL_TO_INT(CREDIT_PRETEXT_TOP * unit), textColor, dropColor);
 
 	const Int logoTop = REAL_TO_INT(CREDIT_LOGO_TOP * unit);
 	const Int logoHeight = REAL_TO_INT(CREDIT_LOGO_HEIGHT * unit);
@@ -1389,15 +1423,11 @@ void ShellGameLoadScreen::drawCredit()
 		const Int logoLeft = centerX - logoWidth / 2;
 		TheDisplay->drawImage(m_creditLogo, logoLeft, logoTop, logoLeft + logoWidth, logoTop + logoHeight, GameMakeColor(255, 255, 255, alpha));
 	}
-	else
-	{
-		// the name stands in for the logo when its image is missing
-		m_creditStrings[1]->getSize(&width, &height);
-		m_creditStrings[1]->draw(centerX - width / 2, logoTop + (logoHeight - height) / 2, tanColor, dropColor);
-	}
 
-	m_creditStrings[2]->getSize(&width, &height);
-	m_creditStrings[2]->draw(centerX - width / 2, REAL_TO_INT(CREDIT_URL_TOP * unit), tanColor, dropColor);
+	Int width = 0;
+	Int height = 0;
+	m_creditUrl->getSize(&width, &height);
+	m_creditUrl->draw(centerX - width / 2, REAL_TO_INT(CREDIT_URL_TOP * unit), tanColor, dropColor);
 }
 
 void ShellGameLoadScreen::reset()
