@@ -190,13 +190,14 @@ class LoadingBarTest(unittest.TestCase):
     def test_bar_pieces_replace_the_retail_images_at_their_size(self):
         self.assertEqual({name: (w, h) for name, (w, h, _) in self.pieces.items()}, self.RETAIL_SIZES)
 
-    def test_fill_is_plain_bronze_and_the_track_dark(self):
-        for name, token in (("LoadingBar_Progress", "bronze"), ("LoadingBar_DePowered", "panel")):
+    def test_fill_is_plain_bronze_and_the_track_a_subtle_fill(self):
+        for name, token in (("LoadingBar_Progress", "bronze"), ("LoadingBar_DePowered", "fill-disabled")):
             _, _, texels = self.pieces[name]
             self.assertEqual({t for row in texels for t in row}, {self.colour(token)}, name)
 
-    def test_back_is_a_square_frame_in_the_line_colour_on_the_ground(self):
-        line, ground = self.colour("line"), self.colour("ground")
+    def test_back_is_a_square_frame_in_the_line_colour_on_the_field_fill(self):
+        # the subtle fill tokens of the panels, so the bar sits in the menus like a field in both palettes
+        line, ground = self.colour("line"), self.colour("fill-field")
         for name, left, right in (("LoadingBar_L", True, False), ("LoadingBar_C", False, False), ("LoadingBar_R", False, True)):
             w, h, texels = self.pieces[name]
             mid_y, mid_x = h * kit.SCALE // 2, w * kit.SCALE // 2
@@ -237,6 +238,51 @@ class LoadingBarTest(unittest.TestCase):
         excluded = retail_excluded_files()
         for path in (kit.LOAD_BAR_TEXTURE_PATH, kit.LOAD_BAR_INI_PATH):
             self.assertIn(path.relative_to(kit.DATA).as_posix().lower(), excluded)
+
+
+
+class MapKitThemeTest(unittest.TestCase):
+    """The map preview icons and favourite stars atlas, per palette."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.base = {name: texels for name, _, _, texels in kit.pieces2()}
+        cls.radar = {name: texels for name, _, _, texels in kit.pieces2(themes.MAP_COLORS)}
+
+    @staticmethod
+    def rgbs(texels):
+        """The 8 bit colours of the drawn texels; supersampled edges keep the colour and blend only alpha."""
+        return {tuple(round(c * 255) for c in t[:3]) for row in texels for t in row if t[3]}
+
+    def test_radar_outline_is_the_field_fill_and_the_off_star_the_empty_token(self):
+        outline, off = themes._rgb("#05070F"), themes._rgb("#5D6080")
+        field, empty = themes._rgb(themes.PALETTE["fill-field"]), themes._rgb(themes.PALETTE["empty"])
+        base = set().union(*(self.rgbs(t) for t in self.base.values()))
+        radar = set().union(*(self.rgbs(t) for t in self.radar.values()))
+        self.assertTrue({outline, off} <= base)
+        self.assertFalse({outline, off} & radar)
+        self.assertIn(field, radar)
+        self.assertEqual(self.rgbs(self.radar["GOMapFavouriteOff"]), {empty})
+        self.assertEqual(kit.MAP_GLYPH_OUTLINE[3], 0.85)  # the outline keeps its alpha in both palettes
+
+    def test_radar_keeps_the_glyph_and_star_colours_and_every_shape(self):
+        self.assertEqual(set(self.radar), set(self.base))
+        design = {colour for _, colour in kit.MAP_ICONS.values()} | set(kit.STAR_ON)
+        for name, texels in self.base.items():
+            radar = self.radar[name]
+            self.assertEqual([[t[3] for t in row] for row in radar], [[t[3] for t in row] for row in texels], name)
+            solid = [(y, x) for y, row in enumerate(texels) for x, t in enumerate(row) if t in design]
+            self.assertTrue(solid or name == "GOMapFavouriteOff", name)
+            for y, x in solid:
+                self.assertEqual(radar[y][x], texels[y][x], (name, y, x))
+
+    def test_committed_radar_atlas_is_current_and_shares_the_base_ini(self):
+        texture, ini = kit.build(kit.pieces2(themes.MAP_COLORS), kit.TEXTURE2_NAME, kit.ATLAS2_WIDTH, kit.TITLE2)
+        self.assertEqual(kit.THEME_TEXTURE2_PATH, themes.THEME_DIR / kit.TEXTURE2_PATH.relative_to(kit.DATA))
+        self.assertEqual(kit.THEME_TEXTURE2_PATH.read_bytes(), texture)
+        self.assertEqual(ini.encode("ascii"), kit.INI2_PATH.read_bytes())
+        self.assertFalse((themes.THEME_DIR / kit.INI2_PATH.relative_to(kit.DATA)).exists())
+        self.assertNotEqual(kit.TEXTURE2_PATH.read_bytes(), texture)
 
 
 if __name__ == "__main__":

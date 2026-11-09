@@ -60,14 +60,20 @@ scripts/wnd_sources copy, if any, is only kept for reference. All rects are in 8
 - Button groups: a colour drawn USER window with a clear fill whose children are push buttons (and NOINPUT
   overlays drawn on them, like the sort arrows) draws no border, so its frame does not show between the buttons
   or double their edges: its first enabled border colour gets alpha 0 (every layout that gets the fixes).
+- Kit colours: on menu layouts (not in-game nor in-match, YAML-built ones included) a default drawn USER window with a
+  white enabled border (every channel at least WHITE_MIN) on a clear or dark fill takes the kit line as that border; the
+  editor default disabled (64 64 64) and hover fills (0 128 0, pure blue, the kit hilite, white) of default drawn USER
+  and colour drawn STATICTEXT windows take the kit disabled and hover fill and line; a colour drawn push button with a
+  visible dark fill takes the kit button fill and line of each state and its pushed slots; and the retail disabled text
+  of buttons and combos (62 64 92, 122 48 1) takes KIT_DISABLED_TEXT. Alpha stays.
 - Window fills: the base layouts keep their retail fills; only the theme copies below recolour them. A window that
   fills with its first draw slot colour (no IMAGE status; the default draw or W3DDrawMapPreview) and whose enabled fill
-  is retail black (every channel at most NEAR_BLACK, alpha above 0) gets a fill class from the structure of the base
-  layout (fill_classes): backdrop for a full screen USER window, field for lists, entries, combos, progress bars,
-  static text and map previews, panel, subpanel and deep for other windows nested one, two and three or more panels
-  deep; an opaque copy of its nearest classed ancestor's fill takes that ancestor's class. The theme copy gives the
-  enabled, disabled and hilite slots that are retail black the fill of the class (go_themes.RADAR_FILLS), keeping
-  alpha. Menus only (the theme copies' layouts), YAML-built layouts included.
+  is retail black (every channel at most NEAR_BLACK, alpha above 0) or, on a USER window, retail navy (NAVY_BLUE) gets a
+  fill class from the structure of the base layout (fill_classes): backdrop for a full screen USER window, field for
+  lists, entries, combos, progress bars, static text and map previews, panel, subpanel and deep for other windows nested
+  one, two and three or more panels deep; an opaque copy of its nearest classed ancestor's fill takes that ancestor's
+  class. The theme copy gives the enabled, disabled and hilite slots that are retail black (or navy) the fill of the
+  class (go_themes.RADAR_FILLS), keeping alpha. Menus only (the theme copies' layouts), YAML-built layouts included.
 - Setup rows: last, the Skirmish, LAN and online game setup screens lay out SLOT_ROWS player rows ROW_PITCH apart.
   Rows past the engine's ENGINE_SLOTS are copies of the last engine row with ENABLED cleared: the combos draw
   disabled and empty (a combo's TEXT is a title above its box, not its edit box text), the accept marker, ping,
@@ -226,6 +232,34 @@ COLOR_REMAP = {
 }
 KIT_LINE = (47, 75, 255)
 
+# kit colours of the menu colour fixes (kit_colors), the colours of the kit art (scripts/go_ui_kit.py BUTTON_STATES)
+KIT_HILITE = (106, 123, 255)
+KIT_DISABLED_LINE = (74, 78, 110)
+KIT_BUTTON_FILL = (7, 10, 24)
+KIT_HILITE_FILL = (21, 32, 120)
+KIT_PUSHED_FILL = (43, 52, 184)
+KIT_PUSHED_LINE = (140, 155, 255)
+KIT_DISABLED_FILL = (10, 10, 16)
+KIT_DISABLED_TEXT = (138, 143, 176)  # #8A8FB0: 6.2:1 on the kit disabled fill
+DIM_DISABLED_TEXT = {(62, 64, 92), (122, 48, 1)}  # retail disabled button and combo text, 2.0:1 and 2.2:1 on it
+WHITE_MIN = 240            # a border whose channels are all at least this is a retail white frame
+RARE_DISABLED_FILLS = {(64, 64, 64)}  # the editor default disabled fill of panels and static text
+RARE_HILITE_FILLS = {(0, 128, 0), (0, 0, 255), (106, 123, 255), (255, 255, 255)}  # their hover fills
+# state -> (fill, line) of the normal and the selected slot of a colour drawn push button; hover selected is pushed
+KIT_BUTTON_SLOTS = {
+    "ENABLED": ((KIT_BUTTON_FILL, KIT_LINE), (KIT_PUSHED_FILL, KIT_PUSHED_LINE)),
+    "HILITE": ((KIT_HILITE_FILL, KIT_HILITE), (KIT_PUSHED_FILL, KIT_PUSHED_LINE)),
+    "DISABLED": ((KIT_DISABLED_FILL, KIT_DISABLED_LINE), (KIT_DISABLED_FILL, KIT_DISABLED_LINE)),
+}
+KIT_DRAW_RE = re.compile(r"^[ \t]*(?P<state>ENABLED|DISABLED|HILITE)DRAWDATA[ \t]*=(?P<body>[^;]*);", re.M)
+KIT_SLOT_RE = re.compile(
+    r"IMAGE:[ \t]*[^,\s]+[ \t]*,\s*COLOR:[ \t]*(?P<color>\d+[ \t]+\d+[ \t]+\d+)[ \t]+(?P<ca>\d+)[ \t]*,\s*"
+    r"BORDERCOLOR:[ \t]*(?P<border>\d+[ \t]+\d+[ \t]+\d+)[ \t]+(?P<ba>\d+)"
+)
+DEFAULT_DRAWS = {"", "[None]", "W3DGameWinDefaultDraw"}  # USER draw callbacks that draw the colour slots
+DRAW_CALLBACK_RE = re.compile(r'^[ \t]*DRAWCALLBACK[ \t]*=[ \t]*"(?P<callback>[^"]*)"', re.M)
+DISABLED_TEXT_RE = re.compile(r"(?<![A-Z])DISABLED:[ \t]*(?P<rgb>\d+[ \t]+\d+[ \t]+\d+)(?=[ \t]+\d+)")
+
 # map preview windows: their first enabled border colour is the frame colour W3DDrawMapPreview draws
 MAP_PREVIEW_CALLBACK = "W3DDrawMapPreview"
 MAP_PREVIEW_BORDER = "%d %d %d 255" % KIT_LINE
@@ -239,6 +273,7 @@ PREVIEW_TOKEN_RE = re.compile(
 )
 # window fills: retail near black first slot fills of the theme copies take the fill of their class (go_themes)
 NEAR_BLACK = 8             # a fill whose channels are all at most this is retail black; the theme fills are brighter
+NAVY_BLUE = (32, 160)      # a USER fill with red and green near black and blue in this range is a retail navy panel
 FULL_SCREEN = (790, 590)   # a USER window at least this large is a full screen backdrop
 FIELD_KINDS = {"SCROLLLISTBOX", "ENTRYFIELD", "COMBOBOX", "PROGRESSBAR", "STATICTEXT"}
 PANEL_LAYERS = ("panel", "subpanel", "deep")
@@ -1432,8 +1467,16 @@ def _fill_class(win, rgba, callback, above):
     return PANEL_LAYERS[min(layer, len(PANEL_LAYERS) - 1)], layer
 
 
+def _retail_fill(win, rgb):
+    """True for a retail near black fill, or the retail navy of a USER panel."""
+    r, g, b = rgb
+    navy = win.kind == "USER" and max(r, g) <= NEAR_BLACK and NAVY_BLUE[0] <= b <= NAVY_BLUE[1]
+    return max(rgb) <= NEAR_BLACK or navy
+
+
 def fill_classes(text):
-    """[(window, class, matches by state)] for every window of a layout whose first slot fill is retail near black."""
+    """[(window, class, matches by state)] for every window of a layout whose first slot fill is retail near black, or
+    the retail navy of a USER panel."""
     wins = list(parse_windows(text).walk())
     callbacks, states, index = [""] * len(wins), [{} for _ in wins], -1
     for m in FILL_TOKEN_RE.finditer(text):
@@ -1451,7 +1494,7 @@ def fill_classes(text):
         if "IMAGE" in win.status or callback not in FILL_CALLBACKS or m is None or win.rect is None:
             continue
         rgba = tuple(int(m[k]) for k in ("r", "g", "b", "alpha"))
-        if rgba[3] == 0 or max(rgba[:3]) > NEAR_BLACK:
+        if rgba[3] == 0 or not _retail_fill(win, rgba[:3]):
             continue
         anc = win.parent
         while anc is not None and id(anc) not in classes:
@@ -1463,15 +1506,90 @@ def fill_classes(text):
 
 
 def window_fills(text):
-    """Give the retail near black first slot fills of a base menu layout the theme fill of their class, keeping alpha:
-    backdrop for full screen USER windows, field for lists, entries, combos, progress bars, static text and map
-    previews, panel, subpanel and deep for panels by depth, and an opaque copy of an ancestor's fill its ancestor's."""
+    """Give the retail near black (or navy panel) first slot fills of a base menu layout the theme fill of their class,
+    keeping alpha: backdrop for full screen USER windows, field for lists, entries, combos, progress bars, static text
+    and map previews, panel, subpanel and deep for panels by depth, and an opaque copy of an ancestor's fill its
+    ancestor's."""
     edits = []
     for win, token, slots in fill_classes(text):
         r, g, b = go_themes._rgb(go_themes.RADAR_FILLS[token])
         for m in slots.values():
-            if int(m["alpha"]) > 0 and max(int(m[k]) for k in "rgb") <= NEAR_BLACK:
+            if int(m["alpha"]) > 0 and _retail_fill(win, tuple(int(m[k]) for k in "rgb")):
                 edits.append((m.start("r"), m.end("b"), f"{r}{m['s1']}{g}{m['s2']}{b}"))
+    for start, end, value in sorted(edits, reverse=True):
+        text = text[:start] + value + text[end:]
+    return text
+
+
+def _own_end(win):
+    """End of a window's own text: its first child block, else its END."""
+    return min((child.block[0] for child in win.children), default=win.block[1])
+
+
+def _own_slots(text, win):
+    """{state: [slot match]} of the ENABLED, DISABLED and HILITE draw data of a window's own text."""
+    out = {}
+    for prop in KIT_DRAW_RE.finditer(text, win.block[0], _own_end(win)):
+        out[prop["state"]] = list(KIT_SLOT_RE.finditer(text, prop.start("body"), prop.end("body")))
+    return out
+
+
+def _rgb(m, group):
+    return tuple(int(v) for v in m[group].split())
+
+
+def _renumbered(value, rgb):
+    """value with its three numbers replaced by rgb, keeping the spacing between them."""
+    parts = re.split(r"(\d+)", value)
+    parts[1::2] = [str(v) for v in rgb]
+    return "".join(parts)
+
+
+def _near_white(rgb):
+    return min(rgb) >= WHITE_MIN
+
+
+def kit_colors(text, name):
+    """Give a menu layout the kit colours where retail left white frames, editor default slots, colour drawn buttons
+    and dim disabled text; in-game layouts and the menus shown in a match are returned unchanged."""
+    if not _uses_go_templates(name):
+        return text
+    edits = []
+
+    def paint(m, fill=None, line=None):
+        for group, rgb in (("color", fill), ("border", line)):
+            if rgb is not None and _rgb(m, group) != rgb:
+                edits.append((m.start(group), m.end(group), _renumbered(m[group], rgb)))
+
+    for win in parse_windows(text).walk():
+        if win.block is None:
+            continue
+        for m in DISABLED_TEXT_RE.finditer(text, win.block[0], _own_end(win)):
+            rgb = _rgb(m, "rgb")
+            if rgb in DIM_DISABLED_TEXT:
+                edits.append((m.start("rgb"), m.end("rgb"), _renumbered(m["rgb"], KIT_DISABLED_TEXT)))
+        callback = DRAW_CALLBACK_RE.search(text, win.block[0], _own_end(win))
+        if "IMAGE" in win.status or (win.kind == "USER" and callback and callback["callback"] not in DEFAULT_DRAWS):
+            continue  # image drawn windows and USER windows with their own draw draw no colour slots
+        slots = _own_slots(text, win)
+        enabled = slots.get("ENABLED", [])
+        if win.kind == "USER" and enabled:
+            first = enabled[0]
+            fill = _rgb(first, "color")
+            clear_or_dark = first["ca"] == "0" or not _near_white(fill)
+            if _near_white(_rgb(first, "border")) and first["ba"] != "0" and clear_or_dark:
+                paint(first, line=KIT_LINE)
+        if win.kind in ("USER", "STATICTEXT"):
+            for state, fills, kit in (("DISABLED", RARE_DISABLED_FILLS, (KIT_DISABLED_FILL, KIT_DISABLED_LINE)),
+                                      ("HILITE", RARE_HILITE_FILLS, (KIT_HILITE_FILL, KIT_HILITE))):
+                first = slots.get(state, [None])[0]
+                if first is not None and _rgb(first, "color") in fills:
+                    paint(first, *kit)
+        visible = enabled and enabled[0]["ca"] != "0" and not _near_white(_rgb(enabled[0], "color"))
+        if win.kind == "PUSHBUTTON" and visible:
+            for state, kit in KIT_BUTTON_SLOTS.items():
+                for m, (fill, line) in zip(slots.get(state, []), kit):
+                    paint(m, fill, line)
     for start, end, value in sorted(edits, reverse=True):
         text = text[:start] + value + text[end:]
     return text
@@ -1672,9 +1790,9 @@ def blank_layout(text, name):
 
 def finish(text, name):
     """The fixes after alignment: combo heights, GO header templates, hover images, map preview frames, button groups,
-    the game setup rows and the blank layouts."""
+    the game setup rows, the kit colours and the blank layouts."""
     text = button_group_borders(map_preview_borders(hilite_images(go_templates(compact_combos(text, name), name))))
-    return blank_layout(setup_rows(text, name), name)
+    return blank_layout(kit_colors(setup_rows(text, name), name), name)
 
 
 def transform(text, notes=None, name=None):
@@ -1743,8 +1861,9 @@ def build(retail):
         text = inputs[name].decode("latin-1")
         if name in compiled:
             info = {"frame": False, "stats": Counter(), "notes": [], "changes": [], "uncentred": []}
-            # the YAML source is final apart from the combo height, which follows COMBO_HEIGHT like every menu
-            results.append((name, text, compact_combos(text, name), info))
+            # the YAML source is final apart from the combo height, which follows COMBO_HEIGHT like every menu, and the
+            # kit colours its shared components still leave retail
+            results.append((name, text, kit_colors(compact_combos(text, name), name), info))
             continue
         out, info = align(remap_colors(text), name)
         results.append((name, text, finish(out, name), info))

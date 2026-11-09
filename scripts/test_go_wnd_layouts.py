@@ -743,7 +743,8 @@ class YamlSourceTest(unittest.TestCase):
                   other: layout(window("STATICTEXT", (100, 100, 300, 130))).encode("latin-1")}
         with mock.patch.object(wl, "read_big", return_value=retail):
             results = {name: (text, out, info) for name, text, out, info in wl.build(Path("unused.big"))}
-        expected = wl.compact_combos(wnd_yaml.compile_file(wnd_yaml.sources()[options]), options)
+        # the compiled source with the combo heights and the kit colours of every menu (KitColorsTest)
+        expected = wl.kit_colors(wl.compact_combos(wnd_yaml.compile_file(wnd_yaml.sources()[options]), options), options)
         names = {name.lower(): name for name in results}
         text, out, info = results[names[options.lower()]]
         self.assertEqual(out, expected)
@@ -854,7 +855,7 @@ class WindowFillTest(unittest.TestCase):
             "STATICTEXT210_484": ["0", "0", "0", "0"],       # clear: left alone
             "USER310_484": ["0", "0", "0", "255"],           # image drawn
             "USER410_484": ["0", "0", "0", "255"],           # not drawn
-            "USER510_484": ["13", "21", "27", "255"],        # navy: the palette's ink, not a fill class
+            "USER510_484": FILLS["subpanel"] + ["255"],      # a retail navy panel is a panel too
         }
         self.assertEqual({name.split(":")[1]: fill for name, fill in enabled.items()}, expected)
         dialog = out["Test.wnd:USER200_100"]
@@ -882,11 +883,13 @@ class WindowFillTest(unittest.TestCase):
     def test_base_layouts_keep_their_retail_fills(self):
         for name in (self.DIALOG, MENU, "Window/ControlBar.wnd", "Window/InGameChat.wnd", "Window/Menus/QuitMenu.wnd"):
             out = wl.transform(self.dialog(), name=name)
+            # menus give the retail grey disabled fill the kit disabled fill (KitColorsTest)
+            disabled = ["10", "10", "16", "255"] if wl.themed(name) else ["64", "64", "64", "255"]
             self.assertEqual(sorted(first_fills(out)["Test.wnd:USER200_100"].items()),
-                             [("DISABLEDDRAWDATA", ["64", "64", "64", "255"]), ("ENABLEDDRAWDATA", ["0", "0", "0", "255"]),
+                             [("DISABLEDDRAWDATA", disabled), ("ENABLEDDRAWDATA", ["0", "0", "0", "255"]),
                               ("HILITEDRAWDATA", ["2", "2", "2", "162"])], name)
             self.assertEqual(out.count("COLOR: 2 2 2 126"), 1, name)
-            self.assertEqual(len(wl.fill_classes(out)), 7, name)
+            self.assertEqual(len(wl.fill_classes(out)), 8, name)
 
     def test_radar_fills_are_idempotent(self):
         once = wl.theme_layout(self.dialog())
@@ -919,6 +922,114 @@ class WindowFillTest(unittest.TestCase):
         self.assertTrue(any(wl.fill_classes(text) for text in texts.values()))
         for name in names:
             self.assertFalse((wl.go_themes.THEME_DIR / name).exists(), name)
+
+
+class KitColorsTest(unittest.TestCase):
+    """The kit colour fixes of the menu layouts: white frames, rare editor default slots, colour drawn buttons and
+    disabled text."""
+
+    IN_MATCH = "Window/Menus/QuitMessageBox.wnd"
+
+    def slots(self, text, short):
+        win = next(w for w in wl.parse_windows(text).walk() if w.name.endswith(":" + short))
+        return {prop: [(color, border) for _, color, border in slots] for prop, slots in win.draws}
+
+    def frames(self):
+        dark = ["IMAGE: NoImage, COLOR: 0 0 0 0, BORDERCOLOR: 255 255 255 255"] + [DRAW_SLOT] * 8
+        navy = ["IMAGE: NoImage, COLOR: 0 0 128 255, BORDERCOLOR: 254 254 254 200"] + [DRAW_SLOT] * 8
+        return layout(window("USER", (0, 0, 800, 600), [
+            window("USER", (40, 40, 760, 560), indent=2, draw=dark),
+            window("USER", (100, 100, 200, 200), indent=2, draw=navy),
+            window("USER", (300, 100, 400, 200), indent=2),  # the editor default white on white
+            window("USER", (500, 100, 600, 200), indent=2, draw=dark, props=["STATUS = ENABLED+IMAGE;"]),
+            window("USER", (600, 100, 700, 200), indent=2, draw=dark, props=['DRAWCALLBACK = "W3DMainMenuDraw";']),
+            window("STATICTEXT", (100, 300, 200, 320), indent=2, draw=dark),
+        ]))
+
+    def test_white_frames_on_dark_or_clear_panels_take_the_kit_line_and_keep_alpha(self):
+        out = wl.kit_colors(self.frames(), MENU)
+        self.assertEqual(self.slots(out, "USER40_40")["ENABLEDDRAWDATA"][0], (["0", "0", "0", "0"], ["47", "75", "255", "255"]))
+        self.assertEqual(self.slots(out, "USER100_100")["ENABLEDDRAWDATA"][0],
+                         (["0", "0", "128", "255"], ["47", "75", "255", "200"]))
+        for short in ("USER300_100", "USER500_100", "USER600_100", "STATICTEXT100_300"):
+            self.assertEqual(self.slots(out, short), self.slots(self.frames(), short), short)
+
+    def rare(self, kind):
+        disabled = "DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 64 64 64 255, BORDERCOLOR: 192 192 192 255;"
+        hilite = "HILITEDRAWDATA = IMAGE: NoImage, COLOR: 0 128 0 255, BORDERCOLOR: 128 255 128 255;"
+        blue = "HILITEDRAWDATA = IMAGE: NoImage, COLOR: 0 0 255 200, BORDERCOLOR: 0 0 0 255;"
+        return layout(window("USER", (0, 0, 800, 600), [
+            window(kind, (100, 100, 200, 120), indent=2, props=[disabled, hilite]),
+            window(kind, (100, 200, 200, 220), indent=2, props=[blue]),
+        ]))
+
+    def test_rare_disabled_and_hover_slots_of_panels_and_static_text_take_the_kit_colours(self):
+        for kind in ("USER", "STATICTEXT"):
+            out = wl.kit_colors(self.rare(kind), MENU)
+            first = self.slots(out, f"{kind}100_100")
+            self.assertEqual(first["DISABLEDDRAWDATA"][0], (["10", "10", "16", "255"], ["74", "78", "110", "255"]), kind)
+            self.assertEqual(first["HILITEDRAWDATA"][0], (["21", "32", "120", "255"], ["106", "123", "255", "255"]), kind)
+            self.assertEqual(self.slots(out, f"{kind}100_200")["HILITEDRAWDATA"][0],
+                             (["21", "32", "120", "200"], ["106", "123", "255", "255"]), kind)
+        # a progress bar draws its own disabled and hover slots
+        self.assertEqual(wl.kit_colors(self.rare("PROGRESSBAR"), MENU), self.rare("PROGRESSBAR"))
+
+    def toast(self, status="ENABLED"):
+        enabled = ["IMAGE: NoImage, COLOR: 2 2 2 162, BORDERCOLOR: 47 75 255 255"] * 2 + [DRAW_SLOT] * 7
+        disabled = ("DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 128 128 128 255, BORDERCOLOR: 192 192 192 255, "
+                    "IMAGE: NoImage, COLOR: 192 192 192 255, BORDERCOLOR: 128 128 128 255;")
+        hilite = ("HILITEDRAWDATA = IMAGE: NoImage, COLOR: 2 2 2 162, BORDERCOLOR: 148 112 1 255, "
+                  "IMAGE: NoImage, COLOR: 52 54 55 162, BORDERCOLOR: 254 254 254 255;")
+        return layout(window("PUSHBUTTON", (592, 10, 792, 59), draw=enabled,
+                             props=[f"STATUS = {status};", disabled, hilite]))
+
+    def test_colour_drawn_buttons_take_the_kit_button_colours_and_keep_alpha(self):
+        out = self.slots(wl.kit_colors(self.toast(), MENU), "PUSHBUTTON592_10")
+        self.assertEqual(out["ENABLEDDRAWDATA"][:2], [(["7", "10", "24", "162"], ["47", "75", "255", "255"]),
+                                                      (["43", "52", "184", "162"], ["140", "155", "255", "255"])])
+        self.assertEqual(out["HILITEDRAWDATA"], [(["21", "32", "120", "162"], ["106", "123", "255", "255"]),
+                                                 (["43", "52", "184", "162"], ["140", "155", "255", "255"])])
+        self.assertEqual(out["DISABLEDDRAWDATA"], [(["10", "10", "16", "255"], ["74", "78", "110", "255"])] * 2)
+        # image drawn and clear buttons draw no colour slots
+        self.assertEqual(wl.kit_colors(self.toast("ENABLED+IMAGE"), MENU), self.toast("ENABLED+IMAGE"))
+        clear = layout(window("PUSHBUTTON", (0, 0, 100, 20), draw=["IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0"] * 9))
+        self.assertEqual(wl.kit_colors(clear, MENU), clear)
+
+    def disabled_text(self):
+        def with_text(kind, x, rgb):
+            text = window(kind, (x, 10, x + 90, 30), indent=2)
+            return text.replace("DISABLED: 255 255 255 255", f"DISABLED: {rgb} 255")
+        return layout(window("USER", (0, 0, 800, 600), [
+            with_text("PUSHBUTTON", 0, "62 64 92"), with_text("COMBOBOX", 100, "122 48 1"),
+            with_text("PUSHBUTTON", 200, "192 192 192"),
+        ]))
+
+    def test_dim_disabled_text_takes_the_kit_disabled_text_colour(self):
+        text = self.disabled_text()
+        out = wl.kit_colors(text, MENU)
+        self.assertEqual(out.count("DISABLED: 138 143 176 255"), 2)
+        self.assertIn("DISABLED: 192 192 192 255", out)
+        self.assertNotIn("62 64 92", out)
+        self.assertNotIn("122 48 1", out)
+        self.assertEqual(out.count("DISABLEDBORDER: 49 55 168 128"), 4)  # text borders stay
+        strip = lambda t: re.sub(r"DISABLED: \d+ \d+ \d+", "DISABLED:", t)  # noqa: E731
+        self.assertEqual(strip(out), strip(text))
+
+    def test_only_menus_change_and_the_pass_is_idempotent(self):
+        for build in (self.frames, lambda: self.rare("USER"), self.toast, self.disabled_text):
+            text = build()
+            out = wl.kit_colors(text, MENU)
+            self.assertNotEqual(out, text)
+            self.assertEqual(wl.kit_colors(out, MENU), out)
+            self.assertEqual(out.count("\r\n"), text.count("\r\n"))
+            for name in ("Window/ControlBar.wnd", "Window/InGameChat.wnd", self.IN_MATCH, None):
+                self.assertEqual(wl.kit_colors(text, name), text, name)
+            self.assertEqual(wl.transform(text, name=MENU), wl.transform(out, name=MENU))  # transform applies it
+
+    def test_radar_maps_every_kit_colour_the_pass_writes(self):
+        for rgb in (wl.KIT_LINE, wl.KIT_HILITE, wl.KIT_DISABLED_LINE, wl.KIT_BUTTON_FILL, wl.KIT_HILITE_FILL,
+                    wl.KIT_PUSHED_FILL, wl.KIT_PUSHED_LINE, wl.KIT_DISABLED_FILL, wl.KIT_DISABLED_TEXT):
+            self.assertIn(rgb, wl.go_themes.LAYOUT_COLORS, rgb)
 
 
 BIG_FONT = 'FONT = NAME: "Arial", SIZE: 14, BOLD: 0;'
@@ -1451,11 +1562,11 @@ LOGIN_FORMS = {
                             "TextEntryYear", "StaticTextEmail", "StaticTextLoginName", "StaticTextPassword", "ParentESRB",
                             "ParentTOS", "ListboxTOS", "ButtonTOSOK"),
     "GameSpyLoginQuick": ("ButtonLogin", "ButtonCreateAccount", "ButtonUseAccount", "ButtonTOS", "ButtonBack",
-                          "TextEntryLoginName", "ParentTOS", "ListboxTOS", "ButtonTOSOK"),
+                          "TextEntryLoginName", "ParentTOS", "ListboxTOS", "ButtonTOSOK", "MainMenuBackground"),
 }
 LOGIN_SHOWN = {
     "GameSpyLoginProfile": ("WOLLoginMenuParent", "GadgetParent", "StaticTextTitle", "Line"),
-    "GameSpyLoginQuick": ("WOLLoginMenuParent", "MainMenuBackground"),
+    "GameSpyLoginQuick": ("WOLLoginMenuParent",),  # the W3DMainMenuDraw strip with its brown lines hides too
 }
 
 

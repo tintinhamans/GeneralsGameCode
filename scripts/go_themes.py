@@ -90,6 +90,12 @@ KIT_COLORS = {
     "#FFFFFF": P["sand"],      # active glyph
     "#5D6080": P["empty"],     # disabled glyph
 }
+# map preview icons and favourite stars (go_ui_kit.py pieces2): only the dark glyph outline and the empty star change, the
+# category colours of the glyphs and the lit star stay
+MAP_COLORS = {
+    "#05070F": P["fill-field"],  # glyph outline
+    "#5D6080": P["empty"],       # empty favourite star
+}
 
 # Radar window fill of each fill class of scripts/go_wnd_layouts.py (fill_classes of the base layout, whose fills stay
 # retail black): a faint slate tint over near black, a small step per panel layer; each fill keeps its retail alpha
@@ -126,7 +132,10 @@ _LAYOUT_HEX = {
     "#000080": P["ink"], "#00007F": P["ink"], "#000040": P["ink"], "#1F202F": P["ink"], "#004204": P["ink"],
     "#000032": P["ink"], "#000026": P["ink"], "#03005B": P["ink"], "#030060": P["ink"], "#01007C": P["ink"],
     # pure blue hover fill of USER windows
-    "#0000FF": P["panel-3"],
+    "#0000FF": P["fill-hover"],
+    # kit button, hover and disabled colours (scripts/go_wnd_layouts.py kit_colors), as KIT_COLORS
+    "#8C9BFF": P["sand"], "#4A4E6E": P["line"], "#070A18": P["fill-button"], "#152078": P["fill-hover"],
+    "#2B34B8": P["pushed"], "#0A0A10": P["fill-disabled"], "#8A8FB0": P["legal"],
     # progress bars and red text
     "#FFFF00": P["tan"], "#3BFF00": P["green"], "#FF0400": P["danger"],
 }
@@ -172,8 +181,10 @@ RULER_TGA = f"Art/Textures/{RULER_TEXTURE}"
 # HandCreated loads after TextureSize_<n>, so the redefinition must sit there and sort after the retail file
 RULER_INI = "Data/INI/MappedImages/HandCreated/ZZ_GeneralsOnline_ThemeRuler.INI"
 # retail brightness (max channel) -> launcher token; each stop is a tone of the retail art: transparent and fill black,
-# fill mid, brightest grid fill, frame line (70 79 191), tick marks (53 67 231) and the inner highlight (177 183 255)
-RULER_RAMP = ((0, P["ground"]), (40, P["panel"]), (77, P["line"]), (191, P["bronze"]), (231, P["tan"]), (255, P["sand"]))
+# fill mid, brightest grid fill, frame line (70 79 191), tick marks (53 67 231) and the inner highlight (177 183 255); the
+# body starts at the subtle fill tokens so it sits under the panels like their fills
+RULER_RAMP = ((0, P["fill-field"]), (40, P["fill-block"]), (77, P["line"]), (191, P["bronze"]), (231, P["tan"]),
+              (255, P["sand"]))
 ADDITIONS = (LOGO_TGA, LOGO_INI, RULER_TGA, RULER_INI)  # theme files with no base counterpart
 
 

@@ -180,6 +180,162 @@ class LayoutCopyTest(unittest.TestCase):
             self.assertEqual([w.name for w, token, slots in wl.fill_classes(theme)], [], name)
 
 
+TEXTCOLOR_RE = re.compile(r"TEXTCOLOR\s*=[^;]*?DISABLED:\s*(\d+) (\d+) (\d+) (\d+)", re.S)
+
+
+def luminance(rgb):
+    def channel(v):
+        v /= 255.0
+        return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+    r, g, b = (channel(v) for v in rgb)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(a, b):
+    la, lb = sorted((luminance(a), luminance(b)), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+
+def own_text(text, win):
+    """The text of a window's own block, without its children."""
+    start, end = win.block
+    return text[start:min((c.block[0] for c in win.children), default=end)]
+
+
+def slot(win, prop, index=0):
+    """((r, g, b, a) fill, (r, g, b, a) border) of one draw slot."""
+    _, color, border = dict(win.draws)[prop][index]
+    return tuple(int(v) for v in color), tuple(int(v) for v in border)
+
+
+def default_drawn(text, win):
+    """False for a USER window with its own draw callback, which never draws the colour slots."""
+    m = wl.DRAW_CALLBACK_RE.search(own_text(text, win))
+    return win.kind != "USER" or m is None or m["callback"] in wl.DEFAULT_DRAWS
+
+
+def windows(base, name):
+    text = (base / name).read_bytes().decode("latin-1")
+    return text, {w.name.split(":")[-1]: w for w in wl.parse_windows(text).walk() if w.name}
+
+
+class RadarLayoutFixTest(unittest.TestCase):
+    """The colour fixes of the menu layouts: navy panels, white frames, the buddy toast, rare slots, disabled text."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.base = base_menus()
+        cls.theme = {name: (themes.THEME_DIR / name).read_bytes().decode("latin-1") for name in cls.base}
+
+    def rgb(self, token):
+        return themes._rgb(themes.PALETTE[token])
+
+    def test_retail_navy_panels_take_a_panel_fill_class_in_radar(self):
+        panels = {themes._rgb(themes.RADAR_FILLS[t]) for t in ("backdrop", "panel", "subpanel", "deep")}
+        cases = (("WOLLadderScreen.wnd", "LadderParent"), ("WOLLadderScreen.wnd", "WindowLadder"),
+                 ("ChallengeLoadScreen.wnd", "ReticleContainer"), ("ChallengeMenu.wnd", "GeneralsBioParent"))
+        for menu, short in cases:
+            name = f"Window/Menus/{menu}"
+            base = windows(wl.DATA, name)[1][short]
+            theme = windows(themes.THEME_DIR, name)[1][short]
+            (r, g, b, a), _ = slot(base, "ENABLEDDRAWDATA")
+            self.assertTrue(r <= 8 and g <= 8 and b >= 32, (menu, short))  # Signal keeps the retail navy
+            fill, _ = slot(theme, "ENABLEDDRAWDATA")
+            self.assertIn(fill[:3], panels, (menu, short))
+            self.assertEqual(fill[3], a, (menu, short))
+            self.assertNotEqual(fill[:3], self.rgb("ink"), (menu, short))
+
+    def test_white_frames_are_the_kit_line_in_signal_and_bronze_in_radar(self):
+        cases = (("ChallengeMenu.wnd", "Frame"), ("ChallengeMenu.wnd", "GeneralsBioParent"), ("ChallengeMenu.wnd", "Line1"),
+                 ("ChallengeLoadScreen.wnd", "ReticleContainer"), ("GameSpyLoginQuick.wnd", "WOLLoginMenuParent"),
+                 ("PopupLadderSelect.wnd", "BadPasswordParent"))
+        for menu, short in cases:
+            name = f"Window/Menus/{menu}"
+            _, base = slot(windows(wl.DATA, name)[1][short], "ENABLEDDRAWDATA")
+            _, theme = slot(windows(themes.THEME_DIR, name)[1][short], "ENABLEDDRAWDATA")
+            self.assertEqual(base, wl.KIT_LINE + (255,), (menu, short))
+            self.assertEqual(theme, self.rgb("bronze") + (255,), (menu, short))
+        # by rule: no colour drawn panel of a menu keeps a white frame on a dark or clear fill
+        for name, text in self.base.items():
+            for win in wl.parse_windows(text).walk():
+                if win.kind != "USER" or "IMAGE" in win.status or "ENABLEDDRAWDATA" not in dict(win.draws):
+                    continue
+                if not default_drawn(text, win):
+                    continue
+                fill, border = slot(win, "ENABLEDDRAWDATA")
+                white = min(border[:3]) >= 240 and border[3] > 0
+                self.assertFalse(white and (fill[3] == 0 or min(fill[:3]) < 240), (name, win.name))
+
+    def test_quit_message_box_stays_out_of_the_palette_because_the_match_uses_it_too(self):
+        name = "Window/Menus/QuitMessageBox.wnd"
+        # QuitMenu.cpp opens the same layout in a match, and the palette archive mounts over -mod for every path
+        self.assertFalse(wl.themed(name))
+        self.assertFalse((themes.THEME_DIR / name).exists())
+        source = (kit.ROOT / "Core/GameEngine/Source/Common/System/ArchiveFileSystem.cpp").read_text("latin-1")
+        self.assertIn('"quitmessagebox.wnd"', source[source.index("isGenOnlineShellLayout"):])
+        text = (wl.DATA / name).read_bytes().decode("latin-1")
+        self.assertEqual(wl.kit_colors(text, name), text)  # its in-match look stays
+
+    def test_buddy_toast_button_takes_the_kit_button_colours(self):
+        name = "Window/Menus/PopupBuddyListNotification.wnd"
+        P = themes.PALETTE
+        signal = {("ENABLEDDRAWDATA", 0): ("#070A18", "#2F4BFF"), ("ENABLEDDRAWDATA", 1): ("#2B34B8", "#8C9BFF"),
+                  ("HILITEDRAWDATA", 0): ("#152078", "#6A7BFF"), ("HILITEDRAWDATA", 1): ("#2B34B8", "#8C9BFF"),
+                  ("DISABLEDDRAWDATA", 0): ("#0A0A10", "#4A4E6E"), ("DISABLEDDRAWDATA", 1): ("#0A0A10", "#4A4E6E")}
+        radar = {("ENABLEDDRAWDATA", 0): ("fill-button", "bronze"), ("ENABLEDDRAWDATA", 1): ("pushed", "sand"),
+                 ("HILITEDRAWDATA", 0): ("fill-hover", "tan"), ("HILITEDRAWDATA", 1): ("pushed", "sand"),
+                 ("DISABLEDDRAWDATA", 0): ("fill-disabled", "line"), ("DISABLEDDRAWDATA", 1): ("fill-disabled", "line")}
+        base = windows(wl.DATA, name)[1]["ButtonNotification"]
+        theme = windows(themes.THEME_DIR, name)[1]["ButtonNotification"]
+        for (prop, index), (fill, line) in signal.items():
+            f, b = slot(base, prop, index)
+            self.assertEqual((f[:3], b[:3]), (themes._rgb(fill), themes._rgb(line)), (prop, index))
+        for (prop, index), (fill, line) in radar.items():
+            f, b = slot(theme, prop, index)
+            self.assertEqual((f[:3], b[:3]), (themes._rgb(P[fill]), themes._rgb(P[line])), (prop, index))
+        self.assertEqual(slot(base, "ENABLEDDRAWDATA")[0][3], 162)  # the toast keeps its see-through fill
+
+    def test_rare_editor_default_slots_take_the_kit_disabled_and_hover_colours(self):
+        rare = {"DISABLEDDRAWDATA": {(64, 64, 64)}, "HILITEDRAWDATA": {(0, 128, 0), (0, 0, 255), (106, 123, 255), (255, 255, 255)}}
+        mapped = Counter()
+        for name, text in self.base.items():
+            for win, theme_win in zip(wl.parse_windows(text).walk(), wl.parse_windows(self.theme[name]).walk()):
+                draws = dict(win.draws)
+                if win.kind not in ("USER", "STATICTEXT") or "IMAGE" in win.status or not default_drawn(text, win):
+                    continue
+                for prop, fill_token, line_token in (("DISABLEDDRAWDATA", "fill-disabled", "line"),
+                                                     ("HILITEDRAWDATA", "fill-hover", "tan")):
+                    if prop not in draws:
+                        continue
+                    fill, border = slot(win, prop)
+                    self.assertNotIn(fill[:3], rare[prop], (name, win.name, prop))
+                    radar_fill, radar_border = slot(theme_win, prop)
+                    self.assertNotEqual(radar_fill[:3], self.rgb("panel-3"), (name, win.name, prop))
+                    if fill[:3] in (wl.KIT_DISABLED_FILL, wl.KIT_HILITE_FILL):
+                        self.assertEqual((radar_fill[:3], radar_border[:3]), (self.rgb(fill_token), self.rgb(line_token)),
+                                         (name, win.name, prop))
+                        mapped[prop] += 1
+        self.assertGreater(mapped["DISABLEDDRAWDATA"], 400)
+        self.assertGreater(mapped["HILITEDRAWDATA"], 400)
+
+    def test_disabled_text_reads_on_the_disabled_fill_in_both_palettes(self):
+        signal_fill, radar_fill = wl.KIT_DISABLED_FILL, self.rgb("fill-disabled")
+        seen = Counter()
+        for name, text in self.base.items():
+            for palette, layout, fill in (("signal", text, signal_fill), ("radar", self.theme[name], radar_fill)):
+                for win in wl.parse_windows(layout).walk():
+                    if win.kind not in ("PUSHBUTTON", "COMBOBOX"):
+                        continue
+                    m = TEXTCOLOR_RE.search(own_text(layout, win))
+                    if m is None or m[4] == "0":
+                        continue
+                    rgb = tuple(int(v) for v in m.groups()[:3])
+                    self.assertGreaterEqual(contrast(rgb, fill), 4.5, (palette, name, win.name, rgb))
+                    seen[palette, win.kind] += 1
+        for palette in ("signal", "radar"):
+            self.assertGreater(seen[palette, "PUSHBUTTON"], 250)
+            self.assertGreater(seen[palette, "COMBOBOX"], 150)
+
 class ThemeFilesTest(unittest.TestCase):
     def test_every_theme_file_has_a_base_counterpart_but_the_additions(self):
         files = [p.relative_to(themes.THEME_DIR).as_posix() for p in themes.THEME_DIR.rglob("*") if p.is_file()]
@@ -320,9 +476,10 @@ class LoadLogoTest(unittest.TestCase):
 
 
 def is_retail_blue(r, g, b):
-    """True for a visibly blue texel: hue between azure and violet with some saturation and brightness."""
+    """True for a visibly blue texel: hue between azure and violet with some saturation and brightness; the near black
+    slate of the subtle fill tokens (hue 210, at most 0x16) stays under the brightness floor."""
     h, sat, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
-    return 210 <= h * 360 <= 270 and sat > 0.2 and v > 0.05
+    return 210 <= h * 360 <= 270 and sat > 0.2 and v > 0.1
 
 
 def mapped_images(text):
@@ -343,11 +500,17 @@ def mapped_images(text):
 class RulerRecolourTest(unittest.TestCase):
     def test_retail_tones_land_on_launcher_tokens_and_alpha_stays(self):
         P = themes.PALETTE
-        cases = {(0, 0, 0, 0): (P["ground"], 0), (20, 24, 77, 104): (P["line"], 104),
+        cases = {(0, 0, 0, 0): (P["fill-field"], 0), (20, 30, 40, 96): (P["fill-block"], 96),
+                 (20, 24, 77, 104): (P["line"], 104),
                  (70, 79, 191, 255): (P["bronze"], 255), (53, 67, 231, 128): (P["tan"], 128),
                  (177, 183, 255, 255): (P["sand"], 255)}
         for texel, (hex_color, alpha) in cases.items():
             self.assertEqual(themes.recolor_ruler([[texel]]), [[themes._rgb(hex_color) + (alpha,)]], texel)
+
+    def test_ruler_body_starts_at_the_subtle_fill_tokens_and_keeps_the_bronze_marks(self):
+        P = themes.PALETTE
+        self.assertEqual(themes.RULER_RAMP[:2], ((0, P["fill-field"]), (40, P["fill-block"])))
+        self.assertEqual([c for _, c in themes.RULER_RAMP[3:]], [P["bronze"], P["tan"], P["sand"]])
 
     def test_read_tga_reads_rle_bottom_up_and_raw_top_down(self):
         atlas = [[(1.0, 0.0, 0.0, 1.0), (0.0, 0.0, 1.0, 0.5)], [(0.0, 1.0, 0.0, 0.0), (1.0, 1.0, 1.0, 1.0)]]
