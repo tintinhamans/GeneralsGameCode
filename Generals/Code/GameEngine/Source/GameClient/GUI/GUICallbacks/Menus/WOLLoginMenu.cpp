@@ -1559,6 +1559,14 @@ void GOSignInDialogShowError( UnicodeString title, UnicodeString message, GameWi
 {
 }
 
+void GOSignInDialogShowDownloading( GameWinMsgBoxFunc cancelFunc )
+{
+}
+
+void GOSignInDialogShowReady( UnicodeString message, GameWinMsgBoxFunc restartFunc, GameWinMsgBoxFunc cancelFunc )
+{
+}
+
 void GOSignInDialogBeginSignIn( void )
 {
 }

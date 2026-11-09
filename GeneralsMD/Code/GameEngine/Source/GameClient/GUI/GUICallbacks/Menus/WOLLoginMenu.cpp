@@ -78,6 +78,8 @@ void GenOnline_WOLLoginMenu_LoginCallback(ELoginResult loginResult);
 
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
+#include "GameNetwork/DownloadManager.h"
+#include "GameClient/GadgetProgressBar.h"
 
 
 #ifdef ALLOW_NON_PROFILED_LOGIN
@@ -558,7 +560,9 @@ enum SignInDialogStep
 	SIGN_IN_DIALOG_CHECKING,
 	SIGN_IN_DIALOG_UPDATE,
 	SIGN_IN_DIALOG_ERROR,
-	SIGN_IN_DIALOG_SIGN_IN
+	SIGN_IN_DIALOG_SIGN_IN,
+	SIGN_IN_DIALOG_DOWNLOADING,
+	SIGN_IN_DIALOG_READY
 };
 
 static const char *const signInDialogProviderNames[SIGN_IN_PROVIDER_COUNT] = {
@@ -570,11 +574,42 @@ static WindowLayout *signInDialogLayout = NULL;
 static GameWindow *signInDialogRoot = NULL;
 static GameWindow *signInDialogMessage = NULL;
 static GameWindow *signInDialogUpdate = NULL;
+static GameWindow *signInDialogProgress = NULL;
+static GameWindow *signInDialogDownloadSize = NULL;
 static SignInDialogStep signInDialogStep = SIGN_IN_DIALOG_CHECKING;
 static GameWinMsgBoxFunc signInDialogCancelFunc = NULL;
 static GameWinMsgBoxFunc signInDialogUpdateFunc = NULL;
 
-// the step's status line and message; every button but Cancel hides, the sign-in step shows its own through showSignInState
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The download step's bar and size line follow the GO update download, which reports to TheDownloadManager like for the download menu.
+static void setSignInDialogDownloadProgress( Int bytesRead, Int totalSize )
+{
+	if (signInDialogLayout == NULL || signInDialogStep != SIGN_IN_DIALOG_DOWNLOADING || totalSize <= 0)
+		return;
+
+	Int percent = (Int)(100.0 * bytesRead / totalSize);
+	if (percent < 0)
+		percent = 0;
+	if (percent > 100)
+		percent = 100;
+	const Real megabyte = 1024.0f * 1024.0f;
+	GadgetProgressBarSetProgress(signInDialogProgress, percent);
+	GadgetStaticTextSetText(signInDialogDownloadSize, TheGameText->FETCH_OR_SUBSTITUTE_FORMAT("GUI:GOSignInDownloadProgress",
+		L"%d%% (%.1f of %.1f MB)", percent, bytesRead / megabyte, totalSize / megabyte));
+}
+
+class SignInDialogDownloadManager : public DownloadManager
+{
+public:
+	virtual HRESULT OnProgressUpdate( Int bytesread, Int totalsize, Int timetaken, Int timeleft ) override
+	{
+		HRESULT ret = DownloadManager::OnProgressUpdate( bytesread, totalsize, timetaken, timeleft );
+		setSignInDialogDownloadProgress( bytesread, totalsize );
+		return ret;
+	}
+};
+static SignInDialogDownloadManager *signInDialogDownloadManager = NULL;
+
+// show one step's texts or download progress; only Cancel and Update (Restart when ready) stay, sign-in uses showSignInState
 static void showSignInDialogStep( SignInDialogStep step, const UnicodeString &status, const UnicodeString &message )
 {
 	signInDialogStep = step;
@@ -583,7 +618,14 @@ static void showSignInDialogStep( SignInDialogStep step, const UnicodeString &st
 	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
 		buttonSignInProviders[i]->winHide(TRUE);
 	buttonUseAnotherAccount->winHide(TRUE);
-	signInDialogUpdate->winHide(step != SIGN_IN_DIALOG_UPDATE);
+	signInDialogUpdate->winHide(step != SIGN_IN_DIALOG_UPDATE && step != SIGN_IN_DIALOG_READY);
+	if (step == SIGN_IN_DIALOG_READY)
+		GadgetButtonSetText(signInDialogUpdate, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInRestart", L"Restart"));
+	else
+		GadgetButtonSetText(signInDialogUpdate, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInUpdate", L"Update"));
+	signInDialogMessage->winHide(step == SIGN_IN_DIALOG_DOWNLOADING);
+	signInDialogProgress->winHide(step != SIGN_IN_DIALOG_DOWNLOADING);
+	signInDialogDownloadSize->winHide(step != SIGN_IN_DIALOG_DOWNLOADING);
 	buttonSignInCancel->winHide(FALSE);
 	if (step == SIGN_IN_DIALOG_ERROR)
 		GadgetButtonSetText(buttonSignInCancel, TheGameText->FETCH_OR_SUBSTITUTE("GUI:Ok", L"OK"));
@@ -657,10 +699,11 @@ static void signInDialogPressed( GameWindow *control )
 		return;
 	}
 
+	// TheSuperHackers @feature arcticdolphin 09/11/2026 The update and restart functions move the dialog on or close it themselves; a second press does nothing.
 	if (control == signInDialogUpdate)
 	{
 		GameWinMsgBoxFunc updateFunc = signInDialogUpdateFunc;
-		GOSignInDialogDestroy();
+		signInDialogUpdateFunc = NULL;
 		if (updateFunc != NULL)
 			updateFunc();
 		return;
@@ -737,7 +780,10 @@ Bool GOSignInDialogOpen( void )
 	GameWindow *title = TheWindowManager->winGetWindowFromId( root, NAMEKEY("GOSignInDialog.wnd:StaticTextTitle") );
 	signInDialogMessage = TheWindowManager->winGetWindowFromId( root, NAMEKEY("GOSignInDialog.wnd:StaticTextMessage") );
 	signInDialogUpdate = TheWindowManager->winGetWindowFromId( root, NAMEKEY("GOSignInDialog.wnd:ButtonUpdate") );
+	signInDialogProgress = TheWindowManager->winGetWindowFromId( root, NAMEKEY("GOSignInDialog.wnd:ProgressBarDownload") );
+	signInDialogDownloadSize = TheWindowManager->winGetWindowFromId( root, NAMEKEY("GOSignInDialog.wnd:StaticTextDownloadSize") );
 	if (root == NULL || title == NULL || signInDialogMessage == NULL || signInDialogUpdate == NULL
+		|| signInDialogProgress == NULL || signInDialogDownloadSize == NULL
 		|| !findSignInWindows( root, "GOSignInDialog.wnd:StaticTextSignInStatus", "GOSignInDialog.wnd:ButtonUseAnotherAccount",
 			"GOSignInDialog.wnd:ButtonCancel", signInDialogProviderNames ))
 	{
@@ -745,6 +791,8 @@ Bool GOSignInDialogOpen( void )
 		deleteInstance(layout);
 		signInDialogMessage = NULL;
 		signInDialogUpdate = NULL;
+		signInDialogProgress = NULL;
+		signInDialogDownloadSize = NULL;
 		staticTextSignInStatus = NULL;
 		buttonUseAnotherAccount = NULL;
 		buttonSignInCancel = NULL;
@@ -759,7 +807,6 @@ Bool GOSignInDialogOpen( void )
 	signInDialogUpdateFunc = NULL;
 	shownSignInStage = ELoginStage::None;
 	GadgetStaticTextSetText(title, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInTitle", L"Generals Online"));
-	GadgetButtonSetText(signInDialogUpdate, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInUpdate", L"Update"));
 	showSignInDialogStep(SIGN_IN_DIALOG_CHECKING, TheGameText->fetch("GUI:CheckingForPatches"), UnicodeString::TheEmptyString);
 
 	root->winSetSystemFunc(signInDialogSystem);
@@ -804,6 +851,35 @@ void GOSignInDialogShowError( UnicodeString title, UnicodeString message, GameWi
 	showSignInDialogStep(SIGN_IN_DIALOG_ERROR, title, message);
 }
 
+void GOSignInDialogShowDownloading( GameWinMsgBoxFunc cancelFunc )
+{
+	if (signInDialogLayout == NULL)
+		return;
+
+	// TheSuperHackers @feature arcticdolphin 09/11/2026 The dialog owns the download manager while it downloads, as DownloadMenuInit does for the download menu.
+	if (signInDialogDownloadManager == NULL)
+	{
+		DEBUG_ASSERTCRASH(!TheDownloadManager, ("Download manager already exists"));
+		delete TheDownloadManager;
+		signInDialogDownloadManager = NEW SignInDialogDownloadManager;
+		TheDownloadManager = signInDialogDownloadManager;
+	}
+	signInDialogCancelFunc = cancelFunc;
+	signInDialogUpdateFunc = NULL;
+	showSignInDialogStep(SIGN_IN_DIALOG_DOWNLOADING, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInDownloading", L"Downloading update..."), UnicodeString::TheEmptyString);
+	GadgetProgressBarSetProgress(signInDialogProgress, 0);
+	GadgetStaticTextSetText(signInDialogDownloadSize, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInDownloadConnecting", L"Connecting to update service..."));
+}
+
+void GOSignInDialogShowReady( UnicodeString message, GameWinMsgBoxFunc restartFunc, GameWinMsgBoxFunc cancelFunc )
+{
+	if (signInDialogLayout == NULL)
+		return;
+	signInDialogCancelFunc = cancelFunc;
+	signInDialogUpdateFunc = restartFunc;
+	showSignInDialogStep(SIGN_IN_DIALOG_READY, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInUpdateReady", L"Update Ready"), message);
+}
+
 void GOSignInDialogBeginSignIn( void )
 {
 	if (signInDialogLayout == NULL)
@@ -846,6 +922,17 @@ void GOSignInDialogDestroy( void )
 		pAuthInterface->SetSignInDialog(false);
 	}
 
+	// TheSuperHackers @feature arcticdolphin 09/11/2026 Closing drops the dialog's download manager like DownloadMenuShutdown; one that replaced it belongs to its owner.
+	if (signInDialogDownloadManager != NULL)
+	{
+		if (TheDownloadManager == signInDialogDownloadManager)
+		{
+			delete TheDownloadManager;
+			TheDownloadManager = NULL;
+		}
+		signInDialogDownloadManager = NULL;
+	}
+
 	WindowLayout *layout = signInDialogLayout;
 	signInDialogLayout = NULL;
 	TheWindowManager->winUnsetModal(signInDialogRoot);
@@ -855,6 +942,8 @@ void GOSignInDialogDestroy( void )
 	signInDialogRoot = NULL;
 	signInDialogMessage = NULL;
 	signInDialogUpdate = NULL;
+	signInDialogProgress = NULL;
+	signInDialogDownloadSize = NULL;
 	signInDialogCancelFunc = NULL;
 	signInDialogUpdateFunc = NULL;
 	staticTextSignInStatus = NULL;
