@@ -4,6 +4,7 @@ Usage:
     python -m unittest scripts/test_go_wnd_layouts.py
 """
 
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -396,7 +397,8 @@ class TitleTest(unittest.TestCase):
         self.assertEqual(by_kind(out, "STATICTEXT"), [(wl.TITLE_LEFT, 44, wl.TITLE_LEFT + 209, 80)])
         self.assertIn("STATICTEXTDATA = CENTERED: 0;", out)
         self.assertNotIn("CENTERED: 1", out)
-        self.assertEqual(len(out), len(wl.go_templates(text, MENU)))  # only the title rect and its GO template change
+        # only the title rect, its GO template and the black fill of the colour drawn ruler parent change
+        self.assertEqual(len(out), len(wl.window_fills(wl.go_templates(text, MENU), MENU)))
         self.assertTrue(any(n.startswith("titles:") and "STATICTEXT48_43" in n for n in notes), notes)
 
     def test_title_taller_than_its_band_fills_the_band(self):
@@ -742,7 +744,7 @@ class YamlSourceTest(unittest.TestCase):
                   other: layout(window("STATICTEXT", (100, 100, 300, 130))).encode("latin-1")}
         with mock.patch.object(wl, "read_big", return_value=retail):
             results = {name: (text, out, info) for name, text, out, info in wl.build(Path("unused.big"))}
-        expected = wl.compact_combos(wnd_yaml.compile_file(wnd_yaml.sources()[options]), options)
+        expected = wl.window_fills(wl.compact_combos(wnd_yaml.compile_file(wnd_yaml.sources()[options]), options), options)
         names = {name.lower(): name for name in results}
         text, out, info = results[names[options.lower()]]
         self.assertEqual(out, expected)
@@ -753,6 +755,7 @@ class YamlSourceTest(unittest.TestCase):
 PREVIEW_CALLBACK = 'DRAWCALLBACK = "W3DDrawMapPreview";'
 BLACK_SLOT = "IMAGE: NoImage, COLOR: 0 0 0 255, BORDERCOLOR: 0 0 0 255"
 PREVIEW_NAMES = ("MapWindow", "WinMapPreview")
+FILLS = {token: [str(v) for v in wl.go_themes._rgb(hex_color)] for token, hex_color in wl.go_themes.SIGNAL_FILLS.items()}
 
 
 def enabled_slots(text):
@@ -770,9 +773,11 @@ class MapPreviewBorderTest(unittest.TestCase):
         for name in (MENU, "Window/Menus/MultiplayerLoadScreen.wnd", "Window/ControlBar.wnd"):
             slots = enabled_slots(wl.transform(self.preview_layout(), name=name))
             preview, other = slots["Test.wnd:USER100_100"], slots["Test.wnd:USER400_100"]
-            self.assertEqual(preview[0], ("NoImage", ["0", "0", "0", "255"], ["47", "75", "255", "255"]), name)
+            # menus also give the black fills their Signal fill: the preview a field, the other window a panel
+            well, body = (FILLS["ground"], FILLS["panel"]) if wl.themed(name) else (["0", "0", "0"],) * 2
+            self.assertEqual(preview[0], ("NoImage", well + ["255"], ["47", "75", "255", "255"]), name)
             self.assertEqual(preview[1:], other[1:], name)  # only slot 0 changes
-            self.assertEqual(other[0], ("NoImage", ["0", "0", "0", "255"], ["0", "0", "0", "255"]), name)
+            self.assertEqual(other[0], ("NoImage", body + ["255"], ["0", "0", "0", "255"]), name)
 
     def test_map_preview_border_is_idempotent_and_build_applies_it(self):
         once = wl.transform(self.preview_layout(), name=MENU)
@@ -800,6 +805,111 @@ class MapPreviewBorderTest(unittest.TestCase):
             "MultiplayerLoadScreen", "SkirmishGameOptionsMenu", "SkirmishMapSelectMenu", "WOLMapSelectMenu")])
         for name, borders in found.items():
             self.assertEqual(borders, [["47", "75", "255", "255"]], name)
+
+
+def fill_slot(rgba):
+    return [f"IMAGE: NoImage, COLOR: {rgba}, BORDERCOLOR: 47 75 255 255"] + [DRAW_SLOT] * 8
+
+
+def first_fills(text):
+    """{window NAME: {draw data property: first slot colour}}."""
+    return {w.name: {prop: slots[0][1] for prop, slots in w.draws} for w in wl.parse_windows(text).walk()}
+
+
+def in_game_names():
+    return [p.relative_to(wl.DATA).as_posix() for p in sorted((wl.DATA / "Window").rglob("*.wnd"))
+            if not wl.themed(p.relative_to(wl.DATA).as_posix())]
+
+
+class WindowFillTest(unittest.TestCase):
+    DIALOG = "Window/Menus/GOSignInDialog.wnd"  # a new menu layout: the rule applies without a name list
+
+    def dialog(self):
+        """A full screen dim backdrop around a dialog with nested panels, an opaque copy, a list and windows the step
+        must leave: a clear static text, an image drawn window, a W3DNoDraw window and a navy fill."""
+        hilite = "HILITEDRAWDATA = IMAGE: NoImage, COLOR: 2 2 2 162, BORDERCOLOR: 0 0 0 255;"
+        disabled = "DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 64 64 64 255, BORDERCOLOR: 0 0 0 255;"
+        deep = window("USER", (230, 130, 570, 190), indent=8, draw=fill_slot("0 0 0 200"))
+        box = window("USER", (220, 120, 580, 200), [deep], indent=6, draw=fill_slot("0 0 2 255"))
+        section = window("USER", (210, 110, 590, 300), [box], indent=4, draw=fill_slot("2 2 2 175"))
+        dialog = window("USER", (200, 100, 600, 560), [
+            section,
+            window("USER", (210, 310, 590, 400), indent=4, draw=fill_slot("0 0 0 255")),
+            window("SCROLLLISTBOX", (210, 410, 590, 480), indent=4, draw=fill_slot("0 0 0 126")),
+            window("STATICTEXT", (210, 484, 300, 500), indent=4, draw=fill_slot("0 0 0 0")),
+            window("USER", (310, 484, 400, 500), indent=4, draw=fill_slot("0 0 0 255"), props=["STATUS = ENABLED+IMAGE;"]),
+            window("USER", (410, 484, 500, 500), indent=4, draw=fill_slot("0 0 0 255"), props=['DRAWCALLBACK = "W3DNoDraw";']),
+            window("USER", (510, 484, 590, 500), indent=4, draw=fill_slot("0 0 128 255")),
+        ], indent=2, draw=fill_slot("0 0 0 255"), props=[hilite, disabled])
+        return layout(window("USER", (0, 0, 800, 600), [dialog], draw=fill_slot("2 2 2 126")))
+
+    def test_fills_take_the_signal_fill_of_their_class_and_keep_alpha(self):
+        out = first_fills(wl.window_fills(self.dialog(), self.DIALOG))
+        enabled = {name: fills["ENABLEDDRAWDATA"] for name, fills in out.items()}
+        expected = {
+            "USER0_0": FILLS["ground"] + ["126"],            # full screen dim backdrop
+            "USER200_100": FILLS["panel"] + ["255"],         # the dialog body
+            "USER210_110": FILLS["surface"] + ["175"],       # a panel inside it
+            "USER220_120": FILLS["panel-3"] + ["255"],       # three deep
+            "USER230_130": FILLS["panel-3"] + ["200"],       # deeper stays panel-3
+            "USER210_310": FILLS["panel"] + ["255"],         # an opaque copy of the dialog fill reads as the dialog
+            "SCROLLLISTBOX210_410": FILLS["ground"] + ["126"],  # a field
+            "STATICTEXT210_484": ["0", "0", "0", "0"],       # clear: left alone
+            "USER310_484": ["0", "0", "0", "255"],           # image drawn
+            "USER410_484": ["0", "0", "0", "255"],           # not drawn
+            "USER510_484": ["0", "0", "128", "255"],         # not retail black
+        }
+        self.assertEqual({name.split(":")[1]: fill for name, fill in enabled.items()}, expected)
+        dialog = out["Test.wnd:USER200_100"]
+        self.assertEqual(dialog["HILITEDRAWDATA"], FILLS["panel"] + ["162"])    # a black hover fill follows
+        self.assertEqual(dialog["DISABLEDDRAWDATA"], ["64", "64", "64", "255"])  # the grey disabled fill stays
+
+    def test_only_fill_numbers_change(self):
+        text = self.dialog()
+        out = wl.window_fills(text, self.DIALOG)
+        strip = lambda t: re.sub(r"COLOR: \d+ \d+ \d+", "COLOR:", t)  # noqa: E731
+        self.assertEqual(strip(out), strip(text))
+        self.assertEqual(out.count("\r\n"), text.count("\r\n"))
+
+    def test_in_game_and_in_match_layouts_keep_their_fills(self):
+        for name in ("Window/ControlBar.wnd", "Window/InGameChat.wnd", "Window/Menus/QuitMenu.wnd"):
+            self.assertEqual(wl.window_fills(self.dialog(), name), self.dialog(), name)
+            self.assertEqual(wl.transform(self.dialog(), name=name).count("COLOR: 2 2 2 126"), 1, name)
+
+    def test_fills_are_idempotent_and_transform_applies_them(self):
+        once = wl.window_fills(self.dialog(), self.DIALOG)
+        self.assertEqual(wl.window_fills(once, self.DIALOG), once)
+        self.assertEqual(wl.fill_classes(once), [])
+        moved = wl.transform(self.dialog(), name=self.DIALOG)
+        self.assertEqual(wl.transform(moved, name=self.DIALOG), moved)
+        self.assertEqual(wl.fill_classes(moved), [])
+
+    def test_shipped_menus_keep_no_retail_black_fill(self):
+        menus = 0
+        for path in sorted((wl.DATA / "Window").rglob("*.wnd")):
+            name = path.relative_to(wl.DATA).as_posix()
+            if not wl.themed(name):
+                continue
+            menus += 1
+            text = path.read_bytes().decode("latin-1")
+            self.assertEqual([w.name for w, token, slots in wl.fill_classes(text)], [], name)
+        self.assertGreater(menus, 50)
+
+    def test_shipped_fills_of_the_sign_in_panel_and_options(self):
+        login = first_fills((wl.DATA / "Window/Menus/GameSpyLoginProfile.wnd").read_bytes().decode("latin-1"))
+        self.assertEqual(login["GameSpyLoginProfile.wnd:GadgetParent"]["ENABLEDDRAWDATA"], FILLS["panel"] + ["129"])
+        options = first_fills((wl.DATA / "Window/Menus/OptionsMenu.wnd").read_bytes().decode("latin-1"))
+        self.assertEqual(options["OptionsMenu.wnd:OptionsMenuParent"]["ENABLEDDRAWDATA"], FILLS["panel"] + ["255"])
+        self.assertEqual(options["OptionsMenu.wnd:OptionsMenuParentOld"]["ENABLEDDRAWDATA"], FILLS["surface"] + ["175"])
+        self.assertEqual(options["OptionsMenu.wnd:VideoParent"]["ENABLEDDRAWDATA"], FILLS["panel-3"] + ["255"])
+
+    def test_shipped_in_game_layouts_keep_their_fills(self):
+        names = in_game_names()
+        texts = {name: (wl.DATA / name).read_bytes().decode("latin-1") for name in names}
+        for name, text in texts.items():
+            self.assertEqual(wl.window_fills(text, name), text, name)
+        # the rule would recolour them: they still hold retail black fills
+        self.assertTrue(any(wl.fill_classes(text) for text in texts.values()))
 
 
 BIG_FONT = 'FONT = NAME: "Arial", SIZE: 14, BOLD: 0;'

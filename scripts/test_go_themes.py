@@ -10,6 +10,7 @@ import struct
 import sys
 import tempfile
 import unittest
+from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -92,6 +93,18 @@ class LayoutPaletteTest(unittest.TestCase):
         for theme in themes.LAYOUT_COLORS.values():
             self.assertIn("#%02X%02X%02X" % theme, palette)
 
+    def test_signal_fills_map_to_their_launcher_token_and_are_never_retail_black(self):
+        rgbs = [themes._rgb(hex_color) for hex_color in themes.SIGNAL_FILLS.values()]
+        self.assertEqual(len(set(rgbs)), len(rgbs))
+        self.assertEqual(themes.SIGNAL_FILLS["ground"], "#05070F")  # the kit field fill
+        self.assertEqual(themes.SIGNAL_FILLS["panel"], "#070A18")   # the kit button fill
+        self.assertEqual(themes.SIGNAL_FILLS["surface"], "#0B1030")  # the kit slider block fill
+        for token, hex_color in themes.SIGNAL_FILLS.items():
+            self.assertEqual(themes.LAYOUT_COLORS[themes._rgb(hex_color)], themes._rgb(themes.P[token]), token)
+            self.assertGreater(max(themes._rgb(hex_color)), wl.NEAR_BLACK, token)  # the fill step stays idempotent
+            if hex_color in themes.KIT_COLORS:
+                self.assertEqual(themes.KIT_COLORS[hex_color], themes.P[token], token)  # same token as the kit art
+
     def test_listed_kit_colours(self):
         listed = {"#2F4BFF": "#BF9048", "#6A7BFF": "#E3BA6C", "#8C9BFF": "#F7DB9C", "#4A4E6E": "#2C3B3F",
                   "#070A18": "#141C1F", "#152078": "#223034", "#0A0A10": "#0B1114",
@@ -136,6 +149,29 @@ class LayoutCopyTest(unittest.TestCase):
         def findings(texts):
             return sorted((f.rule, f.file, f.name, f.detail) for f in lint.lint_layouts(texts))
         self.assertEqual(findings(self.theme), findings(self.base))
+
+    def test_radar_window_fills_take_the_launcher_token_of_their_class_and_keep_alpha(self):
+        signal = {themes._rgb(hex_color): token for token, hex_color in themes.SIGNAL_FILLS.items()}
+        seen = Counter()
+        for name, text in self.base.items():
+            theme = (themes.THEME_DIR / name).read_bytes().decode("latin-1")
+            for base_win, theme_win in zip(wl.parse_windows(text).walk(), wl.parse_windows(theme).walk()):
+                for (prop, slots), (_, theme_slots) in zip(base_win.draws, theme_win.draws):
+                    color, theme_color = slots[0][1], theme_slots[0][1]
+                    token = signal.get(tuple(int(v) for v in color[:3]))
+                    if token is None:
+                        continue
+                    seen[token] += 1
+                    self.assertEqual(tuple(int(v) for v in theme_color[:3]), themes._rgb(themes.P[token]), (name, base_win.name))
+                    self.assertEqual(theme_color[3], color[3], (name, base_win.name))
+        self.assertEqual(set(seen), set(themes.SIGNAL_FILLS))
+        self.assertGreater(sum(seen.values()), 150)
+        self.assertGreater(seen["panel"], 50)
+
+    def test_radar_copies_keep_no_retail_black_fill(self):
+        for name in self.base:
+            theme = (themes.THEME_DIR / name).read_bytes().decode("latin-1")
+            self.assertEqual([w.name for w, token, slots in wl.fill_classes(theme)], [], name)
 
 
 class ThemeFilesTest(unittest.TestCase):
