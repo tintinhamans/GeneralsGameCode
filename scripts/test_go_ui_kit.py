@@ -355,9 +355,9 @@ class ShellRoadTest(unittest.TestCase):
     def constant(self, name):
         return re.search(rf"static const (?:Int|Real) {name} = ([\d.]+)f?;", self.source).group(1)
 
-    def test_road_is_half_the_width_centred_near_the_bottom(self):
+    def test_road_is_a_third_of_the_width_centred_near_the_bottom(self):
         left, top, right, bottom = kit.LOAD_ROAD_RECT
-        self.assertEqual((right - left) / 800, 0.5)
+        self.assertAlmostEqual((right - left) / 800, 1 / 3, delta=1 / 800)
         self.assertEqual(left, 800 - right)
         self.assertTrue(16 <= bottom - top <= 20)
         self.assertTrue(570 <= top and bottom <= 596)
@@ -382,20 +382,17 @@ class ShellRoadTest(unittest.TestCase):
         for screen in SCREENS:
             x, y, w, h = kit.load_road_window(*screen)
             line, dashes = kit.load_road_dashes(x, y, w, h, screen[1])
-            self.assertGreater(len(dashes), 20, screen)
+            self.assertGreater(len(dashes), 15, screen)
             lengths = {d[2] - d[0] for d in dashes}
             periods = {b[0] - a[0] for a, b in zip(dashes, dashes[1:])}
             self.assertEqual(len(lengths), 1)
             self.assertEqual(len(periods), 1)
-            self.assertEqual(lengths.pop() % 2, 0)
             self.assertEqual(periods.pop() % 2, 0)
             # centred on the road between the edge lines, at the kit line weight
             self.assertEqual(dashes[0][1] - y, y + h - dashes[0][3], screen)
             self.assertIn(dashes[0][3] - dashes[0][1], (line, line + 1))
-            if w % 2 == 0:
-                self.assertEqual(dashes[0][0] - x, x + w - dashes[-1][2], screen)
-            else:
-                self.assertLessEqual(abs((dashes[0][0] - x) - (x + w - dashes[-1][2])), 1, screen)
+            # the same whole pixel padding at both ends, odd road widths included
+            self.assertEqual(dashes[0][0] - x, x + w - dashes[-1][2], screen)
 
     def test_draw_follows_the_road_rule(self):
         for text in ("TheWindowManager->winDrawThreePieceImage(left, center, nullptr, right, x, y, width, height);",
@@ -407,6 +404,7 @@ class ShellRoadTest(unittest.TestCase):
                      "const Int span = width - 2 * (height / 2);",
                      "const Int count = span >= length ? (span - length) / period + 1 : 0;",
                      "const Int pad = (width - total) / 2;",
+                     "if (count > 0 && ((width - total) & 1) != 0)",
                      "const Int dashTop = y + (height - thickness) / 2;",
                      "const Int dashLeft = x + pad + k * period;",
                      "TheDisplay->drawImage(tint, x, y + line, litEnd, y + height - line);",
@@ -432,7 +430,7 @@ class ShellRoadTest(unittest.TestCase):
 
 
 class LoadScreenPlayerBarTest(unittest.TestCase):
-    """LoadScreen.cpp: every bar it colours per player or faction takes the bronze bar under the GO bar art check."""
+    """LoadScreen.cpp: the per-player bars keep their house colours; the campaign bar takes the bronze GO bar art."""
 
     KIT_CHECK = "findGoLoadBarImage()"
 
@@ -451,15 +449,19 @@ class LoadScreenPlayerBarTest(unittest.TestCase):
         self.assertIn(f'getFilename().compareNoCase("{kit.LOAD_BAR_TEXTURE_NAME}")', check)
         self.assertIn("return nullptr;", check)
 
-    def test_player_bars_take_the_bronze_image_under_the_kit_check_and_the_house_image_otherwise(self):
+    def test_player_bars_keep_their_house_colour_image(self):
         sites = [m.start() for m in re.finditer(r'"LoadingBar_ProgressCenter%d"', self.source)]
         self.assertEqual(len(sites), 2)  # MultiPlayerLoadScreen and GameSpyLoadScreen
         for site in sites:
-            block = self.source[site:self.source.index("winSetEnabledImage( 6, houseImage );", site)]
-            # the retail house image lookup stays, and the kit image replaces it only when the check finds it
-            self.assertIn("findImageByName(imageName)", block)
-            self.assertRegex(block, r"if \(const Image \*kitImage = findGoLoadBarImage\(\)\)\s*\{\s*houseImage = kitImage;\s*\}")
-            # the Generals half has no GO bar art and keeps its house colour bar
+            block = self.source[self.source.rindex("imageName.format(", 0, site):]
+            block = block[:block.index("winSetEnabledImage( 6, houseImage );") + len("winSetEnabledImage( 6, houseImage );")]
+            # the retail house image by slot colour, the plain bar when a colour has none, and nothing GO over it
+            self.assertRegex(block, r'^imageName\.format\("LoadingBar_ProgressCenter%d", slot->getApparentColor\(\)\);\s*'
+                                    r"const Image \*houseImage = TheMappedImageCollection->findImageByName\(imageName\);\s*"
+                                    r"if \(! houseImage\)\s*"
+                                    r'houseImage = TheMappedImageCollection->findImageByName\("LoadingBar_Progress"\);\s*'
+                                    r"m_progressBars\[netSlot\]->winSetEnabledImage\( 6, houseImage \);$")
+            # the Generals half keeps its house colour bar
             generals = self.source.rindex("#if RTS_GENERALS", 0, site)
             self.assertIn("GadgetProgressBarSetEnabledBarColor(m_progressBars[netSlot],houseColor );",
                           self.source[generals:site])
@@ -470,15 +472,18 @@ class LoadScreenPlayerBarTest(unittest.TestCase):
         self.assertRegex(block, r"if \(const Image \*goBarImage = findGoLoadBarImage\(\)\)\s*\{\s*"
                                 r"m_progressBar->winSetEnabledImage\( 6, goBarImage \);\s*\}")
 
-    def test_map_transfer_bar_takes_the_bronze_colour_under_the_kit_check(self):
-        # drawn in colour, not images: the house colour stays without the GO bar art
+    def test_map_transfer_bar_keeps_its_house_colour(self):
         init = self.body("void MapTransferLoadScreen::init( GameInfo *game )")
-        house = "GadgetProgressBarSetEnabledBarColor(m_progressBars[netSlot], houseColor );"
-        self.assertIn(house, init)
-        r, g, b = themes._rgb(themes.PALETTE["bronze"])
-        self.assertRegex(init[init.index(house):], rf"if \({re.escape(self.KIT_CHECK)} != nullptr\)\s*\{{\s*"
-                                                   rf"GadgetProgressBarSetEnabledBarColor\(m_progressBars\[netSlot\], "
-                                                   rf"GameMakeColor\({r}, {g}, {b}, 255\) \);\s*\}}")
+        self.assertIn("GadgetProgressBarSetEnabledBarColor(m_progressBars[netSlot], houseColor );", init)
+        self.assertNotIn(self.KIT_CHECK, init)
+        self.assertNotIn("GameMakeColor(191, 144, 72", init)
+
+    def test_kit_check_serves_only_the_campaign_bar_and_the_shell_road(self):
+        calls = self.source.count(self.KIT_CHECK) - 1  # less the definition
+        self.assertEqual(calls, 2)
+        for screen in ("void MultiPlayerLoadScreen::init( GameInfo *game )", "void GameSpyLoadScreen::init( GameInfo *game )",
+                       "void MapTransferLoadScreen::init( GameInfo *game )"):
+            self.assertNotIn(self.KIT_CHECK, self.body(screen))
 
     def test_player_names_keep_their_house_colour(self):
         self.assertEqual(self.source.count("m_playerNames[netSlot]->winSetEnabledTextColors(houseColor"), 3)

@@ -202,10 +202,10 @@ static const Real GO_VAN_BOB_WEIGHT_A = 0.6f;
 static const Int GO_VAN_SPAN = GO_VAN_OUTLINE_BOTTOM - GO_VAN_OUTLINE_TOP;
 static const char *const GO_VAN_WHEEL_IMAGES[GO_VAN_WHEEL_FRAMES] = { "GOVanWheels0", "GOVanWheels1", "GOVanWheels2", "GOVanWheels3" };
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 The shell load road in 800x600 units, half the width and centred near the bottom, and half its dash period; scripts/go_ui_kit.py LOAD_ROAD_RECT mirrors them.
-static const Int GO_ROAD_LEFT = 200;
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The shell load road in 800x600 units, a third of the width and centred near the bottom, and half its dash period; scripts/go_ui_kit.py LOAD_ROAD_RECT mirrors them.
+static const Int GO_ROAD_LEFT = 267;
 static const Int GO_ROAD_TOP = 574;
-static const Int GO_ROAD_RIGHT = 600;
+static const Int GO_ROAD_RIGHT = 533;
 static const Int GO_ROAD_BOTTOM = 592;
 static const Real GO_ROAD_DASH_UNITS = 6.0f;
 
@@ -623,7 +623,7 @@ static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )
 		TheDisplay->drawImage(tint, x, y + line, litEnd, y + height - line);
 	}
 
-	// whole pixel dashes, even in length and period, with the same padding at both ends; the road stays put as the van drives
+	// whole pixel dashes on an even period, with the same padding at both ends; the road stays put as the van drives
 	const Int thickness = line + ((height - line) & 1);
 	Int half = REAL_TO_INT_FLOOR(GO_ROAD_DASH_UNITS * TheDisplay->getHeight() / 600.0f + 0.5f);
 	if (half < 2)
@@ -638,7 +638,13 @@ static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )
 	}
 	const Int span = width - 2 * (height / 2);
 	const Int count = span >= length ? (span - length) / period + 1 : 0;
-	const Int total = count > 0 ? (count - 1) * period + length : 0;
+	Int total = count > 0 ? (count - 1) * period + length : 0;
+	// a road of odd width takes one more pixel per dash, so both ends keep the same whole pixel padding
+	if (count > 0 && ((width - total) & 1) != 0)
+	{
+		++length;
+		++total;
+	}
 	const Int pad = (width - total) / 2;
 	const Int dashTop = y + (height - thickness) / 2;
 	for (Int k = 0; k < count; ++k)
@@ -1780,7 +1786,7 @@ void ShellGameLoadScreen::init( GameInfo *game )
 		firstLoad = FALSE;
 	}
 	m_progressBar->winHide(FALSE);
-	// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO bar art the bar is the road the radar van drives: half the screen wide, centred near the bottom.
+	// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO bar art the bar is the road the radar van drives: a third of the screen wide, centred near the bottom.
 	if (findGoLoadBarImage() != nullptr)
 	{
 		m_progressBar->winSetDrawFunc(drawGoShellLoadBar);
@@ -2114,11 +2120,6 @@ void MultiPlayerLoadScreen::init( GameInfo *game )
 		const Image *houseImage = TheMappedImageCollection->findImageByName(imageName);
 		if (! houseImage)
 			houseImage = TheMappedImageCollection->findImageByName("LoadingBar_Progress");
-		// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO bar art every player bar is bronze; the house colour stays on the player name.
-		if (const Image *kitImage = findGoLoadBarImage())
-		{
-			houseImage = kitImage;
-		}
 		m_progressBars[netSlot]->winSetEnabledImage( 6, houseImage );
 #endif
 
@@ -2409,11 +2410,6 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 		const Image *houseImage = TheMappedImageCollection->findImageByName(imageName);
 		if (! houseImage)
 			houseImage = TheMappedImageCollection->findImageByName("LoadingBar_Progress");
-		// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO bar art every player bar is bronze; the house colour stays on the player name.
-		if (const Image *kitImage = findGoLoadBarImage())
-		{
-			houseImage = kitImage;
-		}
 		m_progressBars[netSlot]->winSetEnabledImage( 6, houseImage );
 #endif
 
@@ -2727,11 +2723,6 @@ void MapTransferLoadScreen::init( GameInfo *game )
 			continue;
 		Color houseColor = TheMultiplayerSettings->getColor(slot->getApparentColor())->getColor();
 		GadgetProgressBarSetEnabledBarColor(m_progressBars[netSlot], houseColor );
-		// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO bar art this colour drawn bar takes its bronze; the house colour stays on the player name.
-		if (findGoLoadBarImage() != nullptr)
-		{
-			GadgetProgressBarSetEnabledBarColor(m_progressBars[netSlot], GameMakeColor(191, 144, 72, 255) );
-		}
 
 		UnicodeString name = slot->getName();
 		GadgetStaticTextSetText(m_playerNames[netSlot], name );
