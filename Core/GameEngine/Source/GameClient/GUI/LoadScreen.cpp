@@ -134,9 +134,21 @@ static const GoLoadSplash GO_LOAD_SPLASHES[] = {
 	{ "GUI:GOLoadSplash8", L"Let's go where it is safe." },
 	{ "GUI:GOLoadSplash9", L"We get signal everywhere." } };
 static const Int GO_SPLASH_FONT_SIZE = 16;
-// the line of this launch and its string; file statics, so the load screen class keeps its layout
+// the line of this launch and its rows; file statics, so the load screen class keeps its layout
+static const Int GO_SPLASH_MAX_ROWS = 4;
 static Int s_goSplashLine = -1;
-static DisplayString *s_goSplash = nullptr;
+static DisplayString *s_goSplashRows[GO_SPLASH_MAX_ROWS] = { nullptr };
+static Int s_goSplashRowCount = 0;
+
+static void freeGoSplashRows()
+{
+	for (Int freeRow = 0; freeRow < s_goSplashRowCount; ++freeRow)
+	{
+		TheDisplayStringManager->freeDisplayString(s_goSplashRows[freeRow]);
+		s_goSplashRows[freeRow] = nullptr;
+	}
+	s_goSplashRowCount = 0;
+}
 
 //-----------------------------------------------------------------------------
 // PUBLIC DATA ////////////////////////////////////////////////////////////////
@@ -388,7 +400,7 @@ static const Real GO_BUBBLE_WRAP = 260.0f;
 // TheSuperHackers @feature arcticdolphin 09/11/2026 The bubble around the wrapped line: a 9-slice whose corners keep their size, growing upward from a bottom fixed over the tip, three quarters of it left of the tip and kept on screen; the tail slides along its bottom to keep pointing at the dish.
 static void drawGoLogoBubble(Int tipX, Int tipY, UnsignedInt shownMs)
 {
-	if (s_goSplash == nullptr || s_goSplash->getFont() == nullptr)
+	if (s_goSplashRowCount <= 0 || s_goSplashRows[0]->getFont() == nullptr)
 	{
 		return;
 	}
@@ -404,10 +416,18 @@ static void drawGoLogoBubble(Int tipX, Int tipY, UnsignedInt shownMs)
 		}
 	}
 	Int textWidth = 0;
-	Int textHeight = 0;
-	s_goSplash->getSize(&textWidth, &textHeight);
-	const Int lineHeight = s_goSplash->getFont()->height;
-	if (textHeight <= 0 || lineHeight <= 0)
+	for (Int sizeRow = 0; sizeRow < s_goSplashRowCount; ++sizeRow)
+	{
+		Int rowWidth = 0;
+		s_goSplashRows[sizeRow]->getSize(&rowWidth, nullptr);
+		if (rowWidth > textWidth)
+		{
+			textWidth = rowWidth;
+		}
+	}
+	const Int lineHeight = s_goSplashRows[0]->getFont()->height;
+	const Int textHeight = lineHeight * s_goSplashRowCount;
+	if (textWidth <= 0 || lineHeight <= 0)
 	{
 		return;
 	}
@@ -468,8 +488,14 @@ static void drawGoLogoBubble(Int tipX, Int tipY, UnsignedInt shownMs)
 	}
 	const Int tailLeft = tailCenter - tailWidth / 2;
 	TheDisplay->drawImage(slices[9], tailLeft, bottom - over, tailLeft + tailWidth, bottom - over + tailHeight, tint);
-	// the wrapped lines centred in the bubble
-	s_goSplash->draw(left + (width - textWidth) / 2, top + (height - textHeight) / 2, GameMakeColor(13, 21, 27, alpha), GameMakeColor(0, 0, 0, 0));
+	// each row centred in the bubble
+	const Int textTop = top + (height - textHeight) / 2;
+	for (Int drawRow = 0; drawRow < s_goSplashRowCount; ++drawRow)
+	{
+		Int rowWidth = 0;
+		s_goSplashRows[drawRow]->getSize(&rowWidth, nullptr);
+		s_goSplashRows[drawRow]->draw(left + (width - rowWidth) / 2, textTop + drawRow * lineHeight, GameMakeColor(13, 21, 27, alpha), GameMakeColor(0, 0, 0, 0));
+	}
 }
 
 // TheSuperHackers @feature arcticdolphin 09/11/2026 The GO radar van on the shell load road: wheels, puffs and bob run while progress moves and settle when it stalls.
@@ -1817,11 +1843,10 @@ ShellGameLoadScreen::~ShellGameLoadScreen()
 	{
 		TheDisplayStringManager->freeDisplayString(m_creditUrl);
 	}
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 The splash string goes with the credit that drew it.
-	if (m_creditWindow != nullptr && s_goSplash != nullptr)
+	// TheSuperHackers @feature arcticdolphin 09/11/2026 The splash rows go with the credit that drew them.
+	if (m_creditWindow != nullptr)
 	{
-		TheDisplayStringManager->freeDisplayString(s_goSplash);
-		s_goSplash = nullptr;
+		freeGoSplashRows();
 	}
 }
 
@@ -1914,14 +1939,35 @@ void ShellGameLoadScreen::initCredit()
 		{
 			s_goSplashLine = (Int)(timeGetTime() % (sizeof(GO_LOAD_SPLASHES) / sizeof(GO_LOAD_SPLASHES[0])));
 		}
-		if (s_goSplash == nullptr)
+		// TheSuperHackers @bugfix arcticdolphin 09/11/2026 Break the line into rows here, each measured as it is drawn, so the bubble fits its text; the engine's centred wrap counts every space twice.
+		freeGoSplashRows();
+		GameFont *font = TheFontLibrary->getFont("Consolas", Int(GO_SPLASH_FONT_SIZE * fontScale), TRUE);
+		const Int wrap = REAL_TO_INT(GO_BUBBLE_WRAP * fontScale);
+		UnicodeString rest = TheGameText->FETCH_OR_SUBSTITUTE(GO_LOAD_SPLASHES[s_goSplashLine].label, GO_LOAD_SPLASHES[s_goSplashLine].text);
+		UnicodeString word;
+		while (rest.nextToken(&word, L" "))
 		{
-			s_goSplash = TheDisplayStringManager->newDisplayString();
+			if (s_goSplashRowCount > 0)
+			{
+				DisplayString *last = s_goSplashRows[s_goSplashRowCount - 1];
+				const UnicodeString previous = last->getText();
+				UnicodeString candidate = previous;
+				candidate.concat(L' ');
+				candidate.concat(word);
+				last->setText(candidate);
+				Int width = 0;
+				last->getSize(&width, nullptr);
+				if (width < wrap || s_goSplashRowCount == GO_SPLASH_MAX_ROWS)
+				{
+					continue;
+				}
+				last->setText(previous);
+			}
+			DisplayString *row = TheDisplayStringManager->newDisplayString();
+			row->setFont(font);
+			row->setText(word);
+			s_goSplashRows[s_goSplashRowCount++] = row;
 		}
-		s_goSplash->setText(TheGameText->FETCH_OR_SUBSTITUTE(GO_LOAD_SPLASHES[s_goSplashLine].label, GO_LOAD_SPLASHES[s_goSplashLine].text));
-		s_goSplash->setFont(TheFontLibrary->getFont("Consolas", Int(GO_SPLASH_FONT_SIZE * fontScale), TRUE));
-		s_goSplash->setWordWrap(REAL_TO_INT(GO_BUBBLE_WRAP * fontScale));
-		s_goSplash->setWordWrapCentered(TRUE);
 	}
 
 	m_creditWindow = TheWindowManager->winCreate(m_loadScreen, WIN_STATUS_ENABLED | WIN_STATUS_NO_INPUT, 0, 0, screenWidth, screenHeight, nullptr);
