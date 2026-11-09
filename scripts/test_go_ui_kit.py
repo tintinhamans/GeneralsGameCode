@@ -903,7 +903,8 @@ class VanInMatchTest(unittest.TestCase):
 
 
 class LoadSplashTest(unittest.TestCase):
-    """The Minecraft style splash the van says in a speech bubble (LoadScreen.cpp GO_LOAD_SPLASHES, drawGoVanBubble)."""
+    """The Minecraft style splash the logo's radar van says in a speech bubble (LoadScreen.cpp GO_LOAD_SPLASHES,
+    drawGoLogoBubble from ShellGameLoadScreen::drawCredit)."""
 
     @classmethod
     def setUpClass(cls):
@@ -912,7 +913,7 @@ class LoadSplashTest(unittest.TestCase):
         cls.init_credit = cls.source[start:cls.source.index("\n}\n", start)]
         start = cls.source.index("void ShellGameLoadScreen::drawCredit()")
         cls.draw_credit = cls.source[start:cls.source.index("\n}\n", start)]
-        start = cls.source.index("static void drawGoVanBubble(")
+        start = cls.source.index("static void drawGoLogoBubble(")
         cls.bubble = cls.source[start:cls.source.index("\n}\n", start)]
 
     def test_table_holds_the_nine_lines_as_translatable_labels(self):
@@ -934,7 +935,7 @@ class LoadSplashTest(unittest.TestCase):
                 self.assertNotIn(banned, text)
         self.assertEqual({kit.splash_pick(t) for t in range(100)}, set(range(9)))
 
-    def test_line_exists_only_with_the_go_logo_and_the_old_placement_is_gone(self):
+    def test_line_exists_only_with_the_go_logo(self):
         pick = self.init_credit.index("s_goSplashLine = ")
         block = self.init_credit.rindex("if (m_creditLogo != nullptr)", 0, pick)
         low, depth = brace_depth(self.init_credit, block, pick)
@@ -942,20 +943,29 @@ class LoadSplashTest(unittest.TestCase):
         self.assertGreaterEqual(depth, 1)
         self.assertIn('TheFontLibrary->getFont("Consolas", Int(GO_SPLASH_FONT_SIZE * fontScale), TRUE)', self.init_credit)
         self.assertEqual(int(re.search(r"GO_SPLASH_FONT_SIZE = (\d+);", self.source).group(1)), kit.SPLASH_FONT_SIZE)
-        # the van says it: nothing of the splash is left by the logo, and no pulse
-        self.assertNotIn("s_goSplash", self.draw_credit)
         for gone in ("GO_SPLASH_PULSE_MS", "GO_SPLASH_WRAP_MS", "GO_SPLASH_LOGO_OVERLAP", "GO_SPLASH_MARGIN"):
             self.assertNotIn(gone, self.source)
 
-    def test_bubble_draws_only_with_the_line_and_rides_the_van(self):
+    def test_bubble_is_said_by_the_logo_van_not_the_driving_van(self):
         # no line (no GO logo, -nologo, a later load): no bubble
         self.assertIn("if (s_goSplash == nullptr", self.bubble)
         van = self.source[self.source.index("static void drawGoLoadBarVan("):]
         van = van[:van.index("\n}\n")]
-        self.assertIn("drawGoVanBubble(x0 + goVanScale(GO_BUBBLE_TIP_X, height), y0 + bob + goVanScale(GO_BUBBLE_TIP_Y, height), "
-                      "now - state->appearedAt);", van)
-        self.assertGreater(van.index("drawGoVanBubble("), van.index("drawImage(wheels"))
-        self.assertIn("state->appearedAt = now;", self.source)
+        for gone in ("Bubble", "GO_BUBBLE_TIP"):
+            self.assertNotIn(gone, van)
+        for gone in ("appearedAt", "drawGoVanBubble", "GO_BUBBLE_TIP_X", "GO_BUBBLE_TIP_Y"):
+            self.assertNotIn(gone, self.source)
+        self.assertEqual(self.source.count("drawGoLogoBubble("), 2)  # the definition and the credit call
+        # drawn with the logo, from the logo's own placement, fading in from the credit's start
+        call = self.draw_credit.index("drawGoLogoBubble(")
+        block = self.draw_credit.rindex("if (m_creditLogo != nullptr", 0, call)
+        low, depth = brace_depth(self.draw_credit, block, call)
+        self.assertGreaterEqual(low, 0)
+        self.assertGreaterEqual(depth, 1)
+        for text in ("const Int dishX = logoLeft + GO_LOGO_DISH_X * logoWidth / m_creditLogo->getImageWidth();",
+                     "const Int dishY = logoTop + GO_LOGO_DISH_Y * logoHeight / m_creditLogo->getImageHeight();",
+                     "drawGoLogoBubble(dishX, dishY - REAL_TO_INT(GO_BUBBLE_TIP_GAP * unit), timeGetTime() - m_creditStartMs);"):
+            self.assertIn(text, self.draw_credit)
 
     def test_bubble_draw_follows_the_layout_rule(self):
         for text in ("const Int height = textHeight * 3 / 2;",
@@ -964,7 +974,7 @@ class LoadSplashTest(unittest.TestCase):
                      "const Int tailHeight = height / 2;",
                      "const Int over = height * 3 / 40;",
                      "Int width = textWidth + height * 3 / 4;",
-                     "Int left = tipX - width / 4;",
+                     "Int left = tipX - width * 3 / 4;",
                      "const Int top = tipY - tailHeight + over - height;",
                      "Int tailCenter = tipX;",
                      "const Int alpha = shownMs >= GO_BUBBLE_FADE_MS ? 255 : (Int)(255 * shownMs / GO_BUBBLE_FADE_MS);"):
@@ -973,84 +983,81 @@ class LoadSplashTest(unittest.TestCase):
         self.assertIn(f"GameMakeColor({r}, {g}, {b}, alpha)", self.bubble)
         for name in ("GOBubbleL", "GOBubbleC", "GOBubbleR", "GOBubbleTail"):
             self.assertIn(f'"{name}"', self.bubble)
-        ints = dict(re.findall(r"static const (?:Int|UnsignedInt) (GO_BUBBLE_\w+) = (\d+);", self.source))
+        ints = dict(re.findall(r"static const (?:Int|UnsignedInt) (GO_(?:BUBBLE|LOGO_DISH)_\w+) = (\d+);", self.source))
         self.assertEqual({k: int(v) for k, v in ints.items()}, kit.BUBBLE_CONSTANTS)
-        self.assertEqual(float(re.search(r"static const Real GO_BUBBLE_MARGIN = ([\d.]+)f;", self.source).group(1)),
-                         kit.BUBBLE_MARGIN_UNITS)
+        for name, value in (("GO_BUBBLE_MARGIN", kit.BUBBLE_MARGIN_UNITS), ("GO_BUBBLE_TIP_GAP", kit.BUBBLE_TIP_GAP_UNITS)):
+            self.assertEqual(float(re.search(rf"static const Real {name} = ([\d.]+)f;", self.source).group(1)), value)
+
+    def test_dish_constants_are_measured_from_the_logo_art(self):
+        dish = kit.logo_dish()
+        self.assertEqual(dish, (kit.BUBBLE_CONSTANTS["GO_LOGO_DISH_X"], kit.BUBBLE_CONSTANTS["GO_LOGO_DISH_Y"]))
+        # the logo crop is the INI's, and the rim is the logo's topmost opaque row, on the van's mast at the left
+        fields = themes.mapped_image((kit.DATA / themes.LOAD_LOGO_INI).read_text("latin-1"), themes.LOAD_LOGO_IMAGE)
+        left, top, right, bottom = kit.LOGO_COORDS
+        self.assertEqual(fields["Coords"], f"Left:{left} Top:{top} Right:{right} Bottom:{bottom}")
+        self.assertEqual((right - left, bottom - top), kit.LOGO_ASPECT)
+        self.assertEqual(dish[1], 0)
+        self.assertLess(dish[0], kit.LOGO_ASPECT[0] // 3)
 
     def bubbles(self):
         for screen in SCREENS:
-            for progress in (0, 35, 70, 100):
-                road, layout = shell_van(screen, progress)
-                for bob in (-1, 0, 1):
-                    tip = kit.bubble_tip(layout, bob)
-                    for _, text in kit.LOAD_SPLASHES:
-                        w, h = kit.splash_text_size(text, *screen)
-                        yield screen, progress, bob, text, layout, tip, kit.bubble_layout(tip, w, h, *screen)
+            tip = kit.bubble_tip(*screen)
+            for _, text in kit.LOAD_SPLASHES:
+                w, h = kit.splash_text_size(text, *screen)
+                yield screen, text, tip, kit.bubble_layout(tip, w, h, *screen)
 
-    def test_bubble_stays_on_screen_and_clear_of_the_website_line(self):
+    def test_bubble_stays_on_screen_clear_of_the_logo_and_the_website_line(self):
         def meets(a, b):
             return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
 
-        for screen, progress, bob, text, layout, tip, b in self.bubbles():
-            key = (screen, progress, text)
+        for screen, text, tip, b in self.bubbles():
+            key = (screen, text)
             margin = int(kit.BUBBLE_MARGIN_UNITS * screen[1] / 600.0)
             left, top, right, bottom = b["bubble"]
             self.assertGreaterEqual(left, margin, key)
             self.assertLessEqual(right, screen[0] - margin, key)
             self.assertGreater(top, 0, key)
+            # above the logo's topmost opaque row (the dish rim), so it covers none of the logo
+            logo = kit.logo_rect(*screen)
+            self.assertLessEqual(bottom, logo[1], key)
+            self.assertLessEqual(b["tail"][3], logo[1], key)
             self.assertFalse(meets(b["bubble"], kit.url_rect(*screen)), key)
-            self.assertGreater(top, kit.url_rect(*screen)[3], key)
+            self.assertFalse(meets(b["tail"], kit.url_rect(*screen)), key)
             # the text fits inside the straight part and the line height
             self.assertGreaterEqual(b["text"][0], left + b["cap"] // 2, key)
             self.assertLessEqual(b["text"][2], right - b["cap"] // 2, key)
             self.assertTrue(top < b["text"][1] and b["text"][3] < bottom, key)
 
-    def test_tail_tip_points_at_the_dish(self):
-        for screen, progress, bob, text, layout, tip, b in self.bubbles():
-            key = (screen, progress, text)
-            height, (x0, y0, _, _) = layout
-            dish_x = x0 + kit.van_scale(78, height)
-            dish_top = y0 + bob + kit.van_scale(5, height)
+    def test_tail_tip_points_at_the_measured_dish(self):
+        for screen, text, tip, b in self.bubbles():
+            key = (screen, text)
+            dish_x, dish_y = kit.logo_dish_screen(*screen)
             tail_left, tail_top, tail_right, tail_bottom = b["tail"]
-            tip_x = (tail_left + tail_right) // 2
             self.assertEqual(tail_bottom, tip[1], key)
-            self.assertLessEqual(abs(tip_x - dish_x), 3, key)
-            self.assertTrue(0 <= dish_top - tail_bottom <= kit.van_scale(5, height) + 1, key)
-            # the tail hangs from the straight part of the bubble's bottom edge
+            self.assertLessEqual(abs((tail_left + tail_right) // 2 - dish_x), 1, key)
+            self.assertTrue(0 < dish_y - tail_bottom <= int(kit.BUBBLE_TIP_GAP_UNITS * screen[1] / 600.0) + 1, key)
+            # the tail hangs from the straight part of the bubble's bottom edge, off centre to the right
             self.assertGreaterEqual(tail_left, b["bubble"][0] + b["cap"], key)
             self.assertLessEqual(tail_right, b["bubble"][2] - b["cap"] + 1, key)
-            self.assertTrue(b["bubble"][1] < tail_top <= b["bubble"][3], key)  # overlaps the bottom line
-
-    def test_bubble_moves_with_the_van_and_bobs_with_it(self):
-        screen, text = (1920, 1080), kit.LOAD_SPLASHES[2][1]
-        w, h = kit.splash_text_size(text, *screen)
-        lefts = []
-        for progress in (10, 40, 70):
-            _, layout = shell_van(screen, progress)
-            lefts.append(kit.bubble_layout(kit.bubble_tip(layout, 0), w, h, *screen)["bubble"][0])
-            up = kit.bubble_layout(kit.bubble_tip(layout, -1), w, h, *screen)["bubble"][1]
-            self.assertEqual(up, kit.bubble_layout(kit.bubble_tip(layout, 0), w, h, *screen)["bubble"][1] - 1)
-        self.assertEqual(lefts, sorted(lefts))
-        self.assertGreater(lefts[-1] - lefts[0], 300)
+            self.assertTrue(b["bubble"][1] < tail_top <= b["bubble"][3], key)
+            self.assertGreater((tail_left + tail_right) // 2, (b["bubble"][0] + b["bubble"][2]) // 2, key)
 
     def test_bubble_is_pulled_back_at_a_screen_edge_and_the_tail_slides(self):
-        # the road keeps the van well inside the screen, so drive the tip to the edges directly
         screen, text = (800, 600), kit.LOAD_SPLASHES[4][1]
         w, h = kit.splash_text_size(text, *screen)
         margin = int(kit.BUBBLE_MARGIN_UNITS)
-        for tip_x, edge in ((screen[0] - 120, "right"), (40, "left")):
-            b = kit.bubble_layout((tip_x, 500), w, h, *screen)
+        for tip_x, edge in ((screen[0] - 40, "right"), (60, "left")):
+            b = kit.bubble_layout((tip_x, 300), w, h, *screen)
             left, _, right, bottom = b["bubble"]
             if edge == "right":
                 self.assertEqual(right, screen[0] - margin)
             else:
                 self.assertEqual(left, margin)
-            self.assertNotEqual(left, tip_x - (right - left) // 4)
-            # the tail still points at the tip, or as near as the straight part of the bottom allows
+            self.assertNotEqual(left, tip_x - (right - left) * 3 // 4)
             centre = (b["tail"][0] + b["tail"][2]) // 2
-            self.assertLessEqual(abs(centre - tip_x), max(1, left + b["cap"] - tip_x + (b["tail"][2] - b["tail"][0]) // 2))
-            self.assertEqual(b["tail"][3], 500)
+            low, high = left + b["cap"] + (b["tail"][2] - b["tail"][0]) // 2, right - b["cap"] - (b["tail"][2] - b["tail"][0]) // 2
+            self.assertEqual(centre, max(low, min(tip_x, high)))
+            self.assertEqual(b["tail"][3], 300)
 
     def test_bubble_fades_in_and_stays(self):
         fade = kit.BUBBLE_CONSTANTS["GO_BUBBLE_FADE_MS"]

@@ -226,7 +226,6 @@ struct GoVanState
 	UnsignedInt changedAt;
 	UnsignedInt drawnAt;
 	UnsignedInt spawnedAt;
-	UnsignedInt appearedAt;
 	Int frame;
 	Real credit;
 	Int nextPuff;
@@ -273,7 +272,6 @@ static GoVanState *findGoVanState(GameWindow *window, Int progress, Int position
 		state->position = position;
 		state->changedAt = now - GO_VAN_STALL_MS - GO_VAN_SETTLE_MS;
 		state->spawnedAt = now;
-		state->appearedAt = now;
 	}
 	return state;
 }
@@ -378,14 +376,15 @@ static GoVanPlace placeGoVan(GameWindow *window, const IRegion2D &road, Int prog
 	return place;
 }
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 The splash line as a speech bubble from the van: the tail tip just over the dish (canvas texels), a fade in, a screen margin in 800x600 units; scripts/go_ui_kit.py BUBBLE_CONSTANTS mirrors them.
-static const Int GO_BUBBLE_TIP_X = 78;
-static const Int GO_BUBBLE_TIP_Y = 0;
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The splash line as a speech bubble from the logo van: its dish rim in GOLoadLogo texels (measured from the art), a fade in, the tip's gap over the rim and a screen margin in 800x600 units; scripts/go_ui_kit.py BUBBLE_CONSTANTS mirrors them.
+static const Int GO_LOGO_DISH_X = 306;
+static const Int GO_LOGO_DISH_Y = 0;
 static const UnsignedInt GO_BUBBLE_FADE_MS = 600;
 static const Real GO_BUBBLE_MARGIN = 8.0f;
+static const Real GO_BUBBLE_TIP_GAP = 2.0f;
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 The bubble sized to the line, a quarter of it left of the tip and kept on screen; the tail slides along its bottom to keep pointing at the van.
-static void drawGoVanBubble(Int tipX, Int tipY, UnsignedInt shownMs)
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The bubble sized to the line, above the tip with three quarters of it to the left and kept on screen; the tail slides along its bottom to keep pointing at the dish.
+static void drawGoLogoBubble(Int tipX, Int tipY, UnsignedInt shownMs)
 {
 	const Image *bubbleLeft = TheMappedImageCollection->findImageByName("GOBubbleL");
 	const Image *bubbleCenter = TheMappedImageCollection->findImageByName("GOBubbleC");
@@ -403,7 +402,7 @@ static void drawGoVanBubble(Int tipX, Int tipY, UnsignedInt shownMs)
 		return;
 	}
 
-	// a line and a half tall; every piece scales with the height, so the outline matches the van's
+	// a line and a half tall; every piece scales with the height, so the outline keeps the van art's weight
 	const Int height = textHeight * 3 / 2;
 	const Int capWidth = height / 2;
 	const Int tailWidth = height * 3 / 5;
@@ -416,7 +415,7 @@ static void drawGoVanBubble(Int tipX, Int tipY, UnsignedInt shownMs)
 	}
 	const Int screenWidth = TheDisplay->getWidth();
 	const Int margin = REAL_TO_INT(GO_BUBBLE_MARGIN * TheDisplay->getHeight() / 600.0f);
-	Int left = tipX - width / 4;
+	Int left = tipX - width * 3 / 4;
 	if (left > screenWidth - margin - width)
 	{
 		left = screenWidth - margin - width;
@@ -436,7 +435,7 @@ static void drawGoVanBubble(Int tipX, Int tipY, UnsignedInt shownMs)
 		tailCenter = left + capWidth + tailWidth / 2;
 	}
 
-	// fades in from the van's first frame and stays
+	// fades in from the credit's start, with the logo, and stays
 	const Int alpha = shownMs >= GO_BUBBLE_FADE_MS ? 255 : (Int)(255 * shownMs / GO_BUBBLE_FADE_MS);
 	const Color tint = GameMakeColor(255, 255, 255, alpha);
 	TheDisplay->drawImage(bubbleLeft, left, top, left + capWidth, top + height, tint);
@@ -558,8 +557,6 @@ static void drawGoLoadBarVan(GameWindow *window, Int progress, const GoVanPlace 
 	TheDisplay->drawImage(body, x0, y0 + bob, x0 + frameWidth, y0 + bob + frameHeight);
 	TheDisplay->drawImage(dish, x0 + sway, y0 + bob, x0 + sway + frameWidth, y0 + bob + frameHeight);
 	TheDisplay->drawImage(wheels, x0, y0, x0 + frameWidth, y0 + frameHeight);
-	// the van says the launch's splash line, the bubble riding the bob with it
-	drawGoVanBubble(x0 + goVanScale(GO_BUBBLE_TIP_X, height), y0 + bob + goVanScale(GO_BUBBLE_TIP_Y, height), now - state->appearedAt);
 }
 
 // TheSuperHackers @tweak arcticdolphin 09/11/2026 The GO shell load bar as a road: asphalt between kit lines with a dashed centre line, lit behind the radar van that drives it.
@@ -1936,6 +1933,13 @@ void ShellGameLoadScreen::drawCredit()
 		const Int logoWidth = logoHeight * m_creditLogo->getImageWidth() / m_creditLogo->getImageHeight();
 		const Int logoLeft = centerX - logoWidth / 2;
 		TheDisplay->drawImage(m_creditLogo, logoLeft, logoTop, logoLeft + logoWidth, logoTop + logoHeight, GameMakeColor(255, 255, 255, alpha));
+		// TheSuperHackers @feature arcticdolphin 09/11/2026 The logo van says the launch's splash line, the bubble's tail on its radar dish.
+		if (m_creditLogo->getImageWidth() > 0)
+		{
+			const Int dishX = logoLeft + GO_LOGO_DISH_X * logoWidth / m_creditLogo->getImageWidth();
+			const Int dishY = logoTop + GO_LOGO_DISH_Y * logoHeight / m_creditLogo->getImageHeight();
+			drawGoLogoBubble(dishX, dishY - REAL_TO_INT(GO_BUBBLE_TIP_GAP * unit), timeGetTime() - m_creditStartMs);
+		}
 	}
 
 	Int width = 0;
