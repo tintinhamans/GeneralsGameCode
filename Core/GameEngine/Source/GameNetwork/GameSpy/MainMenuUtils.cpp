@@ -115,6 +115,62 @@ static void showOnlineError(UnicodeString title, UnicodeString message, GameWinM
 	}
 }
 
+// TheSuperHackers @feature arcticdolphin 09/11/2026 A failed update inside the sign-in dialog ends the game like the Update Failed message box does.
+static void quitAfterFailedUpdate()
+{
+	TheGameEngine->setQuitting(TRUE);
+}
+
+static void showUpdateFailedInSignInDialog(const UnicodeString &message)
+{
+	GOSignInDialogShowError(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInUpdateFailed", L"Update Failed"), message, quitAfterFailedUpdate);
+}
+
+// TheSuperHackers @feature arcticdolphin 09/11/2026 Restart in the sign-in dialog launches the downloaded patcher, which quits the game.
+static void launchPatcherFromSignInDialog()
+{
+	const UnicodeString failed = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInUpdateRunFailed", L"Could not run the updater. Press below to exit.");
+	GenOnlineServicesManager *manager = GenOnlineServicesManager::GetInstance();
+	if (manager == nullptr)
+	{
+		showUpdateFailedInSignInDialog(failed);
+		return;
+	}
+
+	manager->LaunchPatcher([failed]()
+		{
+			showUpdateFailedInSignInDialog(failed);
+		});
+}
+
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The update downloads inside the sign-in dialog; its Cancel stops it through the close owner, which tears the online services down.
+static void downloadUpdateInSignInDialog()
+{
+	const UnicodeString failed = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInUpdateDownloadFailed", L"Could not download the updater. Press below to exit.");
+	GenOnlineServicesManager *manager = GenOnlineServicesManager::GetInstance();
+	if (manager == nullptr)
+	{
+		showUpdateFailedInSignInDialog(failed);
+		return;
+	}
+
+	const Int updateAttempt = timeThroughOnline;
+	GOSignInDialogShowDownloading(CancelPatchCheckCallbackAndReopenDropdown);
+	manager->StartDownloadUpdate([updateAttempt]()
+		{
+			if (updateAttempt != timeThroughOnline)
+				return;
+			GOSignInDialogShowReady(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInUpdateReadyMessage", L"Press Restart to begin installing the patch."),
+				launchPatcherFromSignInDialog, CancelPatchCheckCallbackAndReopenDropdown);
+		},
+		[updateAttempt, failed]()
+		{
+			if (updateAttempt != timeThroughOnline)
+				return;
+			showUpdateFailedInSignInDialog(failed);
+		});
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////
 
 // someone has hit a button allowing downloads to start
@@ -153,6 +209,8 @@ void StartDownloadingPatches()
 // user agrees to patch before going online
 static void patchBeforeOnlineCallback()
 {
+	// TheSuperHackers @feature arcticdolphin 09/11/2026 These patches download in the download menu, so the sign-in dialog closes first.
+	GOSignInDialogDestroy();
 	StartDownloadingPatches();
 }
 
@@ -1009,9 +1067,15 @@ void StartPatchCheck()
 					else*/ if (mustDownloadPatch)
 					{
 						// NOTE: we treat all patches as mandatory currently
-						// TheSuperHackers @feature arcticdolphin 09/11/2026 The update prompt shows inside the sign-in dialog when it is open; Update closes the dialog before the download menu opens.
+						// TheSuperHackers @feature arcticdolphin 09/11/2026 The update prompt and the download show inside the sign-in dialog when it is open; without it the download menu opens.
 						const GameWinMsgBoxFunc startUpdate = []()
 							{
+								if (GOSignInDialogIsOpen())
+								{
+									downloadUpdateInSignInDialog();
+									return;
+								}
+
 								WindowLayout* layout;
 								layout = TheWindowManager->winCreateLayout(AsciiString("Menus/DownloadMenu.wnd"));
 								layout->runInit();
