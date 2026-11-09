@@ -96,6 +96,26 @@ class KitPiecesTest(unittest.TestCase):
         self.assertEqual(colour[3], 1.0, name)
         return x0, y0, x1, y1
 
+    def test_selected_radio_art_stands_out_from_an_unselected_radio(self):
+        # map source tabs, options and diplomacy draw a selected radio with the Hilighted art, difficulty select with Pushed
+        def over(colour, back):
+            a = colour[3]
+            return tuple(a * c + (1.0 - a) * b for c, b in zip(colour[:3], back))
+
+        def luminance(rgb):
+            lin = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
+            return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+        for palette in (None, themes.KIT_COLORS):
+            states = kit.RADIO_STATES if palette is None else kit.recolor(kit.RADIO_STATES, palette)
+            back = kit.rgba(themes.PALETTE["panel"])[:3]
+            enabled = luminance(over(states["Enabled"][1], back))
+            for state in ("Hilighted", "Pushed"):
+                self.assertEqual(states[state], states["Pushed"], state)
+                selected = luminance(over(states[state][1], back))
+                self.assertGreaterEqual((selected + 0.05) / (enabled + 0.05), 1.75, (palette is None, state))
+                self.assertGreater(luminance(states[state][0][:3]), luminance(states["Enabled"][0][:3]), state)
+
     def test_scroll_and_slider_bars_are_opaque_rectangles(self):
         for name in self.named("GOScrollTrack", "GOScrollThumb", "GOSliderTrack", "GOSliderFill", "GOSliderThumb"):
             w, h, _ = self.pieces[name]
