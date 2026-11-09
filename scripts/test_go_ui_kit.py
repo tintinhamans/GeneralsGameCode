@@ -968,25 +968,51 @@ class LoadSplashTest(unittest.TestCase):
             self.assertIn(text, self.draw_credit)
 
     def test_bubble_draw_follows_the_layout_rule(self):
-        for text in ("const Int height = textHeight * 3 / 2;",
-                     "const Int capWidth = height / 2;",
-                     "const Int tailWidth = height * 3 / 5;",
-                     "const Int tailHeight = height / 2;",
-                     "const Int over = height * 3 / 40;",
-                     "Int width = textWidth + height * 3 / 4;",
+        for text in ("const Int lineHeight = s_goSplash->getFont()->height;",
+                     "const Int corner = lineHeight * 3 / 5;",
+                     "const Int tailWidth = lineHeight * 9 / 10;",
+                     "const Int tailHeight = lineHeight * 3 / 4;",
+                     "const Int over = lineHeight * 9 / 80;",
+                     "Int height = textHeight + lineHeight / 2;",
+                     "Int width = textWidth + lineHeight;",
                      "Int left = tipX - width * 3 / 4;",
-                     "const Int top = tipY - tailHeight + over - height;",
+                     "const Int bottom = tipY - tailHeight + over;",
+                     "const Int top = bottom - height;",
                      "Int tailCenter = tipX;",
                      "const Int alpha = shownMs >= GO_BUBBLE_FADE_MS ? 255 : (Int)(255 * shownMs / GO_BUBBLE_FADE_MS);"):
             self.assertIn(text, self.bubble)
         r, g, b = themes._rgb(kit.BUBBLE_TEXT)
         self.assertIn(f"GameMakeColor({r}, {g}, {b}, alpha)", self.bubble)
-        for name in ("GOBubbleL", "GOBubbleC", "GOBubbleR", "GOBubbleTail"):
+        for name, _, _, _ in kit.bubble_pieces():
             self.assertIn(f'"{name}"', self.bubble)
         ints = dict(re.findall(r"static const (?:Int|UnsignedInt) (GO_(?:BUBBLE|LOGO_DISH)_\w+) = (\d+);", self.source))
         self.assertEqual({k: int(v) for k, v in ints.items()}, kit.BUBBLE_CONSTANTS)
-        for name, value in (("GO_BUBBLE_MARGIN", kit.BUBBLE_MARGIN_UNITS), ("GO_BUBBLE_TIP_GAP", kit.BUBBLE_TIP_GAP_UNITS)):
+        for name, value in (("GO_BUBBLE_MARGIN", kit.BUBBLE_MARGIN_UNITS), ("GO_BUBBLE_TIP_GAP", kit.BUBBLE_TIP_GAP_UNITS),
+                            ("GO_BUBBLE_WRAP", kit.BUBBLE_WRAP_UNITS)):
             self.assertEqual(float(re.search(rf"static const Real {name} = ([\d.]+)f;", self.source).group(1)), value)
+
+    def test_line_wraps_centred_at_the_wrap_width_scaled_like_the_font(self):
+        self.assertIn("s_goSplash->setWordWrap(REAL_TO_INT(GO_BUBBLE_WRAP * fontScale));", self.init_credit)
+        self.assertIn("s_goSplash->setWordWrapCentered(TRUE);", self.init_credit)
+        self.assertLess(self.init_credit.index("->setFont("), self.init_credit.index("->setWordWrap("))
+        self.assertEqual(kit.SPLASH_FONT_SIZE, 16)
+
+    def test_long_lines_take_two_lines_and_short_ones_one_at_every_screen(self):
+        expected = {1: 2, 2: 2, 3: 1, 4: 1, 5: 2, 6: 2, 7: 1, 8: 2, 9: 2}
+        for screen in SCREENS:
+            counts = {k + 1: len(kit.splash_text_block(text, *screen)[0]) for k, (_, text) in enumerate(kit.LOAD_SPLASHES)}
+            self.assertEqual(counts, expected, screen)
+        self.assertEqual(kit.splash_text_block(kit.LOAD_SPLASHES[4][1], 1920, 1080)[0], ["What station you need,", "general?"])
+
+    def test_extra_lines_grow_the_bubble_upward_from_a_fixed_bottom(self):
+        screen = (1920, 1080)
+        tip = kit.bubble_tip(*screen)
+        one = kit.splash_text_block(kit.LOAD_SPLASHES[3][1], *screen)
+        two = kit.splash_text_block(kit.LOAD_SPLASHES[4][1], *screen)
+        b1, b2 = (kit.bubble_layout(tip, w, h, lh, *screen) for _, w, h, lh in (one, two))
+        self.assertEqual(b1["bubble"][3], b2["bubble"][3])
+        self.assertEqual(b1["bubble"][1] - b2["bubble"][1], two[3])
+        self.assertEqual(b1["corner"], b2["corner"])  # the corners keep their size
 
     def test_dish_constants_are_measured_from_the_logo_art(self):
         dish = kit.logo_dish()
@@ -1003,8 +1029,8 @@ class LoadSplashTest(unittest.TestCase):
         for screen in SCREENS:
             tip = kit.bubble_tip(*screen)
             for _, text in kit.LOAD_SPLASHES:
-                w, h = kit.splash_text_size(text, *screen)
-                yield screen, text, tip, kit.bubble_layout(tip, w, h, *screen)
+                _, w, h, line_height = kit.splash_text_block(text, *screen)
+                yield screen, text, tip, kit.bubble_layout(tip, w, h, line_height, *screen)
 
     def test_bubble_stays_on_screen_clear_of_the_logo_and_the_website_line(self):
         def meets(a, b):
@@ -1023,9 +1049,9 @@ class LoadSplashTest(unittest.TestCase):
             self.assertLessEqual(b["tail"][3], logo[1], key)
             self.assertFalse(meets(b["bubble"], kit.url_rect(*screen)), key)
             self.assertFalse(meets(b["tail"], kit.url_rect(*screen)), key)
-            # the text fits inside the straight part and the line height
-            self.assertGreaterEqual(b["text"][0], left + b["cap"] // 2, key)
-            self.assertLessEqual(b["text"][2], right - b["cap"] // 2, key)
+            # the text sits inside the outline, clear of the corner curves
+            self.assertGreaterEqual(b["text"][0], left + b["corner"] // 3, key)
+            self.assertLessEqual(b["text"][2], right - b["corner"] // 3, key)
             self.assertTrue(top < b["text"][1] and b["text"][3] < bottom, key)
 
     def test_tail_tip_points_at_the_measured_dish(self):
@@ -1037,17 +1063,17 @@ class LoadSplashTest(unittest.TestCase):
             self.assertLessEqual(abs((tail_left + tail_right) // 2 - dish_x), 1, key)
             self.assertTrue(0 < dish_y - tail_bottom <= int(kit.BUBBLE_TIP_GAP_UNITS * screen[1] / 600.0) + 1, key)
             # the tail hangs from the straight part of the bubble's bottom edge, off centre to the right
-            self.assertGreaterEqual(tail_left, b["bubble"][0] + b["cap"], key)
-            self.assertLessEqual(tail_right, b["bubble"][2] - b["cap"] + 1, key)
+            self.assertGreaterEqual(tail_left, b["bubble"][0] + b["corner"], key)
+            self.assertLessEqual(tail_right, b["bubble"][2] - b["corner"] + 1, key)
             self.assertTrue(b["bubble"][1] < tail_top <= b["bubble"][3], key)
             self.assertGreater((tail_left + tail_right) // 2, (b["bubble"][0] + b["bubble"][2]) // 2, key)
 
     def test_bubble_is_pulled_back_at_a_screen_edge_and_the_tail_slides(self):
         screen, text = (800, 600), kit.LOAD_SPLASHES[4][1]
-        w, h = kit.splash_text_size(text, *screen)
+        _, w, h, line_height = kit.splash_text_block(text, *screen)
         margin = int(kit.BUBBLE_MARGIN_UNITS)
         for tip_x, edge in ((screen[0] - 40, "right"), (60, "left")):
-            b = kit.bubble_layout((tip_x, 300), w, h, *screen)
+            b = kit.bubble_layout((tip_x, 300), w, h, line_height, *screen)
             left, _, right, bottom = b["bubble"]
             if edge == "right":
                 self.assertEqual(right, screen[0] - margin)
@@ -1055,7 +1081,7 @@ class LoadSplashTest(unittest.TestCase):
                 self.assertEqual(left, margin)
             self.assertNotEqual(left, tip_x - (right - left) * 3 // 4)
             centre = (b["tail"][0] + b["tail"][2]) // 2
-            low, high = left + b["cap"] + (b["tail"][2] - b["tail"][0]) // 2, right - b["cap"] - (b["tail"][2] - b["tail"][0]) // 2
+            low, high = left + b["corner"] + (b["tail"][2] - b["tail"][0]) // 2, right - b["corner"] - (b["tail"][2] - b["tail"][0]) // 2
             self.assertEqual(centre, max(low, min(tip_x, high)))
             self.assertEqual(b["tail"][3], 300)
 
@@ -1076,19 +1102,33 @@ class BubbleArtTest(unittest.TestCase):
     def build(self):
         return kit.build(kit.bubble_pieces(), kit.BUBBLE_TEXTURE_NAME, kit.BUBBLE_ATLAS_WIDTH, kit.BUBBLE_TITLE)
 
-    def test_bubble_is_cream_inside_the_van_outline_with_round_ends_and_a_tail(self):
+    def test_bubble_is_a_cream_9_slice_inside_the_van_outline_with_a_tail(self):
         cream, ink = q(kit.rgba(themes.PALETTE["text"])), q(kit.rgba(themes.PALETTE["ink"]))
         self.assertEqual(ink[:3], (0x0D, 0x15, 0x1B))
-        self.assertEqual(set(self.pieces), {"GOBubbleL", "GOBubbleC", "GOBubbleR", "GOBubbleTail"})
-        w, h, mid = self.pieces["GOBubbleC"]
-        mid = [[q(t) for t in row] for row in mid]
-        self.assertEqual(mid[0][0], ink)
-        self.assertEqual(mid[h * kit.SCALE // 2][0], cream)
-        self.assertEqual(mid[-1][0], ink)
-        for name, corner in (("GOBubbleL", (0, 0)), ("GOBubbleR", (-1, -1))):
-            texels = self.pieces[name][2]
-            self.assertEqual(texels[corner[0]][corner[1]][3], 0.0, name)  # rounded corner
-            self.assertEqual(q(texels[len(texels) // 2][len(texels[0]) // 2]), cream, name)
+        self.assertEqual(set(self.pieces), {"GOBubbleTL", "GOBubbleT", "GOBubbleTR", "GOBubbleL", "GOBubbleC", "GOBubbleR",
+                                            "GOBubbleBL", "GOBubbleB", "GOBubbleBR", "GOBubbleTail"})
+        c, e = kit.BUBBLE_CORNER, kit.BUBBLE_EDGE
+        sizes = {name: (w, h) for name, (w, h, _) in self.pieces.items()}
+        for name in ("GOBubbleTL", "GOBubbleTR", "GOBubbleBL", "GOBubbleBR"):
+            self.assertEqual(sizes[name], (c, c), name)
+        self.assertEqual((sizes["GOBubbleT"], sizes["GOBubbleB"], sizes["GOBubbleL"], sizes["GOBubbleR"], sizes["GOBubbleC"]),
+                         ((e, c), (e, c), (c, e), (c, e), (e, e)))
+        line = round(kit.BUBBLE_LINE_WIDTH * kit.SCALE)
+
+        def texel(name, y, x):
+            return q(self.pieces[name][2][y][x])
+
+        # the edges: the line on their outer side, cream inside
+        self.assertEqual((texel("GOBubbleT", 0, 0), texel("GOBubbleT", line, 0)), (ink, cream))
+        self.assertEqual((texel("GOBubbleB", -1, 0), texel("GOBubbleB", -1 - line, 0)), (ink, cream))
+        self.assertEqual((texel("GOBubbleL", 0, 0), texel("GOBubbleL", 0, line)), (ink, cream))
+        self.assertEqual((texel("GOBubbleR", 0, -1), texel("GOBubbleR", 0, -1 - line)), (ink, cream))
+        self.assertEqual({q(t) for row in self.pieces["GOBubbleC"][2] for t in row}, {cream})
+        # rounded outer corners, cream at the inner one
+        for name, outer, inner in (("GOBubbleTL", (0, 0), (-1, -1)), ("GOBubbleTR", (0, -1), (-1, 0)),
+                                   ("GOBubbleBL", (-1, 0), (0, -1)), ("GOBubbleBR", (-1, -1), (0, 0))):
+            self.assertEqual(self.pieces[name][2][outer[0]][outer[1]][3], 0.0, name)
+            self.assertEqual(texel(name, *inner), cream, name)
         tw, th, tail = self.pieces["GOBubbleTail"]
         self.assertEqual(q(tail[0][tw * kit.SCALE // 2]), cream)  # the top covers the bubble line
         self.assertEqual(tail[0][0][3], 1.0)
