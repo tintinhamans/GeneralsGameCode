@@ -77,7 +77,7 @@ WINDOW
                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
-    DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 13 21 27 255, BORDERCOLOR: 0 0 0 255,
+    DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 7 9 11 255, BORDERCOLOR: 0 0 0 255,
                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
@@ -86,7 +86,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
-    HILITEDRAWDATA = IMAGE: NoImage, COLOR: 34 48 52 255, BORDERCOLOR: 0 0 0 255,
+    HILITEDRAWDATA = IMAGE: NoImage, COLOR: 22 29 33 255, BORDERCOLOR: 227 186 108 255,
                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
@@ -162,7 +162,7 @@ WINDOW
                                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
       SLIDERTHUMBHILITEDRAWDATA = IMAGE: WindowResizeHilite, COLOR: 0 255 0 255, BORDERCOLOR: 128 255 128 255,
-                                  IMAGE: WindowResizePushed, COLOR: 34 48 52 255, BORDERCOLOR: 227 186 108 255,
+                                  IMAGE: WindowResizePushed, COLOR: 22 29 33 255, BORDERCOLOR: 227 186 108 255,
                                   IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                                   IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                                   IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
@@ -1092,7 +1092,7 @@ WINDOW
                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
-        HILITEDRAWDATA = IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+        HILITEDRAWDATA = IMAGE: NoImage, COLOR: 22 29 33 0, BORDERCOLOR: 227 186 108 0,
                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
@@ -1602,7 +1602,7 @@ WINDOW
                   HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
       ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
                         IMAGE: Active-Unchecked, COLOR: 242 237 224 0, BORDERCOLOR: 227 186 108 255,
-                        IMAGE: Active-Checked, COLOR: 34 48 52 255, BORDERCOLOR: 227 186 108 255,
+                        IMAGE: Active-Checked, COLOR: 22 29 33 255, BORDERCOLOR: 227 186 108 255,
                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,

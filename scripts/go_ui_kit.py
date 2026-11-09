@@ -11,13 +11,14 @@ and only gets sharper. Each piece is padded and its edge texels are extruded so 
 tiled pieces do not sample their neighbours.
 
 The Classic (Generals Online) theme gets the same atlas in its palette (scripts/go_themes.py KIT_COLORS) under
-GenOnline/GameData/Themes/Radar; its INI would be byte-identical, so the theme has no copy of it.
+GenOnline/GameData/Themes/Radar; its INI would be byte-identical, so the theme has no copy of it. The second atlas
+gets a theme copy the same way, with only its glyph outline and empty star swapped (go_themes.MAP_COLORS).
 
-A third atlas redraws the retail load screen progress bar (LoadingBar_*) in the launcher bronze, the same in every
-palette; the Retail interface style leaves its files out and keeps the retail bar.
+A third atlas redraws the retail load screen progress bar (LoadingBar_*) in the launcher bronze on the subtle fill tokens,
+the same in every palette; the Retail interface style leaves its files out and keeps the retail bar.
 
 Usage:
-    python scripts/go_ui_kit.py          write the atlases, the theme atlas and the INIs into GenOnline/GameData
+    python scripts/go_ui_kit.py          write the atlases, the theme atlases and the INIs into GenOnline/GameData
     python scripts/go_ui_kit.py --check  exit 1 when the committed files differ from a fresh run
 """
 
@@ -196,9 +197,9 @@ def recolor(color, palette):
 
 
 @contextlib.contextmanager
-def recolored(palette):
-    """Draw the pieces in palette while the block runs; None keeps the kit colours."""
-    saved = {name: globals()[name] for name in COLOR_NAMES}
+def recolored(palette, names=COLOR_NAMES):
+    """Draw the pieces in palette while the block runs, swapping the module colours names; None keeps the kit colours."""
+    saved = {name: globals()[name] for name in names}
     if palette is not None:
         globals().update({name: recolor(value, palette) for name, value in saved.items()})
     try:
@@ -543,7 +544,7 @@ def pieces():
 # =================================================================================================
 # GO map select: map preview icons (TheSuperHackers issue 1684) and the map list favourite stars.
 # They live in their own atlas, GeneralsOnline_UIKit2.tga, because the first atlas is full.
-# Self-contained: from the kit above this section uses only rgba, TRANSPARENT, SCALE and paint.
+# Self-contained: from the kit above this section uses only rgba, TRANSPARENT, SCALE, paint and recolored.
 # Kit icon style: angular C&C symbols on a 16 unit design grid scaled to the piece, one 2 unit stroke
 # with butt caps and mitred joins, sharp corners, even padding and points snapped to whole texels.
 # Map icons are bare glyphs over a mitred dark outline.
@@ -552,7 +553,9 @@ def pieces():
 TEXTURE2_NAME = "GeneralsOnline_UIKit2.tga"
 TEXTURE2_PATH = DATA / "Art" / "Textures" / TEXTURE2_NAME
 INI2_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_UIKit2.INI"
+THEME_TEXTURE2_PATH = go_themes.THEME_DIR / TEXTURE2_PATH.relative_to(DATA)
 ATLAS2_WIDTH = 128  # in retail pixels
+TITLE2 = "the map preview icons and the favourite stars"
 
 MAP_GRID = 16.0      # design grid units across a piece
 MAP_STROKE = 2.0     # stroke weight in grid units
@@ -575,6 +578,7 @@ MAP_ICONS = {
 }
 STAR_ON = (MAP_GOLD, rgba("#B8901A"))  # fill, edge
 STAR_OFF = rgba("#5D6080")
+MAP_COLOR_NAMES = ("MAP_GLYPH_OUTLINE", "STAR_OFF")  # the colours a palette swaps (go_themes.MAP_COLORS)
 
 
 def map_snap(px):
@@ -779,8 +783,14 @@ def map_star_piece(size, fill, edge, edge_width):
     return paint(size, size, sample)
 
 
-def pieces2():
-    """The second atlas: map preview icons and the favourite stars."""
+def pieces2(palette=None):
+    """The second atlas: map preview icons and the favourite stars; palette (go_themes.MAP_COLORS) swaps the outline
+    and the empty star."""
+    with recolored(palette, MAP_COLOR_NAMES):
+        return _pieces2()
+
+
+def _pieces2():
     out = []
     for name, (glyph_name, glyph_color) in MAP_ICONS.items():
         out.append((name, MAP_ICON_SIZE, MAP_ICON_SIZE, map_icon_piece(MAP_ICON_SIZE, glyph_name, glyph_color)))
@@ -793,10 +803,11 @@ def pieces2():
 
 
 # =================================================================================================
-# Load screen progress bar: the retail LoadingBar_* images in the launcher bronze, the same in every palette, so
-# they live in their own atlas with no theme copy. The Retail interface style leaves both files out
-# (ArchiveFileSystem.cpp isNotGenOnlineInterfaceFile). W3DGadgetProgressBarImageDraw draws the frame as a three-piece
-# bar over the whole window and tiles the fill (Progress) and the unfilled track (DePowered) inside it.
+# Load screen progress bar: the retail LoadingBar_* images in the launcher bronze on the subtle fill tokens of the panels,
+# which sit on the retail black of Signal as well, so one sheet serves every palette: its own atlas with no theme copy.
+# The Retail interface style leaves both files out (ArchiveFileSystem.cpp isNotGenOnlineInterfaceFile).
+# W3DGadgetProgressBarImageDraw draws the frame as a three-piece bar over the whole window and tiles the fill (Progress)
+# and the unfilled track (DePowered) inside it.
 # =================================================================================================
 
 LOAD_BAR_TEXTURE_NAME = "GeneralsOnline_LoadingBar.tga"
@@ -805,13 +816,13 @@ LOAD_BAR_INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" /
 LOAD_BAR_ATLAS_WIDTH = 64  # in retail pixels
 LOAD_BAR_TITLE = "the load screen progress bar"
 LOAD_BAR_LINE = rgba(go_themes.PALETTE["line"])
-LOAD_BAR_GROUND = rgba(go_themes.PALETTE["ground"])
-LOAD_BAR_TRACK = rgba(go_themes.PALETTE["panel"])
+LOAD_BAR_GROUND = rgba(go_themes.PALETTE["fill-field"])   # the framed back, like an entry field
+LOAD_BAR_TRACK = rgba(go_themes.PALETTE["fill-disabled"])  # the unfilled track, a step over the back
 LOAD_BAR_FILL = rgba(go_themes.PALETTE["bronze"])
 
 
 def load_bar_pieces():
-    """The load screen bar at the retail Coords sizes: a square framed back, a flat bronze fill and a dark track."""
+    """The load screen bar at the retail Coords sizes: a square framed back, a flat bronze fill and a subtle track."""
     return [
         ("LoadingBar_L", 20, 20, button_piece(20, 20, "left", LOAD_BAR_LINE, LOAD_BAR_GROUND, LINE_LAYOUT)),
         ("LoadingBar_C", 10, 20, button_piece(10, 20, "middle", LOAD_BAR_LINE, LOAD_BAR_GROUND, LINE_LAYOUT)),
@@ -928,13 +939,17 @@ def main():
     parser.add_argument("--check", action="store_true", help="fail when the committed files are out of date")
     args = parser.parse_args()
     texture, ini = build()
-    texture2, ini2 = build(pieces2(), TEXTURE2_NAME, ATLAS2_WIDTH, "the map preview icons and the favourite stars")
+    texture2, ini2 = build(pieces2(), TEXTURE2_NAME, ATLAS2_WIDTH, TITLE2)
+    theme_texture2, theme_ini2 = build(pieces2(go_themes.MAP_COLORS), TEXTURE2_NAME, ATLAS2_WIDTH, TITLE2)
+    if theme_ini2 != ini2:
+        raise SystemExit("the theme map icon atlas moved a piece; it needs its own INI")
     texture3, ini3 = build(load_bar_pieces(), LOAD_BAR_TEXTURE_NAME, LOAD_BAR_ATLAS_WIDTH, LOAD_BAR_TITLE)
     theme_texture, theme_ini = build(palette=go_themes.KIT_COLORS)
     if theme_ini != ini:
         raise SystemExit("the theme atlas moved a piece; it needs its own INI")
     outputs = ((TEXTURE_PATH, texture), (INI_PATH, ini.encode("ascii")), (TEXTURE2_PATH, texture2), (INI2_PATH, ini2.encode("ascii")),
-               (LOAD_BAR_TEXTURE_PATH, texture3), (LOAD_BAR_INI_PATH, ini3.encode("ascii")), (THEME_TEXTURE_PATH, theme_texture))
+               (LOAD_BAR_TEXTURE_PATH, texture3), (LOAD_BAR_INI_PATH, ini3.encode("ascii")), (THEME_TEXTURE_PATH, theme_texture),
+               (THEME_TEXTURE2_PATH, theme_texture2))
     if args.check:
         stale = [p for p, data in outputs if not p.exists() or p.read_bytes() != data]
         for p in stale:
