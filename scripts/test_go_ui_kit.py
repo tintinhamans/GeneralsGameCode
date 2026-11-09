@@ -907,7 +907,7 @@ class VanSourceTest(unittest.TestCase):
 
 class VanShellFirstLoadTest(unittest.TestCase):
     """The first shell load shows the legal text, which the layout puts right over the bar; with the GO logo in place of
-    the title art, ShellGameLoadScreen::initCredit moves it under the website line so the van keeps its place above."""
+    the title art, ShellGameLoadScreen::initCredit hides it again, so the van keeps its place above."""
 
     SCREENS = ((800, 600), (1366, 768), (1920, 1080), (2560, 1440), (3840, 2160))
     LEGAL = "ShellGameLoadScreen.wnd:StaticTextLegal"
@@ -918,17 +918,11 @@ class VanShellFirstLoadTest(unittest.TestCase):
         start = cls.source.index("void ShellGameLoadScreen::initCredit()")
         cls.init_credit = cls.source[start:cls.source.index("\n}\n", start)]
 
-    def constant(self, name):
-        return float(re.search(rf"static const Real {name} = ([\d.]+)f;", self.source).group(1))
-
-    def shell(self, legal_top=None):
-        """The shell layout with the legal text shown, at its layout place or moved to legal_top (800x600 units)."""
+    def shell(self, shown=True):
+        """The shell layout with the legal text shown at its layout place, or hidden as the GO logo screen does."""
         root, bars, _ = go_bar_layouts()["ShellGameLoadScreen"]
         legal = next(w for w in root.walk() if w.name == self.LEGAL)
-        legal.status = legal.status - {"HIDDEN"}
-        if legal_top is not None:
-            x0, y0, x1, y1 = legal.rect
-            legal.rect = (x0, int(legal_top), x1, int(legal_top) + y1 - y0)
+        legal.status = (legal.status - {"HIDDEN"}) if shown else (legal.status | {"HIDDEN"})
         return root, bars[0], legal
 
     def mode(self, root, bar, screen):
@@ -943,25 +937,19 @@ class VanShellFirstLoadTest(unittest.TestCase):
         self.assertNotIn("HIDDEN", legal.status)
         self.assertNotEqual(self.mode(root, bar, (1920, 1080)), "above")
 
-    def test_first_load_with_the_legal_text_moved_keeps_the_van_above_the_bar(self):
-        root, bar, _ = self.shell(self.constant("CREDIT_LEGAL_TOP"))
+    def test_first_load_with_the_legal_text_hidden_keeps_the_van_above_the_bar(self):
+        root, bar, _ = self.shell(shown=False)
         for screen in self.SCREENS:
             self.assertEqual(self.mode(root, bar, screen), "above", screen)
 
-    def test_legal_text_sits_under_the_website_line(self):
-        legal_top, url_top = self.constant("CREDIT_LEGAL_TOP"), self.constant("CREDIT_URL_TOP")
-        self.assertGreaterEqual(legal_top, url_top + 16)  # the 14 point website line and a gap
-        _, _, legal = self.shell(legal_top)
-        self.assertLess(legal.rect[3], 576 - 40)  # well clear of the bar at 576
-
-    def test_initcredit_moves_the_legal_text_only_with_the_go_logo(self):
-        move = self.init_credit.index(f'nameToKey("{self.LEGAL}")')
-        block_start = self.init_credit.rindex("if (m_creditLogo != nullptr)", 0, move)
-        low, depth = brace_depth(self.init_credit, block_start, move)
+    def test_initcredit_hides_the_legal_text_only_with_the_go_logo(self):
+        hide = self.init_credit.index(f'nameToKey("{self.LEGAL}")')
+        block_start = self.init_credit.rindex("if (m_creditLogo != nullptr)", 0, hide)
+        low, depth = brace_depth(self.init_credit, block_start, hide)
         self.assertGreaterEqual(low, 0)
         self.assertGreaterEqual(depth, 1)
-        self.assertIn("legal->winSetPosition(legalX, REAL_TO_INT(CREDIT_LEGAL_TOP * screenHeight / 600.0f));",
-                      self.init_credit)
+        self.assertIn("legal->winHide(TRUE);", self.init_credit)
+        self.assertNotIn("CREDIT_LEGAL_TOP", self.source)
 
 
 class VanInMatchTest(unittest.TestCase):
