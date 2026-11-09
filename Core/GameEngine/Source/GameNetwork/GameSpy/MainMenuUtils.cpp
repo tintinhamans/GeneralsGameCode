@@ -162,10 +162,7 @@ static void noPatchBeforeOnlineCallback()
 	queuedDownloads.clear();
 	if (mustDownloadPatch || cantConnectBeforeOnline)
 	{
-		// go back to normal
-		HandleCanceledDownload();
-
-		// Patch was cancelled and critical, tear us down
+		// Patch was cancelled and critical, tear us down; the close owner also returns the menu to normal
 		CancelPatchCheckCallbackAndReopenDropdown();
 	}
 	else
