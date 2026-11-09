@@ -37,6 +37,7 @@
 #include "Common/UserPreferences.h"
 #include "Common/version.h"
 #include "GameClient/GameText.h"
+#include "GameClient/GUICallbacks.h"
 #include "GameClient/MessageBox.h"
 #include "GameClient/Shell.h"
 #include "GameLogic/ScriptEngine.h"
@@ -87,6 +88,33 @@ enum {
 static void startOnline();
 static void reallyStartPatchCheck();
 
+// TheSuperHackers @bugfix arcticdolphin 09/11/2026 Tear down now like CancelLogin does; nothing on the main menu acts on a pending teardown, and the next attempt must not reuse this manager.
+static void tearDownOnlineAttempt()
+{
+	GenOnlineServicesManager *manager = GenOnlineServicesManager::GetInstance();
+	if (manager == nullptr)
+	{
+		return;
+	}
+
+	manager->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
+	manager->ConsumePendingFullTeardown();
+	TearDownGeneralsOnline();
+}
+
+// TheSuperHackers @feature arcticdolphin 09/11/2026 An error of the Online path shows inside the sign-in dialog when it is open, else in a message box.
+static void showOnlineError(UnicodeString title, UnicodeString message, GameWinMsgBoxFunc closeFunc)
+{
+	if (GOSignInDialogIsOpen())
+	{
+		GOSignInDialogShowError(title, message, closeFunc);
+	}
+	else
+	{
+		MessageBoxOk(title, message, closeFunc);
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////
 
 // someone has hit a button allowing downloads to start
@@ -134,11 +162,8 @@ static void noPatchBeforeOnlineCallback()
 	queuedDownloads.clear();
 	if (mustDownloadPatch || cantConnectBeforeOnline)
 	{
-		// go back to normal
-		HandleCanceledDownload();
-
-		// Patch was cancelled and critical, tear us down
-		GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
+		// Patch was cancelled and critical, tear us down; the close owner also returns the menu to normal
+		CancelPatchCheckCallbackAndReopenDropdown();
 	}
 	else
 	{
@@ -197,7 +222,7 @@ static void startOnline()
 
 	if (cantConnectBeforeOnline)
 	{
-		MessageBoxOk(TheGameText->fetch("GUI:CannotConnectToServservTitle"),
+		showOnlineError(TheGameText->fetch("GUI:CannotConnectToServservTitle"),
 			TheGameText->fetch("GUI:CannotConnectToServserv"),
 			noPatchBeforeOnlineCallback);
 		return;
@@ -206,9 +231,15 @@ static void startOnline()
 	{
 		if (!hasWriteAccess())
 		{
-			MessageBoxOk(TheGameText->fetch("GUI:Error"),
+			showOnlineError(TheGameText->fetch("GUI:Error"),
 				TheGameText->fetch("GUI:MustHaveAdminRights"),
 				noPatchBeforeOnlineCallback);
+		}
+		// TheSuperHackers @feature arcticdolphin 09/11/2026 The patch prompt shows inside the sign-in dialog when it is open.
+		else if (GOSignInDialogIsOpen())
+		{
+			GOSignInDialogShowUpdate(TheGameText->fetch(mustDownloadPatch ? "GUI:MustPatchForOnline" : "GUI:CanPatchForOnline"),
+				patchBeforeOnlineCallback, noPatchBeforeOnlineCallback);
 		}
 		else if (mustDownloadPatch)
 		{
@@ -252,7 +283,15 @@ static void startOnline()
 		TheShell->push( "Menus/GameSpyLoginQuick.wnd" );
 #endif // ALLOW_NON_PROFILED_LOGIN
 #else
-	TheShell->push(AsciiString("Menus/GameSpyLoginProfile.wnd"));
+	// TheSuperHackers @feature arcticdolphin 09/11/2026 The sign-in runs inside the dialog when it is open; data without the dialog keeps the sign-in screen.
+	if (GOSignInDialogIsOpen())
+	{
+		GOSignInDialogBeginSignIn();
+	}
+	else
+	{
+		TheShell->push(AsciiString("Menus/GameSpyLoginProfile.wnd"));
+	}
 #endif
 }
 
@@ -568,10 +607,7 @@ void CancelPatchCheckCallbackAndReopenDropdown()
 	CancelPatchCheckCallback();
 
 	// Patch was cancelled, tear us down
-	if (GenOnlineServicesManager::GetInstance() != nullptr)
-	{
-		GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
-	}
+	tearDownOnlineAttempt();
 }
 
 void CancelPatchCheckCallback()
@@ -587,6 +623,8 @@ void CancelPatchCheckCallback()
 		TheWindowManager->winDestroy(onlineCancelWindow);
 		onlineCancelWindow = nullptr;
 	}
+	// TheSuperHackers @feature arcticdolphin 09/11/2026 The sign-in dialog replaces the checking box, so it closes with it.
+	GOSignInDialogDestroy();
 	queuedDownloads.clear();
 
 	delete[] MOTDBuffer;
@@ -852,13 +890,16 @@ void StartPatchCheck()
     timeThroughOnline++;
     checksLeftBeforeOnline = 0;
 
+    // TheSuperHackers @feature arcticdolphin 09/11/2026 One sign-in dialog shows every step of the Online path; without its layout the message boxes and the sign-in screen stay.
+    GOSignInDialogOpen();
+
     SYSTEM_INFO SystemInfo;
     GetSystemInfo(&SystemInfo);
 
 	bool bIsARMArchitecture = SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM || SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM64 || SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM32_ON_WIN64;
 	if (bIsARMArchitecture)
 	{
-        MessageBoxOk(TheGameText->fetchOrSubstitute("GUI:NoARMSupportHeader", L"Unsupported System"),
+        showOnlineError(TheGameText->fetchOrSubstitute("GUI:NoARMSupportHeader", L"Unsupported System"),
             TheGameText->fetchOrSubstitute("GUI:NoARMSupport", L"GeneralsOnline does not support ARM processors"),
             CancelPatchCheckCallbackAndReopenDropdown);
 
@@ -880,7 +921,7 @@ void StartPatchCheck()
     {
         if (!GenOnlinePluginHost::IsExternalProcessRunning())
         {
-            MessageBoxOk(TheGameText->fetchOrSubstitute("GUI:ACErrorHeader", L"AntiCheat Error"),
+            showOnlineError(TheGameText->fetchOrSubstitute("GUI:ACErrorHeader", L"AntiCheat Error"),
                 TheGameText->fetchOrSubstitute("GUI:ACExternalProcessNotRunning", L"The AntiCheat external process is not running"),
                 CancelPatchCheckCallbackAndReopenDropdown);
 
@@ -895,15 +936,22 @@ void StartPatchCheck()
 		UnicodeString strErrorMssage;
         strErrorMssage.format(L"Failed to load the AntiCheat plugin from path: %hs. Please make sure the plugin is installed correctly.", pluginPath.c_str());
 
-        MessageBoxOk(TheGameText->fetchOrSubstitute("GUI:ACErrorHeader", L"AntiCheat Error"),
+        showOnlineError(TheGameText->fetchOrSubstitute("GUI:ACErrorHeader", L"AntiCheat Error"),
 			strErrorMssage,
             CancelPatchCheckCallbackAndReopenDropdown);
 
         return;
 	}
 
-    onlineCancelWindow = MessageBoxCancel(TheGameText->fetch("GUI:CheckingForPatches"),
-        TheGameText->fetch("GUI:CheckingForPatches"), CancelPatchCheckCallbackAndReopenDropdown);
+	if (GOSignInDialogIsOpen())
+	{
+		GOSignInDialogShowChecking(CancelPatchCheckCallbackAndReopenDropdown);
+	}
+	else
+	{
+		onlineCancelWindow = MessageBoxCancel(TheGameText->fetch("GUI:CheckingForPatches"),
+			TheGameText->fetch("GUI:CheckingForPatches"), CancelPatchCheckCallbackAndReopenDropdown);
+	}
 
 	const Int patchCheckAttempt = timeThroughOnline;
 	GenOnlineServicesManager::GetInstance()->StartVersionCheck([patchCheckAttempt](bool bSuccess, bool bNeedsUpdate)
@@ -931,7 +979,7 @@ void StartPatchCheck()
 				// TODO_GENONLINE: do this everywhere teardowngamespy was called
 				GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
 
-				MessageBoxOk(TheGameText->fetch("GUI:CannotConnectToServservTitle"),
+				showOnlineError(TheGameText->fetch("GUI:CannotConnectToServservTitle"),
 					TheGameText->fetch("GUI:CannotConnectToServserv"),
 					noPatchBeforeOnlineCallback);
 			}
@@ -961,8 +1009,8 @@ void StartPatchCheck()
 					else*/ if (mustDownloadPatch)
 					{
 						// NOTE: we treat all patches as mandatory currently
-						onlineCancelWindow = MessageBoxOkCancel(TheGameText->fetch("GUI:PatchAvailable"),
-							UnicodeString(L"Press OK to begin updating.\n\nOtherwise, you can visit www.playgenerals.online to download the latest update manually."), []()
+						// TheSuperHackers @feature arcticdolphin 09/11/2026 The update prompt shows inside the sign-in dialog when it is open; Update closes the dialog before the download menu opens.
+						const GameWinMsgBoxFunc startUpdate = []()
 							{
 								WindowLayout* layout;
 								layout = TheWindowManager->winCreateLayout(AsciiString("Menus/DownloadMenu.wnd"));
@@ -978,7 +1026,17 @@ void StartPatchCheck()
 											});
 									});
 
-							}, CancelPatchCheckCallbackAndReopenDropdown);
+							};
+						if (GOSignInDialogIsOpen())
+						{
+							GOSignInDialogShowUpdate(UnicodeString(L"Press Update to begin updating.\nOtherwise, you can visit www.playgenerals.online to download the latest update manually."),
+								startUpdate, CancelPatchCheckCallbackAndReopenDropdown);
+						}
+						else
+						{
+							onlineCancelWindow = MessageBoxOkCancel(TheGameText->fetch("GUI:PatchAvailable"),
+								UnicodeString(L"Press OK to begin updating.\n\nOtherwise, you can visit www.playgenerals.online to download the latest update manually."), startUpdate, CancelPatchCheckCallbackAndReopenDropdown);
+						}
 					}
 				}
 			}

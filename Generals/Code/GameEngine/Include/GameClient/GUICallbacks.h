@@ -186,6 +186,15 @@ extern void WOLLoginMenuShutdown( WindowLayout *layout, void *userData );
 extern WindowMsgHandledType WOLLoginMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType WOLLoginMenuInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 
+// TheSuperHackers @feature arcticdolphin 09/11/2026 GO sign-in dialog over the main menu for the whole Online path; Open returns FALSE when its layout is missing.
+extern Bool GOSignInDialogOpen( void );
+extern Bool GOSignInDialogIsOpen( void );
+extern void GOSignInDialogShowChecking( GameWinMsgBoxFunc cancelFunc );
+extern void GOSignInDialogShowUpdate( UnicodeString message, GameWinMsgBoxFunc updateFunc, GameWinMsgBoxFunc cancelFunc );
+extern void GOSignInDialogShowError( UnicodeString title, UnicodeString message, GameWinMsgBoxFunc closeFunc );
+extern void GOSignInDialogBeginSignIn( void );
+extern void GOSignInDialogDestroy( void );
+
 //  WOL Locale Select Popup ---------------------------------------------------------------------------------
 extern void WOLLocaleSelectInit( WindowLayout *layout, void *userData );
 extern void WOLLocaleSelectUpdate( WindowLayout *layout, void *userData );
