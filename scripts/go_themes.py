@@ -55,6 +55,12 @@ PALETTE = {
     "green-dark": "#3F8A37",
     "danger": "#C9584A",
     "pushed": "#3A2F1E",
+    # subtle in-game UI fills: a faint slate over near-black, below the launcher's own surfaces
+    "fill-field": "#04070A",
+    "fill-disabled": "#07090B",
+    "fill-button": "#0C1013",
+    "fill-block": "#0E1316",
+    "fill-hover": "#161D21",
 }
 P = PALETTE
 
@@ -67,12 +73,12 @@ KIT_COLORS = {
     "#4A4E6E": P["line"],      # disabled line
     "#24308C": P["line"],      # unlit slider block line
     # fills
-    "#070A18": P["panel"],     # enabled fill
-    "#152078": P["panel-3"],   # hilite fill
+    "#070A18": P["fill-button"],  # enabled fill, a step over the panel tint
+    "#152078": P["fill-hover"],   # hilite fill
     "#2B34B8": P["pushed"],    # pushed fill, selected list row
-    "#0A0A10": P["ground"],    # disabled fill
-    "#05070F": P["ground"],    # entry field and map start fill
-    "#0B1030": P["surface"],   # unlit slider block fill
+    "#0A0A10": P["fill-disabled"],  # disabled fill
+    "#05070F": P["fill-field"],   # entry field and map start fill
+    "#0B1030": P["fill-block"],   # unlit slider block fill
     # slider and scroll bar
     "#3446FF": P["bronze"],    # slider value fill, lit block, scroll pill, chosen map start
     "#283489": P["line"],      # slider and scroll track
