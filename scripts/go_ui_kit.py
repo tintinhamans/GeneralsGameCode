@@ -861,7 +861,7 @@ THEME_LOAD_ROAD_TEXTURE_PATH = go_themes.THEME_DIR / LOAD_ROAD_TEXTURE_PATH.rela
 LOAD_ROAD_INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_LoadRoad.INI"
 LOAD_ROAD_ATLAS_WIDTH = 32  # in retail pixels
 LOAD_ROAD_TITLE = "the load screen road"
-LOAD_ROAD_RECT = (200, 574, 600, 592)  # 800x600 units: half the width, centred, near the bottom
+LOAD_ROAD_RECT = (267, 574, 533, 592)  # 800x600 units: a third of the width, centred, near the bottom
 
 
 def mix(a, b, t):
@@ -921,8 +921,8 @@ def load_road_window(screen_width, screen_height):
 
 
 def load_road_dashes(x, y, width, height, screen_height):
-    """drawGoShellLoadBar's centre line: (line, [dash rects]). Dashes are whole pixels, even in length and period, centred
-    in the road with the same padding at both ends, and as thick as the kit line (one more pixel when that centres them)."""
+    """drawGoShellLoadBar's centre line: (line, [dash rects]). Dashes are whole pixels on an even period, centred in the
+    road with the same padding at both ends, and as thick as the kit line (one more pixel when that centres them)."""
     line = max(1, math.ceil(LINE_LAYOUT * screen_height / 600.0 - 0.01))
     thickness = line + ((height - line) & 1)
     half = max(2, math.floor(LOAD_ROAD_DASH_UNITS * screen_height / 600.0 + 0.5))
@@ -931,6 +931,9 @@ def load_road_dashes(x, y, width, height, screen_height):
     span = width - 2 * (height // 2)
     count = (span - length) // period + 1 if span >= length else 0
     total = (count - 1) * period + length if count else 0
+    # a road of odd width takes one more pixel per dash, so both ends keep the same whole pixel padding
+    if count and (width - total) & 1:
+        length, total = length + 1, total + 1
     pad = (width - total) // 2
     top = y + (height - thickness) // 2
     return line, [(x + pad + k * period, top, x + pad + k * period + length, top + thickness) for k in range(count)]
