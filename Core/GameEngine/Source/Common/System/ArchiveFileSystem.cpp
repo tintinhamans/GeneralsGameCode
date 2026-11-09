@@ -523,8 +523,16 @@ static Bool isNotGenOnlineInterfaceFile(const char* path)
 	static const char* const files[] = {
 		"art/textures/generalsonline_uikit.tga",
 		"art/textures/generalsonline_loadingbar.tga",
+		"art/textures/generalsonline_loadlogo.tga",
+		"art/textures/generalsonline_van.tga",
+		"art/textures/generalsonline_loadroad.tga",
+		"art/textures/generalsonline_loadbubble.tga",
 		"data/ini/mappedimages/texturesize_512/zz_generalsonline_uikit.ini",
 		"data/ini/mappedimages/texturesize_512/zz_generalsonline_loadingbar.ini",
+		"data/ini/mappedimages/texturesize_512/zz_generalsonline_loadlogo.ini",
+		"data/ini/mappedimages/texturesize_512/zz_generalsonline_van.ini",
+		"data/ini/mappedimages/texturesize_512/zz_generalsonline_loadroad.ini",
+		"data/ini/mappedimages/texturesize_512/zz_generalsonline_loadbubble.ini",
 		"data/ini/mappedimages/texturesize_512/zz_generalsonline_checkboxsliderart.ini",
 		"data/ini/mappedimages/texturesize_512/zz_generalsonline_logo.ini",
 		"data/ini/gouicolors.ini",
@@ -539,6 +547,11 @@ static Bool isNotGenOnlineInterfaceFile(const char* path)
 	const char* name = lower.str();
 	if (strncmp(name, "window/", 7) == 0)
 	{
+		// GenOnline @feature arcticdolphin 09/11/2026 The GO shell copy of the quit box goes too, so Retail opens the retail one.
+		if (strcmp(name, "window/menus/goshellquitmessagebox.wnd") == 0)
+		{
+			return FALSE;
+		}
 		return TheArchiveFileSystem == nullptr || !TheArchiveFileSystem->doesFileExist(name);
 	}
 	for (size_t p = 0; p < ARRAY_SIZE(prefixes); ++p)

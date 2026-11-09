@@ -2756,10 +2756,7 @@ Bool GadgetListBoxGetKitFrameColor( Color layoutBorder, Color *frameColor )
 	// older retail blues left in the layouts take the kit line colour
 	if( red < 64 && green < 64 && blue >= 150 )
 	{
-		// TheSuperHackers @feature arcticdolphin 09/11/2026 The kit line colour comes from the GO UI colour table, so a palette recolours it.
-		UnsignedByte lineRed, lineGreen, lineBlue, lineAlpha;
-		GameGetColorComponents( GOUIColor( GOUICOLOR_LINE, GameMakeColor( 47, 75, 255, 255 ) ), &lineRed, &lineGreen, &lineBlue, &lineAlpha );
-		*frameColor = GameMakeColor( lineRed, lineGreen, lineBlue, alpha );
+		*frameColor = GameMakeColor( 47, 75, 255, alpha );
 		return TRUE;
 	}
 

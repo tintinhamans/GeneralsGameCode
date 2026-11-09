@@ -73,6 +73,11 @@ GenOnline/tools/wnd_sources copy, if any, is only kept for reference. All rects 
   looks up rows below MAX_SLOTS, so it never enables them. The band under the rows (game speed, cash, checkboxes)
   moves to SECTION_GAP under the last row and the panels under it (chat or info and stats) take the space down to
   the next band; rows inside a panel spread evenly over it.
+- Setup row size: the player rows are SETUP_COMBO_HEIGHT tall, ROW_PITCH apart: their combos, entry fields and labels
+  shrink to that height and draw the smaller SETUP_TEMPLATE font (a GO-only header template, its drop-down list too),
+  smaller controls centre on the row. Every combo box of these screens shows up to SETUP_MAX_DISPLAY rows open (more
+  than retail's 5, so the army list opens whole), fewer when the list would pass the screen bottom at
+  SETUP_LIST_ROW_UNITS per font point a row; a combo keeps a larger retail value.
 - Blank layouts: a layout in GenOnline/tools/wnd_fixes.py BLANK_LAYOUTS (the GameSpy login forms GO replaces with its sign-in
   screen) hides every window but the named ones, their ancestors and the visible screen titles: each other window under a
   shown one gets HIDDEN, so the backdrop, frame and title stay. Every window stays in the file for the code's lookups.
@@ -80,10 +85,9 @@ GenOnline/tools/wnd_sources copy, if any, is only kept for reference. All rects 
   another account, cancel) lives in its GenOnline/tools/wnd_sources copy, over the hidden form with the same rect.
   The GO-only sign-in dialog (Window/Menus/GOSignInDialog.wnd, the card WOLLoginMenu.cpp opens over the main menu for the
   whole Online path) lives in GenOnline/tools/wnd_sources too and passes the rules unchanged.
-- Theme copies: every menu layout (not the in-game ones, nor the menus shown during a match) also goes to
-  GenOnline/data/Themes/Radar at the same path, its final output with the colours swapped for the
-  Classic (Generals Online) palette (GenOnline/tools/go_themes.py LAYOUT_COLORS) and the window fills above. Only colour
-  numbers differ.
+- Shell copies: SHELL_COPIES layouts (GOShellQuitMessageBox.wnd, the quit prompt of the main menu) are built from the
+  input of an in-match menu (QuitMessageBox.wnd) as menus: GO header templates and kit colours. Their
+  window names stay the source's, so the code finds them; the engine opens the copy only while the shell is active.
 
 A move never creates an overlap with a sibling and never pushes a window or its children further
 out of their parent; such moves are skipped and logged. Children move with their window. The rules
@@ -204,7 +208,15 @@ SETUP_LAYOUTS = {
 }
 ENGINE_SLOTS = 8           # MAX_SLOTS in Core GameNetwork/NetworkDefs.h; the menus only look up rows below it
 SLOT_ROWS = ENGINE_SLOTS    # player rows the setup screens lay out, 12 once the engine has 12 slots (arctic/go/feat/12-players)
-ROW_PITCH = 22             # top to top distance of the player rows: the COMBO_HEIGHT combos and a 2 unit gap
+SHOW_EXTRA_ROWS = False    # rows past ENGINE_SLOTS ship hidden until the engine has more slots; their space stays
+# GenOnline @tweak arcticdolphin 09/11/2026 Compact player rows: 16 unit combos with an 8 pt font keep the 10 pt fit of COMBO_HEIGHT.
+SETUP_COMBO_HEIGHT = 16
+ROW_PITCH = SETUP_COMBO_HEIGHT + 2  # top to top distance of the player rows: the SETUP_COMBO_HEIGHT combos and a 2 unit gap
+SETUP_ROW_KINDS = ("COMBOBOX", "ENTRYFIELD", "STATICTEXT")  # row windows that take the row height and font
+SETUP_TEMPLATE = "GOComboBoxEntrySmall"  # GO-only header template of the row text, in Data/GeneralsOnline/HeaderTemplate.ini
+SETUP_FONT = 8             # its point size, also written as the FONT size the template replaces
+SETUP_MAX_DISPLAY = 14     # drop-down rows: Random, the 12 armies and Observer open without scrolling
+SETUP_LIST_ROW_UNITS = 2   # a kit drop-down row is at most this many units tall per font point, 800x600 to 1080p
 SECTION_GAP = 6            # gap between the player rows, the settings row and the panels under them
 PANEL_INSET = 2            # rows inside a panel under the settings row keep this inset
 MIN_PANEL = 40             # the panels under the settings row keep at least this height
@@ -216,6 +228,8 @@ SLOT_NAME_RE = re.compile(r"^(?P<base>%s)(?P<index>\d+)$" % "|".join(SLOT_BASES)
 VISIBLE_SLOT_BASES = ("ComboBoxPlayer", "ComboBoxColor", "ComboBoxPlayerTemplate", "ComboBoxTeam")
 ROW_STAND_INS = {"TextEntryPlayerName": 0}  # the skirmish player's name field in place of ComboBoxPlayer0
 STATUS_LINE_RE = re.compile(r"^[ \t]*STATUS[ \t]*=[ \t]*(?P<flags>[^;]*);", re.M)
+FONT_SIZE_RE = re.compile(r'^[ \t]*FONT[ \t]*=[ \t]*NAME:[ \t]*"[^"]*"[ \t]*,[ \t]*SIZE:[ \t]*(?P<size>\d+)', re.M)
+MAX_DISPLAY_RE = re.compile(r"MAXDISPLAY:[ \t]*(?P<rows>\d+)")
 DEFAULT_COLUMN_GAP = 4     # column gap when every gap of a row differs
 
 # shared left edge of the ruler menu titles: the most common one (GameSpy game options and WOL welcome
@@ -235,9 +249,15 @@ IN_MATCH_MENUS = {
     "crcmismatch", "defeat", "disconnectscreen", "localdefeat", "observerquit", "popupsaveload",
     "quitmenu", "quitmessagebox", "quitnosave", "saveload", "victorious",
 }
+# GO shell copies of in-match menus the shell opens too, built from the same input as a menu; the window names stay the
+# source's, the engine opens the copy while the shell is active (gogoMessageBox in GameWindowManager.cpp)
+SHELL_COPIES = {
+    "Window/Menus/GOShellQuitMessageBox.wnd": "Window/Menus/QuitMessageBox.wnd",
+}
 # retail header templates; the menu layouts use the GO copies in Data/GeneralsOnline/HeaderTemplate.ini instead,
 # so a mod that replaces Data/<language>/HeaderTemplate.ini cannot resize the GO menus
 GO_TEMPLATE_PREFIX = "GO"
+GO_ONLY_TEMPLATES = {SETUP_TEMPLATE}  # GO header templates without a retail original
 RETAIL_TEMPLATES = {
     "Title", "MainButton", "Button", "ButtonSmall", "TextEntry", "ComboBoxEntry", "MinorTitle", "LabelRegular",
     "LabelSmall", "LoadScreenCameos", "LoadScreenMissionLocation", "Arial10BoldTemplate", "Arial12BoldTemplate",
@@ -1609,7 +1629,7 @@ def setup_rows(text, name):
             slots[(m["base"], int(m["index"]))] = win
     anchor = slots[("ComboBoxColor", 0)]
     frame = anchor.parent
-    height = anchor.rect[3] - anchor.rect[1]
+    height = SETUP_COMBO_HEIGHT
     tops = [anchor.rect[1] + i * ROW_PITCH for i in range(SLOT_ROWS)]
     rows = {id(w): i for (base, i), w in slots.items() if w.parent is frame}
     rows.update({id(w): ROW_STAND_INS[w.name.split(":")[-1]] for w in frame.children
@@ -1618,8 +1638,9 @@ def setup_rows(text, name):
 
     def row_rect(win, index):
         x0, y0, x1, y1 = win.rect
-        top = tops[index] + (height - (y1 - y0)) // 2
-        return (x0, top, x1, top + y1 - y0)
+        size = min(y1 - y0, height) if win.kind in SETUP_ROW_KINDS else y1 - y0
+        top = tops[index] + (height - size) // 2
+        return (x0, top, x1, top + size)
 
     edits = []
     last = ENGINE_SLOTS - 1
@@ -1636,7 +1657,7 @@ def setup_rows(text, name):
                 # start position markers continue their stack; the game code places them over the map
                 prev = slots[(base, last - 1)].rect
                 rect = tuple(v + (k - last) * (v - p) for v, p in zip(win.rect, prev))
-            clones.append(_clone_slot(text, win, k, rect, base not in VISIBLE_SLOT_BASES))
+            clones.append(_clone_slot(text, win, k, rect, not SHOW_EXTRA_ROWS or base not in VISIBLE_SLOT_BASES))
         if clones:
             edits.append(((win.block[0], win.block[0]), "".join(reversed(clones))))
     for win in frame.children:
@@ -1663,6 +1684,32 @@ def setup_rows(text, name):
         x0, y0, x1, y1 = win.rect
         _place(win, (x0, y0 - stretch_top + new_top, x1, new_bottom - (stretch_bottom - y1)), edits)
         _fit_child_rows(win, edits)
+    for (start, end), value in sorted(edits, reverse=True):
+        text = text[:start] + value + text[end:]
+    return _setup_fonts(text, name)
+
+
+def _setup_fonts(text, name):
+    """Give the player row text of a setup screen SETUP_TEMPLATE and SETUP_FONT, and its combo boxes their open rows."""
+    root = parse_windows(text)
+    frame = next(w for w in root.walk() if w.name.split(":")[-1] == "ComboBoxColor0").parent
+    edits = []
+    for win in root.walk():
+        start, end = win.block
+        own = min((c.block[0] for c in win.children), default=end)
+        short = win.name.split(":")[-1]
+        font = win.font_size
+        if win.parent is frame and win.kind in SETUP_ROW_KINDS and (SLOT_NAME_RE.match(short) or short in ROW_STAND_INS):
+            for pattern, group, value in ((HEADER_RE, "header", SETUP_TEMPLATE), (FONT_SIZE_RE, "size", str(SETUP_FONT))):
+                m = pattern.search(text, start, own)
+                if m is None:
+                    raise ValueError(f"{name}: {win.name} has no {group} to set")
+                edits.append((m.span(group), value))
+            font = SETUP_FONT
+        m = MAX_DISPLAY_RE.search(text, start, own) if win.kind == "COMBOBOX" else None
+        if m is not None:
+            fit = (SCREEN[3] - win.rect[3]) // (SETUP_LIST_ROW_UNITS * font)
+            edits.append((m.span("rows"), str(max(int(m["rows"]), min(SETUP_MAX_DISPLAY, fit)))))
     for (start, end), value in sorted(edits, reverse=True):
         text = text[:start] + value + text[end:]
     return text
@@ -1800,6 +1847,12 @@ def build(retail, game="zerohour"):
             name = by_lower.get(rel.lower(), rel)
             compiled[name] = wnd_yaml.compile_file(src)
             inputs[name] = compiled[name].encode("latin-1")
+    for copy, source in SHELL_COPIES.items():
+        source = by_lower.get(source.lower(), source)
+        if source in inputs:
+            inputs[copy] = inputs[source]
+            if source in compiled:
+                compiled[copy] = compiled[source]
     results = []
     for name in sorted(inputs, key=str.lower):
         text = inputs[name].decode("latin-1")
@@ -1894,6 +1947,118 @@ def write_review(results, path=REVIEW):
             lines += [f"- {s}" for s in skips]
             lines.append("")
     path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8", newline="\n")
+
+
+# The Generals welcome menu shows the community win percentages of the three sides, which the GenOnline welcome menu code fills
+# into the Percent<Side> check boxes from the global stats. The Generals retail layout only has inert winner texts there, so the build
+# takes the check boxes and the heading from the Zero Hour GenOnline layout and swaps the Zero Hour faction images for the Generals logos.
+COMMUNITY_LOGOS = {"USA_Logo": "SAFactionLogo96_US", "China_Logo": "SNFactionLogo96_China", "GLA_Logo": "SUFactionLogo96_GLA"}
+COMMUNITY_BOX_LEFT = {"PercentUSA": 276, "PercentChina": 412, "PercentGLA": 548}  # 104 wide boxes spread over the panel
+COMMUNITY_BOX_TOP, COMMUNITY_BOX_SIZE = 415, (104, 40)
+COMMUNITY_INERT_RE = re.compile(r"StaticText(USA|China|GLA|Winners)(Today|LastWeek)")
+SCREENRECT_RE = re.compile(r"(SCREENRECT[ 	]*=[ 	]*UPPERLEFT:[ 	]*)-?\d+([ 	]+)-?\d+([ 	]*,\s*BOTTOMRIGHT:[ 	]*)-?\d+([ 	]+)-?\d+")
+
+
+def with_rect(block, rect):
+    return SCREENRECT_RE.sub(lambda m: f"{m.group(1)}{rect[0]}{m.group(2)}{rect[1]}{m.group(3)}{rect[2]}{m.group(4)}{rect[3]}", block, count=1)
+
+
+def generals_community_panel(text):
+    """The Generals welcome menu with the community panel of the Zero Hour GenOnline layout for the three sides."""
+    zero_hour = (ZERO_HOUR_DATA / "Window" / "Menus" / "GenOnlineWelcomeMenu.wnd").read_bytes().decode("latin-1")
+    zero_windows = {w.name.split(":")[-1]: w for w in parse_windows(zero_hour).walk()}
+    root = parse_windows(text)
+    inert = sorted((w for w in root.walk() if COMMUNITY_INERT_RE.fullmatch(w.name.split(":")[-1])), key=lambda w: w.block[0])
+    heading = next((w for w in root.walk() if w.kind == "STATICTEXT" and not w.name.split(":")[-1] and w.rect[:2] == (245, 333)), None)
+    if not inert or heading is None:
+        raise ValueError("the Generals welcome menu has no winner texts to replace")
+
+    def child_line_start(window):
+        """The start of the CHILD line before a window block."""
+        start = text.rfind("CHILD", 0, window.block[0])
+        if start < 0 or text[start:window.block[0]].strip() != "CHILD":
+            raise ValueError(f"{window.name}: no CHILD line before the window")
+        return start
+
+    child_line = text[child_line_start(inert[0]):inert[0].block[0]]
+    boxes = []
+    for name, left in COMMUNITY_BOX_LEFT.items():
+        block = zero_hour[zero_windows[name].block[0]:zero_windows[name].block[1]]
+        for zero_hour_image, logo in COMMUNITY_LOGOS.items():
+            block = block.replace(f"IMAGE: {zero_hour_image},", f"IMAGE: {logo},")
+        block = re.sub(r"IMAGE: \w+General_slvr,", "IMAGE: NoImage,", block)
+        boxes.append(child_line + with_rect(block, (left, COMMUNITY_BOX_TOP, left + COMMUNITY_BOX_SIZE[0], COMMUNITY_BOX_TOP + COMMUNITY_BOX_SIZE[1])))
+    title = zero_hour[zero_windows["StaticTextCommunity"].block[0]:zero_windows["StaticTextCommunity"].block[1]]
+    edits = [(child_line_start(w), w.block[1], "") for w in inert]
+    edits[0] = (edits[0][0], inert[0].block[1], "".join(boxes))
+    edits.append((heading.block[0], heading.block[1], with_rect(title, (245, 333, 683, 361))))
+    for start, end, replacement in sorted(edits, reverse=True):
+        text = text[:start] + replacement + text[end:]
+    return text
+
+
+# Controls the shared GenOnline menu code looks up in both games although the Generals retail layouts do not have them. The code hides
+# the Zero Hour only ones for Generals and uses CheckBoxUseStats, so a missing window would be a null pointer. The Generals build takes
+# the windows from the Zero Hour GenOnline layout: retail layout -> (that layout file, the parent window, {control: rect or None to keep}).
+GENERALS_CONTROLS = {
+    "window/menus/gamespygameoptionsmenu.wnd": ("GenOnlineGameOptionsMenu.wnd", "FadeParent", {
+        "CheckBoxUseStats": None, "CheckboxLimitSuperweapons": None, "CheckBoxLimitArmies": None,
+        "ComboBoxStartingCash": None, "StartingCashLabel": (237, 305, 333, 327)}),
+    "window/menus/popuphostgame.wnd": ("GenOnlinePopupHostGame.wnd", "ParentHostPopUp", {
+        "CheckBoxUseStats": (238, 272, 398, 296), "CheckBoxLimitArmies": None}),
+}
+
+
+def generals_missing_controls(text, retail_name):
+    """The Generals layout with the controls of GENERALS_CONTROLS added as the last children of their parent window."""
+    zero_hour_file, parent_name, controls = GENERALS_CONTROLS[retail_name.lower()]
+    zero_hour = (ZERO_HOUR_DATA / "Window" / "Menus" / zero_hour_file).read_bytes().decode("latin-1")
+    zero_windows = {w.name.split(":")[-1]: w for w in parse_windows(zero_hour).walk()}
+    root = parse_windows(text)
+    parent = next((w for w in root.walk() if w.name.split(":")[-1] == parent_name), None)
+    if parent is None or not parent.children:
+        raise ValueError(f"{retail_name}: no parent window {parent_name}")
+    first = parent.children[0]
+    child_start = text.rfind("CHILD", 0, first.block[0])
+    child_line = text[child_start:first.block[0]]
+    blocks = ""
+    for name, rect in controls.items():
+        window = zero_windows[name]
+        block = zero_hour[window.block[0]:window.block[1]]
+        blocks += child_line + (with_rect(block, rect) if rect else block)
+    end = text.rfind("ENDALLCHILDREN", parent.block[0], parent.block[1])
+    line_start = text.rfind("\n", 0, end) + 1
+    return text[:line_start] + blocks + text[line_start:]
+
+
+# The Options menu of the Generals build is the Zero Hour GenOnline source without the options that only Zero Hour has. The Generals
+# options code does not handle them and the Generals string file has no labels for them. The GenOnline network tab stays.
+GENERALS_OPTIONS_CUTS = (
+    (r",\s*CheckDoubleClickAttackMove, Retaliation\]", "]"),
+    (r"\n\s*- \{component: checkbox, name: CheckDoubleClickAttackMove,[^}]*\}", ""),
+    (r"\n\s*- \{component: checkbox, name: Retaliation,[^}]*\}", ""),
+    (r"CheckHeatEffects, ", ""),
+    (r",\s*\{name: HeatEffects, label: HeatEffects\}\]", "]"),
+)
+
+
+def generals_options_source():
+    """The Zero Hour Options menu YAML with the Zero Hour only options cut out."""
+    source = (Path(__file__).resolve().parent / "wnd_yaml" / "Window" / "Menus" / "OptionsMenu.yaml").read_text("utf-8")
+    for pattern, replacement in GENERALS_OPTIONS_CUTS:
+        source, count = re.subn(pattern, replacement, source, count=1)
+        if count != 1:
+            raise ValueError(f"OptionsMenu.yaml has changed, the Generals cut {pattern} no longer applies")
+    return source
+
+
+def output_root(name, game="zerohour"):
+    """The data folder a layout is written to: generals for the Generals build, core for a layout both games share, else zerohour."""
+    if game == "generals":
+        return GENERALS_DATA
+    path = name.replace("\\", "/")
+    base = path.rsplit("/", 1)[-1]
+    return CORE_DATA if path.startswith("Window/Menus/") and base in CORE_LAYOUTS else ZERO_HOUR_DATA
 
 
 def main():

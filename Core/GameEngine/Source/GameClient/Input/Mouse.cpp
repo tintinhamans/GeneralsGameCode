@@ -46,6 +46,7 @@
 #include "GameClient/Keyboard.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/GlobalLanguage.h"
+#include "GameClient/Shell.h"
 
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/ScriptEngine.h"
@@ -569,19 +570,14 @@ Mouse::~Mouse()
 
 }
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 A tooltip colour the GO UI colour table sets replaces the Mouse INI one.
-static void applyUIColor( GOUIColorRole role, RGBAColorInt *color )
+// GenOnline @feature arcticdolphin 09/11/2026 In the shell menus a tooltip colour the GO UI colour table sets replaces the Mouse INI one.
+static Color shellTooltipColor( GOUIColorRole role, Color iniColor )
 {
 	Color value;
-	if( GOUIColorFind( role, &value ) == FALSE )
-		return;
+	if( TheShell == nullptr || TheShell->isShellActive() == FALSE || GOUIColorFind( role, &value ) == FALSE )
+		return iniColor;
 
-	UnsignedByte red, green, blue, alpha;
-	GameGetColorComponents( value, &red, &green, &blue, &alpha );
-	color->red = red;
-	color->green = green;
-	color->blue = blue;
-	color->alpha = alpha;
+	return value;
 }
 
 /**Had to move this out of main init() because I need this data to properly initialize
@@ -604,11 +600,6 @@ void Mouse::parseIni()
 		hand->W3DScale = m_cursorInfo[ NORMAL ].W3DScale;
 		hand->loop = m_cursorInfo[ NORMAL ].loop;
 	}
-
-	applyUIColor( GOUICOLOR_TOOLTIP_FILL, &m_tooltipColorBackground );
-	applyUIColor( GOUICOLOR_TOOLTIP_BORDER, &m_tooltipColorBorder );
-	applyUIColor( GOUICOLOR_TOOLTIP_TEXT, &m_tooltipColorText );
-	applyUIColor( GOUICOLOR_TOOLTIP_SWEEP, &m_tooltipColorHighlight );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1256,8 +1247,12 @@ void Mouse::drawTooltip()
 
 #define GMC(x) GameMakeColor(x.red, x.green, x.blue, x.alpha)
 #define COLOR(x) GMC(m_tooltipColor##x)
-		TheDisplay->drawFillRect(xPos, yPos, boxWidth + 2 * padX, height + 2 * padY, GMC(m_tooltipBackColor));//GameMakeColor(0,0,0,125));
-		TheDisplay->drawOpenRect(xPos, yPos, boxWidth + 2 * padX, height + 2 * padY, 1.0, COLOR(Border));//GameMakeColor(20,20,20,255));
+		const Color backColor = shellTooltipColor( GOUICOLOR_TOOLTIP_FILL, GMC(m_tooltipBackColor) );
+		const Color borderColor = shellTooltipColor( GOUICOLOR_TOOLTIP_BORDER, COLOR(Border) );
+		const Color textColor = shellTooltipColor( GOUICOLOR_TOOLTIP_TEXT, GMC(m_tooltipTextColor) );
+		const Color highlightColor = shellTooltipColor( GOUICOLOR_TOOLTIP_SWEEP, COLOR(Highlight) );
+		TheDisplay->drawFillRect(xPos, yPos, boxWidth + 2 * padX, height + 2 * padY, backColor);//GameMakeColor(0,0,0,125));
+		TheDisplay->drawOpenRect(xPos, yPos, boxWidth + 2 * padX, height + 2 * padY, 1.0, borderColor);//GameMakeColor(20,20,20,255));
 
 		// build clip rect
 		const Int textX = xPos + padX;
@@ -1268,7 +1263,7 @@ void Mouse::drawTooltip()
 		clipRegion.hi.x = textX+m_highlightPos;
 		clipRegion.hi.y = textY+height;
 		m_tooltipDisplayString->setClipRegion(&clipRegion);
-		m_tooltipDisplayString->draw(textX, textY, GMC(m_tooltipTextColor), COLOR(Shadow));//GameMakeColor(220,220,220,255),GameMakeColor(20,20,20,125));
+		m_tooltipDisplayString->draw(textX, textY, textColor, COLOR(Shadow));//GameMakeColor(220,220,220,255),GameMakeColor(20,20,20,125));
 
 		// highlight section
 		const Int HIGHLIGHT_WIDTH = 15;
@@ -1277,7 +1272,7 @@ void Mouse::drawTooltip()
 		clipRegion.hi.x = textX+m_highlightPos;
 		clipRegion.hi.y = textY+height;
 		m_tooltipDisplayString->setClipRegion(&clipRegion);
-		m_tooltipDisplayString->draw(textX, textY, COLOR(Highlight), COLOR(Shadow));//GameMakeColor(255,255,0,255),GameMakeColor(20,20,20,125));
+		m_tooltipDisplayString->draw(textX, textY, highlightColor, COLOR(Shadow));//GameMakeColor(255,255,0,255),GameMakeColor(20,20,20,125));
 
 		// get ready for the next part of the anim
 		if (m_highlightPos < width + HIGHLIGHT_WIDTH)
