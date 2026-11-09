@@ -385,10 +385,12 @@ class ShellRoadTest(unittest.TestCase):
                          list(kit.LOAD_ROAD_RECT))
         self.assertEqual(float(self.constant("GO_ROAD_DASH_UNITS")), kit.LOAD_ROAD_DASH_UNITS)
 
-    def test_init_sets_the_road_rect_only_with_the_go_bar_art(self):
+    def test_init_sets_the_road_rect_only_on_the_go_credit_screen(self):
+        # later shell loads (back from a match) show the box art with the plain bar in its retail place
         source = self.source[self.source.index("void ShellGameLoadScreen::init( GameInfo *game )"):]
         init = source[:source.index("\n}\n")]
-        self.assertRegex(init, r"if \(findGoLoadBarImage\(\) != nullptr\)\s*\{\s*"
+        self.assertLess(init.index("initCredit();"), init.index("winSetDrawFunc(drawGoShellLoadBar)"))
+        self.assertRegex(init, r"if \(m_creditLogo != nullptr && findGoLoadBarImage\(\) != nullptr\)\s*\{\s*"
                                r"m_progressBar->winSetDrawFunc\(drawGoShellLoadBar\);\s*"
                                r"const Int screenWidth = TheDisplay->getWidth\(\);\s*"
                                r"const Int screenHeight = TheDisplay->getHeight\(\);\s*"
