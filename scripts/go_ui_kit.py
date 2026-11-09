@@ -943,9 +943,10 @@ def load_road_dashes(x, y, width, height, screen_height):
 
 # =================================================================================================
 # Load splash: a Minecraft style line, one per launch, picked from the wall clock (never a game random stream), said by
-# the radar van in a speech bubble whose tail points at its dish. LoadScreen.cpp GO_LOAD_SPLASHES holds the same lines as
-# FETCH_OR_SUBSTITUTE labels; drawGoVanBubble draws the bubble and bubble_layout mirrors it with an estimated text size.
-# The bubble art is its own atlas, one for both palettes as it pairs with the van; the Retail style leaves it out.
+# the radar van of the GO logo in a speech bubble whose tail points at its dish. LoadScreen.cpp GO_LOAD_SPLASHES holds the
+# same lines as FETCH_OR_SUBSTITUTE labels; drawGoLogoBubble draws the bubble from ShellGameLoadScreen::drawCredit and
+# bubble_layout mirrors it with an estimated text size. The bubble art is its own atlas, one for both palettes as it pairs
+# with the van art; the Retail style leaves it out.
 # =================================================================================================
 
 LOAD_SPLASHES = (
@@ -978,9 +979,13 @@ BUBBLE_RADIUS = 7.0
 BUBBLE_LINE_WIDTH = 1.0    # about the van outline at the bubble's height over the van
 BUBBLE_TAIL = (12, 10)     # width and height, the tip at the bottom centre
 BUBBLE_TAIL_OVER = 1.5     # the tail's top rows cover the bubble's bottom line, so the two read as one shape
-# the rules by their LoadScreen.cpp names: the tip aims just over the dish top (canvas texels) and the fade in
-BUBBLE_CONSTANTS = {"GO_BUBBLE_TIP_X": 78, "GO_BUBBLE_TIP_Y": 0, "GO_BUBBLE_FADE_MS": 600}
+# the rules by their LoadScreen.cpp names: the logo van's dish rim in GOLoadLogo texels (logo_dish measures it) and the
+# fade in, from the credit's start
+BUBBLE_CONSTANTS = {"GO_LOGO_DISH_X": 306, "GO_LOGO_DISH_Y": 0, "GO_BUBBLE_FADE_MS": 600}
 BUBBLE_MARGIN_UNITS = 8.0
+BUBBLE_TIP_GAP_UNITS = 2.0  # the tip stops this far over the dish rim, in 800x600 units
+LOGO_TEXTURE_PATH = DATA / "Art" / "Textures" / "GeneralsOnline_LoadLogo.tga"
+LOGO_COORDS = (383, 9, 1665, 503)  # GOLoadLogo Coords
 
 
 def bubble_piece(w, h, side):
@@ -1060,24 +1065,43 @@ def url_rect(screen_width, screen_height):
     return screen_width // 2 - w // 2, top, screen_width // 2 - w // 2 + w, top + h
 
 
-def bubble_tip(layout, bob):
-    """Where the tail points: just over the dish top, riding the body bob."""
-    height, (x0, y0, _, _) = layout
-    return (x0 + van_scale(BUBBLE_CONSTANTS["GO_BUBBLE_TIP_X"], height),
-            y0 + bob + van_scale(BUBBLE_CONSTANTS["GO_BUBBLE_TIP_Y"], height))
+def logo_dish(rows=None):
+    """The logo van's radar dish rim in GOLoadLogo texels, measured from the art: the topmost opaque row of the logo is
+    the rim of the dish pair on the mast, and the rim point is the middle of that row's opaque run."""
+    if rows is None:
+        rows = go_themes.read_tga(LOGO_TEXTURE_PATH.read_bytes())[2]
+    left, top, right, bottom = LOGO_COORDS
+    for y in range(top, bottom):
+        xs = [x for x in range(left, right) if rows[y][x][3] > 128]
+        if xs:
+            return (min(xs) + max(xs)) // 2 - left, y - top
+    raise SystemExit("the logo art is empty")
+
+
+def logo_dish_screen(screen_width, screen_height):
+    """drawCredit: the dish rim on screen, through the logo's own placement."""
+    left, top, right, bottom = logo_rect(screen_width, screen_height)
+    return (left + BUBBLE_CONSTANTS["GO_LOGO_DISH_X"] * (right - left) // LOGO_ASPECT[0],
+            top + BUBBLE_CONSTANTS["GO_LOGO_DISH_Y"] * (bottom - top) // LOGO_ASPECT[1])
+
+
+def bubble_tip(screen_width, screen_height):
+    """Where the tail points: BUBBLE_TIP_GAP_UNITS over the dish rim."""
+    x, y = logo_dish_screen(screen_width, screen_height)
+    return x, y - int(BUBBLE_TIP_GAP_UNITS * screen_height / 600.0)
 
 
 def bubble_layout(tip, text_width, text_height, screen_width, screen_height):
-    """drawGoVanBubble: {"bubble", "cap", "tail", "text"}. The bubble is 1.5 lines tall around the text, a quarter of it
-    left of the tip, kept on screen with a margin; the tail hangs from its bottom to the tip, sliding along the straight
-    part of the bottom edge when the bubble is pulled back."""
+    """drawGoLogoBubble: {"bubble", "cap", "tail", "text"}. The bubble is 1.5 lines tall around the text, above the tip
+    and three quarters of it to the left, kept on screen with a margin; the tail hangs from its bottom to the tip, sliding
+    along the straight part of the bottom edge when the bubble is pulled back."""
     tip_x, tip_y = tip
     height = text_height * 3 // 2
     cap = height // 2
     tail_w, tail_h, over = height * 3 // 5, height // 2, height * 3 // 40
     width = max(text_width + height * 3 // 4, height + tail_w)
     margin = int(BUBBLE_MARGIN_UNITS * screen_height / 600.0)
-    left = max(margin, min(tip_x - width // 4, screen_width - margin - width))
+    left = max(margin, min(tip_x - width * 3 // 4, screen_width - margin - width))
     top = tip_y - tail_h + over - height
     centre = max(left + cap + tail_w // 2, min(tip_x, left + width - cap - tail_w // 2))
     tail_left, tail_top = centre - tail_w // 2, top + height - over
@@ -1088,7 +1112,7 @@ def bubble_layout(tip, text_width, text_height, screen_width, screen_height):
 
 
 def bubble_alpha(shown_ms):
-    """The fade in over GO_BUBBLE_FADE_MS from the van's first frame; it stays."""
+    """The fade in over GO_BUBBLE_FADE_MS from the credit's start, as the logo fades in; it stays."""
     fade = BUBBLE_CONSTANTS["GO_BUBBLE_FADE_MS"]
     return 255 if shown_ms >= fade else 255 * shown_ms // fade
 
