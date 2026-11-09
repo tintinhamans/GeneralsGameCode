@@ -1078,11 +1078,7 @@ GlobalData::GlobalData()
 	m_playIntro = TRUE;
 #endif
 
-#if defined(GENONLINE)
-	m_playSizzle = FALSE;
-#else
 	m_playSizzle = TRUE;
-#endif
 	m_loadScreenRender = FALSE;
 
 	m_keyboardDefaultScrollFactor = m_keyboardScrollFactor = 0.5f;
