@@ -2294,7 +2294,7 @@ void GenOnlineRoomsInterface::ReportRoomJoinFailure(const std::string& error)
 	{
 		UnicodeString message;
 		message = L"Couldn't join that room. Please try again.";
-		m_OnChatCallback(message, GameMakeColor(255, 0, 0, 255));
+		m_OnChatCallback(message, GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255)));
 	}
 }
 

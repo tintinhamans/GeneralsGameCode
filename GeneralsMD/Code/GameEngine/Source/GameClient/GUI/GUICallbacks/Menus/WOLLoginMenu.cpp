@@ -32,6 +32,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/STLTypedefs.h"
+#include "Common/GOUIColors.h"
 #include "../GenOnlineTypes.h"
 
 void GenOnline_WOLLoginMenu_LoginCallback(ELoginResult loginResult);
@@ -1836,7 +1837,7 @@ WindowMsgHandledType WOLLoginMenuSystem( GameWindow *window, UnsignedInt msg,
 							Int size = theFile->size();
 
 							char *fileBuf = new char[size];
-							Color tosColor = GameMakeColor(255, 255, 255, 255);
+							Color tosColor = GOUIColor(GOUICOLOR_TEXT, GameMakeColor(255, 255, 255, 255));
 
 							Int bytesRead = theFile->read(fileBuf, size);
 							if (bytesRead == size && size > 2)

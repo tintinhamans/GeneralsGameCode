@@ -5,6 +5,7 @@
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GenOnlineInit.h"
 #include "Common/MultiplayerSettings.h"
+#include "Common/GOUIColors.h"
 
 #include <chrono>
 #include <optional>
@@ -16,22 +17,23 @@ enum class EChatMessageType
 	CHAT_MESSAGE_TYPE_NETWORK_ROOM,
 	CHAT_MESSAGE_TYPE_LOBBY
 };
+// TheSuperHackers @feature arcticdolphin 09/11/2026 System and chat line colours come from the GO UI colour table, these colours without it.
 static Color DetermineSystemNoticeColor(bool bWarning = false, bool bError = false)
 {
 	if (bError)
 	{
-		return GameMakeColor(255, 94, 94, 255);
+		return GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 94, 94, 255));
 	}
 	if (bWarning)
 	{
-		return GameMakeColor(255, 194, 15, 255);
+		return GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255));
 	}
-	return GameMakeColor(192, 192, 192, 255);
+	return GOUIColor(GOUICOLOR_MUTED, GameMakeColor(192, 192, 192, 255));
 }
 
 static Color DetermineColorForChatMessage(EChatMessageType chatMessageType, Bool isPublic, bool bAction, bool bAdmin, bool bIsNameChange, int lobbySlot = -1)
 {
-	Color style = GameMakeColor(255, 255, 255, 255);
+	Color style = GOUIColor(GOUICOLOR_TEXT, GameMakeColor(255, 255, 255, 255));
 
 	// TODO_NGMP: Support owner chat again
 	Bool isOwner = false;
@@ -42,7 +44,7 @@ static Color DetermineColorForChatMessage(EChatMessageType chatMessageType, Bool
 	}
     else if (isPublic && bIsNameChange)
     {
-        style = GameMakeColor(127, 127, 127, 255);
+        style = GOUIColor(GOUICOLOR_DISABLED, GameMakeColor(127, 127, 127, 255));
     }
 	else if (isPublic)
 	{
@@ -51,7 +53,7 @@ static Color DetermineColorForChatMessage(EChatMessageType chatMessageType, Bool
 		{
 			if (lobbySlot == -1)
 			{
-				return GameMakeColor(255, 255, 255, 255);
+				return GOUIColor(GOUICOLOR_TEXT, GameMakeColor(255, 255, 255, 255));
 			}
 			else
 			{
@@ -76,7 +78,7 @@ static Color DetermineColorForChatMessage(EChatMessageType chatMessageType, Bool
 		{
 			if (bAdmin)
 			{
-				style = GameMakeColor(0, 162, 232, 255);
+				style = GOUIColor(GOUICOLOR_ADMIN, GameMakeColor(0, 162, 232, 255));
 			}
 			else
 			{

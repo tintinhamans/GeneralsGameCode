@@ -31,6 +31,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/GameEngine.h"
+#include "Common/GOUIColors.h"
 #include "Common/GameState.h"
 #include "Common/MultiplayerSettings.h"
 #include "Common/OptionPreferences.h"
@@ -1148,7 +1149,7 @@ static void ShowMissingLinks(const std::vector<std::pair<int64_t, int64_t>>& mis
 	{
 		UnicodeString text;
 		text.format(TheGameText->fetchOrSubstitute("GO:PlayerNotConnectedTo", L"%s is not connected to %s."), displayName(link.first).str(), displayName(link.second).str());
-		GadgetListBoxAddEntryText(listboxGameSetupChat, text, GameMakeColor(255, 194, 15, 255), -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, text, GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 	}
 }
 
@@ -1201,7 +1202,7 @@ static void OnLobbyEvent(const LobbyEvent& lobbyEvent)
 	else if (lobbyEvent.event == "countdown_cancelled")
 	{
 		TheGenOnlineGame->AbortStart();
-		GadgetListBoxAddEntryText(listboxGameSetupChat, GetReasonText(COUNTDOWN_CANCELLED_TEXTS, lobbyEvent.reason), GameMakeColor(255, 194, 15, 255), -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, GetReasonText(COUNTDOWN_CANCELLED_TEXTS, lobbyEvent.reason), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 		ShowMissingLinks(lobbyEvent.missingLinks);
 	}
 	else if (lobbyEvent.event == "host_wants_to_start")
@@ -1257,7 +1258,7 @@ static Bool RetryMissingLobbyPeerLinks()
 	}
 
 	lobby->RetryFailedLobbyPeers();
-	GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Start blocked: waiting for all player connections."), GameMakeColor(255, 194, 15, 255), -1, -1);
+	GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Start blocked: waiting for all player connections."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 	return TRUE;
 }
 
@@ -1278,7 +1279,7 @@ static Bool WOLLobbyReadyToStart(void)
 		const LobbyMemberEntry member = pLobbyInterface->GetRoomMemberFromID(blocker.userID);
 		UnicodeString text;
 		text.format(blocker.notConnected ? L"Connections: Waiting for %s to connect." : L"Connections: Waiting for %s to exchange keys.", from_utf8(member.display_name).c_str());
-		GadgetListBoxAddEntryText(listboxGameSetupChat, text, GameMakeColor(255, 194, 15, 255), -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, text, GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[START] Not starting, waiting for user %lld to %s", static_cast<long long>(blocker.userID), blocker.notConnected ? "connect" : "exchange keys");
 	}
 	return blockers.empty();
@@ -1306,7 +1307,7 @@ static void StartPressed()
 	if (pLobbyInterface->GetCurrentLobby().lobby_type == ELobbyType::CustomGame && !AreAllHumansSlottedAndConnected(pLobbyInterface))
 	{
 		pLobbyInterface->UpdateRoomDataCache();
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Start blocked: waiting for the player list."), GameMakeColor(255, 194, 15, 255), -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Start blocked: waiting for the player list."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 		return;
 	}
 
@@ -1328,7 +1329,7 @@ static void StartPressed()
 	if (pMesh->GetAllConnections().size() < numHumanPlayers - 1)
 	{
 		UnicodeString text(L"Connections: Some players are still connecting. Try again shortly:");
-		GadgetListBoxAddEntryText(listboxGameSetupChat, text, GameMakeColor(255, 194, 15, 255), -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, text, GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 
 		
 		int64_t myUserID = pAuthInterface->GetUserID();
@@ -1350,7 +1351,7 @@ static void StartPressed()
 				if (!bFoundLobbyMemberForConnection)
 				{
 					UnicodeString strDisplayName(from_utf8(lobbyMember.display_name).c_str());
-					GadgetListBoxAddEntryText(listboxGameSetupChat, strDisplayName, GameMakeColor(255, 194, 15, 255), -1, -1);
+					GadgetListBoxAddEntryText(listboxGameSetupChat, strDisplayName, GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 				}
 			}
 		}
@@ -1477,7 +1478,7 @@ static void StartPressed()
 	{
 		// start full mesh connection check
 		UnicodeString strInform = UnicodeString(L"Connections: Checking all players...");
-		GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(255, 194, 15, 255), -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 
 		std::shared_ptr<WebSocket>  pWS = GenOnlineServicesManager::GetWebSocket();
 		if (pWS != nullptr)
@@ -1677,7 +1678,7 @@ static void WOLConnectionIndicatorDraw(GameWindow *window, WinInstanceData *inst
     }
     else if (state == CONNECTION_INDICATOR_WARNING)
     {
-        const Color amber = GameMakeColor(255, 190, 0, 255);
+        const Color amber = GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 190, 0, 255));
         const Int apexY = top + (Int)(size * 0.1f);
         const Int baseY = top + (Int)(size * 0.9f);
         const Int baseLeft = left + (Int)(size * 0.05f);
@@ -2052,7 +2053,7 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 			auto* lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 			if (lobby != nullptr && lobby->GetCurrentLobby().lobby_type == ELobbyType::CustomGame)
 			{
-				GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Connection failed. Stay in the lobby and use Retry connections."), GameMakeColor(255, 0, 0, 255), -1, -1);
+				GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Connection failed. Stay in the lobby and use Retry connections."), GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255)), -1, -1);
 				return;
 			}
 
@@ -2119,8 +2120,8 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 #endif
 						strConnectionMessage.format(L"Connection: %ls is now %hs.%ls", strDisplayName.c_str(), strState.c_str(), connState == EConnectionState::CONNECTION_FAILED ? L" Use Retry connections." : L"");
 						const Color connectionColor = connState == EConnectionState::CONNECTION_FAILED
-							? GameMakeColor(255, 0, 0, 255)
-							: GameMakeColor(192, 192, 192, 255);
+							? GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255))
+							: GOUIColor(GOUICOLOR_MUTED, GameMakeColor(192, 192, 192, 255));
 						GadgetListBoxAddEntryText(listboxGameSetupChat, strConnectionMessage, connectionColor, -1, -1);
 
 #if !defined(_DEBUG)
@@ -2190,7 +2191,7 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 				TheGenOnlineGame->AbortStart();
 			}
 
-			GadgetListBoxAddEntryText(listboxGameSetupChat, GetReasonText(START_REJECTED_TEXTS, strReason), GameMakeColor(255, 194, 15, 255), -1, -1);
+			GadgetListBoxAddEntryText(listboxGameSetupChat, GetReasonText(START_REJECTED_TEXTS, strReason), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 			ShowMissingLinks(missingLinks);
 		});
 
@@ -2447,13 +2448,13 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 			{
 				UnicodeString strInform;
 				strInform.format(L"Camera height: The host set the limit to %lu.", theLobby.max_cam_height);
-				GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(192, 192, 192, 255), -1, -1);
+				GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GOUIColor(GOUICOLOR_MUTED, GameMakeColor(192, 192, 192, 255)), -1, -1);
 			}
 			else
 			{
 				UnicodeString strInform;
 				strInform.format(L"Camera height: Your limit is %lu. Use /maxcameraheight <value> to change it. Default: 310.", theLobby.max_cam_height);
-				GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(192, 192, 192, 255), -1, -1);
+				GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GOUIColor(GOUICOLOR_MUTED, GameMakeColor(192, 192, 192, 255)), -1, -1);
 			}
 
 		}
@@ -2463,7 +2464,7 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
     {
         if (pLobbyInterface->IsHost())
         {
-			GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby access: Anyone can join. Use /friendsonly to limit the lobby to friends."), GameMakeColor(192, 192, 192, 255), -1, -1);
+			GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby access: Anyone can join. Use /friendsonly to limit the lobby to friends."), GOUIColor(GOUICOLOR_MUTED, GameMakeColor(192, 192, 192, 255)), -1, -1);
         }
     }
     
@@ -2471,7 +2472,7 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 	{
 		if (!TheGenOnlineGame->getAllowObservers())
 		{
-			GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Observers: Disabled by the host."), GameMakeColor(192, 192, 192, 255), -1, -1);
+			GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Observers: Disabled by the host."), GOUIColor(GOUICOLOR_MUTED, GameMakeColor(192, 192, 192, 255)), -1, -1);
 		}
 	}
 #endif
@@ -2660,7 +2661,7 @@ static void UpdateStartPhase()
 	if (phase == EStartPhase::StartRequested ? timedOut : socketLost)
 	{
 		TheGenOnlineGame->SetStartPhase(EStartPhase::Idle);
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"The start did not go through."), GameMakeColor(255, 194, 15, 255), -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"The start did not go through."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 	}
 }
 
@@ -2793,13 +2794,13 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 
 							NetworkLog(ELogVerbosity::LOG_RELEASE, "Host left and server migrated the host to us...");
 
-							GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Host: The previous host left. You are now the host."), GameMakeColor(192, 192, 192, 255), -1, -1);
+							GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Host: The previous host left. You are now the host."), GOUIColor(GOUICOLOR_MUTED, GameMakeColor(192, 192, 192, 255)), -1, -1);
 
 							// NOTE: don't need to mark ourselves ready, the service did it for us upon migration
 						}
 						else
 						{
-							GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Host: The previous host left. A new host was selected."), GameMakeColor(192, 192, 192, 255), -1, -1);
+							GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Host: The previous host left. A new host was selected."), GOUIColor(GOUICOLOR_MUTED, GameMakeColor(192, 192, 192, 255)), -1, -1);
 						}
 
 						GameWindow* buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
@@ -3853,7 +3854,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 #if defined(GENONLINE)
 	else if (token == "help" || token == "commands")
 	{
-		const Color helpColor = GameMakeColor(127, 127, 127, 255);
+		const Color helpColor = GOUIColor(GOUICOLOR_HELP, GameMakeColor(127, 127, 127, 255));
 		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/me <message> - Send an emote."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/friendsonly - Let only friends join (host only)."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/public - Let anyone join (host only)."), helpColor, -1, -1);
@@ -3897,7 +3898,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 				{
 					if (pLobbyInterface->IsHost()) // NOTE: this is checked service side too, but we might as well not make the call to reduce resource usage
 					{
-						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby access: Friends only. Use /public to let anyone join."), GameMakeColor(0, 255, 0, 255), -1, -1);
+						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby access: Friends only. Use /public to let anyone join."), GOUIColor(GOUICOLOR_SUCCESS, GameMakeColor(0, 255, 0, 255)), -1, -1);
 						pLobbyInterface->SetJoinability(ELobbyJoinability::LobbyJoinability_FriendsOnly);
 					}
 				}
@@ -3918,7 +3919,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
                 {
 					if (pLobbyInterface->IsHost()) // NOTE: this is checked service side too, but we might as well not make the call to reduce resource usage
                     {
-						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby access: Anyone can join. Use /friendsonly to limit the lobby to friends."), GameMakeColor(0, 255, 0, 255), -1, -1);
+						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby access: Anyone can join. Use /friendsonly to limit the lobby to friends."), GOUIColor(GOUICOLOR_SUCCESS, GameMakeColor(0, 255, 0, 255)), -1, -1);
 						pLobbyInterface->SetJoinability(ELobbyJoinability::LobbyJoinability_Public);
                     }
                 }
@@ -3964,7 +3965,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 							{
 								UnicodeString msg;
 								msg.format(L"Camera height: Enter a value from %d to %d.", GENONLINE_MIN_LOBBY_CAMERA_ZOOM, GENONLINE_MAX_LOBBY_CAMERA_ZOOM);
-								GadgetListBoxAddEntryText(listboxGameSetupChat, msg, GameMakeColor(255, 0, 0, 255), -1, -1);
+								GadgetListBoxAddEntryText(listboxGameSetupChat, msg, GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255)), -1, -1);
 								return TRUE; // was a slash command
 							}
 							else
@@ -3978,14 +3979,14 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 						}
 						else
 						{
-							GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Camera height: Enter a number."), GameMakeColor(255, 0, 0, 255), -1, -1);
+							GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Camera height: Enter a number."), GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255)), -1, -1);
 							return TRUE; // was a slash command
 						}
 						
 					}
 					else
 					{
-						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Camera height: Only the host can change it."), GameMakeColor(255, 0, 0, 255), -1, -1);
+						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Camera height: Only the host can change it."), GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255)), -1, -1);
 						return TRUE; // was a slash command
 					}
 				}
@@ -4017,7 +4018,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[ADV NET STATS] Connection to user %lld: %s", kvPair.first, conn.GetStats().c_str());
 		}
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[ADV NET STATS] Advanced networking stats dumped");
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Network debug: Statistics were written to the log file."), GameMakeColor(192, 192, 192, 255), -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Network debug: Statistics were written to the log file."), GOUIColor(GOUICOLOR_MUTED, GameMakeColor(192, 192, 192, 255)), -1, -1);
 
 		return TRUE;
 	}
@@ -4038,7 +4039,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 				{
 					UnicodeString errorMsg;
 					errorMsg.format(L"Lobby password: Use 1 to %d characters.", GENONLINE_LOBBY_MAX_PASSWORD_LENGTH);
-					GadgetListBoxAddEntryText(listboxGameSetupChat, errorMsg, GameMakeColor(255, 0, 0, 255), -1, -1);
+					GadgetListBoxAddEntryText(listboxGameSetupChat, errorMsg, GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255)), -1, -1);
 				}
 				else
 				{
@@ -4047,13 +4048,13 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 					{
 						pWS->SendData_ChangeLobbyPassword(newPassword);
 
-						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: Updated. Use /removepassword to remove it."), GameMakeColor(0, 255, 0, 255), -1, -1);
+						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: Updated. Use /removepassword to remove it."), GOUIColor(GOUICOLOR_SUCCESS, GameMakeColor(0, 255, 0, 255)), -1, -1);
 					}
 				}
 			}
 			else
 			{
-				GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: Only the host can change it."), GameMakeColor(255, 0, 0, 255), -1, -1);
+				GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: Only the host can change it."), GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255)), -1, -1);
 			}
 		}
 
@@ -4077,17 +4078,17 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 					{
 						pWS->SendData_RemoveLobbyPassword();
 
-						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: Removed. Use /setpassword <password> to add one."), GameMakeColor(0, 255, 0, 255), -1, -1);
+						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: Removed. Use /setpassword <password> to add one."), GOUIColor(GOUICOLOR_SUCCESS, GameMakeColor(0, 255, 0, 255)), -1, -1);
 					}
 				}
 				else
 				{
-					GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: No password is set. Use /setpassword <password> to add one."), GameMakeColor(192, 192, 192, 255), -1, -1);
+					GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: No password is set. Use /setpassword <password> to add one."), GOUIColor(GOUICOLOR_MUTED, GameMakeColor(192, 192, 192, 255)), -1, -1);
 				}
 			}
 			else
 			{
-				GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: Only the host can change it."), GameMakeColor(255, 0, 0, 255), -1, -1);
+				GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: Only the host can change it."), GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255)), -1, -1);
 			}
 		}
 
