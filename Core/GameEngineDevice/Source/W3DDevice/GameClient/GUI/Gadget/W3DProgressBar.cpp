@@ -50,6 +50,7 @@
 #include "GameClient/GameWindowGlobal.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GadgetProgressBar.h"
+#include "GameClient/LoadScreen.h"
 #include "W3DDevice/GameClient/W3DGadget.h"
 #include "W3DDevice/GameClient/W3DDisplay.h"
 
@@ -313,6 +314,32 @@ void W3DGadgetProgressBarImageDraw( GameWindow *window, WinInstanceData *instDat
 		barRightWidth = 1;
 
 	pieces = barWindowSize.x / barCenterWidth;
+
+	// TheSuperHackers @feature arcticdolphin 09/11/2026 A bar in the GO bar art carries the radar van; driving inside the bar it rides the track ahead of the fill, so the fill stops at its rear.
+	const Int fillEnd = origin.x + 10 + barCenterWidth * pieces;
+	const Bool goVan = isGoLoadBarImage( barCenter );
+	IRegion2D vanFill;
+	vanFill.lo.x = origin.x + 10;
+	vanFill.lo.y = origin.y + yOffset + 5;
+	vanFill.hi.x = origin.x + size.x - 10;
+	vanFill.hi.y = vanFill.lo.y + size.y - 10;
+	IRegion2D vanRoad = vanFill;
+	if( isGoLoadBarImage( backLeft ) )
+	{
+		vanRoad.lo.x = origin.x + xOffset;
+		vanRoad.lo.y = origin.y + yOffset;
+		vanRoad.hi.x = vanRoad.lo.x + size.x;
+		vanRoad.hi.y = vanRoad.lo.y + size.y;
+	}
+	if( goVan )
+	{
+		const Int fillStop = goLoadBarVanFillEnd( window, vanRoad, vanFill, fillEnd );
+		if( fillStop < fillEnd )
+		{
+			pieces = ( fillStop - vanFill.lo.x ) / barCenterWidth;
+		}
+	}
+
  	// draw the pieces
 	start.x = origin.x +10;
 	start.y = origin.y + yOffset +5;
@@ -339,6 +366,12 @@ void W3DGadgetProgressBarImageDraw( GameWindow *window, WinInstanceData *instDat
 																		end.x, end.y );
 		start.x += barRightWidth;
 
+	}
+
+	// TheSuperHackers @feature arcticdolphin 09/11/2026 The van over the fill and track; no in-match bar uses the GO bar art.
+	if( goVan )
+	{
+		drawGoLoadBarVan( window, progress, vanRoad, vanFill, fillEnd );
 	}
 
 }

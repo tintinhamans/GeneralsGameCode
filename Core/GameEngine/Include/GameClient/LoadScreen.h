@@ -47,6 +47,12 @@ class WindowVideoManager;
 class DisplayString;
 class Image;
 
+// TheSuperHackers @feature arcticdolphin 09/11/2026 True when an image comes from the GO bar art, which the Retail style leaves out.
+Bool isGoLoadBarImage(const Image *image);
+// TheSuperHackers @feature arcticdolphin 09/11/2026 Draws the GO radar van at fillEnd: on the road's top edge when there is room, else on the track ahead of the fill.
+void drawGoLoadBarVan(GameWindow *window, Int progress, const IRegion2D &road, const IRegion2D &fill, Int fillEnd);
+// TheSuperHackers @feature arcticdolphin 09/11/2026 Where the fill should end so it stops at the rear of a van driving inside the bar; fillEnd otherwise.
+Int goLoadBarVanFillEnd(GameWindow *window, const IRegion2D &road, const IRegion2D &fill, Int fillEnd);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

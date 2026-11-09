@@ -141,6 +141,380 @@ static const Image *findGoLoadBarImage()
 	return image;
 }
 
+// TheSuperHackers @feature arcticdolphin 09/11/2026 True for an image of the GO bar art, which the Retail style leaves out.
+Bool isGoLoadBarImage(const Image *image)
+{
+	return image != nullptr && image->getFilename().compareNoCase("GeneralsOnline_LoadingBar.tga") == 0;
+}
+
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The radar van rules in texels of its 256x156 canvas and milliseconds; scripts/go_ui_kit.py VAN_CONSTANTS mirrors them.
+static const Int GO_VAN_FRAME_WIDTH = 256;
+static const Int GO_VAN_FRAME_HEIGHT = 156;
+static const Int GO_VAN_OUTLINE_TOP = 5;
+static const Int GO_VAN_OUTLINE_BOTTOM = 152;
+static const Int GO_VAN_OUTLINE_LEFT = 14;
+static const Int GO_VAN_OUTLINE_RIGHT = 247;
+static const Int GO_VAN_TYRE_BOTTOM = 145;
+static const Int GO_VAN_REAR_TYRE = 46;
+static const Int GO_VAN_BUMPER = 240;
+static const Int GO_VAN_MIN_HEIGHT = 20;
+static const Int GO_VAN_WHEEL_FRAMES = 4;
+static const UnsignedInt GO_VAN_FRAME_MS = 83;
+static const UnsignedInt GO_VAN_STALL_MS = 500;
+static const UnsignedInt GO_VAN_SETTLE_MS = 300;
+static const UnsignedInt GO_VAN_FORGET_MS = 1000;
+static const Int GO_VAN_BARS = 16;
+static const Int GO_VAN_BOB = 2;
+static const UnsignedInt GO_VAN_DISH_LAG_MS = 90;
+static const Int GO_VAN_PUFFS = 12;
+static const Int GO_VAN_PUFF_SPAWN_X = 44;
+static const Int GO_VAN_PUFF_SPAWN_Y = 138;
+static const Int GO_VAN_PUFF_JITTER = 4;
+static const Int GO_VAN_PUFF_DRIFT_X = 24;
+static const Int GO_VAN_PUFF_DRIFT_Y = 40;
+static const Int GO_VAN_PUFF_START = 16;
+static const Int GO_VAN_PUFF_END = 40;
+static const UnsignedInt GO_VAN_PUFF_LIFE_MS = 500;
+static const UnsignedInt GO_VAN_PUFF_LIFE_SPREAD_MS = 300;
+static const UnsignedInt GO_VAN_PUFF_GAP_MS = 40;
+static const Int GO_VAN_PUFF_TRAVEL = 50;
+static const Int GO_VAN_PUFF_CREDIT = 3;
+static const Int GO_VAN_PUFF_ALPHA = 255;
+static const Real GO_VAN_BOB_HZ_A = 3.3f;
+static const Real GO_VAN_BOB_HZ_B = 5.1f;
+static const Real GO_VAN_BOB_PHASE_B = 1.3f;
+static const Real GO_VAN_BOB_WEIGHT_A = 0.6f;
+static const Int GO_VAN_SPAN = GO_VAN_OUTLINE_BOTTOM - GO_VAN_OUTLINE_TOP;
+
+struct GoVanPuff
+{
+	UnsignedInt born;
+	UnsignedInt life;
+	Int x;
+	Int y;
+	Int height;
+};
+
+struct GoVanState
+{
+	GameWindow *window;
+	Int progress;
+	Int fillEnd;
+	UnsignedInt changedAt;
+	UnsignedInt drawnAt;
+	UnsignedInt spawnedAt;
+	Int frame;
+	Real credit;
+	Int nextPuff;
+	GoVanPuff puffs[GO_VAN_PUFFS];
+};
+
+// TheSuperHackers @feature arcticdolphin 09/11/2026 One fixed slot per bar on screen, so the van never allocates while it draws.
+static GoVanState s_goVans[GO_VAN_BARS];
+
+static Int goVanScale(Int value, Int height)
+{
+	return (value * height + GO_VAN_SPAN / 2) / GO_VAN_SPAN;
+}
+
+static UnsignedInt goVanHash(UnsignedInt value)
+{
+	return value * 2654435761u;
+}
+
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The suspension rhythm in -1..1: two sines at unrelated rates, so the bounce never repeats a beat.
+static Real goVanWave(UnsignedInt now)
+{
+	const double t = now / 1000.0;
+	const double a = GO_VAN_BOB_WEIGHT_A * sin(TWO_PI * GO_VAN_BOB_HZ_A * t);
+	const double b = (1.0 - GO_VAN_BOB_WEIGHT_A) * sin(TWO_PI * GO_VAN_BOB_HZ_B * t + GO_VAN_BOB_PHASE_B);
+	return (Real)(a + b);
+}
+
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The bar's slot; a bar not drawn for a while takes the stalest slot and starts parked.
+static GoVanState *findGoVanState(GameWindow *window, Int progress, Int fillEnd, UnsignedInt now)
+{
+	GoVanState *oldest = &s_goVans[0];
+	for (Int i = 0; i < GO_VAN_BARS; ++i)
+	{
+		GoVanState *state = &s_goVans[i];
+		if (state->window == window && now - state->drawnAt < GO_VAN_FORGET_MS)
+		{
+			return state;
+		}
+		if (now - state->drawnAt > now - oldest->drawnAt)
+		{
+			oldest = state;
+		}
+	}
+	memset(oldest, 0, sizeof(*oldest));
+	oldest->window = window;
+	oldest->progress = progress;
+	oldest->fillEnd = fillEnd;
+	oldest->changedAt = now - GO_VAN_STALL_MS - GO_VAN_SETTLE_MS;
+	oldest->spawnedAt = now;
+	return oldest;
+}
+
+// TheSuperHackers @feature arcticdolphin 09/11/2026 True when a shown window that draws, other than the bar and the windows holding it, meets the strip.
+static Bool goVanWindowBlocks(GameWindow *parent, GameWindow *bar, const IRegion2D &barRect, const IRegion2D &strip)
+{
+	for (GameWindow *child = parent->winGetChild(); child != nullptr; child = child->winGetNext())
+	{
+		if (child == bar || child->winIsHidden())
+		{
+			continue;
+		}
+		IRegion2D rect;
+		child->winGetScreenPosition(&rect.lo.x, &rect.lo.y);
+		child->winGetSize(&rect.hi.x, &rect.hi.y);
+		rect.hi.x += rect.lo.x;
+		rect.hi.y += rect.lo.y;
+		const Bool holdsBar = rect.lo.x <= barRect.lo.x && rect.lo.y <= barRect.lo.y && rect.hi.x >= barRect.hi.x && rect.hi.y >= barRect.hi.y;
+		const Bool meets = rect.lo.x < strip.hi.x && strip.lo.x < rect.hi.x && rect.lo.y < strip.hi.y && strip.lo.y < rect.hi.y;
+		if (!BitIsSet(child->winGetStatus(), WIN_STATUS_SEE_THRU) && !holdsBar && meets)
+		{
+			return TRUE;
+		}
+		if (goVanWindowBlocks(child, bar, barRect, strip))
+		{
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+// TheSuperHackers @feature arcticdolphin 09/11/2026 True when the van fits the strip over the bar: inside the bar's top window and over no other window.
+static Bool goVanStripIsClear(GameWindow *bar, const IRegion2D &strip)
+{
+	GameWindow *root = bar;
+	while (root->winGetParent() != nullptr)
+	{
+		root = root->winGetParent();
+	}
+	IRegion2D top;
+	root->winGetScreenPosition(&top.lo.x, &top.lo.y);
+	root->winGetSize(&top.hi.x, &top.hi.y);
+	top.hi.x += top.lo.x;
+	top.hi.y += top.lo.y;
+	if (strip.lo.x < top.lo.x || strip.lo.y < top.lo.y || strip.hi.x > top.hi.x || strip.hi.y > top.hi.y)
+	{
+		return FALSE;
+	}
+	IRegion2D barRect;
+	bar->winGetScreenPosition(&barRect.lo.x, &barRect.lo.y);
+	bar->winGetSize(&barRect.hi.x, &barRect.hi.y);
+	barRect.hi.x += barRect.lo.x;
+	barRect.hi.y += barRect.lo.y;
+	return !goVanWindowBlocks(root, bar, barRect, strip);
+}
+
+struct GoVanPlace
+{
+	Bool placed;
+	Bool inside;
+	Int height;
+	Int x0;
+	Int y0;
+};
+
+// TheSuperHackers @feature arcticdolphin 09/11/2026 Where the van goes: on the road's top edge at the fill end when there is room, else on the track ahead of the fill.
+static GoVanPlace placeGoVan(GameWindow *window, const IRegion2D &road, const IRegion2D &fill, Int fillEnd)
+{
+	GoVanPlace place;
+	place.placed = TheMappedImageCollection->findImageByName("GOVanBody") != nullptr && TheMappedImageCollection->findImageByName("GOVanDish") != nullptr;
+	place.inside = FALSE;
+
+	// above the road: about 1.8 times its height, tyres on its top edge, when nothing else is drawn there
+	Int height = (road.hi.y - road.lo.y) * 9 / 5;
+	if (height < GO_VAN_MIN_HEIGHT)
+	{
+		height = GO_VAN_MIN_HEIGHT;
+	}
+	Int left = road.lo.x;
+	Int right = road.hi.x;
+	Int tyre = road.lo.y;
+	IRegion2D strip;
+	strip.lo.x = left + goVanScale(GO_VAN_BUMPER - GO_VAN_REAR_TYRE, height) - goVanScale(GO_VAN_BUMPER, height);
+	strip.lo.y = tyre - goVanScale(GO_VAN_TYRE_BOTTOM - GO_VAN_OUTLINE_TOP + GO_VAN_BOB, height);
+	strip.hi.x = right;
+	strip.hi.y = tyre;
+	Int x0;
+	if (goVanStripIsClear(window, strip))
+	{
+		// the front bumper at the fill end, but the rear tyre no further left than the road's start
+		Int bumper = left + goVanScale(GO_VAN_BUMPER - GO_VAN_REAR_TYRE, height);
+		if (fillEnd > bumper)
+		{
+			bumper = fillEnd;
+		}
+		if (bumper > right - goVanScale(GO_VAN_OUTLINE_RIGHT - GO_VAN_BUMPER, height))
+		{
+			bumper = right - goVanScale(GO_VAN_OUTLINE_RIGHT - GO_VAN_BUMPER, height);
+		}
+		x0 = bumper - goVanScale(GO_VAN_BUMPER, height);
+	}
+	else
+	{
+		// no room: on the dark track ahead of the fill at its height, rear at the fill end, or no van under the minimum height
+		place.inside = TRUE;
+		height = fill.hi.y - fill.lo.y;
+		if (height < GO_VAN_MIN_HEIGHT)
+		{
+			place.placed = FALSE;
+		}
+		right = fill.hi.x;
+		tyre = fill.lo.y + goVanScale(GO_VAN_TYRE_BOTTOM - GO_VAN_OUTLINE_TOP, height);
+		x0 = fillEnd - goVanScale(GO_VAN_OUTLINE_LEFT, height);
+		if (x0 > right - goVanScale(GO_VAN_OUTLINE_RIGHT, height))
+		{
+			x0 = right - goVanScale(GO_VAN_OUTLINE_RIGHT, height);
+		}
+	}
+	place.height = height;
+	place.x0 = x0;
+	place.y0 = tyre - goVanScale(GO_VAN_TYRE_BOTTOM, height);
+	return place;
+}
+
+// TheSuperHackers @feature arcticdolphin 09/11/2026 Where a GO bar art fill should end: at the rear of a van driving inside the bar, so the fill never runs under it.
+Int goLoadBarVanFillEnd(GameWindow *window, const IRegion2D &road, const IRegion2D &fill, Int fillEnd)
+{
+	if (window == nullptr)
+	{
+		return fillEnd;
+	}
+	const GoVanPlace place = placeGoVan(window, road, fill, fillEnd);
+	if (!place.placed || !place.inside)
+	{
+		return fillEnd;
+	}
+	const Int rear = place.x0 + goVanScale(GO_VAN_OUTLINE_LEFT, place.height);
+	return rear < fillEnd ? rear : fillEnd;
+}
+
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The GO radar van at the leading edge of a GO bar art fill: wheels, puffs and bob run while progress moves and settle when it stalls.
+void drawGoLoadBarVan(GameWindow *window, Int progress, const IRegion2D &road, const IRegion2D &fill, Int fillEnd)
+{
+	const Image *body = TheMappedImageCollection->findImageByName("GOVanBody");
+	const Image *dish = TheMappedImageCollection->findImageByName("GOVanDish");
+	const Image *puffImage = TheMappedImageCollection->findImageByName("GOVanPuff");
+	if (window == nullptr || body == nullptr || dish == nullptr)
+	{
+		return;
+	}
+
+	const GoVanPlace place = placeGoVan(window, road, fill, fillEnd);
+	const Bool placed = place.placed;
+	const Int height = place.height;
+	const Int x0 = place.x0;
+	const Int y0 = place.y0;
+	const Int frameWidth = goVanScale(GO_VAN_FRAME_WIDTH, height);
+	const Int frameHeight = goVanScale(GO_VAN_FRAME_HEIGHT, height);
+
+	// the clock: moving until progress stood still GO_VAN_STALL_MS, then the wiggle fades out
+	const UnsignedInt now = timeGetTime();
+	GoVanState *state = findGoVanState(window, progress, fillEnd, now);
+	state->drawnAt = now;
+	if (progress != state->progress)
+	{
+		state->progress = progress;
+		state->changedAt = now;
+	}
+	const UnsignedInt still = now - state->changedAt;
+	const Bool moving = still < GO_VAN_STALL_MS;
+	Real envelope = 1.0f;
+	if (moving)
+	{
+		state->frame = (Int)((now / GO_VAN_FRAME_MS) % GO_VAN_WHEEL_FRAMES);
+	}
+	else
+	{
+		envelope = 1.0f - (Real)(still - GO_VAN_STALL_MS) / GO_VAN_SETTLE_MS;
+		if (envelope < 0.0f)
+		{
+			envelope = 0.0f;
+		}
+	}
+
+	// a puff behind the rear wheel per stretch of travel, a few at most at once, none while parked
+	const Int travel = fillEnd > state->fillEnd ? fillEnd - state->fillEnd : 0;
+	state->fillEnd = fillEnd;
+	if (!moving || !placed)
+	{
+		state->credit = 0.0f;
+	}
+	else
+	{
+		Int stretch = goVanScale(GO_VAN_PUFF_TRAVEL, height);
+		if (stretch < 1)
+		{
+			stretch = 1;
+		}
+		state->credit += (Real)travel / stretch;
+		if (state->credit > GO_VAN_PUFF_CREDIT)
+		{
+			state->credit = (Real)GO_VAN_PUFF_CREDIT;
+		}
+		if (state->credit >= 1.0f && now - state->spawnedAt >= GO_VAN_PUFF_GAP_MS)
+		{
+			state->credit -= 1.0f;
+			state->spawnedAt = now;
+			const UnsignedInt hash = goVanHash(now + state->nextPuff);
+			const Int spread = 2 * GO_VAN_PUFF_JITTER + 1;
+			GoVanPuff &puff = state->puffs[state->nextPuff];
+			puff.born = now;
+			puff.life = GO_VAN_PUFF_LIFE_MS + (hash >> 24) % GO_VAN_PUFF_LIFE_SPREAD_MS;
+			puff.x = x0 + goVanScale(GO_VAN_PUFF_SPAWN_X + (Int)((hash >> 8) % spread) - GO_VAN_PUFF_JITTER, height);
+			puff.y = y0 + goVanScale(GO_VAN_PUFF_SPAWN_Y + (Int)((hash >> 16) % spread) - GO_VAN_PUFF_JITTER, height);
+			puff.height = height;
+			state->nextPuff = (state->nextPuff + 1) % GO_VAN_PUFFS;
+		}
+	}
+
+	// the puffs under everything: they drift back and up, grow and fade over their life
+	if (puffImage != nullptr && puffImage->getImageWidth() > 0)
+	{
+		const Real aspect = (Real)puffImage->getImageHeight() / puffImage->getImageWidth();
+		for (Int p = 0; p < GO_VAN_PUFFS; ++p)
+		{
+			const GoVanPuff &puff = state->puffs[p];
+			if (puff.life == 0 || now - puff.born >= puff.life)
+			{
+				continue;
+			}
+			const Real t = (Real)(now - puff.born) / puff.life;
+			const Int start = goVanScale(GO_VAN_PUFF_START, puff.height);
+			const Real size = start + (goVanScale(GO_VAN_PUFF_END, puff.height) - start) * t;
+			const Int cx = (Int)(puff.x - goVanScale(GO_VAN_PUFF_DRIFT_X, puff.height) * t);
+			const Int cy = (Int)(puff.y - goVanScale(GO_VAN_PUFF_DRIFT_Y, puff.height) * t);
+			const Int w = (Int)size;
+			const Int h = (Int)(size * aspect);
+			const Int alpha = (Int)(GO_VAN_PUFF_ALPHA * (1.0f - t));
+			TheDisplay->drawImage(puffImage, cx - w / 2, cy - h / 2, cx - w / 2 + w, cy - h / 2 + h, GameMakeColor(255, 255, 255, alpha));
+		}
+	}
+	if (!placed)
+	{
+		return;
+	}
+
+	AsciiString wheelName;
+	wheelName.format("GOVanWheels%d", state->frame);
+	const Image *wheels = TheMappedImageCollection->findImageByName(wheelName);
+	if (wheels == nullptr)
+	{
+		return;
+	}
+
+	// the body bobs on its suspension and the dish follows a beat later, a pixel sideways; the wheels stay on the road
+	const Int bob = REAL_TO_INT_FLOOR(GO_VAN_BOB * height / (Real)GO_VAN_SPAN * envelope * goVanWave(now) + 0.5f);
+	const Int sway = REAL_TO_INT_FLOOR(envelope * goVanWave(now - GO_VAN_DISH_LAG_MS) + 0.5f);
+	TheDisplay->drawImage(body, x0, y0 + bob, x0 + frameWidth, y0 + bob + frameHeight);
+	TheDisplay->drawImage(dish, x0 + sway, y0 + bob, x0 + sway + frameWidth, y0 + bob + frameHeight);
+	TheDisplay->drawImage(wheels, x0, y0, x0 + frameWidth, y0 + frameHeight);
+}
+
 // TheSuperHackers @tweak arcticdolphin 09/11/2026 The GO shell load bar: the kit frame, then one stretched bronze fill a line inside it on every side.
 static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )
 {
@@ -181,6 +555,22 @@ static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )
 	if (drawWidth > 0)
 	{
 		TheDisplay->drawImage(fill, x + inset, y + inset, x + inset + drawWidth, y + inset + fillHeight);
+	}
+
+	// TheSuperHackers @feature arcticdolphin 09/11/2026 The radar van drives on the frame at the end of the fill.
+	if (isGoLoadBarImage(fill))
+	{
+		IRegion2D road;
+		road.lo.x = x;
+		road.lo.y = y;
+		road.hi.x = x + width;
+		road.hi.y = y + height;
+		IRegion2D fillArea;
+		fillArea.lo.x = x + inset;
+		fillArea.lo.y = y + inset;
+		fillArea.hi.x = x + inset + fillWidth;
+		fillArea.hi.y = y + inset + fillHeight;
+		drawGoLoadBarVan(window, progress, road, fillArea, x + inset + drawWidth);
 	}
 }
 

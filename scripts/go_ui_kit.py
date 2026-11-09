@@ -18,6 +18,10 @@ A third atlas redraws the retail load screen progress bar (LoadingBar_*) as a ki
 a launcher bronze fill, with a theme copy in the palette's line and field; the Retail interface style leaves its files out
 and keeps the retail bar.
 
+A fourth atlas holds the radar van that drives on the GO bar art (LoadScreen.cpp drawGoLoadBarVan), from the logo
+session's layered art in scripts/art/van-side: the body, the dish, four wheel frames and a dust puff. Both palettes share
+it; the Retail style leaves it out.
+
 Usage:
     python scripts/go_ui_kit.py          write the atlases, the theme atlases and the INIs into GenOnline/GameData
     python scripts/go_ui_kit.py --check  exit 1 when the committed files differ from a fresh run
@@ -853,6 +857,274 @@ def shell_load_bar_layout(x, y, width, height, screen_height, percent):
 # ============================== end of the load screen bar section ==============================
 
 
+# =================================================================================================
+# Load bar van: the GO radar van in side view drives at the leading edge of every bar in the GO bar art, wheels turning
+# while progress moves, dust puffs behind the rear wheel and the body bobbing on its suspension. Every image is drawn on
+# the same 256x156 canvas, so every layer shares one origin; Coords are texels. LoadScreen.cpp drawGoLoadBarVan draws it
+# (called from W3DGadgetProgressBarImageDraw and drawGoShellLoadBar); the van_* functions below mirror its rules.
+# =================================================================================================
+
+VAN_SOURCES = Path(__file__).resolve().parent / "art" / "van-side"
+# the layers, drawn body, dish, wheels on one canvas, and the puff; the full van frames are the reference they stack to
+VAN_LAYER_FILES = {"body": "van-layer-body-nodish.png", "dish": "van-layer-dish.png",
+                   "wheels": "van-layer-wheels-frames.png", "puff": "van-dust-puff.png"}
+VAN_FRAMES_PNG = VAN_SOURCES / "van-side-frames-256.png"  # four full frames, wheels at 0/22.5/45/67.5 degrees
+VAN_TEXTURE_NAME = "GeneralsOnline_Van.tga"
+VAN_TEXTURE_PATH = DATA / "Art" / "Textures" / VAN_TEXTURE_NAME
+VAN_INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_Van.INI"
+VAN_GAP = 2  # clear texels between images
+VAN_WHEEL_FRAMES = 4
+
+# the draw rules, by their LoadScreen.cpp names; art values are canvas texels, times milliseconds
+VAN_CONSTANTS = {
+    "GO_VAN_FRAME_WIDTH": 256, "GO_VAN_FRAME_HEIGHT": 156,
+    "GO_VAN_OUTLINE_TOP": 5, "GO_VAN_OUTLINE_BOTTOM": 152, "GO_VAN_OUTLINE_LEFT": 14, "GO_VAN_OUTLINE_RIGHT": 247,
+    "GO_VAN_TYRE_BOTTOM": 145, "GO_VAN_REAR_TYRE": 46, "GO_VAN_BUMPER": 240,
+    "GO_VAN_MIN_HEIGHT": 20, "GO_VAN_WHEEL_FRAMES": VAN_WHEEL_FRAMES, "GO_VAN_FRAME_MS": 83, "GO_VAN_STALL_MS": 500,
+    "GO_VAN_SETTLE_MS": 300, "GO_VAN_FORGET_MS": 1000, "GO_VAN_BARS": 16, "GO_VAN_BOB": 2, "GO_VAN_DISH_LAG_MS": 90,
+    "GO_VAN_PUFFS": 12, "GO_VAN_PUFF_SPAWN_X": 44, "GO_VAN_PUFF_SPAWN_Y": 138, "GO_VAN_PUFF_JITTER": 4,
+    "GO_VAN_PUFF_DRIFT_X": 24, "GO_VAN_PUFF_DRIFT_Y": 40, "GO_VAN_PUFF_START": 16, "GO_VAN_PUFF_END": 40,
+    "GO_VAN_PUFF_LIFE_MS": 500, "GO_VAN_PUFF_LIFE_SPREAD_MS": 300, "GO_VAN_PUFF_GAP_MS": 40, "GO_VAN_PUFF_TRAVEL": 50,
+    "GO_VAN_PUFF_CREDIT": 3, "GO_VAN_PUFF_ALPHA": 255,
+}
+VAN_REAL_CONSTANTS = {"GO_VAN_BOB_HZ_A": 3.3, "GO_VAN_BOB_HZ_B": 5.1, "GO_VAN_BOB_PHASE_B": 1.3, "GO_VAN_BOB_WEIGHT_A": 0.6}
+VAN = VAN_CONSTANTS
+VAN_SPAN = VAN["GO_VAN_OUTLINE_BOTTOM"] - VAN["GO_VAN_OUTLINE_TOP"]  # the van height covers the outline rows
+
+
+def van_strip_frames(path, frames=VAN_WHEEL_FRAMES):
+    """Split a strip of frames side by side into frames of (width, height, rows of byte tuples)."""
+    width, height, rows = go_themes.read_png(path.read_bytes())
+    cell = width // frames
+    if cell * frames != width:
+        raise SystemExit(f"{path.name} is not {frames} frames wide")
+    return [(cell, height, [row[k * cell:(k + 1) * cell] for row in rows]) for k in range(frames)]
+
+
+def van_images(sources=VAN_SOURCES):
+    """The van images as (name, width, height, rows of (r, g, b, a) bytes): body, dish and wheel frames on the 256x156
+    canvas, and the puff."""
+    body = go_themes.read_png((sources / VAN_LAYER_FILES["body"]).read_bytes())
+    dish = go_themes.read_png((sources / VAN_LAYER_FILES["dish"]).read_bytes())
+    puff = go_themes.read_png((sources / VAN_LAYER_FILES["puff"]).read_bytes())
+    wheels = van_strip_frames(sources / VAN_LAYER_FILES["wheels"])
+    out = [("GOVanBody",) + body, ("GOVanDish",) + dish]
+    out += [(f"GOVanWheels{k}",) + frame for k, frame in enumerate(wheels)]
+    return out + [("GOVanPuff",) + puff]
+
+
+def van_dilate(width, height, rows):
+    """Give every clear texel the colour of its nearest drawn one, alpha kept, so filtering never pulls in the white the
+    art stores under its clear texels."""
+    out = [list(row) for row in rows]
+    frontier = [(x, y) for y in range(height) for x in range(width) if rows[y][x][3]]
+    seen = {p for p in frontier}
+    while frontier:
+        grown = []
+        for x, y in frontier:
+            for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+                if 0 <= nx < width and 0 <= ny < height and (nx, ny) not in seen:
+                    seen.add((nx, ny))
+                    out[ny][nx] = out[y][x][:3] + (0,)
+                    grown.append((nx, ny))
+        frontier = grown
+    if not seen:
+        out = [[(0, 0, 0, 0)] * width for _ in range(height)]
+    return out
+
+
+def van_pack(images):
+    """Shelf-pack the images with VAN_GAP clear texels between them into the smallest power-of-two texture; returns
+    ({name: (left, top)}, (width, height))."""
+    best = None
+    for width in (256, 512, 1024, 2048):
+        placements, x, y, shelf = {}, 0, 0, 0
+        for name, w, h, _ in sorted(images, key=lambda it: (-it[2], -it[1], it[0])):
+            if w > width:
+                break
+            if x + w > width:
+                x, y, shelf = 0, y + shelf + VAN_GAP, 0
+            placements[name] = (x, y)
+            x += w + VAN_GAP
+            shelf = max(shelf, h)
+        else:
+            height = 1
+            while height < y + shelf:
+                height *= 2
+            if best is None or width * height < best[1][0] * best[1][1]:
+                best = (placements, (width, height))
+    return best
+
+
+def build_van(sources=VAN_SOURCES):
+    """Return the van texture TGA, its INI text and the placements {name: (left, top, width, height)}."""
+    images = van_images(sources)
+    placements, (width, height) = van_pack(images)
+    atlas = [[TRANSPARENT] * width for _ in range(height)]
+    rects = {}
+    for name, w, h, rows in images:
+        left, top = placements[name]
+        rects[name] = (left, top, w, h)
+        for y, row in enumerate(van_dilate(w, h, rows)):
+            atlas[top + y][left:left + w] = [tuple(c / 255.0 for c in t) for t in row]
+    lines = [
+        f"; Generals Online load bar van: points the van images at {VAN_TEXTURE_NAME}.",
+        "; Generated by scripts/go_ui_kit.py from scripts/art/van-side; edit the script, not this file. Coords are texels.",
+        "",
+    ]
+    for name in sorted(rects, key=str.lower):
+        left, top, w, h = rects[name]
+        lines += [
+            f"MappedImage {name}",
+            f"  Texture = {VAN_TEXTURE_NAME}",
+            f"  TextureWidth = {width}",
+            f"  TextureHeight = {height}",
+            f"  Coords = Left:{left} Top:{top} Right:{left + w} Bottom:{top + h}",
+            "  Status = NONE",
+            "End",
+            "",
+        ]
+    return tga_bytes(atlas), "\r\n".join(lines), rects
+
+
+def van_scale(value, height):
+    """Canvas texels to pixels for a van height pixels tall over the outline rows, rounded."""
+    return (value * height + VAN_SPAN // 2) // VAN_SPAN
+
+
+def van_above(road):
+    """The van height over a bar (about 1.8 times the road height, at least GO_VAN_MIN_HEIGHT) and the strip above the
+    road it can reach at any progress, bob and puffs included: (left, top, right, bottom)."""
+    left, top, right, bottom = road
+    height = max(VAN["GO_VAN_MIN_HEIGHT"], (bottom - top) * 9 // 5)
+    s = lambda v: van_scale(v, height)  # noqa: E731
+    lowest = left + s(VAN["GO_VAN_BUMPER"] - VAN["GO_VAN_REAR_TYRE"]) - s(VAN["GO_VAN_BUMPER"])
+    return height, (lowest, top - s(VAN["GO_VAN_TYRE_BOTTOM"] - VAN["GO_VAN_OUTLINE_TOP"] + VAN["GO_VAN_BOB"]), right, top)
+
+
+def van_layout(road, fill, fill_end, above_clear):
+    """Where drawGoLoadBarVan puts the van: ("above" | "inside", height, canvas rect) or None. Above the road with the
+    tyres on its top edge when above_clear(strip) says the strip is free, else inside the fill at its height, or nowhere
+    when that is under GO_VAN_MIN_HEIGHT. Above, the front bumper sits at fill_end, but at least far enough right for the
+    rear tyre to start at the road's left end. Inside, the van drives on the dark track ahead of the fill, its rear at
+    fill_end (van_fill_end stops the fill there). Either way the outline never passes the right end."""
+    height, strip = van_above(road)
+    left, right, tyre = road[0], road[2], road[1]
+    mode = "above"
+    if not above_clear(strip):
+        mode, height = "inside", fill[3] - fill[1]
+        if height < VAN["GO_VAN_MIN_HEIGHT"]:
+            return None
+        left, right = fill[0], fill[2]
+        tyre = fill[1] + van_scale(VAN["GO_VAN_TYRE_BOTTOM"] - VAN["GO_VAN_OUTLINE_TOP"], height)
+    s = lambda v: van_scale(v, height)  # noqa: E731
+    if mode == "inside":
+        x0 = min(fill_end - s(VAN["GO_VAN_OUTLINE_LEFT"]), right - s(VAN["GO_VAN_OUTLINE_RIGHT"]))
+    else:
+        bumper = max(fill_end, left + s(VAN["GO_VAN_BUMPER"] - VAN["GO_VAN_REAR_TYRE"]))
+        bumper = min(bumper, right - s(VAN["GO_VAN_OUTLINE_RIGHT"] - VAN["GO_VAN_BUMPER"]))
+        x0 = bumper - s(VAN["GO_VAN_BUMPER"])
+    y0 = tyre - s(VAN["GO_VAN_TYRE_BOTTOM"])
+    return mode, height, (x0, y0, x0 + s(VAN["GO_VAN_FRAME_WIDTH"]), y0 + s(VAN["GO_VAN_FRAME_HEIGHT"]))
+
+
+def van_fill_end(layout, fill_end):
+    """Where the bar draws its fill to (goLoadBarVanFillEnd): up to the rear of a van driving inside the bar, so the fill
+    never runs under it, else fill_end."""
+    if layout is None or layout[0] != "inside":
+        return fill_end
+    _, height, (x0, _, _, _) = layout
+    return min(fill_end, x0 + van_scale(VAN["GO_VAN_OUTLINE_LEFT"], height))
+
+
+def van_settle(now, changed_at):
+    """(moving, envelope): moving until progress has stood still GO_VAN_STALL_MS, then the wiggle fades out over
+    GO_VAN_SETTLE_MS."""
+    still = now - changed_at
+    if still < VAN["GO_VAN_STALL_MS"]:
+        return True, 1.0
+    return False, max(0.0, 1.0 - (still - VAN["GO_VAN_STALL_MS"]) / VAN["GO_VAN_SETTLE_MS"])
+
+
+def van_wheel_frame(now, moving, frame):
+    """The wheel frame: from the clock at about 12 per second while moving, the last one while parked."""
+    return (now // VAN["GO_VAN_FRAME_MS"]) % VAN["GO_VAN_WHEEL_FRAMES"] if moving else frame
+
+
+def van_wave(now):
+    """The suspension rhythm in -1..1: two sines at unrelated rates, so the bounce never repeats a beat."""
+    r = VAN_REAL_CONSTANTS
+    t = now / 1000.0
+    return (r["GO_VAN_BOB_WEIGHT_A"] * math.sin(2 * math.pi * r["GO_VAN_BOB_HZ_A"] * t)
+            + (1 - r["GO_VAN_BOB_WEIGHT_A"]) * math.sin(2 * math.pi * r["GO_VAN_BOB_HZ_B"] * t + r["GO_VAN_BOB_PHASE_B"]))
+
+
+def van_wiggle(now, height, envelope):
+    """(body bob, dish sway) in whole pixels: the body bobs GO_VAN_BOB canvas texels at most, the dish follows the same
+    rhythm GO_VAN_DISH_LAG_MS later, one pixel sideways; both settle with the envelope."""
+    bob = math.floor(VAN["GO_VAN_BOB"] * height / VAN_SPAN * envelope * van_wave(now) + 0.5)
+    sway = math.floor(envelope * van_wave(now - VAN["GO_VAN_DISH_LAG_MS"]) + 0.5)
+    return bob, sway
+
+
+def van_hash(value):
+    return (value * 2654435761) & 0xFFFFFFFF
+
+
+class VanBar:
+    """One bar's van state as drawGoLoadBarVan keeps it: the progress clock, the wheel frame and a fixed ring of puffs."""
+
+    def __init__(self, now, progress, fill_end):
+        self.progress, self.fill_end, self.changed_at = progress, fill_end, now - VAN["GO_VAN_STALL_MS"] - VAN["GO_VAN_SETTLE_MS"]
+        self.spawned_at, self.frame, self.credit, self.next = now, 0, 0.0, 0
+        self.puffs = [None] * VAN["GO_VAN_PUFFS"]  # (born, life, x, y, height)
+
+    def step(self, now, progress, fill_end, layout):
+        """Advance to now and return (moving, envelope); spawns a puff behind the rear wheel of the layout rect."""
+        if progress != self.progress:
+            self.progress, self.changed_at = progress, now
+        moving, envelope = van_settle(now, self.changed_at)
+        self.frame = van_wheel_frame(now, moving, self.frame)
+        travel = max(0, fill_end - self.fill_end)
+        self.fill_end = fill_end
+        if not moving or layout is None:
+            self.credit = 0.0
+            return moving, envelope
+        _, height, (x0, y0, _, _) = layout
+        self.credit = min(float(VAN["GO_VAN_PUFF_CREDIT"]),
+                          self.credit + travel / max(1, van_scale(VAN["GO_VAN_PUFF_TRAVEL"], height)))
+        if self.credit >= 1.0 and now - self.spawned_at >= VAN["GO_VAN_PUFF_GAP_MS"]:
+            self.credit -= 1.0
+            self.spawned_at = now
+            h = van_hash(now + self.next)
+            jitter = VAN["GO_VAN_PUFF_JITTER"]
+            x = x0 + van_scale(VAN["GO_VAN_PUFF_SPAWN_X"] + (h >> 8) % (2 * jitter + 1) - jitter, height)
+            y = y0 + van_scale(VAN["GO_VAN_PUFF_SPAWN_Y"] + (h >> 16) % (2 * jitter + 1) - jitter, height)
+            life = VAN["GO_VAN_PUFF_LIFE_MS"] + (h >> 24) % VAN["GO_VAN_PUFF_LIFE_SPREAD_MS"]
+            self.puffs[self.next] = (now, life, x, y, height)
+            self.next = (self.next + 1) % VAN["GO_VAN_PUFFS"]
+        return moving, envelope
+
+    def puff_rects(self, now, aspect):
+        """The live puffs as (left, top, right, bottom, alpha): they drift back and up, grow and fade over their life."""
+        out = []
+        for puff in self.puffs:
+            if puff is None or now - puff[0] >= puff[1]:
+                continue
+            born, life, x, y, height = puff
+            t = (now - born) / life
+            size = van_scale(VAN["GO_VAN_PUFF_START"], height) + (van_scale(VAN["GO_VAN_PUFF_END"], height)
+                                                                  - van_scale(VAN["GO_VAN_PUFF_START"], height)) * t
+            cx = x - van_scale(VAN["GO_VAN_PUFF_DRIFT_X"], height) * t
+            cy = y - van_scale(VAN["GO_VAN_PUFF_DRIFT_Y"], height) * t
+            w, h = int(size), int(size * aspect)
+            out.append((int(cx) - w // 2, int(cy) - h // 2, int(cx) - w // 2 + w, int(cy) - h // 2 + h,
+                        int(VAN["GO_VAN_PUFF_ALPHA"] * (1 - t))))
+        return out
+
+# ============================== end of the load bar van section ==============================
+
+
 def pack(items, atlas_width=ATLAS_WIDTH):
     """Shelf-pack (name, w, h, texels) into the atlas in retail pixels; returns placements and atlas height."""
     order = sorted(items, key=lambda it: (-it[2], -it[1], it[0]))
@@ -970,9 +1242,11 @@ def main():
     theme_texture, theme_ini = build(palette=go_themes.KIT_COLORS)
     if theme_ini != ini:
         raise SystemExit("the theme atlas moved a piece; it needs its own INI")
+    van_texture, van_ini, _ = build_van()
     outputs = ((TEXTURE_PATH, texture), (INI_PATH, ini.encode("ascii")), (TEXTURE2_PATH, texture2), (INI2_PATH, ini2.encode("ascii")),
                (LOAD_BAR_TEXTURE_PATH, texture3), (LOAD_BAR_INI_PATH, ini3.encode("ascii")), (THEME_TEXTURE_PATH, theme_texture),
-               (THEME_TEXTURE2_PATH, theme_texture2), (THEME_LOAD_BAR_TEXTURE_PATH, theme_texture3))
+               (THEME_TEXTURE2_PATH, theme_texture2), (THEME_LOAD_BAR_TEXTURE_PATH, theme_texture3),
+               (VAN_TEXTURE_PATH, van_texture), (VAN_INI_PATH, van_ini.encode("ascii")))
     if args.check:
         stale = [p for p, data in outputs if not p.exists() or p.read_bytes() != data]
         for p in stale:
