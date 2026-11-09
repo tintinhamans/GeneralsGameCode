@@ -1671,9 +1671,20 @@ DIALOG = "GOSignInDialog.wnd"
 # GO sign-in dialog windows looked up by WOLLoginMenu.cpp, {short NAME: kind}, in drawing order under the panel
 DIALOG_WINDOWS = {
     "StaticTextTitle": "STATICTEXT", "StaticTextSignInStatus": "STATICTEXT", "StaticTextMessage": "STATICTEXT",
+    "ProgressBarDownload": "PROGRESSBAR", "StaticTextDownloadSize": "STATICTEXT",
     **dict.fromkeys(SIGN_IN_PROVIDERS, "PUSHBUTTON"),
     "ButtonUseAnotherAccount": "PUSHBUTTON", "ButtonUpdate": "PUSHBUTTON", "ButtonCancel": "PUSHBUTTON", "Header": "USER"}
 DIALOG_ROW = ("ButtonUseAnotherAccount", "ButtonUpdate", "ButtonCancel")
+DIALOG_DOWNLOAD = ("ProgressBarDownload", "StaticTextDownloadSize")
+# content windows each dialog step of WOLLoginMenu.cpp shows (title and header always show)
+DIALOG_STEPS = {
+    "checking": ("StaticTextSignInStatus", "StaticTextMessage", "ButtonCancel"),
+    "update": ("StaticTextSignInStatus", "StaticTextMessage", "ButtonUpdate", "ButtonCancel"),
+    "error": ("StaticTextSignInStatus", "StaticTextMessage", "ButtonCancel"),
+    "sign in": ("StaticTextSignInStatus", "StaticTextMessage", *SIGN_IN_PROVIDERS, "ButtonUseAnotherAccount", "ButtonCancel"),
+    "downloading": ("StaticTextSignInStatus", *DIALOG_DOWNLOAD, "ButtonCancel"),
+    "ready": ("StaticTextSignInStatus", "StaticTextMessage", "ButtonUpdate", "ButtonCancel"),
+}
 
 
 def sign_in_dialog(base=wl.DATA):
@@ -1739,14 +1750,39 @@ class ShippedSignInDialogTest(unittest.TestCase):
             for win in panel.walk():
                 self.assertTrue(wl._within(win.rect, panel.rect, 0), f"{base} {win.name} {win.rect}")
 
-    def test_no_windows_overlap_but_the_header_frame_over_the_title(self):
+    def test_no_windows_of_one_step_overlap_but_the_header_frame_over_the_title(self):
         for base in self.bases():
             _, wins = sign_in_dialog(base)
-            content = [w for w in wins["GOSignInDialogParent"].children if _short(w) != "Header"]
-            for i, a in enumerate(content):
-                for b in content[i + 1:]:
-                    self.assertFalse(wl._overlaps(a.rect, b.rect), f"{base} {a.name} {b.name}")
+            content = {_short(w) for w in wins["GOSignInDialogParent"].children} - {"Header", "StaticTextTitle"}
+            self.assertEqual(set().union(*DIALOG_STEPS.values()), content, base)
+            for step, names in DIALOG_STEPS.items():
+                shown = ["StaticTextTitle", *names]
+                for i, a in enumerate(shown):
+                    for b in shown[i + 1:]:
+                        self.assertFalse(wl._overlaps(wins[a].rect, wins[b].rect), f"{base} {step} {a} {b}")
             self.assertTrue(wl._within(wins["StaticTextTitle"].rect, wins["Header"].rect, 0), base)
+
+    def test_the_download_progress_shares_the_message_area(self):
+        for base in self.bases():
+            _, wins = sign_in_dialog(base)
+            message = wins["StaticTextMessage"].rect
+            bar, size = (wins[name].rect for name in DIALOG_DOWNLOAD)
+            for rect in (bar, size):
+                self.assertTrue(wl._within(rect, message, 0), f"{base} {rect} {message}")
+                self.assertEqual((rect[0], rect[2]), (message[0], message[2]), f"{base} {rect}")
+            self.assertLess(bar[3], size[1], base)
+            self.assertGreaterEqual(size[1] - bar[3], wl.MIN_GAP, base)
+
+    def test_the_download_bar_uses_the_load_screen_bar_images(self):
+        load = wl.parse_windows((wl.DATA / "Window/Menus/SinglePlayerLoadScreen.wnd").read_bytes().decode("latin-1"))
+        shape = [(prop, [image for image, _, _ in entries]) for prop, entries in
+                 next(w for w in load.walk() if _short(w) == "ProgressLoad").draws]
+        for base in self.bases():
+            _, wins = sign_in_dialog(base)
+            bar = wins["ProgressBarDownload"]
+            self.assertEqual([(prop, [image for image, _, _ in entries]) for prop, entries in bar.draws], shape, base)
+            self.assertIn("LoadingBar_Progress", shape[0][1])
+            self.assertEqual(bar.header, "[NONE]", base)
 
     def test_rows_stack_status_message_providers_and_the_button_row(self):
         _, wins = sign_in_dialog()

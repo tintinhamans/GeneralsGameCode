@@ -242,6 +242,101 @@ WINDOW
     END
     CHILD
     WINDOW
+      WINDOWTYPE = PROGRESSBAR;
+      SCREENRECT = UPPERLEFT: 252 229,
+                   BOTTOMRIGHT: 548 249,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GOSignInDialog.wnd:ProgressBarDownload";
+      STATUS = ENABLED+IMAGE;
+      STYLE = PROGRESSBAR+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+      ENABLEDDRAWDATA = IMAGE: Alpha, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
+                        IMAGE: Alpha, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: Alpha, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: LoadingBar_DePowered, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: LoadingBar_Progress, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 64 64 64 255, BORDERCOLOR: 143 137 124 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 143 137 124 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 0 255 0 255, BORDERCOLOR: 0 128 0 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = STATICTEXT;
+      SCREENRECT = UPPERLEFT: 252 257,
+                   BOTTOMRIGHT: 548 281,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GOSignInDialog.wnd:StaticTextDownloadSize";
+      STATUS = ENABLED;
+      STYLE = STATICTEXT+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOLabelRegular";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 143 137 124 255, DISABLEDBORDER: 13 21 27 255,
+                  HILITE:   227 186 108 255, HILITEBORDER:   0 2 0 255;
+      ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 33 32 32 0, BORDERCOLOR: 0 0 0 255,
+                        IMAGE: NoImage, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
+      DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 64 64 64 255, BORDERCOLOR: 143 137 124 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 227 186 108 255, BORDERCOLOR: 59 60 52 255,
+                       IMAGE: NoImage, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
+      STATICTEXTDATA = CENTERED: 1;
+    END
+    CHILD
+    WINDOW
       WINDOWTYPE = PUSHBUTTON;
       SCREENRECT = UPPERLEFT: 252 297,
                    BOTTOMRIGHT: 548 329,

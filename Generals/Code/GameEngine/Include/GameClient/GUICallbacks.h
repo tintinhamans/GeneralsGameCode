@@ -192,6 +192,8 @@ extern Bool GOSignInDialogIsOpen( void );
 extern void GOSignInDialogShowChecking( GameWinMsgBoxFunc cancelFunc );
 extern void GOSignInDialogShowUpdate( UnicodeString message, GameWinMsgBoxFunc updateFunc, GameWinMsgBoxFunc cancelFunc );
 extern void GOSignInDialogShowError( UnicodeString title, UnicodeString message, GameWinMsgBoxFunc closeFunc );
+extern void GOSignInDialogShowDownloading( GameWinMsgBoxFunc cancelFunc );
+extern void GOSignInDialogShowReady( UnicodeString message, GameWinMsgBoxFunc restartFunc, GameWinMsgBoxFunc cancelFunc );
 extern void GOSignInDialogBeginSignIn( void );
 extern void GOSignInDialogDestroy( void );
 

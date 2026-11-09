@@ -658,18 +658,39 @@ void GenOnlineServicesManager::ContinueUpdate()
 			TheDownloadManager->OnStatusUpdate(DOWNLOADSTATUS_DOWNLOADING);
 		}
 
+		// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The replies of a download cancelled or restarted since are ignored.
+		const int updateAttempt = m_updateAttempt;
+
 		// this isnt a super nice way of doing this, lets make a download manager
 		std::map<std::string, std::string> mapHeaders;
 		m_pHTTPManager->SendGETRequest(strDownloadPath.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 			{
-				auto fnShowUpdateFailed = []()
+				if (updateAttempt != m_updateAttempt)
+				{
+					return;
+				}
+
+				auto fnShowUpdateFailed = [this]()
 					{
-						// show msg
-						ClearGSMessageBoxes();
-						MessageBoxOk(UnicodeString(L"Update Failed"), UnicodeString(L"Could not download the updater. Press below to exit."), []()
-							{
-								TheGameEngine->setQuitting(TRUE);
-							});
+						// TheSuperHackers @feature arcticdolphin 09/11/2026 The sign-in dialog shows the failure itself when it started the download.
+						std::function<void(void)> fnFailed;
+						{
+							std::scoped_lock<std::recursive_mutex> lock(m_updateCallbackMutex);
+							fnFailed = m_updateFailedCallback;
+						}
+						if (fnFailed != nullptr)
+						{
+							fnFailed();
+						}
+						else
+						{
+							// show msg
+							ClearGSMessageBoxes();
+							MessageBoxOk(UnicodeString(L"Update Failed"), UnicodeString(L"Could not download the updater. Press below to exit."), []()
+								{
+									TheGameEngine->setQuitting(TRUE);
+								});
+						}
 						ShellExecuteA(NULL, "open", "https://www.playgenerals.online/updatefailed", NULL, NULL, SW_SHOWNORMAL);
 					};
 
@@ -727,6 +748,11 @@ void GenOnlineServicesManager::ContinueUpdate()
 			},
 			[=](size_t bytesReceived)
 			{
+				if (updateAttempt != m_updateAttempt)
+				{
+					return;
+				}
+
 				//m_bytesReceivedSoFar += bytesReceived;
 
 				if (TheDownloadManager != nullptr)
@@ -913,10 +939,17 @@ void GenOnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std::f
 
 void GenOnlineServicesManager::CancelUpdate()
 {
-
+	// TheSuperHackers @bugfix arcticdolphin 09/11/2026 A cancelled download stops here: its files and callbacks go and its in-flight replies are ignored.
+	std::scoped_lock<std::recursive_mutex> lock(m_updateCallbackMutex);
+	++m_updateAttempt;
+	m_vecFilesToDownload = std::queue<std::string>();
+	m_vecFilesSizes = std::queue<int64_t>();
+	m_vecFilesDownloaded.clear();
+	m_updateCompleteCallback = nullptr;
+	m_updateFailedCallback = nullptr;
 }
 
-void GenOnlineServicesManager::LaunchPatcher()
+void GenOnlineServicesManager::LaunchPatcher(std::function<void(void)> cbFailed)
 {
 	char GameDir[MAX_PATH + 1] = {};
 	::GetCurrentDirectoryA(MAX_PATH + 1u, GameDir);
@@ -955,17 +988,24 @@ void GenOnlineServicesManager::LaunchPatcher()
 	}
 	else
 	{
-		// show msg
-		ClearGSMessageBoxes();
-		MessageBoxOk(UnicodeString(L"Update Failed"), UnicodeString(L"Could not run the updater. Press below to exit."), []()
-			{
-				TheGameEngine->setQuitting(TRUE);
-			});
+		if (cbFailed != nullptr)
+		{
+			cbFailed();
+		}
+		else
+		{
+			// show msg
+			ClearGSMessageBoxes();
+			MessageBoxOk(UnicodeString(L"Update Failed"), UnicodeString(L"Could not run the updater. Press below to exit."), []()
+				{
+					TheGameEngine->setQuitting(TRUE);
+				});
+		}
 		ShellExecuteA(NULL, "open", "https://www.playgenerals.online/updatefailed", NULL, NULL, SW_SHOWNORMAL);
 	}
 }
 
-void GenOnlineServicesManager::StartDownloadUpdate(std::function<void(void)> cb)
+void GenOnlineServicesManager::StartDownloadUpdate(std::function<void(void)> cb, std::function<void(void)> cbFailed)
 {
 	TheDownloadManager->SetFileName("Connecting to update service...");
 	TheDownloadManager->OnStatusUpdate(DOWNLOADSTATUS_CONNECTING);
@@ -979,7 +1019,9 @@ void GenOnlineServicesManager::StartDownloadUpdate(std::function<void(void)> cb)
 	
 	{
 		std::scoped_lock<std::recursive_mutex> lock(m_updateCallbackMutex);
+		++m_updateAttempt;
 		m_updateCompleteCallback = cb;
+		m_updateFailedCallback = cbFailed;
 	}
 
 	// cleanup current folder
