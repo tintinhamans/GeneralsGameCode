@@ -21,6 +21,8 @@
 
 #include "GameClient/View.h"
 
+#include "Common/GameEngine.h"
+
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/ScriptEngine.h"
 
@@ -135,8 +137,41 @@ Bool FramePacer::isActualFramesPerSecondLimitEnabled() const
 
 Int FramePacer::getActualFramesPerSecondLimit() const
 {
-	return isActualFramesPerSecondLimitEnabled() ? getFramesPerSecondLimit() : RenderFpsPreset::UncappedFpsValue;
+	const Int fps = isActualFramesPerSecondLimitEnabled() ? getFramesPerSecondLimit() : RenderFpsPreset::UncappedFpsValue;
+#if defined(GENONLINE)
+	return getSituationCappedFramesPerSecondLimit(fps);
+#else
+	return fps;
+#endif
 }
+
+#if defined(GENONLINE)
+// the most the menus and the shell map render at
+static const Int MENU_FPS_LIMIT = 60;
+
+Int FramePacer::getSituationCappedFramesPerSecondLimit(Int fps) const
+{
+	// A match renders at the chosen limit, uncapped included; the menus and the shell map gain nothing from more than 60.
+	const Bool inMatch = TheGameLogic != nullptr && TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL;
+	if (!inMatch)
+	{
+		fps = std::min<Int>(fps, MENU_FPS_LIMIT);
+	}
+
+	// Without focus nobody watches the match at a high frame rate.
+	if (TheGameEngine != nullptr && !TheGameEngine->isActive())
+	{
+		fps = std::min<Int>(fps, LOGICFRAMES_PER_SECOND);
+	}
+
+	// Logic is capped by the render frame rate, so never render slower than the logic time scale or the network rate.
+	if (TheNetwork != nullptr || isLogicTimeScaleEnabled())
+	{
+		fps = std::max<Int>(fps, getActualLogicTimeScaleFps(IgnoreFrozenTime | IgnoreHaltedGame));
+	}
+	return fps;
+}
+#endif
 
 Real FramePacer::getUpdateTime()  const
 {
