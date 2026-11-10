@@ -180,6 +180,7 @@ SETUP_LAYOUTS = {
 }
 ENGINE_SLOTS = 8           # MAX_SLOTS in Core GameNetwork/NetworkDefs.h; the menus only look up rows below it
 SLOT_ROWS = 12             # player rows the setup screens lay out
+SHOW_EXTRA_ROWS = False    # rows past ENGINE_SLOTS ship hidden until the engine has more slots; their space stays
 # TheSuperHackers @tweak arcticdolphin 09/11/2026 Compact player rows: 16 unit combos with an 8 pt font keep the 10 pt fit of COMBO_HEIGHT.
 SETUP_COMBO_HEIGHT = 16
 ROW_PITCH = SETUP_COMBO_HEIGHT + 2  # top to top distance of the player rows: the SETUP_COMBO_HEIGHT combos and a 2 unit gap
@@ -1725,7 +1726,7 @@ def setup_rows(text, name):
                 # start position markers continue their stack; the game code places them over the map
                 prev = slots[(base, last - 1)].rect
                 rect = tuple(v + (k - last) * (v - p) for v, p in zip(win.rect, prev))
-            clones.append(_clone_slot(text, win, k, rect, base not in VISIBLE_SLOT_BASES))
+            clones.append(_clone_slot(text, win, k, rect, not SHOW_EXTRA_ROWS or base not in VISIBLE_SLOT_BASES))
         if clones:
             edits.append(((win.block[0], win.block[0]), "".join(reversed(clones))))
     for win in frame.children:

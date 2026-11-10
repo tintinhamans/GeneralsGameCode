@@ -2117,7 +2117,7 @@ WINDOW
                    BOTTOMRIGHT: 568 327,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam11";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -2358,7 +2358,7 @@ WINDOW
                    BOTTOMRIGHT: 568 309,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam10";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -2599,7 +2599,7 @@ WINDOW
                    BOTTOMRIGHT: 568 291,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam9";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -2840,7 +2840,7 @@ WINDOW
                    BOTTOMRIGHT: 568 273,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam8";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -5058,7 +5058,7 @@ WINDOW
                    BOTTOMRIGHT: 489 327,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate11";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -5299,7 +5299,7 @@ WINDOW
                    BOTTOMRIGHT: 489 309,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate10";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -5540,7 +5540,7 @@ WINDOW
                    BOTTOMRIGHT: 489 291,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate9";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -5781,7 +5781,7 @@ WINDOW
                    BOTTOMRIGHT: 489 273,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate8";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -7999,7 +7999,7 @@ WINDOW
                    BOTTOMRIGHT: 279 327,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor11";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -8240,7 +8240,7 @@ WINDOW
                    BOTTOMRIGHT: 279 309,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor10";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -8481,7 +8481,7 @@ WINDOW
                    BOTTOMRIGHT: 279 291,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor9";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -8722,7 +8722,7 @@ WINDOW
                    BOTTOMRIGHT: 279 273,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor8";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -10940,7 +10940,7 @@ WINDOW
                    BOTTOMRIGHT: 192 327,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer11";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -11181,7 +11181,7 @@ WINDOW
                    BOTTOMRIGHT: 192 309,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer10";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -11422,7 +11422,7 @@ WINDOW
                    BOTTOMRIGHT: 192 291,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer9";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -11663,7 +11663,7 @@ WINDOW
                    BOTTOMRIGHT: 192 273,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer8";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";

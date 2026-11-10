@@ -1609,7 +1609,7 @@ WINDOW
                    BOTTOMRIGHT: 573 340,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam11";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -1850,7 +1850,7 @@ WINDOW
                    BOTTOMRIGHT: 573 322,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam10";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -2091,7 +2091,7 @@ WINDOW
                    BOTTOMRIGHT: 573 304,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam9";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -2332,7 +2332,7 @@ WINDOW
                    BOTTOMRIGHT: 573 286,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam8";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -4550,7 +4550,7 @@ WINDOW
                    BOTTOMRIGHT: 495 340,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate11";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -4791,7 +4791,7 @@ WINDOW
                    BOTTOMRIGHT: 495 322,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate10";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -5032,7 +5032,7 @@ WINDOW
                    BOTTOMRIGHT: 495 304,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate9";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -5273,7 +5273,7 @@ WINDOW
                    BOTTOMRIGHT: 495 286,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate8";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -7491,7 +7491,7 @@ WINDOW
                    BOTTOMRIGHT: 293 340,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor11";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -7732,7 +7732,7 @@ WINDOW
                    BOTTOMRIGHT: 293 322,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor10";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -7973,7 +7973,7 @@ WINDOW
                    BOTTOMRIGHT: 293 304,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor9";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -8214,7 +8214,7 @@ WINDOW
                    BOTTOMRIGHT: 293 286,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor8";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -10432,7 +10432,7 @@ WINDOW
                    BOTTOMRIGHT: 207 340,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer11";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -10673,7 +10673,7 @@ WINDOW
                    BOTTOMRIGHT: 207 322,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer10";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -10914,7 +10914,7 @@ WINDOW
                    BOTTOMRIGHT: 207 304,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer9";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -11155,7 +11155,7 @@ WINDOW
                    BOTTOMRIGHT: 207 286,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer8";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";

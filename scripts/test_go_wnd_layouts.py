@@ -1478,18 +1478,18 @@ class SetupRowsTest(unittest.TestCase):
                 first = 1 if base == "ComboBoxPlayer" and "Skirmish" in name else 0
                 self.assertEqual(sorted(i for b, i in slots if b == base), list(range(first, wl.SLOT_ROWS)), f"{path} {base}")
 
-    def test_rows_past_the_engine_slots_are_disabled_and_the_combos_visible(self):
+    def test_rows_past_the_engine_slots_are_disabled_and_hidden(self):
+        # hidden until the engine has more slots; SHOW_EXTRA_ROWS shows their combos again
+        self.assertFalse(wl.SHOW_EXTRA_ROWS)
         for path, name, root in self.shipped():
             slots = self.slots(root)
             for (base, index), win in slots.items():
                 if index < wl.ENGINE_SLOTS:
                     self.assertIn("ENABLED", win.status, f"{path} {win.name}")
+                    self.assertNotIn("HIDDEN", win.status, f"{path} {win.name}")
                     continue
                 self.assertNotIn("ENABLED", win.status, f"{path} {win.name}")
-                self.assertEqual("HIDDEN" in win.status, base not in wl.VISIBLE_SLOT_BASES, f"{path} {win.name}")
-            for base in wl.VISIBLE_SLOT_BASES:
-                for index in range(wl.ENGINE_SLOTS, wl.SLOT_ROWS):
-                    self.assertFalse(_hidden(slots[(base, index)]), f"{path} {base}{index}")
+                self.assertIn("HIDDEN", win.status, f"{path} {win.name}")
 
     def test_rows_have_one_pitch_and_centre_on_their_row(self):
         for path, name, root in self.shipped():

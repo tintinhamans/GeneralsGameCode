@@ -2884,7 +2884,7 @@ WINDOW
                    BOTTOMRIGHT: 578 324,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam11";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -3125,7 +3125,7 @@ WINDOW
                    BOTTOMRIGHT: 578 306,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam10";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -3366,7 +3366,7 @@ WINDOW
                    BOTTOMRIGHT: 578 288,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam9";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -3607,7 +3607,7 @@ WINDOW
                    BOTTOMRIGHT: 578 270,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam8";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -5825,7 +5825,7 @@ WINDOW
                    BOTTOMRIGHT: 513 324,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate11";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -6066,7 +6066,7 @@ WINDOW
                    BOTTOMRIGHT: 513 306,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate10";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -6307,7 +6307,7 @@ WINDOW
                    BOTTOMRIGHT: 513 288,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate9";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -6548,7 +6548,7 @@ WINDOW
                    BOTTOMRIGHT: 513 270,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate8";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -8766,7 +8766,7 @@ WINDOW
                    BOTTOMRIGHT: 309 324,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor11";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -9007,7 +9007,7 @@ WINDOW
                    BOTTOMRIGHT: 309 306,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor10";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -9248,7 +9248,7 @@ WINDOW
                    BOTTOMRIGHT: 309 288,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor9";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -9489,7 +9489,7 @@ WINDOW
                    BOTTOMRIGHT: 309 270,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor8";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -11707,7 +11707,7 @@ WINDOW
                    BOTTOMRIGHT: 223 324,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer11";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -11948,7 +11948,7 @@ WINDOW
                    BOTTOMRIGHT: 223 306,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer10";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -12189,7 +12189,7 @@ WINDOW
                    BOTTOMRIGHT: 223 288,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer9";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -12430,7 +12430,7 @@ WINDOW
                    BOTTOMRIGHT: 223 270,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer8";
-      STATUS = IMAGE;
+      STATUS = HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
