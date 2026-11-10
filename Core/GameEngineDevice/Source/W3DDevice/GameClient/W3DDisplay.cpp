@@ -2237,6 +2237,8 @@ AGAIN:
 				{
 					// TheSuperHackers @bugfix Mauller 20/07/2025 scale videos based on screen size so they are shown in their original aspect
 					drawScaledVideoBuffer( m_videoBuffer, m_videoStream );
+					// GenOnline @bugfix arcticdolphin 21/11/2026 The frame rate, latency and clock are drawn again because the video covers them.
+					TheInGameUI->postWindowDraw();
 				}
 
 				// render letter box before debug display so debug info isn't hidden

@@ -74,10 +74,13 @@ BUTTON_STATES = {
     "Pushed-": (rgba("#8C9BFF"), rgba("#2B34B8", 0.92)),
     "Disabled-": (DISABLED_LINE, rgba("#0A0A10", 0.70)),
 }
+# a selected radio (a chosen tab or option) draws the Hilighted art, difficulty select the Pushed art: the pushed line over
+# a translucent slider fill, so the chosen one reads at a glance
+RADIO_SELECTED = (rgba("#8C9BFF"), rgba("#3446FF", 0.55))
 RADIO_STATES = {
     "Enabled": BUTTON_STATES[""],
-    "Hilighted": BUTTON_STATES["HiLite-"],
-    "Pushed": BUTTON_STATES["Pushed-"],
+    "Hilighted": RADIO_SELECTED,
+    "Pushed": RADIO_SELECTED,
     "Disabled": BUTTON_STATES["Disabled-"],
 }
 # state -> edge line; the field fill is the same in every state

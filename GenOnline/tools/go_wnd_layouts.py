@@ -208,6 +208,7 @@ SETUP_LAYOUTS = {
 }
 ENGINE_SLOTS = 8           # MAX_SLOTS in Core GameNetwork/NetworkDefs.h; the menus only look up rows below it
 SLOT_ROWS = ENGINE_SLOTS    # player rows the setup screens lay out, 12 once the engine has 12 slots (arctic/go/feat/12-players)
+SHOW_EXTRA_ROWS = False    # rows past ENGINE_SLOTS ship hidden until the engine has more slots; their space stays
 # GenOnline @tweak arcticdolphin 09/11/2026 Compact player rows: 16 unit combos with an 8 pt font keep the 10 pt fit of COMBO_HEIGHT.
 SETUP_COMBO_HEIGHT = 16
 ROW_PITCH = SETUP_COMBO_HEIGHT + 2  # top to top distance of the player rows: the SETUP_COMBO_HEIGHT combos and a 2 unit gap
@@ -1656,7 +1657,7 @@ def setup_rows(text, name):
                 # start position markers continue their stack; the game code places them over the map
                 prev = slots[(base, last - 1)].rect
                 rect = tuple(v + (k - last) * (v - p) for v, p in zip(win.rect, prev))
-            clones.append(_clone_slot(text, win, k, rect, base not in VISIBLE_SLOT_BASES))
+            clones.append(_clone_slot(text, win, k, rect, not SHOW_EXTRA_ROWS or base not in VISIBLE_SLOT_BASES))
         if clones:
             edits.append(((win.block[0], win.block[0]), "".join(reversed(clones))))
     for win in frame.children:
@@ -1946,6 +1947,118 @@ def write_review(results, path=REVIEW):
             lines += [f"- {s}" for s in skips]
             lines.append("")
     path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8", newline="\n")
+
+
+# The Generals welcome menu shows the community win percentages of the three sides, which the GenOnline welcome menu code fills
+# into the Percent<Side> check boxes from the global stats. The Generals retail layout only has inert winner texts there, so the build
+# takes the check boxes and the heading from the Zero Hour GenOnline layout and swaps the Zero Hour faction images for the Generals logos.
+COMMUNITY_LOGOS = {"USA_Logo": "SAFactionLogo96_US", "China_Logo": "SNFactionLogo96_China", "GLA_Logo": "SUFactionLogo96_GLA"}
+COMMUNITY_BOX_LEFT = {"PercentUSA": 276, "PercentChina": 412, "PercentGLA": 548}  # 104 wide boxes spread over the panel
+COMMUNITY_BOX_TOP, COMMUNITY_BOX_SIZE = 415, (104, 40)
+COMMUNITY_INERT_RE = re.compile(r"StaticText(USA|China|GLA|Winners)(Today|LastWeek)")
+SCREENRECT_RE = re.compile(r"(SCREENRECT[ 	]*=[ 	]*UPPERLEFT:[ 	]*)-?\d+([ 	]+)-?\d+([ 	]*,\s*BOTTOMRIGHT:[ 	]*)-?\d+([ 	]+)-?\d+")
+
+
+def with_rect(block, rect):
+    return SCREENRECT_RE.sub(lambda m: f"{m.group(1)}{rect[0]}{m.group(2)}{rect[1]}{m.group(3)}{rect[2]}{m.group(4)}{rect[3]}", block, count=1)
+
+
+def generals_community_panel(text):
+    """The Generals welcome menu with the community panel of the Zero Hour GenOnline layout for the three sides."""
+    zero_hour = (ZERO_HOUR_DATA / "Window" / "Menus" / "GenOnlineWelcomeMenu.wnd").read_bytes().decode("latin-1")
+    zero_windows = {w.name.split(":")[-1]: w for w in parse_windows(zero_hour).walk()}
+    root = parse_windows(text)
+    inert = sorted((w for w in root.walk() if COMMUNITY_INERT_RE.fullmatch(w.name.split(":")[-1])), key=lambda w: w.block[0])
+    heading = next((w for w in root.walk() if w.kind == "STATICTEXT" and not w.name.split(":")[-1] and w.rect[:2] == (245, 333)), None)
+    if not inert or heading is None:
+        raise ValueError("the Generals welcome menu has no winner texts to replace")
+
+    def child_line_start(window):
+        """The start of the CHILD line before a window block."""
+        start = text.rfind("CHILD", 0, window.block[0])
+        if start < 0 or text[start:window.block[0]].strip() != "CHILD":
+            raise ValueError(f"{window.name}: no CHILD line before the window")
+        return start
+
+    child_line = text[child_line_start(inert[0]):inert[0].block[0]]
+    boxes = []
+    for name, left in COMMUNITY_BOX_LEFT.items():
+        block = zero_hour[zero_windows[name].block[0]:zero_windows[name].block[1]]
+        for zero_hour_image, logo in COMMUNITY_LOGOS.items():
+            block = block.replace(f"IMAGE: {zero_hour_image},", f"IMAGE: {logo},")
+        block = re.sub(r"IMAGE: \w+General_slvr,", "IMAGE: NoImage,", block)
+        boxes.append(child_line + with_rect(block, (left, COMMUNITY_BOX_TOP, left + COMMUNITY_BOX_SIZE[0], COMMUNITY_BOX_TOP + COMMUNITY_BOX_SIZE[1])))
+    title = zero_hour[zero_windows["StaticTextCommunity"].block[0]:zero_windows["StaticTextCommunity"].block[1]]
+    edits = [(child_line_start(w), w.block[1], "") for w in inert]
+    edits[0] = (edits[0][0], inert[0].block[1], "".join(boxes))
+    edits.append((heading.block[0], heading.block[1], with_rect(title, (245, 333, 683, 361))))
+    for start, end, replacement in sorted(edits, reverse=True):
+        text = text[:start] + replacement + text[end:]
+    return text
+
+
+# Controls the shared GenOnline menu code looks up in both games although the Generals retail layouts do not have them. The code hides
+# the Zero Hour only ones for Generals and uses CheckBoxUseStats, so a missing window would be a null pointer. The Generals build takes
+# the windows from the Zero Hour GenOnline layout: retail layout -> (that layout file, the parent window, {control: rect or None to keep}).
+GENERALS_CONTROLS = {
+    "window/menus/gamespygameoptionsmenu.wnd": ("GenOnlineGameOptionsMenu.wnd", "FadeParent", {
+        "CheckBoxUseStats": None, "CheckboxLimitSuperweapons": None, "CheckBoxLimitArmies": None,
+        "ComboBoxStartingCash": None, "StartingCashLabel": (237, 305, 333, 327)}),
+    "window/menus/popuphostgame.wnd": ("GenOnlinePopupHostGame.wnd", "ParentHostPopUp", {
+        "CheckBoxUseStats": (238, 272, 398, 296), "CheckBoxLimitArmies": None}),
+}
+
+
+def generals_missing_controls(text, retail_name):
+    """The Generals layout with the controls of GENERALS_CONTROLS added as the last children of their parent window."""
+    zero_hour_file, parent_name, controls = GENERALS_CONTROLS[retail_name.lower()]
+    zero_hour = (ZERO_HOUR_DATA / "Window" / "Menus" / zero_hour_file).read_bytes().decode("latin-1")
+    zero_windows = {w.name.split(":")[-1]: w for w in parse_windows(zero_hour).walk()}
+    root = parse_windows(text)
+    parent = next((w for w in root.walk() if w.name.split(":")[-1] == parent_name), None)
+    if parent is None or not parent.children:
+        raise ValueError(f"{retail_name}: no parent window {parent_name}")
+    first = parent.children[0]
+    child_start = text.rfind("CHILD", 0, first.block[0])
+    child_line = text[child_start:first.block[0]]
+    blocks = ""
+    for name, rect in controls.items():
+        window = zero_windows[name]
+        block = zero_hour[window.block[0]:window.block[1]]
+        blocks += child_line + (with_rect(block, rect) if rect else block)
+    end = text.rfind("ENDALLCHILDREN", parent.block[0], parent.block[1])
+    line_start = text.rfind("\n", 0, end) + 1
+    return text[:line_start] + blocks + text[line_start:]
+
+
+# The Options menu of the Generals build is the Zero Hour GenOnline source without the options that only Zero Hour has. The Generals
+# options code does not handle them and the Generals string file has no labels for them. The GenOnline network tab stays.
+GENERALS_OPTIONS_CUTS = (
+    (r",\s*CheckDoubleClickAttackMove, Retaliation\]", "]"),
+    (r"\n\s*- \{component: checkbox, name: CheckDoubleClickAttackMove,[^}]*\}", ""),
+    (r"\n\s*- \{component: checkbox, name: Retaliation,[^}]*\}", ""),
+    (r"CheckHeatEffects, ", ""),
+    (r",\s*\{name: HeatEffects, label: HeatEffects\}\]", "]"),
+)
+
+
+def generals_options_source():
+    """The Zero Hour Options menu YAML with the Zero Hour only options cut out."""
+    source = (Path(__file__).resolve().parent / "wnd_yaml" / "Window" / "Menus" / "OptionsMenu.yaml").read_text("utf-8")
+    for pattern, replacement in GENERALS_OPTIONS_CUTS:
+        source, count = re.subn(pattern, replacement, source, count=1)
+        if count != 1:
+            raise ValueError(f"OptionsMenu.yaml has changed, the Generals cut {pattern} no longer applies")
+    return source
+
+
+def output_root(name, game="zerohour"):
+    """The data folder a layout is written to: generals for the Generals build, core for a layout both games share, else zerohour."""
+    if game == "generals":
+        return GENERALS_DATA
+    path = name.replace("\\", "/")
+    base = path.rsplit("/", 1)[-1]
+    return CORE_DATA if path.startswith("Window/Menus/") and base in CORE_LAYOUTS else ZERO_HOUR_DATA
 
 
 def main():

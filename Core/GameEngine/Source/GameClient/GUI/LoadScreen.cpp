@@ -134,9 +134,20 @@ static const GoLoadSplash GO_LOAD_SPLASHES[] = {
 	{ "GUI:GOLoadSplash8", L"Let's go where it is safe." },
 	{ "GUI:GOLoadSplash9", L"We get signal everywhere." } };
 static const Int GO_SPLASH_FONT_SIZE = 16;
-// the line of this launch and its string; file statics, so the load screen class keeps its layout
+static const Int GO_SPLASH_MAX_ROWS = 4;
 static Int s_goSplashLine = -1;
-static DisplayString *s_goSplash = nullptr;
+static DisplayString *s_goSplashRows[GO_SPLASH_MAX_ROWS] = { nullptr };
+static Int s_goSplashRowCount = 0;
+
+static void freeGoSplashRows()
+{
+	for (Int freeRow = 0; freeRow < s_goSplashRowCount; ++freeRow)
+	{
+		TheDisplayStringManager->freeDisplayString(s_goSplashRows[freeRow]);
+		s_goSplashRows[freeRow] = nullptr;
+	}
+	s_goSplashRowCount = 0;
+}
 
 //-----------------------------------------------------------------------------
 // PUBLIC DATA ////////////////////////////////////////////////////////////////
@@ -386,7 +397,7 @@ static const Real GO_BUBBLE_WRAP = 260.0f;
 // GenOnline @feature arcticdolphin 09/11/2026 The 9-slice bubble grows upward from a bottom fixed over the tip and stays on screen, and its tail keeps pointing at the dish.
 static void drawGoLogoBubble(Int tipX, Int tipY, UnsignedInt shownMs)
 {
-	if (s_goSplash == nullptr || s_goSplash->getFont() == nullptr)
+	if (s_goSplashRowCount <= 0 || s_goSplashRows[0]->getFont() == nullptr)
 	{
 		return;
 	}
@@ -401,10 +412,18 @@ static void drawGoLogoBubble(Int tipX, Int tipY, UnsignedInt shownMs)
 		}
 	}
 	Int textWidth = 0;
-	Int textHeight = 0;
-	s_goSplash->getSize(&textWidth, &textHeight);
-	const Int lineHeight = s_goSplash->getFont()->height;
-	if (textHeight <= 0 || lineHeight <= 0)
+	for (Int sizeRow = 0; sizeRow < s_goSplashRowCount; ++sizeRow)
+	{
+		Int rowWidth = 0;
+		s_goSplashRows[sizeRow]->getSize(&rowWidth, nullptr);
+		if (rowWidth > textWidth)
+		{
+			textWidth = rowWidth;
+		}
+	}
+	const Int lineHeight = s_goSplashRows[0]->getFont()->height;
+	const Int textHeight = lineHeight * s_goSplashRowCount;
+	if (textWidth <= 0 || lineHeight <= 0)
 	{
 		return;
 	}
@@ -464,8 +483,13 @@ static void drawGoLogoBubble(Int tipX, Int tipY, UnsignedInt shownMs)
 	}
 	const Int tailLeft = tailCenter - tailWidth / 2;
 	TheDisplay->drawImage(slices[9], tailLeft, bottom - over, tailLeft + tailWidth, bottom - over + tailHeight, tint);
-	// the wrapped lines centred in the bubble
-	s_goSplash->draw(left + (width - textWidth) / 2, top + (height - textHeight) / 2, GameMakeColor(13, 21, 27, alpha), GameMakeColor(0, 0, 0, 0));
+	const Int textTop = top + (height - textHeight) / 2;
+	for (Int drawRow = 0; drawRow < s_goSplashRowCount; ++drawRow)
+	{
+		Int rowWidth = 0;
+		s_goSplashRows[drawRow]->getSize(&rowWidth, nullptr);
+		s_goSplashRows[drawRow]->draw(left + (width - rowWidth) / 2, textTop + drawRow * lineHeight, GameMakeColor(13, 21, 27, alpha), GameMakeColor(0, 0, 0, 0));
+	}
 }
 
 // GenOnline @feature arcticdolphin 09/11/2026 The GO radar van on the shell load road: wheels, puffs and bob run while progress moves and settle when it stalls.
@@ -575,6 +599,52 @@ static void drawGoLoadBarVan(GameWindow *window, Int progress, const GoVanPlace 
 	TheDisplay->drawImage(body, x0, y0 + bob, x0 + frameWidth, y0 + bob + frameHeight);
 	TheDisplay->drawImage(dish, x0 + sway, y0 + bob, x0 + sway + frameWidth, y0 + bob + frameHeight);
 	TheDisplay->drawImage(wheels, x0, y0, x0 + frameWidth, y0 + frameHeight);
+}
+
+// GenOnline @tweak arcticdolphin 09/11/2026 The plain GO shell load bar: the kit frame, and the fill inset by the frame line and an equal gap on every side.
+static void drawGoShellPlainBar( GameWindow *window, WinInstanceData *instData )
+{
+	const Image *left = GadgetProgressBarGetEnabledImageLeft(window);
+	const Image *right = GadgetProgressBarGetEnabledImageRight(window);
+	const Image *center = GadgetProgressBarGetEnabledImageCenter(window);
+	const Image *fill = GadgetProgressBarGetEnabledBarImageCenter(window);
+	if (left == nullptr || right == nullptr || center == nullptr || fill == nullptr)
+	{
+		return;
+	}
+
+	Int x, y, width, height;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&width, &height);
+	TheWindowManager->winDrawThreePieceImage(left, center, nullptr, right, x, y, width, height);
+
+	Int line = REAL_TO_INT_CEIL(left->getBorder() * TheDisplay->getHeight() / 600.0f - 0.01f);
+	if (line < 1)
+	{
+		line = 1;
+	}
+	const Int inset = 2 * line;
+	const Int fillWidth = width - 2 * inset;
+	const Int fillHeight = height - 2 * inset;
+	if (fillWidth <= 0 || fillHeight <= 0)
+	{
+		return;
+	}
+
+	Int progress = (Int)window->winGetUserData();
+	if (progress > 100)
+	{
+		progress = 100;
+	}
+	if (progress < 0)
+	{
+		progress = 0;
+	}
+	const Int drawWidth = fillWidth * progress / 100;
+	if (drawWidth > 0)
+	{
+		TheDisplay->drawImage(fill, x + inset, y + inset, x + inset + drawWidth, y + inset + fillHeight);
+	}
 }
 
 // GenOnline @tweak arcticdolphin 09/11/2026 The GO shell load bar as a road: asphalt between kit lines with a dashed centre line, lit behind the radar van that drives it.
@@ -1757,11 +1827,10 @@ ShellGameLoadScreen::~ShellGameLoadScreen()
 	{
 		TheDisplayStringManager->freeDisplayString(m_creditUrl);
 	}
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 The splash string goes with the credit that drew it.
-	if (m_creditWindow != nullptr && s_goSplash != nullptr)
+	// GenOnline @feature arcticdolphin 09/11/2026 The splash rows go with the credit that drew them.
+	if (m_creditWindow != nullptr)
 	{
-		TheDisplayStringManager->freeDisplayString(s_goSplash);
-		s_goSplash = nullptr;
+		freeGoSplashRows();
 	}
 }
 
@@ -1793,8 +1862,10 @@ void ShellGameLoadScreen::init( GameInfo *game )
 		firstLoad = FALSE;
 	}
 	m_progressBar->winHide(FALSE);
-	// TheSuperHackers @tweak arcticdolphin 09/11/2026 With the GO bar art the bar is the road the radar van drives: a third of the screen wide, centred near the bottom.
-	if (findGoLoadBarImage() != nullptr)
+
+	// GenOnline @tweak arcticdolphin 21/11/2026 The Generals Online credit is on the intro again, so the load screen stays the retail one.
+	// GenOnline @tweak arcticdolphin 09/11/2026 On the GO credit screen the bar is the road the radar van drives, and later shell loads keep the plain bar.
+	if (m_creditLogo != nullptr && findGoLoadBarImage() != nullptr)
 	{
 		m_progressBar->winSetDrawFunc(drawGoShellLoadBar);
 		const Int screenWidth = TheDisplay->getWidth();
@@ -1802,16 +1873,9 @@ void ShellGameLoadScreen::init( GameInfo *game )
 		m_progressBar->winSetPosition(goLayoutScale(GO_ROAD_LEFT, screenWidth, 800), goLayoutScale(GO_ROAD_TOP, screenHeight, 600));
 		m_progressBar->winSetSize(goLayoutScale(GO_ROAD_RIGHT - GO_ROAD_LEFT, screenWidth, 800), goLayoutScale(GO_ROAD_BOTTOM - GO_ROAD_TOP, screenHeight, 600));
 	}
-
-	// GenOnline @feature arcticdolphin 09/11/2026 The first shell load after the intro shows the Generals Online credit, -nologo leaves it out.
-	static Bool firstShellLoad = TRUE;
-	if (m_loadScreen && TheGameLogic && TheGameLogic->getGameMode() == GAME_SHELL)
+	else if (findGoLoadBarImage() != nullptr)
 	{
-		if (firstShellLoad && TheGlobalData->m_playIntro)
-		{
-			initCredit();
-		}
-		firstShellLoad = FALSE;
+		m_progressBar->winSetDrawFunc(drawGoShellPlainBar);
 	}
 }
 
@@ -1849,14 +1913,35 @@ void ShellGameLoadScreen::initCredit()
 		{
 			s_goSplashLine = (Int)(timeGetTime() % (sizeof(GO_LOAD_SPLASHES) / sizeof(GO_LOAD_SPLASHES[0])));
 		}
-		if (s_goSplash == nullptr)
+		// GenOnline @bugfix arcticdolphin 09/11/2026 Break the line into rows here, each measured as it is drawn, so the bubble fits its text. The centred wrap of the engine counts every space twice.
+		freeGoSplashRows();
+		GameFont *font = TheFontLibrary->getFont("Consolas", Int(GO_SPLASH_FONT_SIZE * fontScale), TRUE);
+		const Int wrap = REAL_TO_INT(GO_BUBBLE_WRAP * fontScale);
+		UnicodeString rest = TheGameText->FETCH_OR_SUBSTITUTE(GO_LOAD_SPLASHES[s_goSplashLine].label, GO_LOAD_SPLASHES[s_goSplashLine].text);
+		UnicodeString word;
+		while (rest.nextToken(&word, L" "))
 		{
-			s_goSplash = TheDisplayStringManager->newDisplayString();
+			if (s_goSplashRowCount > 0)
+			{
+				DisplayString *last = s_goSplashRows[s_goSplashRowCount - 1];
+				const UnicodeString previous = last->getText();
+				UnicodeString candidate = previous;
+				candidate.concat(L' ');
+				candidate.concat(word);
+				last->setText(candidate);
+				Int width = 0;
+				last->getSize(&width, nullptr);
+				if (width < wrap || s_goSplashRowCount == GO_SPLASH_MAX_ROWS)
+				{
+					continue;
+				}
+				last->setText(previous);
+			}
+			DisplayString *row = TheDisplayStringManager->newDisplayString();
+			row->setFont(font);
+			row->setText(word);
+			s_goSplashRows[s_goSplashRowCount++] = row;
 		}
-		s_goSplash->setText(TheGameText->FETCH_OR_SUBSTITUTE(GO_LOAD_SPLASHES[s_goSplashLine].label, GO_LOAD_SPLASHES[s_goSplashLine].text));
-		s_goSplash->setFont(TheFontLibrary->getFont("Consolas", Int(GO_SPLASH_FONT_SIZE * fontScale), TRUE));
-		s_goSplash->setWordWrap(REAL_TO_INT(GO_BUBBLE_WRAP * fontScale));
-		s_goSplash->setWordWrapCentered(TRUE);
 	}
 
 	m_creditWindow = TheWindowManager->winCreate(m_loadScreen, WIN_STATUS_ENABLED | WIN_STATUS_NO_INPUT, 0, 0, screenWidth, screenHeight, nullptr);
