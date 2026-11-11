@@ -330,6 +330,18 @@ public:
 		m_callbackStartGamePacket = nullptr;
 	}
 
+	// Receives the reason code of a match start the service refused.
+	std::function<void(const std::string&)> m_callbackStartGameRejected = nullptr;
+	void RegisterForStartGameRejected(std::function<void(const std::string&)> cb)
+	{
+		m_callbackStartGameRejected = cb;
+	}
+
+	void DeregisterForStartGameRejected()
+	{
+		m_callbackStartGameRejected = nullptr;
+	}
+
 	// periodically force refresh the lobby for data accuracy
 	int64_t m_lastForceRefresh = 0;
 

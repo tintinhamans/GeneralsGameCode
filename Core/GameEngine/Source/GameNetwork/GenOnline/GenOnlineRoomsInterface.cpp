@@ -1176,6 +1176,23 @@ void WebSocket::Tick()
 									}
 									break;
 
+									case EWebSocketMessageID::START_GAME_REJECTED:
+									{
+										std::string strReason;
+										if (jsonObject.contains("reason") && jsonObject["reason"].is_string())
+										{
+											strReason = jsonObject["reason"].get<std::string>();
+										}
+										NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] The service refused the match start (%s)", strReason.c_str());
+
+										GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+										if (pLobbyInterface != nullptr && pLobbyInterface->m_callbackStartGameRejected != nullptr)
+										{
+											pLobbyInterface->m_callbackStartGameRejected(strReason);
+										}
+									}
+									break;
+
 									case EWebSocketMessageID::FULL_MESH_CONNECTIVITY_CHECK_RESPONSE:
 									{
 										int64_t meshCheckID = 0;
