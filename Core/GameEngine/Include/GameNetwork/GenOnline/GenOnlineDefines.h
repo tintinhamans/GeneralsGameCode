@@ -54,8 +54,6 @@ void showNotificationBox(AsciiString nick, UnicodeString message, bool bPlaySoun
 
 #define ALLOW_NON_PROFILED_LOGIN 1
 
-#define GENONLINE_ENABLE_MATCH_START_COUNTDOWN
-
 #if !_DEBUG || defined(USE_DEBUG_ON_LIVE_SERVER)
 #define GENONLINE_ENCRYPT_CREDENTIALS 1
 #endif

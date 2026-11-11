@@ -1421,18 +1421,6 @@ static void StartPressed()
 						//req.peerRequestType = PeerRequest::PEERREQUEST_STARTGAME;
 						//TheGameSpyPeerMessageQueue->addRequest(req);
 
-#if !defined(GENONLINE_ENABLE_MATCH_START_COUNTDOWN)
-						Lobby_StartGamePacket startGamePacket;
-						pLobbyInterface->SendToMesh(startGamePacket);
-
-						// process locally too
-						NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-						if (pMesh != nullptr)
-						{
-							Lobby_StartGamePacket startGamePacket2;
-							pMesh->ProcessGameStart(startGamePacket2);
-						}
-#else
 						if (TheGenOnlineGame != nullptr)
 						{
 							// remote msg
@@ -1442,7 +1430,6 @@ static void StartPressed()
 
 							TheGenOnlineGame->StartCountdown();
 						}
-#endif
 
 						GameSpyCloseOverlay(GSOVERLAY_BUDDY);
 					}
@@ -2779,14 +2766,12 @@ static void UpdateStartControls()
 	}
 
 	bool settingsOpen = phase == EStartPhase::Idle || phase == EStartPhase::Checking;
-#if defined(GENONLINE_ENABLE_MATCH_START_COUNTDOWN)
 	// The countdown locks the settings in its last second.
 	if (phase == EStartPhase::Countdown)
 	{
 		const int64_t secondsElapsed = (NowMs() - TheGenOnlineGame->GetStartPhaseTime()) / 1000;
 		settingsOpen = TheGenOnlineGame->GetTotalCountdownDuration() - secondsElapsed > 1;
 	}
-#endif
 
 	buttonStart->winSetText(failed ? UnicodeString(L"Retry connections")
 		: !peersConnected ? UnicodeString(L"Connecting...")
@@ -2945,7 +2930,6 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 	UpdateStartPhase();
 	UpdateStartControls();
 
-#if defined(GENONLINE_ENABLE_MATCH_START_COUNTDOWN)
 	// is there a countdown in progress?
 	if (TheGenOnlineGame != nullptr)
 	{
@@ -2990,7 +2974,6 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 			}
 		}
 	}
-#endif
 
 	if (raiseMessageBoxes)
 	{
