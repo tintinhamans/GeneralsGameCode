@@ -205,10 +205,6 @@ static NameKeyType buttonChatID = NAMEKEY_INVALID;
 static NameKeyType buttonSelectMapID = NAMEKEY_INVALID;
 static NameKeyType windowMapID = NAMEKEY_INVALID;
 
-#if defined(GENONLINE_ENABLE_MATCH_START_COUNTDOWN)
-static bool s_matchStartCountdownWasRunning = false;
-#endif
-
 static NameKeyType windowMapSelectMapID = NAMEKEY_INVALID;
 static NameKeyType checkBoxUseStatsID = NAMEKEY_INVALID;
 static NameKeyType checkBoxLimitSuperweaponsID = NAMEKEY_INVALID;
@@ -1014,38 +1010,18 @@ static Int CountLobbyHumansMissingFromGame(GenOnlineGame* game)
 	return missing;
 }
 
-// other lobby humans we have no connected link to, a mesh check can't be complete with these
-static Int CountLobbyHumansWithoutMeshLink()
+// True when every lobby human has a game slot and a connected link.
+static Bool AreAllHumansSlottedAndConnected(GenOnlineLobbyInterface* lobby)
 {
-	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-	if (pLobbyInterface == nullptr || pAuthInterface == nullptr || pMesh == nullptr)
+	if (lobby == nullptr || lobby->GetCurrentGame() == nullptr)
 	{
-		return 0;
+		return FALSE;
 	}
 
-	const int64_t myUserID = pAuthInterface->GetUserID();
-	Int unlinked = 0;
-	for (const LobbyMemberEntry& member : pLobbyInterface->GetCurrentLobby().members)
-	{
-		if (!member.IsHuman() || member.user_id == myUserID)
-		{
-			continue;
-		}
-
-		PlayerConnection* pConnection = pMesh->GetConnectionForUser(member.user_id);
-		if (pConnection == nullptr || pConnection->GetState() != EConnectionState::CONNECTED_DIRECT)
-		{
-			++unlinked;
-		}
-	}
-
-	return unlinked;
+	return CountLobbyHumansMissingFromGame(lobby->GetCurrentGame()) == 0 && lobby->AreLocalLobbyPeersConnected();
 }
 
 static const Int MAX_ROSTER_REFRESHES_BEFORE_START = 3;
-static bool s_startWaitingForRoster = false;
 
 // Refreshes the roster until every lobby human has a game slot, then starts the match.
 static void StartMatchWhenRosterMatches(Int refreshesDone)
@@ -1053,15 +1029,14 @@ static void StartMatchWhenRosterMatches(Int refreshesDone)
 	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	GenOnlineGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 
-	if (pLobbyInterface == nullptr || !myGame || !myGame->isInGame())
+	if (!TheGenOnlineGame)
 	{
-		s_startWaitingForRoster = false;
 		return;
 	}
 
-	if (!TheGenOnlineGame)
+	if (pLobbyInterface == nullptr || !myGame || !myGame->isInGame())
 	{
-		s_startWaitingForRoster = false;
+		TheGenOnlineGame->SetStartPhase(EStartPhase::Idle);
 		return;
 	}
 
@@ -1086,14 +1061,12 @@ static void StartMatchWhenRosterMatches(Int refreshesDone)
 		else
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Start: the game is still missing %d lobby player(s), not starting", missingHumans);
-			s_startWaitingForRoster = false;
+			TheGenOnlineGame->SetStartPhase(EStartPhase::Idle);
 			GSMessageBoxOk(TheGameText->fetch("GUI:Error"), UnicodeString(L"The player list was incomplete, so the match was not started. Please rejoin the lobby."));
 			PopBackToLobby();
 			return;
 		}
 	}
-
-	s_startWaitingForRoster = false;
 
 	// TODO_GENONLINE
 	//SendStatsToOtherPlayers(TheGenOnlineGame);
@@ -1108,6 +1081,175 @@ static void StartMatchWhenRosterMatches(Int refreshesDone)
 	TheGenOnlineGame->startGame(0);
 }
 
+// A reason code with the GO: string key that shows it and the English text used when the key is missing.
+struct ReasonText
+{
+	const char* code;
+	const char* key;
+	const WideChar* fallback;
+};
+
+static const ReasonText START_REJECTED_TEXTS[] =
+{
+	{ "not_owner", "GO:StartRefusedNotOwner", L"The start was refused because you are no longer the host." },
+	{ "no_lobby", "GO:StartRefusedNoLobby", L"The start was refused because the lobby no longer exists." },
+	{ "already_started", "GO:StartRefusedAlreadyStarted", L"The match has already started." },
+	{ "not_ready", "GO:StartRefusedNotReady", L"The start was refused because not every player is ready." },
+	{ "mesh_incomplete", "GO:StartRefusedMeshIncomplete", L"The start was refused because not every player is connected." },
+	{ nullptr, "GO:StartRefused", L"The start was refused by the service." }
+};
+
+static const ReasonText COUNTDOWN_CANCELLED_TEXTS[] =
+{
+	{ "member_left", "GO:StartStoppedMemberLeft", L"The start stopped because a player left." },
+	{ "settings_changed", "GO:StartStoppedSettingsChanged", L"The start stopped because the settings changed." },
+	{ "host_left", "GO:StartStoppedHostLeft", L"The start stopped because the host left." },
+	{ "mesh_incomplete", "GO:StartStoppedMeshIncomplete", L"The start stopped because not every player is connected." },
+	{ nullptr, "GO:StartStopped", L"The start stopped." }
+};
+
+// Returns the local text of a reason code. The last table entry is the text for an unknown code.
+static UnicodeString GetReasonText(const ReasonText* texts, const std::string& strReason)
+{
+	while (texts->code != nullptr && strReason != texts->code)
+	{
+		++texts;
+	}
+	return TheGameText->fetchOrSubstitute(texts->key, texts->fallback);
+}
+
+// Prints one line for each link the service reported missing.
+static void ShowMissingLinks(const std::vector<std::pair<int64_t, int64_t>>& missingLinks)
+{
+	auto* lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (lobby == nullptr)
+	{
+		return;
+	}
+
+	auto displayName = [lobby](int64_t userID)
+	{
+		const LobbyMemberEntry member = lobby->GetRoomMemberFromID(userID);
+		return UnicodeString(member.user_id != -1 ? from_utf8(member.display_name).c_str() : std::to_wstring(userID).c_str());
+	};
+
+	for (const auto& link : missingLinks)
+	{
+		UnicodeString text;
+		text.format(TheGameText->fetchOrSubstitute("GO:PlayerNotConnectedTo", L"%s is not connected to %s."), displayName(link.first).str(), displayName(link.second).str());
+		GadgetListBoxAddEntryText(listboxGameSetupChat, text, GameMakeColor(255, 194, 15, 255), -1, -1);
+	}
+}
+
+static Int countdownShownSecond = 0;
+
+// Prints the countdown line for the given second and locks the settings in the last second.
+static void ShowCountdownSecond(Int secondsRemaining)
+{
+	countdownShownSecond = secondsRemaining;
+
+	UnicodeString strInform;
+	if (secondsRemaining == 1)
+	{
+		// Lock all host controlled lobby settings last second of the match start countdown
+		// to prevent late local changes not propagating to remote clients in time
+		WOLLockSettings();
+
+		strInform.format(TheGameText->fetch("LAN:GameStartTimerSingular"), secondsRemaining);
+	}
+	else
+	{
+		strInform.format(TheGameText->fetch("LAN:GameStartTimerPlural"), secondsRemaining);
+	}
+	GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, DetermineSystemNoticeColor(false, false), -1, -1);
+}
+
+// Follows the countdown events of the service and shows its lobby announcements in the local language.
+static void OnLobbyEvent(const LobbyEvent& lobbyEvent)
+{
+	if (TheGenOnlineGame == nullptr || TheGenOnlineGame->isGameInProgress())
+	{
+		return;
+	}
+
+	if (lobbyEvent.event == "countdown_started")
+	{
+		if (TheGenOnlineGame->GetStartPhase() == EStartPhase::Starting)
+		{
+			return;
+		}
+
+		TheGenOnlineGame->StartCountdown(lobbyEvent.duration_ms);
+		GameSpyCloseOverlay(GSOVERLAY_BUDDY);
+		const Int seconds = lobbyEvent.duration_ms > 0 ? (Int)((lobbyEvent.duration_ms + 999) / 1000) : 0;
+		if (seconds > 0)
+		{
+			ShowCountdownSecond(seconds);
+		}
+	}
+	else if (lobbyEvent.event == "countdown_cancelled")
+	{
+		TheGenOnlineGame->AbortStart();
+		GadgetListBoxAddEntryText(listboxGameSetupChat, GetReasonText(COUNTDOWN_CANCELLED_TEXTS, lobbyEvent.reason), GameMakeColor(255, 194, 15, 255), -1, -1);
+		ShowMissingLinks(lobbyEvent.missingLinks);
+	}
+	else if (lobbyEvent.event == "host_wants_to_start")
+	{
+		auto* lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+		if (lobby != nullptr && !lobby->IsHost())
+		{
+			GadgetListBoxAddEntryText(listboxGameSetupChat, TheGameText->fetch("GUI:HostWantsToStart"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+		}
+	}
+	else if (lobbyEvent.event == "ready_check_started")
+	{
+		UnicodeString text;
+		text.format(TheGameText->fetchOrSubstitute("GO:ReadyCheckStarted", L"Ready check: All players will be marked ready in %d seconds."), (Int)((lobbyEvent.duration_ms + 999) / 1000));
+		GadgetListBoxAddEntryText(listboxGameSetupChat, text, DetermineSystemNoticeColor(false, false), -1, -1);
+	}
+	else if (lobbyEvent.event == "ready_check_complete")
+	{
+		GadgetListBoxAddEntryText(listboxGameSetupChat, TheGameText->fetchOrSubstitute("GO:ReadyCheckComplete", L"Ready check: All players are now marked ready."), DetermineSystemNoticeColor(false, false), -1, -1);
+	}
+	else if (lobbyEvent.event == "camera_height")
+	{
+		UnicodeString text;
+		text.format(TheGameText->fetchOrSubstitute("GO:CameraHeightChanged", L"Camera height: The host set the limit to %d."), (Int)lobbyEvent.value);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, text, DetermineSystemNoticeColor(false, false), -1, -1);
+	}
+	else if (lobbyEvent.event == "lobby_access")
+	{
+		UnicodeString text = lobbyEvent.friends_only
+			? TheGameText->fetchOrSubstitute("GO:LobbyAccessFriendsOnly", L"Lobby access: Friends only.")
+			: TheGameText->fetchOrSubstitute("GO:LobbyAccessAnyone", L"Lobby access: Anyone can join.");
+		GadgetListBoxAddEntryText(listboxGameSetupChat, text, DetermineSystemNoticeColor(false, false), -1, -1);
+	}
+	else if (lobbyEvent.event == "member_removed")
+	{
+		UnicodeString text;
+		text.format(TheGameText->fetchOrSubstitute("GO:MemberRemoved", L"Lobby: '%s' was removed by the host."), UnicodeString(from_utf8(lobbyEvent.display_name).c_str()).str());
+		GadgetListBoxAddEntryText(listboxGameSetupChat, text, DetermineSystemNoticeColor(false, false), -1, -1);
+	}
+	else
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Ignoring unknown lobby event %s", lobbyEvent.event.c_str());
+	}
+}
+
+// Retries missing peer links and blocks the start while a custom lobby is not fully linked.
+static Bool RetryMissingLobbyPeerLinks()
+{
+	auto* lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (lobby == nullptr || lobby->GetCurrentLobby().lobby_type != ELobbyType::CustomGame || lobby->AreLocalLobbyPeersConnected())
+	{
+		return FALSE;
+	}
+
+	lobby->RetryFailedLobbyPeers();
+	GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Start blocked: waiting for all player connections."), GameMakeColor(255, 194, 15, 255), -1, -1);
+	return TRUE;
+}
+
 static void StartPressed()
 {
 	Bool isReady = TRUE;
@@ -1119,8 +1261,20 @@ static void StartPressed()
 	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	GenOnlineGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 
-	if (pLobbyInterface == nullptr || !myGame || pAuthInterface == nullptr)
+	if (pLobbyInterface == nullptr || !myGame || pAuthInterface == nullptr || myGame->GetStartPhase() != EStartPhase::Idle)
 		return;
+
+	if (RetryMissingLobbyPeerLinks())
+	{
+		return;
+	}
+
+	if (pLobbyInterface->GetCurrentLobby().lobby_type == ELobbyType::CustomGame && !AreAllHumansSlottedAndConnected(pLobbyInterface))
+	{
+		pLobbyInterface->UpdateRoomDataCache();
+		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Start blocked: waiting for the player list."), GameMakeColor(255, 194, 15, 255), -1, -1);
+		return;
+	}
 
 	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
 	if (pMesh == nullptr)
@@ -1181,7 +1335,8 @@ static void StartPressed()
 	}
 	else
 	{
-		mapDisplayName.translate(myGame->getMap().str());
+		// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
+		mapDisplayName = getMapNameFromPath(myGame->getMap());
 		willTransfer = WouldMapTransfer(myGame->getMap());
 	}
 	for( int i = 0; i < MAX_SLOTS; i++ )
@@ -1288,158 +1443,22 @@ static void StartPressed()
 		std::shared_ptr<WebSocket>  pWS = GenOnlineServicesManager::GetWebSocket();
 		if (pWS != nullptr)
 		{
-			if (buttonStart != nullptr)
-			{
-				buttonStart->winEnable(FALSE);
-			}
-
-			pWS->SendData_StartFullMeshConnectivityCheck([=](bool bMeshFullyConnected, std::list<std::pair<int64_t, int64_t>> missingConnections, std::string strFailureReason)
-				{
-					// the service can report a complete mesh while we hold no link to players the lobby lists
-					if (bMeshFullyConnected && CountLobbyHumansWithoutMeshLink() > 0)
-					{
-						bMeshFullyConnected = false;
-						strFailureReason = "no_link_to_lobby_players";
-					}
-
-					if (bMeshFullyConnected)
-					{
-						UnicodeString strInform = UnicodeString(L"Connections: All players are connected.");
-						GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(0, 255, 0, 255), -1, -1);
-
-						// reset autostart just incase
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-						pLobbyInterface->ClearAutoReadyCountdown();
-#endif
-
-						//PeerRequest req;
-						//req.peerRequestType = PeerRequest::PEERREQUEST_STARTGAME;
-						//TheGameSpyPeerMessageQueue->addRequest(req);
-
-#if !defined(GENONLINE_ENABLE_MATCH_START_COUNTDOWN)
-						Lobby_StartGamePacket startGamePacket;
-						pLobbyInterface->SendToMesh(startGamePacket);
-
-						// process locally too
-						NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-						if (pMesh != nullptr)
-						{
-							Lobby_StartGamePacket startGamePacket2;
-							pMesh->ProcessGameStart(startGamePacket2);
-						}
-#else
-						if (TheGenOnlineGame != nullptr)
-						{
-							if (!TheGenOnlineGame->IsCountdownStarted())
-							{
-								// remote msg
-								UnicodeString strInform;
-								strInform.format(TheGameText->fetch("LAN:GameStartTimerPlural"), TheGenOnlineGame->GetTotalCountdownDuration());
-								pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform, true);
-
-								TheGenOnlineGame->StartCountdown();
-								buttonSelectMap->winEnable(FALSE);		
-							}
-						}
-#endif
-
-						GameSpyCloseOverlay(GSOVERLAY_BUDDY);
-					}
-					else
-					{
-						UnicodeString strInform = UnicodeString(L"Connections: The player network is not ready. Try again shortly.");
-						GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(255, 194, 15, 255), -1, -1);
-
-						if (!strFailureReason.empty())
-						{
-							UnicodeString strReasonLine;
-							strReasonLine.format(L"Connections: Reason: %s", from_utf8(strFailureReason).c_str());
-							GadgetListBoxAddEntryText(listboxGameSetupChat, strReasonLine, GameMakeColor(255, 194, 15, 255), -1, -1);
-						}
-
-						GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-
-						// who is missing who?
-						//std::list<std::pair<int64_t, int64_t>> missingConnections
-						if (!missingConnections.empty())
-						{
-							GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Connections: Missing links:"), GameMakeColor(255, 194, 15, 255), -1, -1);
-						}
-						for (auto& missingPair : missingConnections)
-						{
-							bool bFoundPlayer = false;
-							if (pLobbyInterface != nullptr)
-							{
-								LobbyMemberEntry lobbyMemberSource = pLobbyInterface->GetRoomMemberFromID(missingPair.first);
-								LobbyMemberEntry lobbyMemberTarget = pLobbyInterface->GetRoomMemberFromID(missingPair.second);
-								if (lobbyMemberSource.user_id != -1 && lobbyMemberTarget.user_id != -1)
-								{
-									bFoundPlayer = true;
-
-									UnicodeString strMissingConnection;
-									strMissingConnection.format(L"%s is not connected to %s.", from_utf8(lobbyMemberSource.display_name).c_str(), from_utf8(lobbyMemberTarget.display_name).c_str());
-									GadgetListBoxAddEntryText(listboxGameSetupChat, strMissingConnection, GameMakeColor(255, 194, 15, 255), -1, -1);
-								}
-							}
-
-							if (!bFoundPlayer) // if we couldnt find a display name... show a user ID instead, better than nothing
-							{
-								UnicodeString strMissingConnection;
-								strMissingConnection.format(L"Player %lld is not connected to player %lld.", missingPair.first, missingPair.second);
-								GadgetListBoxAddEntryText(listboxGameSetupChat, strMissingConnection, GameMakeColor(255, 194, 15, 255), -1, -1);
-							}
-						}
-
-						// restore state
-						if (buttonBack != nullptr)
-						{
-							buttonBack->winEnable(TRUE);
-						}
-
-						if (buttonStart != nullptr)
-						{
-							buttonStart->winEnable(TRUE);
-						}
-					}
-					
-				});
+			// The service checks the links, runs the countdown and starts the match.
+			TheGenOnlineGame->SetStartPhase(EStartPhase::StartRequested);
+			pWS->SendData_StartGame();
 		}
 	}
 	else if (allHaveMap)
 	{
-		// send HWS chat message
-
-#if defined(GENONLINE_DISABLE_AUTO_ACCEPT)
 		// local msg
 		GadgetListBoxAddEntryText(listboxGameSetupChat, TheGameText->fetch("GUI:NotifiedStartIntent"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
 
-		// remote msg
-		UnicodeString strInform = TheGameText->fetch("GUI:HostWantsToStart");
-		pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform, false);
-#else
-		if (!pLobbyInterface->HasAutoReadyCountdown())
+		// The service tells the players and runs the ready check.
+		std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
+		if (pWS != nullptr)
 		{
-			// local msg
-			GadgetListBoxAddEntryText(listboxGameSetupChat, TheGameText->fetch("GUI:NotifiedStartIntent"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-
-			// remote msg
-			UnicodeString strInform = TheGameText->fetch("GUI:HostWantsToStart");
-			UnicodeString strInform2 = UnicodeString(L"Ready check: All players will be marked ready in 30 seconds.");
-			pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform, false);
-			pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform2, true);
-
-			// TODO_GENONLINE: Add the reverse too, if everyone is ready but the host wont start... just start it in X seconds
-
-			// start a countdown to auto start
-			// TODO_GENONLINE: Don't have this client driven...
-			pLobbyInterface->StartAutoReadyCountdown();
+			pWS->SendData_HostStartIntent();
 		}
-		else
-		{
-			UnicodeString strInform = UnicodeString(L"Ready check: A countdown is already running. Players will be marked ready when it ends.");
-			GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(192, 192, 192, 255), -1, -1);
-		}
-#endif
 	}
 }
 
@@ -2021,7 +2040,10 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 		return;
 	}
 
-	s_startWaitingForRoster = false;
+	if (TheGenOnlineGame != nullptr)
+	{
+		TheGenOnlineGame->SetStartPhase(EStartPhase::Idle);
+	}
 
 	// register for chat events
 	pLobbyInterface->RegisterForChatCallback([](UnicodeString strMessage, Color color)
@@ -2032,6 +2054,13 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 	// cannot connect to the lobby we joined
 	pLobbyInterface->RegisterForCannotConnectToLobbyCallback([](void)
 		{
+			auto* lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (lobby != nullptr && lobby->GetCurrentLobby().lobby_type == ELobbyType::CustomGame)
+			{
+				GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Connection failed. Stay in the lobby and use Retry connections."), GameMakeColor(255, 0, 0, 255), -1, -1);
+				return;
+			}
+
 			if (TheNetwork != NULL) {
 				delete TheNetwork;
 				TheNetwork = NULL;
@@ -2093,7 +2122,7 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 					if (connState == EConnectionState::CONNECTION_FAILED)
 					{
 #endif
-						strConnectionMessage.format(L"Connection: %s is now %hs.", strDisplayName.c_str(), strState.c_str());
+						strConnectionMessage.format(L"Connection: %ls is now %hs.%ls", strDisplayName.c_str(), strState.c_str(), connState == EConnectionState::CONNECTION_FAILED ? L" Use Retry connections." : L"");
 						const Color connectionColor = connState == EConnectionState::CONNECTION_FAILED
 							? GameMakeColor(255, 0, 0, 255)
 							: GameMakeColor(192, 192, 192, 255);
@@ -2123,7 +2152,8 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 			}
 			else
 			{
-				mapDisplayName.translate(TheGenOnlineGame->getMap().str());
+											// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
+				mapDisplayName = getMapNameFromPath(TheGenOnlineGame->getMap());
 				willTransfer = WouldMapTransfer(TheGenOnlineGame->getMap());
 			}
 
@@ -2148,14 +2178,28 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 
 	pLobbyInterface->RegisterForGameStartPacket([]()
 		{
-			if (s_startWaitingForRoster)
+			// A repeated start packet does not launch the match twice.
+			if (TheGenOnlineGame == nullptr || TheGenOnlineGame->GetStartPhase() == EStartPhase::Starting)
 			{
 				return;
 			}
 
-			s_startWaitingForRoster = true;
+			TheGenOnlineGame->SetStartPhase(EStartPhase::Starting);
 			StartMatchWhenRosterMatches(0);
 		});
+
+	pLobbyInterface->RegisterForStartGameRejected([](const std::string& strReason, const std::vector<std::pair<int64_t, int64_t>>& missingLinks)
+		{
+			if (TheGenOnlineGame != nullptr)
+			{
+				TheGenOnlineGame->AbortStart();
+			}
+
+			GadgetListBoxAddEntryText(listboxGameSetupChat, GetReasonText(START_REJECTED_TEXTS, strReason), GameMakeColor(255, 194, 15, 255), -1, -1);
+			ShowMissingLinks(missingLinks);
+		});
+
+	pLobbyInterface->RegisterForLobbyEvent(OnLobbyEvent);
 
 
 	if (TheGenOnlineGame == nullptr || (TheGenOnlineGame && TheGenOnlineGame->isGameInProgress()))
@@ -2530,19 +2574,14 @@ void WOLGameSetupMenuShutdown( WindowLayout *layout, void *userData )
 		pLobbyInterface->DeregisterForPlayerDoesntHaveMapCallback();
 		pLobbyInterface->DeregisterForRosterNeedsRefreshCallback();
 		pLobbyInterface->DeregisterForGameStartPacket();
+		pLobbyInterface->DeregisterForStartGameRejected();
+		pLobbyInterface->DeregisterForLobbyEvent();
 	}
 	
 	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
 	if (pMesh != nullptr)
 	{
 		pMesh->DeregisterForConnectionEvents();
-	}
-
-	// drop any in-flight mesh connectivity check so a late reply never fires into this now-dead menu
-	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
-	if (pWS != nullptr)
-	{
-		pWS->ClearConnectivityCheckCallback();
 	}
 
 	//TheGameSpyInfo->unregisterTextWindow(listboxGameSetupChat);
@@ -2561,7 +2600,10 @@ void WOLGameSetupMenuShutdown( WindowLayout *layout, void *userData )
 		TheEstablishConnectionsMenu->endMenu();
 	}
 	initDone = false;
-	s_startWaitingForRoster = false;
+	if (TheGenOnlineGame != nullptr)
+	{
+		TheGenOnlineGame->SetStartPhase(EStartPhase::Idle);
+	}
 
 	isShuttingDown = true;
 
@@ -2592,6 +2634,103 @@ static void fillPlayerInfo(const PeerResponse *resp, PlayerInfo *info)
 	info->m_rankPoints= resp->player.rankPoints;
 	info->m_side			= resp->player.side;
 	info->m_preorder	= resp->player.preorder;
+}
+
+static const int64_t START_REQUEST_TIMEOUT_MS = 30000;
+
+// Ends a start request that lost the host role or its time and a countdown that lost the socket.
+static void UpdateStartPhase()
+{
+	auto* lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (lobby == nullptr || TheGenOnlineGame == nullptr || TheGenOnlineGame->isGameInProgress())
+	{
+		return;
+	}
+
+	const EStartPhase phase = TheGenOnlineGame->GetStartPhase();
+	if (phase == EStartPhase::Idle || phase == EStartPhase::Starting)
+	{
+		return;
+	}
+
+	if (phase == EStartPhase::StartRequested && !lobby->IsHost())
+	{
+		TheGenOnlineGame->SetStartPhase(EStartPhase::Idle);
+		return;
+	}
+
+	// A start request outlives a socket drop and ends only on its own timeout.
+	auto ws = GenOnlineServicesManager::GetWebSocket();
+	const bool socketLost = ws == nullptr || !ws->IsConnected();
+	const bool timedOut = NowMs() - TheGenOnlineGame->GetStartPhaseTime() > START_REQUEST_TIMEOUT_MS;
+	if (phase == EStartPhase::StartRequested ? timedOut : socketLost)
+	{
+		TheGenOnlineGame->SetStartPhase(EStartPhase::Idle);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"The start did not go through."), GameMakeColor(255, 194, 15, 255), -1, -1);
+	}
+}
+
+// Sets the start, back and host settings controls from the start phase and the peer links.
+static void UpdateStartControls()
+{
+	auto* lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (lobby == nullptr || TheGenOnlineGame == nullptr || TheGenOnlineGame->isGameInProgress()
+		|| buttonStart == nullptr || buttonBack == nullptr || buttonSelectMap == nullptr
+		|| comboBoxStartingCash == nullptr || checkBoxLimitSuperweapons == nullptr)
+	{
+		return;
+	}
+
+	const EStartPhase phase = TheGenOnlineGame->GetStartPhase();
+	static EStartPhase s_shownPhase = EStartPhase::Idle;
+	if (phase != s_shownPhase)
+	{
+		s_shownPhase = phase;
+		// The slot list unlocks the slot controls that the countdown locked.
+		if (phase == EStartPhase::Idle)
+		{
+			WOLDisplaySlotList();
+		}
+	}
+
+	const bool isHost = lobby->IsHost();
+	const bool peersConnected = lobby->AreLocalLobbyPeersConnected();
+	const bool connected = AreAllHumansSlottedAndConnected(lobby);
+	const bool failed = lobby->HasFailedLobbyPeers();
+
+	// A client may accept once it sees itself slotted and connected.
+	if (!isHost && connected)
+	{
+		initialAcceptEnable = TRUE;
+	}
+
+	bool settingsOpen = phase == EStartPhase::Idle;
+	// The countdown locks the settings in its last second.
+	if (phase == EStartPhase::Countdown)
+	{
+		settingsOpen = TheGenOnlineGame->GetCountdownRemainingMs() > 1000;
+	}
+
+	buttonStart->winSetText(failed ? UnicodeString(L"Retry connections")
+		: !peersConnected ? UnicodeString(L"Connecting...")
+		: !connected ? UnicodeString(L"Updating players...") : TheGameText->fetch(isHost ? "GUI:Start" : "GUI:Accept"));
+	if (phase != EStartPhase::Idle)
+	{
+		buttonStart->winEnable(FALSE);
+	}
+	else if (!connected)
+	{
+		buttonStart->winEnable(failed);
+	}
+	else
+	{
+		buttonStart->winEnable(isHost || initialAcceptEnable);
+	}
+
+	buttonBack->winEnable(settingsOpen);
+	buttonSelectMap->winEnable(isHost && phase == EStartPhase::Idle);
+	comboBoxStartingCash->winEnable(isHost && settingsOpen);
+	checkBoxLimitSuperweapons->winEnable(isHost && settingsOpen);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2639,7 +2778,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 		if (pLobbyInterface != nullptr)
 		{
 			ServiceConfig& serviceConf = GenOnlineServicesManager::GetInstance()->GetServiceConfig();
-			bool bHostMigrationEnabledOnService = serviceConf.enable_host_migration;
+			bool bHostMigrationEnabledOnService = serviceConf.lobby.host_migration;
 
 			if (bHostMigrationEnabledOnService)
 			{
@@ -2656,15 +2795,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 
 						if (bIsHost)
 						{
-							// re init our UI & enable host buttons
-							buttonStart->winSetText(TheGameText->fetch("GUI:Start"));
-							buttonStart->winEnable(TRUE);
-							buttonSelectMap->winEnable(TRUE);
 							initialAcceptEnable = TRUE;
-
-							comboBoxStartingCash->winEnable(TRUE);
-							checkBoxLimitSuperweapons->winEnable(TRUE);
-
 
 							NetworkLog(ELogVerbosity::LOG_RELEASE, "Host left and server migrated the host to us...");
 
@@ -2675,17 +2806,6 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 						else
 						{
 							GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Host: The previous host left. A new host was selected."), GameMakeColor(192, 192, 192, 255), -1, -1);
-						}
-
-						// re-enable critical buttons for everyone
-						if (buttonBack != nullptr)
-						{
-							buttonBack->winEnable(TRUE);
-						}
-
-						if (buttonStart != nullptr)
-						{
-							buttonStart->winEnable(TRUE);
 						}
 
 						GameWindow* buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
@@ -2730,83 +2850,34 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 		}
 	}
 
-#if defined(GENONLINE_ENABLE_MATCH_START_COUNTDOWN)
-	// is there a countdown in progress?
-	if (TheGenOnlineGame != nullptr)
+	auto* connectionLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (connectionLobby != nullptr && connectionLobby->GetCurrentLobby().lobby_type == ELobbyType::CustomGame
+		&& TheGenOnlineGame != nullptr && !TheGenOnlineGame->isGameInProgress())
 	{
-		if (TheGenOnlineGame->IsCountdownStarted())
+		const bool peersConnected = connectionLobby->AreLocalLobbyPeersConnected();
+		const bool connected = AreAllHumansSlottedAndConnected(connectionLobby);
+		static UnsignedInt s_lastSlotRefreshTime = 0;
+		if (peersConnected && !connected && timeGetTime() > s_lastSlotRefreshTime + 3000)
 		{
-			s_matchStartCountdownWasRunning = true;
-			const int64_t timeBetweenChecks = 1000;
-			int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-
-			if (currTime - TheGenOnlineGame->GetCountdownLastCheckTime() >= timeBetweenChecks)
-			{
-				int secondsSinceCountdownStart = (currTime - TheGenOnlineGame->GetCountdownStartTime()) / 1000;
-				int secondsRemaining = TheGenOnlineGame->GetTotalCountdownDuration() - secondsSinceCountdownStart;
-
-				TheGenOnlineGame->UpdateCountdownLastCheckTime();
-
-				// remote msg
-				UnicodeString strInform;
-				if (secondsRemaining == 1)
-				{
-					// Lock all host controlled lobby settings last second of the match start countdown
-					// to prevent late local changes not propagating to remote clients in time
-					WOLLockSettings();
-
-					strInform.format(TheGameText->fetch("LAN:GameStartTimerSingular"), secondsRemaining);
-				}
-				else
-				{
-					strInform.format(TheGameText->fetch("LAN:GameStartTimerPlural"), secondsRemaining);
-				}
-
-				GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-				if (pLobbyInterface != nullptr)
-				{
-					pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform, true);
-				}
-
-				// are we done?
-				if (secondsRemaining <= 0)
-				{
-					s_matchStartCountdownWasRunning = false;
-					// stop countdown
-					TheGenOnlineGame->StopCountdown();
-
-					// send start game packet
-					std::shared_ptr<WebSocket>  pWS = GenOnlineServicesManager::GetWebSocket();
-					if (pWS != nullptr)
-					{
-						pWS->SendData_StartGame();
-					}
-				}
-			}
-		}
-		else
-		{
-			// countdown is currently NOT running.
-			// If it was running before, it just got cancelled or finished.
-			if (s_matchStartCountdownWasRunning)
-			{
-				s_matchStartCountdownWasRunning = false;
-
-				// Re-enable Back and Start buttons when countdown stops
-				if (buttonBack != nullptr)
-				{
-					buttonBack->winEnable(TRUE);
-				}
-
-				if (buttonStart != nullptr)
-				{
-					buttonStart->winEnable(TRUE);
-				}
-			}
-
+			// peers are linked but the game lacks a slot for one, ask the service for the roster
+			s_lastSlotRefreshTime = timeGetTime();
+			connectionLobby->UpdateRoomDataCache();
 		}
 	}
-#endif
+
+	UpdateStartPhase();
+	UpdateStartControls();
+
+	// is there a countdown in progress?
+	if (TheGenOnlineGame != nullptr && TheGenOnlineGame->GetStartPhase() == EStartPhase::Countdown)
+	{
+		const int64_t remainingMs = TheGenOnlineGame->GetCountdownRemainingMs();
+		const Int secondsRemaining = remainingMs > 0 ? (Int)((remainingMs + 999) / 1000) : 0;
+		if (secondsRemaining > 0 && secondsRemaining < countdownShownSecond)
+		{
+			ShowCountdownSecond(secondsRemaining);
+		}
+	}
 
 	if (raiseMessageBoxes)
 	{
@@ -3322,7 +3393,8 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 										}
 										else
 										{
-											mapDisplayName.translate(TheGameState->getMapLeafName(game->getMap()).str());
+										// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
+											mapDisplayName = getMapNameFromPath(game->getMap());
 											willTransfer = WouldMapTransfer(game->getMap());
 										}
 										if (willTransfer)
@@ -3480,7 +3552,8 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 									}
 									else
 									{
-										mapDisplayName.translate(game->getMap().str());
+										// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
+										mapDisplayName = getMapNameFromPath(game->getMap());
 										willTransfer = WouldMapTransfer(game->getMap());
 									}
 									UnicodeString text;
@@ -4181,8 +4254,6 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 
 								// // TODO_GENONLINE
 								//TheGameSpyInfo->setGameOptions();
-								if (TheGenOnlineGame && TheGenOnlineGame->IsCountdownStarted())
-									TheGenOnlineGame->StopCountdown();
 								WOLDisplaySlotList();
 								//TheLAN->OnPlayerLeave(name);
 							}
@@ -4192,8 +4263,6 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 								myGame->getSlot(i)->setState(SlotState(pos));
 								Bool isAI = (myGame->getSlot(i)->isAI());
 								myGame->resetAccepted();
-								if (TheGenOnlineGame && TheGenOnlineGame->IsCountdownStarted())
-									TheGenOnlineGame->StopCountdown();
 								if (wasAI ^ isAI)
 									PopulatePlayerTemplateComboBox(i, comboBoxPlayerTemplate, myGame, wasAI && myGame->getAllowObservers());
 
@@ -4268,6 +4337,10 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 				}
 				else if ( controlID == buttonStartID )
 				{
+					if (RetryMissingLobbyPeerLinks())
+					{
+						break;
+					}
 					savePlayerInfo();
 					
 					GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();

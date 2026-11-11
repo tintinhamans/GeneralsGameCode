@@ -14,6 +14,8 @@
 #include "GameClient/View.h"
 #include "../GenOnlineDefines.h"
 
+int FRAME_GROUPING_CAP = 32;
+
 GenOnlineGameSlot::GenOnlineGameSlot()
 {
 	GameSlot();
@@ -65,40 +67,21 @@ GenOnlineGame::~GenOnlineGame()
 
 void GenOnlineGame::SyncWithLobby(LobbyEntry& lobby)
 {
-	// map
-	// correct if custom (game needs full path, this is done in vanilla for CM only, and not QM, but our QM has custom maps, so just do it here for safety)
+	// The lobby builds the map path from map_official.
+	AsciiString asciiMap(lobby.map_path.c_str());
+	asciiMap.toLower();
+	setMap(asciiMap);
 
-	AsciiString asciiMapOfficial(lobby.map_path.c_str());
-	std::string correctedMapPath = std::format("{}{}", TheGlobalData->getPath_UserData().str(), lobby.map_path.c_str());
-	AsciiString asciiMapCustom(correctedMapPath.c_str());
-	//TheGenOnlineGame->setMap(asciiMap);
-	asciiMapOfficial.toLower();
-	asciiMapCustom.toLower();
-	std::map<AsciiString, MapMetaData>::iterator itOfficial = TheMapCache->find(asciiMapOfficial);
-	std::map<AsciiString, MapMetaData>::iterator itCustom = TheMapCache->find(asciiMapCustom);
-
-	// is it official?
-
-
-	if (itOfficial != TheMapCache->end())
+	std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(asciiMap);
+	if (it != TheMapCache->end())
 	{
-		TheGenOnlineGame->getGameSpySlot(0)->setMapAvailability(TRUE);
-		TheGenOnlineGame->setMapCRC(itOfficial->second.m_CRC);
-		TheGenOnlineGame->setMapSize(itOfficial->second.m_filesize);
-
-		setMap(asciiMapOfficial);
+		getGameSpySlot(0)->setMapAvailability(TRUE);
+		setMapCRC(it->second.m_CRC);
+		setMapSize(it->second.m_filesize);
 	}
-	else if (itCustom != TheMapCache->end())
+	else
 	{
-		TheGenOnlineGame->getGameSpySlot(0)->setMapAvailability(TRUE);
-		TheGenOnlineGame->setMapCRC(itCustom->second.m_CRC);
-		TheGenOnlineGame->setMapSize(itCustom->second.m_filesize);
-
-		setMap(asciiMapCustom);
-	}
-	else // fallback
-	{
-		setMap(lobby.map_path.c_str());
+		getGameSpySlot(0)->setMapAvailability(FALSE);
 	}
 
 	// superweapon
@@ -419,34 +402,6 @@ void GenOnlineGame::launchGame(void)
 	//TheWritableGlobalData->m_networkPlayerTimeoutTime = 60000;
 	//TheWritableGlobalData->m_networkDisconnectScreenNotifyTime = 2500;
 
-	// process service config
-	GenOnlineServicesManager* pOnlineServicesMgr = GenOnlineServicesManager::GetInstance();
-	if (pOnlineServicesMgr != nullptr)
-	{
-		ServiceConfig& serviceConf = pOnlineServicesMgr->GetServiceConfig();
-
-		if (serviceConf.use_default_config)
-		{
-			TheWritableGlobalData->m_networkFPSHistoryLength = 30;
-			TheWritableGlobalData->m_networkLatencyHistoryLength = 200;
-			TheWritableGlobalData->m_networkRunAheadSlack = serviceConf.ra_slack_override_percent_in_default; // normally 10
-			TheWritableGlobalData->m_networkRunAheadMetricsTime = 5000;
-		}
-		else
-		{
-			TheWritableGlobalData->m_networkFPSHistoryLength = 10;
-			TheWritableGlobalData->m_networkLatencyHistoryLength = 10;
-
-			MIN_RUNAHEAD = serviceConf.min_run_ahead_frames;
-
-			TheWritableGlobalData->m_networkRunAheadSlack = serviceConf.ra_slack_percent;
-			TheWritableGlobalData->m_networkRunAheadMetricsTime = serviceConf.ra_update_frequency_frames * ((float)MSEC_PER_SECOND / LOGICFRAMES_PER_SECOND);
-
-			FRAME_GROUPING_CAP = serviceConf.frame_grouping_frames * ((float)MSEC_PER_SECOND / LOGICFRAMES_PER_SECOND);
-		}
-	}
-	
-
 #if defined(GENONLINE)
 	TheWritableGlobalData->m_horizontalScrollSpeedFactor = GenOnlineServicesManager::Settings.Camera_MoveSpeedRatio();
 	TheWritableGlobalData->m_verticalScrollSpeedFactor = GenOnlineServicesManager::Settings.Camera_MoveSpeedRatio();
@@ -593,17 +548,34 @@ void GenOnlineGame::reset(void)
 	m_isQM = FALSE;
 }
 
-void GenOnlineGame::StartCountdown()
+void GenOnlineGame::SetStartPhase(EStartPhase phase)
 {
-	m_bCountdownStarted = true;
-	m_countdownStartTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-	m_countdownLastCheckTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-
-	std::shared_ptr<WebSocket>  pWS = GenOnlineServicesManager::GetWebSocket();
-	if (pWS != nullptr)
+	if (phase != m_startPhase)
 	{
-		pWS->SendData_CountdownStarted();
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Start phase %d -> %d", (int)m_startPhase, (int)phase);
 	}
+
+	m_startPhase = phase;
+	m_startPhaseTime = NowMs();
+}
+
+void GenOnlineGame::AbortStart()
+{
+	if (m_startPhase != EStartPhase::Starting)
+	{
+		SetStartPhase(EStartPhase::Idle);
+	}
+}
+
+void GenOnlineGame::StartCountdown(int64_t durationMs)
+{
+	SetStartPhase(EStartPhase::Countdown);
+	m_countdownEnd = std::chrono::steady_clock::now() + std::chrono::milliseconds(durationMs);
+}
+
+int64_t GenOnlineGame::GetCountdownRemainingMs() const
+{
+	return std::chrono::duration_cast<std::chrono::milliseconds>(m_countdownEnd - std::chrono::steady_clock::now()).count();
 }
 
 Bool GenOnlineGame::canKickOnObserversDisabled()

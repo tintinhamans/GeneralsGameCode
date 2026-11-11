@@ -26,6 +26,7 @@
 #include <unordered_set>
 #include <random>
 #include <algorithm>
+#include "gitinfo.h"
 
 extern "C"
 {
@@ -121,7 +122,7 @@ static std::chrono::steady_clock::time_point GetScreenshotUploadTime()
 		}
 	}
 
-	const int slotOffsetMS = std::clamp(GenOnlineServicesManager::GetInstance()->GetServiceConfig().screenshot_slot_offset_ms, 0, 10000);
+	const int slotOffsetMS = std::clamp(GenOnlineServicesManager::GetInstance()->GetServiceConfig().telemetry.screenshot_slot_offset_ms, 0, 10000);
 
 	static std::mt19937 rng{ std::random_device{}() };
 	const int jitterMS = std::uniform_int_distribution<int>(0, 500)(rng);
@@ -136,7 +137,7 @@ void GenOnlineServicesManager::CaptureScreenshotForProbe(EScreenshotType screens
 	{
 		ServiceConfig& serviceConf = pOnlineServicesMgr->GetServiceConfig();
 
-		if (serviceConf.do_probes)
+		if (serviceConf.telemetry.screenshot_probes)
 		{
 			CHECK_MAIN_THREAD;
 
@@ -274,7 +275,7 @@ void GenOnlineServicesManager::CommitReplay(AsciiString absoluteReplayPath)
 	{
 		ServiceConfig& serviceConf = pOnlineServicesMgr->GetServiceConfig();
 
-		if (serviceConf.do_replay_upload)
+		if (serviceConf.telemetry.replay_upload)
 		{
 			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 			const uint64_t matchID = pLobbyInterface == nullptr ? 0 : pLobbyInterface->GetCurrentMatchID();
@@ -406,6 +407,16 @@ void GenOnlineServicesManager::Shutdown()
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] OnlineServicesManager shutdown complete");
 }
 
+// The client version is the closest release tag without its v, else 0.0.0 with the commit hash.
+static std::string GetClientVersion()
+{
+	if (GitReleaseTag[0] == 'v' && GitReleaseTag[1] != '\0')
+	{
+		return std::string(GitReleaseTag + 1);
+	}
+	return std::string("0.0.0-g") + GitShortSHA1;
+}
+
 void GenOnlineServicesManager::StartVersionCheck(std::function<void(bool bSuccess, bool bNeedsUpdate)> fnCallback)
 {
 	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("VersionCheck");
@@ -430,10 +441,13 @@ void GenOnlineServicesManager::StartVersionCheck(std::function<void(bool bSucces
 	uint32_t realExeCRC = CRC_Memory((unsigned char*)buffer.data(), size);
 
 	nlohmann::json j;
-	j["execrc"] = realExeCRC;
-	j["ver"] = GENONLINE_VERSION;
-	j["netver"] = GENONLINE_NET_VERSION;
-	j["servicesver"] = GENONLINE_SERVICE_VERSION;
+	j["client_version"] = GetClientVersion();
+#if defined(RTS_ZEROHOUR)
+	j["game"] = "generalsmd";
+#else
+	j["game"] = "generals";
+#endif
+	j["exe_crc"] = realExeCRC;
 	std::string strPostData = j.dump();
 
 	std::map<std::string, std::string> mapHeaders;
@@ -673,8 +687,8 @@ void GenOnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std::f
 							if (bResizeForTransmit)
 							{
 								ServiceConfig& serviceConf = GenOnlineServicesManager::GetInstance()->GetServiceConfig();
-								finalWidth = serviceConf.screenshot_width;
-								finalHeight = serviceConf.screenshot_height;
+								finalWidth = serviceConf.telemetry.screenshot_width;
+								finalHeight = serviceConf.telemetry.screenshot_height;
 								resized.resize(finalWidth * finalHeight * channels);
 
 								stbir_resize_uint8(pixels, width, height, 0,
@@ -857,7 +871,6 @@ void GenOnlineServicesManager::OnLogin(ELoginResult loginResult, const char* szW
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] OnLogin: shutting down previous websocket before re-login");
 			m_pWebSocket->Shutdown();
 			m_pWebSocket->m_fnWebsocketConnectedCallback = nullptr;
-			m_pWebSocket->ClearConnectivityCheckCallback();
 			m_pWebSocket.reset();
 		}
 
@@ -948,7 +961,7 @@ void GenOnlineServicesManager::Tick()
 		std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
 
 
-		const int uploadBytesPerSec = std::clamp(m_ServiceConfig.screenshot_upload_bytes_per_sec, 16384, 10485760);
+		const int uploadBytesPerSec = std::clamp(m_ServiceConfig.telemetry.screenshot_upload_bytes_per_sec, 16384, 10485760);
 		const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 		const bool bMatchOver = TheGameLogic == nullptr || !TheGameLogic->isInMultiplayerGame(); // uploads no longer compete with game traffic
 
@@ -1346,25 +1359,10 @@ void WebSocket::SendData_UnsubscribeRealtimeUpdates()
 	Send(strBody.c_str());
 }
 
-void WebSocket::SendData_CountdownStarted()
+void WebSocket::SendData_HostStartIntent()
 {
 	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::START_GAME_COUNTDOWN_STARTED;
-	std::string strBody = j.dump();
-	Send(strBody.c_str());
-}
-
-
-void WebSocket::SendData_StartFullMeshConnectivityCheck(std::function<void(bool, std::list<std::pair<int64_t, int64_t>>, std::string)> cbOnConnectivityCheckComplete)
-{
-	m_cbOnConnectivityCheckComplete = cbOnConnectivityCheckComplete;
-
-	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-	m_connectivityCheckLobbyID = pLobbyInterface != nullptr ? pLobbyInterface->GetCurrentLobby().lobbyID : -1;
-	m_connectivityCheckStartMs = NowMs();
-
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::FULL_MESH_CONNECTIVITY_CHECK_HOST_REQUESTS_BEGIN;
+	j["msg_id"] = EWebSocketMessageID::LOBBY_HOST_START_INTENT;
 	std::string strBody = j.dump();
 	Send(strBody.c_str());
 }

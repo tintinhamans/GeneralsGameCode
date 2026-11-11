@@ -24,8 +24,6 @@
 //#define ARTIFICIAL_DELAY_HTTP_REQUESTS 1
 #endif
 
-#define GENONLINE_DISABLE_AUTO_ACCEPT 1
-
 #if defined(_DEBUG)
 //#define USE_DEBUG_ON_LIVE_SERVER 1
 #endif
@@ -54,12 +52,6 @@ void showNotificationBox(AsciiString nick, UnicodeString message, bool bPlaySoun
 
 #define ALLOW_NON_PROFILED_LOGIN 1
 
-#define GENONLINE_ENABLE_MATCH_START_COUNTDOWN
-
-#define GENONLINE_VERSION 1
-#define GENONLINE_NET_VERSION 1
-#define GENONLINE_SERVICE_VERSION 1
-
 #if !_DEBUG || defined(USE_DEBUG_ON_LIVE_SERVER)
 #define GENONLINE_ENCRYPT_CREDENTIALS 1
 #endif
@@ -75,7 +67,7 @@ void showNotificationBox(AsciiString nick, UnicodeString message, bool bPlaySoun
 
 #define GENONLINE_CLIENT_ID "gen_online_60hz"
 
-static int FRAME_GROUPING_CAP = 32;
+extern int FRAME_GROUPING_CAP;
 
 
 #define GENONLINE_USE_LARGER_DMAPOOL 1

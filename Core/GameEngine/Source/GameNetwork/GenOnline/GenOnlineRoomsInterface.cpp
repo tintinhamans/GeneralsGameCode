@@ -5,6 +5,7 @@
 #include "GameNetwork/GenOnline/NetworkBitstream.h"
 #include "GameNetwork/GenOnline/GenOnlineModeration.h"
 #include "GameNetwork/GenOnline/json.hpp"
+#include "GameNetwork/GenOnline/JsonHelpers.h"
 #include "../GenOnlineInit.h"
 #include "../HTTP/HTTPManager.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
@@ -129,6 +130,23 @@ WebSocket::~WebSocket()
 		curl_slist_free_all(m_pHeaders);
 		m_pHeaders = nullptr;
 	}
+}
+
+// Reads the missing links of a start refusal or cancellation. Each entry is a [source, target] pair of user IDs.
+static std::vector<std::pair<int64_t, int64_t>> ParseMissingLinks(const nlohmann::json& jsonObject)
+{
+	std::vector<std::pair<int64_t, int64_t>> missingLinks;
+	if (jsonObject.contains("missing") && jsonObject["missing"].is_array())
+	{
+		for (const auto& link : jsonObject["missing"])
+		{
+			if (link.is_array() && link.size() == 2 && link[0].is_number_integer() && link[1].is_number_integer())
+			{
+				missingLinks.emplace_back(link[0].get<int64_t>(), link[1].get<int64_t>());
+			}
+		}
+	}
+	return missingLinks;
 }
 
 int WebSocket::Ping()
@@ -746,16 +764,6 @@ void WebSocket::Tick()
 	// Main thread only; m_pCurlWS/m_vecWSPartialBuffer/m_bConnected are unlocked here.
 	UpdateReconnect();
 
-	// Longer than the 20 s server backstop so a late reply finds no callback and is ignored.
-	static constexpr int64_t CONNECTIVITY_CHECK_TIMEOUT_MS = 30000;
-	if (m_cbOnConnectivityCheckComplete != nullptr && m_connectivityCheckStartMs != -1 && (NowMs() - m_connectivityCheckStartMs) > CONNECTIVITY_CHECK_TIMEOUT_MS)
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK] No reply from the server, timing out");
-		auto cbTimedOut = std::move(m_cbOnConnectivityCheckComplete);
-		ClearConnectivityCheckCallback();
-		cbTimedOut(false, {}, "timeout");
-	}
-
 	/*
 	if (strSignal.length() == 6)
 	{
@@ -1151,6 +1159,13 @@ void WebSocket::Tick()
 
 									case EWebSocketMessageID::START_GAME:
 									{
+										auto* startLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+										// The service and the other players have already started, so a missing link is only logged.
+										if (startLobby != nullptr && startLobby->GetCurrentLobby().lobby_type == ELobbyType::CustomGame
+											&& !startLobby->AreLocalLobbyPeersConnected())
+										{
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Starting with a required peer connection missing");
+										}
                                         WebSocketMessage_StartGameResponse startGameData;
                                         bool bParsed = JSONGetAsObject(jsonObject, &startGameData);
 
@@ -1166,6 +1181,54 @@ void WebSocket::Tick()
                                         {
                                             pLobbyInterface->m_callbackStartGamePacket();
                                         }
+									}
+									break;
+
+									case EWebSocketMessageID::START_GAME_REJECTED:
+									{
+										std::string strReason;
+										if (jsonObject.contains("reason") && jsonObject["reason"].is_string())
+										{
+											strReason = jsonObject["reason"].get<std::string>();
+										}
+										NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] The service refused the match start (%s)", strReason.c_str());
+
+										const std::vector<std::pair<int64_t, int64_t>> missingLinks = ParseMissingLinks(jsonObject);
+
+										GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+										if (pLobbyInterface != nullptr && pLobbyInterface->m_callbackStartGameRejected != nullptr)
+										{
+											pLobbyInterface->m_callbackStartGameRejected(strReason, missingLinks);
+										}
+									}
+									break;
+
+									case EWebSocketMessageID::LOBBY_EVENT:
+									{
+										LobbyEvent lobbyEvent;
+										try
+										{
+											JsonGetRequired(jsonObject, "event", lobbyEvent.event);
+											JsonGetOptional(jsonObject, "duration_ms", lobbyEvent.duration_ms);
+											JsonGetOptional(jsonObject, "reason", lobbyEvent.reason);
+											JsonGetOptional(jsonObject, "value", lobbyEvent.value);
+											JsonGetOptional(jsonObject, "friends_only", lobbyEvent.friends_only);
+											JsonGetOptional(jsonObject, "user_id", lobbyEvent.user_id);
+											JsonGetOptional(jsonObject, "display_name", lobbyEvent.display_name);
+											lobbyEvent.missingLinks = ParseMissingLinks(jsonObject);
+										}
+										catch (...)
+										{
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Ignoring a malformed lobby event");
+											break;
+										}
+
+										NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Lobby event %s", lobbyEvent.event.c_str());
+										GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+										if (pLobbyInterface != nullptr && pLobbyInterface->m_callbackLobbyEvent != nullptr)
+										{
+											pLobbyInterface->m_callbackLobbyEvent(lobbyEvent);
+										}
 									}
 									break;
 
@@ -1225,70 +1288,6 @@ void WebSocket::Tick()
 										std::string strBody = j.dump();
 
 										Send(strBody.c_str());
-										break;
-									}
-
-									case EWebSocketMessageID::FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST:
-									{
-										// all checks are done, process start for host
-
-										// stale reply for a lobby we've since left/changed
-										GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-										int64_t currentLobbyID = pLobbyInterface != nullptr ? pLobbyInterface->GetCurrentLobby().lobbyID : -1;
-										if (currentLobbyID != m_connectivityCheckLobbyID)
-										{
-											NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST] Ignoring stale reply for a previous lobby");
-											break;
-										}
-
-										bool bMeshComplete = false;
-										std::string strReason;
-										std::list<std::pair<int64_t, int64_t>> missingConnections;
-
-										try
-										{
-											jsonObject["mesh_complete"].get_to(bMeshComplete);
-
-											if (jsonObject.contains("reason"))
-											{
-												jsonObject["reason"].get_to(strReason);
-											}
-
-											if (!bMeshComplete)
-											{
-												NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST] Mesh is not complete for someone, reason: %s", strReason.c_str());
-												for (const auto& missingConnectionEntryIter : jsonObject["missing_connections"])
-												{
-													int64_t source_user_id = -1;
-													int64_t target_user_id = -1;
-
-													missingConnectionEntryIter["source_user_id"].get_to(source_user_id);
-													missingConnectionEntryIter["target_user_id"].get_to(target_user_id);
-
-													missingConnections.push_back(std::make_pair(source_user_id, target_user_id));
-												}
-											}
-											else
-											{
-												NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST] Mesh is fully complete");
-											}
-										}
-										catch (...)
-										{
-											NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST] Error processing response, resolving as failure");
-											bMeshComplete = false;
-											missingConnections.clear();
-											strReason = "parse_error";
-										}
-
-										// invoke callback
-										if (m_cbOnConnectivityCheckComplete != nullptr)
-										{
-											m_cbOnConnectivityCheckComplete(bMeshComplete, missingConnections, strReason);
-										}
-
-										ClearConnectivityCheckCallback();
-
 										break;
 									}
 
