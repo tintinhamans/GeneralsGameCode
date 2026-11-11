@@ -132,6 +132,23 @@ WebSocket::~WebSocket()
 	}
 }
 
+// Reads the missing links of a start refusal or cancellation. Each entry is a [source, target] pair of user IDs.
+static std::vector<std::pair<int64_t, int64_t>> ParseMissingLinks(const nlohmann::json& jsonObject)
+{
+	std::vector<std::pair<int64_t, int64_t>> missingLinks;
+	if (jsonObject.contains("missing") && jsonObject["missing"].is_array())
+	{
+		for (const auto& link : jsonObject["missing"])
+		{
+			if (link.is_array() && link.size() == 2 && link[0].is_number_integer() && link[1].is_number_integer())
+			{
+				missingLinks.emplace_back(link[0].get<int64_t>(), link[1].get<int64_t>());
+			}
+		}
+	}
+	return missingLinks;
+}
+
 int WebSocket::Ping()
 {
 	size_t sent;
@@ -1176,18 +1193,7 @@ void WebSocket::Tick()
 										}
 										NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] The service refused the match start (%s)", strReason.c_str());
 
-										// Each missing entry is a [source, target] pair of user IDs.
-										std::vector<std::pair<int64_t, int64_t>> missingLinks;
-										if (jsonObject.contains("missing") && jsonObject["missing"].is_array())
-										{
-											for (const auto& link : jsonObject["missing"])
-											{
-												if (link.is_array() && link.size() == 2 && link[0].is_number_integer() && link[1].is_number_integer())
-												{
-													missingLinks.emplace_back(link[0].get<int64_t>(), link[1].get<int64_t>());
-												}
-											}
-										}
+										const std::vector<std::pair<int64_t, int64_t>> missingLinks = ParseMissingLinks(jsonObject);
 
 										GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 										if (pLobbyInterface != nullptr && pLobbyInterface->m_callbackStartGameRejected != nullptr)
@@ -1209,6 +1215,7 @@ void WebSocket::Tick()
 											JsonGetOptional(jsonObject, "friends_only", lobbyEvent.friends_only);
 											JsonGetOptional(jsonObject, "user_id", lobbyEvent.user_id);
 											JsonGetOptional(jsonObject, "display_name", lobbyEvent.display_name);
+											lobbyEvent.missingLinks = ParseMissingLinks(jsonObject);
 										}
 										catch (...)
 										{

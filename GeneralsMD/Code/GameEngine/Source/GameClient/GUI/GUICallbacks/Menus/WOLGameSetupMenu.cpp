@@ -1101,12 +1101,11 @@ static const ReasonText START_REJECTED_TEXTS[] =
 
 static const ReasonText COUNTDOWN_CANCELLED_TEXTS[] =
 {
-	{ "member_left", "GO:CountdownStoppedMemberLeft", L"The countdown stopped because a player left." },
-	{ "member_joined", "GO:CountdownStoppedMemberJoined", L"The countdown stopped because a player joined." },
-	{ "settings_changed", "GO:CountdownStoppedSettingsChanged", L"The countdown stopped because the settings changed." },
-	{ "host_left", "GO:CountdownStoppedHostLeft", L"The countdown stopped because the host left." },
-	{ "mesh_incomplete", "GO:CountdownStoppedMeshIncomplete", L"The countdown stopped because not every player is connected." },
-	{ nullptr, "GO:CountdownStopped", L"The countdown stopped." }
+	{ "member_left", "GO:StartStoppedMemberLeft", L"The start stopped because a player left." },
+	{ "settings_changed", "GO:StartStoppedSettingsChanged", L"The start stopped because the settings changed." },
+	{ "host_left", "GO:StartStoppedHostLeft", L"The start stopped because the host left." },
+	{ "mesh_incomplete", "GO:StartStoppedMeshIncomplete", L"The start stopped because not every player is connected." },
+	{ nullptr, "GO:StartStopped", L"The start stopped." }
 };
 
 // Returns the local text of a reason code. The last table entry is the text for an unknown code.
@@ -1192,6 +1191,7 @@ static void OnLobbyEvent(const LobbyEvent& lobbyEvent)
 	{
 		TheGenOnlineGame->AbortStart();
 		GadgetListBoxAddEntryText(listboxGameSetupChat, GetReasonText(COUNTDOWN_CANCELLED_TEXTS, lobbyEvent.reason), GameMakeColor(255, 194, 15, 255), -1, -1);
+		ShowMissingLinks(lobbyEvent.missingLinks);
 	}
 	else if (lobbyEvent.event == "host_wants_to_start")
 	{

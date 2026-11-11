@@ -116,6 +116,7 @@ struct LobbyEvent
 	bool friends_only = false;
 	int64_t user_id = -1;
 	std::string display_name;
+	std::vector<std::pair<int64_t, int64_t>> missingLinks;
 };
 
 class GenOnlineLobbyInterface
