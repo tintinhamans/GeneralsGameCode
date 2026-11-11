@@ -1034,17 +1034,9 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 		// Set up version info
 		TheVersion = NEW Version;
-
-        // TODO_NGMP: Better solution
-#if defined(GENONLINE)
-        TheVersion->setVersion(VERSION_MAJOR, VERSION_MINOR, GENONLINE_VERSION, GENONLINE_NET_VERSION,
-            AsciiString("Generals Online Development Team"), AsciiString(""),
-            AsciiString(__TIME__), AsciiString(__DATE__));
-#else
-        TheVersion->setVersion(VERSION_MAJOR, VERSION_MINOR, VERSION_BUILDNUM, VERSION_LOCALBUILDNUM,
-            AsciiString(VERSION_BUILDUSER), AsciiString(VERSION_BUILDLOC),
-            AsciiString(__TIME__), AsciiString(__DATE__));
-#endif
+		TheVersion->setVersion(VERSION_MAJOR, VERSION_MINOR, VERSION_BUILDNUM, VERSION_LOCALBUILDNUM,
+			AsciiString(VERSION_BUILDUSER), AsciiString(VERSION_BUILDLOC),
+			AsciiString(__TIME__), AsciiString(__DATE__));
 
 
 

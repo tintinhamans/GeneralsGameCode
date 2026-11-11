@@ -26,6 +26,7 @@
 #include <unordered_set>
 #include <random>
 #include <algorithm>
+#include "gitinfo.h"
 
 extern "C"
 {
@@ -406,6 +407,16 @@ void GenOnlineServicesManager::Shutdown()
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] OnlineServicesManager shutdown complete");
 }
 
+// The client version is the closest release tag without its v, else 0.0.0 with the commit hash.
+static std::string GetClientVersion()
+{
+	if (GitReleaseTag[0] == 'v' && GitReleaseTag[1] != '\0')
+	{
+		return std::string(GitReleaseTag + 1);
+	}
+	return std::string("0.0.0-g") + GitShortSHA1;
+}
+
 void GenOnlineServicesManager::StartVersionCheck(std::function<void(bool bSuccess, bool bNeedsUpdate)> fnCallback)
 {
 	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("VersionCheck");
@@ -430,10 +441,13 @@ void GenOnlineServicesManager::StartVersionCheck(std::function<void(bool bSucces
 	uint32_t realExeCRC = CRC_Memory((unsigned char*)buffer.data(), size);
 
 	nlohmann::json j;
-	j["execrc"] = realExeCRC;
-	j["ver"] = GENONLINE_VERSION;
-	j["netver"] = GENONLINE_NET_VERSION;
-	j["servicesver"] = GENONLINE_SERVICE_VERSION;
+	j["client_version"] = GetClientVersion();
+#if defined(RTS_ZEROHOUR)
+	j["game"] = "generalsmd";
+#else
+	j["game"] = "generals";
+#endif
+	j["exe_crc"] = realExeCRC;
 	std::string strPostData = j.dump();
 
 	std::map<std::string, std::string> mapHeaders;
