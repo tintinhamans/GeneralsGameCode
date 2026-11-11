@@ -1776,20 +1776,7 @@ void ConnectionManager::initTransport(const char *transportName) {
 	DEBUG_LOG(("ConnectionManager::initTransport - Initializing Transport"));
 
 	delete m_transport;
-
-#if defined(GENERALS_ONLINE)
-	// support lan + our new transport
-	if (TheLAN == nullptr)
-	{
-		m_transport = new NextGenTransport;
-	}
-	else
-	{
-		m_transport = TransportFactory::createTransport(transportName);
-	}
-#else
 	m_transport = TransportFactory::createTransport(transportName);
-#endif
 	m_transport->reset();
 	m_transport->init(m_localAddr, m_localPort);
 }
