@@ -1430,11 +1430,7 @@ void PlayerConnection::UpdateLatencyHistogram()
 
 	// update latency history
 	int currLatency = GetLatency();
-#if defined(GENONLINE_HIGH_FPS_SERVER)
-	const int connectionHistoryLength = histogram_duration / 16; // ~20 sec worth of frames at 60fps (default)
-#else
-	const int connectionHistoryLength = histogram_duration / 33; // ~20 sec worth of frames at 30fps (default)
-#endif
+	const int connectionHistoryLength = histogram_duration / (MSEC_PER_SECOND / LOGICFRAMES_PER_SECOND); // ~20 sec worth of frames at 60fps (default)
 
 	if (m_vecLatencyHistory.size() >= connectionHistoryLength)
 	{

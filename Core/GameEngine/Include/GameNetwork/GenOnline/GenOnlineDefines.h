@@ -75,29 +75,10 @@ void showNotificationBox(AsciiString nick, UnicodeString message, bool bPlaySoun
 #define GENONLINE_MIN_LOBBY_CAMERA_ZOOM 210
 #define GENONLINE_MAX_LOBBY_CAMERA_ZOOM 1000
 
-// 60 Hz logic only has its gameplay adaptations in Zero Hour; Generals keeps retail 30 Hz
-#if RTS_ZEROHOUR
-#define GENONLINE_HIGH_FPS_SERVER 1
-#endif
-
-#if defined(GENONLINE_HIGH_FPS_SERVER)
 #define GENONLINE_CLIENT_ID "gen_online_60hz"
-#else
-#define GENONLINE_CLIENT_ID "gen_online_30hz"
-#endif
 
-#if defined(GENONLINE_HIGH_FPS_SERVER)
-	#define GENONLINE_HIGH_FPS_LIMIT 60
-	#define GENONLINE_HIGH_FPS_FRAME_MULTIPLIER (GENONLINE_HIGH_FPS_LIMIT/30)
-	#define GENONLINE_HIGH_FPS_RENDER 1 // This must be defined for high fps server
-#else
-	#define GENONLINE_HIGH_FPS_LIMIT 30
-	#define GENONLINE_HIGH_FPS_FRAME_MULTIPLIER 1
-
-	#define GENONLINE_HIGH_FPS_RENDER 1 // This is optional on 30fps, but will boost/unlock the framerate, similar to gentool
-#endif
-
-#if defined(GENONLINE_HIGH_FPS_SERVER)
+// Generals keeps the retail 30 Hz logic until it has the gameplay adaptations
+#if RTS_ZEROHOUR
 static int FRAME_GROUPING_CAP = 32;
 #else
 static int FRAME_GROUPING_CAP = 64;
