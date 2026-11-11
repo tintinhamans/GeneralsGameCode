@@ -597,7 +597,6 @@ void GenOnlineGame::AbortStart()
 	}
 }
 
-#if defined(GENONLINE_ENABLE_MATCH_START_COUNTDOWN)
 void GenOnlineGame::StartCountdown()
 {
 	SetStartPhase(EStartPhase::Countdown);
@@ -614,7 +613,6 @@ void GenOnlineGame::UpdateCountdownLastCheckTime()
 {
 	m_countdownLastCheckTime = NowMs();
 }
-#endif
 
 Bool GenOnlineGame::canKickOnObserversDisabled()
 {

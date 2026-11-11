@@ -82,9 +82,7 @@ private:
 
 	std::chrono::system_clock::time_point matchStartTime;
 
-#if defined(GENONLINE_ENABLE_MATCH_START_COUNTDOWN)
 	int64_t m_countdownLastCheckTime = -1;
-#endif
 
 public:
 	GenOnlineGame();
@@ -102,7 +100,6 @@ public:
 	bool HasCommittedOutcome() const { return m_bHasCommittedOutcome; }
 	void SetHasCommittedOutcome() { m_bHasCommittedOutcome = true; }
 
-#if defined(GENONLINE_ENABLE_MATCH_START_COUNTDOWN)
 	void StartCountdown();
 
 	void UpdateCountdownLastCheckTime();
@@ -116,7 +113,6 @@ public:
 	{
 		return m_countdownLastCheckTime;
 	}
-#endif
 
 	void StartMatchTimer() { matchStartTime = std::chrono::system_clock::now(); }
 	std::chrono::system_clock::time_point GetStartTime() { return matchStartTime; }
