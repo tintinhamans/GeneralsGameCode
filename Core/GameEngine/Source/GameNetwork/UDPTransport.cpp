@@ -23,10 +23,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 
-#include "PreRTS.h"	// This must go first in EVERY cpp file int the GameEngine
+#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/crc.h"
-#include "GameNetwork/Transport.h"
+#include "GameNetwork/UDPTransport.h"
 #include "GameNetwork/NetworkInterface.h"
 
 
@@ -36,13 +36,13 @@
 // can be non-XOR'd.
 
 // This assumes the buf is a multiple of 4 bytes.  Extra is not encrypted.
-static inline void encryptBuf(unsigned char* buf, Int len)
+static inline void encryptBuf( unsigned char *buf, Int len )
 {
 	UnsignedInt mask = 0x0000Fade;
 
-	UnsignedInt* uintPtr = (UnsignedInt*)(buf);
+	UnsignedInt *uintPtr = (UnsignedInt *) (buf);
 
-	for (int i = 0; i < len / 4; i++) {
+	for (int i=0 ; i<len/4 ; i++) {
 		*uintPtr = (*uintPtr) ^ mask;
 		*uintPtr = htonl(*uintPtr);
 		uintPtr++;
@@ -51,13 +51,13 @@ static inline void encryptBuf(unsigned char* buf, Int len)
 }
 
 // This assumes the buf is a multiple of 4 bytes.  Extra is not encrypted.
-static inline void decryptBuf(unsigned char* buf, Int len)
+static inline void decryptBuf( unsigned char *buf, Int len )
 {
 	UnsignedInt mask = 0x0000Fade;
 
-	UnsignedInt* uintPtr = (UnsignedInt*)(buf);
+	UnsignedInt *uintPtr = (UnsignedInt *) (buf);
 
-	for (int i = 0; i < len / 4; i++) {
+	for (int i=0 ; i<len/4 ; i++) {
 		*uintPtr = htonl(*uintPtr);
 		*uintPtr = (*uintPtr) ^ mask;
 		uintPtr++;
@@ -67,23 +67,23 @@ static inline void decryptBuf(unsigned char* buf, Int len)
 
 //--------------------------------------------------------------------------
 
-UDPTransport::UDPTransport(void)
+UDPTransport::UDPTransport()
 {
 	m_winsockInit = false;
-	m_udpsock = NULL;
+	m_udpsock = nullptr;
 }
 
-UDPTransport::~UDPTransport(void)
+UDPTransport::~UDPTransport()
 {
 	reset();
 }
 
-Bool UDPTransport::init(AsciiString ip, UnsignedShort port)
+Bool UDPTransport::init( AsciiString ip, UnsignedShort port )
 {
 	return init(ResolveIP(ip), port);
 }
 
-Bool UDPTransport::init(UnsignedInt ip, UnsignedShort port)
+Bool UDPTransport::init( UnsignedInt ip, UnsignedShort port )
 {
 	// ----- Initialize Winsock -----
 	if (!m_winsockInit)
@@ -96,7 +96,7 @@ Bool UDPTransport::init(UnsignedInt ip, UnsignedShort port)
 			return false;
 		}
 
-		if ((LOBYTE(wsadata.wVersion) != 2) || (HIBYTE(wsadata.wVersion) != 2)) {
+		if ((LOBYTE(wsadata.wVersion) != 2) || (HIBYTE(wsadata.wVersion) !=2)) {
 			WSACleanup();
 			return false;
 		}
@@ -118,15 +118,15 @@ Bool UDPTransport::init(UnsignedInt ip, UnsignedShort port)
 
 	if (retval != 0) {
 		DEBUG_CRASH(("Could not bind to 0x%8.8X:%d", ip, port));
-		DEBUG_LOG(("UDPTransport::init - Failure to bind socket with error code %x", retval));
+		DEBUG_LOG(("Transport::init - Failure to bind socket with error code %x", retval));
 		delete m_udpsock;
-		m_udpsock = NULL;
+		m_udpsock = nullptr;
 		return false;
 	}
 
 	// ------- Clear buffers --------
-	int i = 0;
-	for (; i < MAX_MESSAGES; ++i)
+	int i=0;
+	for (; i<MAX_MESSAGES; ++i)
 	{
 		m_outBuffer[i].length = 0;
 		m_inBuffer[i].length = 0;
@@ -134,7 +134,7 @@ Bool UDPTransport::init(UnsignedInt ip, UnsignedShort port)
 		m_delayedInBuffer[i].message.length = 0;
 #endif
 	}
-	for (i = 0; i < MAX_TRANSPORT_STATISTICS_SECONDS; ++i)
+	for (i=0; i<MAX_TRANSPORT_STATISTICS_SECONDS; ++i)
 	{
 		m_incomingBytes[i] = 0;
 		m_outgoingBytes[i] = 0;
@@ -159,10 +159,10 @@ Bool UDPTransport::init(UnsignedInt ip, UnsignedShort port)
 	return true;
 }
 
-void UDPTransport::reset(void)
+void UDPTransport::reset()
 {
 	delete m_udpsock;
-	m_udpsock = NULL;
+	m_udpsock = nullptr;
 
 	if (m_winsockInit)
 	{
@@ -171,7 +171,7 @@ void UDPTransport::reset(void)
 	}
 }
 
-Bool UDPTransport::update(void)
+Bool UDPTransport::update()
 {
 	Bool retval = TRUE;
 	if (doRecv() == FALSE && m_udpsock && m_udpsock->GetStatus() == UDP::ADDRNOTAVAIL)
@@ -190,7 +190,7 @@ Bool UDPTransport::update(void)
 Bool UDPTransport::doSend() {
 	if (!m_udpsock)
 	{
-		DEBUG_LOG(("UDPTransport::doSend() - m_udpSock is NULL!"));
+		DEBUG_LOG(("Transport::doSend() - m_udpSock is null!"));
 		return FALSE;
 	}
 
@@ -211,15 +211,18 @@ Bool UDPTransport::doSend() {
 	}
 
 	// Send all messages
-	int i;
-	for (i = 0; i < MAX_MESSAGES; ++i)
+	for (size_t i = 0; i < ARRAY_SIZE(m_outBuffer); ++i)
 	{
-		if (m_outBuffer[i].length != 0)
+		if (m_outBuffer[i].length > 0)
 		{
 			int bytesSent = 0;
+			// TheSuperHackers @info The handling of data sizing of the payload within a UDP packet is confusing due to the current networking implementation
+			// The max game packet size needs to be smaller than max udp payload by sizeof(TransportMessageHeader)
+			// But the max network message size needs to include the bytes of the transport message header and equal the max udp payload
+			// Therefore, transmitted data needs to add the extra bytes of the network header to the payloads length
 			int bytesToSend = m_outBuffer[i].length + sizeof(TransportMessageHeader);
 			// Send this message
-			if ((bytesSent = m_udpsock->Write((unsigned char*)(&m_outBuffer[i]), bytesToSend, m_outBuffer[i].addr, m_outBuffer[i].port)) > 0)
+			if ((bytesSent = m_udpsock->Write((unsigned char *)(&m_outBuffer[i]), bytesToSend, m_outBuffer[i].addr, m_outBuffer[i].port)) > 0)
 			{
 				//DEBUG_LOG(("Sending %d bytes to %d.%d.%d.%d:%d", bytesToSend, PRINTF_IP_AS_4_INTS(m_outBuffer[i].addr), m_outBuffer[i].port));
 				m_outgoingPackets[m_statisticsSlot]++;
@@ -227,7 +230,7 @@ Bool UDPTransport::doSend() {
 				m_outBuffer[i].length = 0;  // Remove from queue
 				if (bytesSent != bytesToSend)
 				{
-					DEBUG_LOG(("UDPTransport::doSend - wanted to send %d bytes, only sent %d bytes to %d.%d.%d.%d:%d",
+					DEBUG_LOG(("Transport::doSend - wanted to send %d bytes, only sent %d bytes to %d.%d.%d.%d:%d",
 						bytesToSend, bytesSent,
 						PRINTF_IP_AS_4_INTS(m_outBuffer[i].addr), m_outBuffer[i].port));
 				}
@@ -236,7 +239,7 @@ Bool UDPTransport::doSend() {
 			{
 				//DEBUG_LOG(("Could not write to socket!!!  Not discarding message!"));
 				retval = FALSE;
-				//DEBUG_LOG(("UDPTransport::doSend returning FALSE"));
+				//DEBUG_LOG(("Transport::doSend returning FALSE"));
 			}
 		}
 	}
@@ -245,17 +248,20 @@ Bool UDPTransport::doSend() {
 	// Latency simulation - deliver anything we're holding on to that is ready
 	if (m_useLatency)
 	{
-		for (i = 0; i < MAX_MESSAGES; ++i)
+		size_t bufferIndex = 0;
+
+		for (size_t i = 0; i < ARRAY_SIZE(m_delayedInBuffer); ++i)
 		{
-			if (m_delayedInBuffer[i].message.length != 0 && m_delayedInBuffer[i].deliveryTime <= now)
+			if (m_delayedInBuffer[i].message.length > 0 && m_delayedInBuffer[i].deliveryTime <= now)
 			{
-				for (int j = 0; j < MAX_MESSAGES; ++j)
+				for (; bufferIndex < ARRAY_SIZE(m_inBuffer); ++bufferIndex)
 				{
-					if (m_inBuffer[j].length == 0)
+					if (m_inBuffer[bufferIndex].length <= 0)
 					{
 						// Empty slot; use it
-						memcpy(&m_inBuffer[j], &m_delayedInBuffer[i].message, sizeof(TransportMessage));
+						memcpy(&m_inBuffer[bufferIndex], &m_delayedInBuffer[i].message, sizeof(TransportMessage));
 						m_delayedInBuffer[i].message.length = 0;
+						++bufferIndex;
 						break;
 					}
 				}
@@ -270,7 +276,7 @@ Bool UDPTransport::doRecv()
 {
 	if (!m_udpsock)
 	{
-		DEBUG_LOG(("UDPTransport::doRecv() - m_udpSock is NULL!"));
+		DEBUG_LOG(("Transport::doRecv() - m_udpSock is null!"));
 		return FALSE;
 	}
 
@@ -281,38 +287,42 @@ Bool UDPTransport::doRecv()
 #if defined(RTS_DEBUG)
 	UnsignedInt now = timeGetTime();
 #endif
-
+	// TheSuperHackers @info The handling of data sizing of the payload within a UDP packet is confusing due to the current networking implementation
+	// The max game packet size needs to be smaller than max udp payload by sizeof(TransportMessageHeader)
+	// But the max network message size needs to include the bytes of the transport message header and equal the max udp payload
+	// Therefore, when receiving data we use the max udp payload size to receive the game packet payload and network header
 	TransportMessage incomingMessage;
-	unsigned char* buf = (unsigned char*)&incomingMessage;
+	unsigned char *buf = (unsigned char *)&incomingMessage;
 	int len = MAX_MESSAGE_LEN;
-	//	DEBUG_LOG(("UDPTransport::doRecv - checking"));
-	while ((len = m_udpsock->Read(buf, MAX_MESSAGE_LEN, &from)) > 0)
+	size_t bufferIndex = 0;
+//	DEBUG_LOG(("Transport::doRecv - checking"));
+	while ( (len=m_udpsock->Read(buf, MAX_MESSAGE_LEN, &from)) > 0 )
 	{
 #if defined(RTS_DEBUG)
 		// Packet loss simulation
 		if (m_usePacketLoss)
 		{
-			if (TheGlobalData->m_packetLoss >= GameClientRandomValue(0, 100))
+			if ( TheGlobalData->m_packetLoss >= GameClientRandomValue(0, 100) )
 			{
 				continue;
 			}
 		}
 #endif
 
-		//		DEBUG_LOG(("UDPTransport::doRecv - Got something! len = %d", len));
-				// Decrypt the packet
-		//		DEBUG_LOG_RAW(("buffer = "));
-		//		for (Int munkee = 0; munkee < len; ++munkee) {
-		//			DEBUG_LOG_RAW(("%02x", *(buf + munkee)));
-		//		}
-		//		DEBUG_LOG_RAW(("\n"));
+//		DEBUG_LOG(("Transport::doRecv - Got something! len = %d", len));
+		// Decrypt the packet
+//		DEBUG_LOG_RAW(("buffer = "));
+//		for (Int munkee = 0; munkee < len; ++munkee) {
+//			DEBUG_LOG_RAW(("%02x", *(buf + munkee)));
+//		}
+//		DEBUG_LOG_RAW(("\n"));
 		decryptBuf(buf, len);
 
 		incomingMessage.length = len - sizeof(TransportMessageHeader);
 
-		if (len <= sizeof(TransportMessageHeader) || !isGeneralsPacket(&incomingMessage))
+		if (len <= sizeof(TransportMessageHeader) || !isGeneralsPacket( &incomingMessage ))
 		{
-			DEBUG_LOG(("UDPTransport::doRecv - unknownPacket! len = %d", len));
+			DEBUG_LOG(("Transport::doRecv - unknownPacket! len = %d", len));
 			m_unknownPackets[m_statisticsSlot]++;
 			m_unknownBytes[m_statisticsSlot] += len;
 			continue;
@@ -323,87 +333,89 @@ Bool UDPTransport::doRecv()
 		m_incomingPackets[m_statisticsSlot]++;
 		m_incomingBytes[m_statisticsSlot] += len;
 
-		for (int i = 0; i < MAX_MESSAGES; ++i)
-		{
+		DEBUG_ASSERTCRASH(bufferIndex < MAX_MESSAGES, ("Message lost!"));
+
 #if defined(RTS_DEBUG)
-			// Latency simulation
-			if (m_useLatency)
+		// Latency simulation
+		if (m_useLatency)
+		{
+			for (; bufferIndex < ARRAY_SIZE(m_delayedInBuffer); ++bufferIndex)
 			{
-				if (m_delayedInBuffer[i].message.length == 0)
+				if (m_delayedInBuffer[bufferIndex].message.length <= 0)
 				{
 					// Empty slot; use it
-					m_delayedInBuffer[i].deliveryTime =
+					m_delayedInBuffer[bufferIndex].deliveryTime =
 						now + TheGlobalData->m_latencyAverage +
 						(Int)(TheGlobalData->m_latencyAmplitude * sin(now * TheGlobalData->m_latencyPeriod)) +
 						GameClientRandomValue(-TheGlobalData->m_latencyNoise, TheGlobalData->m_latencyNoise);
-					m_delayedInBuffer[i].message.length = incomingMessage.length;
-					m_delayedInBuffer[i].message.addr = ntohl(from.sin_addr.S_un.S_addr);
-					m_delayedInBuffer[i].message.port = ntohs(from.sin_port);
-					memcpy(&m_delayedInBuffer[i].message, buf, len);
+					m_delayedInBuffer[bufferIndex].message.length = incomingMessage.length;
+					m_delayedInBuffer[bufferIndex].message.addr = ntohl(from.sin_addr.S_un.S_addr);
+					m_delayedInBuffer[bufferIndex].message.port = ntohs(from.sin_port);
+					memcpy(&m_delayedInBuffer[bufferIndex].message, buf, len);
+					++bufferIndex;
 					break;
 				}
 			}
-			else
-			{
-#endif
-				if (m_inBuffer[i].length == 0)
-				{
-					// Empty slot; use it
-					m_inBuffer[i].length = incomingMessage.length;
-					m_inBuffer[i].addr = ntohl(from.sin_addr.S_un.S_addr);
-					m_inBuffer[i].port = ntohs(from.sin_port);
-					memcpy(&m_inBuffer[i], buf, len);
-					break;
-				}
-#if defined(RTS_DEBUG)
-			}
-#endif
+
+			continue;
 		}
-		//DEBUG_ASSERTCRASH(i<MAX_MESSAGES, ("Message lost!"));
+#endif
+
+		for (; bufferIndex < ARRAY_SIZE(m_inBuffer); ++bufferIndex)
+		{
+			if (m_inBuffer[bufferIndex].length <= 0)
+			{
+				// Empty slot; use it
+				m_inBuffer[bufferIndex].length = incomingMessage.length;
+				m_inBuffer[bufferIndex].addr = ntohl(from.sin_addr.S_un.S_addr);
+				m_inBuffer[bufferIndex].port = ntohs(from.sin_port);
+				memcpy(&m_inBuffer[bufferIndex], buf, len);
+				++bufferIndex;
+				break;
+			}
+		}
 	}
 
 	if (len == -1) {
 		// there was a socket error trying to perform a read.
-		//DEBUG_LOG(("UDPTransport::doRecv returning FALSE"));
+		//DEBUG_LOG(("Transport::doRecv returning FALSE"));
 		retval = FALSE;
 	}
 
 	return retval;
 }
 
-Bool UDPTransport::queueSend(UnsignedInt addr, UnsignedShort port, const UnsignedByte* buf, Int len /*,
+Bool UDPTransport::queueSend(UnsignedInt addr, UnsignedShort port, const UnsignedByte *buf, Int len /*,
 						  NetMessageFlags flags, Int id */)
 {
-	int i;
-
 	if (len < 1 || len > MAX_PACKET_SIZE)
 	{
-		DEBUG_LOG(("UDPTransport::queueSend - Invalid Packet size"));
+		DEBUG_LOG(("Transport::queueSend - Invalid Packet size"));
 		return false;
 	}
 
-	for (i = 0; i < MAX_MESSAGES; ++i)
+	for (size_t i = 0; i < ARRAY_SIZE(m_outBuffer); ++i)
 	{
-		if (m_outBuffer[i].length == 0)
+		if (m_outBuffer[i].length <= 0)
 		{
 			// Insert data here
 			m_outBuffer[i].length = len;
 			memcpy(m_outBuffer[i].data, buf, len);
 			m_outBuffer[i].addr = addr;
 			m_outBuffer[i].port = port;
-			//			m_outBuffer[i].header.flags = flags;
-			//			m_outBuffer[i].header.id = id;
+//			m_outBuffer[i].header.flags = flags;
+//			m_outBuffer[i].header.id = id;
 			m_outBuffer[i].header.magic = GENERALS_MAGIC_NUMBER;
 
 			CRC crc;
-			crc.computeCRC((unsigned char*)(&(m_outBuffer[i].header.magic)), m_outBuffer[i].length + sizeof(TransportMessageHeader) - sizeof(UnsignedInt));
-			//			DEBUG_LOG(("About to assign the CRC for the packet"));
+			crc.computeCRC( (unsigned char *)(&(m_outBuffer[i].header.magic)), m_outBuffer[i].length + sizeof(TransportMessageHeader) - sizeof(UnsignedInt) );
+//			DEBUG_LOG(("About to assign the CRC for the packet"));
 			m_outBuffer[i].header.crc = crc.get();
 
 			// Encrypt packet
 //			DEBUG_LOG(("buffer: "));
-			encryptBuf((unsigned char*)&m_outBuffer[i], len + sizeof(TransportMessageHeader));
-			//			DEBUG_LOG((""));
+			encryptBuf((unsigned char *)&m_outBuffer[i], len + sizeof(TransportMessageHeader));
+//			DEBUG_LOG((""));
 
 			return true;
 		}

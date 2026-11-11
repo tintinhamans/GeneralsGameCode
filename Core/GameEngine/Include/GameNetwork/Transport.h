@@ -1,5 +1,5 @@
 /*
-**	Command & Conquer Generals(tm)
+**	Command & Conquer Generals Zero Hour(tm)
 **	Copyright 2025 Electronic Arts Inc.
 **
 **	This program is free software: you can redistribute it and/or modify
@@ -28,9 +28,15 @@
 
 #pragma once
 
-// NGMP NOTE: We have multiple transports now, so UDPTransport is what Transport was. It's the legacy, direct connection transport the original game used. Transport is now a base class.#include "GameNetwork/udp.h"
+#include "GameNetwork/udp.h"
 #include "GameNetwork/NetworkDefs.h"
 
+/**
+ * The transport interface sends and receives game packets through the shared message queues.
+ * Subclasses own the connection that carries the packets.
+ */
+// we only ever allocate one of there, and it is quite large, so we really DON'T want
+// it to be a MemoryPoolObject (srj)
 class Transport //: public MemoryPoolObject
 {
 	//MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(Transport, "Transport")
@@ -39,13 +45,13 @@ public:
 	Transport();
 	virtual ~Transport();
 
-	virtual Bool init(AsciiString ip, UnsignedShort port) = 0;
+	virtual Bool init( AsciiString ip, UnsignedShort port ) = 0;
 	virtual Bool init( UnsignedInt ip, UnsignedShort port ) = 0;
-	virtual void reset( void ) = 0;
-	virtual Bool update( void ) = 0;									///< Call this once a GameEngine tick, regardless of whether the frame advances.
+	virtual void reset() = 0;
+	virtual Bool update() = 0;									///< Call this once a GameEngine tick, regardless of whether the frame advances.
 
-	virtual Bool doRecv( void ) = 0;		///< call this to service the receive packets
-	virtual Bool doSend( void ) = 0;		///< call this to service the send queue.
+	virtual Bool doRecv() = 0;		///< call this to service the receive packets
+	virtual Bool doSend() = 0;		///< call this to service the send queue.
 
 	virtual Bool queueSend(UnsignedInt addr, UnsignedShort port, const UnsignedByte *buf, Int len /*,
 		NetMessageFlags flags, Int id */) = 0;				///< Queue a packet for sending to the specified address and port.  This will be sent on the next update() call.
@@ -57,12 +63,12 @@ public:
 	void setPacketLoss( Bool val ) { m_usePacketLoss = val; }
 
 	// Bandwidth metrics
-	Real getIncomingBytesPerSecond( void );
-	Real getIncomingPacketsPerSecond( void );
-	Real getOutgoingBytesPerSecond( void );
-	Real getOutgoingPacketsPerSecond( void );
-	Real getUnknownBytesPerSecond( void );
-	Real getUnknownPacketsPerSecond( void );
+	Real getIncomingBytesPerSecond();
+	Real getIncomingPacketsPerSecond();
+	Real getOutgoingBytesPerSecond();
+	Real getOutgoingPacketsPerSecond();
+	Real getUnknownBytesPerSecond();
+	Real getUnknownPacketsPerSecond();
 
 	TransportMessage m_outBuffer[MAX_MESSAGES];
 	TransportMessage m_inBuffer[MAX_MESSAGES];

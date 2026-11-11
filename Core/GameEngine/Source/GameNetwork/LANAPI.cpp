@@ -29,6 +29,7 @@
 #include "Common/Registry.h"
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/networkutil.h"
+#include "GameNetwork/UDPTransport.h"
 #include "Common/GlobalData.h"
 #include "Common/RandomValue.h"
 #include "GameClient/GameText.h"

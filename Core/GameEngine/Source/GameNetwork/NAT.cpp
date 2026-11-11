@@ -33,6 +33,7 @@
 
 #include "GameNetwork/NAT.h"
 #include "GameNetwork/Transport.h"
+#include "GameNetwork/UDPTransport.h"
 #include "GameNetwork/NetworkDefs.h"
 #include "GameClient/EstablishConnectionsMenu.h"
 #include "GameNetwork/NetworkInterface.h"

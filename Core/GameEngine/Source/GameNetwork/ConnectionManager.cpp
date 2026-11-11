@@ -47,6 +47,7 @@
 #include "GameNetwork/NAT.h"
 #include "GameNetwork/NetCommandWrapperList.h"
 #include "GameNetwork/networkutil.h"
+#include "GameNetwork/UDPTransport.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/ScriptActions.h"
 #include "GameLogic/ScriptEngine.h"
