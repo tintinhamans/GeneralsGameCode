@@ -46,6 +46,7 @@
 #include "GameNetwork/Online/IOnlineConfig.h"
 #include "GameNetwork/GameSpy/PingThread.h"
 #include "GameNetwork/RankPointValue.h"
+#include "GameNetwork/TransportFactory.h"
 
 // Defined in GameSpyOverlay.cpp; forward-declared here exactly as PeerDefs.cpp does.
 void deleteNotificationBox();
@@ -94,6 +95,17 @@ IOnlineResults *GameSpyProviderFactory::createResults()
 IOnlineMatchmaking *GameSpyProviderFactory::createMatchmaking()
 {
 	return GameSpyMatchmaking::createNewMatchmaking();
+}
+
+// GameSpy NAT negotiation and its game connections only work over UDP.
+Int GameSpyProviderFactory::chooseGameTransport( const TransportInfo *transports, Int count ) const
+{
+	for (Int i = 0; i < count; ++i)
+	{
+		if (stricmp(transports[i].name, UDP_TRANSPORT_NAME) == 0)
+			return i;
+	}
+	return -1;
 }
 
 // --------------------------------------------------------------

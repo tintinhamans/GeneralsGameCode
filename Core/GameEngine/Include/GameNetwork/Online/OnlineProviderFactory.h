@@ -37,6 +37,7 @@ class IOnlineStats;
 class IOnlineLadder;
 class IOnlineResults;
 class IOnlineMatchmaking;
+struct TransportInfo;
 
 //-----------------------------------------------------------------------------
 // OnlineProviderFactory
@@ -67,6 +68,10 @@ public:
 	// updates, resets, Xfers, and deletes exactly this instance for its lifetime.
 	virtual IOnlineResults *createResults() = 0;
 	virtual IOnlineMatchmaking *createMatchmaking() = 0;
+
+	// Picks the game connection transport from the registered transports.
+	// Returns an index into the transports, or -1 when none of them fits.
+	virtual Int chooseGameTransport( const TransportInfo *transports, Int count ) const = 0;
 
 	// Ordered lifecycle.
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) = 0;
@@ -120,4 +125,8 @@ OnlineProviderFactory *GetBoundOnlineResultsProvider();
 // Lifecycle seam of the online provider services.
 //-----------------------------------------------------------------------------
 void SetUpOnline( OnlineProviderType type, const char *motdBuffer, const char *configBuffer );
+
+// Returns the name of the game connection transport that the active provider picks.
+// Without an active provider, or when it picks none, this returns the UDP transport.
+const char *GetOnlineGameTransport();
 void TearDownOnline();
