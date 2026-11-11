@@ -108,7 +108,9 @@ enum EWebSocketMessageID
 	MODERATION_NOTICE = 46,
 	MODERATION_COMMAND = 47,
 	MODERATION_COMMAND_RESULT = 48,
-	START_GAME_REJECTED = 49
+	START_GAME_REJECTED = 49,
+	LOBBY_EVENT = 50,
+	LOBBY_HOST_START_INTENT = 51
 };
 
 enum class EQoSRegions
@@ -189,26 +191,8 @@ public:
 	void SendData_UnsubscribeRealtimeUpdates();
 
 
-	void SendData_CountdownStarted();
-
-	// params: fully connected, missing links, reason ("" on success, else e.g. "missing_connections",
-	// "timeout", "member_left", "check_superseded")
-	std::function<void(bool, std::list<std::pair<int64_t, int64_t>>, std::string)> m_cbOnConnectivityCheckComplete = nullptr;
-
-	// lobby ID the check was started for; a stale reply (different lobby) is ignored
-	int64_t m_connectivityCheckLobbyID = -1;
-
-	// Start time of the connectivity check for the client timeout.
-	int64_t m_connectivityCheckStartMs = -1;
-
-	void SendData_StartFullMeshConnectivityCheck(std::function<void(bool, std::list<std::pair<int64_t, int64_t>>, std::string)> cbOnConnectivityCheckComplete);
-
-	void ClearConnectivityCheckCallback()
-	{
-		m_cbOnConnectivityCheckComplete = nullptr;
-		m_connectivityCheckLobbyID = -1;
-		m_connectivityCheckStartMs = -1;
-	}
+	// Asks the service to tell the players that the host wants to start.
+	void SendData_HostStartIntent();
 
 	void Tick();
 

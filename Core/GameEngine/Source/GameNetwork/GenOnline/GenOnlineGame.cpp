@@ -553,21 +553,15 @@ void GenOnlineGame::reset(void)
 	m_isQM = FALSE;
 }
 
-uint64_t GenOnlineGame::SetStartPhase(EStartPhase phase)
+void GenOnlineGame::SetStartPhase(EStartPhase phase)
 {
-	if (phase == EStartPhase::Idle || phase == EStartPhase::Checking || phase == EStartPhase::FinalCheck)
-	{
-		++m_startAttempt;
-	}
-
 	if (phase != m_startPhase)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Start phase %d -> %d (attempt %llu)", (int)m_startPhase, (int)phase, m_startAttempt);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Start phase %d -> %d", (int)m_startPhase, (int)phase);
 	}
 
 	m_startPhase = phase;
 	m_startPhaseTime = NowMs();
-	return m_startAttempt;
 }
 
 void GenOnlineGame::AbortStart()
@@ -578,21 +572,15 @@ void GenOnlineGame::AbortStart()
 	}
 }
 
-void GenOnlineGame::StartCountdown()
+void GenOnlineGame::StartCountdown(int64_t durationMs)
 {
 	SetStartPhase(EStartPhase::Countdown);
-	m_countdownLastCheckTime = m_startPhaseTime;
-
-	std::shared_ptr<WebSocket>  pWS = GenOnlineServicesManager::GetWebSocket();
-	if (pWS != nullptr)
-	{
-		pWS->SendData_CountdownStarted();
-	}
+	m_countdownEnd = std::chrono::steady_clock::now() + std::chrono::milliseconds(durationMs);
 }
 
-void GenOnlineGame::UpdateCountdownLastCheckTime()
+int64_t GenOnlineGame::GetCountdownRemainingMs() const
 {
-	m_countdownLastCheckTime = NowMs();
+	return std::chrono::duration_cast<std::chrono::milliseconds>(m_countdownEnd - std::chrono::steady_clock::now()).count();
 }
 
 Bool GenOnlineGame::canKickOnObserversDisabled()

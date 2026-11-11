@@ -871,7 +871,6 @@ void GenOnlineServicesManager::OnLogin(ELoginResult loginResult, const char* szW
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] OnLogin: shutting down previous websocket before re-login");
 			m_pWebSocket->Shutdown();
 			m_pWebSocket->m_fnWebsocketConnectedCallback = nullptr;
-			m_pWebSocket->ClearConnectivityCheckCallback();
 			m_pWebSocket.reset();
 		}
 
@@ -1361,25 +1360,10 @@ void WebSocket::SendData_UnsubscribeRealtimeUpdates()
 	Send(strBody.c_str());
 }
 
-void WebSocket::SendData_CountdownStarted()
+void WebSocket::SendData_HostStartIntent()
 {
 	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::START_GAME_COUNTDOWN_STARTED;
-	std::string strBody = j.dump();
-	Send(strBody.c_str());
-}
-
-
-void WebSocket::SendData_StartFullMeshConnectivityCheck(std::function<void(bool, std::list<std::pair<int64_t, int64_t>>, std::string)> cbOnConnectivityCheckComplete)
-{
-	m_cbOnConnectivityCheckComplete = cbOnConnectivityCheckComplete;
-
-	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-	m_connectivityCheckLobbyID = pLobbyInterface != nullptr ? pLobbyInterface->GetCurrentLobby().lobbyID : -1;
-	m_connectivityCheckStartMs = NowMs();
-
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::FULL_MESH_CONNECTIVITY_CHECK_HOST_REQUESTS_BEGIN;
+	j["msg_id"] = EWebSocketMessageID::LOBBY_HOST_START_INTENT;
 	std::string strBody = j.dump();
 	Send(strBody.c_str());
 }
