@@ -108,3 +108,25 @@ if(RTS_OPENAL_AUDIO AND NOT RTS_BUILD_OPTION_MILES_BINK AND NOT RTS_BUILD_GENERA
    NOT RTS_BUILD_ZEROHOUR_TOOLS AND NOT RTS_BUILD_CORE_EXTRAS AND NOT RTS_BUILD_OPTION_TESTS)
     set(RTS_NEEDS_MILES_BINK FALSE)
 endif()
+
+# Ships the licenses of the audio libraries next to the exe of target
+function(rts_copy_audio_licenses target)
+    if(NOT WIN32 OR NOT RTS_BUILD_OPTION_OPENAL_FFMPEG)
+        return()
+    endif()
+    set(licenses "${CMAKE_SOURCE_DIR}/Core/GameEngineDevice/Licenses")
+    add_custom_command(TARGET ${target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${licenses}/audio-libraries-NOTICE.txt" "$<TARGET_FILE_DIR:${target}>/audio-libraries-NOTICE.txt"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${licenses}/FFmpeg-LGPL-2.1.txt" "$<TARGET_FILE_DIR:${target}>/ffmpeg-LICENSE.txt")
+    if(RTS_OPENAL_AUDIO)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${licenses}/OpenAL-Soft-LGPL-2.txt" "$<TARGET_FILE_DIR:${target}>/openal-soft-LICENSE.txt"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${licenses}/OpenAL-Soft-PFFFT.txt" "$<TARGET_FILE_DIR:${target}>/openal-soft-pffft-LICENSE.txt"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${licenses}/fmt-MIT.txt" "$<TARGET_FILE_DIR:${target}>/fmt-LICENSE.txt")
+    endif()
+endfunction()

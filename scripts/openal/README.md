@@ -33,3 +33,8 @@ FFmpeg movies. The value is read once, so a change needs a restart.
 `RTS_BUILD_OPTION_OPENAL_FFMPEG_STATIC=ON` links FFmpeg and OpenAL Soft into the exe
 instead of shipping their DLLs next to it.
 
+## Licenses
+
+FFmpeg and OpenAL Soft are LGPL libraries. The build copies their license texts and
+`audio-libraries-NOTICE.txt` from `Core/GameEngineDevice/Licenses` next to the exe, for
+DLL and static builds alike.

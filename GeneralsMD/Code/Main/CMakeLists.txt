@@ -1,5 +1,7 @@
 add_executable(z_generals WIN32)
 
+rts_copy_audio_licenses(z_generals)
+
 # Use a binary name that doesn't conflict with original game.
 if("${CMAKE_SYSTEM}" MATCHES "Windows")
     set_target_properties(z_generals PROPERTIES OUTPUT_NAME "generalszh${RTS_BUILD_OUTPUT_SUFFIX}")

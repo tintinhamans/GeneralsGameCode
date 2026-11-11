@@ -1,0 +1,20 @@
+This game uses the following libraries.
+
+FFmpeg 9.0.2
+  License: GNU Lesser General Public License version 2.1 or later (ffmpeg-LICENSE.txt).
+  Built without GPL or nonfree components, with only the bink, wav and mp3
+  demuxers and the bink, binkaudio_dct, pcm_s16le, adpcm_ima_wav and mp3float
+  decoders enabled (see cmake/vcpkg/ports/ffmpeg in the game's source).
+  Source: https://github.com/FFmpeg/FFmpeg/releases/tag/n9.0.2
+
+OpenAL Soft 1.25.2
+  License: GNU Library General Public License version 2 (openal-soft-LICENSE.txt),
+  with the bundled PFFFT under its own license (openal-soft-pffft-LICENSE.txt).
+  Source: https://github.com/kcat/openal-soft/releases/tag/1.25.2
+
+fmt 12.2.0, used by OpenAL Soft
+  License: MIT (fmt-LICENSE.txt).
+  Source: https://github.com/fmtlib/fmt/releases/tag/12.2.0
+
+The game's own source code, including the build scripts above, is available
+under the GNU General Public License version 3.
