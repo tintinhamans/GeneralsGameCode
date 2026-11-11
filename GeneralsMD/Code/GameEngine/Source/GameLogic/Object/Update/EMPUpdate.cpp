@@ -137,8 +137,8 @@ UpdateSleepTime EMPUpdate::update()
 	UnsignedInt now = TheGameLogic->getFrame();
 
 	// TODO_NGMP: We should actually use a frame time delta here, not assume we're hitting 60
-#if defined(GENERALS_ONLINE)
-	m_currentScale += ( m_targetScale - m_currentScale ) * (0.05f / GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER);
+#if defined(GENONLINE)
+	m_currentScale += ( m_targetScale - m_currentScale ) * (0.05f / GENONLINE_HIGH_FPS_FRAME_MULTIPLIER);
 #else
 	m_currentScale += (m_targetScale - m_currentScale) * 0.05f;
 #endif
@@ -342,9 +342,9 @@ void EMPUpdate::doDisableAttack()
 
 							sys->attachToObject(curVictim);
 							sys->setPosition( &offs );
-							#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
-							sys->setSystemLifetime(MAX(0, (data->m_disabledDuration/ GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER) - 240));
-							sys->setInitialDelay(GameLogicRandomValue(1, 100) / GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER);
+							#if defined(GENONLINE) && defined(GENONLINE_HIGH_FPS_SERVER)
+							sys->setSystemLifetime(MAX(0, (data->m_disabledDuration/ GENONLINE_HIGH_FPS_FRAME_MULTIPLIER) - 240));
+							sys->setInitialDelay(GameLogicRandomValue(1, 100) / GENONLINE_HIGH_FPS_FRAME_MULTIPLIER);
 							#else
 							sys->setSystemLifetime(MAX(0, data->m_disabledDuration - 30));
 							sys->setInitialDelay(GameClientRandomValue(1, 100));

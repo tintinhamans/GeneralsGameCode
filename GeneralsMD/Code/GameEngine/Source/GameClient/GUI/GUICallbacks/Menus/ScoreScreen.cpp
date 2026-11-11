@@ -102,9 +102,9 @@
 #include "GameClient/InGameUI.h"
 #include "GameClient/ChallengeGenerals.h"
 
-#include "../NGMP_interfaces.h"
-#include "../OnlineServices_Init.h"
-#include "../OnlineServices_StatsInterface.h"
+#include "../GenOnlineInterfaces.h"
+#include "../GenOnlineInit.h"
+#include "../GenOnlineStatsInterface.h"
 
 
 //-----------------------------------------------------------------------------
@@ -387,9 +387,9 @@ void ScoreScreenInit( WindowLayout *layout, void *userData )
 		s_blankLayout->bringForward();
 	}
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
     // Update the communicator button anytime we get notifications
-    NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+    GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
     if (pSocialInterface != nullptr)
     {
         // notifiactions callback
@@ -439,8 +439,8 @@ void ScoreScreenShutdown( WindowLayout *layout, void *userData )
 {
 	DontShowMainMenu = FALSE; //KRIS
 
-#if defined(GENERALS_ONLINE)
-	NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+#if defined(GENONLINE)
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 	if (pSocialInterface != nullptr)
 		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged(nullptr);
 #endif
@@ -468,14 +468,14 @@ void ScoreScreenUpdate( WindowLayout * layout, void *userData)
 	}
 
 	// TODO_NGMP: Find a better way of doing this... before the user exists
-	if (NGMP_OnlineServicesManager::GetInstance() != nullptr && g_bNeedToTakeDoneEOGScreenshot)
+	if (GenOnlineServicesManager::GetInstance() != nullptr && g_bNeedToTakeDoneEOGScreenshot)
 	{
 		int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 		if (currTime - g_TimeEnterState >= 1000)
 		{
 			g_bNeedToTakeDoneEOGScreenshot = false;
 
-			NGMP_OnlineServicesManager::GetInstance()->CaptureScreenshotForProbe(EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN, std::string()); // pass no URI here, wait until we have one received from server
+			GenOnlineServicesManager::GetInstance()->CaptureScreenshotForProbe(EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN, std::string()); // pass no URI here, wait until we have one received from server
 		}
 	}
 
@@ -514,13 +514,13 @@ void ScoreScreenUpdate( WindowLayout * layout, void *userData)
 			}
 		}
 
-		NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+		GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 		if (pLobbyInterface != nullptr)
 		{
 			if (pLobbyInterface->IsInLobby())
 			{
 				// commit current lobby player list to 'recently played with'
-				NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+				GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 				if (pSocialInterface != nullptr)
 				{
 					pSocialInterface->CommitLobbyPlayerListToRecentlyPlayedWithList();
@@ -662,7 +662,7 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 					}
 					else if (screenType == SCORESCREEN_INTERNET)
 					{
-						NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+						GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 						if (pLobbyInterface != nullptr)
 						{
 							uint64_t currentMatchID = pLobbyInterface->GetCurrentMatchID();
@@ -1169,7 +1169,7 @@ void initInternetMultiPlayer(void)
 	if(staticTextGameSaved)
 		staticTextGameSaved->winHide(TRUE);
 	if (buttonContinue)
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 		buttonContinue->winHide(FALSE);
 #else
 		buttonContinue->winHide(TRUE);
@@ -1182,24 +1182,24 @@ void initInternetMultiPlayer(void)
 		listboxChatWindowScoreScreen->winHide(FALSE);
 
 	// attempt to register our outcome
-    NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
-    if (pStatsInterface != nullptr && TheNGMPGame != nullptr)
+    GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
+    if (pStatsInterface != nullptr && TheGenOnlineGame != nullptr)
     {
         Player* localPlayer = ThePlayerList->getLocalPlayer();
 
         if (localPlayer != nullptr)
         {
-            if (!TheNGMPGame->HasCommittedOutcome())
+            if (!TheGenOnlineGame->HasCommittedOutcome())
             {
-                TheNGMPGame->SetHasCommittedOutcome();
+                TheGenOnlineGame->SetHasCommittedOutcome();
                 pStatsInterface->CommitMyOutcome(localPlayer->getScoreKeeper(), TheVictoryConditions->isLocalAlliedVictory());
             }
         }
     }
 
 	// Leave the lobby
-#if defined(GENERALS_ONLINE)
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+#if defined(GENONLINE)
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface != nullptr)
 	{
 		// populate match info
@@ -1251,7 +1251,7 @@ void initInternetMultiPlayer(void)
 		chatBoxBorder->winHide(FALSE);
 
 	// TODO_NGMP: Enable this once friends works
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 	if(TheGameSpyInfo && TheGameSpyInfo->getLocalProfileID() ==0)
 		buttonBuddies->winHide(TRUE);
 	else
@@ -1828,12 +1828,12 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 	{
 		DEBUG_LOG(("populatePlayerInfo() - SCORESCREEN_INTERNET"));
 
-#if defined(GENERALS_ONLINE)
-		if (TheNGMPGame == nullptr)
+#if defined(GENONLINE)
+		if (TheGenOnlineGame == nullptr)
 			return;
 
-		if (!TheNGMPGame->getUseStats() &&
-			!TheNGMPGame->isQMGame())  //QuickMatch games always record stats
+		if (!TheGenOnlineGame->getUseStats() &&
+			!TheGenOnlineGame->isQMGame())  //QuickMatch games always record stats
 			return;	//the host has requested not to record stats for this game.
 #else
 		if (TheGameSpyGame && !TheGameSpyGame->getUseStats() &&
@@ -1845,15 +1845,15 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 #endif
 
 		{
-#if defined(GENERALS_ONLINE)
-			Int localSlotNum = TheNGMPGame->getLocalSlotNum();
+#if defined(GENONLINE)
+			Int localSlotNum = TheGenOnlineGame->getLocalSlotNum();
 #else
 			Int localSlotNum = TheGameSpyGame->getLocalSlotNum();
 #endif
 			if (player->isLocalPlayer())
 			{
-#if defined(GENERALS_ONLINE)
-				NGMPGameSlot* localSlot = TheNGMPGame->getGameSpySlot(localSlotNum);
+#if defined(GENONLINE)
+				GenOnlineGameSlot* localSlot = TheGenOnlineGame->getGameSpySlot(localSlotNum);
 #else
 				GameSpyGameSlot* localSlot = TheGameSpyGame->getGameSpySlot(localSlotNum);
 #endif
@@ -1866,12 +1866,12 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 						return;
 					}
 
-#if defined(GENERALS_ONLINE)
-					NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+#if defined(GENONLINE)
+					GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 					int64_t localID = pAuthInterface == nullptr ? -1 : pAuthInterface->GetUserID();
 
 					// do this part sync from cache, should have our own stats + up to date
-					NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
+					GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
 					if (pStatsInterface == nullptr)
 					{
 						return;
@@ -1938,7 +1938,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 
 						if (gameEndedInDisconnect)
 						{
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 							// TODO_NGMP we need to detect this on service.
 							// Use victory conditions to avoid penolizing the innocent player for now.
 							if (!TheVictoryConditions->isLocalAlliedVictory())
@@ -2012,7 +2012,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 							return;
 						}
 
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 						// TODO_NGMP_STATS: Impl ladders again, how did these work in the base game?
 						// send ladder results (even if we end the game in the first N seconds)
 
@@ -2076,7 +2076,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 								*/
 								DEBUG_LOG(("populatePlayerInfo() - need to save off info for disconnect games!\n"));
 
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 								PSRequest req;
 								req.requestType = PSRequest::PSREQUEST_UPDATEPLAYERSTATS;
 								req.email = TheGameSpyInfo->getLocalEmail().str();
@@ -2114,8 +2114,8 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 						stats.buildingsKilled[ptIdx] += s->getTotalBuildingsDestroyed();
 						stats.buildingsLost[ptIdx] += s->getTotalBuildingsLost();
 
-#if defined(GENERALS_ONLINE)
-						if (TheNGMPGame->isQMGame())
+#if defined(GENONLINE)
+						if (TheGenOnlineGame->isQMGame())
 #else
 						if (TheGameSpyGame->isQMGame())
 #endif
@@ -2180,8 +2180,8 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 						Int gameSize = 0;
 						for (int i = 0; i < MAX_SLOTS; ++i)
 						{
-#if defined(GENERALS_ONLINE)
-							if (TheNGMPGame->getConstSlot(i)->isOccupied() && TheNGMPGame->getConstSlot(i)->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER)
+#if defined(GENONLINE)
+							if (TheGenOnlineGame->getConstSlot(i)->isOccupied() && TheGenOnlineGame->getConstSlot(i)->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER)
 #else
 							if (TheGameSpyGame->getConstSlot(i)->isOccupied() && TheGameSpyGame->getConstSlot(i)->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER)
 #endif
@@ -2242,7 +2242,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 						DEBUG_LOG(("After game built scud:%d, cannon:%d, nuke:%d\n", stats.builtSCUD, stats.builtParticleCannon, stats.builtNuke));
 
 						// TODO_NGMP_STATS: ladders
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 						if (TheGameSpyGame->getLadderPort() && TheGameSpyGame->getLadderIP().isNotEmpty())
 						{
 							stats.lastLadderPort = TheGameSpyGame->getLadderPort();
@@ -2256,7 +2256,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 							updateChallengeMedals(stats.challengeMedals);
 						}
 
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 						DEBUG_LOG(("populatePlayerInfo() - tracking stats for %s/%s/%s\n", TheGameSpyGame->getLocalBaseName().str(), TheGameSpyGame->getLocalEmail().str(), TheNGMPGameTheGameSpyGamegetLocalPassword().str()));
 
 						PSRequest req;

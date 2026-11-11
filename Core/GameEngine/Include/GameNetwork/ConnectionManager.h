@@ -55,11 +55,11 @@ public:
 	virtual void reset();				///< Take this instance back to the initial state.
 	virtual void update(Bool isInGame);			///< Service the Connections being managed by this instance.
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	void SeedLatencyData(int highestLatency)
 	{
 		for (int i = 0; i < MAX_SLOTS; ++i) {
-			m_fpsAverages[i] = GENERALS_ONLINE_HIGH_FPS_LIMIT;
+			m_fpsAverages[i] = GENONLINE_HIGH_FPS_LIMIT;
 		}
 		for (int i = 0; i < MAX_SLOTS; ++i) {
 			m_latencyAverages[i] = highestLatency / 1000.f;
@@ -107,7 +107,7 @@ public:
 	UnsignedInt getPacketRouterFallbackSlot(Int packetRouterNumber);	///< Returns the slot of the given packet router number in the fallback plan.
 	UnsignedInt getPacketRouterSlot();																///< Returns the current packet router's slot.
 	PlayerLeaveCode disconnectPlayer(Int slot);												///< Disconnect this player immediately.  This should only be called by the disconnect manager.
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	PlayerLeaveCode disconnectPlayer(int64_t userID);												///< Disconnect this player immediately.  This should only be called by the disconnect manager.
 #endif
 	void disconnectLocalPlayer();																			///< Does whatever is necessary to get TheNetwork to realize that it should be leaving the game now.

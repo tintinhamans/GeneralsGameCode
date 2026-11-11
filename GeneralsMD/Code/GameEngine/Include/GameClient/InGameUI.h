@@ -386,7 +386,7 @@ public:  // ********************************************************************
 
 	// interface for messages to the user
 	// srj sez: passing as const-ref screws up varargs for some reason. dunno why. just pass by value.
-	#if defined(GENERALS_ONLINE)
+	#if defined(GENONLINE)
 	virtual void messageColor(bool bIsChatMsg, const RGBColor *rgbColor, UnicodeString format, ... );	///< display a colored message to the user
 #else
 	virtual void messageColor(const RGBColor* rgbColor, UnicodeString format, ...);	///< display a colored message to the user
@@ -727,7 +727,7 @@ protected:
 		UnsignedInt timestamp;									///< logic frame message was created on
 		Color color;														///< color to render this in
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 		bool isChat;
 #endif
 	};
@@ -772,7 +772,7 @@ protected:
 	void setMouseCursor(Mouse::MouseCursor c);
 
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	void addMessageText( const UnicodeString& formattedMessage, const RGBColor *rgbColor = nullptr, bool bIsChatMsg = false );  ///< internal workhorse for adding plain text for messages
 #else	void addMessageText( const UnicodeString& formattedMessage, const RGBColor *rgbColor = nullptr );  ///< internal workhorse for adding plain text for messages
 #endif
@@ -892,7 +892,7 @@ protected:
 	DisplayString* m_observerNotificationString;
 	Int m_observerNotificationPointSize;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	Color												m_colorGood;
 	Color												m_colorBad;
 #endif
@@ -913,7 +913,7 @@ protected:
 
 			LabelType_Count
 		};
-		#if defined(GENERALS_ONLINE)
+		#if defined(GENONLINE)
 			Color												m_colorGood;
 			Color												m_colorBad;
 		#endif
@@ -1101,7 +1101,7 @@ protected:
 
 	DrawableID									m_soloNexusSelectedDrawableID;  ///< The drawable of the nexus, if only one angry mob is selected, otherwise, null
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	int m_lastFPS = -1;
 	int m_currentFPS = -1;
 	int64_t lastFPSUpdate = -1;

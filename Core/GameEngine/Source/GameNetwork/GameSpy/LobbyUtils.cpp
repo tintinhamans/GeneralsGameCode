@@ -60,15 +60,15 @@
 #include "GameNetwork/GameSpy/GSConfig.h"
 
 #include "Common/STLTypedefs.h"
-#include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
-#include "GameNetwork/GeneralsOnline/OnlineServices_LobbyInterface.h"
+#include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
+#include "GameNetwork/GenOnline/GenOnlineLobbyInterface.h"
 
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 // Note: if you add more columns, you must modify the .wnd files and change the listbox properties (yuck!)
 
 // TODO_NGMP: We probably need to modify this in the WND... they set the width for observer to 0, for now we dont show ping, but we should show box
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 enum {
 	COLUMN_NAME = 0,
 	COLUMN_MAP,
@@ -266,8 +266,8 @@ static void gameTooltip(GameWindow* window,
 	}
 
 	Int gameID = (Int)(intptr_t)GadgetListBoxGetItemData(window, row, 0);
-#if defined(GENERALS_ONLINE)
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+#if defined(GENONLINE)
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface == nullptr)
 	{
 		return;
@@ -308,7 +308,7 @@ static void gameTooltip(GameWindow* window,
 	}
 	if (col == COLUMN_PASSWORD)
 	{
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 		if (lobbyEntry.passworded)
 #else
 		if (room->getHasPassword())
@@ -326,7 +326,7 @@ static void gameTooltip(GameWindow* window,
 #if !RTS_GENERALS
   if (col == COLUMN_USE_STATS)
   {
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	  if (lobbyEntry.track_stats)
 #else
 	  if (room->getUseStats())
@@ -346,7 +346,7 @@ static void gameTooltip(GameWindow* window,
 
 	UnicodeString mapName;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	// GO already has the full map info, don't need the cache
 	mapName.translate(lobbyEntry.map_name.c_str());
 #else
@@ -362,7 +362,7 @@ static void gameTooltip(GameWindow* window,
 #endif
 	UnicodeString tmp;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	UnicodeString gameName;
 	gameName.format(L"%s", from_utf8(lobbyEntry.name).c_str());
 	tooltip.format(TheGameText->fetch("TOOLTIP:GameInfoGameName"), gameName.str());
@@ -378,7 +378,7 @@ static void gameTooltip(GameWindow* window,
 	tooltip.format(TheGameText->fetch("TOOLTIP:GameInfoGameName"), room->getGameName().str());
 #endif
 	
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	// TODO_QUICKMATCH
 	if (false)
 #else
@@ -393,7 +393,7 @@ static void gameTooltip(GameWindow* window,
 		}
 	}
 #endif
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	if (lobbyEntry.exe_crc != TheGlobalData->m_exeCRC || lobbyEntry.ini_crc != TheGlobalData->m_iniCRC)
 #else
 	if (room->getExeCRC() != TheGlobalData->m_exeCRC || room->getIniCRC() != TheGlobalData->m_iniCRC)
@@ -406,7 +406,7 @@ static void gameTooltip(GameWindow* window,
 	tooltip.concat(tmp);
 	tooltip.concat(L"\n");
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	for (LobbyMemberEntry& member : lobbyEntry.members)
 	{
 		if (member.IsHuman())
@@ -585,7 +585,7 @@ void ReleaseWindowInfo()
 	windowSortBuddies = nullptr;
 }
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 typedef std::set<int64_t> BuddyGameSet;
 #else
 typedef std::set<GameSpyStagingRoom*> BuddyGameSet;
@@ -593,7 +593,7 @@ typedef std::set<GameSpyStagingRoom*> BuddyGameSet;
 
 static BuddyGameSet *theBuddyGames = nullptr;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 static Bool lobbyHasBuddy(int64_t lobbyID)
 {
 	return theBuddyGames != nullptr && theBuddyGames->count(lobbyID) != 0;
@@ -619,16 +619,16 @@ int64_t ResolveGameListLobbyID(Int rowItemData)
 	return s_lobbyRowIDs[rowItemData];
 }
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 static void populateBuddyGames(std::vector<LobbyEntry>& vecLobbies)
 #else
 static void populateBuddyGames(void)
 #endif
 {
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	theBuddyGames = NEW BuddyGameSet;
 
-	NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 	if (pSocialInterface == nullptr)
 	{
 		return;
@@ -695,7 +695,7 @@ static void clearBuddyGames()
 	theBuddyGames = nullptr;
 }
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 struct GameSortStruct
 {
 	bool operator()(const LobbyEntry& g1, const LobbyEntry& g2) const
@@ -816,7 +816,7 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 	{
 		gameColor = GameSpyColor[GSCOLOR_GAME_CRCMISMATCH];
 	}
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	// Buddy lobby highlight:
 	if (lobbyHasBuddy(lobbyInfo.lobbyID))
 	{
@@ -1169,7 +1169,7 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 	if (!win)
 		return;
 
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface == nullptr)
 	{
 		return;

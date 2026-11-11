@@ -984,7 +984,7 @@ GlobalData::GlobalData()
 
 	m_antiAliasLevel = WW3D::MultiSampleModeEnum::MULTISAMPLE_MODE_NONE;
 
-#if !defined(GENERALS_ONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)
+#if !defined(GENONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)
 	m_textureFilteringMode = TextureFilterClass::TextureFilterMode::TEXTURE_FILTER_BILINEAR;
 	m_textureAnisotropyLevel = TextureFilterClass::AnisotropicFilterMode::TEXTURE_FILTER_ANISOTROPIC_2X;
 #endif
@@ -1067,13 +1067,13 @@ GlobalData::GlobalData()
 	m_shellMapOn =TRUE;
 
 
-#if defined(GENERALS_ONLINE) && defined(_DEBUG)
+#if defined(GENONLINE) && defined(_DEBUG)
 	m_playIntro = FALSE;
 #else
 	m_playIntro = TRUE;
 #endif
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	m_playSizzle = FALSE;
 #else
 	m_playSizzle = TRUE;
@@ -1329,7 +1329,7 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_observerNotificationMilestone = optionPref.getObserverNotificationMilestone();
 	TheWritableGlobalData->m_antiAliasLevel = optionPref.getAntiAliasing();
 
-#if !defined(GENERALS_ONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)
+#if !defined(GENONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)
 	TheWritableGlobalData->m_textureFilteringMode = optionPref.getTextureFilterMode();
 	TheWritableGlobalData->m_textureAnisotropyLevel = optionPref.getTextureAnisotropyLevel();
 #endif

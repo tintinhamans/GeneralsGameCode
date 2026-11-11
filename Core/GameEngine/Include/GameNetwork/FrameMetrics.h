@@ -28,7 +28,7 @@
 
 
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 #define USE_NEW_FRAMEMETRIC_LOGIC 1
 #endif
 

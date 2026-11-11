@@ -65,8 +65,8 @@
 #include "GameNetwork/GameSpy/ThreadUtils.h"
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
-#if defined(GENERALS_ONLINE)
-#include "GameNetwork/GeneralsOnline/NGMP_include.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInclude.h"
 #endif
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
@@ -829,7 +829,7 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 				}
 				else if (controlID == buttonMyInfoID )
 				{
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 					SetLookAtPlayer(TheGameSpyInfo->getLocalProfileID(), UnicodeString(from_utf8(TheGameSpyInfo->getLocalName().str()).c_str()));
 #else
 					SetLookAtPlayer(TheGameSpyInfo->getLocalProfileID(), TheGameSpyInfo->getLocalName());

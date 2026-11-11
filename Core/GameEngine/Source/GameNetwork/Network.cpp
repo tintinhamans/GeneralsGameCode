@@ -51,7 +51,7 @@
 #include "GameLogic/ScriptEngine.h"
 #include "Common/Recorder.h"
 #include "GameClient/MessageBox.h"
-#include "../NGMP_include.h"
+#include "../GenOnlineInclude.h"
 
 
 #if defined(DEBUG_CRC) && !RETAIL_COMPATIBLE_NETWORKING
@@ -112,7 +112,7 @@ public:
 	virtual void liteupdate() override;																	///< Do a lightweight update to send packets and pass messages.
 	Bool deinit();																			///< Shutdown connections, release memory
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	virtual void SeedLatencyData(int latency);
 #endif
 
@@ -169,7 +169,7 @@ public:
 	virtual void attachTransport(Transport *transport) override;
 	virtual void initTransport(const char *transportName) override;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	void setSawCRCMismatch(UnicodeString& strMismatchDetails);
 #else
 	void setSawCRCMismatch(void);
@@ -187,7 +187,7 @@ public:
 	virtual Int getPingsSent() override;
 	virtual Int getPingsReceived() override;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	ConnectionManager* GetConnectionManager() override { return m_conMgr; }
 
 	bool IsSlugging() override { return m_didSelfSlug; }
@@ -379,7 +379,7 @@ void Network::init()
 #endif
 }
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 void Network::SeedLatencyData(int highestLatency)
 {
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[PRESEED] Seeding with highest latency %d", highestLatency);
@@ -388,7 +388,7 @@ void Network::SeedLatencyData(int highestLatency)
 }
 #endif
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 void Network::setSawCRCMismatch(UnicodeString& strMismatchDetails)
 #else
 void Network::setSawCRCMismatch( void )
@@ -397,13 +397,13 @@ void Network::setSawCRCMismatch( void )
 	m_sawCRCMismatch = TRUE;
 
 	TheScriptActions->closeWindows( TRUE );
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	m_messageWindow = MessageBoxOk(UnicodeString(L"Mismatch Occurred"), strMismatchDetails, nullptr);
 #else
 	m_messageWindow = TheWindowManager->winCreateFromScript("Menus/CRCMismatch.wnd");
 #endif
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	TheScriptEngine->startEndGameTimer(true);
 #else
 	TheScriptEngine->startEndGameTimer();
@@ -541,7 +541,7 @@ void Network::updateLogicFrame()
 		if (m_localStatus == NETLOCALSTATUS_PREGAME) {
 			// a sort-of-hack that prevents extraneous frames from being executed before the game actually starts.
 			// Ideally this shouldn't be necessary, but I don't think its hurting anything by being here.
-#if defined(GENERALS_ONLINE_RUN_FAST)
+#if defined(GENONLINE_RUN_FAST)
 			if (TheGameLogic->getFrame() == 1) {
 #else
 			if (TheGameLogic->getFrame() == 1) {
@@ -705,7 +705,7 @@ void Network::processRunAheadCommand(NetRunAheadCommandMsg* msg) {
 		frameGrouping = 1; // Having a value less than 1 doesn't make sense.
 	}
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	if (frameGrouping > FRAME_GROUPING_CAP) {
 		frameGrouping = FRAME_GROUPING_CAP; // Max of a half a second.
 	}
@@ -766,10 +766,10 @@ void Network::update()
 	GetCommandsFromCommandList(); // Remove commands from TheCommandList and send them to the connection manager.
 	if (m_conMgr != NULL) {
 		if (m_localStatus == NETLOCALSTATUS_INGAME) {
-#if defined(GENERALS_ONLINE_RUN_FAST)
+#if defined(GENONLINE_RUN_FAST)
 			m_frameRate = 60;
-#elif defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
-			m_frameRate = GENERALS_ONLINE_HIGH_FPS_LIMIT;
+#elif defined(GENONLINE_HIGH_FPS_SERVER)
+			m_frameRate = GENONLINE_HIGH_FPS_LIMIT;
 #else
 			m_frameRate = 30;
 #endif
@@ -868,7 +868,7 @@ Bool Network::timeForNewFrame() {
 
 //		if (m_nextFrameTime + frameDelay < curTime) {
 		if (m_nextFrameTime + frameDelay < curTime) {
-		//if ((m_nextFrameTime + ((GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER * 2) * frameDelay)) < curTime) {
+		//if ((m_nextFrameTime + ((GENONLINE_HIGH_FPS_FRAME_MULTIPLIER * 2) * frameDelay)) < curTime) {
 			// If we get too far behind on our framerate we need to reset the nextFrameTime thing.
 			m_nextFrameTime = curTime;
 			NetworkLog(ELogVerbosity::LOG_DEBUG, "Initializing m_nextFrameTime to %I64d", m_nextFrameTime);

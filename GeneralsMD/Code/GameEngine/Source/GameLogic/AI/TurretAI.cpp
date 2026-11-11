@@ -400,7 +400,7 @@ Bool TurretAI::friend_turnTowardsAngle(Real desiredAngle, Real rateModifier, Rea
 	Real actualAngle = origAngle;
 	Real turnRate = getTurnRate() * rateModifier;
 
-#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE) && defined(GENONLINE_HIGH_FPS_SERVER)
 	turnRate *= 2.f;
 #endif
 
@@ -694,7 +694,7 @@ void TurretAI::friend_notifyStateMachineChanged()
 DECLARE_PERF_TIMER(TurretAI)
 UpdateSleepTime TurretAI::updateTurretAI()
 {
-#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE) && defined(GENONLINE_HIGH_FPS_SERVER)
 	if (!TheGameLogic->HasLegacyFrameAdvanced())
 	{
 		return UPDATE_SLEEP_NONE;
@@ -1400,7 +1400,7 @@ StateReturnType TurretAIIdleScanState::update()
   if( getMachineOwner()->testStatus( OBJECT_STATUS_UNDER_CONSTRUCTION))
     return STATE_CONTINUE;//ML so that under-construction base-defenses do not idle-scan while under construction
 
-#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_HIGH_FPS_LIMIT)
+#if defined(GENONLINE) && defined(GENONLINE_HIGH_FPS_LIMIT)
 	Bool angleAligned = getTurretAI()->friend_turnTowardsAngle(getTurretAI()->getNaturalTurretAngle() + m_desiredAngle, 0.5f, 0.5f);
 #else
 	Bool angleAligned = getTurretAI()->friend_turnTowardsAngle(getTurretAI()->getNaturalTurretAngle() + m_desiredAngle, 0.5f, 0.0f);

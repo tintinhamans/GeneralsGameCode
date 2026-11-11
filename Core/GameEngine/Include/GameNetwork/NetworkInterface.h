@@ -101,7 +101,7 @@ public:
 	virtual Int getAverageFPS() = 0;
 	virtual Int getSlotAverageFPS(Int slot) = 0;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	virtual void SeedLatencyData(int highestLatency) = 0;
 	virtual bool IsSlugging() = 0;
 #endif
@@ -110,13 +110,13 @@ public:
 	virtual void initTransport(const char *transportName) = 0;
 	virtual Bool sawCRCMismatch() = 0;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	virtual void setSawCRCMismatch(UnicodeString& strMismatchDetails) = 0;
 #else
 	virtual void setSawCRCMismatch() = 0;
 #endif
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	virtual ConnectionManager* GetConnectionManager() = 0;
 #endif	virtual Bool isPlayerConnected(Int playerID) = 0;
 

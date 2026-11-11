@@ -54,8 +54,8 @@
 #include "GameNetwork/GameSpy/PersistentStorageDefs.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameNetwork/GameSpy/ThreadUtils.h"
-#if defined(GENERALS_ONLINE)
-#include "GameNetwork/GeneralsOnline/NGMP_include.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInclude.h"
 #endif
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
@@ -105,7 +105,7 @@ enum { NOTIFICATION_EXPIRES = 3000 };
 
 void setUnignoreText( WindowLayout *layout, AsciiString nick, GPProfile id);
 void refreshIgnoreList();
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 void showNotificationBox( AsciiString nick, UnicodeString message, bool bPlaySound);
 #else
 void showNotificationBox( AsciiString nick, UnicodeString message);
@@ -383,7 +383,7 @@ void insertChat( BuddyMessage msg )
 	}
 }
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 // Generals keeps the GameSpy buddy refresh, the Generals Online arguments are unused
 void updateBuddyInfo( bool bIsAutoRefresh = false, bool bUseCache = false )
 #else
@@ -653,7 +653,7 @@ void HandleBuddyResponses()
 	}
 }
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 void showNotificationBox( AsciiString nick, UnicodeString message, bool bPlaySound)
 #else
 void showNotificationBox( AsciiString nick, UnicodeString message)
@@ -682,7 +682,7 @@ void showNotificationBox( AsciiString nick, UnicodeString message)
 
 	if (nick.isNotEmpty())
 	{
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 		// Generals Online nicks are UTF-8 display names
 		message.format(WidenFormatSpecifiers(message.str()).c_str(), from_utf8(nick.str()).c_str());
 #else
@@ -696,7 +696,7 @@ void showNotificationBox( AsciiString nick, UnicodeString message)
 
 	AudioEventRTS buttonClick("GUICommunicatorIncoming");
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	if (TheAudio && bPlaySound)
 #else
 	if( TheAudio )
@@ -1396,7 +1396,7 @@ WindowMsgHandledType WOLBuddyOverlayRCMenuSystem( GameWindow *window, UnsignedIn
 				{
 					DEBUG_LOG(("buttonStatsID was pushed"));
 					GameSpyCloseOverlay(GSOVERLAY_PLAYERINFO);
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 					SetLookAtPlayer(profileID, UnicodeString(from_utf8(nick.str()).c_str()));
 #else
 					SetLookAtPlayer(profileID,nick );

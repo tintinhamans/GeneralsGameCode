@@ -648,9 +648,9 @@ protected:
 					if (delayInMsec >= 0.0f)
 					{
 						Real delayInFrames = ConvertDurationFromMsecsToFrames(delayInMsec);
-#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE_HIGH_FPS_RENDER)
 						// Info: Particle systems update on legacy frames, so their delays must use the same cadence at 60Hz.
-						delayInFrames /= GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER;
+						delayInFrames /= GENONLINE_HIGH_FPS_FRAME_MULTIPLIER;
 #endif
 						sys->setInitialDelay(REAL_TO_INT_CEIL(delayInFrames));
 					}

@@ -181,12 +181,12 @@ void ControlBarResizer::sizeWindowsAlt()
 	ResizerWindowList::iterator it = m_resizerWindowsList.begin();
 	GameWindow *win = nullptr;
 
-#if !defined(GENERALS_ONLINE_WIDESCREEN)
+#if !defined(GENONLINE_WIDESCREEN)
 	Real x = (Real)TheDisplay->getWidth() / 800;
 	Real y = (Real)TheDisplay->getHeight() / 600;
 #else
-	Real x = (Real)TheDisplay->getWidth() / GENERALS_ONLINE_WIDESCREEN_X_SCALE;
-	Real y = (Real)TheDisplay->getHeight() / GENERALS_ONLINE_WIDESCREEN_Y_SCALE;
+	Real x = (Real)TheDisplay->getWidth() / GENONLINE_WIDESCREEN_X_SCALE;
+	Real y = (Real)TheDisplay->getHeight() / GENONLINE_WIDESCREEN_Y_SCALE;
 #endif
 
 	

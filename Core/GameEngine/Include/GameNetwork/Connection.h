@@ -40,7 +40,7 @@
 #include "GameNetwork/Transport.h"
 #include "GameNetwork/NetPacket.h"
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 #define CONNECTION_LATENCY_HISTORY_LENGTH 10
 #else
 #define CONNECTION_LATENCY_HISTORY_LENGTH 200

@@ -2342,7 +2342,7 @@ void InGameUI::message( UnicodeString format, ... )
 /** Interface for display text messages to the user */
 //-------------------------------------------------------------------------------------------------
 // srj sez: passing as const-ref screws up varargs for some reason. dunno why. just pass by value.
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 // The chat flag only changes the message timeout in Zero Hour
 void InGameUI::messageColor( bool bIsChatMsg, const RGBColor *rgbColor, UnicodeString format, ... )
 #else

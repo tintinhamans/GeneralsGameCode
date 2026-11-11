@@ -109,12 +109,12 @@
 
 #include "Common/version.h"
 
-#include "../NextGenMP_defines.h"
+#include "../GenOnlineDefines.h"
 
 // GENERALS ONLINE
-#include "../OnlineServices_Init.h"
-#include "GameNetwork/GeneralsOnline/DiscordRichPresence.h"
-#include "GameNetwork/GeneralsOnline/OnlineServices_LobbyInterface.h"
+#include "../GenOnlineInit.h"
+#include "GameNetwork/GenOnline/DiscordRichPresence.h"
+#include "GameNetwork/GenOnline/GenOnlineLobbyInterface.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include <chrono>
 #include "WW3D2/ww3d.h"
@@ -124,10 +124,10 @@ void TearDownGeneralsOnline()
 {
 	g_bTearDownGeneralsOnlineRequested = true;
 
-	if (NGMP_OnlineServicesManager::GetInstance() == nullptr)
+	if (GenOnlineServicesManager::GetInstance() == nullptr)
 		return;
 
-	EGOTearDownReason teardownReason = NGMP_OnlineServicesManager::GetInstance()->GetTeardownReason();
+	EGOTearDownReason teardownReason = GenOnlineServicesManager::GetInstance()->GetTeardownReason();
 
 	if (teardownReason != EGOTearDownReason::USER_REQUESTED_SILENT && !IsModerationTeardownReason(teardownReason))
 	{
@@ -159,7 +159,7 @@ void TearDownGeneralsOnline()
 			body = L"An unknown error occurred.";
 		}
 
-		NGMP_OnlineServicesManager::GetInstance()->ResetPendingFullTeardownReason();
+		GenOnlineServicesManager::GetInstance()->ResetPendingFullTeardownReason();
 
 		GameSpyCloseAllOverlays();
 		GSMessageBoxOk(title, body);
@@ -358,7 +358,7 @@ GameEngine::~GameEngine()
 	delete TheGameLODManager;
 	TheGameLODManager = nullptr;
 	// GENERALS ONLINE
-	NGMP_OnlineServicesManager::DestroyInstance();
+	GenOnlineServicesManager::DestroyInstance();
 	Drawable::killStaticImages();
 
 	_Module.Term();
@@ -367,7 +367,7 @@ GameEngine::~GameEngine()
 	PerfGather::termPerfDump();
 #endif
 	// Kill sentry
-	NGMP_OnlineServicesManager::ShutdownSentry();}
+	GenOnlineServicesManager::ShutdownSentry();}
 
 //-------------------------------------------------------------------------------------------------
 
@@ -514,7 +514,7 @@ void GameEngine::init()
 		TheWritableGlobalData->parseCustomDefinition();
 
 		// Init sentry ASAP to catch early crashes
-		NGMP_OnlineServicesManager::InitSentry();
+		GenOnlineServicesManager::InitSentry();
 
 	#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
 	GetPrecisionTimer(&endTime64);//////////////////////////////////////////////////////////////////
@@ -533,7 +533,7 @@ void GameEngine::init()
 		CommandLine::parseCommandLineForEngineInit();
 
 		// NGMP_CHANGE: Init our settings before loadMods, which reads DataPacks_UseCommunityPatch. Needs TheGlobalData for the user data path.
-		NGMP_OnlineServicesManager::Settings.Initialize();
+		GenOnlineServicesManager::Settings.Initialize();
 
 		TheArchiveFileSystem->loadMods();
 
@@ -830,7 +830,7 @@ void GameEngine::init()
 
 	HideControlBar();
 
-	m_discordRichPresence = new GeneralsOnlineDiscordRPC();
+	m_discordRichPresence = new GenOnlineDiscordRPC();
 	m_discordRichPresence->Initialize();
 }
 
@@ -950,8 +950,8 @@ Bool GameEngine::canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags)
 	return false;
 }
 
-#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
-extern NGMPGame* TheNGMPGame;
+#if defined(GENONLINE_HIGH_FPS_RENDER)
+extern GenOnlineGame* TheGenOnlineGame;
 #endif
 
 /// -----------------------------------------------------------------------------------------------
@@ -968,16 +968,16 @@ void GameEngine::update()
 			// VERIFY CRC needs to be in this code block.  Please to not pull TheGameLogic->update() inside this block.
 			VERIFY_CRC
 
-#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE_HIGH_FPS_RENDER)
 			// NGMP_NOTE: Lock the shellmap to 30fps until we fix everything
-			if (TheNGMPGame != nullptr && TheGameLogic->isInGame() && !TheShell->isShellActive())
+			if (TheGenOnlineGame != nullptr && TheGameLogic->isInGame() && !TheShell->isShellActive())
 			{
-				TheFramePacer->setFramesPerSecondLimit(NGMP_OnlineServicesManager::Settings.Graphics_GetFPSLimit());
-				TheWritableGlobalData->m_useFpsLimit = NGMP_OnlineServicesManager::Settings.Graphics_GetFPSLimit();
+				TheFramePacer->setFramesPerSecondLimit(GenOnlineServicesManager::Settings.Graphics_GetFPSLimit());
+				TheWritableGlobalData->m_useFpsLimit = GenOnlineServicesManager::Settings.Graphics_GetFPSLimit();
 			}
 			else
 			{
-				TheFramePacer->setFramesPerSecondLimit(GENERALS_ONLINE_HIGH_FPS_LIMIT);
+				TheFramePacer->setFramesPerSecondLimit(GENONLINE_HIGH_FPS_LIMIT);
 			}
 #endif
 			
@@ -998,19 +998,19 @@ void GameEngine::update()
 			{
 				g_bTearDownGeneralsOnlineRequested = false;
 
-				NGMP_OnlineServicesManager::DestroyInstance();
+				GenOnlineServicesManager::DestroyInstance();
 
 			}
 			
-			if (NGMP_OnlineServicesManager::GetInstance() != nullptr)
+			if (GenOnlineServicesManager::GetInstance() != nullptr)
 			{
-				NGMP_OnlineServicesManager::GetInstance()->Tick();
+				GenOnlineServicesManager::GetInstance()->Tick();
 			}
 
 			if (m_discordRichPresence != nullptr)
 			{
 				m_discordRichPresence->Tick(
-					NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>());
+					GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>());
 			}
 		}
 
@@ -1090,7 +1090,7 @@ void GameEngine::execute()
 // 					else
 // 						RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
 // 				}
-// #if !defined(GENERALS_ONLINE_USE_SENTRY)
+// #if !defined(GENONLINE_USE_SENTRY)
 // 				catch (...)
 // 				{
 // 					// try to save info off

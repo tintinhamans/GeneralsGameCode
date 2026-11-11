@@ -91,7 +91,7 @@
 #include "GameNetwork/GameSpy/BuddyThread.h"
 
 #include "WW3D2/ww3d.h"
-#include "../OnlineServices_Init.h"
+#include "../GenOnlineInit.h"
 
 #if defined(RTS_DEBUG)
 /*non-static*/ Real TheSkateDistOverride = 0.0f;
@@ -265,10 +265,10 @@ bool changeMaxRenderFps(FpsValueChange change)
 	TheFramePacer->setFramesPerSecondLimit(maxRenderFps);
 	TheWritableGlobalData->m_useFpsLimit = (maxRenderFps != RenderFpsPreset::UncappedFpsValue);
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
     // Save to GO settings, SH does not save it yet
     // TODO_NGMP: Remove this, SH saves it now
-    NGMP_OnlineServicesManager::Settings.Graphics_SetFPS(maxRenderFps, TheWritableGlobalData->m_useFpsLimit);
+    GenOnlineServicesManager::Settings.Graphics_SetFPS(maxRenderFps, TheWritableGlobalData->m_useFpsLimit);
 #endif
 
 	UnicodeString message;
@@ -4024,7 +4024,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			break;
 		}
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
         case GameMessage::MSG_RAW_KEY_UP:
         {
             int key = msg->getArgument(0)->integer;
@@ -4038,7 +4038,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
             }
             else if (key == KEY_F10)
             {
-                NGMP_OnlineServicesManager::ToggleAdvancedNetworkStats();
+                GenOnlineServicesManager::ToggleAdvancedNetworkStats();
 
                 disp = DESTROY_MESSAGE;
             }

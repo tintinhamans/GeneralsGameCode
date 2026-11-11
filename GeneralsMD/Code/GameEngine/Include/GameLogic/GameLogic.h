@@ -39,7 +39,7 @@
 #include "GameLogic/GameMode.h"
 #include "GameLogic/Module/UpdateModule.h"	// needed for DIRECT_UPDATEMODULE_ACCESS
 
-#include "../NextGenMP_defines.h"
+#include "../GenOnlineDefines.h"
 
 /*
 	At one time, we distinguished between sleepy and nonsleepy
@@ -133,7 +133,7 @@ public:
 	void setObjectIDCounter( ObjectID nextObjID ) { m_nextObjID = nextObjID; }
 	ObjectID getObjectIDCounter() { return m_nextObjID; }
 
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 	UnsignedInt getFrameLegacy(void);
 	UnsignedInt getFrameLegacyLast(void);
 	bool HasLegacyFrameAdvanced(void);
@@ -230,7 +230,7 @@ public:
 	void initTimeOutValues();
 	UnsignedInt getObjectCount();
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	bool IsLoadScreenActive() const { return m_loadScreen != nullptr; }
 #endif
 	Int getRankLevelLimit() const { return m_rankLevelLimit; }
@@ -389,7 +389,7 @@ private:
 
 	Real m_width, m_height;																	///< Dimensions of the world
 	UnsignedInt m_frame;																		///< Simulation frame number
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 	UnsignedInt m_frameLegacy;
 	UnsignedInt m_frameLegacyLast;
 #endif
@@ -467,11 +467,11 @@ private:
 	Bool m_logicTimeScaleEnabledMemory;
 
 	Bool m_progressComplete[MAX_SLOTS];
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	Int m_progressMade[MAX_SLOTS];
 #endif
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	enum { PROGRESS_COMPLETE_TIMEOUT_PROGRESS_MADE = 30000 };							///< Timeout we wait for when we've completed our Load, if they made SOME progress
 	enum { PROGRESS_COMPLETE_TIMEOUT_ZERO_PROGRESS_MADE = 5000 };							///< Timeout we wait for when we've completed our Load, when they made zero progress
 #else
@@ -527,7 +527,7 @@ inline Bool GameLogic::isInShellGame() const { return rts::isShellGame(m_gameMod
 inline Bool GameLogic::isInMultiplayerGame() const { return rts::isMultiplayerGame(m_gameMode); }
 inline Bool GameLogic::isInInteractiveGame() const { return rts::isInteractiveGame(m_gameMode); }
 
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 inline UnsignedInt GameLogic::getFrameLegacy(void) { return m_frameLegacy; }
 inline UnsignedInt GameLogic::getFrameLegacyLast(void) { return m_frameLegacyLast; }
 inline bool GameLogic::HasLegacyFrameAdvanced(void) { return m_frameLegacy != m_frameLegacyLast; }
