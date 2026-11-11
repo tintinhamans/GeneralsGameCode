@@ -106,6 +106,18 @@ enum class ELobbyJoinability
 struct LobbyMemberEntry;
 struct LobbyEntry;
 
+struct LobbyEvent
+{
+	std::string event;
+	int64_t duration_ms = 0;
+	std::string reason;
+	int64_t value = 0;
+	bool friends_only = false;
+	int64_t user_id = -1;
+	std::string display_name;
+	std::vector<std::pair<int64_t, int64_t>> missingLinks;
+};
+
 class GenOnlineLobbyInterface
 {
 public:
@@ -240,8 +252,6 @@ public:
 	void UpdateCurrentLobby_KickUser(int64_t userID, UnicodeString name);
 	void UpdateCurrentLobby_SetSlotState(uint16_t slotIndex, uint16_t slotState);
 
-	void UpdateCurrentLobby_ForceReady();
-
 	void SetLobbyListDirty()
 	{
 		m_bLobbyListDirty.store(true);
@@ -269,7 +279,6 @@ public:
 	AsciiString GetCurrentLobbyMapPath();
 
 	void SendChatMessageToCurrentLobby(UnicodeString& strChatMsgUnicode, bool bIsAction);
-	void SendAnnouncementMessageToCurrentLobby(UnicodeString& strAnnouncementMsgUnicode, bool bShowToHost);
 
 	void InvokeCreateLobbyCallback(bool bSuccess)
 	{
@@ -279,6 +288,10 @@ public:
 		}
 	}
 
+
+	bool AreLocalLobbyPeersConnected();
+	bool HasFailedLobbyPeers();
+	int RetryFailedLobbyPeers();
 
 	LobbyEntry& GetCurrentLobby()
 	{
@@ -320,6 +333,29 @@ public:
 	void DeregisterForGameStartPacket()
 	{
 		m_callbackStartGamePacket = nullptr;
+	}
+
+	// Receives the reason code of a match start the service refused and the missing links for mesh_incomplete.
+	std::function<void(const std::string&, const std::vector<std::pair<int64_t, int64_t>>&)> m_callbackStartGameRejected = nullptr;
+	void RegisterForStartGameRejected(std::function<void(const std::string&, const std::vector<std::pair<int64_t, int64_t>>&)> cb)
+	{
+		m_callbackStartGameRejected = cb;
+	}
+
+	void DeregisterForStartGameRejected()
+	{
+		m_callbackStartGameRejected = nullptr;
+	}
+
+	std::function<void(const LobbyEvent&)> m_callbackLobbyEvent = nullptr;
+	void RegisterForLobbyEvent(std::function<void(const LobbyEvent&)> cb)
+	{
+		m_callbackLobbyEvent = cb;
+	}
+
+	void DeregisterForLobbyEvent()
+	{
+		m_callbackLobbyEvent = nullptr;
 	}
 
 	// periodically force refresh the lobby for data accuracy
@@ -507,23 +543,6 @@ public:
 	bool m_bHostMigrated = false;
 	bool m_bPendingHostHasLeft = false;
 
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-	void StartAutoReadyCountdown()
-	{
-		m_timeStartAutoReadyCountdown = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-	}
-
-	void ClearAutoReadyCountdown()
-	{
-		m_timeStartAutoReadyCountdown = -1;
-	}
-
-	bool HasAutoReadyCountdown()
-	{
-		return m_timeStartAutoReadyCountdown != -1;
-	}
-#endif
-
 	void SetLobbyTryingToJoin(LobbyEntry lobby)
 	{
 		m_LobbyTryingToJoin = lobby;
@@ -562,10 +581,6 @@ private:
 
 	std::atomic_bool m_bLobbyListDirty = false;
 
-
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-	int64_t m_timeStartAutoReadyCountdown = -1;
-#endif
 
 	bool m_bAttemptingToJoinLobby = false;
 

@@ -7,7 +7,7 @@
         "kind": "git",
         "repository": "https://github.com/tintinhamans/GNS",
         "reference": "vcpkg-registry",
-        "baseline": "e62d241df714253c66aaf900fed05f30c3fd433a",
+        "baseline": "213a9c0d0cadc33e80336d0330318970d0538be4",
         "packages": [ "gamenetworkingsockets" ]
       }
     ]
@@ -22,7 +22,7 @@
     },
     {
       "name": "gamenetworkingsockets",
-      "version>=": "1.6.0",
+      "version>=": "1.6.1#1",
       "default-features": false,
       "features": [ "ice", "webrtc" ]
     },

@@ -774,7 +774,8 @@ void LANAPI::RequestHasMap()
 		}
 		else
 		{
-			mapDisplayName.translate(TheGameState->getMapLeafName(m_currentGame->getMap()).str());
+			// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
+			mapDisplayName = getMapNameFromPath(m_currentGame->getMap());
 			willTransfer = WouldMapTransfer(m_currentGame->getMap());
 		}
 		if (willTransfer)

@@ -4,6 +4,15 @@
 
 class LobbyEntry;
 
+// The host walks the phases in order. A client skips StartRequested.
+enum class EStartPhase
+{
+	Idle,
+	StartRequested,
+	Countdown,
+	Starting
+};
+
 class GenOnlineGameSlot : public GameSlot
 {
 public:
@@ -65,58 +74,30 @@ private:
 	Int m_reportedNumObservers;
 
 	bool m_bHasCommittedOutcome = false;
-	
+	EStartPhase m_startPhase = EStartPhase::Idle;
+	int64_t m_startPhaseTime = -1;
+
 	std::chrono::system_clock::time_point matchStartTime;
 
-#if defined(GENONLINE_ENABLE_MATCH_START_COUNTDOWN)
-	bool m_bCountdownStarted = false;
-	int64_t m_countdownStartTime = -1;
-	int64_t m_countdownLastCheckTime = -1;
-#endif
+	std::chrono::steady_clock::time_point m_countdownEnd;
 
 public:
 	GenOnlineGame();
 	virtual ~GenOnlineGame();
 	virtual void reset(void);
 
+	void SetStartPhase(EStartPhase phase);
+	// A start the service confirmed is not aborted.
+	void AbortStart();
+	EStartPhase GetStartPhase() const { return m_startPhase; }
+	int64_t GetStartPhaseTime() const { return m_startPhaseTime; }
+
 	bool HasCommittedOutcome() const { return m_bHasCommittedOutcome; }
 	void SetHasCommittedOutcome() { m_bHasCommittedOutcome = true; }
 
-#if defined(GENONLINE_ENABLE_MATCH_START_COUNTDOWN)
-	void StartCountdown();
-
-	void StopCountdown()
-	{
-		m_bCountdownStarted = false;
-		m_countdownStartTime = -1;
-		m_countdownLastCheckTime = -1;
-	}
-
-	bool IsCountdownStarted()
-	{
-		return m_bCountdownStarted;
-	}
-
-	int64_t GetCountdownStartTime()
-	{
-		return m_countdownStartTime;
-	}
-
-	void UpdateCountdownLastCheckTime()
-	{
-		m_countdownLastCheckTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-	}
-
-	int GetTotalCountdownDuration()
-	{
-		return 5;
-	}
-
-	int64_t GetCountdownLastCheckTime()
-	{
-		return m_countdownLastCheckTime;
-	}
-#endif
+	// The countdown ends the given time after its event arrived, measured on the local monotonic clock.
+	void StartCountdown(int64_t durationMs);
+	int64_t GetCountdownRemainingMs() const;
 
 	void StartMatchTimer() { matchStartTime = std::chrono::system_clock::now(); }
 	std::chrono::system_clock::time_point GetStartTime() { return matchStartTime; }

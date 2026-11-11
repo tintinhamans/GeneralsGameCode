@@ -61,14 +61,17 @@ FrameMetrics::FrameMetrics()
 
 
 	m_fpsList = NEW Real[TheGlobalData->m_networkFPSHistoryLength];
+#if defined(GENONLINE)
+	m_fpsListLength = TheGlobalData->m_networkFPSHistoryLength;
+#endif
 }
 
 FrameMetrics::~FrameMetrics() {
-	delete m_fpsList;
+	delete[] m_fpsList;
 	m_fpsList = NULL;
 
 #if !defined(USE_NEW_FRAMEMETRIC_LOGIC)
-    delete m_latencyList;
+    delete[] m_latencyList;
     m_latencyList = NULL;
 
     delete[] m_pendingLatencies;
@@ -110,6 +113,15 @@ void FrameMetrics::init() {
 	m_averageLatency = (Real)0.2;
 #endif
 	m_minimumCushion = -1;
+
+#if defined(GENONLINE)
+	// the game network settings can change the history length after construction
+	if (m_fpsListLength != TheGlobalData->m_networkFPSHistoryLength) {
+		delete[] m_fpsList;
+		m_fpsList = NEW Real[TheGlobalData->m_networkFPSHistoryLength];
+		m_fpsListLength = TheGlobalData->m_networkFPSHistoryLength;
+	}
+#endif
 
 	UnsignedInt i = 0;
 	for (; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
@@ -220,8 +232,8 @@ void FrameMetrics::processLatencyResponse(UnsignedInt frame)
     {
         m_averageLatency += kvPaAir.second;
     }
-	NetworkLog(ELogVerbosity::LOG_DEBUG, "Avg latency is: %f / %d = %f", m_averageLatency, m_mapLatenciesLookup.size(), m_averageLatency /= m_mapLatenciesLookup.size());
     m_averageLatency /= m_mapLatenciesLookup.size();
+	NetworkLog(ELogVerbosity::LOG_DEBUG, "Avg latency is: %f over %d samples", m_averageLatency, (int)m_mapLatenciesLookup.size());
 
 
     if (timeDiff > 1000)
@@ -272,4 +284,16 @@ void FrameMetrics::SeedLatencyData(int latency)
 {
 	m_averageFps = LOGICFRAMES_PER_SECOND;
 	m_averageLatency = latency / 1000.f;
+
+#if defined(USE_NEW_FRAMEMETRIC_LOGIC)
+	// the next response recomputes the average from these maps, so they must carry the seed too
+	for (std::unordered_map<UnsignedInt, Real>::iterator it = m_mapLatenciesLookup.begin(); it != m_mapLatenciesLookup.end(); ++it)
+	{
+		it->second = m_averageLatency;
+	}
+	for (std::map<UnsignedInt, Real>::iterator it = m_mapLatenciesSorted.begin(); it != m_mapLatenciesSorted.end(); ++it)
+	{
+		it->second = m_averageLatency;
+	}
+#endif
 }

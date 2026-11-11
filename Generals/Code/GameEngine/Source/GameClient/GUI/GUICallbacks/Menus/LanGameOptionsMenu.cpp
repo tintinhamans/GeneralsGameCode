@@ -327,7 +327,8 @@ void StartPressed()
 	}
 	else
 	{
-		mapDisplayName.format(L"%hs", myGame->getMap().str());
+		// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
+		mapDisplayName = getMapNameFromPath(myGame->getMap());
 		willTransfer = WouldMapTransfer(myGame->getMap());
 	}
 	for( i = 0; i < MAX_SLOTS; i++ )
@@ -875,7 +876,8 @@ void updateGameOptions()
 		}
 		else
 		{
-			mapDisplayName.format(L"%hs", getFileName(TheLAN->GetMyGame()->getMap().str()));
+			// GenOnline @tweak arcticdolphin 09/11/2026 The map name without the .map extension.
+			mapDisplayName = getMapNameFromPath(TheLAN->GetMyGame()->getMap());
 		}
 		UnicodeString old = GadgetStaticTextGetText(textEntryMapDisplay);
 		if(old.compare(mapDisplayName) != 0)

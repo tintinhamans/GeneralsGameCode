@@ -766,7 +766,8 @@ static void StartPressed()
 	}
 	else
 	{
-		mapDisplayName.format(L"%hs", myGame->getMap().str());
+		// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
+		mapDisplayName = getMapNameFromPath(myGame->getMap());
 		willTransfer = WouldMapTransfer(myGame->getMap());
 	}
 	int i = 0;
@@ -1910,7 +1911,8 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 										}
 										else
 										{
-											mapDisplayName.format(L"%hs", TheGameState->getMapLeafName(game->getMap()).str());
+											// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
+											mapDisplayName = getMapNameFromPath(game->getMap());
 											willTransfer = WouldMapTransfer(game->getMap());
 										}
 										if (willTransfer)
@@ -2058,7 +2060,8 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 									}
 									else
 									{
-										mapDisplayName.format(L"%hs", game->getMap().str());
+										// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
+										mapDisplayName = getMapNameFromPath(game->getMap());
 										willTransfer = WouldMapTransfer(game->getMap());
 									}
 									UnicodeString text;
