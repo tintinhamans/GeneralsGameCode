@@ -1158,6 +1158,28 @@ static void RequestFinalLobbyStart()
 		});
 }
 
+// Maps the reason code of a refused match start to its chat line.
+static UnicodeString GetStartRejectedText(const std::string& strReason)
+{
+	if (strReason == "not_owner")
+	{
+		return UnicodeString(L"The start was refused because you are no longer the host.");
+	}
+	if (strReason == "no_lobby")
+	{
+		return UnicodeString(L"The start was refused because the lobby no longer exists.");
+	}
+	if (strReason == "already_started")
+	{
+		return UnicodeString(L"The match has already started.");
+	}
+	if (strReason == "not_ready")
+	{
+		return UnicodeString(L"The start was refused because not every player is ready.");
+	}
+	return UnicodeString(L"The start was refused by the service.");
+}
+
 // Retries missing peer links and blocks the start while a custom lobby is not fully linked.
 static Bool RetryMissingLobbyPeerLinks()
 {
@@ -2239,6 +2261,16 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 			StartMatchWhenRosterMatches(0);
 		});
 
+	pLobbyInterface->RegisterForStartGameRejected([](const std::string& strReason)
+		{
+			if (TheGenOnlineGame != nullptr)
+			{
+				TheGenOnlineGame->AbortStart();
+			}
+
+			GadgetListBoxAddEntryText(listboxGameSetupChat, GetStartRejectedText(strReason), GameMakeColor(255, 194, 15, 255), -1, -1);
+		});
+
 
 	if (TheGenOnlineGame == nullptr || (TheGenOnlineGame && TheGenOnlineGame->isGameInProgress()))
 	{
@@ -2610,6 +2642,7 @@ void WOLGameSetupMenuShutdown( WindowLayout *layout, void *userData )
 		pLobbyInterface->DeregisterForPlayerDoesntHaveMapCallback();
 		pLobbyInterface->DeregisterForRosterNeedsRefreshCallback();
 		pLobbyInterface->DeregisterForGameStartPacket();
+		pLobbyInterface->DeregisterForStartGameRejected();
 	}
 	
 	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
