@@ -70,40 +70,21 @@ GenOnlineGame::~GenOnlineGame()
 
 void GenOnlineGame::SyncWithLobby(LobbyEntry& lobby)
 {
-	// map
-	// correct if custom (game needs full path, this is done in vanilla for CM only, and not QM, but our QM has custom maps, so just do it here for safety)
+	// The lobby builds the map path from map_official.
+	AsciiString asciiMap(lobby.map_path.c_str());
+	asciiMap.toLower();
+	setMap(asciiMap);
 
-	AsciiString asciiMapOfficial(lobby.map_path.c_str());
-	std::string correctedMapPath = std::format("{}{}", TheGlobalData->getPath_UserData().str(), lobby.map_path.c_str());
-	AsciiString asciiMapCustom(correctedMapPath.c_str());
-	//TheGenOnlineGame->setMap(asciiMap);
-	asciiMapOfficial.toLower();
-	asciiMapCustom.toLower();
-	std::map<AsciiString, MapMetaData>::iterator itOfficial = TheMapCache->find(asciiMapOfficial);
-	std::map<AsciiString, MapMetaData>::iterator itCustom = TheMapCache->find(asciiMapCustom);
-
-	// is it official?
-
-
-	if (itOfficial != TheMapCache->end())
+	std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(asciiMap);
+	if (it != TheMapCache->end())
 	{
-		TheGenOnlineGame->getGameSpySlot(0)->setMapAvailability(TRUE);
-		TheGenOnlineGame->setMapCRC(itOfficial->second.m_CRC);
-		TheGenOnlineGame->setMapSize(itOfficial->second.m_filesize);
-
-		setMap(asciiMapOfficial);
+		getGameSpySlot(0)->setMapAvailability(TRUE);
+		setMapCRC(it->second.m_CRC);
+		setMapSize(it->second.m_filesize);
 	}
-	else if (itCustom != TheMapCache->end())
+	else
 	{
-		TheGenOnlineGame->getGameSpySlot(0)->setMapAvailability(TRUE);
-		TheGenOnlineGame->setMapCRC(itCustom->second.m_CRC);
-		TheGenOnlineGame->setMapSize(itCustom->second.m_filesize);
-
-		setMap(asciiMapCustom);
-	}
-	else // fallback
-	{
-		setMap(lobby.map_path.c_str());
+		getGameSpySlot(0)->setMapAvailability(FALSE);
 	}
 
 	// superweapon
