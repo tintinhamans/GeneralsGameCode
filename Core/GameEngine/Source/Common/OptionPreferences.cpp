@@ -520,6 +520,15 @@ AsciiString OptionPreferences::getSpeakerType()
 	return it->second;
 }
 
+// TheSuperHackers @feature tintinhamans 12/11/2026 LegacyMedia = yes picks Miles audio and Bink movies over OpenAL and FFmpeg in builds that have both.
+Bool OptionPreferences::getLegacyMediaEnabled() const
+{
+	OptionPreferences::const_iterator it = find("LegacyMedia");
+	if (it == end())
+		return FALSE;
+	return stricmp(it->second.str(), "yes") == 0;
+}
+
 Real OptionPreferences::getSoundVolume()
 {
 	OptionPreferences::const_iterator it = find("SFXVolume");

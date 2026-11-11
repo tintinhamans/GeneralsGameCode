@@ -539,7 +539,8 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 
 		Int progressUpdateCount = m_videoStream->frameCount() / FRAME_FUDGE_ADD;
 		Int shiftedPercent = -FRAME_FUDGE_ADD + 1;
-		while (m_videoStream->frameIndex() < m_videoStream->frameCount() - 1 )
+		// TheSuperHackers @feature tintinhamans 12/11/2026 The stream reports when playback ends, after its last frame and its audio.
+		while (!m_videoStream->isPlaybackComplete())
 		{
 			if (GameClient::isMovieAbortRequested())
 			{
@@ -1050,7 +1051,8 @@ void ChallengeLoadScreen::init( GameInfo *game )
 
 		Int progressUpdateCount = m_videoStream->frameCount() / FRAME_FUDGE_ADD;
 		Int shiftedPercent = -FRAME_FUDGE_ADD + 1;
-		while (m_videoStream->frameIndex() < m_videoStream->frameCount() - 1 )
+		// TheSuperHackers @feature tintinhamans 12/11/2026 The stream reports when playback ends, after its last frame and its audio.
+		while (!m_videoStream->isPlaybackComplete())
 		{
 			if (GameClient::isMovieAbortRequested())
 			{

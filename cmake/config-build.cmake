@@ -10,6 +10,27 @@ option(RTS_BUILD_OPTION_ASAN "Build code with Address Sanitizer." OFF)
 option(RTS_BUILD_OPTION_VC6_FULL_DEBUG "Build VC6 with full debug info." OFF)
 cmake_dependent_option(RTS_BUILD_OPTION_TESTS "Build the unit tests." OFF "NOT IS_VS6_BUILD" OFF)
 cmake_dependent_option(RTS_BUILD_OPTION_BENCHMARKS "Build the benchmarks." OFF "NOT IS_VS6_BUILD" OFF)
+# RTS_BUILD_OPTION_OPENAL_FFMPEG and RTS_BUILD_OPTION_MILES_BINK live in config-vcpkg.cmake. With both, LegacyMedia = yes in Options.ini picks Miles and Bink at startup
+if(RTS_BUILD_OPTION_OPENAL_FFMPEG AND IS_VS6_BUILD)
+    message(STATUS "FFmpeg and OpenAL need a modern compiler; building Miles and Bink only")
+    set(RTS_BUILD_OPTION_OPENAL_FFMPEG OFF)
+endif()
+# Only the Win32 engine creates the OpenAL audio backend, tested with Zero Hour and MSVC 2022+;
+# elsewhere the option brings FFmpeg movies only
+set(RTS_OPENAL_AUDIO OFF)
+if(RTS_BUILD_OPTION_OPENAL_FFMPEG AND WIN32 AND MSVC AND NOT MSVC_VERSION LESS 1930 AND RTS_BUILD_ZEROHOUR)
+    set(RTS_OPENAL_AUDIO ON)
+elseif(RTS_BUILD_OPTION_OPENAL_FFMPEG)
+    message(STATUS "Only the Win32 engine creates OpenAL audio, tested with Zero Hour and Visual Studio 2022 or newer; building FFmpeg movies only")
+endif()
+if(NOT RTS_OPENAL_AUDIO AND NOT RTS_BUILD_OPTION_MILES_BINK)
+    message(FATAL_ERROR "Without OpenAL audio, RTS_BUILD_OPTION_MILES_BINK must stay on")
+endif()
+if(RTS_OPENAL_AUDIO)
+    target_compile_definitions(core_config INTERFACE RTS_HAS_OPENAL_FFMPEG)
+    # A static OpenAL Soft package links Threads::Threads without finding it
+    find_package(Threads REQUIRED)
+endif()
 
 if(NOT RTS_BUILD_ZEROHOUR AND NOT RTS_BUILD_GENERALS)
     set(RTS_BUILD_ZEROHOUR TRUE)
@@ -24,7 +45,8 @@ add_feature_info(ProfileBuild RTS_BUILD_OPTION_PROFILE "Building as a \"Profile\
 add_feature_info(DebugBuild RTS_BUILD_OPTION_DEBUG "Building as a \"Debug\" build")
 add_feature_info(AddressSanitizer RTS_BUILD_OPTION_ASAN "Building with address sanitizer")
 add_feature_info(Vc6FullDebug RTS_BUILD_OPTION_VC6_FULL_DEBUG "Building VC6 with full debug info")
-add_feature_info(FFmpegSupport RTS_BUILD_OPTION_FFMPEG "Building with FFmpeg support")
+add_feature_info(OpenALFFmpeg RTS_BUILD_OPTION_OPENAL_FFMPEG "Building FFmpeg movies, and OpenAL audio on Windows")
+add_feature_info(MilesBink RTS_BUILD_OPTION_MILES_BINK "Building Miles audio and Bink movies")
 add_feature_info(Tests RTS_BUILD_OPTION_TESTS "Building the unit tests")
 add_feature_info(Benchmarks RTS_BUILD_OPTION_BENCHMARKS "Building the benchmarks")
 
@@ -66,7 +88,6 @@ if(UNIX)
     target_compile_definitions(deps_config INTERFACE _UNIX)
 endif()
 
-
 # This disables a lot of warnings steering developers to use windows only functions/function names.
 if(MSVC)
     target_compile_definitions(core_config INTERFACE _CRT_NONSTDC_NO_WARNINGS _CRT_SECURE_NO_WARNINGS $<$<CONFIG:DEBUG>:_DEBUG_CRT>)
@@ -80,4 +101,10 @@ endif()
 
 if(RTS_BUILD_OPTION_PROFILE)
     target_compile_definitions(core_config INTERFACE RTS_PROFILE_LEGACY)
+endif()
+
+set(RTS_NEEDS_MILES_BINK TRUE)
+if(RTS_OPENAL_AUDIO AND NOT RTS_BUILD_OPTION_MILES_BINK AND NOT RTS_BUILD_GENERALS AND
+   NOT RTS_BUILD_ZEROHOUR_TOOLS AND NOT RTS_BUILD_CORE_EXTRAS AND NOT RTS_BUILD_OPTION_TESTS)
+    set(RTS_NEEDS_MILES_BINK FALSE)
 endif()

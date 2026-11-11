@@ -45,9 +45,14 @@
 #include "W3DDevice/GameClient/W3DGameWindowManager.h"
 #include "W3DDevice/GameClient/W3DGameFont.h"
 #include "W3DDevice/GameClient/W3DDisplayStringManager.h"
-#include "VideoDevice/Bink/BinkVideoPlayer.h"
 #ifdef RTS_HAS_FFMPEG
 #include "VideoDevice/FFmpeg/FFmpegVideoPlayer.h"
+#endif
+#ifdef RTS_HAS_MILES_BINK
+#include "VideoDevice/Bink/BinkVideoPlayer.h"
+#endif
+#if defined(RTS_HAS_OPENAL_FFMPEG) && defined(RTS_HAS_MILES_BINK)
+#include "OpenALAudioDevice/MediaBackend.h"
 #endif
 #include "Win32Device/GameClient/Win32DIKeyboard.h"
 #include "Win32Device/GameClient/Win32DIMouse.h"
@@ -111,11 +116,19 @@ protected:
 
   /// Manager for display strings
 	virtual DisplayStringManager *createDisplayStringManager() override { return NEW W3DDisplayStringManager; }
-#ifdef RTS_HAS_FFMPEG
-	virtual VideoPlayerInterface *createVideoPlayer() { return NEW FFmpegVideoPlayer; }
-#else
-	virtual VideoPlayerInterface *createVideoPlayer() override { return NEW BinkVideoPlayer; }
+	virtual VideoPlayerInterface *createVideoPlayer() override
+	{
+#if defined(RTS_HAS_OPENAL_FFMPEG) && defined(RTS_HAS_MILES_BINK)
+		// Bink movie audio needs Miles
+		if (!isOpenALMediaSelected())
+			return NEW BinkVideoPlayer;
 #endif
+#ifdef RTS_HAS_FFMPEG
+		return NEW FFmpegVideoPlayer;
+#else
+		return NEW BinkVideoPlayer;
+#endif
+	}
 	/// factory for creating the TerrainVisual
 	virtual TerrainVisual *createTerrainVisual() override { return NEW W3DTerrainVisual; }
 

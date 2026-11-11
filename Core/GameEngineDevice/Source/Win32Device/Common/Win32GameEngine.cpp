@@ -32,9 +32,31 @@
 #include <windows.h>
 
 #include "Win32Device/Common/Win32GameEngine.h"
+#if defined(RTS_HAS_OPENAL_FFMPEG) && RTS_ZEROHOUR
+#include "OpenALAudioDevice/MediaBackend.h"
+#include "OpenALAudioDevice/OpenALAudioManager.h"
+#endif
+#if defined(RTS_HAS_MILES_BINK)
+#include "MilesAudioDevice/MilesAudioManager.h"
+#endif
 #include "Common/PerfTimer.h"
 
 #include "GameNetwork/LANAPICallbacks.h"
+
+AudioManager *Win32GameEngine::createAudioManager(Bool dummy)
+{
+#if defined(RTS_HAS_OPENAL_FFMPEG) && RTS_ZEROHOUR
+	if (isOpenALMediaSelected())
+		return NEW OpenALAudioManager(dummy);
+#endif
+#if defined(RTS_HAS_MILES_BINK)
+	if (dummy)
+		return NEW MilesAudioManagerDummy;
+	return NEW MilesAudioManager;
+#else
+	return NEW OpenALAudioManager(dummy);
+#endif
+}
 
 extern DWORD TheMessageTime;
 

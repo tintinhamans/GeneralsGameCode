@@ -46,12 +46,22 @@ extern "C" {
 	#include <libswscale/swscale.h>
 }
 
-#ifdef RTS_HAS_OPENAL
+#include "VideoDevice/FFmpeg/FFmpegPcmConverter.h"
+#ifdef RTS_HAS_OPENAL_FFMPEG
 #include "OpenALAudioDevice/OpenALAudioManager.h"
-#include "OpenALAudioDevice/OpenALAudioStream.h"
+#include "OpenALAudioDevice/OpenALMovieVoice.h"
 #endif
-
 #include <chrono>
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <deque>
+#include <vector>
+#include <limits>
+extern "C"
+{
+#include <libavutil/buffer.h>
+}
 
 //----------------------------------------------------------------------------
 //         Externals
@@ -96,6 +106,17 @@ extern "C" {
 //         Private Functions
 //----------------------------------------------------------------------------
 
+#ifdef RTS_HAS_OPENAL_FFMPEG
+// Bink steps the speech volume to 1 to 81 percent of 32768, and a volume of zero mutes.
+static float movieAudioGain(Real volume)
+{
+	if (!(volume > 0))
+		return 0;
+	const Int percent = static_cast<Int>((volume * 0.8f) * 100) + 1;
+	const Int binkVolume = (32768 * percent) / 100;
+	return OpenALAudioManager::directSoundGain(binkVolume / 32768.0f);
+}
+#endif
 
 
 //----------------------------------------------------------------------------
@@ -130,7 +151,8 @@ void	FFmpegVideoPlayer::init()
 	// Need to load the stuff from the ini file.
 	VideoPlayer::init();
 
-	initializeBinkWithMiles();
+	if (TheAudio != nullptr)
+		m_volume = TheAudio->getVolume(AudioAffect_Speech);
 }
 
 //============================================================================
@@ -139,7 +161,7 @@ void	FFmpegVideoPlayer::init()
 
 void FFmpegVideoPlayer::deinit()
 {
-	TheAudio->releaseHandleForBink();
+	closeAllStreams();
 	VideoPlayer::deinit();
 }
 
@@ -163,61 +185,54 @@ void	FFmpegVideoPlayer::update()
 }
 
 //============================================================================
-// FFmpegVideoPlayer::loseFocus
+// FFmpegVideoPlayer::createAudioVoice
 //============================================================================
 
-void	FFmpegVideoPlayer::loseFocus()
+std::shared_ptr<OpenALMovieVoice> FFmpegVideoPlayer::createAudioVoice()
 {
-	VideoPlayer::loseFocus();
-}
-
-//============================================================================
-// FFmpegVideoPlayer::regainFocus
-//============================================================================
-
-void	FFmpegVideoPlayer::regainFocus()
-{
-	VideoPlayer::regainFocus();
+#if defined(RTS_HAS_OPENAL_FFMPEG) && !RTS_GENERALS
+	if (TheAudio != nullptr)
+		return static_cast<OpenALAudioManager *>(TheAudio)->createMovieVoice();
+#endif
+	return nullptr;
 }
 
 //============================================================================
 // FFmpegVideoPlayer::createStream
 //============================================================================
 
-VideoStreamInterface* FFmpegVideoPlayer::createStream( File* file )
+VideoStreamInterface* FFmpegVideoPlayer::createStream(File *file)
 {
-
-	if ( file == nullptr )
+	if (file == nullptr)
+		return nullptr;
+	auto *decoder = NEW FFmpegFile();
+	if (!decoder->open(file) || decoder->getVideoStreamIndex() < 0 || decoder->getNumFrames() <= 0)
 	{
+		delete decoder;
 		return nullptr;
 	}
-
-	FFmpegFile* ffmpegHandle = NEW FFmpegFile();
-	if(!ffmpegHandle->open(file))
+	std::shared_ptr<OpenALMovieVoice> audio;
+	if (decoder->hasAudio())
+		audio = createAudioVoice();
+	auto *stream = NEW FFmpegVideoStream(decoder, std::move(audio), m_volume, videoQueueByteLimit());
+	if (!stream->valid())
 	{
-		delete ffmpegHandle;
+		delete stream;
 		return nullptr;
 	}
-
-	FFmpegVideoStream *stream = NEW FFmpegVideoStream(ffmpegHandle);
-
-	if ( stream )
-	{
-
-		stream->m_next = m_firstStream;
-		stream->m_player = this;
-		m_firstStream = stream;
-
-		// never let volume go to 0, as Bink will interpret that as "play at full volume".
-		Int mod = (Int) ((TheAudio->getVolume(AudioAffect_Speech) * 0.8f) * 100) + 1;
-		[[maybe_unused]]  Int volume = (32768 * mod) / 100;
-		DEBUG_LOG(("FFmpegVideoPlayer::createStream() - About to set volume (%g -> %d -> %d",
-			TheAudio->getVolume(AudioAffect_Speech), mod, volume));
-		//BinkSetVolume( stream->m_handle,0, volume);
-		DEBUG_LOG(("FFmpegVideoPlayer::createStream() - set volume"));
-	}
-
+	stream->m_next = m_firstStream;
+	stream->m_player = this;
+	m_firstStream = stream;
 	return stream;
+}
+
+void FFmpegVideoPlayer::setVolume(Real volume)
+{
+	if (!std::isfinite(volume) || volume < 0)
+		volume = 0;
+	m_volume = volume;
+	for (auto *stream = m_firstStream; stream != nullptr; stream = static_cast<VideoStream *>(stream->next()))
+		static_cast<FFmpegVideoStream *>(stream)->setVolume(volume);
 }
 
 //============================================================================
@@ -274,146 +289,587 @@ VideoStreamInterface*	FFmpegVideoPlayer::load( AsciiString movieTitle )
 
 //============================================================================
 //============================================================================
-void FFmpegVideoPlayer::notifyVideoPlayerOfNewProvider( Bool nowHasValid )
+void FFmpegVideoPlayer::notifyVideoPlayerOfNewProvider(Bool)
 {
-	if (!nowHasValid) {
-		TheAudio->releaseHandleForBink();
-		//BinkSetSoundTrack(0, 0);
-	} else {
-		initializeBinkWithMiles();
-	}
 }
 
-//============================================================================
-//============================================================================
-void FFmpegVideoPlayer::initializeBinkWithMiles()
+struct FFmpegVideoStream::State
 {
-	Int retVal = 0;
-	void *driver = TheAudio->getHandleForBink();
-
-	if ( driver )
+	using Clock = std::chrono::steady_clock;
+	struct Frame
 	{
-		//retVal = BinkSoundUseDirectSound(driver);
-	}
-	if( !driver || retVal == 0)
+		AVFrame *frame;
+		Int64 timeUS;
+		size_t bytes;
+	};
+	std::deque<Frame> frames;
+	std::shared_ptr<OpenALMovieVoice> audio;
+	FFmpegPcmConverter converter;
+	std::vector<short> pending;
+	size_t pendingOffset = 0;
+	std::deque<short> history;
+	uint64_t audioBase = 0;
+	uint64_t voiceQueued = 0;
+	bool audioLost = false;
+	size_t queuedBytes = 0;
+	size_t currentBytes = 0;
+	size_t largestFrameBytes = 0;
+	size_t queueByteLimit = 0;
+	Int64 progressUS = 0;
+	Int64 videoEndUS = 0;
+	Int64 currentUS = 0;
+	Int64 seekUS = 0;
+	Int64 trimFrames = 0;
+	uint64_t silenceFrames = 0;
+	uint64_t submitted = 0;
+	Int64 audioOrigin = 0;
+	bool audioOriginSet = false;
+	uint64_t audioRecoveryEpoch = 0;
+	int rate = 0;
+	int index = 0;
+	int decodedIndex = 0;
+	int totalFrames = 0;
+	bool eof = false;
+	bool failed = false;
+	bool audioEnded = false;
+	bool started = false;
+	bool clockPrimed = false;
+	bool paused = false;
+	Real volume = 1;
+	Clock::time_point start = Clock::now();
+	Clock::time_point pauseStart = start;
+	~State()
 	{
-		//BinkSetSoundTrack ( 0,0 );
+		clearFrames();
 	}
-}
+	void clearFrames()
+	{
+		for (auto &frame : frames)
+			av_frame_free(&frame.frame);
+		frames.clear();
+		queuedBytes = 0;
+	}
+	void fail(const char *reason)
+	{
+		if (!failed)
+			DEBUG_LOG(("FFmpeg movie playback failed: %s", reason));
+		failed = true;
+#ifdef RTS_HAS_OPENAL_FFMPEG
+		if (audio != nullptr)
+			audio->close();
+#endif
+	}
+	void disableAudio()
+	{
+		if (clockPrimed)
+		{
+			playbackUS();
+			const auto now = Clock::now();
+			start = now - std::chrono::microseconds(progressUS);
+			pauseStart = now;
+		}
+		DEBUG_LOG(("FFmpeg movie audio is unavailable, so the movie continues without audio"));
+#ifdef RTS_HAS_OPENAL_FFMPEG
+		if (audio != nullptr)
+			audio->close();
+#endif
+		audio.reset();
+		rate = 0;
+		pending.clear();
+		pendingOffset = 0;
+		history.clear();
+		silenceFrames = 0;
+	}
+	Int64 elapsedUS() const
+	{
+		if (!clockPrimed)
+			return 0;
+		auto now = pauseStart;
+		if (!paused)
+			now = Clock::now();
+		return std::chrono::duration_cast<std::chrono::microseconds>(now - start).count();
+	}
+	Int64 playbackUS()
+	{
+		Int64 elapsed = elapsedUS();
+#ifdef RTS_HAS_OPENAL_FFMPEG
+		if (audio != nullptr && rate > 0)
+		{
+			if (audio->failed())
+				return progressUS;
+			// Callback progress caps starvation and is not a presentation clock.
+			if (!audioLost && (!audioEnded || !audio->finished()))
+				elapsed = std::min(elapsed, static_cast<Int64>(audioBase + audio->readFrames()) * 1000000 / rate);
+		}
+#endif
+		progressUS = elapsed;
+		return elapsed;
+	}
+#ifdef RTS_HAS_OPENAL_FFMPEG
+	uint64_t historyFrames() const
+	{
+		return history.size() / 2;
+	}
+	uint64_t audioEndFrames() const
+	{
+		return submitted + silenceFrames + (pending.size() - pendingOffset) / 2;
+	}
+	uint64_t clockFrames() const
+	{
+		return static_cast<uint64_t>(std::max<Int64>(0, elapsedUS())) * rate / 1000000;
+	}
+	void trimHistory(uint64_t position)
+	{
+		const uint64_t first = submitted - historyFrames();
+		if (position > first)
+			history.erase(history.begin(), history.begin() + static_cast<std::ptrdiff_t>(std::min(position - first, historyFrames()) * 2));
+	}
+	// Audio the lost device missed is skipped so it rejoins at the playback position.
+	void skipAudioBefore(uint64_t position)
+	{
+		trimHistory(position);
+		if (submitted < position && silenceFrames > 0)
+		{
+			const uint64_t frames = std::min(silenceFrames, position - submitted);
+			silenceFrames -= frames;
+			submitted += frames;
+		}
+		if (submitted < position && pendingOffset < pending.size())
+		{
+			const size_t frames = static_cast<size_t>(std::min<uint64_t>((pending.size() - pendingOffset) / 2, position - submitted));
+			pendingOffset += frames * 2;
+			submitted += frames;
+			if (pendingOffset == pending.size())
+			{
+				pending.clear();
+				pendingOffset = 0;
+			}
+		}
+	}
+	unsigned sinkAvailable() const
+	{
+		if (audioLost)
+			return OpenALMovieVoice::CapacityFrames - static_cast<unsigned>(std::min<uint64_t>(historyFrames(), OpenALMovieVoice::CapacityFrames));
+		return audio->availableFrames();
+	}
+	// History keeps queued audio the device has not read yet.
+	bool sink(const short *pcm, unsigned frames)
+	{
+		if (!audioLost)
+		{
+			if (!audio->queue(pcm, frames))
+				return false;
+			voiceQueued += frames;
+		}
+		history.insert(history.end(), pcm, pcm + static_cast<size_t>(frames) * 2);
+		submitted += frames;
+		return true;
+	}
+	void rejoinAudio()
+	{
+		skipAudioBefore(clockFrames());
+		if (!audio->reset())
+		{
+			disableAudio();
+			return;
+		}
+		audioBase = submitted - historyFrames();
+		voiceQueued = 0;
+		started = false;
+		audioEnded = false;
+		if (history.empty())
+			return;
+		const std::vector<short> tail(history.begin(), history.end());
+		if (!audio->queue(tail.data(), static_cast<uint32_t>(tail.size() / 2)))
+		{
+			disableAudio();
+			return;
+		}
+		voiceQueued = tail.size() / 2;
+	}
+	// Video keeps playing silently while the device is lost, and audio rejoins on recovery.
+	void followDevice()
+	{
+		const bool lost = !audio->connected();
+		const uint64_t epoch = audio->recoveryEpoch();
+		const bool recovered = !lost && (audioLost || epoch != audioRecoveryEpoch);
+		if ((lost || recovered) && !audioLost && clockPrimed)
+		{
+			const auto now = Clock::now();
+			start = now - std::chrono::microseconds(progressUS);
+			pauseStart = now;
+		}
+		audioLost = lost;
+		if (recovered)
+		{
+			audioRecoveryEpoch = epoch;
+			rejoinAudio();
+		}
+	}
+#endif
+};
 
 //============================================================================
 // FFmpegVideoStream::FFmpegVideoStream
 //============================================================================
 
-FFmpegVideoStream::FFmpegVideoStream(FFmpegFile* file)
-: m_ffmpegFile(file)
+FFmpegVideoStream::FFmpegVideoStream(FFmpegFile *file, std::shared_ptr<OpenALMovieVoice> audio, Real volume, size_t queueByteLimit)
+	: m_state(new State), m_ffmpegFile(file)
 {
+	m_state->queueByteLimit = queueByteLimit;
+	m_state->totalFrames = file->getNumFrames();
+	m_state->audio = std::move(audio);
+	m_state->volume = volume;
+#ifdef RTS_HAS_OPENAL_FFMPEG
+	if (m_state->audio != nullptr)
+	{
+		m_state->audioRecoveryEpoch = m_state->audio->recoveryEpoch();
+		m_state->rate = m_state->audio->sampleRate();
+		if (!m_state->converter.configure(m_state->rate, 2))
+			m_state->disableAudio();
+	}
+#endif
+	if (file->hasAudio() && m_state->audio == nullptr)
+		m_state->disableAudio();
+	m_state->pending.reserve(65536 * 2);
+	m_state->converter.setPcmCallback([this](const short *pcm, Int frames)
+	{
+		const Int64 trim = std::min<Int64>(m_state->trimFrames, frames);
+		m_state->trimFrames -= trim;
+		pcm += trim * 2;
+		frames -= static_cast<Int>(trim);
+		const size_t count = static_cast<size_t>(frames) * 2;
+		if (m_state->pendingOffset > 0)
+		{
+			m_state->pending.erase(m_state->pending.begin(), m_state->pending.begin() + m_state->pendingOffset);
+			m_state->pendingOffset = 0;
+		}
+		if (count > 65536 * 2 - m_state->pending.size())
+		{
+			m_state->fail("audio packet exceeds pending PCM limit");
+			return;
+		}
+		m_state->pending.insert(m_state->pending.end(), pcm, pcm + count);
+	});
 	m_ffmpegFile->setFrameCallback(onFrame);
 	m_ffmpegFile->setUserData(this);
-
-#ifdef RTS_USE_OPENAL
-	// Release the audio handle if it's already in use
-	OpenALAudioStream* audioStream = (OpenALAudioStream*)TheAudio->getHandleForBink();
-	audioStream->reset();
-#endif
-
-	// Decode until we have our first video frame
-	while (m_good && m_gotFrame == false)
-		m_good = m_ffmpegFile->decodePacket();
-
- #ifdef RTS_USE_OPENAL
-	// Start audio playback
-	audioStream->play();
-#endif
-
-	m_startTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	pump();
+	selectFrame();
+	m_state->start = State::Clock::now();
+	m_state->pauseStart = m_state->start;
 }
-
-//============================================================================
-// FFmpegVideoStream::~FFmpegVideoStream
-//============================================================================
 
 FFmpegVideoStream::~FFmpegVideoStream()
 {
-	av_freep(&m_audioBuffer);
+#ifdef RTS_HAS_OPENAL_FFMPEG
+	if (m_state->audio != nullptr)
+		m_state->audio->close();
+#endif
 	av_frame_free(&m_frame);
 	sws_freeContext(m_swsContext);
 	delete m_ffmpegFile;
 }
 
-void FFmpegVideoStream::onFrame(AVFrame *frame, int stream_idx, int stream_type, void *user_data)
+bool FFmpegVideoStream::valid() const
 {
-	FFmpegVideoStream *videoStream = static_cast<FFmpegVideoStream *>(user_data);
-	if (stream_type == AVMEDIA_TYPE_VIDEO) {
-		av_frame_free(&videoStream->m_frame);
-		videoStream->m_frame = av_frame_clone(frame);
-		videoStream->m_gotFrame = true;
-	}
-#ifdef RTS_USE_OPENAL
-	else if (stream_type == AVMEDIA_TYPE_AUDIO) {
-		OpenALAudioStream* audioStream = (OpenALAudioStream*)TheAudio->getHandleForBink();
-		audioStream->update();
-		AVSampleFormat sampleFmt = static_cast<AVSampleFormat>(frame->format);
-		const int bytesPerSample = av_get_bytes_per_sample(sampleFmt);
-		const int frameSize = av_samples_get_buffer_size(nullptr, frame->ch_layout.nb_channels, frame->nb_samples, sampleFmt, 1);
-		uint8_t* frameData = frame->data[0];
-		// The format is planar - convert it to interleaved
-		if (av_sample_fmt_is_planar(sampleFmt))
-		{
-			videoStream->m_audioBuffer = static_cast<uint8_t*>(av_realloc(videoStream->m_audioBuffer, frameSize));
-			if (videoStream->m_audioBuffer == nullptr)
-			{
-				DEBUG_LOG(("Failed to allocate audio buffer"));
-				return;
-			}
-
-			// Write the samples into our audio buffer
-			for (int sample_idx = 0; sample_idx < frame->nb_samples; sample_idx++)
-			{
-				int byte_offset = sample_idx * bytesPerSample;
-				for (int channel_idx = 0; channel_idx < frame->ch_layout.nb_channels; channel_idx++)
-				{
-					uint8_t* dst = &videoStream->m_audioBuffer[byte_offset * frame->ch_layout.nb_channels + channel_idx * bytesPerSample];
-					uint8_t* src = &frame->data[channel_idx][byte_offset];
-					memcpy(dst, src, bytesPerSample);
-				}
-			}
-			frameData = videoStream->m_audioBuffer;
-		}
-
-		ALenum format = OpenALAudioManager::getALFormat(frame->ch_layout.nb_channels, bytesPerSample * 8);
-		audioStream->bufferData(frameData, frameSize, format, frame->sample_rate);
-	}
-#endif
+	return !m_state->failed && m_state->totalFrames > 0;
 }
 
+void FFmpegVideoStream::onFrame(AVFrame *frame, int stream, int type, void *user)
+{
+	auto &video = *static_cast<FFmpegVideoStream *>(user);
+	auto &state = *video.m_state;
+	if (state.failed)
+		return;
+	if (type == AVMEDIA_TYPE_VIDEO && stream == video.m_ffmpegFile->getVideoStreamIndex())
+	{
+		if (frame == nullptr || frame->width <= 0 || frame->height <= 0 || frame->data[0] == nullptr)
+		{
+			state.fail("invalid video frame");
+			return;
+		}
+		Int64 time = video.m_ffmpegFile->getFrameTimestampUS(frame, stream);
+		if (time < 0)
+			time = video.m_ffmpegFile->getVideoFrameTimeUS(state.decodedIndex);
+		++state.decodedIndex;
+		if (time < state.seekUS)
+			return;
+		const size_t limit = state.queueByteLimit;
+		size_t bytes = 0;
+		for (const auto *buffer : frame->buf)
+		{
+			if (buffer != nullptr)
+			{
+				if (buffer->size > limit - bytes)
+				{
+					state.fail("video frame exceeds memory limit");
+					return;
+				}
+				bytes += buffer->size;
+			}
+		}
+		for (int i = 0; i < frame->nb_extended_buf; ++i)
+		{
+			if (frame->extended_buf[i]->size > limit - bytes)
+			{
+				state.fail("video frame exceeds memory limit");
+				return;
+			}
+			bytes += frame->extended_buf[i]->size;
+		}
+		if (bytes == 0 || state.frames.size() >= 8 ||
+			bytes > limit - state.queuedBytes - state.currentBytes)
+		{
+			state.fail("video packet exceeds queued frame limit");
+			return;
+		}
+		AVFrame *copy = av_frame_clone(frame);
+		if (copy == nullptr)
+		{
+			state.fail("could not retain video frame");
+			return;
+		}
+		state.largestFrameBytes = std::max(state.largestFrameBytes, bytes);
+		state.frames.push_back({copy, time, bytes});
+		state.queuedBytes += bytes;
+		int retained = static_cast<int>(state.frames.size());
+		if (video.m_frame != nullptr)
+			++retained;
+		if (state.index <= std::numeric_limits<int>::max() - retained)
+			state.totalFrames = std::max(state.totalFrames, state.index + retained);
+	}
+	else if (type == AVMEDIA_TYPE_AUDIO && stream == video.m_ffmpegFile->getAudioStreamIndex() && state.rate > 0)
+	{
+		if (!state.audioOriginSet)
+		{
+			Int64 time = video.m_ffmpegFile->getFrameTimestampUS(frame, stream);
+			if (time < 0)
+				time = state.seekUS;
+			state.audioOrigin = av_rescale(time - state.seekUS, state.rate, 1000000);
+			if (state.audioOrigin < 0)
+				state.trimFrames = -state.audioOrigin;
+			else
+				state.silenceFrames = static_cast<uint64_t>(state.audioOrigin);
+			state.audioOriginSet = true;
+		}
+		if (!state.converter.convert(frame))
+			state.fail("audio conversion failed");
+	}
+}
 
-//============================================================================
-// FFmpegVideoStream::update
-//============================================================================
+void FFmpegVideoStream::selectFrame()
+{
+	if (m_frame != nullptr || m_state->frames.empty())
+		return;
+	auto frame = m_state->frames.front();
+	m_state->frames.pop_front();
+	m_state->queuedBytes -= frame.bytes;
+	m_state->currentBytes = frame.bytes;
+	m_state->currentUS = frame.timeUS;
+	m_frame = frame.frame;
+	if (!m_state->clockPrimed)
+	{
+		m_state->clockPrimed = true;
+		m_state->start = State::Clock::now();
+		m_state->pauseStart = m_state->start;
+	}
+}
+
+void FFmpegVideoStream::pump()
+{
+	if (m_state->failed)
+		return;
+	for (unsigned packets = 0; packets < 32; ++packets)
+	{
+		if (m_state->failed)
+			return;
+#ifdef RTS_HAS_OPENAL_FFMPEG
+		if (m_state->audio != nullptr)
+		{
+			if (m_state->audio->failed())
+			{
+				m_state->disableAudio();
+			}
+			else
+			{
+				if (m_state->audioLost)
+					m_state->skipAudioBefore(m_state->clockFrames());
+				else
+					m_state->trimHistory(m_state->audioBase + m_state->audio->readFrames());
+				unsigned available = m_state->sinkAvailable();
+				if (m_state->silenceFrames > 0 && available > 0)
+				{
+					short silence[2048] = {};
+					const unsigned count = static_cast<unsigned>(std::min<uint64_t>(1024,
+						std::min<uint64_t>(available, m_state->silenceFrames)));
+					if (!m_state->sink(silence, count))
+					{
+						m_state->disableAudio();
+						continue;
+					}
+					m_state->silenceFrames -= count;
+				}
+				else if (m_state->pendingOffset < m_state->pending.size() && available > 0)
+				{
+					const unsigned count = static_cast<unsigned>(std::min<size_t>(available,
+						(m_state->pending.size() - m_state->pendingOffset) / 2));
+					if (!m_state->sink(m_state->pending.data() + m_state->pendingOffset, count))
+					{
+						m_state->disableAudio();
+						continue;
+					}
+					m_state->pendingOffset += count * 2;
+					if (m_state->pendingOffset == m_state->pending.size())
+					{
+						m_state->pending.clear();
+						m_state->pendingOffset = 0;
+					}
+				}
+				if (!m_state->audioLost && !m_state->paused && !m_state->started && m_state->voiceQueued > 0 &&
+					(m_state->clockPrimed || m_frame != nullptr || !m_state->frames.empty()))
+				{
+					if (!m_state->audio->setGain(movieAudioGain(m_state->volume)) || !m_state->audio->play())
+					{
+						m_state->disableAudio();
+						continue;
+					}
+					m_state->started = true;
+				}
+				// An audio-first packet must not block decoding the initial image.
+				if ((m_state->silenceFrames > 0 || !m_state->pending.empty()) &&
+					(m_state->clockPrimed || m_frame != nullptr || !m_state->frames.empty()))
+				{
+					if (m_state->sinkAvailable() == 0)
+						return;
+					continue;
+				}
+				if (!m_state->audioLost && m_state->eof && m_state->silenceFrames == 0 && m_state->pending.empty() &&
+					!m_state->audioEnded)
+				{
+					if (m_state->voiceQueued == 0)
+					{
+						m_state->disableAudio();
+						continue;
+					}
+					if (!m_state->audio->end())
+					{
+						m_state->disableAudio();
+						continue;
+					}
+					m_state->audioEnded = true;
+				}
+			}
+		}
+#endif
+		if (m_state->eof || m_state->frames.size() >= 8 ||
+			m_state->largestFrameBytes > m_state->queueByteLimit - m_state->queuedBytes - m_state->currentBytes)
+			return;
+		if (!m_ffmpegFile->decodePacket())
+		{
+			if (m_ffmpegFile->hasError())
+			{
+				m_state->fail("demux or decode failed");
+				return;
+			}
+			m_state->eof = true;
+			m_state->totalFrames = m_state->index + static_cast<int>(m_state->frames.size());
+			if (m_frame != nullptr)
+				++m_state->totalFrames;
+			if (m_state->rate > 0 && !m_state->converter.drain())
+			{
+				m_state->fail("audio drain failed");
+				return;
+			}
+		}
+	}
+}
 
 void FFmpegVideoStream::update()
 {
-#ifdef RTS_USE_OPENAL
-	// Start audio playback
-	OpenALAudioStream* audioStream = (OpenALAudioStream*)TheAudio->getHandleForBink();
-	audioStream->play();
+#ifdef RTS_HAS_OPENAL_FFMPEG
+	if (m_state->audio != nullptr)
+	{
+		m_state->audio->update();
+		m_state->followDevice();
+	}
 #endif
-	//BinkWait( m_handle );
+	pump();
+	selectFrame();
+	m_state->playbackUS();
 }
-
-//============================================================================
-// FFmpegVideoStream::isFrameReady
-//============================================================================
 
 Bool FFmpegVideoStream::isFrameReady()
 {
-	uint64_t time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-	bool ready = (time - m_startTime) >= m_ffmpegFile->getFrameTime() * frameIndex();
-	return ready;
-
-	//return !BinkWait( m_handle );
+	update();
+	return !m_state->failed && !m_state->paused && m_frame != nullptr &&
+		m_state->seekUS + m_state->playbackUS() >= m_state->currentUS;
 }
+
+Bool FFmpegVideoStream::isPlaybackComplete()
+{
+	update();
+	if (m_state->failed)
+		return true;
+	if (m_state->paused || !m_state->eof || m_frame != nullptr || !m_state->frames.empty())
+		return false;
+	const Int64 elapsed = m_state->playbackUS();
+#ifdef RTS_HAS_OPENAL_FFMPEG
+	if (m_state->audio != nullptr)
+	{
+		if (elapsed < static_cast<Int64>(m_state->audioEndFrames()) * 1000000 / m_state->rate)
+			return false;
+		if (!m_state->audioLost && (!m_state->audioEnded || !m_state->audio->finished()))
+			return false;
+	}
+#endif
+	return m_state->seekUS + elapsed >= m_state->videoEndUS;
+}
+
+void FFmpegVideoStream::setVolume(Real volume)
+{
+	m_state->volume = volume;
+#ifdef RTS_HAS_OPENAL_FFMPEG
+	if (m_state->audio != nullptr && !m_state->audio->setGain(movieAudioGain(volume)))
+		m_state->disableAudio();
+#endif
+}
+
+Int64 FFmpegVideoStream::audioOffsetUS()
+{
+#ifdef RTS_HAS_OPENAL_FFMPEG
+	if (m_state->audio != nullptr && m_state->rate > 0 && !m_state->audioLost)
+		return static_cast<Int64>(m_state->audioBase + m_state->audio->readFrames()) * 1000000 / m_state->rate -
+			m_state->elapsedUS();
+#endif
+	return 0;
+}
+
+void FFmpegVideoStream::setPaused(Bool paused)
+{
+	if (m_state->paused == paused)
+		return;
+	const auto now = State::Clock::now();
+	if (paused)
+		m_state->pauseStart = now;
+	else
+		m_state->start += now - m_state->pauseStart;
+	m_state->paused = paused;
+#ifdef RTS_HAS_OPENAL_FFMPEG
+	if (m_state->audio != nullptr && m_state->started)
+	{
+		if (paused)
+		{
+			if (!m_state->audio->pause())
+				m_state->disableAudio();
+		}
+		else if (!m_state->audio->finished() && !m_state->audio->play())
+		{
+			m_state->disableAudio();
+		}
+	}
+#endif
+}
+
 
 //============================================================================
 // FFmpegVideoStream::frameDecompress
@@ -421,7 +877,7 @@ Bool FFmpegVideoStream::isFrameReady()
 
 void FFmpegVideoStream::frameDecompress()
 {
-	//BinkDoFrame( m_handle );
+
 }
 
 //============================================================================
@@ -438,7 +894,24 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 		return;
 	}
 
-	if (m_frame->data == nullptr) {
+	if (m_frame->data == nullptr || m_frame->data[0] == nullptr)
+	{
+		return;
+	}
+
+	int frame_width = width();
+	int frame_height = height();
+
+	if (frame_width <= 0 || frame_height <= 0)
+	{
+		DEBUG_LOG(("Invalid frame dimensions: %dx%d", frame_width, frame_height));
+		return;
+	}
+
+	AVPixelFormat src_pix_fmt = static_cast<AVPixelFormat>(m_frame->format);
+	if (src_pix_fmt == AV_PIX_FMT_NONE)
+	{
+		DEBUG_LOG(("Invalid source pixel format"));
 		return;
 	}
 
@@ -462,9 +935,9 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 	}
 
 	m_swsContext = sws_getCachedContext(m_swsContext,
-		width(),
-		height(),
-		static_cast<AVPixelFormat>(m_frame->format),
+		frame_width,
+		frame_height,
+		src_pix_fmt,
 		buffer->width(),
 		buffer->height(),
 		dst_pix_fmt,
@@ -472,6 +945,13 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 		nullptr,
 		nullptr,
 		nullptr);
+
+	if (m_swsContext == nullptr)
+	{
+		DEBUG_LOG(("Failed to create SwsContext for frame conversion (%dx%d %s -> %s)",
+			frame_width, frame_height, av_get_pix_fmt_name(src_pix_fmt), av_get_pix_fmt_name(dst_pix_fmt)));
+		return;
+	}
 
 	uint8_t *buffer_data = static_cast<uint8_t *>(buffer->lock());
 	if (buffer_data == nullptr) {
@@ -481,9 +961,11 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 
 	int dst_strides[] = { (int)buffer->pitch() };
 	uint8_t *dst_data[] = { buffer_data };
-	[[maybe_unused]] int result =
-		sws_scale(m_swsContext, m_frame->data, m_frame->linesize, 0, height(), dst_data, dst_strides);
-	DEBUG_ASSERTLOG(result >= 0, ("Failed to scale frame"));
+	int result = sws_scale(m_swsContext, m_frame->data, m_frame->linesize, 0, frame_height, dst_data, dst_strides);
+	if (result < 0)
+	{
+		DEBUG_LOG(("Failed to scale frame: sws_scale returned %d", result));
+	}
 	buffer->unlock();
 }
 
@@ -493,37 +975,67 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 
 void FFmpegVideoStream::frameNext()
 {
-	m_gotFrame = false;
-	// Decode until we have our next video frame
-	while (m_good && m_gotFrame == false)
-		m_good = m_ffmpegFile->decodePacket();
+	if (m_state->failed || m_frame == nullptr)
+		return;
+	m_state->videoEndUS = m_state->currentUS + m_ffmpegFile->getVideoFrameTimeUS(1);
+	av_frame_free(&m_frame);
+	m_state->currentBytes = 0;
+	++m_state->index;
+	pump();
+	selectFrame();
 }
-
-//============================================================================
-// FFmpegVideoStream::frameIndex
-//============================================================================
 
 Int FFmpegVideoStream::frameIndex()
 {
-	return m_ffmpegFile->getCurrentFrame();
+	return std::min(m_state->index, std::max(0, frameCount() - 1));
+}
+Int FFmpegVideoStream::frameCount()
+{
+	return m_state->totalFrames;
 }
 
-//============================================================================
-// FFmpegVideoStream::totalFrames
-//============================================================================
-
-Int	FFmpegVideoStream::frameCount()
+void FFmpegVideoStream::frameGoto(Int index)
 {
-	return m_ffmpegFile->getNumFrames();
-}
-
-//============================================================================
-// FFmpegVideoStream::frameGoto
-//============================================================================
-
-void FFmpegVideoStream::frameGoto( Int index )
-{
-	m_ffmpegFile->seekFrame(index);
+	index = std::max(0, std::min(index, frameCount() - 1));
+	m_state->clearFrames();
+	av_frame_free(&m_frame);
+	m_state->currentBytes = 0;
+	m_state->index = index;
+	m_state->seekUS = m_ffmpegFile->getVideoFrameTimeUS(index);
+	m_state->submitted = 0;
+	m_state->history.clear();
+	m_state->audioBase = 0;
+	m_state->voiceQueued = 0;
+	m_state->audioOriginSet = false;
+	m_state->audioOrigin = 0;
+	m_state->trimFrames = 0;
+	m_state->silenceFrames = 0;
+	m_state->decodedIndex = 0;
+	m_state->pending.clear();
+	m_state->pendingOffset = 0;
+	m_state->eof = false;
+	m_state->audioEnded = false;
+	m_state->started = false;
+	m_state->clockPrimed = false;
+	m_state->progressUS = 0;
+	m_state->videoEndUS = m_state->seekUS;
+	// Codec overlap and resampler history are rebuilt before trimming.
+	m_state->failed = !m_ffmpegFile->rewind();
+#ifdef RTS_HAS_OPENAL_FFMPEG
+	if (m_state->audio != nullptr)
+	{
+		if (!m_state->audio->reset())
+			m_state->disableAudio();
+		else
+			m_state->audioRecoveryEpoch = m_state->audio->recoveryEpoch();
+	}
+#endif
+	if (m_state->rate > 0)
+		m_state->converter.configure(m_state->rate, 2);
+	m_state->start = State::Clock::now();
+	m_state->pauseStart = m_state->start;
+	pump();
+	selectFrame();
 }
 
 //============================================================================

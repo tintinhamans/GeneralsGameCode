@@ -33,6 +33,9 @@
 //----------------------------------------------------------------------------
 
 #include "GameClient/VideoPlayer.h"
+#include <memory>
+#include <cstddef>
+class OpenALMovieVoice;
 
 //----------------------------------------------------------------------------
 //           Forward References
@@ -55,23 +58,25 @@ class FFmpegVideoStream : public VideoStream
 	friend class FFmpegVideoPlayer;
 
 	protected:
-		Bool 			m_good = true;			///< Is the stream valid
-		Bool 			m_gotFrame = false;		///< Is the frame ready to be displayed
-		AVFrame 		*m_frame = nullptr;		///< Current frame
-		SwsContext 		*m_swsContext = nullptr;///< SWSContext for scaling
-		FFmpegFile		*m_ffmpegFile;			///< The AVUI abstraction											///< Bink streaming handle;
-		Char			*m_memFile;				///< Pointer to memory resident file
-		UnsignedInt64	m_startTime = 0;		///< Time the stream started
-		UnsignedByte *	m_audioBuffer = nullptr;///< Audio buffer for the stream
-
-		FFmpegVideoStream(FFmpegFile* file);																///< only BinkVideoPlayer can create these
+		struct State;
+		std::unique_ptr<State> m_state;
+		AVFrame *m_frame = nullptr;
+		SwsContext *m_swsContext = nullptr;
+		FFmpegFile *m_ffmpegFile;
+		FFmpegVideoStream(FFmpegFile *file, std::shared_ptr<OpenALMovieVoice> audio, Real volume, size_t queueByteLimit);
 		virtual ~FFmpegVideoStream();
-
-		static void onFrame(AVFrame *frame, int stream_idx, int stream_type, void *user_data);
+		static void onFrame(AVFrame *frame, int stream, int type, void *user);
+		void pump();
+		void selectFrame();
+		void setVolume(Real volume);
+		bool valid() const;
 	public:
 
 		virtual void update();											///< Update bink stream
 
+		void setPaused(Bool paused) override;
+		Int64 audioOffsetUS(); ///< Audio read position minus the presentation clock
+		virtual Bool isPlaybackComplete() override;
 		virtual Bool	isFrameReady();								///< Is the frame ready to be displayed
 		virtual void	frameDecompress();						///< Render current frame in to buffer
 		virtual void	frameRender( VideoBuffer *buffer ); ///< Render current frame in to buffer
@@ -98,7 +103,13 @@ class FFmpegVideoPlayer : public VideoPlayer
 
 	protected:
 
-		VideoStreamInterface* createStream( File* file );
+		VideoStreamInterface* createStream(File* file);
+		virtual std::shared_ptr<OpenALMovieVoice> createAudioVoice();
+		virtual size_t videoQueueByteLimit() const
+		{
+			return 64 * 1024 * 1024;
+		}
+		Real m_volume = 1.0f;
 
 	public:
 
@@ -114,15 +125,12 @@ class FFmpegVideoPlayer : public VideoPlayer
 		~FFmpegVideoPlayer();
 
 		// service
-		virtual void	loseFocus();											///< Should be called when application loses focus
-		virtual void	regainFocus();										///< Should be called when application regains focus
 
 		virtual VideoStreamInterface*	open( AsciiString movieTitle );	///< Open video file for playback
 		virtual VideoStreamInterface*	load( AsciiString movieTitle );	///< Load video file in to memory for playback
 
 		virtual void notifyVideoPlayerOfNewProvider( Bool nowHasValid );
-		virtual void setVolume( Real ) override { }
-		virtual void initializeBinkWithMiles();
+		virtual void setVolume(Real volume) override;
 };
 
 

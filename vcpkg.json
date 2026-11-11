@@ -10,9 +10,15 @@
     "stb"
   ],
   "features": {
-    "ffmpeg": {
-      "description": "Use FFmpeg instead of Bink for video rendering",
-      "dependencies": [ "ffmpeg" ]
+    "openal-ffmpeg": {
+      "description": "Use FFmpeg instead of Bink for movies, and on Windows OpenAL Soft instead of Miles for audio",
+      "dependencies": [
+        "ffmpeg",
+        {
+          "name": "openal-soft",
+          "platform": "windows"
+        }
+      ]
     }
   }
 }

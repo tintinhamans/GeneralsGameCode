@@ -262,15 +262,12 @@ void Display::update()
 		{
 			m_videoStream->frameDecompress();
 			m_videoStream->frameRender( m_videoBuffer );
-			if( m_videoStream->frameIndex() != m_videoStream->frameCount() - 1)
-			{
+			// TheSuperHackers @feature tintinhamans 12/11/2026 The stream reports when playback ends, after its last frame and its audio.
+			if ( !m_videoStream->isPlaybackComplete() )
 				m_videoStream->frameNext();
-			}
-			else
-			{
-				stopMovie();
-			}
 		}
+		if ( m_videoStream->isPlaybackComplete() )
+			stopMovie();
 	}
 }
 
