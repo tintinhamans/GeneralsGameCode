@@ -4,6 +4,17 @@
 
 class LobbyEntry;
 
+// The host walks the phases in order. A client only ever sees Idle and Starting.
+enum class EStartPhase
+{
+	Idle,
+	Checking,
+	Countdown,
+	FinalCheck,
+	StartRequested,
+	Starting
+};
+
 class GenOnlineGameSlot : public GameSlot
 {
 public:
@@ -66,13 +77,12 @@ private:
 
 	bool m_bHasCommittedOutcome = false;
 	uint64_t m_startAttempt = 0;
-	bool m_bStartRequested = false;
-	
+	EStartPhase m_startPhase = EStartPhase::Idle;
+	int64_t m_startPhaseTime = -1;
+
 	std::chrono::system_clock::time_point matchStartTime;
 
 #if defined(GENONLINE_ENABLE_MATCH_START_COUNTDOWN)
-	bool m_bCountdownStarted = false;
-	int64_t m_countdownStartTime = -1;
 	int64_t m_countdownLastCheckTime = -1;
 #endif
 
@@ -81,41 +91,21 @@ public:
 	virtual ~GenOnlineGame();
 	virtual void reset(void);
 
-	uint64_t BeginStartAttempt() { return ++m_startAttempt; }
+	// Idle, Checking and FinalCheck start a new attempt so a reply for an older attempt is dropped.
+	uint64_t SetStartPhase(EStartPhase phase);
+	// A start the service confirmed is not aborted.
+	void AbortStart();
+	EStartPhase GetStartPhase() const { return m_startPhase; }
+	int64_t GetStartPhaseTime() const { return m_startPhaseTime; }
 	uint64_t GetStartAttempt() const { return m_startAttempt; }
 
-	// Set from the StartGame request until the start packet so the host cannot start twice.
-	void SetStartRequested(bool requested) { m_bStartRequested = requested; }
-	bool IsStartRequested() const { return m_bStartRequested; }
 	bool HasCommittedOutcome() const { return m_bHasCommittedOutcome; }
 	void SetHasCommittedOutcome() { m_bHasCommittedOutcome = true; }
 
 #if defined(GENONLINE_ENABLE_MATCH_START_COUNTDOWN)
 	void StartCountdown();
 
-	void StopCountdown()
-	{
-		++m_startAttempt;
-		m_bStartRequested = false;
-		m_bCountdownStarted = false;
-		m_countdownStartTime = -1;
-		m_countdownLastCheckTime = -1;
-	}
-
-	bool IsCountdownStarted()
-	{
-		return m_bCountdownStarted;
-	}
-
-	int64_t GetCountdownStartTime()
-	{
-		return m_countdownStartTime;
-	}
-
-	void UpdateCountdownLastCheckTime()
-	{
-		m_countdownLastCheckTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-	}
+	void UpdateCountdownLastCheckTime();
 
 	int GetTotalCountdownDuration()
 	{
