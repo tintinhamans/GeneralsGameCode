@@ -89,20 +89,21 @@
 
 
 #include "boxrobj.h"
-#include "WW3D2/w3d_util.h"
+#include "w3d_util.h"
 #include "WWDebug/wwdebug.h"
 #include "vertmaterial.h"
 #include "ww3d.h"
 #include "WWLib/chunkio.h"
 #include "rinfo.h"
-#include "WW3D2/coltest.h"
-#include "WW3D2/inttest.h"
-#include "WW3D2/dx8wrapper.h"
-#include "WW3D2/dx8indexbuffer.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#include "WW3D2/dx8fvf.h"
-#include "WW3D2/sortingrenderer.h"
-#include "WW3D2/visrasterizer.h"
+#include "coltest.h"
+#include "inttest.h"
+#include "dx8wrapper.h"
+#include "Renderer.h"
+#include "dx8indexbuffer.h"
+#include "dx8vertexbuffer.h"
+#include "dx8fvf.h"
+#include "sortingrenderer.h"
+#include "visrasterizer.h"
 #include "meshgeometry.h"
 
 
@@ -460,7 +461,7 @@ void BoxRenderObjClass::render_box(RenderInfoClass & rinfo,const Vector3 & cente
 		*/
 		DWORD color = DX8Wrapper::Convert_Color(Color,Opacity);
 
-		int buffer_type = BUFFER_TYPE_DYNAMIC_SORTING;
+		int buffer_type = BUFFER_TYPE_DYNAMIC_DX8;
 
 		DynamicVBAccessClass vbaccess(buffer_type,dynamic_fvf_type,NUM_BOX_VERTS);
 		{
@@ -701,7 +702,7 @@ void AABoxRenderObjClass::Render(RenderInfoClass & rinfo)
 {
 	Matrix3D temp(1);
 	temp.Translate(Transform.Get_Translation());
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,temp);
+	Renderer::Set_Transform(RenderTransform_World,temp);
 	render_box(rinfo,ObjSpaceCenter,ObjSpaceExtent);
 }
 
@@ -802,6 +803,9 @@ void AABoxRenderObjClass::update_cached_box()
 bool AABoxRenderObjClass::Cast_Ray(RayCollisionTestClass & raytest)
 {
 	if ((Get_Collision_Type() & raytest.CollisionType) == 0) return false;
+	if (Is_Animation_Hidden()) return false;
+	if (raytest.Result->StartBad) return false;
+
 	if (CollisionMath::Collide(raytest.Ray,CachedBox,raytest.Result)) {
 		raytest.CollidedRenderObj = this;
 		return true;
@@ -825,6 +829,8 @@ bool AABoxRenderObjClass::Cast_Ray(RayCollisionTestClass & raytest)
 bool AABoxRenderObjClass::Cast_AABox(AABoxCollisionTestClass & boxtest)
 {
 	if ((Get_Collision_Type() & boxtest.CollisionType) == 0) return false;
+	if (boxtest.Result->StartBad) return false;
+
 	if (CollisionMath::Collide(boxtest.Box,boxtest.Move,CachedBox,boxtest.Result)) {
 		boxtest.CollidedRenderObj = this;
 		return true;
@@ -848,6 +854,8 @@ bool AABoxRenderObjClass::Cast_AABox(AABoxCollisionTestClass & boxtest)
 bool AABoxRenderObjClass::Cast_OBBox(OBBoxCollisionTestClass & boxtest)
 {
 	if ((Get_Collision_Type() & boxtest.CollisionType) == 0) return false;
+	if (boxtest.Result->StartBad) return false;
+
 	if (CollisionMath::Collide(boxtest.Box,boxtest.Move,CachedBox,Vector3(0,0,0),boxtest.Result)) {
 		boxtest.CollidedRenderObj = this;
 		return true;
@@ -1078,7 +1086,7 @@ int OBBoxRenderObjClass::Class_ID() const
  *=============================================================================================*/
 void OBBoxRenderObjClass::Render(RenderInfoClass & rinfo)
 {
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Transform);
+	Renderer::Set_Transform(RenderTransform_World,Transform);
 	render_box(rinfo,ObjSpaceCenter,ObjSpaceExtent);
 }
 
@@ -1178,6 +1186,9 @@ void OBBoxRenderObjClass::update_cached_box()
 bool OBBoxRenderObjClass::Cast_Ray(RayCollisionTestClass & raytest)
 {
 	if ((Get_Collision_Type() & raytest.CollisionType) == 0) return false;
+	if (Is_Animation_Hidden()) return false;
+	if (raytest.Result->StartBad) return false;
+
 	if (CollisionMath::Collide(raytest.Ray,CachedBox,raytest.Result)) {
 		raytest.CollidedRenderObj = this;
 		return true;
@@ -1201,6 +1212,8 @@ bool OBBoxRenderObjClass::Cast_Ray(RayCollisionTestClass & raytest)
 bool OBBoxRenderObjClass::Cast_AABox(AABoxCollisionTestClass & boxtest)
 {
 	if ((Get_Collision_Type() & boxtest.CollisionType) == 0) return false;
+	if (boxtest.Result->StartBad) return false;
+
 	if (CollisionMath::Collide(boxtest.Box,boxtest.Move,CachedBox,Vector3(0,0,0),boxtest.Result)) {
 		boxtest.CollidedRenderObj = this;
 		return true;
@@ -1224,6 +1237,8 @@ bool OBBoxRenderObjClass::Cast_AABox(AABoxCollisionTestClass & boxtest)
 bool OBBoxRenderObjClass::Cast_OBBox(OBBoxCollisionTestClass & boxtest)
 {
 	if ((Get_Collision_Type() & boxtest.CollisionType) == 0) return false;
+	if (boxtest.Result->StartBad) return false;
+
 	if (CollisionMath::Collide(boxtest.Box,boxtest.Move,CachedBox,Vector3(0,0,0),boxtest.Result)) {
 		boxtest.CollidedRenderObj = this;
 		return true;

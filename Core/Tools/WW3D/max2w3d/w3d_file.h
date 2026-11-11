@@ -375,11 +375,15 @@ enum {
 					W3D_CHUNK_PER_FACE_TEXCOORD_IDS	=0x0000004B,	// indices to W3D_CHUNK_STAGE_TEXCOORDS, (array of Vector3i)
 
 
+		// TheSuperHackers @info Legacy chunks. Only the original WWDeform modifier of max2w3d wrote
+		// them, WW3D2 skips them as obsolete, and retail data contains none.
 		W3D_CHUNK_DEFORM									=0x00000058,	// mesh deform or 'damage' information.
 			W3D_CHUNK_DEFORM_SET							=0x00000059,	// set of deform information
 				W3D_CHUNK_DEFORM_KEYFRAME				=0x0000005A,	// a keyframe of deform information in the set
 					W3D_CHUNK_DEFORM_DATA				=0x0000005B,	// deform information about a single vertex
 
+		// TheSuperHackers @info Legacy chunk. Only the original PS2 material of max2w3d wrote it,
+		// WW3D2 ignores it, and a few retail meshes (CBTHotel02) still contain it.
 		W3D_CHUNK_PS2_SHADERS							=0x00000080,	// Shader info specific to the Playstation 2.
 
 		W3D_CHUNK_AABTREE									=0x00000090,	// Axis-Aligned Box Tree for hierarchical polygon culling
@@ -668,18 +672,18 @@ struct W3dMaterialInfoStruct
 
 struct W3dVertexMaterialStruct
 {
-	W3dVertexMaterialStruct(void) {}
+	W3dVertexMaterialStruct() {}
 
 	bool operator == (W3dVertexMaterialStruct vm)
 	{
-		return (	  Attributes   == vm.Attributes
-				  && Ambient	   == vm.Ambient
-				  && Diffuse	   == vm.Diffuse
-				  && Specular	   == vm.Specular
-				  && Emissive	   == vm.Emissive
-				  && Shininess	   == vm.Shininess
-				  && Opacity	   == vm.Opacity
-				  && Translucency == vm.Translucency);
+		return (	  Attributes   == vm.Attributes &&
+				  Ambient	   == vm.Ambient &&
+				  Diffuse	   == vm.Diffuse &&
+				  Specular	   == vm.Specular &&
+				  Emissive	   == vm.Emissive &&
+				  Shininess	   == vm.Shininess &&
+				  Opacity	   == vm.Opacity &&
+				  Translucency == vm.Translucency);
 	}
 
 	bool operator != (W3dVertexMaterialStruct vm)
@@ -790,6 +794,7 @@ enum
 	W3DSHADER_DETAILALPHAFUNC_DEFAULT = W3DSHADER_DETAILALPHAFUNC_DISABLE,
 };
 
+// TheSuperHackers @info Legacy, see W3D_CHUNK_PS2_SHADERS.
 enum PS2_SHADER_SETTINGS {
 	PSS_SRC = 0,
 	PSS_DEST,
@@ -820,7 +825,7 @@ enum PS2_SHADER_SETTINGS {
 
 struct W3dShaderStruct
 {
-	W3dShaderStruct(void) {}
+	W3dShaderStruct() {}
 	uint8						DepthCompare;
 	uint8						DepthMask;
 	uint8						ColorMask;		// now obsolete and ignored
@@ -839,6 +844,7 @@ struct W3dShaderStruct
 	uint8						pad[1];
 };
 
+// TheSuperHackers @info Legacy, see W3D_CHUNK_PS2_SHADERS.
 struct W3dPS2ShaderStruct
 {
 	uint8						DepthCompare;
@@ -965,7 +971,7 @@ inline int W3d_Shader_Get_Post_Detail_Alpha_Func(const W3dShaderStruct * s)	 { r
 
 struct W3dTextureInfoStruct
 {
-	W3dTextureInfoStruct(void)	{}
+	W3dTextureInfoStruct()	{}
 	uint16					Attributes;					// flags for this texture
 	uint16					AnimType;					// animation logic
 	uint32					FrameCount;					// Number of frames (1 if not animated)
@@ -1164,6 +1170,7 @@ struct W3dVertInfStruct
 //
 // Deform information.  Each mesh can have sets of keyframes of
 //	deform info associated with it.
+// TheSuperHackers @info Legacy, see W3D_CHUNK_DEFORM.
 //
 struct W3dMeshDeform
 {
@@ -2054,8 +2061,8 @@ struct W3dNullObjectStruct
 
 //
 //	Note:  This structure is follwed directly by a chunk (W3D_CHUNK_SOUNDROBJ_DEFINITION)
-// that contains an embedded AudibleSoundDefinitionClass's storage.  See audibledound.h
-// for details.
+// that contains the settings of the sound.  See SoundRenderObjDefClass::Write_Definition
+// in soundrobj.cpp for details.
 //
 struct W3dSoundRObjHeaderStruct
 {

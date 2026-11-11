@@ -42,7 +42,6 @@
 
 #include "meshcon.h"
 #include "util.h"
-#include "SnapPoints.h"
 #include "w3dappdata.h"
 #include "geometryexporttask.h"
 #include "geometryexportcontext.h"
@@ -110,7 +109,7 @@ MeshConnectionsClass::MeshConnectionsClass
  * HISTORY:                                                                                    *
  *   07/24/1997 GH  : Created.                                                                 *
  *=============================================================================================*/
-MeshConnectionsClass::~MeshConnectionsClass(void)
+MeshConnectionsClass::~MeshConnectionsClass()
 {
 }
 

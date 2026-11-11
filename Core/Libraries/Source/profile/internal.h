@@ -29,7 +29,7 @@
 
 #pragma once
 
-#include "../debug/debug.h"
+#include "debug/debug.h"
 #include "internal_funclevel.h"
 #include "internal_highlevel.h"
 #include "internal_cmd.h"
@@ -140,7 +140,7 @@ void ProfileFreeMemory(void *ptr);
 __forceinline void ProfileGetTime(__int64 &t)
 {
 #if defined(_MSC_VER) && _MSC_VER < 1300
-  _asm
+  __asm
   {
     mov ecx,[t]
     push eax

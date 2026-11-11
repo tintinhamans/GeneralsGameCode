@@ -99,7 +99,7 @@ LogClass::LogClass(const char *fname)
 {
 	char buffer[ _MAX_PATH ];
 	GetModuleFileName( nullptr, buffer, sizeof( buffer ) );
-	if (char *pEnd = strrchr(buffer, '\\'))
+	if (char *pEnd = getLastPathSeparator(buffer))
 	{
 		*pEnd = 0;
 	}
@@ -152,7 +152,7 @@ void LogClass::log(const char *fmt, ...)
 void LogClass::dumpMatrix3D(const Matrix3D *m, AsciiString name, AsciiString fname, Int line)
 {
 	fname.toLower();
-	fname = fname.reverseFind('\\') + 1;
+	fname = getFileName(fname.str());
 	const Real *matrix = (const Real *)m;
 	log("dumpMatrix3D() %s:%d %s",
 		fname.str(), line, name.str());
@@ -166,7 +166,7 @@ void LogClass::dumpReal(Real r, AsciiString name, AsciiString fname, Int line)
 	if (!m_fp || !isValidTimeToCalcLogicStuff())
 		return;
 	fname.toLower();
-	fname = fname.reverseFind('\\') + 1;
+	fname = getFileName(fname.str());
 	log("dumpReal() %s:%d %s %8.8X (%f)",
 		fname.str(), line, name.str(), AS_INT(r), r);
 }
@@ -266,7 +266,7 @@ inline Bool isCommonMaintainFrameFlagSet(Int a, Int b)
 // Note: these values are saved in save files, so you MUST NOT REMOVE OR CHANGE
 // existing values!
 //
-static const char *TerrainDecalTextureName[TERRAIN_DECAL_MAX]=
+static const char *TerrainDecalTextureName[]=
 {
 #ifdef ALLOW_DEMORALIZE
 	"DM_RING",//demoralized
@@ -289,6 +289,7 @@ static const char *TerrainDecalTextureName[TERRAIN_DECAL_MAX]=
 #endif
 	"" //dummy entry for TERRAIN_DECAL_SHADOW_TEXTURE
 };
+static_assert(ARRAY_SIZE(TerrainDecalTextureName) == TERRAIN_DECAL_MAX, "Incorrect array size");
 
 const UnsignedInt NO_NEXT_DURATION = 0xffffffff;
 
@@ -1233,7 +1234,7 @@ enum AnimParseType CPP_11(: Int)
 //-------------------------------------------------------------------------------------------------
 static void parseAnimation(INI* ini, void *instance, void * /*store*/, const void* userData)
 {
-	AnimParseType animType = (AnimParseType)(UnsignedInt)userData;
+	AnimParseType animType = (AnimParseType)(uintptr_t)userData;
 
 	AsciiString animName = ini->getNextAsciiString();
 	animName.toLower();
@@ -1447,7 +1448,7 @@ void W3DModelDrawModuleData::parseConditionState(INI* ini, void *instance, void 
 
 	ModelConditionInfo info;
 	W3DModelDrawModuleData* self = (W3DModelDrawModuleData*)instance;
-	ParseCondStateType cst = (ParseCondStateType)(UnsignedInt)userData;
+	ParseCondStateType cst = (ParseCondStateType)(uintptr_t)userData;
 	switch (cst)
 	{
 		case PARSE_DEFAULT:
@@ -2129,10 +2130,10 @@ const ModelConditionInfo* W3DModelDraw::findTransitionForSig(TransitionSig sig) 
 //-------------------------------------------------------------------------------------------------
 Real W3DModelDraw::getCurrentAnimFraction() const
 {
-	if (m_curState != nullptr
-			&& isAnyMaintainFrameFlagSet(m_curState->m_flags)
-			&& m_renderObject != nullptr
-			&& m_renderObject->Class_ID() == RenderObjClass::CLASSID_HLOD)
+	if (m_curState != nullptr &&
+			isAnyMaintainFrameFlagSet(m_curState->m_flags) &&
+			m_renderObject != nullptr &&
+			m_renderObject->Class_ID() == RenderObjClass::CLASSID_HLOD)
 	{
 		float framenum, dummy;
 		int mode, numFrames;
@@ -2495,11 +2496,12 @@ void W3DModelDraw::handleClientTurretPositioning()
 */
 void W3DModelDraw::handleClientRecoil()
 {
-	const W3DModelDrawModuleData* d = getW3DModelDrawModuleData();
-	if (!(m_curState->m_validStuff & ModelConditionInfo::BARRELS_VALID))
+	if (!m_curState || !(m_curState->m_validStuff & ModelConditionInfo::BARRELS_VALID))
 	{
 		return;
 	}
+
+	const W3DModelDrawModuleData* d = getW3DModelDrawModuleData();
 
 	// do recoil, if any
 	for (int wslot = 0; wslot < WEAPONSLOT_COUNT; ++wslot)
@@ -2518,7 +2520,6 @@ void W3DModelDraw::handleClientRecoil()
 			if (barrels[i].m_muzzleFlashBone != 0)
 			{
 				Bool hidden = recoils[i].m_state != WeaponRecoilInfo::RECOIL_START;
-				//DEBUG_LOG(("adjust muzzleflash %08lx for Draw %08lx state %s to %d at frame %d",subObjToHide,this,m_curState->m_description.str(),hidden?1:0,TheGameLogic->getFrame()));
 				barrels[i].setMuzzleFlashHidden(m_renderObject, hidden);
 			}
 
@@ -2619,7 +2620,7 @@ void W3DModelDraw::recalcBonesForClientParticleSystems()
 							tmp.Scale(getDrawable()->getScale());
 							m_renderObject->Set_Transform(tmp);					// set to identity transform
 
-							const Matrix3D boneTransform = m_renderObject->Get_Bone_Transform(boneIndex);
+							const Matrix3D& boneTransform = m_renderObject->Get_Bone_Transform(boneIndex);
 							Vector3 vpos = boneTransform.Get_Translation();
 							rotation = boneTransform.Get_Z_Rotation();
 
@@ -2690,7 +2691,7 @@ Bool W3DModelDraw::updateBonesForClientParticleSystems()
 			Int boneIndex = (*it).boneIndex;
 			if ( (sys != nullptr) && (boneIndex != 0)  )
 			{
-    		const Matrix3D boneTransform = m_renderObject->Get_Bone_Transform(boneIndex);// just a little worried about state changes
+    		const Matrix3D& boneTransform = m_renderObject->Get_Bone_Transform(boneIndex);// just a little worried about state changes
 
         Vector3 vpos = boneTransform.Get_Translation();
 
@@ -3516,7 +3517,7 @@ Bool W3DModelDraw::clientOnly_getRenderObjBoundBox(OBBoxClass * boundbox) const
 	AABoxClass aabox;
 	m_renderObject->Get_Obj_Space_Bounding_Box(aabox);
 
-	Matrix3D tm = m_renderObject->Get_Transform();
+	const Matrix3D& tm = m_renderObject->Get_Transform();
 
 	// build an OBB for this AAB,transform
 	OBBoxClass box0(aabox.Center,aabox.Extent);
@@ -3720,7 +3721,7 @@ Bool W3DModelDraw::handleWeaponFireFX(WeaponSlotType wslot, Int specificBarrelTo
 			if( ! m_renderObject->Is_Hidden() || (logicObject == nullptr) )
 			{
 				// I can ask the drawable's bone position if I am not hidden (if I have no object I have no choice)
-				Matrix3D mtx = m_renderObject->Get_Bone_Transform(info.m_fxBone);
+				const Matrix3D& mtx = m_renderObject->Get_Bone_Transform(info.m_fxBone);
 				Coord3D pos;
 				pos.x = mtx.Get_X_Translation();
 				pos.y = mtx.Get_Y_Translation();
@@ -4146,10 +4147,10 @@ void W3DModelDraw::xfer( Xfer *xfer )
 		{
 				// srj sez: don't save info for transition states, since we can't really
 				// restore them effectively.
-			if ( m_renderObject
-					&& m_renderObject->Class_ID() == RenderObjClass::CLASSID_HLOD
-					&& m_curState
-					&& m_curState->m_transitionSig == NO_TRANSITION )
+			if ( m_renderObject &&
+					m_renderObject->Class_ID() == RenderObjClass::CLASSID_HLOD &&
+					m_curState &&
+					m_curState->m_transitionSig == NO_TRANSITION )
 			{
 
 				// cast to HLod

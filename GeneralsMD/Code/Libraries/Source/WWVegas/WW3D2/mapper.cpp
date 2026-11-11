@@ -39,20 +39,18 @@
 #include "ww3d.h"
 #include "WWLib/INI.h"
 #include "WWLib/chunkio.h"
-#include "WW3D2/w3derr.h"
+#include "w3derr.h"
 #include "meshmatdesc.h"
-#include "WW3D2/dx8wrapper.h"
+#include "dx8wrapper.h"
+#include "Renderer.h"
 #include "WWDebug/wwdebug.h"
-#include "WW3D2/matinfo.h"
-#include "WW3D2/rendobj.h"
+#include "matinfo.h"
+#include "rendobj.h"
 #include "mesh.h"
 #include <WWLib/RANDOM.h>
 #include <WWLib/bound.h>
 
 Random4Class rand4;
-
-inline DWORD F2DW( FLOAT f ) { return *((DWORD*)&f); }
-
 
 // HY 1/26/01
 // Rewritten to use DX 8 texture matrices
@@ -130,12 +128,12 @@ LinearOffsetTextureMapperClass::LinearOffsetTextureMapperClass(const INIClass &i
 	float v_offset_per_sec = ini.Get_Float(section, "VPerSec", 0.0f);
 	UVOffsetDeltaPerMS = Vector2(u_offset_per_sec, v_offset_per_sec) * -0.001f;
 
-	float u_start_offset = ini.Get_Float(section, "UOffset", 0.0f);
-	float v_start_offset = ini.Get_Float(section, "VOffset", 0.0f);
+	float u_start_offset = ini.Get_Float(section, "UOffset", 0.0f); // Added in Zero Hour
+	float v_start_offset = ini.Get_Float(section, "VOffset", 0.0f); // Added in Zero Hour
 	StartingUVOffset.Set(u_start_offset,	v_start_offset);
 	CurrentUVOffset = StartingUVOffset;
 
-	ClampFix = ini.Get_Bool(section, "ClampFix", false);
+	ClampFix = ini.Get_Bool(section, "ClampFix", false); // Added in Zero Hour
 }
 
 LinearOffsetTextureMapperClass::LinearOffsetTextureMapperClass(const LinearOffsetTextureMapperClass & src) :
@@ -168,8 +166,8 @@ void LinearOffsetTextureMapperClass::Calculate_Texture_Matrix(Matrix4x4 &tex_mat
 	// If ClampFix is TRUE we clamp the offsets between -Scale and +Scale with no wraparound.
 	// This works well for clamped textures.
 	if (!ClampFix) {
-		offset_u = offset_u - WWMath::Floor(offset_u);
-		offset_v = offset_v - WWMath::Floor(offset_v);
+		offset_u = offset_u - WWMath::Floorf(offset_u);
+		offset_v = offset_v - WWMath::Floorf(offset_v);
 	} else {
 		offset_u = WWMath::Clamp(offset_u, -Scale.X, Scale.X);
 		offset_v = WWMath::Clamp(offset_v, -Scale.Y, Scale.Y);
@@ -207,7 +205,7 @@ GridTextureMapperClass::GridTextureMapperClass(const INIClass &ini, const char *
 	float fps = ini.Get_Float(section, "FPS", 1.0f);
 	unsigned int gridwidth_log2 = ini.Get_Int(section, "Log2Width", 1);
 	LastFrame = ini.Get_Int(section, "Last", 0);
-	Offset = ini.Get_Int(section, "Offset", 0);
+	Offset = ini.Get_Int(section, "Offset", 0); // Added in Zero Hour
 	initialize(fps, gridwidth_log2);
 }
 
@@ -372,8 +370,8 @@ void RotateTextureMapperClass::Calculate_Texture_Matrix(Matrix4x4 &tex_matrix)
 
 	// Set up the rotation matrix
 	float c,s;
-	c=WWMath::Cos(CurrentAngle);
-	s=WWMath::Sin(CurrentAngle);
+	c=WWMath::Cosf_Legacy(CurrentAngle);
+	s=WWMath::Sinf_Legacy(CurrentAngle);
 	tex_matrix.Make_Identity();
 
 	// subtract center
@@ -471,7 +469,7 @@ StepLinearOffsetTextureMapperClass::StepLinearOffsetTextureMapperClass(const INI
 	Step.U = ini.Get_Float(section, "UStep", 0.0f);
 	Step.V = ini.Get_Float(section, "VStep", 0.0f);
 	StepsPerMilliSec = ini.Get_Float(section, "SPS", 0.0f)/1000.0f;
-	ClampFix = ini.Get_Bool(section, "ClampFix", false);
+	ClampFix = ini.Get_Bool(section, "ClampFix", false); // Added in Zero Hour
 }
 
 StepLinearOffsetTextureMapperClass::StepLinearOffsetTextureMapperClass(const StepLinearOffsetTextureMapperClass & src) :
@@ -514,8 +512,8 @@ void StepLinearOffsetTextureMapperClass::Calculate_Texture_Matrix(Matrix4x4 &tex
 	// If ClampFix is TRUE we clamp the offsets between -Scale and +Scale with no wraparound.
 	// This works well for clamped textures.
 	if (!ClampFix) {
-		CurrentStep.U -= WWMath::Floor(CurrentStep.U);
-	  	CurrentStep.V -= WWMath::Floor(CurrentStep.V);
+		CurrentStep.U -= WWMath::Floorf(CurrentStep.U);
+	  	CurrentStep.V -= WWMath::Floorf(CurrentStep.V);
 	} else {
 		CurrentStep.U = WWMath::Clamp(CurrentStep.U, -Scale.X, Scale.X);
 		CurrentStep.V = WWMath::Clamp(CurrentStep.V, -Scale.Y, Scale.Y);
@@ -732,7 +730,7 @@ void EdgeMapperClass::Calculate_Texture_Matrix(Matrix4x4 &tex_matrix)
 	LastUsedSyncTime=now;
 
 	VOffset+=delta*VSpeed;
-	VOffset-=WWMath::Floor(VOffset);
+	VOffset-=WWMath::Floorf(VOffset);
 
 	// takes the Z component and
 	// uses it to index the texture
@@ -747,7 +745,7 @@ WSEnvMapperClass::WSEnvMapperClass(const INIClass &ini, const char *section, uns
 	Axis(AXISTYPE_Z)
 {
 	char temp[2];
-	ini.Get_String(section, "Axis", "Z", &temp[0], 2);
+	ini.Get_String(section, "Axis", "Z", &temp[0], 2); // Added in Zero Hour
 	switch(temp[0]) {
 		case 'X':
 		case 'x':
@@ -794,7 +792,7 @@ void WSEnvMapperClass::Calculate_Texture_Matrix(Matrix4x4 &tex_matrix)
 	}
 	// multiply by inverse of view transform
 	Matrix4x4 mat;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,mat);
+	Renderer::Get_Transform(RenderTransform_View,mat);
 	Matrix4x4 mat2(	mat[0].X, mat[1].X, mat[2].X, 0.0f,
 						mat[0].Y, mat[1].Y, mat[2].Y, 0.0f,
 						mat[0].Z, mat[1].Z, mat[2].Z, 0.0f,
@@ -918,8 +916,8 @@ void ScreenMapperClass::Calculate_Texture_Matrix(Matrix4x4 &tex_matrix)
 	// If ClampFix is TRUE we clamp the offsets between -Scale and +Scale with no wraparound.
 	// This works well for clamped textures.
 	if (!ClampFix) {
-		offset_u = offset_u - WWMath::Floor(offset_u);
-		offset_v = offset_v - WWMath::Floor(offset_v);
+		offset_u = offset_u - WWMath::Floorf(offset_u);
+		offset_v = offset_v - WWMath::Floorf(offset_v);
 	} else {
 		offset_u = WWMath::Clamp(offset_u, -Scale.X, Scale.X);
 		offset_v = WWMath::Clamp(offset_v, -Scale.Y, Scale.Y);
@@ -927,7 +925,7 @@ void ScreenMapperClass::Calculate_Texture_Matrix(Matrix4x4 &tex_matrix)
 
 	// multiply by projection matrix
 	// followed by scale and translation
-	DX8Wrapper::Get_Transform(D3DTS_PROJECTION, tex_matrix);
+	Renderer::Get_Transform(RenderTransform_Projection, tex_matrix);
 	tex_matrix[0] *= Scale.X; // entire row since we're pre-multiplying
 	tex_matrix[1] *= Scale.Y;
 	Vector4 last(tex_matrix[3]); // this gets the w
@@ -1130,7 +1128,7 @@ GridWSEnvMapperClass::GridWSEnvMapperClass(const INIClass &ini, const char *sect
 	Axis(AXISTYPE_Z)
 {
 	char temp[2];
-	ini.Get_String(section, "Axis", "Z", &temp[0], 2);
+	ini.Get_String(section, "Axis", "Z", &temp[0], 2); // Added in Zero Hour
 	switch(temp[0]) {
 		case 'X':
 		case 'x':
@@ -1154,7 +1152,7 @@ void GridWSEnvMapperClass::Calculate_Texture_Matrix(Matrix4x4 &tex_matrix)
 {
 	// multiply by inverse of view transform
 	Matrix4x4 mat;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,mat);
+	Renderer::Get_Transform(RenderTransform_View,mat);
 	Matrix4x4 mv (	mat[0].X, mat[1].X, mat[2].X, 0.0f,
 						mat[0].Y, mat[1].Y, mat[2].Y, 0.0f,
 						mat[0].Z, mat[1].Z, mat[2].Z, 0.0f,

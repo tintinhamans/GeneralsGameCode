@@ -44,12 +44,6 @@
 #include "XSTRAW.h"
 
 
-#if !defined(__BORLANDC__) && !defined(_MSC_VER)
-// Disable the "temporary object used to initialize a non-constant reference" warning.
-#pragma warning 665 9
-#endif
-
-
 /***********************************************************************************************
  * Read_Line -- Read a text line from the file.                                                *
  *                                                                                             *
@@ -123,13 +117,13 @@ int Read_Line(Straw & file, char * buffer, int len, bool & eof)
 	return(strlen(buffer));
 }
 
-int Read_Line(Straw & file, wchar_t * buffer, int len, bool & eof)
+int Read_Line(Straw & file, unichar * buffer, int len, bool & eof)
 {
 	if (len == 0 || buffer == nullptr) return(0);
 
 	int count = 0;
 	for (;;) {
-		wchar_t c;
+		unichar c;
 		if (file.Get(&c, sizeof(c)) != sizeof(c)) {
 			eof = true;
 			buffer[count] = L'\0';

@@ -30,7 +30,6 @@
 #pragma once
 
 #include "Common/SubsystemInterface.h"
-#include "Lib/BaseType.h"
 #include "Common/AsciiString.h"
 #include "Common/GameMemory.h"
 
@@ -89,6 +88,14 @@ protected:
 	GameFont *m_fontList;  ///< list of fonts we have loaded
 	Int m_count;  ///< number of unique fonts loaded in this lib
 
+};
+
+// TheSuperHackers @performance CryoTheRenegade 14/10/2026
+// FontLibrary that creates no device fonts. Used for Headless Mode.
+class FontLibraryDummy : public FontLibrary
+{
+protected:
+	virtual Bool loadFontData( GameFont *font ) override { font->height = font->pointSize; return TRUE; }
 };
 
 // INLINING ///////////////////////////////////////////////////////////////////////////////////////

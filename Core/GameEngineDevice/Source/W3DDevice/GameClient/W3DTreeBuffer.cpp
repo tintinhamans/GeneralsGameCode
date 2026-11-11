@@ -83,6 +83,7 @@ enum
 #include "W3DDevice/GameClient/W3DProjectedShadow.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/dx8wrapper.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/dx8renderer.h"
 #include "WW3D2/matinfo.h"
 #include "WW3D2/mesh.h"
@@ -299,7 +300,7 @@ void W3DTreeBuffer::cull(const CameraClass* camera)
 	Int curTree;
 
 	// Calculate the vector direction that the camera is looking at.
-	Matrix3D camera_matrix = camera->Get_Transform();
+	const Matrix3D &camera_matrix = camera->Get_Transform();
 	float zmod = -1;
 	float x = zmod * camera_matrix[0][2];
 	float y = zmod * camera_matrix[1][2];
@@ -1175,6 +1176,8 @@ void W3DTreeBuffer::allocateTreeBuffers()
 		m_curNumTreeVertices[i] = 0;
 		m_curNumTreeIndices[i] = 0;
 	}
+	// TheSuperHackers @bugfix arcticdolphin 09/10/2026 Refill the new buffers after a device reset.
+	m_anythingChanged = true;
 
 	//shader decleration
 // DX8_FVF_XYZNDUV1
@@ -1250,7 +1253,8 @@ void W3DTreeBuffer::removeTreesForConstruction(const Coord3D* pos, const Geometr
 {
 	// Just iterate all trees, as even non-collidable ones get removed. jba. [7/11/2003]
 	Int i;
-	for (i = 0; i < m_numTrees; i++) {				// small, height,							radius,									minor radius
+	for (i=0; i<m_numTrees; i++) {
+		// small, height,							radius,									minor radius
 		if (m_trees[i].treeType < 0) {
 			continue; // already deleted. jba [7/11/2003]
 		}
@@ -1294,7 +1298,7 @@ Int W3DTreeBuffer::addTreeType(const W3DTreeDrawModuleData* data)
 	if (robj->Class_ID() == RenderObjClass::CLASSID_HLOD) {
 		RenderObjClass* hlod = robj;
 		robj = hlod->Get_Sub_Object(0);
-		const Matrix3D xfm = robj->Get_Bone_Transform(0);
+		const Matrix3D& xfm = robj->Get_Bone_Transform(0);
 		xfm.Get_Translation(&offset);
 		REF_PTR_RELEASE(hlod);
 	}
@@ -1310,7 +1314,6 @@ Int W3DTreeBuffer::addTreeType(const W3DTreeDrawModuleData* data)
 	Int numVertex = m_treeTypes[m_numTreeTypes].m_mesh->Peek_Model()->Get_Vertex_Count();
 	Vector3* pVert = m_treeTypes[m_numTreeTypes].m_mesh->Peek_Model()->Get_Vertex_Array();
 
-	const Matrix3D xfm = m_treeTypes[m_numTreeTypes].m_mesh->Get_Transform();
 	SphereClass bounds(pVert, numVertex);
 	bounds.Center += offset;
 	m_treeTypes[m_numTreeTypes].m_bounds = bounds;
@@ -1365,10 +1368,10 @@ void W3DTreeBuffer::addTree(DrawableID id, Coord3D location, Real scale, Real an
 		m_trees[m_numTrees].nextInPartition = END_OF_PARTITION;
 	}
 
-	Real randomScale = GameClientRandomValueReal(1.0f - randomScaleAmount, 1.0f + randomScaleAmount);
-	m_trees[m_numTrees].sin = WWMath::Sin(angle);
-	m_trees[m_numTrees].cos = WWMath::Cos(angle);
-	if (randomScaleAmount > 0.0f) {
+	Real randomScale = GameClientRandomValueReal( 1.0f - randomScaleAmount, 1.0f+ randomScaleAmount );
+	m_trees[m_numTrees].sin = WWMath::Sinf_Legacy(angle);
+	m_trees[m_numTrees].cos = WWMath::Cosf_Legacy(angle);
+	if (randomScaleAmount>0.0f) {
 		// Randomizes the scale and orientation of trees.
 		m_trees[m_numTrees].scale = scale * randomScale;
 	}
@@ -1412,8 +1415,8 @@ Bool W3DTreeBuffer::updateTreePosition(DrawableID id, Coord3D location, Real ang
 	for (i = 0; i < m_numTrees; i++) {
 		if (m_trees[i].drawableID == id) {
 			m_trees[i].location = Vector3(location.x, location.y, location.z);
-			m_trees[i].sin = WWMath::Sin(angle);
-			m_trees[i].cos = WWMath::Cos(angle);
+			m_trees[i].sin = WWMath::Sinf_Legacy(angle);
+			m_trees[i].cos = WWMath::Cosf_Legacy(angle);
 			// Translate the bounding sphere of the model.
 			m_trees[i].bounds = m_treeTypes[m_trees[i].treeType].m_bounds;
 			m_trees[i].bounds.Center *= m_trees[i].scale;
@@ -1525,7 +1528,8 @@ void W3DTreeBuffer::drawTrees(CameraClass* camera, RefRenderObjListIterator* pDy
 	if (m_shadow && TheW3DProjectedShadowManager && TheGlobalData->m_useShadowDecals) {
 		for (curTree = 0; curTree < m_numTrees; curTree++) {
 			Int type = m_trees[curTree].treeType;
-			if (type < 0) { // deleted.
+			if (type<0) {
+				// deleted.
 				continue;
 			}
 			if (!m_trees[curTree].visible || !m_treeTypes[type].m_doShadow) {
@@ -1546,7 +1550,8 @@ void W3DTreeBuffer::drawTrees(CameraClass* camera, RefRenderObjListIterator* pDy
 	// Update pushed aside and toppling trees.
 	for (curTree = 0; curTree < m_numTrees; curTree++) {
 		Int type = m_trees[curTree].treeType;
-		if (type < 0) { // deleted.
+		if (type<0) {
+			// deleted.
 			continue;
 		}
 		const W3DTreeDrawModuleData* moduleData = m_treeTypes[type].m_data;
@@ -1647,7 +1652,7 @@ void W3DTreeBuffer::drawTrees(CameraClass* camera, RefRenderObjListIterator* pDy
 	DX8Wrapper::Set_Vertex_Buffer(vb_access);
 
 	Matrix3D tm(1);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD, tm);
+	Renderer::Set_Transform(RenderTransform_World,tm);
 
 	DX8Wrapper::Draw_Triangles(0, 2, 0, 4);	//draw a quad, 2 triangles, 4 verts
 #endif

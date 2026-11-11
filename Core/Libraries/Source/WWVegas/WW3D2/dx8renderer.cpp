@@ -42,6 +42,7 @@
 
 #include "dx8renderer.h"
 #include "dx8wrapper.h"
+#include "Renderer.h"
 #include "dx8polygonrenderer.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
@@ -51,15 +52,15 @@
 #include "WWDebug/wwdebug.h"
 #include "WWDebug/wwprofile.h"
 #include "WWDebug/wwmemlog.h"
-#include "WW3D2/rinfo.h"
+#include "rinfo.h"
 #include "statistics.h"
-#include "WW3D2/meshmdl.h"
+#include "meshmdl.h"
 #include "WWMath/vp.h"
-#include "WW3D2/decalmsh.h"
+#include "decalmsh.h"
 #include "matpass.h"
-#include "WW3D2/camera.h"
+#include "camera.h"
 #include "stripoptimizer.h"
-#include "WW3D2/meshgeometry.h"
+#include "meshgeometry.h"
 
 /*
 ** Global Instance of the DX8MeshRender
@@ -242,6 +243,7 @@ void DX8TextureCategoryClass::Add_Polygon_Renderer(DX8PolygonRendererClass* p_re
 
 	if (add_after_this != nullptr) {
 		bool res = PolygonRendererList.Add_After(p_renderer,add_after_this,false);
+		(void)res;
 		WWASSERT(res);
 	} else {
 		PolygonRendererList.Add(p_renderer);
@@ -303,7 +305,8 @@ void DX8FVFCategoryContainer::Render_Procedural_Material_Passes()
    		MeshClass * mesh = mpr->Peek_Mesh();
 
    		if (mesh->Get_Base_Vertex_Offset() == VERTEX_BUFFER_OVERFLOW)	//check if this mesh is valid
-   		{	//skip this mesh so it gets rendered later after vertices are filled in.
+   		{
+	        //skip this mesh so it gets rendered later after vertices are filled in.
 	        last_mpr = mpr;
    			mpr = mpr->Get_Next_Visible();
    			renderTasksRemaining = true;
@@ -381,17 +384,16 @@ void DX8TextureCategoryClass::Log(bool only_visible)
 	}
 	work2.Format("\n	material: %x (%s)\n	shader: %x", material, material ? material->Get_Name() : "-", shader);
 	work+=work2;
-	WWDEBUG_SAY((work));
+	WWDEBUG_SAY(("%s", work.str()));
 
-	work.Format("	%8s %8s %6s %6s %6s %5s %s",
+	WWDEBUG_SAY(("\t%8s %8s %6s %6s %6s %5s %s",
 		"idx_cnt",
 		"poly_cnt",
 		"i_offs",
 		"min_vi",
 		"vi_rng",
 		"ident",
-		"name");
-	WWDEBUG_SAY((work));
+		"name"));
 
 	DX8PolygonRendererListIterator it(&PolygonRendererList);
 	while (!it.Is_Done()) {
@@ -730,7 +732,8 @@ unsigned DX8FVFCategoryContainer::Define_FVF(MeshModelClass* mmc,bool enable_lig
 	case 8: fvf|=D3DFVF_TEX8; break;
 	}
 
-	if (!mmc->Needs_Vertex_Normals()) {  //enable_lighting || mmc->Get_Flag(MeshModelClass::PRELIT_MASK)) {
+	if (!mmc->Needs_Vertex_Normals()) {
+		//enable_lighting || mmc->Get_Flag(MeshModelClass::PRELIT_MASK)) {
 		return fvf;
 	}
 
@@ -762,21 +765,17 @@ DX8RigidFVFCategoryContainer::~DX8RigidFVFCategoryContainer()
 void DX8RigidFVFCategoryContainer::Log(bool only_visible)
 {
 #ifdef ENABLE_CATEGORY_LOG
-	StringClass work(255,true);
-	work.Format("DX8RigidFVFCategoryContainer --------------");
-	WWDEBUG_SAY((work));
+	WWDEBUG_SAY(("DX8RigidFVFCategoryContainer --------------"));
 	if (vertex_buffer) {
 		StringClass fvfname(255,true);
 		vertex_buffer->FVF_Info().Get_FVF_Name(fvfname);
-		work.Format("VB size (used/total): %d/%d FVF: %s",used_vertices,vertex_buffer->Get_Vertex_Count(),fvfname);
-		WWDEBUG_SAY((work));
+		WWDEBUG_SAY(("VB size (used/total): %d/%d FVF: %s",used_vertices,vertex_buffer->Get_Vertex_Count(),fvfname.str()));
 	}
 	else {
 		WWDEBUG_SAY(("EMPTY VB"));
 	}
 	if (index_buffer) {
-		work.Format("IB size (used/total): %d/%d",used_indices,index_buffer->Get_Index_Count());
-		WWDEBUG_SAY((work));
+		WWDEBUG_SAY(("IB size (used/total): %d/%d",used_indices,index_buffer->Get_Index_Count()));
 	}
 	else {
 		WWDEBUG_SAY(("EMPTY IB"));
@@ -1217,7 +1216,9 @@ void DX8FVFCategoryContainer::Generate_Texture_Categories(Vertex_Split_Table& sp
 	for (unsigned pass=0;pass<split_table.Get_Pass_Count();++pass) {
 		Textures_Material_And_Shader_Booking_Struct textures_material_and_shader_booking;
 
+#ifdef DEBUG_CRASHING
 		unsigned old_used_indices=used_indices;
+#endif
 
 		for (int i=0;i<polygon_count;++i) {
 			TextureClass* textures[MeshMatDescClass::MAX_TEX_STAGES];
@@ -1234,8 +1235,10 @@ void DX8FVFCategoryContainer::Generate_Texture_Categories(Vertex_Split_Table& sp
 			Insert_To_Texture_Category(split_table,textures,mat,shader,pass,vertex_offset);
 		}
 
+#ifdef DEBUG_CRASHING
 		int new_inds=used_indices-old_used_indices;
 		WWASSERT(new_inds<=polygon_count*3);
+#endif
 	}
 }
 
@@ -1261,13 +1264,10 @@ DX8SkinFVFCategoryContainer::~DX8SkinFVFCategoryContainer()
 void DX8SkinFVFCategoryContainer::Log(bool only_visible)
 {
 #ifdef ENABLE_CATEGORY_LOG
-	StringClass work(255,true);
-	work.Format("DX8SkinFVFCategoryContainer --------------");
-	WWDEBUG_SAY((work));
+	WWDEBUG_SAY(("DX8SkinFVFCategoryContainer --------------"));
 
 	if (index_buffer) {
-		work.Format("IB size (used/total): %d/%d",used_indices,index_buffer->Get_Index_Count());
-		WWDEBUG_SAY((work));
+		WWDEBUG_SAY(("IB size (used/total): %d/%d",used_indices,index_buffer->Get_Index_Count()));
 	}
 	else {
 		WWDEBUG_SAY(("EMPTY IB"));
@@ -1300,7 +1300,8 @@ void DX8SkinFVFCategoryContainer::Render()
 	//'Generals' customization to allow more than 65535 vertices
 	unsigned int maxVertexCount=VisibleVertexCount;
 	if (maxVertexCount > 65535)
-	{	//clamp vertex count to maximum size that can be indexed by 16-bit index
+	{
+		//clamp vertex count to maximum size that can be indexed by 16-bit index
 		maxVertexCount = 65535;
 	}
 
@@ -1327,7 +1328,8 @@ void DX8SkinFVFCategoryContainer::Render()
 				int mesh_vertex_count=mmc->Get_Vertex_Count();
 				//'Generals' mod to deal with cases where not all meshes fit in VB.
 				if (vertex_offset+mesh_vertex_count > maxVertexCount || remainingMesh)
-				{	//flag mesh so we know it didn't fit in the vertex buffer
+				{
+					//flag mesh so we know it didn't fit in the vertex buffer
 					mesh->Set_Base_Vertex_Offset(VERTEX_BUFFER_OVERFLOW);
 					if (remainingMesh == nullptr)
 						remainingMesh = mesh;	//start of meshes that didn't fit in buffer
@@ -1735,7 +1737,8 @@ void DX8TextureCategoryClass::Render()
 		MeshClass * mesh = prt->Peek_Mesh();
 
 		if (mesh->Get_Base_Vertex_Offset() == VERTEX_BUFFER_OVERFLOW)	//check if this mesh is valid
-		{	//skip this mesh so it gets rendered later after vertices are filled in.
+		{
+			//skip this mesh so it gets rendered later after vertices are filled in.
 			last_prt = prt;
 			prt = prt->Get_Next_Visible();
 			renderTasksRemaining = true;
@@ -1850,11 +1853,11 @@ void DX8TextureCategoryClass::Render()
 
 		if (identity) {
 			SNAPSHOT_SAY(("Set_World_Identity"));
-			DX8Wrapper::Set_World_Identity();
+			Renderer::Set_World_Identity();
 		}
 		else {
 			SNAPSHOT_SAY(("Set_World_Transform"));
-			DX8Wrapper::Set_Transform(D3DTS_WORLD,*world_transform);
+			Renderer::Set_Transform(RenderTransform_World,*world_transform);
 		}
 
 
@@ -1874,7 +1877,8 @@ void DX8TextureCategoryClass::Render()
 			//non-transparent mesh that will be rendered immediately.  Okay to adjust the shader/material
 			//if necessary
 			if (mesh->Get_Alpha_Override() != 1.0 || (mesh->Get_User_Data() && *(int *)mesh->Get_User_Data() == RenderObjClass::USER_DATA_MATERIAL_OVERRIDE))
-			{	//mesh has material override of some kind
+			{
+				//mesh has material override of some kind
 				//adjust the opacity of this model
 				float oldOpacity=vmaterial->Get_Opacity();
 				Vector3 oldDiffuse;
@@ -1895,7 +1899,8 @@ void DX8TextureCategoryClass::Render()
 				if (mesh->Get_Alpha_Override() != 1.0)
 				{
 					if (mesh->Is_Additive())
-					{	//additvie blended mesh can't switch to alpha or we will get a black outline.
+					{
+						//additvie blended mesh can't switch to alpha or we will get a black outline.
 						//so adjust diffuse color instead.
 						vmaterial->Set_Diffuse(mesh->Get_Alpha_Override(),mesh->Get_Alpha_Override(),mesh->Get_Alpha_Override());
 						theAlphaShader = theShader;	//keep using additive blending.

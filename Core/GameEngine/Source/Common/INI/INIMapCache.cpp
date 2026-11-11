@@ -30,7 +30,6 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
-#include "Lib/BaseType.h"
 #include "Common/INI.h"
 #include "GameClient/MapUtil.h"
 #include "GameClient/GameText.h"
@@ -149,8 +148,7 @@ void INI::parseMapCacheDefinition( INI* ini )
 	{
 		// maps without localized name tags
 		AsciiString tempdisplayname;
-		const char *lastBackslash = name.reverseFind('\\');
-		tempdisplayname = lastBackslash ? lastBackslash + 1 : name.str();
+		tempdisplayname = getFileName(name.str());
 		md.m_displayName.translate(tempdisplayname);
 		if (md.m_numPlayers >= 2)
 		{

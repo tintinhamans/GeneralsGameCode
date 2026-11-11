@@ -37,14 +37,15 @@
 #ifndef _WIN32
 #include <netinet/in.h>
 #else
-#define Win32_Winsock
 #include <windows.h>
+#include <winsock.h>
 #endif
+
 #include "field.h"
 
 
 // private member func
-void FieldClass::Clear(void)
+void FieldClass::Clear()
 {
   delete[](Data);
 
@@ -209,17 +210,17 @@ FieldClass::~FieldClass()
 }
 
 // Fetch the datatype
-int FieldClass::Get_Type(void)
+int FieldClass::Get_Type()
 {
   return(DataType);
 }
 
-void *FieldClass::Get_Data(void)
+void *FieldClass::Get_Data()
 {
 return(Data);
 }
 
-char *FieldClass::Get_ID(void)
+char *FieldClass::Get_ID()
 {
 return(ID);
 }
@@ -234,7 +235,7 @@ return(ID);
  * HISTORY:                                                               *
  *   04/22/1996 PWG : Created.                                            *
  *========================================================================*/
-void FieldClass::Host_To_Net(void)
+void FieldClass::Host_To_Net()
 {
   //
   // Before we convert the data type, we should convert the actual data
@@ -280,7 +281,7 @@ void FieldClass::Host_To_Net(void)
  * HISTORY:                                                               *
  *   04/22/1996 PWG : Created.                                            *
  *========================================================================*/
-void FieldClass::Net_To_Host(void)
+void FieldClass::Net_To_Host()
 {
   //
   // Finally convert over the data type and the size of the packet.

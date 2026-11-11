@@ -207,7 +207,7 @@ fnColorPickerProc
 
 			// Get the creation information from the window handle
 			ColorPickerClass *pwnd = (ColorPickerClass *)::GetProp (hwnd, "CLASSPOINTER");
-			BOOL created = (BOOL)::GetProp (hwnd, "CREATED");
+			BOOL created = (BOOL)(uintptr_t)::GetProp (hwnd, "CREATED");
 
 			if (pwnd != nullptr) {
 				pwnd->Detach ();
@@ -497,12 +497,6 @@ RGB_to_Hue (int red_val, int green_val, int blue_val, float &hue, float &value)
 CPoint
 ColorPickerClass::Point_From_Color (COLORREF color)
 {
-	// Window's bitmaps are DWORD aligned, so make sure
-	// we take that into account.
-	int alignment_offset = (m_iWidth * 3) % 4;
-	alignment_offset = (alignment_offset != 0) ? (4 - alignment_offset) : 0;
-	int scanline_size = (m_iWidth * 3) + alignment_offset;
-
 	int red = GetRValue (color);
 	int green = GetGValue (color);
 	int blue = GetBValue (color);

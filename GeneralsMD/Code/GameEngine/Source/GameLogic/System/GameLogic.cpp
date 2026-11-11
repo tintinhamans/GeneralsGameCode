@@ -55,8 +55,9 @@
 #include "Common/ThingFactory.h"
 #include "Common/Team.h"
 #include "Common/ThingTemplate.h"
-#include "GameClient/Water.h"
-#include "GameClient/Snow.h"
+#if RTS_GENERALS && RETAIL_COMPATIBLE_CRC
+#include "Common/TunnelTracker.h"
+#endif
 #include "Common/WellKnownKeys.h"
 #include "Common/Xfer.h"
 #include "Common/XferCRC.h"
@@ -73,8 +74,10 @@
 #include "GameClient/MapUtil.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/ParticleSys.h"
+#include "GameClient/Snow.h"
 #include "GameClient/TerrainVisual.h"
 #include "GameClient/View.h"
+#include "GameClient/Water.h"
 #include "GameClient/CampaignManager.h"
 #include "GameClient/GameWindowTransitions.h"
 
@@ -111,7 +114,7 @@
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 
-#include <rts/profile.h>
+#include "Lib/Profile.h"
 
 struct QuitGameException {};
 
@@ -223,30 +226,6 @@ void setFPMode()
 	_controlfp_s(&cw, _MCW_EM, _MCW_EM);
 }
 
-//-------------------------------------------------------------------------------------------------
-const char* toString(GameMode mode)
-{
-	switch (mode)
-	{
-		case GAME_SINGLE_PLAYER:
-			return "GAME_SINGLE_PLAYER";
-		case GAME_LAN:
-			return "GAME_LAN";
-		case GAME_SKIRMISH:
-			return "GAME_SKIRMISH";
-		case GAME_REPLAY:
-			return "GAME_REPLAY";
-		case GAME_SHELL:
-			return "GAME_SHELL";
-		case GAME_INTERNET:
-			return "GAME_INTERNET";
-		case GAME_NONE:
-			return "GAME_NONE";
-		default:
-			return "GAME_UNKNOWN";
-	}
-}
-
 // ------------------------------------------------------------------------------------------------
 /** GameLogic class constructor */
 // ------------------------------------------------------------------------------------------------
@@ -305,6 +284,10 @@ GameLogic::GameLogic()
 	m_loadingSave = FALSE;
 	m_clearingGameData = FALSE;
 	m_quitToDesktopAfterMatch = FALSE;
+
+#if RTS_GENERALS && defined(_MSC_VER) && _MSC_VER < 1300
+	m_onUnitProducedZeroInit = false;
+#endif
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -343,12 +326,16 @@ void GameLogic::setDefaults(Bool loadingSaveGame)
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-Bool GameLogic::isInSinglePlayerGame()
+Bool GameLogic::isInSinglePlayerGame() const
 {
-	return (m_gameMode == GAME_SINGLE_PLAYER ||
-		(TheRecorder && TheRecorder->isPlaybackMode() && TheRecorder->getGameMode() == GAME_SINGLE_PLAYER));
-}
+	if (rts::isSinglePlayerGame(m_gameMode))
+		return true;
 
+	if (TheRecorder && TheRecorder->isPlaybackMode() && rts::isSinglePlayerGame(TheRecorder->getGameMode()))
+		return true;
+
+	return false;
+}
 
 //-------------------------------------------------------------------------------------------------
 /** Destroy all objects immediately */
@@ -388,6 +375,8 @@ void GameLogic::destroyAllObjectsImmediate()
 	// process the destroy list immediately
 	processDestroyList();
 	DEBUG_ASSERTCRASH(m_objList == NULL, ("destroyAllObjectsImmediate: Object list not cleared"));
+
+	m_objHash.clear();
 
 }
 
@@ -510,12 +499,6 @@ void GameLogic::reset()
 	m_thingTemplateBuildableOverrides.clear();
 	m_controlBarOverrides.clear();
 
-	// set the hash to be rather large. We need to optimize this value later.
-//	m_objHash.clear();
-//	m_objHash.resize(OBJ_HASH_SIZE);
-	m_objVector.clear();
-	m_objVector.resize(OBJ_HASH_SIZE, NULL);
-
 	m_pauseFrame = 0;
 	m_pauseSound = FALSE;
 	m_pauseMusic = FALSE;
@@ -529,6 +512,13 @@ void GameLogic::reset()
 
 	// destroy all objects
 	destroyAllObjectsImmediate();
+
+	// set the hash to be rather large. We need to optimize this value later.
+#if USING_STLPORT
+	m_objHash.resize(OBJ_HASH_SIZE);
+#else
+	m_objHash.reserve(OBJ_HASH_SIZE);
+#endif
 
 	m_nextObjID = (ObjectID)1;
 
@@ -592,7 +582,6 @@ static Object* placeObjectAtPosition(Int slotNum, AsciiString objectTemplateName
 		obj->setOrientation(obj->getTemplate()->getPlacementViewAngle());
 		obj->setPosition(&pos);
 
-		//DEBUG_LOG(("Placed a starting building for %s at waypoint %s", playerName.str(), waypointName.str()));
 		CRCDEBUG_LOG(("Placed an object for %ls at pos (%g,%g,%g)", pPlayer->getPlayerDisplayName().str(),
 			pos.x, pos.y, pos.z));
 		DUMPCOORD3D(&pos);
@@ -929,7 +918,7 @@ static void populateRandomStartPosition(GameInfo* game)
 				{
 					Coord3D p1 = c1->second;
 					Coord3D p2 = c2->second;
-					startSpotDistance[i][j] = sqrt(sqr(p1.x - p2.x) + sqr(p1.y - p2.y));
+					startSpotDistance[i][j] = WWMath::Sqrt( sqr(p1.x-p2.x) + sqr(p1.y-p2.y) );
 				}
 			}
 			else
@@ -1067,11 +1056,13 @@ static void populateRandomStartPosition(GameInfo* game)
 
 		//choose a starting position
 		Int team = slot->getTeamNumber();
-		if (!hasStartSpotBeenPicked)
-		{	// We're the first real spot.  Pick randomly.
+		if( !hasStartSpotBeenPicked )
+		{
+			// We're the first real spot.  Pick randomly.
 			while (posIdx == -1)
-			{	// This while loop shouldn't be neccessary, since we're first.  Why not, though?
-				posIdx = GameLogicRandomValue(0, numPlayers - 1);
+			{
+				// This while loop shouldn't be neccessary, since we're first.  Why not, though?
+				posIdx = GameLogicRandomValue(0, numPlayers-1);
 				if (game->isStartPositionTaken(posIdx))
 					posIdx = -1;
 			}
@@ -1081,11 +1072,12 @@ static void populateRandomStartPosition(GameInfo* game)
 			taken[posIdx] = TRUE;
 			if (team > -1)
 				teamPosIdx[team] = posIdx;  //remember where this team is
-		}
-		else
-		{	//pick teams far apart, team members close together
-			if (team < 0 || teamPosIdx[team] == -1)  //if team None or team not yet placed
-			{	//pick position furthest from all other teams
+		} else
+		{
+			//pick teams far apart, team members close together
+			if( team < 0  ||  teamPosIdx[ team ] == -1 )  //if team None or team not yet placed
+			{
+				//pick position furthest from all other teams
 				Real farthestDistance = 0.0f;
 				Int farthestIndex = -1;
 				for (posIdx = 0; posIdx < numPlayers; ++posIdx)
@@ -1094,7 +1086,8 @@ static void populateRandomStartPosition(GameInfo* game)
 						continue;  //skip occupied positions
 
 					if (farthestIndex < 0)
-					{	//take this one as best if none else
+					{
+						//take this one as best if none else
 						farthestIndex = posIdx;
 						for (Int n = 0; n < numPlayers; ++n)
 						{
@@ -1103,7 +1096,8 @@ static void populateRandomStartPosition(GameInfo* game)
 						}
 					}
 					else
-					{	//find empty position furthest from all taken positions
+					{
+						//find empty position furthest from all taken positions
 						Real dist = 0.0f;
 						for (Int n = 0; n < numPlayers; ++n)
 						{
@@ -1125,14 +1119,16 @@ static void populateRandomStartPosition(GameInfo* game)
 					teamPosIdx[team] = farthestIndex;  //remember where this team is
 			}
 			else  //team already has a starting position
-			{	//pick position closest to team
+			{
+				//pick position closest to team
 				Real closestDist = FLT_MAX;
 				Int  closestIdx = 0;
 				for (Int n = 0; n < numPlayers; ++n)
 				{
-					Real dist = startSpotDistance[teamPosIdx[team]][n];
-					if (!taken[n] && dist < closestDist)
-					{	//found a better match
+					Real dist = startSpotDistance[ teamPosIdx[team] ][n];
+					if( !taken[n]  &&  dist < closestDist )
+					{
+						//found a better match
 						closestDist = dist;
 						closestIdx = n;
 					}
@@ -1484,11 +1480,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 
 #ifdef DUMP_PERF_STATS
 	GetPrecisionTimer(&endTime64);
-	char Buf[256];
-	sprintf(Buf, "After terrainlogic->loadmap=%f", ((double)(endTime64 - startTime64) / (double)(freq64) * 1000.0));
-	//DEBUG_LOG(("Placed a starting building for %s at waypoint %s", playerName.str(), waypointName.str()));
-	DEBUG_LOG(("%s", Buf));
-#endif
+	DEBUG_LOG(("After terrainlogic->loadmap=%f", ((double)(endTime64-startTime64)/(double)(freq64)*1000.0)));
+	#endif
 
 	Int progressCount = LOAD_PROGRESS_SIDE_POPULATION;
 	if (game)
@@ -1500,7 +1493,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 			TheSidesList->prepareForMP_or_Skirmish();
 		}
 
-		//DEBUG_LOG(("Starting LAN game with %d players", game->getNumPlayers()));
+		//DEBUG_LOG(("Starting LAN game with %d players", TheGameInfo->getNumPlayers()));
 		Dict d;
 		for (int i = 0; i < MAX_SLOTS; ++i)
 		{
@@ -1598,9 +1591,10 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 			d.setInt(TheKey_playerColor, TheMultiplayerSettings->getColor(slot->getColor())->getColor());
 			d.setInt(TheKey_playerNightColor, TheMultiplayerSettings->getColor(slot->getColor())->getNightColor());
 			d.setInt(TheKey_multiplayerStartIndex, slot->getStartPos());
-			//			d.setBool(TheKey_multiplayerIsLocal, slot->isLocalPlayer());
-			//			d.setBool(TheKey_multiplayerIsLocal, slot->getIP() == game->getLocalIP());
-			d.setBool(TheKey_multiplayerIsLocal, slot->isHuman() && (slot->getName().compare(game->getSlot(game->getLocalSlotNum())->getName().str()) == 0));
+//			d.setBool(TheKey_multiplayerIsLocal, slot->isLocalPlayer());
+//			d.setBool(TheKey_multiplayerIsLocal, slot->getIP() == game->getLocalIP());
+			const Bool isLocalPlayer = slot->isHuman() && i == TheGameInfo->getLocalSlotNum();
+			d.setBool(TheKey_multiplayerIsLocal, isLocalPlayer);
 
 			/*
 						if (slot->getIP() == game->getLocalIP())
@@ -1621,9 +1615,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 				}
 			}
 
-			AsciiString slotNameAscii;
-			slotNameAscii.translate(slot->getName());
-			if (slot->isHuman() && game->getSlotNum(slotNameAscii) == game->getLocalSlotNum()) {
+			if (isLocalPlayer)
+			{
 				localSlot = i;
 			}
 			TheSidesList->addSide(&d);
@@ -1862,9 +1855,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 
 #ifdef DUMP_PERF_STATS
 	GetPrecisionTimer(&endTime64);
-	sprintf(Buf, "After terrainlogic->newmap=%f", ((double)(endTime64 - startTime64) / (double)(freq64) * 1000.0));
-	DEBUG_LOG(("%s", Buf));
-#endif
+	DEBUG_LOG(("After terrainlogic->newmap=%f", ((double)(endTime64-startTime64)/(double)(freq64)*1000.0)));
+	#endif
 
 	// Special case, load any bridge map objects.
 	const ThingTemplate* thingTemplate;
@@ -1935,14 +1927,12 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 			if (!slot || !slot->isOccupied())
 				continue;
 
-			AsciiString playerName;
-			playerName.format("player%d", i);
-			Player* player = ThePlayerList->findPlayerWithNameKey(TheNameKeyGenerator->nameToKey(playerName));
+			Player *player = ThePlayerList->getPlayerFromSlotIndex(i);
 
 			if (slot->getPlayerTemplate() == PLAYERTEMPLATE_OBSERVER)
 			{
-				DEBUG_LOG(("Clearing shroud for observer %s in playerList slot %d", playerName.str(), player->getPlayerIndex()));
-				ThePartitionManager->revealMapForPlayerPermanently(player->getPlayerIndex());
+				DEBUG_LOG(("Clearing shroud for observer in slot %d with player index %d", i, player->getPlayerIndex()));
+				ThePartitionManager->revealMapForPlayerPermanently( player->getPlayerIndex() );
 			}
 			else
 			{
@@ -1955,9 +1945,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 
 #ifdef DUMP_PERF_STATS
 	GetPrecisionTimer(&endTime64);
-	sprintf(Buf, "Before loading objects=%f", ((double)(endTime64 - startTime64) / (double)(freq64) * 1000.0));
-	DEBUG_LOG(("%s", Buf));
-#endif
+	DEBUG_LOG(("Before loading objects=%f", ((double)(endTime64-startTime64)/(double)(freq64)*1000.0)));
+	#endif
 
 	Bool useTrees = TheGlobalData->m_useTrees;
 
@@ -2110,9 +2099,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 
 #ifdef DUMP_PERF_STATS
 	GetPrecisionTimer(&endTime64);
-	sprintf(Buf, "After loading objects=%f", ((double)(endTime64 - startTime64) / (double)(freq64) * 1000.0));
-	DEBUG_LOG(("%s", Buf));
-#endif
+	DEBUG_LOG(("After loading objects=%f", ((double)(endTime64-startTime64)/(double)(freq64)*1000.0)));
+	#endif
 
 	progressCount = LOAD_PROGRESS_LOOP_INITIAL_NETWORK_BUILDINGS;
 	// place initial network buildings/units
@@ -2125,9 +2113,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 			if (!slot || !slot->isOccupied())
 				continue;
 
-			AsciiString playerName;
-			playerName.format("player%d", i);
-			Player* player = ThePlayerList->findPlayerWithNameKey(TheNameKeyGenerator->nameToKey(playerName));
+			Player *player = ThePlayerList->getPlayerFromSlotIndex(i);
 
 			if (slot->getPlayerTemplate() == PLAYERTEMPLATE_OBSERVER)
 			{
@@ -2272,9 +2258,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 
 #ifdef DUMP_PERF_STATS
 	GetPrecisionTimer(&endTime64);
-	sprintf(Buf, "After partition manager update=%f", ((double)(endTime64 - startTime64) / (double)(freq64) * 1000.0));
-	DEBUG_LOG(("%s", Buf));
-#endif
+	DEBUG_LOG(("After partition manager update=%f", ((double)(endTime64-startTime64)/(double)(freq64)*1000.0)));
+	#endif
 
 
 	// final step, run newMap for all players
@@ -2318,8 +2303,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 				{
 					rel = ALLIES;
 				}
-				else if (thatPlayer != ThePlayerList->getNeutralPlayer()
-					&& thatPlayer != ThePlayerList->findPlayerWithNameKey(NAMEKEY("PlyrCivilian")))
+				else if (thatPlayer != ThePlayerList->getNeutralPlayer() &&
+					thatPlayer != ThePlayerList->findPlayerWithNameKey(NAMEKEY("PlyrCivilian")))
 				{
 					rel = ENEMIES;
 				}
@@ -2407,9 +2392,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 
 #ifdef DUMP_PERF_STATS
 	GetPrecisionTimer(&endTime64);
-	sprintf(Buf, "After delete load screen=%f", ((double)(endTime64 - startTime64) / (double)(freq64) * 1000.0));
-	DEBUG_LOG(("%s", Buf));
-#endif
+	DEBUG_LOG(("After delete load screen=%f", ((double)(endTime64-startTime64)/(double)(freq64)*1000.0)));
+	#endif
 
 	if (m_gameMode == GAME_SHELL)
 	{
@@ -2549,8 +2533,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 
 #ifdef DUMP_PERF_STATS
 	GetPrecisionTimer(&endTime64);
-	sprintf(Buf, "Total startnewgame=%f", ((double)(endTime64 - startTime64) / (double)(freq64) * 1000.0));
-	DEBUG_LOG(("%s", Buf));
+	DEBUG_LOG(("Total startnewgame=%f", ((double)(endTime64-startTime64)/(double)(freq64)*1000.0)));
 #endif
 
 	//Assume that getting this far means we've successfully entered an online game.
@@ -2631,12 +2614,13 @@ void GameLogic::loadMapINI(AsciiString mapName)
 		return;
 	}
 
-	// back up over the ".map" extension and to the first directory separator
-	char* extension = filename + length - 4;
-	while ((extension > filename) && (*extension != '\\') && (*extension != '/')) {
-		--extension;
+	// cut the map file name off to get the map directory
+	char *separator = getLastPathSeparator(filename);
+	if (separator) {
+		*separator = 0;
+	} else {
+		filename[0] = 0;
 	}
-	*extension = 0;
 
 
 	char fullFledgeFilename[_MAX_PATH];
@@ -3388,23 +3372,51 @@ void GameLogic::friend_awakenUpdateModule(Object* obj, UpdateModulePtr u, Unsign
 	}
 }
 
+#if RTS_GENERALS && RETAIL_COMPATIBLE_CRC
+// ------------------------------------------------------------------------------------------------
+// Find the tunnel tracker that contains the object and destroy all objects in the contain list
+// ------------------------------------------------------------------------------------------------
+void GameLogic::friend_destroyInTunnelContain(const Object* strandedObject)
+{
+	for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
+	{
+		TunnelTracker* tracker = ThePlayerList->getNthPlayer(i)->getTunnelSystem();
+		if (!tracker)
+			continue;
 
+		const ContainedItemsList& list = *tracker->getContainedItemsList();
 
+		const ContainedItemsList::const_iterator it = std::find(list.begin(), list.end(), strandedObject);
+		if (it == list.end())
+			continue;
 
+		while (!list.empty())
+		{
+			Object* obj = list.front();
 
+			tracker->removeFromContain(obj);
 
+			obj->onRemovedFrom(nullptr);
+
+			destroyObject(obj);
+		}
+
+		break;
+	}
+}
+#endif
 
 // ------------------------------------------------------------------------------------------------
 #ifdef DO_UNIT_TIMINGS
 
 void drawGraph(const char* style, Real scale, double value)
 {
-	for (Int t = 0; t < value * scale; ++t)
-	{
-		DEBUG_LOG((style));
-		if (t % 200 == 199)
-			DEBUG_LOG(("..."));
-	}
+  for ( Int t = 0; t < value*scale; ++t)
+  {
+    DEBUG_LOG(("%s", style));
+    if ( t%200 == 199 )
+      DEBUG_LOG(("..."));
+  }
 
 	DEBUG_LOG_RAW(("\n"));
 
@@ -3565,41 +3577,33 @@ static void unitTimings()
 			thingName = "No Object";
 		}
 
-		sprintf(remark, "All %f: (%d ms) for %d %s's\n", timeAll, (Int)(timeAll * 1000 / TIME_FRAMES), TOTAL_UNITS, thingName.str());
-		DEBUG_LOG((remark));
-		drawGraph("@", graphScale, timeAll);
+    DEBUG_LOG(("All %f: (%d ms) for %d %s's\n", timeAll, (Int)(timeAll*1000/TIME_FRAMES), TOTAL_UNITS, thingName.str() ));
+    drawGraph( "@", graphScale, timeAll );
 
-		sprintf(remark, "Without Particles %f\n", timeNoPart);
-		DEBUG_LOG((remark));
-		drawGraph("@", graphScale, timeNoPart);
+		DEBUG_LOG(("Without Particles %f\n", timeNoPart));
+    drawGraph( "@", graphScale, timeNoPart );
 
-		sprintf(remark, "Without Spawn %f  \n", timeNoSpawn);
-		DEBUG_LOG((remark));
-		drawGraph("@", graphScale, timeNoSpawn);
+		DEBUG_LOG(("Without Spawn %f  \n", timeNoSpawn ));
+    drawGraph( "@", graphScale, timeNoSpawn );
 
-		sprintf(remark, "Logic %f \n", timeLogic);
-		DEBUG_LOG((remark));
-		drawGraph("@", graphScale, timeLogic);
+		DEBUG_LOG(("Logic %f \n", timeLogic));
+    drawGraph( "@", graphScale, timeLogic );
 
 
-		sprintf(remark, "DrawCalls for %s \n", thingName.str());
-		DEBUG_LOG((remark));
+		DEBUG_LOG(("DrawCalls for %s \n", thingName.str() ));
 
-		sprintf(remark, "All %f\n", drawCallAll);
-		DEBUG_LOG((remark));
-		drawGraph("#", graphScale, drawCallAll);
+		DEBUG_LOG(("All %f\n", drawCallAll ));
+    drawGraph( "#", graphScale, drawCallAll );
 
-		sprintf(remark, "Without Particles %f\n", drawCallNoPart);
-		DEBUG_LOG((remark));
-		drawGraph("#", graphScale, drawCallNoPart);
+		DEBUG_LOG(("Without Particles %f\n", drawCallNoPart ));
+    drawGraph( "#", graphScale, drawCallNoPart );
 
-		sprintf(remark, "Without Spawn %f \n", drawCallNoSpawn);
-		DEBUG_LOG((remark));
-		drawGraph("#", graphScale, drawCallNoSpawn);
+		DEBUG_LOG(("Without Spawn %f \n", drawCallNoSpawn ));
+    drawGraph( "#", graphScale, drawCallNoSpawn );
 
-		sprintf(remark, "Draw Call Logic %f \n", drawCallLogic);
-		DEBUG_LOG((remark));
-		drawGraph("#", graphScale, drawCallLogic);
+		sprintf(remark, "Draw Call Logic %f \n", drawCallLogic );
+		DEBUG_LOG(("%s", remark));
+    drawGraph( "#", graphScale, drawCallLogic );
 
 
 		if (g_UT_timingLog) {
@@ -3662,8 +3666,8 @@ static void unitTimings()
 			}
 			return;
 		}
-		while (g_UT_curThing->friend_getNextTemplate()
-			&& g_UT_curThing->friend_getNextTemplate()->getName() != SINGLE_UNIT)
+		while (g_UT_curThing->friend_getNextTemplate() &&
+			g_UT_curThing->friend_getNextTemplate()->getName()!=SINGLE_UNIT)
 			g_UT_curThing = g_UT_curThing->friend_getNextTemplate();
 
 	}
@@ -3955,19 +3959,15 @@ void GameLogic::update()
 #endif
 		m_startNewGame = FALSE;
 
-#ifdef DUMP_PERF_STATS
-		char Buf[1024];
+	#ifdef DUMP_PERF_STATS
 		__int64 freq64;
 		GetPrecisionTimerTicksPerSec(&freq64);
 
-		sprintf(Buf, "Texture=%f, Anim=%f, CreateRobj=%f, Load3DAssets=%f",
-			((double)Total_Get_Texture_Time / (double)(freq64) * 1000.0),
-			((double)Total_Get_HAnim_Time / (double)(freq64) * 1000.0),
-			((double)Total_Create_Render_Obj_Time / (double)(freq64) * 1000.0),
-			((double)Total_Load_3D_Assets / (double)(freq64) * 1000.0));
-
-		DEBUG_LOG(("%s", Buf));
-#endif
+		DEBUG_LOG(("Texture=%f, Anim=%f, CreateRobj=%f, Load3DAssets=%f", ((double)Total_Get_Texture_Time/(double)(freq64)*1000.0),
+			((double)Total_Get_HAnim_Time/(double)(freq64)*1000.0),
+			((double)Total_Create_Render_Obj_Time/(double)(freq64)*1000.0),
+			((double)Total_Load_3D_Assets/(double)(freq64)*1000.0)));
+	#endif
 	}
 
 	// send the current time to the GameClient
@@ -3998,6 +3998,12 @@ void GameLogic::update()
 	Bool isMPGameOrReplay = (TheRecorder && TheRecorder->isMultiplayer() && getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE);
 	Bool isSoloGameOrReplay = (TheRecorder && !TheRecorder->isMultiplayer() && getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE);
 	Bool generateForMP = (isMPGameOrReplay && TheGameInfo->getCRCInterval() > 0 && (m_frame % TheGameInfo->getCRCInterval()) == 0);
+#if RETAIL_COMPATIBLE_CRC
+	// TheSuperHackers @info The local player of a network game only goes in game on logic frame 1.
+	// Retail clients therefore never sent the CRC of logic frame 0, and their replays do not contain it.
+	if (generateForMP && m_frame == 0 && rts::isMultiplayerGame(TheRecorder->getGameMode()))
+		generateForMP = FALSE;
+#endif
 #ifdef DEBUG_CRC
 	Bool generateForSolo = isSoloGameOrReplay && ((m_frame && (m_frame % 100 == 0)) ||
 		(getFrame() >= TheCRCFirstFrameToLog && getFrame() < TheCRCLastFrameToLog && (REPLAY_CRC_INTERVAL > 0 && (m_frame % REPLAY_CRC_INTERVAL) == 0)));
@@ -4007,12 +4013,15 @@ void GameLogic::update()
 
 	if (generateForSolo || generateForMP)
 	{
-		m_CRC = getCRC(CRC_RECALC);
-		bool isPlayback = (TheRecorder && TheRecorder->isPlaybackMode());
+		m_CRC = getCRC( CRC_RECALC );
 
-		GameMessage* msg = newInstance(GameMessage)(GameMessage::MSG_LOGIC_CRC);
+		// TheSuperHackers @tweak Caball009 30/09/2026 Playback CRC is now separate from regular CRC,
+		// removing the need for the second parameter used to distinguish them. Older clients can still
+		// parse newer replays because GameMessage::getArgument returns false for the missing playback argument.
+		const bool isPlayback = TheRecorder && TheRecorder->isPlaybackMode();
+		const GameMessage::Type msgType = isPlayback ? GameMessage::MSG_LOGIC_CRC_PLAYBACK : GameMessage::MSG_LOGIC_CRC;
+		GameMessage *msg = newInstance(GameMessage)(msgType);
 		msg->appendIntegerArgument(m_CRC);
-		msg->appendBooleanArgument(isPlayback);
 
 		// TheSuperHackers @info helmutbuhler 13/04/2025
 		// During replay simulation, we bypass TheMessageStream and instead put the CRC message
@@ -4107,8 +4116,8 @@ void GameLogic::update()
 			{
 				USE_PERF_TIMER(GameLogic_update_sleepy)
 
-					//DEBUG_LOG(("calling update %08lx (%d %d)...",update,update->friend_getNextCallFrame(),update->friend_getNextCallPhase()));
-					m_curUpdateModule = u;
+				//DEBUG_LOG(("calling update %08lx (%d %d)...",u,u->friend_getNextCallFrame(),u->friend_getNextCallPhase()));
+				m_curUpdateModule = u;
 
 				sleepLen = u->update();
 				DEBUG_ASSERTCRASH(sleepLen > 0, ("you may not return 0 from update"));
@@ -4233,13 +4242,8 @@ void GameLogic::addObjectToLookupTable(Object* obj)
 	if (obj == NULL)
 		return;
 
-	// add to lookup
-//	m_objHash[ obj->getID() ] = obj;
-	ObjectID newID = obj->getID();
-	while (newID >= m_objVector.size()) // Fail case is hella rare, so faster to double up on size() call
-		m_objVector.resize(m_objVector.size() * 2, NULL);
-
-	m_objVector[newID] = obj;
+	// add to lookup table
+	m_objHash[ obj->getID() ] = obj;
 
 }
 
@@ -4250,13 +4254,11 @@ void GameLogic::removeObjectFromLookupTable(Object* obj)
 {
 
 	// sanity
-	// TheSuperHackers @fix Mauller/Xezon 24/04/2025 Prevent out of range access to vector lookup table
-	if (obj == NULL || static_cast<size_t>(obj->getID()) >= m_objVector.size())
+	if( obj == nullptr )
 		return;
 
 	// remove from lookup table
-//	m_objHash.erase( obj->getID() );
-	m_objVector[obj->getID()] = NULL;
+	m_objHash.erase( obj->getID() );
 
 }
 

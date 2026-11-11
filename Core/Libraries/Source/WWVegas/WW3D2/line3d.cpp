@@ -48,12 +48,13 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "line3d.h"
-#include "WW3D2/vertmaterial.h"
-#include "WW3D2/shader.h"
+#include "vertmaterial.h"
+#include "shader.h"
 #include "WWDebug/wwdebug.h"
-#include "WW3D2/ww3d.h"
-#include "WW3D2/rinfo.h"
+#include "ww3d.h"
+#include "rinfo.h"
 #include "dx8wrapper.h"
+#include "Renderer.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "dx8fvf.h"
@@ -273,7 +274,7 @@ void Line3DClass::Render(RenderInfoClass & rinfo)
 	DX8Wrapper::Set_Material(vm);
 	REF_PTR_RELEASE(vm);
 
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Transform);
+	Renderer::Set_Transform(RenderTransform_World,Transform);
 
 	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,8);
 	{

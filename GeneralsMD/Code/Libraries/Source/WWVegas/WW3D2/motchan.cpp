@@ -50,6 +50,7 @@
 #include "WWLib/Vector.h"
 #include "WWMath/wwmath.h"
 #include "WWMath/quat.h"
+#include <Utility/bit_adapter.h>
 //#include <Windows.h>
 // Static Table, for Adaptive Delta Decompressor
 #define FILTER_TABLE_SIZE (256)
@@ -267,7 +268,9 @@ bool BitChannelClass::Load_W3D(ChunkLoadClass & cload)
 {
 	Free();
 
+#ifndef NDEBUG
 	int chunk_size = cload.Cur_Chunk_Length();
+#endif
 
 	W3dBitChannelStruct chan;
 	if (cload.Read(&chan,sizeof(W3dBitChannelStruct)) != sizeof(W3dBitChannelStruct)) {
@@ -428,13 +431,7 @@ void	TimeCodedMotionChannelClass::Get_Vector(float32 frame,float * setvec)
 
   if (pidx == ((NumTimeCodes - 1) * PacketSize))  {
 
-     float32 *frm = (float32 *) &Data[pidx+1];
-
-		for (int i=0; i < VectorLen; i++)  {
-
-	   	setvec[i] = frm[i];
-
-	  }
+     memcpy(setvec, &Data[pidx+1], VectorLen * sizeof(float32));
 
      return;
 
@@ -446,10 +443,7 @@ void	TimeCodedMotionChannelClass::Get_Vector(float32 frame,float * setvec)
   uint32 time = Data[p2idx];
 
    if (time & W3D_TIMECODED_BINARY_MOVEMENT_FLAG) {
-		float32 *frm = (float32 *) &Data[pidx+1];
-		for (int i=0; i < VectorLen; i++) {
-			setvec[i] = frm[i];
-		}
+		memcpy(setvec, &Data[pidx+1], VectorLen * sizeof(float32));
 		return;
    }
 
@@ -458,17 +452,27 @@ void	TimeCodedMotionChannelClass::Get_Vector(float32 frame,float * setvec)
 
   float32 ratio = (frame - time1) / (time2 - time1);
 
-  float32 *frame1 = (float32 *) &Data[pidx+1];
-  float32 *frame2 = (float32 *) &Data[p2idx+1];
+  const uint32* frame1 = &Data[pidx+1];
+  const uint32* frame2 = &Data[p2idx+1];
 
   for (int i=0; i < VectorLen; i++)  {
 
-     setvec[i] = WWMath::Lerp(frame1[i],frame2[i],ratio);
+     setvec[i] = WWMath::Lerp(std::bit_cast<float32>(frame1[i]),std::bit_cast<float32>(frame2[i]),ratio);
 
   }
 
 }
 
+
+// Sets a quaternion from the four floats stored in a packet.
+static void Set_Quaternion_From_Packet(Quaternion& q, const uint32 packet[4])
+{
+	q.Set(
+		std::bit_cast<float32>(packet[0]),
+		std::bit_cast<float32>(packet[1]),
+		std::bit_cast<float32>(packet[2]),
+		std::bit_cast<float32>(packet[3]));
+}
 
 Quaternion TimeCodedMotionChannelClass::Get_QuatVector(float32 frame)
 {
@@ -486,9 +490,7 @@ Quaternion TimeCodedMotionChannelClass::Get_QuatVector(float32 frame)
 
 	if (pidx == ((NumTimeCodes - 1) * PacketSize))  {
 
-		float32 *vec = (float32 *) &Data[pidx+1];
-
-		q.Set(vec[0], vec[1], vec[2], vec[3]);
+		Set_Quaternion_From_Packet(q, &Data[pidx+1]);
 
 		return( q );
 
@@ -500,10 +502,7 @@ Quaternion TimeCodedMotionChannelClass::Get_QuatVector(float32 frame)
 	uint32 time = Data[p2idx];
 
 	if (time & W3D_TIMECODED_BINARY_MOVEMENT_FLAG) {
-		// its a binary movement!
-		float32 *vec = (float32 *) &Data[pidx+1];
-
-		q.Set(vec[0], vec[1], vec[2], vec[3]);
+		Set_Quaternion_From_Packet(q, &Data[pidx+1]);
 
 		return( q );
 	}
@@ -513,14 +512,11 @@ Quaternion TimeCodedMotionChannelClass::Get_QuatVector(float32 frame)
 
 	float32 ratio = (frame - time1) / (time2 - time1);
 
-	float32 *frame1 = (float32 *) &Data[pidx+1];
-	float32 *frame2 = (float32 *) &Data[p2idx+1];
+	Quaternion q1;
+	Quaternion q2;
 
-	Quaternion q1(1);
-	Quaternion q2(1);
-
-	q1.Set(frame1[0], frame1[1], frame1[2], frame1[3]);
-	q2.Set(frame2[0], frame2[1], frame2[2], frame2[3]);
+	Set_Quaternion_From_Packet(q1, &Data[pidx+1]);
+	Set_Quaternion_From_Packet(q2, &Data[p2idx+1]);
 
 	Fast_Slerp(q, q1, q2, ratio);
 
@@ -744,7 +740,9 @@ bool TimeCodedBitChannelClass::Load_W3D(ChunkLoadClass & cload)
 {
 	Free();
 
+#ifndef NDEBUG
 	int chunk_size = cload.Cur_Chunk_Length();
+#endif
 
 	W3dTimeCodedBitChannelStruct chan;
 	if (cload.Read(&chan,sizeof(W3dTimeCodedBitChannelStruct)) != sizeof(W3dTimeCodedBitChannelStruct)) {
@@ -861,7 +859,7 @@ AdaptiveDeltaMotionChannelClass::AdaptiveDeltaMotionChannelClass() :
 			//ratio = ((ratio + 1.0f) / 128.0f);
 			ratio/=((float) FILTER_TABLE_GEN_SIZE);
 
-			filtertable[i + FILTER_TABLE_GEN_START] = 1.0f - WWMath::Sin( DEG_TO_RAD(90.0f * ratio));
+			filtertable[i + FILTER_TABLE_GEN_START] = 1.0f - WWMath::Sinf_Legacy( DEG_TO_RAD(90.0f * ratio));
 		}
 
 		table_valid = true;
@@ -968,7 +966,7 @@ bool AdaptiveDeltaMotionChannelClass::Load_W3D(ChunkLoadClass & cload)
 void AdaptiveDeltaMotionChannelClass::decompress(uint32 frame_idx, float *outdata)
 {
 	// Start Over from the beginning
-	float *base	= (float *) &Data[0];	// pointer to our true know beginning values
+	const uint32* base	= &Data[0];	// pointer to our true know beginning values
 
 	bool done = false;
 
@@ -978,7 +976,7 @@ void AdaptiveDeltaMotionChannelClass::decompress(uint32 frame_idx, float *outdat
 		pPacket+= (sizeof(float) * VectorLen);					// skip non-compressed header information
 		pPacket+= PACKET_SIZE * vi;								// skip to the appropriate packet start
 
-		float last_value = base[vi];
+		float last_value = std::bit_cast<float>(base[vi]);
 
 		for (uint32 frame=1; frame<=frame_idx;) {
 			// Frame Loop
@@ -1044,8 +1042,7 @@ void AdaptiveDeltaMotionChannelClass::decompress(uint32 src_idx, float *srcdata,
    assert(src_idx < frame_idx);
    src_idx++;
 
-	float *base	= (float *) &Data[0];	// pointer to our true know beginning values
-   base += VectorLen;						// skip header information
+	const uint32* base	= &Data[VectorLen];	// skip header information
 
 	bool done = false;
 
@@ -1295,9 +1292,9 @@ return;
 		int ivalue=WWMath::Float_To_Int_Floor(value);
 		CompressedData[i]=(unsigned short)(ivalue);
 
-		float new_scale=ValueScale/65535.0f;
-		float new_value=int(CompressedData[i]);
-		float new_float = new_value*new_scale+ValueOffset;
+//		float new_scale=ValueScale/65535.0f;
+//		float new_value=int(CompressedData[i]);
+//		float new_float = new_value*new_scale+ValueOffset;
 //			if (fabs(new_float-Data[i])>ValueScale/65536.0f) {
 //				int ii=0;
 //			}

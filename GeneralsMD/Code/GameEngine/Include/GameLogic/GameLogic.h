@@ -36,6 +36,7 @@
 #include "Common/ObjectStatusTypes.h"
 #include "GameNetwork/NetworkDefs.h"
 #include "GameLogic/AI.h"
+#include "GameLogic/GameMode.h"
 #include "GameLogic/Module/UpdateModule.h"	// needed for DIRECT_UPDATEMODULE_ACCESS
 
 #include "../NextGenMP_defines.h"
@@ -70,20 +71,6 @@ enum BuildableStatus CPP_11(: Int);
 
 typedef const CommandButton* ConstCommandButtonPtr;
 
-// What kind of game we're in.
-enum GameMode CPP_11(: Int)
-{
-	GAME_SINGLE_PLAYER,
-		GAME_LAN,
-		GAME_SKIRMISH,
-		GAME_REPLAY,
-		GAME_SHELL,
-		GAME_INTERNET,
-		GAME_NONE
-};
-
-const char* toString(GameMode mode);
-
 enum
 {
 	CRC_CACHED,
@@ -92,9 +79,9 @@ enum
 
 
 /// Function pointers for use by GameLogic callback functions.
-typedef void (*GameLogicFuncPtr)(Object* obj, void* userData);
-//typedef std::hash_map<ObjectID, Object *, rts::hash<ObjectID>, rts::equal_to<ObjectID> > ObjectPtrHash;
-//typedef ObjectPtrHash::const_iterator ObjectPtrIter;
+typedef void (*GameLogicFuncPtr)( Object *obj, void *userData );
+typedef std::hash_map<ObjectID, Object *, rts::hash<ObjectID>, rts::equal_to<ObjectID>/**/> ObjectPtrHash;
+typedef ObjectPtrHash::const_iterator ObjectPtrIter;
 
 typedef std::vector<Object*> ObjectPtrVector;
 
@@ -184,17 +171,15 @@ public:
 	void setGameMode( GameMode mode );
 	GameMode getGameMode();
 
-	Bool isInGame(); // Includes Shell Game
-	Bool isInLanGame();
-	Bool isInSinglePlayerGame();
-	Bool isInSkirmishGame();
-	Bool isInReplayGame();
-	Bool isInInternetGame();
-	Bool isInShellGame();
-	Bool isInMultiplayerGame();
+	Bool isInGame() const; // Includes Shell Game
+	Bool isInLanGame() const;
+	Bool isInSinglePlayerGame() const;
+	Bool isInSkirmishGame() const;
+	Bool isInReplayGame() const;
+	Bool isInInternetGame() const;
+	Bool isInShellGame() const;
+	Bool isInMultiplayerGame() const;
 	Bool isInInteractiveGame() const;
-
-	static Bool isInInteractiveGame(GameMode mode) { return mode != GAME_NONE && mode != GAME_SHELL; }
 
 	//Kris: Cut isLoadingGame() and replaced with isLoadingMap() and isLoadingSave() -- reason: nomenclature
 	//Bool isLoadingGame() const { return m_loadingScene; }		// This is the old function that isn't very clear on it's definition.
@@ -279,6 +264,10 @@ public:
 
 	Bool isQuitToDesktopRequested() const { return m_quitToDesktopAfterMatch; }
 
+#if RTS_GENERALS && RETAIL_COMPATIBLE_CRC
+	void friend_destroyInTunnelContain(const Object* strandedObject);
+#endif
+
 protected:
 
 	// snapshot methods
@@ -309,6 +298,7 @@ private:
 
 	bool onNewGame(GameMessage *msg);
 	bool onClearGameData(GameMessage *msg, AIGroupPtr &currentlySelectedGroup);
+	bool onLogicCrcForPlayback(GameMessage *msg);
 	bool onBeginPathBuild(GameMessage *msg);
 	bool onEndPathBuild(GameMessage *msg);
 	bool onSetRallyPoint(GameMessage *msg);
@@ -432,8 +422,7 @@ private:
 	WindowLayout* m_background;
 
 	Object* m_objList;																			///< All of the objects in the world.
-	//	ObjectPtrHash m_objHash;																///< Used for ObjectID lookups
-	ObjectPtrVector m_objVector;
+	ObjectPtrHash m_objHash;																///< Used for ObjectID lookups
 
 	// this is a vector, but is maintained as a priority queue.
 	// never modify it directly; please use the proper access methods.
@@ -514,6 +503,11 @@ private:
 	void xferObjectTOC( Xfer *xfer );												///< save/load object TOC for current state of map
 	void prepareLogicForObjectLoad();									///< prepare engine for object data from game file
 
+#if RTS_GENERALS && defined(_MSC_VER) && _MSC_VER < 1300
+public:
+	Bool m_onUnitProducedZeroInit;
+#endif
+
 };
 
 // INLINE /////////////////////////////////////////////////////////////////////////////////////////
@@ -523,21 +517,21 @@ inline void GameLogic::setHeight( Real height ) { m_height = height; }
 inline Real GameLogic::getHeight() { return m_height; }
 inline UnsignedInt GameLogic::getFrame() { return m_frame; }
 
-inline Bool GameLogic::isInGame() { return m_gameMode != GAME_NONE; }
 inline GameMode GameLogic::getGameMode() { return m_gameMode; }
-inline Bool GameLogic::isInLanGame() { return (m_gameMode == GAME_LAN); }
-inline Bool GameLogic::isInSkirmishGame() { return (m_gameMode == GAME_SKIRMISH); }
-inline Bool GameLogic::isInMultiplayerGame() { return (m_gameMode == GAME_LAN) || (m_gameMode == GAME_INTERNET) ; }
+inline Bool GameLogic::isInGame() const { return rts::isGame(m_gameMode); }
+inline Bool GameLogic::isInLanGame() const { return rts::isLanGame(m_gameMode); }
+inline Bool GameLogic::isInSkirmishGame() const { return rts::isSkirmishGame(m_gameMode); }
+inline Bool GameLogic::isInReplayGame() const { return rts::isReplayGame(m_gameMode); }
+inline Bool GameLogic::isInInternetGame() const { return rts::isInternetGame(m_gameMode); }
+inline Bool GameLogic::isInShellGame() const { return rts::isShellGame(m_gameMode); }
+inline Bool GameLogic::isInMultiplayerGame() const { return rts::isMultiplayerGame(m_gameMode); }
+inline Bool GameLogic::isInInteractiveGame() const { return rts::isInteractiveGame(m_gameMode); }
 
 #if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
 inline UnsignedInt GameLogic::getFrameLegacy(void) { return m_frameLegacy; }
 inline UnsignedInt GameLogic::getFrameLegacyLast(void) { return m_frameLegacyLast; }
 inline bool GameLogic::HasLegacyFrameAdvanced(void) { return m_frameLegacy != m_frameLegacyLast; }
 #endif
-inline Bool GameLogic::isInInteractiveGame() const { return isInInteractiveGame(m_gameMode); }
-inline Bool GameLogic::isInReplayGame() { return (m_gameMode == GAME_REPLAY); }
-inline Bool GameLogic::isInInternetGame() { return (m_gameMode == GAME_INTERNET); }
-inline Bool GameLogic::isInShellGame() { return (m_gameMode == GAME_SHELL); }
 inline UnsignedShort GameLogic::getSuperweaponRestriction() const { return m_superweaponRestriction; }
 
 inline Object* GameLogic::findObjectByID( ObjectID id )
@@ -545,21 +539,11 @@ inline Object* GameLogic::findObjectByID( ObjectID id )
 	if( id == INVALID_ID )
 		return nullptr;
 
-//	ObjectPtrHash::iterator it = m_objHash.find(id);
-//	if (it == m_objHash.end())
-//		return nullptr;
-//
-//	return (*it).second;
-	if( (size_t)id < m_objVector.size() )
-	//	ObjectPtrHash::iterator it = m_objHash.find(id);
-	//	if (it == m_objHash.end())
-	//		return NULL;
-	//
-	//	return (*it).second;
-	if ((size_t)id < m_objVector.size())
-		return m_objVector[(size_t)id];
+	ObjectPtrHash::iterator it = m_objHash.find(id);
+	if (it == m_objHash.end())
+		return nullptr;
 
-	return NULL;
+	return (*it).second;
 }
 
 

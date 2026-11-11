@@ -26,6 +26,8 @@
 #include "wdumpdoc.h"
 #include "wdview.h"
 
+#include "Lib/Debug.h"
+
 #include "fcntl.h"
 
 #ifdef RTS_DEBUG
@@ -36,11 +38,6 @@ static char THIS_FILE[] = __FILE__;
 
 
 HINSTANCE ApplicationHInstance = nullptr;  ///< our application instance
-
-/// just to satisfy the game libraries we link to
-HWND ApplicationHWnd = nullptr;
-
-const char *gAppPrefix = "wd_";
 
 // Where are the default string files?
 const char *g_strFile = "data\\Generals.str";
@@ -105,6 +102,13 @@ class CWDumpCommandLineInfo : public CCommandLineInfo
 
 BOOL CWdumpApp::InitInstance()
 {
+	DEBUG_INIT(DEBUG_FLAGS_DEFAULT);
+
+	// TheSuperHackers @fix MFC adds a document opened from a path to the recent items
+	// of the Windows shell, which needs COM and throws an exception without it.
+	if (!AfxOleInit())
+		return FALSE;
+
 	// Standard initialization
 	// If you are not using these features and wish to reduce the size
 	//  of your final executable, you should remove from the following
@@ -145,13 +149,7 @@ BOOL CWdumpApp::InitInstance()
 
 	if(NoWindow) {
 		if(cmdInfo.m_nShellCommand == CWDumpCommandLineInfo::FileOpen) {
-			const char *c = strrchr(cmdInfo.m_strFileName, '\\');
-			if(c == nullptr)
-				c = (LPCTSTR) cmdInfo.m_strFileName;
-			if(*c == '\\')
-				c++;
-
-			Filename = c;
+			Filename = getFileName((LPCTSTR)cmdInfo.m_strFileName);
 
 
 
@@ -177,7 +175,7 @@ BOOL CWdumpApp::InitInstance()
 			}
 */
 
-			CWdumpDoc *doc = (CWdumpDoc *) pDocTemplate->OpenDocumentFile(cmdInfo.m_strFileName, FALSE);
+			pDocTemplate->OpenDocumentFile(cmdInfo.m_strFileName, FALSE);
 
 /*			if(info.hStdOutput == nullptr) {
 				printf("Press return to close this window..");
@@ -205,6 +203,13 @@ BOOL CWdumpApp::InitInstance()
 	doc->UpdateAllViews(nullptr);
 
 	return TRUE;
+}
+
+int CWdumpApp::ExitInstance()
+{
+	DEBUG_SHUTDOWN();
+
+	return CWinApp::ExitInstance();
 }
 
 /////////////////////////////////////////////////////////////////////////////

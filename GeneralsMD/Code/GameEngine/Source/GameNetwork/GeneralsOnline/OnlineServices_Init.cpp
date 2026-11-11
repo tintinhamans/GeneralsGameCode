@@ -18,7 +18,6 @@
 #include <mutex>
 #include <utility>
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "GameNetwork/GeneralsOnline/Vendor/stb_image/stb_image_write.h"
 #include "GameNetwork/GeneralsOnline/Vendor/stb_image/stb_image_resize.h"

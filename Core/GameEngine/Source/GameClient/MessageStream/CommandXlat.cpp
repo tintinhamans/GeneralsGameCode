@@ -342,8 +342,6 @@ bool changeLogicTimeScale(FpsValueChange change)
 }
 
 
-static Bool isSystemMessage( const GameMessage *msg );
-
 enum{ DROPPED_MAX_PARTICLE_COUNT = 1000};
 
 static Bool canSelectionSalvage( const Object *targetObj)
@@ -477,6 +475,10 @@ static CanAttackResult canObjectForceAttack( Object *obj, const Object *victim, 
 //-------------------------------------------------------------------------------------------------
 static CanAttackResult canAnyForceAttack(const DrawableList *allSelected, const Object *victim, const Coord3D *pos )
 {
+	// TheSuperHackers @bugfix WebbontheWeb 06/10/2026 Checks all selected units instead of just first one,
+	// so a unit without a weapon doesn't prevent the entire group from force attacking.
+	CanAttackResult bestResult = ATTACKRESULT_NOT_POSSIBLE;
+
 	// check to make sure that allSelected can attack obj.
 	for (DrawableListCIt cit = allSelected->begin(); cit != allSelected->end(); ++cit)
 	{
@@ -492,10 +494,18 @@ static CanAttackResult canAnyForceAttack(const DrawableList *allSelected, const 
 			continue;
 		}
 
-		return canObjectForceAttack( obj, victim, pos );
+		const CanAttackResult result = canObjectForceAttack( obj, victim, pos );
+		if (result > bestResult)
+		{
+			bestResult = result;
+			if (bestResult == ATTACKRESULT_POSSIBLE)
+			{
+				break;
+			}
+		}
 	}
 
-	return ATTACKRESULT_NOT_POSSIBLE;
+	return bestResult;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -733,7 +743,9 @@ void pickAndPlayUnitVoiceResponse( const DrawableList *list, GameMessage::Type m
 					//Low priority sounds -- only do this if uninitialized.
 					if( info && info->m_air )
 						soundToPlayPtr = templ->getVoiceAttackAir();
-					else
+
+					// TheSuperHackers @tweak Stubbjax 31/10/2026 Fall back to VoiceAttack if VoiceAttackAir is invalid.
+					if (!soundToPlayPtr || !TheAudio->isValidAudioEvent(soundToPlayPtr))
 						soundToPlayPtr = templ->getVoiceAttack();
 
 					objectWithSound = obj;
@@ -807,8 +819,11 @@ void pickAndPlayUnitVoiceResponse( const DrawableList *list, GameMessage::Type m
 					//Low priority sounds -- only do this if uninitialized.
 					if( info && info->m_air )
 						soundToPlayPtr = templ->getVoiceAttackAir();
-					else
+
+					// TheSuperHackers @tweak Stubbjax 31/10/2026 Fall back to VoiceAttack if VoiceAttackAir is invalid.
+					if (!soundToPlayPtr || !TheAudio->isValidAudioEvent(soundToPlayPtr))
 						soundToPlayPtr = templ->getVoiceAttack();
+
 					objectWithSound = obj;
 				}
 
@@ -1178,7 +1193,7 @@ GameMessage::Type CommandTranslator::issueAttackCommand( Drawable *target,
 	if( m_teamExists )
 	{
 
-		//DEBUG_LOG(("issuing team-attack cmd against %s",enemy->getTemplate()->getName().str()));
+		//DEBUG_LOG(("issuing team-attack cmd against %s",targetObj->getTemplate()->getName().str()));
 
 		// insert team attack command message into stream
 		switch( command )
@@ -1615,6 +1630,831 @@ GameMessage::Type CommandTranslator::evaluateForceAttack( Drawable *draw, const 
 	return retVal;
 }
 
+void CommandTranslator::resolveContextTarget( Drawable *&draw, Object *&obj, Drawable *&drawableInWay )
+{
+	//This piece of code is used to prevent interaction with unselectable objects or masked objects. When we
+	//call this function, we typically pass in both a position and a drawable (if applicable), so if the
+	//drawable is invalid... then convert it to a position to be evaluated instead.
+	//Added: shrubberies are the exception for interactions...
+	//Removed: GS Took out ObjectStatusUnselectable, since that status only prevents selection, not everything
+	if ( obj == nullptr ||
+		( obj->getStatusBits().test( OBJECT_STATUS_MASKED ) &&
+		!obj->isKindOf(KINDOF_SHRUBBERY) &&
+		!obj->isKindOf(KINDOF_FORCEATTACKABLE) )
+	)
+	{
+		//Nulling out the draw and obj pointer will force the remainder of this code to evaluate
+		//a position interaction.
+		draw = nullptr;
+		obj = nullptr;
+	}
+
+	// If the thing is a mine, and is locally controlled, then we should issue a moveto to its location.
+	if (obj && obj->isLocallyControlled() && obj->isKindOf(KINDOF_MINE))
+	{
+		draw = nullptr;
+		obj = nullptr;
+	}
+
+	if ( TheInGameUI->isInForceMoveToMode() )
+	{
+		//Nulling out the draw and obj pointer will force the remainder of this code to evaluate
+		//a position interaction.
+		draw = nullptr;
+		obj = nullptr;
+	}
+	else if (TheInGameUI->isInForceAttackMode() )
+	{
+		// setting the drawableInWay to draw will allow us to force attack in the issue move command
+		// if there is a location to which we should attack.
+		drawableInWay = draw;
+	}
+}
+
+void CommandTranslator::resolveGuiCommandTarget( const CommandButton *command, Drawable *&draw, Object *&obj )
+{
+	if( obj && obj->isKindOf( KINDOF_SHRUBBERY ) && !BitIsSet( command->getOptions(), ALLOW_SHRUBBERY_TARGET ) )
+	{
+		//If our object is a shrubbery, and we don't allow targeting it... then null it out.
+		//Nulling out the draw and obj pointer will force the remainder of this code to evaluate
+		//a position interaction.
+		draw = nullptr;
+		obj = nullptr;
+	}
+
+	if( obj && obj->isKindOf( KINDOF_MINE ) && !BitIsSet( command->getOptions(), ALLOW_MINE_TARGET ) )
+	{
+		//If our object is a mine, and we don't allow targeting it... then null it out.
+		//Nulling out the draw and obj pointer will force the remainder of this code to evaluate
+		//a position interaction.
+		draw = nullptr;
+		obj = nullptr;
+	}
+
+	//Kris: September 27, 2002
+	//Added relationship tests to make sure we're not attempting a context-command on a restricted relationship.
+	//This case prevents rebels from using tranq darts on allies.
+	if( obj && BitIsSet( command->getOptions(), COMMAND_OPTION_NEED_OBJECT_TARGET ) )
+	{
+		Relationship relationship = ThePlayerList->getLocalPlayer()->getRelationship( obj->getTeam() );
+
+		switch( relationship )
+		{
+			case ALLIES:
+				if( !BitIsSet( command->getOptions(), NEED_TARGET_ALLY_OBJECT ) )
+				{
+					draw = nullptr;
+					obj = nullptr;
+				}
+				break;
+			case ENEMIES:
+				if( !BitIsSet( command->getOptions(), NEED_TARGET_ENEMY_OBJECT ) )
+				{
+					draw = nullptr;
+					obj = nullptr;
+				}
+				break;
+			case NEUTRAL:
+				if( !BitIsSet( command->getOptions(), NEED_TARGET_NEUTRAL_OBJECT ) )
+				{
+					draw = nullptr;
+					obj = nullptr;
+				}
+				break;
+		}
+	}
+}
+
+GameMessage::Type CommandTranslator::handleWaypointModeCommand( const Coord3D *pos, Drawable *draw, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	//Override any *other* commands with waypoint commands.
+	if( type == DO_COMMAND || type == EVALUATE_ONLY )
+	{
+		if( TheTerrainLogic )
+		{
+			msgType = issueMoveToLocationCommand( pos, draw, type );
+		}
+	}
+	else
+	{
+		msgType = GameMessage::MSG_ADD_WAYPOINT_HINT;
+		GameMessage* hintMessage = TheMessageStream->appendMessage( msgType );
+		hintMessage->appendLocationArgument( *pos );
+	}
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleGuiCommand( const CommandButton *command, Drawable *draw, Object *obj, const Coord3D *pos, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	resolveGuiCommandTarget( command, draw, obj );
+
+	Bool currentlyValid = FALSE;
+	ObjectID objectID = obj ? obj->getID() : INVALID_ID;
+	switch( command->getCommandType() )
+	{
+		//Kris: June 06, 2002
+		//This is a GUI command button that triggers a mode. In any of these modes, only one specific action
+		//can occur. If the mouse isn't over a valid target, then the conditions aren't met and the code will
+		//cause an invalid version of the cursor to be shown -- and should the user click, the action won't take place.
+		case GUICOMMANDMODE_CONVERT_TO_CARBOMB:
+			currentlyValid = TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_CONVERT_OBJECT_TO_CARBOMB, obj, InGameUI::SELECTION_ANY );
+			break;
+		case GUICOMMANDMODE_HIJACK_VEHICLE:
+			currentlyValid = TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_HIJACK_VEHICLE, obj, InGameUI::SELECTION_ANY );
+			break;
+		case GUICOMMANDMODE_SABOTAGE_BUILDING:
+			currentlyValid = TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_SABOTAGE_BUILDING, obj, InGameUI::SELECTION_ANY );
+			break;
+#ifdef ALLOW_SURRENDER
+		case GUICOMMANDMODE_PICK_UP_PRISONER:
+			currentlyValid = TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_PICK_UP_PRISONER, obj, InGameUI::SELECTION_ANY );
+			break;
+#endif
+		case GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT:
+		{
+			Object* unit = ThePlayerList->getLocalPlayer()->findMostReadyShortcutSpecialPowerOfType( command->getSpecialPowerTemplate()->getSpecialPowerType() );
+			if( unit )
+				currentlyValid = TheInGameUI->canSelectedObjectsDoSpecialPower( command, obj, pos, InGameUI::SELECTION_ANY, command->getOptions(), unit );
+			else
+				currentlyValid = false;
+			break;
+		}
+		case GUI_COMMAND_SPECIAL_POWER:
+			currentlyValid = TheInGameUI->canSelectedObjectsDoSpecialPower( command, obj, pos, InGameUI::SELECTION_ANY, command->getOptions(), nullptr );
+			break;
+		case GUI_COMMAND_FIRE_WEAPON:
+			currentlyValid = TheInGameUI->canSelectedObjectsEffectivelyUseWeapon( command, obj, pos, InGameUI::SELECTION_ANY );
+			break;
+		case GUI_COMMAND_COMBATDROP:
+			currentlyValid = !obj ? TRUE : TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_COMBATDROP_INTO, obj, InGameUI::SELECTION_ANY );
+			break;
+	}
+
+	if( currentlyValid )
+	{
+		if( type == DO_COMMAND || type == EVALUATE_ONLY )
+		{
+			switch( command->getCommandType() )
+			{
+				case GUICOMMANDMODE_CONVERT_TO_CARBOMB:
+				case GUICOMMANDMODE_HIJACK_VEHICLE:
+				case GUICOMMANDMODE_SABOTAGE_BUILDING:
+					msgType = createEnterMessage( draw, type );
+					break;
+#ifdef ALLOW_SURRENDER
+				case GUICOMMANDMODE_PICK_UP_PRISONER:
+					msgType = issueAttackCommand( draw, type, command->getCommandType() );
+					break;
+#endif
+				case GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT:
+				{
+					Object* unit = ThePlayerList->getLocalPlayer()->findMostReadyShortcutSpecialPowerOfType( command->getSpecialPowerTemplate()->getSpecialPowerType() );
+					if( unit )
+						msgType = issueSpecialPowerCommand( command, type, draw, pos, unit );
+					break;
+				}
+				case GUI_COMMAND_SPECIAL_POWER://lorenzen
+					msgType = issueSpecialPowerCommand( command, type, draw, pos, nullptr );
+					break;
+				case GUI_COMMAND_FIRE_WEAPON:
+					msgType = issueFireWeaponCommand( command, type, draw, pos );
+					break;
+				case GUI_COMMAND_COMBATDROP:
+					msgType = issueCombatDropCommand( command, type, draw, pos );
+					break;
+			}
+
+			// null out the GUI command if we're actually doing something
+			if( type == DO_COMMAND )
+			{
+				TheInGameUI->setGUICommand( nullptr );
+			}
+
+		}
+		else
+		{
+			msgType = GameMessage::MSG_VALID_GUICOMMAND_HINT;
+			GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
+			hintMessage->appendObjectIDArgument( objectID );
+		}
+	}
+	else	// not currently valid
+	{
+		msgType = GameMessage::MSG_INVALID_GUICOMMAND_HINT;
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
+		hintMessage->appendObjectIDArgument( objectID );
+	}
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleSpecialPowerConstructCommand( const CommandButton *command, Drawable *draw, const Coord3D *pos, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	//We're using the build placement interface to determine where to build our special power item.
+	//Because of that, we only care about DO_COMMAND. The context evaluation and hint feedback system
+	//is already taken care of. But what we need to do is trigger the special power to actually build
+	//the object and reset the timer.
+	if( type == DO_COMMAND )
+	{
+		switch( command->getCommandType() )
+		{
+			case GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT:
+			{
+				Object* unit = ThePlayerList->getLocalPlayer()->findMostReadyShortcutSpecialPowerOfType( command->getSpecialPowerTemplate()->getSpecialPowerType() );
+				if( unit )
+					msgType = issueSpecialPowerCommand( command, type, draw, pos, unit );
+				break;
+			}
+			case GUI_COMMAND_SPECIAL_POWER://lorenzen
+				msgType = issueSpecialPowerCommand( command, type, draw, pos, nullptr );
+				break;
+		}
+	}
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleSpecialPowerOverrideDestinationCommand( const Coord3D *pos, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	if( type == DO_COMMAND || type == EVALUATE_ONLY )
+	{
+
+		// do the command
+		msgType = GameMessage::MSG_DO_SPECIAL_POWER_OVERRIDE_DESTINATION;
+		if( type == DO_COMMAND )
+		{
+			GameMessage *gameMsg = TheMessageStream->appendMessage( msgType );
+
+			gameMsg->appendLocationArgument( *pos );
+			gameMsg->appendIntegerArgument( SPECIAL_INVALID );
+			gameMsg->appendObjectIDArgument( INVALID_ID );	// no specific source
+
+		}
+
+	}
+	else
+	{
+
+		// generate a hint message
+		msgType = GameMessage::MSG_DO_SPECIAL_POWER_OVERRIDE_DESTINATION_HINT;
+		TheMessageStream->appendMessage( msgType );
+
+	}
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleResumeConstructionCommand( Object *obj, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	if( type == DO_COMMAND || type == EVALUATE_ONLY )
+	{
+
+		// do the command
+		msgType = GameMessage::MSG_RESUME_CONSTRUCTION;
+		if( type == DO_COMMAND )
+		{
+			GameMessage *resumeMsg = TheMessageStream->appendMessage( msgType );
+
+			resumeMsg->appendObjectIDArgument( obj->getID() );
+
+			pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_RESUME_CONSTRUCTION );
+
+		}
+
+	}
+	else
+	{
+
+		// generate a hint message
+		msgType = GameMessage::MSG_RESUME_CONSTRUCTION_HINT;
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
+		hintMessage->appendObjectIDArgument( obj->getID() );
+
+	}
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleDockAtCommand( Object *obj, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	//
+	// The actual logic is simply to AIUpdate::dock with the target, the hint is the
+	// only part that needs to be more specific.
+	//
+	if( type == DO_COMMAND || type == EVALUATE_ONLY )
+	{
+
+		// Give the dock command
+		msgType = GameMessage::MSG_DOCK;
+		if( type == DO_COMMAND )
+		{
+			GameMessage *dockMsg = TheMessageStream->appendMessage( msgType );
+
+			dockMsg->appendObjectIDArgument( obj->getID() );
+
+			// only make sounds if we really did the command messages
+			pickAndPlayUnitVoiceResponse(TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DOCK);
+		}
+
+	}
+	else
+	{
+
+		// make the hint
+		msgType = GameMessage::MSG_DOCK_HINT;
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
+		hintMessage->appendObjectIDArgument( obj->getID() );
+
+	}
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleRepairObjectCommand( Object *obj, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	if( type == DO_COMMAND || type == EVALUATE_ONLY )
+	{
+
+		// do the command
+		msgType = GameMessage::MSG_DO_REPAIR;
+		if( type == DO_COMMAND )
+		{
+			GameMessage *healMsg = TheMessageStream->appendMessage( msgType );
+
+			healMsg->appendObjectIDArgument( obj->getID() );
+
+			pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DO_REPAIR );
+
+		}
+
+	}
+	else
+	{
+
+		// generate a hint message
+		msgType = GameMessage::MSG_DO_REPAIR_HINT;
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
+		hintMessage->appendObjectIDArgument( obj->getID() );
+
+	}
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleGetRepairedAtCommand( Object *obj, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	if( type == DO_COMMAND || type == EVALUATE_ONLY )
+	{
+
+		// do the command
+		msgType = GameMessage::MSG_GET_REPAIRED;
+		if( type == DO_COMMAND )
+		{
+			GameMessage *healMsg = TheMessageStream->appendMessage( msgType );
+
+			healMsg->appendObjectIDArgument( obj->getID() );
+
+
+			pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_GET_REPAIRED );
+
+
+		}
+
+	}
+	else
+	{
+
+		// generate a hint message
+		msgType = GameMessage::MSG_GET_REPAIRED_HINT;
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
+		hintMessage->appendObjectIDArgument( obj->getID() );
+
+	}
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleGetHealedAtCommand( Object *obj, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	if( type == DO_COMMAND || type == EVALUATE_ONLY )
+	{
+
+		// do the command
+		msgType = GameMessage::MSG_GET_HEALED;
+		if( type == DO_COMMAND )
+		{
+			GameMessage *healMsg = TheMessageStream->appendMessage( msgType );
+
+			healMsg->appendObjectIDArgument( obj->getID() );
+
+			pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_GET_HEALED );
+
+		}
+
+	}
+	else
+	{
+
+		// generate hint message
+		msgType = GameMessage::MSG_GET_HEALED_HINT;
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType);
+		hintMessage->appendObjectIDArgument( obj->getID() );
+
+	}
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleHijackVehicleCommand( Drawable *draw, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	if( type == DO_COMMAND || type == EVALUATE_ONLY )
+	{
+
+		// Now, this just tricks the AI  into making the hijacker run towards the target vehicle
+		// I must add a test to keep him from actually entering an enemy vehicle (contained)... Lorenzen
+		msgType = createEnterMessage( draw, type );
+
+	}
+	else
+	{
+
+		msgType = GameMessage::MSG_HIJACK_HINT;
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
+		hintMessage->appendObjectIDArgument( draw->getObject()->getID() );
+
+	}
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleConvertObjectToCarBombCommand( Drawable *draw, Object *obj, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	if( type == DO_COMMAND || type == EVALUATE_ONLY )
+	{
+
+		// issue the command (convert to carbomb is nearly identical to enter)
+		msgType = createEnterMessage( draw, type );
+
+	}
+	else
+	{
+
+		msgType = GameMessage::MSG_CONVERT_TO_CARBOMB_HINT;
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
+		hintMessage->appendObjectIDArgument( obj->getID() );
+
+	}
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleSabotageBuildingCommand( Drawable *draw, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	if( type == DO_COMMAND || type == EVALUATE_ONLY )
+	{
+		msgType = createEnterMessage( draw, type );
+	}
+	else
+	{
+		msgType = GameMessage::MSG_SABOTAGE_HINT;
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
+		hintMessage->appendObjectIDArgument( draw->getObject()->getID() );
+	}
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleSalvageCommand( Object *obj, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	GameMessage *msg;
+
+	if( type == DO_COMMAND || type == EVALUATE_ONLY ) {
+		msgType = GameMessage::MSG_DO_SALVAGE;
+		if (type == DO_COMMAND) {
+			msg = TheMessageStream->appendMessage(msgType);
+			msg->appendLocationArgument(*obj->getPosition());
+			pickAndPlayUnitVoiceResponse(TheInGameUI->getAllSelectedDrawables(), msgType);
+		}
+
+	} else {
+		msgType = GameMessage::MSG_DO_SALVAGE_HINT;
+		msg = TheMessageStream->appendMessage(msgType);
+		msg->appendLocationArgument(*obj->getPosition());
+	}
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleEnterObjectCommand( Drawable *draw, Object *obj, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	if( type == DO_COMMAND || type == EVALUATE_ONLY )
+	{
+
+		// issue the command
+		msgType = createEnterMessage( draw, type );
+
+	}
+	else
+	{
+
+		msgType = GameMessage::MSG_ENTER_HINT;
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
+		hintMessage->appendObjectIDArgument( obj->getID() );
+	}
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleAttackObjectCommand( Drawable *draw, Object *obj, CommandEvaluateType type, GameMessage::Type hintType )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	if( type == DO_COMMAND || type == EVALUATE_ONLY )
+	{
+
+		// issue the attack order
+		msgType = issueAttackCommand( draw, type );
+
+	}
+	else
+	{
+
+		// Generate an Attack hint
+		msgType = hintType;
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
+		hintMessage->appendObjectIDArgument( obj->getID() );
+
+	}
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleCaptureBuildingCommand( Drawable *draw, Object *obj, const Coord3D *pos, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	//@TODO: Kris
+	//PRELIMINARY CODE FOR HOOKING IN AUTO SPECIALS --- WILL BE REDONE!
+	Object *source = TheInGameUI->getFirstSelectedDrawable()->getObject();
+	const CommandSet *set = TheControlBar->findCommandSet( source->getCommandSetString() );
+	if( set )
+	{
+		for( Int i = 0; i < MAX_COMMANDS_PER_SET; i++ )
+		{
+			// get command button
+			const CommandButton *command = set->getCommandButton(i);
+			if( command && command->getCommandType() == GUI_COMMAND_SPECIAL_POWER )
+			{
+				SpecialPowerType spType = command->getSpecialPowerTemplate()->getSpecialPowerType();
+				if( type == DO_COMMAND || type == EVALUATE_ONLY )
+				{
+					if( spType == SPECIAL_BLACKLOTUS_CAPTURE_BUILDING ||
+							spType == SPECIAL_INFANTRY_CAPTURE_BUILDING )
+					{
+						//Issue the capture building command
+						msgType = issueSpecialPowerCommand( command, type, draw, pos, nullptr );
+						break;
+					}
+				}
+				else if( spType == SPECIAL_BLACKLOTUS_CAPTURE_BUILDING )
+				{
+					//Issue the black lotus hack hint for capturing a building.
+					msgType = GameMessage::MSG_HACK_HINT;
+					GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
+					hintMessage->appendObjectIDArgument( obj->getID() );
+				}
+				else if( spType == SPECIAL_INFANTRY_CAPTURE_BUILDING )
+				{
+					//Issue the infantry hint for capturing a building
+					msgType = GameMessage::MSG_CAPTUREBUILDING_HINT;
+					GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
+					hintMessage->appendObjectIDArgument( obj->getID() );
+				}
+			}
+		}
+	}
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleHackCommand( Drawable *draw, Object *obj, const Coord3D *pos, CommandEvaluateType type, SpecialPowerType hackPower )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	if( type == DO_COMMAND || type == EVALUATE_ONLY )
+	{
+		//@TODO: Kris
+		//PRELIMINARY CODE FOR HOOKING IN AUTO SPECIALS --- WILL BE REDONE!
+		Object *source = TheInGameUI->getFirstSelectedDrawable()->getObject();
+		const CommandSet *set = TheControlBar->findCommandSet( source->getCommandSetString() );
+		if( set )
+		{
+			for( Int i = 0; i < MAX_COMMANDS_PER_SET; i++ )
+			{
+				// get command button
+				const CommandButton *command = set->getCommandButton(i);
+				if( command && command->getCommandType() == GUI_COMMAND_SPECIAL_POWER )
+				{
+					SpecialPowerType spType = command->getSpecialPowerTemplate()->getSpecialPowerType();
+					if( spType == hackPower )
+					{
+						msgType = issueSpecialPowerCommand( command, type, draw, pos, nullptr );
+						break;
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		msgType = GameMessage::MSG_HACK_HINT;
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
+		hintMessage->appendObjectIDArgument( obj->getID() );
+	}
+
+	return msgType;
+}
+
+#ifdef ALLOW_SURRENDER
+GameMessage::Type CommandTranslator::handlePickUpPrisonerCommand( Drawable *draw, Object *obj, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	if( type == DO_COMMAND || type == EVALUATE_ONLY )
+	{
+
+		// issue the command
+		msgType = issueAttackCommand( draw, type, GUICOMMANDMODE_PICK_UP_PRISONER );
+
+	}
+	else
+	{
+
+		msgType = GameMessage::MSG_PICK_UP_PRISONER_HINT;
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
+		hintMessage->appendObjectIDArgument( obj->getID() );
+
+	}
+
+	return msgType;
+}
+#endif
+
+GameMessage::Type CommandTranslator::handleSetRallyPointCommand( const Coord3D *pos, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_SET_RALLY_POINT;
+
+	if (type == DO_COMMAND) {
+		const DrawableList *allSelectedDrawables = TheInGameUI->getAllSelectedDrawables();
+
+		for (DrawableList::const_iterator it = allSelectedDrawables->begin(); it != allSelectedDrawables->end(); ++it) {
+			Drawable *draw = (*it);
+			if (draw && draw->getObject()) {
+				GameMessage *newMsg = TheMessageStream->appendMessage(msgType);
+				newMsg->appendObjectIDArgument(draw->getObject()->getID());
+				newMsg->appendLocationArgument(*pos);
+			}
+		}
+	} else if (type == DO_HINT) {
+		msgType = GameMessage::MSG_SET_RALLY_POINT_HINT;
+		GameMessage *hintMessage = TheMessageStream->appendMessage(msgType);
+		hintMessage->appendLocationArgument(*pos);
+	}
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleInvalidShotCommand( const Coord3D *pos )
+{
+	GameMessage::Type msgType = GameMessage::MSG_IMPOSSIBLE_ATTACK_HINT;
+	GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
+	hintMessage->appendLocationArgument( *pos );
+
+	return msgType;
+}
+
+GameMessage::Type CommandTranslator::handleDefaultMoveCommand( Drawable *draw, Drawable *drawableInWay, const Coord3D *pos, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	//
+	// NOTE: If you change this command evaluation function in what it will do
+	// if there is nothing picked ... you might want to edit the logic of the
+	// selection translator in that you can only select objects if there is
+	// no "interesting" command to do with the picked drawable ... which is determined
+	// by what we return in this function by default
+	//
+
+	//Before we issue a move order or hint, check to see if we can even move there!
+	Bool validQuickPath = FALSE;
+	// Make sure to only to the check if the shroud is CLEARED.  If it is fogged or shrouded, SKIP THE CHECK.  jba [3/11/2003]
+	if( ThePartitionManager->getShroudStatusForPlayer( ThePlayerList->getLocalPlayer()->getPlayerIndex(), pos ) != CELLSHROUD_CLEAR )
+	{
+		//If it's in the shroud, pretend we can move there -- skip the check.
+		validQuickPath = TRUE;
+	}
+	else
+	{
+		//Can we path there?
+		const DrawableList *allSelectedDrawables = TheInGameUI->getAllSelectedDrawables();
+		for( DrawableList::const_iterator it = allSelectedDrawables->begin(); it != allSelectedDrawables->end(); ++it )
+		{
+			Object *obj = (*it) ? (*it)->getObject() : nullptr;
+			AIUpdateInterface *ai = obj ? obj->getAI() : nullptr;
+			if( ai )
+			{
+				if ( ai->isQuickPathAvailable( pos ) )
+				{
+					validQuickPath = TRUE;
+					break;
+				}
+				// Wait! there are some units that CAN moveTo positions that Quickpath will reject,
+				// namely, Colonel Burton and the CombatBike. Both have CLIFF locomotors.
+				// We must detect whether the position is valid for these, before just invalidating the cursor,
+				// out of hand.
+				if ( ai->hasLocomotorForSurface( LOCOMOTORSURFACE_CLIFF ) )
+				{
+					if ( TheTerrainLogic->isCliffCell( pos->x, pos->y ) )
+					{
+						validQuickPath = TRUE;// yeah, not really quick, but you know...
+						break;
+					}
+				}
+			}
+
+
+		}
+	}
+
+	if( type == DO_COMMAND || type == EVALUATE_ONLY )
+	{
+		// issue command
+		// Note: If draw is valid, then its one of ours and we don't have something more specific
+		// to do. Therefore, lets not issue a move command, and instead we'll return that there
+		// wasn't a command for us to perform.
+
+		if ( draw == nullptr )
+			msgType = issueMoveToLocationCommand( pos, drawableInWay, type );
+	}
+	else
+	{
+		if( !validQuickPath )
+		{
+			msgType = GameMessage::MSG_DO_INVALID_HINT;
+		}
+		else if( TheInGameUI->isInWaypointMode() )
+		{
+			//Waypoint mode
+			msgType = GameMessage::MSG_ADD_WAYPOINT_HINT;
+		}
+		else if( TheInGameUI->isInAttackMoveToMode() )
+		{
+			//THIS CODE WILL NEVER EVER GET CALLED! -- it's a context command now (READ: rip code out)
+			//Attack move
+			msgType = GameMessage::MSG_DO_ATTACKMOVETO_HINT;
+		}
+		else
+		{
+			//Normal and forced move.
+			msgType = GameMessage::MSG_DO_MOVETO_HINT;
+		}
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
+		hintMessage->appendLocationArgument( *pos );
+
+	}
+
+	return msgType;
+}
+
 // ------------------------------------------------------------------------------------------------
 /** This method and the order of operations in the check here, determine what command would
 	* actually happen (if type parameter == DO_COMMAND) if the user clicked on the drawable
@@ -1629,912 +2469,153 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 {
 	Object *obj = draw ? draw->getObject() : nullptr;
 	Drawable *drawableInWay = draw;
-
-	//This piece of code is used to prevent interaction with unselectable objects or masked objects. When we
-	//call this function, we typically pass in both a position and a drawable (if applicable), so if the
-	//drawable is invalid... then convert it to a position to be evaluated instead.
-	//Added: shrubberies are the exception for interactions...
-	//Removed: GS Took out ObjectStatusUnselectable, since that status only prevents selection, not everything
-	if( obj == nullptr ||
-			( obj->getStatusBits().test( OBJECT_STATUS_MASKED ) &&
-			!obj->isKindOf(KINDOF_SHRUBBERY) && !obj->isKindOf(KINDOF_FORCEATTACKABLE) ) )
-	{
-		//Nulling out the draw and obj pointer will force the remainder of this code to evaluate
-		//a position interaction.
-		draw = nullptr;
-		obj = nullptr;
-	}
-
-	// If the thing is a mine, and is locally controlled, then we should issue a moveto to its location.
-	if (obj && obj->isLocallyControlled() && obj->isKindOf(KINDOF_MINE)) {
-		draw = nullptr;
-		obj = nullptr;
-	}
-
-	if( TheInGameUI->isInForceMoveToMode() )
-	{
-		//Nulling out the draw and obj pointer will force the remainder of this code to evaluate
-		//a position interaction.
-		draw = nullptr;
-		obj = nullptr;
-	} else if (TheInGameUI->isInForceAttackMode() ) {
-		// setting the drawableInWay to draw will allow us to force attack in the issue move command
-		// if there is a location to which we should attack.
-		drawableInWay = draw;
-	}
-
-	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+	resolveContextTarget( draw, obj, drawableInWay );
 
 	// Then we should determine if the game currently prefers selection events. If it does, then return
 	// the invalid message.
-	if (obj) {
-		if (obj->isLocallyControlled() && TheInGameUI->isInPreferSelectionMode()) {
-			return msgType;
-		}
+	if( obj && obj->isLocallyControlled() && TheInGameUI->isInPreferSelectionMode() )
+	{
+		return GameMessage::MSG_INVALID;
 	}
 
 	// Kris: Now that we can select non-controllable units/structures, don't allow any actions to be performed.
 	const CommandButton *command = TheInGameUI->getGUICommand();
 
-	if (command && command->getCommandType() == GUICOMMANDMODE_PLACE_BEACON)
+	if( command && command->getCommandType() == GUICOMMANDMODE_PLACE_BEACON )
 	{
-		msgType = GameMessage::MSG_VALID_GUICOMMAND_HINT;
-		TheMessageStream->appendMessage(msgType);
-	}
-	else if( TheInGameUI->areSelectedObjectsControllable()
-			|| (command && command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT))
-	{
-		GameMessage *hintMessage;
-
-		if( TheInGameUI->isInWaypointMode() )
-		{
-			//Override any *other* commands with waypoint commands.
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-				if( TheTerrainLogic )
-				{
-					msgType = issueMoveToLocationCommand( pos, draw, type );
-				}
-			}
-			else
-			{
-				msgType = GameMessage::MSG_ADD_WAYPOINT_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType );
-				hintMessage->appendLocationArgument( *pos );
-			}
-			return msgType;
-		}
-
-		CanAttackResult result;
-
-		if(command &&
-			(command->isContextCommand()
-				|| command->getCommandType() == GUI_COMMAND_SPECIAL_POWER
-				|| command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT))
-		{
-			if( obj && obj->isKindOf( KINDOF_SHRUBBERY ) && !BitIsSet( command->getOptions(), ALLOW_SHRUBBERY_TARGET ) )
-			{
-				//If our object is a shrubbery, and we don't allow targeting it... then null it out.
-				//Nulling out the draw and obj pointer will force the remainder of this code to evaluate
-				//a position interaction.
-				draw = nullptr;
-				obj = nullptr;
-			}
-
-			if( obj && obj->isKindOf( KINDOF_MINE ) && !BitIsSet( command->getOptions(), ALLOW_MINE_TARGET ) )
-			{
-				//If our object is a mine, and we don't allow targeting it... then null it out.
-				//Nulling out the draw and obj pointer will force the remainder of this code to evaluate
-				//a position interaction.
-				draw = nullptr;
-				obj = nullptr;
-			}
-
-			//Kris: September 27, 2002
-			//Added relationship tests to make sure we're not attempting a context-command on a restricted relationship.
-			//This case prevents rebels from using tranq darts on allies.
-			if( obj && BitIsSet( command->getOptions(), COMMAND_OPTION_NEED_OBJECT_TARGET ) )
-			{
-				Relationship relationship = ThePlayerList->getLocalPlayer()->getRelationship( obj->getTeam() );
-				switch( relationship )
-				{
-					case ALLIES:
-						if( !BitIsSet( command->getOptions(), NEED_TARGET_ALLY_OBJECT ) )
-						{
-							draw = nullptr;
-							obj = nullptr;
-						}
-						break;
-					case ENEMIES:
-						if( !BitIsSet( command->getOptions(), NEED_TARGET_ENEMY_OBJECT ) )
-						{
-							draw = nullptr;
-							obj = nullptr;
-						}
-						break;
-					case NEUTRAL:
-						if( !BitIsSet( command->getOptions(), NEED_TARGET_NEUTRAL_OBJECT ) )
-						{
-							draw = nullptr;
-							obj = nullptr;
-						}
-						break;
-				}
-			}
-
-			Bool currentlyValid = FALSE;
-			ObjectID objectID = obj ? obj->getID() : INVALID_ID;
-			switch( command->getCommandType() )
-			{
-				//Kris: June 06, 2002
-				//This is a GUI command button that triggers a mode. In any of these modes, only one specific action
-				//can occur. If the mouse isn't over a valid target, then the conditions aren't met and the code will
-				//cause an invalid version of the cursor to be shown -- and should the user click, the action won't take place.
-				case GUICOMMANDMODE_CONVERT_TO_CARBOMB:
-					currentlyValid = TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_CONVERT_OBJECT_TO_CARBOMB, obj, InGameUI::SELECTION_ANY );
-					break;
-				case GUICOMMANDMODE_HIJACK_VEHICLE:
-					currentlyValid = TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_HIJACK_VEHICLE, obj, InGameUI::SELECTION_ANY );
-					break;
-				case GUICOMMANDMODE_SABOTAGE_BUILDING:
-					currentlyValid = TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_SABOTAGE_BUILDING, obj, InGameUI::SELECTION_ANY );
-					break;
-#ifdef ALLOW_SURRENDER
-				case GUICOMMANDMODE_PICK_UP_PRISONER:
-					currentlyValid = TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_PICK_UP_PRISONER, obj, InGameUI::SELECTION_ANY );
-					break;
-#endif
-				case GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT:
-				{
-					Object* unit = ThePlayerList->getLocalPlayer()->findMostReadyShortcutSpecialPowerOfType( command->getSpecialPowerTemplate()->getSpecialPowerType() );
-					if( unit )
-						currentlyValid = TheInGameUI->canSelectedObjectsDoSpecialPower( command, obj, pos, InGameUI::SELECTION_ANY, command->getOptions(), unit );
-					else
-						currentlyValid = false;
-					break;
-				}
-				case GUI_COMMAND_SPECIAL_POWER:
-					currentlyValid = TheInGameUI->canSelectedObjectsDoSpecialPower( command, obj, pos, InGameUI::SELECTION_ANY, command->getOptions(), nullptr );
-					break;
-				case GUI_COMMAND_FIRE_WEAPON:
-					currentlyValid = TheInGameUI->canSelectedObjectsEffectivelyUseWeapon( command, obj, pos, InGameUI::SELECTION_ANY );
-					break;
-				case GUI_COMMAND_COMBATDROP:
-					currentlyValid = !obj ? TRUE : TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_COMBATDROP_INTO, obj, InGameUI::SELECTION_ANY );
-					break;
-			}
-
-			if( currentlyValid )
-			{
-				if( type == DO_COMMAND || type == EVALUATE_ONLY )
-				{
-					switch( command->getCommandType() )
-					{
-						case GUICOMMANDMODE_CONVERT_TO_CARBOMB:
-						case GUICOMMANDMODE_HIJACK_VEHICLE:
-						case GUICOMMANDMODE_SABOTAGE_BUILDING:
-							msgType = createEnterMessage( draw, type );
-							break;
-#ifdef ALLOW_SURRENDER
-						case GUICOMMANDMODE_PICK_UP_PRISONER:
-							msgType = issueAttackCommand( draw, type, command->getCommandType() );
-							break;
-#endif
-						case GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT:
-						{
-							Object* unit = ThePlayerList->getLocalPlayer()->findMostReadyShortcutSpecialPowerOfType( command->getSpecialPowerTemplate()->getSpecialPowerType() );
-							if( unit )
-								msgType = issueSpecialPowerCommand( command, type, draw, pos, unit );
-							break;
-						}
-						case GUI_COMMAND_SPECIAL_POWER://lorenzen
-							msgType = issueSpecialPowerCommand( command, type, draw, pos, nullptr );
-							break;
-						case GUI_COMMAND_FIRE_WEAPON:
-							msgType = issueFireWeaponCommand( command, type, draw, pos );
-							break;
-						case GUI_COMMAND_COMBATDROP:
-							msgType = issueCombatDropCommand( command, type, draw, pos );
-							break;
-					}
-
-					// null out the GUI command if we're actually doing something
-					if( type == DO_COMMAND )
-					{
-						TheInGameUI->setGUICommand( nullptr );
-					}
-
-				}
-				else
-				{
-					msgType = GameMessage::MSG_VALID_GUICOMMAND_HINT;
-					hintMessage = TheMessageStream->appendMessage( msgType );
-					hintMessage->appendObjectIDArgument( objectID );
-				}
-			}
-			else	// not currently valid
-			{
-				msgType = GameMessage::MSG_INVALID_GUICOMMAND_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType );
-				hintMessage->appendObjectIDArgument( objectID );
-			}
-
-		}
-		else if( command && (command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_CONSTRUCT
-						 || command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_CONSTRUCT_FROM_SHORTCUT) )
-		{
-			//We're using the build placement interface to determine where to build our special power item.
-			//Because of that, we only care about DO_COMMAND. The context evaluation and hint feedback system
-			//is already taken care of. But what we need to do is trigger the special power to actually build
-			//the object and reset the timer.
-			if( type == DO_COMMAND )
-			{
-				switch( command->getCommandType() )
-				{
-					case GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT:
-					{
-						Object* unit = ThePlayerList->getLocalPlayer()->findMostReadyShortcutSpecialPowerOfType( command->getSpecialPowerTemplate()->getSpecialPowerType() );
-						if( unit )
-							msgType = issueSpecialPowerCommand( command, type, draw, pos, unit );
-						break;
-					}
-					case GUI_COMMAND_SPECIAL_POWER://lorenzen
-						msgType = issueSpecialPowerCommand( command, type, draw, pos, nullptr );
-						break;
-				}
-			}
-		}
-
-
-		// ********************************************************************************************
-		else if( TheInGameUI->canSelectedObjectsOverrideSpecialPowerDestination( pos, InGameUI::SELECTION_ANY, SPECIAL_INVALID ) )
-		{
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-
-				// do the command
-				msgType = GameMessage::MSG_DO_SPECIAL_POWER_OVERRIDE_DESTINATION;
-				if( type == DO_COMMAND )
-				{
-					GameMessage *gameMsg = TheMessageStream->appendMessage( msgType );
-
-					gameMsg->appendLocationArgument( *pos );
-					gameMsg->appendIntegerArgument( SPECIAL_INVALID );
-					gameMsg->appendObjectIDArgument( INVALID_ID );	// no specific source
-
-				}
-
-			}
-			else
-			{
-
-				// generate a hint message
-				msgType = GameMessage::MSG_DO_SPECIAL_POWER_OVERRIDE_DESTINATION_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType );
-
-			}
-		}
-
-		// ********************************************************************************************
-		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_RESUME_CONSTRUCTION, obj, InGameUI::SELECTION_ANY ) )
-		{
-
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-
-				// do the command
-				msgType = GameMessage::MSG_RESUME_CONSTRUCTION;
-				if( type == DO_COMMAND )
-				{
-					GameMessage *resumeMsg = TheMessageStream->appendMessage( msgType );
-
-					resumeMsg->appendObjectIDArgument( obj->getID() );
-
-					pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_RESUME_CONSTRUCTION );
-
-				}
-
-			}
-			else
-			{
-
-				// generate a hint message
-				msgType = GameMessage::MSG_RESUME_CONSTRUCTION_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType );
-				hintMessage->appendObjectIDArgument( obj->getID() );
-
-			}
-
-		}
-		// ********************************************************************************************
-		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_DOCK_AT,
-																											obj,
-																											InGameUI::SELECTION_ALL ) )
-		{
-
-			//
-			// The actual logic is simply to AIUpdate::dock with the target, the hint is the
-			// only part that needs to be more specific.
-			//
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-
-				// Give the dock command
-				msgType = GameMessage::MSG_DOCK;
-				if( type == DO_COMMAND )
-				{
-					GameMessage *dockMsg = TheMessageStream->appendMessage( msgType );
-
-					dockMsg->appendObjectIDArgument( obj->getID() );
-
- 					// only make sounds if we really did the command messages
- 					pickAndPlayUnitVoiceResponse(TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DOCK);
-				}
-
-			}
-			else
-			{
-
-				// make the hint
-				msgType = GameMessage::MSG_DOCK_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType );
-				hintMessage->appendObjectIDArgument( obj->getID() );
-
-			}
-
-		}
-		// ********************************************************************************************
-		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_REPAIR_OBJECT, obj, InGameUI::SELECTION_ANY ) )
-		{
-
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-
-				// do the command
-				msgType = GameMessage::MSG_DO_REPAIR;
-				if( type == DO_COMMAND )
-				{
-					GameMessage *healMsg = TheMessageStream->appendMessage( msgType );
-
-					healMsg->appendObjectIDArgument( obj->getID() );
-
-					pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DO_REPAIR );
-
-				}
-
-			}
-			else
-			{
-
-				// generate a hint message
-				msgType = GameMessage::MSG_DO_REPAIR_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType );
-				hintMessage->appendObjectIDArgument( obj->getID() );
-
-			}
-
-		}
-		// ********************************************************************************************
-		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_GET_REPAIRED_AT, obj, InGameUI::SELECTION_ANY ) )
-		{
-
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-
-				// do the command
-				msgType = GameMessage::MSG_GET_REPAIRED;
-				if( type == DO_COMMAND )
-				{
-					GameMessage *healMsg = TheMessageStream->appendMessage( msgType );
-
-					healMsg->appendObjectIDArgument( obj->getID() );
-
-
-					pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_GET_REPAIRED );
-
-
-				}
-
-			}
-			else
-			{
-
-				// generate a hint message
-				msgType = GameMessage::MSG_GET_REPAIRED_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType );
-				hintMessage->appendObjectIDArgument( obj->getID() );
-
-			}
-
-		}
-		// ********************************************************************************************
-		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_GET_HEALED_AT, obj, InGameUI::SELECTION_ANY ) )
-		{
-
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-
-				// do the command
-				msgType = GameMessage::MSG_GET_HEALED;
-				if( type == DO_COMMAND )
-				{
-					GameMessage *healMsg = TheMessageStream->appendMessage( msgType );
-
-					healMsg->appendObjectIDArgument( obj->getID() );
-
-					pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_GET_HEALED );
-
-				}
-
-			}
-			else
-			{
-
-				// generate hint message
-				msgType = GameMessage::MSG_GET_HEALED_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType);
-				hintMessage->appendObjectIDArgument( obj->getID() );
-
-			}
-
-		}
-		// ********************************************************************************************
-		else if( draw && draw->getObject() && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_HIJACK_VEHICLE,
-																											draw->getObject(),
-																											InGameUI::SELECTION_ANY ) )
-		{
-
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-
-				// Now, this just tricks the AI  into making the hijacker run towards the target vehicle
-        // I must add a test to keep him from actually entering an enemy vehicle (contained)... Lorenzen
-        msgType = createEnterMessage( draw, type );
-
-			}
-			else
-			{
-
-				msgType = GameMessage::MSG_HIJACK_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType );
-				hintMessage->appendObjectIDArgument( draw->getObject()->getID() );
-
-			}
-
-		}
-		// ********************************************************************************************
-		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_CONVERT_OBJECT_TO_CARBOMB, obj, InGameUI::SELECTION_ANY ) )
-		{
-
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-
-				// issue the command (convert to carbomb is nearly identical to enter)
-				msgType = createEnterMessage( draw, type );
-
-			}
-			else
-			{
-
-				msgType = GameMessage::MSG_CONVERT_TO_CARBOMB_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType );
-				hintMessage->appendObjectIDArgument( obj->getID() );
-
-			}
-		}
-		// ********************************************************************************************
-		else if( draw && draw->getObject() && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_SABOTAGE_BUILDING,
-																											draw->getObject(),
-																											InGameUI::SELECTION_ANY ) )
-		{
-
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-        msgType = createEnterMessage( draw, type );
-			}
-			else
-			{
-				msgType = GameMessage::MSG_SABOTAGE_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType );
-				hintMessage->appendObjectIDArgument( draw->getObject()->getID() );
-			}
-
-		}
-		// ********************************************************************************************
-		else if( draw && !TheInGameUI->isInForceAttackMode() && canSelectionSalvage(obj) )
-		{
-			GameMessage *msg;
-
-			if( type == DO_COMMAND || type == EVALUATE_ONLY ) {
-				msgType = GameMessage::MSG_DO_SALVAGE;
-				if (type == DO_COMMAND) {
-					msg = TheMessageStream->appendMessage(msgType);
-					msg->appendLocationArgument(*obj->getPosition());
-					pickAndPlayUnitVoiceResponse(TheInGameUI->getAllSelectedDrawables(), msgType);
-				}
-
-			} else {
-				msgType = GameMessage::MSG_DO_SALVAGE_HINT;
-				msg = TheMessageStream->appendMessage(msgType);
-				msg->appendLocationArgument(*obj->getPosition());
-			}
-
-		}
-		// ********************************************************************************************
-		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_ENTER_OBJECT, obj, InGameUI::SELECTION_ANY, true ) )
-		{
-
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-
-				// issue the command
-				msgType = createEnterMessage( draw, type );
-
-			}
-			else
-			{
-
-				msgType = GameMessage::MSG_ENTER_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType );
-				hintMessage->appendObjectIDArgument( obj->getID() );
-			}
-
-		}
-		// ********************************************************************************************
-		else if( draw && (result = TheInGameUI->getCanSelectedObjectsAttack( InGameUI::ACTIONTYPE_ATTACK_OBJECT, obj, InGameUI::SELECTION_ANY, TheInGameUI->isInForceAttackMode() )) == ATTACKRESULT_POSSIBLE )
-		{
-
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-
-				// issue the attack order
-				msgType = issueAttackCommand( draw, type );
-
-			}
-			else
-			{
-
-				// Generate an Attack hint
-				msgType = GameMessage::MSG_DO_ATTACK_OBJECT_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType );
-				hintMessage->appendObjectIDArgument( obj->getID() );
-
-			}
-
-		}
-		// ********************************************************************************************
-		else if( draw && result == ATTACKRESULT_POSSIBLE_AFTER_MOVING )
-		{
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-
-				// issue the attack order
-				msgType = issueAttackCommand( draw, type );
-
-			}
-			else
-			{
-
-				// Generate an Attack hint
-				msgType = GameMessage::MSG_DO_ATTACK_OBJECT_AFTER_MOVING_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType );
-				hintMessage->appendObjectIDArgument( obj->getID() );
-
-			}
-
-		}
-		// ********************************************************************************************
-		else if( draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_CAPTURE_BUILDING, obj, InGameUI::SELECTION_ANY ) )
-		{
-
-			//@TODO: Kris
-			//PRELIMINARY CODE FOR HOOKING IN AUTO SPECIALS --- WILL BE REDONE!
-			Object *source = TheInGameUI->getFirstSelectedDrawable()->getObject();
-			const CommandSet *set = TheControlBar->findCommandSet( source->getCommandSetString() );
-			if( set )
-			{
-				for( Int i = 0; i < MAX_COMMANDS_PER_SET; i++ )
-				{
-					// get command button
-					const CommandButton *command = set->getCommandButton(i);
-					if( command && command->getCommandType() == GUI_COMMAND_SPECIAL_POWER )
-					{
-						SpecialPowerType spType = command->getSpecialPowerTemplate()->getSpecialPowerType();
-						if( type == DO_COMMAND || type == EVALUATE_ONLY )
-						{
-							if( spType == SPECIAL_BLACKLOTUS_CAPTURE_BUILDING ||
-									spType == SPECIAL_INFANTRY_CAPTURE_BUILDING )
-							{
-								//Issue the capture building command
-								msgType = issueSpecialPowerCommand( command, type, draw, pos, nullptr );
-								break;
-							}
-						}
-						else if( spType == SPECIAL_BLACKLOTUS_CAPTURE_BUILDING )
-						{
-							//Issue the black lotus hack hint for capturing a building.
-							msgType = GameMessage::MSG_HACK_HINT;
-							hintMessage = TheMessageStream->appendMessage( msgType );
-							hintMessage->appendObjectIDArgument( obj->getID() );
-						}
-						else if( spType == SPECIAL_INFANTRY_CAPTURE_BUILDING )
-						{
-							//Issue the infantry hint for capturing a building
-							msgType = GameMessage::MSG_CAPTUREBUILDING_HINT;
-							hintMessage = TheMessageStream->appendMessage( msgType );
-							hintMessage->appendObjectIDArgument( obj->getID() );
-						}
-					}
-				}
-			}
-		}
-		// ********************************************************************************************
-		else if( draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_DISABLE_VEHICLE_VIA_HACKING, obj, InGameUI::SELECTION_ANY ) )
-		{
-
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-				//@TODO: Kris
-				//PRELIMINARY CODE FOR HOOKING IN AUTO SPECIALS --- WILL BE REDONE!
-				Object *source = TheInGameUI->getFirstSelectedDrawable()->getObject();
-				const CommandSet *set = TheControlBar->findCommandSet( source->getCommandSetString() );
-				if( set )
-				{
-					for( Int i = 0; i < MAX_COMMANDS_PER_SET; i++ )
-					{
-						// get command button
-						const CommandButton *command = set->getCommandButton(i);
-						if( command && command->getCommandType() == GUI_COMMAND_SPECIAL_POWER )
-						{
-							SpecialPowerType spType = command->getSpecialPowerTemplate()->getSpecialPowerType();
-							if( spType == SPECIAL_BLACKLOTUS_DISABLE_VEHICLE_HACK )
-							{
-								msgType = issueSpecialPowerCommand( command, type, draw, pos, nullptr );
-								break;
-							}
-						}
-					}
-				}
-			}
-			else
-			{
-				msgType = GameMessage::MSG_HACK_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType );
-				hintMessage->appendObjectIDArgument( obj->getID() );
-			}
-
-		}
-		// ********************************************************************************************
-		else if( draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_STEAL_CASH_VIA_HACKING, obj, InGameUI::SELECTION_ANY ) )
-		{
-
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-				//@TODO: Kris
-				//PRELIMINARY CODE FOR HOOKING IN AUTO SPECIALS --- WILL BE REDONE!
-				Object *source = TheInGameUI->getFirstSelectedDrawable()->getObject();
-				const CommandSet *set = TheControlBar->findCommandSet( source->getCommandSetString() );
-				if( set )
-				{
-					for( Int i = 0; i < MAX_COMMANDS_PER_SET; i++ )
-					{
-						// get command button
-						const CommandButton *command = set->getCommandButton(i);
-						if( command && command->getCommandType() == GUI_COMMAND_SPECIAL_POWER )
-						{
-							SpecialPowerType spType = command->getSpecialPowerTemplate()->getSpecialPowerType();
-							if( spType == SPECIAL_BLACKLOTUS_STEAL_CASH_HACK )
-							{
-								msgType = issueSpecialPowerCommand( command, type, draw, pos, nullptr );
-								break;
-							}
-						}
-					}
-				}
-			}
-			else
-			{
-				msgType = GameMessage::MSG_HACK_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType );
-				hintMessage->appendObjectIDArgument( obj->getID() );
-			}
-
-		}
-		// ********************************************************************************************
-		else if( draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_DISABLE_BUILDING_VIA_HACKING, obj, InGameUI::SELECTION_ANY ) )
-		{
-
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-				//@TODO: Kris
-				//PRELIMINARY CODE FOR HOOKING IN AUTO SPECIALS --- WILL BE REDONE!
-				Object *source = TheInGameUI->getFirstSelectedDrawable()->getObject();
-				const CommandSet *set = TheControlBar->findCommandSet( source->getCommandSetString() );
-				if( set )
-				{
-					for( Int i = 0; i < MAX_COMMANDS_PER_SET; i++ )
-					{
-						// get command button
-						const CommandButton *command = set->getCommandButton(i);
-						if( command && command->getCommandType() == GUI_COMMAND_SPECIAL_POWER )
-						{
-							SpecialPowerType spType = command->getSpecialPowerTemplate()->getSpecialPowerType();
-							if( spType == SPECIAL_HACKER_DISABLE_BUILDING )
-							{
-								msgType = issueSpecialPowerCommand( command, type, draw, pos, nullptr );
-								break;
-							}
-						}
-					}
-				}
-			}
-			else
-			{
-				msgType = GameMessage::MSG_HACK_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType );
-				hintMessage->appendObjectIDArgument( obj->getID() );
-			}
-		}
-#ifdef ALLOW_SURRENDER
-		// ********************************************************************************************
-		else if( draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_PICK_UP_PRISONER, obj, InGameUI::SELECTION_ANY ) )
-		{
-
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-
-				// issue the command
-				msgType = issueAttackCommand( draw, type, GUICOMMANDMODE_PICK_UP_PRISONER );
-
-			}
-			else
-			{
-
-				msgType = GameMessage::MSG_PICK_UP_PRISONER_HINT;
-				hintMessage = TheMessageStream->appendMessage( msgType );
-				hintMessage->appendObjectIDArgument( obj->getID() );
-
-			}
-
-		}
-#endif
-		// ********************************************************************************************
-		else if ( !draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_SET_RALLY_POINT, nullptr, InGameUI::SELECTION_ALL, FALSE ))
-		{
-			msgType = GameMessage::MSG_SET_RALLY_POINT;
-
-			if (type == DO_COMMAND) {
-				const DrawableList *allSelectedDrawables = TheInGameUI->getAllSelectedDrawables();
-
-				for (DrawableList::const_iterator it = allSelectedDrawables->begin(); it != allSelectedDrawables->end(); ++it) {
-					Drawable *draw = (*it);
-					if (draw && draw->getObject()) {
-						GameMessage *newMsg = TheMessageStream->appendMessage(msgType);
-						newMsg->appendObjectIDArgument(draw->getObject()->getID());
-						newMsg->appendLocationArgument(*pos);
-					}
-				}
-			} else if (type == DO_HINT) {
-				msgType = GameMessage::MSG_SET_RALLY_POINT_HINT;
-				hintMessage = TheMessageStream->appendMessage(msgType);
-				hintMessage->appendLocationArgument(*pos);
-			}
-		}
-
-		// ********************************************************************************************
-		else if( draw && result == ATTACKRESULT_INVALID_SHOT )
-		{
-			msgType = GameMessage::MSG_IMPOSSIBLE_ATTACK_HINT;
-			hintMessage = TheMessageStream->appendMessage( msgType );
-			hintMessage->appendLocationArgument( *pos );
-		}
-
-		// ********************************************************************************************
-		else
-		{
-
-			//
-			// NOTE: If you change this command evaluation function in what it will do
-			// if there is nothing picked ... you might want to edit the logic of the
-			// selection translator in that you can only select objects if there is
-			// no "interesting" command to do with the picked drawable ... which is determined
-			// by what we return in this function by default
-			//
-
-			//Before we issue a move order or hint, check to see if we can even move there!
-			Bool validQuickPath = FALSE;
-			// Make sure to only to the check if the shroud is CLEARED.  If it is fogged or shrouded, SKIP THE CHECK.  jba [3/11/2003]
-			if( ThePartitionManager->getShroudStatusForPlayer( ThePlayerList->getLocalPlayer()->getPlayerIndex(), pos ) != CELLSHROUD_CLEAR )
-			{
-				//If it's in the shroud, pretend we can move there -- skip the check.
-				validQuickPath = TRUE;
-			}
-			else
-			{
-				//Can we path there?
-				const DrawableList *allSelectedDrawables = TheInGameUI->getAllSelectedDrawables();
-				for( DrawableList::const_iterator it = allSelectedDrawables->begin(); it != allSelectedDrawables->end(); ++it )
-				{
-					Object *obj = (*it) ? (*it)->getObject() : nullptr;
-					AIUpdateInterface *ai = obj ? obj->getAI() : nullptr;
-					if( ai )
-          {
-            if ( ai->isQuickPathAvailable( pos ) )
-					  {
-						  validQuickPath = TRUE;
-						  break;
-					  }
-            // Wait! there are some units that CAN moveTo positions that Quickpath will reject,
-            // namely, Colonel Burton and the CombatBike. Both have CLIFF locomotors.
-            // We must detect whether the position is valid for these, before just invalidating the cursor,
-            // out of hand.
-            if ( ai->hasLocomotorForSurface( LOCOMOTORSURFACE_CLIFF ) )
-            {
-              if ( TheTerrainLogic->isCliffCell( pos->x, pos->y ) )
-              {
-						    validQuickPath = TRUE;// yeah, not really quick, but you know...
-						    break;
-              }
-            }
-          }
-
-
-				}
-			}
-
-			if( type == DO_COMMAND || type == EVALUATE_ONLY )
-			{
-				// issue command
-				// Note: If draw is valid, then its one of ours and we don't have something more specific
-				// to do. Therefore, lets not issue a move command, and instead we'll return that there
-				// wasn't a command for us to perform.
-
-				if ( draw == nullptr )
-					msgType = issueMoveToLocationCommand( pos, drawableInWay, type );
-			}
-			else
-			{
-				if( !validQuickPath )
-				{
-					msgType = GameMessage::MSG_DO_INVALID_HINT;
-				}
-				else if( TheInGameUI->isInWaypointMode() )
-				{
-					//Waypoint mode
-					msgType = GameMessage::MSG_ADD_WAYPOINT_HINT;
-				}
-				else if( TheInGameUI->isInAttackMoveToMode() )
-				{
-					//THIS CODE WILL NEVER EVER GET CALLED! -- it's a context command now (READ: rip code out)
-					//Attack move
-					msgType = GameMessage::MSG_DO_ATTACKMOVETO_HINT;
-				}
-				else
-				{
-					//Normal and forced move.
-					msgType = GameMessage::MSG_DO_MOVETO_HINT;
-				}
-				hintMessage = TheMessageStream->appendMessage( msgType );
-				hintMessage->appendLocationArgument( *pos );
-
-			}
-
-		}
-
+		GameMessage::Type msgType = GameMessage::MSG_VALID_GUICOMMAND_HINT;
+		TheMessageStream->appendMessage( msgType );
+		return msgType;
 	}
 
-	// return the message type
-	return msgType;
+	const Bool canPerformActions = TheInGameUI->areSelectedObjectsControllable() ||
+		( command && command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT );
 
+	if( !canPerformActions )
+	{
+		return GameMessage::MSG_INVALID;
+	}
+
+	if( TheInGameUI->isInWaypointMode() )
+	{
+		return handleWaypointModeCommand( pos, draw, type );
+	}
+
+	CanAttackResult result = ATTACKRESULT_NOT_POSSIBLE;
+
+	if(command &&
+		(command->isContextCommand() ||
+			command->getCommandType() == GUI_COMMAND_SPECIAL_POWER ||
+			command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT))
+	{
+		return handleGuiCommand( command, draw, obj, pos, type );
+	}
+	else if( command && (command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_CONSTRUCT ||
+					 command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_CONSTRUCT_FROM_SHORTCUT) )
+	{
+		return handleSpecialPowerConstructCommand( command, draw, pos, type );
+	}
+	else if( TheInGameUI->canSelectedObjectsOverrideSpecialPowerDestination( pos, InGameUI::SELECTION_ANY, SPECIAL_INVALID ) )
+	{
+		return handleSpecialPowerOverrideDestinationCommand( pos, type );
+	}
+	else if( draw && !TheInGameUI->isInForceAttackMode() &&
+					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_RESUME_CONSTRUCTION, obj, InGameUI::SELECTION_ANY ) )
+	{
+		return handleResumeConstructionCommand( obj, type );
+	}
+	else if( draw && !TheInGameUI->isInForceAttackMode() &&
+					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_DOCK_AT,
+																										obj,
+																										InGameUI::SELECTION_ALL ) )
+	{
+		return handleDockAtCommand( obj, type );
+	}
+	else if( draw && !TheInGameUI->isInForceAttackMode() &&
+					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_REPAIR_OBJECT, obj, InGameUI::SELECTION_ANY ) )
+	{
+		return handleRepairObjectCommand( obj, type );
+	}
+	else if( draw && !TheInGameUI->isInForceAttackMode() &&
+					TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_GET_REPAIRED_AT, obj, InGameUI::SELECTION_ANY ) )
+	{
+		return handleGetRepairedAtCommand( obj, type );
+	}
+	else if( draw && !TheInGameUI->isInForceAttackMode() &&
+					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_GET_HEALED_AT, obj, InGameUI::SELECTION_ANY ) )
+	{
+		return handleGetHealedAtCommand( obj, type );
+	}
+	else if( draw && draw->getObject() && !TheInGameUI->isInForceAttackMode() &&
+					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_HIJACK_VEHICLE,
+																										draw->getObject(),
+																										InGameUI::SELECTION_ANY ) )
+	{
+		return handleHijackVehicleCommand( draw, type );
+	}
+	else if( draw && !TheInGameUI->isInForceAttackMode() &&
+					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_CONVERT_OBJECT_TO_CARBOMB, obj, InGameUI::SELECTION_ANY ) )
+	{
+		return handleConvertObjectToCarBombCommand( draw, obj, type );
+	}
+	else if( draw && draw->getObject() && !TheInGameUI->isInForceAttackMode() &&
+					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_SABOTAGE_BUILDING,
+																										draw->getObject(),
+																										InGameUI::SELECTION_ANY ) )
+	{
+		return handleSabotageBuildingCommand( draw, type );
+	}
+	else if( draw && !TheInGameUI->isInForceAttackMode() && canSelectionSalvage(obj) )
+	{
+		return handleSalvageCommand( obj, type );
+	}
+	else if( draw && !TheInGameUI->isInForceAttackMode() &&
+					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_ENTER_OBJECT, obj, InGameUI::SELECTION_ANY, true ) )
+	{
+		return handleEnterObjectCommand( draw, obj, type );
+	}
+	else if( draw && (result = TheInGameUI->getCanSelectedObjectsAttack( InGameUI::ACTIONTYPE_ATTACK_OBJECT, obj, InGameUI::SELECTION_ANY, TheInGameUI->isInForceAttackMode() )) == ATTACKRESULT_POSSIBLE )
+	{
+		return handleAttackObjectCommand( draw, obj, type, GameMessage::MSG_DO_ATTACK_OBJECT_HINT );
+	}
+	else if( draw && result == ATTACKRESULT_POSSIBLE_AFTER_MOVING )
+	{
+		return handleAttackObjectCommand( draw, obj, type, GameMessage::MSG_DO_ATTACK_OBJECT_AFTER_MOVING_HINT );
+	}
+	else if( draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_CAPTURE_BUILDING, obj, InGameUI::SELECTION_ANY ) )
+	{
+		return handleCaptureBuildingCommand( draw, obj, pos, type );
+	}
+	else if( draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_DISABLE_VEHICLE_VIA_HACKING, obj, InGameUI::SELECTION_ANY ) )
+	{
+		return handleHackCommand( draw, obj, pos, type, SPECIAL_BLACKLOTUS_DISABLE_VEHICLE_HACK );
+	}
+	else if( draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_STEAL_CASH_VIA_HACKING, obj, InGameUI::SELECTION_ANY ) )
+	{
+		return handleHackCommand( draw, obj, pos, type, SPECIAL_BLACKLOTUS_STEAL_CASH_HACK );
+	}
+	else if( draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_DISABLE_BUILDING_VIA_HACKING, obj, InGameUI::SELECTION_ANY ) )
+	{
+		return handleHackCommand( draw, obj, pos, type, SPECIAL_HACKER_DISABLE_BUILDING );
+	}
+#ifdef ALLOW_SURRENDER
+	else if( draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_PICK_UP_PRISONER, obj, InGameUI::SELECTION_ANY ) )
+	{
+		return handlePickUpPrisonerCommand( draw, obj, type );
+	}
+#endif
+	else if ( !draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_SET_RALLY_POINT, nullptr, InGameUI::SELECTION_ALL, FALSE ))
+	{
+		return handleSetRallyPointCommand( pos, type );
+	}
+	else if( draw && result == ATTACKRESULT_INVALID_SHOT )
+	{
+		return handleInvalidShotCommand( pos );
+	}
+	else
+	{
+		return handleDefaultMoveCommand( draw, drawableInWay, pos, type );
+	}
 }
 
 
@@ -2549,11 +2630,24 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 {
 	GameMessage::Type t = msg->getType();
 	GameMessageDisposition disp = KEEP_MESSAGE;
+
 	// We want to always be able to get to the options menu even during no input times and a clear game data message should always go through
-	if (t != GameMessage::MSG_META_OPTIONS && t != GameMessage::MSG_CLEAR_GAME_DATA &&
-			!TheInGameUI->getInputEnabled() && !isSystemMessage(msg))
+	switch (t)
 	{
-		return DESTROY_MESSAGE;
+	case GameMessage::MSG_FRAME_TICK:
+	case GameMessage::MSG_CLEAR_GAME_DATA:
+	case GameMessage::MSG_LOGIC_CRC_PLAYBACK:
+	case GameMessage::MSG_META_OPTIONS:
+	case GameMessage::MSG_META_DEMO_INSTANT_QUIT:
+	case GameMessage::MSG_DESTROY_SELECTED_GROUP:
+	case GameMessage::MSG_SET_REPLAY_CAMERA:
+	case GameMessage::MSG_LOGIC_CRC:
+		break;
+	default:
+		if (!TheInGameUI->getInputEnabled())
+			return DESTROY_MESSAGE;
+
+		break;
 	}
 
 #if defined(RTS_DEBUG)
@@ -2753,8 +2847,8 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 							hack = TRUE;
 							const Object *tempObject = temp->getObject();
 							// must take case of this case here or else the loop will break without getting newDrawable
-							if( tempObject && temp->getNextDrawable() == selectedDrawable && !temp->isSelected()
-								&& tempObject->isMobile() && tempObject->isLocallyControlled() && !tempObject->isContained() && !tempObject->isKindOf( KINDOF_NO_SELECT ) )
+							if( tempObject && temp->getNextDrawable() == selectedDrawable && !temp->isSelected() &&
+								tempObject->isMobile() && tempObject->isLocallyControlled() && !tempObject->isContained() && !tempObject->isKindOf( KINDOF_NO_SELECT ) )
 							{
 								newDrawable = temp;
 								break;
@@ -2980,8 +3074,8 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 							hack = TRUE;
 							const Object *tempObject = temp->getObject();
 							// must take case of this case here or else the loop will break without getting newDrawable
-							if( tempObject && temp->getNextDrawable() == selectedDrawable && !temp->isSelected()
-								&& tempObject->isMobile() && tempObject->isLocallyControlled() && !tempObject->isContained() )
+							if( tempObject && temp->getNextDrawable() == selectedDrawable && !temp->isSelected() &&
+								tempObject->isMobile() && tempObject->isLocallyControlled() && !tempObject->isContained() )
 							{
 								newDrawable = temp;
 								break;
@@ -2991,8 +3085,8 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 						else
 						{
 							const Object *tempObject = temp->getObject();
-							if( tempObject && !temp->isSelected() && tempObject->isMobile()
-								  && tempObject->isLocallyControlled() && !tempObject->isContained() && tempObject->isKindOf( KINDOF_DOZER ) )
+							if( tempObject && !temp->isSelected() && tempObject->isMobile() &&
+								  tempObject->isLocallyControlled() && !tempObject->isContained() && tempObject->isKindOf( KINDOF_DOZER ) )
 							{
 								newDrawable = temp;
 								break;
@@ -3161,13 +3255,13 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 				disqualifyingKindofs.set(KINDOF_DOZER);
 				disqualifyingKindofs.set(KINDOF_HARVESTER);
 				disqualifyingKindofs.set(KINDOF_IGNORES_SELECT_ALL);
-				if( object
-					&& object->isMobile()
-					&& object->isLocallyControlled()
-					&& !object->isContained()
-					&& !object->isAnyKindOf( disqualifyingKindofs )
-					&& !object->isEffectivelyDead()
-					&& object->isMassSelectable()
+				if( object &&
+					object->isMobile() &&
+					object->isLocallyControlled() &&
+					!object->isContained() &&
+					!object->isAnyKindOf( disqualifyingKindofs ) &&
+					!object->isEffectivelyDead() &&
+					object->isMassSelectable()
 					)
 				{
 					// enforce optional unit cap
@@ -3989,8 +4083,8 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 		case GameMessage::MSG_MOUSEOVER_DRAWABLE_HINT:
 		{
 			const CommandButton *command = TheInGameUI->getGUICommand();
-			if( TheInGameUI->getSelectCount() > 0
-					|| (command && command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT) ) // If something is selected
+			if( TheInGameUI->getSelectCount() > 0 ||
+					(command && command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT) ) // If something is selected
 			{
 				/// @todo This as well as the one in GameMessage::MSG_DRAWABLE_PICKED below should possibly have a generalized CanAttack instead of simply checking isEnemyOf
 				Drawable *draw = TheGameClient->findDrawableByID( msg->getArgument( 0 )->drawableID );
@@ -4100,8 +4194,8 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 		case GameMessage::MSG_MOUSE_RIGHT_CLICK:
 		{
 			// right click is only actioned here if we're in alternate mouse mode
-			if (TheGlobalData->m_useAlternateMouse
-				&& TheMouse->isClick(
+			if (TheGlobalData->m_useAlternateMouse &&
+				TheMouse->isClick(
 					m_rightMouseDownTimeMs, m_rightMouseUpTimeMs,
 					m_rightMouseDownAnchor, m_rightMouseUpAnchor))
 			{
@@ -4120,8 +4214,8 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 
 				const CommandButton *command = TheInGameUI->getGUICommand();
 				Bool isPoint = (msg->getArgument(0)->pixelRegion.height() == 0 && msg->getArgument(0)->pixelRegion.width() == 0);
-				Bool controllable = TheInGameUI->areSelectedObjectsControllable()
-														|| (command && command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT);
+				Bool controllable = TheInGameUI->areSelectedObjectsControllable() ||
+														(command && command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT);
 				if (isPoint && controllable)
 				{
 					UnsignedInt pickType = getPickTypesForContext( TheInGameUI->isInForceAttackMode() );
@@ -4189,20 +4283,20 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 
 			const CommandButton *command = TheInGameUI->getGUICommand();
 			// maintain this as the list of GUI button initiated commands that fire with left click in alt mouse mode
-  			Bool isFiringGUICommand = (command	&& (command->getCommandType() == GUI_COMMAND_SPECIAL_POWER
-  												|| command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT
- 												|| command->getCommandType() == GUI_COMMAND_FIRE_WEAPON
-												|| command->getCommandType() == GUI_COMMAND_COMBATDROP
-												|| command->getCommandType() == GUICOMMANDMODE_HIJACK_VEHICLE
-												|| command->getCommandType() == GUICOMMANDMODE_CONVERT_TO_CARBOMB));
+  			Bool isFiringGUICommand = (command	&& (command->getCommandType() == GUI_COMMAND_SPECIAL_POWER ||
+  												command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT ||
+ 												command->getCommandType() == GUI_COMMAND_FIRE_WEAPON ||
+												command->getCommandType() == GUI_COMMAND_COMBATDROP ||
+												command->getCommandType() == GUICOMMANDMODE_HIJACK_VEHICLE ||
+												command->getCommandType() == GUICOMMANDMODE_CONVERT_TO_CARBOMB));
 
 			// in alternate mouse mode, this left click is only actioned here if we're firing a gui command
 			if ((TheGlobalData->m_useAlternateMouse) && (! isFiringGUICommand))
 				break;
 
 			Bool isPoint = (msg->getArgument(0)->pixelRegion.height() == 0 && msg->getArgument(0)->pixelRegion.width() == 0);
-			Bool controllable = TheInGameUI->areSelectedObjectsControllable()
-													|| (command && command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT);
+			Bool controllable = TheInGameUI->areSelectedObjectsControllable() ||
+													(command && command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT);
 			if (isPoint && controllable)
 			{
 				UnsignedInt pickType = getPickTypesForContext( TheInGameUI->isInForceAttackMode() );
@@ -4434,7 +4528,8 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 		case GameMessage::MSG_META_DEMO_TOGGLE_MOTION_BLUR_ZOOM:
 		{	Int mode;
 			if ((mode=TheTacticalView->getViewFilterType()) == FT_VIEW_MOTION_BLUR_FILTER)
-			{	//mode already set, turn it off
+			{
+				//mode already set, turn it off
 				TheTacticalView->setViewFilterMode(FM_NULL_MODE);
 				TheTacticalView->setViewFilter(FT_NULL_FILTER);
 			}
@@ -4464,10 +4559,12 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 		//------------------------------------------------------------------------------- DEMO MESSAGES
 		//-----------------------------------------------------------------------------------------
 		case GameMessage::MSG_META_DEMO_TOGGLE_BW_VIEW:
-		{   //We're not testing BW mode anymore, so use this message for toggling wireframe mode.
+		{
+			//We're not testing BW mode anymore, so use this message for toggling wireframe mode.
 			static Int mode=0;
 			if (mode == 0)
-			{	//First turn on wireframe
+			{
+				//First turn on wireframe
 				TheTacticalView->set3DWireFrameMode(TRUE);
 				mode++;
 				disp = DESTROY_MESSAGE;
@@ -4476,7 +4573,8 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			if (mode == 1)
 			{
 				if ((TheTacticalView->getViewFilterType()) == FT_VIEW_CROSSFADE)
-				{	//mode already set, turn it off
+				{
+					//mode already set, turn it off
 					TheTacticalView->setViewFilterMode(FM_NULL_MODE);
 					TheTacticalView->setViewFilter(FT_NULL_FILTER);
 					TheTacticalView->setFadeParameters(0,-1);
@@ -4508,7 +4606,8 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 		case GameMessage::MSG_META_DEMO_TOGGLE_RED_VIEW:
 		{
 			if ((TheTacticalView->getViewFilterType()) == FT_VIEW_BW_FILTER)
-			{	//mode already set, turn it off
+			{
+				//mode already set, turn it off
 				TheTacticalView->setViewFilterMode(FM_NULL_MODE);
 				TheTacticalView->setViewFilter(FT_NULL_FILTER);
 				TheTacticalView->setFadeParameters(30,-1);
@@ -4529,7 +4628,8 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 		case GameMessage::MSG_META_DEMO_TOGGLE_GREEN_VIEW:
 		{
 			if ((TheTacticalView->getViewFilterType()) == FT_VIEW_BW_FILTER)
-			{	//mode already set, turn it off
+			{
+				//mode already set, turn it off
 				TheTacticalView->setViewFilterMode(FM_NULL_MODE);
 				TheTacticalView->setViewFilter(FT_NULL_FILTER);
 				TheTacticalView->setFadeParameters(30,-1);
@@ -5706,23 +5806,4 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 
 	return disp;
 
-}
-
-static Bool isSystemMessage( const GameMessage *msg )
-{
-	if (!msg) {
-		return false;
-	}
-	GameMessage::Type msgType = msg->getType();
-
-	switch (msgType)
-	{
-		case GameMessage::MSG_DESTROY_SELECTED_GROUP:
-		case GameMessage::MSG_LOGIC_CRC:
-		case GameMessage::MSG_SET_REPLAY_CAMERA:
-		case GameMessage::MSG_FRAME_TICK:
-		case GameMessage::MSG_META_DEMO_INSTANT_QUIT:
-			return TRUE;
-	}
-	return FALSE;
 }

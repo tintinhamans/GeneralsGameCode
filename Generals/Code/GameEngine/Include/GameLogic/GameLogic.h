@@ -36,6 +36,7 @@
 #include "Common/ObjectStatusTypes.h"
 #include "GameNetwork/NetworkDefs.h"
 #include "GameLogic/AI.h"
+#include "GameLogic/GameMode.h"
 #include "GameLogic/Module/UpdateModule.h"	// needed for DIRECT_UPDATEMODULE_ACCESS
 
 /*
@@ -66,20 +67,6 @@ class CommandButton;
 enum BuildableStatus CPP_11(: Int);
 
 typedef const CommandButton* ConstCommandButtonPtr;
-
-// What kind of game we're in.
-enum
-{
-	GAME_SINGLE_PLAYER,
-	GAME_LAN,
-	GAME_SKIRMISH,
-	GAME_REPLAY,
-	GAME_SHELL,
-	GAME_INTERNET,
-	GAME_NONE
-};
-
-const char* toString(GameMode mode);
 
 enum
 {
@@ -118,7 +105,7 @@ public:
 #endif
 	void processCommandList( CommandList *list );		///< process the command list
 
-	void prepareNewGame( Int gameMode, GameDifficulty diff, Int rankPoints );						///< prepare for new game
+	void prepareNewGame( GameMode gameMode, GameDifficulty diff, Int rankPoints );						///< prepare for new game
 
 	void logicMessageDispatcher( GameMessage *msg,
 																			 void *userData );	///< Logic command list processing
@@ -173,17 +160,15 @@ public:
 	void setGameMode( GameMode mode );
 	GameMode getGameMode();
 
-	Bool isInGame(); // Includes Shell Game
-	Bool isInLanGame();
-	Bool isInSinglePlayerGame();
-	Bool isInSkirmishGame();
-	Bool isInReplayGame();
-	Bool isInInternetGame();
-	Bool isInShellGame();
-	Bool isInMultiplayerGame();
+	Bool isInGame() const; // Includes Shell Game
+	Bool isInLanGame() const;
+	Bool isInSinglePlayerGame() const;
+	Bool isInSkirmishGame() const;
+	Bool isInReplayGame() const;
+	Bool isInInternetGame() const;
+	Bool isInShellGame() const;
+	Bool isInMultiplayerGame() const;
 	Bool isInInteractiveGame() const;
-
-	static Bool isInInteractiveGame(GameMode mode) { return mode != GAME_NONE && mode != GAME_SHELL; }
 
 	//Kris: Cut isLoadingGame() and replaced with isLoadingMap() and isLoadingSave() -- reason: nomenclature
 	//Bool isLoadingGame() const { return m_loadingScene; }		// This is the old function that isn't very clear on it's definition.
@@ -211,6 +196,7 @@ public:
 	void updateObjectsChangedTriggerAreas() {m_frameObjectsChangedTriggerAreas = m_frame;}
 	UnsignedInt getFrameObjectsChangedTriggerAreas() {return m_frameObjectsChangedTriggerAreas;}
 
+	void exitGame();
 	void quit(Bool toDesktop);
 	void clearGameData(Bool showScoreScreen = TRUE);														///< Clear the game data
 	void closeWindows();
@@ -220,7 +206,7 @@ public:
 
 	void bindObjectAndDrawable(Object* obj, Drawable* draw);
 
-	void setGamePausedInFrame( UnsignedInt frame );
+	void setGamePausedInFrame( UnsignedInt frame, Bool disableLogicTimeScale );
 	UnsignedInt getGamePauseFrame() const { return m_pauseFrame; }
 	void setGamePaused( Bool paused, Bool pauseMusic = TRUE, Bool pauseInput = TRUE );
 	Bool isGamePaused();
@@ -243,6 +229,8 @@ public:
 	// We need to allow access to this, because on a restartGame, we need to restart with the settings we started with
 	Int getRankPointsToAddAtGameStart() const { return m_rankPointsToAddAtGameStart; }
 
+  UnsignedShort getSuperweaponRestriction() const; ///< Get any optional limits on superweapons
+
 #ifdef DUMP_PERF_STATS
 	void getAIMetricsStatistics( UnsignedInt *numAI, UnsignedInt *numMoving, UnsignedInt *numAttacking, UnsignedInt *numWaitingForPath, UnsignedInt *overallFailedPathfinds );
 	void resetOverallFailedPathfinds() { m_overallFailedPathfinds = 0; }
@@ -260,6 +248,10 @@ public:
 	void friend_awakenUpdateModule(Object* obj, UpdateModulePtr update, UnsignedInt whenToWakeUp);
 
 	Bool isQuitToDesktopRequested() const { return m_quitToDesktopAfterMatch; }
+
+#if RTS_GENERALS && RETAIL_COMPATIBLE_CRC
+	void friend_destroyInTunnelContain(const Object* strandedObject);
+#endif
 
 protected:
 
@@ -291,6 +283,7 @@ private:
 
 	bool onNewGame(GameMessage *msg);
 	bool onClearGameData(GameMessage *msg, AIGroupPtr &currentlySelectedGroup);
+	bool onLogicCrcForPlayback(GameMessage *msg);
 	bool onBeginPathBuild(GameMessage *msg);
 	bool onEndPathBuild(GameMessage *msg);
 	bool onSetRallyPoint(GameMessage *msg);
@@ -435,7 +428,7 @@ private:
 	virtual TerrainLogic *createTerrainLogic();
 	virtual GhostObjectManager *createGhostObjectManager(bool dummy = false);
 
-	Int m_gameMode;
+	GameMode m_gameMode;
 	Int m_rankLevelLimit;
 
 	LoadScreen *getLoadScreen( Bool saveGame );
@@ -448,6 +441,7 @@ private:
 	Bool m_pauseInput;
 	Bool m_inputEnabledMemory;// Latches used to remember what to restore to after we unpause
 	Bool m_mouseVisibleMemory;
+	Bool m_logicTimeScaleEnabledMemory;
 
 	Bool m_progressComplete[MAX_SLOTS];
 	enum { PROGRESS_COMPLETE_TIMEOUT = 60000 };							///< Timeout we wait for when we've completed our Load
@@ -477,6 +471,11 @@ private:
 	void xferObjectTOC( Xfer *xfer );												///< save/load object TOC for current state of map
 	void prepareLogicForObjectLoad();									///< prepare engine for object data from game file
 
+#if RTS_GENERALS && defined(_MSC_VER) && _MSC_VER < 1300
+public:
+	Bool m_onUnitProducedZeroInit;
+#endif
+
 };
 
 // INLINE /////////////////////////////////////////////////////////////////////////////////////////
@@ -486,15 +485,15 @@ inline void GameLogic::setHeight( Real height ) { m_height = height; }
 inline Real GameLogic::getHeight() { return m_height; }
 inline UnsignedInt GameLogic::getFrame() { return m_frame; }
 
-inline Bool GameLogic::isInGame() { return m_gameMode != GAME_NONE; }
 inline GameMode GameLogic::getGameMode() { return m_gameMode; }
-inline Bool GameLogic::isInLanGame() { return (m_gameMode == GAME_LAN); }
-inline Bool GameLogic::isInSkirmishGame() { return (m_gameMode == GAME_SKIRMISH); }
-inline Bool GameLogic::isInMultiplayerGame() { return (m_gameMode == GAME_LAN) || (m_gameMode == GAME_INTERNET) ; }
-inline Bool GameLogic::isInInteractiveGame() const { return isInInteractiveGame(m_gameMode); }
-inline Bool GameLogic::isInReplayGame() { return (m_gameMode == GAME_REPLAY); }
-inline Bool GameLogic::isInInternetGame() { return (m_gameMode == GAME_INTERNET); }
-inline Bool GameLogic::isInShellGame() { return (m_gameMode == GAME_SHELL); }
+inline Bool GameLogic::isInGame() const { return rts::isGame(m_gameMode); }
+inline Bool GameLogic::isInLanGame() const { return rts::isLanGame(m_gameMode); }
+inline Bool GameLogic::isInSkirmishGame() const { return rts::isSkirmishGame(m_gameMode); }
+inline Bool GameLogic::isInReplayGame() const { return rts::isReplayGame(m_gameMode); }
+inline Bool GameLogic::isInInternetGame() const { return rts::isInternetGame(m_gameMode); }
+inline Bool GameLogic::isInShellGame() const { return rts::isShellGame(m_gameMode); }
+inline Bool GameLogic::isInMultiplayerGame() const { return rts::isMultiplayerGame(m_gameMode); }
+inline Bool GameLogic::isInInteractiveGame() const { return rts::isInteractiveGame(m_gameMode); }
 
 inline Object* GameLogic::findObjectByID( ObjectID id )
 {

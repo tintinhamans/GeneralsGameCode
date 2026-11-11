@@ -21,6 +21,7 @@
 #ifndef __HUFWRITE
 #define __HUFWRITE 1
 
+#include <stddef.h>
 #include <string.h>
 #include "codex.h"
 #include "huffcodex.h"
@@ -583,8 +584,8 @@ static void HUFF_analysis(struct HuffEncodeContext *EC,
 				i1 = 8;
 			if (EC->count[EC->clue+i])
 			{	i1 = HUFF_minrep(EC,i,i1);
-				if ((i1 <= EC->bitsarray[EC->clue+i])
-					 || (EC->count[EC->clue+i]*(i1-EC->bitsarray[EC->clue+i])<(i/2)))
+				if ((i1 <= EC->bitsarray[EC->clue+i]) ||
+					 (EC->count[EC->clue+i]*(i1-EC->bitsarray[EC->clue+i])<(i/2)))
 				{	EC->count[EC->clue+i] = 0;
 				}
 			}
@@ -1050,8 +1051,8 @@ static void HUFF_pack(struct HuffEncodeContext *EC,
 		if (!i3)
 			HUFF_writecode(EC,dest,i);
 
-		if (((long) bptr1- (long) EC->buffer) >= (long)(EC->plen+curpc))
-			curpc = (long) bptr1 - (long) EC->buffer - EC->plen;
+		if ((bptr1 - EC->buffer) >= (ptrdiff_t)(EC->plen+curpc))
+			curpc = (unsigned int)((bptr1 - EC->buffer) - EC->plen);
 	}
 
 	/* write EOF ([clue] 0gn [10]) */

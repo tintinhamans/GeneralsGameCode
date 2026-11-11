@@ -28,11 +28,7 @@
 
 #pragma once
 
-#include "Lib/BaseType.h"
-
 #ifdef RTS_DEBUG
-
-//#include "winsock2.h" // for htonl
 
 class CRC
 {
@@ -92,7 +88,7 @@ public:
 #else
     // ASM version, verified by comparing resulting data with C++ version data
     unsigned *crcPtr=&crc;
-    _asm
+    __asm
     {
       mov esi,[buf]
       mov ecx,[len]

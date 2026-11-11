@@ -33,8 +33,10 @@
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "Common/ActionManager.h"
+#include "Common/FramePacer.h"
 #include "Common/GameEngine.h"
 #include "Common/GameState.h"
+#include "Common/Recorder.h"
 #include "Common/GameUtility.h"
 #include "Common/GlobalData.h"
 #include "Common/PerfTimer.h"
@@ -126,18 +128,6 @@ GameClient::~GameClient()
 
 	// clear any drawable TOC we might have
 	m_drawableTOC.clear();
-
-	//DEBUG_LOG(("Preloaded texture files ------------------------------------------"));
-	//for (Int oog=0; oog<preloadTextureNamesGlobalHack2.size(); ++oog)
-	//{
-	//	DEBUG_LOG(("%s", preloadTextureNamesGlobalHack2[oog]));
-	//}
-	//DEBUG_LOG(("------------------------------------------------------------------"));
-	//for (oog=0; oog<preloadTextureNamesGlobalHack.size(); ++oog)
-	//{
-	//	DEBUG_LOG(("%s", preloadTextureNamesGlobalHack[oog]));
-	//}
-	//DEBUG_LOG(("End Texture files ------------------------------------------------"));
 
 	delete TheCampaignManager;
 	TheCampaignManager = nullptr;
@@ -251,7 +241,7 @@ void GameClient::init()
 	}
 
 	// create the display string factory
-	TheDisplayStringManager = createDisplayStringManager();
+	TheDisplayStringManager = TheGlobalData->m_headless ? NEW DisplayStringManagerDummy : createDisplayStringManager();
 	if( TheDisplayStringManager )	{
 		TheDisplayStringManager->init();
 		TheDisplayStringManager->setName("TheDisplayStringManager");
@@ -307,7 +297,7 @@ void GameClient::init()
 	}
 
 	// create the font library
-	TheFontLibrary = createFontLibrary();
+	TheFontLibrary = TheGlobalData->m_headless ? NEW FontLibraryDummy : createFontLibrary();
 	if( TheFontLibrary )
 		TheFontLibrary->init();
 
@@ -430,7 +420,6 @@ void GameClient::init()
 /** Reset the game client for a new game */
 void GameClient::reset()
 {
-	Drawable *draw, *nextDraw;
 	m_drawableHash.clear();
 #if USING_STLPORT
 	m_drawableHash.resize(DRAWABLE_HASH_SIZE);
@@ -442,7 +431,7 @@ void GameClient::reset()
 	TheInGameUI->reset();
 
 	// destroy all Drawables
-	for( draw = m_drawableList; draw; draw = nextDraw )
+	for( Drawable *draw = m_drawableList, *nextDraw = nullptr; draw; draw = nextDraw )
 	{
 		nextDraw = draw->getNextDrawable();
 		destroyDrawable( draw );
@@ -514,6 +503,15 @@ void GameClient::update()
 
 			TheShell->showShellMap(TRUE);
 			TheShell->showShell();
+
+			if (TheGlobalData->m_loadSaveGame.isNotEmpty())
+			{
+				TheGameState->loadQueuedSaveGame();
+			}
+			else if (TheGlobalData->m_loadReplayGame.isNotEmpty())
+			{
+				TheRecorder->loadQueuedReplay();
+			}
 		}
 	}
 
@@ -596,9 +594,11 @@ void GameClient::update()
 
 
 		// call the update for all client drawables
+		const Real timeScale = TheFramePacer->getActualLogicTimeScaleOverFpsRatio();
 		Drawable* draw = firstDrawable();
 		while (draw)
-		{	// update() could free the Drawable, so go ahead and grab 'next'
+		{
+			// update() could free the Drawable, so go ahead and grab 'next'
 			Drawable* next = draw->getNextDrawable();
 #if ENABLE_CONFIGURABLE_SHROUD
 			if (TheGlobalData->m_shroudOn)
@@ -643,7 +643,7 @@ void GameClient::update()
 					draw->setFullyObscuredByShroud(ss >= OBJECTSHROUD_FOGGED);
 				}
 			}
-			draw->updateDrawable();
+			draw->updateDrawable(timeScale);
 			draw = next;
 		}
 	}
@@ -656,15 +656,6 @@ void GameClient::update()
 	}
 #endif
 
-	// update all particle systems
-	if( !freezeTime )
-	{
-		// update particle systems
-		TheParticleSystemManager->setLocalPlayerIndex(localPlayerIndex);
-		TheParticleSystemManager->update();
-
-	}
-
 	// update the terrain visuals
 	{
 		TheTerrainVisual->UPDATE();
@@ -673,6 +664,15 @@ void GameClient::update()
 	// update display
 	{
 		TheDisplay->UPDATE();
+	}
+
+	// update all particle systems
+	// TheSuperHackers @info The particle update follows the display update, because that
+	// moves bone-attached particle systems to the current client bone transforms of their drawables.
+	if( !freezeTime && TheGameLogic->hasUpdated() )
+	{
+		TheParticleSystemManager->setLocalPlayerIndex(localPlayerIndex);
+		TheParticleSystemManager->UPDATE();
 	}
 
 	{
@@ -790,7 +790,6 @@ void GameClient::updateFakeDrawables()
 
 /** -----------------------------------------------------------------------------------------------
  * Given an object id, return the associated object.
- * For efficiency, a small Least Recently Used cache is incorporated.
  * This method is the primary interface for accessing objects, and should be used
  * instead of pointers to "attach" objects to each other.
  */
@@ -849,7 +848,7 @@ void GameClient::addDrawableToLookupTable(Drawable *draw )
 	if( draw == nullptr )
 		return;
 
-	// add to lookup
+	// add to lookup table
 	m_drawableHash[ draw->getID() ] = draw;
 
 }
@@ -864,7 +863,7 @@ void GameClient::removeDrawableFromLookupTable( Drawable *draw )
 	if( draw == nullptr )
 		return;
 
-	// remove from table
+	// remove from lookup table
 	m_drawableHash.erase( draw->getID() );
 
 }

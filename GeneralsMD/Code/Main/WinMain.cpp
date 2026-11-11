@@ -31,7 +31,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
-#define WIN32_LEAN_AND_MEAN  // only bare bones windows stuff wanted
 #include <windows.h>
 #include <stdlib.h>
 #include <crtdbg.h>
@@ -41,7 +40,6 @@
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "WinMain.h"
-#include "Lib/BaseType.h"
 #include "Common/CommandLine.h"
 #include "Common/CriticalSection.h"
 #include "Common/GlobalData.h"
@@ -68,7 +66,7 @@
 #include "resource.h"
 
 #ifdef RTS_ENABLE_CRASHDUMP
-#include "Common/MiniDumper.h"
+#include "MiniDumper/MiniDumper.h"
 #endif
 #include "../OnlineServices_Init.h"
 
@@ -871,7 +869,7 @@ static Bool initializeAppWindows(HINSTANCE hInstance, Int nCmdShow, Bool runWind
 }
 
 // Necessary to allow memory managers and such to have useful critical sections
-static CriticalSection critSec1, critSec2, critSec3, critSec4, critSec5;
+static CriticalSection critSec1, critSec2, critSec3, critSec4;
 
 // UnHandledExceptionFilter ===================================================
 /** Handler for unhandled win32 exceptions. */
@@ -919,19 +917,11 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		TheUnicodeStringCriticalSection = &critSec2;
 		TheDmaCriticalSection = &critSec3;
 		TheMemoryPoolCriticalSection = &critSec4;
-		TheDebugLogCriticalSection = &critSec5;
 
 		// initialize the memory manager early
 		initMemoryManager();
 
-		/// @todo remove this force set of working directory later
-		Char buffer[_MAX_PATH];
-		GetModuleFileName(nullptr, buffer, sizeof(buffer));
-		if (Char* pEnd = strrchr(buffer, '\\'))
-		{
-			*pEnd = 0;
-		}
-		::SetCurrentDirectory(buffer);
+		CommandLine::parseCommandLineForStartup();
 
 
 #ifdef RTS_DEBUG
@@ -972,10 +962,9 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		gLoadScreenBitmap = (HBITMAP)LoadImage(hInstance, "Install_Final.bmp", IMAGE_BITMAP, 0, 0, LR_SHARED | LR_LOADFROMFILE);
 #endif
 
-		CommandLine::parseCommandLineForStartup();
 #ifdef RTS_ENABLE_CRASHDUMP
 		// Initialize minidump facilities - requires TheGlobalData so performed after parseCommandLineForStartup
-		MiniDumper::initMiniDumper(TheGlobalData->getPath_UserData());
+		MiniDumper::initMiniDumper(TheGlobalData->getPath_UserData().str(), 'Z');
 #endif
 
 		// register windows class and create application window

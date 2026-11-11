@@ -16,7 +16,7 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/* $Header: /Commando/Code/ww3d2/motchan.cpp 3     5/05/01 7:10p Jani_p $ */
+/* $Header: /Commando/Code/ww3d2/motchan.cpp 6     11/29/01 1:07p Jani_p $ */
 /***********************************************************************************************
  ***                            Confidential - Westwood Studios                              ***
  ***********************************************************************************************
@@ -27,9 +27,9 @@
  *                                                                                             *
  *                       Author:: Greg_h                                                       *
  *                                                                                             *
- *                     $Modtime:: 5/05/01 6:28p                                               $*
+ *                     $Modtime:: 11/29/01 1:01p                                              $*
  *                                                                                             *
- *                    $Revision:: 3                                                           $*
+ *                    $Revision:: 6                                                           $*
  *                                                                                             *
  *---------------------------------------------------------------------------------------------*
  * Functions:                                                                                  *
@@ -50,7 +50,8 @@
 #include "WWLib/Vector.h"
 #include "WWMath/wwmath.h"
 #include "WWMath/quat.h"
-
+#include <Utility/bit_adapter.h>
+//#include <Windows.h>
 // Static Table, for Adaptive Delta Decompressor
 #define FILTER_TABLE_SIZE (256)
 #define FILTER_TABLE_GEN_START (16)
@@ -77,7 +78,6 @@ static float filtertable[FILTER_TABLE_SIZE] = {
 };
 static bool table_valid = false;
 
-
 /***********************************************************************************************
  * MotionChannelClass::MotionChannelClass -- constructor                                       *
  *                                                                                             *
@@ -96,7 +96,10 @@ MotionChannelClass::MotionChannelClass() :
 	VectorLen(0),
 	Data(nullptr),
 	FirstFrame(-1),
-	LastFrame(-1)
+	LastFrame(-1),
+	CompressedData(nullptr),
+	ValueScale(0.0f),
+	ValueOffset(0.0f)
 {
 }
 
@@ -131,6 +134,9 @@ MotionChannelClass::~MotionChannelClass()
  *=============================================================================================*/
 void MotionChannelClass::Free()
 {
+	delete[] CompressedData;
+	CompressedData=nullptr;
+
 	delete[] Data;
 	Data = nullptr;
 }
@@ -151,8 +157,8 @@ void MotionChannelClass::Free()
 bool MotionChannelClass::Load_W3D(ChunkLoadClass & cload)
 {
 	int size = cload.Cur_Chunk_Length();
-	unsigned int datasize = (size - sizeof(W3dAnimChannelStruct));
-	unsigned int num_floats = (datasize / sizeof(float32)) + 1;
+	// There was a bug in the exporter which saved too much data, so let's try and not load everything.
+	unsigned int saved_datasize = (size - sizeof(W3dAnimChannelStruct));
 
 	W3dAnimChannelStruct chan;
 	if (cload.Read(&chan,sizeof(W3dAnimChannelStruct)) != sizeof(W3dAnimChannelStruct)) {
@@ -165,6 +171,10 @@ bool MotionChannelClass::Load_W3D(ChunkLoadClass & cload)
 	Type 			 = chan.Flags;
 	PivotIdx   = chan.Pivot;
 
+	unsigned int num_floats = LastFrame-FirstFrame+1;//(datasize / sizeof(float32)) + 1;
+	num_floats*=VectorLen;
+	unsigned int datasize=(num_floats-1)*sizeof(float);
+
 	Data = MSGW3DNEWARRAY("MotionChannelClass::Data") float32[num_floats];
 	Data[0] = chan.Data[0];
 
@@ -172,6 +182,12 @@ bool MotionChannelClass::Load_W3D(ChunkLoadClass & cload)
 		Free();
 		return false;
 	}
+	// Skip over the extra data at the end of the chunk (saved by an error in the exporter)
+	if (saved_datasize-datasize>0) {
+		cload.Seek(saved_datasize-datasize);
+	}
+
+	Do_Data_Compression(datasize);
 	return true;
 }
 
@@ -252,7 +268,9 @@ bool BitChannelClass::Load_W3D(ChunkLoadClass & cload)
 {
 	Free();
 
+#ifndef NDEBUG
 	int chunk_size = cload.Cur_Chunk_Length();
+#endif
 
 	W3dBitChannelStruct chan;
 	if (cload.Read(&chan,sizeof(W3dBitChannelStruct)) != sizeof(W3dBitChannelStruct)) {
@@ -413,13 +431,7 @@ void	TimeCodedMotionChannelClass::Get_Vector(float32 frame,float * setvec)
 
   if (pidx == ((NumTimeCodes - 1) * PacketSize))  {
 
-     float32 *frm = (float32 *) &Data[pidx+1];
-
-		for (int i=0; i < VectorLen; i++)  {
-
-	   	setvec[i] = frm[i];
-
-	  }
+     memcpy(setvec, &Data[pidx+1], VectorLen * sizeof(float32));
 
      return;
 
@@ -431,10 +443,7 @@ void	TimeCodedMotionChannelClass::Get_Vector(float32 frame,float * setvec)
   uint32 time = Data[p2idx];
 
    if (time & W3D_TIMECODED_BINARY_MOVEMENT_FLAG) {
-		float32 *frm = (float32 *) &Data[pidx+1];
-		for (int i=0; i < VectorLen; i++) {
-			setvec[i] = frm[i];
-		}
+		memcpy(setvec, &Data[pidx+1], VectorLen * sizeof(float32));
 		return;
    }
 
@@ -443,17 +452,27 @@ void	TimeCodedMotionChannelClass::Get_Vector(float32 frame,float * setvec)
 
   float32 ratio = (frame - time1) / (time2 - time1);
 
-  float32 *frame1 = (float32 *) &Data[pidx+1];
-  float32 *frame2 = (float32 *) &Data[p2idx+1];
+  const uint32* frame1 = &Data[pidx+1];
+  const uint32* frame2 = &Data[p2idx+1];
 
   for (int i=0; i < VectorLen; i++)  {
 
-     setvec[i] = WWMath::Lerp(frame1[i],frame2[i],ratio);
+     setvec[i] = WWMath::Lerp(std::bit_cast<float32>(frame1[i]),std::bit_cast<float32>(frame2[i]),ratio);
 
   }
 
 }
 
+
+// Sets a quaternion from the four floats stored in a packet.
+static void Set_Quaternion_From_Packet(Quaternion& q, const uint32 packet[4])
+{
+	q.Set(
+		std::bit_cast<float32>(packet[0]),
+		std::bit_cast<float32>(packet[1]),
+		std::bit_cast<float32>(packet[2]),
+		std::bit_cast<float32>(packet[3]));
+}
 
 Quaternion TimeCodedMotionChannelClass::Get_QuatVector(float32 frame)
 {
@@ -471,9 +490,7 @@ Quaternion TimeCodedMotionChannelClass::Get_QuatVector(float32 frame)
 
 	if (pidx == ((NumTimeCodes - 1) * PacketSize))  {
 
-		float32 *vec = (float32 *) &Data[pidx+1];
-
-		q.Set(vec[0], vec[1], vec[2], vec[3]);
+		Set_Quaternion_From_Packet(q, &Data[pidx+1]);
 
 		return( q );
 
@@ -485,10 +502,7 @@ Quaternion TimeCodedMotionChannelClass::Get_QuatVector(float32 frame)
 	uint32 time = Data[p2idx];
 
 	if (time & W3D_TIMECODED_BINARY_MOVEMENT_FLAG) {
-		// its a binary movement!
-		float32 *vec = (float32 *) &Data[pidx+1];
-
-		q.Set(vec[0], vec[1], vec[2], vec[3]);
+		Set_Quaternion_From_Packet(q, &Data[pidx+1]);
 
 		return( q );
 	}
@@ -498,14 +512,11 @@ Quaternion TimeCodedMotionChannelClass::Get_QuatVector(float32 frame)
 
 	float32 ratio = (frame - time1) / (time2 - time1);
 
-	float32 *frame1 = (float32 *) &Data[pidx+1];
-	float32 *frame2 = (float32 *) &Data[p2idx+1];
+	Quaternion q1;
+	Quaternion q2;
 
-	Quaternion q1(1);
-	Quaternion q2(1);
-
-	q1.Set(frame1[0], frame1[1], frame1[2], frame1[3]);
-	q2.Set(frame2[0], frame2[1], frame2[2], frame2[3]);
+	Set_Quaternion_From_Packet(q1, &Data[pidx+1]);
+	Set_Quaternion_From_Packet(q2, &Data[p2idx+1]);
 
 	Fast_Slerp(q, q1, q2, ratio);
 
@@ -729,7 +740,9 @@ bool TimeCodedBitChannelClass::Load_W3D(ChunkLoadClass & cload)
 {
 	Free();
 
+#ifndef NDEBUG
 	int chunk_size = cload.Cur_Chunk_Length();
+#endif
 
 	W3dTimeCodedBitChannelStruct chan;
 	if (cload.Read(&chan,sizeof(W3dTimeCodedBitChannelStruct)) != sizeof(W3dTimeCodedBitChannelStruct)) {
@@ -846,7 +859,7 @@ AdaptiveDeltaMotionChannelClass::AdaptiveDeltaMotionChannelClass() :
 			//ratio = ((ratio + 1.0f) / 128.0f);
 			ratio/=((float) FILTER_TABLE_GEN_SIZE);
 
-			filtertable[i + FILTER_TABLE_GEN_START] = 1.0f - WWMath::Sin( DEG_TO_RAD(90.0f * ratio));
+			filtertable[i + FILTER_TABLE_GEN_START] = 1.0f - WWMath::Sinf_Legacy( DEG_TO_RAD(90.0f * ratio));
 		}
 
 		table_valid = true;
@@ -953,7 +966,7 @@ bool AdaptiveDeltaMotionChannelClass::Load_W3D(ChunkLoadClass & cload)
 void AdaptiveDeltaMotionChannelClass::decompress(uint32 frame_idx, float *outdata)
 {
 	// Start Over from the beginning
-	float *base	= (float *) &Data[0];	// pointer to our true know beginning values
+	const uint32* base	= &Data[0];	// pointer to our true know beginning values
 
 	bool done = false;
 
@@ -963,7 +976,7 @@ void AdaptiveDeltaMotionChannelClass::decompress(uint32 frame_idx, float *outdat
 		pPacket+= (sizeof(float) * VectorLen);					// skip non-compressed header information
 		pPacket+= PACKET_SIZE * vi;								// skip to the appropriate packet start
 
-		float last_value = base[vi];
+		float last_value = std::bit_cast<float>(base[vi]);
 
 		for (uint32 frame=1; frame<=frame_idx;) {
 			// Frame Loop
@@ -1024,13 +1037,12 @@ void AdaptiveDeltaMotionChannelClass::decompress(uint32 frame_idx, float *outdat
 
 void AdaptiveDeltaMotionChannelClass::decompress(uint32 src_idx, float *srcdata, uint32 frame_idx, float *outdata)
 {
-	// Contine decompressing from src_idx, up to frame_idx
+	// Continue decompressing from src_idx, up to frame_idx
 
    assert(src_idx < frame_idx);
    src_idx++;
 
-	float *base	= (float *) &Data[0];	// pointer to our true know beginning values
-   base += VectorLen;						// skip header information
+	const uint32* base	= &Data[VectorLen];	// skip header information
 
 	bool done = false;
 
@@ -1239,6 +1251,60 @@ Quaternion AdaptiveDeltaMotionChannelClass::Get_QuatVector(float32 frame)
 	return( q );
 
 }
+
+//==========================================================================================
+void MotionChannelClass::
+Do_Data_Compression(int datasize)
+{
+return;
+	//Find Min_Max
+	float value_min=FLT_MAX;
+	float value_max=-FLT_MAX;
+	int count=datasize/sizeof(float);
+	int i=0;
+	for (;i<count;i++) {
+		float value=Data[i];
+		if (_isnan(value)) value=0.0f;
+		if (value>100000.0f) value=0.0f;
+		if (value<-100000.0f) value=0.0f;
+		Data[i]=value;
+
+		if (value_min > value) value_min = value;
+		if (value_max < value) value_max = value;
+	}
+	ValueOffset=value_min;
+	ValueScale=value_max-value_min;
+	// Can't compress if the range is too high
+	if (ValueScale>2000.0f) return;
+	if (Type==ANIM_CHANNEL_Q/* && ValueScale>3.0f*/) return;
+
+	WWASSERT(!CompressedData);
+	CompressedData=new unsigned short[count];
+	float inv_scale=0.0f;
+	if (ValueScale!=0.0f) {
+		inv_scale=1.0f/ValueScale;
+	}
+	inv_scale*=65535.0f;
+	for (i=0;i<count;++i) {
+		float value=Data[i];
+		value-=ValueOffset;
+		value*=inv_scale;
+		int ivalue=WWMath::Float_To_Int_Floor(value);
+		CompressedData[i]=(unsigned short)(ivalue);
+
+//		float new_scale=ValueScale/65535.0f;
+//		float new_value=int(CompressedData[i]);
+//		float new_float = new_value*new_scale+ValueOffset;
+//			if (fabs(new_float-Data[i])>ValueScale/65536.0f) {
+//				int ii=0;
+//			}
+
+	}
+
+	delete[] Data;
+	Data=nullptr;
+}
+
 
 
 // EOF - motchan.cpp

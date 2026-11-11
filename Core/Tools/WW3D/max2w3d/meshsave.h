@@ -47,7 +47,6 @@
 #include "util.h"
 #include "w3dmtl.h"
 #include "meshbuild.h"
-#include "MeshDeformSave.h"
 #include "w3dappdata.h"
 
 class HierarchySaveClass;
@@ -120,7 +119,7 @@ public:
 			WorldInfoClass *			world_info = nullptr
 			);
 
-	~MeshSaveClass(void);
+	~MeshSaveClass();
 
 	int Write_To_File(ChunkSaveClass & csave,bool export_aabtrees = false);
 
@@ -132,7 +131,6 @@ private:
 	W3dMeshHeader3Struct				Header;
 	W3dMaterialDescClass 			MaterialDesc;
 	MeshBuilderClass					Builder;
-	MeshDeformSaveClass				DeformSave;
 	TimeValue							CurTime;
 	Matrix3								ExportSpace;
 	Matrix3								MeshToExportSpace;
@@ -144,17 +142,13 @@ private:
 
 	int *									MaterialRemapTable;		// reindexes mtl_idx after un-used mtls are removed
 
-	// Flag set if the mesh uses a PS2 material.
-	int									PS2Material;
-
 private:
 
 	// Use a MeshBuilderClass to process the mesh
 	void Build_Mesh(Mesh & mesh, Mtl *node_mtl, unsigned int *materialColors, int &numMaterialColors, int &numHouseColors);
 
 	// compute properties for the mesh
-	void compute_bounding_volumes(void);
-	void compute_physical_constants(INode * inode,Progress_Meter_Class & meter,bool voxelize);
+	void compute_bounding_volumes();
 
 	// create the materials
 	int  scan_used_materials(Mesh & mesh, Mtl * nodemtl);
@@ -200,16 +194,10 @@ private:
 	// inverse deform the mesh so that its ready to be used as a skin!
 	void get_skin_modifier_objects(SkinDataClass ** skin_data_ptr,SkinWSMObjectClass ** skin_obj_ptr);
 	int  get_htree_bone_index_for_inode(INode * node);
-	void inv_deform_mesh(void);
+	void inv_deform_mesh();
 
 	// get rendering settings for the materials
-	void customize_materials(void);
-
-	// Write the ps2 shaders and approximate them as close as possible in the W3D shaders.
-	int write_ps2_shaders(ChunkSaveClass & csave);
-
-	// Make the PC shader emulate the PS2 shader.
-	void setup_PC_shaders_from_PS2_shaders();
+	void customize_materials();
 
 	friend class DamageClass;
 };

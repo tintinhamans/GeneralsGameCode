@@ -45,6 +45,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/CriticalSection.h"
+#include "WWLib/utf8.h"
 
 #if defined(_WIN32) && !defined(WC_NO_BEST_FIT_CHARS)
 #define WC_NO_BEST_FIT_CHARS 0x00000400
@@ -188,10 +189,7 @@ void AsciiString::ensureUniqueBufferOfSize(int numCharsNeeded, Bool preserveData
 	int actualBytes = TheDynamicMemoryAllocator->getActualAllocationSize(minBytes);
 	AsciiStringData* newData = (AsciiStringData*)TheDynamicMemoryAllocator->allocateBytesDoNotZero(actualBytes, "STR_AsciiString::ensureUniqueBufferOfSize");
 	newData->m_refCount = 1;
-	newData->m_numCharsAllocated = (actualBytes - sizeof(AsciiStringData)) / sizeof(char);
-#if defined(RTS_DEBUG)
-	newData->m_debugptr = newData->peek();	// just makes it easier to read in the debugger
-#endif
+	newData->m_numCharsAllocated = (actualBytes - sizeof(AsciiStringData))/sizeof(char);
 
 	if (m_data && preserveData)
 		strcpy(newData->peek(), m_data->peek());
@@ -310,45 +308,19 @@ char* AsciiString::getBufferForRead(Int len)
 void AsciiString::translate(const UnicodeString& stringSrc)
 {
 	validate();
-	Int len = stringSrc.getLength();
-#ifdef _WIN32
-	// non-ASCII text becomes process code page bytes (UTF-8 on modern Windows); pure ASCII takes the loop below
-	Bool isAscii = true;
-	for (Int i = 0; i < len; i++)
+	// TheSuperHackers @fix bobtista 02/04/2026 Implement UTF-8 conversion replacing 7-bit ASCII only implementation
+	const WideChar* src = stringSrc.str();
+	const size_t srcLen = wcslen(src);
+	const size_t dstLen = Wide_To_Utf8_Len(src, srcLen);
+	if (dstLen == 0)
 	{
-		if (stringSrc.getCharAt(i) >= 0x80)
-		{
-			isAscii = false;
-			break;
-		}
+		clear();
 	}
-	if (!isAscii)
+	else
 	{
-		// a legacy code page can't hold everything; substitute '_' so generated file names stay valid
-		const Bool isUtf8 = GetACP() == CP_UTF8;
-		const UINT codePage = isUtf8 ? CP_UTF8 : CP_ACP;
-		const DWORD flags = isUtf8 ? 0 : WC_NO_BEST_FIT_CHARS;
-		const char* defaultChar = isUtf8 ? nullptr : "_";
-		const Int narrowLen = WideCharToMultiByte(codePage, flags, stringSrc.str(), len, nullptr, 0, defaultChar, nullptr);
-		if (narrowLen > 0)
-		{
-			char* narrowBuf = new char[narrowLen + 1];
-			const Int written = WideCharToMultiByte(codePage, flags, stringSrc.str(), len, narrowBuf, narrowLen, defaultChar, nullptr);
-			if (written > 0)
-			{
-				narrowBuf[written] = 0;
-				set(narrowBuf);
-				delete[] narrowBuf;
-				validate();
-				return;
-			}
-			delete[] narrowBuf;
-		}
+		ensureUniqueBufferOfSize((Int)dstLen + 1, false, nullptr, nullptr);
+		Wide_To_Utf8(peek(), dstLen + 1, src, srcLen);
 	}
-#endif
-	clear();
-	for (Int i = 0; i < len; i++)
-		concat((char)stringSrc.getCharAt(i));
 	validate();
 }
 
@@ -607,16 +579,21 @@ Bool AsciiString::isNone() const
 }
 
 //-----------------------------------------------------------------------------
-Bool AsciiString::nextToken(AsciiString* tok, const char* seps)
+Bool AsciiString::nextToken(AsciiString* tok, const char* separators)
 {
-	if (this->isEmpty() || tok == this)
+	DEBUG_ASSERTCRASH(tok != this, ("Tokenizer and Token cannot be the same object"));
+
+	if (this->isEmpty())
+	{
+		tok->clear();
 		return false;
+	}
 
-	if (seps == nullptr)
-		seps = " \n\r\t";
+	if (separators == nullptr)
+		separators = " \n\r\t";
 
-	char* start = skipSeps(peek(), seps);
-	char* end = skipNonSeps(start, seps);
+	char* start = skipSeps(peek(), separators);
+	char* end = skipNonSeps(start, separators);
 
 	if (end > start)
 	{

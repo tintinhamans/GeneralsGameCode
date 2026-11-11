@@ -31,7 +31,6 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 
-#include "Lib/BaseType.h"
 #include "Common/FileSystem.h"
 #include "Common/GameEngine.h"
 #include "Common/GameState.h"
@@ -107,10 +106,7 @@ UnicodeString GetReplayFilenameFromListbox(GameWindow *listbox, Int index)
 
 static Bool readReplayMapInfo(const AsciiString& filename, RecorderClass::ReplayHeader &header, ReplayGameInfo &info, const MapMetaData *&mapData)
 {
-	header.forPlayback = FALSE;
-	header.filename = filename;
-
-	if (TheRecorder != nullptr && TheRecorder->readReplayHeader(header))
+	if (TheRecorder != nullptr && TheRecorder->readReplayHeader(header, filename, FALSE))
 	{
 		if (ParseAsciiStringToGameInfo(&info, header.gameOptions))
 		{
@@ -162,8 +158,7 @@ static UnicodeString createMapName(const AsciiString& filename, const ReplayGame
 	{
 		// TheSuperHackers @bugfix helmutbuhler 08/03/2025 Just use the filename.
 		// Displaying a long map path string would break the map list gui.
-		const char* filename = info.getMap().reverseFind('\\');
-		mapName.translate(filename ? filename + 1 : info.getMap());
+		mapName.translate(getFileName(info.getMap().str()));
 	}
 	else
 	{
@@ -278,7 +273,7 @@ void PopulateReplayFileListbox(GameWindow *listbox)
 	for (it = replayFilenames.begin(); it != replayFilenames.end(); ++it)
 	{
 		// just want the filename
-		asciistr.set((*it).reverseFind('\\') + 1);
+		asciistr.set(getFileName((*it).str()));
 
 		RecorderClass::ReplayHeader header;
 		ReplayGameInfo info;
@@ -863,7 +858,7 @@ void copyReplay()
 	newFilename.concat(translate);
 	if(CopyFile(filename.str(),newFilename.str(), FALSE) == 0)
 	{
-		wchar_t buffer[1024];
+		WideChar buffer[1024];
 		FormatMessageW( FORMAT_MESSAGE_FROM_SYSTEM, nullptr, GetLastError(), 0, buffer, ARRAY_SIZE(buffer), nullptr);
 		UnicodeString errorStr;
 		errorStr.set(buffer);

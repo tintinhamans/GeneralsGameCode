@@ -37,11 +37,11 @@
 
 
 #include "hanim.h"
-#include "WW3D2/assetmgr.h"
+#include "assetmgr.h"
 #include "htree.h"
-#include "WW3D2/motchan.h"
+#include "motchan.h"
 #include "WWLib/chunkio.h"
-#include "WW3D2/w3d_file.h"
+#include "w3d_file.h"
 #include "WWDebug/wwdebug.h"
 #include <WWLib/nstrdup.h>
 
@@ -304,7 +304,7 @@ bool	HAnimComboClass::Normalize_Weights()
 		}
 
 		// weight_total should be very close to 1. If not, normalize this pivot's weights
-		if (weight_total != 0.0 && WWMath::Fabs( weight_total - 1.0 ) > WWMATH_EPSILON) {
+		if (weight_total != 0.0 && WWMath::Fabsf_Legacy( weight_total - 1.0 ) > WWMATH_EPSILON) {
 			float oo_total = 1.0f / weight_total;
 			for (anim_idx = 0; anim_idx < anim_count; anim_idx++ ) {
 				if (Peek_Motion(anim_idx) != nullptr ) {
@@ -329,7 +329,7 @@ bool	HAnimComboClass::Normalize_Weights()
 				}
 
 				// weight_total should be very close to 1. If not, normalize this pivot's weights
-				if (weight_total != 0.0 && WWMath::Fabs( weight_total - 1.0 ) > WWMATH_EPSILON) {
+				if (weight_total != 0.0 && WWMath::Fabsf_Legacy( weight_total - 1.0 ) > WWMATH_EPSILON) {
 					float oo_total = 1.0f / weight_total;
 					for (anim_idx = 0; anim_idx < anim_count; anim_idx++ ) {
 						if (Peek_Motion(anim_idx) != nullptr ) {

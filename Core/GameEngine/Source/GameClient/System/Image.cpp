@@ -34,7 +34,6 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #define DEFINE_IMAGE_STATUS_NAMES
-#include "Lib/BaseType.h"
 #include "Common/Debug.h"
 #include "Common/INI.h"
 #include "Common/GlobalData.h"
@@ -253,10 +252,10 @@ void ImageCollection::load( Int textureSize )
 	if(TheGlobalData)
 	{
 		userDataPath.format("%sINI\\MappedImages\\*.ini",TheGlobalData->getPath_UserData().str());
-		HANDLE hFind = FindFirstFile(userDataPath.str(), &findData);
-		if(hFind != INVALID_HANDLE_VALUE)
+		HANDLE findHandle = FindFirstFile(userDataPath.str(), &findData);
+		if(findHandle != INVALID_HANDLE_VALUE)
 		{
-			FindClose(hFind);
+			FindClose(findHandle);
 			userDataPath.format("%sINI\\MappedImages",TheGlobalData->getPath_UserData().str());
 			ini.loadDirectory(userDataPath, INI_LOAD_OVERWRITE, nullptr );
 		}

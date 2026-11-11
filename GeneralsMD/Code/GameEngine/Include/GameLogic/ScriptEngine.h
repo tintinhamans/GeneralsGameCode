@@ -314,12 +314,15 @@ public:
     void doFreezeTime();
     void doUnfreezeTime();
 
-    /// The following functions are used to update and query the debug window
-    Bool isTimeFrozenDebug();		///< Ask whether the debug window has requested a pause.
-    Bool isTimeFast();		///< Ask whether the debug window has requested a fast forward.
-    void forceUnfreezeTime();	///< Force that time becomes unfrozen temporarily.
-    void AppendDebugMessage(const AsciiString& strToAdd, Bool forcePause);
-    void AdjustDebugVariableData(const AsciiString& variableName, Int value, Bool forcePause);
+	void friend_notifyLetterBoxActive(Bool active);
+	Bool isLetterBoxActive() const; ///< Ask whether the letterbox has been activated by a script; indicates an active cinematic
+
+	/// The following functions are used to update and query the debug window
+	Bool isTimeFrozenDebug();		///< Ask whether the debug window has requested a pause.
+	Bool isTimeFast();		///< Ask whether the debug window has requested a fast forward.
+	void forceUnfreezeTime();	///< Force that time becomes unfrozen temporarily.
+	void AppendDebugMessage(const AsciiString& strToAdd, Bool forcePause);
+	void AdjustDebugVariableData(const AsciiString& variableName, Int value, Bool forcePause);
 
     void clearTeamFlags(); ///< Hack for dustin.
     void clearFlag(const AsciiString& name); ///< Hack for dustin.
@@ -427,25 +430,26 @@ protected:
 
 
 protected:
-    ActionTemplate		m_actionTemplates[ScriptAction::NUM_ITEMS];
-    ConditionTemplate	m_conditionTemplates[Condition::NUM_ITEMS];
-    TCounter					m_counters[MAX_COUNTERS];
-    Int								m_numCounters;
-    TFlag							m_flags[MAX_FLAGS];
-    Int								m_numFlags;
-    AttackPriorityInfo m_attackPriorityInfo[MAX_ATTACK_PRIORITIES];
-    Int								m_numAttackInfo;
-    Int								m_endGameTimer;
-    Int								m_closeWindowTimer;
-    Team* m_callingTeam;					///< Team that is calling script, used for THIS_TEAM
-    Object* m_callingObject;					///< Object that is calling script, used for THIS_OBJECT
-    Team* m_conditionTeam;				///< Team that is being used to evaluate conditions, used for THIS_TEAM
-    Object* m_conditionObject;				///< Unit that is being used to evaluate conditions, used for THIS_OBJECT
-    VecNamedRequests	m_namedObjects;
-    Bool							m_firstUpdate;
-    Player* m_currentPlayer;
-    Player* m_skirmishHumanPlayer;
-    AsciiString				m_currentTrackName;
+	ActionTemplate		m_actionTemplates[ScriptAction::NUM_ITEMS];
+	ConditionTemplate	m_conditionTemplates[Condition::NUM_ITEMS];
+	TCounter					m_counters[MAX_COUNTERS];
+	Int								m_numCounters;
+	TFlag							m_flags[MAX_FLAGS];
+	Int								m_numFlags;
+	AttackPriorityInfo m_attackPriorityInfo[MAX_ATTACK_PRIORITIES];
+	Int								m_numAttackInfo;
+	Int								m_endGameTimer;
+	Int								m_closeWindowTimer;
+	Bool							m_letterBoxActive; ///< A scripted letterbox sequence is running
+	Team							*m_callingTeam;					///< Team that is calling script, used for THIS_TEAM
+	Object						*m_callingObject;					///< Object that is calling script, used for THIS_OBJECT
+	Team							*m_conditionTeam;				///< Team that is being used to evaluate conditions, used for THIS_TEAM
+	Object						*m_conditionObject;				///< Unit that is being used to evaluate conditions, used for THIS_OBJECT
+	VecNamedRequests	m_namedObjects;
+	Bool							m_firstUpdate;
+	Player						*m_currentPlayer;
+	Player						*m_skirmishHumanPlayer;
+	AsciiString				m_currentTrackName;
 
     TFade							m_fade;
     Real							m_minFade;

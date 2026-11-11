@@ -60,15 +60,11 @@ public:
 	int  Find_Set(TSTR & setname);
 	void Delete_Set(int i);
 	void Delete_Set(TSTR & setname);
-	void Reset(void);
+	void Reset();
 	void Append_Set(BitArray & nset,TSTR & setname);
 
 	IOResult Load(ILoad * iload);
-	IOResult Save(ISave * isave);
 	IOResult Load_Set(ILoad * iload);
-
-	void Set_Size(int size);
-	NamedSelSetList & operator=(NamedSelSetList & from);
 
 	enum {
 		NAMED_SEL_SET_CHUNK =   0x0021,

@@ -38,7 +38,6 @@
 
 #include "w3dutil.h"
 #include "w3ddesc.h"
-#include "rcmenu.h"
 #include "util.h"
 #include "nodelist.h"
 #include "tchar.h"
@@ -48,6 +47,8 @@
 #include "genmtlnamesdialog.h"
 #include "genlodextensiondialog.h"
 #include "floaterdialog.h"
+#include <Lib/PathUtil.h>
+#include <Utility/stringex.h>
 #include <stdmat.h>
 
 
@@ -118,18 +119,18 @@ class SettingsFormClass
 public:
 
 	SettingsFormClass(HWND hwnd);
-	~SettingsFormClass(void);
+	~SettingsFormClass();
 
 	bool		Dialog_Proc(HWND hWnd,UINT message,WPARAM wParam,LPARAM);
-	void		Selection_Changed(void);
+	void		Selection_Changed();
 
-	static void	Update_All_Instances(void);
+	static void	Update_All_Instances();
 
 private:
 
-	void		Init(void);
-	void		Destroy(void);
-	void		Disable_Controls(void);
+	void		Init();
+	void		Destroy();
+	void		Disable_Controls();
 	void		Update_Controls(INodeListClass * nodelist = nullptr);
 
 	HWND						Hwnd;
@@ -159,12 +160,12 @@ public:
 	void SelectionSetChanged(Interface *ip,IUtil *iu);
 	void DeleteThis() {}
 
-	void Select_Hierarchy(void);
-	void Select_Geometry(void);
-	void Select_Alpha(void);
-	void Select_Physical(void);
-	void Select_Projectile(void);
-	void Select_Vis(void);
+	void Select_Hierarchy();
+	void Select_Geometry();
+	void Select_Alpha();
+	void Select_Physical();
+	void Select_Projectile();
+	void Select_Vis();
 
 public:
 
@@ -278,15 +279,15 @@ public:
 	bool		is_alpha_material(Mtl * nodemtl);
 	bool		is_alpha_mesh(INode * node,Mtl * nodemtl);
 
-	void		generate_names(void);
+	void		generate_names();
 	void		generate_node_name(INode * node);
-	void		generate_material_names(void);
+	void		generate_material_names();
 	void		generate_material_names_for_node(INode * node);
 	void		generate_material_names(Mtl * mtl);
-	void		generate_lod_extensions(void);
+	void		generate_lod_extensions();
 	void		generate_lod_ext(INode * node);
 
-	void		create_floater(void);
+	void		create_floater();
 
 	void		export_with_standard_materials();
 	int		convert_materials (MaterialConversionEnum conversion, MaterialReferenceMaker *gamenodematerials);
@@ -320,7 +321,7 @@ public:
 
 static W3DUtilityClassDesc W3DUtilityDesc;
 
-ClassDesc * Get_W3D_Utility_Desc(void)
+ClassDesc * Get_W3D_Utility_Desc()
 {
 	return &W3DUtilityDesc;
 }
@@ -330,7 +331,7 @@ ClassDesc * Get_W3D_Utility_Desc(void)
 ** W3DUtilityClass Implementation
 **
 **********************************************************************************************/
-W3DUtilityClass::W3DUtilityClass(void)
+W3DUtilityClass::W3DUtilityClass()
 {
 	InterfacePtr = nullptr;
 	SettingsPanelHWND = nullptr;
@@ -338,7 +339,7 @@ W3DUtilityClass::W3DUtilityClass(void)
 	UpdateSpinnerValue = true;
 }
 
-W3DUtilityClass::~W3DUtilityClass(void)
+W3DUtilityClass::~W3DUtilityClass()
 {
 }
 
@@ -359,13 +360,6 @@ void W3DUtilityClass::BeginEditParams(Interface *ip,IUtil *iu)
 		_w3d_utility_tools_dlg_proc,
 		Get_String(IDS_W3DUTILITY_TOOLS),
 		0);
-
-
-//	TheRCMenu.Bind(TheW3DUtility.InterfacePtr,&TheW3DUtility);
-//	RightClickMenuManager *rcm = ip->GetRightClickMenuManager();
-//	if (TheRCMenu.Installed!=TRUE) {
-//		rcm->Register(&TheRCMenu);
-//	}
 
 	SettingsFormClass::Update_All_Instances();
 }
@@ -690,7 +684,7 @@ void W3DUtilityClass::set_region_in_all_selected(INodeListClass * list,char regi
 	update_settings_controls(list);
 }
 
-void W3DUtilityClass::generate_names(void)
+void W3DUtilityClass::generate_names()
 {
 	GenNamesDialogClass dialog(InterfacePtr);
 	bool retval = dialog.Get_Options(&NameOptions);
@@ -701,7 +695,7 @@ void W3DUtilityClass::generate_names(void)
 	}
 }
 
-void W3DUtilityClass::generate_material_names(void)
+void W3DUtilityClass::generate_material_names()
 {
 	GenMtlNamesDialogClass dialog(InterfacePtr);
 	bool retval = dialog.Get_Options(&MtlNameOptions);
@@ -712,7 +706,7 @@ void W3DUtilityClass::generate_material_names(void)
 	}
 }
 
-void W3DUtilityClass::generate_lod_extensions(void)
+void W3DUtilityClass::generate_lod_extensions()
 {
 	GenLodExtensionDialogClass dialog(InterfacePtr);
 	bool retval = dialog.Get_Options(&LodExtensionOptions);
@@ -794,7 +788,7 @@ void W3DUtilityClass::generate_lod_ext(INode * node)
 	}
 }
 
-void W3DUtilityClass::create_floater(void)
+void W3DUtilityClass::create_floater()
 {
 	SettingsFloater.Create(InterfacePtr,IDD_W3DUTILITY_SETTINGS_DIALOG,_settings_form_dlg_proc);
 	SettingsFormClass::Update_All_Instances();
@@ -973,7 +967,7 @@ StdMat *W3DUtilityClass::new_standard_material (GameMtl *gamemtl)
 	return (stdmtl);
 }
 
-void W3DUtilityClass::Select_Hierarchy(void)
+void W3DUtilityClass::Select_Hierarchy()
 {
 	InterfacePtr->SelectNode(nullptr);
 	INode * root = InterfacePtr->GetRootNode();
@@ -981,7 +975,7 @@ void W3DUtilityClass::Select_Hierarchy(void)
 	InterfacePtr->ForceCompleteRedraw();
 }
 
-void W3DUtilityClass::Select_Geometry(void)
+void W3DUtilityClass::Select_Geometry()
 {
 	InterfacePtr->SelectNode(nullptr);
 	INode * root = InterfacePtr->GetRootNode();
@@ -989,7 +983,7 @@ void W3DUtilityClass::Select_Geometry(void)
 	InterfacePtr->ForceCompleteRedraw();
 }
 
-void W3DUtilityClass::Select_Alpha(void)
+void W3DUtilityClass::Select_Alpha()
 {
 	InterfacePtr->SelectNode(nullptr);
 	INode * root = InterfacePtr->GetRootNode();
@@ -997,7 +991,7 @@ void W3DUtilityClass::Select_Alpha(void)
 	InterfacePtr->ForceCompleteRedraw();
 }
 
-void W3DUtilityClass::Select_Physical(void)
+void W3DUtilityClass::Select_Physical()
 {
 	InterfacePtr->SelectNode(nullptr);
 	INode * root = InterfacePtr->GetRootNode();
@@ -1005,7 +999,7 @@ void W3DUtilityClass::Select_Physical(void)
 	InterfacePtr->ForceCompleteRedraw();
 }
 
-void W3DUtilityClass::Select_Projectile(void)
+void W3DUtilityClass::Select_Projectile()
 {
 	InterfacePtr->SelectNode(nullptr);
 	INode * root = InterfacePtr->GetRootNode();
@@ -1013,7 +1007,7 @@ void W3DUtilityClass::Select_Projectile(void)
 	InterfacePtr->ForceCompleteRedraw();
 }
 
-void W3DUtilityClass::Select_Vis(void)
+void W3DUtilityClass::Select_Vis()
 {
 	InterfacePtr->SelectNode(nullptr);
 	INode * root = InterfacePtr->GetRootNode();
@@ -1459,7 +1453,7 @@ SettingsFormClass::SettingsFormClass(HWND hwnd) :
 	::RegisterNotification(_settings_form_selection_changed_callback, this, NOTIFY_SELECTIONSET_CHANGED);
 }
 
-SettingsFormClass::~SettingsFormClass(void)
+SettingsFormClass::~SettingsFormClass()
 {
 	/*
 	** Unregister from MAX
@@ -1491,7 +1485,7 @@ SettingsFormClass::~SettingsFormClass(void)
 }
 
 
-void SettingsFormClass::Update_All_Instances(void)
+void SettingsFormClass::Update_All_Instances()
 {
 	if (ActiveList == nullptr) {
 		return;
@@ -1515,7 +1509,7 @@ void SettingsFormClass::Update_All_Instances(void)
 }
 
 
-void SettingsFormClass::Init(void)
+void SettingsFormClass::Init()
 {
 	// Initialize the contents of the dazzle combo
 	// Reset the dazzle combo
@@ -1528,10 +1522,9 @@ void SettingsFormClass::Init(void)
 	// string is of the form 'key=value'.  Based on my testing, it appears that windows removes any white
 	// space before or after the equal sign as well.
 	char dllpath[_MAX_PATH];
-	::GetModuleFileName(AppInstance,dllpath,sizeof(dllpath));
-	char * last_slash = strrchr(dllpath,'\\');
-	last_slash++;
-	strcpy(last_slash,DAZZLE_SETTINGS_FILENAME);
+	::GetModuleFileName(AppInstance,dllpath,ARRAY_SIZE(dllpath));
+	*getFileName(dllpath)=0;
+	strlcat(dllpath,DAZZLE_SETTINGS_FILENAME,ARRAY_SIZE(dllpath));
 
 	char * dazzle_types_buffer = new char[DAZZLE_SECTION_BUFFERSIZE];	// max size of a section for Win95
 
@@ -1570,7 +1563,7 @@ void SettingsFormClass::Init(void)
 
 }
 
-void SettingsFormClass::Destroy(void)
+void SettingsFormClass::Destroy()
 {
 	ReleaseISpinner(RegionSpin);
 	RegionSpin = nullptr;
@@ -1785,7 +1778,7 @@ bool SettingsFormClass::Dialog_Proc(HWND hWnd,UINT message,WPARAM wParam,LPARAM 
 	return TRUE;
 }
 
-void SettingsFormClass::Selection_Changed(void)
+void SettingsFormClass::Selection_Changed()
 {
 	INodeListClass node_list(		::GetCOREInterface()->GetRootNode(),
 											::GetCOREInterface()->GetTime(),
@@ -1961,7 +1954,7 @@ void SettingsFormClass::Update_Controls(INodeListClass * node_list)
 }
 
 
-void SettingsFormClass::Disable_Controls(void)
+void SettingsFormClass::Disable_Controls()
 {
 	EnableWindow(GetDlgItem(Hwnd,IDC_OBJ_NAME),FALSE);
 

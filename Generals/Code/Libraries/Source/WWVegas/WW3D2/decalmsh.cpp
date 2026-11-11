@@ -52,17 +52,18 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "decalmsh.h"
-#include "WW3D2/decalsys.h"
+#include "decalsys.h"
 #include "rinfo.h"
 #include "mesh.h"
 #include "meshmdl.h"
 #include "WWMath/plane.h"
-#include "WW3D2/statistics.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#include "WW3D2/dx8indexbuffer.h"
+#include "statistics.h"
+#include "dx8vertexbuffer.h"
+#include "dx8indexbuffer.h"
 #include "WWLib/simplevec.h"
-#include "WW3D2/texture.h"
-#include "WW3D2/dx8wrapper.h"
+#include "texture.h"
+#include "dx8wrapper.h"
+#include "Renderer.h"
 
 #define DISABLE_CLIPPING	0
 
@@ -297,7 +298,7 @@ void RigidDecalMeshClass::Render()
 	** transform between the time that the mesh is rendered and the time that the decal
 	** mesh is rendered...  It shouldn't happen though.
 	*/
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Parent->Get_Transform());
+	Renderer::Set_Transform(RenderTransform_World,Parent->Get_Transform());
 
 	/*
 	** Copy the vertices into the dynamic vb
@@ -580,7 +581,7 @@ bool RigidDecalMeshClass::Create_Decal
 
 	material->Release_Ref();
 
-#ifdef WWDEBUG
+#ifdef DEBUG_CRASHING
 	/*
 	** Some paranoid debug code: ensure all tris have valid vertex indices
 	*/
@@ -673,7 +674,7 @@ bool RigidDecalMeshClass::Delete_Decal(uint32 id)
 	}
 	Decals.Delete(decal_index);
 
-#ifdef WWDEBUG
+#ifdef DEBUG_CRASHING
 	/*
 	** Some paranoid debug code: ensure all tris have valid vertex indices
 	*/
@@ -786,7 +787,7 @@ void SkinDecalMeshClass::Render()
 	/*
 	** Skin decals coordinates are in world space
 	*/
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Matrix3D::Identity);
+	Renderer::Set_Transform(RenderTransform_World,Matrix3D::Identity);
 
 	/*
 	** Skin decals have to get the deformed vertices of their parent meshes.  For this
@@ -999,7 +1000,7 @@ bool SkinDecalMeshClass::Create_Decal(DecalGeneratorClass * generator,
 	*/
 	generator->Add_Mesh(Parent);
 
-#ifdef WWDEBUG
+#ifdef DEBUG_CRASHING
 	/*
 	** Some paranoid debug code: ensure all tris have valid vertex indices
 	*/
@@ -1089,7 +1090,7 @@ bool SkinDecalMeshClass::Delete_Decal(uint32 id)
 	}
 	Decals.Delete(decal_index);
 
-#ifdef WWDEBUG
+#ifdef DEBUG_CRASHING
 	/*
 	** Some paranoid debug code: ensure all tris have valid vertex indices
 	*/

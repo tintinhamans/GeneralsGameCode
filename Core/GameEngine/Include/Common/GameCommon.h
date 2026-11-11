@@ -50,7 +50,6 @@
 //#define _CAMPEA_DEMO
 
 // ----------------------------------------------------------------------------------------------
-#include "Lib/BaseType.h"
 #include "WWLib/WWCommon.h"
 #include "Common/GameDefines.h"
 #include "GameNetwork/GeneralsOnline/NextGenMP_defines.h"

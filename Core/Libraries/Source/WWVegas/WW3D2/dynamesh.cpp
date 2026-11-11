@@ -38,9 +38,10 @@
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "dx8wrapper.h"
+#include "Renderer.h"
 #include "sortingrenderer.h"
-#include "WW3D2/rinfo.h"
-#include "WW3D2/camera.h"
+#include "rinfo.h"
+#include "camera.h"
 #include "dx8fvf.h"
 
 
@@ -189,7 +190,8 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 	DynamicVBAccessClass dynamic_vb(buffer_type,dynamic_fvf_type,DynamicMeshVNum);
 	const FVFInfoClass &fvf_info = dynamic_vb.FVF_Info();
 
-	{ // scope for lock
+	{
+		// scope for lock
 
 		DynamicVBAccessClass::WriteLockClass lock(&dynamic_vb);
 		unsigned char *vertices = (unsigned char*)lock.Get_Formatted_Vertex_Array();
@@ -232,7 +234,8 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 	DynamicIBAccessClass dynamic_ib(buffer_type,DynamicMeshPNum * 3);
 	const TriIndex *tris = Get_Polygon_Array();
 
-	{ // scope for lock
+	{
+		// scope for lock
 
 		DynamicIBAccessClass::WriteLockClass lock(&dynamic_ib);
 		unsigned short * indices = lock.Get_Index_Array();
@@ -430,7 +433,7 @@ void DynamicMeshClass::Render(RenderInfoClass & rinfo)
 		const FrustumClass & frustum = rinfo.Camera.Get_Frustum();
 
 		if (CollisionMath::Overlap_Test(frustum, Get_Bounding_Box()) != CollisionMath::OUTSIDE) {
-			DX8Wrapper::Set_Transform(D3DTS_WORLD, Transform);
+			Renderer::Set_Transform(RenderTransform_World, Transform);
 			Model->Render(rinfo);
 		}
 	}

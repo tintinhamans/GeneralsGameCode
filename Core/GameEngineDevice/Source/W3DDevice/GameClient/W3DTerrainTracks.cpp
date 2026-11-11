@@ -55,6 +55,7 @@
 #include "WW3D2/camera.h"
 #include "WW3D2/assetmgr.h"
 #include "WW3D2/dx8wrapper.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/scene.h"
 #include "GameLogic/TerrainLogic.h"
 #include "GameLogic/Object.h"
@@ -97,7 +98,8 @@ TerrainTracksRenderObjClass::TerrainTracksRenderObjClass()
 /** WW3D method that returns object bounding sphere used in frustum culling*/
 //=============================================================================
 void TerrainTracksRenderObjClass::Get_Obj_Space_Bounding_Sphere(SphereClass & sphere) const
-{	/// @todo: Add code to cull track marks to screen by constantly updating bounding volumes
+{
+	/// @todo: Add code to cull track marks to screen by constantly updating bounding volumes
 	sphere=m_boundingSphere;
 }
 
@@ -185,12 +187,14 @@ void TerrainTracksRenderObjClass::addCapEdgeToTrack(Real x, Real y)
 	/// @todo: Have object pass its height and orientation so we can remove extra calls.
 
 	if (m_haveCap)
-	{	//we already have a cap or there are no segments to cap
+	{
+		//we already have a cap or there are no segments to cap
 		return;
 	}
 
 	if (m_activeEdgeCount == 1)
-	{	//if we only have one edge, then it must be the current anchor edge.
+	{
+		//if we only have one edge, then it must be the current anchor edge.
 		//since achnors are caps, there is not point in adding another.
 		m_haveCap=TRUE;
 		m_haveAnchor=false;	//recreate a new anchor when track resumes.
@@ -220,7 +224,8 @@ void TerrainTracksRenderObjClass::addCapEdgeToTrack(Real x, Real y)
 
 	//avoid sqrt() by checking distance squared since last track mark
 	if (vDir.Length2() < sqr(m_length))
-	{	//not far enough from anchor to add track
+	{
+		//not far enough from anchor to add track
 		//since this is a  cap, we'll force the previous segment to transparent
 		Int lastAddedEdge=m_topIndex-1;
 		if (lastAddedEdge < 0)
@@ -232,7 +237,8 @@ void TerrainTracksRenderObjClass::addCapEdgeToTrack(Real x, Real y)
 	}
 
 	if (m_activeEdgeCount >= maxEdgeCount)
-	{	//no more room in buffer so release oldest edge
+	{
+		//no more room in buffer so release oldest edge
 		m_bottomIndex++;
 		m_activeEdgeCount--;
 
@@ -307,7 +313,8 @@ void TerrainTracksRenderObjClass::addEdgeToTrack(Real x, Real y)
 	/// @todo: Have object pass its height and orientation so we can remove extra calls.
 
 	if (!m_haveAnchor)
-	{	//no anchor yet, make this point an anchor.
+	{
+		//no anchor yet, make this point an anchor.
 		PathfindLayerEnum objectLayer;
 		if (m_ownerDrawable && (objectLayer=m_ownerDrawable->getObject()->getLayer()) != LAYER_GROUND)
 			m_lastAnchor=Vector3(x,y,TheTerrainLogic->getLayerHeight(x,y,objectLayer)+BRIDGE_OFFSET_FACTOR);
@@ -349,7 +356,8 @@ void TerrainTracksRenderObjClass::addEdgeToTrack(Real x, Real y)
 	Int maxEdgeCount=TheTerrainTracksRenderObjClassSystem->m_maxTankTrackEdges;
 
 	if (m_activeEdgeCount >= maxEdgeCount)
-	{	//no more room in buffer so release oldest edge
+	{
+		//no more room in buffer so release oldest edge
 		m_bottomIndex++;
 		m_activeEdgeCount--;
 
@@ -422,7 +430,8 @@ void TerrainTracksRenderObjClass::addEdgeToTrack(Real x, Real y)
 */
 //=============================================================================
 void TerrainTracksRenderObjClass::Render(RenderInfoClass & rinfo)
-{	///@todo: After adding track mark visibility tests, add visible marks to another list.
+{
+	///@todo: After adding track mark visibility tests, add visible marks to another list.
 	if (TheGlobalData->m_makeTrackMarks && m_activeEdgeCount >= 2)
 		TheTerrainTracksRenderObjClassSystem->m_edgesToFlush += m_activeEdgeCount;
 }
@@ -440,7 +449,8 @@ static Real computeTrackSpacing(RenderObjClass *renderObj)
 	Int rightTrack;
 
 	if ((leftTrack=renderObj->Get_Bone_Index( "TREADFX01" )) != 0 && (rightTrack=renderObj->Get_Bone_Index( "TREADFX02" )) != 0)
-	{	//both bones found, determine distance between them.
+	{
+		//both bones found, determine distance between them.
 		Vector3 leftPos,rightPos;
 		leftPos=renderObj->Get_Bone_Transform( leftTrack ).Get_Translation();
 		rightPos=renderObj->Get_Bone_Transform( rightTrack ).Get_Translation();
@@ -767,7 +777,8 @@ void TerrainTracksRenderObjClassSystem::update()
 			}
 
 			if (iDiff == 0.0f)
-			{	//this edge was invisible, we can remove it
+			{
+				//this edge was invisible, we can remove it
 				mod->m_bottomIndex++;
 				mod->m_activeEdgeCount--;
 
@@ -919,7 +930,7 @@ Try improving the fit to vertical surfaces like cliffs.
 
 		trackStartIndex=0;
 		mod=m_usedModules;
-		DX8Wrapper::Set_Transform(D3DTS_WORLD,mod->Transform);
+		Renderer::Set_Transform(RenderTransform_World,mod->Transform);
 		while (mod)
 		{
 			// Use the same clamped edge count as the vertex-fill pass above so that

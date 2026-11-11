@@ -327,8 +327,8 @@ void BattleHonorTooltip(GameWindow *window,
 		return;
 	}
 
-	Int battleHonor = (Int)GadgetListBoxGetItemData( window, row, col );
-	Int extraValue = (Int)GadgetListBoxGetItemData( window, row - 1, col );
+	Int battleHonor = (Int)(intptr_t)GadgetListBoxGetItemData( window, row, col );
+	Int extraValue = (Int)(intptr_t)GadgetListBoxGetItemData( window, row - 1, col );
 	if (battleHonor == 0)
 	{
 		//DEBUG_CRASH(("No Battle Honor in listbox row %d, col %d!", row, col));
@@ -1102,7 +1102,8 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 			//calculate favorite side and rank overlay image
 			UnicodeString rankStr; //, sideStr, sideRankStr;
 			const PlayerTemplate* pPlayerTemplate = NULL;  //NULL == newbie
-			{	//search all stats for side favorite side (highest numGames)
+			{
+				//search all stats for side favorite side (highest numGames)
 				Int mostGames = 0;
 				Int favorite = 0;
 				for (it = stats.games.begin(); it != stats.games.end(); ++it)
@@ -1420,7 +1421,8 @@ void GameSpyPlayerInfoOverlayInit( WindowLayout *layout, void *userData )
 	OSVERSIONINFO	osvi;
 	osvi.dwOSVersionInfoSize=sizeof(OSVERSIONINFO);
 	if (GetVersionEx(&osvi))
-	{	//check if we're running Win9x variant since they may need different fonts
+	{
+		//check if we're running Win9x variant since they may need different fonts
 		if (osvi.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS)
 		{
 			if (checkBoxAsianFont)

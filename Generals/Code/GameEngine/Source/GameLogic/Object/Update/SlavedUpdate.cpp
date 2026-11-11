@@ -162,7 +162,8 @@ UpdateSleepTime SlavedUpdate::update()
 		Team *masterTeam = master->getTeam();
 		Team *myTeam     = me->getTeam();
 		if ( masterTeam->getRelationship( myTeam ) != ALLIES )
-		{//slaver must have been hijacked or something..	// we will join his team
+		{
+			//slaver must have been hijacked or something..	// we will join his team
 			me->defect( masterTeam, 0 );
 		}
 
@@ -195,7 +196,7 @@ UpdateSleepTime SlavedUpdate::update()
 		{
 			Real health = body->getHealth();
 			Real maxHealth = body->getMaxHealth();
-			healthPercentage = (Int)(health / maxHealth * 100.0f);
+			healthPercentage = (Int)(WWMath::Div_Safe(health, maxHealth) * 100.0f);
 		}
 	}
 

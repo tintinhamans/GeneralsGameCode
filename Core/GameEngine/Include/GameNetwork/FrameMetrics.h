@@ -32,7 +32,6 @@
 #define USE_NEW_FRAMEMETRIC_LOGIC 1
 #endif
 
-#include "Lib/BaseType.h"
 #include "GameNetwork/NetworkDefs.h"
 
 class FrameMetrics {

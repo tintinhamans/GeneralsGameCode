@@ -204,7 +204,7 @@ TextureClass *W3DAssetManager::Get_Texture(
 //			extern std::vector<std::string>	preloadTextureNamesGlobalHack;
 //			preloadTextureNamesGlobalHack.push_back(tex->Get_Texture_Name());
 //		}
-#if defined(RTS_DEBUG)
+#if defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)
 		if (TheGlobalData->m_preloadReport)
 		{
 			//loading a new asset and app is requesting a log of all loaded assets.
@@ -409,7 +409,8 @@ static void remapTexture16Bit(Int dx, Int dy, Int pitch, SurfaceClass::SurfaceDe
 
 	for (y=0; y<dy; y++)
 	{	for (Int x=0; x<dx; x++)
-		{	//check if this pixel is part of team color palette
+		{
+			//check if this pixel is part of team color palette
 			for (Int p=0; p<TEAM_COLOR_PALETTE_SIZE; p++)
 			{	if (palette[p]==data[x])
 				{	data[x]=pal[p];	//replace color with house color
@@ -450,7 +451,8 @@ static void remapAlphaTexture16Bit(Int dx, Int dy, Int pitch, SurfaceClass::Surf
 			pixel=data[x];
 			pixelAlpha=15-(pixel>>12);	//get alpha for house color
 			if (pixelAlpha)
-			{	//some house color needs to show through
+			{
+				//some house color needs to show through
 				///@todo: optimize this alpha blend to use fixed point math.
 #ifdef DO_HUE_SHIFT
 				RGB_To_HSV(hsv,Vector3(((pixel>>8)&0xf)/15.0f,((pixel>>4)&0xf)/15.0f,(pixel &0xf)/15.0f));
@@ -513,7 +515,8 @@ static void remapTexture32Bit(Int dx, Int dy, Int pitch, SurfaceClass::SurfaceDe
 
 	for (y=0; y<dy; y++)
 	{	for (Int x=0; x<dx; x++)
-		{	//check if this pixel is part of team color palette
+		{
+			//check if this pixel is part of team color palette
 			for (Int p=0; p<TEAM_COLOR_PALETTE_SIZE; p++)
 			{	if (palette[p]==data[x])
 				{	data[x]=pal[p];	//replace color with house color
@@ -547,7 +550,8 @@ static void remapAlphaTexture32Bit(Int dx, Int dy, Int pitch, SurfaceClass::Surf
 			pixel=data[x];
 			pixelAlpha=255-(pixel>>24);	//get alpha for house color
 			if (pixelAlpha)
-			{	//some house color needs to show through
+			{
+				//some house color needs to show through
 #ifdef DO_HUE_SHIFT
 				RGB_To_HSV(hsv,Vector3(((pixel>>16)&0xff)/255.0f,((pixel>>8)&0xff)/255.0f,(pixel &0xff)/255.0f));
 				hsv.X=hsv_color.X;
@@ -587,7 +591,8 @@ void W3DAssetManager::Remap_Palette(SurfaceClass *surface, const int color, Bool
 	unsigned char *bits=(unsigned char*) surface->Lock(&pitch);
 
 	if (doPaletteOnly)
-	{	//only recolor the palette which is stored in top row.  Model only references these pixels.
+	{
+		//only recolor the palette which is stored in top row.  Model only references these pixels.
 		if (size == 2)
 			remapPalette16Bit(&sd, (UnsignedShort *)bits, color);
 		else
@@ -605,7 +610,8 @@ void W3DAssetManager::Remap_Palette(SurfaceClass *surface, const int color, Bool
 				remapAlphaTexture32Bit(sd.Width, sd.Height, pitch>>2, &sd, (UnsignedInt *)bits,color);
 		}
 		else
-		{	//Recolor the image using the palette stored in top row
+		{
+			//Recolor the image using the palette stored in top row
 			if (size == 2)
 				remapTexture16Bit(sd.Width, sd.Height-1, pitch>>1, &sd, (UnsignedShort *)bits, (UnsignedShort *)(bits+pitch), color);
 			else
@@ -688,7 +694,7 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(
 	GetPrecisionTimer(&startTime64);
 	#endif
 
-	Bool reallyscale = (WWMath::Fabs(scale - ident_scale) > scale_epsilon);
+	Bool reallyscale = (WWMath::Fabsf_Legacy(scale - ident_scale) > scale_epsilon);
 	Bool reallycolor = (color & 0xFFFFFF) != 0;	//black is not a valid color and assumes no custom coloring.
 	Bool reallytexture = (oldTexture != nullptr && newTexture != nullptr);
 
@@ -712,7 +718,8 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(
 	Set_WW3D_Load_On_Demand(false); // munged name will never be found in a file.
 	rendobj = WW3DAssetManager::Create_Render_Obj(newname);
 	if (rendobj)
-	{	//store the color that we used to create asset so we can read it back out
+	{
+		//store the color that we used to create asset so we can read it back out
 		//when we need to save this render object to a file.  Used during saving
 		//of fog of war ghost objects.
 		rendobj->Set_ObjectColor(color);
@@ -741,7 +748,7 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(
 		const char *mesh_name = strchr (name, '.');
 		if (mesh_name != nullptr)
 		{
-			lstrcpyn(filename, name, ((int)mesh_name) - ((int)name) + 1);
+			lstrcpyn(filename, name, (int)(mesh_name - name) + 1);
 			lstrcat(filename, ".w3d");
 		} else {
 			snprintf( filename, ARRAY_SIZE(filename), "%s.w3d", name);
@@ -861,7 +868,8 @@ int W3DAssetManager::Recolor_Mesh(RenderObjClass *robj, const int color)
 	{
 		oldtex=material->Peek_Texture(i);
 		if (_strnicmp(oldtex->Get_Texture_Name(),"ZHC", 3) == 0)
-		{	//This texture needs to be adjusted for housecolor
+		{
+			//This texture needs to be adjusted for housecolor
 			newtex=Recolor_Texture(oldtex,color);
 			if (newtex)
 			{
@@ -1070,7 +1078,8 @@ static Bool getMeshColorMethods(MeshClass *mesh, Bool &vertexColor, Bool &textur
 	//isolated meshes are just "name".  We check for both starting with "HOUSECOLOR".
 	const char *meshName;
 	if ( ( (meshName=strchr(mesh->Get_Name(),'.') ) != nullptr && *(meshName++)) || ( (meshName=mesh->Get_Name()) != nullptr) )
-	{	//Check if this object has housecolors on mesh
+	{
+		//Check if this object has housecolors on mesh
 		if ( _strnicmp(meshName,"HOUSECOLOR", 10) == 0)
 			vertexColor = true;
 	}
@@ -1089,7 +1098,8 @@ void W3DAssetManager::Make_Mesh_Unique(RenderObjClass *robj, Bool geometry, Bool
 
 	//figure out what type of coloring this mesh requires (if any)
 	if ((colors && getMeshColorMethods(mesh,isVertexColor,isTextureColor)) || geometry)
-	{	//mesh has some house color applied so make those components unique to mesh.
+	{
+		//mesh has some house color applied so make those components unique to mesh.
 
 		//Create unique data for this mesh
 		mesh->Make_Unique();
@@ -1303,9 +1313,9 @@ static inline void Munge_Texture_Name(char *newname, const char *oldname, const 
 RenderObjClass * W3DAssetManager::Create_Render_Obj(const char * name,float scale, const Vector3 &hsv_shift)
 {
 	Bool isGranny = false;
-	Bool reallyscale = (WWMath::Fabs(scale - ident_scale) > scale_epsilon);
-	Bool reallyhsv_shift = (WWMath::Fabs(hsv_shift.X - ident_HSV.X) > H_epsilon ||
-		WWMath::Fabs(hsv_shift.Y - ident_HSV.Y) > S_epsilon || WWMath::Fabs(hsv_shift.Z - ident_HSV.Z) > V_epsilon);
+	Bool reallyscale = (WWMath::Fabsf(scale - ident_scale) > scale_epsilon);
+	Bool reallyhsv_shift = (WWMath::Fabsf(hsv_shift.X - ident_HSV.X) > H_epsilon ||
+		WWMath::Fabsf(hsv_shift.Y - ident_HSV.Y) > S_epsilon || WWMath::Fabsf(hsv_shift.Z - ident_HSV.Z) > V_epsilon);
 
 	// base case, no scale or hue shifting
 	if (!reallyscale && !reallyhsv_shift) return WW3DAssetManager::Create_Render_Obj(name);
@@ -1317,7 +1327,8 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(const char * name,float scal
 	RenderObjClass *rendobj=nullptr;
 
 	if (isGranny)
-	{	//Granny objects share the same prototype since they allow instance scaling.
+	{
+		//Granny objects share the same prototype since they allow instance scaling.
 		strlcpy(newname, name, ARRAY_SIZE(newname));	//use same name for all granny objects at any scale.
 	}
 	Set_WW3D_Load_On_Demand(false); // munged name will never be found in a file.
@@ -1340,7 +1351,8 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(const char * name,float scal
 	PrototypeClass * proto = Find_Prototype(name);
 
 	Set_WW3D_Load_On_Demand(true); // Auto Load.
-	if (WW3D_Load_On_Demand && proto == nullptr) {	// If we didn't find one, try to load on demand
+	if (WW3D_Load_On_Demand && proto == nullptr) {
+		// If we didn't find one, try to load on demand
 		char filename [MAX_PATH];
 		char *mesh_name = ::strchr (name, '.');
 		if (mesh_name != nullptr) {
@@ -1386,7 +1398,8 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(const char * name,float scal
 		if (reallyhsv_shift) Recolor_Asset(rendobj,hsv_shift);
 	}
 	else
-	{	///@todo Granny objects are realtime scaled - fix to scale like W3D.
+	{
+		///@todo Granny objects are realtime scaled - fix to scale like W3D.
 		rendobj->Set_ObjectScale(scale);
 		return rendobj;
 	}
@@ -1402,8 +1415,8 @@ TextureClass * W3DAssetManager::Get_Texture_With_HSV_Shift(const char * filename
 {
 	WWPROFILE( "W3DAssetManager::Get_Texture with HSV shift" );
 
-	Bool is_hsv_shift = (WWMath::Fabs(hsv_shift.X - ident_HSV.X) > H_epsilon ||
-		WWMath::Fabs(hsv_shift.Y - ident_HSV.Y) > S_epsilon || WWMath::Fabs(hsv_shift.Z - ident_HSV.Z) > V_epsilon);
+	Bool is_hsv_shift = (WWMath::Fabsf(hsv_shift.X - ident_HSV.X) > H_epsilon ||
+		WWMath::Fabsf(hsv_shift.Y - ident_HSV.Y) > S_epsilon || WWMath::Fabsf(hsv_shift.Z - ident_HSV.Z) > V_epsilon);
 
 	if (!is_hsv_shift) {
 
@@ -1476,7 +1489,9 @@ void W3DAssetManager::Recolor_Vertices(unsigned int *color, int count, const Vec
 	for (i=0; i<count; i++)
 	{
 		rgba=DX8Wrapper::Convert_Color(color[i]);
-		Recolor(reinterpret_cast<Vector3&>(rgba),hsv_shift);
+		Vector3 rgb(rgba.X,rgba.Y,rgba.Z);
+		Recolor(rgb,hsv_shift);
+		rgba.Set(rgb.X,rgb.Y,rgb.Z,rgba.W);
 		color[i]=DX8Wrapper::Convert_Color_Clamp(rgba);
 	}
 }

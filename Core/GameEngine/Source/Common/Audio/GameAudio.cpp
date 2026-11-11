@@ -759,7 +759,7 @@ void AudioManager::setVolume( Real volume, AudioAffect whichToAffect )
 		if (m_speechVolume != newVolume)
 		{
 			m_speechVolume = newVolume;
-	m_volumeHasChanged = true;
+			m_volumeHasChanged = true;
 		}
 	}
 }
@@ -830,11 +830,11 @@ void AudioManager::appendAudioRequest( AudioRequest *request )
 // Remove all pending audio requests
 void AudioManager::removeAllAudioRequests()
 {
-  std::list<AudioRequest*>::iterator it;
+	std::list<AudioRequest*>::iterator it;
 	for ( it = m_audioRequests.begin(); it != m_audioRequests.end(); ++it ) {
-    releaseAudioRequest( *it );
-  }
-  m_audioRequests.clear();
+		releaseAudioRequest( *it );
+	}
+	m_audioRequests.clear();
 }
 
 //-------------------------------------------------------------------------------------------------

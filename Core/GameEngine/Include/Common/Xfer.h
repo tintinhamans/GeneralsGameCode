@@ -139,44 +139,45 @@ public:
 	// parameters.  You may use the default, or derive and create new ways to xfer each
 	// of these types of data
 	//
-	virtual void xferVersion(XferVersion* versionData, XferVersion currentVersion);
-	virtual void xferByte(Byte* byteData);
-	virtual void xferUnsignedByte(UnsignedByte* unsignedByteData);
-	virtual void xferBool(Bool* boolData);
-	virtual void xferInt(Int* intData);
-	virtual void xferInt64(Int64* int64Data);
-	virtual void xferUnsignedInt(UnsignedInt* unsignedIntData);
-	virtual void xferShort(Short* shortData);
-	virtual void xferUnsignedShort(UnsignedShort* unsignedShortData);
-	virtual void xferReal(Real* realData);
-	virtual void xferMarkerLabel(AsciiString asciiStringData); // This is purely for readability purposes - it is explicitly discarded on load.
-	virtual void xferAsciiString(AsciiString* asciiStringData);
-	virtual void xferUnicodeString(UnicodeString* unicodeStringData);
-	virtual void xferCoord3D(Coord3D* coord3D);
-	virtual void xferICoord3D(ICoord3D* iCoord3D);
-	virtual void xferRegion3D(Region3D* region3D);
-	virtual void xferIRegion3D(IRegion3D* iRegion3D);
-	virtual void xferCoord2D(Coord2D* coord2D);
-	virtual void xferICoord2D(ICoord2D* iCoord2D);
-	virtual void xferRegion2D(Region2D* region2D);
-	virtual void xferIRegion2D(IRegion2D* iRegion2D);
-	virtual void xferRealRange(RealRange* realRange);
-	virtual void xferColor(Color* color);
-	virtual void xferRGBColor(RGBColor* rgbColor);
-	virtual void xferRGBAColorReal(RGBAColorReal* rgbaColorReal);
-	virtual void xferRGBAColorInt(RGBAColorInt* rgbaColorInt);
-	virtual void xferObjectID(ObjectID* objectID);
-	virtual void xferDrawableID(DrawableID* drawableID);
-	virtual void xferSTLObjectIDVector(std::vector<ObjectID>* objectIDVectorData);
-	virtual void xferSTLObjectIDList(std::list< ObjectID >* objectIDListData);
-	virtual void xferSTLIntList(std::list< Int >* intListData);
-	virtual void xferScienceType(ScienceType* science);
-	virtual void xferScienceVec(ScienceVec* scienceVec);
-	virtual void xferKindOf(KindOfType* kindOfData);
-	virtual void xferUpgradeMask(UpgradeMaskType* upgradeMaskData);
-	virtual void xferUser(void* data, Int dataSize);
-	virtual void xferMatrix3D(Matrix3D* mtx);
-	virtual void xferMapName(AsciiString* mapNameData);
+	virtual void xferVersion( XferVersion *versionData, XferVersion currentVersion );
+	virtual void xferByte( Byte *byteData );
+	virtual void xferUnsignedByte( UnsignedByte *unsignedByteData );
+	virtual void xferBool( Bool *boolData );
+	virtual void xferInt( Int *intData );
+	virtual void xferInt64( Int64 *int64Data );
+	virtual void xferUnsignedInt( UnsignedInt *unsignedIntData );
+	virtual void xferShort( Short *shortData );
+	virtual void xferUnsignedShort( UnsignedShort *unsignedShortData );
+	virtual void xferReal( Real *realData );
+	virtual void xferDouble( double *doubleData );
+	virtual void xferMarkerLabel( AsciiString asciiStringData ); // This is purely for readability purposes - it is explicitly discarded on load.
+	virtual void xferAsciiString( AsciiString *asciiStringData );
+	virtual void xferUnicodeString( UnicodeString *unicodeStringData );
+	virtual void xferCoord3D( Coord3D *coord3D );
+	virtual void xferICoord3D( ICoord3D *iCoord3D );
+	virtual void xferRegion3D( Region3D *region3D );
+	virtual void xferIRegion3D( IRegion3D *iRegion3D );
+	virtual void xferCoord2D( Coord2D *coord2D );
+	virtual void xferICoord2D( ICoord2D *iCoord2D );
+	virtual void xferRegion2D( Region2D *region2D );
+	virtual void xferIRegion2D( IRegion2D *iRegion2D );
+	virtual void xferRealRange( RealRange *realRange );
+	virtual void xferColor( Color *color );
+	virtual void xferRGBColor( RGBColor *rgbColor );
+	virtual void xferRGBAColorReal( RGBAColorReal *rgbaColorReal );
+	virtual void xferRGBAColorInt( RGBAColorInt *rgbaColorInt );
+	virtual void xferObjectID( ObjectID *objectID );
+	virtual void xferDrawableID( DrawableID *drawableID );
+	virtual void xferSTLObjectIDVector( std::vector<ObjectID> *objectIDVectorData );
+	virtual void xferSTLObjectIDList( std::list< ObjectID > *objectIDListData );
+	virtual void xferSTLIntList( std::list< Int > *intListData );
+	virtual void xferScienceType( ScienceType *science );
+	virtual void xferScienceVec( ScienceVec *scienceVec );
+	virtual void xferKindOf( KindOfType *kindOfData );
+	virtual void xferUpgradeMask( UpgradeMaskType *upgradeMaskData );
+	virtual void xferUser( void *data, Int dataSize );
+	virtual void xferMatrix3D( Matrix3D* mtx );
+	virtual void xferMapName( AsciiString *mapNameData );
 
 protected:
 

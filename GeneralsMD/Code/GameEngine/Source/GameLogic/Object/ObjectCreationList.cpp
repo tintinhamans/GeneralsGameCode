@@ -290,7 +290,7 @@ public:
 			Real dy = primary->y - secondary->y;
 
 			//Calc length
-			Real length = sqrt( dx*dx + dy*dy );
+			Real length = WWMath::Sqrt( dx*dx + dy*dy );
 
 			//Normalize length
 			dx /= length;
@@ -357,7 +357,7 @@ public:
 			}
 
 
-			Real orient = atan2( moveToPos.y - startPos.y, moveToPos.x - startPos.x);
+			Real orient = WWMath::Atan2( moveToPos.y - startPos.y, moveToPos.x - startPos.x);
 			if( m_data.m_distToTarget > 0 )
 			{
 				const Real SLOP = 1.5f;
@@ -696,7 +696,9 @@ enum DebrisDisposition CPP_11(: Int)
 	RANDOM_FORCE						= 0x00000020,
 	FLOATING								= 0x00000040,
 	INHERIT_VELOCITY				= 0x00000080,
-	WHIRLING								= 0x00000100
+	WHIRLING								= 0x00000100,
+
+	DEBRIS_DISPOSITION_END // keep after the last named flag
 };
 
 static const char* const DebrisDispositionNames[] =
@@ -712,6 +714,7 @@ static const char* const DebrisDispositionNames[] =
 	"WHIRLING",
 	nullptr
 };
+static_assert(equalsEnumBitFlagsCount(ARRAY_SIZE(DebrisDispositionNames) - 1, DEBRIS_DISPOSITION_END), "Incorrect array size");
 
 std::vector<AsciiString>	debrisModelNamesGlobalHack;
 
@@ -1111,7 +1114,7 @@ protected:
 
 				objUp->applyForce(&force);
 				if (m_orientInForceDirection)
-					orientation = atan2(force.y, force.x);
+					orientation = WWMath::Atan2(force.y, force.x);
 
 			}
 		}
@@ -1208,7 +1211,7 @@ protected:
 				objUp->applyForce(&force);
 				if (m_orientInForceDirection)
 				{
-					orientation = atan2(force.y, force.x);
+					orientation = WWMath::Atan2(force.y, force.x);
 				}
 				DUMPREAL(orientation);
 				objUp->setAngles(orientation, 0, 0);
@@ -1272,9 +1275,9 @@ protected:
 	    // if we land in the water, we die. alas.
 	    const Coord3D* riderPos = obj->getPosition();
 	    Real waterZ, terrainZ;
-	    if (TheTerrainLogic->isUnderwater(riderPos->x, riderPos->y, &waterZ, &terrainZ)
-			    && riderPos->z <= waterZ + 10.0f
-			    && obj->getLayer() == LAYER_GROUND)
+	    if (TheTerrainLogic->isUnderwater(riderPos->x, riderPos->y, &waterZ, &terrainZ) &&
+			    riderPos->z <= waterZ + 10.0f &&
+			    obj->getLayer() == LAYER_GROUND)
 	    {
 		    // don't call kill(); do it manually, so we can specify DEATH_FLOODED
 		    DamageInfo damageInfo;
@@ -1294,10 +1297,10 @@ protected:
 
 	    // If we land outside the map, we die too.
 	    // Otherwise we exist outside the PartitionManger like a cheater.
-	  if( obj->isOffMap()
-      || (cellType == PathfindCell::CELL_CLIFF)
-      || (cellType == PathfindCell::CELL_WATER)
-      || (cellType == PathfindCell::CELL_IMPASSABLE) )
+	  if( obj->isOffMap() ||
+      (cellType == PathfindCell::CELL_CLIFF) ||
+      (cellType == PathfindCell::CELL_WATER) ||
+      (cellType == PathfindCell::CELL_IMPASSABLE) )
 	    {
 		    // We are sorry, for reasons beyond our control, we are experiencing technical difficulties. Please die.
 		    obj->kill();
@@ -1358,7 +1361,8 @@ protected:
 			if (m_nameAreObjects)
 				tmpl = TheThingFactory->findTemplate(m_names[pick]);
 			else
-			{	//this is using the generic debris type so it's probably safe to
+			{
+				//this is using the generic debris type so it's probably safe to
 				//remove if requested by the GameLOD manager.
 				if (TheGameLODManager->isDebrisSkipped())
 					continue;

@@ -39,15 +39,16 @@
 
 #include "WWLib/sharebuf.h"
 #include "linegrp.h"
-#include "WW3D2/texture.h"
+#include "texture.h"
 #include "vertmaterial.h"
-#include "WW3D2/dx8wrapper.h"
+#include "dx8wrapper.h"
+#include "Renderer.h"
 #include "WWMath/wwmath.h"
 #include "rinfo.h"
 #include "camera.h"
-#include "WW3D2/dx8indexbuffer.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#include "WW3D2/sortingrenderer.h"
+#include "dx8indexbuffer.h"
+#include "dx8vertexbuffer.h"
+#include "sortingrenderer.h"
 
 // Line groups are a rendering primitive similar to point groups
 // They are tetrahedra which are aligned with the view plane with their centers
@@ -269,9 +270,9 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 	const bool sort = (Shader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO) && (Shader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE) && (WW3D::Is_Sorting_Enabled());
 
 	// the 3 offsets in view space
-	const static Vector3 offset_a = Vector3(WWMath::Cos(WWMATH_PI / 2),			WWMath::Sin(WWMATH_PI /2 ), 0);
-	const static Vector3 offset_b = Vector3(WWMath::Cos(7 * WWMATH_PI / 6),		WWMath::Sin(7 * WWMATH_PI / 6), 0);
-	const static Vector3 offset_c = Vector3(WWMath::Cos(11 * WWMATH_PI / 6),	WWMath::Sin(11 * WWMATH_PI / 6), 0);
+	const static Vector3 offset_a = Vector3(WWMath::Cosf_Legacy(WWMATH_PI / 2),			WWMath::Sinf_Legacy(WWMATH_PI /2 ), 0);
+	const static Vector3 offset_b = Vector3(WWMath::Cosf_Legacy(7 * WWMATH_PI / 6),		WWMath::Sinf_Legacy(7 * WWMATH_PI / 6), 0);
+	const static Vector3 offset_c = Vector3(WWMath::Cosf_Legacy(11 * WWMATH_PI / 6),	WWMath::Sinf_Legacy(11 * WWMATH_PI / 6), 0);
 
 	static Vector3 offset[3];
 
@@ -281,10 +282,10 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 
 	// Save off the view matrix
 	Matrix4x4 view;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW, view);
+	Renderer::Get_Transform(RenderTransform_View, view);
 
 	Matrix4x4 identity(true);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD, identity);
+	Renderer::Set_Transform(RenderTransform_World, identity);
 
 	// if the points are in world space, transform the offsets
 	if (Get_Flag(TRANSFORM)) {
@@ -296,7 +297,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 			Matrix3D::Transform_Vector(xform_mat, offset[i], &offset[i]);
 		}
 	} else {
-		DX8Wrapper::Set_Transform(D3DTS_VIEW, identity);
+		Renderer::Set_Transform(RenderTransform_View, identity);
 	}
 
 	int num_tris=0;
@@ -475,7 +476,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 	}
 
 	// restore the matrices
-	DX8Wrapper::Set_Transform(D3DTS_VIEW, view);
+	Renderer::Set_Transform(RenderTransform_View, view);
 }
 
 int LineGroupClass::Get_Polygon_Count()

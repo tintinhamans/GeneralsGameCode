@@ -20,9 +20,6 @@
 
 #include "WWLib/WWDefines.h"
 
-// Note: Retail compatibility must not be broken before this project officially does.
-// Use RETAIL_COMPATIBLE_CRC and RETAIL_COMPATIBLE_XFER_SAVE to guard breaking changes.
-
 #ifndef PRESERVE_BUILDING_RESUMPTION_DELAY
 #define PRESERVE_BUILDING_RESUMPTION_DELAY (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
 #endif
@@ -43,42 +40,28 @@
 #define PRESERVE_NO_XP_FROM_FLAME_KILLS (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
 #endif
 
+#ifndef PRESERVE_NO_XP_FROM_HELIX_ATTACHMENT_KILLS
+#define PRESERVE_NO_XP_FROM_HELIX_ATTACHMENT_KILLS (1)
+#endif
+
 #ifndef PRESERVE_NO_XP_FROM_OCL_KILLS
 #define PRESERVE_NO_XP_FROM_OCL_KILLS (1)
 #endif
 
-#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_COMMUNITY_PATCH_CHANGES) // COMMUNITY PATCH CHANGE
-	#ifndef PRESERVE_NO_XP_FROM_POISON_KILLS
-	#define PRESERVE_NO_XP_FROM_POISON_KILLS (0)
-	#endif
-#else
-	#ifndef PRESERVE_NO_XP_FROM_POISON_KILLS
-	#define PRESERVE_NO_XP_FROM_POISON_KILLS (1)
-	#endif
+#ifndef PRESERVE_NO_XP_FROM_POISON_KILLS
+#define PRESERVE_NO_XP_FROM_POISON_KILLS (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
 #endif
 
-#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_COMMUNITY_PATCH_CHANGES) // COMMUNITY PATCH CHANGE
-	#ifndef PRESERVE_OCCUPANT_DETECTION_VIA_DRAG_SELECTION
-	#define PRESERVE_OCCUPANT_DETECTION_VIA_DRAG_SELECTION (0)
-	#endif
-#else
-	#ifndef PRESERVE_OCCUPANT_DETECTION_VIA_DRAG_SELECTION
-	#define PRESERVE_OCCUPANT_DETECTION_VIA_DRAG_SELECTION (1)
-	#endif
+#ifndef PRESERVE_OCCUPANT_DETECTION_VIA_DRAG_SELECTION
+#define PRESERVE_OCCUPANT_DETECTION_VIA_DRAG_SELECTION (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
 #endif
 
 #ifndef PRESERVE_PERPETUAL_HORDE_BONUS
 #define PRESERVE_PERPETUAL_HORDE_BONUS (1)
 #endif
 
-#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_COMMUNITY_PATCH_CHANGES) // COMMUNITY PATCH CHANGE
-	#ifndef PRESERVE_PREMATURE_BATTLE_BUS_DEATH
-	#define PRESERVE_PREMATURE_BATTLE_BUS_DEATH (0)
-	#endif
-#else
-	#ifndef PRESERVE_PREMATURE_BATTLE_BUS_DEATH
-	#define PRESERVE_PREMATURE_BATTLE_BUS_DEATH (1)
-	#endif
+#ifndef PRESERVE_PREMATURE_BATTLE_BUS_DEATH
+#define PRESERVE_PREMATURE_BATTLE_BUS_DEATH (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
 #endif
 
 #ifndef PRESERVE_RADAR_WARNING_SUPPRESSION
@@ -105,13 +88,42 @@
 #define PRESERVE_RETAIL_SCRIPTED_CAMERA (1) // Retain scripted camera behavior present in retail Generals 1.08 and Zero Hour 1.04
 #endif
 
-#ifndef RETAIL_COMPATIBLE_CRC
-#if defined(GENERALS_ONLINE)
-#define RETAIL_COMPATIBLE_CRC (0)
-#else
-#define RETAIL_COMPATIBLE_CRC (1) // Game is expected to be CRC compatible with retail Generals 1.08, Zero Hour 1.04
+#ifndef PRESERVE_RETAIL_PARTICLES
+#define PRESERVE_RETAIL_PARTICLES (1) // Preserve original look of particles present in retail Generals 1.08 and Zero Hour 1.04
 #endif
+
+#ifndef PRESERVE_RETAIL_NUKE_MISSILE_OUTER_RADIUS_SEARCH
+#define PRESERVE_RETAIL_NUKE_MISSILE_OUTER_RADIUS_SEARCH (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
 #endif
+
+#ifndef PRESERVE_RETAIL_NUKE_MISSILE_OUTER_RADIUS_DAMAGE
+#define PRESERVE_RETAIL_NUKE_MISSILE_OUTER_RADIUS_DAMAGE (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
+#endif
+
+// Whether to preserve the 1.41x speed discrepancy between straight and diagonal movements of all objects that move via a Locomotor.
+// Set this to 0 when world objects need to move at consistent speed in all directions.
+#ifndef PRESERVE_RETAIL_PHYSICS_FORWARD_SPEED_DISCREPANCY
+#define PRESERVE_RETAIL_PHYSICS_FORWARD_SPEED_DISCREPANCY (1)
+#endif
+
+// Whether to preserve the harmonic mean of the straight and diagonal speeds of the original forward speed discrepancy bug.
+// The locomotor speeds from the INI files are effectively scaled up a bit so that on average the world objects travel at comparable speeds.
+// Set this to 0 when speeds are set correctly by INI settings (recommended).
+#ifndef PRESERVE_RETAIL_PHYSICS_FORWARD_SPEED_AVERAGE
+#define PRESERVE_RETAIL_PHYSICS_FORWARD_SPEED_AVERAGE (1)
+#endif
+
+// Whether to preserve the 1.41x speed discrepancy between straight and diagonal movements of all objects during cinematics.
+// Is mostly relevant for the original campaign missions.
+#ifndef PRESERVE_RETAIL_PHYSICS_FORWARD_SPEED_DISCREPANCY_IN_CINEMATICS
+#define PRESERVE_RETAIL_PHYSICS_FORWARD_SPEED_DISCREPANCY_IN_CINEMATICS (1)
+#endif
+
+
+// Note: Retail compatibility must not be broken before this project officially does.
+// Use RETAIL_COMPATIBLE_CRC, RETAIL_COMPATIBLE_DATA and RETAIL_COMPATIBLE_XFER_SAVE to guard breaking changes.
+
+// RETAIL_COMPATIBLE_CRC and RETAIL_COMPATIBLE_DATA are default defined in BaseDefines.h
 
 #ifndef RETAIL_COMPATIBLE_XFER_SAVE
 #if defined(GENERALS_ONLINE)
@@ -186,6 +198,11 @@
 #define PRIORITIZE_TEXTURES_BY_SIZE (1)
 #endif
 
+// Enable drawing particles as a terrain-conforming overlay.
+#ifndef ENABLE_TERRAIN_CONFORMING_PARTICLES
+#define ENABLE_TERRAIN_CONFORMING_PARTICLES (1)
+#endif
+
 // Enable obsolete code. This mainly refers to code that existed in Generals but was removed in GeneralsMD.
 // Disable and remove this when Generals and GeneralsMD are merged.
 #if RTS_GENERALS
@@ -211,3 +228,19 @@
 #define DEFAULT_DISPLAY_BIT_DEPTH   32
 #define DEFAULT_DISPLAY_WIDTH      800 // The standard resolution this game was designed for
 #define DEFAULT_DISPLAY_HEIGHT     600 // The standard resolution this game was designed for
+
+
+// NON-TWEAKABLE DEFINES ARE DOWN HERE
+
+// Whether the retail forward speed is used unconditionally, for every object at all times.
+#define USE_RETAIL_PHYSICS_FORWARD_SPEED_DISCREPANCY() \
+	(PRESERVE_RETAIL_PHYSICS_FORWARD_SPEED_DISCREPANCY || RETAIL_COMPATIBLE_CRC)
+
+// Whether the forward speed is scaled to a former averaged value.
+#define USE_RETAIL_PHYSICS_FORWARD_SPEED_AVERAGE() \
+	(PRESERVE_RETAIL_PHYSICS_FORWARD_SPEED_AVERAGE && !USE_RETAIL_PHYSICS_FORWARD_SPEED_DISCREPANCY())
+
+// Whether the retail forward speed is used for the duration of a cinematic event.
+// Is only meaningful when the retail forward speed discrepancy is not preserved and the forward speed is scaled.
+#define USE_RETAIL_PHYSICS_FORWARD_SPEED_DISCREPANCY_IN_CINEMATICS() \
+	(PRESERVE_RETAIL_PHYSICS_FORWARD_SPEED_DISCREPANCY_IN_CINEMATICS && !USE_RETAIL_PHYSICS_FORWARD_SPEED_DISCREPANCY() && USE_RETAIL_PHYSICS_FORWARD_SPEED_AVERAGE())

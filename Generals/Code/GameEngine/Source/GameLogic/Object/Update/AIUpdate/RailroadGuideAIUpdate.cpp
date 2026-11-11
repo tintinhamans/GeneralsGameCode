@@ -315,7 +315,7 @@ void RailroadBehavior::onCollide( Object *other, const Coord3D *loc, const Coord
 		m_whistleSound.setPlayingHandle(TheAudio->addAudioEvent( &m_whistleSound ));
 
 
-	Real dist = (Real)sqrtf( dlt.x*dlt.x + dlt.y*dlt.y + dlt.z*dlt.z);
+	Real dist = (Real)WWMath::Sqrtf( dlt.x*dlt.x + dlt.y*dlt.y + dlt.z*dlt.z);
 	Real usRadius = obj->getGeometryInfo().getMajorRadius();
 	Real themRadius = other->getGeometryInfo().getMajorRadius();
 	Real overlap = ((usRadius + themRadius) - dist) + 1;// the plus 1 makes them go just outside of me.
@@ -362,7 +362,8 @@ void RailroadBehavior::onCollide( Object *other, const Coord3D *loc, const Coord
 	Real dot = delta.x * myDir->x + delta.y * myDir->y + delta.z * myDir->z;
 
 	if (other->isEffectivelyDead())
-	{// we just run over debris, instead of shoving it around
+	{
+		// we just run over debris, instead of shoving it around
 		delta.scale( MIN(0.3f,m_pullInfo.speed * 0.66f) );
 	}
 	else
@@ -472,8 +473,8 @@ void RailroadBehavior::playImpactSound(Object *victim, const Coord3D *impactPosi
 	impact.setPosition(impactPosition);
 	if ( theirPhys )
 	{
-		vel += fabs(theirPhys->getVelocity()->length());
-		mass += fabs(theirPhys->getMass());
+		vel += WWMath::Fabs(theirPhys->getVelocity()->length());
+		mass += WWMath::Fabs(theirPhys->getMass());
 
 		vel /= 2;
 		mass /= 2;//average of him and me
@@ -675,7 +676,7 @@ UpdateSleepTime RailroadBehavior::update()
 		if ( m_conductorState == APPLY_BRAKES )
 		{
 			conductorPullInfo.speed *= modData->m_braking;
-			if (fabs(conductorPullInfo.speed) < 0.01f)
+			if (WWMath::Fabs(conductorPullInfo.speed) < 0.01f)
 			{
 				conductorPullInfo.speed = 0;
 				///////////////////////////////////////( &m_hissySteamSound );
@@ -1193,7 +1194,7 @@ void alignToTerrain( Real angle, const Coord3D& pos, const Coord3D& normal, Matr
 		x.normalize();
 	}
 
-	DEBUG_ASSERTCRASH(fabs(x.x*z.x + x.y*z.y + x.z*z.z)<0.0001,("dot is not zero"));
+	DEBUG_ASSERTCRASH(WWMath::Fabs(x.x*z.x + x.y*z.y + x.z*z.z)<0.0001,("dot is not zero"));
 
 	// now computing the y vector is trivial.
 	y.crossProduct( z, x, y );
@@ -1259,7 +1260,7 @@ void RailroadBehavior::updatePositionTrackDistance( PullInfo *pullerInfo, PullIn
 	trackPosDelta.z = 0;
 	Real dx = pullerInfo->towHitchPosition.x - turnPos.x;
 	Real dy = pullerInfo->towHitchPosition.y - turnPos.y;
-	Real desiredAngle = atan2(dy, dx);
+	Real desiredAngle = WWMath::Atan2(dy, dx);
 
 
 	Real relAngle = stdAngleDiff(desiredAngle, obj->getTransformMatrix()->Get_Z_Rotation());
@@ -1426,7 +1427,8 @@ void RailroadBehavior::FindPosByPathDistance( Coord3D *pos, const Real dist, con
 					}
 
 					if ( edge && ! m_inTunnel )
-					{//play my clickety clack sound, `cause I just rode over a join IN the tracks
+					{
+						//play my clickety clack sound, `cause I just rode over a join IN the tracks
 						TheAudio->addAudioEvent( &m_clicketyClackSound );
 						m_clicketyClackSound.setPosition( getObject()->getPosition() );
 						m_clicketyClackSound.setVolume( (Real)conductorPullInfo.speed / 10.0f );//assumed max speed

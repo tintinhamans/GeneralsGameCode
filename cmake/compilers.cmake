@@ -8,7 +8,6 @@ if (DEFINED MSVC_VERSION)
     message(STATUS "MSVC_VERSION: ${MSVC_VERSION}")
 endif()
 
-# TheSuperHackers @build JohnsterID 05/01/2026 Add MinGW-w64 detection and configure compiler flags
 # Detect MinGW-w64
 if(MINGW)
     message(STATUS "MinGW-w64 detected")
@@ -29,7 +28,7 @@ if(MSVC)
     # Create PDB for Release as long as debug info was generated during compile.
     string(APPEND CMAKE_EXE_LINKER_FLAGS_RELEASE " /DEBUG /OPT:REF /OPT:ICF")
     string(APPEND CMAKE_SHARED_LINKER_FLAGS_RELEASE " /DEBUG /OPT:REF /OPT:ICF")
-    
+
     # /INCREMENTAL:NO prevents PDB size bloat in Debug configuration(s).
     add_link_options("/INCREMENTAL:NO")
 else()
@@ -42,6 +41,7 @@ endif()
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)  # Ensures only ISO features are used
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 if (NOT IS_VS6_BUILD)
     if (MSVC)
@@ -51,6 +51,9 @@ if (NOT IS_VS6_BUILD)
         add_compile_options(/Zc:__cplusplus)
     else()
         add_compile_options(-Wsuggest-override)
+        # Prevent FMA contraction (a*b+c -> fmadd) which skips intermediate
+        # rounding and breaks cross-platform deterministic math parity with MSVC (/fp:precise).
+        add_compile_options(-ffp-contract=off)
     endif()
 else()
     if(RTS_BUILD_OPTION_VC6_FULL_DEBUG)

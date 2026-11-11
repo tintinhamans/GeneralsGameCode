@@ -329,13 +329,10 @@ WeaponTemplate::WeaponTemplate() : m_nextTemplate(nullptr)
 //-------------------------------------------------------------------------------------------------
 WeaponTemplate::~WeaponTemplate()
 {
-	if (m_nextTemplate) {
-		deleteInstance(m_nextTemplate);
-	}
+	deleteInstance(m_nextTemplate);
 
 	// delete any extra-bonus that's present
-	if (m_extraBonus)
-		deleteInstance(m_extraBonus);
+	deleteInstance(m_extraBonus);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -400,8 +397,8 @@ void WeaponTemplate::reset()
 
 	// No matter what we have now, we want to convert it to frames from msec.
 	// ShotDelay used to use parseDurationUnsignedInt, and we are expanding on that.
-	self->m_minDelayBetweenShots = ceilf(ConvertDurationFromMsecsToFrames((Real)self->m_minDelayBetweenShots));
-	self->m_maxDelayBetweenShots = ceilf(ConvertDurationFromMsecsToFrames((Real)self->m_maxDelayBetweenShots));
+	self->m_minDelayBetweenShots = WWMath::Ceilf(ConvertDurationFromMsecsToFrames((Real)self->m_minDelayBetweenShots));
+	self->m_maxDelayBetweenShots = WWMath::Ceilf(ConvertDurationFromMsecsToFrames((Real)self->m_maxDelayBetweenShots));
 
 }
 
@@ -422,6 +419,15 @@ void WeaponTemplate::postProcessLoad()
 	{
 		m_projectileTmpl = TheThingFactory->findTemplate(m_projectileName);
 		DEBUG_ASSERTCRASH(m_projectileTmpl, ("projectile %s not found!",m_projectileName.str()));
+
+#ifdef DEBUG_LOGGING
+		if (m_projectileTmpl && m_primaryDamage > 0.0)
+		{
+			const Real projectileRadius = m_projectileTmpl->getTemplateGeometryInfo().getMajorRadius();
+			if (m_primaryDamageRadius < projectileRadius)
+				DEBUG_LOG(("Weapon template %s has a PrimaryDamageRadius (%f) smaller than its projectile object's GeometryMajorRadius (%f)! This may lead to inconsistent damage application.", getName().str(), m_primaryDamageRadius, projectileRadius));
+		}
+#endif
 	}
 
 	for (Int i = LEVEL_FIRST; i <= LEVEL_LAST; ++i)
@@ -909,7 +915,7 @@ UnsignedInt WeaponTemplate::fireWeaponTemplate
 		if (distSqr < minAttackRangeSqr-0.5f && !isProjectileDetonation)
 #endif
 		{
-			DEBUG_ASSERTCRASH(distSqr > minAttackRangeSqr*0.8f, ("*** victim is closer than min attack range (%f vs %f) of this weapon -- why did we attempt to fire?",sqrtf(distSqr),sqrtf(minAttackRangeSqr)));
+			DEBUG_ASSERTCRASH(distSqr > minAttackRangeSqr*0.8f, ("*** victim is closer than min attack range (%f vs %f) of this weapon -- why did we attempt to fire?",WWMath::Sqrtf(distSqr),WWMath::Sqrtf(minAttackRangeSqr)));
 
 			//-extraLogging
 			#if defined(RTS_DEBUG)
@@ -935,7 +941,7 @@ UnsignedInt WeaponTemplate::fireWeaponTemplate
 			targetPos.set( *victimPos );
 		}
 		Real reAngle = getWeaponRecoilAmount();
-		Real reDir = reAngle != 0.0f ? (atan2(victimPos->y - sourcePos->y, victimPos->x - sourcePos->x)) : 0.0f;
+		Real reDir = reAngle != 0.0f ? (WWMath::Atan2(victimPos->y - sourcePos->y, victimPos->x - sourcePos->x)) : 0.0f;
 		VeterancyLevel v = sourceObj->getVeterancyLevel();
 		const FXList* fx = isProjectileDetonation ? getProjectileDetonateFX(v) : getFireFX(v);
 
@@ -946,9 +952,9 @@ UnsignedInt WeaponTemplate::fireWeaponTemplate
 
 		// TheSuperHackers @todo: Remove hardcoded KINDOF_MINE check and apply PlayFXWhenStealthed = Yes to the mine weapons instead.
 
-		if (!sourceObj->isLogicallyVisible()									// if user watching cannot see us
-			&& !sourceObj->isKindOf(KINDOF_MINE)								// and not a mine (which always do the FX, even if hidden)...
-			&& !isPlayFXWhenStealthed()													// and not a weapon marked to playwhenstealthed
+		if (!sourceObj->isLogicallyVisible() &&									// if user watching cannot see us
+			!sourceObj->isKindOf(KINDOF_MINE) &&								// and not a mine (which always do the FX, even if hidden)...
+			!isPlayFXWhenStealthed()													// and not a weapon marked to playwhenstealthed
 			)
 		{
 			handled = TRUE;		// then let's just pretend like we did the fx by returning true
@@ -1038,7 +1044,7 @@ UnsignedInt WeaponTemplate::fireWeaponTemplate
 		v.y = victimPos->y - sourcePos->y;
 		v.z = victimPos->z - sourcePos->z;
 		// don't round the result; we WANT a fractional-frame-delay in this case.
-		Real delayInFrames = (v.length() / getWeaponSpeed());
+		Real delayInFrames = WWMath::Div_Safe(v.length(), getWeaponSpeed());
 
 		ObjectID damageID = getDamageDealtAtSelfPosition() ? INVALID_ID : victimID;
 
@@ -1532,9 +1538,9 @@ void WeaponTemplate::dealDamageInternal(ObjectID sourceID, ObjectID victimID, co
 				Coord3D shockWaveVector = damageDirection;
 
 				// Guard against zero vector. Make vector straight up if that is the case
-				if (fabs(shockWaveVector.x) < WWMATH_EPSILON &&
-						fabs(shockWaveVector.y) < WWMATH_EPSILON &&
-						fabs(shockWaveVector.z) < WWMATH_EPSILON)
+				if (WWMath::Fabs(shockWaveVector.x) < WWMATH_EPSILON &&
+						WWMath::Fabs(shockWaveVector.y) < WWMATH_EPSILON &&
+						WWMath::Fabs(shockWaveVector.z) < WWMATH_EPSILON)
 				{
 					shockWaveVector.z = 1.0f;
 				}
@@ -1609,8 +1615,7 @@ WeaponStore::~WeaponStore()
 	for (size_t i = 0; i < m_weaponTemplateVector.size(); i++)
 	{
 		WeaponTemplate* wt = m_weaponTemplateVector[i];
-		if (wt)
-			deleteInstance(wt);
+		deleteInstance(wt);
 	}
 	m_weaponTemplateVector.clear();
 	m_weaponTemplateHashMap.clear();
@@ -2028,9 +2033,9 @@ void Weapon::rebuildScatterTargets()
 //-------------------------------------------------------------------------------------------------
 void Weapon::reloadWithBonus(const Object *sourceObj, const WeaponBonus& bonus, Bool loadInstantly)
 {
-	if (m_template->getClipSize() > 0
-			&& m_ammoInClip == m_template->getClipSize()
-			&& !sourceObj->isReloadTimeShared())
+	if (m_template->getClipSize() > 0 &&
+			m_ammoInClip == m_template->getClipSize() &&
+			!sourceObj->isReloadTimeShared())
 		return;	// don't restart our reload delay.
 
 	m_ammoInClip = m_template->getClipSize();
@@ -2173,11 +2178,11 @@ Bool Weapon::computeApproachTarget(const Object *source, const Object *target, c
 		if (source->isAboveTerrain())
 		{
 			// Don't do a 180 degree turn.
-			Real angle = atan2(-dir.y, -dir.x);
+			Real angle = WWMath::Atan2(-dir.y, -dir.x);
 			Real relAngle = source->getOrientation()- angle;
 			if (relAngle>2*PI) relAngle -= 2*PI;
 			if (relAngle<-2*PI) relAngle += 2*PI;
-			if (fabs(relAngle)<PI/2) {
+			if (WWMath::Fabs(relAngle)<PI/2) {
 				dir.x = -dir.x;
 				dir.y = -dir.y;
 				dir.z = -dir.z;
@@ -2186,7 +2191,7 @@ Bool Weapon::computeApproachTarget(const Object *source, const Object *target, c
 
 		if (angleOffset != 0.0f)
 		{
-			Real angle = atan2(dir.y, dir.x);
+			Real angle = WWMath::Atan2(dir.y, dir.x);
 			dir.x = (Real)Cos(angle + angleOffset);
 			dir.y = (Real)Sin(angle + angleOffset);
 		}
@@ -2233,7 +2238,7 @@ Bool Weapon::computeApproachTarget(const Object *source, const Object *target, c
 
 		if (angleOffset != 0.0f)
 		{
-			Real angle = atan2(dir.y, dir.x);
+			Real angle = WWMath::Atan2(dir.y, dir.x);
 			dir.x = (Real)Cos(angle + angleOffset);
 			dir.y = (Real)Sin(angle + angleOffset);
 		}
@@ -2916,7 +2921,7 @@ Bool Weapon::isWithinTargetPitch(const Object *source, const Object *victim) con
 	const Coord3D* dst = victim->getPosition();
 
 	const Real ACCEPTABLE_DZ = 10.0f;
-	if (fabs(dst->z - src->z) < ACCEPTABLE_DZ)
+	if (WWMath::Fabs(dst->z - src->z) < ACCEPTABLE_DZ)
 		return true;	// always good enough if dz is small, regardless of pitch
 
 	Real minPitch, maxPitch;

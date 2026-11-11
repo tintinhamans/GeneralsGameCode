@@ -119,6 +119,13 @@ static Real theLightYOffset = 0.07f;
 static Int theFlashCount = 0;
 #endif
 
+static const Int MAX_DRAWABLE_MAP_AREA = 1024*1024; ///< Larger maps draw the partial terrain window
+
+static Bool canDrawEntireMap(const WorldHeightMap *htMap)
+{
+	return htMap != nullptr && htMap->getXExtent() * htMap->getYExtent() <= MAX_DRAWABLE_MAP_AREA;
+}
+
 // ----------------------------------------------------------------------------
 // Global Variables:
 // ----------------------------------------------------------------------------
@@ -721,7 +728,8 @@ void WbView3d::setupCamera()
 
 	// build new camera transform
 	camtransform.Make_Identity();
-	if (factor < 0) { //WST 11/11/02. Fix camera flipping over when near the ground too early
+	if (factor < 0) {
+		//WST 11/11/02. Fix camera flipping over when near the ground too early
 		targetPos = sourcePos + (sourcePos-targetPos);
 	}
 	camtransform.Look_At( sourcePos, targetPos, 0 );
@@ -883,7 +891,8 @@ void WbView3d::setLighting(const GlobalData::TerrainLighting *tl, Int whichLight
 		Matrix3D mtx;
 		mtx.Set(Vector3(1,0,0), Vector3(0,1,0), Vector3(ol->lightPos.x, ol->lightPos.y, ol->lightPos.z), Vector3(0,0,0));
 		m_globalLight[whichLight]->Set_Transform(mtx);
-		if( m_scene && whichLight == 0) {	//only let the first light contribute to ambient
+		if( m_scene && whichLight == 0) {
+			//only let the first light contribute to ambient
 			m_scene->Set_Ambient_Light( Vector3(ol->ambient.red, ol->ambient.green, ol->ambient.blue) );
 			m_baseBuildScene->Set_Ambient_Light( Vector3(ol->ambient.red, ol->ambient.green, ol->ambient.blue) );
 		}
@@ -998,7 +1007,7 @@ void WbView3d::updateScorches()
 			Scorches type = (Scorches) pMapObj->getProperties()->getInt(TheKey_scorchType);
 
 			Vector3 loc(pos->x, pos->y, pos->z);
-			TheTerrainRenderObject->addScorch(loc, radius, type);
+			TheTerrainRenderObject->addStaticScorch(loc, radius, type);
 		}
 	}
 }
@@ -1028,7 +1037,7 @@ void WbView3d::updateTrees()
 					Coord3D pos = *pMapObj->getLocation();
 					if (m_heightMapRenderObj) {
 						pos.z += m_heightMapRenderObj->getHeightMapHeight(pos.x, pos.y, nullptr);
-						TheTerrainRenderObject->addTree((DrawableID)(Int)pMapObj, pos, scale, pMapObj->getAngle(),
+						TheTerrainRenderObject->addTree(pMapObj->getTreeID(), pos, scale, pMapObj->getAngle(),
 							0.0f /*no random scaling*/, md);
 					}
 				}
@@ -1396,7 +1405,7 @@ void WbView3d::invalObjectInView(MapObject *pMapObjIn)
 
 		const ThingTemplate *tTemplate = pMapObj->getThingTemplate();
 		if (tTemplate && tTemplate->isKindOf(KINDOF_OPTIMIZED_TREE)) {
-			if (!m_heightMapRenderObj->updateTreePosition((DrawableID)(Int)pMapObj, loc, pMapObj->getAngle())) {
+			if (!m_heightMapRenderObj->updateTreePosition(pMapObj->getTreeID(), loc, pMapObj->getAngle())) {
 				// Couldn't find it, so update them all. [5/27/2003]
 				updateAllTrees = true;
 			}
@@ -1476,7 +1485,8 @@ void WbView3d::invalObjectInView(MapObject *pMapObjIn)
 					shadowInfo.allowUpdates=FALSE;	//shadow image will never update
 					shadowInfo.allowWorldAlign=TRUE;	//shadow image will wrap around world objects
 					if (tTemplate && tTemplate->getShadowType() != SHADOW_NONE && !(pMapObj->getFlags() & FLAG_DONT_RENDER))
-					{	//add correct type of shadow
+					{
+						//add correct type of shadow
 						strlcpy(shadowInfo.m_ShadowName, tTemplate->getShadowTextureName().str(), ARRAY_SIZE(shadowInfo.m_ShadowName));
 						DEBUG_ASSERTCRASH(shadowInfo.m_ShadowName[0] != '\0', ("this should be validated in ThingTemplate now"));
 						shadowInfo.m_type=(ShadowType)tTemplate->getShadowType();
@@ -1582,7 +1592,7 @@ void WbView3d::updateHeightMapInView(WorldHeightMap *htMap, Bool partial, const 
 		if (partial) {
 			m_heightMapRenderObj->doPartialUpdate(partialRange, htMap, &lightListIt);
 		} else {
-			if (m_showEntireMap) {
+			if (m_showEntireMap && canDrawEntireMap(htMap)) {
 				htMap->setDrawOrg(0, 0);
 				htMap->setDrawWidth(htMap->getXExtent());
 				htMap->setDrawHeight(htMap->getYExtent());
@@ -1709,7 +1719,7 @@ Bool WbView3d::viewToDocCoords(CPoint curPt, Coord3D *newPt, Bool constrain)
 	float logY = (Real)curPt.y / (Real)client.Height();
 	Vector3 intersection(0,0,0);
 	// determine the ray corresponding to the camera and distance to projection plane
-	Matrix3D camera_matrix = m_camera->Get_Transform();
+	const Matrix3D& camera_matrix = m_camera->Get_Transform();
 
 	Vector3 camera_location  = m_camera->Get_Position();
 
@@ -1837,7 +1847,7 @@ Bool WbView3d::viewToDocCoordZ(CPoint curPt, Coord3D *newPt, Real theZ)
 	float logY = (Real)curPt.y / (Real)client.Height();
 	Vector3 intersection(0,0,0);
 	// determine the ray corresponding to the camera and distance to projection plane
-	Matrix3D camera_matrix = m_camera->Get_Transform();
+	const Matrix3D& camera_matrix = m_camera->Get_Transform();
 
 	Vector3 camera_location  = m_camera->Get_Position();
 
@@ -1892,7 +1902,7 @@ void WbView3d::updateHysteresis()
 	float logY = (Real)curPt.y / (Real)client.Height();
 	Vector3 intersection(0,0,0);
 	// determine the ray corresponding to the camera and distance to projection plane
-	Matrix3D camera_matrix = m_camera->Get_Transform();
+	const Matrix3D& camera_matrix = m_camera->Get_Transform();
 
 	Vector3 camera_location  = m_camera->Get_Position();
 
@@ -2441,7 +2451,8 @@ void WbView3d::drawLabels(HDC hdc)
 			}
 
 			if (m_doLightFeedback && pMapObj->isSelected())
-			{	//find out position of selected object in order to use it for light feedback tracking.
+			{
+				//find out position of selected object in order to use it for light feedback tracking.
 				selectedPos=*pMapObj->getLocation();
 				selectedPos.z = m_heightMapRenderObj->getHeightMapHeight(selectedPos.x, selectedPos.y, nullptr);
 				RenderObjClass *selRobj=pMapObj->getRenderObj();
@@ -2567,7 +2578,8 @@ void WbView3d::drawLabels(HDC hdc)
 	}
 
 	if (hdc && m_doLightFeedback)
-	{	//Draw Lines to indicate the direction of each light source
+	{
+		//Draw Lines to indicate the direction of each light source
 //		Int LightColors[MAX_GLOBAL_LIGHTS]={RGB(255,0,0),RGB(0,255,0),RGB(0,0,255)};
 
 		for (Int lIndex=0; lIndex<MAX_GLOBAL_LIGHTS; lIndex++)
@@ -2633,7 +2645,8 @@ void WbView3d::drawLabels(HDC hdc)
 	}
 	else
 	{	if (!m_doLightFeedback)
-		{	//not in light feedback mode.  Make sure the temporary feedback models are gone
+		{
+			//not in light feedback mode.  Make sure the temporary feedback models are gone
 
 			for (Int lIndex=0; lIndex<MAX_GLOBAL_LIGHTS; lIndex++)
 			{
@@ -2877,7 +2890,9 @@ void WbView3d::OnViewShowentire3dmap()
 
 void WbView3d::OnUpdateViewShowentire3dmap(CCmdUI* pCmdUI)
 {
-	pCmdUI->SetCheck(m_showEntireMap?1:0);
+	const Bool canDraw = canDrawEntireMap(WbDoc() ? WbDoc()->GetHeightMap() : nullptr);
+	pCmdUI->Enable(canDraw);
+	pCmdUI->SetCheck(m_showEntireMap && canDraw ? 1 : 0);
 }
 
 void WbView3d::OnViewShowtopdownview()
@@ -2956,7 +2971,8 @@ void WbView3d::OnViewShowSoftWater()
 {
 	TheWritableGlobalData->m_showSoftWaterEdge = !TheGlobalData->m_showSoftWaterEdge;
 	if (TheGlobalData->m_showSoftWaterEdge)
-	{	//we just turned it on, so recompute shoreline tiles since they may not exist.
+	{
+		//we just turned it on, so recompute shoreline tiles since they may not exist.
 		TheTerrainRenderObject->updateShorelineTiles(0,0,WbDoc()->GetHeightMap()->getXExtent()-1,WbDoc()->GetHeightMap()->getYExtent()-1,
 			WbDoc()->GetHeightMap());
 	}

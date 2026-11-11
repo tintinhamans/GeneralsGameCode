@@ -169,7 +169,7 @@ public:
 
 		Region3D mapRegion;
 		TheTerrainLogic->getExtentIncludingBorder( &mapRegion );
-		if( !mapRegion.isInRegionNoZ( *owner->getPosition() ) )
+		if( !mapRegion.containsWithin( owner->getPosition()->asCoord2D() ) )
 		{
 			TheGameLogic->destroyObject(owner);
 			return STATE_SUCCESS;
@@ -570,7 +570,7 @@ public:
 		{
 			if (it->ropeLen < it->ropeLenMax)
 			{
-				it->ropeSpeed += fabs(TheGlobalData->m_gravity);
+				it->ropeSpeed += WWMath::Fabs(TheGlobalData->m_gravity);
 				if (it->ropeSpeed > d->m_ropeDropSpeed)
 					it->ropeSpeed = d->m_ropeDropSpeed;
 				it->ropeLen += it->ropeSpeed;
@@ -762,7 +762,7 @@ public:
 		StateReturnType status = AIMoveToState::update();
 
 		const Real THRESH = 3.0f;
-		if (status != STATE_CONTINUE && fabs(obj->getPosition()->z - m_destZ) > THRESH)
+		if (status != STATE_CONTINUE && WWMath::Fabs(obj->getPosition()->z - m_destZ) > THRESH)
 			status = STATE_CONTINUE;
 
 		return status;
@@ -891,7 +891,7 @@ ChinookAIUpdateModuleData::ChinookAIUpdateModuleData()
 	m_minDropHeight = 30.0f;
 	m_ropeFinalHeight = 0.0f;
 	m_ropeDropSpeed = 1e10f;		// um, fast.
-	m_rappelSpeed = fabs(TheGlobalData->m_gravity) * LOGICFRAMES_PER_SECOND * 0.5f;
+	m_rappelSpeed = WWMath::Fabs(TheGlobalData->m_gravity) * LOGICFRAMES_PER_SECOND * 0.5f;
 	m_ropeWobbleLen = 10.0f;
 	m_ropeWobbleAmp = 1.0f;
 	m_ropeWobbleRate = 0.1f;
@@ -923,7 +923,7 @@ ChinookAIUpdateModuleData::ChinookAIUpdateModuleData()
 		{ "RotorWashParticleSystem", INI::parseAsciiString,	nullptr, offsetof( ChinookAIUpdateModuleData, m_rotorWashParticleSystem ) },
 		{ "UpgradedSupplyBoost", INI::parseInt, nullptr, offsetof( ChinookAIUpdateModuleData, m_upgradedSupplyBoost) },
 
-		{ 0, 0, 0, 0 }
+		{ nullptr, nullptr, nullptr, 0 }
 	};
   p.add(dataFieldParse);
 }
@@ -1056,8 +1056,8 @@ ObjectID ChinookAIUpdate::getBuildingToNotPathAround() const
 AIFreeToExitType ChinookAIUpdate::getAiFreeToExit(const Object* exiter) const
 {
 #if RETAIL_COMPATIBLE_CRC
-	 if (m_flightStatus == CHINOOK_LANDED
-				|| (m_flightStatus == CHINOOK_DOING_COMBAT_DROP && exiter->isKindOf(KINDOF_CAN_RAPPEL)))
+	 if (m_flightStatus == CHINOOK_LANDED ||
+				(m_flightStatus == CHINOOK_DOING_COMBAT_DROP && exiter->isKindOf(KINDOF_CAN_RAPPEL)))
 #else
 	if (m_flightStatus == CHINOOK_LANDED)
 #endif
@@ -1320,6 +1320,19 @@ void ChinookAIUpdate::aiDoCommand(const AICommandParms* parms)
 			// just pass it thru.
 		}
 		break;
+#if !RETAIL_COMPATIBLE_CRC
+		case AICMD_ENTER:
+		{
+			// TheSuperHackers @bugfix Stubbjax 12/08/2026 Ignore the command if we are told to enter ourselves (we can be in the same group).
+			if (parms->m_obj && parms->m_obj->getID() == getObject()->getID())
+				return;
+
+			// TheSuperHackers @bugfix Stubbjax 12/08/2026 Ignore the command if we are told to enter something we cannot (we can be in the same group).
+			if (!TheActionManager->canEnterObject(getObject(), parms->m_obj, parms->m_cmdSource, DONT_CHECK_CAPACITY))
+				return;
+		}
+		break;
+#endif
 
 		case AICMD_MOVE_TO_POSITION_AND_EVACUATE:
 		case AICMD_MOVE_TO_POSITION_AND_EVACUATE_AND_EXIT:
@@ -1506,10 +1519,10 @@ void ChinookAIUpdate::privateAttackObject( Object *victim, Int maxShotsToFire, C
 				  // If I am an overlord with a gattling upgrade, I do not tell it to fire if it is disabled
 				  if ( passenger->isKindOf( KINDOF_PORTABLE_STRUCTURE ) )
 				  {
-					  if( passenger->isDisabledByType( DISABLED_HACKED )
-						  || passenger->isDisabledByType( DISABLED_EMP )
-						  || passenger->isDisabledByType( DISABLED_SUBDUED )
-						  || passenger->isDisabledByType( DISABLED_PARALYZED) )
+					  if( passenger->isDisabledByType( DISABLED_HACKED ) ||
+						  passenger->isDisabledByType( DISABLED_EMP ) ||
+						  passenger->isDisabledByType( DISABLED_SUBDUED ) ||
+						  passenger->isDisabledByType( DISABLED_PARALYZED) )
 						  continue;
 				  }
 
@@ -1539,12 +1552,12 @@ void ChinookAIUpdate::private___TellPortableStructureToAttackWithMe( Object *vic
 	{
     //--------- THE GATTLING UPGRADE OR THE GUYS IN THE BUNKER_NOT_A_BUNKER-------------
     Object *rider = (Object*)contain->friend_getRider();
-		if ( rider
-      && rider->isKindOf( KINDOF_PORTABLE_STRUCTURE )
-      && !rider->isDisabledByType( DISABLED_HACKED )
-			&& !rider->isDisabledByType( DISABLED_EMP )
-			&& !rider->isDisabledByType( DISABLED_SUBDUED )
-			&& !rider->isDisabledByType( DISABLED_PARALYZED) )
+		if ( rider &&
+      rider->isKindOf( KINDOF_PORTABLE_STRUCTURE ) &&
+      !rider->isDisabledByType( DISABLED_HACKED ) &&
+			!rider->isDisabledByType( DISABLED_EMP ) &&
+			!rider->isDisabledByType( DISABLED_SUBDUED ) &&
+			!rider->isDisabledByType( DISABLED_PARALYZED) )
     {
 			AIUpdateInterface *riderAI = rider->getAIUpdateInterface();
 			if( riderAI )
@@ -1594,10 +1607,10 @@ void ChinookAIUpdate::privateForceAttackObject( Object *victim, Int maxShotsToFi
 				  // If I am an overlord with a gattling upgrade, I do not tell it to fire if it is disabled
 				  if ( passenger->isKindOf( KINDOF_PORTABLE_STRUCTURE ) )
 				  {
-					  if( passenger->isDisabledByType( DISABLED_HACKED )
-						  || passenger->isDisabledByType( DISABLED_EMP )
-						  || passenger->isDisabledByType( DISABLED_SUBDUED )
-						  || passenger->isDisabledByType( DISABLED_PARALYZED) )
+					  if( passenger->isDisabledByType( DISABLED_HACKED ) ||
+						  passenger->isDisabledByType( DISABLED_EMP ) ||
+						  passenger->isDisabledByType( DISABLED_SUBDUED ) ||
+						  passenger->isDisabledByType( DISABLED_PARALYZED) )
 						  continue;
 				  }
 
@@ -1613,12 +1626,12 @@ void ChinookAIUpdate::privateForceAttackObject( Object *victim, Int maxShotsToFi
 
       //--------- THE GATTLING UPGRADE OR THE GUYS IN THE BUNKER_NOT_A_BUNKER-------------
       Object *rider = (Object*)contain->friend_getRider();
-			if ( rider
-        && rider->isKindOf( KINDOF_PORTABLE_STRUCTURE )
-        && !rider->isDisabledByType( DISABLED_HACKED )
-				&& !rider->isDisabledByType( DISABLED_EMP )
-				&& !rider->isDisabledByType( DISABLED_SUBDUED )
-				&& !rider->isDisabledByType( DISABLED_PARALYZED) )
+			if ( rider &&
+        rider->isKindOf( KINDOF_PORTABLE_STRUCTURE ) &&
+        !rider->isDisabledByType( DISABLED_HACKED ) &&
+				!rider->isDisabledByType( DISABLED_EMP ) &&
+				!rider->isDisabledByType( DISABLED_SUBDUED ) &&
+				!rider->isDisabledByType( DISABLED_PARALYZED) )
       {
 				AIUpdateInterface *riderAI = rider->getAIUpdateInterface();
 				if( riderAI )
@@ -1672,10 +1685,10 @@ void ChinookAIUpdate::privateAttackPosition( const Coord3D *pos, Int maxShotsToF
           // If I am an overlord with a gattling upgrade, I do not tell it ti fire if it is disabled
 				  if ( passenger->isKindOf( KINDOF_PORTABLE_STRUCTURE ) )
 				  {
-					  if( passenger->isDisabledByType( DISABLED_HACKED )
-						  || passenger->isDisabledByType( DISABLED_EMP)
-						  || passenger->isDisabledByType( DISABLED_SUBDUED)
-						  || passenger->isDisabledByType( DISABLED_PARALYZED) )
+					  if( passenger->isDisabledByType( DISABLED_HACKED ) ||
+						  passenger->isDisabledByType( DISABLED_EMP) ||
+						  passenger->isDisabledByType( DISABLED_SUBDUED) ||
+						  passenger->isDisabledByType( DISABLED_PARALYZED) )
 						  continue;
 				  }
 
@@ -1690,12 +1703,12 @@ void ChinookAIUpdate::privateAttackPosition( const Coord3D *pos, Int maxShotsToF
 
       //--------- THE GATTLING UPGRADE OR THE GUYS IN THE BUNKER_NOT_A_BUNKER-------------
       Object *rider = (Object*)contain->friend_getRider();
-			if ( rider
-        && rider->isKindOf( KINDOF_PORTABLE_STRUCTURE )
-        && !rider->isDisabledByType( DISABLED_HACKED )
-				&& !rider->isDisabledByType( DISABLED_EMP )
-				&& !rider->isDisabledByType( DISABLED_SUBDUED )
-				&& !rider->isDisabledByType( DISABLED_PARALYZED) )
+			if ( rider &&
+        rider->isKindOf( KINDOF_PORTABLE_STRUCTURE ) &&
+        !rider->isDisabledByType( DISABLED_HACKED ) &&
+				!rider->isDisabledByType( DISABLED_EMP ) &&
+				!rider->isDisabledByType( DISABLED_SUBDUED ) &&
+				!rider->isDisabledByType( DISABLED_PARALYZED) )
       {
 				AIUpdateInterface *riderAI = rider->getAIUpdateInterface();
 				if( riderAI )

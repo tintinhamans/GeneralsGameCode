@@ -142,7 +142,7 @@ public:
 	void setWarnings(Bool warnings) { m_hasWarnings = warnings;}
 	void setNextGroup(ScriptGroup *pGr) {m_nextGroup = pGr;}
 
-	AsciiString getName() const { return m_groupName;}
+	const AsciiString& getName() const { return m_groupName;}
 	Bool isActive() const { return m_isGroupActive;}
 	Bool isSubroutine() const { return m_isGroupSubroutine;}
 	Bool hasWarnings() const { return m_hasWarnings;}
@@ -616,9 +616,9 @@ protected:	// Note - If you add any member vars, you must take them into account
 	ScriptAction *m_action;			///< First in a list of actions executed if the conditions are true.
 	ScriptAction *m_actionFalse;///< First in a list of actions executed if the conditions are false.
 	Script			*m_nextScript;	///< Next in the list of scripts.
+	UnsignedInt m_frameToEvaluateAt; ///< When to evaluate the conditions next, if m_delayEvaluationSeconds>0.
 
 // Runtime fields - not saved or read.
-	UnsignedInt m_frameToEvaluateAt; ///< When to evaluate the conditions next, if m_delayEvaluationSeconds>0.
 	Bool				m_hasWarnings; ///< Runtime flag used by the editor only.
 	AsciiString	m_conditionTeamName; ///< Runtime name used by ScriptEngine only.
 	Real				m_conditionTime;		///< Amount of time (cum) to evaluate conditions.
@@ -661,7 +661,7 @@ public:
 	Real getCurTime() {return m_curTime;}
 	Int getDelayEvalSeconds() {return m_delayEvaluationSeconds;}
 
-	AsciiString getName() const { return m_scriptName;}
+	const AsciiString& getName() const { return m_scriptName;}
 	AsciiString getComment() const {return m_comment;}
 	AsciiString getActionComment() const {return m_actionComment;}
 	AsciiString getConditionComment() const {return m_conditionComment;}
@@ -691,7 +691,7 @@ public:
 	OrCondition *findPreviousOrCondition( OrCondition *curOr );
 
 	// Support routines for ScriptEngine -
-	AsciiString getConditionTeamName() {return m_conditionTeamName;}
+	const AsciiString& getConditionTeamName() const {return m_conditionTeamName;}
 	void setConditionTeamName(AsciiString teamName) {m_conditionTeamName = teamName;}
 };
 
@@ -766,7 +766,8 @@ public:
 		NUM_ITEMS
 	};
 
-	enum { // Comparison types.  Stored in Int value.
+	enum {
+		// Comparison types.  Stored in Int value.
 		LESS_THAN = 0,
 		LESS_EQUAL,
 		EQUAL,
@@ -775,7 +776,8 @@ public:
 		NOT_EQUAL
 	};
 
-	enum { // Relation types. Stored in Int value. (Values from GameCommon.h)
+	enum {
+		// Relation types. Stored in Int value. (Values from GameCommon.h)
 		REL_ENEMY			= ENEMIES,
 		REL_NEUTRAL		= NEUTRAL,
 		REL_FRIEND		= ALLIES

@@ -217,7 +217,8 @@ void W3DDebrisDraw::doDrawModule(const Matrix3D* transformMtx)
 
 		Matrix3D scaledTransform;
 		if (getDrawable()->getInstanceScale() != 1.0f)
-		{	//do custom scaling of the W3D model.
+		{
+			//do custom scaling of the W3D model.
 			scaledTransform=*transformMtx;
 			scaledTransform.Scale(getDrawable()->getInstanceScale());
 			transformMtx = &scaledTransform;
@@ -225,12 +226,13 @@ void W3DDebrisDraw::doDrawModule(const Matrix3D* transformMtx)
 		}
 		m_renderObject->Set_Transform(*transformMtx);
 
-		static const RenderObjClass::AnimMode TheAnimModes[STATECOUNT] =
+		static const RenderObjClass::AnimMode TheAnimModes[] =
 		{
 			RenderObjClass::ANIM_MODE_ONCE,
 			RenderObjClass::ANIM_MODE_LOOP,
 			RenderObjClass::ANIM_MODE_ONCE
 		};
+		static_assert(ARRAY_SIZE(TheAnimModes) == STATECOUNT, "Incorrect array size");
 
 		Int oldState = m_state;
 		Object* obj = getDrawable()->getObject();

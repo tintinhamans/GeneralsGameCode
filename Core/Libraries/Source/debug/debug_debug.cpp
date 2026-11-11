@@ -27,13 +27,14 @@
 // Debug class implementation
 //////////////////////////////////////////////////////////////////////////////
 
-#include "debug.h"
+#include "debug/debug.h"
 #include "internal.h"
 #include "internal_except.h"
 #include "internal_io.h"
 #include <stdlib.h>
 #include <windows.h>
-#include <WWLib/WWCommon.h>
+#include <Utility/stdio_adapter.h>
+#include <Utility/stringex.h>
 #include <new>      // needed for placement new prototype
 
 // a little dummy variable that makes the linker actually include
@@ -307,7 +308,7 @@ bool Debug::SkipNext()
   // a valid frame pointer here!
   unsigned help;
 #if defined(_MSC_VER)
-  _asm
+  __asm
   {
     mov eax,[ebp+4]   // return address
     mov help,eax
@@ -435,7 +436,10 @@ bool Debug::AssertDone()
           break;
         case IDRETRY:
 #if defined(_MSC_VER)
-          _asm int 0x03
+          __asm
+          {
+            int 0x03
+          }
 #elif defined(__GNUC__)
           __builtin_trap();
 #else
@@ -709,7 +713,10 @@ bool Debug::CrashDone(bool die)
             break;
           case IDRETRY:
 #if defined(_MSC_VER)
-            _asm int 0x03
+            __asm
+            {
+              int 0x03
+            }
 #elif defined(__GNUC__)
             __builtin_trap();
 #else
@@ -1228,7 +1235,7 @@ Debug::FrameHashEntry* Debug::AddFrameEntry(unsigned addr, unsigned type,
   else
   {
     // no, just add file name (without path though)
-    e->fileOrGroup=fileOrGroup?strrchr(fileOrGroup,'\\'):nullptr;
+    e->fileOrGroup=fileOrGroup?strrpbrk(fileOrGroup,"/\\"):nullptr;
     e->fileOrGroup=e->fileOrGroup?e->fileOrGroup+1:fileOrGroup;
   }
 
@@ -1245,7 +1252,7 @@ void Debug::UpdateFrameStatus(FrameHashEntry &entry)
       entry.frameType==FrameTypeCheck)
     wsprintf(help,"%s(%i)",entry.fileOrGroup,entry.line);
   else
-    strlcpy(help, entry.fileOrGroup, ARRAY_SIZE(help));
+    strlcpy(help, entry.fileOrGroup, sizeof(help));
 
   // update frame status
   bool active=entry.frameType!=FrameTypeLog;
@@ -1265,7 +1272,7 @@ const char *Debug::AddLogGroup(const char *fileOrGroup, const char *descr)
   char help[200];
 
   // do we need to strip down fileOrGroup?
-  const char *p=strrchr(fileOrGroup,'\\');
+  const char *p=strrpbrk(fileOrGroup,"/\\");
   const char *q=strchr(p?p:fileOrGroup,'.');
   if (p||q)
   {

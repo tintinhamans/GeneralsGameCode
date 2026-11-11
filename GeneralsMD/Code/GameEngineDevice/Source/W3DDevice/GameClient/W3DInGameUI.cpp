@@ -48,6 +48,7 @@
 #include "W3DDevice/GameClient/W3DScene.h"
 #include "W3DDevice/Common/W3DConvert.h"
 #include "WW3D2/ww3d.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/hanim.h"
 
 #include "../OnlineServices_Init.h"
@@ -249,10 +250,10 @@ void DebugHintObject::Render(RenderInfoClass & rinfo)
 		DX8Wrapper::Set_Index_Buffer(m_indexBuffer,0);
 		DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferTile);
 
-		Matrix3D tm(Transform);
+		Matrix3D tm = Transform;
 		Vector3 vec(m_myLoc.x, m_myLoc.y, m_myLoc.z);
 		tm.Set_Translation(vec);
-		DX8Wrapper::Set_Transform(D3DTS_WORLD, tm);
+		Renderer::Set_Transform(RenderTransform_World, tm);
 
 		DX8Wrapper::Draw_Triangles(	0, 1, 0, 3);
 	}

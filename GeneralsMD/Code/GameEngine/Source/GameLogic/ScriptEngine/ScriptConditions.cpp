@@ -201,7 +201,7 @@ void ScriptConditions::objectTypesFromParam(Parameter *pTypeParm, ObjectTypes *o
 		return;
 	}
 
-	AsciiString str = pTypeParm->getString();
+	const AsciiString &str = pTypeParm->getString();
 
 	if (str.isEmpty()) {
 		return;
@@ -357,7 +357,7 @@ Bool ScriptConditions::evaluateNamedUnitTotallyDead(Parameter *pUnitParm)
 //-------------------------------------------------------------------------------------------------
 Bool ScriptConditions::evaluateHasUnits(Parameter *pTeamParm)
 {
-	AsciiString desiredTeamName = pTeamParm->getString();
+	const AsciiString &desiredTeamName = pTeamParm->getString();
 	// If they are calling a <this team> condition, do it.
 	if (desiredTeamName == THIS_TEAM) {
 		Team *theTeam = TheScriptEngine->getTeamNamed( desiredTeamName );
@@ -398,7 +398,6 @@ Bool ScriptConditions::evaluateTeamInsideAreaPartially(Parameter *pTeamParm, Par
 	Team *theTeam = TheScriptEngine->getTeamNamed( pTeamParm->getString() );
 	// The team is the team based on the name, and the calling team (if any) and the team that
 	// is being considered for the condition.  jba. :)
-	AsciiString triggerName = pTriggerAreaParm->getString();
 	PolygonTrigger *pTrig = TheScriptEngine->getQualifiedTriggerAreaByName(pTriggerAreaParm->getString());
 
 	if (pTrig == nullptr) return false;
@@ -420,7 +419,6 @@ Bool ScriptConditions::evaluateNamedInsideArea(Parameter *pUnitParm, Parameter *
 		return false;
 	}
 
-	AsciiString triggerName = pTriggerAreaParm->getString();
 	PolygonTrigger *pTrig = TheScriptEngine->getQualifiedTriggerAreaByName(pTriggerAreaParm->getString());
 	if (pTrig == nullptr) return false;
 	if (theObj) {
@@ -437,7 +435,6 @@ Bool ScriptConditions::evaluateNamedInsideArea(Parameter *pUnitParm, Parameter *
 //-------------------------------------------------------------------------------------------------
 Bool ScriptConditions::evaluatePlayerHasUnitTypeInArea(Condition *pCondition, Parameter *pPlayerParm, Parameter *pComparisonParm, Parameter *pCountParm, Parameter *pTypeParm, Parameter *pTriggerParm )
 {
-	AsciiString triggerName = pTriggerParm->getString();
 	PolygonTrigger *pTrig = TheScriptEngine->getQualifiedTriggerAreaByName(pTriggerParm->getString());
 	if (pTrig == nullptr) return false;
 
@@ -530,7 +527,6 @@ Bool ScriptConditions::evaluatePlayerHasUnitTypeInArea(Condition *pCondition, Pa
 //-------------------------------------------------------------------------------------------------
 Bool ScriptConditions::evaluatePlayerHasUnitKindInArea(Condition *pCondition, Parameter *pPlayerParm, Parameter *pComparisonParm, Parameter *pCountParm, Parameter *pKindParm, Parameter *pTriggerParm )
 {
-	AsciiString triggerName = pTriggerParm->getString();
 	PolygonTrigger *pTrig = TheScriptEngine->getQualifiedTriggerAreaByName(pTriggerParm->getString());
 	if (pTrig == nullptr) return false;
 
@@ -614,7 +610,7 @@ Bool ScriptConditions::evaluateTeamStateIs(Parameter *pTeamParm, Parameter *pSta
 	Team *theTeam = TheScriptEngine->getTeamNamed( pTeamParm->getString() );
 	// The team is the team based on the name, and the calling team (if any) and the team that
 	// is being considered for the condition.  jba. :)
-	AsciiString stateName = pStateParm->getString();
+	const AsciiString &stateName = pStateParm->getString();
 	if (theTeam) {
 		return (theTeam->getState() == stateName);
 	}
@@ -630,7 +626,7 @@ Bool ScriptConditions::evaluateTeamStateIsNot(Parameter *pTeamParm, Parameter *p
 	Team *theTeam = TheScriptEngine->getTeamNamed( pTeamParm->getString() );
 	// The team is the team based on the name, and the calling team (if any) and the team that
 	// is being considered for the condition.  jba. :)
-	AsciiString stateName = pStateParm->getString();
+	const AsciiString &stateName = pStateParm->getString();
 	if (theTeam) {
 		return (!(theTeam->getState() == stateName));
 	}
@@ -641,7 +637,8 @@ Bool ScriptConditions::evaluateTeamStateIsNot(Parameter *pTeamParm, Parameter *p
 /** evaluateNamedOutsideArea */
 //-------------------------------------------------------------------------------------------------
 Bool ScriptConditions::evaluateNamedOutsideArea(Parameter *pUnitParm, Parameter *pTriggerParm)
-{// This is actually NamedUnitInside(...)
+{
+	// This is actually NamedUnitInside(...)
 
 	return !evaluateNamedInsideArea(pUnitParm, pTriggerParm);
 }
@@ -650,11 +647,11 @@ Bool ScriptConditions::evaluateNamedOutsideArea(Parameter *pUnitParm, Parameter 
 /** evaluateTeamInsideAreaEntirely */
 //-------------------------------------------------------------------------------------------------
 Bool ScriptConditions::evaluateTeamInsideAreaEntirely(Parameter *pTeamParm, Parameter *pTriggerParm, Parameter *pTypeParm)
-{// This is actually TeamInside(...)
+{
+	// This is actually TeamInside(...)
 	Team *theTeam = TheScriptEngine->getTeamNamed( pTeamParm->getString() );
 	// The team is the team based on the name, and the calling team (if any) and the team that
 	// is being considered for the condition.  jba. :)
-	AsciiString triggerName = pTriggerParm->getString();
 	PolygonTrigger *pTrig = TheScriptEngine->getQualifiedTriggerAreaByName(pTriggerParm->getString());
 
 	if (pTrig == nullptr)
@@ -1086,7 +1083,13 @@ Bool ScriptConditions::evaluateEnemySighted(Parameter *pItemParm, Parameter *pAl
 	// and only on-map (or not)
 	PartitionFilterSameMapStatus filterMapStatus(theObj);
 
-	PartitionFilter *filters[] = { &filterTeam, &filterAlive, &filterStealth, &filterMapStatus, nullptr };
+	PartitionFilter *filters[] = {
+		&filterTeam,
+		&filterAlive,
+		&filterStealth,
+		&filterMapStatus,
+		nullptr
+	};
 
 	Real visionRange = theObj->getVisionRange();
 
@@ -1131,7 +1134,12 @@ Bool ScriptConditions::evaluateTypeSighted(Parameter *pItemParm, Parameter *pTyp
 	// and only on-map (or not)
 	PartitionFilterSameMapStatus filterMapStatus(theObj);
 
-	PartitionFilter *filters[] = { &filterAlive, &filterStealth, &filterMapStatus, nullptr };
+	PartitionFilter *filters[] = {
+		&filterAlive,
+		&filterStealth,
+		&filterMapStatus,
+		nullptr
+	};
 
 	Real visionRange = theObj->getVisionRange();
 
@@ -1335,7 +1343,7 @@ Bool ScriptConditions::evaluateNamedReachedWaypointsEnd(Parameter *pUnitParm, Pa
 
 	if (!targetWay) return false;
 
-	AsciiString	pathName = pWaypointPathParm->getString();
+	const AsciiString &pathName = pWaypointPathParm->getString();
 
 	if (targetWay->getPathLabel1() == pathName) return true;
 	if (targetWay->getPathLabel2() == pathName) return true;
@@ -1354,7 +1362,7 @@ Bool ScriptConditions::evaluateTeamReachedWaypointsEnd(Parameter *pTeamParm, Par
 		return false;
 	}
 
-	AsciiString	pathName = pWaypointPathParm->getString();
+	const AsciiString &pathName = pWaypointPathParm->getString();
 	Bool anyAtEnd = false;
 	Bool anyNotAtEnd = false;
 	// Note - This returns true if any of the team completed the path.  This is as the current
@@ -2114,7 +2122,6 @@ Bool ScriptConditions::evaluateSkirmishValueInArea(Condition *pCondition, Parame
 		return false;
 	}
 
-	AsciiString triggerName = pTriggerParm->getString();
 	PolygonTrigger *pTrig = TheScriptEngine->getQualifiedTriggerAreaByName(pTriggerParm->getString());
 
 	if (!pTrig) {
@@ -2226,7 +2233,12 @@ Bool ScriptConditions::evaluateSkirmishSuppliesWithinDistancePerimeter(Parameter
 	PartitionFilterPlayerAffiliation f2(player, ALLOW_NEUTRAL, true);
 	PartitionFilterOnMap filterMapStatus;
 
-	PartitionFilter *filters[] = { &f1, &f2, &filterMapStatus, nullptr };
+	PartitionFilter *filters[] = {
+		&f1,
+		&f2,
+		&filterMapStatus,
+		nullptr
+	};
 
 	SimpleObjectIterator *iter = ThePartitionManager->iterateObjectsInRange(&center, distance, FROM_CENTER_2D, filters, ITER_FASTEST);
 	MemoryPoolObjectHolder hold(iter);
@@ -2277,7 +2289,13 @@ Bool ScriptConditions::evaluateSkirmishPlayerTechBuildingWithinDistancePerimeter
 	PartitionFilterOnMap filterMapStatus;
 
 
-	PartitionFilter *filters[] = { &f1, &f2, &f3, &filterMapStatus, nullptr };
+	PartitionFilter *filters[] = {
+		&f1,
+		&f2,
+		&f3,
+		&filterMapStatus,
+		nullptr
+	};
 
 	Bool comparison = ThePartitionManager->getClosestObject(&center, radius, FROM_CENTER_2D, filters) != nullptr;
 	pCondition->setCustomData(-1); // false.
@@ -2493,7 +2511,6 @@ Bool ScriptConditions::evaluateSkirmishNamedAreaExists(Parameter *, Parameter *p
 //-------------------------------------------------------------------------------------------------
 Bool ScriptConditions::evaluateSkirmishPlayerHasUnitsInArea(Condition *pCondition, Parameter *pSkirmishPlayerParm, Parameter *pTriggerParm )
 {
-	AsciiString triggerName = pTriggerParm->getString();
 	PolygonTrigger *pTrig = TheScriptEngine->getQualifiedTriggerAreaByName(pTriggerParm->getString());
 	if (pTrig == nullptr) return false;
 
@@ -2685,7 +2702,7 @@ Bool ScriptConditions::evaluateSkirmishPlayerHasDiscoveredPlayer(Parameter *pSki
 //-------------------------------------------------------------------------------------------------
 Bool ScriptConditions::evaluateMusicHasCompleted(Parameter *pMusicParm, Parameter *pIntParm)
 {
-	AsciiString str = pMusicParm->getString();
+	const AsciiString &str = pMusicParm->getString();
 	return TheAudio->hasMusicTrackCompleted(str, pIntParm->getInt());
 }
 

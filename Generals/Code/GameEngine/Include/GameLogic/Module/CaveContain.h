@@ -56,7 +56,7 @@ public:
 		static const FieldParse dataFieldParse[] =
 		{
 			{ "CaveIndex", INI::parseInt, nullptr, offsetof( CaveContainModuleData, m_caveIndexData ) },
-			{ 0, 0, 0, 0 }
+			{ nullptr, nullptr, nullptr, 0 }
 		};
     p.add(dataFieldParse);
 	}
@@ -100,6 +100,7 @@ public:
 	virtual UnsignedInt getContainCount() const override;
 	virtual Int getContainMax() const override;
 	virtual const ContainedItemsList* getContainedItemsList() const override;
+	virtual Bool isContained( const Object *obj ) const override;
 	virtual Bool isKickOutOnCapture() override { return FALSE; }///< Caves and Tunnels don't kick out on capture.
 
 	// override the onDie we inherit from OpenContain

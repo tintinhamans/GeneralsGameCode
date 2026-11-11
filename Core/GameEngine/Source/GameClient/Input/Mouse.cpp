@@ -85,6 +85,7 @@ static const FieldParse TheMouseCursorFieldParseTable[] =
 	{ "Frames",							INI::parseInt,	nullptr,	offsetof( CursorInfo, numFrames ) },
 	{ "FPS",							INI::parseReal, nullptr, offsetof( CursorInfo, fps)},
 	{ "Directions",							INI::parseInt,	nullptr,	offsetof( CursorInfo, numDirections ) },
+	{ nullptr, nullptr, nullptr, 0 }
 };
 
 static const FieldParse TheMouseFieldParseTable[] =
@@ -110,7 +111,7 @@ static const FieldParse TheMouseFieldParseTable[] =
 	{ "DragTolerance",							INI::parseUnsignedInt,	nullptr,		offsetof( Mouse, m_dragTolerance) },
 	{ "DragTolerance3D",						INI::parseUnsignedInt,	nullptr,		offsetof( Mouse, m_dragTolerance3D) },
 	{ "DragToleranceMS",						INI::parseUnsignedInt,	nullptr,		offsetof( Mouse, m_dragToleranceMS) },
-
+	{ nullptr, nullptr, nullptr, 0 }
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1266,7 +1267,7 @@ Int Mouse::getCursorIndex(const AsciiString& name)
 
 	/** @todo This is silly to have to define these names from INI in the code ...
 		* that should be changed (CBD) */
-	static const char *CursorININames[NUM_MOUSE_CURSORS] =
+	static const char *CursorININames[] =
 	{
 		//"InvalidMouseCursor",  // this entry is not actually a mouse cursor, but just a
 														 // reminder that it does exist
@@ -1323,6 +1324,7 @@ Int Mouse::getCursorIndex(const AsciiString& name)
 		"ParticleUplinkCannon",
 
 	};
+	static_assert(ARRAY_SIZE(CursorININames) == NUM_MOUSE_CURSORS, "Incorrect array size");
 
 	for (Int i=0; i<NUM_MOUSE_CURSORS; ++i)
 	{

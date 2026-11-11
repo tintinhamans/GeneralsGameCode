@@ -42,7 +42,8 @@
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "dx8wrapper.h"
-#include "WW3D2/vertmaterial.h"
+#include "Renderer.h"
+#include "vertmaterial.h"
 #include "texture.h"
 #include "d3d8.h"
 #include "d3dx8math.h"
@@ -260,7 +261,7 @@ void SortingRendererClass::Insert_Triangles(
 		unsorted_list.push_back(state);
 	}
 
-#ifdef WWDEBUG
+#ifdef DEBUG_CRASHING
 	SortingVertexBufferClass* vertex_buffer=static_cast<SortingVertexBufferClass*>(state->sorting_state.vertex_buffers[0]);
 	WWASSERT(vertex_buffer);
 	WWASSERT(state->vertex_count<=vertex_buffer->Get_Vertex_Count());
@@ -281,7 +282,7 @@ void SortingRendererClass::Insert_Triangles(
 		WWASSERT(idx2<state->vertex_count);
 		WWASSERT(idx3<state->vertex_count);
 	}
-#endif // WWDEBUG
+#endif // DEBUG_CRASHING
 }
 
 // ----------------------------------------------------------------------------
@@ -603,8 +604,8 @@ void SortingRendererClass::Flush()
 	WWPROFILE("SortingRenderer::Flush");
 	Matrix4x4 old_view;
 	Matrix4x4 old_world;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,old_view);
-	DX8Wrapper::Get_Transform(D3DTS_WORLD,old_world);
+	Renderer::Get_Transform(RenderTransform_View,old_view);
+	Renderer::Get_Transform(RenderTransform_World,old_world);
 
 	// TheSuperHackers @perf stephanmeesters 04/07/2026
 	// Splice nodes that have no bounding information (Z=0.0) at the correct location into the sorted list.
@@ -644,8 +645,8 @@ void SortingRendererClass::Flush()
 	DynamicVBAccessClass::_Reset(false);
 
 
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,old_view);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,old_world);
+	Renderer::Set_Transform(RenderTransform_View,old_view);
+	Renderer::Set_Transform(RenderTransform_World,old_world);
 
 }
 

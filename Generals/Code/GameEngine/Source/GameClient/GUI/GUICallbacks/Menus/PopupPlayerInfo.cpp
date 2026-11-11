@@ -343,7 +343,7 @@ void BattleHonorTooltip(GameWindow *window,
 		return;
 	}
 
-	Int battleHonor = (Int)GadgetListBoxGetItemData( window, row, col );
+	Int battleHonor = (Int)(intptr_t)GadgetListBoxGetItemData( window, row, col );
 	if (battleHonor == 0)
 	{
 		//DEBUG_CRASH(("No Battle Honor in listbox row %d, col %d!", row, col));
@@ -1266,7 +1266,8 @@ void GameSpyPlayerInfoOverlayInit( WindowLayout *layout, void *userData )
 	OSVERSIONINFO	osvi;
 	osvi.dwOSVersionInfoSize=sizeof(OSVERSIONINFO);
 	if (GetVersionEx(&osvi))
-	{	//check if we're running Win9x variant since they may need different fonts
+	{
+		//check if we're running Win9x variant since they may need different fonts
 		if (osvi.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS)
 		{
 			if (checkBoxAsianFont)

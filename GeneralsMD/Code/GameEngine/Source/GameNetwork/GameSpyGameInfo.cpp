@@ -76,10 +76,6 @@ typedef struct tConnInfoStruct {
 	unsigned short RemotePort;
 } ConnInfoStruct;
 
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
-#endif
-
 /***********************************************************************************************
  * Get_Local_Chat_Connection_Address -- Which address are we using to talk to the chat server? *
  *                                                                                             *
@@ -669,9 +665,7 @@ AsciiString GameSpyGameInfo::generateGameResultsPacket()
 	Int lastTeamAtGameEnd = -1;
 	for (i=0; i<MAX_SLOTS; ++i)
 	{
-		AsciiString playerName;
-		playerName.format("player%d", i);
-		Player *p = ThePlayerList->findPlayerWithNameKey(NAMEKEY(playerName));
+		Player *p = ThePlayerList->getPlayerFromSlotIndex(i);
 		if (p)
 		{
 			++numPlayers;
@@ -701,9 +695,7 @@ AsciiString GameSpyGameInfo::generateGameResultsPacket()
 	Int playerID = 0;
 	for (i=0; i<MAX_SLOTS; ++i)
 	{
-		AsciiString playerName;
-		playerName.format("player%d", i);
-		Player *p = ThePlayerList->findPlayerWithNameKey(NAMEKEY(playerName));
+		Player *p = ThePlayerList->getPlayerFromSlotIndex(i);
 		if (p)
 		{
 			GameSpyGameSlot *slot = &(m_GameSpySlot[i]);

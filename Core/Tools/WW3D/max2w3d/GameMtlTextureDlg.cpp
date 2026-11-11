@@ -93,13 +93,7 @@ GameMtlTextureDlg::GameMtlTextureDlg
 	Stage0DisplayButton = nullptr;
 	Stage1DisplayButton = nullptr;
 
-	if (mtl->Get_Shader_Type() == GameMtl::STE_PC_SHADER) {
-		Create_Form(parent,IDD_GAMEMTL_TEXTURES);
-	} else {
-		// Use the PS2 dialog.  It is the same but it disables some functions that aren't
-		// supported yet.
-		Create_Form(parent,IDD_GAMEMTL_PS2_TEXTURES);
-	}
+	Create_Form(parent,IDD_GAMEMTL_TEXTURES);
 }
 
 
@@ -497,7 +491,7 @@ BOOL GameMtlTextureDlg::Dialog_Proc (HWND dlg_wnd, UINT message, WPARAM wparam, 
  * HISTORY:                                                                                    *
  *   11/23/98   GTH : Created.                                                                 *
  *=============================================================================================*/
-void GameMtlTextureDlg::ReloadDialog(void)
+void GameMtlTextureDlg::ReloadDialog()
 {
 	DebugPrint("GameMtlTextureDlg::ReloadDialog\n");
 	assert(Stage0FramesSpin && Stage1FramesSpin && Stage0RateSpin && Stage1RateSpin);
@@ -588,21 +582,11 @@ void GameMtlTextureDlg::Enable_Stage(int stage,BOOL onoff)
 
 		EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_BUTTON),onoff);
 
-		// Turn these off if it is a playstation 2 shader.
-		// These aren't supported yet.
-		if (TheMtl->Get_Shader_Type() == GameMtl::STE_PC_SHADER) {
-			EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_RATE_SPIN), onoff);
-			EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_RATE_EDIT), onoff);
-			EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_FRAMES_SPIN), onoff);
-			EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_FRAMES_EDIT), onoff);
-			EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_ANIM_COMBO), onoff);
-		} else {
-			EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_RATE_SPIN), FALSE);
-			EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_RATE_EDIT), FALSE);
-			EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_FRAMES_SPIN), FALSE);
-			EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_FRAMES_EDIT), FALSE);
-			EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_ANIM_COMBO), FALSE);
-		}
+		EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_RATE_SPIN), onoff);
+		EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_RATE_EDIT), onoff);
+		EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_FRAMES_SPIN), onoff);
+		EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_FRAMES_EDIT), onoff);
+		EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_ANIM_COMBO), onoff);
 
 		EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_PUBLISH_BUTTON),onoff);
 		EnableWindow(GetDlgItem(m_hWnd,IDC_STAGE0_CLAMP_U_BUTTON),onoff);
@@ -644,7 +628,7 @@ void GameMtlTextureDlg::Enable_Stage(int stage,BOOL onoff)
  * HISTORY:                                                                                    *
  *   11/23/98   GTH : Created.                                                                 *
  *=============================================================================================*/
-void GameMtlTextureDlg::Update_Texture_Buttons(void)
+void GameMtlTextureDlg::Update_Texture_Buttons()
 {
 	Texmap * texmap;
 	texmap = TheMtl->Get_Texture(PassIndex,0);

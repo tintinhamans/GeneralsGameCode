@@ -566,8 +566,8 @@ WWINLINE void Matrix3D::Set(		const Vector3	&x,		// x-axis unit vector
  *=============================================================================================*/
 WWINLINE void Matrix3D::Set(const Vector3 & axis,float angle)
 {
-	float c = cosf(angle);
-	float s = sinf(angle);
+	float c = WWMath::Cosf(angle);
+	float s = WWMath::Sinf(angle);
 
 	Set(axis,s,c);
 }
@@ -586,7 +586,7 @@ WWINLINE void Matrix3D::Set(const Vector3 & axis,float angle)
  *=============================================================================================*/
 WWINLINE void Matrix3D::Set(const Vector3 & axis,float s,float c)
 {
-	assert(WWMath::Fabs(axis.Length2() - 1.0f) < 0.001f);
+	assert(WWMath::Fabsf_Legacy(axis.Length2() - 1.0f) < 0.001f);
 
 	Row[0].Set(
 		(float)(axis[0]*axis[0] + c*(1.0f - axis[0]*axis[0])),
@@ -768,8 +768,8 @@ WWINLINE void Matrix3D::Rotate_X(float theta)
 	float tmp1,tmp2;
 	float s,c;
 
-	s = sinf(theta);
-	c = cosf(theta);
+	s = WWMath::Sinf(theta);
+	c = WWMath::Cosf(theta);
 
 	tmp1 = Row[0][1]; tmp2 = Row[0][2];
 	Row[0][1] = (float)( c*tmp1 + s*tmp2);
@@ -836,8 +836,8 @@ WWINLINE void Matrix3D::Rotate_Y(float theta)
 	float tmp1,tmp2;
 	float s,c;
 
-	s = sinf(theta);
-	c = cosf(theta);
+	s = WWMath::Sinf(theta);
+	c = WWMath::Cosf(theta);
 
 	tmp1 = Row[0][0]; tmp2 = Row[0][2];
 	Row[0][0] = (float)(c*tmp1 - s*tmp2);
@@ -903,8 +903,8 @@ WWINLINE void Matrix3D::Rotate_Z(float theta)
 	float tmp1,tmp2;
 	float c,s;
 
-	c = cosf(theta);
-	s = sinf(theta);
+	c = WWMath::Cosf(theta);
+	s = WWMath::Sinf(theta);
 
 	tmp1 = Row[0][0]; tmp2 = Row[0][1];
 	Row[0][0] = (float)( c*tmp1 + s*tmp2);
@@ -969,7 +969,8 @@ WWINLINE void Matrix3D::Rotate_Z(float s,float c)
 // !! with Orthogonal Matrices, for optimization purposes
 // !!
 WWINLINE void	Matrix3D::Scale(float scale)
-{	// uniform scale all 3 axis
+{
+	// uniform scale all 3 axis
 	// X
 	Row[0][0] *= scale;
 	Row[1][0] *= scale;
@@ -1001,7 +1002,8 @@ WWINLINE void	Matrix3D::Scale(float scale)
 // !! with Orthogonal Matrices, for optimization purposes
 // !!
 WWINLINE void	Matrix3D::Scale(float x, float y, float z)
-{ // separate input for each axis
+{
+	// separate input for each axis
 	// X
 	Row[0][0] *= x;
 	Row[1][0] *= x;
@@ -1033,7 +1035,8 @@ WWINLINE void	Matrix3D::Scale(float x, float y, float z)
 // !! with Orthogonal Matrices, for optimization purposes
 // !!
 WWINLINE void	Matrix3D::Scale(Vector3 &scale)
-{ // scale each axis
+{
+	// scale each axis
 	Scale(scale.X, scale.Y, scale.Z);
 }
 
@@ -1055,8 +1058,8 @@ WWINLINE void Matrix3D::Pre_Rotate_X(float theta)
 	float tmp1,tmp2;
 	float c,s;
 
-	c = cosf(theta);
-	s = sinf(theta);
+	c = WWMath::Cosf(theta);
+	s = WWMath::Sinf(theta);
 
 	tmp1 = Row[1][0]; tmp2 = Row[2][0];
 	Row[1][0] = (float)(c*tmp1 - s*tmp2);
@@ -1093,8 +1096,8 @@ WWINLINE void Matrix3D::Pre_Rotate_Y(float theta)
 	float tmp1,tmp2;
 	float c,s;
 
-	c = cosf(theta);
-	s = sinf(theta);
+	c = WWMath::Cosf(theta);
+	s = WWMath::Sinf(theta);
 
 	tmp1 = Row[0][0]; tmp2 = Row[2][0];
 	Row[0][0] = (float)( c*tmp1 + s*tmp2);
@@ -1131,8 +1134,8 @@ WWINLINE void Matrix3D::Pre_Rotate_Z(float theta)
 	float tmp1,tmp2;
 	float c,s;
 
-	c = cosf(theta);
-	s = sinf(theta);
+	c = WWMath::Cosf(theta);
+	s = WWMath::Sinf(theta);
 
 	tmp1 = Row[0][0]; tmp2 = Row[1][0];
 	Row[0][0] = (float)(c*tmp1 - s*tmp2);
@@ -1274,8 +1277,8 @@ WWINLINE void Matrix3D::In_Place_Pre_Rotate_X(float theta)
 	float tmp1,tmp2;
 	float c,s;
 
-	c = cosf(theta);
-	s = sinf(theta);
+	c = WWMath::Cosf(theta);
+	s = WWMath::Sinf(theta);
 
 	tmp1 = Row[1][0]; tmp2 = Row[2][0];
 	Row[1][0] = (float)(c*tmp1 - s*tmp2);
@@ -1308,8 +1311,8 @@ WWINLINE void Matrix3D::In_Place_Pre_Rotate_Y(float theta)
 	float tmp1,tmp2;
 	float c,s;
 
-	c = cosf(theta);
-	s = sinf(theta);
+	c = WWMath::Cosf(theta);
+	s = WWMath::Sinf(theta);
 
 	tmp1 = Row[0][0]; tmp2 = Row[2][0];
 	Row[0][0] = (float)( c*tmp1 + s*tmp2);
@@ -1342,8 +1345,8 @@ WWINLINE void Matrix3D::In_Place_Pre_Rotate_Z(float theta)
 	float tmp1,tmp2;
 	float c,s;
 
-	c = cosf(theta);
-	s = sinf(theta);
+	c = WWMath::Cosf(theta);
+	s = WWMath::Sinf(theta);
 
 	tmp1 = Row[0][0]; tmp2 = Row[1][0];
 	Row[0][0] = (float)(c*tmp1 - s*tmp2);

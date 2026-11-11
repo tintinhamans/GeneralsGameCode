@@ -69,7 +69,7 @@ void POWTruckAIUpdateModuleData::buildFieldParse( MultiIniFieldParse &p )
 	{
 		{ "BoredTime",					INI::parseDurationUnsignedInt,	nullptr, offsetof( POWTruckAIUpdateModuleData, m_boredTimeInFrames ) },
 		{ "AtPrisonDistance",		INI::parseReal,		nullptr,		offsetof( POWTruckAIUpdateModuleData, m_hangAroundPrisonDistance ) },
-		{ 0, 0, 0, 0 }
+		{ nullptr, nullptr, nullptr, 0 }
 	};
 
   p.add( dataFieldParse );
@@ -480,7 +480,7 @@ void POWTruckAIUpdate::updateCollectingTarget()
 	{
 
 		// are we close enough to tell them to start moving to us
-		Real distSq = pow( us->getGeometryInfo().getBoundingSphereRadius() * 2.0f, 2 );
+		Real distSq = WWMath::Pow( us->getGeometryInfo().getBoundingSphereRadius() * 2.0f, 2 );
 		if( ThePartitionManager->getDistanceSquared( us, target, FROM_CENTER_2D ) <= distSq )
 		{
 

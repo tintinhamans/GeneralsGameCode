@@ -89,20 +89,21 @@
 
 
 #include "boxrobj.h"
-#include "WW3D2/w3d_util.h"
+#include "w3d_util.h"
 #include "WWDebug/wwdebug.h"
 #include "vertmaterial.h"
 #include "ww3d.h"
 #include "WWLib/chunkio.h"
 #include "rinfo.h"
-#include "WW3D2/coltest.h"
-#include "WW3D2/inttest.h"
-#include "WW3D2/dx8wrapper.h"
-#include "WW3D2/dx8indexbuffer.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#include "WW3D2/dx8fvf.h"
-#include "WW3D2/sortingrenderer.h"
-#include "WW3D2/visrasterizer.h"
+#include "coltest.h"
+#include "inttest.h"
+#include "dx8wrapper.h"
+#include "Renderer.h"
+#include "dx8indexbuffer.h"
+#include "dx8vertexbuffer.h"
+#include "dx8fvf.h"
+#include "sortingrenderer.h"
+#include "visrasterizer.h"
 #include "meshgeometry.h"
 
 
@@ -701,7 +702,7 @@ void AABoxRenderObjClass::Render(RenderInfoClass & rinfo)
 {
 	Matrix3D temp(1);
 	temp.Translate(Transform.Get_Translation());
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,temp);
+	Renderer::Set_Transform(RenderTransform_World,temp);
 	render_box(rinfo,ObjSpaceCenter,ObjSpaceExtent);
 }
 
@@ -1085,7 +1086,7 @@ int OBBoxRenderObjClass::Class_ID() const
  *=============================================================================================*/
 void OBBoxRenderObjClass::Render(RenderInfoClass & rinfo)
 {
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Transform);
+	Renderer::Set_Transform(RenderTransform_World,Transform);
 	render_box(rinfo,ObjSpaceCenter,ObjSpaceExtent);
 }
 

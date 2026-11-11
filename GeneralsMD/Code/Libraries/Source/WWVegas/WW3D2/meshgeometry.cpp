@@ -86,7 +86,7 @@
 
 
 #include "meshgeometry.h"
-#include "WW3D2/aabtree.h"
+#include "aabtree.h"
 #include "WWLib/chunkio.h"
 #include "WWMath/aabox.h"
 #include "WWMath/obbox.h"
@@ -96,7 +96,7 @@
 #include "WWDebug/wwmemlog.h"
 #include "w3d_file.h"
 #include "WWMath/vp.h"
-#include "WW3D2/htree.h"
+#include "htree.h"
 #include "WWMath/matrix4.h"
 #include "rinfo.h"
 #include "camera.h"
@@ -448,19 +448,13 @@ void MeshGeometryClass::Get_Bounding_Sphere(SphereClass * set_sphere)
  *=============================================================================================*/
 void MeshGeometryClass::Generate_Rigid_APT(const Vector3 & view_dir, SimpleDynVecClass<uint32> & apt)
 {
-	const Vector3 * loc = Get_Vertex_Array();
 	const Vector4 * norms = Get_Plane_Array();
-	const TriIndex * polys = Get_Polygon_Array();
-	TriClass tri;
 
 	for (int poly_counter = 0; poly_counter < PolyCount; poly_counter++) {
 
-		tri.V[0] = &(loc[ polys[poly_counter][0] ]);
-		tri.V[1] = &(loc[ polys[poly_counter][1] ]);
-		tri.V[2] = &(loc[ polys[poly_counter][2] ]);
-		tri.N = (Vector3*)&(norms[poly_counter]);
+		Vector3 normal(norms[poly_counter].X,norms[poly_counter].Y,norms[poly_counter].Z);
 
-		if (Vector3::Dot_Product(*tri.N,view_dir) < 0.0f) {
+		if (Vector3::Dot_Product(normal,view_dir) < 0.0f) {
 			apt.Add(poly_counter);
 		}
 	}
@@ -498,7 +492,8 @@ void MeshGeometryClass::Generate_Rigid_APT(const OBBoxClass & local_box, SimpleD
 			tri.V[0] = &(loc[ polys[poly_counter][0] ]);
 			tri.V[1] = &(loc[ polys[poly_counter][1] ]);
 			tri.V[2] = &(loc[ polys[poly_counter][2] ]);
-			tri.N = (Vector3*)&(norms[poly_counter]);
+			Vector3 normal(norms[poly_counter].X,norms[poly_counter].Y,norms[poly_counter].Z);
+			tri.N = &normal;
 
 			if (CollisionMath::Intersection_Test(local_box, tri)) {;
 				apt.Add(poly_counter);
@@ -537,7 +532,8 @@ void MeshGeometryClass::Generate_Rigid_APT(const OBBoxClass & local_box,const Ve
 			tri.V[0] = &(loc[ polys[poly_counter][0] ]);
 			tri.V[1] = &(loc[ polys[poly_counter][1] ]);
 			tri.V[2] = &(loc[ polys[poly_counter][2] ]);
-			tri.N = (Vector3*)&(norms[poly_counter]);
+			Vector3 normal(norms[poly_counter].X,norms[poly_counter].Y,norms[poly_counter].Z);
+			tri.N = &normal;
 
 			if (Vector3::Dot_Product(*tri.N,viewdir) < 0.0f) {
 				if (CollisionMath::Intersection_Test(local_box,tri)) {

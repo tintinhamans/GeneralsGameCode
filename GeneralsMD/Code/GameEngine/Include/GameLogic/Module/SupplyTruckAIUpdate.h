@@ -114,7 +114,9 @@ enum
 	ST_BUSY,						///< Direct player involvement (move) has taken me off autopilot
 	ST_WANTING,					///< Search for warehouse or center and dock with it
 	ST_REGROUPING,			///< Wanting failed, so hang out at base until something changes.  Autopilot will turn off.
-	ST_DOCKING					///< Docking substates are running, wait for them to finish
+	ST_DOCKING,					///< Docking substates are running, wait for them to finish
+
+	ST_COUNT
 };
 
 //-------------------------------------------------------------------------------------------------
@@ -146,7 +148,7 @@ public:
 			{ "SupplyWarehouseActionDelay", INI::parseDurationUnsignedInt, nullptr, offsetof( SupplyTruckAIUpdateModuleData, m_warehouseDelay ) },
 			{ "SupplyWarehouseScanDistance", INI::parseReal, nullptr, offsetof( SupplyTruckAIUpdateModuleData, m_warehouseScanDistance ) },
  			{ "SuppliesDepletedVoice", INI::parseAudioEventRTS, nullptr, offsetof( SupplyTruckAIUpdateModuleData, m_suppliesDepletedVoice) },
-			{ 0, 0, 0, 0 }
+			{ nullptr, nullptr, nullptr, 0 }
 		};
     p.add(dataFieldParse);
 

@@ -198,10 +198,10 @@ public:
 	virtual Real getDefaultPitch() { return m_defaultPitch; }						///< Return current default camera pitch
 	virtual void setAngleToDefault();															///< Set the view angle back to default
 	virtual void setPitchToDefault();															///< Set the view pitch back to default
-	void setPosition(const Coord3D& pos) { m_pos = pos; }
-	void setPosition2D(const Coord2D& pos) { m_pos.x = pos.x; m_pos.y = pos.y; }
-	const Coord3D& getPosition() const { return m_pos; } ///< Returns position camera is looking at
-	Coord2D getPosition2D() const { Coord2D c = { m_pos.x, m_pos.y }; return c; } ///< Returns position camera is looking at
+	void setPosition( const Coord3D &pos ) { m_pos = pos; }
+	void setPosition2D( const Coord2D &pos ) { m_pos.x = pos.x; m_pos.y = pos.y; }
+	const Coord3D &getPosition() const { return m_pos; } ///< Returns position camera is looking at
+	Coord2D getPosition2D() const { return m_pos.asCoord2D(); } ///< Returns position camera is looking at
 
 	virtual Coord3D get3DCameraPosition() const { Coord3D c = { 0,0,0 }; return c; } ///< Returns the actual camera position
 	virtual Coord3D get3DCameraDirection() const { Coord3D c = { 0,0,0 }; return c; } ///< Returns the actual camera view direction

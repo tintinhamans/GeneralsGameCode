@@ -103,7 +103,7 @@ static Real heightToSpeed(Real height)
 {
 	// don't bother trying to remember how far we've fallen; instead,
 	// back-calc it from our speed & gravity... v = sqrt(2*g*h)
-	return sqrt(fabs(2.0f * TheGlobalData->m_gravity * height));
+	return WWMath::Sqrt(WWMath::Fabs(2.0f * TheGlobalData->m_gravity * height));
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -460,9 +460,9 @@ void PhysicsBehavior::applyGravitationalForces()
 void PhysicsBehavior::applyFrictionalForces()
 {
 	//Are we a plane that is taxiing on a deck with a height offset?
-	Bool deckTaxiing = getObject()->testStatus( OBJECT_STATUS_DECK_HEIGHT_OFFSET )
-										 && getObject()->getAI()
-										 && getObject()->getAI()->getCurLocomotorSetType() == LOCOMOTORSET_TAXIING;
+	Bool deckTaxiing = getObject()->testStatus( OBJECT_STATUS_DECK_HEIGHT_OFFSET ) &&
+										 getObject()->getAI() &&
+										 getObject()->getAI()->getCurLocomotorSetType() == LOCOMOTORSET_TAXIING;
 
 	if (getFlag(APPLY_FRICTION2D_WHEN_AIRBORNE) || !getObject()->isSignificantlyAboveTerrain() || deckTaxiing )
 	{
@@ -525,7 +525,7 @@ Bool PhysicsBehavior::handleBounce(Real oldZ, Real newZ, Real groundZ, Coord3D* 
 		Real vz = getVelocity()->z;
 		if (oldZ > groundZ && vz < 0.0f)
 		{
-			desiredAccelZ = fabs(vz) * stiffness;
+			desiredAccelZ = WWMath::Fabs(vz) * stiffness;
 		}
 
 		bounceForce->x = 0.0f;
@@ -567,7 +567,7 @@ Bool PhysicsBehavior::handleBounce(Real oldZ, Real newZ, Real groundZ, Coord3D* 
 inline Bool isVerySmall3D(const Coord3D& v)
 {
 	const Real THRESH = 0.01f;
-	return (fabs(v.x) < THRESH && fabs(v.y) < THRESH && fabs(v.z) < THRESH);
+	return (WWMath::Fabs(v.x) < THRESH && WWMath::Fabs(v.y) < THRESH && WWMath::Fabs(v.z) < THRESH);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -670,14 +670,14 @@ UpdateSleepTime PhysicsBehavior::update()
 		// Info: At 60Hz, motive acceleration can be smaller than THRESH and must accumulate across frames.
 		if (!isMotive())
 		{
-			if (fabsf(m_vel.x) < THRESH) m_vel.x = 0.0f;
-			if (fabsf(m_vel.y) < THRESH) m_vel.y = 0.0f;
+			if (WWMath::Fabsf(m_vel.x) < THRESH) m_vel.x = 0.0f;
+			if (WWMath::Fabsf(m_vel.y) < THRESH) m_vel.y = 0.0f;
 		}
 #else
-		if (fabsf(m_vel.x) < THRESH) m_vel.x = 0.0f;
-		if (fabsf(m_vel.y) < THRESH) m_vel.y = 0.0f;
+		if (WWMath::Fabsf(m_vel.x) < THRESH) m_vel.x = 0.0f;
+		if (WWMath::Fabsf(m_vel.y) < THRESH) m_vel.y = 0.0f;
 #endif
-		if (fabsf(m_vel.z) < THRESH) m_vel.z = 0.0f;
+		if (WWMath::Fabsf(m_vel.z) < THRESH) m_vel.z = 0.0f;
 
 		m_velMag = INVALID_VEL_MAG;
 
@@ -709,10 +709,9 @@ UpdateSleepTime PhysicsBehavior::update()
 		// Check when to clear the stunned status
 		if (getIsStunned())
 		{
-			if ( (fabs(m_vel.x) < STUN_RELIEF_EPSILON &&
-				    fabs(m_vel.y) < STUN_RELIEF_EPSILON &&
-				    fabs(m_vel.z) < STUN_RELIEF_EPSILON)
-          ||
+			if ( (WWMath::Fabs(m_vel.x) < STUN_RELIEF_EPSILON &&
+				    WWMath::Fabs(m_vel.y) < STUN_RELIEF_EPSILON &&
+				    WWMath::Fabs(m_vel.z) < STUN_RELIEF_EPSILON) ||
            obj->isSignificantlyAboveTerrain() == FALSE )
 			{
 				setStunned(false);
@@ -757,8 +756,8 @@ UpdateSleepTime PhysicsBehavior::update()
 			if (offset != 0.0f)
 			{
 				Vector3 xvec = mtx.Get_X_Vector();
-				Real xy = sqrtf(sqr(xvec.X) + sqr(xvec.Y));
-				Real pitchAngle = atan2(xvec.Z, xy);
+				Real xy = WWMath::Sqrtf(sqr(xvec.X) + sqr(xvec.Y));
+				Real pitchAngle = WWMath::Atan2(xvec.Z, xy);
 				Real remainingAngle = (offset > 0) ? ((PI/2) - pitchAngle) : (-(PI/2) + pitchAngle);
 				Real s = Sin(remainingAngle);
 				pitchRateToUse *= s;
@@ -884,8 +883,8 @@ UpdateSleepTime PhysicsBehavior::update()
 			// going down hills don't injure themselves (unless the hill is really steep)
 			const Real MIN_ANGLE_TAN = 3.0f;	//	roughly 71 degrees
 			const Real TINY_DELTA = 0.01f;
-			if ((fabs(m_vel.x) <= TINY_DELTA || fabs(activeVelZ / m_vel.x) >= MIN_ANGLE_TAN) &&
-				(fabs(m_vel.y) <= TINY_DELTA || fabs(activeVelZ / m_vel.y) >= MIN_ANGLE_TAN))
+			if ((WWMath::Fabs(m_vel.x) <= TINY_DELTA || WWMath::Fabs(activeVelZ / m_vel.x) >= MIN_ANGLE_TAN) &&
+				(WWMath::Fabs(m_vel.y) <= TINY_DELTA || WWMath::Fabs(activeVelZ / m_vel.y) >= MIN_ANGLE_TAN))
 			{
 				Real damageAmt = netSpeed * getMass() * d->m_fallHeightDamageFactor;
 
@@ -941,14 +940,14 @@ UpdateSleepTime PhysicsBehavior::update()
 UpdateSleepTime PhysicsBehavior::calcSleepTime() const
 {
 #ifdef SLEEPY_PHYSICS
-	if (isZero3D(m_vel)
-			&& isZero3D(m_accel)
-			&& !getFlag(HAS_PITCHROLLYAW)
-			&& !isMotive()
-			&& (getObject()->getLayer() == LAYER_GROUND && !getObject()->isAboveTerrain())
-			&& getCurrentOverlap() == INVALID_ID
-			&& getPreviousOverlap() == INVALID_ID
-			&& getFlag(UPDATE_EVER_RUN))
+	if (isZero3D(m_vel) &&
+			isZero3D(m_accel) &&
+			!getFlag(HAS_PITCHROLLYAW) &&
+			!isMotive() &&
+			(getObject()->getLayer() == LAYER_GROUND && !getObject()->isAboveTerrain()) &&
+			getCurrentOverlap() == INVALID_ID &&
+			getPreviousOverlap() == INVALID_ID &&
+			getFlag(UPDATE_EVER_RUN))
 	{
 		return UPDATE_SLEEP_FOREVER;
 	}
@@ -964,7 +963,7 @@ Real PhysicsBehavior::getVelocityMagnitude() const
 {
 	if (m_velMag == INVALID_VEL_MAG)
 	{
-		m_velMag = (Real)sqrtf( sqr(m_vel.x) + sqr(m_vel.y) + sqr(m_vel.z) );
+		m_velMag = (Real)WWMath::Sqrtf( sqr(m_vel.x) + sqr(m_vel.y) + sqr(m_vel.z) );
 	}
 	return m_velMag;
 }
@@ -977,21 +976,24 @@ Real PhysicsBehavior::getVelocityMagnitude() const
 Real PhysicsBehavior::getForwardSpeed2D() const
 {
 	const Coord3D *dir = getObject()->getUnitDirectionVector2D();
-
 	Real vx = m_vel.x * dir->x;
 	Real vy = m_vel.y * dir->y;
-
 	Real dot = vx + vy;
 
-	Real speedSquared = vx*vx + vy*vy;
-//	DEBUG_ASSERTCRASH( speedSquared != 0, ("zero speedSquared will overflow sqrtf()!") );// lorenzen... sanity check
+	if (useLegacyForwardSpeed())
+	{
+		Real speed = (Real)WWMath::Sqrtf( vx*vx + vy*vy );
+		if (dot >= 0.0f)
+			return speed;
+		return -speed;
+	}
 
-	Real speed = (Real)sqrtf( speedSquared );
-
-	if (dot >= 0.0f)
-		return speed;
-
-	return -speed;
+	// TheSuperHackers @bugfix xezon 30/07/2026 Now returns the dot product instead of +-sqrtf(vx*vx+vy*vy).
+	// The retail formula understates the forward speed by up to 1/sqrt(2) on diagonal headings, which made
+	// the Locomotor overshoot its goal speed there. The dot product is the true projection of the velocity
+	// onto the facing vector, so this now reports real distance per logic frame and can be used for distance
+	// and time calculations. The speeds the Locomotor commands are compensated to match, in LocomotorTemplate.
+	return dot;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1002,20 +1004,33 @@ Real PhysicsBehavior::getForwardSpeed2D() const
 Real PhysicsBehavior::getForwardSpeed3D() const
 {
 	Vector3 dir = getObject()->getTransformMatrix()->Get_X_Vector();
-
 	Real vx = m_vel.x * dir.X;
 	Real vy = m_vel.y * dir.Y;
 	Real vz = m_vel.z * dir.Z;
-
 	Real dot = vx + vy + vz;
 
-	Real speed = (Real)sqrtf( vx*vx + vy*vy + vz*vz );
+	if (useLegacyForwardSpeed())
+	{
+		Real speed = (Real)WWMath::Sqrtf( vx*vx + vy*vy + vz*vz );
+		if (dot >= 0.0f)
+			return speed;
+		return -speed;
+	}
 
-	if (dot >= 0.0f)
-		return speed;
-
-	return -speed;
+	// TheSuperHackers @bugfix xezon 30/07/2026 Now returns the dot product instead of
+	// +-sqrtf(vx*vx+vy*vy+vz*vz). See getForwardSpeed2D for the rationale.
+	return dot;
 }
+
+#if USE_RETAIL_PHYSICS_FORWARD_SPEED_DISCREPANCY_IN_CINEMATICS()
+//-------------------------------------------------------------------------------------------------
+Bool PhysicsBehavior::useLegacyForwardSpeedInCinematics()
+{
+	// TheSuperHackers @info The retail speeds are kept for the duration of a cinematic, because
+	// legacy missions time their cinematics against them.
+	return TheScriptEngine->isLetterBoxActive();
+}
+#endif
 
 //-------------------------------------------------------------------------------------------------
 Bool PhysicsBehavior::isCurrentlyOverlapped(Object *obj) const
@@ -1032,7 +1047,7 @@ Bool PhysicsBehavior::wasPreviouslyOverlapped(Object *obj) const
 //-------------------------------------------------------------------------------------------------
 void PhysicsBehavior::scrubVelocityZ( Real desiredVelocity )
 {
-	if (fabs(desiredVelocity) < 0.001f)
+	if (WWMath::Fabs(desiredVelocity) < 0.001f)
 	{
 		m_vel.z = 0;
 	}
@@ -1056,7 +1071,7 @@ void PhysicsBehavior::scrubVelocity2D( Real desiredVelocity )
 	}
 	else
 	{
-		Real curVelocity = sqrtf(m_vel.x*m_vel.x + m_vel.y*m_vel.y);
+		Real curVelocity = WWMath::Sqrtf(m_vel.x*m_vel.x + m_vel.y*m_vel.y);
 		if (desiredVelocity > curVelocity)
 		{
 			return;
@@ -1139,9 +1154,9 @@ void PhysicsBehavior::doBounceSound(const Coord3D& prevPos)
 
 //Real vel = fabs(getVelocity()->z);
 // can't use velocity, because it's already been updated this frame, and will be zero... (srj)
-	Real vel = fabs(prevPos.z - getObject()->getPosition()->z);
+	Real vel = WWMath::Fabs(prevPos.z - getObject()->getPosition()->z);
 
-	Real mass = fabs(getMass());
+	Real mass = WWMath::Fabs(getMass());
 	if (vel > NORMAL_VEL_Z) {
 		vel = NORMAL_VEL_Z;
 	}
@@ -1341,7 +1356,7 @@ void PhysicsBehavior::onCollide( Object *other, const Coord3D *loc, const Coord3
 
 	m_lastCollidee = other->getID();
 
-	Real dist = sqrtf(distSqr);
+	Real dist = WWMath::Sqrtf(distSqr);
 	Real overlap = usRadius + themRadius - dist;
 
 	// if objects are coincident, dist is zero, so force would be infinite -- clearly
@@ -1482,7 +1497,7 @@ static Bool perpsLogicallyEqual( Real perpOne, Real perpTwo )
 {
 	// Equality with a wiggle fudge.
   const Real PERP_RANGE = 0.15f;
-	return fabs( perpOne - perpTwo ) <= PERP_RANGE;
+	return WWMath::Fabs( perpOne - perpTwo ) <= PERP_RANGE;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1660,8 +1675,8 @@ Bool PhysicsBehavior::checkForOverlapCollision(Object *other)
 			// Now find the shortest.  Use the straightline distance to crush point as tie breaker
 			if( (frontPerpLength <= centerPerpLength)  && (frontPerpLength <= backPerpLength) )
 			{
-				if( perpsLogicallyEqual(frontPerpLength, centerPerpLength)
-					|| perpsLogicallyEqual(frontPerpLength, backPerpLength)
+				if( perpsLogicallyEqual(frontPerpLength, centerPerpLength) ||
+					perpsLogicallyEqual(frontPerpLength, backPerpLength)
 					)
 				{
 					Real frontVectorLength = frontVector.length();
@@ -1689,8 +1704,8 @@ Bool PhysicsBehavior::checkForOverlapCollision(Object *other)
 			}
 			else if( (backPerpLength <= centerPerpLength)  && (backPerpLength <= frontPerpLength) )
 			{
-				if( perpsLogicallyEqual(backPerpLength, centerPerpLength)
-					|| perpsLogicallyEqual(backPerpLength, frontPerpLength)
+				if( perpsLogicallyEqual(backPerpLength, centerPerpLength) ||
+					perpsLogicallyEqual(backPerpLength, frontPerpLength)
 					)
 				{
 					Real backVectorLength = backVector.length();
@@ -1718,8 +1733,8 @@ Bool PhysicsBehavior::checkForOverlapCollision(Object *other)
 			}
 			else // centerperp is shortest
 			{
-				if( perpsLogicallyEqual(centerPerpLength, backPerpLength)
-					|| perpsLogicallyEqual(centerPerpLength, frontPerpLength)
+				if( perpsLogicallyEqual(centerPerpLength, backPerpLength) ||
+					perpsLogicallyEqual(centerPerpLength, frontPerpLength)
 					)
 				{
 					Real centerVectorLength = centerVector.length();

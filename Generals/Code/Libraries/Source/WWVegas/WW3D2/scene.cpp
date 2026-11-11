@@ -50,8 +50,6 @@
  *   SimpleSceneClass::Render -- Render this scene                                             *
  *   SimpleSceneClass::Create_Iterator -- create an iterator for this scene                    *
  *   SimpleSceneClass::Destroy_Iterator -- destroy an iterater of this scene                   *
- *   SceneClass::Save -- saves scene settings into a chunk                                     *
- *   SceneClass::Load -- loads scene settings from a chunk                                     *
  *   SimpleSceneClass::Compute_Point_Visibility -- returns visibility of a point               *
  *   SimpleSceneClass::Remove_All_Render_Objects -- Removes all render objects from the scene  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -61,28 +59,13 @@
 #include "WWMath/plane.h"
 #include "camera.h"
 #include "ww3d.h"
+#include "Renderer.h"
 #include "rinfo.h"
-#include "WWLib/chunkio.h"
-#include "WW3D2/dx8renderer.h"
-#include "WW3D2/dx8wrapper.h"
-#include "WW3D2/sortingrenderer.h"
-#include "WW3D2/coltest.h"
+#include "dx8renderer.h"
+#include "dx8wrapper.h"
+#include "sortingrenderer.h"
+#include "coltest.h"
 
-
-/*
-** Chunk ID's used by SceneClass
-*/
-enum
-{
-	SCENECLASS_CHUNK_VARIABLES			= 0x00042300,
-
-	SCENECLASS_VARIABLE_AMBIENTLIGHT	= 0x00,
-	SCENECLASS_VARIABLE_POLYRENDERMODE,
-	SCENECLASS_VARIABLE_FOGCOLOR,
-	SCENECLASS_VARIABLE_FOGENABLED,
-	SCENECLASS_VARIABLE_FOGSTART,
-	SCENECLASS_VARIABLE_FOGEND,
-};
 
 /*
 ** SimpleSceneIterator
@@ -226,7 +209,7 @@ void SceneClass::Render(RenderInfoClass & rinfo)
 			Customized_Render(rinfo);
 			break;
 		case EXTRA_PASS_CLEAR_LINE:
-			DX8Wrapper::Clear(true, false, Vector3(0.0f,0.0f,0.0f));	// Clear color but not z
+			Renderer::Clear(true, false, Vector3(0.0f,0.0f,0.0f));	// Clear color but not z
 			WW3D::Enable_Texturing(false);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
 			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 7);
@@ -236,64 +219,6 @@ void SceneClass::Render(RenderInfoClass & rinfo)
 
 		WW3D::Enable_Texturing(old_enable);
 	}
-}
-
-/***********************************************************************************************
- * SceneClass::Save -- saves scene settings into a chunk                                       *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *=============================================================================================*/
-void SceneClass::Save(ChunkSaveClass & csave)
-{
-	csave.Begin_Chunk(SCENECLASS_CHUNK_VARIABLES);
-	WRITE_MICRO_CHUNK(csave,SCENECLASS_VARIABLE_AMBIENTLIGHT,AmbientLight);
-	WRITE_MICRO_CHUNK(csave,SCENECLASS_VARIABLE_POLYRENDERMODE,PolyRenderMode);
-	WRITE_MICRO_CHUNK(csave,SCENECLASS_VARIABLE_FOGCOLOR,FogColor);
-	WRITE_MICRO_CHUNK(csave,SCENECLASS_VARIABLE_FOGENABLED,FogEnabled);
-	WRITE_MICRO_CHUNK(csave,SCENECLASS_VARIABLE_FOGSTART,FogStart);
-	WRITE_MICRO_CHUNK(csave,SCENECLASS_VARIABLE_FOGEND,FogEnd);
-	csave.End_Chunk();
-}
-
-
-/***********************************************************************************************
- * SceneClass::Load -- loads scene settings from a chunk                                       *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *=============================================================================================*/
-void SceneClass::Load(ChunkLoadClass & cload)
-{
-	cload.Open_Chunk();
-	if (cload.Cur_Chunk_ID() == SCENECLASS_CHUNK_VARIABLES) {
-
-		while (cload.Open_Micro_Chunk()) {
-			switch(cload.Cur_Micro_Chunk_ID()) {
-				READ_MICRO_CHUNK(cload,SCENECLASS_VARIABLE_AMBIENTLIGHT,AmbientLight);
-				READ_MICRO_CHUNK(cload,SCENECLASS_VARIABLE_POLYRENDERMODE,PolyRenderMode);
-				READ_MICRO_CHUNK(cload,SCENECLASS_VARIABLE_FOGCOLOR,FogColor);
-				READ_MICRO_CHUNK(cload,SCENECLASS_VARIABLE_FOGENABLED,FogEnabled);
-				READ_MICRO_CHUNK(cload,SCENECLASS_VARIABLE_FOGSTART,FogStart);
-				READ_MICRO_CHUNK(cload,SCENECLASS_VARIABLE_FOGEND,FogEnd);
-			}
-			cload.Close_Micro_Chunk();
-		}
-
-	} else {
-		WWDEBUG_SAY(("Unhandled Chunk: 0x%X in file: %s line: %d",cload.Cur_Chunk_ID(),__FILE__,__LINE__));
-	}
-	cload.Close_Chunk();
 }
 
 
@@ -544,12 +469,12 @@ void SimpleSceneClass::Customized_Render(RenderInfoClass & rinfo)
 	// apply only the first four lights in the scene
 	// derived classes should use light environment
 	WWASSERT(rinfo.light_environment==nullptr);
-	int count=0;
 	// Turn off lights in case we have none
 	DX8Wrapper::Set_Light(0,nullptr);
 	DX8Wrapper::Set_Light(1,nullptr);
 	DX8Wrapper::Set_Light(2,nullptr);
 	DX8Wrapper::Set_Light(3,nullptr);
+	int count=0;
 	for (it.First(&LightList); !it.Is_Done(); it.Next())
 	{
 		if (count<4)

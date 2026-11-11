@@ -56,22 +56,22 @@
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "dx8renderer.h"
-#include "WW3D2/ww3d.h"
-#include "WW3D2/camera.h"
+#include "ww3d.h"
+#include "camera.h"
 #include "WWLib/wwstring.h"
 #include "WWMath/matrix4.h"
-#include "WW3D2/vertmaterial.h"
+#include "vertmaterial.h"
 #include "rddesc.h"
-#include "WW3D2/lightenvironment.h"
+#include "lightenvironment.h"
 #include "statistics.h"
 #include "WWLib/registry.h"
-#include "WW3D2/boxrobj.h"
+#include "boxrobj.h"
 #include "pointgr.h"
-#include "WW3D2/render2d.h"
+#include "render2d.h"
 #include "sortingrenderer.h"
 #include "shattersystem.h"
-#include "WW3D2/light.h"
-#include "WW3D2/assetmgr.h"
+#include "light.h"
+#include "assetmgr.h"
 #include "textureloader.h"
 #include "missingtexture.h"
 #include "WWLib/thread.h"
@@ -83,7 +83,8 @@
 #include "formconv.h"
 #include "dx8texman.h"
 #include "WWLib/bound.h"
-#include "WWLib/DbgHelpGuard.h"
+#include "DbgHelpGuard.h"
+#include <Utility/bit_adapter.h>
 
 #include "shdlib.h"
 
@@ -193,34 +194,55 @@ DX8_Stats	 DX8Wrapper::stats;
 **
 ***********************************************************************************/
 
+static const char* Get_DX8_Error_Code_Name(HRESULT res)
+{
+#define CASE_LABEL(x) case x: return #x;
+
+	switch (res)
+	{
+	CASE_LABEL(D3D_OK)
+	CASE_LABEL(D3DERR_WRONGTEXTUREFORMAT)
+	CASE_LABEL(D3DERR_UNSUPPORTEDCOLOROPERATION)
+	CASE_LABEL(D3DERR_UNSUPPORTEDCOLORARG)
+	CASE_LABEL(D3DERR_UNSUPPORTEDALPHAOPERATION)
+	CASE_LABEL(D3DERR_UNSUPPORTEDALPHAARG)
+	CASE_LABEL(D3DERR_TOOMANYOPERATIONS)
+	CASE_LABEL(D3DERR_CONFLICTINGTEXTUREFILTER)
+	CASE_LABEL(D3DERR_UNSUPPORTEDFACTORVALUE)
+	CASE_LABEL(D3DERR_CONFLICTINGRENDERSTATE)
+	CASE_LABEL(D3DERR_UNSUPPORTEDTEXTUREFILTER)
+	CASE_LABEL(D3DERR_CONFLICTINGTEXTUREPALETTE)
+	CASE_LABEL(D3DERR_DRIVERINTERNALERROR)
+	CASE_LABEL(D3DERR_NOTFOUND)
+	CASE_LABEL(D3DERR_MOREDATA)
+	CASE_LABEL(D3DERR_DEVICELOST)
+	CASE_LABEL(D3DERR_DEVICENOTRESET)
+	CASE_LABEL(D3DERR_NOTAVAILABLE)
+	CASE_LABEL(D3DERR_OUTOFVIDEOMEMORY)
+	CASE_LABEL(D3DERR_INVALIDDEVICE)
+	CASE_LABEL(D3DERR_INVALIDCALL)
+	CASE_LABEL(D3DERR_DRIVERINVALIDCALL)
+	CASE_LABEL(E_OUTOFMEMORY)
+	CASE_LABEL(E_INVALIDARG)
+	CASE_LABEL(E_NOTIMPL)
+	CASE_LABEL(E_FAIL)
+	}
+
+#undef CASE_LABEL
+
+	return "Unknown";
+}
+
 void Log_DX8_ErrorCode(unsigned res)
 {
-	char tmp[256] = "";
-
-	HRESULT new_res = D3DXGetErrorStringA(
-		res,
-		tmp,
-		sizeof(tmp));
-
-	if (new_res == D3D_OK) {
-		WWDEBUG_SAY((tmp));
-	}
+	WWDEBUG_SAY(("DX8 Error: %s (0x%08X)",Get_DX8_Error_Code_Name(res),res));
 
 	WWASSERT(0);
 }
 
 void Non_Fatal_Log_DX8_ErrorCode(unsigned res, const char* file, int line)
 {
-	char tmp[256] = "";
-
-	HRESULT new_res = D3DXGetErrorStringA(
-		res,
-		tmp,
-		sizeof(tmp));
-
-	if (new_res == D3D_OK) {
-		WWDEBUG_SAY(("DX8 Error: %s, File: %s, Line: %d", tmp, file, line));
-	}
+	WWDEBUG_SAY(("DX8 Error: %s (0x%08X), File: %s, Line: %d",Get_DX8_Error_Code_Name(res),res,file,line));
 }
 
 // TheSuperHackers @info helmutbuhler 14/04/2025
@@ -301,8 +323,12 @@ bool DX8Wrapper::Init(void* hwnd, bool lite)
 
 		if (D3D8Lib == nullptr) return false;	// Return false at this point if init failed
 
-		Direct3DCreate8Ptr = (Direct3DCreate8Type)GetProcAddress(D3D8Lib, "Direct3DCreate8");
-		if (Direct3DCreate8Ptr == nullptr) return false;
+		Direct3DCreate8Ptr = (Direct3DCreate8Type) GetProcAddress(D3D8Lib, "Direct3DCreate8");
+		if (Direct3DCreate8Ptr == nullptr)
+		{
+			Shutdown();
+			return false;
+		}
 
 		/*
 		** Create the D3D interface object
@@ -316,6 +342,7 @@ bool DX8Wrapper::Init(void* hwnd, bool lite)
 			D3DInterface = Direct3DCreate8Ptr(D3D_SDK_VERSION);		// TODO: handle failure cases...
 		}
 		if (D3DInterface == nullptr) {
+			Shutdown();
 			return(false);
 		}
 		IsInitted = true;
@@ -345,16 +372,12 @@ void DX8Wrapper::Shutdown()
 
 	}
 
-	if (CurrentCaps)
+	for (size_t i = 0; i < ARRAY_SIZE(Textures); ++i)
 	{
-		int max = CurrentCaps->Get_Max_Textures_Per_Pass();
-		for (int i = 0; i < max; i++)
+		if (Textures[i])
 		{
-			if (Textures[i])
-			{
-				Textures[i]->Release();
-				Textures[i] = nullptr;
-			}
+			Textures[i]->Release();
+			Textures[i] = nullptr;
 		}
 	}
 
@@ -397,7 +420,6 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 	Set_Default_Global_Render_States();
 }
 
-inline DWORD F2DW(float f) { return *((unsigned*)&f); }
 void DX8Wrapper::Set_Default_Global_Render_States()
 {
 	DX8_THREAD_ASSERT();
@@ -680,9 +702,10 @@ void DX8Wrapper::Release_Device()
 {
 	if (D3DDevice) {
 
-		for (int a = 0;a < MAX_TEXTURE_STAGES;++a)
-		{	//release references to any textures that were used in last rendering call
-			DX8CALL(SetTexture(a, nullptr));
+		for (int a=0;a<MAX_TEXTURE_STAGES;++a)
+		{
+			//release references to any textures that were used in last rendering call
+			DX8CALL(SetTexture(a,nullptr));
 		}
 
 		DX8CALL(SetStreamSource(0, nullptr, 0));	//release reference count on last rendered vertex buffer
@@ -1067,8 +1090,9 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 			return false;
 		}
 
-		if (BitDepth == 32 && D3DInterface->CheckDeviceType(0, D3DDEVTYPE_HAL, desktop_mode.Format, D3DFMT_A8R8G8B8, TRUE) == D3D_OK)
-		{	//promote 32-bit modes to include destination alpha
+		if (BitDepth==32 && D3DInterface->CheckDeviceType(0,D3DDEVTYPE_HAL,desktop_mode.Format,D3DFMT_A8R8G8B8, TRUE) == D3D_OK)
+		{
+			//promote 32-bit modes to include destination alpha
 			_PresentParameters.BackBufferFormat = D3DFMT_A8R8G8B8;
 		}
 
@@ -1539,8 +1563,9 @@ bool DX8Wrapper::Find_Color_And_Z_Mode(int resx, int resy, int bitdepth, D3DFORM
 		*set_backbuffer = *set_colorbuffer = format_table[format_index];
 	}
 
-	if (bitdepth == 32 && *set_colorbuffer == D3DFMT_X8R8G8B8 && D3DInterface->CheckDeviceType(0, D3DDEVTYPE_HAL, *set_colorbuffer, D3DFMT_A8R8G8B8, TRUE) == D3D_OK)
-	{	//promote 32-bit modes to include destination alpha when supported
+	if (bitdepth==32 && *set_colorbuffer == D3DFMT_X8R8G8B8 && D3DInterface->CheckDeviceType(0,D3DDEVTYPE_HAL,*set_colorbuffer,D3DFMT_A8R8G8B8, TRUE) == D3D_OK)
+	{
+		//promote 32-bit modes to include destination alpha when supported
 		*set_backbuffer = D3DFMT_A8R8G8B8;
 	}
 
@@ -2081,58 +2106,16 @@ void DX8Wrapper::Draw(
 	// Debug feature to disable triangle drawing...
 	if (!_Is_Triangle_Draw_Enabled()) return;
 
-#ifdef MESH_RENDER_SNAPSHOT_ENABLED
+#ifdef DEBUG_LOGGING
 	if (WW3D::Is_Snapshot_Activated()) {
 		unsigned long passes = 0;
 		SNAPSHOT_SAY(("ValidateDevice:"));
-		HRESULT res = D3DDevice->ValidateDevice(&passes);
-		switch (res) {
-		case D3D_OK:
-			SNAPSHOT_SAY(("OK"));
-			break;
-
-		case D3DERR_CONFLICTINGTEXTUREFILTER:
-			SNAPSHOT_SAY(("D3DERR_CONFLICTINGTEXTUREFILTER"));
-			break;
-		case D3DERR_CONFLICTINGTEXTUREPALETTE:
-			SNAPSHOT_SAY(("D3DERR_CONFLICTINGTEXTUREPALETTE"));
-			break;
-		case D3DERR_DEVICELOST:
-			SNAPSHOT_SAY(("D3DERR_DEVICELOST"));
-			break;
-		case D3DERR_TOOMANYOPERATIONS:
-			SNAPSHOT_SAY(("D3DERR_TOOMANYOPERATIONS"));
-			break;
-		case D3DERR_UNSUPPORTEDALPHAARG:
-			SNAPSHOT_SAY(("D3DERR_UNSUPPORTEDALPHAARG"));
-			break;
-		case D3DERR_UNSUPPORTEDALPHAOPERATION:
-			SNAPSHOT_SAY(("D3DERR_UNSUPPORTEDALPHAOPERATION"));
-			break;
-		case D3DERR_UNSUPPORTEDCOLORARG:
-			SNAPSHOT_SAY(("D3DERR_UNSUPPORTEDCOLORARG"));
-			break;
-		case D3DERR_UNSUPPORTEDCOLOROPERATION:
-			SNAPSHOT_SAY(("D3DERR_UNSUPPORTEDCOLOROPERATION"));
-			break;
-		case D3DERR_UNSUPPORTEDFACTORVALUE:
-			SNAPSHOT_SAY(("D3DERR_UNSUPPORTEDFACTORVALUE"));
-			break;
-		case D3DERR_UNSUPPORTEDTEXTUREFILTER:
-			SNAPSHOT_SAY(("D3DERR_UNSUPPORTEDTEXTUREFILTER"));
-			break;
-		case D3DERR_WRONGTEXTUREFORMAT:
-			SNAPSHOT_SAY(("D3DERR_WRONGTEXTUREFORMAT"));
-			break;
-		default:
-			SNAPSHOT_SAY(("UNKNOWN Error"));
-			break;
-		}
+		HRESULT res=D3DDevice->ValidateDevice(&passes);
+		SNAPSHOT_SAY(("%s",Get_DX8_Error_Code_Name(res)));
 	}
-#endif	// MESH_RENDER_SNAPSHOT_ENABLED
 
-
-	SNAPSHOT_SAY(("DX8 - draw %d polygons (%d vertices)", polygon_count, vertex_count));
+	SNAPSHOT_SAY(("DX8 - draw %d polygons (%d vertices)",polygon_count,vertex_count));
+#endif
 
 	if (vertex_count < 3) {
 		min_vertex_index = 0;
@@ -2305,10 +2288,10 @@ void DX8Wrapper::Apply_Render_State_Changes()
 			if (render_state_changed & mask) {
 				SNAPSHOT_SAY(("DX8 - apply light %d", index));
 				if (render_state.LightEnable[index]) {
-#ifdef MESH_RENDER_SNAPSHOT_ENABLED
-					if (WW3D::Is_Snapshot_Activated()) {
-						D3DLIGHT8* light = &(render_state.Lights[index]);
-						static const char* _light_types[] = { "Unknown", "Point","Spot", "Directional" };
+#if defined(DEBUG_CRASHING) || defined(DEBUG_LOGGING)
+					if ( WW3D::Is_Snapshot_Activated() ) {
+						D3DLIGHT8 * light = &(render_state.Lights[index]);
+						static const char * _light_types[] = { "Unknown", "Point","Spot", "Directional" };
 						WWASSERT((light->Type >= 0) && (light->Type <= 3));
 
 						SNAPSHOT_SAY((" type = %s amb = %4.2f,%4.2f,%4.2f  diff = %4.2f,%4.2f,%4.2f spec = %4.2f, %4.2f, %4.2f",
@@ -2344,7 +2327,8 @@ void DX8Wrapper::Apply_Render_State_Changes()
 		SNAPSHOT_SAY(("DX8 - apply vb change"));
 		for (i = 0;i < MAX_VERTEX_STREAMS;++i) {
 			if (render_state.vertex_buffers[i]) {
-				switch (render_state.vertex_buffer_types[i]) {//->Type()) {
+				switch (render_state.vertex_buffer_types[i]) {
+					//->Type()) {
 				case BUFFER_TYPE_DX8:
 				case BUFFER_TYPE_DYNAMIC_DX8:
 					DX8CALL(SetStreamSource(
@@ -2376,7 +2360,8 @@ void DX8Wrapper::Apply_Render_State_Changes()
 	if (render_state_changed & INDEX_BUFFER_CHANGED) {
 		SNAPSHOT_SAY(("DX8 - apply ib change"));
 		if (render_state.index_buffer) {
-			switch (render_state.index_buffer_type) {//->Type()) {
+			switch (render_state.index_buffer_type) {
+				//->Type()) {
 			case BUFFER_TYPE_DX8:
 			case BUFFER_TYPE_DYNAMIC_DX8:
 				DX8CALL(SetIndices(
@@ -4110,7 +4095,7 @@ void DX8Wrapper::Get_DX8_Render_State_Value_Name(StringClass& name, D3DRENDERSTA
 	case D3DRS_PATCHSEGMENTS:
 	case D3DRS_POINTSIZE_MAX:
 	case D3DRS_TWEENFACTOR:
-		name.Format("%f", *(float*)&value);
+		name.Format("%f",std::bit_cast<float>(value));
 		break;
 
 	case D3DRS_ZBIAS:
@@ -4215,7 +4200,7 @@ void DX8Wrapper::Get_DX8_Texture_Stage_State_Value_Name(StringClass& name, D3DTE
 	case D3DTSS_BUMPENVMAT11:
 	case D3DTSS_BUMPENVLSCALE:
 	case D3DTSS_BUMPENVLOFFSET:
-		name.Format("%f", *(float*)&value);
+		name.Format("%f",std::bit_cast<float>(value));
 		break;
 
 	case D3DTSS_TEXCOORDINDEX:

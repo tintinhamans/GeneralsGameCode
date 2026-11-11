@@ -71,6 +71,7 @@
 #define  STRICT
 #include <windows.h>
 #include <windowsx.h>
+#include <shellapi.h>
 #include <assert.h>
 #include <ctype.h>
 #include <direct.h>
@@ -109,7 +110,7 @@
 #include "WSYS_FileSystem.h"
 #include "WSYS_StdFileSystem.h"
 
-#include <string>
+#include <Utility/string_adapter.h>
 #include "GameText.h"
 
 #include "leanAndMeanAutorun.h"
@@ -119,7 +120,7 @@
 #include "GameClient/GameText.h"
 #include "Common/UnicodeString.h"
 #include "Win32Device/Common/Win32LocalFileSystem.h"
-#include "Win32Device/Common/Win32BIGFileSystem.h"
+#include "Common/BIGFileSystem.h"
 #endif
 
 //-----------------------------------------------------------------------------
@@ -221,12 +222,12 @@ char		szProduct_Name		[ _MAX_PATH ];
 
 #ifdef LEAN_AND_MEAN
 
-wchar_t 	szWideBuffer   		[ _MAX_PATH ];
-wchar_t 	szWideBuffer0  		[ _MAX_PATH ];
-wchar_t 	szWideBuffer2  		[ _MAX_PATH ];
-wchar_t 	szWideBuffer3  		[ _MAX_PATH ];
-wchar_t		szProductName		  [ _MAX_PATH ];
-wchar_t		szFullProductName	[ _MAX_PATH ];
+unichar 	szWideBuffer   		[ _MAX_PATH ];
+unichar 	szWideBuffer0  		[ _MAX_PATH ];
+unichar 	szWideBuffer2  		[ _MAX_PATH ];
+unichar 	szWideBuffer3  		[ _MAX_PATH ];
+unichar		szProductName		  [ _MAX_PATH ];
+unichar		szFullProductName	[ _MAX_PATH ];
 
 /*
 enum
@@ -324,7 +325,7 @@ char		szCDDrive[ MAX_PATH ];
 //-----------------------------------------------------------------------------
 void 		Cant_Find_MessageBox		( HINSTANCE hInstance, const char *szPath );
 HPALETTE	CreateDIBPalette 			( LPBITMAPINFO lpbmi, LPINT lpiNumColors );
-void		Debug_Date_And_Time_Stamp	( void );
+void		Debug_Date_And_Time_Stamp	();
 
 void 		Error_Message				( HINSTANCE hInstance, int title, int string, const char *path );
 void 		Error_Message				( HINSTANCE hInstance, const char * title, const char * string, const char *path );
@@ -333,13 +334,13 @@ bool		Is_On_CD					( const char * );
 HBITMAP 	LoadResourceBitmap			( HMODULE hInstance, LPCTSTR lpString, HPALETTE FAR *lphPalette, bool loading_a_button=FALSE );
 HBITMAP 	LoadResourceButton			( HMODULE hInstance, LPCTSTR lpString, HPALETTE FAR lphPalette );
 BOOL 		Options						( Command_Line_Arguments *Orgs );
-void		Prog_End					( void );
+void		Prog_End					();
 bool		Prompt_For_CD				( HWND window_handle, char *volume_name, const char * message1, const char * message2, int *cd_drive );
 void		Reformat_Volume_Name		( const char *volume_name, char *new_volume_name );
 int			Show_Message				( HWND window_handle, const char * message_num1, const char * message_num2 );
 int			Show_Message				( HWND window_handle, int message_num1 );
-void		Stop_Sound_Playing			( void );
-BOOL 		Valid_Environment 			( void );
+void		Stop_Sound_Playing			();
+BOOL 		Valid_Environment 			();
 
 BOOL 		CALLBACK	Dialog_Box_Proc	( HWND window_handle, UINT message, WPARAM w_param, LPARAM l_param );
 LRESULT 	CALLBACK	Wnd_Proc 		( HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam );
@@ -449,7 +450,7 @@ int PASCAL WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpszCmd
 	// create singletons
 	TheFileSystem->init();
 	TheLocalFileSystem = new Win32LocalFileSystem;
-	TheArchiveFileSystem = new Win32BIGFileSystem;
+	TheArchiveFileSystem = new BIGFileSystem;
 	TheGameText = CreateGameTextInterface();
 	TheGameText->init();
 
@@ -864,7 +865,7 @@ int PASCAL WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpszCmd
 //   01/22/2001  MML : Created.
 //=============================================================================
 
-void Prog_End ( void )
+void Prog_End ()
 {
 	//==========================================================================
 	// UnLock the CD!
@@ -925,7 +926,7 @@ void Prog_End ( void )
 //   06/04/1996  MML : Created.
 //=============================================================================
 
-int Main::MessageLoop( void )
+int Main::MessageLoop()
 {
 	MSG msg;
 
@@ -973,7 +974,7 @@ int Main::MessageLoop( void )
 //   06/04/1996  MML : Created.
 //=============================================================================
 
-void MainWindow::Register( void )
+void MainWindow::Register()
 {
 	//--------------------------------------------------------------------------
 	// Structure used to register Windows class.
@@ -1041,7 +1042,7 @@ void MainWindow::Register( void )
 //   06/04/1996  MML : Created.
 //=============================================================================
 
-MainWindow::MainWindow( void )
+MainWindow::MainWindow()
 {
 	char szTitle[ _MAX_PATH ];
 	hWnd = 0;
@@ -1225,13 +1226,13 @@ LRESULT MainWindow::Window_Proc( HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM
 //   06/04/1996  MML : Created.
 //=============================================================================
 
-BOOL MainWindow::Is_Product_Registered( void )
+BOOL MainWindow::Is_Product_Registered()
 {
 	HKEY	phKey;
 	BOOL	result = FALSE;
 
 	char 		key			[_MAX_PATH];
-	wchar_t 	szPath		[_MAX_PATH];
+	unichar 	szPath		[_MAX_PATH];
 	char		aName		[_MAX_PATH];			//jfs
 
 	unsigned long Type;
@@ -2566,10 +2567,10 @@ BOOL CALLBACK  Dialog_Box_Proc( HWND window_handle, UINT message, WPARAM w_param
 	static char 	szLicense[ _MAX_PATH ];
 	static char 	szButtonBitmap[_MAX_PATH];
 
-	static wchar_t	szString1[ 500 ];
-	static wchar_t	szString2[ 500 ];
-	static wchar_t	szWholeString[ 1000 ];
-//	static wchar_t	szWSMsg1[ _MAX_PATH ];
+	static unichar	szString1[ 500 ];
+	static unichar	szString2[ 500 ];
+	static unichar	szWholeString[ 1000 ];
+//	static unichar	szWSMsg1[ _MAX_PATH ];
 
 #ifdef LEAN_AND_MEAN
 
@@ -2577,9 +2578,9 @@ BOOL CALLBACK  Dialog_Box_Proc( HWND window_handle, UINT message, WPARAM w_param
 	static UnicodeString	wsMsg1;
 #endif
 
-	static wchar_t	szWSMsg2[ _MAX_PATH ];
-	static wchar_t	szWholeWSMsg[ 1000 ];
-//	static wchar_t	szInstallWarningMsg[ _MAX_PATH ];
+	static unichar	szWSMsg2[ _MAX_PATH ];
+	static unichar	szWholeWSMsg[ 1000 ];
+//	static unichar	szInstallWarningMsg[ _MAX_PATH ];
 
 	static HBITMAP		hBitmap   			= 0;
 	static HBITMAP		oldBitmap 			= 0;
@@ -2710,8 +2711,8 @@ BOOL CALLBACK  Dialog_Box_Proc( HWND window_handle, UINT message, WPARAM w_param
 //				Locale_GetString( WESTWOOD_COM_MSG, szWSMsg1 );
 //				wsMsg1 = TheGameText->fetch("Autorun:WestwoodComMsg");
 
-//				PlugInProductName( szWSMsg1, (wchar_t *)(fullProductName.str()) );
-//				PlugInProductName( (wchar_t *)(wsMsg1.str()), (wchar_t *)(fullProductName.str()) );
+//				PlugInProductName( szWSMsg1, (unichar *)(fullProductName.str()) );
+//				PlugInProductName( (unichar *)(wsMsg1.str()), (unichar *)(fullProductName.str()) );
 //				wsMsg1 = Fix_Single_Ampersands ( wsMsg1, false );
 //				swprintf( szWholeWSMsg, L"%s", wsMsg1.str() );
 
@@ -3733,8 +3734,8 @@ BOOL CALLBACK  Dialog_Box_Proc( HWND window_handle, UINT message, WPARAM w_param
 //						}
 /*
 						if (success == 0) {
-							std::wstring wideBuffer = TheGameText->fetch("Autorun:CantRunAVIs");
-							std::wstring wideBuffer2 = TheGameText->fetch("Autorun:Error");
+							stl::wstring wideBuffer = TheGameText->fetch("Autorun:CantRunAVIs");
+							stl::wstring wideBuffer2 = TheGameText->fetch("Autorun:Error");
 							int length = wideBuffer.length();
 							WideCharToMultiByte( CodePage, 0, wideBuffer.c_str(), length+1, szBuffer, _MAX_PATH, nullptr, nullptr );
 							length = wideBuffer2.length();
@@ -3747,11 +3748,11 @@ BOOL CALLBACK  Dialog_Box_Proc( HWND window_handle, UINT message, WPARAM w_param
 
 					case IDD_HELP:
 					{
-						std::wstring wFileName;
+						stl::wstring wFileName;
 						wFileName = Locale_GetString(HELP_FILENAME);
 
 						std::string fname;
-						const wchar_t *tmp = wFileName.c_str();
+						const unichar *tmp = wFileName.c_str();
 						char hack[2] = "a";
 						while (*tmp)
 						{
@@ -3778,8 +3779,8 @@ BOOL CALLBACK  Dialog_Box_Proc( HWND window_handle, UINT message, WPARAM w_param
 
 /*
 						if (success == 0) {
-							std::wstring wideBuffer = TheGameText->fetch("Autorun:CantRunHelp");
-							std::wstring wideBuffer2 = TheGameText->fetch("Autorun:Error");
+							stl::wstring wideBuffer = TheGameText->fetch("Autorun:CantRunHelp");
+							stl::wstring wideBuffer2 = TheGameText->fetch("Autorun:Error");
 							int length = wideBuffer.length();
 							WideCharToMultiByte( CodePage, 0, wideBuffer.c_str(), length+1, szBuffer, _MAX_PATH, nullptr, nullptr );
 							length = wideBuffer2.length();
@@ -4588,7 +4589,7 @@ BOOL CALLBACK  Dialog_Box_Proc( HWND window_handle, UINT message, WPARAM w_param
 //   06/04/1999  MML : Created.
 //=============================================================================
 
-void Stop_Sound_Playing ( void )
+void Stop_Sound_Playing ()
 {
 	PlaySound( nullptr, nullptr, SND_ASYNC | SND_FILENAME );
 }
@@ -4792,7 +4793,7 @@ BOOL Options( Command_Line_Arguments *Orgs )
 //   06/04/1996  MML : Created.
 //=============================================================================
 
-BOOL Valid_Environment ( void )
+BOOL Valid_Environment ()
 {
 	bool result = 0;
 
@@ -4804,8 +4805,8 @@ BOOL Valid_Environment ( void )
 	result = WinVersion.Meets_Minimum_Version_Requirements();
   if ( !result )
 	{
-		std::wstring wideBuffer = TheGameText->fetch("GUI:WindowsVersionText");
-		std::wstring wideBuffer2 = TheGameText->fetch("GUI:WindowsVersionTitle");
+		stl::wstring wideBuffer = TheGameText->fetch("GUI:WindowsVersionText");
+		stl::wstring wideBuffer2 = TheGameText->fetch("GUI:WindowsVersionTitle");
 		length = wideBuffer.length();
 		WideCharToMultiByte( CodePage, 0, wideBuffer.c_str(), length+1, szBuffer, _MAX_PATH, nullptr, nullptr );
 		length = wideBuffer2.length();
@@ -5068,9 +5069,9 @@ void Cant_Find_MessageBox ( HINSTANCE hInstance, const char *szPath )
 
 #else
 
-	std::wstring wideBuffer = TheGameText->fetch("Autorun:AutorunTitle");
-	std::wstring wideBuffer2.format( wideBuffer.str(), productName.str() );
-	std::wstring wideBuffer3 = TheGameText->fetch("Autorun:CantFind");
+	stl::wstring wideBuffer = TheGameText->fetch("Autorun:AutorunTitle");
+	stl::wstring wideBuffer2.format( wideBuffer.str(), productName.str() );
+	stl::wstring wideBuffer3 = TheGameText->fetch("Autorun:CantFind");
 
 	WideCharToMultiByte( CodePage, 0, wideBuffer3.str(), wideBuffer3.getLength()+1, szBuffer3, _MAX_PATH, nullptr, nullptr );
 	WideCharToMultiByte( CodePage, 0, wideBuffer2.str(), wideBuffer2.getLength()+1, szBuffer2, _MAX_PATH, nullptr, nullptr );
@@ -5185,7 +5186,7 @@ void LaunchObjectClass::SetArgs ( char *args )
 	}
 }
 
-unsigned int LaunchObjectClass::Launch ( void )
+unsigned int LaunchObjectClass::Launch ()
 {
 	char 	filepath	[_MAX_PATH];
 	char 	dir			[_MAX_DIR];
@@ -5273,7 +5274,7 @@ unsigned int LaunchObjectClass::Launch ( void )
 	return( result );
 }
 
-void Debug_Date_And_Time_Stamp ( void )
+void Debug_Date_And_Time_Stamp ()
 {
 	//-------------------------------------------------------------------------
 	//	tm_sec	- Seconds after minute (0 - 59)
@@ -5323,7 +5324,8 @@ void Debug_Date_And_Time_Stamp ( void )
 		strcpy( ampm, "PM" );
 		today->tm_hour -= 12;
     }
-	if( today->tm_hour == 0 ) {		/* Adjust if midnight hour. */
+	if( today->tm_hour == 0 ) {
+		/* Adjust if midnight hour. */
 		today->tm_hour = 12;
 	}
 

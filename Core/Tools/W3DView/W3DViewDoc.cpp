@@ -489,9 +489,9 @@ CW3DViewDoc::LoadAssetsFromFile (LPCTSTR lpszPathName)
 	// HACK HACK -- Force the current directory to be the directory
 	//              the file is located in.
 	//
-	if (::strrchr (lpszPathName, '\\')) {
+	if (getLastPathSeparator (lpszPathName)) {
 		CString stringTemp = lpszPathName;
-		stringTemp = stringTemp.Left ((long)::strrchr (lpszPathName, '\\') - (long)lpszPathName);
+		stringTemp = stringTemp.Left ((int)(getLastPathSeparator (lpszPathName) - lpszPathName));
 		::SetCurrentDirectory (stringTemp);
 		_TheSimpleFileFactory->Append_Sub_Directory(stringTemp);
 	}
@@ -1440,13 +1440,13 @@ CW3DViewDoc::SaveSettings
         CString stringCompleteFilename = pszFilename;
 
         // Does this filename contain a path?
-        if (::strrchr (pszFilename, '\\') == nullptr)
+        if (getLastPathSeparator (pszFilename) == nullptr)
         {
             // Add the current directories path to the filename
             TCHAR szPath[MAX_PATH] = { 0 };
             ::GetCurrentDirectory (sizeof (szPath), szPath);
 
-            if (szPath[::lstrlen (szPath)-1] != '\\')
+            if (!isPathSeparator (szPath[::lstrlen (szPath)-1]))
             {
                 // Ensure the path is directory delimited
                 strlcat(szPath, "\\", ARRAY_SIZE(szPath));
@@ -1506,7 +1506,7 @@ CW3DViewDoc::SaveSettings
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
 
-				Matrix3D transform = m_pCSceneLight->Get_Transform ();
+				const Matrix3D& transform = m_pCSceneLight->Get_Transform ();
 				Quaternion orientation = ::Build_Quaternion (transform);
 
             // Write the x-position out to the file
@@ -2334,7 +2334,7 @@ CW3DViewDoc::Make_Movie ()
 		::GetModuleFileName (nullptr, filename, sizeof (filename));
 
 		// Strip the filename from the path
-		LPTSTR ppath = ::strrchr (filename, '\\');
+		LPTSTR ppath = getLastPathSeparator (filename);
 		if (ppath != nullptr) {
 			ppath[0] = 0;
 		}
@@ -2379,7 +2379,7 @@ CW3DViewDoc::Make_Movie ()
 				if (index != -1) {
 
 					// Convert the bone's transform into a camera transform
-					Matrix3D	transform = m_pCRenderObj->Get_Bone_Transform (index);
+					const Matrix3D& transform = m_pCRenderObj->Get_Bone_Transform (index);
 					Matrix3D cam_transform (Vector3 (0, -1, 0), Vector3 (0, 0, 1), Vector3 (-1, 0, 0), Vector3 (0, 0, 0));
 #ifdef ALLOW_TEMPORARIES
 					Matrix3D new_transform = transform * cam_transform;
@@ -2719,7 +2719,7 @@ CW3DViewDoc::Copy_Assets_To_Dir (LPCTSTR directory)
 			//
 			//	Determine the source and destination filenames
 			//
-			StringClass filename		= dependency_list[counter];
+			const StringClass &filename		= dependency_list[counter];
 			CString src_filename		= src_path + CString (filename);
 			CString dest_filename	= dest_path + CString (filename);
 

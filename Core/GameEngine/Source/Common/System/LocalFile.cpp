@@ -55,7 +55,6 @@
 
 #include "Common/LocalFile.h"
 #include "Common/RAMFile.h"
-#include "Lib/BaseType.h"
 #include "Common/PerfTimer.h"
 
 
@@ -450,7 +449,7 @@ Int LocalFile::writeFormat( const WideChar* format, ... )
 Int LocalFile::writeChar( const Char* character )
 {
 	if ( write( character, sizeof(Char) ) == sizeof(Char) ) {
-		return (Int)character;
+		return (UnsignedByte)*character;
 	}
 
 	return EOF;
@@ -463,7 +462,7 @@ Int LocalFile::writeChar( const Char* character )
 Int LocalFile::writeChar( const WideChar* character )
 {
 	if ( write( character, sizeof(WideChar) ) == sizeof(WideChar) ) {
-		return (Int)character;
+		return *character;
 	}
 
 	return WEOF;

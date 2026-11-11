@@ -26,9 +26,10 @@
 
 
 #include "streakRender.h"
-#include "WW3D2/ww3d.h"
-#include "WW3D2/rinfo.h"
+#include "ww3d.h"
+#include "rinfo.h"
 #include "dx8wrapper.h"
+#include "Renderer.h"
 #include "sortingrenderer.h"
 #include "WWMath/vp.h"
 #include "WWMath/Vector3i.h"
@@ -311,11 +312,11 @@ void StreakRendererClass::RenderStreak
 )
 {
 	Matrix4x4 view;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+	Renderer::Get_Transform(RenderTransform_View,view);
 
 	Matrix4x4 identity(true);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,identity);
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,identity);
+	Renderer::Set_Transform(RenderTransform_World,identity);
+	Renderer::Set_Transform(RenderTransform_View,identity);
 
 	/*
 	** Handle texture UV offset animation (done once for entire line).
@@ -333,7 +334,7 @@ void StreakRendererClass::RenderStreak
 	// LastUsedSyncTime = WW3D::Get_Sync_Time();
 
 	// Used later
-	TextureMapMode map_mode = Get_Texture_Mapping_Mode();
+	//TextureMapMode map_mode = Get_Texture_Mapping_Mode();
 
 	/*
 	** Process line geometry:
@@ -527,7 +528,8 @@ void StreakRendererClass::RenderStreak
 
 
 		for (segmentIndex = 1; segmentIndex < point_cnt; segmentIndex++)
-		{	// #segments = #points - 1 (+ 2 dummy segments)
+		{
+			// #segments = #points - 1 (+ 2 dummy segments)
 
 			radius = widths[segmentIndex]; /// NEW ///// // TODO: Does not work correctly when subdivision are not 0
 
@@ -745,7 +747,7 @@ void StreakRendererClass::RenderStreak
 
 			// Relevant midpoint:
 			Vector3 &midpoint = points[intersectionIndex - 1];
-			float mid_tex_v = tex_v[intersectionIndex - 1];
+//			float mid_tex_v = tex_v[intersectionIndex - 1];
 
 			// Initialize misc. fields
 			intersection[intersectionIndex][TOP_EDGE].PointCount = 1;
@@ -1329,12 +1331,6 @@ void StreakRendererClass::RenderStreak
 			unsigned int i;
 			unsigned char *vb=(unsigned char*)Lock.Get_Formatted_Vertex_Array();
 			const FVFInfoClass& fvfinfo=Verts.FVF_Info();
-			int segIdx = 0;
-			unsigned int argb = 0x00000000;
-
-			unsigned int oddEven = 0;
-
-			//oddEven = ( personalities[0] & 1 );
 
 			const unsigned verticesOffset = fvfinfo.Get_Location_Offset();
 			const unsigned diffuseOffset = fvfinfo.Get_Diffuse_Offset();
@@ -1388,7 +1384,7 @@ void StreakRendererClass::RenderStreak
 
 	}
 
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+	Renderer::Set_Transform(RenderTransform_View,view);
 
 }
 

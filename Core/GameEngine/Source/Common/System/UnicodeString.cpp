@@ -45,6 +45,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/CriticalSection.h"
+#include "WWLib/utf8.h"
 
 
 // -----------------------------------------------------
@@ -102,9 +103,6 @@ void UnicodeString::ensureUniqueBufferOfSize(int numCharsNeeded, Bool preserveDa
 	UnicodeStringData* newData = (UnicodeStringData*)TheDynamicMemoryAllocator->allocateBytesDoNotZero(actualBytes, "STR_UnicodeString::ensureUniqueBufferOfSize");
 	newData->m_refCount = 1;
 	newData->m_numCharsAllocated = (actualBytes - sizeof(UnicodeStringData))/sizeof(WideChar);
-#if defined(RTS_DEBUG)
-	newData->m_debugptr = newData->peek();	// just makes it easier to read in the debugger
-#endif
 
 	if (m_data && preserveData)
 		wcscpy(newData->peek(), m_data->peek());
@@ -221,40 +219,34 @@ WideChar* UnicodeString::getBufferForRead(Int len)
 void UnicodeString::translate(const AsciiString& stringSrc)
 {
 	validate();
-	Int len = stringSrc.getLength();
-#ifdef _WIN32
-	// bytes >= 0x80 are process code page text (UTF-8 on modern Windows); pure ASCII takes the loop below
-	Bool isAscii = true;
-	for (Int i = 0; i < len; i++)
+	// TheSuperHackers @fix bobtista 02/04/2026 Convert UTF-8 to wide, replacing the 7-bit ASCII only
+	// implementation. Data that is not valid UTF-8 (e.g. legacy CP1252) falls back to a 1:1 byte cast
+	// to preserve the original characters instead of producing replacement characters.
+	const char* src = stringSrc.str();
+	const size_t srcLen = strlen(src);
+	const size_t dstLen = Utf8_To_Wide_Len(src, srcLen);
+	if (dstLen != UTF8_INVALID)
 	{
-		if ((unsigned char)stringSrc.getCharAt(i) >= 0x80)
+		if (dstLen == 0)
 		{
-			isAscii = false;
-			break;
+			clear();
+		}
+		else
+		{
+			ensureUniqueBufferOfSize((Int)dstLen + 1, false, nullptr, nullptr);
+			Utf8_To_Wide(peek(), dstLen + 1, src, srcLen);
 		}
 	}
-	if (!isAscii)
+	else
 	{
-		const Int wideLen = MultiByteToWideChar(CP_ACP, 0, stringSrc.str(), len, nullptr, 0);
-		if (wideLen > 0)
+		ensureUniqueBufferOfSize((Int)srcLen + 1, false, nullptr, nullptr);
+		WideChar* buf = peek();
+		for (size_t i = 0; i < srcLen; ++i)
 		{
-			WideChar* wideBuf = new WideChar[wideLen + 1];
-			const Int written = MultiByteToWideChar(CP_ACP, 0, stringSrc.str(), len, wideBuf, wideLen);
-			if (written > 0)
-			{
-				wideBuf[written] = 0;
-				set(wideBuf);
-				delete[] wideBuf;
-				validate();
-				return;
-			}
-			delete[] wideBuf;
+			buf[i] = (WideChar)(unsigned char)src[i];
 		}
+		buf[srcLen] = 0;
 	}
-#endif
-	clear();
-	for (Int i = 0; i < len; i++)
-		concat((WideChar)stringSrc.getCharAt(i));
 	validate();
 }
 
@@ -460,20 +452,25 @@ Bool UnicodeString::endsWithNoCase(const WideChar* p) const
 }
 
 //-----------------------------------------------------------------------------
-Bool UnicodeString::nextToken(UnicodeString* tok, UnicodeString delimiters)
+Bool UnicodeString::nextToken(UnicodeString* tok, const WideChar* separators)
 {
-	if (this->isEmpty() || tok == this)
-		return false;
+	DEBUG_ASSERTCRASH(tok != this, ("Tokenizer and Token cannot be the same object"));
 
-	if (delimiters.isEmpty())
-		delimiters = L" \t\n\r";
+	if (this->isEmpty())
+	{
+		tok->clear();
+		return false;
+	}
+
+	if (separators == nullptr)
+		separators = L" \t\n\r";
 
 	Int offset;
 
-	offset = wcsspn(peek(), delimiters.str());
+	offset = wcsspn(peek(), separators);
 	WideChar* start = peek() + offset;
 
-	offset = wcscspn(start, delimiters.str());
+	offset = wcscspn(start, separators);
 	WideChar* end = start + offset;
 
 	if (end > start)

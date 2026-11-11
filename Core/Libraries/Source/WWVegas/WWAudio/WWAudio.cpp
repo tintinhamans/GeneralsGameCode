@@ -52,9 +52,9 @@
 #include "Threads.h"
 #include "LogicalSound.h"
 #include "LogicalListener.h"
-#include "WWSaveLoad/definitionclassids.h"
 #include "WWDebug/wwmemlog.h"
 #include "WWDebug/wwprofile.h"
+#include "MilesLoader.h"
 
 
 #ifdef G_CODE_BASE
@@ -130,6 +130,13 @@ WWAudioClass::WWAudioClass ()
 	::InitializeCriticalSection (&MMSLockClass::_MSSLockCriticalSection);
 
 	//
+	// Load the Miles Sound System on runtime instead of importing it into the executable.
+	//
+	if (MilesLoader::load () == false) {
+		WWDEBUG_SAY (("Failed to load mss32.dll (error %d). Audio will not play.", MilesLoader::getLastError ()));
+	}
+
+	//
 	// Start Miles Sound System
 	//
 	AIL_startup ();
@@ -161,6 +168,9 @@ WWAudioClass::~WWAudioClass ()
 	WWAudioThreadsClass::End_Delayed_Release_Thread ();
 
 	Shutdown ();
+
+	MilesLoader::unload ();
+
 	_theInstance = nullptr;
 	::CloseHandle(_TimerSyncEvent);
 	_TimerSyncEvent = nullptr;
@@ -231,11 +241,10 @@ WWAudioClass::Open_2D_Device (LPWAVEFORMAT format)
 	AIL_set_preference (AIL_LOCK_PROTECTION, NO);
 
 	// Try to use DirectSound if possible
-	S32 success = ::AIL_set_preference (DIG_USE_WAVEOUT, FALSE);
-	WWASSERT (success == AIL_NO_ERROR);
+	::AIL_set_preference (DIG_USE_WAVEOUT, FALSE);
 
 	// Open the driver
-	success = ::AIL_waveOutOpen (&m_Driver2D, nullptr, 0, format);
+	S32 success = ::AIL_waveOutOpen (&m_Driver2D, nullptr, 0, format);
 
 	// Do we need to switch from direct sound to waveout?
 	if ((success == AIL_NO_ERROR) &&
@@ -251,8 +260,7 @@ WWAudioClass::Open_2D_Device (LPWAVEFORMAT format)
 	if (success != AIL_NO_ERROR) {
 
 		// Try to use the default wave out driver
-		success = ::AIL_set_preference (DIG_USE_WAVEOUT, TRUE);
-		WWASSERT (success == AIL_NO_ERROR);
+		::AIL_set_preference (DIG_USE_WAVEOUT, TRUE);
 
 		// Open the driver
 		success = ::AIL_waveOutOpen (&m_Driver2D, nullptr, 0, format);
@@ -867,225 +875,6 @@ WWAudioClass::Create_3D_Sound
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 //
-//	Create_Sound
-//
-////////////////////////////////////////////////////////////////////////////////////////////////
-AudibleSoundClass *
-WWAudioClass::Create_Sound
-(
-	int				definition_id,
-	RefCountClass *user_obj,
-	uint32			user_data,
-	int				classid_hint
-)
-{
-	AudibleSoundClass *sound = nullptr;
-
-	//
-	//	Find the definition
-	//
-	DefinitionClass *definition = DefinitionMgrClass::Find_Definition (definition_id);
-	if (definition != nullptr ) {
-
-		//
-		//	Make sure this is really a sound definition
-		//
-		WWASSERT (definition->Get_Class_ID () == CLASSID_SOUND);
-		if (definition->Get_Class_ID () == CLASSID_SOUND) {
-			AudibleSoundDefinitionClass *sound_def = reinterpret_cast<AudibleSoundDefinitionClass *> (definition);
-
-			//
-			//	Create an instance of the sound
-			//
-			sound = sound_def->Create_Sound (classid_hint);
-			if (sound != nullptr) {
-				sound->Set_User_Data (user_obj, user_data);
-			}
-		}
-	}
-
-	return sound;
-}
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-//
-//	Create_Sound
-//
-////////////////////////////////////////////////////////////////////////////////////////////////
-AudibleSoundClass *
-WWAudioClass::Create_Sound
-(
-	const char *	def_name,
-	RefCountClass *user_obj,
-	uint32			user_data,
-	int				classid_hint
-)
-{
-	AudibleSoundClass *sound = nullptr;
-
-	//
-	//	Find the definition
-	//
-	DefinitionClass *definition = DefinitionMgrClass::Find_Typed_Definition (def_name, CLASSID_SOUND, true);
-	if (definition != nullptr ) {
-
-		//
-		//	Make sure this is really a sound definition
-		//
-		WWASSERT (definition->Get_Class_ID () == CLASSID_SOUND);
-		if (definition->Get_Class_ID () == CLASSID_SOUND) {
-			AudibleSoundDefinitionClass *sound_def = reinterpret_cast<AudibleSoundDefinitionClass *> (definition);
-
-			//
-			//	Create an instance of the sound
-			//
-			sound = sound_def->Create_Sound (classid_hint);
-			if (sound != nullptr) {
-				sound->Set_User_Data (user_obj, user_data);
-			}
-		}
-	}
-
-	return sound;
-}
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-//
-//	Create_Continuous_Sound
-//
-////////////////////////////////////////////////////////////////////////////////////////////////
-AudibleSoundClass *
-WWAudioClass::Create_Continuous_Sound
-(
-	int				definition_id,
-	RefCountClass *user_obj,
-	uint32			user_data,
-	int				classid_hint
-)
-{
-	//
-	//	Create an instance of the sound and play it
-	//
-	AudibleSoundClass *sound = Create_Sound (definition_id, user_obj, user_data, classid_hint);
-	if (sound != nullptr) {
-
-		if (sound->Get_Loop_Count () != INFINITE_LOOPS) {
-			WWDEBUG_SAY (("Audio Error:  Creating a continuous sound with a finite loop count!"));
-		}
-	}
-
-	return sound;
-}
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-//
-//	Create_Instant_Sound
-//
-////////////////////////////////////////////////////////////////////////////////////////////////
-int
-WWAudioClass::Create_Instant_Sound
-(
-	int					definition_id,
-	const Matrix3D &	tm,
-	RefCountClass *	user_obj,
-	uint32				user_data,
-	int					classid_hint
-)
-{
-	int sound_id = 0;
-
-	//
-	//	Create an instance of the sound and play it
-	//
-	AudibleSoundClass *sound = Create_Sound (definition_id, user_obj, user_data, classid_hint);
-	if (sound != nullptr) {
-
-		if (sound->Get_Loop_Count () == INFINITE_LOOPS) {
-			WWDEBUG_SAY (("Audio Error:  Creating an instant sound %s with an infinite loop count!",sound->Get_Definition()->Get_Name()));
-		}
-
-		sound_id = sound->Get_ID ();
-		sound->Set_Transform (tm);
-		sound->Add_To_Scene ();
-		sound->Release_Ref ();
-	}
-
-	return sound_id;
-}
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-//
-//	Create_Continuous_Sound
-//
-////////////////////////////////////////////////////////////////////////////////////////////////
-AudibleSoundClass *
-WWAudioClass::Create_Continuous_Sound
-(
-	const char *	def_name,
-	RefCountClass *user_obj,
-	uint32			user_data,
-	int				classid_hint
-)
-{
-	//
-	//	Create an instance of the sound and play it
-	//
-	AudibleSoundClass *sound = Create_Sound (def_name, user_obj, user_data, classid_hint);
-	if (sound != nullptr) {
-
-		if (sound->Get_Loop_Count () != INFINITE_LOOPS) {
-			WWDEBUG_SAY (("Audio Error:  Creating a continuous sound with a finite loop count!"));
-		}
-
-	}
-
-	return sound;
-}
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-//
-//	Create_Instant_Sound
-//
-////////////////////////////////////////////////////////////////////////////////////////////////
-int
-WWAudioClass::Create_Instant_Sound
-(
-	const char *		def_name,
-	const Matrix3D &	tm,
-	RefCountClass *	user_obj,
-	uint32				user_data,
-	int					classid_hint
-)
-{
-	int sound_id = 0;
-
-	//
-	//	Create an instance of the sound and play it
-	//
-	AudibleSoundClass *sound = Create_Sound (def_name, user_obj, user_data, classid_hint);
-	if (sound != nullptr) {
-
-		if (sound->Get_Loop_Count () == INFINITE_LOOPS) {
-			WWDEBUG_SAY (("Audio Error:  Creating an instant sound %s with an infinite loop count!",sound->Get_Definition()->Get_Name()));
-		}
-
-		sound_id = sound->Get_ID ();
-		sound->Set_Transform (tm);
-		sound->Add_To_Scene ();
-		sound->Release_Ref ();
-	}
-
-	return sound_id;
-}
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-//
 //	Flush_Playlist
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1374,7 +1163,7 @@ WWAudioClass::Allocate_2D_Handles ()
 		for (int index = 0; index < m_Max2DSamples; index ++) {
 			HSAMPLE sample = ::AIL_allocate_sample_handle (m_Driver2D);
 			if (sample != nullptr) {
-				::AIL_set_sample_user_data (sample, INFO_OBJECT_PTR, nullptr);
+				::AIL_set_sample_user_data (sample, INFO_OBJECT_PTR, 0);
 				m_2DSampleHandles.Add (sample);
 			}
 		}
@@ -1558,9 +1347,8 @@ WWAudioClass::Build_3D_Driver_List ()
 			m_Driver3DList.Add (info);
 			::AIL_close_3D_provider (provider);
 		} else {
-			char *error_info = ::AIL_last_error ();
 			WWDEBUG_SAY (("WWAudio: Unable to open %s.", name));
-			WWDEBUG_SAY (("WWAudio: Reason %s.", error_info));
+			WWDEBUG_SAY (("WWAudio: Reason %s.", ::AIL_last_error ()));
 		}
 	}
 
@@ -1819,7 +1607,7 @@ WWAudioClass::Allocate_3D_Handles ()
 		for (int index = 0; index < m_Max3DSamples; index ++) {
 			H3DSAMPLE sample = ::AIL_allocate_3D_sample_handle (m_Driver3D);
 			if (sample != nullptr) {
-				::AIL_set_3D_object_user_data (sample, INFO_OBJECT_PTR, nullptr);
+				::AIL_set_3D_object_user_data (sample, INFO_OBJECT_PTR, 0);
 				m_3DSampleHandles.Add (sample);
 			}
 		}

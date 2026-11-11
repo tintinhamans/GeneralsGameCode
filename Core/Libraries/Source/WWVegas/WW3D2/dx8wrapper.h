@@ -42,6 +42,7 @@
 #pragma once
 
 #include "WWLib/always.h"
+#include <Utility/bit_adapter.h>
 #include "dllist.h"
 #include "d3d8.h"
 #include "WWMath/matrix4.h"
@@ -143,6 +144,9 @@ WWINLINE void DX8_ErrorCode(unsigned res)
 	if (res==D3D_OK) return;
 	Log_DX8_ErrorCode(res);
 }
+
+// Converts a FLOAT to a DWORD for use in SetRenderState() calls
+inline DWORD F2DW(FLOAT f) { return std::bit_cast<DWORD>(f); }
 
 #ifdef WWDEBUG
 #define DX8CALL_HRES(x,res) DX8_Assert(); res = DX8Wrapper::_Get_D3D_Device8()->x; DX8_ErrorCode(res); DX8Wrapper::Increment_DX8_CallCount();
@@ -703,6 +707,7 @@ protected:
 
 	friend void DX8_Assert();
 	friend class WW3D;
+	friend class Renderer;
 	friend class DX8IndexBufferClass;
 	friend class DX8VertexBufferClass;
 };
@@ -806,8 +811,8 @@ WWINLINE void DX8Wrapper::Set_Fog(bool enable, const Vector3 &color, float start
 	ShaderClass::Invalidate();
 
 	// Set renderstates which are not affected by the shader
-	Set_DX8_Render_State(D3DRS_FOGSTART, *(DWORD *)(&start));
-	Set_DX8_Render_State(D3DRS_FOGEND,   *(DWORD *)(&end));
+	Set_DX8_Render_State(D3DRS_FOGSTART, std::bit_cast<DWORD>(start));
+	Set_DX8_Render_State(D3DRS_FOGEND,   std::bit_cast<DWORD>(end));
 }
 
 
@@ -855,7 +860,7 @@ WWINLINE void DX8Wrapper::Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigne
 	// Can't monitor state changes because setShader call to GERD may change the states!
 	if (RenderStates[state]==value) return;
 
-#ifdef MESH_RENDER_SNAPSHOT_ENABLED
+#ifdef DEBUG_LOGGING
 	if (WW3D::Is_Snapshot_Activated()) {
 		StringClass value_name(0,true);
 		Get_DX8_Render_State_Value_Name(value_name,state,value);
@@ -884,7 +889,8 @@ WWINLINE void DX8Wrapper::Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURE
 
 	// Can't monitor state changes because setShader call to GERD may change the states!
 	if (TextureStageStates[stage][(unsigned int)state]==value) return;
-#ifdef MESH_RENDER_SNAPSHOT_ENABLED
+
+#ifdef DEBUG_LOGGING
 	if (WW3D::Is_Snapshot_Activated()) {
 		StringClass value_name(0,true);
 		Get_DX8_Texture_Stage_State_Value_Name(value_name,state,value);
@@ -1186,10 +1192,8 @@ WWINLINE void DX8Wrapper::Set_Shader(const ShaderClass& shader)
 	}
 	render_state.shader=shader;
 	render_state_changed|=SHADER_CHANGED;
-#ifdef MESH_RENDER_SNAPSHOT_ENABLED
-	StringClass str;
-#endif
-	SNAPSHOT_SAY(("DX8Wrapper::Set_Shader(%s)",shader.Get_Description(str).str()));
+
+	SNAPSHOT_SAY(("DX8Wrapper::Set_Shader(%s)",shader.Get_Description().str()));
 }
 
 WWINLINE void DX8Wrapper::Set_Projection_Transform_With_Z_Bias(const Matrix4x4& matrix, float znear, float zfar)

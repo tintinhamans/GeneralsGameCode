@@ -302,7 +302,7 @@ void ControlBar::populatePurchaseScience( Player* player )
 
 			setControlCommand( m_sciencePurchaseWindowsRank3[ i ], commandButton );
 			ScienceType	st = SCIENCE_INVALID;
-			ScienceVec sv = commandButton->getScienceVec();
+			const ScienceVec &sv = commandButton->getScienceVec();
 			if (! sv.empty())
 			{
 				st = sv[ 0 ];
@@ -823,7 +823,7 @@ void CommandSet::parseCommandButton( INI* ini, void *instance, void *store, cons
 
 	// get the index to store the command at, and the command array itself
 	const CommandButton **buttonArray = (const CommandButton **)store;
-	Int buttonIndex = (Int)userData;
+	Int buttonIndex = (Int)(intptr_t)userData;
 
 	// sanity
 	DEBUG_ASSERTCRASH( buttonIndex < MAX_COMMANDS_PER_SET, ("parseCommandButton: button index '%d' out of range",
@@ -1789,9 +1789,9 @@ void ControlBar::evaluateContextUI()
 			return;
 		}
 
-		if (obj->getControllingPlayer()
-			&& obj->getControllingPlayer()->getPlayerTemplate()
-			&& obj->getControllingPlayer()->getPlayerTemplate()->getBeaconTemplate().compare(obj->getTemplate()->getName()) == 0
+		if (obj->getControllingPlayer() &&
+			obj->getControllingPlayer()->getPlayerTemplate() &&
+			obj->getControllingPlayer()->getPlayerTemplate()->getBeaconTemplate().compare(obj->getTemplate()->getName()) == 0
 			)
 		{
 			switchToContext( CB_CONTEXT_BEACON, draw );
@@ -2742,13 +2742,15 @@ void ControlBar::showRallyPoint(const Coord3D* loc)
 	if (m_rallyPointDrawableID == INVALID_DRAWABLE_ID)
 	{
 		const ThingTemplate* ttn = TheThingFactory->findTemplate("RallyPointMarker");
+		if (!ttn)
+		{
+			return;
+		}
+
 		marker = TheThingFactory->newDrawable(ttn);
 		DEBUG_ASSERTCRASH(marker, ("showRallyPoint: Unable to create rally point drawable"));
-		if (marker)
-		{
-			marker->setDrawableStatus(DRAWABLE_STATUS_NO_SAVE);
-			m_rallyPointDrawableID = marker->getID();
-		}
+		marker->setDrawableStatus(DRAWABLE_STATUS_NO_SAVE);
+		m_rallyPointDrawableID = marker->getID();
 	}
 	else
 		marker = TheGameClient->findDrawableByID(m_rallyPointDrawableID);
@@ -3264,10 +3266,10 @@ void ControlBar::initSpecialPowershortcutBar( Player *player)
 	m_currentlyUsedSpecialPowersButtons = 0;
 	const PlayerTemplate *pt = player->getPlayerTemplate();
 
-	if(!player || !pt|| !player->isLocalPlayer()
-			|| pt->getSpecialPowerShortcutButtonCount() == 0
-			|| pt->getSpecialPowerShortcutWinName().isEmpty()
-			|| !player->isPlayerActive())
+	if(!player || !pt|| !player->isLocalPlayer() ||
+			pt->getSpecialPowerShortcutButtonCount() == 0 ||
+			pt->getSpecialPowerShortcutWinName().isEmpty() ||
+			!player->isPlayerActive())
 		return;
 	m_currentlyUsedSpecialPowersButtons = pt->getSpecialPowerShortcutButtonCount();
 	AsciiString layoutName, tempName, windowName, parentName;
@@ -3311,9 +3313,9 @@ void ControlBar::populateSpecialPowerShortcut( Player *player)
 {
 	const CommandSet *commandSet;
 	Int i;
-	if(!player || !player->getPlayerTemplate()
-			|| !player->isLocalPlayer() || m_currentlyUsedSpecialPowersButtons == 0
-			|| m_specialPowerShortcutButtons == nullptr || m_specialPowerShortcutButtonParents == nullptr)
+	if(!player || !player->getPlayerTemplate() ||
+			!player->isLocalPlayer() || m_currentlyUsedSpecialPowersButtons == 0 ||
+			m_specialPowerShortcutButtons == nullptr || m_specialPowerShortcutButtonParents == nullptr)
 		return;
 	for( i = 0; i < MAX_SPECIAL_POWER_SHORTCUTS; ++i )
 	{
@@ -3424,10 +3426,10 @@ void ControlBar::populateSpecialPowerShortcut( Player *player)
 							Int i;
 
 							// get command set
-							if( !player || !player->getPlayerTemplate()
-									|| player->getPlayerTemplate()->getPurchaseScienceCommandSetRank1().isEmpty()
-									|| player->getPlayerTemplate()->getPurchaseScienceCommandSetRank3().isEmpty()
-									|| player->getPlayerTemplate()->getPurchaseScienceCommandSetRank8().isEmpty() )
+							if( !player || !player->getPlayerTemplate() ||
+									player->getPlayerTemplate()->getPurchaseScienceCommandSetRank1().isEmpty() ||
+									player->getPlayerTemplate()->getPurchaseScienceCommandSetRank3().isEmpty() ||
+									player->getPlayerTemplate()->getPurchaseScienceCommandSetRank8().isEmpty() )
 							{
 								continue;
 							}
@@ -3586,23 +3588,24 @@ Bool ControlBar::canShowSpecialPowerShortcut() const
 //-------------------------------------------------------------------------------------------------
 void ControlBar::updateSpecialPowerShortcut()
 {
-	if(!m_specialPowerShortcutParent || !m_specialPowerShortcutButtons
-	   || !ThePlayerList || !ThePlayerList->getLocalPlayer())
+	if(!m_specialPowerShortcutParent || !m_specialPowerShortcutButtons ||
+	   !ThePlayerList || !ThePlayerList->getLocalPlayer())
 		return;
 
 	const Bool hasValidShortcutButton = canShowSpecialPowerShortcut();
 
-	if( hasValidShortcutButton
-		  && m_specialPowerShortcutParent->winIsHidden()
-			&& m_contextParent[ CP_MASTER ]
-			&& !m_contextParent[ CP_MASTER ]->winIsHidden() )
+	if( hasValidShortcutButton &&
+		  m_specialPowerShortcutParent->winIsHidden() &&
+			m_contextParent[ CP_MASTER ] &&
+			!m_contextParent[ CP_MASTER ]->winIsHidden() )
 	{
 		showSpecialPowerShortcut();
 		animateSpecialPowerShortcut(TRUE);
 	}
-	else if( !hasValidShortcutButton
-					 && !m_specialPowerShortcutParent->winIsHidden()
-					 && m_animateWindowManagerForGenShortcuts->isFinished() )
+	else if( !hasValidShortcutButton &&
+					 !m_specialPowerShortcutParent->winIsHidden() &&
+					 m_animateWindowManagerForGenShortcuts &&
+					 m_animateWindowManagerForGenShortcuts->isFinished() )
 	{
 		animateSpecialPowerShortcut(FALSE);
 	}
@@ -3790,8 +3793,8 @@ void ControlBar::animateSpecialPowerShortcut( Bool isOn )
 
 void ControlBar::showSpecialPowerShortcut()
 {
-	if(TheScriptEngine->isGameEnding() || !m_specialPowerShortcutParent
-		||!m_specialPowerShortcutButtons || !ThePlayerList || !ThePlayerList->getLocalPlayer())
+	if(TheScriptEngine->isGameEnding() || !m_specialPowerShortcutParent ||
+		!m_specialPowerShortcutButtons || !ThePlayerList || !ThePlayerList->getLocalPlayer())
 		return;
 	Bool dontAnimate = TRUE;
 	for( Int i = 0; i < m_currentlyUsedSpecialPowersButtons; ++i )

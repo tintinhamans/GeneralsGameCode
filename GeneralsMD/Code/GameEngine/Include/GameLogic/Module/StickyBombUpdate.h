@@ -60,7 +60,7 @@ public:
 			{ "OffsetZ",									INI::parseReal,						nullptr, offsetof( StickyBombUpdateModuleData, m_offsetZ ) },
 			{ "GeometryBasedDamageWeapon",INI::parseWeaponTemplate, nullptr, offsetof( StickyBombUpdateModuleData, m_geometryBasedDamageWeaponTemplate ) },
 			{ "GeometryBasedDamageFX",		INI::parseFXList,					nullptr, offsetof( StickyBombUpdateModuleData, m_geometryBasedDamageFX ) },
-			{ 0, 0, 0, 0 }
+			{ nullptr, nullptr, nullptr, 0 }
 		};
     p.add(dataFieldParse);
 	}
@@ -79,6 +79,9 @@ public:
 	// virtual destructor prototype provided by memory pool declaration
 
 	virtual void onObjectCreated() override;
+#if !RETAIL_COMPATIBLE_CRC
+	virtual void onDelete() override;
+#endif
 
 	virtual UpdateSleepTime update() override;							///< called once per frame
 

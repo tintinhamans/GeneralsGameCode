@@ -66,7 +66,7 @@
 #endif
 #include <malloc.h>
 #include <memory.h>
-#include "stringex.h"
+#include "Utility/stringex.h"
 #ifdef TGA_USES_WWLIB_FILE_CLASSES
 #include "WWFILE.h"
 #include "ffactory.h"
@@ -634,8 +634,8 @@ long Targa::Save(const char* name, long flags, bool addextension)
 		/*-----------------------------------------------------------------------
 		 * WRITE THE COLORMAP (PALETTE) DATA SECTION
 		 *---------------------------------------------------------------------*/
-		if (!error && (flags & TGAF_PAL) && (mPalette != nullptr)
-				&& (Header.CMapLength > 0))
+		if (!error && (flags & TGAF_PAL) && (mPalette != nullptr) &&
+				(Header.CMapLength > 0))
 			{
 			/* Adjust palette to the starting color entry. */
 			depth = (Header.CMapDepth >> 3);
@@ -831,7 +831,7 @@ void Targa::XFlip()
 static __forceinline void _swapBytes(char *p1, char *p2, unsigned count)
 {
 #if defined(_MSC_VER) && _MSC_VER < 1300
-  _asm
+  __asm
   {
     mov esi,[p1]
     mov edi,[p2]

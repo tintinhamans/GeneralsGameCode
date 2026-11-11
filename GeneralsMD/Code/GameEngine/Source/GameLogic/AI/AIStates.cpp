@@ -527,7 +527,7 @@ StateReturnType AIRappelState::onEnter()
 		obj->setLayer(layerAtDest);
 
 	AIUpdateInterface *ai = obj->getAI();
-	Real MAX_RAPPEL_RATE = fabs(TheGlobalData->m_gravity) * LOGICFRAMES_PER_SECOND * 2.5f;
+	Real MAX_RAPPEL_RATE = WWMath::Fabs(TheGlobalData->m_gravity) * LOGICFRAMES_PER_SECOND * 2.5f;
 	m_rappelRate = -min(ai->getDesiredSpeed(), MAX_RAPPEL_RATE);
 
 	return STATE_CONTINUE;
@@ -826,7 +826,7 @@ void AIStateMachine::loadPostProcess()
  */
 void AIStateMachine::setGoalPath( std::vector<Coord3D>* path )
 {
-	stl::move_or_swap(m_goalPath, *path);
+	MOVE_TO(m_goalPath) = std::move(*path);
 }
 
 #ifdef STATE_MACHINE_DEBUG
@@ -881,8 +881,14 @@ StateReturnType AIStateMachine::updateStateMachine()
 
 			return status;
 		}
-		m_temporaryState->onExit(EXIT_NORMAL);
-		m_temporaryState = nullptr;
+
+		// TheSuperHackers @bugfix Okladnoj 08/10/2026 Check that the temporary state still exists as it can be cleared from the state machine within the states update.
+		// This only happens without RETAIL_COMPATIBLE_CRC, where clear() resets the temporary state.
+		if (m_temporaryState)
+		{
+			m_temporaryState->onExit(EXIT_NORMAL);
+			m_temporaryState = nullptr;
+		}
 	}
 	StateReturnType retType = StateMachine::updateStateMachine();
 
@@ -1023,6 +1029,13 @@ void AIStateMachine::clear()
 	m_goalPath.clear();
 	m_goalWaypoint = nullptr;
 	m_goalSquad = nullptr;
+
+#if !RETAIL_COMPATIBLE_CRC
+	if (m_temporaryState)
+		m_temporaryState->onExit(EXIT_RESET);
+
+	m_temporaryState = nullptr;
+#endif
 
 	AIUpdateInterface* ai = getOwner()->getAI();
 	if (ai)
@@ -1237,7 +1250,7 @@ Bool outOfWeaponRangePosition( State *thisState, void* userData )
  */
 static Bool cannotPossiblyAttackObject( State *thisState, void* userData )
 {
-	AbleToAttackType attackType = (AbleToAttackType)(UnsignedInt)userData;
+	AbleToAttackType attackType = (AbleToAttackType)(uintptr_t)userData;
 	Object *obj = thisState->getMachineOwner();
 	Object *victim = thisState->getMachineGoalObject();
 
@@ -3677,7 +3690,7 @@ StateReturnType AIAttackMoveToState::update()
 		if (distSqr < sqr(ATTACK_CLOSE_ENOUGH_CELLS*PATHFIND_CELL_SIZE_F)) {
 			return ret;
 		}
-		DEBUG_LOG(("AIAttackMoveToState::update Distance from goal %f, retrying.", sqrt(distSqr)));
+		DEBUG_LOG(("AIAttackMoveToState::update Distance from goal %f, retrying.", WWMath::Sqrt(distSqr)));
 
 		ret = STATE_CONTINUE;
 		m_retryCount--;
@@ -3907,16 +3920,16 @@ void AIFollowWaypointPathState::computeGoal(Bool useGroupOffsets)
 	if (m_priorWaypoint) {
 		dx = dest.x - m_priorWaypoint->getLocation()->x;
 		dy = dest.y - m_priorWaypoint->getLocation()->y;
-		angle = atan2(dy, dx);
+		angle = WWMath::Atan2(dy, dx);
 		Real deltaAngle = angle - m_angle;
-		Real s = sin(deltaAngle);
-		Real c = cos(deltaAngle);
+		Real s = WWMath::Sin(deltaAngle);
+		Real c = WWMath::Cos(deltaAngle);
 		Real x = m_groupOffset.x * c - m_groupOffset.y * s;
 		Real y = m_groupOffset.y * c + m_groupOffset.x * s;
 		m_groupOffset.x = x;
 		m_groupOffset.y = y;
 	}	else {
-		angle = atan2(dy, dx);
+		angle = WWMath::Atan2(dy, dx);
 	}
 	m_angle = angle;
 #endif
@@ -3935,9 +3948,9 @@ void AIFollowWaypointPathState::computeGoal(Bool useGroupOffsets)
 	Region3D extent;
 	TheTerrainLogic->getMaximumPathfindExtent(&extent);
 
-	if (extent.isInRegionNoZ(dest)) {
+	if (extent.containsWithin(dest.asCoord2D())) {
 		// The waypoint is on the map.  Check & see if the adjusted position is off map [8/28/2003]
-		if (!extent.isInRegionNoZ(m_goalPosition)) {
+		if (!extent.containsWithin(m_goalPosition.asCoord2D())) {
 			// clamp to in region. [8/28/2003]
 			if (m_goalPosition.x < extent.lo.x+PATHFIND_CELL_SIZE_F) {
 				m_goalPosition.x = extent.lo.x+PATHFIND_CELL_SIZE_F;
@@ -3954,7 +3967,7 @@ void AIFollowWaypointPathState::computeGoal(Bool useGroupOffsets)
 		}
 	}
 
-	if (!extent.isInRegionNoZ(m_goalPosition)) {
+	if (!extent.containsWithin(m_goalPosition.asCoord2D())) {
 		setAdjustsDestination(false); // moving off the map.
 		ai->getCurLocomotor()->setAllowInvalidPosition(true); // allow it to move off the map.
 		m_appendGoalPosition = true; // Moving off the map.
@@ -4943,8 +4956,26 @@ StateReturnType AIAttackAimAtTargetState::onEnter()
 	Object *containedBy = source->getContainedBy();
 	ContainModuleInterface *contain = containedBy ? containedBy->getContain() : nullptr;
 
+#if RTS_GENERALS && RETAIL_COMPATIBLE_CRC
+	if( containedBy && weapon )
+#else
 	if( containedBy && weapon && contain && contain->isEnclosingContainerFor( source ) )
-	{                                          // non enclosing garrison containers do not use firepoints. Lorenzen, 6/11/03
+#endif
+	{
+#if RTS_GENERALS && RETAIL_COMPATIBLE_CRC
+		// TheSuperHackers @bugfix Caball009 22/09/2026 Return early to prevent a crash.
+		// This is needed when a Tunnel Network with units is transferred to another player and then sold or destroyed.
+		// The units are not properly transferred and are left in an invalid state.
+		if (!contain)
+		{
+			// remove all such units from the tunnel tracker and destroy them
+			TheGameLogic->friend_destroyInTunnelContain(source);
+
+			return STATE_FAILURE;
+		}
+#endif
+
+		// non enclosing garrison containers do not use firepoints. Lorenzen, 6/11/03
 		if (victim)
 		{
 			inFiringRange = contain->attemptBestFirePointPosition( source, weapon, victim );
@@ -5078,10 +5109,9 @@ StateReturnType AIAttackAimAtTargetState::update()
 			aimDelta = REL_THRESH;
 		}
 
-		//DEBUG_LOG(("AIM: desired %f, actual %f, delta %f, aimDelta %f, goalpos %f %f",rad2deg(obj->getOrientation() + relAngle),rad2deg(obj->getOrientation()),rad2deg(relAngle),rad2deg(aimDelta),victim->getPosition()->x,victim->getPosition()->y));
 		if (m_canTurnInPlace)
 		{
-			if (fabs(relAngle) > aimDelta)
+			if (WWMath::Fabs(relAngle) > aimDelta)
 			{
 				Real desiredAngle = source->getOrientation() + relAngle;
 				sourceAI->setLocomotorGoalOrientation(desiredAngle);
@@ -5093,7 +5123,7 @@ StateReturnType AIAttackAimAtTargetState::update()
 			sourceAI->setLocomotorGoalPositionExplicit(m_isAttackingObject ? *victim->getPosition() : *getMachineGoalPosition());
 		}
 
-		if (fabs(relAngle) < aimDelta /*&& !m_preAttackFrames*/ )
+		if (WWMath::Fabs(relAngle) < aimDelta /*&& !m_preAttackFrames*/ )
 		{
 			AIUpdateInterface* victimAI = victim ? victim->getAI() : nullptr;
 			// add ourself as a targeter BEFORE calling isTemporarilyPreventingAimSuccess().
@@ -5305,9 +5335,11 @@ StateReturnType AIAttackFireWeaponState::update()
 	{
 
     if( getMachineOwner()->getAI()->areTurretsLinked() ) //LINKED TURRETS
-    {// it doesn;t matter which weapon slot is locked, current or whatever
+    {
+      // it doesn;t matter which weapon slot is locked, current or whatever
       for ( Int slot = PRIMARY_WEAPON; slot < WEAPONSLOT_COUNT ; slot++ )
-      {// were firing with all barrels
+      {
+        // were firing with all barrels
         Weapon *weapon = obj->getWeaponInWeaponSlot( (WeaponSlotType)slot );
         if ( weapon )
         {
@@ -5520,6 +5552,7 @@ StateReturnType AIAttackState::onEnter()
 	if (m_attackParameters && m_attackParameters->shouldExit(getMachine()))
 		return STATE_SUCCESS;
 
+#if !(RTS_GENERALS && RETAIL_COMPATIBLE_CRC)
 	//Kris: Jan 12, 2005
 	//Don't allow units under construction to attack! The selection/action manager system was responsible for preventing this
 	//from ever happening, but failed in two cases which I fixed. This is an extra check to mitigate cheats.
@@ -5527,6 +5560,7 @@ StateReturnType AIAttackState::onEnter()
 	{
 		return STATE_FAILURE;
 	}
+#endif
 
 	// if all of our weapons are out of ammo, can't attack.
 	// (this can happen for units which never auto-reload, like the Raptor)
@@ -5989,7 +6023,7 @@ Object *AIAttackSquadState::chooseVictim()
 		case DIFFICULTY_EASY:
 		{
 			// pick a random unit
-			VecObjectPtr objects = victimSquad->getLiveObjects();
+			const VecObjectPtr& objects = victimSquad->getLiveObjects();
 			Int numUnits = objects.size();
 			if (numUnits == 0)
 			{
@@ -6017,7 +6051,7 @@ Object *AIAttackSquadState::chooseVictim()
 		case DIFFICULTY_HARD:
 		{
 			// everyone picks the same unit
-			VecObjectPtr objects = victimSquad->getLiveObjects();
+			const VecObjectPtr& objects = victimSquad->getLiveObjects();
 			if (!objects.empty())
 			{
 				return objects[0];
@@ -7493,7 +7527,7 @@ StateReturnType AIFaceState::update()
 	Real relAngle = ThePartitionManager->getRelativeAngle2D( obj, pos );
 
 	const Real REL_THRESH = 0.035f;	// about 2 degrees. (getRelativeAngle2D is current only accurate to about 1.25 degrees)
-	if( fabs( relAngle ) < REL_THRESH )
+	if( WWMath::Fabs( relAngle ) < REL_THRESH )
 	{
 		return STATE_SUCCESS;
 	}

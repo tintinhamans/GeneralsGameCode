@@ -60,6 +60,7 @@
 #include "monod.h"
 #include "filed.h"
 #include "configfile.h"
+#include <Lib/PathUtil.h>
 #include <windows.h>
 
 #include <Debug/DebugPrint.h>
@@ -148,7 +149,7 @@ int main(int argc, char *argv[])
 	char* extension = configName;
 	char* tempptr;
 
-	while ((tempptr = strchr(extension + 1, '.')))
+	while ((tempptr = strchr(extension + 1, '.')) != nullptr)
 	{
 		extension = tempptr;
 	}
@@ -163,7 +164,7 @@ int main(int argc, char *argv[])
 	char debugFile[MAX_PATH + 3];
 	strcpy(debugFile, configName);
 	strcat(debugFile, ".txt");
-	strcpy(debugLogName, strrchr(configName, '\\'));
+	strcpy(debugLogName, getFileName(configName));
 	strcat(debugLogName, "Log");
 	FileD outputDevice(debugFile, true);
 	MsgManager::setAllStreams(&outputDevice);
@@ -250,7 +251,6 @@ int main(int argc, char *argv[])
 	}
 
 	// Look for patch file(s) to apply
-	bool launchgame = true;
 
 	time_t cutoffTime = 0;
 	if (hasSecondEXE)
@@ -339,7 +339,7 @@ void CreatePrimaryWin(const char *prefix)
 }
 
 
-//void DestroyPrimaryWin(void)
+//void DestroyPrimaryWin()
 //{
 //  DestroyWindow(PrimaryWin);
 //  UnregisterClass(classname);
@@ -363,7 +363,7 @@ void myChdir(char *path)
 	_splitpath( path, drive, dir, file, ext );
 	_makepath ( filepath,   drive, dir, nullptr, nullptr );
 
-	if ( filepath[ strlen( filepath ) - 1 ] == '\\' )
+	if ( isPathSeparator( filepath[ strlen( filepath ) - 1 ] ) )
 	{
 		filepath[ strlen( filepath ) - 1 ] = '\0';
 	}

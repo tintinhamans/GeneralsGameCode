@@ -31,6 +31,7 @@ protected: // create from serialization only
 // Attributes
 protected:
 	CSplitterWnd m_SplitWnd;
+	CSplitterWnd m_DataSplitWnd;
 public:
 
 // Operations
@@ -46,7 +47,7 @@ public:
 
 // Implementation
 public:
-	virtual ~CMainFrame();
+	virtual ~CMainFrame() override;
 #ifdef RTS_DEBUG
 	virtual void AssertValid() const override;
 	virtual void Dump(CDumpContext& dc) const override;

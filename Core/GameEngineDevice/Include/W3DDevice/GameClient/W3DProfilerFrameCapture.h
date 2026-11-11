@@ -20,7 +20,7 @@
 
 #ifdef PROFILER_ENABLED
 
-#include "Lib/BaseType.h"
+#include "WWLib/bittype.h"
 #include <vector>
 
 class W3DProfilerFrameCapture

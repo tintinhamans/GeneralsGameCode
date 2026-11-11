@@ -1,37 +1,42 @@
 {
-    "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-    "builtin-baseline": "b61d33065508ba0d5e393206abb3cb2366299699",
-    "vcpkg-configuration": {
-      "registries": [
-        {
-          "kind": "git",
-          "repository": "https://github.com/tintinhamans/GNS",
-          "reference": "vcpkg-registry",
-          "baseline": "e62d241df714253c66aaf900fed05f30c3fd433a",
-          "packages": [ "gamenetworkingsockets" ]
-        }
-      ]
-    },
-    "dependencies": [
-      "zlib",
-      "ffmpeg",
-      "stb",
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "builtin-baseline": "b61d33065508ba0d5e393206abb3cb2366299699",
+  "vcpkg-configuration": {
+    "registries": [
       {
-        "name": "curl",
-        "default-features": false,
-        "features": [ "openssl", "websockets" ]
-      },
-      {
-        "name": "gamenetworkingsockets",
-        "version>=": "1.6.0",
-        "default-features": false,
-        "features": [ "ice", "webrtc" ]
-      },
-      {
-        "name": "sentry-native",
-        "version>=": "0.17.0",
-        "default-features": false,
-        "features": [ "backend", "transport" ]
+        "kind": "git",
+        "repository": "https://github.com/tintinhamans/GNS",
+        "reference": "vcpkg-registry",
+        "baseline": "e62d241df714253c66aaf900fed05f30c3fd433a",
+        "packages": [ "gamenetworkingsockets" ]
       }
     ]
+  },
+  "dependencies": [
+    "zlib",
+    "stb",
+    {
+      "name": "curl",
+      "default-features": false,
+      "features": [ "openssl", "websockets" ]
+    },
+    {
+      "name": "gamenetworkingsockets",
+      "version>=": "1.6.0",
+      "default-features": false,
+      "features": [ "ice", "webrtc" ]
+    },
+    {
+      "name": "sentry-native",
+      "version>=": "0.17.0",
+      "default-features": false,
+      "features": [ "backend", "transport" ]
+    }
+  ],
+  "features": {
+    "ffmpeg": {
+      "description": "Use FFmpeg instead of Bink for video rendering",
+      "dependencies": [ "ffmpeg" ]
+    }
   }
+}

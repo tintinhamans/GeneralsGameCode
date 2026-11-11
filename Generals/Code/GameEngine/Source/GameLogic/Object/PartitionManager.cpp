@@ -294,36 +294,6 @@ inline Real calcSqrDist_3D(const Coord3D *dist)
 }
 
 //-----------------------------------------------------------------------------
-inline Int absInt(Int a)
-{
-	if (a < 0) return -a; else return a;
-}
-
-//-----------------------------------------------------------------------------
-inline Int minInt(Int a, Int b)
-{
-	if (a < b) return a; else return b;
-}
-
-//-----------------------------------------------------------------------------
-inline Int maxInt(Int a, Int b)
-{
-	if (a > b) return a; else return b;
-}
-
-//-----------------------------------------------------------------------------
-inline Real minReal(Real a, Real b)
-{
-	if (a < b) return a; else return b;
-}
-
-//-----------------------------------------------------------------------------
-inline Real maxReal(Real a, Real b)
-{
-	if (a > b) return a; else return b;
-}
-
-//-----------------------------------------------------------------------------
 //         Local Functions
 //-----------------------------------------------------------------------------
 
@@ -411,13 +381,13 @@ static void testRotatedPointsAgainstRect(
 		Real pty = pts->y - a->position.y;
 
 		// inverse-rotate it to the right coord system
-		Real ptx_new = (Real)fabs(ptx*c - pty*s);
-		Real pty_new = (Real)fabs(ptx*s + pty*c);
+		Real ptx_new = (Real)WWMath::Fabs(ptx*c - pty*s);
+		Real pty_new = (Real)WWMath::Fabs(ptx*s + pty*c);
 
 		#ifdef INTENSE_DEBUG
 		Real mag_a = sqr(ptx)+sqr(pty);
 		Real mag_b = sqr(ptx_new)+sqr(pty_new);
-		DEBUG_ASSERTCRASH(fabs(mag_a - mag_b) <= 1.0, ("hmm, unlikely"));
+		DEBUG_ASSERTCRASH(WWMath::Fabs(mag_a - mag_b) <= 1.0, ("hmm, unlikely"));
 		#endif
 
 		if (ptx_new <= major && pty_new <= minor)
@@ -507,8 +477,8 @@ static Bool xy_collideTest_Rect_Circle(const CollideInfo *a, const CollideInfo *
 		{
 			vecDiff_2D(&b->position, &a->position, &cinfo->normal);
 			cinfo->normal.normalize();
-			cinfo->loc.x = (maxReal(circ_l, rect_l) + minReal(circ_r, rect_r)) * 0.5f;
-			cinfo->loc.y = (maxReal(circ_t, rect_t) + minReal(circ_b, rect_b)) * 0.5f;
+			cinfo->loc.x = (max(circ_l, rect_l) + min(circ_r, rect_r)) * 0.5f;
+			cinfo->loc.y = (max(circ_t, rect_t) + min(circ_b, rect_b)) * 0.5f;
 			cinfo->loc.z = (a->position.z + b->position.z) * 0.5f;
 		}
 		return true;
@@ -617,7 +587,7 @@ inline Bool z_collideTest_Sphere_Nonsphere(CollideTestProc xyproc, const Collide
 		// find the radius of the slice of the sphere that is at b_bot
 		CollideInfo amod = *a;
 		amod.position.z = b_bot;
-		amod.geom.setMajorRadius((Real)sqrtf(sqr(a->geom.getMajorRadius()) - sqr(b_bot - a->position.z)));
+		amod.geom.setMajorRadius((Real)WWMath::Sqrtf(sqr(a->geom.getMajorRadius()) - sqr(b_bot - a->position.z)));
 		if (xyproc(&amod, b, cinfo))
 		{
 			// if you want to have 'end' collisions, you should add something like:
@@ -635,7 +605,7 @@ inline Bool z_collideTest_Sphere_Nonsphere(CollideTestProc xyproc, const Collide
 	{
 		CollideInfo amod = *a;
 		amod.position.z = b_top;
-		amod.geom.setMajorRadius((Real)sqrtf(sqr(a->geom.getMajorRadius()) - sqr(a->position.z - b_top)));
+		amod.geom.setMajorRadius((Real)WWMath::Sqrtf(sqr(a->geom.getMajorRadius()) - sqr(a->position.z - b_top)));
 		if (xyproc(&amod, b, cinfo))
 		{
 			// if you want to have 'end' collisions, you should add something like:
@@ -823,7 +793,7 @@ static Bool distCalcProc_BoundaryAndBoundary_2D(
 
 	if (totalRad > 0.0f)
 	{
-		Real actualDist = sqrtf(actualDistSqr);
+		Real actualDist = WWMath::Sqrtf(actualDistSqr);
 		Real shrunkenDist = actualDist - totalRad;
 		if (shrunkenDist <= 0.0f)
 		{
@@ -911,7 +881,7 @@ static Bool distCalcProc_BoundaryAndBoundary_3D(
 	Real totalRad = (geomA?geomA->getBoundingSphereRadius():0) + (geomB?geomB->getBoundingSphereRadius():0);
 	if (totalRad > 0.0f)
 	{
-		Real actualDist = sqrtf(actualDistSqr);
+		Real actualDist = WWMath::Sqrtf(actualDistSqr);
 		Real shrunkenDist = actualDist - totalRad;
 		if (shrunkenDist <= 0.0f)
 		{
@@ -956,6 +926,7 @@ static DistCalcProc theDistCalcProcs[] =
 	distCalcProc_BoundaryAndBoundary_2D,
 	distCalcProc_BoundaryAndBoundary_3D,
 };
+static_assert(ARRAY_SIZE(theDistCalcProcs) == DISTANCE_CALCULATION_TYPE_COUNT, "Incorrect array size");
 
 // NOTE: This *DEPENDS* on the order of the geometry enum defines
 static CollideTestProc theCollideTestProcs[] =
@@ -970,6 +941,7 @@ static CollideTestProc theCollideTestProcs[] =
 	collideTest_Box_Cylinder,
 	collideTest_Box_Box
 };
+static_assert(ARRAY_SIZE(theCollideTestProcs) == GEOMETRY_NUM_TYPES * GEOMETRY_NUM_TYPES, "Incorrect array size");
 
 //-----------------------------------------------------------------------------
 //         Public Data
@@ -1068,7 +1040,7 @@ CellOutwardIterator::CellOutwardIterator(PartitionManager *mgr, Int x, Int y)
 	m_cellCenterX = x;
 	m_cellCenterY = y;
 	m_cellRadius = 0;
-	m_maxRadius = maxInt(maxInt(x, mgr->getCellCountX() - x), maxInt(y, mgr->getCellCountY() - y));
+	m_maxRadius = max(max(x, mgr->getCellCountX() - x), max(y, mgr->getCellCountY() - y));
 	m_delta[0] = m_delta[1] = 0;
 	m_inc = -1;
 	m_cnt = 0;
@@ -1109,7 +1081,7 @@ try_again:
 			m_axis = 0;
 			m_inc = -m_inc;
 			m_cnt += 1;
-			m_cellRadius = maxInt(absInt(m_delta[0]), absInt(m_delta[1]));
+			m_cellRadius = max(IABS(m_delta[0]), IABS(m_delta[1]));
 		}
 
 		m_iter = m_cnt;
@@ -1650,7 +1622,8 @@ ObjectShroudStatus PartitionData::getShroudedStatus(Int playerIndex)
 		{	m_shroudedness[playerIndex] = OBJECTSHROUD_SHROUDED;				// every cell I use is shrouded
 			m_everSeenByPlayer[playerIndex] = false; //force object as never seen by the player
 			if (m_ghostObject && m_shroudednessPrevious[playerIndex] == OBJECTSHROUD_FOGGED)
-			{	//we are shrouding an area that used to be fogged so release our memory of what was there.
+			{
+				//we are shrouding an area that used to be fogged so release our memory of what was there.
 				m_ghostObject->freeSnapShot(playerIndex);
 			}
 		}
@@ -1662,20 +1635,24 @@ ObjectShroudStatus PartitionData::getShroudedStatus(Int playerIndex)
 				//fogged but may not be visible if faction unit or faction building that has not been seen before
 				Player *player=ThePlayerList->getNthPlayer(playerIndex);
 				if (player->getRelationship(m_object->getTeam()) == NEUTRAL)
-				{	//anything neutral that moves around will not be rendered inside fog.
+				{
+					//anything neutral that moves around will not be rendered inside fog.
 					if (!m_object->isKindOf(KINDOF_IMMOBILE))
 						m_shroudedness[playerIndex] = OBJECTSHROUD_SHROUDED;
 				}
 				else	//Not neutral
-				{	//enemy unit will always be shrouded unless it's a building that's already been seen by the player.  Fogged Mines are also always
+				{
+					//enemy unit will always be shrouded unless it's a building that's already been seen by the player.  Fogged Mines are also always
 					//shroued no matter what.
 					if (!(m_object->isKindOf(KINDOF_IMMOBILE) && m_everSeenByPlayer[playerIndex]) || m_object->isKindOf(KINDOF_MINE))
 						m_shroudedness[playerIndex] = OBJECTSHROUD_SHROUDED;
 				}
 				if (m_shroudedness[playerIndex] == OBJECTSHROUD_FOGGED)
-				{	//successfully applied fog to object so check if we need to freeze it's state
+				{
+					//successfully applied fog to object so check if we need to freeze it's state
 					if (m_shroudednessPrevious[playerIndex] < OBJECTSHROUD_FOGGED)
-					{	//object was not previously fogged but now is fogged.
+					{
+						//object was not previously fogged but now is fogged.
 						//need to record its current state so that it doesn't change
 						//while fogged.
 						m_ghostObject->snapShot(playerIndex);
@@ -1684,21 +1661,25 @@ ObjectShroudStatus PartitionData::getShroudedStatus(Int playerIndex)
 			}
 		}
 		else if( shroudedCells == 0  &&  foggedCells == 0 )
-		{	//Record that this object was seen by the player.  This info will be used to show fogged enemy faction buildings.
+		{
+			//Record that this object was seen by the player.  This info will be used to show fogged enemy faction buildings.
 			m_everSeenByPlayer[playerIndex] = true;
 			m_shroudedness[playerIndex] = OBJECTSHROUD_CLEAR;
 			if (m_ghostObject && m_shroudednessPrevious[playerIndex] == OBJECTSHROUD_FOGGED)
-			{	//object was previously fogged but now is visible so we no longer
+			{
+				//object was previously fogged but now is visible so we no longer
 				//need a ghost object.
 				m_ghostObject->freeSnapShot(playerIndex);
 			}
 		}
 		else
-		{	//Record that this object was seen by the player.  This info will be used to show fogged enemy faction buildings.
+		{
+			//Record that this object was seen by the player.  This info will be used to show fogged enemy faction buildings.
 			m_everSeenByPlayer[playerIndex] = true;
 			m_shroudedness[playerIndex] = OBJECTSHROUD_PARTIAL_CLEAR;		// I am at least partially clear otherwise
 			if (m_ghostObject && m_shroudednessPrevious[playerIndex] == OBJECTSHROUD_FOGGED)
-			{	//object was previously fogged but now is visible so we no longer
+			{
+				//object was previously fogged but now is visible so we no longer
 				//need a ghost object.
 				m_ghostObject->freeSnapShot(playerIndex);
 			}
@@ -1933,8 +1914,8 @@ void PartitionData::doSmallFill(
 	ThePartitionManager->worldToCell(centerX - radius, centerY - radius, &cx1, &cy1);
 	ThePartitionManager->worldToCell(centerX + radius, centerY + radius, &cx2, &cy2);
 
-	DEBUG_ASSERTCRASH(absInt(cx2-cx1)<=1,("bad cx"));
-	DEBUG_ASSERTCRASH(absInt(cy2-cy1)<=1,("bad cy"));
+	DEBUG_ASSERTCRASH(IABS(cx2-cx1)<=1,("bad cx"));
+	DEBUG_ASSERTCRASH(IABS(cy2-cy1)<=1,("bad cy"));
 
 	for (Int x = cx1; x <= cx2; x++)
 	{
@@ -2215,7 +2196,7 @@ Int PartitionData::calcMaxCoiForShape(GeometryType geom, Real majorRadius, Real 
 			}
 			case GEOMETRY_BOX:
 			{
-				Real diagonal = (Real)(sqrtf(majorRadius*majorRadius + minorRadius*minorRadius));
+				Real diagonal = (Real)(WWMath::Sqrtf(majorRadius*majorRadius + minorRadius*minorRadius));
 				Int cells = ThePartitionManager->worldToCellDist(diagonal*2) + 1;
 				result = cells * cells;
 				break;
@@ -2632,7 +2613,7 @@ static void calcHeights(const Region3D& world, Real cellSize, Int x, Int y, Real
 	Real xbase = world.lo.x + (x * cellSize);
 	Real ybase = world.lo.y + (y * cellSize);
 	const Real ROUGH_STEP_SIZE = 2;	// roughly every 2 ft, please
-	Real numSteps = ceilf(cellSize / ROUGH_STEP_SIZE);
+	Real numSteps = WWMath::Ceilf(cellSize / ROUGH_STEP_SIZE);
 	Real step = cellSize / numSteps;
 	loZ = HUGE_DIST;		// huge positive
 	hiZ = -HUGE_DIST;		// huge negative
@@ -3191,22 +3172,28 @@ Int PartitionManager::calcMinRadius(const ICoord2D& cur)
 		so it really shouldn't matter... (I hope)
 	*/
 
-	double minDistSqr = 1e12;				// double, not real
+#if RETAIL_COMPATIBLE_CRC
+	typedef double RealOrDouble;
+#else
+	typedef Real RealOrDouble;
+#endif
+
+	RealOrDouble minDistSqr = (RealOrDouble)1e12;				// double, not real
 	for (int i = 0; i < 4; ++i)
 	{
 		for (int j = 0; j < 4; ++j)
 		{
 			// double, not real
-			double dx = centerPos[i].x - otherPos[j].x;
-			double dy = centerPos[i].y - otherPos[j].y;
-			double curDistSqr = dx*dx + dy*dy;
+			RealOrDouble dx = centerPos[i].x - otherPos[j].x;
+			RealOrDouble dy = centerPos[i].y - otherPos[j].y;
+			RealOrDouble curDistSqr = dx*dx + dy*dy;
 			if (minDistSqr > curDistSqr)
 				minDistSqr = curDistSqr;
 		}
 	}
 
 	// double, not real
-	double dist = sqrtf(minDistSqr);
+	RealOrDouble dist = WWMath::Sqrtf(minDistSqr);
 	Int minRadius = REAL_TO_INT_CEIL( dist / m_cellSize );
 
 	return minRadius;
@@ -3221,10 +3208,16 @@ void PartitionManager::calcRadiusVec()
 	Int cx = getCellCountX();
 	Int cy = getCellCountY();
 
+#if RETAIL_COMPATIBLE_CRC
+	typedef double RealOrDouble;
+#else
+	typedef Real RealOrDouble;
+#endif
+
 	// double, not real
-	double dx = (double)cx * (double)cellSize;
-	double dy = (double)cy * (double)cellSize;
-	double maxPossibleDist = sqrt(dx*dx + dy*dy);
+	RealOrDouble dx = (RealOrDouble)cx * (RealOrDouble)cellSize;
+	RealOrDouble dy = (RealOrDouble)cy * (RealOrDouble)cellSize;
+	RealOrDouble maxPossibleDist = WWMath::Sqrt(dx*dx + dy*dy);
 
 	m_maxGcoRadius = REAL_TO_INT_CEIL(maxPossibleDist / cellSize);
 
@@ -3329,7 +3322,7 @@ Object *PartitionManager::getClosestObjects(
 	if (maxDist < HUGE_DIST)
 	{
 		// don't go outwards any farther than necessary.
-		maxRadius = minInt(m_maxGcoRadius, worldToCellDist(maxDist));
+		maxRadius = min(m_maxGcoRadius, worldToCellDist(maxDist));
 	}
 #if defined(INTENSE_DEBUG)
 	/*
@@ -3494,7 +3487,7 @@ Object *PartitionManager::getClosestObjects(
 	}
 	if (closestDistArg)
 	{
-		*closestDistArg = (Real)sqrtf(closestDistSqr);
+		*closestDistArg = (Real)WWMath::Sqrtf(closestDistSqr);
 	}
 
 #ifdef RTS_DEBUG
@@ -3621,7 +3614,7 @@ Real PartitionManager::getRelativeAngle2D( const Object *obj, const Coord3D *pos
 	v.y = pos->y - objPos.y;
 	v.z = 0.0f;
 
-	Real dist = (Real)sqrtf(sqr(v.x) + sqr(v.y));
+	Real dist = (Real)WWMath::Sqrtf(sqr(v.x) + sqr(v.y));
 
 	// normalize
 	if (dist == 0.0f)
@@ -3799,7 +3792,7 @@ Bool PartitionManager::tryPosition( const Coord3D *center,
 		pos.z = TheTerrainLogic->getGroundHeight( pos.x, pos.y );
 	}
 
-	if (fabs(pos.z - center->z) > options->maxZDelta)
+	if (WWMath::Fabs(pos.z - center->z) > options->maxZDelta)
 		return FALSE;
 
 	//
@@ -3960,7 +3953,7 @@ Bool PartitionManager::findPositionAround( const Coord3D *center,
 	TheTerrainLogic->getMaximumPathfindExtent(&extent);
 	// If the goal is off the map, it is a scripted setup, so just
 	// use the center.
-	if (!extent.isInRegionNoZ(*center)) {
+	if (!extent.containsWithin(center->asCoord2D())) {
 		*result = *center;
 		return true;
 	}
@@ -4552,7 +4545,7 @@ Int PartitionManager::iterateCellsBreadthFirst(const Coord3D *pos, CellBreadthFi
 //-----------------------------------------------------------------------------
 static Real calcDist2D(Real x1, Real y1, Real x2, Real y2)
 {
-	return sqrtf(sqr(x1-x2) + sqr(y1-y2));
+	return WWMath::Sqrtf(sqr(x1-x2) + sqr(y1-y2));
 }
 
 //-----------------------------------------------------------------------------
@@ -5632,7 +5625,7 @@ void hLineAddLooker(Int x1, Int x2, Int y, void *playerIndexVoid)
 	if (y < 0 || y >= ThePartitionManager->m_cellCountY || x1 >= ThePartitionManager->m_cellCountX || x2 < 0)
 		return;
 
-	Int playerIndex = (Int)(playerIndexVoid);
+	Int playerIndex = (Int)(intptr_t)(playerIndexVoid);
 
 	PartitionCell* cell = &ThePartitionManager->m_cells[y * ThePartitionManager->m_cellCountX + x1];	// yes, this could be invalid. we'll skip the bad ones.
 	for (Int x = x1; x <= x2; ++x, ++cell)
@@ -5649,7 +5642,7 @@ void hLineRemoveLooker(Int x1, Int x2, Int y, void *playerIndexVoid)
 	if (y < 0 || y >= ThePartitionManager->m_cellCountY || x1 >= ThePartitionManager->m_cellCountX || x2 < 0)
 		return;
 
-	Int playerIndex = (Int)(playerIndexVoid);
+	Int playerIndex = (Int)(intptr_t)(playerIndexVoid);
 
 	PartitionCell* cell = &ThePartitionManager->m_cells[y * ThePartitionManager->m_cellCountX + x1];	// yes, this could be invalid. we'll skip the bad ones.
 	for (Int x = x1; x <= x2; ++x, ++cell)
@@ -5666,7 +5659,7 @@ void hLineAddShrouder(Int x1, Int x2, Int y, void *playerIndexVoid)
 	if (y < 0 || y >= ThePartitionManager->m_cellCountY || x1 >= ThePartitionManager->m_cellCountX || x2 < 0)
 		return;
 
-	Int playerIndex = (Int)(playerIndexVoid);
+	Int playerIndex = (Int)(intptr_t)(playerIndexVoid);
 
 	PartitionCell* cell = &ThePartitionManager->m_cells[y * ThePartitionManager->m_cellCountX + x1];	// yes, this could be invalid. we'll skip the bad ones.
 	for (Int x = x1; x <= x2; ++x, ++cell)
@@ -5683,7 +5676,7 @@ void hLineRemoveShrouder(Int x1, Int x2, Int y, void *playerIndexVoid)
 	if (y < 0 || y >= ThePartitionManager->m_cellCountY || x1 >= ThePartitionManager->m_cellCountX || x2 < 0)
 		return;
 
-	Int playerIndex = (Int)(playerIndexVoid);
+	Int playerIndex = (Int)(intptr_t)(playerIndexVoid);
 
 	PartitionCell* cell = &ThePartitionManager->m_cells[y * ThePartitionManager->m_cellCountX + x1];	// yes, this could be invalid. we'll skip the bad ones.
 	for (Int x = x1; x <= x2; ++x, ++cell)
@@ -5711,7 +5704,7 @@ void hLineAddThreat(Int x1, Int x2, Int y, void *threatValueParms)
 		if (x < 0 || x >= ThePartitionManager->m_cellCountX)
 			continue;
 
-		distance = sqrt( pow(x - parms->xCenter, 2) + pow(y - parms->yCenter, 2) );
+		distance = WWMath::Sqrt( WWMath::Pow(x - parms->xCenter, 2) + WWMath::Pow(y - parms->yCenter, 2) );
 		mulVal = 1 - distance / parms->radius;
 		if (mulVal < 0.0f)
 			mulVal = 0.0f;
@@ -5739,7 +5732,7 @@ void hLineRemoveThreat(Int x1, Int x2, Int y, void *threatValueParms)
 		if (x < 0 || x >= ThePartitionManager->m_cellCountX)
 			continue;
 
-		distance = sqrt( pow(x - parms->xCenter, 2) + pow(y - parms->yCenter, 2) );
+		distance = WWMath::Sqrt( WWMath::Pow(x - parms->xCenter, 2) + WWMath::Pow(y - parms->yCenter, 2) );
 		mulVal = 1 - distance / parms->radius;
 		if (mulVal < 0.0f)
 			mulVal = 0.0f;
@@ -5767,7 +5760,7 @@ void hLineAddValue(Int x1, Int x2, Int y, void *threatValueParms)
 		if (x < 0 || x >= ThePartitionManager->m_cellCountX)
 			continue;
 
-		distance = sqrt( pow(x - parms->xCenter, 2) + pow(y - parms->yCenter, 2) );
+		distance = WWMath::Sqrt( WWMath::Pow(x - parms->xCenter, 2) + WWMath::Pow(y - parms->yCenter, 2) );
 		mulVal = 1 - distance / parms->radius;
 		if (mulVal < 0.0f)
 			mulVal = 0.0f;
@@ -5795,7 +5788,7 @@ void hLineRemoveValue(Int x1, Int x2, Int y, void *threatValueParms)
 		if (x < 0 || x >= ThePartitionManager->m_cellCountX)
 			continue;
 
-		distance = sqrt( pow(x - parms->xCenter, 2) + pow(y - parms->yCenter, 2) );
+		distance = WWMath::Sqrt( WWMath::Pow(x - parms->xCenter, 2) + WWMath::Pow(y - parms->yCenter, 2) );
 		mulVal = 1 - distance / parms->radius;
 		if (mulVal < 0.0f)
 			mulVal = 0.0f;

@@ -376,6 +376,7 @@ public:  // ********************************************************************
 	virtual void update() override;														///< Update the UI by calling preDraw(), draw(), and postDraw()
 	virtual void reset() override;															///< Reset
 	//-----------------------------------------------------------------------------------------------
+	void validate();
 
 	// interface for the popup messages
 	virtual void popupMessage(const AsciiString& message, Int x, Int y, Int width, Bool pause, Bool pauseMusic);
@@ -602,6 +603,10 @@ public:  // ********************************************************************
 	void setDrawRMBScrollAnchor(Bool b) { m_drawRMBScrollAnchor = b; }
 	void setMoveRMBScrollAnchor(Bool b) { m_moveRMBScrollAnchor = b; }
 
+	void showReplayControls();
+	void hideReplayControls();
+	void toggleReplayControls();
+
 private:
 	virtual Int getIdleWorkerCount();
 	virtual Object* findIdleWorker(Object* obj);
@@ -760,7 +765,9 @@ protected:
 	void expireHint(HintType type, UnsignedInt hintIndex);
 
 	void createControlBar();			///< create the control bar user interface
+	void destroyControlBar();
 	void createReplayControl();		///< create the replay control window
+	void destroyReplayControl();
 
 	void setMouseCursor(Mouse::MouseCursor c);
 
@@ -835,17 +842,20 @@ protected:
 	UnsignedInt									m_lastNetworkLatencyFrames;
 
 	// Render FPS Counter
-	DisplayString* m_renderFpsString;
-	DisplayString* m_renderFpsLimitString;
+	DisplayString *							m_renderFpsString;
+	DisplayString *							m_renderFpsLowString;
+	DisplayString *							m_renderFpsLimitString;
 	AsciiString									m_renderFpsFont;
 	Int													m_renderFpsPointSize;
 	Bool												m_renderFpsBold;
 	Coord2D											m_renderFpsPosition;
 	Color												m_renderFpsColor;
+	Color												m_renderFpsLowColor;
 	Color												m_renderFpsLimitColor;
 	Color												m_renderFpsDropColor;
 	UnsignedInt									m_renderFpsRefreshMs;
 	UnsignedInt									m_lastRenderFps;
+	UnsignedInt									m_lastRenderFpsLow;
 	UnsignedInt									m_lastRenderFpsLimit;
 	UnsignedInt									m_lastRenderFpsUpdateMs;
 
@@ -1077,6 +1087,9 @@ protected:
     Int totalWidth = 0;
     Int totalHeight = 0;
     bool isUpdating = false;
+
+	GameWindow *m_controlBarWindow;
+	GameWindow *m_replayWindow;
 
 	// World Animation Data
 	WorldAnimationList					m_worldAnimationList;		///< the list of world animations

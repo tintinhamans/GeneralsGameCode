@@ -94,6 +94,7 @@
 #include "WW3D2/light.h"
 #include "WW3D2/predlod.h"
 #include "WW3D2/ww3d.h"
+#include "WW3D2/Renderer.h"
 
 #include "W3DDevice/GameClient/CameraShakeSystem.h"
 
@@ -107,10 +108,6 @@ constexpr const Real NearZ = MAP_XY_FACTOR; ///< Set the near to MAP_XY_FACTOR. 
 #include "GameNetwork/GeneralsOnline/OnlineServices_Init.h"
 class NGMP_OnlineServices_LobbyInterface;
 #endif
-
-//=================================================================================================
-inline Real minf(Real a, Real b) { if (a < b) return a; else return b; }
-inline Real maxf(Real a, Real b) { if (a > b) return a; else return b; }
 
 //-------------------------------------------------------------------------------------------------
 // Normalizes angle to +- PI.
@@ -383,8 +380,6 @@ void W3DView::buildCameraPosition( Vector3& sourcePos, Vector3& targetPos )
 void W3DView::buildCameraTransform( Matrix3D *transform, const Vector3 &sourcePos, const Vector3 &targetPos )
 {
 	//m_3DCamera->Set_View_Plane(DEG_TO_RADF(50.0f));
-	//DEBUG_LOG(("zoom %f, SourceZ %f, posZ %f, groundLevel %f CamOffZ %f",
-	//			zoom, sourcePos.Z, pos.z, groundLevel, getCameraOffsetZ()));
 
 	// build new camera transform
 	transform->Make_Identity();
@@ -635,7 +630,7 @@ void W3DView::clipCameraIntoAreaConstraints()
 Bool W3DView::isWithinCameraAreaConstraints() const
 {
 	const Coord3D &pos = getPosition();
-	return m_cameraAreaConstraints.isInRegion(pos.x, pos.y);
+	return m_cameraAreaConstraints.containsWithin(pos.x, pos.y);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -827,7 +822,7 @@ void W3DView::updateCameraClipPlanes(const Matrix3D &transform)
 		const Real projectedRadiusToEdge = fabs(dx * camDir.X) + fabs(dy * camDir.Y);
 
 		// Final far plane
-		farZ = projectedDistanceToCenter + projectedRadiusToEdge;
+		farZ = std::max(projectedDistanceToCenter + projectedRadiusToEdge, 0.0f);
 	}
 	else
 	{
@@ -1555,7 +1550,7 @@ void W3DView::update()
 					if (cameraLockObj->isUsingAirborneLocomotor() && cameraLockObj->isAboveTerrainOrWater())
 					{
 						Matrix3D camXForm;
-						Real idealZRot = cameraLockObj->getOrientation() - M_PI_2;
+						Real idealZRot = cameraLockObj->getOrientation() - WWMATH_HALF_PI;
 
 						if (m_snapImmediate)
 						{
@@ -1807,7 +1802,8 @@ Bool W3DView::setViewFilterMode(FilterModes filterMode)
 	if (m_viewFilterMode != FM_NULL_MODE &&
 		m_viewFilter != FT_NULL_FILTER) {
 		if (!W3DShaderManager::filterSetup(m_viewFilter, m_viewFilterMode))
-		{	//setup failed so restore previous mode.
+		{
+			//setup failed so restore previous mode.
 			m_viewFilterMode = oldMode;
 			return FALSE;
 		}
@@ -1825,7 +1821,8 @@ Bool W3DView::setViewFilter(FilterTypes filter)
 	if (m_viewFilterMode != FM_NULL_MODE &&
 		m_viewFilter != FT_NULL_FILTER) {
 		if (!W3DShaderManager::filterSetup(m_viewFilter, m_viewFilterMode))
-		{	//setup failed so restore previous mode.
+		{
+			//setup failed so restore previous mode.
 			m_viewFilter = oldFilter;
 			return FALSE;
 		};
@@ -1944,7 +1941,7 @@ void W3DView::draw()
 		//The pass that rendered into a texture may have left the z-buffer in a weird state
 		//so clear it before rendering normal scene.
 		///@todo: Don't clear z-buffer unless shader uses z-bias or anything else that would cause <= z to fail on normal render.
-		DX8Wrapper::Clear(false, true, Vector3(0.0f,0.0f,0.0f), TheWaterTransparency->m_minWaterOpacity);	// Clear z but not color
+		Renderer::Clear(false, true, Vector3(0.0f,0.0f,0.0f), TheWaterTransparency->m_minWaterOpacity);	// Clear z but not color
 		W3DDisplay::m_3DScene->setCustomPassMode(SCENE_PASS_DEFAULT);
 		W3DDisplay::m_3DScene->doRender( m_3DCamera );
 		Coord2D deltaScroll;
@@ -2268,7 +2265,7 @@ void W3DView::setDefaultView(Real pitch, Real angle, Real maxHeight)
 #endif
 {
 	// MDC - we no longer want to rotate maps (design made all of them right to begin with)
-	//	m_defaultAngle = angle * M_PI/180.0f;
+	//	m_defaultAngle = angle * WWMATH_PI/180.0f;
 	setDefaultPitch(pitch);
 
     // TODO_NGMP: Better way of doing this
@@ -2696,8 +2693,7 @@ void W3DView::lookAt( const Coord3D *o )
 		}
 	}
 
-	Coord2D pos2D = { pos.x, pos.y };
-	setPosition2D(pos2D);
+	setPosition2D(pos.asCoord2D());
 
 	resetPivotToGround();
 
@@ -3524,10 +3520,10 @@ void W3DView::moveAlongWaypointPath(Real milliseconds)
 		setPosition(pos);
 		// Note - assuming that the scripter knows what he is doing, we adjust the constraints so that
 		// the scripted action can occur.
-		m_cameraAreaConstraints.lo.x = minf(m_cameraAreaConstraints.lo.x, pos.x);
-		m_cameraAreaConstraints.hi.x = maxf(m_cameraAreaConstraints.hi.x, pos.x);
-		m_cameraAreaConstraints.lo.y = minf(m_cameraAreaConstraints.lo.y, pos.y);
-		m_cameraAreaConstraints.hi.y = maxf(m_cameraAreaConstraints.hi.y, pos.y);
+		m_cameraAreaConstraints.lo.x = min(m_cameraAreaConstraints.lo.x, pos.x);
+		m_cameraAreaConstraints.hi.x = max(m_cameraAreaConstraints.hi.x, pos.x);
+		m_cameraAreaConstraints.lo.y = min(m_cameraAreaConstraints.lo.y, pos.y);
+		m_cameraAreaConstraints.hi.y = max(m_cameraAreaConstraints.hi.y, pos.y);
 		return;
 	}
 
@@ -3631,10 +3627,10 @@ void W3DView::moveAlongWaypointPath(Real milliseconds)
 	setPosition(result);
 	// Note - assuming that the scripter knows what he is doing, we adjust the constraints so that
 	// the scripted action can occur.
-	m_cameraAreaConstraints.lo.x = minf(m_cameraAreaConstraints.lo.x, result.x);
-	m_cameraAreaConstraints.hi.x = maxf(m_cameraAreaConstraints.hi.x, result.x);
-	m_cameraAreaConstraints.lo.y = minf(m_cameraAreaConstraints.lo.y, result.y);
-	m_cameraAreaConstraints.hi.y = maxf(m_cameraAreaConstraints.hi.y, result.y);
+	m_cameraAreaConstraints.lo.x = min(m_cameraAreaConstraints.lo.x, result.x);
+	m_cameraAreaConstraints.hi.x = max(m_cameraAreaConstraints.hi.x, result.x);
+	m_cameraAreaConstraints.lo.y = min(m_cameraAreaConstraints.lo.y, result.y);
+	m_cameraAreaConstraints.hi.y = max(m_cameraAreaConstraints.hi.y, result.y);
 
 }
 

@@ -1,8 +1,7 @@
 #name: Weekly Release
 #
 #permissions:
-#  contents: write
-#  pull-requests: write
+#  contents: read
 #
 #on:
 #  workflow_dispatch:
@@ -57,10 +56,11 @@
 #    outputs:
 #      changed: ${{ steps.check.outputs.changed }}
 #    steps:
-#      - uses: actions/checkout@v4
+#      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 #        with:
 #          fetch-depth: 0
 #          fetch-tags: true
+#          persist-credentials: false
 #      - id: check
 #        run: |
 #          if [ "${{ github.event.inputs.force_changed }}" = "true" ]; then
@@ -87,6 +87,8 @@
 #    needs: [detect-scm-changes, get-date]
 #    if: needs.detect-scm-changes.outputs.changed == 'true'
 #    name: Build Generals${{ matrix.preset && '' }}
+#    permissions:
+#      contents: read
 #    strategy:
 #      matrix:
 #        include:
@@ -95,18 +97,19 @@
 #            extras: false
 #            release: true
 #      fail-fast: false
-#    uses: ./.github/workflows/build-toolchain.yml
+#    uses: ./.github/workflows/reusable-build-toolchain.yml
 #    with:
 #      game: "Generals"
 #      preset: ${{ matrix.preset }}
 #      tools: ${{ matrix.tools }}
 #      extras: ${{ matrix.extras }}
-#    secrets: inherit
 #
 #  build-generalsmd:
 #    needs: [detect-scm-changes, get-date]
 #    if: needs.detect-scm-changes.outputs.changed == 'true'
 #    name: Build GeneralsMD${{ matrix.preset && '' }}
+#    permissions:
+#      contents: read
 #    strategy:
 #      matrix:
 #        include:
@@ -115,24 +118,26 @@
 #            extras: false
 #            release: true
 #      fail-fast: false
-#    uses: ./.github/workflows/build-toolchain.yml
+#    uses: ./.github/workflows/reusable-build-toolchain.yml
 #    with:
 #      game: "GeneralsMD"
 #      preset: ${{ matrix.preset }}
 #      tools: ${{ matrix.tools }}
 #      extras: ${{ matrix.extras }}
-#    secrets: inherit
 #
 #  create-release:
 #    name: Create Release
 #    needs: [build-generals, build-generalsmd, get-date]
 #    runs-on: ubuntu-latest
+#    permissions:
+#      contents: write
 #    steps:
 #      - name: Checkout repository
-#        uses: actions/checkout@v4
+#        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 #        with:
 #          fetch-depth: 0
 #          fetch-tags: true
+#          persist-credentials: false
 #
 #      - name: Collect commits since last release
 #        id: changelog
@@ -154,7 +159,7 @@
 #
 #      # Generals vc6
 #      - name: Download Generals VC6 Artifacts
-#        uses: actions/download-artifact@v4
+#        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
 #        with:
 #          name: Generals-vc6-weekly+t
 #          path: generals-vc6-artifacts
@@ -165,7 +170,7 @@
 #
 #      # GeneralsMD vc6
 #      - name: Download GeneralsMD VC6 Artifacts
-#        uses: actions/download-artifact@v4
+#        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
 #        with:
 #          name: GeneralsMD-vc6-weekly+t
 #          path: generalsmd-vc6-artifacts
@@ -175,27 +180,28 @@
 #          zip -jr generalszh-weekly-${{ needs.get-date.outputs.date }}.zip generalsmd-vc6-artifacts/*
 #
 #      - name: Generate release notes
-#        id: release_body
+#        env:
+#          BUILD_NOTES: ${{ github.event.inputs.build_notes }}
+#          KNOWN_ISSUES: ${{ github.event.inputs.known_issues }}
+#          CHANGELOG_COMMITS: ${{ steps.changelog.outputs.commits }}
 #        run: |
-#          BODY=""
-#          if [ "${{ github.event.inputs.build_notes }}" != "" ]; then
-#            BODY="${BODY}### Build notes\n${{ github.event.inputs.build_notes }}\n"
-#          fi
-#          if [ "${{ github.event.inputs.known_issues }}" != "" ]; then
-#            BODY="${BODY}### Known issues\n${{ github.event.inputs.known_issues }}\n"
-#          fi
-#          BODY="${BODY}### Changelog\n${{ steps.changelog.outputs.commits }}"
-#          echo "body<<EOF" >> $GITHUB_OUTPUT
-#          echo -e "$BODY" >> $GITHUB_OUTPUT
-#          echo "EOF" >> $GITHUB_OUTPUT
+#          {
+#            if [ -n "$BUILD_NOTES" ]; then
+#              printf '### Build notes\n%s\n' "$BUILD_NOTES"
+#            fi
+#            if [ -n "$KNOWN_ISSUES" ]; then
+#              printf '### Known issues\n%s\n' "$KNOWN_ISSUES"
+#            fi
+#            printf '### Changelog\n%s\n' "$CHANGELOG_COMMITS"
+#          } > release-notes.md
 #
 #      - name: Create GitHub Release
-#        uses: softprops/action-gh-release@v2
+#        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
 #        with:
 #          tag_name: weekly-${{ needs.get-date.outputs.date }}
 #          name: weekly-${{ needs.get-date.outputs.date }}
 #          prerelease: ${{ github.event.inputs.pre-release == 'true' }}
-#          body: ${{ steps.release_body.outputs.body }}
+#          body_path: release-notes.md
 #          files: |
 #            generals-weekly-${{ needs.get-date.outputs.date }}.zip
 #            generalszh-weekly-${{ needs.get-date.outputs.date }}.zip
@@ -208,4 +214,4 @@
 #          rm -rf generals-vc6-artifacts generalsmd-vc6-artifacts
 #          rm -f generals-weekly-${{ needs.get-date.outputs.date }}.zip
 #          rm -f generalszh-weekly-${{ needs.get-date.outputs.date }}.zip
-#
+#          rm -f release-notes.md

@@ -200,24 +200,24 @@ Bool W3DMouse::loadD3DCursorTextures(MouseCursor cursor)
 
     m_currentFrames = 0;
 
-    if (animFrames == 1)
-    {	//single animation frame without trailing numbers
-        snprintf(FrameName, ARRAY_SIZE(FrameName), "%s.tga", baseName);
-        cursorTextures[cursor][0] = am->Get_Texture(FrameName);
-        m_currentD3DSurface[0] = cursorTextures[cursor][0]->Get_Surface_Level();
-        m_currentFrames = 1;
-    }
-    else
-        for (Int i = 0; i < animFrames; i++)
-        {
-            snprintf(FrameName, ARRAY_SIZE(FrameName), "%s%04d.tga", baseName, i);
-            if ((cursorTextures[cursor][i] = am->Get_Texture(FrameName)) != nullptr)
-            {
-                m_currentD3DSurface[m_currentFrames] = cursorTextures[cursor][i]->Get_Surface_Level();
-                m_currentFrames++;
-            }
-        }
-    return TRUE;
+	if (animFrames == 1)
+	{
+		//single animation frame without trailing numbers
+		snprintf(FrameName, ARRAY_SIZE(FrameName), "%s.tga", baseName);
+		cursorTextures[cursor][0]=	am->Get_Texture(FrameName);
+		m_currentD3DSurface[0]=cursorTextures[cursor][0]->Get_Surface_Level();
+		m_currentFrames = 1;
+	}
+	else
+	for (Int i=0; i<animFrames; i++)
+	{
+		snprintf(FrameName, ARRAY_SIZE(FrameName), "%s%04d.tga", baseName, i);
+		if ((cursorTextures[cursor][i]=am->Get_Texture(FrameName)) != nullptr)
+		{	m_currentD3DSurface[m_currentFrames]=cursorTextures[cursor][i]->Get_Surface_Level();
+			m_currentFrames++;
+		}
+	}
+	return TRUE;
 }
 
 void W3DMouse::initD3DAssets()
@@ -376,18 +376,19 @@ void W3DMouse::setCursor(MouseCursor cursor)
 
     CriticalSectionClass::LockClass m(mutex);
 
-    m_directionFrame = 0;
-    if (m_currentRedrawMode == RM_WINDOWS)
-    {	//Windows default cursor needs to refreshed whenever we get a WM_SETCURSOR
-        m_currentD3DCursor = NONE;
-        m_currentW3DCursor = NONE;
-        m_currentPolygonCursor = NONE;
-        setCursorDirection(cursor);
-        if (m_drawing)	//only allow cursor to change when drawing the cursor (once per frame) to fix flickering.
-            Win32Mouse::setCursor(cursor);
-        m_currentCursor = cursor;
-        return;
-    }
+	m_directionFrame=0;
+	if (m_currentRedrawMode == RM_WINDOWS)
+	{
+		//Windows default cursor needs to refreshed whenever we get a WM_SETCURSOR
+		m_currentD3DCursor=NONE;
+		m_currentW3DCursor=NONE;
+		m_currentPolygonCursor=NONE;
+		setCursorDirection(cursor);
+		if (m_drawing)	//only allow cursor to change when drawing the cursor (once per frame) to fix flickering.
+			Win32Mouse::setCursor(cursor);
+		m_currentCursor = cursor;
+		return;
+	}
 
     // extend
     Mouse::setCursor(cursor);
@@ -504,9 +505,10 @@ void W3DMouse::draw()
         {
             m_pDev->ShowCursor(TRUE);	//Enable DX8 cursor
 
-            if (TheDisplay && !TheDisplay->getWindowed())
-            {	//if we're full-screen, need to manually move cursor image
-                POINT ptCursor;
+			if (TheDisplay && !TheDisplay->getWindowed())
+			{
+				//if we're full-screen, need to manually move cursor image
+				POINT ptCursor;
 
                 GetCursorPos(&ptCursor);
                 ScreenToClient(ApplicationHWnd, &ptCursor);
@@ -575,18 +577,18 @@ void W3DMouse::draw()
                     y = Vector3::Find_Y_At_Z(z, rayStart, rayEnd);
                 }
 
-                Matrix3D tm(1);
-                tm.Set_Translation(Vector3(x, y, z));
-                Coord2D offset = { 0, 0 };
-                if (TheInGameUI && TheInGameUI->isScrolling())
-                {
-                    offset = TheInGameUI->getScrollAmount();
-                    offset.normalize();
-                    Real theta = atan2(-offset.y, offset.x);
-                    theta -= (Real)M_PI / 2;
-                    tm.Rotate_Z(theta);
-                }
-                cursorModels[m_currentW3DCursor]->Set_Transform(tm);
+				Matrix3D tm(1);
+				tm.Set_Translation(Vector3(x, y, z));
+				Coord2D offset = {0, 0};
+				if (TheInGameUI && TheInGameUI->isScrolling())
+				{
+					offset = TheInGameUI->getScrollAmount();
+					offset.normalize();
+					Real theta = WWMath::Atan2(-offset.y, offset.x);
+					theta -= (Real)WWMATH_HALF_PI;
+					tm.Rotate_Z(theta);
+				}
+				cursorModels[m_currentW3DCursor]->Set_Transform(tm);
 
                 WW3D::Render(W3DDisplay::m_3DInterfaceScene, m_camera);
             }
@@ -615,62 +617,66 @@ void W3DMouse::setRedrawMode(RedrawMode mode)
 
     m_currentRedrawMode = mode;
 
-    switch (mode)
-    {
-    case RM_WINDOWS:
-    {	//Windows mouse doesn't need an update thread.
-        if (thread.Is_Running())
-            thread.Stop();
-        freeD3DAssets();	//using Windows resources
-        freeW3DAssets();
-        freePolygonAssets();
-        m_currentD3DCursor = NONE;
-        m_currentW3DCursor = NONE;
-        m_currentPolygonCursor = NONE;
-    }
-    break;
+	switch (mode)
+	{
+		case RM_WINDOWS:
+		{
+			//Windows mouse doesn't need an update thread.
+			if (thread.Is_Running())
+				thread.Stop();
+			freeD3DAssets();	//using Windows resources
+			freeW3DAssets();
+			freePolygonAssets();
+			m_currentD3DCursor = NONE;
+			m_currentW3DCursor = NONE;
+			m_currentPolygonCursor = NONE;
+		}
+		break;
 
-    case RM_W3D:
-    {	//Model mouse updated only at render time so doesn't
-        //require thread.
-        if (thread.Is_Running())
-            thread.Stop();
-        freeD3DAssets();	//using packed Image data, not textures.
-        freePolygonAssets();
-        m_currentD3DCursor = NONE;
-        m_currentPolygonCursor = NONE;
-        initW3DAssets();
-    }
-    break;
+		case RM_W3D:
+		{
+			//Model mouse updated only at render time so doesn't
+			//require thread.
+			if (thread.Is_Running())
+				thread.Stop();
+			freeD3DAssets();	//using packed Image data, not textures.
+			freePolygonAssets();
+			m_currentD3DCursor = NONE;
+			m_currentPolygonCursor = NONE;
+			initW3DAssets();
+		}
+		break;
 
-    case RM_POLYGON:
-    {	//Polygon mouse updated only at render time so doesn't
-        //require thread.
-        if (thread.Is_Running())
-            thread.Stop();
-        freeD3DAssets();	//using packed Image data, not textures.
-        freeW3DAssets();
-        m_currentD3DCursor = NONE;
-        m_currentW3DCursor = NONE;
-        m_currentPolygonCursor = NONE;
-        initPolygonAssets();
-    }
-    break;
+		case RM_POLYGON:
+		{
+			//Polygon mouse updated only at render time so doesn't
+			//require thread.
+			if (thread.Is_Running())
+				thread.Stop();
+			freeD3DAssets();	//using packed Image data, not textures.
+			freeW3DAssets();
+			m_currentD3DCursor = NONE;
+			m_currentW3DCursor = NONE;
+			m_currentPolygonCursor = NONE;
+			initPolygonAssets();
+		}
+		break;
 
-    case RM_DX8:
-    {	//this cursor type is drawn by DX8 and can be refreshed
-        //independent of rendering rate.  Uses another thread to do
-        //position updates.
-        initD3DAssets();	//make sure textures loaded.
-        freeW3DAssets();
-        freePolygonAssets();
-        if (!thread.Is_Running())
-            thread.Execute();
-        m_currentW3DCursor = NONE;
-        m_currentPolygonCursor = NONE;
-        break;
-    }
-    }
+		case RM_DX8:
+		{
+			//this cursor type is drawn by DX8 and can be refreshed
+			//independent of rendering rate.  Uses another thread to do
+			//position updates.
+			initD3DAssets();	//make sure textures loaded.
+			freeW3DAssets();
+			freePolygonAssets();
+			if (!thread.Is_Running())
+				thread.Execute();
+			m_currentW3DCursor = NONE;
+			m_currentPolygonCursor = NONE;
+			break;
+		}
+	}
 
     setCursor(NONE);
     setCursor(cursor);
@@ -678,29 +684,29 @@ void W3DMouse::setRedrawMode(RedrawMode mode)
 
 void W3DMouse::setCursorDirection(MouseCursor cursor)
 {
-    Coord2D offset = { 0, 0 };
-    //Check if we have a directional cursor that needs different images for each direction
-    if (m_cursorInfo[cursor].numDirections > 1 && TheInGameUI && TheInGameUI->isScrolling())
-    {
-        offset = TheInGameUI->getScrollAmount();
-        if (offset.x || offset.y)
-        {
-            offset.normalize();
-            Real theta = atan2(offset.y, offset.x);
-            theta = fmod(theta + M_PI * 2, M_PI * 2);
-            Int numDirections = m_cursorInfo[m_currentCursor].numDirections;
-            //Figure out which of our predrawn cursor orientations best matches the
-            //actual cursor direction.  Frame 0 is assumed to point right and continue
-            //clockwise.
-            m_directionFrame = (Int)(theta / (2.0f * M_PI / (Real)numDirections) + 0.5f);
-            if (m_directionFrame >= numDirections)
-                m_directionFrame = 0;
-        }
-        else
-        {
-            m_directionFrame = 0;
-        }
-    }
-    else
-        m_directionFrame = 0;
+	Coord2D offset = {0, 0};
+	//Check if we have a directional cursor that needs different images for each direction
+	if (m_cursorInfo[cursor].numDirections > 1 && TheInGameUI && TheInGameUI->isScrolling())
+	{
+		offset = TheInGameUI->getScrollAmount();
+		if (offset.x || offset.y)
+		{
+			offset.normalize();
+			Real theta = WWMath::Atan2(offset.y, offset.x);
+			theta = fmod(theta+WWMATH_TWO_PI,WWMATH_TWO_PI);
+			Int numDirections=m_cursorInfo[m_currentCursor].numDirections;
+			//Figure out which of our predrawn cursor orientations best matches the
+			//actual cursor direction.  Frame 0 is assumed to point right and continue
+			//clockwise.
+			m_directionFrame=(Int)(theta/(WWMATH_TWO_PI/(Real)numDirections)+0.5f);
+			if (m_directionFrame >= numDirections)
+				m_directionFrame = 0;
+		}
+		else
+		{
+			m_directionFrame=0;
+		}
+	}
+	else
+		m_directionFrame = 0;
 }

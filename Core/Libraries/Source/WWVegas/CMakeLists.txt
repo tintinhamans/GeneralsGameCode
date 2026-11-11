@@ -1,14 +1,11 @@
 # Interface libraries to set common defines and includes, avoid duplication later
 add_library(core_wwcommon INTERFACE)
 
-target_compile_definitions(core_wwcommon INTERFACE
-    #NOMINMAX
-    WIN32_LEAN_AND_MEAN
-)
-
 target_link_libraries(core_wwcommon INTERFACE
     d3d8lib
-    milesstub
+    deps_dbghelp
+    deps_miles
+    deps_usp10
     stlport
 )
 
@@ -22,7 +19,6 @@ add_subdirectory(WWDebug)
 add_subdirectory(WWDownload)
 add_subdirectory(WWLib)
 add_subdirectory(WWMath)
-add_subdirectory(WWSaveLoad)
 add_subdirectory(WWStub)
 
 # Helpful interface to bundle the ww modules together.
@@ -39,5 +35,4 @@ target_link_libraries(core_wwvegas INTERFACE
     # core_wwdownload
     core_wwlib
     core_wwmath
-    core_wwsaveload
 )

@@ -39,6 +39,8 @@ public:
 // Overrides
 	// ClassWizard generated virtual function overrides
 	//{{AFX_VIRTUAL(CWDumpEditView)
+	public:
+	virtual void OnInitialUpdate() override;
 	protected:
 	virtual void OnDraw(CDC* pDC) override;      // overridden to draw this view
 	virtual void OnUpdate(CView* pSender, LPARAM lHint, CObject* pHint) override;
@@ -46,7 +48,7 @@ public:
 
 // Implementation
 protected:
-	virtual ~CWDumpEditView();
+	virtual ~CWDumpEditView() override;
 #ifdef RTS_DEBUG
 	virtual void AssertValid() const override;
 	virtual void Dump(CDumpContext& dc) const override;

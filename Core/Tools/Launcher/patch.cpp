@@ -32,6 +32,7 @@ This is where all the code is for applying various types of patches.
 
 
 #include "patch.h"
+#include <Lib/PathUtil.h>
 #include <shellapi.h>
 #include <direct.h>
 
@@ -120,7 +121,7 @@ BOOL CALLBACK Update_Info_Proc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lPara
 
 
 // Restart the computer for certain types of patches
-void Shutdown_Computer_Now(void);
+void Shutdown_Computer_Now();
 
 
 __declspec(dllexport) LPVOID CALLBACK PatchCallBack(UINT ID, LPVOID Param);
@@ -244,14 +245,8 @@ void Apply_Patch(char *patchfile,ConfigFile &config,int skuIndex)
     // The version is the first integer in the filename
     // Eg: 22456_patch.rtp  means version 22456 goes into the registry
 
-    // The version# starts after the last '\' char
-    char   *cptr=patchfile;
-    char   *tempPtr;
-    DWORD   version;
-    while( (tempPtr=strchr(cptr,'\\')) !=nullptr)
-      cptr=tempPtr+1;
-    if (cptr)
-      version=atol(cptr);
+    // The version# starts after the last path separator
+    DWORD   version=atol(getFileName(patchfile));
     DBGMSG("VERSION TO = "<<version);
 
 
@@ -279,9 +274,18 @@ void Apply_Patch(char *patchfile,ConfigFile &config,int skuIndex)
     regRetval=RegOpenKeyEx(HKEY_LOCAL_MACHINE,path.get(),0,
         KEY_ALL_ACCESS,&regKey);
     if (regRetval!=ERROR_SUCCESS)
+    {
       DBGMSG("Can't open reg key for writing");
-    regRetval=RegSetValueEx(regKey,"Version",0,REG_DWORD,(uint8 *)&version,
-        sizeof(version));
+    }
+    else
+    {
+      regRetval=RegSetValueEx(regKey,"Version",0,REG_DWORD,(uint8 *)&version,sizeof(version));
+      if (regRetval!=ERROR_SUCCESS)
+      {
+        DBGMSG("Can't write Version to reg key");
+      }
+      RegCloseKey(regKey);
+    }
 
 
     // Create blocking DLG for update info
@@ -349,7 +353,7 @@ void Apply_Patch(char *patchfile,ConfigFile &config,int skuIndex)
 
 
 
-void Shutdown_Computer_Now(void)
+void Shutdown_Computer_Now()
 {
   HANDLE hToken;
   TOKEN_PRIVILEGES tkp;

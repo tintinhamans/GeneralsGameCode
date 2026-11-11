@@ -229,7 +229,7 @@ fnColorBarProc
 		{
 			// Get the creation information from the window handle
 			ColorBarClass *pwnd = (ColorBarClass *)::GetProp (hwnd, "CLASSPOINTER");
-			BOOL created = (BOOL)::GetProp (hwnd, "CREATED");
+			BOOL created = (BOOL)(uintptr_t)::GetProp (hwnd, "CREATED");
 
 			if (pwnd != nullptr) {
 				pwnd->Detach ();
@@ -1215,7 +1215,6 @@ ColorBarClass::Paint_Key_Frame (int x_pos, int y_pos)
 	// we take that into account.
 	int alignment_offset = (m_iMarkerWidth * 3) % 4;
 	alignment_offset = (alignment_offset != 0) ? (4 - alignment_offset) : 0;
-	int marker_scanline = (m_iMarkerWidth * 3) + alignment_offset;
 	int width_in_bytes = m_iMarkerWidth * 3;
 
 	if ((m_pBits != nullptr) && (m_pKeyFrameBits != nullptr)) {
@@ -1757,8 +1756,8 @@ ColorBarClass::Get_Color
 	}
 
 	if (found) {
-		int start_pos = m_ColorPoints[key_index].StartPos;
-		int end_pos = m_ColorPoints[key_index].EndPos;
+		//int start_pos = m_ColorPoints[key_index].StartPos;
+		//int end_pos = m_ColorPoints[key_index].EndPos;
 
 		//float ticks = pixel_pos - start_pos) / float(end_pos - start_pos);
 		float ticks = float(pixel_pos) - float(m_ColorPoints[key_index].StartPos);
@@ -1797,7 +1796,7 @@ ColorBarClass::Clear_Points ()
 // Set_User_Data
 //
 bool
-ColorBarClass::Set_User_Data (int index, DWORD data)
+ColorBarClass::Set_User_Data (int index, uintptr_t data)
 {
 	bool retval = false;
 	if ((index >= 0) && (index < m_iColorPoints)) {
@@ -1813,10 +1812,10 @@ ColorBarClass::Set_User_Data (int index, DWORD data)
 //
 // Get_User_Data
 //
-DWORD
+uintptr_t
 ColorBarClass::Get_User_Data (int index)
 {
-	DWORD data = 0;
+	uintptr_t data = 0;
 	if ((index >= 0) && (index < m_iColorPoints)) {
 		data = m_ColorPoints[index].user_data;
 	}

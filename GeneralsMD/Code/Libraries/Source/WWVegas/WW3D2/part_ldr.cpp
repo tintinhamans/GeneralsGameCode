@@ -35,11 +35,11 @@
 
 #include "part_ldr.h"
 #include "part_emt.h"
-#include "WW3D2/w3derr.h"
+#include "w3derr.h"
 #include "WWLib/chunkio.h"
 #include "WWLib/win.h"		// for lstrcpy, can this be improved?
 #include "assetmgr.h"
-#include "WW3D2/texture.h"
+#include "texture.h"
 
 #ifndef SAFE_DELETE
 #define SAFE_DELETE(pointer) { delete pointer; pointer = nullptr; }
@@ -57,10 +57,11 @@
 ParticleEmitterLoaderClass	_ParticleEmitterLoader;
 
 //	This array is declared in "W3D_File.h"
-const char *EMITTER_TYPE_NAMES[EMITTER_TYPEID_COUNT] =
+const char *EMITTER_TYPE_NAMES[] =
 {
 	"Default"
 };
+static_assert(ARRAY_SIZE(EMITTER_TYPE_NAMES) == EMITTER_TYPEID_COUNT, "Incorrect array size");
 
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -267,8 +268,9 @@ ParticleEmitterDefClass::Set_Creation_Volume (Vector3Randomizer *randomizer)
 void
 ParticleEmitterDefClass::Set_User_String (const char *pstring)
 {
-	SAFE_FREE (m_pUserString);
-	m_pUserString = ::_strdup (pstring);
+	char* copy = ::_strdup(pstring);
+	SAFE_FREE(m_pUserString);
+	m_pUserString = copy;
 }
 
 
@@ -279,8 +281,9 @@ ParticleEmitterDefClass::Set_User_String (const char *pstring)
 void
 ParticleEmitterDefClass::Set_Name (const char *pname)
 {
-	SAFE_FREE (m_pName);
-	m_pName = ::_strdup (pname);
+	char* copy = ::_strdup(pname);
+	SAFE_FREE(m_pName);
+	m_pName = copy;
 }
 
 
@@ -307,7 +310,7 @@ ParticleEmitterDefClass::Normalize_Filename ()
 	::lstrcpy (path, m_Info.TextureFilename);
 
 	// Find the last occurrence of the directory deliminator
-	LPCTSTR filename = ::strrchr (path, '\\');
+	LPCTSTR filename = getLastPathSeparator (path);
 	if (filename != nullptr) {
 
 		// Increment past the directory deliminator
@@ -376,7 +379,7 @@ ParticleEmitterDefClass::Load_W3D (ChunkLoadClass &chunk_load)
 				ret_val = Read_Blur_Time_Keyframes(chunk_load);
 				break;
 
-			case W3D_CHUNK_EMITTER_EXTRA_INFO:
+			case W3D_CHUNK_EMITTER_EXTRA_INFO: // Added in Zero Hour
 				ret_val = Read_Extra_Info(chunk_load);
 				break;
 
@@ -1145,11 +1148,13 @@ ParticleEmitterDefClass::Save_W3D (ChunkSaveClass &chunk_save)
 			 (Save_Info (chunk_save) == WW3D_ERROR_OK) &&
 			 (Save_InfoV2 (chunk_save) == WW3D_ERROR_OK) &&
 			 (Save_Props (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_Line_Properties (chunk_save) == WW3D_ERROR_OK) &&
+#if !(RTS_GENERALS && RETAIL_COMPATIBLE_DATA) // TheSuperHackers @info Retail Generals fails to load an emitter that has a line properties chunk.
+			 (Save_Line_Properties (chunk_save) == WW3D_ERROR_OK) && // Added in Zero Hour
+#endif
 			 (Save_Rotation_Keyframes (chunk_save) == WW3D_ERROR_OK) &&
 			 (Save_Frame_Keyframes (chunk_save) == WW3D_ERROR_OK) &&
 			 (Save_Blur_Time_Keyframes (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_Extra_Info (chunk_save) == WW3D_ERROR_OK)
+			 (Save_Extra_Info (chunk_save) == WW3D_ERROR_OK) // Added in Zero Hour
 			)
 		{
 			// Success!

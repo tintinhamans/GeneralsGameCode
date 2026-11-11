@@ -31,7 +31,7 @@
 //******************************************************************************************
 
 #include "dx8webbrowser.h"
-#include "WW3D2/ww3d.h"
+#include "ww3d.h"
 #include "dx8wrapper.h"
 
 #if ENABLE_EMBEDDED_BROWSER
@@ -193,7 +193,7 @@ void	DX8WebBrowser::CreateBrowser(const char* browsername, const char* url, int 
 	if(pBrowser)
 	{
 		_bstr_t brsname(browsername);
-		pBrowser->CreateBrowser(brsname, _bstr_t(url), reinterpret_cast<long>(hWnd), x, y, w, h, options, gamedispatch);
+		pBrowser->CreateBrowser(brsname, _bstr_t(url), (long)(intptr_t)hWnd, x, y, w, h, options, gamedispatch);
 		pBrowser->SetUpdateRate(brsname, updateticks);
 	}
 }
