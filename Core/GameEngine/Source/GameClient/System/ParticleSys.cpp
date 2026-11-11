@@ -330,7 +330,7 @@ Particle::Particle( ParticleSystem *system, const ParticleInfo *info )
 #if defined(GENONLINE_RUN_FAST)
 	m_createTimestamp = TheGameLogic->getFrame();
 #else
-#if defined(GENONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE)
 	m_createTimestamp = TheGameClient->getFrameLegacy();
 #else
 	m_createTimestamp = TheGameClient->getFrame();
@@ -691,7 +691,7 @@ UnsignedInt Particle::getElapsedFrames() const
 #if defined(GENONLINE_RUN_FAST)
 	return TheGameLogic->getFrame() - m_createTimestamp;
 #else
-#if defined(GENONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE)
 	return TheGameClient->getFrameLegacy() - m_createTimestamp;
 #else
 	return TheGameClient->getFrame() - m_createTimestamp;
@@ -1318,7 +1318,7 @@ ParticleSystem::ParticleSystem( const ParticleSystemTemplate *sysTemplate,
 #if defined(GENONLINE_RUN_FAST)
 	m_startTimestamp = TheGameLogic->getFrame();
 #else
-#if defined(GENONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE)
 	m_startTimestamp = TheGameClient->getFrameLegacy();
 #else
 	m_startTimestamp = TheGameClient->getFrame();
@@ -1587,7 +1587,7 @@ void ParticleSystem::attachToDrawable( const Drawable *draw )
 		m_attachedToDrawableID = draw->getID();
 		m_attachedToObjectID = INVALID_ID;
 
-#if defined(GENONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE)
 		// Info: One-frame attached systems can otherwise lose their only burst when the drawable is created and destroyed
 		// between legacy particle updates at 60Hz.
 		if (m_systemLifetimeLeft == 1 && m_delayLeft == 0 && getParticleCount() == 0)
@@ -2122,7 +2122,7 @@ Bool ParticleSystem::update( Int localPlayerIndex  )
 #if defined(GENONLINE_RUN_FAST)
 			m_startTimestamp = TheGameLogic->getFrame();
 #else
-#if defined(GENONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE)
 			m_startTimestamp = TheGameClient->getFrameLegacy();
 #else
 			m_startTimestamp = TheGameClient->getFrame();
@@ -3285,7 +3285,7 @@ void ParticleSystemManager::reset()
 //DECLARE_PERF_TIMER(ParticleSystemManager)
 void ParticleSystemManager::update()
 {
-#if defined(GENONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE)
 	if (!TheGameClient->HasLegacyFrameAdvanced()) {
 		return;
 	}

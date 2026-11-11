@@ -253,7 +253,7 @@ GameLODManager::GameLODManager()
 	m_compositeBenchIndex=0;
 	m_numBenchProfiles=0;
 	m_reallyLowMHz = 400;
-#if defined(GENONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE)
 	m_isQualityReduced = false;
 	m_lowFPSSecondsCount = 0;
 	m_stableFPSSecondsCount = 0;
@@ -799,7 +799,7 @@ Bool GameLODManager::didMemPass()
 	return m_memPassed;
 }
 
-#if defined(GENONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE)
 void GameLODManager::updateGraphicsQualityState(float averageFPS)
 {
 	if (!TheGameLogic || (TheGameLogic->getFrame() % LOGICFRAMES_PER_SECOND) != 0)
@@ -881,4 +881,4 @@ void GameLODManager::restoreQualitySettings()
 	if (TheGameClient)
 		TheGameClient->allocateShadows();
 }
-#endif // GENONLINE_HIGH_FPS_SERVER
+#endif // GENONLINE

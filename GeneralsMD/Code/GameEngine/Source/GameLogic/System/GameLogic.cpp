@@ -254,10 +254,8 @@ GameLogic::GameLogic()
 
 	m_frame = 0;
 	m_hasUpdated = FALSE;
-#if defined(GENONLINE_HIGH_FPS_SERVER)
 	m_frameLegacy = 0;
 	m_frameLegacyLast = 0;
-#endif
 	m_frameObjectsChangedTriggerAreas = 0;
 	m_width = 0;
 	m_height = 0;
@@ -298,10 +296,8 @@ void GameLogic::setDefaults(Bool loadingSaveGame)
 {
 	m_frame = 0;
 	m_hasUpdated = FALSE;
-#if defined(GENONLINE_HIGH_FPS_SERVER)
 	m_frameLegacy = 0;
 	m_frameLegacyLast = 0;
-#endif
 	m_width = DEFAULT_WORLD_WIDTH;
 	m_height = DEFAULT_WORLD_HEIGHT;
 	m_objList = NULL;
@@ -1256,10 +1252,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	m_frame = 0;
 	m_hasUpdated = FALSE;
 
-#if defined(GENONLINE_HIGH_FPS_SERVER)
 	m_frameLegacy = 0;
 	m_frameLegacyLast = 0;
-#endif
 
 #ifdef DEBUG_CRC
 	// TheSuperHackers @info helmutbuhler 04/09/2025
@@ -1460,10 +1454,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 
 	DEBUG_ASSERTCRASH(m_frame == 0, ("framecounter expected to be 0 here"));
 
-#if defined(GENONLINE_HIGH_FPS_SERVER)
 	DEBUG_ASSERTCRASH(m_frameLegacy == 0, ("framecounter expected to be 0 here\n"));
 	DEBUG_ASSERTCRASH(m_frameLegacyLast == 0, ("framecounter expected to be 0 here\n"));
-#endif
 	// before loading the map, load the map.ini file in the same directory.
 	loadMapINI(TheGlobalData->m_mapName);
 
@@ -3896,12 +3888,10 @@ void GameLogic::update()
 	USE_PERF_TIMER(GameLogic_update)
 	PROFILER_SECTION_COLOR(0x4CAF50);
 
-#if defined(GENONLINE_HIGH_FPS_SERVER)
-		if (m_frame % 2 != 0)
+		if (m_frame % LOGICFRAMES_PER_BASEFRAME != 0)
 		{
 			m_frameLegacyLast = m_frameLegacy;
 		}
-#endif
 
 	LatchRestore<Bool> inUpdateLatch(m_isInUpdate, TRUE);
 #ifdef DO_UNIT_TIMINGS
@@ -4156,12 +4146,10 @@ void GameLogic::update()
 	{
 		m_frame++;
 		m_hasUpdated = TRUE;
-#if defined(GENONLINE_HIGH_FPS_SERVER)
-		if (m_frame % 2 == 0)
+		if (m_frame % LOGICFRAMES_PER_BASEFRAME == 0)
 		{
 			m_frameLegacy++;
 		}
-#endif
 	}
 }
 

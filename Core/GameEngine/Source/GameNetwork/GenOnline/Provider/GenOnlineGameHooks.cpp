@@ -307,7 +307,7 @@ void GenOnlineGameHooks::drawNetworkOverlay( DisplayString *text, Int dropColor 
 					text->getSize(&w, &h);
 
 					bool bIsHighQuality = true;
-					if (avgFPS < (GENONLINE_HIGH_FPS_LIMIT - 1) || status.m_cbSentUnackedReliable >= 1000 || (status.m_flConnectionQualityLocal != -1.f && status.m_flConnectionQualityLocal < 1.f) || (status.m_flConnectionQualityRemote != -1.f && status.m_flConnectionQualityRemote < 1.f))
+					if (avgFPS < (LOGICFRAMES_PER_SECOND - 1) || status.m_cbSentUnackedReliable >= 1000 || (status.m_flConnectionQualityLocal != -1.f && status.m_flConnectionQualityLocal < 1.f) || (status.m_flConnectionQualityRemote != -1.f && status.m_flConnectionQualityRemote < 1.f))
 					{
 						bIsHighQuality = false;
 					}

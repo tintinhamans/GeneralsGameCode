@@ -84,11 +84,7 @@ FrameMetrics::~FrameMetrics() {
 }
 
 void FrameMetrics::init() {
-#if defined(GENONLINE_HIGH_FPS_SERVER)
-	m_averageFps = GENONLINE_HIGH_FPS_LIMIT;
-#else
-	m_averageFps = 30;
-#endif
+	m_averageFps = LOGICFRAMES_PER_SECOND;
 
 #if defined(GENONLINE)
 	// NGMP_NOTE: Don't start with the assumption that we have latency. Connections are now formed earlier, so we have latency data earlier too.
@@ -117,11 +113,7 @@ void FrameMetrics::init() {
 
 	UnsignedInt i = 0;
 	for (; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
-#if defined(GENONLINE_HIGH_FPS_SERVER)
-		m_fpsList[i] = GENONLINE_HIGH_FPS_LIMIT;
-#else
-		m_fpsList[i] = 30.0;
-#endif
+		m_fpsList[i] = LOGICFRAMES_PER_SECOND;
 	}
 	m_fpsListIndex = 0;
 	for (i = 0; i < TheGlobalData->m_networkLatencyHistoryLength; ++i)
@@ -278,6 +270,6 @@ Int FrameMetrics::getMinimumCushion() {
 }
 void FrameMetrics::SeedLatencyData(int latency)
 {
-	m_averageFps = GENONLINE_HIGH_FPS_LIMIT;
+	m_averageFps = LOGICFRAMES_PER_SECOND;
 	m_averageLatency = latency / 1000.f;
 }

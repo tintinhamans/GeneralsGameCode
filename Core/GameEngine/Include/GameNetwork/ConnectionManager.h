@@ -59,7 +59,7 @@ public:
 	void SeedLatencyData(int highestLatency)
 	{
 		for (int i = 0; i < MAX_SLOTS; ++i) {
-			m_fpsAverages[i] = GENONLINE_HIGH_FPS_LIMIT;
+			m_fpsAverages[i] = LOGICFRAMES_PER_SECOND;
 		}
 		for (int i = 0; i < MAX_SLOTS; ++i) {
 			m_latencyAverages[i] = highestLatency / 1000.f;
