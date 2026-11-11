@@ -87,9 +87,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_Map(UnicodeString strMap, Ascii
 	ClearAutoReadyCountdown();
 #endif
 
-	if (TheGenOnlineGame)
-		TheGenOnlineGame->AbortStart();
-
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -119,8 +116,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_LimitSuperweapons(bool bLimitSu
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
 	ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame)
-		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -143,8 +138,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_StartingCash(UnsignedInt starti
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame)
-		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -188,8 +181,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_AISide(int slot, int side, int 
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame)
-		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -214,8 +205,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_AITeam(int slot, int team)
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame)
-		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -239,8 +228,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_AIStartPos(int slot, int startp
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame)
-		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -271,8 +258,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobbyMaxCameraHeight(uint16_t maxCame
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
         ClearAutoReadyCountdown();
 #endif
-		if (TheGenOnlineGame)
-			TheGenOnlineGame->AbortStart();
 
 		std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 		std::map<std::string, std::string> mapHeaders;
@@ -321,8 +306,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_AIColor(int slot, int color)
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame)
-		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -347,8 +330,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_MySide(int side, int updatedSta
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame)
-		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -372,8 +353,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_MyColor(int color)
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame)
-		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -396,8 +375,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_MyStartPos(int startpos)
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame)
-		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -420,8 +397,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_MyTeam(int team)
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame)
-		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -1152,14 +1127,6 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 								}
 							}
 
-							// A member joining or leaving aborts a pending start on the host.
-							if (IsHost()
-								&& TheGenOnlineGame != nullptr
-								&& lobbyEntry.current_players != m_CurrentLobby.current_players)
-							{
-								TheGenOnlineGame->AbortStart();
-							}
-
 							// store
 							m_LobbyUpdateAppliedSeq = requestSeq;
 							m_CurrentLobby = lobbyEntry;
@@ -1441,45 +1408,6 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 	return true;
 }
 
-std::vector<int64_t> GenOnlineLobbyInterface::GetHumanLobbyMembers() const
-{
-	std::vector<int64_t> members;
-	for (const auto& member : m_CurrentLobby.members)
-	{
-		if (member.IsHuman())
-		{
-			members.push_back(member.user_id);
-		}
-	}
-	std::sort(members.begin(), members.end());
-	return members;
-}
-
-std::string GenOnlineLobbyInterface::GetLobbyStartSettings() const
-{
-	nlohmann::json settings = {m_CurrentLobby.owner, m_CurrentLobby.map_path, m_CurrentLobby.map_official,
-		m_CurrentLobby.starting_cash, m_CurrentLobby.limit_superweapons, m_CurrentLobby.max_cam_height,
-		m_CurrentLobby.vanilla_teams, m_CurrentLobby.track_stats, m_CurrentLobby.allow_observers, m_CurrentLobby.rng_seed};
-	auto members = m_CurrentLobby.members;
-	std::sort(members.begin(), members.end(), [](const auto& a, const auto& b) { return a.m_SlotIndex < b.m_SlotIndex; });
-	for (const auto& member : members)
-	{
-		if (member.m_SlotState == SlotState::SLOT_OPEN || member.m_SlotState == SlotState::SLOT_CLOSED)
-		{
-			continue;
-		}
-		settings.push_back({member.user_id, member.m_SlotIndex, member.m_SlotState, member.m_bIsReady,
-			member.side, member.color, member.team, member.startpos, member.has_map});
-	}
-	return settings.dump();
-}
-
-bool GenOnlineLobbyInterface::IsCurrentLobbyAttempt(int64_t lobbyID, uint64_t generation, const std::vector<int64_t>& members) const
-{
-	return LobbyConnectionPolicy::IsCurrentAttempt(lobbyID, generation, members, m_CurrentLobby.lobbyID,
-		GetLobbyGeneration(), GetHumanLobbyMembers());
-}
-
 bool GenOnlineLobbyInterface::AreLocalLobbyPeersConnected()
 {
 	auto* auth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
@@ -1591,12 +1519,9 @@ void GenOnlineLobbyInterface::TearDownLocalLobbyState()
 	m_bAttemptingToJoinLobby = false;
 	ResetLobbyTryingToJoin();
 
-	// a mesh connectivity check started for this lobby is meaningless once we've left it; drop it so a
-	// late reply never fires into whatever lobby/menu we end up in next
 	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
 	if (pWS != nullptr)
 	{
-		pWS->ClearConnectivityCheckCallback();
 		pWS->ClearPendingSignals();
 	}
 

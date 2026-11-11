@@ -106,6 +106,18 @@ enum class ELobbyJoinability
 struct LobbyMemberEntry;
 struct LobbyEntry;
 
+// A service lobby event code with the parameters that the code uses.
+struct LobbyEvent
+{
+	std::string event;
+	int64_t duration_ms = 0;
+	std::string reason;
+	int64_t value = 0;
+	bool friends_only = false;
+	int64_t user_id = -1;
+	std::string display_name;
+};
+
 class GenOnlineLobbyInterface
 {
 public:
@@ -283,10 +295,6 @@ public:
 	bool AreLocalLobbyPeersConnected();
 	bool HasFailedLobbyPeers();
 	int RetryFailedLobbyPeers();
-	std::vector<int64_t> GetHumanLobbyMembers() const;
-	std::string GetLobbyStartSettings() const;
-	uint64_t GetLobbyGeneration() const { return m_LobbyJoinGeneration.load(); }
-	bool IsCurrentLobbyAttempt(int64_t lobbyID, uint64_t generation, const std::vector<int64_t>& members) const;
 
 	LobbyEntry& GetCurrentLobby()
 	{
@@ -330,9 +338,9 @@ public:
 		m_callbackStartGamePacket = nullptr;
 	}
 
-	// Receives the reason code of a match start the service refused.
-	std::function<void(const std::string&)> m_callbackStartGameRejected = nullptr;
-	void RegisterForStartGameRejected(std::function<void(const std::string&)> cb)
+	// Receives the reason code of a match start the service refused and the missing links for mesh_incomplete.
+	std::function<void(const std::string&, const std::vector<std::pair<int64_t, int64_t>>&)> m_callbackStartGameRejected = nullptr;
+	void RegisterForStartGameRejected(std::function<void(const std::string&, const std::vector<std::pair<int64_t, int64_t>>&)> cb)
 	{
 		m_callbackStartGameRejected = cb;
 	}
@@ -340,6 +348,17 @@ public:
 	void DeregisterForStartGameRejected()
 	{
 		m_callbackStartGameRejected = nullptr;
+	}
+
+	std::function<void(const LobbyEvent&)> m_callbackLobbyEvent = nullptr;
+	void RegisterForLobbyEvent(std::function<void(const LobbyEvent&)> cb)
+	{
+		m_callbackLobbyEvent = cb;
+	}
+
+	void DeregisterForLobbyEvent()
+	{
+		m_callbackLobbyEvent = nullptr;
 	}
 
 	// periodically force refresh the lobby for data accuracy

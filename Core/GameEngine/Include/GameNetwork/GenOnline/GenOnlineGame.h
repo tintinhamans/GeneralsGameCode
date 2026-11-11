@@ -4,14 +4,12 @@
 
 class LobbyEntry;
 
-// The host walks the phases in order. A client only ever sees Idle and Starting.
+// The host walks the phases in order. A client skips StartRequested.
 enum class EStartPhase
 {
 	Idle,
-	Checking,
-	Countdown,
-	FinalCheck,
 	StartRequested,
+	Countdown,
 	Starting
 };
 
@@ -76,43 +74,30 @@ private:
 	Int m_reportedNumObservers;
 
 	bool m_bHasCommittedOutcome = false;
-	uint64_t m_startAttempt = 0;
 	EStartPhase m_startPhase = EStartPhase::Idle;
 	int64_t m_startPhaseTime = -1;
 
 	std::chrono::system_clock::time_point matchStartTime;
 
-	int64_t m_countdownLastCheckTime = -1;
+	std::chrono::steady_clock::time_point m_countdownEnd;
 
 public:
 	GenOnlineGame();
 	virtual ~GenOnlineGame();
 	virtual void reset(void);
 
-	// Idle, Checking and FinalCheck start a new attempt so a reply for an older attempt is dropped.
-	uint64_t SetStartPhase(EStartPhase phase);
+	void SetStartPhase(EStartPhase phase);
 	// A start the service confirmed is not aborted.
 	void AbortStart();
 	EStartPhase GetStartPhase() const { return m_startPhase; }
 	int64_t GetStartPhaseTime() const { return m_startPhaseTime; }
-	uint64_t GetStartAttempt() const { return m_startAttempt; }
 
 	bool HasCommittedOutcome() const { return m_bHasCommittedOutcome; }
 	void SetHasCommittedOutcome() { m_bHasCommittedOutcome = true; }
 
-	void StartCountdown();
-
-	void UpdateCountdownLastCheckTime();
-
-	int GetTotalCountdownDuration()
-	{
-		return 5;
-	}
-
-	int64_t GetCountdownLastCheckTime()
-	{
-		return m_countdownLastCheckTime;
-	}
+	// The countdown ends the given time after its event arrived, measured on the local monotonic clock.
+	void StartCountdown(int64_t durationMs);
+	int64_t GetCountdownRemainingMs() const;
 
 	void StartMatchTimer() { matchStartTime = std::chrono::system_clock::now(); }
 	std::chrono::system_clock::time_point GetStartTime() { return matchStartTime; }
