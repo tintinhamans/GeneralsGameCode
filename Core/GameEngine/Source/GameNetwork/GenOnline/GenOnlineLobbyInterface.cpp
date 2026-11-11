@@ -88,7 +88,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_Map(UnicodeString strMap, Ascii
 #endif
 
 	if (TheGenOnlineGame)
-		TheGenOnlineGame->StopCountdown();
+		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -120,7 +120,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_LimitSuperweapons(bool bLimitSu
 	ClearAutoReadyCountdown();
 #endif
 	if (TheGenOnlineGame)
-		TheGenOnlineGame->StopCountdown();
+		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -144,7 +144,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_StartingCash(UnsignedInt starti
     ClearAutoReadyCountdown();
 #endif
 	if (TheGenOnlineGame)
-		TheGenOnlineGame->StopCountdown();
+		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -189,7 +189,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_AISide(int slot, int side, int 
     ClearAutoReadyCountdown();
 #endif
 	if (TheGenOnlineGame)
-		TheGenOnlineGame->StopCountdown();
+		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -215,7 +215,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_AITeam(int slot, int team)
     ClearAutoReadyCountdown();
 #endif
 	if (TheGenOnlineGame)
-		TheGenOnlineGame->StopCountdown();
+		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -240,7 +240,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_AIStartPos(int slot, int startp
     ClearAutoReadyCountdown();
 #endif
 	if (TheGenOnlineGame)
-		TheGenOnlineGame->StopCountdown();
+		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -272,7 +272,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobbyMaxCameraHeight(uint16_t maxCame
         ClearAutoReadyCountdown();
 #endif
 		if (TheGenOnlineGame)
-			TheGenOnlineGame->StopCountdown();
+			TheGenOnlineGame->AbortStart();
 
 		std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 		std::map<std::string, std::string> mapHeaders;
@@ -322,7 +322,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_AIColor(int slot, int color)
     ClearAutoReadyCountdown();
 #endif
 	if (TheGenOnlineGame)
-		TheGenOnlineGame->StopCountdown();
+		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -348,7 +348,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_MySide(int side, int updatedSta
     ClearAutoReadyCountdown();
 #endif
 	if (TheGenOnlineGame)
-		TheGenOnlineGame->StopCountdown();
+		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -373,7 +373,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_MyColor(int color)
     ClearAutoReadyCountdown();
 #endif
 	if (TheGenOnlineGame)
-		TheGenOnlineGame->StopCountdown();
+		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -397,7 +397,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_MyStartPos(int startpos)
     ClearAutoReadyCountdown();
 #endif
 	if (TheGenOnlineGame)
-		TheGenOnlineGame->StopCountdown();
+		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -421,7 +421,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_MyTeam(int team)
     ClearAutoReadyCountdown();
 #endif
 	if (TheGenOnlineGame)
-		TheGenOnlineGame->StopCountdown();
+		TheGenOnlineGame->AbortStart();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -856,7 +856,7 @@ void GenOnlineLobbyInterface::Tick()
 					UpdateCurrentLobby_ForceReady();
 					ClearAutoReadyCountdown();
 					if (TheGenOnlineGame)
-						TheGenOnlineGame->StopCountdown();
+						TheGenOnlineGame->AbortStart();
 				}
 			}
 		}
@@ -1152,13 +1152,12 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 								}
 							}
 
-							// stop countdown if player count actually decreased and we're the host
+							// A member joining or leaving aborts a pending start on the host.
 							if (IsHost()
 								&& TheGenOnlineGame != nullptr
-								&& TheGenOnlineGame->IsCountdownStarted()
-								&& lobbyEntry.current_players < m_CurrentLobby.current_players)
+								&& lobbyEntry.current_players != m_CurrentLobby.current_players)
 							{
-								TheGenOnlineGame->StopCountdown();
+								TheGenOnlineGame->AbortStart();
 							}
 
 							// store
