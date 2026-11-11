@@ -67,13 +67,13 @@
 #include "GameNetwork/GUIUtil.h"
 #include "GameNetwork/GameSpy/GSConfig.h"
 
-#include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
+#include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include <ws2ipdef.h>
 #include <format>
 #include <cmath>
-#include "../OnlineServices_Init.h"
+#include "../GenOnlineInit.h"
 #include "GameLogic/GameLogic.h"
-NGMPGame* TheNGMPGame = NULL;
+GenOnlineGame* TheGenOnlineGame = NULL;
 
 void WOLDisplaySlotList( void );
 static void WOLRefreshConnectionIndicators( void );
@@ -205,7 +205,7 @@ static NameKeyType buttonChatID = NAMEKEY_INVALID;
 static NameKeyType buttonSelectMapID = NAMEKEY_INVALID;
 static NameKeyType windowMapID = NAMEKEY_INVALID;
 
-#if defined(GENERALS_ONLINE_ENABLE_MATCH_START_COUNTDOWN)
+#if defined(GENONLINE_ENABLE_MATCH_START_COUNTDOWN)
 static bool s_matchStartCountdownWasRunning = false;
 #endif
 
@@ -277,15 +277,15 @@ void PopBackToLobby()
 		TheNAT = NULL;
 	}
 
-	if (TheNGMPGame) // this can be blown away by a disconnect on the map transfer screen
+	if (TheGenOnlineGame) // this can be blown away by a disconnect on the map transfer screen
 	{
-		TheNGMPGame->reset();
+		TheGenOnlineGame->reset();
 
 
 	}
 
 	DEBUG_LOG(("PopBackToLobby() - parentWOLGameSetup is %X", parentWOLGameSetup));
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface != nullptr)
 	{
 		pLobbyInterface->LeaveCurrentLobby();
@@ -344,27 +344,27 @@ void WOLPositionStartSpots()
 	} else {
 		DEBUG_ASSERTCRASH(win != NULL, ("no map preview window"));
 
-		AsciiString map = TheNGMPGame->getMap();
+		AsciiString map = TheGenOnlineGame->getMap();
 		positionStartSpots( map, buttonMapStartPosition, win);
 	}
 }
 static void savePlayerInfo()
 {
-	if (TheNGMPGame)
+	if (TheGenOnlineGame)
 	{
-		Int slotNum = TheNGMPGame->getLocalSlotNum();
+		Int slotNum = TheGenOnlineGame->getLocalSlotNum();
 		if (slotNum >= 0)
 		{
-			NGMPGameSlot *slot = TheNGMPGame->getGameSpySlot(slotNum);
+			GenOnlineGameSlot *slot = TheGenOnlineGame->getGameSpySlot(slotNum);
 			if (slot)
 			{
 				// save off some prefs
 				CustomMatchPreferences pref;
 				pref.setPreferredColor(slot->getColor());
 				pref.setPreferredFaction(slot->getPlayerTemplate());
-				if (TheNGMPGame->amIHost())
+				if (TheGenOnlineGame->amIHost())
 				{
-					pref.setPreferredMap(TheNGMPGame->getMap());
+					pref.setPreferredMap(TheGenOnlineGame->getMap());
 				}
 				pref.write();
 			}
@@ -393,21 +393,21 @@ static void playerTooltip(GameWindow *window,
 		return;
 	}
 
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface == nullptr)
 	{
 		TheMouse->setCursorTooltip(UnicodeString::TheEmptyString, -1, NULL, 1.5f);
 		return;
 	}
 
-	NGMPGame* game = pLobbyInterface->GetCurrentGame();
+	GenOnlineGame* game = pLobbyInterface->GetCurrentGame();
 	if (!game)
 	{
 		TheMouse->setCursorTooltip( UnicodeString::TheEmptyString, -1, NULL, 1.5f );
 		return;
 	}
 
-	NGMPGameSlot *slot = game->getGameSpySlot(slotIdx);
+	GenOnlineGameSlot *slot = game->getGameSpySlot(slotIdx);
 	if (!slot || !slot->isHuman())
 	{
 		TheMouse->setCursorTooltip( UnicodeString::TheEmptyString, -1, NULL, 1.5f );
@@ -439,7 +439,7 @@ static void playerTooltip(GameWindow *window,
 
 	//TheMouse->setCursorTooltip(UnicodeString(L"Retrieving User Stats..."), -1, NULL, 1.5f);
 
-	NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
+	GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
 	if (pStatsInterface == nullptr)
 	{
 		return;
@@ -506,9 +506,9 @@ static void playerTooltip(GameWindow *window,
 				}
 			}
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	int64_t localPlayerID = -1;
-	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	if (pAuthInterface != nullptr)
 	{
 		localPlayerID = pAuthInterface->GetUserID();
@@ -525,9 +525,9 @@ static void playerTooltip(GameWindow *window,
 
 	if (localPlayerID != slot->m_userID)
 	{
-		if (NGMP_OnlineServicesManager::GetNetworkMesh() != nullptr)
+		if (GenOnlineServicesManager::GetNetworkMesh() != nullptr)
 		{
-			PlayerConnection* pConnection = NGMP_OnlineServicesManager::GetNetworkMesh()->GetConnectionForUser(slot->m_userID);
+			PlayerConnection* pConnection = GenOnlineServicesManager::GetNetworkMesh()->GetConnectionForUser(slot->m_userID);
 
 			if (pConnection != nullptr)
 			{
@@ -626,7 +626,7 @@ static void playerTooltip(GameWindow *window,
 
 			tooltip.concat(playerInfo);
 
-			NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+			GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 			if (pAuthInterface != nullptr && pRoomsInterface != nullptr)
 			{
 				NetworkRoomMember* localMember = pRoomsInterface->GetRoomMemberFromID(pAuthInterface->GetUserID());
@@ -691,9 +691,9 @@ static void handleColorSelection(int index)
 	GadgetComboBoxGetSelectedPos(combo, &selIndex);
 	color = (Int)(intptr_t)GadgetComboBoxGetItemData(combo, selIndex);
 
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
-	NGMPGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+	GenOnlineGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 
 	if (myGame)
 	{
@@ -726,7 +726,7 @@ static void handleColorSelection(int index)
 		//slot->setColor(color);
 
 		// NGMP: Update lobby (if local, for remote players we'll get it from the service)
-		NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+		GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
 		if (index == myGame->getLocalSlotNum())
 		{
@@ -754,8 +754,8 @@ static void handlePlayerTemplateSelection(int index, bool bInitialSetup = false)
 
 	if (!bInitialSetup)
 	{
-		NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-		NGMPGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+		GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+		GenOnlineGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 
 		if (myGame)
 		{
@@ -801,12 +801,12 @@ static void handlePlayerTemplateSelection(int index, bool bInitialSetup = false)
 
 static void handleStartPositionSelection(Int player, int startPos)
 {
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-	NGMPGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	GenOnlineGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 
 	if (myGame)
 	{
-		NGMPGameSlot * slot = myGame->getGameSpySlot(player);
+		GenOnlineGameSlot * slot = myGame->getGameSpySlot(player);
 		if (!slot)
 			return;
 
@@ -858,8 +858,8 @@ static void handleTeamSelection(int index)
 	GadgetComboBoxGetSelectedPos(combo, &selIndex);
 	team = (Int)(intptr_t)GadgetComboBoxGetItemData(combo, selIndex);
 
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-	NGMPGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	GenOnlineGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 
 	if (myGame)
 	{
@@ -884,7 +884,7 @@ static void handleTeamSelection(int index)
 
 static void handleStartingCashSelection()
 {
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 // update it on the service
 	Int selIndex;
 	GadgetComboBoxGetSelectedPos(comboBoxStartingCash, &selIndex);
@@ -894,7 +894,7 @@ static void handleStartingCashSelection()
 	Money startingCash;
 	startingCash.deposit(startingCashValue, FALSE);
 
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface != nullptr)
 	{
 		pLobbyInterface->UpdateCurrentLobby_StartingCash(startingCashValue);
@@ -925,11 +925,11 @@ static void handleStartingCashSelection()
 static void handleLimitSuperweaponsClick()
 {
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	// update it on the service
 	bool bLimitSuperweapons = GadgetCheckBoxIsChecked(checkBoxLimitSuperweapons);
 
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface != nullptr)
 	{
 		pLobbyInterface->UpdateCurrentLobby_LimitSuperweapons(bLimitSuperweapons);
@@ -984,14 +984,14 @@ static void StartPressed()
 	Int playerCount = 0;
 	Int humanCount = 0;
 
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-	NGMPGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	GenOnlineGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 
 	if (pLobbyInterface == nullptr || !myGame || pAuthInterface == nullptr)
 		return;
 
-	NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
 	if (pMesh == nullptr)
 	{
 		return;
@@ -1154,7 +1154,7 @@ static void StartPressed()
 		UnicodeString strInform = UnicodeString(L"Connections: Checking all players...");
 		GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(255, 194, 15, 255), -1, -1);
 
-		std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
+		std::shared_ptr<WebSocket>  pWS = GenOnlineServicesManager::GetWebSocket();
 		if (pWS != nullptr)
 		{
 			if (buttonStart != nullptr)
@@ -1170,7 +1170,7 @@ static void StartPressed()
 						GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(0, 255, 0, 255), -1, -1);
 
 						// reset autostart just incase
-#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
+#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
 						pLobbyInterface->ClearAutoReadyCountdown();
 #endif
 
@@ -1178,28 +1178,28 @@ static void StartPressed()
 						//req.peerRequestType = PeerRequest::PEERREQUEST_STARTGAME;
 						//TheGameSpyPeerMessageQueue->addRequest(req);
 
-#if !defined(GENERALS_ONLINE_ENABLE_MATCH_START_COUNTDOWN)
+#if !defined(GENONLINE_ENABLE_MATCH_START_COUNTDOWN)
 						Lobby_StartGamePacket startGamePacket;
 						pLobbyInterface->SendToMesh(startGamePacket);
 
 						// process locally too
-						NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+						NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
 						if (pMesh != nullptr)
 						{
 							Lobby_StartGamePacket startGamePacket2;
 							pMesh->ProcessGameStart(startGamePacket2);
 						}
 #else
-						if (TheNGMPGame != nullptr)
+						if (TheGenOnlineGame != nullptr)
 						{
-							if (!TheNGMPGame->IsCountdownStarted())
+							if (!TheGenOnlineGame->IsCountdownStarted())
 							{
 								// remote msg
 								UnicodeString strInform;
-								strInform.format(TheGameText->fetch("LAN:GameStartTimerPlural"), TheNGMPGame->GetTotalCountdownDuration());
+								strInform.format(TheGameText->fetch("LAN:GameStartTimerPlural"), TheGenOnlineGame->GetTotalCountdownDuration());
 								pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform, true);
 
-								TheNGMPGame->StartCountdown();
+								TheGenOnlineGame->StartCountdown();
 								buttonSelectMap->winEnable(FALSE);		
 							}
 						}
@@ -1219,7 +1219,7 @@ static void StartPressed()
 							GadgetListBoxAddEntryText(listboxGameSetupChat, strReasonLine, GameMakeColor(255, 194, 15, 255), -1, -1);
 						}
 
-						NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+						GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
 						// who is missing who?
 						//std::list<std::pair<int64_t, int64_t>> missingConnections
@@ -1268,7 +1268,7 @@ static void StartPressed()
 	{
 		// send HWS chat message
 
-#if defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
+#if defined(GENONLINE_DISABLE_AUTO_ACCEPT)
 		// local msg
 		GadgetListBoxAddEntryText(listboxGameSetupChat, TheGameText->fetch("GUI:NotifiedStartIntent"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
 
@@ -1311,8 +1311,8 @@ void WOLDisplayGameOptions()
 	if (!parentWOLGameSetup)
 		return;
 
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-	NGMPGame* theGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	GenOnlineGame* theGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 
 	if (pLobbyInterface == nullptr || theGame == nullptr)
 	{
@@ -1331,7 +1331,7 @@ void WOLDisplayGameOptions()
 	}
 	else
 	{
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 		AsciiString s = theGame->getMap();
 #else
 		AsciiString s = TheGameSpyInfo->getCurrentStagingRoom()->getMap();
@@ -1343,8 +1343,8 @@ void WOLDisplayGameOptions()
 	WOLPositionStartSpots();
 	updateMapStartSpots(theGame, buttonMapStartPosition);
 
-#if defined(GENERALS_ONLINE)
-	Bool isUsingStats = TheNGMPGame->getUseStats();
+#if defined(GENONLINE)
+	Bool isUsingStats = TheGenOnlineGame->getUseStats();
 #else
   //If our display does not match the current state of game settings, update the checkbox.
   Bool isUsingStats = TheGameSpyInfo->getCurrentStagingRoom()->getUseStats() ? TRUE : FALSE;
@@ -1417,16 +1417,16 @@ static Int WOLUpdateConnectionLevel(Int level, Int score)
 
 static void WOLRefreshConnectionIndicators(void)
 {
-    NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-    NGMPGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+    GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+    GenOnlineGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
     if (pLobbyInterface == nullptr || game == nullptr || !game->isInGame())
         return;
 
-    NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+    NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
 
     for (Int i = 0; i < MAX_SLOTS; ++i)
     {
-        NGMPGameSlot* slot = game->getGameSpySlot(i);
+        GenOnlineGameSlot* slot = game->getGameSpySlot(i);
         if (slot == nullptr || !slot->isHuman() || i == game->getLocalSlotNum())
         {
             if (genericPingWindow[i])
@@ -1548,8 +1548,8 @@ void WOLDisplaySlotList(void)
     //if (!parentWOLGameSetup || !TheGameSpyInfo->getCurrentStagingRoom())
     //	return;
 
-    NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-    NGMPGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+    GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+    GenOnlineGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
     if (pLobbyInterface == nullptr || game == nullptr || !game->isInGame())
         return;
 
@@ -1562,12 +1562,12 @@ void WOLDisplaySlotList(void)
 
     for (Int i = 0; i < MAX_SLOTS; ++i)
     {
-        NGMPGameSlot* slot = game->getGameSpySlot(i);
+        GenOnlineGameSlot* slot = game->getGameSpySlot(i);
         if (slot && slot->isHuman())
         {
             // Determine friends and blocked players in lobby setup and highlight them
             Color nameColor = GameSpyColor[GSCOLOR_PLAYER_NORMAL];
-            NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+            GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 
             if (pSocialInterface != nullptr && pSocialInterface->IsUserFriend(slot->m_userID))
             {
@@ -1596,8 +1596,8 @@ void InitWOLGameGadgets()
 {
 	ClearGSMessageBoxes();
 
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-	NGMPGame* theGameInfo = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	GenOnlineGame* theGameInfo = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 
 	if (theGameInfo == nullptr || pLobbyInterface == nullptr)
 	{
@@ -1644,7 +1644,7 @@ void InitWOLGameGadgets()
   comboBoxStartingCash = TheWindowManager->winGetWindowFromId( parentWOLGameSetup, comboBoxStartingCashID );
   DEBUG_ASSERTCRASH(windowMap, ("Could not find the GameSpyGameOptionsMenu.wnd:ComboBoxStartingCash" ));
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
   PopulateStartingCashComboBox(comboBoxStartingCash, theGameInfo);
 #else
   PopulateStartingCashComboBox( comboBoxStartingCash, TheGameSpyGame );
@@ -1657,7 +1657,7 @@ void InitWOLGameGadgets()
   // Ditto use stats
   checkBoxUseStats->winEnable( false );
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
   Int isUsingStats = theGameInfo->getUseStats();
 #else
   Int isUsingStats = TheGameSpyGame->getUseStats();
@@ -1667,7 +1667,7 @@ void InitWOLGameGadgets()
   GadgetCheckBoxSetChecked(checkBoxUseStats, isUsingStats );
   checkBoxUseStats->winSetTooltip( TheGameText->fetch( isUsingStats ? "TOOLTIP:UseStatsOn" : "TOOLTIP:UseStatsOff" ) );
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
   if (!pLobbyInterface->IsHost())
 #else
   if ( !TheGameSpyGame->amIHost() )
@@ -1678,7 +1678,7 @@ void InitWOLGameGadgets()
 		NameKeyType labelID = TheNameKeyGenerator->nameToKey("GameSpyGameOptionsMenu.wnd:StartingCashLabel");
 		TheWindowManager->winGetWindowFromId(parentWOLGameSetup, labelID)->winEnable( FALSE );
   }
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
   else
   {
 	  checkBoxLimitSuperweapons->winEnable(true);
@@ -1687,7 +1687,7 @@ void InitWOLGameGadgets()
 #endif
 
 
-#if !defined(GENERALS_ONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES)
+#if !defined(GENONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES)
 	if (isUsingStats)
 	{
 		// Recorded stats games can never limit superweapons, limit armies, or have inflated starting cash.
@@ -1705,7 +1705,7 @@ void InitWOLGameGadgets()
 	GameWindow *staticTextTitle = TheWindowManager->winGetWindowFromId( parentWOLGameSetup, staticTextTitleID );
 	if (staticTextTitle)
 	{
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 		GadgetStaticTextSetText(staticTextTitle, theGameInfo->getGameName());
 #else
 		GadgetStaticTextSetText(staticTextTitle, TheGameSpyGame->getGameName());
@@ -1748,7 +1748,7 @@ void InitWOLGameGadgets()
 		else
 		{
 			// Local player, so add the local player name
-			NGMPGameSlot* slot = theGameInfo->getGameSpySlot(i);
+			GenOnlineGameSlot* slot = theGameInfo->getGameSpySlot(i);
 			if (slot)
 			{
 				GadgetComboBoxAddEntry(comboBoxPlayer[i], slot->getName(), GameSpyColor[GSCOLOR_PLAYER_NORMAL]);
@@ -1820,7 +1820,7 @@ void InitWOLGameGadgets()
 		//GadgetButtonSetEnabledColor(buttonAccept[0], GameSpyColor[GSCOLOR_ACCEPT_TRUE]);
 
 		// TODO_NGMP: Where does this happen in the normal game?
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	for (Int i = 0; i < MAX_SLOTS; i++)
 	{
 		PopulatePlayerTemplateComboBox(i, comboBoxPlayerTemplate, theGameInfo, TRUE);
@@ -1874,7 +1874,7 @@ Bool initialAcceptEnable = FALSE;
 //-------------------------------------------------------------------------------------------------
 void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 {
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface == nullptr)
 	{
 		return;
@@ -1899,7 +1899,7 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 		});
 
 	// connection events (for debug really)
-	NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
 	if (pMesh != nullptr)
 	{
 		pMesh->RegisterForConnectionEvents([](int64_t userID, std::wstring strDisplayName, PlayerConnection* connection)
@@ -1971,7 +1971,7 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 		{
 			// tell the host the user doesn't have the map
 			UnicodeString mapDisplayName;
-			const MapMetaData* mapData = TheMapCache->findMap(TheNGMPGame->getMap());
+			const MapMetaData* mapData = TheMapCache->findMap(TheGenOnlineGame->getMap());
 			Bool willTransfer = TRUE;
 			if (mapData)
 			{
@@ -1980,8 +1980,8 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 			}
 			else
 			{
-				mapDisplayName.translate(TheNGMPGame->getMap().str());
-				willTransfer = WouldMapTransfer(TheNGMPGame->getMap());
+				mapDisplayName.translate(TheGenOnlineGame->getMap().str());
+				willTransfer = WouldMapTransfer(TheGenOnlineGame->getMap());
 			}
 
 			UnicodeString strDisplayName(from_utf8(lobbyMember.display_name).c_str());
@@ -2005,17 +2005,17 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 
 	pLobbyInterface->RegisterForGameStartPacket([]()
 		{
-			NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-			NGMPGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			GenOnlineGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 
 			if (pLobbyInterface == nullptr || !myGame || !myGame->isInGame())
 				return;
 
-			if (!TheNGMPGame)
+			if (!TheGenOnlineGame)
 				return;
 
 			// TODO_NGMP
-			//SendStatsToOtherPlayers(TheNGMPGame);
+			//SendStatsToOtherPlayers(TheGenOnlineGame);
 
 			GameWindow* buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
 			if (buttonBuddy)
@@ -2023,16 +2023,16 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 			GameSpyCloseOverlay(GSOVERLAY_BUDDY);
 			GameSpyCloseOverlay(GSOVERLAY_PLAYERINFO);
 
-			*TheNGMPGame = *myGame;
-			TheNGMPGame->startGame(0);
+			*TheGenOnlineGame = *myGame;
+			TheGenOnlineGame->startGame(0);
 		});
 
 
-	if (TheNGMPGame == nullptr || (TheNGMPGame && TheNGMPGame->isGameInProgress()))
+	if (TheGenOnlineGame == nullptr || (TheGenOnlineGame && TheGenOnlineGame->isGameInProgress()))
 	{
-		if (TheNGMPGame != nullptr)
+		if (TheGenOnlineGame != nullptr)
 		{
-			TheNGMPGame->setGameInProgress(FALSE);
+			TheGenOnlineGame->setGameInProgress(FALSE);
 		}
 
 		pLobbyInterface->LeaveCurrentLobby();
@@ -2073,7 +2073,7 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 		return;
 	}
 
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 	TheGameSpyInfo->setCurrentGroupRoom(0);
 #endif
 
@@ -2096,13 +2096,13 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 	TheMapCache->updateCache();
 
 	// TODO_NGMP
-	NGMPGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+	GenOnlineGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 	if (game == nullptr)
 	{
 		return;
 	}
 
-	NGMPGameSlot* hostSlot = game->getGameSpySlot(0);
+	GenOnlineGameSlot* hostSlot = game->getGameSpySlot(0);
 	hostSlot->setAccept();
 
 	bool bIsHost = pLobbyInterface->IsHost();
@@ -2127,15 +2127,15 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 
 	// Recorded stats games can never limit superweapons, limit armies, or have inflated starting cash.
 		// This should probably be enforced at the gamespy level as well, to prevent expoits.
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 		Int isUsingStats = TheGameSpyGame->getUseStats();
 #else
-#if !defined(GENERALS_ONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES)
+#if !defined(GENONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES)
 		Int isUsingStats = game->getUseStats();
 #endif
 #endif
 
-#if !defined(GENERALS_ONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES)
+#if !defined(GENONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES)
 		game->setStartingCash( isUsingStats? TheMultiplayerSettings->getDefaultStartingMoney() : customPref.getStartingCash() );
 		game->setSuperweaponRestriction( isUsingStats? 0 : customPref.getSuperweaponRestricted() ? 1 : 0 );
 		if (isUsingStats)
@@ -2160,7 +2160,7 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 
 		for (Int i=1; i<MAX_SLOTS; ++i)
 		{
-			NGMPGameSlot *slot = game->getGameSpySlot(i);
+			GenOnlineGameSlot *slot = game->getGameSpySlot(i);
 			slot->setState( SLOT_OPEN );
 		}
 
@@ -2264,13 +2264,13 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 	TheTransitionHandler->setGroup("GameSpyGameOptionsMenuFade");
 	TheWindowManager->winSetFocus(textEntryChat);
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 // NGMP: Did we just enter a lobby with modified camera height?
 	// if (pLobbyInterface->IsInLobby())
 	{
 		LobbyEntry& theLobby = pLobbyInterface->GetCurrentLobby();
 
-		if (theLobby.max_cam_height != GENERALS_ONLINE_DEFAULT_LOBBY_CAMERA_ZOOM)
+		if (theLobby.max_cam_height != GENONLINE_DEFAULT_LOBBY_CAMERA_ZOOM)
 		{
 
 
@@ -2298,18 +2298,18 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
         }
     }
     
-    if (TheNGMPGame != nullptr)
+    if (TheGenOnlineGame != nullptr)
 	{
-		if (!TheNGMPGame->getAllowObservers())
+		if (!TheGenOnlineGame->getAllowObservers())
 		{
 			GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Observers: Disabled by the host."), GameMakeColor(192, 192, 192, 255), -1, -1);
 		}
 	}
 #endif
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
     // Update the communicator button anytime we get notifications
-    NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+    GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
     if (pSocialInterface != nullptr)
     {
         // notifiactions callback
@@ -2375,7 +2375,7 @@ static void shutdownComplete( WindowLayout *layout )
 	/*
 	if (launchGameNext)
 	{
-		TheNGMPGame->launchGame();
+		TheGenOnlineGame->launchGame();
 		TheGameSpyInfo->leaveStagingRoom();
 	}
 	*/
@@ -2389,7 +2389,7 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void WOLGameSetupMenuShutdown( WindowLayout *layout, void *userData )
 {
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
 	if (pLobbyInterface != nullptr)
 	{
@@ -2400,14 +2400,14 @@ void WOLGameSetupMenuShutdown( WindowLayout *layout, void *userData )
 		pLobbyInterface->DeregisterForGameStartPacket();
 	}
 	
-	NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
 	if (pMesh != nullptr)
 	{
 		pMesh->DeregisterForConnectionEvents();
 	}
 
 	// drop any in-flight mesh connectivity check so a late reply never fires into this now-dead menu
-	std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
+	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
 	if (pWS != nullptr)
 	{
 		pWS->ClearConnectivityCheckCallback();
@@ -2470,10 +2470,10 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 	WOLRefreshConnectionIndicators();
 
 	// need to exit?
-	if (NGMP_OnlineServicesManager::GetInstance() != nullptr && NGMP_OnlineServicesManager::GetInstance()->IsPendingFullTeardown())
+	if (GenOnlineServicesManager::GetInstance() != nullptr && GenOnlineServicesManager::GetInstance()->IsPendingFullTeardown())
 	{
 		// Only if not in game and not in anim
-		if ((TheNGMPGame == nullptr || !TheNGMPGame->isGameInProgress()) && TheShell->isAnimFinished() && TheTransitionHandler->isFinished())
+		if ((TheGenOnlineGame == nullptr || !TheGenOnlineGame->isGameInProgress()) && TheShell->isAnimFinished() && TheTransitionHandler->isFinished())
 		{
 			bool bForceShutdown = true;
 			WOLGameSetupMenuShutdown(layout, (void*)&bForceShutdown); // userdata is 'force shutdown'
@@ -2500,12 +2500,12 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
         PopBackToLobby();
 	}
 
-	if (NGMP_OnlineServicesManager::GetInstance() != nullptr)
+	if (GenOnlineServicesManager::GetInstance() != nullptr)
 	{
-		NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+		GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 		if (pLobbyInterface != nullptr)
 		{
-			ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
+			ServiceConfig& serviceConf = GenOnlineServicesManager::GetInstance()->GetServiceConfig();
 			bool bHostMigrationEnabledOnService = serviceConf.enable_host_migration;
 
 			if (bHostMigrationEnabledOnService)
@@ -2515,7 +2515,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 					pLobbyInterface->m_bHostMigrated = false;
 
 					// If we are in-game, nothing to do here, the game handles it for us
-					if (!TheNGMPGame->isGameInProgress()) // in progress is in game, ingame is just in lobby
+					if (!TheGenOnlineGame->isGameInProgress()) // in progress is in game, ingame is just in lobby
 					{
 						// TODO_NGMP: Make sure we did a lobby get first
 						// did we become the host?
@@ -2562,12 +2562,12 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 						}
 					}
 
-					TheNGMPGame->UpdateSlotsFromCurrentLobby();
+					TheGenOnlineGame->UpdateSlotsFromCurrentLobby();
 
 					WOLDisplaySlotList();
 
 					// Force a refresh to get latest lobby data
-					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+					GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 					if (pLobbyInterface != nullptr)
 					{
 						pLobbyInterface->UpdateRoomDataCache([](bool bSuccess)
@@ -2585,8 +2585,8 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 
 				buttonPushed = true;
 				DEBUG_LOG(("Host left lobby\n"));
-				if (TheNGMPGame)
-					TheNGMPGame->reset();
+				if (TheGenOnlineGame)
+					TheGenOnlineGame->reset();
 
 				GSMessageBoxOk(TheGameText->fetch("GUI:HostLeftTitle"), TheGameText->fetch("GUI:HostLeft"));
 
@@ -2597,22 +2597,22 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 		}
 	}
 
-#if defined(GENERALS_ONLINE_ENABLE_MATCH_START_COUNTDOWN)
+#if defined(GENONLINE_ENABLE_MATCH_START_COUNTDOWN)
 	// is there a countdown in progress?
-	if (TheNGMPGame != nullptr)
+	if (TheGenOnlineGame != nullptr)
 	{
-		if (TheNGMPGame->IsCountdownStarted())
+		if (TheGenOnlineGame->IsCountdownStarted())
 		{
 			s_matchStartCountdownWasRunning = true;
 			const int64_t timeBetweenChecks = 1000;
 			int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 
-			if (currTime - TheNGMPGame->GetCountdownLastCheckTime() >= timeBetweenChecks)
+			if (currTime - TheGenOnlineGame->GetCountdownLastCheckTime() >= timeBetweenChecks)
 			{
-				int secondsSinceCountdownStart = (currTime - TheNGMPGame->GetCountdownStartTime()) / 1000;
-				int secondsRemaining = TheNGMPGame->GetTotalCountdownDuration() - secondsSinceCountdownStart;
+				int secondsSinceCountdownStart = (currTime - TheGenOnlineGame->GetCountdownStartTime()) / 1000;
+				int secondsRemaining = TheGenOnlineGame->GetTotalCountdownDuration() - secondsSinceCountdownStart;
 
-				TheNGMPGame->UpdateCountdownLastCheckTime();
+				TheGenOnlineGame->UpdateCountdownLastCheckTime();
 
 				// remote msg
 				UnicodeString strInform;
@@ -2629,7 +2629,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 					strInform.format(TheGameText->fetch("LAN:GameStartTimerPlural"), secondsRemaining);
 				}
 
-				NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+				GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 				if (pLobbyInterface != nullptr)
 				{
 					pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform, true);
@@ -2640,10 +2640,10 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 				{
 					s_matchStartCountdownWasRunning = false;
 					// stop countdown
-					TheNGMPGame->StopCountdown();
+					TheGenOnlineGame->StopCountdown();
 
 					// send start game packet
-					std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
+					std::shared_ptr<WebSocket>  pWS = GenOnlineServicesManager::GetWebSocket();
 					if (pWS != nullptr)
 					{
 						pWS->SendData_StartGame();
@@ -2681,7 +2681,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 		raiseMessageBoxes = false;
 	}
 
-#if defined(GENERALS_ONLINE) // GO needs to tick this, so notifications disappear etc
+#if defined(GENONLINE) // GO needs to tick this, so notifications disappear etc
 	HandleBuddyResponses();
 #endif
 
@@ -2690,7 +2690,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 		HandleBuddyResponses();
 		HandlePersistentStorageResponses();
 
-		if (TheNGMPGame && TheNGMPGame->isGameInProgress())
+		if (TheGenOnlineGame && TheGenOnlineGame->isGameInProgress())
 		{
 			if (TheGameSpyInfo->isDisconnectedAfterGameStart(NULL))
 			{
@@ -2733,7 +2733,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 		}
 
 		Bool isHosting = TheGameSpyInfo->amIHost(); // only while in game setup screen
-		isHosting = isHosting || (TheNGMPGame && TheNGMPGame->isInGame() && TheNGMPGame->amIHost()); // while in game
+		isHosting = isHosting || (TheGenOnlineGame && TheGenOnlineGame->isInGame() && TheGenOnlineGame->amIHost()); // while in game
 		if (!isHosting && !lastSlotlistTime && timeGetTime() > enterTime + 10000)
 		{
 			// don't do this if we're disconnected
@@ -2742,8 +2742,8 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 				// haven't seen ourselves
 				buttonPushed = true;
 				DEBUG_LOG(("Haven't seen ourselves in slotlist"));
-				if (TheNGMPGame)
-					TheNGMPGame->reset();
+				if (TheGenOnlineGame)
+					TheGenOnlineGame->reset();
 				TheGameSpyInfo->leaveStagingRoom();
 				//TheGameSpyInfo->joinBestGroupRoom();
 				GSMessageBoxOk(TheGameText->fetch("GUI:HostLeftTitle"), TheGameText->fetch("GUI:HostLeft"));
@@ -2759,7 +2759,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 			{
 				//launchGameNext = TRUE;
 				//TheShell->pop();
-				TheNGMPGame->launchGame();
+				TheGenOnlineGame->launchGame();
 				if (TheGameSpyInfo) // this can be blown away by a disconnect on the map transfer screen
 					TheGameSpyInfo->leaveStagingRoom();
 				return;
@@ -2773,10 +2773,10 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 				delete TheNAT;
 				TheNAT = NULL;
 
-				NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+				GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 				if (pLobbyInterface != nullptr)
 				{
-					NGMPGame* myGame = pLobbyInterface->GetCurrentGame();
+					GenOnlineGame* myGame = pLobbyInterface->GetCurrentGame();
 					if (myGame != nullptr)
 					{
 						myGame->reset();
@@ -2824,24 +2824,24 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 			case PeerResponse::PEERRESPONSE_GAMESTART:
 				{
 					sawImportantMessage = TRUE;
-					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+					GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
-					NGMPGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+					GenOnlineGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 					if (pLobbyInterface == nullptr || !myGame || !myGame->isInGame())
 						break;
 
-					if (!TheNGMPGame)
+					if (!TheGenOnlineGame)
 						break;
 
-					SendStatsToOtherPlayers(TheNGMPGame);
+					SendStatsToOtherPlayers(TheGenOnlineGame);
 
 					GameWindow *buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
 					if (buttonBuddy)
 						buttonBuddy->winEnable(FALSE);
 					GameSpyCloseOverlay(GSOVERLAY_BUDDY);
 
-					*TheNGMPGame = *myGame;
-					TheNGMPGame->startGame(0);
+					*TheGenOnlineGame = *myGame;
+					TheGenOnlineGame->startGame(0);
 				}
 				break;
 			case PeerResponse::PEERRESPONSE_PLAYERCHANGEDFLAGS:
@@ -2885,9 +2885,9 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 					}
 
 					// check if we have room for the dude
-					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+					GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
-					NGMPGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+					GenOnlineGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 					if (TheGameSpyInfo->amIHost() && game)
 					{
 						if (TheNAT)
@@ -2973,7 +2973,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 					fillPlayerInfo(&resp, &p);
 					TheGameSpyInfo->playerLeftGroupRoom(resp.nick.c_str());
 
-					if (TheNGMPGame && TheNGMPGame->isGameInProgress())
+					if (TheGenOnlineGame && TheGenOnlineGame->isGameInProgress())
 					{
 						break;
 					}
@@ -2981,9 +2981,9 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 					if (TheNAT == NULL) // don't update slot list if we're trying to start a game
 					{
 
-						NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+						GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
-						NGMPGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+						GenOnlineGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 						if (game && TheGameSpyInfo->amIHost())
 						{
 							Int idx = game->getSlotNum(resp.nick.c_str());
@@ -3053,9 +3053,9 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 					if (strcmp(resp.command.c_str(), "SL") == 0)
 					{
 						// slotlist
-						NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+						GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
-						NGMPGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+						GenOnlineGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 						Bool isValidSlotList = game && game->getSlot(0) && game->getSlot(0)->isPlayer( resp.nick.c_str() ) && !TheGameSpyInfo->amIHost();
 						if (!isValidSlotList)
 						{
@@ -3146,7 +3146,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 									SLOTLIST_DEBUG_LOG(("Not in game; players are:"));
 									for (Int i=0; i<MAX_SLOTS; ++i)
 									{
-										const NGMPGameSlot *slot = game->getGameSpySlot(i);
+										const GenOnlineGameSlot *slot = game->getGameSpySlot(i);
 										if (slot && slot->isHuman())
 										{
 											UnicodeString munkee;
@@ -3225,9 +3225,9 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 					else if (strcmp(resp.command.c_str(), "HWS") == 0)
 					{
 						// host wants to start
-						NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+						GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
-						NGMPGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+						GenOnlineGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 						if (game && game->isInGame() && game->getSlot(0) && game->getSlot(0)->isPlayer(resp.nick.c_str()))
 						{
 							Int slotNum = game->getLocalSlotNum();
@@ -3254,10 +3254,10 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 							AsciiString token;
 							for (Int i=0; i<MAX_SLOTS; ++i)
 							{
-								NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+								GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
-						NGMPGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
-								NGMPGameSlot *slot = game->getGameSpySlot(i);
+						GenOnlineGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+								GenOnlineGameSlot *slot = game->getGameSpySlot(i);
 								if (pings.nextToken(&token, ","))
 								{
 									token.trim();
@@ -3284,9 +3284,9 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 							TheGameSpyPSMessageQueue->trackPlayerStats(stats);
 						break;
 					}
-					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+					GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
-					NGMPGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+					GenOnlineGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 					if (game)
 					{
 						Int slotNum = game->getSlotNum(resp.nick.c_str());
@@ -3372,7 +3372,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 								UnsignedInt uVal = atoi(options.str()+1);
 								DEBUG_LOG(("GameOpt request: key=%s, val=%s from player %d", key.str(), options.str()+1, slotNum));
 
-								NGMPGameSlot *slot = game->getGameSpySlot(slotNum);
+								GenOnlineGameSlot *slot = game->getGameSpySlot(slotNum);
 								if (!slot)
 									break;
 
@@ -3612,7 +3612,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 	{
 		UnicodeString s;
 		s.format(L"Hosting qr2:%d thread:%d", getQR2HostingStatus(), isThreadHosting);
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 #else
 		GadgetListBoxAddEntryText(listboxGameSetupChat, s, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
 #endif
@@ -3621,7 +3621,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 	else if (token == "me" && uText.getLength()>4)
 	{
 		UnicodeString msg = UnicodeString(uText.str() + 4); // skip the /me
-		NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+		GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
 		if (pLobbyInterface != nullptr)
 		{
@@ -3630,7 +3630,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 		return TRUE; // was a slash command
 	}
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	else if (token == "help" || token == "commands")
 	{
 		const Color helpColor = GameMakeColor(127, 127, 127, 255);
@@ -3653,10 +3653,10 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 	}
 	else if (token == "friendsonly")
     {
-        NGMP_OnlineServicesManager* pOnlineServicesMgr = NGMP_OnlineServicesManager::GetInstance();
+        GenOnlineServicesManager* pOnlineServicesMgr = GenOnlineServicesManager::GetInstance();
 		if (pOnlineServicesMgr != nullptr)
 		{
-			NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
 			if (pLobbyInterface != nullptr)
 			{
@@ -3674,10 +3674,10 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 	}
     else if (token == "public")
     {
-        NGMP_OnlineServicesManager* pOnlineServicesMgr = NGMP_OnlineServicesManager::GetInstance();
+        GenOnlineServicesManager* pOnlineServicesMgr = GenOnlineServicesManager::GetInstance();
         if (pOnlineServicesMgr != nullptr)
         {
-            NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+            GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
             if (pLobbyInterface != nullptr)
             {
@@ -3695,10 +3695,10 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
     }
 	else if (token == "maxcameraheight" && uText.getLength() > 17)
 	{
-		NGMP_OnlineServicesManager* pOnlineServicesMgr = NGMP_OnlineServicesManager::GetInstance();
+		GenOnlineServicesManager* pOnlineServicesMgr = GenOnlineServicesManager::GetInstance();
 		if (pOnlineServicesMgr != nullptr)
 		{
-			NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
 			if (pLobbyInterface != nullptr)
 			{
@@ -3727,17 +3727,17 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 						{
 							int newCameraHeight = atoi(asciiVal.str());
 
-							if (newCameraHeight < GENERALS_ONLINE_MIN_LOBBY_CAMERA_ZOOM || newCameraHeight > GENERALS_ONLINE_MAX_LOBBY_CAMERA_ZOOM)
+							if (newCameraHeight < GENONLINE_MIN_LOBBY_CAMERA_ZOOM || newCameraHeight > GENONLINE_MAX_LOBBY_CAMERA_ZOOM)
 							{
 								UnicodeString msg;
-								msg.format(L"Camera height: Enter a value from %d to %d.", GENERALS_ONLINE_MIN_LOBBY_CAMERA_ZOOM, GENERALS_ONLINE_MAX_LOBBY_CAMERA_ZOOM);
+								msg.format(L"Camera height: Enter a value from %d to %d.", GENONLINE_MIN_LOBBY_CAMERA_ZOOM, GENONLINE_MAX_LOBBY_CAMERA_ZOOM);
 								GadgetListBoxAddEntryText(listboxGameSetupChat, msg, GameMakeColor(255, 0, 0, 255), -1, -1);
 								return TRUE; // was a slash command
 							}
 							else
 							{
 								// save locally
-								NGMP_OnlineServicesManager::Settings.Save_Camera_MaxHeight_WhenLobbyHost((float)newCameraHeight);
+								GenOnlineServicesManager::Settings.Save_Camera_MaxHeight_WhenLobbyHost((float)newCameraHeight);
 
 								// update lobby
 								pLobbyInterface->UpdateCurrentLobbyMaxCameraHeight((uint16_t)newCameraHeight);
@@ -3776,7 +3776,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[ADV NET STATS] Writing advanced networking stats:");
 
-		std::map<int64_t, PlayerConnection>& connections = NGMP_OnlineServicesManager::GetNetworkMesh()->GetAllConnections();
+		std::map<int64_t, PlayerConnection>& connections = GenOnlineServicesManager::GetNetworkMesh()->GetAllConnections();
 		for (auto& kvPair : connections)
 		{
 			PlayerConnection& conn = kvPair.second;
@@ -3792,8 +3792,8 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 	{
 		UnicodeString newPassword(uText.str() + 13); // skip the /setpassword and space
 
-		NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-		NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+		GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+		GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 		if (pLobbyInterface != nullptr && pAuthInterface != nullptr)
 		{
 			LobbyEntry& theLobby = pLobbyInterface->GetCurrentLobby();
@@ -3801,15 +3801,15 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 			// This is just done clientside to show an error message, server validates it also
 			if (theLobby.owner == pAuthInterface->GetUserID())
 			{
-				if (newPassword.getLength() == 0 || newPassword.getLength() > GENERALS_ONLINE_LOBBY_MAX_PASSWORD_LENGTH)
+				if (newPassword.getLength() == 0 || newPassword.getLength() > GENONLINE_LOBBY_MAX_PASSWORD_LENGTH)
 				{
 					UnicodeString errorMsg;
-					errorMsg.format(L"Lobby password: Use 1 to %d characters.", GENERALS_ONLINE_LOBBY_MAX_PASSWORD_LENGTH);
+					errorMsg.format(L"Lobby password: Use 1 to %d characters.", GENONLINE_LOBBY_MAX_PASSWORD_LENGTH);
 					GadgetListBoxAddEntryText(listboxGameSetupChat, errorMsg, GameMakeColor(255, 0, 0, 255), -1, -1);
 				}
 				else
 				{
-					std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
+					std::shared_ptr<WebSocket>  pWS = GenOnlineServicesManager::GetWebSocket();
 					if (pWS != nullptr)
 					{
 						pWS->SendData_ChangeLobbyPassword(newPassword);
@@ -3828,8 +3828,8 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 	}
 	else if (token == "removepassword" || token == "clearpassword" || token == "resetpassword")
 	{
-		NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-		NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+		GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+		GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 		if (pLobbyInterface != nullptr && pAuthInterface != nullptr)
 		{
 			LobbyEntry& theLobby = pLobbyInterface->GetCurrentLobby();
@@ -3839,7 +3839,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 			{
 				if (theLobby.passworded)
 				{
-					std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
+					std::shared_ptr<WebSocket>  pWS = GenOnlineServicesManager::GetWebSocket();
 					if (pWS != nullptr)
 					{
 						pWS->SendData_RemoveLobbyPassword();
@@ -3864,7 +3864,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 	else if (token == "slots")
 	{
 		g_debugSlots = !g_debugSlots;
-#if !defined(GENERALS_ONLINE)		
+#if !defined(GENONLINE)		
 		TheGameSpyInfo->addText(L"Toggled SlotList debug", GameSpyColor[GSCOLOR_DEFAULT], NULL);
 #endif
 		return TRUE; // was a slash command
@@ -3878,7 +3878,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 	}
 #endif // defined(RTS_DEBUG)
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Unknown command: Use /help to see all commands."), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
 	return TRUE;
 #else
@@ -3888,23 +3888,23 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 
 static Int getNextSelectablePlayer(Int start)
 {
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 #else
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface == nullptr)
 	{
 		return -1;
 	}
 
-	NGMPGame* game = pLobbyInterface->GetCurrentGame();
+	GenOnlineGame* game = pLobbyInterface->GetCurrentGame();
 #endif
 	if (game == nullptr || !game->amIHost())
 		return -1;
 	for (Int j=start; j<MAX_SLOTS; ++j)
 	{
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 #else
-		NGMPGameSlot *slot = game->getGameSpySlot(j);
+		GenOnlineGameSlot *slot = game->getGameSpySlot(j);
 #endif
 
 		if (slot && slot->getStartPos() == -1 &&
@@ -3977,13 +3977,13 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 			GameWindow* control = (GameWindow*)mData1;
 			Int controlID = control->winGetWindowId();
 
-			NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 			if (pLobbyInterface == nullptr)
 			{
 				break;
 			}
 			
-			NGMPGame* myGame = pLobbyInterface->GetCurrentGame();
+			GenOnlineGame* myGame = pLobbyInterface->GetCurrentGame();
 
 			if (myGame == nullptr)
 			{
@@ -4038,7 +4038,7 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 								UnicodeString name = myGame->getSlot(i)->getName();
 
 								// NOTE: No host check here, service enforces it
-								NGMPGameSlot* pSlot = (NGMPGameSlot*)myGame->getSlot(i);
+								GenOnlineGameSlot* pSlot = (GenOnlineGameSlot*)myGame->getSlot(i);
 								int64_t userBeingKicked = pSlot->m_userID;
 
 								pLobbyInterface->UpdateCurrentLobby_KickUser(userBeingKicked, name);
@@ -4048,8 +4048,8 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 
 								// // TODO_NGMP
 								//TheGameSpyInfo->setGameOptions();
-								if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
-									TheNGMPGame->StopCountdown();
+								if (TheGenOnlineGame && TheGenOnlineGame->IsCountdownStarted())
+									TheGenOnlineGame->StopCountdown();
 								WOLDisplaySlotList();
 								//TheLAN->OnPlayerLeave(name);
 							}
@@ -4059,13 +4059,13 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 								myGame->getSlot(i)->setState(SlotState(pos));
 								Bool isAI = (myGame->getSlot(i)->isAI());
 								myGame->resetAccepted();
-								if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
-									TheNGMPGame->StopCountdown();
+								if (TheGenOnlineGame && TheGenOnlineGame->IsCountdownStarted())
+									TheGenOnlineGame->StopCountdown();
 								if (wasAI ^ isAI)
 									PopulatePlayerTemplateComboBox(i, comboBoxPlayerTemplate, myGame, wasAI && myGame->getAllowObservers());
 
 								// inform service
-								NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+								GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 								if (pLobbyInterface != nullptr)
 								{
 									pLobbyInterface->UpdateCurrentLobby_SetSlotState(i, pos);
@@ -4119,7 +4119,7 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 					// Echo the user's input to the chat window
 					if (!txtInput.isEmpty())
 					{
-						NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+						GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 						if (pLobbyInterface != nullptr)
 						{
 							pLobbyInterface->SendChatMessageToCurrentLobby(txtInput, false);
@@ -4137,7 +4137,7 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 				{
 					savePlayerInfo();
 					
-					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+					GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 					if (pLobbyInterface == nullptr)
 					{
 						break;
@@ -4188,13 +4188,13 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
         }
 				else
 				{
-					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+					GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 					if (pLobbyInterface == nullptr)
 					{
 						break;
 					}
 
-					NGMPGame* game = pLobbyInterface->GetCurrentGame();
+					GenOnlineGame* game = pLobbyInterface->GetCurrentGame();
 					if (game == nullptr)
 					{
 						break;
@@ -4207,7 +4207,7 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 							Int playerIdxInPos = -1;
 							for (Int j=0; j<MAX_SLOTS; ++j)
 							{
-								NGMPGameSlot *slot = game->getGameSpySlot(j);
+								GenOnlineGameSlot *slot = game->getGameSpySlot(j);
 								if (slot && slot->getStartPos() == i)
 								{
 									playerIdxInPos = j;
@@ -4216,7 +4216,7 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 							}
 							if (playerIdxInPos >= 0)
 							{
-								NGMPGameSlot *slot = game->getGameSpySlot(playerIdxInPos);
+								GenOnlineGameSlot *slot = game->getGameSpySlot(playerIdxInPos);
 								if (playerIdxInPos == game->getLocalSlotNum() || (game->amIHost() && slot && slot->isAI()))
 								{
 									// it's one of my type.  Try to change it.
@@ -4252,13 +4252,13 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
    			GameWindow *control = (GameWindow *)mData1;
 				Int controlID = control->winGetWindowId();
 
-				NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+				GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 				if (pLobbyInterface == nullptr)
 				{
 					break;
 				}
 
-				NGMPGame* game = pLobbyInterface->GetCurrentGame();
+				GenOnlineGame* game = pLobbyInterface->GetCurrentGame();
 				if (game == nullptr)
 				{
 					break;
@@ -4271,7 +4271,7 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 						Int playerIdxInPos = -1;
 						for (Int j=0; j<MAX_SLOTS; ++j)
 						{
-							NGMPGameSlot *slot = game->getGameSpySlot(j);
+							GenOnlineGameSlot *slot = game->getGameSpySlot(j);
 							if (slot && slot->getStartPos() == i)
 							{
 								playerIdxInPos = j;
@@ -4280,7 +4280,7 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 						}
 						if (playerIdxInPos >= 0)
 						{
-							NGMPGameSlot *slot = game->getGameSpySlot(playerIdxInPos);
+							GenOnlineGameSlot *slot = game->getGameSpySlot(playerIdxInPos);
 							if (playerIdxInPos == game->getLocalSlotNum() || (game->amIHost() && slot && slot->isAI()))
 							{
 								// it's one of my type.  Remove it.
@@ -4313,7 +4313,7 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 					{
 						if (!handleGameSetupSlashCommands(txtInput))
 						{
-							NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+							GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 							if (pLobbyInterface != nullptr)
 							{
 								pLobbyInterface->SendChatMessageToCurrentLobby(txtInput, false);
@@ -4337,9 +4337,9 @@ void OnKickedFromLobby()
 	// can't see ourselves
 	buttonPushed = true;
 
-	if (TheNGMPGame != nullptr)
+	if (TheGenOnlineGame != nullptr)
 	{
-		TheNGMPGame->reset();
+		TheGenOnlineGame->reset();
 	}
 
 	GSMessageBoxOk(TheGameText->fetch("GUI:GSErrorTitle"), TheGameText->fetch("GUI:GSKicked"));

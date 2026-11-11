@@ -115,7 +115,7 @@ NeutronMissileUpdate::NeutronMissileUpdate( Thing *thing, const ModuleData* modu
 	m_vel.zero();
 
 	m_state = PRELAUNCH;
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 	m_stateTimestamp = TheGameLogic->getFrameLegacy();
 #else
 	m_stateTimestamp = TheGameLogic->getFrame();
@@ -173,7 +173,7 @@ void NeutronMissileUpdate::projectileFireAtObjectOrPosition( const Object *victi
 	m_exhaustSysTmpl = exhaustSysOverride;
 
 	m_state = LAUNCH;
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 	m_stateTimestamp = TheGameLogic->getFrameLegacy();
 #else
 	m_stateTimestamp = TheGameLogic->getFrame();
@@ -258,7 +258,7 @@ void NeutronMissileUpdate::doLaunch()
 		FXList::doFXObj(getNeutronMissileUpdateModuleData()->m_launchFX, getObject());
 		m_heightAtLaunch = getObject()->getPosition()->z;
 
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 		m_frameAtLaunch = TheGameLogic->getFrameLegacy();
 #else
 		m_frameAtLaunch = TheGameLogic->getFrame();
@@ -281,7 +281,7 @@ void NeutronMissileUpdate::doLaunch()
 		TheParticleSystemManager->createAttachedParticleSystemID(m_exhaustSysTmpl, getObject());
 
 	m_state = ATTACK;
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 	m_stateTimestamp = TheGameLogic->getFrameLegacy();
 #else
 	m_stateTimestamp = TheGameLogic->getFrame();
@@ -398,7 +398,7 @@ void NeutronMissileUpdate::doAttack()
 
 	const NeutronMissileUpdateModuleData* d = getNeutronMissileUpdateModuleData();
 
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 	UnsignedInt now = TheGameLogic->getFrameLegacy();
 #else
 	UnsignedInt now = TheGameLogic->getFrame();
@@ -493,7 +493,7 @@ void NeutronMissileUpdate::detonate()
  */
 UpdateSleepTime NeutronMissileUpdate::update()
 {
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 	if (!TheGameLogic->HasLegacyFrameAdvanced())
 	{
 		return UPDATE_SLEEP_NONE;

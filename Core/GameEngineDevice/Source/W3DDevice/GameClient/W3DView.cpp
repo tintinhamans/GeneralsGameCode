@@ -104,9 +104,9 @@ static const Real DRAWABLE_OVERSCAN = 75.0f;  ///< 3D world coords of how much t
 
 constexpr const Real NearZ = MAP_XY_FACTOR; ///< Set the near to MAP_XY_FACTOR. Improves z buffer resolution.
 
-#if defined(GENERALS_ONLINE)
-#include "GameNetwork/GeneralsOnline/OnlineServices_Init.h"
-class NGMP_OnlineServices_LobbyInterface;
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInit.h"
+class GenOnlineLobbyInterface;
 #endif
 
 //-------------------------------------------------------------------------------------------------
@@ -2258,7 +2258,7 @@ void W3DView::setPitchToDefault()
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 void W3DView::setDefaultView(Real pitch, Real angle, Real maxHeight, bool bForceDefaultCam)
 #else
 void W3DView::setDefaultView(Real pitch, Real angle, Real maxHeight)
@@ -2269,7 +2269,7 @@ void W3DView::setDefaultView(Real pitch, Real angle, Real maxHeight)
 	setDefaultPitch(pitch);
 
     // TODO_NGMP: Better way of doing this
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
     if (bForceDefaultCam)
     {
         // safety for shellmap, etc
@@ -2278,13 +2278,13 @@ void W3DView::setDefaultView(Real pitch, Real angle, Real maxHeight)
     }
     else
     {
-        TheWritableGlobalData->m_minCameraHeight = NGMP_OnlineServicesManager::Settings.Camera_GetMinHeight();
-        TheWritableGlobalData->m_maxCameraHeight = NGMP_OnlineServicesManager::Settings.DetermineCameraMaxHeight();
+        TheWritableGlobalData->m_minCameraHeight = GenOnlineServicesManager::Settings.Camera_GetMinHeight();
+        TheWritableGlobalData->m_maxCameraHeight = GenOnlineServicesManager::Settings.DetermineCameraMaxHeight();
     }
 
 #endif
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
     Real baseAspectRatio = 800.0f / 600.0f;
     Real currentAspectRatio = (float)TheDisplay->getWidth() / (float)TheDisplay->getHeight();
     Real aspectWidthScale = fabs((1 + (currentAspectRatio - baseAspectRatio)));
@@ -2305,11 +2305,11 @@ void W3DView::setDefaultView(Real pitch, Real angle, Real maxHeight)
 //-------------------------------------------------------------------------------------------------
 void W3DView::setHeightAboveGround(Real z)
 {
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	if (ThePlayerList && ThePlayerList->getLocalPlayer() && ThePlayerList->getLocalPlayer()->isPlayerObserver())
 	{
 		const Real cameraHeightForReset = 500.0f;
-		m_maxHeightAboveGround = z > cameraHeightForReset ? (float)GENERALS_ONLINE_MAX_LOBBY_CAMERA_ZOOM : cameraHeightForReset;
+		m_maxHeightAboveGround = z > cameraHeightForReset ? (float)GENONLINE_MAX_LOBBY_CAMERA_ZOOM : cameraHeightForReset;
 	}
 #endif
 

@@ -49,10 +49,10 @@
 #include "Common/CRCDebug.h"
 #include "Common/OptionPreferences.h"
 #include "Common/version.h"
-#include "../NGMPGame.h"
-#include "../OnlineServices_Init.h"
+#include "../GenOnlineGame.h"
+#include "../GenOnlineInit.h"
 
-extern NGMPGame* TheNGMPGame;
+extern GenOnlineGame* TheGenOnlineGame;
 #include <Utility/bit_adapter.h>
 
 constexpr const char s_genrep[] = "GENREP";
@@ -607,9 +607,9 @@ void RecorderClass::startRecording(GameDifficulty diff, GameMode originalGameMod
 		}
 		else
 		{
-#if defined(GENERALS_ONLINE)
-			theSlotList = GameInfoToAsciiString(TheNGMPGame);
-			localIndex = TheNGMPGame->getLocalSlotNum();
+#if defined(GENONLINE)
+			theSlotList = GameInfoToAsciiString(TheGenOnlineGame);
+			localIndex = TheGenOnlineGame->getLocalSlotNum();
 #else
 			theSlotList = GameInfoToAsciiString(TheGameSpyGame);
 			localIndex = TheGameSpyGame->getLocalSlotNum();
@@ -709,10 +709,10 @@ void RecorderClass::stopRecording() {
 		if (m_archiveReplays)
 			archiveReplay(m_fileName);
 		// upload
-#if defined(GENERALS_ONLINE)
-		if (TheNGMPGame != nullptr)
+#if defined(GENONLINE)
+		if (TheGenOnlineGame != nullptr)
 		{
-			NGMP_OnlineServicesManager* pOnlineServicesMgr = NGMP_OnlineServicesManager::GetInstance();
+			GenOnlineServicesManager* pOnlineServicesMgr = GenOnlineServicesManager::GetInstance();
 			if (pOnlineServicesMgr != nullptr)
 			{
 				AsciiString absoluteReplayPath = getReplayDir();
@@ -1700,9 +1700,9 @@ AsciiString RecorderClass::getLastReplayFileName()
 		GameInfo *game = nullptr;
 		if (TheLAN)
 			game = TheLAN->GetMyGame();
-#if defined(GENERALS_ONLINE)
-		else if (NGMP_OnlineServicesManager::GetInstance() != nullptr)
-			game = TheNGMPGame;
+#if defined(GENONLINE)
+		else if (GenOnlineServicesManager::GetInstance() != nullptr)
+			game = TheGenOnlineGame;
 #else
 		else if (TheGameSpyInfo)
 			game = TheGameSpyGame;

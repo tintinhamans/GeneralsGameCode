@@ -57,8 +57,8 @@
 #include "GameNetwork/GameSpy/BuddyThread.h"
 #include "GameNetwork/GameSpy/GSConfig.h"
 #include "GameNetwork/GameSpy/LobbyUtils.h"
-#if defined(GENERALS_ONLINE)
-#include "GameNetwork/GeneralsOnline/NGMP_include.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInclude.h"
 #endif
 
 #include "WWDownload/Registry.h"
@@ -297,7 +297,7 @@ RankPoints::RankPoints()
 
 RankPoints *TheRankPointValues = nullptr;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 void SetLookAtPlayer( int64_t id, UnicodeString nick)
 {
 	lookAtPlayerID = (Int)id;

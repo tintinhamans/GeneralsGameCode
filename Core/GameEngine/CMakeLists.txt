@@ -1196,48 +1196,48 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/udp.cpp
     Source/GameNetwork/User.cpp
     Source/GameNetwork/WOLBrowser/WebBrowser.cpp
-    Include/GameNetwork/GeneralsOnline/json.hpp
-    Include/GameNetwork/GeneralsOnline/DiscordRichPresence.h
-    Include/GameNetwork/GeneralsOnline/Vendor/DiscordRPC/discord_rpc.h
-    Include/GameNetwork/GeneralsOnline/NetworkBitstream.h
-    Include/GameNetwork/GeneralsOnline/NetworkMesh.h
-    Include/GameNetwork/GeneralsOnline/NetworkPacket.h
-    Include/GameNetwork/GeneralsOnline/NextGenMP_defines.h
-    Include/GameNetwork/GeneralsOnline/NGMPGame.h
-    Include/GameNetwork/GeneralsOnline/NGMP_include.h
-    Include/GameNetwork/GeneralsOnline/NGMP_interfaces.h
-    Include/GameNetwork/GeneralsOnline/NGMP_types.h
-    Include/GameNetwork/GeneralsOnline/OnlineServices_Auth.h
-    Include/GameNetwork/GeneralsOnline/OnlineServices_Init.h
-    Include/GameNetwork/GeneralsOnline/OnlineServices_LobbyInterface.h
-    Include/GameNetwork/GeneralsOnline/OnlineServices_Moderation.h
-    Include/GameNetwork/GeneralsOnline/OnlineServices_RoomsInterface.h
-    Include/GameNetwork/GeneralsOnline/OnlineServices_StatsInterface.h
-    Include/GameNetwork/GeneralsOnline/OnlineServices_SocialInterface.h
-    Include/GameNetwork/GeneralsOnline/OnlineServices_MatchmakingInterface.h
-    Include/GameNetwork/GeneralsOnline/GeneralsOnline_Settings.h
-    Include/GameNetwork/GeneralsOnline/HTTP/HTTPManager.h
-    Include/GameNetwork/GeneralsOnline/HTTP/HTTPRequest.h
-    Include/GameNetwork/GeneralsOnline/NextGenTransport.h
-    Include/GameNetwork/GeneralsOnline/PluginInterfaces.h
-    Source/GameNetwork/GeneralsOnline/DiscordRichPresence.cpp
-    Source/GameNetwork/GeneralsOnline/NGMP_Helpers.cpp
-    Source/GameNetwork/GeneralsOnline/NGMPGame.cpp
-    Source/GameNetwork/GeneralsOnline/GeneralsOnline_Settings.cpp
-    Source/GameNetwork/GeneralsOnline/HTTP/HTTPManager.cpp
-    Source/GameNetwork/GeneralsOnline/HTTP/HTTPRequest.cpp
-    Source/GameNetwork/GeneralsOnline/NetworkMesh.cpp
-    Source/GameNetwork/GeneralsOnline/OnlineServices_Init.cpp
-    Source/GameNetwork/GeneralsOnline/OnlineServices_Auth.cpp
-    Source/GameNetwork/GeneralsOnline/OnlineServices_LobbyInterface.cpp
-    Source/GameNetwork/GeneralsOnline/OnlineServices_Moderation.cpp
-    Source/GameNetwork/GeneralsOnline/OnlineServices_RoomsInterface.cpp
-    Source/GameNetwork/GeneralsOnline/OnlineServices_StatsInterface.cpp
-    Source/GameNetwork/GeneralsOnline/OnlineServices_SocialInterface.cpp
-    Source/GameNetwork/GeneralsOnline/OnlineServices_MatchmakingInterface.cpp
-    Source/GameNetwork/GeneralsOnline/NextGenTransport.cpp
-    Source/GameNetwork/GeneralsOnline/NetworkBitstream.cpp
-    Source/GameNetwork/GeneralsOnline/PluginInterfaces.cpp
+    Include/GameNetwork/GenOnline/json.hpp
+    Include/GameNetwork/GenOnline/DiscordRichPresence.h
+    Include/GameNetwork/GenOnline/Vendor/DiscordRPC/discord_rpc.h
+    Include/GameNetwork/GenOnline/NetworkBitstream.h
+    Include/GameNetwork/GenOnline/NetworkMesh.h
+    Include/GameNetwork/GenOnline/NetworkPacket.h
+    Include/GameNetwork/GenOnline/GenOnlineDefines.h
+    Include/GameNetwork/GenOnline/GenOnlineGame.h
+    Include/GameNetwork/GenOnline/GenOnlineInclude.h
+    Include/GameNetwork/GenOnline/GenOnlineInterfaces.h
+    Include/GameNetwork/GenOnline/GenOnlineTypes.h
+    Include/GameNetwork/GenOnline/GenOnlineAuth.h
+    Include/GameNetwork/GenOnline/GenOnlineInit.h
+    Include/GameNetwork/GenOnline/GenOnlineLobbyInterface.h
+    Include/GameNetwork/GenOnline/GenOnlineModeration.h
+    Include/GameNetwork/GenOnline/GenOnlineRoomsInterface.h
+    Include/GameNetwork/GenOnline/GenOnlineStatsInterface.h
+    Include/GameNetwork/GenOnline/GenOnlineSocialInterface.h
+    Include/GameNetwork/GenOnline/GenOnlineMatchmakingInterface.h
+    Include/GameNetwork/GenOnline/GenOnlineSettings.h
+    Include/GameNetwork/GenOnline/HTTP/HTTPManager.h
+    Include/GameNetwork/GenOnline/HTTP/HTTPRequest.h
+    Include/GameNetwork/GenOnline/GenOnlineTransport.h
+    Include/GameNetwork/GenOnline/PluginInterfaces.h
+    Source/GameNetwork/GenOnline/DiscordRichPresence.cpp
+    Source/GameNetwork/GenOnline/GenOnlineHelpers.cpp
+    Source/GameNetwork/GenOnline/GenOnlineGame.cpp
+    Source/GameNetwork/GenOnline/GenOnlineSettings.cpp
+    Source/GameNetwork/GenOnline/HTTP/HTTPManager.cpp
+    Source/GameNetwork/GenOnline/HTTP/HTTPRequest.cpp
+    Source/GameNetwork/GenOnline/NetworkMesh.cpp
+    Source/GameNetwork/GenOnline/GenOnlineInit.cpp
+    Source/GameNetwork/GenOnline/GenOnlineAuth.cpp
+    Source/GameNetwork/GenOnline/GenOnlineLobbyInterface.cpp
+    Source/GameNetwork/GenOnline/GenOnlineModeration.cpp
+    Source/GameNetwork/GenOnline/GenOnlineRoomsInterface.cpp
+    Source/GameNetwork/GenOnline/GenOnlineStatsInterface.cpp
+    Source/GameNetwork/GenOnline/GenOnlineSocialInterface.cpp
+    Source/GameNetwork/GenOnline/GenOnlineMatchmakingInterface.cpp
+    Source/GameNetwork/GenOnline/GenOnlineTransport.cpp
+    Source/GameNetwork/GenOnline/NetworkBitstream.cpp
+    Source/GameNetwork/GenOnline/PluginInterfaces.cpp
     Source/Precompiled/PreRTS.cpp
 )
 
@@ -1265,7 +1265,7 @@ target_precompile_headers(corei_gameengine_private INTERFACE
 
 target_include_directories(corei_gameengine_public INTERFACE
     Include
-    Include/GameNetwork/GeneralsOnline/Vendor/
+    Include/GameNetwork/GenOnline/Vendor/
 )
 
 target_link_libraries(corei_gameengine_public INTERFACE

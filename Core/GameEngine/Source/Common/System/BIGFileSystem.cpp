@@ -36,8 +36,8 @@
 #include "Common/GameAudio.h"
 #include "Common/GameMemory.h"
 #include "Common/LocalFileSystem.h"
-#include "../NGMP_include.h"
-#include "../OnlineServices_Init.h"
+#include "../GenOnlineInclude.h"
+#include "../GenOnlineInit.h"
 
 #if RTS_ZEROHOUR
 #include "Common/Registry.h"
@@ -267,9 +267,9 @@ Bool BIGFileSystem::loadArchiveFilesFromDirectory(AsciiString dir, AsciiString f
 
 void BIGFileSystem::loadMods()
 {
-#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_COMMUNITY_PATCH_CHANGES)
+#if defined(GENONLINE) && defined(GENONLINE_COMMUNITY_PATCH_CHANGES)
     // load community data patch BIG
-	if (NGMP_OnlineServicesManager::Settings.DataPacks_UseCommunityPatch()
+	if (GenOnlineServicesManager::Settings.DataPacks_UseCommunityPatch()
 		&& !TheGlobalData->m_commandLineData.isCommunityDataPatchDisabled())
     {
         std::string strBigPath = std::format("{}GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big", TheGlobalData->getPath_UserData().str());

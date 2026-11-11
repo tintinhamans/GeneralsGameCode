@@ -126,7 +126,7 @@ enum { K_SCRIPTS_DATA_VERSION_1 = 1 };
 enum { MAX_SPIN_COUNT = 20 };
 #define NONE_STRING "<none>"
 
-#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE) && defined(GENONLINE_HIGH_FPS_SERVER)
 static const Int FRAMES_TO_SHOW_WIN_LOSE_MESSAGE = 120;
 static const Int FRAMES_TO_FADE_IN_AT_START = 33;
 #else
@@ -5527,7 +5527,7 @@ void ScriptEngine::update()
 #endif
 #endif
     
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
     const bool legacyFrameAdvanced = TheGameLogic->HasLegacyFrameAdvanced();
 #else
     const bool legacyFrameAdvanced = true;
@@ -5723,13 +5723,13 @@ void ScriptEngine::startQuickEndGameTimer()
 //-------------------------------------------------------------------------------------------------
 /** startEndGameTimer */
 //-------------------------------------------------------------------------------------------------
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 void ScriptEngine::startEndGameTimer(bool bExtendForErrorMsg)
 #else
 void ScriptEngine::startEndGameTimer( void )
 #endif
 {
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	if (bExtendForErrorMsg)
 	{
 		m_endGameTimer = FRAMES_TO_SHOW_WIN_LOSE_MESSAGE * 5;
@@ -6791,7 +6791,7 @@ void ScriptEngine::setTimer(ScriptAction* pAction, Bool millisecondTimer, Bool r
 			Real randomValue = pAction->getParameter(2)->getReal();
 			value = GameLogicRandomValue(value, randomValue);
 		}	
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
     const int LEGACY_FPS_INT = BaseFps;
     m_counters[counterNdx].value = REAL_TO_INT_CEIL(value * (Real)LEGACY_FPS_INT);
 #else

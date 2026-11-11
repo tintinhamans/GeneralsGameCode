@@ -118,10 +118,10 @@
 
 struct QuitGameException {};
 
-#include "../NGMP_include.h"
-#include "../NGMP_interfaces.h"
+#include "../GenOnlineInclude.h"
+#include "../GenOnlineInterfaces.h"
 
-#include "../NextGenMP_defines.h"
+#include "../GenOnlineDefines.h"
 
 DECLARE_PERF_TIMER(SleepyMaintenance)
 
@@ -242,7 +242,7 @@ GameLogic::GameLogic()
 		m_progressComplete[i] = FALSE;
 		m_progressCompleteTimeout[i] = 0;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 		m_progressMade[i] = 0;
 #endif
 	}
@@ -253,7 +253,7 @@ GameLogic::GameLogic()
 
 	m_frame = 0;
 	m_hasUpdated = FALSE;
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 	m_frameLegacy = 0;
 	m_frameLegacyLast = 0;
 #endif
@@ -297,7 +297,7 @@ void GameLogic::setDefaults(Bool loadingSaveGame)
 {
 	m_frame = 0;
 	m_hasUpdated = FALSE;
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 	m_frameLegacy = 0;
 	m_frameLegacyLast = 0;
 #endif
@@ -536,7 +536,7 @@ void GameLogic::reset()
 		m_progressComplete[i] = FALSE;
 		m_progressCompleteTimeout[i] = 0;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 		m_progressMade[i] = 0;
 #endif
 	}
@@ -942,7 +942,7 @@ static void populateRandomStartPosition(GameInfo* game)
 		if (!slot || !slot->isOccupied() || slot->getPlayerTemplate() == PLAYERTEMPLATE_OBSERVER)
 			continue;
 
-#if defined(GENERALS_ONLINE_IBRA_STARTING_POS_LOGIC)
+#if defined(GENONLINE_IBRA_STARTING_POS_LOGIC)
 		Int posIdx = slot->getStartPos();
 		if (posIdx >= 0 && posIdx < numPlayers)
 		{
@@ -1255,7 +1255,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	m_frame = 0;
 	m_hasUpdated = FALSE;
 
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 	m_frameLegacy = 0;
 	m_frameLegacyLast = 0;
 #endif
@@ -1350,8 +1350,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 		else
 		{
 			DEBUG_LOG(("Starting gamespy game"));
-#if defined(GENERALS_ONLINE)
-			TheGameInfo = game = TheNGMPGame;	/// @todo: MDC add back in after demo
+#if defined(GENONLINE)
+			TheGameInfo = game = TheGenOnlineGame;	/// @todo: MDC add back in after demo
 #else
 			TheGameInfo = game = TheGameSpyGame;	/// @todo: MDC add back in after demo
 #endif
@@ -1463,7 +1463,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 
 	DEBUG_ASSERTCRASH(m_frame == 0, ("framecounter expected to be 0 here"));
 
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 	DEBUG_ASSERTCRASH(m_frameLegacy == 0, ("framecounter expected to be 0 here\n"));
 	DEBUG_ASSERTCRASH(m_frameLegacyLast == 0, ("framecounter expected to be 0 here\n"));
 #endif
@@ -1504,7 +1504,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 			{
 				m_progressComplete[i] = TRUE;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 				m_progressMade[i] = 100;
 #endif
 				lastHeardFrom(i);
@@ -2341,7 +2341,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 		TheNetwork->liteupdate();
 	}
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	// set a minimum display time for the load screen on GO to allow players to read ELO, army, stats, etc.
 	const UnsignedInt minLoadScreenDisplayTime = 2000;
 	UnsignedInt minLoadScreenEndTime = isInInternetGame() ? (timeGetTime() + minLoadScreenDisplayTime) : 0;
@@ -2825,7 +2825,7 @@ void GameLogic::processCommandList(CommandList* list)
 			}
 #endif // DEBUG_LOGGING
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 			// provide more details
 			UnicodeString strMismatchDetails;
 			strMismatchDetails.format(L"GameLogic frame %d, latest frame %d, GetGameLogicRandomSeedCRC was %d\nHad %d CRCs from %d players\nMismatched Players:\n",
@@ -2881,13 +2881,13 @@ void GameLogic::processCommandList(CommandList* list)
 
 			TheNetwork->setSawCRCMismatch(strMismatchDetails);
 
-#if defined(GENERALS_ONLINE_USE_SENTRY)
-			if (TheNGMPGame != nullptr)
+#if defined(GENONLINE_USE_SENTRY)
+			if (TheGenOnlineGame != nullptr)
 			{
 				// local player info
 				int64_t userID = -1;
 				std::string strDisplayname = "Unknown";
-				NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+				GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 				if (pAuthInterface != nullptr)
 				{
 					userID = pAuthInterface->GetUserID();
@@ -3926,7 +3926,7 @@ void GameLogic::update()
 	USE_PERF_TIMER(GameLogic_update)
 	PROFILER_SECTION_COLOR(0x4CAF50);
 
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 		if (m_frame % 2 != 0)
 		{
 			m_frameLegacyLast = m_frameLegacy;
@@ -4176,8 +4176,8 @@ void GameLogic::update()
 		}
 	}
 
-#if defined(GENERALS_ONLINE)
-	if (TheNGMPGame != nullptr && TheNGMPGame->canKickOnObserversDisabled())
+#if defined(GENONLINE)
+	if (TheGenOnlineGame != nullptr && TheGenOnlineGame->canKickOnObserversDisabled())
 	{
 		TheGameLogic->exitGame();
 	}
@@ -4188,7 +4188,7 @@ void GameLogic::update()
 	{
 		m_frame++;
 		m_hasUpdated = TRUE;
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 		if (m_frame % 2 == 0)
 		{
 			m_frameLegacy++;
@@ -4887,7 +4887,7 @@ void GameLogic::testTimeOut()
 		// If they've completed their progress, ignore them
 		if (m_progressComplete[i])
 			continue;
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 		// which timeout value do we want to use? we give them a bigger grace period if they made some progress on loading, otherwise we give them a very short timeout
 		const Int timeoutValToUse = m_progressMade[i] > 0 ? PROGRESS_COMPLETE_TIMEOUT_PROGRESS_MADE : PROGRESS_COMPLETE_TIMEOUT_ZERO_PROGRESS_MADE;
 		if (m_progressCompleteTimeout[i] + timeoutValToUse > curTime)

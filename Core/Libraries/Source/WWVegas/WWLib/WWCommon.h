@@ -27,7 +27,7 @@
 #include <Utility/stdio_adapter.h>
 #include <Utility/utility_adapter.h>
 
-#include "../../../../GameEngine/Include/GameNetwork/GeneralsOnline/NextGenMP_defines.h"
+#include "../../../../GameEngine/Include/GameNetwork/GenOnline/GenOnlineDefines.h"
 
 #ifndef SAFE_RELEASE
 #define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=nullptr; } }
@@ -37,7 +37,7 @@ enum
 {
 	// TheSuperHackers @info The original WWSync was 33 ms, ~30 fps, integer.
 	// Changing this will require tweaking all Drawable code that concerns the ww3d time step, including locomotion physics.
-	#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+	#if defined(GENONLINE_HIGH_FPS_SERVER)
 	WWSyncPerSecond = 60,
 #else
 	WWSyncPerSecond = 30,

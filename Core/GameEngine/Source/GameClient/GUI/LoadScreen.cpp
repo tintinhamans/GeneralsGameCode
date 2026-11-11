@@ -88,8 +88,8 @@
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/RankPointValue.h"
-#include "../OnlineServices_Init.h"
-#include "../OnlineServices_StatsInterface.h"
+#include "../GenOnlineInit.h"
+#include "../GenOnlineStatsInterface.h"
 
 //-----------------------------------------------------------------------------
 // DEFINES ////////////////////////////////////////////////////////////////////
@@ -1386,7 +1386,7 @@ void MultiPlayerLoadScreen::init( GameInfo *game )
 		GadgetStaticTextSetText(m_playerNames[netSlot], name );
 		m_playerNames[netSlot]->winSetEnabledTextColors(houseColor, m_playerNames[netSlot]->winGetEnabledTextBorderColor());
 
-#if defined(GO_REVEAL_TEAMS)
+#if defined(GENONLINE_REVEAL_TEAMS)
         const PlayerTemplate* pt = ThePlayerTemplateStore->getNthPlayerTemplate(slot->getPlayerTemplate());
         GadgetStaticTextSetText(m_playerSide[netSlot], pt ? pt->getDisplayName() : slot->getApparentPlayerTemplateDisplayName());
 #else
@@ -1525,7 +1525,7 @@ GameSpyLoadScreen::~GameSpyLoadScreen()
 	}
 }
 
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 extern Int GetAdditionalDisconnectsFromUserFile(Int playerID);
 #endif
 
@@ -1673,9 +1673,9 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 #endif
 
         // Get the stats for the player
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
         PSPlayerStats stats = PSPlayerStats();
-        NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
+        GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
         if (pStatsInterface != nullptr)
         {
             // Data should be in cache from lobby joins, so we can do this synchronously
@@ -1687,9 +1687,9 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 
 		UnicodeString name = slot->getName();
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 		// if QM, show ELO
-		NGMPGame* pNGMPGame = (NGMPGame*)game;
+		GenOnlineGame* pNGMPGame = (GenOnlineGame*)game;
 		if (pNGMPGame->isQMGame())
 		{
 			name.format(L"%s (Elo: %d)", slot->getName().str(), stats.elo_rating);
@@ -1702,7 +1702,7 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 		DEBUG_LOG(("LoadScreen - populating info for %ls(%d) - stats returned id %d",
 			slot->getName().str(), slot->getProfileID(), stats.id));
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 		Bool isPreorder = false;
 #else
 		Bool isPreorder = TheGameSpyInfo->didPlayerPreorder(stats.id);
@@ -1776,7 +1776,7 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 		{
 			numGames += it->second;
 		}
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 		numGames += GetAdditionalDisconnectsFromUserFile(stats.id);
 #endif
 
@@ -1784,7 +1784,7 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 		GadgetStaticTextSetText(m_playerTotalDisconnects[netSlot], formatString);
 		m_playerTotalDisconnects[netSlot]->winSetEnabledTextColors(houseColor, m_playerTotalDisconnects[netSlot]->winGetEnabledTextBorderColor());
 
-#if defined(GO_REVEAL_TEAMS)
+#if defined(GENONLINE_REVEAL_TEAMS)
 		const PlayerTemplate* pt = ThePlayerTemplateStore->getNthPlayerTemplate(slot->getPlayerTemplate());
         GadgetStaticTextSetText(m_playerSide[netSlot], pt ? pt->getDisplayName() : slot->getApparentPlayerTemplateDisplayName());
 #else
@@ -1878,7 +1878,7 @@ void GameSpyLoadScreen::update( Int percent )
 			{
 				g_bHasDoneSOGScreenshot = true;
 
-				NGMP_OnlineServicesManager::GetInstance()->CaptureScreenshotForProbe(EScreenshotType::SCREENSHOT_TYPE_LOADSCREEN, std::string()); // pass no URI here, wait until we have one received from server
+				GenOnlineServicesManager::GetInstance()->CaptureScreenshotForProbe(EScreenshotType::SCREENSHOT_TYPE_LOADSCREEN, std::string()); // pass no URI here, wait until we have one received from server
 			}
 		}
 	}
@@ -1886,9 +1886,9 @@ void GameSpyLoadScreen::update( Int percent )
 	//GadgetProgressBarSetProgress(m_progressBars[TheNetwork->getLocalPlayerID()], percent );
 
 	// GENERALS ONLINE: this is ticked in game engine, but game engine doesnt tick for MP loads when the host is complete and remotes arent... do a liteupdate like TheNetwork does
-	if (NGMP_OnlineServicesManager::GetInstance() != nullptr)
+	if (GenOnlineServicesManager::GetInstance() != nullptr)
 	{
-		NGMP_OnlineServicesManager::GetInstance()->Tick();
+		GenOnlineServicesManager::GetInstance()->Tick();
 	}
 	TheMouse->setCursorTooltip(UnicodeString::TheEmptyString);
 
@@ -2030,9 +2030,9 @@ void MapTransferLoadScreen::update( Int percent )
 	}
 
 	// GENERALS ONLINE: this is ticked in game engine, but game engine doesnt tick for MP loads and map transfers are while(true)... when the host is complete and remotes arent... do a liteupdate like TheNetwork does
-	if (NGMP_OnlineServicesManager::GetInstance() != nullptr)
+	if (GenOnlineServicesManager::GetInstance() != nullptr)
 	{
-		NGMP_OnlineServicesManager::GetInstance()->Tick();
+		GenOnlineServicesManager::GetInstance()->Tick();
 	}
 
 	TheMouse->setCursorTooltip(UnicodeString::TheEmptyString);

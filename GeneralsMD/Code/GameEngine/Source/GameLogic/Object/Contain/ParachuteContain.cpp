@@ -470,7 +470,7 @@ void ParachuteContain::onRemoving( Object *rider )
 	const ParachuteContainModuleData* d = getParachuteContainModuleData();
 
 	// object is no longer held inside a transport
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 	// Info: At 60Hz, a short-lived object can reach its DeletionUpdate lifetime while parachuting, then be destroyed
 	// before its delayed OCLUpdate runs after landing. Restart an expired lifetime before releasing the object.
 	static NameKeyType key_DeletionUpdate = NAMEKEY( "DeletionUpdate" );

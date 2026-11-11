@@ -35,7 +35,7 @@
 #include "Common/PerfTimer.h"
 
 #include "GameNetwork/LANAPICallbacks.h"
-#include "../OnlineServices_Init.h"
+#include "../GenOnlineInit.h"
 
 extern DWORD TheMessageTime;
 
@@ -106,9 +106,9 @@ void Win32GameEngine::update()
 				TheLAN->update();
 			}
 
-			if (NGMP_OnlineServicesManager::GetInstance() != nullptr)
+			if (GenOnlineServicesManager::GetInstance() != nullptr)
 			{
-				NGMP_OnlineServicesManager::GetInstance()->Tick();
+				GenOnlineServicesManager::GetInstance()->Tick();
 			}
 
 			// If we are running a multiplayer game, keep running the logic.

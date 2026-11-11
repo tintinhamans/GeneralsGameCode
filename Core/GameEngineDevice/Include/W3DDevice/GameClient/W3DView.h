@@ -209,7 +209,7 @@ public:
 	virtual	void Add_Camera_Shake(const Coord3D & position,float radius, float duration, float power) override; //WST 10.18.2002
 	virtual Int	 getTimeMultiplier() override {return m_timeMultiplier;};///< Get the time multiplier.
 	virtual void setTimeMultiplier(Int multiple) override {m_timeMultiplier = multiple;}; ///< Set the time multiplier.
-		#if defined(GENERALS_ONLINE)
+		#if defined(GENONLINE)
 	virtual void setDefaultView(Real pitch, Real angle, Real maxHeight, bool bForceDefaultCam = true);
 #else
 	virtual void setDefaultView(Real pitch, Real angle, Real maxHeight);

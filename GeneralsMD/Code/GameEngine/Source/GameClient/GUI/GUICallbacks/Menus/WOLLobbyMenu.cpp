@@ -69,8 +69,8 @@
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameNetwork/GameSpy/LobbyUtils.h"
 #include "GameNetwork/RankPointValue.h"
-#include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
-#include "GameNetwork/GeneralsOnline/OnlineServices_Moderation.h"
+#include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
+#include "GameNetwork/GenOnline/GenOnlineModeration.h"
 
 #include <deque>
 #include <string>
@@ -214,14 +214,14 @@ Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited)
 		}
 
 		UnicodeString msg = UnicodeString(uText.str() + 4); // skip the /me
-		NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+		GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 		if (pRoomsInterface != nullptr)
 		{
 			pRoomsInterface->SendChatMessageToCurrentRoom(msg, true);
 		}
 		return TRUE; // was a slash command
 	}
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	else if (token == "help" || token == "commands")
 	{
 		const Color helpColor = GameMakeColor(127, 127, 127, 255);
@@ -250,7 +250,7 @@ Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited)
 		}
 		else
 		{
-			std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
+			std::shared_ptr<WebSocket>  pWS = GenOnlineServicesManager::GetWebSocket();
 			if (pWS != nullptr)
 			{
 				pWS->SendData_ChangeName(newName);
@@ -323,7 +323,7 @@ Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited)
 	}
 #endif
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Unknown command: Use /help to see all commands."), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
 	return TRUE; // was a slash command
 #else
@@ -360,10 +360,10 @@ static void playerTooltip(GameWindow *window,
 	UnicodeString uName = GadgetListBoxGetText(window, row, COLUMN_PLAYERNAME);
 
 	// TODO_NGMP: This causes issues with duplicate names. We should have better ways of looking this up + perhaps only allow unique names
-	NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
-	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-	NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
-	NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 	if (pRoomsInterface != nullptr && pAuthInterface != nullptr && pStatsInterface != nullptr && pSocialInterface != nullptr)
 	{
 		int profileID = (int)GadgetListBoxGetItemData(listboxLobbyPlayers, row, 0);
@@ -708,7 +708,7 @@ static void PopulateLobbyFilterComboBox(GameWindow* comboBox)
 	Int selectedRoomIdx = -1;
 	UnicodeString selectedRoomName;
 
-	NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 	if (pRoomsInterface != nullptr)
 	{
 		const std::vector<NetworkRoom> rooms = pRoomsInterface->GetGroupRooms();
@@ -755,7 +755,7 @@ static void PopulateLobbyFilterComboBox(GameWindow* comboBox)
 
 static void HandleNetworkRoomChanged(int roomIndex, bool effectiveRoomChanged)
 {
-	NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 	if (pRoomsInterface == nullptr)
 		return;
 
@@ -884,7 +884,7 @@ static Int LobbyRankIconExtent()
 
 //-------------------------------------------------------------------------------------------------
 /** Rank icon from cached stats, falling back to the last resolved value. */
-static const Image* ResolveRankIconForUser(int64_t userID, NGMP_OnlineServices_StatsInterface* pStatsInterface)
+static const Image* ResolveRankIconForUser(int64_t userID, GenOnlineStatsInterface* pStatsInterface)
 {
 	Int rankPoints = 0;
 	Int favoriteSide = 0;
@@ -921,7 +921,7 @@ static void RefreshVisibleLobbyRowIcons()
 	if (listboxLobbyPlayers == nullptr || s_lobbyPlayerRows.empty())
 		return;
 
-	NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
+	GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
 
 	const Int rowCount = (Int)s_lobbyPlayerRows.size();
 	Int top = GadgetListBoxGetTopVisibleEntry(listboxLobbyPlayers);
@@ -956,7 +956,7 @@ static void RequestVisibleLobbyStats(Bool bOnlyUnrequested)
 	if (listboxLobbyPlayers == nullptr || s_lobbyPlayerRows.empty())
 		return;
 
-	NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
+	GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
 	if (pStatsInterface == nullptr)
 		return;
 
@@ -1037,8 +1037,8 @@ static void CollectLobbyPlayerRows(std::vector<LobbyPlayerRow>& outRows)
 {
 	outRows.clear();
 
-	NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
-	NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 	if (pRoomsInterface == nullptr)
 		return;
 
@@ -1096,8 +1096,8 @@ static void RebuildLobbyPlayerList(const std::vector<LobbyPlayerRow>& rows)
 	if (listboxLobbyPlayers == nullptr)
 		return;
 
-	NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
-	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	const int64_t localUserID = (pAuthInterface != nullptr) ? pAuthInterface->GetUserID() : 0;
 
 	// preserve selection and scroll
@@ -1195,7 +1195,7 @@ void PopulateLobbyPlayerListbox()
 	}
 }
 
-void NGMP_WOLLobbyMenu_CreateLobbyCallback(bool bSuccess)
+void GenOnline_WOLLobbyMenu_CreateLobbyCallback(bool bSuccess)
 {
 	// TODO_NGMP: Handle error case
 
@@ -1206,7 +1206,7 @@ void NGMP_WOLLobbyMenu_CreateLobbyCallback(bool bSuccess)
 	//TheGameSpyInfo->setGameOptions();
 }
 
-void NGMP_WOLLobbyMenu_JoinLobbyCallback(EJoinLobbyResult result)
+void GenOnline_WOLLobbyMenu_JoinLobbyCallback(EJoinLobbyResult result)
 {
 	// TODO_NGMP: Show accurate errors again
 
@@ -1284,7 +1284,7 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 	const UnsignedInt lobbyMenuGeneration = ++s_lobbyMenuGeneration;
 
 	// for safety (and sanity)
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface != nullptr)
 	{
 		pLobbyInterface->LeaveCurrentLobby();
@@ -1379,13 +1379,13 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 	*/
 
 	// NGMP: Register for create lobby callback
-	NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 	if (pLobbyInterface != nullptr && pRoomsInterface != nullptr)
 	{
-		pLobbyInterface->RegisterForCreateLobbyCallback(NGMP_WOLLobbyMenu_CreateLobbyCallback);
+		pLobbyInterface->RegisterForCreateLobbyCallback(GenOnline_WOLLobbyMenu_CreateLobbyCallback);
 
 		// NGMP: Join lobby callback
-		pLobbyInterface->RegisterForJoinLobbyCallback(NGMP_WOLLobbyMenu_JoinLobbyCallback);
+		pLobbyInterface->RegisterForJoinLobbyCallback(GenOnline_WOLLobbyMenu_JoinLobbyCallback);
 
 		// NGMP: Request lobbies
 
@@ -1424,13 +1424,13 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 	// animate controls
 //	TheShell->registerWithAnimateManager(parent, WIN_ANIMATION_SLIDE_TOP, TRUE);
 	TheShell->showShellMap(TRUE);
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 	TheGameSpyGame->reset();
 	
 #else
-	if (TheNGMPGame != nullptr)
+	if (TheGenOnlineGame != nullptr)
 	{
-		TheNGMPGame->reset();
+		TheGenOnlineGame->reset();
 	}
 #endif
 
@@ -1463,10 +1463,10 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 	DontShowMainMenu = TRUE;
 
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 // upon entry, retrieve room list
 
-	NGMP_OnlineServices_RoomsInterface* pRoomsInterfaceOuter = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+	GenOnlineRoomsInterface* pRoomsInterfaceOuter = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 	if (pRoomsInterfaceOuter != nullptr)
 	{
 		pRoomsInterfaceOuter->GetRoomList([=](bool success)
@@ -1488,7 +1488,7 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 	}
 
 	// Update the communicator button anytime we get notifications
-    NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+    GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 	if (pSocialInterface != nullptr)
 	{
 		// notifiactions callback
@@ -1551,7 +1551,7 @@ void WOLLobbyMenuShutdown( WindowLayout *layout, void *userData )
 {
 	++s_lobbyMenuGeneration;
 
-	NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 	if (pRoomsInterface != nullptr)
 	{
 		pRoomsInterface->DeregisterForChatCallback();
@@ -1559,7 +1559,7 @@ void WOLLobbyMenuShutdown( WindowLayout *layout, void *userData )
 		pRoomsInterface->DeregisterForRoomChangedCallback();
 	}
 
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface != nullptr)
 	{
 		pLobbyInterface->DeregisterForCreateLobbyCallback();
@@ -1691,9 +1691,9 @@ void refreshGameList( Bool forceRefresh )
 
 	if (forceRefresh || ((gameListRefreshTime == 0) || ((gameListRefreshTime + refreshInterval) <= timeGetTime())))
 	{
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 		RefreshGameListBoxes();
-		NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+		GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 		if (pLobbyInterface != nullptr)
 		{
 			pLobbyInterface->ConsumeLobbyListDirtyFlag();
@@ -1740,10 +1740,10 @@ void ExitState()
 		return;
 
 	// Leave any group room, then pop off the screen
-	auto pOnlineServicesManager = NGMP_OnlineServicesManager::GetInstance();
+	auto pOnlineServicesManager = GenOnlineServicesManager::GetInstance();
 	if (pOnlineServicesManager != nullptr)
 	{
-		NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+		GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 		if (pRoomsInterface != nullptr)
 		{
 			pRoomsInterface->LeaveRoom();
@@ -1771,7 +1771,7 @@ void ExitState()
 void WOLLobbyMenuUpdate( WindowLayout * layout, void *userData)
 {
 	// need to exit?
-	if (NGMP_OnlineServicesManager::GetInstance() != nullptr && NGMP_OnlineServicesManager::GetInstance()->IsPendingFullTeardown())
+	if (GenOnlineServicesManager::GetInstance() != nullptr && GenOnlineServicesManager::GetInstance()->IsPendingFullTeardown())
 	{
 		if (!s_tryingToHostOrJoin)
 		{
@@ -1813,7 +1813,7 @@ void WOLLobbyMenuUpdate( WindowLayout * layout, void *userData)
 	}
 	
 	// do we need to update?
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface != nullptr && pLobbyInterface->IsLobbyListDirty() && !isShuttingDown && !buttonPushed && !pLobbyInterface->IsInLobby() && pLobbyInterface->GetLobbyTryingToJoin().lobbyID == -1)
 	{
 		const bool bShouldAutoRefresh = true;
@@ -1829,7 +1829,7 @@ void WOLLobbyMenuUpdate( WindowLayout * layout, void *userData)
 
 	}
 
-#if defined(GENERALS_ONLINE) // GO needs to tick this, so notifications disappear etc
+#if defined(GENONLINE) // GO needs to tick this, so notifications disappear etc
 	HandleBuddyResponses();
 #endif
 
@@ -2448,7 +2448,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 				}
 				else if ( controlID == buttonJoinID )
 				{
-					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+					GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 					if (pLobbyInterface == nullptr)
 					{
 						break;
@@ -2617,7 +2617,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 					}
 
 					GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
-					NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+					GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 					if (pRoomsInterface != nullptr)
 					{
 						pRoomsInterface->SendChatMessageToCurrentRoom(txtInput, false);
@@ -2633,7 +2633,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 				if (s_tryingToHostOrJoin || s_populatingLobbyCombo)
 					break;
 
-				NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+				GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 
 				extern LobbyGameModeFilter theLobbyFilter;
 				GameWindow *control = (GameWindow *)mData1;
@@ -2707,7 +2707,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 
 				if (controlID == listboxLobbyPlayersID)
 				{
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 					RightClickStruct* rc = (RightClickStruct*)mData2;
 					WindowLayout* rcLayout = NULL;
 					GameWindow* rcMenu;
@@ -2718,10 +2718,10 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 					}
 
 					// TODO_NGMP: This causes issues with duplicate names. We should have better ways of looking this up + perhaps only allow unique names
-					NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
-					NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-					NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
-					NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+					GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+					GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+					GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
+					GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 					if (pRoomsInterface != nullptr && pAuthInterface != nullptr && pStatsInterface != nullptr && pSocialInterface != nullptr)
 					{
 
@@ -2984,7 +2984,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 					}
 
 					GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
-					std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
+					std::shared_ptr<WebSocket>  pWS = GenOnlineServicesManager::GetWebSocket();
 					if (pWS != nullptr)
 					{
 						pWS->SendData_RoomChatMessage(txtInput, false);

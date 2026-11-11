@@ -417,7 +417,7 @@ public:
 
 	UnsignedInt m_antiAliasLevel;          ///< value of selected antialias level in the game options
 
-#if !defined(GENERALS_ONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)
+#if !defined(GENONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)
 	UnsignedInt m_textureFilteringMode;       ///< value related to TextureFilterClass::TextureFilterModeEnum
 	UnsignedInt m_textureAnisotropyLevel;     ///< value related to TextureFilterClass::AnisotropicFilterMode
 #endif

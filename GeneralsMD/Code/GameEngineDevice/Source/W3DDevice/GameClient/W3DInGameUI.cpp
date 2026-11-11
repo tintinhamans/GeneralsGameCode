@@ -51,7 +51,7 @@
 #include "WW3D2/Renderer.h"
 #include "WW3D2/hanim.h"
 
-#include "../OnlineServices_Init.h"
+#include "../GenOnlineInit.h"
 
 
 #include "Common/UnitTimings.h" //Contains the DO_UNIT_TIMINGS define jba.

@@ -53,7 +53,7 @@
 
 #include "WWDownload/Registry.h"
 #include "WWDownload/urlBuilder.h"
-#include "../OnlineServices_Init.h"
+#include "../GenOnlineInit.h"
 #include "Common/GameEngine.h"
 #include "Common/GlobalData.h"
 #include "../PluginInterfaces.h"
@@ -138,7 +138,7 @@ static void noPatchBeforeOnlineCallback()
 		HandleCanceledDownload();
 
 		// Patch was cancelled and critical, tear us down
-		NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
+		GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
 	}
 	else
 	{
@@ -227,7 +227,7 @@ static void startOnline()
 
 	TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_ONLINE_SELECTED]);
 
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 	DEBUG_ASSERTCRASH( !TheGameSpyBuddyMessageQueue, ("TheGameSpyBuddyMessageQueue exists!") );
 	DEBUG_ASSERTCRASH( !TheGameSpyPeerMessageQueue, ("TheGameSpyPeerMessageQueue exists!") );
 	DEBUG_ASSERTCRASH( !TheGameSpyInfo, ("TheGameSpyInfo exists!") );
@@ -568,9 +568,9 @@ void CancelPatchCheckCallbackAndReopenDropdown()
 	CancelPatchCheckCallback();
 
 	// Patch was cancelled, tear us down
-	if (NGMP_OnlineServicesManager::GetInstance() != nullptr)
+	if (GenOnlineServicesManager::GetInstance() != nullptr)
 	{
-		NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
+		GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
 	}
 }
 
@@ -864,11 +864,11 @@ void StartPatchCheck()
 	}
 
 	// GENERALS ONLINE
-	NGMP_OnlineServicesManager::CreateInstance();
+	GenOnlineServicesManager::CreateInstance();
 
 	// online services must be initialized
 	// TODO_NGMP: Uninit this when leaving MP, waste of resources and cycles
-	NGMP_OnlineServicesManager::GetInstance()->Init();
+	GenOnlineServicesManager::GetInstance()->Init();
 
     // if we have an AC plugin loaded but the AC external process isnt running, show an error message
     if (AnticheatPlugInterface::IsPluginLoaded())
@@ -884,7 +884,7 @@ void StartPatchCheck()
     }
 	else if (AnticheatPlugInterface::DidPluginFailToLoad()) // Did we have something to load but it failed?
 	{
-        std::string strPlugin = NGMP_OnlineServicesManager::Settings.GetAnticheatPlugin();
+        std::string strPlugin = GenOnlineServicesManager::Settings.GetAnticheatPlugin();
         std::string pluginPath = std::format("plugins/{}/{}.dll", strPlugin.c_str(), strPlugin.c_str());
 
 		UnicodeString strErrorMssage;
@@ -900,7 +900,7 @@ void StartPatchCheck()
     onlineCancelWindow = MessageBoxCancel(TheGameText->fetch("GUI:CheckingForPatches"),
         TheGameText->fetch("GUI:CheckingForPatches"), CancelPatchCheckCallbackAndReopenDropdown);
 
-	NGMP_OnlineServicesManager::GetInstance()->StartVersionCheck([](bool bSuccess, bool bNeedsUpdate)
+	GenOnlineServicesManager::GetInstance()->StartVersionCheck([](bool bSuccess, bool bNeedsUpdate)
 		{
 #if defined(USE_TEST_ENV) || defined(USE_DEBUG_ON_LIVE_SERVER)
 			bNeedsUpdate = false;
@@ -917,7 +917,7 @@ void StartPatchCheck()
 				}
 
 				// TODO_NGMP: do this everywhere teardowngamespy was called
-				NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
+				GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
 
 				MessageBoxOk(TheGameText->fetch("GUI:CannotConnectToServservTitle"),
 					TheGameText->fetch("GUI:CannotConnectToServserv"),
@@ -958,11 +958,11 @@ void StartPatchCheck()
 								layout->hide(FALSE);
 								layout->bringForward();
 
-								NGMP_OnlineServicesManager::GetInstance()->StartDownloadUpdate([]()
+								GenOnlineServicesManager::GetInstance()->StartDownloadUpdate([]()
 									{
 										MessageBoxOk(UnicodeString(L"Update Ready"), UnicodeString(L"Press OK to begin installing the patch"), []()
 											{
-												NGMP_OnlineServicesManager::GetInstance()->LaunchPatcher();
+												GenOnlineServicesManager::GetInstance()->LaunchPatcher();
 											});
 									});
 

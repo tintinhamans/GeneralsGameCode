@@ -337,7 +337,7 @@ PSPlayerStats::PSPlayerStats( const PSPlayerStats& other )
 	incorporate(other);
 	id = other.id;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	elo_rating = other.elo_rating;
 	elo_num_matches = other.elo_num_matches;
 	monthly_elo_rating = other.monthly_elo_rating;
@@ -1094,7 +1094,7 @@ PSPlayerStats::PSPlayerStats()
 void PSPlayerStats::reset()
 {
 	id = 0;
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	elo_rating = 0;
 	monthly_elo_rating = 0;
 	elo_num_matches = 0;

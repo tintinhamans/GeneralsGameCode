@@ -73,10 +73,10 @@
 #include "Common/LadderPreferences.h"
 
 // GENERALS ONLINE:
-#include "../NextGenMP_defines.h"
-#include "../OnlineServices_Init.h"
-#include "../OnlineServices_LobbyInterface.h"
-#include "../OnlineServices_Auth.h"
+#include "../GenOnlineDefines.h"
+#include "../GenOnlineInit.h"
+#include "../GenOnlineLobbyInterface.h"
+#include "../GenOnlineAuth.h"
 #include "GameClient/MapUtil.h"
 #include "GameClient/GameWindow.h"
 #include "Common/QuotedPrintable.h"
@@ -263,8 +263,8 @@ void PopulateCustomLadderComboBox()
 	CustomMatchPreferences pref;
 	AsciiString userPrefFilename;
 
-#if defined(GENERALS_ONLINE)
-	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+#if defined(GENONLINE)
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	int64_t localProfile = pAuthInterface == nullptr ? -1 : pAuthInterface->GetUserID();
 	userPrefFilename.format("GeneralsOnline\\CustomPref%lld.ini", localProfile);
 #else
@@ -333,7 +333,7 @@ void PopupHostGameInit( WindowLayout *layout, void *userData )
 	textEntryGameName = TheWindowManager->winGetWindowFromId(parentPopup, textEntryGameNameID);
 	UnicodeString name;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	{
 		CustomMatchPreferences pref;
 		AsciiString lastLobbyName = pref.getLastLobbyName();
@@ -389,7 +389,7 @@ void PopupHostGameInit( WindowLayout *layout, void *userData )
   checkBoxLimitArmiesID = TheNameKeyGenerator->nameToKey("PopupHostGame.wnd:CheckBoxLimitArmies");
   checkBoxLimitArmies = TheWindowManager->winGetWindowFromId(parentPopup, checkBoxLimitArmiesID);
 	
-#if !defined(GENERALS_ONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES)
+#if !defined(GENONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES)
   // limit armies is disallowed in "use stats" games
 	checkBoxLimitArmies->winEnable(! usingStats );
   GadgetCheckBoxSetChecked( checkBoxLimitArmies, usingStats? FALSE : customPref.getFactionsLimited() );
@@ -400,7 +400,7 @@ void PopupHostGameInit( WindowLayout *layout, void *userData )
 	TheWindowManager->winSetFocus(textEntryGameName);
 	TheWindowManager->winSetModal( parentPopup );
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	int xStats = 0;
 	int yStats = 0;
 	checkBoxUseStats->winGetPosition(&xStats, &yStats);
@@ -415,7 +415,7 @@ void PopupHostGameInit( WindowLayout *layout, void *userData )
 	// hide password for streams
 	EntryData* e = (EntryData*)textEntryGamePassword->winGetUserData();
 	e->secretText = true;
-	e->maxTextLen = GENERALS_ONLINE_LOBBY_MAX_PASSWORD_LENGTH;
+	e->maxTextLen = GENONLINE_LOBBY_MAX_PASSWORD_LENGTH;
 #endif
 
 }
@@ -426,7 +426,7 @@ void PopupHostGameInit( WindowLayout *layout, void *userData )
 //-------------------------------------------------------------------------------------------------
 void PopupHostGameUpdate( WindowLayout * layout, void *userData)
 {
-#if !defined(GENERALS_ONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES)
+#if !defined(GENONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES)
 	if (GadgetCheckBoxIsChecked( checkBoxUseStats ))
 	{
 		checkBoxLimitArmies->winEnable( FALSE );
@@ -602,7 +602,7 @@ WindowMsgHandledType PopupHostGameSystem( GameWindow *window, UnsignedInt msg, W
 					GSMessageBoxOk(TheGameText->fetch("GUI:Error"), UnicodeString(L"Please enter a lobby name."), nullptr);
 					break;
 				}
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 				// save last used lobby name to CustomPref.ini
 				{
 					char buffer[256];
@@ -647,7 +647,7 @@ void createGame()
 	// TODO_NGMP: exe and ini crc, verison etc
 	// TODO_NGMP: passworded lobbies
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	// TODO_NGMP: Support 'favorite map' again
 	AsciiString defaultMap = getDefaultMap(true);
     CustomMatchPreferences pref;
@@ -682,7 +682,7 @@ void createGame()
 
 
 	// NGMP:NOTE: We count money here because mods etc sometimes change the starting money, so we dont want to hard code it, just create with whatever the client is telling us is a sensible amount
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (!pLobbyInterface)
 	{
 		parentPopup = nullptr;

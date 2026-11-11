@@ -509,10 +509,10 @@ Int WeaponTemplate::getDelayBetweenShots(const WeaponBonus& bonus) const
 		delayToUse = GameLogicRandomValue( m_minDelayBetweenShots, m_maxDelayBetweenShots );
 
 // TODO_NGMP: Better solution, less hackyness
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
-	if (delayToUse != 0 && delayToUse < (2*GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER))
+#if defined(GENONLINE_HIGH_FPS_SERVER)
+	if (delayToUse != 0 && delayToUse < (2*GENONLINE_HIGH_FPS_FRAME_MULTIPLIER))
 	{
-		delayToUse = 2*GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER;
+		delayToUse = 2*GENONLINE_HIGH_FPS_FRAME_MULTIPLIER;
 	}
 
 	// HACK
@@ -1957,7 +1957,7 @@ void Weapon::computeBonus(const Object *source, WeaponBonusConditionFlags extraB
 	const WeaponBonusSet* extra = m_template->getExtraBonus();
 	if (extra)
 		extra->appendBonuses(flags, bonus);
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
      // Fix v1 quad cannon damage this way for now
      const char* weaponName = m_template->getName().str();
      if (source->getVeterancyLevel() == 1 &&

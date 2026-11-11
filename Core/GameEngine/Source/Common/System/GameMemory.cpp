@@ -2033,7 +2033,7 @@ void DynamicMemoryAllocator::init(MemoryPoolFactory *factory, Int numSubPools, c
 {
 	const PoolInitRec defaultDMA[7] =
 	{
-#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_USE_LARGER_DMAPOOL)
+#if defined(GENONLINE) && defined(GENONLINE_USE_LARGER_DMAPOOL)
 		{ "dmaPool_16", 64, 64, 64 },
 		{ "dmaPool_32", 64, 64, 64 },
 		{ "dmaPool_64", 64, 64, 64 },

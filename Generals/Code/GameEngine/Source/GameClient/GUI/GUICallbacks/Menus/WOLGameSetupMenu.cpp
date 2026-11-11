@@ -63,8 +63,8 @@
 #include "GameNetwork/NAT.h"
 #include "GameNetwork/GUIUtil.h"
 #include "GameNetwork/GameSpy/GSConfig.h"
-#if defined(GENERALS_ONLINE)
-#include "GameNetwork/GeneralsOnline/NGMPGame.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineGame.h"
 #endif
 
 void WOLDisplaySlotList();
@@ -138,8 +138,8 @@ static Bool isShuttingDown = false;
 static Bool buttonPushed = false;
 static const char *nextScreen = nullptr;
 
-#if defined(GENERALS_ONLINE)
-NGMPGame* TheNGMPGame = nullptr;
+#if defined(GENONLINE)
+GenOnlineGame* TheGenOnlineGame = nullptr;
 #endif
 static Bool raiseMessageBoxes = false;
 static Bool launchGameNext = FALSE;
@@ -2674,15 +2674,15 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 	return MSG_HANDLED;
 }
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 void OnKickedFromLobby()
 {
 	// can't see ourselves
 	buttonPushed = true;
 
-	if (TheNGMPGame != nullptr)
+	if (TheGenOnlineGame != nullptr)
 	{
-		TheNGMPGame->reset();
+		TheGenOnlineGame->reset();
 	}
 
 	GSMessageBoxOk(TheGameText->fetch("GUI:GSErrorTitle"), TheGameText->fetch("GUI:GSKicked"));

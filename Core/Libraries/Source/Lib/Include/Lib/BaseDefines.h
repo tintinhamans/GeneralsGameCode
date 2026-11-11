@@ -19,7 +19,7 @@
 #pragma once
 
 #ifndef RETAIL_COMPATIBLE_CRC
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 #define RETAIL_COMPATIBLE_CRC (0)
 #else
 #define RETAIL_COMPATIBLE_CRC (1) // Game is expected to be CRC compatible with retail Generals 1.08, Zero Hour 1.04

@@ -359,12 +359,12 @@ void AI::reset()
 void AI::update()
 {
 	// Do pathfinding.
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 	if (TheGameLogic->HasLegacyFrameAdvanced())
 	{
 #endif
 		m_pathfinder->processPathfindQueue();
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 	}
 #endif
 

@@ -520,7 +520,7 @@ const char* DebugGetLogFileNamePrev()
 */
 void DebugCrash(const char *format, ...)
 {
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	return;
 #endif
 	// Note: You might want to make this thread safe, but we cannot. The reason is that

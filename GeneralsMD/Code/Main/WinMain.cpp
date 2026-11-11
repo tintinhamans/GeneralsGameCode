@@ -68,7 +68,7 @@
 #ifdef RTS_ENABLE_CRASHDUMP
 #include "MiniDumper/MiniDumper.h"
 #endif
-#include "../OnlineServices_Init.h"
+#include "../GenOnlineInit.h"
 
 
 // GLOBALS ////////////////////////////////////////////////////////////////////
@@ -839,7 +839,7 @@ static Bool initializeAppWindows(HINSTANCE hInstance, Int nCmdShow, Bool runWind
 
     if (!runWindowed)
     {
-#if defined(GENERALS_ONLINE_WINDOWED_FULLSCREEN)
+#if defined(GENONLINE_WINDOWED_FULLSCREEN)
         SetWindowPos(hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
 #else
         SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
@@ -973,7 +973,7 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 			return exitcode;
 		}
 
-		NGMP_OnlineServicesManager::AttemptLoadSteam();
+		GenOnlineServicesManager::AttemptLoadSteam();
 
 		// save our application instance for future use
 		ApplicationHInstance = hInstance;
@@ -994,8 +994,8 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		TheVersion = NEW Version;
 
         // TODO_NGMP: Better solution
-#if defined(GENERALS_ONLINE)
-        TheVersion->setVersion(VERSION_MAJOR, VERSION_MINOR, GENERALS_ONLINE_VERSION, GENERALS_ONLINE_NET_VERSION,
+#if defined(GENONLINE)
+        TheVersion->setVersion(VERSION_MAJOR, VERSION_MINOR, GENONLINE_VERSION, GENONLINE_NET_VERSION,
             AsciiString("Generals Online Development Team"), AsciiString(""),
             AsciiString(__TIME__), AsciiString(__DATE__));
 #else

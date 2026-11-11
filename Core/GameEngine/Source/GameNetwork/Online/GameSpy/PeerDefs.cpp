@@ -46,7 +46,7 @@
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/RankPointValue.h"
 #include "GameLogic/GameLogic.h"
-#include "../NextGenMP_defines.h"
+#include "../GenOnlineDefines.h"
 
 
 GameSpyInfoInterface *TheGameSpyInfo = nullptr;
@@ -599,7 +599,7 @@ const AsciiString& GameSpyInfo::getConfig()
 void SetUpGameSpy( const char *motdBuffer, const char *configBuffer )
 {
 	// TODO_NGMP: dont call this, remove gamespy fully
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 	SetUpOnline(ResolveConfiguredProvider(), motdBuffer, configBuffer);
 #endif
 }

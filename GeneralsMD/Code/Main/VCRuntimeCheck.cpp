@@ -24,10 +24,10 @@
 extern "C" IMAGE_DOS_HEADER __ImageBase;
 
 // Stamped by CMake from the toolset's redistributable; falls back to the compiler's minor version
-#ifndef GO_VCREDIST_MAJOR
-#define GO_VCREDIST_MAJOR 14
-#define GO_VCREDIST_MINOR (_MSC_VER - 1900)
-#define GO_VCREDIST_BUILD 0
+#ifndef GENONLINE_VCREDIST_MAJOR
+#define GENONLINE_VCREDIST_MAJOR 14
+#define GENONLINE_VCREDIST_MINOR (_MSC_VER - 1900)
+#define GENONLINE_VCREDIST_BUILD 0
 #endif
 
 namespace
@@ -55,7 +55,7 @@ namespace
 		unsigned build;
 	};
 
-	const Version kRequired = { GO_VCREDIST_MAJOR, GO_VCREDIST_MINOR, GO_VCREDIST_BUILD };
+	const Version kRequired = { GENONLINE_VCREDIST_MAJOR, GENONLINE_VCREDIST_MINOR, GENONLINE_VCREDIST_BUILD };
 
 	bool IsOlder(const Version& a, const Version& b)
 	{

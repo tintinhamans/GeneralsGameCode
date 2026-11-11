@@ -30,7 +30,7 @@
 
 #include "Common/Registry.h"
 
-#include "../NGMP_include.h"
+#include "../GenOnlineInclude.h"
 #include <format>
 #include <filesystem>
 
@@ -180,7 +180,7 @@ AsciiString GetRegistryLanguage()
 		cached = TRUE;
 	}
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	bool bExistsInRegistry = GetStringFromRegistry("", "Language", val);
 	
 	if (!bExistsInRegistry)

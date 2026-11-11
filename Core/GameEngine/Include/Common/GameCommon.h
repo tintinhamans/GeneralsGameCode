@@ -52,7 +52,7 @@
 // ----------------------------------------------------------------------------------------------
 #include "WWLib/WWCommon.h"
 #include "Common/GameDefines.h"
-#include "GameNetwork/GeneralsOnline/NextGenMP_defines.h"
+#include "GameNetwork/GenOnline/GenOnlineDefines.h"
 
 // ----------------------------------------------------------------------------------------------
 #if defined(RTS_DEBUG)

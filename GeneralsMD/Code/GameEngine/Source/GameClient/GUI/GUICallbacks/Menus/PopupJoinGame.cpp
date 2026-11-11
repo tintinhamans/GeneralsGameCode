@@ -62,8 +62,8 @@
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/PeerThread.h"
 #include "GameNetwork/GameSpyOverlay.h"
-#include "../NGMP_include.h"
-#include "../NGMP_interfaces.h"
+#include "../GenOnlineInclude.h"
+#include "../GenOnlineInterfaces.h"
 
 
 //-----------------------------------------------------------------------------
@@ -101,7 +101,7 @@ void PopupJoinGameInit( WindowLayout *layout, void *userData )
 
 	buttonCancelID = NAMEKEY("PopupJoinGame.wnd:ButtonCancel");
 
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface == nullptr)
 	{
 		DEBUG_LOG(("NGMP_OnlineServices_LobbyInterface is not initialized!"));
@@ -252,7 +252,7 @@ WindowMsgHandledType PopupJoinGameSystem( GameWindow *window, UnsignedInt msg, W
 
 static void joinGame( AsciiString password )
 {
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface == nullptr)
 	{
 		DEBUG_LOG(("NGMP_OnlineServices_LobbyInterface is not initialized!"));
@@ -272,7 +272,7 @@ static void joinGame( AsciiString password )
 		return;
 	}
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	pLobbyInterface->JoinLobby(lobbyTryingToJoin, password.str());
 	
 	DEBUG_LOG(("Attempting to join game %d(%s) with password [%s]\n", lobbyTryingToJoin.lobbyID, lobbyTryingToJoin.name.c_str(), password.str()));

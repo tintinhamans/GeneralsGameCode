@@ -83,7 +83,7 @@ if(MSVC AND NOT IS_VS6_BUILD)
     if(_go_msvcp_version MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)")
         message(STATUS "VC++ runtime check requires ${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3} or newer")
         set_source_files_properties(VCRuntimeCheck.cpp PROPERTIES COMPILE_DEFINITIONS
-            "GO_VCREDIST_MAJOR=${CMAKE_MATCH_1};GO_VCREDIST_MINOR=${CMAKE_MATCH_2};GO_VCREDIST_BUILD=${CMAKE_MATCH_3}")
+            "GENONLINE_VCREDIST_MAJOR=${CMAKE_MATCH_1};GENONLINE_VCREDIST_MINOR=${CMAKE_MATCH_2};GENONLINE_VCREDIST_BUILD=${CMAKE_MATCH_3}")
     else()
         message(WARNING "Could not read the toolset's msvcp140.dll version, the VC++ runtime check falls back to the compiler version")
     endif()
@@ -104,10 +104,10 @@ endif()
 if(WIN32)
 	add_custom_command(TARGET z_generals POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-			"${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/GeneralsOnline/Vendor/DiscordRPC/discord-rpc.dll"
+			"${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/GenOnline/Vendor/DiscordRPC/discord-rpc.dll"
 			"$<TARGET_FILE_DIR:z_generals>/discord-rpc.dll"
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-			"${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/GeneralsOnline/Vendor/DiscordRPC/LICENSE.txt"
+			"${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/GenOnline/Vendor/DiscordRPC/LICENSE.txt"
 			"$<TARGET_FILE_DIR:z_generals>/discord-rpc-LICENSE.txt"
 	)
 
