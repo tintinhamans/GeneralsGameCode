@@ -82,11 +82,6 @@ enum class ELobbyUpdateField
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_Map(UnicodeString strMap, AsciiString strMapPath, bool bIsOfficial, int newMaxPlayers)
 {
-	// reset autostart if host changes anything (because ready flag will reset too)
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-	ClearAutoReadyCountdown();
-#endif
-
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -112,11 +107,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_Map(UnicodeString strMap, Ascii
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_LimitSuperweapons(bool bLimitSuperweapons)
 {
-	// reset autostart if host changes anything (because ready flag will reset too)
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-	ClearAutoReadyCountdown();
-#endif
-
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -134,11 +124,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_LimitSuperweapons(bool bLimitSu
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_StartingCash(UnsignedInt startingCashValue)
 {
-	// reset autostart if host changes anything (because ready flag will reset too)
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-    ClearAutoReadyCountdown();
-#endif
-
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -177,11 +162,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_HasMap()
 // start AI
 void GenOnlineLobbyInterface::UpdateCurrentLobby_AISide(int slot, int side, int updatedStartPos)
 {
-	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-    ClearAutoReadyCountdown();
-#endif
-
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -201,11 +181,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_AISide(int slot, int side, int 
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_AITeam(int slot, int team)
 {
-	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-    ClearAutoReadyCountdown();
-#endif
-
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -224,11 +199,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_AITeam(int slot, int team)
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_AIStartPos(int slot, int startpos)
 {
-	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-    ClearAutoReadyCountdown();
-#endif
-
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -249,16 +219,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobbyMaxCameraHeight(uint16_t maxCame
 {
 	if (IsHost())
 	{
-		UnicodeString strInform;
-		strInform.format(L"Camera height: The host set the limit to %lu.", maxCameraHeight);
-
-		SendAnnouncementMessageToCurrentLobby(strInform, true);
-
-		// reset autostart if host changes anything (because ready flag will reset too)
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-        ClearAutoReadyCountdown();
-#endif
-
 		std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 		std::map<std::string, std::string> mapHeaders;
 
@@ -280,10 +240,6 @@ void GenOnlineLobbyInterface::SetJoinability(ELobbyJoinability joinabilityFlag)
 {
     if (IsHost())
     {
-        UnicodeString strInform(joinabilityFlag == ELobbyJoinability::LobbyJoinability_FriendsOnly ? L"Lobby access: Friends only." : L"Lobby access: Anyone can join.");
-
-		SendAnnouncementMessageToCurrentLobby(strInform, false);
-
         std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
         std::map<std::string, std::string> mapHeaders;
 
@@ -302,11 +258,6 @@ void GenOnlineLobbyInterface::SetJoinability(ELobbyJoinability joinabilityFlag)
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_AIColor(int slot, int color)
 {
-	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-    ClearAutoReadyCountdown();
-#endif
-
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -326,11 +277,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_AIColor(int slot, int color)
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_MySide(int side, int updatedStartPos)
 {
-	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-    ClearAutoReadyCountdown();
-#endif
-
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -349,11 +295,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_MySide(int side, int updatedSta
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_MyColor(int color)
 {
-	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-    ClearAutoReadyCountdown();
-#endif
-
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -371,11 +312,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_MyColor(int color)
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_MyStartPos(int startpos)
 {
-	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-    ClearAutoReadyCountdown();
-#endif
-
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -393,11 +329,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_MyStartPos(int startpos)
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_MyTeam(int team)
 {
-	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-    ClearAutoReadyCountdown();
-#endif
-
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -444,26 +375,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_KickUser(int64_t userID, Unicod
 	// convert
 	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 		{
-			UnicodeString msg;
-			msg.format(L"Lobby: '%s' was removed by the host.", name.str());;
-			SendAnnouncementMessageToCurrentLobby(msg, true);
-		});
-}
 
-void GenOnlineLobbyInterface::UpdateCurrentLobby_ForceReady()
-{
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-	std::map<std::string, std::string> mapHeaders;
-
-	nlohmann::json j;
-	j["field"] = ELobbyUpdateField::HOST_ACTION_FORCE_START;
-	std::string strPostData = j.dump();
-
-	// convert
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-			UnicodeString msg = UnicodeString(L"Ready check: All players are now marked ready.");
-			SendAnnouncementMessageToCurrentLobby(msg, true);
 		});
 }
 
@@ -473,16 +385,6 @@ void GenOnlineLobbyInterface::SendChatMessageToCurrentLobby(UnicodeString& strCh
 	if (pWS != nullptr)
 	{
 		pWS->SendData_LobbyChatMessage(strChatMsgUnicode, bIsAction, false, false);
-	}
-}
-
-// TODO_NGMP: Just send a separate packet for each announce, more efficient and less hacky
-void GenOnlineLobbyInterface::SendAnnouncementMessageToCurrentLobby(UnicodeString& strAnnouncementMsgUnicode, bool bShowToHost)
-{
-	std::shared_ptr<WebSocket>  pWS = GenOnlineServicesManager::GetWebSocket();;
-	if (pWS != nullptr)
-	{
-		pWS->SendData_LobbyChatMessage(strAnnouncementMsgUnicode, false, true, bShowToHost);
 	}
 }
 
@@ -818,24 +720,6 @@ void GenOnlineLobbyInterface::Tick()
 			//UpdateRoomDataCache();
 			m_lastForceRefresh = currTime;
 		}
-
-		// do we have a pending start?
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-		if (IsHost())
-		{
-			if (m_timeStartAutoReadyCountdown > 0)
-			{
-				if ((currTime - m_timeStartAutoReadyCountdown) > 30000)
-				{
-					// TODO_NGMP: Don't do this clientside...
-					UpdateCurrentLobby_ForceReady();
-					ClearAutoReadyCountdown();
-					if (TheGenOnlineGame)
-						TheGenOnlineGame->AbortStart();
-				}
-			}
-		}
-#endif
 	}
 
 	// real time outcome upload
@@ -1543,10 +1427,6 @@ void GenOnlineLobbyInterface::TearDownLocalLobbyState()
 		delete TheGenOnlineGame;
 		TheGenOnlineGame = nullptr;
 	}
-
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-	m_timeStartAutoReadyCountdown = -1;
-#endif
 }
 
 void GenOnlineLobbyInterface::LeaveCurrentLobby()
@@ -1817,11 +1697,6 @@ void GenOnlineLobbyInterface::OnJoinedOrCreatedLobby(bool bAlreadyUpdatedDetails
 	}
 
 	m_bMarkedGameAsFinished = false;
-
-	// reset timer
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-	m_timeStartAutoReadyCountdown = -1;
-#endif
 
 	// TODO_NGMP: We need this on create, but this is a double call on join because we already got this info
 	// must be done in a callback, this is an async function

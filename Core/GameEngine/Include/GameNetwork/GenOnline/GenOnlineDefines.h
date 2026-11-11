@@ -24,8 +24,6 @@
 //#define ARTIFICIAL_DELAY_HTTP_REQUESTS 1
 #endif
 
-#define GENONLINE_DISABLE_AUTO_ACCEPT 1
-
 #if defined(_DEBUG)
 //#define USE_DEBUG_ON_LIVE_SERVER 1
 #endif

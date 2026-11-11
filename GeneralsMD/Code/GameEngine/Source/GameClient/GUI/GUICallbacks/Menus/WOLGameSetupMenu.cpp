@@ -1165,7 +1165,7 @@ static void ShowCountdownSecond(Int secondsRemaining)
 	GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, DetermineSystemNoticeColor(false, false), -1, -1);
 }
 
-// Follows the countdown events of the service.
+// Follows the countdown events of the service and shows its lobby announcements in the local language.
 static void OnLobbyEvent(const LobbyEvent& lobbyEvent)
 {
 	if (TheGenOnlineGame == nullptr || TheGenOnlineGame->isGameInProgress())
@@ -1192,6 +1192,43 @@ static void OnLobbyEvent(const LobbyEvent& lobbyEvent)
 	{
 		TheGenOnlineGame->AbortStart();
 		GadgetListBoxAddEntryText(listboxGameSetupChat, GetReasonText(COUNTDOWN_CANCELLED_TEXTS, lobbyEvent.reason), GameMakeColor(255, 194, 15, 255), -1, -1);
+	}
+	else if (lobbyEvent.event == "host_wants_to_start")
+	{
+		auto* lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+		if (lobby != nullptr && !lobby->IsHost())
+		{
+			GadgetListBoxAddEntryText(listboxGameSetupChat, TheGameText->fetch("GUI:HostWantsToStart"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+		}
+	}
+	else if (lobbyEvent.event == "ready_check_started")
+	{
+		UnicodeString text;
+		text.format(TheGameText->fetchOrSubstitute("GO:ReadyCheckStarted", L"Ready check: All players will be marked ready in %d seconds."), (Int)((lobbyEvent.duration_ms + 999) / 1000));
+		GadgetListBoxAddEntryText(listboxGameSetupChat, text, DetermineSystemNoticeColor(false, false), -1, -1);
+	}
+	else if (lobbyEvent.event == "ready_check_complete")
+	{
+		GadgetListBoxAddEntryText(listboxGameSetupChat, TheGameText->fetchOrSubstitute("GO:ReadyCheckComplete", L"Ready check: All players are now marked ready."), DetermineSystemNoticeColor(false, false), -1, -1);
+	}
+	else if (lobbyEvent.event == "camera_height")
+	{
+		UnicodeString text;
+		text.format(TheGameText->fetchOrSubstitute("GO:CameraHeightChanged", L"Camera height: The host set the limit to %d."), (Int)lobbyEvent.value);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, text, DetermineSystemNoticeColor(false, false), -1, -1);
+	}
+	else if (lobbyEvent.event == "lobby_access")
+	{
+		UnicodeString text = lobbyEvent.friends_only
+			? TheGameText->fetchOrSubstitute("GO:LobbyAccessFriendsOnly", L"Lobby access: Friends only.")
+			: TheGameText->fetchOrSubstitute("GO:LobbyAccessAnyone", L"Lobby access: Anyone can join.");
+		GadgetListBoxAddEntryText(listboxGameSetupChat, text, DetermineSystemNoticeColor(false, false), -1, -1);
+	}
+	else if (lobbyEvent.event == "member_removed")
+	{
+		UnicodeString text;
+		text.format(TheGameText->fetchOrSubstitute("GO:MemberRemoved", L"Lobby: '%s' was removed by the host."), UnicodeString(from_utf8(lobbyEvent.display_name).c_str()).str());
+		GadgetListBoxAddEntryText(listboxGameSetupChat, text, DetermineSystemNoticeColor(false, false), -1, -1);
 	}
 	else
 	{
@@ -1413,39 +1450,15 @@ static void StartPressed()
 	}
 	else if (allHaveMap)
 	{
-		// send HWS chat message
-
-#if defined(GENONLINE_DISABLE_AUTO_ACCEPT)
 		// local msg
 		GadgetListBoxAddEntryText(listboxGameSetupChat, TheGameText->fetch("GUI:NotifiedStartIntent"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
 
-		// remote msg
-		UnicodeString strInform = TheGameText->fetch("GUI:HostWantsToStart");
-		pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform, false);
-#else
-		if (!pLobbyInterface->HasAutoReadyCountdown())
+		// The service tells the players and runs the ready check.
+		std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
+		if (pWS != nullptr)
 		{
-			// local msg
-			GadgetListBoxAddEntryText(listboxGameSetupChat, TheGameText->fetch("GUI:NotifiedStartIntent"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-
-			// remote msg
-			UnicodeString strInform = TheGameText->fetch("GUI:HostWantsToStart");
-			UnicodeString strInform2 = UnicodeString(L"Ready check: All players will be marked ready in 30 seconds.");
-			pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform, false);
-			pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform2, true);
-
-			// TODO_NGMP: Add the reverse too, if everyone is ready but the host wont start... just start it in X seconds
-
-			// start a countdown to auto start
-			// TODO_NGMP: Don't have this client driven...
-			pLobbyInterface->StartAutoReadyCountdown();
+			pWS->SendData_HostStartIntent();
 		}
-		else
-		{
-			UnicodeString strInform = UnicodeString(L"Ready check: A countdown is already running. Players will be marked ready when it ends.");
-			GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(192, 192, 192, 255), -1, -1);
-		}
-#endif
 	}
 }
 
