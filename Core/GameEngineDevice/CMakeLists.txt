@@ -232,6 +232,10 @@ if(RTS_BUILD_OPTION_FFMPEG)
     if(FFMPEG_FOUND)
         target_sources(corei_gameenginedevice_private INTERFACE
             Include/VideoDevice/FFmpeg/FFmpegFile.h
+            Include/VideoDevice/FFmpeg/FFmpegPcmConverter.h
+            Source/VideoDevice/FFmpeg/FFmpegPcmConverter.cpp
+            Include/VideoDevice/FFmpeg/FFmpegAudioFile.h
+            Source/VideoDevice/FFmpeg/FFmpegAudioFile.cpp
             Include/VideoDevice/FFmpeg/FFmpegVideoPlayer.h
             Source/VideoDevice/FFmpeg/FFmpegFile.cpp
             Source/VideoDevice/FFmpeg/FFmpegVideoPlayer.cpp
