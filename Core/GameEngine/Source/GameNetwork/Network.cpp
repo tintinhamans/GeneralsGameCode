@@ -167,7 +167,7 @@ public:
 	virtual Int getSlotAverageFPS(Int slot) override;
 
 	virtual void attachTransport(Transport *transport) override;
-	virtual void initTransport() override;
+	virtual void initTransport(const char *transportName) override;
 
 #if defined(GENERALS_ONLINE)
 	void setSawCRCMismatch(UnicodeString& strMismatchDetails);
@@ -471,10 +471,10 @@ void Network::setLocalAddress(UnsignedInt ip, UnsignedInt port) {
 /**
  * Tell the network to initialize the transport object
  */
-void Network::initTransport() {
+void Network::initTransport(const char *transportName) {
 	DEBUG_ASSERTCRASH(m_conMgr != NULL, ("Connection manager does not exist."));
 	if (m_conMgr != NULL) {
-		m_conMgr->initTransport();
+		m_conMgr->initTransport(transportName);
 	}
 }
 
@@ -868,6 +868,8 @@ Bool Network::timeForNewFrame() {
 
 //		if (m_nextFrameTime + frameDelay < curTime) {
 		if (m_nextFrameTime + frameDelay < curTime) {
+		//if ((m_nextFrameTime + ((GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER * 2) * frameDelay)) < curTime) {
+			// If we get too far behind on our framerate we need to reset the nextFrameTime thing.
 		//if ((m_nextFrameTime + ((GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER * 2) * frameDelay)) < curTime) {
 			// If we get too far behind on our framerate we need to reset the nextFrameTime thing.
 			m_nextFrameTime = curTime;

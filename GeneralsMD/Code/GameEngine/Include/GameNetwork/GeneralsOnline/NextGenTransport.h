@@ -9,6 +9,11 @@
 
 #pragma comment(lib, "Secur32.lib")
 
+#define NEXTGEN_TRANSPORT_NAME "nextgen"
+
+/// Registers the GameNetworkingSockets transport with the transport factory under NEXTGEN_TRANSPORT_NAME.
+void RegisterNextGenTransport();
+
 // Struct to track retry state for outgoing packets
 struct OutgoingPacketState
 {

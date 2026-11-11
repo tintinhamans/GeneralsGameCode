@@ -91,7 +91,7 @@ public:
 	void destroyGameMessages();
 //	void createConnections(UnsignedInt numberOfPlayers, UnsignedInt localSlot);
 	void setLocalAddress(UnsignedInt ip, UnsignedInt port);
-	void initTransport();
+	void initTransport(const char *transportName);
 	void processFrameTick(UnsignedInt frame);
 	void handleLocalPlayerLeaving(UnsignedInt frame);
 

@@ -9,6 +9,7 @@
 #include "Common/RandomValue.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 #include "GameNetwork/NetworkInterface.h"
+#include "GameNetwork/GeneralsOnline/NextGenTransport.h"
 #include "Common/GlobalData.h"
 #include "GameClient/View.h"
 #include "../NextGenMP_defines.h"
@@ -484,7 +485,8 @@ void NGMPGame::launchGame(void)
 	// TODO_NGMP: Do we really care about these values anymore
 	TheNetwork->setLocalAddress(getLocalIP(), 8888);
 
-	TheNetwork->initTransport();
+	RegisterNextGenTransport();
+	TheNetwork->initTransport(NEXTGEN_TRANSPORT_NAME);
 
 	TheNetwork->parseUserList(this);
 

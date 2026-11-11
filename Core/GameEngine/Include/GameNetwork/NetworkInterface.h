@@ -107,7 +107,7 @@ public:
 #endif
 
 	virtual void attachTransport(Transport* transport) = 0;
-	virtual void initTransport() = 0;
+	virtual void initTransport(const char *transportName) = 0;
 	virtual Bool sawCRCMismatch() = 0;
 
 #if defined(GENERALS_ONLINE)

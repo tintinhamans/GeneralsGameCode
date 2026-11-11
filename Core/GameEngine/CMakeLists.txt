@@ -565,6 +565,8 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/networkutil.h
     Include/GameNetwork/RankPointValue.h
     Include/GameNetwork/Transport.h
+    Include/GameNetwork/TransportFactory.h
+    Include/GameNetwork/UDPTransport.h
     Include/GameNetwork/udp.h
     Include/GameNetwork/User.h
     Include/GameNetwork/WOLBrowser/FEBDispatch.h
@@ -1171,6 +1173,8 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/Network.cpp
     Source/GameNetwork/NetworkUtil.cpp
     Source/GameNetwork/Transport.cpp
+    Source/GameNetwork/TransportFactory.cpp
+    Source/GameNetwork/UDPTransport.cpp
     Source/GameNetwork/udp.cpp
     Source/GameNetwork/User.cpp
     Source/GameNetwork/WOLBrowser/WebBrowser.cpp

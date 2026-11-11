@@ -1,5 +1,5 @@
 /*
-**	Command & Conquer Generals(tm)
+**	Command & Conquer Generals Zero Hour(tm)
 **	Copyright 2025 Electronic Arts Inc.
 **
 **	This program is free software: you can redistribute it and/or modify
@@ -25,59 +25,20 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
-#include "Common/CRC.h"
+#include "Common/crc.h"
 #include "GameNetwork/Transport.h"
 #include "GameNetwork/NetworkInterface.h"
 
 
-//--------------------------------------------------------------------------
-// Packet-level encryption is an XOR operation, for speed reasons.  To get
-// the max throughput, we only XOR whole 4-byte words, so the last bytes
-// can be non-XOR'd.
-
-// This assumes the buf is a multiple of 4 bytes.  Extra is not encrypted.
-static inline void encryptBuf(unsigned char* buf, Int len)
+Transport::Transport()
 {
-	UnsignedInt mask = 0x0000Fade;
-
-	UnsignedInt* uintPtr = (UnsignedInt*)(buf);
-
-	for (int i = 0; i < len / 4; i++) {
-		*uintPtr = (*uintPtr) ^ mask;
-		*uintPtr = htonl(*uintPtr);
-		uintPtr++;
-		mask += 0x00000321; // just for fun
-	}
 }
 
-// This assumes the buf is a multiple of 4 bytes.  Extra is not encrypted.
-static inline void decryptBuf(unsigned char* buf, Int len)
+Transport::~Transport()
 {
-	UnsignedInt mask = 0x0000Fade;
-
-	UnsignedInt* uintPtr = (UnsignedInt*)(buf);
-
-	for (int i = 0; i < len / 4; i++) {
-		*uintPtr = htonl(*uintPtr);
-		*uintPtr = (*uintPtr) ^ mask;
-		uintPtr++;
-		mask += 0x00000321; // just for fun
-	}
 }
 
-//--------------------------------------------------------------------------
-
-Transport::Transport(void)
-{
-
-}
-
-Transport::~Transport(void)
-{
-
-}
-
-Bool Transport::isGeneralsPacket(TransportMessage* msg)
+Bool Transport::isGeneralsPacket( TransportMessage *msg )
 {
 	if (!msg)
 		return false;
@@ -86,8 +47,8 @@ Bool Transport::isGeneralsPacket(TransportMessage* msg)
 		return false;
 
 	CRC crc;
-	//	crc.computeCRC( (unsigned char *)msg->data, msg->length );
-	crc.computeCRC((unsigned char*)(&(msg->header.magic)), msg->length + sizeof(TransportMessageHeader) - sizeof(UnsignedInt));
+//	crc.computeCRC( (unsigned char *)msg->data, msg->length );
+	crc.computeCRC( (unsigned char *)(&(msg->header.magic)), msg->length + sizeof(TransportMessageHeader) - sizeof(UnsignedInt) );
 
 	if (crc.get() != msg->header.crc)
 		return false;
@@ -99,68 +60,71 @@ Bool Transport::isGeneralsPacket(TransportMessage* msg)
 }
 
 // Statistics ---------------------------------------------------
-Real Transport::getIncomingBytesPerSecond(void)
+Real Transport::getIncomingBytesPerSecond()
 {
 	Real val = 0.0;
-	for (int i = 0; i < MAX_TRANSPORT_STATISTICS_SECONDS; ++i)
+	for (int i=0; i<MAX_TRANSPORT_STATISTICS_SECONDS; ++i)
 	{
 		if (i != m_statisticsSlot)
 			val += m_incomingBytes[i];
 	}
-	return val / (MAX_TRANSPORT_STATISTICS_SECONDS - 1);
+	return val / (MAX_TRANSPORT_STATISTICS_SECONDS-1);
 }
 
-Real Transport::getIncomingPacketsPerSecond(void)
+Real Transport::getIncomingPacketsPerSecond()
 {
 	Real val = 0.0;
-	for (int i = 0; i < MAX_TRANSPORT_STATISTICS_SECONDS; ++i)
+	for (int i=0; i<MAX_TRANSPORT_STATISTICS_SECONDS; ++i)
 	{
 		if (i != m_statisticsSlot)
 			val += m_incomingPackets[i];
 	}
-	return val / (MAX_TRANSPORT_STATISTICS_SECONDS - 1);
+	return val / (MAX_TRANSPORT_STATISTICS_SECONDS-1);
 }
 
-Real Transport::getOutgoingBytesPerSecond(void)
+Real Transport::getOutgoingBytesPerSecond()
 {
 	Real val = 0.0;
-	for (int i = 0; i < MAX_TRANSPORT_STATISTICS_SECONDS; ++i)
+	for (int i=0; i<MAX_TRANSPORT_STATISTICS_SECONDS; ++i)
 	{
 		if (i != m_statisticsSlot)
 			val += m_outgoingBytes[i];
 	}
-	return val / (MAX_TRANSPORT_STATISTICS_SECONDS - 1);
+	return val / (MAX_TRANSPORT_STATISTICS_SECONDS-1);
 }
 
-Real Transport::getOutgoingPacketsPerSecond(void)
+Real Transport::getOutgoingPacketsPerSecond()
 {
 	Real val = 0.0;
-	for (int i = 0; i < MAX_TRANSPORT_STATISTICS_SECONDS; ++i)
+	for (int i=0; i<MAX_TRANSPORT_STATISTICS_SECONDS; ++i)
 	{
 		if (i != m_statisticsSlot)
 			val += m_outgoingPackets[i];
 	}
-	return val / (MAX_TRANSPORT_STATISTICS_SECONDS - 1);
+	return val / (MAX_TRANSPORT_STATISTICS_SECONDS-1);
 }
 
-Real Transport::getUnknownBytesPerSecond(void)
+Real Transport::getUnknownBytesPerSecond()
 {
 	Real val = 0.0;
-	for (int i = 0; i < MAX_TRANSPORT_STATISTICS_SECONDS; ++i)
+	for (int i=0; i<MAX_TRANSPORT_STATISTICS_SECONDS; ++i)
 	{
 		if (i != m_statisticsSlot)
 			val += m_unknownBytes[i];
 	}
-	return val / (MAX_TRANSPORT_STATISTICS_SECONDS - 1);
+	return val / (MAX_TRANSPORT_STATISTICS_SECONDS-1);
 }
 
-Real Transport::getUnknownPacketsPerSecond(void)
+Real Transport::getUnknownPacketsPerSecond()
 {
 	Real val = 0.0;
-	for (int i = 0; i < MAX_TRANSPORT_STATISTICS_SECONDS; ++i)
+	for (int i=0; i<MAX_TRANSPORT_STATISTICS_SECONDS; ++i)
 	{
 		if (i != m_statisticsSlot)
 			val += m_unknownPackets[i];
 	}
-	return val / (MAX_TRANSPORT_STATISTICS_SECONDS - 1);
+	return val / (MAX_TRANSPORT_STATISTICS_SECONDS-1);
 }
+
+
+

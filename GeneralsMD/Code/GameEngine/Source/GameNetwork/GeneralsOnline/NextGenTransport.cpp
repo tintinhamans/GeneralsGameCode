@@ -3,6 +3,7 @@
 #include "Common/CRC.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/GeneralsOnline/NextGenTransport.h"
+#include "GameNetwork/TransportFactory.h"
 
 #include "GameNetwork/GeneralsOnline/ngmp_include.h"
 #include "GameNetwork/GeneralsOnline/ngmp_interfaces.h"
@@ -14,6 +15,16 @@
 //#pragma optimize("", off)
 //#pragma MESSAGE("************************************** WARNING, optimization disabled for debugging purposes")
 #endif
+
+static Transport *createNextGenTransport()
+{
+    return new NextGenTransport;
+}
+
+void RegisterNextGenTransport()
+{
+    TransportFactory::registerTransport(NEXTGEN_TRANSPORT_NAME, TRANSPORT_CAPABILITY_NONE, createNextGenTransport);
+}
 
 NextGenTransport::NextGenTransport()
 {
