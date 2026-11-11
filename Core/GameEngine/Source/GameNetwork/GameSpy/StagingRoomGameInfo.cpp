@@ -47,7 +47,7 @@
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/NAT.h"
 #include "GameNetwork/NetworkInterface.h"
-#include "GameNetwork/TransportFactory.h"
+#include "GameNetwork/Online/OnlineProviderFactory.h"
 
 
 // GameSpyGameSlot -------------------------------------------
@@ -806,7 +806,7 @@ void GameSpyStagingRoom::launchGame()
 	if (TheNAT)
 		TheNetwork->attachTransport(TheNAT->getTransport());
 	else
-		TheNetwork->initTransport(UDP_TRANSPORT_NAME);
+		TheNetwork->initTransport(GetOnlineGameTransport());
 
 	TheNetwork->parseUserList(this);
 

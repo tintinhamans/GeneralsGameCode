@@ -23,6 +23,7 @@
 
 #include "GameNetwork/Online/OnlineProviderFactory.h"
 #include "GameNetwork/Online/GameSpy/GameSpyProviderFactory.h"
+#include "GameNetwork/TransportFactory.h"
 
 //-----------------------------------------------------------------------------
 // PUBLIC DATA
@@ -227,6 +228,30 @@ void SetUpOnline( OnlineProviderType type, const char *motdBuffer, const char *c
 	factory->createServices(motdBuffer, configBuffer);
 	TheOnline.m_provider = type;
 	TheOnline.m_factory = factory;
+}
+
+const char *GetOnlineGameTransport()
+{
+	if (TheOnline.m_factory == nullptr)
+		return UDP_TRANSPORT_NAME;
+
+	TransportInfo transports[16];
+	Int count = TransportFactory::getTransportCount();
+	if (count > (Int)ARRAY_SIZE(transports))
+		count = (Int)ARRAY_SIZE(transports);
+
+	for (Int i = 0; i < count; ++i)
+		transports[i] = TransportFactory::getTransportInfo(i);
+
+	const Int choice = TheOnline.m_factory->chooseGameTransport(transports, count);
+	if (choice < 0 || choice >= count)
+	{
+		DEBUG_LOG(("GetOnlineGameTransport: provider '%s' picked no transport, using " UDP_TRANSPORT_NAME, TheOnline.m_factory->getName()));
+		return UDP_TRANSPORT_NAME;
+	}
+
+	DEBUG_LOG(("GetOnlineGameTransport: provider '%s' picked '%s'", TheOnline.m_factory->getName(), transports[choice].name));
+	return transports[choice].name;
 }
 
 void TearDownOnline()

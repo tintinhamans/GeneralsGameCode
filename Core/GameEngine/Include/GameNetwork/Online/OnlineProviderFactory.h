@@ -37,6 +37,7 @@ class IOnlineStats;
 class IOnlineLadder;
 class IOnlineResults;
 class IOnlineMatchmaking;
+struct TransportInfo;
 
 class OnlineProviderFactory
 {
@@ -58,6 +59,9 @@ public:
 	// The engine owns the returned results for its lifetime.
 	virtual IOnlineResults *createResults() = 0;
 	virtual IOnlineMatchmaking *createMatchmaking() = 0;
+
+	// Returns an index into the transports, or -1 when none fits.
+	virtual Int chooseGameTransport( const TransportInfo *transports, Int count ) const = 0;
 
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) = 0;
 	virtual void destroyServices() = 0;
@@ -96,4 +100,7 @@ Bool BindOnlineResultsProvider( OnlineProviderFactory *factory );
 OnlineProviderFactory *GetBoundOnlineResultsProvider();
 
 void SetUpOnline( OnlineProviderType type, const char *motdBuffer, const char *configBuffer );
+
+// Falls back to the UDP transport when no provider is active or none fits.
+const char *GetOnlineGameTransport();
 void TearDownOnline();
