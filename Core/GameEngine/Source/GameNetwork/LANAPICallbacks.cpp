@@ -46,6 +46,7 @@
 #include "GameNetwork/FileTransfer.h"
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/networkutil.h"
+#include "GameNetwork/TransportFactory.h"
 
 LANAPI *TheLAN = nullptr;
 extern Bool LANbuttonPushed;
@@ -229,7 +230,7 @@ void LANAPI::OnGameStart()
 		TheNetwork = NetworkInterface::createNetwork();
 		TheNetwork->init();
 		TheNetwork->setLocalAddress(m_localIP, 8088);
-		TheNetwork->initTransport();
+		TheNetwork->initTransport(UDP_TRANSPORT_NAME);
 
 		TheNetwork->parseUserList(m_currentGame);
 

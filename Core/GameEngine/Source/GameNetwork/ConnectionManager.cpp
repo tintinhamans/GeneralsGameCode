@@ -47,7 +47,7 @@
 #include "GameNetwork/NAT.h"
 #include "GameNetwork/NetCommandWrapperList.h"
 #include "GameNetwork/networkutil.h"
-#include "GameNetwork/UDPTransport.h"
+#include "GameNetwork/TransportFactory.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/ScriptActions.h"
 #include "GameLogic/ScriptEngine.h"
@@ -1771,7 +1771,7 @@ void ConnectionManager::setLocalAddress(UnsignedInt ip, UnsignedInt port) {
 /**
  * Initialize the transport object
  */
-void ConnectionManager::initTransport() {
+void ConnectionManager::initTransport(const char *transportName) {
 	DEBUG_ASSERTCRASH((m_transport == nullptr), ("m_transport already exists when trying to init it."));
 	DEBUG_LOG(("ConnectionManager::initTransport - Initializing Transport"));
 
@@ -1785,10 +1785,10 @@ void ConnectionManager::initTransport() {
 	}
 	else
 	{
-		m_transport = new UDPTransport;
+		m_transport = TransportFactory::createTransport(transportName);
 	}
 #else
-	m_transport = new UDPTransport;
+	m_transport = TransportFactory::createTransport(transportName);
 #endif
 	m_transport->reset();
 	m_transport->init(m_localAddr, m_localPort);

@@ -167,7 +167,7 @@ public:
 	virtual Int getSlotAverageFPS(Int slot) override;
 
 	virtual void attachTransport(Transport *transport) override;
-	virtual void initTransport() override;
+	virtual void initTransport(const char *transportName) override;
 
 #if defined(GENERALS_ONLINE)
 	void setSawCRCMismatch(UnicodeString& strMismatchDetails);
@@ -471,10 +471,10 @@ void Network::setLocalAddress(UnsignedInt ip, UnsignedInt port) {
 /**
  * Tell the network to initialize the transport object
  */
-void Network::initTransport() {
+void Network::initTransport(const char *transportName) {
 	DEBUG_ASSERTCRASH(m_conMgr != NULL, ("Connection manager does not exist."));
 	if (m_conMgr != NULL) {
-		m_conMgr->initTransport();
+		m_conMgr->initTransport(transportName);
 	}
 }
 
