@@ -90,6 +90,7 @@ set(_state_variable_names
     GIT_HEAD_SHORT_SHA1
     GIT_REV_LIST_COUNT
     GIT_TAG
+    GIT_RELEASE_TAG
     # >>>
     # 1. Add the name of the additional git variable you're interested in monitoring
     #    to this list.
@@ -209,6 +210,20 @@ function(GetGitState _working_dir)
             set(ENV{GIT_TAG} "")
         endif()
 
+        # A build without a release tag is normal and keeps the retrieved state.
+        execute_process(COMMAND
+            "${GIT_EXECUTABLE}" describe --tags --match "v[0-9]*" ${object}
+            WORKING_DIRECTORY "${_working_dir}"
+            RESULT_VARIABLE exit_code
+            OUTPUT_VARIABLE output
+            ERROR_QUIET
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+        if(exit_code EQUAL 0)
+            set(ENV{GIT_RELEASE_TAG} ${output})
+        else()
+            set(ENV{GIT_RELEASE_TAG} "")
+        endif()
+
         # >>>
         # 2. Additional git properties can be added here via the
         #    "execute_process()" command. Be sure to set them in
@@ -226,6 +241,7 @@ function(GetGitState _working_dir)
         set(ENV{GIT_HEAD_SHORT_SHA1} "DEADBEEF")
         set(ENV{GIT_REV_LIST_COUNT} "0")
         set(ENV{GIT_TAG} "")
+        set(ENV{GIT_RELEASE_TAG} "")
     endif()
 
 endfunction()
