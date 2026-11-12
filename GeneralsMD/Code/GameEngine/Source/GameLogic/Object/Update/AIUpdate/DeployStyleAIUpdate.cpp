@@ -240,11 +240,6 @@ UpdateSleepTime DeployStyleAIUpdate::update()
 		case DEPLOY:
 			if( data->m_manualDeployAnimations )
 			{
-				if (!TheGameLogic->HasLegacyFrameAdvanced())
-				{
-					break;
-				}
-
 				UnsignedInt totalFrames = getPackTime();
 				UnsignedInt framesLeft = m_frameToWaitForDeploy - now;
 				Drawable *draw = self->getDrawable();
@@ -259,10 +254,6 @@ UpdateSleepTime DeployStyleAIUpdate::update()
 		case UNDEPLOY:
 			if( data->m_manualDeployAnimations )
 			{
-				if (!TheGameLogic->HasLegacyFrameAdvanced())
-				{
-					break;
-				}
 				UnsignedInt framesLeft = m_frameToWaitForDeploy - now;
 				Drawable *draw = self->getDrawable();
 				if( draw )
