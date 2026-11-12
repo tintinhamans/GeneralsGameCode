@@ -125,6 +125,7 @@ enum { K_SCRIPTS_DATA_VERSION_1 = 1 };
 enum { MAX_SPIN_COUNT = 20 };
 #define NONE_STRING "<none>"
 
+// The frame counts below are base frames.
 static const Int FRAMES_TO_SHOW_WIN_LOSE_MESSAGE = 120;
 
 static const Int FRAMES_TO_FADE_IN_AT_START = 33;
@@ -4774,7 +4775,7 @@ void ScriptEngine::newMap()
 	m_maxFade = 0.0f;
 	m_fadeFramesIncrease = 0;
 	m_fadeFramesHold = 0;
-	m_fadeFramesDecrease = FRAMES_TO_FADE_IN_AT_START;
+	m_fadeFramesDecrease = ConvertBaseFramesToFrames(FRAMES_TO_FADE_IN_AT_START);
 	m_curFadeValue = 0.0f;
 
 }
@@ -5004,14 +5005,14 @@ void ScriptEngine::startEndGameTimer()
 #if defined(GENONLINE)
 	if (bExtendForErrorMsg)
 	{
-		m_endGameTimer = FRAMES_TO_SHOW_WIN_LOSE_MESSAGE * 5;
+		m_endGameTimer = ConvertBaseFramesToFrames(FRAMES_TO_SHOW_WIN_LOSE_MESSAGE) * 5;
 	}
 	else
 	{
-		m_endGameTimer = FRAMES_TO_SHOW_WIN_LOSE_MESSAGE;
+		m_endGameTimer = ConvertBaseFramesToFrames(FRAMES_TO_SHOW_WIN_LOSE_MESSAGE);
 	}
 #else
-	m_endGameTimer = FRAMES_TO_SHOW_WIN_LOSE_MESSAGE;
+	m_endGameTimer = ConvertBaseFramesToFrames(FRAMES_TO_SHOW_WIN_LOSE_MESSAGE);
 #endif
 }
 
@@ -5020,7 +5021,7 @@ void ScriptEngine::startEndGameTimer()
 //-------------------------------------------------------------------------------------------------
 void ScriptEngine::startCloseWindowTimer()
 {
-	m_closeWindowTimer = FRAMES_TO_SHOW_WIN_LOSE_MESSAGE;
+	m_closeWindowTimer = ConvertBaseFramesToFrames(FRAMES_TO_SHOW_WIN_LOSE_MESSAGE);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -6121,7 +6122,7 @@ void ScriptEngine::adjustTimer( ScriptAction *pAction, Bool millisecondTimer, Bo
 		Real value = pAction->getParameter(0)->getReal();
 		if (!add)
 			value = -value;
-		m_counters[counterNdx].value += REAL_TO_INT_CEIL(ConvertDurationFromMsecsToFrames(value*1000));
+		m_counters[counterNdx].value += REAL_TO_INT_CEIL(value * (Real)BaseFps);
 	} else {
 		Int value = pAction->getParameter(0)->getInt();
 		if (!add)
@@ -8675,7 +8676,7 @@ void ScriptEngine::xfer( Xfer *xfer )
 			m_maxFade = 0.0f;
 			m_fadeFramesIncrease = 0;
 			m_fadeFramesHold = 0;
-			m_fadeFramesDecrease = FRAMES_TO_FADE_IN_AT_START;
+			m_fadeFramesDecrease = ConvertBaseFramesToFrames(FRAMES_TO_FADE_IN_AT_START);
 			m_curFadeValue = 0.0f;
 		}
 	}
