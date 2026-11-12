@@ -1145,7 +1145,7 @@ UpdateSleepTime ChinookAIUpdate::update()
 		}
 
 
-    if ( TheGameLogic->getFrame()%10 == 1 )
+    if ( TheGameLogic->getFrame()%ConvertBaseFramesToFrames(10) == 1 )
     {
 	    Object *victim = getCurrentVictim();
       if ( victim )
