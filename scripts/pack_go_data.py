@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-r"""Pack GeneralsOnline/GameData into the Generals Online fix pack BIG.
+r"""Pack GenOnline/GameData into the Generals Online fix pack BIG.
 
 Usage: pack_go_data.py [output.big]
 
@@ -28,7 +28,7 @@ import os
 import struct
 import sys
 
-ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "GeneralsOnline", "GameData")
+ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "GenOnline", "GameData")
 OUT = sys.argv[1] if len(sys.argv) > 1 else "GeneralsOnline_Core.big"
 
 
