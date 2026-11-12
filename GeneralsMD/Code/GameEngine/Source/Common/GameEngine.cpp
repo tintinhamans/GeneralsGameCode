@@ -106,66 +106,14 @@
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/GameSpy/GameResultsThread.h"
 #include "GameNetwork/Online/OnlineProviderFactory.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 
 #include "Common/version.h"
 
 #include "../GenOnlineDefines.h"
 
-// GENERALS ONLINE
-#include "../GenOnlineInit.h"
-#include "GameNetwork/GenOnline/DiscordRichPresence.h"
-#include "GameNetwork/GenOnline/GenOnlineLobbyInterface.h"
-#include "GameNetwork/GameSpyOverlay.h"
 #include <chrono>
 #include "WW3D2/ww3d.h"
-
-static bool g_bTearDownGeneralsOnlineRequested = false;
-void TearDownGeneralsOnline()
-{
-	g_bTearDownGeneralsOnlineRequested = true;
-
-	if (GenOnlineServicesManager::GetInstance() == nullptr)
-		return;
-
-	EGOTearDownReason teardownReason = GenOnlineServicesManager::GetInstance()->GetTeardownReason();
-
-	if (teardownReason != EGOTearDownReason::USER_REQUESTED_SILENT && !IsModerationTeardownReason(teardownReason))
-	{
-		UnicodeString title, body;
-
-		if (teardownReason == EGOTearDownReason::USER_LOGOUT)
-		{
-			title = L"Logged Out";
-			body = L"You are now logged out of GeneralsOnline.";
-		}
-		else if (teardownReason == EGOTearDownReason::LOST_CONNECTION)
-		{
-			title = TheGameText->fetch("GUI:GSErrorTitle");
-			body = L"Your connection to the Generals Online servers was lost.";
-		}
-        else if (teardownReason == EGOTearDownReason::AUTH_FAILED)
-        {
-            title = TheGameText->fetch("GUI:GSErrorTitle");
-            body = L"Authentication with the Generals Online servers failed.";
-        }
-		else if (teardownReason == EGOTearDownReason::MIDDLEWARE_LOGIN_FAILED)
-		{
-            title = TheGameText->fetch("GUI:GSErrorTitle");
-            body = L"Middleware Authentication failed.";
-		}
-		else
-		{
-			title = TheGameText->fetch("GUI:GSErrorTitle");
-			body = L"An unknown error occurred.";
-		}
-
-		GenOnlineServicesManager::GetInstance()->ResetPendingFullTeardownReason();
-
-		GameSpyCloseAllOverlays();
-		GSMessageBoxOk(title, body);
-	}
-}
-
 
 //-------------------------------------------------------------------------------------------------
 
@@ -307,7 +255,6 @@ GameEngine::GameEngine()
 	m_logicTimeAccumulator = 0.0f;
 	m_quitting = FALSE;
 	m_isActive = FALSE;
-	m_discordRichPresence = nullptr;
 
 	_Module.Init(nullptr, ApplicationHInstance, nullptr);
 }
@@ -315,9 +262,6 @@ GameEngine::GameEngine()
 //-------------------------------------------------------------------------------------------------
 GameEngine::~GameEngine()
 {
-	delete m_discordRichPresence;
-	m_discordRichPresence = nullptr;
-
 	//extern std::vector<std::string>	preloadTextureNamesGlobalHack;
 	//preloadTextureNamesGlobalHack.clear();
 
@@ -358,7 +302,7 @@ GameEngine::~GameEngine()
 	delete TheGameLODManager;
 	TheGameLODManager = nullptr;
 	// GENERALS ONLINE
-	GenOnlineServicesManager::DestroyInstance();
+	GetOnlineGameHooks()->onEngineShutdown();
 	Drawable::killStaticImages();
 
 	_Module.Term();
@@ -367,7 +311,7 @@ GameEngine::~GameEngine()
 	PerfGather::termPerfDump();
 #endif
 	// Kill sentry
-	GenOnlineServicesManager::ShutdownSentry();}
+	GetOnlineGameHooks()->onEngineExit();}
 
 //-------------------------------------------------------------------------------------------------
 
@@ -514,7 +458,7 @@ void GameEngine::init()
 		TheWritableGlobalData->parseCustomDefinition();
 
 		// Init sentry ASAP to catch early crashes
-		GenOnlineServicesManager::InitSentry();
+		GetOnlineGameHooks()->onGlobalDataLoaded();
 
 	#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
 	GetPrecisionTimer(&endTime64);//////////////////////////////////////////////////////////////////
@@ -533,7 +477,7 @@ void GameEngine::init()
 		CommandLine::parseCommandLineForEngineInit();
 
 		// GENONLINE_CHANGE: Init our settings before loadMods, which reads DataPacks_UseCommunityPatch. Needs TheGlobalData for the user data path.
-		GenOnlineServicesManager::Settings.Initialize();
+		GetOnlineGameHooks()->loadSettings();
 
 		TheArchiveFileSystem->loadMods();
 
@@ -828,8 +772,7 @@ void GameEngine::init()
 
 	HideControlBar();
 
-	m_discordRichPresence = new GenOnlineDiscordRPC();
-	m_discordRichPresence->Initialize();
+	GetOnlineGameHooks()->onEngineInitialized();
 }
 
 /** -----------------------------------------------------------------------------------------------
@@ -948,10 +891,6 @@ Bool GameEngine::canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags)
 	return false;
 }
 
-#if defined(GENONLINE_HIGH_FPS_RENDER)
-extern GenOnlineGame* TheGenOnlineGame;
-#endif
-
 /// -----------------------------------------------------------------------------------------------
 DECLARE_PERF_TIMER(GameEngine_update)
 
@@ -967,11 +906,12 @@ void GameEngine::update()
 			VERIFY_CRC
 
 #if defined(GENONLINE_HIGH_FPS_RENDER)
-			// GENONLINE_NOTE: Lock the shellmap to 30fps until its issues are fixed
-			if (TheGenOnlineGame != nullptr && TheGameLogic->isInGame() && !TheShell->isShellActive())
+			// GENONLINE_NOTE: Lock the shellmap to 30fps until we fix everything
+			Int matchFpsLimit = 0;
+			if (GetOnlineGameHooks()->getMatchFrameRateLimit(matchFpsLimit) && TheGameLogic->isInGame() && !TheShell->isShellActive())
 			{
-				TheFramePacer->setFramesPerSecondLimit(GenOnlineServicesManager::Settings.Graphics_GetFPSLimit());
-				TheWritableGlobalData->m_useFpsLimit = GenOnlineServicesManager::Settings.Graphics_GetFPSLimit();
+				TheFramePacer->setFramesPerSecondLimit(matchFpsLimit);
+				TheWritableGlobalData->m_useFpsLimit = matchFpsLimit;
 			}
 			else
 			{
@@ -992,24 +932,7 @@ void GameEngine::update()
                 TheNetwork->UPDATE();
             }
 
-			if (g_bTearDownGeneralsOnlineRequested) // delayed tear down
-			{
-				g_bTearDownGeneralsOnlineRequested = false;
-
-				GenOnlineServicesManager::DestroyInstance();
-
-			}
-			
-			if (GenOnlineServicesManager::GetInstance() != nullptr)
-			{
-				GenOnlineServicesManager::GetInstance()->Tick();
-			}
-
-			if (m_discordRichPresence != nullptr)
-			{
-				m_discordRichPresence->Tick(
-					GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>());
-			}
+			GetOnlineGameHooks()->onEngineUpdate();
 		}
 
 		// TheSuperHackers @info Ignores frozen time because the script engine needs updating in the logic update regardless.

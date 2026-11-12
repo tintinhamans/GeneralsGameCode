@@ -105,6 +105,7 @@
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/GameSpy/GameResultsThread.h"
 #include "GameNetwork/Online/OnlineProviderFactory.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "Common/Player.h"
@@ -294,6 +295,7 @@ GameEngine::~GameEngine()
 	delete TheFileSystem;
 	TheFileSystem = nullptr;
 
+	GetOnlineGameHooks()->onEngineShutdown();
 	Drawable::killStaticImages();
 
 	_Module.Term();
@@ -301,6 +303,7 @@ GameEngine::~GameEngine()
 #ifdef PERF_TIMERS
 	PerfGather::termPerfDump();
 #endif
+	GetOnlineGameHooks()->onEngineExit();
 }
 
 Bool GameEngine::isTimeFrozen()
@@ -392,6 +395,8 @@ void GameEngine::init()
 		initSubsystem(TheWritableGlobalData, "TheWritableGlobalData", TheWritableGlobalData, &xferCRC, "Data\\INI\\Default\\GameData", "Data\\INI\\GameData");
 		TheWritableGlobalData->parseCustomDefinition();
 
+		GetOnlineGameHooks()->onGlobalDataLoaded();
+
 
 
 	#if defined(RTS_DEBUG)
@@ -401,6 +406,8 @@ void GameEngine::init()
 
 		// special-case: parse command-line parameters after loading global data
 		CommandLine::parseCommandLineForEngineInit();
+
+		GetOnlineGameHooks()->loadSettings();
 
 		TheArchiveFileSystem->loadMods();
 
@@ -612,6 +619,8 @@ void GameEngine::init()
 	resetSubsystems();
 
 	HideControlBar();
+
+	GetOnlineGameHooks()->onEngineInitialized();
 }
 
 /** -----------------------------------------------------------------------------------------------
@@ -760,6 +769,8 @@ void GameEngine::update()
 			{
 				TheNetwork->UPDATE();
 			}
+
+			GetOnlineGameHooks()->onEngineUpdate();
 		}
 
 		// TheSuperHackers @info Ignores frozen time because the script engine needs updating in the logic update regardless.

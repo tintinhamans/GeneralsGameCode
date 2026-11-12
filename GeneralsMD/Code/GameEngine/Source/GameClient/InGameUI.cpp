@@ -90,6 +90,7 @@
 
 #include "GameNetwork/GameInfo.h"
 #include "GameNetwork/NetworkInterface.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 
 #include "Common/UnitTimings.h" //Contains the DO_UNIT_TIMINGS define jba.
 
@@ -1917,7 +1918,7 @@ void InGameUI::update()
 
 	// GeneralsOnline NOTE: Increasing this, it's short + we increased framerate which is tied into the calc elsewhere
 #if defined(GENONLINE)
-	const int messageTimeoutChat = GenOnlineServicesManager::Settings.GetChatLifeSeconds() * LOGICFRAMES_PER_SECOND;
+	const int messageTimeoutChat = GetOnlineGameHooks()->getChatMessageLifeSeconds() * LOGICFRAMES_PER_SECOND;
 	const int messageTimeoutStandard = (m_messageDelayMS / LOGICFRAMES_PER_SECOND / 1000) * GENONLINE_HIGH_FPS_FRAME_MULTIPLIER;
 #else
 	// TheSuperHackers @bugfix bobtista 13/08/2026 Convert milliseconds to logic frames
@@ -1930,7 +1931,7 @@ void InGameUI::update()
 
 #if defined(GENONLINE)
 		// determine which timeout to apply
-		const int messageTimeout = m_uiMessages[i].isChat ? messageTimeoutChat : messageTimeoutStandard;
+		const int messageTimeout = (m_uiMessages[i].isChat && messageTimeoutChat >= 0) ? messageTimeoutChat : messageTimeoutStandard;
 #endif
 		if (currLogicFrame - m_uiMessages[i].timestamp > messageTimeout)
 		{
@@ -7196,7 +7197,7 @@ void InGameUI::drawSystemTime(Int& x, Int& y)
 	UnicodeString TimeString;
 
 #if defined(GENONLINE)
-	if (GenOnlineServicesManager::Settings.Graphics_DrawStatsOverlay() && TheNetwork != nullptr)
+	if (GetOnlineGameHooks()->isStatsOverlayEnabled() && TheNetwork != nullptr)
 	{
 		int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 		if (currTime - lastFPSUpdate >= 1000)
@@ -7234,95 +7235,7 @@ void InGameUI::drawSystemTime(Int& x, Int& y)
 void InGameUI::drawGameTime()
 {
 	// draw connections
-	if (GenOnlineServicesManager::IsAdvancedNetworkStatsEnabled())
-	{
-		if (TheGenOnlineGame != nullptr)
-		{
-			NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-
-			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-
-			if (pMesh != nullptr && pLobbyInterface != nullptr)
-			{
-				//std::vector<LobbyMemberEntry>& vecMembers = pLobbyInterface->GetMembersListForCurrentRoom();
-
-				ISteamNetworkingSockets* pSteamNetSockets = SteamNetworkingSockets();
-				if (!pSteamNetSockets)
-				{
-					return;
-				}
-
-				int i = 0;
-				auto& allConnections = pMesh->GetAllConnections();
-				if (allConnections.empty())
-				{
-					return;
-				}
-
-				for (auto& connection : allConnections)
-				{
-					if (!connection.second.IsValid())
-					{
-						continue;
-					}
-
-					LobbyMemberEntry lobbyMember = pLobbyInterface->GetRoomMemberFromID(connection.first);
-
-					const int k_nLanes = 1;
-					SteamNetConnectionRealTimeStatus_t status;
-					SteamNetConnectionRealTimeLaneStatus_t laneStatus[k_nLanes];
-					
-					if (!TheNetwork)
-					{
-						continue;
-					}
-
-					EResult res = pSteamNetSockets->GetConnectionRealTimeStatus(connection.second.m_hSteamConnection, &status, k_nLanes, laneStatus);
-
-					if (res == k_EResultNoConnection || lobbyMember.display_name.empty())
-					{
-						continue;
-					}
-
-					int avgFPS = TheNetwork->getSlotAverageFPS(lobbyMember.m_SlotIndex);
-
-					UnicodeString netString;
-					netString.format(L"\n[usr %s|%d][%hs %hs][AVGFPS: %d] Lat: %i, QL: %.2f, QR: %.2f OutP/s: %.2f, OutB/s: %.2f, InP/s: %.2f, InB/s: %.2f, SR %i PU: %d, PR: %d, NACK: %d, QT: %I64d",
-						from_utf8(lobbyMember.display_name).c_str(),
-						(int)res,
-						connection.second.IsIPV4() ? "IPv4" : "IPv6",
-						connection.second.IsDirect() ? "Direct" : "Relay",
-						avgFPS,
-						status.m_nPing,
-						status.m_flConnectionQualityLocal,
-						status.m_flConnectionQualityRemote,
-						status.m_flOutPacketsPerSec,
-						status.m_flOutBytesPerSec,
-						status.m_flInPacketsPerSec,
-						status.m_flInBytesPerSec,
-						status.m_nSendRateBytesPerSecond,
-						status.m_cbPendingUnreliable,
-						status.m_cbPendingReliable,
-						status.m_cbSentUnackedReliable,
-						status.m_usecQueueTime);
-
-					int w, h;
-					m_gameTimeString->getSize(&w, &h);
-
-					bool bIsHighQuality = true;
-					if (avgFPS < (GENONLINE_HIGH_FPS_LIMIT - 1) || status.m_cbSentUnackedReliable >= 1000 || (status.m_flConnectionQualityLocal != -1.f && status.m_flConnectionQualityLocal < 1.f) || (status.m_flConnectionQualityRemote != -1.f && status.m_flConnectionQualityRemote < 1.f))
-					{
-						bIsHighQuality = false;
-					}
-
-					m_gameTimeString->setText(netString);
-					m_gameTimeString->draw(0, 500 + (i * h / 2), bIsHighQuality ? m_colorGood : m_colorBad, m_gameTimeDropColor);
-					++i;
-				}
-			}
-
-		}
-	}
+	GetOnlineGameHooks()->drawNetworkOverlay(m_gameTimeString, m_gameTimeDropColor);
 
 	Int currentFrame = TheGameLogic->getFrame();
 	Int gameSeconds = (Int)(SECONDS_PER_LOGICFRAME_REAL * currentFrame);
