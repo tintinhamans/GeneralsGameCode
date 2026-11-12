@@ -387,8 +387,8 @@ void WeaponTemplate::reset()
 
 	// No matter what we have now, we want to convert it to frames from msec.
 	// ShotDelay used to use parseDurationUnsignedInt, and we are expanding on that.
-	self->m_minDelayBetweenShots = WWMath::Ceilf(ConvertDurationFromMsecsToFrames((Real)self->m_minDelayBetweenShots));
-	self->m_maxDelayBetweenShots = WWMath::Ceilf(ConvertDurationFromMsecsToFrames((Real)self->m_maxDelayBetweenShots));
+	self->m_minDelayBetweenShots = ConvertDurationFromMsecsToFramesRoundedUp((Real)self->m_minDelayBetweenShots);
+	self->m_maxDelayBetweenShots = ConvertDurationFromMsecsToFramesRoundedUp((Real)self->m_maxDelayBetweenShots);
 
 }
 
@@ -496,28 +496,13 @@ Int WeaponTemplate::getDelayBetweenShots(const WeaponBonus& bonus) const
 	if( m_minDelayBetweenShots == m_maxDelayBetweenShots )
 		delayToUse = m_minDelayBetweenShots; // Random number thing doesn't like this case
 	else
-		delayToUse = GameLogicRandomValue( m_minDelayBetweenShots, m_maxDelayBetweenShots );
+		delayToUse = GameLogicRandomFramesInBaseFrames( m_minDelayBetweenShots, m_maxDelayBetweenShots );
 
-// TODO_NGMP: Better solution, less hackyness
-	if (LOGICFRAMES_PER_BASEFRAME > 1 && delayToUse != 0 && delayToUse < ConvertBaseFramesToFrames(2))
-	{
-		delayToUse = ConvertBaseFramesToFrames(2);
-	}
-
-	// HACK
-	// TODO_NGMP: Better solution for this, seems like an ini data bug
-	if (LOGICFRAMES_PER_BASEFRAME > 1 && (getName().compareNoCase("GattlingBuilding") == 0
-		|| getName().compareNoCase("GattlingBuildingGun") == 0
-		|| getName().compareNoCase("GattlingBuildingGunAir") == 0
-		|| getName().compareNoCase("GattlingBuildingGunAirDummy") == 0))
-	{
-		delayToUse /= 1.5;
-	}
 	Real bonusROF = bonus.getField(WeaponBonus::RATE_OF_FIRE);
 	//CRCDEBUG_LOG(("WeaponTemplate::getDelayBetweenShots() - min:%d max:%d val:%d, bonusROF=%g/%8.8X",
 		//m_minDelayBetweenShots, m_maxDelayBetweenShots, delayToUse, bonusROF, AS_INT(bonusROF)));
 
-	return REAL_TO_INT_FLOOR(delayToUse / bonusROF);
+	return DivideFramesInBaseFrames(delayToUse, bonusROF);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -525,13 +510,13 @@ Int WeaponTemplate::getClipReloadTime(const WeaponBonus& bonus) const
 {
 	// yes, divide, not multiply; the larger the rate-of-fire bonus, the shorter
 	// we want the reload time to be.
-	return REAL_TO_INT_FLOOR(m_clipReloadTime / bonus.getField(WeaponBonus::RATE_OF_FIRE));
+	return DivideFramesInBaseFrames(m_clipReloadTime, bonus.getField(WeaponBonus::RATE_OF_FIRE));
 }
 
 //-------------------------------------------------------------------------------------------------
 Int WeaponTemplate::getPreAttackDelay( const WeaponBonus& bonus ) const
 {
-	return m_preAttackDelay * bonus.getField( WeaponBonus::PRE_ATTACK );
+	return MultiplyFramesInBaseFrames(m_preAttackDelay, bonus.getField( WeaponBonus::PRE_ATTACK ));
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1009,7 +994,7 @@ UnsignedInt WeaponTemplate::fireWeaponTemplate
 			UnsignedInt when = 0;
 			if (TheWeaponStore)
 			{
-				UnsignedInt delayInWholeFrames = REAL_TO_INT_CEIL(delayInFrames);
+				UnsignedInt delayInWholeFrames = ConvertBaseFramesToFrames(REAL_TO_INT_CEIL(ConvertFramesToBaseFramesReal(delayInFrames)));
 				when = TheGameLogic->getFrame() + delayInWholeFrames;
 				//DEBUG_LOG(("WeaponTemplate::fireWeaponTemplate: firing weapon in %d frames (= %d)!", delayInWholeFrames,when));
 				TheWeaponStore->setDelayedDamage(this, damagePos, when, sourceID, damageID, bonus);
@@ -1805,18 +1790,6 @@ void Weapon::computeBonus(const Object *source, WeaponBonusConditionFlags extraB
 	const WeaponBonusSet* extra = m_template->getExtraBonus();
 	if (extra)
 		extra->appendBonuses(flags, bonus);
-     // Fix v1 quad cannon damage this way for now
-     const char* weaponName = m_template->getName().str();
-     if (LOGICFRAMES_PER_BASEFRAME > 1 && source->getVeterancyLevel() == 1 &&
-     (strcmp(weaponName, "QuadCannonGun") == 0 ||
-     strcmp(weaponName, "QuadCannonGunAir") == 0 ||
-     strcmp(weaponName, "QuadCannonGunUpgradeOne") == 0 ||
-     strcmp(weaponName, "QuadCannonGunUpgradeOneAir") == 0 ||
-     strcmp(weaponName, "QuadCannonGunUpgradeTwo") == 0 ||
-     strcmp(weaponName, "QuadCannonGunUpgradeTwoAir") == 0))
-     {
-     bonus.setField(WeaponBonus::RATE_OF_FIRE, 1.25f);
-     }
 }
 
 //-------------------------------------------------------------------------------------------------
