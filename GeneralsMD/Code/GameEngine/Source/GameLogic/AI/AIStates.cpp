@@ -2245,7 +2245,7 @@ void AIMoveToState::onExit( StateExitType status )
 	if (ai && ai->getLastCommandSource() == CMD_FROM_PLAYER && ai->isSameMachine((AIStateMachine*)getMachine()))
 		TheCommandSequence->terminateVerifiedCommand(getMachineOwner());
 
-	if (ai->getLastCommandSource() == CMD_FROM_AI && getID() == MOVE_TO_AND_EVAC)
+	if (ai && ai->getLastCommandSource() == CMD_FROM_AI && getID() == MOVE_TO_AND_EVAC)
 		TheCommandSequence->terminateVerifiedCommand(getMachineOwner());
 	AIInternalMoveToState::onExit( status );
 }
@@ -6347,10 +6347,10 @@ void AIAttackState::onExit( StateExitType status )
 		ai->friend_setGoalObject(nullptr);
 	}
 
-	if (ai->getLastCommandSource() == CMD_FROM_PLAYER && ai->isSameMachine((AIStateMachine*)getMachine()))
+	if (ai && ai->getLastCommandSource() == CMD_FROM_PLAYER && ai->isSameMachine((AIStateMachine*)getMachine()))
 		TheCommandSequence->terminateVerifiedCommand(getMachineOwner());
 
-	if (ai->getLastCommandSource() == CMD_FROM_AI)
+	if (ai && ai->getLastCommandSource() == CMD_FROM_AI)
 		TheCommandSequence->terminateOCLVerifiedCommand(getMachineOwner());
 }
 
