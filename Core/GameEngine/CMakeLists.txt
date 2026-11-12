@@ -1220,6 +1220,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/HTTP/HTTPRequest.h
     Include/GameNetwork/GenOnline/GenOnlineTransport.h
     Include/GameNetwork/GenOnline/PluginInterfaces.h
+    Include/GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.h
     Source/GameNetwork/GenOnline/DiscordRichPresence.cpp
     Source/GameNetwork/GenOnline/GenOnlineHelpers.cpp
     Source/GameNetwork/GenOnline/GenOnlineGame.cpp
@@ -1238,6 +1239,7 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/GenOnlineTransport.cpp
     Source/GameNetwork/GenOnline/NetworkBitstream.cpp
     Source/GameNetwork/GenOnline/PluginInterfaces.cpp
+    Source/GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.cpp
     Source/Precompiled/PreRTS.cpp
 )
 

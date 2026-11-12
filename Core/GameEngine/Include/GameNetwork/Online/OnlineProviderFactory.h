@@ -19,8 +19,8 @@
 // FILE: OnlineProviderFactory.h //////////////////////////////////////////////
 // GenMP online provider abstraction (Phase 1).
 // Description: Provider factory base class, a VC6-safe provider registry, and
-//              the SetUpOnline / TearDownOnline lifecycle seam. Zero observable
-//              behavior change: GameSpy is the only registered provider.
+//              the SetUpOnline / TearDownOnline lifecycle seam. GameSpy is
+//              always registered and GenOnline builds also register GenOnline.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -109,8 +109,8 @@ void RegisterBuiltInProviders();
 void SetCommandLineOnlineProvider( const char *name );
 const char *GetCommandLineOnlineProvider();
 
-// Precedence: CLI '-onlineProvider' > GameSpy.
-// Unrecognised names degrade to GameSpy with one log line. Safe to call before
+// Precedence: CLI '-onlineProvider' > GenOnline in GenOnline builds > GameSpy.
+// Unrecognised names degrade to the default provider with one log line. Safe to call before
 // the online subsystem is set up.
 OnlineProviderType ResolveConfiguredProvider();
 
