@@ -63,20 +63,20 @@ Two options pick what a build contains; both default to `ON`:
 movies and Bink with OpenAL are not offered: FFmpeg movie audio plays only through
 OpenAL, and Bink movie audio only through Miles.
 
-Modern media needs Zero Hour and Visual Studio 2022 or newer, with `OpenAL_DIR` and
-`FFMPEG_ROOT` pointing at the pinned local installations. VC6, MinGW and
-Generals-only configurations turn it off and build legacy media only; Generals
-always plays through Miles and Bink. The option is read before the CMake
+Modern media needs Visual Studio 2022 or newer, with `OpenAL_DIR` and
+`FFMPEG_ROOT` pointing at the pinned local installations. VC6 and MinGW
+configurations turn it off and build legacy media only. Generals and Zero Hour both
+play through it. The option is read before the CMake
 project/toolchain and selects the optional vcpkg `ffmpeg` feature. The public engine
 header does not expose OpenAL headers: backend construction lives in the Win32
 implementation file.
 
 Miles and Bink are loaded at runtime (`Dependencies/Miles` and `Dependencies/Bink`), so
 the exe never imports `mss32.dll` or `binkw32.dll`; with both options on, OpenAL mode
-does not load them at all. With legacy media off, `RTS_BUILD_GENERALS=OFF`,
+does not load them at all. With legacy media off, `RTS_BUILD_GENERALS_TOOLS=OFF`,
 `RTS_BUILD_ZEROHOUR_TOOLS=OFF` and `RTS_BUILD_CORE_EXTRAS=OFF`, the build leaves out the
-Miles and Bink engine backends. Generals, WorldBuilder/W3DView and core extras still need
-them, so enabling any of those keeps them in.
+Miles and Bink engine backends. WorldBuilder/W3DView and core extras still need them, so
+enabling any of those keeps them in.
 
 The manager derives from the real `AudioManager`, retaining INI event generation,
 `SoundManager` admission and `MusicManager` request creation. Device controls,
@@ -194,7 +194,7 @@ DLL families into its build output only; no install or deployment is invoked.
 
 ## FFmpeg movie audio
 
-Selected modern Zero Hour OpenAL builds use one typed `OpenALMovieVoice` per
+Selected modern OpenAL builds use one typed `OpenALMovieVoice` per
 FFmpeg movie on the manager's existing device/context. These voices are separate
 from gameplay stream admission; physical source exhaustion produces a diagnostic
 and video-only playback. The manager holds weak registrations and closes movie

@@ -15,8 +15,8 @@ option(RTS_BUILD_OPTION_VC6_FULL_DEBUG "Build VC6 with full debug info." OFF)
 cmake_dependent_option(RTS_BUILD_OPTION_TESTS "Build the unit tests." OFF "NOT IS_VS6_BUILD" OFF)
 cmake_dependent_option(RTS_BUILD_OPTION_BENCHMARKS "Build the benchmarks." OFF "NOT IS_VS6_BUILD" OFF)
 # RTS_BUILD_OPTION_MODERN_MEDIA and RTS_BUILD_OPTION_LEGACY_MEDIA live in config-vcpkg.cmake. With both, LegacyMedia = yes in Options.ini picks Miles and Bink at startup
-if(RTS_BUILD_OPTION_MODERN_MEDIA AND (IS_VS6_BUILD OR NOT MSVC OR MSVC_VERSION LESS 1930 OR NOT RTS_BUILD_ZEROHOUR))
-    message(STATUS "Modern media needs Zero Hour and Visual Studio 2022 or newer; building legacy media only")
+if(RTS_BUILD_OPTION_MODERN_MEDIA AND (IS_VS6_BUILD OR NOT MSVC OR MSVC_VERSION LESS 1930))
+    message(STATUS "Modern media needs Visual Studio 2022 or newer, building legacy media only")
     set(RTS_BUILD_OPTION_MODERN_MEDIA OFF)
 endif()
 if(NOT RTS_BUILD_OPTION_MODERN_MEDIA AND NOT RTS_BUILD_OPTION_LEGACY_MEDIA)
@@ -146,7 +146,41 @@ if(RTS_BUILD_OPTION_PROFILE)
 endif()
 
 set(RTS_NEEDS_LEGACY_MEDIA TRUE)
-if(RTS_BUILD_OPTION_MODERN_MEDIA AND NOT RTS_BUILD_OPTION_LEGACY_MEDIA AND NOT RTS_BUILD_GENERALS AND
+if(RTS_BUILD_OPTION_MODERN_MEDIA AND NOT RTS_BUILD_OPTION_LEGACY_MEDIA AND NOT RTS_BUILD_GENERALS_TOOLS AND
    NOT RTS_BUILD_ZEROHOUR_TOOLS AND NOT RTS_BUILD_CORE_EXTRAS)
     set(RTS_NEEDS_LEGACY_MEDIA FALSE)
 endif()
+
+# Ships the OpenAL and FFmpeg runtime files and the audio library licenses next to the exe of target
+function(rts_copy_modern_media_files target)
+    if(NOT WIN32 OR NOT RTS_BUILD_OPTION_MODERN_MEDIA)
+        return()
+    endif()
+    find_package(Threads REQUIRED)
+    find_package(OpenAL CONFIG REQUIRED)
+    get_target_property(openal_library_type OpenAL::OpenAL TYPE)
+    if(openal_library_type STREQUAL "SHARED_LIBRARY")
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:OpenAL::OpenAL>" "$<TARGET_FILE_DIR:${target}>")
+    endif()
+    if(FFMPEG_ROOT AND NOT FFMPEG_STATIC)
+        foreach(component avformat avcodec avutil swscale swresample)
+            file(GLOB ffmpeg_runtime_dlls "${FFMPEG_ROOT}/bin/${component}*.dll")
+            foreach(dll IN LISTS ffmpeg_runtime_dlls)
+                add_custom_command(TARGET ${target} POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${dll}" "$<TARGET_FILE_DIR:${target}>")
+            endforeach()
+        endforeach()
+    endif()
+    set(licenses "${CMAKE_SOURCE_DIR}/Core/GameEngineDevice/Licenses")
+    add_custom_command(TARGET ${target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${licenses}/audio-libraries-NOTICE.txt" "$<TARGET_FILE_DIR:${target}>/audio-libraries-NOTICE.txt"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${licenses}/FFmpeg-LGPL-2.1.txt" "$<TARGET_FILE_DIR:${target}>/ffmpeg-LICENSE.txt"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${licenses}/OpenAL-Soft-LGPL-2.txt" "$<TARGET_FILE_DIR:${target}>/openal-soft-LICENSE.txt"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${licenses}/OpenAL-Soft-PFFFT.txt" "$<TARGET_FILE_DIR:${target}>/openal-soft-pffft-LICENSE.txt")
+endfunction()
