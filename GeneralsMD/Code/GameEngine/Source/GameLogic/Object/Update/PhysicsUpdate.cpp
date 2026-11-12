@@ -65,6 +65,7 @@ const Real MIN_AERO_FRICTION = 0.00f;
 const Real MIN_NON_AERO_FRICTION = 0.01f;
 const Real MAX_FRICTION = 0.99f;
 
+// Velocity per base frame below which a stun ends.
 const Real STUN_RELIEF_EPSILON = 0.5f;
 
 #include "Common/CRCDebug.h"
@@ -691,9 +692,10 @@ UpdateSleepTime PhysicsBehavior::update()
 		// Check when to clear the stunned status
 		if (getIsStunned())
 		{
-			if ( (WWMath::Fabs(m_vel.x) < STUN_RELIEF_EPSILON &&
-				    WWMath::Fabs(m_vel.y) < STUN_RELIEF_EPSILON &&
-				    WWMath::Fabs(m_vel.z) < STUN_RELIEF_EPSILON) ||
+			const Real stunReliefEpsilon = STUN_RELIEF_EPSILON / (Real)LOGICFRAMES_PER_BASEFRAME;
+			if ( (WWMath::Fabs(m_vel.x) < stunReliefEpsilon &&
+				    WWMath::Fabs(m_vel.y) < stunReliefEpsilon &&
+				    WWMath::Fabs(m_vel.z) < stunReliefEpsilon) ||
            obj->isSignificantlyAboveTerrain() == FALSE )
 			{
 				setStunned(false);
