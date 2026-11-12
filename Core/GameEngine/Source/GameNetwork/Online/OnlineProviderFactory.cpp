@@ -26,6 +26,9 @@
 
 #include "GameNetwork/Online/OnlineProviderFactory.h"
 #include "GameNetwork/Online/GameSpy/GameSpyProviderFactory.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.h"
+#endif
 #include "GameNetwork/TransportFactory.h"
 
 //-----------------------------------------------------------------------------
@@ -119,6 +122,21 @@ void RegisterBuiltInProviders()
 	// RegisterOnlineProvider() is idempotent, so repeat calls are harmless.
 	static GameSpyProviderFactory theGameSpyFactory;
 	RegisterOnlineProvider( &theGameSpyFactory );
+
+#if defined(GENONLINE)
+	static GenOnlineProviderFactory theGenOnlineFactory;
+	RegisterOnlineProvider( &theGenOnlineFactory );
+#endif
+}
+
+// GenOnline builds talk to GenOnline unless the command line picks another provider.
+static OnlineProviderType getDefaultProvider()
+{
+#if defined(GENONLINE)
+	return ONLINE_PROVIDER_GENONLINE;
+#else
+	return ONLINE_PROVIDER_GAMESPY;
+#endif
 }
 
 void SetCommandLineOnlineProvider( const char *name )
@@ -164,7 +182,7 @@ OnlineProviderType ResolveConfiguredProvider()
 	// providers are registered so name matching has something to match against.
 	RegisterBuiltInProviders();
 
-	OnlineProviderType resolved = ONLINE_PROVIDER_GAMESPY;
+	OnlineProviderType resolved = getDefaultProvider();
 
 	// 1) CLI: -onlineProvider <name>
 	const char *cli = GetCommandLineOnlineProvider();
@@ -173,12 +191,12 @@ OnlineProviderType ResolveConfiguredProvider()
 		if (matchProviderName( cli, resolved ))
 			return resolved;
 
-		DEBUG_LOG(("ResolveConfiguredProvider: unrecognised -onlineProvider value '%s'; using GameSpy", cli));
-		return ONLINE_PROVIDER_GAMESPY;
+		DEBUG_LOG(("ResolveConfiguredProvider: unrecognised -onlineProvider value '%s', using the default provider", cli));
+		return getDefaultProvider();
 	}
 
 	// 2) Built-in default
-	return ONLINE_PROVIDER_GAMESPY;
+	return getDefaultProvider();
 }
 
 IOnlineResults *CreateOnlineResults( OnlineProviderFactory **outFactory )
