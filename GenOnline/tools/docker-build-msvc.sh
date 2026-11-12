@@ -6,17 +6,17 @@
 # The resulting binaries are identical to native Windows VS2022 builds.
 #
 # Usage:
-#   ./scripts/docker-build-msvc.sh                        # Full build of Zero Hour (z_generals)
-#   ./scripts/docker-build-msvc.sh --clean                # Clean build directory
-#   ./scripts/docker-build-msvc.sh --cmake                # Force CMake reconfiguration
-#   ./scripts/docker-build-msvc.sh --interactive          # Enter container shell
+#   ./GenOnline/tools/docker-build-msvc.sh                        # Full build of Zero Hour (z_generals)
+#   ./GenOnline/tools/docker-build-msvc.sh --clean                # Clean build directory
+#   ./GenOnline/tools/docker-build-msvc.sh --cmake                # Force CMake reconfiguration
+#   ./GenOnline/tools/docker-build-msvc.sh --interactive          # Enter container shell
 #
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-DOCKER_DIR="$PROJECT_DIR/resources/dockerbuild-msvc"
+PROJECT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+DOCKER_DIR="$SCRIPT_DIR/dockerbuild-msvc"
 IMAGE_NAME="generals-msvc-build"
 PRESET="msvc-wine"
 

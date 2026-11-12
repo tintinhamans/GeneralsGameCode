@@ -102,7 +102,7 @@ bugfix:
 build:
 chore:
 ci:
-docs:
+GenOnline/docs:
 fix:
 feat:
 perf:
@@ -144,7 +144,7 @@ Links are commonly used for
 * closing a related issue report or task when this pull request is merged
 * closing another pull request when this pull request is merged
 
-Some keywords are interpreted by GitHub. Read about it [here](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue).
+Some keywords are interpreted by GitHub. Read about it [here](https://GenOnline/docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue).
 
 The text body continues with a description of the change in appropriate detail. This serves to educate reviewers and visitors to get a good understanding of the change without the need to study and understand the associated changed files. If the change is controversial or affects gameplay in a considerable way, then a rationale text needs to be appended. The rationale explains why the given change makes sense.
 

@@ -2,7 +2,7 @@ bugfix
 build
 chore
 ci
-docs
+GenOnline/docs
 fix
 feat
 perf
