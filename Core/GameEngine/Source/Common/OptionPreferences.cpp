@@ -590,6 +590,15 @@ AsciiString OptionPreferences::getSpeakerType()
 	return it->second;
 }
 
+// Miles with Bink movies instead of OpenAL with FFmpeg movies, in builds that have both
+Bool OptionPreferences::getLegacyMediaEnabled() const
+{
+	OptionPreferences::const_iterator it = find("LegacyMedia");
+	if (it == end())
+		return FALSE;
+	return stricmp(it->second.str(), "yes") == 0;
+}
+
 Real OptionPreferences::getSoundVolume()
 {
 	OptionPreferences::const_iterator it = find("SFXVolume");
