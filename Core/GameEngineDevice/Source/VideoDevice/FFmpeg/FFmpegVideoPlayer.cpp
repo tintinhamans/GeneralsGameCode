@@ -189,7 +189,7 @@ void	FFmpegVideoPlayer::update()
 
 std::shared_ptr<OpenALMovieVoice> FFmpegVideoPlayer::createAudioVoice()
 {
-#if defined(RTS_HAS_MODERN_MEDIA) && !RTS_GENERALS
+#if defined(RTS_HAS_MODERN_MEDIA)
     if (TheAudio != nullptr)
         return static_cast<OpenALAudioManager *>(TheAudio)->createMovieVoice();
 #endif
