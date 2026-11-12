@@ -113,6 +113,7 @@
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 
 #include "Lib/Profile.h"
 
@@ -1350,11 +1351,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 		else
 		{
 			DEBUG_LOG(("Starting gamespy game"));
-#if defined(GENONLINE)
-			TheGameInfo = game = TheGenOnlineGame;	/// @todo: MDC add back in after demo
-#else
-			TheGameInfo = game = TheGameSpyGame;	/// @todo: MDC add back in after demo
-#endif
+			TheGameInfo = game = GetOnlineGameHooks()->getGameInfo();	/// @todo: MDC add back in after demo
 		}
 	}
 	else
@@ -2881,34 +2878,7 @@ void GameLogic::processCommandList(CommandList* list)
 
 			TheNetwork->setSawCRCMismatch(strMismatchDetails);
 
-#if defined(GENONLINE_USE_SENTRY)
-			if (TheGenOnlineGame != nullptr)
-			{
-				// local player info
-				int64_t userID = -1;
-				std::string strDisplayname = "Unknown";
-				GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-				if (pAuthInterface != nullptr)
-				{
-					userID = pAuthInterface->GetUserID();
-					strDisplayname = pAuthInterface->GetDisplayName();
-				}
-				std::string strUserID = std::format("{}", userID);
-
-				sentry_set_extra("user_id", sentry_value_new_int32(userID));
-				sentry_set_extra("user_displayname", sentry_value_new_string(strDisplayname.c_str()));
-
-				AsciiString sentryMsg;
-				sentryMsg.translate(strMismatchDetails);
-
-				// send event to sentry
-				sentry_capture_event(sentry_value_new_message_event(
-					SENTRY_LEVEL_ERROR,
-					"CRC_MISMATCH",
-					sentryMsg.str()
-				));
-			}
-#endif
+			GetOnlineGameHooks()->onCRCMismatch(strMismatchDetails);
 #else
 			TheNetwork->setSawCRCMismatch();
 #endif
@@ -4176,12 +4146,10 @@ void GameLogic::update()
 		}
 	}
 
-#if defined(GENONLINE)
-	if (TheGenOnlineGame != nullptr && TheGenOnlineGame->canKickOnObserversDisabled())
+	if (GetOnlineGameHooks()->shouldLeaveGame())
 	{
 		TheGameLogic->exitGame();
 	}
-#endif
 
 	// increment world time
 	if (!m_startNewGame)

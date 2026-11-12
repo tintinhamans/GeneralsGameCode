@@ -26,6 +26,7 @@
 #pragma once
 
 #include "GameNetwork/Online/OnlineProviderFactory.h"
+#include "GameNetwork/Online/GameSpy/GameSpyGameHooks.h"
 
 class GameSpyProviderFactory : public OnlineProviderFactory
 {
@@ -49,6 +50,11 @@ public:
 
 	virtual Int chooseGameTransport( const TransportInfo *transports, Int count ) const override;
 
+	virtual IOnlineGameHooks *getGameHooks() override { return &m_gameHooks; }
+
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) override;
 	virtual void destroyServices() override;
+
+private:
+	GameSpyGameHooks m_gameHooks;
 };

@@ -25,6 +25,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "GameNetwork/Online/OnlineProviderFactory.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 #include "GameNetwork/Online/GameSpy/GameSpyProviderFactory.h"
 #if defined(GENONLINE)
 #include "GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.h"
@@ -52,6 +53,9 @@ static char s_commandLineProvider[64] = { 0 };
 
 static OnlineProviderFactory *s_resultsProvider = nullptr;
 static Bool s_resultsProviderBound = FALSE;
+
+// The hooks of the selected provider, resolved on first use.
+static IOnlineGameHooks *s_gameHooks = nullptr;
 
 //-----------------------------------------------------------------------------
 // Registry
@@ -145,6 +149,7 @@ void SetCommandLineOnlineProvider( const char *name )
 		name = "";
 	strncpy( s_commandLineProvider, name, sizeof(s_commandLineProvider) - 1 );
 	s_commandLineProvider[sizeof(s_commandLineProvider) - 1] = 0;
+	s_gameHooks = nullptr;
 }
 
 const char *GetCommandLineOnlineProvider()
@@ -247,6 +252,18 @@ Bool BindOnlineResultsProvider( OnlineProviderFactory *factory )
 OnlineProviderFactory *GetBoundOnlineResultsProvider()
 {
 	return s_resultsProviderBound ? s_resultsProvider : nullptr;
+}
+
+IOnlineGameHooks *GetOnlineGameHooks()
+{
+	if (s_gameHooks == nullptr)
+	{
+		OnlineProviderFactory *factory = GetOnlineProvider(ResolveConfiguredProvider());
+		if (factory == nullptr)
+			factory = GetOnlineProvider(ONLINE_PROVIDER_GAMESPY);
+		s_gameHooks = factory->getGameHooks();
+	}
+	return s_gameHooks;
 }
 
 void SetUpOnline( OnlineProviderType type, const char *motdBuffer, const char *configBuffer )

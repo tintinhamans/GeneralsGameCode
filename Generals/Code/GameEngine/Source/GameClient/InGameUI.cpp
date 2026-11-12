@@ -88,6 +88,7 @@
 
 #include "GameNetwork/GameInfo.h"
 #include "GameNetwork/NetworkInterface.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 
 
 
@@ -6217,6 +6218,9 @@ void InGameUI::drawSystemTime(Int &x, Int &y)
 
 void InGameUI::drawGameTime()
 {
+	// draw connections
+	GetOnlineGameHooks()->drawNetworkOverlay(m_gameTimeString, m_gameTimeDropColor);
+
 	Int currentFrame = TheGameLogic->getFrame();
 	Int gameSeconds = (Int) (SECONDS_PER_LOGICFRAME_REAL * currentFrame );
 	Int hours = gameSeconds / 60 / 60;

@@ -108,6 +108,7 @@
 #include "GameNetwork/GameSpy/ThreadUtils.h"
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/NetworkInterface.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 
 struct QuitGameException {};
 
@@ -1095,7 +1096,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 		else
 		{
 			DEBUG_LOG(("Starting gamespy game"));
-			TheGameInfo = TheGameSpyGame;	/// @todo: MDC add back in after demo
+			TheGameInfo = GetOnlineGameHooks()->getGameInfo();	/// @todo: MDC add back in after demo
 		}
 	}
 	else
@@ -2375,6 +2376,7 @@ void GameLogic::processCommandList( CommandList *list )
 #if defined(GENONLINE)
 			UnicodeString strMismatchDetails;
 			TheNetwork->setSawCRCMismatch(strMismatchDetails);
+			GetOnlineGameHooks()->onCRCMismatch(strMismatchDetails);
 #else
 			TheNetwork->setSawCRCMismatch();
 #endif
@@ -3426,6 +3428,11 @@ void GameLogic::update()
 				obj->checkDisabledStatus();
 			}
 		}
+	}
+
+	if (GetOnlineGameHooks()->shouldLeaveGame())
+	{
+		TheGameLogic->exitGame();
 	}
 
 	// increment world time

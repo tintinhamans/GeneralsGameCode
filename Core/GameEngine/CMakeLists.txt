@@ -563,10 +563,12 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/NetworkDefs.h
     Include/GameNetwork/NetworkInterface.h
     Include/GameNetwork/networkutil.h
+    Include/GameNetwork/Online/GameSpy/GameSpyGameHooks.h
     Include/GameNetwork/Online/GameSpy/GameSpyProviderFactory.h
     Include/GameNetwork/Online/GameSpy/GameSpySession.h
     Include/GameNetwork/Online/IOnlineChat.h
     Include/GameNetwork/Online/IOnlineConfig.h
+    Include/GameNetwork/Online/IOnlineGameHooks.h
     Include/GameNetwork/Online/IOnlineLadder.h
     Include/GameNetwork/Online/IOnlineLobbyState.h
     Include/GameNetwork/Online/IOnlineMatchmaking.h
@@ -1182,6 +1184,7 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/NetworkUtil.cpp
     Source/GameNetwork/Online/GameSpy/GSConfig.cpp
     Source/GameNetwork/Online/GameSpy/GameResultsThread.cpp
+    Source/GameNetwork/Online/GameSpy/GameSpyGameHooks.cpp
     Source/GameNetwork/Online/GameSpy/GameSpyMatchmaking.cpp
     Source/GameNetwork/Online/GameSpy/GameSpyProviderFactory.cpp
     Source/GameNetwork/Online/GameSpy/GameSpySession.cpp
@@ -1220,6 +1223,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/HTTP/HTTPRequest.h
     Include/GameNetwork/GenOnline/GenOnlineTransport.h
     Include/GameNetwork/GenOnline/PluginInterfaces.h
+    Include/GameNetwork/GenOnline/Provider/GenOnlineGameHooks.h
     Include/GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.h
     Source/GameNetwork/GenOnline/DiscordRichPresence.cpp
     Source/GameNetwork/GenOnline/GenOnlineHelpers.cpp
@@ -1239,6 +1243,7 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/GenOnlineTransport.cpp
     Source/GameNetwork/GenOnline/NetworkBitstream.cpp
     Source/GameNetwork/GenOnline/PluginInterfaces.cpp
+    Source/GameNetwork/GenOnline/Provider/GenOnlineGameHooks.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.cpp
     Source/Precompiled/PreRTS.cpp
 )
