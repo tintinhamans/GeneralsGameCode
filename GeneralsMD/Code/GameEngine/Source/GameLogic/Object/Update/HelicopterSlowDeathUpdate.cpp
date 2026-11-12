@@ -315,7 +315,7 @@ UpdateSleepTime HelicopterSlowDeathBehavior::update()
 		// will ping pong back and forth between the MinSelfSpin and MaxSelfSpin defined in INI
 		//
 		if( modData->m_selfSpinUpdateDelay &&
-				TheGameLogic->getFrameLegacy() - m_lastSelfSpinUpdateFrame > modData->m_selfSpinUpdateDelay )
+				TheGameLogic->getFrame() - m_lastSelfSpinUpdateFrame > modData->m_selfSpinUpdateDelay )
 		{
 
 			// update the self spin
@@ -349,7 +349,7 @@ UpdateSleepTime HelicopterSlowDeathBehavior::update()
 			}
 
 			// we have made a change to the self spinning
-			m_lastSelfSpinUpdateFrame = TheGameLogic->getFrameLegacy();
+			m_lastSelfSpinUpdateFrame = TheGameLogic->getFrame();
 
 		}
 
@@ -452,7 +452,7 @@ UpdateSleepTime HelicopterSlowDeathBehavior::update()
 		{
 
 			// mark the frame we hit the ground on
-			m_hitGroundFrame = TheGameLogic->getFrameLegacy();
+			m_hitGroundFrame = TheGameLogic->getFrame();
 
 			// make hit ground effect
 			FXList::doFXObj( modData->m_fxHitGround, copter );
@@ -474,7 +474,7 @@ UpdateSleepTime HelicopterSlowDeathBehavior::update()
 
 	// if we're on the ground, see if it's time for our final boom
 	if( m_hitGroundFrame &&
-			TheGameLogic->getFrameLegacy() - m_hitGroundFrame > modData->m_delayFromGroundToFinalDeath )
+			TheGameLogic->getFrame() - m_hitGroundFrame > modData->m_delayFromGroundToFinalDeath )
 	{
 
 		// make effect
