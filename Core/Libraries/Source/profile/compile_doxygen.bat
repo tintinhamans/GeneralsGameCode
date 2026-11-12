@@ -23,4 +23,4 @@ hhc index.hhp
 copy index.chm ..\..\profile_priv.chm
 cd ..\..
 
-copy profile.chm ..\..\docs
+copy profile.chm ..\..\GenOnline/docs

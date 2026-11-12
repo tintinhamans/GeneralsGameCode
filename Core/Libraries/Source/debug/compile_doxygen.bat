@@ -23,4 +23,4 @@ hhc index.hhp
 copy index.chm ..\..\debug_priv.chm
 cd ..\..
 
-copy debug.chm ..\..\docs
+copy debug.chm ..\..\GenOnline/docs
