@@ -768,10 +768,8 @@ void Network::update()
 		if (m_localStatus == NETLOCALSTATUS_INGAME) {
 #if defined(GENONLINE_RUN_FAST)
 			m_frameRate = 60;
-#elif defined(GENONLINE_HIGH_FPS_SERVER)
-			m_frameRate = GENONLINE_HIGH_FPS_LIMIT;
 #else
-			m_frameRate = 30;
+			m_frameRate = LOGICFRAMES_PER_SECOND;
 #endif
 			m_conMgr->updateRunAhead(m_runAhead, m_frameRate, m_didSelfSlug, getExecutionFrame());
 			m_didSelfSlug = FALSE;
@@ -868,7 +866,9 @@ Bool Network::timeForNewFrame() {
 
 //		if (m_nextFrameTime + frameDelay < curTime) {
 		if (m_nextFrameTime + frameDelay < curTime) {
-		//if ((m_nextFrameTime + ((GENONLINE_HIGH_FPS_FRAME_MULTIPLIER * 2) * frameDelay)) < curTime) {
+		//if ((m_nextFrameTime + ((LOGICFRAMES_PER_BASEFRAME * 2) * frameDelay)) < curTime) {
+			// If we get too far behind on our framerate we need to reset the nextFrameTime thing.
+		//if ((m_nextFrameTime + ((GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER * 2) * frameDelay)) < curTime) {
 			// If we get too far behind on our framerate we need to reset the nextFrameTime thing.
 		//if ((m_nextFrameTime + ((GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER * 2) * frameDelay)) < curTime) {
 			// If we get too far behind on our framerate we need to reset the nextFrameTime thing.

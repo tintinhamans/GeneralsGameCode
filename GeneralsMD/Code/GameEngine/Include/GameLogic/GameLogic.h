@@ -133,11 +133,8 @@ public:
 	void setObjectIDCounter( ObjectID nextObjID ) { m_nextObjID = nextObjID; }
 	ObjectID getObjectIDCounter() { return m_nextObjID; }
 
-#if defined(GENONLINE_HIGH_FPS_SERVER)
 	UnsignedInt getFrameLegacy(void);
-	UnsignedInt getFrameLegacyLast(void);
 	bool HasLegacyFrameAdvanced(void);
-#endif
 
 
 	//-----------------------------------------------------------------------------------------------
@@ -389,10 +386,6 @@ private:
 
 	Real m_width, m_height;																	///< Dimensions of the world
 	UnsignedInt m_frame;																		///< Simulation frame number
-#if defined(GENONLINE_HIGH_FPS_SERVER)
-	UnsignedInt m_frameLegacy;
-	UnsignedInt m_frameLegacyLast;
-#endif
 
 	// CRC cache system -----------------------------------------------------------------------------
 	UnsignedInt	m_CRC;																			///< Cache of previous CRC value
@@ -527,11 +520,9 @@ inline Bool GameLogic::isInShellGame() const { return rts::isShellGame(m_gameMod
 inline Bool GameLogic::isInMultiplayerGame() const { return rts::isMultiplayerGame(m_gameMode); }
 inline Bool GameLogic::isInInteractiveGame() const { return rts::isInteractiveGame(m_gameMode); }
 
-#if defined(GENONLINE_HIGH_FPS_SERVER)
-inline UnsignedInt GameLogic::getFrameLegacy(void) { return m_frameLegacy; }
-inline UnsignedInt GameLogic::getFrameLegacyLast(void) { return m_frameLegacyLast; }
-inline bool GameLogic::HasLegacyFrameAdvanced(void) { return m_frameLegacy != m_frameLegacyLast; }
-#endif
+// The base frame derives from the saved logic frame, so it stays correct after loading a save game.
+inline UnsignedInt GameLogic::getFrameLegacy(void) { return m_frame / LOGICFRAMES_PER_BASEFRAME; }
+inline bool GameLogic::HasLegacyFrameAdvanced(void) { return (m_frame % LOGICFRAMES_PER_BASEFRAME) == 0; }
 inline UnsignedShort GameLogic::getSuperweaponRestriction() const { return m_superweaponRestriction; }
 
 inline Object* GameLogic::findObjectByID( ObjectID id )

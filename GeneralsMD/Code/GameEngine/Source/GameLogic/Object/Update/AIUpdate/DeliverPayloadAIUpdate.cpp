@@ -1080,7 +1080,7 @@ StateReturnType RecoverFromOffMapState::onEnter() // Increment local counter o' 
   // maneuvering.
   Real timeToTravelThatDist;
 	/*Real minTurnRadius =*/ ai->calcMinTurnRadius(&timeToTravelThatDist);
-  m_reEntryFrame = TheGameLogic->getFrame() + REAL_TO_INT_CEIL(timeToTravelThatDist);
+  m_reEntryFrame = TheGameLogic->getFrame() + ConvertBaseFramesToFrames(REAL_TO_INT_CEIL(ConvertFramesToBaseFramesReal(timeToTravelThatDist)));
 
 	// kill its momentum
 	PhysicsBehavior* physics = owner->getPhysics();

@@ -134,7 +134,7 @@ UpdateSleepTime GrantStealthBehavior::update()
 	PartitionFilter *filters[] = { &relationship, &filterAlive, &filterMapStatus, nullptr };
 
 
-  m_currentScanRadius += d->m_radiusGrowRate;
+  m_currentScanRadius += d->m_radiusGrowRate / (Real)LOGICFRAMES_PER_BASEFRAME;
 
   Bool thisIsFinalScan = FALSE;
   if ( m_currentScanRadius >=  d->m_finalRadius )

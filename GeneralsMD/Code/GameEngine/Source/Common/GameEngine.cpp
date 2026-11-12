@@ -905,8 +905,8 @@ void GameEngine::update()
 			// VERIFY CRC needs to be in this code block.  Please to not pull TheGameLogic->update() inside this block.
 			VERIFY_CRC
 
-#if defined(GENONLINE_HIGH_FPS_RENDER)
-			// GENONLINE_NOTE: Lock the shellmap to 30fps until we fix everything
+#if defined(GENONLINE)
+			// GENONLINE_NOTE: Lock the shellmap to 30fps until its issues are fixed
 			Int matchFpsLimit = 0;
 			if (GetOnlineGameHooks()->getMatchFrameRateLimit(matchFpsLimit) && TheGameLogic->isInGame() && !TheShell->isShellActive())
 			{
@@ -915,7 +915,7 @@ void GameEngine::update()
 			}
 			else
 			{
-				TheFramePacer->setFramesPerSecondLimit(GENONLINE_HIGH_FPS_LIMIT);
+				TheFramePacer->setFramesPerSecondLimit(LOGICFRAMES_PER_SECOND);
 			}
 #endif
 			

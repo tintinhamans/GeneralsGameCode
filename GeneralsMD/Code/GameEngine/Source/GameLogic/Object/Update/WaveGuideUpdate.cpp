@@ -448,7 +448,7 @@ void WaveGuideUpdate::doShoreEffects()
 {
 
 	// this is expensive to do *all* the time
-	if( TheGameLogic->getFrame() & 0x1 )
+	if( TheGameLogic->getFrame() % ConvertBaseFramesToFrames(2) != 0 )
 		return;
 
 	Object *waveGuide = getObject();

@@ -129,6 +129,9 @@ public:
 	void setObjectIDCounter( ObjectID nextObjID ) { m_nextObjID = nextObjID; }
 	ObjectID getObjectIDCounter() { return m_nextObjID; }
 
+	UnsignedInt getFrameLegacy(void);
+	bool HasLegacyFrameAdvanced(void);
+
 	//-----------------------------------------------------------------------------------------------
 	void setBuildableStatusOverride(const ThingTemplate* tt, BuildableStatus bs);
 	Bool findBuildableStatusOverride(const ThingTemplate* tt, BuildableStatus& bs) const;
@@ -497,6 +500,10 @@ inline Bool GameLogic::isInInternetGame() const { return rts::isInternetGame(m_g
 inline Bool GameLogic::isInShellGame() const { return rts::isShellGame(m_gameMode); }
 inline Bool GameLogic::isInMultiplayerGame() const { return rts::isMultiplayerGame(m_gameMode); }
 inline Bool GameLogic::isInInteractiveGame() const { return rts::isInteractiveGame(m_gameMode); }
+
+// The base frame derives from the saved logic frame, so it stays correct after loading a save game.
+inline UnsignedInt GameLogic::getFrameLegacy(void) { return m_frame / LOGICFRAMES_PER_BASEFRAME; }
+inline bool GameLogic::HasLegacyFrameAdvanced(void) { return (m_frame % LOGICFRAMES_PER_BASEFRAME) == 0; }
 
 inline Object* GameLogic::findObjectByID( ObjectID id )
 {

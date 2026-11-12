@@ -461,9 +461,11 @@ void NeutronMissileSlowDeathBehavior::doBlast( const BlastInfo *blastInfo )
 				// change the magnitude of the physics force to the force amount we want to apply from
 				// the shockwave
 				//
-				physicsForce.x *= blastInfo->pushForceMag;
-				physicsForce.y *= blastInfo->pushForceMag;
-				physicsForce.z *= blastInfo->pushForceMag;
+				// The push is an impulse, so it scales with the logic frame length.
+				const Real pushForceMag = blastInfo->pushForceMag / (Real)LOGICFRAMES_PER_BASEFRAME;
+				physicsForce.x *= pushForceMag;
+				physicsForce.y *= pushForceMag;
+				physicsForce.z *= pushForceMag;
 
 				// apply the force
 				physics->applyForce( &physicsForce );

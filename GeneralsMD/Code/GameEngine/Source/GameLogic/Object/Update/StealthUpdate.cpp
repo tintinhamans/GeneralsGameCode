@@ -350,11 +350,7 @@ Bool StealthUpdate::allowedToStealth( Object *stealthOwner ) const
 
 		//Now do weapon specific checks.
 		Weapon *weapon;
-	#if defined(GENONLINE_HIGH_FPS_SERVER)
-        UnsignedInt lastFrame = TheGameLogic->getFrame() - GENONLINE_HIGH_FPS_FRAME_MULTIPLIER;
-    #else
-        UnsignedInt lastFrame = TheGameLogic->getFrame() - 1;
-    #endif
+        UnsignedInt lastFrame = TheGameLogic->getFrame() - LOGICFRAMES_PER_BASEFRAME;
 
 		if( flags & STEALTH_NOT_WHILE_FIRING_PRIMARY )
 		{
@@ -693,11 +689,7 @@ UpdateSleepTime StealthUpdate::update()
 		{
 			draw->setEffectiveOpacity( 0.5f + ( Sin( m_pulsePhase ) * 0.5f ) );
 			// between one half and full opacity
-#if defined(GENONLINE) && defined(GENONLINE_HIGH_FPS_SERVER)
-			m_pulsePhase += (m_pulsePhaseRate / GENONLINE_HIGH_FPS_FRAME_MULTIPLIER);
-#else
-			m_pulsePhase += m_pulsePhaseRate;
-#endif
+			m_pulsePhase += (m_pulsePhaseRate / LOGICFRAMES_PER_BASEFRAME);
 		}
 	}
 

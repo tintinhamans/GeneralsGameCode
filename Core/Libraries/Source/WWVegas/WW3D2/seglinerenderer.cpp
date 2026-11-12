@@ -231,7 +231,7 @@ void SegLineRendererClass::Render
 	*/
 // TODO_MERGE: Check this, old code was:
 /*
-#if defined(GENONLINE) && defined(GENONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE)
 	unsigned int delta = std::max<unsigned int>(33, WW3D::Get_Sync_Time() - LastUsedSyncTime);
 #else
 	unsigned int delta = WW3D::Get_Sync_Time() - LastUsedSyncTime;

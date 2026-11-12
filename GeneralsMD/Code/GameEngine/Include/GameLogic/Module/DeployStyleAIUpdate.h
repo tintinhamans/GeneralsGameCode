@@ -99,13 +99,8 @@ public:
 	virtual Bool isIdle() const override;
 	virtual UpdateSleepTime update() override;
 
-#if defined(GENONLINE) && defined(GENONLINE_HIGH_FPS_SERVER)
-	UnsignedInt getUnpackTime()					const { return getDeployStyleAIUpdateModuleData()->m_unpackTime/ GENONLINE_HIGH_FPS_FRAME_MULTIPLIER; }
-	UnsignedInt getPackTime()						const { return getDeployStyleAIUpdateModuleData()->m_packTime/ GENONLINE_HIGH_FPS_FRAME_MULTIPLIER; }
-#else
-	UnsignedInt getUnpackTime()					const { return getDeployStyleAIUpdateModuleData()->m_unpackTime; }
-	UnsignedInt getPackTime()						const { return getDeployStyleAIUpdateModuleData()->m_packTime; }
-#endif
+	UnsignedInt getUnpackTime()					const { return getDeployStyleAIUpdateModuleData()->m_unpackTime/ LOGICFRAMES_PER_BASEFRAME; }
+	UnsignedInt getPackTime()						const { return getDeployStyleAIUpdateModuleData()->m_packTime/ LOGICFRAMES_PER_BASEFRAME; }
 	Bool doTurretsFunctionOnlyWhenDeployed() const { return getDeployStyleAIUpdateModuleData()->m_turretsFunctionOnlyWhenDeployed; }
 	Bool doTurretsHaveToCenterBeforePacking() const { return getDeployStyleAIUpdateModuleData()->m_turretsMustCenterBeforePacking; }
 	void setMyState( DeployStateTypes StateID, Bool reverseDeploy = FALSE );

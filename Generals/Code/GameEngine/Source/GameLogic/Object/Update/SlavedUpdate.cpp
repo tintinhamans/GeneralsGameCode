@@ -109,6 +109,11 @@ void SlavedUpdate::onSlaverDamage( const DamageInfo *info )
 //-------------------------------------------------------------------------------------------------
 UpdateSleepTime SlavedUpdate::update()
 {
+	if (!TheGameLogic->HasLegacyFrameAdvanced())
+	{
+		return UPDATE_SLEEP_NONE;
+	}
+
 /// @todo srj use SLEEPY_UPDATE here
 	if( m_framesToWait > 0 )
 	{
@@ -120,7 +125,7 @@ UpdateSleepTime SlavedUpdate::update()
 		{
 			return UPDATE_SLEEP_NONE;
 		}
-		m_framesToWait = SLAVED_UPDATE_RATE;
+		m_framesToWait = ConvertFramesToBaseFrames(SLAVED_UPDATE_RATE);
 	}
 
 	if( m_slaver == INVALID_ID )
@@ -499,7 +504,8 @@ void SlavedUpdate::doRepairLogic()
 		if( body )
 		{
 			//Calculate the repair rate per frame.
-			Real repairAmount = data->m_repairRatePerSecond / LOGICFRAMES_PER_SECOND;
+			// The update runs once per base frame.
+			Real repairAmount = ConvertRatePerSecToPerFrame(data->m_repairRatePerSecond) * LOGICFRAMES_PER_BASEFRAME;
 
 			DamageInfo healingInfo;
 			healingInfo.in.m_amount = repairAmount;
@@ -517,7 +523,7 @@ void SlavedUpdate::endRepair()
 	{
 		//Remove the state so we can start using the update timer again.
 		m_repairState = REPAIRSTATE_NONE;
-		m_framesToWait = SLAVED_UPDATE_RATE;
+		m_framesToWait = ConvertFramesToBaseFrames(SLAVED_UPDATE_RATE);
 		m_repairing = false;
 
 		//Set the packing state and clear any other states (to force the arm to fully retract)
@@ -594,7 +600,7 @@ void SlavedUpdate::setRepairState( RepairStates repairState )
 					break;
 				default:
 					m_repairState = REPAIRSTATE_READY;
-					m_framesToWait = GameLogicRandomValue( data->m_minReadyFrames, data->m_maxReadyFrames );
+					m_framesToWait = ConvertFramesToBaseFrames(GameLogicRandomValue( data->m_minReadyFrames, data->m_maxReadyFrames ));
 					break;
 			}
 			break;
@@ -611,7 +617,7 @@ void SlavedUpdate::setRepairState( RepairStates repairState )
 			else
 			{
 				m_repairState = REPAIRSTATE_WELDING;
-				m_framesToWait = GameLogicRandomValue( data->m_minWeldFrames, data->m_maxWeldFrames );
+				m_framesToWait = ConvertFramesToBaseFrames(GameLogicRandomValue( data->m_minWeldFrames, data->m_maxWeldFrames ));
 
 				//Make sparks!
 				if( !data->m_weldingSysName.isEmpty() )
@@ -632,7 +638,8 @@ void SlavedUpdate::setRepairState( RepairStates repairState )
 						}
 
 						weldingSys->setPosition( &pos );
-						Real time = (Real)(m_framesToWait * LOGICFRAMES_PER_SECOND);
+						// NOTE: Don't increase the time just because the logic tick rate increased
+						Real time = (Real)(m_framesToWait * (LOGICFRAMES_PER_SECOND/ LOGICFRAMES_PER_BASEFRAME));
 						weldingSys->setLifetimeRange( time, time );
 
 						AudioEventRTS soundToPlay = TheAudio->getMiscAudio()->m_repairSparks;

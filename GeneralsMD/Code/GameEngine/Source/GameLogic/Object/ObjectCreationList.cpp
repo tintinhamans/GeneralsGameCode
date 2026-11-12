@@ -387,7 +387,7 @@ public:
 
 				if ( m_delayDeliveryFramesMax > 0 )
 				{
-					transport->setDisabledUntil( DISABLED_DEFAULT, TheGameLogic->getFrame() + GameLogicRandomValue(0, m_delayDeliveryFramesMax) );
+					transport->setDisabledUntil( DISABLED_DEFAULT, TheGameLogic->getFrame() + GameLogicRandomFramesInBaseFrames(0, m_delayDeliveryFramesMax) );
 				}
 			}
 			else
@@ -590,9 +590,7 @@ static void calcRandomForce(Real minMag, Real maxMag, Real minPitch, Real maxPit
 	Real angle = GameLogicRandomValueReal(0, 2*PI);
 	Real pitch = GameLogicRandomValueReal(minPitch, maxPitch);
 	Real mag = GameLogicRandomValueReal(minMag, maxMag);
-#if defined(GENONLINE_HIGH_FPS_SERVER)
-	mag /= 2.f;
-#endif
+	mag /= (Real)LOGICFRAMES_PER_BASEFRAME;
 
 	Matrix3D mtx(1);
 	mtx.Scale(mag);
@@ -1162,9 +1160,7 @@ protected:
 				Real yaw = GameLogicRandomValueReal( -yawRate, yawRate );
 				Real roll = GameLogicRandomValueReal( -rollRate, rollRate );
 				Real pitch = GameLogicRandomValueReal( -pitchRate, pitchRate );
-#if defined(GENONLINE_HIGH_FPS_SERVER)
-				yaw /= 2.f; roll /= 2.f; pitch /= 2.f;
-#endif
+				yaw /= (Real)LOGICFRAMES_PER_BASEFRAME; roll /= (Real)LOGICFRAMES_PER_BASEFRAME; pitch /= (Real)LOGICFRAMES_PER_BASEFRAME;
 				DUMPREAL(yaw);
 				DUMPREAL(roll);
 				DUMPREAL(pitch);
@@ -1174,9 +1170,7 @@ protected:
 				{
 					Real horizForce = 4.0f * m_dispositionIntensity;		// 2
 					Real vertForce = 3.0f * m_dispositionIntensity;		// 3
-#if defined(GENONLINE_HIGH_FPS_SERVER)
-					horizForce /= 2.f; vertForce /= 2.f;
-#endif
+					horizForce /= (Real)LOGICFRAMES_PER_BASEFRAME; vertForce /= (Real)LOGICFRAMES_PER_BASEFRAME;
 					force.x = GameLogicRandomValueReal( -horizForce, horizForce );
 					force.y = GameLogicRandomValueReal( -horizForce, horizForce );
 					force.z = GameLogicRandomValueReal( vertForce * 0.33f, vertForce );
@@ -1188,9 +1182,7 @@ protected:
 				{
 					Real horizForce = 2.0f * m_dispositionIntensity;
 					Real vertForce = 4.0f * m_dispositionIntensity;
-#if defined(GENONLINE_HIGH_FPS_SERVER)
-					horizForce /= 2.f; vertForce /= 2.f;
-#endif
+					horizForce /= (Real)LOGICFRAMES_PER_BASEFRAME; vertForce /= (Real)LOGICFRAMES_PER_BASEFRAME;
 
 					force.x = GameLogicRandomValueReal( -horizForce, horizForce );
 					force.y = GameLogicRandomValueReal( -horizForce, horizForce );

@@ -37,7 +37,8 @@ enum
 {
 	// TheSuperHackers @info The original WWSync was 33 ms, ~30 fps, integer.
 	// Changing this will require tweaking all Drawable code that concerns the ww3d time step, including locomotion physics.
-	#if defined(GENONLINE_HIGH_FPS_SERVER)
+	// GenOnline runs the logic at 60 Hz. Other builds keep the retail 30 Hz.
+#if defined(GENONLINE)
 	WWSyncPerSecond = 60,
 #else
 	WWSyncPerSecond = 30,

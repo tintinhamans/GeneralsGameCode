@@ -661,18 +661,14 @@ UpdateSleepTime DumbProjectileBehavior::update()
 			if (m_flightPath.size() >= 2)
 			{
 				prevPos = m_flightPath[0];
-#if defined(GENONLINE_HIGH_FPS_SERVER)
 				// Info: Look one legacy frame ahead so launch orientation matches the retail 30Hz path.
 				const Int highFpsPathPointCount = (Int)m_flightPath.size();
-				const Int legacyPathPointCount = (highFpsPathPointCount + GENONLINE_HIGH_FPS_FRAME_MULTIPLIER - 1)
-					/ GENONLINE_HIGH_FPS_FRAME_MULTIPLIER;
+				const Int legacyPathPointCount = (highFpsPathPointCount + LOGICFRAMES_PER_BASEFRAME - 1)
+					/ LOGICFRAMES_PER_BASEFRAME;
 				const Int legacyPathIntervalCount = max(legacyPathPointCount - 1, 1);
 				const Int orientationStep = (highFpsPathPointCount - 1 + legacyPathIntervalCount / 2)
 					/ legacyPathIntervalCount;
 				curPos = m_flightPath[orientationStep];
-#else
-				curPos = m_flightPath[1];
-#endif
 			}
 			else
 			{

@@ -3996,7 +3996,7 @@ void InGameUI::postDraw()
 				UnsignedInt readyFrame = TheGameLogic->getFrame();
 				if (framesLeft > 0)
 					readyFrame += framesLeft;
-				Int readySecs = (Int)(SECONDS_PER_LOGICFRAME_REAL * (readyFrame - TheGameLogic->getFrame()));
+				Int readySecs = (Int)(SECONDS_PER_LOGICFRAME_REAL * LOGICFRAMES_PER_BASEFRAME * (readyFrame - TheGameLogic->getFrame()));
 				if ( (info->isCountdown && readySecs != info->timestamp) || (!info->isCountdown && framesLeft != info->timestamp) )
 				{
 					if (!readySecs && info->isCountdown)

@@ -248,7 +248,7 @@ UpdateSleepTime MobMemberSlavedUpdate::update()
 		{
 			++ m_catchUpCrisisTimer; // I'm way too far from the nexus this frame
 
-			if ( m_catchUpCrisisTimer > data->m_catchUpCrisisBailTime)
+			if ( m_catchUpCrisisTimer > (UnsignedInt)ConvertBaseFramesToFrames(data->m_catchUpCrisisBailTime))
 			{
 				me->kill();
 				return UPDATE_SLEEP_NONE;
@@ -264,7 +264,7 @@ UpdateSleepTime MobMemberSlavedUpdate::update()
 //				}
 //				m_catchUpCrisisTimer = 0;
 			}
-			else if ( m_catchUpCrisisTimer > data->m_catchUpCrisisBailTime/3 )
+			else if ( m_catchUpCrisisTimer > (UnsignedInt)ConvertBaseFramesToFrames(data->m_catchUpCrisisBailTime)/3 )
 			{
 				myAI->aiMoveToPosition( master->getPosition(), CMD_FROM_AI ); // NASTY BEEHIVE EFFECT
 			}

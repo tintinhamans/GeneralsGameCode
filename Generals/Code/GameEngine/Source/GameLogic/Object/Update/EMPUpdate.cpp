@@ -134,7 +134,8 @@ UpdateSleepTime EMPUpdate::update()
 	Drawable *dr = obj->getDrawable();
 	UnsignedInt now = TheGameLogic->getFrame();
 
-	m_currentScale += ( m_targetScale - m_currentScale ) * 0.05f;
+	// TODO_GENONLINE: Use a frame time delta here instead of assuming 60 Hz.
+	m_currentScale += ( m_targetScale - m_currentScale ) * (0.05f / LOGICFRAMES_PER_BASEFRAME);
 	dr->setInstanceScale( m_currentScale );
 
 	if ( now < m_tintEnvPlayFrame)
@@ -268,8 +269,13 @@ void EMPUpdate::doDisableAttack()
 
 							sys->attachToObject(curVictim);
 							sys->setPosition( &offs );
+							#if defined(GENONLINE)
+							sys->setSystemLifetime(MAX(0, (data->m_disabledDuration/ LOGICFRAMES_PER_BASEFRAME) - 240));
+							sys->setInitialDelay(GameLogicRandomValue(1, 100) / LOGICFRAMES_PER_BASEFRAME);
+							#else
 							sys->setSystemLifetime(MAX(0, data->m_disabledDuration - 30));
 							sys->setInitialDelay(GameClientRandomValue(1,100));
+							#endif
 						}
 					}
 				}

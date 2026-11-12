@@ -98,11 +98,7 @@ UpdateSleepTime DeployStyleAIUpdate::update()
 	// when we have a pending command...
 	Object *self = getObject();
 	Weapon *weapon = self->getCurrentWeapon();
-#if defined(GENONLINE_HIGH_FPS_SERVER)
 	UnsignedInt now = TheGameLogic->getFrameLegacy();
-#else
-	UnsignedInt now = TheGameLogic->getFrame();
-#endif
 	const DeployStyleAIUpdateModuleData *data = getDeployStyleAIUpdateModuleData();
 
 	//Are we attempting to move? If so we can't do it unless we are undeployed.
@@ -244,13 +240,6 @@ UpdateSleepTime DeployStyleAIUpdate::update()
 		case DEPLOY:
 			if( data->m_manualDeployAnimations )
 			{
-#if defined(GENONLINE) && defined(GENONLINE_HIGH_FPS_SERVER)
-				if (!TheGameLogic->HasLegacyFrameAdvanced())
-				{
-					break;
-				}
-#endif
-
 				UnsignedInt totalFrames = getPackTime();
 				UnsignedInt framesLeft = m_frameToWaitForDeploy - now;
 				Drawable *draw = self->getDrawable();
@@ -265,12 +254,6 @@ UpdateSleepTime DeployStyleAIUpdate::update()
 		case UNDEPLOY:
 			if( data->m_manualDeployAnimations )
 			{
-#if defined(GENONLINE) && defined(GENONLINE_HIGH_FPS_SERVER)
-				if (!TheGameLogic->HasLegacyFrameAdvanced())
-				{
-					break;
-				}
-#endif
 				UnsignedInt framesLeft = m_frameToWaitForDeploy - now;
 				Drawable *draw = self->getDrawable();
 				if( draw )
@@ -300,11 +283,7 @@ void DeployStyleAIUpdate::setMyState( DeployStateTypes stateID, Bool reverseDepl
 {
 	m_state = stateID;
 	Object *self = getObject();
-#if defined(GENONLINE_HIGH_FPS_SERVER)
 	UnsignedInt now = TheGameLogic->getFrameLegacy();
-#else
-	UnsignedInt now = TheGameLogic->getFrame();
-#endif
 	const DeployStyleAIUpdateModuleData *data = getDeployStyleAIUpdateModuleData();
 
 	switch( stateID )

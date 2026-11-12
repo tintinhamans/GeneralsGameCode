@@ -66,6 +66,8 @@ enum
 {
 	BaseFps = 30, // The historic base frame rate for this game. This value must never change.
 	LOGICFRAMES_PER_SECOND = WWSyncPerSecond,
+	// INI data and retail frame counts are authored at the base frame rate.
+	LOGICFRAMES_PER_BASEFRAME = LOGICFRAMES_PER_SECOND / BaseFps,
 	MSEC_PER_SECOND = 1000
 };
 const Real LOGICFRAMES_PER_MSEC_REAL = (((Real)LOGICFRAMES_PER_SECOND) / ((Real)MSEC_PER_SECOND));
@@ -80,6 +82,54 @@ inline Real ConvertDurationFromMsecsToFrames(Real msec)
 {
 	return (msec * LOGICFRAMES_PER_MSEC_REAL);
 }
+
+// ----------------------------------------------------------------------------------------------
+// Returns a REAL value like ConvertDurationFromMsecsToFrames.
+inline Real ConvertDurationFromSecsToFrames(Real seconds)
+{
+	return (seconds * LOGICFRAMES_PER_SECONDS_REAL);
+}
+
+// ----------------------------------------------------------------------------------------------
+inline Real ConvertRatePerSecToPerFrame(Real amountPerSec)
+{
+	return (amountPerSec * SECONDS_PER_LOGICFRAME_REAL);
+}
+
+// ----------------------------------------------------------------------------------------------
+inline Int ConvertBaseFramesToFrames(Int baseFrames)
+{
+	return (baseFrames * LOGICFRAMES_PER_BASEFRAME);
+}
+
+// ----------------------------------------------------------------------------------------------
+// Converts logic frames to base frames and rounds a partial base frame up.
+inline Int ConvertFramesToBaseFrames(Int frames)
+{
+	return ((frames + LOGICFRAMES_PER_BASEFRAME - 1) / LOGICFRAMES_PER_BASEFRAME);
+}
+
+// ----------------------------------------------------------------------------------------------
+// Converts a duration in logic frames to the same duration in base frames without rounding.
+inline Real ConvertFramesToBaseFramesReal(Real frames)
+{
+	return (frames / (Real)LOGICFRAMES_PER_BASEFRAME);
+}
+
+// ----------------------------------------------------------------------------------------------
+// Rounds up to whole base frames so every logic frame rate gives the duration of the base frame rate.
+Real ConvertDurationFromMsecsToFramesRoundedUp(Real msec);
+
+// ----------------------------------------------------------------------------------------------
+// Divides a duration in logic frames in base frames and rounds the result down to whole base frames.
+Int DivideFramesInBaseFrames(Int frames, Real divisor);
+
+// ----------------------------------------------------------------------------------------------
+// Multiplies a duration in logic frames in base frames and truncates the result to whole base frames.
+Int MultiplyFramesInBaseFrames(Int frames, Real factor);
+
+// ----------------------------------------------------------------------------------------------
+Real ConvertBaseFrameFactorToFrameFactor(Real factorPerBaseFrame);
 
 // ----------------------------------------------------------------------------------------------
 inline Real ConvertVelocityInSecsToFrames(Real distPerMsec)
