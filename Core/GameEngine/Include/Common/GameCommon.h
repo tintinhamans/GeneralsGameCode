@@ -110,6 +110,28 @@ inline Int ConvertFramesToBaseFrames(Int frames)
 }
 
 // ----------------------------------------------------------------------------------------------
+// Converts a duration in logic frames to the same duration in base frames without rounding.
+inline Real ConvertFramesToBaseFramesReal(Real frames)
+{
+	return (frames / (Real)LOGICFRAMES_PER_BASEFRAME);
+}
+
+// ----------------------------------------------------------------------------------------------
+// Rounds up to whole base frames so every logic frame rate gives the duration of the base frame rate.
+Real ConvertDurationFromMsecsToFramesRoundedUp(Real msec);
+
+// ----------------------------------------------------------------------------------------------
+// Divides a duration in logic frames in base frames and rounds the result down to whole base frames.
+Int DivideFramesInBaseFrames(Int frames, Real divisor);
+
+// ----------------------------------------------------------------------------------------------
+// Multiplies a duration in logic frames in base frames and truncates the result to whole base frames.
+Int MultiplyFramesInBaseFrames(Int frames, Real factor);
+
+// ----------------------------------------------------------------------------------------------
+Real ConvertBaseFrameFactorToFrameFactor(Real factorPerBaseFrame);
+
+// ----------------------------------------------------------------------------------------------
 inline Real ConvertVelocityInSecsToFrames(Real distPerMsec)
 {
 	// this looks wrong, but is the correct conversion factor.

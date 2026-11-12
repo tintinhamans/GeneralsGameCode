@@ -138,7 +138,7 @@ void StructureToppleUpdate::beginStructureTopple(const DamageInfo *damageInfo)
 	if (d)
 	{
 		UnsignedInt now = TheGameLogic->getFrame();
-		m_toppleFrame = now + GameLogicRandomValue(d->m_minToppleDelay, d->m_maxToppleDelay);
+		m_toppleFrame = now + GameLogicRandomFramesInBaseFrames(d->m_minToppleDelay, d->m_maxToppleDelay);
 
 		Object *attacker = TheGameLogic->findObjectByID(damageInfo->in.m_sourceID);
 		Object *building = getObject();
@@ -229,7 +229,8 @@ UpdateSleepTime StructureToppleUpdate::update()
 	}
 
 	// The building is in the process of falling over.
-	if (m_toppleState == TOPPLESTATE_TOPPLING) {
+	// The fall integrates once per base frame because the acceleration and decay values are authored per base frame.
+	if (m_toppleState == TOPPLESTATE_TOPPLING && TheGameLogic->HasLegacyFrameAdvanced()) {
 		UnsignedInt now = TheGameLogic->getFrame();
 		Real toppleAcceleration = TOPPLE_ACCELERATION_FACTOR * (Sin(m_accumulatedAngle) * (1.0 - m_structuralIntegrity));
 //		DEBUG_LOG(("toppleAcceleration = %f", toppleAcceleration));

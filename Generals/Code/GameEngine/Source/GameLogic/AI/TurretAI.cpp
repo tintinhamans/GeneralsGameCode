@@ -1271,7 +1271,7 @@ void TurretAIIdleState::loadPostProcess()
 void TurretAIIdleState::resetIdleScan()
 {
 	UnsignedInt now = TheGameLogic->getFrame();
-	UnsignedInt delay = GameLogicRandomValue(getTurretAI()->getMinIdleScanInterval(), getTurretAI()->getMaxIdleScanInterval());
+	UnsignedInt delay = GameLogicRandomFramesInBaseFrames(getTurretAI()->getMinIdleScanInterval(), getTurretAI()->getMaxIdleScanInterval());
 	m_nextIdleScan = now + delay;
 }
 

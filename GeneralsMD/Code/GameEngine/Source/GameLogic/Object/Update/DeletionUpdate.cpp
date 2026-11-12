@@ -79,7 +79,7 @@ void DeletionUpdate::restartLifetime()
 //-------------------------------------------------------------------------------------------------
 UnsignedInt DeletionUpdate::calcSleepDelay(UnsignedInt minFrames, UnsignedInt maxFrames)
 {
-	UnsignedInt delay = GameLogicRandomValue( minFrames, maxFrames );
+	UnsignedInt delay = GameLogicRandomFramesInBaseFrames( minFrames, maxFrames );
 	// Info: At 60Hz, a 1 logic frame lifetime only gives the client 16ms real time to notice a newly created object and
 	// render it before DeletionUpdate destroys it, versus 33ms at the retail 30hz.
 	// This caused one frame objects (like Frenzy's cloud effect) to intermittently never get drawn. 

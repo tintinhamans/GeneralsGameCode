@@ -748,16 +748,20 @@ void GameClient::update()
 #if defined(GENONLINE)
 	int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 
+	// The accumulator counts milliseconds times the base frame rate, so one base frame is MSEC_PER_SECOND units.
 	if (!freezeTime)
 	{
-		m_legacyFrameMSAccured += currTime - m_LegacyFrameEndLastFrame;
+		m_legacyFrameMSAccured += (currTime - m_LegacyFrameEndLastFrame) * BaseFps;
 	}
 	m_LegacyFrameEndLastFrame = currTime;
 
 	// TODO_GENONLINE: This should really use partial frame intervals instead of a fixed 60hz update
-	if (m_legacyFrameMSAccured >= 33)
+	if (m_legacyFrameMSAccured >= MSEC_PER_SECOND)
 	{
-		m_legacyFrameMSAccured = 0;
+		m_legacyFrameMSAccured -= MSEC_PER_SECOND;
+		// A stall advances one base frame only and does not queue a burst of catch up frames.
+		if (m_legacyFrameMSAccured >= MSEC_PER_SECOND)
+			m_legacyFrameMSAccured = 0;
 		m_frameLegacy++;
 	}
 	else
