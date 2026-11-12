@@ -229,7 +229,8 @@ UpdateSleepTime StructureToppleUpdate::update()
 	}
 
 	// The building is in the process of falling over.
-	if (m_toppleState == TOPPLESTATE_TOPPLING) {
+	// The fall integrates once per base frame because the acceleration and decay values are authored per base frame.
+	if (m_toppleState == TOPPLESTATE_TOPPLING && TheGameLogic->HasLegacyFrameAdvanced()) {
 		UnsignedInt now = TheGameLogic->getFrame();
 		Real toppleAcceleration = TOPPLE_ACCELERATION_FACTOR * (Sin(m_accumulatedAngle) * (1.0 - m_structuralIntegrity));
 //		DEBUG_LOG(("toppleAcceleration = %f", toppleAcceleration));
