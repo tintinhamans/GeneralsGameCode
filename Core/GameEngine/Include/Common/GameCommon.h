@@ -112,6 +112,10 @@ inline Int ConvertFramesToBaseFrames(Int frames)
 }
 
 // ----------------------------------------------------------------------------------------------
+// Converts a factor applied once per base frame to the factor applied once per logic frame.
+Real ConvertBaseFrameFactorToFrameFactor(Real factorPerBaseFrame);
+
+// ----------------------------------------------------------------------------------------------
 inline Real ConvertVelocityInSecsToFrames(Real distPerMsec)
 {
 	// this looks wrong, but is the correct conversion factor.
