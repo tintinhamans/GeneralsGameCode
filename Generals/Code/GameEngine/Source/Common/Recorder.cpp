@@ -44,6 +44,7 @@
 #include "GameNetwork/GameMessageParser.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/networkutil.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 #include "GameLogic/GameLogic.h"
 #include "Common/RandomValue.h"
 #include "Common/CRCDebug.h"
@@ -599,8 +600,9 @@ void RecorderClass::startRecording(GameDifficulty diff, GameMode originalGameMod
 		}
 		else
 		{
-			theSlotList = GameInfoToAsciiString(TheGameSpyGame);
-			localIndex = TheGameSpyGame->getLocalSlotNum();
+			GameInfo *onlineGame = GetOnlineGameHooks()->getGameInfo();
+			theSlotList = GameInfoToAsciiString(onlineGame);
+			localIndex = onlineGame->getLocalSlotNum();
 		}
 	}
 	else
@@ -695,6 +697,11 @@ void RecorderClass::stopRecording() {
 
 		if (m_archiveReplays)
 			archiveReplay(m_fileName);
+
+		AsciiString absoluteReplayPath = getReplayDir();
+		absoluteReplayPath.concat(m_fileName);
+
+		GetOnlineGameHooks()->onReplayWritten(absoluteReplayPath);
 	}
 	m_fileName.clear();
 }
@@ -1672,8 +1679,8 @@ AsciiString RecorderClass::getLastReplayFileName()
 		GameInfo *game = nullptr;
 		if (TheLAN)
 			game = TheLAN->GetMyGame();
-		else if (TheGameSpyInfo)
-			game = TheGameSpyGame;
+		else if (GetOnlineGameHooks()->isLoggedIn())
+			game = GetOnlineGameHooks()->getGameInfo();
 		if (game)
 		{
 			AsciiString players;

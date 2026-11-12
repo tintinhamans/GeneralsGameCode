@@ -37,6 +37,7 @@ class IOnlineStats;
 class IOnlineLadder;
 class IOnlineResults;
 class IOnlineMatchmaking;
+class IOnlineGameHooks;
 struct TransportInfo;
 
 //-----------------------------------------------------------------------------
@@ -72,6 +73,10 @@ public:
 	// Picks the game connection transport from the registered transports.
 	// Returns an index into the transports, or -1 when none of them fits.
 	virtual Int chooseGameTransport( const TransportInfo *transports, Int count ) const = 0;
+
+	// The calls the engine, game logic, recorder and in game UI make into this provider.
+	// The factory owns the hooks for the process lifetime.
+	virtual IOnlineGameHooks *getGameHooks() = 0;
 
 	// Ordered lifecycle.
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) = 0;

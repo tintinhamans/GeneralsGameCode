@@ -27,6 +27,7 @@
 
 #include "GameNetwork/Online/OnlineProviderFactory.h"
 #include "GameNetwork/Online/GameSpy/GameSpyProviderFactory.h"
+#include "GameNetwork/GenOnline/Provider/GenOnlineGameHooks.h"
 
 class GenOnlineProviderFactory : public OnlineProviderFactory
 {
@@ -49,9 +50,12 @@ public:
 
 	virtual Int chooseGameTransport( const TransportInfo *transports, Int count ) const override;
 
+	virtual IOnlineGameHooks *getGameHooks() override { return &m_gameHooks; }
+
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) override;
 	virtual void destroyServices() override;
 
 private:
 	GameSpyProviderFactory m_gameSpy;
+	GenOnlineGameHooks m_gameHooks;
 };
