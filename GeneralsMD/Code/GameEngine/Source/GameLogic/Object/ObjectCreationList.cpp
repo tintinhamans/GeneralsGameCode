@@ -387,7 +387,7 @@ public:
 
 				if ( m_delayDeliveryFramesMax > 0 )
 				{
-					transport->setDisabledUntil( DISABLED_DEFAULT, TheGameLogic->getFrame() + GameLogicRandomValue(0, m_delayDeliveryFramesMax) );
+					transport->setDisabledUntil( DISABLED_DEFAULT, TheGameLogic->getFrame() + GameLogicRandomFramesInBaseFrames(0, m_delayDeliveryFramesMax) );
 				}
 			}
 			else

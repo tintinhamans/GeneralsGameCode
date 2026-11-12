@@ -138,7 +138,7 @@ void StructureToppleUpdate::beginStructureTopple(const DamageInfo *damageInfo)
 	if (d)
 	{
 		UnsignedInt now = TheGameLogic->getFrame();
-		m_toppleFrame = now + GameLogicRandomValue(d->m_minToppleDelay, d->m_maxToppleDelay);
+		m_toppleFrame = now + GameLogicRandomFramesInBaseFrames(d->m_minToppleDelay, d->m_maxToppleDelay);
 
 		Object *attacker = TheGameLogic->findObjectByID(damageInfo->in.m_sourceID);
 		Object *building = getObject();
