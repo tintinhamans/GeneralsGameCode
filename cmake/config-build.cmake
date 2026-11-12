@@ -15,13 +15,13 @@ if(RTS_BUILD_OPTION_OPENAL_FFMPEG AND IS_VS6_BUILD)
     message(STATUS "FFmpeg and OpenAL need a modern compiler; building Miles and Bink only")
     set(RTS_BUILD_OPTION_OPENAL_FFMPEG OFF)
 endif()
-# Only the Win32 engine creates the OpenAL audio backend, tested with Zero Hour and MSVC 2022+;
-# elsewhere the option brings FFmpeg movies only
+# Only the Win32 engine creates the OpenAL audio backend, tested with Generals, Zero Hour and MSVC 2022+.
+# Elsewhere the option brings FFmpeg movies only
 set(RTS_OPENAL_AUDIO OFF)
-if(RTS_BUILD_OPTION_OPENAL_FFMPEG AND WIN32 AND MSVC AND NOT MSVC_VERSION LESS 1930 AND RTS_BUILD_ZEROHOUR)
+if(RTS_BUILD_OPTION_OPENAL_FFMPEG AND WIN32 AND MSVC AND NOT MSVC_VERSION LESS 1930)
     set(RTS_OPENAL_AUDIO ON)
 elseif(RTS_BUILD_OPTION_OPENAL_FFMPEG)
-    message(STATUS "Only the Win32 engine creates OpenAL audio, tested with Zero Hour and Visual Studio 2022 or newer; building FFmpeg movies only")
+    message(STATUS "Only the Win32 engine creates OpenAL audio, tested with Visual Studio 2022 or newer; building FFmpeg movies only")
 endif()
 if(NOT RTS_OPENAL_AUDIO AND NOT RTS_BUILD_OPTION_MILES_BINK)
     message(FATAL_ERROR "Without OpenAL audio, RTS_BUILD_OPTION_MILES_BINK must stay on")
@@ -104,7 +104,7 @@ if(RTS_BUILD_OPTION_PROFILE)
 endif()
 
 set(RTS_NEEDS_MILES_BINK TRUE)
-if(RTS_OPENAL_AUDIO AND NOT RTS_BUILD_OPTION_MILES_BINK AND NOT RTS_BUILD_GENERALS AND
+if(RTS_OPENAL_AUDIO AND NOT RTS_BUILD_OPTION_MILES_BINK AND NOT RTS_BUILD_GENERALS_TOOLS AND
    NOT RTS_BUILD_ZEROHOUR_TOOLS AND NOT RTS_BUILD_CORE_EXTRAS AND NOT RTS_BUILD_OPTION_TESTS)
     set(RTS_NEEDS_MILES_BINK FALSE)
 endif()

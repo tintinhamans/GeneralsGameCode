@@ -643,7 +643,8 @@ void PlayMovieAndBlock(AsciiString movieTitle)
 
 	GameWindow *movieWindow = s_blankLayout->getFirstWindow();
 	TheWritableGlobalData->m_loadScreenRender = TRUE;
-	while (videoStream->frameIndex() < videoStream->frameCount() - 1)
+	// TheSuperHackers @feature tintinhamans 12/11/2026 The stream reports when playback ends, after its last frame and its audio.
+	while (!videoStream->isPlaybackComplete())
 	{
 		// TheSuperHackers @feature User can now skip video by pressing ESC
 		if (TheKeyboard)

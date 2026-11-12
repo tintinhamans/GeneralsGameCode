@@ -32,7 +32,7 @@
 #include <windows.h>
 
 #include "Win32Device/Common/Win32GameEngine.h"
-#if defined(RTS_HAS_OPENAL_FFMPEG) && RTS_ZEROHOUR
+#if defined(RTS_HAS_OPENAL_FFMPEG)
 #include "OpenALAudioDevice/MediaBackend.h"
 #include "OpenALAudioDevice/OpenALAudioManager.h"
 #endif
@@ -45,7 +45,7 @@
 
 AudioManager *Win32GameEngine::createAudioManager(Bool dummy)
 {
-#if defined(RTS_HAS_OPENAL_FFMPEG) && RTS_ZEROHOUR
+#if defined(RTS_HAS_OPENAL_FFMPEG)
 	if (isOpenALMediaSelected())
 		return NEW OpenALAudioManager(dummy);
 #endif

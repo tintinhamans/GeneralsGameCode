@@ -1807,12 +1807,12 @@ void InGameUI::update()
 		{
 			m_videoStream->frameDecompress();
 			m_videoStream->frameRender( m_videoBuffer );
-			m_videoStream->frameNext();
-			if ( m_videoStream->frameIndex() == 0 )
-			{
-				stopMovie();
-			}
+			// TheSuperHackers @feature tintinhamans 12/11/2026 The stream reports when playback ends, after its last frame and its audio.
+			if ( !m_videoStream->isPlaybackComplete() )
+				m_videoStream->frameNext();
 		}
+		if ( m_videoStream->isPlaybackComplete() )
+			stopMovie();
 	}
 
 	if ( m_cameoVideoStream && m_cameoVideoBuffer )
@@ -1821,12 +1821,12 @@ void InGameUI::update()
 		{
 			m_cameoVideoStream->frameDecompress();
 			m_cameoVideoStream->frameRender( m_cameoVideoBuffer );
-			m_cameoVideoStream->frameNext();
-//			if ( m_cameoVideoStream->frameIndex() == 0 )
-//			{
-//				stopMovie();
-//			}
+			// TheSuperHackers @feature tintinhamans 12/11/2026 The stream reports when playback ends, after its last frame and its audio.
+			if ( !m_cameoVideoStream->isPlaybackComplete() )
+				m_cameoVideoStream->frameNext();
 		}
+		if ( m_cameoVideoStream->isPlaybackComplete() )
+			m_cameoVideoStream->frameGoto( 0 );
 	}
 
 	//

@@ -7,9 +7,9 @@ FFmpeg overlay port in `cmake/vcpkg/ports/ffmpeg`, which keeps only the demuxers
 decoders the game uses. The former option name `RTS_BUILD_OPTION_FFMPEG=ON` turns the
 same option on.
 
-OpenAL audio is built for the Win32 engine of Zero Hour with Visual Studio 2022 or
-newer, and Generals keeps Miles and Bink. Other compilers and platforms get FFmpeg
-movies only and keep Miles audio. VC6 builds Miles and Bink only.
+OpenAL audio is built for the Win32 engine of Generals and Zero Hour with Visual Studio
+2022 or newer. Other compilers and platforms get FFmpeg movies only and keep Miles
+audio. VC6 builds Miles and Bink only.
 
 ## Building
 
@@ -19,8 +19,8 @@ cmake --build build/win32-vcpkg --target z_generals
 ```
 
 `RTS_BUILD_OPTION_MILES_BINK` stays `ON` by default, so the build contains both media
-backends. With it `OFF`, the game builds without Miles and Bink as long as Generals, the
-tools, core extras and tests that still need them are off too.
+backends. With it `OFF`, the game builds without Miles and Bink as long as the tools,
+core extras and tests that still need them are off too.
 
 ## LegacyMedia
 
