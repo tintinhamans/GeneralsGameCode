@@ -214,7 +214,7 @@ UpdateSleepTime SpawnBehavior::update()
 				if ( runtimeProduced && burstInitCount > 0)
 				{
 					--burstInitCount;
-					birthFrame += (listIndex*SPAWN_DELAY_MIN_FRAMES);
+					birthFrame += (listIndex*ConvertBaseFramesToFrames(SPAWN_DELAY_MIN_FRAMES));
 				}
 				m_replacementTimes.push_back( runtimeProduced  );// Set all spawns to be created in rapid succession
 			}
