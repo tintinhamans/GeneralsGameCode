@@ -4804,6 +4804,7 @@ void ScriptEngine::update()
 */
 #endif
 #endif
+	const bool legacyFrameAdvanced = TheGameLogic->HasLegacyFrameAdvanced();
 	if (m_firstUpdate) {
 		createNamedCache();
 		particleEditorUpdate();
@@ -4853,7 +4854,9 @@ void ScriptEngine::update()
 		if (m_counters[i].isCountdownTimer) {
 			// If counter has any time left, decrement.  Counters go to -1 and stop.
 			if (m_counters[i].value >= 0) {
-				m_counters[i].value--;
+				if (legacyFrameAdvanced) {
+					m_counters[i].value--;
+				}
 			}
 		}
 	}
@@ -6061,7 +6064,7 @@ void ScriptEngine::setTimer( ScriptAction *pAction, Bool millisecondTimer, Bool 
 			Real randomValue = pAction->getParameter(2)->getReal();
 			value = GameLogicRandomValue(value, randomValue);
 		}
-		m_counters[counterNdx].value = REAL_TO_INT_CEIL(ConvertDurationFromMsecsToFrames(value*1000));
+		m_counters[counterNdx].value = REAL_TO_INT_CEIL(value * (Real)BaseFps);
 	} else {
 		Int value = pAction->getParameter(1)->getInt();
 		if (random) {
