@@ -75,12 +75,7 @@ void showNotificationBox(AsciiString nick, UnicodeString message, bool bPlaySoun
 
 #define GENONLINE_CLIENT_ID "gen_online_60hz"
 
-// Generals keeps the retail 30 Hz logic until it has the gameplay adaptations
-#if RTS_ZEROHOUR
 static int FRAME_GROUPING_CAP = 32;
-#else
-static int FRAME_GROUPING_CAP = 64;
-#endif
 
 
 #define GENONLINE_USE_LARGER_DMAPOOL 1
