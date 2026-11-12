@@ -294,6 +294,11 @@ void SlowDeathBehavior::beginSlowDeath(const DamageInfo *damageInfo)
 				Coord3D force;
 				calcRandomForce(d->m_flingForce, d->m_flingForce + d->m_flingForceVariance,
 												d->m_flingPitch, d->m_flingPitch + d->m_flingPitchVariance, force);
+
+				force.x /= (Real)LOGICFRAMES_PER_BASEFRAME;
+				force.y /= (Real)LOGICFRAMES_PER_BASEFRAME;
+				force.z /= (Real)LOGICFRAMES_PER_BASEFRAME;
+
 				physics->setAllowToFall(true);
 				physics->applyForce(&force);
 				physics->setExtraBounciness(-1.0);					// we don't want this guy to bounce at all

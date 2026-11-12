@@ -356,7 +356,10 @@ void AI::reset()
 void AI::update()
 {
 	// Do pathfinding.
-	m_pathfinder->processPathfindQueue();
+	if (TheGameLogic->HasLegacyFrameAdvanced())
+	{
+		m_pathfinder->processPathfindQueue();
+	}
 
 	// run player updates
 	{
