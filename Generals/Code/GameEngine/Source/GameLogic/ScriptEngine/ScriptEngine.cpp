@@ -6618,7 +6618,7 @@ Bool ScriptEngine::isSpeechComplete( const AsciiString& testSpeech, Bool removeF
 		PairAsciiStringUINT newPair;
 		AudioEventRTS event(testSpeech);
 		Real audioLength = TheAudio->getAudioLengthMS(&event);
-		UnsignedInt frameCount = REAL_TO_UNSIGNEDINT(audioLength / MSEC_PER_LOGICFRAME_REAL);
+		UnsignedInt frameCount = ConvertBaseFramesToFrames(REAL_TO_UNSIGNEDINT(ConvertFramesToBaseFramesReal(audioLength / MSEC_PER_LOGICFRAME_REAL)));
 
 		newPair.first = testSpeech;
 		newPair.second = frameCount + TheGameLogic->getFrame();
@@ -6653,7 +6653,7 @@ Bool ScriptEngine::isAudioComplete( const AsciiString& testAudio, Bool removeFro
 		PairAsciiStringUINT newPair;
 		AudioEventRTS event(testAudio);
 		Real audioLength = TheAudio->getAudioLengthMS(&event);
-		UnsignedInt frameCount = REAL_TO_UNSIGNEDINT(audioLength / MSEC_PER_LOGICFRAME_REAL);
+		UnsignedInt frameCount = ConvertBaseFramesToFrames(REAL_TO_UNSIGNEDINT(ConvertFramesToBaseFramesReal(audioLength / MSEC_PER_LOGICFRAME_REAL)));
 
 		newPair.first = testAudio;
 		newPair.second = frameCount + TheGameLogic->getFrame();
