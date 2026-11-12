@@ -67,17 +67,7 @@ void FrameRateLimit::reset()
 
 
 const UnsignedInt RenderFpsPreset::s_fpsValues[] = {
-#if defined(GENONLINE) && defined(GENONLINE_HIGH_FPS_SERVER)
-	60, 65, 70, 72, 75, 80, 85, 90, 100, 110, 120, 144, 240, 480, UncappedFpsValue };
-#else
 	30, 50, 56, 60, 65, 70, 72, 75, 80, 85, 90, 100, 110, 120, 144, 240, 480, UncappedFpsValue };
-#endif
-
-#if defined(GENONLINE)
-static_assert(LOGICFRAMES_PER_SECOND <= GENONLINE_HIGH_FPS_LIMIT, "Min FPS values need to be revisited!");
-#else
-static_assert(LOGICFRAMES_PER_SECOND <= 30, "Min FPS values need to be revisited!");
-#endif
 
 UnsignedInt RenderFpsPreset::getNextFpsValue(UnsignedInt value)
 {
@@ -112,9 +102,13 @@ UnsignedInt RenderFpsPreset::changeFpsValue(UnsignedInt value, FpsValueChange ch
 	switch (change)
 	{
 	default:
-	case FpsValueChange_Increase: return getNextFpsValue(value);
-	case FpsValueChange_Decrease: return getPrevFpsValue(value);
+	case FpsValueChange_Increase: value = getNextFpsValue(value); break;
+	case FpsValueChange_Decrease: value = getPrevFpsValue(value); break;
 	}
+	// The render rate never goes below the logic rate.
+	if (value < (UnsignedInt)LOGICFRAMES_PER_SECOND)
+		value = LOGICFRAMES_PER_SECOND;
+	return value;
 }
 
 
@@ -140,7 +134,11 @@ UnsignedInt LogicTimeScaleFpsPreset::changeFpsValue(UnsignedInt value, FpsValueC
 	switch (change)
 	{
 	default:
-	case FpsValueChange_Increase: return getNextFpsValue(value);
-	case FpsValueChange_Decrease: return getPrevFpsValue(value);
+	case FpsValueChange_Increase: value = getNextFpsValue(value); break;
+	case FpsValueChange_Decrease: value = getPrevFpsValue(value); break;
 	}
+	// The render rate never goes below the logic rate.
+	if (value < (UnsignedInt)LOGICFRAMES_PER_SECOND)
+		value = LOGICFRAMES_PER_SECOND;
+	return value;
 }

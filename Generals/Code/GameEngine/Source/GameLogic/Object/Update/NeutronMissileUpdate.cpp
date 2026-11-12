@@ -471,6 +471,11 @@ void NeutronMissileUpdate::detonate()
  */
 UpdateSleepTime NeutronMissileUpdate::update()
 {
+	if (!TheGameLogic->HasLegacyFrameAdvanced())
+	{
+		return UPDATE_SLEEP_NONE;
+	}
+
 	m_deliveryDecal.update();
 
 	if (!m_reachedIntermediatePos)

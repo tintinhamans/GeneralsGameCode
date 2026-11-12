@@ -129,6 +129,10 @@ public:
 	void setObjectIDCounter( ObjectID nextObjID ) { m_nextObjID = nextObjID; }
 	ObjectID getObjectIDCounter() { return m_nextObjID; }
 
+	UnsignedInt getFrameLegacy(void);
+	UnsignedInt getFrameLegacyLast(void);
+	bool HasLegacyFrameAdvanced(void);
+
 	//-----------------------------------------------------------------------------------------------
 	void setBuildableStatusOverride(const ThingTemplate* tt, BuildableStatus bs);
 	Bool findBuildableStatusOverride(const ThingTemplate* tt, BuildableStatus& bs) const;
@@ -375,6 +379,8 @@ private:
 
 	Real m_width, m_height;																	///< Dimensions of the world
 	UnsignedInt m_frame;																		///< Simulation frame number
+	UnsignedInt m_frameLegacy;
+	UnsignedInt m_frameLegacyLast;
 
 	// CRC cache system -----------------------------------------------------------------------------
 	UnsignedInt	m_CRC;																			///< Cache of previous CRC value
@@ -497,6 +503,10 @@ inline Bool GameLogic::isInInternetGame() const { return rts::isInternetGame(m_g
 inline Bool GameLogic::isInShellGame() const { return rts::isShellGame(m_gameMode); }
 inline Bool GameLogic::isInMultiplayerGame() const { return rts::isMultiplayerGame(m_gameMode); }
 inline Bool GameLogic::isInInteractiveGame() const { return rts::isInteractiveGame(m_gameMode); }
+
+inline UnsignedInt GameLogic::getFrameLegacy(void) { return m_frameLegacy; }
+inline UnsignedInt GameLogic::getFrameLegacyLast(void) { return m_frameLegacyLast; }
+inline bool GameLogic::HasLegacyFrameAdvanced(void) { return m_frameLegacy != m_frameLegacyLast; }
 
 inline Object* GameLogic::findObjectByID( ObjectID id )
 {

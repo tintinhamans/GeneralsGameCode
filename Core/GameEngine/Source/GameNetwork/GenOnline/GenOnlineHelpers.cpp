@@ -331,13 +331,13 @@ int RoundUpLatencyToFrameInterval(int latency, int frameInterval)
 }
 int ConvertMSLatencyToFrames(int ms)
 {
-	ms = RoundUpLatencyToFrameInterval(ms, 1000 / GENONLINE_HIGH_FPS_LIMIT);
-	return (int)ceil((ms / 1000.f) * (float)GENONLINE_HIGH_FPS_LIMIT);
+	ms = RoundUpLatencyToFrameInterval(ms, MSEC_PER_SECOND / LOGICFRAMES_PER_SECOND);
+	return (int)ceil((ms / (float)MSEC_PER_SECOND) * (float)LOGICFRAMES_PER_SECOND);
 }
 
 int ConvertMSLatencyToGenToolFrames(int ms)
 {
-	return (int)ceil((float)ConvertMSLatencyToFrames(ms) / (float)GENONLINE_HIGH_FPS_FRAME_MULTIPLIER);
+	return (int)ceil((float)ConvertMSLatencyToFrames(ms) / (float)LOGICFRAMES_PER_BASEFRAME);
 }
 
 #include <windows.h>

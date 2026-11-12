@@ -430,14 +430,14 @@ void GenOnlineGame::launchGame(void)
 			MIN_RUNAHEAD = serviceConf.min_run_ahead_frames;
 
 			TheWritableGlobalData->m_networkRunAheadSlack = serviceConf.ra_slack_percent;
-			TheWritableGlobalData->m_networkRunAheadMetricsTime = serviceConf.ra_update_frequency_frames * (float)(1000.f / GENONLINE_HIGH_FPS_LIMIT);
+			TheWritableGlobalData->m_networkRunAheadMetricsTime = serviceConf.ra_update_frequency_frames * ((float)MSEC_PER_SECOND / LOGICFRAMES_PER_SECOND);
 
-			FRAME_GROUPING_CAP = serviceConf.frame_grouping_frames * (float)(1000.f / GENONLINE_HIGH_FPS_LIMIT);
+			FRAME_GROUPING_CAP = serviceConf.frame_grouping_frames * ((float)MSEC_PER_SECOND / LOGICFRAMES_PER_SECOND);
 		}
 	}
 	
 
-#if defined(GENONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE)
 	TheWritableGlobalData->m_horizontalScrollSpeedFactor = GenOnlineServicesManager::Settings.Camera_MoveSpeedRatio();
 	TheWritableGlobalData->m_verticalScrollSpeedFactor = GenOnlineServicesManager::Settings.Camera_MoveSpeedRatio();
 #endif
@@ -525,7 +525,7 @@ void GenOnlineGame::launchGame(void)
 	GameMessage* msg = TheMessageStream->appendMessage(GameMessage::MSG_NEW_GAME);
 	msg->appendIntegerArgument(GAME_INTERNET);
 
-#if defined(GENONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE)
 
 	if (GenOnlineServicesManager::Settings.Graphics_LimitFramerate())
 	{

@@ -237,6 +237,8 @@ GameLogic::GameLogic()
 
 	m_frame = 0;
 	m_hasUpdated = FALSE;
+	m_frameLegacy = 0;
+	m_frameLegacyLast = 0;
 	m_frameObjectsChangedTriggerAreas = 0;
 	m_width = 0;
 	m_height = 0;
@@ -453,6 +455,8 @@ void GameLogic::reset()
 
 	m_frame = 0;
 	m_hasUpdated = FALSE;
+	m_frameLegacy = 0;
+	m_frameLegacyLast = 0;
 	m_width = DEFAULT_WORLD_WIDTH;
 	m_height = DEFAULT_WORLD_HEIGHT;
 	m_objList = nullptr;
@@ -1015,6 +1019,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	// reset the frame counter
 	m_frame = 0;
 	m_hasUpdated = FALSE;
+	m_frameLegacy = 0;
+	m_frameLegacyLast = 0;
 
 #ifdef DEBUG_CRC
 	// TheSuperHackers @info helmutbuhler 04/09/2025
@@ -1182,6 +1188,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 		updateLoadProgress(LOAD_PROGRESS_POST_PARTICLE_INI_LOAD);
 
 	DEBUG_ASSERTCRASH(m_frame == 0, ("framecounter expected to be 0 here"));
+	DEBUG_ASSERTCRASH(m_frameLegacy == 0, ("framecounter expected to be 0 here"));
+	DEBUG_ASSERTCRASH(m_frameLegacyLast == 0, ("framecounter expected to be 0 here"));
 
 	// before loading the map, load the map.ini file in the same directory.
 	loadMapINI( TheGlobalData->m_mapName );
@@ -3193,6 +3201,11 @@ void GameLogic::update()
 	USE_PERF_TIMER(GameLogic_update)
 	PROFILER_SECTION_COLOR(0x4CAF50);
 
+	if (m_frame % LOGICFRAMES_PER_BASEFRAME != 0)
+	{
+		m_frameLegacyLast = m_frameLegacy;
+	}
+
 	LatchRestore<Bool> inUpdateLatch(m_isInUpdate, TRUE);
 #ifdef DO_UNIT_TIMINGS
 	unitTimings();
@@ -3440,6 +3453,10 @@ void GameLogic::update()
 	{
 		m_frame++;
 		m_hasUpdated = TRUE;
+		if (m_frame % LOGICFRAMES_PER_BASEFRAME == 0)
+		{
+			m_frameLegacy++;
+		}
 	}
 }
 

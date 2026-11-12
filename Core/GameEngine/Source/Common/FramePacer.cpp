@@ -88,7 +88,7 @@ void FramePacer::setFramesPerSecondLimit( Int fps )
 
 	// clamp FPS to at least render at same as logic
 #if defined(GENONLINE)
-	fps = std::max<int>(fps, GENONLINE_HIGH_FPS_LIMIT);
+	fps = std::max<int>(fps, LOGICFRAMES_PER_SECOND);
 #endif
 
 	m_maxFPS = fps;

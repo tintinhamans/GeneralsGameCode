@@ -66,6 +66,8 @@ enum
 {
 	BaseFps = 30, // The historic base frame rate for this game. This value must never change.
 	LOGICFRAMES_PER_SECOND = WWSyncPerSecond,
+	// INI data and retail frame counts are authored at the base frame rate.
+	LOGICFRAMES_PER_BASEFRAME = LOGICFRAMES_PER_SECOND / BaseFps,
 	MSEC_PER_SECOND = 1000
 };
 const Real LOGICFRAMES_PER_MSEC_REAL = (((Real)LOGICFRAMES_PER_SECOND) / ((Real)MSEC_PER_SECOND));
@@ -79,6 +81,32 @@ const Real SECONDS_PER_LOGICFRAME_REAL = 1.0f / LOGICFRAMES_PER_SECONDS_REAL;
 inline Real ConvertDurationFromMsecsToFrames(Real msec)
 {
 	return (msec * LOGICFRAMES_PER_MSEC_REAL);
+}
+
+// ----------------------------------------------------------------------------------------------
+// Returns a REAL value like ConvertDurationFromMsecsToFrames.
+inline Real ConvertDurationFromSecsToFrames(Real seconds)
+{
+	return (seconds * LOGICFRAMES_PER_SECONDS_REAL);
+}
+
+// ----------------------------------------------------------------------------------------------
+inline Real ConvertRatePerSecToPerFrame(Real amountPerSec)
+{
+	return (amountPerSec * SECONDS_PER_LOGICFRAME_REAL);
+}
+
+// ----------------------------------------------------------------------------------------------
+inline Int ConvertBaseFramesToFrames(Int baseFrames)
+{
+	return (baseFrames * LOGICFRAMES_PER_BASEFRAME);
+}
+
+// ----------------------------------------------------------------------------------------------
+// Converts logic frames to base frames and rounds a partial base frame up.
+inline Int ConvertFramesToBaseFrames(Int frames)
+{
+	return ((frames + LOGICFRAMES_PER_BASEFRAME - 1) / LOGICFRAMES_PER_BASEFRAME);
 }
 
 // ----------------------------------------------------------------------------------------------

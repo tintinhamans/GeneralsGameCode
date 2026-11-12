@@ -1919,7 +1919,7 @@ void InGameUI::update()
 	// GeneralsOnline NOTE: Increasing this, it's short + we increased framerate which is tied into the calc elsewhere
 #if defined(GENONLINE)
 	const int messageTimeoutChat = GetOnlineGameHooks()->getChatMessageLifeSeconds() * LOGICFRAMES_PER_SECOND;
-	const int messageTimeoutStandard = (m_messageDelayMS / LOGICFRAMES_PER_SECOND / 1000) * GENONLINE_HIGH_FPS_FRAME_MULTIPLIER;
+	const int messageTimeoutStandard = (m_messageDelayMS / LOGICFRAMES_PER_SECOND / MSEC_PER_SECOND) * LOGICFRAMES_PER_BASEFRAME;
 #else
 	// TheSuperHackers @bugfix bobtista 13/08/2026 Convert milliseconds to logic frames
 	const int messageTimeout = REAL_TO_INT_CEIL( ConvertDurationFromMsecsToFrames( (Real)m_messageDelayMS ) );
@@ -4190,11 +4190,7 @@ void InGameUI::postDraw()
 				if (framesLeft > 0)
 					readyFrame += framesLeft;
 
-#if defined(GENONLINE_HIGH_FPS_SERVER)
-				Int readySecs = (Int)((Real)(readyFrame - TheGameLogic->getFrame()) / (Real)BaseFps);
-#else
-				Int readySecs = (Int)(SECONDS_PER_LOGICFRAME_REAL * (readyFrame - TheGameLogic->getFrame()));
-#endif
+				Int readySecs = (Int)(SECONDS_PER_LOGICFRAME_REAL * LOGICFRAMES_PER_BASEFRAME * (readyFrame - TheGameLogic->getFrame()));
 				if ((info->isCountdown && readySecs != info->timestamp) || (!info->isCountdown && framesLeft != info->timestamp))
 				{
 					if (!readySecs && info->isCountdown)
@@ -7081,7 +7077,7 @@ void InGameUI::updateRenderFpsString()
 void InGameUI::drawNetworkLatency(Int& x, Int& y)
 {
 #if defined(GENONLINE)
-	const UnsignedInt actualLatencyInMS = TheNetwork->getRunAhead() * (1000 / GENONLINE_HIGH_FPS_LIMIT);
+	const UnsignedInt actualLatencyInMS = TheNetwork->getRunAhead() * (MSEC_PER_SECOND / LOGICFRAMES_PER_SECOND);
 	const UnsignedInt actualFrames = ConvertMSLatencyToFrames(actualLatencyInMS);
 	const UnsignedInt gentoolFrames = ConvertMSLatencyToGenToolFrames(actualLatencyInMS);
 

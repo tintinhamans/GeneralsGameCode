@@ -330,7 +330,7 @@ Particle::Particle( ParticleSystem *system, const ParticleInfo *info )
 #if defined(GENONLINE_RUN_FAST)
 	m_createTimestamp = TheGameLogic->getFrame();
 #else
-#if defined(GENONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE)
 	m_createTimestamp = TheGameClient->getFrameLegacy();
 #else
 	m_createTimestamp = TheGameClient->getFrame();
@@ -691,7 +691,7 @@ UnsignedInt Particle::getElapsedFrames() const
 #if defined(GENONLINE_RUN_FAST)
 	return TheGameLogic->getFrame() - m_createTimestamp;
 #else
-#if defined(GENONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE)
 	return TheGameClient->getFrameLegacy() - m_createTimestamp;
 #else
 	return TheGameClient->getFrame() - m_createTimestamp;
@@ -1318,7 +1318,7 @@ ParticleSystem::ParticleSystem( const ParticleSystemTemplate *sysTemplate,
 #if defined(GENONLINE_RUN_FAST)
 	m_startTimestamp = TheGameLogic->getFrame();
 #else
-#if defined(GENONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE)
 	m_startTimestamp = TheGameClient->getFrameLegacy();
 #else
 	m_startTimestamp = TheGameClient->getFrame();
@@ -1587,7 +1587,7 @@ void ParticleSystem::attachToDrawable( const Drawable *draw )
 		m_attachedToDrawableID = draw->getID();
 		m_attachedToObjectID = INVALID_ID;
 
-#if defined(GENONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE)
 		// Info: One-frame attached systems can otherwise lose their only burst when the drawable is created and destroyed
 		// between legacy particle updates at 60Hz.
 		if (m_systemLifetimeLeft == 1 && m_delayLeft == 0 && getParticleCount() == 0)
@@ -2122,7 +2122,7 @@ Bool ParticleSystem::update( Int localPlayerIndex  )
 #if defined(GENONLINE_RUN_FAST)
 			m_startTimestamp = TheGameLogic->getFrame();
 #else
-#if defined(GENONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE)
 			m_startTimestamp = TheGameClient->getFrameLegacy();
 #else
 			m_startTimestamp = TheGameClient->getFrame();
@@ -3188,6 +3188,10 @@ ParticleSystemManager::ParticleSystemManager()
 	m_onScreenParticleCount = 0;
 	m_localPlayerIndex = 0;
 	m_drawnLogicFramePhase = 1.0f;
+#if defined(GENONLINE)
+	m_particleBaseFrame = 0;
+	m_hasParticleBaseFrame = FALSE;
+#endif
 
 	m_particleCount = 0;
 	m_fieldParticleCount = 0;
@@ -3275,6 +3279,9 @@ void ParticleSystemManager::reset()
 	m_uniqueSystemID = INVALID_PARTICLE_SYSTEM_ID;
 
 	m_drawnLogicFramePhase = 1.0f;
+#if defined(GENONLINE)
+	m_hasParticleBaseFrame = FALSE;
+#endif
 
 	// leave templates as-is
 }
@@ -3285,10 +3292,16 @@ void ParticleSystemManager::reset()
 //DECLARE_PERF_TIMER(ParticleSystemManager)
 void ParticleSystemManager::update()
 {
-#if defined(GENONLINE_HIGH_FPS_RENDER)
-	if (!TheGameClient->HasLegacyFrameAdvanced()) {
+#if defined(GENONLINE)
+	// GenOnline @bugfix arcticdolphin 22/11/2026 Particles step once per base frame of the logic clock, the rate their INI
+	// timings are written for. The wall clock legacy frame met a logic update only by chance above 60 FPS, so particles froze.
+	const UnsignedInt baseFrame = TheGameLogic->getFrame() / LOGICFRAMES_PER_BASEFRAME;
+	if (m_hasParticleBaseFrame && baseFrame == m_particleBaseFrame)
+	{
 		return;
 	}
+	m_particleBaseFrame = baseFrame;
+	m_hasParticleBaseFrame = TRUE;
 #endif
 
 	//USE_PERF_TIMER(ParticleSystemManager)
@@ -3352,7 +3365,24 @@ void ParticleSystemManager::draw()
 {
 	// TheSuperHackers @tweak Integrate the part of the logic frame that the render time
 	// has advanced into since the last render update.
+#if defined(GENONLINE)
+	// GenOnline @bugfix arcticdolphin 22/11/2026 One particle step spans a base frame, so the render integration follows the
+	// phase of that base frame, not of a single logic frame.
+	Real logicFramePhase = TheFramePacer->getLogicFramePhase();
+	if (m_hasParticleBaseFrame)
+	{
+		const UnsignedInt baseStart = m_particleBaseFrame * LOGICFRAMES_PER_BASEFRAME;
+		const UnsignedInt frame = TheGameLogic->getFrame();
+		UnsignedInt framesIn = frame > baseStart ? frame - baseStart : 0;
+		if (framesIn >= LOGICFRAMES_PER_BASEFRAME)
+		{
+			framesIn = LOGICFRAMES_PER_BASEFRAME - 1;
+		}
+		logicFramePhase = (framesIn + logicFramePhase) / LOGICFRAMES_PER_BASEFRAME;
+	}
+#else
 	const Real logicFramePhase = TheFramePacer->getLogicFramePhase();
+#endif
 	if (logicFramePhase > m_drawnLogicFramePhase)
 	{
 		const Real timeScale = logicFramePhase - m_drawnLogicFramePhase;

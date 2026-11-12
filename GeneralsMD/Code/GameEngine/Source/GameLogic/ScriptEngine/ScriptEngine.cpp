@@ -126,13 +126,8 @@ enum { K_SCRIPTS_DATA_VERSION_1 = 1 };
 enum { MAX_SPIN_COUNT = 20 };
 #define NONE_STRING "<none>"
 
-#if defined(GENONLINE) && defined(GENONLINE_HIGH_FPS_SERVER)
 static const Int FRAMES_TO_SHOW_WIN_LOSE_MESSAGE = 120;
 static const Int FRAMES_TO_FADE_IN_AT_START = 33;
-#else
-static const Int FRAMES_TO_SHOW_WIN_LOSE_MESSAGE = 120;
-static const Int FRAMES_TO_FADE_IN_AT_START = 33;
-#endif
 
 
 //------------------------------------------------------------------------------ Performance Timers
@@ -5527,11 +5522,7 @@ void ScriptEngine::update()
 #endif
 #endif
     
-#if defined(GENONLINE_HIGH_FPS_SERVER)
     const bool legacyFrameAdvanced = TheGameLogic->HasLegacyFrameAdvanced();
-#else
-    const bool legacyFrameAdvanced = true;
-#endif
 	if (m_firstUpdate) {
 		createNamedCache();
 		particleEditorUpdate();
@@ -6791,12 +6782,7 @@ void ScriptEngine::setTimer(ScriptAction* pAction, Bool millisecondTimer, Bool r
 			Real randomValue = pAction->getParameter(2)->getReal();
 			value = GameLogicRandomValue(value, randomValue);
 		}	
-#if defined(GENONLINE_HIGH_FPS_SERVER)
-    const int LEGACY_FPS_INT = BaseFps;
-    m_counters[counterNdx].value = REAL_TO_INT_CEIL(value * (Real)LEGACY_FPS_INT);
-#else
-    m_counters[counterNdx].value = REAL_TO_INT_CEIL(ConvertDurationFromMsecsToFrames(value * 1000));
-#endif
+    m_counters[counterNdx].value = REAL_TO_INT_CEIL(value * (Real)BaseFps);
 	}
 	else {
 		Int value = pAction->getParameter(1)->getInt();

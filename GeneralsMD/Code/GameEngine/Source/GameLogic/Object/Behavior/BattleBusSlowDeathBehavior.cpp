@@ -165,11 +165,7 @@ void BattleBusSlowDeathBehavior::beginSlowDeath( const DamageInfo *damageInfo )
 			throwForce.x = 0;
 			throwForce.y = 0;
 
-#if defined(GENONLINE) && defined(GENONLINE_HIGH_FPS_SERVER)
-			throwForce.z = data->m_throwForce / 2.f;
-#else
-			throwForce.z = data->m_throwForce;
-#endif
+			throwForce.z = data->m_throwForce / (Real)LOGICFRAMES_PER_BASEFRAME;
 			me->getPhysics()->applyShock(&throwForce);
 			me->getPhysics()->applyRandomRotation();
 		}
