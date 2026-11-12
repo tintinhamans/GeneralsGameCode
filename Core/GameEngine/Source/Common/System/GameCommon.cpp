@@ -30,6 +30,8 @@
 
 #include "Common/GameCommon.h"
 
+#include "WWMath/wwmath.h"
+
 const char *const TheVeterancyNames[] =
 {
 	"REGULAR",
@@ -64,5 +66,15 @@ Real normalizeAngle(Real angle)
 		angle += 2*PI;
 
 	return angle;
+}
+
+//-------------------------------------------------------------------------------------------------
+Real ConvertBaseFrameFactorToFrameFactor(Real factorPerBaseFrame)
+{
+	// A root of a factor that is not positive has no real value, so the factor stays unchanged.
+	if (LOGICFRAMES_PER_BASEFRAME == 1 || factorPerBaseFrame <= 0.0f)
+		return factorPerBaseFrame;
+
+	return WWMath::Powf(factorPerBaseFrame, 1.0f / (Real)LOGICFRAMES_PER_BASEFRAME);
 }
 
