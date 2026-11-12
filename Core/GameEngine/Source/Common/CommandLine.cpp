@@ -1245,6 +1245,9 @@ static CommandLineParam paramsForStartup[] =
 	// The last successful selection wins; otherwise use the executable directory.
 	{ "-setCwd", parseSetCwd },
 	{ "-useCwd", parseUseCwd },
+
+	// GenOnline @feature arcticdolphin 11/11/2026 Select the online service provider by name. The default is GenOnline in GenOnline builds and GameSpy otherwise.
+	{ "-onlineProvider", parseOnlineProvider },
 };
 
 // These Params are parsed during Engine Init before INI data is loaded
@@ -1278,9 +1281,6 @@ static CommandLineParam paramsForEngineInit[] =
 
 	// TheSuperHackers @feature xezon 03/08/2025 Force full viewport for 'Control Bar Pro' Addons like GenTool did it.
 	{ "-forcefullviewport", parseFullViewport },
-
-	// TheSuperHackers @feature tintinhamans 11/11/2026 Select the online service provider by name. The default is GameSpy.
-	{ "-onlineProvider", parseOnlineProvider },
 
 #if defined(RTS_DEBUG)
 	{ "-noaudio", parseNoAudio },

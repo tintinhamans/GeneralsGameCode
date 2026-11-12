@@ -22,7 +22,11 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "GameNetwork/Online/OnlineProviderFactory.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 #include "GameNetwork/Online/GameSpy/GameSpyProviderFactory.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.h"
+#endif
 #include "GameNetwork/TransportFactory.h"
 
 //-----------------------------------------------------------------------------
@@ -41,6 +45,8 @@ static char s_commandLineProvider[64] = { 0 };
 
 static OnlineProviderFactory *s_resultsProvider = nullptr;
 static Bool s_resultsProviderBound = FALSE;
+
+static IOnlineGameHooks *s_gameHooks = nullptr;
 
 // The registry is a function-local static so no namespace-scope STLport container exists under VC6.
 struct OnlineProviderRegistry
@@ -102,6 +108,20 @@ void RegisterBuiltInProviders()
 	// Function-local statics avoid destruction and static-init ordering problems.
 	static GameSpyProviderFactory theGameSpyFactory;
 	RegisterOnlineProvider( &theGameSpyFactory );
+
+#if defined(GENONLINE)
+	static GenOnlineProviderFactory theGenOnlineFactory;
+	RegisterOnlineProvider( &theGenOnlineFactory );
+#endif
+}
+
+static OnlineProviderType getDefaultProvider()
+{
+#if defined(GENONLINE)
+	return ONLINE_PROVIDER_GENONLINE;
+#else
+	return ONLINE_PROVIDER_GAMESPY;
+#endif
 }
 
 void SetCommandLineOnlineProvider( const char *name )
@@ -110,6 +130,7 @@ void SetCommandLineOnlineProvider( const char *name )
 		name = "";
 	strncpy( s_commandLineProvider, name, sizeof(s_commandLineProvider) - 1 );
 	s_commandLineProvider[sizeof(s_commandLineProvider) - 1] = 0;
+	s_gameHooks = nullptr;
 }
 
 const char *GetCommandLineOnlineProvider()
@@ -141,7 +162,7 @@ OnlineProviderType ResolveConfiguredProvider()
 	// Built-in providers must be registered so name matching has something to match.
 	RegisterBuiltInProviders();
 
-	OnlineProviderType resolved = ONLINE_PROVIDER_GAMESPY;
+	OnlineProviderType resolved = getDefaultProvider();
 
 	const char *cli = GetCommandLineOnlineProvider();
 	if (cli != nullptr && cli[0] != 0)
@@ -149,11 +170,11 @@ OnlineProviderType ResolveConfiguredProvider()
 		if (matchProviderName( cli, resolved ))
 			return resolved;
 
-		DEBUG_LOG(("ResolveConfiguredProvider: unrecognised -onlineProvider value '%s'; using GameSpy", cli));
-		return ONLINE_PROVIDER_GAMESPY;
+		DEBUG_LOG(("ResolveConfiguredProvider: unrecognised -onlineProvider value '%s', using the default provider", cli));
+		return getDefaultProvider();
 	}
 
-	return ONLINE_PROVIDER_GAMESPY;
+	return getDefaultProvider();
 }
 
 IOnlineResults *CreateOnlineResults( OnlineProviderFactory **outFactory )
@@ -204,6 +225,18 @@ Bool BindOnlineResultsProvider( OnlineProviderFactory *factory )
 OnlineProviderFactory *GetBoundOnlineResultsProvider()
 {
 	return s_resultsProviderBound ? s_resultsProvider : nullptr;
+}
+
+IOnlineGameHooks *GetOnlineGameHooks()
+{
+	if (s_gameHooks == nullptr)
+	{
+		OnlineProviderFactory *factory = GetOnlineProvider(ResolveConfiguredProvider());
+		if (factory == nullptr)
+			factory = GetOnlineProvider(ONLINE_PROVIDER_GAMESPY);
+		s_gameHooks = factory->getGameHooks();
+	}
+	return s_gameHooks;
 }
 
 void SetUpOnline( OnlineProviderType type, const char *motdBuffer, const char *configBuffer )

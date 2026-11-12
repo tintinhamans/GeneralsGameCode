@@ -19,7 +19,7 @@
 // FILE: OnlineProviderType.h /////////////////////////////////////////////////
 // GenMP online provider abstraction.
 // Description: Identifies which online-service provider the client talks to.
-//              In Phase 1 GameSpy is the only provider.
+//              GenOnline builds also register GenOnline and select it by default.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -30,6 +30,7 @@
 enum OnlineProviderType CPP_11(: Int)
 {
 	ONLINE_PROVIDER_GAMESPY = 0,
+	ONLINE_PROVIDER_GENONLINE = 1,
 
 	ONLINE_PROVIDER_COUNT
 };

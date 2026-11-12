@@ -49,10 +49,7 @@
 #include "Common/CRCDebug.h"
 #include "Common/OptionPreferences.h"
 #include "Common/version.h"
-#include "../GenOnlineGame.h"
-#include "../GenOnlineInit.h"
-
-extern GenOnlineGame* TheGenOnlineGame;
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 #include <Utility/bit_adapter.h>
 
 constexpr const char s_genrep[] = "GENREP";
@@ -607,13 +604,9 @@ void RecorderClass::startRecording(GameDifficulty diff, GameMode originalGameMod
 		}
 		else
 		{
-#if defined(GENONLINE)
-			theSlotList = GameInfoToAsciiString(TheGenOnlineGame);
-			localIndex = TheGenOnlineGame->getLocalSlotNum();
-#else
-			theSlotList = GameInfoToAsciiString(TheGameSpyGame);
-			localIndex = TheGameSpyGame->getLocalSlotNum();
-#endif
+			GameInfo *onlineGame = GetOnlineGameHooks()->getGameInfo();
+			theSlotList = GameInfoToAsciiString(onlineGame);
+			localIndex = onlineGame->getLocalSlotNum();
 		}
 	}
 	else
@@ -709,19 +702,10 @@ void RecorderClass::stopRecording() {
 		if (m_archiveReplays)
 			archiveReplay(m_fileName);
 		// upload
-#if defined(GENONLINE)
-		if (TheGenOnlineGame != nullptr)
-		{
-			GenOnlineServicesManager* pOnlineServicesMgr = GenOnlineServicesManager::GetInstance();
-			if (pOnlineServicesMgr != nullptr)
-			{
-				AsciiString absoluteReplayPath = getReplayDir();
-				absoluteReplayPath.concat(m_fileName);
+		AsciiString absoluteReplayPath = getReplayDir();
+		absoluteReplayPath.concat(m_fileName);
 
-				pOnlineServicesMgr->CommitReplay(absoluteReplayPath);
-			}
-		}
-#endif
+		GetOnlineGameHooks()->onReplayWritten(absoluteReplayPath);
 	}
 	m_fileName.clear();
 }
@@ -1700,13 +1684,8 @@ AsciiString RecorderClass::getLastReplayFileName()
 		GameInfo *game = nullptr;
 		if (TheLAN)
 			game = TheLAN->GetMyGame();
-#if defined(GENONLINE)
-		else if (GenOnlineServicesManager::GetInstance() != nullptr)
-			game = TheGenOnlineGame;
-#else
-		else if (TheGameSpyInfo)
-			game = TheGameSpyGame;
-#endif
+		else if (GetOnlineGameHooks()->isLoggedIn())
+			game = GetOnlineGameHooks()->getGameInfo();
 		if (game)
 		{
 			AsciiString players;

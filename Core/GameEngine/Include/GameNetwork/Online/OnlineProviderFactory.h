@@ -19,8 +19,8 @@
 // FILE: OnlineProviderFactory.h //////////////////////////////////////////////
 // GenMP online provider abstraction.
 // Description: Provider factory base class, a VC6-safe provider registry, and
-//              the SetUpOnline / TearDownOnline lifecycle seam. Zero observable
-//              behavior change: GameSpy is the only registered provider.
+//              the SetUpOnline / TearDownOnline lifecycle seam. GameSpy is
+//              always registered and GenOnline builds also register GenOnline.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -37,6 +37,7 @@ class IOnlineStats;
 class IOnlineLadder;
 class IOnlineResults;
 class IOnlineMatchmaking;
+class IOnlineGameHooks;
 struct TransportInfo;
 
 class OnlineProviderFactory
@@ -63,6 +64,9 @@ public:
 	// Returns an index into the transports, or -1 when none fits.
 	virtual Int chooseGameTransport( const TransportInfo *transports, Int count ) const = 0;
 
+	// The factory owns the hooks for the process lifetime.
+	virtual IOnlineGameHooks *getGameHooks() = 0;
+
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) = 0;
 	virtual void destroyServices() = 0;
 };
@@ -87,9 +91,8 @@ void RegisterBuiltInProviders();
 void SetCommandLineOnlineProvider( const char *name );
 const char *GetCommandLineOnlineProvider();
 
-// Precedence: CLI '-onlineProvider' > GameSpy.
-// Unrecognised names degrade to GameSpy with one log line. Safe to call before
-// the online subsystem is set up.
+// Precedence is -onlineProvider, then GenOnline in GenOnline builds, then GameSpy.
+// Unrecognised names use the default provider.
 OnlineProviderType ResolveConfiguredProvider();
 
 // Returns null when the provider is unavailable or construction fails.
