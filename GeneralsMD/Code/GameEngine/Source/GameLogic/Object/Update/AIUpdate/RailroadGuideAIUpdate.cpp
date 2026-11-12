@@ -780,7 +780,7 @@ UpdateSleepTime RailroadBehavior::update()
 
 		if ( m_conductorState == COAST )
 		{
-			conductorPullInfo.speed *= modData->m_friction;
+			conductorPullInfo.speed *= ConvertBaseFrameFactorToFrameFactor(modData->m_friction);
 			TheAudio->removeAudioEvent( m_runningSound.getPlayingHandle() );
 		}
 
