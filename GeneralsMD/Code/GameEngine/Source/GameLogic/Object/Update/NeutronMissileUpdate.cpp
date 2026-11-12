@@ -250,7 +250,7 @@ void NeutronMissileUpdate::doLaunch()
 		FXList::doFXObj(getNeutronMissileUpdateModuleData()->m_launchFX, getObject());
 		m_heightAtLaunch = getObject()->getPosition()->z;
 
-		m_frameAtLaunch = TheGameLogic->getFrameLegacy();
+		m_frameAtLaunch = TheGameLogic->getFrame();
 
 	}
 
@@ -382,7 +382,7 @@ void NeutronMissileUpdate::doAttack()
 
 	const NeutronMissileUpdateModuleData* d = getNeutronMissileUpdateModuleData();
 
-	UnsignedInt now = TheGameLogic->getFrameLegacy();
+	UnsignedInt now = TheGameLogic->getFrame();
 	if (d->m_specialSpeedTime > 0 && now <= m_frameAtLaunch + d->m_specialSpeedTime)
 	{
 		getObject()->getDrawable()->setInstanceMatrix(nullptr);
