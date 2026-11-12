@@ -69,6 +69,27 @@ Real normalizeAngle(Real angle)
 }
 
 //-------------------------------------------------------------------------------------------------
+Real ConvertDurationFromMsecsToFramesRoundedUp(Real msec)
+{
+	const Real baseFrames = ConvertFramesToBaseFramesReal(ConvertDurationFromMsecsToFrames(msec));
+	return WWMath::Ceilf(baseFrames) * (Real)LOGICFRAMES_PER_BASEFRAME;
+}
+
+//-------------------------------------------------------------------------------------------------
+Int DivideFramesInBaseFrames(Int frames, Real divisor)
+{
+	const Int baseFrames = ConvertFramesToBaseFrames(frames);
+	return ConvertBaseFramesToFrames(REAL_TO_INT_FLOOR(baseFrames / divisor));
+}
+
+//-------------------------------------------------------------------------------------------------
+Int MultiplyFramesInBaseFrames(Int frames, Real factor)
+{
+	const Int baseFrames = ConvertFramesToBaseFrames(frames);
+	return ConvertBaseFramesToFrames((Int)(baseFrames * factor));
+}
+
+//-------------------------------------------------------------------------------------------------
 Real ConvertBaseFrameFactorToFrameFactor(Real factorPerBaseFrame)
 {
 	// A root of a factor that is not positive has no real value, so the factor stays unchanged.
