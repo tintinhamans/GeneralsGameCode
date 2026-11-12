@@ -17,6 +17,7 @@
 */
 
 #include "OpenALAudioDevice/OpenALAudioManager.h"
+#include "OpenALAudioDevice/MediaBackend.h"
 #include "OpenALAudioDevice/OpenALAudioProducer.h"
 #include "OpenALAudioDevice/OpenALPcmStream.h"
 #include "VideoDevice/FFmpeg/FFmpegAudioFile.h"
@@ -31,6 +32,7 @@
 #include "Common/GameCommon.h"
 #include "Common/GameSounds.h"
 #include "Common/GlobalData.h"
+#include "Common/OptionPreferences.h"
 #include "GameClient/DebugDisplay.h"
 #include "GameClient/VideoPlayer.h"
 #include "GameClient/View.h"
@@ -1363,3 +1365,13 @@ void OpenALAudioManager::audioDebugDisplay(DebugDisplayInterface *display, void 
         std::fprintf(file, "OpenAL: %u 2D, %u 3D, %u streams, %zu cached PCM bytes\n", sounds, positional, streams, m_cache.usedBytes());
 }
 #endif
+
+Bool isOpenALMediaSelected()
+{
+#if defined(RTS_HAS_LEGACY_MEDIA)
+    static const Bool selected = !OptionPreferences().getLegacyMediaEnabled();
+    return selected;
+#else
+    return TRUE;
+#endif
+}

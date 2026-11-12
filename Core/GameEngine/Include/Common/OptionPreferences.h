@@ -91,6 +91,7 @@ public:
 	Bool usesSystemMapDir();
 	AsciiString getPreferred3DProvider();
 	AsciiString getSpeakerType();
+	Bool getLegacyMediaEnabled() const;
 	Real getSoundVolume();
 	Real get3DSoundVolume();
 	Real getSpeechVolume();

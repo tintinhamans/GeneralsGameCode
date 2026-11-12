@@ -213,6 +213,7 @@ if(RTS_NEEDS_LEGACY_MEDIA)
         Source/VideoDevice/Bink/BinkVideoPlayer.cpp
     )
     target_link_libraries(corei_gameenginedevice_public INTERFACE deps_bink deps_miles)
+    target_compile_definitions(corei_gameenginedevice_public INTERFACE RTS_HAS_LEGACY_MEDIA)
 endif()
 
 target_include_directories(corei_gameenginedevice_public INTERFACE
@@ -229,10 +230,7 @@ target_link_libraries(corei_gameenginedevice_public INTERFACE
     corei_gameengine_public
 )
 
-if(RTS_BUILD_OPTION_FFMPEG)
-    if(MSVC AND MSVC_VERSION LESS 1930)
-        message(FATAL_ERROR "FFmpeg support requires modern MSVC (Visual Studio 2022 or newer)")
-    endif()
+if(RTS_BUILD_OPTION_MODERN_MEDIA)
     find_package(FFMPEG REQUIRED)
 
     if(FFMPEG_FOUND)
@@ -255,10 +253,7 @@ if(RTS_BUILD_OPTION_FFMPEG)
     endif()
 endif()
 
-if(RTS_BUILD_OPTION_OPENAL)
-    if(MSVC AND MSVC_VERSION LESS 1930)
-        message(FATAL_ERROR "OpenAL PCM support requires Visual Studio 2022 or newer")
-    endif()
+if(RTS_BUILD_OPTION_MODERN_MEDIA)
     # A static OpenAL Soft export links Threads::Threads.
     find_package(Threads REQUIRED)
     find_package(OpenAL CONFIG REQUIRED)
@@ -269,16 +264,15 @@ if(RTS_BUILD_OPTION_OPENAL)
         Source/OpenALAudioDevice/OpenALPcmStream.cpp
     )
     target_link_libraries(corei_gameenginedevice_private INTERFACE OpenAL::OpenAL)
-    if(RTS_BUILD_AUDIO_BACKEND STREQUAL "OPENAL")
-        target_sources(corei_gameenginedevice_private INTERFACE
-            Include/OpenALAudioDevice/OpenALMovieVoice.h
-            Source/OpenALAudioDevice/OpenALMovieVoice.cpp
-            Include/OpenALAudioDevice/OpenALAudioManager.h
-            Include/OpenALAudioDevice/OpenALAudioProducer.h
-            Include/OpenALAudioDevice/OpenALAudioCache.h
-            Source/OpenALAudioDevice/OpenALAudioManager.cpp
-            Source/OpenALAudioDevice/OpenALAudioProducer.cpp
-            Source/OpenALAudioDevice/OpenALAudioCache.cpp
-        )
-    endif()
+    target_sources(corei_gameenginedevice_private INTERFACE
+        Include/OpenALAudioDevice/MediaBackend.h
+        Include/OpenALAudioDevice/OpenALMovieVoice.h
+        Source/OpenALAudioDevice/OpenALMovieVoice.cpp
+        Include/OpenALAudioDevice/OpenALAudioManager.h
+        Include/OpenALAudioDevice/OpenALAudioProducer.h
+        Include/OpenALAudioDevice/OpenALAudioCache.h
+        Source/OpenALAudioDevice/OpenALAudioManager.cpp
+        Source/OpenALAudioDevice/OpenALAudioProducer.cpp
+        Source/OpenALAudioDevice/OpenALAudioCache.cpp
+    )
 endif()
