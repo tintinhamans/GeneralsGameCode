@@ -258,6 +258,12 @@ void DirectInputKeyboard::getKey( KeyboardIO *key )
 		// get 1 key, if available
 		num = 1;
 		hr = m_pKeyboardDevice->Acquire();
+		if (hr == DI_OK)
+		{
+			// DirectInput keeps the keys buffered before focus was lost and would replay them now.
+			DWORD stale = INFINITE;
+			m_pKeyboardDevice->GetDeviceData( sizeof( DIDEVICEOBJECTDATA ), nullptr, &stale, 0 );
+		}
 		if (hr == DI_OK || hr == S_FALSE)
 			hr = m_pKeyboardDevice->GetDeviceData( sizeof( DIDEVICEOBJECTDATA ),
 																						 &kbdat, &num, 0 );

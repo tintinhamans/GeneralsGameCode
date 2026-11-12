@@ -246,6 +246,10 @@ Alt-tabbing out hides the alt release from the game, so you came back in waypoin
 click queued another point. Losing or regaining focus now clears every held-key mode (waypoint,
 force attack, prefer selection, keypad camera).
 
+Keys pressed in the last frame before the switch also waited in the DirectInput buffer and replayed
+when you clicked back in, so a quick alt-tab at low fps still came back with alt held. The game now
+drops that buffer when it gets the keyboard back.
+
 Only changes input.
 
 ## Rubble and cliff surfaces are honoured
