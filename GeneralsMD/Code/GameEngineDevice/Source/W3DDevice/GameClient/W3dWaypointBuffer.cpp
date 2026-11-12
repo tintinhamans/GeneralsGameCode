@@ -161,8 +161,7 @@ void W3DWaypointBuffer::drawWaypoints(RenderInfoClass &rinfo)
 
 
 
-	// action lines for every order already draw the queued path, so this white copy is skipped
-	if( TheInGameUI->isInWaypointMode() && TheGlobalData->m_actionLineMode != ActionLineMode_All )
+	if( TheInGameUI->isInWaypointMode() )
 	{
 		//Create a default light environment with no lights and only full ambient.
 		//@todo: Fix later by copying default scene light environment from W3DScene.cpp.

@@ -93,6 +93,7 @@
 
 #include "GameLogic/AIGuard.h"
 #include "GameLogic/AIPathfind.h"
+#include "GameLogic/CommandSequence.h"
 #include "GameLogic/Module/AIUpdate.h"
 #include "GameLogic/Weapon.h"
 #include "GameLogic/Object.h"
@@ -5290,6 +5291,7 @@ void InGameUI::updateActionLines()
 		return;
 	}
 	const Bool attackOnly = TheGlobalData->m_actionLineMode == ActionLineMode_AttackOnly;
+	const Bool waypointDisplay = isInWaypointMode();
 
 	Player *local = ThePlayerList->getLocalPlayer();
 	for( DrawableList::const_iterator it = m_selectedDrawables.begin(); it != m_selectedDrawables.end(); ++it )
@@ -5302,6 +5304,12 @@ void InGameUI::updateActionLines()
 
 		// the nexus holds an angry mob's order, so only it draws
 		if( obj->isKindOf( KINDOF_IGNORED_IN_GUI ) )
+		{
+			continue;
+		}
+
+		// the waypoint display already draws this unit's queue
+		if( waypointDisplay && TheCommandSequence->getFirstLocatableCommand( obj ) != 0 )
 		{
 			continue;
 		}

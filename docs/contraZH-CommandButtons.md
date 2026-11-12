@@ -241,8 +241,7 @@ and give orders, and each unit carries them out in sequence.
 * Each unit draws a line to its first marker, and shared legs between markers draw once.
 * A marker on a target follows that target and disappears when the target is gone.
 * Orders with no map position, such as Exit, Evacuate or a toggle, draw no marker.
-* `ActionLines = All` hides this display, so queued orders other than moves are not drawn. See
-  [Action lines](contraZH-Options.md#action-lines).
+* A unit shown here draws no [action line](contraZH-Options.md#action-lines) while the key is held.
 
 ### Queued buildings
 

@@ -317,8 +317,8 @@ attack and attack move orders only.)
 
 * Green: move, enter, dock, repair. Pink: attack move. Red: attack. Blue: guard.
 * No line draws to a target in fog or shroud.
-* A waypoint path draws one line per leg. With `All` these lines replace the
-[waypoint display](contraZH-CommandButtons.md#waypoint-display) shown while Alt is held.
+* While Alt is held, a unit with queued orders draws its
+[waypoint display](contraZH-CommandButtons.md#waypoint-display) instead of its action line.
 * Credit to olcayseygan, author of Generals Reforged.
 
 ## Input
