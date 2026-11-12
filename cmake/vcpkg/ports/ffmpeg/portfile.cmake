@@ -1,3 +1,13 @@
+# vcpkg's ports/ffmpeg at the builtin-baseline in vcpkg.json, trimmed to the game's minimal profile.
+# vcpkg's port takes no extra configure options, so the repository carries this copy.
+# At a vcpkg baseline bump, copy vcpkg's ports/ffmpeg at the new baseline again and reapply the commit that trims it.
+# FindFFMPEG.cmake.in, vcpkg-cmake-wrapper.cmake, usage, build.sh.in and patches 0046 and 0047 are identical to vcpkg's.
+# The other vcpkg patches fix features, platforms or dependencies this profile does not build.
+# The configure flags add --disable-everything, --disable-network, --disable-protocols and the demuxers, decoders and parser the game uses.
+# With MSVC they also disable d3d11va, d3d12va, dxva2 and mediafoundation, which vcpkg's port enables on Windows.
+# vcpkg.json keeps the avcodec, avformat, swresample and swscale features and drops ffmpeg-bin2c, as patch 0045 is not applied.
+# 0100-findffmpeg-no-find-root.patch keeps a cross toolchain such as MinGW's from re-rooting the installed vcpkg paths in FindFFMPEG.
+# The profile is LGPL 2.1 or later.
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO ffmpeg/ffmpeg
@@ -5,20 +15,8 @@ vcpkg_from_github(
     SHA512 21bf3fbcdfd2f41ea6edeab40433fecfe362b09ecaa177a652471b54f9357011b4f74dab18245ab1c26f1a473b94205490baecb42289afd2effd603cd0b22b59
     HEAD_REF master
     PATCHES
-        0003-fix-windowsinclude.patch
-        0004-dependencies.patch
-        0005-fix-nasm.patch
-        0007-fix-lib-naming.patch
-        0013-define-WINVER.patch
-        0024-fix-osx-host-c11.patch
-        0040-ffmpeg-add-av_stream_get_first_dts-for-chromium.patch # Do not remove this patch. It is required by chromium
-        0045-use-prebuilt-bin2c.patch
         0046-fix-msvc-detection.patch
         0047-fix-msvc-utf8.patch
-        0049-fix-twolame-pkgconfig.patch
-        0050-fix-test-ld-absolute-lib-paths.patch
-        0051-fix-msvc-undef-flags.patch
-        0052-fix-disable-unstable-swscale-link.patch
 )
 
 if(SOURCE_PATH MATCHES " ")
@@ -728,6 +726,16 @@ if (VCPKG_TARGET_IS_IOS)
     set(OPTIONS "${OPTIONS} --extra-ldflags=-isysroot\"${vcpkg_osx_sysroot}\"")
 endif ()
 
+# The game's minimal profile: only the demuxers, decoders and parser it uses, no protocols,
+# network or Windows hardware acceleration
+string(APPEND OPTIONS " --disable-everything --disable-network --disable-protocols")
+if(VCPKG_TARGET_IS_WINDOWS AND NOT VCPKG_TARGET_IS_MINGW)
+    string(APPEND OPTIONS " --disable-d3d11va --disable-d3d12va --disable-dxva2 --disable-mediafoundation")
+endif()
+string(APPEND OPTIONS " --enable-demuxer=bink,wav,mp3")
+string(APPEND OPTIONS " --enable-decoder=bink,binkaudio_dct,pcm_s16le,adpcm_ima_wav,mp3float")
+string(APPEND OPTIONS " --enable-parser=mpegaudio")
+
 set(OPTIONS_DEBUG "--disable-optimizations --enable-debug")
 set(OPTIONS_RELEASE "--enable-optimizations")
 
@@ -1086,7 +1094,11 @@ else()
     message(FATAL_ERROR "Failed to identify license (${LICENSE_STRING})")
 endif()
 
-configure_file("${CMAKE_CURRENT_LIST_DIR}/FindFFMPEG.cmake.in" "${CURRENT_PACKAGES_DIR}/share/${PORT}/FindFFMPEG.cmake" @ONLY)
+# Cross toolchains re-root the absolute vcpkg paths the find module searches; see the patch
+file(REMOVE_RECURSE "${CURRENT_BUILDTREES_DIR}/find-module")
+file(COPY "${CMAKE_CURRENT_LIST_DIR}/FindFFMPEG.cmake.in" DESTINATION "${CURRENT_BUILDTREES_DIR}/find-module")
+z_vcpkg_apply_patches(SOURCE_PATH "${CURRENT_BUILDTREES_DIR}/find-module" PATCHES 0100-findffmpeg-no-find-root.patch)
+configure_file("${CURRENT_BUILDTREES_DIR}/find-module/FindFFMPEG.cmake.in" "${CURRENT_PACKAGES_DIR}/share/${PORT}/FindFFMPEG.cmake" @ONLY)
 configure_file("${CMAKE_CURRENT_LIST_DIR}/vcpkg-cmake-wrapper.cmake" "${CURRENT_PACKAGES_DIR}/share/${PORT}/vcpkg-cmake-wrapper.cmake" @ONLY)
 
 file(INSTALL "${CMAKE_CURRENT_LIST_DIR}/usage" DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}")

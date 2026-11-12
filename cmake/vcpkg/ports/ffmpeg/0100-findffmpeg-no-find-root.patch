@@ -1,0 +1,28 @@
+diff --git a/FindFFMPEG.cmake.in b/FindFFMPEG.cmake.in
+index 4585b6f..fd08e93 100644
+--- a/FindFFMPEG.cmake.in
++++ b/FindFFMPEG.cmake.in
+@@ -68,7 +68,7 @@ function(append_dependencies out)
+             list(APPEND ${out} "${lib_name}")
+         else()
+             # first look in ${path} specifically to ensure we find the right release/debug variant
+-            find_library(FFMPEG_DEPENDENCY_${lib_name}_${config} NAMES "${lib_name}" PATHS "${path}" NO_DEFAULT_PATH)
++            find_library(FFMPEG_DEPENDENCY_${lib_name}_${config} NAMES "${lib_name}" PATHS "${path}" NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+             # if not found there, must be a system dependency, so look elsewhere
+             find_library(FFMPEG_DEPENDENCY_${lib_name}_${config} NAMES "${lib_name}" REQUIRED)
+             list(APPEND ${out} "${FFMPEG_DEPENDENCY_${lib_name}_${config}}")
+@@ -79,11 +79,11 @@ endfunction()
+ 
+ macro(FFMPEG_FIND varname shortname headername)
+   if(NOT FFMPEG_${varname}_INCLUDE_DIRS)
+-    find_path(FFMPEG_${varname}_INCLUDE_DIRS NAMES lib${shortname}/${headername} ${headername} PATHS ${SEARCH_PATH}/include NO_DEFAULT_PATH)
++    find_path(FFMPEG_${varname}_INCLUDE_DIRS NAMES lib${shortname}/${headername} ${headername} PATHS ${SEARCH_PATH}/include NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+   endif()
+   if(NOT FFMPEG_${varname}_LIBRARY)
+-    find_library(FFMPEG_${varname}_LIBRARY_RELEASE NAMES ${shortname} PATHS ${SEARCH_PATH}/lib/ NO_DEFAULT_PATH)
+-    find_library(FFMPEG_${varname}_LIBRARY_DEBUG NAMES ${shortname}d ${shortname} PATHS ${SEARCH_PATH}/debug/lib/ NO_DEFAULT_PATH)
++    find_library(FFMPEG_${varname}_LIBRARY_RELEASE NAMES ${shortname} PATHS ${SEARCH_PATH}/lib/ NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
++    find_library(FFMPEG_${varname}_LIBRARY_DEBUG NAMES ${shortname}d ${shortname} PATHS ${SEARCH_PATH}/debug/lib/ NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+     get_filename_component(FFMPEG_${varname}_LIBRARY_RELEASE_DIR ${FFMPEG_${varname}_LIBRARY_RELEASE} DIRECTORY)
+     get_filename_component(FFMPEG_${varname}_LIBRARY_DEBUG_DIR ${FFMPEG_${varname}_LIBRARY_DEBUG} DIRECTORY)
+     select_library_configurations(FFMPEG_${varname})

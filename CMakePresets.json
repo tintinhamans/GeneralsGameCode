@@ -131,6 +131,7 @@
                 "strategy": "external"
             },
             "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x86-windows",
                 "RTS_FLAGS": "/W3"
             },
             "vendor": {
