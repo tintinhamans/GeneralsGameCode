@@ -34,6 +34,7 @@
 #include "GameClient/GameWindow.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GUICallbacks.h"
+#include "GameClient/GenOnlineMenus.h"
 #include "GameClient/Gadget.h"
 
 // Popup Ladder Select --------------------------------------------------------------------------
@@ -151,6 +152,12 @@ static FunctionLexicon::TableEntry gameWinSystemTable[] =
 	{ NAMEKEY_INVALID, "ScoreScreenSystem",                  (void*)ScoreScreenSystem },
 	{ NAMEKEY_INVALID, "DownloadMenuSystem",                 (void*)DownloadMenuSystem },
 
+	{ NAMEKEY_INVALID, "GenOnlinePopupJoinGameSystem",       (void*)GenOnlinePopupJoinGameSystem },
+	{ NAMEKEY_INVALID, "GenOnlinePopupHostGameSystem",       (void*)GenOnlinePopupHostGameSystem },
+	{ NAMEKEY_INVALID, "GenOnlineMapSelectMenuSystem",       (void*)GenOnlineMapSelectMenuSystem },
+	{ NAMEKEY_INVALID, "GenOnlineDownloadMenuSystem",        (void*)GenOnlineDownloadMenuSystem },
+	{ NAMEKEY_INVALID, "GenOnlineWelcomeMenuSystem",         (void*)GenOnlineWelcomeMenuSystem },
+
 	{ NAMEKEY_INVALID, nullptr,                              nullptr }
 
 };
@@ -225,6 +232,12 @@ static FunctionLexicon::TableEntry gameWinInputTable[] =
 	{ NAMEKEY_INVALID, "DownloadMenuInput",                 (void*)DownloadMenuInput },
 
 	{ NAMEKEY_INVALID, "IMECandidateWindowInput",           (void*)IMECandidateWindowInput },
+
+	{ NAMEKEY_INVALID, "GenOnlinePopupJoinGameInput",       (void*)GenOnlinePopupJoinGameInput },
+	{ NAMEKEY_INVALID, "GenOnlinePopupHostGameInput",       (void*)GenOnlinePopupHostGameInput },
+	{ NAMEKEY_INVALID, "GenOnlineMapSelectMenuInput",       (void*)GenOnlineMapSelectMenuInput },
+	{ NAMEKEY_INVALID, "GenOnlineDownloadMenuInput",        (void*)GenOnlineDownloadMenuInput },
+	{ NAMEKEY_INVALID, "GenOnlineWelcomeMenuInput",         (void*)GenOnlineWelcomeMenuInput },
 	{ NAMEKEY_INVALID, nullptr,                             nullptr }
 
 };
@@ -290,6 +303,12 @@ static FunctionLexicon::TableEntry winLayoutInitTable[] =
 	{ NAMEKEY_INVALID, "DifficultySelectInit",          (void*)DifficultySelectInit },
 	{ NAMEKEY_INVALID, "PopupReplayInit",               (void*)PopupReplayInit },
 
+	{ NAMEKEY_INVALID, "GenOnlinePopupJoinGameInit",    (void*)GenOnlinePopupJoinGameInit },
+	{ NAMEKEY_INVALID, "GenOnlinePopupHostGameInit",    (void*)GenOnlinePopupHostGameInit },
+	{ NAMEKEY_INVALID, "GenOnlineMapSelectMenuInit",    (void*)GenOnlineMapSelectMenuInit },
+	{ NAMEKEY_INVALID, "GenOnlineDownloadMenuInit",     (void*)GenOnlineDownloadMenuInit },
+	{ NAMEKEY_INVALID, "GenOnlineWelcomeMenuInit",      (void*)GenOnlineWelcomeMenuInit },
+
 	{ NAMEKEY_INVALID, nullptr,                         nullptr }
 
 };
@@ -335,6 +354,11 @@ static FunctionLexicon::TableEntry winLayoutUpdateTable[] =
 	{ NAMEKEY_INVALID, "ScoreScreenUpdate",               (void*)ScoreScreenUpdate },
 	{ NAMEKEY_INVALID, "DownloadMenuUpdate",              (void*)DownloadMenuUpdate },
 	{ NAMEKEY_INVALID, "PopupReplayUpdate",               (void*)PopupReplayUpdate },
+
+	{ NAMEKEY_INVALID, "GenOnlinePopupHostGameUpdate",    (void*)GenOnlinePopupHostGameUpdate },
+	{ NAMEKEY_INVALID, "GenOnlineMapSelectMenuUpdate",    (void*)GenOnlineMapSelectMenuUpdate },
+	{ NAMEKEY_INVALID, "GenOnlineDownloadMenuUpdate",     (void*)GenOnlineDownloadMenuUpdate },
+	{ NAMEKEY_INVALID, "GenOnlineWelcomeMenuUpdate",      (void*)GenOnlineWelcomeMenuUpdate },
 	{ NAMEKEY_INVALID, nullptr,                           nullptr }
 
 };
@@ -378,6 +402,10 @@ static FunctionLexicon::TableEntry winLayoutShutdownTable[] =
 	{ NAMEKEY_INVALID, "ScoreScreenShutdown",               (void*)ScoreScreenShutdown },
 	{ NAMEKEY_INVALID, "DownloadMenuShutdown",              (void*)DownloadMenuShutdown },
 	{ NAMEKEY_INVALID, "PopupReplayShutdown",               (void*)PopupReplayShutdown },
+
+	{ NAMEKEY_INVALID, "GenOnlineMapSelectMenuShutdown",    (void*)GenOnlineMapSelectMenuShutdown },
+	{ NAMEKEY_INVALID, "GenOnlineDownloadMenuShutdown",     (void*)GenOnlineDownloadMenuShutdown },
+	{ NAMEKEY_INVALID, "GenOnlineWelcomeMenuShutdown",      (void*)GenOnlineWelcomeMenuShutdown },
 	{ NAMEKEY_INVALID, nullptr,                             nullptr }
 
 };
