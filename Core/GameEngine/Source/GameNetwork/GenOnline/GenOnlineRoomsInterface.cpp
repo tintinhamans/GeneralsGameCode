@@ -715,6 +715,21 @@ void WebSocket::SendData_RoomChatMessage(UnicodeString& msg, bool bIsAction)
 
 void WebSocket::SendData_MarkReady(bool bReady)
 {
+	if (m_bRealtimeHub)
+	{
+		GenOnlineRealtime::SetReadyRequest request;
+		request.ready = bReady;
+		InvokeHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
+			{
+				GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+				if (!outcome.Succeeded() && pLobbyInterface != nullptr)
+				{
+					pLobbyInterface->ShowRealtimeLobbyFailure(outcome);
+				}
+			});
+		return;
+	}
+
 	nlohmann::json j;
 	j["msg_id"] = EWebSocketMessageID::NETWORK_ROOM_MARK_READY;
 	j["ready"] = bReady;
@@ -2840,4 +2855,55 @@ void GenOnlineRoomsInterface::OnRealtimeRoomJoinFailed(int roomID, const std::ws
 	{
 		m_OnChatCallback(UnicodeString(strReason.c_str()), GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255)));
 	}
+}
+
+void GenOnlineLobbyInterface::OnRealtimeLobbyMessage(const GenOnlineRealtime::ChatMessage& message)
+{
+	if (!IsInLobby() || message.channel_id != "lobby:" + std::to_string(m_CurrentLobby.lobbyID) || m_OnChatCallback == nullptr)
+	{
+		return;
+	}
+
+	const bool bAction = message.type == "action";
+	const bool bAnnouncement = message.type == "announcement";
+	int lobbySlot = -1;
+	for (const LobbyMemberEntry& member : m_CurrentLobby.members)
+	{
+		if (member.user_id == message.author.id)
+		{
+			lobbySlot = member.m_SlotIndex;
+			break;
+		}
+	}
+
+	UnicodeString unicodeStr;
+	if (bAnnouncement)
+	{
+		unicodeStr = UnicodeString(from_utf8(message.content).c_str());
+	}
+	else
+	{
+		unicodeStr.format(bAction ? L"%s %s" : L"%s: %s", from_utf8(message.author.name).c_str(), from_utf8(message.content).c_str());
+	}
+
+	// Announcements keep the neutral notice colour, player chat keeps the slot colour.
+	Color color = bAnnouncement
+		? DetermineSystemNoticeColor(false, false)
+		: DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_LOBBY, true, bAction, false, false, lobbySlot);
+
+#if RTS_ZEROHOUR
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	const bool bIsLocal = pAuthInterface != nullptr && pAuthInterface->GetUserID() == message.author.id;
+	StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_GAME_LOBBY, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, bAnnouncement, bIsLocal);
+#endif
+	m_OnChatCallback(unicodeStr, color);
+}
+
+void GenOnlineLobbyInterface::ShowRealtimeLobbyFailure(const GenOnlineRealtime::InvokeOutcome& outcome)
+{
+	if (m_OnChatCallback == nullptr)
+	{
+		return;
+	}
+	m_OnChatCallback(UnicodeString(GenOnlineRealtimeBridge::FailureText(outcome).c_str()), DetermineSystemNoticeColor(false, true));
 }
