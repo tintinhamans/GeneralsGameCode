@@ -3,6 +3,7 @@
 
 #include "GameNetwork/NetworkSettings.h"
 #include "GenOnlineInclude.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeHubSession.h"
 #include "MeshConnectionTimeoutPolicy.h"
 
 #include <algorithm>
@@ -155,8 +156,45 @@ constexpr bool IsModerationTeardownReason(EGOTearDownReason reason) noexcept
 class WebSocket
 {
 public:
-	WebSocket();
+	// bRealtimeHub selects the realtime hub protocol v1 instead of the legacy message protocol.
+	explicit WebSocket(bool bRealtimeHub = false);
 	~WebSocket();
+
+	bool IsRealtimeHub() const
+	{
+		return m_bRealtimeHub;
+	}
+
+	// The hub session of a realtime hub socket, null for a legacy socket.
+	GenOnlineRealtime::HubSession* GetHubSession()
+	{
+		return m_pHubSession.get();
+	}
+
+	// Calls a hub method that answers with a Result. Without a hub session the callback reports a transport error.
+	template <class R>
+	void InvokeHub(const R& request, std::function<void(const GenOnlineRealtime::InvokeOutcome&)> callback)
+	{
+		if (m_pHubSession != nullptr)
+		{
+			m_pHubSession->Invoke(request, callback, HubNowMs());
+		}
+		else if (callback)
+		{
+			GenOnlineRealtime::InvokeOutcome outcome;
+			outcome.transportError = "not connected";
+			callback(outcome);
+		}
+	}
+
+	// Sends a fire-and-forget hub method. Returns false without a ready hub session.
+	template <class R>
+	bool FireHub(const R& request)
+	{
+		return m_pHubSession != nullptr && m_pHubSession->Fire(request, HubNowMs());
+	}
+
+	static int64_t HubNowMs();
 	void Connect(const char* url, bool bIsReconnect, std::function<void(void)> fnWebsocketConnectedCallback);
 	void Disconnect();
 
@@ -183,7 +221,8 @@ public:
 	void SendData_Signalling(int64_t targetUserID, std::vector<uint8_t> vecPayload);
 	void SendData_StartGame();
 
-	void SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> vecPayload);
+	// Returns false when the message could not be queued, so the caller can use the peer mesh instead.
+	bool SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> vecPayload);
 
 	void SendData_ChangeLobbyPassword(UnicodeString& strNewPassword);
 	void SendData_RemoveLobbyPassword();
@@ -245,6 +284,26 @@ public:
 	}
 
 private:
+	bool IsDestinationTrusted(const std::string& url) const;
+	void ReleaseConnection();
+	void HubTransportLost(const char* reason);
+	void OnHubReady();
+	void OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, const std::string& reason);
+	void RecoverHubSession();
+
+	// Shared by the legacy messages and the hub events.
+	void StartPeerSignalling(int64_t lobbyID, int64_t userID, uint16_t preferredPort, const std::string& middlewareID);
+	void DisconnectPeer(int64_t lobbyID, int64_t userID);
+	void CollectMeshConnectivity(std::vector<int64_t>& connected, std::vector<int64_t>& connecting);
+	void RegisterPeerHandlers();
+
+	bool m_bRealtimeHub = false;
+	std::unique_ptr<GenOnlineRealtime::HubSession> m_pHubSession;
+	mutable GenOnlineRealtime::ReconnectPolicy m_hubReconnectPolicy;
+	bool m_bHubReadyOnce = false;
+	// One token refresh and session registration per connection that never reached Ready.
+	bool m_bHubSessionRecoveryTried = false;
+
 	CURLcode ReceiveOneFrame();
 	void PollConnectionSetup();
 	void StartResolvedConnection();
@@ -300,7 +359,7 @@ private:
 	size_t m_outboundOffset = 0;
 	bool m_heartbeatQueued = false;
 	bool m_acceptOutbound = true;
-	void QueueOutbound(std::string payload, bool heartbeat);
+	bool QueueOutbound(std::string payload, bool heartbeat);
 	void ClearOutbound();
 	CURLcode FlushOutbound();
 
@@ -891,3 +950,21 @@ private:
 	std::string m_patcher_path;
 	int64_t m_patcher_size;
 };
+
+// Calls a hub method on the services websocket. Without a socket the callback reports a transport error.
+template <class R>
+void InvokeRealtimeHub(const R& request, std::function<void(const GenOnlineRealtime::InvokeOutcome&)> callback)
+{
+	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
+	if (pWS != nullptr)
+	{
+		pWS->InvokeHub(request, callback);
+		return;
+	}
+	if (callback)
+	{
+		GenOnlineRealtime::InvokeOutcome outcome;
+		outcome.transportError = "not connected";
+		callback(outcome);
+	}
+}

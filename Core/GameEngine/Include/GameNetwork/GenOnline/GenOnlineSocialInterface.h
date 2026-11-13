@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GenOnlineInclude.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 #include "NetworkMesh.h"
 #include "GameNetwork/RankPointValue.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
@@ -150,7 +151,24 @@ public:
 
 	void CommitLobbyPlayerListToRecentlyPlayedWithList();
 
+	// Realtime protocol v1: the hub sends a snapshot after every connect and the changes as events.
+	void ExpectRealtimeWelcome() { m_bRealtimeWelcomePending = true; }
+	void OnRealtimeFriends(const GenOnlineRealtime::FriendsEvent& event);
+	void OnRealtimeFriendRequestReceived(const GenOnlineRealtime::Member& from);
+	void OnRealtimeFriendRequestAccepted(const GenOnlineRealtime::Member& by);
+	void OnRealtimeFriendRemoved(int64_t user_id);
+	void OnRealtimeFriendPresence(const GenOnlineRealtime::FriendPresenceEvent& event);
+	void OnRealtimeMemberUpdate(const GenOnlineRealtime::Member& member);
+	void OnRealtimeDirectMessage(const GenOnlineRealtime::ChatMessage& message);
+
 private:
+	static bool UsesRealtimeHub();
+	// Calls a social hub method and refreshes the communicator once the service answered.
+	template <class R>
+	void InvokeSocialRealtime(const R& request, std::function<void(GenOnlineSocialInterface* pThis)> onSuccess);
+	std::string FindDisplayName(int64_t user_id);
+	bool m_bRealtimeWelcomePending = false;
+
 	void TriggerCallback_OnNumberGlobalNotificationsChanged()
 	{
 		if (m_cbOnNumberGlobalNotificationsChanged)

@@ -360,7 +360,7 @@ void GENONLINE_PLUGIN_CALL Host_SendMessageViaTransport(void* /*userData*/, uint
 			if (pWS->IsConnected())
 			{
 				std::vector<uint8_t> vecPayload((const uint8_t*)pData, (const uint8_t*)pData + dataLen);
-				pWS->SendData_ACMessage(goUserID, vecPayload);
+				bFallbackToP2P = !pWS->SendData_ACMessage(goUserID, vecPayload);
 			}
 			else
 			{

@@ -1,4 +1,5 @@
 #pragma once
+#include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 
 #include "GenOnlineInclude.h"
 #include "NetworkMesh.h"
@@ -230,8 +231,22 @@ public:
 	bool SupportsModerationCommands() const { return m_bSupportsModerationCommands; }
 
 	int GetCurrentRoomIndex() const { return m_CurrentRoomIndex; }
+	std::optional<int> GetEffectiveRoomID() const { return m_EffectiveRoomID; }
+
+	// Realtime protocol v1: the hub sends the rooms with Ready and the members as events.
+	void SetRealtimeRooms(const std::vector<GenOnlineRealtime::RoomInfo>& rooms);
+	void OnRealtimeRoomMembers(const GenOnlineRealtime::RoomMembersEvent& event);
+	void OnRealtimeMemberAdd(const GenOnlineRealtime::MemberAddEvent& event);
+	void OnRealtimeMemberRemove(const GenOnlineRealtime::MemberRemoveEvent& event);
+	void OnRealtimeMemberUpdate(const GenOnlineRealtime::Member& member);
+	void OnRealtimeRoomMessage(const GenOnlineRealtime::ChatMessage& message);
+	void OnRealtimeNameChanged(const std::string& strOldName, const std::string& strNewName);
+	void OnRealtimeRoomJoinFailed(int roomID, const std::wstring& strReason);
 
 private:
+	void RefreshRoster();
+	std::vector<NetworkRoom> m_vecRealtimeRooms;
+
 	struct PendingRoomChange
 	{
 		int roomIndex;

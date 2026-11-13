@@ -1264,6 +1264,12 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/Provider/GenOnlinePluginTrust.h
     Include/GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.h
     Include/GameNetwork/GenOnline/Provider/GenOnlineResults.h
+    Include/GameNetwork/GenOnline/Realtime/RealtimeHubSession.h
+    Include/GameNetwork/GenOnline/Realtime/RealtimeMessages.h
+    Include/GameNetwork/GenOnline/Realtime/RealtimeProtocol.h
+    Include/GameNetwork/GenOnline/Realtime/RealtimeSignIn.h
+    Include/GameNetwork/GenOnline/GenOnlineSignIn.h
+    Include/GameNetwork/GenOnline/GenOnlineRealtimeBridge.h
     Include/GameNetwork/GenOnline/WifiLowLatency.h
     Source/GameNetwork/GenOnline/CredentialStore.cpp
     Source/GameNetwork/GenOnline/DiscordRichPresence.cpp
@@ -1281,6 +1287,8 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/PacketFeedback.cpp
     Source/GameNetwork/GenOnline/GenOnlineInit.cpp
     Source/GameNetwork/GenOnline/GenOnlineAuth.cpp
+    Source/GameNetwork/GenOnline/GenOnlineSignIn.cpp
+    Source/GameNetwork/GenOnline/GenOnlineRealtimeBridge.cpp
     Source/GameNetwork/GenOnline/GenOnlineLobbyInterface.cpp
     Source/GameNetwork/GenOnline/GenOnlineMainMenuUtils.cpp
     Source/GameNetwork/GenOnline/GenOnlineModeration.cpp
