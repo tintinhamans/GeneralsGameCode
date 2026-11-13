@@ -1264,6 +1264,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/Provider/GenOnlinePluginTrust.h
     Include/GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.h
     Include/GameNetwork/GenOnline/Provider/GenOnlineResults.h
+    Include/GameNetwork/GenOnline/Realtime/RealtimeHubSession.h
     Include/GameNetwork/GenOnline/Realtime/RealtimeMessages.h
     Include/GameNetwork/GenOnline/Realtime/RealtimeProtocol.h
     Include/GameNetwork/GenOnline/WifiLowLatency.h
