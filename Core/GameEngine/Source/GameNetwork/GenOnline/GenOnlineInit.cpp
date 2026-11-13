@@ -1,4 +1,5 @@
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
+#include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
 #include "GameNetwork/GenOnline/NetworkMesh.h"
 #include "GameNetwork/GenOnline/WifiLowLatency.h"
 #include "GameNetwork/GenOnline/HTTP/HTTPManager.h"
@@ -1574,6 +1575,20 @@ void WebSocket::SendData_RemoveLobbyPassword()
 
 void WebSocket::SendData_ChangeName(UnicodeString& strNewName)
 {
+	if (m_bRealtimeHub)
+	{
+		GenOnlineRealtime::SetDisplayNameRequest request;
+		request.name = to_utf8(strNewName.str());
+		InvokeHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
+			{
+				if (!outcome.Succeeded())
+				{
+					GenOnlineRealtimeBridge::ShowRoomNotice(GenOnlineRealtimeBridge::FailureText(outcome), true);
+				}
+			});
+		return;
+	}
+
 	nlohmann::json j;
 	j["msg_id"] = EWebSocketMessageID::PLAYER_NAME_CHANGE;
 	j["name"] = to_utf8(strNewName.str());
@@ -1585,6 +1600,30 @@ void WebSocket::SendData_ChangeName(UnicodeString& strNewName)
 
 void WebSocket::SendData_FriendMessage(UnicodeString& msg, int64_t target_user_id)
 {
+	if (m_bRealtimeHub)
+	{
+		GenOnlineRealtime::SendMessageRequest request;
+		request.channel_id = "dm:" + std::to_string(target_user_id);
+		request.type = "chat";
+		request.content = to_utf8(msg.str());
+		InvokeHub(request, [target_user_id](const GenOnlineRealtime::InvokeOutcome& outcome)
+			{
+				if (outcome.Succeeded())
+				{
+					return;
+				}
+				// The failure shows in the conversation with that friend.
+				GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+				GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+				if (pSocial != nullptr && pAuth != nullptr)
+				{
+					const std::wstring text = L"Not delivered: " + GenOnlineRealtimeBridge::FailureText(outcome);
+					pSocial->OnChatMessage(pAuth->GetUserID(), target_user_id, UnicodeString(text.c_str()));
+				}
+			});
+		return;
+	}
+
 	nlohmann::json j;
 	j["msg_id"] = EWebSocketMessageID::SOCIAL_FRIEND_CHAT_MESSAGE_CLIENT_TO_SERVER;
 	j["target_user_id"] = target_user_id;
@@ -1655,6 +1694,12 @@ void WebSocket::SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> ve
 
 void WebSocket::SendData_SubscribeRealtimeUpdates()
 {
+	// The hub always sends the social events.
+	if (m_bRealtimeHub)
+	{
+		return;
+	}
+
 	nlohmann::json j;
 	j["msg_id"] = EWebSocketMessageID::SOCIAL_SUBSCRIBE_REALTIME_UPDATES;
 	std::string strBody = j.dump();
@@ -1664,6 +1709,11 @@ void WebSocket::SendData_SubscribeRealtimeUpdates()
 
 void WebSocket::SendData_UnsubscribeRealtimeUpdates()
 {
+	if (m_bRealtimeHub)
+	{
+		return;
+	}
+
 	nlohmann::json j;
 	j["msg_id"] = EWebSocketMessageID::SOCIAL_UNSUBSCRIBE_REALTIME_UPDATES;
 	std::string strBody = j.dump();

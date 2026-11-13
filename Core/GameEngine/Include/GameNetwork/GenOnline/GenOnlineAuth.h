@@ -61,6 +61,15 @@ public:
 
 	int64_t GetUserID() const { return m_userID; }
 
+	// The realtime hub reports the name in Ready and after a rename.
+	void OnDisplayNameChanged(const std::string& strDisplayName)
+	{
+		if (!strDisplayName.empty())
+		{
+			m_strDisplayName = strDisplayName;
+		}
+	}
+
 	void GoToDetermineNetworkCaps();
 
 	void SendMiddlewareToken(std::string strMWToken);

@@ -170,6 +170,31 @@ public:
 	{
 		return m_pHubSession.get();
 	}
+
+	// Calls a hub method that answers with a Result. Without a hub session the callback reports a transport error.
+	template <class R>
+	void InvokeHub(const R& request, std::function<void(const GenOnlineRealtime::InvokeOutcome&)> callback)
+	{
+		if (m_pHubSession != nullptr)
+		{
+			m_pHubSession->Invoke(request, callback, HubNowMs());
+		}
+		else if (callback)
+		{
+			GenOnlineRealtime::InvokeOutcome outcome;
+			outcome.transportError = "not connected";
+			callback(outcome);
+		}
+	}
+
+	// Sends a fire-and-forget hub method. Returns false without a ready hub session.
+	template <class R>
+	bool FireHub(const R& request)
+	{
+		return m_pHubSession != nullptr && m_pHubSession->Fire(request, HubNowMs());
+	}
+
+	static int64_t HubNowMs();
 	void Connect(const char* url, bool bIsReconnect, std::function<void(void)> fnWebsocketConnectedCallback);
 	void Disconnect();
 
