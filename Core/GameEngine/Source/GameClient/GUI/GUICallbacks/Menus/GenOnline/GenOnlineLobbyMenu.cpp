@@ -1402,7 +1402,7 @@ void GenOnlineLobbyMenuCreateLobbyCallback(bool bSuccess)
 	// TODO_NGMP: Handle error case
 
 	buttonPushed = true;
-	nextScreen = "Menus/GameSpyGameOptionsMenu.wnd";
+	nextScreen = "Menus/GenOnlineGameOptionsMenu.wnd";
 	TheShell->pop();
 	//TheGameSpyInfo->markAsStagingRoomHost();
 	//TheGameSpyInfo->setGameOptions();
@@ -1417,7 +1417,7 @@ void GenOnlineLobbyMenuJoinLobbyCallback(EJoinLobbyResult result)
 	{
 		// Woohoo!  On to our next screen!
 		buttonPushed = true;
-		nextScreen = "Menus/GameSpyGameOptionsMenu.wnd";
+		nextScreen = "Menus/GenOnlineGameOptionsMenu.wnd";
 		TheShell->pop();
 	}
 	else
@@ -1944,7 +1944,7 @@ void GenOnlineLobbyExitState()
 	}
 	else // user backed out, go back to welcome menu
 	{
-		nextScreen = "Menus/WOLWelcomeMenu.wnd";
+		nextScreen = "Menus/GenOnlineWelcomeMenu.wnd";
 	}
 	
 	TheShell->pop();
@@ -2526,19 +2526,19 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 
 								Bool isBuddy = pSocialInterface->IsUserFriend(profileID);
 								if (profileID <= 0)
-									rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/RCNoProfileMenu.wnd"));
+									rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/GenOnlineRCNoProfileMenu.wnd"));
 								else
 								{
 									if (profileID == localuserID)
 									{
-										rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/RCLocalPlayerMenu.wnd"));
+										rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/GenOnlineRCLocalPlayerMenu.wnd"));
 									}
 									else if (isBuddy)
 									{
-										rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/RCBuddiesMenu.wnd"));
+										rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/GenOnlineRCBuddiesMenu.wnd"));
 									}
 									else
-										rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/RCNonBuddiesMenu.wnd"));
+										rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/GenOnlineRCNonBuddiesMenu.wnd"));
 								}
 								if (!rcLayout)
 									break;

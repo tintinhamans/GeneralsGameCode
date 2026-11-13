@@ -33,8 +33,6 @@ void HTTPThinkWrapper();
 void StopAsyncDNSCheck();
 void StartPatchCheck();
 void CancelPatchCheckCallback();
-// TheSuperHackers @feature arcticdolphin 09/11/2026 Ends an Online attempt: closes the sign-in dialog, tears the online services down and shows the main menu again.
-void CancelPatchCheckCallbackAndReopenDropdown();
 void StartDownloadingPatches();
 void HandleCanceledDownload( Bool resetDropDown = TRUE );
 

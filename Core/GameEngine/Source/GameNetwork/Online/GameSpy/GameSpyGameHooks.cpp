@@ -25,6 +25,11 @@
 #include "GameNetwork/Online/GameSpy/GameSpyGameHooks.h"
 #include "GameNetwork/Online/IOnlineLobbyState.h"
 #include "GameNetwork/GameSpy/StagingRoomGameInfo.h"
+#include "GameNetwork/GameSpy/MainMenuUtils.h"
+#include "GameClient/GUICallbacks.h"
+
+void raiseNotificationBox();
+void deleteNotificationBox();
 
 Bool GameSpyGameHooks::getMatchFrameRateLimit( Int &outLimit )
 {
@@ -39,4 +44,44 @@ GameInfo *GameSpyGameHooks::getGameInfo()
 Bool GameSpyGameHooks::isLoggedIn()
 {
 	return TheGameSpyInfo != nullptr;
+}
+
+void GameSpyGameHooks::onShellScreenChanged()
+{
+	raiseNotificationBox();
+}
+
+void GameSpyGameHooks::onCloseAllOverlays()
+{
+	deleteNotificationBox();
+}
+
+void GameSpyGameHooks::startOnline()
+{
+	StartPatchCheck();
+}
+
+void GameSpyGameHooks::updateMainMenu()
+{
+	HTTPThinkWrapper();
+}
+
+void GameSpyGameHooks::updateDownloadMenu( WindowLayout *layout, void *userData )
+{
+	DownloadMenuUpdate(layout, userData);
+}
+
+void GameSpyGameHooks::stopOnlineChecks()
+{
+	StopAsyncDNSCheck();
+}
+
+void GameSpyGameHooks::cancelPatchCheck()
+{
+	CancelPatchCheckCallback();
+}
+
+void GameSpyGameHooks::startDownloadingPatches()
+{
+	StartDownloadingPatches();
 }

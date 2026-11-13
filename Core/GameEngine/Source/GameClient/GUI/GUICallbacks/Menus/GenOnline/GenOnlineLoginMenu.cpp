@@ -69,6 +69,7 @@ void GenOnlineLoginMenuLoginCallback(ELoginResult loginResult);
 
 #include "GameNetwork/GameSpy/GSConfig.h"
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
+#include "GameNetwork/GenOnline/GenOnlineMainMenuUtils.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/PeerThread.h"
 #include "GameNetwork/GameSpy/PingThread.h"
@@ -646,7 +647,7 @@ static void signInDialogLoginCallback( ELoginResult loginResult )
 		ClearGSMessageBoxes();
 		GOSignInDialogDestroy();
 		SignalUIInteraction(SHELL_SCRIPT_HOOK_GENERALS_ONLINE_LOGIN);
-		TheShell->push("Menus/WOLWelcomeMenu.wnd");
+		TheShell->push("Menus/GenOnlineWelcomeMenu.wnd");
 	}
 	else if (loginResult == ELoginResult::Failed)
 	{
@@ -659,7 +660,7 @@ static void signInDialogLoginCallback( ELoginResult loginResult )
 			text = UnicodeString(pAuthInterface->GetLoginFailureText().c_str());
 		}
 		ClearGSMessageBoxes();
-		GOSignInDialogShowError(title, text, CancelPatchCheckCallbackAndReopenDropdown);
+		GOSignInDialogShowError(title, text, GenOnlineCancelPatchCheckCallbackAndReopenDropdown);
 	}
 	// UserCancelled: the Cancel button that cancelled closes the dialog
 }
@@ -673,14 +674,14 @@ static void signInDialogPressed( GameWindow *control )
 			GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 			if (pAuthInterface != nullptr)
 				pAuthInterface->CancelLogin();
-			CancelPatchCheckCallbackAndReopenDropdown();
+			GenOnlineCancelPatchCheckCallbackAndReopenDropdown();
 			return;
 		}
 		GameWinMsgBoxFunc cancelFunc = signInDialogCancelFunc;
 		if (cancelFunc != NULL)
 			cancelFunc();
 		else
-			CancelPatchCheckCallbackAndReopenDropdown();
+			GenOnlineCancelPatchCheckCallbackAndReopenDropdown();
 		return;
 	}
 
@@ -879,7 +880,7 @@ void GOSignInDialogBeginSignIn( void )
 	if (pAuthInterface == nullptr)
 	{
 		GOSignInDialogShowError(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInFailed", L"Login failed."), UnicodeString::TheEmptyString,
-			CancelPatchCheckCallbackAndReopenDropdown);
+			GenOnlineCancelPatchCheckCallbackAndReopenDropdown);
 		return;
 	}
 
@@ -1137,7 +1138,7 @@ static void checkLogin()
 		loginAttemptTime = 0;
 
 		SignalUIInteraction(SHELL_SCRIPT_HOOK_GENERALS_ONLINE_LOGIN);
-		nextScreen = "Menus/WOLWelcomeMenu.wnd";
+		nextScreen = "Menus/GenOnlineWelcomeMenu.wnd";
 		TheShell->pop();
 	}
 
@@ -1160,7 +1161,7 @@ static void checkLogin()
 		TheGameSpyInfo->clearGroupRoomList();
 
 		SignalUIInteraction(SHELL_SCRIPT_HOOK_GENERALS_ONLINE_LOGIN);
-		nextScreen = "Menus/WOLWelcomeMenu.wnd";
+		nextScreen = "Menus/GenOnlineWelcomeMenu.wnd";
 		TheShell->pop();
 
 		// read in some cached data
@@ -1680,16 +1681,16 @@ WindowMsgHandledType GenOnlineLoginMenuSystem( GameWindow *window, UnsignedInt m
 				else if ( controlID == buttonUseAccountID )
 				{
 					buttonPushed = true;
-					nextScreen = "Menus/GameSpyLoginProfile.wnd";
+					nextScreen = "Menus/GenOnlineLoginProfile.wnd";
 					TheShell->pop();
-					//TheShell->push( "Menus/GameSpyLoginProfile.wnd" );
+					//TheShell->push( "Menus/GenOnlineLoginProfile.wnd" );
 				}
 				else if ( controlID == buttonDontUseAccountID )
 				{
 					buttonPushed = true;
-					nextScreen = "Menus/GameSpyLoginQuick.wnd";
+					nextScreen = "Menus/GenOnlineLoginQuick.wnd";
 					TheShell->pop();
-					//TheShell->push( "Menus/GameSpyLoginQuick.wnd" );
+					//TheShell->push( "Menus/GenOnlineLoginQuick.wnd" );
 				}
 #endif // ALLOW_NON_PROFILED_LOGIN
 				else if ( controlID == buttonTOSID )

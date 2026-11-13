@@ -247,7 +247,7 @@ void GenOnlinePopBackToLobby()
 
 	if (parentWOLGameSetup)
 	{
-		nextScreen = "Menus/WOLCustomLobby.wnd";
+		nextScreen = "Menus/GenOnlineCustomLobby.wnd";
 		TheShell->pop();
 
 
@@ -2130,7 +2130,7 @@ void GenOnlineGameSetupMenuInit( WindowLayout *layout, void *userData )
 		//if (TheGameSpyPeerMessageQueue && TheGameSpyPeerMessageQueue->isConnected())
 		{
 			DEBUG_LOG(("We're still connected, so pushing back on the lobby"));
-			TheShell->push("Menus/WOLCustomLobby.wnd", TRUE);
+			TheShell->push("Menus/GenOnlineCustomLobby.wnd", TRUE);
 		}
 
 		return;
@@ -3365,7 +3365,7 @@ WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, UnsignedI
 				}
 				else if ( controlID == buttonSelectMapID )
 				{
-					GenOnlineMapSelectLayout = TheWindowManager->winCreateLayout( "Menus/WOLMapSelectMenu.wnd" );
+					GenOnlineMapSelectLayout = TheWindowManager->winCreateLayout( "Menus/GenOnlineMapSelectMenu.wnd" );
 					GenOnlineMapSelectLayout->runInit();
 					GenOnlineMapSelectLayout->hide( FALSE );
 					GenOnlineMapSelectLayout->bringForward();
@@ -3584,7 +3584,7 @@ void OnKickedFromLobby()
 	}
 
 	GSMessageBoxOk(TheGameText->fetch("GUI:GSErrorTitle"), TheGameText->fetch("GUI:GSKicked"));
-	nextScreen = "Menus/WOLCustomLobby.wnd";
+	nextScreen = "Menus/GenOnlineCustomLobby.wnd";
 	TheShell->pop();
 }
 

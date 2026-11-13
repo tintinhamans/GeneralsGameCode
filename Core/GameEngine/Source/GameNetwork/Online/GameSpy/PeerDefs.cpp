@@ -598,10 +598,8 @@ const AsciiString& GameSpyInfo::getConfig()
 // --------------------------------------------------------------
 void SetUpGameSpy( const char *motdBuffer, const char *configBuffer )
 {
-	// TODO_NGMP: dont call this, remove gamespy fully
-#if !defined(GENONLINE)
-	SetUpOnline(ResolveConfiguredProvider(), motdBuffer, configBuffer);
-#endif
+	// Only the GameSpy Online path calls this, so it sets up the GameSpy services.
+	SetUpOnline(ONLINE_PROVIDER_GAMESPY, motdBuffer, configBuffer);
 }
 
 void TearDownGameSpy()

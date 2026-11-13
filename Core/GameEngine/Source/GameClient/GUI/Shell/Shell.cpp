@@ -44,8 +44,8 @@
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/GameSpy/PeerDefsImplementation.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 
-void raiseNotificationBox();
 
 // PUBLIC DATA ////////////////////////////////////////////////////////////////////////////////////
 Shell *TheShell = nullptr;  ///< the shell singleton definition
@@ -768,7 +768,7 @@ void Shell::doPush( AsciiString layoutFile )
 	// run the init function automatically
 	newScreen->runInit( nullptr );
 	newScreen->bringForward();
-	raiseNotificationBox();
+	GetOnlineGameHooks()->onShellScreenChanged();
 
 
 }
@@ -800,7 +800,7 @@ void Shell::doPop( Bool impendingPush )
 	if( newTop && !impendingPush )
 	{
 		newTop->runInit( nullptr );
-		raiseNotificationBox();
+		GetOnlineGameHooks()->onShellScreenChanged();
 		//newTop->bringForward();
 	}
 
