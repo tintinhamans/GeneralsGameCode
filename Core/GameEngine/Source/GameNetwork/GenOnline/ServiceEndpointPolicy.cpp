@@ -195,6 +195,14 @@ std::string WebSocketURLForBase(const std::string& base)
 	return "wss://" + base.substr(8) + "ws";
 }
 
+std::string RealtimeHubURLForBase(const std::string& base)
+{
+	if (base.compare(0, 8, "https://") != 0)
+		return {};
+	const auto authorityEnd = base.find_first_of("/?#", 8);
+	return "wss://" + base.substr(8, authorityEnd == std::string::npos ? std::string::npos : authorityEnd - 8) + "/-/realtime";
+}
+
 std::string RequestURLForLog(const std::string& value, const std::string& serviceBase)
 {
 	if (value.size() > 8192 || std::any_of(value.begin(), value.end(), [](unsigned char c) { return c <= 32 || c >= 127; }))
