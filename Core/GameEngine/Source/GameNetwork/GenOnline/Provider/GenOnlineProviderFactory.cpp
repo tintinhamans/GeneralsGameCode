@@ -23,53 +23,55 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.h"
+#include "GameNetwork/GenOnline/Provider/GenOnlineResults.h"
 #include "GameNetwork/GenOnline/GenOnlineTransport.h"
 #include "GameNetwork/TransportFactory.h"
 
-// The menus still read the GameSpy shaped objects, so the GameSpy factory builds them.
+// GenOnline services come from GenOnlineServicesManager, so the provider creates no GameSpy shaped objects.
 IOnlineConfig *GenOnlineProviderFactory::createConfig( const char *configBuffer )
 {
-	return m_gameSpy.createConfig(configBuffer);
+	return nullptr;
 }
 
 IOnlineSession *GenOnlineProviderFactory::createSession()
 {
-	return m_gameSpy.createSession();
+	return nullptr;
 }
 
 IOnlineChat *GenOnlineProviderFactory::createChat()
 {
-	return m_gameSpy.createChat();
+	return nullptr;
 }
 
 IOnlineLobbyState *GenOnlineProviderFactory::createLobbyState()
 {
-	return m_gameSpy.createLobbyState();
+	return nullptr;
 }
 
 IOnlinePresence *GenOnlineProviderFactory::createPresence()
 {
-	return m_gameSpy.createPresence();
+	return nullptr;
 }
 
 IOnlineStats *GenOnlineProviderFactory::createStats()
 {
-	return m_gameSpy.createStats();
+	return nullptr;
 }
 
 IOnlineLadder *GenOnlineProviderFactory::createLadder()
 {
-	return m_gameSpy.createLadder();
+	return nullptr;
 }
 
+// The engine keeps one results queue for its lifetime. GenOnline reports results through its own services.
 IOnlineResults *GenOnlineProviderFactory::createResults()
 {
-	return m_gameSpy.createResults();
+	return NEW GenOnlineResults;
 }
 
 IOnlineMatchmaking *GenOnlineProviderFactory::createMatchmaking()
 {
-	return m_gameSpy.createMatchmaking();
+	return nullptr;
 }
 
 // GenOnline games run over the GameNetworkingSockets transport.
@@ -83,13 +85,11 @@ Int GenOnlineProviderFactory::chooseGameTransport( const TransportInfo *transpor
 	return -1;
 }
 
-// The GenOnline services manager has its own lifetime, so only the menu objects are created here.
+// The GenOnline services manager has its own lifetime, so there are no services to create here.
 void GenOnlineProviderFactory::createServices( const char *motdBuffer, const char *configBuffer )
 {
-	m_gameSpy.createServices(motdBuffer, configBuffer);
 }
 
 void GenOnlineProviderFactory::destroyServices()
 {
-	m_gameSpy.destroyServices();
 }
