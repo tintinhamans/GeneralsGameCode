@@ -241,7 +241,7 @@ void GenOnlineBattleHonorTooltip(GameWindow *window,
 												UnsignedInt mouse)
 {
 	// Generals has its own battle honor bits, so only Zero Hour shows the GenOnline honors.
-#if !RTS_GENERALS
+#if RTS_ZEROHOUR
 	Int x, y, row, col;
 	x = LOLONGTOSHORT(mouse);
 	y = HILONGTOSHORT(mouse);
@@ -462,7 +462,7 @@ void GenOnlineInsertBattleHonor(GameWindow *list, const Image *image, Bool enabl
 static void populateBattleHonors(const PSPlayerStats& stats, Int battleHonors, Int gamesInRow, Int lastGen, Int challenge, GameWindow *list)
 {
 	// Generals has its own battle honor bits, so only Zero Hour shows the GenOnline honors.
-#if !RTS_GENERALS
+#if RTS_ZEROHOUR
 	if( !list )
 		return;
 

@@ -75,7 +75,6 @@
 #include <cmath>
 #include "../GenOnlineInit.h"
 #include "GameLogic/GameLogic.h"
-GenOnlineGame* TheGenOnlineGame = NULL;
 
 void WOLDisplaySlotList( void );
 static void WOLRefreshConnectionIndicators( void );
@@ -4566,21 +4565,6 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 }
 
 
-void OnKickedFromLobby()
-{
-	// can't see ourselves
-	buttonPushed = true;
-
-	if (TheGenOnlineGame != nullptr)
-	{
-		TheGenOnlineGame->reset();
-	}
-
-	GSMessageBoxOk(TheGameText->fetch("GUI:GSErrorTitle"), TheGameText->fetch("GUI:GSKicked"));
-	nextScreen = "Menus/WOLCustomLobby.wnd";
-	TheShell->pop();
-}
-
 // Stats pipe lobby control: the start position buttons' own handler.
 static void statsMoveStartPosition(Int slot, Int position)
 {
@@ -4618,6 +4602,7 @@ Bool WOLGameSetupMenuStatsLobby( StatsLobbyScreen& out )
 	out.buttonSelectMap = buttonSelectMap;
 	out.buttonStart = buttonStart;
 	out.moveStartPosition = statsMoveStartPosition;
+	void WOLMapSelectMenuApplyMap(const AsciiString& map);
 	out.applyMap = WOLMapSelectMenuApplyMap;
 	return TRUE;
 }
