@@ -1,0 +1,16 @@
+{
+  "match_id": 551234,
+  "won": true,
+  "desynced": false,
+  "side": 2,
+  "duration_s": 1260,
+  "stats": {
+    "buildings_built": 31,
+    "buildings_killed": 12,
+    "buildings_lost": 4,
+    "units_built": 140,
+    "units_killed": 96,
+    "units_lost": 58,
+    "total_money": 182000
+  }
+}

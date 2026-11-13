@@ -1,0 +1,13 @@
+{
+  "id": "8812",
+  "channel_id": "room:3",
+  "type": "chat",
+  "author": {
+    "id": 7,
+    "name": "Ann",
+    "badges": [
+      "moderator"
+    ]
+  },
+  "content": "hello"
+}

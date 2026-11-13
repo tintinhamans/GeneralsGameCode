@@ -1,0 +1,7 @@
+{
+  "ok": false,
+  "code": "chat.rate_limited",
+  "params": {
+    "retry_after_ms": 4200
+  }
+}
