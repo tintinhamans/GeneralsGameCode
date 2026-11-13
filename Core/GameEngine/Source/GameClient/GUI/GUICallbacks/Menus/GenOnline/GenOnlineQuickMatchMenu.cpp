@@ -126,6 +126,8 @@ static GameWindow *buttonStop = nullptr;
 static GameWindow *buttonWiden = nullptr;
 GameWindow *GenOnlineQuickMatchTextWindow = nullptr;
 static GameWindow *listboxMapSelect = nullptr;
+// The playlist map position of each map list row. The list leaves out maps that are missing or too small.
+static std::vector<int> s_mapListPlaylistPositions;
 //static GameWindow *textEntryMaxDisconnects = nullptr;
 //static GameWindow *textEntryMaxPoints = nullptr;
 //static GameWindow *textEntryMinPoints = nullptr;
@@ -568,6 +570,7 @@ static void populateQuickMatchMapSelectListbox( QuickMatchPreferences& pref )
 
 	// TODO_QUICKMATCH
 	std::list<AsciiString> maps;
+	std::vector<int> mapPlaylistPositions;
 	Int numPlayers = 0;
 	Int playlistIndex = -1;
 	GadgetComboBoxGetSelectedPos(comboBoxNumPlayers, &playlistIndex);
@@ -602,6 +605,7 @@ static void populateQuickMatchMapSelectListbox( QuickMatchPreferences& pref )
 
 					AsciiString mapPath = correctedMapPath.c_str();
 					mapPath.toLower();
+					mapPlaylistPositions.push_back((int)maps.size());
 					maps.push_back(mapPath);
 				}
 			}
@@ -629,7 +633,9 @@ static void populateQuickMatchMapSelectListbox( QuickMatchPreferences& pref )
 
 
 	GadgetListBoxReset(listboxMapSelect);
-	for (std::list<AsciiString>::const_iterator it = maps.begin(); it != maps.end(); ++it)
+	s_mapListPlaylistPositions.clear();
+	std::vector<int>::const_iterator positionIt = mapPlaylistPositions.begin();
+	for (std::list<AsciiString>::const_iterator it = maps.begin(); it != maps.end(); ++it, ++positionIt)
 	{
 		const AsciiString &theMap = *it;
 		const MapMetaData *md = TheMapCache->findMap(theMap);
@@ -652,6 +658,14 @@ static void populateQuickMatchMapSelectListbox( QuickMatchPreferences& pref )
 			GadgetListBoxAddEntryText(listboxMapSelect, displayName, GameSpyColor[(isSelected)?GSCOLOR_MAP_SELECTED:GSCOLOR_MAP_UNSELECTED], index, 1);
 			GadgetListBoxSetItemData(listboxMapSelect, (void *)isSelected, index);
 			GadgetListBoxSetItemData(listboxMapSelect, (void *)md, index, 1);
+			if (index >= 0)
+			{
+				if ((size_t)index >= s_mapListPlaylistPositions.size())
+				{
+					s_mapListPlaylistPositions.resize(index + 1, -1);
+				}
+				s_mapListPlaylistPositions[index] = *positionIt;
+			}
 		}
 	}
 }
@@ -1084,6 +1098,20 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				buttonWiden->winEnable(TRUE);
 			});
 
+		pLobbyInterface->RegisterForMatchmakingLeftCallback([]()
+			{
+				matchFoundTimeoutStart = 0;
+				matchFoundTimeoutDurationMs = lobbyTimeoutMs;
+				matchStartCountdownLastSecond = 0;
+				buttonBack->winEnable(TRUE);
+				buttonStop->winEnable(TRUE);
+				buttonWiden->winEnable(FALSE);
+				buttonStart->winEnable(TRUE);
+				buttonStart->winHide(FALSE);
+				buttonStop->winHide(TRUE);
+				enableOptionsGadgets(TRUE);
+			});
+
 		pLobbyInterface->RegisterForMatchmakingSetupProgressCallback([](int timeoutMs, int countdownMs)
 			{
 				matchFoundTimeoutDurationMs = timeoutMs;
@@ -1327,6 +1355,7 @@ void GenOnlineQuickMatchMenuShutdown( WindowLayout *layout, void *userData )
 		pLobbyInterface->DeregisterForMatchmakingMessageCallback();
 		pLobbyInterface->DeRegisterForMatchmakingMatchFoundCallback();
 		pLobbyInterface->DeregisterForMatchmakingRequeueCallback();
+		pLobbyInterface->DeregisterForMatchmakingLeftCallback();
 		pLobbyInterface->DeregisterForMatchmakingSetupProgressCallback();
 		pLobbyInterface->DeregisterForMatchmakingStartGameCallback();
 
@@ -1715,9 +1744,9 @@ WindowMsgHandledType GenOnlineQuickMatchMenuSystem( GameWindow *window, Unsigned
 								for (Int i = 0; i < numMaps; ++i)
 								{
 									bool bMapSelected = GadgetListBoxGetItemData(listboxMapSelect, i, 0);
-									if (bMapSelected)
+									if (bMapSelected && i < (Int)s_mapListPlaylistPositions.size() && s_mapListPlaylistPositions[i] >= 0)
 									{
-										vecSelectedMapIndexes.push_back(i);
+										vecSelectedMapIndexes.push_back(s_mapListPlaylistPositions[i]);
 									}
 								}
 							}

@@ -1,4 +1,5 @@
 #pragma once
+#include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 
 #include "GenOnlineInclude.h"
 #include "NetworkMesh.h"
@@ -116,15 +117,6 @@ public:
 	bool IsValid() const { return user_id != -1; }
 };
 
-struct RoomSelectionResult
-{
-	std::optional<uint64_t> requestID;
-	std::optional<int> selectedRoomID;
-	std::optional<int> effectiveRoomID;
-	std::optional<int> rejectedRoomID;
-	std::string error;
-};
-
 class GenOnlineRoomsInterface
 {
 public:
@@ -139,7 +131,6 @@ public:
 		m_CurrentRoomIndex = -1;
 		m_EffectiveRoomID.reset();
 		m_PendingRoomChange.reset();
-		m_bRoomSelectionResultsSupported = false;
 		m_vecRooms.clear();
 
 		std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
@@ -226,12 +217,23 @@ public:
 
 	const std::vector<NetworkRoom>& GetGroupRooms() const { return m_vecRooms; }
 
-	void OnRosterUpdated(std::unordered_map<uint64_t, NetworkRoomMember> mapMembers, const RoomSelectionResult& selectionResult);
-	bool SupportsModerationCommands() const { return m_bSupportsModerationCommands; }
-
 	int GetCurrentRoomIndex() const { return m_CurrentRoomIndex; }
+	std::optional<int> GetEffectiveRoomID() const { return m_EffectiveRoomID; }
+
+	// Realtime protocol v1: the hub sends the rooms with Ready and the members as events.
+	void SetRealtimeRooms(const std::vector<GenOnlineRealtime::RoomInfo>& rooms);
+	void OnRealtimeRoomMembers(const GenOnlineRealtime::RoomMembersEvent& event);
+	void OnRealtimeMemberAdd(const GenOnlineRealtime::MemberAddEvent& event);
+	void OnRealtimeMemberRemove(const GenOnlineRealtime::MemberRemoveEvent& event);
+	void OnRealtimeMemberUpdate(const GenOnlineRealtime::Member& member);
+	void OnRealtimeRoomMessage(const GenOnlineRealtime::ChatMessage& message);
+	void OnRealtimeNameChanged(const std::string& strOldName, const std::string& strNewName);
+	void OnRealtimeRoomJoinFailed(int roomID, const std::wstring& strReason);
 
 private:
+	void RefreshRoster();
+	std::vector<NetworkRoom> m_vecRealtimeRooms;
+
 	struct PendingRoomChange
 	{
 		int roomIndex;
@@ -244,8 +246,6 @@ private:
 	std::optional<int> m_EffectiveRoomID;
 	std::optional<PendingRoomChange> m_PendingRoomChange;
 	uint64_t m_NextRoomChangeRequestID = 1;
-	bool m_bRoomSelectionResultsSupported = false;
-	bool m_bSupportsModerationCommands = false;
 	std::function<void(int, bool)> m_RoomChangedCallback = nullptr;
 	void ReportRoomJoinFailure(const std::string& error);
 

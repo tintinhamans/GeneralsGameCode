@@ -1,4 +1,5 @@
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
+#include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
 #include "GameNetwork/GenOnline/NetworkMesh.h"
 #include "GameNetwork/GenOnline/WifiLowLatency.h"
 #include "GameNetwork/GenOnline/HTTP/HTTPManager.h"
@@ -248,12 +249,14 @@ std::string GenOnlineServicesManager::GetAPIEndpoint(const char* szEndpoint)
 
 bool GenOnlineServicesManager::IsServiceURLTrusted(const std::string& url)
 {
-	return ServiceConnection::IsTrustedServiceURL(url, GetAPIEndpoint(""), false);
-}
-
-bool GenOnlineServicesManager::IsWebSocketURLTrusted(const std::string& url)
-{
-	return ServiceConnection::IsTrustedServiceURL(url, GetAPIEndpoint(""), true);
+	const std::string base = GetAPIEndpoint("");
+	if (ServiceConnection::IsTrustedServiceURL(url, base, false))
+	{
+		return true;
+	}
+	// The realtime protocol v1 API sits at the root of the service origin, outside the legacy base path.
+	const std::string origin = GenOnlineRealtime::OriginOfBase(base);
+	return !origin.empty() && ServiceConnection::IsTrustedServiceURL(url, origin + "/", false);
 }
 
 void GenOnlineServicesManager::EnsureServiceRoute(std::function<void(bool)> callback)
@@ -584,7 +587,7 @@ void GenOnlineServicesManager::StartVersionCheckOnSelectedRoute(std::function<vo
 	nlohmann::json j;
 	j["client_version"] = GetClientVersion();
 #if defined(RTS_ZEROHOUR)
-	j["game"] = "generalsmd";
+	j["game"] = "zerohour";
 #else
 	j["game"] = "generals";
 #endif
@@ -1061,16 +1064,20 @@ void GenOnlineServicesManager::OnLogin(ELoginResult loginResult, const char* szW
 		m_pWebSocket = std::make_shared<WebSocket>();
 
         // the websocket address comes from the route used to log in, not from the service
-        const std::string strWebsocketAddr = ServiceConnection::WebSocketURLForBase(GetAPIEndpoint(""));
         const std::string strServiceAddr = szWSAddr ? szWSAddr : "";
-        if (strServiceAddr != strWebsocketAddr)
+        std::string strWebsocketAddr = ServiceConnection::RealtimeHubURLForBase(GetAPIEndpoint(""));
+        // the session registration names the hub, which is used only on the origin of the route
+        const std::string strAccepted = GenOnlineRealtime::AcceptRealtimeUrl(strServiceAddr, GetAPIEndpoint(""));
+        if (!strAccepted.empty())
         {
-            const std::string strServiceHost = ServiceConnection::RouteHost(strServiceAddr);
-            const bool bPrintable = std::none_of(strServiceHost.begin(), strServiceHost.end(), [](unsigned char c) { return c <= 32 || c >= 127; });
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] Service websocket address (host %s) differs from the route, using %s", bPrintable ? strServiceHost.c_str() : "[invalid]", strWebsocketAddr.c_str());
+            strWebsocketAddr = strAccepted;
+        }
+        else if (!strServiceAddr.empty())
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] Ignoring a realtime address that is not the hub on the service origin, using %s", strWebsocketAddr.c_str());
         }
 
-        m_pWebSocket->Connect(strWebsocketAddr.c_str(), false, [=]()
+        m_pWebSocket->Connect(strWebsocketAddr.c_str(), [=]()
             {
                 // Get friends list and blocked list
                 // we need to wait until the websocket is connected so we have a session
@@ -1525,57 +1532,89 @@ void WebSocket::Shutdown()
 
 void WebSocket::SendData_ChangeLobbyPassword(UnicodeString& strNewPassword)
 {
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::LOBBY_CHANGE_PASSWORD;
-	j["new_password"] = to_utf8(strNewPassword.str());
-	std::string strBody = j.dump();
-
-	Send(strBody.c_str());
+	GenOnlineRealtime::SetLobbyPasswordRequest request;
+	request.password = to_utf8(strNewPassword.str());
+	InvokeHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
+		{
+			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (!outcome.Succeeded() && pLobbyInterface != nullptr)
+			{
+				pLobbyInterface->ShowRealtimeLobbyFailure(outcome);
+			}
+		});
 }
 
 
 void WebSocket::SendData_RemoveLobbyPassword()
 {
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::LOBBY_REMOVE_PASSWORD;
-	std::string strBody = j.dump();
-
-	Send(strBody.c_str());
+	// A null password removes it.
+	GenOnlineRealtime::SetLobbyPasswordRequest request;
+	InvokeHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
+		{
+			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (!outcome.Succeeded() && pLobbyInterface != nullptr)
+			{
+				pLobbyInterface->ShowRealtimeLobbyFailure(outcome);
+			}
+		});
 }
 
 void WebSocket::SendData_ChangeName(UnicodeString& strNewName)
 {
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::PLAYER_NAME_CHANGE;
-	j["name"] = to_utf8(strNewName.str());
-	std::string strBody = j.dump();
-
-	Send(strBody.c_str());
+	GenOnlineRealtime::SetDisplayNameRequest request;
+	request.name = to_utf8(strNewName.str());
+	InvokeHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
+		{
+			if (!outcome.Succeeded())
+			{
+				GenOnlineRealtimeBridge::ShowRoomNotice(GenOnlineRealtimeBridge::FailureText(outcome), true);
+			}
+		});
 }
 
 
 void WebSocket::SendData_FriendMessage(UnicodeString& msg, int64_t target_user_id)
 {
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::SOCIAL_FRIEND_CHAT_MESSAGE_CLIENT_TO_SERVER;
-	j["target_user_id"] = target_user_id;
-	j["message"] = to_utf8(msg.str());
-	std::string strBody = j.dump();
-
-	Send(strBody.c_str());
+	GenOnlineRealtime::SendMessageRequest request;
+	request.channel_id = "dm:" + std::to_string(target_user_id);
+	request.type = "chat";
+	request.content = to_utf8(msg.str());
+	InvokeHub(request, [target_user_id](const GenOnlineRealtime::InvokeOutcome& outcome)
+		{
+			if (outcome.Succeeded())
+			{
+				return;
+			}
+			// The failure shows in the conversation with that friend.
+			GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+			GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+			if (pSocial != nullptr && pAuth != nullptr)
+			{
+				const std::wstring text = L"Not delivered: " + GenOnlineRealtimeBridge::FailureText(outcome);
+				pSocial->OnChatMessage(pAuth->GetUserID(), target_user_id, UnicodeString(text.c_str()));
+			}
+		});
 }
 
 void WebSocket::SendData_LobbyChatMessage(UnicodeString& msg, bool bIsAction, bool bIsAnnouncement, bool bShowAnnouncementToHost)
 {
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::LOBBY_ROOM_CHAT_FROM_CLIENT;
-	j["message"] = to_utf8(msg.str());
-	j["action"] = bIsAction;
-	j["announcement"] = bIsAnnouncement;
-	j["show_announcement_to_host"] = bShowAnnouncementToHost;
-	std::string strBody = j.dump();
-
-	Send(strBody.c_str());
+	GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pLobby == nullptr || !pLobby->IsInLobby())
+	{
+		return;
+	}
+	GenOnlineRealtime::SendMessageRequest request;
+	request.channel_id = "lobby:" + std::to_string(pLobby->GetCurrentLobby().lobbyID);
+	request.type = bIsAnnouncement ? "announcement" : (bIsAction ? "action" : "chat");
+	request.content = to_utf8(msg.str());
+	InvokeHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
+		{
+			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (!outcome.Succeeded() && pLobbyInterface != nullptr)
+			{
+				pLobbyInterface->ShowRealtimeLobbyFailure(outcome);
+			}
+		});
 }
 
 void WebSocket::SendData_LeaveNetworkRoom()
@@ -1586,65 +1625,57 @@ void WebSocket::SendData_LeaveNetworkRoom()
 
 void WebSocket::SendData_RequestSignalling(int64_t targetUserID)
 {
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] SEND REQUEST SIGNALING!");
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::NETWORK_CONNECTION_CLIENT_REQUEST_SIGNALLING;
-	j["target_user_id"] = targetUserID;
-	std::string strBody = j.dump();
-	Send(strBody.c_str());
+	GenOnlineRealtime::RequestSignallingRequest request;
+	request.target_user_id = targetUserID;
+	if (!FireHub(request))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] RequestSignalling for %lld dropped, the hub is not ready", targetUserID);
+	}
 }
 
 void WebSocket::SendData_Signalling(int64_t targetUserID, std::vector<uint8_t> vecPayload)
 {
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] SEND SIGNAL!");
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::NETWORK_SIGNAL;
-	j["target_user_id"] = targetUserID;
-	j["payload"] = vecPayload;
-	std::string strBody = j.dump();
-	Send(strBody.c_str());
+	GenOnlineRealtime::SignalRequest request;
+	request.to = targetUserID;
+	request.payload = GenOnlineRealtime::EncodePeerPayload(vecPayload);
+	if (!FireHub(request))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Signal for %lld dropped, the hub is not ready", targetUserID);
+	}
 }
 
 void WebSocket::SendData_StartGame()
 {
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::START_GAME;
-	std::string strBody = j.dump();
-	Send(strBody.c_str());
+	GenOnlineRealtime::StartGameRequest request;
+	InvokeHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
+		{
+			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (pLobbyInterface != nullptr)
+			{
+				pLobbyInterface->OnRealtimeStartGameOutcome(outcome);
+			}
+		});
 }
 
 
-void WebSocket::SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> vecPayload)
+bool WebSocket::SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> vecPayload)
 {
-    nlohmann::json j;
-    j["msg_id"] = EWebSocketMessageID::ANTICHEAT_MESSAGE;
-    j["target_user_id"] = targetUserID;
-    j["payload"] = vecPayload;
-    std::string strBody = j.dump();
-    Send(strBody.c_str());
-}
-
-void WebSocket::SendData_SubscribeRealtimeUpdates()
-{
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::SOCIAL_SUBSCRIBE_REALTIME_UPDATES;
-	std::string strBody = j.dump();
-	Send(strBody.c_str());
-}
-
-
-void WebSocket::SendData_UnsubscribeRealtimeUpdates()
-{
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::SOCIAL_UNSUBSCRIBE_REALTIME_UPDATES;
-	std::string strBody = j.dump();
-	Send(strBody.c_str());
+	GenOnlineRealtime::AnticheatMessageRequest request;
+	request.to = targetUserID;
+	request.payload = GenOnlineRealtime::EncodePeerPayload(vecPayload);
+	return FireHub(request);
 }
 
 void WebSocket::SendData_HostStartIntent()
 {
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::LOBBY_HOST_START_INTENT;
-	std::string strBody = j.dump();
-	Send(strBody.c_str());
+	// StartGame runs the ready check on the hub and refuses the start while a player is not ready.
+	GenOnlineRealtime::StartGameRequest request;
+	InvokeHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
+		{
+			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (pLobbyInterface != nullptr)
+			{
+				pLobbyInterface->OnRealtimeStartGameOutcome(outcome);
+			}
+		});
 }

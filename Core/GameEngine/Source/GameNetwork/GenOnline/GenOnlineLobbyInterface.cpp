@@ -7,6 +7,9 @@
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/GenOnline/LobbyConnectionPolicy.h"
 #include "Lib/PathUtil.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeMatchmaking.h"
+
+#include <algorithm>
 
 extern void OnKickedFromLobby();
 
@@ -57,86 +60,290 @@ AsciiString GenOnlineLobbyInterface::GetCurrentLobbyMapPath()
 	return strPath;
 }
 
-enum class ELobbyUpdateField
+template <class R>
+static void InvokeLobbyHub(const R& request, std::function<void(const GenOnlineRealtime::InvokeOutcome&)> callback)
 {
-	LOBBY_MAP = 0,
-	MY_SIDE = 1,
-	MY_COLOR = 2,
-	MY_START_POS = 3,
-	MY_TEAM = 4,
-	LOBBY_STARTING_CASH = 5,
-	LOBBY_LIMIT_SUPERWEAPONS = 6,
-	HOST_ACTION_FORCE_START = 7,
-	LOCAL_PLAYER_HAS_MAP = 8,
-	UNUSED_1 = 9,
-	UNUSED_2 = 10,
-	HOST_ACTION_KICK_USER = 11,
-	HOST_ACTION_SET_SLOT_STATE = 12,
-	AI_SIDE = 13,
-	AI_COLOR = 14,
-	AI_TEAM = 15,
-	AI_START_POS = 16,
-	MAX_CAMERA_HEIGHT = 17,
-	JOINABILITY = 18
-};
+	InvokeRealtimeHub(request, callback);
+}
+
+static void JoinResponseFromOutcome(const GenOnlineRealtime::InvokeOutcome& outcome, int& statusCode, std::string& strBody)
+{
+	strBody.clear();
+	if (outcome.Succeeded())
+	{
+		GenOnlineRealtime::JoinLobbyResult result;
+		outcome.Data(result);
+		nlohmann::json j;
+		j["success"] = true;
+		j["turn_username"] = result.turn.username;
+		j["turn_token"] = result.turn.token;
+		strBody = j.dump();
+		statusCode = 200;
+		return;
+	}
+
+	const std::string code = outcome.Code();
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] JoinLobby failed: %s", outcome.delivered ? code.c_str() : outcome.transportError.c_str());
+	if (!outcome.delivered)
+	{
+		statusCode = 0;
+	}
+	else if (code == "lobby.wrong_password")
+	{
+		statusCode = 401;
+	}
+	else if (code == "lobby.full")
+	{
+		statusCode = 406;
+	}
+	else if (code == "lobby.anticheat_mismatch")
+	{
+		statusCode = 417;
+	}
+	else if (code == "not_found")
+	{
+		statusCode = 404;
+	}
+	else
+	{
+		statusCode = 400;
+	}
+}
+
+static std::string CreateResponseFromOutcome(const GenOnlineRealtime::InvokeOutcome& outcome)
+{
+	nlohmann::json j;
+	j["result"] = 0;
+	j["lobby_id"] = -1;
+	j["turn_username"] = "";
+	j["turn_token"] = "";
+
+	GenOnlineRealtime::CreateLobbyResult result;
+	if (outcome.Data(result))
+	{
+		j["result"] = 1;
+		j["lobby_id"] = result.lobby_id;
+		j["turn_username"] = result.turn.username;
+		j["turn_token"] = result.turn.token;
+	}
+	else
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] CreateLobby failed: %s", outcome.delivered ? outcome.Code().c_str() : outcome.transportError.c_str());
+	}
+	return j.dump();
+}
+
+// Sends a lobby change to the hub. A refusal shows in the lobby chat.
+template <class R>
+static void InvokeLobbyUpdate(const R& request)
+{
+	InvokeLobbyHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
+		{
+			if (outcome.Succeeded())
+			{
+				return;
+			}
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] %s failed: %s", R::METHOD, outcome.delivered ? outcome.Code().c_str() : outcome.transportError.c_str());
+			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (pLobbyInterface != nullptr)
+			{
+				pLobbyInterface->ShowRealtimeLobbyFailure(outcome);
+			}
+		});
+}
+
+static GenOnlineRealtime::Nullable<int> HubTeam(int team)
+{
+	return team < 0 ? GenOnlineRealtime::Nullable<int>() : GenOnlineRealtime::Nullable<int>(team);
+}
+
+static GenOnlineRealtime::UpdateSlotsRequest SingleSlotUpdate(const GenOnlineRealtime::SlotUpdate& slot)
+{
+	GenOnlineRealtime::UpdateSlotsRequest request;
+	request.slots.push_back(slot);
+	return request;
+}
+
+static const char* SlotStateToWire(uint16_t slotState)
+{
+	switch (slotState)
+	{
+	case SlotState::SLOT_OPEN:
+		return "open";
+	case SlotState::SLOT_EASY_AI:
+		return "ai_easy";
+	case SlotState::SLOT_MED_AI:
+		return "ai_medium";
+	case SlotState::SLOT_BRUTAL_AI:
+		return "ai_brutal";
+	case SlotState::SLOT_PLAYER:
+		return "player";
+	default:
+		return "closed";
+	}
+}
+
+static uint16_t SlotStateFromWire(const std::string& state)
+{
+	if (state == "player")
+	{
+		return SlotState::SLOT_PLAYER;
+	}
+	if (state == "open")
+	{
+		return SlotState::SLOT_OPEN;
+	}
+	if (state == "ai_easy")
+	{
+		return SlotState::SLOT_EASY_AI;
+	}
+	if (state == "ai_medium")
+	{
+		return SlotState::SLOT_MED_AI;
+	}
+	if (state == "ai_brutal")
+	{
+		return SlotState::SLOT_BRUTAL_AI;
+	}
+	// A slot state this build does not know stays closed.
+	return SlotState::SLOT_CLOSED;
+}
+
+// A lobby list entry of the hub. The list carries the host as the only member.
+static LobbyEntry LobbyEntryFromSummary(const GenOnlineRealtime::LobbySummary& summary)
+{
+	LobbyEntry lobbyEntry;
+	lobbyEntry.lobbyID = summary.id;
+	lobbyEntry.owner = summary.host.id;
+	lobbyEntry.name = summary.name;
+	lobbyEntry.map_name = summary.map.name;
+	// The list has no map path. The lobby state carries it after the join.
+	lobbyEntry.map_official = summary.map.official;
+	lobbyEntry.current_players = summary.players;
+	lobbyEntry.max_players = summary.max_players;
+	lobbyEntry.vanilla_teams = summary.settings.vanilla_teams;
+	lobbyEntry.starting_cash = (uint32_t)(std::max)(0, summary.settings.starting_cash);
+	lobbyEntry.limit_superweapons = summary.settings.limit_superweapons;
+	lobbyEntry.track_stats = summary.settings.track_stats;
+	lobbyEntry.allow_observers = summary.settings.allow_observers;
+	lobbyEntry.exe_crc = summary.build.exe_crc;
+	lobbyEntry.ini_crc = summary.build.ini_crc;
+	// The list only contains custom lobbies.
+	lobbyEntry.lobby_type = ELobbyType::CustomGame;
+	lobbyEntry.passworded = summary.has_password;
+	lobbyEntry.region = summary.region;
+	lobbyEntry.latency = summary.latency_ms;
+
+	LobbyMemberEntry host;
+	host.user_id = summary.host.id;
+	host.display_name = summary.host.name;
+	host.preferredPort = 0;
+	host.m_bIsReady = true;
+	host.m_SlotIndex = 0;
+	host.m_SlotState = SlotState::SLOT_PLAYER;
+	host.has_map = true;
+	host.region = summary.region;
+	host.latency = summary.latency_ms;
+	lobbyEntry.members.push_back(host);
+	return lobbyEntry;
+}
+
+// The current lobby of the hub. Every slot becomes a member, as in the legacy lobby response.
+static void LobbyEntryFromState(const GenOnlineRealtime::LobbyState& lobby, LobbyEntry& lobbyEntry, std::vector<LobbyMemberEntry>& members)
+{
+	lobbyEntry.lobbyID = lobby.id;
+	lobbyEntry.owner = lobby.host_id;
+	lobbyEntry.name = lobby.name;
+	lobbyEntry.map_name = lobby.map.name;
+	lobbyEntry.map_path = utf8_to_local(lobby.map.path); // local file path from here on
+	lobbyEntry.map_official = lobby.map.official;
+	lobbyEntry.vanilla_teams = lobby.settings.vanilla_teams;
+	lobbyEntry.starting_cash = (uint32_t)(std::max)(0, lobby.settings.starting_cash);
+	lobbyEntry.limit_superweapons = lobby.settings.limit_superweapons;
+	lobbyEntry.track_stats = lobby.settings.track_stats;
+	lobbyEntry.allow_observers = lobby.settings.allow_observers;
+	lobbyEntry.max_cam_height = (uint16_t)(std::clamp)(lobby.settings.max_camera_height, 0, 65535);
+	// The service only lets sessions of the same build into a lobby.
+	lobbyEntry.exe_crc = TheGlobalData->m_exeCRC;
+	lobbyEntry.ini_crc = TheGlobalData->m_iniCRC;
+	lobbyEntry.match_id = lobby.match_id.isNull ? 0 : (uint64_t)lobby.match_id.value;
+	lobbyEntry.lobby_type = lobby.type == "quick_match" ? ELobbyType::QuickMatch : ELobbyType::CustomGame;
+	lobbyEntry.passworded = lobby.has_password;
+	lobbyEntry.region = lobby.region;
+
+	members.clear();
+	for (const GenOnlineRealtime::LobbySlot& slot : lobby.slots)
+	{
+		LobbyMemberEntry memberEntry;
+		memberEntry.preferredPort = 0;
+		memberEntry.m_SlotState = SlotStateFromWire(slot.state);
+		if (slot.index >= 0 && slot.index < MAX_SLOTS)
+		{
+			memberEntry.m_SlotIndex = (uint16_t)slot.index;
+		}
+		if (memberEntry.m_SlotState == SlotState::SLOT_PLAYER && slot.member.has_value())
+		{
+			memberEntry.user_id = slot.member->id;
+			memberEntry.display_name = slot.member->name;
+			memberEntry.has_map = slot.has_map;
+		}
+		else
+		{
+			memberEntry.user_id = -1;
+			memberEntry.m_SlotState = memberEntry.m_SlotState == SlotState::SLOT_PLAYER ? SlotState::SLOT_OPEN : memberEntry.m_SlotState;
+			// Only players can miss the map.
+			memberEntry.has_map = true;
+		}
+		memberEntry.m_bIsReady = slot.ready;
+		memberEntry.side = slot.side;
+		memberEntry.color = slot.color;
+		memberEntry.team = slot.team.isNull ? -1 : slot.team.value;
+		memberEntry.startpos = slot.start_position;
+		memberEntry.region = lobby.region;
+
+		if (memberEntry.m_SlotState == SlotState::SLOT_PLAYER || memberEntry.m_SlotState == SlotState::SLOT_EASY_AI || memberEntry.m_SlotState == SlotState::SLOT_MED_AI || memberEntry.m_SlotState == SlotState::SLOT_BRUTAL_AI)
+		{
+			++lobbyEntry.current_players;
+		}
+		if (memberEntry.m_SlotState != SlotState::SLOT_CLOSED)
+		{
+			++lobbyEntry.max_players;
+		}
+		members.push_back(memberEntry);
+	}
+}
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_Map(UnicodeString strMap, AsciiString strMapPath, bool bIsOfficial, int newMaxPlayers)
 {
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-	std::map<std::string, std::string> mapHeaders;
-
 	// sanitize map path
 	// we need to parse out the map name for custom maps... its an absolute path
 	// it's safe to just get the file name, dir name and file name MUST be the same. Game enforces this
 	AsciiString sanitizedMapPath = getFileName(strMapPath.str());
 
-	nlohmann::json j;
-	j["field"] = ELobbyUpdateField::LOBBY_MAP;
-	j["map"] = to_utf8(strMap.str());
-	j["map_path"] = local_to_utf8(sanitizedMapPath.str());
-	j["map_official"] = bIsOfficial;
-	j["max_players"] = newMaxPlayers;
-	std::string strPostData = j.dump();
-
-	// convert
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-			
-		});
+	GenOnlineRealtime::UpdateLobbyRequest request;
+	GenOnlineRealtime::UpdateLobbyMap map;
+	map.name = to_utf8(strMap.str());
+	map.path = local_to_utf8(sanitizedMapPath.str());
+	map.official = bIsOfficial;
+	map.max_players = newMaxPlayers;
+	request.map = map;
+	InvokeLobbyUpdate(request);
 }
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_LimitSuperweapons(bool bLimitSuperweapons)
 {
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-	std::map<std::string, std::string> mapHeaders;
-
-	nlohmann::json j;
-	j["field"] = ELobbyUpdateField::LOBBY_LIMIT_SUPERWEAPONS;
-	j["limit_superweapons"] = bLimitSuperweapons;
-	std::string strPostData = j.dump();
-
-	// convert
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-
-		});
+	GenOnlineRealtime::UpdateLobbyRequest request;
+	request.settings = GenOnlineRealtime::UpdateLobbySettings();
+	request.settings->limit_superweapons = bLimitSuperweapons;
+	InvokeLobbyUpdate(request);
 }
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_StartingCash(UnsignedInt startingCashValue)
 {
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-	std::map<std::string, std::string> mapHeaders;
-
-	nlohmann::json j;
-	j["field"] = ELobbyUpdateField::LOBBY_STARTING_CASH;
-	j["startingcash"] = startingCashValue;
-	std::string strPostData = j.dump();
-
-	// convert
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-
-		});
+	GenOnlineRealtime::UpdateLobbyRequest request;
+	request.settings = GenOnlineRealtime::UpdateLobbySettings();
+	request.settings->starting_cash = (int)startingCashValue;
+	InvokeLobbyUpdate(request);
 }
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_HasMap()
@@ -144,94 +351,45 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_HasMap()
 	// do we have the map?
 	bool bHasMap = TheMapCache->findMap(AsciiString(m_CurrentLobby.map_path.c_str()));
 
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-	std::map<std::string, std::string> mapHeaders;
-
-	nlohmann::json j;
-	j["field"] = ELobbyUpdateField::LOCAL_PLAYER_HAS_MAP;
-	j["has_map"] = bHasMap;
-	std::string strPostData = j.dump();
-
-	// convert
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-
-		});
+	GenOnlineRealtime::SetHasMapRequest request;
+	request.has_map = bHasMap;
+	InvokeLobbyUpdate(request);
 }
 
 // start AI
 void GenOnlineLobbyInterface::UpdateCurrentLobby_AISide(int slot, int side, int updatedStartPos)
 {
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-	std::map<std::string, std::string> mapHeaders;
-
-	nlohmann::json j;
-	j["field"] = ELobbyUpdateField::AI_SIDE;
-	j["slot"] = slot;
-	j["side"] = side;
-	j["start_pos"] = updatedStartPos;
-	std::string strPostData = j.dump();
-
-	// convert
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-
-		});
+	GenOnlineRealtime::SlotUpdate update;
+	update.index = slot;
+	update.side = side;
+	update.start_position = updatedStartPos;
+	InvokeLobbyUpdate(SingleSlotUpdate(update));
 }
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_AITeam(int slot, int team)
 {
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-	std::map<std::string, std::string> mapHeaders;
-
-	nlohmann::json j;
-	j["field"] = ELobbyUpdateField::AI_TEAM;
-	j["slot"] = slot;
-	j["team"] = team;
-	std::string strPostData = j.dump();
-
-	// convert
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-
-		});
+	GenOnlineRealtime::SlotUpdate update;
+	update.index = slot;
+	update.team = HubTeam(team);
+	InvokeLobbyUpdate(SingleSlotUpdate(update));
 }
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_AIStartPos(int slot, int startpos)
 {
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-	std::map<std::string, std::string> mapHeaders;
-
-	nlohmann::json j;
-	j["field"] = ELobbyUpdateField::AI_START_POS;
-	j["slot"] = slot;
-	j["start_pos"] = startpos;
-	std::string strPostData = j.dump();
-
-	// convert
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-
-		});
+	GenOnlineRealtime::SlotUpdate update;
+	update.index = slot;
+	update.start_position = startpos;
+	InvokeLobbyUpdate(SingleSlotUpdate(update));
 }
 
 void GenOnlineLobbyInterface::UpdateCurrentLobbyMaxCameraHeight(uint16_t maxCameraHeight)
 {
 	if (IsHost())
 	{
-		std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-		std::map<std::string, std::string> mapHeaders;
-
-		nlohmann::json j;
-		j["field"] = ELobbyUpdateField::MAX_CAMERA_HEIGHT;
-		j["max_camera_height"] = maxCameraHeight;
-		std::string strPostData = j.dump();
-
-		// convert
-		GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-			{
-
-			});
+		GenOnlineRealtime::UpdateLobbyRequest request;
+		request.settings = GenOnlineRealtime::UpdateLobbySettings();
+		request.settings->max_camera_height = maxCameraHeight;
+		InvokeLobbyUpdate(request);
 	}
 }
 
@@ -240,143 +398,63 @@ void GenOnlineLobbyInterface::SetJoinability(ELobbyJoinability joinabilityFlag)
 {
     if (IsHost())
     {
-        std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-        std::map<std::string, std::string> mapHeaders;
-
-        nlohmann::json j;
-        j["field"] = ELobbyUpdateField::JOINABILITY;
-		j["joinability"] = (int)joinabilityFlag;
-        std::string strPostData = j.dump();
-
-        // convert
-        GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-            {
-
-            });
+        GenOnlineRealtime::UpdateLobbyRequest request;
+        request.visibility = std::string(joinabilityFlag == ELobbyJoinability::LobbyJoinability_FriendsOnly ? "friends" : "public");
+        InvokeLobbyUpdate(request);
     }
 }
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_AIColor(int slot, int color)
 {
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-	std::map<std::string, std::string> mapHeaders;
-
-	nlohmann::json j;
-	j["field"] = ELobbyUpdateField::AI_COLOR;
-	j["slot"] = slot;
-	j["color"] = color;
-	std::string strPostData = j.dump();
-
-	// convert
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-
-		});
+	GenOnlineRealtime::SlotUpdate update;
+	update.index = slot;
+	update.color = color;
+	InvokeLobbyUpdate(SingleSlotUpdate(update));
 }
 // end AI
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_MySide(int side, int updatedStartPos)
 {
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-	std::map<std::string, std::string> mapHeaders;
-
-	nlohmann::json j;
-	j["field"] = ELobbyUpdateField::MY_SIDE;
-	j["side"] = side;
-	j["start_pos"] = updatedStartPos;
-	std::string strPostData = j.dump();
-
-	// convert
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-
-		});
+	GenOnlineRealtime::UpdateMySlotRequest request;
+	request.side = side;
+	request.start_position = updatedStartPos;
+	InvokeLobbyUpdate(request);
 }
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_MyColor(int color)
 {
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-	std::map<std::string, std::string> mapHeaders;
-
-	nlohmann::json j;
-	j["field"] = ELobbyUpdateField::MY_COLOR;
-	j["color"] = color;
-	std::string strPostData = j.dump();
-
-	// convert
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-
-		});
+	GenOnlineRealtime::UpdateMySlotRequest request;
+	request.color = color;
+	InvokeLobbyUpdate(request);
 }
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_MyStartPos(int startpos)
 {
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-	std::map<std::string, std::string> mapHeaders;
-
-	nlohmann::json j;
-	j["field"] = ELobbyUpdateField::MY_START_POS;
-	j["startpos"] = startpos;
-	std::string strPostData = j.dump();
-
-	// convert
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-
-		});
+	GenOnlineRealtime::UpdateMySlotRequest request;
+	request.start_position = startpos;
+	InvokeLobbyUpdate(request);
 }
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_MyTeam(int team)
 {
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-	std::map<std::string, std::string> mapHeaders;
-
-	nlohmann::json j;
-	j["field"] = ELobbyUpdateField::MY_TEAM;
-	j["team"] = team;
-	std::string strPostData = j.dump();
-
-	// convert
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-
-		});
+	GenOnlineRealtime::UpdateMySlotRequest request;
+	request.team = HubTeam(team);
+	InvokeLobbyUpdate(request);
 }
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_SetSlotState(uint16_t slotIndex, uint16_t slotState)
 {
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-	std::map<std::string, std::string> mapHeaders;
-
-	nlohmann::json j;
-	j["field"] = ELobbyUpdateField::HOST_ACTION_SET_SLOT_STATE;
-	j["slot_index"] = slotIndex;
-	j["slot_state"] = slotState;
-	std::string strPostData = j.dump();
-
-	// convert
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-
-		});
+	GenOnlineRealtime::SetSlotStateRequest request;
+	request.index = slotIndex;
+	request.state = SlotStateToWire(slotState);
+	InvokeLobbyUpdate(request);
 }
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_KickUser(int64_t userID, UnicodeString name)
 {
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-	std::map<std::string, std::string> mapHeaders;
-
-	nlohmann::json j;
-	j["field"] = ELobbyUpdateField::HOST_ACTION_KICK_USER;
-	j["userid"] = userID;
-	std::string strPostData = j.dump();
-
-	// convert
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-
-		});
+	GenOnlineRealtime::KickFromLobbyRequest request;
+	request.user_id = userID;
+	InvokeLobbyUpdate(request);
 }
 
 void GenOnlineLobbyInterface::SendChatMessageToCurrentLobby(UnicodeString& strChatMsgUnicode, bool bIsAction)
@@ -391,22 +469,6 @@ void GenOnlineLobbyInterface::SendChatMessageToCurrentLobby(UnicodeString& strCh
 GenOnlineLobbyInterface::GenOnlineLobbyInterface()
 {
 
-}
-
-// a missing or out of range slot index leaves the member at NO_SLOT_INDEX
-static void ParseMemberSlotIndex(const nlohmann::json& memberJson, LobbyMemberEntry& memberEntry)
-{
-	auto it = memberJson.find("SlotIndex");
-	if (it == memberJson.end() || !it->is_number_integer())
-	{
-		return;
-	}
-
-	const int64_t slotIndex = it->get<int64_t>();
-	if (slotIndex >= 0 && slotIndex < MAX_SLOTS)
-	{
-		memberEntry.m_SlotIndex = static_cast<uint16_t>(slotIndex);
-	}
 }
 
 void GenOnlineLobbyInterface::SearchForLobbies(std::function<void()> onStartCallback, std::function<void(std::vector<LobbyEntry>)> onCompleteCallback)
@@ -428,145 +490,7 @@ void GenOnlineLobbyInterface::SearchForLobbies(std::function<void()> onStartCall
 		onStartCallback();
 	}
 
-	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("Lobbies");
-	std::map<std::string, std::string> mapHeaders;
-
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-			bool bSearchSucceeded = false;
-			if (bSuccess && statusCode == 200)
-			{
-				try
-				{
-				nlohmann::json jsonObject = nlohmann::json::parse(strBody);
-				std::vector<LobbyEntry> parsedLobbies;
-
-				std::vector<int> vecLatencies;
-				std::map<int64_t, int> mapPlayerLatencies;
-
-				JsonGetOptional(jsonObject, "latencies", vecLatencies);
-
-				// player latencies
-				for (const auto& playerLatencyEntryIter : jsonObject["playerlatencies"])
-				{
-					int64_t user_id = -1;
-					int latency = -1;
-
-					JsonGetOptional(playerLatencyEntryIter, "user_id", user_id);
-					JsonGetOptional(playerLatencyEntryIter, "latency", latency);
-
-					if (user_id != -1 && latency != -1)
-					{
-						mapPlayerLatencies[user_id] = latency;
-					}
-				}
-
-				int latencyIndex = 0;
-			for (const auto& lobbyEntryIter : jsonObject["lobbies"])
-			{
-				// latencies are indexed by the server's lobby order, so count skipped entries too
-				const size_t entryLatencyIndex = latencyIndex++;
-				try
-				{
-					LobbyEntry lobbyEntry;
-					JsonGetRequired(lobbyEntryIter, "LobbyID", lobbyEntry.lobbyID);
-					JsonGetRequired(lobbyEntryIter, "Owner", lobbyEntry.owner);
-					JsonGetOptional(lobbyEntryIter, "Name", lobbyEntry.name);
-					JsonGetOptional(lobbyEntryIter, "MapName", lobbyEntry.map_name);
-					JsonGetOptional(lobbyEntryIter, "MapPath", lobbyEntry.map_path);
-					lobbyEntry.map_path = utf8_to_local(lobbyEntry.map_path); // local file path from here on
-					JsonGetOptional(lobbyEntryIter, "IsMapOfficial", lobbyEntry.map_official);
-					JsonGetOptional(lobbyEntryIter, "NumCurrentPlayers", lobbyEntry.current_players);
-					JsonGetOptional(lobbyEntryIter, "MaxPlayers", lobbyEntry.max_players);
-					JsonGetOptional(lobbyEntryIter, "IsVanillaTeamsOnly", lobbyEntry.vanilla_teams);
-					JsonGetOptional(lobbyEntryIter, "StartingCash", lobbyEntry.starting_cash);
-					JsonGetOptional(lobbyEntryIter, "IsLimitSuperweapons", lobbyEntry.limit_superweapons);
-					JsonGetOptional(lobbyEntryIter, "IsTrackingStats", lobbyEntry.track_stats);
-					JsonGetOptional(lobbyEntryIter, "IsPassworded", lobbyEntry.passworded);
-					JsonGetOptional(lobbyEntryIter, "AllowObservers", lobbyEntry.allow_observers);
-					JsonGetOptional(lobbyEntryIter, "MaximumCameraHeight", lobbyEntry.max_cam_height);
-					JsonGetOptional(lobbyEntryIter, "ExeCRC", lobbyEntry.exe_crc);
-					JsonGetOptional(lobbyEntryIter, "IniCRC", lobbyEntry.ini_crc);
-					JsonGetOptional(lobbyEntryIter, "MatchID", lobbyEntry.match_id);
-					JsonGetOptional(lobbyEntryIter, "LobbyType", lobbyEntry.lobby_type);
-					JsonGetOptional(lobbyEntryIter, "Region", lobbyEntry.region);
-
-					// attach latency
-					if (entryLatencyIndex < vecLatencies.size())
-					{
-						lobbyEntry.latency = vecLatencies[entryLatencyIndex];
-					}
-					else
-					{
-						// dummy value
-						lobbyEntry.latency = 9001;
-					}
-					// correct map path
-					if (lobbyEntry.map_official)
-					{
-						lobbyEntry.map_path = std::format("maps\\{}", lobbyEntry.map_path.c_str());
-					}
-					else
-					{
-						lobbyEntry.map_path = std::format("{}\\{}", TheMapCache->getUserMapDir(true).str(), lobbyEntry.map_path.c_str());
-					}
-
-					// NOTE: These fields won't be present becauase they're private properties
-					//memberEntryIter["enc_key"].get_to(strEncKey);
-
-					for (const auto& memberEntryIter : lobbyEntryIter.at("Members"))
-					{
-						LobbyMemberEntry memberEntry;
-
-						JsonGetRequired(memberEntryIter, "UserID", memberEntry.user_id);
-						JsonGetOptional(memberEntryIter, "DisplayName", memberEntry.display_name);
-						JsonGetOptional(memberEntryIter, "IsReady", memberEntry.m_bIsReady);
-						ParseMemberSlotIndex(memberEntryIter, memberEntry);
-						JsonGetOptional(memberEntryIter, "SlotState", memberEntry.m_SlotState);
-						JsonGetOptional(memberEntryIter, "Region", memberEntry.region);
-
-						// store latency
-						if (mapPlayerLatencies.contains(memberEntry.user_id))
-						{
-							memberEntry.latency = mapPlayerLatencies[memberEntry.user_id];
-						}
-						else
-						{
-							memberEntry.latency = 0;
-						}
-
-						lobbyEntry.members.push_back(memberEntry);
-					}
-
-					parsedLobbies.push_back(std::move(lobbyEntry));
-				}
-				catch (...)
-				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Skipping malformed lobby list entry");
-				}
-			}
-					m_vecLobbies = std::move(parsedLobbies);
-					bSearchSucceeded = true;
-				}
-				catch (...)
-				{
-
-				}
-			}
-
-			if (!bSearchSucceeded)
-			{
-				m_bLobbyListDirty.store(true);
-			}
-
-			const std::function<void(std::vector<LobbyEntry>)> completionCallback = m_fnCallbackSearchForLobbiesComplete;
-			const std::vector<LobbyEntry> lobbies = m_vecLobbies;
-			m_bSearchInProgress.store(false);
-			if (completionCallback != nullptr)
-			{
-				completionCallback(lobbies);
-			}
-	});
+	SearchForLobbiesRealtime();
 }
 
 void GenOnlineLobbyInterface::RequestRosterRefresh()
@@ -777,294 +701,184 @@ void GenOnlineLobbyInterface::ApplyLocalUserPropertiesToCurrentNetworkRoom()
 	}
 }
 
-void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCallback)
+void GenOnlineLobbyInterface::HandleCurrentLobbyGone()
 {
-	// refresh lobby
-	if (m_CurrentLobby.lobbyID != -1 && TheGenOnlineGame != nullptr)
+	// the match runs on this lobby's mesh
+	if (TheGenOnlineGame != nullptr && TheGenOnlineGame->isGameInProgress())
 	{
-		const int64_t requestedLobbyID = m_CurrentLobby.lobbyID;
-		const uint64_t requestSeq = ++m_LobbyUpdateRequestSeq;
-		std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), requestedLobbyID);
-		std::map<std::string, std::string> mapHeaders;
-
-		GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-			// safety, lobby could've been torn down by the time we get our response
-				if (m_CurrentLobby.lobbyID == requestedLobbyID && TheGenOnlineGame != nullptr)
-				{
-					// TODO_GENONLINE: Error handling
-					try
-					{
-						// Overlapping GETs must not roll the roster or owner back.
-						if (requestSeq < m_LobbyUpdateAppliedSeq)
-						{
-							NetworkLog(ELogVerbosity::LOG_DEBUG, "[GenOnline] Ignoring out of order lobby response %llu (already applied %llu)", requestSeq, m_LobbyUpdateAppliedSeq.load());
-							if (fnCallback != nullptr)
-							{
-								fnCallback(true); // a newer response has already refreshed the cache
-							}
-							return;
-						}
-
-						if (statusCode == 404) // lobby destroyed, just leave
-						{
-							// TODO_GENONLINE: We still want to do this, but we need to send back that it failed and back out, proceeding to lobby crashes because mesh wasn't created
-							if (fnCallback != nullptr)
-							{
-								fnCallback(false);
-							}
-
-							// the match runs on this lobby's mesh
-							if (TheGenOnlineGame != nullptr && TheGenOnlineGame->isGameInProgress())
-							{
-								NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Lobby lookup returned 404 during a match, keeping the match running");
-								return;
-							}
-
-							// the server requeues quick match players itself, a DELETE would cancel that
-							if (TheGenOnlineGame->isQMGame() || m_CurrentLobby.lobby_type == ELobbyType::QuickMatch)
-							{
-								NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Quick match lobby lookup returned 404, tearing down locally only");
-								ResetForMatchmakingRequeue();
-								return;
-							}
-
-							LeaveCurrentLobby();
-
-							// Set after LeaveCurrentLobby because it clears the flag.
-							m_bPendingHostHasLeft = true;
-							return;
-						}
-
-						nlohmann::json jsonObjectRoot = nlohmann::json::parse(strBody);
-
-						NetworkLog(ELogVerbosity::LOG_DEBUG, "LOBBY JSON");
-						NetworkLog(ELogVerbosity::LOG_DEBUG, "%s", strBody.c_str());
-
-						auto lobbyEntryIter = jsonObjectRoot["lobby"];
-
-						LobbyEntry lobbyEntry;
-						JsonGetRequired(lobbyEntryIter, "LobbyID", lobbyEntry.lobbyID);
-						JsonGetRequired(lobbyEntryIter, "Owner", lobbyEntry.owner);
-						JsonGetOptional(lobbyEntryIter, "Name", lobbyEntry.name);
-						JsonGetOptional(lobbyEntryIter, "MapName", lobbyEntry.map_name);
-						JsonGetOptional(lobbyEntryIter, "MapPath", lobbyEntry.map_path);
-						lobbyEntry.map_path = utf8_to_local(lobbyEntry.map_path); // local file path from here on
-						JsonGetOptional(lobbyEntryIter, "IsMapOfficial", lobbyEntry.map_official);
-						JsonGetOptional(lobbyEntryIter, "NumCurrentPlayers", lobbyEntry.current_players);
-						JsonGetOptional(lobbyEntryIter, "MaxPlayers", lobbyEntry.max_players);
-						JsonGetOptional(lobbyEntryIter, "IsVanillaTeamsOnly", lobbyEntry.vanilla_teams);
-						JsonGetOptional(lobbyEntryIter, "RNGSeed", lobbyEntry.rng_seed);
-						JsonGetOptional(lobbyEntryIter, "StartingCash", lobbyEntry.starting_cash);
-						JsonGetOptional(lobbyEntryIter, "IsLimitSuperweapons", lobbyEntry.limit_superweapons);
-						JsonGetOptional(lobbyEntryIter, "IsTrackingStats", lobbyEntry.track_stats);
-						JsonGetOptional(lobbyEntryIter, "IsPassworded", lobbyEntry.passworded);
-						JsonGetOptional(lobbyEntryIter, "AllowObservers", lobbyEntry.allow_observers);
-						JsonGetOptional(lobbyEntryIter, "MaximumCameraHeight", lobbyEntry.max_cam_height);
-						JsonGetOptional(lobbyEntryIter, "ExeCRC", lobbyEntry.exe_crc);
-						JsonGetOptional(lobbyEntryIter, "IniCRC", lobbyEntry.ini_crc);
-						JsonGetOptional(lobbyEntryIter, "MatchID", lobbyEntry.match_id);
-						JsonGetOptional(lobbyEntryIter, "LobbyType", lobbyEntry.lobby_type);
-						JsonGetOptional(lobbyEntryIter, "Region", lobbyEntry.region);
-
-						// Every member is parsed before any side effect so a malformed member changes nothing.
-						std::vector<LobbyMemberEntry> parsedMembers;
-						for (const auto& memberEntryIter : lobbyEntryIter.at("Members"))
-						{
-							LobbyMemberEntry memberEntry;
-
-							JsonGetRequired(memberEntryIter, "UserID", memberEntry.user_id);
-							JsonGetOptional(memberEntryIter, "DisplayName", memberEntry.display_name);
-							JsonGetOptional(memberEntryIter, "IsReady", memberEntry.m_bIsReady);
-							JsonGetOptional(memberEntryIter, "Port", memberEntry.preferredPort);
-							JsonGetOptional(memberEntryIter, "Side", memberEntry.side);
-							JsonGetOptional(memberEntryIter, "Color", memberEntry.color);
-							JsonGetOptional(memberEntryIter, "Team", memberEntry.team);
-							JsonGetOptional(memberEntryIter, "StartingPosition", memberEntry.startpos);
-							JsonGetOptional(memberEntryIter, "HasMap", memberEntry.has_map);
-							JsonGetOptional(memberEntryIter, "SlotState", memberEntry.m_SlotState);
-							ParseMemberSlotIndex(memberEntryIter, memberEntry);
-							JsonGetOptional(memberEntryIter, "Region", memberEntry.region);
-							JsonGetOptional(memberEntryIter, "MiddlewareUserID", memberEntry.middlewareUserID);
-
-							parsedMembers.push_back(memberEntry);
-						}
-
-						if (lobbyEntry.lobby_type == ELobbyType::QuickMatch)
-						{
-							TheGenOnlineGame->markGameAsQM();
-						}
-
-						// store, we'll need it later and lobby obj gets destroyed on leave
-						m_CurrentMatchID = lobbyEntry.match_id;
-
-						// correct map path
-						if (lobbyEntry.map_official)
-						{
-							lobbyEntry.map_path = std::format("maps\\{}", lobbyEntry.map_path.c_str());
-						}
-						else
-						{
-							// TODO_GENONLINE: This needs to match identically, but why did it change from the base game?
-							AsciiString strUserMapDIr = TheMapCache->getUserMapDir(true);
-							strUserMapDIr.toLower();
-
-							lobbyEntry.map_path = std::format("{}\\{}", strUserMapDIr.str(), lobbyEntry.map_path.c_str());
-						}
-
-						// did the map change? cache that we need to reset and transmit our ready state
-						bool bNeedsHasMapUpdate = false;
-						if (strcasecmp(lobbyEntry.map_path.c_str(), TheGenOnlineGame->getMap().str()) != 0)
-						{
-							bNeedsHasMapUpdate = true;
-						}
-
-						// dont let the service be authoritative during gameplay over play list, the game host handles connections at this point
-						// we do care about everything else up until members list though, because we need things like matchID which is determined as the game transitions to in progress
-						if (TheGenOnlineGame->isGameInProgress() && !TheGameLogic->IsLoadScreenActive())
-						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "Ignoring lobby members update request during gameplay.");
-
-							// retain the old members list
-							lobbyEntry.members = m_CurrentLobby.members;
-
-							// still store the lobby though
-							m_LobbyUpdateAppliedSeq = requestSeq;
-							m_CurrentLobby = lobbyEntry;
-						}
-						else
-						{
-							bool bFoundSelfInOld = false;
-							bool bFoundSelfInNew = false;
-							GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-							int64_t myUserID = pAuthInterface == nullptr ? -1 : pAuthInterface->GetUserID();
-
-							// check for user in old lobby data
-							for (LobbyMemberEntry& currentMember : m_CurrentLobby.members)
-							{
-								if (currentMember.IsHuman())
-								{
-									// detect local kick
-									if (currentMember.user_id == myUserID)
-									{
-										bFoundSelfInOld = true;
-										break;
-									}
-								}
-							}
-
-							for (const LobbyMemberEntry& memberEntry : parsedMembers)
-							{
-								lobbyEntry.members.push_back(memberEntry);
-
-								// TODO_GENONLINE: Much more robust system here
-			// TODO_GENONLINE: A lost connection to a mesh peer that others still reach needs a disconnect or a retry.
-								// TODO_GENONLINE: handle failure to connect to some users
-
-								bool bMapOwnershipStateChanged = true;
-								for (LobbyMemberEntry& currentMember : m_CurrentLobby.members)
-								{
-									if (memberEntry.IsHuman())
-									{
-										// detect local kick
-										if (memberEntry.user_id == myUserID)
-										{
-											bFoundSelfInNew = true;
-										}
-
-										if (currentMember.user_id == memberEntry.user_id)
-										{
-											// check if the map state changes
-											if (currentMember.has_map == memberEntry.has_map)
-											{
-												bMapOwnershipStateChanged = false;
-											}
-
-											break;
-										}
-									}
-								}
-
-								if (bMapOwnershipStateChanged)
-								{
-									// changed and the person no longer has the map
-									if (!memberEntry.has_map)
-									{
-										if (m_cbPlayerDoesntHaveMap != nullptr)
-										{
-											m_cbPlayerDoesntHaveMap(memberEntry);
-										}
-									}
-								}
-							}
-
-
-							if (bFoundSelfInOld && !bFoundSelfInNew)
-							{
-								NetworkLog(ELogVerbosity::LOG_RELEASE, "We were kicked from the lobby...");
-								OnKickedFromLobby();
-							}
-
-							// did the host change?
-							if (lobbyEntry.owner != m_CurrentLobby.owner)
-							{
-								// no host migration in QM since it doesn't even have a lobby
-								if (lobbyEntry.lobby_type != ELobbyType::QuickMatch)
-								{
-									m_bHostMigrated = true;
-								}
-							}
-
-							// store
-							m_LobbyUpdateAppliedSeq = requestSeq;
-							m_CurrentLobby = lobbyEntry;
-							RecordJoinOrder(lobbyEntry.members);
-
-							// inform game instance too
-							if (TheGenOnlineGame != nullptr)
-							{
-								TheGenOnlineGame->SyncWithLobby(m_CurrentLobby);
-								TheGenOnlineGame->UpdateSlotsFromCurrentLobby();
-
-								if (bNeedsHasMapUpdate)
-								{
-									UpdateCurrentLobby_HasMap();
-								}
-
-								std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
-								if (m_RosterNeedsRefreshCallback != nullptr)
-								{
-									m_RosterNeedsRefreshCallback();
-								}
-							}
-						}
-
-						if (fnCallback != nullptr)
-						{
-							fnCallback(bSuccess);
-						}
-					}
-					catch (...)
-					{
-						// TODO_GENONLINE: We still want to do this, but we need to send back that it failed and back out, proceeding to lobby crashes because mesh wasn't created
-						if (fnCallback != nullptr)
-						{
-							fnCallback(false);
-						}
-					}
-				}
-				else
-				{
-					// TODO_GENONLINE: We still want to do this, but we need to send back that it failed and back out, proceeding to lobby crashes because mesh wasn't created
-					if (fnCallback != nullptr)
-					{
-						fnCallback(false);
-					}
-				}
-		});
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Lobby lookup returned 404 during a match, keeping the match running");
+		return;
 	}
 
-	return;
+	// the server requeues quick match players itself, a DELETE would cancel that
+	if (TheGenOnlineGame->isQMGame() || m_CurrentLobby.lobby_type == ELobbyType::QuickMatch)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Quick match lobby lookup returned 404, tearing down locally only");
+		ResetForMatchmakingRequeue();
+		return;
+	}
+
+	LeaveCurrentLobby();
+
+	// Set after LeaveCurrentLobby because it clears the flag.
+	m_bPendingHostHasLeft = true;
+}
+
+void GenOnlineLobbyInterface::ApplyLobbyUpdate(LobbyEntry lobbyEntry, const std::vector<LobbyMemberEntry>& parsedMembers, uint64_t requestSeq)
+{
+	if (lobbyEntry.lobby_type == ELobbyType::QuickMatch)
+	{
+		TheGenOnlineGame->markGameAsQM();
+	}
+
+	// store, we'll need it later and lobby obj gets destroyed on leave
+	m_CurrentMatchID = lobbyEntry.match_id;
+
+	// correct map path
+	if (lobbyEntry.map_official)
+	{
+		lobbyEntry.map_path = std::format("maps\\{}", lobbyEntry.map_path.c_str());
+	}
+	else
+	{
+		// TODO_GENONLINE: This needs to match identically, but why did it change from the base game?
+		AsciiString strUserMapDIr = TheMapCache->getUserMapDir(true);
+		strUserMapDIr.toLower();
+
+		lobbyEntry.map_path = std::format("{}\\{}", strUserMapDIr.str(), lobbyEntry.map_path.c_str());
+	}
+
+	// did the map change? cache that we need to reset and transmit our ready state
+	bool bNeedsHasMapUpdate = false;
+	if (strcasecmp(lobbyEntry.map_path.c_str(), TheGenOnlineGame->getMap().str()) != 0)
+	{
+		bNeedsHasMapUpdate = true;
+	}
+
+	// dont let the service be authoritative during gameplay over play list, the game host handles connections at this point
+	// we do care about everything else up until members list though, because we need things like matchID which is determined as the game transitions to in progress
+	if (TheGenOnlineGame->isGameInProgress() && !TheGameLogic->IsLoadScreenActive())
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Ignoring lobby members update request during gameplay.");
+
+		// retain the old members list
+		lobbyEntry.members = m_CurrentLobby.members;
+
+		// still store the lobby though
+		m_LobbyUpdateAppliedSeq = requestSeq;
+		m_CurrentLobby = lobbyEntry;
+	}
+	else
+	{
+		bool bFoundSelfInOld = false;
+		bool bFoundSelfInNew = false;
+		GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+		int64_t myUserID = pAuthInterface == nullptr ? -1 : pAuthInterface->GetUserID();
+
+		// check for user in old lobby data
+		for (LobbyMemberEntry& currentMember : m_CurrentLobby.members)
+		{
+			if (currentMember.IsHuman())
+			{
+				// detect local kick
+				if (currentMember.user_id == myUserID)
+				{
+					bFoundSelfInOld = true;
+					break;
+				}
+			}
+		}
+
+		for (const LobbyMemberEntry& memberEntry : parsedMembers)
+		{
+			lobbyEntry.members.push_back(memberEntry);
+
+			// TODO_GENONLINE: Much more robust system here
+			// TODO_GENONLINE: A lost connection to a mesh peer that others still reach needs a disconnect or a retry.
+			// TODO_GENONLINE: handle failure to connect to some users
+
+			bool bMapOwnershipStateChanged = true;
+			for (LobbyMemberEntry& currentMember : m_CurrentLobby.members)
+			{
+				if (memberEntry.IsHuman())
+				{
+					// detect local kick
+					if (memberEntry.user_id == myUserID)
+					{
+						bFoundSelfInNew = true;
+					}
+
+					if (currentMember.user_id == memberEntry.user_id)
+					{
+						// check if the map state changes
+						if (currentMember.has_map == memberEntry.has_map)
+						{
+							bMapOwnershipStateChanged = false;
+						}
+
+						break;
+					}
+				}
+			}
+
+			if (bMapOwnershipStateChanged)
+			{
+				// changed and the person no longer has the map
+				if (!memberEntry.has_map)
+				{
+					if (m_cbPlayerDoesntHaveMap != nullptr)
+					{
+						m_cbPlayerDoesntHaveMap(memberEntry);
+					}
+				}
+			}
+		}
+
+
+		if (bFoundSelfInOld && !bFoundSelfInNew)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "We were kicked from the lobby...");
+			OnKickedFromLobby();
+		}
+
+		// did the host change?
+		if (lobbyEntry.owner != m_CurrentLobby.owner)
+		{
+			// no host migration in QM since it doesn't even have a lobby
+			if (lobbyEntry.lobby_type != ELobbyType::QuickMatch)
+			{
+				m_bHostMigrated = true;
+			}
+		}
+
+		// store
+		m_LobbyUpdateAppliedSeq = requestSeq;
+		m_CurrentLobby = lobbyEntry;
+		RecordJoinOrder(lobbyEntry.members);
+
+		// inform game instance too
+		if (TheGenOnlineGame != nullptr)
+		{
+			TheGenOnlineGame->SyncWithLobby(m_CurrentLobby);
+			TheGenOnlineGame->UpdateSlotsFromCurrentLobby();
+
+			if (bNeedsHasMapUpdate)
+			{
+				UpdateCurrentLobby_HasMap();
+			}
+
+			std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
+			if (m_RosterNeedsRefreshCallback != nullptr)
+			{
+				m_RosterNeedsRefreshCallback();
+			}
+		}
+	}
+}
+
+void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCallback)
+{
+	UpdateRoomDataCacheRealtime(fnCallback);
 }
 
 bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPassword)
@@ -1092,27 +906,9 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 				return;
 			}
 
-			std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), lobbyInfo.lobbyID);
-			std::map<std::string, std::string> mapHeaders;
-
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Joining lobby with id %d", lobbyInfo.lobbyID);
 
 			bool bHasMap = TheMapCache->findMap(AsciiString(lobbyInfo.map_path.c_str()));
-
-			nlohmann::json j;
-
-			// TODO_GENONLINE: Remove this and just hardcode it or provide from service
-			j["preferred_port"] = 0;
-
-			j["anticheat_id"] = GenOnlinePluginHost::GetAnticheatIdentifier();
-			j["has_map"] = bHasMap;
-
-			if (!strPassword.empty())
-			{
-				j["password"] = local_to_utf8(strPassword);
-			}
-
-			std::string strPostData = j.dump();
 
 			// create our mesh
 			if (m_pLobbyMesh == nullptr)
@@ -1136,8 +932,7 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 			// TURN credentials arrive with the join response
 			m_pLobbyMesh->AwaitTurnCredentials();
 
-			// convert
-			GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPUTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+			auto onJoinResponse = [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 				{
 					GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 					if (pLobbyInterface == nullptr || pLobbyInterface != this || pLobbyInterface->m_LobbyJoinGeneration.load() != lobbyJoinGeneration)
@@ -1145,8 +940,7 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 						// stale join response landed after we already left/moved on; leave again if it succeeded
 						if (pLobbyInterface == this && statusCode == 200 && bSuccess && m_CurrentLobby.lobbyID != lobbyInfo.lobbyID)
 						{
-							std::map<std::string, std::string> mapLeaveHeaders;
-							GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendDELETERequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapLeaveHeaders, "", nullptr);
+							LeaveLobbyOnService(lobbyInfo.lobbyID);
 						}
 						return;
 					}
@@ -1288,6 +1082,21 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 					}
 
 
+				};
+
+			GenOnlineRealtime::JoinLobbyRequest request;
+			request.lobby_id = lobbyInfo.lobbyID;
+			if (!strPassword.empty())
+			{
+				request.password = local_to_utf8(strPassword);
+			}
+			request.has_map = bHasMap;
+			InvokeLobbyHub(request, [onJoinResponse](const GenOnlineRealtime::InvokeOutcome& outcome)
+				{
+					int statusCode = 0;
+					std::string strBody;
+					JoinResponseFromOutcome(outcome, statusCode, strBody);
+					onJoinResponse(outcome.delivered, statusCode, strBody, nullptr);
 				});
 		});
 
@@ -1428,6 +1237,12 @@ void GenOnlineLobbyInterface::TearDownLocalLobbyState()
 		delete TheGenOnlineGame;
 		TheGenOnlineGame = nullptr;
 	}
+
+	// A realtime lobby state belongs to the lobby that was left.
+	m_hubLobbyState.reset();
+	m_hubMatchStartLobbyID = -1;
+	m_hubGameStartLobbyID = -1;
+	FlushLobbyStateWaiters(false);
 }
 
 void GenOnlineLobbyInterface::LeaveCurrentLobby()
@@ -1440,9 +1255,7 @@ void GenOnlineLobbyInterface::LeaveCurrentLobby()
 	}
 
 	// leave on service
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
-	std::map<std::string, std::string> mapHeaders;
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendDELETERequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "", nullptr);
+	LeaveLobbyOnService(m_CurrentLobby.lobbyID);
 
 	// reset local data
 	ResetCachedRoomData();
@@ -1502,8 +1315,6 @@ void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeStr
 			ResetJoinOrder();
 			ResetHostMigrationFlags();
 			m_bJoinOrderKnown = true;
-			std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("Lobbies");
-			std::map<std::string, std::string> mapHeaders;
 
 			// convert
 			std::string strMapName = to_utf8(strInitialMapName.str());
@@ -1513,30 +1324,7 @@ void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeStr
 			// it's safe to just get the file name, dir name and file name MUST be the same. Game enforces this
 			AsciiString sanitizedMapPath = getFileName(strInitialMapPath.str());
 
-			nlohmann::json j;
-			j["name"] = to_utf8(strLobbyName.str());
-			j["map_name"] = strMapName;
-			j["map_path"] = local_to_utf8(sanitizedMapPath.str());
-			j["map_official"] = bIsOfficial;
-			j["max_players"] = initialMaxSize;
-
-			// TODO_GENONLINE: Remove this and just hardcode it or provide from service
-			j["preferred_port"] = 0;
-
-			j["vanilla_teams"] = bVanillaTeamsOnly;
-			j["track_stats"] = bTrackStats;
-			j["starting_cash"] = startingCash;
-			j["passworded"] = bPassworded;
-			j["password"] = local_to_utf8(strPassword);
-			j["allow_observers"] = bAllowObservers;
-			j["exe_crc"] = TheGlobalData->m_exeCRC;
-			j["ini_crc"] = TheGlobalData->m_iniCRC;
-			j["max_cam_height"] = GenOnlineServicesManager::Settings.Camera_GetMaxHeight_WhenLobbyHost();
-			j["anticheat_id"] = GenOnlinePluginHost::GetAnticheatIdentifier();
-
-			std::string strPostData = j.dump();
-
-			GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPUTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+			auto onCreateResponse = [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 				{
 					try
 					{
@@ -1558,9 +1346,7 @@ void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeStr
 							NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Ignoring stale CreateLobby response (generation changed)");
 							if (resp.result == ECreateLobbyResponseResult::SUCCEEDED)
 							{
-								std::string strLeaveURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), resp.lobby_id);
-								std::map<std::string, std::string> mapLeaveHeaders;
-								GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendDELETERequest(strLeaveURI.c_str(), EIPProtocolVersion::DONT_CARE, mapLeaveHeaders, "", nullptr);
+								LeaveLobbyOnService(resp.lobby_id);
 							}
 							return;
 						}
@@ -1663,6 +1449,29 @@ void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeStr
 
 					}
 
+				};
+
+			// The service takes the build identity and the anticheat id from the session.
+			GenOnlineRealtime::CreateLobbyRequest request;
+			request.name = to_utf8(strLobbyName.str());
+			request.map.name = strMapName;
+			request.map.path = local_to_utf8(sanitizedMapPath.str());
+			request.map.official = bIsOfficial;
+			request.max_players = initialMaxSize;
+			request.visibility = "public";
+			if (bPassworded)
+			{
+				request.password = local_to_utf8(strPassword);
+			}
+			request.preferred_port = 0;
+			request.settings.starting_cash = (int)startingCash;
+			request.settings.vanilla_teams = bVanillaTeamsOnly;
+			request.settings.track_stats = bTrackStats;
+			request.settings.allow_observers = bAllowObservers;
+			request.settings.max_camera_height = GenOnlineServicesManager::Settings.Camera_GetMaxHeight_WhenLobbyHost();
+			InvokeLobbyHub(request, [onCreateResponse](const GenOnlineRealtime::InvokeOutcome& outcome)
+				{
+					onCreateResponse(outcome.delivered, outcome.Succeeded() ? 200 : 400, CreateResponseFromOutcome(outcome), nullptr);
 				});
 		});
 }
@@ -1709,4 +1518,420 @@ void GenOnlineLobbyInterface::OnJoinedOrCreatedLobby(bool bAlreadyUpdatedDetails
 	}
 
 
+}
+
+void GenOnlineLobbyInterface::LeaveLobbyOnService(int64_t lobbyID)
+{
+	// LeaveLobby leaves the lobby the session is in.
+	InvokeLobbyHub(GenOnlineRealtime::LeaveLobbyRequest(), [lobbyID](const GenOnlineRealtime::InvokeOutcome& outcome)
+		{
+			if (!outcome.Succeeded())
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] LeaveLobby for %lld failed: %s", lobbyID, outcome.delivered ? outcome.Code().c_str() : outcome.transportError.c_str());
+			}
+		});
+}
+
+// The hub sends lobby list changes to watchers, so a search after the first one reads the cache.
+void GenOnlineLobbyInterface::SearchForLobbiesRealtime()
+{
+	if (m_bWatchingLobbyList)
+	{
+		CompleteRealtimeLobbySearch(true);
+		return;
+	}
+
+	InvokeLobbyHub(GenOnlineRealtime::WatchLobbyListRequest(), [this](const GenOnlineRealtime::InvokeOutcome& outcome)
+		{
+			GenOnlineRealtime::WatchLobbyListResult result;
+			const bool bWatching = outcome.Data(result);
+			if (bWatching)
+			{
+				m_hubLobbyList = result.lobbies;
+				m_bWatchingLobbyList = true;
+			}
+			else
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] WatchLobbyList failed: %s", outcome.delivered ? outcome.Code().c_str() : outcome.transportError.c_str());
+			}
+			CompleteRealtimeLobbySearch(bWatching);
+		});
+}
+
+void GenOnlineLobbyInterface::CompleteRealtimeLobbySearch(bool bSucceeded)
+{
+	// A failed watch is retried after the next Ready, which marks the list dirty.
+	if (bSucceeded)
+	{
+		std::vector<LobbyEntry> lobbies;
+		for (const GenOnlineRealtime::LobbySummary& summary : m_hubLobbyList)
+		{
+			lobbies.push_back(LobbyEntryFromSummary(summary));
+		}
+		m_vecLobbies = std::move(lobbies);
+	}
+
+	const std::function<void(std::vector<LobbyEntry>)> completionCallback = m_fnCallbackSearchForLobbiesComplete;
+	const std::vector<LobbyEntry> lobbies = m_vecLobbies;
+	m_bSearchInProgress.store(false);
+	if (completionCallback != nullptr)
+	{
+		completionCallback(lobbies);
+	}
+}
+
+void GenOnlineLobbyInterface::StopWatchingLobbyList()
+{
+	if (!m_bWatchingLobbyList)
+	{
+		return;
+	}
+	m_bWatchingLobbyList = false;
+	m_hubLobbyList.clear();
+	InvokeLobbyHub(GenOnlineRealtime::UnwatchLobbyListRequest(), nullptr);
+}
+
+void GenOnlineLobbyInterface::OnRealtimeReady()
+{
+	// A new connection has no lobby list subscription.
+	m_bWatchingLobbyList = false;
+	m_hubLobbyList.clear();
+	SetLobbyListDirty();
+}
+
+void GenOnlineLobbyInterface::OnRealtimeLobbyListUpsert(const GenOnlineRealtime::LobbySummary& lobby)
+{
+	if (!m_bWatchingLobbyList)
+	{
+		return;
+	}
+	for (GenOnlineRealtime::LobbySummary& entry : m_hubLobbyList)
+	{
+		if (entry.id == lobby.id)
+		{
+			entry = lobby;
+			SetLobbyListDirty();
+			return;
+		}
+	}
+	m_hubLobbyList.push_back(lobby);
+	SetLobbyListDirty();
+}
+
+void GenOnlineLobbyInterface::OnRealtimeLobbyListRemove(int64_t lobbyID)
+{
+	if (!m_bWatchingLobbyList)
+	{
+		return;
+	}
+	for (auto it = m_hubLobbyList.begin(); it != m_hubLobbyList.end(); ++it)
+	{
+		if (it->id == lobbyID)
+		{
+			m_hubLobbyList.erase(it);
+			SetLobbyListDirty();
+			return;
+		}
+	}
+}
+
+// The hub pushes the lobby state after every change, so a refresh applies the latest state or waits for it.
+void GenOnlineLobbyInterface::UpdateRoomDataCacheRealtime(std::function<void(bool)> fnCallback)
+{
+	if (m_CurrentLobby.lobbyID == -1 || TheGenOnlineGame == nullptr)
+	{
+		return;
+	}
+
+	if (m_hubLobbyState.has_value() && m_hubLobbyState->id == m_CurrentLobby.lobbyID)
+	{
+		const GenOnlineRealtime::LobbyState lobby = *m_hubLobbyState;
+		ApplyRealtimeLobbyState(lobby);
+		if (fnCallback != nullptr)
+		{
+			fnCallback(true);
+		}
+		return;
+	}
+
+	if (fnCallback != nullptr)
+	{
+		m_hubLobbyStateWaiters.push_back(fnCallback);
+	}
+}
+
+void GenOnlineLobbyInterface::ApplyRealtimeLobbyState(const GenOnlineRealtime::LobbyState& lobby)
+{
+	LobbyEntry lobbyEntry;
+	std::vector<LobbyMemberEntry> members;
+	LobbyEntryFromState(lobby, lobbyEntry, members);
+
+	// The service never sends the password, and the seed arrives with the game start.
+	lobbyEntry.password = m_CurrentLobby.password;
+	lobbyEntry.rng_seed = m_CurrentLobby.rng_seed;
+
+	ApplyLobbyUpdate(lobbyEntry, members, ++m_LobbyUpdateRequestSeq);
+}
+
+void GenOnlineLobbyInterface::FlushLobbyStateWaiters(bool bSucceeded)
+{
+	std::vector<std::function<void(bool)>> waiters;
+	waiters.swap(m_hubLobbyStateWaiters);
+	for (const std::function<void(bool)>& waiter : waiters)
+	{
+		waiter(bSucceeded);
+	}
+}
+
+void GenOnlineLobbyInterface::OnRealtimeLobbyState(const GenOnlineRealtime::LobbyState& lobby)
+{
+	// Kept for a join whose result arrives after the state.
+	m_hubLobbyState = lobby;
+	if (lobby.id != m_CurrentLobby.lobbyID || TheGenOnlineGame == nullptr)
+	{
+		return;
+	}
+	ApplyRealtimeLobbyState(lobby);
+	FlushLobbyStateWaiters(true);
+}
+
+void GenOnlineLobbyInterface::OnRealtimeLobbyLeft(const GenOnlineRealtime::LobbyLeftEvent& event)
+{
+	if (event.lobby_id != m_CurrentLobby.lobbyID)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] LobbyLeft for lobby %lld, the current lobby is %lld", event.lobby_id, m_CurrentLobby.lobbyID);
+		return;
+	}
+
+	FlushLobbyStateWaiters(false);
+	if (event.reason == "kicked")
+	{
+		// A lobby state without the local user has already shown the kick.
+		GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+		const int64_t myUserID = pAuthInterface == nullptr ? -1 : pAuthInterface->GetUserID();
+		bool bStillMember = false;
+		for (const LobbyMemberEntry& member : m_CurrentLobby.members)
+		{
+			if (member.IsHuman() && member.user_id == myUserID)
+			{
+				bStillMember = true;
+				break;
+			}
+		}
+		if (bStillMember)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "We were kicked from the lobby...");
+			OnKickedFromLobby();
+		}
+	}
+	else if (event.reason == "closed")
+	{
+		if (TheGenOnlineGame != nullptr)
+		{
+			HandleCurrentLobbyGone();
+		}
+		else
+		{
+			ResetForMatchmakingRequeue();
+		}
+	}
+	// "left" answers a LeaveLobby of this client, which already tore the lobby down.
+}
+
+// The legacy reason code of a refused StartGame, which picks the text of the setup menu.
+static std::string StartRefusedReason(const GenOnlineRealtime::InvokeOutcome& outcome)
+{
+	if (!outcome.delivered)
+	{
+		return std::string();
+	}
+	const std::string code = outcome.Code();
+	if (code == "lobby.not_ready")
+	{
+		return "not_ready";
+	}
+	if (code == "lobby.mesh_incomplete")
+	{
+		return "mesh_incomplete";
+	}
+	if (code == "lobby.not_host")
+	{
+		return "not_owner";
+	}
+	if (code == "lobby.already_started")
+	{
+		return "already_started";
+	}
+	if (code == "not_found" || code == "lobby.not_member")
+	{
+		return "no_lobby";
+	}
+	return code;
+}
+
+void GenOnlineLobbyInterface::OnRealtimeStartGameOutcome(const GenOnlineRealtime::InvokeOutcome& outcome)
+{
+	// A started countdown arrives as CountdownStarted.
+	if (outcome.Succeeded())
+	{
+		return;
+	}
+	const std::string strReason = StartRefusedReason(outcome);
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] The service refused the match start (%s)", outcome.delivered ? outcome.Code().c_str() : outcome.transportError.c_str());
+	if (m_callbackStartGameRejected != nullptr)
+	{
+		m_callbackStartGameRejected(strReason, std::vector<std::pair<int64_t, int64_t>>());
+	}
+}
+
+void GenOnlineLobbyInterface::OnRealtimeCountdownStarted(const GenOnlineRealtime::CountdownStartedEvent& event)
+{
+	if (event.lobby_id != m_CurrentLobby.lobbyID || m_callbackLobbyEvent == nullptr)
+	{
+		return;
+	}
+	LobbyEvent lobbyEvent;
+	lobbyEvent.event = "countdown_started";
+	lobbyEvent.duration_ms = event.duration_ms;
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Lobby event %s", lobbyEvent.event.c_str());
+	m_callbackLobbyEvent(lobbyEvent);
+}
+
+void GenOnlineLobbyInterface::OnRealtimeCountdownCancelled(const GenOnlineRealtime::CountdownCancelledEvent& event)
+{
+	if (event.lobby_id != m_CurrentLobby.lobbyID || m_callbackLobbyEvent == nullptr)
+	{
+		return;
+	}
+	LobbyEvent lobbyEvent;
+	lobbyEvent.event = "countdown_cancelled";
+	// The setup menu names a player that left member_left.
+	lobbyEvent.reason = event.reason == "player_left" ? std::string("member_left") : event.reason;
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Lobby event %s (%s, %d missing)", lobbyEvent.event.c_str(), event.reason.c_str(), event.missing.has_value() ? (int)event.missing->size() : 0);
+	m_callbackLobbyEvent(lobbyEvent);
+}
+
+void GenOnlineLobbyInterface::OnRealtimeGameStart(const GenOnlineRealtime::GameStartEvent& event)
+{
+	if (event.lobby_id != m_CurrentLobby.lobbyID || TheGenOnlineGame == nullptr)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Ignoring GameStart for lobby %lld, the current lobby is %lld", event.lobby_id, m_CurrentLobby.lobbyID);
+		return;
+	}
+
+	// The service and the other players have already started, so a missing link is only logged.
+	if (m_CurrentLobby.lobby_type == ELobbyType::CustomGame && !AreLocalLobbyPeersConnected())
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Starting with a required peer connection missing");
+	}
+
+	m_CurrentLobby.match_id = (uint64_t)event.match_id;
+	m_CurrentLobby.rng_seed = (int)event.rng_seed;
+	m_CurrentMatchID = m_CurrentLobby.match_id;
+	TheGenOnlineGame->SyncWithLobby(m_CurrentLobby);
+
+	if (!event.screenshot_url.isNull)
+	{
+		GenOnlineServicesManager::GetInstance()->SetScreenshotS3URI_StartMatch(event.screenshot_url.value.c_str());
+	}
+
+	if (m_callbackStartGamePacket != nullptr)
+	{
+		m_callbackStartGamePacket();
+	}
+
+	if (m_CurrentLobby.lobby_type == ELobbyType::QuickMatch)
+	{
+		m_hubGameStartLobbyID = event.lobby_id;
+		StartQuickMatchWhenReady();
+	}
+}
+
+void GenOnlineLobbyInterface::HandleMatchFound(int64_t lobbyID, const std::string& mapPath)
+{
+	InvokeMatchmakingMatchFoundCallback();
+
+	// TODO_QUICKMATCH: Only if really in quickmatch
+
+	// TODO_QUICKMATCH: We need to retrieve this info instead
+	// basic info needed to join
+	LobbyEntry lobbyEntry;
+	lobbyEntry.lobbyID = lobbyID;
+	lobbyEntry.map_path = mapPath;
+	// A found match always joins a quick match lobby, so the lobby type is known before the first lobby state.
+	lobbyEntry.lobby_type = ELobbyType::QuickMatch;
+
+	if (JoinLobby(lobbyEntry, std::string()))
+	{
+		InvokeMatchmakingMessageCallback("Joining QuickMatch Lobby");
+	}
+	else
+	{
+		InvokeMatchmakingMessageCallback("Could not join the QuickMatch lobby, another join is still in progress");
+	}
+}
+
+void GenOnlineLobbyInterface::HandleMatchSetupProgress(int64_t timeoutMs, int64_t countdownMs)
+{
+	static constexpr int kMinMatchSetupTimeoutMs = 1000;
+	static constexpr int kMaxMatchSetupTimeoutMs = 120000;
+
+	if (timeoutMs <= 0)
+	{
+		return;
+	}
+	if (timeoutMs < kMinMatchSetupTimeoutMs)
+	{
+		timeoutMs = kMinMatchSetupTimeoutMs;
+	}
+	else if (timeoutMs > kMaxMatchSetupTimeoutMs)
+	{
+		timeoutMs = kMaxMatchSetupTimeoutMs;
+	}
+	InvokeMatchmakingSetupProgressCallback((int)timeoutMs, (int)countdownMs);
+}
+
+void GenOnlineLobbyInterface::OnRealtimeMatchmakingStatus(const GenOnlineRealtime::MatchmakingStatusEvent& event)
+{
+	InvokeMatchmakingMessageCallback(GenOnlineRealtime::MatchmakingStatusText(event.code, event.params));
+	if (event.code != "matchmaking.left")
+	{
+		return;
+	}
+	// The player is no longer queued. A quick match lobby that was joined or is being joined belongs to the abandoned match.
+	if (m_bAttemptingToJoinLobby || (IsInLobby() && m_CurrentLobby.lobby_type == ELobbyType::QuickMatch))
+	{
+		ResetForMatchmakingRequeue();
+	}
+	InvokeMatchmakingLeftCallback();
+}
+
+void GenOnlineLobbyInterface::OnRealtimeMatchStart(const GenOnlineRealtime::MatchStartEvent& event)
+{
+	if (event.lobby_id != m_CurrentLobby.lobbyID)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Ignoring MatchStart for lobby %lld, the current lobby is %lld", event.lobby_id, m_CurrentLobby.lobbyID);
+		return;
+	}
+	m_hubMatchStartLobbyID = event.lobby_id;
+	StartQuickMatchWhenReady();
+}
+
+// A quick match starts once both MatchStart and GameStart arrived, because GameStart carries the seed and the match id.
+void GenOnlineLobbyInterface::StartQuickMatchWhenReady()
+{
+	if (m_hubMatchStartLobbyID != m_CurrentLobby.lobbyID || m_hubGameStartLobbyID != m_CurrentLobby.lobbyID)
+	{
+		return;
+	}
+	m_hubMatchStartLobbyID = -1;
+	m_hubGameStartLobbyID = -1;
+	InvokeMatchmakingStartGameCallback();
+}
+
+void GenOnlineLobbyInterface::OnRealtimeMatchRequeue(const GenOnlineRealtime::MatchRequeueEvent& event)
+{
+	InvokeMatchmakingMessageCallback(GenOnlineRealtime::MatchRequeueText(event.reason));
+	ResetForMatchmakingRequeue();
+	InvokeMatchmakingRequeueCallback();
 }

@@ -7,7 +7,7 @@ struct ServiceConnectionSettings
 {
 	// "automatic" picks a working route, "custom" uses only serverAddress
 	std::string serverMode = "automatic";
-	// https origin of the custom server, empty unless serverMode is custom
+	// https origin of the custom server, or an http origin on a loopback host, empty unless serverMode is custom
 	std::string serverAddress;
 	// "automatic" follows the Windows proxy settings, "disabled" connects directly, "custom" uses proxyURL
 	std::string proxyMode = "automatic";
@@ -18,7 +18,7 @@ struct ServiceConnectionSettings
 
 namespace ServiceConnection
 {
-// host[:port] or https://host[:port] to its origin (https, lower case host, default port dropped); false with a reason for anything else
+// host[:port] or https://host[:port] to its origin (https, lower case host, default port dropped), or http://host[:port] for a loopback host only, false with a reason for anything else
 bool NormalizeCustomEndpoint(const std::string& typed, std::string& origin, std::string& error);
 // The key the login token is stored under: one for every GO route, one per custom origin, empty when a custom server has no valid address
 std::string CredentialServerKey(const ServiceConnectionSettings& settings);
@@ -26,11 +26,12 @@ std::string CredentialServerKey(const ServiceConnectionSettings& settings);
 std::vector<std::string> BootstrapRoutes(const std::string& environment,
     const ServiceConnectionSettings& settings, const std::string& remembered);
 std::string RouteHost(const std::string& route);
+// https and wss on the base host and port, http and ws instead when the base is http on a loopback host
 bool IsTrustedServiceURL(const std::string& url, const std::string& base, bool websocket);
-// wss address of the websocket on a service base: the scheme swapped from https and ws appended to the path; empty for a base that is not https
-std::string WebSocketURLForBase(const std::string& base);
+// wss address of the realtime hub on the host of a service base, ws for a loopback http base, empty for any other base
+std::string RealtimeHubURLForBase(const std::string& base);
 std::string RequestURLForLog(const std::string& url, const std::string& serviceBase);
 bool IsExpectedVersionManifest(const std::string& body);
-// Verified TLS (not in _DEBUG builds), no redirects, no embedded credentials, direct connection; HTTPS or WSS only.
+// Verified TLS (not in _DEBUG builds), no redirects, no embedded credentials, direct connection, HTTPS or WSS only, or HTTP or WS on a loopback host.
 bool ConfigureServiceTransport(CURL* curl, const std::string& url, std::string& error);
 }

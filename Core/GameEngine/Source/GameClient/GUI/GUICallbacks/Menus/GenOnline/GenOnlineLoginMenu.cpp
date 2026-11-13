@@ -406,51 +406,11 @@ static GameWindow *textEntryDay =				NULL;
 static GameWindow *textEntryYear =				NULL;
 
 // GenOnline @feature arcticdolphin 08/11/2026 GO sign-in screen, and a layout without these windows falls back to the message box login.
-static const Int SIGN_IN_PROVIDER_COUNT = 3;
-static const char *const signInProviderNames[SIGN_IN_PROVIDER_COUNT] = {
-	"GameSpyLoginProfile.wnd:ButtonProviderDiscord",
-	"GameSpyLoginProfile.wnd:ButtonProviderSteam",
-	"GameSpyLoginProfile.wnd:ButtonProviderGameReplays",
-};
-static const ELoginProvider signInProviders[SIGN_IN_PROVIDER_COUNT] = { ELoginProvider::Discord, ELoginProvider::Steam, ELoginProvider::GameReplays };
 static Bool signInScreen = FALSE;
 static GameWindow *staticTextSignInStatus =		NULL;
 static GameWindow *buttonUseAnotherAccount =	NULL;
 static GameWindow *buttonSignInCancel =				NULL;
-static GameWindow *buttonSignInProviders[SIGN_IN_PROVIDER_COUNT] = { NULL, NULL, NULL };
 static ELoginStage shownSignInStage = ELoginStage::None;
-// TheSuperHackers @feature arcticdolphin 09/11/2026 Provider logos (scripts/go_logos.py), drawn by the button itself so no window over it blocks the click or the hover.
-static const char *const signInProviderLogos[SIGN_IN_PROVIDER_COUNT] = { "GOLogoDiscord", "GOLogoSteam", "GOLogoGameReplays" };
-static GameWinDrawFunc signInProviderDraws[SIGN_IN_PROVIDER_COUNT] = { NULL, NULL, NULL };
-
-static void signInProviderDraw( GameWindow *window, WinInstanceData *instData )
-{
-	Int provider = -1;
-	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
-	{
-		if (window == buttonSignInProviders[i])
-			provider = i;
-	}
-	if (provider < 0)
-		return;
-
-	if (signInProviderDraws[provider] != NULL)
-		signInProviderDraws[provider]( window, instData );
-
-	const Image *logo = TheMappedImageCollection ? TheMappedImageCollection->findImageByName( signInProviderLogos[provider] ) : NULL;
-	if (logo == NULL)
-		return;
-
-	// a square of 5/8 of the button height, centred down and twice as far from the left edge
-	Int x, y, width, height;
-	window->winGetScreenPosition( &x, &y );
-	window->winGetSize( &width, &height );
-	const Int size = height * 5 / 8;
-	const Int inset = (height - size) / 2;
-	const Color color = BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) ? GameMakeColor( 255, 255, 255, 255 ) : GameMakeColor( 255, 255, 255, 96 );
-	TheDisplay->drawImage( logo, x + 2 * inset, y + inset, x + 2 * inset + size, y + inset + size, color );
-}
-
 static void showSignInState( ELoginStage stage )
 {
 	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
@@ -460,8 +420,6 @@ static void showSignInState( ELoginStage stage )
 	UnicodeString status;
 	if (stage == ELoginStage::Failed)
 		status = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInFailed", L"Login failed.");
-	else if (stage == ELoginStage::RequestingCode || stage == ELoginStage::WaitingForProvider)
-		status = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInChoose", L"Choose how to sign in");
 	else if (stage == ELoginStage::WaitingForBrowser)
 		status = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInContinueInBrowser", L"Continue in your web browser");
 	else if (pAuthInterface->HasDisplayName())
@@ -470,14 +428,6 @@ static void showSignInState( ELoginStage stage )
 		status = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInSigningIn", L"Signing in...");
 	GadgetStaticTextSetText(staticTextSignInStatus, status);
 
-	const Bool codeKnown = (stage == ELoginStage::WaitingForProvider || stage == ELoginStage::WaitingForBrowser) && !pAuthInterface->GetLoginCode().empty();
-	const Bool choosing = codeKnown || stage == ELoginStage::RequestingCode;
-
-	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
-	{
-		buttonSignInProviders[i]->winHide(!choosing);
-		buttonSignInProviders[i]->winEnable(codeKnown);
-	}
 	buttonUseAnotherAccount->winHide(stage != ELoginStage::SavedLogin);
 	// GenOnline @bugfix arcticdolphin 09/11/2026 Cancel stays up while the login finishes, so a websocket that never connects is no dead end.
 	buttonSignInCancel->winHide(stage == ELoginStage::Failed);
@@ -501,32 +451,16 @@ static void updateSignInScreen( Bool force )
 }
 
 // GenOnline @feature arcticdolphin 09/11/2026 The sign-in screen and the sign-in dialog share these windows, and only one of them is up at a time.
-static Bool findSignInWindows( GameWindow *parent, const char *statusName, const char *useAnotherAccountName, const char *cancelName, const char *const providerNames[] )
+static Bool findSignInWindows( GameWindow *parent, const char *statusName, const char *useAnotherAccountName, const char *cancelName )
 {
 	staticTextSignInStatus = TheWindowManager->winGetWindowFromId( parent, NAMEKEY(statusName) );
 	buttonUseAnotherAccount = TheWindowManager->winGetWindowFromId( parent, NAMEKEY(useAnotherAccountName) );
 	buttonSignInCancel = TheWindowManager->winGetWindowFromId( parent, NAMEKEY(cancelName) );
-	Bool found = staticTextSignInStatus && buttonUseAnotherAccount && buttonSignInCancel;
-	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
+	if (staticTextSignInStatus == NULL || buttonUseAnotherAccount == NULL || buttonSignInCancel == NULL)
 	{
-		buttonSignInProviders[i] = TheWindowManager->winGetWindowFromId( parent, NAMEKEY(providerNames[i]) );
-		found = found && buttonSignInProviders[i] != NULL;
-	}
-	if (!found)
 		return FALSE;
-
-	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
-	{
-		if (buttonSignInProviders[i]->winGetDrawFunc() != signInProviderDraw)
-		{
-			signInProviderDraws[i] = buttonSignInProviders[i]->winGetDrawFunc();
-			buttonSignInProviders[i]->winSetDrawFunc( signInProviderDraw );
-		}
 	}
 
-	GadgetButtonSetText(buttonSignInProviders[0], TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInProviderDiscord", L"Discord"));
-	GadgetButtonSetText(buttonSignInProviders[1], TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInProviderSteam", L"Steam"));
-	GadgetButtonSetText(buttonSignInProviders[2], TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInProviderGameReplays", L"GameReplays"));
 	GadgetButtonSetText(buttonUseAnotherAccount, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInUseAnotherAccount", L"Use another account"));
 	GadgetButtonSetText(buttonSignInCancel, TheGameText->FETCH_OR_SUBSTITUTE("GUI:Cancel", L"Cancel"));
 	GadgetStaticTextSetText(staticTextSignInStatus, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInSigningIn", L"Signing in..."));
@@ -536,7 +470,7 @@ static Bool findSignInWindows( GameWindow *parent, const char *statusName, const
 static Bool findSignInScreen()
 {
 	return findSignInWindows( NULL, "GameSpyLoginProfile.wnd:StaticTextSignInStatus", "GameSpyLoginProfile.wnd:ButtonUseAnotherAccount",
-		"GameSpyLoginProfile.wnd:ButtonCancel", signInProviderNames );
+		"GameSpyLoginProfile.wnd:ButtonCancel" );
 }
 
 // GenOnline @feature arcticdolphin 09/11/2026 GO sign-in dialog: one modal card over the main menu for the update check, the update prompt, errors and the sign-in.
@@ -550,11 +484,6 @@ enum SignInDialogStep
 	SIGN_IN_DIALOG_READY
 };
 
-static const char *const signInDialogProviderNames[SIGN_IN_PROVIDER_COUNT] = {
-	"GOSignInDialog.wnd:ButtonProviderDiscord",
-	"GOSignInDialog.wnd:ButtonProviderSteam",
-	"GOSignInDialog.wnd:ButtonProviderGameReplays",
-};
 static WindowLayout *signInDialogLayout = NULL;
 static GameWindow *signInDialogRoot = NULL;
 static GameWindow *signInDialogMessage = NULL;
@@ -599,8 +528,6 @@ static void showSignInDialogStep( SignInDialogStep step, const UnicodeString &st
 	signInDialogStep = step;
 	GadgetStaticTextSetText(staticTextSignInStatus, status);
 	GadgetStaticTextSetText(signInDialogMessage, message);
-	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
-		buttonSignInProviders[i]->winHide(TRUE);
 	buttonUseAnotherAccount->winHide(TRUE);
 	signInDialogUpdate->winHide(step != SIGN_IN_DIALOG_UPDATE && step != SIGN_IN_DIALOG_READY);
 	if (step == SIGN_IN_DIALOG_READY)
@@ -705,15 +632,6 @@ static void signInDialogPressed( GameWindow *control )
 		updateSignInDialog(FALSE);
 		return;
 	}
-	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
-	{
-		if (control == buttonSignInProviders[i])
-		{
-			pAuthInterface->OpenProviderLogin(signInProviders[i]);
-			updateSignInDialog(FALSE);
-			return;
-		}
-	}
 }
 
 static WindowMsgHandledType signInDialogSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 )
@@ -767,7 +685,7 @@ Bool GOSignInDialogOpen( void )
 	if (root == NULL || title == NULL || signInDialogMessage == NULL || signInDialogUpdate == NULL
 		|| signInDialogProgress == NULL || signInDialogDownloadSize == NULL
 		|| !findSignInWindows( root, "GOSignInDialog.wnd:StaticTextSignInStatus", "GOSignInDialog.wnd:ButtonUseAnotherAccount",
-			"GOSignInDialog.wnd:ButtonCancel", signInDialogProviderNames ))
+			"GOSignInDialog.wnd:ButtonCancel" ))
 	{
 		layout->destroyWindows();
 		deleteInstance(layout);
@@ -778,8 +696,6 @@ Bool GOSignInDialogOpen( void )
 		staticTextSignInStatus = NULL;
 		buttonUseAnotherAccount = NULL;
 		buttonSignInCancel = NULL;
-		for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
-			buttonSignInProviders[i] = NULL;
 		return FALSE;
 	}
 
@@ -931,8 +847,6 @@ void GOSignInDialogDestroy( void )
 	staticTextSignInStatus = NULL;
 	buttonUseAnotherAccount = NULL;
 	buttonSignInCancel = NULL;
-	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
-		buttonSignInProviders[i] = NULL;
 	shownSignInStage = ELoginStage::None;
 
 	GameWindow *mainWin = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("MainMenu.wnd:MainMenuParent") );
@@ -1647,18 +1561,6 @@ WindowMsgHandledType GenOnlineLoginMenuSystem( GameWindow *window, UnsignedInt m
 					if (control == buttonUseAnotherAccount)
 					{
 						pAuthInterface->UseAnotherAccount();
-						updateSignInScreen(FALSE);
-						break;
-					}
-					Int provider = -1;
-					for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
-					{
-						if (control == buttonSignInProviders[i])
-							provider = i;
-					}
-					if (provider >= 0)
-					{
-						pAuthInterface->OpenProviderLogin(signInProviders[provider]);
 						updateSignInScreen(FALSE);
 						break;
 					}

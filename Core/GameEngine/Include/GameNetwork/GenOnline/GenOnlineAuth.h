@@ -1,21 +1,14 @@
 #pragma once
 #include "GenOnlineTypes.h"
+#include "GameNetwork/GenOnline/GenOnlineSignIn.h"
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Sign-in providers of the GO sign-in screen; Website is the playgenerals.online page that offers them all.
-enum class ELoginProvider
-{
-	Website,
-	Discord,
-	Steam,
-	GameReplays
-};
+#include <memory>
+#include <vector>
 
 enum class ELoginStage
 {
 	None,
 	SavedLogin,
-	RequestingCode,
-	WaitingForProvider,
 	WaitingForBrowser,
 	Finishing,
 	Failed
@@ -25,10 +18,9 @@ class GenOnlineAuthInterface
 {
 public:
 
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 With the sign-in screen up, the login reports its stage instead of showing message boxes and waits for a provider before opening the browser.
+	// GenOnline @feature arcticdolphin 08/11/2026 With the sign-in screen up, the login reports its stage instead of showing message boxes.
 	void SetSignInScreen(bool bSignInScreen) { m_bSignInScreen = bSignInScreen; }
 	ELoginStage GetLoginStage() const { return m_loginStage; }
-	const std::string& GetLoginCode() const { return m_strCode; }
 	bool HasDisplayName() const { return !m_strDisplayName.empty() && m_strDisplayName != "NO_USER"; }
 
 	// GenOnline @feature arcticdolphin 09/11/2026 The sign-in dialog shows a failed login in place and closes itself, so failures are reported to its callback instead of popping a screen.
@@ -37,12 +29,8 @@ public:
 	const std::wstring& GetLoginFailureTitle() const { return m_strLoginFailureTitle; }
 	const std::wstring& GetLoginFailureText() const { return m_strLoginFailureText; }
 
-	void OpenProviderLogin(ELoginProvider provider);
 	void UseAnotherAccount();
 	void CancelLogin();
-
-	static std::string GetProviderLoginURL(ELoginProvider provider, const std::string& strCode, const std::string& strEnv);
-	static std::string PercentEncode(const std::string& strValue);
 
 	std::string GetDisplayName()
 	{
@@ -56,14 +44,21 @@ public:
 
 	int64_t GetUserID() const { return m_userID; }
 
+	// The realtime hub reports the name in Ready and after a rename.
+	void OnDisplayNameChanged(const std::string& strDisplayName)
+	{
+		if (!strDisplayName.empty())
+		{
+			m_strDisplayName = strDisplayName;
+		}
+	}
+
 	void GoToDetermineNetworkCaps();
 
 	void SendMiddlewareToken(std::string strMWToken);
 
-	void RefreshToken();
 	void BeginLogin();
 	void BeginLoginOnSelectedRoute();
-	void DoFullLoginFlow();
 
 	void Tick();
 
@@ -86,26 +81,39 @@ public:
 		return m_userID != -1 && !m_strToken.empty();
 	}
 
-	void LogoutOfMyAccount();
+	// Ends the session on the service and revokes the refresh token. The done callback runs once both answered or the logout timed out.
+	// The online services must stay up until then, because their teardown cancels the requests.
+	// The done callback runs inside the HTTP tick, so it only sets flags and never tears the services down itself.
+	void LogoutOfMyAccount(std::function<void()> fnDone);
 
 	static std::string GetCredentialsFilePath();
+
+	// Refreshes the tokens and registers the session again, for a realtime hub that refused or revoked the session.
+	void RecoverRealtimeSession(std::function<void(bool bRecovered)> fnDone);
 
 private:
 	void LoginAsSecondaryDevAccount();
 
-	void SaveCredentials(const char* szRefreshToken);
 	bool GetCredentials();
 	void DeleteSavedCredentials();
 
-	void OnRefreshTokenFailed(const char* szReason, const std::string& strBody = std::string());
-
 	static std::string CredentialServerKey();
 
-private:
-	bool m_bWaitingLogin = false;
-	std::string m_strCode;
-	std::int64_t m_lastCheckCode = -1;
+	void BeginLoginV1();
+	void StartBrowserSignInV1(int loginAttempt);
+	void CompleteSignInV1(const GenOnlineRealtime::TokenResponse& tokens, int loginAttempt);
+	void ApplyTokensV1(const GenOnlineRealtime::TokenResponse& tokens);
+	void RegisterSessionV1(std::function<void(int statusCode, const std::string& strBody)> fnDone);
+	void RefreshTokensV1(std::function<void(bool bRefreshed)> fnDone);
+	void FailLoginV1(const wchar_t* szText);
+	void ClearSessionV1();
+	void AbandonRefreshV1();
+	void FinishLogoutV1();
+	void TickV1();
+	static std::string CredentialServerKeyV1();
+	static std::string ServiceOriginV1();
 
+private:
 	bool m_bSignInScreen = false;
 	bool m_bSignInDialog = false;
 	std::wstring m_strLoginFailureTitle;
@@ -121,12 +129,17 @@ private:
 	std::function<void(ELoginResult)> m_cb_LoginPendingCallback = nullptr;
 
 	std::string m_strRefreshToken = std::string();
-	int64_t m_tokenCreationTime = -1;
-	const int m_minutesUntilTokenRefresh = 10;
 
 	// if a refresh fails we still have ~5m before the token actually expires, so retry quickly rather than waiting for the next scheduled refresh
-	int m_currentRefreshAttempt = 0;
-	int64_t m_nextRefreshRetryTime = -1;
-	const int m_maxRefreshAttempts = 2;
 	const int m_secondsUntilRefreshRetry = 30;
+
+	// Realtime protocol v1 sign-in. The access token lives in m_strToken and the rotating refresh token in m_strRefreshToken.
+	std::unique_ptr<GenOnlineSignIn> m_pSignIn = std::make_unique<GenOnlineSignIn>();
+	int64_t m_accessTokenExpiry = -1;
+	int64_t m_accessTokenRefreshAt = -1;
+	int64_t m_nextRefreshRetryV1 = -1;
+	bool m_bRefreshInFlightV1 = false;
+	std::vector<std::function<void(bool)>> m_refreshWaitersV1;
+	std::function<void()> m_logoutDoneV1;
+	int64_t m_logoutDeadlineV1 = -1;
 };

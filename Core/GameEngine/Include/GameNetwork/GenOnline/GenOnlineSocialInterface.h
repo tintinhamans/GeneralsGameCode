@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GenOnlineInclude.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 #include "NetworkMesh.h"
 #include "GameNetwork/RankPointValue.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
@@ -31,7 +32,6 @@ public:
 	~GenOnlineSocialInterface();
 
 	void GetFriendsList(bool bUseCache, std::function<void()> cb);
-	bool IsOverlayActive() const { return m_bOverlayActive; }
 
 	void GetBlockList(std::function<void(BlockedResult blockResult)> cb);
 
@@ -150,7 +150,23 @@ public:
 
 	void CommitLobbyPlayerListToRecentlyPlayedWithList();
 
+	// Realtime protocol v1: the hub sends a snapshot after every connect and the changes as events.
+	void ExpectRealtimeWelcome() { m_bRealtimeWelcomePending = true; }
+	void OnRealtimeFriends(const GenOnlineRealtime::FriendsEvent& event);
+	void OnRealtimeFriendRequestReceived(const GenOnlineRealtime::Member& from);
+	void OnRealtimeFriendRequestAccepted(const GenOnlineRealtime::Member& by);
+	void OnRealtimeFriendRemoved(int64_t user_id);
+	void OnRealtimeFriendPresence(const GenOnlineRealtime::FriendPresenceEvent& event);
+	void OnRealtimeMemberUpdate(const GenOnlineRealtime::Member& member);
+	void OnRealtimeDirectMessage(const GenOnlineRealtime::ChatMessage& message);
+
 private:
+	// Calls a social hub method and refreshes the communicator once the service answered.
+	template <class R>
+	void InvokeSocialRealtime(const R& request, std::function<void(GenOnlineSocialInterface* pThis)> onSuccess);
+	std::string FindDisplayName(int64_t user_id);
+	bool m_bRealtimeWelcomePending = false;
+
 	void TriggerCallback_OnNumberGlobalNotificationsChanged()
 	{
 		if (m_cbOnNumberGlobalNotificationsChanged)
@@ -170,10 +186,6 @@ private:
 	std::map<int64_t, int> m_mapUnreadMessagesForUser; // user id here is who we are talking to / target user
 
 	std::function<void(int newNumNotifications)> m_cbOnNumberGlobalNotificationsChanged = nullptr;
-
-	std::function<void()> m_cbOnGetFriendsList = nullptr;
-	mutable std::mutex m_friendsListCallbackMutex;
-	std::function<void(BlockedResult blockResult)> m_cbOnGetBlockList = nullptr;
 
 	std::function<void(std::string strDisplayName)> m_cbOnNewFriendRequest = nullptr;
 

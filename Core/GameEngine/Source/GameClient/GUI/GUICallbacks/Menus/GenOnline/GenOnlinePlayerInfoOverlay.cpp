@@ -1378,12 +1378,14 @@ static void messageBoxYes()
 	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	if (pAuthInterface != nullptr)
 	{
-		pAuthInterface->LogoutOfMyAccount();
-
-		if (GenOnlineServicesManager::GetInstance() != nullptr)
-		{
-			GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_LOGOUT);
-		}
+		// The teardown waits for the logout, because it cancels the requests that end the session.
+		pAuthInterface->LogoutOfMyAccount([]()
+			{
+				if (GenOnlineServicesManager::GetInstance() != nullptr)
+				{
+					GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_LOGOUT);
+				}
+			});
 	}
 
 	

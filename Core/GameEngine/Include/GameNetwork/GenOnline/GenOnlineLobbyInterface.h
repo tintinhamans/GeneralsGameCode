@@ -9,6 +9,7 @@
 #include "GameClient/InGameUI.h"
 #include "GameLogic/VictoryConditions.h"
 #include <atomic>
+#include <optional>
 #include <set>
 
 extern GenOnlineGame* TheGenOnlineGame;
@@ -127,6 +128,7 @@ public:
 	void DeregisterForSearchForLobbiesCallback()
 	{
 		m_fnCallbackSearchForLobbiesComplete = nullptr;
+		StopWatchingLobbyList();
 	}
 	std::function<void(std::vector<LobbyEntry>)> m_fnCallbackSearchForLobbiesComplete = nullptr;
 
@@ -203,6 +205,26 @@ public:
 		if (m_fnCallbackMatchmakingRequeue != nullptr)
 		{
 			m_fnCallbackMatchmakingRequeue();
+		}
+	}
+
+	// The service took the player out of the queue without a requeue.
+	std::function<void()> m_fnCallbackMatchmakingLeft = nullptr;
+	void RegisterForMatchmakingLeftCallback(std::function<void()> cb)
+	{
+		m_fnCallbackMatchmakingLeft = cb;
+	}
+
+	void DeregisterForMatchmakingLeftCallback()
+	{
+		m_fnCallbackMatchmakingLeft = nullptr;
+	}
+
+	void InvokeMatchmakingLeftCallback()
+	{
+		if (m_fnCallbackMatchmakingLeft != nullptr)
+		{
+			m_fnCallbackMatchmakingLeft();
 		}
 	}
 
@@ -566,6 +588,24 @@ public:
 		return m_CurrentMatchID;
 	}
 
+	void OnRealtimeReady();
+	void OnRealtimeLobbyListUpsert(const GenOnlineRealtime::LobbySummary& lobby);
+	void OnRealtimeLobbyListRemove(int64_t lobbyID);
+	void OnRealtimeLobbyState(const GenOnlineRealtime::LobbyState& lobby);
+	void OnRealtimeLobbyLeft(const GenOnlineRealtime::LobbyLeftEvent& event);
+	void OnRealtimeCountdownStarted(const GenOnlineRealtime::CountdownStartedEvent& event);
+	void OnRealtimeCountdownCancelled(const GenOnlineRealtime::CountdownCancelledEvent& event);
+	void OnRealtimeGameStart(const GenOnlineRealtime::GameStartEvent& event);
+	void OnRealtimeLobbyMessage(const GenOnlineRealtime::ChatMessage& message);
+	void OnRealtimeStartGameOutcome(const GenOnlineRealtime::InvokeOutcome& outcome);
+	void ShowRealtimeLobbyFailure(const GenOnlineRealtime::InvokeOutcome& outcome);
+
+	void HandleMatchFound(int64_t lobbyID, const std::string& mapPath);
+	void HandleMatchSetupProgress(int64_t timeoutMs, int64_t countdownMs);
+	void OnRealtimeMatchmakingStatus(const GenOnlineRealtime::MatchmakingStatusEvent& event);
+	void OnRealtimeMatchStart(const GenOnlineRealtime::MatchStartEvent& event);
+	void OnRealtimeMatchRequeue(const GenOnlineRealtime::MatchRequeueEvent& event);
+
 private:
 	std::function<void(bool)> m_cb_CreateLobbyPendingCallback = nullptr;
 
@@ -596,4 +636,26 @@ private:
 	bool m_bMarkedGameAsFinished = false;
 
 	uint64_t m_CurrentMatchID = 0;
+
+	void ApplyLobbyUpdate(LobbyEntry lobbyEntry, const std::vector<LobbyMemberEntry>& parsedMembers, uint64_t requestSeq);
+	void HandleCurrentLobbyGone();
+	void LeaveLobbyOnService(int64_t lobbyID);
+
+	void SearchForLobbiesRealtime();
+	void CompleteRealtimeLobbySearch(bool bSucceeded);
+	void StopWatchingLobbyList();
+	void UpdateRoomDataCacheRealtime(std::function<void(bool)> fnCallback);
+	void ApplyRealtimeLobbyState(const GenOnlineRealtime::LobbyState& lobby);
+	void FlushLobbyStateWaiters(bool bSucceeded);
+
+	// Realtime hub lobby list cache, kept current by LobbyListUpsert and LobbyListRemove while watching.
+	bool m_bWatchingLobbyList = false;
+	std::vector<GenOnlineRealtime::LobbySummary> m_hubLobbyList;
+	// The latest LobbyState of the hub and the refreshes that wait for the state of the current lobby.
+	std::optional<GenOnlineRealtime::LobbyState> m_hubLobbyState;
+	std::vector<std::function<void(bool)>> m_hubLobbyStateWaiters;
+	// The quick match lobby of the latest MatchStart and GameStart, -1 while it has not arrived.
+	int64_t m_hubMatchStartLobbyID = -1;
+	int64_t m_hubGameStartLobbyID = -1;
+	void StartQuickMatchWhenReady();
 };

@@ -3,6 +3,7 @@
 
 #include "GameNetwork/NetworkSettings.h"
 #include "GenOnlineInclude.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeHubSession.h"
 #include "MeshConnectionTimeoutPolicy.h"
 
 #include <algorithm>
@@ -58,62 +59,6 @@ struct S3ScreenshotEntry
 #include "GameClient/DisplayStringManager.h"
 #include "Common/GameEngine.h"
 
-enum EWebSocketMessageID
-{
-	UNKNOWN = -1,
-	NETWORK_ROOM_CHAT_FROM_CLIENT = 1,
-	NETWORK_ROOM_CHAT_FROM_SERVER = 2,
-	NETWORK_ROOM_CHANGE_ROOM = 3,
-	NETWORK_ROOM_MEMBER_LIST_UPDATE = 4,
-	NETWORK_ROOM_MARK_READY = 5,
-	LOBBY_CURRENT_LOBBY_UPDATE = 6,
-	NETWORK_ROOM_LOBBY_LIST_UPDATE = 7,
-	ANTICHEAT_MESSAGE = 8,
-	PLAYER_NAME_CHANGE = 9,
-	LOBBY_ROOM_CHAT_FROM_CLIENT = 10,
-	LOBBY_CHAT_FROM_SERVER = 11,
-	NETWORK_SIGNAL = 12,
-	START_GAME = 13,
-	PING = 14,
-	PONG = 15,
-	PROBE = 16,
-	NETWORK_CONNECTION_START_SIGNALLING = 17,
-	NETWORK_CONNECTION_DISCONNECT_PLAYER = 18,
-	NETWORK_CONNECTION_CLIENT_REQUEST_SIGNALLING = 19,
-	MATCHMAKING_ACTION_JOIN_PREARRANGED_LOBBY = 20,
-	MATCHMAKING_ACTION_START_GAME = 21,
-	MATCHMAKING_MESSAGE = 22,
-	START_GAME_COUNTDOWN_STARTED = 23,
-	LOBBY_REMOVE_PASSWORD = 24,
-	LOBBY_CHANGE_PASSWORD = 25,
-	FULL_MESH_CONNECTIVITY_CHECK_HOST_REQUESTS_BEGIN = 26,
-	FULL_MESH_CONNECTIVITY_CHECK_RESPONSE = 27,
-	FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST = 28,
-	SOCIAL_NEW_FRIEND_REQUEST = 29,
-	SOCIAL_FRIEND_CHAT_MESSAGE_CLIENT_TO_SERVER = 30,
-	SOCIAL_FRIEND_CHAT_MESSAGE_SERVER_TO_CLIENT = 31,
-	SOCIAL_FRIEND_ONLINE_STATUS_CHANGED = 32,
-	SOCIAL_SUBSCRIBE_REALTIME_UPDATES = 33,
-	SOCIAL_UNSUBSCRIBE_REALTIME_UPDATES = 34,
-	SOCIAL_FRIENDS_OVERALL_STATUS_UPDATE = 35,
-	SOCIAL_FRIEND_FRIEND_REQUEST_ACCEPTED_BY_TARGET = 36,
-	SOCIAL_FRIENDS_LIST_DIRTY = 37,
-	SOCIAL_CANT_ADD_FRIEND_LIST_FULL = 38,
-	PROBE_RESP = 39,
-	AC_REGISTER_PLAYER = 40,
-	AC_DEREGISTER_PLAYER = 41,
-	WS_KEEPALIVE = 42,
-	WS_KEEPALIVE_CLIENT = 43,
-	MATCHMAKING_ACTION_REQUEUE = 44,
-	MATCHMAKING_ACTION_SETUP_PROGRESS = 45,
-	MODERATION_NOTICE = 46,
-	MODERATION_COMMAND = 47,
-	MODERATION_COMMAND_RESULT = 48,
-	START_GAME_REJECTED = 49,
-	LOBBY_EVENT = 50,
-	LOBBY_HOST_START_INTENT = 51
-};
-
 enum class EQoSRegions
 {
 	UNKNOWN = -1,
@@ -157,15 +102,43 @@ class WebSocket
 public:
 	WebSocket();
 	~WebSocket();
-	void Connect(const char* url, bool bIsReconnect, std::function<void(void)> fnWebsocketConnectedCallback);
+
+	GenOnlineRealtime::HubSession* GetHubSession()
+	{
+		return m_pHubSession.get();
+	}
+
+	// Calls a hub method that answers with a Result. Without a hub session the callback reports a transport error.
+	template <class R>
+	void InvokeHub(const R& request, std::function<void(const GenOnlineRealtime::InvokeOutcome&)> callback)
+	{
+		if (m_pHubSession != nullptr)
+		{
+			m_pHubSession->Invoke(request, callback, HubNowMs());
+		}
+		else if (callback)
+		{
+			GenOnlineRealtime::InvokeOutcome outcome;
+			outcome.transportError = "not connected";
+			callback(outcome);
+		}
+	}
+
+	// Sends a fire-and-forget hub method. Returns false without a ready hub session.
+	template <class R>
+	bool FireHub(const R& request)
+	{
+		return m_pHubSession != nullptr && m_pHubSession->Fire(request, HubNowMs());
+	}
+
+	static int64_t HubNowMs();
+	void Connect(const char* url, std::function<void(void)> fnWebsocketConnectedCallback);
 	void Disconnect();
 
 	bool IsConnected()
 	{
 		return m_bConnected;
 	}
-
-	std::vector<char> m_vecWSPartialBuffer;
 
 	std::function<void(void)> m_fnWebsocketConnectedCallback = nullptr;
 
@@ -175,7 +148,7 @@ public:
 	void SendData_RoomChatMessage(UnicodeString& msg, bool bIsAction);
 	void SendData_FriendMessage(UnicodeString& msg, int64_t target_user_id);
 	void SendData_LobbyChatMessage(UnicodeString& msg, bool bIsAction, bool bIsAnnouncement, bool bShowAnnouncementToHost);
-	void SendData_JoinNetworkRoom(int roomID, uint64_t requestID = 0);
+	void SendData_JoinNetworkRoom(int roomID);
 	void SendData_LeaveNetworkRoom();
 	void SendData_MarkReady(bool bReady);
 
@@ -183,23 +156,16 @@ public:
 	void SendData_Signalling(int64_t targetUserID, std::vector<uint8_t> vecPayload);
 	void SendData_StartGame();
 
-	void SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> vecPayload);
+	// Returns false when the message could not be queued, so the caller can use the peer mesh instead.
+	bool SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> vecPayload);
 
 	void SendData_ChangeLobbyPassword(UnicodeString& strNewPassword);
 	void SendData_RemoveLobbyPassword();
-
-	void SendData_SubscribeRealtimeUpdates();
-	void SendData_UnsubscribeRealtimeUpdates();
 
 
 	void SendData_HostStartIntent();
 
 	void Tick();
-
-	int Ping();
-
-	// Queues the message; Tick() flushes it on the main thread. Thread-safe.
-	void Send(const char* message);
 
 	void ResumeAfterProxyLogin(bool loggedIn);
 
@@ -245,6 +211,24 @@ public:
 	}
 
 private:
+	bool IsDestinationTrusted(const std::string& url) const;
+	void ReleaseConnection();
+	void HubTransportLost(const char* reason);
+	void OnHubReady();
+	void OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, const std::string& reason);
+	void RecoverHubSession();
+
+	void StartPeerSignalling(int64_t lobbyID, int64_t userID, uint16_t preferredPort, const std::string& middlewareID);
+	void DisconnectPeer(int64_t lobbyID, int64_t userID);
+	void CollectMeshConnectivity(std::vector<int64_t>& connected, std::vector<int64_t>& connecting);
+	void RegisterPeerHandlers();
+
+	std::unique_ptr<GenOnlineRealtime::HubSession> m_pHubSession;
+	mutable GenOnlineRealtime::ReconnectPolicy m_hubReconnectPolicy;
+	bool m_bHubReadyOnce = false;
+	// One token refresh and session registration per connection that never reached Ready.
+	bool m_bHubSessionRecoveryTried = false;
+
 	CURLcode ReceiveOneFrame();
 	void PollConnectionSetup();
 	void StartResolvedConnection();
@@ -254,17 +238,12 @@ private:
 	ServiceConnection::ResolvedProxyPolicy m_proxyPolicy;
 	size_t m_proxyRoute = 0;
 	int64_t m_proxySetupStarted = -1;
-	bool m_connectAsReconnect = false;
 	CURL* m_pCurlWS = nullptr;
     CURLM* m_pMulti = nullptr;
 	struct curl_slist* m_pHeaders = nullptr;
 
 	bool m_bConnected = false;
 
-	// Menu window should not exceed the service's abandoned-session hold, else reconnects get 205.
-	const int64_t m_reconnectMenuWindow = 30000;
-	const int64_t m_reconnectBackoffBase = 2000;
-	const int64_t m_reconnectBackoffCap = 10000;
 	const int64_t m_reconnectAttemptTimeout = 15000;
 
 	bool m_bReconnecting = false;
@@ -272,7 +251,6 @@ private:
 	int64_t m_reconnectStartTime = -1;
 	int64_t m_nextReconnectAttempt = -1;
 	int64_t m_reconnectAttemptStarted = -1; // -1 = none in flight
-	bool m_bFreshSession = false; // 205: reconnect as a new session
 
 	void BeginReconnect();
 	void EndReconnect();
@@ -280,11 +258,6 @@ private:
 	int64_t ComputeReconnectDelay() const;
 
 	std::string m_strWebsocketAddr;
-
-	int64_t m_lastPong = -1;
-	int64_t m_lastPing = -1;
-	const int64_t m_timeBetweenUserPings = 1000;
-	const int64_t m_timeForWSTimeout = 20000;
 
 	std::atomic<bool> m_bShuttingDown = false;
 
@@ -300,7 +273,7 @@ private:
 	size_t m_outboundOffset = 0;
 	bool m_heartbeatQueued = false;
 	bool m_acceptOutbound = true;
-	void QueueOutbound(std::string payload, bool heartbeat);
+	bool QueueOutbound(std::string payload, bool heartbeat);
 	void ClearOutbound();
 	CURLcode FlushOutbound();
 
@@ -714,7 +687,6 @@ public:
 	// true when the last failed route check was a proxy login the player did not complete
 	bool RouteFailedProxyAuth() const { return m_routeProxyAuthFailed; }
 	static bool IsServiceURLTrusted(const std::string& url);
-	static bool IsWebSocketURLTrusted(const std::string& url);
 
 	std::shared_ptr<WebSocket> Internal_GetWebSocket() const { return m_pWebSocket; }
 	HTTPManager* GetHTTPManager() const { return m_pHTTPManager; }
@@ -889,3 +861,21 @@ private:
 	std::string m_patcher_path;
 	int64_t m_patcher_size;
 };
+
+// Calls a hub method on the services websocket. Without a socket the callback reports a transport error.
+template <class R>
+void InvokeRealtimeHub(const R& request, std::function<void(const GenOnlineRealtime::InvokeOutcome&)> callback)
+{
+	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
+	if (pWS != nullptr)
+	{
+		pWS->InvokeHub(request, callback);
+		return;
+	}
+	if (callback)
+	{
+		GenOnlineRealtime::InvokeOutcome outcome;
+		outcome.transportError = "not connected";
+		callback(outcome);
+	}
+}
