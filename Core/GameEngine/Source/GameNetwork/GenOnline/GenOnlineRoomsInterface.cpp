@@ -1,6 +1,7 @@
 #include "GameNetwork/GenOnline/ProxyLogin.h"
 #include <random>
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
+#include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"
 #if RTS_ZEROHOUR
@@ -131,8 +132,9 @@ WebSocket::WebSocket(bool bRealtimeHub)
 		{
 			ReleaseConnection();
 		};
-		callbacks.onReady = [this](const GenOnlineRealtime::ReadyEvent&)
+		callbacks.onReady = [this](const GenOnlineRealtime::ReadyEvent& ready)
 		{
+			GenOnlineRealtimeBridge::OnReady(ready, !m_bHubReadyOnce);
 			OnHubReady();
 		};
 		callbacks.onDisconnected = [this](GenOnlineRealtime::DisconnectAction action, const std::string& reason)
@@ -144,6 +146,7 @@ WebSocket::WebSocket(bool bRealtimeHub)
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] %s", line.c_str());
 		};
 		m_pHubSession = std::make_unique<GenOnlineRealtime::HubSession>(callbacks);
+		GenOnlineRealtimeBridge::RegisterHandlers(*m_pHubSession);
 	}
 }
 
@@ -153,6 +156,11 @@ bool WebSocket::IsDestinationTrusted(const std::string& url) const
 	if (!m_bRealtimeHub)
 		return GenOnlineServicesManager::IsWebSocketURLTrusted(url);
 	return !GenOnlineRealtime::AcceptRealtimeUrl(url, GenOnlineServicesManager::GetAPIEndpoint("")).empty();
+}
+
+int64_t WebSocket::HubNowMs()
+{
+	return NowMs();
 }
 
 // Drops the socket without reconnecting. The caller decides what happens next.
@@ -480,6 +488,27 @@ void WebSocket::StartResolvedConnection()
 
 void WebSocket::SendData_RoomChatMessage(UnicodeString& msg, bool bIsAction)
 {
+	if (m_bRealtimeHub)
+	{
+		GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+		if (pRooms == nullptr || !pRooms->GetEffectiveRoomID().has_value())
+		{
+			return;
+		}
+		GenOnlineRealtime::SendMessageRequest request;
+		request.channel_id = "room:" + std::to_string(*pRooms->GetEffectiveRoomID());
+		request.type = bIsAction ? "action" : "chat";
+		request.content = to_utf8(msg.str());
+		InvokeHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
+			{
+				if (!outcome.Succeeded())
+				{
+					GenOnlineRealtimeBridge::ShowRoomNotice(GenOnlineRealtimeBridge::FailureText(outcome), true);
+				}
+			});
+		return;
+	}
+
 	nlohmann::json j;
 	j["msg_id"] = EWebSocketMessageID::NETWORK_ROOM_CHAT_FROM_CLIENT;
 	j["message"] = to_utf8(msg.str());
@@ -502,6 +531,28 @@ void WebSocket::SendData_MarkReady(bool bReady)
 
 void WebSocket::SendData_JoinNetworkRoom(int roomID, uint64_t requestID)
 {
+	if (m_bRealtimeHub)
+	{
+		auto onOutcome = [roomID](const GenOnlineRealtime::InvokeOutcome& outcome)
+		{
+			GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+			if (!outcome.Succeeded() && pRooms != nullptr)
+			{
+				pRooms->OnRealtimeRoomJoinFailed(roomID, GenOnlineRealtimeBridge::FailureText(outcome));
+			}
+		};
+		if (roomID < 0)
+		{
+			InvokeHub(GenOnlineRealtime::LeaveRoomRequest(), nullptr);
+			return;
+		}
+		// The members arrive as RoomMembers, which completes the room change.
+		GenOnlineRealtime::JoinRoomRequest request;
+		request.room_id = roomID;
+		InvokeHub(request, onOutcome);
+		return;
+	}
+
 	nlohmann::json j;
 	j["msg_id"] = EWebSocketMessageID::NETWORK_ROOM_CHANGE_ROOM;
 	j["room"] = roomID;
@@ -2341,6 +2392,16 @@ void GenOnlineRoomsInterface::GetRoomList(std::function<void(bool)> cb)
 		pSocialInterface->GetFriendsList(false, nullptr);
 	}
 
+	// The hub sent the rooms with Ready.
+	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
+	if (pWS != nullptr && pWS->IsRealtimeHub())
+	{
+		m_vecRooms = m_vecRealtimeRooms;
+		m_bRoomSelectionResultsSupported = true;
+		cb(!m_vecRooms.empty());
+		return;
+	}
+
 	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("Rooms");
 	std::map<std::string, std::string> mapHeaders;
 
@@ -2521,5 +2582,151 @@ void GenOnlineRoomsInterface::ReportRoomJoinFailure(const std::string& error)
 	}
 }
 
+// Realtime protocol v1 rooms /////////////////////////////////////////////////////
 
+static NetworkRoomMember ToRoomMember(const GenOnlineRealtime::Member& member)
+{
+	NetworkRoomMember roomMember;
+	roomMember.user_id = member.id;
+	roomMember.display_name = member.name;
+	roomMember.m_bIsAdmin = GenOnlineRealtimeBridge::IsStaff(member.badges);
+	return roomMember;
+}
 
+void GenOnlineRoomsInterface::SetRealtimeRooms(const std::vector<GenOnlineRealtime::RoomInfo>& rooms)
+{
+	m_vecRealtimeRooms.clear();
+	for (const GenOnlineRealtime::RoomInfo& room : rooms)
+	{
+		// A parent id of 0 or less means a top level room.
+		const int parentRoomID = room.parent_id > 0 ? static_cast<int>(room.parent_id) : -1;
+		m_vecRealtimeRooms.emplace_back(static_cast<int>(room.id), room.name,
+			room.show_all_matches ? ERoomFlags::ROOM_FLAGS_SHOW_ALL_MATCHES : ERoomFlags::ROOM_FLAGS_DEFAULT, parentRoomID);
+	}
+}
+
+void GenOnlineRoomsInterface::RefreshRoster()
+{
+	std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
+	if (m_RosterNeedsRefreshCallback != nullptr)
+	{
+		m_RosterNeedsRefreshCallback();
+	}
+}
+
+// The full member list after a join and after every reconnect. It also tells which room the session is in.
+void GenOnlineRoomsInterface::OnRealtimeRoomMembers(const GenOnlineRealtime::RoomMembersEvent& event)
+{
+	std::unordered_map<uint64_t, NetworkRoomMember> members;
+	for (const GenOnlineRealtime::Member& member : event.members)
+	{
+		members.emplace(member.id, ToRoomMember(member));
+	}
+	m_mapMembers = std::move(members);
+
+	int roomIndex = -1;
+	for (size_t i = 0; i < m_vecRooms.size(); ++i)
+	{
+		if (m_vecRooms[i].GetRoomID() == event.room_id)
+		{
+			roomIndex = static_cast<int>(i);
+			break;
+		}
+	}
+
+	const bool effectiveRoomChanged = !m_EffectiveRoomID.has_value() || *m_EffectiveRoomID != event.room_id;
+	m_EffectiveRoomID = static_cast<int>(event.room_id);
+	if (m_PendingRoomChange.has_value() && m_PendingRoomChange->roomID == event.room_id)
+	{
+		m_PendingRoomChange.reset();
+	}
+	if (roomIndex >= 0 && (effectiveRoomChanged || roomIndex != m_CurrentRoomIndex))
+	{
+		m_CurrentRoomIndex = roomIndex;
+		if (m_RoomChangedCallback != nullptr)
+		{
+			m_RoomChangedCallback(roomIndex, effectiveRoomChanged);
+		}
+	}
+	RefreshRoster();
+}
+
+void GenOnlineRoomsInterface::OnRealtimeMemberAdd(const GenOnlineRealtime::MemberAddEvent& event)
+{
+	if (!m_EffectiveRoomID.has_value() || event.channel_id != "room:" + std::to_string(*m_EffectiveRoomID))
+	{
+		return;
+	}
+	m_mapMembers[event.member.id] = ToRoomMember(event.member);
+	RefreshRoster();
+}
+
+void GenOnlineRoomsInterface::OnRealtimeMemberRemove(const GenOnlineRealtime::MemberRemoveEvent& event)
+{
+	if (!m_EffectiveRoomID.has_value() || event.channel_id != "room:" + std::to_string(*m_EffectiveRoomID))
+	{
+		return;
+	}
+	if (m_mapMembers.erase(event.user_id) > 0)
+	{
+		RefreshRoster();
+	}
+}
+
+void GenOnlineRoomsInterface::OnRealtimeMemberUpdate(const GenOnlineRealtime::Member& member)
+{
+	auto it = m_mapMembers.find(member.id);
+	if (it == m_mapMembers.end())
+	{
+		return;
+	}
+	it->second = ToRoomMember(member);
+	RefreshRoster();
+}
+
+void GenOnlineRoomsInterface::OnRealtimeRoomMessage(const GenOnlineRealtime::ChatMessage& message)
+{
+	if (!m_EffectiveRoomID.has_value() || message.channel_id != "room:" + std::to_string(*m_EffectiveRoomID) || m_OnChatCallback == nullptr)
+	{
+		return;
+	}
+	const bool bAction = message.type == "action";
+	SYSTEMTIME systemTime;
+	GetLocalTime(&systemTime);
+	UnicodeString unicodeStr;
+	unicodeStr.format(bAction ? L"[%2.2d:%2.2d] %s %s" : L"[%2.2d:%2.2d] %s: %s", systemTime.wHour, systemTime.wMinute,
+		from_utf8(message.author.name).c_str(), from_utf8(message.content).c_str());
+	const Color color = DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_NETWORK_ROOM, true, bAction, GenOnlineRealtimeBridge::IsStaff(message.author.badges), false);
+#if RTS_ZEROHOUR
+	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	const bool bLocal = pAuth != nullptr && pAuth->GetUserID() == message.author.id;
+	StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_ROOM, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, FALSE, bLocal);
+#endif
+	m_OnChatCallback(unicodeStr, color);
+}
+
+void GenOnlineRoomsInterface::OnRealtimeNameChanged(const std::string& strOldName, const std::string& strNewName)
+{
+	if (m_OnChatCallback == nullptr)
+	{
+		return;
+	}
+	SYSTEMTIME systemTime;
+	GetLocalTime(&systemTime);
+	UnicodeString unicodeStr;
+	unicodeStr.format(L"[%2.2d:%2.2d] %s is now known as %s", systemTime.wHour, systemTime.wMinute, from_utf8(strOldName).c_str(), from_utf8(strNewName).c_str());
+	m_OnChatCallback(unicodeStr, DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_NETWORK_ROOM, true, false, false, true));
+}
+
+void GenOnlineRoomsInterface::OnRealtimeRoomJoinFailed(int roomID, const std::wstring& strReason)
+{
+	if (m_PendingRoomChange.has_value() && m_PendingRoomChange->roomID == roomID)
+	{
+		m_PendingRoomChange.reset();
+	}
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Joining room %d failed", roomID);
+	if (m_OnChatCallback != nullptr)
+	{
+		m_OnChatCallback(UnicodeString(strReason.c_str()), GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255)));
+	}
+}

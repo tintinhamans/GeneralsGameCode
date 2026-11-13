@@ -139,6 +139,7 @@ extern Int GenOnlineCalculateRank( const PSPlayerStats& stats );
 extern Int GenOnlineGetFavoriteSide( const PSPlayerStats& stats );
 extern void GenOnlineHandleBuddyResponses();
 extern void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh = false, bool bUseCache = false );
+extern void GenOnlineRefreshIgnoreList();
 extern void GenOnlineRaiseNotificationBox();
 extern void GenOnlineDeleteNotificationBox();
 extern void GenOnlineInitBuddyControls( Int type );

@@ -1465,6 +1465,12 @@ void GenOnlineRefreshIgnoreList()
 		return;
 	}
 
+	// The realtime hub refreshes this list after a block changed, also while the communicator is closed.
+	if (listboxIgnore == nullptr)
+	{
+		return;
+	}
+
 	GadgetListBoxReset(listboxIgnore);
 	GadgetListBoxAddEntryText(listboxIgnore, UnicodeString(L"Loading..."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1);
 

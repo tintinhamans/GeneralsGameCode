@@ -1,5 +1,6 @@
 #include "GameNetwork/GenOnline/json.hpp"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
+#include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameNetwork/RankPointValue.h"
 #include "../GenOnlineInit.h"
@@ -18,7 +19,8 @@ GenOnlineSocialInterface::~GenOnlineSocialInterface()
 
 void GenOnlineSocialInterface::GetFriendsList(bool bUseCache, std::function<void()> cb)
 {
-	if (bUseCache)
+	// The hub keeps the cache current, so there is nothing to fetch.
+	if (bUseCache || UsesRealtimeHub())
 	{
 		if (cb != nullptr)
 		{
@@ -104,6 +106,23 @@ void GenOnlineSocialInterface::GetFriendsList(bool bUseCache, std::function<void
 
 void GenOnlineSocialInterface::GetBlockList(std::function<void(BlockedResult blockResult)> cb)
 {
+	if (UsesRealtimeHub())
+	{
+		BlockedResult blockedResult;
+		{
+			std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
+			for (const auto& entry : m_mapBlocked)
+			{
+				blockedResult.vecBlocked.push_back(entry.second);
+			}
+		}
+		if (cb != nullptr)
+		{
+			cb(blockedResult);
+		}
+		return;
+	}
+
 	m_cbOnGetBlockList = cb;
 
 	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("Social/Blocked");
@@ -151,6 +170,14 @@ void GenOnlineSocialInterface::GetBlockList(std::function<void(BlockedResult blo
 
 void GenOnlineSocialInterface::AddFriend(int64_t target_user_id)
 {
+	if (UsesRealtimeHub())
+	{
+		GenOnlineRealtime::SendFriendRequestRequest request;
+		request.user_id = target_user_id;
+		InvokeSocialRealtime(request, nullptr);
+		return;
+	}
+
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Social/Friends/Requests"), target_user_id);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -162,6 +189,18 @@ void GenOnlineSocialInterface::AddFriend(int64_t target_user_id)
 
 void GenOnlineSocialInterface::RemoveFriend(int64_t target_user_id)
 {
+	if (UsesRealtimeHub())
+	{
+		GenOnlineRealtime::RemoveFriendRequest request;
+		request.user_id = target_user_id;
+		InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
+			{
+				std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
+				pThis->m_mapFriends.erase(target_user_id);
+			});
+		return;
+	}
+
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Social/Friends"), target_user_id);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -173,6 +212,24 @@ void GenOnlineSocialInterface::RemoveFriend(int64_t target_user_id)
 
 void GenOnlineSocialInterface::IgnoreUser(int64_t target_user_id)
 {
+	if (UsesRealtimeHub())
+	{
+		GenOnlineRealtime::BlockUserRequest request;
+		request.user_id = target_user_id;
+		InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
+			{
+				FriendsEntry entry;
+				entry.user_id = target_user_id;
+				entry.display_name = pThis->FindDisplayName(target_user_id);
+				entry.online = false;
+				std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
+				pThis->m_mapFriends.erase(target_user_id);
+				pThis->m_mapPendingRequests.erase(target_user_id);
+				pThis->m_mapBlocked.insert_or_assign(target_user_id, entry);
+			});
+		return;
+	}
+
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Social/Blocked"), target_user_id);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -184,6 +241,18 @@ void GenOnlineSocialInterface::IgnoreUser(int64_t target_user_id)
 
 void GenOnlineSocialInterface::UnignoreUser(int64_t target_user_id)
 {
+	if (UsesRealtimeHub())
+	{
+		GenOnlineRealtime::UnblockUserRequest request;
+		request.user_id = target_user_id;
+		InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
+			{
+				std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
+				pThis->m_mapBlocked.erase(target_user_id);
+			});
+		return;
+	}
+
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Social/Blocked"), target_user_id);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -195,6 +264,28 @@ void GenOnlineSocialInterface::UnignoreUser(int64_t target_user_id)
 
 void GenOnlineSocialInterface::AcceptPendingRequest(int64_t target_user_id)
 {
+	if (UsesRealtimeHub())
+	{
+		GenOnlineRealtime::AcceptFriendRequestRequest request;
+		request.user_id = target_user_id;
+		InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
+			{
+				std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
+				auto it = pThis->m_mapPendingRequests.find(target_user_id);
+				if (it != pThis->m_mapPendingRequests.end())
+				{
+					// Presence arrives as FriendPresence.
+					FriendsEntry entry = it->second;
+					entry.online = false;
+					pThis->m_mapFriends.insert_or_assign(target_user_id, entry);
+					pThis->m_mapPendingRequests.erase(it);
+				}
+			});
+		if (m_numTotalNotifications > 0) --m_numTotalNotifications;
+		TriggerCallback_OnNumberGlobalNotificationsChanged();
+		return;
+	}
+
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Social/Friends/Requests"), target_user_id);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -210,6 +301,20 @@ void GenOnlineSocialInterface::AcceptPendingRequest(int64_t target_user_id)
 
 void GenOnlineSocialInterface::RejectPendingRequest(int64_t target_user_id)
 {
+	if (UsesRealtimeHub())
+	{
+		GenOnlineRealtime::DeclineFriendRequestRequest request;
+		request.user_id = target_user_id;
+		InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
+			{
+				std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
+				pThis->m_mapPendingRequests.erase(target_user_id);
+			});
+		if (m_numTotalNotifications > 0) --m_numTotalNotifications;
+		TriggerCallback_OnNumberGlobalNotificationsChanged();
+		return;
+	}
+
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Social/Friends/Requests"), target_user_id);
 	std::map<std::string, std::string> mapHeaders;
 
@@ -362,6 +467,12 @@ bool GenOnlineSocialInterface::IsUserPendingRequest(int64_t target_user_id)
     return m_mapPendingRequests.contains(target_user_id);
 }
 
+bool GenOnlineSocialInterface::UsesRealtimeHub()
+{
+	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
+	return pWS != nullptr && pWS->IsRealtimeHub();
+}
+
 void GenOnlineSocialInterface::RegisterForRealtimeServiceUpdates()
 {
 	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
@@ -449,3 +560,218 @@ void GenOnlineSocialInterface::CommitLobbyPlayerListToRecentlyPlayedWithList()
 	m_RecentlyPlayedWithTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 }
 
+// Realtime protocol v1 social ////////////////////////////////////////////////////
+
+// The communicator read the cache before the service answered, so its lists are drawn again.
+static void RefreshCommunicator()
+{
+	extern void GenOnlineUpdateBuddyInfo(bool bIsAutoRefresh, bool bUseCache);
+	extern void GenOnlineRefreshIgnoreList();
+	GenOnlineUpdateBuddyInfo(true, true);
+	GenOnlineRefreshIgnoreList();
+}
+
+template <class R>
+void GenOnlineSocialInterface::InvokeSocialRealtime(const R& request, std::function<void(GenOnlineSocialInterface* pThis)> onSuccess)
+{
+	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
+	if (pWS == nullptr)
+	{
+		return;
+	}
+	pWS->InvokeHub(request, [onSuccess](const GenOnlineRealtime::InvokeOutcome& outcome)
+		{
+			GenOnlineSocialInterface* pThis = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+			if (pThis == nullptr)
+			{
+				return;
+			}
+			if (!outcome.Succeeded())
+			{
+				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, UnicodeString(GenOnlineRealtimeBridge::FailureText(outcome).c_str()));
+				return;
+			}
+			if (onSuccess)
+			{
+				onSuccess(pThis);
+			}
+			RefreshCommunicator();
+		});
+}
+
+static FriendsEntry ToFriendsEntry(const GenOnlineRealtime::Member& member, bool bOnline)
+{
+	FriendsEntry entry;
+	entry.user_id = member.id;
+	entry.display_name = member.name;
+	entry.online = bOnline;
+	return entry;
+}
+
+std::string GenOnlineSocialInterface::FindDisplayName(int64_t user_id)
+{
+	{
+		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
+		for (const auto* pMap : { &m_mapFriends, &m_mapPendingRequests, &m_mapBlocked })
+		{
+			auto it = pMap->find(user_id);
+			if (it != pMap->end())
+			{
+				return it->second.display_name;
+			}
+		}
+	}
+	GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+	NetworkRoomMember* pMember = pRooms != nullptr ? pRooms->GetRoomMemberFromID(user_id) : nullptr;
+	return pMember != nullptr ? pMember->display_name : std::string();
+}
+
+void GenOnlineSocialInterface::OnRealtimeFriends(const GenOnlineRealtime::FriendsEvent& event)
+{
+	int numOnline = 0;
+	{
+		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
+		m_mapFriends.clear();
+		m_mapPendingRequests.clear();
+		m_mapBlocked.clear();
+		for (const GenOnlineRealtime::FriendEntry& entry : event.friends)
+		{
+			m_mapFriends.insert_or_assign(entry.id, ToFriendsEntry(entry, entry.online));
+			numOnline += entry.online ? 1 : 0;
+		}
+		for (const GenOnlineRealtime::Member& member : event.incoming)
+		{
+			m_mapPendingRequests.insert_or_assign(member.id, ToFriendsEntry(member, false));
+		}
+		for (const GenOnlineRealtime::Member& member : event.blocked)
+		{
+			m_mapBlocked.insert_or_assign(member.id, ToFriendsEntry(member, false));
+		}
+	}
+
+	// The first snapshot after a login greets the player, as the legacy status update did.
+	if (m_bRealtimeWelcomePending)
+	{
+		m_bRealtimeWelcomePending = false;
+		const int numPending = static_cast<int>(event.incoming.size());
+		UnicodeString strText;
+		if (numOnline > 0 && numPending > 0)
+		{
+			strText.format(L"You have %d friend(s) online and %d pending friend request(s)", numOnline, numPending);
+		}
+		else if (numOnline > 0)
+		{
+			strText.format(L"You have %d friend(s) online.", numOnline);
+		}
+		else if (numPending > 0)
+		{
+			strText.format(L"You have %d pending friend request(s)", numPending);
+		}
+		else
+		{
+			strText = UnicodeString(L"Press F5 or INSERT to bring up the communicator at any time (including in-game).");
+		}
+		if (numPending > 0)
+		{
+			RegisterInitialPendingRequestsUponLogin(numPending);
+		}
+		GenOnlineShowNotificationBox(AsciiString::TheEmptyString, strText);
+	}
+	RefreshCommunicator();
+}
+
+void GenOnlineSocialInterface::OnRealtimeFriendRequestReceived(const GenOnlineRealtime::Member& from)
+{
+	{
+		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
+		m_mapPendingRequests.insert_or_assign(from.id, ToFriendsEntry(from, false));
+	}
+	InvokeCallback_NewFriendRequest(from.name);
+}
+
+void GenOnlineSocialInterface::OnRealtimeFriendRequestAccepted(const GenOnlineRealtime::Member& by)
+{
+	{
+		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
+		m_mapPendingRequests.erase(by.id);
+		m_mapFriends.insert_or_assign(by.id, ToFriendsEntry(by, true));
+	}
+	OnFriendRequestAccepted(by.name);
+	RefreshCommunicator();
+}
+
+void GenOnlineSocialInterface::OnRealtimeFriendRemoved(int64_t user_id)
+{
+	{
+		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
+		m_mapFriends.erase(user_id);
+		m_mapPendingRequests.erase(user_id);
+	}
+	RefreshCommunicator();
+}
+
+void GenOnlineSocialInterface::OnRealtimeFriendPresence(const GenOnlineRealtime::FriendPresenceEvent& event)
+{
+	std::string strName;
+	bool bChanged = false;
+	{
+		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
+		auto it = m_mapFriends.find(event.user_id);
+		if (it == m_mapFriends.end())
+		{
+			return;
+		}
+		bChanged = it->second.online != event.online;
+		it->second.online = event.online;
+		strName = it->second.display_name;
+	}
+	if (bChanged)
+	{
+		OnOnlineStatusChanged(strName, event.online);
+		RefreshCommunicator();
+	}
+}
+
+void GenOnlineSocialInterface::OnRealtimeMemberUpdate(const GenOnlineRealtime::Member& member)
+{
+	bool bChanged = false;
+	{
+		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
+		for (auto* pMap : { &m_mapFriends, &m_mapPendingRequests, &m_mapBlocked })
+		{
+			auto it = pMap->find(member.id);
+			if (it != pMap->end() && it->second.display_name != member.name)
+			{
+				it->second.display_name = member.name;
+				bChanged = true;
+			}
+		}
+	}
+	if (bChanged)
+	{
+		RefreshCommunicator();
+	}
+}
+
+// A direct message is cached under the other player of the conversation, as the legacy friend chat was.
+void GenOnlineSocialInterface::OnRealtimeDirectMessage(const GenOnlineRealtime::ChatMessage& message)
+{
+	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	if (pAuth == nullptr)
+	{
+		return;
+	}
+	int64_t peerID = -1;
+	try
+	{
+		peerID = std::stoll(message.channel_id.substr(3));
+	}
+	catch (const std::exception&)
+	{
+		return;
+	}
+	const int64_t me = pAuth->GetUserID();
+	const int64_t targetID = message.author.id == me ? peerID : me;
+	const std::wstring text = from_utf8(message.author.name) + (message.type == "action" ? L" " : L": ") + from_utf8(message.content);
+	OnChatMessage(message.author.id, targetID, UnicodeString(text.c_str()));
+}
