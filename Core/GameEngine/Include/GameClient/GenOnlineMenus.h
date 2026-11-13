@@ -120,6 +120,13 @@ extern void GOSignInDialogBeginSignIn( void );
 extern void GOSignInDialogUpdate( void );
 extern void GOSignInDialogDestroy( void );
 
+// The Network section of the options menu
+extern void GenOnlineOptionsMenuInit( Bool locked );
+extern Bool GenOnlineOptionsMenuComboSelected( GameWindow *control );
+extern Bool GenOnlineOptionsMenuButtonSelected( GameWindow *control );
+extern Bool GenOnlineOptionsMenuAccept();
+extern void GenOnlineOptionsMenuDefaults();
+
 // Shared functions of the GenOnline menus
 extern void GenOnlineMapSelectMenuApplyMap( const AsciiString& map );
 extern void GenOnlineHandleNumPlayersOnline( Int numPlayersOnline );
