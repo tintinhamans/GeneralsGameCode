@@ -17,7 +17,7 @@
 */
 
 // FILE: MapSelectList.cpp ////////////////////////////////////////////////////////////////////////
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Search, filters and favourites for the map select popups.
+// GenOnline @feature arcticdolphin 08/11/2026 Search, filters and favourites for the map select popups.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
@@ -58,7 +58,7 @@ static const char *const s_sourceWindowNames[MAP_SOURCE_COUNT] =
 	"RadioButtonMapsFavourites"
 };
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 Map names and details take the GO UI colour table's text and muted colours.
+// GenOnline @feature arcticdolphin 09/11/2026 Map names and details take the text and muted colours of the GO UI colour table.
 static Color nameColor()
 {
 	return GOUIColor(GOUICOLOR_TEXT, GameMakeColor(255, 255, 255, 255));
@@ -69,7 +69,7 @@ static Color detailColor()
 	return GOUIColor(GOUICOLOR_MUTED, GameMakeColor(192, 192, 192, 255));
 }
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Legend row under the preview: each category's token icon and its count.
+// GenOnline @feature arcticdolphin 08/11/2026 Legend row under the preview with the token icon and count of each category.
 struct MapLegendItem
 {
 	const Image *m_image;
@@ -77,10 +77,8 @@ struct MapLegendItem
 };
 static std::vector<MapLegendItem> s_legendItems;
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Map count drawn right aligned on the dialog's inner right edge.
+// GenOnline @feature arcticdolphin 08/11/2026 Map count drawn right aligned on the inner right edge of the dialog.
 static DisplayString *s_countString = nullptr;
-
-// HELPERS ////////////////////////////////////////////////////////////////////////////////////////
 
 MapSelectFilter::MapSelectFilter()
 	: m_numPlayers(0)
@@ -229,7 +227,7 @@ static void clearCountString()
 	s_countString = nullptr;
 }
 
-// Static text has no right alignment, so the count draws its own text against the window's right edge.
+// Static text has no right alignment, so the count draws its own text against the right edge of the window.
 static void drawMapCount( GameWindow *window, WinInstanceData *instData )
 {
 	if (s_countString == nullptr)
@@ -305,7 +303,7 @@ static const Image *medalImage( Int medal )
 
 static Int cellImageSize( GameWindow *listbox, Int column, const Image *image )
 {
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The art size is in layout units, so it grows with the screen like the map icons.
+	// GenOnline @tweak arcticdolphin 08/11/2026 The art size is in layout units, so it grows with the screen like the map icons.
 	Int size = GameWindowManager::winScaleLayoutSize( image ? image->getImageWidth() : 10 );
 	size = min(size, GadgetListBoxGetColumnWidth(listbox, column));
 	size = min(size, TheWindowManager->winFontHeight(listbox->winGetFont()));
@@ -331,8 +329,6 @@ static WindowMsgHandledType mapSelectListboxInput( GameWindow *window, UnsignedI
 		return s_listboxInput(window, msg, mData1, mData2);
 	return MSG_IGNORED;
 }
-
-// MapSelectList //////////////////////////////////////////////////////////////////////////////////
 
 MapSelectList::MapSelectList()
 	: m_parent(nullptr)
@@ -431,7 +427,7 @@ void MapSelectList::init( GameWindow *parent, const char *layoutName, const MapS
 	if (m_sources[MAP_SOURCE_FAVOURITES])
 		GadgetRadioSetText(m_sources[MAP_SOURCE_FAVOURITES], TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOMapsFavourites", L"Favourites"));
 
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 The map select is a dialog with its own title.
+	// GenOnline @feature arcticdolphin 08/11/2026 The map select is a dialog with its own title.
 	GameWindow *title = findChild("StaticTextTitle");
 	if (title)
 		GadgetStaticTextSetText(title, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSelectMap", L"Select map"));
@@ -467,7 +463,7 @@ void MapSelectList::init( GameWindow *parent, const char *layoutName, const MapS
 
 	repopulate(mapToSelect);
 
-	// typing searches at once; Esc still reaches the dialog's input callback through the parents
+	// typing searches at once, and Esc still reaches the input callback of the dialog through the parents
 	if (m_search)
 		TheWindowManager->winSetFocus(m_search);
 }
@@ -669,7 +665,6 @@ void MapSelectList::repopulate( const AsciiString &mapToSelect )
 	Int selection = count > 0 ? 0 : -1;
 
 	GadgetListBoxReset(m_listbox);
-	// every result gets a row
 	GadgetListBoxSetListLength(m_listbox, max(count, 1));
 	{
 		GadgetListBoxBatchAddScope batch(m_listbox);

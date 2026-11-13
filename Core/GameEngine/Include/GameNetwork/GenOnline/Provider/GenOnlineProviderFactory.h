@@ -16,17 +16,11 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlineProviderFactory.h ///////////////////////////////////////////
-// Description: GenOnline implementation of OnlineProviderFactory.
-//              The lobby state, chat, presence, stats, ladder, results,
-//              config, session and matchmaking objects still come from the
-//              GameSpy factory because the menus read them directly.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
 #include "GameNetwork/Online/OnlineProviderFactory.h"
-#include "GameNetwork/Online/GameSpy/GameSpyProviderFactory.h"
 #include "GameNetwork/GenOnline/Provider/GenOnlineGameHooks.h"
 
 class GenOnlineProviderFactory : public OnlineProviderFactory
@@ -56,6 +50,5 @@ public:
 	virtual void destroyServices() override;
 
 private:
-	GameSpyProviderFactory m_gameSpy;
 	GenOnlineGameHooks m_gameHooks;
 };
