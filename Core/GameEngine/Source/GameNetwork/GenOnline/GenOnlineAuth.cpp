@@ -587,7 +587,7 @@ void GenOnlineAuthInterface::OnLoginComplete(ELoginResult loginResult, const cha
 	{
 		// TODO_AC: Consider chaining this
 		// login to AC
-		AnticheatPlugInterface::Authenticate();
+		GenOnlinePluginHost::LinkedAccount::SignIn();
 
 		GenOnlineServicesManager::GetInstance()->OnLogin(loginResult, szWSAddr, [=]() // wait for WS to connect
 			{

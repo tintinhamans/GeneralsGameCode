@@ -5,7 +5,7 @@
 #include <chrono>
 #include <mutex>
 #include <steam/steamnetworkingcustomsignaling.h>
-#include "PluginInterfaces.h"
+#include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
 
 class NetRoom_ChatMessagePacket;
 

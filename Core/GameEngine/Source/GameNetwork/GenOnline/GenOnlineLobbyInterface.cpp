@@ -1143,7 +1143,7 @@ void GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 
 	const uint64_t lobbyJoinGeneration = ++m_LobbyJoinGeneration;
 
-    AnticheatPlugInterface::EndSession();
+    GenOnlinePluginHost::Anticheat::EndSession();
 
 	m_bAttemptingToJoinLobby = true;
 	m_CurrentLobby = LobbyEntry();
@@ -1169,7 +1169,7 @@ void GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 			// TODO_GENONLINE: Remove this and just hardcode it or provide from service
 			j["preferred_port"] = 0;
 
-			j["anticheat_id"] = AnticheatPlugInterface::GetAnticheatIdentifier();
+			j["anticheat_id"] = GenOnlinePluginHost::GetAnticheatIdentifier();
 			j["has_map"] = bHasMap;
 
 			if (!strPassword.empty())
@@ -1378,7 +1378,7 @@ void GenOnlineLobbyInterface::LeaveCurrentLobby()
 	// reset host migration flags
 	ResetHostMigrationFlags();
 
-	AnticheatPlugInterface::EndSession();
+	GenOnlinePluginHost::Anticheat::EndSession();
 
 	// kill mesh
 	if (m_pLobbyMesh != nullptr)
@@ -1421,7 +1421,7 @@ void GenOnlineLobbyInterface::ResetForMatchmakingRequeue()
 	// local state here; sending the normal DELETE would cancel the server-side requeue.
 	++m_LobbyJoinGeneration;
 	ResetHostMigrationFlags();
-	AnticheatPlugInterface::EndSession();
+	GenOnlinePluginHost::Anticheat::EndSession();
 
 	if (m_pLobbyMesh != nullptr)
 	{
@@ -1480,7 +1480,7 @@ struct CreateLobbyResponse
 
 void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeString strInitialMapName, AsciiString strInitialMapPath, bool bIsOfficial, int initialMaxSize, bool bVanillaTeamsOnly, bool bTrackStats, uint32_t startingCash, bool bPassworded, std::string strPassword, bool bAllowObservers)
 {
-	AnticheatPlugInterface::EndSession();
+	GenOnlinePluginHost::Anticheat::EndSession();
 
 	// shares the join generation counter with JoinLobby
 	const uint64_t lobbyCreateGeneration = ++m_LobbyJoinGeneration;
@@ -1524,7 +1524,7 @@ void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeStr
 			j["exe_crc"] = TheGlobalData->m_exeCRC;
 			j["ini_crc"] = TheGlobalData->m_iniCRC;
 			j["max_cam_height"] = GenOnlineServicesManager::Settings.Camera_GetMaxHeight_WhenLobbyHost();
-			j["anticheat_id"] = AnticheatPlugInterface::GetAnticheatIdentifier();
+			j["anticheat_id"] = GenOnlinePluginHost::GetAnticheatIdentifier();
 
 			std::string strPostData = j.dump();
 
@@ -1661,7 +1661,7 @@ void GenOnlineLobbyInterface::OnJoinedOrCreatedLobby(bool bAlreadyUpdatedDetails
 	// begin AC
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Begin Session 0");
 
-	AnticheatPlugInterface::BeginSession();
+	GenOnlinePluginHost::Anticheat::BeginSession();
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Begin Session End");
 
 	// join the network mesh too

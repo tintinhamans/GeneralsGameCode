@@ -2493,9 +2493,9 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 		return;
 	}
 
-	if (AnticheatPlugInterface::g_bPendingExitLobby)
+	if (GenOnlinePluginHost::g_bPendingExitLobby)
 	{
-		AnticheatPlugInterface::g_bPendingExitLobby = false;
+		GenOnlinePluginHost::g_bPendingExitLobby = false;
 
         GSMessageBoxOk(TheGameText->fetchOrSubstitute("GUI:ACErrorHeader", L"AntiCheat Error"), TheGameText->fetchOrSubstitute("GUI:ACLobbyIntegrityError", L"Lobby integrity could not be validated. Leaving Lobby."));
 

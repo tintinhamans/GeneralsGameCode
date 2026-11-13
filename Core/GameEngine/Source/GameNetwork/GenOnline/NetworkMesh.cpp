@@ -12,7 +12,7 @@
 #include "../GenOnlineInit.h"
 #include <steam/isteamnetworkingutils.h>
 #include <steam/steamnetworkingcustomsignaling.h>
-#include "../PluginInterfaces.h"
+#include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
 #include <steam/isteamnetworkingsockets.h>
 #include <steam/steamnetworkingsockets.h>
 
@@ -666,7 +666,7 @@ void NetworkMeshLibrary::Shutdown()
 
 void NetworkMeshLibrary::Tick()
 {
-	if (!s_bInitialized || AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
+	if (!s_bInitialized || GenOnlinePluginHost::Transport::IsActive())
 	{
 		return;
 	}
@@ -735,7 +735,7 @@ NetworkMesh::NetworkMesh()
 	// created or accepted by this mesh - StartConnectionSignalling() goes
 	// straight to the plugin. Taking a Steam listen socket we never use only
 	// risks colliding with a previous mesh on P2P vport 0, so skip it.
-	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
+	if (GenOnlinePluginHost::Transport::IsActive())
 	{
 		m_bInitialized = true;
 		return;
@@ -870,10 +870,10 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 	// Thread safety: Lock connection map during access
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 
-	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
+	if (GenOnlinePluginHost::Transport::IsActive())
 	{
 		// TODO_EOS: if we already have a connection to this use, drop it, having a single-direction connection will break signalling
-		AnticheatPlugInterface::StartSignalling(szMiddlewareID, remoteUserID);
+		GenOnlinePluginHost::Transport::StartSignalling(szMiddlewareID, remoteUserID);
 
         // create a local user type
         {
@@ -1071,11 +1071,11 @@ void NetworkMesh::DisconnectUser(int64_t remoteUserID)
 	if (m_mapConnections.find(remoteUserID) != m_mapConnections.end())
 	{
 
-        if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
+        if (GenOnlinePluginHost::Transport::IsActive())
         {
             NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld", remoteUserID);
 
-			AnticheatPlugInterface::DisconnectPlayer(m_mapConnections[remoteUserID].m_strMiddlewareID.c_str(), m_mapConnections[remoteUserID].m_userID);
+			GenOnlinePluginHost::Transport::DisconnectPeer(m_mapConnections[remoteUserID].m_strMiddlewareID.c_str(), m_mapConnections[remoteUserID].m_userID);
             if (TheNetwork != nullptr)
             {
                 TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
@@ -1130,9 +1130,9 @@ void NetworkMesh::Disconnect()
 
     m_mapConnections.clear();
 
-	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
+	if (GenOnlinePluginHost::Transport::IsActive())
 	{
-		AnticheatPlugInterface::DisconnectAll();
+		GenOnlinePluginHost::Transport::DisconnectAll();
 	}
 
 	// The listen socket is created unconditionally in the constructor, so it must
@@ -1166,7 +1166,7 @@ void NetworkMesh::Tick()
 		}
 	}
 
-	if (!AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport() && m_pSignaling != nullptr)
+	if (!GenOnlinePluginHost::Transport::IsActive() && m_pSignaling != nullptr)
 	{
 		m_pSignaling->Poll();
 	}
@@ -1190,7 +1190,7 @@ void NetworkMesh::Tick()
 
 void PlayerConnection::LiteUpdateForAC()
 {
-	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
+	if (GenOnlinePluginHost::Transport::IsActive())
 	{
 		// EOS: Nothing to do here, AC packets are handled internally when MW is handling it
 	}
@@ -1244,7 +1244,7 @@ void PlayerConnection::LiteUpdateForAC()
 					vecDataAC.resize(numBytes - sizeof(ENetworkChannel));
 					memcpy(vecDataAC.data(), (char*)msg->GetData() + sizeof(ENetworkChannel), numBytes - sizeof(ENetworkChannel));
 
-					AnticheatPlugInterface::AC_NetworkMessageArrived(m_userID, vecDataAC.data(), numBytes - sizeof(ENetworkChannel));
+					GenOnlinePluginHost::Anticheat::MessageArrived(m_userID, vecDataAC.data(), numBytes - sizeof(ENetworkChannel));
 					msg->Release();
 					continue;
 				}
@@ -1314,10 +1314,10 @@ int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
         return (int)k_EResultFail;
     }
 
-	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
+	if (GenOnlinePluginHost::Transport::IsActive())
 	{
 		// TODO_EOS: Determine best reliability
-		AnticheatPlugInterface::SendPacket(m_strMiddlewareID.c_str(), m_userID, pBuffer, totalDataSize, ENetworkChannels::Game, EPacketReliability::PACKET_RELIABILITY_RELIABLE_ORDERED);
+		GenOnlinePluginHost::Transport::SendPacket(m_strMiddlewareID.c_str(), m_userID, pBuffer, totalDataSize, ENetworkChannels::Game, EPacketReliability::PACKET_RELIABILITY_RELIABLE_ORDERED);
 	}
 	else
 	{
@@ -1388,7 +1388,7 @@ int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
 
 void PlayerConnection::SendACPacket(const void* pData, uint32_t dataLen)
 {
-	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
+	if (GenOnlinePluginHost::Transport::IsActive())
 	{
 		// nothing to do, handled internally in plugin
 
@@ -1486,9 +1486,9 @@ void PlayerConnection::Close()
 	}
 	else
 	{
-		if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
+		if (GenOnlinePluginHost::Transport::IsActive())
 		{
-			AnticheatPlugInterface::DisconnectPlayer(m_strMiddlewareID.c_str(), m_userID);
+			GenOnlinePluginHost::Transport::DisconnectPeer(m_strMiddlewareID.c_str(), m_userID);
         }
 	}
     
@@ -1541,11 +1541,11 @@ std::string PlayerConnection::GetStats()
 
 std::string PlayerConnection::GetConnectionType()
 {
-	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
+	if (GenOnlinePluginHost::Transport::IsActive())
 	{
 		if (m_State == EConnectionState::CONNECTED_DIRECT)
 		{
-			bool bIsConnectionRelayed = AnticheatPlugInterface::IsConnectionRelayed(m_strMiddlewareID.c_str(), m_userID);
+			bool bIsConnectionRelayed = GenOnlinePluginHost::Transport::IsRelayed(m_strMiddlewareID.c_str(), m_userID);
 			return bIsConnectionRelayed ? "Relayed" : "Direct";
 		}
 		else
@@ -1664,7 +1664,7 @@ int PlayerConnection::GetLatency()
 {
 	if (m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
 	{
-		return AnticheatPlugInterface::GetConnectionLatencyForUser(m_strMiddlewareID.c_str(), m_userID);
+		return GenOnlinePluginHost::Transport::GetLatency(m_strMiddlewareID.c_str(), m_userID);
 	}
 	else
 	{

@@ -1340,9 +1340,9 @@ void WebSocket::Tick()
 										if (bParsed)
 										{
 											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_REGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid);
-											if (!AnticheatPlugInterface::RegisterPlayer(acData.mwid, acData.user_id))
+											if (!GenOnlinePluginHost::Anticheat::RegisterPeer(acData.mwid, acData.user_id))
 											{
-												NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] AnticheatPlugInterface::RegisterPlayer failed");
+												NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] GenOnlinePluginHost::Anticheat::RegisterPeer failed");
 											}
 										}
                                     }
@@ -1356,9 +1356,9 @@ void WebSocket::Tick()
 										if (bParsed)
 										{
 											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_DEREGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid);
-											if (!AnticheatPlugInterface::DeregisterPlayer(acData.mwid, acData.user_id))
+											if (!GenOnlinePluginHost::Anticheat::DeregisterPeer(acData.mwid, acData.user_id))
 											{
-												NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] AnticheatPlugInterface::DeregisterPlayer failed");
+												NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] GenOnlinePluginHost::Anticheat::DeregisterPeer failed");
 											}
 										}
                                     }
@@ -1512,7 +1512,7 @@ void WebSocket::Tick()
                                         {
                                             NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] AC Msg Signal User: %lld!", acMsg.target_user_id);
                                             NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] AC Msg Signal Payload Size: %d!", (int)acMsg.payload.size());
-                                            AnticheatPlugInterface::AC_NetworkMessageArrived(acMsg.target_user_id, acMsg.payload.data(), acMsg.payload.size());
+                                            GenOnlinePluginHost::Anticheat::MessageArrived(acMsg.target_user_id, acMsg.payload.data(), acMsg.payload.size());
                                         }
                                     }
                                     break;
