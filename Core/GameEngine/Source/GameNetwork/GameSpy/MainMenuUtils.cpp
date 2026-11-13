@@ -56,7 +56,7 @@
 #include "../GenOnlineInit.h"
 #include "Common/GameEngine.h"
 #include "Common/GlobalData.h"
-#include "../PluginInterfaces.h"
+#include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -871,9 +871,9 @@ void StartPatchCheck()
 	GenOnlineServicesManager::GetInstance()->Init();
 
     // if we have an AC plugin loaded but the AC external process isnt running, show an error message
-    if (AnticheatPlugInterface::IsPluginLoaded())
+    if (GenOnlinePluginHost::IsPluginLoaded())
     {
-        if (!AnticheatPlugInterface::IsExternalProcessRunning())
+        if (!GenOnlinePluginHost::IsExternalProcessRunning())
         {
             MessageBoxOk(TheGameText->fetchOrSubstitute("GUI:ACErrorHeader", L"AntiCheat Error"),
                 TheGameText->fetchOrSubstitute("GUI:ACExternalProcessNotRunning", L"The AntiCheat external process is not running"),
@@ -882,7 +882,7 @@ void StartPatchCheck()
             return;
         }
     }
-	else if (AnticheatPlugInterface::DidPluginFailToLoad()) // Did we have something to load but it failed?
+	else if (GenOnlinePluginHost::DidPluginFailToLoad()) // Did we have something to load but it failed?
 	{
         std::string strPlugin = GenOnlineServicesManager::Settings.GetAnticheatPlugin();
         std::string pluginPath = std::format("plugins/{}/{}.dll", strPlugin.c_str(), strPlugin.c_str());

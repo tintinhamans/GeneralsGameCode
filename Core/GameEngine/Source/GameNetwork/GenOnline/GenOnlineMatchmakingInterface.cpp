@@ -84,7 +84,7 @@ void GenOnlineMatchmakingInterface::StartMatchmaking(uint16_t playlistID, std::v
 	j["maps"] = vecSelectedMapIndexes;
 	j["exe_crc"] = TheGlobalData->m_exeCRC;
 	j["ini_crc"] = TheGlobalData->m_iniCRC;
-	j["anticheat_id"] = AnticheatPlugInterface::GetAnticheatIdentifier();
+	j["anticheat_id"] = GenOnlinePluginHost::GetAnticheatIdentifier();
 
 	std::map<std::string, std::string> mapHeaders;
 	std::string strPostData = j.dump();
