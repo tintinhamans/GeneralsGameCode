@@ -262,7 +262,6 @@ void GenOnlineGame::setPingString(AsciiString pingStr)
 {
 	m_pingStr = pingStr;
 	m_pingInt = 0;
-	//m_pingInt = TheGameSpyInfo->getPingValue(pingStr);
 }
 
 Bool GenOnlineGame::amIHost(void) const
@@ -274,15 +273,6 @@ Bool GenOnlineGame::amIHost(void) const
 void GenOnlineGame::resetAccepted(void)
 {
 	GameInfo::resetAccepted();
-
-	if (amIHost())
-	{
-		/*
-		peerStateChanged(TheGameSpyChat->getPeer());
-		m_hasBeenQueried = false;
-		DEBUG_LOG(("resetAccepted() called peerStateChange()\n"));
-		*/
-	}
 }
 
 Int GenOnlineGame::getLocalSlotNum(void) const
@@ -321,7 +311,6 @@ void GenOnlineGame::startGame(Int gameID)
 	//DEBUG_ASSERTCRASH(m_transport == NULL, ("m_transport is not NULL when it should be"));
 	//DEBUG_ASSERTCRASH(TheNAT == NULL, ("TheNAT is not NULL when it should be"));
 
-	//UnsignedInt localIP = TheGameSpyInfo->getInternalIP();
 	UnsignedInt localIP = 1337; // dont care anymore
 	setLocalIP(localIP);
 
@@ -343,22 +332,6 @@ void GenOnlineGame::startGame(Int gameID)
 			}
 			else
 			{
-				// TODO_NGMP
-				/*
-				PlayerInfoMap* pInfoMap = TheGameSpyInfo->getPlayerInfoMap();
-				PlayerInfoMap::iterator it = pInfoMap->find(gsName);
-				if (it != pInfoMap->end())
-				{
-					m_GameSpySlot[i].setProfileID(it->second.m_profileID);
-					m_GameSpySlot[i].setLocale(it->second.m_locale);
-					m_GameSpySlot[i].setSlotRankPoints(it->second.m_rankPoints);
-					m_GameSpySlot[i].setFavoriteSide(it->second.m_side);
-				}
-				else
-				{
-					DEBUG_CRASH(("No player info for %s", gsName.str()));
-				}
-				*/
 			}
 		}
 	}
@@ -369,9 +342,6 @@ void GenOnlineGame::startGame(Int gameID)
 		launchGame();
 		
 		
-		// TODO_NGMP: LEave staging room? probably dont care anymore? its all one lobby nowadays
-		//if (TheGameSpyInfo)
-		//TheGameSpyInfo->leaveStagingRoom();
 	}
 	else
 		//#endif defined(_DEBUG) || defined(_INTERNAL)
@@ -533,16 +503,6 @@ void GenOnlineGame::launchGame(void)
 	InitRandom(getSeed());
 	DEBUG_LOG(("InitGameLogicRandom( %d )\n", getSeed()));
 
-	// mark us as "Loading" in the buddy list
-	// TODO_NGMP
-	/*
-	BuddyRequest req;
-	req.buddyRequestType = BuddyRequest::BUDDYREQUEST_SETSTATUS;
-	req.arg.status.status = GP_PLAYING;
-	strcpy(req.arg.status.statusString, "Loading");
-	sprintf(req.arg.status.locationString, "%s", WideCharStringToMultiByte(TheGameSpyGame->getGameName().str()).c_str());
-	TheGameSpyBuddyMessageQueue->addRequest(req);
-	*/
 
     	// Show map name in the match start communicator hint notification
 	{
