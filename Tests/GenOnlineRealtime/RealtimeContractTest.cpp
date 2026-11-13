@@ -602,7 +602,7 @@ static void TestHubSessionEvents()
 	});
 	hub.Connect(0);
 
-	hub.Receive("{\"type\":1,\"target\":\"Friends\",\"arguments\":[{\"friends\":[{\"id\":7,\"name\":\"Ann\",\"badges\":[],\"online\":true}],\"incoming\":[],\"outgoing\":[],\"blocked\":[]}]}\x1E", 1);
+	hub.Receive("{\"type\":1,\"target\":\"Friends\",\"arguments\":[{\"friends\":[{\"id\":7,\"name\":\"Ann\",\"badges\":[],\"online\":true,\"activity\":\"menu\"}],\"incoming\":[],\"outgoing\":[],\"blocked\":[]}]}\x1E", 1);
 	CHECK(friends == 1);
 	CHECK(lastFriendId == 7);
 

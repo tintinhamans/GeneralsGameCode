@@ -24,7 +24,7 @@
     {
       "id": 1,
       "name": "General",
-      "parent_id": 0,
+      "parent_id": null,
       "show_all_matches": false
     }
   ],
