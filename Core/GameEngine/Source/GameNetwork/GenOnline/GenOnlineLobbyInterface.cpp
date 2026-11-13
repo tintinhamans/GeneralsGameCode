@@ -7,6 +7,7 @@
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/GenOnline/LobbyConnectionPolicy.h"
 #include "Lib/PathUtil.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeMatchmaking.h"
 
 #include <algorithm>
 
@@ -59,22 +60,11 @@ AsciiString GenOnlineLobbyInterface::GetCurrentLobbyMapPath()
 	return strPath;
 }
 
-// Calls a lobby method of the realtime hub. Without a socket the callback reports a transport error.
+// Calls a lobby method of the realtime hub.
 template <class R>
 static void InvokeLobbyHub(const R& request, std::function<void(const GenOnlineRealtime::InvokeOutcome&)> callback)
 {
-	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
-	if (pWS != nullptr)
-	{
-		pWS->InvokeHub(request, callback);
-		return;
-	}
-	if (callback)
-	{
-		GenOnlineRealtime::InvokeOutcome outcome;
-		outcome.transportError = "not connected";
-		callback(outcome);
-	}
+	InvokeRealtimeHub(request, callback);
 }
 
 // The status code and body of the legacy join response for a JoinLobby result.
@@ -2530,4 +2520,68 @@ void GenOnlineLobbyInterface::OnRealtimeGameStart(const GenOnlineRealtime::GameS
 	{
 		m_callbackStartGamePacket();
 	}
+}
+
+void GenOnlineLobbyInterface::HandleMatchFound(int64_t lobbyID, const std::string& mapPath)
+{
+	InvokeMatchmakingMatchFoundCallback();
+
+	// TODO_QUICKMATCH: Only if really in quickmatch
+
+	// TODO_QUICKMATCH: We need to retrieve this info instead
+	// basic info needed to join
+	LobbyEntry lobbyEntry;
+	lobbyEntry.lobbyID = lobbyID;
+	lobbyEntry.map_path = mapPath;
+
+	if (JoinLobby(lobbyEntry, std::string()))
+	{
+		InvokeMatchmakingMessageCallback("Joining QuickMatch Lobby");
+	}
+	else
+	{
+		InvokeMatchmakingMessageCallback("Could not join the QuickMatch lobby, another join is still in progress");
+	}
+}
+
+void GenOnlineLobbyInterface::HandleMatchSetupProgress(int64_t timeoutMs, int64_t countdownMs)
+{
+	static constexpr int kMinMatchSetupTimeoutMs = 1000;
+	static constexpr int kMaxMatchSetupTimeoutMs = 120000;
+
+	if (timeoutMs <= 0)
+	{
+		return;
+	}
+	if (timeoutMs < kMinMatchSetupTimeoutMs)
+	{
+		timeoutMs = kMinMatchSetupTimeoutMs;
+	}
+	else if (timeoutMs > kMaxMatchSetupTimeoutMs)
+	{
+		timeoutMs = kMaxMatchSetupTimeoutMs;
+	}
+	InvokeMatchmakingSetupProgressCallback((int)timeoutMs, (int)countdownMs);
+}
+
+void GenOnlineLobbyInterface::OnRealtimeMatchmakingStatus(const GenOnlineRealtime::MatchmakingStatusEvent& event)
+{
+	InvokeMatchmakingMessageCallback(GenOnlineRealtime::MatchmakingStatusText(event.code, event.params));
+}
+
+void GenOnlineLobbyInterface::OnRealtimeMatchStart(const GenOnlineRealtime::MatchStartEvent& event)
+{
+	if (event.lobby_id != m_CurrentLobby.lobbyID)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Ignoring MatchStart for lobby %lld, the current lobby is %lld", event.lobby_id, m_CurrentLobby.lobbyID);
+		return;
+	}
+	InvokeMatchmakingStartGameCallback();
+}
+
+void GenOnlineLobbyInterface::OnRealtimeMatchRequeue(const GenOnlineRealtime::MatchRequeueEvent& event)
+{
+	InvokeMatchmakingMessageCallback(GenOnlineRealtime::MatchRequeueText(event.reason));
+	ResetForMatchmakingRequeue();
+	InvokeMatchmakingRequeueCallback();
 }

@@ -7,6 +7,8 @@ struct PlaylistMapEntry
 	std::string Name = std::string();
 	std::string Path = std::string();
 	bool Custom = false;
+	// The map index of the realtime hub, -1 for the legacy service.
+	int Index = -1;
 };
 
 struct PlaylistEntry

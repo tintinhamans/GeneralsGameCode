@@ -957,3 +957,21 @@ private:
 	std::string m_patcher_path;
 	int64_t m_patcher_size;
 };
+
+// Calls a hub method on the services websocket. Without a socket the callback reports a transport error.
+template <class R>
+void InvokeRealtimeHub(const R& request, std::function<void(const GenOnlineRealtime::InvokeOutcome&)> callback)
+{
+	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
+	if (pWS != nullptr)
+	{
+		pWS->InvokeHub(request, callback);
+		return;
+	}
+	if (callback)
+	{
+		GenOnlineRealtime::InvokeOutcome outcome;
+		outcome.transportError = "not connected";
+		callback(outcome);
+	}
+}
