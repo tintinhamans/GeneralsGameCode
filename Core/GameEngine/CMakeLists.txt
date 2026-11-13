@@ -212,6 +212,7 @@ set(GAMEENGINE_SRC
     Include/GameClient/LookAtXlat.h
     Include/GameClient/MapCacheJson.h
     Include/GameClient/MapPreviewIcons.h
+    Include/GameClient/MapSelectList.h
     Include/GameClient/MapUtil.h
     Include/GameClient/MessageBox.h
     Include/GameClient/MetaEvent.h
@@ -844,6 +845,7 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/HeaderTemplate.cpp
     Source/GameClient/GUI/IMEManager.cpp
     Source/GameClient/GUI/LoadScreen.cpp
+    Source/GameClient/GUI/MapSelectList.cpp
     Source/GameClient/GUI/ProcessAnimateWindow.cpp
     Source/GameClient/GUI/Shell/Shell.cpp
     Source/GameClient/GUI/Shell/ShellMenuScheme.cpp
