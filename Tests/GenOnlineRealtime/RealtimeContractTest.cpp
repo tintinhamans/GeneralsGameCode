@@ -26,6 +26,10 @@
 #include "GameNetwork/GenOnline/Realtime/RealtimeHubSession.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeProtocol.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeSignIn.h"
+
+#include <windows.h>
+#include <bcrypt.h>
 
 #include <cstdio>
 #include <filesystem>
@@ -683,14 +687,230 @@ static void TestReconnectPolicy()
 	CHECK(first >= 2990 && first < 3000);
 }
 
+static std::vector<uint8_t> Sha256(const std::string& data)
+{
+	std::vector<uint8_t> digest(32);
+	BCryptHash(BCRYPT_SHA256_ALG_HANDLE, nullptr, 0, (PUCHAR)data.data(), (ULONG)data.size(), digest.data(), (ULONG)digest.size());
+	return digest;
+}
+
+static json LoadJson(const std::filesystem::path& path)
+{
+	std::ifstream file(path, std::ios::binary);
+	std::stringstream text;
+	text << file.rdbuf();
+	return json::parse(text.str());
+}
+
+static json FormToJson(const FormFields& fields)
+{
+	json j = json::object();
+	for (const auto& field : fields)
+		j[field.first] = field.second;
+	return j;
+}
+
+static void TestSignInFixtures(const std::filesystem::path& folder)
+{
+	std::set<std::string> checked;
+	auto load = [&](const char* name)
+	{
+		checked.insert(name);
+		return LoadJson(folder / name);
+	};
+
+	// The authorize query and the token forms match the request fixtures field by field.
+	json authorize = load("OAuthAuthorize.request.json");
+	std::string url = BuildAuthorizeUrl("https://accounts.example.org/oauth/authorize", authorize["client_id"], authorize["redirect_uri"], authorize["state"], authorize["code_challenge"]);
+	const std::string prefix = "https://accounts.example.org/oauth/authorize?";
+	CHECK(url.compare(0, prefix.size(), prefix) == 0);
+	std::map<std::string, std::string> query;
+	CHECK(DecodeForm(url.substr(prefix.size()), query));
+	CHECK(json(query) == authorize);
+
+	json codeRequest = load("OAuthToken.code.request.json");
+	CHECK(FormToJson(CodeTokenForm(codeRequest["client_id"], codeRequest["code"], codeRequest["code_verifier"], codeRequest["redirect_uri"])) == codeRequest);
+	// The fixture verifier belongs to the fixture challenge.
+	CHECK(PkceChallenge(codeRequest["code_verifier"].get<std::string>(), Sha256) == authorize["code_challenge"].get<std::string>());
+
+	json refreshRequest = load("OAuthToken.refresh.request.json");
+	CHECK(FormToJson(RefreshTokenForm(refreshRequest["client_id"], refreshRequest["refresh_token"])) == refreshRequest);
+
+	struct RoundTripCase
+	{
+		const char* name;
+		RoundTripFn fn;
+	};
+	const RoundTripCase cases[] = {
+		{ "OAuthToken.result.json", RoundTrip<TokenResponse> },
+		{ "OAuthToken.error.json", RoundTrip<OAuthError> },
+		{ "AuthSession.request.json", RoundTrip<AuthSessionRequest> },
+		{ "AuthSession.result.json", RoundTrip<AuthSessionResult> },
+		{ "AuthSession.error.json", RoundTrip<ApiError> },
+	};
+	for (const RoundTripCase& c : cases)
+	{
+		json in = load(c.name);
+		try
+		{
+			json out = c.fn(in);
+			if (out != in)
+			{
+				std::printf("FAILED fixture %s round trip\n  in:  %s\n  out: %s\n", c.name, in.dump().c_str(), out.dump().c_str());
+				++g_failures;
+			}
+		}
+		catch (const std::exception& e)
+		{
+			std::printf("FAILED fixture %s: %s\n", c.name, e.what());
+			++g_failures;
+		}
+	}
+
+	for (const auto& entry : std::filesystem::directory_iterator(folder))
+	{
+		std::string name = entry.path().filename().string();
+		if (entry.path().extension() == ".json" && checked.find(name) == checked.end())
+		{
+			std::printf("FAILED sign-in fixture %s has no check\n", name.c_str());
+			++g_failures;
+		}
+	}
+	std::printf("sign-in fixtures checked: %zu\n", checked.size());
+}
+
+static void TestPkce()
+{
+	// RFC 7636 appendix B.
+	const uint8_t octets[] = { 116, 24, 223, 180, 151, 153, 224, 37, 79, 250, 96, 125, 216, 173, 187, 186,
+		22, 212, 37, 77, 105, 214, 191, 240, 91, 88, 5, 88, 83, 132, 141, 121 };
+	std::string verifier = PkceVerifier(std::vector<uint8_t>(octets, octets + sizeof(octets)));
+	CHECK(verifier == "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk");
+	CHECK(PkceChallenge(verifier, Sha256) == "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM");
+
+	const uint8_t one[] = { 0xFB };
+	const uint8_t two[] = { 0xFB, 0xFF };
+	CHECK(Base64UrlEncode(one, 1) == "-w");
+	CHECK(Base64UrlEncode(two, 2) == "-_8");
+	CHECK(Base64UrlEncode(nullptr, 0).empty());
+}
+
+static void TestFormEncoding()
+{
+	CHECK(UrlEncode("a b&c=d/é~") == "a%20b%26c%3Dd%2F%C3%A9~");
+	std::string decoded;
+	CHECK(UrlDecode("a%20b+c%2f", decoded));
+	CHECK(decoded == "a b c/");
+	CHECK(!UrlDecode("bad%2", decoded));
+	CHECK(!UrlDecode("bad%zz", decoded));
+	CHECK(!UrlDecode("bad%", decoded));
+
+	FormFields fields;
+	fields.push_back(std::make_pair("redirect_uri", "http://127.0.0.1:53817/callback"));
+	fields.push_back(std::make_pair("scope", SIGN_IN_SCOPE));
+	CHECK(EncodeForm(fields) == "redirect_uri=http%3A%2F%2F127.0.0.1%3A53817%2Fcallback&scope=openid%20offline_access%20game");
+
+	std::map<std::string, std::string> decodedFields;
+	CHECK(DecodeForm("a=1&a=2&b=&c", decodedFields));
+	CHECK(decodedFields["a"] == "1");
+	CHECK(decodedFields.count("b") == 1 && decodedFields["b"].empty());
+	CHECK(decodedFields.count("c") == 1);
+
+	CHECK(LoopbackRedirectUri(53817) == "http://127.0.0.1:53817/callback");
+	FormFields revoke = RevokeTokenForm("gen_online_60hz", "rt");
+	CHECK(FormToJson(revoke) == json::parse("{\"client_id\":\"gen_online_60hz\",\"token\":\"rt\",\"token_type_hint\":\"refresh_token\"}"));
+}
+
+static void TestLoopbackCallback()
+{
+	LoopbackCallback c = ParseLoopbackRequest("GET /callback?code=abc%2Bd&state=s1 HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n", "s1");
+	CHECK(c.kind == LoopbackCallback::Kind::Code);
+	CHECK(c.code == "abc+d");
+
+	c = ParseLoopbackRequest("GET /callback?error=access_denied&state=s1 HTTP/1.1\r\n\r\n", "s1");
+	CHECK(c.kind == LoopbackCallback::Kind::Error);
+	CHECK(c.error == "access_denied");
+
+	c = ParseLoopbackRequest("GET /callback?code=abc&state=other HTTP/1.1\r\n\r\n", "s1");
+	CHECK(c.kind == LoopbackCallback::Kind::Rejected);
+	c = ParseLoopbackRequest("GET /callback?code=abc HTTP/1.1\r\n\r\n", "s1");
+	CHECK(c.kind == LoopbackCallback::Kind::Rejected);
+	c = ParseLoopbackRequest("GET /callback?code=abc&state= HTTP/1.1\r\n\r\n", "");
+	CHECK(c.kind == LoopbackCallback::Kind::Rejected);
+	c = ParseLoopbackRequest("GET /callback?state=s1 HTTP/1.1\r\n\r\n", "s1");
+	CHECK(c.kind == LoopbackCallback::Kind::Rejected);
+	c = ParseLoopbackRequest("GET /callback HTTP/1.1\r\n\r\n", "s1");
+	CHECK(c.kind == LoopbackCallback::Kind::Rejected);
+
+	c = ParseLoopbackRequest("GET /favicon.ico HTTP/1.1\r\n\r\n", "s1");
+	CHECK(c.kind == LoopbackCallback::Kind::Ignore);
+	c = ParseLoopbackRequest("POST /callback?code=abc&state=s1 HTTP/1.1\r\n\r\n", "s1");
+	CHECK(c.kind == LoopbackCallback::Kind::Ignore);
+	c = ParseLoopbackRequest("GET /callbackx?code=abc&state=s1 HTTP/1.1\r\n\r\n", "s1");
+	CHECK(c.kind == LoopbackCallback::Kind::Ignore);
+	c = ParseLoopbackRequest("garbage", "s1");
+	CHECK(c.kind == LoopbackCallback::Kind::Ignore);
+}
+
+static void TestDiscovery()
+{
+	const std::string origin = "https://api.example.org:2087";
+	OpenIdConfiguration config;
+	std::string error;
+	CHECK(ParseOpenIdConfiguration("{\"issuer\":\"https://api.example.org:2087/\",\"authorization_endpoint\":\"https://api.example.org:2087/oauth/authorize\",\"token_endpoint\":\"https://api.example.org:2087/oauth/token\",\"revocation_endpoint\":\"https://api.example.org:2087/oauth/revoke\",\"jwks_uri\":\"x\"}", origin, config, error));
+	CHECK(config.token_endpoint == "https://api.example.org:2087/oauth/token");
+	CHECK(config.revocation_endpoint == "https://api.example.org:2087/oauth/revoke");
+
+	// A separate accounts host is allowed, a broken revocation endpoint is dropped.
+	CHECK(ParseOpenIdConfiguration("{\"issuer\":\"https://api.example.org:2087\",\"authorization_endpoint\":\"https://accounts.example.org/oauth/authorize\",\"token_endpoint\":\"https://accounts.example.org/oauth/token\",\"revocation_endpoint\":\"http://accounts.example.org/oauth/revoke\"}", origin, config, error));
+	CHECK(config.authorization_endpoint == "https://accounts.example.org/oauth/authorize");
+	CHECK(config.revocation_endpoint.empty());
+
+	CHECK(!ParseOpenIdConfiguration("{\"issuer\":\"https://other.example.org\",\"authorization_endpoint\":\"https://other.example.org/oauth/authorize\",\"token_endpoint\":\"https://other.example.org/oauth/token\"}", origin, config, error));
+	CHECK(!ParseOpenIdConfiguration("{\"issuer\":\"https://api.example.org:2087\",\"authorization_endpoint\":\"http://api.example.org:2087/oauth/authorize\",\"token_endpoint\":\"https://api.example.org:2087/oauth/token\"}", origin, config, error));
+	CHECK(!ParseOpenIdConfiguration("{\"issuer\":\"https://api.example.org:2087\",\"authorization_endpoint\":\"https://api.example.org:2087/oauth/authorize\",\"token_endpoint\":\"https://user@evil.example/oauth/token\"}", origin, config, error));
+	CHECK(!ParseOpenIdConfiguration("{\"issuer\":\"https://api.example.org:2087\",\"authorization_endpoint\":\"https://api.example.org:2087/oauth/authorize\"}", origin, config, error));
+	CHECK(!ParseOpenIdConfiguration("not json", origin, config, error));
+	CHECK(!IsAcceptableEndpoint("https:///path"));
+	CHECK(!IsAcceptableEndpoint("https://host/path?x=1"));
+}
+
+static void TestAcceptRealtimeUrl()
+{
+	const std::string base = "https://api.playgenerals.online:2087/env/test/contract/1/";
+	CHECK(OriginOfBase(base) == "https://api.playgenerals.online:2087");
+	CHECK(OriginOfBase("https://localhost") == "https://localhost");
+	CHECK(OriginOfBase("http://localhost/").empty());
+
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/-/realtime", base) == "wss://api.playgenerals.online:2087/-/realtime");
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/ws", base) == "wss://api.playgenerals.online:2087/ws");
+
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online/-/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087.evil.example/-/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:20870/-/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://api.playgenerals.online:2087/-/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://evil.example/-/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/-/realtime?access_token=x", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/a/../b", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/%2e%2e/b", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/-/realtime", "http://api.playgenerals.online:2087/").empty());
+}
+
 int main(int argc, char** argv)
 {
-	if (argc < 2)
+	if (argc < 3)
 	{
-		std::printf("usage: %s <fixtures folder>\n", argv[0]);
+		std::printf("usage: %s <realtime fixtures folder> <sign-in fixtures folder>\n", argv[0]);
 		return 2;
 	}
 	TestFixtures(argv[1]);
+	TestSignInFixtures(argv[2]);
+	TestPkce();
+	TestFormEncoding();
+	TestLoopbackCallback();
+	TestAcceptRealtimeUrl();
+	TestDiscovery();
 	TestHandshake();
 	TestParseRecord();
 	TestSerializeInvocation();

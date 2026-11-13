@@ -1,0 +1,5 @@
+{
+  "grant_type": "refresh_token",
+  "client_id": "gen_online_60hz",
+  "refresh_token": "<the latest refresh token>"
+}
