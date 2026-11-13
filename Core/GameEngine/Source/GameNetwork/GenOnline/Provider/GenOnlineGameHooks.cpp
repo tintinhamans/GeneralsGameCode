@@ -35,6 +35,8 @@
 #include "GameNetwork/GenOnline/DiscordRichPresence.h"
 #include "GameNetwork/GenOnline/NetworkMesh.h"
 #include "GameNetwork/GenOnline/ProxyLogin.h"
+#include "GameNetwork/GenOnline/GenOnlineMainMenuUtils.h"
+#include "GameClient/GenOnlineMenus.h"
 #include <steam/isteamnetworkingsockets.h>
 
 static bool g_bTearDownGeneralsOnlineRequested = false;
@@ -256,4 +258,75 @@ void GenOnlineGameHooks::drawNetworkOverlay( DisplayString *text, Int dropColor 
 void GenOnlineGameHooks::releaseNetworkOverlay()
 {
 	GenOnlineReleaseNetworkOverlay();
+}
+
+// The GenOnline menus open their own layouts for the overlays they show.
+const char *GenOnlineGameHooks::getOverlayLayout( Int overlay, const char *gameSpyLayout )
+{
+	switch (overlay)
+	{
+		case GSOVERLAY_PLAYERINFO:
+			return "Menus/GenOnlinePopupPlayerInfo.wnd";
+		case GSOVERLAY_MAPSELECT:
+			return "Menus/GenOnlineMapSelectMenu.wnd";
+		case GSOVERLAY_BUDDY:
+			return "Menus/GenOnlineBuddyOverlay.wnd";
+		case GSOVERLAY_GAMEOPTIONS:
+			return "Menus/GenOnlinePopupHostGame.wnd";
+		case GSOVERLAY_GAMEPASSWORD:
+			return "Menus/GenOnlinePopupJoinGame.wnd";
+		default:
+			return gameSpyLayout;
+	}
+}
+
+void GenOnlineGameHooks::onShellScreenChanged()
+{
+	GenOnlineRaiseNotificationBox();
+}
+
+void GenOnlineGameHooks::onCloseAllOverlays()
+{
+	GenOnlineDeleteNotificationBox();
+}
+
+void GenOnlineGameHooks::startOnline()
+{
+	GenOnlineStartPatchCheck();
+}
+
+// The sign-in dialog sits over the main menu, which stays the shell screen and ticks it.
+void GenOnlineGameHooks::updateMainMenu()
+{
+	GenOnlineHTTPThinkWrapper();
+	GOSignInDialogUpdate();
+}
+
+void GenOnlineGameHooks::updateDownloadMenu( WindowLayout *layout, void *userData )
+{
+	GenOnlineDownloadMenuUpdate(layout, userData);
+}
+
+// GenOnline @bugfix arcticdolphin 09/11/2026 An Online attempt can end before the online services exist or after their teardown.
+void GenOnlineGameHooks::onDownloadCanceled()
+{
+	if (GenOnlineServicesManager::GetInstance() != nullptr)
+	{
+		GenOnlineServicesManager::GetInstance()->CancelUpdate();
+	}
+}
+
+void GenOnlineGameHooks::stopOnlineChecks()
+{
+	GenOnlineStopAsyncDNSCheck();
+}
+
+void GenOnlineGameHooks::cancelPatchCheck()
+{
+	GenOnlineCancelPatchCheckCallback();
+}
+
+void GenOnlineGameHooks::startDownloadingPatches()
+{
+	GenOnlineStartDownloadingPatches();
 }

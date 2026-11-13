@@ -12,7 +12,7 @@ WINDOW
   NAME = "PopupBuddyListNotification.wnd:WindowNotificationParent";
   STATUS = ENABLED+SEE_THRU;
   STYLE = USER;
-  SYSTEMCALLBACK = "PopupBuddyNotificationSystem";
+  SYSTEMCALLBACK = "GenOnlinePopupBuddyNotificationSystem";
   INPUTCALLBACK = "[None]";
   TOOLTIPCALLBACK = "[None]";
   DRAWCALLBACK = "W3DNoDraw";

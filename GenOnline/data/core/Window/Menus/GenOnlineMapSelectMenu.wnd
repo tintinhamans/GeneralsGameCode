@@ -1,8 +1,8 @@
 FILE_VERSION = 2;
 STARTLAYOUTBLOCK
-  LAYOUTINIT = WOLMapSelectMenuInit;
-  LAYOUTUPDATE = WOLMapSelectMenuUpdate;
-  LAYOUTSHUTDOWN = WOLMapSelectMenuShutdown;
+  LAYOUTINIT = GenOnlineMapSelectMenuInit;
+  LAYOUTUPDATE = GenOnlineMapSelectMenuUpdate;
+  LAYOUTSHUTDOWN = GenOnlineMapSelectMenuShutdown;
 ENDLAYOUTBLOCK
 WINDOW
   WINDOWTYPE = USER;
@@ -12,8 +12,8 @@ WINDOW
   NAME = "WOLMapSelectMenu.wnd:WOLMapSelectMenuParent";
   STATUS = ENABLED;
   STYLE = USER;
-  SYSTEMCALLBACK = "WOLMapSelectMenuSystem";
-  INPUTCALLBACK = "WOLMapSelectMenuInput";
+  SYSTEMCALLBACK = "GenOnlineMapSelectMenuSystem";
+  INPUTCALLBACK = "GenOnlineMapSelectMenuInput";
   TOOLTIPCALLBACK = "[None]";
   DRAWCALLBACK = "[None]";
   FONT = NAME: "Times New Roman", SIZE: 14, BOLD: 0;

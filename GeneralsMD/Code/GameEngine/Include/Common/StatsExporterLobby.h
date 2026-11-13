@@ -70,7 +70,7 @@ struct StatsLobbyScreen
 /// The OK paths of the map selectors without the selector window, one per setup screen in the source of its map select menu.
 void SkirmishMapSelectMenuApplyMap(const AsciiString& map);
 void LanMapSelectMenuApplyMap(const AsciiString& map);
-void WOLMapSelectMenuApplyMap(const AsciiString& map);
+void GenOnlineMapSelectMenuApplyMap(const AsciiString& map);
 
 /// Returns the statsexporter::ResponseStatus value, fills `result` with the serialized LobbyControlResult and `message` with the reason of a refusal.
 int StatsExporterLobbyControl(const statsexporter::LobbyControlQuery& query, std::string& result, std::string& message);

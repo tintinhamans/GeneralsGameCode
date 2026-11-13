@@ -32,7 +32,6 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/GameEngine.h"
-#include "Common/GOUIColors.h"
 #include "Common/GameState.h"
 #include "Common/MiniLog.h"
 #include "Common/MultiplayerSettings.h"
@@ -70,14 +69,6 @@
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameNetwork/GameSpy/LobbyUtils.h"
 #include "GameNetwork/RankPointValue.h"
-#include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
-#include "GameNetwork/GenOnline/GenOnlineModeration.h"
-
-#include <deque>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <utility>
 
 void refreshGameList( Bool forceRefresh = FALSE );
 void refreshPlayerList( Bool forceRefresh = FALSE );
@@ -95,11 +86,10 @@ static Bool isShuttingDown = false;
 static Bool buttonPushed = false;
 static const char *nextScreen = nullptr;
 static Bool raiseMessageBoxes = false;
-static UnsignedInt s_lobbyMenuGeneration = 0;
 static time_t gameListRefreshTime = 0;
-static const time_t gameListRefreshInterval = 4000;
+static const time_t gameListRefreshInterval = 10000;
 static time_t playerListRefreshTime = 0;
-static const time_t playerListRefreshInterval = 4000;
+static const time_t playerListRefreshInterval = 5000;
 
 void setUnignoreText( WindowLayout *layout, AsciiString nick, GPProfile id);
 static void doSliderTrack(GameWindow *control, Int val);
@@ -138,34 +128,6 @@ static Int groupRoomToJoin = 0;
 static Int	initialGadgetDelay = 2;
 static Bool justEntered = FALSE;
 
-// Preserve rejected messages while the server enforces the limit.
-static std::deque<std::chrono::steady_clock::time_point> s_lobbyChatMessageTimes;
-
-static Bool s_lobbyMenuOpen = FALSE;
-
-static bool LobbyChatRateLimitAllowsSend()
-{
-	using namespace std::chrono;
-
-	const auto now = steady_clock::now();
-	const auto window = seconds(9);
-	while (!s_lobbyChatMessageTimes.empty() && now - s_lobbyChatMessageTimes.front() >= window)
-	{
-		s_lobbyChatMessageTimes.pop_front();
-	}
-
-	if (s_lobbyChatMessageTimes.size() >= 3)
-	{
-		ShowChatRateLimitNotice(
-			"Rate limit: Please wait before sending another message.",
-			"room");
-		return false;
-	}
-
-	s_lobbyChatMessageTimes.push_back(now);
-	return true;
-}
-
 #if defined(RTS_DEBUG)
 Bool g_fakeCRC = FALSE;
 Bool g_debugSlots = FALSE;
@@ -179,220 +141,8 @@ int getQR2HostingStatus();
 }
 extern int isThreadHosting;
 
-// /net: the relay and connection engine settings for the next lobby mesh, and the route to each player of the current one
-static const wchar_t* netRelaySetting()
+Bool handleLobbySlashCommands(UnicodeString uText)
 {
-	extern int g_relayOverride;
-	if (g_relayOverride == 1)
-	{
-		return L"force (relay only)";
-	}
-	GenOnlineServicesManager* manager = GenOnlineServicesManager::GetInstance();
-	if (manager == nullptr)
-	{
-		return L"auto (service setting unavailable)";
-	}
-	return manager->GetServiceConfig().connection.relay_only
-		? L"auto (service requires relay)" : L"auto (service allows direct connections)";
-}
-
-static const wchar_t* netEngineSetting()
-{
-	extern int g_iceImplementationOverride;
-	if (g_iceImplementationOverride == 1)
-	{
-		return L"native";
-	}
-	if (g_iceImplementationOverride == 2)
-	{
-		return L"webrtc";
-	}
-	GenOnlineServicesManager* manager = GenOnlineServicesManager::GetInstance();
-	if (manager == nullptr)
-	{
-		return L"auto (service setting unavailable)";
-	}
-	switch (manager->GetServiceConfig().connection.ice_engine)
-	{
-	case 0: return L"auto (service selects the library default)";
-	case 1: return L"auto (service selects native)";
-	default: return L"auto (service selects webrtc)";
-	}
-}
-
-static void setNetRelayOverride(int wanted)
-{
-	extern int g_relayOverride;
-	extern UnsignedInt m_exeCRCOriginal;
-	// Keep relay-only lobbies separate without losing the real build CRC.
-	if (wanted == 1 && g_relayOverride != 1)
-	{
-		m_exeCRCOriginal = TheWritableGlobalData->m_exeCRC;
-		TheWritableGlobalData->m_exeCRC = m_exeCRCOriginal ^ 0x52454C59;
-	}
-	else if (wanted != 1 && g_relayOverride == 1)
-	{
-		TheWritableGlobalData->m_exeCRC = m_exeCRCOriginal;
-		m_exeCRCOriginal = 0;
-	}
-	g_relayOverride = wanted;
-}
-
-void handleNetSlashCommand(AsciiString subcommand, AsciiString value, GameWindow* listbox)
-{
-	extern int g_iceImplementationOverride;
-
-	const Color netColor = GOUIColor(GOUICOLOR_HILITE, GameMakeColor(255, 255, 0, 255));
-	UnicodeString line;
-
-	if (subcommand == "reset" && value.isEmpty())
-	{
-		setNetRelayOverride(-1);
-		g_iceImplementationOverride = -1;
-		line.format(L"Next lobby: relay %ls; engine %ls. Existing connections are unchanged.", netRelaySetting(), netEngineSetting());
-		GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
-		return;
-	}
-
-	if (subcommand == "relay")
-	{
-		int wanted = -2;
-		if (value == "force")
-		{
-			wanted = 1;
-		}
-		else if (value == "auto")
-		{
-			wanted = -1;
-		}
-
-		if (wanted == -2)
-		{
-			line.format(L"Next lobby relay: %ls. Usage: /net relay force | auto", netRelaySetting());
-			GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
-			return;
-		}
-
-		setNetRelayOverride(wanted);
-		line.format(L"Next lobby: relay %ls. Existing connections are unchanged.%ls", netRelaySetting(),
-			(wanted == 1) ? L" You can only join lobbies of players who also force relay. Use /net relay auto to undo this." : L"");
-		GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
-		return;
-	}
-
-	if (subcommand == "engine")
-	{
-		int wanted = -2;
-		if (value == "native")
-		{
-			wanted = 1;
-		}
-		else if (value == "webrtc")
-		{
-			wanted = 2;
-		}
-		else if (value == "auto")
-		{
-			wanted = -1;
-		}
-
-		if (wanted == -2)
-		{
-			line.format(L"Next lobby engine: %ls. Usage: /net engine native | webrtc | auto", netEngineSetting());
-			GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
-			return;
-		}
-
-		g_iceImplementationOverride = wanted;
-
-		line.format(L"Next lobby engine: %ls. Existing connections are unchanged.%ls", netEngineSetting(),
-			(wanted == -1) ? L"" : L" Use /net engine auto to undo this.");
-		GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
-		return;
-	}
-
-	if (subcommand.isNotEmpty())
-	{
-		GadgetListBoxAddEntryText(listbox, UnicodeString(L"Usage: /net, /net relay force | auto, /net engine native | webrtc | auto, /net reset"), netColor, -1, -1);
-		return;
-	}
-
-	line.format(L"Next lobby: relay %ls; engine %ls. Existing connections are unchanged.", netRelaySetting(), netEngineSetting());
-	GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
-
-	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-	if (pMesh == nullptr || pMesh->GetAllConnections().empty())
-	{
-		GadgetListBoxAddEntryText(listbox, UnicodeString(L"You are not connected to any players. Join or host a lobby to see how you reach each player."), netColor, -1, -1);
-	}
-	else
-	{
-		for (auto& kvPair : pMesh->GetAllConnections())
-		{
-			PlayerConnection& conn = kvPair.second;
-
-			std::wstring strName = L"Unknown player";
-			if (pLobbyInterface != nullptr)
-			{
-				for (const LobbyMemberEntry& member : pLobbyInterface->GetCurrentLobby().members)
-				{
-					if (member.user_id == kvPair.first)
-					{
-						strName = from_utf8(member.display_name);
-						break;
-					}
-				}
-			}
-
-			if (conn.GetState() == EConnectionState::CONNECTED_DIRECT)
-			{
-				line.format(L"%ls: %ls, ping %d ms", strName.c_str(), conn.IsDirect() ? L"direct" : L"via relay", conn.GetLatency());
-			}
-			else if (conn.GetState() == EConnectionState::CONNECTING_DIRECT || conn.GetState() == EConnectionState::FINDING_ROUTE)
-			{
-				line.format(L"%ls: connecting", strName.c_str());
-			}
-			else
-			{
-				line.format(L"%ls: not connected", strName.c_str());
-			}
-			GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
-		}
-	}
-
-	GadgetListBoxAddEntryText(listbox, UnicodeString(L"Change with /net relay force | auto and /net engine native | webrtc | auto. /net reset clears both overrides."), netColor, -1, -1);
-}
-
-Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited);
-
-// Handles a line as the chat room's typed-line path does: slash commands first, else the rate limit and a plain send.
-Bool WOLLobbyMenuSubmitChatLine( UnicodeString text )
-{
-	text.trim();
-	if (!s_lobbyMenuOpen || text.isEmpty())
-		return FALSE;
-
-	Bool wasRateLimited = FALSE;
-	if (handleLobbySlashCommands(text, &wasRateLimited))
-		return !wasRateLimited;
-
-	if (!LobbyChatRateLimitAllowsSend())
-		return FALSE;
-
-	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-	if (pRoomsInterface == nullptr)
-		return FALSE;
-
-	pRoomsInterface->SendChatMessageToCurrentRoom(text, false);
-	return TRUE;
-}
-
-Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited)
-{
-	if (wasRateLimited != nullptr)
-		*wasRateLimited = FALSE;
-
 	AsciiString message;
 	message.translate(uText);
 
@@ -408,83 +158,14 @@ Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited)
 
 	if (token == "host")
 	{
-		// TODO_GENONLINE
-		/*
 		UnicodeString s;
 		s.format(L"Hosting qr2:%d thread:%d", getQR2HostingStatus(), isThreadHosting);
 		TheGameSpyInfo->addText(s, GameSpyColor[GSCOLOR_DEFAULT], nullptr);
-		*/
 		return TRUE; // was a slash command
 	}
 	else if (token == "me" && uText.getLength()>4)
 	{
-		if (!LobbyChatRateLimitAllowsSend())
-		{
-			if (wasRateLimited != nullptr)
-				*wasRateLimited = TRUE;
-			return TRUE;
-		}
-
-		UnicodeString msg = UnicodeString(uText.str() + 4); // skip the /me
-		GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-		if (pRoomsInterface != nullptr)
-		{
-			pRoomsInterface->SendChatMessageToCurrentRoom(msg, true);
-		}
-		return TRUE; // was a slash command
-	}
-#if defined(GENONLINE)
-	else if (token == "help" || token == "commands")
-	{
-		const Color helpColor = GOUIColor(GOUICOLOR_HELP, GameMakeColor(127, 127, 127, 255));
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/me <message> - Send an emote."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/name <value> - Changes your display name - Example: /name General Granger. You can also use /nick."), helpColor, -1, -1);
-		// GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/refresh - Refresh the game and player lists."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/net - Show your connection settings. /net relay and /net engine change them."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/support - Open the GeneralsOnline Discord."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/help - Show these commands. You can also use /commands."), helpColor, -1, -1);
-		return TRUE; // was a slash command
-	}
-	else if (token == "support")
-	{
-		ShellExecuteA(NULL, "open", "https://discord.playgenerals.online", NULL, NULL, SW_SHOWNORMAL);
-		return TRUE; // was a slash command
-	}
-#endif
-	else if ((token == "name" && uText.getLength() > 6) || (token == "nick" && uText.getLength() > 6))
-	{
-		UnicodeString newName(uText.str() + 6); // skip the /name or nick
-
-		if (newName.getLength() < 3 || newName.getLength() > 16)
-		{
-			GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Your new name must be between 3 and 16 characters."), GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255)), -1, -1);
-		}
-		else
-		{
-			std::shared_ptr<WebSocket>  pWS = GenOnlineServicesManager::GetWebSocket();
-			if (pWS != nullptr)
-			{
-				pWS->SendData_ChangeName(newName);
-			}
-		}
-		
-		return TRUE; // was a slash command
-	}
-	else if (token == "net")
-	{
-		AsciiString subcommand;
-		AsciiString value;
-		remainder.nextToken(&subcommand);
-		remainder.nextToken(&value);
-		subcommand.toLower();
-		value.toLower();
-		handleNetSlashCommand(subcommand, value, listboxLobbyChat);
-		return TRUE; // was a slash command
-	}
-	else if (token == "forcerelay" || token == "allowrelay")
-	{
-		// the old names of /net relay force and /net relay auto
-		handleNetSlashCommand("relay", (token == "forcerelay") ? "force" : "auto", listboxLobbyChat);
+		TheGameSpyInfo->sendChat(UnicodeString(uText.str()+4), TRUE, listboxLobbyPlayers);
 		return TRUE; // was a slash command
 	}
 	else if (token == "refresh")
@@ -531,12 +212,7 @@ Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited)
 	}
 #endif
 
-#if defined(GENONLINE)
-	GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Unknown command: Use /help to see all commands."), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
-	return TRUE; // was a slash command
-#else
 	return FALSE; // not a slash command
-#endif
 }
 
 static Bool s_tryingToHostOrJoin = FALSE;
@@ -551,8 +227,6 @@ static void playerTooltip(GameWindow *window,
 													WinInstanceData *instData,
 													UnsignedInt mouse)
 {
-	// TODO_GENONLINE: Support all of this again
-
 	Int x, y, row, col;
 	x = LOLONGTOSHORT(mouse);
 	y = HILONGTOSHORT(mouse);
@@ -561,180 +235,14 @@ static void playerTooltip(GameWindow *window,
 
 	if (row == -1 || col == -1)
 	{
-		TheMouse->setCursorTooltip(UnicodeString::TheEmptyString);//TheGameText->fetch("TOOLTIP:PlayersInLobby") );
+		TheMouse->setCursorTooltip( UnicodeString::TheEmptyString);//TheGameText->fetch("TOOLTIP:PlayersInLobby") );
 		return;
 	}
 
 	UnicodeString uName = GadgetListBoxGetText(window, row, COLUMN_PLAYERNAME);
+	AsciiString aName;
+	aName.translate(uName);
 
-	// TODO_GENONLINE: This causes issues with duplicate names. We should have better ways of looking this up + perhaps only allow unique names
-	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
-	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-	if (pRoomsInterface != nullptr && pAuthInterface != nullptr && pStatsInterface != nullptr && pSocialInterface != nullptr)
-	{
-		int profileID = (int)GadgetListBoxGetItemData(listboxLobbyPlayers, row, 0);
-		NetworkRoomMember* roomMember = pRoomsInterface->GetRoomMemberFromID(profileID);
-
-		// TODO_GENONLINE: This is an async call, we should block future popups until it returns to avoid weirdness
-		if (col > 0)
-		{
-			if (roomMember != nullptr)
-			{
-				// new
-				pStatsInterface->findPlayerStatsByID(roomMember->user_id, [=](bool bSuccess, PSPlayerStats stats)
-					{
-						if (!bSuccess)
-						{
-							TheMouse->setCursorTooltip(UnicodeString(L"Error: 1"), -1, NULL, 1.5f);
-						}
-						else
-						{
-							UnicodeString tooltip = UnicodeString::TheEmptyString;
-							if (roomMember->user_id == pAuthInterface->GetUserID())
-							{
-								tooltip.format(TheGameText->fetch("TOOLTIP:LocalPlayer"), uName.str());
-							}
-							else
-							{
-								// not us
-								bool bIsFriend = pSocialInterface->IsUserFriend(roomMember->user_id);
-								if (bIsFriend)
-								{
-									// buddy
-									tooltip.format(TheGameText->fetch("TOOLTIP:BuddyPlayer"), uName.str());
-								}
-								else
-								{
-									// non-buddy profiled player
-									tooltip.format(TheGameText->fetch("TOOLTIP:ProfiledPlayer"), uName.str());
-
-									// NOTE: Removed non-profiled generic player, this doesn't exist on Generals Online, everyone has a profile
-								}
-							}
-
-							bool bIgnored = pSocialInterface->IsUserIgnored(roomMember->user_id);
-							if (bIgnored)
-							{
-								tooltip.concat(TheGameText->fetch("TOOLTIP:IgnoredModifier"));
-							}
-
-							// ELO data
-							UnicodeString tmp;
-							tmp.format(L"\n\nOverall Elo Rating: %d (in %d matches)", stats.elo_rating, stats.elo_num_matches);
-							tooltip.concat(tmp);
-#if defined(WORLD_SERIES_CLIENT)
-							tmp.format(L"\nWS Elo Rating: %d", stats.monthly_elo_rating);
-#else
-							tmp.format(L"\nMonthly Elo Rating: %d", stats.monthly_elo_rating);
-#endif
-							tooltip.concat(tmp);
-							Int rankPoints = CalculateRank(stats);
-							Int rank = 0;
-							Int i = 0;
-							if (TheRankPointValues != nullptr)
-							{
-								while (i + 1 < MAX_RANKS && rankPoints >= TheRankPointValues->m_ranks[i + 1])
-									++i;
-							}
-							rank = i;
-
-							// determine favorite side
-							Int mostGames = 0;
-							Int favorite = 0;
-							for (auto it = stats.games.begin(); it != stats.games.end(); ++it)
-							{
-								if (it->second >= mostGames)
-								{
-									mostGames = it->second;
-									favorite = it->first;
-								}
-							}
-
-							AsciiString sideName = "GUI:RandomSide";
-							if (mostGames > 0)
-							{
-								if (favorite > 1) // cant be civilian or observer
-								{
-									const PlayerTemplate* fac = ThePlayerTemplateStore->getNthPlayerTemplate(favorite);
-									if (fac)
-									{
-										sideName.format("SIDE:%s", fac->getSide().str());
-									}
-								}
-							}
-							AsciiString rankName;
-							rankName.format("GUI:GSRank%d", rank);
-							
-							tmp.clear();
-							tmp.format(L"\n\nFavorite Side: %ls\nRank: %ls", TheGameText->fetch(sideName).str(), TheGameText->fetch(rankName).str());
-							tooltip.concat(tmp);
-
-							int totalWins = 0;
-							int totalLosses = 0;
-							int totalDC = 0;
-							int totalWinsInRow = 0;
-							int totalLossesInRow = 0;
-							int totalDCInRow = 0;
-							int maxWinsInRow = 0;
-							int maxLossesInRow = 0;
-							int maxDCInRow = 0;
-
-							for (int i = 0; i < stats.wins.size(); ++i) { totalWins += stats.wins[i]; }
-							for (int i = 0; i < stats.losses.size(); ++i) { totalLosses += stats.losses[i]; }
-							for (int i = 0; i < stats.discons.size(); ++i) { totalDC += stats.discons[i]; }
-
-                            totalWinsInRow = stats.winsInARow;
-                            totalLossesInRow = stats.lossesInARow;
-                            totalDCInRow = stats.disconsInARow;
-
-                            maxWinsInRow = stats.maxWinsInARow;
-                            maxLossesInRow = stats.maxLossesInARow;
-
-							tmp.clear();
-							tmp.format(L"\n\nTotal Wins: %d\nTotal Losses: %d\nTotal Disconnects: %d\n\nCurrent Win Streak: %d\nCurrent Loss Streak: %d\nCurrent Disconnect Streak: %d\n\nLongest Win Streak: %d\nLongest Loss Streak: %d\nLongest Disconnect Streak: %d",
-								totalWins,
-								totalLosses,
-								totalDC,
-								totalWinsInRow,
-								totalLossesInRow,
-								totalDCInRow,
-								maxWinsInRow,
-								maxLossesInRow,
-								maxDCInRow);
-							tooltip.concat(tmp);
-
-							if (pRoomsInterface != nullptr && pAuthInterface != nullptr)
-							{
-								NetworkRoomMember* localMember = pRoomsInterface->GetRoomMemberFromID(pAuthInterface->GetUserID());
-								if (localMember != nullptr && localMember->m_bIsAdmin)
-								{
-									UnicodeString idLine;
-									idLine.format(L"\n\nUser ID: %lld", roomMember->user_id);
-									tooltip.concat(idLine);
-								}
-							}
-
-							TheMouse->setCursorTooltip(tooltip, -1, NULL, 1.5f); // the text and width are the only params used.  the others are the default values.
-						}
-					}, EStatsRequestPolicy::RESPECT_CACHE_ALLOW_REQUEST);
-			}
-			else
-			{
-				TheMouse->setCursorTooltip(UnicodeString(L"Error: 1"), -1, NULL, 1.5f); // the text and width are the only params used.  the others are the default values.
-			}
-
-
-
-		}
-	}
-
-
-	return;
-
-	// TODO_GENONLINE:
-	/*
 	PlayerInfoMap::iterator it = TheGameSpyInfo->getPlayerInfoMap()->find(aName);
 	PlayerInfo *info = &(it->second);
 	Bool isLocalPlayer = (TheGameSpyInfo->getLocalName().compareNoCase(info->m_name) == 0);
@@ -798,12 +306,9 @@ static void playerTooltip(GameWindow *window,
 		tooltip.concat(playerInfo);
 	}
 
-	if (!TheRankPointValues)
-		return;
-
 	Int rank = 0;
 	Int i = 0;
-	while (i + 1 < MAX_RANKS && info->m_rankPoints >= TheRankPointValues->m_ranks[i + 1])
+	while( info->m_rankPoints >= TheRankPointValues->m_ranks[i + 1])
 		++i;
 	rank = i;
 	AsciiString sideName = "GUI:RandomSide";
@@ -822,167 +327,43 @@ static void playerTooltip(GameWindow *window,
 	tooltip.concat(tmp);
 
 	TheMouse->setCursorTooltip( tooltip, -1, nullptr, 1.5f ); // the text and width are the only params used.  the others are the default values.
-	*/
 }
 
-// Set while repopulating the combo box, because setting the selection re-sends GCM_SELECTED as if the user had picked it.
-static Bool s_populatingLobbyCombo = FALSE;
-static const Int LOBBY_COMBO_SEPARATOR_ITEM_DATA = -1;
-
-static Int FindRoomIndexByID(const std::vector<NetworkRoom>& rooms, Int roomID)
+static void populateGroupRoomListbox(GameWindow *lb)
 {
-	for (Int roomIndex = 0; roomIndex < (Int)rooms.size(); ++roomIndex)
-	{
-		if (rooms[roomIndex].GetRoomID() == roomID)
-		{
-			return roomIndex;
-		}
-	}
-
-	return -1;
-}
-
-static Bool RoomHasLaterSibling(const std::vector<NetworkRoom>& rooms, Int roomIndex)
-{
-	const Int parentRoomID = rooms[roomIndex].GetParentRoomID();
-	for (Int siblingIndex = roomIndex + 1; siblingIndex < (Int)rooms.size(); ++siblingIndex)
-	{
-		if (rooms[siblingIndex].GetParentRoomID() == parentRoomID)
-		{
-			return TRUE;
-		}
-	}
-
-	return FALSE;
-}
-
-static UnicodeString FormatRoomLabel(const std::vector<NetworkRoom>& rooms, Int roomIndex)
-{
-	UnicodeString label;
-	const NetworkRoom& room = rooms[roomIndex];
-	std::vector<Int> ancestors;
-	Int parentRoomID = room.GetParentRoomID();
-
-	while (parentRoomID >= 0 && ancestors.size() < rooms.size())
-	{
-		const Int parentIndex = FindRoomIndexByID(rooms, parentRoomID);
-		if (parentIndex < 0)
-		{
-			break;
-		}
-
-		ancestors.push_back(parentIndex);
-		parentRoomID = rooms[parentIndex].GetParentRoomID();
-	}
-
-	std::reverse(ancestors.begin(), ancestors.end());
-	for (size_t ancestorIndex = 1; ancestorIndex < ancestors.size(); ++ancestorIndex)
-	{
-		label.concat(RoomHasLaterSibling(rooms, ancestors[ancestorIndex]) ? L"\u2502  " : L"   ");
-	}
-
-	if (!ancestors.empty())
-	{
-		label.concat(RoomHasLaterSibling(rooms, roomIndex) ? L"\u251C\u2500 " : L"\u2514\u2500 ");
-	}
-	label.concat(room.GetRoomDisplayName());
-	return label;
-}
-
-static void PopulateLobbyFilterComboBox(GameWindow* comboBox)
-{
-	if (comboBox == nullptr)
+	if (!lb)
 		return;
 
-	extern LobbyGameModeFilter theLobbyFilter;
-	s_populatingLobbyCombo = TRUE;
-	GadgetComboBoxReset(comboBox);
+	GadgetComboBoxReset(lb);
+	Int indexToSelect = -1;
+	GroupRoomMap::iterator iter;
 
-	static const struct
+	// now populate the combo box
+	for (iter = TheGameSpyInfo->getGroupRoomList()->begin(); iter != TheGameSpyInfo->getGroupRoomList()->end(); ++iter)
 	{
-		const wchar_t* label;
-		LobbyGameModeFilter filter;
-	} filterEntries[] =
-	{
-		{ L"Filter: All",			LOBBY_FILTER_ALL },
-		{ L"Filter: 1v1",			LOBBY_FILTER_1V1 },
-		{ L"Filter: Team Games",	LOBBY_FILTER_TEAM },
-		{ L"Filter: FFA",			LOBBY_FILTER_FFA },
-		{ L"Filter: AOD",			LOBBY_FILTER_AOD },
-		{ L"Filter: Buddies",		LOBBY_FILTER_BUDDIES },
-	};
-
-	Int idx;
-	Int selectedRoomIdx = -1;
-	UnicodeString selectedRoomName;
-
-	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-	if (pRoomsInterface != nullptr)
-	{
-		const std::vector<NetworkRoom> rooms = pRoomsInterface->GetGroupRooms();
-		const Int currentRoomIndex = pRoomsInterface->GetCurrentRoomIndex();
-		const Int numRooms = (Int)rooms.size();
-		for (Int i = 0; i < numRooms; ++i)
+		GameSpyGroupRoom room = iter->second;
+		if (room.m_groupID != TheGameSpyConfig->getQMChannel())
 		{
-			const UnicodeString roomLabel = FormatRoomLabel(rooms, i);
-			idx = GadgetComboBoxAddEntry(comboBox, roomLabel,
-				GameSpyColor[i == currentRoomIndex ? GSCOLOR_CURRENTROOM : GSCOLOR_ROOM]);
-			// Room entries use values below the negative separator value.
-			GadgetComboBoxSetItemData(comboBox, idx, (void*)(intptr_t)(-(i + 2)));
-
-			if (i == currentRoomIndex)
+			DEBUG_LOG(("populateGroupRoomListbox(): groupID %d", room.m_groupID));
+			if (room.m_groupID == TheGameSpyInfo->getCurrentGroupRoom())
 			{
-				selectedRoomIdx = idx;
-				selectedRoomName = rooms[i].GetRoomDisplayName();
+				Int selected = GadgetComboBoxAddEntry(lb, room.m_translatedName, GameSpyColor[GSCOLOR_CURRENTROOM]);
+				GadgetComboBoxSetItemData(lb, selected, (void *)(room.m_groupID));
+				indexToSelect = selected;
+			}
+			else
+			{
+				Int selected = GadgetComboBoxAddEntry(lb, room.m_translatedName, GameSpyColor[GSCOLOR_ROOM]);
+				GadgetComboBoxSetItemData(lb, selected, (void *)(room.m_groupID));
 			}
 		}
-
-		if (numRooms > 0)
+		else
 		{
-			idx = GadgetComboBoxAddEntry(comboBox, UnicodeString(L" "), GameSpyColor[GSCOLOR_ROOM]);
-			GadgetComboBoxSetItemData(comboBox, idx, (void*)(intptr_t)LOBBY_COMBO_SEPARATOR_ITEM_DATA);
+			DEBUG_LOG(("populateGroupRoomListbox(): skipping QM groupID %d", room.m_groupID));
 		}
 	}
 
-	for (const auto& filterEntry : filterEntries)
-	{
-		const Bool isActiveFilter = (filterEntry.filter == theLobbyFilter);
-		idx = GadgetComboBoxAddEntry(comboBox, UnicodeString(filterEntry.label),
-			GameSpyColor[isActiveFilter ? GSCOLOR_CURRENTROOM : GSCOLOR_DEFAULT]);
-		GadgetComboBoxSetItemData(comboBox, idx, (void*)filterEntry.filter);
-	}
-
-	// The collapsed combo always identifies the room. The active filter is indicated by its color only when expanded.
-	GadgetComboBoxSetSelectedPos(comboBox, selectedRoomIdx);
-	if (selectedRoomIdx >= 0)
-	{
-		GadgetComboBoxSetText(comboBox, selectedRoomName);
-	}
-	s_populatingLobbyCombo = FALSE;
-}
-
-static void HandleNetworkRoomChanged(int roomIndex, bool effectiveRoomChanged)
-{
-	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-	if (pRoomsInterface == nullptr)
-		return;
-
-	const std::vector<NetworkRoom>& rooms = pRoomsInterface->GetGroupRooms();
-	if (roomIndex < 0 || roomIndex >= (int)rooms.size())
-		return;
-
-	if (effectiveRoomChanged)
-	{
-		GadgetListBoxReset(listboxLobbyChat);
-		refreshPlayerList(TRUE);
-	}
-
-	UnicodeString msg;
-	msg.format(TheGameText->fetch("GUI:LobbyJoined"), rooms[roomIndex].GetRoomDisplayName().str());
-	GadgetListBoxAddEntryText(listboxLobbyChat, msg, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-
-	refreshGameList(TRUE);
-	PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
+	GadgetComboBoxSetSelectedPos(lb, indexToSelect);
 }
 
 static const char *const rankNames[] = {
@@ -1046,442 +427,185 @@ const Image* LookupSmallRankImage(Int side, Int rankPoints)
 	return img;
 }
 
-// Lobby player list: rebuilt only when the roster changes; stats are fetched only for visible rows.
-
-struct LobbyPlayerRow
+static Int insertPlayerInListbox(const PlayerInfo& info, Color color)
 {
-	int64_t     userID = 0;
-	Bool        isAdmin = FALSE;
-	Bool        isFriend = FALSE;
-	Bool        isIgnored = FALSE;
-	Bool        iconResolved = FALSE; // icon painted from fresh stats
-	std::string displayName;
-	std::string sortKey; // lowercase display name
-};
+	UnicodeString uStr;
+	uStr.translate(info.m_name);
 
-static std::vector<LobbyPlayerRow> s_lobbyPlayerRows;   // index == row
-static std::string s_lobbyRosterSignature;              // rebuild when it changes
-
-// Last resolved (rank points, favorite side) per user; avoids icon blink on a cache miss.
-static std::unordered_map<int64_t, std::pair<Int, Int>> s_lastKnownRankByUser;
-
-// One batch stats request at a time; overlapping requests supersede each other's responses.
-static Bool s_statsBatchInFlight = FALSE;
-static UnsignedInt s_statsBatchStartTime = 0;
-static UnsignedInt s_statsBatchGeneration = 0; // bumped on lobby init
-// Users requested this lobby visit.
-static std::unordered_set<int64_t> s_statsRequestedUserIDs;
-static const UnsignedInt STATS_BATCH_WATCHDOG_MS = 30000; // recover from a lost response
-
-static Int s_lastVisibleTop = -1;
-static Int s_lastVisibleBottom = -1;
-static const Int VISIBLE_STATS_BUFFER = 8; // prefetch rows around the viewport
-
-static UnsignedInt s_lastPlayerListRebuild = 0;
-static const UnsignedInt PLAYERLIST_MIN_REBUILD_MS = 1000; // floor between full rebuilds
-
-//-------------------------------------------------------------------------------------------------
-static Int LobbyRankIconExtent()
-{
-	const Image* preorderImg = TheMappedImageCollection->findImageByName("OfficersClubsmall");
-	Int w = (preorderImg) ? preorderImg->getImageWidth() : 10;
-	if (listboxLobbyPlayers != nullptr)
-		w = min(GadgetListBoxGetColumnWidth(listboxLobbyPlayers, 0), w);
-	return w;
-}
-
-//-------------------------------------------------------------------------------------------------
-/** Rank icon from cached stats, falling back to the last resolved value. */
-static const Image* ResolveRankIconForUser(int64_t userID, GenOnlineStatsInterface* pStatsInterface)
-{
-	Int rankPoints = 0;
-	Int favoriteSide = 0;
-	Bool bResolved = FALSE;
-
-	PSPlayerStats stats = PSPlayerStats();
-	if (pStatsInterface != nullptr
-		&& pStatsInterface->getPlayerStatsFromCache(userID, &stats)
-		&& stats.id != 0)
+	Int currentRank = info.m_rankPoints;
+	Int currentSide = info.m_side;
+	/* since PersistentStorage updates now update PlayerInfo, we don't need this.
+	if (info.m_profileID)
 	{
-		rankPoints = CalculateRank(stats);
-		favoriteSide = GetFavoriteSide(stats);
-		s_lastKnownRankByUser[userID] = std::make_pair(rankPoints, favoriteSide);
-		bResolved = TRUE;
-	}
-
-	if (!bResolved)
-	{
-		auto it = s_lastKnownRankByUser.find(userID);
-		if (it != s_lastKnownRankByUser.end())
+		PSPlayerStats psStats = TheGameSpyPSMessageQueue->findPlayerStatsByID(info.m_profileID);
+		if (psStats.id)
 		{
-			rankPoints = it->second.first;
-			favoriteSide = it->second.second;
+			currentRank = CalculateRank(psStats);
+
+			PerGeneralMap::iterator it;
+			Int numGames = 0;
+			for(it = psStats.games.begin(); it != psStats.games.end(); ++it)
+			{
+				if(it->second >= numGames)
+				{
+					numGames = it->second;
+					currentSide = it->first;
+				}
+			}
+			if(numGames == 0 || psStats.gamesAsRandom >= numGames )
+			{
+				currentSide = 0;
+			}
 		}
 	}
+	*/
 
-	return LookupSmallRankImage(favoriteSide, rankPoints);
+	Bool isPreorder = TheGameSpyInfo->didPlayerPreorder(info.m_profileID);
+
+	const Image *preorderImg = TheMappedImageCollection->findImageByName("OfficersClubsmall");
+	Int w = (preorderImg)?preorderImg->getImageWidth():10;
+	//Int h = (preorderImg)?preorderImg->getImageHeight():10;
+	w = min(GadgetListBoxGetColumnWidth(listboxLobbyPlayers, 0), w);
+	Int h = w;
+	if (!isPreorder)
+		preorderImg = nullptr;
+
+	const Image *rankImg = LookupSmallRankImage(currentSide, currentRank);
+
+#if 0  //Officer's Club (preorder image) no longer used in Zero Hour
+	Int index = GadgetListBoxAddEntryImage(listboxLobbyPlayers, preorderImg, -1, 0, w, h);
+	GadgetListBoxAddEntryImage(listboxLobbyPlayers, rankImg, index, 1, w, h);
+	GadgetListBoxAddEntryText(listboxLobbyPlayers, uStr, color, index, 2);
+#else
+	Int index = GadgetListBoxAddEntryImage(listboxLobbyPlayers, rankImg, -1, 0, w, h);
+	GadgetListBoxAddEntryText(listboxLobbyPlayers, uStr, color, index, 1);
+#endif
+	return index;
 }
 
-//-------------------------------------------------------------------------------------------------
-/** Repaint visible rows' rank icons from the stats cache (no network). */
-static void RefreshVisibleLobbyRowIcons()
-{
-	if (listboxLobbyPlayers == nullptr || s_lobbyPlayerRows.empty())
-		return;
 
-	GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
-
-	const Int rowCount = (Int)s_lobbyPlayerRows.size();
-	Int top = GadgetListBoxGetTopVisibleEntry(listboxLobbyPlayers);
-	Int bottom = GadgetListBoxGetBottomVisibleEntry(listboxLobbyPlayers);
-	if (top < 0) top = 0;
-	if (bottom < 0 || bottom >= rowCount) bottom = rowCount - 1;
-
-	const Int firstRow = max(0, top - VISIBLE_STATS_BUFFER);
-	const Int lastRow = min(rowCount - 1, bottom + VISIBLE_STATS_BUFFER);
-	const Int iconExtent = LobbyRankIconExtent();
-
-	for (Int row = firstRow; row <= lastRow; ++row)
-	{
-		LobbyPlayerRow& playerRow = s_lobbyPlayerRows[row];
-
-		// fresh-stats icons don't change; skip
-		if (playerRow.iconResolved)
-			continue;
-
-		const Image* rankImg = ResolveRankIconForUser(playerRow.userID, pStatsInterface);
-		GadgetListBoxAddEntryImage(listboxLobbyPlayers, rankImg, row, 0, iconExtent, iconExtent);
-
-		if (pStatsInterface != nullptr && pStatsInterface->HasFreshPlayerStats(playerRow.userID))
-			playerRow.iconResolved = TRUE;
-	}
-}
-
-//-------------------------------------------------------------------------------------------------
-/** Request stats for stale visible rows; bOnlyUnrequested skips users already requested. */
-static void RequestVisibleLobbyStats(Bool bOnlyUnrequested)
-{
-	if (listboxLobbyPlayers == nullptr || s_lobbyPlayerRows.empty())
-		return;
-
-	GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
-	if (pStatsInterface == nullptr)
-		return;
-
-	const Int rowCount = (Int)s_lobbyPlayerRows.size();
-	Int top = GadgetListBoxGetTopVisibleEntry(listboxLobbyPlayers);
-	Int bottom = GadgetListBoxGetBottomVisibleEntry(listboxLobbyPlayers);
-	if (top < 0) top = 0;
-	if (bottom < 0 || bottom >= rowCount) bottom = rowCount - 1;
-
-	const Int firstRow = max(0, top - VISIBLE_STATS_BUFFER);
-	const Int lastRow = min(rowCount - 1, bottom + VISIBLE_STATS_BUFFER);
-
-	std::vector<int64_t> vecUserStatsToRequest;
-	for (Int row = firstRow; row <= lastRow; ++row)
-	{
-		const int64_t userID = s_lobbyPlayerRows[row].userID;
-		if (pStatsInterface->HasFreshPlayerStats(userID))
-			continue;
-		if (bOnlyUnrequested && s_statsRequestedUserIDs.count(userID) != 0)
-			continue;
-		vecUserStatsToRequest.push_back(userID);
-	}
-
-	if (vecUserStatsToRequest.empty())
-		return;
-
-	const UnsignedInt now = timeGetTime();
-	if (s_statsBatchInFlight && (now - s_statsBatchStartTime) < STATS_BATCH_WATCHDOG_MS)
-		return;
-
-	s_statsRequestedUserIDs.insert(vecUserStatsToRequest.begin(), vecUserStatsToRequest.end());
-
-	s_statsBatchInFlight = TRUE;
-	s_statsBatchStartTime = now;
-	const UnsignedInt generation = s_statsBatchGeneration;
-	pStatsInterface->findPlayerStatsByBatch(vecUserStatsToRequest, [generation](bool /*bSuccess*/)
-		{
-			// response from a previous lobby visit
-			if (generation != s_statsBatchGeneration)
-				return;
-
-			s_statsBatchInFlight = FALSE;
-
-			// lobby was left
-			if (listboxLobbyPlayers == nullptr)
-				return;
-
-			RefreshVisibleLobbyRowIcons();
-			RequestVisibleLobbyStats(TRUE);
-		});
-}
-
-//-------------------------------------------------------------------------------------------------
-/** Request stats for visible rows; no-op if the window hasn't moved unless bForce. */
-static void EnsureVisibleLobbyStats(Bool bForce)
-{
-	if (listboxLobbyPlayers == nullptr || s_lobbyPlayerRows.empty())
-		return;
-
-	const Int rowCount = (Int)s_lobbyPlayerRows.size();
-	Int top = GadgetListBoxGetTopVisibleEntry(listboxLobbyPlayers);
-	Int bottom = GadgetListBoxGetBottomVisibleEntry(listboxLobbyPlayers);
-	if (top < 0) top = 0;
-	if (bottom < 0 || bottom >= rowCount) bottom = rowCount - 1;
-
-	if (!bForce && top == s_lastVisibleTop && bottom == s_lastVisibleBottom)
-		return;
-	s_lastVisibleTop = top;
-	s_lastVisibleBottom = bottom;
-
-	RefreshVisibleLobbyRowIcons();
-	RequestVisibleLobbyStats(FALSE);
-}
-
-//-------------------------------------------------------------------------------------------------
-/** Room roster in display order: name, then admins, then friends. */
-static void CollectLobbyPlayerRows(std::vector<LobbyPlayerRow>& outRows)
-{
-	outRows.clear();
-
-	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-	if (pRoomsInterface == nullptr)
-		return;
-
-	auto membersMap = pRoomsInterface->GetMembersListForCurrentRoom();
-	outRows.reserve(membersMap.size());
-
-	for (auto& [id, member] : membersMap)
-	{
-		LobbyPlayerRow row;
-		row.userID = member.user_id;
-		row.displayName = member.display_name;
-		row.isAdmin = member.m_bIsAdmin ? TRUE : FALSE;
-		row.isFriend = (pSocialInterface != nullptr && pSocialInterface->IsUserFriend(member.user_id)) ? TRUE : FALSE;
-		row.isIgnored = (pSocialInterface != nullptr && pSocialInterface->IsUserIgnored(member.user_id)) ? TRUE : FALSE;
-
-		row.sortKey.resize(row.displayName.size());
-		std::transform(row.displayName.begin(), row.displayName.end(), row.sortKey.begin(),
-			[](unsigned char c) { return std::tolower(c); });
-
-		outRows.emplace_back(std::move(row));
-	}
-
-	std::sort(outRows.begin(), outRows.end(),
-		[](const LobbyPlayerRow& a, const LobbyPlayerRow& b) { return a.sortKey < b.sortKey; });
-
-	auto afterAdmins = std::stable_partition(outRows.begin(), outRows.end(),
-		[](const LobbyPlayerRow& x) { return x.isAdmin != FALSE; });
-
-	std::stable_partition(afterAdmins, outRows.end(),
-		[](const LobbyPlayerRow& x) { return x.isFriend != FALSE; });
-}
-
-//-------------------------------------------------------------------------------------------------
-static std::string BuildLobbyRosterSignature(const std::vector<LobbyPlayerRow>& rows)
-{
-	std::string sig;
-	sig.reserve(rows.size() * 24);
-	for (const LobbyPlayerRow& row : rows)
-	{
-		const int flags = (row.isAdmin ? 1 : 0) | (row.isFriend ? 2 : 0) | (row.isIgnored ? 4 : 0);
-		sig += std::to_string(row.userID);
-		sig += '/';
-		sig += std::to_string(flags);
-		sig += '/';
-		sig += row.displayName;
-		sig += ';';
-	}
-	return sig;
-}
-
-//-------------------------------------------------------------------------------------------------
-/** Full listbox rebuild - only call when the roster / ordering changed. */
-static void RebuildLobbyPlayerList(const std::vector<LobbyPlayerRow>& rows)
-{
-	if (listboxLobbyPlayers == nullptr)
-		return;
-
-	GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
-	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	const int64_t localUserID = (pAuthInterface != nullptr) ? pAuthInterface->GetUserID() : 0;
-
-	// preserve selection and scroll
-	Int selectedIndex = -1;
-	GadgetListBoxGetSelected(listboxLobbyPlayers, &selectedIndex);
-	const int64_t selectedUserID = (selectedIndex >= 0 && selectedIndex < (Int)s_lobbyPlayerRows.size())
-		? s_lobbyPlayerRows[selectedIndex].userID : 0;
-	const Int previousTopIndex = GadgetListBoxGetTopVisibleEntry(listboxLobbyPlayers);
-
-	GadgetListBoxReset(listboxLobbyPlayers);
-	s_lobbyPlayerRows = rows;
-
-	const Int iconExtent = LobbyRankIconExtent();
-	Int indexToSelect = -1;
-
-	// batch: avoids per-row height recompute
-	{
-		GadgetListBoxBatchAddScope batchScope(listboxLobbyPlayers);
-		for (const LobbyPlayerRow& row : s_lobbyPlayerRows)
-		{
-			Color colorToUse = GameSpyColor[GSCOLOR_PLAYER_NORMAL];
-			if (row.isAdmin)
-				colorToUse = GameSpyColor[GSCOLOR_PLAYER_OWNER];
-			else if (row.isFriend)
-				colorToUse = GameSpyColor[GSCOLOR_PLAYER_BUDDY];
-			else if (row.isIgnored)
-				colorToUse = GameSpyColor[GSCOLOR_PLAYER_IGNORED];
-			else if (row.userID == localUserID)
-				colorToUse = GameSpyColor[GSCOLOR_PLAYER_SELF];
-
-			const Image* rankImg = ResolveRankIconForUser(row.userID, pStatsInterface);
-
-			Int index = GadgetListBoxAddEntryImage(listboxLobbyPlayers, rankImg, -1, 0, iconExtent, iconExtent);
-			GadgetListBoxAddEntryText(listboxLobbyPlayers, UnicodeString(from_utf8(row.displayName).c_str()), colorToUse, index, 1);
-			GadgetListBoxSetItemData(listboxLobbyPlayers, (void*)(Int)row.userID, index);
-
-			if (selectedUserID != 0 && row.userID == selectedUserID)
-				indexToSelect = index;
-		}
-	}
-
-	// drop cached icons for departed users
-	{
-		std::unordered_set<int64_t> present;
-		present.reserve(s_lobbyPlayerRows.size());
-		for (const LobbyPlayerRow& row : s_lobbyPlayerRows)
-			present.insert(row.userID);
-
-		for (auto it = s_lastKnownRankByUser.begin(); it != s_lastKnownRankByUser.end(); )
-		{
-			if (present.find(it->first) == present.end())
-				it = s_lastKnownRankByUser.erase(it);
-			else
-				++it;
-		}
-	}
-
-	GadgetListBoxSetTopVisibleEntry(listboxLobbyPlayers, previousTopIndex);
-	if (indexToSelect >= 0)
-		GadgetListBoxSetSelected(listboxLobbyPlayers, indexToSelect);
-	else if (selectedIndex >= 0)
-		TheWindowManager->winSetLoneWindow(NULL);
-
-	s_lobbyRosterSignature = BuildLobbyRosterSignature(s_lobbyPlayerRows);
-	s_lastVisibleTop = -1;
-	s_lastVisibleBottom = -1;
-	EnsureVisibleLobbyStats(TRUE);
-}
-
-//-------------------------------------------------------------------------------------------------
 void PopulateLobbyPlayerListbox()
 {
-	if (listboxLobbyPlayers == nullptr)
+
+	if (!listboxLobbyPlayers)
 		return;
 
-	std::vector<LobbyPlayerRow> rows;
-	CollectLobbyPlayerRows(rows);
-
-	const Bool rosterChanged = (BuildLobbyRosterSignature(rows) != s_lobbyRosterSignature);
-
-	// rebuild is costly; the signature stays stale until one runs, so nothing is lost
-	const UnsignedInt now = timeGetTime();
-	const Bool rebuildAllowed = (s_lastPlayerListRebuild == 0)
-		|| (now - s_lastPlayerListRebuild) >= PLAYERLIST_MIN_REBUILD_MS;
-
-	if (rosterChanged && rebuildAllowed)
+	// Display players
+	PlayerInfoMap *players = TheGameSpyInfo->getPlayerInfoMap();
+	PlayerInfoMap::iterator it;
+	BuddyInfoMap *buddies = TheGameSpyInfo->getBuddyMap();
+	BuddyInfoMap::iterator bIt;
+	if (listboxLobbyPlayers)
 	{
-		s_lastPlayerListRebuild = now;
-		RebuildLobbyPlayerList(rows);
-	}
-	else
-	{
-		// no rebuild: just refresh visible stats
-		EnsureVisibleLobbyStats(TRUE);
-	}
-}
-
-void GenOnline_WOLLobbyMenu_CreateLobbyCallback(bool bSuccess)
-{
-	// TODO_GENONLINE: Handle error case
-
-	buttonPushed = true;
-	nextScreen = "Menus/GameSpyGameOptionsMenu.wnd";
-	TheShell->pop();
-	//TheGameSpyInfo->markAsStagingRoomHost();
-	//TheGameSpyInfo->setGameOptions();
-}
-
-void GenOnline_WOLLobbyMenu_JoinLobbyCallback(EJoinLobbyResult result)
-{
-	// TODO_GENONLINE: Show accurate errors again
-
-	SetLobbyAttemptHostJoin(FALSE);
-	if (result == EJoinLobbyResult::JoinLobbyResult_Success)
-	{
-		// Woohoo!  On to our next screen!
-		buttonPushed = true;
-		nextScreen = "Menus/GameSpyGameOptionsMenu.wnd";
-		TheShell->pop();
-	}
-	else
-	{
-		UnicodeString s;
-
-		switch (result)
+		// save off old selection
+		Int maxSelectedItems = GadgetListBoxGetNumEntries(listboxLobbyPlayers);
+		Int *selectedIndices;
+		GadgetListBoxGetSelected(listboxLobbyPlayers, (Int *)(&selectedIndices));
+		std::set<AsciiString> selectedNames;
+		std::set<AsciiString>::const_iterator selIt;
+		std::set<Int> indicesToSelect;
+		UnicodeString uStr;
+		Int numSelected = 0;
+		Int i=0;
+		for (; i<maxSelectedItems; ++i)
 		{
-		case EJoinLobbyResult::JoinLobbyResult_FullRoom:        // The room is full.
-			s = TheGameText->fetch("GUI:JoinFailedRoomFull");
-			break;
-
-        case EJoinLobbyResult::JoinLobbyResult_AnticheatMismatch:
-            s = TheGameText->fetchOrSubstitute("GUI:JoinFailedAnticheatMismatch", L"You are running a different anticheat from this lobby host.");
-            break;
-
-		// NOTE: Commented out ones are no longer supported. Seems like these we GS concepts but not part of the game
-		/*
-		case PEERInviteOnlyRoom:  // The room is invite only.
-			s = TheGameText->fetch("GUI:JoinFailedInviteOnly");
-			break;
-		case PEERBannedFromRoom:  // The local user is banned from the room.
-			s = TheGameText->fetch("GUI:JoinFailedBannedFromRoom");
-			break;
-			*/
-		case EJoinLobbyResult::JoinLobbyResult_BadPassword:     // An incorrect password (or none) was given for a passworded room.
-			s = TheGameText->fetch("GUI:JoinFailedBadPassword");
-			break;
-		/*
-		case PEERAlreadyInRoom:   // The local user is already in or entering a room of the same type.
-			s = TheGameText->fetch("GUI:JoinFailedAlreadyInRoom");
-			break;
-		case PEERNoConnection:    // Can't join a room if there's no chat connection.
-			s = TheGameText->fetch("GUI:JoinFailedNoConnection");
-			break;
-			*/
-		default:
-			s = TheGameText->fetch("GUI:JoinFailedDefault");
-			break;
+			if (selectedIndices[i] < 0)
+			{
+				break;
+			}
+			++numSelected;
+			AsciiString selectedName;
+			uStr = GadgetListBoxGetText(listboxLobbyPlayers, selectedIndices[i], COLUMN_PLAYERNAME);
+			selectedName.translate(uStr);
+			selectedNames.insert(selectedName);
+			DEBUG_LOG(("Saving off old selection %d (%s)", selectedIndices[i], selectedName.str()));
 		}
 
-		GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), s);
+		// save off old top entry
+		Int previousTopIndex = GadgetListBoxGetTopVisibleEntry(listboxLobbyPlayers);
 
-		// GenOnline: We don't need to do this anymore, the service does it for us
-		/*
-		if (groupRoomToJoin)
+		GadgetListBoxReset(listboxLobbyPlayers);
+
+		// Ops
+		for (it = players->begin(); it != players->end(); ++it)
 		{
-			DEBUG_LOG(("WOLLobbyMenuUpdate() - rejoining group room %d\n", groupRoomToJoin));
-			TheGameSpyInfo->joinGroupRoom(groupRoomToJoin);
-			groupRoomToJoin = 0;
+			PlayerInfo info = it->second;
+			if (info.m_flags & PEER_FLAG_OP || TheGameSpyConfig->isPlayerVIP(info.m_profileID))
+			{
+				Int index = insertPlayerInListbox(info, info.isIgnored()?GameSpyColor[GSCOLOR_PLAYER_IGNORED]:GameSpyColor[GSCOLOR_PLAYER_OWNER]);
+
+				selIt = selectedNames.find(info.m_name);
+				if (selIt != selectedNames.end())
+				{
+					DEBUG_LOG(("Marking index %d (%s) to re-select", index, info.m_name.str()));
+					indicesToSelect.insert(index);
+				}
+			}
 		}
-		else
+
+		// Buddies
+		for (it = players->begin(); it != players->end(); ++it)
 		{
-			DEBUG_LOG(("WOLLobbyMenuUpdate() - joining best group room\n"));
-			TheGameSpyInfo->joinBestGroupRoom();
+			PlayerInfo info = it->second;
+			bIt = buddies->find(info.m_profileID);
+			if ( !(info.m_flags & PEER_FLAG_OP || TheGameSpyConfig->isPlayerVIP(info.m_profileID)) && bIt != buddies->end() )
+			{
+				Int index = insertPlayerInListbox(info, info.isIgnored()?GameSpyColor[GSCOLOR_PLAYER_IGNORED]:GameSpyColor[GSCOLOR_PLAYER_BUDDY]);
+
+				selIt = selectedNames.find(info.m_name);
+				if (selIt != selectedNames.end())
+				{
+					DEBUG_LOG(("Marking index %d (%s) to re-select", index, info.m_name.str()));
+					indicesToSelect.insert(index);
+				}
+			}
 		}
-		*/
+
+		// Everyone else
+		for (it = players->begin(); it != players->end(); ++it)
+		{
+			PlayerInfo info = it->second;
+			bIt = buddies->find(info.m_profileID);
+			if ( !(info.m_flags & PEER_FLAG_OP || TheGameSpyConfig->isPlayerVIP(info.m_profileID)) && bIt == buddies->end() )
+			{
+				Int index = insertPlayerInListbox(info, info.isIgnored()?GameSpyColor[GSCOLOR_PLAYER_IGNORED]:GameSpyColor[GSCOLOR_PLAYER_NORMAL]);
+
+				selIt = selectedNames.find(info.m_name);
+				if (selIt != selectedNames.end())
+				{
+					DEBUG_LOG(("Marking index %d (%s) to re-select", index, info.m_name.str()));
+					indicesToSelect.insert(index);
+				}
+			}
+		}
+
+		// restore selection
+		if (!indicesToSelect.empty())
+		{
+			std::set<Int>::const_iterator indexIt = indicesToSelect.begin();
+			const size_t count = indicesToSelect.size();
+			size_t index = 0;
+			Int *newIndices = NEW Int[count];
+			while (index < count)
+			{
+				newIndices[index] = *indexIt;
+				DEBUG_LOG(("Queueing up index %d to re-select", *indexIt));
+				++index;
+				++indexIt;
+			}
+			GadgetListBoxSetSelected(listboxLobbyPlayers, newIndices, count);
+			delete[] newIndices;
+		}
+
+		if (indicesToSelect.size() != numSelected)
+		{
+			TheWindowManager->winSetLoneWindow(nullptr);
+		}
+
+		// restore top visible entry
+		GadgetListBoxSetTopVisibleEntry(listboxLobbyPlayers, previousTopIndex);
 	}
+
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1489,16 +613,6 @@ void GenOnline_WOLLobbyMenu_JoinLobbyCallback(EJoinLobbyResult result)
 //-------------------------------------------------------------------------------------------------
 void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 {
-	s_lobbyMenuOpen = TRUE;
-	const UnsignedInt lobbyMenuGeneration = ++s_lobbyMenuGeneration;
-
-	// for safety (and sanity)
-	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-	if (pLobbyInterface != nullptr)
-	{
-		pLobbyInterface->LeaveCurrentLobby();
-	}
-	
 	nextScreen = nullptr;
 	buttonPushed = false;
 	isShuttingDown = false;
@@ -1507,15 +621,6 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 
 	gameListRefreshTime = 0;
 	playerListRefreshTime = 0;
-	s_statsBatchInFlight = FALSE;
-	++s_statsBatchGeneration;
-	s_statsRequestedUserIDs.clear();
-	s_lastKnownRankByUser.clear();
-	s_lobbyPlayerRows.clear();
-	s_lobbyRosterSignature.clear();
-	s_lastVisibleTop = -1;
-	s_lastVisibleBottom = -1;
-	s_lastPlayerListRebuild = 0;
 
 	parentWOLLobbyID = TheNameKeyGenerator->nameToKey( "WOLCustomLobby.wnd:WOLLobbyMenuParent" );
 	parent = TheWindowManager->winGetWindowFromId(nullptr, parentWOLLobbyID);
@@ -1544,29 +649,23 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 
 	listboxLobbyPlayersID = TheNameKeyGenerator->nameToKey("WOLCustomLobby.wnd:ListboxPlayers");
 	listboxLobbyPlayers = TheWindowManager->winGetWindowFromId(parent, listboxLobbyPlayersID);
-	GadgetListBoxRemoveMultiSelect(listboxLobbyPlayers);
 	listboxLobbyPlayers->winSetTooltipFunc(playerTooltip);
-	SetListBoxRowAnimMode(listboxLobbyPlayers, LIST_ROW_ANIM_ID);
 
 	listboxLobbyChatID = TheNameKeyGenerator->nameToKey("WOLCustomLobby.wnd:ListboxChat");
 	listboxLobbyChat = TheWindowManager->winGetWindowFromId(parent, listboxLobbyChatID);
-	SetListBoxRowAnimMode(listboxLobbyChat, LIST_ROW_ANIM_SLOT);
+	TheGameSpyInfo->registerTextWindow(listboxLobbyChat);
 
 	comboLobbyGroupRoomsID = TheNameKeyGenerator->nameToKey("WOLCustomLobby.wnd:ComboBoxGroupRooms");
 	comboLobbyGroupRooms = TheWindowManager->winGetWindowFromId(parent, comboLobbyGroupRoomsID);
 
-	//GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Welcome to Generals Online for Zero Hour!"), GameMakeColor(255, 194, 15, 255), -1, -1);
-
 	GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
 
-	PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
+	populateGroupRoomListbox(comboLobbyGroupRooms);
 
 	// Show Menu
 	layout->hide( FALSE );
 
 	// if we're not in a room, this will join the best available one
-	// TODO_GENONLINE
-	/*
 	if (!TheGameSpyInfo->getCurrentGroupRoom())
 	{
 		if (groupRoomToJoin)
@@ -1585,66 +684,21 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 	{
 		DEBUG_LOG(("WOLLobbyMenuInit() - not joining group room because we're already in one"));
 	}
-	*/
-
-	// GenOnline: Register for create lobby callback
-	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-	if (pLobbyInterface != nullptr && pRoomsInterface != nullptr)
-	{
-		pLobbyInterface->RegisterForCreateLobbyCallback(GenOnline_WOLLobbyMenu_CreateLobbyCallback);
-
-		// GenOnline: Join lobby callback
-		pLobbyInterface->RegisterForJoinLobbyCallback(GenOnline_WOLLobbyMenu_JoinLobbyCallback);
-
-		// GenOnline: Request lobbies
-
-		//GadgetListBoxSetItemData(listboxLobbyChat, (void*)-1, index);
-
-		// TODO_GENONLINE: player list change callbacks
-
-		// register for chat events
-		pRoomsInterface->RegisterForChatCallback([](UnicodeString strMessage, Color color)
-			{
-				GadgetListBoxAddEntryText(listboxLobbyChat, strMessage, color, -1, -1);
-			});
-
-		// register for roster events (throttled path)
-		pRoomsInterface->RegisterForRosterNeedsRefreshCallback([]()
-				{
-					refreshPlayerList(false);
-			});
-
-		pRoomsInterface->RegisterForRoomChangedCallback(HandleNetworkRoomChanged);
-	}
 
 	GrabWindowInfo();
 
-	// TODO_GENONLINE
-	//TheGameSpyInfo->clearStagingRoomList();
-
-	// TODO_GENONLINE
-	/*
+	TheGameSpyInfo->clearStagingRoomList();
 	PeerRequest req;
 	req.peerRequestType = PeerRequest::PEERREQUEST_STARTGAMELIST;
 	req.gameList.restrictGameList = TheGameSpyConfig->restrictGamesToLobby();
 	TheGameSpyPeerMessageQueue->addRequest(req);
-	*/
 
 	// animate controls
 //	TheShell->registerWithAnimateManager(parent, WIN_ANIMATION_SLIDE_TOP, TRUE);
 	TheShell->showShellMap(TRUE);
-#if !defined(GENONLINE)
 	TheGameSpyGame->reset();
-	
-#else
-	if (TheGenOnlineGame != nullptr)
-	{
-		TheGenOnlineGame->reset();
-	}
-#endif
 
-	// TODO_GENONLINE
-	//CustomMatchPreferences pref;
+	CustomMatchPreferences pref;
 //	GameWindow *slider = TheWindowManager->winGetWindowFromId(parent, sliderChatAdjustID);
 //	if (slider)
 //	{
@@ -1652,15 +706,13 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 //		doSliderTrack(slider, pref.getChatSizeSlider());
 //	}
 //
-
-	// TODO_GENONLINE
-	/*
 	if (pref.usesLongGameList())
 	{
 		ToggleGameListType();
 	}
-	*/
 
+	// Set Keyboard to chat window
+	TheWindowManager->winSetFocus( textEntryChat );
 	raiseMessageBoxes = true;
 
 	TheLobbyQueuedUTMs.clear();
@@ -1671,63 +723,6 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 		win->winHide(TRUE);
 	DontShowMainMenu = TRUE;
 
-
-#if defined(GENONLINE)
-// upon entry, retrieve room list
-
-	GenOnlineRoomsInterface* pRoomsInterfaceOuter = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-	if (pRoomsInterfaceOuter != nullptr)
-	{
-		pRoomsInterfaceOuter->GetRoomList([=](bool success)
-			{
-				if (lobbyMenuGeneration != s_lobbyMenuGeneration || buttonPushed || isShuttingDown || listboxLobbyChat == nullptr)
-				{
-					return;
-				}
-
-				const std::vector<NetworkRoom>& rooms = pRoomsInterfaceOuter->GetGroupRooms();
-				if (!success || rooms.empty())
-				{
-					GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"\t ERROR: No rooms are available. Try logging in again."), GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255)), -1, -1);
-					return;
-				}
-
-				pRoomsInterfaceOuter->JoinRoom(0);
-			});
-	}
-
-	// Update the communicator button anytime we get notifications
-    GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-	if (pSocialInterface != nullptr)
-	{
-		// notifiactions callback
-		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged([](int numNotifications)
-			{
-				// update communicator button
-				if (buttonBuddy != nullptr)
-				{
-					UnicodeString buttonText;
-                    if (numNotifications > 0)
-                    {
-                        buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), numNotifications);
-                    }
-                    else
-                    {
-                        buttonText.format(L"%s", TheGameText->fetch("GUI:Buddies").str());
-                    }
-					buttonBuddy->winSetText(buttonText);
-				}
-			});
-	}
-
-	// And also initialize it
-    if (buttonBuddy != nullptr && pSocialInterface->GetNumTotalNotifications() > 0)
-    {
-        UnicodeString buttonText;
-        buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), pSocialInterface->GetNumTotalNotifications());
-        buttonBuddy->winSetText(buttonText);
-    }
-#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1758,25 +753,6 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void WOLLobbyMenuShutdown( WindowLayout *layout, void *userData )
 {
-	s_lobbyMenuOpen = FALSE;
-	++s_lobbyMenuGeneration;
-
-	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-	if (pRoomsInterface != nullptr)
-	{
-		pRoomsInterface->DeregisterForChatCallback();
-		pRoomsInterface->DeregisterForRosterNeedsRefreshCallback();
-		pRoomsInterface->DeregisterForRoomChangedCallback();
-	}
-
-	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-	if (pLobbyInterface != nullptr)
-	{
-		pLobbyInterface->DeregisterForCreateLobbyCallback();
-		pLobbyInterface->DeregisterForJoinLobbyCallback();
-		pLobbyInterface->DeregisterForSearchForLobbiesCallback();
-	}
-
 	CustomMatchPreferences pref;
 //	GameWindow *slider = TheWindowManager->winGetWindowFromId(parent, sliderChatAdjustID);
 //	if (slider)
@@ -1795,14 +771,12 @@ void WOLLobbyMenuShutdown( WindowLayout *layout, void *userData )
 
 	ReleaseWindowInfo();
 
-	// TODO_GENONLINE
-	//TheGameSpyInfo->unregisterTextWindow(listboxLobbyChat);
+	TheGameSpyInfo->unregisterTextWindow(listboxLobbyChat);
 
 	//TheGameSpyChat->stopListingGames();
-	// TODO_GENONLINE
-	//PeerRequest req;
-	//req.peerRequestType = PeerRequest::PEERREQUEST_STOPGAMELIST;
-	//TheGameSpyPeerMessageQueue->addRequest(req);
+	PeerRequest req;
+	req.peerRequestType = PeerRequest::PEERREQUEST_STOPGAMELIST;
+	TheGameSpyPeerMessageQueue->addRequest(req);
 
 	listboxLobbyChat = nullptr;
 	listboxLobbyPlayers = nullptr;
@@ -1894,22 +868,10 @@ static const char* getMessageString(Int t)
 //-------------------------------------------------------------------------------------------------
 void refreshGameList( Bool forceRefresh )
 {
-	// TODO_GENONLINE: rate limit this like before
-	//RefreshGameListBoxes();
-
 	Int refreshInterval = gameListRefreshInterval;
 
 	if (forceRefresh || ((gameListRefreshTime == 0) || ((gameListRefreshTime + refreshInterval) <= timeGetTime())))
 	{
-#if defined(GENONLINE)
-		RefreshGameListBoxes();
-		GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-		if (pLobbyInterface != nullptr)
-		{
-			pLobbyInterface->ConsumeLobbyListDirtyFlag();
-		}
-		gameListRefreshTime = timeGetTime();
-#else
 		if (TheGameSpyInfo->hasStagingRoomListChanged())
 		{
 			//DEBUG_LOG(("################### refreshing game list"));
@@ -1919,7 +881,6 @@ void refreshGameList( Bool forceRefresh )
 		} else {
 			//DEBUG_LOG(("-"));
 		}
-#endif
 	} else {
 		//DEBUG_LOG(("gameListRefreshTime: %d refreshInterval: %d", gameListRefreshTime, refreshInterval));
 	}
@@ -1937,69 +898,18 @@ void refreshPlayerList( Bool forceRefresh )
 				PopulateLobbyPlayerListbox();
 				playerListRefreshTime = timeGetTime();
 		}
-		else
-		{
-				// fetches only if the visible window moved
-				EnsureVisibleLobbyStats(FALSE);
-		}
 }
-
-void ExitState()
-{
-	if (s_tryingToHostOrJoin)
-		return;
-
-	// Leave any group room, then pop off the screen
-	auto pOnlineServicesManager = GenOnlineServicesManager::GetInstance();
-	if (pOnlineServicesManager != nullptr)
-	{
-		GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-		if (pRoomsInterface != nullptr)
-		{
-			pRoomsInterface->LeaveRoom();
-		}
-	}
-
-	SetLobbyAttemptHostJoin(TRUE); // pretend, since we don't want to queue up another action
-	buttonPushed = true;
-
-	if (pOnlineServicesManager == nullptr || pOnlineServicesManager->IsPendingFullTeardown()) // go back to the front end
-	{
-		nextScreen = nullptr;
-	}
-	else // user backed out, go back to welcome menu
-	{
-		nextScreen = "Menus/WOLWelcomeMenu.wnd";
-	}
-	
-	TheShell->pop();
-}
-
 //-------------------------------------------------------------------------------------------------
 /** WOL Lobby Menu update method */
 //-------------------------------------------------------------------------------------------------
 void WOLLobbyMenuUpdate( WindowLayout * layout, void *userData)
 {
-	// need to exit?
-	if (GenOnlineServicesManager::GetInstance() != nullptr && GenOnlineServicesManager::GetInstance()->IsPendingFullTeardown())
-	{
-		if (!s_tryingToHostOrJoin)
-		{
-			s_tryingToHostOrJoin = false;
-			ExitState();
-			TearDownGeneralsOnline();
-		}		
-
-		return;
-	}
-
-	if(justEntered)
+		if(justEntered)
 	{
 		if(initialGadgetDelay == 1)
 		{
 			TheTransitionHandler->remove("MainMenuDefaultMenuLogoFade");
 			TheTransitionHandler->setGroup("WOLCustomLobbyFade");
-			TheWindowManager->winSetFocus(textEntryChat);
 			initialGadgetDelay = 2;
 			justEntered = FALSE;
 		}
@@ -2021,27 +931,6 @@ void WOLLobbyMenuUpdate( WindowLayout * layout, void *userData)
 		RaiseGSMessageBox();
 		raiseMessageBoxes = false;
 	}
-	
-	// do we need to update?
-	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-	if (pLobbyInterface != nullptr && pLobbyInterface->IsLobbyListDirty() && !isShuttingDown && !buttonPushed && !pLobbyInterface->IsInLobby() && pLobbyInterface->GetLobbyTryingToJoin().lobbyID == -1)
-	{
-		const bool bShouldAutoRefresh = true;
-
-		if (bShouldAutoRefresh)
-		{
-			refreshGameList(false);
-		}
-		else
-		{
-			GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Your lobby list is outdated. Hit refresh to see the latest servers."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
-		}
-
-	}
-
-#if defined(GENONLINE) // GO needs to tick this, so notifications disappear etc
-	HandleBuddyResponses();
-#endif
 
 	if (TheShell->isAnimFinished() && TheTransitionHandler->isFinished() && !buttonPushed && TheGameSpyPeerMessageQueue)
 	{
@@ -2088,7 +977,7 @@ void WOLLobbyMenuUpdate( WindowLayout * layout, void *userData)
 					DEBUG_LOG(("WOLLobbyMenuUpdate() - joining best group room"));
 					TheGameSpyInfo->joinBestGroupRoom();
 				}
-				PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
+				populateGroupRoomListbox(comboLobbyGroupRooms);
 				shouldRepopulatePlayers = TRUE;
 				break;
 			case PeerResponse::PEERRESPONSE_PLAYERCHANGEDFLAGS:
@@ -2585,8 +1474,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 				if ( controlID == GetGameListBoxID() )
 				{
 					int rowSelected = mData2;
-					int64_t lobbyID = rowSelected >= 0 ? ResolveGameListLobbyID((Int)GadgetListBoxGetItemData(control, rowSelected, 0)) : 0;
-					if( lobbyID >= 0 )
+					if( rowSelected >= 0 )
 					{
 						buttonJoin->winEnable(TRUE);
 						static UnsignedInt lastFrame = 0;
@@ -2595,16 +1483,13 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 
 						PeerRequest req;
 						req.peerRequestType = PeerRequest::PEERREQUEST_GETEXTENDEDSTAGINGROOMINFO;
-						req.stagingRoom.id = lobbyID;
+						req.stagingRoom.id = (Int)(intptr_t)GadgetListBoxGetItemData(control, rowSelected, 0);
 
 						if (lastID != req.stagingRoom.id || now > lastFrame + 60)
 						{
-							// TODO_GENONLINE: Impl this again
-							/*
 							TheGameSpyPeerMessageQueue->addRequest(req);
-							*/
 						}
-						
+
 						lastID = req.stagingRoom.id;
 						lastFrame = now;
 					}
@@ -2636,7 +1521,16 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 				// If we back out, just bail - we haven't gotten far enough to need to log out
 				if ( controlID == buttonBackID )
 				{
-					ExitState();
+					if (s_tryingToHostOrJoin)
+						break;
+
+					// Leave any group room, then pop off the screen
+					TheGameSpyInfo->leaveGroupRoom();
+
+					SetLobbyAttemptHostJoin( TRUE ); // pretend, since we don't want to queue up another action
+					buttonPushed = true;
+					nextScreen = "Menus/WOLWelcomeMenu.wnd";
+					TheShell->pop();
 
 				}
 				else if ( controlID == buttonRefreshID )
@@ -2652,74 +1546,11 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 
 					SetLobbyAttemptHostJoin( TRUE );
 					TheLobbyQueuedUTMs.clear();
-					// TODO_GENONLINE
-					//groupRoomToJoin = TheGameSpyInfo->getCurrentGroupRoom();
+					groupRoomToJoin = TheGameSpyInfo->getCurrentGroupRoom();
 					GameSpyOpenOverlay(GSOVERLAY_GAMEOPTIONS);
 				}
 				else if ( controlID == buttonJoinID )
 				{
-					GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-					if (pLobbyInterface == nullptr)
-					{
-						break;
-					}
-
-					// TODO_GENONLINE: Support re-ordering again
-					Int selected;
-					GadgetListBoxGetSelected(GetGameListBox(), &selected);
-					if (selected >= 0)
-					{
-						int64_t selectedID = ResolveGameListLobbyID((Int)GadgetListBoxGetItemData(GetGameListBox(), selected));
-						if (selectedID >= 0)
-						{
-							auto Lobby = pLobbyInterface->GetLobbyFromID(selectedID);
-
-							if (Lobby.lobbyID == -1) // -1 is invalid
-							{
-								break;
-							}
-
-							// CRC Check
-							if (Lobby.exe_crc != TheGlobalData->m_exeCRC || Lobby.ini_crc != TheGlobalData->m_iniCRC)
-							{
-								if (TheGlobalData->m_iniCRC != VANILLA_INI_CRC)
-								{
-									GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), UnicodeString(L"You have modified INI files or a modification."));
-								}
-								else if (Lobby.ini_crc != VANILLA_INI_CRC)
-								{
-									GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), UnicodeString(L"The host has modified INI files or a modification."));
-								}
-								else
-								{
-									GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), TheGameText->fetch("GUI:JoinFailedCRCMismatch"));
-								}
-								break;
-							}
-
-							// TODO_GENONLINE: Enforce this on the host too, vanilla game did not...
-
-							
-							pLobbyInterface->SetLobbyTryingToJoin(Lobby);
-
-							if (Lobby.passworded)
-							{
-								GameSpyOpenOverlay(GSOVERLAY_GAMEPASSWORD);
-							}
-							else
-							{
-								pLobbyInterface->JoinLobby(Lobby, std::string());
-
-								SetLobbyAttemptHostJoin(TRUE);
-							}
-						}
-					}
-					else
-					{
-						GSMessageBoxOk(TheGameText->fetch("GUI:Error"), TheGameText->fetch("GUI:NoGameSelected"), NULL);
-					}
-					// TODO_GENONLINE: Start using StagingRoomInfo again, it'll make this easier and cleaner
-					/*
 					if (s_tryingToHostOrJoin)
 						break;
 
@@ -2799,7 +1630,6 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 					{
 						GSMessageBoxOk(TheGameText->fetch("GUI:Error"), TheGameText->fetch("GUI:NoGameSelected"), nullptr);
 					}
-					*/
 				}
 				else if ( controlID == buttonBuddyID )
 				{
@@ -2811,26 +1641,15 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 				}
 				else if ( controlID == buttonChatID )
 				{
-					// read the user's input
+				// read the user's input and clear the entry box
 					UnicodeString txtInput;
 					txtInput.set(GadgetTextEntryGetText( textEntryChat ));
-					txtInput.trim();
-					if (txtInput.isEmpty())
-					{
-						GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
-						break;
-					}
-
-					if (!LobbyChatRateLimitAllowsSend())
-					{
-						break;
-					}
-
 					GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
-					GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-					if (pRoomsInterface != nullptr)
+					txtInput.trim();
+					if (!txtInput.isEmpty())
 					{
-						pRoomsInterface->SendChatMessageToCurrentRoom(txtInput, false);
+						// Send the message
+						TheGameSpyInfo->sendChat( txtInput, FALSE, listboxLobbyPlayers ); // 'emote' button now just sends text
 					}
 				}
 
@@ -2840,45 +1659,35 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 		//---------------------------------------------------------------------------------------------
 		case GCM_SELECTED:
 			{
-				if (s_tryingToHostOrJoin || s_populatingLobbyCombo)
+				if (s_tryingToHostOrJoin)
 					break;
-
-				GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-
-				extern LobbyGameModeFilter theLobbyFilter;
 				GameWindow *control = (GameWindow *)mData1;
 				Int controlID = control->winGetWindowId();
 				if( controlID == comboLobbyGroupRoomsID )
 				{
-					Int pos = -1;
-					GadgetComboBoxGetSelectedPos(comboLobbyGroupRooms, &pos);
-					if (pos >= 0)
+					int rowSelected = -1;
+					GadgetComboBoxGetSelectedPos(control, &rowSelected);
+
+					DEBUG_LOG(("Row selected = %d", rowSelected));
+					if (rowSelected >= 0)
 					{
-						Int itemData = (Int)(intptr_t)GadgetComboBoxGetItemData(comboLobbyGroupRooms, pos);
-						if (itemData == LOBBY_COMBO_SEPARATOR_ITEM_DATA)
+						Int groupID;
+						groupID = (Int)(intptr_t)GadgetComboBoxGetItemData(comboLobbyGroupRooms, rowSelected);
+						DEBUG_LOG(("ItemData was %d, current Group Room is %d", groupID, TheGameSpyInfo->getCurrentGroupRoom()));
+						if (groupID && groupID != TheGameSpyInfo->getCurrentGroupRoom())
 						{
-							PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
-						}
-						else if (itemData < 0)
-						{
-							if (pRoomsInterface != nullptr)
+							TheGameSpyInfo->leaveGroupRoom();
+							TheGameSpyInfo->joinGroupRoom(groupID);
+
+							if (TheGameSpyConfig->restrictGamesToLobby())
 							{
-								const Int roomIndex = -itemData - 2;
-								const std::vector<NetworkRoom>& rooms = pRoomsInterface->GetGroupRooms();
-								if (roomIndex >= 0 && roomIndex < (Int)rooms.size()
-									&& roomIndex != pRoomsInterface->GetCurrentRoomIndex())
-								{
-									theLobbyFilter = LOBBY_FILTER_ALL;
-									pRoomsInterface->JoinRoom(roomIndex);
-								}
+								TheGameSpyInfo->clearStagingRoomList();
+								RefreshGameListBoxes();
+								PeerRequest req;
+								req.peerRequestType = PeerRequest::PEERREQUEST_STARTGAMELIST;
+								req.gameList.restrictGameList = TRUE;
+								TheGameSpyPeerMessageQueue->addRequest(req);
 							}
-							PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
-						}
-						else
-						{
-							theLobbyFilter = (LobbyGameModeFilter)itemData;
-							refreshGameList(TRUE);
-							PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
 						}
 					}
 				}
@@ -2915,130 +1724,8 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 				GameWindow *control = (GameWindow *)mData1;
 				Int controlID = control->winGetWindowId();
 
-				if (controlID == listboxLobbyPlayersID)
+				if( controlID == listboxLobbyPlayersID )
 				{
-#if defined(GENONLINE)
-					RightClickStruct* rc = (RightClickStruct*)mData2;
-					WindowLayout* rcLayout = NULL;
-					GameWindow* rcMenu;
-					if (rc->pos < 0)
-					{
-						GadgetListBoxSetSelected(control, -1);
-						break;
-					}
-
-					// TODO_GENONLINE: This causes issues with duplicate names. We should have better ways of looking this up + perhaps only allow unique names
-					GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-					GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-					GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
-					GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-					if (pRoomsInterface != nullptr && pAuthInterface != nullptr && pStatsInterface != nullptr && pSocialInterface != nullptr)
-					{
-
-						int profileID = (int)GadgetListBoxGetItemData(listboxLobbyPlayers, rc->pos, 0);
-						NetworkRoomMember* roomMember = pRoomsInterface->GetRoomMemberFromID(profileID);
-
-						if (rc->pos >= 0)
-						{
-							if (roomMember != nullptr)
-							{
-								AsciiString aName = AsciiString(roomMember->display_name.c_str());
-								int64_t localuserID = pAuthInterface->GetUserID();
-
-								Bool isBuddy = pSocialInterface->IsUserFriend(profileID);
-								if (profileID <= 0)
-									rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/RCNoProfileMenu.wnd"));
-								else
-								{
-									if (profileID == localuserID)
-									{
-										rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/RCLocalPlayerMenu.wnd"));
-									}
-									else if (isBuddy)
-									{
-										rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/RCBuddiesMenu.wnd"));
-									}
-									else
-										rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/RCNonBuddiesMenu.wnd"));
-								}
-								if (!rcLayout)
-									break;
-
-								GadgetListBoxSetSelected(control, rc->pos);
-
-								rcMenu = rcLayout->getFirstWindow();
-								rcMenu->winGetLayout()->runInit();
-								rcMenu->winBringToTop();
-								rcMenu->winHide(FALSE);
-								setUnignoreText(rcLayout, aName, profileID);
-								ICoord2D rcSize, rcPos;
-								rcMenu->winGetSize(&rcSize.x, &rcSize.y);
-								rcPos.x = rc->mouseX;
-								rcPos.y = rc->mouseY;
-								if (rc->mouseX + rcSize.x > TheDisplay->getWidth())
-									rcPos.x = TheDisplay->getWidth() - rcSize.x;
-								if (rc->mouseY + rcSize.y > TheDisplay->getHeight())
-									rcPos.y = TheDisplay->getHeight() - rcSize.y;
-								rcMenu->winSetPosition(rcPos.x, rcPos.y);
-
-								GameSpyRCMenuData* rcData = NEW GameSpyRCMenuData;
-								rcData->m_id = profileID;
-								rcData->m_nick = aName;
-								rcData->m_itemType = (isBuddy) ? ITEM_BUDDY : ITEM_NONBUDDY;
-								rcMenu->winSetUserData((void*)rcData);
-								TheWindowManager->winSetLoneWindow(rcMenu);
-							}
-							else if (controlID == GetGameListBoxID())
-							{
-								// TODO_GENONLINE: enable right click for ladders again
-								break;
-
-								RightClickStruct* rc = (RightClickStruct*)mData2;
-								WindowLayout* rcLayout = NULL;
-								GameWindow* rcMenu;
-								if (rc->pos < 0)
-								{
-									GadgetListBoxSetSelected(control, -1);
-									break;
-								}
-
-								Int selectedID = (Int)GadgetListBoxGetItemData(control, rc->pos);
-								if (selectedID > 0)
-								{
-									StagingRoomMap* srm = TheGameSpyInfo->getStagingRoomList();
-									StagingRoomMap::iterator srmIt = srm->find(selectedID);
-									if (srmIt != srm->end())
-									{
-										GameSpyStagingRoom* theRoom = srmIt->second;
-										if (!theRoom)
-											break;
-										const LadderInfo* linfo = TheLadderList->findLadder(theRoom->getLadderIP(), theRoom->getLadderPort());
-										if (linfo)
-										{
-											rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/RCGameDetailsMenu.wnd"));
-											if (!rcLayout)
-												break;
-
-											GadgetListBoxSetSelected(control, rc->pos);
-
-											rcMenu = rcLayout->getFirstWindow();
-											rcMenu->winGetLayout()->runInit();
-											rcMenu->winBringToTop();
-											rcMenu->winHide(FALSE);
-											rcMenu->winSetPosition(rc->mouseX, rc->mouseY);
-
-											rcMenu->winSetUserData((void*)selectedID);
-											TheWindowManager->winSetLoneWindow(rcMenu);
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-				break;
-		}
-#else
 					RightClickStruct *rc = (RightClickStruct *)mData2;
 					WindowLayout *rcLayout = nullptr;
 					GameWindow *rcMenu;
@@ -3101,9 +1788,6 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 				}
 				else if( controlID == GetGameListBoxID() )
 				{
-					// TODO_GENONLINE: enable right click for ladders again
-					break;
-
 					RightClickStruct *rc = (RightClickStruct *)mData2;
 					WindowLayout *rcLayout = nullptr;
 					GameWindow *rcMenu;
@@ -3146,7 +1830,6 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 				}
 				break;
 			}
-#endif
 
 //		//---------------------------------------------------------------------------------------------
 //		case GSM_SLIDER_TRACK:
@@ -3170,37 +1853,18 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 				if (buttonPushed)
 					break;
 
-				// read the user's input
+				// read the user's input and clear the entry box
 				UnicodeString txtInput;
 				txtInput.set(GadgetTextEntryGetText( textEntryChat ));
+				GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
 				txtInput.trim();
-				if (txtInput.isEmpty())
+				if (!txtInput.isEmpty())
 				{
-					GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
-					break;
-				}
-
-				Bool wasRateLimited = FALSE;
-				if (handleLobbySlashCommands(txtInput, &wasRateLimited))
-				{
-					if (!wasRateLimited)
-						GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
-				}
-				else
-				{
-					if (!LobbyChatRateLimitAllowsSend())
+					// Send the message
+					if (!handleLobbySlashCommands(txtInput))
 					{
-						break;
+						TheGameSpyInfo->sendChat( txtInput, false, listboxLobbyPlayers );
 					}
-
-					GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
-					std::shared_ptr<WebSocket>  pWS = GenOnlineServicesManager::GetWebSocket();
-					if (pWS != nullptr)
-					{
-						pWS->SendData_RoomChatMessage(txtInput, false);
-					}
-					// TODO_GENONLINE: Support private message again
-					//TheGameSpyInfo->sendChat( txtInput, false, listboxLobbyPlayers );
 				}
 				break;
 			}

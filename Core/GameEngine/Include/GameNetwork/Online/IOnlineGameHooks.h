@@ -25,6 +25,7 @@ class AsciiString;
 class UnicodeString;
 class GameInfo;
 class DisplayString;
+class WindowLayout;
 
 class IOnlineGameHooks
 {
@@ -55,6 +56,18 @@ public:
 	virtual Int getChatMessageLifeSeconds() = 0;	///< Seconds a chat line stays up, or -1 for the standard message time.
 	virtual void drawNetworkOverlay( DisplayString *text, Int dropColor ) = 0;
 	virtual void releaseNetworkOverlay() = 0;	///< Frees what the overlay keeps between frames.
+
+	virtual const char *getOverlayLayout( Int overlay, const char *gameSpyLayout ) = 0;	///< The layout file an online overlay opens.
+	virtual void onShellScreenChanged() = 0;	///< Runs after every shell screen change.
+	virtual void onCloseAllOverlays() = 0;		///< Runs when every online overlay closes.
+
+	virtual void startOnline() = 0;				///< Runs when the player picks Online in the main menu.
+	virtual void updateMainMenu() = 0;			///< Runs every main menu update.
+	virtual void updateDownloadMenu( WindowLayout *layout, void *userData ) = 0;	///< Runs while a patch downloads.
+	virtual void onDownloadCanceled() = 0;		///< Runs when the player cancels a patch download.
+	virtual void stopOnlineChecks() = 0;		///< Stops the checks the Online path started.
+	virtual void cancelPatchCheck() = 0;		///< Ends a patch check that is still running.
+	virtual void startDownloadingPatches() = 0;	///< Downloads the patches the player accepted.
 };
 
 // Returns the hooks of the selected provider. It never returns null.

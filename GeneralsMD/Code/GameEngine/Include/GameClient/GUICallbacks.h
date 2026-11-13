@@ -186,19 +186,6 @@ extern void WOLLoginMenuShutdown( WindowLayout *layout, void *userData );
 extern WindowMsgHandledType WOLLoginMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType WOLLoginMenuInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 GO sign-in dialog over the main menu for the whole Online path; Open returns FALSE when its layout is missing.
-extern Bool GOSignInDialogOpen( void );
-extern Bool GOSignInDialogIsOpen( void );
-extern void GOSignInDialogShowChecking( GameWinMsgBoxFunc cancelFunc );
-extern void GOSignInDialogShowUpdate( UnicodeString message, GameWinMsgBoxFunc updateFunc, GameWinMsgBoxFunc cancelFunc );
-extern void GOSignInDialogShowError( UnicodeString title, UnicodeString message, GameWinMsgBoxFunc closeFunc );
-// TheSuperHackers @feature arcticdolphin 09/11/2026 The update download and its Restart prompt show inside the dialog; Downloading makes the dialog the download progress sink.
-extern void GOSignInDialogShowDownloading( GameWinMsgBoxFunc cancelFunc );
-extern void GOSignInDialogShowReady( UnicodeString message, GameWinMsgBoxFunc restartFunc, GameWinMsgBoxFunc cancelFunc );
-extern void GOSignInDialogBeginSignIn( void );
-extern void GOSignInDialogUpdate( void );
-extern void GOSignInDialogDestroy( void );
-
 //  WOL Locale Select Popup ---------------------------------------------------------------------------------
 extern void WOLLocaleSelectInit( WindowLayout *layout, void *userData );
 extern void WOLLocaleSelectUpdate( WindowLayout *layout, void *userData );
@@ -357,8 +344,6 @@ void SetInGameChatType( InGameChatType chatType );
 Bool IsInGameChatActive();
 Bool SubmitInGameChatLine( const UnicodeString& text, InGameChatType chatType );
 /// Handles a line as if it was typed into the chat box of that menu. Returns FALSE if the menu is not open.
-Bool WOLGameSetupMenuSubmitChatLine( UnicodeString text );
-Bool WOLLobbyMenuSubmitChatLine( UnicodeString text );
 Bool LanLobbyMenuSubmitChatLine( UnicodeString text );
 Bool LanGameOptionsMenuSubmitChatLine( UnicodeString text );
 
@@ -366,7 +351,6 @@ Bool LanGameOptionsMenuSubmitChatLine( UnicodeString text );
 struct StatsLobbyScreen;
 Bool SkirmishGameOptionsMenuStatsLobby( StatsLobbyScreen& out );
 Bool LanGameOptionsMenuStatsLobby( StatsLobbyScreen& out );
-Bool WOLGameSetupMenuStatsLobby( StatsLobbyScreen& out );
 
 
 // Diplomacy Controls --------------------------------------------------------------------------------

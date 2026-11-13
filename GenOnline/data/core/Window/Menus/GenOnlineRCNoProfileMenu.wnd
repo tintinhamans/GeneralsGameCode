@@ -1,22 +1,22 @@
 FILE_VERSION = 2;
 STARTLAYOUTBLOCK
-  LAYOUTINIT = WOLBuddyOverlayRCMenuInit;
+  LAYOUTINIT = GenOnlineBuddyOverlayRCMenuInit;
   LAYOUTUPDATE = [None];
   LAYOUTSHUTDOWN = [None];
 ENDLAYOUTBLOCK
 WINDOW
   WINDOWTYPE = USER;
-  SCREENRECT = UPPERLEFT: 320 148,
-               BOTTOMRIGHT: 416 184,
+  SCREENRECT = UPPERLEFT: 336 164,
+               BOTTOMRIGHT: 432 200,
                CREATIONRESOLUTION: 800 600;
-  NAME = "RCLocalPlayerMenu.wnd:ParentRightClick";
+  NAME = "RCNoProfileMenu.wnd:ParentRightClick";
   STATUS = ENABLED;
   STYLE = USER;
-  SYSTEMCALLBACK = "WOLBuddyOverlayRCMenuSystem";
+  SYSTEMCALLBACK = "GenOnlineBuddyOverlayRCMenuSystem";
   INPUTCALLBACK = "[None]";
   TOOLTIPCALLBACK = "[None]";
   DRAWCALLBACK = "[None]";
-  FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+  FONT = NAME: "Times New Roman", SIZE: 14, BOLD: 0;
   HEADERTEMPLATE = "[None]";
   TOOLTIPDELAY = -1;
   TEXTCOLOR = ENABLED:  255 255 255 0, ENABLEDBORDER:  255 255 255 0,
@@ -52,10 +52,10 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = PUSHBUTTON;
-    SCREENRECT = UPPERLEFT: 324 156,
-                 BOTTOMRIGHT: 412 176,
+    SCREENRECT = UPPERLEFT: 340 172,
+                 BOTTOMRIGHT: 428 192,
                  CREATIONRESOLUTION: 800 600;
-    NAME = "RCLocalPlayerMenu.wnd:ButtonStats";
+    NAME = "RCNoProfileMenu.wnd:ButtonIgnore";
     STATUS = ENABLED+IMAGE;
     STYLE = PUSHBUTTON+MOUSETRACK;
     SYSTEMCALLBACK = "[None]";
@@ -65,7 +65,7 @@ WINDOW
     FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
     HEADERTEMPLATE = "GOButtonSmall";
     TOOLTIPDELAY = -1;
-    TEXT = "GUI:Stats";
+    TEXT = "GUI:IgnoreSm";
     TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
                 DISABLED: 138 143 176 255, DISABLEDBORDER: 31 32 47 255,
                 HILITE:   186 255 12 255, HILITEBORDER:   0 2 0 255;

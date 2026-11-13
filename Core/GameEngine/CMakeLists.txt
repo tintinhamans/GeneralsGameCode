@@ -193,6 +193,7 @@ set(GAMEENGINE_SRC
     Include/GameClient/GameWindowID.h
     Include/GameClient/GameWindowManager.h
     Include/GameClient/GameWindowTransitions.h
+    Include/GameClient/GenOnlineMenus.h
     Include/GameClient/GlobalLanguage.h
     Include/GameClient/GraphDraw.h
 #    Include/GameClient/GUICallbacks.h
@@ -799,6 +800,17 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/InGameChat.cpp
     Source/GameClient/GUI/GUICallbacks/InGamePopupMessage.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/ChallengeMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineBuddyOverlay.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineDownloadMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineGameSetupMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineLobbyMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineLoginMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineMapSelectMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlinePlayerInfoOverlay.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlinePopupHostGame.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlinePopupJoinGame.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineQuickMatchMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineWelcomeMenu.cpp
 #    Source/GameClient/GUI/GUICallbacks/Menus/CreditsMenu.cpp
 #    Source/GameClient/GUI/GUICallbacks/Menus/DifficultySelect.cpp
 #    Source/GameClient/GUI/GUICallbacks/Menus/DisconnectWindow.cpp
@@ -1231,6 +1243,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/GenOnlineAuth.h
     Include/GameNetwork/GenOnline/GenOnlineInit.h
     Include/GameNetwork/GenOnline/GenOnlineLobbyInterface.h
+    Include/GameNetwork/GenOnline/GenOnlineMainMenuUtils.h
     Include/GameNetwork/GenOnline/GenOnlineModeration.h
     Include/GameNetwork/GenOnline/GenOnlineRoomsInterface.h
     Include/GameNetwork/GenOnline/GenOnlineStatsInterface.h
@@ -1268,6 +1281,7 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/GenOnlineInit.cpp
     Source/GameNetwork/GenOnline/GenOnlineAuth.cpp
     Source/GameNetwork/GenOnline/GenOnlineLobbyInterface.cpp
+    Source/GameNetwork/GenOnline/GenOnlineMainMenuUtils.cpp
     Source/GameNetwork/GenOnline/GenOnlineModeration.cpp
     Source/GameNetwork/GenOnline/GenOnlineRoomsInterface.cpp
     Source/GameNetwork/GenOnline/GenOnlineStatsInterface.cpp

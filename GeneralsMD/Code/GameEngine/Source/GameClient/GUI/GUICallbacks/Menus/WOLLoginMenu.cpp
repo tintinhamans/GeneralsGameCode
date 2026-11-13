@@ -32,10 +32,6 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/STLTypedefs.h"
-#include "Common/GOUIColors.h"
-#include "../GenOnlineTypes.h"
-
-void GenOnline_WOLLoginMenu_LoginCallback(ELoginResult loginResult);
 
 #include "Common/file.h"
 #include "Common/FileSystem.h"
@@ -55,18 +51,13 @@ void GenOnline_WOLLoginMenu_LoginCallback(ELoginResult loginResult);
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetComboBox.h"
 #include "GameClient/GadgetCheckBox.h"
-#include "GameClient/GadgetPushButton.h"
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/GadgetTextEntry.h"
-#include "GameClient/Display.h"
-#include "GameClient/Image.h"
 #include "GameClient/MessageBox.h"
 #include "GameClient/ShellHooks.h"
 #include "GameClient/GameWindowTransitions.h"
-#include "GameClient/GUICallbacks.h"
 
 #include "GameNetwork/GameSpy/GSConfig.h"
-#include "GameNetwork/GameSpy/MainMenuUtils.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/PeerThread.h"
 #include "GameNetwork/GameSpy/PingThread.h"
@@ -77,9 +68,6 @@ void GenOnline_WOLLoginMenu_LoginCallback(ELoginResult loginResult);
 #include "GameNetwork/GameSpyOverlay.h"
 
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
-#include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
-#include "GameNetwork/DownloadManager.h"
-#include "GameClient/GadgetProgressBar.h"
 
 
 #ifdef ALLOW_NON_PROFILED_LOGIN
@@ -91,7 +79,7 @@ static Bool useWebBrowserForTOS = FALSE;
 
 static Bool isShuttingDown = false;
 static Bool buttonPushed = false;
-static const char *nextScreen = NULL;
+static const char *nextScreen = nullptr;
 
 static const UnsignedInt loginTimeoutInMS = 10000;
 static UnsignedInt loginAttemptTime = 0;
@@ -320,7 +308,7 @@ AsciiStringList GameSpyLoginPreferences::getEmails()
 	return theList;
 }
 
-static GameSpyLoginPreferences *loginPref = NULL;
+static GameSpyLoginPreferences *loginPref = nullptr;
 
 static void startPings()
 {
@@ -351,30 +339,30 @@ static void shutdownComplete( WindowLayout *layout )
 	layout->hide( TRUE );
 
 	// our shutdown is complete
-	TheShell->shutdownComplete( layout, (nextScreen != NULL) );
+	TheShell->shutdownComplete( layout, (nextScreen != nullptr) );
 
-	if (nextScreen != NULL)
+	if (nextScreen != nullptr)
 	{
 		if (loginPref)
 		{
 			loginPref->write();
 			delete loginPref;
-			loginPref = NULL;
+			loginPref = nullptr;
 		}
 		TheShell->push(nextScreen);
 	}
 	else
 	{
-		DEBUG_ASSERTCRASH(loginPref != NULL, ("loginPref == NULL"));
+		DEBUG_ASSERTCRASH(loginPref != nullptr, ("loginPref == nullptr"));
 		if (loginPref)
 		{
 			loginPref->write();
 			delete loginPref;
-			loginPref = NULL;
+			loginPref = nullptr;
 		}
 	}
 
-	nextScreen = NULL;
+	nextScreen = nullptr;
 
 }
 
@@ -401,562 +389,24 @@ static NameKeyType textEntryDayID =				NAMEKEY_INVALID;	// profile
 static NameKeyType textEntryYearID =				NAMEKEY_INVALID;	// profile
 
 // Window Pointers ------------------------------------------------------------------------
-static GameWindow *parentWOLLogin =						NULL;
-static GameWindow *buttonBack =								NULL;
-static GameWindow *buttonLogin =							NULL;
-static GameWindow *buttonCreateAccount =			NULL;
-static GameWindow *buttonUseAccount =					NULL;
-static GameWindow *buttonDontUseAccount =			NULL;
-static GameWindow *buttonTOS						=			NULL;
-static GameWindow *parentTOS						=			NULL;
-static GameWindow *buttonTOSOK					=			NULL;
-static GameWindow *listboxTOS						=			NULL;
-static GameWindow *comboBoxEmail =						NULL;
-static GameWindow *comboBoxLoginName =				NULL;
-static GameWindow *textEntryLoginName =				NULL;
-static GameWindow *textEntryPassword =				NULL;
-static GameWindow *checkBoxRememberPassword =	NULL;
-static GameWindow *textEntryMonth =				NULL;
-static GameWindow *textEntryDay =				NULL;
-static GameWindow *textEntryYear =				NULL;
-
-// TheSuperHackers @feature arcticdolphin 08/11/2026 GO sign-in screen; a layout without these windows falls back to the message box login.
-static const Int SIGN_IN_PROVIDER_COUNT = 3;
-static const char *const signInProviderNames[SIGN_IN_PROVIDER_COUNT] = {
-	"GameSpyLoginProfile.wnd:ButtonProviderDiscord",
-	"GameSpyLoginProfile.wnd:ButtonProviderSteam",
-	"GameSpyLoginProfile.wnd:ButtonProviderGameReplays",
-};
-static const ELoginProvider signInProviders[SIGN_IN_PROVIDER_COUNT] = { ELoginProvider::Discord, ELoginProvider::Steam, ELoginProvider::GameReplays };
-static Bool signInScreen = FALSE;
-static GameWindow *staticTextSignInStatus =		NULL;
-static GameWindow *buttonUseAnotherAccount =	NULL;
-static GameWindow *buttonSignInCancel =				NULL;
-static GameWindow *buttonSignInProviders[SIGN_IN_PROVIDER_COUNT] = { NULL, NULL, NULL };
-static ELoginStage shownSignInStage = ELoginStage::None;
-// TheSuperHackers @feature arcticdolphin 09/11/2026 Provider logos (scripts/go_logos.py), drawn by the button itself so no window over it blocks the click or the hover.
-static const char *const signInProviderLogos[SIGN_IN_PROVIDER_COUNT] = { "GOLogoDiscord", "GOLogoSteam", "GOLogoGameReplays" };
-static GameWinDrawFunc signInProviderDraws[SIGN_IN_PROVIDER_COUNT] = { NULL, NULL, NULL };
-
-static void signInProviderDraw( GameWindow *window, WinInstanceData *instData )
-{
-	Int provider = -1;
-	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
-	{
-		if (window == buttonSignInProviders[i])
-			provider = i;
-	}
-	if (provider < 0)
-		return;
-
-	if (signInProviderDraws[provider] != NULL)
-		signInProviderDraws[provider]( window, instData );
-
-	const Image *logo = TheMappedImageCollection ? TheMappedImageCollection->findImageByName( signInProviderLogos[provider] ) : NULL;
-	if (logo == NULL)
-		return;
-
-	// a square of 5/8 of the button height, centred down and twice as far from the left edge
-	Int x, y, width, height;
-	window->winGetScreenPosition( &x, &y );
-	window->winGetSize( &width, &height );
-	const Int size = height * 5 / 8;
-	const Int inset = (height - size) / 2;
-	const Color color = BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) ? GameMakeColor( 255, 255, 255, 255 ) : GameMakeColor( 255, 255, 255, 96 );
-	TheDisplay->drawImage( logo, x + 2 * inset, y + inset, x + 2 * inset + size, y + inset + size, color );
-}
-
-static void showSignInState( ELoginStage stage )
-{
-	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	if (pAuthInterface == nullptr)
-		return;
-
-	UnicodeString status;
-	if (stage == ELoginStage::Failed)
-		status = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInFailed", L"Login failed.");
-	else if (stage == ELoginStage::RequestingCode || stage == ELoginStage::WaitingForProvider)
-		status = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInChoose", L"Choose how to sign in");
-	else if (stage == ELoginStage::WaitingForBrowser)
-		status = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInContinueInBrowser", L"Continue in your web browser");
-	else if (pAuthInterface->HasDisplayName())
-		status = TheGameText->FETCH_OR_SUBSTITUTE_FORMAT("GUI:GOSignInSigningInAs", L"Signing in as %ls...", pAuthInterface->GetDisplayNameW().c_str());
-	else
-		status = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInSigningIn", L"Signing in...");
-	GadgetStaticTextSetText(staticTextSignInStatus, status);
-
-	const Bool codeKnown = (stage == ELoginStage::WaitingForProvider || stage == ELoginStage::WaitingForBrowser) && !pAuthInterface->GetLoginCode().empty();
-	const Bool choosing = codeKnown || stage == ELoginStage::RequestingCode;
-
-	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
-	{
-		buttonSignInProviders[i]->winHide(!choosing);
-		buttonSignInProviders[i]->winEnable(codeKnown);
-	}
-	buttonUseAnotherAccount->winHide(stage != ELoginStage::SavedLogin);
-	// TheSuperHackers @bugfix arcticdolphin 09/11/2026 Cancel stays up while the login finishes, so a websocket that never connects is no dead end.
-	buttonSignInCancel->winHide(stage == ELoginStage::Failed);
-}
-
-static void updateSignInScreen( Bool force )
-{
-	if (!signInScreen || buttonPushed)
-		return;
-
-	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	if (pAuthInterface == nullptr)
-		return;
-
-	const ELoginStage stage = pAuthInterface->GetLoginStage();
-	if (force || stage != shownSignInStage)
-	{
-		shownSignInStage = stage;
-		showSignInState(stage);
-	}
-}
-
-// TheSuperHackers @feature arcticdolphin 09/11/2026 The sign-in screen and the sign-in dialog share these windows; only one of them is up at a time.
-static Bool findSignInWindows( GameWindow *parent, const char *statusName, const char *useAnotherAccountName, const char *cancelName, const char *const providerNames[] )
-{
-	staticTextSignInStatus = TheWindowManager->winGetWindowFromId( parent, NAMEKEY(statusName) );
-	buttonUseAnotherAccount = TheWindowManager->winGetWindowFromId( parent, NAMEKEY(useAnotherAccountName) );
-	buttonSignInCancel = TheWindowManager->winGetWindowFromId( parent, NAMEKEY(cancelName) );
-	Bool found = staticTextSignInStatus && buttonUseAnotherAccount && buttonSignInCancel;
-	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
-	{
-		buttonSignInProviders[i] = TheWindowManager->winGetWindowFromId( parent, NAMEKEY(providerNames[i]) );
-		found = found && buttonSignInProviders[i] != NULL;
-	}
-	if (!found)
-		return FALSE;
-
-	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
-	{
-		if (buttonSignInProviders[i]->winGetDrawFunc() != signInProviderDraw)
-		{
-			signInProviderDraws[i] = buttonSignInProviders[i]->winGetDrawFunc();
-			buttonSignInProviders[i]->winSetDrawFunc( signInProviderDraw );
-		}
-	}
-
-	GadgetButtonSetText(buttonSignInProviders[0], TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInProviderDiscord", L"Discord"));
-	GadgetButtonSetText(buttonSignInProviders[1], TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInProviderSteam", L"Steam"));
-	GadgetButtonSetText(buttonSignInProviders[2], TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInProviderGameReplays", L"GameReplays"));
-	GadgetButtonSetText(buttonUseAnotherAccount, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInUseAnotherAccount", L"Use another account"));
-	GadgetButtonSetText(buttonSignInCancel, TheGameText->FETCH_OR_SUBSTITUTE("GUI:Cancel", L"Cancel"));
-	GadgetStaticTextSetText(staticTextSignInStatus, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInSigningIn", L"Signing in..."));
-	return TRUE;
-}
-
-static Bool findSignInScreen()
-{
-	return findSignInWindows( NULL, "GameSpyLoginProfile.wnd:StaticTextSignInStatus", "GameSpyLoginProfile.wnd:ButtonUseAnotherAccount",
-		"GameSpyLoginProfile.wnd:ButtonCancel", signInProviderNames );
-}
-
-// TheSuperHackers @feature arcticdolphin 09/11/2026 GO sign-in dialog: one modal card over the main menu for the update check, the update prompt, errors and the sign-in.
-enum SignInDialogStep
-{
-	SIGN_IN_DIALOG_CHECKING,
-	SIGN_IN_DIALOG_UPDATE,
-	SIGN_IN_DIALOG_ERROR,
-	SIGN_IN_DIALOG_SIGN_IN,
-	SIGN_IN_DIALOG_DOWNLOADING,
-	SIGN_IN_DIALOG_READY
-};
-
-static const char *const signInDialogProviderNames[SIGN_IN_PROVIDER_COUNT] = {
-	"GOSignInDialog.wnd:ButtonProviderDiscord",
-	"GOSignInDialog.wnd:ButtonProviderSteam",
-	"GOSignInDialog.wnd:ButtonProviderGameReplays",
-};
-static WindowLayout *signInDialogLayout = NULL;
-static GameWindow *signInDialogRoot = NULL;
-static GameWindow *signInDialogMessage = NULL;
-static GameWindow *signInDialogUpdate = NULL;
-static GameWindow *signInDialogProgress = NULL;
-static GameWindow *signInDialogDownloadSize = NULL;
-static SignInDialogStep signInDialogStep = SIGN_IN_DIALOG_CHECKING;
-static GameWinMsgBoxFunc signInDialogCancelFunc = NULL;
-static GameWinMsgBoxFunc signInDialogUpdateFunc = NULL;
-
-// TheSuperHackers @feature arcticdolphin 09/11/2026 The download step's bar and size line follow the GO update download, which reports to TheDownloadManager like for the download menu.
-static void setSignInDialogDownloadProgress( Int bytesRead, Int totalSize )
-{
-	if (signInDialogLayout == NULL || signInDialogStep != SIGN_IN_DIALOG_DOWNLOADING || totalSize <= 0)
-		return;
-
-	Int percent = (Int)(100.0 * bytesRead / totalSize);
-	if (percent < 0)
-		percent = 0;
-	if (percent > 100)
-		percent = 100;
-	const Real megabyte = 1024.0f * 1024.0f;
-	GadgetProgressBarSetProgress(signInDialogProgress, percent);
-	GadgetStaticTextSetText(signInDialogDownloadSize, TheGameText->FETCH_OR_SUBSTITUTE_FORMAT("GUI:GOSignInDownloadProgress",
-		L"%d%% (%.1f of %.1f MB)", percent, bytesRead / megabyte, totalSize / megabyte));
-}
-
-class SignInDialogDownloadManager : public DownloadManager
-{
-public:
-	virtual HRESULT OnProgressUpdate( Int bytesread, Int totalsize, Int timetaken, Int timeleft ) override
-	{
-		HRESULT ret = DownloadManager::OnProgressUpdate( bytesread, totalsize, timetaken, timeleft );
-		setSignInDialogDownloadProgress( bytesread, totalsize );
-		return ret;
-	}
-};
-static SignInDialogDownloadManager *signInDialogDownloadManager = NULL;
-
-// show one step's texts or download progress; only Cancel and Update (Restart when ready) stay, sign-in uses showSignInState
-static void showSignInDialogStep( SignInDialogStep step, const UnicodeString &status, const UnicodeString &message )
-{
-	signInDialogStep = step;
-	GadgetStaticTextSetText(staticTextSignInStatus, status);
-	GadgetStaticTextSetText(signInDialogMessage, message);
-	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
-		buttonSignInProviders[i]->winHide(TRUE);
-	buttonUseAnotherAccount->winHide(TRUE);
-	signInDialogUpdate->winHide(step != SIGN_IN_DIALOG_UPDATE && step != SIGN_IN_DIALOG_READY);
-	if (step == SIGN_IN_DIALOG_READY)
-		GadgetButtonSetText(signInDialogUpdate, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInRestart", L"Restart"));
-	else
-		GadgetButtonSetText(signInDialogUpdate, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInUpdate", L"Update"));
-	signInDialogMessage->winHide(step == SIGN_IN_DIALOG_DOWNLOADING);
-	signInDialogProgress->winHide(step != SIGN_IN_DIALOG_DOWNLOADING);
-	signInDialogDownloadSize->winHide(step != SIGN_IN_DIALOG_DOWNLOADING);
-	buttonSignInCancel->winHide(FALSE);
-	if (step == SIGN_IN_DIALOG_ERROR)
-		GadgetButtonSetText(buttonSignInCancel, TheGameText->FETCH_OR_SUBSTITUTE("GUI:Ok", L"OK"));
-	else
-		GadgetButtonSetText(buttonSignInCancel, TheGameText->FETCH_OR_SUBSTITUTE("GUI:Cancel", L"Cancel"));
-}
-
-static void updateSignInDialog( Bool force )
-{
-	if (signInDialogLayout == NULL || signInDialogStep != SIGN_IN_DIALOG_SIGN_IN)
-		return;
-
-	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	if (pAuthInterface == nullptr)
-		return;
-
-	const ELoginStage stage = pAuthInterface->GetLoginStage();
-	if (force || stage != shownSignInStage)
-	{
-		shownSignInStage = stage;
-		showSignInState(stage);
-	}
-}
-
-// the auth keeps this callback after the dialog closes, until the next login registers its own, so it only acts while the dialog is up
-static void signInDialogLoginCallback( ELoginResult loginResult )
-{
-	if (signInDialogLayout == NULL || signInDialogStep != SIGN_IN_DIALOG_SIGN_IN)
-		return;
-
-	if (loginResult == ELoginResult::Success)
-	{
-		ClearGSMessageBoxes();
-		GOSignInDialogDestroy();
-		SignalUIInteraction(SHELL_SCRIPT_HOOK_GENERALS_ONLINE_LOGIN);
-		TheShell->push("Menus/WOLWelcomeMenu.wnd");
-	}
-	else if (loginResult == ELoginResult::Failed)
-	{
-		GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-		UnicodeString title = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInFailed", L"Login failed.");
-		UnicodeString text;
-		if (pAuthInterface != nullptr && !pAuthInterface->GetLoginFailureTitle().empty())
-		{
-			title = UnicodeString(pAuthInterface->GetLoginFailureTitle().c_str());
-			text = UnicodeString(pAuthInterface->GetLoginFailureText().c_str());
-		}
-		ClearGSMessageBoxes();
-		GOSignInDialogShowError(title, text, CancelPatchCheckCallbackAndReopenDropdown);
-	}
-	// UserCancelled: the Cancel button that cancelled closes the dialog
-}
-
-static void signInDialogPressed( GameWindow *control )
-{
-	if (control == buttonSignInCancel)
-	{
-		if (signInDialogStep == SIGN_IN_DIALOG_SIGN_IN)
-		{
-			GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-			if (pAuthInterface != nullptr)
-				pAuthInterface->CancelLogin();
-			CancelPatchCheckCallbackAndReopenDropdown();
-			return;
-		}
-		GameWinMsgBoxFunc cancelFunc = signInDialogCancelFunc;
-		if (cancelFunc != NULL)
-			cancelFunc();
-		else
-			CancelPatchCheckCallbackAndReopenDropdown();
-		return;
-	}
-
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 The update and restart functions move the dialog on or close it themselves; a second press does nothing.
-	if (control == signInDialogUpdate)
-	{
-		GameWinMsgBoxFunc updateFunc = signInDialogUpdateFunc;
-		signInDialogUpdateFunc = NULL;
-		if (updateFunc != NULL)
-			updateFunc();
-		return;
-	}
-
-	if (signInDialogStep != SIGN_IN_DIALOG_SIGN_IN)
-		return;
-
-	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	if (pAuthInterface == nullptr)
-		return;
-
-	if (control == buttonUseAnotherAccount)
-	{
-		pAuthInterface->UseAnotherAccount();
-		updateSignInDialog(FALSE);
-		return;
-	}
-	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
-	{
-		if (control == buttonSignInProviders[i])
-		{
-			pAuthInterface->OpenProviderLogin(signInProviders[i]);
-			updateSignInDialog(FALSE);
-			return;
-		}
-	}
-}
-
-static WindowMsgHandledType signInDialogSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 )
-{
-	switch (msg)
-	{
-		case GWM_INPUT_FOCUS:
-		{
-			if (mData1 == TRUE)
-				*(Bool *)mData2 = TRUE;
-			return MSG_HANDLED;
-		}
-		case GBM_SELECTED:
-		{
-			signInDialogPressed( (GameWindow *)mData1 );
-			return MSG_HANDLED;
-		}
-	}
-	return MSG_IGNORED;
-}
-
-// Escape does what the Cancel button does (OK on an error) whenever it is shown
-static WindowMsgHandledType signInDialogInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 )
-{
-	if (msg != GWM_CHAR || (UnsignedByte)mData1 != KEY_ESC)
-		return MSG_IGNORED;
-
-	if (BitIsSet( (UnsignedByte)mData2, KEY_STATE_UP ) && signInDialogLayout != NULL && !buttonSignInCancel->winIsHidden())
-		signInDialogPressed( buttonSignInCancel );
-	return MSG_HANDLED;
-}
-
-Bool GOSignInDialogOpen( void )
-{
-	if (signInDialogLayout != NULL)
-		return TRUE;
-
-	// a mod or older data without the dialog keeps the message boxes and the sign-in screen
-	if (TheFileSystem == NULL || !TheFileSystem->doesFileExist("Window\\Menus\\GOSignInDialog.wnd"))
-		return FALSE;
-
-	WindowLayout *layout = TheWindowManager->winCreateLayout( "Menus/GOSignInDialog.wnd" );
-	if (layout == NULL)
-		return FALSE;
-
-	GameWindow *root = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("GOSignInDialog.wnd:GOSignInDialogRoot") );
-	GameWindow *title = TheWindowManager->winGetWindowFromId( root, NAMEKEY("GOSignInDialog.wnd:StaticTextTitle") );
-	signInDialogMessage = TheWindowManager->winGetWindowFromId( root, NAMEKEY("GOSignInDialog.wnd:StaticTextMessage") );
-	signInDialogUpdate = TheWindowManager->winGetWindowFromId( root, NAMEKEY("GOSignInDialog.wnd:ButtonUpdate") );
-	signInDialogProgress = TheWindowManager->winGetWindowFromId( root, NAMEKEY("GOSignInDialog.wnd:ProgressBarDownload") );
-	signInDialogDownloadSize = TheWindowManager->winGetWindowFromId( root, NAMEKEY("GOSignInDialog.wnd:StaticTextDownloadSize") );
-	if (root == NULL || title == NULL || signInDialogMessage == NULL || signInDialogUpdate == NULL
-		|| signInDialogProgress == NULL || signInDialogDownloadSize == NULL
-		|| !findSignInWindows( root, "GOSignInDialog.wnd:StaticTextSignInStatus", "GOSignInDialog.wnd:ButtonUseAnotherAccount",
-			"GOSignInDialog.wnd:ButtonCancel", signInDialogProviderNames ))
-	{
-		layout->destroyWindows();
-		deleteInstance(layout);
-		signInDialogMessage = NULL;
-		signInDialogUpdate = NULL;
-		signInDialogProgress = NULL;
-		signInDialogDownloadSize = NULL;
-		staticTextSignInStatus = NULL;
-		buttonUseAnotherAccount = NULL;
-		buttonSignInCancel = NULL;
-		for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
-			buttonSignInProviders[i] = NULL;
-		return FALSE;
-	}
-
-	signInDialogLayout = layout;
-	signInDialogRoot = root;
-	signInDialogCancelFunc = NULL;
-	signInDialogUpdateFunc = NULL;
-	shownSignInStage = ELoginStage::None;
-	GadgetStaticTextSetText(title, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInTitle", L"Generals Online"));
-	showSignInDialogStep(SIGN_IN_DIALOG_CHECKING, TheGameText->fetch("GUI:CheckingForPatches"), UnicodeString::TheEmptyString);
-
-	root->winSetSystemFunc(signInDialogSystem);
-	root->winSetInputFunc(signInDialogInput);
-	layout->hide(FALSE);
-	layout->bringForward();
-	root->winBringToTop();
-	TheWindowManager->winSetModal(root);
-	TheWindowManager->winSetFocus(root);
-	return TRUE;
-}
-
-Bool GOSignInDialogIsOpen( void )
-{
-	return signInDialogLayout != NULL;
-}
-
-void GOSignInDialogShowChecking( GameWinMsgBoxFunc cancelFunc )
-{
-	if (signInDialogLayout == NULL)
-		return;
-	signInDialogCancelFunc = cancelFunc;
-	signInDialogUpdateFunc = NULL;
-	showSignInDialogStep(SIGN_IN_DIALOG_CHECKING, TheGameText->fetch("GUI:CheckingForPatches"), UnicodeString::TheEmptyString);
-}
-
-void GOSignInDialogShowUpdate( UnicodeString message, GameWinMsgBoxFunc updateFunc, GameWinMsgBoxFunc cancelFunc )
-{
-	if (signInDialogLayout == NULL)
-		return;
-	signInDialogCancelFunc = cancelFunc;
-	signInDialogUpdateFunc = updateFunc;
-	showSignInDialogStep(SIGN_IN_DIALOG_UPDATE, TheGameText->fetch("GUI:PatchAvailable"), message);
-}
-
-void GOSignInDialogShowError( UnicodeString title, UnicodeString message, GameWinMsgBoxFunc closeFunc )
-{
-	if (signInDialogLayout == NULL)
-		return;
-	signInDialogCancelFunc = closeFunc;
-	signInDialogUpdateFunc = NULL;
-	showSignInDialogStep(SIGN_IN_DIALOG_ERROR, title, message);
-}
-
-void GOSignInDialogShowDownloading( GameWinMsgBoxFunc cancelFunc )
-{
-	if (signInDialogLayout == NULL)
-		return;
-
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 The dialog owns the download manager while it downloads, as DownloadMenuInit does for the download menu.
-	if (signInDialogDownloadManager == NULL)
-	{
-		DEBUG_ASSERTCRASH(!TheDownloadManager, ("Download manager already exists"));
-		delete TheDownloadManager;
-		signInDialogDownloadManager = NEW SignInDialogDownloadManager;
-		TheDownloadManager = signInDialogDownloadManager;
-	}
-	signInDialogCancelFunc = cancelFunc;
-	signInDialogUpdateFunc = NULL;
-	showSignInDialogStep(SIGN_IN_DIALOG_DOWNLOADING, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInDownloading", L"Downloading update..."), UnicodeString::TheEmptyString);
-	GadgetProgressBarSetProgress(signInDialogProgress, 0);
-	GadgetStaticTextSetText(signInDialogDownloadSize, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInDownloadConnecting", L"Connecting to update service..."));
-}
-
-void GOSignInDialogShowReady( UnicodeString message, GameWinMsgBoxFunc restartFunc, GameWinMsgBoxFunc cancelFunc )
-{
-	if (signInDialogLayout == NULL)
-		return;
-	signInDialogCancelFunc = cancelFunc;
-	signInDialogUpdateFunc = restartFunc;
-	showSignInDialogStep(SIGN_IN_DIALOG_READY, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInUpdateReady", L"Update Ready"), message);
-}
-
-void GOSignInDialogBeginSignIn( void )
-{
-	if (signInDialogLayout == NULL)
-		return;
-
-	ClearGSMessageBoxes();
-	signInDialogCancelFunc = NULL;
-	signInDialogUpdateFunc = NULL;
-	showSignInDialogStep(SIGN_IN_DIALOG_SIGN_IN, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInSigningIn", L"Signing in..."), UnicodeString::TheEmptyString);
-
-	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	if (pAuthInterface == nullptr)
-	{
-		GOSignInDialogShowError(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInFailed", L"Login failed."), UnicodeString::TheEmptyString,
-			CancelPatchCheckCallbackAndReopenDropdown);
-		return;
-	}
-
-	pAuthInterface->RegisterForLoginCallback(signInDialogLoginCallback);
-	pAuthInterface->SetSignInScreen(true);
-	pAuthInterface->SetSignInDialog(true);
-	pAuthInterface->BeginLogin();
-	updateSignInDialog(TRUE);
-}
-
-void GOSignInDialogUpdate( void )
-{
-	updateSignInDialog(FALSE);
-}
-
-void GOSignInDialogDestroy( void )
-{
-	if (signInDialogLayout == NULL)
-		return;
-
-	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	if (pAuthInterface != nullptr)
-	{
-		pAuthInterface->SetSignInScreen(false);
-		pAuthInterface->SetSignInDialog(false);
-	}
-
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 Closing drops the dialog's download manager like DownloadMenuShutdown; one that replaced it belongs to its owner.
-	if (signInDialogDownloadManager != NULL)
-	{
-		if (TheDownloadManager == signInDialogDownloadManager)
-		{
-			delete TheDownloadManager;
-			TheDownloadManager = NULL;
-		}
-		signInDialogDownloadManager = NULL;
-	}
-
-	WindowLayout *layout = signInDialogLayout;
-	signInDialogLayout = NULL;
-	TheWindowManager->winUnsetModal(signInDialogRoot);
-	layout->destroyWindows();
-	deleteInstance(layout);
-
-	signInDialogRoot = NULL;
-	signInDialogMessage = NULL;
-	signInDialogUpdate = NULL;
-	signInDialogProgress = NULL;
-	signInDialogDownloadSize = NULL;
-	signInDialogCancelFunc = NULL;
-	signInDialogUpdateFunc = NULL;
-	staticTextSignInStatus = NULL;
-	buttonUseAnotherAccount = NULL;
-	buttonSignInCancel = NULL;
-	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
-		buttonSignInProviders[i] = NULL;
-	shownSignInStage = ELoginStage::None;
-
-	GameWindow *mainWin = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("MainMenu.wnd:MainMenuParent") );
-	if (mainWin)
-		TheWindowManager->winSetFocus( mainWin );
-}
+static GameWindow *parentWOLLogin =						nullptr;
+static GameWindow *buttonBack =								nullptr;
+static GameWindow *buttonLogin =							nullptr;
+static GameWindow *buttonCreateAccount =			nullptr;
+static GameWindow *buttonUseAccount =					nullptr;
+static GameWindow *buttonDontUseAccount =			nullptr;
+static GameWindow *buttonTOS						=			nullptr;
+static GameWindow *parentTOS						=			nullptr;
+static GameWindow *buttonTOSOK					=			nullptr;
+static GameWindow *listboxTOS						=			nullptr;
+static GameWindow *comboBoxEmail =						nullptr;
+static GameWindow *comboBoxLoginName =				nullptr;
+static GameWindow *textEntryLoginName =				nullptr;
+static GameWindow *textEntryPassword =				nullptr;
+static GameWindow *checkBoxRememberPassword =	nullptr;
+static GameWindow *textEntryMonth =				nullptr;
+static GameWindow *textEntryDay =				nullptr;
+static GameWindow *textEntryYear =				nullptr;
 
 void EnableLoginControls( Bool state )
 {
@@ -994,43 +444,19 @@ void EnableLoginControls( Bool state )
 //-------------------------------------------------------------------------------------------------
 void WOLLoginMenuInit( WindowLayout *layout, void *userData )
 {
-	nextScreen = NULL;
+	nextScreen = nullptr;
 	buttonPushed = false;
 	isShuttingDown = false;
 	loginAttemptTime = 0;
-	signInScreen = findSignInScreen();
-	shownSignInStage = ELoginStage::None;
 
-	// GenOnline
-	ClearGSMessageBoxes();
-	if (!signInScreen)
-	{
-		GSMessageBoxNoButtons(UnicodeString(L"Logging In"), UnicodeString(L"Please wait..."), true);
-	}
-
-	// GenOnline: Register for login callback
-	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	if (pAuthInterface == nullptr)
-	{
-		return;
-	}
-
-	// Now we can begin login
-	pAuthInterface->RegisterForLoginCallback(GenOnline_WOLLoginMenu_LoginCallback);
-	pAuthInterface->SetSignInScreen(signInScreen);
-	pAuthInterface->BeginLogin();
-	updateSignInScreen(TRUE);
-
-
-	/*
 	if (!loginPref)
 	{
 		loginPref = NEW GameSpyLoginPreferences;
 	}
 
 	// if the ESRB warning is blank (other country) hide the box
-	GameWindow *esrbTitle = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("GameSpyLoginProfile.wnd:StaticTextESRBTop") );
-	GameWindow *esrbParent = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("GameSpyLoginProfile.wnd:ParentESRB") );
+	GameWindow *esrbTitle = TheWindowManager->winGetWindowFromId( nullptr, NAMEKEY("GameSpyLoginProfile.wnd:StaticTextESRBTop") );
+	GameWindow *esrbParent = TheWindowManager->winGetWindowFromId( nullptr, NAMEKEY("GameSpyLoginProfile.wnd:ParentESRB") );
 	if (esrbTitle && esrbParent)
 	{
 		if ( GadgetStaticTextGetText( esrbTitle ).getLength() < 2 )
@@ -1039,7 +465,6 @@ void WOLLoginMenuInit( WindowLayout *layout, void *userData )
 		}
 	}
 
-	
 	parentWOLLoginID =						TheNameKeyGenerator->nameToKey( "GameSpyLoginProfile.wnd:WOLLoginMenuParent" );
 	buttonBackID =								TheNameKeyGenerator->nameToKey( "GameSpyLoginProfile.wnd:ButtonBack" );
 	buttonLoginID =								TheNameKeyGenerator->nameToKey( "GameSpyLoginProfile.wnd:ButtonLogin" );
@@ -1059,30 +484,235 @@ void WOLLoginMenuInit( WindowLayout *layout, void *userData )
 	textEntryDayID =					TheNameKeyGenerator->nameToKey( "GameSpyLoginProfile.wnd:TextEntryDay" );
 	textEntryYearID =					TheNameKeyGenerator->nameToKey( "GameSpyLoginProfile.wnd:TextEntryYear" );
 
-	parentWOLLogin =							TheWindowManager->winGetWindowFromId( NULL,  parentWOLLoginID );
-	buttonBack =									TheWindowManager->winGetWindowFromId( NULL,  buttonBackID);
-	buttonLogin =									TheWindowManager->winGetWindowFromId( NULL,  buttonLoginID);
-	buttonCreateAccount =					TheWindowManager->winGetWindowFromId( NULL,  buttonCreateAccountID);
-	buttonUseAccount =						TheWindowManager->winGetWindowFromId( NULL,  buttonUseAccountID);
-	buttonDontUseAccount =				TheWindowManager->winGetWindowFromId( NULL,  buttonDontUseAccountID);
-	buttonTOS =										TheWindowManager->winGetWindowFromId( NULL,  buttonTOSID);
-	parentTOS =										TheWindowManager->winGetWindowFromId( NULL,  parentTOSID);
-	buttonTOSOK =									TheWindowManager->winGetWindowFromId( NULL,  buttonTOSOKID);
-	listboxTOS =									TheWindowManager->winGetWindowFromId( NULL,  listboxTOSID);
-	comboBoxEmail =								TheWindowManager->winGetWindowFromId( NULL,  comboBoxEmailID);
-	comboBoxLoginName =						TheWindowManager->winGetWindowFromId( NULL,  comboBoxLoginNameID);
-	textEntryLoginName =					TheWindowManager->winGetWindowFromId( NULL,  textEntryLoginNameID);
-	textEntryPassword =						TheWindowManager->winGetWindowFromId( NULL,  textEntryPasswordID);
-	checkBoxRememberPassword =		TheWindowManager->winGetWindowFromId( NULL,  checkBoxRememberPasswordID);
-	textEntryMonth =					TheWindowManager->winGetWindowFromId( NULL,  textEntryMonthID);
-	textEntryDay =					TheWindowManager->winGetWindowFromId( NULL,  textEntryDayID);
-	textEntryYear =					TheWindowManager->winGetWindowFromId( NULL,  textEntryYearID);
-	*/
+	parentWOLLogin =							TheWindowManager->winGetWindowFromId( nullptr,  parentWOLLoginID );
+	buttonBack =									TheWindowManager->winGetWindowFromId( nullptr,  buttonBackID);
+	buttonLogin =									TheWindowManager->winGetWindowFromId( nullptr,  buttonLoginID);
+	buttonCreateAccount =					TheWindowManager->winGetWindowFromId( nullptr,  buttonCreateAccountID);
+	buttonUseAccount =						TheWindowManager->winGetWindowFromId( nullptr,  buttonUseAccountID);
+	buttonDontUseAccount =				TheWindowManager->winGetWindowFromId( nullptr,  buttonDontUseAccountID);
+	buttonTOS =										TheWindowManager->winGetWindowFromId( nullptr,  buttonTOSID);
+	parentTOS =										TheWindowManager->winGetWindowFromId( nullptr,  parentTOSID);
+	buttonTOSOK =									TheWindowManager->winGetWindowFromId( nullptr,  buttonTOSOKID);
+	listboxTOS =									TheWindowManager->winGetWindowFromId( nullptr,  listboxTOSID);
+	comboBoxEmail =								TheWindowManager->winGetWindowFromId( nullptr,  comboBoxEmailID);
+	comboBoxLoginName =						TheWindowManager->winGetWindowFromId( nullptr,  comboBoxLoginNameID);
+	textEntryLoginName =					TheWindowManager->winGetWindowFromId( nullptr,  textEntryLoginNameID);
+	textEntryPassword =						TheWindowManager->winGetWindowFromId( nullptr,  textEntryPasswordID);
+	checkBoxRememberPassword =		TheWindowManager->winGetWindowFromId( nullptr,  checkBoxRememberPasswordID);
+	textEntryMonth =					TheWindowManager->winGetWindowFromId( nullptr,  textEntryMonthID);
+	textEntryDay =					TheWindowManager->winGetWindowFromId( nullptr,  textEntryDayID);
+	textEntryYear =					TheWindowManager->winGetWindowFromId( nullptr,  textEntryYearID);
+
+	GadgetTextEntrySetText(textEntryMonth, UnicodeString::TheEmptyString);
+
+	GadgetTextEntrySetText(textEntryDay, UnicodeString::TheEmptyString);
+
+	GadgetTextEntrySetText(textEntryYear, UnicodeString::TheEmptyString);
+
+
+
+	GameWindowList tabList;
+	tabList.push_front(comboBoxEmail);
+	tabList.push_back(comboBoxLoginName);
+	tabList.push_back(textEntryPassword);
+	tabList.push_back(textEntryMonth);
+	tabList.push_back(textEntryDay);
+	tabList.push_back(textEntryYear);
+	tabList.push_back(checkBoxRememberPassword);
+	tabList.push_back(buttonLogin);
+	tabList.push_back(buttonCreateAccount);
+	tabList.push_back(buttonTOS);
+	tabList.push_back(buttonBack);
+	TheWindowManager->clearTabList();
+	TheWindowManager->registerTabList(tabList);
+	TheWindowManager->winSetFocus( comboBoxEmail );
+	// short form or long form?
+#ifdef ALLOW_NON_PROFILED_LOGIN
+	if (parentWOLLogin)
+	{
+		GameSpyUseProfiles = true;
+#endif // ALLOW_NON_PROFILED_LOGIN
+
+		DEBUG_ASSERTCRASH(buttonBack,						("buttonBack missing!"));
+		DEBUG_ASSERTCRASH(buttonLogin,					("buttonLogin missing!"));
+		DEBUG_ASSERTCRASH(buttonCreateAccount,	("buttonCreateAccount missing!"));
+		//DEBUG_ASSERTCRASH(buttonDontUseAccount,	("buttonDontUseAccount missing!"));
+		DEBUG_ASSERTCRASH(comboBoxEmail,				("comboBoxEmail missing!"));
+		DEBUG_ASSERTCRASH(comboBoxLoginName,		("comboBoxLoginName missing!"));
+		DEBUG_ASSERTCRASH(textEntryPassword,		("textEntryPassword missing!"));
+
+		//TheShell->registerWithAnimateManager(parentWOLLogin, WIN_ANIMATION_SLIDE_TOP, TRUE);
+		/**/
+//		TheShell->registerWithAnimateManager(buttonTOS, WIN_ANIMATION_SLIDE_BOTTOM, TRUE);
+		//TheShell->registerWithAnimateManager(buttonCreateAccount, WIN_ANIMATION_SLIDE_LEFT, TRUE);
+		//TheShell->registerWithAnimateManager(buttonDontUseAccount, WIN_ANIMATION_SLIDE_LEFT, TRUE);
+//		TheShell->registerWithAnimateManager(buttonBack, WIN_ANIMATION_SLIDE_BOTTOM, TRUE);
+		/**/
+#ifdef ALLOW_NON_PROFILED_LOGIN
+	}
+	else
+	{
+		GameSpyUseProfiles = false;
+
+		parentWOLLoginID =						TheNameKeyGenerator->nameToKey( "GameSpyLoginQuick.wnd:WOLLoginMenuParent" );
+		buttonBackID =								TheNameKeyGenerator->nameToKey( "GameSpyLoginQuick.wnd:ButtonBack" );
+		buttonLoginID =								TheNameKeyGenerator->nameToKey( "GameSpyLoginQuick.wnd:ButtonLogin" );
+		buttonCreateAccountID =				TheNameKeyGenerator->nameToKey( "GameSpyLoginQuick.wnd:ButtonCreateAccount" );
+		buttonUseAccountID =					TheNameKeyGenerator->nameToKey( "GameSpyLoginQuick.wnd:ButtonUseAccount" );
+		buttonDontUseAccountID =			TheNameKeyGenerator->nameToKey( "GameSpyLoginQuick.wnd:ButtonDontUseAccount" );
+		buttonTOSID							=			TheNameKeyGenerator->nameToKey( "GameSpyLoginQuick.wnd:ButtonTOS" );
+		parentTOSID							=			TheNameKeyGenerator->nameToKey( "GameSpyLoginQuick.wnd:ParentTOS" );
+		buttonTOSOKID						=			TheNameKeyGenerator->nameToKey( "GameSpyLoginQuick.wnd:ButtonTOSOK" );
+		listboxTOSID						=			TheNameKeyGenerator->nameToKey( "GameSpyLoginQuick.wnd:ListboxTOS" );
+		comboBoxEmailID =							TheNameKeyGenerator->nameToKey( "GameSpyLoginQuick.wnd:ComboBoxEmail" );
+		textEntryLoginNameID =				TheNameKeyGenerator->nameToKey( "GameSpyLoginQuick.wnd:TextEntryLoginName" );
+		textEntryPasswordID =					TheNameKeyGenerator->nameToKey( "GameSpyLoginQuick.wnd:TextEntryPassword" );
+		checkBoxRememberPasswordID =	TheNameKeyGenerator->nameToKey( "GameSpyLoginQuick.wnd:CheckBoxRememberPassword" );
+
+		parentWOLLogin =							TheWindowManager->winGetWindowFromId( nullptr,  parentWOLLoginID );
+		buttonBack =									TheWindowManager->winGetWindowFromId( nullptr,  buttonBackID);
+		buttonLogin =									TheWindowManager->winGetWindowFromId( nullptr,  buttonLoginID);
+		buttonCreateAccount =					TheWindowManager->winGetWindowFromId( nullptr,  buttonCreateAccountID);
+		buttonUseAccount =						TheWindowManager->winGetWindowFromId( nullptr,  buttonUseAccountID);
+		buttonDontUseAccount =				TheWindowManager->winGetWindowFromId( nullptr,  buttonDontUseAccountID);
+		comboBoxEmail =								TheWindowManager->winGetWindowFromId( nullptr,  comboBoxEmailID);
+		buttonTOS =										TheWindowManager->winGetWindowFromId( nullptr,  buttonTOSID);
+		parentTOS =										TheWindowManager->winGetWindowFromId( nullptr,  parentTOSID);
+		buttonTOSOK =									TheWindowManager->winGetWindowFromId( nullptr,  buttonTOSOKID);
+		listboxTOS =									TheWindowManager->winGetWindowFromId( nullptr,  listboxTOSID);
+		textEntryLoginName =					TheWindowManager->winGetWindowFromId( nullptr,  textEntryLoginNameID);
+		textEntryPassword =						TheWindowManager->winGetWindowFromId( nullptr,  textEntryPasswordID);
+		checkBoxRememberPassword =		TheWindowManager->winGetWindowFromId( nullptr,  checkBoxRememberPasswordID);
+
+		DEBUG_ASSERTCRASH(buttonBack,						("buttonBack missing!"));
+		DEBUG_ASSERTCRASH(buttonLogin,					("buttonLogin missing!"));
+		DEBUG_ASSERTCRASH(buttonCreateAccount,	("buttonCreateAccount missing!"));
+		DEBUG_ASSERTCRASH(buttonUseAccount,			("buttonUseAccount missing!"));
+		DEBUG_ASSERTCRASH(textEntryLoginName,		("textEntryLoginName missing!"));
+		TheWindowManager->winSetFocus( textEntryLoginName );
+		//TheShell->registerWithAnimateManager(parentWOLLogin, WIN_ANIMATION_SLIDE_TOP, TRUE);
+
+//		TheShell->registerWithAnimateManager(buttonTOS, WIN_ANIMATION_SLIDE_LEFT, TRUE);
+//		TheShell->registerWithAnimateManager(buttonCreateAccount, WIN_ANIMATION_SLIDE_LEFT, TRUE);
+//		TheShell->registerWithAnimateManager(buttonUseAccount, WIN_ANIMATION_SLIDE_LEFT, TRUE);
+//		TheShell->registerWithAnimateManager(buttonBack, WIN_ANIMATION_SLIDE_RIGHT, TRUE);
+
+	}
+#endif // ALLOW_NON_PROFILED_LOGIN
+
+
+#ifdef ALLOW_NON_PROFILED_LOGIN
+	if (GameSpyUseProfiles)
+	{
+#endif // ALLOW_NON_PROFILED_LOGIN
+		// Read login names from registry...
+		GadgetComboBoxReset(comboBoxEmail);
+		GadgetTextEntrySetText(textEntryPassword, UnicodeString::TheEmptyString);
+
+		// look for cached nicks to add
+		AsciiString lastName;
+		AsciiString lastEmail;
+		Bool markCheckBox = FALSE;
+		UserPreferences::const_iterator it = loginPref->find("lastName");
+		if (it != loginPref->end())
+		{
+			lastName = it->second;
+		}
+		it = loginPref->find("lastEmail");
+		if (it != loginPref->end())
+		{
+			lastEmail = it->second;
+		}
+
+		// fill in list of Emails, and select the most recent
+		AsciiStringList cachedEmails = loginPref->getEmails();
+		AsciiStringListIterator eIt = cachedEmails.begin();
+		Int selectedPos = -1;
+		while (eIt != cachedEmails.end())
+		{
+			UnicodeString uniEmail;
+			uniEmail.translate(*eIt);
+			Int pos = GadgetComboBoxAddEntry(comboBoxEmail, uniEmail, GameSpyColor[GSCOLOR_DEFAULT]);
+			if (*eIt == lastEmail)
+				selectedPos = pos;
+
+			++eIt;
+		}
+		if (selectedPos >= 0)
+		{
+			GadgetComboBoxSetSelectedPos(comboBoxEmail, selectedPos);
+
+			// fill in the password for the selected email
+			UnicodeString pass;
+			pass.translate(loginPref->getPasswordForEmail(lastEmail));
+			GadgetTextEntrySetText(textEntryPassword, pass);
+
+			AsciiString month,day,year;
+			loginPref->getDateForEmail(lastEmail, month, day, year);
+			pass.translate(month);
+			GadgetTextEntrySetText(textEntryMonth, pass);
+			pass.translate(day);
+			GadgetTextEntrySetText(textEntryDay, pass);
+			pass.translate(year);
+			GadgetTextEntrySetText(textEntryYear, pass);
+
+			markCheckBox = TRUE;
+		}
+
+		// fill in list of nicks for selected email, selecting the most recent
+		GadgetComboBoxReset(comboBoxLoginName);
+		AsciiStringList cachedNicks = loginPref->getNicksForEmail(lastEmail);
+		AsciiStringListIterator nIt = cachedNicks.begin();
+		selectedPos = -1;
+		while (nIt != cachedNicks.end())
+		{
+			UnicodeString uniNick;
+			uniNick.translate(*nIt);
+			Int pos = GadgetComboBoxAddEntry(comboBoxLoginName, uniNick, GameSpyColor[GSCOLOR_DEFAULT]);
+			if (*nIt == lastName)
+				selectedPos = pos;
+
+			++nIt;
+		}
+		if (selectedPos >= 0)
+		{
+			GadgetComboBoxSetSelectedPos(comboBoxLoginName, selectedPos);
+			markCheckBox = TRUE;
+		}
+		// always start with not storing information
+		if( markCheckBox)
+			GadgetCheckBoxSetChecked(checkBoxRememberPassword, TRUE);
+		else
+			GadgetCheckBoxSetChecked(checkBoxRememberPassword, FALSE);
+#ifdef ALLOW_NON_PROFILED_LOGIN
+	}
+	else
+	{
+		// Read login names from registry...
+		GadgetComboBoxReset(comboBoxLoginName);
+		UnicodeString nick;
+
+		UserPreferences::const_iterator it = loginPref->find("lastName");
+		if (it != loginPref->end())
+		{
+			nick.translate(it->second);
+		}
+		else
+		{
+			char userBuf[32] = "";
+			unsigned long bufSize = 32;
+			GetUserName(userBuf, &bufSize);
+			nick.translate(userBuf);
+		}
+
+		GadgetTextEntrySetText(textEntryLoginName, nick);
+	}
+#endif // ALLOW_NON_PROFILED_LOGIN
 
 	EnableLoginControls(TRUE);
 
 	// Show Menu
-	layout->hide( !signInScreen );
+	layout->hide( FALSE );
 
 	// Set Keyboard to Main Parent
 
@@ -1104,21 +734,12 @@ void WOLLoginMenuInit( WindowLayout *layout, void *userData )
 static Bool loggedInOK = false;
 void WOLLoginMenuShutdown( WindowLayout *layout, void *userData )
 {
-	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	if (pAuthInterface != nullptr)
-	{
-		pAuthInterface->DeregisterForLoginCallback();
-		pAuthInterface->SetSignInScreen(false);
-	}
-	signInScreen = FALSE;
-
-
 	isShuttingDown = true;
 	loggedInOK = false;
 	TheWindowManager->clearTabList();
 	if (webBrowserActive)
 	{
-		if (TheWebBrowser != NULL)
+		if (TheWebBrowser != nullptr)
 		{
 			TheWebBrowser->closeBrowserWindow(listboxTOS);
 		}
@@ -1144,19 +765,6 @@ void WOLLoginMenuShutdown( WindowLayout *layout, void *userData )
 // this is used to check if we've got all the pings
 static void checkLogin()
 {
-	if (loggedInOK)
-	{
-		buttonPushed = true;
-		loggedInOK = false; // don't try this again
-
-		loginAttemptTime = 0;
-
-		SignalUIInteraction(SHELL_SCRIPT_HOOK_GENERALS_ONLINE_LOGIN);
-		nextScreen = "Menus/WOLWelcomeMenu.wnd";
-		TheShell->pop();
-	}
-
-	/*
 	if (loggedInOK && ThePinger && !ThePinger->arePingsInProgress())
 	{
 		// save off our ping string, and end those threads
@@ -1164,7 +772,7 @@ static void checkLogin()
 		DEBUG_LOG(("Ping string is %s", pingStr.str()));
 		TheGameSpyInfo->setPingString(pingStr);
 		//delete ThePinger;
-		//ThePinger = NULL;
+		//ThePinger = nullptr;
 
 		buttonPushed = true;
 		loggedInOK = false; // don't try this again
@@ -1191,42 +799,7 @@ static void checkLogin()
 //		newResp.player = localPSStats;
 //		TheGameSpyPSMessageQueue->addResponse(newResp);
 	}
-	*/
 }
-
-void GenOnline_WOLLoginMenu_LoginCallback(ELoginResult loginResult)
-{
-	if (!buttonPushed)
-	{
-		// TODO_GENONLINE: Handle failure properly
-		if (loginResult == ELoginResult::Success)
-		{
-			ClearGSMessageBoxes();
-			loggedInOK = true;
-
-			checkLogin();
-		}
-		else
-		{
-			if (loginResult == ELoginResult::Failed)
-			{
-				updateSignInScreen(FALSE);
-                GSMessageBoxOk(UnicodeString(L"Logging In"), UnicodeString(L"Login failed."), []()
-                    {
-                        TheShell->pop();
-                    });
-			}
-            else if (loginResult == ELoginResult::UserCancelled)
-            {
-                // User requested, nothing to do here
-            }
-
-			
-		}
-
-	}
-}
-
 
 //-------------------------------------------------------------------------------------------------
 /** WOL Login Menu update method */
@@ -1238,10 +811,6 @@ void WOLLoginMenuUpdate( WindowLayout * layout, void *userData)
 	if(isShuttingDown && TheShell->isAnimFinished() && TheTransitionHandler->isFinished())
 		shutdownComplete(layout);
 
-	if (!isShuttingDown)
-		updateSignInScreen(FALSE);
-
-	/*
 	if (TheShell->isAnimFinished() && !buttonPushed && TheGameSpyPeerMessageQueue)
 	{
 		PingResponse pingResp;
@@ -1309,7 +878,6 @@ void WOLLoginMenuUpdate( WindowLayout * layout, void *userData)
 
 		checkLogin();
 	}
-	
 
 	if (TheGameSpyInfo && !buttonPushed && loginAttemptTime && (loginAttemptTime + loginTimeoutInMS < timeGetTime()))
 	{
@@ -1330,8 +898,6 @@ void WOLLoginMenuUpdate( WindowLayout * layout, void *userData)
 		TearDownGameSpy();
 		SetUpGameSpy( motd.str(), config.str() );
 	}
-	*/
-	// TODO_GENONLINE: Add login timeout again
 
 }
 
@@ -1365,17 +931,8 @@ WindowMsgHandledType WOLLoginMenuInput( GameWindow *window, UnsignedInt msg,
 					//
 					if( BitIsSet( state, KEY_STATE_UP ) )
 					{
-						// TheSuperHackers @feature arcticdolphin 08/11/2026 Escape cancels the GO sign-in like its Cancel button.
-						if (signInScreen)
-						{
-							if (!buttonSignInCancel->winIsHidden())
-								TheWindowManager->winSendSystemMsg( window, GBM_SELECTED, (WindowMsgData)buttonSignInCancel, buttonSignInCancel->winGetWindowId() );
-						}
-						else
-						{
-							TheWindowManager->winSendSystemMsg( window, GBM_SELECTED,
-																								(WindowMsgData)buttonBack, buttonBackID );
-						}
+						TheWindowManager->winSendSystemMsg( window, GBM_SELECTED,
+																							(WindowMsgData)buttonBack, buttonBackID );
 
 					}
 
@@ -1405,7 +962,7 @@ static Bool isNickOkay(UnicodeString nick)
 		return FALSE;
 
 	WideChar newChar = nick.getCharAt(len-1);
-	if (wcschr(legalIRCChars, newChar) == NULL)
+	if (wcschr(legalIRCChars, newChar) == nullptr)
 		return FALSE;
 
 	return TRUE;
@@ -1429,7 +986,7 @@ static Bool isAgeOkay(AsciiString &month, AsciiString &day, AsciiString year)
 	#define DATE_BUFFER_SIZE 256
 	char dateBuffer[ DATE_BUFFER_SIZE ];
 	GetDateFormat( LOCALE_SYSTEM_DEFAULT,
-								 0, NULL,
+								 0, nullptr,
 								 "yyyy",
 								 dateBuffer, DATE_BUFFER_SIZE );
 	Int sysVal = atoi(dateBuffer);
@@ -1440,7 +997,7 @@ static Bool isAgeOkay(AsciiString &month, AsciiString &day, AsciiString year)
 		return FALSE;
 
 	GetDateFormat( LOCALE_SYSTEM_DEFAULT,
-								 0, NULL,
+								 0, nullptr,
 								 "MM",
 								 dateBuffer, DATE_BUFFER_SIZE );
 	sysVal = atoi(dateBuffer);
@@ -1451,7 +1008,7 @@ static Bool isAgeOkay(AsciiString &month, AsciiString &day, AsciiString year)
 		return FALSE;
 //	month.format("%02.2d",userVal);
 	GetDateFormat( LOCALE_SYSTEM_DEFAULT,
-								 0, NULL,
+								 0, nullptr,
 								 "dd",
 								 dateBuffer, DATE_BUFFER_SIZE );
 	sysVal = atoi(dateBuffer);
@@ -1651,39 +1208,6 @@ WindowMsgHandledType WOLLoginMenuSystem( GameWindow *window, UnsignedInt msg,
 					break;
 				GameWindow *control = (GameWindow *)mData1;
 				Int controlID = control->winGetWindowId();
-
-				// TheSuperHackers @feature arcticdolphin 08/11/2026 GO sign-in screen buttons.
-				if (signInScreen)
-				{
-					GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-					if (pAuthInterface == nullptr)
-						break;
-
-					if (control == buttonSignInCancel)
-					{
-						buttonPushed = true;
-						pAuthInterface->CancelLogin();
-						break;
-					}
-					if (control == buttonUseAnotherAccount)
-					{
-						pAuthInterface->UseAnotherAccount();
-						updateSignInScreen(FALSE);
-						break;
-					}
-					Int provider = -1;
-					for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
-					{
-						if (control == buttonSignInProviders[i])
-							provider = i;
-					}
-					if (provider >= 0)
-					{
-						pAuthInterface->OpenProviderLogin(signInProviders[provider]);
-						updateSignInScreen(FALSE);
-						break;
-					}
-				}
 
 				// If we back out, just bail - we haven't gotten far enough to need to log out
 				if ( controlID == buttonBackID )
@@ -1909,7 +1433,7 @@ WindowMsgHandledType WOLLoginMenuSystem( GameWindow *window, UnsignedInt msg,
 				{
 					parentTOS->winHide(FALSE);
 					useWebBrowserForTOS = FALSE;//loginPref->getBool("UseTOSBrowser", TRUE);
-					if (useWebBrowserForTOS && (TheWebBrowser != NULL))
+					if (useWebBrowserForTOS && (TheWebBrowser != nullptr))
 					{
 						TheWebBrowser->createBrowserWindow("TermsOfService", listboxTOS);
 						webBrowserActive = TRUE;
@@ -1926,7 +1450,7 @@ WindowMsgHandledType WOLLoginMenuSystem( GameWindow *window, UnsignedInt msg,
 							Int size = theFile->size();
 
 							char *fileBuf = new char[size];
-							Color tosColor = GOUIColor(GOUICOLOR_TEXT, GameMakeColor(255, 255, 255, 255));
+							Color tosColor = GameMakeColor(255, 255, 255, 255);
 
 							Int bytesRead = theFile->read(fileBuf, size);
 							if (bytesRead == size && size > 2)
@@ -1946,10 +1470,10 @@ WindowMsgHandledType WOLLoginMenuSystem( GameWindow *window, UnsignedInt msg,
 							}
 
 							delete[] fileBuf;
-							fileBuf = NULL;
+							fileBuf = nullptr;
 
 							theFile->close();
-							theFile = NULL;
+							theFile = nullptr;
 						}
 					}
 					EnableLoginControls( FALSE );
@@ -1961,9 +1485,9 @@ WindowMsgHandledType WOLLoginMenuSystem( GameWindow *window, UnsignedInt msg,
 					EnableLoginControls( TRUE );
 
 					parentTOS->winHide(TRUE);
-					if (useWebBrowserForTOS && (TheWebBrowser != NULL))
+					if (useWebBrowserForTOS && (TheWebBrowser != nullptr))
 					{
-						if (listboxTOS != NULL)
+						if (listboxTOS != nullptr)
 						{
 							TheWebBrowser->closeBrowserWindow(listboxTOS);
 						}

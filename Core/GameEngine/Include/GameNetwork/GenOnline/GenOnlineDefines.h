@@ -48,7 +48,7 @@
 
 class AsciiString;
 class UnicodeString;
-void showNotificationBox(AsciiString nick, UnicodeString message, bool bPlaySound = true);
+void GenOnlineShowNotificationBox(AsciiString nick, UnicodeString message, bool bPlaySound = true);
 
 #define ALLOW_NON_PROFILED_LOGIN 1
 
