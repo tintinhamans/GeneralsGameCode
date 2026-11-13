@@ -59,4 +59,10 @@ public:
 	virtual void stopOnlineChecks() override;
 	virtual void cancelPatchCheck() override;
 	virtual void startDownloadingPatches() override;
+
+	virtual void onOptionsMenuInit( Bool locked ) override {}
+	virtual Bool onOptionsMenuComboSelected( GameWindow *control ) override { return FALSE; }
+	virtual Bool onOptionsMenuButtonSelected( GameWindow *control ) override { return FALSE; }
+	virtual Bool onOptionsMenuAccept() override { return TRUE; }
+	virtual void onOptionsMenuDefaults() override {}
 };

@@ -68,6 +68,7 @@
 #include "GameNetwork/FirewallHelper.h"
 #include "GameNetwork/IPEnumeration.h"
 #include "GameNetwork/GameSpyOverlay.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/ScriptEngine.h"
@@ -1342,7 +1343,7 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	GameWindow *parent = TheWindowManager->winGetWindowFromId( nullptr, parentID );
 	TheWindowManager->winSetFocus( parent );
 
-	if( (TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || TheGameSpyInfo )
+	if( (TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || GetOnlineGameHooks()->isLoggedIn() )
 	{
 		// disable controls that you can't change the options for in game
 		comboBoxLANIP->winEnable(FALSE);
@@ -1369,6 +1370,7 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	}
 
 
+	GetOnlineGameHooks()->onOptionsMenuInit((TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || GetOnlineGameHooks()->isLoggedIn());
 	TheWindowManager->winSetModal(parent);
 	ignoreSelected = FALSE;
 }
@@ -1523,6 +1525,10 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 
 					showAdvancedOptions();
 				}
+				else
+				{
+					GetOnlineGameHooks()->onOptionsMenuComboSelected(control);
+				}
 			break;
 		}
 
@@ -1555,6 +1561,9 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 			else if (controlID == buttonAccept )
 			{
+				// Changed connection settings are tested first so a rejected address keeps the menu open.
+				if (!GetOnlineGameHooks()->onOptionsMenuAccept())
+					break;
 				saveOptions();
 
 				if (pref)
@@ -1586,6 +1595,10 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 			else if (controlID == buttonDefaults )
 			{
 				setDefaults();
+				GetOnlineGameHooks()->onOptionsMenuDefaults();
+			}
+			else if (GetOnlineGameHooks()->onOptionsMenuButtonSelected(control))
+			{
 			}
 			else if (controlID == ButtonAdvancedAcceptID )
 			{

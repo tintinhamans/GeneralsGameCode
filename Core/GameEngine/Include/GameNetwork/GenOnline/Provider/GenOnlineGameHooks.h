@@ -67,6 +67,12 @@ public:
 	virtual void cancelPatchCheck() override;
 	virtual void startDownloadingPatches() override;
 
+	virtual void onOptionsMenuInit( Bool locked ) override;
+	virtual Bool onOptionsMenuComboSelected( GameWindow *control ) override;
+	virtual Bool onOptionsMenuButtonSelected( GameWindow *control ) override;
+	virtual Bool onOptionsMenuAccept() override;
+	virtual void onOptionsMenuDefaults() override;
+
 private:
 	GenOnlineDiscordRPC *m_discordRichPresence;
 };
