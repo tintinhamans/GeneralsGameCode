@@ -274,6 +274,30 @@ void RegisterHandlers(HubSession& session)
 				pLobby->OnRealtimeLobbyLeft(event);
 			}
 		});
+	session.On<CountdownStartedEvent>([](const CountdownStartedEvent& event)
+		{
+			GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (pLobby != nullptr)
+			{
+				pLobby->OnRealtimeCountdownStarted(event);
+			}
+		});
+	session.On<CountdownCancelledEvent>([](const CountdownCancelledEvent& event)
+		{
+			GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (pLobby != nullptr)
+			{
+				pLobby->OnRealtimeCountdownCancelled(event);
+			}
+		});
+	session.On<GameStartEvent>([](const GameStartEvent& event)
+		{
+			GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (pLobby != nullptr)
+			{
+				pLobby->OnRealtimeGameStart(event);
+			}
+		});
 	session.On<BadgesUpdateEvent>([](const BadgesUpdateEvent& event)
 		{
 			s_badges = event.badges;
@@ -328,6 +352,14 @@ void RegisterHandlers(HubSession& session)
 				if (pRooms != nullptr)
 				{
 					pRooms->OnRealtimeRoomMessage(event);
+				}
+			}
+			else if (event.channel_id.compare(0, 6, "lobby:") == 0)
+			{
+				GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+				if (pLobby != nullptr)
+				{
+					pLobby->OnRealtimeLobbyMessage(event);
 				}
 			}
 			else if (event.channel_id.compare(0, 3, "dm:") == 0)

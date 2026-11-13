@@ -575,6 +575,13 @@ public:
 	void OnRealtimeLobbyListRemove(int64_t lobbyID);
 	void OnRealtimeLobbyState(const GenOnlineRealtime::LobbyState& lobby);
 	void OnRealtimeLobbyLeft(const GenOnlineRealtime::LobbyLeftEvent& event);
+	void OnRealtimeCountdownStarted(const GenOnlineRealtime::CountdownStartedEvent& event);
+	void OnRealtimeCountdownCancelled(const GenOnlineRealtime::CountdownCancelledEvent& event);
+	void OnRealtimeGameStart(const GenOnlineRealtime::GameStartEvent& event);
+	void OnRealtimeLobbyMessage(const GenOnlineRealtime::ChatMessage& message);
+	void OnRealtimeStartGameOutcome(const GenOnlineRealtime::InvokeOutcome& outcome);
+	// Shows a refused lobby method of the realtime hub in the lobby chat.
+	void ShowRealtimeLobbyFailure(const GenOnlineRealtime::InvokeOutcome& outcome);
 
 private:
 	std::function<void(bool)> m_cb_CreateLobbyPendingCallback = nullptr;
