@@ -806,6 +806,7 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineLobbyMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineLoginMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineMapSelectMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineOptionsMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlinePlayerInfoOverlay.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlinePopupHostGame.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlinePopupJoinGame.cpp

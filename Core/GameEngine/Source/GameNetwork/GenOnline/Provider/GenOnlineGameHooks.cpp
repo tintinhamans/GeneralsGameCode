@@ -333,3 +333,28 @@ void GenOnlineGameHooks::startDownloadingPatches()
 {
 	GenOnlineStartDownloadingPatches();
 }
+
+void GenOnlineGameHooks::onOptionsMenuInit( Bool locked )
+{
+	GenOnlineOptionsMenuInit(locked);
+}
+
+Bool GenOnlineGameHooks::onOptionsMenuComboSelected( GameWindow *control )
+{
+	return GenOnlineOptionsMenuComboSelected(control);
+}
+
+Bool GenOnlineGameHooks::onOptionsMenuButtonSelected( GameWindow *control )
+{
+	return GenOnlineOptionsMenuButtonSelected(control);
+}
+
+Bool GenOnlineGameHooks::onOptionsMenuAccept()
+{
+	return GenOnlineOptionsMenuAccept();
+}
+
+void GenOnlineGameHooks::onOptionsMenuDefaults()
+{
+	GenOnlineOptionsMenuDefaults();
+}

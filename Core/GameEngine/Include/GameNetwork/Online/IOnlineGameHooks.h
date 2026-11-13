@@ -31,6 +31,7 @@ class UnicodeString;
 class GameInfo;
 class DisplayString;
 class WindowLayout;
+class GameWindow;
 
 class IOnlineGameHooks
 {
@@ -78,6 +79,13 @@ public:
 	virtual void stopOnlineChecks() = 0;		///< Stops the checks the Online path started.
 	virtual void cancelPatchCheck() = 0;		///< Ends a patch check that is still running.
 	virtual void startDownloadingPatches() = 0;	///< Downloads the patches the player accepted.
+
+	// Options menu
+	virtual void onOptionsMenuInit( Bool locked ) = 0;	///< Fills the provider section of the options menu, locked while a game or a session runs.
+	virtual Bool onOptionsMenuComboSelected( GameWindow *control ) = 0;	///< TRUE when the combo box belongs to the provider section.
+	virtual Bool onOptionsMenuButtonSelected( GameWindow *control ) = 0;	///< TRUE when the button belongs to the provider section.
+	virtual Bool onOptionsMenuAccept() = 0;		///< FALSE keeps the options menu open.
+	virtual void onOptionsMenuDefaults() = 0;
 };
 
 // Returns the hooks of the selected provider. It never returns null.
