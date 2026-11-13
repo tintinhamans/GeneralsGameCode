@@ -233,10 +233,47 @@ void OnReady(const ReadyEvent& ready, bool bFirstReady)
 	{
 		pSocial->ExpectRealtimeWelcome();
 	}
+	GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pLobby != nullptr)
+	{
+		pLobby->OnRealtimeReady();
+	}
 }
 
 void RegisterHandlers(HubSession& session)
 {
+	session.On<LobbyListUpsertEvent>([](const LobbyListUpsertEvent& event)
+		{
+			GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (pLobby != nullptr)
+			{
+				pLobby->OnRealtimeLobbyListUpsert(event.lobby);
+			}
+		});
+	session.On<LobbyListRemoveEvent>([](const LobbyListRemoveEvent& event)
+		{
+			GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (pLobby != nullptr)
+			{
+				pLobby->OnRealtimeLobbyListRemove(event.lobby_id);
+			}
+		});
+	session.On<LobbyStateEvent>([](const LobbyStateEvent& event)
+		{
+			GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (pLobby != nullptr)
+			{
+				pLobby->OnRealtimeLobbyState(event.lobby);
+			}
+		});
+	session.On<LobbyLeftEvent>([](const LobbyLeftEvent& event)
+		{
+			GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (pLobby != nullptr)
+			{
+				pLobby->OnRealtimeLobbyLeft(event);
+			}
+		});
 	session.On<BadgesUpdateEvent>([](const BadgesUpdateEvent& event)
 		{
 			s_badges = event.badges;
