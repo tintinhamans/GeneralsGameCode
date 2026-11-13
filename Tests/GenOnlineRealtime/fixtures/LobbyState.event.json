@@ -1,0 +1,122 @@
+{
+  "lobby": {
+    "id": 991,
+    "name": "1v1 no rush",
+    "host_id": 42,
+    "type": "custom",
+    "state": "setup",
+    "visibility": "public",
+    "has_password": false,
+    "map": {
+      "name": "Tournament Desert",
+      "path": "maps/tournament desert/tournament desert",
+      "official": true
+    },
+    "region": "eu",
+    "anticheat": "easy_anticheat",
+    "settings": {
+      "starting_cash": 10000,
+      "limit_superweapons": true,
+      "vanilla_teams": false,
+      "track_stats": true,
+      "allow_observers": false,
+      "max_camera_height": 310
+    },
+    "match_id": null,
+    "created_at": "2026-11-13T20:00:00Z",
+    "slots": [
+      {
+        "index": 0,
+        "state": "player",
+        "member": {
+          "id": 42,
+          "name": "Bob",
+          "badges": []
+        },
+        "ready": true,
+        "has_map": true,
+        "side": -1,
+        "color": -1,
+        "team": null,
+        "start_position": -1
+      },
+      {
+        "index": 1,
+        "state": "player",
+        "member": {
+          "id": 7,
+          "name": "Ann",
+          "badges": [
+            "moderator"
+          ]
+        },
+        "ready": true,
+        "has_map": true,
+        "side": 2,
+        "color": 4,
+        "team": null,
+        "start_position": 3
+      },
+      {
+        "index": 2,
+        "state": "ai_medium",
+        "ready": true,
+        "has_map": true,
+        "side": 1,
+        "color": -1,
+        "team": null,
+        "start_position": -1
+      },
+      {
+        "index": 3,
+        "state": "open",
+        "ready": false,
+        "has_map": true,
+        "side": -1,
+        "color": -1,
+        "team": null,
+        "start_position": -1
+      },
+      {
+        "index": 4,
+        "state": "closed",
+        "ready": false,
+        "has_map": true,
+        "side": -1,
+        "color": -1,
+        "team": null,
+        "start_position": -1
+      },
+      {
+        "index": 5,
+        "state": "closed",
+        "ready": false,
+        "has_map": true,
+        "side": -1,
+        "color": -1,
+        "team": null,
+        "start_position": -1
+      },
+      {
+        "index": 6,
+        "state": "closed",
+        "ready": false,
+        "has_map": true,
+        "side": -1,
+        "color": -1,
+        "team": null,
+        "start_position": -1
+      },
+      {
+        "index": 7,
+        "state": "closed",
+        "ready": false,
+        "has_map": true,
+        "side": -1,
+        "color": -1,
+        "team": null,
+        "start_position": -1
+      }
+    ]
+  }
+}

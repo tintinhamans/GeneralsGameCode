@@ -1,0 +1,8 @@
+{
+  "code": "name.changed",
+  "params": {
+    "user_id": 7,
+    "old_name": "Ann",
+    "new_name": "Anna"
+  }
+}

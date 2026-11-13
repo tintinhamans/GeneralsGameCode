@@ -1,0 +1,21 @@
+{
+  "friends": [
+    {
+      "id": 7,
+      "name": "Ann",
+      "badges": [
+        "moderator"
+      ],
+      "online": true
+    }
+  ],
+  "incoming": [],
+  "outgoing": [
+    {
+      "id": 88,
+      "name": "Cid",
+      "badges": []
+    }
+  ],
+  "blocked": []
+}

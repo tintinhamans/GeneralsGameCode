@@ -1,0 +1,40 @@
+{
+  "protocol_version": 1,
+  "session_type": "game",
+  "user": {
+    "id": 42,
+    "name": "Bob",
+    "badges": []
+  },
+  "permissions": [
+    "moderation.kick",
+    "moderation.mute"
+  ],
+  "badges": {
+    "moderator": {
+      "text": "MOD",
+      "color": "#4aa3ff"
+    },
+    "admin": {
+      "text": "★★GO STAFF★★",
+      "color": "#f5c542"
+    }
+  },
+  "rooms": [
+    {
+      "id": 1,
+      "name": "General",
+      "parent_id": 0,
+      "show_all_matches": false
+    }
+  ],
+  "limits": {
+    "chat_max_length": 512,
+    "chat_rate": {
+      "messages": 3,
+      "window_ms": 9000
+    },
+    "name_min_length": 3,
+    "name_max_length": 16
+  }
+}
