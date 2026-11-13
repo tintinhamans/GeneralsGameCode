@@ -59,6 +59,18 @@ public:
 	virtual void drawNetworkOverlay( DisplayString *text, Int dropColor ) override;
 	virtual void releaseNetworkOverlay() override;
 
+	virtual const char *getOverlayLayout( Int overlay, const char *gameSpyLayout ) override;
+	virtual void onShellScreenChanged() override;
+	virtual void onCloseAllOverlays() override;
+
+	virtual void startOnline() override;
+	virtual void updateMainMenu() override;
+	virtual void updateDownloadMenu( WindowLayout *layout, void *userData ) override;
+	virtual void onDownloadCanceled() override;
+	virtual void stopOnlineChecks() override;
+	virtual void cancelPatchCheck() override;
+	virtual void startDownloadingPatches() override;
+
 private:
 	GenOnlineDiscordRPC *m_discordRichPresence;
 };

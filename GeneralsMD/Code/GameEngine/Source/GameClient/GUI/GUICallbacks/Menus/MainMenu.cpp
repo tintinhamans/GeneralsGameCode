@@ -65,7 +65,6 @@
 #include "GameClient/GameWindowTransitions.h"
 #include "GameClient/ChallengeGenerals.h"
 #include "GameClient/GUICallbacks.h"
-#include "GameClient/GenOnlineMenus.h"
 
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/PeerThread.h"
@@ -73,9 +72,9 @@
 
 #include "GameNetwork/DownloadManager.h"
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 
 #include "GameClient/InGameUI.h"
-#include "../GenOnlineInit.h"
 
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
@@ -217,11 +216,7 @@ extern Bool dispChanged;
 void diffReverseSide();
 void HandleCanceledDownload( Bool resetDropDown )
 {
-	// TheSuperHackers @bugfix arcticdolphin 09/11/2026 An Online attempt can end before the online services exist or after their teardown.
-	if (GenOnlineServicesManager::GetInstance() != nullptr)
-	{
-		GenOnlineServicesManager::GetInstance()->CancelUpdate();
-	}
+	GetOnlineGameHooks()->onDownloadCanceled();
 
 	buttonPushed = FALSE;
 	if (resetDropDown)
@@ -681,7 +676,7 @@ void MainMenuShutdown( WindowLayout *layout, void *userData )
 	if (!startGame)
 		isShuttingDown = TRUE;
 
-	CancelPatchCheckCallback();
+	GetOnlineGameHooks()->cancelPatchCheck();
 
 	// if we are shutting down for an immediate pop, skip the animations
 	Bool popImmediate = *(Bool *)userData;
@@ -839,7 +834,7 @@ void MainMenuUpdate( WindowLayout *layout, void *userData )
 	if (TheDownloadManager && !TheDownloadManager->isDone())
 	{
 		TheDownloadManager->update();
-		DownloadMenuUpdate(layout, userData);
+		GetOnlineGameHooks()->updateDownloadMenu(layout, userData);
 	}
 
 	/* This is also commented for the same reason as the top
@@ -929,10 +924,8 @@ void MainMenuUpdate( WindowLayout *layout, void *userData )
 		raiseMessageBoxes = FALSE;
 	}
 
-	HTTPThinkWrapper();
+	GetOnlineGameHooks()->updateMainMenu();
 	GameSpyUpdateOverlays();
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 The sign-in dialog sits over this menu, which stays the shell screen and ticks it.
-	GOSignInDialogUpdate();
 //	if(localAnimateWindowManager)
 //		localAnimateWindowManager->update();
 //	if(localAnimateWindowManager && pendingDropDown != DROPDOWN_NONE && localAnimateWindowManager->isFinished())
@@ -1063,7 +1056,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 			ghttpCleanup();
 			DEBUG_LOG(("Tearing down GameSpy from MainMenuSystem(GWM_DESTROY)"));
 			TearDownGameSpy();
-			StopAsyncDNSCheck(); // kill off the async DNS check thread in case it is still running
+			GetOnlineGameHooks()->stopOnlineChecks(); // kill off the async DNS check thread in case it is still running
 			break;
 
 		}
@@ -1473,7 +1466,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				dropDownWindows[DROPDOWN_MULTIPLAYER]->winHide(FALSE);
 				TheTransitionHandler->reverse("MainMenuMultiPlayerMenuTransitionToNext");
 
-				StartPatchCheck();
+				GetOnlineGameHooks()->startOnline();
 //				localAnimateWindowManager->reverseAnimateWindow();
 				dropDown = DROPDOWN_NONE;
 
@@ -1517,7 +1510,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 			else if( controlID == getUpdateID )
 			{
-				StartDownloadingPatches();
+				GetOnlineGameHooks()->startDownloadingPatches();
 			}
 			else if( controlID == exitID )
 			{

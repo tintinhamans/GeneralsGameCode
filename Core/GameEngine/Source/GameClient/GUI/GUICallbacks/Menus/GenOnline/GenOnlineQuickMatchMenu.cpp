@@ -1799,7 +1799,7 @@ WindowMsgHandledType GenOnlineQuickMatchMenuSystem( GameWindow *window, Unsigned
 				else if ( controlID == buttonBackID )
 				{
 					buttonPushed = true;			
-					nextScreen = "Menus/WOLWelcomeMenu.wnd";
+					nextScreen = "Menus/GenOnlineWelcomeMenu.wnd";
 					TheShell->pop();
 				}
 				else if ( controlID == buttonSelectAllMapsID )

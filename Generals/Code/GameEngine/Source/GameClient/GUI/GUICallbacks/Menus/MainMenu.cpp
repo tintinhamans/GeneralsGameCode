@@ -68,6 +68,7 @@
 
 #include "GameNetwork/DownloadManager.h"
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 
 #include "GameClient/InGameUI.h"
 
@@ -206,6 +207,8 @@ extern Bool dispChanged;
 void diffReverseSide();
 void HandleCanceledDownload( Bool resetDropDown )
 {
+	GetOnlineGameHooks()->onDownloadCanceled();
+
 	buttonPushed = FALSE;
 	if (resetDropDown)
 	{
@@ -610,7 +613,7 @@ void MainMenuShutdown( WindowLayout *layout, void *userData )
 	if (!startGame)
 		isShuttingDown = TRUE;
 
-	CancelPatchCheckCallback();
+	GetOnlineGameHooks()->cancelPatchCheck();
 
 	// if we are shutting down for an immediate pop, skip the animations
 	Bool popImmediate = *(Bool *)userData;
@@ -768,7 +771,7 @@ void MainMenuUpdate( WindowLayout *layout, void *userData )
 	if (TheDownloadManager && !TheDownloadManager->isDone())
 	{
 		TheDownloadManager->update();
-		DownloadMenuUpdate(layout, userData);
+		GetOnlineGameHooks()->updateDownloadMenu(layout, userData);
 	}
 
 	/* This is also commented for the same reason as the top
@@ -858,7 +861,7 @@ void MainMenuUpdate( WindowLayout *layout, void *userData )
 		raiseMessageBoxes = FALSE;
 	}
 
-	HTTPThinkWrapper();
+	GetOnlineGameHooks()->updateMainMenu();
 	GameSpyUpdateOverlays();
 //	if(localAnimateWindowManager)
 //		localAnimateWindowManager->update();
@@ -990,7 +993,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 			ghttpCleanup();
 			DEBUG_LOG(("Tearing down GameSpy from MainMenuSystem(GWM_DESTROY)"));
 			TearDownGameSpy();
-			StopAsyncDNSCheck(); // kill off the async DNS check thread in case it is still running
+			GetOnlineGameHooks()->stopOnlineChecks(); // kill off the async DNS check thread in case it is still running
 			break;
 
 		}
@@ -1353,7 +1356,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				dropDownWindows[DROPDOWN_MULTIPLAYER]->winHide(FALSE);
 				TheTransitionHandler->reverse("MainMenuMultiPlayerMenuTransitionToNext");
 
-				StartPatchCheck();
+				GetOnlineGameHooks()->startOnline();
 //				localAnimateWindowManager->reverseAnimateWindow();
 				dropDown = DROPDOWN_NONE;
 
@@ -1397,7 +1400,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 			else if( controlID == getUpdateID )
 			{
-				StartDownloadingPatches();
+				GetOnlineGameHooks()->startDownloadingPatches();
 			}
 			else if( controlID == exitID )
 			{

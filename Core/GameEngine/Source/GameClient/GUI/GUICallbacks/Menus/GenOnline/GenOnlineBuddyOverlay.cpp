@@ -229,11 +229,11 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 
 					GadgetListBoxSetSelected(control, rc->pos);
 					if (itemType == ITEM_BUDDY)
-						rcLayout = TheWindowManager->winCreateLayout("Menus/RCBuddiesMenu.wnd");
+						rcLayout = TheWindowManager->winCreateLayout("Menus/GenOnlineRCBuddiesMenu.wnd");
 					else if (itemType == ITEM_REQUEST)
-						rcLayout = TheWindowManager->winCreateLayout("Menus/RCBuddyRequestMenu.wnd");
+						rcLayout = TheWindowManager->winCreateLayout("Menus/GenOnlineRCBuddyRequestMenu.wnd");
 					else
-						rcLayout = TheWindowManager->winCreateLayout("Menus/RCNonBuddiesMenu.wnd");
+						rcLayout = TheWindowManager->winCreateLayout("Menus/GenOnlineRCNonBuddiesMenu.wnd");
 					rcMenu = rcLayout->getFirstWindow();
 					rcMenu->winGetLayout()->runInit();
 					rcMenu->winBringToTop();
@@ -583,7 +583,7 @@ void GenOnlineShowNotificationBox(AsciiString nick, UnicodeString message, bool 
 //	if(!GameSpyIsOverlayOpen(GSOVERLAY_BUDDY))
 //		return;
 	if( !noticeLayout )
-		noticeLayout = TheWindowManager->winCreateLayout( "Menus/PopupBuddyListNotification.wnd" );
+		noticeLayout = TheWindowManager->winCreateLayout( "Menus/GenOnlinePopupBuddyListNotification.wnd" );
 	noticeLayout->hide( FALSE );
 	if (buttonNotificationID == NAMEKEY_INVALID)
 	{
@@ -975,11 +975,11 @@ WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, UnsignedIn
 
 					GadgetListBoxSetSelected(control, rc->pos);
 					if (isBuddy)
-						rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/RCBuddiesMenu.wnd"));
+						rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/GenOnlineRCBuddiesMenu.wnd"));
 					else if (isRequest)
-						rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/RCBuddyRequestMenu.wnd"));
+						rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/GenOnlineRCBuddyRequestMenu.wnd"));
 					else
-						rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/RCNonBuddiesMenu.wnd"));
+						rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/GenOnlineRCNonBuddiesMenu.wnd"));
 					rcMenu = rcLayout->getFirstWindow();
 					rcMenu->winGetLayout()->runInit();
 					rcMenu->winBringToTop();
@@ -1209,21 +1209,32 @@ static NameKeyType buttonStatsID = NAMEKEY_INVALID;
 //static GameWindow *rCparent = nullptr;
 
 
+// The GenOnline right click layouts keep the retail window names, so the names leave out the GenOnline file prefix.
+static AsciiString rcWindowFile( WindowLayout *layout )
+{
+	AsciiString name = layout->getFilename().str() + 6;
+	if (name.startsWith("GenOnline"))
+	{
+		name = name.str() + 9;
+	}
+	return name;
+}
+
 //-------------------------------------------------------------------------------------------------
 /** WOL Buddy Overlay Right Click menu callbacks */
 //-------------------------------------------------------------------------------------------------
 void GenOnlineBuddyOverlayRCMenuInit( WindowLayout *layout, void *userData )
 {
 	AsciiString controlName;
-	controlName.format("%s:ButtonAdd",layout->getFilename().str()+6);
+	controlName.format("%s:ButtonAdd",rcWindowFile(layout).str());
 	buttonAddID =  TheNameKeyGenerator->nameToKey( controlName );
-	controlName.format("%s:ButtonDelete",layout->getFilename().str()+6);
+	controlName.format("%s:ButtonDelete",rcWindowFile(layout).str());
 	buttonDeleteID =  TheNameKeyGenerator->nameToKey( controlName );
-	controlName.format("%s:ButtonPlay",layout->getFilename().str()+6);
+	controlName.format("%s:ButtonPlay",rcWindowFile(layout).str());
 	buttonPlayID =  TheNameKeyGenerator->nameToKey( controlName );
-	controlName.format("%s:ButtonIgnore",layout->getFilename().str()+6);
+	controlName.format("%s:ButtonIgnore",rcWindowFile(layout).str());
 	buttonIgnoreID =  TheNameKeyGenerator->nameToKey( controlName );
-	controlName.format("%s:ButtonStats",layout->getFilename().str()+6);
+	controlName.format("%s:ButtonStats",rcWindowFile(layout).str());
 	buttonStatsID =  TheNameKeyGenerator->nameToKey( controlName );
 }
 static void closeRightClickMenu(GameWindow *win)
@@ -1430,7 +1441,7 @@ WindowMsgHandledType GenOnlineBuddyOverlayRCMenuSystem( GameWindow *window, Unsi
 void GenOnlineSetUnignoreText( WindowLayout *layout, AsciiString nick, GPProfile id)
 {
 	AsciiString controlName;
-	controlName.format("%s:ButtonIgnore",layout->getFilename().str()+6);
+	controlName.format("%s:ButtonIgnore",rcWindowFile(layout).str());
 	NameKeyType ID =  TheNameKeyGenerator->nameToKey( controlName );
 	GameWindow *win = TheWindowManager->winGetWindowFromId(layout->getFirstWindow(), ID);
 	if(win)

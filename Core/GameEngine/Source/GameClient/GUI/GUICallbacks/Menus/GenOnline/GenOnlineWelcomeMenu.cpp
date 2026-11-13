@@ -861,7 +861,7 @@ WindowMsgHandledType GenOnlineWelcomeMenuSystem( GameWindow *window, UnsignedInt
 					else
 					{
 						buttonPushed = TRUE;
-						nextScreen = "Menus/WOLQuickMatchMenu.wnd";
+						nextScreen = "Menus/GenOnlineQuickMatchMenu.wnd";
 						TheShell->pop();
 					}
 				}
@@ -884,7 +884,7 @@ WindowMsgHandledType GenOnlineWelcomeMenuSystem( GameWindow *window, UnsignedInt
 					//TheGameSpyInfo->joinBestGroupRoom();
 					//enableControls( FALSE );
 					buttonPushed = TRUE;
-					nextScreen = "Menus/WOLCustomLobby.wnd";
+					nextScreen = "Menus/GenOnlineCustomLobby.wnd";
 					TheShell->pop();
 
 
@@ -907,7 +907,7 @@ WindowMsgHandledType GenOnlineWelcomeMenuSystem( GameWindow *window, UnsignedInt
 						GameSpyUsingGroupRooms = FALSE;
 						GameSpyCurrentGroupRoomID = 0;
 						TheShell->pop();
-						TheShell->push("Menus/WOLCustomLobby.wnd");
+						TheShell->push("Menus/GenOnlineCustomLobby.wnd");
 					}
 					else
 					{

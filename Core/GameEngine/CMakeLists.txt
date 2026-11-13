@@ -1243,6 +1243,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/GenOnlineAuth.h
     Include/GameNetwork/GenOnline/GenOnlineInit.h
     Include/GameNetwork/GenOnline/GenOnlineLobbyInterface.h
+    Include/GameNetwork/GenOnline/GenOnlineMainMenuUtils.h
     Include/GameNetwork/GenOnline/GenOnlineModeration.h
     Include/GameNetwork/GenOnline/GenOnlineRoomsInterface.h
     Include/GameNetwork/GenOnline/GenOnlineStatsInterface.h
@@ -1280,6 +1281,7 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/GenOnlineInit.cpp
     Source/GameNetwork/GenOnline/GenOnlineAuth.cpp
     Source/GameNetwork/GenOnline/GenOnlineLobbyInterface.cpp
+    Source/GameNetwork/GenOnline/GenOnlineMainMenuUtils.cpp
     Source/GameNetwork/GenOnline/GenOnlineModeration.cpp
     Source/GameNetwork/GenOnline/GenOnlineRoomsInterface.cpp
     Source/GameNetwork/GenOnline/GenOnlineStatsInterface.cpp
