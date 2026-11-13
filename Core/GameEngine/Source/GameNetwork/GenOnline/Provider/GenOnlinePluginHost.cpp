@@ -28,6 +28,7 @@
 #include "GameNetwork/GenOnline/Provider/GenOnlinePluginTrust.h"
 
 #include "GameNetwork/GenOnline/PluginApi/GenOnlinePluginApi.h"
+#include "GameNetwork/GenOnline/AntiCheat/GenOnlineAntiCheat.h"
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/NetworkMesh.h"
@@ -86,6 +87,10 @@ bool s_bPluginLoadFailed = false;
 const GenOnlinePluginLinkedAccountApi* s_pLinkedAccount = nullptr;
 const GenOnlinePluginAnticheatApi* s_pAnticheat = nullptr;
 const GenOnlinePluginTransportApi* s_pTransport = nullptr;
+
+// GenOnline Anti-Cheat is linked into the game and serves the anticheat calls when the plugin DLL provides no anticheat.
+GenOnlinePluginApi s_builtInApi = {};
+bool s_bBuiltInLoaded = false;
 
 bool s_bSessionStarted = false;
 int64_t s_tokenCreationTime = -1;
@@ -386,6 +391,70 @@ void GENONLINE_PLUGIN_CALL Host_SendMessageViaTransport(void* /*userData*/, uint
 	}
 }
 
+void FillHostApi()
+{
+	s_hostApi = GenOnlinePluginHostApi();
+	s_hostApi.structSize = sizeof(GenOnlinePluginHostApi);
+	s_hostApi.userData = nullptr;
+	s_hostApi.Log = Host_Log;
+	s_hostApi.LobbyChatOutput = Host_LobbyChatOutput;
+	s_hostApi.ConnectionStateChanged = Host_ConnectionStateChanged;
+	s_hostApi.ActionRequired = Host_ActionRequired;
+	s_hostApi.IntegrityViolation = Host_IntegrityViolation;
+	s_hostApi.SendMessageViaTransport = Host_SendMessageViaTransport;
+}
+
+void LoadBuiltInAnticheat()
+{
+	if (s_bBuiltInLoaded)
+	{
+		return;
+	}
+
+	GenOnlinePluginApi api = {};
+	api.structSize = sizeof(GenOnlinePluginApi);
+	const int32_t getApiResult = GenOnlineAntiCheat_GetApi(GENONLINE_PLUGIN_API_VERSION, &s_hostApi, &api);
+	if (getApiResult != GENONLINE_PLUGIN_RESULT_OK || !ValidateAnticheatApi(api.anticheat))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: %s did not provide a valid anticheat table (%d)", GENONLINE_ANTICHEAT_PLUGIN_NAME, getApiResult);
+		return;
+	}
+
+	const int32_t initResult = api.Initialize();
+	if (initResult != GENONLINE_PLUGIN_RESULT_OK)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: %s Initialize returned %d - %s", GENONLINE_ANTICHEAT_PLUGIN_NAME, initResult, DescribeResult(initResult));
+		api.Shutdown();
+		return;
+	}
+
+	s_builtInApi = api;
+	s_bBuiltInLoaded = true;
+}
+
+void UnloadBuiltInAnticheat()
+{
+	if (!s_bBuiltInLoaded)
+	{
+		return;
+	}
+
+	s_builtInApi.Shutdown();
+	s_builtInApi = GenOnlinePluginApi();
+	s_bBuiltInLoaded = false;
+}
+
+// The plugin DLL serves the anticheat calls when it provides them, GenOnline Anti-Cheat serves them otherwise.
+const GenOnlinePluginAnticheatApi* GetActiveAnticheat()
+{
+	if (s_pAnticheat != nullptr)
+	{
+		return s_pAnticheat;
+	}
+
+	return s_bBuiltInLoaded ? s_builtInApi.anticheat : nullptr;
+}
+
 void ResetPluginState()
 {
 	s_hPluginModule = nullptr;
@@ -487,6 +556,9 @@ void GenOnlinePluginHost::LoadPlugin(const std::string& pluginName)
 
 	s_bPluginLoadFailed = false;
 
+	FillHostApi();
+	LoadBuiltInAnticheat();
+
 	// No plugin is the normal default.
 	if (pluginName.empty())
 	{
@@ -575,16 +647,6 @@ void GenOnlinePluginHost::LoadPlugin(const std::string& pluginName)
 		return;
 	}
 
-	s_hostApi = GenOnlinePluginHostApi();
-	s_hostApi.structSize = sizeof(GenOnlinePluginHostApi);
-	s_hostApi.userData = nullptr;
-	s_hostApi.Log = Host_Log;
-	s_hostApi.LobbyChatOutput = Host_LobbyChatOutput;
-	s_hostApi.ConnectionStateChanged = Host_ConnectionStateChanged;
-	s_hostApi.ActionRequired = Host_ActionRequired;
-	s_hostApi.IntegrityViolation = Host_IntegrityViolation;
-	s_hostApi.SendMessageViaTransport = Host_SendMessageViaTransport;
-
 	GenOnlinePluginApi api = {};
 	api.structSize = sizeof(GenOnlinePluginApi);
 	const int32_t getApiResult = fnGetApi(GENONLINE_PLUGIN_API_VERSION, &s_hostApi, &api);
@@ -658,6 +720,12 @@ void GenOnlinePluginHost::UnloadPlugin()
 {
 	if (!s_bPluginLoaded)
 	{
+		if (s_bSessionStarted)
+		{
+			Anticheat::EndSession();
+		}
+
+		UnloadBuiltInAnticheat();
 		return;
 	}
 
@@ -683,10 +751,17 @@ void GenOnlinePluginHost::UnloadPlugin()
 	ResetPluginState();
 	s_bPluginLoadFailed = false;
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Unloaded plugin");
+
+	UnloadBuiltInAnticheat();
 }
 
 void GenOnlinePluginHost::Tick()
 {
+	if (s_bBuiltInLoaded)
+	{
+		s_builtInApi.Tick();
+	}
+
 	if (!s_bPluginLoaded)
 	{
 		return;
@@ -738,6 +813,11 @@ int GenOnlinePluginHost::GetAnticheatIdentifier()
 		return s_pluginApi.GetAnticheatIdentifier();
 	}
 
+	if (s_bBuiltInLoaded && s_builtInApi.GetAnticheatIdentifier != nullptr)
+	{
+		return s_builtInApi.GetAnticheatIdentifier();
+	}
+
 	return 0;
 }
 
@@ -782,9 +862,10 @@ void GenOnlinePluginHost::Anticheat::BeginSession()
 {
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] BeginSession() called");
 
-	if (s_pAnticheat != nullptr)
+	const GenOnlinePluginAnticheatApi* pAnticheat = GetActiveAnticheat();
+	if (pAnticheat != nullptr)
 	{
-		s_pAnticheat->BeginSession();
+		pAnticheat->BeginSession();
 		s_bSessionStarted = true;
 	}
 	else
@@ -798,9 +879,10 @@ void GenOnlinePluginHost::Anticheat::EndSession()
 	// a stale exit request would eject us from the next lobby
 	g_bPendingExitLobby = false;
 
-	if (s_pAnticheat != nullptr)
+	const GenOnlinePluginAnticheatApi* pAnticheat = GetActiveAnticheat();
+	if (pAnticheat != nullptr)
 	{
-		s_pAnticheat->EndSession();
+		pAnticheat->EndSession();
 		s_bSessionStarted = false;
 	}
 }
@@ -812,28 +894,30 @@ bool GenOnlinePluginHost::Anticheat::RegisterPeer(const std::string& platformUse
 		BeginSession();
 	}
 
-	if (s_pAnticheat == nullptr)
+	const GenOnlinePluginAnticheatApi* pAnticheat = GetActiveAnticheat();
+	if (pAnticheat == nullptr)
 	{
 		return false;
 	}
 
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "RegisterPlayer: %s to %" PRIu32, platformUserID.c_str(), userID);
 
-	const bool bReg = s_pAnticheat->RegisterPeer(platformUserID.c_str(), userID, GENONLINE_PLUGIN_CLIENT_PROTECTED) != GENONLINE_PLUGIN_FALSE;
+	const bool bReg = pAnticheat->RegisterPeer(platformUserID.c_str(), userID, GENONLINE_PLUGIN_CLIENT_PROTECTED) != GENONLINE_PLUGIN_FALSE;
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "RegisterPlayerFunc result: %d", bReg);
 	return bReg;
 }
 
 bool GenOnlinePluginHost::Anticheat::DeregisterPeer(const std::string& platformUserID, uint32_t userID)
 {
-	if (s_pAnticheat == nullptr)
+	const GenOnlinePluginAnticheatApi* pAnticheat = GetActiveAnticheat();
+	if (pAnticheat == nullptr)
 	{
 		return false;
 	}
 
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "DeregisterPlayer: %s to %" PRIu32, platformUserID.c_str(), userID);
 
-	const bool bReg = s_pAnticheat->DeregisterPeer(platformUserID.c_str(), userID) != GENONLINE_PLUGIN_FALSE;
+	const bool bReg = pAnticheat->DeregisterPeer(platformUserID.c_str(), userID) != GENONLINE_PLUGIN_FALSE;
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "DeregisterPlayerFunc result: %d", bReg);
 	return bReg;
 }
@@ -846,9 +930,10 @@ void GenOnlinePluginHost::Anticheat::MessageArrived(uint32_t userID, const void*
 		return;
 	}
 
-	if (s_pAnticheat != nullptr)
+	const GenOnlinePluginAnticheatApi* pAnticheat = GetActiveAnticheat();
+	if (pAnticheat != nullptr)
 	{
-		s_pAnticheat->MessageArrived(userID, pData, dataLen);
+		pAnticheat->MessageArrived(userID, pData, dataLen);
 	}
 }
 
