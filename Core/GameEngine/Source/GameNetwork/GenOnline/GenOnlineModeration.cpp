@@ -7,6 +7,7 @@
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
 #include "GameClient/GUICallbacks.h"
+#include "GameClient/GenOnlineMenus.h"
 
 #include <chrono>
 #include <map>

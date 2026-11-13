@@ -65,6 +65,7 @@
 #include "GameClient/GameWindowTransitions.h"
 #include "GameClient/ChallengeGenerals.h"
 #include "GameClient/GUICallbacks.h"
+#include "GameClient/GenOnlineMenus.h"
 
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/PeerThread.h"

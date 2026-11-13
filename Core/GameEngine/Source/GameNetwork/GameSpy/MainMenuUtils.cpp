@@ -38,6 +38,7 @@
 #include "Common/version.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GUICallbacks.h"
+#include "GameClient/GenOnlineMenus.h"
 #include "GameClient/MessageBox.h"
 #include "GameClient/Shell.h"
 #include "GameLogic/ScriptEngine.h"
