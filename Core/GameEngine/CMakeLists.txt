@@ -1223,6 +1223,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/HTTP/HTTPRequest.h
     Include/GameNetwork/GenOnline/GenOnlineTransport.h
     Include/GameNetwork/GenOnline/PluginApi/GenOnlinePluginApi.h
+    Include/GameNetwork/GenOnline/AntiCheat/GenOnlineAntiCheat.h
     Include/GameNetwork/GenOnline/Provider/GenOnlineGameHooks.h
     Include/GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h
     Include/GameNetwork/GenOnline/Provider/GenOnlinePluginKeys.h
@@ -1247,6 +1248,7 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/GenOnlineTransport.cpp
     Source/GameNetwork/GenOnline/NetworkBitstream.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlineGameHooks.cpp
+    Source/GameNetwork/GenOnline/AntiCheat/GenOnlineAntiCheat.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlinePluginHost.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlinePluginPlatformWin32.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlinePluginTrust.cpp

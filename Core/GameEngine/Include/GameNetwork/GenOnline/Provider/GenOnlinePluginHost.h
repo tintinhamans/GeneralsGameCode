@@ -21,6 +21,8 @@
 //              through the GenOnline plugin API, checks its signed manifest,
 //              version and table sizes, and routes the game calls to the
 //              linked account, anticheat and transport sub interfaces.
+//              GenOnline Anti-Cheat serves the anticheat calls when the plugin
+//              provides no anticheat.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -84,7 +86,7 @@ public:
 	// Set from plugin threads when the local client has to leave the lobby.
 	static std::atomic<bool> g_bPendingExitLobby;
 
-	// Loads plugins/<name>/<name>.dll next to the game executable. An empty name loads no plugin.
+	// Starts GenOnline Anti-Cheat and loads plugins/<name>/<name>.dll next to the game executable. An empty name loads no plugin DLL.
 	static void LoadPlugin(const std::string& pluginName);
 	static void UnloadPlugin();
 	static void Tick();
