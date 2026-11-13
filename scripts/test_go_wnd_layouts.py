@@ -846,9 +846,9 @@ class MapPreviewBorderTest(unittest.TestCase):
             theme = (go_themes.THEME_DIR / name).read_bytes().decode("latin-1")
             theme_borders = [slots[0][2] for win, slots in enabled_slots(theme).items() if win.endswith(PREVIEW_NAMES)]
             self.assertEqual(theme_borders, [["191", "144", "72", "255"]] * len(found[name]), name)
-        self.assertEqual(sorted(found), [f"Window/Menus/{n}.wnd" for n in (
+        self.assertEqual(sorted(found), sorted(wl.shipped_name(f"Window/Menus/{n}.wnd") for n in (
             "GameSpyGameOptionsMenu", "GameSpyLoadScreen", "LanGameOptionsMenu", "LanMapSelectMenu",
-            "MultiplayerLoadScreen", "SkirmishGameOptionsMenu", "SkirmishMapSelectMenu", "WOLMapSelectMenu")])
+            "MultiplayerLoadScreen", "SkirmishGameOptionsMenu", "SkirmishMapSelectMenu", "WOLMapSelectMenu")))
         for name, borders in found.items():
             self.assertEqual(borders, [["47", "75", "255", "255"]], name)
 
@@ -946,7 +946,7 @@ class WindowFillTest(unittest.TestCase):
         self.assertEqual(wl.fill_classes(once), [])
 
     def test_shipped_menus_keep_their_retail_fills(self):
-        login = first_fills((wl.DATA / "Window/Menus/GameSpyLoginProfile.wnd").read_bytes().decode("latin-1"))
+        login = first_fills((wl.DATA / wl.shipped_name("Window/Menus/GameSpyLoginProfile.wnd")).read_bytes().decode("latin-1"))
         self.assertEqual(login["GameSpyLoginProfile.wnd:GadgetParent"]["ENABLEDDRAWDATA"], ["0", "0", "0", "129"])
         options = first_fills((wl.DATA / "Window/Menus/OptionsMenu.wnd").read_bytes().decode("latin-1"))  # YAML built
         self.assertEqual(options["OptionsMenu.wnd:OptionsMenuParent"]["ENABLEDDRAWDATA"], ["0", "0", "0", "255"])
@@ -1169,7 +1169,7 @@ class ComboHeightTest(unittest.TestCase):
                     if win.kind == "COMBOBOX" and win.name not in exceptions:
                         seen += 1
                         # TheSuperHackers @tweak arcticdolphin 09/11/2026 Only the setup screens' player rows are shorter.
-                        row = name in wl.SETUP_LAYOUTS and wl.SLOT_NAME_RE.match(win.name.split(":")[-1])
+                        row = wl.retail_name(name) in wl.SETUP_LAYOUTS and wl.SLOT_NAME_RE.match(win.name.split(":")[-1])
                         rows += bool(row)
                         height = 16 if row else wl.COMBO_HEIGHT
                         self.assertEqual(win.rect[3] - win.rect[1], height, f"{base / name} {win.name} {win.rect}")
@@ -1307,7 +1307,7 @@ DRAW_CALLBACK_RE = wl.re.compile(r'DRAWCALLBACK[ \t]*=[ \t]*"(?P<name>[^"]*)"')
 
 
 def lobby_text(base=wl.DATA):
-    return (base / LOBBY).read_bytes().decode("latin-1")
+    return (base / wl.shipped_name(LOBBY)).read_bytes().decode("latin-1")
 
 
 def lobby_windows(base=wl.DATA):
@@ -1462,7 +1462,7 @@ class SetupRowsTest(unittest.TestCase):
         for menu in SETUP_MENUS:
             name = f"Window/Menus/{menu}.wnd"
             for base in (wl.DATA, go_themes.THEME_DIR) if themes else (wl.DATA,):
-                path = base / name
+                path = base / wl.shipped_name(name)
                 yield path, name, wl.parse_windows(path.read_bytes().decode("latin-1"))
 
     def slots(self, root):
@@ -1727,7 +1727,7 @@ class ShippedLoginLayoutTest(unittest.TestCase):
         import go_themes
         for menu in LOGIN_FORMS:
             for base in (wl.DATA, go_themes.THEME_DIR):
-                path = base / f"Window/Menus/{menu}.wnd"
+                path = base / wl.shipped_name(f"Window/Menus/{menu}.wnd")
                 root = wl.parse_windows(path.read_bytes().decode("latin-1"))
                 hidden = {w.name.split(":")[-1]: _hidden(w) for w in root.walk() if w.name.split(":")[-1]}
                 for name in LOGIN_FORMS[menu]:
@@ -1751,7 +1751,7 @@ SIGN_IN_WINDOWS = {"GameSpyLoginProfile": {
 
 def login_profile(base=wl.DATA):
     """(root, {short NAME: window}) of the shipped GameSpyLoginProfile layout under base."""
-    root = wl.parse_windows((base / "Window/Menus/GameSpyLoginProfile.wnd").read_bytes().decode("latin-1"))
+    root = wl.parse_windows((base / wl.shipped_name("Window/Menus/GameSpyLoginProfile.wnd")).read_bytes().decode("latin-1"))
     return root, {_short(w): w for w in root.walk() if w.name}
 
 
@@ -1861,11 +1861,11 @@ class ShippedSignInDialogTest(unittest.TestCase):
             self.assertFalse(any(_hidden(w) for w in root.walk()), base)
 
     def test_the_code_looks_up_only_windows_the_layout_has(self):
-        code = (wl.ROOT / "GeneralsMD/Code/GameEngine/Source/GameClient/GUI/GUICallbacks/Menus/WOLLoginMenu.cpp").read_text(
+        code = (wl.ROOT / "Core/GameEngine/Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineLoginMenu.cpp").read_text(
             encoding="latin-1")
         names = set(re.findall(r'"GOSignInDialog\.wnd:(\w+)"', code))
         _, wins = sign_in_dialog()
-        self.assertTrue(names, "WOLLoginMenu.cpp looks up no dialog window")
+        self.assertTrue(names, "GenOnlineLoginMenu.cpp looks up no dialog window")
         self.assertEqual(names - set(wins), set())
 
     def test_backdrop_covers_the_screen_and_the_panel_is_centred(self):
@@ -1985,13 +1985,13 @@ class ShippedLayoutTest(unittest.TestCase):
             ("GameSpyGameOptionsMenu", "StaticTextMapPreview", "MapWindow"),
         ]
         for menu, heading, column in cases:
-            path = wl.DATA / f"Window/Menus/{menu}.wnd"
+            path = wl.DATA / wl.shipped_name(f"Window/Menus/{menu}.wnd")
             rects = {w.name.split(":")[-1]: w.rect for w in wl.parse_windows(path.read_bytes().decode("latin-1")).walk()}
             self.assertEqual(rects[heading][0], rects[column][0], f"{menu} {heading} {rects[heading]} {column} {rects[column]}")
 
     def test_custom_lobby_refresh_button_sits_inside_its_parent(self):
         # a child outside its parent draws but never gets clicks
-        path = Path(__file__).resolve().parent.parent / "GenOnline/GameData/Window/Menus/WOLCustomLobby.wnd"
+        path = Path(__file__).resolve().parent.parent / "GenOnline/GameData/Window/Menus/GenOnlineCustomLobby.wnd"
         root = wl.parse_windows(path.read_bytes().decode("latin-1"))
         parents = {}
 
