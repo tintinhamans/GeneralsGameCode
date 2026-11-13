@@ -10,4 +10,4 @@
 #include "GameNetwork/GenOnline/GenOnlineMatchmakingInterface.h"
 #include "GameNetwork/GenOnline/GenOnlineSocialInterface.h"
 
-#include "GameNetwork/GenOnline/PluginInterfaces.h"
+#include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"

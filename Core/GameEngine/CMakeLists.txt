@@ -1222,9 +1222,12 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/HTTP/HTTPManager.h
     Include/GameNetwork/GenOnline/HTTP/HTTPRequest.h
     Include/GameNetwork/GenOnline/GenOnlineTransport.h
-    Include/GameNetwork/GenOnline/PluginInterfaces.h
     Include/GameNetwork/GenOnline/PluginApi/GenOnlinePluginApi.h
     Include/GameNetwork/GenOnline/Provider/GenOnlineGameHooks.h
+    Include/GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h
+    Include/GameNetwork/GenOnline/Provider/GenOnlinePluginKeys.h
+    Include/GameNetwork/GenOnline/Provider/GenOnlinePluginPlatform.h
+    Include/GameNetwork/GenOnline/Provider/GenOnlinePluginTrust.h
     Include/GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.h
     Source/GameNetwork/GenOnline/DiscordRichPresence.cpp
     Source/GameNetwork/GenOnline/GenOnlineHelpers.cpp
@@ -1243,8 +1246,10 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/GenOnlineMatchmakingInterface.cpp
     Source/GameNetwork/GenOnline/GenOnlineTransport.cpp
     Source/GameNetwork/GenOnline/NetworkBitstream.cpp
-    Source/GameNetwork/GenOnline/PluginInterfaces.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlineGameHooks.cpp
+    Source/GameNetwork/GenOnline/Provider/GenOnlinePluginHost.cpp
+    Source/GameNetwork/GenOnline/Provider/GenOnlinePluginPlatformWin32.cpp
+    Source/GameNetwork/GenOnline/Provider/GenOnlinePluginTrust.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.cpp
     Source/Precompiled/PreRTS.cpp
 )
@@ -1297,10 +1302,20 @@ if(NOT IS_VS6_BUILD)
     find_package(CURL CONFIG REQUIRED)
     find_package(GameNetworkingSockets CONFIG REQUIRED)
     find_package(sentry CONFIG REQUIRED)
+    include(${CMAKE_SOURCE_DIR}/cmake/monocypher.cmake)
 
     target_link_libraries(corei_gameengine_public INTERFACE
         CURL::libcurl
         GameNetworkingSockets::GameNetworkingSockets_s
         sentry::sentry
+        bcrypt
+        monocypher
     )
+
+    # Lets a build without plugin signing keys load unsigned GenOnline plugins with a warning. A build with a key
+    # refuses unsigned plugins anyway. The option is off by default and no preset and no CI workflow turns it on.
+    option(GENONLINE_ALLOW_UNSIGNED_PLUGINS "Load unsigned GenOnline plugins in builds without plugin signing keys" OFF)
+    if(GENONLINE_ALLOW_UNSIGNED_PLUGINS)
+        target_compile_definitions(corei_gameengine_public INTERFACE GENONLINE_ALLOW_UNSIGNED_PLUGINS)
+    endif()
 endif()
