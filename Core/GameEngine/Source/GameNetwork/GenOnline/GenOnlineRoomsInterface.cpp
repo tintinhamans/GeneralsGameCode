@@ -147,8 +147,203 @@ WebSocket::WebSocket(bool bRealtimeHub)
 		};
 		m_pHubSession = std::make_unique<GenOnlineRealtime::HubSession>(callbacks);
 		GenOnlineRealtimeBridge::RegisterHandlers(*m_pHubSession);
+		RegisterPeerHandlers();
 	}
 }
+
+void WebSocket::StartPeerSignalling(int64_t lobbyID, int64_t userID, uint16_t preferredPort, const std::string& middlewareID)
+{
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pLobbyInterface == nullptr)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Lobby interface is null");
+		return;
+	}
+
+	// -1 while a join is still in flight, when this can legitimately arrive first
+	const int64_t currentLobbyID = pLobbyInterface->GetCurrentLobby().lobbyID;
+	if (currentLobbyID != -1 && currentLobbyID != lobbyID)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Ignoring signalling for lobby %lld, we are in lobby %lld", lobbyID, currentLobbyID);
+		return;
+	}
+
+	// TODO_NGMP: Better location for this
+	// When we find a new player, get their latest stats. Tooltip and loading screen need it, so we'll grab it now and then use cached data later since it cannot possibly change while in a lobby
+	GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
+	if (pStatsInterface != nullptr)
+	{
+		pStatsInterface->findPlayerStatsByID(userID, [=](bool bSuccess, PSPlayerStats stats)
+			{
+
+			}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
+	}
+
+	NetworkMesh* pMesh = pLobbyInterface->GetNetworkMeshForLobby();
+	if (pMesh == nullptr)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Network mesh is null");
+		return;
+	}
+	pMesh->StartConnectionSignalling(middlewareID.c_str(), userID, preferredPort);
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Starting signalling with %lld (MWID: %s)", userID, middlewareID.c_str());
+}
+
+void WebSocket::DisconnectPeer(int64_t lobbyID, int64_t userID)
+{
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pLobbyInterface == nullptr)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_DISCONNECT_PLAYER] Lobby interface is null");
+		return;
+	}
+
+	int64_t currentLobbyID = pLobbyInterface->GetCurrentLobby().lobbyID;
+	if (currentLobbyID == -1 || currentLobbyID != lobbyID)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_DISCONNECT_PLAYER] Lobby ID mismatch! Expected %lld, got %lld", currentLobbyID, lobbyID);
+		return;
+	}
+
+	NetworkMesh* pMesh = pLobbyInterface->GetNetworkMeshForLobby();
+	if (pMesh == nullptr)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_DISCONNECT_PLAYER] Network mesh is null");
+		return;
+	}
+	pMesh->DisconnectUser(userID);
+}
+
+void WebSocket::CollectMeshConnectivity(std::vector<int64_t>& connected, std::vector<int64_t>& connecting)
+{
+	NetworkMesh* pMesh = nullptr;
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pLobbyInterface != nullptr)
+	{
+		pMesh = pLobbyInterface->GetNetworkMeshForLobby();
+	}
+
+	if (pMesh != nullptr)
+	{
+		for (auto& conn : pMesh->GetAllConnections())
+		{
+			int64_t userID = conn.first;
+			PlayerConnection& playerConn = conn.second;
+
+			if (playerConn.GetState() == EConnectionState::CONNECTED_DIRECT)
+			{
+				// NOTE: Useful for testing
+				//if (userID != 1)
+				{
+					connected.push_back(userID);
+				}
+			}
+			else if (playerConn.GetState() == EConnectionState::CONNECTING_DIRECT || playerConn.GetState() == EConnectionState::FINDING_ROUTE)
+			{
+				// still negotiating: lets the service hold off restarting it
+				connecting.push_back(userID);
+			}
+		}
+	}
+}
+
+// The peer networking events of the hub. They run the same code as the legacy messages.
+void WebSocket::RegisterPeerHandlers()
+{
+	using namespace GenOnlineRealtime;
+
+	m_pHubSession->On<StartSignallingEvent>([this](const StartSignallingEvent& event)
+		{
+			if (event.preferred_port < 0 || event.preferred_port > 65535)
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] StartSignalling with an invalid port %d", event.preferred_port);
+				return;
+			}
+			StartPeerSignalling(event.lobby_id, event.user_id, (uint16_t)event.preferred_port, event.middleware_id);
+		});
+	m_pHubSession->On<DisconnectPeerEvent>([this](const DisconnectPeerEvent& event)
+		{
+			DisconnectPeer(event.lobby_id, event.user_id);
+		});
+	m_pHubSession->On<SignalEvent>([this](const SignalEvent& event)
+		{
+			std::vector<uint8_t> payload;
+			if (!DecodePeerPayload(event.payload, payload))
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Signal from %lld has an invalid payload", event.from);
+				return;
+			}
+			PushPendingSignal(event.from, std::move(payload));
+		});
+	m_pHubSession->On<AnticheatMessageEvent>([](const AnticheatMessageEvent& event)
+		{
+			std::vector<uint8_t> payload;
+			if (!DecodePeerPayload(event.payload, payload))
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] AnticheatMessage from %lld has an invalid payload", event.from);
+				return;
+			}
+			GenOnlinePluginHost::Anticheat::MessageArrived(event.from, payload.data(), payload.size());
+		});
+	m_pHubSession->On<AnticheatRegisterEvent>([](const AnticheatRegisterEvent& event)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Realtime AnticheatRegister for %lld and %s", event.user_id, event.middleware_id.c_str());
+			if (!GenOnlinePluginHost::Anticheat::RegisterPeer(event.middleware_id, event.user_id))
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] GenOnlinePluginHost::Anticheat::RegisterPeer failed");
+			}
+		});
+	m_pHubSession->On<AnticheatDeregisterEvent>([](const AnticheatDeregisterEvent& event)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Realtime AnticheatDeregister for %lld and %s", event.user_id, event.middleware_id.c_str());
+			if (!GenOnlinePluginHost::Anticheat::DeregisterPeer(event.middleware_id, event.user_id))
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] GenOnlinePluginHost::Anticheat::DeregisterPeer failed");
+			}
+		});
+	m_pHubSession->On<MeshCheckRequestEvent>([this](const MeshCheckRequestEvent& event)
+		{
+			MeshCheckResponseRequest response;
+			response.mesh_check_id = event.mesh_check_id;
+			response.attempt = event.attempt;
+			CollectMeshConnectivity(response.connected, response.connecting);
+			FireHub(response);
+		});
+	m_pHubSession->On<MeshCheckResultEvent>([](const MeshCheckResultEvent& event)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Mesh check %lld attempt %d: complete %d, reason %s, %d missing links", event.mesh_check_id, event.attempt, event.complete ? 1 : 0, event.reason.c_str(), (int)event.missing.size());
+		});
+	m_pHubSession->On<ProbeRequestEvent>([this](const ProbeRequestEvent& event)
+		{
+			if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[PROBE] GOT PROBE REQUEST: %s!", event.url.c_str());
+			}
+			else
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[PROBE] Received request");
+			}
+			GenOnlineServicesManager::GetInstance()->CaptureScreenshotForProbe(EScreenshotType::SCREENSHOT_TYPE_GAMEPLAY, event.url);
+
+			ProbeResponseRequest response;
+			response.probe_id = event.probe_id;
+			FireHub(response);
+		});
+	m_pHubSession->On<ModuleScanRequestEvent>([this](const ModuleScanRequestEvent& event)
+		{
+			ModuleScanResponseRequest response;
+			response.scan_id = event.scan_id;
+			for (const GOModuleInfo& module : GetLoadedModules())
+			{
+				ScannedModule entry;
+				entry.path = module.path;
+				entry.size = (int64_t)module.size;
+				response.modules.push_back(entry);
+			}
+			FireHub(response);
+		});
+}
+
 
 // The hub address must be a wss URL on the origin of the current service route.
 bool WebSocket::IsDestinationTrusted(const std::string& url) const
@@ -1758,35 +1953,7 @@ CURLcode WebSocket::ReceiveOneFrame()
 										// respond with our state
 										std::vector<int64_t> connectivityMap;
 										std::vector<int64_t> connectingMap;
-										NetworkMesh* pMesh = nullptr;
-										GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-										if (pLobbyInterface != nullptr)
-										{
-											pMesh = pLobbyInterface->GetNetworkMeshForLobby();
-										}
-
-										if (pMesh != nullptr)
-										{
-											for (auto& conn : pMesh->GetAllConnections())
-											{
-												int64_t userID = conn.first;
-												PlayerConnection& playerConn = conn.second;
-
-												if (playerConn.GetState() == EConnectionState::CONNECTED_DIRECT)
-												{
-													// NOTE: Useful for testing
-													//if (userID != 1)
-													{
-														connectivityMap.push_back(userID);
-													}
-												}
-												else if (playerConn.GetState() == EConnectionState::CONNECTING_DIRECT || playerConn.GetState() == EConnectionState::FINDING_ROUTE)
-												{
-													// still negotiating: lets the service hold off restarting it
-													connectingMap.push_back(userID);
-												}
-											}
-										}
+										CollectMeshConnectivity(connectivityMap, connectingMap);
 
 										// send response
 										nlohmann::json j;
@@ -1808,46 +1975,7 @@ CURLcode WebSocket::ReceiveOneFrame()
 
 										if (bParsed)
 										{
-											GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-											if (pLobbyInterface != nullptr)
-											{
-												// -1 while a join is still in flight, when this can legitimately arrive first
-												const int64_t currentLobbyID = pLobbyInterface->GetCurrentLobby().lobbyID;
-												if (currentLobbyID != -1 && currentLobbyID != startSignallingData.lobby_id)
-												{
-													NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Ignoring signalling for lobby %lld, we are in lobby %lld", startSignallingData.lobby_id, currentLobbyID);
-													break;
-												}
-
-												// TODO_NGMP: Better location for this
-												// When we find a new player, get their latest stats. Tooltip and loading screen need it, so we'll grab it now and then use cached data later since it cannot possibly change while in a lobby
-												GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
-												if (pStatsInterface != nullptr)
-												{
-													pStatsInterface->findPlayerStatsByID(startSignallingData.user_id, [=](bool bSuccess, PSPlayerStats stats)
-														{
-
-														}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
-												}
-
-												NetworkMesh* pMesh = pLobbyInterface->GetNetworkMeshForLobby();
-
-												if (pMesh != nullptr)
-												{
-                                                    pMesh->StartConnectionSignalling(startSignallingData.middleware_id.c_str(), startSignallingData.user_id, startSignallingData.preferred_port);
-                                                    NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Starting signalling with %lld (MWID: %s)", startSignallingData.user_id, startSignallingData.middleware_id.c_str());
-												}
-												else
-												{
-													NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Network mesh is null");
-													break;
-												}
-											}
-											else
-											{
-												NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Lobby interface is null");
-												break;
-											}
+											StartPeerSignalling(startSignallingData.lobby_id, startSignallingData.user_id, startSignallingData.preferred_port, startSignallingData.middleware_id);
 										}
 									}
 									break;
@@ -1891,34 +2019,7 @@ CURLcode WebSocket::ReceiveOneFrame()
 
 										if (bParsed)
 										{
-											GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-											if (pLobbyInterface != nullptr)
-											{
-												int64_t currentLobbyID = pLobbyInterface->GetCurrentLobby().lobbyID;
-
-												if (currentLobbyID == -1 || currentLobbyID != disconnectPlayerData.lobby_id)
-												{
-													NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_DISCONNECT_PLAYER] Lobby ID mismatch! Expected %lld, got %lld", currentLobbyID, disconnectPlayerData.lobby_id);
-													break;
-												}
-
-												NetworkMesh* pMesh = pLobbyInterface->GetNetworkMeshForLobby();
-
-												if (pMesh != nullptr)
-												{
-													pMesh->DisconnectUser(disconnectPlayerData.user_id);
-												}
-												else
-												{
-													NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_DISCONNECT_PLAYER] Network mesh is null");
-													break;
-												}
-											}
-											else
-											{
-												NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_DISCONNECT_PLAYER] Lobby interface is null");
-												break;
-											}
+											DisconnectPeer(disconnectPlayerData.lobby_id, disconnectPlayerData.user_id);
 										}
 									}
 									break;

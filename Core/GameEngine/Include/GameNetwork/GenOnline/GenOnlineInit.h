@@ -221,7 +221,8 @@ public:
 	void SendData_Signalling(int64_t targetUserID, std::vector<uint8_t> vecPayload);
 	void SendData_StartGame();
 
-	void SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> vecPayload);
+	// Returns false when the message could not be queued, so the caller can use the peer mesh instead.
+	bool SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> vecPayload);
 
 	void SendData_ChangeLobbyPassword(UnicodeString& strNewPassword);
 	void SendData_RemoveLobbyPassword();
@@ -291,6 +292,12 @@ private:
 	void OnHubReady();
 	void OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, const std::string& reason);
 	void RecoverHubSession();
+
+	// Shared by the legacy messages and the hub events.
+	void StartPeerSignalling(int64_t lobbyID, int64_t userID, uint16_t preferredPort, const std::string& middlewareID);
+	void DisconnectPeer(int64_t lobbyID, int64_t userID);
+	void CollectMeshConnectivity(std::vector<int64_t>& connected, std::vector<int64_t>& connecting);
+	void RegisterPeerHandlers();
 
 	bool m_bRealtimeHub = false;
 	std::unique_ptr<GenOnlineRealtime::HubSession> m_pHubSession;

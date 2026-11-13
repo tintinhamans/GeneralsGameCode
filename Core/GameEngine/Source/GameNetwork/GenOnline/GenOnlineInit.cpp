@@ -1654,6 +1654,17 @@ void WebSocket::SendData_LeaveNetworkRoom()
 
 void WebSocket::SendData_RequestSignalling(int64_t targetUserID)
 {
+	if (m_bRealtimeHub)
+	{
+		GenOnlineRealtime::RequestSignallingRequest request;
+		request.target_user_id = targetUserID;
+		if (!FireHub(request))
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] RequestSignalling for %lld dropped, the hub is not ready", targetUserID);
+		}
+		return;
+	}
+
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] SEND REQUEST SIGNALING!");
 	nlohmann::json j;
 	j["msg_id"] = EWebSocketMessageID::NETWORK_CONNECTION_CLIENT_REQUEST_SIGNALLING;
@@ -1664,6 +1675,18 @@ void WebSocket::SendData_RequestSignalling(int64_t targetUserID)
 
 void WebSocket::SendData_Signalling(int64_t targetUserID, std::vector<uint8_t> vecPayload)
 {
+	if (m_bRealtimeHub)
+	{
+		GenOnlineRealtime::SignalRequest request;
+		request.to = targetUserID;
+		request.payload = GenOnlineRealtime::EncodePeerPayload(vecPayload);
+		if (!FireHub(request))
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Signal for %lld dropped, the hub is not ready", targetUserID);
+		}
+		return;
+	}
+
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] SEND SIGNAL!");
 	nlohmann::json j;
 	j["msg_id"] = EWebSocketMessageID::NETWORK_SIGNAL;
@@ -1682,14 +1705,23 @@ void WebSocket::SendData_StartGame()
 }
 
 
-void WebSocket::SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> vecPayload)
+bool WebSocket::SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> vecPayload)
 {
+	if (m_bRealtimeHub)
+	{
+		GenOnlineRealtime::AnticheatMessageRequest request;
+		request.to = targetUserID;
+		request.payload = GenOnlineRealtime::EncodePeerPayload(vecPayload);
+		return FireHub(request);
+	}
+
     nlohmann::json j;
     j["msg_id"] = EWebSocketMessageID::ANTICHEAT_MESSAGE;
     j["target_user_id"] = targetUserID;
     j["payload"] = vecPayload;
     std::string strBody = j.dump();
     Send(strBody.c_str());
+    return true;
 }
 
 void WebSocket::SendData_SubscribeRealtimeUpdates()

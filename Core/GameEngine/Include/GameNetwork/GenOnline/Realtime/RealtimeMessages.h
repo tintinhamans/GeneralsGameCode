@@ -1112,6 +1112,95 @@ struct RequestSignallingRequest : WireObject
 	}
 };
 
+// Encodes a peer payload as standard padded base64.
+inline std::string EncodePeerPayload(const std::vector<uint8_t>& data)
+{
+	static const char* const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	std::string out;
+	out.reserve((data.size() + 2) / 3 * 4);
+	for (size_t i = 0; i < data.size(); i += 3)
+	{
+		const size_t remaining = data.size() - i;
+		uint32_t n = uint32_t(data[i]) << 16;
+		if (remaining > 1)
+		{
+			n |= uint32_t(data[i + 1]) << 8;
+		}
+		if (remaining > 2)
+		{
+			n |= uint32_t(data[i + 2]);
+		}
+		out += ALPHABET[(n >> 18) & 63];
+		out += ALPHABET[(n >> 12) & 63];
+		out += remaining > 1 ? ALPHABET[(n >> 6) & 63] : '=';
+		out += remaining > 2 ? ALPHABET[n & 63] : '=';
+	}
+	return out;
+}
+
+// Decodes standard padded base64. Returns false for any other text.
+inline bool DecodePeerPayload(const std::string& text, std::vector<uint8_t>& data)
+{
+	data.clear();
+	if (text.size() % 4 != 0)
+	{
+		return false;
+	}
+	data.reserve(text.size() / 4 * 3);
+	for (size_t i = 0; i < text.size(); i += 4)
+	{
+		const bool bLast = i + 4 == text.size();
+		uint32_t n = 0;
+		int padding = 0;
+		for (size_t j = 0; j < 4; ++j)
+		{
+			const char c = text[i + j];
+			int value = -1;
+			if (c >= 'A' && c <= 'Z')
+			{
+				value = c - 'A';
+			}
+			else if (c >= 'a' && c <= 'z')
+			{
+				value = c - 'a' + 26;
+			}
+			else if (c >= '0' && c <= '9')
+			{
+				value = c - '0' + 52;
+			}
+			else if (c == '+')
+			{
+				value = 62;
+			}
+			else if (c == '/')
+			{
+				value = 63;
+			}
+			else if (c == '=' && bLast && j >= 2)
+			{
+				value = 0;
+				++padding;
+			}
+			if (value < 0 || (padding > 0 && c != '='))
+			{
+				data.clear();
+				return false;
+			}
+			n = (n << 6) | uint32_t(value);
+		}
+		data.push_back(uint8_t(n >> 16));
+		if (padding < 2)
+		{
+			data.push_back(uint8_t(n >> 8));
+		}
+		if (padding < 1)
+		{
+			data.push_back(uint8_t(n));
+		}
+	}
+	return true;
+}
+
 // Payloads are base64 strings.
 struct PeerPayloadRequest : WireObject
 {
