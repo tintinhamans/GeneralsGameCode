@@ -100,6 +100,10 @@ scripts/wnd_sources copy, if any, is only kept for reference. All rects are in 8
 - Shell copies: SHELL_COPIES layouts (GOShellQuitMessageBox.wnd, the quit prompt of the main menu) are built from the
   input of an in-match menu (QuitMessageBox.wnd) as menus: GO header templates, kit colours and a theme copy. Their
   window names stay the source's, so the code finds them; the engine opens the copy only while the shell is active.
+- GenOnline copies: last, the online layouts in GENONLINE_LAYOUTS move to their GenOnline names and their window callbacks
+  take the GenOnline names in GENONLINE_CALLBACKS, which the GenOnline menus in Core register. No layout is written at the
+  retail path of an online layout, so the GameSpy menus open the retail WOL layouts with the retail callbacks. Window names
+  stay, so the GenOnline menus find their windows under the retail names.
 
 A move never creates an overlap with a sibling and never pushes a window or its children further
 out of their parent; such moves are skipped and logged. Children move with their window. The rules
@@ -226,6 +230,47 @@ IN_MATCH_MENUS = {
 SHELL_COPIES = {
     "Window/Menus/GOShellQuitMessageBox.wnd": "Window/Menus/QuitMessageBox.wnd",
 }
+# the online layouts the GenOnline menus open under their own names, with the GenOnline window callbacks
+GENONLINE_LAYOUTS = {
+    "Window/Menus/DownloadMenu.wnd": "Window/Menus/GenOnlineDownloadMenu.wnd",
+    "Window/Menus/GameSpyGameOptionsMenu.wnd": "Window/Menus/GenOnlineGameOptionsMenu.wnd",
+    "Window/Menus/GameSpyLoginProfile.wnd": "Window/Menus/GenOnlineLoginProfile.wnd",
+    "Window/Menus/GameSpyLoginQuick.wnd": "Window/Menus/GenOnlineLoginQuick.wnd",
+    "Window/Menus/PopupBuddyListNotification.wnd": "Window/Menus/GenOnlinePopupBuddyListNotification.wnd",
+    "Window/Menus/PopupHostGame.wnd": "Window/Menus/GenOnlinePopupHostGame.wnd",
+    "Window/Menus/PopupJoinGame.wnd": "Window/Menus/GenOnlinePopupJoinGame.wnd",
+    "Window/Menus/PopupPlayerInfo.wnd": "Window/Menus/GenOnlinePopupPlayerInfo.wnd",
+    "Window/Menus/RCBuddiesMenu.wnd": "Window/Menus/GenOnlineRCBuddiesMenu.wnd",
+    "Window/Menus/RCBuddyRequestMenu.wnd": "Window/Menus/GenOnlineRCBuddyRequestMenu.wnd",
+    "Window/Menus/RCLocalPlayerMenu.wnd": "Window/Menus/GenOnlineRCLocalPlayerMenu.wnd",
+    "Window/Menus/RCNonBuddiesMenu.wnd": "Window/Menus/GenOnlineRCNonBuddiesMenu.wnd",
+    "Window/Menus/RCNoProfileMenu.wnd": "Window/Menus/GenOnlineRCNoProfileMenu.wnd",
+    "Window/Menus/WOLBuddyOverlay.wnd": "Window/Menus/GenOnlineBuddyOverlay.wnd",
+    "Window/Menus/WOLCustomLobby.wnd": "Window/Menus/GenOnlineCustomLobby.wnd",
+    "Window/Menus/WOLMapSelectMenu.wnd": "Window/Menus/GenOnlineMapSelectMenu.wnd",
+    "Window/Menus/WOLQuickMatchMenu.wnd": "Window/Menus/GenOnlineQuickMatchMenu.wnd",
+    "Window/Menus/WOLWelcomeMenu.wnd": "Window/Menus/GenOnlineWelcomeMenu.wnd",
+}
+# retail callback name prefix -> GenOnline prefix, applied to the window callbacks of the GENONLINE_LAYOUTS
+GENONLINE_CALLBACKS = {
+    "DownloadMenu": "GenOnlineDownloadMenu",
+    "GameSpyPlayerInfoOverlay": "GenOnlinePlayerInfoOverlay",
+    "PopupBuddyNotification": "GenOnlinePopupBuddyNotification",
+    "PopupHostGame": "GenOnlinePopupHostGame",
+    "PopupJoinGame": "GenOnlinePopupJoinGame",
+    "WOLBuddyOverlay": "GenOnlineBuddyOverlay",
+    "WOLGameSetupMenu": "GenOnlineGameSetupMenu",
+    "WOLLobbyMenu": "GenOnlineLobbyMenu",
+    "WOLLoginMenu": "GenOnlineLoginMenu",
+    "WOLMapSelectMenu": "GenOnlineMapSelectMenu",
+    "WOLQuickMatchMenu": "GenOnlineQuickMatchMenu",
+    "WOLWelcomeMenu": "GenOnlineWelcomeMenu",
+}
+GENONLINE_CALLBACK_RE = re.compile(
+    r'^(?P<head>[ \t]*(?:LAYOUTINIT|LAYOUTUPDATE|LAYOUTSHUTDOWN)[ \t]*=[ \t]*|[ \t]*\w+CALLBACK[ \t]*=[ \t]*")'
+    r"(?P<name>[A-Za-z_]\w*)",
+    re.M,
+)
 # retail header templates; the menu layouts use the GO copies in Data/GeneralsOnline/HeaderTemplate.ini instead,
 # so a mod that replaces Data/<language>/HeaderTemplate.ini cannot resize the GO menus
 GO_TEMPLATE_PREFIX = "GO"
@@ -1924,7 +1969,37 @@ def build(retail):
             continue
         out, info = align(remap_colors(text), name)
         results.append((name, text, finish(out, name), info))
-    return results
+    return [genonline_copy(r) for r in results]
+
+
+def genonline_callbacks(text):
+    """The layout with its retail window callbacks named after the GenOnline menus."""
+    def sub(m):
+        name = m.group("name")
+        for retail, genonline in GENONLINE_CALLBACKS.items():
+            if name.startswith(retail):
+                return m.group("head") + genonline + name[len(retail):]
+        return m.group(0)
+    return GENONLINE_CALLBACK_RE.sub(sub, text)
+
+
+def shipped_name(name):
+    """The path a layout ships at: its GenOnline name for an online layout, else its own."""
+    return next((v for k, v in GENONLINE_LAYOUTS.items() if k.lower() == name.lower()), name)
+
+
+def retail_name(name):
+    """The retail path of a shipped layout, the inverse of shipped_name."""
+    return next((k for k, v in GENONLINE_LAYOUTS.items() if v.lower() == name.lower()), name)
+
+
+def genonline_copy(result):
+    """An online layout moves to its GenOnline name with the GenOnline callbacks. Every other layout stays."""
+    name, text, out, info = result
+    copy = next((v for k, v in GENONLINE_LAYOUTS.items() if k.lower() == name.lower()), None)
+    if copy is None:
+        return result
+    return copy, text, genonline_callbacks(out), info
 
 
 RULE_NAMES = ("frame", "edges", "labels", "spacing", "insets", "gaps", "columns", "pairs", "titles", "override")

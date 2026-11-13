@@ -1,0 +1,1717 @@
+FILE_VERSION = 2;
+STARTLAYOUTBLOCK
+  LAYOUTINIT = GenOnlineWelcomeMenuInit;
+  LAYOUTUPDATE = GenOnlineWelcomeMenuUpdate;
+  LAYOUTSHUTDOWN = GenOnlineWelcomeMenuShutdown;
+ENDLAYOUTBLOCK
+WINDOW
+  WINDOWTYPE = USER;
+  SCREENRECT = UPPERLEFT: 0 0,
+               BOTTOMRIGHT: 800 600,
+               CREATIONRESOLUTION: 800 600;
+  NAME = "WOLWelcomeMenu.wnd:WOLWelcomeMenuParent";
+  STATUS = ENABLED+IMAGE+NOINPUT;
+  STYLE = USER;
+  SYSTEMCALLBACK = "GenOnlineWelcomeMenuSystem";
+  INPUTCALLBACK = "GenOnlineWelcomeMenuInput";
+  TOOLTIPCALLBACK = "[None]";
+  DRAWCALLBACK = "[None]";
+  FONT = NAME: "Times New Roman", SIZE: 14, BOLD: 0;
+  HEADERTEMPLATE = "[NONE]";
+  TOOLTIPDELAY = -1;
+  TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  242 237 224 255,
+              DISABLED: 242 237 224 255, DISABLEDBORDER: 242 237 224 255,
+              HILITE:   242 237 224 255, HILITEBORDER:   242 237 224 255;
+  ENABLEDDRAWDATA = IMAGE: MainMenuRuler, COLOR: 2 2 2 255, BORDERCOLOR: 242 237 224 255,
+                    IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                    IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                    IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                    IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                    IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                    IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                    IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                    IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
+  DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 64 64 64 255, BORDERCOLOR: 242 237 224 255,
+                     IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                     IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                     IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                     IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                     IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                     IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                     IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                     IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
+  HILITEDRAWDATA = IMAGE: NoImage, COLOR: 227 186 108 255, BORDERCOLOR: 242 237 224 255,
+                   IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                   IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                   IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                   IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                   IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                   IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                   IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                   IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
+  CHILD
+  WINDOW
+    WINDOWTYPE = USER;
+    SCREENRECT = UPPERLEFT: 41 41,
+                 BOTTOMRIGHT: 759 559,
+                 CREATIONRESOLUTION: 800 600;
+    NAME = "WOLWelcomeMenu.wnd:GadgetParent";
+    STATUS = ENABLED;
+    STYLE = USER;
+    SYSTEMCALLBACK = "PassMessagesToParentSystem";
+    INPUTCALLBACK = "[None]";
+    TOOLTIPCALLBACK = "[None]";
+    DRAWCALLBACK = "[None]";
+    FONT = NAME: "Times New Roman", SIZE: 14, BOLD: 0;
+    HEADERTEMPLATE = "[NONE]";
+    TOOLTIPDELAY = -1;
+    TEXTCOLOR = ENABLED:  242 237 224 0, ENABLEDBORDER:  242 237 224 0,
+                DISABLED: 242 237 224 0, DISABLEDBORDER: 242 237 224 0,
+                HILITE:   242 237 224 0, HILITEBORDER:   242 237 224 0;
+    ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 7 9 11 190, BORDERCOLOR: 191 144 72 255,
+                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+    DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 7 9 11 255, BORDERCOLOR: 0 0 0 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+    HILITEDRAWDATA = IMAGE: NoImage, COLOR: 22 29 33 255, BORDERCOLOR: 227 186 108 255,
+                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+    CHILD
+    WINDOW
+      WINDOWTYPE = USER;
+      SCREENRECT = UPPERLEFT: 41 80,
+                   BOTTOMRIGHT: 759 81,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "WOLWelcomeMenu.wnd:";
+      STATUS = ENABLED;
+      STYLE = USER;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Times New Roman", SIZE: 14, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  242 237 224 0, ENABLEDBORDER:  242 237 224 0,
+                  DISABLED: 242 237 224 0, DISABLEDBORDER: 242 237 224 0,
+                  HILITE:   242 237 224 0, HILITEBORDER:   242 237 224 0;
+      ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 9 12 14 255, BORDERCOLOR: 191 144 72 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 9 12 14 255, BORDERCOLOR: 0 0 0 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 22 29 33 255, BORDERCOLOR: 227 186 108 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = USER;
+      SCREENRECT = UPPERLEFT: 56 85,
+                   BOTTOMRIGHT: 756 555,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "WOLWelcomeMenu.wnd:";
+      STATUS = ENABLED;
+      STYLE = USER;
+      SYSTEMCALLBACK = "PassMessagesToParentSystem";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Times New Roman", SIZE: 14, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  242 237 224 0, ENABLEDBORDER:  242 237 224 0,
+                  DISABLED: 242 237 224 0, DISABLEDBORDER: 242 237 224 0,
+                  HILITE:   242 237 224 0, HILITEBORDER:   242 237 224 0;
+      ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 2 2 2 0, BORDERCOLOR: 0 0 0 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 13 21 27 255, BORDERCOLOR: 0 0 0 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 22 29 33 255, BORDERCOLOR: 227 186 108 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      CHILD
+      WINDOW
+        WINDOWTYPE = PUSHBUTTON;
+        SCREENRECT = UPPERLEFT: 560 519,
+                     BOTTOMRIGHT: 732 555,
+                     CREATIONRESOLUTION: 800 600;
+        NAME = "WOLWelcomeMenu.wnd:ButtonBack";
+        STATUS = ENABLED+IMAGE+NOFOCUS;
+        STYLE = PUSHBUTTON+MOUSETRACK;
+        SYSTEMCALLBACK = "[None]";
+        INPUTCALLBACK = "[None]";
+        TOOLTIPCALLBACK = "[None]";
+        DRAWCALLBACK = "[None]";
+        FONT = NAME: "Generals", SIZE: 15, BOLD: 0;
+        HEADERTEMPLATE = "GOMainButton";
+        TOOLTIPDELAY = -1;
+        TEXT = "GUI:GotoMainMenu";
+        TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                    DISABLED: 143 137 124 255, DISABLEDBORDER: 13 21 27 255,
+                    HILITE:   227 186 108 255, HILITEBORDER:   0 2 0 255;
+        ENABLEDDRAWDATA = IMAGE: Buttons-Left, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
+                          IMAGE: NoImage, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: Buttons-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: Buttons-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        DISABLEDDRAWDATA = IMAGE: Buttons-Disabled-Left, COLOR: 128 128 128 255, BORDERCOLOR: 143 137 124 255,
+                           IMAGE: NoImage, COLOR: 143 137 124 255, BORDERCOLOR: 128 128 128 255,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: Buttons-Disabled-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: Buttons-Disabled-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        HILITEDRAWDATA = IMAGE: Buttons-HiLite-Left, COLOR: 227 186 108 255, BORDERCOLOR: 59 60 52 255,
+                         IMAGE: Buttons-Pushed-Left, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-Pushed-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-Pushed-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-HiLite-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-HiLite-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      END
+      CHILD
+      WINDOW
+        WINDOWTYPE = PUSHBUTTON;
+        SCREENRECT = UPPERLEFT: 560 256,
+                     BOTTOMRIGHT: 736 292,
+                     CREATIONRESOLUTION: 800 600;
+        NAME = "WOLWelcomeMenu.wnd:ButtonOptions";
+        STATUS = ENABLED+IMAGE+NOFOCUS;
+        STYLE = PUSHBUTTON+MOUSETRACK;
+        SYSTEMCALLBACK = "[None]";
+        INPUTCALLBACK = "[None]";
+        TOOLTIPCALLBACK = "[None]";
+        DRAWCALLBACK = "[None]";
+        FONT = NAME: "Generals", SIZE: 15, BOLD: 0;
+        HEADERTEMPLATE = "GOMainButton";
+        TOOLTIPDELAY = -1;
+        TEXT = "GUI:Options";
+        TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                    DISABLED: 143 137 124 255, DISABLEDBORDER: 13 21 27 255,
+                    HILITE:   227 186 108 255, HILITEBORDER:   0 2 0 255;
+        ENABLEDDRAWDATA = IMAGE: Buttons-Left, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
+                          IMAGE: NoImage, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: Buttons-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: Buttons-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        DISABLEDDRAWDATA = IMAGE: Buttons-Disabled-Left, COLOR: 128 128 128 255, BORDERCOLOR: 143 137 124 255,
+                           IMAGE: NoImage, COLOR: 143 137 124 255, BORDERCOLOR: 128 128 128 255,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: Buttons-Disabled-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: Buttons-Disabled-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        HILITEDRAWDATA = IMAGE: Buttons-HiLite-Left, COLOR: 227 186 108 255, BORDERCOLOR: 59 60 52 255,
+                         IMAGE: Buttons-Pushed-Left, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-Pushed-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-Pushed-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-HiLite-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-HiLite-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      END
+      CHILD
+      WINDOW
+        WINDOWTYPE = PUSHBUTTON;
+        SCREENRECT = UPPERLEFT: 560 216,
+                     BOTTOMRIGHT: 736 252,
+                     CREATIONRESOLUTION: 800 600;
+        NAME = "WOLWelcomeMenu.wnd:ButtonBuddies";
+        STATUS = ENABLED+IMAGE+NOFOCUS;
+        STYLE = PUSHBUTTON+MOUSETRACK;
+        SYSTEMCALLBACK = "[None]";
+        INPUTCALLBACK = "[None]";
+        TOOLTIPCALLBACK = "[None]";
+        DRAWCALLBACK = "[None]";
+        FONT = NAME: "Generals", SIZE: 15, BOLD: 0;
+        HEADERTEMPLATE = "GOMainButton";
+        TOOLTIPDELAY = -1;
+        TEXT = "GUI:Buddies";
+        TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                    DISABLED: 143 137 124 255, DISABLEDBORDER: 13 21 27 255,
+                    HILITE:   227 186 108 255, HILITEBORDER:   0 2 0 255;
+        ENABLEDDRAWDATA = IMAGE: Buttons-Left, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
+                          IMAGE: NoImage, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: Buttons-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: Buttons-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        DISABLEDDRAWDATA = IMAGE: Buttons-Disabled-Left, COLOR: 128 128 128 255, BORDERCOLOR: 143 137 124 255,
+                           IMAGE: NoImage, COLOR: 143 137 124 255, BORDERCOLOR: 128 128 128 255,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: Buttons-Disabled-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: Buttons-Disabled-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        HILITEDRAWDATA = IMAGE: Buttons-HiLite-Left, COLOR: 227 186 108 255, BORDERCOLOR: 59 60 52 255,
+                         IMAGE: Buttons-Pushed-Left, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-Pushed-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-Pushed-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-HiLite-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-HiLite-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      END
+      CHILD
+      WINDOW
+        WINDOWTYPE = PUSHBUTTON;
+        SCREENRECT = UPPERLEFT: 560 176,
+                     BOTTOMRIGHT: 736 212,
+                     CREATIONRESOLUTION: 800 600;
+        NAME = "WOLWelcomeMenu.wnd:ButtonMyInfo";
+        STATUS = ENABLED+IMAGE+NOFOCUS;
+        STYLE = PUSHBUTTON+MOUSETRACK;
+        SYSTEMCALLBACK = "[None]";
+        INPUTCALLBACK = "[None]";
+        TOOLTIPCALLBACK = "[None]";
+        DRAWCALLBACK = "[None]";
+        FONT = NAME: "Generals", SIZE: 15, BOLD: 0;
+        HEADERTEMPLATE = "GOMainButton";
+        TOOLTIPDELAY = -1;
+        TEXT = "GUI:MyInfo";
+        TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                    DISABLED: 143 137 124 255, DISABLEDBORDER: 13 21 27 255,
+                    HILITE:   227 186 108 255, HILITEBORDER:   0 2 0 255;
+        ENABLEDDRAWDATA = IMAGE: Buttons-Left, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
+                          IMAGE: NoImage, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: Buttons-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: Buttons-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        DISABLEDDRAWDATA = IMAGE: Buttons-Disabled-Left, COLOR: 128 128 128 255, BORDERCOLOR: 143 137 124 255,
+                           IMAGE: NoImage, COLOR: 143 137 124 255, BORDERCOLOR: 128 128 128 255,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: Buttons-Disabled-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: Buttons-Disabled-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        HILITEDRAWDATA = IMAGE: Buttons-HiLite-Left, COLOR: 227 186 108 255, BORDERCOLOR: 59 60 52 255,
+                         IMAGE: Buttons-Pushed-Left, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-Pushed-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-Pushed-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-HiLite-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-HiLite-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      END
+      CHILD
+      WINDOW
+        WINDOWTYPE = PUSHBUTTON;
+        SCREENRECT = UPPERLEFT: 560 136,
+                     BOTTOMRIGHT: 736 172,
+                     CREATIONRESOLUTION: 800 600;
+        NAME = "WOLWelcomeMenu.wnd:ButtonCustomMatch";
+        STATUS = ENABLED+IMAGE+NOFOCUS;
+        STYLE = PUSHBUTTON+MOUSETRACK;
+        SYSTEMCALLBACK = "[None]";
+        INPUTCALLBACK = "[None]";
+        TOOLTIPCALLBACK = "[None]";
+        DRAWCALLBACK = "[None]";
+        FONT = NAME: "Generals", SIZE: 15, BOLD: 0;
+        HEADERTEMPLATE = "GOMainButton";
+        TOOLTIPDELAY = -1;
+        TEXT = "GUI:CustomMatch";
+        TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                    DISABLED: 143 137 124 255, DISABLEDBORDER: 13 21 27 255,
+                    HILITE:   227 186 108 255, HILITEBORDER:   0 2 0 255;
+        ENABLEDDRAWDATA = IMAGE: Buttons-Left, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
+                          IMAGE: NoImage, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: Buttons-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: Buttons-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        DISABLEDDRAWDATA = IMAGE: Buttons-Disabled-Left, COLOR: 128 128 128 255, BORDERCOLOR: 143 137 124 255,
+                           IMAGE: NoImage, COLOR: 143 137 124 255, BORDERCOLOR: 128 128 128 255,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: Buttons-Disabled-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: Buttons-Disabled-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        HILITEDRAWDATA = IMAGE: Buttons-HiLite-Left, COLOR: 227 186 108 255, BORDERCOLOR: 59 60 52 255,
+                         IMAGE: Buttons-Pushed-Left, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-Pushed-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-Pushed-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-HiLite-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-HiLite-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      END
+      CHILD
+      WINDOW
+        WINDOWTYPE = PUSHBUTTON;
+        SCREENRECT = UPPERLEFT: 560 96,
+                     BOTTOMRIGHT: 736 132,
+                     CREATIONRESOLUTION: 800 600;
+        NAME = "WOLWelcomeMenu.wnd:ButtonQuickMatch";
+        STATUS = ENABLED+IMAGE+NOFOCUS;
+        STYLE = PUSHBUTTON+MOUSETRACK;
+        SYSTEMCALLBACK = "[None]";
+        INPUTCALLBACK = "[None]";
+        TOOLTIPCALLBACK = "[None]";
+        DRAWCALLBACK = "[None]";
+        FONT = NAME: "Generals", SIZE: 15, BOLD: 0;
+        HEADERTEMPLATE = "GOMainButton";
+        TOOLTIPDELAY = -1;
+        TEXT = "GUI:QuickMatch";
+        TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                    DISABLED: 143 137 124 255, DISABLEDBORDER: 13 21 27 255,
+                    HILITE:   227 186 108 255, HILITEBORDER:   0 2 0 255;
+        ENABLEDDRAWDATA = IMAGE: Buttons-Left, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
+                          IMAGE: NoImage, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: Buttons-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: Buttons-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        DISABLEDDRAWDATA = IMAGE: Buttons-Disabled-Left, COLOR: 128 128 128 255, BORDERCOLOR: 143 137 124 255,
+                           IMAGE: NoImage, COLOR: 143 137 124 255, BORDERCOLOR: 128 128 128 255,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: Buttons-Disabled-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: Buttons-Disabled-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        HILITEDRAWDATA = IMAGE: Buttons-HiLite-Left, COLOR: 227 186 108 255, BORDERCOLOR: 59 60 52 255,
+                         IMAGE: Buttons-Pushed-Left, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-Pushed-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-Pushed-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-HiLite-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-HiLite-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      END
+      ENDALLCHILDREN
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = USER;
+      SCREENRECT = UPPERLEFT: 56 311,
+                   BOTTOMRIGHT: 736 511,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "WOLWelcomeMenu.wnd:PlayerInfoParent";
+      STATUS = ENABLED+SEE_THRU;
+      STYLE = USER;
+      SYSTEMCALLBACK = "PassMessagesToParentSystem";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "W3DNoDraw";
+      FONT = NAME: "Times New Roman", SIZE: 14, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  242 237 224 0, ENABLEDBORDER:  242 237 224 0,
+                  DISABLED: 242 237 224 0, DISABLEDBORDER: 242 237 224 0,
+                  HILITE:   242 237 224 0, HILITEBORDER:   242 237 224 0;
+      ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 0 254 255 255, BORDERCOLOR: 0 0 0 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 13 21 27 255, BORDERCOLOR: 0 0 0 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 22 29 33 255, BORDERCOLOR: 0 0 0 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      CHILD
+      WINDOW
+        WINDOWTYPE = USER;
+        SCREENRECT = UPPERLEFT: 199 339,
+                     BOTTOMRIGHT: 727 495,
+                     CREATIONRESOLUTION: 800 600;
+        NAME = "WOLWelcomeMenu.wnd:CommunityInfoParent";
+        STATUS = ENABLED;
+        STYLE = USER;
+        SYSTEMCALLBACK = "[None]";
+        INPUTCALLBACK = "[None]";
+        TOOLTIPCALLBACK = "[None]";
+        DRAWCALLBACK = "[None]";
+        FONT = NAME: "Times New Roman", SIZE: 14, BOLD: 0;
+        HEADERTEMPLATE = "[NONE]";
+        TOOLTIPTEXT = "TOOLTIP:Community";
+        TOOLTIPDELAY = -1;
+        TEXTCOLOR = ENABLED:  242 237 224 0, ENABLEDBORDER:  242 237 224 0,
+                    DISABLED: 242 237 224 0, DISABLEDBORDER: 242 237 224 0,
+                    HILITE:   242 237 224 0, HILITEBORDER:   242 237 224 0;
+        ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 9 12 14 128, BORDERCOLOR: 191 144 72 255,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 7 9 11 255, BORDERCOLOR: 44 59 63 255,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        HILITEDRAWDATA = IMAGE: NoImage, COLOR: 22 29 33 255, BORDERCOLOR: 227 186 108 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        CHILD
+        WINDOW
+          WINDOWTYPE = CHECKBOX;
+          SCREENRECT = UPPERLEFT: 220 349,
+                       BOTTOMRIGHT: 324 389,
+                       CREATIONRESOLUTION: 800 600;
+          NAME = "WOLWelcomeMenu.wnd:PercentUSA";
+          STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+          STYLE = CHECKBOX;
+          SYSTEMCALLBACK = "[None]";
+          INPUTCALLBACK = "[None]";
+          TOOLTIPCALLBACK = "[None]";
+          DRAWCALLBACK = "[None]";
+          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
+          HEADERTEMPLATE = "[NONE]";
+          TOOLTIPTEXT = "SIDE:America";
+          TOOLTIPDELAY = -1;
+          TEXT = "GUI:WinPercent";
+          TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                      DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                      HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+          ENABLEDDRAWDATA = IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USAGeneral_slvr, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          DISABLEDDRAWDATA = IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          HILITEDRAWDATA = IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        END
+        CHILD
+        WINDOW
+          WINDOWTYPE = CHECKBOX;
+          SCREENRECT = UPPERLEFT: 353 349,
+                       BOTTOMRIGHT: 457 389,
+                       CREATIONRESOLUTION: 800 600;
+          NAME = "WOLWelcomeMenu.wnd:PercentAmericaSuperWeaponGeneral";
+          STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+          STYLE = CHECKBOX;
+          SYSTEMCALLBACK = "[None]";
+          INPUTCALLBACK = "[None]";
+          TOOLTIPCALLBACK = "[None]";
+          DRAWCALLBACK = "[None]";
+          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
+          HEADERTEMPLATE = "[NONE]";
+          TOOLTIPTEXT = "SIDE:AmericaSuperWeaponGeneral";
+          TOOLTIPDELAY = -1;
+          TEXT = "GUI:WinPercent";
+          TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  1 0 0 255,
+                      DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                      HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+          ENABLEDDRAWDATA = IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: SuperWGeneral_slvr, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          DISABLEDDRAWDATA = IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          HILITEDRAWDATA = IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Superweapon, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        END
+        CHILD
+        WINDOW
+          WINDOWTYPE = CHECKBOX;
+          SCREENRECT = UPPERLEFT: 486 349,
+                       BOTTOMRIGHT: 590 389,
+                       CREATIONRESOLUTION: 800 600;
+          NAME = "WOLWelcomeMenu.wnd:PercentAmericaLaserGeneral";
+          STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+          STYLE = CHECKBOX;
+          SYSTEMCALLBACK = "[None]";
+          INPUTCALLBACK = "[None]";
+          TOOLTIPCALLBACK = "[None]";
+          DRAWCALLBACK = "[None]";
+          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
+          HEADERTEMPLATE = "[NONE]";
+          TOOLTIPTEXT = "SIDE:AmericaLaserGeneral";
+          TOOLTIPDELAY = -1;
+          TEXT = "GUI:WinPercent";
+          TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  1 0 0 255,
+                      DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                      HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+          ENABLEDDRAWDATA = IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: LaserGeneral_slvr, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          DISABLEDDRAWDATA = IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          HILITEDRAWDATA = IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Laser, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        END
+        CHILD
+        WINDOW
+          WINDOWTYPE = CHECKBOX;
+          SCREENRECT = UPPERLEFT: 619 349,
+                       BOTTOMRIGHT: 723 389,
+                       CREATIONRESOLUTION: 800 600;
+          NAME = "WOLWelcomeMenu.wnd:PercentAmericaAirForceGeneral";
+          STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+          STYLE = CHECKBOX;
+          SYSTEMCALLBACK = "[None]";
+          INPUTCALLBACK = "[None]";
+          TOOLTIPCALLBACK = "[None]";
+          DRAWCALLBACK = "[None]";
+          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
+          HEADERTEMPLATE = "[NONE]";
+          TOOLTIPTEXT = "SIDE:AmericaAirForceGeneral";
+          TOOLTIPDELAY = -1;
+          TEXT = "GUI:WinPercent";
+          TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  1 0 0 255,
+                      DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                      HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+          ENABLEDDRAWDATA = IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: AirGeneral_slvr, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          DISABLEDDRAWDATA = IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          HILITEDRAWDATA = IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: USA_Air, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        END
+        CHILD
+        WINDOW
+          WINDOWTYPE = CHECKBOX;
+          SCREENRECT = UPPERLEFT: 220 397,
+                       BOTTOMRIGHT: 324 437,
+                       CREATIONRESOLUTION: 800 600;
+          NAME = "WOLWelcomeMenu.wnd:PercentChina";
+          STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+          STYLE = CHECKBOX;
+          SYSTEMCALLBACK = "[None]";
+          INPUTCALLBACK = "[None]";
+          TOOLTIPCALLBACK = "[None]";
+          DRAWCALLBACK = "[None]";
+          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
+          HEADERTEMPLATE = "[NONE]";
+          TOOLTIPTEXT = "SIDE:China";
+          TOOLTIPDELAY = -1;
+          TEXT = "GUI:WinPercent";
+          TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                      DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                      HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+          ENABLEDDRAWDATA = IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: ChinaGeneral_slvr, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          DISABLEDDRAWDATA = IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          HILITEDRAWDATA = IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        END
+        CHILD
+        WINDOW
+          WINDOWTYPE = CHECKBOX;
+          SCREENRECT = UPPERLEFT: 353 397,
+                       BOTTOMRIGHT: 457 437,
+                       CREATIONRESOLUTION: 800 600;
+          NAME = "WOLWelcomeMenu.wnd:PercentChinaTankGeneral";
+          STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+          STYLE = CHECKBOX;
+          SYSTEMCALLBACK = "[None]";
+          INPUTCALLBACK = "[None]";
+          TOOLTIPCALLBACK = "[None]";
+          DRAWCALLBACK = "[None]";
+          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
+          HEADERTEMPLATE = "[NONE]";
+          TOOLTIPTEXT = "SIDE:ChinaTankGeneral";
+          TOOLTIPDELAY = -1;
+          TEXT = "GUI:WinPercent";
+          TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  1 0 0 255,
+                      DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                      HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+          ENABLEDDRAWDATA = IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: TankGeneral_slvr, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          DISABLEDDRAWDATA = IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          HILITEDRAWDATA = IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Tank, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        END
+        CHILD
+        WINDOW
+          WINDOWTYPE = CHECKBOX;
+          SCREENRECT = UPPERLEFT: 486 397,
+                       BOTTOMRIGHT: 590 437,
+                       CREATIONRESOLUTION: 800 600;
+          NAME = "WOLWelcomeMenu.wnd:PercentChinaInfantryGeneral";
+          STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+          STYLE = CHECKBOX;
+          SYSTEMCALLBACK = "[None]";
+          INPUTCALLBACK = "[None]";
+          TOOLTIPCALLBACK = "[None]";
+          DRAWCALLBACK = "[None]";
+          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
+          HEADERTEMPLATE = "[NONE]";
+          TOOLTIPTEXT = "SIDE:ChinaInfantryGeneral";
+          TOOLTIPDELAY = -1;
+          TEXT = "GUI:WinPercent";
+          TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  1 0 0 255,
+                      DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                      HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+          ENABLEDDRAWDATA = IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: InfantryGeneral_slvr, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          DISABLEDDRAWDATA = IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          HILITEDRAWDATA = IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Infantry, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        END
+        CHILD
+        WINDOW
+          WINDOWTYPE = CHECKBOX;
+          SCREENRECT = UPPERLEFT: 619 397,
+                       BOTTOMRIGHT: 723 437,
+                       CREATIONRESOLUTION: 800 600;
+          NAME = "WOLWelcomeMenu.wnd:PercentChinaNukeGeneral";
+          STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+          STYLE = CHECKBOX;
+          SYSTEMCALLBACK = "[None]";
+          INPUTCALLBACK = "[None]";
+          TOOLTIPCALLBACK = "[None]";
+          DRAWCALLBACK = "[None]";
+          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
+          HEADERTEMPLATE = "[NONE]";
+          TOOLTIPTEXT = "SIDE:ChinaNukeGeneral";
+          TOOLTIPDELAY = -1;
+          TEXT = "GUI:WinPercent";
+          TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  1 0 0 255,
+                      DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                      HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+          ENABLEDDRAWDATA = IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NukeGeneral_slvr, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          DISABLEDDRAWDATA = IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          HILITEDRAWDATA = IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: China_Nuke, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        END
+        CHILD
+        WINDOW
+          WINDOWTYPE = CHECKBOX;
+          SCREENRECT = UPPERLEFT: 220 445,
+                       BOTTOMRIGHT: 324 485,
+                       CREATIONRESOLUTION: 800 600;
+          NAME = "WOLWelcomeMenu.wnd:PercentGLA";
+          STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+          STYLE = CHECKBOX;
+          SYSTEMCALLBACK = "[None]";
+          INPUTCALLBACK = "[None]";
+          TOOLTIPCALLBACK = "[None]";
+          DRAWCALLBACK = "[None]";
+          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
+          HEADERTEMPLATE = "[NONE]";
+          TOOLTIPTEXT = "SIDE:GLA";
+          TOOLTIPDELAY = -1;
+          TEXT = "GUI:WinPercent";
+          TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                      DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                      HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+          ENABLEDDRAWDATA = IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLAGeneral_slvr, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          DISABLEDDRAWDATA = IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          HILITEDRAWDATA = IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Logo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        END
+        CHILD
+        WINDOW
+          WINDOWTYPE = CHECKBOX;
+          SCREENRECT = UPPERLEFT: 353 445,
+                       BOTTOMRIGHT: 457 485,
+                       CREATIONRESOLUTION: 800 600;
+          NAME = "WOLWelcomeMenu.wnd:PercentGLAToxinGeneral";
+          STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+          STYLE = CHECKBOX;
+          SYSTEMCALLBACK = "[None]";
+          INPUTCALLBACK = "[None]";
+          TOOLTIPCALLBACK = "[None]";
+          DRAWCALLBACK = "[None]";
+          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
+          HEADERTEMPLATE = "[NONE]";
+          TOOLTIPTEXT = "SIDE:GLAToxinGeneral";
+          TOOLTIPDELAY = -1;
+          TEXT = "GUI:WinPercent";
+          TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  1 0 0 255,
+                      DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                      HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+          ENABLEDDRAWDATA = IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: ToxinGeneral_slvr, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          DISABLEDDRAWDATA = IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          HILITEDRAWDATA = IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Toxin, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        END
+        CHILD
+        WINDOW
+          WINDOWTYPE = CHECKBOX;
+          SCREENRECT = UPPERLEFT: 486 445,
+                       BOTTOMRIGHT: 590 485,
+                       CREATIONRESOLUTION: 800 600;
+          NAME = "WOLWelcomeMenu.wnd:PercentGLADemolitionGeneral";
+          STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+          STYLE = CHECKBOX;
+          SYSTEMCALLBACK = "[None]";
+          INPUTCALLBACK = "[None]";
+          TOOLTIPCALLBACK = "[None]";
+          DRAWCALLBACK = "[None]";
+          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
+          HEADERTEMPLATE = "[NONE]";
+          TOOLTIPTEXT = "SIDE:GLADemolitionGeneral";
+          TOOLTIPDELAY = -1;
+          TEXT = "GUI:WinPercent";
+          TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  1 0 0 255,
+                      DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                      HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+          ENABLEDDRAWDATA = IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: DemoGeneral_slvr, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          DISABLEDDRAWDATA = IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          HILITEDRAWDATA = IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Demo, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        END
+        CHILD
+        WINDOW
+          WINDOWTYPE = CHECKBOX;
+          SCREENRECT = UPPERLEFT: 619 445,
+                       BOTTOMRIGHT: 723 485,
+                       CREATIONRESOLUTION: 800 600;
+          NAME = "WOLWelcomeMenu.wnd:PercentGLAStealthGeneral";
+          STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+          STYLE = CHECKBOX;
+          SYSTEMCALLBACK = "[None]";
+          INPUTCALLBACK = "[None]";
+          TOOLTIPCALLBACK = "[None]";
+          DRAWCALLBACK = "[None]";
+          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
+          HEADERTEMPLATE = "[NONE]";
+          TOOLTIPTEXT = "SIDE:GLAStealthGeneral";
+          TOOLTIPDELAY = -1;
+          TEXT = "GUI:WinPercent";
+          TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  1 0 0 255,
+                      DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                      HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+          ENABLEDDRAWDATA = IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: StealthGeneral_slvr, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          DISABLEDDRAWDATA = IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          HILITEDRAWDATA = IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: GLA_Stealth, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        END
+        ENDALLCHILDREN
+      END
+      CHILD
+      WINDOW
+        WINDOWTYPE = STATICTEXT;
+        SCREENRECT = UPPERLEFT: 199 313,
+                     BOTTOMRIGHT: 635 337,
+                     CREATIONRESOLUTION: 800 600;
+        NAME = "WOLWelcomeMenu.wnd:StaticTextCommunity";
+        STATUS = ENABLED;
+        STYLE = STATICTEXT+MOUSETRACK;
+        SYSTEMCALLBACK = "[None]";
+        INPUTCALLBACK = "[None]";
+        TOOLTIPCALLBACK = "[None]";
+        DRAWCALLBACK = "[None]";
+        FONT = NAME: "Arial", SIZE: 14, BOLD: 0;
+        HEADERTEMPLATE = "GOMinorTitle";
+        TOOLTIPTEXT = "TOOLTIP:Community";
+        TOOLTIPDELAY = -1;
+        TEXT = "GUI:Community";
+        TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                    DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                    HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+        ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 2 2 2 0, BORDERCOLOR: 0 0 0 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 7 9 11 255, BORDERCOLOR: 44 59 63 255,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        HILITEDRAWDATA = IMAGE: NoImage, COLOR: 22 29 33 255, BORDERCOLOR: 227 186 108 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        STATICTEXTDATA = CENTERED: 0;
+      END
+      CHILD
+      WINDOW
+        WINDOWTYPE = USER;
+        SCREENRECT = UPPERLEFT: 64 339,
+                     BOTTOMRIGHT: 192 495,
+                     CREATIONRESOLUTION: 800 600;
+        NAME = "WOLWelcomeMenu.wnd:RankBorder";
+        STATUS = ENABLED;
+        STYLE = USER;
+        SYSTEMCALLBACK = "[None]";
+        INPUTCALLBACK = "[None]";
+        TOOLTIPCALLBACK = "[None]";
+        DRAWCALLBACK = "[None]";
+        FONT = NAME: "Times New Roman", SIZE: 14, BOLD: 0;
+        HEADERTEMPLATE = "[NONE]";
+        TOOLTIPDELAY = -1;
+        TEXTCOLOR = ENABLED:  242 237 224 0, ENABLEDBORDER:  242 237 224 0,
+                    DISABLED: 242 237 224 0, DISABLEDBORDER: 242 237 224 0,
+                    HILITE:   242 237 224 0, HILITEBORDER:   242 237 224 0;
+        ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 9 12 14 128, BORDERCOLOR: 191 144 72 255,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 9 12 14 255, BORDERCOLOR: 0 0 0 255,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        HILITEDRAWDATA = IMAGE: NoImage, COLOR: 22 29 33 255, BORDERCOLOR: 227 186 108 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        CHILD
+        WINDOW
+          WINDOWTYPE = USER;
+          SCREENRECT = UPPERLEFT: 64 467,
+                       BOTTOMRIGHT: 192 467,
+                       CREATIONRESOLUTION: 800 600;
+          NAME = "WOLWelcomeMenu.wnd:RankLine";
+          STATUS = ENABLED;
+          STYLE = USER;
+          SYSTEMCALLBACK = "[None]";
+          INPUTCALLBACK = "[None]";
+          TOOLTIPCALLBACK = "[None]";
+          DRAWCALLBACK = "[None]";
+          FONT = NAME: "Times New Roman", SIZE: 14, BOLD: 0;
+          HEADERTEMPLATE = "[NONE]";
+          TOOLTIPDELAY = -1;
+          TEXTCOLOR = ENABLED:  242 237 224 0, ENABLEDBORDER:  242 237 224 0,
+                      DISABLED: 242 237 224 0, DISABLEDBORDER: 242 237 224 0,
+                      HILITE:   242 237 224 0, HILITEBORDER:   242 237 224 0;
+          ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 2 2 2 0, BORDERCOLOR: 191 144 72 255,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 13 21 27 255, BORDERCOLOR: 0 0 0 255,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          HILITEDRAWDATA = IMAGE: NoImage, COLOR: 22 29 33 255, BORDERCOLOR: 227 186 108 255,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        END
+        CHILD
+        WINDOW
+          WINDOWTYPE = PROGRESSBAR;
+          SCREENRECT = UPPERLEFT: 64 471,
+                       BOTTOMRIGHT: 192 495,
+                       CREATIONRESOLUTION: 800 600;
+          NAME = "WOLWelcomeMenu.wnd:ProgressBarRank";
+          STATUS = ENABLED;
+          STYLE = PROGRESSBAR+MOUSETRACK;
+          SYSTEMCALLBACK = "[None]";
+          INPUTCALLBACK = "[None]";
+          TOOLTIPCALLBACK = "[None]";
+          DRAWCALLBACK = "[None]";
+          FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+          HEADERTEMPLATE = "[NONE]";
+          TOOLTIPDELAY = -1;
+          TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                      DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                      HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+          ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 4 7 10 164, BORDERCOLOR: 255 187 0 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 124 196 109 200, BORDERCOLOR: 255 187 0 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 64 64 64 255, BORDERCOLOR: 143 137 124 255,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 143 137 124 255, BORDERCOLOR: 242 237 224 255,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          HILITEDRAWDATA = IMAGE: NoImage, COLOR: 0 255 0 255, BORDERCOLOR: 0 128 0 255,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        END
+        CHILD
+        WINDOW
+          WINDOWTYPE = USER;
+          SCREENRECT = UPPERLEFT: 64 339,
+                       BOTTOMRIGHT: 192 467,
+                       CREATIONRESOLUTION: 800 600;
+          NAME = "WOLWelcomeMenu.wnd:WinRank";
+          STATUS = ENABLED+IMAGE;
+          STYLE = USER;
+          SYSTEMCALLBACK = "[None]";
+          INPUTCALLBACK = "[None]";
+          TOOLTIPCALLBACK = "[None]";
+          DRAWCALLBACK = "[None]";
+          FONT = NAME: "Times New Roman", SIZE: 14, BOLD: 0;
+          HEADERTEMPLATE = "[NONE]";
+          TOOLTIPDELAY = -1;
+          TEXTCOLOR = ENABLED:  242 237 224 0, ENABLEDBORDER:  242 237 224 0,
+                      DISABLED: 242 237 224 0, DISABLEDBORDER: 242 237 224 0,
+                      HILITE:   242 237 224 0, HILITEBORDER:   242 237 224 0;
+          ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 0 0 0 255, BORDERCOLOR: 191 144 72 255,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 64 64 64 255, BORDERCOLOR: 242 237 224 255,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          HILITEDRAWDATA = IMAGE: NoImage, COLOR: 227 186 108 255, BORDERCOLOR: 242 237 224 255,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          CHILD
+          WINDOW
+            WINDOWTYPE = USER;
+            SCREENRECT = UPPERLEFT: 144 419,
+                         BOTTOMRIGHT: 192 467,
+                         CREATIONRESOLUTION: 800 600;
+            NAME = "WOLWelcomeMenu.wnd:FactionImage";
+            STATUS = ENABLED+IMAGE;
+            STYLE = USER;
+            SYSTEMCALLBACK = "[None]";
+            INPUTCALLBACK = "[None]";
+            TOOLTIPCALLBACK = "[None]";
+            DRAWCALLBACK = "[None]";
+            FONT = NAME: "Times New Roman", SIZE: 14, BOLD: 0;
+            HEADERTEMPLATE = "[NONE]";
+            TOOLTIPDELAY = -1;
+            TEXTCOLOR = ENABLED:  242 237 224 0, ENABLEDBORDER:  242 237 224 0,
+                        DISABLED: 242 237 224 0, DISABLEDBORDER: 242 237 224 0,
+                        HILITE:   242 237 224 0, HILITEBORDER:   242 237 224 0;
+            ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 13 21 27 255, BORDERCOLOR: 242 237 224 255,
+                              IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                              IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                              IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                              IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                              IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                              IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                              IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                              IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+            DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 64 64 64 255, BORDERCOLOR: 242 237 224 255,
+                               IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                               IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                               IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                               IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                               IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                               IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                               IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                               IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+            HILITEDRAWDATA = IMAGE: NoImage, COLOR: 227 186 108 255, BORDERCOLOR: 242 237 224 255,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+          END
+          ENDALLCHILDREN
+        END
+        ENDALLCHILDREN
+      END
+      CHILD
+      WINDOW
+        WINDOWTYPE = STATICTEXT;
+        SCREENRECT = UPPERLEFT: 60 313,
+                     BOTTOMRIGHT: 188 337,
+                     CREATIONRESOLUTION: 800 600;
+        NAME = "WOLWelcomeMenu.wnd:StaticTextRank";
+        STATUS = ENABLED;
+        STYLE = STATICTEXT+MOUSETRACK;
+        SYSTEMCALLBACK = "[None]";
+        INPUTCALLBACK = "[None]";
+        TOOLTIPCALLBACK = "[None]";
+        DRAWCALLBACK = "[None]";
+        FONT = NAME: "Arial", SIZE: 14, BOLD: 0;
+        HEADERTEMPLATE = "GOMinorTitle";
+        TOOLTIPDELAY = -1;
+        TEXT = "GUI:Rank";
+        TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                    DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                    HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+        ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 2 2 2 0, BORDERCOLOR: 0 0 0 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 7 9 11 255, BORDERCOLOR: 44 59 63 255,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        HILITEDRAWDATA = IMAGE: NoImage, COLOR: 22 29 33 255, BORDERCOLOR: 227 186 108 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+        STATICTEXTDATA = CENTERED: 0;
+      END
+      ENDALLCHILDREN
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = SCROLLLISTBOX;
+      SCREENRECT = UPPERLEFT: 56 96,
+                   BOTTOMRIGHT: 544 303,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "WOLWelcomeMenu.wnd:InfoListbox";
+      STATUS = ENABLED;
+      STYLE = SCROLLLISTBOX+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOLabelRegular";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+      ENABLEDDRAWDATA = IMAGE: BlackSquare, COLOR: 4 7 10 126, BORDERCOLOR: 191 144 72 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 201 88 74 0, BORDERCOLOR: 191 144 72 255,
+                         IMAGE: NoImage, COLOR: 143 137 124 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      HILITEDRAWDATA = IMAGE: BlackSquare, COLOR: 4 7 10 126, BORDERCOLOR: 191 144 72 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      LISTBOXDATA = LENGTH: 100,
+                    AUTOSCROLL: 0,
+                    SCROLLIFATEND: 0,
+                    AUTOPURGE: 0,
+                    SCROLLBAR: 1,
+                    MULTISELECT: 0,
+                    COLUMNS: 1,
+                    FORCESELECT: 0;
+      LISTBOXENABLEDUPBUTTONDRAWDATA = IMAGE: VSliderUpButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
+                                       IMAGE: VSliderUpButtonHiliteSelected, COLOR: 227 186 108 255, BORDERCOLOR: 242 237 224 255,
+                                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      LISTBOXDISABLEDUPBUTTONDRAWDATA = IMAGE: VSliderUpButtonDisabled, COLOR: 128 128 128 255, BORDERCOLOR: 143 137 124 255,
+                                        IMAGE: NoImage, COLOR: 143 137 124 255, BORDERCOLOR: 242 237 224 255,
+                                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      LISTBOXHILITEUPBUTTONDRAWDATA = IMAGE: VSliderUpButtonHilite, COLOR: 0 255 0 255, BORDERCOLOR: 0 128 0 255,
+                                      IMAGE: VSliderUpButtonHiliteSelected, COLOR: 242 237 224 255, BORDERCOLOR: 0 128 0 255,
+                                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      LISTBOXENABLEDDOWNBUTTONDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
+                                         IMAGE: VSliderDownButtonHiliteSelected, COLOR: 227 186 108 255, BORDERCOLOR: 242 237 224 255,
+                                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      LISTBOXDISABLEDDOWNBUTTONDRAWDATA = IMAGE: VSliderDownButtonDisabled, COLOR: 128 128 128 255, BORDERCOLOR: 143 137 124 255,
+                                          IMAGE: NoImage, COLOR: 143 137 124 255, BORDERCOLOR: 242 237 224 255,
+                                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                          IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      LISTBOXHILITEDOWNBUTTONDRAWDATA = IMAGE: VSliderDownButtonHilite, COLOR: 0 255 0 255, BORDERCOLOR: 0 128 0 255,
+                                        IMAGE: VSliderDownButtonHiliteSelected, COLOR: 242 237 224 255, BORDERCOLOR: 0 128 0 255,
+                                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      LISTBOXENABLEDSLIDERDRAWDATA = IMAGE: NoImage, COLOR: 255 190 0 0, BORDERCOLOR: 191 144 72 255,
+                                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                     IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      LISTBOXDISABLEDSLIDERDRAWDATA = IMAGE: NoImage, COLOR: 128 128 128 0, BORDERCOLOR: 148 112 0 255,
+                                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                      IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      LISTBOXHILITESLIDERDRAWDATA = IMAGE: NoImage, COLOR: 0 255 0 0, BORDERCOLOR: 191 144 72 255,
+                                    IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                    IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                    IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                    IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                    IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                    IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                    IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                    IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      SLIDERTHUMBENABLEDDRAWDATA = IMAGE: ScrollBarThumbEnabled, COLOR: 201 88 74 0, BORDERCOLOR: 255 243 28 255,
+                                   IMAGE: ScrollBarThumbHiliteSelected, COLOR: 227 186 108 255, BORDERCOLOR: 242 237 224 255,
+                                   IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                   IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                   IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                   IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                   IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                   IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                   IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      SLIDERTHUMBDISABLEDDRAWDATA = IMAGE: ScrollBarThumbDisabled, COLOR: 128 128 128 255, BORDERCOLOR: 143 137 124 255,
+                                    IMAGE: NoImage, COLOR: 143 137 124 255, BORDERCOLOR: 242 237 224 255,
+                                    IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                    IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                    IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                    IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                    IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                    IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                    IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      SLIDERTHUMBHILITEDRAWDATA = IMAGE: ScrollBarThumbHilite, COLOR: 0 255 0 255, BORDERCOLOR: 0 128 0 255,
+                                  IMAGE: ScrollBarThumbHiliteSelected, COLOR: 242 237 224 255, BORDERCOLOR: 0 128 0 255,
+                                  IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                  IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                  IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                  IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                  IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                  IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                                  IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = STATICTEXT;
+      SCREENRECT = UPPERLEFT: 44 41,
+                   BOTTOMRIGHT: 752 80,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "WOLWelcomeMenu.wnd:StaticTextTitle";
+      STATUS = ENABLED;
+      STYLE = STATICTEXT+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Generals", SIZE: 20, BOLD: 0;
+      HEADERTEMPLATE = "GOTitle";
+      TOOLTIPDELAY = -1;
+      TEXT = "GUI:WOLWelcome";
+      TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
+      ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 2 2 2 0, BORDERCOLOR: 255 128 128 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
+      DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 7 9 11 255, BORDERCOLOR: 44 59 63 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 22 29 33 255, BORDERCOLOR: 227 186 108 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
+      STATICTEXTDATA = CENTERED: 0;
+    END
+    ENDALLCHILDREN
+  END
+  ENDALLCHILDREN
+END
