@@ -1,5 +1,9 @@
 #pragma once
 #include "GenOnlineTypes.h"
+#include "GameNetwork/GenOnline/GenOnlineSignIn.h"
+
+#include <memory>
+#include <vector>
 
 // TheSuperHackers @feature arcticdolphin 08/11/2026 Sign-in providers of the GO sign-in screen; Website is the playgenerals.online page that offers them all.
 enum class ELoginProvider
@@ -91,6 +95,12 @@ public:
 
 	static std::string GetCredentialsFilePath();
 
+	// True when the environment runs the realtime protocol v1, whose sign-in is OAuth in the system browser.
+	static bool UsesRealtimeHub();
+
+	// Refreshes the tokens and registers the session again, for a realtime hub that refused or revoked the session.
+	void RecoverRealtimeSession(std::function<void(bool bRecovered)> fnDone);
+
 private:
 	void LoginAsSecondaryDevAccount();
 
@@ -101,6 +111,19 @@ private:
 	void OnRefreshTokenFailed(const char* szReason, const std::string& strBody = std::string());
 
 	static std::string CredentialServerKey();
+
+	void BeginLoginV1();
+	void StartBrowserSignInV1(int loginAttempt);
+	void CompleteSignInV1(const GenOnlineRealtime::TokenResponse& tokens, int loginAttempt);
+	void ApplyTokensV1(const GenOnlineRealtime::TokenResponse& tokens);
+	void RegisterSessionV1(std::function<void(int statusCode, const std::string& strBody)> fnDone);
+	void RefreshTokensV1(std::function<void(bool bRefreshed)> fnDone);
+	void FailLoginV1(const wchar_t* szText);
+	void ClearSessionV1();
+	void AbandonRefreshV1();
+	void TickV1();
+	static std::string CredentialServerKeyV1();
+	static std::string ServiceOriginV1();
 
 private:
 	bool m_bWaitingLogin = false;
@@ -130,4 +153,12 @@ private:
 	int64_t m_nextRefreshRetryTime = -1;
 	const int m_maxRefreshAttempts = 2;
 	const int m_secondsUntilRefreshRetry = 30;
+
+	// Realtime protocol v1 sign-in. The access token lives in m_strToken and the rotating refresh token in m_strRefreshToken.
+	std::unique_ptr<GenOnlineSignIn> m_pSignIn = std::make_unique<GenOnlineSignIn>();
+	int64_t m_accessTokenExpiry = -1;
+	int64_t m_accessTokenRefreshAt = -1;
+	int64_t m_nextRefreshRetryV1 = -1;
+	bool m_bRefreshInFlightV1 = false;
+	std::vector<std::function<void(bool)>> m_refreshWaitersV1;
 };
