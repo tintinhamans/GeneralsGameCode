@@ -17,7 +17,7 @@
 */
 
 // FILE: MapSelectList.h //////////////////////////////////////////////////////////////////////////
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Search, filters and favourites for the map select popups.
+// GenOnline @feature arcticdolphin 08/11/2026 Search, filters and favourites for the map select popups.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -74,7 +74,6 @@ struct MapSelectFilter
 	MapSelectSource m_source;
 };
 
-/// What a screen lists besides the filter.
 struct MapSelectOptions
 {
 	MapSelectOptions();
@@ -89,7 +88,7 @@ AsciiString getMapFavouriteKey( const AsciiString &mapPath ); ///< lowercased po
 Bool isMapFavourite( const AsciiString &mapPath );
 void setMapFavourite( const AsciiString &mapPath, Bool favourite );
 
-/// Fills a map select list box from TheMapCache through the popup's search, filter and source windows.
+/// Fills a map select list box from TheMapCache through the search, filter and source windows of the popup.
 /// List columns: star, [medal,] name, players, size. Column 0 item data is the map path of the row.
 class MapSelectList
 {
