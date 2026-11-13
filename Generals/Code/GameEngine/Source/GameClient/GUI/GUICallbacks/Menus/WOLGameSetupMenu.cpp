@@ -138,9 +138,6 @@ static Bool isShuttingDown = false;
 static Bool buttonPushed = false;
 static const char *nextScreen = nullptr;
 
-#if defined(GENONLINE)
-GenOnlineGame* TheGenOnlineGame = nullptr;
-#endif
 static Bool raiseMessageBoxes = false;
 static Bool launchGameNext = FALSE;
 
@@ -2676,20 +2673,3 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 	}
 	return MSG_HANDLED;
 }
-
-#if defined(GENONLINE)
-void OnKickedFromLobby()
-{
-	// can't see ourselves
-	buttonPushed = true;
-
-	if (TheGenOnlineGame != nullptr)
-	{
-		TheGenOnlineGame->reset();
-	}
-
-	GSMessageBoxOk(TheGameText->fetch("GUI:GSErrorTitle"), TheGameText->fetch("GUI:GSKicked"));
-	nextScreen = "Menus/WOLCustomLobby.wnd";
-	TheShell->pop();
-}
-#endif

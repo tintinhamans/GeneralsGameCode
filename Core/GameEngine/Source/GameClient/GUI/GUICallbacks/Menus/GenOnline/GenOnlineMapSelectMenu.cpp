@@ -61,7 +61,7 @@ static NameKeyType winMapPreviewID = NAMEKEY_INVALID;
 static MapSelectList mapSelectList;
 static MapSelectFilter mapSelectFilter;
 
-extern WindowLayout *WOLMapSelectLayout;			///< Map selection overlay
+extern WindowLayout *GenOnlineMapSelectLayout;			///< Map selection overlay
 static GameWindow *mapList = nullptr;
 
 static GameWindow *buttonMapStartPosition[MAX_SLOTS] = {0};
@@ -261,7 +261,7 @@ WindowMsgHandledType GenOnlineMapSelectMenuInput( GameWindow *window, UnsignedIn
 	return MSG_IGNORED;
 
 }
-void WOLPositionStartSpots();
+void GenOnlinePositionStartSpots();
 
 // The OK path's effect on the lobby: the map and its data, the slots adjusting to it, and the lobby service told.
 static void applySelectedMap( AsciiString asciiMap )
@@ -292,8 +292,8 @@ static void applySelectedMap( AsciiString asciiMap )
 	// TODO_NGMP:
 	//TheGameSpyInfo->setGameOptions();
 
-	WOLDisplaySlotList();
-	WOLDisplayGameOptions();
+	GenOnlineDisplaySlotList();
+	GenOnlineDisplayGameOptions();
 
 	// NGMP: Update lobby
 	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
@@ -308,7 +308,7 @@ static void applySelectedMap( AsciiString asciiMap )
 void GenOnlineMapSelectMenuApplyMap( const AsciiString& map )
 {
 	applySelectedMap( map );
-	WOLPositionStartSpots();
+	GenOnlinePositionStartSpots();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -439,14 +439,14 @@ WindowMsgHandledType GenOnlineMapSelectMenuSystem( GameWindow *window, UnsignedI
 			{
 				showGameSpyGameOptionsUnderlyingGUIElements( TRUE );
 
-				if (WOLMapSelectLayout)
+				if (GenOnlineMapSelectLayout)
 				{
-					WOLMapSelectLayout->destroyWindows();
-					deleteInstance(WOLMapSelectLayout);
-					WOLMapSelectLayout = nullptr;
+					GenOnlineMapSelectLayout->destroyWindows();
+					deleteInstance(GenOnlineMapSelectLayout);
+					GenOnlineMapSelectLayout = nullptr;
 				}
 
-				WOLPositionStartSpots();
+				GenOnlinePositionStartSpots();
 			}
 			else if( controlID == buttonOK )
 			{
@@ -474,16 +474,16 @@ WindowMsgHandledType GenOnlineMapSelectMenuSystem( GameWindow *window, UnsignedI
 
 					applySelectedMap( asciiMap );
 
-					if (WOLMapSelectLayout)
+					if (GenOnlineMapSelectLayout)
 					{
-						WOLMapSelectLayout->destroyWindows();
-						deleteInstance(WOLMapSelectLayout);
-						WOLMapSelectLayout = nullptr;
+						GenOnlineMapSelectLayout->destroyWindows();
+						deleteInstance(GenOnlineMapSelectLayout);
+						GenOnlineMapSelectLayout = nullptr;
 					}
 
 					showGameSpyGameOptionsUnderlyingGUIElements( TRUE );
 
-					WOLPositionStartSpots();
+					GenOnlinePositionStartSpots();
 
 				}
 

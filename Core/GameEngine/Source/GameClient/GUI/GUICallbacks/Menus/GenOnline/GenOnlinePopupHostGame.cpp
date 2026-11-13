@@ -253,6 +253,12 @@ void GenOnlinePopupHostGameInit( WindowLayout *layout, void *userData )
   GadgetCheckBoxSetChecked( checkBoxLimitArmies, customPref.getFactionsLimited() );
 #endif
 
+#if !RTS_ZEROHOUR
+	// Generals has no armies to limit, so the box stays hidden and unchecked.
+	GadgetCheckBoxSetChecked( checkBoxLimitArmies, FALSE );
+	checkBoxLimitArmies->winHide( TRUE );
+#endif
+
 	TheWindowManager->winSetFocus(textEntryGameName);
 	TheWindowManager->winSetModal( parentPopup );
 
@@ -434,7 +440,7 @@ WindowMsgHandledType GenOnlinePopupHostGameSystem( GameWindow *window, UnsignedI
 			{
 				parentPopup = nullptr;
 				GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
-				SetLobbyAttemptHostJoin( FALSE );
+				GenOnlineSetLobbyAttemptHostJoin( FALSE );
 			}
 			else if( controlID == buttonCreateGameID)
 			{
@@ -443,7 +449,7 @@ WindowMsgHandledType GenOnlinePopupHostGameSystem( GameWindow *window, UnsignedI
 				name.trim();
 				if(name.isEmpty())
 				{
-					SetLobbyAttemptHostJoin(FALSE);
+					GenOnlineSetLobbyAttemptHostJoin(FALSE);
 					GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
 					GSMessageBoxOk(TheGameText->fetch("GUI:Error"), UnicodeString(L"Please enter a lobby name."), nullptr);
 					break;
@@ -519,7 +525,7 @@ void GenOnlineCreateGame()
 	{
 		parentPopup = nullptr;
 		GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
-		SetLobbyAttemptHostJoin(FALSE);
+		GenOnlineSetLobbyAttemptHostJoin(FALSE);
 		GSMessageBoxOk(UnicodeString(L"Error"), UnicodeString(L"Failed to get Online Services Lobby Interface!"));
 		return;
 	}

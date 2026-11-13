@@ -149,7 +149,7 @@ WindowMsgHandledType GenOnlinePopupJoinGameInput( GameWindow *window, UnsignedIn
 					if( BitIsSet( state, KEY_STATE_UP ) )
 					{
 						GameSpyCloseOverlay(GSOVERLAY_GAMEPASSWORD);
-						SetLobbyAttemptHostJoin( FALSE );
+						GenOnlineSetLobbyAttemptHostJoin( FALSE );
 						parentPopup = nullptr;
 					}
 
@@ -199,7 +199,7 @@ WindowMsgHandledType GenOnlinePopupJoinGameSystem( GameWindow *window, UnsignedI
 			if (controlID == buttonCancelID)
 			{
 				GameSpyCloseOverlay(GSOVERLAY_GAMEPASSWORD);
-				SetLobbyAttemptHostJoin( FALSE );
+				GenOnlineSetLobbyAttemptHostJoin( FALSE );
 				parentPopup = nullptr;
 			}
 			break;
@@ -259,7 +259,7 @@ static void joinGame( AsciiString password )
 	{
 		DEBUG_LOG(("NGMP_OnlineServices_LobbyInterface is not initialized!"));
 		GameSpyCloseOverlay(GSOVERLAY_GAMEPASSWORD);
-		SetLobbyAttemptHostJoin(FALSE);
+		GenOnlineSetLobbyAttemptHostJoin(FALSE);
 		parentPopup = nullptr;
 		return;
 	}
@@ -269,7 +269,7 @@ static void joinGame( AsciiString password )
 	if (lobbyTryingToJoin.lobbyID == -1)
 	{
 		GameSpyCloseOverlay(GSOVERLAY_GAMEPASSWORD);
-		SetLobbyAttemptHostJoin(FALSE);
+		GenOnlineSetLobbyAttemptHostJoin(FALSE);
 		parentPopup = NULL;
 		return;
 	}

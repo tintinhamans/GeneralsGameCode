@@ -162,6 +162,9 @@ static FunctionLexicon::TableEntry gameWinSystemTable[] =
 	{ NAMEKEY_INVALID, "GenOnlinePopupBuddyNotificationSystem", (void*)GenOnlinePopupBuddyNotificationSystem },
 	{ NAMEKEY_INVALID, "GenOnlineBuddyOverlayRCMenuSystem",  (void*)GenOnlineBuddyOverlayRCMenuSystem },
 	{ NAMEKEY_INVALID, "GenOnlinePlayerInfoOverlaySystem",   (void*)GenOnlinePlayerInfoOverlaySystem },
+	{ NAMEKEY_INVALID, "GenOnlineQuickMatchMenuSystem",      (void*)GenOnlineQuickMatchMenuSystem },
+	{ NAMEKEY_INVALID, "GenOnlineLobbyMenuSystem",           (void*)GenOnlineLobbyMenuSystem },
+	{ NAMEKEY_INVALID, "GenOnlineGameSetupMenuSystem",       (void*)GenOnlineGameSetupMenuSystem },
 
 	{ NAMEKEY_INVALID, nullptr,                              nullptr }
 
@@ -246,6 +249,9 @@ static FunctionLexicon::TableEntry gameWinInputTable[] =
 	{ NAMEKEY_INVALID, "GenOnlineLoginMenuInput",           (void*)GenOnlineLoginMenuInput },
 	{ NAMEKEY_INVALID, "GenOnlineBuddyOverlayInput",        (void*)GenOnlineBuddyOverlayInput },
 	{ NAMEKEY_INVALID, "GenOnlinePlayerInfoOverlayInput",   (void*)GenOnlinePlayerInfoOverlayInput },
+	{ NAMEKEY_INVALID, "GenOnlineQuickMatchMenuInput",      (void*)GenOnlineQuickMatchMenuInput },
+	{ NAMEKEY_INVALID, "GenOnlineLobbyMenuInput",           (void*)GenOnlineLobbyMenuInput },
+	{ NAMEKEY_INVALID, "GenOnlineGameSetupMenuInput",       (void*)GenOnlineGameSetupMenuInput },
 	{ NAMEKEY_INVALID, nullptr,                             nullptr }
 
 };
@@ -320,6 +326,9 @@ static FunctionLexicon::TableEntry winLayoutInitTable[] =
 	{ NAMEKEY_INVALID, "GenOnlineBuddyOverlayInit",     (void*)GenOnlineBuddyOverlayInit },
 	{ NAMEKEY_INVALID, "GenOnlineBuddyOverlayRCMenuInit", (void*)GenOnlineBuddyOverlayRCMenuInit },
 	{ NAMEKEY_INVALID, "GenOnlinePlayerInfoOverlayInit", (void*)GenOnlinePlayerInfoOverlayInit },
+	{ NAMEKEY_INVALID, "GenOnlineQuickMatchMenuInit",   (void*)GenOnlineQuickMatchMenuInit },
+	{ NAMEKEY_INVALID, "GenOnlineLobbyMenuInit",        (void*)GenOnlineLobbyMenuInit },
+	{ NAMEKEY_INVALID, "GenOnlineGameSetupMenuInit",    (void*)GenOnlineGameSetupMenuInit },
 
 	{ NAMEKEY_INVALID, nullptr,                         nullptr }
 
@@ -374,6 +383,9 @@ static FunctionLexicon::TableEntry winLayoutUpdateTable[] =
 	{ NAMEKEY_INVALID, "GenOnlineLoginMenuUpdate",        (void*)GenOnlineLoginMenuUpdate },
 	{ NAMEKEY_INVALID, "GenOnlineBuddyOverlayUpdate",     (void*)GenOnlineBuddyOverlayUpdate },
 	{ NAMEKEY_INVALID, "GenOnlinePlayerInfoOverlayUpdate", (void*)GenOnlinePlayerInfoOverlayUpdate },
+	{ NAMEKEY_INVALID, "GenOnlineQuickMatchMenuUpdate",   (void*)GenOnlineQuickMatchMenuUpdate },
+	{ NAMEKEY_INVALID, "GenOnlineLobbyMenuUpdate",        (void*)GenOnlineLobbyMenuUpdate },
+	{ NAMEKEY_INVALID, "GenOnlineGameSetupMenuUpdate",    (void*)GenOnlineGameSetupMenuUpdate },
 	{ NAMEKEY_INVALID, nullptr,                           nullptr }
 
 };
@@ -424,6 +436,9 @@ static FunctionLexicon::TableEntry winLayoutShutdownTable[] =
 	{ NAMEKEY_INVALID, "GenOnlineLoginMenuShutdown",        (void*)GenOnlineLoginMenuShutdown },
 	{ NAMEKEY_INVALID, "GenOnlineBuddyOverlayShutdown",     (void*)GenOnlineBuddyOverlayShutdown },
 	{ NAMEKEY_INVALID, "GenOnlinePlayerInfoOverlayShutdown", (void*)GenOnlinePlayerInfoOverlayShutdown },
+	{ NAMEKEY_INVALID, "GenOnlineQuickMatchMenuShutdown",   (void*)GenOnlineQuickMatchMenuShutdown },
+	{ NAMEKEY_INVALID, "GenOnlineLobbyMenuShutdown",        (void*)GenOnlineLobbyMenuShutdown },
+	{ NAMEKEY_INVALID, "GenOnlineGameSetupMenuShutdown",    (void*)GenOnlineGameSetupMenuShutdown },
 	{ NAMEKEY_INVALID, nullptr,                             nullptr }
 
 };

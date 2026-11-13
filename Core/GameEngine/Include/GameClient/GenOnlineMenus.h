@@ -28,6 +28,8 @@
 
 class WindowLayout;
 class PSPlayerStats;
+class Image;
+struct StatsLobbyScreen;
 
 // GenOnlinePopupJoinGame
 extern void GenOnlinePopupJoinGameInit( WindowLayout *layout, void *userData );
@@ -85,6 +87,27 @@ extern void GenOnlinePlayerInfoOverlayUpdate( WindowLayout *layout, void *userDa
 extern WindowMsgHandledType GenOnlinePlayerInfoOverlayInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GenOnlinePlayerInfoOverlaySystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 
+// GenOnlineQuickMatchMenu
+extern void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData );
+extern void GenOnlineQuickMatchMenuShutdown( WindowLayout *layout, void *userData );
+extern void GenOnlineQuickMatchMenuUpdate( WindowLayout *layout, void *userData );
+extern WindowMsgHandledType GenOnlineQuickMatchMenuInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+extern WindowMsgHandledType GenOnlineQuickMatchMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+
+// GenOnlineLobbyMenu
+extern void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData );
+extern void GenOnlineLobbyMenuShutdown( WindowLayout *layout, void *userData );
+extern void GenOnlineLobbyMenuUpdate( WindowLayout *layout, void *userData );
+extern WindowMsgHandledType GenOnlineLobbyMenuInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+extern WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+
+// GenOnlineGameSetupMenu
+extern void GenOnlineGameSetupMenuInit( WindowLayout *layout, void *userData );
+extern void GenOnlineGameSetupMenuShutdown( WindowLayout *layout, void *userData );
+extern void GenOnlineGameSetupMenuUpdate( WindowLayout *layout, void *userData );
+extern WindowMsgHandledType GenOnlineGameSetupMenuInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+extern WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+
 // Sign in dialog over the main menu for the whole Online path. Open returns FALSE when its layout is missing.
 extern Bool GOSignInDialogOpen( void );
 extern Bool GOSignInDialogIsOpen( void );
@@ -114,3 +137,22 @@ extern void GenOnlineDeleteNotificationBox();
 extern void GenOnlineInitBuddyControls( Int type );
 extern void GenOnlinePopulateOldBuddyMessages();
 extern WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+extern void GenOnlinePopBackToLobby();
+extern void GenOnlinePositionStartSpots();
+extern void GenOnlineDisplayGameOptions();
+extern void GenOnlineDisplaySlotList();
+extern void GenOnlineSetLobbyAttemptHostJoin( Bool start );
+extern void GenOnlinePopulateLobbyPlayerListbox();
+extern const Image *GenOnlineLookupSmallRankImage( Int side, Int rankPoints );
+extern void GenOnlineHandleNetSlashCommand( AsciiString subcommand, AsciiString value, GameWindow *listbox );
+extern void OnKickedFromLobby();
+
+/// Handles a line as if it was typed into that menu's chat box (slash commands included). FALSE if the menu is not open.
+extern Bool GenOnlineGameSetupMenuSubmitChatLine( UnicodeString text );
+extern Bool GenOnlineLobbyMenuSubmitChatLine( UnicodeString text );
+/// Describes the game setup controls for the stats pipe lobby control. FALSE when the screen is not open.
+extern Bool GenOnlineGameSetupMenuStatsLobby( StatsLobbyScreen& out );
+
+extern GameWindow *GenOnlineQuickMatchTextWindow;	///< Text box on the quick match screen
+extern GameWindow *GenOnlineListboxGameSetupChat;	///< Chat box on the game setup screen
+extern WindowLayout *GenOnlineMapSelectLayout;		///< Map selection overlay

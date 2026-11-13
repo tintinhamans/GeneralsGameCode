@@ -1407,7 +1407,7 @@ WindowMsgHandledType GenOnlineBuddyOverlayRCMenuSystem( GameWindow *window, Unsi
 					GenOnlineUpdateBuddyInfo();
 					GenOnlineRefreshIgnoreList();
 					// repopulate our player listboxes now
-					PopulateLobbyPlayerListbox();
+					GenOnlinePopulateLobbyPlayerListbox();
 				}
 				else if( controlID == buttonStatsID )
 				{
