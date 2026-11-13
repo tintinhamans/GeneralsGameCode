@@ -1,0 +1,4 @@
+{
+  "message": "A game session needs exe_crc, ini_crc and anticheat_id.",
+  "error": "invalid_argument"
+}

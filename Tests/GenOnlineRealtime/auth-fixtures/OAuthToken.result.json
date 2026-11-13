@@ -1,0 +1,8 @@
+{
+  "access_token": "<JWT, RS256, typ at+jwt, aud genonline-api, 15 min>",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "scope": "openid offline_access game",
+  "id_token": "<JWT>",
+  "refresh_token": "<opaque, rotates on every use>"
+}

@@ -12,10 +12,11 @@ set(REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
 add_executable(genonline_realtime_contract_test RealtimeContractTest.cpp)
 target_include_directories(genonline_realtime_contract_test PRIVATE ${REPO_ROOT}/Core/GameEngine/Include)
+target_link_libraries(genonline_realtime_contract_test PRIVATE bcrypt)
 if(MSVC)
     target_compile_options(genonline_realtime_contract_test PRIVATE /W4 /utf-8 /EHsc)
 endif()
 
 enable_testing()
 add_test(NAME genonline_realtime_contract
-    COMMAND genonline_realtime_contract_test ${CMAKE_CURRENT_SOURCE_DIR}/fixtures)
+    COMMAND genonline_realtime_contract_test ${CMAKE_CURRENT_SOURCE_DIR}/fixtures ${CMAKE_CURRENT_SOURCE_DIR}/auth-fixtures)
