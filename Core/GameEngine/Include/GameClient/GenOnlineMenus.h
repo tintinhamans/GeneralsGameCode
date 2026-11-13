@@ -105,6 +105,12 @@ extern void GOSignInDialogBeginSignIn( void );
 extern void GOSignInDialogUpdate( void );
 extern void GOSignInDialogDestroy( void );
 
+extern void GenOnlineOptionsMenuInit( Bool locked );
+extern Bool GenOnlineOptionsMenuComboSelected( GameWindow *control );
+extern Bool GenOnlineOptionsMenuButtonSelected( GameWindow *control );
+extern Bool GenOnlineOptionsMenuAccept();
+extern void GenOnlineOptionsMenuDefaults();
+
 extern void GenOnlineMapSelectMenuApplyMap( const AsciiString& map );
 extern void GenOnlineHandleNumPlayersOnline( Int numPlayersOnline );
 extern void GenOnlineHandleOverallStats( const char *szHTTPStats, unsigned len );
