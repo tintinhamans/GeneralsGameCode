@@ -193,6 +193,7 @@ set(GAMEENGINE_SRC
     Include/GameClient/GameWindowID.h
     Include/GameClient/GameWindowManager.h
     Include/GameClient/GameWindowTransitions.h
+    Include/GameClient/GenOnlineMenus.h
     Include/GameClient/GlobalLanguage.h
     Include/GameClient/GraphDraw.h
 #    Include/GameClient/GUICallbacks.h
@@ -799,6 +800,11 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/InGameChat.cpp
     Source/GameClient/GUI/GUICallbacks/InGamePopupMessage.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/ChallengeMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineDownloadMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineMapSelectMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlinePopupHostGame.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlinePopupJoinGame.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineWelcomeMenu.cpp
 #    Source/GameClient/GUI/GUICallbacks/Menus/CreditsMenu.cpp
 #    Source/GameClient/GUI/GUICallbacks/Menus/DifficultySelect.cpp
 #    Source/GameClient/GUI/GUICallbacks/Menus/DisconnectWindow.cpp
