@@ -9,6 +9,7 @@
 #include "GameClient/InGameUI.h"
 #include "GameLogic/VictoryConditions.h"
 #include <atomic>
+#include <optional>
 #include <set>
 
 extern GenOnlineGame* TheGenOnlineGame;
@@ -128,6 +129,7 @@ public:
 	void DeregisterForSearchForLobbiesCallback()
 	{
 		m_fnCallbackSearchForLobbiesComplete = nullptr;
+		StopWatchingLobbyList();
 	}
 	std::function<void(std::vector<LobbyEntry>)> m_fnCallbackSearchForLobbiesComplete = nullptr;
 
@@ -567,6 +569,13 @@ public:
 		return m_CurrentMatchID;
 	}
 
+	// Realtime hub events.
+	void OnRealtimeReady();
+	void OnRealtimeLobbyListUpsert(const GenOnlineRealtime::LobbySummary& lobby);
+	void OnRealtimeLobbyListRemove(int64_t lobbyID);
+	void OnRealtimeLobbyState(const GenOnlineRealtime::LobbyState& lobby);
+	void OnRealtimeLobbyLeft(const GenOnlineRealtime::LobbyLeftEvent& event);
+
 private:
 	std::function<void(bool)> m_cb_CreateLobbyPendingCallback = nullptr;
 
@@ -597,4 +606,22 @@ private:
 	bool m_bMarkedGameAsFinished = false;
 
 	uint64_t m_CurrentMatchID = 0;
+
+	void ApplyLobbyUpdate(LobbyEntry lobbyEntry, const std::vector<LobbyMemberEntry>& parsedMembers, uint64_t requestSeq);
+	void HandleCurrentLobbyGone();
+	void LeaveLobbyOnService(int64_t lobbyID);
+
+	void SearchForLobbiesRealtime();
+	void CompleteRealtimeLobbySearch(bool bSucceeded);
+	void StopWatchingLobbyList();
+	void UpdateRoomDataCacheRealtime(std::function<void(bool)> fnCallback);
+	void ApplyRealtimeLobbyState(const GenOnlineRealtime::LobbyState& lobby);
+	void FlushLobbyStateWaiters(bool bSucceeded);
+
+	// Realtime hub lobby list cache, kept current by LobbyListUpsert and LobbyListRemove while watching.
+	bool m_bWatchingLobbyList = false;
+	std::vector<GenOnlineRealtime::LobbySummary> m_hubLobbyList;
+	// The latest LobbyState of the hub and the refreshes that wait for the state of the current lobby.
+	std::optional<GenOnlineRealtime::LobbyState> m_hubLobbyState;
+	std::vector<std::function<void(bool)>> m_hubLobbyStateWaiters;
 };
