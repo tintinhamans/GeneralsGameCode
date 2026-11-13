@@ -67,7 +67,6 @@
 #include "GameNetwork/GameSpy/ThreadUtils.h"
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
-#include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 static Bool isShuttingDown = FALSE;
@@ -232,26 +231,18 @@ static void updateNumPlayersOnline()
 		GadgetStaticTextSetText(playersOnlineWindow, valStr);
 	}
 
-	// TODO_GENONLINE
-	//if (listboxInfo && TheGameSpyInfo)
-	if (listboxInfo)
+	if (listboxInfo && TheGameSpyInfo)
 	{
 		GadgetListBoxReset(listboxInfo);
 		AsciiString aLine;
 		UnicodeString line;
-
-#if defined(GENONLINE)
-		AsciiString aMotd = GenOnlineServicesManager::GetInstance() == nullptr ? AsciiString() : AsciiString(GenOnlineServicesManager::GetInstance()->GetMOTD().c_str());
-#else
 		AsciiString aMotd = TheGameSpyInfo->getMOTD();
-#endif
 		UnicodeString headingStr;
 		//Kris: Patch 1.01 - November 12, 2003
 		//Removed number of players from string, and removed the argument. The number is incorrect anyways...
 		//This was a Harvard initiated fix.
 		headingStr.format(TheGameText->fetch("MOTD:NumPlayersHeading"));
 
-		//<hexcol>%hs for colors
 		while (headingStr.nextToken(&line, L"\n"))
 		{
 			if (line.getCharAt(line.getLength()-1) == '\r')
@@ -268,7 +259,6 @@ static void updateNumPlayersOnline()
 		}
 		GadgetListBoxAddEntryText(listboxInfo, L" ", GameSpyColor[GSCOLOR_MOTD_HEADING], -1, -1);
 
-		// END NETWORK CAPS
 		while (aMotd.nextToken(&aLine, "\n"))
 		{
 			if (aLine.getCharAt(aLine.getLength()-1) == '\r')
@@ -325,7 +315,7 @@ static const char* FindNextNumber( const char* pStart )
 	if( !pNum )
 		return pStart;  //error
 
-	while( !isdigit((unsigned char)*pNum) )
+	while( !isdigit(*pNum) )
 		++pNum;  //go to next number
 	return pNum;
 }
@@ -383,67 +373,6 @@ void HandleOverallStats( const char* szHTTPStats, unsigned len )
 //called only from WOLWelcomeMenuInit to set %win stats
 static void updateOverallStats()
 {
-	GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
-	if (pStatsInterface == nullptr)
-	{
-		return;
-	}
-
-	pStatsInterface->GetGlobalStats([=](GlobalStats stats)
-		{
-			UnicodeString percStr;
-			AsciiString wndName;
-			GameWindow* pWin;
-
-			// calculate total win percent
-			int totalWins = 0;
-			int totalGames = 0;
-			s_totalWinPercent = 0.f;
-
-			for (int i = 0; i < stats.matches.size(); ++i)
-			{
-				totalWins += stats.wins[i];
-				totalGames += stats.matches[i];
-			}
-
-			if (totalGames <= 0)
-				totalGames = 1;  //prevent divide by zero
-
-			s_totalWinPercent = ((float)totalWins / (float)totalGames);
-
-			if (s_totalWinPercent <= 0)
-				s_totalWinPercent = 1;  //prevent divide by zero
-
-			//std::map<AsciiString, float>::iterator it;
-			//for (it = s_winStats.begin(); it != s_winStats.end(); ++it)
-			for (int i = 0; i < stats.matches.size(); ++i)
-			{
-				int wins = stats.wins[i];
-				int matches = stats.matches[i];
-
-				// div by 0 fix
-				if (matches == 0)
-				{
-					matches = 1;
-				}
-
-
-				float fThisPercent = ((float)wins / (float)matches);
-
-				std::string teamName = g_mapServiceIndexToPlayerTemplateString[i]; 
-
-				//int percent = (int)(100.0f * (fThisPercent / s_totalWinPercent));
-				//percStr.format(TheGameText->fetch("GUI:WinPercent"), percent);
-
-				percStr.format(L"%d%% (%d of %d)", (int)(100.f*fThisPercent), stats.wins[i], stats.matches[i]);
-				wndName.format("WOLWelcomeMenu.wnd:Percent%s", teamName.c_str());
-				pWin = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY(wndName));
-				GadgetCheckBoxSetText(pWin, percStr);
-				//x		DEBUG_LOG(("Initialized win percent: %s -> %s %f=%s\n", wndName.str(), it->first.str(), it->second, percStr.str() ));
-			} //for
-		});
-
-	return;
 	UnicodeString percStr;
 	AsciiString wndName;
 	GameWindow* pWin;
@@ -470,6 +399,7 @@ static void updateOverallStats()
 
 void UpdateLocalPlayerStats()
 {
+
 	GameWindow *welcomeParent = TheWindowManager->winGetWindowFromId( nullptr, NAMEKEY("WOLWelcomeMenu.wnd:WOLWelcomeMenuParent") );
 
 	if (welcomeParent)
@@ -488,8 +418,6 @@ static Bool raiseMessageBoxes = FALSE;
 //-------------------------------------------------------------------------------------------------
 void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 {
-	updateNumPlayersOnline();
-
 	nextScreen = nullptr;
 	buttonPushed = FALSE;
 	isShuttingDown = FALSE;
@@ -539,27 +467,12 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 	}
 
 	GameWindow *staticTextTitle = TheWindowManager->winGetWindowFromId(parentWOLWelcome, NAMEKEY("WOLWelcomeMenu.wnd:StaticTextTitle"));
-
-#if !defined(GENONLINE)
 	if (staticTextTitle && TheGameSpyInfo)
 	{
 		UnicodeString title;
 		title.format(TheGameText->fetch("GUI:WOLWelcome"), TheGameSpyInfo->getLocalBaseName().str());
 		GadgetStaticTextSetText(staticTextTitle, title);
 	}
-#else
-	if (staticTextTitle)
-	{
-		UnicodeString title;
-
-		GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-		if (pAuthInterface != nullptr)
-		{
-			title.format(L"Welcome to Generals Online, %s", pAuthInterface->GetDisplayNameW().c_str());
-			GadgetStaticTextSetText(staticTextTitle, title);
-		}
-	}
-#endif
 
 	// Clear some defaults
 	/*
@@ -575,7 +488,6 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 	GadgetStaticTextSetText(staticTextHighscorePoints, questionMark);
 	GadgetStaticTextSetText(staticTextHighscoreRank, questionMark);
 	*/
-
 
 	//DEBUG_ASSERTCRASH(listboxInfo, ("No control found!"));
 
@@ -594,7 +506,6 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 	buttonLadderID = TheNameKeyGenerator->nameToKey( "WOLWelcomeMenu.wnd:ButtonLadder" );
 	buttonLadder = TheWindowManager->winGetWindowFromId( parentWOLWelcome, buttonLadderID );
 
-#if !defined(GENONLINE)
 	if (TheFirewallHelper == nullptr) {
 		TheFirewallHelper = createFirewallHelper();
 	}
@@ -603,7 +514,6 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 		delete TheFirewallHelper;
 		TheFirewallHelper = nullptr;
 	}
-#endif
 	/*
 
 	if (TheGameSpyChat && TheGameSpyChat->isConnected())
@@ -634,64 +544,23 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 	// Set Keyboard to Main Parent
 	TheWindowManager->winSetFocus( parentWOLWelcome );
 
-
-#if defined(GENONLINE)
-	enableControls( true );
-#else
-	enableControls(TheGameSpyInfo->gotGroupRoomList());
-#endif
+	enableControls( TheGameSpyInfo->gotGroupRoomList() );
 	TheShell->showShellMap(TRUE);
-
 
 	updateNumPlayersOnline();
 	updateOverallStats();
+
 	UpdateLocalPlayerStats();
 
-	// GenOnline: We removed locales, it was pointless
-#if !defined(GENONLINE)
 	GameSpyMiscPreferences cPref;
 	if (cPref.getLocale() < LOC_MIN || cPref.getLocale() > LOC_MAX)
 	{
 		GameSpyOpenOverlay(GSOVERLAY_LOCALESELECT);
 	}
-#endif
 
 	raiseMessageBoxes = TRUE;
 	TheTransitionHandler->setGroup("WOLWelcomeMenuFade");
 
-#if defined(GENONLINE)
-    // Update the communicator button anytime we get notifications
-    GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-    if (pSocialInterface != nullptr)
-    {
-        // notifiactions callback
-        pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged([](int numNotifications)
-            {
-                // update communicator button
-                if (buttonBuddies != nullptr)
-                {
-                    UnicodeString buttonText;
-                    if (numNotifications > 0)
-                    {
-                        buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), numNotifications);
-                    }
-                    else
-                    {
-                        buttonText.format(L"%s", TheGameText->fetch("GUI:Buddies").str());
-                    }
-					buttonBuddies->winSetText(buttonText);
-                }
-            });
-
-        // And also initialize it
-        if (buttonBuddies != nullptr && pSocialInterface->GetNumTotalNotifications() > 0)
-        {
-            UnicodeString buttonText;
-            buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), pSocialInterface->GetNumTotalNotifications());
-            buttonBuddies->winSetText(buttonText);
-        }
-    }
-#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -739,21 +608,6 @@ void WOLWelcomeMenuUpdate( WindowLayout * layout, void *userData)
 		raiseMessageBoxes = FALSE;
 	}
 
-	// TODO_GENONLINE: We do this in multiple UIs, we should actually just do it in one place and send an event to every other screen
-	if (GenOnlineServicesManager::GetInstance() != nullptr && GenOnlineServicesManager::GetInstance()->IsPendingFullTeardown())
-	{
-		GenOnlineServicesManager::GetInstance()->ConsumePendingFullTeardown();
-
-		buttonPushed = TRUE;
-
-		TheShell->pop();
-
-		// GenOnline: Don't need to logout here, just kill the WS connection, that triggers a log out
-		TearDownGeneralsOnline();
-	}
-
-	// TODO_GENONLINE: do we still care about FW helper?
-#if !defined(GENONLINE)
 	if (TheFirewallHelper != nullptr)
 	{
 		if (TheFirewallHelper->behaviorDetectionUpdate())
@@ -769,13 +623,8 @@ void WOLWelcomeMenuUpdate( WindowLayout * layout, void *userData)
 			TheFirewallHelper = nullptr;
 		}
 	}
-#endif
 
-#if defined(GENONLINE) // GO needs to tick this, so notifications disappear etc
-	HandleBuddyResponses();
-#endif
-
-	if (TheShell->isAnimFinished() && !buttonPushed && TheGameSpyPeerMessageQueue && TheGameSpyInfo)
+	if (TheShell->isAnimFinished() && !buttonPushed && TheGameSpyPeerMessageQueue)
 	{
 		HandleBuddyResponses();
 		HandlePersistentStorageResponses();
@@ -901,6 +750,12 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 {
 	UnicodeString txtInput;
 
+	// During shutdown the window hierarchy is being torn down; ignore all
+	// messages to prevent use-after-free crashes caused by mouse-enter/leave
+	// events that are still in-flight while the parent window is being destroyed.
+	if( isShuttingDown )
+		return MSG_IGNORED;
+
 	switch( msg )
 	{
 
@@ -927,7 +782,6 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 
 		case GBM_SELECTED:
 			{
-			// TODO_GENONLINE: Support exiting online again
 				if (buttonPushed)
 					break;
 
@@ -939,12 +793,6 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 					//DEBUG_ASSERTCRASH(TheGameSpyChat->getPeer(), ("No GameSpy Peer object!"));
 					//TheGameSpyChat->disconnectFromChat();
 
-#if defined(GENONLINE)
-					// GenOnline: Don't need to logout here, just kill the WS connection, that triggers a log out
-					GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
-
-					DEBUG_LOG(("Tearing down GeneralsOnline from WOLWelcomeMenuSystem(GBM_SELECTED)\n"));
-#else
 					PeerRequest req;
 					req.peerRequestType = PeerRequest::PEERREQUEST_LOGOUT;
 					TheGameSpyPeerMessageQueue->addRequest( req );
@@ -954,7 +802,6 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 
 					DEBUG_LOG(("Tearing down GameSpy from WOLWelcomeMenuSystem(GBM_SELECTED)"));
 					TearDownGameSpy();
-#endif
 
 					/*
 					if (TheGameSpyChat->getPeer())
@@ -962,6 +809,7 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 						peerDisconnect(TheGameSpyChat->getPeer());
 					}
 					*/
+
 					buttonPushed = TRUE;
 
 					TheShell->pop();
@@ -985,7 +833,7 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 				else if (controlID == buttonQuickMatchID)
 				{
 					GameSpyMiscPreferences mPref;
-					if ((TheDisplay->getWidth() != 800 || TheDisplay->getHeight() != 600) && mPref.getQuickMatchResLocked())
+					if ((TheDisplay->getWidth() != DEFAULT_DISPLAY_WIDTH || TheDisplay->getHeight() != DEFAULT_DISPLAY_HEIGHT) && mPref.getQuickMatchResLocked())
 					{
 						GSMessageBoxOk(TheGameText->fetch("GUI:GSErrorTitle"), TheGameText->fetch("GUI:QuickMatch800x600"));
 					}
@@ -998,25 +846,15 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 				}
 				else if (controlID == buttonMyInfoID )
 				{
-					// TODO_GENONLINE: This needs work for unicode once we support this
-					GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-					if (pAuthInterface != nullptr)
-					{
-						SetLookAtPlayer(pAuthInterface->GetUserID(), UnicodeString(pAuthInterface->GetDisplayNameW().c_str()));
-						GameSpyToggleOverlay(GSOVERLAY_PLAYERINFO);
-					}
+					SetLookAtPlayer(TheGameSpyInfo->getLocalProfileID(), TheGameSpyInfo->getLocalName());
+					GameSpyToggleOverlay(GSOVERLAY_PLAYERINFO);
 				}
 				else if (controlID == buttonLobbyID)
 				{
 					//TheGameSpyChat->clearGroupRoomList();
 					//peerListGroupRooms(TheGameSpyChat->getPeer(), ListGroupRoomsCallback, nullptr, PEERTrue);
-
-					// TODO_GENONLINE
-					//TheGameSpyInfo->joinBestGroupRoom();
-					//enableControls( FALSE );
-					buttonPushed = TRUE;
-					nextScreen = "Menus/WOLCustomLobby.wnd";
-					TheShell->pop();
+					TheGameSpyInfo->joinBestGroupRoom();
+					enableControls( FALSE );
 
 
 					/*

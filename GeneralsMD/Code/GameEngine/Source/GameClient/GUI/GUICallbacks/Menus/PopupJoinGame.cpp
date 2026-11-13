@@ -62,8 +62,6 @@
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/PeerThread.h"
 #include "GameNetwork/GameSpyOverlay.h"
-#include "../GenOnlineInclude.h"
-#include "../GenOnlineInterfaces.h"
 
 
 //-----------------------------------------------------------------------------
@@ -101,18 +99,11 @@ void PopupJoinGameInit( WindowLayout *layout, void *userData )
 
 	buttonCancelID = NAMEKEY("PopupJoinGame.wnd:ButtonCancel");
 
-	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-	if (pLobbyInterface == nullptr)
-	{
-		DEBUG_LOG(("GenOnlineLobbyInterface is not initialized!"));
-		return;
-	}
+	GameSpyStagingRoom *ourRoom = TheGameSpyInfo->findStagingRoomByID(TheGameSpyInfo->getCurrentStagingRoomID());
+	if (ourRoom)
+		GadgetStaticTextSetText(staticTextGameName, ourRoom->getGameName());
 
-	LobbyEntry lobbyTryingToJoin = pLobbyInterface->GetLobbyTryingToJoin();
-	UnicodeString lobbyName(from_utf8(lobbyTryingToJoin.name).c_str());
-	GadgetStaticTextSetText(staticTextGameName, lobbyName);
-
-	TheWindowManager->winSetFocus(textEntryGamePassword);
+	TheWindowManager->winSetFocus( parentPopup );
 	TheWindowManager->winSetModal( parentPopup );
 
 }
@@ -252,31 +243,14 @@ WindowMsgHandledType PopupJoinGameSystem( GameWindow *window, UnsignedInt msg, W
 
 static void joinGame( AsciiString password )
 {
-	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-	if (pLobbyInterface == nullptr)
+	GameSpyStagingRoom *ourRoom = TheGameSpyInfo->findStagingRoomByID(TheGameSpyInfo->getCurrentStagingRoomID());
+	if (!ourRoom)
 	{
-		DEBUG_LOG(("GenOnlineLobbyInterface is not initialized!"));
 		GameSpyCloseOverlay(GSOVERLAY_GAMEPASSWORD);
-		SetLobbyAttemptHostJoin(FALSE);
+		SetLobbyAttemptHostJoin( FALSE );
 		parentPopup = nullptr;
 		return;
 	}
-
-	LobbyEntry lobbyTryingToJoin = pLobbyInterface->GetLobbyTryingToJoin();
-
-	if (lobbyTryingToJoin.lobbyID == -1)
-	{
-		GameSpyCloseOverlay(GSOVERLAY_GAMEPASSWORD);
-		SetLobbyAttemptHostJoin(FALSE);
-		parentPopup = NULL;
-		return;
-	}
-
-#if defined(GENONLINE)
-	pLobbyInterface->JoinLobby(lobbyTryingToJoin, password.str());
-	
-	DEBUG_LOG(("Attempting to join game %d(%s) with password [%s]\n", lobbyTryingToJoin.lobbyID, lobbyTryingToJoin.name.c_str(), password.str()));
-#else
 	PeerRequest req;
 	req.peerRequestType = PeerRequest::PEERREQUEST_JOINSTAGINGROOM;
 	req.text = ourRoom->getGameName().str();
@@ -284,8 +258,6 @@ static void joinGame( AsciiString password )
 	req.password = password.str();
 	TheGameSpyPeerMessageQueue->addRequest(req);
 	DEBUG_LOG(("Attempting to join game %d(%ls) with password [%s]", ourRoom->getID(), ourRoom->getGameName().str(), password.str()));
-#endif
-
 	GameSpyCloseOverlay(GSOVERLAY_GAMEPASSWORD);
 	parentPopup = nullptr;
 }

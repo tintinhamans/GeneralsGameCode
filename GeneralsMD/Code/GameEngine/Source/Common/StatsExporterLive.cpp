@@ -78,6 +78,7 @@
 #include "Common/NameKeyGenerator.h"
 #include "Common/PlayerTemplate.h"
 #include "GameClient/GUICallbacks.h"	// in-game, game lobby and room chat submit functions
+#include "GameClient/GenOnlineMenus.h"
 #include "GameClient/InGameUI.h"
 #include "GameClient/Shell.h"
 #include "GameClient/WindowLayout.h"
@@ -3881,10 +3882,10 @@ namespace
 				break;
 			}
 			case statsexporter::CHAT_CHANNEL_GAME_LOBBY:
-				WOLGameSetupMenuSubmitChatLine(text);
+				GenOnlineGameSetupMenuSubmitChatLine(text);
 				break;
 			case statsexporter::CHAT_CHANNEL_ROOM:
-				WOLLobbyMenuSubmitChatLine(text);
+				GenOnlineLobbyMenuSubmitChatLine(text);
 				break;
 			case statsexporter::CHAT_CHANNEL_LAN_LOBBY:
 				LanLobbyMenuSubmitChatLine(text);

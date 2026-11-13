@@ -419,8 +419,8 @@ void GenOnlineGame::launchGame(void)
 		UnicodeString error;
 		error.translate("Could not establish authenticated game connections. This transport may not support player authentication.");
 		GSMessageBoxOk(TheGameText->fetch("GUI:Error"), error);
-		void PopBackToLobby(void);
-		PopBackToLobby();
+		void GenOnlinePopBackToLobby(void);
+		GenOnlinePopBackToLobby();
 		return;
 	}
 	// One spike or lossy spell must not start the match at a huge run ahead.
@@ -457,8 +457,8 @@ void GenOnlineGame::launchGame(void)
 		}
 		GSMessageBoxOk(TheGameText->fetch("GUI:Error"), TheGameText->fetch("GUI:CouldNotTransferMap"));
 
-		void PopBackToLobby(void);
-		PopBackToLobby();
+		void GenOnlinePopBackToLobby(void);
+		GenOnlinePopBackToLobby();
 		return;
 	}
 
@@ -513,7 +513,7 @@ void GenOnlineGame::launchGame(void)
 
             UnicodeString msg;
             msg.format(L"Map: %s\nPress F5 or INSERT to open the communicator.", from_utf8(strMapName).c_str());
-            showNotificationBox(AsciiString::TheEmptyString, msg, false);
+            GenOnlineShowNotificationBox(AsciiString::TheEmptyString, msg, false);
 		}
 
 		

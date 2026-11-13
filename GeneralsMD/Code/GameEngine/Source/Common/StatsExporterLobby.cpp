@@ -29,6 +29,7 @@
 #include "GameClient/GameWindow.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GUICallbacks.h"
+#include "GameClient/GenOnlineMenus.h"
 #include "GameClient/MapUtil.h"
 #include "GameNetwork/GameInfo.h"
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"	// utf8_to_local
@@ -162,7 +163,7 @@ namespace
 				break;
 			case statsexporter::UI_SCREEN_ONLINE_GAME_SETUP:
 				target.kind = statsexporter::LOBBY_KIND_ONLINE;
-				open = WOLGameSetupMenuStatsLobby(target.screen);
+				open = GenOnlineGameSetupMenuStatsLobby(target.screen);
 				break;
 			default:
 				break;

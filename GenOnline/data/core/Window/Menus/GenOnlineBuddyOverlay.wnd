@@ -1,8 +1,8 @@
 FILE_VERSION = 2;
 STARTLAYOUTBLOCK
-  LAYOUTINIT = WOLBuddyOverlayInit;
-  LAYOUTUPDATE = WOLBuddyOverlayUpdate;
-  LAYOUTSHUTDOWN = WOLBuddyOverlayShutdown;
+  LAYOUTINIT = GenOnlineBuddyOverlayInit;
+  LAYOUTUPDATE = GenOnlineBuddyOverlayUpdate;
+  LAYOUTSHUTDOWN = GenOnlineBuddyOverlayShutdown;
 ENDLAYOUTBLOCK
 WINDOW
   WINDOWTYPE = USER;
@@ -12,8 +12,8 @@ WINDOW
   NAME = "WOLBuddyOverlay.wnd:BuddyMenuParent";
   STATUS = DRAGABLE+ENABLED;
   STYLE = USER;
-  SYSTEMCALLBACK = "WOLBuddyOverlaySystem";
-  INPUTCALLBACK = "WOLBuddyOverlayInput";
+  SYSTEMCALLBACK = "GenOnlineBuddyOverlaySystem";
+  INPUTCALLBACK = "GenOnlineBuddyOverlayInput";
   TOOLTIPCALLBACK = "[None]";
   DRAWCALLBACK = "[None]";
   FONT = NAME: "Arial", SIZE: 10, BOLD: 0;

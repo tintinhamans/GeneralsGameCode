@@ -1,8 +1,8 @@
 FILE_VERSION = 2;
 STARTLAYOUTBLOCK
-  LAYOUTINIT = WOLLoginMenuInit;
-  LAYOUTUPDATE = WOLLoginMenuUpdate;
-  LAYOUTSHUTDOWN = WOLLoginMenuShutdown;
+  LAYOUTINIT = GenOnlineLoginMenuInit;
+  LAYOUTUPDATE = GenOnlineLoginMenuUpdate;
+  LAYOUTSHUTDOWN = GenOnlineLoginMenuShutdown;
 ENDLAYOUTBLOCK
 WINDOW
   WINDOWTYPE = USER;
@@ -12,8 +12,8 @@ WINDOW
   NAME = "GameSpyLoginQuick.wnd:WOLLoginMenuParent";
   STATUS = ENABLED+NOINPUT+BORDER+SEE_THRU;
   STYLE = USER;
-  SYSTEMCALLBACK = "WOLLoginMenuSystem";
-  INPUTCALLBACK = "WOLLoginMenuInput";
+  SYSTEMCALLBACK = "GenOnlineLoginMenuSystem";
+  INPUTCALLBACK = "GenOnlineLoginMenuInput";
   TOOLTIPCALLBACK = "[None]";
   DRAWCALLBACK = "[None]";
   FONT = NAME: "Times New Roman", SIZE: 14, BOLD: 0;

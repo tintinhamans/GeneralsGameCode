@@ -32,7 +32,6 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/GameEngine.h"
-#include "Common/GOUIColors.h"
 #include "Common/QuickmatchPreferences.h"
 #include "Common/LadderPreferences.h"
 #include "Common/MultiplayerSettings.h"
@@ -43,7 +42,6 @@
 #include "GameClient/Gadget.h"
 #include "GameClient/GameText.h"
 #include "GameClient/InGameUI.h"
-#include "GameClient/Display.h"
 #include "GameClient/Shell.h"
 #include "GameClient/ShellHooks.h"
 #include "GameClient/KeyDefs.h"
@@ -80,17 +78,6 @@ static Bool s_inQM = FALSE;
 #define PERF_LOG(x)
 #endif // DEBUG_LOGGING
 
-#if defined(GENONLINE)
-#include "../GenOnlineInit.h"
-#include "../GenOnlineAuth.h"
-#include "../GenOnlineGame.h"
-extern GenOnlineGame* TheGenOnlineGame;
-#endif
-#include "../GenOnlineMatchmakingInterface.h"
-#include "../GenOnlineLobbyInterface.h"
-#include "../GenOnlineSocialInterface.h"
-#include "../GenOnlineStatsInterface.h"
-
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 // window ids ------------------------------------------------------------------------------
 static NameKeyType parentWOLQuickMatchID = NAMEKEY_INVALID;
@@ -115,9 +102,6 @@ static NameKeyType staticTextNumPlayersID = NAMEKEY_INVALID;
 static NameKeyType comboBoxSideID = NAMEKEY_INVALID;
 static NameKeyType comboBoxColorID = NAMEKEY_INVALID;
 
-
-// Bumped on Init/Shutdown; async callbacks bail if this changed before they fire.
-static uint64_t s_quickMatchMenuGeneration = 0;
 
 // Window Pointers ------------------------------------------------------------------------
 static GameWindow *parentWOLQuickMatch = nullptr;
@@ -147,20 +131,11 @@ static Bool raiseMessageBoxes = false;
 static Bool isInInit = FALSE;
 static const Image *selectedImage = nullptr;
 static const Image *unselectedImage = nullptr;
-static const Image *mapHoverPreview = nullptr;
-static GameWinDrawFunc mapListboxPreviewFunc = nullptr;
 
 static bool isPopulatingLadderBox = false;
 static Int maxPingEntries = 0;
 static Int maxPoints= 100;
 static Int minPoints = 0;
-
-static Int matchFoundTimeoutStart = 0;
-static const Int lobbyTimeoutMs = 10000;
-static Int matchFoundTimeoutDurationMs = lobbyTimeoutMs;
-static const Int defaultMatchStartCountdownMs = 5000;
-static Int matchStartCountdownDurationMs = defaultMatchStartCountdownMs;
-static Int matchStartCountdownLastSecond = 0;
 
 static const LadderInfo * getLadderInfo();
 
@@ -224,8 +199,6 @@ static void enableOptionsGadgets(Bool doIt)
 			comboBoxColor->winEnable(doIt);
 		if (comboBoxNumPlayers)
 			comboBoxNumPlayers->winEnable(doIt);
-
-#if !defined(GENONLINE)
 		if (comboBoxLadder)
 			comboBoxLadder->winEnable(doIt);
 		if (comboBoxDisabledLadder)
@@ -234,7 +207,6 @@ static void enableOptionsGadgets(Bool doIt)
 			comboBoxMaxPing->winEnable(doIt);
 		if (comboBoxMaxDisconnects)
 			comboBoxMaxDisconnects->winEnable(doIt);
-#endif
 	}
 }
 
@@ -255,41 +227,7 @@ static Int MAX_DISCONNECTS[MAX_DISCONNECTS_COUNT] = {
 	MAX_DISCONNECTS_25,
 	MAX_DISCONNECTS_50
 };
-void updateMapHoverPreview(GameWindow* window, WinInstanceData* instData)
-{
-	if (mapListboxPreviewFunc)
-		mapListboxPreviewFunc(window, instData);
-	if (listboxMapSelect == nullptr)
-		return;
 
-	const MouseIO* mouseStatus = TheMouse->getMouseStatus();
-	Int mouseX = mouseStatus->pos.x;
-	Int mouseY = mouseStatus->pos.y;
-	Int listboxX, listboxY, listboxW, listboxH;
-	listboxMapSelect->winGetScreenPosition(&listboxX, &listboxY);
-	listboxMapSelect->winGetSize(&listboxW, &listboxH);
-
-	// mouse is outside the listbox?
-	if (mouseX < listboxX || mouseX > listboxX + listboxW || mouseY < listboxY || mouseY > listboxY + listboxH)
-		return;
-
-	Int hoveredRow, col;
-	GadgetListBoxGetEntryBasedOnXY(listboxMapSelect, mouseX, mouseY, hoveredRow, col);
-	const MapMetaData* mapData = (const MapMetaData*)GadgetListBoxGetItemData(listboxMapSelect, hoveredRow, 1);
-	mapHoverPreview = mapData ? getMapPreviewImage(mapData->m_fileName) : nullptr;
-
-	if (mapHoverPreview == nullptr)
-		return;
-
-	Real wScale = TheDisplay->getWidth() / (Real)DEFAULT_DISPLAY_WIDTH;
-	Real hScale = TheDisplay->getHeight() / (Real)DEFAULT_DISPLAY_HEIGHT;
-	Real scale = (wScale + hScale) * 0.5f;
-	Int  previewSize = (Int)(50 * scale);
-	Int  offset = (Int)(20 * scale);
-	Int  previewX = mouseX + offset;
-	Int  previewY = mouseY - (previewSize / 2);
-	TheWindowManager->winDrawImage(mapHoverPreview, previewX, previewY, previewX + previewSize, previewY + previewSize);
-}
 
 void UpdateStartButton()
 {
@@ -466,26 +404,17 @@ void PopulateQMLadderListBox( GameWindow *win )
 
 	QuickMatchPreferences pref;
 	AsciiString userPrefFilename;
-
-#if !defined(GENONLINE)
 	Int localProfile = TheGameSpyInfo->getLocalProfileID();
-#endif
-	
-	Color normalColor = GameSpyColor[GSCOLOR_MAP_UNSELECTED];
-#if !defined(GENONLINE)
+
 	Color specialColor = GameSpyColor[GSCOLOR_MAP_SELECTED];
+	Color normalColor = GameSpyColor[GSCOLOR_MAP_UNSELECTED];
 	Color favoriteColor = GameSpyColor[GSCOLOR_MAP_UNSELECTED];
-#endif
 	Int index;
 	GadgetListBoxReset( win );
 
 	std::set<const LadderInfo *> usedLadders;
 
 	// start with "No Ladder"
-#if defined(GENONLINE)
-	index = GadgetListBoxAddEntryText(win, UnicodeString(L"Automatic Ladder"), normalColor, -1);
-	GadgetListBoxSetItemData(win, 0, index);
-#else
 	index = GadgetListBoxAddEntryText( win, TheGameText->fetch("GUI:NoLadder"), normalColor, -1 );
 	GadgetListBoxSetItemData( win, nullptr, index );
 
@@ -549,7 +478,6 @@ void PopulateQMLadderListBox( GameWindow *win )
 	}
 
 	GadgetListBoxSetSelected( win, selectedPos );
-#endif
 	isPopulatingLadderBox = false;
 }
 
@@ -571,14 +499,7 @@ void PopulateQMLadderComboBox()
 	isPopulatingLadderBox = true;
 
 	QuickMatchPreferences pref;
-
-#if defined(GENONLINE)
-	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-
-	int64_t localProfile = pAuthInterface != nullptr ? pAuthInterface->GetUserID() : -1;
-#else
 	Int localProfile = TheGameSpyInfo->getLocalProfileID();
-#endif
 
 	Color specialColor = GameSpyColor[GSCOLOR_MAP_SELECTED];
 	Color normalColor = GameSpyColor[GSCOLOR_MAP_UNSELECTED];
@@ -638,70 +559,7 @@ void PopulateQMLadderComboBox()
 
 static void populateQuickMatchMapSelectListbox( QuickMatchPreferences& pref )
 {
-	NetworkLog(ELogVerbosity::LOG_DEBUG, "Begin Map Dump");
-	for (auto it = TheMapCache->begin(); it != TheMapCache->end(); ++it)
-	{
-		if (it->second.m_isOfficial && it->second.m_isMultiplayer)
-		{
-			NetworkLog(ELogVerbosity::LOG_DEBUG, "%ls - %s", it->second.m_displayName.str(), it->second.m_fileName.str());
-		}
-	}
-	NetworkLog(ELogVerbosity::LOG_DEBUG, "End Map Dump");
-
-	// TODO_QUICKMATCH
-#if defined(GENONLINE)
-	std::list<AsciiString> maps;
-	Int numPlayers = 0;
-	Int playlistIndex = -1;
-	GadgetComboBoxGetSelectedPos(comboBoxNumPlayers, &playlistIndex);
-
-	if (playlistIndex != -1)
-	{
-		GenOnlineMatchmakingInterface* pMatchmakingInterface = GenOnlineServicesManager::GetInterface<GenOnlineMatchmakingInterface>();
-		if (pMatchmakingInterface != nullptr)
-		{
-			PlaylistEntry plEntry = pMatchmakingInterface->GetCachedPlaylistFromIndex(playlistIndex);
-			if (plEntry.PlaylistID != -1)
-			{
-				// take the min player count, we'll offer maps in that range, up to desired player count
-				numPlayers = plEntry.MinPlayers;
-
-				// maps
-				for (PlaylistMapEntry& mapEntry : plEntry.Maps)
-				{
-					// format into game format (Maps\\name\\name.map) for official EA maps or full path for custom maps
-					std::string correctedMapPath;
-					
-					// custom maps need the full path
-					if (mapEntry.Custom)
-					{
-						// TODO_QUICKMATCH: How did the original gamespy service handle this?
-						correctedMapPath = std::format("{}maps\\{}\\{}.map", TheGlobalData->getPath_UserData().str(), mapEntry.Path, mapEntry.Path);
-					}
-					else
-					{
-						correctedMapPath = std::format("maps\\{}\\{}.map", mapEntry.Path, mapEntry.Path);
-					}
-
-					AsciiString mapPath = correctedMapPath.c_str();
-					mapPath.toLower();
-					maps.push_back(mapPath);
-				}
-			}
-			else
-			{
-				// TODO_QUICKMATCH: Error?
-			}
-		}
-	}
-	else
-	{
-		// TODO_QUICKMATCH: Error?
-	}
-	
-#else
 	std::list<AsciiString> maps = TheGameSpyConfig->getQMMaps();
-#endif
 
 	// enable/disable box based on ladder status
 	Int index;
@@ -711,8 +569,6 @@ static void populateQuickMatchMapSelectListbox( QuickMatchPreferences& pref )
 	const LadderInfo *li = TheLadderList->findLadderByIndex( index );
 	//listboxMapSelect->winEnable( li == nullptr || li->randomMaps == FALSE );
 
-	// GO does this differently (and does it above)
-#if !defined(GENONLINE)
 	Int numPlayers = 0;
 	if (li)
 	{
@@ -727,7 +583,6 @@ static void populateQuickMatchMapSelectListbox( QuickMatchPreferences& pref )
 			selected = 0;
 		numPlayers = (selected+1)*2;
 	}
-#endif
 
 
 	GadgetListBoxReset(listboxMapSelect);
@@ -764,58 +619,7 @@ static void saveQuickMatchOptions()
 		return;
 	QuickMatchPreferences pref;
 
-#if defined(GENONLINE)
-	Int numPlayers = 0;
-	std::list<AsciiString> maps;
-	Int selected = -1;
-	GadgetComboBoxGetSelectedPos(comboBoxNumPlayers, &selected);
-
-	if (selected != -1)
-	{
-		GenOnlineMatchmakingInterface* pMatchmakingInterface = GenOnlineServicesManager::GetInterface<GenOnlineMatchmakingInterface>();
-		if (pMatchmakingInterface != nullptr)
-		{
-			PlaylistEntry plEntry = pMatchmakingInterface->GetCachedPlaylistFromIndex(selected);
-			if (plEntry.PlaylistID != -1)
-			{
-				// take the min player count, we'll offer maps in that range, up to desired player count
-				numPlayers = plEntry.MinPlayers;
-
-				// maps
-				for (PlaylistMapEntry& mapEntry : plEntry.Maps)
-				{
-					// format into game format (Maps\\name\\name.map)
-					std::string correctedMapPath = std::format("maps\\{}\\{}.map", mapEntry.Path, mapEntry.Path);
-					maps.push_back(AsciiString(correctedMapPath.c_str()));
-				}
-
-				// ladder
-				pref.setLastLadder(AsciiString::TheEmptyString, 0);
-
-				// map
-				Int row = 0;
-				Int entries = GadgetListBoxGetNumEntries(listboxMapSelect);
-				while (row < entries)
-				{
-					const MapMetaData* md = (const MapMetaData*)GadgetListBoxGetItemData(listboxMapSelect, row, 1);
-					if (md)
-						pref.setMapSelected(md->m_fileName, (Bool)GadgetListBoxGetItemData(listboxMapSelect, row));
-					row++;
-				}
-			}
-			else
-			{
-				// TODO_QUICKMATCH: Error?
-			}
-		}
-	}
-	else
-	{
-		// TODO_QUICKMATCH: Error?
-	}
-#else
 	std::list<AsciiString> maps = TheGameSpyConfig->getQMMaps();
-
 
 	Int index;
 	Int selected;
@@ -841,7 +645,6 @@ static void saveQuickMatchOptions()
 		numPlayers = (selected+1)*2;
 	}
 
-
 	if (!li || !li->randomMaps)  // don't save the map as selected if we couldn't choose
 	{
 		Int row = 0;
@@ -854,7 +657,6 @@ static void saveQuickMatchOptions()
 			row++;
 		}
 	}
-#endif
 
 	UnicodeString u;
 	AsciiString a;
@@ -895,8 +697,6 @@ static void saveQuickMatchOptions()
 //-------------------------------------------------------------------------------------------------
 void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 {
-	++s_quickMatchMenuGeneration;
-
 	isInInit = TRUE;
 	if (TheGameSpyGame && TheGameSpyGame->isGameInProgress())
 	{
@@ -924,9 +724,6 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	buttonPushed = false;
 	isShuttingDown = false;
 	raiseMessageBoxes = true;
-	matchFoundTimeoutStart = 0;
-	matchFoundTimeoutDurationMs = lobbyTimeoutMs;
-	matchStartCountdownLastSecond = 0;
 
 	delete TheNAT;
 	TheNAT = nullptr;
@@ -960,13 +757,6 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	buttonWiden = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch,  buttonWidenID);
 	quickmatchTextWindow = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch,  listboxQuickMatchID);
 	listboxMapSelect = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch,  listboxMapSelectID);
-	if (listboxMapSelect)
-	{
-		mapListboxPreviewFunc = listboxMapSelect->winGetDrawFunc();
-		listboxMapSelect->winSetDrawFunc(updateMapHoverPreview);
-	}
-	SetListBoxRowAnimMode(quickmatchTextWindow, LIST_ROW_ANIM_SLOT);
-	SetListBoxRowAnimMode(listboxMapSelect, LIST_ROW_ANIM_SLOT);
 	//textEntryMaxDisconnects = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, textEntryMaxDisconnectsID );
 	//textEntryMaxPoints = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, textEntryMaxPointsID );
 	//textEntryMinPoints = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, textEntryMinPointsID );
@@ -975,10 +765,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	comboBoxNumPlayers = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, comboBoxNumPlayersID );
 	comboBoxLadder = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, comboBoxLadderID );
 	comboBoxMaxDisconnects = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, comboBoxMaxDisconnectsID );
-
-#if !defined(GENONLINE)
 	TheGameSpyInfo->registerTextWindow(quickmatchTextWindow);
-#endif
 	staticTextNumPlayers = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, staticTextNumPlayersID );
 	comboBoxSide = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, comboBoxSideID );
 	comboBoxColor = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, comboBoxColorID );
@@ -996,13 +783,8 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 		Color normalColor = GameSpyColor[GSCOLOR_MAP_UNSELECTED];
 		Int index;
 		GadgetComboBoxReset( comboBoxDisabledLadder );
-
-#if defined(GENONLINE)
-		index = GadgetComboBoxAddEntry(comboBoxDisabledLadder, UnicodeString(L"Automatic Ladder"), normalColor);
-#else
 		index = GadgetComboBoxAddEntry( comboBoxDisabledLadder, TheGameText->fetch("GUI:NoLadder"), normalColor );
-#endif
-		GadgetComboBoxSetItemData( comboBoxDisabledLadder, index, 0 );
+		GadgetComboBoxSetItemData( comboBoxDisabledLadder, index, nullptr );
 		GadgetComboBoxSetSelectedPos( comboBoxDisabledLadder, index );
 
 		isPopulatingLadderBox = FALSE;
@@ -1031,23 +813,15 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	if (staticTextTitle)
 	{
 		UnicodeString tmp;
-#if !defined(GENONLINE)
 		tmp.format(TheGameText->fetch("GUI:QuickMatchTitle"), TheGameSpyInfo->getLocalName().str());
-#else
-		GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-		if (pAuthInterface != nullptr)
-		{
-			tmp.format(WidenFormatSpecifiers(TheGameText->fetch("GUI:QuickMatchTitle").str()).c_str(), pAuthInterface->GetDisplayNameW().c_str());
-		}
-#endif
 		GadgetStaticTextSetText(staticTextTitle, tmp);
 	}
 
 	// QM is not going yet, so disable the Widen Search button
-	if (buttonWiden) buttonWiden->winEnable( FALSE );
-	if (buttonStop)  { buttonStop->winHide( TRUE ); buttonStop->winEnable(TRUE); }
-	if (buttonStart) buttonStart->winHide( FALSE );
-	if (quickmatchTextWindow) GadgetListBoxReset(quickmatchTextWindow);
+	buttonWiden->winEnable( FALSE );
+	buttonStop->winHide( TRUE );
+	buttonStart->winHide( FALSE );
+	GadgetListBoxReset(quickmatchTextWindow);
 	enableOptionsGadgets(TRUE);
 
 	// Show Menu
@@ -1074,18 +848,15 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	maxPoints= pref.getMaxPoints();
 	minPoints = pref.getMinPoints();
 
-	// NOTE: On GO, this comes from the service
-	Int i;
 	Color c = GameSpyColor[GSCOLOR_DEFAULT];
-#if !defined(GENONLINE)
 	GadgetComboBoxReset( comboBoxNumPlayers );
+	Int i;
 	for (i=1; i<5; ++i)
 	{
 		s.format(TheGameText->fetch("GUI:PlayersVersusPlayers"), i, i);
 		GadgetComboBoxAddEntry( comboBoxNumPlayers, s, c );
 	}
 	GadgetComboBoxSetSelectedPos( comboBoxNumPlayers, max(0, pref.getNumPlayers()) );
-#endif
 
 	GadgetComboBoxReset(comboBoxMaxDisconnects);
 	GadgetComboBoxAddEntry( comboBoxMaxDisconnects, TheGameText->fetch("GUI:Any"), c);
@@ -1098,13 +869,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	GadgetComboBoxSetSelectedPos(comboBoxMaxDisconnects, maxDisconIndex);
 
 	GadgetComboBoxReset( comboBoxMaxPing );
-#if defined(GENONLINE)
-	// not supported in GO
-	maxPingEntries = 0;
-#else
 	maxPingEntries = (TheGameSpyConfig->getPingTimeoutInMs() - 1) / 100;
-#endif
-
 	maxPingEntries++; // need to add the entry for the actual timeout
 	for (i=1; i <maxPingEntries; ++i)
 	{
@@ -1124,10 +889,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 
 	PopulateQMLadderComboBox();
 	TheShell->showShellMap(TRUE);
-
-#if defined(GENONLINE)
-	if (TheGenOnlineGame != nullptr)
-		TheGenOnlineGame->reset();
+	TheGameSpyGame->reset();
 
 	GadgetListBoxReset(listboxMapSelect);
 	populateQuickMatchMapSelectListbox(pref);
@@ -1136,348 +898,6 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	UpdateStartButton();
 	TheTransitionHandler->setGroup("WOLQuickMatchMenuFade");
 	isInInit= FALSE;
-#endif
-
-#if defined(GENONLINE)
-	buttonStart->winEnable(TRUE);
-	buttonStart->winSetText(UnicodeString(L"START MATCHMAKING"));
-	buttonStop->winSetText(UnicodeString(L"CANCEL MATCHMAKING"));
-	buttonBack->winEnable(TRUE);
-
-	// not supported in GO
-	if (comboBoxLadder)
-		comboBoxLadder->winEnable(FALSE);
-	if (comboBoxDisabledLadder)
-		comboBoxDisabledLadder->winEnable(FALSE);
-	if (comboBoxMaxPing)
-		comboBoxMaxPing->winEnable(FALSE);
-	if (comboBoxMaxDisconnects)
-		comboBoxMaxDisconnects->winEnable(FALSE);
-	if (comboBoxSide)
-		comboBoxSide->winEnable(FALSE);
-	if (comboBoxColor)
-		comboBoxColor->winEnable(FALSE);
-
-	// welcome msg + instructions
-	GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Welcome to QuickMatch. Choose Setup to select playlists and maps."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 25, 255)), -1, -1);
-	GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Special thanks to map makers Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy & Bamovich for making quickmatch possible."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 25, 255)), -1, -1);
-
-
-	// refresh out stats, needed for ELO data
-	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-    GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
-    if (pAuthInterface != nullptr && pStatsInterface != nullptr)
-    {
-		const uint64_t generationForStats = s_quickMatchMenuGeneration;
-		pStatsInterface->findPlayerStatsByID(pAuthInterface->GetUserID(), [=](bool bSuccess, PSPlayerStats stats)
-			{
-				if (generationForStats != s_quickMatchMenuGeneration)
-				{
-					return;
-				}
-
-				if (bSuccess)
-				{
-					UnicodeString eloStr;
-#if defined(WORLD_SERIES_CLIENT)
-					eloStr.format(L"Your current Elo rating is %d (World Series: %d) after %d match(es)", stats.elo_rating, stats.monthly_elo_rating, stats.elo_num_matches);
-#else
-					eloStr.format(L"Your current Elo rating is %d (monthly: %d) after %d match(es)", stats.elo_rating, stats.monthly_elo_rating, stats.elo_num_matches);
-#endif
-					GadgetListBoxAddEntryText(quickmatchTextWindow, eloStr, GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 25, 255)), -1, -1);
-				}
-			}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
-    }
-
-#endif
-
-#if defined(GENONLINE)
-	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-
-	// cannot connect to the lobby we joined
-	if (pLobbyInterface != nullptr)
-	{
-
-	pLobbyInterface->RegisterForCannotConnectToLobbyCallback([](void)
-		{
-			Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Could not connect to a player, waiting for the matchmaker..."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-			GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-
-			// don't cancel: racing a server-issued requeue could unregister us from its bucket
-			matchFoundTimeoutStart = 0;
-			matchStartCountdownLastSecond = 0;
-
-			buttonBack->winEnable(TRUE);
-			buttonStop->winEnable(TRUE);
-		});
-	}
-
-
-	// get playlist list
-	GenOnlineMatchmakingInterface* pMatchmakingInterface = GenOnlineServicesManager::GetInterface<GenOnlineMatchmakingInterface>();
-	if (pMatchmakingInterface != nullptr)
-	{
-		const uint64_t generationForPlaylists = s_quickMatchMenuGeneration;
-		pMatchmakingInterface->RetrievePlaylists([generationForPlaylists](std::vector<PlaylistEntry> vecPlaylists)
-			{
-				if (generationForPlaylists != s_quickMatchMenuGeneration)
-				{
-					return;
-				}
-
-				// add playlists
-				UnicodeString s;
-
-				// clear ui element
-				GadgetComboBoxReset(comboBoxNumPlayers);
-
-
-				for (PlaylistEntry& playlist : vecPlaylists)
-				{
-					s = UnicodeString(from_utf8(playlist.Name).c_str());
-					GadgetComboBoxAddEntry(comboBoxNumPlayers, s, GameSpyColor[GSCOLOR_DEFAULT]);
-				}
-
-				GadgetComboBoxSetSelectedPos(comboBoxNumPlayers, 0);
-			});
-	}
-#endif
-
-
-	if (pLobbyInterface != nullptr)
-	{
-		// TODO_QUICKMATCH: Deregister when leaving QM
-		pLobbyInterface->RegisterForMatchmakingMessageCallback([](std::string strMsg)
-			{
-				UnicodeString uMsg;
-				uMsg = UnicodeString(from_utf8(strMsg).c_str());
-
-				Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, uMsg, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-				GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-			});
-
-		pLobbyInterface->RegisterForMatchmakingMatchFoundCallback([]()
-			{
-				buttonBack->winEnable(FALSE);
-				buttonStop->winEnable(FALSE);
-				matchFoundTimeoutDurationMs = lobbyTimeoutMs;
-				matchFoundTimeoutStart = timeGetTime();
-				matchStartCountdownLastSecond = 0;
-                if (TheAudio)
-				{
-					AudioEventRTS evt("GUICommunicatorOpen");
-					TheAudio->addAudioEvent(&evt);
-				}
-			});
-
-		pLobbyInterface->RegisterForMatchmakingRequeueCallback([]()
-			{
-				matchFoundTimeoutStart = 0;
-				matchFoundTimeoutDurationMs = lobbyTimeoutMs;
-				matchStartCountdownLastSecond = 0;
-				buttonBack->winEnable(TRUE);
-				buttonStop->winEnable(TRUE);
-				buttonWiden->winEnable(TRUE);
-			});
-
-		pLobbyInterface->RegisterForMatchmakingSetupProgressCallback([](int timeoutMs, int countdownMs)
-			{
-				matchFoundTimeoutDurationMs = timeoutMs;
-				matchFoundTimeoutStart = timeGetTime();
-
-				// Mirror the service-owned countdown for UI feedback. Older services don't send its length, so a short
-				// timeout is taken to mean the countdown.
-				if (countdownMs < 0)
-				{
-					countdownMs = timeoutMs < lobbyTimeoutMs ? defaultMatchStartCountdownMs : 0;
-				}
-
-				matchStartCountdownDurationMs = countdownMs;
-				matchStartCountdownLastSecond = countdownMs > 0 ? (countdownMs + 999) / 1000 : 0;
-			});
-
-		pLobbyInterface->RegisterForMatchmakingStartGameCallback([]()
-			{
-				matchFoundTimeoutStart = 0;
-				matchStartCountdownLastSecond = 0;
-				NetworkLog(ELogVerbosity::LOG_DEBUG, "[QUICKMATCH] GOT START GAME EVENT");
-
-				// Check if TheGenOnlineGame is initialized before dereferencing it
-				if (!TheGenOnlineGame)
-				{
-					NetworkLog(ELogVerbosity::LOG_DEBUG, "[QUICKMATCH] NO GenOnline GAME INSTANCE");
-					return;
-				}
-
-				// mark everyone as having the map, we dont allow user provided custom maps or map transfers in QM
-				// TODO_QUICKMATCH: Do this automatically for game type quickmatch, or better yet, do it on the service
-				for (int i = 0; i < MAX_SLOTS; i++)
-				{
-					GameSlot* slot = TheGenOnlineGame->getSlot(i);
-					if (slot != nullptr)
-					{
-						slot->setMapAvailability(TRUE);
-					}
-				}
-
-				// start
-				GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-				GenOnlineGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
-
-				if (pLobbyInterface == nullptr || !myGame || !myGame->isInGame())
-				{
-					NetworkLog(ELogVerbosity::LOG_DEBUG, "[QUICKMATCH] Checks failed, %d, %d, %d", pLobbyInterface == nullptr, !myGame, !myGame->isInGame());
-					return;
-				}
-
-
-				// TODO_GENONLINE
-				//SendStatsToOtherPlayers(TheGenOnlineGame);
-
-				GameWindow* buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
-				if (buttonBuddy)
-					buttonBuddy->winEnable(FALSE);
-				GameSpyCloseOverlay(GSOVERLAY_BUDDY);
-				GameSpyCloseOverlay(GSOVERLAY_PLAYERINFO);
-
-				*TheGenOnlineGame = *myGame;
-				TheGenOnlineGame->startGame(0);
-			});
-
-		pLobbyInterface->RegisterForJoinLobbyCallback([](EJoinLobbyResult result)
-			{
-				GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-
-				if (result != EJoinLobbyResult::JoinLobbyResult_Success || !pLobbyInterface->IsInLobby())
-				{
-					Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Could not join the match lobby, waiting for the matchmaker..."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-					GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-
-					matchFoundTimeoutStart = 0;
-					matchStartCountdownLastSecond = 0;
-
-					buttonBack->winEnable(TRUE);
-					buttonStop->winEnable(TRUE);
-					return;
-				}
-
-				if (TheGenOnlineGame == nullptr)
-				{
-					TheGenOnlineGame = new GenOnlineGame();
-					TheGenOnlineGame->markGameAsQM();
-				}
-				pLobbyInterface->UpdateRoomDataCache([](bool bSuccess)
-					{
-
-					});
-
-				// connection events (for debug really)
-				NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-				if (pMesh != nullptr)
-				{
-					pMesh->RegisterForConnectionEvents([](int64_t userID, std::wstring strDisplayName, PlayerConnection* connection)
-						{
-#if _DEBUG // not enabled in quickmatch because then people see their opponent during matchmaking
-							std::string strState = "Unknown";
-
-							EConnectionState connState = connection->GetState();
-
-							switch (connState)
-							{
-							case EConnectionState::NOT_CONNECTED:
-								strState = "Not Connected";
-								break;
-
-							case EConnectionState::CONNECTING_DIRECT:
-								strState = "Connecting";
-								break;
-							case EConnectionState::FINDING_ROUTE:
-								strState = "Connecting (Finding Route)";
-								break;
-
-							case EConnectionState::CONNECTED_DIRECT:
-								strState = "Connected";
-								break;
-
-							case EConnectionState::CONNECTION_FAILED:
-								strState = "Connection Failed";
-								break;
-
-							case EConnectionState::CONNECTION_DISCONNECTED:
-								strState = "Disconnected (Was Connected Previously)";
-								break;
-
-							default:
-								strState = "Unknown";
-								break;
-							}
-
-							UnicodeString strConnectionMessage;
-							if (connState == EConnectionState::CONNECTING_DIRECT || connState == EConnectionState::FINDING_ROUTE)
-							{
-								strConnectionMessage.format(L"Connecting to %s", strDisplayName.c_str());
-
-								Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
-								GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-							}
-							else if (connState == EConnectionState::CONNECTED_DIRECT)
-							{
-								strConnectionMessage.format(L"Connected to %s", strDisplayName.c_str());
-
-								Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
-								GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-							}
-							else
-							{
-								if (connState == EConnectionState::CONNECTION_FAILED || connState == EConnectionState::CONNECTION_DISCONNECTED)
-								{
-									strConnectionMessage.format(L"Connection failed to %s", strDisplayName.c_str());
-									Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
-									GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-								}
-							}
-#endif
-						});
-				}
-
-			});
-	}
-
-#if defined(GENONLINE)
-    // Update the communicator button anytime we get notifications
-    GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-    if (pSocialInterface != nullptr)
-    {
-        // notifiactions callback
-        pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged([=](int numNotifications)
-            {
-                // update communicator button
-                if (buttonBuddies != nullptr)
-                {
-                    UnicodeString buttonText;
-                    if (numNotifications > 0)
-                    {
-                        buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), numNotifications);
-                    }
-                    else
-                    {
-                        buttonText.format(L"%s", TheGameText->fetch("GUI:Buddies").str());
-                    }
-					buttonBuddies->winSetText(buttonText);
-
-
-                }
-            });
-    }
-
-    // And also initialize it
-    if (buttonBuddies != nullptr && pSocialInterface != nullptr && pSocialInterface->GetNumTotalNotifications() > 0)
-    {
-        UnicodeString buttonText;
-        buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), pSocialInterface->GetNumTotalNotifications());
-        buttonBuddies->winSetText(buttonText);
-    }
-#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1508,57 +928,15 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void WOLQuickMatchMenuShutdown( WindowLayout *layout, void *userData )
 {
-	++s_quickMatchMenuGeneration;
-
-#if !defined(GENONLINE)
 	TheGameSpyInfo->unregisterTextWindow(quickmatchTextWindow);
-#endif
-
-#if defined(GENONLINE)
-	GenOnlineMatchmakingInterface* pMatchmakingInterface = GenOnlineServicesManager::GetInterface<GenOnlineMatchmakingInterface>();
-	if (pMatchmakingInterface != nullptr)
-	{
-		// Shutdown is invokved for UI exit but also for going to game... so don't tear down lobby on service in the latter case
-		if (TheGenOnlineGame == nullptr || !TheGenOnlineGame->isGameInProgress())
-		{
-			pMatchmakingInterface->CancelMatchmaking();
-		}
-	}
-
-	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-	if (pLobbyInterface != nullptr)
-	{
-		pLobbyInterface->DeregisterForMatchmakingMessageCallback();
-		pLobbyInterface->DeRegisterForMatchmakingMatchFoundCallback();
-		pLobbyInterface->DeregisterForMatchmakingRequeueCallback();
-		pLobbyInterface->DeregisterForMatchmakingSetupProgressCallback();
-		pLobbyInterface->DeregisterForMatchmakingStartGameCallback();
-
-		pLobbyInterface->DeregisterForJoinLobbyCallback();
-		pLobbyInterface->DeregisterForCannotConnectToLobbyCallback();
-	}
-#endif
 
 	if (!TheGameEngine->getQuitting())
 		saveQuickMatchOptions();
 
-	if (listboxMapSelect && mapListboxPreviewFunc)
-		listboxMapSelect->winSetDrawFunc(mapListboxPreviewFunc);
-
-	mapListboxPreviewFunc = nullptr;
-	mapHoverPreview = nullptr;
-	listboxMapSelect = nullptr;
-
 	parentWOLQuickMatch = nullptr;
 	buttonBack = nullptr;
-	buttonStart = nullptr;
-	buttonStop = nullptr;
-	buttonWiden = nullptr;
-	comboBoxNumPlayers = nullptr;
 	quickmatchTextWindow = nullptr;
 	selectedImage = unselectedImage = nullptr;
-	matchFoundTimeoutStart = 0;
-	matchStartCountdownLastSecond = 0;
 
 	isShuttingDown = true;
 
@@ -1632,21 +1010,6 @@ static const char* getMessageString(Int t)
 //-------------------------------------------------------------------------------------------------
 void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 {
-    // need to exit?
-    if (GenOnlineServicesManager::GetInstance() != nullptr && GenOnlineServicesManager::GetInstance()->IsPendingFullTeardown())
-    {
-        // Only if not in game and not in anim
-        if ((TheGenOnlineGame == nullptr || !TheGenOnlineGame->isGameInProgress()) && TheShell->isAnimFinished() && TheTransitionHandler->isFinished())
-        {
-            bool bForceShutdown = true;
-            WOLQuickMatchMenuShutdown(layout, (void*)&bForceShutdown); // userdata is 'force shutdown'
-            TearDownGeneralsOnline();
-
-            TheShell->pop();
-            return;
-        }
-    }
-
 	if (TheGameLogic->isInShellGame() && TheGameLogic->getFrame() == 1)
 	{
 		SignalUIInteraction(SHELL_SCRIPT_HOOK_GENERALS_ONLINE_ENTERED_FROM_GAME);
@@ -1662,48 +1025,9 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 		raiseMessageBoxes = false;
 	}
 
-#if defined(GENONLINE) // GO needs to tick this, so notifications disappear etc
-	HandleBuddyResponses();
-#endif
-
-	if (matchStartCountdownLastSecond > 0)
-	{
-		Int elapsedMs = timeGetTime() - matchFoundTimeoutStart;
-		Int remainingMs = matchStartCountdownDurationMs - elapsedMs;
-		Int secondsRemaining = remainingMs > 0 ? (remainingMs + 999) / 1000 : 0;
-
-		if (secondsRemaining > 0 && secondsRemaining < matchStartCountdownLastSecond)
-		{
-			UnicodeString countdownMessage;
-			if (secondsRemaining == 1)
-			{
-				countdownMessage.format(TheGameText->fetch("LAN:GameStartTimerSingular"), secondsRemaining);
-			}
-			else
-			{
-				countdownMessage.format(TheGameText->fetch("LAN:GameStartTimerPlural"), secondsRemaining);
-			}
-
-			Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, countdownMessage, GOUIColor(GOUICOLOR_MUTED, GameMakeColor(192, 192, 192, 255)), -1, -1);
-			GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-			matchStartCountdownLastSecond = secondsRemaining;
-		}
-	}
-
-	// Leave time for the server's START_GAME event to arrive.
-	Int effectiveTimeoutMs = matchFoundTimeoutDurationMs < lobbyTimeoutMs ? lobbyTimeoutMs : matchFoundTimeoutDurationMs;
-	if (matchFoundTimeoutStart != 0 && timeGetTime() - matchFoundTimeoutStart >= effectiveTimeoutMs)
-	{
-		matchFoundTimeoutStart = 0;
-		buttonBack->winEnable(TRUE);
-		buttonStop->winEnable(TRUE);
-		Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Match setup timed out. You may cancel or continue waiting."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 25, 255)), -1, -1);
-		GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-	}
-
 	/// @todo: MDC handle disconnects in-game the same way as Custom Match!
 
-	if (TheShell->isAnimFinished() && !buttonPushed && TheGameSpyPeerMessageQueue && TheGameSpyInfo)
+	if (TheShell->isAnimFinished() && !buttonPushed && TheGameSpyPeerMessageQueue)
 	{
 		HandleBuddyResponses();
 		HandlePersistentStorageResponses();
@@ -2170,8 +1494,7 @@ WindowMsgHandledType WOLQuickMatchMenuInput( GameWindow *window, UnsignedInt msg
 					//
 					if( BitIsSet( state, KEY_STATE_UP ) )
 					{
-						// ESC must not do what the disabled back button can't, e.g. leave during match setup
-						if(!buttonBack->winIsHidden() && buttonBack->winGetEnabled())
+						if(!buttonBack->winIsHidden())
 							TheWindowManager->winSendSystemMsg( window, GBM_SELECTED,
 																							(WindowMsgData)buttonBack, buttonBackID );
 
@@ -2285,22 +1608,6 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 
 				if ( controlID == buttonStopID )
 				{
-#if defined(GENONLINE)
-					buttonWiden->winEnable(FALSE);
-					buttonStart->winEnable(TRUE);
-					buttonStart->winHide(FALSE);
-					buttonStop->winHide(TRUE);
-					enableOptionsGadgets(TRUE);
-
-					Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, TheGameText->fetch("GUI:QMAborted"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-					GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-
-					GenOnlineMatchmakingInterface* pMatchmakingInterface = GenOnlineServicesManager::GetInterface<GenOnlineMatchmakingInterface>();
-					if (pMatchmakingInterface != nullptr)
-					{
-						pMatchmakingInterface->CancelMatchmaking();
-					}
-#else
 					PeerRequest req;
 					req.peerRequestType = PeerRequest::PEERREQUEST_STOPQUICKMATCH;
 					TheGameSpyPeerMessageQueue->addRequest(req);
@@ -2309,7 +1616,6 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 					buttonStop->winHide( TRUE );
 					enableOptionsGadgets(TRUE);
 					TheGameSpyInfo->addText(TheGameText->fetch("GUI:QMAborted"), GameSpyColor[GSCOLOR_DEFAULT], quickmatchTextWindow);
-#endif
 				}
 				else if ( controlID == buttonOptionsID )
 				{
@@ -2329,126 +1635,13 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 				}
 				else if ( controlID == buttonWidenID )
 				{
-#if defined(GENONLINE)
-					GadgetListBoxAddEntryText(quickmatchTextWindow, TheGameText->fetch("QM:WIDENINGSEARCH"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-
-					GenOnlineMatchmakingInterface* pMatchmakingInterface = GenOnlineServicesManager::GetInterface<GenOnlineMatchmakingInterface>();
-					if (pMatchmakingInterface != nullptr)
-					{
-						pMatchmakingInterface->WidenSearch();
-
-						// disable widen button
-						buttonWiden->winEnable(FALSE);
-					}
-#else
 					PeerRequest req;
 					req.peerRequestType = PeerRequest::PEERREQUEST_WIDENQUICKMATCHSEARCH;
 					TheGameSpyPeerMessageQueue->addRequest(req);
 					buttonWiden->winEnable( FALSE );
-#endif
 				}
 				else if ( controlID == buttonStartID )
 				{
-#if defined(GENONLINE)
-
-					std::vector<int> vecSelectedMapIndexes;
-					uint16_t playlistID = 0;
-					int minSelectedMaps = 0;
-
-					// get maps and playlist ID
-					std::list<AsciiString> maps;
-					Int playlistIndex = -1;
-					GadgetComboBoxGetSelectedPos(comboBoxNumPlayers, &playlistIndex);
-
-					if (playlistIndex != -1)
-					{
-						GenOnlineMatchmakingInterface* pMatchmakingInterface = GenOnlineServicesManager::GetInterface<GenOnlineMatchmakingInterface>();
-						if (pMatchmakingInterface != nullptr)
-						{
-							PlaylistEntry plEntry = pMatchmakingInterface->GetCachedPlaylistFromIndex(playlistIndex);
-							if (plEntry.PlaylistID != -1)
-							{
-								playlistID = plEntry.PlaylistID;
-								minSelectedMaps = plEntry.MinSelectedMaps;
-
-								// maps
-								Int numMaps = GadgetListBoxGetNumEntries(listboxMapSelect);
-								for (Int i = 0; i < numMaps; ++i)
-								{
-									bool bMapSelected = GadgetListBoxGetItemData(listboxMapSelect, i, 0);
-									if (bMapSelected)
-									{
-										vecSelectedMapIndexes.push_back(i);
-									}
-								}
-							}
-							else
-							{
-								// TODO_QUICKMATCH: Error?
-							}
-						}
-					}
-					else
-					{
-						// TODO_QUICKMATCH: Error?
-					}
-					
-					if (static_cast<int>(vecSelectedMapIndexes.size()) < minSelectedMaps)
-					{
-						UnicodeString msg;
-						msg.format(L"You must select at least %d maps.", minSelectedMaps);
-						Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, msg, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-						GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-						
-						// buttons
-						buttonWiden->winEnable(FALSE);
-						buttonStart->winHide(FALSE);
-						buttonStart->winEnable(TRUE);
-						buttonStop->winHide(TRUE);
-						
-						break;
-					}
-
-					// buttons
-					buttonWiden->winEnable(FALSE);
-					buttonStart->winEnable(FALSE);
-					buttonStop->winHide(TRUE);
-
-					GenOnlineMatchmakingInterface* pMatchmakingInterface = GenOnlineServicesManager::GetInterface<GenOnlineMatchmakingInterface>();
-					if (pMatchmakingInterface != nullptr)
-					{
-						const uint64_t generationForStart = s_quickMatchMenuGeneration;
-						pMatchmakingInterface->StartMatchmaking(playlistID, vecSelectedMapIndexes, [generationForStart](bool bSuccess)
-							{
-								if (generationForStart != s_quickMatchMenuGeneration)
-								{
-					// menu closed; static window pointers may be stale
-									return;
-								}
-
-								// TODO_QUICKMATCH: Chat has a sound effect in TheGameSpyInfo, re-eanble it
-								if (bSuccess)
-								{
-
-									// buttons
-									buttonWiden->winEnable(TRUE);
-									buttonStart->winHide(TRUE);
-									buttonStop->winHide(FALSE);
-								}
-								else
-								{
-									Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Failed to start matchmaking."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-									GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-
-									// buttons
-									buttonWiden->winEnable(FALSE);
-									buttonStart->winHide(FALSE);
-									buttonStart->winEnable(TRUE);
-									buttonStop->winHide(TRUE);
-								}
-							});
-					}
-#else
 					PeerRequest req;
 					req.peerRequestType = PeerRequest::PEERREQUEST_STARTQUICKMATCH;
 					req.qmMaps.clear();
@@ -2622,7 +1815,6 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 						ladPref.addRecentLadder( p );
 						ladPref.write();
 					}
-#endif
 				}
 				else if ( controlID == buttonBuddiesID )
 				{
@@ -2630,10 +1822,8 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 				}
 				else if ( controlID == buttonBackID )
 				{
-#if !defined(GENONLINE)
+					buttonPushed = true;
 					TheGameSpyInfo->leaveGroupRoom();
-#endif
-					buttonPushed = true;			
 					nextScreen = "Menus/WOLWelcomeMenu.wnd";
 					TheShell->pop();
 				}
@@ -2702,5 +1892,3 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 
 	return MSG_HANDLED;
 }
-
-

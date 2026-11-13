@@ -598,10 +598,7 @@ const AsciiString& GameSpyInfo::getConfig()
 // --------------------------------------------------------------
 void SetUpGameSpy( const char *motdBuffer, const char *configBuffer )
 {
-	// TODO_GENONLINE: dont call this, remove gamespy fully
-#if !defined(GENONLINE)
-	SetUpOnline(ResolveConfiguredProvider(), motdBuffer, configBuffer);
-#endif
+	SetUpOnline(ONLINE_PROVIDER_GAMESPY, motdBuffer, configBuffer);
 }
 
 void TearDownGameSpy()

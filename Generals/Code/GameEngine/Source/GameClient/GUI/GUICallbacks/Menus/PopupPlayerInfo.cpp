@@ -57,9 +57,6 @@
 #include "GameNetwork/GameSpy/BuddyThread.h"
 #include "GameNetwork/GameSpy/GSConfig.h"
 #include "GameNetwork/GameSpy/LobbyUtils.h"
-#if defined(GENONLINE)
-#include "GameNetwork/GenOnline/GenOnlineInclude.h"
-#endif
 
 #include "WWDownload/Registry.h"
 
@@ -297,19 +294,11 @@ RankPoints::RankPoints()
 
 RankPoints *TheRankPointValues = nullptr;
 
-#if defined(GENONLINE)
-void SetLookAtPlayer( int64_t id, UnicodeString nick)
-{
-	lookAtPlayerID = (Int)id;
-	lookAtPlayerName = to_utf8(nick.str());
-}
-#else
 void SetLookAtPlayer( Int id, AsciiString nick)
 {
 	lookAtPlayerID = id;
 	lookAtPlayerName = nick.str();
 }
-#endif
 
 //	BATTLE_HONOR_LADDER_CHAMP		= 0x0000001,
 //	BATTLE_HONOR_STREAK_3				= 0x0000002,
@@ -486,8 +475,8 @@ void ResetBattleHonorInsertion()
 }
 void InsertBattleHonor(GameWindow *list, const Image *image, Bool enabled, Int itemData, Int& row, Int& column, UnicodeString text = UnicodeString::TheEmptyString)
 {
-	Int width = MAX_BATTLE_HONOR_IMAGE_WIDTH * (TheDisplay->getWidth() / 800.0f);
-	Int height = MAX_BATTLE_HONOR_IMAGE_HEIGHT * (TheDisplay->getHeight() / 600.0f);
+	Int width = MAX_BATTLE_HONOR_IMAGE_WIDTH * (TheDisplay->getWidth() / (Real)DEFAULT_DISPLAY_WIDTH);
+	Int height = MAX_BATTLE_HONOR_IMAGE_HEIGHT * (TheDisplay->getHeight() / (Real)DEFAULT_DISPLAY_HEIGHT);
 
 	static Int enabledColor = 0xFFFFFFFF;
 	static Int disabledColor = GameMakeColor(80, 80, 80, 255);
@@ -768,7 +757,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 {
 	Int lookupID = TheGameSpyInfo->getLocalProfileID();
 	GameWindow *parentWindow = nullptr;
-	
+
 	if(parentWindowName == "PopupPlayerInfo.wnd")
 	{
 		lookupID = lookAtPlayerID;

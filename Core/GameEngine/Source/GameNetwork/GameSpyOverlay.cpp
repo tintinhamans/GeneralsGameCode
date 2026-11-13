@@ -42,8 +42,8 @@
 #include "GameNetwork/GameSpyOverlay.h"
 //#include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/BuddyThread.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 
-void deleteNotificationBox();
 static void raiseOverlays();
 
 // Message boxes -------------------------------------
@@ -277,8 +277,8 @@ void GameSpyOpenOverlay( GSOverlayType overlay )
 {
 	if (overlay == GSOVERLAY_BUDDY)
 	{
-#if !defined(GENONLINE)
-		if (!TheGameSpyBuddyMessageQueue->isConnected())
+		// Only the GameSpy services have a buddy queue to check.
+		if (TheGameSpyBuddyMessageQueue != nullptr && !TheGameSpyBuddyMessageQueue->isConnected())
 		{
 			// not connected - is it because we were disconnected?
 			if (TheGameSpyBuddyMessageQueue->getLocalProfileID())
@@ -293,7 +293,6 @@ void GameSpyOpenOverlay( GSOverlayType overlay )
 			}
 			return;
 		}
-#endif
 		AudioEventRTS buttonClick("GUICommunicatorOpen");
 
 		if( TheAudio )
@@ -308,7 +307,7 @@ void GameSpyOpenOverlay( GSOverlayType overlay )
 	}
 	else
 	{
-		overlayLayouts[overlay] = TheWindowManager->winCreateLayout( AsciiString( gsOverlays[overlay] ) );
+		overlayLayouts[overlay] = TheWindowManager->winCreateLayout( AsciiString( GetOnlineGameHooks()->getOverlayLayout( overlay, gsOverlays[overlay] ) ) );
 		overlayLayouts[overlay]->runInit();
 		overlayLayouts[overlay]->hide( FALSE );
 		overlayLayouts[overlay]->bringForward();
@@ -389,7 +388,7 @@ void GameSpyCloseAllOverlays()
 	}
 
 	// if we're shutting down the rest, chances are we don't want this popping up.
-	deleteNotificationBox();
+	GetOnlineGameHooks()->onCloseAllOverlays();
 }
 
 void GameSpyUpdateOverlays()

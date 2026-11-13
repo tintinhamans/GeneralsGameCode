@@ -1,8 +1,8 @@
 FILE_VERSION = 2;
 STARTLAYOUTBLOCK
-  LAYOUTINIT = WOLLobbyMenuInit;
-  LAYOUTUPDATE = WOLLobbyMenuUpdate;
-  LAYOUTSHUTDOWN = WOLLobbyMenuShutdown;
+  LAYOUTINIT = GenOnlineLobbyMenuInit;
+  LAYOUTUPDATE = GenOnlineLobbyMenuUpdate;
+  LAYOUTSHUTDOWN = GenOnlineLobbyMenuShutdown;
 ENDLAYOUTBLOCK
 WINDOW
   WINDOWTYPE = USER;
@@ -12,8 +12,8 @@ WINDOW
   NAME = "WOLCustomLobby.wnd:WOLLobbyMenuParent";
   STATUS = ENABLED+IMAGE+NOINPUT;
   STYLE = USER;
-  SYSTEMCALLBACK = "WOLLobbyMenuSystem";
-  INPUTCALLBACK = "WOLLobbyMenuInput";
+  SYSTEMCALLBACK = "GenOnlineLobbyMenuSystem";
+  INPUTCALLBACK = "GenOnlineLobbyMenuInput";
   TOOLTIPCALLBACK = "[None]";
   DRAWCALLBACK = "[None]";
   FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
@@ -695,9 +695,9 @@ WINDOW
                   DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
                   HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
       ENABLEDDRAWDATA = IMAGE: BlackSquare, COLOR: 255 4 0 0, BORDERCOLOR: 47 75 255 255,
-                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: ListBoxHiliteItemLeftEnd, COLOR: 255 255 0 255, BORDERCOLOR: 254 254 254 255,
+                        IMAGE: ListBoxHiliteItemRightEnd, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: ListBoxHiliteItemRepeatingCenter, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -713,9 +713,9 @@ WINDOW
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
       HILITEDRAWDATA = IMAGE: BlackSquare, COLOR: 255 4 0 0, BORDERCOLOR: 47 75 255 255,
-                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: ListBoxHiliteSelectedItemLeftEnd, COLOR: 254 254 254 255, BORDERCOLOR: 0 128 0 255,
+                       IMAGE: ListBoxHiliteSelectedItemRightEnd, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: ListBoxHiliteSelectedItemRepeatingCenter, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,

@@ -6,7 +6,9 @@
 #include "GameNetwork/GenOnline/GenOnlineRoomsInterface.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
+#include "GameNetwork/GenOnline/GenOnlineMainMenuUtils.h"
 #include "GameClient/GUICallbacks.h"
+#include "GameClient/GenOnlineMenus.h"
 
 #include <chrono>
 #include <map>
@@ -111,7 +113,7 @@ void ShowLoginBanDialog(const std::string& reason)
 	// GenOnline @feature arcticdolphin 09/11/2026 The ban notice ends a sign-in in the dialog, which closes first, so its buttons then have no screen to leave.
 	if (GOSignInDialogIsOpen())
 	{
-		CancelPatchCheckCallbackAndReopenDropdown();
+		GenOnlineCancelPatchCheckCallbackAndReopenDropdown();
 		ShowBanDialog(reason, EModerationDialogContext::ACTIVE_SESSION);
 		return;
 	}
