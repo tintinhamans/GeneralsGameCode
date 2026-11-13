@@ -269,9 +269,9 @@ void GenOnlineSocialInterface::OnChatMessage(int64_t source_user_id, int64_t tar
                 if (GenOnlineServicesManager::Settings.Social_Notifications_FriendComesOnline_Gameplay())
                 {
 #if defined(GENONLINE)
-                    showNotificationBox(AsciiString::TheEmptyString, unicodeStr, true /*bPlaySound*/);
+                    GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr, true /*bPlaySound*/);
 #else
-                    showNotificationBox(AsciiString::TheEmptyString, unicodeStr);
+                    GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr);
 #endif
                 }
             }
@@ -280,9 +280,9 @@ void GenOnlineSocialInterface::OnChatMessage(int64_t source_user_id, int64_t tar
                 if (GenOnlineServicesManager::Settings.Social_Notifications_FriendComesOnline_Menus())
                 {
 #if defined(GENONLINE)
-                    showNotificationBox(AsciiString::TheEmptyString, unicodeStr, true /*bPlaySound*/);
+                    GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr, true /*bPlaySound*/);
 #else
-                    showNotificationBox(AsciiString::TheEmptyString, unicodeStr);
+                    GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr);
 #endif
                 }
             }
@@ -324,7 +324,7 @@ void GenOnlineSocialInterface::OnOnlineStatusChanged(std::string strDisplayName,
 	// TODO_SOCIAL: Update communicator if its active
 	if (bShowNotification)
 	{
-		showNotificationBox(AsciiString(strDisplayName.c_str()), bOnline ? TheGameText->fetch("Buddy:OnlineNotification") : UnicodeString(L"%hs went offline"));
+		GenOnlineShowNotificationBox(AsciiString(strDisplayName.c_str()), bOnline ? TheGameText->fetch("Buddy:OnlineNotification") : UnicodeString(L"%hs went offline"));
 	}
 }
 
@@ -342,7 +342,7 @@ void GenOnlineSocialInterface::OnFriendRequestAccepted(std::string strDisplayNam
 
 	if (bShowNotification)
 	{
-		showNotificationBox(AsciiString(strDisplayName.c_str()), UnicodeString(L"%hs accepted your friend request."));
+		GenOnlineShowNotificationBox(AsciiString(strDisplayName.c_str()), UnicodeString(L"%hs accepted your friend request."));
 	}
 }
 
@@ -410,7 +410,7 @@ void GenOnlineSocialInterface::InvokeCallback_NewFriendRequest(std::string strDi
 
 	if (bShowNotification)
 	{
-		showNotificationBox(AsciiString(strDisplayName.c_str()), TheGameText->fetch("Buddy:AddNotification"));
+		GenOnlineShowNotificationBox(AsciiString(strDisplayName.c_str()), TheGameText->fetch("Buddy:AddNotification"));
 	}
 }
 

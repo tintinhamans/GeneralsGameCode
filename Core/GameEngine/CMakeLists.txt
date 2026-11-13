@@ -800,8 +800,11 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/InGameChat.cpp
     Source/GameClient/GUI/GUICallbacks/InGamePopupMessage.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/ChallengeMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineBuddyOverlay.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineDownloadMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineLoginMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineMapSelectMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlinePlayerInfoOverlay.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlinePopupHostGame.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlinePopupJoinGame.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineWelcomeMenu.cpp
