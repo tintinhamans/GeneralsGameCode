@@ -23,6 +23,7 @@
 //              protocol document.
 ///////////////////////////////////////////////////////////////////////////////
 
+#include "GameNetwork/GenOnline/Realtime/RealtimeHubSession.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeProtocol.h"
 
@@ -416,6 +417,272 @@ static void TestFieldPresence()
 	CHECK(!notice.until.has_value());
 }
 
+// A transport stand-in that records what the session sends and how the connection ended.
+struct FakeHub
+{
+	std::vector<std::string> sent;
+	int closes = 0;
+	int readies = 0;
+	int disconnects = 0;
+	DisconnectAction lastAction = DisconnectAction::Reconnect;
+	std::string lastReason;
+	HubSession session;
+
+	FakeHub() : session(MakeCallbacks()) {}
+
+	HubSession::Callbacks MakeCallbacks()
+	{
+		HubSession::Callbacks c;
+		c.sendText = [this](const std::string& text)
+		{
+			sent.push_back(text);
+			return true;
+		};
+		c.closeTransport = [this]()
+		{
+			++closes;
+		};
+		c.onReady = [this](const ReadyEvent&)
+		{
+			++readies;
+		};
+		c.onDisconnected = [this](DisconnectAction action, const std::string& reason)
+		{
+			++disconnects;
+			lastAction = action;
+			lastReason = reason;
+		};
+		return c;
+	}
+
+	void Receive(const std::string& records, int64_t nowMs)
+	{
+		session.OnTransportText(records.data(), records.size(), nowMs);
+	}
+
+	// Sends the handshake answer and a valid Ready in one frame.
+	void Connect(int64_t nowMs)
+	{
+		session.OnTransportOpen(nowMs);
+		Receive(std::string("{}\x1E") + ReadyRecord(1), nowMs);
+	}
+
+	json LastSent() const
+	{
+		const std::string& last = sent.back();
+		return json::parse(last.substr(0, last.size() - 1));
+	}
+
+	static std::string ReadyRecord(int protocolVersion)
+	{
+		json ready = json::parse("{\"protocol_version\":1,\"session_type\":\"game\",\"user\":{\"id\":42,\"name\":\"Bob\",\"badges\":[]},\"permissions\":[],\"badges\":{},\"rooms\":[],\"limits\":{\"chat_max_length\":512,\"chat_rate\":{\"messages\":3,\"window_ms\":9000},\"name_min_length\":3,\"name_max_length\":16}}");
+		ready["protocol_version"] = protocolVersion;
+		json record = { { "type", 1 }, { "target", "Ready" }, { "arguments", json::array({ ready }) } };
+		return record.dump() + RECORD_SEPARATOR;
+	}
+};
+
+static void TestHubSessionConnect()
+{
+	FakeHub hub;
+	hub.session.OnTransportOpen(0);
+	CHECK(hub.sent.size() == 1);
+	CHECK(hub.sent[0] == BuildHandshakeRequest());
+	CHECK(hub.session.GetState() == HubSession::State::Handshaking);
+
+	hub.Receive(std::string("{}\x1E") + FakeHub::ReadyRecord(1), 10);
+	CHECK(hub.session.GetState() == HubSession::State::Ready);
+	CHECK(hub.readies == 1);
+	CHECK(hub.disconnects == 0);
+
+	FakeHub refused;
+	refused.session.OnTransportOpen(0);
+	refused.Receive("{\"error\":\"Requested protocol 'json' is not available.\"}\x1E", 1);
+	CHECK(refused.disconnects == 1);
+	CHECK(refused.lastAction == DisconnectAction::ReturnToLogin);
+	CHECK(refused.closes == 1);
+
+	FakeHub notReadyFirst;
+	notReadyFirst.session.OnTransportOpen(0);
+	notReadyFirst.Receive("{}\x1E{\"type\":1,\"target\":\"Friends\",\"arguments\":[{}]}\x1E", 1);
+	CHECK(notReadyFirst.readies == 0);
+	CHECK(notReadyFirst.lastAction == DisconnectAction::ReturnToLogin);
+
+	FakeHub wrongVersion;
+	wrongVersion.session.OnTransportOpen(0);
+	wrongVersion.Receive(std::string("{}\x1E") + FakeHub::ReadyRecord(2), 1);
+	CHECK(wrongVersion.readies == 0);
+	CHECK(wrongVersion.lastAction == DisconnectAction::ReturnToLogin);
+
+	FakeHub oversized;
+	oversized.session.OnTransportOpen(0);
+	std::string big(MAX_RECORD_BYTES + 1, ' ');
+	oversized.Receive(big, 1);
+	CHECK(oversized.lastAction == DisconnectAction::ReturnToLogin);
+}
+
+static void TestHubSessionInvoke()
+{
+	FakeHub hub;
+	SendMessageRequest request;
+	request.channel_id = "room:3";
+	request.type = "chat";
+	request.content = "hi";
+
+	int calls = 0;
+	InvokeOutcome last;
+	auto callback = [&](const InvokeOutcome& outcome)
+	{
+		++calls;
+		last = outcome;
+	};
+
+	hub.session.Invoke(request, callback, 0);
+	CHECK(calls == 1);
+	CHECK(!last.delivered);
+	CHECK(last.transportError == "not connected");
+
+	hub.Connect(0);
+	size_t before = hub.sent.size();
+	hub.session.Invoke(request, callback, 100);
+	CHECK(hub.sent.size() == before + 1);
+	json sent = hub.LastSent();
+	CHECK(sent["target"] == "SendMessage");
+	std::string id = sent["invocationId"].get<std::string>();
+	CHECK(!id.empty());
+
+	hub.Receive("{\"type\":3,\"invocationId\":\"" + id + "\",\"result\":{\"ok\":true,\"data\":{\"message_id\":\"8812\"}}}\x1E", 200);
+	CHECK(calls == 2);
+	CHECK(last.Succeeded());
+	SendMessageResult data;
+	CHECK(last.Data(data));
+	CHECK(data.message_id == "8812");
+
+	hub.session.Invoke(request, callback, 300);
+	id = hub.LastSent()["invocationId"].get<std::string>();
+	hub.Receive("{\"type\":3,\"invocationId\":\"" + id + "\",\"result\":{\"ok\":false,\"code\":\"chat.rate_limited\",\"params\":{\"retry_after_ms\":4200}}}\x1E", 400);
+	CHECK(calls == 3);
+	CHECK(last.delivered);
+	CHECK(!last.Succeeded());
+	CHECK(last.Code() == "chat.rate_limited");
+	CHECK(!last.Data(data));
+
+	SignalRequest signal;
+	signal.to = 7;
+	signal.payload = "AAECAwQ=";
+	CHECK(hub.session.Fire(signal, 500));
+	CHECK(!hub.LastSent().contains("invocationId"));
+	CHECK(hub.LastSent()["target"] == "Signal");
+
+	// A dropped connection fails the pending invocation and reconnects.
+	hub.session.Invoke(request, callback, 600);
+	CHECK(hub.session.PendingInvocations() == 1);
+	hub.session.OnTransportLost("recv failed");
+	CHECK(calls == 4);
+	CHECK(last.transportError == "connection lost");
+	CHECK(hub.disconnects == 1);
+	CHECK(hub.lastAction == DisconnectAction::Reconnect);
+	CHECK(hub.closes == 0);
+	CHECK(!hub.session.Fire(signal, 700));
+}
+
+static void TestHubSessionEvents()
+{
+	FakeHub hub;
+	int friends = 0;
+	int64_t lastFriendId = 0;
+	hub.session.On<FriendsEvent>([&](const FriendsEvent& event)
+	{
+		++friends;
+		lastFriendId = event.friends.empty() ? 0 : event.friends[0].id;
+	});
+	hub.Connect(0);
+
+	hub.Receive("{\"type\":1,\"target\":\"Friends\",\"arguments\":[{\"friends\":[{\"id\":7,\"name\":\"Ann\",\"badges\":[],\"online\":true}],\"incoming\":[],\"outgoing\":[],\"blocked\":[]}]}\x1E", 1);
+	CHECK(friends == 1);
+	CHECK(lastFriendId == 7);
+
+	// Unknown and malformed events are dropped and the connection stays up.
+	hub.Receive("{\"type\":1,\"target\":\"SomethingNew\",\"arguments\":[{}]}\x1E", 2);
+	hub.Receive("{\"type\":1,\"target\":\"Friends\",\"arguments\":[{\"friends\":3}]}\x1E", 3);
+	CHECK(friends == 1);
+	CHECK(hub.session.GetState() == HubSession::State::Ready);
+	CHECK(hub.disconnects == 0);
+}
+
+static void TestHubSessionKeepAlive()
+{
+	FakeHub hub;
+	hub.Connect(0);
+	size_t before = hub.sent.size();
+	hub.session.Tick(PING_INTERVAL_MS - 1);
+	CHECK(hub.sent.size() == before);
+	hub.session.Tick(PING_INTERVAL_MS);
+	CHECK(hub.sent.size() == before + 1);
+	CHECK(hub.sent.back() == SerializePing());
+
+	hub.Receive("{\"type\":6}\x1E", 20000);
+	hub.session.Tick(20000 + SERVER_TIMEOUT_MS - 1);
+	CHECK(hub.disconnects == 0);
+	hub.session.Tick(20000 + SERVER_TIMEOUT_MS);
+	CHECK(hub.disconnects == 1);
+	CHECK(hub.lastAction == DisconnectAction::Reconnect);
+	CHECK(hub.closes == 1);
+}
+
+static void TestHubSessionClose()
+{
+	struct Case
+	{
+		const char* record;
+		DisconnectAction action;
+	};
+	const Case cases[] = {
+		{ "{\"type\":7,\"error\":\"session.superseded\",\"allowReconnect\":false}", DisconnectAction::StopSignedInElsewhere },
+		{ "{\"type\":7,\"error\":\"auth.revoked\",\"allowReconnect\":false}", DisconnectAction::RefreshAndReconnect },
+		{ "{\"type\":7,\"error\":\"moderation.kicked\",\"allowReconnect\":true}", DisconnectAction::ReconnectAfterKick },
+		{ "{\"type\":7,\"error\":\"moderation.banned\",\"allowReconnect\":false}", DisconnectAction::ReturnToLogin },
+		{ "{\"type\":7,\"error\":\"server.restarting\",\"allowReconnect\":true}", DisconnectAction::Reconnect },
+		{ "{\"type\":7,\"error\":\"protocol.error\",\"allowReconnect\":false}", DisconnectAction::ReturnToLogin },
+		{ "{\"type\":7,\"error\":\"something.new\",\"allowReconnect\":true}", DisconnectAction::Reconnect },
+		{ "{\"type\":7,\"error\":\"something.new\",\"allowReconnect\":false}", DisconnectAction::ReturnToLogin },
+		{ "{\"type\":7}", DisconnectAction::ReturnToLogin },
+	};
+	for (const Case& c : cases)
+	{
+		FakeHub hub;
+		hub.Connect(0);
+		hub.Receive(std::string(c.record) + RECORD_SEPARATOR, 1);
+		CHECK(hub.disconnects == 1);
+		CHECK(hub.lastAction == c.action);
+		CHECK(hub.session.GetState() == HubSession::State::Closed);
+		// A lost transport after the close record does not report a second disconnect.
+		hub.session.OnTransportLost("closed");
+		CHECK(hub.disconnects == 1);
+	}
+}
+
+static void TestReconnectPolicy()
+{
+	double random = 0.0;
+	ReconnectPolicy policy([&]() { return random; });
+	CHECK(policy.NextDelayMs() == 500);
+	CHECK(policy.NextDelayMs() == 2000);
+	CHECK(policy.NextDelayMs() == 4000);
+	CHECK(policy.NextDelayMs() == 8000);
+	CHECK(policy.NextDelayMs() == 16000);
+	CHECK(policy.NextDelayMs() == 30000);
+	CHECK(policy.NextDelayMs() == 30000);
+	for (int i = 0; i < 100; ++i)
+		policy.NextDelayMs();
+	CHECK(policy.NextDelayMs() == 30000);
+
+	policy.Reset();
+	random = 0.999;
+	int64_t first = policy.NextDelayMs();
+	CHECK(first >= 2990 && first < 3000);
+}
+
 int main(int argc, char** argv)
 {
 	if (argc < 2)
@@ -430,6 +697,12 @@ int main(int argc, char** argv)
 	TestRecordSplitter();
 	TestInvocationTracker();
 	TestFieldPresence();
+	TestHubSessionConnect();
+	TestHubSessionInvoke();
+	TestHubSessionEvents();
+	TestHubSessionKeepAlive();
+	TestHubSessionClose();
+	TestReconnectPolicy();
 
 	if (g_failures != 0)
 	{
