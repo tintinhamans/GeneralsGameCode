@@ -24,6 +24,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "GameNetwork/GenOnline/Realtime/RealtimeHubSession.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeMatchmaking.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeProtocol.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeSignIn.h"
@@ -926,6 +927,35 @@ static void TestPeerPayload()
 	CHECK(!DecodePeerPayload("Zg==Zg==", rejected));
 }
 
+static void TestMatchmakingText()
+{
+	CHECK(MatchmakingStatusText("matchmaking.queued", json::object()) == "Joined the queue.");
+	CHECK(MatchmakingStatusText("matchmaking.searching", json::parse(R"({"players":1,"desired":2,"required":2})")) == "Searching for players: 1 of 2.");
+	CHECK(MatchmakingStatusText("matchmaking.expanding", json::object()) == "Widening the search.");
+	CHECK(MatchmakingStatusText("matchmaking.grace_countdown", json::parse(R"({"seconds":10})")) == "Starting with the players found in 10 seconds.");
+	CHECK(MatchmakingStatusText("matchmaking.grace_cancelled", json::object()) == "Waiting for more players.");
+	CHECK(MatchmakingStatusText("matchmaking.creating", json::parse(R"({"players":2,"map":"Tournament Desert"})")) == "Match found on Tournament Desert, creating the lobby.");
+	CHECK(MatchmakingStatusText("matchmaking.creating", json::parse(R"({"players":2})")) == "Match found, creating the lobby.");
+	CHECK(MatchmakingStatusText("matchmaking.preparing", json::object()) == "Preparing the match.");
+	CHECK(MatchmakingStatusText("matchmaking.starting", json::parse(R"({"seconds":5})")) == "Starting in 5 seconds.");
+	CHECK(MatchmakingStatusText("matchmaking.searching", json::parse(R"({"players":"x"})")) == "Searching for players: 0 of 0.");
+	CHECK(MatchmakingStatusText("matchmaking.future_code", json::object()) == "Matchmaking: matchmaking.future_code");
+
+	CHECK(MatchRequeueText("player_left") == "A player left. Searching again.");
+	CHECK(MatchRequeueText("lobby_gone") == "The match lobby closed. Searching again.");
+	CHECK(MatchRequeueText("mesh_incomplete") == "Not every player could connect. Searching again.");
+	CHECK(MatchRequeueText("join_timeout") == "A player did not join in time. Searching again.");
+	CHECK(MatchRequeueText("setup_failed") == "The match setup failed. Searching again.");
+	CHECK(MatchRequeueText("other") == "Searching again.");
+
+	std::vector<int> out;
+	CHECK(TranslateMapIndexes({ 0, 2 }, { 4, 7, 9 }, out));
+	CHECK(out == std::vector<int>({ 4, 9 }));
+	CHECK(!TranslateMapIndexes({ 3 }, { 4, 7, 9 }, out));
+	CHECK(out.empty());
+	CHECK(!TranslateMapIndexes({ -1 }, { 4 }, out));
+}
+
 int main(int argc, char** argv)
 {
 	if (argc < 3)
@@ -937,6 +967,7 @@ int main(int argc, char** argv)
 	TestSignInFixtures(argv[2]);
 	TestPkce();
 	TestPeerPayload();
+	TestMatchmakingText();
 	TestFormEncoding();
 	TestLoopbackCallback();
 	TestAcceptRealtimeUrl();

@@ -2221,24 +2221,7 @@ CURLcode WebSocket::ReceiveOneFrame()
 											GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 											if (pLobbyInterface != nullptr)
 											{
-												pLobbyInterface->InvokeMatchmakingMatchFoundCallback();
-
-												// TODO_QUICKMATCH: Only if really in quickmatch
-
-												// TODO_QUICKMATCH: We need to retrieve this info instead
-												// basic info needed to join
-												LobbyEntry lobbyEntry;
-												lobbyEntry.lobbyID = mmEvent.lobby_id;
-												lobbyEntry.map_path = "Maps\\Alpine Assault\\Alpine Assault.map";
-
-												if (pLobbyInterface->JoinLobby(lobbyEntry, std::string()))
-												{
-													pLobbyInterface->InvokeMatchmakingMessageCallback("Joining QuickMatch Lobby");
-												}
-												else
-												{
-													pLobbyInterface->InvokeMatchmakingMessageCallback("Could not join the QuickMatch lobby, another join is still in progress");
-												}
+												pLobbyInterface->HandleMatchFound(mmEvent.lobby_id, "Maps\\Alpine Assault\\Alpine Assault.map");
 											}
 											else
 											{
@@ -2272,24 +2255,10 @@ CURLcode WebSocket::ReceiveOneFrame()
 
 									case EWebSocketMessageID::MATCHMAKING_ACTION_SETUP_PROGRESS:
 									{
-										static constexpr int kMinMatchSetupTimeoutMs = 1000;
-										static constexpr int kMaxMatchSetupTimeoutMs = 120000;
-
-										int timeoutMs = 0;
+										int64_t timeoutMs = 0;
 										if (jsonObject.contains("timeout_ms") && jsonObject["timeout_ms"].is_number_integer())
 										{
 											timeoutMs = jsonObject["timeout_ms"].get<int>();
-											if (timeoutMs > 0)
-											{
-												if (timeoutMs < kMinMatchSetupTimeoutMs)
-												{
-													timeoutMs = kMinMatchSetupTimeoutMs;
-												}
-												else if (timeoutMs > kMaxMatchSetupTimeoutMs)
-												{
-													timeoutMs = kMaxMatchSetupTimeoutMs;
-												}
-											}
 										}
 
 										// -1 = older service that doesn't say, the menu infers it
@@ -2300,9 +2269,9 @@ CURLcode WebSocket::ReceiveOneFrame()
 										}
 
 										GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-										if (pLobbyInterface != nullptr && timeoutMs > 0)
+										if (pLobbyInterface != nullptr)
 										{
-											pLobbyInterface->InvokeMatchmakingSetupProgressCallback(timeoutMs, countdownMs);
+											pLobbyInterface->HandleMatchSetupProgress(timeoutMs, countdownMs);
 										}
 									}
 									break;

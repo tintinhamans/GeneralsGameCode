@@ -298,6 +298,46 @@ void RegisterHandlers(HubSession& session)
 				pLobby->OnRealtimeGameStart(event);
 			}
 		});
+	session.On<MatchmakingStatusEvent>([](const MatchmakingStatusEvent& event)
+		{
+			GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (pLobby != nullptr)
+			{
+				pLobby->OnRealtimeMatchmakingStatus(event);
+			}
+		});
+	session.On<MatchFoundEvent>([](const MatchFoundEvent& event)
+		{
+			GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (pLobby != nullptr)
+			{
+				pLobby->HandleMatchFound(event.lobby_id, utf8_to_local(event.map.path));
+			}
+		});
+	session.On<MatchSetupProgressEvent>([](const MatchSetupProgressEvent& event)
+		{
+			GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (pLobby != nullptr)
+			{
+				pLobby->HandleMatchSetupProgress(event.timeout_ms, event.countdown_ms);
+			}
+		});
+	session.On<MatchStartEvent>([](const MatchStartEvent& event)
+		{
+			GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (pLobby != nullptr)
+			{
+				pLobby->OnRealtimeMatchStart(event);
+			}
+		});
+	session.On<MatchRequeueEvent>([](const MatchRequeueEvent& event)
+		{
+			GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (pLobby != nullptr)
+			{
+				pLobby->OnRealtimeMatchRequeue(event);
+			}
+		});
 	session.On<BadgesUpdateEvent>([](const BadgesUpdateEvent& event)
 		{
 			s_badges = event.badges;
