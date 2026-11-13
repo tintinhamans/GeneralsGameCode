@@ -54,9 +54,6 @@
 #include "GameNetwork/GameSpy/PersistentStorageDefs.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameNetwork/GameSpy/ThreadUtils.h"
-#if defined(GENONLINE)
-#include "GameNetwork/GenOnline/GenOnlineInclude.h"
-#endif
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 
@@ -105,11 +102,7 @@ enum { NOTIFICATION_EXPIRES = 3000 };
 
 void setUnignoreText( WindowLayout *layout, AsciiString nick, GPProfile id);
 void refreshIgnoreList();
-#if defined(GENONLINE)
-void showNotificationBox( AsciiString nick, UnicodeString message, bool bPlaySound = true);
-#else
 void showNotificationBox( AsciiString nick, UnicodeString message);
-#endif
 void deleteNotificationBox();
 static Bool lastNotificationWasStatus = FALSE;
 static Int numOnlineInNotification = 0;
@@ -383,12 +376,7 @@ void insertChat( BuddyMessage msg )
 	}
 }
 
-#if defined(GENONLINE)
-// Generals keeps the GameSpy buddy refresh, the Generals Online arguments are unused
-void updateBuddyInfo( bool bIsAutoRefresh = false, bool bUseCache = false )
-#else
 void updateBuddyInfo()
-#endif
 {
 	if (!TheGameSpyBuddyMessageQueue->isConnected())
 	{
@@ -653,11 +641,7 @@ void HandleBuddyResponses()
 	}
 }
 
-#if defined(GENONLINE)
-void showNotificationBox( AsciiString nick, UnicodeString message, bool bPlaySound)
-#else
 void showNotificationBox( AsciiString nick, UnicodeString message)
-#endif
 {
 //	if(!GameSpyIsOverlayOpen(GSOVERLAY_BUDDY))
 //		return;
@@ -681,14 +665,7 @@ void showNotificationBox( AsciiString nick, UnicodeString message)
 	}
 
 	if (nick.isNotEmpty())
-	{
-#if defined(GENONLINE)
-		// Generals Online nicks are UTF-8 display names
-		message.format(WidenFormatSpecifiers(message.str()).c_str(), from_utf8(nick.str()).c_str());
-#else
 		message.format(message, nick.str());
-#endif
-	}
 	GadgetButtonSetText(win, message);
 	//GadgetStaticTextSetText(win, message);
 	noticeExpires = timeGetTime() + NOTIFICATION_EXPIRES;
@@ -696,11 +673,7 @@ void showNotificationBox( AsciiString nick, UnicodeString message)
 
 	AudioEventRTS buttonClick("GUICommunicatorIncoming");
 
-#if defined(GENONLINE)
-	if (TheAudio && bPlaySound)
-#else
 	if( TheAudio )
-#endif
 	{
 		TheAudio->addAudioEvent( &buttonClick );
 	}
@@ -1406,11 +1379,7 @@ WindowMsgHandledType WOLBuddyOverlayRCMenuSystem( GameWindow *window, UnsignedIn
 				{
 					DEBUG_LOG(("buttonStatsID was pushed"));
 					GameSpyCloseOverlay(GSOVERLAY_PLAYERINFO);
-#if defined(GENONLINE)
-					SetLookAtPlayer(profileID, UnicodeString(from_utf8(nick.str()).c_str()));
-#else
 					SetLookAtPlayer(profileID,nick );
-#endif
 					GameSpyOpenOverlay(GSOVERLAY_PLAYERINFO);
 					PSRequest req;
 					req.requestType = PSRequest::PSREQUEST_READPLAYERSTATS;

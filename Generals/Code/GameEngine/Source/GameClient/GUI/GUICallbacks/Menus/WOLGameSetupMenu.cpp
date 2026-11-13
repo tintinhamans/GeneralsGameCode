@@ -63,9 +63,6 @@
 #include "GameNetwork/NAT.h"
 #include "GameNetwork/GUIUtil.h"
 #include "GameNetwork/GameSpy/GSConfig.h"
-#if defined(GENONLINE)
-#include "GameNetwork/GenOnline/GenOnlineGame.h"
-#endif
 
 void WOLDisplaySlotList();
 
@@ -137,7 +134,6 @@ void SendStatsToOtherPlayers(const GameInfo *game)
 static Bool isShuttingDown = false;
 static Bool buttonPushed = false;
 static const char *nextScreen = nullptr;
-
 static Bool raiseMessageBoxes = false;
 static Bool launchGameNext = FALSE;
 
@@ -2673,3 +2669,5 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 	}
 	return MSG_HANDLED;
 }
+
+
