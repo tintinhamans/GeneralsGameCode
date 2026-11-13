@@ -897,6 +897,35 @@ static void TestAcceptRealtimeUrl()
 	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/-/realtime", "http://api.playgenerals.online:2087/").empty());
 }
 
+static void TestPeerPayload()
+{
+	// RFC 4648 section 10.
+	const char* const vectors[][2] = { { "", "" }, { "f", "Zg==" }, { "fo", "Zm8=" }, { "foo", "Zm9v" },
+		{ "foob", "Zm9vYg==" }, { "fooba", "Zm9vYmE=" }, { "foobar", "Zm9vYmFy" } };
+	for (const auto& vector : vectors)
+	{
+		std::string text = vector[0];
+		std::vector<uint8_t> bytes(text.begin(), text.end());
+		CHECK(EncodePeerPayload(bytes) == vector[1]);
+		std::vector<uint8_t> decoded;
+		CHECK(DecodePeerPayload(vector[1], decoded));
+		CHECK(decoded == bytes);
+	}
+
+	std::vector<uint8_t> fixture;
+	CHECK(DecodePeerPayload("AAECAwQ=", fixture));
+	CHECK(fixture == std::vector<uint8_t>({ 0, 1, 2, 3, 4 }));
+	const uint8_t high[] = { 0xFB, 0xFF };
+	CHECK(EncodePeerPayload(std::vector<uint8_t>(high, high + 2)) == "+/8=");
+
+	std::vector<uint8_t> rejected;
+	CHECK(!DecodePeerPayload("Zg=", rejected));
+	CHECK(!DecodePeerPayload("Z-8=", rejected));
+	CHECK(!DecodePeerPayload("Zm9v!", rejected));
+	CHECK(!DecodePeerPayload("Z===", rejected));
+	CHECK(!DecodePeerPayload("Zg==Zg==", rejected));
+}
+
 int main(int argc, char** argv)
 {
 	if (argc < 3)
@@ -907,6 +936,7 @@ int main(int argc, char** argv)
 	TestFixtures(argv[1]);
 	TestSignInFixtures(argv[2]);
 	TestPkce();
+	TestPeerPayload();
 	TestFormEncoding();
 	TestLoopbackCallback();
 	TestAcceptRealtimeUrl();
