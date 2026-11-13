@@ -38,8 +38,15 @@ void RegisterHandlers(GenOnlineRealtime::HubSession& session);
 // Takes the session data of Ready. bFirstReady is true for the first Ready after a login.
 void OnReady(const GenOnlineRealtime::ReadyEvent& ready, bool bFirstReady);
 
-// Staff wear the admin or moderator badge.
-bool IsStaff(const std::vector<std::string>& badges);
+// The colour of the first defined badge of a user. Badges are listed highest priority first and
+// operators define them at runtime, so the client never looks at badge ids. Returns false without a badge.
+bool BadgeColor(const std::vector<std::string>& badges, int& color);
+
+// True when the local user holds a moderation permission.
+bool HasModerationPermission();
+
+// The presence text of a friend activity code, for example "In game".
+std::string ActivityText(const std::string& activity);
 
 // The text shown for a hub method that did not succeed.
 std::wstring FailureText(const GenOnlineRealtime::InvokeOutcome& outcome);

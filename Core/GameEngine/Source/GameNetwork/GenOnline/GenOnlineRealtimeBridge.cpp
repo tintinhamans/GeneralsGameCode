@@ -55,18 +55,82 @@ std::string ParamText(const nlohmann::json& params, const char* key)
 	return it != params.end() && it->is_string() ? it->get<std::string>() : std::string();
 }
 
+BadgeMap s_badges;
+std::vector<std::string> s_permissions;
+
+int HexDigit(char c)
+{
+	if (c >= '0' && c <= '9')
+		return c - '0';
+	if (c >= 'a' && c <= 'f')
+		return c - 'a' + 10;
+	if (c >= 'A' && c <= 'F')
+		return c - 'A' + 10;
+	return -1;
+}
+
+// Reads a #rrggbb colour.
+bool ParseHexColor(const std::string& text, int& color)
+{
+	if (text.size() != 7 || text[0] != '#')
+	{
+		return false;
+	}
+	int channels[3];
+	for (int i = 0; i < 3; ++i)
+	{
+		const int high = HexDigit(text[1 + i * 2]);
+		const int low = HexDigit(text[2 + i * 2]);
+		if (high < 0 || low < 0)
+		{
+			return false;
+		}
+		channels[i] = high * 16 + low;
+	}
+	color = GameMakeColor(channels[0], channels[1], channels[2], 255);
+	return true;
+}
+
 } // namespace
 
-bool IsStaff(const std::vector<std::string>& badges)
+bool BadgeColor(const std::vector<std::string>& badges, int& color)
 {
 	for (const std::string& badge : badges)
 	{
-		if (badge == "admin" || badge == "moderator")
+		auto it = s_badges.find(badge);
+		if (it != s_badges.end() && ParseHexColor(it->second.color, color))
 		{
 			return true;
 		}
 	}
 	return false;
+}
+
+bool HasModerationPermission()
+{
+	for (const std::string& permission : s_permissions)
+	{
+		if (permission.compare(0, 11, "moderation.") == 0)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+std::string ActivityText(const std::string& activity)
+{
+	if (activity == "menu")
+		return "In menus";
+	if (activity == "room")
+		return "In a room";
+	if (activity == "lobby")
+		return "In a lobby";
+	if (activity == "matchmaking")
+		return "Searching for a match";
+	if (activity == "in_game")
+		return "In game";
+	return std::string();
 }
 
 std::wstring FailureText(const InvokeOutcome& outcome)
@@ -152,6 +216,8 @@ void ShowRoomNotice(const std::wstring& text, bool bError)
 
 void OnReady(const ReadyEvent& ready, bool bFirstReady)
 {
+	s_badges = ready.badges;
+	s_permissions = ready.permissions;
 	GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 	if (pRooms != nullptr)
 	{
@@ -171,6 +237,10 @@ void OnReady(const ReadyEvent& ready, bool bFirstReady)
 
 void RegisterHandlers(HubSession& session)
 {
+	session.On<BadgesUpdateEvent>([](const BadgesUpdateEvent& event)
+		{
+			s_badges = event.badges;
+		});
 	session.On<RoomMembersEvent>([](const RoomMembersEvent& event)
 		{
 			GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();

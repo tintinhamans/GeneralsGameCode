@@ -2589,7 +2589,12 @@ static NetworkRoomMember ToRoomMember(const GenOnlineRealtime::Member& member)
 	NetworkRoomMember roomMember;
 	roomMember.user_id = member.id;
 	roomMember.display_name = member.name;
-	roomMember.m_bIsAdmin = GenOnlineRealtimeBridge::IsStaff(member.badges);
+	// A badge lists the member with the staff, the local user counts as staff with a moderation permission.
+	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	int badgeColor = 0;
+	roomMember.m_bIsAdmin = pAuth != nullptr && pAuth->GetUserID() == member.id
+		? GenOnlineRealtimeBridge::HasModerationPermission()
+		: GenOnlineRealtimeBridge::BadgeColor(member.badges, badgeColor);
 	return roomMember;
 }
 
@@ -2598,8 +2603,7 @@ void GenOnlineRoomsInterface::SetRealtimeRooms(const std::vector<GenOnlineRealti
 	m_vecRealtimeRooms.clear();
 	for (const GenOnlineRealtime::RoomInfo& room : rooms)
 	{
-		// A parent id of 0 or less means a top level room.
-		const int parentRoomID = room.parent_id > 0 ? static_cast<int>(room.parent_id) : -1;
+		const int parentRoomID = room.parent_id.isNull || room.parent_id.value <= 0 ? -1 : static_cast<int>(room.parent_id.value);
 		m_vecRealtimeRooms.emplace_back(static_cast<int>(room.id), room.name,
 			room.show_all_matches ? ERoomFlags::ROOM_FLAGS_SHOW_ALL_MATCHES : ERoomFlags::ROOM_FLAGS_DEFAULT, parentRoomID);
 	}
@@ -2696,7 +2700,13 @@ void GenOnlineRoomsInterface::OnRealtimeRoomMessage(const GenOnlineRealtime::Cha
 	UnicodeString unicodeStr;
 	unicodeStr.format(bAction ? L"[%2.2d:%2.2d] %s %s" : L"[%2.2d:%2.2d] %s: %s", systemTime.wHour, systemTime.wMinute,
 		from_utf8(message.author.name).c_str(), from_utf8(message.content).c_str());
-	const Color color = DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_NETWORK_ROOM, true, bAction, GenOnlineRealtimeBridge::IsStaff(message.author.badges), false);
+	// An action keeps the emote colour, otherwise the first badge of the author colours the line.
+	Color color = DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_NETWORK_ROOM, true, bAction, false, false);
+	int badgeColor = 0;
+	if (!bAction && GenOnlineRealtimeBridge::BadgeColor(message.author.badges, badgeColor))
+	{
+		color = badgeColor;
+	}
 #if RTS_ZEROHOUR
 	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	const bool bLocal = pAuth != nullptr && pAuth->GetUserID() == message.author.id;

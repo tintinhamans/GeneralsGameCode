@@ -3,5 +3,6 @@
   "online": true,
   "clients": [
     "game"
-  ]
+  ],
+  "activity": "lobby"
 }

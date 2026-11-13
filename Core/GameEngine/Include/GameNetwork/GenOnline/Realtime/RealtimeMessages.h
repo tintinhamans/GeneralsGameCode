@@ -1208,7 +1208,8 @@ struct RoomInfo : WireObject
 {
 	int64_t id = 0;
 	std::string name;
-	int64_t parent_id = 0;
+	// Null for a top level room.
+	Nullable<int64_t> parent_id;
 	bool show_all_matches = false;
 
 	template <class V> void Fields(V& v)
@@ -1545,14 +1546,17 @@ struct MatchRequeueEvent : WireObject
 
 // Events: social ////////////////////////////////////////////////////////////////
 
+// "offline", "menu", "room", "lobby", "matchmaking" or "in_game", in this environment only.
 struct FriendEntry : Member
 {
 	bool online = false;
+	std::string activity;
 
 	template <class V> void Fields(V& v)
 	{
 		Member::Fields(v);
 		v("online", online);
+		v("activity", activity);
 	}
 };
 
@@ -1611,12 +1615,14 @@ struct FriendPresenceEvent : WireObject
 	int64_t user_id = 0;
 	bool online = false;
 	std::vector<std::string> clients;
+	std::string activity;
 
 	template <class V> void Fields(V& v)
 	{
 		v("user_id", user_id);
 		v("online", online);
 		v("clients", clients);
+		v("activity", activity);
 	}
 };
 

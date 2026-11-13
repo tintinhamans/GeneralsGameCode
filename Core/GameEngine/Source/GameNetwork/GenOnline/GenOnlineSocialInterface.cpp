@@ -636,7 +636,9 @@ void GenOnlineSocialInterface::OnRealtimeFriends(const GenOnlineRealtime::Friend
 		m_mapBlocked.clear();
 		for (const GenOnlineRealtime::FriendEntry& entry : event.friends)
 		{
-			m_mapFriends.insert_or_assign(entry.id, ToFriendsEntry(entry, entry.online));
+			FriendsEntry friendEntry = ToFriendsEntry(entry, entry.online);
+			friendEntry.presence = GenOnlineRealtimeBridge::ActivityText(entry.activity);
+			m_mapFriends.insert_or_assign(entry.id, friendEntry);
 			numOnline += entry.online ? 1 : 0;
 		}
 		for (const GenOnlineRealtime::Member& member : event.incoming)
@@ -713,7 +715,8 @@ void GenOnlineSocialInterface::OnRealtimeFriendRemoved(int64_t user_id)
 void GenOnlineSocialInterface::OnRealtimeFriendPresence(const GenOnlineRealtime::FriendPresenceEvent& event)
 {
 	std::string strName;
-	bool bChanged = false;
+	bool bOnlineChanged = false;
+	bool bPresenceChanged = false;
 	{
 		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
 		auto it = m_mapFriends.find(event.user_id);
@@ -721,13 +724,19 @@ void GenOnlineSocialInterface::OnRealtimeFriendPresence(const GenOnlineRealtime:
 		{
 			return;
 		}
-		bChanged = it->second.online != event.online;
+		const std::string strPresence = GenOnlineRealtimeBridge::ActivityText(event.activity);
+		bOnlineChanged = it->second.online != event.online;
+		bPresenceChanged = it->second.presence != strPresence;
 		it->second.online = event.online;
+		it->second.presence = strPresence;
 		strName = it->second.display_name;
 	}
-	if (bChanged)
+	if (bOnlineChanged)
 	{
 		OnOnlineStatusChanged(strName, event.online);
+	}
+	if (bOnlineChanged || bPresenceChanged)
+	{
 		RefreshCommunicator();
 	}
 }
