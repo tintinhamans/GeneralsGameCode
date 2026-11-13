@@ -75,7 +75,7 @@ std::string GenOnlineSettings::GetAnticheatPlugin() const
 
         // prefer EAC
         NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Fallback flow: Testing EAC");
-        if (std::filesystem::exists(pluginPath2.c_str()))
+        if (std::filesystem::exists(pluginPath1.c_str()))
         {
             NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Fallback flow: EAC Found.");
             return std::string("easyanticheat");

@@ -8,7 +8,7 @@
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include <steam/steamnetworkingtypes.h>
-#include "GameNetwork/GenOnline/PluginInterfaces.h"
+#include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
 
 #ifdef _INTERNAL
 // for occasional debugging...
@@ -123,17 +123,17 @@ Bool GenOnlineTransport::doRecv(void)
         return FALSE;
     }
 
-    if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
+    if (GenOnlinePluginHost::Transport::IsActive())
     {
         // TODO_EOS: Just have a "has" function instead
-        while (AnticheatPlugInterface::GetNextRecvPacketSize(static_cast<uint8_t>(ENetworkChannels::Game)) > 0)
+        while (GenOnlinePluginHost::Transport::GetNextPacketSize(ENetworkChannels::Game) > 0)
         {
             int64_t userID = -1; // TODO_EOS
-            uint32_t numBytes = AnticheatPlugInterface::GetNextRecvPacketSize(static_cast<uint8_t>(ENetworkChannels::Game));
+            uint32_t numBytes = 0;
 
             // the plugin returns its own buffer through pPacketData, ours would just be leaked over
-            uint8_t* pPacketData = nullptr;
-            bool bSuccess = AnticheatPlugInterface::RecvPacket(&pPacketData, static_cast<uint8_t>(ENetworkChannels::Game));
+            const uint8_t* pPacketData = nullptr;
+            bool bSuccess = GenOnlinePluginHost::Transport::ReceivePacket(ENetworkChannels::Game, &pPacketData, &numBytes);
             if (!bSuccess || pPacketData == nullptr)
             {
                 // nothing was dequeued, stop instead of spinning forever on the same pending packet
@@ -144,8 +144,8 @@ Bool GenOnlineTransport::doRecv(void)
                 // the buffer belongs to the plugin, make sure every exit path below releases it
                 struct ScopedPluginPacket
                 {
-                    uint8_t* m_pData;
-                    ~ScopedPluginPacket() { AnticheatPlugInterface::FreePacket(m_pData); }
+                    const uint8_t* m_pData;
+                    ~ScopedPluginPacket() { GenOnlinePluginHost::Transport::FreePacket(m_pData); }
                 } scopedPacket{ pPacketData };
 
                 // TODO_EOS: Impl
@@ -154,7 +154,7 @@ Bool GenOnlineTransport::doRecv(void)
                 if (bIsACPacket)
                 {
                     NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Received AC message of size %u from user %lld", numBytes, static_cast<long long>(userID));
-                    AnticheatPlugInterface::AC_NetworkMessageArrived(userID, pPacketData, numBytes - 3);
+                    GenOnlinePluginHost::Anticheat::MessageArrived(userID, pPacketData, numBytes - 3);
                 }
                 else
                 {
@@ -209,7 +209,7 @@ Bool GenOnlineTransport::doRecv(void)
                     if (payloadLen > 0)
                     {
                         std::memcpy(incomingMessage.data,
-                            static_cast<unsigned char*>(pPacketData) + sizeof(TransportMessageHeader),
+                            static_cast<const unsigned char*>(pPacketData) + sizeof(TransportMessageHeader),
                             payloadLen);
                     }
 
@@ -388,7 +388,7 @@ Bool GenOnlineTransport::doRecv(void)
                         // TODO_AC: Optimize this
 
 
-                        AnticheatPlugInterface::AC_NetworkMessageArrived(kvPair.second.m_userID, vecPacketDataWithoutHeader.data(), vecPacketDataWithoutHeader.size());
+                        GenOnlinePluginHost::Anticheat::MessageArrived(kvPair.second.m_userID, vecPacketDataWithoutHeader.data(), vecPacketDataWithoutHeader.size());
                         msg->Release();
                         continue;
                     }

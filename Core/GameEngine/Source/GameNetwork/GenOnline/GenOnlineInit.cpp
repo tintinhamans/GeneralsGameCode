@@ -368,7 +368,7 @@ void GenOnlineServicesManager::Shutdown()
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] HTTPManager shutdown complete");
 	}
 
-	AnticheatPlugInterface::UnloadPlugin();
+	GenOnlinePluginHost::UnloadPlugin();
 
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] OnlineServicesManager shutdown complete");
 }
@@ -904,11 +904,7 @@ void GenOnlineServicesManager::Init()
     std::string strPlugin = GenOnlineServicesManager::Settings.GetAnticheatPlugin();
 
 	// Empty name means no anticheat plugin configured; skip loading.
-	if (!strPlugin.empty())
-	{
-		std::string pluginPath = std::format("plugins/{}/{}.dll", strPlugin.c_str(), strPlugin.c_str());
-		AnticheatPlugInterface::LoadPlugin(pluginPath.c_str());
-	}
+	GenOnlinePluginHost::LoadPlugin(strPlugin);
 
 	// TODO_GENONLINE: Better location
 	// TODO_GENONLINE: Get all of this from the service
@@ -944,7 +940,7 @@ void GenOnlineServicesManager::Init()
 
 void GenOnlineServicesManager::Tick()
 {
-	AnticheatPlugInterface::Tick();
+	GenOnlinePluginHost::Tick();
 
 	// screenshots
 	{
