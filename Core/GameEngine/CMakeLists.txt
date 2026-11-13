@@ -1223,6 +1223,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/HTTP/HTTPRequest.h
     Include/GameNetwork/GenOnline/GenOnlineTransport.h
     Include/GameNetwork/GenOnline/PluginInterfaces.h
+    Include/GameNetwork/GenOnline/PluginApi/GenOnlinePluginApi.h
     Include/GameNetwork/GenOnline/Provider/GenOnlineGameHooks.h
     Include/GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.h
     Source/GameNetwork/GenOnline/DiscordRichPresence.cpp
