@@ -115,7 +115,7 @@ void setUnignoreText( WindowLayout *layout, AsciiString nick, GPProfile id);
 void refreshIgnoreList();
 
 #if defined(GENONLINE)
-void showNotificationBox( AsciiString nick, UnicodeString message, bool bPlaySound);
+void showNotificationBox( AsciiString nick, UnicodeString message, bool bPlaySound = true);
 #else
 void showNotificationBox(AsciiString nick, UnicodeString message);
 #endif

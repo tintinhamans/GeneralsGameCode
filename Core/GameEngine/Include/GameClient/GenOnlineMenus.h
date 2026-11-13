@@ -27,6 +27,7 @@
 #include "GameClient/GameWindow.h"
 
 class WindowLayout;
+class PSPlayerStats;
 
 // GenOnlinePopupJoinGame
 extern void GenOnlinePopupJoinGameInit( WindowLayout *layout, void *userData );
@@ -60,8 +61,56 @@ extern void GenOnlineWelcomeMenuUpdate( WindowLayout *layout, void *userData );
 extern WindowMsgHandledType GenOnlineWelcomeMenuInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GenOnlineWelcomeMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 
+// GenOnlineLoginMenu
+extern void GenOnlineLoginMenuInit( WindowLayout *layout, void *userData );
+extern void GenOnlineLoginMenuShutdown( WindowLayout *layout, void *userData );
+extern void GenOnlineLoginMenuUpdate( WindowLayout *layout, void *userData );
+extern WindowMsgHandledType GenOnlineLoginMenuInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+extern WindowMsgHandledType GenOnlineLoginMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+
+// GenOnlineBuddyOverlay
+extern void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData );
+extern void GenOnlineBuddyOverlayShutdown( WindowLayout *layout, void *userData );
+extern void GenOnlineBuddyOverlayUpdate( WindowLayout *layout, void *userData );
+extern WindowMsgHandledType GenOnlineBuddyOverlayInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+extern WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+extern WindowMsgHandledType GenOnlinePopupBuddyNotificationSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+extern void GenOnlineBuddyOverlayRCMenuInit( WindowLayout *layout, void *userData );
+extern WindowMsgHandledType GenOnlineBuddyOverlayRCMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+
+// GenOnlinePlayerInfoOverlay
+extern void GenOnlinePlayerInfoOverlayInit( WindowLayout *layout, void *userData );
+extern void GenOnlinePlayerInfoOverlayShutdown( WindowLayout *layout, void *userData );
+extern void GenOnlinePlayerInfoOverlayUpdate( WindowLayout *layout, void *userData );
+extern WindowMsgHandledType GenOnlinePlayerInfoOverlayInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+extern WindowMsgHandledType GenOnlinePlayerInfoOverlaySystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+
+// Sign in dialog over the main menu for the whole Online path. Open returns FALSE when its layout is missing.
+extern Bool GOSignInDialogOpen( void );
+extern Bool GOSignInDialogIsOpen( void );
+extern void GOSignInDialogShowChecking( GameWinMsgBoxFunc cancelFunc );
+extern void GOSignInDialogShowUpdate( UnicodeString message, GameWinMsgBoxFunc updateFunc, GameWinMsgBoxFunc cancelFunc );
+extern void GOSignInDialogShowError( UnicodeString title, UnicodeString message, GameWinMsgBoxFunc closeFunc );
+extern void GOSignInDialogShowDownloading( GameWinMsgBoxFunc cancelFunc );
+extern void GOSignInDialogShowReady( UnicodeString message, GameWinMsgBoxFunc restartFunc, GameWinMsgBoxFunc cancelFunc );
+extern void GOSignInDialogBeginSignIn( void );
+extern void GOSignInDialogUpdate( void );
+extern void GOSignInDialogDestroy( void );
+
 // Shared functions of the GenOnline menus
 extern void GenOnlineMapSelectMenuApplyMap( const AsciiString& map );
 extern void GenOnlineHandleNumPlayersOnline( Int numPlayersOnline );
 extern void GenOnlineHandleOverallStats( const char *szHTTPStats, unsigned len );
 extern void GenOnlineUpdateLocalPlayerStats();
+extern void GenOnlineSetLookAtPlayer( int64_t id, UnicodeString nick );
+extern void GenOnlinePopulatePlayerInfoWindows( AsciiString parentWindowName );
+extern Int GenOnlineGetAdditionalDisconnectsFromUserFile( Int playerID );
+extern Int GenOnlineCalculateRank( const PSPlayerStats& stats );
+extern Int GenOnlineGetFavoriteSide( const PSPlayerStats& stats );
+extern void GenOnlineHandleBuddyResponses();
+extern void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh = false, bool bUseCache = false );
+extern void GenOnlineRaiseNotificationBox();
+extern void GenOnlineDeleteNotificationBox();
+extern void GenOnlineInitBuddyControls( Int type );
+extern void GenOnlinePopulateOldBuddyMessages();
+extern WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );

@@ -518,7 +518,7 @@ void GenOnlineGame::launchGame(void)
 
             UnicodeString msg;
             msg.format(L"Map: %s\nPress F5 or INSERT to open the communicator.", from_utf8(strMapName).c_str());
-            showNotificationBox(AsciiString::TheEmptyString, msg, false);
+            GenOnlineShowNotificationBox(AsciiString::TheEmptyString, msg, false);
 		}
 
 		

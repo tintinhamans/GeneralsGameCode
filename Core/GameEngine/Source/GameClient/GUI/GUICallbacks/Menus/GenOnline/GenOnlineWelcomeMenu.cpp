@@ -472,11 +472,11 @@ void GenOnlineUpdateLocalPlayerStats()
 
 	if (welcomeParent)
 	{
-		PopulatePlayerInfoWindows( "WOLWelcomeMenu.wnd" );
+		GenOnlinePopulatePlayerInfoWindows( "WOLWelcomeMenu.wnd" );
 	}
 	else
 	{
-		PopulatePlayerInfoWindows( "WOLQuickMatchMenu.wnd" );
+		GenOnlinePopulatePlayerInfoWindows( "WOLQuickMatchMenu.wnd" );
 	}
 }
 
@@ -720,7 +720,7 @@ void GenOnlineWelcomeMenuUpdate( WindowLayout * layout, void *userData)
 
 	// TODO_NGMP: do we still care about FW helper?
 
-	HandleBuddyResponses();
+	GenOnlineHandleBuddyResponses();
 
 
 }
@@ -871,7 +871,7 @@ WindowMsgHandledType GenOnlineWelcomeMenuSystem( GameWindow *window, UnsignedInt
 					GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 					if (pAuthInterface != nullptr)
 					{
-						SetLookAtPlayer(pAuthInterface->GetUserID(), UnicodeString(pAuthInterface->GetDisplayNameW().c_str()));
+						GenOnlineSetLookAtPlayer(pAuthInterface->GetUserID(), UnicodeString(pAuthInterface->GetDisplayNameW().c_str()));
 						GameSpyToggleOverlay(GSOVERLAY_PLAYERINFO);
 					}
 				}

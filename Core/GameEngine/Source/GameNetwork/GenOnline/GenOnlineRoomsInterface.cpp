@@ -1349,15 +1349,15 @@ CURLcode WebSocket::ReceiveOneFrame()
 									case EWebSocketMessageID::SOCIAL_FRIENDS_LIST_DIRTY:
 									{
                                         // nothing to parse here, it's just an event only
-                                        extern void updateBuddyInfo(bool bIsAutoRefresh = false, bool bUseCache = false);
-										updateBuddyInfo(true);
+                                        extern void GenOnlineUpdateBuddyInfo(bool bIsAutoRefresh = false, bool bUseCache = false);
+										GenOnlineUpdateBuddyInfo(true);
 									}
 									break;
 
 									case EWebSocketMessageID::SOCIAL_CANT_ADD_FRIEND_LIST_FULL:
 									{
 										// always show this notification, it's tied to a local user action
-										showNotificationBox(AsciiString::TheEmptyString, UnicodeString(L"Cannot sent friends request. Your friends list is full."));
+										GenOnlineShowNotificationBox(AsciiString::TheEmptyString, UnicodeString(L"Cannot sent friends request. Your friends list is full."));
 									}
 									break;
 
@@ -1399,7 +1399,7 @@ CURLcode WebSocket::ReceiveOneFrame()
 											if (!strFormat.isEmpty())
 											{
 												// always show this notification
-												showNotificationBox(AsciiString::TheEmptyString, strFormat);
+												GenOnlineShowNotificationBox(AsciiString::TheEmptyString, strFormat);
 											}
 										}
 									}
