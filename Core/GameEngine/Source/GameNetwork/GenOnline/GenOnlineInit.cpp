@@ -248,7 +248,18 @@ std::string GenOnlineServicesManager::GetAPIEndpoint(const char* szEndpoint)
 
 bool GenOnlineServicesManager::IsServiceURLTrusted(const std::string& url)
 {
-	return ServiceConnection::IsTrustedServiceURL(url, GetAPIEndpoint(""), false);
+	const std::string base = GetAPIEndpoint("");
+	if (ServiceConnection::IsTrustedServiceURL(url, base, false))
+	{
+		return true;
+	}
+	// The realtime protocol v1 API sits at the root of the service origin, outside the legacy base path.
+	if (Settings.Network_GetConnectionSettings().realtimeProtocol != "v1")
+	{
+		return false;
+	}
+	const std::string origin = GenOnlineRealtime::OriginOfBase(base);
+	return !origin.empty() && ServiceConnection::IsTrustedServiceURL(url, origin + "/", false);
 }
 
 bool GenOnlineServicesManager::IsWebSocketURLTrusted(const std::string& url)
@@ -1064,9 +1075,22 @@ void GenOnlineServicesManager::OnLogin(ELoginResult loginResult, const char* szW
 		m_pWebSocket = std::make_shared<WebSocket>(bRealtimeHub);
 
         // the websocket address comes from the route we logged in through, not from the service
-        const std::string strWebsocketAddr = bRealtimeHub ? ServiceConnection::RealtimeHubURLForBase(GetAPIEndpoint(""))
-            : ServiceConnection::WebSocketURLForBase(GetAPIEndpoint(""));
         const std::string strServiceAddr = szWSAddr ? szWSAddr : "";
+        std::string strWebsocketAddr = bRealtimeHub ? ServiceConnection::RealtimeHubURLForBase(GetAPIEndpoint(""))
+            : ServiceConnection::WebSocketURLForBase(GetAPIEndpoint(""));
+        if (bRealtimeHub)
+        {
+            // the session registration names the hub, which is used only on the origin of the route
+            const std::string strAccepted = GenOnlineRealtime::AcceptRealtimeUrl(strServiceAddr, GetAPIEndpoint(""));
+            if (!strAccepted.empty())
+            {
+                strWebsocketAddr = strAccepted;
+            }
+            else if (!strServiceAddr.empty())
+            {
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] Ignoring a realtime address outside the service origin, using %s", strWebsocketAddr.c_str());
+            }
+        }
         if (!bRealtimeHub && strServiceAddr != strWebsocketAddr)
         {
             const std::string strServiceHost = ServiceConnection::RouteHost(strServiceAddr);

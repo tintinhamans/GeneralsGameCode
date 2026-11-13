@@ -265,11 +265,14 @@ private:
 	void HubTransportLost(const char* reason);
 	void OnHubReady();
 	void OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, const std::string& reason);
+	void RecoverHubSession();
 
 	bool m_bRealtimeHub = false;
 	std::unique_ptr<GenOnlineRealtime::HubSession> m_pHubSession;
 	mutable GenOnlineRealtime::ReconnectPolicy m_hubReconnectPolicy;
 	bool m_bHubReadyOnce = false;
+	// One token refresh and session registration per connection that never reached Ready.
+	bool m_bHubSessionRecoveryTried = false;
 
 	CURLcode ReceiveOneFrame();
 	void PollConnectionSetup();

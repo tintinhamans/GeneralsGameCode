@@ -147,13 +147,12 @@ WebSocket::WebSocket(bool bRealtimeHub)
 	}
 }
 
-// The hub address must be exactly the hub of the current service route.
+// The hub address must be a wss URL on the origin of the current service route.
 bool WebSocket::IsDestinationTrusted(const std::string& url) const
 {
 	if (!m_bRealtimeHub)
 		return GenOnlineServicesManager::IsWebSocketURLTrusted(url);
-	const std::string expected = ServiceConnection::RealtimeHubURLForBase(GenOnlineServicesManager::GetAPIEndpoint(""));
-	return !expected.empty() && url == expected;
+	return !GenOnlineRealtime::AcceptRealtimeUrl(url, GenOnlineServicesManager::GetAPIEndpoint("")).empty();
 }
 
 // Drops the socket without reconnecting. The caller decides what happens next.
@@ -197,6 +196,7 @@ void WebSocket::OnHubReady()
 {
 	EndReconnect();
 	m_hubReconnectPolicy.Reset();
+	m_bHubSessionRecoveryTried = false;
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Ready");
 	// Later connections restore their state from the snapshot events, so only the first one completes the login.
 	if (!m_bHubReadyOnce)
@@ -207,6 +207,35 @@ void WebSocket::OnHubReady()
 			m_fnWebsocketConnectedCallback();
 		}
 	}
+}
+
+// Refreshes the tokens and registers the session again, then reconnects. A second refusal tears down.
+void WebSocket::RecoverHubSession()
+{
+	m_bHubSessionRecoveryTried = true;
+	EndReconnect();
+	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	if (pAuth == nullptr)
+	{
+		GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::AUTH_FAILED);
+		return;
+	}
+	pAuth->RecoverRealtimeSession([this](bool bRecovered)
+		{
+			// The socket may have been replaced or shut down while the refresh ran.
+			GenOnlineServicesManager* pManager = GenOnlineServicesManager::GetInstance();
+			std::shared_ptr<WebSocket> pSocket = pManager != nullptr ? pManager->Internal_GetWebSocket() : nullptr;
+			if (pSocket.get() != this || m_bShuttingDown)
+			{
+				return;
+			}
+			if (bRecovered)
+			{
+				BeginReconnect();
+				return;
+			}
+			pManager->SetPendingFullTeardown(EGOTearDownReason::AUTH_FAILED);
+		});
 }
 
 void WebSocket::OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, const std::string& reason)
@@ -222,9 +251,13 @@ void WebSocket::OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, co
 		m_nextReconnectAttempt = NowMs() + GenOnlineRealtime::KICK_RECONNECT_DELAY_MS;
 		break;
 	case GenOnlineRealtime::DisconnectAction::RefreshAndReconnect:
-		// Refreshing the token and registering the session again needs the session registration of the identity service.
-		EndReconnect();
-		GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::AUTH_FAILED);
+		if (m_bHubSessionRecoveryTried)
+		{
+			EndReconnect();
+			GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::AUTH_FAILED);
+			break;
+		}
+		RecoverHubSession();
 		break;
 	case GenOnlineRealtime::DisconnectAction::StopSignedInElsewhere:
 	case GenOnlineRealtime::DisconnectAction::ReturnToLogin:
@@ -1152,8 +1185,13 @@ void WebSocket::Tick()
 							continue;
 						}
 
-                        // 401 bad token, 403 play ban, 409 session not registered: retrying cannot succeed
-                        if (m_bRealtimeHub && (httpResponseCode == 401 || httpResponseCode == 403 || httpResponseCode == 409))
+                        // 401 bad token and 409 session not registered get one refresh and registration, a 403 play ban ends the session
+                        if (m_bRealtimeHub && (httpResponseCode == 401 || httpResponseCode == 409) && !m_bHubSessionRecoveryTried)
+                        {
+                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Connection refused with status %ld, renewing the session", httpResponseCode);
+                            RecoverHubSession();
+                        }
+                        else if (m_bRealtimeHub && (httpResponseCode == 401 || httpResponseCode == 403 || httpResponseCode == 409))
                         {
                             NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Connection refused with status %ld", httpResponseCode);
                             EndReconnect();
