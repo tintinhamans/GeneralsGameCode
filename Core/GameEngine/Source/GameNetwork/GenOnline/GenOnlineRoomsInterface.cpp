@@ -108,10 +108,131 @@ std::vector<GOModuleInfo> GetLoadedModules() {
 }
 
 
-WebSocket::WebSocket()
+static double RealtimeReconnectRandom()
+{
+	static thread_local std::mt19937 rng{ std::random_device{}() };
+	return std::uniform_real_distribution<double>(0.0, 1.0)(rng);
+}
+
+WebSocket::WebSocket(bool bRealtimeHub)
+	: m_bRealtimeHub(bRealtimeHub)
+	, m_hubReconnectPolicy(RealtimeReconnectRandom)
 {
 	m_pMulti = curl_multi_init();
 	m_pHeaders = nullptr;
+	if (m_bRealtimeHub)
+	{
+		GenOnlineRealtime::HubSession::Callbacks callbacks;
+		callbacks.sendText = [this](const std::string& text)
+		{
+			return QueueOutbound(text, false);
+		};
+		callbacks.closeTransport = [this]()
+		{
+			ReleaseConnection();
+		};
+		callbacks.onReady = [this](const GenOnlineRealtime::ReadyEvent&)
+		{
+			OnHubReady();
+		};
+		callbacks.onDisconnected = [this](GenOnlineRealtime::DisconnectAction action, const std::string& reason)
+		{
+			OnHubDisconnected(action, reason);
+		};
+		callbacks.log = [](const std::string& line)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] %s", line.c_str());
+		};
+		m_pHubSession = std::make_unique<GenOnlineRealtime::HubSession>(callbacks);
+	}
+}
+
+// The hub address must be exactly the hub of the current service route.
+bool WebSocket::IsDestinationTrusted(const std::string& url) const
+{
+	if (!m_bRealtimeHub)
+		return GenOnlineServicesManager::IsWebSocketURLTrusted(url);
+	const std::string expected = ServiceConnection::RealtimeHubURLForBase(GenOnlineServicesManager::GetAPIEndpoint(""));
+	return !expected.empty() && url == expected;
+}
+
+// Drops the socket without reconnecting. The caller decides what happens next.
+void WebSocket::ReleaseConnection()
+{
+	m_proxyResolution.reset();
+	if (m_pCurlWS != nullptr)
+	{
+		if (m_bConnected)
+		{
+			size_t sent = 0;
+			(void)curl_ws_send(m_pCurlWS, "", 0, &sent, 0, CURLWS_CLOSE);
+		}
+		if (m_pMulti != nullptr)
+		{
+			curl_multi_remove_handle(m_pMulti, m_pCurlWS);
+		}
+		curl_easy_cleanup(m_pCurlWS);
+		m_pCurlWS = nullptr;
+	}
+	ClearOutbound();
+	m_vecWSPartialBuffer.clear();
+	m_bConnected = false;
+}
+
+// The hub session reports the loss and decides how to continue. A loss outside a session reconnects.
+void WebSocket::HubTransportLost(const char* reason)
+{
+	m_bConnected = false;
+	m_vecWSPartialBuffer.clear();
+	const GenOnlineRealtime::HubSession::State state = m_pHubSession->GetState();
+	if (state == GenOnlineRealtime::HubSession::State::Idle || state == GenOnlineRealtime::HubSession::State::Closed)
+	{
+		BeginReconnect();
+		return;
+	}
+	m_pHubSession->OnTransportLost(reason);
+}
+
+void WebSocket::OnHubReady()
+{
+	EndReconnect();
+	m_hubReconnectPolicy.Reset();
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Ready");
+	// Later connections restore their state from the snapshot events, so only the first one completes the login.
+	if (!m_bHubReadyOnce)
+	{
+		m_bHubReadyOnce = true;
+		if (m_fnWebsocketConnectedCallback != nullptr)
+		{
+			m_fnWebsocketConnectedCallback();
+		}
+	}
+}
+
+void WebSocket::OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, const std::string& reason)
+{
+	m_bConnected = false;
+	switch (action)
+	{
+	case GenOnlineRealtime::DisconnectAction::Reconnect:
+		BeginReconnect();
+		break;
+	case GenOnlineRealtime::DisconnectAction::ReconnectAfterKick:
+		BeginReconnect();
+		m_nextReconnectAttempt = NowMs() + GenOnlineRealtime::KICK_RECONNECT_DELAY_MS;
+		break;
+	case GenOnlineRealtime::DisconnectAction::RefreshAndReconnect:
+		// Refreshing the token and registering the session again needs the session registration of the identity service.
+		EndReconnect();
+		GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::AUTH_FAILED);
+		break;
+	case GenOnlineRealtime::DisconnectAction::StopSignedInElsewhere:
+	case GenOnlineRealtime::DisconnectAction::ReturnToLogin:
+	default:
+		EndReconnect();
+		GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(reason == "moderation.banned" ? EGOTearDownReason::MODERATION_BAN : EGOTearDownReason::LOST_CONNECTION);
+		break;
+	}
 }
 
 WebSocket::~WebSocket()
@@ -155,7 +276,8 @@ static std::vector<std::pair<int64_t, int64_t>> ParseMissingLinks(const nlohmann
 
 int WebSocket::Ping()
 {
-	if (!m_bConnected)
+	// the hub session sends its own ping records
+	if (!m_bConnected || m_bRealtimeHub)
 	{
 		return CURLE_AGAIN;
 	}
@@ -190,7 +312,7 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
 	}
 	curl_slist_free_all(m_pHeaders);
 	m_pHeaders = nullptr;
-	if (!GenOnlineServicesManager::IsWebSocketURLTrusted(destination))
+	if (!IsDestinationTrusted(destination))
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Refused untrusted service destination");
 		FailConnectionSetup();
@@ -283,7 +405,7 @@ void WebSocket::StartResolvedConnection()
 	}
 	std::string error;
 	auto* auth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	if (m_pCurlWS == nullptr || auth == nullptr || !auth->IsLoggedIn() || !GenOnlineServicesManager::IsWebSocketURLTrusted(m_strWebsocketAddr)
+	if (m_pCurlWS == nullptr || auth == nullptr || !auth->IsLoggedIn() || !IsDestinationTrusted(m_strWebsocketAddr)
 		|| !ServiceConnection::ConfigureCurl(m_pCurlWS, m_strWebsocketAddr, m_proxyPolicy.routes[m_proxyRoute], error))
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Connection policy: %s", error.c_str());
@@ -297,13 +419,16 @@ void WebSocket::StartResolvedConnection()
 		FailConnectionSetup();
 		return;
 	}
-	curl_slist* updated = curl_slist_append(m_pHeaders, m_connectAsReconnect ? "is-reconnect: true" : "is-reconnect: false");
-	if (updated == nullptr)
+	if (!m_bRealtimeHub)
 	{
-		FailConnectionSetup();
-		return;
+		curl_slist* updated = curl_slist_append(m_pHeaders, m_connectAsReconnect ? "is-reconnect: true" : "is-reconnect: false");
+		if (updated == nullptr)
+		{
+			FailConnectionSetup();
+			return;
+		}
+		m_pHeaders = updated;
 	}
-	m_pHeaders = updated;
 	CURLcode result = CURLE_OK;
 	auto option = [&](CURLoption key, auto value) {
 		if (result == CURLE_OK)
@@ -403,10 +528,16 @@ void WebSocket::Disconnect()
 
 void WebSocket::Send(const char* send_payload)
 {
+	// A legacy message would break the hub record stream, so the hub socket drops it.
+	if (m_bRealtimeHub)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Dropping a legacy message that the realtime hub does not accept");
+		return;
+	}
 	QueueOutbound(std::string(send_payload), false);
 }
 
-void WebSocket::QueueOutbound(std::string payload, bool heartbeat)
+bool WebSocket::QueueOutbound(std::string payload, bool heartbeat)
 {
 	std::scoped_lock<std::mutex> lock(m_outboundQueueMutex);
 	if (m_bShuttingDown || !m_acceptOutbound)
@@ -415,11 +546,11 @@ void WebSocket::QueueOutbound(std::string payload, bool heartbeat)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Rejecting message while disconnected; actions are not replayed after reconnect");
 		}
-		return;
+		return false;
 	}
 	if (heartbeat && m_heartbeatQueued)
 	{
-		return;
+		return false;
 	}
 
 	static constexpr size_t kMaxQueuedOutboundMsgs = 256;
@@ -429,12 +560,13 @@ void WebSocket::QueueOutbound(std::string payload, bool heartbeat)
 	{
 		// the front may be partially transmitted, do not evict it
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Outbound queue full (%zu messages, %zu bytes), rejecting new message", m_vecQueuedOutboungMsgs.size(), m_queuedOutboundBytes);
-		return;
+		return false;
 	}
 
 	m_queuedOutboundBytes += payload.size();
 	m_vecQueuedOutboungMsgs.push_back({ std::move(payload), heartbeat });
 	m_heartbeatQueued |= heartbeat;
+	return true;
 }
 
 void WebSocket::ClearOutbound()
@@ -467,7 +599,7 @@ CURLcode WebSocket::FlushOutbound()
 		size_t sent = 0;
 		const size_t remaining = message.payload.size() - m_outboundOffset;
 		CURLcode result = curl_ws_send(m_pCurlWS, message.payload.data() + m_outboundOffset,
-			remaining, &sent, 0, CURLWS_BINARY);
+			remaining, &sent, 0, m_bRealtimeHub ? CURLWS_TEXT : CURLWS_BINARY);
 		if (sent > remaining)
 		{
 			return CURLE_SEND_ERROR;
@@ -782,6 +914,11 @@ void WebSocket::EndReconnect()
 // First retry 0.5-3s, later ones 60-100% of the step (2s..10s cap), so clients that dropped together spread out.
 int64_t WebSocket::ComputeReconnectDelay() const
 {
+	if (m_bRealtimeHub)
+	{
+		return m_hubReconnectPolicy.NextDelayMs();
+	}
+
 	static thread_local std::mt19937 rng{ std::random_device{}() };
 
 	int64_t lo = m_reconnectBackoffBase / 4;
@@ -901,7 +1038,8 @@ void WebSocket::UpdateReconnect()
 		return;
 	}
 
-	if (!bGameInProgress && (currTime - m_reconnectStartTime) >= m_reconnectMenuWindow)
+	// The hub keeps reconnecting for as long as the user stays logged in.
+	if (!m_bRealtimeHub && !bGameInProgress && (currTime - m_reconnectStartTime) >= m_reconnectMenuWindow)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (%d reconnect attempts failed)", m_numReconnectAttempts);
 		GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
@@ -919,6 +1057,12 @@ void WebSocket::UpdateReconnect()
 
 	++m_numReconnectAttempts;
 	m_reconnectAttemptStarted = currTime;
+	if (m_bRealtimeHub)
+	{
+		// keeps the login callback in case the first connection never reached Ready
+		Connect(m_strWebsocketAddr.c_str(), true, m_fnWebsocketConnectedCallback);
+		return;
+	}
 	Connect(m_strWebsocketAddr.c_str(), !m_bFreshSession, m_bFreshSession ? std::function<void()>(RestoreSessionState) : nullptr);
 }
 
@@ -1008,9 +1152,16 @@ void WebSocket::Tick()
 							continue;
 						}
 
-                        if (m_bReconnecting)
+                        // 401 bad token, 403 play ban, 409 session not registered: retrying cannot succeed
+                        if (m_bRealtimeHub && (httpResponseCode == 401 || httpResponseCode == 403 || httpResponseCode == 409))
                         {
-                            if (!m_bFreshSession && m->data.result == CURLE_HTTP_RETURNED_ERROR && httpResponseCode == 205) // 205: session gone, can't resume
+                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Connection refused with status %ld", httpResponseCode);
+                            EndReconnect();
+                            GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(httpResponseCode == 403 ? EGOTearDownReason::MODERATION_BAN : EGOTearDownReason::AUTH_FAILED);
+                        }
+                        else if (m_bReconnecting)
+                        {
+                            if (!m_bRealtimeHub && !m_bFreshSession && m->data.result == CURLE_HTTP_RETURNED_ERROR && httpResponseCode == 205) // 205: session gone, can't resume
                             {
                                 NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Server dropped our session (205), will reconnect as a new one");
                                 m_bFreshSession = true;
@@ -1068,7 +1219,12 @@ void WebSocket::Tick()
                         // connecting is as good as a pong
                         m_lastPong = NowMs();
 
-                        if (m_fnWebsocketConnectedCallback != nullptr)
+                        if (m_bRealtimeHub)
+                        {
+                            // the login completes on Ready, see OnHubReady
+                            m_pHubSession->OnTransportOpen(NowMs());
+                        }
+                        else if (m_fnWebsocketConnectedCallback != nullptr)
                         {
                             m_fnWebsocketConnectedCallback();
                         }
@@ -1083,7 +1239,15 @@ void WebSocket::Tick()
         return;
     }
 
-	if ((currTime - m_lastPing) > m_timeBetweenUserPings)
+	if (m_bRealtimeHub)
+	{
+		m_pHubSession->Tick(currTime);
+		if (!m_bConnected)
+		{
+			return;
+		}
+	}
+	else if ((currTime - m_lastPing) > m_timeBetweenUserPings)
 	{
 		m_lastPing = currTime;
 		Ping();
@@ -1093,6 +1257,11 @@ void WebSocket::Tick()
 	if (sendResult != CURLE_OK && sendResult != CURLE_AGAIN)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Send failed: %s, attempting reconnect", curl_easy_strerror(sendResult));
+		if (m_bRealtimeHub)
+		{
+			HubTransportLost("send failed");
+			return;
+		}
 		m_bConnected = false;
 		m_vecWSPartialBuffer.clear();
 		BeginReconnect();
@@ -1111,8 +1280,8 @@ void WebSocket::Tick()
 		}
 	}
 
-	// time since last pong?
-	if (m_bConnected && m_lastPong != -1 && (currTime - m_lastPong) >= m_timeForWSTimeout)
+	// time since last pong? The hub session has its own server timeout.
+	if (!m_bRealtimeHub && m_bConnected && m_lastPong != -1 && (currTime - m_lastPong) >= m_timeForWSTimeout)
 	{
         // send event to sentry
 #if defined(GENONLINE_USE_SENTRY)
@@ -1170,6 +1339,10 @@ CURLcode WebSocket::ReceiveOneFrame()
 			if (meta->flags & CURLWS_PONG) // PONG
 			{
 
+			}
+			else if (m_bRealtimeHub && (meta->flags & CURLWS_TEXT))
+			{
+				m_pHubSession->OnTransportText(bufferThisRecv, rlen, NowMs());
 			}
 			else if (meta->flags & CURLWS_TEXT)
 			{
@@ -2052,6 +2225,11 @@ CURLcode WebSocket::ReceiveOneFrame()
 				// TODO_NGMP: Dont do this during gameplay, they can play without the WS, just 'queue' it for when they get back to the front end
 
 				NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket close");
+				if (m_bRealtimeHub)
+				{
+					HubTransportLost("websocket closed");
+					return ret;
+				}
 				GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
 				m_bConnected = false;
 				m_vecWSPartialBuffer.clear();
@@ -2077,9 +2255,16 @@ CURLcode WebSocket::ReceiveOneFrame()
 
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "Got websocket disconnect (ERROR: %s), Attempting reconnect", curl_easy_strerror(ret));
 
-		m_bConnected = false;
-		BeginReconnect();
-		m_vecWSPartialBuffer.clear();
+		if (m_bRealtimeHub)
+		{
+			HubTransportLost("receive failed");
+		}
+		else
+		{
+			m_bConnected = false;
+			BeginReconnect();
+			m_vecWSPartialBuffer.clear();
+		}
 
 
 		// send event to sentry

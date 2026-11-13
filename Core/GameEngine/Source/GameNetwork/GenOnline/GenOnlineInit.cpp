@@ -1060,12 +1060,14 @@ void GenOnlineServicesManager::OnLogin(ELoginResult loginResult, const char* szW
 		}
 
 		// connect to WS
-		m_pWebSocket = std::make_shared<WebSocket>();
+		const bool bRealtimeHub = Settings.Network_GetConnectionSettings().realtimeProtocol == "v1";
+		m_pWebSocket = std::make_shared<WebSocket>(bRealtimeHub);
 
         // the websocket address comes from the route we logged in through, not from the service
-        const std::string strWebsocketAddr = ServiceConnection::WebSocketURLForBase(GetAPIEndpoint(""));
+        const std::string strWebsocketAddr = bRealtimeHub ? ServiceConnection::RealtimeHubURLForBase(GetAPIEndpoint(""))
+            : ServiceConnection::WebSocketURLForBase(GetAPIEndpoint(""));
         const std::string strServiceAddr = szWSAddr ? szWSAddr : "";
-        if (strServiceAddr != strWebsocketAddr)
+        if (!bRealtimeHub && strServiceAddr != strWebsocketAddr)
         {
             const std::string strServiceHost = ServiceConnection::RouteHost(strServiceAddr);
             const bool bPrintable = std::none_of(strServiceHost.begin(), strServiceHost.end(), [](unsigned char c) { return c <= 32 || c >= 127; });

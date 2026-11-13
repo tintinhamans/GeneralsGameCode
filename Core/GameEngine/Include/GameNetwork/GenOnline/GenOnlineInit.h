@@ -3,6 +3,7 @@
 
 #include "GameNetwork/NetworkSettings.h"
 #include "GenOnlineInclude.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeHubSession.h"
 #include "MeshConnectionTimeoutPolicy.h"
 
 #include <algorithm>
@@ -155,8 +156,20 @@ constexpr bool IsModerationTeardownReason(EGOTearDownReason reason) noexcept
 class WebSocket
 {
 public:
-	WebSocket();
+	// bRealtimeHub selects the realtime hub protocol v1 instead of the legacy message protocol.
+	explicit WebSocket(bool bRealtimeHub = false);
 	~WebSocket();
+
+	bool IsRealtimeHub() const
+	{
+		return m_bRealtimeHub;
+	}
+
+	// The hub session of a realtime hub socket, null for a legacy socket.
+	GenOnlineRealtime::HubSession* GetHubSession()
+	{
+		return m_pHubSession.get();
+	}
 	void Connect(const char* url, bool bIsReconnect, std::function<void(void)> fnWebsocketConnectedCallback);
 	void Disconnect();
 
@@ -247,6 +260,17 @@ public:
 	}
 
 private:
+	bool IsDestinationTrusted(const std::string& url) const;
+	void ReleaseConnection();
+	void HubTransportLost(const char* reason);
+	void OnHubReady();
+	void OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, const std::string& reason);
+
+	bool m_bRealtimeHub = false;
+	std::unique_ptr<GenOnlineRealtime::HubSession> m_pHubSession;
+	mutable GenOnlineRealtime::ReconnectPolicy m_hubReconnectPolicy;
+	bool m_bHubReadyOnce = false;
+
 	CURLcode ReceiveOneFrame();
 	void PollConnectionSetup();
 	void StartResolvedConnection();
@@ -302,7 +326,8 @@ private:
 	size_t m_outboundOffset = 0;
 	bool m_heartbeatQueued = false;
 	bool m_acceptOutbound = true;
-	void QueueOutbound(std::string payload, bool heartbeat);
+	// Returns false when the message was rejected.
+	bool QueueOutbound(std::string payload, bool heartbeat);
 	void ClearOutbound();
 	CURLcode FlushOutbound();
 
