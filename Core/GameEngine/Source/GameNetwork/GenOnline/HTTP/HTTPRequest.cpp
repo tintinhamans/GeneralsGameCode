@@ -257,6 +257,7 @@ void HTTPRequest::Threaded_SetComplete(CURLcode result)
 		case EHTTPVerb::HTTP_VERB_POST: method = "POST"; break;
 		case EHTTPVerb::HTTP_VERB_PUT: method = "PUT"; break;
 		case EHTTPVerb::HTTP_VERB_DELETE: method = "DELETE"; break;
+		case EHTTPVerb::HTTP_VERB_PATCH: method = "PATCH"; break;
 		}
 		const auto url = ServiceConnection::RequestURLForLog(m_strURI, GenOnlineServicesManager::GetAPIEndpoint(""));
 		if (!m_setupFailurePhase.empty())
@@ -376,7 +377,7 @@ void HTTPRequest::PlatformStartRequest()
 		m_protover == EIPProtocolVersion::FORCE_IPV6 ? CURL_IPRESOLVE_V6 : CURL_IPRESOLVE_WHATEVER));
 	option(CURLOPT_HTTPHEADER, headers);
 
-	if (m_httpVerb == EHTTPVerb::HTTP_VERB_POST || m_httpVerb == EHTTPVerb::HTTP_VERB_PUT || m_httpVerb == EHTTPVerb::HTTP_VERB_DELETE)
+	if (m_httpVerb == EHTTPVerb::HTTP_VERB_POST || m_httpVerb == EHTTPVerb::HTTP_VERB_PUT || m_httpVerb == EHTTPVerb::HTTP_VERB_DELETE || m_httpVerb == EHTTPVerb::HTTP_VERB_PATCH)
 	{
 		if (!m_vecPostDataBuffer.empty())
 		{
@@ -403,6 +404,10 @@ void HTTPRequest::PlatformStartRequest()
 	else if (m_httpVerb == EHTTPVerb::HTTP_VERB_DELETE)
 	{
 		option(CURLOPT_CUSTOMREQUEST, "DELETE");
+	}
+	else if (m_httpVerb == EHTTPVerb::HTTP_VERB_PATCH)
+	{
+		option(CURLOPT_CUSTOMREQUEST, "PATCH");
 	}
 
 	if (result != CURLE_OK)

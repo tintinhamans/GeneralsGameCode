@@ -44,16 +44,14 @@ void GenOnlineSocialInterface::GetBlockList(std::function<void(BlockedResult blo
 
 void GenOnlineSocialInterface::AddFriend(int64_t target_user_id)
 {
-	GenOnlineRealtime::SendFriendRequestRequest request;
-	request.user_id = target_user_id;
-	InvokeSocialRealtime(request, nullptr);
+	GenOnlineRealtime::FriendRequestBody body;
+	body.user_id = target_user_id;
+	CallSocialRest(GenOnlineRealtimeBridge::RestMethod::Post, GenOnlineRealtime::RestFriendRequestsPath(), nlohmann::json(body).dump(), nullptr);
 }
 
 void GenOnlineSocialInterface::RemoveFriend(int64_t target_user_id)
 {
-	GenOnlineRealtime::RemoveFriendRequest request;
-	request.user_id = target_user_id;
-	InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
+	CallSocialRest(GenOnlineRealtimeBridge::RestMethod::Delete, GenOnlineRealtime::RestFriendPath(target_user_id), std::string(), [target_user_id](GenOnlineSocialInterface* pThis)
 		{
 			std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
 			pThis->m_mapFriends.erase(target_user_id);
@@ -62,9 +60,7 @@ void GenOnlineSocialInterface::RemoveFriend(int64_t target_user_id)
 
 void GenOnlineSocialInterface::IgnoreUser(int64_t target_user_id)
 {
-	GenOnlineRealtime::BlockUserRequest request;
-	request.user_id = target_user_id;
-	InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
+	CallSocialRest(GenOnlineRealtimeBridge::RestMethod::Put, GenOnlineRealtime::RestBlockPath(target_user_id), std::string(), [target_user_id](GenOnlineSocialInterface* pThis)
 		{
 			FriendsEntry entry;
 			entry.user_id = target_user_id;
@@ -79,9 +75,7 @@ void GenOnlineSocialInterface::IgnoreUser(int64_t target_user_id)
 
 void GenOnlineSocialInterface::UnignoreUser(int64_t target_user_id)
 {
-	GenOnlineRealtime::UnblockUserRequest request;
-	request.user_id = target_user_id;
-	InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
+	CallSocialRest(GenOnlineRealtimeBridge::RestMethod::Delete, GenOnlineRealtime::RestBlockPath(target_user_id), std::string(), [target_user_id](GenOnlineSocialInterface* pThis)
 		{
 			std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
 			pThis->m_mapBlocked.erase(target_user_id);
@@ -90,9 +84,7 @@ void GenOnlineSocialInterface::UnignoreUser(int64_t target_user_id)
 
 void GenOnlineSocialInterface::AcceptPendingRequest(int64_t target_user_id)
 {
-	GenOnlineRealtime::AcceptFriendRequestRequest request;
-	request.user_id = target_user_id;
-	InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
+	CallSocialRest(GenOnlineRealtimeBridge::RestMethod::Post, GenOnlineRealtime::RestFriendRequestAcceptPath(target_user_id), std::string(), [target_user_id](GenOnlineSocialInterface* pThis)
 		{
 			std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
 			auto it = pThis->m_mapPendingRequests.find(target_user_id);
@@ -111,9 +103,7 @@ void GenOnlineSocialInterface::AcceptPendingRequest(int64_t target_user_id)
 
 void GenOnlineSocialInterface::RejectPendingRequest(int64_t target_user_id)
 {
-	GenOnlineRealtime::DeclineFriendRequestRequest request;
-	request.user_id = target_user_id;
-	InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
+	CallSocialRest(GenOnlineRealtimeBridge::RestMethod::Delete, GenOnlineRealtime::RestFriendRequestPath(target_user_id), std::string(), [target_user_id](GenOnlineSocialInterface* pThis)
 		{
 			std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
 			pThis->m_mapPendingRequests.erase(target_user_id);
@@ -349,15 +339,9 @@ static void RefreshCommunicator()
 	GenOnlineRefreshIgnoreList();
 }
 
-template <class R>
-void GenOnlineSocialInterface::InvokeSocialRealtime(const R& request, std::function<void(GenOnlineSocialInterface* pThis)> onSuccess)
+void GenOnlineSocialInterface::CallSocialRest(GenOnlineRealtimeBridge::RestMethod method, const std::string& path, const std::string& body, std::function<void(GenOnlineSocialInterface* pThis)> onSuccess)
 {
-	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
-	if (pWS == nullptr)
-	{
-		return;
-	}
-	pWS->InvokeHub(request, [onSuccess](const GenOnlineRealtime::InvokeOutcome& outcome)
+	GenOnlineRealtimeBridge::CallRest(method, path, body, [onSuccess](const GenOnlineRealtime::RestOutcome& outcome)
 		{
 			GenOnlineSocialInterface* pThis = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 			if (pThis == nullptr)

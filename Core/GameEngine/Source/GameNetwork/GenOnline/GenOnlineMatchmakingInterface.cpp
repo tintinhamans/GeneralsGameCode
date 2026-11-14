@@ -37,12 +37,12 @@ static PlaylistEntry PlaylistEntryFromHub(const GenOnlineRealtime::Playlist& pla
 
 void GenOnlineMatchmakingInterface::RetrievePlaylists(std::function<void(std::vector<PlaylistEntry>)> callbackOnComplete)
 {
-	InvokeRealtimeHub(GenOnlineRealtime::GetPlaylistsRequest(), [this, callbackOnComplete](const GenOnlineRealtime::InvokeOutcome& outcome)
+	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Get, GenOnlineRealtime::RestPlaylistsPath(), std::string(), [this, callbackOnComplete](const GenOnlineRealtime::RestOutcome& outcome)
 		{
-			GenOnlineRealtime::GetPlaylistsResult result;
+			GenOnlineRealtime::PlaylistsResponse result;
 			if (!outcome.Data(result))
 			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] GetPlaylists failed: %s", outcome.delivered ? outcome.Code().c_str() : outcome.transportError.c_str());
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] Playlists failed: status %d code %s", outcome.status, outcome.error.code.c_str());
 				return;
 			}
 			std::vector<PlaylistEntry> vecPlaylists;
