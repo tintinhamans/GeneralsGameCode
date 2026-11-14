@@ -73,6 +73,11 @@ void WBQt_SetMainWindowTitle(const char *title);
 // tools resume without an extra click).
 void WBQt_FocusViewport(void);
 
+// Commit the text field being edited in a floating Qt window. The view calls this on a
+// mouse press, because Qt reports the lost focus only after the tool handled the click.
+// Returns non-zero when a field lost focus.
+int WBQt_CommitFocusedEdit(void);
+
 // Reverse callbacks, DEFINED on the MFC side (src/WBQtHostBridge.cpp), called from the
 // Qt main window. extern "C" so the Qt static lib resolves them against the exe.
 #ifdef __cplusplus
