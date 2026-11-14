@@ -17,6 +17,7 @@
 #include <QDropEvent>
 #include <QFont>
 #include <QInputDialog>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QList>
@@ -278,6 +279,10 @@ WBQtScriptWindow::WBQtScriptWindow(QWidget *owner)
 	connect(m_tree, SIGNAL(itemSelectionChanged()), this, SLOT(onTreeSelectionChanged()));
 	connect(m_findBtn, SIGNAL(clicked()), this, SLOT(onFind()));
 	connect(m_search, SIGNAL(returnPressed()), this, SLOT(onFind()));
+	connect(m_ui->findPrevBtn, SIGNAL(clicked()), this, SLOT(onFindPrev()));
+	// The arrow alone needs no more than a square button.
+	m_ui->findPrevBtn->setFixedWidth(m_ui->findPrevBtn->sizeHint().height() + 4);
+	m_search->installEventFilter(this);	// Shift+Enter finds the previous match
 	connect(m_search, SIGNAL(textChanged(const QString &)), this, SLOT(onSearchTextChanged(const QString &)));
 	// Debounce the live filter: each keystroke restarts a short single-shot timer, so a burst of
 	// typing runs the (deep-scanning) filter once when typing pauses instead of on every character.
@@ -1557,6 +1562,47 @@ void WBQtScriptWindow::onFind()
 	}
 }
 
+// Find Next walks the model forward; this walks the tree rows back from the same cursor.
+void WBQtScriptWindow::onFindPrev()
+{
+	const QByteArray text = m_search->text().trimmed().toLatin1();
+	if (text.isEmpty())
+	{
+		return;
+	}
+	QList<QTreeWidgetItem *> rows;
+	for (QTreeWidgetItemIterator it(m_tree); *it; ++it)
+	{
+		rows.append(*it);
+	}
+	// With no cursor the search starts from the last row.
+	int start = rows.size();
+	for (int i = 0; i < rows.size() && m_lastFoundListType != 0; ++i)
+	{
+		if (rows.at(i)->data(0, kListTypeRole).toInt() == m_lastFoundListType)
+		{
+			start = i;
+			break;
+		}
+	}
+	for (int i = start - 1; i >= 0; --i)
+	{
+		const int listType = rows.at(i)->data(0, kListTypeRole).toInt();
+		const QByteArray label = rows.at(i)->text(0).toLatin1();
+		if (WBQtScript_NodeMatches(listType, text.constData(), label.constData()))
+		{
+			m_lastFoundListType = listType;
+			selectByListType(listType);
+			WBQtScript_SetSelection(listType);
+			updateButtonStates();
+			updateDetail();
+			return;
+		}
+	}
+	m_lastFoundListType = 0;
+	QApplication::beep();
+}
+
 void WBQtScriptWindow::onSearchTextChanged(const QString &text)
 {
 	// The new design always filters as you type; the original only with NewSearch on.
@@ -1957,6 +2003,16 @@ bool WBQtScriptWindow::eventFilter(QObject *watched, QEvent *event)
 		if (!justClosed && isActiveWindow() && !m_moreButton->menu()->isVisible())
 		{
 			QTimer::singleShot(0, m_moreButton, SLOT(showMenu()));
+		}
+	}
+	if (watched == m_search && event->type() == QEvent::KeyPress)
+	{
+		QKeyEvent *key = static_cast<QKeyEvent *>(event);
+		const bool enter = (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter);
+		if (enter && (key->modifiers() & Qt::ShiftModifier))
+		{
+			onFindPrev();
+			return true;
 		}
 	}
 	return QWidget::eventFilter(watched, event);

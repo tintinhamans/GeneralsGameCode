@@ -2,6 +2,8 @@
 
 * The tree filters as you type (with NewSearch on) and matches names, comments and every
 parameter.
+* Find Next and Find Prev step through the matches in either direction. Enter in the search box
+finds the next match and Shift+Enter the previous one.
 * Show chips narrow the tree to warnings, active or inactive, and difficulty.
 * F2 renames, Ctrl+D duplicates and Delete deletes, after a confirmation that can be turned off.
 * Ctrl+C and Ctrl+V copy conditions and actions between scripts.

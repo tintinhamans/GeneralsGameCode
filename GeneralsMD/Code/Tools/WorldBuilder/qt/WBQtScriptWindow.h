@@ -116,6 +116,7 @@ private slots:
 	void onTreeContextMenu(const QPoint &pos);
 	void onTreeDoubleClicked(QTreeWidgetItem *item, int column);
 	void onReferenceClicked(const QUrl &url);
+	void onFindPrev();
 	void onOk();
 	void onCancel();
 	void onMoreMenuHidden();

@@ -106,7 +106,7 @@
     </widget>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="searchRow" stretch="0,1,0,0,0">
+    <layout class="QHBoxLayout" name="searchRow" stretch="0,1,0,0,0,0">
      <item>
       <widget class="QLabel" name="searchLabel">
        <property name="text">
@@ -122,9 +122,19 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="findPrevBtn">
+       <property name="toolTip">
+        <string>Find Prev (Shift+Enter in the search box)</string>
+       </property>
+       <property name="text">
+        <string>&#9650;</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="findBtn">
        <property name="text">
-        <string>Find Next</string>
+        <string>&#9660; Find Next</string>
        </property>
       </widget>
      </item>
