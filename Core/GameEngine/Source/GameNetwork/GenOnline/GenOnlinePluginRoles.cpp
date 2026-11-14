@@ -1,5 +1,6 @@
 #include "GameNetwork/GenOnline/GenOnlinePluginRoles.h"
 #include <algorithm>
+#include <cstddef>
 
 namespace GenOnlinePluginRoles
 {
@@ -79,5 +80,16 @@ bool DoesPluginTrackPeersOnly(const Selection& selection)
 bool DoesLoadFailureBlockOnline(const Selection& selection)
 {
 	return !selection.pluginName.empty() && selection.bAnticheat;
+}
+
+bool DoesTransportNameSenders(const GenOnlinePluginTransportApi& transport)
+{
+	const size_t requiredSize = offsetof(GenOnlinePluginTransportApi, ReceivePacketFrom) + sizeof(transport.ReceivePacketFrom);
+	return transport.structSize >= requiredSize && transport.ReceivePacketFrom != nullptr;
+}
+
+bool DoesTransportLossFailLoad(const Selection& selection)
+{
+	return !selection.pluginName.empty() && !selection.bAnticheat && selection.bTransport;
 }
 }

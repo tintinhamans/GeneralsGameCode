@@ -124,6 +124,10 @@ public:
 	size_t ConsumeEnvelope(const uint8_t* data, size_t len);	///< envelope size, 0 if malformed
 	int64_t m_lastPacketMs = 0;	///< steady_clock ms of the last enveloped packet, 0 before the first
 	int SendEnveloped(ENetworkChannel channel, const uint8_t* payload, size_t len, int sendFlags);	///< returns an EResult
+	int SendFramed(const uint8_t* data, size_t len, int sendFlags);	///< Sends a packet that starts with its channel byte over the transport of this connection, returns an EResult.
+	bool CanSend() const;	///< True when the transport of this connection can take a packet.
+	bool DispatchControlFrame(ENetworkChannel channel, const uint8_t* payload, size_t len, int64_t arrivalMs);	///< Handles the anticheat, keys, start and ping channels, false for the others.
+	void DispatchLiteFrame(const uint8_t* data, size_t len, int64_t arrivalMs);	///< Handles a packet that arrives before the game transport exists, game packets are dropped.
 	bool GetOutgoingLoss(int windowMs, PacketFeedback::Summary& summary);	///< our packets to the peer, false without feedback
 	bool GetIncomingLoss(int windowMs, PacketFeedback::Summary& summary);	///< the peer's packets to us
 
@@ -267,6 +271,11 @@ public:
 	int SendGamePacket(void* pBuffer, uint32_t totalDataSize, int64_t userID);
 
 	void SendACPacket(uint32_t userID, const void* pData, uint32_t dataLen);
+
+	// Takes up to maxPackets pending plugin packets and hands each to handler with the connection of its sender and its receive time.
+	// A packet whose sender has no plugin connection is dropped. Returns the number of packets handed to handler.
+	using PluginPacketHandler = std::function<void(PlayerConnection& connection, const uint8_t* data, uint32_t len, int64_t arrivalMs)>;
+	int ReceivePluginPackets(int maxPackets, const PluginPacketHandler& handler);
 
 	void ApplyConnectionTimeouts(HSteamNetConnection connection, int64_t userID);
 	void StartConnectionSignalling(const char* szMiddlewareID, int64_t remoteUserID, uint16_t preferredPort);

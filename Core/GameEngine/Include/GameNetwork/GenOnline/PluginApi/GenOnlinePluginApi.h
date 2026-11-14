@@ -283,6 +283,14 @@ typedef struct GenOnlinePluginTransportApi
 
 	/* Closes the connections to all peers. */
 	void (GENONLINE_PLUGIN_CALL *DisconnectAll)(void);
+
+	/*
+	 * Works like ReceivePacket and also stores the GenOnline user id of the peer
+	 * that sent the packet in outSenderGenOnlineUserId. The plugin returns only
+	 * packets of peers that the game registered, and drops the others. The host
+	 * uses the plugin transport only when the plugin fills this field.
+	 */
+	int32_t (GENONLINE_PLUGIN_CALL *ReceivePacketFrom)(uint8_t channel, const uint8_t** outData, uint32_t* outDataLength, uint64_t* outSenderGenOnlineUserId);
 } GenOnlinePluginTransportApi;
 
 /*

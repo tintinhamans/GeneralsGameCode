@@ -35,4 +35,11 @@ namespace GenOnlinePluginRoles
 
 	// True when a plugin that fails to load blocks online play. A transport only plugin that fails leaves the standard connection.
 	bool DoesLoadFailureBlockOnline(const Selection& selection);
+
+	// True when the transport table reaches ReceivePacketFrom and fills it, so every packet names its sender. The host uses
+	// no other transport.
+	bool DoesTransportNameSenders(const GenOnlinePluginTransportApi& transport);
+
+	// True when a plugin that offers no usable transport takes the failed load path. The anticheat plugin keeps its other roles.
+	bool DoesTransportLossFailLoad(const Selection& selection);
 }

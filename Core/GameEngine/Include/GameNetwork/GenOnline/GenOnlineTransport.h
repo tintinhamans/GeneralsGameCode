@@ -9,6 +9,8 @@
 
 #pragma comment(lib, "Secur32.lib")
 
+class PlayerConnection;
+
 #define GENONLINE_TRANSPORT_NAME "nextgen"
 
 /// Registers the GameNetworkingSockets transport with the transport factory under GENONLINE_TRANSPORT_NAME.
@@ -54,6 +56,10 @@ public:
 	}
 
 private:
+	// Dispatches one packet of a peer by its channel byte, the same for every transport. TRUE when it stored a game packet.
+	Bool dispatchFrame(PlayerConnection& connection, const uint8_t* data, uint32_t len, int64_t arrivalMs);
+	Int countFreeInSlots() const;	///< The m_inBuffer slots that can take a packet.
+
 	Bool sendFailureLogDue();	///< true once a second, the other failure lines are counted
 	UnsignedInt m_nextSendFailLogMs = 0;
 	Int m_skippedSendFailLogs = 0;

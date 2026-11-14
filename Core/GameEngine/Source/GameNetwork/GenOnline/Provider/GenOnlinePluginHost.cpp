@@ -771,6 +771,18 @@ void GenOnlinePluginHost::LoadPlugin(const std::string& anticheatPlugin, const s
 		pTransport = nullptr;
 	}
 
+	// A transport that does not name the sender of its packets counts as no transport.
+	if (pTransport != nullptr && !GenOnlinePluginRoles::DoesTransportNameSenders(*pTransport))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] The transport of %s does not name the sender of its packets, the host does not use it", api.name);
+		pTransport = nullptr;
+		if (GenOnlinePluginRoles::DoesTransportLossFailLoad(selection))
+		{
+			FailPluginLoad(hModule);
+			return;
+		}
+	}
+
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Loaded %s %s as %s (linked_account=%d, anticheat=%d, transport=%d)",
 		api.name, api.version != nullptr ? api.version : "(no version)", selection.bAnticheat ? "the anticheat" : "a transport only",
 		pLinkedAccount != nullptr, pAnticheat != nullptr, pTransport != nullptr);
@@ -1113,12 +1125,15 @@ void GenOnlinePluginHost::Transport::StartSignalling(const char* szPlatformUserI
 	}
 }
 
-void GenOnlinePluginHost::Transport::SendPacket(const char* szPlatformUserID, uint64_t userID, const void* pData, uint32_t numBytes, ENetworkChannels channel, EPacketReliability reliability)
+bool GenOnlinePluginHost::Transport::SendPacket(const char* szPlatformUserID, uint64_t userID, const void* pData, uint32_t numBytes, ENetworkChannels channel, EPacketReliability reliability)
 {
-	if (s_pTransport != nullptr)
+	if (s_pTransport == nullptr)
 	{
-		s_pTransport->SendPacket(szPlatformUserID, userID, pData, numBytes, static_cast<uint8_t>(channel), static_cast<int32_t>(reliability));
+		return false;
 	}
+
+	s_pTransport->SendPacket(szPlatformUserID, userID, pData, numBytes, static_cast<uint8_t>(channel), static_cast<int32_t>(reliability));
+	return true;
 }
 
 uint32_t GenOnlinePluginHost::Transport::GetNextPacketSize(ENetworkChannels channel)
@@ -1131,7 +1146,7 @@ uint32_t GenOnlinePluginHost::Transport::GetNextPacketSize(ENetworkChannels chan
 	return 0;
 }
 
-bool GenOnlinePluginHost::Transport::ReceivePacket(ENetworkChannels channel, const uint8_t** ppOutData, uint32_t* pOutNumBytes)
+bool GenOnlinePluginHost::Transport::ReceivePacket(ENetworkChannels channel, const uint8_t** ppOutData, uint32_t* pOutNumBytes, int64_t* pOutSenderUserID)
 {
 	if (ppOutData != nullptr)
 	{
@@ -1143,12 +1158,25 @@ bool GenOnlinePluginHost::Transport::ReceivePacket(ENetworkChannels channel, con
 		*pOutNumBytes = 0;
 	}
 
-	if (s_pTransport == nullptr || ppOutData == nullptr || pOutNumBytes == nullptr)
+	if (pOutSenderUserID != nullptr)
+	{
+		*pOutSenderUserID = -1;
+	}
+
+	if (s_pTransport == nullptr || ppOutData == nullptr || pOutNumBytes == nullptr || pOutSenderUserID == nullptr)
 	{
 		return false;
 	}
 
-	return s_pTransport->ReceivePacket(static_cast<uint8_t>(channel), ppOutData, pOutNumBytes) != GENONLINE_PLUGIN_FALSE;
+	// The load check guarantees ReceivePacketFrom for every transport the host uses.
+	uint64_t senderUserID = 0;
+	if (s_pTransport->ReceivePacketFrom(static_cast<uint8_t>(channel), ppOutData, pOutNumBytes, &senderUserID) == GENONLINE_PLUGIN_FALSE)
+	{
+		return false;
+	}
+
+	*pOutSenderUserID = static_cast<int64_t>(senderUserID);
+	return true;
 }
 
 void GenOnlinePluginHost::Transport::FreePacket(const uint8_t* pData)
