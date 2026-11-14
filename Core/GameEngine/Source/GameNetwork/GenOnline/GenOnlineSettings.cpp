@@ -312,11 +312,25 @@ void GenOnlineSettings::Load(void)
 		clientFile = GenOnlineClientFile::Read(m_ClientFilePath, ClientFileKeys());
 	}
 
-	// The client never creates client.json and never writes one it cannot use, the settings then only last for this session.
+	// A missing client.json is created with the built-in defaults, which the first save below writes into it.
+	if (clientFile.status == GenOnlineClientFile::ReadStatus::Missing)
+	{
+		nlohmann::json created = nlohmann::json::object();
+		created[GenOnlineClientFile::SchemaVersionKey] = GenOnlineClientFile::SchemaVersion;
+		if (GenOnlineClientFile::CreateNew(m_ClientFilePath, created.dump(2)))
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Created client.json with the built-in defaults");
+			clientFile.status = GenOnlineClientFile::ReadStatus::Ok;
+			clientFile.document = created;
+			clientFile.schemaVersion = GenOnlineClientFile::SchemaVersion;
+		}
+	}
+
+	// The client never writes a client.json it cannot use, the settings then only last for this session.
 	switch (clientFile.status)
 	{
 	case GenOnlineClientFile::ReadStatus::Missing:
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json does not exist, using the built-in defaults without saving");
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json cannot be created, using the built-in defaults without saving");
 		return;
 	case GenOnlineClientFile::ReadStatus::Unusable:
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json is not usable (%s), using the defaults this session and leaving the file untouched", clientFile.reason.c_str());

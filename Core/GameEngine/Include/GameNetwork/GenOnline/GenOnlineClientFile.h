@@ -57,4 +57,7 @@ namespace GenOnlineClientFile
 
 	// Replaces an existing file through a temporary file in the same folder. Returns FALSE and writes nothing when the file does not exist.
 	bool WriteExisting(const std::wstring& path, const std::string& bytes);
+
+	// Creates the file and its folder with the given content. Returns FALSE and changes nothing when the file already exists.
+	bool CreateNew(const std::wstring& path, const std::string& bytes);
 }

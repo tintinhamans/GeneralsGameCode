@@ -185,6 +185,52 @@ ReadResult Read(const std::wstring& path, const std::vector<KnownKey>& knownKeys
 	return Classify(true, bReadable, bytes, knownKeys);
 }
 
+bool CreateNew(const std::wstring& path, const std::string& bytes)
+{
+	const size_t slash = path.find_last_of(L"\\/");
+	if (path.empty() || slash == std::wstring::npos)
+	{
+		return false;
+	}
+	const std::wstring folder = path.substr(0, slash);
+	if (!CreateDirectoryW(folder.c_str(), nullptr) && GetLastError() != ERROR_ALREADY_EXISTS)
+	{
+		return false;
+	}
+
+	// CREATE_NEW fails on an existing file, so a file that appears in the meantime is never replaced.
+	HANDLE file = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+	if (file == INVALID_HANDLE_VALUE)
+	{
+		return false;
+	}
+	bool bWritten = true;
+	size_t total = 0;
+	while (total < bytes.size())
+	{
+		DWORD written = 0;
+		if (!WriteFile(file, bytes.data() + total, static_cast<DWORD>(bytes.size() - total), &written, nullptr) || written == 0)
+		{
+			bWritten = false;
+			break;
+		}
+		total += written;
+	}
+	if (bWritten && !FlushFileBuffers(file))
+	{
+		bWritten = false;
+	}
+	if (!CloseHandle(file))
+	{
+		bWritten = false;
+	}
+	if (!bWritten)
+	{
+		DeleteFileW(path.c_str());
+	}
+	return bWritten;
+}
+
 bool WriteExisting(const std::wstring& path, const std::string& bytes)
 {
 	if (path.empty() || GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES)
