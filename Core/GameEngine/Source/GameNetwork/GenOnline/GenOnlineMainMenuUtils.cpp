@@ -880,10 +880,11 @@ void GenOnlineStartPatchCheck()
 	// TheSuperHackers @bugfix arcticdolphin 09/11/2026 A teardown left by an earlier cancelled or failed attempt must not pop the next login off the welcome screen.
 	GenOnlineServicesManager::GetInstance()->ClearPendingFullTeardown();
 
-    // if we have an AC plugin loaded but the AC external process isnt running, show an error message
+    // A loaded plugin that is the anticheat needs its external process, else an error message shows.
     if (GenOnlinePluginHost::IsPluginLoaded())
     {
-        if (!GenOnlinePluginHost::IsExternalProcessRunning())
+        // Only a plugin that is the anticheat needs its external process.
+        if (GenOnlinePluginHost::IsPluginAnticheat() && !GenOnlinePluginHost::IsExternalProcessRunning())
         {
             showOnlineError(TheGameText->fetchOrSubstitute("GUI:ACErrorHeader", L"AntiCheat Error"),
                 TheGameText->fetchOrSubstitute("GUI:ACExternalProcessNotRunning", L"The AntiCheat external process is not running"),
@@ -894,7 +895,7 @@ void GenOnlineStartPatchCheck()
     }
 	else if (GenOnlinePluginHost::DidPluginFailToLoad()) // Did we have something to load but it failed?
 	{
-        std::string strPlugin = GenOnlineServicesManager::Settings.GetAnticheatPlugin();
+        std::string strPlugin = GenOnlinePluginHost::GetPluginName();
         std::string pluginPath = std::format("plugins/{}/{}.dll", strPlugin.c_str(), strPlugin.c_str());
 
 		UnicodeString strErrorMssage;
@@ -915,6 +916,16 @@ void GenOnlineStartPatchCheck()
 	{
 		genOnlineCancelWindow = MessageBoxCancel(TheGameText->fetch("GUI:CheckingForPatches"),
 			TheGameText->fetch("GUI:CheckingForPatches"), GenOnlineCancelPatchCheckCallbackAndReopenDropdown);
+	}
+
+	// A transport plugin that failed to load does not block online play. The notice shows once per run and the sign in continues behind it.
+	static Bool s_shownTransportPluginNotice = FALSE;
+	if (GenOnlinePluginHost::DidTransportPluginFailToLoad() && !s_shownTransportPluginNotice)
+	{
+		s_shownTransportPluginNotice = TRUE;
+		MessageBoxOk(TheGameText->fetchOrSubstitute("GUI:EOSP2PLoadFailedHeader", L"EOS P2P"),
+			TheGameText->fetchOrSubstitute("GUI:EOSP2PLoadFailed", L"EOS P2P could not be loaded. You can still play online over the standard connection."),
+			nullptr);
 	}
 
 	const Int patchCheckAttempt = timeThroughOnline;
