@@ -450,6 +450,13 @@ void WebSocket::OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, co
 		BeginReconnect();
 		m_nextReconnectAttempt = NowMs() + GenOnlineRealtime::KICK_RECONNECT_DELAY_MS;
 		break;
+	case GenOnlineRealtime::DisconnectAction::ReconnectAfterSwitch:
+	{
+		const int64_t delayMs = GenOnlineRealtime::SwitchReconnectDelayMs(m_pHubSession->ServerSwitchingRetryAfterMs(), RealtimeReconnectRandom());
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Server switching, reconnecting in %lld ms", static_cast<long long>(delayMs));
+		BeginSwitchReconnect(delayMs);
+		break;
+	}
 	case GenOnlineRealtime::DisconnectAction::RefreshAndReconnect:
 		if (m_bHubSessionRecoveryTried)
 		{
@@ -834,17 +841,35 @@ void WebSocket::BeginReconnect()
 		return;
 	}
 
+	StartReconnect(ComputeReconnectDelay(), false);
+}
+
+// The handover reconnect skips the backoff once. A reconnect already in progress keeps its own delays.
+void WebSocket::BeginSwitchReconnect(int64_t delayMs)
+{
+	if (m_bReconnecting)
+	{
+		return;
+	}
+
+	StartReconnect(delayMs, true);
+}
+
+void WebSocket::StartReconnect(int64_t delayMs, bool bSwitch)
+{
 	ClearOutbound();
 	m_bReconnecting = true;
+	m_bSwitchReconnect = bSwitch;
 	m_numReconnectAttempts = 0;
 	m_reconnectAttemptStarted = -1;
 	m_reconnectStartTime = NowMs();
-	m_nextReconnectAttempt = m_reconnectStartTime + ComputeReconnectDelay();
+	m_nextReconnectAttempt = m_reconnectStartTime + delayMs;
 }
 
 void WebSocket::EndReconnect()
 {
 	m_bReconnecting = false;
+	m_bSwitchReconnect = false;
 	m_reconnectAttemptStarted = -1;
 }
 
@@ -868,6 +893,13 @@ void WebSocket::UpdateReconnect()
 	}
 
 	const int64_t currTime = NowMs();
+
+	// A handover reconnect that did not connect within 3 seconds of the close becomes a normal reconnect.
+	if (m_bSwitchReconnect && !GenOnlineRealtime::SwitchReconnectHidden(m_reconnectStartTime, currTime))
+	{
+		m_bSwitchReconnect = false;
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Server switch reconnect still pending after %lld ms, continuing as a normal reconnect", static_cast<long long>(currTime - m_reconnectStartTime));
+	}
 
 	// Connect() kills the previous handle: leave a pending attempt alone unless stuck.
 	if (m_reconnectAttemptStarted != -1 && (currTime - m_reconnectAttemptStarted) < m_reconnectAttemptTimeout)
@@ -1424,6 +1456,19 @@ static bool UtcTextToLocalTime(const std::string& strTime, SYSTEMTIME& localTime
 	utcTime.wHour = static_cast<WORD>(hour);
 	utcTime.wMinute = static_cast<WORD>(minute);
 	return SystemTimeToTzSpecificLocalTime(nullptr, &utcTime, &localTime) != FALSE;
+}
+
+// Shows an ISO 8601 UTC time of the service as local date and time, or the text itself when it does not parse.
+std::string GenOnlineLocalTimeText(const std::string& utcText)
+{
+	SYSTEMTIME localTime;
+	if (!UtcTextToLocalTime(utcText, localTime))
+	{
+		return utcText;
+	}
+	char text[32];
+	snprintf(text, sizeof(text), "%04d-%02d-%02d %02d:%02d", localTime.wYear, localTime.wMonth, localTime.wDay, localTime.wHour, localTime.wMinute);
+	return text;
 }
 
 // A history line shows the time the service stored the message, a live line the time it arrived.

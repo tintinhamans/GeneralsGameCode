@@ -25,6 +25,7 @@
 
 #include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMatchmaking.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeNoticeText.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/GenOnlineModeration.h"
 #include "GameClient/GenOnlineMenus.h"
@@ -147,6 +148,11 @@ std::wstring FailureText(const InvokeOutcome& outcome)
 	{
 		return Wide(matchmakingText);
 	}
+	const std::string ruleText = RuleFailureText(code, params, GenOnlineLocalTimeText);
+	if (!ruleText.empty())
+	{
+		return Wide(ruleText);
+	}
 	if (code == "chat.rate_limited" || code == "rate_limited")
 	{
 		return L"You are sending messages too quickly. Please wait a moment.";
@@ -154,11 +160,6 @@ std::wstring FailureText(const InvokeOutcome& outcome)
 	if (code == "chat.too_long")
 	{
 		return std::format(L"Your message is too long. Messages can have up to {} characters.", ParamInt(params, "max", 512));
-	}
-	if (code == "chat.muted")
-	{
-		const std::string expiresAt = ParamText(params, "expires_at");
-		return expiresAt.empty() ? std::wstring(L"You are muted and cannot send messages.") : L"You are muted and cannot send messages until " + Wide(expiresAt) + L".";
 	}
 	if (code == "chat.not_friends")
 	{
@@ -187,10 +188,6 @@ std::wstring FailureText(const InvokeOutcome& outcome)
 	if (code == "name.taken")
 	{
 		return L"That name is already taken.";
-	}
-	if (code == "channel.unavailable")
-	{
-		return L"That room is not available.";
 	}
 	if (code == "social.friend_list_full")
 	{
@@ -513,17 +510,11 @@ void RegisterHandlers(HubSession& session)
 			else if (notice.action == "kick")
 			{
 				// The hub closes the connection next and the client reconnects after 10 seconds.
-				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, UnicodeString((L"A moderator removed you from the online service: " + Wide(notice.reason.value_or(std::string())) + L". Reconnecting in 10 seconds.").c_str()));
+				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, UnicodeString(Wide(ModerationNoticeText(notice, GenOnlineLocalTimeText)).c_str()));
 			}
 			else if (notice.action == "mute")
 			{
-				std::wstring text = L"A moderator muted you";
-				if (notice.expires_at.has_value())
-				{
-					text += L" until " + Wide(*notice.expires_at);
-				}
-				text += L": " + Wide(notice.reason.value_or(std::string()));
-				ShowRoomNotice(text, false);
+				ShowRoomNotice(Wide(ModerationNoticeText(notice, GenOnlineLocalTimeText)), false);
 			}
 		});
 	session.On<FriendsEvent>([](const FriendsEvent& event)
