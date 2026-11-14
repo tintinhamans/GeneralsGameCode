@@ -34,6 +34,7 @@
 #include "Common/Snapshot.h"
 
 class Object;
+class Player;
 
 // ------------------------------------------------------------------------------------------------
 class ResourceGatheringManager : public MemoryPoolObject,
@@ -53,6 +54,10 @@ public:
 	void addSupplyWarehouse( Object *newWarehouse );		///< Warehouse created, or this is start of game recording
 	void removeSupplyWarehouse( Object *oldWarehouse );	///< Warehouse that doesn't replenish has run out of Supply
 
+	Object *findFreeSupplySource( Object *mover, const Coord3D *position, Int minimumCash );
+	static Bool isSupplySourceAvailable( Object *source, const Player *player, const Object *mover = nullptr );
+	static Bool isAtSupplySource( const Object *mover, const Object *source );
+
 protected:
 
 	// snapshot methods
@@ -61,6 +66,20 @@ protected:
 	virtual void loadPostProcess() override;
 
 private:
+	struct SupplySourceReservation
+	{
+		ObjectID sourceID;
+		ObjectID blockedSourceID;
+		UnsignedInt lastProgressFrame;
+		UnsignedInt lastFailureFrame;
+		Coord3D lastPosition;
+	};
+	typedef std::map<ObjectID, SupplySourceReservation> SupplySourceReservations;
+	SupplySourceReservations m_supplySourceReservations;
+	void updateSupplySourceReservations();
+	void xferSupplySourceReservations( Xfer *xfer );
+	static Bool isSupplySourceReserved( Object *source, const Object *mover );
+
 	/// @todo Make sure the allocator for std::list<> is a good one.  Otherwise override it.
 	typedef std::list<ObjectID> objectIDList;
 	typedef std::list<ObjectID>::iterator objectIDListIterator;

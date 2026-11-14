@@ -95,13 +95,23 @@ Stash that deploys there.
 | `Contra/Team_/Move/Set to move to the nearest free supply source` | team, minimum resources |
 | `Contra/Unit_/Move/Move a specific unit to the nearest free supply source` | unit, minimum resources |
 
-* Free means not enemy-owned and no supply center of any player within 20 cells.
+* Free means not enemy-owned, with no supply center or reserved destination within 20 cells.
+* Each unit reserves its chosen source immediately, so trucks travelling together choose separate
+sources. The team action uses its lowest-ID living member with AI to hold the reservation.
+* Repeated calls retain a usable source, even below the original resource threshold, and leave a
+unit that has arrived in place. Reservations survive save/load.
+* A dead or captured unit releases its reservation. A unit that stops moving before arrival for
+30 seconds releases the source and avoids retrying it for 60 seconds.
+* Sources near allied structures are excluded within `SupplyCenterSafeRadius`, measured from the
+structures' edges. This also applies to AI supply-center construction, which respects other
+players' supply centers and truck reservations.
 * Nearest is measured from the unit, or from the team's position.
 * If no source holds the minimum resources, the threshold halves until a source qualifies or it
 drops to 100. Empty sources never qualify.
 * Units stop beside the source on the side facing them, outside the `SupplyBuildBorder`.
 * Does nothing when no source qualifies.
 ([#134](https://github.com/triatomic/contraZH/issues/134))
+([#220](https://github.com/triatomic/contraZH/issues/220))
 
 ### CLP_AI scripts
 
