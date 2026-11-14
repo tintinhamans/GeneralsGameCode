@@ -1406,8 +1406,6 @@ static void TestDirectMessagePeer()
 
 static void TestDirectMessageUnread()
 {
-	const int64_t me = 1;
-
 	// The snapshot sets the unread counts of direct conversations and ignores groups.
 	DirectMessageUnread unread;
 	ConversationsEvent snapshot;
@@ -1417,29 +1415,18 @@ static void TestDirectMessageUnread()
 	CHECK(unread.Unread(8) == 0);
 	CHECK(unread.Unread(5) == 0);
 
-	// A read conversation needs no MarkRead for its last message.
-	CHECK(unread.MarkReadTarget(8, MakeDirect("30", 8, 8), me).empty());
-
 	// A new message of the other user makes the conversation unread once.
 	CHECK(unread.AddUnread(8));
 	CHECK(!unread.AddUnread(8));
 	CHECK(unread.Unread(8) == 2);
-	CHECK(unread.MarkReadTarget(8, MakeDirect("31", 8, 8), me) == "31");
-	unread.MarkedRead(8, "31");
+	unread.Clear(8);
 	CHECK(unread.Unread(8) == 0);
-	CHECK(unread.MarkReadTarget(8, MakeDirect("31", 8, 8), me).empty());
 
-	// An own newest message needs MarkRead only while the conversation counts unread messages.
-	CHECK(unread.MarkReadTarget(8, MakeDirect("32", 8, me), me).empty());
-	CHECK(unread.MarkReadTarget(7, MakeDirect("21", 7, me), me) == "21");
-
-	// A ReadMarker from another connection clears the unread count of its conversation.
+	// A ReadMarker from another connection clears the unread count of its whole conversation.
 	ReadMarkerEvent marker;
 	marker.channel_id = "dm:7";
-	marker.message_id = "20";
 	CHECK(unread.ApplyReadMarker(marker));
 	CHECK(unread.Unread(7) == 0);
-	CHECK(unread.MarkReadTarget(7, MakeDirect("20", 7, 7), me).empty());
 	marker.channel_id = "group:5";
 	CHECK(!unread.ApplyReadMarker(marker));
 
