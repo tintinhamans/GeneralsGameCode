@@ -1638,6 +1638,17 @@ void WebSocket::SendData_RequestSignalling(int64_t targetUserID)
 	}
 }
 
+void WebSocket::SendData_RequestSignalling(int64_t targetUserID, int failedAttempt)
+{
+	GenOnlineRealtime::RequestSignallingRequest request;
+	request.target_user_id = targetUserID;
+	request.failed_attempt = failedAttempt;
+	if (!FireHub(request))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] RequestSignalling for %lld with failed attempt %d dropped, the hub is not ready", targetUserID, failedAttempt);
+	}
+}
+
 void WebSocket::SendData_Signalling(int64_t targetUserID, std::vector<uint8_t> vecPayload)
 {
 	GenOnlineRealtime::SignalRequest request;

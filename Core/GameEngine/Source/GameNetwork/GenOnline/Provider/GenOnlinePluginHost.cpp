@@ -265,17 +265,7 @@ void GENONLINE_PLUGIN_CALL Host_LobbyChatOutput(void* /*userData*/, const char* 
 
 void GENONLINE_PLUGIN_CALL Host_ConnectionStateChanged(void* /*userData*/, const char* /*szPlatformUserID*/, uint64_t userID, int32_t newState)
 {
-	// These states describe the plugin's own EOS P2P connections. When the
-	// plugin does not own the transport the mesh is driven by GameNetworkingSockets,
-	// and writing EOS states into it stamps "not connected" over healthy
-	// connections - which the full mesh connectivity check then reports as
-	// missing links. Also guards against an older plugin that predates
-	// SetSecureGameTransportEnabled() and so stays in EOS mode.
-	if (!GenOnlinePluginHost::Transport::IsActive())
-	{
-		return;
-	}
-
+	// The mesh applies these states only to the pairs that use the plugin transport.
 	if (newState < GENONLINE_PLUGIN_CONNECTION_NOT_CONNECTED || newState > GENONLINE_PLUGIN_CONNECTION_DISCONNECTED)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Ignoring unknown connection state %d", newState);
@@ -1115,6 +1105,13 @@ bool GenOnlinePluginHost::Transport::IsActive()
 	}
 
 	return false;
+}
+
+bool GenOnlinePluginHost::Transport::IsAvailable()
+{
+	// IsActive pushes the service setting to the plugin, which decides what the plugin reports.
+	IsActive();
+	return s_pTransport != nullptr && s_pTransport->IsAvailable() != GENONLINE_PLUGIN_FALSE;
 }
 
 void GenOnlinePluginHost::Transport::StartSignalling(const char* szPlatformUserID, uint64_t userID)

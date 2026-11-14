@@ -1047,10 +1047,27 @@ struct RequestSignallingRequest : WireObject
 	static constexpr bool EXPECTS_RESULT = false;
 
 	int64_t target_user_id = 0;
+	// The attempt of the pair that failed, which moves the pair to the next step of its connection order.
+	std::optional<int> failed_attempt;
 
 	template <class V> void Fields(V& v)
 	{
 		v("target_user_id", target_user_id);
+		v("failed_attempt", failed_attempt);
+	}
+};
+
+struct SetPeerTransportsRequest : WireObject
+{
+	static constexpr const char* METHOD = "SetPeerTransports";
+	static constexpr bool EXPECTS_RESULT = false;
+
+	// The plugin transports this client can use for peers, "eos" or nothing.
+	std::vector<std::string> transports;
+
+	template <class V> void Fields(V& v)
+	{
+		v("transports", transports);
 	}
 };
 
@@ -1800,6 +1817,14 @@ struct StartSignallingEvent : WireObject
 	int64_t user_id = 0;
 	int preferred_port = 0;
 	std::string middleware_id;
+	// The step of the connection order. The service leaves all four out when it does not use the order.
+	std::optional<int> attempt;
+	// "gns" or "eos".
+	std::optional<std::string> transport;
+	// True when GameNetworkingSockets may use the TURN servers.
+	std::optional<bool> relay;
+	// Seconds the client tries the step before it reports the attempt failed, 0 for no limit.
+	std::optional<int> timeout_s;
 
 	template <class V> void Fields(V& v)
 	{
@@ -1807,7 +1832,110 @@ struct StartSignallingEvent : WireObject
 		v("user_id", user_id);
 		v("preferred_port", preferred_port);
 		v("middleware_id", middleware_id);
+		v("attempt", attempt);
+		v("transport", transport);
+		v("relay", relay);
+		v("timeout_s", timeout_s);
 	}
+};
+
+// The step of the connection order that a StartSignalling names, see section 6.6 of the protocol.
+struct ConnectionStep
+{
+	// 0 when the service does not use the connection order for the pair.
+	int attempt = 0;
+	bool eos = false;
+	bool relay = true;
+	int timeoutS = 0;
+
+	bool IsPresent() const
+	{
+		return attempt > 0;
+	}
+};
+
+// A StartSignalling without an attempt or with an unknown transport gives no step.
+inline ConnectionStep ConnectionStepOf(const StartSignallingEvent& event)
+{
+	ConnectionStep step;
+	if (!event.attempt.has_value() || *event.attempt <= 0 || !event.transport.has_value())
+	{
+		return step;
+	}
+	if (*event.transport != "gns" && *event.transport != "eos")
+	{
+		return step;
+	}
+	step.attempt = *event.attempt;
+	step.eos = *event.transport == "eos";
+	step.relay = event.relay.value_or(true);
+	step.timeoutS = event.timeout_s.has_value() && *event.timeout_s > 0 ? *event.timeout_s : 0;
+	return step;
+}
+
+// Watches the attempt of a timed step and reports it failed at most once.
+class StepAttemptWatch
+{
+public:
+	// A step without a time limit is never watched.
+	void Begin(const ConnectionStep& step, int64_t nowMs)
+	{
+		*this = StepAttemptWatch();
+		if (step.IsPresent() && step.timeoutS > 0)
+		{
+			m_attempt = step.attempt;
+			m_deadlineMs = nowMs + static_cast<int64_t>(step.timeoutS) * 1000;
+		}
+	}
+
+	// True while the watched attempt has not connected.
+	bool IsOpen() const
+	{
+		return m_attempt > 0 && !m_connected;
+	}
+
+	void MarkConnected()
+	{
+		m_connected = true;
+	}
+
+	// True once, when the open attempt ends before it connects.
+	bool TakeFailure()
+	{
+		if (!IsOpen() || m_reported)
+		{
+			return false;
+		}
+		m_reported = true;
+		return true;
+	}
+
+	// True once, when the open attempt reaches its time limit.
+	bool TakeTimeout(int64_t nowMs)
+	{
+		if (!IsOpen() || m_reported || nowMs < m_deadlineMs)
+		{
+			return false;
+		}
+		m_reported = true;
+		return true;
+	}
+
+	bool IsReported() const
+	{
+		return m_reported;
+	}
+
+	int Attempt() const
+	{
+		return m_attempt;
+	}
+
+private:
+	int m_attempt = 0;
+	int64_t m_deadlineMs = 0;
+	bool m_connected = false;
+	bool m_reported = false;
 };
 
 struct DisconnectPeerEvent : WireObject

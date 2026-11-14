@@ -32,6 +32,9 @@ int g_iceImplementationOverride = -1; // 1 = native, 2 = WebRTC
 // The plugin packets the lobby takes per tick, 255 for each of up to 8 peers like the per connection GNS receive.
 static constexpr int k_pluginLitePacketsPerTick = 255 * 8;
 
+// The ICE setting of a direct step, host and server reflexive candidates without TURN.
+static constexpr int k_iceEnableDirectOnly = k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_Private | k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_Public;
+
 static int64_t NowSteadyMs()
 {
 	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
@@ -165,6 +168,14 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 			const bool bPeerLeft = pJoinOrderLobby != nullptr && pJoinOrderLobby->IsJoinOrderKnown() && !pJoinOrderLobby->IsLobbyMember(userID);
 			// a match can't leave its lobby, so keep repairing the link until the service drops the player
 			const bool bManualLobby = pJoinOrderLobby != nullptr && pJoinOrderLobby->GetCurrentLobby().lobby_type == ELobbyType::CustomGame;
+
+			// A timed step that ends before it connects moves the pair to the next step of its connection order instead of retrying.
+			if (!bPeerLeft && plrConnection.m_stepWatch.IsOpen())
+			{
+				pMesh->EndStepAttempt(plrConnection, "closed before it connected", plrConnection.m_stepWatch.TakeFailure());
+				break;
+			}
+
 			bool bShouldRetry = serviceConf.connection.retry_signalling && !bPeerLeft
 				&& (bInMatch || (!bManualLobby && !bWeJoinedLater) || signallingAttemptsBeforeDisconnect < numSignallingAttempts);
 
@@ -331,6 +342,7 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 				// A signalled connection is accepted even with a stale roster.
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][%s] Accepting - Server started signalling\n", pInfo->m_info.m_szConnectionDescription);
 				pMesh->ApplyConnectionTimeouts(pInfo->m_hConn, plrConnection.m_userID);
+				pMesh->ApplyConnectionStep(pInfo->m_hConn, plrConnection.m_userID);
 				SteamNetworkingSockets()->AcceptConnection(pInfo->m_hConn);
 			}
 			
@@ -745,7 +757,14 @@ void NetworkMeshLibrary::Shutdown()
 
 void NetworkMeshLibrary::Tick()
 {
-	if (!s_bInitialized || GenOnlinePluginHost::Transport::IsActive())
+	if (!s_bInitialized)
+	{
+		return;
+	}
+
+	// The all-plugin mode creates no GameNetworkingSockets connection.
+	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
+	if (pMesh != nullptr ? !pMesh->UsesGameNetworkingSockets() : GenOnlinePluginHost::Transport::IsActive())
 	{
 		return;
 	}
@@ -813,9 +832,9 @@ NetworkMesh::NetworkMesh()
 		return;
 	}
 
-	// When the anti-cheat plugin owns the transport, no Steam connection is ever
-	// created or accepted by this mesh - StartConnectionSignalling() goes
-	// straight to the plugin. Taking a Steam listen socket we never use only
+	// When the anti-cheat plugin owns the transport, the listen socket waits for
+	// the first GameNetworkingSockets step of a pair, see StartConnectionSignalling().
+	// Taking a Steam listen socket we never use only
 	// risks colliding with a previous mesh on P2P vport 0, so skip it.
 	if (GenOnlinePluginHost::Transport::IsActive())
 	{
@@ -826,6 +845,19 @@ NetworkMesh::NetworkMesh()
 		return;
 	}
 
+	if (!CreateListenSocket())
+	{
+		return;
+	}
+
+	m_bInitialized = true;
+
+	// the key of this client for the lobby, peers get it as they connect
+	BeginLobbyKeys();
+}
+
+bool NetworkMesh::CreateListenSocket()
+{
 	std::vector<SteamNetworkingConfigValue_t> vecListenOpts;
 	SteamNetworkingConfigValue_t opt;
 	const auto listenTimeouts = MeshConnectionTimeoutPolicy::ForAttempt(false, m_reconnectTimeoutMs);
@@ -852,13 +884,15 @@ NetworkMesh::NetworkMesh()
 	if (m_hListenSock == k_HSteamListenSocket_Invalid)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "CreateListenSocketP2P failed. Sock was invalid");
-		return;
+		return false;
 	}
 
-	m_bInitialized = true;
+	return true;
+}
 
-	// the key of this client for the lobby, peers get it as they connect
-	BeginLobbyKeys();
+bool NetworkMesh::UsesGameNetworkingSockets() const
+{
+	return m_bPairSteps || !GenOnlinePluginHost::Transport::IsActive();
 }
 
 
@@ -904,7 +938,15 @@ void NetworkMesh::UpdateConnectivity(PlayerConnection* connection)
 	GenOnlineRealtime::ConnectionReportBody body;
 	body.target_user_id = connection->m_userID;
 	body.outcome = GenOnlineRealtime::ConnectionReportOutcome(bConnected, !connection->IsDirect(), bDisconnected);
-	body.transport = connection->m_ConnectionType == EConnectionType::MiddlewarePluginGeneric ? "eos" : "gns";
+	// The step of the pair names the transport, without a step the connection type does.
+	if (connection->m_step.IsPresent())
+	{
+		body.transport = connection->m_step.eos ? "eos" : "gns";
+	}
+	else
+	{
+		body.transport = connection->m_ConnectionType == EConnectionType::MiddlewarePluginGeneric ? "eos" : "gns";
+	}
 	body.ip_version = connection->IsIPV4() ? 4 : 6;
 	body.attempt = connection->m_reportAttempt;
 	if (!connection->m_timeline.Events().empty())
@@ -975,12 +1017,42 @@ void NetworkMesh::ApplyConnectionTimeouts(HSteamNetConnection connection, int64_
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[MESH] Incoming timeouts peer=%lld retry=%d initial=%dms connected=%dms applied=%d", userID, retry ? 1 : 0, timeouts.initialMs, timeouts.connectedMs, initialSet && connectedSet ? 1 : 0);
 }
 
-void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t remoteUserID, uint16_t preferredPort)
+void NetworkMesh::ApplyConnectionStep(HSteamNetConnection connection, int64_t userID)
+{
+	auto it = m_mapConnections.find(userID);
+	if (it == m_mapConnections.end() || !it->second.m_step.IsPresent() || it->second.m_step.relay)
+	{
+		return;
+	}
+
+	// The incoming connection inherits TURN from the listen socket, a direct step takes it away before ICE starts.
+	const bool iceSet = SteamNetworkingUtils()->SetConnectionConfigValueInt32(connection, k_ESteamNetworkingConfig_P2P_Transport_ICE_Enable, k_iceEnableDirectOnly);
+	const bool turnSet = SteamNetworkingUtils()->SetConnectionConfigValueString(connection, k_ESteamNetworkingConfig_P2P_TURN_ServerList, "");
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[MESH] Incoming connection of %lld uses step %d without TURN, applied=%d", userID, it->second.m_step.attempt, iceSet && turnSet ? 1 : 0);
+}
+
+void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t remoteUserID, uint16_t preferredPort, const GenOnlineRealtime::ConnectionStep& step)
 {
 	// Thread safety: Lock connection map during access
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 
-	if (GenOnlinePluginHost::Transport::IsActive())
+	if (step.IsPresent())
+	{
+		// The service numbers the attempts of a pair upwards, an older attempt changes nothing.
+		auto current = m_mapConnections.find(remoteUserID);
+		if (current != m_mapConnections.end() && current->second.m_step.attempt > step.attempt)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Ignoring attempt %d with %lld, attempt %d is current", step.attempt, remoteUserID, current->second.m_step.attempt);
+			return;
+		}
+
+		m_bPairSteps = true;
+		DropPendingStateUpdates(remoteUserID);
+	}
+
+	// The step of the pair chooses the transport, without a step the service setting chooses it for every pair.
+	const bool bPluginPair = step.IsPresent() ? step.eos : GenOnlinePluginHost::Transport::IsActive();
+	if (bPluginPair)
 	{
 		// A repeated StartSignalling restarts the pair. The old connection closes first, because a single-direction connection breaks signalling.
 		auto existing = m_mapConnections.find(remoteUserID);
@@ -988,13 +1060,40 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld, new connection is being negotiated", remoteUserID);
 			GenOnlinePluginHost::Transport::DisconnectPeer(existing->second.m_strMiddlewareID.c_str(), existing->second.m_userID);
+			if (step.IsPresent())
+			{
+				// States the plugin raises while it closes the old connection belong to the old attempt.
+				DropPendingStateUpdates(remoteUserID);
+			}
 
 			if (TheNetwork != nullptr)
 			{
 				TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
 			}
 		}
-		GenOnlinePluginHost::Transport::StartSignalling(szMiddlewareID, remoteUserID);
+		else if (existing != m_mapConnections.end() && existing->second.m_hSteamConnection != k_HSteamNetConnection_Invalid)
+		{
+			// A pair that moves from GameNetworkingSockets to the plugin closes its old connection like a restart does.
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld, new connection is being negotiated", remoteUserID);
+			SteamNetworkingSockets()->CloseConnection(existing->second.m_hSteamConnection, 0, "Client Disconnecting Gracefully (new connection being negotiated)", false);
+
+			if (TheNetwork != nullptr)
+			{
+				TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
+			}
+		}
+
+		// The plugin step fails at once when this client has no plugin transport.
+		const bool bTransportReady = !step.IsPresent() || GenOnlinePluginHost::Transport::IsAvailable();
+		if (step.IsPresent())
+		{
+			DropParkedSignalling(remoteUserID);
+		}
+		if (bTransportReady)
+		{
+			GenOnlinePluginHost::Transport::StartSignalling(szMiddlewareID, remoteUserID);
+		}
+		m_bUsedPluginTransport = true;
 
         // create a local user type
         {
@@ -1002,17 +1101,28 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             auto it = m_mapConnections.find(remoteUserID);
             int previousAttempts = it != m_mapConnections.end() ? it->second.m_SignallingAttempts : 0;
             m_mapConnections[remoteUserID] = PlayerConnection(remoteUserID, szMiddlewareID);
+            PlayerConnection& created = m_mapConnections[remoteUserID];
 
             // add attempt; carried over so the retry cap holds across re-signals
-            m_mapConnections[remoteUserID].m_SignallingAttempts = previousAttempts + 1;
+            // An attempt of a timed step does not count towards the cap, the hub moves the pair on instead.
+            created.m_SignallingAttempts = previousAttempts + (step.timeoutS > 0 ? 0 : 1);
             // Every connection signalling creates is a new attempt of the connection report.
-            m_mapConnections[remoteUserID].m_reportAttempt = ++m_reportAttempts[remoteUserID];
+            created.m_reportAttempt = step.IsPresent() ? step.attempt : ++m_reportAttempts[remoteUserID];
+            created.m_step = step;
+            created.m_stepWatch.Begin(step, NowSteadyMs());
+
+            if (!bTransportReady)
+            {
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Attempt %d with %lld names the plugin transport, which this client does not have", step.attempt, remoteUserID);
+                EndStepAttempt(created, "no plugin transport", created.m_stepWatch.TakeFailure());
+            }
         }
 	}
 	else
 	{
         // no relay without our TURN credentials
-        if (m_bAwaitingTurnCredentials)
+        const bool bRelay = !step.IsPresent() || step.relay;
+        if (m_bAwaitingTurnCredentials && bRelay)
         {
             NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Holding signalling with %lld until our TURN credentials arrive", remoteUserID);
             // A repeated StartSignalling replaces the held request of that peer, so the pair starts once.
@@ -1024,8 +1134,18 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
                     break;
                 }
             }
-            m_vecSignallingAwaitingTurn.push_back({ szMiddlewareID != nullptr ? szMiddlewareID : "", remoteUserID, preferredPort });
+            m_vecSignallingAwaitingTurn.push_back({ szMiddlewareID != nullptr ? szMiddlewareID : "", remoteUserID, preferredPort, step });
             return;
+        }
+        if (step.IsPresent())
+        {
+            DropParkedSignalling(remoteUserID);
+        }
+
+        // The all-plugin mode has no listen socket until a pair uses GameNetworkingSockets.
+        if (step.IsPresent() && m_hListenSock == k_HSteamListenSocket_Invalid)
+        {
+            CreateListenSocket();
         }
 
         // if we already have a connection to this use, drop it, having a single-direction connection will break signalling
@@ -1037,7 +1157,22 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             previousAttempts = it->second.m_SignallingAttempts;
             retryTimeout = true;
 
-            if (it->second.m_hSteamConnection != k_HSteamNetConnection_Invalid)
+            if (it->second.m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
+            {
+                // A pair that moves from the plugin to GameNetworkingSockets ends its plugin connection first.
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing plugin connection %lld, new connection is being negotiated", remoteUserID);
+                GenOnlinePluginHost::Transport::DisconnectPeer(it->second.m_strMiddlewareID.c_str(), it->second.m_userID);
+                if (step.IsPresent())
+                {
+                    DropPendingStateUpdates(remoteUserID);
+                }
+
+                if (TheNetwork != nullptr)
+                {
+                    TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
+                }
+            }
+            else if (it->second.m_hSteamConnection != k_HSteamNetConnection_Invalid)
             {
                 NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld, new connection is being negotiated", remoteUserID);
                 SteamNetworkingSockets()->CloseConnection(it->second.m_hSteamConnection, 0, "Client Disconnecting Gracefully (new connection being negotiated)", false);
@@ -1101,16 +1236,26 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
         opt.SetInt32(k_ESteamNetworkingConfig_SymmetricConnect, 1);
         vecOpts.push_back(opt);
 
-        opt.SetInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Enable, m_iceEnable);
+        // A direct step gathers host and server reflexive candidates only, no TURN server joins the connection.
+        opt.SetInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Enable, bRelay ? m_iceEnable : k_iceEnableDirectOnly);
         vecOpts.push_back(opt);
         opt.SetInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Implementation, m_iceImplementation);
         vecOpts.push_back(opt);
-        opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_ServerList, m_strTurnServerList.c_str());
-        vecOpts.push_back(opt);
-        opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_UserList, m_strTurnUsernameString.c_str());
-        vecOpts.push_back(opt);
-        opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_PassList, m_strTurnTokenString.c_str());
-        vecOpts.push_back(opt);
+        if (bRelay)
+        {
+            opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_ServerList, m_strTurnServerList.c_str());
+            vecOpts.push_back(opt);
+            opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_UserList, m_strTurnUsernameString.c_str());
+            vecOpts.push_back(opt);
+            opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_PassList, m_strTurnTokenString.c_str());
+            vecOpts.push_back(opt);
+        }
+        else
+        {
+            // An implicitly accepted incoming connection takes these options over the TURN list of the listen socket.
+            opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_ServerList, "");
+            vecOpts.push_back(opt);
+        }
 
         NetworkLog(ELogVerbosity::LOG_DEBUG, "Connecting to '%s' in symmetric mode, virtual port %d, from local virtual port %d.\n",
             SteamNetworkingIdentityRender(identityRemote).c_str(), g_nVirtualPortRemote, g_nLocalPort);
@@ -1155,10 +1300,13 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             m_mapConnections[remoteUserID] = PlayerConnection(remoteUserID, hSteamConnection);
 
             // add attempt; carried over so the retry cap holds across re-signals
-            m_mapConnections[remoteUserID].m_SignallingAttempts = previousAttempts + 1;
+            // An attempt of a timed step does not count towards the cap, the hub moves the pair on instead.
+            m_mapConnections[remoteUserID].m_SignallingAttempts = previousAttempts + (step.timeoutS > 0 ? 0 : 1);
             m_mapConnections[remoteUserID].m_retryTimeout = retryTimeout;
             // Every connection signalling creates is a new attempt of the connection report.
-            m_mapConnections[remoteUserID].m_reportAttempt = ++m_reportAttempts[remoteUserID];
+            m_mapConnections[remoteUserID].m_reportAttempt = step.IsPresent() ? step.attempt : ++m_reportAttempts[remoteUserID];
+            m_mapConnections[remoteUserID].m_step = step;
+            m_mapConnections[remoteUserID].m_stepWatch.Begin(step, NowSteadyMs());
         }
 	}
 
@@ -2089,10 +2237,69 @@ void NetworkMesh::SetTurnCredentials(const std::string& strUsername, const std::
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Got TURN credentials, starting %d held signalling request(s)", (int)vecPending.size());
 	for (const PendingSignalling& pending : vecPending)
 	{
-		StartConnectionSignalling(pending.strMiddlewareID.c_str(), pending.remoteUserID, pending.preferredPort);
+		StartConnectionSignalling(pending.strMiddlewareID.c_str(), pending.remoteUserID, pending.preferredPort, pending.step);
 	}
 }
 
+
+void NetworkMesh::DropParkedSignalling(int64_t remoteUserID)
+{
+	for (auto pending = m_vecSignallingAwaitingTurn.begin(); pending != m_vecSignallingAwaitingTurn.end(); ++pending)
+	{
+		if (pending->remoteUserID == remoteUserID)
+		{
+			m_vecSignallingAwaitingTurn.erase(pending);
+			return;
+		}
+	}
+}
+
+void NetworkMesh::DropPendingStateUpdates(int64_t userID)
+{
+	// A plugin state queued before the restart of a pair belongs to the attempt before it.
+	std::lock_guard<std::mutex> lock(m_pendingStateUpdatesMutex);
+	m_vecPendingStateUpdates.erase(std::remove_if(m_vecPendingStateUpdates.begin(), m_vecPendingStateUpdates.end(),
+		[userID](const std::pair<int64_t, EConnectionState>& update)
+		{
+			return update.first == userID;
+		}), m_vecPendingStateUpdates.end());
+}
+
+void NetworkMesh::EndStepAttempt(PlayerConnection& connection, const char* szReason, bool bReport)
+{
+	const int64_t userID = connection.m_userID;
+	const int attempt = connection.m_step.attempt;
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Attempt %d with %lld over %s ended before it connected: %s", attempt, userID, connection.m_step.eos ? "eos" : "gns", szReason);
+
+	// The attempt stops on this side, the hub starts the next step on both.
+	if (connection.m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
+	{
+		GenOnlinePluginHost::Transport::DisconnectPeer(connection.m_strMiddlewareID.c_str(), userID);
+	}
+	else if (connection.m_hSteamConnection != k_HSteamNetConnection_Invalid)
+	{
+		SteamNetworkingSockets()->CloseConnection(connection.m_hSteamConnection, 0, "Client Disconnecting Gracefully (new connection being negotiated)", false);
+		connection.m_hSteamConnection = k_HSteamNetConnection_Invalid;
+	}
+
+	if (!bReport)
+	{
+		connection.m_State = EConnectionState::NOT_CONNECTED;
+		return;
+	}
+
+	// The connection report of the attempt says it failed, the user interface keeps waiting for the next step.
+	connection.m_State = EConnectionState::CONNECTION_FAILED;
+	connection.m_timeline.Add(connection.m_State, false, NowSteadyMs() - connection.m_connectStartedMs);
+	UpdateConnectivity(&connection);
+	connection.m_State = EConnectionState::NOT_CONNECTED;
+
+	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
+	if (pWS)
+	{
+		pWS->SendData_RequestSignalling(userID, attempt);
+	}
+}
 
 void NetworkMesh::RemoveConnection(int64_t userID)
 {
@@ -2130,7 +2337,7 @@ void NetworkMesh::DisconnectUser(int64_t remoteUserID)
 	if (m_mapConnections.find(remoteUserID) != m_mapConnections.end())
 	{
 
-        if (GenOnlinePluginHost::Transport::IsActive())
+        if (m_mapConnections[remoteUserID].UsesPluginTransport())
         {
             NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld", remoteUserID);
 
@@ -2194,7 +2401,7 @@ void NetworkMesh::Disconnect()
     m_mapConnections.clear();
 	m_reportAttempts.clear();
 
-	if (GenOnlinePluginHost::Transport::IsActive())
+	if (GenOnlinePluginHost::Transport::IsActive() || m_bUsedPluginTransport)
 	{
 		GenOnlinePluginHost::Transport::DisconnectAll();
 	}
@@ -2226,16 +2433,50 @@ void NetworkMesh::Tick()
 		auto it = m_mapConnections.find(update.first);
 		if (it != m_mapConnections.end())
 		{
-			it->second.UpdateState(update.second, this);
+			PlayerConnection& connection = it->second;
+
+			// A plugin state only describes a pair on the plugin transport, the all-plugin mode applies it to every pair.
+			if (connection.m_ConnectionType != EConnectionType::MiddlewarePluginGeneric && UsesGameNetworkingSockets())
+			{
+				continue;
+			}
+
+			// The attempt of a timed step that this side already ended takes no more states.
+			if (connection.m_stepWatch.IsReported())
+			{
+				continue;
+			}
+
+			const bool bEnded = update.second == EConnectionState::CONNECTION_FAILED || update.second == EConnectionState::CONNECTION_DISCONNECTED;
+			if (bEnded && connection.m_stepWatch.IsOpen())
+			{
+				EndStepAttempt(connection, "the plugin connection ended", connection.m_stepWatch.TakeFailure());
+				continue;
+			}
+
+			connection.UpdateState(update.second, this);
 		}
 	}
 
-	if (!GenOnlinePluginHost::Transport::IsActive() && m_pSignaling != nullptr)
+	if (UsesGameNetworkingSockets() && m_pSignaling != nullptr)
 	{
 		m_pSignaling->Poll();
 	}
 
 	const int64_t nowMs = NowSteadyMs();
+
+	// A timed step that runs out of time before it connects asks the hub for the next step.
+	{
+		std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+		for (auto& kvPair : m_mapConnections)
+		{
+			PlayerConnection& conn = kvPair.second;
+			if (conn.m_stepWatch.TakeTimeout(nowMs))
+			{
+				EndStepAttempt(conn, "the step timed out", true);
+			}
+		}
+	}
 
 	// probe every connection
 	for (auto& kvPair : m_mapConnections)
@@ -2676,7 +2917,7 @@ void PlayerConnection::Close()
 	}
 	else
 	{
-		if (GenOnlinePluginHost::Transport::IsActive())
+		if (UsesPluginTransport())
 		{
 			GenOnlinePluginHost::Transport::DisconnectPeer(m_strMiddlewareID.c_str(), m_userID);
         }
@@ -2740,9 +2981,15 @@ std::string PlayerConnection::GetStats()
 }
 
 
+bool PlayerConnection::UsesPluginTransport() const
+{
+	return m_ConnectionType == EConnectionType::MiddlewarePluginGeneric
+		|| (m_ConnectionType == EConnectionType::Unknown && GenOnlinePluginHost::Transport::IsActive());
+}
+
 std::string PlayerConnection::GetConnectionType()
 {
-	if (GenOnlinePluginHost::Transport::IsActive())
+	if (UsesPluginTransport())
 	{
 		if (m_State == EConnectionState::CONNECTED_DIRECT)
 		{
@@ -2775,9 +3022,15 @@ std::string PlayerConnection::GetConnectionType()
 
 void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwningMesh)
 {
+	if (newState == EConnectionState::CONNECTED_DIRECT)
+	{
+		m_stepWatch.MarkConnected();
+	}
+
 	if (newState == EConnectionState::CONNECTED_DIRECT && m_State != EConnectionState::CONNECTED_DIRECT)
 	{
 		m_connectedSinceTime = std::chrono::steady_clock::now();
+
 		m_rating = ConnectionRating::State();
 		m_nextRatingMs = 0;
 		ResetProbe();
