@@ -123,8 +123,14 @@ private:
 	// BIG archives above the retail ones. The layers load in this order, highest priority first. A missing or invalid field keeps its default.
 	GenOnlineDataPackLayer m_DataPacks_User;
 	std::vector<std::string> m_DataPacks_UserExcludePaths;	// loose files of the game folder, BIGs of the game folders and BIGs of the user layer that are left out
+#if RTS_GENERALS
+	// The GenOnline and community patch archives hold Zero Hour data, so Generals loads nothing above retail by default.
+	GenOnlineDataPackLayer m_DataPacks_GeneralsOnline = { true, {} };
+	GenOnlineDataPackLayer m_DataPacks_CommunityPatch = { true, {} };
+#else
 	GenOnlineDataPackLayer m_DataPacks_GeneralsOnline = { true, { "user:GeneralsOnlineGameData/GeneralsOnline_Core.big" } };
 	GenOnlineDataPackLayer m_DataPacks_CommunityPatch = { true, { "user:GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big" } };
+#endif
 
 	std::string m_Plugins_Anticheat = std::string();
 
