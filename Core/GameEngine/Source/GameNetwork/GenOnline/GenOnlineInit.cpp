@@ -1079,7 +1079,7 @@ void GenOnlineServicesManager::OnLogin(ELoginResult loginResult, const char* szW
             NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] Ignoring a realtime address outside the service origin, using %s", strWebsocketAddr.c_str());
         }
 
-        m_pWebSocket->Connect(strWebsocketAddr.c_str(), false, [=]()
+        m_pWebSocket->Connect(strWebsocketAddr.c_str(), [=]()
             {
                 // Get friends list and blocked list
                 // we need to wait until the websocket is connected so we have a session
