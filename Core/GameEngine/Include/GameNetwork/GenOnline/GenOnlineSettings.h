@@ -5,7 +5,7 @@
 #include <vector>
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
 
-// One layer of data_packs in settings.json: BIG paths in priority order, the first one wins
+// One layer of data_packs in client.json: BIG paths in priority order, the first one wins
 struct GenOnlineDataPackLayer
 {
 	bool m_enabled = true;
@@ -94,7 +94,6 @@ private:
 	bool Save();
 
 private:
-	// NOTE: This also works as the default creation (since we just call Save)
 	const float m_Camera_MinHeight_default = 100.f;
 	float m_Camera_MinHeight = m_Camera_MinHeight_default;
 
@@ -142,5 +141,7 @@ private:
 	std::string m_LastRoute;
 	// keeps keys this build does not know when a setting is saved mid-session
 	std::string m_PreservedJSON = "{}";
-	bool m_CanSave = true;
+	// %LOCALAPPDATA%\GeneralsOnline\client.json, written only when it exists with a schema_version this client knows
+	std::wstring m_ClientFilePath;
+	bool m_bClientFileWritable = false;
 };
