@@ -83,6 +83,27 @@ inline std::string MatchmakingStatusText(const std::string& code, const nlohmann
 	{
 		return "Starting in " + std::to_string(MatchmakingParamInt(params, "seconds")) + " seconds.";
 	}
+	if (code == "matchmaking.left")
+	{
+		const std::string reason = MatchmakingParamText(params, "reason");
+		if (reason == "join_timeout")
+		{
+			return "You did not join the match in time and left matchmaking.";
+		}
+		if (reason == "setup_failed")
+		{
+			return "The match could not be set up. You left matchmaking.";
+		}
+		if (reason == "stats_unavailable")
+		{
+			return "Your rating could not be loaded. You left matchmaking.";
+		}
+		if (reason == "invalid_playlist")
+		{
+			return "The playlist is no longer available. You left matchmaking.";
+		}
+		return "You left matchmaking.";
+	}
 	return "Matchmaking: " + code;
 }
 

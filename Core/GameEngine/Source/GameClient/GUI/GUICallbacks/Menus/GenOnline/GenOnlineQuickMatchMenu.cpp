@@ -1098,6 +1098,20 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				buttonWiden->winEnable(TRUE);
 			});
 
+		pLobbyInterface->RegisterForMatchmakingLeftCallback([]()
+			{
+				matchFoundTimeoutStart = 0;
+				matchFoundTimeoutDurationMs = lobbyTimeoutMs;
+				matchStartCountdownLastSecond = 0;
+				buttonBack->winEnable(TRUE);
+				buttonStop->winEnable(TRUE);
+				buttonWiden->winEnable(FALSE);
+				buttonStart->winEnable(TRUE);
+				buttonStart->winHide(FALSE);
+				buttonStop->winHide(TRUE);
+				enableOptionsGadgets(TRUE);
+			});
+
 		pLobbyInterface->RegisterForMatchmakingSetupProgressCallback([](int timeoutMs, int countdownMs)
 			{
 				matchFoundTimeoutDurationMs = timeoutMs;
@@ -1341,6 +1355,7 @@ void GenOnlineQuickMatchMenuShutdown( WindowLayout *layout, void *userData )
 		pLobbyInterface->DeregisterForMatchmakingMessageCallback();
 		pLobbyInterface->DeRegisterForMatchmakingMatchFoundCallback();
 		pLobbyInterface->DeregisterForMatchmakingRequeueCallback();
+		pLobbyInterface->DeregisterForMatchmakingLeftCallback();
 		pLobbyInterface->DeregisterForMatchmakingSetupProgressCallback();
 		pLobbyInterface->DeregisterForMatchmakingStartGameCallback();
 

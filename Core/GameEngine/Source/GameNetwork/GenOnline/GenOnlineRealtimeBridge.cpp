@@ -425,6 +425,18 @@ void RegisterHandlers(HubSession& session)
 				}
 				return;
 			}
+			if (notice.code == "server.announcement")
+			{
+				// An operator announcement shows in the room chat and, inside a lobby, in the lobby chat.
+				const std::wstring text = L"Announcement: " + Wide(ParamText(notice.params, "message"));
+				ShowRoomNotice(text, false);
+				GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+				if (pLobby != nullptr && pLobby->IsInLobby() && pLobby->m_OnChatCallback != nullptr)
+				{
+					pLobby->m_OnChatCallback(UnicodeString(text.c_str()), DetermineSystemNoticeColor(true, false));
+				}
+				return;
+			}
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Unhandled notice %s", notice.code.c_str());
 		});
 	session.On<ModerationNoticeEvent>([](const ModerationNoticeEvent& notice)

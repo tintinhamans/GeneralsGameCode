@@ -1240,6 +1240,8 @@ void GenOnlineLobbyInterface::TearDownLocalLobbyState()
 
 	// A realtime lobby state belongs to the lobby that was left.
 	m_hubLobbyState.reset();
+	m_hubMatchStartLobbyID = -1;
+	m_hubGameStartLobbyID = -1;
 	FlushLobbyStateWaiters(false);
 }
 
@@ -1837,6 +1839,12 @@ void GenOnlineLobbyInterface::OnRealtimeGameStart(const GenOnlineRealtime::GameS
 	{
 		m_callbackStartGamePacket();
 	}
+
+	if (m_CurrentLobby.lobby_type == ELobbyType::QuickMatch)
+	{
+		m_hubGameStartLobbyID = event.lobby_id;
+		StartQuickMatchWhenReady();
+	}
 }
 
 void GenOnlineLobbyInterface::HandleMatchFound(int64_t lobbyID, const std::string& mapPath)
@@ -1850,6 +1858,8 @@ void GenOnlineLobbyInterface::HandleMatchFound(int64_t lobbyID, const std::strin
 	LobbyEntry lobbyEntry;
 	lobbyEntry.lobbyID = lobbyID;
 	lobbyEntry.map_path = mapPath;
+	// A found match always joins a quick match lobby, so the lobby type is known before the first lobby state.
+	lobbyEntry.lobby_type = ELobbyType::QuickMatch;
 
 	if (JoinLobby(lobbyEntry, std::string()))
 	{
@@ -1884,6 +1894,16 @@ void GenOnlineLobbyInterface::HandleMatchSetupProgress(int64_t timeoutMs, int64_
 void GenOnlineLobbyInterface::OnRealtimeMatchmakingStatus(const GenOnlineRealtime::MatchmakingStatusEvent& event)
 {
 	InvokeMatchmakingMessageCallback(GenOnlineRealtime::MatchmakingStatusText(event.code, event.params));
+	if (event.code != "matchmaking.left")
+	{
+		return;
+	}
+	// The player is no longer queued. A quick match lobby that was joined or is being joined belongs to the abandoned match.
+	if (m_bAttemptingToJoinLobby || (IsInLobby() && m_CurrentLobby.lobby_type == ELobbyType::QuickMatch))
+	{
+		ResetForMatchmakingRequeue();
+	}
+	InvokeMatchmakingLeftCallback();
 }
 
 void GenOnlineLobbyInterface::OnRealtimeMatchStart(const GenOnlineRealtime::MatchStartEvent& event)
@@ -1893,6 +1913,19 @@ void GenOnlineLobbyInterface::OnRealtimeMatchStart(const GenOnlineRealtime::Matc
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Ignoring MatchStart for lobby %lld, the current lobby is %lld", event.lobby_id, m_CurrentLobby.lobbyID);
 		return;
 	}
+	m_hubMatchStartLobbyID = event.lobby_id;
+	StartQuickMatchWhenReady();
+}
+
+// A quick match starts once both MatchStart and GameStart arrived, because GameStart carries the seed and the match id.
+void GenOnlineLobbyInterface::StartQuickMatchWhenReady()
+{
+	if (m_hubMatchStartLobbyID != m_CurrentLobby.lobbyID || m_hubGameStartLobbyID != m_CurrentLobby.lobbyID)
+	{
+		return;
+	}
+	m_hubMatchStartLobbyID = -1;
+	m_hubGameStartLobbyID = -1;
 	InvokeMatchmakingStartGameCallback();
 }
 

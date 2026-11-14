@@ -587,7 +587,7 @@ void GenOnlineServicesManager::StartVersionCheckOnSelectedRoute(std::function<vo
 	nlohmann::json j;
 	j["client_version"] = GetClientVersion();
 #if defined(RTS_ZEROHOUR)
-	j["game"] = "generalsmd";
+	j["game"] = "zerohour";
 #else
 	j["game"] = "generals";
 #endif
@@ -1074,7 +1074,7 @@ void GenOnlineServicesManager::OnLogin(ELoginResult loginResult, const char* szW
         }
         else if (!strServiceAddr.empty())
         {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] Ignoring a realtime address outside the service origin, using %s", strWebsocketAddr.c_str());
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] Ignoring a realtime address that is not the hub on the service origin, using %s", strWebsocketAddr.c_str());
         }
 
         m_pWebSocket->Connect(strWebsocketAddr.c_str(), [=]()

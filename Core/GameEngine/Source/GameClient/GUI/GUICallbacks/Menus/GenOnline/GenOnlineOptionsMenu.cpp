@@ -298,7 +298,7 @@ static void networkInit()
 	networkSetTooltip(c.proxyMode, L"Automatic follows the Windows proxy settings. Disabled connects directly. Custom uses the proxy address.");
 	networkSetTooltip(c.proxyAddress, L"Proxy as host:port, or a full http://, https:// or socks5h:// address. Used with Custom.");
 	networkSetTooltip(c.server, L"Automatic uses the Generals Online servers. Custom uses your own server. Applies at the next login.");
-	networkSetTooltip(c.serverAddress, L"Your own server as host:port. Only https is allowed. Used with Custom.");
+	networkSetTooltip(c.serverAddress, L"Your own server as host:port. Only https is allowed, except http://localhost, http://127.0.0.1 or http://[::1] for local development. Used with Custom.");
 	networkSetTooltip(networkControl("OptionsMenu.wnd:ComboBoxIP"), L"The network adapter used for LAN games.");
 	networkStartSystemLookup();
 	networkPollLater();

@@ -81,7 +81,10 @@ public:
 		return m_userID != -1 && !m_strToken.empty();
 	}
 
-	void LogoutOfMyAccount();
+	// Ends the session on the service and revokes the refresh token. The done callback runs once both answered or the logout timed out.
+	// The online services must stay up until then, because their teardown cancels the requests.
+	// The done callback runs inside the HTTP tick, so it only sets flags and never tears the services down itself.
+	void LogoutOfMyAccount(std::function<void()> fnDone);
 
 	static std::string GetCredentialsFilePath();
 
@@ -105,6 +108,7 @@ private:
 	void FailLoginV1(const wchar_t* szText);
 	void ClearSessionV1();
 	void AbandonRefreshV1();
+	void FinishLogoutV1();
 	void TickV1();
 	static std::string CredentialServerKeyV1();
 	static std::string ServiceOriginV1();
@@ -136,4 +140,6 @@ private:
 	int64_t m_nextRefreshRetryV1 = -1;
 	bool m_bRefreshInFlightV1 = false;
 	std::vector<std::function<void(bool)>> m_refreshWaitersV1;
+	std::function<void()> m_logoutDoneV1;
+	int64_t m_logoutDeadlineV1 = -1;
 };

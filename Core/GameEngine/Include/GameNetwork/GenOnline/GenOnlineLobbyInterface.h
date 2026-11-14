@@ -208,6 +208,26 @@ public:
 		}
 	}
 
+	// The service took the player out of the queue without a requeue.
+	std::function<void()> m_fnCallbackMatchmakingLeft = nullptr;
+	void RegisterForMatchmakingLeftCallback(std::function<void()> cb)
+	{
+		m_fnCallbackMatchmakingLeft = cb;
+	}
+
+	void DeregisterForMatchmakingLeftCallback()
+	{
+		m_fnCallbackMatchmakingLeft = nullptr;
+	}
+
+	void InvokeMatchmakingLeftCallback()
+	{
+		if (m_fnCallbackMatchmakingLeft != nullptr)
+		{
+			m_fnCallbackMatchmakingLeft();
+		}
+	}
+
 	// timeoutMs: how long to wait for the next step; countdownMs: start countdown length, 0 while setting up, -1 if not sent
 	std::function<void(int, int)> m_fnCallbackMatchmakingSetupProgress = nullptr;
 	void RegisterForMatchmakingSetupProgressCallback(std::function<void(int, int)> cb)
@@ -634,4 +654,8 @@ private:
 	// The latest LobbyState of the hub and the refreshes that wait for the state of the current lobby.
 	std::optional<GenOnlineRealtime::LobbyState> m_hubLobbyState;
 	std::vector<std::function<void(bool)>> m_hubLobbyStateWaiters;
+	// The quick match lobby of the latest MatchStart and GameStart, -1 while it has not arrived.
+	int64_t m_hubMatchStartLobbyID = -1;
+	int64_t m_hubGameStartLobbyID = -1;
+	void StartQuickMatchWhenReady();
 };

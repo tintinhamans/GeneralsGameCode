@@ -252,19 +252,27 @@ void GenOnlineSignIn::Refresh(const std::string& origin, const std::string& refr
 		});
 }
 
-void GenOnlineSignIn::Revoke(const std::string& origin, const std::string& refreshToken)
+void GenOnlineSignIn::Revoke(const std::string& origin, const std::string& refreshToken, std::function<void()> done)
 {
 	if (refreshToken.empty() || origin != m_discoveredOrigin || m_discovery.revocation_endpoint.empty())
 	{
+		if (done != nullptr)
+		{
+			done();
+		}
 		return;
 	}
 	std::map<std::string, std::string> headers;
 	headers["Content-Type"] = "application/x-www-form-urlencoded";
 	const std::string body = EncodeForm(RevokeTokenForm(GENONLINE_CLIENT_ID, refreshToken));
 	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(m_discovery.revocation_endpoint.c_str(), EIPProtocolVersion::DONT_CARE, headers, body.c_str(),
-		[](bool, int statusCode, std::string, HTTPRequest*)
+		[done](bool, int statusCode, std::string, HTTPRequest*)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[SignIn] Revoke answered %d", statusCode);
+			if (done != nullptr)
+			{
+				done();
+			}
 		}, nullptr, -1, true);
 }
 
