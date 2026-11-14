@@ -3,6 +3,15 @@
 Always on, no `Options.ini` key. All are retail bugs upstream still carries. Each entry says whether
 it changes the simulation (older replays no longer play back identically) or only what is drawn.
 
+## Destroyed carrier aircraft fall to the ground
+
+Dead aircraft no longer treat their carrier's deck height as a floor. Aircraft using
+`HelicopterSlowDeathBehavior` can reach the ground and finish their crash sequence.
+The jet model also stops using the minimum runway height after death, so it follows
+the falling object instead of hovering above its particles.
+
+This changes the simulation and can change older replay playback.
+
 ## Fast projectiles hit close targets
 
 `DumbProjectileBehavior` projectiles whose flight takes less than one frame now move to their
