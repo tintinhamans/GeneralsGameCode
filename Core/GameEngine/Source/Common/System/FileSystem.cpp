@@ -327,6 +327,20 @@ Bool PathExcludeList::matches(const std::string& key) const
 }
 
 //============================================================================
+//============================================================================
+
+Bool FileSystem::isLooseFileExcluded(const Char *filename) const
+{
+	if (m_excludedPaths.matchesPath(filename))
+	{
+		return TRUE;
+	}
+
+	// the game folder is retail, so a pack of the -packs stack wins over its loose files
+	return TheArchiveFileSystem != nullptr && TheArchiveFileSystem->isLooseFileShadowedByPack(filename);
+}
+
+//============================================================================
 // FileSystem::FileSystem
 //============================================================================
 

@@ -109,6 +109,9 @@
 #include "GameNetwork/GameSpy/GameResultsThread.h"
 #include "GameNetwork/Online/OnlineProviderFactory.h"
 #include "GameNetwork/Online/IOnlineGameHooks.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInit.h"
+#endif
 
 #include "Common/version.h"
 
@@ -451,7 +454,7 @@ void GameEngine::init()
 	#endif/////////////////////////////////////////////////////////////////////////////////////////////
 
 
-		// GENONLINE_CHANGE: Init our settings before the archives are mounted, the data_packs layers decide which ones. Needs TheGlobalData for the user data path.
+		// GENONLINE_CHANGE: Init settings before the archives are mounted because they read the -packs list. Needs TheGlobalData for the user data path.
 		GetOnlineGameHooks()->loadSettings();
 
 		initSubsystem(TheArchiveFileSystem, "TheArchiveFileSystem", createArchiveFileSystem(), nullptr); // this MUST come after TheLocalFileSystem creation
@@ -466,6 +469,10 @@ void GameEngine::init()
 		DEBUG_ASSERTCRASH(TheWritableGlobalData, ("TheWritableGlobalData expected to be created"));
 		initSubsystem(TheWritableGlobalData, "TheWritableGlobalData", TheWritableGlobalData, &xferCRC, "Data\\INI\\Default\\GameData", "Data\\INI\\GameData");
 		TheWritableGlobalData->parseCustomDefinition();
+
+#if defined(GENONLINE)
+		TheWritableGlobalData->applyGenOnlineClientSettings();
+#endif
 
 		// Init sentry ASAP to catch early crashes
 		GetOnlineGameHooks()->onGlobalDataLoaded();

@@ -4,13 +4,8 @@
 #include <string>
 #include <vector>
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
-
-// One layer of data_packs in settings.json: BIG paths in priority order, the first one wins
-struct GenOnlineDataPackLayer
-{
-	bool m_enabled = true;
-	std::vector<std::string> m_includePaths;
-};
+#include "GameNetwork/GenOnline/GenOnlinePackList.h"
+#include "GameNetwork/GenOnline/GenOnlineClientOptions.h"
 
 class GenOnlineSettings
 {
@@ -21,6 +16,24 @@ public:
 	float Camera_GetMaxHeight_WhenLobbyHost() const { return m_Camera_MaxHeight_LobbyHost; }
 
 	float DetermineCameraMaxHeight();
+
+	// The keyboard camera rotate and pitch speeds and the keyboard and mouse wheel zoom speeds, value / 100 of camera.rotate_factor,
+	// camera.pitch_factor and camera.zoom_factor. The camera code multiplies them by SCROLL_MULTIPLIER.
+	float Camera_GetRotateFactor() const { return GenOnlineClientOptions::CameraFactorToReal(m_Camera_RotateFactor); }
+	float Camera_GetPitchFactor() const { return GenOnlineClientOptions::CameraFactorToReal(m_Camera_PitchFactor); }
+	float Camera_GetZoomFactor() const { return GenOnlineClientOptions::CameraFactorToReal(m_Camera_ZoomFactor); }
+
+	// TRUE for Miles audio with Bink movies instead of OpenAL with FFmpeg movies, in builds that have both.
+	bool Media_UseLegacy() const { return m_Media_Legacy; }
+
+	int Observer_GetStatsFontSize() const { return m_Observer_StatsFontSize; }
+	int Observer_GetNotificationFontSize() const { return m_Observer_NotificationFontSize; }
+	bool Observer_NotificationSpecialPowerUsage() const { return m_Observer_NotificationSpecialPowerUsage; }
+	bool Observer_NotificationSpecialPowerPurchase() const { return m_Observer_NotificationSpecialPowerPurchase; }
+	bool Observer_NotificationMilestone() const { return m_Observer_NotificationMilestone; }
+	// The font sizes are clamped to 0 to 15 and saved to client.json.
+	void Observer_SetStatsFontSize(int fontSize);
+	void Observer_SetNotificationFontSize(int fontSize);
 
 	void Graphics_SetFPS(int fpsLimit, bool bLimitFramerate)
 	{
@@ -71,15 +84,18 @@ public:
 	{
 		m_bInitialized = true;
 		Load();
+		LoadPackList();
 	}
 
 	// GenOnline @feature arcticdolphin 08/11/2026 Map select favourites, keyed by the lowercased portable map path.
 	bool Maps_IsFavourite(const std::string& portableMapPath) const;
 	void Maps_SetFavourite(const std::string& portableMapPath, bool bFavourite);
 
-	const GenOnlineDataPackLayer& DataPacks_User() const { return m_DataPacks_User; }
-	const GenOnlineDataPackLayer& DataPacks_GeneralsOnline() const { return m_DataPacks_GeneralsOnline; }
-	const GenOnlineDataPackLayer& DataPacks_CommunityPatch() const { return m_DataPacks_CommunityPatch; }
+	// TRUE when the packs come from the -packs file, FALSE when the game uses its built-in packs
+	bool DataPacks_FromPackList() const { return m_bPackList; }
+	// The enabled packs of the -packs file, lowest first
+	const std::vector<GenOnlinePackList::Pack>& DataPacks_Stack() const { return m_PackStack; }
+	// The game folder excludes in effect before loadMods, always empty because the -packs stack excludes take effect in loadMods with the packs
 	const std::vector<std::string>& DataPacks_UserExcludePaths() const { return m_DataPacks_UserExcludePaths; }
 
 	ServiceConnectionSettings Network_GetConnectionSettings() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_ConnectionSettings; }
@@ -90,14 +106,25 @@ public:
 
 private:
 	void Load(void);
+	void LoadPackList();
 	bool Save();
 
 private:
-	// NOTE: This also works as the default creation (since we just call Save)
 	const float m_Camera_MinHeight_default = 100.f;
 	float m_Camera_MinHeight = m_Camera_MinHeight_default;
 
 	float m_Camera_MaxHeight_LobbyHost = GENONLINE_DEFAULT_LOBBY_CAMERA_ZOOM;
+	int m_Camera_RotateFactor = GenOnlineClientOptions::CameraFactorDefault;
+	int m_Camera_PitchFactor = GenOnlineClientOptions::CameraFactorDefault;
+	int m_Camera_ZoomFactor = GenOnlineClientOptions::CameraFactorDefault;
+
+	bool m_Media_Legacy = GenOnlineClientOptions::LegacyMediaDefault;
+
+	int m_Observer_StatsFontSize = GenOnlineClientOptions::ObserverStatsFontSizeDefault;
+	int m_Observer_NotificationFontSize = GenOnlineClientOptions::ObserverNotificationFontSizeDefault;
+	bool m_Observer_NotificationSpecialPowerUsage = GenOnlineClientOptions::ObserverNotificationDefault;
+	bool m_Observer_NotificationSpecialPowerPurchase = GenOnlineClientOptions::ObserverNotificationDefault;
+	bool m_Observer_NotificationMilestone = GenOnlineClientOptions::ObserverNotificationDefault;
 
 	bool m_bInitialized = false;
 
@@ -120,17 +147,10 @@ private:
 
 	std::set<std::string> m_Maps_Favourites;
 
-	// BIG archives above the retail ones. The layers load in this order, highest priority first. A missing or invalid field keeps its default.
-	GenOnlineDataPackLayer m_DataPacks_User;
-	std::vector<std::string> m_DataPacks_UserExcludePaths;	// loose files of the game folder, BIGs of the game folders and BIGs of the user layer that are left out
-#if RTS_GENERALS
-	// The GenOnline and community patch archives hold Zero Hour data, so Generals loads nothing above retail by default.
-	GenOnlineDataPackLayer m_DataPacks_GeneralsOnline = { true, {} };
-	GenOnlineDataPackLayer m_DataPacks_CommunityPatch = { true, {} };
-#else
-	GenOnlineDataPackLayer m_DataPacks_GeneralsOnline = { true, { "user:GeneralsOnlineGameData/GeneralsOnline_Core.big" } };
-	GenOnlineDataPackLayer m_DataPacks_CommunityPatch = { true, { "user:GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big" } };
-#endif
+	// The pack list of -packs, read once at startup. A missing, unusable, newer or other game file leaves the built-in packs.
+	bool m_bPackList = false;
+	std::vector<GenOnlinePackList::Pack> m_PackStack;
+	std::vector<std::string> m_DataPacks_UserExcludePaths;	// always empty, see DataPacks_UserExcludePaths
 
 	std::string m_Plugins_Anticheat = std::string();
 
@@ -139,5 +159,7 @@ private:
 	std::string m_LastRoute;
 	// keeps keys this build does not know when a setting is saved mid-session
 	std::string m_PreservedJSON = "{}";
-	bool m_CanSave = true;
+	// %LOCALAPPDATA%\GeneralsOnline\client.json, written only when it exists with a schema_version this client knows
+	std::wstring m_ClientFilePath;
+	bool m_bClientFileWritable = false;
 };

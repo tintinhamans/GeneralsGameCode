@@ -61,6 +61,9 @@
 #include "GameClient/TerrainVisual.h"
 
 #include "GameNetwork/FirewallHelper.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInit.h"
+#endif
 
 // PUBLIC DATA ////////////////////////////////////////////////////////////////////////////////////
 GlobalData* TheWritableGlobalData = nullptr;				///< The global data singleton
@@ -1051,7 +1054,9 @@ GlobalData::GlobalData()
 	m_forceBenchmark = FALSE;	///<forces running of CPU detection benchmark, even on known cpu's.
 
 	m_keyboardCameraRotateSpeed = 0.1f;
-	m_cameraPitchSpeedMultiplier = 1.0f;
+	m_cameraRotateFactor = 0.5f;
+	m_cameraPitchFactor = 0.5f;
+	m_cameraZoomFactor = 0.5f;
 
 	m_useAlternateMouse = FALSE;
 #if RTS_GENERALS
@@ -1234,12 +1239,10 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_playerInfoListFontSize = optionPref.getPlayerInfoListFontSize();
 	TheWritableGlobalData->m_showMoneyPerMinute = optionPref.getShowMoneyPerMinute();
 	TheWritableGlobalData->m_gameWindowTransitionSpeedMultiplier = optionPref.getGameWindowTransitionSpeedMultiplier();
-	TheWritableGlobalData->m_cameraPitchSpeedMultiplier = optionPref.getCameraPitchSpeedMultiplier();
-	TheWritableGlobalData->m_observerStatsFontSize = optionPref.getObserverStatsFontSize();
-	TheWritableGlobalData->m_observerNotificationFontSize = optionPref.getObserverNotificationFontSize();
-	TheWritableGlobalData->m_observerNotificationSpecialPowerUsage = optionPref.getObserverNotificationSpecialPowerUsage();
-	TheWritableGlobalData->m_observerNotificationSpecialPowerPurchase = optionPref.getObserverNotificationSpecialPowerPurchase();
-	TheWritableGlobalData->m_observerNotificationMilestone = optionPref.getObserverNotificationMilestone();
+#if defined(GENONLINE)
+	// The camera factors and the observer overlay settings come from client.json.
+	TheWritableGlobalData->applyGenOnlineClientSettings();
+#endif
 
 	TheWritableGlobalData->m_antiAliasLevel = optionPref.getAntiAliasing();
 	TheWritableGlobalData->m_textureFilteringMode = optionPref.getTextureFilterMode();
@@ -1265,6 +1268,22 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_xResolution = xres;
 	TheWritableGlobalData->m_yResolution = yres;
 }
+
+#if defined(GENONLINE)
+//-------------------------------------------------------------------------------------------------
+void GlobalData::applyGenOnlineClientSettings()
+{
+	const GenOnlineSettings& genOnlineSettings = GenOnlineServicesManager::Settings;
+	m_cameraRotateFactor = genOnlineSettings.Camera_GetRotateFactor();
+	m_cameraPitchFactor = genOnlineSettings.Camera_GetPitchFactor();
+	m_cameraZoomFactor = genOnlineSettings.Camera_GetZoomFactor();
+	m_observerStatsFontSize = genOnlineSettings.Observer_GetStatsFontSize();
+	m_observerNotificationFontSize = genOnlineSettings.Observer_GetNotificationFontSize();
+	m_observerNotificationSpecialPowerUsage = genOnlineSettings.Observer_NotificationSpecialPowerUsage();
+	m_observerNotificationSpecialPowerPurchase = genOnlineSettings.Observer_NotificationSpecialPowerPurchase();
+	m_observerNotificationMilestone = genOnlineSettings.Observer_NotificationMilestone();
+}
+#endif
 
 void GlobalData::parseCustomDefinition()
 {
