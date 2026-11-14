@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GenOnlineInclude.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeDirectMessages.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 #include "NetworkMesh.h"
 #include "GameNetwork/RankPointValue.h"
@@ -59,30 +60,31 @@ public:
 	void DeregisterForRealtimeServiceUpdates();
 
 	// TODO_SOCIAL: Store unread messages in DB so data isnt lost if user logs out or crashes etc without reading them?
-	std::vector<UnicodeString> GetChatMessagesForUser(int64_t target_user_id)
+	std::vector<GenOnlineRealtime::DirectChatLine> GetChatMessagesForUser(int64_t target_user_id)
 	{
-		if (m_mapCachedMessages.contains(target_user_id))
+		auto it = m_mapCachedMessages.find(target_user_id);
+		if (it != m_mapCachedMessages.end())
 		{
-			return m_mapCachedMessages[target_user_id];
+			return it->second.Lines();
 		}
 
-		return std::vector<UnicodeString>();
+		return std::vector<GenOnlineRealtime::DirectChatLine>();
 	}
+
+	static UnicodeString GetChatLineText(const GenOnlineRealtime::DirectChatLine& line);
 
 	void ClearUnreadChatMessagesForUser(int64_t target_user_id)
 	{
-		m_mapUnreadMessagesForUser.erase(target_user_id);
+		m_unreadConversations.Clear(target_user_id);
 	}
 
 	int GetNumberUnreadChatMessagesForUser(int64_t target_user_id)
 	{
-        if (m_mapUnreadMessagesForUser.contains(target_user_id))
-        {
-            return m_mapUnreadMessagesForUser[target_user_id];
-        }
-
-        return 0;
+		return m_unreadConversations.Unread(target_user_id);
 	}
+
+	// The player views the conversation. It loads the history once and marks an unread conversation read as a whole.
+	void ViewConversation(int64_t target_user_id);
 
 	// Callbacks
 	void InvokeCallback_NewFriendRequest(std::string strDisplayName);
@@ -91,9 +93,21 @@ public:
 		m_cbOnNewFriendRequest = cbOnNewFriendRequest;
 	}
 
-	void RegisterForCallback_OnChatMessage(std::function<void(int64_t source_user_id, int64_t target_user_id, UnicodeString unicodeStr)> cbOnChatMessage)
+	// The key names the chat line of a message and is 0 for a local note.
+	void RegisterForCallback_OnChatMessage(std::function<void(int64_t peer_user_id, uint32_t key, UnicodeString unicodeStr)> cbOnChatMessage)
 	{
 		m_cbOnChatMessage = cbOnChatMessage;
+	}
+
+	// The lines of a conversation changed as a whole. The user id is -1 for every conversation.
+	void RegisterForCallback_OnConversationReloaded(std::function<void(int64_t peer_user_id)> cb)
+	{
+		m_cbOnConversationReloaded = cb;
+	}
+
+	void RegisterForCallback_OnChatLineRemoved(std::function<void(int64_t peer_user_id, uint32_t key)> cb)
+	{
+		m_cbOnChatLineRemoved = cb;
 	}
 
 	const std::unordered_map<int64_t, FriendsEntry>& GetRecentlyPlayedWithList()
@@ -159,6 +173,9 @@ public:
 	void OnRealtimeFriendPresence(const GenOnlineRealtime::FriendPresenceEvent& event);
 	void OnRealtimeMemberUpdate(const GenOnlineRealtime::Member& member);
 	void OnRealtimeDirectMessage(const GenOnlineRealtime::ChatMessage& message);
+	void OnRealtimeConversations(const GenOnlineRealtime::ConversationsEvent& event);
+	void OnRealtimeReadMarker(const GenOnlineRealtime::ReadMarkerEvent& event);
+	void OnRealtimeDirectMessageDelete(const GenOnlineRealtime::MessageDeleteEvent& event);
 
 private:
 	// Calls a social hub method and refreshes the communicator once the service answered.
@@ -166,6 +183,9 @@ private:
 	void InvokeSocialRealtime(const R& request, std::function<void(GenOnlineSocialInterface* pThis)> onSuccess);
 	std::string FindDisplayName(int64_t user_id);
 	bool m_bRealtimeWelcomePending = false;
+	GenOnlineRealtime::DirectConversation& GetConversation(int64_t peer_user_id);
+	// Adds a shown line to the unread count, the notification and the open chat.
+	void OnConversationLine(int64_t peer_user_id, bool bFromMe, uint32_t key, const UnicodeString& unicodeStr);
 
 	void TriggerCallback_OnNumberGlobalNotificationsChanged()
 	{
@@ -182,14 +202,16 @@ private:
 
 	// NOTE: We cache messages here, because the UI isn't always present, but we dont want to miss messages
 	// TODO_SOCIAL: Limit this
-	std::map<int64_t, std::vector<UnicodeString>> m_mapCachedMessages; // user id here is who we are talking to / target user
-	std::map<int64_t, int> m_mapUnreadMessagesForUser; // user id here is who we are talking to / target user
+	std::map<int64_t, GenOnlineRealtime::DirectConversation> m_mapCachedMessages; // user id here is who we are talking to / target user
+	GenOnlineRealtime::DirectMessageUnread m_unreadConversations; // Keyed by the other user of each conversation.
 
 	std::function<void(int newNumNotifications)> m_cbOnNumberGlobalNotificationsChanged = nullptr;
 
 	std::function<void(std::string strDisplayName)> m_cbOnNewFriendRequest = nullptr;
 
-	std::function<void(int64_t source_user_id, int64_t target_user_id, UnicodeString unicodeStr)> m_cbOnChatMessage = nullptr;
+	std::function<void(int64_t peer_user_id, uint32_t key, UnicodeString unicodeStr)> m_cbOnChatMessage = nullptr;
+	std::function<void(int64_t peer_user_id)> m_cbOnConversationReloaded = nullptr;
+	std::function<void(int64_t peer_user_id, uint32_t key)> m_cbOnChatLineRemoved = nullptr;
 
 	// Cached, may be out of date if friends UI isnt active, optimized for lookup
 	// Rebuilt on the HTTP thread and read from the main thread, so all access goes through m_friendsMapMutex.

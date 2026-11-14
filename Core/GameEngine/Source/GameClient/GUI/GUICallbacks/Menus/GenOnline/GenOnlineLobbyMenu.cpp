@@ -953,6 +953,33 @@ static void PopulateLobbyFilterComboBox(GameWindow* comboBox)
 	s_populatingLobbyCombo = FALSE;
 }
 
+// A chat message line keeps its key as item data, so the row is found again after older rows scroll out.
+static void AddRoomChatMessageLine(UnicodeString strMessage, Color color, uint32_t key)
+{
+	const Int row = GadgetListBoxAddEntryText(listboxLobbyChat, strMessage, color, -1, -1);
+	if (row >= 0)
+	{
+		GadgetListBoxSetItemData(listboxLobbyChat, reinterpret_cast<void*>(static_cast<uintptr_t>(key)), row, 0);
+	}
+}
+
+static void RemoveRoomChatMessageLine(uint32_t key)
+{
+	if (listboxLobbyChat == nullptr)
+	{
+		return;
+	}
+	const Int numEntries = GadgetListBoxGetNumEntries(listboxLobbyChat);
+	for (Int row = 0; row < numEntries; ++row)
+	{
+		if (reinterpret_cast<uintptr_t>(GadgetListBoxGetItemData(listboxLobbyChat, row, 0)) == key)
+		{
+			TheWindowManager->winSendSystemMsg(listboxLobbyChat, GLM_DEL_ENTRY, static_cast<WindowMsgData>(row), 0);
+			return;
+		}
+	}
+}
+
 static void HandleNetworkRoomChanged(int roomIndex, bool effectiveRoomChanged)
 {
 	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
@@ -1595,6 +1622,7 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
 			{
 				GadgetListBoxAddEntryText(listboxLobbyChat, strMessage, color, -1, -1);
 			});
+		pRoomsInterface->RegisterForChatMessageCallbacks(AddRoomChatMessageLine, RemoveRoomChatMessageLine);
 
 		// register for roster events (throttled path)
 		pRoomsInterface->RegisterForRosterNeedsRefreshCallback([]()

@@ -449,6 +449,13 @@ void WebSocket::OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, co
 		BeginReconnect();
 		m_nextReconnectAttempt = NowMs() + GenOnlineRealtime::KICK_RECONNECT_DELAY_MS;
 		break;
+	case GenOnlineRealtime::DisconnectAction::ReconnectAfterSwitch:
+	{
+		const int64_t delayMs = GenOnlineRealtime::SwitchReconnectDelayMs(m_pHubSession->ServerSwitchingRetryAfterMs(), RealtimeReconnectRandom());
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Server switching, reconnecting in %lld ms", static_cast<long long>(delayMs));
+		BeginSwitchReconnect(delayMs);
+		break;
+	}
 	case GenOnlineRealtime::DisconnectAction::RefreshAndReconnect:
 		if (m_bHubSessionRecoveryTried)
 		{
@@ -640,7 +647,7 @@ void WebSocket::SendData_RoomChatMessage(UnicodeString& msg, bool bIsAction)
 		return;
 	}
 	GenOnlineRealtime::SendMessageRequest request;
-	request.channel_id = "room:" + std::to_string(*pRooms->GetEffectiveRoomID());
+	request.channel_id = "channel:" + std::to_string(*pRooms->GetEffectiveRoomID());
 	request.type = bIsAction ? "action" : "chat";
 	request.content = to_utf8(msg.str());
 	InvokeHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
@@ -679,12 +686,12 @@ void WebSocket::SendData_JoinNetworkRoom(int roomID)
 	};
 	if (roomID < 0)
 	{
-		InvokeHub(GenOnlineRealtime::LeaveRoomRequest(), nullptr);
+		InvokeHub(GenOnlineRealtime::LeaveChannelRequest(), nullptr);
 		return;
 	}
-	// The members arrive as RoomMembers, which completes the room change.
-	GenOnlineRealtime::JoinRoomRequest request;
-	request.room_id = roomID;
+	// The members arrive as ChannelMembers, which completes the room change.
+	GenOnlineRealtime::JoinChannelRequest request;
+	request.channel_id = roomID;
 	InvokeHub(request, onOutcome);
 }
 
@@ -833,17 +840,35 @@ void WebSocket::BeginReconnect()
 		return;
 	}
 
+	StartReconnect(ComputeReconnectDelay(), false);
+}
+
+// The handover reconnect skips the backoff once. A reconnect already in progress keeps its own delays.
+void WebSocket::BeginSwitchReconnect(int64_t delayMs)
+{
+	if (m_bReconnecting)
+	{
+		return;
+	}
+
+	StartReconnect(delayMs, true);
+}
+
+void WebSocket::StartReconnect(int64_t delayMs, bool bSwitch)
+{
 	ClearOutbound();
 	m_bReconnecting = true;
+	m_bSwitchReconnect = bSwitch;
 	m_numReconnectAttempts = 0;
 	m_reconnectAttemptStarted = -1;
 	m_reconnectStartTime = NowMs();
-	m_nextReconnectAttempt = m_reconnectStartTime + ComputeReconnectDelay();
+	m_nextReconnectAttempt = m_reconnectStartTime + delayMs;
 }
 
 void WebSocket::EndReconnect()
 {
 	m_bReconnecting = false;
+	m_bSwitchReconnect = false;
 	m_reconnectAttemptStarted = -1;
 }
 
@@ -867,6 +892,13 @@ void WebSocket::UpdateReconnect()
 	}
 
 	const int64_t currTime = NowMs();
+
+	// A handover reconnect that did not connect within 3 seconds of the close becomes a normal reconnect.
+	if (m_bSwitchReconnect && !GenOnlineRealtime::SwitchReconnectHidden(m_reconnectStartTime, currTime))
+	{
+		m_bSwitchReconnect = false;
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Server switch reconnect still pending after %lld ms, continuing as a normal reconnect", static_cast<long long>(currTime - m_reconnectStartTime));
+	}
 
 	// Connect() kills the previous handle: leave a pending attempt alone unless stuck.
 	if (m_reconnectAttemptStarted != -1 && (currTime - m_reconnectAttemptStarted) < m_reconnectAttemptTimeout)
@@ -1168,6 +1200,7 @@ void GenOnlineRoomsInterface::GetRoomList(std::function<void(bool)> cb)
 	m_CurrentRoomIndex = -1;
 	m_EffectiveRoomID.reset();
 	m_PendingRoomChange.reset();
+	m_ChannelChat.Clear();
 
 	// Cache our buddies on lobby list
 	GenOnlineSocialInterface* pSocialInterface =
@@ -1237,6 +1270,14 @@ void GenOnlineRoomsInterface::Tick()
 		m_PendingRoomChange.reset();
 		ReportRoomJoinFailure("The room change timed out. Please try again.");
 	}
+	// Live messages stop waiting for a ChannelHistory that does not come.
+	if (m_ChannelChat.IsAwaitingHistory() && std::chrono::steady_clock::now() >= m_ChannelHistoryDeadline)
+	{
+		for (const GenOnlineRealtime::ChannelChatLine& line : m_ChannelChat.ReleaseWaiting())
+		{
+			ShowRoomChatLine(line);
+		}
+	}
 }
 
 void GenOnlineRoomsInterface::ReportRoomJoinFailure(const std::string& error)
@@ -1265,10 +1306,10 @@ static NetworkRoomMember ToRoomMember(const GenOnlineRealtime::Member& member)
 	return roomMember;
 }
 
-void GenOnlineRoomsInterface::SetRealtimeRooms(const std::vector<GenOnlineRealtime::RoomInfo>& rooms)
+void GenOnlineRoomsInterface::SetRealtimeRooms(const std::vector<GenOnlineRealtime::ChannelInfo>& rooms)
 {
 	m_vecRealtimeRooms.clear();
-	for (const GenOnlineRealtime::RoomInfo& room : rooms)
+	for (const GenOnlineRealtime::ChannelInfo& room : rooms)
 	{
 		const int parentRoomID = room.parent_id.isNull || room.parent_id.value <= 0 ? -1 : static_cast<int>(room.parent_id.value);
 		m_vecRealtimeRooms.emplace_back(static_cast<int>(room.id), room.name,
@@ -1286,7 +1327,7 @@ void GenOnlineRoomsInterface::RefreshRoster()
 }
 
 // The full member list after a join and after every reconnect. It also tells which room the session is in.
-void GenOnlineRoomsInterface::OnRealtimeRoomMembers(const GenOnlineRealtime::RoomMembersEvent& event)
+void GenOnlineRoomsInterface::OnRealtimeChannelMembers(const GenOnlineRealtime::ChannelMembersEvent& event)
 {
 	std::unordered_map<uint64_t, NetworkRoomMember> members;
 	for (const GenOnlineRealtime::Member& member : event.members)
@@ -1298,21 +1339,33 @@ void GenOnlineRoomsInterface::OnRealtimeRoomMembers(const GenOnlineRealtime::Roo
 	int roomIndex = -1;
 	for (size_t i = 0; i < m_vecRooms.size(); ++i)
 	{
-		if (m_vecRooms[i].GetRoomID() == event.room_id)
+		if (m_vecRooms[i].GetRoomID() == event.channel_id)
 		{
 			roomIndex = static_cast<int>(i);
 			break;
 		}
 	}
 
-	const bool effectiveRoomChanged = !m_EffectiveRoomID.has_value() || *m_EffectiveRoomID != event.room_id;
-	m_EffectiveRoomID = static_cast<int>(event.room_id);
+	const bool effectiveRoomChanged = !m_EffectiveRoomID.has_value() || *m_EffectiveRoomID != event.channel_id;
+	m_EffectiveRoomID = static_cast<int>(event.channel_id);
+	// ChannelHistory follows for the channel actually joined, which a parent room resolves to.
+	m_ChannelChat.Start("channel:" + std::to_string(event.channel_id));
+	m_ChannelHistoryDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
 	// Joining a parent room lands in its default child room, which completes the change too.
-	if (m_PendingRoomChange.has_value() && (m_PendingRoomChange->roomID == event.room_id
+	// A parent room stays the selected room while its chat runs in the default child room.
+	int selectedRoomIndex = roomIndex;
+	if (m_PendingRoomChange.has_value() && (m_PendingRoomChange->roomID == event.channel_id
 		|| (roomIndex >= 0 && m_vecRooms[roomIndex].GetParentRoomID() == m_PendingRoomChange->roomID)))
 	{
+		selectedRoomIndex = m_PendingRoomChange->roomIndex;
 		m_PendingRoomChange.reset();
 	}
+	else if (roomIndex >= 0 && m_CurrentRoomIndex >= 0 && m_CurrentRoomIndex < (int)m_vecRooms.size()
+		&& m_vecRooms[roomIndex].GetParentRoomID() == m_vecRooms[m_CurrentRoomIndex].GetRoomID())
+	{
+		selectedRoomIndex = m_CurrentRoomIndex;
+	}
+	roomIndex = selectedRoomIndex;
 	if (roomIndex >= 0 && (effectiveRoomChanged || roomIndex != m_CurrentRoomIndex))
 	{
 		m_CurrentRoomIndex = roomIndex;
@@ -1326,7 +1379,7 @@ void GenOnlineRoomsInterface::OnRealtimeRoomMembers(const GenOnlineRealtime::Roo
 
 void GenOnlineRoomsInterface::OnRealtimeMemberAdd(const GenOnlineRealtime::MemberAddEvent& event)
 {
-	if (!m_EffectiveRoomID.has_value() || event.channel_id != "room:" + std::to_string(*m_EffectiveRoomID))
+	if (!m_EffectiveRoomID.has_value() || event.channel_id != "channel:" + std::to_string(*m_EffectiveRoomID))
 	{
 		return;
 	}
@@ -1336,7 +1389,7 @@ void GenOnlineRoomsInterface::OnRealtimeMemberAdd(const GenOnlineRealtime::Membe
 
 void GenOnlineRoomsInterface::OnRealtimeMemberRemove(const GenOnlineRealtime::MemberRemoveEvent& event)
 {
-	if (!m_EffectiveRoomID.has_value() || event.channel_id != "room:" + std::to_string(*m_EffectiveRoomID))
+	if (!m_EffectiveRoomID.has_value() || event.channel_id != "channel:" + std::to_string(*m_EffectiveRoomID))
 	{
 		return;
 	}
@@ -1359,13 +1412,86 @@ void GenOnlineRoomsInterface::OnRealtimeMemberUpdate(const GenOnlineRealtime::Me
 
 void GenOnlineRoomsInterface::OnRealtimeRoomMessage(const GenOnlineRealtime::ChatMessage& message)
 {
-	if (!m_EffectiveRoomID.has_value() || message.channel_id != "room:" + std::to_string(*m_EffectiveRoomID) || m_OnChatCallback == nullptr)
+	if (!m_EffectiveRoomID.has_value() || message.channel_id != "channel:" + std::to_string(*m_EffectiveRoomID))
 	{
 		return;
 	}
+	for (const GenOnlineRealtime::ChannelChatLine& line : m_ChannelChat.AddLive(message))
+	{
+		ShowRoomChatLine(line);
+	}
+}
+
+void GenOnlineRoomsInterface::OnRealtimeChannelHistory(const GenOnlineRealtime::ChannelHistoryEvent& event)
+{
+	const GenOnlineRealtime::ChannelChatUpdate update = m_ChannelChat.AddHistory(event);
+	for (uint32_t key : update.removed)
+	{
+		RemoveRoomChatLine(key);
+	}
+	for (const GenOnlineRealtime::ChannelChatLine& line : update.shown)
+	{
+		ShowRoomChatLine(line);
+	}
+}
+
+void GenOnlineRoomsInterface::OnRealtimeMessageDelete(const GenOnlineRealtime::MessageDeleteEvent& event)
+{
+	const uint32_t key = m_ChannelChat.Remove(event.channel_id, event.message_id);
+	if (key != 0)
+	{
+		RemoveRoomChatLine(key);
+	}
+}
+
+// Reads the minute of an ISO 8601 UTC time as local time.
+static bool UtcTextToLocalTime(const std::string& strTime, SYSTEMTIME& localTime)
+{
+	int year = 0;
+	int month = 0;
+	int day = 0;
+	int hour = 0;
+	int minute = 0;
+	if (sscanf_s(strTime.c_str(), "%d-%d-%dT%d:%d", &year, &month, &day, &hour, &minute) != 5)
+	{
+		return false;
+	}
+	SYSTEMTIME utcTime = {};
+	utcTime.wYear = static_cast<WORD>(year);
+	utcTime.wMonth = static_cast<WORD>(month);
+	utcTime.wDay = static_cast<WORD>(day);
+	utcTime.wHour = static_cast<WORD>(hour);
+	utcTime.wMinute = static_cast<WORD>(minute);
+	return SystemTimeToTzSpecificLocalTime(nullptr, &utcTime, &localTime) != FALSE;
+}
+
+// Shows an ISO 8601 UTC time of the service as local date and time, or the text itself when it does not parse.
+std::string GenOnlineLocalTimeText(const std::string& utcText)
+{
+	SYSTEMTIME localTime;
+	if (!UtcTextToLocalTime(utcText, localTime))
+	{
+		return utcText;
+	}
+	char text[32];
+	snprintf(text, sizeof(text), "%04d-%02d-%02d %02d:%02d", localTime.wYear, localTime.wMonth, localTime.wDay, localTime.wHour, localTime.wMinute);
+	return text;
+}
+
+// A history line shows the time the service stored the message, a live line the time it arrived.
+void GenOnlineRoomsInterface::ShowRoomChatLine(const GenOnlineRealtime::ChannelChatLine& line)
+{
+	if (m_OnChatCallback == nullptr && m_OnChatMessageCallback == nullptr)
+	{
+		return;
+	}
+	const GenOnlineRealtime::ChatMessage& message = line.message;
 	const bool bAction = message.type == "action";
 	SYSTEMTIME systemTime;
-	GetLocalTime(&systemTime);
+	if (line.live || !UtcTextToLocalTime(message.created_at, systemTime))
+	{
+		GetLocalTime(&systemTime);
+	}
 	UnicodeString unicodeStr;
 	unicodeStr.format(bAction ? L"[%2.2d:%2.2d] %s %s" : L"[%2.2d:%2.2d] %s: %s", systemTime.wHour, systemTime.wMinute,
 		from_utf8(message.author.name).c_str(), from_utf8(message.content).c_str());
@@ -1377,11 +1503,30 @@ void GenOnlineRoomsInterface::OnRealtimeRoomMessage(const GenOnlineRealtime::Cha
 		color = badgeColor;
 	}
 #if RTS_ZEROHOUR
-	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	const bool bLocal = pAuth != nullptr && pAuth->GetUserID() == message.author.id;
-	StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_ROOM, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, FALSE, bLocal);
+	// Only live chat goes to the stats exporter, so a replayed history line is not exported again.
+	if (line.live)
+	{
+		GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+		const bool bLocal = pAuth != nullptr && pAuth->GetUserID() == message.author.id;
+		StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_ROOM, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, FALSE, bLocal);
+	}
 #endif
-	m_OnChatCallback(unicodeStr, color);
+	if (m_OnChatMessageCallback != nullptr)
+	{
+		m_OnChatMessageCallback(unicodeStr, color, line.key);
+	}
+	else
+	{
+		m_OnChatCallback(unicodeStr, color);
+	}
+}
+
+void GenOnlineRoomsInterface::RemoveRoomChatLine(uint32_t key)
+{
+	if (m_OnChatMessageRemovedCallback != nullptr)
+	{
+		m_OnChatMessageRemovedCallback(key);
+	}
 }
 
 void GenOnlineRoomsInterface::OnRealtimeNameChanged(const std::string& strOldName, const std::string& strNewName)
@@ -1408,48 +1553,6 @@ void GenOnlineRoomsInterface::OnRealtimeRoomJoinFailed(int roomID, const std::ws
 	{
 		m_OnChatCallback(UnicodeString(strReason.c_str()), GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255)));
 	}
-}
-
-void GenOnlineLobbyInterface::OnRealtimeLobbyMessage(const GenOnlineRealtime::ChatMessage& message)
-{
-	if (!IsInLobby() || message.channel_id != "lobby:" + std::to_string(m_CurrentLobby.lobbyID) || m_OnChatCallback == nullptr)
-	{
-		return;
-	}
-
-	const bool bAction = message.type == "action";
-	const bool bAnnouncement = message.type == "announcement";
-	int lobbySlot = -1;
-	for (const LobbyMemberEntry& member : m_CurrentLobby.members)
-	{
-		if (member.user_id == message.author.id)
-		{
-			lobbySlot = member.m_SlotIndex;
-			break;
-		}
-	}
-
-	UnicodeString unicodeStr;
-	if (bAnnouncement)
-	{
-		unicodeStr = UnicodeString(from_utf8(message.content).c_str());
-	}
-	else
-	{
-		unicodeStr.format(bAction ? L"%s %s" : L"%s: %s", from_utf8(message.author.name).c_str(), from_utf8(message.content).c_str());
-	}
-
-	// Announcements keep the neutral notice colour, player chat keeps the slot colour.
-	Color color = bAnnouncement
-		? DetermineSystemNoticeColor(false, false)
-		: DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_LOBBY, true, bAction, false, false, lobbySlot);
-
-#if RTS_ZEROHOUR
-	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	const bool bIsLocal = pAuthInterface != nullptr && pAuthInterface->GetUserID() == message.author.id;
-	StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_GAME_LOBBY, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, bAnnouncement, bIsLocal);
-#endif
-	m_OnChatCallback(unicodeStr, color);
 }
 
 void GenOnlineLobbyInterface::ShowRealtimeLobbyFailure(const GenOnlineRealtime::InvokeOutcome& outcome)
