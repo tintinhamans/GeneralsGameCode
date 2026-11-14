@@ -40,7 +40,9 @@ roads and water wrong.
 
 * Theme - (Dark, light, or following Windows. Stored in `WorldBuilder.ini`.)
 * Tool windows remember their size and position, and stay on screen. Window > Reset Window Positions
-puts them back.
+puts them back. A window follows the cursor onto another monitor when dragged there. A window with
+no saved position opens centered on the main window, and a saved position that is no longer on any
+monitor is pulled back into view.
 * Undo history depth is a setting; the default is 64 steps.
 * Long combo boxes filter as you type when "Search in combo boxes" is ticked in the Entity Finder.
 The NewSearch box beside it turns on live filtering in the tree pickers.
