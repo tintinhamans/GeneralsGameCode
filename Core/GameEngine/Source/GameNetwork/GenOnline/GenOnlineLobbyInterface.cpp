@@ -1868,6 +1868,8 @@ void GenOnlineLobbyInterface::HandleMatchFound(int64_t lobbyID, const std::strin
 	LobbyEntry lobbyEntry;
 	lobbyEntry.lobbyID = lobbyID;
 	lobbyEntry.map_path = mapPath;
+	// A found match always joins a quick match lobby, so the lobby type is known before the first lobby state.
+	lobbyEntry.lobby_type = ELobbyType::QuickMatch;
 
 	if (JoinLobby(lobbyEntry, std::string()))
 	{
@@ -1906,8 +1908,8 @@ void GenOnlineLobbyInterface::OnRealtimeMatchmakingStatus(const GenOnlineRealtim
 	{
 		return;
 	}
-	// The player is no longer queued. A quick match lobby that was joined belongs to the abandoned match.
-	if (IsInLobby() && m_CurrentLobby.lobby_type == ELobbyType::QuickMatch)
+	// The player is no longer queued. A quick match lobby that was joined or is being joined belongs to the abandoned match.
+	if (m_bAttemptingToJoinLobby || (IsInLobby() && m_CurrentLobby.lobby_type == ELobbyType::QuickMatch))
 	{
 		ResetForMatchmakingRequeue();
 	}
