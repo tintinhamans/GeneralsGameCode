@@ -10,6 +10,12 @@ selects it in the 3D view and centres the camera on it.
 * Ctrl+H opens find and replace for parameter values across all scripts, or only the selected one.
 Script names, folders and comments are never touched.
 * F4 toggles the editor. Clear All empties the script list and can be undone.
+* Command keys - (Alt+F New Folder, Alt+N New Script, Alt+E Edit, Alt+C Copy, Alt+D Delete,
+Alt+V Verify, Ctrl+Z Undo, Ctrl+Y or Ctrl+Shift+Z Redo, Ctrl+S Save. The More button, Alt+M,
+opens on hover and holds the debug, Patch "GC_", Replace Missing, Clear All, export and import
+commands.)
+* Save commits the scripts and saves the map. OK commits the scripts to the map and closes the
+editor without saving the map file. The window's X hides the editor like F4 and keeps its edits.
 * The editor has no minimize button. While it is open it follows player, team and build list
 edits made elsewhere, and saving scripts leaves them untouched.
 * In a name picker, a click or an arrow key takes the highlighted match. Enter completes the name
@@ -21,6 +27,26 @@ picker preselects the closest existing name. F3 and Shift+F3 step through other 
 
 Replace Missing Unit and the Team Builder and Build List repairs use the same name matching.
 Replace All shows a report of every swap, which can be corrected before applying.
+
+## Team Builder
+
+The original Team Builder layout has Edit, Undo, Redo and Save Now buttons. Undo and Redo step
+through the edits made since the window opened. Save Now commits the teams and saves the map
+without closing the window.
+
+| Key | Command |
+|---|---|
+| Alt+S | Select Team Members |
+| Alt+N | New Team |
+| Alt+E | Edit |
+| Alt+C | Copy |
+| Alt+D | Delete |
+| Alt+U, Alt+W | Move Up, Move Down |
+| Alt+F | Fix Missing Units |
+| Alt+X, Alt+I | Export Teams, Import Teams |
+| Ctrl+Z | Undo |
+| Ctrl+Y, Ctrl+Shift+Z | Redo |
+| Ctrl+S | Save Now |
 
 ## Scripts as JSON
 
