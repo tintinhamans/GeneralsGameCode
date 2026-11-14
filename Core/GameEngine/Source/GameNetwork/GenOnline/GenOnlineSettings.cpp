@@ -1,6 +1,6 @@
 #include "GameNetwork/GenOnline/GenOnlineSettings.h"
 #include "GameNetwork/GenOnline/GenOnlineClientFile.h"
-#include "Common/ArchiveFileSystem.h"
+#include "Common/CommandLine.h"
 #include "../json.hpp"
 #include "../GenOnlineLobbyInterface.h"
 #include "../GenOnlineInit.h"
@@ -56,15 +56,6 @@
 
 #define SETTINGS_KEY_PLUGINS "plugins"
 #define SETTINGS_KEY_PLUGINS_ANTICHEAT "anticheat"
-
-#define SETTINGS_KEY_DATAPACKS "data_packs"
-#define SETTINGS_KEY_DATAPACKS_USER "user"
-#define SETTINGS_KEY_DATAPACKS_GENONLINE "generals_online"
-#define SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH "community_patch"
-#define SETTINGS_KEY_DATAPACKS_ENABLED "enabled"
-#define SETTINGS_KEY_DATAPACKS_INCLUDE_PATHS "include_paths"
-#define SETTINGS_KEY_DATAPACKS_EXCLUDE_PATHS "exclude_paths"
-#define SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH_LEGACY "use_community_data_patch"	// before the layers, read once and dropped on save
 
 #define SETTINGS_KEY_MAPS "maps"
 #define SETTINGS_KEY_MAPS_FAVOURITES "favourites"
@@ -144,89 +135,6 @@ std::string GenOnlineSettings::GetAnticheatPlugin() const
     return choice;
 }
 
-// Reads a list of paths of data_packs, an entry that is not valid is dropped. Returns FALSE and keeps the list when the field is missing or not a list.
-static bool LoadDataPackPaths(const nlohmann::json& jsonLayer, const char* layerName, const char* key, bool excludes, std::vector<std::string>& paths)
-{
-    if (!jsonLayer.contains(key))
-    {
-        return false;
-    }
-
-    if (!jsonLayer[key].is_array())
-    {
-        NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s: %s is not a list, using the default", layerName, key);
-        return false;
-    }
-
-    paths.clear();
-    for (const auto& path : jsonLayer[key])
-    {
-        AsciiString reason;
-        bool bValid = false;
-        if (path.is_string())
-        {
-            bValid = excludes ? PathExcludeList::parse(path.get<std::string>(), nullptr, &reason) : ArchiveFileSystem::parseMountEntry(AsciiString(path.get<std::string>().c_str()), nullptr, &reason);
-        }
-
-        if (bValid)
-        {
-            paths.push_back(path.get<std::string>());
-        }
-        else
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s: %s entry dropped from the settings (%s)", layerName, key, path.is_string() ? reason.str() : "not a string");
-        }
-    }
-    return true;
-}
-
-// Reads one layer of data_packs. A missing or invalid field keeps what the layer holds, its default. excludePaths is only read for the user layer.
-static void LoadDataPackLayer(const nlohmann::json& dataPacks, const char* name, GenOnlineDataPackLayer& layer, std::vector<std::string>* excludePaths)
-{
-    if (!dataPacks.contains(name))
-    {
-        return;
-    }
-
-    const nlohmann::json& jsonLayer = dataPacks[name];
-    if (!jsonLayer.is_object())
-    {
-        NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s in the settings is not an object, using the default", name);
-        return;
-    }
-
-    if (jsonLayer.contains(SETTINGS_KEY_DATAPACKS_ENABLED))
-    {
-        if (jsonLayer[SETTINGS_KEY_DATAPACKS_ENABLED].is_boolean())
-        {
-            layer.m_enabled = jsonLayer[SETTINGS_KEY_DATAPACKS_ENABLED].get<bool>();
-        }
-        else
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s: enabled is not a boolean, using the default", name);
-        }
-    }
-
-    LoadDataPackPaths(jsonLayer, name, SETTINGS_KEY_DATAPACKS_INCLUDE_PATHS, false, layer.m_includePaths);
-
-    if (excludePaths != nullptr)
-    {
-        LoadDataPackPaths(jsonLayer, name, SETTINGS_KEY_DATAPACKS_EXCLUDE_PATHS, true, *excludePaths);
-    }
-}
-
-static nlohmann::json DataPackLayerToJson(const GenOnlineDataPackLayer& layer, const std::vector<std::string>* excludePaths)
-{
-    nlohmann::json jsonLayer = nlohmann::json::object();
-    jsonLayer[SETTINGS_KEY_DATAPACKS_ENABLED] = layer.m_enabled;
-    jsonLayer[SETTINGS_KEY_DATAPACKS_INCLUDE_PATHS] = layer.m_includePaths;
-    if (excludePaths != nullptr)
-    {
-        jsonLayer[SETTINGS_KEY_DATAPACKS_EXCLUDE_PATHS] = *excludePaths;
-    }
-    return jsonLayer;
-}
-
 // The old right mouse scroll speed was ratio * Options.ini scroll speed * (screen width / 2) pixels. The scroll now measures the drag at 800x600
 // and uses the 1.6 horizontal speed factor of GameData.ini, so the same speed needs a scroll speed of
 // old scroll speed * ratio * (width / 2) / (1.6 * 400), within the range of the options slider.
@@ -285,7 +193,6 @@ static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_LAST_ROUTE, ValueType::String },
 		{ SETTINGS_KEY_PLUGINS, ValueType::Object },
 		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_ANTICHEAT, ValueType::String },
-		{ SETTINGS_KEY_DATAPACKS, ValueType::Object },
 		{ SETTINGS_KEY_MAPS, ValueType::Object },
 		{ SETTINGS_KEY_MAPS "." SETTINGS_KEY_MAPS_FAVOURITES, ValueType::Array },
 	};
@@ -603,23 +510,6 @@ void GenOnlineSettings::Load(void)
 				}
 			}
 
-            if (jsonSettings.contains(SETTINGS_KEY_DATAPACKS))
-            {
-                const nlohmann::json& datapackSettings = jsonSettings[SETTINGS_KEY_DATAPACKS];
-
-                LoadDataPackLayer(datapackSettings, SETTINGS_KEY_DATAPACKS_USER, m_DataPacks_User, &m_DataPacks_UserExcludePaths);
-                LoadDataPackLayer(datapackSettings, SETTINGS_KEY_DATAPACKS_GENONLINE, m_DataPacks_GeneralsOnline, nullptr);
-                LoadDataPackLayer(datapackSettings, SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH, m_DataPacks_CommunityPatch, nullptr);
-
-                // a file from before the layers: the old community patch switch becomes community_patch.enabled
-                if (!datapackSettings.contains(SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH)
-                    && datapackSettings.contains(SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH_LEGACY)
-                    && datapackSettings[SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH_LEGACY].is_boolean())
-                {
-                    m_DataPacks_CommunityPatch.m_enabled = datapackSettings[SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH_LEGACY].get<bool>();
-                }
-            }
-
             if (jsonSettings.contains(SETTINGS_KEY_MAPS))
             {
                 auto mapSettings = jsonSettings[SETTINGS_KEY_MAPS];
@@ -715,6 +605,38 @@ static void EraseSettingKey(nlohmann::json& document, const char* section, const
 	}
 }
 
+void GenOnlineSettings::LoadPackList()
+{
+	m_bPackList = false;
+	m_PackStack.clear();
+	m_DataPacks_UserExcludePaths.clear();
+	if (!CommandLine::hasPackList())
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Pack list: no -packs, using the built-in packs");
+		return;
+	}
+
+#if RTS_GENERALS
+	const char* game = "generals";
+#else
+	const char* game = "generalsmd";
+#endif
+	const GenOnlinePackList::Result result = GenOnlinePackList::ReadFile(CommandLine::getPackListPath(), game);
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Pack list: %s", CommandLine::getPackListPath());
+	for (const std::string& line : result.log)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "%s", line.c_str());
+	}
+	if (result.status != GenOnlinePackList::Status::Ok)
+	{
+		return;
+	}
+
+	m_bPackList = true;
+	m_PackStack = result.stack;
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Pack list: %d packs above retail", static_cast<int>(m_PackStack.size()));
+}
+
 bool GenOnlineSettings::Save()
 {
 	if (!m_bInitialized)
@@ -800,15 +722,6 @@ bool GenOnlineSettings::Save()
 			SETTINGS_KEY_PLUGINS,
                 {
                     {SETTINGS_KEY_PLUGINS_ANTICHEAT, m_Plugins_Anticheat}
-                }
-        },
-
-        {
-            SETTINGS_KEY_DATAPACKS,
-                {
-                    {SETTINGS_KEY_DATAPACKS_USER, DataPackLayerToJson(m_DataPacks_User, &m_DataPacks_UserExcludePaths)},
-                    {SETTINGS_KEY_DATAPACKS_GENONLINE, DataPackLayerToJson(m_DataPacks_GeneralsOnline, nullptr)},
-                    {SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH, DataPackLayerToJson(m_DataPacks_CommunityPatch, nullptr)}
                 }
         },
 
