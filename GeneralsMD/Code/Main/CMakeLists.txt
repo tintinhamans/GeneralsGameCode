@@ -4,9 +4,9 @@ rts_copy_modern_media_files(z_generals)
 
 # Use a binary name that doesn't conflict with original game.
 if("${CMAKE_SYSTEM}" MATCHES "Windows")
-    set_target_properties(z_generals PROPERTIES OUTPUT_NAME "GeneralsOnlineZH${RTS_BUILD_OUTPUT_SUFFIX}")
+    set_target_properties(z_generals PROPERTIES OUTPUT_NAME "genonline_zerohour${RTS_BUILD_OUTPUT_SUFFIX}")
 else()
-    set_target_properties(z_generals PROPERTIES OUTPUT_NAME "GeneralsOnlineZH${RTS_BUILD_OUTPUT_SUFFIX}")
+    set_target_properties(z_generals PROPERTIES OUTPUT_NAME "genonline_zerohour${RTS_BUILD_OUTPUT_SUFFIX}")
 endif()
 
 target_link_libraries(z_generals PRIVATE
