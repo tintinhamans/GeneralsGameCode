@@ -24,6 +24,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "GameNetwork/GenOnline/Realtime/RealtimeChannelChat.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeDirectMessages.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeHubSession.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeLobbyStart.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMatchmaking.h"
@@ -1269,6 +1270,173 @@ static void TestLobbyChatReplay()
 	CHECK(log.Remove("lobby:992", "3") == 0);
 }
 
+static ChatMessage MakeDirect(const std::string& id, int64_t peer, int64_t author)
+{
+	ChatMessage message = MakeChat(id, DirectMessageChannel(peer));
+	message.author.id = author;
+	return message;
+}
+
+static Conversation MakeConversation(const std::string& channel, int unread, const std::string& lastID)
+{
+	Conversation conversation;
+	conversation.channel_id = channel;
+	conversation.unread = unread;
+	if (!lastID.empty())
+	{
+		conversation.last = Nullable<ChatMessage>(MakeChat(lastID, channel));
+	}
+	return conversation;
+}
+
+static std::vector<std::string> DirectLineIDs(const DirectConversation& conversation)
+{
+	std::vector<std::string> ids;
+	for (const DirectChatLine& line : conversation.Lines())
+	{
+		ids.push_back(line.IsNote() ? std::string("note") : line.message.id);
+	}
+	return ids;
+}
+
+static GetHistoryResult MakeDirectHistory(const std::vector<ChatMessage>& messages, bool hasMore)
+{
+	GetHistoryResult result;
+	result.messages = messages;
+	result.has_more = hasMore;
+	return result;
+}
+
+static void TestDirectMessagePeer()
+{
+	CHECK(DirectMessagePeer("dm:42") == 42);
+	CHECK(DirectMessagePeer("dm:") == -1);
+	CHECK(DirectMessagePeer("dm:4x") == -1);
+	CHECK(DirectMessagePeer("dm:-4") == -1);
+	CHECK(DirectMessagePeer("dm:99999999999999999999") == -1);
+	CHECK(DirectMessagePeer("channel:42") == -1);
+	CHECK(DirectMessagePeer("group:42") == -1);
+	CHECK(DirectMessageChannel(42) == "dm:42");
+}
+
+static void TestDirectMessageUnread()
+{
+	const int64_t me = 1;
+
+	// The snapshot sets the unread counts of direct conversations and ignores groups.
+	DirectMessageUnread unread;
+	ConversationsEvent snapshot;
+	snapshot.conversations = { MakeConversation("dm:7", 2, "20"), MakeConversation("dm:8", 0, "30"), MakeConversation("group:5", 4, "40") };
+	CHECK(unread.ApplySnapshot(snapshot) == 1);
+	CHECK(unread.Unread(7) == 2);
+	CHECK(unread.Unread(8) == 0);
+	CHECK(unread.Unread(5) == 0);
+
+	// A read conversation needs no MarkRead for its last message.
+	CHECK(unread.MarkReadTarget(8, MakeDirect("30", 8, 8), me).empty());
+
+	// A new message of the other user makes the conversation unread once.
+	CHECK(unread.AddUnread(8));
+	CHECK(!unread.AddUnread(8));
+	CHECK(unread.Unread(8) == 2);
+	CHECK(unread.MarkReadTarget(8, MakeDirect("31", 8, 8), me) == "31");
+	unread.MarkedRead(8, "31");
+	CHECK(unread.Unread(8) == 0);
+	CHECK(unread.MarkReadTarget(8, MakeDirect("31", 8, 8), me).empty());
+
+	// An own newest message needs MarkRead only while the conversation counts unread messages.
+	CHECK(unread.MarkReadTarget(8, MakeDirect("32", 8, me), me).empty());
+	CHECK(unread.MarkReadTarget(7, MakeDirect("21", 7, me), me) == "21");
+
+	// A ReadMarker from another connection clears the unread count of its conversation.
+	ReadMarkerEvent marker;
+	marker.channel_id = "dm:7";
+	marker.message_id = "20";
+	CHECK(unread.ApplyReadMarker(marker));
+	CHECK(unread.Unread(7) == 0);
+	CHECK(unread.MarkReadTarget(7, MakeDirect("20", 7, 7), me).empty());
+	marker.channel_id = "group:5";
+	CHECK(!unread.ApplyReadMarker(marker));
+
+	// A later snapshot replaces the counts and forgets conversations it does not list.
+	CHECK(unread.AddUnread(8));
+	ConversationsEvent later;
+	later.conversations = { MakeConversation("dm:7", 1, "22") };
+	CHECK(unread.ApplySnapshot(later) == 1);
+	CHECK(unread.Unread(7) == 1);
+	CHECK(unread.Unread(8) == 0);
+	CHECK(unread.ApplySnapshot(later) == 0);
+}
+
+static void TestDirectConversation()
+{
+	typedef std::vector<std::string> Ids;
+	const int64_t peer = 7;
+	const int64_t me = 1;
+
+	// Live messages show at once and once per message id, own messages included.
+	DirectConversation conversation(DirectMessageChannel(peer));
+	DirectChatLine line;
+	CHECK(conversation.NeedsHistory());
+	CHECK(conversation.AddLive(MakeDirect("12", peer, peer), line));
+	CHECK(line.key != 0 && line.message.id == "12");
+	CHECK(!conversation.AddLive(MakeDirect("12", peer, peer), line));
+	CHECK(!conversation.AddLive(MakeDirect("50", 8, 8), line));
+
+	// The history shows before the live messages it shares, oldest first, and skips tombstones.
+	conversation.BeginHistory();
+	CHECK(!conversation.NeedsHistory());
+	CHECK(conversation.AddLive(MakeDirect("13", peer, me), line));
+	conversation.AddHistory(MakeDirectHistory({ MakeTombstone("9", "dm:7"), MakeDirect("10", peer, peer), MakeDirect("11", peer, me), MakeDirect("12", peer, peer), MakeDirect("13", peer, me) }, true));
+	CHECK(DirectLineIDs(conversation) == Ids({ "10", "11", "12", "13" }));
+	CHECK(!conversation.NeedsHistory());
+	CHECK(!conversation.AddLive(MakeDirect("11", peer, me), line));
+	CHECK(conversation.NewestMessage() != nullptr && conversation.NewestMessage()->id == "13");
+
+	// A local note stays, and a reload after a reconnect adds the missed messages after the known ones.
+	conversation.AddNote(L"Not delivered");
+	conversation.ForgetHistory();
+	CHECK(conversation.NeedsHistory());
+	conversation.BeginHistory();
+	CHECK(conversation.AddLive(MakeDirect("16", peer, peer), line));
+	conversation.AddHistory(MakeDirectHistory({ MakeDirect("12", peer, peer), MakeDirect("13", peer, me), MakeDirect("14", peer, peer), MakeDirect("15", peer, peer), MakeDirect("16", peer, peer) }, false));
+	CHECK(DirectLineIDs(conversation) == Ids({ "10", "11", "12", "13", "14", "15", "note", "16" }));
+	CHECK(conversation.NewestMessage() != nullptr && conversation.NewestMessage()->id == "16");
+
+	// A tombstone in the history removes the shown message.
+	conversation.BeginHistory();
+	conversation.AddHistory(MakeDirectHistory({ MakeTombstone("14", "dm:7"), MakeDirect("15", peer, peer) }, false));
+	CHECK(DirectLineIDs(conversation) == Ids({ "10", "11", "12", "13", "15", "note", "16" }));
+
+	// MessageDelete removes a shown line by its key and ignores unknown ids.
+	uint32_t key11 = 0;
+	for (const DirectChatLine& shown : conversation.Lines())
+	{
+		if (shown.message.id == "11")
+		{
+			key11 = shown.key;
+		}
+	}
+	CHECK(key11 != 0);
+	CHECK(conversation.Remove("11") == key11);
+	CHECK(conversation.Remove("11") == 0);
+	CHECK(conversation.Remove("99") == 0);
+	CHECK(DirectLineIDs(conversation) == Ids({ "10", "12", "13", "15", "note", "16" }));
+
+	// A failed history load is requested again.
+	conversation.ForgetHistory();
+	conversation.BeginHistory();
+	conversation.HistoryFailed();
+	CHECK(conversation.NeedsHistory());
+
+	// A history that shares no shown message follows the shown lines.
+	DirectConversation older(DirectMessageChannel(peer));
+	CHECK(older.AddLive(MakeDirect("1", peer, peer), line));
+	older.BeginHistory();
+	older.AddHistory(MakeDirectHistory({ MakeDirect("5", peer, peer), MakeDirect("6", peer, peer) }, true));
+	CHECK(DirectLineIDs(older) == Ids({ "1", "5", "6" }));
+}
+
 static LobbyState MakeLobbyState(const std::string& state, bool started)
 {
 	LobbyState lobby;
@@ -1329,6 +1497,9 @@ int main(int argc, char** argv)
 	TestMatchmakingText();
 	TestChannelChatLog();
 	TestLobbyChatReplay();
+	TestDirectMessagePeer();
+	TestDirectMessageUnread();
+	TestDirectConversation();
 	TestLobbyStateStart();
 	TestFormEncoding();
 	TestLoopbackCallback();
