@@ -266,6 +266,10 @@ static std::map<std::string, RoundTripFn> BuildApiFixtureTable()
 	t["post-players-sanctions.request.json"] = RoundTrip<SanctionBody>;
 	t["post-players-sanctions.response.json"] = RoundTrip<SanctionCreateResponse>;
 	t["get-players-sanctions.response.json"] = RoundTrip<SanctionsResponse>;
+	t["get-me-friends.response.json"] = RoundTrip<MyFriendsResponse>;
+	t["get-me-blocks.response.json"] = RoundTrip<MyBlocksResponse>;
+	t["get-reports.response.json"] = RoundTrip<StaffReportsResponse>;
+	t["patch-reports.request.json"] = RoundTrip<ReportCloseBody>;
 	t["delete-sanctions.request.json"] = RoundTrip<ReasonBody>;
 	t["delete-messages.request.json"] = RoundTrip<ReasonBody>;
 	t["post-reports.request.json"] = RoundTrip<ReportBody>;
