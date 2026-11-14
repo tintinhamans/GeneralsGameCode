@@ -492,6 +492,8 @@ void GenOnlineAuthInterface::ApplyTokensV1(const GenOnlineRealtime::TokenRespons
 	m_strRefreshToken = tokens.refresh_token;
 	// A failed save keeps the token for this session.
 	ServiceConnection::SaveRefreshToken(CredentialServerKeyV1(), m_strRefreshToken);
+	// The login token of the legacy service is no longer used, so a sign-in deletes it.
+	ServiceConnection::DeleteRefreshToken(CredentialServerKey());
 	// The refresh runs 2 minutes before the expiry, or halfway through a token that lasts 4 minutes or less.
 	const int64_t lifetimeMs = std::max<int64_t>(tokens.expires_in, 60) * 1000;
 	const int64_t now = NowMsV1();
