@@ -141,6 +141,12 @@ public:
 		return m_bConnected;
 	}
 
+	// A reconnect the player is told about. A handover reconnect stays hidden for its first 3 seconds.
+	bool IsReconnectShown() const
+	{
+		return m_bReconnecting && !m_bSwitchReconnect;
+	}
+
 	std::function<void(void)> m_fnWebsocketConnectedCallback = nullptr;
 
 	void Shutdown();
@@ -255,8 +261,12 @@ private:
 	int64_t m_reconnectStartTime = -1;
 	int64_t m_nextReconnectAttempt = -1;
 	int64_t m_reconnectAttemptStarted = -1; // -1 = none in flight
+	// A handover reconnect after a server.switching close, hidden until SWITCH_HIDDEN_RECONNECT_MS passed.
+	bool m_bSwitchReconnect = false;
 
 	void BeginReconnect();
+	void BeginSwitchReconnect(int64_t delayMs);
+	void StartReconnect(int64_t delayMs, bool bSwitch);
 	void EndReconnect();
 	void UpdateReconnect();
 	int64_t ComputeReconnectDelay() const;

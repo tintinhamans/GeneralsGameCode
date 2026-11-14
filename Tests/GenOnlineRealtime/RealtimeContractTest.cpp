@@ -29,6 +29,7 @@
 #include "GameNetwork/GenOnline/Realtime/RealtimeLobbyStart.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMatchmaking.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeNoticeText.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeProtocol.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeSignIn.h"
 
@@ -684,6 +685,7 @@ static void TestHubSessionClose()
 		{ "{\"type\":7,\"error\":\"moderation.kicked\",\"allowReconnect\":true}", DisconnectAction::ReconnectAfterKick },
 		{ "{\"type\":7,\"error\":\"moderation.banned\",\"allowReconnect\":false}", DisconnectAction::ReturnToLogin },
 		{ "{\"type\":7,\"error\":\"server.restarting\",\"allowReconnect\":true}", DisconnectAction::Reconnect },
+		{ "{\"type\":7,\"error\":\"server.switching\",\"allowReconnect\":true}", DisconnectAction::ReconnectAfterSwitch },
 		{ "{\"type\":7,\"error\":\"protocol.error\",\"allowReconnect\":false}", DisconnectAction::ReturnToLogin },
 		{ "{\"type\":7,\"error\":\"something.new\",\"allowReconnect\":true}", DisconnectAction::Reconnect },
 		{ "{\"type\":7,\"error\":\"something.new\",\"allowReconnect\":false}", DisconnectAction::ReturnToLogin },
@@ -722,6 +724,89 @@ static void TestReconnectPolicy()
 	random = 0.999;
 	int64_t first = policy.NextDelayMs();
 	CHECK(first >= 2990 && first < 3000);
+}
+
+static void TestServerSwitching()
+{
+	// The session remembers the retry_after_ms of the last ServerSwitching for the close that follows.
+	FakeHub hub;
+	hub.Connect(0);
+	CHECK(!hub.session.ServerSwitchingRetryAfterMs().has_value());
+	hub.Receive("{\"type\":1,\"target\":\"ServerSwitching\",\"arguments\":[{\"retry_after_ms\":400}]}\x1E", 1);
+	hub.Receive("{\"type\":1,\"target\":\"ServerSwitching\",\"arguments\":[{\"retry_after_ms\":750}]}\x1E", 2);
+	CHECK(hub.session.GetState() == HubSession::State::Ready);
+	hub.Receive("{\"type\":7,\"error\":\"server.switching\",\"allowReconnect\":true}\x1E", 3);
+	CHECK(hub.disconnects == 1);
+	CHECK(hub.lastAction == DisconnectAction::ReconnectAfterSwitch);
+	CHECK(hub.session.ServerSwitchingRetryAfterMs().has_value() && *hub.session.ServerSwitchingRetryAfterMs() == 750);
+	// A new connection forgets the value.
+	hub.session.OnTransportOpen(10);
+	CHECK(!hub.session.ServerSwitchingRetryAfterMs().has_value());
+
+	// A server.switching close without a ServerSwitching before it still reconnects without backoff.
+	FakeHub bare;
+	bare.Connect(0);
+	bare.Receive("{\"type\":7,\"error\":\"server.switching\",\"allowReconnect\":true}\x1E", 1);
+	CHECK(bare.lastAction == DisconnectAction::ReconnectAfterSwitch);
+	CHECK(!bare.session.ServerSwitchingRetryAfterMs().has_value());
+
+	// The delay is the retry_after_ms, kept within 0 and the backoff cap.
+	CHECK(SwitchReconnectDelayMs(std::optional<int64_t>(750), 0.9) == 750);
+	CHECK(SwitchReconnectDelayMs(std::optional<int64_t>(0), 0.9) == 0);
+	CHECK(SwitchReconnectDelayMs(std::optional<int64_t>(-5), 0.9) == 0);
+	CHECK(SwitchReconnectDelayMs(std::optional<int64_t>(600000), 0.9) == ReconnectPolicy::STEP_CAP_MS);
+	// Without a ServerSwitching the delay is a random 0 to 1 second.
+	CHECK(SwitchReconnectDelayMs(std::nullopt, 0.0) == 0);
+	CHECK(SwitchReconnectDelayMs(std::nullopt, 0.5) == 500);
+	CHECK(SwitchReconnectDelayMs(std::nullopt, 0.999) == 999);
+
+	// The reconnect stays hidden for 3 seconds after the close, then it is a normal reconnect.
+	CHECK(SwitchReconnectHidden(1000, 1000));
+	CHECK(SwitchReconnectHidden(1000, 3999));
+	CHECK(!SwitchReconnectHidden(1000, 4000));
+	CHECK(!SwitchReconnectHidden(1000, 60000));
+}
+
+static void TestModerationText()
+{
+	const auto format = [](const std::string& utc) { return "<" + utc + ">"; };
+	ModerationNoticeEvent notice;
+	notice.action = "mute";
+	CHECK(ModerationNoticeText(notice, format) == "A moderator muted you.");
+	notice.reason = std::string("spam");
+	CHECK(ModerationNoticeText(notice, format) == "A moderator muted you: spam");
+	notice.expires_at = std::string("2026-11-15T14:00:00Z");
+	CHECK(ModerationNoticeText(notice, format) == "A moderator muted you until <2026-11-15T14:00:00Z>: spam");
+	notice.reason.reset();
+	CHECK(ModerationNoticeText(notice, format) == "A moderator muted you until <2026-11-15T14:00:00Z>.");
+	// An empty reason or expiry counts as absent.
+	notice.reason = std::string();
+	notice.expires_at = std::string();
+	CHECK(ModerationNoticeText(notice, format) == "A moderator muted you.");
+
+	ModerationNoticeEvent kick;
+	kick.action = "kick";
+	CHECK(ModerationNoticeText(kick, format) == "A moderator removed you from the online service. Reconnecting in 10 seconds.");
+	kick.reason = std::string("flooding");
+	CHECK(ModerationNoticeText(kick, format) == "A moderator removed you from the online service: flooding. Reconnecting in 10 seconds.");
+
+	ModerationNoticeEvent ban;
+	ban.action = "ban";
+	CHECK(ModerationNoticeText(ban, format).empty());
+
+	CHECK(RuleFailureText("chat.muted", json::object(), format) == "You are muted and cannot send messages.");
+	CHECK(RuleFailureText("chat.muted", json::parse(R"({"expires_at":null})"), format) == "You are muted and cannot send messages.");
+	CHECK(RuleFailureText("chat.muted", json::parse(R"({"expires_at":"2026-11-15T14:00:00Z"})"), format) == "You are muted and cannot send messages until <2026-11-15T14:00:00Z>.");
+	CHECK(RuleFailureText("channel.unavailable", json::object(), format) == "That room is not available.");
+	CHECK(RuleFailureText("moderation.target_outranks", json::object(), format) == "You cannot do that to a player of equal or higher rank.");
+	CHECK(RuleFailureText("report.duplicate", json::object(), format) == "You already reported that.");
+	CHECK(RuleFailureText("group.full", json::parse(R"({"max":10})"), format) == "The group is full. Groups can have up to 10 members.");
+	CHECK(RuleFailureText("group.full", json::object(), format) == "The group is full.");
+	CHECK(RuleFailureText("group.not_owner", json::object(), format) == "Only the group owner can do that.");
+	CHECK(RuleFailureText("group.not_member", json::object(), format) == "You are not a member of that group.");
+	// Codes without a text here fall through to the caller.
+	CHECK(RuleFailureText("something.new", json::object(), format).empty());
+	CHECK(RuleFailureText("chat.too_long", json::parse(R"({"max":512})"), format).empty());
 }
 
 static std::vector<uint8_t> Sha256(const std::string& data)
@@ -1519,6 +1604,8 @@ int main(int argc, char** argv)
 	TestHubSessionKeepAlive();
 	TestHubSessionClose();
 	TestReconnectPolicy();
+	TestServerSwitching();
+	TestModerationText();
 
 	if (g_failures != 0)
 	{

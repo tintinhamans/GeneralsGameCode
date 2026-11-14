@@ -14,6 +14,9 @@
 
 extern GenOnlineGame* TheGenOnlineGame;
 
+// Shows an ISO 8601 UTC time of the service as local date and time, or the text itself when it does not parse.
+std::string GenOnlineLocalTimeText(const std::string& utcText);
+
 enum class EChatMessageType
 {
 	CHAT_MESSAGE_TYPE_NETWORK_ROOM,

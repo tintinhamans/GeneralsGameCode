@@ -31,9 +31,11 @@
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeProtocol.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <optional>
 #include <string>
 
 namespace GenOnlineRealtime
@@ -46,6 +48,8 @@ enum class DisconnectAction
 	Reconnect,
 	// Reconnect after KICK_RECONNECT_DELAY_MS.
 	ReconnectAfterKick,
+	// Reconnect once after SwitchReconnectDelayMs, without backoff and without a reconnect screen.
+	ReconnectAfterSwitch,
 	// Refresh the access token once, register the session again and reconnect, otherwise return to login.
 	RefreshAndReconnect,
 	// Stop and tell the user that the account signed in elsewhere.
@@ -64,6 +68,10 @@ inline DisconnectAction ActionForCloseCode(const std::string& code, bool allowRe
 		return DisconnectAction::RefreshAndReconnect;
 	if (code == "moderation.kicked")
 		return DisconnectAction::ReconnectAfterKick;
+	if (code == "server.switching" && allowReconnect)
+	{
+		return DisconnectAction::ReconnectAfterSwitch;
+	}
 	if (code == "moderation.banned" || code == "protocol.error")
 		return DisconnectAction::ReturnToLogin;
 	return allowReconnect ? DisconnectAction::Reconnect : DisconnectAction::ReturnToLogin;
@@ -108,6 +116,29 @@ private:
 	std::function<double()> m_random;
 	int m_attempt = 0;
 };
+
+// A handover reconnect stays hidden for this long after the server.switching close.
+constexpr int64_t SWITCH_HIDDEN_RECONNECT_MS = 3000;
+// The longest delay after a server.switching close that had no ServerSwitching before it.
+constexpr int64_t SWITCH_DEFAULT_DELAY_MAX_MS = 1000;
+
+// The delay of the reconnect after a server.switching close. It is the retry_after_ms of the
+// ServerSwitching before the close, kept within 0 and the backoff cap. Without a ServerSwitching
+// it is a random 0 to 1 second. random is a value in [0, 1).
+inline int64_t SwitchReconnectDelayMs(const std::optional<int64_t>& retryAfterMs, double random)
+{
+	if (!retryAfterMs.has_value())
+	{
+		return static_cast<int64_t>(random * static_cast<double>(SWITCH_DEFAULT_DELAY_MAX_MS));
+	}
+	return (std::min)((std::max)(*retryAfterMs, static_cast<int64_t>(0)), ReconnectPolicy::STEP_CAP_MS);
+}
+
+// A handover reconnect that has not connected within 3 seconds of the close continues as a normal reconnect.
+inline bool SwitchReconnectHidden(int64_t closedAtMs, int64_t nowMs)
+{
+	return nowMs - closedAtMs < SWITCH_HIDDEN_RECONNECT_MS;
+}
 
 // The outcome of a hub method that expects a Result. transportError is set when no Result
 // arrived, for example because the connection dropped.
@@ -202,6 +233,7 @@ public:
 		m_lastReceiveMs = nowMs;
 		m_lastSendMs = nowMs;
 		m_disconnectReported = false;
+		m_serverSwitchingRetryAfterMs.reset();
 		SendRaw(BuildHandshakeRequest(), nowMs);
 	}
 
@@ -310,6 +342,12 @@ public:
 		return m_tracker.PendingCount();
 	}
 
+	// The retry_after_ms of the last ServerSwitching of this connection, for the server.switching close that follows.
+	std::optional<int64_t> ServerSwitchingRetryAfterMs() const
+	{
+		return m_serverSwitchingRetryAfterMs;
+	}
+
 private:
 	void HandleRecord(const std::string& text)
 	{
@@ -381,10 +419,27 @@ private:
 			return;
 		}
 
+		if (record.target == ServerSwitchingEvent::EVENT)
+		{
+			RememberServerSwitching(record.argument);
+		}
+
 		auto it = m_handlers.find(record.target);
 		if (it == m_handlers.end())
 			return;
 		it->second(record.argument);
+	}
+
+	void RememberServerSwitching(const nlohmann::json& argument)
+	{
+		try
+		{
+			m_serverSwitchingRetryAfterMs = argument.get<ServerSwitchingEvent>().retry_after_ms;
+		}
+		catch (const std::exception& e)
+		{
+			Log(std::string("realtime: dropped malformed ServerSwitching event: ") + e.what());
+		}
 	}
 
 	bool SendRaw(const std::string& text, int64_t nowMs)
@@ -432,6 +487,7 @@ private:
 	int64_t m_lastReceiveMs = 0;
 	int64_t m_lastSendMs = 0;
 	bool m_disconnectReported = false;
+	std::optional<int64_t> m_serverSwitchingRetryAfterMs;
 };
 
 } // namespace GenOnlineRealtime
