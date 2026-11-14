@@ -415,6 +415,11 @@ void WebSocket::RecoverHubSession()
 		GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::AUTH_FAILED);
 		return;
 	}
+	// The service closes with auth.revoked after a logout of this client, which already tears the session down.
+	if (!pAuth->IsLoggedIn())
+	{
+		return;
+	}
 	pAuth->RecoverRealtimeSession([this](bool bRecovered)
 		{
 			// The socket may have been replaced or shut down while the refresh ran.
@@ -1304,7 +1309,9 @@ void GenOnlineRoomsInterface::OnRealtimeRoomMembers(const GenOnlineRealtime::Roo
 
 	const bool effectiveRoomChanged = !m_EffectiveRoomID.has_value() || *m_EffectiveRoomID != event.room_id;
 	m_EffectiveRoomID = static_cast<int>(event.room_id);
-	if (m_PendingRoomChange.has_value() && m_PendingRoomChange->roomID == event.room_id)
+	// Joining a parent room lands in its default child room, which completes the change too.
+	if (m_PendingRoomChange.has_value() && (m_PendingRoomChange->roomID == event.room_id
+		|| (roomIndex >= 0 && m_vecRooms[roomIndex].GetParentRoomID() == m_PendingRoomChange->roomID)))
 	{
 		m_PendingRoomChange.reset();
 	}
