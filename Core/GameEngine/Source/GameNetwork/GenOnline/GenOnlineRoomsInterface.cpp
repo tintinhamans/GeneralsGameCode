@@ -243,7 +243,7 @@ void WebSocket::CollectMeshConnectivity(std::vector<int64_t>& connected, std::ve
 	}
 }
 
-// The peer networking events of the hub. They run the same code as the legacy messages.
+// The peer networking events of the hub.
 void WebSocket::RegisterPeerHandlers()
 {
 	using namespace GenOnlineRealtime;

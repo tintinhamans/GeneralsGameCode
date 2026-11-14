@@ -223,7 +223,7 @@ private:
 	void OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, const std::string& reason);
 	void RecoverHubSession();
 
-	// Shared by the legacy messages and the hub events.
+	// Peer networking steps of the hub events.
 	void StartPeerSignalling(int64_t lobbyID, int64_t userID, uint16_t preferredPort, const std::string& middlewareID);
 	void DisconnectPeer(int64_t lobbyID, int64_t userID);
 	void CollectMeshConnectivity(std::vector<int64_t>& connected, std::vector<int64_t>& connecting);
