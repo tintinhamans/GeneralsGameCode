@@ -67,7 +67,12 @@ void GenOnlineShowNotificationBox(AsciiString nick, UnicodeString message, bool 
 #define GENONLINE_MIN_LOBBY_CAMERA_ZOOM 210
 #define GENONLINE_MAX_LOBBY_CAMERA_ZOOM 1000
 
-#define GENONLINE_CLIENT_ID "gen_online_60hz"
+// The OAuth client id names the game tree.
+#if RTS_GENERALS
+#define GENONLINE_CLIENT_ID "generals"
+#else
+#define GENONLINE_CLIENT_ID "generalsmd"
+#endif
 
 extern int FRAME_GROUPING_CAP;
 
