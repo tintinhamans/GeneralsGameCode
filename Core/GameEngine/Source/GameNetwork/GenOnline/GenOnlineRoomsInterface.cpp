@@ -341,7 +341,7 @@ void WebSocket::RegisterPeerHandlers()
 }
 
 
-// The hub address must be a wss URL on the origin of the current service route.
+// The hub address must be a wss URL on the origin of the current service route, or a ws URL for a loopback http route.
 bool WebSocket::IsDestinationTrusted(const std::string& url) const
 {
 	return !GenOnlineRealtime::AcceptRealtimeUrl(url, GenOnlineServicesManager::GetAPIEndpoint("")).empty();

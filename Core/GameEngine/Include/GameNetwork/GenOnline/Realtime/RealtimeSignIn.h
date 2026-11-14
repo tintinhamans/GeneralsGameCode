@@ -317,13 +317,74 @@ inline LoopbackCallback ParseLoopbackRequest(const std::string& request, const s
 	return result;
 }
 
-// The https origin of a service base: scheme, host and port without a path. Empty for a base that is not https.
+// A loopback host is exactly localhost, 127.0.0.1 or [::1], compared without case.
+inline bool IsLoopbackHost(const std::string& host)
+{
+	std::string lower = host;
+	for (char& c : lower)
+	{
+		if (c >= 'A' && c <= 'Z')
+		{
+			c = static_cast<char>(c - 'A' + 'a');
+		}
+	}
+	return lower == "localhost" || lower == "127.0.0.1" || lower == "[::1]";
+}
+
+// True for a URL with this scheme whose authority is a loopback host with an optional numeric port.
+// An authority with credentials or any other text, such as localhost@evil.example, is refused.
+inline bool IsLoopbackURL(const std::string& url, const std::string& scheme)
+{
+	const std::string prefix = scheme + "://";
+	if (url.compare(0, prefix.size(), prefix) != 0)
+	{
+		return false;
+	}
+	const size_t start = prefix.size();
+	const size_t authorityEnd = url.find_first_of("/?#", start);
+	const std::string authority = url.substr(start, authorityEnd == std::string::npos ? std::string::npos : authorityEnd - start);
+	size_t hostEnd = authority.find(':');
+	if (!authority.empty() && authority[0] == '[')
+	{
+		hostEnd = authority.find(']');
+		if (hostEnd != std::string::npos)
+		{
+			++hostEnd;
+		}
+	}
+	if (hostEnd == std::string::npos)
+	{
+		hostEnd = authority.size();
+	}
+	const std::string port = authority.substr(hostEnd);
+	if (!port.empty() && (port[0] != ':' || port.size() == 1 || port.find_first_not_of("0123456789", 1) != std::string::npos))
+	{
+		return false;
+	}
+	return IsLoopbackHost(authority.substr(0, hostEnd));
+}
+
+// The origin of a service base: scheme, host and port without a path. The scheme is https for any host,
+// or http for a loopback host during local development. Empty for any other base.
 inline std::string OriginOfBase(const std::string& base)
 {
+	size_t authorityStart = 8;
 	if (base.compare(0, 8, "https://") != 0)
-		return std::string();
-	size_t authorityEnd = base.find_first_of("/?#", 8);
+	{
+		if (!IsLoopbackURL(base, "http"))
+		{
+			return std::string();
+		}
+		authorityStart = 7;
+	}
+	size_t authorityEnd = base.find_first_of("/?#", authorityStart);
 	return base.substr(0, authorityEnd);
+}
+
+// The websocket scheme of an origin from OriginOfBase: wss:// for https and ws:// for a loopback http origin.
+inline std::string WebSocketPrefixOfOrigin(const std::string& origin)
+{
+	return origin.compare(0, 8, "https://") == 0 ? "wss://" : "ws://";
 }
 
 // Accepts the realtime URL of a session registration only on the origin of the service route,
@@ -331,9 +392,10 @@ inline std::string OriginOfBase(const std::string& base)
 inline std::string AcceptRealtimeUrl(const std::string& wsUrl, const std::string& serviceBase)
 {
 	std::string origin = OriginOfBase(serviceBase);
-	if (origin.empty() || wsUrl.compare(0, 6, "wss://") != 0)
+	if (origin.empty())
 		return std::string();
-	std::string expectedPrefix = "wss://" + origin.substr(8) + "/";
+	// The scheme follows the route: wss for an https route and ws for a loopback http route.
+	std::string expectedPrefix = WebSocketPrefixOfOrigin(origin) + origin.substr(origin.find("://") + 3) + "/";
 	if (wsUrl.compare(0, expectedPrefix.size(), expectedPrefix) != 0)
 		return std::string();
 	if (wsUrl.find_first_of("?#@\\%\r\n\t ") != std::string::npos)
@@ -357,12 +419,17 @@ struct OpenIdConfiguration
 	std::string revocation_endpoint;
 };
 
-// An endpoint must be an https URL without credentials, query or fragment.
-inline bool IsAcceptableEndpoint(const std::string& url)
+// An endpoint must be an https URL without credentials, query or fragment. When origin is a loopback
+// http origin, an http URL on a loopback host is accepted too. An https origin never takes http.
+inline bool IsAcceptableEndpoint(const std::string& url, const std::string& origin = std::string())
 {
-	if (url.compare(0, 8, "https://") != 0 || url.size() <= 8)
-		return false;
 	if (url.find_first_of("?#@\\\r\n\t ") != std::string::npos)
+		return false;
+	if (IsLoopbackURL(url, "http") && IsLoopbackURL(origin, "http"))
+	{
+		return true;
+	}
+	if (url.compare(0, 8, "https://") != 0 || url.size() <= 8)
 		return false;
 	size_t authorityEnd = url.find('/', 8);
 	return authorityEnd != 8;
@@ -370,7 +437,7 @@ inline bool IsAcceptableEndpoint(const std::string& url)
 
 // Reads the discovery document of origin. The issuer must be that origin, so a document copied
 // from another environment is refused. The endpoints may sit on another https host when an operator
-// runs the accounts service separately.
+// runs the accounts service separately, or on a loopback http host for a loopback http origin.
 inline bool ParseOpenIdConfiguration(const std::string& body, const std::string& origin, OpenIdConfiguration& out, std::string& error)
 {
 	out = OpenIdConfiguration();
@@ -401,14 +468,14 @@ inline bool ParseOpenIdConfiguration(const std::string& body, const std::string&
 		error = "discovery issuer does not match the service origin";
 		return false;
 	}
-	if (!text("authorization_endpoint", out.authorization_endpoint) || !IsAcceptableEndpoint(out.authorization_endpoint) ||
-		!text("token_endpoint", out.token_endpoint) || !IsAcceptableEndpoint(out.token_endpoint))
+	if (!text("authorization_endpoint", out.authorization_endpoint) || !IsAcceptableEndpoint(out.authorization_endpoint, origin) ||
+		!text("token_endpoint", out.token_endpoint) || !IsAcceptableEndpoint(out.token_endpoint, origin))
 	{
 		error = "discovery document has no usable authorization or token endpoint";
 		return false;
 	}
 	// Without a revocation endpoint, logout only ends the session.
-	if (text("revocation_endpoint", out.revocation_endpoint) && !IsAcceptableEndpoint(out.revocation_endpoint))
+	if (text("revocation_endpoint", out.revocation_endpoint) && !IsAcceptableEndpoint(out.revocation_endpoint, origin))
 		out.revocation_endpoint.clear();
 	return true;
 }

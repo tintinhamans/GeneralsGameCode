@@ -1,4 +1,5 @@
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeSignIn.h"
 #include "GameNetwork/GenOnline/json.hpp"
 #include <algorithm>
 #include <memory>
@@ -27,16 +28,17 @@ bool NormalizeCustomEndpoint(const std::string& typed, std::string& origin, std:
 		return false;
 	}
 	const std::string lower = Lower(value);
-	if (lower.compare(0, 7, "http://") == 0)
+	// plain http is only for a local development server on this computer
+	const bool plain = lower.compare(0, 7, "http://") == 0;
+	if (plain)
 	{
-		error = "The server must use https. Plain http is not allowed.";
-		return false;
+		value.erase(0, 7);
 	}
-	if (lower.compare(0, 8, "https://") == 0)
+	else if (lower.compare(0, 8, "https://") == 0)
 		value.erase(0, 8);
 	else if (value.find("://") != std::string::npos)
 	{
-		error = "The server must use https.";
+		error = "The server must use https, or http for a server on localhost, 127.0.0.1 or [::1].";
 		return false;
 	}
 	if (value.find('@') != std::string::npos)
@@ -63,7 +65,9 @@ bool NormalizeCustomEndpoint(const std::string& typed, std::string& origin, std:
 	if (slash != std::string::npos)
 		value.erase(slash);
 	std::unique_ptr<CURLU, decltype(&curl_url_cleanup)> url(curl_url(), curl_url_cleanup);
-	if (!url || curl_url_set(url.get(), CURLUPART_URL, ("https://" + value).c_str(), 0) != CURLUE_OK)
+	const std::string scheme = plain ? "http" : "https";
+	const std::string defaultPort = plain ? "80" : "443";
+	if (!url || curl_url_set(url.get(), CURLUPART_URL, (scheme + "://" + value).c_str(), 0) != CURLUE_OK)
 	{
 		error = "Enter a host name with an optional port, like server.example:8443.";
 		return false;
@@ -75,7 +79,12 @@ bool NormalizeCustomEndpoint(const std::string& typed, std::string& origin, std:
 		error = "Enter a host name with an optional port, like server.example:8443.";
 		return false;
 	}
-	origin = "https://" + host + (port.empty() || port == "443" ? "" : ":" + port);
+	if (plain && !GenOnlineRealtime::IsLoopbackHost(host))
+	{
+		error = "Plain http is allowed only for a server on localhost, 127.0.0.1 or [::1]. Other servers must use https.";
+		return false;
+	}
+	origin = scheme + "://" + host + (port.empty() || port == defaultPort ? "" : ":" + port);
 	return true;
 }
 
@@ -173,11 +182,16 @@ bool IsTrustedServiceURL(const std::string& value, const std::string& base, bool
 	if (!url || !expected || curl_url_set(url.get(), CURLUPART_URL, value.c_str(), CURLU_NON_SUPPORT_SCHEME) != CURLUE_OK ||
 		curl_url_set(expected.get(), CURLUPART_URL, base.c_str(), 0) != CURLUE_OK)
 		return false;
-	if (Part(url.get(), CURLUPART_SCHEME) != (websocket ? "wss" : "https"))
+	// the scheme follows the base: https and wss, or http and ws for a loopback http base
+	const auto baseScheme = Part(expected.get(), CURLUPART_SCHEME);
+	const bool plain = baseScheme == "http" && GenOnlineRealtime::IsLoopbackHost(Lower(Part(expected.get(), CURLUPART_HOST)));
+	if (baseScheme != "https" && !plain)
+		return false;
+	if (Part(url.get(), CURLUPART_SCHEME) != (websocket ? (plain ? "ws" : "wss") : (plain ? "http" : "https")))
 		return false;
 	auto port = Part(url.get(), CURLUPART_PORT);
 	if (port.empty() && websocket)
-		port = "443";
+		port = plain ? "80" : "443";
 	if (Lower(Part(url.get(), CURLUPART_HOST)) != Lower(Part(expected.get(), CURLUPART_HOST)) ||
 		port != Part(expected.get(), CURLUPART_PORT))
 		return false;
@@ -190,10 +204,10 @@ bool IsTrustedServiceURL(const std::string& value, const std::string& base, bool
 
 std::string RealtimeHubURLForBase(const std::string& base)
 {
-	if (base.compare(0, 8, "https://") != 0)
+	const auto origin = GenOnlineRealtime::OriginOfBase(base);
+	if (origin.empty())
 		return {};
-	const auto authorityEnd = base.find_first_of("/?#", 8);
-	return "wss://" + base.substr(8, authorityEnd == std::string::npos ? std::string::npos : authorityEnd - 8) + "/-/realtime";
+	return GenOnlineRealtime::WebSocketPrefixOfOrigin(origin) + origin.substr(origin.find("://") + 3) + "/-/realtime";
 }
 
 std::string RequestURLForLog(const std::string& value, const std::string& serviceBase)
@@ -207,13 +221,15 @@ std::string RequestURLForLog(const std::string& value, const std::string& servic
 	if (authority.find('@') != std::string::npos)
 		return "[redacted-url]";
 	std::unique_ptr<CURLU, decltype(&curl_url_cleanup)> url(curl_url(), curl_url_cleanup);
-	if (!url || curl_url_set(url.get(), CURLUPART_URL, value.c_str(), 0) != CURLUE_OK || Part(url.get(), CURLUPART_SCHEME) != "https")
+	if (!url || curl_url_set(url.get(), CURLUPART_URL, value.c_str(), 0) != CURLUE_OK)
 		return "[invalid-url]";
+	const auto scheme = Part(url.get(), CURLUPART_SCHEME);
 	const auto host = Lower(Part(url.get(), CURLUPART_HOST));
-	if (host.empty() || host.find('%') != std::string::npos || !Part(url.get(), CURLUPART_ZONEID).empty())
+	if ((scheme != "https" && (scheme != "http" || !GenOnlineRealtime::IsLoopbackHost(host))) ||
+		host.empty() || host.find('%') != std::string::npos || !Part(url.get(), CURLUPART_ZONEID).empty())
 		return "[invalid-url]";
 	const auto port = Part(url.get(), CURLUPART_PORT);
-	const std::string origin = "https://" + host + (port.empty() || port == "443" ? "" : ":" + port);
+	const std::string origin = scheme + "://" + host + (port.empty() || port == (scheme == "http" ? "80" : "443") ? "" : ":" + port);
 	const auto path = Part(url.get(), CURLUPART_PATH);
 	// only known service routes are logged; other paths may carry private identifiers
 	std::unique_ptr<CURLU, decltype(&curl_url_cleanup)> base(curl_url(), curl_url_cleanup);
@@ -248,10 +264,11 @@ bool IsExpectedVersionManifest(const std::string& body)
 bool ConfigureServiceTransport(CURL* curl, const std::string& url, std::string& error)
 {
 	error.clear();
-	const bool websocket = url.compare(0, 6, "wss://") == 0;
-	if (!curl || (!websocket && url.compare(0, 8, "https://") != 0))
+	const char* protocol = url.compare(0, 6, "wss://") == 0 ? "wss" : url.compare(0, 8, "https://") == 0 ? "https" :
+		GenOnlineRealtime::IsLoopbackURL(url, "ws") ? "ws" : GenOnlineRealtime::IsLoopbackURL(url, "http") ? "http" : nullptr;
+	if (!curl || protocol == nullptr)
 	{
-		error = "Service connections require HTTPS or WSS.";
+		error = "Service connections require HTTPS or WSS, or HTTP or WS on localhost, 127.0.0.1 or [::1].";
 		return false;
 	}
 	auto set = [&](CURLoption option, auto value) {
@@ -271,6 +288,6 @@ bool ConfigureServiceTransport(CURL* curl, const std::string& url, std::string& 
 	return set(CURLOPT_SSL_VERIFYPEER, verifyPeer) && set(CURLOPT_SSL_VERIFYHOST, verifyHost) &&
 		set(CURLOPT_SSL_OPTIONS, static_cast<long>(CURLSSLOPT_NATIVE_CA)) &&
 		set(CURLOPT_DISALLOW_USERNAME_IN_URL, 1L) && set(CURLOPT_FOLLOWLOCATION, 0L) &&
-		set(CURLOPT_PROTOCOLS_STR, websocket ? "wss" : "https") && set(CURLOPT_PROXY, "");
+		set(CURLOPT_PROTOCOLS_STR, protocol) && set(CURLOPT_PROXY, "");
 }
 }
