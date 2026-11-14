@@ -642,6 +642,68 @@ void GenOnlineDeleteNotificationBox()
 	}
 }
 
+// A chat line keeps the key of its message as item data, so a MessageDelete finds the row again.
+static void AddBuddyChatLine(const UnicodeString& text, uint32_t key)
+{
+	Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, text, GameSpyColor[GSCOLOR_PLAYER_BUDDY], -1, -1);
+	GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_PLAYER_BUDDY], index, 1);
+	if (index >= 0 && key != 0)
+	{
+		GadgetListBoxSetItemData(buddyControls.listboxChat, reinterpret_cast<void*>(static_cast<uintptr_t>(key)), index, 0);
+	}
+}
+
+static void RemoveBuddyChatLine(uint32_t key)
+{
+	if (buddyControls.listboxChat == nullptr)
+	{
+		return;
+	}
+	const Int numEntries = GadgetListBoxGetNumEntries(buddyControls.listboxChat);
+	for (Int row = 0; row < numEntries; ++row)
+	{
+		if (reinterpret_cast<uintptr_t>(GadgetListBoxGetItemData(buddyControls.listboxChat, row, 0)) == key)
+		{
+			TheWindowManager->winSendSystemMsg(buddyControls.listboxChat, GLM_DEL_ENTRY, static_cast<WindowMsgData>(row), 0);
+			return;
+		}
+	}
+}
+
+// The user id of the selected buddy, or -1.
+static int64_t GetSelectedBuddyID()
+{
+	if (buddyControls.listboxBuddies == nullptr)
+	{
+		return -1;
+	}
+	Int selected = -1;
+	GadgetListBoxGetSelected(buddyControls.listboxBuddies, &selected);
+	if (selected < 0)
+	{
+		return -1;
+	}
+	return (GPProfile)GadgetListBoxGetItemData(buddyControls.listboxBuddies, selected);
+}
+
+// Shows the cached conversation with a friend in the chat box.
+static void ShowBuddyConversation(GenOnlineSocialInterface* pSocialInterface, int64_t profileID)
+{
+	GadgetListBoxReset(buddyControls.listboxChat);
+	std::vector<GenOnlineRealtime::DirectChatLine> vecMessages = pSocialInterface->GetChatMessagesForUser(profileID);
+
+	for (const GenOnlineRealtime::DirectChatLine& line : vecMessages)
+	{
+		AddBuddyChatLine(GenOnlineSocialInterface::GetChatLineText(line), line.key);
+	}
+
+	if (vecMessages.empty())
+	{
+		Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This chat is empty. Send a message to start a conversation"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+		GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
+	}
+}
+
 void GenOnlinePopulateOldBuddyMessages()
 {
 	// TODO_SOCIAL
@@ -685,35 +747,53 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 				GenOnlineUpdateBuddyInfo();
 			});
 
-		pSocialInterface->RegisterForCallback_OnChatMessage([](int64_t source_user_id, int64_t target_user_id, UnicodeString unicodeStr)
+		pSocialInterface->RegisterForCallback_OnChatMessage([](int64_t peer_user_id, uint32_t key, UnicodeString unicodeStr)
 			{
 				// Only add if the user is currently selected, otherwise show notification and just rely on the cache
-				Int selected = -1;
-				GadgetListBoxGetSelected(buddyControls.listboxBuddies, &selected);
-				if (selected >= 0)
+				const int64_t profileID = GetSelectedBuddyID();
+				if (profileID >= 0 && buddyControls.listboxChat != nullptr)
 				{
-					GPProfile profileID = (GPProfile)GadgetListBoxGetItemData(buddyControls.listboxBuddies, selected);
-
-
 					// sending to them, or getting from them, is valid
-					if (profileID == source_user_id || profileID == target_user_id)
+					if (profileID == peer_user_id)
 					{
-						UnicodeString s;
-						s.format(L"%s", unicodeStr.str());
-						Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, s, GameSpyColor[GSCOLOR_PLAYER_BUDDY], -1, -1);
-						GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_PLAYER_BUDDY], index, 1);
+						AddBuddyChatLine(unicodeStr, key);
 
 						// we read the message, so clear it
                         GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
                         if (pSocialInterface != nullptr)
                         {
-                            pSocialInterface->ClearUnreadChatMessagesForUser(profileID);
+                            pSocialInterface->ViewConversation(profileID);
                         }
 					}
 				}
 
                 // always update this (from cache)
                 GenOnlineUpdateBuddyInfo(true, true);
+			});
+
+		// The open chat shows the conversation again after its history loaded or after a reconnect.
+		pSocialInterface->RegisterForCallback_OnConversationReloaded([](int64_t peer_user_id)
+			{
+				GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+				const int64_t profileID = GetSelectedBuddyID();
+				if (pSocialInterface == nullptr || profileID < 0 || buddyControls.listboxChat == nullptr)
+				{
+					return;
+				}
+				if ((peer_user_id == -1 || peer_user_id == profileID) && pSocialInterface->IsUserFriend(profileID))
+				{
+					ShowBuddyConversation(pSocialInterface, profileID);
+					pSocialInterface->ViewConversation(profileID);
+					GenOnlineUpdateBuddyInfo(true, true);
+				}
+			});
+
+		pSocialInterface->RegisterForCallback_OnChatLineRemoved([](int64_t peer_user_id, uint32_t key)
+			{
+				if (GetSelectedBuddyID() == peer_user_id)
+				{
+					RemoveBuddyChatLine(key);
+				}
 			});
 	}
 
@@ -912,25 +992,13 @@ WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, UnsignedIn
 						}
 						else
 						{
-                            std::vector<UnicodeString> vecMessages = pSocialInterface->GetChatMessagesForUser(profileID);
-
-                            for (const UnicodeString& unicodeStr : vecMessages)
-                            {
-                                Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, unicodeStr, GameSpyColor[GSCOLOR_PLAYER_BUDDY], -1, -1);
-                                GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_PLAYER_BUDDY], index, 1);
-                            }
-
-                            if (vecMessages.empty())
-                            {
-                                Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This chat is empty. Send a message to start a conversation"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-                                GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
-                            }
+                            ShowBuddyConversation(pSocialInterface, profileID);
 
                             // we read the message, so clear it
                             GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
                             if (pSocialInterface != nullptr)
                             {
-                                pSocialInterface->ClearUnreadChatMessagesForUser(profileID);
+                                pSocialInterface->ViewConversation(profileID);
 								GenOnlineUpdateBuddyInfo(true, true); // use cache
                             }
 							TheWindowManager->winSetFocus(buddyControls.textEntryEdit);

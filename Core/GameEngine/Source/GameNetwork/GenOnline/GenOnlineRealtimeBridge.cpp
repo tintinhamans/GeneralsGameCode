@@ -454,6 +454,30 @@ void RegisterHandlers(HubSession& session)
 					pLobby->OnRealtimeLobbyMessageDelete(event);
 				}
 			}
+			else if (event.channel_id.compare(0, 3, "dm:") == 0)
+			{
+				GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+				if (pSocial != nullptr)
+				{
+					pSocial->OnRealtimeDirectMessageDelete(event);
+				}
+			}
+		});
+	session.On<ConversationsEvent>([](const ConversationsEvent& event)
+		{
+			GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+			if (pSocial != nullptr)
+			{
+				pSocial->OnRealtimeConversations(event);
+			}
+		});
+	session.On<ReadMarkerEvent>([](const ReadMarkerEvent& event)
+		{
+			GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+			if (pSocial != nullptr)
+			{
+				pSocial->OnRealtimeReadMarker(event);
+			}
 		});
 	session.On<Notice>([](const Notice& notice)
 		{
