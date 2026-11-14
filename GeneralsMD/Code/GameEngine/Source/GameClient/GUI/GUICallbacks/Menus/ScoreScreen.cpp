@@ -2284,11 +2284,6 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 						mPref.write();
 					}
 #else
-
-						pStatsInterface->UpdateMyStats(stats);
-
-						
-
 						}, EStatsRequestPolicy::CACHED_ONLY); // NOTE: we really need the latest stats here, but this could cause a UI delay...
 #endif
 				}

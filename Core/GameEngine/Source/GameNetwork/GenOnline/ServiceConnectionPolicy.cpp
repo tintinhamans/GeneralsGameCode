@@ -1,5 +1,6 @@
 #include "GameNetwork/GenOnline/ServiceConnectionPolicy.h"
 #include "GameNetwork/GenOnline/CredentialStore.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeRest.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeSignIn.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -1116,7 +1117,7 @@ ConnectionTestResult TestServiceConnection(const ServiceConnectionSettings& sett
 	const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(maxSeconds);
 	for (const auto& base : BootstrapRoutes(environment, settings, ""))
 	{
-		const std::string url = base + "VersionManifest";
+		const std::string url = base + CompatibilityProbePath();
 		const std::string routeName = RouteHost(base);
 		const auto policy = ResolveProxyPolicy(settings, url);
 		if (!policy.error.empty())
@@ -1166,7 +1167,7 @@ ConnectionTestResult TestServiceConnection(const ServiceConnectionSettings& sett
 				result.outcome = Outcome::ServiceRejected;
 				return result;
 			}
-			if (code == CURLE_OK && status == 200 && IsExpectedVersionManifest(body))
+			if (code == CURLE_OK && status == 200 && GenOnlineRealtime::IsCompatibilityAnswer(body))
 			{
 				result.outcome = Outcome::Connected;
 				return result;

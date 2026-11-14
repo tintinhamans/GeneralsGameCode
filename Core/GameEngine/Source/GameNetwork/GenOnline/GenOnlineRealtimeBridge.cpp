@@ -652,7 +652,7 @@ void SendRest(RestMethod method, const std::string& path, const std::string& bod
 	const std::string origin = GenOnlineAuthInterface::ServiceOriginV1();
 	if (pManager == nullptr || pManager->GetHTTPManager() == nullptr || origin.empty() || SignedInUserID() < 0)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s not sent, no session or service route", RestMethodName(method), path.c_str());
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s not sent, no session or service route", RestMethodName(method), RestPathForLog(path).c_str());
 		if (callback)
 		{
 			callback(MakeRestOutcome(false, 0, std::string()));
@@ -667,12 +667,12 @@ void SendRest(RestMethod method, const std::string& path, const std::string& bod
 			const int sends = sendsBefore + 1;
 			if (!outcome.Succeeded())
 			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s failed: status %d code %s", RestMethodName(method), path.c_str(), statusCode, outcome.error.code.c_str());
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s failed: status %d code %s", RestMethodName(method), RestPathForLog(path).c_str(), statusCode, outcome.error.code.c_str());
 			}
 			const int64_t delayMs = bRetry ? RestRetryDelayMs(outcome, sends) : -1;
 			if (delayMs >= 0)
 			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s sends again in %lld ms", RestMethodName(method), path.c_str(), static_cast<long long>(delayMs));
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s sends again in %lld ms", RestMethodName(method), RestPathForLog(path).c_str(), static_cast<long long>(delayMs));
 				PendingRestRetry retry;
 				retry.method = method;
 				retry.path = path;
@@ -756,7 +756,7 @@ void TickRest()
 	}
 	for (const PendingRestRetry& retry : dropped)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s dropped, the signed in user changed", RestMethodName(retry.method), retry.path.c_str());
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s dropped, the signed in user changed", RestMethodName(retry.method), RestPathForLog(retry.path).c_str());
 		if (retry.callback)
 		{
 			retry.callback(retry.lastOutcome);

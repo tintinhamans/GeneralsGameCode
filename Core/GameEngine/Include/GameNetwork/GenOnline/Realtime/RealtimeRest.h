@@ -29,6 +29,7 @@
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 #include "GameNetwork/GenOnline/json.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -578,6 +579,414 @@ struct ReportCreateResponse : WireObject
 		v("report_id", report_id);
 	}
 };
+
+// Meta: compatibility and config ////////////////////////////////////////////////////
+
+// GET is anonymous and answers 200 for every known client, also an outdated one.
+inline std::string RestCompatibilityPath(const std::string& clientID, const std::string& version)
+{
+	return "/api/v1/compatibility?client=" + clientID + "&version=" + version;
+}
+
+namespace Detail
+{
+// Reads the decimal number at pos and moves pos past it. False when no digit is there.
+inline bool ReadVersionNumber(const std::string& text, size_t& pos, int& number)
+{
+	const size_t start = pos;
+	number = 0;
+	while (pos < text.size() && text[pos] >= '0' && text[pos] <= '9' && pos - start < 6)
+	{
+		number = number * 10 + (text[pos] - '0');
+		++pos;
+	}
+	return pos > start;
+}
+} // namespace Detail
+
+// The YYYY.MM.PATCH version of a build. releaseTag is the git describe of the closest release tag, so a build
+// past a release reports that release. A build without one reports the year and month of its commit with patch 0.
+inline std::string CompatibilityVersion(const std::string& releaseTag, const std::string& commitDate)
+{
+	int year = 0;
+	int month = 0;
+	int patch = 0;
+	size_t pos = 1;
+	if (!releaseTag.empty() && releaseTag[0] == 'v' && Detail::ReadVersionNumber(releaseTag, pos, year) && pos - 1 == 4
+		&& pos < releaseTag.size() && releaseTag[pos++] == '.' && Detail::ReadVersionNumber(releaseTag, pos, month)
+		&& pos < releaseTag.size() && releaseTag[pos++] == '.' && Detail::ReadVersionNumber(releaseTag, pos, patch)
+		&& (pos == releaseTag.size() || releaseTag[pos] == '-') && month >= 1 && month <= 12)
+	{
+		return std::to_string(year) + "." + std::to_string(month) + "." + std::to_string(patch);
+	}
+	pos = 0;
+	if (Detail::ReadVersionNumber(commitDate, pos, year) && pos == 4 && pos < commitDate.size() && commitDate[pos++] == '-'
+		&& Detail::ReadVersionNumber(commitDate, pos, month) && month >= 1 && month <= 12)
+	{
+		return std::to_string(year) + "." + std::to_string(month) + ".0";
+	}
+	return "1970.1.0";
+}
+
+struct CompatibilityUpdate : WireObject
+{
+	std::string patcher_name;
+	std::string patcher_path;
+	// Null when the service has no copy of the patcher.
+	Nullable<int64_t> patcher_size;
+
+	template <class V> void Fields(V& v)
+	{
+		v("patcher_name", patcher_name);
+		v("patcher_path", patcher_path);
+		v("patcher_size", patcher_size);
+	}
+};
+
+// GET /api/v1/compatibility
+struct CompatibilityResponse : WireObject
+{
+	bool compatible = false;
+	Nullable<std::string> min_version;
+	std::string service_version;
+	Nullable<CompatibilityUpdate> update;
+
+	template <class V> void Fields(V& v)
+	{
+		v("compatible", compatible);
+		v("min_version", min_version);
+		v("service_version", service_version);
+		v("update", update);
+	}
+};
+
+// True for a body of the compatibility answer, whatever its verdict.
+inline bool IsCompatibilityAnswer(const std::string& body)
+{
+	CompatibilityResponse answer;
+	return MakeRestOutcome(true, 200, body).Data(answer);
+}
+
+enum class CompatibilityVerdict
+{
+	UpToDate,
+	NeedsUpdate,
+	Failed
+};
+
+// The verdict of a compatibility answer. An outdated build needs an update with a patcher size, which the
+// downloaded patcher is checked against, and a bare file name, because the name becomes a local path.
+// An outdated build without such an update fails.
+inline CompatibilityVerdict CompatibilityVerdictOf(const RestOutcome& outcome, CompatibilityResponse& answer)
+{
+	if (!outcome.Data(answer))
+	{
+		return CompatibilityVerdict::Failed;
+	}
+	if (answer.compatible)
+	{
+		return CompatibilityVerdict::UpToDate;
+	}
+	if (answer.update.isNull || answer.update.value.patcher_size.isNull)
+	{
+		return CompatibilityVerdict::Failed;
+	}
+	const std::string& name = answer.update.value.patcher_name;
+	if (name.empty() || name.find_first_of("/\\:") != std::string::npos || name.find("..") != std::string::npos)
+	{
+		return CompatibilityVerdict::Failed;
+	}
+	return CompatibilityVerdict::NeedsUpdate;
+}
+
+// GET needs a session.
+inline std::string RestConfigPath()
+{
+	return "/api/v1/config";
+}
+
+// GET /api/v1/config
+struct ConfigResponse : WireObject
+{
+	// The settings the service config reader takes.
+	nlohmann::json service_config = nlohmann::json::object();
+	// The client does not read it.
+	std::optional<int64_t> anticheat_level;
+	std::string motd;
+
+	template <class V> void Fields(V& v)
+	{
+		v("service_config", service_config);
+		v("anticheat_level", anticheat_level);
+		v("motd", motd);
+	}
+};
+
+// Linked accounts /////////////////////////////////////////////////////////////////
+
+// PUT links the Epic account of the game session and answers 204.
+inline std::string RestEosLinkPath()
+{
+	return "/api/v1/me/linked_accounts/eos";
+}
+
+// PUT /api/v1/me/linked_accounts/eos
+struct EosLinkBody : WireObject
+{
+	std::string id_token;
+
+	template <class V> void Fields(V& v)
+	{
+		v("id_token", id_token);
+	}
+};
+
+// Stats ///////////////////////////////////////////////////////////////////////////
+
+// GET is anonymous.
+inline std::string RestGlobalStatsPath()
+{
+	return "/api/v1/stats/global";
+}
+
+// The service index of a playable side, -1 for any other side. The playable sides are 2 to 13.
+inline int GlobalStatsFactionIndex(int side)
+{
+	return side >= 2 && side <= 13 ? side - 2 : -1;
+}
+
+struct FactionStats : WireObject
+{
+	int side = 0;
+	int64_t matches = 0;
+	int64_t wins = 0;
+
+	template <class V> void Fields(V& v)
+	{
+		v("side", side);
+		v("matches", matches);
+		v("wins", wins);
+	}
+};
+
+// GET /api/v1/stats/global
+struct GlobalStatsResponse : WireObject
+{
+	int64_t players = 0;
+	int64_t lobbies = 0;
+	std::vector<FactionStats> factions;
+
+	template <class V> void Fields(V& v)
+	{
+		v("players", players);
+		v("lobbies", lobbies);
+		v("factions", factions);
+	}
+};
+
+// GET needs a session.
+inline std::string RestPlayerStatsPath(int64_t userID)
+{
+	return "/api/v1/players/" + std::to_string(userID) + "/stats";
+}
+
+// The most ids one batch request takes.
+constexpr size_t REST_PLAYER_STATS_BATCH_MAX = 100;
+
+// One GET path per batch of at most 100 ids, in the order of the ids.
+inline std::vector<std::string> RestPlayerStatsBatchPaths(const std::vector<int64_t>& userIDs)
+{
+	std::vector<std::string> paths;
+	for (size_t start = 0; start < userIDs.size(); start += REST_PLAYER_STATS_BATCH_MAX)
+	{
+		std::string path = "/api/v1/players/stats?ids=";
+		const size_t end = (std::min)(userIDs.size(), start + REST_PLAYER_STATS_BATCH_MAX);
+		for (size_t i = start; i < end; ++i)
+		{
+			if (i != start)
+			{
+				path += ",";
+			}
+			path += std::to_string(userIDs[i]);
+		}
+		paths.push_back(path);
+	}
+	return paths;
+}
+
+// The per general counters of a player, one entry per service index.
+struct PlayerGeneralStats : WireObject
+{
+	std::vector<int64_t> wins;
+	std::vector<int64_t> losses;
+	std::vector<int64_t> games;
+	std::vector<int64_t> duration;
+	std::vector<int64_t> units_killed;
+	std::vector<int64_t> units_lost;
+	std::vector<int64_t> units_built;
+	std::vector<int64_t> buildings_killed;
+	std::vector<int64_t> buildings_lost;
+	std::vector<int64_t> buildings_built;
+	std::vector<int64_t> earnings;
+	std::vector<int64_t> tech_captured;
+	std::vector<int64_t> discons;
+	std::vector<int64_t> desyncs;
+	std::vector<int64_t> surrenders;
+	std::vector<int64_t> games_of_2p;
+	std::vector<int64_t> games_of_3p;
+	std::vector<int64_t> games_of_4p;
+	std::vector<int64_t> games_of_5p;
+	std::vector<int64_t> games_of_6p;
+	std::vector<int64_t> games_of_7p;
+	std::vector<int64_t> games_of_8p;
+	std::vector<int64_t> custom_games;
+	std::vector<int64_t> quick_matches;
+
+	template <class V> void Fields(V& v)
+	{
+		v("wins", wins);
+		v("losses", losses);
+		v("games", games);
+		v("duration", duration);
+		v("units_killed", units_killed);
+		v("units_lost", units_lost);
+		v("units_built", units_built);
+		v("buildings_killed", buildings_killed);
+		v("buildings_lost", buildings_lost);
+		v("buildings_built", buildings_built);
+		v("earnings", earnings);
+		v("tech_captured", tech_captured);
+		v("discons", discons);
+		v("desyncs", desyncs);
+		v("surrenders", surrenders);
+		v("games_of_2p", games_of_2p);
+		v("games_of_3p", games_of_3p);
+		v("games_of_4p", games_of_4p);
+		v("games_of_5p", games_of_5p);
+		v("games_of_6p", games_of_6p);
+		v("games_of_7p", games_of_7p);
+		v("games_of_8p", games_of_8p);
+		v("custom_games", custom_games);
+		v("quick_matches", quick_matches);
+	}
+};
+
+// GET /api/v1/players/:id/stats, also one entry of the batch.
+struct PlayerStatsBody : WireObject
+{
+	int64_t user_id = 0;
+	int64_t elo_rating = 0;
+	int64_t monthly_elo_rating = 0;
+	int64_t elo_matches = 0;
+	PlayerGeneralStats generals;
+	int64_t games_as_random = 0;
+	int64_t last_general = 0;
+	int64_t games_in_row_with_last_general = 0;
+	int64_t challenge_medals = 0;
+	int64_t battle_honors = 0;
+	int64_t qm_wins_in_a_row = 0;
+	int64_t max_qm_wins_in_a_row = 0;
+	int64_t wins_in_a_row = 0;
+	int64_t max_wins_in_a_row = 0;
+	int64_t losses_in_a_row = 0;
+	int64_t max_losses_in_a_row = 0;
+	int64_t discons_in_a_row = 0;
+	int64_t max_discons_in_a_row = 0;
+	int64_t desyncs_in_a_row = 0;
+	int64_t max_desyncs_in_a_row = 0;
+	int64_t built_particle_cannon = 0;
+	int64_t built_nuke = 0;
+	int64_t built_scud = 0;
+
+	template <class V> void Fields(V& v)
+	{
+		v("user_id", user_id);
+		v("elo_rating", elo_rating);
+		v("monthly_elo_rating", monthly_elo_rating);
+		v("elo_matches", elo_matches);
+		v("generals", generals);
+		v("games_as_random", games_as_random);
+		v("last_general", last_general);
+		v("games_in_row_with_last_general", games_in_row_with_last_general);
+		v("challenge_medals", challenge_medals);
+		v("battle_honors", battle_honors);
+		v("qm_wins_in_a_row", qm_wins_in_a_row);
+		v("max_qm_wins_in_a_row", max_qm_wins_in_a_row);
+		v("wins_in_a_row", wins_in_a_row);
+		v("max_wins_in_a_row", max_wins_in_a_row);
+		v("losses_in_a_row", losses_in_a_row);
+		v("max_losses_in_a_row", max_losses_in_a_row);
+		v("discons_in_a_row", discons_in_a_row);
+		v("max_discons_in_a_row", max_discons_in_a_row);
+		v("desyncs_in_a_row", desyncs_in_a_row);
+		v("max_desyncs_in_a_row", max_desyncs_in_a_row);
+		v("built_particle_cannon", built_particle_cannon);
+		v("built_nuke", built_nuke);
+		v("built_scud", built_scud);
+	}
+};
+
+// GET /api/v1/players/stats?ids= answers in request order and leaves unknown ids out.
+struct PlayerStatsBatchResponse : WireObject
+{
+	std::vector<PlayerStatsBody> stats;
+
+	template <class V> void Fields(V& v)
+	{
+		v("stats", stats);
+	}
+};
+
+// Log redaction ///////////////////////////////////////////////////////////////////
+
+// A service path as it may be logged. Route names stay, every other segment and the whole query become [redacted].
+inline std::string RestPathForLog(const std::string& path)
+{
+	static const char* const ROUTE_NAMES[] = {
+		"api", "v1", "me", "auth", "session", "compatibility", "config", "linked_accounts", "eos", "eos_token",
+		"stats", "global", "players", "matches", "results", "lobbies", "connection_reports", "matchmaking",
+		"playlists", "friend_requests", "accept", "friends", "blocks", "groups", "members", "sanctions",
+		"messages", "reports", "roles", "leaderboards", "sessions", "realtime", "connect", "oauth", "token",
+		"authorize", "revoke", ".well-known", "openid-configuration", "jwks.json"
+	};
+	const size_t queryStart = path.find_first_of("?#");
+	const std::string route = path.substr(0, queryStart);
+	std::string result;
+	size_t pos = route.empty() || route[0] != '/' ? 0 : 1;
+	while (pos <= route.size())
+	{
+		size_t end = route.find('/', pos);
+		if (end == std::string::npos)
+		{
+			end = route.size();
+		}
+		const std::string segment = route.substr(pos, end - pos);
+		result += "/";
+		if (!segment.empty())
+		{
+			bool known = false;
+			for (const char* name : ROUTE_NAMES)
+			{
+				if (segment == name)
+				{
+					known = true;
+					break;
+				}
+			}
+			result += known ? segment : std::string("[redacted]");
+		}
+		if (end == route.size())
+		{
+			break;
+		}
+		pos = end + 1;
+	}
+	if (queryStart != std::string::npos)
+	{
+		result += "?[redacted]";
+	}
+	return result;
+}
 
 // The failure body of the spec form.
 struct ErrorBody : WireObject
