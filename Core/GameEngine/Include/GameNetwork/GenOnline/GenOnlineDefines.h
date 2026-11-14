@@ -69,9 +69,9 @@ void GenOnlineShowNotificationBox(AsciiString nick, UnicodeString message, bool 
 
 // The OAuth client id names the game tree.
 #if RTS_GENERALS
-#define GENONLINE_CLIENT_ID "generals"
+#define GENONLINE_CLIENT_ID "genonline_generals"
 #else
-#define GENONLINE_CLIENT_ID "generalsmd"
+#define GENONLINE_CLIENT_ID "genonline_zerohour"
 #endif
 
 extern int FRAME_GROUPING_CAP;

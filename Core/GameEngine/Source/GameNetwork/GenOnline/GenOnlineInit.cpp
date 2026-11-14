@@ -589,7 +589,7 @@ void GenOnlineServicesManager::StartVersionCheckOnSelectedRoute(std::function<vo
 	nlohmann::json j;
 	j["client_version"] = GetClientVersion();
 #if defined(RTS_ZEROHOUR)
-	j["game"] = "generalsmd";
+	j["game"] = "zerohour";
 #else
 	j["game"] = "generals";
 #endif
