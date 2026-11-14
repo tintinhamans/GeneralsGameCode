@@ -369,6 +369,7 @@ protected:
 	void doAffectObjectPanelFlagsTeam(const AsciiString& teamName, const AsciiString& flagName, Bool enable);
 	void doGuardSupplyCenter(const AsciiString& teamName, Int supplies);
 	void doTeamMoveToSupplySource(const AsciiString& teamName, Int supplies);
+	void doTeamManageSupplyTrucks(const AsciiString& teamName, const AsciiString& workerType, Int workers, Int supplies);
 	void doNamedMoveToSupplySource(const AsciiString& unitName, Int supplies);
 	void doTeamGuardInTunnelNetwork(const AsciiString& teamName);
 	void doAffectPlayerSkillset(const AsciiString& playerName, Int skillset);
