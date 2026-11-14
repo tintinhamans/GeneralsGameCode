@@ -28,7 +28,7 @@ New-Item -ItemType Directory -Path "$workingDir"
 Copy-Item -Path "$buildDir\crashpad_handler.exe" -Destination $workingDir
 Copy-Item -Path "$buildDir\discord-rpc.dll" -Destination $workingDir
 Copy-Item -Path "$buildDir\discord-rpc-LICENSE.txt" -Destination $workingDir
-Copy-Item -Path "$buildDir\GeneralsOnlineZH.exe" -Destination $workingDir
+Copy-Item -Path "$buildDir\genonline_zerohour.exe" -Destination $workingDir
 
 # package up our patch and installer
 Compress-Archive -Path "$workingDir\*" -DestinationPath "$workingDir\v$buildVer.zip"
@@ -38,7 +38,7 @@ Copy-Item -Path "$workingDir\v$buildVer.zip" -Destination "$installerDir\v$build
 Copy-Item -Path "$workingDir\v$buildVer.zip" -Destination "$updaterDir\v$buildVer.gopatch"
 
 # copy the exe to crcfiles
-Copy-Item -Path "$buildDir\GeneralsOnlineZH.exe" -Destination "$crcFilesDir"
+Copy-Item -Path "$buildDir\genonline_zerohour.exe" -Destination "$crcFilesDir"
 
 # cleanup working dir
 if (Test-Path $workingDir)
