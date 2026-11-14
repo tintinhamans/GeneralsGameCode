@@ -4,5 +4,6 @@
   "clients": [
     "game"
   ],
-  "activity": "lobby"
+  "activity": "channel",
+  "channel_id": 3
 }

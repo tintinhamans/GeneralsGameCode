@@ -1802,7 +1802,7 @@ void GenOnlineLobbyInterface::OnRealtimeCountdownStarted(const GenOnlineRealtime
 	}
 	LobbyEvent lobbyEvent;
 	lobbyEvent.event = "countdown_started";
-	lobbyEvent.duration_ms = event.duration_ms;
+	lobbyEvent.duration_ms = GenOnlineRealtime::SecondsToMilliseconds(event.duration_s);
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Lobby event %s", lobbyEvent.event.c_str());
 	m_callbackLobbyEvent(lobbyEvent);
 }

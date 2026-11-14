@@ -82,11 +82,22 @@ static std::map<std::string, RoundTripFn> BuildFixtureTable()
 	t["Result.ok.json"] = RoundTrip<Result>;
 	t["Result.error.json"] = RoundTrip<Result>;
 
-	t["JoinRoom.request.json"] = RoundTrip<JoinRoomRequest>;
-	t["LeaveRoom.request.json"] = RoundTrip<LeaveRoomRequest>;
+	t["JoinChannel.request.json"] = RoundTrip<JoinChannelRequest>;
+	t["LeaveChannel.request.json"] = RoundTrip<LeaveChannelRequest>;
 	t["SendMessage.request.json"] = RoundTrip<SendMessageRequest>;
 	t["SendMessage.result.json"] = ResultRoundTrip<SendMessageResult>;
+	t["GetHistory.request.json"] = RoundTrip<GetHistoryRequest>;
+	t["GetHistory.result.json"] = ResultRoundTrip<GetHistoryResult>;
+	t["MarkRead.request.json"] = RoundTrip<MarkReadRequest>;
 	t["SetDisplayName.request.json"] = RoundTrip<SetDisplayNameRequest>;
+	t["ReportMessage.request.json"] = RoundTrip<ReportMessageRequest>;
+
+	t["CreateGroup.request.json"] = RoundTrip<CreateGroupRequest>;
+	t["CreateGroup.result.json"] = ResultRoundTrip<CreateGroupResult>;
+	t["AddGroupMembers.request.json"] = RoundTrip<AddGroupMembersRequest>;
+	t["RemoveGroupMember.request.json"] = RoundTrip<RemoveGroupMemberRequest>;
+	t["RenameGroup.request.json"] = RoundTrip<RenameGroupRequest>;
+	t["LeaveGroup.request.json"] = RoundTrip<LeaveGroupRequest>;
 
 	t["WatchLobbyList.request.json"] = RoundTrip<WatchLobbyListRequest>;
 	t["WatchLobbyList.result.json"] = ResultRoundTrip<WatchLobbyListResult>;
@@ -129,6 +140,7 @@ static std::map<std::string, RoundTripFn> BuildFixtureTable()
 	t["Unmute.request.json"] = RoundTrip<UnmuteRequest>;
 	t["Ban.request.json"] = RoundTrip<BanRequest>;
 	t["Unban.request.json"] = RoundTrip<UnbanRequest>;
+	t["DeleteMessage.request.json"] = RoundTrip<DeleteMessageRequest>;
 
 	t["RequestSignalling.request.json"] = RoundTrip<RequestSignallingRequest>;
 	t["Signal.request.json"] = RoundTrip<SignalRequest>;
@@ -142,12 +154,20 @@ static std::map<std::string, RoundTripFn> BuildFixtureTable()
 	t["BadgesUpdate.event.json"] = RoundTrip<BadgesUpdateEvent>;
 	t["Notice.event.json"] = RoundTrip<Notice>;
 	t["ModerationNotice.event.json"] = RoundTrip<ModerationNoticeEvent>;
+	t["ServerSwitching.event.json"] = RoundTrip<ServerSwitchingEvent>;
 
-	t["RoomMembers.event.json"] = RoundTrip<RoomMembersEvent>;
+	t["ChannelMembers.event.json"] = RoundTrip<ChannelMembersEvent>;
+	t["ChannelHistory.event.json"] = RoundTrip<ChannelHistoryEvent>;
 	t["MemberAdd.event.json"] = RoundTrip<MemberAddEvent>;
 	t["MemberRemove.event.json"] = RoundTrip<MemberRemoveEvent>;
 	t["MemberUpdate.event.json"] = RoundTrip<MemberUpdateEvent>;
 	t["MessageCreate.event.json"] = RoundTrip<MessageCreateEvent>;
+	t["MessageDelete.event.json"] = RoundTrip<MessageDeleteEvent>;
+	t["Conversations.event.json"] = RoundTrip<ConversationsEvent>;
+	t["ReadMarker.event.json"] = RoundTrip<ReadMarkerEvent>;
+	t["GroupCreate.event.json"] = RoundTrip<GroupCreateEvent>;
+	t["GroupUpdate.event.json"] = RoundTrip<GroupUpdateEvent>;
+	t["GroupRemoved.event.json"] = RoundTrip<GroupRemovedEvent>;
 
 	t["LobbyListUpsert.event.json"] = RoundTrip<LobbyListUpsertEvent>;
 	t["LobbyListRemove.event.json"] = RoundTrip<LobbyListRemoveEvent>;
@@ -265,7 +285,7 @@ static void TestParseRecord()
 	CHECK(record.hasResult);
 	CHECK(record.result["data"]["message_id"] == "8812");
 
-	CHECK(ParseRecord("{\"type\":1,\"target\":\"MessageCreate\",\"arguments\":[{\"id\":\"8812\",\"channel_id\":\"room:3\",\"type\":\"chat\",\"author\":{\"id\":42,\"name\":\"Bob\",\"badges\":[]},\"content\":\"hi\"}]}", record, error));
+	CHECK(ParseRecord("{\"type\":1,\"target\":\"MessageCreate\",\"arguments\":[{\"id\":\"8812\",\"channel_id\":\"channel:3\",\"type\":\"chat\",\"author\":{\"id\":42,\"name\":\"Bob\",\"badges\":[]},\"content\":\"hi\",\"created_at\":\"2026-11-14T20:00:00Z\"}]}", record, error));
 	CHECK(record.type == 1);
 	CHECK(record.invocationId.empty());
 	CHECK(record.target == "MessageCreate");
@@ -295,13 +315,13 @@ static void TestParseRecord()
 static void TestSerializeInvocation()
 {
 	SendMessageRequest request;
-	request.channel_id = "room:3";
+	request.channel_id = "channel:3";
 	request.type = "chat";
 	request.content = "hi";
 	std::string withResult = SerializeInvocation(SendMessageRequest::METHOD, json(request), "5");
 	CHECK(withResult.back() == RECORD_SEPARATOR);
 	json parsed = json::parse(withResult.substr(0, withResult.size() - 1));
-	CHECK(parsed == json::parse("{\"type\":1,\"invocationId\":\"5\",\"target\":\"SendMessage\",\"arguments\":[{\"channel_id\":\"room:3\",\"type\":\"chat\",\"content\":\"hi\"}]}"));
+	CHECK(parsed == json::parse("{\"type\":1,\"invocationId\":\"5\",\"target\":\"SendMessage\",\"arguments\":[{\"channel_id\":\"channel:3\",\"type\":\"chat\",\"content\":\"hi\"}]}"));
 
 	SignalRequest signal;
 	signal.to = 7;
@@ -385,6 +405,19 @@ static void TestInvocationTracker()
 	CHECK(tracker.PendingCount() == 0);
 }
 
+// Wire durations in whole seconds feed the millisecond consumers of the client.
+static void TestSecondsToMilliseconds()
+{
+	CHECK(SecondsToMilliseconds(0) == 0);
+	CHECK(SecondsToMilliseconds(5) == 5000);
+	CHECK(SecondsToMilliseconds(-2) == -2000);
+	CHECK(SecondsToMilliseconds(INT64_MAX) == INT64_MAX / 1000 * 1000);
+	CHECK(SecondsToMilliseconds(INT64_MIN) == -(INT64_MAX / 1000 * 1000));
+
+	CountdownStartedEvent countdown = json::parse("{\"lobby_id\":991,\"duration_s\":5}").get<CountdownStartedEvent>();
+	CHECK(SecondsToMilliseconds(countdown.duration_s) == 5000);
+}
+
 static void TestFieldPresence()
 {
 	// Absent, null and a value stay distinct for patch fields.
@@ -418,8 +451,8 @@ static void TestFieldPresence()
 	CHECK(threw);
 
 	// A null optional field reads as left out.
-	ModerationNoticeEvent notice = json::parse("{\"action\":\"kick\",\"reason\":\"r\",\"until\":null}").get<ModerationNoticeEvent>();
-	CHECK(!notice.until.has_value());
+	ModerationNoticeEvent notice = json::parse("{\"action\":\"kick\",\"reason\":\"r\",\"expires_at\":null}").get<ModerationNoticeEvent>();
+	CHECK(!notice.expires_at.has_value());
 }
 
 // A transport stand-in that records what the session sends and how the connection ended.
@@ -480,7 +513,7 @@ struct FakeHub
 
 	static std::string ReadyRecord(int protocolVersion)
 	{
-		json ready = json::parse("{\"protocol_version\":1,\"session_type\":\"game\",\"user\":{\"id\":42,\"name\":\"Bob\",\"badges\":[]},\"permissions\":[],\"badges\":{},\"rooms\":[],\"limits\":{\"chat_max_length\":512,\"chat_rate\":{\"messages\":3,\"window_ms\":9000},\"name_min_length\":3,\"name_max_length\":16}}");
+		json ready = json::parse("{\"protocol_version\":1,\"session_type\":\"game\",\"user\":{\"id\":42,\"name\":\"Bob\",\"badges\":[]},\"permissions\":[],\"badges\":{},\"channels\":[],\"limits\":{\"chat_max_length\":512,\"chat_rate\":{\"messages\":3,\"window_s\":9},\"name_min_length\":3,\"name_max_length\":16,\"group_max_members\":10}}");
 		ready["protocol_version"] = protocolVersion;
 		json record = { { "type", 1 }, { "target", "Ready" }, { "arguments", json::array({ ready }) } };
 		return record.dump() + RECORD_SEPARATOR;
@@ -530,7 +563,7 @@ static void TestHubSessionInvoke()
 {
 	FakeHub hub;
 	SendMessageRequest request;
-	request.channel_id = "room:3";
+	request.channel_id = "channel:3";
 	request.type = "chat";
 	request.content = "hi";
 
@@ -1076,6 +1109,7 @@ int main(int argc, char** argv)
 	TestSerializeInvocation();
 	TestRecordSplitter();
 	TestInvocationTracker();
+	TestSecondsToMilliseconds();
 	TestFieldPresence();
 	TestHubSessionConnect();
 	TestHubSessionInvoke();

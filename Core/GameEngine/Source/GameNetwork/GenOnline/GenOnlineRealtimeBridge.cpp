@@ -123,7 +123,7 @@ std::string ActivityText(const std::string& activity)
 {
 	if (activity == "menu")
 		return "In menus";
-	if (activity == "room")
+	if (activity == "channel")
 		return "In a room";
 	if (activity == "lobby")
 		return "In a lobby";
@@ -157,8 +157,8 @@ std::wstring FailureText(const InvokeOutcome& outcome)
 	}
 	if (code == "chat.muted")
 	{
-		const std::string until = ParamText(params, "until");
-		return until.empty() ? std::wstring(L"You are muted and cannot send messages.") : L"You are muted and cannot send messages until " + Wide(until) + L".";
+		const std::string expiresAt = ParamText(params, "expires_at");
+		return expiresAt.empty() ? std::wstring(L"You are muted and cannot send messages.") : L"You are muted and cannot send messages until " + Wide(expiresAt) + L".";
 	}
 	if (code == "chat.not_friends")
 	{
@@ -188,7 +188,7 @@ std::wstring FailureText(const InvokeOutcome& outcome)
 	{
 		return L"That name is already taken.";
 	}
-	if (code == "room.unavailable")
+	if (code == "channel.unavailable")
 	{
 		return L"That room is not available.";
 	}
@@ -227,7 +227,7 @@ void OnReady(const ReadyEvent& ready, bool bFirstReady)
 	GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 	if (pRooms != nullptr)
 	{
-		pRooms->SetRealtimeRooms(ready.rooms);
+		pRooms->SetRealtimeRooms(ready.channels);
 	}
 	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	if (pAuth != nullptr)
@@ -325,7 +325,7 @@ void RegisterHandlers(HubSession& session)
 			GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 			if (pLobby != nullptr)
 			{
-				pLobby->HandleMatchSetupProgress(event.timeout_ms, event.countdown_ms);
+				pLobby->HandleMatchSetupProgress(SecondsToMilliseconds(event.timeout_s), SecondsToMilliseconds(event.countdown_s));
 			}
 		});
 	session.On<MatchStartEvent>([](const MatchStartEvent& event)
@@ -348,12 +348,12 @@ void RegisterHandlers(HubSession& session)
 		{
 			s_badges = event.badges;
 		});
-	session.On<RoomMembersEvent>([](const RoomMembersEvent& event)
+	session.On<ChannelMembersEvent>([](const ChannelMembersEvent& event)
 		{
 			GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 			if (pRooms != nullptr)
 			{
-				pRooms->OnRealtimeRoomMembers(event);
+				pRooms->OnRealtimeChannelMembers(event);
 			}
 		});
 	session.On<MemberAddEvent>([](const MemberAddEvent& event)
@@ -392,7 +392,7 @@ void RegisterHandlers(HubSession& session)
 		});
 	session.On<MessageCreateEvent>([](const MessageCreateEvent& event)
 		{
-			if (event.channel_id.compare(0, 5, "room:") == 0)
+			if (event.channel_id.compare(0, 8, "channel:") == 0)
 			{
 				GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 				if (pRooms != nullptr)
@@ -446,21 +446,21 @@ void RegisterHandlers(HubSession& session)
 		{
 			if (notice.action == "ban")
 			{
-				HandleModerationDisconnect(EOnlineModerationAction::BAN, notice.reason);
+				HandleModerationDisconnect(EOnlineModerationAction::BAN, notice.reason.value_or(std::string()));
 			}
 			else if (notice.action == "kick")
 			{
 				// The hub closes the connection next and the client reconnects after 10 seconds.
-				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, UnicodeString((L"A moderator removed you from the online service: " + Wide(notice.reason) + L". Reconnecting in 10 seconds.").c_str()));
+				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, UnicodeString((L"A moderator removed you from the online service: " + Wide(notice.reason.value_or(std::string())) + L". Reconnecting in 10 seconds.").c_str()));
 			}
 			else if (notice.action == "mute")
 			{
 				std::wstring text = L"A moderator muted you";
-				if (notice.until.has_value())
+				if (notice.expires_at.has_value())
 				{
-					text += L" until " + Wide(*notice.until);
+					text += L" until " + Wide(*notice.expires_at);
 				}
-				text += L": " + Wide(notice.reason);
+				text += L": " + Wide(notice.reason.value_or(std::string()));
 				ShowRoomNotice(text, false);
 			}
 		});

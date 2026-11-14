@@ -1,0 +1,49 @@
+{
+  "conversations": [
+    {
+      "channel_id": "dm:7",
+      "unread": 2,
+      "last": {
+        "id": "8820",
+        "channel_id": "dm:7",
+        "type": "chat",
+        "author": {
+          "id": 7,
+          "name": "Ann",
+          "badges": [
+            "moderator"
+          ]
+        },
+        "content": "you there?",
+        "created_at": "2026-11-14T20:10:00Z"
+      }
+    },
+    {
+      "channel_id": "group:12",
+      "unread": 0,
+      "last": null
+    }
+  ],
+  "groups": [
+    {
+      "id": 12,
+      "name": "Clan practice",
+      "owner_id": 42,
+      "members": [
+        {
+          "id": 42,
+          "name": "Bob",
+          "badges": []
+        },
+        {
+          "id": 7,
+          "name": "Ann",
+          "badges": [
+            "moderator"
+          ]
+        }
+      ],
+      "created_at": "2026-11-14T19:00:00Z"
+    }
+  ]
+}

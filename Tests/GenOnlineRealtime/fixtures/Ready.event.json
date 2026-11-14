@@ -20,7 +20,7 @@
       "color": "#f5c542"
     }
   },
-  "rooms": [
+  "channels": [
     {
       "id": 1,
       "name": "General",
@@ -32,9 +32,10 @@
     "chat_max_length": 512,
     "chat_rate": {
       "messages": 3,
-      "window_ms": 9000
+      "window_s": 9
     },
     "name_min_length": 3,
-    "name_max_length": 16
+    "name_max_length": 16,
+    "group_max_members": 10
   }
 }
