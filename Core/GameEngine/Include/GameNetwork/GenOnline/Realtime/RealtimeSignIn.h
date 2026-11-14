@@ -402,8 +402,8 @@ inline std::string AcceptRealtimeUrl(const std::string& wsUrl, const std::string
 		return std::string();
 	if (wsUrl.find("/../") != std::string::npos || wsUrl.find("/./") != std::string::npos)
 		return std::string();
-	// The hub path is /-/realtime below the path base of the server, never the legacy /ws.
-	static const std::string HUB_PATH = "/-/realtime";
+	// The hub path is /realtime below the path base of the server, never the legacy /ws.
+	static const std::string HUB_PATH = "/realtime";
 	const std::string path = wsUrl.substr(expectedPrefix.size() - 1);
 	if (path.size() < HUB_PATH.size() || path.compare(path.size() - HUB_PATH.size(), HUB_PATH.size(), HUB_PATH) != 0)
 		return std::string();

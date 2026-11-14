@@ -2,5 +2,5 @@
   "user_id": 42,
   "display_name": "Bob",
   "session_type": "GameClient",
-  "ws_url": "wss://prod.example.org/-/realtime"
+  "ws_url": "wss://prod.example.org/realtime"
 }

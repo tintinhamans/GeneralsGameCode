@@ -883,22 +883,22 @@ static void TestAcceptRealtimeUrl()
 	CHECK(OriginOfBase("https://localhost") == "https://localhost");
 	CHECK(OriginOfBase("http://api.playgenerals.online/").empty());
 
-	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/-/realtime", base) == "wss://api.playgenerals.online:2087/-/realtime");
-	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/genonline/-/realtime", base) == "wss://api.playgenerals.online:2087/genonline/-/realtime");
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/realtime", base) == "wss://api.playgenerals.online:2087/realtime");
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/genonline/realtime", base) == "wss://api.playgenerals.online:2087/genonline/realtime");
 	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/ws", base).empty());
-	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/-/realtime/", base).empty());
-	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/x-/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/realtime/", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/xrealtime", base).empty());
 
-	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online/-/realtime", base).empty());
-	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087.evil.example/-/realtime", base).empty());
-	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:20870/-/realtime", base).empty());
-	CHECK(AcceptRealtimeUrl("ws://api.playgenerals.online:2087/-/realtime", base).empty());
-	CHECK(AcceptRealtimeUrl("wss://evil.example/-/realtime", base).empty());
-	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/-/realtime?access_token=x", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087.evil.example/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:20870/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://api.playgenerals.online:2087/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://evil.example/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/realtime?access_token=x", base).empty());
 	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/a/../b", base).empty());
 	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/%2e%2e/b", base).empty());
 	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087", base).empty());
-	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/-/realtime", "http://api.playgenerals.online:2087/").empty());
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/realtime", "http://api.playgenerals.online:2087/").empty());
 }
 
 static void TestLoopbackHttp()
@@ -932,8 +932,8 @@ static void TestLoopbackHttp()
 	CHECK(!IsLoopbackHost("localhost.evil.example"));
 	CHECK(!IsLoopbackHost("127.0.0.1.nip.io"));
 	CHECK(!IsLoopbackHost("[::1].evil.example"));
-	CHECK(IsLoopbackURL("ws://localhost:9000/-/realtime", "ws"));
-	CHECK(!IsLoopbackURL("wss://localhost:9000/-/realtime", "ws"));
+	CHECK(IsLoopbackURL("ws://localhost:9000/realtime", "ws"));
+	CHECK(!IsLoopbackURL("wss://localhost:9000/realtime", "ws"));
 	CHECK(!IsLoopbackURL("http://localhost:9000:1/", "http"));
 	CHECK(!IsLoopbackURL("http://[::1]:9000]/", "http"));
 	CHECK(!IsLoopbackURL("http://local%68ost/", "http"));
@@ -949,23 +949,23 @@ static void TestLoopbackHttp()
 	CHECK(!IsAcceptableEndpoint("http://localhost:9000/oauth/token", "http://evil.example"));
 
 	const std::string base = "http://localhost:9000/env/dev/contract/1/";
-	CHECK(AcceptRealtimeUrl("ws://localhost:9000/-/realtime", base) == "ws://localhost:9000/-/realtime");
-	CHECK(AcceptRealtimeUrl("ws://localhost:9000/genonline/-/realtime", base) == "ws://localhost:9000/genonline/-/realtime");
-	CHECK(AcceptRealtimeUrl("ws://[::1]:9000/-/realtime", "http://[::1]:9000/") == "ws://[::1]:9000/-/realtime");
-	CHECK(AcceptRealtimeUrl("wss://localhost:9000/-/realtime", base).empty());
-	CHECK(AcceptRealtimeUrl("wss://evil.example/-/realtime", base).empty());
-	CHECK(AcceptRealtimeUrl("ws://localhost:9001/-/realtime", base).empty());
-	CHECK(AcceptRealtimeUrl("ws://localhost/-/realtime", base).empty());
-	CHECK(AcceptRealtimeUrl("ws://127.0.0.1:9000/-/realtime", base).empty());
-	CHECK(AcceptRealtimeUrl("ws://localhost:9000.evil.example/-/realtime", base).empty());
-	CHECK(AcceptRealtimeUrl("ws://localhost:9000@evil.example/-/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://localhost:9000/realtime", base) == "ws://localhost:9000/realtime");
+	CHECK(AcceptRealtimeUrl("ws://localhost:9000/genonline/realtime", base) == "ws://localhost:9000/genonline/realtime");
+	CHECK(AcceptRealtimeUrl("ws://[::1]:9000/realtime", "http://[::1]:9000/") == "ws://[::1]:9000/realtime");
+	CHECK(AcceptRealtimeUrl("wss://localhost:9000/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://evil.example/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://localhost:9001/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://localhost/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://127.0.0.1:9000/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://localhost:9000.evil.example/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://localhost:9000@evil.example/realtime", base).empty());
 	CHECK(AcceptRealtimeUrl("ws://localhost:9000/ws", base).empty());
-	CHECK(AcceptRealtimeUrl("ws://localhost:9000/-/realtime?access_token=x", base).empty());
-	CHECK(AcceptRealtimeUrl("ws://localhost:9000/a/../-/realtime", base).empty());
-	CHECK(AcceptRealtimeUrl("ws://evil.example/-/realtime", "http://evil.example/").empty());
+	CHECK(AcceptRealtimeUrl("ws://localhost:9000/realtime?access_token=x", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://localhost:9000/a/../realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://evil.example/realtime", "http://evil.example/").empty());
 	// An https route never takes ws, even on a loopback host.
-	CHECK(AcceptRealtimeUrl("ws://localhost:9000/-/realtime", "https://localhost:9000/env/dev/contract/1/").empty());
-	CHECK(AcceptRealtimeUrl("wss://localhost:9000/-/realtime", "https://localhost:9000/env/dev/contract/1/") == "wss://localhost:9000/-/realtime");
+	CHECK(AcceptRealtimeUrl("ws://localhost:9000/realtime", "https://localhost:9000/env/dev/contract/1/").empty());
+	CHECK(AcceptRealtimeUrl("wss://localhost:9000/realtime", "https://localhost:9000/env/dev/contract/1/") == "wss://localhost:9000/realtime");
 
 	// The discovery of a loopback http origin may name http endpoints on a loopback host, any other host stays https.
 	const std::string origin = "http://localhost:9000";
