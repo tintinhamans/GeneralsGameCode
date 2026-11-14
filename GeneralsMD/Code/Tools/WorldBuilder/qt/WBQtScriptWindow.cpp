@@ -241,17 +241,29 @@ WBQtScriptWindow::WBQtScriptWindow(QWidget *owner)
 	m_editScript = m_ui->editScript;
 	m_copyScript = m_ui->copyScript;
 	m_delete = m_ui->deleteBtn;
-	m_clearAll = m_ui->clearAllBtn;
 	m_undoBtn = m_ui->undoBtn;
 	m_redoBtn = m_ui->redoBtn;
 	m_verify = m_ui->verify;
-	m_replaceMissing = m_ui->replaceMissing;
-	m_addDebug = m_ui->addDebug;
-	m_removeDebug = m_ui->removeDebug;
-	m_patchGC = m_ui->patchGC;
-	m_export = m_ui->exportBtn;
-	m_import = m_ui->importBtn;
 	m_saveNow = m_ui->saveNow;
+
+	m_moreButton = new QPushButton("&More", this);
+	QMenu *moreMenu = new QMenu(m_moreButton);
+	moreMenu->setToolTipsVisible(true);
+	m_addDebug = moreMenu->addAction("Add Debug");
+	m_removeDebug = moreMenu->addAction("Delete Debug");
+	m_patchGC = moreMenu->addAction("Patch \"GC_\"");
+	moreMenu->addSeparator();
+	m_replaceMissing = moreMenu->addAction("Replace Missing...");
+	m_replaceMissing->setToolTip("Replace every missing object type in the scripts with its closest name match, then show a report you can correct.");
+	m_clearAll = moreMenu->addAction("Clear All...");
+	m_clearAll->setToolTip("Remove every script and folder from the map, for all players. Undoable.");
+	moreMenu->addSeparator();
+	m_export = moreMenu->addAction("Export Scripts");
+	m_import = moreMenu->addAction("Import Scripts");
+	m_moreButton->setMenu(moreMenu);
+	m_moreButton->installEventFilter(this);
+	connect(moreMenu, SIGNAL(aboutToHide()), this, SLOT(onMoreMenuHidden()));
+	m_ui->cmdRow->addWidget(m_moreButton);
 
 	// --- Commit row ---
 	m_ok = m_ui->ok;
@@ -312,16 +324,16 @@ WBQtScriptWindow::WBQtScriptWindow(QWidget *owner)
 	connect(m_editScript, SIGNAL(clicked()), this, SLOT(onEditScript()));
 	connect(m_copyScript, SIGNAL(clicked()), this, SLOT(onCopyScript()));
 	connect(m_delete, SIGNAL(clicked()), this, SLOT(onDelete()));
-	connect(m_clearAll, SIGNAL(clicked()), this, SLOT(onClearAll()));
+	connect(m_clearAll, SIGNAL(triggered()), this, SLOT(onClearAll()));
 	connect(m_undoBtn, SIGNAL(clicked()), this, SLOT(onUndo()));
 	connect(m_redoBtn, SIGNAL(clicked()), this, SLOT(onRedo()));
 	connect(m_verify, SIGNAL(clicked()), this, SLOT(onVerify()));
-	connect(m_replaceMissing, SIGNAL(clicked()), this, SLOT(onReplaceMissing()));
-	connect(m_addDebug, SIGNAL(clicked()), this, SLOT(onAddDebug()));
-	connect(m_removeDebug, SIGNAL(clicked()), this, SLOT(onRemoveDebug()));
-	connect(m_patchGC, SIGNAL(clicked()), this, SLOT(onPatchGC()));
-	connect(m_export, SIGNAL(clicked()), this, SLOT(onExport()));
-	connect(m_import, SIGNAL(clicked()), this, SLOT(onImport()));
+	connect(m_replaceMissing, SIGNAL(triggered()), this, SLOT(onReplaceMissing()));
+	connect(m_addDebug, SIGNAL(triggered()), this, SLOT(onAddDebug()));
+	connect(m_removeDebug, SIGNAL(triggered()), this, SLOT(onRemoveDebug()));
+	connect(m_patchGC, SIGNAL(triggered()), this, SLOT(onPatchGC()));
+	connect(m_export, SIGNAL(triggered()), this, SLOT(onExport()));
+	connect(m_import, SIGNAL(triggered()), this, SLOT(onImport()));
 	connect(m_saveNow, SIGNAL(clicked()), this, SLOT(onSaveNow()));
 	connect(m_tree, SIGNAL(customContextMenuRequested(const QPoint &)),
 		this, SLOT(onTreeContextMenu(const QPoint &)));
@@ -1929,6 +1941,25 @@ void WBQtScriptWindow::applyFilters()
 	{
 		filterItemRec(m_tree->topLevelItem(i), fs);
 	}
+}
+
+void WBQtScriptWindow::onMoreMenuHidden()
+{
+	m_moreMenuHidden.start();
+}
+
+bool WBQtScriptWindow::eventFilter(QObject *watched, QEvent *event)
+{
+	if (watched == m_moreButton && event->type() == QEvent::Enter)
+	{
+		// A closing menu re-enters the button under the pointer, which must not reopen it.
+		const bool justClosed = m_moreMenuHidden.isValid() && m_moreMenuHidden.elapsed() < 400;
+		if (!justClosed && isActiveWindow() && !m_moreButton->menu()->isVisible())
+		{
+			QTimer::singleShot(0, m_moreButton, SLOT(showMenu()));
+		}
+	}
+	return QWidget::eventFilter(watched, event);
 }
 
 void WBQtScriptWindow::onOk()

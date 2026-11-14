@@ -297,7 +297,7 @@ int  WBQtScript_GetConfirmDelete(void);
 void WBQtScript_SetConfirmDelete(int on);
 // Select + center a named map entity (isWaypoint 0 = placed unit, 1 = waypoint). Returns 1 if found.
 int  WBQtScript_SelectEntity(const char *name, int isWaypoint);
-void WBQtScript_Commit(void);	// == OnOK  (commit the working model, save)
+void WBQtScript_Commit(void);	// OK: commit the working model to the map, no file save
 void WBQtScript_Cancel(void);	// == OnCancel (discard)
 // 9b: drag-drop reorder/move (reuses doDropOn incl. Ctrl auto-merge) and search. Both listType
 // args are packed ListType ints. FindNext returns the next matching node's ListType via *out

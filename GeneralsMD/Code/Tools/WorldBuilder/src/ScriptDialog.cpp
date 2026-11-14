@@ -4260,8 +4260,10 @@ BOOL ScriptDialog::PreTranslateMessage(MSG* pMsg)
     return CDialog::PreTranslateMessage(pMsg);
 }
 
-// This will fire the save without closing the script dialog screen
-void ScriptDialog::OnSaveActual() 
+/**
+* ScriptDialog::commitToDoc - write the scripts into the map as one undoable, without saving the file.
+*/
+void ScriptDialog::commitToDoc()
 {
 	CWorldBuilderDoc* pDoc = CWorldBuilderDoc::GetActiveDoc();
 	adoptDocSides();
@@ -4272,6 +4274,13 @@ void ScriptDialog::OnSaveActual()
 	REF_PTR_RELEASE(pUndo); // belongs to pDoc now.
 
 	SaveScriptWarningsState();
+}
+
+// This will fire the save without closing the script dialog screen
+void ScriptDialog::OnSaveActual()
+{
+	CWorldBuilderDoc* pDoc = CWorldBuilderDoc::GetActiveDoc();
+	commitToDoc();
 
 	PlaySound("data\\editor\\audio\\finished.wav", NULL, SND_FILENAME | SND_ASYNC);
 
@@ -4535,11 +4544,11 @@ void ScriptDialog::qtDoDelete(void) { OnDelete(); }
 
 void ScriptDialog::qtCommitAndClose(void)
 {
-	// Commit the working model (m_sides -> TheSidesList via SidesListUndoable + save), like
-	// OnOK's non-search path. We do NOT call CDialog::OnOK() (that is the visible-modeless
+	// Commit the working model (m_sides -> TheSidesList via SidesListUndoable); the map file
+	// is not saved. We do NOT call CDialog::OnOK() (that is the visible-modeless
 	// close path) and do NOT destroy the dialog here -- the bridge tears it down AFTER this
 	// returns, so `this` stays valid for the rest of the call.
-	OnSaveActual();
+	commitToDoc();
 	if (CMainFrame::GetMainFrame())
 	{
 		CMainFrame::GetMainFrame()->setFocusInScripting(false);

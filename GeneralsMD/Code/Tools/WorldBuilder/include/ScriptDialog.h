@@ -121,7 +121,7 @@ public:
 	void qtDoEditScript(void);
 	void qtDoCopyScript(void);
 	void qtDoDelete(void);
-	void qtCommitAndClose(void);	// == OnOK (commit m_sides via SidesListUndoable)
+	void qtCommitAndClose(void);	// OK: commit m_sides via SidesListUndoable, no file save
 	void qtCancelAndClose(void);	// == OnCancel (discard)
 	// 9b: drag-drop + search. qtDropOn resolves both nodes by ListType and reuses doDropOn
 	// (reorder / move / Ctrl auto-merge). qtFindNext walks the model in tree order and
@@ -246,6 +246,7 @@ protected:
 	void addEditFilePlayer(const AsciiString &name, const Dict *fileDict);
 	void ensureScriptLists();
 	void adoptDocSides();
+	void commitToDoc();
 	Bool importScriptFile(const CString &path);
 	Int countOwnedObjects();
 	Bool editFileStillOpen();
