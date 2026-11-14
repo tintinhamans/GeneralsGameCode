@@ -93,7 +93,9 @@ void GenOnlineMatchmakingInterface::StartMatchmaking(uint16_t playlistID, std::v
 
 	InvokeRealtimeHub(request, [fnCallback](const GenOnlineRealtime::InvokeOutcome& outcome)
 		{
-			if (!outcome.Succeeded())
+			// A session that is already queued keeps searching, so the menu shows the search.
+			const bool bQueued = outcome.Succeeded() || outcome.Code() == "matchmaking.already_queued";
+			if (!bQueued)
 			{
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] JoinQueue failed: %s", outcome.delivered ? outcome.Code().c_str() : outcome.transportError.c_str());
 				GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
@@ -104,7 +106,7 @@ void GenOnlineMatchmakingInterface::StartMatchmaking(uint16_t playlistID, std::v
 			}
 			if (fnCallback != nullptr)
 			{
-				fnCallback(outcome.Succeeded());
+				fnCallback(bQueued);
 			}
 		});
 }
