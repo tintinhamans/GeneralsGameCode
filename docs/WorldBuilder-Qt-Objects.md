@@ -18,4 +18,6 @@ its faction side, so one import fills all players of a skirmish script file. A f
 imports it into the selected player. Show Selected Player Only draws and picks only the selected
 player's buildings while the tool is open.)
 * Select Similar works on roads and bridges.
+* Fence Tool - (The search box filters the fence-only list as well as the full object list.)
+* The Object tool keeps its picked object and owning team through a camera pan.
 

@@ -10,6 +10,10 @@ selects it in the 3D view and centres the camera on it.
 * Ctrl+H opens find and replace for parameter values across all scripts, or only the selected one.
 Script names, folders and comments are never touched.
 * F4 toggles the editor. Clear All empties the script list and can be undone.
+* The editor has no minimize button. While it is open it follows player, team and build list
+edits made elsewhere, and saving scripts leaves them untouched.
+* In a name picker, a click or an arrow key takes the highlighted match. Enter completes the name
+when one match is left, and a second Enter accepts it. The OK button stores the text as typed.
 
 A map made against another mod can name objects your game data lacks. Such a script shows them on
 a [Missing] line. Clicking a name opens the Edit dialog on the row that uses it, and the object
