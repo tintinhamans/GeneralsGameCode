@@ -24,7 +24,9 @@
 #pragma once
 
 #include "GameNetwork/GenOnline/Realtime/RealtimeHubSession.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeRest.h"
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -49,6 +51,34 @@ std::string ActivityText(const std::string& activity);
 
 // The text shown for a hub method that did not succeed.
 std::wstring FailureText(const GenOnlineRealtime::InvokeOutcome& outcome);
+
+// The text shown for a REST call that did not succeed. A code shows the same text as from the hub.
+std::wstring FailureText(const GenOnlineRealtime::RestOutcome& outcome);
+
+// The text of a section 7 failure code and its params.
+std::wstring FailureText(const std::string& code, const nlohmann::json& params);
+
+enum class RestMethod
+{
+	Get,
+	Post,
+	Put,
+	Delete,
+	Patch
+};
+
+typedef std::function<void(const GenOnlineRealtime::RestOutcome&)> RestCallback;
+
+// Calls a REST endpoint on the service origin with the access token of the session. path starts with /api/v1
+// and body is JSON or empty. Without a session or a service route the callback gets an undelivered outcome.
+void CallRest(RestMethod method, const std::string& path, const std::string& body, RestCallback callback);
+
+// Calls an endpoint that is safe to repeat. A failure that RestRetryDelayMs retries sends the call again
+// after its delay, and the callback gets the last outcome. A retry is dropped when the signed in user changes.
+void CallRestWithRetry(RestMethod method, const std::string& path, const std::string& body, RestCallback callback);
+
+// Sends the retries that are due. Runs on every services tick.
+void TickRest();
 
 // A system line in the room chat.
 void ShowRoomNotice(const std::wstring& text, bool bError);

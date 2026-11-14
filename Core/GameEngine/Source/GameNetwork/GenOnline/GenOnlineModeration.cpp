@@ -9,6 +9,7 @@
 #include "GameNetwork/GenOnline/GenOnlineMainMenuUtils.h"
 #include "GameClient/GUICallbacks.h"
 #include "GameClient/GenOnlineMenus.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeNoticeText.h"
 
 #include <chrono>
 #include <map>
@@ -89,12 +90,12 @@ namespace
 			closeCallback);
 	}
 
-	void ShowBanDialog(const std::string& reason, EModerationDialogContext context)
+	void ShowBanDialog(const OnlineBanDetails& ban, EModerationDialogContext context)
 	{
 		ShowModerationDialog(
 			UnicodeString(L"Banned"),
-			L"You have been banned from Generals Online.",
-			reason,
+			from_utf8(GenOnlineRealtime::BanDialogText(ban.expiresAt, ban.bKnown, GenOnlineLocalTimeText)),
+			ban.reason,
 			context);
 	}
 
@@ -108,17 +109,17 @@ namespace
 	}
 }
 
-void ShowLoginBanDialog(const std::string& reason)
+void ShowLoginBanDialog(const OnlineBanDetails& ban)
 {
 	// TheSuperHackers @feature arcticdolphin 09/11/2026 The ban notice ends a sign-in in the dialog, which closes first; its buttons then have no screen to leave.
 	if (GOSignInDialogIsOpen())
 	{
 		GenOnlineCancelPatchCheckCallbackAndReopenDropdown();
-		ShowBanDialog(reason, EModerationDialogContext::ACTIVE_SESSION);
+		ShowBanDialog(ban, EModerationDialogContext::ACTIVE_SESSION);
 		return;
 	}
 
-	ShowBanDialog(reason, EModerationDialogContext::LOGIN);
+	ShowBanDialog(ban, EModerationDialogContext::LOGIN);
 }
 
 void ShowChatRateLimitNotice(const std::string& reason, const std::string& scopeType)
@@ -187,13 +188,30 @@ void HandleModerationDisconnect(EOnlineModerationAction action, const std::strin
 	switch (action)
 	{
 	case EOnlineModerationAction::BAN:
+	{
+		// Without the expiry the dialog does not say how long the ban lasts.
+		OnlineBanDetails ban;
+		ban.reason = reason;
+		ban.bKnown = false;
 		manager->SetPendingFullTeardown(EGOTearDownReason::MODERATION_BAN);
-		ShowBanDialog(reason, EModerationDialogContext::ACTIVE_SESSION);
+		ShowBanDialog(ban, EModerationDialogContext::ACTIVE_SESSION);
 		break;
+	}
 
 	case EOnlineModerationAction::KICK:
 		manager->SetPendingFullTeardown(EGOTearDownReason::MODERATION_KICK);
 		ShowKickDialog(reason);
 		break;
 	}
+}
+
+void HandleModerationBan(const OnlineBanDetails& ban)
+{
+	GenOnlineServicesManager* manager = GenOnlineServicesManager::GetInstance();
+	if (manager == nullptr || IsModerationTeardownReason(manager->GetTeardownReason()))
+	{
+		return;
+	}
+	manager->SetPendingFullTeardown(EGOTearDownReason::MODERATION_BAN);
+	ShowBanDialog(ban, EModerationDialogContext::ACTIVE_SESSION);
 }

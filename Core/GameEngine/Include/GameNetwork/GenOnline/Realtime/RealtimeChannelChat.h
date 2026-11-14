@@ -30,6 +30,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -237,6 +238,42 @@ private:
 	std::vector<ChatMessage> m_waiting;
 	bool m_awaitingHistory = false;
 	uint32_t m_lastKey = 0;
+};
+
+// Holds a ChannelHistory that arrives before its chat starts, as the lobby history of a join does
+// between LobbyState and the JoinLobby Result. Only the newest history is kept.
+class PendingChannelHistory
+{
+public:
+	void Hold(const ChannelHistoryEvent& history)
+	{
+		m_history = history;
+	}
+
+	void Clear()
+	{
+		m_history.reset();
+	}
+
+	bool IsHolding(const std::string& channelID) const
+	{
+		return m_history.has_value() && !channelID.empty() && m_history->channel_id == channelID;
+	}
+
+	// Takes the held history of a channel. A held history of another channel is dropped.
+	bool Take(const std::string& channelID, ChannelHistoryEvent& history)
+	{
+		const bool bHolding = IsHolding(channelID);
+		if (bHolding)
+		{
+			history = *m_history;
+		}
+		m_history.reset();
+		return bHolding;
+	}
+
+private:
+	std::optional<ChannelHistoryEvent> m_history;
 };
 
 } // namespace GenOnlineRealtime

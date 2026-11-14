@@ -19,4 +19,4 @@ endif()
 
 enable_testing()
 add_test(NAME genonline_realtime_contract
-    COMMAND genonline_realtime_contract_test ${CMAKE_CURRENT_SOURCE_DIR}/fixtures ${CMAKE_CURRENT_SOURCE_DIR}/auth-fixtures)
+    COMMAND genonline_realtime_contract_test ${CMAKE_CURRENT_SOURCE_DIR}/fixtures ${CMAKE_CURRENT_SOURCE_DIR}/auth-fixtures ${CMAKE_CURRENT_SOURCE_DIR}/api-fixtures)

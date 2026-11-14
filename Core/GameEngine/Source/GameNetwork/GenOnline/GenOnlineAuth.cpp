@@ -3,6 +3,8 @@
 #include "GameNetwork/GenOnline/HTTP/HTTPManager.h"
 #include "GameNetwork/GenOnline/HTTP/HTTPRequest.h"
 #include "GameNetwork/GenOnline/GenOnlineModeration.h"
+#include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeRest.h"
 #include "GameNetwork/GenOnline/json.hpp"
 #include <algorithm>
 #include <chrono>
@@ -460,6 +462,16 @@ void GenOnlineAuthInterface::StartBrowserSignInV1(int loginAttempt)
 		});
 }
 
+// A body without the moderation.banned code leaves the length of the ban unsaid.
+static OnlineBanDetails BanDetailsFromError(const GenOnlineRealtime::ApiErrorInfo& error)
+{
+	OnlineBanDetails ban;
+	ban.reason = error.reason.value_or(std::string());
+	ban.expiresAt = error.expires_at;
+	ban.bKnown = error.code == "moderation.banned";
+	return ban;
+}
+
 void GenOnlineAuthInterface::CompleteSignInV1(const GenOnlineRealtime::TokenResponse& tokens, int loginAttempt)
 {
 	ApplyTokensV1(tokens);
@@ -487,19 +499,18 @@ void GenOnlineAuthInterface::CompleteSignInV1(const GenOnlineRealtime::TokenResp
 			}
 			else if (statusCode == 403)
 			{
-				std::string reason;
-				try
-				{
-					const GenOnlineRealtime::ApiError error = nlohmann::json::parse(strBody).get<GenOnlineRealtime::ApiError>();
-					reason = error.reason.has_value() ? *error.reason : std::string();
-				}
-				catch (const std::exception&)
-				{
-				}
+				const GenOnlineRealtime::ApiErrorInfo error = GenOnlineRealtime::ParseApiError(strBody);
 				ClearSessionV1();
+				// A build the service does not accept is no ban.
+				if (error.code == "session.build_not_accepted")
+				{
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: The service does not accept this build");
+					FailLoginV1(GenOnlineRealtimeBridge::FailureText(error.code, error.params).c_str());
+					return;
+				}
 				m_loginStage = ELoginStage::Failed;
 				ClearGSMessageBoxes();
-				ShowLoginBanDialog(reason);
+				ShowLoginBanDialog(BanDetailsFromError(error));
 				return;
 			}
 			else
@@ -509,6 +520,9 @@ void GenOnlineAuthInterface::CompleteSignInV1(const GenOnlineRealtime::TokenResp
 			if (statusCode == 401)
 			{
 				DeleteSavedCredentials();
+				ClearSessionV1();
+				FailLoginV1(GenOnlineRealtimeBridge::FailureText("unauthorized", nlohmann::json::object()).c_str());
+				return;
 			}
 			ClearSessionV1();
 			FailLoginV1(L"The game session could not be registered. Try again.");
@@ -616,11 +630,38 @@ void GenOnlineAuthInterface::RecoverRealtimeSession(std::function<void(bool bRec
 				fnDone(false);
 				return;
 			}
-			RegisterSessionV1([fnDone](int statusCode, const std::string&)
+			RegisterSessionV1([fnDone](int statusCode, const std::string& strBody)
 				{
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Session registered again with status %d", statusCode);
+					// A ban ends the session with its dialog, which a later teardown reason does not replace.
+					const GenOnlineRealtime::ApiErrorInfo error = GenOnlineRealtime::ParseApiError(strBody);
+					if (statusCode == 403 && error.code == "moderation.banned")
+					{
+						HandleModerationBan(BanDetailsFromError(error));
+					}
 					fnDone(statusCode == 200);
 				});
+		});
+}
+
+void GenOnlineAuthInterface::ReportRealtimeBan()
+{
+	if (!IsLoggedIn())
+	{
+		HandleModerationBan(BanDetailsFromError(GenOnlineRealtime::ApiErrorInfo()));
+		return;
+	}
+	// A logout or another sign-in during the check drops its answer.
+	const int64_t userID = m_userID;
+	RegisterSessionV1([this, userID](int statusCode, const std::string& strBody)
+		{
+			if (m_userID != userID)
+			{
+				return;
+			}
+			const GenOnlineRealtime::ApiErrorInfo error = GenOnlineRealtime::ParseApiError(strBody);
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Ban check of the refused realtime upgrade answered %d %s", statusCode, error.code.c_str());
+			HandleModerationBan(BanDetailsFromError(statusCode == 403 ? error : GenOnlineRealtime::ApiErrorInfo()));
 		});
 }
 

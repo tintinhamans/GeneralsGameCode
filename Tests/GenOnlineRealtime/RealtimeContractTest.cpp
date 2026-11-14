@@ -31,6 +31,7 @@
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeNoticeText.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeProtocol.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeRest.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeSignIn.h"
 
 #include <windows.h>
@@ -93,15 +94,6 @@ static std::map<std::string, RoundTripFn> BuildFixtureTable()
 	t["GetHistory.request.json"] = RoundTrip<GetHistoryRequest>;
 	t["GetHistory.result.json"] = ResultRoundTrip<GetHistoryResult>;
 	t["MarkRead.request.json"] = RoundTrip<MarkReadRequest>;
-	t["SetDisplayName.request.json"] = RoundTrip<SetDisplayNameRequest>;
-	t["ReportMessage.request.json"] = RoundTrip<ReportMessageRequest>;
-
-	t["CreateGroup.request.json"] = RoundTrip<CreateGroupRequest>;
-	t["CreateGroup.result.json"] = ResultRoundTrip<CreateGroupResult>;
-	t["AddGroupMembers.request.json"] = RoundTrip<AddGroupMembersRequest>;
-	t["RemoveGroupMember.request.json"] = RoundTrip<RemoveGroupMemberRequest>;
-	t["RenameGroup.request.json"] = RoundTrip<RenameGroupRequest>;
-	t["LeaveGroup.request.json"] = RoundTrip<LeaveGroupRequest>;
 
 	t["WatchLobbyList.request.json"] = RoundTrip<WatchLobbyListRequest>;
 	t["WatchLobbyList.result.json"] = ResultRoundTrip<WatchLobbyListResult>;
@@ -122,29 +114,10 @@ static std::map<std::string, RoundTripFn> BuildFixtureTable()
 	t["ForceReady.request.json"] = RoundTrip<ForceReadyRequest>;
 	t["StartGame.request.json"] = RoundTrip<StartGameRequest>;
 	t["StartGame.error.json"] = RoundTrip<Result>;
-	t["ReportMatchOutcome.request.json"] = RoundTrip<ReportMatchOutcomeRequest>;
-	t["ReportMatchOutcome.result.json"] = ResultRoundTrip<ReportMatchOutcomeResult>;
 
-	t["GetPlaylists.request.json"] = RoundTrip<GetPlaylistsRequest>;
-	t["GetPlaylists.result.json"] = ResultRoundTrip<GetPlaylistsResult>;
 	t["JoinQueue.request.json"] = RoundTrip<JoinQueueRequest>;
 	t["LeaveQueue.request.json"] = RoundTrip<LeaveQueueRequest>;
 	t["WidenSearch.request.json"] = RoundTrip<WidenSearchRequest>;
-
-	t["SendFriendRequest.request.json"] = RoundTrip<SendFriendRequestRequest>;
-	t["AcceptFriendRequest.request.json"] = RoundTrip<AcceptFriendRequestRequest>;
-	t["DeclineFriendRequest.request.json"] = RoundTrip<DeclineFriendRequestRequest>;
-	t["CancelFriendRequest.request.json"] = RoundTrip<CancelFriendRequestRequest>;
-	t["RemoveFriend.request.json"] = RoundTrip<RemoveFriendRequest>;
-	t["BlockUser.request.json"] = RoundTrip<BlockUserRequest>;
-	t["UnblockUser.request.json"] = RoundTrip<UnblockUserRequest>;
-
-	t["Kick.request.json"] = RoundTrip<KickRequest>;
-	t["Mute.request.json"] = RoundTrip<MuteRequest>;
-	t["Unmute.request.json"] = RoundTrip<UnmuteRequest>;
-	t["Ban.request.json"] = RoundTrip<BanRequest>;
-	t["Unban.request.json"] = RoundTrip<UnbanRequest>;
-	t["DeleteMessage.request.json"] = RoundTrip<DeleteMessageRequest>;
 
 	t["RequestSignalling.request.json"] = RoundTrip<RequestSignallingRequest>;
 	t["Signal.request.json"] = RoundTrip<SignalRequest>;
@@ -207,9 +180,9 @@ static std::map<std::string, RoundTripFn> BuildFixtureTable()
 	return t;
 }
 
-static void TestFixtures(const std::filesystem::path& folder)
+// Every JSON file of the folder needs an entry in the table, and every entry needs its file.
+static void CheckFixtureFolder(const std::filesystem::path& folder, const std::map<std::string, RoundTripFn>& table, const char* label)
 {
-	std::map<std::string, RoundTripFn> table = BuildFixtureTable();
 	std::set<std::string> seen;
 
 	for (const auto& entry : std::filesystem::directory_iterator(folder))
@@ -262,7 +235,46 @@ static void TestFixtures(const std::filesystem::path& folder)
 			++g_failures;
 		}
 	}
-	std::printf("fixtures checked: %zu\n", seen.size());
+	std::printf("%s checked: %zu\n", label, seen.size());
+}
+
+static void TestFixtures(const std::filesystem::path& folder)
+{
+	CheckFixtureFolder(folder, BuildFixtureTable(), "fixtures");
+}
+
+static std::map<std::string, RoundTripFn> BuildApiFixtureTable()
+{
+	std::map<std::string, RoundTripFn> t;
+
+	t["error.response.json"] = RoundTrip<ErrorBody>;
+
+	t["post-me-friend_requests.request.json"] = RoundTrip<FriendRequestBody>;
+	t["patch-me.request.json"] = RoundTrip<ProfileUpdateBody>;
+
+	t["put-matches-results-me.request.json"] = RoundTrip<MatchResultBody>;
+	t["put-matches-results-me.response.json"] = RoundTrip<MatchResultResponse>;
+	t["get-matchmaking-playlists.response.json"] = RoundTrip<PlaylistsResponse>;
+
+	t["post-groups.request.json"] = RoundTrip<GroupCreateBody>;
+	t["post-groups.response.json"] = RoundTrip<GroupCreateResponse>;
+	t["post-groups-members.request.json"] = RoundTrip<GroupMembersBody>;
+	t["patch-groups.request.json"] = RoundTrip<GroupRenameBody>;
+
+	t["post-players-sanctions.request.json"] = RoundTrip<SanctionBody>;
+	t["post-players-sanctions.response.json"] = RoundTrip<SanctionCreateResponse>;
+	t["get-players-sanctions.response.json"] = RoundTrip<SanctionsResponse>;
+	t["delete-sanctions.request.json"] = RoundTrip<ReasonBody>;
+	t["delete-messages.request.json"] = RoundTrip<ReasonBody>;
+	t["post-reports.request.json"] = RoundTrip<ReportBody>;
+	t["post-reports.response.json"] = RoundTrip<ReportCreateResponse>;
+
+	return t;
+}
+
+static void TestApiFixtures(const std::filesystem::path& folder)
+{
+	CheckFixtureFolder(folder, BuildApiFixtureTable(), "api fixtures");
 }
 
 static void TestHandshake()
@@ -1555,15 +1567,166 @@ static void TestLobbyStateStart()
 	}
 }
 
+static void TestApiError()
+{
+	// The spec form.
+	{
+		const ApiErrorInfo info = ParseApiError(R"({"error":"moderation.banned","params":{"reason":"cheating","expires_at":"2026-12-01T00:00:00Z"}})");
+		CHECK(info.code == "moderation.banned");
+		CHECK(info.reason == std::optional<std::string>("cheating"));
+		CHECK(info.expires_at == std::optional<std::string>("2026-12-01T00:00:00Z"));
+		CHECK(info.params["reason"] == "cheating");
+	}
+	// A top level code with reason and expires_at at the top level, until the server is aligned.
+	{
+		const ApiErrorInfo info = ParseApiError(R"({"code":"chat.muted","reason":"spam","expires_at":"2026-12-01T00:00:00Z"})");
+		CHECK(info.code == "chat.muted");
+		CHECK(info.reason == std::optional<std::string>("spam"));
+		CHECK(info.expires_at == std::optional<std::string>("2026-12-01T00:00:00Z"));
+		// The copied expiry reaches the failure texts that read params.
+		CHECK(info.params["expires_at"] == "2026-12-01T00:00:00Z");
+	}
+	// The older message and error body names the code in error.
+	{
+		const ApiErrorInfo info = ParseApiError(R"({"message":"A game session needs exe_crc, ini_crc and anticheat_id.","error":"invalid_argument"})");
+		CHECK(info.code == "invalid_argument");
+		CHECK(!info.reason.has_value());
+		CHECK(!info.expires_at.has_value());
+		CHECK(info.params.is_object() && info.params.empty());
+	}
+	// params wins over the top level, and a null or missing expiry is a permanent ban.
+	{
+		const ApiErrorInfo info = ParseApiError(R"({"error":"moderation.banned","params":{"reason":"a","expires_at":null},"reason":"b"})");
+		CHECK(info.reason == std::optional<std::string>("a"));
+		CHECK(!info.expires_at.has_value());
+	}
+	// A body that is no JSON object names no code.
+	CHECK(ParseApiError("").code.empty());
+	CHECK(ParseApiError("<html>bad gateway</html>").code.empty());
+	CHECK(ParseApiError("[1,2]").code.empty());
+
+	// The REST outcome parses failures only, and a bare 401 is unauthorized.
+	{
+		const RestOutcome ok = MakeRestOutcome(true, 204, "");
+		CHECK(ok.Succeeded());
+		CHECK(ok.error.code.empty());
+		EmptyObject empty;
+		CHECK(ok.Data(empty));
+		const RestOutcome failed = MakeRestOutcome(true, 422, R"({"error":"social.friend_list_full","params":{"max":200}})");
+		CHECK(!failed.Succeeded());
+		CHECK(failed.error.code == "social.friend_list_full");
+		CHECK(failed.error.params["max"] == 200);
+		CHECK(MakeRestOutcome(true, 401, "").error.code == "unauthorized");
+		const RestOutcome lost = MakeRestOutcome(false, 0, "");
+		CHECK(!lost.delivered);
+		CHECK(!lost.Succeeded());
+		MatchResultResponse response;
+		CHECK(MakeRestOutcome(true, 200, R"({"screenshot_url":"s","replay_url":"r"})").Data(response));
+		CHECK(response.screenshot_url == "s" && response.replay_url == "r");
+		CHECK(!MakeRestOutcome(true, 200, "not json").Data(response));
+	}
+
+	// Failure texts of the codes the sign-in and the upgrade return.
+	const auto format = [](const std::string& utc) { return "<" + utc + ">"; };
+	CHECK(RuleFailureText("unauthorized", json::object(), format) == "Your sign-in is no longer valid. Please sign in again.");
+	CHECK(RuleFailureText("session.build_not_accepted", json::object(), format) == "This version of the game is not accepted by the online service. Please update the game.");
+	CHECK(RuleFailureText("moderation.banned", json::object(), format) == "You are banned from Generals Online.");
+	CHECK(RuleFailureText("moderation.banned", json::parse(R"({"expires_at":"2026-12-01T00:00:00Z"})"), format) == "You are banned from Generals Online until <2026-12-01T00:00:00Z>.");
+
+	// The ban dialog shows the expiry, permanent without one, and nothing about the end without a ban body.
+	CHECK(BanDialogText(std::string("2026-12-01T00:00:00Z"), true, format) == "You have been banned from Generals Online until <2026-12-01T00:00:00Z>.");
+	CHECK(BanDialogText(std::nullopt, true, format) == "You have been permanently banned from Generals Online.");
+	CHECK(BanDialogText(std::string(), true, format) == "You have been permanently banned from Generals Online.");
+	CHECK(BanDialogText(std::nullopt, false, format) == "You have been banned from Generals Online.");
+}
+
+static void TestRestRetry()
+{
+	// Lost answers, timeouts, rate limits and server errors retry with a growing delay.
+	CHECK(RestRetryDelayMs(MakeRestOutcome(false, 0, ""), 1) == 2000);
+	CHECK(RestRetryDelayMs(MakeRestOutcome(true, 503, ""), 2) == 5000);
+	CHECK(RestRetryDelayMs(MakeRestOutcome(true, 408, ""), 3) == 10000);
+	CHECK(RestRetryDelayMs(MakeRestOutcome(true, 429, R"({"error":"rate_limited","params":{"retry_after_ms":1500}})"), 1) == 1500);
+	CHECK(RestRetryDelayMs(MakeRestOutcome(true, 429, R"({"error":"rate_limited","params":{"retry_after_ms":900000}})"), 1) == 60000);
+	CHECK(RestRetryDelayMs(MakeRestOutcome(true, 429, ""), 1) == 2000);
+	// The fourth send is the last one.
+	CHECK(RestRetryDelayMs(MakeRestOutcome(false, 0, ""), REST_RETRY_MAX_SENDS) == -1);
+	// A success, a rule failure or a rejected token never retries.
+	CHECK(RestRetryDelayMs(MakeRestOutcome(true, 200, "{}"), 1) == -1);
+	CHECK(RestRetryDelayMs(MakeRestOutcome(true, 422, R"({"error":"invalid_argument","params":{"field":"side"}})"), 1) == -1);
+	CHECK(RestRetryDelayMs(MakeRestOutcome(true, 401, ""), 1) == -1);
+	CHECK(RestRetryDelayMs(MakeRestOutcome(true, 404, ""), 1) == -1);
+}
+
+static void TestRestPaths()
+{
+	CHECK(RestFriendRequestsPath() == "/api/v1/me/friend_requests");
+	CHECK(RestFriendRequestAcceptPath(7) == "/api/v1/me/friend_requests/7/accept");
+	CHECK(RestFriendRequestPath(7) == "/api/v1/me/friend_requests/7");
+	CHECK(RestFriendPath(7) == "/api/v1/me/friends/7");
+	CHECK(RestBlockPath(88) == "/api/v1/me/blocks/88");
+	CHECK(RestMePath() == "/api/v1/me");
+	CHECK(RestMatchResultPath(551234) == "/api/v1/matches/551234/results/me");
+	CHECK(RestPlaylistsPath() == "/api/v1/matchmaking/playlists");
+
+	// The friend request body is the user id the hub took.
+	FriendRequestBody body;
+	body.user_id = 7;
+	CHECK(json(body) == json::parse(R"({"user_id":7})"));
+}
+
+static void TestLobbyJoinHistory()
+{
+	typedef std::vector<std::string> Ids;
+	const std::string lobby = "lobby:991";
+
+	// The history of a join arrives before the JoinLobby Result, so it is held until the chat starts.
+	PendingChannelHistory pending;
+	pending.Hold(MakeHistory(lobby, { MakeChat("1", lobby), MakeChat("2", lobby) }));
+	CHECK(pending.IsHolding(lobby));
+	CHECK(!pending.IsHolding("lobby:992"));
+	CHECK(!pending.IsHolding(""));
+
+	// The chat starts with the Result. Live lines that come before the held history shows wait for it.
+	ChannelChatLog log;
+	log.Start(lobby);
+	CHECK(log.AddLive(MakeChat("3", lobby)).empty());
+	CHECK(log.AddLive(MakeChat("2", lobby)).empty());
+	ChannelHistoryEvent history;
+	CHECK(pending.Take(lobby, history));
+	CHECK(!pending.IsHolding(lobby));
+	const ChannelChatUpdate update = log.AddHistory(history);
+	CHECK(LineIDs(update.shown) == Ids({ "1", "2", "3" }));
+	CHECK(!update.shown[0].live && !update.shown[1].live && update.shown[2].live);
+	// Each message shows once, also when the same history comes again.
+	CHECK(log.AddHistory(MakeHistory(lobby, { MakeChat("1", lobby), MakeChat("2", lobby) })).shown.empty());
+	CHECK(log.AddLive(MakeChat("3", lobby)).empty());
+	CHECK(LineIDs(log.AddLive(MakeChat("4", lobby))) == Ids({ "4" }));
+
+	// A held history of another lobby is dropped, and nothing is held twice.
+	pending.Hold(MakeHistory("lobby:992", { MakeChat("9", "lobby:992") }));
+	CHECK(!pending.Take(lobby, history));
+	CHECK(!pending.IsHolding("lobby:992"));
+	CHECK(!pending.Take("lobby:992", history));
+	pending.Hold(MakeHistory(lobby, {}));
+	pending.Clear();
+	CHECK(!pending.IsHolding(lobby));
+}
+
 int main(int argc, char** argv)
 {
-	if (argc < 3)
+	if (argc < 4)
 	{
-		std::printf("usage: %s <realtime fixtures folder> <sign-in fixtures folder>\n", argv[0]);
+		std::printf("usage: %s <realtime fixtures folder> <sign-in fixtures folder> <api fixtures folder>\n", argv[0]);
 		return 2;
 	}
 	TestFixtures(argv[1]);
 	TestSignInFixtures(argv[2]);
+	TestApiFixtures(argv[3]);
+	TestApiError();
+	TestRestRetry();
+	TestRestPaths();
+	TestLobbyJoinHistory();
 	TestPkce();
 	TestPeerPayload();
 	TestMatchmakingText();

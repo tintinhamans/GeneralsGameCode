@@ -43,6 +43,16 @@ void HTTPManager::SendPUTRequest(const char* szURI, EIPProtocolVersion protover,
 }
 
 
+void HTTPManager::SendPATCHRequest(const char* szURI, EIPProtocolVersion protover, std::map<std::string, std::string>& inHeaders, const char* szData, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback /*= nullptr*/, int timeoutMS)
+{
+	CHECK_MAIN_THREAD;
+
+	HTTPRequest* pRequest = PlatformCreateRequest(EHTTPVerb::HTTP_VERB_PATCH, protover, szURI, inHeaders, completionCallback, progressCallback, timeoutMS);
+	pRequest->SetPostData(szData);
+
+	m_vecRequestsPendingStart.push_back(pRequest);
+}
+
 void HTTPManager::SendS3PUTRequest(const char* szURI, EIPProtocolVersion protover, std::map<std::string, std::string>& inHeaders, std::vector<uint8_t> vecBuffer, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback /*= nullptr*/, int timeoutMS /*= -1*/, int maxSendBytesPerSec /*= 0*/)
 {
     CHECK_MAIN_THREAD;
