@@ -405,7 +405,7 @@ void RegisterHandlers(HubSession& session)
 				GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 				if (pLobby != nullptr)
 				{
-					pLobby->OnRealtimeLobbyMessage(event);
+					pLobby->OnRealtimeLobbyMessageCreate(event);
 				}
 			}
 			else if (event.channel_id.compare(0, 3, "dm:") == 0)
@@ -427,6 +427,14 @@ void RegisterHandlers(HubSession& session)
 					pRooms->OnRealtimeChannelHistory(event);
 				}
 			}
+			else if (event.channel_id.compare(0, 6, "lobby:") == 0)
+			{
+				GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+				if (pLobby != nullptr)
+				{
+					pLobby->OnRealtimeLobbyHistory(event);
+				}
+			}
 		});
 	session.On<MessageDeleteEvent>([](const MessageDeleteEvent& event)
 		{
@@ -436,6 +444,14 @@ void RegisterHandlers(HubSession& session)
 				if (pRooms != nullptr)
 				{
 					pRooms->OnRealtimeMessageDelete(event);
+				}
+			}
+			else if (event.channel_id.compare(0, 6, "lobby:") == 0)
+			{
+				GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+				if (pLobby != nullptr)
+				{
+					pLobby->OnRealtimeLobbyMessageDelete(event);
 				}
 			}
 		});

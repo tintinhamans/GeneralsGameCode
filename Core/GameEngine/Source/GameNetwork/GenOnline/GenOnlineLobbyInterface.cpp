@@ -8,6 +8,9 @@
 #include "GameNetwork/GenOnline/LobbyConnectionPolicy.h"
 #include "Lib/PathUtil.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMatchmaking.h"
+#if RTS_ZEROHOUR
+#include "Common/StatsExporterLive.h"
+#endif
 
 #include <algorithm>
 
@@ -582,6 +585,15 @@ bool GenOnlineLobbyInterface::IsHost()
 
 void GenOnlineLobbyInterface::Tick()
 {
+	// Live lobby messages stop waiting for a ChannelHistory that does not come.
+	if (m_LobbyChat.IsAwaitingHistory() && std::chrono::steady_clock::now() >= m_LobbyChatHistoryDeadline)
+	{
+		for (const GenOnlineRealtime::ChannelChatLine& line : m_LobbyChat.ReleaseWaiting())
+		{
+			ShowLobbyChatLine(line);
+		}
+	}
+
 	// cheats
 #if defined(GENONLINE_ALL_SCIENCES)
 	static bool GrantAllSciences = true;
@@ -1251,6 +1263,8 @@ void GenOnlineLobbyInterface::TearDownLocalLobbyState()
 	m_hubLobbyState.reset();
 	m_hubMatchStartLobbyID = -1;
 	m_hubGameStartLobbyID = -1;
+	m_MatchStart.Reset();
+	m_LobbyChat.Clear();
 	FlushLobbyStateWaiters(false);
 }
 
@@ -1607,6 +1621,13 @@ void GenOnlineLobbyInterface::OnRealtimeReady()
 	m_bWatchingLobbyList = false;
 	m_hubLobbyList.clear();
 	SetLobbyListDirty();
+
+	// A rejoin restores the lobby chat as ChannelHistory after LobbyState. Live messages wait for it.
+	if (IsInLobby())
+	{
+		m_LobbyChat.Start("lobby:" + std::to_string(m_CurrentLobby.lobbyID));
+		m_LobbyChatHistoryDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+	}
 }
 
 void GenOnlineLobbyInterface::OnRealtimeLobbyListUpsert(const GenOnlineRealtime::LobbySummary& lobby)
@@ -1703,6 +1724,13 @@ void GenOnlineLobbyInterface::OnRealtimeLobbyState(const GenOnlineRealtime::Lobb
 	}
 	ApplyRealtimeLobbyState(lobby);
 	FlushLobbyStateWaiters(true);
+
+	// A client that missed GameStart, for example across a reconnect, starts from the start data of the lobby.
+	GenOnlineRealtime::GameStartEvent start;
+	if (GenOnlineRealtime::LobbyStateStart(lobby, start))
+	{
+		StartMatchFromService(start, "LobbyState", true);
+	}
 }
 
 void GenOnlineLobbyInterface::OnRealtimeLobbyLeft(const GenOnlineRealtime::LobbyLeftEvent& event)
@@ -1823,11 +1851,24 @@ void GenOnlineLobbyInterface::OnRealtimeCountdownCancelled(const GenOnlineRealti
 
 void GenOnlineLobbyInterface::OnRealtimeGameStart(const GenOnlineRealtime::GameStartEvent& event)
 {
+	StartMatchFromService(event, "GameStart", false);
+}
+
+void GenOnlineLobbyInterface::StartMatchFromService(const GenOnlineRealtime::GameStartEvent& event, const char* szSource, bool bStandsForMatchStart)
+{
 	if (event.lobby_id != m_CurrentLobby.lobbyID || TheGenOnlineGame == nullptr)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Ignoring GameStart for lobby %lld, the current lobby is %lld", event.lobby_id, m_CurrentLobby.lobbyID);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Ignoring %s for lobby %lld, the current lobby is %lld", szSource, event.lobby_id, m_CurrentLobby.lobbyID);
 		return;
 	}
+
+	// GameStart and LobbyState.start carry the same start, which starts the match once.
+	if (!m_MatchStart.Begin(event.match_id))
+	{
+		NetworkLog(ELogVerbosity::LOG_DEBUG, "[LOBBY] Match %lld already started, ignoring %s", event.match_id, szSource);
+		return;
+	}
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Starting match %lld from %s", event.match_id, szSource);
 
 	// The service and the other players have already started, so a missing link is only logged.
 	if (m_CurrentLobby.lobby_type == ELobbyType::CustomGame && !AreLocalLobbyPeersConnected())
@@ -1852,6 +1893,10 @@ void GenOnlineLobbyInterface::OnRealtimeGameStart(const GenOnlineRealtime::GameS
 
 	if (m_CurrentLobby.lobby_type == ELobbyType::QuickMatch)
 	{
+		if (bStandsForMatchStart)
+		{
+			m_hubMatchStartLobbyID = event.lobby_id;
+		}
 		m_hubGameStartLobbyID = event.lobby_id;
 		StartQuickMatchWhenReady();
 	}
@@ -1944,4 +1989,114 @@ void GenOnlineLobbyInterface::OnRealtimeMatchRequeue(const GenOnlineRealtime::Ma
 	InvokeMatchmakingMessageCallback(GenOnlineRealtime::MatchRequeueText(event.reason));
 	ResetForMatchmakingRequeue();
 	InvokeMatchmakingRequeueCallback();
+}
+
+bool GenOnlineLobbyInterface::EnsureLobbyChat()
+{
+	if (!IsInLobby())
+	{
+		return false;
+	}
+	const std::string channelID = "lobby:" + std::to_string(m_CurrentLobby.lobbyID);
+	if (m_LobbyChat.ChannelID() != channelID)
+	{
+		m_LobbyChat.Start(channelID);
+		m_LobbyChat.ReleaseWaiting();
+	}
+	return true;
+}
+
+void GenOnlineLobbyInterface::OnRealtimeLobbyMessageCreate(const GenOnlineRealtime::ChatMessage& message)
+{
+	if (!EnsureLobbyChat())
+	{
+		return;
+	}
+	for (const GenOnlineRealtime::ChannelChatLine& line : m_LobbyChat.AddLive(message))
+	{
+		ShowLobbyChatLine(line);
+	}
+}
+
+void GenOnlineLobbyInterface::OnRealtimeLobbyHistory(const GenOnlineRealtime::ChannelHistoryEvent& event)
+{
+	if (!EnsureLobbyChat())
+	{
+		return;
+	}
+	const GenOnlineRealtime::ChannelChatUpdate update = m_LobbyChat.AddHistory(event);
+	for (uint32_t key : update.removed)
+	{
+		if (m_OnChatMessageRemovedCallback != nullptr)
+		{
+			m_OnChatMessageRemovedCallback(key);
+		}
+	}
+	for (const GenOnlineRealtime::ChannelChatLine& line : update.shown)
+	{
+		ShowLobbyChatLine(line);
+	}
+}
+
+void GenOnlineLobbyInterface::OnRealtimeLobbyMessageDelete(const GenOnlineRealtime::MessageDeleteEvent& event)
+{
+	const uint32_t key = m_LobbyChat.Remove(event.channel_id, event.message_id);
+	if (key != 0 && m_OnChatMessageRemovedCallback != nullptr)
+	{
+		m_OnChatMessageRemovedCallback(key);
+	}
+}
+
+void GenOnlineLobbyInterface::ShowLobbyChatLine(const GenOnlineRealtime::ChannelChatLine& line)
+{
+	if (m_OnChatCallback == nullptr && m_OnChatMessageCallback == nullptr)
+	{
+		return;
+	}
+
+	const GenOnlineRealtime::ChatMessage& message = line.message;
+	const bool bAction = message.type == "action";
+	const bool bAnnouncement = message.type == "announcement";
+	int lobbySlot = -1;
+	for (const LobbyMemberEntry& member : m_CurrentLobby.members)
+	{
+		if (member.user_id == message.author.id)
+		{
+			lobbySlot = member.m_SlotIndex;
+			break;
+		}
+	}
+
+	UnicodeString unicodeStr;
+	if (bAnnouncement)
+	{
+		unicodeStr = UnicodeString(from_utf8(message.content).c_str());
+	}
+	else
+	{
+		unicodeStr.format(bAction ? L"%s %s" : L"%s: %s", from_utf8(message.author.name).c_str(), from_utf8(message.content).c_str());
+	}
+
+	// Announcements keep the neutral notice colour, player chat keeps the slot colour.
+	Color color = bAnnouncement
+		? DetermineSystemNoticeColor(false, false)
+		: DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_LOBBY, true, bAction, false, false, lobbySlot);
+
+#if RTS_ZEROHOUR
+	// Only live chat goes to the stats exporter, so a replayed history line is not exported again.
+	if (line.live)
+	{
+		GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+		const bool bIsLocal = pAuthInterface != nullptr && pAuthInterface->GetUserID() == message.author.id;
+		StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_GAME_LOBBY, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, bAnnouncement, bIsLocal);
+	}
+#endif
+	if (m_OnChatMessageCallback != nullptr)
+	{
+		m_OnChatMessageCallback(unicodeStr, color, line.key);
+	}
+	else
+	{
+		m_OnChatCallback(unicodeStr, color);
+	}
 }

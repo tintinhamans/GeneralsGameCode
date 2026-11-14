@@ -1915,6 +1915,34 @@ static Bool initDone = false;
 UnsignedInt GenOnlineLastSlotlistTime = 0;
 UnsignedInt GenOnlineGameSetupEnterTime = 0;
 Bool GenOnlineInitialAcceptEnable = FALSE;
+
+// A lobby chat line keeps its key as item data, so a MessageDelete can find and remove it.
+static void AddLobbyChatMessageLine(UnicodeString strMessage, Color color, uint32_t key)
+{
+	const Int row = GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, strMessage, color, -1, -1);
+	if (row >= 0)
+	{
+		GadgetListBoxSetItemData(GenOnlineListboxGameSetupChat, reinterpret_cast<void*>(static_cast<uintptr_t>(key)), row, 0);
+	}
+}
+
+static void RemoveLobbyChatMessageLine(uint32_t key)
+{
+	if (GenOnlineListboxGameSetupChat == nullptr)
+	{
+		return;
+	}
+	const Int numEntries = GadgetListBoxGetNumEntries(GenOnlineListboxGameSetupChat);
+	for (Int row = 0; row < numEntries; ++row)
+	{
+		if (reinterpret_cast<uintptr_t>(GadgetListBoxGetItemData(GenOnlineListboxGameSetupChat, row, 0)) == key)
+		{
+			TheWindowManager->winSendSystemMsg(GenOnlineListboxGameSetupChat, GLM_DEL_ENTRY, static_cast<WindowMsgData>(row), 0);
+			return;
+		}
+	}
+}
+
 //-------------------------------------------------------------------------------------------------
 /** Initialize the Lan Game Options Menu */
 //-------------------------------------------------------------------------------------------------
@@ -1939,6 +1967,7 @@ void GenOnlineGameSetupMenuInit( WindowLayout *layout, void *userData )
 		{
 			GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, strMessage, color, -1, -1);
 		});
+	pLobbyInterface->RegisterForChatMessageCallbacks(AddLobbyChatMessageLine, RemoveLobbyChatMessageLine);
 
 	// cannot connect to the lobby we joined
 	pLobbyInterface->RegisterForCannotConnectToLobbyCallback([](void)

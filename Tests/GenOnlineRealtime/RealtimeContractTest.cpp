@@ -25,6 +25,7 @@
 
 #include "GameNetwork/GenOnline/Realtime/RealtimeChannelChat.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeHubSession.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeLobbyStart.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMatchmaking.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeProtocol.h"
@@ -1248,6 +1249,72 @@ static void TestChannelChatLog()
 	}
 }
 
+static void TestLobbyChatReplay()
+{
+	typedef std::vector<std::string> Ids;
+	const std::string lobby = "lobby:991";
+
+	// A joined lobby shows live chat at once, a rejoin shows the missed messages once.
+	ChannelChatLog log;
+	log.Start(lobby);
+	CHECK(log.ReleaseWaiting().empty());
+	CHECK(LineIDs(log.AddLive(MakeChat("1", lobby))) == Ids({ "1" }));
+	log.Start(lobby);
+	CHECK(log.AddLive(MakeChat("3", lobby)).empty());
+	const ChannelChatUpdate update = log.AddHistory(MakeHistory(lobby, { MakeChat("1", lobby), MakeChat("2", lobby), MakeChat("3", lobby) }));
+	CHECK(LineIDs(update.shown) == Ids({ "2", "3" }));
+	CHECK(!update.shown[0].live);
+	CHECK(log.AddHistory(MakeHistory(lobby, { MakeChat("1", lobby), MakeChat("2", lobby), MakeChat("3", lobby) })).shown.empty());
+	CHECK(log.Remove(lobby, "2") == update.shown[0].key);
+	CHECK(log.Remove("lobby:992", "3") == 0);
+}
+
+static LobbyState MakeLobbyState(const std::string& state, bool started)
+{
+	LobbyState lobby;
+	lobby.id = 991;
+	lobby.state = state;
+	if (started)
+	{
+		LobbyStart start;
+		start.match_id = 7001;
+		start.rng_seed = 123456;
+		start.screenshot_url = std::string("https://example.invalid/shot");
+		lobby.match_id = int64_t(7001);
+		lobby.start = start;
+	}
+	return lobby;
+}
+
+static void TestLobbyStateStart()
+{
+	GameStartEvent start;
+	CHECK(!LobbyStateStart(MakeLobbyState("setup", false), start));
+	CHECK(!LobbyStateStart(MakeLobbyState("countdown", false), start));
+	CHECK(!LobbyStateStart(MakeLobbyState("complete", true), start));
+	CHECK(LobbyStateStart(MakeLobbyState("in_game", true), start));
+	CHECK(start.lobby_id == 991);
+	CHECK(start.match_id == 7001);
+	CHECK(start.rng_seed == 123456);
+	CHECK(!start.screenshot_url.isNull && start.screenshot_url.value == "https://example.invalid/shot");
+
+	// GameStart and LobbyState.start start a match once, in either order.
+	{
+		MatchStartOnce once;
+		CHECK(once.Begin(7001));
+		CHECK(!once.Begin(7001));
+		CHECK(!once.Begin(7001));
+	}
+	// A later match starts again, and a reset forgets the started match.
+	{
+		MatchStartOnce once;
+		CHECK(once.Begin(7001));
+		CHECK(once.Begin(7002));
+		once.Reset();
+		CHECK(once.Begin(7002));
+	}
+}
+
 int main(int argc, char** argv)
 {
 	if (argc < 3)
@@ -1261,6 +1328,8 @@ int main(int argc, char** argv)
 	TestPeerPayload();
 	TestMatchmakingText();
 	TestChannelChatLog();
+	TestLobbyChatReplay();
+	TestLobbyStateStart();
 	TestFormEncoding();
 	TestLoopbackCallback();
 	TestAcceptRealtimeUrl();
