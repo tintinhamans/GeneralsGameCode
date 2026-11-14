@@ -818,8 +818,8 @@ static void TestFormEncoding()
 	CHECK(decodedFields.count("c") == 1);
 
 	CHECK(LoopbackRedirectUri(53817) == "http://127.0.0.1:53817/callback");
-	FormFields revoke = RevokeTokenForm("gen_online_60hz", "rt");
-	CHECK(FormToJson(revoke) == json::parse("{\"client_id\":\"gen_online_60hz\",\"token\":\"rt\",\"token_type_hint\":\"refresh_token\"}"));
+	FormFields revoke = RevokeTokenForm("generalsmd", "rt");
+	CHECK(FormToJson(revoke) == json::parse("{\"client_id\":\"generalsmd\",\"token\":\"rt\",\"token_type_hint\":\"refresh_token\"}"));
 }
 
 static void TestLoopbackCallback()
