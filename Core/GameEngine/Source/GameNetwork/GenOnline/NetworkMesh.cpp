@@ -15,6 +15,8 @@
 #include "../json.hpp"
 #include "../HTTP/HTTPManager.h"
 #include "../GenOnlineInit.h"
+#include "../GenOnlineRealtimeBridge.h"
+#include "../GenOnlineLobbyInterface.h"
 #include <steam/isteamnetworkingutils.h>
 #include <steam/steamnetworkingcustomsignaling.h>
 #include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
@@ -885,19 +887,55 @@ void NetworkMesh::RegisterConnectivity(int64_t userID)
 		});
 }
 
-void NetworkMesh::UpdateConnectivity(PlayerConnection* connection)
+// The legacy route of the connection report, for a service without the lobby connection report endpoint.
+static void PostLegacyConnectionOutcome(const std::string& strPostData)
 {
-	nlohmann::json j;
-	j["target"] = connection->m_userID;
-	j["direct"] = connection->IsDirect();
-	j["outcome"] = connection->GetState();
-	j["ipv4"] = connection->IsIPV4();
-	std::string strPostData = j.dump();
 	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("ConnectionOutcome");
 	std::map<std::string, std::string> mapHeaders;
 	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 		{
 			// dont care about the response
+		});
+}
+
+void NetworkMesh::UpdateConnectivity(PlayerConnection* connection)
+{
+	// Only the final result of a pair is reported, never the connecting or route finding states.
+	const EConnectionState state = connection->GetState();
+	const bool bConnected = state == EConnectionState::CONNECTED_DIRECT;
+	const bool bDisconnected = state == EConnectionState::CONNECTION_DISCONNECTED;
+	if (!bConnected && !bDisconnected && state != EConnectionState::CONNECTION_FAILED)
+	{
+		return;
+	}
+
+	nlohmann::json j;
+	j["target"] = connection->m_userID;
+	j["direct"] = connection->IsDirect();
+	j["outcome"] = connection->GetState();
+	j["ipv4"] = connection->IsIPV4();
+	const std::string strPostData = j.dump();
+
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pLobbyInterface == nullptr || !pLobbyInterface->IsInLobby())
+	{
+		PostLegacyConnectionOutcome(strPostData);
+		return;
+	}
+
+	GenOnlineRealtime::ConnectionReportBody body;
+	body.target_user_id = connection->m_userID;
+	body.outcome = GenOnlineRealtime::ConnectionReportOutcome(bConnected, !connection->IsDirect(), bDisconnected);
+	body.transport = connection->m_ConnectionType == EConnectionType::MiddlewarePluginGeneric ? "eos" : "gns";
+	body.ip_version = connection->IsIPV4() ? 4 : 6;
+	const std::string path = GenOnlineRealtime::RestConnectionReportPath(pLobbyInterface->GetCurrentLobby().lobbyID);
+	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Post, path, nlohmann::json(body).dump(), [strPostData](const GenOnlineRealtime::RestOutcome& outcome)
+		{
+			// A service without the endpoint answers 404 and gets the legacy report instead.
+			if (outcome.delivered && outcome.status == 404)
+			{
+				PostLegacyConnectionOutcome(strPostData);
+			}
 		});
 }
 

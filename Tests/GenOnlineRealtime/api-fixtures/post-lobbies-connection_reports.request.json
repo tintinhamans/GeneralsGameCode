@@ -1,0 +1,6 @@
+{
+  "target_user_id": 7,
+  "outcome": "connected_relay",
+  "transport": "gns",
+  "ip_version": 4
+}

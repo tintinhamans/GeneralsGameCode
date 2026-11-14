@@ -248,6 +248,7 @@ static std::map<std::string, RoundTripFn> BuildApiFixtureTable()
 	std::map<std::string, RoundTripFn> t;
 
 	t["error.response.json"] = RoundTrip<ErrorBody>;
+	t["post-lobbies-connection_reports.request.json"] = RoundTrip<ConnectionReportBody>;
 
 	t["post-me-friend_requests.request.json"] = RoundTrip<FriendRequestBody>;
 	t["patch-me.request.json"] = RoundTrip<ProfileUpdateBody>;
@@ -1661,6 +1662,11 @@ static void TestRestRetry()
 static void TestRestPaths()
 {
 	CHECK(RestFriendRequestsPath() == "/api/v1/me/friend_requests");
+	CHECK(RestConnectionReportPath(991) == "/api/v1/lobbies/991/connection_reports");
+	CHECK(ConnectionReportOutcome(true, false, false) == "connected_direct");
+	CHECK(ConnectionReportOutcome(true, true, false) == "connected_relay");
+	CHECK(ConnectionReportOutcome(false, false, true) == "disconnected");
+	CHECK(ConnectionReportOutcome(false, false, false) == "failed");
 	CHECK(RestFriendRequestAcceptPath(7) == "/api/v1/me/friend_requests/7/accept");
 	CHECK(RestFriendRequestPath(7) == "/api/v1/me/friend_requests/7");
 	CHECK(RestFriendPath(7) == "/api/v1/me/friends/7");
