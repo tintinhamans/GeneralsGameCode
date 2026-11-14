@@ -6,6 +6,7 @@
 #include "../GenOnlineInit.h"
 #include <algorithm>
 #include "GameNetwork/GenOnline/CredentialStore.h"
+#include "GameNetwork/GenOnline/AntiCheat/GenOnlineAntiCheat.h"
 #include "GameNetwork/GenOnline/GenOnlineAuth.h"
 
 #define SETTINGS_KEY_CAMERA "camera"
@@ -91,34 +92,45 @@ float GenOnlineSettings::DetermineCameraMaxHeight()
 	return (float)GENONLINE_DEFAULT_LOBBY_CAMERA_ZOOM;
 }
 
+// The anticheat choice of settings.json under its current name. The launcher still writes easyanticheat and goanticheat, so the
+// stored value stays as it is and only its use maps it.
+static std::string CurrentAnticheatName(const std::string& name)
+{
+    if (name == "easyanticheat")
+    {
+        return std::string(GENONLINE_EOS_PLUGIN_NAME);
+    }
+    if (name == "goanticheat")
+    {
+        return std::string(GENONLINE_ANTICHEAT_PLUGIN_NAME);
+    }
+    return name;
+}
+
 std::string GenOnlineSettings::GetAnticheatPlugin() const
 {
-    // if empty, default to whatever official plugin is available
-    if (m_Plugins_Anticheat.empty())
+    const std::string choice = CurrentAnticheatName(m_Plugins_Anticheat);
+
+    // GenOnline Anti-Cheat is built into the game and loads no plugin folder.
+    if (choice == GENONLINE_ANTICHEAT_PLUGIN_NAME)
     {
-        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] AntiCheat name was empty, doing fallback flow");
-        std::string pluginPath1 = "plugins/easyanticheat/easyanticheat.dll";
-        std::string pluginPath2 = "plugins/goanticheat/goanticheat.dll";
-
-        // prefer EAC
-        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Fallback flow: Testing EAC");
-        if (std::filesystem::exists(pluginPath1.c_str()))
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Fallback flow: EAC Found.");
-            return std::string("easyanticheat");
-        }
-
-        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Fallback flow: Testing GOAC");
-        if (std::filesystem::exists(pluginPath2.c_str()))
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Fallback flow: GOAC Found.");
-            return std::string("goanticheat");
-        }
-
-        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Fallback failed.");
+        return std::string();
     }
 
-    return m_Plugins_Anticheat;
+    // Without a choice the EOS plugin runs when it is installed, else GenOnline Anti-Cheat.
+    if (choice.empty())
+    {
+        const std::string eosPluginPath = std::string("plugins/") + GENONLINE_EOS_PLUGIN_NAME + "/" + GENONLINE_EOS_PLUGIN_NAME + ".dll";
+        if (std::filesystem::exists(eosPluginPath.c_str()))
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] No anticheat chosen, the EOS plugin is installed");
+            return std::string(GENONLINE_EOS_PLUGIN_NAME);
+        }
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] No anticheat chosen, using GenOnline Anti-Cheat");
+        return std::string();
+    }
+
+    return choice;
 }
 
 // Reads a list of paths of data_packs, an entry that is not valid is dropped. Returns FALSE and keeps the list when the field is missing or not a list.

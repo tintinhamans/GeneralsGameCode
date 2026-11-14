@@ -61,7 +61,7 @@ constexpr const char* s_pluginPublicKeys[] = { GenOnlinePluginKeys::kPluginsCurr
 // entry with its folder name, which is also the name in its manifest, and the version of its first signed release.
 constexpr GenOnlinePluginTrust::AllowedPlugin s_allowedPlugins[] =
 {
-	{ "easyanticheat", { 2026, 11, 0 } },
+	{ "genonline_eos", { 2026, 11, 0 } },
 };
 
 // GENONLINE_ALLOW_UNSIGNED_PLUGINS comes from the CMake option of the same name, which is off by default and
