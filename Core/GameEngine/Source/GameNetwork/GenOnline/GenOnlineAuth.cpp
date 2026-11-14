@@ -272,8 +272,21 @@ void GenOnlineAuthInterface::OnLoginComplete(ELoginResult loginResult, const cha
 	}
 }
 
-void GenOnlineAuthInterface::LogoutOfMyAccount()
+static int64_t NowMsV1();
+
+// The longest wait for the service to answer a logout.
+static const int64_t LOGOUT_TIMEOUT_MS = 3000;
+
+void GenOnlineAuthInterface::LogoutOfMyAccount(std::function<void()> fnDone)
 {
+	// A second logout while one runs only waits for the first.
+	if (m_logoutDoneV1 != nullptr)
+	{
+		return;
+	}
+	m_logoutDoneV1 = fnDone != nullptr ? fnDone : []() {};
+	m_logoutDeadlineV1 = NowMsV1() + LOGOUT_TIMEOUT_MS;
+
 	// A refresh that finishes after the logout would save a new refresh token, so it is dropped.
 	m_pSignIn->Cancel();
 	AbandonRefreshV1();
@@ -288,10 +301,25 @@ void GenOnlineAuthInterface::LogoutOfMyAccount()
 		[this, strOrigin, strRefreshToken](bool, int statusCode, std::string, HTTPRequest*)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Session ended with status %d", statusCode);
-			m_pSignIn->Revoke(strOrigin, strRefreshToken);
+			m_pSignIn->Revoke(strOrigin, strRefreshToken, [this]()
+				{
+					FinishLogoutV1();
+				});
 		});
 	DeleteSavedCredentials();
 	ClearSessionV1();
+}
+
+void GenOnlineAuthInterface::FinishLogoutV1()
+{
+	if (m_logoutDoneV1 == nullptr)
+	{
+		return;
+	}
+	std::function<void()> fnDone;
+	fnDone.swap(m_logoutDoneV1);
+	m_logoutDeadlineV1 = -1;
+	fnDone();
 }
 
 void GenOnlineAuthInterface::DeleteSavedCredentials()
@@ -638,6 +666,12 @@ void GenOnlineAuthInterface::AbandonRefreshV1()
 void GenOnlineAuthInterface::TickV1()
 {
 	m_pSignIn->Tick();
+
+	if (m_logoutDeadlineV1 != -1 && NowMsV1() >= m_logoutDeadlineV1)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: The service did not answer the logout in time");
+		FinishLogoutV1();
+	}
 
 	if (!IsLoggedIn() || m_accessTokenExpiry == -1 || m_bRefreshInFlightV1)
 	{

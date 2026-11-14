@@ -67,8 +67,8 @@ public:
 	// Exchanges a refresh token for new tokens. The refresh token rotates on every use.
 	void Refresh(const std::string& origin, const std::string& refreshToken, DoneFn done);
 
-	// Revokes a refresh token. Best effort, nothing waits for the answer.
-	void Revoke(const std::string& origin, const std::string& refreshToken);
+	// Revokes a refresh token. Best effort. The done callback runs once the service answered, or at once when nothing is sent.
+	void Revoke(const std::string& origin, const std::string& refreshToken, std::function<void()> done = nullptr);
 
 	// Drops the running sign-in or refresh. Its callback never runs.
 	void Cancel();
