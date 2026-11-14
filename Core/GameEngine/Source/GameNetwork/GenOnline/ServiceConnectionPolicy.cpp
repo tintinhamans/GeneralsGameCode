@@ -1,5 +1,6 @@
 #include "GameNetwork/GenOnline/ServiceConnectionPolicy.h"
 #include "GameNetwork/GenOnline/CredentialStore.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeSignIn.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -298,6 +299,13 @@ std::string ProxyDestination(std::string destination)
 	return destination;
 }
 
+// a destination on localhost, 127.0.0.1 or [::1] is reached directly
+bool IsLoopbackDestination(const std::string& destination)
+{
+	const std::string lookup = ProxyDestination(destination);
+	return GenOnlineRealtime::IsLoopbackURL(lookup, "https") || GenOnlineRealtime::IsLoopbackURL(lookup, "http");
+}
+
 ResolvedProxyPolicy AutoProxy(const std::wstring& destination, WINHTTP_AUTOPROXY_OPTIONS& options)
 {
 	ResolvedProxyPolicy result;
@@ -442,7 +450,7 @@ namespace
 ResolvedProxyPolicy ResolveProxyRoutes(const ServiceConnectionSettings& settings, const std::string& destinationURL)
 {
 	ResolvedProxyPolicy result;
-	if (settings.proxyMode == "disabled")
+	if (settings.proxyMode == "disabled" || IsLoopbackDestination(destinationURL))
 	{
 		result.routes.push_back({});
 		result.source = "Direct";
@@ -781,7 +789,7 @@ std::shared_ptr<ProxyResolution> StartProxyResolution(ServiceConnectionSettings 
 		return state;
 	}
 	// Explicit direct/custom policy needs neither discovery nor a background worker
-	if (settings.proxyMode != "automatic")
+	if (settings.proxyMode != "automatic" || IsLoopbackDestination(destinationURL))
 	{
 		CompleteProxy(*state, ResolveProxyPolicy(settings, destinationURL));
 		return state;
@@ -995,7 +1003,8 @@ bool ConfigureCurl(CURL* curl, const std::string& destinationURL, const ProxyRou
 {
 	if (!ConfigureServiceTransport(curl, destinationURL, error))
 		return false;
-	const bool websocket = destinationURL.compare(0, 6, "wss://") == 0;
+	const bool websocket = destinationURL.compare(0, 6, "wss://") == 0 || destinationURL.compare(0, 5, "ws://") == 0;
+	const bool plain = destinationURL.compare(0, 7, "http://") == 0 || destinationURL.compare(0, 5, "ws://") == 0;
 	auto set = [&](CURLoption option, auto value) {
 		CURLcode code = curl_easy_setopt(curl, option, value);
 		if (code != CURLE_OK && error.empty())
@@ -1003,14 +1012,15 @@ bool ConfigureCurl(CURL* curl, const std::string& destinationURL, const ProxyRou
 		return code == CURLE_OK;
 	};
 	const auto* version = curl_version_info(CURLVERSION_NOW);
-	const long protocol = websocket ? CURL_HTTP_VERSION_1_1 :
+	const long protocol = websocket || plain ? CURL_HTTP_VERSION_1_1 :
 		route.direct && (version->features & CURL_VERSION_HTTP3) ? CURL_HTTP_VERSION_3 :
 		(version->features & CURL_VERSION_HTTP2) ? CURL_HTTP_VERSION_2TLS : CURL_HTTP_VERSION_1_1;
 	if (!set(CURLOPT_HTTP_VERSION, protocol) || !set(CURLOPT_PROXY_SSL_VERIFYPEER, 1L) || !set(CURLOPT_PROXY_SSL_VERIFYHOST, 2L) ||
 		!set(CURLOPT_PROXY_SSL_OPTIONS, (long)CURLSSLOPT_NATIVE_CA) || !set(CURLOPT_SOCKS5_AUTH, (long)CURLAUTH_BASIC) ||
 		!set(CURLOPT_HEADEROPT, (long)CURLHEADER_SEPARATE) || !set(CURLOPT_NOPROXY, "") || !set(CURLOPT_PROXYAUTH, (long)CURLAUTH_NONE))
 		return false;
-	if (route.direct)
+	// a loopback destination is on this computer and never goes through a proxy
+	if (route.direct || IsLoopbackDestination(destinationURL))
 		return true;
 	std::string canonical;
 	if (!CanonicalProxy(route.url, canonical, error))

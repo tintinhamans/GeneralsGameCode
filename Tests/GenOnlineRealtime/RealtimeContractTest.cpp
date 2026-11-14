@@ -881,7 +881,7 @@ static void TestAcceptRealtimeUrl()
 	const std::string base = "https://api.playgenerals.online:2087/env/test/contract/1/";
 	CHECK(OriginOfBase(base) == "https://api.playgenerals.online:2087");
 	CHECK(OriginOfBase("https://localhost") == "https://localhost");
-	CHECK(OriginOfBase("http://localhost/").empty());
+	CHECK(OriginOfBase("http://api.playgenerals.online/").empty());
 
 	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/-/realtime", base) == "wss://api.playgenerals.online:2087/-/realtime");
 	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/genonline/-/realtime", base) == "wss://api.playgenerals.online:2087/genonline/-/realtime");
@@ -899,6 +899,86 @@ static void TestAcceptRealtimeUrl()
 	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/%2e%2e/b", base).empty());
 	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087", base).empty());
 	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/-/realtime", "http://api.playgenerals.online:2087/").empty());
+}
+
+static void TestLoopbackHttp()
+{
+	// Plain http is allowed only for a loopback host, and the hub of such a route uses ws on the same origin.
+	CHECK(OriginOfBase("http://localhost:9000/env/dev/contract/1/") == "http://localhost:9000");
+	CHECK(OriginOfBase("http://localhost/") == "http://localhost");
+	CHECK(OriginOfBase("http://LocalHost:9000/") == "http://LocalHost:9000");
+	CHECK(OriginOfBase("http://127.0.0.1/") == "http://127.0.0.1");
+	CHECK(OriginOfBase("http://[::1]:9000/") == "http://[::1]:9000");
+	CHECK(OriginOfBase("http://localhost:9000") == "http://localhost:9000");
+	CHECK(OriginOfBase("http://api.example.org/").empty());
+	CHECK(OriginOfBase("http://localhost.evil.example/").empty());
+	CHECK(OriginOfBase("http://127.0.0.1.nip.io/").empty());
+	CHECK(OriginOfBase("http://127.0.0.2/").empty());
+	CHECK(OriginOfBase("http://localhost@evil.example/").empty());
+	CHECK(OriginOfBase("http://localhost:9000@evil.example/").empty());
+	CHECK(OriginOfBase("http://user@localhost/").empty());
+	CHECK(OriginOfBase("http://localhost:90x/").empty());
+	CHECK(OriginOfBase("http://localhost:/").empty());
+	CHECK(OriginOfBase("http://[::1]x/").empty());
+	CHECK(OriginOfBase("http://localhost\\@evil.example/").empty());
+	CHECK(OriginOfBase("HTTP://localhost/").empty());
+
+	CHECK(IsLoopbackHost("localhost"));
+	CHECK(IsLoopbackHost("LOCALHOST"));
+	CHECK(IsLoopbackHost("127.0.0.1"));
+	CHECK(IsLoopbackHost("[::1]"));
+	CHECK(!IsLoopbackHost(""));
+	CHECK(!IsLoopbackHost("localhost."));
+	CHECK(!IsLoopbackHost("localhost.evil.example"));
+	CHECK(!IsLoopbackHost("127.0.0.1.nip.io"));
+	CHECK(!IsLoopbackHost("[::1].evil.example"));
+	CHECK(IsLoopbackURL("ws://localhost:9000/-/realtime", "ws"));
+	CHECK(!IsLoopbackURL("wss://localhost:9000/-/realtime", "ws"));
+	CHECK(!IsLoopbackURL("http://localhost:9000:1/", "http"));
+	CHECK(!IsLoopbackURL("http://[::1]:9000]/", "http"));
+	CHECK(!IsLoopbackURL("http://local%68ost/", "http"));
+
+	CHECK(IsAcceptableEndpoint("http://localhost:9000/oauth/token", "http://localhost:9000"));
+	CHECK(IsAcceptableEndpoint("http://[::1]:5001/oauth/token", "http://127.0.0.1:9000"));
+	CHECK(IsAcceptableEndpoint("https://accounts.example.org/oauth/token", "http://localhost:9000"));
+	CHECK(!IsAcceptableEndpoint("http://localhost:9000/oauth/token"));
+	CHECK(!IsAcceptableEndpoint("http://localhost:9000/oauth/token", "https://localhost:9000"));
+	CHECK(!IsAcceptableEndpoint("http://accounts.example.org/oauth/token", "http://localhost:9000"));
+	CHECK(!IsAcceptableEndpoint("http://localhost:9000/oauth/token?x=1", "http://localhost:9000"));
+	CHECK(!IsAcceptableEndpoint("http://user@localhost:9000/oauth/token", "http://localhost:9000"));
+	CHECK(!IsAcceptableEndpoint("http://localhost:9000/oauth/token", "http://evil.example"));
+
+	const std::string base = "http://localhost:9000/env/dev/contract/1/";
+	CHECK(AcceptRealtimeUrl("ws://localhost:9000/-/realtime", base) == "ws://localhost:9000/-/realtime");
+	CHECK(AcceptRealtimeUrl("ws://localhost:9000/genonline/-/realtime", base) == "ws://localhost:9000/genonline/-/realtime");
+	CHECK(AcceptRealtimeUrl("ws://[::1]:9000/-/realtime", "http://[::1]:9000/") == "ws://[::1]:9000/-/realtime");
+	CHECK(AcceptRealtimeUrl("wss://localhost:9000/-/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://evil.example/-/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://localhost:9001/-/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://localhost/-/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://127.0.0.1:9000/-/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://localhost:9000.evil.example/-/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://localhost:9000@evil.example/-/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://localhost:9000/ws", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://localhost:9000/-/realtime?access_token=x", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://localhost:9000/a/../-/realtime", base).empty());
+	CHECK(AcceptRealtimeUrl("ws://evil.example/-/realtime", "http://evil.example/").empty());
+	// An https route never takes ws, even on a loopback host.
+	CHECK(AcceptRealtimeUrl("ws://localhost:9000/-/realtime", "https://localhost:9000/env/dev/contract/1/").empty());
+	CHECK(AcceptRealtimeUrl("wss://localhost:9000/-/realtime", "https://localhost:9000/env/dev/contract/1/") == "wss://localhost:9000/-/realtime");
+
+	// The discovery of a loopback http origin may name http endpoints on a loopback host, any other host stays https.
+	const std::string origin = "http://localhost:9000";
+	OpenIdConfiguration config;
+	std::string error;
+	CHECK(ParseOpenIdConfiguration("{\"issuer\":\"http://localhost:9000/\",\"authorization_endpoint\":\"http://localhost:9000/oauth/authorize\",\"token_endpoint\":\"http://127.0.0.1:5001/oauth/token\",\"revocation_endpoint\":\"https://accounts.example.org/oauth/revoke\"}", origin, config, error));
+	CHECK(config.token_endpoint == "http://127.0.0.1:5001/oauth/token");
+	CHECK(config.revocation_endpoint == "https://accounts.example.org/oauth/revoke");
+	CHECK(!ParseOpenIdConfiguration("{\"issuer\":\"http://localhost:9000\",\"authorization_endpoint\":\"http://accounts.example.org/oauth/authorize\",\"token_endpoint\":\"http://localhost:9000/oauth/token\"}", origin, config, error));
+	CHECK(!ParseOpenIdConfiguration("{\"issuer\":\"http://localhost:9000\",\"authorization_endpoint\":\"http://localhost:9000/oauth/authorize\",\"token_endpoint\":\"http://localhost.evil.example/oauth/token\"}", origin, config, error));
+	CHECK(!ParseOpenIdConfiguration("{\"issuer\":\"https://localhost:9000\",\"authorization_endpoint\":\"http://localhost:9000/oauth/authorize\",\"token_endpoint\":\"http://localhost:9000/oauth/token\"}", origin, config, error));
+	// An https origin never takes http endpoints, not even on a loopback host.
+	CHECK(!ParseOpenIdConfiguration("{\"issuer\":\"https://localhost:9000\",\"authorization_endpoint\":\"http://localhost:9000/oauth/authorize\",\"token_endpoint\":\"https://localhost:9000/oauth/token\"}", "https://localhost:9000", config, error));
 }
 
 static void TestPeerPayload()
@@ -983,6 +1063,7 @@ int main(int argc, char** argv)
 	TestFormEncoding();
 	TestLoopbackCallback();
 	TestAcceptRealtimeUrl();
+	TestLoopbackHttp();
 	TestDiscovery();
 	TestHandshake();
 	TestParseRecord();

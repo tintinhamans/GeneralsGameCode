@@ -61,7 +61,7 @@ public:
 	GenOnlineSignIn();
 	~GenOnlineSignIn();
 
-	// Signs in in the system browser. origin is the https origin of the environment.
+	// Signs in in the system browser. origin is the origin of the environment, https or a loopback http origin.
 	void Start(const std::string& origin, DoneFn done);
 
 	// Exchanges a refresh token for new tokens. The refresh token rotates on every use.
