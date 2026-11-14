@@ -5,22 +5,11 @@
 #include <memory>
 #include <vector>
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Sign-in providers of the GO sign-in screen; Website is the playgenerals.online page that offers them all.
-enum class ELoginProvider
-{
-	Website,
-	Discord,
-	Steam,
-	GameReplays
-};
-
 // TheSuperHackers @feature arcticdolphin 08/11/2026 Where the login is, for the GO sign-in screen.
 enum class ELoginStage
 {
 	None,
 	SavedLogin,
-	RequestingCode,
-	WaitingForProvider,
 	WaitingForBrowser,
 	Finishing,
 	Failed
@@ -30,10 +19,9 @@ class GenOnlineAuthInterface
 {
 public:
 
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 With the sign-in screen up, the login reports its stage instead of showing message boxes and waits for a provider before opening the browser.
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 With the sign-in screen up, the login reports its stage instead of showing message boxes.
 	void SetSignInScreen(bool bSignInScreen) { m_bSignInScreen = bSignInScreen; }
 	ELoginStage GetLoginStage() const { return m_loginStage; }
-	const std::string& GetLoginCode() const { return m_strCode; }
 	bool HasDisplayName() const { return !m_strDisplayName.empty() && m_strDisplayName != "NO_USER"; }
 
 	// TheSuperHackers @feature arcticdolphin 09/11/2026 The sign-in dialog shows a failed login in place and closes itself, so failures are reported to its callback instead of popping a screen.
@@ -42,12 +30,8 @@ public:
 	const std::wstring& GetLoginFailureTitle() const { return m_strLoginFailureTitle; }
 	const std::wstring& GetLoginFailureText() const { return m_strLoginFailureText; }
 
-	void OpenProviderLogin(ELoginProvider provider);
 	void UseAnotherAccount();
 	void CancelLogin();
-
-	static std::string GetProviderLoginURL(ELoginProvider provider, const std::string& strCode, const std::string& strEnv);
-	static std::string PercentEncode(const std::string& strValue);
 
 	std::string GetDisplayName()
 	{
@@ -127,8 +111,6 @@ private:
 	static std::string ServiceOriginV1();
 
 private:
-	std::string m_strCode;
-
 	bool m_bSignInScreen = false;
 	bool m_bSignInDialog = false;
 	std::wstring m_strLoginFailureTitle;

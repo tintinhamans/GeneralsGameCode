@@ -4,7 +4,6 @@
 #include "GameNetwork/GenOnline/HTTP/HTTPRequest.h"
 #include "GameNetwork/GenOnline/GenOnlineModeration.h"
 #include "GameNetwork/GenOnline/json.hpp"
-#include <shellapi.h>
 #include <algorithm>
 #include <chrono>
 #include <random>
@@ -22,87 +21,8 @@
 #define CREDENTIALS_FILENAME "credentials.json"
 #endif
 
-#if defined(USE_TEST_ENV)
-#define LOGIN_ENV "test"
-#else
-#define LOGIN_ENV "prod"
-#endif
-
 #include <curl/curl.h>
 #include "GameClient/ClientInstance.h"
-
-namespace
-{
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Provider sign-in requests the playgenerals.online login page sends; Keycloak replaces this block with its auth URL plus kc_idp_hint.
-	const char* const LOGIN_PAGE_URI = "https://www.playgenerals.online/login/";
-	const char* const STEAM_RETURN_URI = "https://www.playgenerals.online/login/index.php";
-	const char* const DISCORD_AUTHORIZE_URI = "https://discord.com/oauth2/authorize";
-	const char* const DISCORD_CLIENT_ID = "1354979004507226294";
-	const char* const GAMEREPLAYS_AUTHORIZE_URI = "https://www.gamereplays.org/community/modules/oauth/authorize.php";
-	const char* const GAMEREPLAYS_CLIENT_ID = "GeneralsOnlineAuth";
-	const char* const STEAM_OPENID_URI = "https://steamcommunity.com/openid/login";
-	const char* const OPENID_NS = "http://specs.openid.net/auth/2.0";
-	const char* const OPENID_IDENTIFIER_SELECT = "http://specs.openid.net/auth/2.0/identifier_select";
-	const char* const GAME_LOGIN_TYPE = "0";
-
-	// the state the website parses, in its exact format: type 0 is GameReplays, 1 is Discord
-	std::string ProviderLoginState(int type, const std::string& strCode, const std::string& strEnv)
-	{
-		return std::format("{{\"type\":{}, \"code\": \"{}\", \"env\": \"{}\", \"login_type\": \"{}\"}}", type, strCode, strEnv, GAME_LOGIN_TYPE);
-	}
-}
-
-std::string GenOnlineAuthInterface::PercentEncode(const std::string& strValue)
-{
-	static const char* const hexDigits = "0123456789ABCDEF";
-	std::string strEncoded;
-	for (unsigned char ch : strValue)
-	{
-		if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-' || ch == '_' || ch == '.' || ch == '~')
-		{
-			strEncoded += (char)ch;
-		}
-		else
-		{
-			strEncoded += '%';
-			strEncoded += hexDigits[ch >> 4];
-			strEncoded += hexDigits[ch & 0x0F];
-		}
-	}
-	return strEncoded;
-}
-
-std::string GenOnlineAuthInterface::GetProviderLoginURL(ELoginProvider provider, const std::string& strCode, const std::string& strEnv)
-{
-	switch (provider)
-	{
-	case ELoginProvider::Discord:
-		return std::format("{}?client_id={}&redirect_uri={}&response_type=code&scope=identify&state={}", DISCORD_AUTHORIZE_URI, DISCORD_CLIENT_ID,
-			PercentEncode(LOGIN_PAGE_URI), PercentEncode(ProviderLoginState(1, strCode, strEnv)));
-
-	case ELoginProvider::GameReplays:
-		return std::format("{}?client_id={}&redirect_uri={}&response_type=code&scope=user_profile&state={}", GAMEREPLAYS_AUTHORIZE_URI, GAMEREPLAYS_CLIENT_ID,
-			PercentEncode(LOGIN_PAGE_URI), PercentEncode(ProviderLoginState(0, strCode, strEnv)));
-
-	case ELoginProvider::Steam:
-	{
-		// OpenID 2.0 checkid_setup as a GET request; the website sends no openid.realm
-		std::string strReturnTo = std::format("{}?gamecode={}&auth_type=steam&env={}&login_type={}", STEAM_RETURN_URI, PercentEncode(strCode), strEnv, GAME_LOGIN_TYPE);
-		return std::format("{}?openid.ns={}&openid.mode=checkid_setup&openid.identity={}&openid.claimed_id={}&openid.return_to={}", STEAM_OPENID_URI,
-			PercentEncode(OPENID_NS), PercentEncode(OPENID_IDENTIFIER_SELECT), PercentEncode(OPENID_IDENTIFIER_SELECT), PercentEncode(strReturnTo));
-	}
-
-	default:
-		break;
-	}
-
-	// the website page, which offers every provider itself
-	if (strEnv == "test")
-	{
-		return std::format("{}?gamecode={}&env=test", LOGIN_PAGE_URI, PercentEncode(strCode));
-	}
-	return std::format("{}?gamecode={}", LOGIN_PAGE_URI, PercentEncode(strCode));
-}
 
 struct MOTDResponse
 {
@@ -276,22 +196,6 @@ void GenOnlineAuthInterface::Tick()
 	TickV1();
 }
 
-void GenOnlineAuthInterface::OpenProviderLogin(ELoginProvider provider)
-{
-	if (m_strCode.empty())
-	{
-		return;
-	}
-
-	m_loginStage = ELoginStage::WaitingForBrowser;
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: Opening the browser sign-in for provider %d", (int)provider);
-	std::string strURI = GetProviderLoginURL(provider, m_strCode, LOGIN_ENV);
-
-#if !defined(_DEBUG) || defined(USE_TEST_ENV) || defined(USE_DEBUG_ON_LIVE_SERVER)
-	ShellExecuteA(NULL, "open", strURI.c_str(), NULL, NULL, SW_SHOWNORMAL);
-#endif
-}
-
 void GenOnlineAuthInterface::UseAnotherAccount()
 {
 	if (m_loginStage != ELoginStage::SavedLogin)
@@ -310,7 +214,6 @@ void GenOnlineAuthInterface::CancelLogin()
 {
 	// TheSuperHackers @feature arcticdolphin 08/11/2026 Drop the replies still on their way and stop polling, so a cancelled login never completes later.
 	++m_loginAttempt;
-	m_strCode = std::string();
 	m_pSignIn->Cancel();
 	AbandonRefreshV1();
 
