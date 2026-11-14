@@ -451,7 +451,7 @@ struct Sanction : WireObject
 	Nullable<std::string> reason;
 	std::string created_at;
 	Nullable<std::string> expires_at;
-	Nullable<std::string> revoked_at;
+	Nullable<std::string> lifted_at;
 	Member created_by;
 
 	template <class V> void Fields(V& v)
@@ -461,7 +461,7 @@ struct Sanction : WireObject
 		v("reason", reason);
 		v("created_at", created_at);
 		v("expires_at", expires_at);
-		v("revoked_at", revoked_at);
+		v("lifted_at", lifted_at);
 		v("created_by", created_by);
 	}
 };
@@ -474,6 +474,83 @@ struct SanctionsResponse : WireObject
 	template <class V> void Fields(V& v)
 	{
 		v("sanctions", sanctions);
+	}
+};
+
+// GET /api/v1/me/friends, the lists of the Friends event without the blocked users.
+struct MyFriendsResponse : WireObject
+{
+	std::vector<FriendEntry> friends;
+	std::vector<Member> incoming;
+	std::vector<Member> outgoing;
+
+	template <class V> void Fields(V& v)
+	{
+		v("friends", friends);
+		v("incoming", incoming);
+		v("outgoing", outgoing);
+	}
+};
+
+// GET /api/v1/me/blocks
+struct MyBlocksResponse : WireObject
+{
+	std::vector<Member> blocked;
+
+	template <class V> void Fields(V& v)
+	{
+		v("blocked", blocked);
+	}
+};
+
+// A report in the staff queue. message_id is null for a report of a player.
+struct StaffReport : WireObject
+{
+	int64_t id = 0;
+	Member reporter;
+	Member reported;
+	Nullable<std::string> message_id;
+	Nullable<std::string> reason;
+	std::string status;
+	std::string created_at;
+	Nullable<std::string> resolved_at;
+	Nullable<std::string> resolution_note;
+
+	template <class V> void Fields(V& v)
+	{
+		v("id", id);
+		v("reporter", reporter);
+		v("reported", reported);
+		v("message_id", message_id);
+		v("reason", reason);
+		v("status", status);
+		v("created_at", created_at);
+		v("resolved_at", resolved_at);
+		v("resolution_note", resolution_note);
+	}
+};
+
+// GET /api/v1/reports
+struct StaffReportsResponse : WireObject
+{
+	std::vector<StaffReport> reports;
+
+	template <class V> void Fields(V& v)
+	{
+		v("reports", reports);
+	}
+};
+
+// PATCH /api/v1/reports/:id closes a report as actioned or dismissed.
+struct ReportCloseBody : WireObject
+{
+	std::string status;
+	std::optional<std::string> resolution_note;
+
+	template <class V> void Fields(V& v)
+	{
+		v("status", status);
+		v("resolution_note", resolution_note);
 	}
 };
 
