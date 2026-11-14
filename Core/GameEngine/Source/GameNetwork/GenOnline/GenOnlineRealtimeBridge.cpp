@@ -436,7 +436,7 @@ void RegisterHandlers(HubSession& session)
 				GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 				if (pLobby != nullptr && pLobby->IsInLobby() && pLobby->m_OnChatCallback != nullptr)
 				{
-					pLobby->m_OnChatCallback(UnicodeString(text.c_str()), DetermineSystemNoticeColor(false, false));
+					pLobby->m_OnChatCallback(UnicodeString(text.c_str()), DetermineSystemNoticeColor(true, false));
 				}
 				return;
 			}
