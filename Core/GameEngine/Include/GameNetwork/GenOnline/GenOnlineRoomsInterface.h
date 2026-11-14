@@ -1,4 +1,5 @@
 #pragma once
+#include "GameNetwork/GenOnline/Realtime/RealtimeChannelChat.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 
 #include "GenOnlineInclude.h"
@@ -131,6 +132,7 @@ public:
 		m_CurrentRoomIndex = -1;
 		m_EffectiveRoomID.reset();
 		m_PendingRoomChange.reset();
+		m_ChannelChat.Clear();
 		m_vecRooms.clear();
 
 		std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
@@ -149,6 +151,15 @@ public:
 	void DeregisterForChatCallback()
 	{
 		m_OnChatCallback = nullptr;
+		m_OnChatMessageCallback = nullptr;
+		m_OnChatMessageRemovedCallback = nullptr;
+	}
+
+	// A channel chat message line carries a key, so a staff delete can remove that line later.
+	void RegisterForChatMessageCallbacks(std::function<void(UnicodeString strMessage, Color color, uint32_t key)> cbAdd, std::function<void(uint32_t key)> cbRemove)
+	{
+		m_OnChatMessageCallback = std::move(cbAdd);
+		m_OnChatMessageRemovedCallback = std::move(cbRemove);
 	}
 
 	std::function<void()> m_RosterNeedsRefreshCallback = nullptr;
@@ -227,11 +238,19 @@ public:
 	void OnRealtimeMemberRemove(const GenOnlineRealtime::MemberRemoveEvent& event);
 	void OnRealtimeMemberUpdate(const GenOnlineRealtime::Member& member);
 	void OnRealtimeRoomMessage(const GenOnlineRealtime::ChatMessage& message);
+	void OnRealtimeChannelHistory(const GenOnlineRealtime::ChannelHistoryEvent& event);
+	void OnRealtimeMessageDelete(const GenOnlineRealtime::MessageDeleteEvent& event);
 	void OnRealtimeNameChanged(const std::string& strOldName, const std::string& strNewName);
 	void OnRealtimeRoomJoinFailed(int roomID, const std::wstring& strReason);
 
 private:
 	void RefreshRoster();
+	void ShowRoomChatLine(const GenOnlineRealtime::ChannelChatLine& line);
+	void RemoveRoomChatLine(uint32_t key);
+	std::function<void(UnicodeString, Color, uint32_t)> m_OnChatMessageCallback = nullptr;
+	std::function<void(uint32_t)> m_OnChatMessageRemovedCallback = nullptr;
+	GenOnlineRealtime::ChannelChatLog m_ChannelChat;
+	std::chrono::steady_clock::time_point m_ChannelHistoryDeadline;
 	std::vector<NetworkRoom> m_vecRealtimeRooms;
 
 	struct PendingRoomChange

@@ -23,6 +23,7 @@
 //              protocol document.
 ///////////////////////////////////////////////////////////////////////////////
 
+#include "GameNetwork/GenOnline/Realtime/RealtimeChannelChat.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeHubSession.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMatchmaking.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
@@ -1087,6 +1088,166 @@ static void TestMatchmakingText()
 	CHECK(MatchmakingFailureText("chat.too_long", json::object()).empty());
 }
 
+static ChatMessage MakeChat(const std::string& id, const std::string& channel)
+{
+	ChatMessage message;
+	message.id = id;
+	message.channel_id = channel;
+	message.type = "chat";
+	message.author.id = 7;
+	message.author.name = "Ann";
+	message.content = "hello " + id;
+	message.created_at = "2026-11-14T20:00:00Z";
+	return message;
+}
+
+static ChatMessage MakeTombstone(const std::string& id, const std::string& channel)
+{
+	ChatMessage message;
+	message.id = id;
+	message.channel_id = channel;
+	message.created_at = "2026-11-14T19:59:00Z";
+	message.deleted = true;
+	return message;
+}
+
+static ChannelHistoryEvent MakeHistory(const std::string& channel, const std::vector<ChatMessage>& messages)
+{
+	ChannelHistoryEvent history;
+	history.channel_id = channel;
+	history.messages = messages;
+	return history;
+}
+
+static std::vector<std::string> LineIDs(const std::vector<ChannelChatLine>& lines)
+{
+	std::vector<std::string> ids;
+	for (const ChannelChatLine& line : lines)
+	{
+		ids.push_back(line.message.id);
+	}
+	return ids;
+}
+
+static void TestChannelChatLog()
+{
+	typedef std::vector<std::string> Ids;
+	const std::string channel = "channel:3";
+
+	// A live message before the history waits and shows once, as the history copy.
+	{
+		ChannelChatLog log;
+		log.Start(channel);
+		CHECK(log.IsAwaitingHistory());
+		CHECK(log.AddLive(MakeChat("12", channel)).empty());
+		const ChannelChatUpdate update = log.AddHistory(MakeHistory(channel, { MakeChat("10", channel), MakeChat("11", channel), MakeChat("12", channel) }));
+		CHECK(LineIDs(update.shown) == Ids({ "10", "11", "12" }));
+		CHECK(update.shown.size() == 3 && !update.shown[0].live && !update.shown[1].live && !update.shown[2].live);
+		CHECK(update.removed.empty());
+		CHECK(!log.IsAwaitingHistory());
+	}
+
+	// A live message after the history that already held it is not shown again.
+	{
+		ChannelChatLog log;
+		log.Start(channel);
+		const ChannelChatUpdate update = log.AddHistory(MakeHistory(channel, { MakeChat("10", channel), MakeChat("11", channel) }));
+		CHECK(LineIDs(update.shown) == Ids({ "10", "11" }));
+		CHECK(log.AddLive(MakeChat("11", channel)).empty());
+		CHECK(LineIDs(log.AddLive(MakeChat("13", channel))) == Ids({ "13" }));
+		CHECK(log.AddLive(MakeChat("13", channel)).empty());
+	}
+
+	// A history split into several events keeps its order and skips what it already showed.
+	{
+		ChannelChatLog log;
+		log.Start(channel);
+		CHECK(LineIDs(log.AddHistory(MakeHistory(channel, { MakeChat("1", channel), MakeChat("2", channel) })).shown) == Ids({ "1", "2" }));
+		CHECK(LineIDs(log.AddHistory(MakeHistory(channel, { MakeChat("2", channel), MakeChat("3", channel) })).shown) == Ids({ "3" }));
+	}
+
+	// A tombstone is never shown, and a tombstone of a shown message removes its line.
+	{
+		ChannelChatLog log;
+		log.Start(channel);
+		const ChannelChatUpdate first = log.AddHistory(MakeHistory(channel, { MakeChat("20", channel), MakeTombstone("21", channel) }));
+		CHECK(LineIDs(first.shown) == Ids({ "20" }));
+		CHECK(first.removed.empty());
+		CHECK(log.AddLive(MakeTombstone("22", channel)).empty());
+		log.Start(channel);
+		const ChannelChatUpdate second = log.AddHistory(MakeHistory(channel, { MakeTombstone("20", channel) }));
+		CHECK(second.shown.empty());
+		CHECK(first.shown.size() == 1 && second.removed.size() == 1 && second.removed[0] == first.shown[0].key);
+	}
+
+	// A delete removes the line of a shown message once and ignores unknown ids and other channels.
+	{
+		ChannelChatLog log;
+		log.Start(channel);
+		const ChannelChatUpdate update = log.AddHistory(MakeHistory(channel, { MakeChat("30", channel), MakeChat("31", channel) }));
+		CHECK(update.shown.size() == 2 && update.shown[0].key != 0 && update.shown[0].key != update.shown[1].key);
+		CHECK(log.Remove("channel:4", "30") == 0);
+		CHECK(log.Remove(channel, "99") == 0);
+		CHECK(update.shown.size() == 2 && log.Remove(channel, "30") == update.shown[0].key);
+		CHECK(log.Remove(channel, "30") == 0);
+		CHECK(log.AddLive(MakeChat("30", channel)).empty());
+	}
+
+	// A delete of a live message that waits for the history drops it before it shows.
+	{
+		ChannelChatLog log;
+		log.Start(channel);
+		CHECK(log.AddLive(MakeChat("40", channel)).empty());
+		CHECK(log.Remove(channel, "40") == 0);
+		CHECK(log.AddHistory(MakeHistory(channel, {})).shown.empty());
+	}
+
+	// Releasing the wait shows the waiting live messages in order.
+	{
+		ChannelChatLog log;
+		log.Start(channel);
+		CHECK(log.AddLive(MakeChat("50", channel)).empty());
+		CHECK(log.AddLive(MakeChat("51", channel)).empty());
+		const std::vector<ChannelChatLine> released = log.ReleaseWaiting();
+		CHECK(LineIDs(released) == Ids({ "50", "51" }));
+		CHECK(released.size() == 2 && released[0].live && released[1].live);
+		CHECK(!log.IsAwaitingHistory());
+		CHECK(log.ReleaseWaiting().empty());
+	}
+
+	// Another channel is ignored, and a channel change forgets the shown messages.
+	{
+		ChannelChatLog log;
+		log.Start(channel);
+		CHECK(log.AddHistory(MakeHistory("channel:4", { MakeChat("60", "channel:4") })).shown.empty());
+		CHECK(log.IsAwaitingHistory());
+		CHECK(LineIDs(log.AddHistory(MakeHistory(channel, { MakeChat("60", channel) })).shown) == Ids({ "60" }));
+		CHECK(log.AddLive(MakeChat("61", "channel:4")).empty());
+		log.Start(channel);
+		CHECK(log.AddHistory(MakeHistory(channel, { MakeChat("60", channel) })).shown.empty());
+		log.Start("channel:4");
+		CHECK(log.AddHistory(MakeHistory("channel:4", { MakeChat("60", "channel:4") })).shown.size() == 1);
+		CHECK(log.Remove(channel, "60") == 0);
+		log.Clear();
+		CHECK(log.AddLive(MakeChat("62", "channel:4")).empty());
+		CHECK(log.AddHistory(MakeHistory("channel:4", { MakeChat("62", "channel:4") })).shown.empty());
+	}
+
+	// The shown ids stay bounded, so the oldest id can show again.
+	{
+		ChannelChatLog log;
+		log.Start(channel);
+		CHECK(log.AddHistory(MakeHistory(channel, {})).shown.empty());
+		for (size_t i = 0; i <= ChannelChatLog::MAX_SHOWN; ++i)
+		{
+			CHECK(log.AddLive(MakeChat(std::to_string(i), channel)).size() == 1);
+		}
+		CHECK(log.ShownCount() == ChannelChatLog::MAX_SHOWN);
+		CHECK(log.AddLive(MakeChat(std::to_string(ChannelChatLog::MAX_SHOWN), channel)).empty());
+		CHECK(log.AddLive(MakeChat("0", channel)).size() == 1);
+	}
+}
+
 int main(int argc, char** argv)
 {
 	if (argc < 3)
@@ -1099,6 +1260,7 @@ int main(int argc, char** argv)
 	TestPkce();
 	TestPeerPayload();
 	TestMatchmakingText();
+	TestChannelChatLog();
 	TestFormEncoding();
 	TestLoopbackCallback();
 	TestAcceptRealtimeUrl();

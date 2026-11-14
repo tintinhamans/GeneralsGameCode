@@ -1169,6 +1169,7 @@ void GenOnlineRoomsInterface::GetRoomList(std::function<void(bool)> cb)
 	m_CurrentRoomIndex = -1;
 	m_EffectiveRoomID.reset();
 	m_PendingRoomChange.reset();
+	m_ChannelChat.Clear();
 
 	// Cache our buddies on lobby list
 	GenOnlineSocialInterface* pSocialInterface =
@@ -1237,6 +1238,14 @@ void GenOnlineRoomsInterface::Tick()
 	{
 		m_PendingRoomChange.reset();
 		ReportRoomJoinFailure("The room change timed out. Please try again.");
+	}
+	// Live messages stop waiting for a ChannelHistory that does not come.
+	if (m_ChannelChat.IsAwaitingHistory() && std::chrono::steady_clock::now() >= m_ChannelHistoryDeadline)
+	{
+		for (const GenOnlineRealtime::ChannelChatLine& line : m_ChannelChat.ReleaseWaiting())
+		{
+			ShowRoomChatLine(line);
+		}
 	}
 }
 
@@ -1309,6 +1318,9 @@ void GenOnlineRoomsInterface::OnRealtimeChannelMembers(const GenOnlineRealtime::
 
 	const bool effectiveRoomChanged = !m_EffectiveRoomID.has_value() || *m_EffectiveRoomID != event.channel_id;
 	m_EffectiveRoomID = static_cast<int>(event.channel_id);
+	// ChannelHistory follows for the channel actually joined, which a parent room resolves to.
+	m_ChannelChat.Start("channel:" + std::to_string(event.channel_id));
+	m_ChannelHistoryDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
 	// Joining a parent room lands in its default child room, which completes the change too.
 	if (m_PendingRoomChange.has_value() && (m_PendingRoomChange->roomID == event.channel_id
 		|| (roomIndex >= 0 && m_vecRooms[roomIndex].GetParentRoomID() == m_PendingRoomChange->roomID)))
@@ -1361,13 +1373,73 @@ void GenOnlineRoomsInterface::OnRealtimeMemberUpdate(const GenOnlineRealtime::Me
 
 void GenOnlineRoomsInterface::OnRealtimeRoomMessage(const GenOnlineRealtime::ChatMessage& message)
 {
-	if (!m_EffectiveRoomID.has_value() || message.channel_id != "channel:" + std::to_string(*m_EffectiveRoomID) || m_OnChatCallback == nullptr)
+	if (!m_EffectiveRoomID.has_value() || message.channel_id != "channel:" + std::to_string(*m_EffectiveRoomID))
 	{
 		return;
 	}
+	for (const GenOnlineRealtime::ChannelChatLine& line : m_ChannelChat.AddLive(message))
+	{
+		ShowRoomChatLine(line);
+	}
+}
+
+void GenOnlineRoomsInterface::OnRealtimeChannelHistory(const GenOnlineRealtime::ChannelHistoryEvent& event)
+{
+	const GenOnlineRealtime::ChannelChatUpdate update = m_ChannelChat.AddHistory(event);
+	for (uint32_t key : update.removed)
+	{
+		RemoveRoomChatLine(key);
+	}
+	for (const GenOnlineRealtime::ChannelChatLine& line : update.shown)
+	{
+		ShowRoomChatLine(line);
+	}
+}
+
+void GenOnlineRoomsInterface::OnRealtimeMessageDelete(const GenOnlineRealtime::MessageDeleteEvent& event)
+{
+	const uint32_t key = m_ChannelChat.Remove(event.channel_id, event.message_id);
+	if (key != 0)
+	{
+		RemoveRoomChatLine(key);
+	}
+}
+
+// Reads the minute of an ISO 8601 UTC time as local time.
+static bool UtcTextToLocalTime(const std::string& strTime, SYSTEMTIME& localTime)
+{
+	int year = 0;
+	int month = 0;
+	int day = 0;
+	int hour = 0;
+	int minute = 0;
+	if (sscanf_s(strTime.c_str(), "%d-%d-%dT%d:%d", &year, &month, &day, &hour, &minute) != 5)
+	{
+		return false;
+	}
+	SYSTEMTIME utcTime = {};
+	utcTime.wYear = static_cast<WORD>(year);
+	utcTime.wMonth = static_cast<WORD>(month);
+	utcTime.wDay = static_cast<WORD>(day);
+	utcTime.wHour = static_cast<WORD>(hour);
+	utcTime.wMinute = static_cast<WORD>(minute);
+	return SystemTimeToTzSpecificLocalTime(nullptr, &utcTime, &localTime) != FALSE;
+}
+
+// A history line shows the time the service stored the message, a live line the time it arrived.
+void GenOnlineRoomsInterface::ShowRoomChatLine(const GenOnlineRealtime::ChannelChatLine& line)
+{
+	if (m_OnChatCallback == nullptr && m_OnChatMessageCallback == nullptr)
+	{
+		return;
+	}
+	const GenOnlineRealtime::ChatMessage& message = line.message;
 	const bool bAction = message.type == "action";
 	SYSTEMTIME systemTime;
-	GetLocalTime(&systemTime);
+	if (line.live || !UtcTextToLocalTime(message.created_at, systemTime))
+	{
+		GetLocalTime(&systemTime);
+	}
 	UnicodeString unicodeStr;
 	unicodeStr.format(bAction ? L"[%2.2d:%2.2d] %s %s" : L"[%2.2d:%2.2d] %s: %s", systemTime.wHour, systemTime.wMinute,
 		from_utf8(message.author.name).c_str(), from_utf8(message.content).c_str());
@@ -1379,11 +1451,30 @@ void GenOnlineRoomsInterface::OnRealtimeRoomMessage(const GenOnlineRealtime::Cha
 		color = badgeColor;
 	}
 #if RTS_ZEROHOUR
-	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	const bool bLocal = pAuth != nullptr && pAuth->GetUserID() == message.author.id;
-	StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_ROOM, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, FALSE, bLocal);
+	// Only live chat goes to the stats exporter, so a replayed history line is not exported again.
+	if (line.live)
+	{
+		GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+		const bool bLocal = pAuth != nullptr && pAuth->GetUserID() == message.author.id;
+		StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_ROOM, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, FALSE, bLocal);
+	}
 #endif
-	m_OnChatCallback(unicodeStr, color);
+	if (m_OnChatMessageCallback != nullptr)
+	{
+		m_OnChatMessageCallback(unicodeStr, color, line.key);
+	}
+	else
+	{
+		m_OnChatCallback(unicodeStr, color);
+	}
+}
+
+void GenOnlineRoomsInterface::RemoveRoomChatLine(uint32_t key)
+{
+	if (m_OnChatMessageRemovedCallback != nullptr)
+	{
+		m_OnChatMessageRemovedCallback(key);
+	}
 }
 
 void GenOnlineRoomsInterface::OnRealtimeNameChanged(const std::string& strOldName, const std::string& strNewName)
