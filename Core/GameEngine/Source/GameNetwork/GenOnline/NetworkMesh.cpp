@@ -966,7 +966,18 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 
 	if (GenOnlinePluginHost::Transport::IsActive())
 	{
-		// TODO_EOS: if we already have a connection to this use, drop it, having a single-direction connection will break signalling
+		// A repeated StartSignalling restarts the pair. The old connection closes first, because a single-direction connection breaks signalling.
+		auto existing = m_mapConnections.find(remoteUserID);
+		if (existing != m_mapConnections.end() && existing->second.m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld, new connection is being negotiated", remoteUserID);
+			GenOnlinePluginHost::Transport::DisconnectPeer(existing->second.m_strMiddlewareID.c_str(), existing->second.m_userID);
+
+			if (TheNetwork != nullptr)
+			{
+				TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
+			}
+		}
 		GenOnlinePluginHost::Transport::StartSignalling(szMiddlewareID, remoteUserID);
 
         // create a local user type
@@ -986,6 +997,15 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
         if (m_bAwaitingTurnCredentials)
         {
             NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Holding signalling with %lld until our TURN credentials arrive", remoteUserID);
+            // A repeated StartSignalling replaces the held request of that peer, so the pair starts once.
+            for (auto pending = m_vecSignallingAwaitingTurn.begin(); pending != m_vecSignallingAwaitingTurn.end(); ++pending)
+            {
+                if (pending->remoteUserID == remoteUserID)
+                {
+                    m_vecSignallingAwaitingTurn.erase(pending);
+                    break;
+                }
+            }
             m_vecSignallingAwaitingTurn.push_back({ szMiddlewareID != nullptr ? szMiddlewareID : "", remoteUserID, preferredPort });
             return;
         }

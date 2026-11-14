@@ -22,6 +22,7 @@
 
 #include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMatchmaking.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeNoticeText.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/GenOnlineModeration.h"
 #include "GameClient/GenOnlineMenus.h"
@@ -120,7 +121,7 @@ std::string ActivityText(const std::string& activity)
 {
 	if (activity == "menu")
 		return "In menus";
-	if (activity == "room")
+	if (activity == "channel")
 		return "In a room";
 	if (activity == "lobby")
 		return "In a lobby";
@@ -144,6 +145,11 @@ std::wstring FailureText(const InvokeOutcome& outcome)
 	{
 		return Wide(matchmakingText);
 	}
+	const std::string ruleText = RuleFailureText(code, params, GenOnlineLocalTimeText);
+	if (!ruleText.empty())
+	{
+		return Wide(ruleText);
+	}
 	if (code == "chat.rate_limited" || code == "rate_limited")
 	{
 		return L"You are sending messages too quickly. Please wait a moment.";
@@ -151,11 +157,6 @@ std::wstring FailureText(const InvokeOutcome& outcome)
 	if (code == "chat.too_long")
 	{
 		return std::format(L"Your message is too long. Messages can have up to {} characters.", ParamInt(params, "max", 512));
-	}
-	if (code == "chat.muted")
-	{
-		const std::string until = ParamText(params, "until");
-		return until.empty() ? std::wstring(L"You are muted and cannot send messages.") : L"You are muted and cannot send messages until " + Wide(until) + L".";
 	}
 	if (code == "chat.not_friends")
 	{
@@ -184,10 +185,6 @@ std::wstring FailureText(const InvokeOutcome& outcome)
 	if (code == "name.taken")
 	{
 		return L"That name is already taken.";
-	}
-	if (code == "room.unavailable")
-	{
-		return L"That room is not available.";
 	}
 	if (code == "social.friend_list_full")
 	{
@@ -224,7 +221,7 @@ void OnReady(const ReadyEvent& ready, bool bFirstReady)
 	GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 	if (pRooms != nullptr)
 	{
-		pRooms->SetRealtimeRooms(ready.rooms);
+		pRooms->SetRealtimeRooms(ready.channels);
 	}
 	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	if (pAuth != nullptr)
@@ -322,7 +319,7 @@ void RegisterHandlers(HubSession& session)
 			GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 			if (pLobby != nullptr)
 			{
-				pLobby->HandleMatchSetupProgress(event.timeout_ms, event.countdown_ms);
+				pLobby->HandleMatchSetupProgress(SecondsToMilliseconds(event.timeout_s), SecondsToMilliseconds(event.countdown_s));
 			}
 		});
 	session.On<MatchStartEvent>([](const MatchStartEvent& event)
@@ -345,12 +342,12 @@ void RegisterHandlers(HubSession& session)
 		{
 			s_badges = event.badges;
 		});
-	session.On<RoomMembersEvent>([](const RoomMembersEvent& event)
+	session.On<ChannelMembersEvent>([](const ChannelMembersEvent& event)
 		{
 			GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 			if (pRooms != nullptr)
 			{
-				pRooms->OnRealtimeRoomMembers(event);
+				pRooms->OnRealtimeChannelMembers(event);
 			}
 		});
 	session.On<MemberAddEvent>([](const MemberAddEvent& event)
@@ -389,7 +386,7 @@ void RegisterHandlers(HubSession& session)
 		});
 	session.On<MessageCreateEvent>([](const MessageCreateEvent& event)
 		{
-			if (event.channel_id.compare(0, 5, "room:") == 0)
+			if (event.channel_id.compare(0, 8, "channel:") == 0)
 			{
 				GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 				if (pRooms != nullptr)
@@ -402,7 +399,7 @@ void RegisterHandlers(HubSession& session)
 				GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 				if (pLobby != nullptr)
 				{
-					pLobby->OnRealtimeLobbyMessage(event);
+					pLobby->OnRealtimeLobbyMessageCreate(event);
 				}
 			}
 			else if (event.channel_id.compare(0, 3, "dm:") == 0)
@@ -412,6 +409,68 @@ void RegisterHandlers(HubSession& session)
 				{
 					pSocial->OnRealtimeDirectMessage(event);
 				}
+			}
+		});
+	session.On<ChannelHistoryEvent>([](const ChannelHistoryEvent& event)
+		{
+			if (event.channel_id.compare(0, 8, "channel:") == 0)
+			{
+				GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+				if (pRooms != nullptr)
+				{
+					pRooms->OnRealtimeChannelHistory(event);
+				}
+			}
+			else if (event.channel_id.compare(0, 6, "lobby:") == 0)
+			{
+				GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+				if (pLobby != nullptr)
+				{
+					pLobby->OnRealtimeLobbyHistory(event);
+				}
+			}
+		});
+	session.On<MessageDeleteEvent>([](const MessageDeleteEvent& event)
+		{
+			if (event.channel_id.compare(0, 8, "channel:") == 0)
+			{
+				GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+				if (pRooms != nullptr)
+				{
+					pRooms->OnRealtimeMessageDelete(event);
+				}
+			}
+			else if (event.channel_id.compare(0, 6, "lobby:") == 0)
+			{
+				GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+				if (pLobby != nullptr)
+				{
+					pLobby->OnRealtimeLobbyMessageDelete(event);
+				}
+			}
+			else if (event.channel_id.compare(0, 3, "dm:") == 0)
+			{
+				GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+				if (pSocial != nullptr)
+				{
+					pSocial->OnRealtimeDirectMessageDelete(event);
+				}
+			}
+		});
+	session.On<ConversationsEvent>([](const ConversationsEvent& event)
+		{
+			GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+			if (pSocial != nullptr)
+			{
+				pSocial->OnRealtimeConversations(event);
+			}
+		});
+	session.On<ReadMarkerEvent>([](const ReadMarkerEvent& event)
+		{
+			GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+			if (pSocial != nullptr)
+			{
+				pSocial->OnRealtimeReadMarker(event);
 			}
 		});
 	session.On<Notice>([](const Notice& notice)
@@ -443,22 +502,16 @@ void RegisterHandlers(HubSession& session)
 		{
 			if (notice.action == "ban")
 			{
-				HandleModerationDisconnect(EOnlineModerationAction::BAN, notice.reason);
+				HandleModerationDisconnect(EOnlineModerationAction::BAN, notice.reason.value_or(std::string()));
 			}
 			else if (notice.action == "kick")
 			{
 				// The hub closes the connection next and the client reconnects after 10 seconds.
-				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, UnicodeString((L"A moderator removed you from the online service: " + Wide(notice.reason) + L". Reconnecting in 10 seconds.").c_str()));
+				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, UnicodeString(Wide(ModerationNoticeText(notice, GenOnlineLocalTimeText)).c_str()));
 			}
 			else if (notice.action == "mute")
 			{
-				std::wstring text = L"A moderator muted you";
-				if (notice.until.has_value())
-				{
-					text += L" until " + Wide(*notice.until);
-				}
-				text += L": " + Wide(notice.reason);
-				ShowRoomNotice(text, false);
+				ShowRoomNotice(Wide(ModerationNoticeText(notice, GenOnlineLocalTimeText)), false);
 			}
 		});
 	session.On<FriendsEvent>([](const FriendsEvent& event)

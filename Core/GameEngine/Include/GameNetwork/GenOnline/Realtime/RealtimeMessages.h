@@ -22,6 +22,7 @@
 
 #include "GameNetwork/GenOnline/json.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -34,6 +35,13 @@ namespace GenOnlineRealtime
 {
 
 constexpr int PROTOCOL_VERSION = 1;
+
+// Saturates instead of overflowing.
+inline int64_t SecondsToMilliseconds(int64_t seconds)
+{
+	constexpr int64_t LIMIT = INT64_MAX / 1000;
+	return (std::max)((std::min)(seconds, LIMIT), -LIMIT) * 1000;
+}
 
 // Base of every object on the wire. Each derived type lists its fields in Fields().
 struct WireObject
@@ -271,6 +279,7 @@ struct BadgeDefinition : WireObject
 
 typedef std::map<std::string, BadgeDefinition> BadgeMap;
 
+// A message deleted by staff is a tombstone with deleted set and no type, author or content.
 struct ChatMessage : WireObject
 {
 	std::string id;
@@ -279,14 +288,44 @@ struct ChatMessage : WireObject
 	std::string type;
 	Member author;
 	std::string content;
+	std::string created_at;
+	std::optional<bool> deleted;
+
+	bool IsDeleted() const { return deleted.value_or(false); }
 
 	template <class V> void Fields(V& v)
 	{
 		v("id", id);
 		v("channel_id", channel_id);
+		v("created_at", created_at);
+		v("deleted", deleted);
+		if (IsDeleted())
+		{
+			return;
+		}
 		v("type", type);
 		v("author", author);
 		v("content", content);
+	}
+};
+
+struct Group : WireObject
+{
+	int64_t id = 0;
+	// Null when the owner set no name, clients then show the member names.
+	Nullable<std::string> name;
+	int64_t owner_id = 0;
+	// Every member, the owner included, in the order they joined.
+	std::vector<Member> members;
+	std::string created_at;
+
+	template <class V> void Fields(V& v)
+	{
+		v("id", id);
+		v("name", name);
+		v("owner_id", owner_id);
+		v("members", members);
+		v("created_at", created_at);
 	}
 };
 
@@ -437,6 +476,21 @@ struct LobbySlot : WireObject
 	}
 };
 
+// The start data of GameStart, so a client that reconnects after the start still starts.
+struct LobbyStart : WireObject
+{
+	int64_t match_id = 0;
+	int64_t rng_seed = 0;
+	Nullable<std::string> screenshot_url;
+
+	template <class V> void Fields(V& v)
+	{
+		v("match_id", match_id);
+		v("rng_seed", rng_seed);
+		v("screenshot_url", screenshot_url);
+	}
+};
+
 struct LobbyState : WireObject
 {
 	int64_t id = 0;
@@ -454,6 +508,8 @@ struct LobbyState : WireObject
 	std::string anticheat;
 	LobbySettings settings;
 	Nullable<int64_t> match_id;
+	// Null until the game starts.
+	Nullable<LobbyStart> start;
 	std::string created_at;
 	std::vector<LobbySlot> slots;
 
@@ -471,6 +527,7 @@ struct LobbyState : WireObject
 		v("anticheat", anticheat);
 		v("settings", settings);
 		v("match_id", match_id);
+		v("start", start);
 		v("created_at", created_at);
 		v("slots", slots);
 	}
@@ -504,7 +561,7 @@ struct Playlist : WireObject
 	bool allow_teams = false;
 	Nullable<int> team_size;
 	bool allow_army_selection = false;
-	int64_t grace_period_ms = 0;
+	int64_t grace_period_s = 0;
 	std::vector<PlaylistMap> maps;
 
 	template <class V> void Fields(V& v)
@@ -517,7 +574,7 @@ struct Playlist : WireObject
 		v("allow_teams", allow_teams);
 		v("team_size", team_size);
 		v("allow_army_selection", allow_army_selection);
-		v("grace_period_ms", grace_period_ms);
+		v("grace_period_s", grace_period_s);
 		v("maps", maps);
 	}
 };
@@ -534,24 +591,24 @@ struct TurnCredentials : WireObject
 	}
 };
 
-// Requests: rooms and chat //////////////////////////////////////////////////////
 
-struct JoinRoomRequest : WireObject
+// A parent channel resolves to its default child.
+struct JoinChannelRequest : WireObject
 {
-	static constexpr const char* METHOD = "JoinRoom";
+	static constexpr const char* METHOD = "JoinChannel";
 	static constexpr bool EXPECTS_RESULT = true;
 
-	int64_t room_id = 0;
+	int64_t channel_id = 0;
 
 	template <class V> void Fields(V& v)
 	{
-		v("room_id", room_id);
+		v("channel_id", channel_id);
 	}
 };
 
-struct LeaveRoomRequest : EmptyObject
+struct LeaveChannelRequest : EmptyObject
 {
-	static constexpr const char* METHOD = "LeaveRoom";
+	static constexpr const char* METHOD = "LeaveChannel";
 	static constexpr bool EXPECTS_RESULT = true;
 };
 
@@ -560,7 +617,7 @@ struct SendMessageRequest : WireObject
 	static constexpr const char* METHOD = "SendMessage";
 	static constexpr bool EXPECTS_RESULT = true;
 
-	// "room:<id>", "lobby:<id>" or "dm:<user id>".
+	// "channel:<id>", "lobby:<id>", "dm:<user id>" or "group:<id>".
 	std::string channel_id;
 	std::string type;
 	std::string content;
@@ -583,6 +640,66 @@ struct SendMessageResult : WireObject
 	}
 };
 
+// Without before, the newest messages. The messages come oldest first.
+struct GetHistoryRequest : WireObject
+{
+	static constexpr const char* METHOD = "GetHistory";
+	static constexpr bool EXPECTS_RESULT = true;
+
+	std::string channel_id;
+	std::optional<std::string> before;
+	int limit = 0;
+
+	template <class V> void Fields(V& v)
+	{
+		v("channel_id", channel_id);
+		v("before", before);
+		v("limit", limit);
+	}
+};
+
+struct GetHistoryResult : WireObject
+{
+	std::vector<ChatMessage> messages;
+	bool has_more = false;
+
+	template <class V> void Fields(V& v)
+	{
+		v("messages", messages);
+		v("has_more", has_more);
+	}
+};
+
+struct ChannelMessageArgument : WireObject
+{
+	std::string channel_id;
+	std::string message_id;
+
+	template <class V> void Fields(V& v)
+	{
+		v("channel_id", channel_id);
+		v("message_id", message_id);
+	}
+};
+
+// A whole direct or group conversation.
+struct ConversationArgument : WireObject
+{
+	std::string channel_id;
+
+	template <class V> void Fields(V& v)
+	{
+		v("channel_id", channel_id);
+	}
+};
+
+// Marks the whole conversation read, up to the newest message the service holds.
+struct MarkReadRequest : ConversationArgument
+{
+	static constexpr const char* METHOD = "MarkRead";
+	static constexpr bool EXPECTS_RESULT = true;
+};
+
 struct SetDisplayNameRequest : WireObject
 {
 	static constexpr const char* METHOD = "SetDisplayName";
@@ -594,6 +711,113 @@ struct SetDisplayNameRequest : WireObject
 	{
 		v("name", name);
 	}
+};
+
+struct MessageReasonArgument : WireObject
+{
+	std::string message_id;
+	std::optional<std::string> reason;
+
+	template <class V> void Fields(V& v)
+	{
+		v("message_id", message_id);
+		v("reason", reason);
+	}
+};
+
+struct ReportMessageRequest : MessageReasonArgument
+{
+	static constexpr const char* METHOD = "ReportMessage";
+	static constexpr bool EXPECTS_RESULT = true;
+};
+
+// Requests: group chats /////////////////////////////////////////////////////////
+
+struct CreateGroupRequest : WireObject
+{
+	static constexpr const char* METHOD = "CreateGroup";
+	static constexpr bool EXPECTS_RESULT = true;
+
+	std::vector<int64_t> user_ids;
+	std::optional<std::string> name;
+
+	template <class V> void Fields(V& v)
+	{
+		v("user_ids", user_ids);
+		v("name", name);
+	}
+};
+
+struct CreateGroupResult : WireObject
+{
+	int64_t group_id = 0;
+
+	template <class V> void Fields(V& v)
+	{
+		v("group_id", group_id);
+	}
+};
+
+struct GroupIdArgument : WireObject
+{
+	int64_t group_id = 0;
+
+	template <class V> void Fields(V& v)
+	{
+		v("group_id", group_id);
+	}
+};
+
+struct AddGroupMembersRequest : WireObject
+{
+	static constexpr const char* METHOD = "AddGroupMembers";
+	static constexpr bool EXPECTS_RESULT = true;
+
+	int64_t group_id = 0;
+	std::vector<int64_t> user_ids;
+
+	template <class V> void Fields(V& v)
+	{
+		v("group_id", group_id);
+		v("user_ids", user_ids);
+	}
+};
+
+struct RemoveGroupMemberRequest : WireObject
+{
+	static constexpr const char* METHOD = "RemoveGroupMember";
+	static constexpr bool EXPECTS_RESULT = true;
+
+	int64_t group_id = 0;
+	int64_t user_id = 0;
+
+	template <class V> void Fields(V& v)
+	{
+		v("group_id", group_id);
+		v("user_id", user_id);
+	}
+};
+
+// A null name clears it.
+struct RenameGroupRequest : WireObject
+{
+	static constexpr const char* METHOD = "RenameGroup";
+	static constexpr bool EXPECTS_RESULT = true;
+
+	int64_t group_id = 0;
+	Nullable<std::string> name;
+
+	template <class V> void Fields(V& v)
+	{
+		v("group_id", group_id);
+		v("name", name);
+	}
+};
+
+struct LeaveGroupRequest : GroupIdArgument
+{
+	static constexpr const char* METHOD = "LeaveGroup";
+	static constexpr bool EXPECTS_RESULT = true;
 };
 
 
@@ -1024,7 +1248,7 @@ struct UnblockUserRequest : UserIdArgument
 struct UserReasonArgument : WireObject
 {
 	int64_t user_id = 0;
-	std::string reason;
+	std::optional<std::string> reason;
 
 	template <class V> void Fields(V& v)
 	{
@@ -1039,19 +1263,20 @@ struct KickRequest : UserReasonArgument
 	static constexpr bool EXPECTS_RESULT = true;
 };
 
+// A mute is never permanent, duration_s is whole seconds.
 struct MuteRequest : WireObject
 {
 	static constexpr const char* METHOD = "Mute";
 	static constexpr bool EXPECTS_RESULT = true;
 
 	int64_t user_id = 0;
-	int64_t duration_ms = 0;
-	std::string reason;
+	int64_t duration_s = 0;
+	std::optional<std::string> reason;
 
 	template <class V> void Fields(V& v)
 	{
 		v("user_id", user_id);
-		v("duration_ms", duration_ms);
+		v("duration_s", duration_s);
 		v("reason", reason);
 	}
 };
@@ -1062,20 +1287,20 @@ struct UnmuteRequest : UserReasonArgument
 	static constexpr bool EXPECTS_RESULT = true;
 };
 
-// A ban without duration_ms is permanent.
+// A ban without duration_s is permanent. A ban always has a reason.
 struct BanRequest : WireObject
 {
 	static constexpr const char* METHOD = "Ban";
 	static constexpr bool EXPECTS_RESULT = true;
 
 	int64_t user_id = 0;
-	std::optional<int64_t> duration_ms;
+	std::optional<int64_t> duration_s;
 	std::string reason;
 
 	template <class V> void Fields(V& v)
 	{
 		v("user_id", user_id);
-		v("duration_ms", duration_ms);
+		v("duration_s", duration_s);
 		v("reason", reason);
 	}
 };
@@ -1083,6 +1308,12 @@ struct BanRequest : WireObject
 struct UnbanRequest : UserReasonArgument
 {
 	static constexpr const char* METHOD = "Unban";
+	static constexpr bool EXPECTS_RESULT = true;
+};
+
+struct DeleteMessageRequest : MessageReasonArgument
+{
+	static constexpr const char* METHOD = "DeleteMessage";
 	static constexpr bool EXPECTS_RESULT = true;
 };
 
@@ -1280,11 +1511,11 @@ struct ModuleScanResponseRequest : WireObject
 };
 
 
-struct RoomInfo : WireObject
+struct ChannelInfo : WireObject
 {
 	int64_t id = 0;
 	std::string name;
-	// Null for a top level room.
+	// Null for a top level channel.
 	Nullable<int64_t> parent_id;
 	bool show_all_matches = false;
 
@@ -1297,15 +1528,16 @@ struct RoomInfo : WireObject
 	}
 };
 
+// Applies to channel chat only.
 struct ChatRate : WireObject
 {
 	int messages = 0;
-	int64_t window_ms = 0;
+	int64_t window_s = 0;
 
 	template <class V> void Fields(V& v)
 	{
 		v("messages", messages);
-		v("window_ms", window_ms);
+		v("window_s", window_s);
 	}
 };
 
@@ -1315,6 +1547,7 @@ struct SessionLimits : WireObject
 	ChatRate chat_rate;
 	int name_min_length = 0;
 	int name_max_length = 0;
+	int group_max_members = 0;
 
 	template <class V> void Fields(V& v)
 	{
@@ -1322,6 +1555,7 @@ struct SessionLimits : WireObject
 		v("chat_rate", chat_rate);
 		v("name_min_length", name_min_length);
 		v("name_max_length", name_max_length);
+		v("group_max_members", group_max_members);
 	}
 };
 
@@ -1336,7 +1570,7 @@ struct ReadyEvent : WireObject
 	Member user;
 	std::vector<std::string> permissions;
 	BadgeMap badges;
-	std::vector<RoomInfo> rooms;
+	std::vector<ChannelInfo> channels;
 	SessionLimits limits;
 
 	template <class V> void Fields(V& v)
@@ -1346,7 +1580,7 @@ struct ReadyEvent : WireObject
 		v("user", user);
 		v("permissions", permissions);
 		v("badges", badges);
-		v("rooms", rooms);
+		v("channels", channels);
 		v("limits", limits);
 	}
 };
@@ -1371,31 +1605,61 @@ struct ModerationNoticeEvent : WireObject
 
 	// "kick", "ban" or "mute".
 	std::string action;
-	std::string reason;
-	std::optional<std::string> until;
+	// Absent when staff gave no reason.
+	std::optional<std::string> reason;
+	std::optional<std::string> expires_at;
 
 	template <class V> void Fields(V& v)
 	{
 		v("action", action);
 		v("reason", reason);
-		v("until", until);
+		v("expires_at", expires_at);
 	}
 };
 
-// Events: rooms and chat ////////////////////////////////////////////////////////
-
-// The full member list, on join and after every reconnect.
-struct RoomMembersEvent : WireObject
+// A planned handover to another service copy. A server.switching close follows.
+struct ServerSwitchingEvent : WireObject
 {
-	static constexpr const char* EVENT = "RoomMembers";
+	static constexpr const char* EVENT = "ServerSwitching";
 
-	int64_t room_id = 0;
+	int64_t retry_after_ms = 0;
+
+	template <class V> void Fields(V& v)
+	{
+		v("retry_after_ms", retry_after_ms);
+	}
+};
+
+
+// The full member list, on join and after every reconnect. channel_id is the channel actually joined.
+struct ChannelMembersEvent : WireObject
+{
+	static constexpr const char* EVENT = "ChannelMembers";
+
+	int64_t channel_id = 0;
 	std::vector<Member> members;
 
 	template <class V> void Fields(V& v)
 	{
-		v("room_id", room_id);
+		v("channel_id", channel_id);
 		v("members", members);
+	}
+};
+
+// Follows ChannelMembers with the last messages, oldest first.
+struct ChannelHistoryEvent : WireObject
+{
+	static constexpr const char* EVENT = "ChannelHistory";
+
+	std::string channel_id;
+	std::vector<ChatMessage> messages;
+	bool has_more = false;
+
+	template <class V> void Fields(V& v)
+	{
+		v("channel_id", channel_id);
+		v("messages", messages);
+		v("has_more", has_more);
 	}
 };
 
@@ -1442,6 +1706,84 @@ struct MemberUpdateEvent : WireObject
 struct MessageCreateEvent : ChatMessage
 {
 	static constexpr const char* EVENT = "MessageCreate";
+};
+
+// Staff deleted the message. Sent to everyone who received it.
+struct MessageDeleteEvent : ChannelMessageArgument
+{
+	static constexpr const char* EVENT = "MessageDelete";
+};
+
+struct Conversation : WireObject
+{
+	// "dm:<user id>" or "group:<id>".
+	std::string channel_id;
+	int unread = 0;
+	// Null for a group with no messages yet.
+	Nullable<ChatMessage> last;
+
+	template <class V> void Fields(V& v)
+	{
+		v("channel_id", channel_id);
+		v("unread", unread);
+		v("last", last);
+	}
+};
+
+// The snapshot after Friends, newest activity first.
+struct ConversationsEvent : WireObject
+{
+	static constexpr const char* EVENT = "Conversations";
+
+	std::vector<Conversation> conversations;
+	std::vector<Group> groups;
+
+	template <class V> void Fields(V& v)
+	{
+		v("conversations", conversations);
+		v("groups", groups);
+	}
+};
+
+// The conversation was read on another connection of the user.
+struct ReadMarkerEvent : ConversationArgument
+{
+	static constexpr const char* EVENT = "ReadMarker";
+};
+
+struct GroupArgument : WireObject
+{
+	Group group;
+
+	template <class V> void Fields(V& v)
+	{
+		v("group", group);
+	}
+};
+
+struct GroupCreateEvent : GroupArgument
+{
+	static constexpr const char* EVENT = "GroupCreate";
+};
+
+struct GroupUpdateEvent : GroupArgument
+{
+	static constexpr const char* EVENT = "GroupUpdate";
+};
+
+struct GroupRemovedEvent : WireObject
+{
+	static constexpr const char* EVENT = "GroupRemoved";
+
+	int64_t group_id = 0;
+	// "left" or "removed".
+	std::string reason;
+
+	template <class V> void Fields(V& v)
+	{
+		v("group_id", group_id);
+		v("reason", reason);
+	}
 };
 
 
@@ -1502,12 +1844,12 @@ struct CountdownStartedEvent : WireObject
 	static constexpr const char* EVENT = "CountdownStarted";
 
 	int64_t lobby_id = 0;
-	int64_t duration_ms = 0;
+	int64_t duration_s = 0;
 
 	template <class V> void Fields(V& v)
 	{
 		v("lobby_id", lobby_id);
-		v("duration_ms", duration_ms);
+		v("duration_s", duration_s);
 	}
 };
 
@@ -1578,18 +1920,18 @@ struct MatchFoundEvent : WireObject
 	}
 };
 
-// The mesh check has countdown_ms 0, the start countdown sets both.
+// The mesh check has countdown_s 0, the start countdown sets both.
 struct MatchSetupProgressEvent : WireObject
 {
 	static constexpr const char* EVENT = "MatchSetupProgress";
 
-	int64_t timeout_ms = 0;
-	int64_t countdown_ms = 0;
+	int64_t timeout_s = 0;
+	int64_t countdown_s = 0;
 
 	template <class V> void Fields(V& v)
 	{
-		v("timeout_ms", timeout_ms);
-		v("countdown_ms", countdown_ms);
+		v("timeout_s", timeout_s);
+		v("countdown_s", countdown_s);
 	}
 };
 
@@ -1619,17 +1961,20 @@ struct MatchRequeueEvent : WireObject
 };
 
 
-// "offline", "menu", "room", "lobby", "matchmaking" or "in_game", in this environment only.
+// "offline", "menu", "channel", "lobby", "matchmaking" or "in_game", in this environment only.
+// channel_id is the channel the user is in, null when in none.
 struct FriendEntry : Member
 {
 	bool online = false;
 	std::string activity;
+	Nullable<int64_t> channel_id;
 
 	template <class V> void Fields(V& v)
 	{
 		Member::Fields(v);
 		v("online", online);
 		v("activity", activity);
+		v("channel_id", channel_id);
 	}
 };
 
@@ -1689,6 +2034,7 @@ struct FriendPresenceEvent : WireObject
 	bool online = false;
 	std::vector<std::string> clients;
 	std::string activity;
+	Nullable<int64_t> channel_id;
 
 	template <class V> void Fields(V& v)
 	{
@@ -1696,6 +2042,7 @@ struct FriendPresenceEvent : WireObject
 		v("online", online);
 		v("clients", clients);
 		v("activity", activity);
+		v("channel_id", channel_id);
 	}
 };
 

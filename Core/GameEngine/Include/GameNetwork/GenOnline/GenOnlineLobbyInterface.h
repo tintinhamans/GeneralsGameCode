@@ -2,6 +2,7 @@
 
 #include "GenOnlineInclude.h"
 #include "GenOnlineRoomsInterface.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeLobbyStart.h"
 #include "GameNetwork/GameInfo.h"
 #include <chrono>
 #include "Common/PlayerList.h"
@@ -519,6 +520,15 @@ public:
 	void DeregisterForChatCallback()
 	{
 		m_OnChatCallback = nullptr;
+		m_OnChatMessageCallback = nullptr;
+		m_OnChatMessageRemovedCallback = nullptr;
+	}
+
+	// A lobby chat message line carries a key, so a MessageDelete can remove that line later.
+	void RegisterForChatMessageCallbacks(std::function<void(UnicodeString strMessage, Color color, uint32_t key)> cbAdd, std::function<void(uint32_t key)> cbRemove)
+	{
+		m_OnChatMessageCallback = std::move(cbAdd);
+		m_OnChatMessageRemovedCallback = std::move(cbRemove);
 	}
 
 	void RegisterForJoinLobbyCallback(std::function<void(EJoinLobbyResult)> cb)
@@ -596,7 +606,9 @@ public:
 	void OnRealtimeCountdownStarted(const GenOnlineRealtime::CountdownStartedEvent& event);
 	void OnRealtimeCountdownCancelled(const GenOnlineRealtime::CountdownCancelledEvent& event);
 	void OnRealtimeGameStart(const GenOnlineRealtime::GameStartEvent& event);
-	void OnRealtimeLobbyMessage(const GenOnlineRealtime::ChatMessage& message);
+	void OnRealtimeLobbyMessageCreate(const GenOnlineRealtime::ChatMessage& message);
+	void OnRealtimeLobbyHistory(const GenOnlineRealtime::ChannelHistoryEvent& event);
+	void OnRealtimeLobbyMessageDelete(const GenOnlineRealtime::MessageDeleteEvent& event);
 	void OnRealtimeStartGameOutcome(const GenOnlineRealtime::InvokeOutcome& outcome);
 	void ShowRealtimeLobbyFailure(const GenOnlineRealtime::InvokeOutcome& outcome);
 
@@ -658,4 +670,16 @@ private:
 	int64_t m_hubMatchStartLobbyID = -1;
 	int64_t m_hubGameStartLobbyID = -1;
 	void StartQuickMatchWhenReady();
+	// In a quick match the start of a LobbyState also stands for MatchStart, which the service does not resend.
+	void StartMatchFromService(const GenOnlineRealtime::GameStartEvent& event, const char* szSource, bool bStandsForMatchStart);
+	GenOnlineRealtime::MatchStartOnce m_MatchStart;
+
+	// The lobby chat, deduplicated by message id across the live messages and the history of a rejoin.
+	std::function<void(UnicodeString, Color, uint32_t)> m_OnChatMessageCallback = nullptr;
+	std::function<void(uint32_t)> m_OnChatMessageRemovedCallback = nullptr;
+	GenOnlineRealtime::ChannelChatLog m_LobbyChat;
+	std::chrono::steady_clock::time_point m_LobbyChatHistoryDeadline;
+	// Starts the chat of the current lobby once. A joined lobby sends no history, so live messages show at once.
+	bool EnsureLobbyChat();
+	void ShowLobbyChatLine(const GenOnlineRealtime::ChannelChatLine& line);
 };

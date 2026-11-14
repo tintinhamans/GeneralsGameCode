@@ -142,55 +142,58 @@ void GenOnlineSocialInterface::OnChatMessage(int64_t source_user_id, int64_t tar
 			user_id_to_store = source_user_id;
 		}
 
-		// does it exist yet?
-		if (!m_mapCachedMessages.contains(user_id_to_store))
+		GetConversation(user_id_to_store).AddNote(std::wstring(unicodeStr.str()));
+		OnConversationLine(user_id_to_store, pAuthInterface->GetUserID() == source_user_id, 0, unicodeStr);
+	}
+}
+
+GenOnlineRealtime::DirectConversation& GenOnlineSocialInterface::GetConversation(int64_t peer_user_id)
+{
+	auto it = m_mapCachedMessages.find(peer_user_id);
+	if (it == m_mapCachedMessages.end())
+	{
+		it = m_mapCachedMessages.emplace(peer_user_id, GenOnlineRealtime::DirectConversation(GenOnlineRealtime::DirectMessageChannel(peer_user_id))).first;
+	}
+	return it->second;
+}
+
+void GenOnlineSocialInterface::OnConversationLine(int64_t user_id_to_store, bool bFromMe, uint32_t key, const UnicodeString& unicodeStr)
+{
+	// only if I am not the sender and overlay isnt active
+	if (!bFromMe && !m_bOverlayActive)
+	{
+		if (m_unreadConversations.AddUnread(user_id_to_store))
 		{
-			m_mapCachedMessages[user_id_to_store] = std::vector<UnicodeString>();
+			++m_numTotalNotifications; // only increase this if we dont already have unread messages from the person
+			TriggerCallback_OnNumberGlobalNotificationsChanged();
 		}
-
-		// only if I am not the sender and overlay isnt active
-		if (pAuthInterface->GetUserID() != source_user_id && !m_bOverlayActive)
+		// show popup for incoming message
+		if (TheGenOnlineGame != nullptr && TheGenOnlineGame->isGameInProgress())
 		{
-            if (!m_mapUnreadMessagesForUser.contains(user_id_to_store))
-            {
-                m_mapUnreadMessagesForUser[user_id_to_store] = 1;
-
-                ++m_numTotalNotifications; // only increase this if we dont already have unread messages from the person
-                TriggerCallback_OnNumberGlobalNotificationsChanged();
-            }
-            else
-            {
-                ++m_mapUnreadMessagesForUser[user_id_to_store];
-            }
-            // show popup for incoming message
-            if (TheGenOnlineGame != nullptr && TheGenOnlineGame->isGameInProgress())
-            {
-                if (GenOnlineServicesManager::Settings.Social_Notifications_FriendComesOnline_Gameplay())
-                {
+			if (GenOnlineServicesManager::Settings.Social_Notifications_FriendComesOnline_Gameplay())
+			{
 #if defined(GENONLINE)
-                    GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr, true /*bPlaySound*/);
+				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr, true /*bPlaySound*/);
 #else
-                    GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr);
+				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr);
 #endif
-                }
-            }
-            else
-            {
-                if (GenOnlineServicesManager::Settings.Social_Notifications_FriendComesOnline_Menus())
-                {
+			}
+		}
+		else
+		{
+			if (GenOnlineServicesManager::Settings.Social_Notifications_FriendComesOnline_Menus())
+			{
 #if defined(GENONLINE)
-                    GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr, true /*bPlaySound*/);
+				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr, true /*bPlaySound*/);
 #else
-                    GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr);
+				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr);
 #endif
-                }
-            }
-        }
-        m_mapCachedMessages[user_id_to_store].push_back(unicodeStr);
-        if (m_cbOnChatMessage != nullptr)
-        {
-            m_cbOnChatMessage(source_user_id, target_user_id, unicodeStr);
-        }
+			}
+		}
+	}
+	if (m_cbOnChatMessage != nullptr)
+	{
+		m_cbOnChatMessage(user_id_to_store, key, unicodeStr);
 	}
 }
 
@@ -538,6 +541,7 @@ void GenOnlineSocialInterface::OnRealtimeMemberUpdate(const GenOnlineRealtime::M
 }
 
 // A direct message is cached under the other player of the conversation, as the legacy friend chat was.
+// The channel dm:<id> names the other player, also for an own message sent from another connection.
 void GenOnlineSocialInterface::OnRealtimeDirectMessage(const GenOnlineRealtime::ChatMessage& message)
 {
 	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
@@ -545,17 +549,117 @@ void GenOnlineSocialInterface::OnRealtimeDirectMessage(const GenOnlineRealtime::
 	{
 		return;
 	}
-	int64_t peerID = -1;
-	try
-	{
-		peerID = std::stoll(message.channel_id.substr(3));
-	}
-	catch (const std::exception&)
+	const int64_t peerID = GenOnlineRealtime::DirectMessagePeer(message.channel_id);
+	if (peerID < 0)
 	{
 		return;
 	}
-	const int64_t me = pAuth->GetUserID();
-	const int64_t targetID = message.author.id == me ? peerID : me;
-	const std::wstring text = from_utf8(message.author.name) + (message.type == "action" ? L" " : L": ") + from_utf8(message.content);
-	OnChatMessage(message.author.id, targetID, UnicodeString(text.c_str()));
+	GenOnlineRealtime::DirectChatLine line;
+	if (!GetConversation(peerID).AddLive(message, line))
+	{
+		return;
+	}
+	OnConversationLine(peerID, message.author.id == pAuth->GetUserID(), line.key, GetChatLineText(line));
+}
+
+UnicodeString GenOnlineSocialInterface::GetChatLineText(const GenOnlineRealtime::DirectChatLine& line)
+{
+	if (line.IsNote())
+	{
+		return UnicodeString(line.note.c_str());
+	}
+	const std::wstring text = from_utf8(line.message.author.name) + (line.message.type == "action" ? L" " : L": ") + from_utf8(line.message.content);
+	return UnicodeString(text.c_str());
+}
+
+// Every connect sends the snapshot, so each conversation loads its history again when it is viewed.
+void GenOnlineSocialInterface::OnRealtimeConversations(const GenOnlineRealtime::ConversationsEvent& event)
+{
+	const int numBecameUnread = m_unreadConversations.ApplySnapshot(event);
+	for (auto& kvPair : m_mapCachedMessages)
+	{
+		kvPair.second.ForgetHistory();
+	}
+	if (numBecameUnread > 0)
+	{
+		m_numTotalNotifications += numBecameUnread;
+		TriggerCallback_OnNumberGlobalNotificationsChanged();
+	}
+	if (m_cbOnConversationReloaded != nullptr)
+	{
+		m_cbOnConversationReloaded(-1);
+	}
+	RefreshCommunicator();
+}
+
+void GenOnlineSocialInterface::OnRealtimeReadMarker(const GenOnlineRealtime::ReadMarkerEvent& event)
+{
+	if (m_unreadConversations.ApplyReadMarker(event))
+	{
+		RefreshCommunicator();
+	}
+}
+
+void GenOnlineSocialInterface::OnRealtimeDirectMessageDelete(const GenOnlineRealtime::MessageDeleteEvent& event)
+{
+	const int64_t peerID = GenOnlineRealtime::DirectMessagePeer(event.channel_id);
+	auto it = m_mapCachedMessages.find(peerID);
+	if (it == m_mapCachedMessages.end())
+	{
+		return;
+	}
+	const uint32_t key = it->second.Remove(event.message_id);
+	if (key != 0 && m_cbOnChatLineRemoved != nullptr)
+	{
+		m_cbOnChatLineRemoved(peerID, key);
+	}
+}
+
+void GenOnlineSocialInterface::ViewConversation(int64_t target_user_id)
+{
+	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
+	if (pAuth == nullptr || pWS == nullptr)
+	{
+		m_unreadConversations.Clear(target_user_id);
+		return;
+	}
+	GenOnlineRealtime::DirectConversation& conversation = GetConversation(target_user_id);
+	if (conversation.NeedsHistory())
+	{
+		conversation.BeginHistory();
+		GenOnlineRealtime::GetHistoryRequest request;
+		request.channel_id = conversation.ChannelID();
+		request.limit = GenOnlineRealtime::DIRECT_HISTORY_LIMIT;
+		pWS->InvokeHub(request, [target_user_id](const GenOnlineRealtime::InvokeOutcome& outcome)
+			{
+				GenOnlineSocialInterface* pThis = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+				if (pThis == nullptr)
+				{
+					return;
+				}
+				GenOnlineRealtime::DirectConversation& conversation = pThis->GetConversation(target_user_id);
+				GenOnlineRealtime::GetHistoryResult result;
+				if (!outcome.Data(result))
+				{
+					conversation.HistoryFailed();
+					return;
+				}
+				conversation.AddHistory(result);
+				if (pThis->m_cbOnConversationReloaded != nullptr)
+				{
+					pThis->m_cbOnConversationReloaded(target_user_id);
+				}
+			});
+	}
+
+	// Viewing an unread conversation marks the whole conversation read.
+	if (m_unreadConversations.Unread(target_user_id) == 0)
+	{
+		return;
+	}
+	m_unreadConversations.Clear(target_user_id);
+	GenOnlineRealtime::MarkReadRequest request;
+	request.channel_id = conversation.ChannelID();
+	pWS->InvokeHub(request, nullptr);
 }
