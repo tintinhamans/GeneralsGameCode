@@ -1293,6 +1293,8 @@ struct ReadyEvent : WireObject
 	std::string session_type;
 	Member user;
 	std::vector<std::string> permissions;
+	// The client features switched on for this player, for example stats_exporter and observer.
+	std::optional<std::vector<std::string> > features;
 	BadgeMap badges;
 	std::vector<ChannelInfo> channels;
 	SessionLimits limits;
@@ -1303,6 +1305,7 @@ struct ReadyEvent : WireObject
 		v("session_type", session_type);
 		v("user", user);
 		v("permissions", permissions);
+		v("features", features);
 		v("badges", badges);
 		v("channels", channels);
 		v("limits", limits);
@@ -1319,6 +1322,19 @@ struct BadgesUpdateEvent : WireObject
 	template <class V> void Fields(V& v)
 	{
 		v("badges", badges);
+	}
+};
+
+// Carries the full feature list whenever it changes.
+struct FeaturesUpdateEvent : WireObject
+{
+	static constexpr const char* EVENT = "FeaturesUpdate";
+
+	std::vector<std::string> features;
+
+	template <class V> void Fields(V& v)
+	{
+		v("features", features);
 	}
 };
 
