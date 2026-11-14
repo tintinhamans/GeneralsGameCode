@@ -417,6 +417,28 @@ void RegisterHandlers(HubSession& session)
 				}
 			}
 		});
+	session.On<ChannelHistoryEvent>([](const ChannelHistoryEvent& event)
+		{
+			if (event.channel_id.compare(0, 8, "channel:") == 0)
+			{
+				GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+				if (pRooms != nullptr)
+				{
+					pRooms->OnRealtimeChannelHistory(event);
+				}
+			}
+		});
+	session.On<MessageDeleteEvent>([](const MessageDeleteEvent& event)
+		{
+			if (event.channel_id.compare(0, 8, "channel:") == 0)
+			{
+				GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+				if (pRooms != nullptr)
+				{
+					pRooms->OnRealtimeMessageDelete(event);
+				}
+			}
+		});
 	session.On<Notice>([](const Notice& notice)
 		{
 			if (notice.code == "name.changed")
