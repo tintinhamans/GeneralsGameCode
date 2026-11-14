@@ -39,4 +39,8 @@ public:
 	// Returns true if command-line parsing consumed the zero-based argument index.
 	// The index excludes the executable name.
 	static bool wasCommandLineArgumentParsed(int argIndex);
+
+	// -packs <path>: the pack list file, absolute against the final working directory.
+	static bool hasPackList();
+	static const char* getPackListPath();
 };

@@ -1,6 +1,7 @@
 #include "GameNetwork/GenOnline/GenOnlineSettings.h"
 #include "Common/OptionPreferences.h"
-#include "Common/ArchiveFileSystem.h"
+#include "GameNetwork/GenOnline/GenOnlineClientFile.h"
+#include "Common/CommandLine.h"
 #include "../json.hpp"
 #include "../GenOnlineLobbyInterface.h"
 #include "../GenOnlineInit.h"
@@ -55,20 +56,8 @@
 #define SETTINGS_KEY_PLUGINS "plugins"
 #define SETTINGS_KEY_PLUGINS_ANTICHEAT "anticheat"
 
-#define SETTINGS_KEY_DATAPACKS "data_packs"
-#define SETTINGS_KEY_DATAPACKS_USER "user"
-#define SETTINGS_KEY_DATAPACKS_GENONLINE "generals_online"
-#define SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH "community_patch"
-#define SETTINGS_KEY_DATAPACKS_ENABLED "enabled"
-#define SETTINGS_KEY_DATAPACKS_INCLUDE_PATHS "include_paths"
-#define SETTINGS_KEY_DATAPACKS_EXCLUDE_PATHS "exclude_paths"
-#define SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH_LEGACY "use_community_data_patch"	// before the layers, read once and dropped on save
-
 #define SETTINGS_KEY_MAPS "maps"
 #define SETTINGS_KEY_MAPS_FAVOURITES "favourites"
-
-#define SETTINGS_FILENAME_LEGACY "GeneralsOnline_settings.json"
-#define SETTINGS_FILENAME "settings.json"
 
 GenOnlineSettings::GenOnlineSettings()
 {
@@ -92,24 +81,32 @@ float GenOnlineSettings::DetermineCameraMaxHeight()
 	return (float)GENONLINE_DEFAULT_LOBBY_CAMERA_ZOOM;
 }
 
-// The anticheat choice of settings.json under its current name. The launcher still writes easyanticheat and goanticheat, so the
-// stored value stays as it is and only its use maps it.
-static std::string CurrentAnticheatName(const std::string& name)
+// The folder of the game executable with a trailing separator, empty when it cannot be resolved.
+static std::wstring ExecutableDirectory()
 {
-    if (name == "easyanticheat")
+    std::vector<wchar_t> buffer(MAX_PATH);
+    for (;;)
     {
-        return std::string(GENONLINE_EOS_PLUGIN_NAME);
+        const DWORD length = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+        if (length == 0)
+        {
+            return std::wstring();
+        }
+
+        if (length < buffer.size())
+        {
+            const std::wstring path(buffer.data(), length);
+            const size_t separator = path.find_last_of(L"\\/");
+            return separator == std::wstring::npos ? std::wstring() : path.substr(0, separator + 1);
+        }
+
+        buffer.resize(buffer.size() * 2);
     }
-    if (name == "goanticheat")
-    {
-        return std::string(GENONLINE_ANTICHEAT_PLUGIN_NAME);
-    }
-    return name;
 }
 
 std::string GenOnlineSettings::GetAnticheatPlugin() const
 {
-    const std::string choice = CurrentAnticheatName(m_Plugins_Anticheat);
+    const std::string& choice = m_Plugins_Anticheat;
 
     // GenOnline Anti-Cheat is built into the game and loads no plugin folder.
     if (choice == GENONLINE_ANTICHEAT_PLUGIN_NAME)
@@ -120,8 +117,12 @@ std::string GenOnlineSettings::GetAnticheatPlugin() const
     // Without a choice the EOS plugin runs when it is installed, else GenOnline Anti-Cheat.
     if (choice.empty())
     {
-        const std::string eosPluginPath = std::string("plugins/") + GENONLINE_EOS_PLUGIN_NAME + "/" + GENONLINE_EOS_PLUGIN_NAME + ".dll";
-        if (std::filesystem::exists(eosPluginPath.c_str()))
+        const std::wstring exeDirectory = ExecutableDirectory();
+        const std::string eosName = GENONLINE_EOS_PLUGIN_NAME;
+        const std::wstring eosWideName(eosName.begin(), eosName.end());
+        const std::wstring eosPluginPath = exeDirectory + L"plugins\\" + eosWideName + L"\\" + eosWideName + L".dll";
+        std::error_code ec;
+        if (!exeDirectory.empty() && std::filesystem::exists(eosPluginPath, ec))
         {
             NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] No anticheat chosen, the EOS plugin is installed");
             return std::string(GENONLINE_EOS_PLUGIN_NAME);
@@ -131,89 +132,6 @@ std::string GenOnlineSettings::GetAnticheatPlugin() const
     }
 
     return choice;
-}
-
-// Reads a list of paths of data_packs, an entry that is not valid is dropped. Returns FALSE and keeps the list when the field is missing or not a list.
-static bool LoadDataPackPaths(const nlohmann::json& jsonLayer, const char* layerName, const char* key, bool excludes, std::vector<std::string>& paths)
-{
-    if (!jsonLayer.contains(key))
-    {
-        return false;
-    }
-
-    if (!jsonLayer[key].is_array())
-    {
-        NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s: %s is not a list, using the default", layerName, key);
-        return false;
-    }
-
-    paths.clear();
-    for (const auto& path : jsonLayer[key])
-    {
-        AsciiString reason;
-        bool bValid = false;
-        if (path.is_string())
-        {
-            bValid = excludes ? PathExcludeList::parse(path.get<std::string>(), nullptr, &reason) : ArchiveFileSystem::parseMountEntry(AsciiString(path.get<std::string>().c_str()), nullptr, &reason);
-        }
-
-        if (bValid)
-        {
-            paths.push_back(path.get<std::string>());
-        }
-        else
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s: %s entry dropped from the settings (%s)", layerName, key, path.is_string() ? reason.str() : "not a string");
-        }
-    }
-    return true;
-}
-
-// Reads one layer of data_packs. A missing or invalid field keeps what the layer holds, its default. excludePaths is only read for the user layer.
-static void LoadDataPackLayer(const nlohmann::json& dataPacks, const char* name, GenOnlineDataPackLayer& layer, std::vector<std::string>* excludePaths)
-{
-    if (!dataPacks.contains(name))
-    {
-        return;
-    }
-
-    const nlohmann::json& jsonLayer = dataPacks[name];
-    if (!jsonLayer.is_object())
-    {
-        NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s in the settings is not an object, using the default", name);
-        return;
-    }
-
-    if (jsonLayer.contains(SETTINGS_KEY_DATAPACKS_ENABLED))
-    {
-        if (jsonLayer[SETTINGS_KEY_DATAPACKS_ENABLED].is_boolean())
-        {
-            layer.m_enabled = jsonLayer[SETTINGS_KEY_DATAPACKS_ENABLED].get<bool>();
-        }
-        else
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s: enabled is not a boolean, using the default", name);
-        }
-    }
-
-    LoadDataPackPaths(jsonLayer, name, SETTINGS_KEY_DATAPACKS_INCLUDE_PATHS, false, layer.m_includePaths);
-
-    if (excludePaths != nullptr)
-    {
-        LoadDataPackPaths(jsonLayer, name, SETTINGS_KEY_DATAPACKS_EXCLUDE_PATHS, true, *excludePaths);
-    }
-}
-
-static nlohmann::json DataPackLayerToJson(const GenOnlineDataPackLayer& layer, const std::vector<std::string>* excludePaths)
-{
-    nlohmann::json jsonLayer = nlohmann::json::object();
-    jsonLayer[SETTINGS_KEY_DATAPACKS_ENABLED] = layer.m_enabled;
-    jsonLayer[SETTINGS_KEY_DATAPACKS_INCLUDE_PATHS] = layer.m_includePaths;
-    if (excludePaths != nullptr)
-    {
-        jsonLayer[SETTINGS_KEY_DATAPACKS_EXCLUDE_PATHS] = *excludePaths;
-    }
-    return jsonLayer;
 }
 
 // The old right mouse scroll speed was ratio * Options.ini scroll speed * (screen width / 2) pixels. The scroll now measures the drag at 800x600
@@ -235,90 +153,105 @@ static void MigrateMoveSpeedRatioToOptions(float ratio)
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Moved camera.move_speed_ratio=%.2f to Options.ini ScrollFactor: %d -> %d at %dx%d", ratio, oldSlider, newSlider, width, height);
 }
 
+// The keys client.json holds and the type each one must have. A key of another type makes the whole file unusable.
+static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
+{
+	using GenOnlineClientFile::ValueType;
+	static const std::vector<GenOnlineClientFile::KnownKey> keys = {
+		{ SETTINGS_KEY_CAMERA, ValueType::Object },
+		{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_MIN_HEIGHT, ValueType::Number },
+		{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST, ValueType::Number },
+		{ SETTINGS_KEY_RENDER, ValueType::Object },
+		{ SETTINGS_KEY_RENDER "." SETTINGS_KEY_RENDER_LIMIT_FRAMERATE, ValueType::Boolean },
+		{ SETTINGS_KEY_RENDER "." SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL, ValueType::Number },
+		{ SETTINGS_KEY_RENDER "." SETTINGS_KEY_RENDER_ADAPTIVE_QUALITY, ValueType::Boolean },
+		{ SETTINGS_KEY_UI, ValueType::Object },
+		{ SETTINGS_KEY_UI "." SETTINGS_KEY_UI_STYLE, ValueType::String },
+		{ SETTINGS_KEY_CHAT, ValueType::Object },
+		{ SETTINGS_KEY_CHAT "." SETTINGS_KEY_CHAT_LIFE_SECONDS, ValueType::Number },
+		{ SETTINGS_KEY_SOCIAL, ValueType::Object },
+		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_FRIEND_COMES_ONLINE_MENUS, ValueType::Boolean },
+		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_FRIEND_COMES_ONLINE_GAMEPLAY, ValueType::Boolean },
+		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_FRIEND_GOES_OFFLINE_MENUS, ValueType::Boolean },
+		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_FRIEND_GOES_OFFLINE_GAMEPLAY, ValueType::Boolean },
+		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_ACCEPTS_REQUEST_MENUS, ValueType::Boolean },
+		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_ACCEPTS_REQUEST_GAMEPLAY, ValueType::Boolean },
+		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_MENUS, ValueType::Boolean },
+		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_GAMEPLAY, ValueType::Boolean },
+		{ SETTINGS_KEY_DEBUG, ValueType::Object },
+		{ SETTINGS_KEY_DEBUG "." SETTINGS_KEY_DEBUG_VERBOSE_LOGGING, ValueType::Boolean },
+		{ SETTINGS_KEY_NETWORK, ValueType::Object },
+		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_SERVER, ValueType::Object },
+		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_SERVER "." SETTINGS_KEY_NETWORK_SERVER_MODE, ValueType::String },
+		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_SERVER "." SETTINGS_KEY_NETWORK_SERVER_ADDRESS, ValueType::String },
+		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_PROXY, ValueType::Object },
+		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_PROXY "." SETTINGS_KEY_NETWORK_PROXY_MODE, ValueType::String },
+		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_PROXY "." SETTINGS_KEY_NETWORK_PROXY_ADDRESS, ValueType::String },
+		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_PROXY "." SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN, ValueType::Boolean },
+		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_LAST_ROUTE, ValueType::String },
+		{ SETTINGS_KEY_PLUGINS, ValueType::Object },
+		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_ANTICHEAT, ValueType::String },
+		{ SETTINGS_KEY_MAPS, ValueType::Object },
+		{ SETTINGS_KEY_MAPS "." SETTINGS_KEY_MAPS_FAVOURITES, ValueType::Array },
+	};
+	return keys;
+}
+
 void GenOnlineSettings::Load(void)
 {
 	ServiceConnection::ConfigureCredentialStore(&GenOnlineAuthInterface::GetCredentialsFilePath);
 	ServiceConnection::SetCredentialLogSink([](const std::string& line) { NetworkLog(ELogVerbosity::LOG_RELEASE, "%s", line.c_str()); });
-	char GameDir[MAX_PATH + 1] = {};
-	::GetCurrentDirectoryA(MAX_PATH + 1u, GameDir);
-	std::string strSettingsFileDir = std::format("{}/GeneralsOnlineData/", TheGlobalData->getPath_UserData().str());
-	std::string strSettingsFilePath = std::format("{}/{}", strSettingsFileDir, SETTINGS_FILENAME);
-	std::string strSettingsFilePathLegacy = std::format("{}/{}", GameDir, SETTINGS_FILENAME_LEGACY);
 
-	std::error_code ec;
+	m_ClientFilePath = GenOnlineClientFile::DefaultPath();
+	m_bClientFileWritable = false;
+	m_PreservedJSON = "{}";
 
-	// create directories we need
-	if (!std::filesystem::exists(strSettingsFileDir, ec))
+	GenOnlineClientFile::ReadResult clientFile;
+	if (m_ClientFilePath.empty())
 	{
-		std::filesystem::create_directory(strSettingsFileDir, ec);
+		clientFile.status = GenOnlineClientFile::ReadStatus::Unusable;
+		clientFile.reason = "the local application data folder cannot be resolved";
+	}
+	else
+	{
+		clientFile = GenOnlineClientFile::Read(m_ClientFilePath, ClientFileKeys());
 	}
 
-	// GENONLINE_NOTE: Prior to 6/23, we used the game dir for settings, this code migrates any legacy settings file to the new location (game user data dir)
-	if (std::filesystem::exists(strSettingsFilePathLegacy, ec))
+	// A missing client.json is created with the built-in defaults, which the first save below writes into it.
+	if (clientFile.status == GenOnlineClientFile::ReadStatus::Missing)
 	{
-		// only drop the legacy file once its copy is in place
-		std::filesystem::copy(strSettingsFilePathLegacy, strSettingsFilePath, std::filesystem::copy_options::overwrite_existing, ec);
-		if (!ec)
+		nlohmann::json created = nlohmann::json::object();
+		created[GenOnlineClientFile::SchemaVersionKey] = GenOnlineClientFile::SchemaVersion;
+		if (GenOnlineClientFile::CreateNew(m_ClientFilePath, created.dump(2)))
 		{
-			std::filesystem::remove(strSettingsFilePathLegacy, ec);
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Created client.json with the built-in defaults");
+			clientFile.status = GenOnlineClientFile::ReadStatus::Ok;
+			clientFile.document = created;
+			clientFile.schemaVersion = GenOnlineClientFile::SchemaVersion;
 		}
 	}
 
+	// The client never writes a client.json it cannot use, the settings then only last for this session.
+	switch (clientFile.status)
+	{
+	case GenOnlineClientFile::ReadStatus::Missing:
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json cannot be created, using the built-in defaults without saving");
+		return;
+	case GenOnlineClientFile::ReadStatus::Unusable:
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json is not usable (%s), using the defaults this session and leaving the file untouched", clientFile.reason.c_str());
+		return;
+	case GenOnlineClientFile::ReadStatus::Newer:
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json has schema_version %d, newer than %d, reading it without saving", clientFile.schemaVersion, GenOnlineClientFile::SchemaVersion);
+		break;
+	case GenOnlineClientFile::ReadStatus::Ok:
+		break;
+	}
+
+	const bool bWritable = clientFile.status == GenOnlineClientFile::ReadStatus::Ok;
 	bool bApplyDefaults = false;
 
-	// a settings file we couldn't read or parse must not be silently replaced by defaults
-	bool bReadFailed = false;
-	bool bParseFailed = false;
-
-	std::vector<uint8_t> vecBytes;
-	FILE* file = fopen(strSettingsFilePath.c_str(), "rb");
-	if (file)
 	{
-		fseek(file, 0, SEEK_END);
-		long fileSize = ftell(file);
-		fseek(file, 0, SEEK_SET);
-		if (fileSize > 0)
-		{
-			vecBytes.resize(fileSize);
-			if (fread(vecBytes.data(), 1, fileSize, file) != static_cast<size_t>(fileSize))
-			{
-				vecBytes.clear();
-				bReadFailed = true;
-			}
-		}
-		else if (fileSize < 0)
-		{
-			bReadFailed = true;
-		}
-		fclose(file);
-	}
-	else if (errno != ENOENT)
-	{
-		bReadFailed = true;
-	}
-
-
-	if (!vecBytes.empty())
-	{
-		std::string strJSON = std::string((char*)vecBytes.data(), vecBytes.size());
-		nlohmann::json jsonSettings = nullptr;
-		
-		try
-		{
-			jsonSettings = nlohmann::json::parse(strJSON);
-			if (!jsonSettings.is_object())
-				throw std::runtime_error("Settings must be an object");
-			m_PreservedJSON = jsonSettings.dump();
-
-		}
-		catch (...)
-		{
-			jsonSettings = nullptr;
-			bApplyDefaults = true;
-			bParseFailed = true;
-		}
-		
-		if (!bApplyDefaults && jsonSettings != nullptr)
+		const nlohmann::json& jsonSettings = clientFile.document;
 		try
 		{
 			if (jsonSettings.contains(SETTINGS_KEY_CAMERA))
@@ -331,7 +264,7 @@ void GenOnlineSettings::Load(void)
 				}
 
 				// the right mouse scroll speed is the Options.ini scroll speed now, an old ratio is converted once
-				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO) && cameraSettings[SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO].is_number())
+				if (bWritable && cameraSettings.contains(SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO) && cameraSettings[SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO].is_number())
 				{
 					MigrateMoveSpeedRatioToOptions(std::clamp<float>(static_cast<float>(cameraSettings[SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO]), 0.05f, 25.f));
 				}
@@ -375,8 +308,8 @@ void GenOnlineSettings::Load(void)
 
             if (jsonSettings.contains(SETTINGS_KEY_NETWORK))
             {
-                // Any network value that is unknown, malformed or of the wrong type goes back to its default and is logged, one line per field.
-                // The load ends with a save, so the file never keeps the invalid value. Addresses can hold a secret, so their old value is not logged.
+                // Any network value that is unknown or malformed goes back to its default and is logged, one line per field.
+                // The load ends with a save when the file may be written, so the file does not keep the invalid value. Addresses can hold a secret, so their old value is not logged.
                 auto resetField = [](const std::string& path, const nlohmann::json& old, bool secret)
                 {
                     const std::string oldText = secret ? std::string("hidden") : old.is_string() ? old.get<std::string>().substr(0, 64) : std::string(old.type_name());
@@ -569,23 +502,6 @@ void GenOnlineSettings::Load(void)
 				}
 			}
 
-            if (jsonSettings.contains(SETTINGS_KEY_DATAPACKS))
-            {
-                const nlohmann::json& datapackSettings = jsonSettings[SETTINGS_KEY_DATAPACKS];
-
-                LoadDataPackLayer(datapackSettings, SETTINGS_KEY_DATAPACKS_USER, m_DataPacks_User, &m_DataPacks_UserExcludePaths);
-                LoadDataPackLayer(datapackSettings, SETTINGS_KEY_DATAPACKS_GENONLINE, m_DataPacks_GeneralsOnline, nullptr);
-                LoadDataPackLayer(datapackSettings, SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH, m_DataPacks_CommunityPatch, nullptr);
-
-                // a file from before the layers: the old community patch switch becomes community_patch.enabled
-                if (!datapackSettings.contains(SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH)
-                    && datapackSettings.contains(SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH_LEGACY)
-                    && datapackSettings[SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH_LEGACY].is_boolean())
-                {
-                    m_DataPacks_CommunityPatch.m_enabled = datapackSettings[SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH_LEGACY].get<bool>();
-                }
-            }
-
             if (jsonSettings.contains(SETTINGS_KEY_MAPS))
             {
                 auto mapSettings = jsonSettings[SETTINGS_KEY_MAPS];
@@ -610,13 +526,7 @@ void GenOnlineSettings::Load(void)
 		{
 			// a value of the wrong type
 			bApplyDefaults = true;
-			bParseFailed = true;
 		}
-		
-	}
-	else // setup defaults
-	{
-		bApplyDefaults = true;
 	}
 
 	if (bApplyDefaults)
@@ -633,30 +543,89 @@ void GenOnlineSettings::Load(void)
         m_Social_Notification_FriendComesOnline_Gameplay = true;
         m_Social_Notification_FriendGoesOffline_Menus = true;
         m_Social_Notification_FriendGoesOffline_Gameplay = true;
-	}
-	
-	if (bReadFailed)
-	{
-		m_CanSave = false;
-		// keep the file on disk, the defaults above only apply to this session
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Could not read settings file, keeping it untouched");
+
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json is not usable (a value cannot be read), using the defaults this session and leaving the file untouched");
 		return;
 	}
 
-	if (bParseFailed)
+	// The first save writes every setting, which fills the keys the file does not have yet.
+	m_PreservedJSON = "{}";
+	m_bClientFileWritable = bWritable;
+
+	// The save writes keys that are new or missing and skips a file that already holds every value.
+	Save();
+}
+
+// Copies the values of after that differ from before into target, and removes from target the keys that after no longer has.
+// Objects are compared key by key, any other value is replaced whole.
+static void ApplyChangedSettings(const nlohmann::json& before, const nlohmann::json& after, nlohmann::json& target)
+{
+	if (!target.is_object())
 	{
-		// keep the unparseable file for recovery before the defaults replace it
-		std::filesystem::rename(strSettingsFilePath, strSettingsFilePath + ".bad", ec);
-		if (ec)
+		target = nlohmann::json::object();
+	}
+	for (auto it = after.begin(); it != after.end(); ++it)
+	{
+		const bool bHadKey = before.is_object() && before.contains(it.key());
+		if (it.value().is_object() && bHadKey && before[it.key()].is_object())
 		{
-			m_CanSave = false;
-			return;
+			ApplyChangedSettings(before[it.key()], it.value(), target[it.key()]);
 		}
-		m_PreservedJSON = "{}";
+		else if (!bHadKey || before[it.key()] != it.value())
+		{
+			target[it.key()] = it.value();
+		}
+	}
+	if (before.is_object())
+	{
+		for (auto it = before.begin(); it != before.end(); ++it)
+		{
+			if (!after.contains(it.key()))
+			{
+				target.erase(it.key());
+			}
+		}
+	}
+}
+
+static void EraseSettingKey(nlohmann::json& document, const char* section, const char* key)
+{
+	if (document.contains(section) && document[section].is_object())
+	{
+		document[section].erase(key);
+	}
+}
+
+void GenOnlineSettings::LoadPackList()
+{
+	m_bPackList = false;
+	m_PackStack.clear();
+	m_DataPacks_UserExcludePaths.clear();
+	if (!CommandLine::hasPackList())
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Pack list: no -packs, using the built-in packs");
+		return;
 	}
 
-	// Always save so we re-serialize anything new or missing
-	Save();
+#if RTS_GENERALS
+	const char* game = "generals";
+#else
+	const char* game = "generalsmd";
+#endif
+	const GenOnlinePackList::Result result = GenOnlinePackList::ReadFile(CommandLine::getPackListPath(), game);
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Pack list: %s", CommandLine::getPackListPath());
+	for (const std::string& line : result.log)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "%s", line.c_str());
+	}
+	if (result.status != GenOnlinePackList::Status::Ok)
+	{
+		return;
+	}
+
+	m_bPackList = true;
+	m_PackStack = result.stack;
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Pack list: %d packs above retail", static_cast<int>(m_PackStack.size()));
 }
 
 bool GenOnlineSettings::Save()
@@ -666,9 +635,10 @@ bool GenOnlineSettings::Save()
 		Initialize();
 	}
 
-	if (!m_CanSave)
+	// Without a client.json this client may write, a change only lasts for this session.
+	if (!m_bClientFileWritable)
 	{
-		return false;
+		return true;
 	}
 
 	nlohmann::json root = {
@@ -746,15 +716,6 @@ bool GenOnlineSettings::Save()
         },
 
         {
-            SETTINGS_KEY_DATAPACKS,
-                {
-                    {SETTINGS_KEY_DATAPACKS_USER, DataPackLayerToJson(m_DataPacks_User, &m_DataPacks_UserExcludePaths)},
-                    {SETTINGS_KEY_DATAPACKS_GENONLINE, DataPackLayerToJson(m_DataPacks_GeneralsOnline, nullptr)},
-                    {SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH, DataPackLayerToJson(m_DataPacks_CommunityPatch, nullptr)}
-                }
-        },
-
-        {
             SETTINGS_KEY_MAPS,
                 {
                     {SETTINGS_KEY_MAPS_FAVOURITES, m_Maps_Favourites}
@@ -762,43 +723,44 @@ bool GenOnlineSettings::Save()
         }
     };
 	
-	auto preserved = nlohmann::json::parse(m_PreservedJSON);
-	preserved.merge_patch(root);
-	preserved[SETTINGS_KEY_DATAPACKS] = root[SETTINGS_KEY_DATAPACKS];	// the client owns data_packs completely, stale keys go
-	preserved[SETTINGS_KEY_RENDER].erase(SETTINGS_KEY_RENDER_LEGACY_DRAW_STATS_OVERLAY);
-	preserved[SETTINGS_KEY_CAMERA].erase(SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO);
-	preserved[SETTINGS_KEY_NETWORK].erase(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT);
-	preserved[SETTINGS_KEY_NETWORK].erase(SETTINGS_KEY_NETWORK_LEGACY_HTTP_VERSION);
-	preserved[SETTINGS_KEY_NETWORK][SETTINGS_KEY_NETWORK_SERVER].erase(SETTINGS_KEY_NETWORK_SERVER_LEGACY_REALTIME_PROTOCOL);
-	std::string strData = preserved.dump(1);
-
-	std::string strSettingsFilePath = std::format("{}/GeneralsOnlineData/{}", TheGlobalData->getPath_UserData().str(), SETTINGS_FILENAME);
-
-	// write to a temp file and swap it in so a failed write never leaves a truncated settings file
-	std::string strTempPath = strSettingsFilePath + ".tmp";
-	bool bSaved = false;
-	FILE* file = fopen(strTempPath.c_str(), "wb");
-	if (file)
+	// The launcher and other game instances also write client.json, so the save reads the file again and only writes the
+	// settings this client changed since its last save.
+	const GenOnlineClientFile::ReadResult current = GenOnlineClientFile::Read(m_ClientFilePath, ClientFileKeys());
+	if (current.status != GenOnlineClientFile::ReadStatus::Ok)
 	{
-		bSaved = fwrite(strData.data(), 1, strData.size(), file) == strData.size();
-		if (fclose(file) != 0)
-			bSaved = false;
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json is no longer writable (%s), the change lasts for this session", current.reason.c_str());
+		m_bClientFileWritable = false;
+		return true;
 	}
 
-	if (bSaved)
-		bSaved = MoveFileExA(strTempPath.c_str(), strSettingsFilePath.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+	const nlohmann::json lastWritten = nlohmann::json::parse(m_PreservedJSON);
+	nlohmann::json updated = current.document;
+	ApplyChangedSettings(lastWritten, root, updated);
+	EraseSettingKey(updated, SETTINGS_KEY_RENDER, SETTINGS_KEY_RENDER_LEGACY_DRAW_STATS_OVERLAY);
+	EraseSettingKey(updated, SETTINGS_KEY_CAMERA, SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO);
+	EraseSettingKey(updated, SETTINGS_KEY_NETWORK, SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT);
+	EraseSettingKey(updated, SETTINGS_KEY_NETWORK, SETTINGS_KEY_NETWORK_LEGACY_HTTP_VERSION);
+	if (updated.contains(SETTINGS_KEY_NETWORK) && updated[SETTINGS_KEY_NETWORK].is_object())
+	{
+		EraseSettingKey(updated[SETTINGS_KEY_NETWORK], SETTINGS_KEY_NETWORK_SERVER, SETTINGS_KEY_NETWORK_SERVER_LEGACY_REALTIME_PROTOCOL);
+	}
+	updated[GenOnlineClientFile::SchemaVersionKey] = GenOnlineClientFile::SchemaVersion;
 
-	if (!bSaved)
+	if (!GenOnlineClientFile::ShouldSave(current.status, current.document, updated))
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Failed to save settings file");
-		std::error_code ec;
-		std::filesystem::remove(strTempPath, ec);
+		m_PreservedJSON = root.dump();
+		return true;
 	}
-	else
+
+	const std::string strData = updated.dump(2);
+	if (!GenOnlineClientFile::WriteExisting(m_ClientFilePath, strData))
 	{
-		m_PreservedJSON = strData;
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Failed to save client.json");
+		return false;
 	}
-	return bSaved;
+
+	m_PreservedJSON = root.dump();
+	return true;
 }
 
 bool GenOnlineSettings::Network_SaveConnectionSettings(const ServiceConnectionSettings& requested, std::string& error)
@@ -844,7 +806,7 @@ bool GenOnlineSettings::Network_SaveConnectionSettings(const ServiceConnectionSe
 		return true;
 	}
 	m_ConnectionSettings = previous;
-	error = "Could not save connection settings. Check the game user-data folder permissions.";
+	error = "Could not save connection settings. Check the permissions of client.json.";
 	return false;
 }
 
