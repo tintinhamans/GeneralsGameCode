@@ -371,7 +371,6 @@ void WebSocket::ReleaseConnection()
 		m_pCurlWS = nullptr;
 	}
 	ClearOutbound();
-	m_vecWSPartialBuffer.clear();
 	m_bConnected = false;
 }
 
@@ -379,7 +378,6 @@ void WebSocket::ReleaseConnection()
 void WebSocket::HubTransportLost(const char* reason)
 {
 	m_bConnected = false;
-	m_vecWSPartialBuffer.clear();
 	const GenOnlineRealtime::HubSession::State state = m_pHubSession->GetState();
 	if (state == GenOnlineRealtime::HubSession::State::Idle || state == GenOnlineRealtime::HubSession::State::Closed)
 	{
@@ -487,7 +485,7 @@ WebSocket::~WebSocket()
 	}
 }
 
-void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(void)> fnWebsocketConnectedCallback)
+void WebSocket::Connect(const char* url, std::function<void(void)> fnWebsocketConnectedCallback)
 {
 	if (m_bConnected || m_bShuttingDown)
 		return;
@@ -538,7 +536,6 @@ void WebSocket::FailConnectionSetup()
 {
 	m_proxyResolution.reset();
 	m_bConnected = false;
-	m_vecWSPartialBuffer.clear();
 	if (m_bReconnecting)
 	{
 		m_reconnectAttemptStarted = -1;
@@ -666,7 +663,7 @@ void WebSocket::SendData_MarkReady(bool bReady)
 }
 
 
-void WebSocket::SendData_JoinNetworkRoom(int roomID, uint64_t requestID)
+void WebSocket::SendData_JoinNetworkRoom(int roomID)
 {
 	auto onOutcome = [roomID](const GenOnlineRealtime::InvokeOutcome& outcome)
 	{
@@ -728,7 +725,6 @@ void WebSocket::Disconnect()
 	}
 
 	ClearOutbound();
-	m_vecWSPartialBuffer.clear();
 	m_bConnected = false;
 }
 
@@ -883,7 +879,7 @@ void WebSocket::UpdateReconnect()
 	++m_numReconnectAttempts;
 	m_reconnectAttemptStarted = currTime;
 	// keeps the login callback in case the first connection never reached Ready
-	Connect(m_strWebsocketAddr.c_str(), true, m_fnWebsocketConnectedCallback);
+	Connect(m_strWebsocketAddr.c_str(), m_fnWebsocketConnectedCallback);
 }
 
 void WebSocket::Tick()
@@ -892,7 +888,7 @@ void WebSocket::Tick()
 	{
 		return;
 	}
-	// Main thread only; m_pCurlWS/m_vecWSPartialBuffer/m_bConnected are unlocked here.
+	// Main thread only; m_pCurlWS/m_bConnected are unlocked here.
 	UpdateReconnect();
 	PollConnectionSetup();
 
@@ -954,7 +950,6 @@ void WebSocket::Tick()
 							continue;
 						}
                         m_bConnected = false;
-                        m_vecWSPartialBuffer.clear();
                         NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Handshake failed: phase=%s curl=%d status=%ld proxy_status=%ld",
                             ServiceConnection::FailurePhase(m->data.result, httpResponseCode, proxyStatus), m->data.result, httpResponseCode, proxyStatus);
 						if (httpResponseCode == 407 && !m_bReconnecting && !m_proxyPrompted && m_proxyRoute < m_proxyPolicy.routes.size() && !m_proxyPolicy.routes[m_proxyRoute].direct)
@@ -994,7 +989,6 @@ void WebSocket::Tick()
                             NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (initial connect)");
                             GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
                             m_bConnected = false;
-                            m_vecWSPartialBuffer.clear();
                         }
                     }
                     else
@@ -1025,7 +1019,6 @@ void WebSocket::Tick()
                             std::scoped_lock<std::mutex> lock(m_outboundQueueMutex);
                             m_acceptOutbound = true;
                         }
-                        m_vecWSPartialBuffer.clear();
 
                         EndReconnect();
 
@@ -1171,8 +1164,6 @@ void GenOnlineRoomsInterface::GetRoomList(std::function<void(bool)> cb)
 	m_CurrentRoomIndex = -1;
 	m_EffectiveRoomID.reset();
 	m_PendingRoomChange.reset();
-	m_bRoomSelectionResultsSupported = false;
-	m_bSupportsModerationCommands = false;
 
 	// Cache our buddies on lobby list
 	GenOnlineSocialInterface* pSocialInterface =
@@ -1184,7 +1175,6 @@ void GenOnlineRoomsInterface::GetRoomList(std::function<void(bool)> cb)
 
 	// The hub sent the rooms with Ready.
 	m_vecRooms = m_vecRealtimeRooms;
-	m_bRoomSelectionResultsSupported = true;
 	cb(!m_vecRooms.empty());
 }
 
@@ -1217,7 +1207,7 @@ void GenOnlineRoomsInterface::JoinRoom(int roomIndex)
 		requestID,
 		std::chrono::steady_clock::now() + std::chrono::seconds(10)
 	};
-	pWS->SendData_JoinNetworkRoom(rooms[roomIndex].GetRoomID(), requestID);
+	pWS->SendData_JoinNetworkRoom(rooms[roomIndex].GetRoomID());
 }
 
 std::unordered_map<uint64_t, NetworkRoomMember>& GenOnlineRoomsInterface::GetMembersListForCurrentRoom()

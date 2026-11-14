@@ -131,7 +131,6 @@ public:
 		m_CurrentRoomIndex = -1;
 		m_EffectiveRoomID.reset();
 		m_PendingRoomChange.reset();
-		m_bRoomSelectionResultsSupported = false;
 		m_vecRooms.clear();
 
 		std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
@@ -218,8 +217,6 @@ public:
 
 	const std::vector<NetworkRoom>& GetGroupRooms() const { return m_vecRooms; }
 
-	bool SupportsModerationCommands() const { return m_bSupportsModerationCommands; }
-
 	int GetCurrentRoomIndex() const { return m_CurrentRoomIndex; }
 	std::optional<int> GetEffectiveRoomID() const { return m_EffectiveRoomID; }
 
@@ -249,8 +246,6 @@ private:
 	std::optional<int> m_EffectiveRoomID;
 	std::optional<PendingRoomChange> m_PendingRoomChange;
 	uint64_t m_NextRoomChangeRequestID = 1;
-	bool m_bRoomSelectionResultsSupported = false;
-	bool m_bSupportsModerationCommands = false;
 	std::function<void(int, bool)> m_RoomChangedCallback = nullptr;
 	void ReportRoomJoinFailure(const std::string& error);
 

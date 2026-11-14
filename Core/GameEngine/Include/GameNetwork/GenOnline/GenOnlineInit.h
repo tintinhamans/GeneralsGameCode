@@ -133,15 +133,13 @@ public:
 	}
 
 	static int64_t HubNowMs();
-	void Connect(const char* url, bool bIsReconnect, std::function<void(void)> fnWebsocketConnectedCallback);
+	void Connect(const char* url, std::function<void(void)> fnWebsocketConnectedCallback);
 	void Disconnect();
 
 	bool IsConnected()
 	{
 		return m_bConnected;
 	}
-
-	std::vector<char> m_vecWSPartialBuffer;
 
 	std::function<void(void)> m_fnWebsocketConnectedCallback = nullptr;
 
@@ -151,7 +149,7 @@ public:
 	void SendData_RoomChatMessage(UnicodeString& msg, bool bIsAction);
 	void SendData_FriendMessage(UnicodeString& msg, int64_t target_user_id);
 	void SendData_LobbyChatMessage(UnicodeString& msg, bool bIsAction, bool bIsAnnouncement, bool bShowAnnouncementToHost);
-	void SendData_JoinNetworkRoom(int roomID, uint64_t requestID = 0);
+	void SendData_JoinNetworkRoom(int roomID);
 	void SendData_LeaveNetworkRoom();
 	void SendData_MarkReady(bool bReady);
 
