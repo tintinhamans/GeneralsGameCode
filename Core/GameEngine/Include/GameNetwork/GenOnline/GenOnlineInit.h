@@ -165,9 +165,6 @@ public:
 	void SendData_Signalling(int64_t targetUserID, std::vector<uint8_t> vecPayload);
 	void SendData_StartGame();
 
-	// Returns false when the message could not be queued, so the caller can use the peer mesh instead.
-	bool SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> vecPayload);
-
 	void SendData_ChangeLobbyPassword(UnicodeString& strNewPassword);
 	void SendData_RemoveLobbyPassword();
 

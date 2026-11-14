@@ -249,7 +249,7 @@ typedef struct GenOnlinePluginTransportApi
 	/* Returns GENONLINE_PLUGIN_TRUE when the plugin carries the game traffic. */
 	int32_t (GENONLINE_PLUGIN_CALL *IsAvailable)(void);
 
-	/* Tells the plugin whether the service configuration allows the plugin transport. This field may be null. */
+	/* Tells the plugin whether its transport may carry pairs. Anti-cheat messages always go through the host. This field may be null. */
 	void (GENONLINE_PLUGIN_CALL *SetEnabled)(int32_t enabled);
 
 	/* Starts the connection to a peer. */

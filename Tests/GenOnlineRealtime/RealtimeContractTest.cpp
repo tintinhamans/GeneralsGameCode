@@ -125,7 +125,6 @@ static std::map<std::string, RoundTripFn> BuildFixtureTable()
 	t["Signal.request.json"] = RoundTrip<SignalRequest>;
 	t["BeginMeshCheck.request.json"] = RoundTrip<BeginMeshCheckRequest>;
 	t["MeshCheckResponse.request.json"] = RoundTrip<MeshCheckResponseRequest>;
-	t["AnticheatMessage.request.json"] = RoundTrip<AnticheatMessageRequest>;
 	t["ProbeResponse.request.json"] = RoundTrip<ProbeResponseRequest>;
 	t["ModuleScanResponse.request.json"] = RoundTrip<ModuleScanResponseRequest>;
 
@@ -176,7 +175,6 @@ static std::map<std::string, RoundTripFn> BuildFixtureTable()
 	t["MeshCheckResult.event.json"] = RoundTrip<MeshCheckResultEvent>;
 	t["AnticheatRegister.event.json"] = RoundTrip<AnticheatRegisterEvent>;
 	t["AnticheatDeregister.event.json"] = RoundTrip<AnticheatDeregisterEvent>;
-	t["AnticheatMessage.event.json"] = RoundTrip<AnticheatMessageEvent>;
 	t["ProbeRequest.event.json"] = RoundTrip<ProbeRequestEvent>;
 	t["ModuleScanRequest.event.json"] = RoundTrip<ModuleScanRequestEvent>;
 
@@ -1911,6 +1909,69 @@ static void TestStepAttemptWatch()
 	CHECK(watch.Attempt() == 0);
 }
 
+static std::vector<uint8_t> HeldMessage(int value)
+{
+	return std::vector<uint8_t>(1, static_cast<uint8_t>(value));
+}
+
+static void TestAnticheatHoldQueue()
+{
+	AnticheatHoldQueue queue;
+	CHECK(queue.Count(7) == 0);
+	CHECK(queue.Take(7, 0).empty());
+
+	// The messages of a peer leave in the order they arrived and only for that peer.
+	CHECK(!queue.Push(7, HeldMessage(1), 1000));
+	CHECK(!queue.Push(7, HeldMessage(2), 1001));
+	CHECK(!queue.Push(8, HeldMessage(9), 1002));
+	CHECK(queue.Count(7) == 2);
+	std::vector<std::vector<uint8_t>> taken = queue.Take(7, 2000);
+	CHECK(taken.size() == 2);
+	CHECK(taken.size() == 2 && taken[0] == HeldMessage(1) && taken[1] == HeldMessage(2));
+	CHECK(queue.Count(7) == 0);
+	CHECK(queue.Count(8) == 1);
+	CHECK(queue.Take(7, 2000).empty());
+
+	// A full queue keeps its first messages, they hold the anticheat handshake, and drops the new one.
+	for (int i = 0; i < 64; ++i)
+	{
+		CHECK(!queue.Push(7, HeldMessage(i), 3000));
+	}
+	CHECK(queue.Count(7) == 64);
+	CHECK(queue.Push(7, HeldMessage(200), 3000));
+	CHECK(queue.Count(7) == 64);
+	taken = queue.Take(7, 3000);
+	CHECK(taken.size() == 64);
+	CHECK(!taken.empty() && taken.front() == HeldMessage(0) && taken.back() == HeldMessage(63));
+
+	// A message older than 120 seconds is dropped, one exactly 120 seconds old is kept.
+	CHECK(!queue.Push(7, HeldMessage(1), 10000));
+	CHECK(!queue.Push(7, HeldMessage(2), 10001));
+	CHECK(!queue.Push(7, HeldMessage(3), 50000));
+	taken = queue.Take(7, 130001);
+	CHECK(taken.size() == 2);
+	CHECK(taken.size() == 2 && taken[0] == HeldMessage(2) && taken[1] == HeldMessage(3));
+
+	// Old messages do not count toward the cap of a later push.
+	for (int i = 0; i < 64; ++i)
+	{
+		CHECK(!queue.Push(7, HeldMessage(i), 0));
+	}
+	CHECK(!queue.Push(7, HeldMessage(100), 120001));
+	CHECK(queue.Count(7) == 1);
+
+	// Clear forgets one peer, ClearAll forgets every peer.
+	CHECK(!queue.Push(9, HeldMessage(5), 120001));
+	queue.Clear(7);
+	CHECK(queue.Count(7) == 0);
+	CHECK(queue.Count(8) == 1);
+	CHECK(queue.Count(9) == 1);
+	queue.ClearAll();
+	CHECK(queue.Count(8) == 0);
+	CHECK(queue.Count(9) == 0);
+	CHECK(queue.Take(8, 120001).empty());
+}
+
 int main(int argc, char** argv)
 {
 	if (argc < 4)
@@ -1957,6 +2018,7 @@ int main(int argc, char** argv)
 	TestModerationText();
 	TestConnectionStep();
 	TestStepAttemptWatch();
+	TestAnticheatHoldQueue();
 
 	if (g_failures != 0)
 	{

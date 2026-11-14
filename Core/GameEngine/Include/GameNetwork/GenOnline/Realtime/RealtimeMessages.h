@@ -32,6 +32,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <deque>
 #include <map>
 #include <optional>
 #include <stdexcept>
@@ -1179,12 +1180,6 @@ struct SignalRequest : PeerPayloadRequest
 	static constexpr bool EXPECTS_RESULT = false;
 };
 
-struct AnticheatMessageRequest : PeerPayloadRequest
-{
-	static constexpr const char* METHOD = "AnticheatMessage";
-	static constexpr bool EXPECTS_RESULT = false;
-};
-
 struct BeginMeshCheckRequest : EmptyObject
 {
 	static constexpr const char* METHOD = "BeginMeshCheck";
@@ -1938,6 +1933,80 @@ private:
 	bool m_reported = false;
 };
 
+// Holds the anti-cheat messages for each peer until the pair connects, see section 6.6 of the protocol.
+class AnticheatHoldQueue
+{
+public:
+	static constexpr size_t MAX_MESSAGES = 64;
+	// RegisterPeer gives a new peer 120 seconds to send its first message.
+	static constexpr int64_t MAX_AGE_MS = 120000;
+
+	// Returns true when the queue of the peer was full and the new message was dropped, the first messages hold the anticheat handshake.
+	bool Push(int64_t userID, std::vector<uint8_t> message, int64_t nowMs)
+	{
+		std::deque<Held>& held = m_held[userID];
+		DropExpired(held, nowMs);
+		if (held.size() >= MAX_MESSAGES)
+		{
+			return true;
+		}
+		held.push_back(Held{ std::move(message), nowMs });
+		return false;
+	}
+
+	// Returns the messages of the peer that are not too old, oldest first, and forgets the peer.
+	std::vector<std::vector<uint8_t>> Take(int64_t userID, int64_t nowMs)
+	{
+		std::vector<std::vector<uint8_t>> messages;
+		auto it = m_held.find(userID);
+		if (it == m_held.end())
+		{
+			return messages;
+		}
+		DropExpired(it->second, nowMs);
+		messages.reserve(it->second.size());
+		for (Held& held : it->second)
+		{
+			messages.push_back(std::move(held.message));
+		}
+		m_held.erase(it);
+		return messages;
+	}
+
+	void Clear(int64_t userID)
+	{
+		m_held.erase(userID);
+	}
+
+	void ClearAll()
+	{
+		m_held.clear();
+	}
+
+	size_t Count(int64_t userID) const
+	{
+		auto it = m_held.find(userID);
+		return it != m_held.end() ? it->second.size() : 0;
+	}
+
+private:
+	struct Held
+	{
+		std::vector<uint8_t> message;
+		int64_t heldSinceMs = 0;
+	};
+
+	static void DropExpired(std::deque<Held>& held, int64_t nowMs)
+	{
+		while (!held.empty() && nowMs - held.front().heldSinceMs > MAX_AGE_MS)
+		{
+			held.pop_front();
+		}
+	}
+
+	std::map<int64_t, std::deque<Held>> m_held;
+};
+
 struct DisconnectPeerEvent : WireObject
 {
 	static constexpr const char* EVENT = "DisconnectPeer";
@@ -1968,11 +2037,6 @@ struct PeerPayloadEvent : WireObject
 struct SignalEvent : PeerPayloadEvent
 {
 	static constexpr const char* EVENT = "Signal";
-};
-
-struct AnticheatMessageEvent : PeerPayloadEvent
-{
-	static constexpr const char* EVENT = "AnticheatMessage";
 };
 
 struct MeshCheckRequestEvent : WireObject

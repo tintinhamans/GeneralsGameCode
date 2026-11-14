@@ -275,16 +275,6 @@ void WebSocket::RegisterPeerHandlers()
 			}
 			PushPendingSignal(event.from, std::move(payload));
 		});
-	m_pHubSession->On<AnticheatMessageEvent>([](const AnticheatMessageEvent& event)
-		{
-			std::vector<uint8_t> payload;
-			if (!DecodePeerPayload(event.payload, payload))
-			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] AnticheatMessage from %lld has an invalid payload", event.from);
-				return;
-			}
-			GenOnlinePluginHost::Anticheat::MessageArrived(event.from, payload.data(), payload.size());
-		});
 	m_pHubSession->On<AnticheatRegisterEvent>([](const AnticheatRegisterEvent& event)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Realtime AnticheatRegister for %lld and %s", event.user_id, event.middleware_id.c_str());
@@ -299,6 +289,13 @@ void WebSocket::RegisterPeerHandlers()
 			if (!GenOnlinePluginHost::Anticheat::DeregisterPeer(event.middleware_id, event.user_id))
 			{
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] GenOnlinePluginHost::Anticheat::DeregisterPeer failed");
+			}
+
+			// A deregistered peer gets none of the anti-cheat messages still held for it.
+			NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
+			if (pMesh != nullptr)
+			{
+				pMesh->ClearHeldACMessages(event.user_id);
 			}
 		});
 	m_pHubSession->On<MeshCheckRequestEvent>([this](const MeshCheckRequestEvent& event)

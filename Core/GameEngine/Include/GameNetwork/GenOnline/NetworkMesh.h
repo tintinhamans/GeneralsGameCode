@@ -276,7 +276,11 @@ public:
 
 	int SendGamePacket(void* pBuffer, uint32_t totalDataSize, int64_t userID);
 
+	// Sends the anti-cheat message over the pair connection, or holds it until the pair connects.
 	void SendACPacket(uint32_t userID, const void* pData, uint32_t dataLen);
+	// Sends the held anti-cheat messages of the connection in order, call when the pair connects.
+	void SendHeldACMessages(PlayerConnection& connection);
+	void ClearHeldACMessages(int64_t userID);
 
 	// Takes up to maxPackets pending plugin packets and hands each to handler with the connection of its sender and its receive time.
 	// A packet whose sender has no plugin connection is dropped. Returns the number of packets handed to handler.
@@ -342,6 +346,7 @@ private:
 	std::map<int64_t, PlayerConnection> m_mapConnections;
 	mutable std::recursive_mutex m_mapConnectionsMutex;  // Synchronizes access to m_mapConnections
 	std::map<int64_t, int> m_reportAttempts;	///< Per peer, the connections signalling created in this lobby. Written under m_mapConnectionsMutex on the main thread.
+	GenOnlineRealtime::AnticheatHoldQueue m_heldACMessages;	///< Per peer, the anti-cheat messages that wait for the pair to connect. Guarded by m_mapConnectionsMutex, it outlives connection restarts.
 
 	std::mutex m_pendingStateUpdatesMutex;
 	std::vector<std::pair<int64_t, EConnectionState>> m_vecPendingStateUpdates;
