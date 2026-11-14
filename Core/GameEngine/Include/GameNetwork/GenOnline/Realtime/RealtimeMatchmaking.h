@@ -90,6 +90,37 @@ inline std::string MatchmakingStatusText(const std::string& code, const nlohmann
 	return "Matchmaking: " + code;
 }
 
+// The text of a refused matchmaking method. Returns an empty string for a code outside matchmaking.
+inline std::string MatchmakingFailureText(const std::string& code, const nlohmann::json& params)
+{
+	if (code.compare(0, 12, "matchmaking.") != 0)
+	{
+		return std::string();
+	}
+	if (code == "matchmaking.invalid_playlist")
+	{
+		return "That playlist is not available.";
+	}
+	if (code == "matchmaking.too_few_maps")
+	{
+		const int64_t minimum = MatchmakingParamInt(params, "min");
+		return minimum > 0 ? "Select at least " + std::to_string(minimum) + " maps." : std::string("Select more maps.");
+	}
+	if (code == "matchmaking.stats_unavailable")
+	{
+		return "Your rating could not be loaded. Please try again later.";
+	}
+	if (code == "matchmaking.already_queued")
+	{
+		return "You are already searching for a match.";
+	}
+	if (code == "matchmaking.not_queued")
+	{
+		return "You are not searching for a match.";
+	}
+	return "Matchmaking failed (" + code + ").";
+}
+
 // The quick match menu line of a MatchRequeue reason.
 inline std::string MatchRequeueText(const std::string& reason)
 {
