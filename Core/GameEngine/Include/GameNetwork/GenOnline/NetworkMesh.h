@@ -209,7 +209,6 @@ public:
 
 	void Flush();
 
-	void RegisterConnectivity(int64_t userID);
 	void UpdateConnectivity(PlayerConnection* connection);
 
 	MatchKeys m_matchKeys;

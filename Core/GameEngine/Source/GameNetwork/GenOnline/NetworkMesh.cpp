@@ -871,33 +871,6 @@ void NetworkMesh::Flush()
 }
 
 
-void NetworkMesh::RegisterConnectivity(int64_t userID)
-{
-	nlohmann::json j;
-	j["target"] = userID;
-	j["direct"] = false;
-	j["outcome"] = EConnectionState::NOT_CONNECTED;
-	j["ipv4"] = true;
-	std::string strPostData = j.dump();
-	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("ConnectionOutcome");
-	std::map<std::string, std::string> mapHeaders;
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-			// dont care about the response
-		});
-}
-
-// The legacy route of the connection report, for a service without the lobby connection report endpoint.
-static void PostLegacyConnectionOutcome(const std::string& strPostData)
-{
-	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("ConnectionOutcome");
-	std::map<std::string, std::string> mapHeaders;
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-			// dont care about the response
-		});
-}
-
 void NetworkMesh::UpdateConnectivity(PlayerConnection* connection)
 {
 	// Only the final result of a pair is reported, never the connecting or route finding states.
@@ -909,17 +882,10 @@ void NetworkMesh::UpdateConnectivity(PlayerConnection* connection)
 		return;
 	}
 
-	nlohmann::json j;
-	j["target"] = connection->m_userID;
-	j["direct"] = connection->IsDirect();
-	j["outcome"] = connection->GetState();
-	j["ipv4"] = connection->IsIPV4();
-	const std::string strPostData = j.dump();
-
+	// A report belongs to the lobby of the pair, outside a lobby there is nothing to report.
 	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface == nullptr || !pLobbyInterface->IsInLobby())
 	{
-		PostLegacyConnectionOutcome(strPostData);
 		return;
 	}
 
@@ -940,14 +906,7 @@ void NetworkMesh::UpdateConnectivity(PlayerConnection* connection)
 		body.events = connection->m_timeline.Events();
 	}
 	const std::string path = GenOnlineRealtime::RestConnectionReportPath(pLobbyInterface->GetCurrentLobby().lobbyID);
-	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Post, path, nlohmann::json(body).dump(), [strPostData](const GenOnlineRealtime::RestOutcome& outcome)
-		{
-			// A service without the endpoint answers 404 and gets the legacy report instead.
-			if (outcome.delivered && outcome.status == 404)
-			{
-				PostLegacyConnectionOutcome(strPostData);
-			}
-		});
+	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Post, path, nlohmann::json(body).dump(), nullptr);
 }
 
 int NetworkMesh::SendGamePacket(void* pBuffer, uint32_t totalDataSize, int64_t user_id)
@@ -2573,11 +2532,6 @@ PlayerConnection::PlayerConnection(int64_t userID, HSteamNetConnection hSteamCon
 
 	SteamNetworkingSockets()->SetConnectionName(hSteamConnection, std::format("Steam Connection User{}", userID).c_str());
 
-	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-	if (pMesh != nullptr)
-	{
-		pMesh->RegisterConnectivity(userID);
-	}
 }
 
 PlayerConnection::PlayerConnection(int64_t userID, const char* szMiddlewareID)
@@ -2591,11 +2545,6 @@ PlayerConnection::PlayerConnection(int64_t userID, const char* szMiddlewareID)
 
     NetworkLog(ELogVerbosity::LOG_RELEASE, "[MIDDLEWARE CONNECTION] Attaching connection %s to user %lld", szMiddlewareID, userID);
 
-    NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-    if (pMesh != nullptr)
-    {
-        pMesh->RegisterConnectivity(userID);
-    }
 }
 
 bool PlayerConnection::LogInvalidDue()
