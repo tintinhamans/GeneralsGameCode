@@ -1010,11 +1010,26 @@ void WebSocket::Tick()
                             NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Connection refused with status %ld, renewing the session", httpResponseCode);
                             RecoverHubSession();
                         }
-                        else if (httpResponseCode == 401 || httpResponseCode == 403 || httpResponseCode == 409)
+                        else if (httpResponseCode == 403)
+                        {
+                            // The refused upgrade carries no body, the ban check reads the reason and expiry and ends the session.
+                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Connection refused with status %ld, reading the ban", httpResponseCode);
+                            EndReconnect();
+                            GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+                            if (pAuth != nullptr)
+                            {
+                                pAuth->ReportRealtimeBan();
+                            }
+                            else
+                            {
+                                GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::MODERATION_BAN);
+                            }
+                        }
+                        else if (httpResponseCode == 401 || httpResponseCode == 409)
                         {
                             NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Connection refused with status %ld", httpResponseCode);
                             EndReconnect();
-                            GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(httpResponseCode == 403 ? EGOTearDownReason::MODERATION_BAN : EGOTearDownReason::AUTH_FAILED);
+                            GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::AUTH_FAILED);
                         }
                         else if (m_bReconnecting)
                         {

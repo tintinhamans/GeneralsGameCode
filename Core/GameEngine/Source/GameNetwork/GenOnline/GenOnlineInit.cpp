@@ -1288,6 +1288,8 @@ void GenOnlineServicesManager::Tick()
 		m_pHTTPManager->Tick();
 	}
 
+	GenOnlineRealtimeBridge::TickRest();
+
 	if (m_pAuthInterface != nullptr)
 	{
 		m_pAuthInterface->Tick();
@@ -1564,9 +1566,9 @@ void WebSocket::SendData_RemoveLobbyPassword()
 
 void WebSocket::SendData_ChangeName(UnicodeString& strNewName)
 {
-	GenOnlineRealtime::SetDisplayNameRequest request;
-	request.name = to_utf8(strNewName.str());
-	InvokeHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
+	GenOnlineRealtime::ProfileUpdateBody body;
+	body.name = to_utf8(strNewName.str());
+	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Patch, GenOnlineRealtime::RestMePath(), nlohmann::json(body).dump(), [](const GenOnlineRealtime::RestOutcome& outcome)
 		{
 			if (!outcome.Succeeded())
 			{

@@ -28,9 +28,12 @@
 #include "GameNetwork/GenOnline/Realtime/RealtimeNoticeText.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/GenOnlineModeration.h"
+#include "GameNetwork/GenOnline/HTTP/HTTPManager.h"
 #include "GameClient/GenOnlineMenus.h"
 
+#include <chrono>
 #include <format>
+#include <map>
 
 using namespace GenOnlineRealtime;
 
@@ -141,8 +144,25 @@ std::wstring FailureText(const InvokeOutcome& outcome)
 	{
 		return L"The online service is not reachable right now. Please try again.";
 	}
-	const std::string code = outcome.Code();
 	const nlohmann::json params = outcome.result.params.has_value() && outcome.result.params->is_object() ? *outcome.result.params : nlohmann::json::object();
+	return FailureText(outcome.Code(), params);
+}
+
+std::wstring FailureText(const RestOutcome& outcome)
+{
+	if (!outcome.delivered)
+	{
+		return L"The online service is not reachable right now. Please try again.";
+	}
+	if (outcome.error.code.empty())
+	{
+		return std::format(L"The request failed (HTTP {}).", outcome.status);
+	}
+	return FailureText(outcome.error.code, outcome.error.params);
+}
+
+std::wstring FailureText(const std::string& code, const nlohmann::json& params)
+{
 	const std::string matchmakingText = MatchmakingFailureText(code, params);
 	if (!matchmakingText.empty())
 	{
@@ -505,7 +525,13 @@ void RegisterHandlers(HubSession& session)
 		{
 			if (notice.action == "ban")
 			{
-				HandleModerationDisconnect(EOnlineModerationAction::BAN, notice.reason.value_or(std::string()));
+				OnlineBanDetails ban;
+				ban.reason = notice.reason.value_or(std::string());
+				if (HasNoticeText(notice.expires_at))
+				{
+					ban.expiresAt = notice.expires_at;
+				}
+				HandleModerationBan(ban);
 			}
 			else if (notice.action == "kick")
 			{
@@ -557,6 +583,176 @@ void RegisterHandlers(HubSession& session)
 				pSocial->OnRealtimeFriendPresence(event);
 			}
 		});
+}
+
+namespace
+{
+
+// A call that is safe to repeat and waits for its next send.
+struct PendingRestRetry
+{
+	RestMethod method = RestMethod::Get;
+	std::string path;
+	std::string body;
+	int sends = 0;
+	int64_t sendAtMs = 0;
+	int64_t userID = -1;
+	RestOutcome lastOutcome;
+	RestCallback callback;
+};
+
+// Touched on the main thread only, where the HTTP callbacks and the services tick run.
+std::vector<PendingRestRetry> s_restRetries;
+
+int64_t RestNowMs()
+{
+	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+const char* RestMethodName(RestMethod method)
+{
+	switch (method)
+	{
+	case RestMethod::Get:
+		return "GET";
+	case RestMethod::Post:
+		return "POST";
+	case RestMethod::Put:
+		return "PUT";
+	case RestMethod::Delete:
+		return "DELETE";
+	case RestMethod::Patch:
+		return "PATCH";
+	}
+	return "?";
+}
+
+int64_t SignedInUserID()
+{
+	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	return pAuth != nullptr && pAuth->IsLoggedIn() ? pAuth->GetUserID() : -1;
+}
+
+void SendRest(RestMethod method, const std::string& path, const std::string& body, bool bRetry, int sendsBefore, RestCallback callback)
+{
+	GenOnlineServicesManager* pManager = GenOnlineServicesManager::GetInstance();
+	const std::string origin = GenOnlineAuthInterface::ServiceOriginV1();
+	if (pManager == nullptr || pManager->GetHTTPManager() == nullptr || origin.empty() || SignedInUserID() < 0)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s not sent, no session or service route", RestMethodName(method), path.c_str());
+		if (callback)
+		{
+			callback(MakeRestOutcome(false, 0, std::string()));
+		}
+		return;
+	}
+
+	const int64_t userID = SignedInUserID();
+	auto onDone = [method, path, body, bRetry, sendsBefore, callback, userID](bool bSuccess, int statusCode, std::string strBody, HTTPRequest*)
+		{
+			const RestOutcome outcome = MakeRestOutcome(bSuccess, statusCode, strBody);
+			const int sends = sendsBefore + 1;
+			if (!outcome.Succeeded())
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s failed: status %d code %s", RestMethodName(method), path.c_str(), statusCode, outcome.error.code.c_str());
+			}
+			const int64_t delayMs = bRetry ? RestRetryDelayMs(outcome, sends) : -1;
+			if (delayMs >= 0)
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s sends again in %lld ms", RestMethodName(method), path.c_str(), static_cast<long long>(delayMs));
+				PendingRestRetry retry;
+				retry.method = method;
+				retry.path = path;
+				retry.body = body;
+				retry.sends = sends;
+				retry.sendAtMs = RestNowMs() + delayMs;
+				retry.userID = userID;
+				retry.lastOutcome = outcome;
+				retry.callback = callback;
+				s_restRetries.push_back(retry);
+				return;
+			}
+			if (callback)
+			{
+				callback(outcome);
+			}
+		};
+
+	std::map<std::string, std::string> mapHeaders;
+	mapHeaders["Content-Type"] = "application/json";
+	const std::string uri = origin + path;
+	HTTPManager* pHTTP = pManager->GetHTTPManager();
+	switch (method)
+	{
+	case RestMethod::Get:
+		pHTTP->SendGETRequest(uri.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, onDone);
+		break;
+	case RestMethod::Post:
+		pHTTP->SendPOSTRequest(uri.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, body.c_str(), onDone);
+		break;
+	case RestMethod::Put:
+		pHTTP->SendPUTRequest(uri.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, body.c_str(), onDone);
+		break;
+	case RestMethod::Delete:
+		pHTTP->SendDELETERequest(uri.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, body.c_str(), onDone);
+		break;
+	case RestMethod::Patch:
+		pHTTP->SendPATCHRequest(uri.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, body.c_str(), onDone);
+		break;
+	}
+}
+
+} // namespace
+
+void CallRest(RestMethod method, const std::string& path, const std::string& body, RestCallback callback)
+{
+	SendRest(method, path, body, false, 0, callback);
+}
+
+void CallRestWithRetry(RestMethod method, const std::string& path, const std::string& body, RestCallback callback)
+{
+	SendRest(method, path, body, true, 0, callback);
+}
+
+void TickRest()
+{
+	if (s_restRetries.empty())
+	{
+		return;
+	}
+	const int64_t now = RestNowMs();
+	const int64_t userID = SignedInUserID();
+	std::vector<PendingRestRetry> due;
+	std::vector<PendingRestRetry> dropped;
+	for (auto it = s_restRetries.begin(); it != s_restRetries.end();)
+	{
+		if (it->userID != userID)
+		{
+			dropped.push_back(*it);
+			it = s_restRetries.erase(it);
+		}
+		else if (it->sendAtMs <= now)
+		{
+			due.push_back(*it);
+			it = s_restRetries.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+	for (const PendingRestRetry& retry : dropped)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s dropped, the signed in user changed", RestMethodName(retry.method), retry.path.c_str());
+		if (retry.callback)
+		{
+			retry.callback(retry.lastOutcome);
+		}
+	}
+	for (const PendingRestRetry& retry : due)
+	{
+		SendRest(retry.method, retry.path, retry.body, true, retry.sends, retry.callback);
+	}
 }
 
 } // namespace GenOnlineRealtimeBridge

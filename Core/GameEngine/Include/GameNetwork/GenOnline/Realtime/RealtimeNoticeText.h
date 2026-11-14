@@ -71,18 +71,49 @@ inline std::string ModerationNoticeText(const ModerationNoticeEvent& notice, con
 	return std::string();
 }
 
+// The first line of the ban dialog. Without the ban body of the service the end of the ban stays unsaid.
+inline std::string BanDialogText(const std::optional<std::string>& expiresAt, bool bDetailsKnown, const TimeTextFormatter& format)
+{
+	if (HasNoticeText(expiresAt))
+	{
+		return "You have been banned from Generals Online" + UntilText(expiresAt, format) + ".";
+	}
+	if (bDetailsKnown)
+	{
+		return "You have been permanently banned from Generals Online.";
+	}
+	return "You have been banned from Generals Online.";
+}
+
+// The expires_at of failure params, or empty when it is absent or null.
+inline std::optional<std::string> ParamExpiresAt(const nlohmann::json& params)
+{
+	auto it = params.find("expires_at");
+	if (it != params.end() && it->is_string())
+	{
+		return it->get<std::string>();
+	}
+	return std::nullopt;
+}
+
 // The text of a failed rule from section 7, or an empty string for codes the caller handles.
 inline std::string RuleFailureText(const std::string& code, const nlohmann::json& params, const TimeTextFormatter& format)
 {
 	if (code == "chat.muted")
 	{
-		std::optional<std::string> expiresAt;
-		auto it = params.find("expires_at");
-		if (it != params.end() && it->is_string())
-		{
-			expiresAt = it->get<std::string>();
-		}
-		return "You are muted and cannot send messages" + UntilText(expiresAt, format) + ".";
+		return "You are muted and cannot send messages" + UntilText(ParamExpiresAt(params), format) + ".";
+	}
+	if (code == "moderation.banned")
+	{
+		return "You are banned from Generals Online" + UntilText(ParamExpiresAt(params), format) + ".";
+	}
+	if (code == "unauthorized")
+	{
+		return "Your sign-in is no longer valid. Please sign in again.";
+	}
+	if (code == "session.build_not_accepted")
+	{
+		return "This version of the game is not accepted by the online service. Please update the game.";
 	}
 	if (code == "channel.unavailable")
 	{

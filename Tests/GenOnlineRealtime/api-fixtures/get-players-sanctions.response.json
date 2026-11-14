@@ -1,0 +1,19 @@
+{
+  "sanctions": [
+    {
+      "id": 3301,
+      "type": "mute",
+      "reason": "spam",
+      "created_at": "2026-11-14T20:00:00Z",
+      "expires_at": "2026-11-14T20:10:00Z",
+      "revoked_at": null,
+      "created_by": {
+        "id": 7,
+        "name": "Ann",
+        "badges": [
+          "moderator"
+        ]
+      }
+    }
+  ]
+}

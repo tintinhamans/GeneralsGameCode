@@ -684,7 +684,12 @@ private:
 	std::function<void(uint32_t)> m_OnChatMessageRemovedCallback = nullptr;
 	GenOnlineRealtime::ChannelChatLog m_LobbyChat;
 	std::chrono::steady_clock::time_point m_LobbyChatHistoryDeadline;
-	// Starts the chat of the current lobby once. A joined lobby sends no history, so live messages show at once.
+	// The lobby history of a join, which arrives before the JoinLobby Result.
+	GenOnlineRealtime::PendingChannelHistory m_PendingLobbyHistory;
+	// Starts the chat of the current lobby once. Without a held history live messages show at once.
 	bool EnsureLobbyChat();
+	// Starts the chat of a joined lobby. A held history shows once the lobby menu takes chat lines, before live messages.
+	void StartJoinedLobbyChat();
+	void ShowLobbyChatUpdate(const GenOnlineRealtime::ChannelChatUpdate& update);
 	void ShowLobbyChatLine(const GenOnlineRealtime::ChannelChatLine& line);
 };

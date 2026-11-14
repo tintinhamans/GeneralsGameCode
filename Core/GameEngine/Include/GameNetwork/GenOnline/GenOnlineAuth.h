@@ -92,6 +92,13 @@ public:
 	// Refreshes the tokens and registers the session again, for a realtime hub that refused or revoked the session.
 	void RecoverRealtimeSession(std::function<void(bool bRecovered)> fnDone);
 
+	// A refused realtime upgrade carries no ban body, so the session registration, which the ban refuses
+	// with the same body, reads it. Then the session ends with the ban dialog.
+	void ReportRealtimeBan();
+
+	// The origin of the realtime hub and the v1 REST endpoints, or empty without a trusted route.
+	static std::string ServiceOriginV1();
+
 private:
 	void LoginAsSecondaryDevAccount();
 
@@ -112,7 +119,6 @@ private:
 	void FinishLogoutV1();
 	void TickV1();
 	static std::string CredentialServerKeyV1();
-	static std::string ServiceOriginV1();
 
 private:
 	bool m_bSignInScreen = false;

@@ -1,7 +1,0 @@
-{
-  "ok": true,
-  "data": {
-    "screenshot_url": "https://uploads.example/screenshots/551234-42.png?sig=abc",
-    "replay_url": "https://uploads.example/replays/551234-42.rep?sig=def"
-  }
-}
