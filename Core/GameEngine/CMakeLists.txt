@@ -1250,6 +1250,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/GenOnlineStatsInterface.h
     Include/GameNetwork/GenOnline/GenOnlineSocialInterface.h
     Include/GameNetwork/GenOnline/GenOnlineMatchmakingInterface.h
+    Include/GameNetwork/GenOnline/GenOnlineClientFile.h
     Include/GameNetwork/GenOnline/GenOnlineSettings.h
     Include/GameNetwork/GenOnline/HTTP/HTTPManager.h
     Include/GameNetwork/GenOnline/HTTP/HTTPRequest.h
@@ -1278,6 +1279,7 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/ProxyLogin.cpp
     Source/GameNetwork/GenOnline/ServiceConnectionPolicy.cpp
     Source/GameNetwork/GenOnline/ServiceEndpointPolicy.cpp
+    Source/GameNetwork/GenOnline/GenOnlineClientFile.cpp
     Source/GameNetwork/GenOnline/GenOnlineSettings.cpp
     Source/GameNetwork/GenOnline/HTTP/HTTPManager.cpp
     Source/GameNetwork/GenOnline/HTTP/HTTPRequest.cpp
