@@ -51,6 +51,7 @@
 #include "qt/panels/WBQtMiscModalsBridge.h"
 #include "qt/panels/WBQtPickUnitBridge.h"	// Replace Missing Entries: name matcher + the report
 #include "qt/WBQtMessageBox.h"
+#include "qt/WBQtPanelBridge.h"
 #endif
 
 #include "Common/GlobalData.h"
@@ -70,6 +71,9 @@ static const Int K_LOCAL_TEAMS_VERSION_1 = 1;
 
 static const char* NEUTRAL_NAME_STR = "(neutral)";
 ScriptDialog *ScriptDialog::m_staticThis = nullptr;
+
+// True while the editor commits its own working copy.
+static Bool s_committingOwnSides = false;
 
 static AsciiString formatScriptLabel(Script *pScr, Bool cleanNames) {
 	int burstSeconds = pScr->getDelayEvalSeconds();
@@ -3570,7 +3574,9 @@ Bool ScriptDialog::importScriptFile(const CString &path)
 		}
 
 		SidesListUndoable *pUndo = new SidesListUndoable(m_sides, pDoc);
+		s_committingOwnSides = true;
 		pDoc->AddAndDoUndoable(pUndo);
+		s_committingOwnSides = false;
 		REF_PTR_RELEASE(pUndo); // belongs to pDoc now.
 		m_sides = *TheSidesList;
 #ifdef RTS_HAS_QT
@@ -4022,6 +4028,92 @@ void ScriptDialog::ensureScriptLists()
 }
 
 /**
+* ScriptDialog::adoptDocSides - take the players, teams and build lists from the map.
+* The editor owns only the scripts, so a save keeps what other dialogs changed meanwhile.
+*/
+void ScriptDialog::adoptDocSides()
+{
+	Int i;
+	Int numOld = m_sides.getNumSides();
+	Int numNew = TheSidesList->getNumSides();
+	AsciiString oldNames[MAX_PLAYER_COUNT];
+	Bool playersChanged = (numOld != numNew);
+	for (i = 0; i < numOld; i++) {
+		oldNames[i] = m_sides.getSideInfo(i)->getDict()->getAsciiString(TheKey_playerName);
+		if (!playersChanged && oldNames[i] != TheSidesList->getSideInfo(i)->getDict()->getAsciiString(TheKey_playerName)) {
+			playersChanged = true;
+		}
+	}
+	if (playersChanged && GetSafeHwnd() != nullptr) {
+		// The MFC tree addresses players by position and cannot follow a changed list.
+		return;
+	}
+
+	// The script lists move over as objects, which keeps their warning flags.
+	ScriptList *oldScripts[MAX_PLAYER_COUNT];
+	for (i = 0; i < numOld; i++) {
+		oldScripts[i] = m_sides.getSideInfo(i)->getScriptList();
+		m_sides.getSideInfo(i)->setScriptList(nullptr);
+	}
+	m_sides = *TheSidesList;
+
+	// Players match by name first; a renamed player keeps its position.
+	Bool matched[MAX_PLAYER_COUNT];
+	for (i = 0; i < numNew; i++) {
+		matched[i] = false;
+	}
+	for (Int pass = 0; pass < 2; pass++) {
+		for (i = 0; i < numNew; i++) {
+			if (matched[i]) {
+				continue;
+			}
+			SidesInfo *pSide = m_sides.getSideInfo(i);
+			Int from = -1;
+			if (pass == 0) {
+				AsciiString name = pSide->getDict()->getAsciiString(TheKey_playerName);
+				for (Int j = 0; j < numOld; j++) {
+					if (oldScripts[j] != nullptr && oldNames[j] == name) {
+						from = j;
+						break;
+					}
+				}
+			} else if (numOld == numNew && oldScripts[i] != nullptr) {
+				from = i;
+			}
+			if (from < 0) {
+				continue;
+			}
+			deleteInstance(pSide->getScriptList());
+			pSide->setScriptList(oldScripts[from]);
+			oldScripts[from] = nullptr;
+			matched[i] = true;
+		}
+	}
+	for (i = 0; i < numOld; i++) {
+		deleteInstance(oldScripts[i]);
+	}
+	ensureScriptLists();
+
+	if (m_curSelection.m_playerIndex >= numNew) {
+		m_curSelection = ListType();
+	}
+}
+
+/**
+* ScriptDialog::docSidesChanged - keep an open editor in step with the map's players and teams.
+*/
+void ScriptDialog::docSidesChanged()
+{
+	if (m_staticThis == nullptr || s_committingOwnSides) {
+		return;
+	}
+	m_staticThis->adoptDocSides();
+#ifdef RTS_HAS_QT
+	WBQtScript_Refresh();
+#endif
+}
+
+/**
 * ScriptDialog::showImportReport - list what an import did with each team's owner.
 */
 void ScriptDialog::showImportReport(const CString &path)
@@ -4172,8 +4264,11 @@ BOOL ScriptDialog::PreTranslateMessage(MSG* pMsg)
 void ScriptDialog::OnSaveActual() 
 {
 	CWorldBuilderDoc* pDoc = CWorldBuilderDoc::GetActiveDoc();
+	adoptDocSides();
 	SidesListUndoable *pUndo = new SidesListUndoable(m_sides, pDoc);
+	s_committingOwnSides = true;
 	pDoc->AddAndDoUndoable(pUndo);
+	s_committingOwnSides = false;
 	REF_PTR_RELEASE(pUndo); // belongs to pDoc now.
 
 	SaveScriptWarningsState();

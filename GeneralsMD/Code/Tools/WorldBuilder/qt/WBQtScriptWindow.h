@@ -61,6 +61,8 @@ public:
 	virtual ~WBQtScriptWindow();
 
 	void rebuildTree();
+	// Rebuild after the model changed outside a window command.
+	void refreshFromModel();
 	// Clear per-session UI state (search text + find cursor) before a fresh dialog session.
 	void resetForNewSession();
 	// Called by WBQtScriptTree on an internal drop: move/reorder the dragged node onto target.

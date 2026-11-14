@@ -386,6 +386,8 @@ void WBQtScript_Focus(void);
 void WBQtScript_Hide(void);
 void WBQtScript_Reshow(void);
 int  WBQtScript_HasSession(void);
+// Rebuild the tree after the model changed outside a window command (a changed player list).
+void WBQtScript_Refresh(void);
 
 #ifdef __cplusplus
 }

@@ -118,7 +118,9 @@ void WBQtScriptTree::dropEvent(QDropEvent *event)
 // WBQtScriptWindow
 //----------------------------------------------------------------------------------------
 WBQtScriptWindow::WBQtScriptWindow(QWidget *owner)
-	: QWidget(NULL, Qt::Window),
+	// No minimize button: a minimized editor still holds its session and is easy to forget.
+	: QWidget(NULL, Qt::Window | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
+		| Qt::WindowMaximizeButtonHint | Qt::WindowCloseButtonHint),
 	  m_ui(new Ui::WBQtScriptWindow),
 	  m_lastFoundListType(0),
 	  m_updating(false),
@@ -1084,6 +1086,14 @@ void WBQtScriptWindow::onTreeSelectionChanged()
 	updateDetail();
 }
 
+void WBQtScriptWindow::refreshFromModel()
+{
+	rebuildTree();
+	pushSelectionToDialog();
+	updateButtonStates();
+	updateDetail();
+}
+
 void WBQtScriptWindow::handleDrop(int dragListType, int targetListType)
 {
 	WBQtScript_DropOn(dragListType, targetListType);
@@ -2044,6 +2054,15 @@ extern "C" void WBQtScript_Focus(void)
 	::SetForegroundWindow(h);
 	::SetFocus(h);
 	win->setFocus(Qt::ActiveWindowFocusReason);
+}
+
+extern "C" void WBQtScript_Refresh(void)
+{
+	WBQtScriptWindow *win = WBQtScriptWindow::instance();
+	if (win != NULL)
+	{
+		win->refreshFromModel();
+	}
 }
 
 extern "C" void WBQtScript_Close(void)

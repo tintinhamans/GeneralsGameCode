@@ -35,6 +35,7 @@
 #include "mapobjectprops.h"
 #include "ObjectOptions.h"
 #include "BuildList.h"
+#include "ScriptDialog.h"
 #include "wbview3d.h"
 #include "LayersList.h"
 #include "Common/WellKnownKeys.h"
@@ -862,6 +863,7 @@ SidesListUndoable::~SidesListUndoable()
 void SidesListUndoable::Do()
 {
 	*TheSidesList = m_new;
+	ScriptDialog::docSidesChanged();
 	MapObjectProps::update();	// ugh, hack to update panel
 	ObjectOptions::update();
 	// Sides list contains build list, so inval the build list.
@@ -874,6 +876,7 @@ void SidesListUndoable::Do()
 void SidesListUndoable::Undo()
 {
 	*TheSidesList = m_old;
+	ScriptDialog::docSidesChanged();
 	MapObjectProps::update();	// ugh, hack to update panel
 	ObjectOptions::update();
 	// Sides list contains build list, so inval the build list.

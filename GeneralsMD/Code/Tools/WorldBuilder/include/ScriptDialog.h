@@ -99,6 +99,9 @@ public:
 	Script *friend_getCurScript();
 	ScriptGroup *friend_getCurGroup();
 
+	/// The map's players, teams or build lists changed outside the script editor.
+	static void docSidesChanged();
+
 #ifdef RTS_HAS_QT
 	// Qt Script-editor front-end support (WBQtScriptBridge / ScriptDialog.cpp). The Qt
 	// window drives this still-created-but-hidden MFC dialog: it reads the flat tree model
@@ -242,6 +245,7 @@ protected:
 	void showImportReport(const CString &path);
 	void addEditFilePlayer(const AsciiString &name, const Dict *fileDict);
 	void ensureScriptLists();
+	void adoptDocSides();
 	Bool importScriptFile(const CString &path);
 	Int countOwnedObjects();
 	Bool editFileStillOpen();
