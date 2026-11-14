@@ -1742,11 +1742,10 @@ class ShippedLoginLayoutTest(unittest.TestCase):
                 self.assertEqual(len(titles), 1, path)
 
 
-SIGN_IN_PROVIDERS = ("ButtonProviderDiscord", "ButtonProviderSteam", "ButtonProviderGameReplays")
 # GO sign-in screen windows on the login profile layout, looked up by WOLLoginMenu.cpp: {short NAME: hidden by default}
 SIGN_IN_WINDOWS = {"GameSpyLoginProfile": {
     "StaticTextTitle": False, "StaticTextSignInStatus": False,
-    **dict.fromkeys(SIGN_IN_PROVIDERS, False), "ButtonUseAnotherAccount": False, "ButtonCancel": False}}
+    "ButtonUseAnotherAccount": False, "ButtonCancel": False}}
 
 
 def login_profile(base=wl.DATA):
@@ -1769,13 +1768,13 @@ class ShippedSignInScreenTest(unittest.TestCase):
 
     def test_kinds_and_kit_templates(self):
         _, wins = login_profile()
-        for name in (*SIGN_IN_PROVIDERS, "ButtonUseAnotherAccount", "ButtonCancel"):
+        for name in ("ButtonUseAnotherAccount", "ButtonCancel"):
             self.assertEqual((wins[name].kind, wins[name].header), ("PUSHBUTTON", "GOMainButton"), name)
         self.assertEqual((wins["StaticTextSignInStatus"].kind, wins["StaticTextSignInStatus"].header),
                          ("STATICTEXT", "GOMinorTitle"))
 
     def test_no_sign_in_code_window(self):
-        # the sign-in code only goes into the provider URL; no window shows it or the login page link
+        # no window shows a sign-in code or the login page link
         for base in self.bases():
             _, wins = login_profile(base)
             self.assertNotIn("StaticTextSignInCode", wins, base)
@@ -1789,25 +1788,12 @@ class ShippedSignInScreenTest(unittest.TestCase):
                 self.assertTrue(wl._within(win.rect, wl.RULER_BOX, 0), f"{base} {name} {win.rect}")
                 self.assertTrue(wl._within(win.rect, win.parent.rect, 0), f"{base} {name} {win.rect} {win.parent.rect}")
 
-    def test_provider_buttons_stack_full_width_in_order(self):
-        _, wins = login_profile()
-        status = wins["StaticTextSignInStatus"].rect
-        column = [wins[name].rect for name in SIGN_IN_PROVIDERS]
-        for rect in column:
-            self.assertEqual((rect[0], rect[2]), (status[0], status[2]), rect)
-        self.assertEqual({r[3] - r[1] for r in column}, {column[0][3] - column[0][1]})
-        gaps = {b[1] - a[3] for a, b in zip(column, column[1:])}
-        self.assertEqual(len(gaps), 1, column)
-        self.assertGreaterEqual(gaps.pop(), wl.MIN_GAP)
-
-    def test_rows_stack_title_status_providers_and_buttons(self):
+    def test_rows_stack_title_status_and_buttons(self):
         _, wins = login_profile()
         title, status = wins["StaticTextTitle"].rect, wins["StaticTextSignInStatus"].rect
-        first, last = wins[SIGN_IN_PROVIDERS[0]].rect, wins[SIGN_IN_PROVIDERS[-1]].rect
         other, cancel = wins["ButtonUseAnotherAccount"].rect, wins["ButtonCancel"].rect
         self.assertLessEqual(title[3], status[1])
-        self.assertLess(status[3], first[1])
-        self.assertLess(last[3], other[1])
+        self.assertGreaterEqual(other[1] - status[3], wl.MIN_GAP)
         self.assertEqual(other[1::2], cancel[1::2])
         self.assertEqual((other[0], cancel[2]), (status[0], status[2]))
 
@@ -1824,7 +1810,6 @@ DIALOG = "GOSignInDialog.wnd"
 DIALOG_WINDOWS = {
     "StaticTextTitle": "STATICTEXT", "StaticTextSignInStatus": "STATICTEXT", "StaticTextMessage": "STATICTEXT",
     "ProgressBarDownload": "PROGRESSBAR", "StaticTextDownloadSize": "STATICTEXT",
-    **dict.fromkeys(SIGN_IN_PROVIDERS, "PUSHBUTTON"),
     "ButtonUseAnotherAccount": "PUSHBUTTON", "ButtonUpdate": "PUSHBUTTON", "ButtonCancel": "PUSHBUTTON", "Header": "USER"}
 DIALOG_ROW = ("ButtonUseAnotherAccount", "ButtonUpdate", "ButtonCancel")
 DIALOG_DOWNLOAD = ("ProgressBarDownload", "StaticTextDownloadSize")
@@ -1833,7 +1818,7 @@ DIALOG_STEPS = {
     "checking": ("StaticTextSignInStatus", "StaticTextMessage", "ButtonCancel"),
     "update": ("StaticTextSignInStatus", "StaticTextMessage", "ButtonUpdate", "ButtonCancel"),
     "error": ("StaticTextSignInStatus", "StaticTextMessage", "ButtonCancel"),
-    "sign in": ("StaticTextSignInStatus", "StaticTextMessage", *SIGN_IN_PROVIDERS, "ButtonUseAnotherAccount", "ButtonCancel"),
+    "sign in": ("StaticTextSignInStatus", "StaticTextMessage", "ButtonUseAnotherAccount", "ButtonCancel"),
     "downloading": ("StaticTextSignInStatus", *DIALOG_DOWNLOAD, "ButtonCancel"),
     "ready": ("StaticTextSignInStatus", "StaticTextMessage", "ButtonUpdate", "ButtonCancel"),
 }
@@ -1876,7 +1861,7 @@ class ShippedSignInDialogTest(unittest.TestCase):
             self.assertEqual((x0 + x1, y0 + y1), (800, 600), base)
 
     def test_the_panel_is_a_narrow_card_and_the_buttons_keep_its_inset(self):
-        # a login card, not the 546 unit wide provider buttons of the full-screen sign-in
+        # a login card, narrower than the full-screen sign-in
         for base in self.bases():
             _, wins = sign_in_dialog(base)
             x0, _, x1, _ = wins["GOSignInDialogParent"].rect
@@ -1885,10 +1870,9 @@ class ShippedSignInDialogTest(unittest.TestCase):
             inset = status[0] - x0
             self.assertEqual(x1 - status[2], inset, base)
             self.assertTrue(8 <= inset <= 20, f"{base} inset {inset}")
-            for name in (*SIGN_IN_PROVIDERS, "StaticTextMessage"):
-                rect = wins[name].rect
-                self.assertEqual((rect[0], rect[2]), (x0 + inset, x1 - inset), f"{base} {name}")
-                self.assertTrue(260 <= rect[2] - rect[0] <= 300, f"{base} {name} width {rect[2] - rect[0]}")
+            rect = wins["StaticTextMessage"].rect
+            self.assertEqual((rect[0], rect[2]), (x0 + inset, x1 - inset), base)
+            self.assertTrue(260 <= rect[2] - rect[0] <= 300, f"{base} message width {rect[2] - rect[0]}")
             row = [wins[name].rect for name in DIALOG_ROW]
             self.assertTrue(all(x0 + inset <= r[0] and r[2] <= x1 - inset for r in row), f"{base} {row}")
             update, cancel = wins["ButtonUpdate"].rect, wins["ButtonCancel"].rect
@@ -1936,28 +1920,21 @@ class ShippedSignInDialogTest(unittest.TestCase):
             self.assertIn("LoadingBar_Progress", shape[0][1])
             self.assertEqual(bar.header, "[NONE]", base)
 
-    def test_rows_stack_status_message_providers_and_the_button_row(self):
+    def test_rows_stack_status_message_and_the_button_row(self):
         _, wins = sign_in_dialog()
         status, message = wins["StaticTextSignInStatus"].rect, wins["StaticTextMessage"].rect
-        column = [wins[name].rect for name in SIGN_IN_PROVIDERS]
         row = [wins[name].rect for name in DIALOG_ROW]
         self.assertLessEqual(wins["Header"].rect[3], status[1])
         self.assertLessEqual(status[3], message[1])
-        self.assertLess(message[3], column[0][1])
-        self.assertLess(column[-1][3], row[0][1])
-        for rect in (message, *column):
-            self.assertEqual((rect[0], rect[2]), (status[0], status[2]), rect)
-        self.assertEqual({r[3] - r[1] for r in column}, {column[0][3] - column[0][1]})
-        gaps = {b[1] - a[3] for a, b in zip(column, column[1:])}
-        self.assertEqual(len(gaps), 1, column)
-        self.assertGreaterEqual(gaps.pop(), wl.MIN_GAP)
+        self.assertGreaterEqual(row[0][1] - message[3], wl.MIN_GAP)
+        self.assertEqual((message[0], message[2]), (status[0], status[2]), message)
         self.assertEqual({(r[1], r[3]) for r in row}, {(row[0][1], row[0][3])})
         self.assertEqual((row[0][0], row[-1][2]), (status[0], status[2]))
         self.assertTrue(all(a[2] < b[0] for a, b in zip(row, row[1:])), row)
 
     def test_kinds_use_the_kit_templates(self):
         _, wins = sign_in_dialog()
-        for name in (*SIGN_IN_PROVIDERS, *DIALOG_ROW):
+        for name in DIALOG_ROW:
             self.assertEqual(wins[name].header, "GOMainButton", name)
         self.assertEqual(wins["StaticTextSignInStatus"].header, "GOMinorTitle")
 
