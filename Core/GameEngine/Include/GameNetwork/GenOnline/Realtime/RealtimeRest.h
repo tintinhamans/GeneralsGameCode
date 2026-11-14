@@ -230,6 +230,22 @@ inline std::string RestMePath()
 	return "/api/v1/me";
 }
 
+// POST reports the final connection result of one pair of lobby members.
+inline std::string RestConnectionReportPath(int64_t lobbyID)
+{
+	return "/api/v1/lobbies/" + std::to_string(lobbyID) + "/connection_reports";
+}
+
+// The outcome of a connection report. Only final results are reported.
+inline std::string ConnectionReportOutcome(bool bConnected, bool bRelayed, bool bDisconnected)
+{
+	if (bConnected)
+	{
+		return bRelayed ? "connected_relay" : "connected_direct";
+	}
+	return bDisconnected ? "disconnected" : "failed";
+}
+
 // PUT stores the result of the caller in that match. Safe to repeat.
 inline std::string RestMatchResultPath(int64_t matchID)
 {
@@ -277,6 +293,24 @@ struct MatchResultBody : WireObject
 		v("side", side);
 		v("duration_s", duration_s);
 		v("stats", stats);
+	}
+};
+
+// POST /api/v1/lobbies/:id/connection_reports
+struct ConnectionReportBody : WireObject
+{
+	int64_t target_user_id = 0;
+	std::string outcome;
+	// gns or eos
+	std::string transport;
+	int ip_version = 4;
+
+	template <class V> void Fields(V& v)
+	{
+		v("target_user_id", target_user_id);
+		v("outcome", outcome);
+		v("transport", transport);
+		v("ip_version", ip_version);
 	}
 };
 
