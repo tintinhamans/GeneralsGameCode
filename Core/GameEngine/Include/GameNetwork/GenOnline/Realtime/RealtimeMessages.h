@@ -700,126 +700,6 @@ struct MarkReadRequest : ConversationArgument
 	static constexpr bool EXPECTS_RESULT = true;
 };
 
-struct SetDisplayNameRequest : WireObject
-{
-	static constexpr const char* METHOD = "SetDisplayName";
-	static constexpr bool EXPECTS_RESULT = true;
-
-	std::string name;
-
-	template <class V> void Fields(V& v)
-	{
-		v("name", name);
-	}
-};
-
-struct MessageReasonArgument : WireObject
-{
-	std::string message_id;
-	std::optional<std::string> reason;
-
-	template <class V> void Fields(V& v)
-	{
-		v("message_id", message_id);
-		v("reason", reason);
-	}
-};
-
-struct ReportMessageRequest : MessageReasonArgument
-{
-	static constexpr const char* METHOD = "ReportMessage";
-	static constexpr bool EXPECTS_RESULT = true;
-};
-
-// Requests: group chats /////////////////////////////////////////////////////////
-
-struct CreateGroupRequest : WireObject
-{
-	static constexpr const char* METHOD = "CreateGroup";
-	static constexpr bool EXPECTS_RESULT = true;
-
-	std::vector<int64_t> user_ids;
-	std::optional<std::string> name;
-
-	template <class V> void Fields(V& v)
-	{
-		v("user_ids", user_ids);
-		v("name", name);
-	}
-};
-
-struct CreateGroupResult : WireObject
-{
-	int64_t group_id = 0;
-
-	template <class V> void Fields(V& v)
-	{
-		v("group_id", group_id);
-	}
-};
-
-struct GroupIdArgument : WireObject
-{
-	int64_t group_id = 0;
-
-	template <class V> void Fields(V& v)
-	{
-		v("group_id", group_id);
-	}
-};
-
-struct AddGroupMembersRequest : WireObject
-{
-	static constexpr const char* METHOD = "AddGroupMembers";
-	static constexpr bool EXPECTS_RESULT = true;
-
-	int64_t group_id = 0;
-	std::vector<int64_t> user_ids;
-
-	template <class V> void Fields(V& v)
-	{
-		v("group_id", group_id);
-		v("user_ids", user_ids);
-	}
-};
-
-struct RemoveGroupMemberRequest : WireObject
-{
-	static constexpr const char* METHOD = "RemoveGroupMember";
-	static constexpr bool EXPECTS_RESULT = true;
-
-	int64_t group_id = 0;
-	int64_t user_id = 0;
-
-	template <class V> void Fields(V& v)
-	{
-		v("group_id", group_id);
-		v("user_id", user_id);
-	}
-};
-
-// A null name clears it.
-struct RenameGroupRequest : WireObject
-{
-	static constexpr const char* METHOD = "RenameGroup";
-	static constexpr bool EXPECTS_RESULT = true;
-
-	int64_t group_id = 0;
-	Nullable<std::string> name;
-
-	template <class V> void Fields(V& v)
-	{
-		v("group_id", group_id);
-		v("name", name);
-	}
-};
-
-struct LeaveGroupRequest : GroupIdArgument
-{
-	static constexpr const char* METHOD = "LeaveGroup";
-	static constexpr bool EXPECTS_RESULT = true;
-};
-
 
 struct WatchLobbyListRequest : EmptyObject
 {
@@ -1119,58 +999,6 @@ struct MatchStats : WireObject
 	}
 };
 
-struct ReportMatchOutcomeRequest : WireObject
-{
-	static constexpr const char* METHOD = "ReportMatchOutcome";
-	static constexpr bool EXPECTS_RESULT = true;
-
-	int64_t match_id = 0;
-	bool won = false;
-	bool desynced = false;
-	int side = 0;
-	int64_t duration_s = 0;
-	MatchStats stats;
-
-	template <class V> void Fields(V& v)
-	{
-		v("match_id", match_id);
-		v("won", won);
-		v("desynced", desynced);
-		v("side", side);
-		v("duration_s", duration_s);
-		v("stats", stats);
-	}
-};
-
-// The URLs are presigned upload targets.
-struct ReportMatchOutcomeResult : WireObject
-{
-	std::string screenshot_url;
-	std::string replay_url;
-
-	template <class V> void Fields(V& v)
-	{
-		v("screenshot_url", screenshot_url);
-		v("replay_url", replay_url);
-	}
-};
-
-
-struct GetPlaylistsRequest : EmptyObject
-{
-	static constexpr const char* METHOD = "GetPlaylists";
-	static constexpr bool EXPECTS_RESULT = true;
-};
-
-struct GetPlaylistsResult : WireObject
-{
-	std::vector<Playlist> playlists;
-
-	template <class V> void Fields(V& v)
-	{
-		v("playlists", playlists);
-	}
-};
 
 struct JoinQueueRequest : WireObject
 {
@@ -1196,124 +1024,6 @@ struct LeaveQueueRequest : EmptyObject
 struct WidenSearchRequest : EmptyObject
 {
 	static constexpr const char* METHOD = "WidenSearch";
-	static constexpr bool EXPECTS_RESULT = true;
-};
-
-// Requests: social //////////////////////////////////////////////////////////////
-
-struct SendFriendRequestRequest : UserIdArgument
-{
-	static constexpr const char* METHOD = "SendFriendRequest";
-	static constexpr bool EXPECTS_RESULT = true;
-};
-
-struct AcceptFriendRequestRequest : UserIdArgument
-{
-	static constexpr const char* METHOD = "AcceptFriendRequest";
-	static constexpr bool EXPECTS_RESULT = true;
-};
-
-struct DeclineFriendRequestRequest : UserIdArgument
-{
-	static constexpr const char* METHOD = "DeclineFriendRequest";
-	static constexpr bool EXPECTS_RESULT = true;
-};
-
-struct CancelFriendRequestRequest : UserIdArgument
-{
-	static constexpr const char* METHOD = "CancelFriendRequest";
-	static constexpr bool EXPECTS_RESULT = true;
-};
-
-struct RemoveFriendRequest : UserIdArgument
-{
-	static constexpr const char* METHOD = "RemoveFriend";
-	static constexpr bool EXPECTS_RESULT = true;
-};
-
-struct BlockUserRequest : UserIdArgument
-{
-	static constexpr const char* METHOD = "BlockUser";
-	static constexpr bool EXPECTS_RESULT = true;
-};
-
-struct UnblockUserRequest : UserIdArgument
-{
-	static constexpr const char* METHOD = "UnblockUser";
-	static constexpr bool EXPECTS_RESULT = true;
-};
-
-// Requests: moderation //////////////////////////////////////////////////////////
-
-struct UserReasonArgument : WireObject
-{
-	int64_t user_id = 0;
-	std::optional<std::string> reason;
-
-	template <class V> void Fields(V& v)
-	{
-		v("user_id", user_id);
-		v("reason", reason);
-	}
-};
-
-struct KickRequest : UserReasonArgument
-{
-	static constexpr const char* METHOD = "Kick";
-	static constexpr bool EXPECTS_RESULT = true;
-};
-
-// A mute is never permanent, duration_s is whole seconds.
-struct MuteRequest : WireObject
-{
-	static constexpr const char* METHOD = "Mute";
-	static constexpr bool EXPECTS_RESULT = true;
-
-	int64_t user_id = 0;
-	int64_t duration_s = 0;
-	std::optional<std::string> reason;
-
-	template <class V> void Fields(V& v)
-	{
-		v("user_id", user_id);
-		v("duration_s", duration_s);
-		v("reason", reason);
-	}
-};
-
-struct UnmuteRequest : UserReasonArgument
-{
-	static constexpr const char* METHOD = "Unmute";
-	static constexpr bool EXPECTS_RESULT = true;
-};
-
-// A ban without duration_s is permanent. A ban always has a reason.
-struct BanRequest : WireObject
-{
-	static constexpr const char* METHOD = "Ban";
-	static constexpr bool EXPECTS_RESULT = true;
-
-	int64_t user_id = 0;
-	std::optional<int64_t> duration_s;
-	std::string reason;
-
-	template <class V> void Fields(V& v)
-	{
-		v("user_id", user_id);
-		v("duration_s", duration_s);
-		v("reason", reason);
-	}
-};
-
-struct UnbanRequest : UserReasonArgument
-{
-	static constexpr const char* METHOD = "Unban";
-	static constexpr bool EXPECTS_RESULT = true;
-};
-
-struct DeleteMessageRequest : MessageReasonArgument
-{
-	static constexpr const char* METHOD = "DeleteMessage";
 	static constexpr bool EXPECTS_RESULT = true;
 };
 
@@ -1569,6 +1279,8 @@ struct ReadyEvent : WireObject
 	std::string session_type;
 	Member user;
 	std::vector<std::string> permissions;
+	// The client features switched on for this player, for example stats_exporter and observer.
+	std::optional<std::vector<std::string> > features;
 	BadgeMap badges;
 	std::vector<ChannelInfo> channels;
 	SessionLimits limits;
@@ -1579,6 +1291,7 @@ struct ReadyEvent : WireObject
 		v("session_type", session_type);
 		v("user", user);
 		v("permissions", permissions);
+		v("features", features);
 		v("badges", badges);
 		v("channels", channels);
 		v("limits", limits);
@@ -1595,6 +1308,19 @@ struct BadgesUpdateEvent : WireObject
 	template <class V> void Fields(V& v)
 	{
 		v("badges", badges);
+	}
+};
+
+// Carries the full feature list whenever it changes.
+struct FeaturesUpdateEvent : WireObject
+{
+	static constexpr const char* EVENT = "FeaturesUpdate";
+
+	std::vector<std::string> features;
+
+	template <class V> void Fields(V& v)
+	{
+		v("features", features);
 	}
 };
 

@@ -581,6 +581,17 @@ bool GenOnlineLobbyInterface::IsHost()
 
 void GenOnlineLobbyInterface::Tick()
 {
+	// The held history of a join shows once the lobby menu takes chat lines, or at the deadline.
+	if (IsInLobby() && m_PendingLobbyHistory.IsHolding(m_LobbyChat.ChannelID())
+		&& (m_OnChatCallback != nullptr || m_OnChatMessageCallback != nullptr || std::chrono::steady_clock::now() >= m_LobbyChatHistoryDeadline))
+	{
+		GenOnlineRealtime::ChannelHistoryEvent history;
+		if (m_PendingLobbyHistory.Take(m_LobbyChat.ChannelID(), history))
+		{
+			ShowLobbyChatUpdate(m_LobbyChat.AddHistory(history));
+		}
+	}
+
 	// Live lobby messages stop waiting for a ChannelHistory that does not come.
 	if (m_LobbyChat.IsAwaitingHistory() && std::chrono::steady_clock::now() >= m_LobbyChatHistoryDeadline)
 	{
@@ -907,6 +918,7 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 
 	m_bAttemptingToJoinLobby = true;
 	m_CurrentLobby = LobbyEntry();
+	m_PendingLobbyHistory.Clear();
 	ResetJoinOrder();
 	ResetHostMigrationFlags();
 
@@ -987,6 +999,7 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 						NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Joined lobby");
 
 						m_CurrentLobby = lobbyInfo;
+						StartJoinedLobbyChat();
 
 						// failing to parse this isnt really a fatal error, but would be weird
 						try
@@ -1256,6 +1269,7 @@ void GenOnlineLobbyInterface::TearDownLocalLobbyState()
 	m_hubGameStartLobbyID = -1;
 	m_MatchStart.Reset();
 	m_LobbyChat.Clear();
+	m_PendingLobbyHistory.Clear();
 	FlushLobbyStateWaiters(false);
 }
 
@@ -2010,11 +2024,37 @@ void GenOnlineLobbyInterface::OnRealtimeLobbyMessageCreate(const GenOnlineRealti
 
 void GenOnlineLobbyInterface::OnRealtimeLobbyHistory(const GenOnlineRealtime::ChannelHistoryEvent& event)
 {
+	// The history of a join comes before the JoinLobby Result, so it waits for the lobby chat to start.
+	if (!IsInLobby())
+	{
+		if (m_bAttemptingToJoinLobby)
+		{
+			m_PendingLobbyHistory.Hold(event);
+		}
+		return;
+	}
 	if (!EnsureLobbyChat())
 	{
 		return;
 	}
-	const GenOnlineRealtime::ChannelChatUpdate update = m_LobbyChat.AddHistory(event);
+	ShowLobbyChatUpdate(m_LobbyChat.AddHistory(event));
+}
+
+void GenOnlineLobbyInterface::StartJoinedLobbyChat()
+{
+	const std::string channelID = "lobby:" + std::to_string(m_CurrentLobby.lobbyID);
+	m_LobbyChat.Start(channelID);
+	if (!m_PendingLobbyHistory.IsHolding(channelID))
+	{
+		m_PendingLobbyHistory.Clear();
+		m_LobbyChat.ReleaseWaiting();
+		return;
+	}
+	m_LobbyChatHistoryDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+}
+
+void GenOnlineLobbyInterface::ShowLobbyChatUpdate(const GenOnlineRealtime::ChannelChatUpdate& update)
+{
 	for (uint32_t key : update.removed)
 	{
 		if (m_OnChatMessageRemovedCallback != nullptr)

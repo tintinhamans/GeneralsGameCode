@@ -1,5 +1,6 @@
 #include "GameNetwork/GenOnline/json.hpp"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
+#include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/RankPointValue.h"
@@ -580,8 +581,7 @@ void GenOnlineStatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeeper, bool bW
 	    const bool desynced = TheNetwork->sawCRCMismatch();
 		const uint32_t duration = TheGameLogic->getFrame() / LOGICFRAMES_PER_SECOND;
 
-		GenOnlineRealtime::ReportMatchOutcomeRequest request;
-		request.match_id = (int64_t)currentMatchID;
+		GenOnlineRealtime::MatchResultBody request;
 		request.won = bWon;
 		request.desynced = desynced;
 		request.side = resolvedSide;
@@ -593,16 +593,23 @@ void GenOnlineStatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeeper, bool bW
 		request.stats.units_killed = unitsDestroyed;
 		request.stats.units_lost = unitsLost;
 		request.stats.total_money = totalMoney;
-		InvokeRealtimeHub(request, [currentMatchID](const GenOnlineRealtime::InvokeOutcome& outcome)
+		// The result is safe to send again, so a lost answer or a server error retries.
+		GenOnlineRealtimeBridge::CallRestWithRetry(GenOnlineRealtimeBridge::RestMethod::Put, GenOnlineRealtime::RestMatchResultPath((int64_t)currentMatchID), nlohmann::json(request).dump(),
+			[currentMatchID](const GenOnlineRealtime::RestOutcome& outcome)
 			{
-				GenOnlineRealtime::ReportMatchOutcomeResult result;
+				GenOnlineRealtime::MatchResultResponse result;
 				if (!outcome.Data(result))
 				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] ReportMatchOutcome for match %llu failed: %s", currentMatchID, outcome.delivered ? outcome.Code().c_str() : outcome.transportError.c_str());
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] Match result for match %llu failed: status %d code %s", currentMatchID, outcome.status, outcome.error.code.c_str());
 					return;
 				}
-				GenOnlineServicesManager::GetInstance()->SetScreenshotS3URI_EndMatch(currentMatchID, result.screenshot_url);
-				GenOnlineServicesManager::GetInstance()->SetScreenshotS3URI_Replay(currentMatchID, result.replay_url);
+				GenOnlineServicesManager* pManager = GenOnlineServicesManager::GetInstance();
+				if (pManager == nullptr)
+				{
+					return;
+				}
+				pManager->SetScreenshotS3URI_EndMatch(currentMatchID, result.screenshot_url);
+				pManager->SetScreenshotS3URI_Replay(currentMatchID, result.replay_url);
 			});
 	}
 }

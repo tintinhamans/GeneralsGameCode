@@ -1,0 +1,576 @@
+/*
+**	Command & Conquer Generals Zero Hour(tm)
+**	Copyright 2026 TheSuperHackers
+**
+**	This program is free software: you can redistribute it and/or modify
+**	it under the terms of the GNU General Public License as published by
+**	the Free Software Foundation, either version 3 of the License, or
+**	(at your option) any later version.
+**
+**	This program is distributed in the hope that it will be useful,
+**	but WITHOUT ANY WARRANTY; without even the implied warranty of
+**	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**	GNU General Public License for more details.
+**
+**	You should have received a copy of the GNU General Public License
+**	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+///////////////////////////////////////////////////////////////////////////////
+
+#pragma once
+
+#include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
+#include "GameNetwork/GenOnline/json.hpp"
+
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <vector>
+
+namespace GenOnlineRealtime
+{
+
+
+struct ApiErrorInfo
+{
+	// Empty when the body names no code.
+	std::string code;
+	// Always an object. A reason or expiry of the top level is copied in when params lacks it.
+	nlohmann::json params = nlohmann::json::object();
+	std::optional<std::string> reason;
+	// Absent for a ban without an end.
+	std::optional<std::string> expires_at;
+};
+
+// Reads an error body. The spec form is {"error": code, "params": {...}}. Older services name the
+// code in a top level "code" or add a "message" next to "error", and put reason and expires_at at the
+// top level. A body that is not a JSON object gives an empty code.
+inline ApiErrorInfo ParseApiError(const std::string& body)
+{
+	ApiErrorInfo info;
+	const nlohmann::json root = nlohmann::json::parse(body, nullptr, false);
+	if (root.is_discarded() || !root.is_object())
+	{
+		return info;
+	}
+	auto error = root.find("error");
+	auto code = root.find("code");
+	if (error != root.end() && error->is_string())
+	{
+		info.code = error->get<std::string>();
+	}
+	else if (code != root.end() && code->is_string())
+	{
+		info.code = code->get<std::string>();
+	}
+	auto params = root.find("params");
+	if (params != root.end() && params->is_object())
+	{
+		info.params = *params;
+	}
+	for (const char* key : { "reason", "expires_at" })
+	{
+		auto inParams = info.params.find(key);
+		if (inParams != info.params.end() && inParams->is_string())
+		{
+			continue;
+		}
+		auto top = root.find(key);
+		if (top != root.end() && top->is_string())
+		{
+			info.params[key] = *top;
+		}
+	}
+	auto reason = info.params.find("reason");
+	if (reason != info.params.end() && reason->is_string())
+	{
+		info.reason = reason->get<std::string>();
+	}
+	auto expiresAt = info.params.find("expires_at");
+	if (expiresAt != info.params.end() && expiresAt->is_string() && !expiresAt->get<std::string>().empty())
+	{
+		info.expires_at = expiresAt->get<std::string>();
+	}
+	return info;
+}
+
+struct RestOutcome
+{
+	bool delivered = false;
+	int status = 0;
+	std::string body;
+	ApiErrorInfo error;
+
+	bool Succeeded() const
+	{
+		return delivered && status >= 200 && status < 300;
+	}
+
+	// Parses the body of a success. A 204 without a body reads as an empty object.
+	template <class T>
+	bool Data(T& out) const
+	{
+		if (!Succeeded())
+		{
+			return false;
+		}
+		const nlohmann::json data = body.empty() ? nlohmann::json::object() : nlohmann::json::parse(body, nullptr, false);
+		if (data.is_discarded())
+		{
+			return false;
+		}
+		try
+		{
+			out = data.get<T>();
+			return true;
+		}
+		catch (const std::exception&)
+		{
+			return false;
+		}
+	}
+};
+
+inline RestOutcome MakeRestOutcome(bool delivered, int status, const std::string& body)
+{
+	RestOutcome outcome;
+	outcome.delivered = delivered && status != 0;
+	outcome.status = status;
+	outcome.body = body;
+	if (outcome.delivered && !outcome.Succeeded())
+	{
+		outcome.error = ParseApiError(body);
+		// A 401 means the same for every caller, also without a body.
+		if (outcome.error.code.empty() && status == 401)
+		{
+			outcome.error.code = "unauthorized";
+		}
+	}
+	return outcome;
+}
+
+
+// Sends of a call that is safe to repeat, the first one included.
+constexpr int REST_RETRY_MAX_SENDS = 4;
+
+// The delay before the next send of a failed call that is safe to repeat, or -1 to give up.
+// sendsSoFar counts the sends already made. A lost answer, a timeout, a rate limit and a server
+// error retry. A rule failure or a rejected token does not, a new send gets the same answer.
+inline int64_t RestRetryDelayMs(const RestOutcome& outcome, int sendsSoFar)
+{
+	if (outcome.Succeeded() || sendsSoFar >= REST_RETRY_MAX_SENDS)
+	{
+		return -1;
+	}
+	if (outcome.delivered && outcome.status != 408 && outcome.status != 429 && outcome.status < 500)
+	{
+		return -1;
+	}
+	if (outcome.status == 429)
+	{
+		auto it = outcome.error.params.find("retry_after_ms");
+		if (it != outcome.error.params.end() && it->is_number_integer() && it->get<int64_t>() > 0)
+		{
+			return (std::min)(it->get<int64_t>(), (int64_t)60000);
+		}
+	}
+	static const int64_t DELAYS_MS[] = { 2000, 5000, 10000 };
+	const int index = (std::max)(0, (std::min)(sendsSoFar - 1, 2));
+	return DELAYS_MS[index];
+}
+
+
+inline std::string RestFriendRequestsPath()
+{
+	return "/api/v1/me/friend_requests";
+}
+
+// POST accepts the incoming request of the user.
+inline std::string RestFriendRequestAcceptPath(int64_t userID)
+{
+	return RestFriendRequestsPath() + "/" + std::to_string(userID) + "/accept";
+}
+
+// DELETE declines an incoming or cancels an outgoing request.
+inline std::string RestFriendRequestPath(int64_t userID)
+{
+	return RestFriendRequestsPath() + "/" + std::to_string(userID);
+}
+
+// DELETE ends a friendship.
+inline std::string RestFriendPath(int64_t userID)
+{
+	return "/api/v1/me/friends/" + std::to_string(userID);
+}
+
+// PUT blocks, DELETE unblocks.
+inline std::string RestBlockPath(int64_t userID)
+{
+	return "/api/v1/me/blocks/" + std::to_string(userID);
+}
+
+// PATCH changes the display name.
+inline std::string RestMePath()
+{
+	return "/api/v1/me";
+}
+
+// POST reports the final connection result of one pair of lobby members.
+inline std::string RestConnectionReportPath(int64_t lobbyID)
+{
+	return "/api/v1/lobbies/" + std::to_string(lobbyID) + "/connection_reports";
+}
+
+// The outcome of a connection report. Only final results are reported.
+inline std::string ConnectionReportOutcome(bool bConnected, bool bRelayed, bool bDisconnected)
+{
+	if (bConnected)
+	{
+		return bRelayed ? "connected_relay" : "connected_direct";
+	}
+	return bDisconnected ? "disconnected" : "failed";
+}
+
+// PUT stores the result of the caller in that match. Safe to repeat.
+inline std::string RestMatchResultPath(int64_t matchID)
+{
+	return "/api/v1/matches/" + std::to_string(matchID) + "/results/me";
+}
+
+inline std::string RestPlaylistsPath()
+{
+	return "/api/v1/matchmaking/playlists";
+}
+
+
+// POST /api/v1/me/friend_requests
+struct FriendRequestBody : UserIdArgument
+{
+};
+
+// PATCH /api/v1/me
+struct ProfileUpdateBody : WireObject
+{
+	std::string name;
+
+	template <class V> void Fields(V& v)
+	{
+		v("name", name);
+	}
+};
+
+
+// PUT /api/v1/matches/:id/results/me
+struct MatchResultBody : WireObject
+{
+	bool won = false;
+	bool desynced = false;
+	int side = 0;
+	int64_t duration_s = 0;
+	MatchStats stats;
+
+	template <class V> void Fields(V& v)
+	{
+		v("won", won);
+		v("desynced", desynced);
+		v("side", side);
+		v("duration_s", duration_s);
+		v("stats", stats);
+	}
+};
+
+struct ConnectionReportEvent : WireObject
+{
+	// connecting, finding_route, connected_direct, connected_relay, failed or disconnected
+	std::string state;
+	// The milliseconds since the attempt started, never decreasing, at most 600000.
+	int64_t t_ms = 0;
+
+	template <class V> void Fields(V& v)
+	{
+		v("state", state);
+		v("t_ms", t_ms);
+	}
+};
+
+// POST /api/v1/lobbies/:id/connection_reports
+struct ConnectionReportBody : WireObject
+{
+	int64_t target_user_id = 0;
+	std::string outcome;
+	// gns or eos
+	std::string transport;
+	int ip_version = 4;
+	// The attempt of this pair in this lobby, 1 or more. The service reads an absent attempt as 1.
+	std::optional<int> attempt;
+	// Every state change of the attempt, oldest first, at most 32.
+	std::optional<std::vector<ConnectionReportEvent> > events;
+
+	template <class V> void Fields(V& v)
+	{
+		v("target_user_id", target_user_id);
+		v("outcome", outcome);
+		v("transport", transport);
+		v("ip_version", ip_version);
+		v("attempt", attempt);
+		v("events", events);
+	}
+};
+
+// The URLs are presigned upload targets.
+struct MatchResultResponse : WireObject
+{
+	std::string screenshot_url;
+	std::string replay_url;
+
+	template <class V> void Fields(V& v)
+	{
+		v("screenshot_url", screenshot_url);
+		v("replay_url", replay_url);
+	}
+};
+
+// GET /api/v1/matchmaking/playlists
+struct PlaylistsResponse : WireObject
+{
+	std::vector<Playlist> playlists;
+
+	template <class V> void Fields(V& v)
+	{
+		v("playlists", playlists);
+	}
+};
+
+
+// POST /api/v1/groups
+struct GroupCreateBody : WireObject
+{
+	std::vector<int64_t> user_ids;
+	std::optional<std::string> name;
+
+	template <class V> void Fields(V& v)
+	{
+		v("user_ids", user_ids);
+		v("name", name);
+	}
+};
+
+struct GroupCreateResponse : WireObject
+{
+	int64_t group_id = 0;
+
+	template <class V> void Fields(V& v)
+	{
+		v("group_id", group_id);
+	}
+};
+
+// POST /api/v1/groups/:id/members
+struct GroupMembersBody : WireObject
+{
+	std::vector<int64_t> user_ids;
+
+	template <class V> void Fields(V& v)
+	{
+		v("user_ids", user_ids);
+	}
+};
+
+// PATCH /api/v1/groups/:id. A null name clears it.
+struct GroupRenameBody : WireObject
+{
+	Nullable<std::string> name;
+
+	template <class V> void Fields(V& v)
+	{
+		v("name", name);
+	}
+};
+
+
+// The optional reason of DELETE /api/v1/sanctions/:id and DELETE /api/v1/messages/:id.
+struct ReasonBody : WireObject
+{
+	std::optional<std::string> reason;
+
+	template <class V> void Fields(V& v)
+	{
+		v("reason", reason);
+	}
+};
+
+// POST /api/v1/players/:id/sanctions. type is "kick", "mute" or "ban". A ban without duration_s is permanent.
+struct SanctionBody : WireObject
+{
+	std::string type;
+	std::optional<int64_t> duration_s;
+	std::optional<std::string> reason;
+
+	template <class V> void Fields(V& v)
+	{
+		v("type", type);
+		v("duration_s", duration_s);
+		v("reason", reason);
+	}
+};
+
+struct SanctionCreateResponse : WireObject
+{
+	int64_t sanction_id = 0;
+
+	template <class V> void Fields(V& v)
+	{
+		v("sanction_id", sanction_id);
+	}
+};
+
+struct Sanction : WireObject
+{
+	int64_t id = 0;
+	std::string type;
+	Nullable<std::string> reason;
+	std::string created_at;
+	Nullable<std::string> expires_at;
+	Nullable<std::string> lifted_at;
+	Member created_by;
+
+	template <class V> void Fields(V& v)
+	{
+		v("id", id);
+		v("type", type);
+		v("reason", reason);
+		v("created_at", created_at);
+		v("expires_at", expires_at);
+		v("lifted_at", lifted_at);
+		v("created_by", created_by);
+	}
+};
+
+// GET /api/v1/players/:id/sanctions
+struct SanctionsResponse : WireObject
+{
+	std::vector<Sanction> sanctions;
+
+	template <class V> void Fields(V& v)
+	{
+		v("sanctions", sanctions);
+	}
+};
+
+// GET /api/v1/me/friends, the lists of the Friends event without the blocked users.
+struct MyFriendsResponse : WireObject
+{
+	std::vector<FriendEntry> friends;
+	std::vector<Member> incoming;
+	std::vector<Member> outgoing;
+
+	template <class V> void Fields(V& v)
+	{
+		v("friends", friends);
+		v("incoming", incoming);
+		v("outgoing", outgoing);
+	}
+};
+
+// GET /api/v1/me/blocks
+struct MyBlocksResponse : WireObject
+{
+	std::vector<Member> blocked;
+
+	template <class V> void Fields(V& v)
+	{
+		v("blocked", blocked);
+	}
+};
+
+// A report in the staff queue. message_id is null for a report of a player.
+struct StaffReport : WireObject
+{
+	int64_t id = 0;
+	Member reporter;
+	Member reported;
+	Nullable<std::string> message_id;
+	Nullable<std::string> reason;
+	std::string status;
+	std::string created_at;
+	Nullable<std::string> resolved_at;
+	Nullable<std::string> resolution_note;
+
+	template <class V> void Fields(V& v)
+	{
+		v("id", id);
+		v("reporter", reporter);
+		v("reported", reported);
+		v("message_id", message_id);
+		v("reason", reason);
+		v("status", status);
+		v("created_at", created_at);
+		v("resolved_at", resolved_at);
+		v("resolution_note", resolution_note);
+	}
+};
+
+// GET /api/v1/reports
+struct StaffReportsResponse : WireObject
+{
+	std::vector<StaffReport> reports;
+
+	template <class V> void Fields(V& v)
+	{
+		v("reports", reports);
+	}
+};
+
+// PATCH /api/v1/reports/:id closes a report as actioned or dismissed.
+struct ReportCloseBody : WireObject
+{
+	std::string status;
+	std::optional<std::string> resolution_note;
+
+	template <class V> void Fields(V& v)
+	{
+		v("status", status);
+		v("resolution_note", resolution_note);
+	}
+};
+
+// POST /api/v1/reports. Exactly one of message_id and user_id.
+struct ReportBody : WireObject
+{
+	std::optional<std::string> message_id;
+	std::optional<int64_t> user_id;
+	std::optional<std::string> reason;
+
+	template <class V> void Fields(V& v)
+	{
+		v("message_id", message_id);
+		v("user_id", user_id);
+		v("reason", reason);
+	}
+};
+
+struct ReportCreateResponse : WireObject
+{
+	int64_t report_id = 0;
+
+	template <class V> void Fields(V& v)
+	{
+		v("report_id", report_id);
+	}
+};
+
+// The failure body of the spec form.
+struct ErrorBody : WireObject
+{
+	std::string error;
+	nlohmann::json params = nlohmann::json::object();
+
+	template <class V> void Fields(V& v)
+	{
+		v("error", error);
+		v("params", params);
+	}
+};
+
+} // namespace GenOnlineRealtime

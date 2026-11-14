@@ -7,6 +7,11 @@
 #include "GameNetwork/RankPointValue.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 
+namespace GenOnlineRealtimeBridge
+{
+enum class RestMethod;
+}
+
 struct FriendsEntry
 {
 	int64_t user_id = -1;
@@ -178,9 +183,9 @@ public:
 	void OnRealtimeDirectMessageDelete(const GenOnlineRealtime::MessageDeleteEvent& event);
 
 private:
-	// Calls a social hub method and refreshes the communicator once the service answered.
-	template <class R>
-	void InvokeSocialRealtime(const R& request, std::function<void(GenOnlineSocialInterface* pThis)> onSuccess);
+	// Calls a social REST endpoint and refreshes the communicator once the service answered.
+	// The hub pushes the resulting events as well.
+	void CallSocialRest(GenOnlineRealtimeBridge::RestMethod method, const std::string& path, const std::string& body, std::function<void(GenOnlineSocialInterface* pThis)> onSuccess);
 	std::string FindDisplayName(int64_t user_id);
 	bool m_bRealtimeWelcomePending = false;
 	GenOnlineRealtime::DirectConversation& GetConversation(int64_t peer_user_id);

@@ -15,6 +15,8 @@
 #include "../json.hpp"
 #include "../HTTP/HTTPManager.h"
 #include "../GenOnlineInit.h"
+#include "../GenOnlineRealtimeBridge.h"
+#include "../GenOnlineLobbyInterface.h"
 #include <steam/isteamnetworkingutils.h>
 #include <steam/steamnetworkingcustomsignaling.h>
 #include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
@@ -867,36 +869,41 @@ void NetworkMesh::Flush()
 }
 
 
-void NetworkMesh::RegisterConnectivity(int64_t userID)
-{
-	nlohmann::json j;
-	j["target"] = userID;
-	j["direct"] = false;
-	j["outcome"] = EConnectionState::NOT_CONNECTED;
-	j["ipv4"] = true;
-	std::string strPostData = j.dump();
-	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("ConnectionOutcome");
-	std::map<std::string, std::string> mapHeaders;
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-			// dont care about the response
-		});
-}
-
 void NetworkMesh::UpdateConnectivity(PlayerConnection* connection)
 {
-	nlohmann::json j;
-	j["target"] = connection->m_userID;
-	j["direct"] = connection->IsDirect();
-	j["outcome"] = connection->GetState();
-	j["ipv4"] = connection->IsIPV4();
-	std::string strPostData = j.dump();
-	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("ConnectionOutcome");
-	std::map<std::string, std::string> mapHeaders;
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-			// dont care about the response
-		});
+	// Only the final result of a pair is reported, never the connecting or route finding states.
+	const EConnectionState state = connection->GetState();
+	const bool bConnected = state == EConnectionState::CONNECTED_DIRECT;
+	const bool bDisconnected = state == EConnectionState::CONNECTION_DISCONNECTED;
+	if (!bConnected && !bDisconnected && state != EConnectionState::CONNECTION_FAILED)
+	{
+		return;
+	}
+
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pLobbyInterface == nullptr || !pLobbyInterface->IsInLobby())
+	{
+		return;
+	}
+
+	// A placeholder entry of a manual retry is no attempt, and a report for it would replace the report of attempt 1.
+	if (connection->m_reportAttempt <= 0)
+	{
+		return;
+	}
+
+	GenOnlineRealtime::ConnectionReportBody body;
+	body.target_user_id = connection->m_userID;
+	body.outcome = GenOnlineRealtime::ConnectionReportOutcome(bConnected, !connection->IsDirect(), bDisconnected);
+	body.transport = connection->m_ConnectionType == EConnectionType::MiddlewarePluginGeneric ? "eos" : "gns";
+	body.ip_version = connection->IsIPV4() ? 4 : 6;
+	body.attempt = connection->m_reportAttempt;
+	if (!connection->m_timeline.Events().empty())
+	{
+		body.events = connection->m_timeline.Events();
+	}
+	const std::string path = GenOnlineRealtime::RestConnectionReportPath(pLobbyInterface->GetCurrentLobby().lobbyID);
+	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Post, path, nlohmann::json(body).dump(), nullptr);
 }
 
 int NetworkMesh::SendGamePacket(void* pBuffer, uint32_t totalDataSize, int64_t user_id)
@@ -989,6 +996,8 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 
             // add attempt; carried over so the retry cap holds across re-signals
             m_mapConnections[remoteUserID].m_SignallingAttempts = previousAttempts + 1;
+            // Every connection signalling creates is a new attempt of the connection report.
+            m_mapConnections[remoteUserID].m_reportAttempt = ++m_reportAttempts[remoteUserID];
         }
 	}
 	else
@@ -1139,6 +1148,8 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             // add attempt; carried over so the retry cap holds across re-signals
             m_mapConnections[remoteUserID].m_SignallingAttempts = previousAttempts + 1;
             m_mapConnections[remoteUserID].m_retryTimeout = retryTimeout;
+            // Every connection signalling creates is a new attempt of the connection report.
+            m_mapConnections[remoteUserID].m_reportAttempt = ++m_reportAttempts[remoteUserID];
         }
 	}
 
@@ -2174,6 +2185,7 @@ void NetworkMesh::Disconnect()
     }
 
     m_mapConnections.clear();
+	m_reportAttempts.clear();
 
 	if (GenOnlinePluginHost::Transport::IsActive())
 	{
@@ -2509,11 +2521,6 @@ PlayerConnection::PlayerConnection(int64_t userID, HSteamNetConnection hSteamCon
 
 	SteamNetworkingSockets()->SetConnectionName(hSteamConnection, std::format("Steam Connection User{}", userID).c_str());
 
-	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-	if (pMesh != nullptr)
-	{
-		pMesh->RegisterConnectivity(userID);
-	}
 }
 
 PlayerConnection::PlayerConnection(int64_t userID, const char* szMiddlewareID)
@@ -2527,11 +2534,6 @@ PlayerConnection::PlayerConnection(int64_t userID, const char* szMiddlewareID)
 
     NetworkLog(ELogVerbosity::LOG_RELEASE, "[MIDDLEWARE CONNECTION] Attaching connection %s to user %lld", szMiddlewareID, userID);
 
-    NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-    if (pMesh != nullptr)
-    {
-        pMesh->RegisterConnectivity(userID);
-    }
 }
 
 bool PlayerConnection::LogInvalidDue()
@@ -2748,6 +2750,9 @@ void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwni
 
 	m_State = newState;
 
+	const bool bRelayed = newState == EConnectionState::CONNECTED_DIRECT && !IsDirect();
+	m_timeline.Add(newState, bRelayed, NowSteadyMs() - m_connectStartedMs);
+
 	if (newState == EConnectionState::CONNECTED_DIRECT)
 	{
 		int64_t nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
@@ -2788,6 +2793,13 @@ void PlayerConnection::SetDisconnected(bool bWasError, NetworkMesh* pOwningMesh,
 	{
 		if (bIsRetrying)
 		{
+			// A connected pair that drops and retries reports its attempt as disconnected before the next attempt starts.
+			if (m_State == EConnectionState::CONNECTED_DIRECT)
+			{
+				m_State = EConnectionState::CONNECTION_DISCONNECTED;
+				m_timeline.Add(m_State, false, NowSteadyMs() - m_connectStartedMs);
+				pOwningMesh->UpdateConnectivity(this);
+			}
 			m_State = EConnectionState::NOT_CONNECTED;
 		}
 		else
