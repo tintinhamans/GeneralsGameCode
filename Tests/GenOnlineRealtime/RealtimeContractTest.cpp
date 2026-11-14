@@ -884,7 +884,10 @@ static void TestAcceptRealtimeUrl()
 	CHECK(OriginOfBase("http://localhost/").empty());
 
 	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/-/realtime", base) == "wss://api.playgenerals.online:2087/-/realtime");
-	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/ws", base) == "wss://api.playgenerals.online:2087/ws");
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/genonline/-/realtime", base) == "wss://api.playgenerals.online:2087/genonline/-/realtime");
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/ws", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/-/realtime/", base).empty());
+	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087/x-/realtime", base).empty());
 
 	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online/-/realtime", base).empty());
 	CHECK(AcceptRealtimeUrl("wss://api.playgenerals.online:2087.evil.example/-/realtime", base).empty());
