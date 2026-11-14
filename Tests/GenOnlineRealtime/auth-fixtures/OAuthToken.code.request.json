@@ -1,6 +1,6 @@
 {
   "grant_type": "authorization_code",
-  "client_id": "generalsmd",
+  "client_id": "genonline_zerohour",
   "code": "<code from the loopback redirect>",
   "code_verifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
   "redirect_uri": "http://127.0.0.1:53817/callback"

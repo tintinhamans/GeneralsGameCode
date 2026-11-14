@@ -1,6 +1,6 @@
 # Sign-in and session registration fixtures
 
-Copies of the sign-in fixtures of the GenOnline service (identity phase 1, service commit `26d86f46`, client ids from service commit `06248606`). Same conventions as the realtime fixtures: snake_case, one JSON object per file.
+Copies of the sign-in fixtures of the GenOnline service (identity phase 1, service commit `26d86f46`, client ids from service commit `cfb98836`). Same conventions as the realtime fixtures: snake_case, one JSON object per file.
 
 | File | Content |
 |---|---|

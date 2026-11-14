@@ -1,5 +1,5 @@
 {
-  "client_id": "generalsmd",
+  "client_id": "genonline_zerohour",
   "response_type": "code",
   "redirect_uri": "http://127.0.0.1:53817/callback",
   "scope": "openid offline_access game",
