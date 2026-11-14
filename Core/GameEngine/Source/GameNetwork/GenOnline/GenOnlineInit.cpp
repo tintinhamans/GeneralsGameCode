@@ -1115,8 +1115,8 @@ void GenOnlineServicesManager::Init()
 
     std::string strPlugin = GenOnlineServicesManager::Settings.GetAnticheatPlugin();
 
-	// Empty name means no anticheat plugin configured; skip loading.
-	GenOnlinePluginHost::LoadPlugin(strPlugin);
+	// Empty name means no anticheat plugin configured. The first transport plugin then loads for its transport only.
+	GenOnlinePluginHost::LoadPlugin(strPlugin, GenOnlineServicesManager::Settings.GetTransportPlugins());
 
 	// TODO_NGMP: Better location
 	// TODO_NGMP: Get all of this from the service

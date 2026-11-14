@@ -22,7 +22,7 @@
 //              version and table sizes, and routes the game calls to the
 //              linked account, anticheat and transport sub interfaces.
 //              GenOnline Anti-Cheat serves the anticheat calls when the plugin
-//              provides no anticheat.
+//              provides no anticheat or loads for its transport only.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -30,6 +30,7 @@
 #include <atomic>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 enum class EConnectionState : uint8_t
 {
@@ -86,16 +87,28 @@ public:
 	// Set from plugin threads when the local client has to leave the lobby.
 	static std::atomic<bool> g_bPendingExitLobby;
 
-	// Starts GenOnline Anti-Cheat and loads plugins/<name>/<name>.dll next to the game executable. An empty name loads no plugin DLL.
-	static void LoadPlugin(const std::string& pluginName);
+	// Starts GenOnline Anti-Cheat and loads plugins/<name>/<name>.dll next to the game executable. The external anticheat
+	// plugin loads when there is one, else the first transport plugin loads for its transport and linked account only.
+	// An empty anticheat plugin and an empty transport list load no plugin DLL.
+	static void LoadPlugin(const std::string& anticheatPlugin, const std::vector<std::string>& transportPlugins);
 	static void UnloadPlugin();
 	static void Tick();
 
 	// True while a plugin DLL is loaded and initialized.
 	static bool IsPluginLoaded();
 
-	// True when a plugin was configured but could not be loaded.
+	// True when the anticheat plugin was configured but could not be loaded. Online play stays blocked then.
 	static bool DidPluginFailToLoad();
+
+	// True when the plugin chosen for its transport only could not be loaded. The game uses the standard connection and
+	// GenOnline Anti-Cheat then.
+	static bool DidTransportPluginFailToLoad();
+
+	// The plugin DLL that LoadPlugin chose, empty when none was configured.
+	static const std::string& GetPluginName();
+
+	// True when the plugin DLL is the anticheat provider. GenOnline Anti-Cheat is the anticheat otherwise.
+	static bool IsPluginAnticheat();
 
 	static bool IsExternalProcessRunning();
 	static int GetAnticheatIdentifier();

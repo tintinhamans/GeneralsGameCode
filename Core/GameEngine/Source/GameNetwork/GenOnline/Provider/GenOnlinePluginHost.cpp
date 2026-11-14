@@ -31,6 +31,7 @@
 #include "GameNetwork/GenOnline/AntiCheat/GenOnlineAntiCheat.h"
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
+#include "GameNetwork/GenOnline/GenOnlinePluginRoles.h"
 #include "GameNetwork/GenOnline/NetworkMesh.h"
 
 #include <chrono>
@@ -81,12 +82,22 @@ GenOnlinePluginTrust::PluginFiles s_pluginFiles;
 GenOnlinePluginPlatform::Module s_hPluginModule = nullptr;
 GenOnlinePluginApi s_pluginApi = {};
 GenOnlinePluginHostApi s_hostApi = {};
+// The host table of a plugin that loads for its transport only. Its anticheat callbacks only log.
+GenOnlinePluginHostApi s_transportOnlyHostApi = {};
 bool s_bPluginLoaded = false;
 bool s_bPluginLoadFailed = false;
+// True when the plugin that LoadPlugin chose for its transport only failed to load. The game then uses the standard connection.
+bool s_bTransportPluginLoadFailed = false;
+// True while LoadPlugin loads a plugin whose failure blocks online play.
+bool s_bPluginLoadBlocksOnline = false;
+std::string s_pluginName;
+bool s_bPluginIsAnticheat = false;
 
 const GenOnlinePluginLinkedAccountApi* s_pLinkedAccount = nullptr;
 const GenOnlinePluginAnticheatApi* s_pAnticheat = nullptr;
 const GenOnlinePluginTransportApi* s_pTransport = nullptr;
+// The anticheat table of a transport only plugin. It gets the session and peer calls so that its transport knows its peers.
+const GenOnlinePluginAnticheatApi* s_pPeerTracking = nullptr;
 
 // GenOnline Anti-Cheat is linked into the game and serves the anticheat calls when the plugin DLL provides no anticheat.
 GenOnlinePluginApi s_builtInApi = {};
@@ -348,7 +359,7 @@ void GENONLINE_PLUGIN_CALL Host_SendMessageViaTransport(void* /*userData*/, uint
 
 	// if the plugin owns a secure transport, AC traffic is carried internally by the plugin
 	// (see PlayerConnection::SendACPacket) so there is nothing for the game to route here
-	if (GenOnlinePluginHost::Transport::IsActive())
+	if (GenOnlinePluginHost::IsPluginAnticheat() && GenOnlinePluginHost::Transport::IsActive())
 	{
 		return;
 	}
@@ -391,6 +402,25 @@ void GENONLINE_PLUGIN_CALL Host_SendMessageViaTransport(void* /*userData*/, uint
 	}
 }
 
+// A plugin that loads for its transport only is not the anticheat, so its anticheat requests do not act on the lobby.
+void GENONLINE_PLUGIN_CALL Host_IgnoreActionRequired(void* /*userData*/, uint64_t userID64, const char* szReason, int32_t /*actionType*/, int32_t /*actionReason*/)
+{
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Ignoring an anticheat action for user %u from a plugin that is not the anticheat: %s",
+		static_cast<uint32_t>(userID64), szReason != nullptr ? szReason : "(null reason)");
+}
+
+void GENONLINE_PLUGIN_CALL Host_IgnoreIntegrityViolation(void* /*userData*/, const char* szReason, int32_t violationType)
+{
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Ignoring an integrity violation (%d) from a plugin that is not the anticheat: %s",
+		violationType, szReason != nullptr ? szReason : "(null reason)");
+}
+
+void GENONLINE_PLUGIN_CALL Host_IgnoreMessageViaTransport(void* /*userData*/, uint64_t userID64, const void* /*pData*/, uint32_t dataLen)
+{
+	NetworkLog(ELogVerbosity::LOG_DEBUG, "[Plugin] Dropping an anticheat message of %u bytes for user %u from a plugin that is not the anticheat",
+		dataLen, static_cast<uint32_t>(userID64));
+}
+
 void FillHostApi()
 {
 	s_hostApi = GenOnlinePluginHostApi();
@@ -402,6 +432,12 @@ void FillHostApi()
 	s_hostApi.ActionRequired = Host_ActionRequired;
 	s_hostApi.IntegrityViolation = Host_IntegrityViolation;
 	s_hostApi.SendMessageViaTransport = Host_SendMessageViaTransport;
+	s_hostApi.enabledCapabilities = GENONLINE_PLUGIN_CAP_LINKED_ACCOUNT | GENONLINE_PLUGIN_CAP_ANTICHEAT | GENONLINE_PLUGIN_CAP_TRANSPORT;
+
+	s_transportOnlyHostApi = s_hostApi;
+	s_transportOnlyHostApi.ActionRequired = Host_IgnoreActionRequired;
+	s_transportOnlyHostApi.IntegrityViolation = Host_IgnoreIntegrityViolation;
+	s_transportOnlyHostApi.SendMessageViaTransport = Host_IgnoreMessageViaTransport;
 }
 
 void LoadBuiltInAnticheat()
@@ -462,10 +498,25 @@ void ResetPluginState()
 	s_pLinkedAccount = nullptr;
 	s_pAnticheat = nullptr;
 	s_pTransport = nullptr;
+	s_pPeerTracking = nullptr;
 	s_bPluginLoaded = false;
+	s_bPluginIsAnticheat = false;
 	s_bSessionStarted = false;
 	s_tokenCreationTime = -1;
 	s_pluginFiles.Close();
+}
+
+// A failed anticheat plugin blocks online play. A failed transport only plugin leaves the standard connection and GenOnline Anti-Cheat.
+void MarkPluginLoadFailed()
+{
+	if (s_bPluginLoadBlocksOnline)
+	{
+		s_bPluginLoadFailed = true;
+		return;
+	}
+
+	s_bTransportPluginLoadFailed = true;
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] The transport plugin %s did not load, the game uses the standard connection", s_pluginName.c_str());
 }
 
 void FailPluginLoad(GenOnlinePluginPlatform::Module hModule)
@@ -476,7 +527,7 @@ void FailPluginLoad(GenOnlinePluginPlatform::Module hModule)
 	}
 
 	ResetPluginState();
-	s_bPluginLoadFailed = true;
+	MarkPluginLoadFailed();
 }
 
 void GENONLINE_PLUGIN_CALL OnSignInStatus(void* /*userData*/, int32_t success)
@@ -547,7 +598,7 @@ void GENONLINE_PLUGIN_CALL OnRefreshStatus(void* /*userData*/, int32_t success)
 }
 } // namespace
 
-void GenOnlinePluginHost::LoadPlugin(const std::string& pluginName)
+void GenOnlinePluginHost::LoadPlugin(const std::string& anticheatPlugin, const std::vector<std::string>& transportPlugins)
 {
 	if (s_bPluginLoaded || s_hPluginModule != nullptr)
 	{
@@ -555,9 +606,25 @@ void GenOnlinePluginHost::LoadPlugin(const std::string& pluginName)
 	}
 
 	s_bPluginLoadFailed = false;
+	s_bTransportPluginLoadFailed = false;
 
 	FillHostApi();
 	LoadBuiltInAnticheat();
+
+	const GenOnlinePluginRoles::Selection selection = GenOnlinePluginRoles::Select(anticheatPlugin, transportPlugins);
+	const std::string& pluginName = selection.pluginName;
+	s_pluginName = pluginName;
+	s_bPluginLoadBlocksOnline = GenOnlinePluginRoles::DoesLoadFailureBlockOnline(selection);
+
+	if (!selection.skippedTransports.empty())
+	{
+		std::string skipped;
+		for (const std::string& transport : selection.skippedTransports)
+		{
+			skipped += skipped.empty() ? transport : ", " + transport;
+		}
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] The host loads one plugin DLL, so %s loads and the transport plugins %s do not load", pluginName.c_str(), skipped.c_str());
+	}
 
 	// No plugin is the normal default.
 	if (pluginName.empty())
@@ -569,7 +636,7 @@ void GenOnlinePluginHost::LoadPlugin(const std::string& pluginName)
 	if (!IsValidPluginName(pluginName))
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: Refusing plugin name '%s', only letters, digits and underscores are allowed", pluginName.c_str());
-		s_bPluginLoadFailed = true;
+		MarkPluginLoadFailed();
 		return;
 	}
 
@@ -577,7 +644,7 @@ void GenOnlinePluginHost::LoadPlugin(const std::string& pluginName)
 	if (exeDirectory.empty())
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: Cannot determine the game executable directory");
-		s_bPluginLoadFailed = true;
+		MarkPluginLoadFailed();
 		return;
 	}
 
@@ -649,7 +716,10 @@ void GenOnlinePluginHost::LoadPlugin(const std::string& pluginName)
 
 	GenOnlinePluginApi api = {};
 	api.structSize = sizeof(GenOnlinePluginApi);
-	const int32_t getApiResult = fnGetApi(GENONLINE_PLUGIN_API_VERSION, &s_hostApi, &api);
+	// The plugin learns its roles from enabledCapabilities and runs only those.
+	GenOnlinePluginHostApi* pHostApi = selection.bAnticheat ? &s_hostApi : &s_transportOnlyHostApi;
+	pHostApi->enabledCapabilities = GenOnlinePluginRoles::GetEnabledCapabilities(selection);
+	const int32_t getApiResult = fnGetApi(GENONLINE_PLUGIN_API_VERSION, pHostApi, &api);
 	if (getApiResult != GENONLINE_PLUGIN_RESULT_OK)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: %s returned %d - %s", GENONLINE_PLUGIN_GET_API_EXPORT_NAME, getApiResult, DescribeResult(getApiResult));
@@ -683,8 +753,27 @@ void GenOnlinePluginHost::LoadPlugin(const std::string& pluginName)
 		return;
 	}
 
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Loaded %s %s (linked_account=%d, anticheat=%d, transport=%d)",
-		api.name, api.version != nullptr ? api.version : "(no version)", pLinkedAccount != nullptr, pAnticheat != nullptr, pTransport != nullptr);
+	// The host uses only the tables of the roles that the plugin loads for. GenOnline Anti-Cheat stays the anticheat otherwise.
+	// A transport only plugin keeps its anticheat table for the session and peer calls that its transport needs.
+	const GenOnlinePluginAnticheatApi* pPeerTracking = nullptr;
+	if (!selection.bAnticheat)
+	{
+		if (GenOnlinePluginRoles::DoesPluginTrackPeersOnly(selection))
+		{
+			pPeerTracking = pAnticheat;
+		}
+
+		pAnticheat = nullptr;
+	}
+
+	if (!selection.bTransport)
+	{
+		pTransport = nullptr;
+	}
+
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Loaded %s %s as %s (linked_account=%d, anticheat=%d, transport=%d)",
+		api.name, api.version != nullptr ? api.version : "(no version)", selection.bAnticheat ? "the anticheat" : "a transport only",
+		pLinkedAccount != nullptr, pAnticheat != nullptr, pTransport != nullptr);
 
 	const int32_t initResult = api.Initialize();
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "Initialize result = %d", initResult);
@@ -706,10 +795,13 @@ void GenOnlinePluginHost::LoadPlugin(const std::string& pluginName)
 	s_pLinkedAccount = pLinkedAccount;
 	s_pAnticheat = pAnticheat;
 	s_pTransport = pTransport;
+	s_pPeerTracking = pPeerTracking;
 	s_bPluginLoaded = true;
+	s_bPluginIsAnticheat = selection.bAnticheat;
 
 #if _DEBUG
-	if (ApplicationHWnd != nullptr)
+	// Only a plugin that is the anticheat reports whether the session is secured.
+	if (ApplicationHWnd != nullptr && s_bPluginIsAnticheat)
 	{
 		SetWindowTextA(ApplicationHWnd, IsExternalProcessRunning() ? "SECURED" : "INSECURE");
 	}
@@ -791,6 +883,21 @@ bool GenOnlinePluginHost::DidPluginFailToLoad()
 	return s_bPluginLoadFailed;
 }
 
+bool GenOnlinePluginHost::DidTransportPluginFailToLoad()
+{
+	return s_bTransportPluginLoadFailed;
+}
+
+const std::string& GenOnlinePluginHost::GetPluginName()
+{
+	return s_pluginName;
+}
+
+bool GenOnlinePluginHost::IsPluginAnticheat()
+{
+	return s_bPluginLoaded && s_bPluginIsAnticheat;
+}
+
 bool GenOnlinePluginHost::IsExternalProcessRunning()
 {
 	if (!s_bPluginLoaded)
@@ -808,7 +915,7 @@ bool GenOnlinePluginHost::IsExternalProcessRunning()
 
 int GenOnlinePluginHost::GetAnticheatIdentifier()
 {
-	if (s_bPluginLoaded && s_pluginApi.GetAnticheatIdentifier != nullptr)
+	if (s_bPluginLoaded && s_bPluginIsAnticheat && s_pluginApi.GetAnticheatIdentifier != nullptr)
 	{
 		return s_pluginApi.GetAnticheatIdentifier();
 	}
@@ -872,6 +979,12 @@ void GenOnlinePluginHost::Anticheat::BeginSession()
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] No anticheat provider, no session started");
 	}
+
+	if (s_pPeerTracking != nullptr)
+	{
+		s_pPeerTracking->BeginSession();
+		s_bSessionStarted = true;
+	}
 }
 
 void GenOnlinePluginHost::Anticheat::EndSession()
@@ -885,6 +998,13 @@ void GenOnlinePluginHost::Anticheat::EndSession()
 		pAnticheat->EndSession();
 		s_bSessionStarted = false;
 	}
+
+	// The transport only plugin closes the connections of the session here.
+	if (s_pPeerTracking != nullptr)
+	{
+		s_pPeerTracking->EndSession();
+		s_bSessionStarted = false;
+	}
 }
 
 bool GenOnlinePluginHost::Anticheat::RegisterPeer(const std::string& platformUserID, uint32_t userID)
@@ -892,6 +1012,13 @@ bool GenOnlinePluginHost::Anticheat::RegisterPeer(const std::string& platformUse
 	if (!s_bSessionStarted) // TODO_AC: This is hacky, it's because on lobby join, the server can send AC_REGISTER_PLAYER before we join the lobby, so we didnt actually start the session yet. We should buffer these messages until session start or something instead of relying on this hacky global
 	{
 		BeginSession();
+	}
+
+	// The transport only plugin learns the peer for its transport. Its result is not the anticheat result.
+	if (s_pPeerTracking != nullptr)
+	{
+		const bool bTracked = s_pPeerTracking->RegisterPeer(platformUserID.c_str(), userID, GENONLINE_PLUGIN_CLIENT_PROTECTED) != GENONLINE_PLUGIN_FALSE;
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Transport peer %s for user %" PRIu32 " added: %d", platformUserID.c_str(), userID, bTracked);
 	}
 
 	const GenOnlinePluginAnticheatApi* pAnticheat = GetActiveAnticheat();
@@ -909,6 +1036,12 @@ bool GenOnlinePluginHost::Anticheat::RegisterPeer(const std::string& platformUse
 
 bool GenOnlinePluginHost::Anticheat::DeregisterPeer(const std::string& platformUserID, uint32_t userID)
 {
+	if (s_pPeerTracking != nullptr)
+	{
+		const bool bUntracked = s_pPeerTracking->DeregisterPeer(platformUserID.c_str(), userID) != GENONLINE_PLUGIN_FALSE;
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Transport peer %s for user %" PRIu32 " removed: %d", platformUserID.c_str(), userID, bUntracked);
+	}
+
 	const GenOnlinePluginAnticheatApi* pAnticheat = GetActiveAnticheat();
 	if (pAnticheat == nullptr)
 	{

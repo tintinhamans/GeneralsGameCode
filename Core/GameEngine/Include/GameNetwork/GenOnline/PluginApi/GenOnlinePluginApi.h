@@ -168,6 +168,16 @@ typedef struct GenOnlinePluginHostApi
 
 	/* Asks the game to deliver an anticheat message to a peer over the game transport. */
 	void (GENONLINE_PLUGIN_CALL *SendMessageViaTransport)(void* userData, uint64_t genOnlineUserId, const void* data, uint32_t dataLength);
+
+	/*
+	 * GENONLINE_PLUGIN_CAP_ bits of the sub interfaces that the host uses this
+	 * plugin for. The plugin runs only the parts of those sub interfaces. Without
+	 * GENONLINE_PLUGIN_CAP_ANTICHEAT the host still calls the session and peer
+	 * functions of the anticheat table so that the transport knows its peers, and
+	 * the plugin then runs no anticheat and sends no anticheat message. A host
+	 * table too short to hold this field means every capability the plugin offers.
+	 */
+	uint32_t enabledCapabilities;
 } GenOnlinePluginHostApi;
 
 /* Receives the result of a linked account sign in or refresh. success is GENONLINE_PLUGIN_TRUE or GENONLINE_PLUGIN_FALSE. */
