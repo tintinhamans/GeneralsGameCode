@@ -46,6 +46,9 @@ bool BadgeColor(const std::vector<std::string>& badges, int& color);
 // True when the local user holds a moderation permission.
 bool HasModerationPermission();
 
+// True when the service switched the client feature on for this player, for example stats_exporter or observer.
+bool HasClientFeature(const char* szFeature);
+
 // The presence text of a friend activity code, for example "In game".
 std::string ActivityText(const std::string& activity);
 

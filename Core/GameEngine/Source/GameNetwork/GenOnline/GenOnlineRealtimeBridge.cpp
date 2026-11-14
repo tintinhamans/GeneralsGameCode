@@ -34,6 +34,7 @@
 #include <chrono>
 #include <format>
 #include <map>
+#include <algorithm>
 
 using namespace GenOnlineRealtime;
 
@@ -62,6 +63,7 @@ std::string ParamText(const nlohmann::json& params, const char* key)
 
 BadgeMap s_badges;
 std::vector<std::string> s_permissions;
+std::vector<std::string> s_features;
 
 int HexDigit(char c)
 {
@@ -109,6 +111,11 @@ bool BadgeColor(const std::vector<std::string>& badges, int& color)
 		}
 	}
 	return false;
+}
+
+bool HasClientFeature(const char* szFeature)
+{
+	return szFeature != nullptr && std::find(s_features.begin(), s_features.end(), szFeature) != s_features.end();
 }
 
 bool HasModerationPermission()
@@ -241,6 +248,7 @@ void OnReady(const ReadyEvent& ready, bool bFirstReady)
 {
 	s_badges = ready.badges;
 	s_permissions = ready.permissions;
+	s_features = ready.features.has_value() ? *ready.features : std::vector<std::string>();
 	GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 	if (pRooms != nullptr)
 	{
@@ -364,6 +372,11 @@ void RegisterHandlers(HubSession& session)
 	session.On<BadgesUpdateEvent>([](const BadgesUpdateEvent& event)
 		{
 			s_badges = event.badges;
+		});
+	session.On<FeaturesUpdateEvent>([](const FeaturesUpdateEvent& event)
+		{
+			s_features = event.features;
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Client features changed, %d active", (int)s_features.size());
 		});
 	session.On<ChannelMembersEvent>([](const ChannelMembersEvent& event)
 		{

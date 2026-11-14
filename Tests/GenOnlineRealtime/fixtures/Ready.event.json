@@ -10,6 +10,10 @@
     "moderation.kick",
     "moderation.mute"
   ],
+  "features": [
+    "stats_exporter",
+    "observer"
+  ],
   "badges": {
     "moderator": {
       "text": "MOD",

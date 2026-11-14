@@ -130,6 +130,7 @@ static std::map<std::string, RoundTripFn> BuildFixtureTable()
 
 	t["Ready.event.json"] = RoundTrip<ReadyEvent>;
 	t["BadgesUpdate.event.json"] = RoundTrip<BadgesUpdateEvent>;
+	t["FeaturesUpdate.event.json"] = RoundTrip<FeaturesUpdateEvent>;
 	t["Notice.event.json"] = RoundTrip<Notice>;
 	t["ModerationNotice.event.json"] = RoundTrip<ModerationNoticeEvent>;
 	t["ServerSwitching.event.json"] = RoundTrip<ServerSwitchingEvent>;
