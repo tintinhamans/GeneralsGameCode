@@ -147,7 +147,7 @@ WebSocket::WebSocket()
 	RegisterPeerHandlers();
 }
 
-void WebSocket::StartPeerSignalling(int64_t lobbyID, int64_t userID, uint16_t preferredPort, const std::string& middlewareID)
+void WebSocket::StartPeerSignalling(int64_t lobbyID, int64_t userID, uint16_t preferredPort, const std::string& middlewareID, const GenOnlineRealtime::ConnectionStep& step)
 {
 	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface == nullptr)
@@ -181,8 +181,12 @@ void WebSocket::StartPeerSignalling(int64_t lobbyID, int64_t userID, uint16_t pr
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Network mesh is null");
 		return;
 	}
-	pMesh->StartConnectionSignalling(middlewareID.c_str(), userID, preferredPort);
+	pMesh->StartConnectionSignalling(middlewareID.c_str(), userID, preferredPort, step);
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Starting signalling with %lld (MWID: %s)", userID, middlewareID.c_str());
+	if (step.IsPresent())
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Step of %lld: attempt %d, transport %s, relay %d, timeout %d s", userID, step.attempt, step.eos ? "eos" : "gns", step.relay ? 1 : 0, step.timeoutS);
+	}
 }
 
 void WebSocket::DisconnectPeer(int64_t lobbyID, int64_t userID)
@@ -254,7 +258,7 @@ void WebSocket::RegisterPeerHandlers()
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] StartSignalling with an invalid port %d", event.preferred_port);
 				return;
 			}
-			StartPeerSignalling(event.lobby_id, event.user_id, (uint16_t)event.preferred_port, event.middleware_id);
+			StartPeerSignalling(event.lobby_id, event.user_id, (uint16_t)event.preferred_port, event.middleware_id, ConnectionStepOf(event));
 		});
 	m_pHubSession->On<DisconnectPeerEvent>([this](const DisconnectPeerEvent& event)
 		{
@@ -270,16 +274,6 @@ void WebSocket::RegisterPeerHandlers()
 			}
 			PushPendingSignal(event.from, std::move(payload));
 		});
-	m_pHubSession->On<AnticheatMessageEvent>([](const AnticheatMessageEvent& event)
-		{
-			std::vector<uint8_t> payload;
-			if (!DecodePeerPayload(event.payload, payload))
-			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] AnticheatMessage from %lld has an invalid payload", event.from);
-				return;
-			}
-			GenOnlinePluginHost::Anticheat::MessageArrived(event.from, payload.data(), payload.size());
-		});
 	m_pHubSession->On<AnticheatRegisterEvent>([](const AnticheatRegisterEvent& event)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Realtime AnticheatRegister for %lld and %s", event.user_id, event.middleware_id.c_str());
@@ -294,6 +288,12 @@ void WebSocket::RegisterPeerHandlers()
 			if (!GenOnlinePluginHost::Anticheat::DeregisterPeer(event.middleware_id, event.user_id))
 			{
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] GenOnlinePluginHost::Anticheat::DeregisterPeer failed");
+			}
+
+			NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
+			if (pMesh != nullptr)
+			{
+				pMesh->ClearHeldACMessages(event.user_id);
 			}
 		});
 	m_pHubSession->On<MeshCheckRequestEvent>([this](const MeshCheckRequestEvent& event)
@@ -392,6 +392,9 @@ void WebSocket::OnHubReady()
 	m_hubReconnectPolicy.Reset();
 	m_bHubSessionRecoveryTried = false;
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Ready");
+	// A new session has no transport list yet, so a failed send repeats on the next tick.
+	m_lastPeerTransportsEos = -1;
+	SendPeerTransports(true);
 	// Later connections restore their state from the snapshot events, so only the first one completes the login.
 	if (!m_bHubReadyOnce)
 	{
@@ -400,6 +403,30 @@ void WebSocket::OnHubReady()
 		{
 			m_fnWebsocketConnectedCallback();
 		}
+	}
+}
+
+void WebSocket::SendPeerTransports(bool bForce)
+{
+	const int eos = GenOnlinePluginHost::Transport::IsAvailable() ? 1 : 0;
+	if (!bForce && eos == m_lastPeerTransportsEos)
+	{
+		return;
+	}
+	if (m_pHubSession == nullptr || m_pHubSession->GetState() != GenOnlineRealtime::HubSession::State::Ready)
+	{
+		return;
+	}
+
+	GenOnlineRealtime::SetPeerTransportsRequest request;
+	if (eos != 0)
+	{
+		request.transports.push_back("eos");
+	}
+	if (FireHub(request))
+	{
+		m_lastPeerTransportsEos = eos;
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] SetPeerTransports eos=%d", eos);
 	}
 }
 
@@ -927,6 +954,7 @@ void WebSocket::Tick()
 	// Main thread only, m_pCurlWS/m_bConnected are unlocked here.
 	UpdateReconnect();
 	PollConnectionSetup();
+	SendPeerTransports(false);
 
 	/*
 	if (strSignal.length() == 6)

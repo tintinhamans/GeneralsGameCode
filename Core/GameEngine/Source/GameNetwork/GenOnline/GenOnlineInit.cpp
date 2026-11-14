@@ -1113,8 +1113,8 @@ void GenOnlineServicesManager::Init()
 
     std::string strPlugin = GenOnlineServicesManager::Settings.GetAnticheatPlugin();
 
-	// Empty name means no anticheat plugin configured; skip loading.
-	GenOnlinePluginHost::LoadPlugin(strPlugin);
+	// Empty name means no anticheat plugin configured. The first transport plugin then loads for its transport only.
+	GenOnlinePluginHost::LoadPlugin(strPlugin, GenOnlineServicesManager::Settings.GetTransportPlugins());
 
 	// TODO_GENONLINE: Better location
 	// TODO_GENONLINE: Get all of this from the service
@@ -1635,6 +1635,17 @@ void WebSocket::SendData_RequestSignalling(int64_t targetUserID)
 	}
 }
 
+void WebSocket::SendData_RequestSignalling(int64_t targetUserID, int failedAttempt)
+{
+	GenOnlineRealtime::RequestSignallingRequest request;
+	request.target_user_id = targetUserID;
+	request.failed_attempt = failedAttempt;
+	if (!FireHub(request))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] RequestSignalling for %lld with failed attempt %d dropped, the hub is not ready", targetUserID, failedAttempt);
+	}
+}
+
 void WebSocket::SendData_Signalling(int64_t targetUserID, std::vector<uint8_t> vecPayload)
 {
 	GenOnlineRealtime::SignalRequest request;
@@ -1659,14 +1670,6 @@ void WebSocket::SendData_StartGame()
 		});
 }
 
-
-bool WebSocket::SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> vecPayload)
-{
-	GenOnlineRealtime::AnticheatMessageRequest request;
-	request.to = targetUserID;
-	request.payload = GenOnlineRealtime::EncodePeerPayload(vecPayload);
-	return FireHub(request);
-}
 
 void WebSocket::SendData_HostStartIntent()
 {

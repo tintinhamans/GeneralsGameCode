@@ -159,11 +159,10 @@ public:
 	void SendData_MarkReady(bool bReady);
 
 	void SendData_RequestSignalling(int64_t targetUserID);
+	// Reports the attempt of the pair as failed, which moves the pair to the next step of its connection order.
+	void SendData_RequestSignalling(int64_t targetUserID, int failedAttempt);
 	void SendData_Signalling(int64_t targetUserID, std::vector<uint8_t> vecPayload);
 	void SendData_StartGame();
-
-	// Returns false when the message could not be queued, so the caller can use the peer mesh instead.
-	bool SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> vecPayload);
 
 	void SendData_ChangeLobbyPassword(UnicodeString& strNewPassword);
 	void SendData_RemoveLobbyPassword();
@@ -224,7 +223,9 @@ private:
 	void OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, const std::string& reason);
 	void RecoverHubSession();
 
-	void StartPeerSignalling(int64_t lobbyID, int64_t userID, uint16_t preferredPort, const std::string& middlewareID);
+	void StartPeerSignalling(int64_t lobbyID, int64_t userID, uint16_t preferredPort, const std::string& middlewareID, const GenOnlineRealtime::ConnectionStep& step);
+	// Tells the hub which plugin transports this client can use for peers, after every Ready and whenever the answer changes.
+	void SendPeerTransports(bool bForce);
 	void DisconnectPeer(int64_t lobbyID, int64_t userID);
 	void CollectMeshConnectivity(std::vector<int64_t>& connected, std::vector<int64_t>& connecting);
 	void RegisterPeerHandlers();
@@ -234,6 +235,8 @@ private:
 	bool m_bHubReadyOnce = false;
 	// One token refresh and session registration per connection that never reached Ready.
 	bool m_bHubSessionRecoveryTried = false;
+	// The EOS availability that SetPeerTransports last told the hub, -1 before the first one of this connection.
+	int m_lastPeerTransportsEos = -1;
 
 	CURLcode ReceiveOneFrame();
 	void PollConnectionSetup();

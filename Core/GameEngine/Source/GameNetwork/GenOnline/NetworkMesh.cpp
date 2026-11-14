@@ -29,6 +29,12 @@ UnsignedInt m_exeCRCOriginal = 0;
 int g_relayOverride = -1;             // 1 = relay only, -1 = service policy
 int g_iceImplementationOverride = -1; // 1 = native, 2 = WebRTC
 
+// The plugin packets the lobby takes per tick, 255 for each of up to 8 peers like the per connection GNS receive.
+static constexpr int k_pluginLitePacketsPerTick = 255 * 8;
+
+// The ICE setting of a direct step, host and server reflexive candidates without TURN.
+static constexpr int k_iceEnableDirectOnly = k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_Private | k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_Public;
+
 static int64_t NowSteadyMs()
 {
 	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
@@ -162,6 +168,14 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 			const bool bPeerLeft = pJoinOrderLobby != nullptr && pJoinOrderLobby->IsJoinOrderKnown() && !pJoinOrderLobby->IsLobbyMember(userID);
 			// a match can't leave its lobby, so keep repairing the link until the service drops the player
 			const bool bManualLobby = pJoinOrderLobby != nullptr && pJoinOrderLobby->GetCurrentLobby().lobby_type == ELobbyType::CustomGame;
+
+			// A timed step that ends before it connects moves the pair to the next step of its connection order instead of retrying.
+			if (!bPeerLeft && plrConnection.m_stepWatch.IsOpen())
+			{
+				pMesh->EndStepAttempt(plrConnection, "closed before it connected", plrConnection.m_stepWatch.TakeFailure());
+				break;
+			}
+
 			bool bShouldRetry = serviceConf.connection.retry_signalling && !bPeerLeft
 				&& (bInMatch || (!bManualLobby && !bWeJoinedLater) || signallingAttemptsBeforeDisconnect < numSignallingAttempts);
 
@@ -327,6 +341,7 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 				// A signalled connection is accepted even with a stale roster.
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][%s] Accepting - Server started signalling\n", pInfo->m_info.m_szConnectionDescription);
 				pMesh->ApplyConnectionTimeouts(pInfo->m_hConn, plrConnection.m_userID);
+				pMesh->ApplyConnectionStep(pInfo->m_hConn, plrConnection.m_userID);
 				SteamNetworkingSockets()->AcceptConnection(pInfo->m_hConn);
 			}
 			
@@ -741,7 +756,14 @@ void NetworkMeshLibrary::Shutdown()
 
 void NetworkMeshLibrary::Tick()
 {
-	if (!s_bInitialized || GenOnlinePluginHost::Transport::IsActive())
+	if (!s_bInitialized)
+	{
+		return;
+	}
+
+	// The all-plugin mode creates no GameNetworkingSockets connection.
+	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
+	if (pMesh != nullptr ? !pMesh->UsesGameNetworkingSockets() : GenOnlinePluginHost::Transport::IsActive())
 	{
 		return;
 	}
@@ -809,16 +831,31 @@ NetworkMesh::NetworkMesh()
 		return;
 	}
 
-	// When the anti-cheat plugin owns the transport, no Steam connection is ever
-	// created or accepted by this mesh - StartConnectionSignalling() goes
-	// straight to the plugin. Taking a Steam listen socket we never use only
+	// When the anti-cheat plugin owns the transport, the listen socket waits for
+	// the first GameNetworkingSockets step of a pair, see StartConnectionSignalling().
+	// Taking a Steam listen socket we never use only
 	// risks colliding with a previous mesh on P2P vport 0, so skip it.
 	if (GenOnlinePluginHost::Transport::IsActive())
 	{
 		m_bInitialized = true;
+
+		BeginLobbyKeys();
 		return;
 	}
 
+	if (!CreateListenSocket())
+	{
+		return;
+	}
+
+	m_bInitialized = true;
+
+	// the key of this client for the lobby, peers get it as they connect
+	BeginLobbyKeys();
+}
+
+bool NetworkMesh::CreateListenSocket()
+{
 	std::vector<SteamNetworkingConfigValue_t> vecListenOpts;
 	SteamNetworkingConfigValue_t opt;
 	const auto listenTimeouts = MeshConnectionTimeoutPolicy::ForAttempt(false, m_reconnectTimeoutMs);
@@ -845,12 +882,15 @@ NetworkMesh::NetworkMesh()
 	if (m_hListenSock == k_HSteamListenSocket_Invalid)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "CreateListenSocketP2P failed. Sock was invalid");
-		return;
+		return false;
 	}
 
-	m_bInitialized = true;
+	return true;
+}
 
-	BeginLobbyKeys();
+bool NetworkMesh::UsesGameNetworkingSockets() const
+{
+	return m_bPairSteps || !GenOnlinePluginHost::Transport::IsActive();
 }
 
 
@@ -895,7 +935,15 @@ void NetworkMesh::UpdateConnectivity(PlayerConnection* connection)
 	GenOnlineRealtime::ConnectionReportBody body;
 	body.target_user_id = connection->m_userID;
 	body.outcome = GenOnlineRealtime::ConnectionReportOutcome(bConnected, !connection->IsDirect(), bDisconnected);
-	body.transport = connection->m_ConnectionType == EConnectionType::MiddlewarePluginGeneric ? "eos" : "gns";
+	// The step of the pair names the transport, without a step the connection type does.
+	if (connection->m_step.IsPresent())
+	{
+		body.transport = connection->m_step.eos ? "eos" : "gns";
+	}
+	else
+	{
+		body.transport = connection->m_ConnectionType == EConnectionType::MiddlewarePluginGeneric ? "eos" : "gns";
+	}
 	body.ip_version = connection->IsIPV4() ? 4 : 6;
 	body.attempt = connection->m_reportAttempt;
 	if (!connection->m_timeline.Events().empty())
@@ -945,14 +993,46 @@ void NetworkMesh::SendACPacket(uint32_t userID, const void* pData, uint32_t data
 	// Thread safety: Lock connection map during access
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 
-    if (m_mapConnections.contains(userID))
-    {
-        m_mapConnections[userID].SendACPacket(pData, dataLen);
-    }
-	else
+	// A pair that cannot send yet holds the message until it connects, on any transport and attempt.
+	auto it = m_mapConnections.find(userID);
+	if (it != m_mapConnections.end() && it->second.GetState() == EConnectionState::CONNECTED_DIRECT && it->second.CanSend())
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Send Packet ERR - user %u not found in connections", userID);
+		SendHeldACMessages(it->second);
+		it->second.SendACPacket(pData, dataLen);
+		return;
 	}
+
+	const uint8_t* pBytes = static_cast<const uint8_t*>(pData);
+	if (m_heldACMessages.Push(userID, std::vector<uint8_t>(pBytes, pBytes + dataLen), NowSteadyMs()))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Dropped a new AC message for user %u, %u messages are already waiting", userID,
+			static_cast<uint32_t>(GenOnlineRealtime::AnticheatHoldQueue::MAX_MESSAGES));
+	}
+	NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC] Holding an AC message of %u bytes for user %u until the pair connects", dataLen, userID);
+}
+
+void NetworkMesh::SendHeldACMessages(PlayerConnection& connection)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+
+	const std::vector<std::vector<uint8_t>> messages = m_heldACMessages.Take(connection.m_userID, NowSteadyMs());
+	if (messages.empty())
+	{
+		return;
+	}
+
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Sending %u held AC messages to user %lld", static_cast<uint32_t>(messages.size()), connection.m_userID);
+	for (const std::vector<uint8_t>& message : messages)
+	{
+		connection.SendACPacket(message.data(), static_cast<uint32_t>(message.size()));
+	}
+}
+
+void NetworkMesh::ClearHeldACMessages(int64_t userID)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+
+	m_heldACMessages.Clear(userID);
 }
 
 void NetworkMesh::ApplyConnectionTimeouts(HSteamNetConnection connection, int64_t userID)
@@ -966,12 +1046,42 @@ void NetworkMesh::ApplyConnectionTimeouts(HSteamNetConnection connection, int64_
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[MESH] Incoming timeouts peer=%lld retry=%d initial=%dms connected=%dms applied=%d", userID, retry ? 1 : 0, timeouts.initialMs, timeouts.connectedMs, initialSet && connectedSet ? 1 : 0);
 }
 
-void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t remoteUserID, uint16_t preferredPort)
+void NetworkMesh::ApplyConnectionStep(HSteamNetConnection connection, int64_t userID)
+{
+	auto it = m_mapConnections.find(userID);
+	if (it == m_mapConnections.end() || !it->second.m_step.IsPresent() || it->second.m_step.relay)
+	{
+		return;
+	}
+
+	// The incoming connection inherits TURN from the listen socket, a direct step takes it away before ICE starts.
+	const bool iceSet = SteamNetworkingUtils()->SetConnectionConfigValueInt32(connection, k_ESteamNetworkingConfig_P2P_Transport_ICE_Enable, k_iceEnableDirectOnly);
+	const bool turnSet = SteamNetworkingUtils()->SetConnectionConfigValueString(connection, k_ESteamNetworkingConfig_P2P_TURN_ServerList, "");
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[MESH] Incoming connection of %lld uses step %d without TURN, applied=%d", userID, it->second.m_step.attempt, iceSet && turnSet ? 1 : 0);
+}
+
+void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t remoteUserID, uint16_t preferredPort, const GenOnlineRealtime::ConnectionStep& step)
 {
 	// Thread safety: Lock connection map during access
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 
-	if (GenOnlinePluginHost::Transport::IsActive())
+	if (step.IsPresent())
+	{
+		// The service numbers the attempts of a pair upwards, an older attempt changes nothing.
+		auto current = m_mapConnections.find(remoteUserID);
+		if (current != m_mapConnections.end() && current->second.m_step.attempt > step.attempt)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Ignoring attempt %d with %lld, attempt %d is current", step.attempt, remoteUserID, current->second.m_step.attempt);
+			return;
+		}
+
+		m_bPairSteps = true;
+		DropPendingStateUpdates(remoteUserID);
+	}
+
+	// The step of the pair chooses the transport, without a step the service setting chooses it for every pair.
+	const bool bPluginPair = step.IsPresent() ? step.eos : GenOnlinePluginHost::Transport::IsActive();
+	if (bPluginPair)
 	{
 		// A repeated StartSignalling restarts the pair. The old connection closes first, because a single-direction connection breaks signalling.
 		auto existing = m_mapConnections.find(remoteUserID);
@@ -979,13 +1089,39 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld, new connection is being negotiated", remoteUserID);
 			GenOnlinePluginHost::Transport::DisconnectPeer(existing->second.m_strMiddlewareID.c_str(), existing->second.m_userID);
+			if (step.IsPresent())
+			{
+				// States the plugin raises while it closes the old connection belong to the old attempt.
+				DropPendingStateUpdates(remoteUserID);
+			}
 
 			if (TheNetwork != nullptr)
 			{
 				TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
 			}
 		}
-		GenOnlinePluginHost::Transport::StartSignalling(szMiddlewareID, remoteUserID);
+		else if (existing != m_mapConnections.end() && existing->second.m_hSteamConnection != k_HSteamNetConnection_Invalid)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld, new connection is being negotiated", remoteUserID);
+			SteamNetworkingSockets()->CloseConnection(existing->second.m_hSteamConnection, 0, "Client Disconnecting Gracefully (new connection being negotiated)", false);
+
+			if (TheNetwork != nullptr)
+			{
+				TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
+			}
+		}
+
+		// The plugin step fails at once when this client has no plugin transport.
+		const bool bTransportReady = !step.IsPresent() || GenOnlinePluginHost::Transport::IsAvailable();
+		if (step.IsPresent())
+		{
+			DropParkedSignalling(remoteUserID);
+		}
+		if (bTransportReady)
+		{
+			GenOnlinePluginHost::Transport::StartSignalling(szMiddlewareID, remoteUserID);
+		}
+		m_bUsedPluginTransport = true;
 
         // create a local user type
         {
@@ -993,17 +1129,28 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             auto it = m_mapConnections.find(remoteUserID);
             int previousAttempts = it != m_mapConnections.end() ? it->second.m_SignallingAttempts : 0;
             m_mapConnections[remoteUserID] = PlayerConnection(remoteUserID, szMiddlewareID);
+            PlayerConnection& created = m_mapConnections[remoteUserID];
 
             // add attempt; carried over so the retry cap holds across re-signals
-            m_mapConnections[remoteUserID].m_SignallingAttempts = previousAttempts + 1;
+            // An attempt of a timed step does not count towards the cap, the hub moves the pair on instead.
+            created.m_SignallingAttempts = previousAttempts + (step.timeoutS > 0 ? 0 : 1);
             // Every connection signalling creates is a new attempt of the connection report.
-            m_mapConnections[remoteUserID].m_reportAttempt = ++m_reportAttempts[remoteUserID];
+            created.m_reportAttempt = step.IsPresent() ? step.attempt : ++m_reportAttempts[remoteUserID];
+            created.m_step = step;
+            created.m_stepWatch.Begin(step, NowSteadyMs());
+
+            if (!bTransportReady)
+            {
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Attempt %d with %lld names the plugin transport, which this client does not have", step.attempt, remoteUserID);
+                EndStepAttempt(created, "no plugin transport", created.m_stepWatch.TakeFailure());
+            }
         }
 	}
 	else
 	{
         // no relay without our TURN credentials
-        if (m_bAwaitingTurnCredentials)
+        const bool bRelay = !step.IsPresent() || step.relay;
+        if (m_bAwaitingTurnCredentials && bRelay)
         {
             NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Holding signalling with %lld until our TURN credentials arrive", remoteUserID);
             // A repeated StartSignalling replaces the held request of that peer, so the pair starts once.
@@ -1015,8 +1162,18 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
                     break;
                 }
             }
-            m_vecSignallingAwaitingTurn.push_back({ szMiddlewareID != nullptr ? szMiddlewareID : "", remoteUserID, preferredPort });
+            m_vecSignallingAwaitingTurn.push_back({ szMiddlewareID != nullptr ? szMiddlewareID : "", remoteUserID, preferredPort, step });
             return;
+        }
+        if (step.IsPresent())
+        {
+            DropParkedSignalling(remoteUserID);
+        }
+
+        // The all-plugin mode has no listen socket until a pair uses GameNetworkingSockets.
+        if (step.IsPresent() && m_hListenSock == k_HSteamListenSocket_Invalid)
+        {
+            CreateListenSocket();
         }
 
         // if we already have a connection to this use, drop it, having a single-direction connection will break signalling
@@ -1028,7 +1185,21 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             previousAttempts = it->second.m_SignallingAttempts;
             retryTimeout = true;
 
-            if (it->second.m_hSteamConnection != k_HSteamNetConnection_Invalid)
+            if (it->second.m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
+            {
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing plugin connection %lld, new connection is being negotiated", remoteUserID);
+                GenOnlinePluginHost::Transport::DisconnectPeer(it->second.m_strMiddlewareID.c_str(), it->second.m_userID);
+                if (step.IsPresent())
+                {
+                    DropPendingStateUpdates(remoteUserID);
+                }
+
+                if (TheNetwork != nullptr)
+                {
+                    TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
+                }
+            }
+            else if (it->second.m_hSteamConnection != k_HSteamNetConnection_Invalid)
             {
                 NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld, new connection is being negotiated", remoteUserID);
                 SteamNetworkingSockets()->CloseConnection(it->second.m_hSteamConnection, 0, "Client Disconnecting Gracefully (new connection being negotiated)", false);
@@ -1092,16 +1263,26 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
         opt.SetInt32(k_ESteamNetworkingConfig_SymmetricConnect, 1);
         vecOpts.push_back(opt);
 
-        opt.SetInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Enable, m_iceEnable);
+        // A direct step gathers host and server reflexive candidates only, no TURN server joins the connection.
+        opt.SetInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Enable, bRelay ? m_iceEnable : k_iceEnableDirectOnly);
         vecOpts.push_back(opt);
         opt.SetInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Implementation, m_iceImplementation);
         vecOpts.push_back(opt);
-        opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_ServerList, m_strTurnServerList.c_str());
-        vecOpts.push_back(opt);
-        opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_UserList, m_strTurnUsernameString.c_str());
-        vecOpts.push_back(opt);
-        opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_PassList, m_strTurnTokenString.c_str());
-        vecOpts.push_back(opt);
+        if (bRelay)
+        {
+            opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_ServerList, m_strTurnServerList.c_str());
+            vecOpts.push_back(opt);
+            opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_UserList, m_strTurnUsernameString.c_str());
+            vecOpts.push_back(opt);
+            opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_PassList, m_strTurnTokenString.c_str());
+            vecOpts.push_back(opt);
+        }
+        else
+        {
+            // An implicitly accepted incoming connection takes these options over the TURN list of the listen socket.
+            opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_ServerList, "");
+            vecOpts.push_back(opt);
+        }
 
         NetworkLog(ELogVerbosity::LOG_DEBUG, "Connecting to '%s' in symmetric mode, virtual port %d, from local virtual port %d.\n",
             SteamNetworkingIdentityRender(identityRemote).c_str(), g_nVirtualPortRemote, g_nLocalPort);
@@ -1146,10 +1327,13 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             m_mapConnections[remoteUserID] = PlayerConnection(remoteUserID, hSteamConnection);
 
             // add attempt; carried over so the retry cap holds across re-signals
-            m_mapConnections[remoteUserID].m_SignallingAttempts = previousAttempts + 1;
+            // An attempt of a timed step does not count towards the cap, the hub moves the pair on instead.
+            m_mapConnections[remoteUserID].m_SignallingAttempts = previousAttempts + (step.timeoutS > 0 ? 0 : 1);
             m_mapConnections[remoteUserID].m_retryTimeout = retryTimeout;
             // Every connection signalling creates is a new attempt of the connection report.
-            m_mapConnections[remoteUserID].m_reportAttempt = ++m_reportAttempts[remoteUserID];
+            m_mapConnections[remoteUserID].m_reportAttempt = step.IsPresent() ? step.attempt : ++m_reportAttempts[remoteUserID];
+            m_mapConnections[remoteUserID].m_step = step;
+            m_mapConnections[remoteUserID].m_stepWatch.Begin(step, NowSteadyMs());
         }
 	}
 
@@ -1158,7 +1342,7 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 bool NetworkMesh::BeginLobbyKeys()
 {
 	GenOnlineAuthInterface* auth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	if (auth == nullptr || GenOnlinePluginHost::Transport::IsActive())
+	if (auth == nullptr)
 	{
 		return false;
 	}
@@ -1201,7 +1385,7 @@ void NetworkMesh::TickLobbyKeys(int64_t nowMs)
 	for (auto& entry : m_mapConnections)
 	{
 		PlayerConnection& connection = entry.second;
-		if (connection.GetState() != EConnectionState::CONNECTED_DIRECT || connection.m_hSteamConnection == k_HSteamNetConnection_Invalid)
+		if (connection.GetState() != EConnectionState::CONNECTED_DIRECT || !connection.CanSend())
 		{
 			m_keySync.erase(entry.first);
 			continue;
@@ -1225,8 +1409,7 @@ void NetworkMesh::TickLobbyKeys(int64_t nowMs)
 			std::vector<BYTE> packet(sizeof(ENetworkChannel) + body.size());
 			packet[0] = static_cast<BYTE>(ENetworkChannel::NETWORK_CHANNEL_KEYS);
 			memcpy(packet.data() + sizeof(ENetworkChannel), body.data(), body.size());
-			const EResult result = SteamNetworkingSockets()->SendMessageToConnection(connection.m_hSteamConnection,
-				packet.data(), static_cast<uint32>(packet.size()), k_nSteamNetworkingSend_ReliableNoNagle, nullptr);
+			const EResult result = static_cast<EResult>(connection.SendFramed(packet.data(), packet.size(), k_nSteamNetworkingSend_ReliableNoNagle));
 			if (result != k_EResultOK)
 			{
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[KEYS] Could not send to user %lld, error %d", static_cast<long long>(entry.first), static_cast<int>(result));
@@ -1279,12 +1462,6 @@ bool NetworkMesh::BeginMatchKeys()
 		return false;
 	}
 	peers.erase(auth->GetUserID());
-	if (!peers.empty() && GenOnlinePluginHost::Transport::IsActive())
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[KEYS] Cannot authenticate peers on plugin transport without sender attribution");
-		EndMatchKeys();
-		return false;
-	}
 
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 	if (!m_matchKeys.HasLocalKey() && !BeginLobbyKeys())
@@ -1337,8 +1514,6 @@ void NetworkMesh::GetLobbyStartBlockers(std::vector<LobbyStartBlocker>& blockers
 		}
 	}
 
-	// on a plugin transport there are no keys, the launch says so
-	const bool keysApply = !GenOnlinePluginHost::Transport::IsActive();
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 	for (int64_t userID : humans)
 	{
@@ -1351,7 +1526,7 @@ void NetworkMesh::GetLobbyStartBlockers(std::vector<LobbyStartBlocker>& blockers
 		{
 			blockers.push_back({ userID, true });
 		}
-		else if (keysApply && (!m_matchKeys.HasPeerKey(userID) || !m_matchKeys.PeerHoldsAll(userID, humans)))
+		else if (!m_matchKeys.HasPeerKey(userID) || !m_matchKeys.PeerHoldsAll(userID, humans))
 		{
 			blockers.push_back({ userID, false });
 		}
@@ -1424,7 +1599,7 @@ static void WriteStartBytes(std::vector<uint8_t>& out, const void* pData, size_t
 void NetworkMesh::SendStartMessage(int64_t userID, const std::vector<uint8_t>& payload)
 {
 	PlayerConnection* pConnection = GetConnectionForUser(userID);
-	if (pConnection == nullptr || pConnection->m_hSteamConnection == k_HSteamNetConnection_Invalid)
+	if (pConnection == nullptr || !pConnection->CanSend())
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[RUNAHEAD] No connection to user %lld for the start run ahead", static_cast<long long>(userID));
 		return;
@@ -1433,7 +1608,7 @@ void NetworkMesh::SendStartMessage(int64_t userID, const std::vector<uint8_t>& p
 	std::vector<uint8_t> packet;
 	packet.push_back(static_cast<uint8_t>(ENetworkChannel::NETWORK_CHANNEL_START));
 	packet.insert(packet.end(), payload.begin(), payload.end());
-	const EResult r = SteamNetworkingSockets()->SendMessageToConnection(pConnection->m_hSteamConnection, packet.data(), static_cast<uint32>(packet.size()), k_nSteamNetworkingSend_ReliableNoNagle, nullptr);
+	const EResult r = static_cast<EResult>(pConnection->SendFramed(packet.data(), packet.size(), k_nSteamNetworkingSend_ReliableNoNagle));
 	if (r != k_EResultOK)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[RUNAHEAD] Could not send the start run ahead message to user %lld, error %d", static_cast<long long>(userID), static_cast<int>(r));
@@ -1499,8 +1674,7 @@ void NetworkMesh::BeginStartRunAhead(int routerSlot)
 		st.active = false;
 	}
 
-	// no remote player or anticheat transport: retail start
-	if (m_startPlayers.empty() || m_startRouterUserID < 0 || GenOnlinePluginHost::Transport::IsActive())
+	if (m_startPlayers.empty() || m_startRouterUserID < 0)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[RUNAHEAD] start R=%d, no start run ahead exchange (players=%d, router=%lld)", (int)TheNetwork->getRunAhead(), (int)m_startPlayers.size(), static_cast<long long>(m_startRouterUserID));
 		return;
@@ -2082,10 +2256,69 @@ void NetworkMesh::SetTurnCredentials(const std::string& strUsername, const std::
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Got TURN credentials, starting %d held signalling request(s)", (int)vecPending.size());
 	for (const PendingSignalling& pending : vecPending)
 	{
-		StartConnectionSignalling(pending.strMiddlewareID.c_str(), pending.remoteUserID, pending.preferredPort);
+		StartConnectionSignalling(pending.strMiddlewareID.c_str(), pending.remoteUserID, pending.preferredPort, pending.step);
 	}
 }
 
+
+void NetworkMesh::DropParkedSignalling(int64_t remoteUserID)
+{
+	for (auto pending = m_vecSignallingAwaitingTurn.begin(); pending != m_vecSignallingAwaitingTurn.end(); ++pending)
+	{
+		if (pending->remoteUserID == remoteUserID)
+		{
+			m_vecSignallingAwaitingTurn.erase(pending);
+			return;
+		}
+	}
+}
+
+void NetworkMesh::DropPendingStateUpdates(int64_t userID)
+{
+	// A plugin state queued before the restart of a pair belongs to the attempt before it.
+	std::lock_guard<std::mutex> lock(m_pendingStateUpdatesMutex);
+	m_vecPendingStateUpdates.erase(std::remove_if(m_vecPendingStateUpdates.begin(), m_vecPendingStateUpdates.end(),
+		[userID](const std::pair<int64_t, EConnectionState>& update)
+		{
+			return update.first == userID;
+		}), m_vecPendingStateUpdates.end());
+}
+
+void NetworkMesh::EndStepAttempt(PlayerConnection& connection, const char* szReason, bool bReport)
+{
+	const int64_t userID = connection.m_userID;
+	const int attempt = connection.m_step.attempt;
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Attempt %d with %lld over %s ended before it connected: %s", attempt, userID, connection.m_step.eos ? "eos" : "gns", szReason);
+
+	// The attempt stops on this side, the hub starts the next step on both.
+	if (connection.m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
+	{
+		GenOnlinePluginHost::Transport::DisconnectPeer(connection.m_strMiddlewareID.c_str(), userID);
+	}
+	else if (connection.m_hSteamConnection != k_HSteamNetConnection_Invalid)
+	{
+		SteamNetworkingSockets()->CloseConnection(connection.m_hSteamConnection, 0, "Client Disconnecting Gracefully (new connection being negotiated)", false);
+		connection.m_hSteamConnection = k_HSteamNetConnection_Invalid;
+	}
+
+	if (!bReport)
+	{
+		connection.m_State = EConnectionState::NOT_CONNECTED;
+		return;
+	}
+
+	// The connection report of the attempt says it failed, the user interface keeps waiting for the next step.
+	connection.m_State = EConnectionState::CONNECTION_FAILED;
+	connection.m_timeline.Add(connection.m_State, false, NowSteadyMs() - connection.m_connectStartedMs);
+	UpdateConnectivity(&connection);
+	connection.m_State = EConnectionState::NOT_CONNECTED;
+
+	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
+	if (pWS)
+	{
+		pWS->SendData_RequestSignalling(userID, attempt);
+	}
+}
 
 void NetworkMesh::RemoveConnection(int64_t userID)
 {
@@ -2114,6 +2347,8 @@ void NetworkMesh::DisconnectUser(int64_t remoteUserID)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 	
+	m_heldACMessages.Clear(remoteUserID);
+
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Dumping all Steam connections");
 	for (auto& kvPair : m_mapConnections)
 	{
@@ -2123,7 +2358,7 @@ void NetworkMesh::DisconnectUser(int64_t remoteUserID)
 	if (m_mapConnections.find(remoteUserID) != m_mapConnections.end())
 	{
 
-        if (GenOnlinePluginHost::Transport::IsActive())
+        if (m_mapConnections[remoteUserID].UsesPluginTransport())
         {
             NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld", remoteUserID);
 
@@ -2186,8 +2421,12 @@ void NetworkMesh::Disconnect()
 
     m_mapConnections.clear();
 	m_reportAttempts.clear();
+	{
+		std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+		m_heldACMessages.ClearAll();
+	}
 
-	if (GenOnlinePluginHost::Transport::IsActive())
+	if (GenOnlinePluginHost::Transport::IsActive() || m_bUsedPluginTransport)
 	{
 		GenOnlinePluginHost::Transport::DisconnectAll();
 	}
@@ -2219,16 +2458,48 @@ void NetworkMesh::Tick()
 		auto it = m_mapConnections.find(update.first);
 		if (it != m_mapConnections.end())
 		{
-			it->second.UpdateState(update.second, this);
+			PlayerConnection& connection = it->second;
+
+			// A plugin state only describes a pair on the plugin transport, the all-plugin mode applies it to every pair.
+			if (connection.m_ConnectionType != EConnectionType::MiddlewarePluginGeneric && UsesGameNetworkingSockets())
+			{
+				continue;
+			}
+
+			if (connection.m_stepWatch.IsReported())
+			{
+				continue;
+			}
+
+			const bool bEnded = update.second == EConnectionState::CONNECTION_FAILED || update.second == EConnectionState::CONNECTION_DISCONNECTED;
+			if (bEnded && connection.m_stepWatch.IsOpen())
+			{
+				EndStepAttempt(connection, "the plugin connection ended", connection.m_stepWatch.TakeFailure());
+				continue;
+			}
+
+			connection.UpdateState(update.second, this);
 		}
 	}
 
-	if (!GenOnlinePluginHost::Transport::IsActive() && m_pSignaling != nullptr)
+	if (UsesGameNetworkingSockets() && m_pSignaling != nullptr)
 	{
 		m_pSignaling->Poll();
 	}
 
 	const int64_t nowMs = NowSteadyMs();
+
+	{
+		std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+		for (auto& kvPair : m_mapConnections)
+		{
+			PlayerConnection& conn = kvPair.second;
+			if (conn.m_stepWatch.TakeTimeout(nowMs))
+			{
+				EndStepAttempt(conn, "the step timed out", true);
+			}
+		}
+	}
 
 	for (auto& kvPair : m_mapConnections)
 	{
@@ -2246,105 +2517,147 @@ void NetworkMesh::Tick()
 		{
 			kvPair.second.LiteUpdateForAC();
 		}
+
+		// The plugin queue holds the packets of every plugin connection, so it drains once per tick.
+		ReceivePluginPackets(k_pluginLitePacketsPerTick, [](PlayerConnection& connection, const uint8_t* data, uint32_t len, int64_t arrivalMs)
+		{
+			connection.DispatchLiteFrame(data, len, arrivalMs);
+		});
 	}
+}
+
+int NetworkMesh::ReceivePluginPackets(int maxPackets, const PluginPacketHandler& handler)
+{
+	int numHandled = 0;
+	for (int numTaken = 0; numTaken < maxPackets; ++numTaken)
+	{
+		if (GenOnlinePluginHost::Transport::GetNextPacketSize(ENetworkChannels::Game) == 0)
+		{
+			break;
+		}
+
+		// the plugin returns its own buffer through pData
+		const uint8_t* pData = nullptr;
+		uint32_t numBytes = 0;
+		int64_t senderUserID = -1;
+		if (!GenOnlinePluginHost::Transport::ReceivePacket(ENetworkChannels::Game, &pData, &numBytes, &senderUserID) || pData == nullptr)
+		{
+			// nothing was dequeued, stop instead of spinning forever on the same pending packet
+			break;
+		}
+
+		// the buffer belongs to the plugin, make sure every exit path below releases it
+		struct ScopedPluginPacket
+		{
+			const uint8_t* m_pData;
+			~ScopedPluginPacket() { GenOnlinePluginHost::Transport::FreePacket(m_pData); }
+		} scopedPacket{ pData };
+
+		// The plugin hands the packet over when the main loop asks, so the receive time is the arrival time.
+		const int64_t arrivalMs = NowSteadyMs();
+
+		std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+		auto it = m_mapConnections.find(senderUserID);
+		if (it == m_mapConnections.end() || it->second.m_ConnectionType != EConnectionType::MiddlewarePluginGeneric)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[PLUGIN PACKET] Dropping a packet of %u bytes from user %lld, the user has no plugin connection", numBytes, static_cast<long long>(senderUserID));
+			continue;
+		}
+
+		handler(it->second, pData, numBytes, arrivalMs);
+		++numHandled;
+	}
+
+	return numHandled;
 }
 
 void PlayerConnection::LiteUpdateForAC()
 {
-	if (GenOnlinePluginHost::Transport::IsActive())
+	// The mesh drains the plugin queue for every plugin connection in NetworkMesh::Tick.
+	if (m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
 	{
-		// EOS: Nothing to do here, AC packets are handled internally when MW is handling it
+		return;
 	}
-	else
+
+	SteamNetworkingMessage_t* pMsg[255] = { nullptr };
+	int numPackets = Recv(pMsg);
+
+	if (numPackets <= 0)
+		return;
+
+	if (numPackets > static_cast<int>(std::size(pMsg)))
 	{
-		SteamNetworkingMessage_t* pMsg[255] = { nullptr };
-		int numPackets = Recv(pMsg);
+		NetworkLog(ELogVerbosity::LOG_RELEASE,
+			"Game Packet Recv: numPackets (%d) > pMsg capacity (%zu), clamping",
+			numPackets, std::size(pMsg));
+		numPackets = static_cast<int>(std::size(pMsg));
+	}
 
-		if (numPackets <= 0)
-			return;
-
-		if (numPackets > static_cast<int>(std::size(pMsg)))
+	for (int iPacket = 0; iPacket < numPackets; ++iPacket)
+	{
+		SteamNetworkingMessage_t* msg = pMsg[iPacket];
+		if (!msg)
 		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE,
-				"Game Packet Recv: numPackets (%d) > pMsg capacity (%zu), clamping",
-				numPackets, std::size(pMsg));
-			numPackets = static_cast<int>(std::size(pMsg));
+			// CRITICAL BUG FIX: Don't return early - continue loop to release remaining messages
+			// Skipping null entry but continue processing others
+			NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC PACKET] Received null message at index %d", iPacket);
+			continue;
 		}
 
-		for (int iPacket = 0; iPacket < numPackets; ++iPacket)
-		{
-			SteamNetworkingMessage_t* msg = pMsg[iPacket];
-			if (!msg)
-			{
-				// CRITICAL BUG FIX: Don't return early - continue loop to release remaining messages
-				// Skipping null entry but continue processing others
-				NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC PACKET] Received null message at index %d", iPacket);
-				continue;
-			}
-
-			const uint32_t numBytes = msg->m_cbSize;
-
-			// is it an AC packet?
-			// TODO_AC: Improve detection, just add a 'msg type' to the start of the packet
-			std::vector<byte> vecData;
-			vecData.resize(numBytes);
-			memcpy(vecData.data(), msg->GetData(), numBytes);
-
-			// Check minimum packet size for AC header
-			if (numBytes >= sizeof(ENetworkChannel))
-			{
-				ENetworkChannel netChannel = (ENetworkChannel)vecData[0];
-				if (netChannel == ENetworkChannel::NETWORK_CHANNEL_AC)
-				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Received AC message of size %u from user %lld", numBytes, static_cast<long long>(m_userID));
-
-
-					// remove header
-					// TODO_AC: Optimize this
-					std::vector<byte> vecDataAC;
-					vecDataAC.resize(numBytes - sizeof(ENetworkChannel));
-					memcpy(vecDataAC.data(), (char*)msg->GetData() + sizeof(ENetworkChannel), numBytes - sizeof(ENetworkChannel));
-
-					GenOnlinePluginHost::Anticheat::MessageArrived(m_userID, vecDataAC.data(), numBytes - sizeof(ENetworkChannel));
-					msg->Release();
-					continue;
-				}
-				else if (netChannel == ENetworkChannel::NETWORK_CHANNEL_PING)
-				{
-					HandleProbe(vecData.data() + sizeof(ENetworkChannel), numBytes - sizeof(ENetworkChannel), GetArrivalMs(msg));
-					msg->Release();
-					continue;
-				}
-				else if (netChannel == ENetworkChannel::NETWORK_CHANNEL_KEYS)
-				{
-					HandleKeyMessage(vecData.data() + sizeof(ENetworkChannel), numBytes - sizeof(ENetworkChannel));
-					msg->Release();
-					continue;
-				}
-				else if (netChannel == ENetworkChannel::NETWORK_CHANNEL_START)
-				{
-					NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-					if (pMesh != nullptr)
-					{
-						pMesh->OnStartRunAheadMessage(m_userID, vecData.data() + sizeof(ENetworkChannel), numBytes - sizeof(ENetworkChannel));
-					}
-					msg->Release();
-					continue;
-				}
-			}
-			else if (numBytes != -1 && numBytes < sizeof(ENetworkChannel))
-			{
-				// Malformed AC packet - too small for header
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Dropping malformed AC packet - size %u is less than header size 3 from user %lld", numBytes, static_cast<long long>(m_userID));
-				msg->Release();
-				continue;
-			}
-
-			// not an AC packet, we dont care
-			NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC PACKET] Received NON AC message");
-			msg->Release();
-		}
+		DispatchLiteFrame(static_cast<const uint8_t*>(msg->GetData()), msg->m_cbSize, GetArrivalMs(msg));
+		msg->Release();
 	}
+}
+
+void PlayerConnection::DispatchLiteFrame(const uint8_t* data, size_t len, int64_t arrivalMs)
+{
+	// Check minimum packet size for AC header
+	if (data == nullptr || len < sizeof(ENetworkChannel))
+	{
+		// Malformed AC packet - too small for header
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Dropping malformed AC packet - size %u is less than header size 3 from user %lld", static_cast<unsigned>(len), static_cast<long long>(m_userID));
+		return;
+	}
+
+	if (!DispatchControlFrame(static_cast<ENetworkChannel>(data[0]), data + sizeof(ENetworkChannel), len - sizeof(ENetworkChannel), arrivalMs))
+	{
+		// not an AC packet, we dont care
+		NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC PACKET] Received NON AC message");
+	}
+}
+
+bool PlayerConnection::DispatchControlFrame(ENetworkChannel channel, const uint8_t* payload, size_t len, int64_t arrivalMs)
+{
+	if (channel == ENetworkChannel::NETWORK_CHANNEL_AC)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Received AC message of size %u from user %lld", static_cast<unsigned>(len), static_cast<long long>(m_userID));
+		GenOnlinePluginHost::Anticheat::MessageArrived(static_cast<uint32_t>(m_userID), payload, static_cast<uint32_t>(len));
+		return true;
+	}
+
+	if (channel == ENetworkChannel::NETWORK_CHANNEL_KEYS)
+	{
+		HandleKeyMessage(payload, len);
+		return true;
+	}
+
+	if (channel == ENetworkChannel::NETWORK_CHANNEL_START)
+	{
+		NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
+		if (pMesh != nullptr)
+		{
+			pMesh->OnStartRunAheadMessage(m_userID, payload, len);
+		}
+		return true;
+	}
+
+	if (channel == ENetworkChannel::NETWORK_CHANNEL_PING)
+	{
+		HandleProbe(payload, len, arrivalMs);
+		return true;
+	}
+
+	return false;
 }
 
 // Probe payload after the envelope, little endian: u16 seq, u16 echoSeq, u16 echoHoldMs
@@ -2392,13 +2705,7 @@ void PlayerConnection::TickProbe(int64_t nowMs)
 
 	m_nextProbeMs = nowMs + pingIntervalMs;
 
-	if (GenOnlinePluginHost::Transport::IsActive())
-	{
-		// the plugin transport has no per-peer receive path for the ping channel, so nothing could be echoed back
-		return;
-	}
-
-	if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
+	if (!CanSend())
 	{
 		return;
 	}
@@ -2561,38 +2868,30 @@ int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
         return -(int)k_EResultFail;
     }
 
-	if (GenOnlinePluginHost::Transport::IsActive())
+	if (!CanSend())
 	{
-		// TODO_EOS: Determine best reliability
-		GenOnlinePluginHost::Transport::SendPacket(m_strMiddlewareID.c_str(), m_userID, pBuffer, totalDataSize, ENetworkChannels::Game, EPacketReliability::PACKET_RELIABILITY_RELIABLE_ORDERED);
-	}
-	else
-	{
-		if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
+		if (LogInvalidDue())
 		{
-			if (LogInvalidDue())
-			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send game packet - connection is invalid for user %lld", m_userID);
-			}
-			return -(int)k_EResultFail;
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send game packet - connection is invalid for user %lld", m_userID);
 		}
+		return -(int)k_EResultFail;
+	}
 
-		ServiceConfig& serviceConf = GenOnlineServicesManager::GetInstance()->GetServiceConfig();
+	ServiceConfig& serviceConf = GenOnlineServicesManager::GetInstance()->GetServiceConfig();
 
 	// datagram mode leaves loss repair to the game layer, the restart flag only applies to ISteamNetworkingMessages
-		int sendFlags = k_nSteamNetworkingSend_Reliable | k_nSteamNetworkingSend_AutoRestartBrokenSession; // default from last patch
-		if (serviceConf.send.IsDatagram())
-		{
-			sendFlags = k_nSteamNetworkingSend_UnreliableNoNagle;
-		}
+	int sendFlags = k_nSteamNetworkingSend_Reliable | k_nSteamNetworkingSend_AutoRestartBrokenSession; // default from last patch
+	if (serviceConf.send.IsDatagram())
+	{
+		sendFlags = k_nSteamNetworkingSend_UnreliableNoNagle;
+	}
 
-		NetworkLog(ELogVerbosity::LOG_DEBUG, "[GAME PACKET] Sending msg of size %ld to user %lld\n", totalDataSize, m_userID);
-		const int r = SendEnveloped(ENetworkChannel::NETWORK_CHANNEL_GAME, static_cast<const uint8_t*>(pBuffer), totalDataSize, sendFlags);
-		if (r != k_EResultOK)
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Failed to send, err code was %d", r);
-			return -r;
-		}
+	NetworkLog(ELogVerbosity::LOG_DEBUG, "[GAME PACKET] Sending msg of size %ld to user %lld\n", totalDataSize, m_userID);
+	const int r = SendEnveloped(ENetworkChannel::NETWORK_CHANNEL_GAME, static_cast<const uint8_t*>(pBuffer), totalDataSize, sendFlags);
+	if (r != k_EResultOK)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Failed to send, err code was %d", r);
+		return -r;
 	}
 
 	return 0;
@@ -2602,33 +2901,25 @@ int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
 
 void PlayerConnection::SendACPacket(const void* pData, uint32_t dataLen)
 {
-	if (GenOnlinePluginHost::Transport::IsActive())
-	{
-		// nothing to do, handled internally in plugin
+    if (!CanSend())
+    {
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Cannot send AC packet - connection is invalid for user %ld", m_userID);
+        return;
+    }
 
-	}
-	else
-	{
-        if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Cannot send AC packet - connection is invalid for user %ld", m_userID);
-            return;
-        }
+    ENetworkChannel netChannel = ENetworkChannel::NETWORK_CHANNEL_AC;
+    std::vector<BYTE> vecData;
+    vecData.resize(dataLen + sizeof(ENetworkChannel));
+    memcpy(vecData.data() + sizeof(ENetworkChannel), pData, dataLen);
+    vecData[0] = (BYTE)netChannel;
 
-        ENetworkChannel netChannel = ENetworkChannel::NETWORK_CHANNEL_AC;
-        std::vector<BYTE> vecData;
-        vecData.resize(dataLen + sizeof(ENetworkChannel));
-        memcpy(vecData.data() + sizeof(ENetworkChannel), pData, dataLen);
-        vecData[0] = (BYTE)netChannel;
+    NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Sending AC msg of size %ld to user %ld\n", dataLen, m_userID);
+    EResult r = static_cast<EResult>(SendFramed(vecData.data(), vecData.size(), k_nSteamNetworkingSend_Reliable));
 
-        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Sending AC msg of size %ld to user %ld\n", dataLen, m_userID);
-        EResult r = SteamNetworkingSockets()->SendMessageToConnection(m_hSteamConnection, vecData.data(), vecData.size(), k_nSteamNetworkingSend_Reliable, nullptr);
-
-        if (r != k_EResultOK)
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Failed to send, err code was %d", r);
-        }
-	}
+    if (r != k_EResultOK)
+    {
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Failed to send, err code was %d", r);
+    }
 }
 
 void PlayerConnection::Close()
@@ -2642,7 +2933,7 @@ void PlayerConnection::Close()
 	}
 	else
 	{
-		if (GenOnlinePluginHost::Transport::IsActive())
+		if (UsesPluginTransport())
 		{
 			GenOnlinePluginHost::Transport::DisconnectPeer(m_strMiddlewareID.c_str(), m_userID);
         }
@@ -2705,9 +2996,15 @@ std::string PlayerConnection::GetStats()
 }
 
 
+bool PlayerConnection::UsesPluginTransport() const
+{
+	return m_ConnectionType == EConnectionType::MiddlewarePluginGeneric
+		|| (m_ConnectionType == EConnectionType::Unknown && GenOnlinePluginHost::Transport::IsActive());
+}
+
 std::string PlayerConnection::GetConnectionType()
 {
-	if (GenOnlinePluginHost::Transport::IsActive())
+	if (UsesPluginTransport())
 	{
 		if (m_State == EConnectionState::CONNECTED_DIRECT)
 		{
@@ -2740,9 +3037,15 @@ std::string PlayerConnection::GetConnectionType()
 
 void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwningMesh)
 {
+	if (newState == EConnectionState::CONNECTED_DIRECT)
+	{
+		m_stepWatch.MarkConnected();
+	}
+
 	if (newState == EConnectionState::CONNECTED_DIRECT && m_State != EConnectionState::CONNECTED_DIRECT)
 	{
 		m_connectedSinceTime = std::chrono::steady_clock::now();
+
 		m_rating = ConnectionRating::State();
 		m_nextRatingMs = 0;
 		ResetProbe();
@@ -2760,6 +3063,8 @@ void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwni
 			m_userID, nowMs - m_connectStartedMs, GetConnectionType().c_str(), m_SignallingAttempts);
 
 		m_SignallingAttempts = 0;
+
+		pOwningMesh->SendHeldACMessages(*this);
 	}
 	pOwningMesh->UpdateConnectivity(this);
 
@@ -2884,17 +3189,43 @@ int PlayerConnection::SendEnveloped(ENetworkChannel channel, const uint8_t* payl
 	memcpy(vecData.data() + sizeof(ENetworkChannel) + envelopeSize, payload, len);
 	vecData.resize(sizeof(ENetworkChannel) + envelopeSize + len);
 
-	EResult r = SteamNetworkingSockets()->SendMessageToConnection(m_hSteamConnection, vecData.data(), static_cast<uint32>(vecData.size()), sendFlags, nullptr);
+	EResult r = static_cast<EResult>(SendFramed(vecData.data(), vecData.size(), sendFlags));
 	if (r != k_EResultOK)
 	{
 		// once more with the same packet, it keeps its sequence number
-		r = SteamNetworkingSockets()->SendMessageToConnection(m_hSteamConnection, vecData.data(), static_cast<uint32>(vecData.size()), sendFlags, nullptr);
+		r = static_cast<EResult>(SendFramed(vecData.data(), vecData.size(), sendFlags));
 	}
 	if (r != k_EResultOK)
 	{
 		m_feedback.CancelEnvelope();
 	}
 	return static_cast<int>(r);
+}
+
+int PlayerConnection::SendFramed(const uint8_t* data, size_t len, int sendFlags)
+{
+	if (m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
+	{
+		// A reliable send stays reliable and ordered on the plugin, every other send is unreliable.
+		const EPacketReliability reliability = (sendFlags & k_nSteamNetworkingSend_Reliable) != 0
+			? EPacketReliability::PACKET_RELIABILITY_RELIABLE_ORDERED
+			: EPacketReliability::PACKET_RELIABILITY_UNRELIABLE_UNORDERED;
+		const bool bSent = GenOnlinePluginHost::Transport::SendPacket(m_strMiddlewareID.c_str(), m_userID, data, static_cast<uint32_t>(len), ENetworkChannels::Game, reliability);
+		return static_cast<int>(bSent ? k_EResultOK : k_EResultNoConnection);
+	}
+
+	return static_cast<int>(SteamNetworkingSockets()->SendMessageToConnection(m_hSteamConnection, data, static_cast<uint32>(len), sendFlags, nullptr));
+}
+
+bool PlayerConnection::CanSend() const
+{
+	// The plugin addresses its peers by user id, so a plugin connection has no handle to lose.
+	if (m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
+	{
+		return true;
+	}
+
+	return m_hSteamConnection != k_HSteamNetConnection_Invalid;
 }
 
 bool PlayerConnection::GetOutgoingLoss(int windowMs, PacketFeedback::Summary& summary)

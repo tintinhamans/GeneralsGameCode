@@ -55,6 +55,8 @@
 
 #define SETTINGS_KEY_PLUGINS "plugins"
 #define SETTINGS_KEY_PLUGINS_ANTICHEAT "anticheat"
+#define SETTINGS_KEY_PLUGINS_TRANSPORT "transport"
+#define SETTINGS_KEY_PLUGINS_SETTINGS "settings"
 
 #define SETTINGS_KEY_MAPS "maps"
 #define SETTINGS_KEY_MAPS_FAVOURITES "favourites"
@@ -104,34 +106,70 @@ static std::wstring ExecutableDirectory()
     }
 }
 
+// TRUE when plugins/<name>/<name>.dll exists next to the game executable.
+static bool IsPluginInstalled(const char* szPlugin)
+{
+    const std::wstring exeDirectory = ExecutableDirectory();
+    if (exeDirectory.empty())
+    {
+        return false;
+    }
+    const std::string name = szPlugin;
+    const std::wstring wideName(name.begin(), name.end());
+    std::error_code ec;
+    return std::filesystem::exists(exeDirectory + L"plugins\\" + wideName + L"\\" + wideName + L".dll", ec);
+}
+
 std::string GenOnlineSettings::GetAnticheatPlugin() const
 {
-    const std::string& choice = m_Plugins_Anticheat;
+    // The client runs one anticheat. An empty list means the built-in GenOnline Anti-Cheat.
+    if (m_Plugins_Anticheat.empty())
+    {
+        return std::string();
+    }
+    if (m_Plugins_Anticheat.size() > 1)
+    {
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] plugins.anticheat lists %d providers, using the first one", (int)m_Plugins_Anticheat.size());
+    }
 
     // GenOnline Anti-Cheat is built into the game and loads no plugin folder.
+    const std::string& choice = m_Plugins_Anticheat.front();
     if (choice == GENONLINE_ANTICHEAT_PLUGIN_NAME)
     {
         return std::string();
     }
-
-    // Without a choice the EOS plugin runs when it is installed, else GenOnline Anti-Cheat.
-    if (choice.empty())
-    {
-        const std::wstring exeDirectory = ExecutableDirectory();
-        const std::string eosName = GENONLINE_EOS_PLUGIN_NAME;
-        const std::wstring eosWideName(eosName.begin(), eosName.end());
-        const std::wstring eosPluginPath = exeDirectory + L"plugins\\" + eosWideName + L"\\" + eosWideName + L".dll";
-        std::error_code ec;
-        if (!exeDirectory.empty() && std::filesystem::exists(eosPluginPath, ec))
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] No anticheat chosen, the EOS plugin is installed");
-            return std::string(GENONLINE_EOS_PLUGIN_NAME);
-        }
-        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] No anticheat chosen, using GenOnline Anti-Cheat");
-        return std::string();
-    }
-
     return choice;
+}
+
+std::vector<std::string> GenOnlineSettings::GetTransportPlugins() const
+{
+    std::vector<std::string> transports = m_Plugins_Transport;
+
+    // Easy Anti-Cheat through the EOS plugin always runs EOS P2P too.
+    const bool bEosAnticheat = std::find(m_Plugins_Anticheat.begin(), m_Plugins_Anticheat.end(), GENONLINE_EOS_PLUGIN_NAME) != m_Plugins_Anticheat.end();
+    if (bEosAnticheat && std::find(transports.begin(), transports.end(), GENONLINE_EOS_PLUGIN_NAME) == transports.end())
+    {
+        transports.push_back(GENONLINE_EOS_PLUGIN_NAME);
+    }
+    return transports;
+}
+
+// Reads a list of plugin names. Entries that are not strings are dropped with one log line.
+static std::vector<std::string> ReadPluginList(const nlohmann::json& list, const char* key)
+{
+    std::vector<std::string> names;
+    for (const nlohmann::json& entry : list)
+    {
+        if (entry.is_string())
+        {
+            names.push_back(entry.get<std::string>());
+        }
+        else
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Ignoring an entry of plugins.%s that is not a plugin name", key);
+        }
+    }
+    return names;
 }
 
 // The old right mouse scroll speed was ratio * Options.ini scroll speed * (screen width / 2) pixels. The scroll now measures the drag at 800x600
@@ -190,7 +228,9 @@ static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_PROXY "." SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN, ValueType::Boolean },
 		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_LAST_ROUTE, ValueType::String },
 		{ SETTINGS_KEY_PLUGINS, ValueType::Object },
-		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_ANTICHEAT, ValueType::String },
+		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_ANTICHEAT, ValueType::Array },
+		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_TRANSPORT, ValueType::Array },
+		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_SETTINGS, ValueType::Object },
 		{ SETTINGS_KEY_MAPS, ValueType::Object },
 		{ SETTINGS_KEY_MAPS "." SETTINGS_KEY_MAPS_FAVOURITES, ValueType::Array },
 	};
@@ -492,13 +532,28 @@ void GenOnlineSettings::Load(void)
                 }
             }
 
+			// Without plugins.transport the EOS plugin carries EOS P2P when it is installed.
+			bool bTransportSet = false;
 			if (jsonSettings.contains(SETTINGS_KEY_PLUGINS))
 			{
 				auto pluginSettings = jsonSettings[SETTINGS_KEY_PLUGINS];
 
 				if (pluginSettings.contains(SETTINGS_KEY_PLUGINS_ANTICHEAT))
 				{
-					m_Plugins_Anticheat = pluginSettings[SETTINGS_KEY_PLUGINS_ANTICHEAT];
+					m_Plugins_Anticheat = ReadPluginList(pluginSettings[SETTINGS_KEY_PLUGINS_ANTICHEAT], SETTINGS_KEY_PLUGINS_ANTICHEAT);
+				}
+				if (pluginSettings.contains(SETTINGS_KEY_PLUGINS_TRANSPORT))
+				{
+					m_Plugins_Transport = ReadPluginList(pluginSettings[SETTINGS_KEY_PLUGINS_TRANSPORT], SETTINGS_KEY_PLUGINS_TRANSPORT);
+					bTransportSet = true;
+				}
+			}
+			if (!bTransportSet)
+			{
+				m_Plugins_Transport.clear();
+				if (IsPluginInstalled(GENONLINE_EOS_PLUGIN_NAME))
+				{
+					m_Plugins_Transport.push_back(GENONLINE_EOS_PLUGIN_NAME);
 				}
 			}
 
@@ -711,7 +766,8 @@ bool GenOnlineSettings::Save()
         {
 			SETTINGS_KEY_PLUGINS,
                 {
-                    {SETTINGS_KEY_PLUGINS_ANTICHEAT, m_Plugins_Anticheat}
+                    {SETTINGS_KEY_PLUGINS_ANTICHEAT, m_Plugins_Anticheat},
+                    {SETTINGS_KEY_PLUGINS_TRANSPORT, m_Plugins_Transport}
                 }
         },
 

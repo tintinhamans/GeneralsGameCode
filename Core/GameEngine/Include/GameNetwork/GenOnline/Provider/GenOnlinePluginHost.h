@@ -16,13 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlinePluginHost.h ////////////////////////////////////////////////
-// Description: Host of the GenOnline plugins. It loads at most one plugin DLL
-//              through the GenOnline plugin API, checks its signed manifest,
-//              version and table sizes, and routes the game calls to the
-//              linked account, anticheat and transport sub interfaces.
-//              GenOnline Anti-Cheat serves the anticheat calls when the plugin
-//              provides no anticheat.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -30,6 +23,7 @@
 #include <atomic>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 enum class EConnectionState : uint8_t
 {
@@ -86,15 +80,27 @@ public:
 	// Set from plugin threads when the local client has to leave the lobby.
 	static std::atomic<bool> g_bPendingExitLobby;
 
-	// Starts GenOnline Anti-Cheat and loads plugins/<name>/<name>.dll next to the game executable. An empty name loads no plugin DLL.
-	static void LoadPlugin(const std::string& pluginName);
+	// Starts GenOnline Anti-Cheat and loads plugins/<name>/<name>.dll next to the game executable. The external anticheat
+	// plugin loads when there is one, else the first transport plugin loads for its transport and linked account only.
+	// An empty anticheat plugin and an empty transport list load no plugin DLL.
+	static void LoadPlugin(const std::string& anticheatPlugin, const std::vector<std::string>& transportPlugins);
 	static void UnloadPlugin();
 	static void Tick();
 
 	static bool IsPluginLoaded();
 
-	// True when a plugin was configured but could not be loaded.
+	// True when the anticheat plugin was configured but could not be loaded. Online play stays blocked then.
 	static bool DidPluginFailToLoad();
+
+	// True when the plugin chosen for its transport only could not be loaded. The game uses the standard connection and
+	// GenOnline Anti-Cheat then.
+	static bool DidTransportPluginFailToLoad();
+
+	// The plugin DLL that LoadPlugin chose, empty when none was configured.
+	static const std::string& GetPluginName();
+
+	// True when the plugin DLL is the anticheat provider. GenOnline Anti-Cheat is the anticheat otherwise.
+	static bool IsPluginAnticheat();
 
 	static bool IsExternalProcessRunning();
 	static int GetAnticheatIdentifier();
@@ -122,11 +128,14 @@ public:
 	public:
 		// True when the service allows the plugin transport and the plugin carries the game traffic.
 		static bool IsActive();
+		// True when a plugin transport is loaded and reports that it can carry packets, the condition for the eos step of a pair.
+		static bool IsAvailable();
 		static void StartSignalling(const char* szPlatformUserID, uint64_t userID);
-		static void SendPacket(const char* szPlatformUserID, uint64_t userID, const void* pData, uint32_t numBytes, ENetworkChannels channel, EPacketReliability reliability);
+		// False when no plugin transport is loaded.
+		static bool SendPacket(const char* szPlatformUserID, uint64_t userID, const void* pData, uint32_t numBytes, ENetworkChannels channel, EPacketReliability reliability);
 		static uint32_t GetNextPacketSize(ENetworkChannels channel);
-		// The buffer belongs to the plugin and goes back through FreePacket.
-		static bool ReceivePacket(ENetworkChannels channel, const uint8_t** ppOutData, uint32_t* pOutNumBytes);
+		// The buffer belongs to the plugin and goes back through FreePacket. pOutSenderUserID gets the GenOnline user id of the sender.
+		static bool ReceivePacket(ENetworkChannels channel, const uint8_t** ppOutData, uint32_t* pOutNumBytes, int64_t* pOutSenderUserID);
 		static void FreePacket(const uint8_t* pData);
 		static int GetLatency(const char* szPlatformUserID, uint64_t userID);
 		static bool IsRelayed(const char* szPlatformUserID, uint64_t userID);

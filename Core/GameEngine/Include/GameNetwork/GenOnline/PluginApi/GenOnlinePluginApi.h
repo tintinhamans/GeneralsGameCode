@@ -168,6 +168,16 @@ typedef struct GenOnlinePluginHostApi
 
 	/* Asks the game to deliver an anticheat message to a peer over the game transport. */
 	void (GENONLINE_PLUGIN_CALL *SendMessageViaTransport)(void* userData, uint64_t genOnlineUserId, const void* data, uint32_t dataLength);
+
+	/*
+	 * GENONLINE_PLUGIN_CAP_ bits of the sub interfaces that the host uses this
+	 * plugin for. The plugin runs only the parts of those sub interfaces. Without
+	 * GENONLINE_PLUGIN_CAP_ANTICHEAT the host still calls the session and peer
+	 * functions of the anticheat table so that the transport knows its peers, and
+	 * the plugin then runs no anticheat and sends no anticheat message. A host
+	 * table too short to hold this field means every capability the plugin offers.
+	 */
+	uint32_t enabledCapabilities;
 } GenOnlinePluginHostApi;
 
 /* Receives the result of a linked account sign in or refresh. success is GENONLINE_PLUGIN_TRUE or GENONLINE_PLUGIN_FALSE. */
@@ -239,7 +249,7 @@ typedef struct GenOnlinePluginTransportApi
 	/* Returns GENONLINE_PLUGIN_TRUE when the plugin carries the game traffic. */
 	int32_t (GENONLINE_PLUGIN_CALL *IsAvailable)(void);
 
-	/* Tells the plugin whether the service configuration allows the plugin transport. This field may be null. */
+	/* Tells the plugin whether its transport may carry pairs. Anti-cheat messages always go through the host. This field may be null. */
 	void (GENONLINE_PLUGIN_CALL *SetEnabled)(int32_t enabled);
 
 	/* Starts the connection to a peer. */
@@ -273,6 +283,14 @@ typedef struct GenOnlinePluginTransportApi
 
 	/* Closes the connections to all peers. */
 	void (GENONLINE_PLUGIN_CALL *DisconnectAll)(void);
+
+	/*
+	 * Works like ReceivePacket and also stores the GenOnline user id of the peer
+	 * that sent the packet in outSenderGenOnlineUserId. The plugin returns only
+	 * packets of peers that the game registered, and drops the others. The host
+	 * uses the plugin transport only when the plugin fills this field.
+	 */
+	int32_t (GENONLINE_PLUGIN_CALL *ReceivePacketFrom)(uint8_t channel, const uint8_t** outData, uint32_t* outDataLength, uint64_t* outSenderGenOnlineUserId);
 } GenOnlinePluginTransportApi;
 
 /*
