@@ -296,6 +296,21 @@ struct MatchResultBody : WireObject
 	}
 };
 
+// One state change of a connection attempt.
+struct ConnectionReportEvent : WireObject
+{
+	// connecting, finding_route, connected_direct, connected_relay, failed or disconnected
+	std::string state;
+	// The milliseconds since the attempt started, never decreasing, at most 600000.
+	int64_t t_ms = 0;
+
+	template <class V> void Fields(V& v)
+	{
+		v("state", state);
+		v("t_ms", t_ms);
+	}
+};
+
 // POST /api/v1/lobbies/:id/connection_reports
 struct ConnectionReportBody : WireObject
 {
@@ -304,6 +319,10 @@ struct ConnectionReportBody : WireObject
 	// gns or eos
 	std::string transport;
 	int ip_version = 4;
+	// The attempt of this pair in this lobby, 1 or more. The service reads an absent attempt as 1.
+	std::optional<int> attempt;
+	// Every state change of the attempt, oldest first, at most 32.
+	std::optional<std::vector<ConnectionReportEvent> > events;
 
 	template <class V> void Fields(V& v)
 	{
@@ -311,6 +330,8 @@ struct ConnectionReportBody : WireObject
 		v("outcome", outcome);
 		v("transport", transport);
 		v("ip_version", ip_version);
+		v("attempt", attempt);
+		v("events", events);
 	}
 };
 

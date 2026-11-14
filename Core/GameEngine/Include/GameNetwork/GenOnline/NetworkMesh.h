@@ -12,6 +12,7 @@
 #include "GameNetwork/GenOnline/ConnectionRating.h"
 #include "GameNetwork/GenOnline/PacketFeedback.h"
 #include "GameNetwork/GenOnline/MatchKeys.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeConnectionTimeline.h"
 
 class NetRoom_ChatMessagePacket;
 
@@ -112,6 +113,11 @@ public:
 
 	// when signalling for this connection started, for connect-time logging
 	int64_t m_connectStartedMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+
+	// The attempt of this pair in this lobby for the connection report, 0 when signalling did not create this connection.
+	int m_reportAttempt = 0;
+	// The state changes of this attempt for the connection report.
+	GenOnlineRealtime::ConnectionTimeline m_timeline;
 	
 	int GetLatency();
 	PacketFeedback m_feedback;
@@ -314,6 +320,7 @@ private:
 
 	std::map<int64_t, PlayerConnection> m_mapConnections;
 	mutable std::recursive_mutex m_mapConnectionsMutex;  // Synchronizes access to m_mapConnections
+	std::map<int64_t, int> m_reportAttempts;	///< Per peer, the connections signalling created in this lobby. Written under m_mapConnectionsMutex on the main thread.
 
 	std::mutex m_pendingStateUpdatesMutex;
 	std::vector<std::pair<int64_t, EConnectionState>> m_vecPendingStateUpdates;

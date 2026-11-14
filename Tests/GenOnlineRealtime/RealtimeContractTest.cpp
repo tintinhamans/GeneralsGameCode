@@ -24,6 +24,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "GameNetwork/GenOnline/Realtime/RealtimeChannelChat.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeConnectionTimeline.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeDirectMessages.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeHubSession.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeLobbyStart.h"
@@ -1681,6 +1682,74 @@ static void TestRestPaths()
 	CHECK(json(body) == json::parse(R"({"user_id":7})"));
 }
 
+static void TestConnectionTimeline()
+{
+	// Each client state maps to its report state, a relayed connection reports connected_relay.
+	CHECK(std::string(ConnectionEventState(EConnectionState::CONNECTING_DIRECT, false)) == "connecting");
+	CHECK(std::string(ConnectionEventState(EConnectionState::FINDING_ROUTE, false)) == "finding_route");
+	CHECK(std::string(ConnectionEventState(EConnectionState::CONNECTED_DIRECT, false)) == "connected_direct");
+	CHECK(std::string(ConnectionEventState(EConnectionState::CONNECTED_DIRECT, true)) == "connected_relay");
+	CHECK(std::string(ConnectionEventState(EConnectionState::CONNECTION_FAILED, false)) == "failed");
+	CHECK(std::string(ConnectionEventState(EConnectionState::CONNECTION_DISCONNECTED, true)) == "disconnected");
+	CHECK(ConnectionEventState(EConnectionState::NOT_CONNECTED, false) == nullptr);
+
+	// NOT_CONNECTED is not recorded, a repeated state is ignored.
+	{
+		ConnectionTimeline timeline;
+		timeline.Add(EConnectionState::NOT_CONNECTED, false, 0);
+		timeline.Add(EConnectionState::CONNECTING_DIRECT, false, 0);
+		timeline.Add(EConnectionState::CONNECTING_DIRECT, false, 100);
+		timeline.Add(EConnectionState::FINDING_ROUTE, false, 2400);
+		timeline.Add(EConnectionState::NOT_CONNECTED, false, 2500);
+		timeline.Add(EConnectionState::CONNECTED_DIRECT, true, 5100);
+		ConnectionReportBody body;
+		body.target_user_id = 7;
+		body.outcome = "connected_relay";
+		body.transport = "gns";
+		body.ip_version = 4;
+		body.attempt = 2;
+		body.events = timeline.Events();
+		CHECK(json(body) == json::parse(R"({"target_user_id":7,"outcome":"connected_relay","transport":"gns","ip_version":4,"attempt":2,"events":[{"state":"connecting","t_ms":0},{"state":"finding_route","t_ms":2400},{"state":"connected_relay","t_ms":5100}]})"));
+	}
+
+	// The time never decreases and never exceeds 600000 ms.
+	{
+		ConnectionTimeline timeline;
+		timeline.Add(EConnectionState::CONNECTING_DIRECT, false, -5);
+		timeline.Add(EConnectionState::FINDING_ROUTE, false, 3000);
+		timeline.Add(EConnectionState::CONNECTED_DIRECT, false, 1000);
+		timeline.Add(EConnectionState::CONNECTION_DISCONNECTED, false, 900000);
+		const std::vector<ConnectionReportEvent>& events = timeline.Events();
+		CHECK(events.size() == 4);
+		CHECK(events[0].t_ms == 0);
+		CHECK(events[1].t_ms == 3000);
+		CHECK(events[2].t_ms == 3000);
+		CHECK(events[3].t_ms == 600000);
+	}
+
+	// A full timeline keeps the first 31 entries and the newest state last.
+	{
+		ConnectionTimeline timeline;
+		for (int i = 0; i < 40; ++i)
+		{
+			timeline.Add(i % 2 == 0 ? EConnectionState::CONNECTING_DIRECT : EConnectionState::FINDING_ROUTE, false, i * 10);
+		}
+		timeline.Add(EConnectionState::CONNECTION_FAILED, false, 500);
+		const std::vector<ConnectionReportEvent>& events = timeline.Events();
+		CHECK(events.size() == 32);
+		CHECK(events[30].state == "connecting");
+		CHECK(events[30].t_ms == 300);
+		CHECK(events[31].state == "failed");
+		CHECK(events[31].t_ms == 500);
+
+		// A newest state equal to the kept entry before the last leaves that entry last.
+		timeline.Add(EConnectionState::CONNECTING_DIRECT, false, 600);
+		CHECK(timeline.Events().size() == 31);
+		CHECK(timeline.Events().back().state == "connecting");
+		CHECK(timeline.Events().back().t_ms == 300);
+	}
+}
+
 static void TestLobbyJoinHistory()
 {
 	typedef std::vector<std::string> Ids;
@@ -1732,6 +1801,7 @@ int main(int argc, char** argv)
 	TestApiError();
 	TestRestRetry();
 	TestRestPaths();
+	TestConnectionTimeline();
 	TestLobbyJoinHistory();
 	TestPkce();
 	TestPeerPayload();
