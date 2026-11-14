@@ -2072,7 +2072,9 @@ extern "C" void WBQtScript_Open(void *frameHwnd, int x, int y)
 			reinterpret_cast<LONG_PTR>(WBQt_EffectiveOwnerHwnd(frameHwnd)));
 	}
 
-	win->move(x, y);
+	// The position tracker places the window on its first show; later opens keep its spot.
+	(void)x;
+	(void)y;
 	win->show();
 	win->raise();
 	win->activateWindow();

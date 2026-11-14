@@ -1,6 +1,7 @@
 // WBQtMapIniEditorDialog.cpp -- see WBQtMapIniEditorDialog.h.
 #include "WBQtMapIniEditorDialog.h"
 #include "ui_WBQtMapIniEditorDialog.h"
+#include "WBQtWindowPos.h"
 #include "WBQtMapIniEditorBridge.h"
 #include "WBQtMapIniCodeEditor.h"
 #include "WBQtMapIniReport.h"		// WBQT_MAPINI_BLOCK_* for the outline badges
@@ -1195,7 +1196,11 @@ WBQtMapIniEditorDialog::WBQtMapIniEditorDialog(void *frameHwnd)
 	}
 	if (left != -1 && top != -1)
 	{
-		move(left, top);
+		WBQtWindowPos_MoveOnScreen(this, left, top);
+	}
+	else
+	{
+		WBQtWindowPos_CenterOnMain(this);
 	}
 }
 

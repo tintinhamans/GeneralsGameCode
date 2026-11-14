@@ -34,6 +34,13 @@ void WBQtWindowPos_Track(QWidget *window, const char *name);
 // a stale saved size cannot bring the dialog back clipped.
 void WBQtWindowPos_TrackSize(QWidget *window, const char *name);
 
+// Move the window's frame corner to (left, top), shifted as needed to be reachable on the
+// nearest monitor. For windows that keep their position in a store of their own.
+void WBQtWindowPos_MoveOnScreen(QWidget *window, int left, int top);
+
+// Center the window over the main window; the placement for a window with no saved position.
+void WBQtWindowPos_CenterOnMain(QWidget *window);
+
 // Reset Window Positions: wipe the saved [QtWindowPositions]/[QtWindowSize] store and
 // cascade every live tracked window back near the top-left (visible ones re-save their
 // fresh spot through the normal move tracking).
