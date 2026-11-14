@@ -33,9 +33,9 @@
 // every build refuses a plugin that fails the check, debug builds included.
 namespace GenOnlinePluginKeys
 {
-// Key id: none
-inline constexpr const char* kPluginsCurrent = "";
+// Key id: 3715FA3A98849F81
+inline constexpr const char* kPluginsCurrent = "RWSBn4SYOvoVN/7IyKeITXnFjqN1CJ8wCBmQdNaG34qEh9Tk4gj+ieJF";
 
-// Key id: none
-inline constexpr const char* kPluginsNext = "";
+// Key id: E1CDD5B1BBA7B9F7
+inline constexpr const char* kPluginsNext = "RWT3uae7sdXN4X2w/Eb+CjWDVK5kxTsf2movvJj5tX/yVAUi1MkgDTOw";
 } // namespace GenOnlinePluginKeys
