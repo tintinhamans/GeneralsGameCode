@@ -21,6 +21,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeMatchmaking.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/GenOnlineModeration.h"
 #include "GameClient/GenOnlineMenus.h"
@@ -138,6 +139,11 @@ std::wstring FailureText(const InvokeOutcome& outcome)
 	}
 	const std::string code = outcome.Code();
 	const nlohmann::json params = outcome.result.params.has_value() && outcome.result.params->is_object() ? *outcome.result.params : nlohmann::json::object();
+	const std::string matchmakingText = MatchmakingFailureText(code, params);
+	if (!matchmakingText.empty())
+	{
+		return Wide(matchmakingText);
+	}
 	if (code == "chat.rate_limited" || code == "rate_limited")
 	{
 		return L"You are sending messages too quickly. Please wait a moment.";

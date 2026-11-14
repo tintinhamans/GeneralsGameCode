@@ -16,10 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlineRealtimeBridge.h ////////////////////////////////////////////
-// Description: Connects the events of the GenOnline realtime hub to the rooms,
-//              social and moderation interfaces, so the menus keep reading the
-//              same state they read with the legacy message protocol.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once

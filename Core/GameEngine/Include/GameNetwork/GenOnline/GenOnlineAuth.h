@@ -5,21 +5,10 @@
 #include <memory>
 #include <vector>
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Sign-in providers of the GO sign-in screen; Website is the playgenerals.online page that offers them all.
-enum class ELoginProvider
-{
-	Website,
-	Discord,
-	Steam,
-	GameReplays
-};
-
 enum class ELoginStage
 {
 	None,
 	SavedLogin,
-	RequestingCode,
-	WaitingForProvider,
 	WaitingForBrowser,
 	Finishing,
 	Failed
@@ -29,10 +18,9 @@ class GenOnlineAuthInterface
 {
 public:
 
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 With the sign-in screen up, the login reports its stage instead of showing message boxes and waits for a provider before opening the browser.
+	// GenOnline @feature arcticdolphin 08/11/2026 With the sign-in screen up, the login reports its stage instead of showing message boxes.
 	void SetSignInScreen(bool bSignInScreen) { m_bSignInScreen = bSignInScreen; }
 	ELoginStage GetLoginStage() const { return m_loginStage; }
-	const std::string& GetLoginCode() const { return m_strCode; }
 	bool HasDisplayName() const { return !m_strDisplayName.empty() && m_strDisplayName != "NO_USER"; }
 
 	// GenOnline @feature arcticdolphin 09/11/2026 The sign-in dialog shows a failed login in place and closes itself, so failures are reported to its callback instead of popping a screen.
@@ -41,12 +29,8 @@ public:
 	const std::wstring& GetLoginFailureTitle() const { return m_strLoginFailureTitle; }
 	const std::wstring& GetLoginFailureText() const { return m_strLoginFailureText; }
 
-	void OpenProviderLogin(ELoginProvider provider);
 	void UseAnotherAccount();
 	void CancelLogin();
-
-	static std::string GetProviderLoginURL(ELoginProvider provider, const std::string& strCode, const std::string& strEnv);
-	static std::string PercentEncode(const std::string& strValue);
 
 	std::string GetDisplayName()
 	{
@@ -73,10 +57,8 @@ public:
 
 	void SendMiddlewareToken(std::string strMWToken);
 
-	void RefreshToken();
 	void BeginLogin();
 	void BeginLoginOnSelectedRoute();
-	void DoFullLoginFlow();
 
 	void Tick();
 
@@ -103,20 +85,14 @@ public:
 
 	static std::string GetCredentialsFilePath();
 
-	// True when the environment runs the realtime protocol v1, whose sign-in is OAuth in the system browser.
-	static bool UsesRealtimeHub();
-
 	// Refreshes the tokens and registers the session again, for a realtime hub that refused or revoked the session.
 	void RecoverRealtimeSession(std::function<void(bool bRecovered)> fnDone);
 
 private:
 	void LoginAsSecondaryDevAccount();
 
-	void SaveCredentials(const char* szRefreshToken);
 	bool GetCredentials();
 	void DeleteSavedCredentials();
-
-	void OnRefreshTokenFailed(const char* szReason, const std::string& strBody = std::string());
 
 	static std::string CredentialServerKey();
 
@@ -134,10 +110,6 @@ private:
 	static std::string ServiceOriginV1();
 
 private:
-	bool m_bWaitingLogin = false;
-	std::string m_strCode;
-	std::int64_t m_lastCheckCode = -1;
-
 	bool m_bSignInScreen = false;
 	bool m_bSignInDialog = false;
 	std::wstring m_strLoginFailureTitle;
@@ -153,13 +125,8 @@ private:
 	std::function<void(ELoginResult)> m_cb_LoginPendingCallback = nullptr;
 
 	std::string m_strRefreshToken = std::string();
-	int64_t m_tokenCreationTime = -1;
-	const int m_minutesUntilTokenRefresh = 10;
 
 	// if a refresh fails we still have ~5m before the token actually expires, so retry quickly rather than waiting for the next scheduled refresh
-	int m_currentRefreshAttempt = 0;
-	int64_t m_nextRefreshRetryTime = -1;
-	const int m_maxRefreshAttempts = 2;
 	const int m_secondsUntilRefreshRetry = 30;
 
 	// Realtime protocol v1 sign-in. The access token lives in m_strToken and the rotating refresh token in m_strRefreshToken.

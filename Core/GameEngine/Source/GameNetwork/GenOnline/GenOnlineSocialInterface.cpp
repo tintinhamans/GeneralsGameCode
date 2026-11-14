@@ -20,312 +20,106 @@ GenOnlineSocialInterface::~GenOnlineSocialInterface()
 void GenOnlineSocialInterface::GetFriendsList(bool bUseCache, std::function<void()> cb)
 {
 	// The hub keeps the cache current, so there is nothing to fetch.
-	if (bUseCache || UsesRealtimeHub())
+	if (cb != nullptr)
 	{
-		if (cb != nullptr)
-		{
-			cb();
-		}
-
-		return;
+		cb();
 	}
-
-	{
-		std::scoped_lock<std::mutex> lock(m_friendsListCallbackMutex);
-		m_cbOnGetFriendsList = cb;
-	}
-
-	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("Social/Friends");
-	std::map<std::string, std::string> mapHeaders;
-
-	// Capture callback by local copy to avoid race condition if GetFriendsList is called again
-	auto localCallback = cb;
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [localCallback](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-			FriendsResult friendsResult;
-
-			try
-			{
-				GenOnlineSocialInterface* pThis = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-				if (pThis == nullptr)
-					return;
-
-				std::unordered_map<int64_t, FriendsEntry> mapFriends{};
-				std::unordered_map<int64_t, FriendsEntry> mapPendingRequests{};
-
-				nlohmann::json jsonObject = nlohmann::json::parse(strBody);
-
-				// friends
-				for (const auto& friendEntryIter : jsonObject["friends"])
-				{
-					FriendsEntry newFriend;
-
-					friendEntryIter["user_id"].get_to(newFriend.user_id);
-					friendEntryIter["display_name"].get_to(newFriend.display_name);
-					friendEntryIter["online"].get_to(newFriend.online);
-					friendEntryIter["presence"].get_to(newFriend.presence);
-
-
-					friendsResult.vecFriends.push_back(newFriend);
-
-					// cache
-					mapFriends.insert_or_assign(newFriend.user_id, newFriend);
-				}
-
-				// pending requests
-				for (const auto& friendEntryIter : jsonObject["pending_requests"])
-				{
-					FriendsEntry newEntry;
-
-					friendEntryIter["user_id"].get_to(newEntry.user_id);
-					friendEntryIter["display_name"].get_to(newEntry.display_name);
-
-
-					friendsResult.vecPendingRequests.push_back(newEntry);
-
-					// cache
-					mapPendingRequests.insert_or_assign(newEntry.user_id, newEntry);
-				}
-
-				std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
-				pThis->m_mapFriends.swap(mapFriends);
-				pThis->m_mapPendingRequests.swap(mapPendingRequests);
-			}
-			catch (...)
-			{
-
-			}
-
-			// Use local callback copy instead of potentially overwritten member
-			if (localCallback != nullptr)
-			{
-				localCallback();
-			}
-		});
 }
 
 void GenOnlineSocialInterface::GetBlockList(std::function<void(BlockedResult blockResult)> cb)
 {
-	if (UsesRealtimeHub())
+	BlockedResult blockedResult;
 	{
-		BlockedResult blockedResult;
+		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
+		for (const auto& entry : m_mapBlocked)
 		{
-			std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
-			for (const auto& entry : m_mapBlocked)
-			{
-				blockedResult.vecBlocked.push_back(entry.second);
-			}
+			blockedResult.vecBlocked.push_back(entry.second);
 		}
-		if (cb != nullptr)
-		{
-			cb(blockedResult);
-		}
-		return;
 	}
-
-	m_cbOnGetBlockList = cb;
-
-	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("Social/Blocked");
-	std::map<std::string, std::string> mapHeaders;
-
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-			BlockedResult blockedResult;
-
-			try
-			{
-				std::unordered_map<int64_t, FriendsEntry> mapBlocked{};
-				nlohmann::json jsonObject = nlohmann::json::parse(strBody);
-
-				for (const auto& blockedEntryIter : jsonObject["blocked"])
-				{
-					FriendsEntry newEntry;
-
-					blockedEntryIter["user_id"].get_to(newEntry.user_id);
-					blockedEntryIter["display_name"].get_to(newEntry.display_name);
-
-
-					blockedResult.vecBlocked.push_back(newEntry);
-
-					// cache
-					mapBlocked.insert_or_assign(newEntry.user_id, newEntry);
-				}
-
-				std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
-				m_mapBlocked.swap(mapBlocked);
-			}
-			catch (...)
-			{
-
-			}
-
-			if (m_cbOnGetBlockList != nullptr)
-			{
-				// TODO_SOCIAL: Clean this up on exit etc
-				m_cbOnGetBlockList(blockedResult);
-				m_cbOnGetBlockList = nullptr;
-			}
-		});
+	if (cb != nullptr)
+	{
+		cb(blockedResult);
+	}
 }
 
 void GenOnlineSocialInterface::AddFriend(int64_t target_user_id)
 {
-	if (UsesRealtimeHub())
-	{
-		GenOnlineRealtime::SendFriendRequestRequest request;
-		request.user_id = target_user_id;
-		InvokeSocialRealtime(request, nullptr);
-		return;
-	}
-
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Social/Friends/Requests"), target_user_id);
-	std::map<std::string, std::string> mapHeaders;
-
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPUTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "", [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-
-		});
+	GenOnlineRealtime::SendFriendRequestRequest request;
+	request.user_id = target_user_id;
+	InvokeSocialRealtime(request, nullptr);
 }
 
 void GenOnlineSocialInterface::RemoveFriend(int64_t target_user_id)
 {
-	if (UsesRealtimeHub())
-	{
-		GenOnlineRealtime::RemoveFriendRequest request;
-		request.user_id = target_user_id;
-		InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
-			{
-				std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
-				pThis->m_mapFriends.erase(target_user_id);
-			});
-		return;
-	}
-
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Social/Friends"), target_user_id);
-	std::map<std::string, std::string> mapHeaders;
-
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendDELETERequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "", [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+	GenOnlineRealtime::RemoveFriendRequest request;
+	request.user_id = target_user_id;
+	InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
 		{
-
+			std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
+			pThis->m_mapFriends.erase(target_user_id);
 		});
 }
 
 void GenOnlineSocialInterface::IgnoreUser(int64_t target_user_id)
 {
-	if (UsesRealtimeHub())
-	{
-		GenOnlineRealtime::BlockUserRequest request;
-		request.user_id = target_user_id;
-		InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
-			{
-				FriendsEntry entry;
-				entry.user_id = target_user_id;
-				entry.display_name = pThis->FindDisplayName(target_user_id);
-				entry.online = false;
-				std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
-				pThis->m_mapFriends.erase(target_user_id);
-				pThis->m_mapPendingRequests.erase(target_user_id);
-				pThis->m_mapBlocked.insert_or_assign(target_user_id, entry);
-			});
-		return;
-	}
-
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Social/Blocked"), target_user_id);
-	std::map<std::string, std::string> mapHeaders;
-
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPUTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "", [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+	GenOnlineRealtime::BlockUserRequest request;
+	request.user_id = target_user_id;
+	InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
 		{
-
+			FriendsEntry entry;
+			entry.user_id = target_user_id;
+			entry.display_name = pThis->FindDisplayName(target_user_id);
+			entry.online = false;
+			std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
+			pThis->m_mapFriends.erase(target_user_id);
+			pThis->m_mapPendingRequests.erase(target_user_id);
+			pThis->m_mapBlocked.insert_or_assign(target_user_id, entry);
 		});
 }
 
 void GenOnlineSocialInterface::UnignoreUser(int64_t target_user_id)
 {
-	if (UsesRealtimeHub())
-	{
-		GenOnlineRealtime::UnblockUserRequest request;
-		request.user_id = target_user_id;
-		InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
-			{
-				std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
-				pThis->m_mapBlocked.erase(target_user_id);
-			});
-		return;
-	}
-
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Social/Blocked"), target_user_id);
-	std::map<std::string, std::string> mapHeaders;
-
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendDELETERequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "", [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+	GenOnlineRealtime::UnblockUserRequest request;
+	request.user_id = target_user_id;
+	InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
 		{
-
+			std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
+			pThis->m_mapBlocked.erase(target_user_id);
 		});
 }
 
 void GenOnlineSocialInterface::AcceptPendingRequest(int64_t target_user_id)
 {
-	if (UsesRealtimeHub())
-	{
-		GenOnlineRealtime::AcceptFriendRequestRequest request;
-		request.user_id = target_user_id;
-		InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
-			{
-				std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
-				auto it = pThis->m_mapPendingRequests.find(target_user_id);
-				if (it != pThis->m_mapPendingRequests.end())
-				{
-					// Presence arrives as FriendPresence.
-					FriendsEntry entry = it->second;
-					entry.online = false;
-					pThis->m_mapFriends.insert_or_assign(target_user_id, entry);
-					pThis->m_mapPendingRequests.erase(it);
-				}
-			});
-		if (m_numTotalNotifications > 0) --m_numTotalNotifications;
-		TriggerCallback_OnNumberGlobalNotificationsChanged();
-		return;
-	}
-
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Social/Friends/Requests"), target_user_id);
-	std::map<std::string, std::string> mapHeaders;
-
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "", [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+	GenOnlineRealtime::AcceptFriendRequestRequest request;
+	request.user_id = target_user_id;
+	InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
 		{
-
+			std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
+			auto it = pThis->m_mapPendingRequests.find(target_user_id);
+			if (it != pThis->m_mapPendingRequests.end())
+			{
+				// Presence arrives as FriendPresence.
+				FriendsEntry entry = it->second;
+				entry.online = false;
+				pThis->m_mapFriends.insert_or_assign(target_user_id, entry);
+				pThis->m_mapPendingRequests.erase(it);
+			}
 		});
-
-	// update notifications
 	if (m_numTotalNotifications > 0) --m_numTotalNotifications;
 	TriggerCallback_OnNumberGlobalNotificationsChanged();
 }
 
 void GenOnlineSocialInterface::RejectPendingRequest(int64_t target_user_id)
 {
-	if (UsesRealtimeHub())
-	{
-		GenOnlineRealtime::DeclineFriendRequestRequest request;
-		request.user_id = target_user_id;
-		InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
-			{
-				std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
-				pThis->m_mapPendingRequests.erase(target_user_id);
-			});
-		if (m_numTotalNotifications > 0) --m_numTotalNotifications;
-		TriggerCallback_OnNumberGlobalNotificationsChanged();
-		return;
-	}
-
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Social/Friends/Requests"), target_user_id);
-	std::map<std::string, std::string> mapHeaders;
-
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendDELETERequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "", [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+	GenOnlineRealtime::DeclineFriendRequestRequest request;
+	request.user_id = target_user_id;
+	InvokeSocialRealtime(request, [target_user_id](GenOnlineSocialInterface* pThis)
 		{
-
+			std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
+			pThis->m_mapPendingRequests.erase(target_user_id);
 		});
-
-    // update notifications
-    if (m_numTotalNotifications > 0) --m_numTotalNotifications;
-    TriggerCallback_OnNumberGlobalNotificationsChanged();
+	if (m_numTotalNotifications > 0) --m_numTotalNotifications;
+	TriggerCallback_OnNumberGlobalNotificationsChanged();
 }
 
 void GenOnlineSocialInterface::OnChatMessage(int64_t source_user_id, int64_t target_user_id, UnicodeString unicodeStr)
@@ -467,31 +261,13 @@ bool GenOnlineSocialInterface::IsUserPendingRequest(int64_t target_user_id)
     return m_mapPendingRequests.contains(target_user_id);
 }
 
-bool GenOnlineSocialInterface::UsesRealtimeHub()
-{
-	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
-	return pWS != nullptr && pWS->IsRealtimeHub();
-}
-
 void GenOnlineSocialInterface::RegisterForRealtimeServiceUpdates()
 {
-	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
-	if (pWS != nullptr)
-	{
-		pWS->SendData_SubscribeRealtimeUpdates();
-	}
-
 	m_bOverlayActive = true;
 }
 
 void GenOnlineSocialInterface::DeregisterForRealtimeServiceUpdates()
 {
-	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
-	if (pWS != nullptr)
-	{
-		pWS->SendData_UnsubscribeRealtimeUpdates();
-	}
-
 	m_bOverlayActive = false;
 }
 

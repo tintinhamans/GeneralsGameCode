@@ -539,14 +539,6 @@ void GenOnlineStatsInterface::UpdateMyStats(const PSPlayerStats& stats)
 		});
 }
 
-struct MatchOutcomeResponse
-{
-    std::string screenshot_url;
-	std::string replay_url;
-
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(MatchOutcomeResponse, screenshot_url, replay_url)
-};
-
 void GenOnlineStatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeeper, bool bWon)
 {
 	int buildingsBuilt = 0;
@@ -588,75 +580,29 @@ void GenOnlineStatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeeper, bool bW
 	    const bool desynced = TheNetwork->sawCRCMismatch();
 		const uint32_t duration = TheGameLogic->getFrame() / LOGICFRAMES_PER_SECOND;
 
-		if (GenOnlineAuthInterface::UsesRealtimeHub())
-		{
-			GenOnlineRealtime::ReportMatchOutcomeRequest request;
-			request.match_id = (int64_t)currentMatchID;
-			request.won = bWon;
-			request.desynced = desynced;
-			request.side = resolvedSide;
-			request.duration_s = duration;
-			request.stats.buildings_built = buildingsBuilt;
-			request.stats.buildings_killed = buildingsDestroyed;
-			request.stats.buildings_lost = buildingsLost;
-			request.stats.units_built = unitsBuilt;
-			request.stats.units_killed = unitsDestroyed;
-			request.stats.units_lost = unitsLost;
-			request.stats.total_money = totalMoney;
-			InvokeRealtimeHub(request, [currentMatchID](const GenOnlineRealtime::InvokeOutcome& outcome)
-				{
-					GenOnlineRealtime::ReportMatchOutcomeResult result;
-					if (!outcome.Data(result))
-					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] ReportMatchOutcome for match %llu failed: %s", currentMatchID, outcome.delivered ? outcome.Code().c_str() : outcome.transportError.c_str());
-						return;
-					}
-					GenOnlineServicesManager::GetInstance()->SetScreenshotS3URI_EndMatch(currentMatchID, result.screenshot_url);
-					GenOnlineServicesManager::GetInstance()->SetScreenshotS3URI_Replay(currentMatchID, result.replay_url);
-				});
-			return;
-		}
-
-		nlohmann::json j;
-		j["buildings_built"] = buildingsBuilt;
-		j["buildings_killed"] = buildingsDestroyed;
-		j["buildings_lost"] = buildingsLost;
-		j["units_built"] = unitsBuilt;
-		j["units_killed"] = unitsDestroyed;
-		j["units_lost"] = unitsLost;
-		j["total_money"] = totalMoney;
-		j["won"] = bWon;
-		j["match_id"] = currentMatchID;
-		j["side"] = resolvedSide;
-		j["desynced"] = desynced;
-		j["duration"] = duration;
-
-		std::string strPostData = j.dump();
-	
-		std::string strURI = std::format("{}/Outcome", GenOnlineServicesManager::GetAPIEndpoint("Lobby"));
-		std::map<std::string, std::string> mapHeaders;
-
-		GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+		GenOnlineRealtime::ReportMatchOutcomeRequest request;
+		request.match_id = (int64_t)currentMatchID;
+		request.won = bWon;
+		request.desynced = desynced;
+		request.side = resolvedSide;
+		request.duration_s = duration;
+		request.stats.buildings_built = buildingsBuilt;
+		request.stats.buildings_killed = buildingsDestroyed;
+		request.stats.buildings_lost = buildingsLost;
+		request.stats.units_built = unitsBuilt;
+		request.stats.units_killed = unitsDestroyed;
+		request.stats.units_lost = unitsLost;
+		request.stats.total_money = totalMoney;
+		InvokeRealtimeHub(request, [currentMatchID](const GenOnlineRealtime::InvokeOutcome& outcome)
 			{
-				if (bSuccess && !strBody.empty())
+				GenOnlineRealtime::ReportMatchOutcomeResult result;
+				if (!outcome.Data(result))
 				{
-					try
-					{
-                        nlohmann::json jsonObject = nlohmann::json::parse(strBody);
-                        MatchOutcomeResponse matchOutcomeResp = jsonObject.get<MatchOutcomeResponse>();
-
-                        GenOnlineServicesManager::GetInstance()->SetScreenshotS3URI_EndMatch(currentMatchID, matchOutcomeResp.screenshot_url);
-                        GenOnlineServicesManager::GetInstance()->SetScreenshotS3URI_Replay(currentMatchID, matchOutcomeResp.replay_url);
-					}
-                    catch (nlohmann::json::exception&)
-                    {
-                       
-                    }
-                    catch (...)
-                    {
-
-                    }
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] ReportMatchOutcome for match %llu failed: %s", currentMatchID, outcome.delivered ? outcome.Code().c_str() : outcome.transportError.c_str());
+					return;
 				}
+				GenOnlineServicesManager::GetInstance()->SetScreenshotS3URI_EndMatch(currentMatchID, result.screenshot_url);
+				GenOnlineServicesManager::GetInstance()->SetScreenshotS3URI_Replay(currentMatchID, result.replay_url);
 			});
 	}
 }

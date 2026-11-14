@@ -580,7 +580,6 @@ public:
 	void OnRealtimeStartGameOutcome(const GenOnlineRealtime::InvokeOutcome& outcome);
 	void ShowRealtimeLobbyFailure(const GenOnlineRealtime::InvokeOutcome& outcome);
 
-	// Matchmaking, shared by the legacy messages and the realtime hub events.
 	void HandleMatchFound(int64_t lobbyID, const std::string& mapPath);
 	void HandleMatchSetupProgress(int64_t timeoutMs, int64_t countdownMs);
 	void OnRealtimeMatchmakingStatus(const GenOnlineRealtime::MatchmakingStatusEvent& event);

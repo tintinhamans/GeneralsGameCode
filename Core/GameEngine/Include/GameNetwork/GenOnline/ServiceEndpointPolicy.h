@@ -9,8 +9,6 @@ struct ServiceConnectionSettings
 	std::string serverMode = "automatic";
 	// https origin of the custom server, empty unless serverMode is custom
 	std::string serverAddress;
-	// "legacy" speaks the /ws message protocol, "v1" the realtime hub at /-/realtime
-	std::string realtimeProtocol = "legacy";
 	// "automatic" follows the Windows proxy settings, "disabled" connects directly, "custom" uses proxyURL
 	std::string proxyMode = "automatic";
 	std::string proxyURL;
@@ -29,8 +27,6 @@ std::vector<std::string> BootstrapRoutes(const std::string& environment,
     const ServiceConnectionSettings& settings, const std::string& remembered);
 std::string RouteHost(const std::string& route);
 bool IsTrustedServiceURL(const std::string& url, const std::string& base, bool websocket);
-// wss address of the websocket on a service base: the scheme swapped from https and ws appended to the path; empty for a base that is not https
-std::string WebSocketURLForBase(const std::string& base);
 // wss address of the realtime hub on the host of a service base; empty for a base that is not https
 std::string RealtimeHubURLForBase(const std::string& base);
 std::string RequestURLForLog(const std::string& url, const std::string& serviceBase);

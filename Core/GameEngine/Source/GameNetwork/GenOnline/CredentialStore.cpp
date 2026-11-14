@@ -79,7 +79,7 @@ bool Unprotect(const std::string& blob, std::string& plain, unsigned long& error
 	return true;
 }
 
-// the file of current builds holds {"refresh_token": ...}; it becomes the token of the default GO route
+// The top-level "refresh_token" of old builds belongs to the legacy login and is dropped, so the next write removes it.
 void Normalize(Json& doc)
 {
 	if (!doc.is_object())
@@ -88,12 +88,7 @@ void Normalize(Json& doc)
 		doc["tokens"] = Json::object();
 	if (!doc.contains("proxies") || !doc["proxies"].is_object())
 		doc["proxies"] = Json::object();
-	if (doc.contains("refresh_token"))
-	{
-		if (doc["refresh_token"].is_string() && !doc["refresh_token"].get<std::string>().empty() && !doc["tokens"].contains("go"))
-			doc["tokens"]["go"] = doc["refresh_token"];
-		doc.erase("refresh_token");
-	}
+	doc.erase("refresh_token");
 }
 
 // the stored document, a file that cannot be read counts as empty and is never overwritten

@@ -40,9 +40,6 @@ BLANK_LAYOUTS = {
         "GameSpyLoginProfile.wnd:Line",
         # the GO sign-in panel (GenOnline/tools/wnd_sources); WOLLoginMenu.cpp shows the windows of each sign-in state
         "GameSpyLoginProfile.wnd:StaticTextSignInStatus",
-        "GameSpyLoginProfile.wnd:ButtonProviderDiscord",
-        "GameSpyLoginProfile.wnd:ButtonProviderSteam",
-        "GameSpyLoginProfile.wnd:ButtonProviderGameReplays",
         "GameSpyLoginProfile.wnd:ButtonUseAnotherAccount",
         "GameSpyLoginProfile.wnd:ButtonCancel",
     ),
