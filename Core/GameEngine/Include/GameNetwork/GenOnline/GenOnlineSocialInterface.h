@@ -32,7 +32,6 @@ public:
 	~GenOnlineSocialInterface();
 
 	void GetFriendsList(bool bUseCache, std::function<void()> cb);
-	bool IsOverlayActive() const { return m_bOverlayActive; }
 
 	void GetBlockList(std::function<void(BlockedResult blockResult)> cb);
 
@@ -162,7 +161,6 @@ public:
 	void OnRealtimeDirectMessage(const GenOnlineRealtime::ChatMessage& message);
 
 private:
-	static bool UsesRealtimeHub();
 	// Calls a social hub method and refreshes the communicator once the service answered.
 	template <class R>
 	void InvokeSocialRealtime(const R& request, std::function<void(GenOnlineSocialInterface* pThis)> onSuccess);
@@ -188,10 +186,6 @@ private:
 	std::map<int64_t, int> m_mapUnreadMessagesForUser; // user id here is who we are talking to / target user
 
 	std::function<void(int newNumNotifications)> m_cbOnNumberGlobalNotificationsChanged = nullptr;
-
-	std::function<void()> m_cbOnGetFriendsList = nullptr;
-	mutable std::mutex m_friendsListCallbackMutex;
-	std::function<void(BlockedResult blockResult)> m_cbOnGetBlockList = nullptr;
 
 	std::function<void(std::string strDisplayName)> m_cbOnNewFriendRequest = nullptr;
 

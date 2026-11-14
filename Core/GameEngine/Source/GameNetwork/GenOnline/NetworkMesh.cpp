@@ -2118,7 +2118,7 @@ void NetworkMesh::DisconnectUser(int64_t remoteUserID)
                 NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld", remoteUserID);
                 NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Steam connection handle is %u", m_mapConnections[remoteUserID].m_hSteamConnection);
 
-                SteamNetworkingSockets()->CloseConnection(m_mapConnections[remoteUserID].m_hSteamConnection, 0, "Client Disconnecting Gracefully (Got EWebSocketMessageID::NETWORK_CONNECTION_DISCONNECT_PLAYER from service)", false);
+                SteamNetworkingSockets()->CloseConnection(m_mapConnections[remoteUserID].m_hSteamConnection, 0, "Client Disconnecting Gracefully (Got DisconnectPeer from service)", false);
                 if (TheNetwork != nullptr)
                 {
                     TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);

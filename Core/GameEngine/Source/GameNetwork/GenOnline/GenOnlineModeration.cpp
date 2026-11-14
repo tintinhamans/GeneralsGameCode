@@ -197,23 +197,3 @@ void HandleModerationDisconnect(EOnlineModerationAction action, const std::strin
 		break;
 	}
 }
-
-void HandleModerationNotice(const std::string& actionType, const std::string& reason, const std::string& scopeType)
-{
-	if (actionType == "ban")
-	{
-		HandleModerationDisconnect(EOnlineModerationAction::BAN, reason);
-	}
-	else if (actionType == "kick")
-	{
-		HandleModerationDisconnect(EOnlineModerationAction::KICK, reason);
-	}
-	else if (actionType == "rate_limit")
-	{
-		ShowChatRateLimitNotice(reason, scopeType);
-	}
-	else
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Unknown moderation notice: %s", actionType.c_str());
-	}
-}

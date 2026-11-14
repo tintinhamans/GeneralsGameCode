@@ -188,13 +188,6 @@ bool IsTrustedServiceURL(const std::string& value, const std::string& base, bool
 	return EndsWith(path, expectedPath + "ws");
 }
 
-std::string WebSocketURLForBase(const std::string& base)
-{
-	if (base.compare(0, 8, "https://") != 0)
-		return {};
-	return "wss://" + base.substr(8) + "ws";
-}
-
 std::string RealtimeHubURLForBase(const std::string& base)
 {
 	if (base.compare(0, 8, "https://") != 0)

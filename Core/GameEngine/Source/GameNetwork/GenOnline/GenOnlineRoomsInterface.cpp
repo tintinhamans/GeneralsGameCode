@@ -115,40 +115,36 @@ static double RealtimeReconnectRandom()
 	return std::uniform_real_distribution<double>(0.0, 1.0)(rng);
 }
 
-WebSocket::WebSocket(bool bRealtimeHub)
-	: m_bRealtimeHub(bRealtimeHub)
-	, m_hubReconnectPolicy(RealtimeReconnectRandom)
+WebSocket::WebSocket()
+	: m_hubReconnectPolicy(RealtimeReconnectRandom)
 {
 	m_pMulti = curl_multi_init();
 	m_pHeaders = nullptr;
-	if (m_bRealtimeHub)
+	GenOnlineRealtime::HubSession::Callbacks callbacks;
+	callbacks.sendText = [this](const std::string& text)
 	{
-		GenOnlineRealtime::HubSession::Callbacks callbacks;
-		callbacks.sendText = [this](const std::string& text)
-		{
-			return QueueOutbound(text, false);
-		};
-		callbacks.closeTransport = [this]()
-		{
-			ReleaseConnection();
-		};
-		callbacks.onReady = [this](const GenOnlineRealtime::ReadyEvent& ready)
-		{
-			GenOnlineRealtimeBridge::OnReady(ready, !m_bHubReadyOnce);
-			OnHubReady();
-		};
-		callbacks.onDisconnected = [this](GenOnlineRealtime::DisconnectAction action, const std::string& reason)
-		{
-			OnHubDisconnected(action, reason);
-		};
-		callbacks.log = [](const std::string& line)
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] %s", line.c_str());
-		};
-		m_pHubSession = std::make_unique<GenOnlineRealtime::HubSession>(callbacks);
-		GenOnlineRealtimeBridge::RegisterHandlers(*m_pHubSession);
-		RegisterPeerHandlers();
-	}
+		return QueueOutbound(text, false);
+	};
+	callbacks.closeTransport = [this]()
+	{
+		ReleaseConnection();
+	};
+	callbacks.onReady = [this](const GenOnlineRealtime::ReadyEvent& ready)
+	{
+		GenOnlineRealtimeBridge::OnReady(ready, !m_bHubReadyOnce);
+		OnHubReady();
+	};
+	callbacks.onDisconnected = [this](GenOnlineRealtime::DisconnectAction action, const std::string& reason)
+	{
+		OnHubDisconnected(action, reason);
+	};
+	callbacks.log = [](const std::string& line)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] %s", line.c_str());
+	};
+	m_pHubSession = std::make_unique<GenOnlineRealtime::HubSession>(callbacks);
+	GenOnlineRealtimeBridge::RegisterHandlers(*m_pHubSession);
+	RegisterPeerHandlers();
 }
 
 void WebSocket::StartPeerSignalling(int64_t lobbyID, int64_t userID, uint16_t preferredPort, const std::string& middlewareID)
@@ -348,8 +344,6 @@ void WebSocket::RegisterPeerHandlers()
 // The hub address must be a wss URL on the origin of the current service route.
 bool WebSocket::IsDestinationTrusted(const std::string& url) const
 {
-	if (!m_bRealtimeHub)
-		return GenOnlineServicesManager::IsWebSocketURLTrusted(url);
 	return !GenOnlineRealtime::AcceptRealtimeUrl(url, GenOnlineServicesManager::GetAPIEndpoint("")).empty();
 }
 
@@ -493,38 +487,6 @@ WebSocket::~WebSocket()
 	}
 }
 
-// Reads the missing links of a start refusal or cancellation. Each entry is a [source, target] pair of user IDs.
-static std::vector<std::pair<int64_t, int64_t>> ParseMissingLinks(const nlohmann::json& jsonObject)
-{
-	std::vector<std::pair<int64_t, int64_t>> missingLinks;
-	if (jsonObject.contains("missing") && jsonObject["missing"].is_array())
-	{
-		for (const auto& link : jsonObject["missing"])
-		{
-			if (link.is_array() && link.size() == 2 && link[0].is_number_integer() && link[1].is_number_integer())
-			{
-				missingLinks.emplace_back(link[0].get<int64_t>(), link[1].get<int64_t>());
-			}
-		}
-	}
-	return missingLinks;
-}
-
-int WebSocket::Ping()
-{
-	// the hub session sends its own ping records
-	if (!m_bConnected || m_bRealtimeHub)
-	{
-		return CURLE_AGAIN;
-	}
-
-	// keep the app heartbeat for older services, no raw PING, at most one queued under backpressure
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::PING;
-	QueueOutbound(j.dump(), true);
-	return CURLE_OK;
-}
-
 void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(void)> fnWebsocketConnectedCallback)
 {
 	if (m_bConnected || m_bShuttingDown)
@@ -533,8 +495,6 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
 	const std::string destination(url);
 	m_strWebsocketAddr = destination;
 	m_fnWebsocketConnectedCallback = fnWebsocketConnectedCallback;
-	m_connectAsReconnect = bIsReconnect;
-	m_lastPong = NowMs();
 	m_proxySetupStarted = NowMs();
 	m_proxyResolution.reset();
 	m_proxyPolicy = {};
@@ -655,16 +615,6 @@ void WebSocket::StartResolvedConnection()
 		FailConnectionSetup();
 		return;
 	}
-	if (!m_bRealtimeHub)
-	{
-		curl_slist* updated = curl_slist_append(m_pHeaders, m_connectAsReconnect ? "is-reconnect: true" : "is-reconnect: false");
-		if (updated == nullptr)
-		{
-			FailConnectionSetup();
-			return;
-		}
-		m_pHeaders = updated;
-	}
 	CURLcode result = CURLE_OK;
 	auto option = [&](CURLoption key, auto value) {
 		if (result == CURLE_OK)
@@ -683,96 +633,58 @@ void WebSocket::StartResolvedConnection()
 
 void WebSocket::SendData_RoomChatMessage(UnicodeString& msg, bool bIsAction)
 {
-	if (m_bRealtimeHub)
+	GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+	if (pRooms == nullptr || !pRooms->GetEffectiveRoomID().has_value())
 	{
-		GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-		if (pRooms == nullptr || !pRooms->GetEffectiveRoomID().has_value())
-		{
-			return;
-		}
-		GenOnlineRealtime::SendMessageRequest request;
-		request.channel_id = "room:" + std::to_string(*pRooms->GetEffectiveRoomID());
-		request.type = bIsAction ? "action" : "chat";
-		request.content = to_utf8(msg.str());
-		InvokeHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
-			{
-				if (!outcome.Succeeded())
-				{
-					GenOnlineRealtimeBridge::ShowRoomNotice(GenOnlineRealtimeBridge::FailureText(outcome), true);
-				}
-			});
 		return;
 	}
-
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::NETWORK_ROOM_CHAT_FROM_CLIENT;
-	j["message"] = to_utf8(msg.str());
-	j["action"] = bIsAction;
-	std::string strBody = j.dump(-1, 32, true);
-
-	Send(strBody.c_str());
+	GenOnlineRealtime::SendMessageRequest request;
+	request.channel_id = "room:" + std::to_string(*pRooms->GetEffectiveRoomID());
+	request.type = bIsAction ? "action" : "chat";
+	request.content = to_utf8(msg.str());
+	InvokeHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
+		{
+			if (!outcome.Succeeded())
+			{
+				GenOnlineRealtimeBridge::ShowRoomNotice(GenOnlineRealtimeBridge::FailureText(outcome), true);
+			}
+		});
 }
 
 void WebSocket::SendData_MarkReady(bool bReady)
 {
-	if (m_bRealtimeHub)
-	{
-		GenOnlineRealtime::SetReadyRequest request;
-		request.ready = bReady;
-		InvokeHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
+	GenOnlineRealtime::SetReadyRequest request;
+	request.ready = bReady;
+	InvokeHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
+		{
+			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			if (!outcome.Succeeded() && pLobbyInterface != nullptr)
 			{
-				GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-				if (!outcome.Succeeded() && pLobbyInterface != nullptr)
-				{
-					pLobbyInterface->ShowRealtimeLobbyFailure(outcome);
-				}
-			});
-		return;
-	}
-
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::NETWORK_ROOM_MARK_READY;
-	j["ready"] = bReady;
-	std::string strBody = j.dump();
-
-	Send(strBody.c_str());
+				pLobbyInterface->ShowRealtimeLobbyFailure(outcome);
+			}
+		});
 }
 
 
 void WebSocket::SendData_JoinNetworkRoom(int roomID, uint64_t requestID)
 {
-	if (m_bRealtimeHub)
+	auto onOutcome = [roomID](const GenOnlineRealtime::InvokeOutcome& outcome)
 	{
-		auto onOutcome = [roomID](const GenOnlineRealtime::InvokeOutcome& outcome)
+		GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+		if (!outcome.Succeeded() && pRooms != nullptr)
 		{
-			GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-			if (!outcome.Succeeded() && pRooms != nullptr)
-			{
-				pRooms->OnRealtimeRoomJoinFailed(roomID, GenOnlineRealtimeBridge::FailureText(outcome));
-			}
-		};
-		if (roomID < 0)
-		{
-			InvokeHub(GenOnlineRealtime::LeaveRoomRequest(), nullptr);
-			return;
+			pRooms->OnRealtimeRoomJoinFailed(roomID, GenOnlineRealtimeBridge::FailureText(outcome));
 		}
-		// The members arrive as RoomMembers, which completes the room change.
-		GenOnlineRealtime::JoinRoomRequest request;
-		request.room_id = roomID;
-		InvokeHub(request, onOutcome);
+	};
+	if (roomID < 0)
+	{
+		InvokeHub(GenOnlineRealtime::LeaveRoomRequest(), nullptr);
 		return;
 	}
-
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::NETWORK_ROOM_CHANGE_ROOM;
-	j["room"] = roomID;
-	if (requestID != 0)
-	{
-		j["request_id"] = requestID;
-	}
-	std::string strBody = j.dump();
-
-	Send(strBody.c_str());
+	// The members arrive as RoomMembers, which completes the room change.
+	GenOnlineRealtime::JoinRoomRequest request;
+	request.room_id = roomID;
+	InvokeHub(request, onOutcome);
 }
 
 void WebSocket::Disconnect()
@@ -818,17 +730,6 @@ void WebSocket::Disconnect()
 	ClearOutbound();
 	m_vecWSPartialBuffer.clear();
 	m_bConnected = false;
-}
-
-void WebSocket::Send(const char* send_payload)
-{
-	// A legacy message would break the hub record stream, so the hub socket drops it.
-	if (m_bRealtimeHub)
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Dropping a legacy message that the realtime hub does not accept");
-		return;
-	}
-	QueueOutbound(std::string(send_payload), false);
 }
 
 bool WebSocket::QueueOutbound(std::string payload, bool heartbeat)
@@ -893,7 +794,7 @@ CURLcode WebSocket::FlushOutbound()
 		size_t sent = 0;
 		const size_t remaining = message.payload.size() - m_outboundOffset;
 		CURLcode result = curl_ws_send(m_pCurlWS, message.payload.data() + m_outboundOffset,
-			remaining, &sent, 0, m_bRealtimeHub ? CURLWS_TEXT : CURLWS_BINARY);
+			remaining, &sent, 0, CURLWS_TEXT);
 		if (sent > remaining)
 		{
 			return CURLE_SEND_ERROR;
@@ -922,264 +823,6 @@ CURLcode WebSocket::FlushOutbound()
 	return CURLE_AGAIN;
 }
 
-class WebSocketMessageBase
-{
-public:
-	EWebSocketMessageID msg_id;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessageBase, msg_id)
-};
-
-class WebSocketMessage_ModerationNotice : public WebSocketMessageBase
-{
-public:
-	std::string action_type;
-	std::string reason;
-	std::string scope_type;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(WebSocketMessage_ModerationNotice, msg_id, action_type, reason, scope_type)
-};
-
-class WebSocketMessage_ModerationCommandResult : public WebSocketMessageBase
-{
-public:
-	uint64_t request_id = 0;
-	bool success = false;
-	std::string error_code;
-	std::string message;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(
-		WebSocketMessage_ModerationCommandResult,
-		msg_id,
-		request_id,
-		success,
-		error_code,
-		message)
-};
-
-class WebSocketMessage_NetworkStartSignalling : public WebSocketMessageBase
-{
-public:
-	int64_t lobby_id;
-	int64_t user_id;
-	uint16_t preferred_port;
-	std::string middleware_id;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_NetworkStartSignalling, msg_id, lobby_id, user_id, preferred_port, middleware_id)
-};
-
-class WebSocketMessage_ACRegisterPlayer : public WebSocketMessageBase
-{
-public:
-    int64_t user_id;
-    std::string mwid;
-
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_ACRegisterPlayer, msg_id, user_id, mwid)
-};
-
-class WebSocketMessage_ACDeregisterPlayer : public WebSocketMessageBase
-{
-public:
-    int64_t user_id;
-    std::string mwid;
-
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_ACDeregisterPlayer, msg_id, user_id, mwid)
-};
-
-class WebSocketMessage_NetworkDisconnectPlayer : public WebSocketMessageBase
-{
-public:
-	int64_t lobby_id;
-	int64_t user_id;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_NetworkDisconnectPlayer, msg_id, lobby_id, user_id)
-};
-
-class WebSocketMessage_MatchmakingAction_JoinPrearrangedLobby : public WebSocketMessageBase
-{
-public:
-	int64_t lobby_id;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_MatchmakingAction_JoinPrearrangedLobby, msg_id, lobby_id)
-};
-
-
-class WebSocketMessage_RoomChatIncoming : public WebSocketMessageBase
-{
-public:
-	std::string message;
-	bool action;
-	bool admin;
-	bool name_change;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_RoomChatIncoming, msg_id, message, action, admin, name_change)
-};
-
-class WebSocketMessage_Social_FriendChatMessage_Incoming : public WebSocketMessageBase
-{
-public:
-	int64_t source_user_id;
-	int64_t target_user_id;
-	std::string message;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_Social_FriendChatMessage_Incoming, msg_id, source_user_id, target_user_id, message)
-};
-
-class WebSocketMessage_Social_FriendStatusChanged : public WebSocketMessageBase
-{
-public:
-	std::string display_name;
-	bool online;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_Social_FriendStatusChanged, display_name, online)
-};
-
-class WebSocketMessage_Social_FriendRequestAccepted : public WebSocketMessageBase
-{
-public:
-	std::string display_name;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_Social_FriendRequestAccepted, display_name)
-};
-
-class WebSocketMessage_FriendsOverallStatusUpdate : public WebSocketMessageBase
-{
-public:
-	int num_online;
-	int num_pending;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_FriendsOverallStatusUpdate, num_online, num_pending)
-};
-
-class WebSocketMessage_NetworkSignal : public WebSocketMessageBase
-{
-public:
-	int64_t target_user_id = -1;
-	std::vector<uint8_t> payload;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_NetworkSignal, target_user_id, payload)
-};
-
-class WebSocketMessage_AnticheatMessage : public WebSocketMessageBase
-{
-public:
-    int64_t target_user_id = -1;
-    std::vector<uint8_t> payload;
-
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_AnticheatMessage, target_user_id, payload)
-};
-
-class WebSocketMessage_ServerProbe : public WebSocketMessageBase
-{
-public:
-	std::string url;
-
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_ServerProbe, msg_id, url)
-};
-
-class WebSocketMessage_StartGameResponse : public WebSocketMessageBase
-{
-public:
-    std::string screenshot_url;
-
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_StartGameResponse, msg_id, screenshot_url)
-};
-
-class WebSocketMessage_LobbyChatIncoming : public WebSocketMessageBase
-{
-public:
-	std::string message;
-	bool action;
-	bool announcement;
-	bool show_announcement_to_host;
-	int64_t user_id;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_LobbyChatIncoming, msg_id, message, action, announcement, show_announcement_to_host, user_id)
-};
-
-class WebSocketMessage_MatchmakingMessage : public WebSocketMessageBase
-{
-public:
-	std::string message;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_MatchmakingMessage, msg_id, message)
-};
-
-class WebSocketMessage_Social_NewFriendRequest : public WebSocketMessageBase
-{
-public:
-	std::string display_name;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_Social_NewFriendRequest, msg_id, display_name)
-};
-
-static bool JSONDeserialize(const char* szBuffer, nlohmann::json* jsonObject)
-{
-	try
-	{
-		*jsonObject = nlohmann::json::parse(szBuffer);
-		return true;
-	}
-	catch (nlohmann::json::exception& jsonException)
-	{
-		if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "JSONDeserialize: Unparsable JSON: %s (%s)", szBuffer, jsonException.what());
-		}
-		else
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "JSONDeserialize: Invalid message JSON");
-		}
-		return false;
-	}
-	catch (...)
-	{
-		if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "JSONDeserialize: Unparsable JSON: %s", szBuffer);
-		}
-		else
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "JSONDeserialize: Invalid message JSON");
-		}
-		return false;
-	}
-
-	return false;
-}
-
-template<typename T>
-static bool JSONGetAsObject(nlohmann::json& jsonObject, T* outMsg)
-{
-	try
-	{
-		*outMsg = jsonObject.get<T>();
-
-		return true;
-	}
-	catch (nlohmann::json::exception& jsonException)
-	{
-		std::string targetTypeName = typeid(T).name();
-		if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "JSONGetAsObject: Unparsable JSON: Target Type is %s (%s)", targetTypeName.c_str(), jsonException.what());
-		}
-		else
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "JSONGetAsObject: Invalid message type %s", targetTypeName.c_str());
-		}
-		return false;
-	}
-	catch (...)
-	{
-		std::string targetTypeName = typeid(T).name();
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "JSONGetAsObject: Unparsable JSON: Target Type is %s", targetTypeName.c_str());
-		return false;
-	}
-
-	return false;
-}
-
 //static std::string strSignal = "str:1 ";
 
 // Idempotent: repeated drop signals must not reset the backoff.
@@ -1193,7 +836,6 @@ void WebSocket::BeginReconnect()
 	ClearOutbound();
 	m_bReconnecting = true;
 	m_numReconnectAttempts = 0;
-	m_bFreshSession = false;
 	m_reconnectAttemptStarted = -1;
 	m_reconnectStartTime = NowMs();
 	m_nextReconnectAttempt = m_reconnectStartTime + ComputeReconnectDelay();
@@ -1205,98 +847,9 @@ void WebSocket::EndReconnect()
 	m_reconnectAttemptStarted = -1;
 }
 
-// First retry 0.5-3s, later ones 60-100% of the step (2s..10s cap), so clients that dropped together spread out.
 int64_t WebSocket::ComputeReconnectDelay() const
 {
-	if (m_bRealtimeHub)
-	{
-		return m_hubReconnectPolicy.NextDelayMs();
-	}
-
-	static thread_local std::mt19937 rng{ std::random_device{}() };
-
-	int64_t lo = m_reconnectBackoffBase / 4;
-	int64_t hi = m_reconnectBackoffBase * 3 / 2;
-	if (m_numReconnectAttempts > 0)
-	{
-		int64_t step = m_reconnectBackoffBase;
-		for (int i = 1; i < m_numReconnectAttempts && step < m_reconnectBackoffCap; ++i)
-		{
-			step *= 2;
-		}
-		step = std::min<int64_t>(step, m_reconnectBackoffCap);
-		lo = step * 6 / 10;
-		hi = step;
-	}
-
-	return std::uniform_int_distribution<int64_t>(lo, hi)(rng);
-}
-
-// Restores what the old session had once a fresh one is connected.
-static void RestoreSessionState()
-{
-	GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-	if (pSocial == nullptr)
-	{
-		return;
-	}
-
-	pSocial->GetFriendsList(false, nullptr);
-	pSocial->GetBlockList(nullptr);
-	if (pSocial->IsOverlayActive())
-	{
-		pSocial->RegisterForRealtimeServiceUpdates();
-	}
-
-	// resolve the previous room by stable ID against a freshly fetched room list, not by index
-	GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-	if (pRooms == nullptr)
-	{
-		return;
-	}
-
-	const std::vector<NetworkRoom>& roomsBeforeRefresh = pRooms->GetGroupRooms();
-	const int previousRoomIndex = pRooms->GetCurrentRoomIndex();
-	std::optional<int> previousRoomID;
-	UnicodeString strPreviousRoomName;
-	if (previousRoomIndex >= 0 && previousRoomIndex < (int)roomsBeforeRefresh.size())
-	{
-		previousRoomID = roomsBeforeRefresh[previousRoomIndex].GetRoomID();
-		strPreviousRoomName = roomsBeforeRefresh[previousRoomIndex].GetRoomDisplayName();
-	}
-
-	pRooms->GetRoomList([pRooms, previousRoomID, strPreviousRoomName](bool bSuccess)
-		{
-			const std::vector<NetworkRoom>& rooms = pRooms->GetGroupRooms();
-			if (!bSuccess || rooms.empty())
-			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] RestoreSessionState: failed to fetch room list, cannot rejoin a room");
-				return;
-			}
-
-			// fall back to the default room (index 0) if the room we were in no longer exists
-			int roomIndexToJoin = 0;
-			bool bFoundPreviousRoom = false;
-			if (previousRoomID.has_value())
-			{
-				for (size_t i = 0; i < rooms.size(); ++i)
-				{
-					if (rooms[i].GetRoomID() == *previousRoomID)
-					{
-						roomIndexToJoin = (int)i;
-						bFoundPreviousRoom = true;
-						break;
-					}
-				}
-			}
-
-			if (previousRoomID.has_value() && !bFoundPreviousRoom)
-			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] RestoreSessionState: room '%s' (id %d) no longer exists, joining the default room instead", to_utf8(strPreviousRoomName.str()).c_str(), *previousRoomID);
-			}
-
-			pRooms->JoinRoom(roomIndexToJoin);
-		});
+	return m_hubReconnectPolicy.NextDelayMs();
 }
 
 void WebSocket::UpdateReconnect()
@@ -1314,17 +867,6 @@ void WebSocket::UpdateReconnect()
 	}
 
 	const int64_t currTime = NowMs();
-	const bool bGameInProgress = TheGenOnlineGame != nullptr && TheGenOnlineGame->isGameInProgress();
-
-	// Session gone server-side: nothing to retry during a match, the window starts after it.
-	if (m_bFreshSession && bGameInProgress)
-	{
-		m_reconnectStartTime = currTime;
-		m_numReconnectAttempts = 0;
-		m_reconnectAttemptStarted = -1;
-		m_nextReconnectAttempt = currTime + ComputeReconnectDelay();
-		return;
-	}
 
 	// Connect() kills the previous handle: leave a pending attempt alone unless stuck.
 	if (m_reconnectAttemptStarted != -1 && (currTime - m_reconnectAttemptStarted) < m_reconnectAttemptTimeout)
@@ -1333,31 +875,15 @@ void WebSocket::UpdateReconnect()
 	}
 
 	// The hub keeps reconnecting for as long as the user stays logged in.
-	if (!m_bRealtimeHub && !bGameInProgress && (currTime - m_reconnectStartTime) >= m_reconnectMenuWindow)
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (%d reconnect attempts failed)", m_numReconnectAttempts);
-		GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
-		m_bConnected = false;
-		m_vecWSPartialBuffer.clear();
-		EndReconnect();
-		return;
-	}
-
-	// New session only once out of the lobby the server dropped us from.
-	if (currTime < m_nextReconnectAttempt || (m_bFreshSession && TheGenOnlineGame != nullptr))
+	if (currTime < m_nextReconnectAttempt)
 	{
 		return;
 	}
 
 	++m_numReconnectAttempts;
 	m_reconnectAttemptStarted = currTime;
-	if (m_bRealtimeHub)
-	{
-		// keeps the login callback in case the first connection never reached Ready
-		Connect(m_strWebsocketAddr.c_str(), true, m_fnWebsocketConnectedCallback);
-		return;
-	}
-	Connect(m_strWebsocketAddr.c_str(), !m_bFreshSession, m_bFreshSession ? std::function<void()>(RestoreSessionState) : nullptr);
+	// keeps the login callback in case the first connection never reached Ready
+	Connect(m_strWebsocketAddr.c_str(), true, m_fnWebsocketConnectedCallback);
 }
 
 void WebSocket::Tick()
@@ -1447,12 +973,12 @@ void WebSocket::Tick()
 						}
 
                         // 401 bad token and 409 session not registered get one refresh and registration, a 403 play ban ends the session
-                        if (m_bRealtimeHub && (httpResponseCode == 401 || httpResponseCode == 409) && !m_bHubSessionRecoveryTried)
+                        if ((httpResponseCode == 401 || httpResponseCode == 409) && !m_bHubSessionRecoveryTried)
                         {
                             NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Connection refused with status %ld, renewing the session", httpResponseCode);
                             RecoverHubSession();
                         }
-                        else if (m_bRealtimeHub && (httpResponseCode == 401 || httpResponseCode == 403 || httpResponseCode == 409))
+                        else if (httpResponseCode == 401 || httpResponseCode == 403 || httpResponseCode == 409)
                         {
                             NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Connection refused with status %ld", httpResponseCode);
                             EndReconnect();
@@ -1460,20 +986,8 @@ void WebSocket::Tick()
                         }
                         else if (m_bReconnecting)
                         {
-                            if (!m_bRealtimeHub && !m_bFreshSession && m->data.result == CURLE_HTTP_RETURNED_ERROR && httpResponseCode == 205) // 205: session gone, can't resume
-                            {
-                                NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Server dropped our session (205), will reconnect as a new one");
-                                m_bFreshSession = true;
-                                m_reconnectAttemptStarted = -1;
-                                m_reconnectStartTime = NowMs();
-                                m_numReconnectAttempts = 0;
-                                m_nextReconnectAttempt = m_reconnectStartTime + ComputeReconnectDelay();
-                            }
-                            else
-                            {
-                                m_reconnectAttemptStarted = -1;
-                                m_nextReconnectAttempt = NowMs() + ComputeReconnectDelay();
-                            }
+                            m_reconnectAttemptStarted = -1;
+                            m_nextReconnectAttempt = NowMs() + ComputeReconnectDelay();
                         }
                         else // give up immediately
                         {
@@ -1515,18 +1029,8 @@ void WebSocket::Tick()
 
                         EndReconnect();
 
-                        // connecting is as good as a pong
-                        m_lastPong = NowMs();
-
-                        if (m_bRealtimeHub)
-                        {
-                            // the login completes on Ready, see OnHubReady
-                            m_pHubSession->OnTransportOpen(NowMs());
-                        }
-                        else if (m_fnWebsocketConnectedCallback != nullptr)
-                        {
-                            m_fnWebsocketConnectedCallback();
-                        }
+                        // the login completes on Ready, see OnHubReady
+                        m_pHubSession->OnTransportOpen(NowMs());
                     }
                 }
             }
@@ -1538,32 +1042,17 @@ void WebSocket::Tick()
         return;
     }
 
-	if (m_bRealtimeHub)
+	m_pHubSession->Tick(currTime);
+	if (!m_bConnected)
 	{
-		m_pHubSession->Tick(currTime);
-		if (!m_bConnected)
-		{
-			return;
-		}
-	}
-	else if ((currTime - m_lastPing) > m_timeBetweenUserPings)
-	{
-		m_lastPing = currTime;
-		Ping();
+		return;
 	}
 
 	const CURLcode sendResult = FlushOutbound();
 	if (sendResult != CURLE_OK && sendResult != CURLE_AGAIN)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Send failed: %s, attempting reconnect", curl_easy_strerror(sendResult));
-		if (m_bRealtimeHub)
-		{
-			HubTransportLost("send failed");
-			return;
-		}
-		m_bConnected = false;
-		m_vecWSPartialBuffer.clear();
-		BeginReconnect();
+		HubTransportLost("send failed");
 		return;
 	}
 
@@ -1578,25 +1067,6 @@ void WebSocket::Tick()
 			break;
 		}
 	}
-
-	// time since last pong? The hub session has its own server timeout.
-	if (!m_bRealtimeHub && m_bConnected && m_lastPong != -1 && (currTime - m_lastPong) >= m_timeForWSTimeout)
-	{
-        // send event to sentry
-#if defined(GENONLINE_USE_SENTRY)
-        if (TheGenOnlineGame != nullptr)
-        {
-            AsciiString sentryMsg;
-            sentryMsg.format("Got websocket disconnect (Timeout: %s), timeout is %lld, last pong was at %lld, current time is %lld, attempting reconnect", curl_easy_strerror(ret), currTime - m_lastPong, m_lastPong, currTime);
-            sentry_capture_event(sentry_value_new_message_event(SENTRY_LEVEL_ERROR, "WEBSOCKET_DISCONNECT_TIMEOUT", sentryMsg.str()));
-        }
-#endif
-
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Got websocket disconnect (Timeout: %s), timeout is %lld, last pong was at %lld, current time is %lld, attempting reconnect", curl_easy_strerror(ret), currTime - m_lastPong, m_lastPong, currTime);
-        m_bConnected = false;
-		BeginReconnect();
-        m_vecWSPartialBuffer.clear();
-	};
 }
 
 // Reads and handles at most one frame, returns the curl_ws_recv result (CURL_LAST if nothing was read)
@@ -1628,9 +1098,6 @@ CURLcode WebSocket::ReceiveOneFrame()
 		}
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket len: %d", rlen);
 
-		// any server frame proves liveness, not just a JSON PONG
-		m_lastPong = NowMs();
-
 		// what type of message?
 		if (meta != nullptr)
 		{
@@ -1639,755 +1106,9 @@ CURLcode WebSocket::ReceiveOneFrame()
 			{
 
 			}
-			else if (m_bRealtimeHub && (meta->flags & CURLWS_TEXT))
-			{
-				m_pHubSession->OnTransportText(bufferThisRecv, rlen, NowMs());
-			}
 			else if (meta->flags & CURLWS_TEXT)
 			{
-				bool bMessageComplete = false;
-
-				static constexpr size_t MAX_WS_PARTIAL_SIZE = 2 * 1024 * 1024; // 2 MB
-				if (m_vecWSPartialBuffer.size() + rlen > MAX_WS_PARTIAL_SIZE)
-				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Partial buffer overflow, discarding message");
-					m_vecWSPartialBuffer.clear();
-					return CURL_LAST;
-				}
-
-				// SECURITY FIX: Store old size BEFORE resize to avoid off-by-one error in memcpy
-				size_t oldSize = m_vecWSPartialBuffer.size();
-				m_vecWSPartialBuffer.resize(oldSize + rlen);
-				memcpy_s(m_vecWSPartialBuffer.data() + oldSize, rlen, bufferThisRecv, rlen);
-
-				if (meta->flags & CURLWS_CONT)
-				{
-					bMessageComplete = false;
-					NetworkLog(ELogVerbosity::LOG_DEBUG, "WEBSOCKET PARTIAL (CONT) OF SIZE %d, offset %d, bytes left %d! [MESSAGE COMPLETE: %d]", rlen, meta->offset, meta->bytesleft, bMessageComplete);
-				}
-				else if (meta->bytesleft > 0)
-				{
-					bMessageComplete = false;
-					NetworkLog(ELogVerbosity::LOG_DEBUG, "WEBSOCKET PARTIAL (BYTESLEFT) OF SIZE %d, offset %d! [MESSAGE COMPLETE: %d]", rlen, meta->offset, bMessageComplete);
-				}
-				else
-				{
-					// if we got in here, it's a whole message, or the last part of a fragmented message
-					bMessageComplete = true;
-					NetworkLog(ELogVerbosity::LOG_DEBUG, "WEBSOCKET LAST FRAME OF SIZE %d!", rlen);
-				}
-
-				if (bMessageComplete)
-				{
-					try
-					{
-						// null terminate buffer
-						m_vecWSPartialBuffer.push_back('\0');
-
-						// process it
-						nlohmann::json jsonObject;
-						bool bDeserializedOK = JSONDeserialize(m_vecWSPartialBuffer.data(), &jsonObject);
-
-						// clear buffer and resize
-						m_vecWSPartialBuffer.clear();
-						m_vecWSPartialBuffer.resize(0);
-
-						if (bDeserializedOK)
-						{
-							if (jsonObject.contains("msg_id"))
-							{
-								WebSocketMessageBase msgDetails;
-								bool bParsedBase = JSONGetAsObject<WebSocketMessageBase>(jsonObject, &msgDetails);
-
-								if (bParsedBase)
-								{
-									EWebSocketMessageID msgID = msgDetails.msg_id;
-
-									switch (msgID)
-									{
-									case EWebSocketMessageID::MODERATION_NOTICE:
-									{
-										WebSocketMessage_ModerationNotice moderationNotice;
-										if (JSONGetAsObject(jsonObject, &moderationNotice))
-										{
-											HandleModerationNotice(
-												moderationNotice.action_type,
-												moderationNotice.reason,
-												moderationNotice.scope_type);
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::MODERATION_COMMAND_RESULT:
-									{
-										WebSocketMessage_ModerationCommandResult commandResult;
-										if (JSONGetAsObject(jsonObject, &commandResult))
-										{
-											NetworkLog(
-												ELogVerbosity::LOG_RELEASE,
-												"Moderation command %llu %s: %s",
-												static_cast<unsigned long long>(commandResult.request_id),
-												commandResult.success ? "succeeded" : "failed",
-												commandResult.message.c_str());
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::PONG:
-									{
-										int64_t currTime = NowMs();
-										m_lastPong = currTime;
-									}
-									break;
-
-									case EWebSocketMessageID::NETWORK_ROOM_CHAT_FROM_SERVER:
-									{
-										WebSocketMessage_RoomChatIncoming chatData;
-										bool bParsed = JSONGetAsObject(jsonObject, &chatData);
-
-										if (bParsed)
-										{
-											SYSTEMTIME systemTime;
-											GetLocalTime(&systemTime);
-
-											UnicodeString unicodeStr;
-											unicodeStr.format(L"[%2.2d:%2.2d] %s", systemTime.wHour, systemTime.wMinute, from_utf8(chatData.message).c_str());
-
-											Color color = DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_NETWORK_ROOM, true, chatData.action, chatData.admin, chatData.name_change);
-
-											GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-											if (pRoomsInterface != nullptr && pRoomsInterface->m_OnChatCallback != nullptr)
-											{
-												// the room line is server-formatted and carries no sender id; a name change notice is a system line
-#if RTS_ZEROHOUR
-												StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_ROOM, 0, "", chatData.message.c_str(), chatData.action, chatData.name_change, FALSE);
-#endif
-												pRoomsInterface->m_OnChatCallback(unicodeStr, color);
-											}
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::SOCIAL_FRIEND_CHAT_MESSAGE_SERVER_TO_CLIENT:
-									{
-										WebSocketMessage_Social_FriendChatMessage_Incoming chatData;
-										bool bParsed = JSONGetAsObject(jsonObject, &chatData);
-
-										if (bParsed)
-										{
-											UnicodeString unicodeStr(from_utf8(chatData.message).c_str());
-
-											GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-											if (pSocialInterface != nullptr)
-											{
-												pSocialInterface->OnChatMessage(chatData.source_user_id, chatData.target_user_id, unicodeStr);
-											}
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::SOCIAL_FRIEND_ONLINE_STATUS_CHANGED:
-									{
-										WebSocketMessage_Social_FriendStatusChanged statusChangedData;
-										bool bParsed = JSONGetAsObject(jsonObject, &statusChangedData);
-
-										if (bParsed)
-										{
-											GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-											if (pSocialInterface != nullptr)
-											{
-												pSocialInterface->OnOnlineStatusChanged(statusChangedData.display_name, statusChangedData.online);
-											}
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::SOCIAL_FRIEND_FRIEND_REQUEST_ACCEPTED_BY_TARGET:
-									{
-										WebSocketMessage_Social_FriendRequestAccepted statusChangedData;
-										bool bParsed = JSONGetAsObject(jsonObject, &statusChangedData);
-
-										if (bParsed)
-										{
-											GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-											if (pSocialInterface != nullptr)
-											{
-												pSocialInterface->OnFriendRequestAccepted(statusChangedData.display_name);
-											}
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::SOCIAL_FRIENDS_LIST_DIRTY:
-									{
-                                        // nothing to parse here, it's just an event only
-                                        extern void GenOnlineUpdateBuddyInfo(bool bIsAutoRefresh = false, bool bUseCache = false);
-										GenOnlineUpdateBuddyInfo(true);
-									}
-									break;
-
-									case EWebSocketMessageID::SOCIAL_CANT_ADD_FRIEND_LIST_FULL:
-									{
-										// always show this notification, it's tied to a local user action
-										GenOnlineShowNotificationBox(AsciiString::TheEmptyString, UnicodeString(L"Cannot sent friends request. Your friends list is full."));
-									}
-									break;
-
-									case EWebSocketMessageID::SOCIAL_FRIENDS_OVERALL_STATUS_UPDATE:
-									{
-										WebSocketMessage_FriendsOverallStatusUpdate statusUpdateData;
-										bool bParsed = JSONGetAsObject(jsonObject, &statusUpdateData);
-
-										if (bParsed)
-										{
-											UnicodeString strFormat = UnicodeString::TheEmptyString;
-											if (statusUpdateData.num_online > 0 && statusUpdateData.num_pending > 0)
-											{
-												strFormat.format(L"You have %d friend(s) online and %d pending friend request(s)", statusUpdateData.num_online, statusUpdateData.num_pending);
-											}
-											else if (statusUpdateData.num_online > 0)
-											{
-												strFormat.format(L"You have %d friend(s) online.", statusUpdateData.num_online);
-											}
-											else if (statusUpdateData.num_pending > 0)
-											{
-												strFormat.format(L"You have %d pending friend request(s)", statusUpdateData.num_pending);
-											}
-											else
-											{
-												strFormat = UnicodeString(L"Press F5 or INSERT to bring up the communicator at any time (including in-game).");
-											}
-
-											// show it on the communicator too
-											if (statusUpdateData.num_pending > 0)
-											{
-                                                GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-                                                if (pSocialInterface != nullptr)
-                                                {
-													pSocialInterface->RegisterInitialPendingRequestsUponLogin(statusUpdateData.num_pending);
-                                                }
-											}
-
-											if (!strFormat.isEmpty())
-											{
-												// always show this notification
-												GenOnlineShowNotificationBox(AsciiString::TheEmptyString, strFormat);
-											}
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::START_GAME:
-									{
-										auto* startLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-										// The service and the other players have already started, so a missing link is only logged.
-										if (startLobby != nullptr && startLobby->GetCurrentLobby().lobby_type == ELobbyType::CustomGame
-											&& !startLobby->AreLocalLobbyPeersConnected())
-										{
-											NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Starting with a required peer connection missing");
-										}
-                                        WebSocketMessage_StartGameResponse startGameData;
-                                        bool bParsed = JSONGetAsObject(jsonObject, &startGameData);
-
-										if (bParsed)
-										{
-											// store URL
-                                            GenOnlineServicesManager::GetInstance()->SetScreenshotS3URI_StartMatch(startGameData.screenshot_url.c_str());
-										}
-
-										// always start, even if we couldnt parse the url
-                                        GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-                                        if (pLobbyInterface != nullptr && pLobbyInterface->m_callbackStartGamePacket != nullptr)
-                                        {
-                                            pLobbyInterface->m_callbackStartGamePacket();
-                                        }
-									}
-									break;
-
-									case EWebSocketMessageID::START_GAME_REJECTED:
-									{
-										std::string strReason;
-										if (jsonObject.contains("reason") && jsonObject["reason"].is_string())
-										{
-											strReason = jsonObject["reason"].get<std::string>();
-										}
-										NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] The service refused the match start (%s)", strReason.c_str());
-
-										const std::vector<std::pair<int64_t, int64_t>> missingLinks = ParseMissingLinks(jsonObject);
-
-										GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-										if (pLobbyInterface != nullptr && pLobbyInterface->m_callbackStartGameRejected != nullptr)
-										{
-											pLobbyInterface->m_callbackStartGameRejected(strReason, missingLinks);
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::LOBBY_EVENT:
-									{
-										LobbyEvent lobbyEvent;
-										try
-										{
-											JsonGetRequired(jsonObject, "event", lobbyEvent.event);
-											JsonGetOptional(jsonObject, "duration_ms", lobbyEvent.duration_ms);
-											JsonGetOptional(jsonObject, "reason", lobbyEvent.reason);
-											JsonGetOptional(jsonObject, "value", lobbyEvent.value);
-											JsonGetOptional(jsonObject, "friends_only", lobbyEvent.friends_only);
-											JsonGetOptional(jsonObject, "user_id", lobbyEvent.user_id);
-											JsonGetOptional(jsonObject, "display_name", lobbyEvent.display_name);
-											lobbyEvent.missingLinks = ParseMissingLinks(jsonObject);
-										}
-										catch (...)
-										{
-											NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Ignoring a malformed lobby event");
-											break;
-										}
-
-										NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Lobby event %s", lobbyEvent.event.c_str());
-										GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-										if (pLobbyInterface != nullptr && pLobbyInterface->m_callbackLobbyEvent != nullptr)
-										{
-											pLobbyInterface->m_callbackLobbyEvent(lobbyEvent);
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::FULL_MESH_CONNECTIVITY_CHECK_RESPONSE:
-									{
-										int64_t meshCheckID = 0;
-										int meshCheckAttempt = 0;
-										if (jsonObject.contains("mesh_check_id") && jsonObject["mesh_check_id"].is_number_integer())
-										{
-											meshCheckID = jsonObject["mesh_check_id"].get<int64_t>();
-										}
-										if (jsonObject.contains("attempt") && jsonObject["attempt"].is_number_integer())
-										{
-											meshCheckAttempt = jsonObject["attempt"].get<int>();
-										}
-
-										// respond with our state
-										std::vector<int64_t> connectivityMap;
-										std::vector<int64_t> connectingMap;
-										CollectMeshConnectivity(connectivityMap, connectingMap);
-
-										// send response
-										nlohmann::json j;
-										j["msg_id"] = EWebSocketMessageID::FULL_MESH_CONNECTIVITY_CHECK_RESPONSE;
-										j["mesh_check_id"] = meshCheckID;
-										j["attempt"] = meshCheckAttempt;
-										j["connectivity_map"] = connectivityMap;
-										j["connecting_map"] = connectingMap;
-										std::string strBody = j.dump();
-
-										Send(strBody.c_str());
-										break;
-									}
-
-									case EWebSocketMessageID::NETWORK_CONNECTION_START_SIGNALLING:
-									{
-										WebSocketMessage_NetworkStartSignalling startSignallingData;
-										bool bParsed = JSONGetAsObject(jsonObject, &startSignallingData);
-
-										if (bParsed)
-										{
-											StartPeerSignalling(startSignallingData.lobby_id, startSignallingData.user_id, startSignallingData.preferred_port, startSignallingData.middleware_id);
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::AC_REGISTER_PLAYER:
-                                    {
-                                        WebSocketMessage_ACRegisterPlayer acData;
-                                        bool bParsed = JSONGetAsObject(jsonObject, &acData);
-
-										if (bParsed)
-										{
-											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_REGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid.c_str());
-											if (!GenOnlinePluginHost::Anticheat::RegisterPeer(acData.mwid, acData.user_id))
-											{
-												NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] GenOnlinePluginHost::Anticheat::RegisterPeer failed");
-											}
-										}
-                                    }
-                                    break;
-
-                                    case EWebSocketMessageID::AC_DEREGISTER_PLAYER:
-                                    {
-                                        WebSocketMessage_ACDeregisterPlayer acData;
-                                        bool bParsed = JSONGetAsObject(jsonObject, &acData);
-
-										if (bParsed)
-										{
-											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_DEREGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid.c_str());
-											if (!GenOnlinePluginHost::Anticheat::DeregisterPeer(acData.mwid, acData.user_id))
-											{
-												NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] GenOnlinePluginHost::Anticheat::DeregisterPeer failed");
-											}
-										}
-                                    }
-                                    break;
-
-									case EWebSocketMessageID::NETWORK_CONNECTION_DISCONNECT_PLAYER:
-									{
-										WebSocketMessage_NetworkDisconnectPlayer disconnectPlayerData;
-										bool bParsed = JSONGetAsObject(jsonObject, &disconnectPlayerData);
-
-										if (bParsed)
-										{
-											DisconnectPeer(disconnectPlayerData.lobby_id, disconnectPlayerData.user_id);
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::NETWORK_SIGNAL:
-									{
-										NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] GOT SIGNAL!");
-
-										WebSocketMessage_NetworkSignal signalData;
-										bool bParsed = JSONGetAsObject(jsonObject, &signalData);
-
-										if (bParsed)
-										{
-											NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Signal User: %lld!", signalData.target_user_id);
-											NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Signal Payload Size: %d!", (int)signalData.payload.size());
-											// target_user_id is the sender here, the service fills it in from the authenticated session
-											PushPendingSignal(signalData.target_user_id, std::move(signalData.payload));
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::LOBBY_CHAT_FROM_SERVER:
-									{
-										WebSocketMessage_LobbyChatIncoming chatData;
-										bool bParsed = JSONGetAsObject(jsonObject, &chatData);
-
-										if (bParsed)
-										{
-											UnicodeString unicodeStr(from_utf8(chatData.message).c_str());
-
-											GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-											if (pLobbyInterface != nullptr)
-											{
-												int lobbySlot = -1;
-												std::string senderName;
-												auto lobbyMembers = pLobbyInterface->GetMembersListForCurrentRoom();
-												for (const auto& lobbyMember : lobbyMembers)
-												{
-													if (lobbyMember.user_id == chatData.user_id)
-													{
-														lobbySlot = lobbyMember.m_SlotIndex;
-														senderName = lobbyMember.display_name;
-														break;
-													}
-												}
-
-												// Match local setup notice colors.
-												// System announcements stay neutral even when they come from the host;
-												// player chat keeps its per-slot color.
-												Color color = chatData.announcement
-													? DetermineSystemNoticeColor(false, false)
-													: DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_LOBBY, true, chatData.action, false, false, lobbySlot);
-
-												if (pLobbyInterface->m_OnChatCallback != nullptr)
-												{
-#if RTS_ZEROHOUR
-													GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-													const bool bIsLocal = pAuthInterface != nullptr && pAuthInterface->GetUserID() == chatData.user_id;
-													StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_GAME_LOBBY, chatData.user_id, senderName.c_str(), chatData.message.c_str(), chatData.action, chatData.announcement, bIsLocal);
-#endif
-													pLobbyInterface->m_OnChatCallback(unicodeStr, color);
-												}
-											}
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::NETWORK_ROOM_MEMBER_LIST_UPDATE:
-									{
-										std::unordered_map<uint64_t, NetworkRoomMember> mapMembers;
-										for (const auto& playerEntryIter : jsonObject["members"])
-										{
-											NetworkRoomMember newMember;
-											playerEntryIter["UserID"].get_to(newMember.user_id);
-											playerEntryIter["Name"].get_to(newMember.display_name);
-											playerEntryIter["IsAdmin"].get_to(newMember.m_bIsAdmin);
-
-											mapMembers.emplace(newMember.user_id, newMember);
-										}
-
-										RoomSelectionResult selectionResult;
-										if (jsonObject.contains("selected_room_id") && jsonObject["selected_room_id"].is_number_integer())
-										{
-											selectionResult.selectedRoomID = jsonObject["selected_room_id"].get<int>();
-										}
-										if (jsonObject.contains("effective_room_id") && jsonObject["effective_room_id"].is_number_integer())
-										{
-											selectionResult.effectiveRoomID = jsonObject["effective_room_id"].get<int>();
-										}
-										if (jsonObject.contains("rejected_room_id") && jsonObject["rejected_room_id"].is_number_integer())
-										{
-											selectionResult.rejectedRoomID = jsonObject["rejected_room_id"].get<int>();
-										}
-										if (jsonObject.contains("room_selection_error") && jsonObject["room_selection_error"].is_string())
-										{
-											jsonObject["room_selection_error"].get_to(selectionResult.error);
-										}
-										if (jsonObject.contains("request_id") && jsonObject["request_id"].is_number_unsigned())
-										{
-											selectionResult.requestID = jsonObject["request_id"].get<uint64_t>();
-										}
-
-                                        GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-                                        if (pRoomsInterface != nullptr)
-                                        {
-											pRoomsInterface->OnRosterUpdated(std::move(mapMembers), selectionResult);
-                                        }
-									}
-									break;
-
-                                    case EWebSocketMessageID::ANTICHEAT_MESSAGE:
-                                    {
-                                        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] GOT AC MSG FROM WEBSOCKET!");
-
-										WebSocketMessage_AnticheatMessage acMsg;
-                                        bool bParsed = JSONGetAsObject(jsonObject, &acMsg);
-
-                                        if (bParsed)
-                                        {
-                                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] AC Msg Signal User: %lld!", acMsg.target_user_id);
-                                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] AC Msg Signal Payload Size: %d!", (int)acMsg.payload.size());
-                                            GenOnlinePluginHost::Anticheat::MessageArrived(acMsg.target_user_id, acMsg.payload.data(), acMsg.payload.size());
-                                        }
-                                    }
-                                    break;
-
-									case EWebSocketMessageID::LOBBY_CURRENT_LOBBY_UPDATE:
-									{
-										// re-get the room info as it is stale
-										GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-										if (pLobbyInterface != nullptr)
-										{
-											pLobbyInterface->UpdateRoomDataCache(nullptr);
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::PROBE:
-									{
-										WebSocketMessage_ServerProbe probe;
-                                        bool bParsed = JSONGetAsObject(jsonObject, &probe);
-
-										if (bParsed)
-										{
-											if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
-											{
-												NetworkLog(ELogVerbosity::LOG_RELEASE, "[PROBE] GOT PROBE REQUEST: %s!", probe.url.c_str());
-											}
-											else
-											{
-												NetworkLog(ELogVerbosity::LOG_RELEASE, "[PROBE] Received request");
-											}
-
-											GenOnlineServicesManager::GetInstance()->CaptureScreenshotForProbe(EScreenshotType::SCREENSHOT_TYPE_GAMEPLAY, probe.url);
-
-											// service needs the response
-											nlohmann::json j;
-											j["msg_id"] = EWebSocketMessageID::PROBE_RESP;
-											j["timestamp"] = "0";
-											std::string strBody = j.dump();
-											Send(strBody.c_str());
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::NETWORK_ROOM_LOBBY_LIST_UPDATE:
-									{
-										// re-get the room info as it is stale
-										GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-										if (pLobbyInterface != nullptr)
-										{
-											pLobbyInterface->SetLobbyListDirty();
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::MATCHMAKING_ACTION_JOIN_PREARRANGED_LOBBY:
-									{
-										WebSocketMessage_MatchmakingAction_JoinPrearrangedLobby mmEvent;
-										bool bParsed = JSONGetAsObject(jsonObject, &mmEvent);
-
-										if (bParsed)
-										{
-											GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-											if (pLobbyInterface != nullptr)
-											{
-												pLobbyInterface->HandleMatchFound(mmEvent.lobby_id, "Maps\\Alpine Assault\\Alpine Assault.map");
-											}
-											else
-											{
-												NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_DISCONNECT_PLAYER] Lobby interface is null");
-												break;
-											}
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::MATCHMAKING_ACTION_START_GAME:
-									{
-										GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-										if (pLobbyInterface != nullptr)
-										{
-											pLobbyInterface->InvokeMatchmakingStartGameCallback();
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::MATCHMAKING_ACTION_REQUEUE:
-									{
-										GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-										if (pLobbyInterface != nullptr)
-										{
-											pLobbyInterface->ResetForMatchmakingRequeue();
-											pLobbyInterface->InvokeMatchmakingRequeueCallback();
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::MATCHMAKING_ACTION_SETUP_PROGRESS:
-									{
-										int64_t timeoutMs = 0;
-										if (jsonObject.contains("timeout_ms") && jsonObject["timeout_ms"].is_number_integer())
-										{
-											timeoutMs = jsonObject["timeout_ms"].get<int>();
-										}
-
-										// -1 = older service that doesn't say, the menu infers it
-										int countdownMs = -1;
-										if (jsonObject.contains("countdown_ms") && jsonObject["countdown_ms"].is_number_integer())
-										{
-											countdownMs = jsonObject["countdown_ms"].get<int>();
-										}
-
-										GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-										if (pLobbyInterface != nullptr)
-										{
-											pLobbyInterface->HandleMatchSetupProgress(timeoutMs, countdownMs);
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::MATCHMAKING_MESSAGE:
-									{
-										WebSocketMessage_MatchmakingMessage matchmakingMsg;
-										bool bParsed = JSONGetAsObject(jsonObject, &matchmakingMsg);
-
-										if (bParsed)
-										{
-											GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-											if (pLobbyInterface != nullptr)
-											{
-												pLobbyInterface->InvokeMatchmakingMessageCallback(matchmakingMsg.message);
-											}
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::SOCIAL_NEW_FRIEND_REQUEST:
-									{
-										WebSocketMessage_Social_NewFriendRequest incomingNotify;
-										bool bParsed = JSONGetAsObject(jsonObject, &incomingNotify);
-
-										if (bParsed)
-										{
-											GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-											if (pSocialInterface != nullptr)
-											{
-												pSocialInterface->InvokeCallback_NewFriendRequest(incomingNotify.display_name);
-											}
-										}
-									}
-									break;
-
-									case EWebSocketMessageID::WS_KEEPALIVE:
-									{
-										std::vector<GOModuleInfo> modules = GetLoadedModules();
-
-										std::vector<std::vector<std::string>> vecResp;
-
-                                        for (auto& m : modules)
-										{
-											std::vector<std::string> newEntry(2);
-											newEntry[0] = m.path;
-											newEntry[1] = std::to_string(m.size);
-											vecResp.push_back(newEntry);
-                                        }
-
-                                        // service needs the response
-                                        nlohmann::json j;
-                                        j["msg_id"] = EWebSocketMessageID::WS_KEEPALIVE_CLIENT;
-                                        j["resp"] = vecResp;
-                                        std::string strBody = j.dump();
-                                        Send(strBody.c_str());
-									}
-									break;
-
-									default:
-										NetworkLog(ELogVerbosity::LOG_RELEASE, "Unhandled WebSocketMessage: %d", (int)msgID);
-										break;
-									}
-								}
-								else
-								{
-									NetworkLog(ELogVerbosity::LOG_RELEASE, "Malformed WebSocketMessage: couldn't parse as WebSocketMessageBase");
-								}
-							}
-						}
-						else
-						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "Malformed WebSocketMessage");
-						}
-					}
-					catch (nlohmann::json::exception& jsonException)
-					{
-						if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
-						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "Unparsable WebSocketMessage 101: %s (JSON: %s)", bufferThisRecv, jsonException.what());
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "Buildup buffer is: %s", m_vecWSPartialBuffer.data());
-						}
-						else
-						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Invalid JSON message");
-						}
-
-						m_vecWSPartialBuffer.clear();
-					}
-					catch (std::exception& e)
-					{
-						if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
-						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "Unparsable WebSocketMessage 100: %s (%s)", bufferThisRecv, e.what());
-						}
-						else
-						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Message processing failed");
-						}
-
-						m_vecWSPartialBuffer.clear();
-					}
-					catch (...)
-					{
-						if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
-						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "Unparsable WebSocketMessage 102: %s", bufferThisRecv);
-						}
-						else
-						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Message processing failed");
-						}
-
-						m_vecWSPartialBuffer.clear();
-					}
-				}
+				m_pHubSession->OnTransportText(bufferThisRecv, rlen, NowMs());
 			}
 			else if (meta->flags & CURLWS_BINARY)
 			{
@@ -2399,15 +1120,8 @@ CURLcode WebSocket::ReceiveOneFrame()
 				// TODO_NGMP: Dont do this during gameplay, they can play without the WS, just 'queue' it for when they get back to the front end
 
 				NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket close");
-				if (m_bRealtimeHub)
-				{
-					HubTransportLost("websocket closed");
-					return ret;
-				}
-				GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
-				m_bConnected = false;
-				m_vecWSPartialBuffer.clear();
-				// TODO_NGMP: Handle this
+				HubTransportLost("websocket closed");
+				return ret;
 			}
 			else if (meta->flags & CURLWS_PING)
 			{
@@ -2429,16 +1143,7 @@ CURLcode WebSocket::ReceiveOneFrame()
 
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "Got websocket disconnect (ERROR: %s), Attempting reconnect", curl_easy_strerror(ret));
 
-		if (m_bRealtimeHub)
-		{
-			HubTransportLost("receive failed");
-		}
-		else
-		{
-			m_bConnected = false;
-			BeginReconnect();
-			m_vecWSPartialBuffer.clear();
-		}
+		HubTransportLost("receive failed");
 
 
 		// send event to sentry
@@ -2478,68 +1183,9 @@ void GenOnlineRoomsInterface::GetRoomList(std::function<void(bool)> cb)
 	}
 
 	// The hub sent the rooms with Ready.
-	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
-	if (pWS != nullptr && pWS->IsRealtimeHub())
-	{
-		m_vecRooms = m_vecRealtimeRooms;
-		m_bRoomSelectionResultsSupported = true;
-		cb(!m_vecRooms.empty());
-		return;
-	}
-
-	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("Rooms");
-	std::map<std::string, std::string> mapHeaders;
-
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-			if (!bSuccess || statusCode != 200)
-			{
-				cb(false);
-				return;
-			}
-
-			try
-			{
-				std::vector<NetworkRoom> rooms;
-				nlohmann::json jsonObject = nlohmann::json::parse(strBody);
-				const bool roomSelectionResultsSupported = jsonObject.value("supports_room_selection_results", false);
-				const bool supportsModerationCommands = jsonObject.value("supports_moderation_commands", false);
-
-				for (const auto& roomEntryIter : jsonObject["rooms"])
-				{
-					int id = 0;
-					std::string strName;
-					ERoomFlags flags = ERoomFlags::ROOM_FLAGS_DEFAULT;
-					int parentRoomID = -1;
-
-					roomEntryIter["id"].get_to(id);
-					roomEntryIter["name"].get_to(strName);
-					if (roomEntryIter.contains("flags") && !roomEntryIter["flags"].is_null())
-					{
-						roomEntryIter["flags"].get_to(flags);
-					}
-					if (roomEntryIter.contains("parent_id") && !roomEntryIter["parent_id"].is_null())
-					{
-						roomEntryIter["parent_id"].get_to(parentRoomID);
-					}
-					rooms.emplace_back(id, strName, flags, parentRoomID);
-				}
-
-				m_vecRooms = std::move(rooms);
-				m_bRoomSelectionResultsSupported = roomSelectionResultsSupported;
-				m_bSupportsModerationCommands = supportsModerationCommands;
-
-				cb(true);
-				return;
-			}
-			catch (const std::exception& exception)
-			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to parse room list: %s", exception.what());
-			}
-
-			cb(false);
-			return;
-		});
+	m_vecRooms = m_vecRealtimeRooms;
+	m_bRoomSelectionResultsSupported = true;
+	cb(!m_vecRooms.empty());
 }
 
 void GenOnlineRoomsInterface::JoinRoom(int roomIndex)
@@ -2586,63 +1232,6 @@ void GenOnlineRoomsInterface::SendChatMessageToCurrentRoom(UnicodeString& strCha
 	if (pWS != nullptr)
 	{
 		pWS->SendData_RoomChatMessage(strChatMsgUnicode, bIsAction);
-	}
-}
-
-void GenOnlineRoomsInterface::OnRosterUpdated(std::unordered_map<uint64_t, NetworkRoomMember> mapMembers,
-	const RoomSelectionResult& selectionResult)
-{
-	m_mapMembers = std::move(mapMembers);
-
-	int changedRoomIndex = -1;
-	bool effectiveRoomChanged = true;
-	bool refreshRoster = true;
-	std::string roomJoinFailure;
-	if (m_PendingRoomChange.has_value())
-	{
-		const PendingRoomChange& pendingRoomChange = *m_PendingRoomChange;
-		const bool requestMatches = !selectionResult.requestID.has_value()
-			|| pendingRoomChange.requestID == *selectionResult.requestID;
-		if (requestMatches && selectionResult.rejectedRoomID == pendingRoomChange.roomID)
-		{
-			roomJoinFailure = selectionResult.error.empty() ? "The room selection was rejected." : selectionResult.error;
-			m_PendingRoomChange.reset();
-		}
-		else
-		{
-			const bool selectionMatches = requestMatches
-				&& (selectionResult.selectedRoomID.has_value()
-					? pendingRoomChange.roomID == *selectionResult.selectedRoomID
-					: !m_bRoomSelectionResultsSupported);
-			if (selectionMatches)
-			{
-				if (selectionResult.effectiveRoomID.has_value())
-				{
-					effectiveRoomChanged = !m_EffectiveRoomID.has_value()
-						|| *m_EffectiveRoomID != *selectionResult.effectiveRoomID;
-					m_EffectiveRoomID = selectionResult.effectiveRoomID;
-					refreshRoster = effectiveRoomChanged;
-				}
-				m_CurrentRoomIndex = pendingRoomChange.roomIndex;
-				changedRoomIndex = m_CurrentRoomIndex;
-				m_PendingRoomChange.reset();
-			}
-		}
-	}
-
-	if (changedRoomIndex >= 0 && m_RoomChangedCallback != nullptr)
-	{
-		m_RoomChangedCallback(changedRoomIndex, effectiveRoomChanged);
-	}
-	if (!roomJoinFailure.empty())
-	{
-		ReportRoomJoinFailure(roomJoinFailure);
-	}
-
-	std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
-	if (refreshRoster && m_RosterNeedsRefreshCallback != nullptr)
-	{
-		m_RosterNeedsRefreshCallback();
 	}
 }
 
