@@ -18,8 +18,7 @@
 
 // FILE: GenOnlineRealtimeBridge.h ////////////////////////////////////////////
 // Description: Connects the events of the GenOnline realtime hub to the rooms,
-//              social and moderation interfaces, so the menus keep reading the
-//              same state they read with the legacy message protocol.
+//              social, lobby and moderation interfaces that the menus read.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once

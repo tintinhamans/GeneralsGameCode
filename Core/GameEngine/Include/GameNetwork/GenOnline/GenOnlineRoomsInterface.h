@@ -117,15 +117,6 @@ public:
 	bool IsValid() const { return user_id != -1; }
 };
 
-struct RoomSelectionResult
-{
-	std::optional<uint64_t> requestID;
-	std::optional<int> selectedRoomID;
-	std::optional<int> effectiveRoomID;
-	std::optional<int> rejectedRoomID;
-	std::string error;
-};
-
 class GenOnlineRoomsInterface
 {
 public:
@@ -227,7 +218,6 @@ public:
 
 	const std::vector<NetworkRoom>& GetGroupRooms() const { return m_vecRooms; }
 
-	void OnRosterUpdated(std::unordered_map<uint64_t, NetworkRoomMember> mapMembers, const RoomSelectionResult& selectionResult);
 	bool SupportsModerationCommands() const { return m_bSupportsModerationCommands; }
 
 	int GetCurrentRoomIndex() const { return m_CurrentRoomIndex; }

@@ -74,10 +74,8 @@ public:
 
 	void SendMiddlewareToken(std::string strMWToken);
 
-	void RefreshToken();
 	void BeginLogin();
 	void BeginLoginOnSelectedRoute();
-	void DoFullLoginFlow();
 
 	void Tick();
 
@@ -104,20 +102,14 @@ public:
 
 	static std::string GetCredentialsFilePath();
 
-	// True when the environment runs the realtime protocol v1, whose sign-in is OAuth in the system browser.
-	static bool UsesRealtimeHub();
-
 	// Refreshes the tokens and registers the session again, for a realtime hub that refused or revoked the session.
 	void RecoverRealtimeSession(std::function<void(bool bRecovered)> fnDone);
 
 private:
 	void LoginAsSecondaryDevAccount();
 
-	void SaveCredentials(const char* szRefreshToken);
 	bool GetCredentials();
 	void DeleteSavedCredentials();
-
-	void OnRefreshTokenFailed(const char* szReason, const std::string& strBody = std::string());
 
 	static std::string CredentialServerKey();
 
@@ -135,9 +127,7 @@ private:
 	static std::string ServiceOriginV1();
 
 private:
-	bool m_bWaitingLogin = false;
 	std::string m_strCode;
-	std::int64_t m_lastCheckCode = -1;
 
 	bool m_bSignInScreen = false;
 	bool m_bSignInDialog = false;
@@ -154,13 +144,8 @@ private:
 	std::function<void(ELoginResult)> m_cb_LoginPendingCallback = nullptr;
 
 	std::string m_strRefreshToken = std::string();
-	int64_t m_tokenCreationTime = -1;
-	const int m_minutesUntilTokenRefresh = 10;
 
 	// if a refresh fails we still have ~5m before the token actually expires, so retry quickly rather than waiting for the next scheduled refresh
-	int m_currentRefreshAttempt = 0;
-	int64_t m_nextRefreshRetryTime = -1;
-	const int m_maxRefreshAttempts = 2;
 	const int m_secondsUntilRefreshRetry = 30;
 
 	// Realtime protocol v1 sign-in. The access token lives in m_strToken and the rotating refresh token in m_strRefreshToken.

@@ -44,7 +44,7 @@
 #define SETTINGS_KEY_NETWORK_SERVER "server"
 #define SETTINGS_KEY_NETWORK_SERVER_MODE "mode"
 #define SETTINGS_KEY_NETWORK_SERVER_ADDRESS "address"
-#define SETTINGS_KEY_NETWORK_SERVER_REALTIME_PROTOCOL "realtime_protocol"
+#define SETTINGS_KEY_NETWORK_SERVER_LEGACY_REALTIME_PROTOCOL "realtime_protocol"
 #define SETTINGS_KEY_NETWORK_PROXY "proxy"
 #define SETTINGS_KEY_NETWORK_PROXY_MODE "mode"
 #define SETTINGS_KEY_NETWORK_PROXY_ADDRESS "address"
@@ -417,7 +417,6 @@ void GenOnlineSettings::Load(void)
                     {
                         const std::string path = std::string(SETTINGS_KEY_NETWORK) + "." + SETTINGS_KEY_NETWORK_SERVER;
                         choice(*serverSettings, path, SETTINGS_KEY_NETWORK_SERVER_MODE, m_ConnectionSettings.serverMode, { "automatic", "custom" });
-                        choice(*serverSettings, path, SETTINGS_KEY_NETWORK_SERVER_REALTIME_PROTOCOL, m_ConnectionSettings.realtimeProtocol, { "legacy", "v1" });
                         if (serverSettings->contains(SETTINGS_KEY_NETWORK_SERVER_ADDRESS))
                         {
                             const auto& found = (*serverSettings)[SETTINGS_KEY_NETWORK_SERVER_ADDRESS];
@@ -697,8 +696,7 @@ bool GenOnlineSettings::Save()
                 {
                     {SETTINGS_KEY_NETWORK_SERVER, {
                         {SETTINGS_KEY_NETWORK_SERVER_MODE, m_ConnectionSettings.serverMode},
-                        {SETTINGS_KEY_NETWORK_SERVER_ADDRESS, m_ConnectionSettings.serverAddress},
-                        {SETTINGS_KEY_NETWORK_SERVER_REALTIME_PROTOCOL, m_ConnectionSettings.realtimeProtocol}}},
+                        {SETTINGS_KEY_NETWORK_SERVER_ADDRESS, m_ConnectionSettings.serverAddress}}},
                     {SETTINGS_KEY_NETWORK_PROXY, {
                         {SETTINGS_KEY_NETWORK_PROXY_MODE, m_ConnectionSettings.proxyMode},
                         {SETTINGS_KEY_NETWORK_PROXY_ADDRESS, m_ConnectionSettings.proxyURL},
@@ -767,6 +765,7 @@ bool GenOnlineSettings::Save()
 	preserved[SETTINGS_KEY_CAMERA].erase(SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO);
 	preserved[SETTINGS_KEY_NETWORK].erase(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT);
 	preserved[SETTINGS_KEY_NETWORK].erase(SETTINGS_KEY_NETWORK_LEGACY_HTTP_VERSION);
+	preserved[SETTINGS_KEY_NETWORK][SETTINGS_KEY_NETWORK_SERVER].erase(SETTINGS_KEY_NETWORK_SERVER_LEGACY_REALTIME_PROTOCOL);
 	std::string strData = preserved.dump(1);
 
 	std::string strSettingsFilePath = std::format("{}/GeneralsOnlineData/{}", TheGlobalData->getPath_UserData().str(), SETTINGS_FILENAME);
@@ -803,7 +802,6 @@ bool GenOnlineSettings::Network_SaveConnectionSettings(const ServiceConnectionSe
 	error.clear();
 	ServiceConnectionSettings settings = requested;
 	if ((settings.serverMode != "automatic" && settings.serverMode != "custom") ||
-		(settings.realtimeProtocol != "legacy" && settings.realtimeProtocol != "v1") ||
 		(settings.proxyMode != "automatic" && settings.proxyMode != "disabled" && settings.proxyMode != "custom"))
 	{
 		error = "Choose a valid service and proxy mode.";

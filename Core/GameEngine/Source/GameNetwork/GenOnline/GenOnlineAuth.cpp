@@ -31,52 +31,8 @@
 #include <curl/curl.h>
 #include "GameClient/ClientInstance.h"
 
-enum class EAuthResponseResult : int
-{
-	CODE_INVALID = -1,
-	WAITING_USER_ACTION = 0,
-	SUCCEEDED = 1,
-	FAILED = 2
-};
-
-struct GetLoginCodeResponse
-{
-	bool success = false;
-    std::string login_code = "";
-    
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(GetLoginCodeResponse, success, login_code)
-};
-
-struct AuthResponse
-{
-	EAuthResponseResult result = EAuthResponseResult::FAILED;
-	std::string session_token = "";
-	std::string refresh_token = "";
-	int64_t user_id = -1;
-	std::string display_name = "";
-	std::string ws_uri = "";
-
-	// NOTE: _WITH_DEFAULT so endpoints that only return a subset of these fields (e.g. refresh, which doesn't resend profile data) don't throw during parsing
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(AuthResponse, result, session_token, refresh_token, user_id, display_name, ws_uri)
-};
-
 namespace
 {
-	std::string GetBanReason(const std::string& responseBody)
-	{
-		nlohmann::json jsonObject = nlohmann::json::parse(responseBody, nullptr, false, true);
-		if (jsonObject.is_object())
-		{
-			const auto banReason = jsonObject.find("ban_reason");
-			if (banReason != jsonObject.end() && banReason->is_string())
-			{
-				return banReason->get_ref<const std::string&>();
-			}
-		}
-
-		return std::string();
-	}
-
 	// TheSuperHackers @feature arcticdolphin 08/11/2026 Provider sign-in requests the playgenerals.online login page sends; Keycloak replaces this block with its auth URL plus kc_idp_hint.
 	const char* const LOGIN_PAGE_URI = "https://www.playgenerals.online/login/";
 	const char* const STEAM_RETURN_URI = "https://www.playgenerals.online/login/index.php";
@@ -88,23 +44,6 @@ namespace
 	const char* const OPENID_NS = "http://specs.openid.net/auth/2.0";
 	const char* const OPENID_IDENTIFIER_SELECT = "http://specs.openid.net/auth/2.0/identifier_select";
 	const char* const GAME_LOGIN_TYPE = "0";
-
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 A login code goes into URLs and the state JSON, so only letters, digits and dashes are accepted.
-	bool IsValidLoginCode(const std::string& strCode)
-	{
-		if (strCode.empty())
-		{
-			return false;
-		}
-		for (unsigned char ch : strCode)
-		{
-			if (!((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-'))
-			{
-				return false;
-			}
-		}
-		return true;
-	}
 
 	// the state the website parses, in its exact format: type 0 is GameReplays, 1 is Discord
 	std::string ProviderLoginState(int type, const std::string& strCode, const std::string& strEnv)
@@ -276,132 +215,6 @@ void GenOnlineAuthInterface::SendMiddlewareToken(std::string strMWToken)
         }, nullptr);
 }
 
-void GenOnlineAuthInterface::OnRefreshTokenFailed(const char* szReason, const std::string& strBody)
-{
-	// the body can hold a rotated refresh token, so only its size is logged
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Refresh response body was %zu bytes", strBody.size());
-
-	if (m_currentRefreshAttempt < m_maxRefreshAttempts)
-	{
-		// the token itself is still valid for a few more minutes, so try again shortly instead of waiting for the next scheduled refresh
-		m_nextRefreshRetryTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count() + (m_secondsUntilRefreshRetry * 1000);
-
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Token refresh attempt %d of %d failed (%s), retrying in %ds", m_currentRefreshAttempt, m_maxRefreshAttempts, szReason, m_secondsUntilRefreshRetry);
-		return;
-	}
-
-	// TODO_JWT: More graceful handling
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Token refresh failed after %d attempts (%s), tearing down", m_currentRefreshAttempt, szReason);
-
-	// we couldnt renew our token, so things are about to go really bad
-	m_nextRefreshRetryTime = -1;
-	m_currentRefreshAttempt = 0;
-	GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::AUTH_FAILED);
-}
-
-void GenOnlineAuthInterface::RefreshToken()
-{
-	++m_currentRefreshAttempt;
-
-	// clear any pending retry, this attempt supersedes it
-	m_nextRefreshRetryTime = -1;
-
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Starting token refresh (attempt %d of %d)", m_currentRefreshAttempt, m_maxRefreshAttempts);
-
-	// so we dont keep retrying while the request is pending
-	m_tokenCreationTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-
-    std::string strRefreshURI = GenOnlineServicesManager::GetAPIEndpoint("RefreshToken");
-
-    if (!m_strRefreshToken.empty())
-    {
-        std::map<std::string, std::string> mapHeaders;
-
-        // attach refresh token. NOTE: service auth is disabled for this request, otherwise the session token would overwrite this header
-        mapHeaders["Authorization"] = "Bearer " + m_strRefreshToken;
-
-        GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strRefreshURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "", [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-            {
-                if (statusCode >= 400 && statusCode < 500)
-                {
-					if (statusCode == 423)
-					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Account ban detected during token refresh, tearing down");
-						m_tokenCreationTime = -1;
-						m_nextRefreshRetryTime = -1;
-						m_currentRefreshAttempt = 0;
-						HandleModerationDisconnect(EOnlineModerationAction::BAN, GetBanReason(strBody));
-						return;
-					}
-
-					OnRefreshTokenFailed(std::format("HTTP {}", statusCode).c_str(), strBody);
-                }
-                else
-                {
-                    try
-                    {
-                        nlohmann::json jsonObject = nlohmann::json::parse(strBody, nullptr, false, true);
-                        AuthResponse authResp = jsonObject.get<AuthResponse>();
-
-                        if (authResp.result == EAuthResponseResult::SUCCEEDED && !authResp.session_token.empty())
-                        {
-                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Token refreshed successfully!");
-
-                            m_currentRefreshAttempt = 0;
-                            m_nextRefreshRetryTime = -1;
-
-                            // the refresh endpoint may not rotate the refresh token, only save it if we actually got a new one, otherwise we'd wipe the stored credentials
-                            if (!authResp.refresh_token.empty())
-                            {
-                                SaveCredentials(authResp.refresh_token.c_str());
-                            }
-                            else
-                            {
-                                m_tokenCreationTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-                            }
-
-                            // store data locally
-                            m_strToken = authResp.session_token;
-
-                            // refresh responses don't necessarily resend profile data, don't clobber what we already have
-                            if (authResp.user_id != -1)
-                            {
-                                m_userID = authResp.user_id;
-                            }
-
-                            if (!authResp.display_name.empty())
-                            {
-                                m_strDisplayName = authResp.display_name;
-                            }
-                        }
-                        else if (authResp.result == EAuthResponseResult::SUCCEEDED)
-                        {
-                            OnRefreshTokenFailed("succeeded but no session_token", strBody);
-                        }
-                        else
-                        {
-                            OnRefreshTokenFailed(std::format("auth result {}", (int)authResp.result).c_str(), strBody);
-                        }
-                    }
-                    catch (const std::exception& e)
-                    {
-                        OnRefreshTokenFailed(std::format("malformed response ({})", e.what()).c_str(), strBody);
-                    }
-                    catch (...)
-                    {
-                        OnRefreshTokenFailed("malformed response", strBody);
-                    }
-                }
-
-            }, nullptr, -1, true /* bDisableServiceAuth, we're authenticating with the refresh token here, not the session token */);
-    }
-    else
-    {
-		// nothing to refresh with, we're going through the full login flow instead
-		DoFullLoginFlow();
-    }
-}
-
 bool GenOnlineAuthInterface::ReportLoginFailure(const wchar_t* szTitle, const wchar_t* szText)
 {
 	if (!m_bSignInDialog)
@@ -455,330 +268,12 @@ void GenOnlineAuthInterface::BeginLogin()
 
 void GenOnlineAuthInterface::BeginLoginOnSelectedRoute()
 {
-	if (UsesRealtimeHub())
-	{
-		BeginLoginV1();
-		return;
-	}
-
-	m_tokenCreationTime = -1;
-
-	std::string strLoginURI = GenOnlineServicesManager::GetAPIEndpoint("LoginWithToken");
-
-	std::string strRefreshToken;
-	bool bValidCreds = GetCredentials();
-	if (bValidCreds && !m_strRefreshToken.empty())
-	{
-		const int loginAttempt = ++m_loginAttempt;
-		m_loginStage = ELoginStage::SavedLogin;
-
-		// login
-		std::map<std::string, std::string> mapHeaders;
-
-		nlohmann::json j;
-		j["machine_guid"] = GetMachineGuid();
-		j["mac_addr"] = GetPrimaryMacAddress();
-		j["vol_serial"] = GetVolumeSerial();
-		j["exe_crc"] = getGameExeCRC();
-		j["ini_crc"] = TheGlobalData->m_iniCRC;
-		std::string strPostData = j.dump();
-
-		// attach refresh token. NOTE: service auth is disabled for this request, otherwise a stale session token would overwrite this header
-		mapHeaders["Authorization"] = "Bearer " + m_strRefreshToken;
-
-
-		GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strLoginURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-			{
-				// TheSuperHackers @feature arcticdolphin 08/11/2026 The player chose another account while this saved login was on its way.
-				if (loginAttempt != m_loginAttempt)
-				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: Dropping the saved login reply, the player chose another account");
-					return;
-				}
-
-				// if 4XX, just log in again
-				if (statusCode >= 400 && statusCode < 500)
-				{
-					if (statusCode == 423)
-					{
-						ShowLoginBanDialog(GetBanReason(strBody));
-						return;
-					}
-					else
-					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: Login failed due to 4XX code, trying to re-auth");
-						DoFullLoginFlow();
-					}
-				}
-				else
-				{
-					try
-					{
-						nlohmann::json jsonObject = nlohmann::json::parse(strBody, nullptr, false, true);
-						AuthResponse authResp = jsonObject.get<AuthResponse>();
-
-						if (authResp.result == EAuthResponseResult::SUCCEEDED)
-						{
-							ClearGSMessageBoxes();
-							if (!m_bSignInScreen)
-							{
-								GSMessageBoxNoButtons(UnicodeString(L"Logging In"), UnicodeString(L"Logged in!"), true);
-							}
-
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: Logged in");
-							m_bWaitingLogin = false;
-
-							SaveCredentials(authResp.refresh_token.c_str());
-
-							// store data locally
-							m_strToken = authResp.session_token;
-							m_userID = authResp.user_id;
-							m_strDisplayName = authResp.display_name;
-
-							// trigger callback
-							OnLoginComplete(ELoginResult::Success, authResp.ws_uri.c_str());
-						}
-						else if (authResp.result == EAuthResponseResult::FAILED)
-						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: Login failed, trying to re-auth");
-							DoFullLoginFlow();
-						}
-					}
-					catch (...)
-					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: Resp parse failed, trying to re-auth");
-						DoFullLoginFlow();
-					}
-				}
-
-			}, nullptr, -1, true /* bDisableServiceAuth, we're authenticating with the refresh token here, not the session token */);
-	}
-	else
-	{
-		DoFullLoginFlow();
-	}
-}
-
-void GenOnlineAuthInterface::DoFullLoginFlow()
-{
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: DoFullLoginFlow");
-
-	const int loginAttempt = m_loginAttempt;
-	m_loginStage = ELoginStage::RequestingCode;
-
-    // get a game login code from server
-    std::string strGetLoginCodeURI = GenOnlineServicesManager::GetAPIEndpoint("LoginCode");
-    std::map<std::string, std::string> mapHeaders;
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strGetLoginCodeURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-		{
-			if (loginAttempt != m_loginAttempt)
-			{
-				return;
-			}
-
-			std::function<void(void)> fnGetLoginCodeFailed = [this]()
-				{
-					// stop checking
-					m_bWaitingLogin = false;
-					m_strCode = std::string();
-					m_lastCheckCode = -1;
-					m_loginStage = ELoginStage::Failed;
-
-
-					ClearGSMessageBoxes();
-					if (ReportLoginFailure(L"Login Failed", L"Failed to retrieve login code"))
-					{
-						return;
-					}
-					GSMessageBoxOk(UnicodeString(L"Login Failed"), UnicodeString(L"Failed to retrieve login code"), []()
-						{
-							TheShell->pop();
-						});
-				};
-
-			if (!bSuccess || (statusCode >= 400 && statusCode < 500))
-			{
-				fnGetLoginCodeFailed();
-			}
-			else
-			{
-				try
-				{
-					nlohmann::json jsonObject = nlohmann::json::parse(strBody, nullptr, false, true);
-					GetLoginCodeResponse authResp = jsonObject.get<GetLoginCodeResponse>();
-
-					if (authResp.success && IsValidLoginCode(authResp.login_code))
-					{
-						m_currentRefreshAttempt = 0;
-
-						m_bWaitingLogin = true;
-						m_lastCheckCode = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-
-						m_strCode = authResp.login_code;
-						if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
-						{
-							NetworkLog(ELogVerbosity::LOG_DEBUG, "Login Code is %s", m_strCode.c_str());
-						}
-
-                        ClearGSMessageBoxes();
-
-                        // TheSuperHackers @feature arcticdolphin 08/11/2026 The sign-in screen shows the code and opens the browser on the provider the player picks.
-                        if (m_bSignInScreen)
-                        {
-                            m_loginStage = ELoginStage::WaitingForProvider;
-                            return;
-                        }
-
-                        GSMessageBoxCancel(UnicodeString(L"Logging In"), UnicodeString(L"Please continue in your web browser"), []()
-                            {
-                                GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-                                if (pAuthInterface != nullptr)
-                                {
-                                    pAuthInterface->CancelLogin();
-                                }
-                                else if (GenOnlineServicesManager::GetInstance() != nullptr)
-                                {
-                                    GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
-                                }
-                            });
-
-                        OpenProviderLogin(ELoginProvider::Website);
-                    }
-                    else
-                    {
-						fnGetLoginCodeFailed();
-                    }
-                }
-                catch (const std::exception& /*e*/)
-                {
-					fnGetLoginCodeFailed();
-                }
-                catch (...)
-                {
-					fnGetLoginCodeFailed();
-                }
-            }
-        });
+	BeginLoginV1();
 }
 
 void GenOnlineAuthInterface::Tick()
 {
-	if (UsesRealtimeHub())
-	{
-		TickV1();
-		return;
-	}
-
-    // Do we need to refresh our token?
-    if (IsLoggedIn())
-    {
-        int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-
-        if (m_nextRefreshRetryTime != -1)
-        {
-            // a refresh failed, retry it before the token actually expires
-            if (now >= m_nextRefreshRetryTime)
-            {
-                NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH] Retrying token refresh...");
-                RefreshToken();
-            }
-        }
-        else if (m_tokenCreationTime != -1 && now - m_tokenCreationTime >= m_minutesUntilTokenRefresh * 60 * 1000) // refresh every 10m, tokens last 15m
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH] Token is about to expire, refreshing...");
-            m_currentRefreshAttempt = 0;
-            RefreshToken();
-        }
-    }
-
-	if (m_bWaitingLogin)
-	{
-		const int64_t timeBetweenChecks = 1000;
-		int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-
-		if (currTime - m_lastCheckCode >= timeBetweenChecks)
-		{
-			m_lastCheckCode = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-
-			// check again
-			std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("CheckLogin");
-			std::map<std::string, std::string> mapHeaders;
-
-			nlohmann::json j;
-			j["code"] = m_strCode.c_str();
-			j["client_id"] = GENONLINE_CLIENT_ID;
-            j["machine_guid"] = GetMachineGuid();
-            j["mac_addr"] = GetPrimaryMacAddress();
-            j["vol_serial"] = GetVolumeSerial();
-            j["exe_crc"] = getGameExeCRC();
-            j["ini_crc"] = TheGlobalData->m_iniCRC;
-			std::string strPostData = j.dump();
-
-			const int loginAttempt = m_loginAttempt;
-			GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-				{
-					// TheSuperHackers @feature arcticdolphin 08/11/2026 The login was cancelled or restarted after this check was sent.
-					if (loginAttempt != m_loginAttempt)
-					{
-						return;
-					}
-
-					try
-					{
-						if (statusCode == 423)
-						{
-							m_bWaitingLogin = false;
-							ShowLoginBanDialog(GetBanReason(strBody));
-							return;
-						}
-
-						nlohmann::json jsonObject = nlohmann::json::parse(strBody);
-						AuthResponse authResp = jsonObject.get<AuthResponse>();
-
-						if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
-						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "PageBody: %zu bytes", strBody.size());
-						}
-						if (authResp.result == EAuthResponseResult::CODE_INVALID)
-						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: Code didnt exist, trying again soon");
-						}
-						else if (authResp.result == EAuthResponseResult::WAITING_USER_ACTION)
-						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: Waiting for user action");
-						}
-						else if (authResp.result == EAuthResponseResult::SUCCEEDED)
-						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: Logged in");
-							m_bWaitingLogin = false;
-
-							SaveCredentials(authResp.refresh_token.c_str());
-
-							// store data locally
-							m_strToken = authResp.session_token;
-							m_userID = authResp.user_id;
-							m_strDisplayName = authResp.display_name;
-
-							// trigger callback
-							OnLoginComplete(ELoginResult::Success, authResp.ws_uri.c_str());
-						}
-						else if (authResp.result == EAuthResponseResult::FAILED)
-						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: Login failed");
-							m_bWaitingLogin = false;
-
-							// trigger callback
-							OnLoginComplete(ELoginResult::Failed, "");
-						}
-					}
-					catch (...)
-					{
-
-					}
-
-				}, nullptr);
-		}
-	}
+	TickV1();
 }
 
 void GenOnlineAuthInterface::OpenProviderLogin(ELoginProvider provider)
@@ -808,21 +303,14 @@ void GenOnlineAuthInterface::UseAnotherAccount()
 	++m_loginAttempt;
 	DeleteSavedCredentials();
 	m_strRefreshToken = std::string();
-	if (UsesRealtimeHub())
-	{
-		StartBrowserSignInV1(m_loginAttempt);
-		return;
-	}
-	DoFullLoginFlow();
+	StartBrowserSignInV1(m_loginAttempt);
 }
 
 void GenOnlineAuthInterface::CancelLogin()
 {
 	// TheSuperHackers @feature arcticdolphin 08/11/2026 Drop the replies still on their way and stop polling, so a cancelled login never completes later.
 	++m_loginAttempt;
-	m_bWaitingLogin = false;
 	m_strCode = std::string();
-	m_lastCheckCode = -1;
 	m_pSignIn->Cancel();
 	AbandonRefreshV1();
 
@@ -883,53 +371,34 @@ void GenOnlineAuthInterface::OnLoginComplete(ELoginResult loginResult, const cha
 
 void GenOnlineAuthInterface::LogoutOfMyAccount()
 {
-	if (UsesRealtimeHub())
-	{
-		// A refresh that finishes after the logout would save a new refresh token, so it is dropped.
-		m_pSignIn->Cancel();
-		AbandonRefreshV1();
+	// A refresh that finishes after the logout would save a new refresh token, so it is dropped.
+	m_pSignIn->Cancel();
+	AbandonRefreshV1();
 
-		// The session ends first, then the refresh token is revoked. The token is attached here because the session is cleared before the request starts.
-		const std::string strOrigin = ServiceOriginV1();
-		const std::string strRefreshToken = m_strRefreshToken;
-		const std::string strURI = strOrigin + "/api/v1/auth/session";
-		std::map<std::string, std::string> mapHeaders;
-		mapHeaders["Authorization"] = "Bearer " + m_strToken;
-		GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendDELETERequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "",
-			[this, strOrigin, strRefreshToken](bool, int statusCode, std::string, HTTPRequest*)
-			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Session ended with status %d", statusCode);
-				m_pSignIn->Revoke(strOrigin, strRefreshToken);
-			});
-		DeleteSavedCredentials();
-		ClearSessionV1();
-		return;
-	}
-
-	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("User"), m_userID);
+	// The session ends first, then the refresh token is revoked. The token is attached here because the session is cleared before the request starts.
+	const std::string strOrigin = ServiceOriginV1();
+	const std::string strRefreshToken = m_strRefreshToken;
+	const std::string strURI = strOrigin + "/api/v1/auth/session";
 	std::map<std::string, std::string> mapHeaders;
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendDELETERequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "", nullptr);
-
+	mapHeaders["Authorization"] = "Bearer " + m_strToken;
+	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendDELETERequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "",
+		[this, strOrigin, strRefreshToken](bool, int statusCode, std::string, HTTPRequest*)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Session ended with status %d", statusCode);
+			m_pSignIn->Revoke(strOrigin, strRefreshToken);
+		});
 	DeleteSavedCredentials();
+	ClearSessionV1();
 }
 
 void GenOnlineAuthInterface::DeleteSavedCredentials()
 {
-	ServiceConnection::DeleteRefreshToken(UsesRealtimeHub() ? CredentialServerKeyV1() : CredentialServerKey());
+	ServiceConnection::DeleteRefreshToken(CredentialServerKeyV1());
 }
 
 void GenOnlineAuthInterface::LoginAsSecondaryDevAccount()
 {
 
-}
-
-void GenOnlineAuthInterface::SaveCredentials(const char* szRefreshToken)
-{
-	m_strRefreshToken = std::string(szRefreshToken); // store the new refresh token, we'll need it for the next refresh
-	m_tokenCreationTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-
-	// a failed save keeps the token for this session
-	ServiceConnection::SaveRefreshToken(CredentialServerKey(), m_strRefreshToken);
 }
 
 bool GenOnlineAuthInterface::GetCredentials()
@@ -938,7 +407,7 @@ bool GenOnlineAuthInterface::GetCredentials()
 	return false;
 #endif
 	std::string strToken;
-	if (!ServiceConnection::LoadRefreshToken(UsesRealtimeHub() ? CredentialServerKeyV1() : CredentialServerKey(), strToken))
+	if (!ServiceConnection::LoadRefreshToken(CredentialServerKeyV1(), strToken))
 	{
 		return false;
 	}
@@ -967,11 +436,6 @@ std::string GenOnlineAuthInterface::GetCredentialsFilePath()
 static int64_t NowMsV1()
 {
 	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-}
-
-bool GenOnlineAuthInterface::UsesRealtimeHub()
-{
-	return GenOnlineServicesManager::Settings.Network_GetConnectionSettings().realtimeProtocol == "v1";
 }
 
 // The OAuth refresh token has its own key, so it never mixes with a legacy login token of the same server.
@@ -1123,9 +587,8 @@ void GenOnlineAuthInterface::ApplyTokensV1(const GenOnlineRealtime::TokenRespons
 {
 	m_strToken = tokens.access_token;
 	m_strRefreshToken = tokens.refresh_token;
-	// A failed save keeps the token for this session. The legacy refresh timer stays off.
+	// A failed save keeps the token for this session.
 	ServiceConnection::SaveRefreshToken(CredentialServerKeyV1(), m_strRefreshToken);
-	m_tokenCreationTime = -1;
 	// The refresh runs 2 minutes before the expiry, or halfway through a token that lasts 4 minutes or less.
 	const int64_t lifetimeMs = std::max<int64_t>(tokens.expires_in, 60) * 1000;
 	const int64_t now = NowMsV1();

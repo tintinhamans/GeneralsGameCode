@@ -59,62 +59,6 @@ struct S3ScreenshotEntry
 #include "GameClient/DisplayStringManager.h"
 #include "Common/GameEngine.h"
 
-enum EWebSocketMessageID
-{
-	UNKNOWN = -1,
-	NETWORK_ROOM_CHAT_FROM_CLIENT = 1,
-	NETWORK_ROOM_CHAT_FROM_SERVER = 2,
-	NETWORK_ROOM_CHANGE_ROOM = 3,
-	NETWORK_ROOM_MEMBER_LIST_UPDATE = 4,
-	NETWORK_ROOM_MARK_READY = 5,
-	LOBBY_CURRENT_LOBBY_UPDATE = 6,
-	NETWORK_ROOM_LOBBY_LIST_UPDATE = 7,
-	ANTICHEAT_MESSAGE = 8,
-	PLAYER_NAME_CHANGE = 9,
-	LOBBY_ROOM_CHAT_FROM_CLIENT = 10,
-	LOBBY_CHAT_FROM_SERVER = 11,
-	NETWORK_SIGNAL = 12,
-	START_GAME = 13,
-	PING = 14,
-	PONG = 15,
-	PROBE = 16,
-	NETWORK_CONNECTION_START_SIGNALLING = 17,
-	NETWORK_CONNECTION_DISCONNECT_PLAYER = 18,
-	NETWORK_CONNECTION_CLIENT_REQUEST_SIGNALLING = 19,
-	MATCHMAKING_ACTION_JOIN_PREARRANGED_LOBBY = 20,
-	MATCHMAKING_ACTION_START_GAME = 21,
-	MATCHMAKING_MESSAGE = 22,
-	START_GAME_COUNTDOWN_STARTED = 23,
-	LOBBY_REMOVE_PASSWORD = 24,
-	LOBBY_CHANGE_PASSWORD = 25,
-	FULL_MESH_CONNECTIVITY_CHECK_HOST_REQUESTS_BEGIN = 26,
-	FULL_MESH_CONNECTIVITY_CHECK_RESPONSE = 27,
-	FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST = 28,
-	SOCIAL_NEW_FRIEND_REQUEST = 29,
-	SOCIAL_FRIEND_CHAT_MESSAGE_CLIENT_TO_SERVER = 30,
-	SOCIAL_FRIEND_CHAT_MESSAGE_SERVER_TO_CLIENT = 31,
-	SOCIAL_FRIEND_ONLINE_STATUS_CHANGED = 32,
-	SOCIAL_SUBSCRIBE_REALTIME_UPDATES = 33,
-	SOCIAL_UNSUBSCRIBE_REALTIME_UPDATES = 34,
-	SOCIAL_FRIENDS_OVERALL_STATUS_UPDATE = 35,
-	SOCIAL_FRIEND_FRIEND_REQUEST_ACCEPTED_BY_TARGET = 36,
-	SOCIAL_FRIENDS_LIST_DIRTY = 37,
-	SOCIAL_CANT_ADD_FRIEND_LIST_FULL = 38,
-	PROBE_RESP = 39,
-	AC_REGISTER_PLAYER = 40,
-	AC_DEREGISTER_PLAYER = 41,
-	WS_KEEPALIVE = 42,
-	WS_KEEPALIVE_CLIENT = 43,
-	MATCHMAKING_ACTION_REQUEUE = 44,
-	MATCHMAKING_ACTION_SETUP_PROGRESS = 45,
-	MODERATION_NOTICE = 46,
-	MODERATION_COMMAND = 47,
-	MODERATION_COMMAND_RESULT = 48,
-	START_GAME_REJECTED = 49,
-	LOBBY_EVENT = 50,
-	LOBBY_HOST_START_INTENT = 51
-};
-
 enum class EQoSRegions
 {
 	UNKNOWN = -1,
@@ -156,16 +100,10 @@ constexpr bool IsModerationTeardownReason(EGOTearDownReason reason) noexcept
 class WebSocket
 {
 public:
-	// bRealtimeHub selects the realtime hub protocol v1 instead of the legacy message protocol.
-	explicit WebSocket(bool bRealtimeHub = false);
+	WebSocket();
 	~WebSocket();
 
-	bool IsRealtimeHub() const
-	{
-		return m_bRealtimeHub;
-	}
-
-	// The hub session of a realtime hub socket, null for a legacy socket.
+	// The hub session of this socket.
 	GenOnlineRealtime::HubSession* GetHubSession()
 	{
 		return m_pHubSession.get();
@@ -227,19 +165,11 @@ public:
 	void SendData_ChangeLobbyPassword(UnicodeString& strNewPassword);
 	void SendData_RemoveLobbyPassword();
 
-	void SendData_SubscribeRealtimeUpdates();
-	void SendData_UnsubscribeRealtimeUpdates();
-
 
 	// Asks the service to tell the players that the host wants to start.
 	void SendData_HostStartIntent();
 
 	void Tick();
-
-	int Ping();
-
-	// Queues the message; Tick() flushes it on the main thread. Thread-safe.
-	void Send(const char* message);
 
 	// Continues the initial connect after the proxy login prompt closed.
 	void ResumeAfterProxyLogin(bool loggedIn);
@@ -293,13 +223,12 @@ private:
 	void OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, const std::string& reason);
 	void RecoverHubSession();
 
-	// Shared by the legacy messages and the hub events.
+	// Peer networking steps of the hub events.
 	void StartPeerSignalling(int64_t lobbyID, int64_t userID, uint16_t preferredPort, const std::string& middlewareID);
 	void DisconnectPeer(int64_t lobbyID, int64_t userID);
 	void CollectMeshConnectivity(std::vector<int64_t>& connected, std::vector<int64_t>& connecting);
 	void RegisterPeerHandlers();
 
-	bool m_bRealtimeHub = false;
 	std::unique_ptr<GenOnlineRealtime::HubSession> m_pHubSession;
 	mutable GenOnlineRealtime::ReconnectPolicy m_hubReconnectPolicy;
 	bool m_bHubReadyOnce = false;
@@ -315,17 +244,12 @@ private:
 	ServiceConnection::ResolvedProxyPolicy m_proxyPolicy;
 	size_t m_proxyRoute = 0;
 	int64_t m_proxySetupStarted = -1;
-	bool m_connectAsReconnect = false;
 	CURL* m_pCurlWS = nullptr;
     CURLM* m_pMulti = nullptr;
 	struct curl_slist* m_pHeaders = nullptr;
 
 	bool m_bConnected = false;
 
-	// Menu window should not exceed the service's abandoned-session hold, else reconnects get 205.
-	const int64_t m_reconnectMenuWindow = 30000;
-	const int64_t m_reconnectBackoffBase = 2000;
-	const int64_t m_reconnectBackoffCap = 10000;
 	const int64_t m_reconnectAttemptTimeout = 15000;
 
 	bool m_bReconnecting = false;
@@ -333,7 +257,6 @@ private:
 	int64_t m_reconnectStartTime = -1;
 	int64_t m_nextReconnectAttempt = -1;
 	int64_t m_reconnectAttemptStarted = -1; // -1 = none in flight
-	bool m_bFreshSession = false; // 205: reconnect as a new session
 
 	void BeginReconnect();
 	void EndReconnect();
@@ -341,11 +264,6 @@ private:
 	int64_t ComputeReconnectDelay() const;
 
 	std::string m_strWebsocketAddr;
-
-	int64_t m_lastPong = -1;
-	int64_t m_lastPing = -1;
-	const int64_t m_timeBetweenUserPings = 1000;
-	const int64_t m_timeForWSTimeout = 20000;
 
 	std::atomic<bool> m_bShuttingDown = false;
 
@@ -782,7 +700,6 @@ public:
 	// true when the last failed route check was a proxy login the player did not complete
 	bool RouteFailedProxyAuth() const { return m_routeProxyAuthFailed; }
 	static bool IsServiceURLTrusted(const std::string& url);
-	static bool IsWebSocketURLTrusted(const std::string& url);
 
 	std::shared_ptr<WebSocket> Internal_GetWebSocket() const { return m_pWebSocket; }
 	HTTPManager* GetHTTPManager() const { return m_pHTTPManager; }
