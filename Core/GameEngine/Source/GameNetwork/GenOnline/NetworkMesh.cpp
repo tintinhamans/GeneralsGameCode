@@ -29,6 +29,9 @@ UnsignedInt m_exeCRCOriginal = 0;
 int g_relayOverride = -1;             // 1 = relay only, -1 = service policy
 int g_iceImplementationOverride = -1; // 1 = native, 2 = WebRTC
 
+// The plugin packets the lobby takes per tick, 255 for each of up to 8 peers like the per connection GNS receive.
+static constexpr int k_pluginLitePacketsPerTick = 255 * 8;
+
 static int64_t NowSteadyMs()
 {
 	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
@@ -817,6 +820,9 @@ NetworkMesh::NetworkMesh()
 	if (GenOnlinePluginHost::Transport::IsActive())
 	{
 		m_bInitialized = true;
+
+		// the key of this client for the lobby, peers get it as they connect
+		BeginLobbyKeys();
 		return;
 	}
 
@@ -1161,7 +1167,7 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 bool NetworkMesh::BeginLobbyKeys()
 {
 	GenOnlineAuthInterface* auth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	if (auth == nullptr || GenOnlinePluginHost::Transport::IsActive())
+	if (auth == nullptr)
 	{
 		return false;
 	}
@@ -1204,7 +1210,7 @@ void NetworkMesh::TickLobbyKeys(int64_t nowMs)
 	for (auto& entry : m_mapConnections)
 	{
 		PlayerConnection& connection = entry.second;
-		if (connection.GetState() != EConnectionState::CONNECTED_DIRECT || connection.m_hSteamConnection == k_HSteamNetConnection_Invalid)
+		if (connection.GetState() != EConnectionState::CONNECTED_DIRECT || !connection.CanSend())
 		{
 			m_keySync.erase(entry.first);
 			continue;
@@ -1228,8 +1234,7 @@ void NetworkMesh::TickLobbyKeys(int64_t nowMs)
 			std::vector<BYTE> packet(sizeof(ENetworkChannel) + body.size());
 			packet[0] = static_cast<BYTE>(ENetworkChannel::NETWORK_CHANNEL_KEYS);
 			memcpy(packet.data() + sizeof(ENetworkChannel), body.data(), body.size());
-			const EResult result = SteamNetworkingSockets()->SendMessageToConnection(connection.m_hSteamConnection,
-				packet.data(), static_cast<uint32>(packet.size()), k_nSteamNetworkingSend_ReliableNoNagle, nullptr);
+			const EResult result = static_cast<EResult>(connection.SendFramed(packet.data(), packet.size(), k_nSteamNetworkingSend_ReliableNoNagle));
 			if (result != k_EResultOK)
 			{
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[KEYS] Could not send to user %lld, error %d", static_cast<long long>(entry.first), static_cast<int>(result));
@@ -1282,12 +1287,6 @@ bool NetworkMesh::BeginMatchKeys()
 		return false;
 	}
 	peers.erase(auth->GetUserID());
-	if (!peers.empty() && GenOnlinePluginHost::Transport::IsActive())
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[KEYS] Cannot authenticate peers on plugin transport without sender attribution");
-		EndMatchKeys();
-		return false;
-	}
 
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 	if (!m_matchKeys.HasLocalKey() && !BeginLobbyKeys())
@@ -1340,8 +1339,6 @@ void NetworkMesh::GetLobbyStartBlockers(std::vector<LobbyStartBlocker>& blockers
 		}
 	}
 
-	// on a plugin transport there are no keys, the launch says so
-	const bool keysApply = !GenOnlinePluginHost::Transport::IsActive();
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 	for (int64_t userID : humans)
 	{
@@ -1354,7 +1351,7 @@ void NetworkMesh::GetLobbyStartBlockers(std::vector<LobbyStartBlocker>& blockers
 		{
 			blockers.push_back({ userID, true });
 		}
-		else if (keysApply && (!m_matchKeys.HasPeerKey(userID) || !m_matchKeys.PeerHoldsAll(userID, humans)))
+		else if (!m_matchKeys.HasPeerKey(userID) || !m_matchKeys.PeerHoldsAll(userID, humans))
 		{
 			blockers.push_back({ userID, false });
 		}
@@ -1431,7 +1428,7 @@ static void WriteStartBytes(std::vector<uint8_t>& out, const void* pData, size_t
 void NetworkMesh::SendStartMessage(int64_t userID, const std::vector<uint8_t>& payload)
 {
 	PlayerConnection* pConnection = GetConnectionForUser(userID);
-	if (pConnection == nullptr || pConnection->m_hSteamConnection == k_HSteamNetConnection_Invalid)
+	if (pConnection == nullptr || !pConnection->CanSend())
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[RUNAHEAD] No connection to user %lld for the start run ahead", static_cast<long long>(userID));
 		return;
@@ -1440,7 +1437,7 @@ void NetworkMesh::SendStartMessage(int64_t userID, const std::vector<uint8_t>& p
 	std::vector<uint8_t> packet;
 	packet.push_back(static_cast<uint8_t>(ENetworkChannel::NETWORK_CHANNEL_START));
 	packet.insert(packet.end(), payload.begin(), payload.end());
-	const EResult r = SteamNetworkingSockets()->SendMessageToConnection(pConnection->m_hSteamConnection, packet.data(), static_cast<uint32>(packet.size()), k_nSteamNetworkingSend_ReliableNoNagle, nullptr);
+	const EResult r = static_cast<EResult>(pConnection->SendFramed(packet.data(), packet.size(), k_nSteamNetworkingSend_ReliableNoNagle));
 	if (r != k_EResultOK)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[RUNAHEAD] Could not send the start run ahead message to user %lld, error %d", static_cast<long long>(userID), static_cast<int>(r));
@@ -1507,8 +1504,8 @@ void NetworkMesh::BeginStartRunAhead(int routerSlot)
 		st.active = false;
 	}
 
-	// no remote player or anticheat transport: retail start
-	if (m_startPlayers.empty() || m_startRouterUserID < 0 || GenOnlinePluginHost::Transport::IsActive())
+	// no remote player: retail start
+	if (m_startPlayers.empty() || m_startRouterUserID < 0)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[RUNAHEAD] start R=%d, no start run ahead exchange (players=%d, router=%lld)", (int)TheNetwork->getRunAhead(), (int)m_startPlayers.size(), static_cast<long long>(m_startRouterUserID));
 		return;
@@ -2257,105 +2254,147 @@ void NetworkMesh::Tick()
 		{
 			kvPair.second.LiteUpdateForAC();
 		}
+
+		// The plugin queue holds the packets of every plugin connection, so it drains once per tick.
+		ReceivePluginPackets(k_pluginLitePacketsPerTick, [](PlayerConnection& connection, const uint8_t* data, uint32_t len, int64_t arrivalMs)
+		{
+			connection.DispatchLiteFrame(data, len, arrivalMs);
+		});
 	}
+}
+
+int NetworkMesh::ReceivePluginPackets(int maxPackets, const PluginPacketHandler& handler)
+{
+	int numHandled = 0;
+	for (int numTaken = 0; numTaken < maxPackets; ++numTaken)
+	{
+		if (GenOnlinePluginHost::Transport::GetNextPacketSize(ENetworkChannels::Game) == 0)
+		{
+			break;
+		}
+
+		// the plugin returns its own buffer through pData
+		const uint8_t* pData = nullptr;
+		uint32_t numBytes = 0;
+		int64_t senderUserID = -1;
+		if (!GenOnlinePluginHost::Transport::ReceivePacket(ENetworkChannels::Game, &pData, &numBytes, &senderUserID) || pData == nullptr)
+		{
+			// nothing was dequeued, stop instead of spinning forever on the same pending packet
+			break;
+		}
+
+		// the buffer belongs to the plugin, make sure every exit path below releases it
+		struct ScopedPluginPacket
+		{
+			const uint8_t* m_pData;
+			~ScopedPluginPacket() { GenOnlinePluginHost::Transport::FreePacket(m_pData); }
+		} scopedPacket{ pData };
+
+		// The plugin hands the packet over when the main loop asks, so the receive time is the arrival time.
+		const int64_t arrivalMs = NowSteadyMs();
+
+		std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+		auto it = m_mapConnections.find(senderUserID);
+		if (it == m_mapConnections.end() || it->second.m_ConnectionType != EConnectionType::MiddlewarePluginGeneric)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[PLUGIN PACKET] Dropping a packet of %u bytes from user %lld, the user has no plugin connection", numBytes, static_cast<long long>(senderUserID));
+			continue;
+		}
+
+		handler(it->second, pData, numBytes, arrivalMs);
+		++numHandled;
+	}
+
+	return numHandled;
 }
 
 void PlayerConnection::LiteUpdateForAC()
 {
-	if (GenOnlinePluginHost::Transport::IsActive())
+	// The mesh drains the plugin queue for every plugin connection in NetworkMesh::Tick.
+	if (m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
 	{
-		// EOS: Nothing to do here, AC packets are handled internally when MW is handling it
+		return;
 	}
-	else
+
+	SteamNetworkingMessage_t* pMsg[255] = { nullptr };
+	int numPackets = Recv(pMsg);
+
+	if (numPackets <= 0)
+		return;
+
+	if (numPackets > static_cast<int>(std::size(pMsg)))
 	{
-		SteamNetworkingMessage_t* pMsg[255] = { nullptr };
-		int numPackets = Recv(pMsg);
+		NetworkLog(ELogVerbosity::LOG_RELEASE,
+			"Game Packet Recv: numPackets (%d) > pMsg capacity (%zu), clamping",
+			numPackets, std::size(pMsg));
+		numPackets = static_cast<int>(std::size(pMsg));
+	}
 
-		if (numPackets <= 0)
-			return;
-
-		if (numPackets > static_cast<int>(std::size(pMsg)))
+	for (int iPacket = 0; iPacket < numPackets; ++iPacket)
+	{
+		SteamNetworkingMessage_t* msg = pMsg[iPacket];
+		if (!msg)
 		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE,
-				"Game Packet Recv: numPackets (%d) > pMsg capacity (%zu), clamping",
-				numPackets, std::size(pMsg));
-			numPackets = static_cast<int>(std::size(pMsg));
+			// CRITICAL BUG FIX: Don't return early - continue loop to release remaining messages
+			// Skipping null entry but continue processing others
+			NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC PACKET] Received null message at index %d", iPacket);
+			continue;
 		}
 
-		for (int iPacket = 0; iPacket < numPackets; ++iPacket)
-		{
-			SteamNetworkingMessage_t* msg = pMsg[iPacket];
-			if (!msg)
-			{
-				// CRITICAL BUG FIX: Don't return early - continue loop to release remaining messages
-				// Skipping null entry but continue processing others
-				NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC PACKET] Received null message at index %d", iPacket);
-				continue;
-			}
-
-			const uint32_t numBytes = msg->m_cbSize;
-
-			// is it an AC packet?
-			// TODO_AC: Improve detection, just add a 'msg type' to the start of the packet
-			std::vector<byte> vecData;
-			vecData.resize(numBytes);
-			memcpy(vecData.data(), msg->GetData(), numBytes);
-
-			// Check minimum packet size for AC header
-			if (numBytes >= sizeof(ENetworkChannel))
-			{
-				ENetworkChannel netChannel = (ENetworkChannel)vecData[0];
-				if (netChannel == ENetworkChannel::NETWORK_CHANNEL_AC)
-				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Received AC message of size %u from user %lld", numBytes, static_cast<long long>(m_userID));
-
-
-					// remove header
-					// TODO_AC: Optimize this
-					std::vector<byte> vecDataAC;
-					vecDataAC.resize(numBytes - sizeof(ENetworkChannel));
-					memcpy(vecDataAC.data(), (char*)msg->GetData() + sizeof(ENetworkChannel), numBytes - sizeof(ENetworkChannel));
-
-					GenOnlinePluginHost::Anticheat::MessageArrived(m_userID, vecDataAC.data(), numBytes - sizeof(ENetworkChannel));
-					msg->Release();
-					continue;
-				}
-				else if (netChannel == ENetworkChannel::NETWORK_CHANNEL_PING)
-				{
-					HandleProbe(vecData.data() + sizeof(ENetworkChannel), numBytes - sizeof(ENetworkChannel), GetArrivalMs(msg));
-					msg->Release();
-					continue;
-				}
-				else if (netChannel == ENetworkChannel::NETWORK_CHANNEL_KEYS)
-				{
-					HandleKeyMessage(vecData.data() + sizeof(ENetworkChannel), numBytes - sizeof(ENetworkChannel));
-					msg->Release();
-					continue;
-				}
-				else if (netChannel == ENetworkChannel::NETWORK_CHANNEL_START)
-				{
-					NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-					if (pMesh != nullptr)
-					{
-						pMesh->OnStartRunAheadMessage(m_userID, vecData.data() + sizeof(ENetworkChannel), numBytes - sizeof(ENetworkChannel));
-					}
-					msg->Release();
-					continue;
-				}
-			}
-			else if (numBytes != -1 && numBytes < sizeof(ENetworkChannel))
-			{
-				// Malformed AC packet - too small for header
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Dropping malformed AC packet - size %u is less than header size 3 from user %lld", numBytes, static_cast<long long>(m_userID));
-				msg->Release();
-				continue;
-			}
-
-			// not an AC packet, we dont care
-			NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC PACKET] Received NON AC message");
-			msg->Release();
-		}
+		DispatchLiteFrame(static_cast<const uint8_t*>(msg->GetData()), msg->m_cbSize, GetArrivalMs(msg));
+		msg->Release();
 	}
+}
+
+void PlayerConnection::DispatchLiteFrame(const uint8_t* data, size_t len, int64_t arrivalMs)
+{
+	// Check minimum packet size for AC header
+	if (data == nullptr || len < sizeof(ENetworkChannel))
+	{
+		// Malformed AC packet - too small for header
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Dropping malformed AC packet - size %u is less than header size 3 from user %lld", static_cast<unsigned>(len), static_cast<long long>(m_userID));
+		return;
+	}
+
+	if (!DispatchControlFrame(static_cast<ENetworkChannel>(data[0]), data + sizeof(ENetworkChannel), len - sizeof(ENetworkChannel), arrivalMs))
+	{
+		// not an AC packet, we dont care
+		NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC PACKET] Received NON AC message");
+	}
+}
+
+bool PlayerConnection::DispatchControlFrame(ENetworkChannel channel, const uint8_t* payload, size_t len, int64_t arrivalMs)
+{
+	if (channel == ENetworkChannel::NETWORK_CHANNEL_AC)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Received AC message of size %u from user %lld", static_cast<unsigned>(len), static_cast<long long>(m_userID));
+		GenOnlinePluginHost::Anticheat::MessageArrived(static_cast<uint32_t>(m_userID), payload, static_cast<uint32_t>(len));
+		return true;
+	}
+
+	if (channel == ENetworkChannel::NETWORK_CHANNEL_KEYS)
+	{
+		HandleKeyMessage(payload, len);
+		return true;
+	}
+
+	if (channel == ENetworkChannel::NETWORK_CHANNEL_START)
+	{
+		NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
+		if (pMesh != nullptr)
+		{
+			pMesh->OnStartRunAheadMessage(m_userID, payload, len);
+		}
+		return true;
+	}
+
+	if (channel == ENetworkChannel::NETWORK_CHANNEL_PING)
+	{
+		HandleProbe(payload, len, arrivalMs);
+		return true;
+	}
+
+	return false;
 }
 
 // Probe payload after the envelope, little endian: u16 seq, u16 echoSeq, u16 echoHoldMs
@@ -2403,13 +2442,7 @@ void PlayerConnection::TickProbe(int64_t nowMs)
 
 	m_nextProbeMs = nowMs + pingIntervalMs;
 
-	if (GenOnlinePluginHost::Transport::IsActive())
-	{
-		// the plugin transport has no per-peer receive path for the ping channel, so nothing could be echoed back
-		return;
-	}
-
-	if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
+	if (!CanSend())
 	{
 		return;
 	}
@@ -2572,38 +2605,30 @@ int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
         return -(int)k_EResultFail;
     }
 
-	if (GenOnlinePluginHost::Transport::IsActive())
+	if (!CanSend())
 	{
-		// TODO_EOS: Determine best reliability
-		GenOnlinePluginHost::Transport::SendPacket(m_strMiddlewareID.c_str(), m_userID, pBuffer, totalDataSize, ENetworkChannels::Game, EPacketReliability::PACKET_RELIABILITY_RELIABLE_ORDERED);
+		if (LogInvalidDue())
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send game packet - connection is invalid for user %lld", m_userID);
+		}
+		return -(int)k_EResultFail;
 	}
-	else
+
+	ServiceConfig& serviceConf = GenOnlineServicesManager::GetInstance()->GetServiceConfig();
+
+	// datagram mode leaves loss repair to the game layer; the restart flag only applies to ISteamNetworkingMessages
+	int sendFlags = k_nSteamNetworkingSend_Reliable | k_nSteamNetworkingSend_AutoRestartBrokenSession; // default from last patch
+	if (serviceConf.send.IsDatagram())
 	{
-		if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
-		{
-			if (LogInvalidDue())
-			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send game packet - connection is invalid for user %lld", m_userID);
-			}
-			return -(int)k_EResultFail;
-		}
+		sendFlags = k_nSteamNetworkingSend_UnreliableNoNagle;
+	}
 
-		ServiceConfig& serviceConf = GenOnlineServicesManager::GetInstance()->GetServiceConfig();
-
-		// datagram mode leaves loss repair to the game layer; the restart flag only applies to ISteamNetworkingMessages
-		int sendFlags = k_nSteamNetworkingSend_Reliable | k_nSteamNetworkingSend_AutoRestartBrokenSession; // default from last patch
-		if (serviceConf.send.IsDatagram())
-		{
-			sendFlags = k_nSteamNetworkingSend_UnreliableNoNagle;
-		}
-
-		NetworkLog(ELogVerbosity::LOG_DEBUG, "[GAME PACKET] Sending msg of size %ld to user %lld\n", totalDataSize, m_userID);
-		const int r = SendEnveloped(ENetworkChannel::NETWORK_CHANNEL_GAME, static_cast<const uint8_t*>(pBuffer), totalDataSize, sendFlags);
-		if (r != k_EResultOK)
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Failed to send, err code was %d", r);
-			return -r;
-		}
+	NetworkLog(ELogVerbosity::LOG_DEBUG, "[GAME PACKET] Sending msg of size %ld to user %lld\n", totalDataSize, m_userID);
+	const int r = SendEnveloped(ENetworkChannel::NETWORK_CHANNEL_GAME, static_cast<const uint8_t*>(pBuffer), totalDataSize, sendFlags);
+	if (r != k_EResultOK)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Failed to send, err code was %d", r);
+		return -r;
 	}
 
 	return 0;
@@ -2613,33 +2638,31 @@ int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
 
 void PlayerConnection::SendACPacket(const void* pData, uint32_t dataLen)
 {
-	if (GenOnlinePluginHost::Transport::IsActive())
+	// Easy Anti-Cheat carries its own messages when the plugin is the anticheat.
+	if (m_ConnectionType == EConnectionType::MiddlewarePluginGeneric && GenOnlinePluginHost::IsPluginAnticheat())
 	{
-		// nothing to do, handled internally in plugin
-
+		return;
 	}
-	else
-	{
-        if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Cannot send AC packet - connection is invalid for user %ld", m_userID);
-            return;
-        }
 
-        ENetworkChannel netChannel = ENetworkChannel::NETWORK_CHANNEL_AC;
-        std::vector<BYTE> vecData;
-        vecData.resize(dataLen + sizeof(ENetworkChannel));
-        memcpy(vecData.data() + sizeof(ENetworkChannel), pData, dataLen);
-        vecData[0] = (BYTE)netChannel;
+    if (!CanSend())
+    {
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Cannot send AC packet - connection is invalid for user %ld", m_userID);
+        return;
+    }
 
-        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Sending AC msg of size %ld to user %ld\n", dataLen, m_userID);
-        EResult r = SteamNetworkingSockets()->SendMessageToConnection(m_hSteamConnection, vecData.data(), vecData.size(), k_nSteamNetworkingSend_Reliable, nullptr);
+    ENetworkChannel netChannel = ENetworkChannel::NETWORK_CHANNEL_AC;
+    std::vector<BYTE> vecData;
+    vecData.resize(dataLen + sizeof(ENetworkChannel));
+    memcpy(vecData.data() + sizeof(ENetworkChannel), pData, dataLen);
+    vecData[0] = (BYTE)netChannel;
 
-        if (r != k_EResultOK)
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Failed to send, err code was %d", r);
-        }
-	}
+    NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Sending AC msg of size %ld to user %ld\n", dataLen, m_userID);
+    EResult r = static_cast<EResult>(SendFramed(vecData.data(), vecData.size(), k_nSteamNetworkingSend_Reliable));
+
+    if (r != k_EResultOK)
+    {
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Failed to send, err code was %d", r);
+    }
 }
 
 void PlayerConnection::Close()
@@ -2897,17 +2920,43 @@ int PlayerConnection::SendEnveloped(ENetworkChannel channel, const uint8_t* payl
 	memcpy(vecData.data() + sizeof(ENetworkChannel) + envelopeSize, payload, len);
 	vecData.resize(sizeof(ENetworkChannel) + envelopeSize + len);
 
-	EResult r = SteamNetworkingSockets()->SendMessageToConnection(m_hSteamConnection, vecData.data(), static_cast<uint32>(vecData.size()), sendFlags, nullptr);
+	EResult r = static_cast<EResult>(SendFramed(vecData.data(), vecData.size(), sendFlags));
 	if (r != k_EResultOK)
 	{
 		// once more with the same packet, it keeps its sequence number
-		r = SteamNetworkingSockets()->SendMessageToConnection(m_hSteamConnection, vecData.data(), static_cast<uint32>(vecData.size()), sendFlags, nullptr);
+		r = static_cast<EResult>(SendFramed(vecData.data(), vecData.size(), sendFlags));
 	}
 	if (r != k_EResultOK)
 	{
 		m_feedback.CancelEnvelope();
 	}
 	return static_cast<int>(r);
+}
+
+int PlayerConnection::SendFramed(const uint8_t* data, size_t len, int sendFlags)
+{
+	if (m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
+	{
+		// A reliable send stays reliable and ordered on the plugin, every other send is unreliable.
+		const EPacketReliability reliability = (sendFlags & k_nSteamNetworkingSend_Reliable) != 0
+			? EPacketReliability::PACKET_RELIABILITY_RELIABLE_ORDERED
+			: EPacketReliability::PACKET_RELIABILITY_UNRELIABLE_UNORDERED;
+		const bool bSent = GenOnlinePluginHost::Transport::SendPacket(m_strMiddlewareID.c_str(), m_userID, data, static_cast<uint32_t>(len), ENetworkChannels::Game, reliability);
+		return static_cast<int>(bSent ? k_EResultOK : k_EResultNoConnection);
+	}
+
+	return static_cast<int>(SteamNetworkingSockets()->SendMessageToConnection(m_hSteamConnection, data, static_cast<uint32>(len), sendFlags, nullptr));
+}
+
+bool PlayerConnection::CanSend() const
+{
+	// The plugin addresses its peers by user id, so a plugin connection has no handle to lose.
+	if (m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
+	{
+		return true;
+	}
+
+	return m_hSteamConnection != k_HSteamNetConnection_Invalid;
 }
 
 bool PlayerConnection::GetOutgoingLoss(int windowMs, PacketFeedback::Summary& summary)

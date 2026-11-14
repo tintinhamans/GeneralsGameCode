@@ -137,10 +137,11 @@ public:
 		// True when the service allows the plugin transport and the plugin carries the game traffic.
 		static bool IsActive();
 		static void StartSignalling(const char* szPlatformUserID, uint64_t userID);
-		static void SendPacket(const char* szPlatformUserID, uint64_t userID, const void* pData, uint32_t numBytes, ENetworkChannels channel, EPacketReliability reliability);
+		// False when no plugin transport is loaded.
+		static bool SendPacket(const char* szPlatformUserID, uint64_t userID, const void* pData, uint32_t numBytes, ENetworkChannels channel, EPacketReliability reliability);
 		static uint32_t GetNextPacketSize(ENetworkChannels channel);
-		// The buffer belongs to the plugin and goes back through FreePacket.
-		static bool ReceivePacket(ENetworkChannels channel, const uint8_t** ppOutData, uint32_t* pOutNumBytes);
+		// The buffer belongs to the plugin and goes back through FreePacket. pOutSenderUserID gets the GenOnline user id of the sender.
+		static bool ReceivePacket(ENetworkChannels channel, const uint8_t** ppOutData, uint32_t* pOutNumBytes, int64_t* pOutSenderUserID);
 		static void FreePacket(const uint8_t* pData);
 		static int GetLatency(const char* szPlatformUserID, uint64_t userID);
 		static bool IsRelayed(const char* szPlatformUserID, uint64_t userID);

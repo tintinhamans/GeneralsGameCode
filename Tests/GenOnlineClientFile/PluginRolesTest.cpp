@@ -1,5 +1,6 @@
 // Standalone checks of the plugin role rules in GenOnlinePluginRoles. Builds without the game, see CMakeLists.txt.
 #include "GameNetwork/GenOnline/GenOnlinePluginRoles.h"
+#include <cstddef>
 #include <cstdio>
 
 using namespace GenOnlinePluginRoles;
@@ -125,6 +126,37 @@ static void TestLoadFailure()
 	CHECK(!DoesLoadFailureBlockOnline(Select("", {})));
 }
 
+static void TestTransportNamesSenders()
+{
+	// A transport table that fills ReceivePacketFrom names the sender of every packet.
+	GenOnlinePluginTransportApi full = {};
+	full.structSize = sizeof(GenOnlinePluginTransportApi);
+	full.ReceivePacketFrom = [](uint8_t, const uint8_t**, uint32_t*, uint64_t*) -> int32_t { return GENONLINE_PLUGIN_FALSE; };
+	CHECK(DoesTransportNameSenders(full));
+
+	// A null ReceivePacketFrom names no sender.
+	GenOnlinePluginTransportApi nullField = full;
+	nullField.ReceivePacketFrom = nullptr;
+	CHECK(!DoesTransportNameSenders(nullField));
+
+	// A table that ends before ReceivePacketFrom names no sender, whatever lies past its size.
+	GenOnlinePluginTransportApi shortTable = full;
+	shortTable.structSize = static_cast<uint32_t>(offsetof(GenOnlinePluginTransportApi, ReceivePacketFrom));
+	CHECK(!DoesTransportNameSenders(shortTable));
+}
+
+static void TestTransportWithoutSenders()
+{
+	// A transport only plugin without a usable transport takes the failed load path.
+	CHECK(DoesTransportLossFailLoad(Select("", { "genonline_eos" })));
+
+	// The anticheat plugin keeps its anticheat and linked account without its transport.
+	CHECK(!DoesTransportLossFailLoad(Select("genonline_eos", { "genonline_eos" })));
+
+	// Without a plugin nothing can fail.
+	CHECK(!DoesTransportLossFailLoad(Select("", {})));
+}
+
 int main()
 {
 	TestNoExternalPlugin();
@@ -133,6 +165,8 @@ int main()
 	TestEnabledCapabilities();
 	TestSessionAndPeerCalls();
 	TestLoadFailure();
+	TestTransportNamesSenders();
+	TestTransportWithoutSenders();
 	if (s_failures != 0)
 	{
 		std::printf("%d check(s) failed\n", s_failures);
