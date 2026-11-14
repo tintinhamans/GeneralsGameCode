@@ -275,6 +275,13 @@ static std::map<std::string, RoundTripFn> BuildApiFixtureTable()
 	t["post-reports.request.json"] = RoundTrip<ReportBody>;
 	t["post-reports.response.json"] = RoundTrip<ReportCreateResponse>;
 
+	t["get-compatibility.response.json"] = RoundTrip<CompatibilityResponse>;
+	t["get-config.response.json"] = RoundTrip<ConfigResponse>;
+	t["put-me-linked_accounts-eos.request.json"] = RoundTrip<EosLinkBody>;
+	t["get-stats-global.response.json"] = RoundTrip<GlobalStatsResponse>;
+	t["get-players-stats.response.json"] = RoundTrip<PlayerStatsBody>;
+	t["get-players-stats-ids.response.json"] = RoundTrip<PlayerStatsBatchResponse>;
+
 	return t;
 }
 
@@ -1686,6 +1693,150 @@ static void TestRestPaths()
 	CHECK(json(body) == json::parse(R"({"user_id":7})"));
 }
 
+static std::string ReadApiFixture(const std::filesystem::path& folder, const char* name)
+{
+	std::ifstream file(folder / name, std::ios::binary);
+	std::stringstream text;
+	text << file.rdbuf();
+	return text.str();
+}
+
+static void TestLegacyRouteReplacements(const std::filesystem::path& folder)
+{
+	// The compatibility check names the client and a plain YYYY.MM.PATCH version.
+	CHECK(RestCompatibilityPath("genonline_zerohour", "2026.11.3") == "/api/v1/compatibility?client=genonline_zerohour&version=2026.11.3");
+	CHECK(CompatibilityVersion("v2026.11.3", "2026-11-10 12:00:00 +0000") == "2026.11.3");
+	CHECK(CompatibilityVersion("v2026.11.3-5-gabc1234", "2026-11-14 12:00:00 +0000") == "2026.11.3");
+	CHECK(CompatibilityVersion("v2026.1.12", "2026-01-20 12:00:00 +0000") == "2026.1.12");
+	CHECK(CompatibilityVersion("", "2026-11-14 10:00:00 +0100") == "2026.11.0");
+	CHECK(CompatibilityVersion("v1.2", "2026-01-05 10:00:00 +0100") == "2026.1.0");
+	CHECK(CompatibilityVersion("v2026.13.1", "2026-02-05 10:00:00 +0100") == "2026.2.0");
+	CHECK(CompatibilityVersion("v2026.11.3rc", "2026-11-05 10:00:00 +0100") == "2026.11.0");
+	CHECK(CompatibilityVersion("", "") == "1970.1.0");
+
+	// The route check takes any compatibility answer, also an incompatible one.
+	const std::string compatibility = ReadApiFixture(folder, "get-compatibility.response.json");
+	CHECK(IsCompatibilityAnswer(compatibility));
+	CHECK(!IsCompatibilityAnswer("{}"));
+	CHECK(!IsCompatibilityAnswer(R"({"execrc_30":1,"execrc_60":2})"));
+	CHECK(!IsCompatibilityAnswer("not json"));
+
+	{
+		CompatibilityResponse answer;
+		CHECK(CompatibilityVerdictOf(MakeRestOutcome(true, 200, compatibility), answer) == CompatibilityVerdict::NeedsUpdate);
+		CHECK(!answer.update.isNull && answer.update.value.patcher_name == "GeneralsOnline_update_111426.exe");
+		CHECK(!answer.update.value.patcher_size.isNull && answer.update.value.patcher_size.value == 48211968);
+	}
+	{
+		CompatibilityResponse answer;
+		const std::string body = R"({"compatible":true,"min_version":"2026.11.2","service_version":"2026.11.5","update":null})";
+		CHECK(CompatibilityVerdictOf(MakeRestOutcome(true, 200, body), answer) == CompatibilityVerdict::UpToDate);
+	}
+	{
+		CompatibilityResponse answer;
+		const std::string body = R"({"compatible":false,"min_version":"2026.11.2","service_version":"2026.11.5","update":null})";
+		CHECK(CompatibilityVerdictOf(MakeRestOutcome(true, 200, body), answer) == CompatibilityVerdict::Failed);
+	}
+	{
+		CompatibilityResponse answer;
+		json body = json::parse(compatibility);
+		body["update"]["patcher_size"] = nullptr;
+		CHECK(CompatibilityVerdictOf(MakeRestOutcome(true, 200, body.dump()), answer) == CompatibilityVerdict::Failed);
+	}
+	for (const char* name : { "", "../update.exe", "dir/update.exe", "C:update.exe", "a\\b.exe" })
+	{
+		CompatibilityResponse answer;
+		json body = json::parse(compatibility);
+		body["update"]["patcher_name"] = name;
+		CHECK(CompatibilityVerdictOf(MakeRestOutcome(true, 200, body.dump()), answer) == CompatibilityVerdict::Failed);
+	}
+	{
+		CompatibilityResponse answer;
+		CHECK(CompatibilityVerdictOf(MakeRestOutcome(true, 400, R"({"error":"invalid_argument","params":{"field":"version"}})"), answer) == CompatibilityVerdict::Failed);
+		CHECK(CompatibilityVerdictOf(MakeRestOutcome(false, 0, ""), answer) == CompatibilityVerdict::Failed);
+	}
+
+	// The config carries the service config object and the MOTD.
+	CHECK(RestConfigPath() == "/api/v1/config");
+	{
+		ConfigResponse config;
+		CHECK(MakeRestOutcome(true, 200, ReadApiFixture(folder, "get-config.response.json")).Data(config));
+		CHECK(config.service_config.is_object() && config.service_config["ra_slack_percent"] == 30);
+		CHECK(config.motd == "Thank you for playing Generals Online.\nThere are currently 312 player(s) online.");
+		ConfigResponse withoutLevel;
+		CHECK(MakeRestOutcome(true, 200, R"({"service_config":{},"motd":"hi"})").Data(withoutLevel));
+		CHECK(withoutLevel.motd == "hi" && !withoutLevel.anticheat_level.has_value());
+	}
+
+	// The EOS link sends the Epic ID token.
+	CHECK(RestEosLinkPath() == "/api/v1/me/linked_accounts/eos");
+	{
+		EosLinkBody link;
+		link.id_token = "abc";
+		CHECK(json(link) == json::parse(R"({"id_token":"abc"})"));
+	}
+
+	// The global stats map each playable side onto its service index.
+	CHECK(RestGlobalStatsPath() == "/api/v1/stats/global");
+	CHECK(GlobalStatsFactionIndex(2) == 0);
+	CHECK(GlobalStatsFactionIndex(13) == 11);
+	CHECK(GlobalStatsFactionIndex(1) == -1);
+	CHECK(GlobalStatsFactionIndex(14) == -1);
+	CHECK(GlobalStatsFactionIndex(-1) == -1);
+	{
+		GlobalStatsResponse global;
+		CHECK(MakeRestOutcome(true, 200, ReadApiFixture(folder, "get-stats-global.response.json")).Data(global));
+		CHECK(global.players == 312 && global.lobbies == 27);
+		CHECK(global.factions.size() == 12 && global.factions[0].side == 2 && global.factions[0].matches == 41 && global.factions[0].wins == 20);
+	}
+
+	// Player stats come one at a time or in batches of at most 100 ids.
+	CHECK(RestPlayerStatsPath(42) == "/api/v1/players/42/stats");
+	CHECK(RestPlayerStatsBatchPaths({}).empty());
+	CHECK(RestPlayerStatsBatchPaths({ 1, 2, 3 }) == std::vector<std::string>({ "/api/v1/players/stats?ids=1,2,3" }));
+	{
+		std::vector<int64_t> ids;
+		for (int64_t id = 1; id <= 250; ++id)
+		{
+			ids.push_back(id);
+		}
+		const std::vector<std::string> paths = RestPlayerStatsBatchPaths(ids);
+		CHECK(paths.size() == 3);
+		if (paths.size() == 3)
+		{
+			CHECK(paths[0].compare(0, 33, "/api/v1/players/stats?ids=1,2,3,4") == 0);
+			CHECK(paths[0].size() >= 4 && paths[0].compare(paths[0].size() - 4, 4, ",100") == 0);
+			CHECK(paths[1].compare(0, 30, "/api/v1/players/stats?ids=101,") == 0);
+			CHECK(paths[1].size() >= 4 && paths[1].compare(paths[1].size() - 4, 4, ",200") == 0);
+			CHECK(paths[2].compare(0, 30, "/api/v1/players/stats?ids=201,") == 0);
+			CHECK(paths[2].size() >= 4 && paths[2].compare(paths[2].size() - 4, 4, ",250") == 0);
+		}
+	}
+	{
+		PlayerStatsBatchResponse batch;
+		CHECK(MakeRestOutcome(true, 200, ReadApiFixture(folder, "get-players-stats-ids.response.json")).Data(batch));
+		CHECK(batch.stats.size() == 2 && batch.stats[0].user_id == 42 && batch.stats[1].user_id == 7);
+		CHECK(!batch.stats.empty() && batch.stats[0].generals.wins.size() == 15 && batch.stats[0].generals.wins[2] == 5);
+		PlayerStatsBody single;
+		CHECK(MakeRestOutcome(true, 200, ReadApiFixture(folder, "get-players-stats.response.json")).Data(single));
+		CHECK(single.user_id == 42 && single.elo_rating == 1184 && single.built_scud == 1);
+	}
+
+	// Paths reach the log with every id and query replaced.
+	CHECK(RestPathForLog("/api/v1/players/42/stats") == "/api/v1/players/[redacted]/stats");
+	CHECK(RestPathForLog("/api/v1/players/stats?ids=1,2,3") == "/api/v1/players/stats?[redacted]");
+	CHECK(RestPathForLog("/api/v1/compatibility?client=genonline_zerohour&version=2026.11.3") == "/api/v1/compatibility?[redacted]");
+	CHECK(RestPathForLog("/api/v1/me/linked_accounts/eos") == "/api/v1/me/linked_accounts/eos");
+	CHECK(RestPathForLog("/api/v1/me/friend_requests/7/accept") == "/api/v1/me/friend_requests/[redacted]/accept");
+	CHECK(RestPathForLog("/api/v1/messages/9b2f0c/unknownword") == "/api/v1/messages/[redacted]/[redacted]");
+	CHECK(RestPathForLog("/api/v1/secret_token_abc") == "/api/v1/[redacted]");
+	CHECK(RestPathForLog("/api/v1/config") == "/api/v1/config");
+	CHECK(RestPathForLog("/.well-known/openid-configuration") == "/.well-known/openid-configuration");
+	CHECK(RestPathForLog("/") == "/");
+	CHECK(RestPathForLog("") == "/");
+	CHECK(RestPathForLog("/api/v1/players/") == "/api/v1/players/");
+}
+
 static void TestConnectionTimeline()
 {
 	// Each client state maps to its report state, a relayed connection reports connected_relay.
@@ -1985,6 +2136,7 @@ int main(int argc, char** argv)
 	TestApiError();
 	TestRestRetry();
 	TestRestPaths();
+	TestLegacyRouteReplacements(argv[3]);
 	TestConnectionTimeline();
 	TestLobbyJoinHistory();
 	TestPkce();

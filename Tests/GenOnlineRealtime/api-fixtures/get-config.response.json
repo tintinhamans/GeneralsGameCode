@@ -1,0 +1,15 @@
+{
+  "service_config": {
+    "retry_signalling": true,
+    "use_mapped_port": true,
+    "min_run_ahead_frames": 4,
+    "relay_all_traffic": false,
+    "ra_slack_percent": 30,
+    "network_send_flags": -1,
+    "ibra_minslack_default": 0.35,
+    "screenshot_width": 1440,
+    "screenshot_height": 700
+  },
+  "anticheat_level": 0,
+  "motd": "Thank you for playing Generals Online.\nThere are currently 312 player(s) online."
+}

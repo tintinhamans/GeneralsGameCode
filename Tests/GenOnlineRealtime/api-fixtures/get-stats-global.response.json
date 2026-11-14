@@ -1,0 +1,66 @@
+{
+  "players": 312,
+  "lobbies": 27,
+  "factions": [
+    {
+      "side": 2,
+      "matches": 41,
+      "wins": 20
+    },
+    {
+      "side": 3,
+      "matches": 37,
+      "wins": 19
+    },
+    {
+      "side": 4,
+      "matches": 29,
+      "wins": 13
+    },
+    {
+      "side": 5,
+      "matches": 52,
+      "wins": 27
+    },
+    {
+      "side": 6,
+      "matches": 18,
+      "wins": 8
+    },
+    {
+      "side": 7,
+      "matches": 22,
+      "wins": 10
+    },
+    {
+      "side": 8,
+      "matches": 25,
+      "wins": 13
+    },
+    {
+      "side": 9,
+      "matches": 31,
+      "wins": 15
+    },
+    {
+      "side": 10,
+      "matches": 16,
+      "wins": 7
+    },
+    {
+      "side": 11,
+      "matches": 19,
+      "wins": 9
+    },
+    {
+      "side": 12,
+      "matches": 24,
+      "wins": 12
+    },
+    {
+      "side": 13,
+      "matches": 20,
+      "wins": 10
+    }
+  ]
+}

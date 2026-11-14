@@ -26,20 +26,11 @@
 #include <curl/curl.h>
 #include "GameClient/ClientInstance.h"
 
-struct MOTDResponse
-{
-	std::string MOTD;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(MOTDResponse, MOTD)
-};
-
 void GenOnlineAuthInterface::GoToDetermineNetworkCaps()
 {
-	// GET MOTD
-	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("MOTD");
-	std::map<std::string, std::string> mapHeaders;
+	// GET the service config and its MOTD
 	const int loginAttempt = m_loginAttempt;
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Get, GenOnlineRealtime::RestConfigPath(), std::string(), [=](const GenOnlineRealtime::RestOutcome& outcome)
 		{
 			// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The player cancelled the sign-in while it was finishing.
 			if (loginAttempt != m_loginAttempt)
@@ -49,10 +40,13 @@ void GenOnlineAuthInterface::GoToDetermineNetworkCaps()
 
 			try
 			{
-				nlohmann::json jsonObject = nlohmann::json::parse(strBody);
-				MOTDResponse motdResp = jsonObject.get<MOTDResponse>();
+				GenOnlineRealtime::ConfigResponse config;
+				if (!outcome.Data(config))
+				{
+					throw std::runtime_error("no config");
+				}
 
-				GenOnlineServicesManager::GetInstance()->ProcessMOTD(motdResp.MOTD.c_str());
+				GenOnlineServicesManager::GetInstance()->ProcessMOTD(config.motd.c_str());
 
 				ELoginResult loginResult = ELoginResult::Success;
 
@@ -114,27 +108,27 @@ void GenOnlineAuthInterface::GoToDetermineNetworkCaps()
 
 void GenOnlineAuthInterface::SendMiddlewareToken(std::string strMWToken)
 {
-    std::string strLoginURI = GenOnlineServicesManager::GetAPIEndpoint("ProvideMWToken");
-
     // login
-    std::map<std::string, std::string> mapHeaders;
+    GenOnlineRealtime::EosLinkBody body;
+    body.id_token = strMWToken;
 
-    nlohmann::json j;
-	j["mw_token"] = strMWToken;
-    std::string strPostData = j.dump();
-
-    GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strLoginURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+    GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Put, GenOnlineRealtime::RestEosLinkPath(), nlohmann::json(body).dump(), [](const GenOnlineRealtime::RestOutcome& outcome)
         {
-            if (!bSuccess || statusCode < 200 || statusCode >= 300)
+            if (!outcome.Succeeded())
             {
-				GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::MIDDLEWARE_LOGIN_FAILED);
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] MW LOGIN: Failed: status %d code %s", outcome.status, outcome.error.code.c_str());
+				GenOnlineServicesManager* pManager = GenOnlineServicesManager::GetInstance();
+				if (pManager != nullptr)
+				{
+					pManager->SetPendingFullTeardown(EGOTearDownReason::MIDDLEWARE_LOGIN_FAILED);
+				}
             }
             else
             {
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] MW LOGIN: Logged in");
             }
 
-        }, nullptr);
+        });
 }
 
 bool GenOnlineAuthInterface::ReportLoginFailure(const wchar_t* szTitle, const wchar_t* szText)

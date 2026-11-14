@@ -13,6 +13,7 @@
 #include "GameNetwork/Online/GameSpy/GameSpyLadder.h"
 
 #include <algorithm>
+#include <memory>
 #include <unordered_set>
 
 GenOnlineStatsInterface::GenOnlineStatsInterface()
@@ -51,33 +52,109 @@ GenOnlineStatsInterface::~GenOnlineStatsInterface()
 	}
 }
 
+// Fills the stats of a player from the service body. The service sends no locale, options, system spec, FPS or ladder.
+static PSPlayerStats PlayerStatsFromBody(const GenOnlineRealtime::PlayerStatsBody& body)
+{
+	PSPlayerStats stats;
+	stats.id = (Int)body.user_id;
+	stats.elo_rating = (int)body.elo_rating;
+	stats.elo_num_matches = (int)body.elo_matches;
+	stats.monthly_elo_rating = (int)body.monthly_elo_rating;
+
+	auto copyPerGeneral = [](PerGeneralMap& to, const std::vector<int64_t>& from)
+		{
+			for (size_t i = 0; i < from.size(); ++i)
+			{
+				to[(Int)i] = (UnsignedInt)from[i];
+			}
+		};
+	const GenOnlineRealtime::PlayerGeneralStats& generals = body.generals;
+	copyPerGeneral(stats.wins, generals.wins);
+	copyPerGeneral(stats.losses, generals.losses);
+	copyPerGeneral(stats.games, generals.games);
+	copyPerGeneral(stats.duration, generals.duration);
+	copyPerGeneral(stats.unitsKilled, generals.units_killed);
+	copyPerGeneral(stats.unitsLost, generals.units_lost);
+	copyPerGeneral(stats.unitsBuilt, generals.units_built);
+	copyPerGeneral(stats.buildingsKilled, generals.buildings_killed);
+	copyPerGeneral(stats.buildingsLost, generals.buildings_lost);
+	copyPerGeneral(stats.buildingsBuilt, generals.buildings_built);
+	copyPerGeneral(stats.earnings, generals.earnings);
+	copyPerGeneral(stats.techCaptured, generals.tech_captured);
+	copyPerGeneral(stats.discons, generals.discons);
+	copyPerGeneral(stats.desyncs, generals.desyncs);
+	copyPerGeneral(stats.surrenders, generals.surrenders);
+	copyPerGeneral(stats.gamesOf2p, generals.games_of_2p);
+	copyPerGeneral(stats.gamesOf3p, generals.games_of_3p);
+	copyPerGeneral(stats.gamesOf4p, generals.games_of_4p);
+	copyPerGeneral(stats.gamesOf5p, generals.games_of_5p);
+	copyPerGeneral(stats.gamesOf6p, generals.games_of_6p);
+	copyPerGeneral(stats.gamesOf7p, generals.games_of_7p);
+	copyPerGeneral(stats.gamesOf8p, generals.games_of_8p);
+	copyPerGeneral(stats.customGames, generals.custom_games);
+	copyPerGeneral(stats.QMGames, generals.quick_matches);
+
+	stats.gamesAsRandom = (Int)body.games_as_random;
+	stats.lastGeneral = (Int)body.last_general;
+	stats.gamesInRowWithLastGeneral = (Int)body.games_in_row_with_last_general;
+	stats.challengeMedals = (Int)body.challenge_medals;
+	stats.battleHonors = (Int)body.battle_honors;
+	stats.QMwinsInARow = (Int)body.qm_wins_in_a_row;
+	stats.maxQMwinsInARow = (Int)body.max_qm_wins_in_a_row;
+	stats.winsInARow = (Int)body.wins_in_a_row;
+	stats.maxWinsInARow = (Int)body.max_wins_in_a_row;
+	stats.lossesInARow = (Int)body.losses_in_a_row;
+	stats.maxLossesInARow = (Int)body.max_losses_in_a_row;
+	stats.disconsInARow = (Int)body.discons_in_a_row;
+	stats.maxDisconsInARow = (Int)body.max_discons_in_a_row;
+	stats.desyncsInARow = (Int)body.desyncs_in_a_row;
+	stats.maxDesyncsInARow = (Int)body.max_desyncs_in_a_row;
+	stats.builtParticleCannon = (Int)body.built_particle_cannon;
+	stats.builtNuke = (Int)body.built_nuke;
+	stats.builtSCUD = (Int)body.built_scud;
+	return stats;
+}
+
 void GenOnlineStatsInterface::GetGlobalStats(std::function<void(GlobalStats)> cb)
 {
-	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("GlobalStats");
+	// The global stats are anonymous, so they need no session.
+	const std::string strOrigin = GenOnlineAuthInterface::ServiceOriginV1();
+	GenOnlineServicesManager* pManager = GenOnlineServicesManager::GetInstance();
+	if (strOrigin.empty() || pManager == nullptr || pManager->GetHTTPManager() == nullptr)
+	{
+		cb(GlobalStats());
+		return;
+	}
+	const std::string strURI = strOrigin + GenOnlineRealtime::RestGlobalStatsPath();
 
 	std::map<std::string, std::string> mapHeaders;
 
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+	pManager->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 		{
 			GlobalStats stats;
-
-			try
+			GenOnlineRealtime::GlobalStatsResponse global;
+			if (GenOnlineRealtime::MakeRestOutcome(bSuccess, statusCode, strBody).Data(global))
 			{
-				if (bSuccess && !strBody.empty())
+				// Every playable side gets an entry, also one the service leaves out.
+				for (int side = 2; side <= 13; ++side)
 				{
-					nlohmann::json jsonObject = nlohmann::json::parse(strBody);
-					nlohmann::json jsonObjectRoot = jsonObject["globalstats"];
-
-					int i = 0;
-
-#define PROCESS_JSON_PER_GENERAL_RESULT(name) i = 0; for (const auto& iter : jsonObjectRoot[#name]) { iter.get_to(stats.##name[i++]); }
-					PROCESS_JSON_PER_GENERAL_RESULT(wins);
-					PROCESS_JSON_PER_GENERAL_RESULT(matches);
+					const int index = GenOnlineRealtime::GlobalStatsFactionIndex(side);
+					stats.wins[index] = 0;
+					stats.matches[index] = 0;
+				}
+				for (const GenOnlineRealtime::FactionStats& faction : global.factions)
+				{
+					const int index = GenOnlineRealtime::GlobalStatsFactionIndex(faction.side);
+					if (index >= 0)
+					{
+						stats.wins[index] = (UnsignedInt)faction.wins;
+						stats.matches[index] = (UnsignedInt)faction.matches;
+					}
 				}
 			}
-			catch (...)
+			else
 			{
-
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Stats] Global stats failed: status %d", statusCode);
 			}
 
 			cb(stats);
@@ -114,119 +191,37 @@ void GenOnlineStatsInterface::findPlayerStatsByID(int64_t userID, std::function<
 
 		if (bDoRequest)
 		{
-			std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("PlayerStats"), userID);
 			const uint64_t cacheRevision = AdvancePlayerStatsCacheRevision(userID);
 
-			std::map<std::string, std::string> mapHeaders;
-
-			GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [this, userID, cb, cacheRevision](bool bSuccess, int statusCode, std::string strBody, HTTPRequest*)
+			GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Get, GenOnlineRealtime::RestPlayerStatsPath(userID), std::string(), [this, userID, cb, cacheRevision](const GenOnlineRealtime::RestOutcome& outcome)
 				{
-					PSPlayerStats stats;
-					stats.id = userID;
-
-					try
+					GenOnlineRealtime::PlayerStatsBody body;
+					if (!outcome.Data(body))
 					{
-						if (bSuccess && statusCode >= 200 && statusCode < 300 && !strBody.empty())
-						{
-							nlohmann::json jsonObject = nlohmann::json::parse(strBody);
-							nlohmann::json jsonObjectRoot = jsonObject["stats"];
-
-							// parse json
-							int i = 0;
-
-                            // get user id
-							jsonObjectRoot["userID"].get_to(stats.id);
-
-                            // GO extra data
-							jsonObjectRoot["EloRating"].get_to(stats.elo_rating);
-							jsonObjectRoot["EloMatches"].get_to(stats.elo_num_matches);
-							jsonObjectRoot["MonthlyEloRating"].get_to(stats.monthly_elo_rating);
-
-							#define PROCESS_JSON_PER_GENERAL_RESULT(name) i = 0; for (const auto& iter : jsonObjectRoot[#name]) { iter.get_to(stats.##name[i++]); }
-							PROCESS_JSON_PER_GENERAL_RESULT(wins);
-							PROCESS_JSON_PER_GENERAL_RESULT(losses);
-							PROCESS_JSON_PER_GENERAL_RESULT(games);
-							PROCESS_JSON_PER_GENERAL_RESULT(duration);
-							PROCESS_JSON_PER_GENERAL_RESULT(unitsKilled);
-							PROCESS_JSON_PER_GENERAL_RESULT(unitsLost);
-							PROCESS_JSON_PER_GENERAL_RESULT(unitsBuilt);
-							PROCESS_JSON_PER_GENERAL_RESULT(buildingsKilled);
-							PROCESS_JSON_PER_GENERAL_RESULT(buildingsLost);
-							PROCESS_JSON_PER_GENERAL_RESULT(buildingsBuilt);
-							PROCESS_JSON_PER_GENERAL_RESULT(earnings);
-							PROCESS_JSON_PER_GENERAL_RESULT(techCaptured);
-							PROCESS_JSON_PER_GENERAL_RESULT(discons);
-							PROCESS_JSON_PER_GENERAL_RESULT(desyncs);
-							PROCESS_JSON_PER_GENERAL_RESULT(surrenders);
-							PROCESS_JSON_PER_GENERAL_RESULT(gamesOf2p);
-							PROCESS_JSON_PER_GENERAL_RESULT(gamesOf3p);
-							PROCESS_JSON_PER_GENERAL_RESULT(gamesOf4p);
-							PROCESS_JSON_PER_GENERAL_RESULT(gamesOf5p);
-							PROCESS_JSON_PER_GENERAL_RESULT(gamesOf6p);
-							PROCESS_JSON_PER_GENERAL_RESULT(gamesOf7p);
-							PROCESS_JSON_PER_GENERAL_RESULT(gamesOf8p);
-							PROCESS_JSON_PER_GENERAL_RESULT(customGames);
-							PROCESS_JSON_PER_GENERAL_RESULT(QMGames);
-
-#define PROCESS_JSON_STANDARD_RESULT(name) jsonObjectRoot[#name].get_to(stats.##name)
-							PROCESS_JSON_STANDARD_RESULT(locale);
-							PROCESS_JSON_STANDARD_RESULT(gamesAsRandom);
-							PROCESS_JSON_STANDARD_RESULT(options);
-							PROCESS_JSON_STANDARD_RESULT(systemSpec);
-							PROCESS_JSON_STANDARD_RESULT(lastFPS);
-							PROCESS_JSON_STANDARD_RESULT(lastGeneral);
-							PROCESS_JSON_STANDARD_RESULT(gamesInRowWithLastGeneral);
-							PROCESS_JSON_STANDARD_RESULT(challengeMedals);
-							PROCESS_JSON_STANDARD_RESULT(battleHonors);
-							PROCESS_JSON_STANDARD_RESULT(QMwinsInARow);
-							PROCESS_JSON_STANDARD_RESULT(maxQMwinsInARow);
-							PROCESS_JSON_STANDARD_RESULT(winsInARow);
-							PROCESS_JSON_STANDARD_RESULT(maxWinsInARow);
-							PROCESS_JSON_STANDARD_RESULT(lossesInARow);
-							PROCESS_JSON_STANDARD_RESULT(maxLossesInARow);
-							PROCESS_JSON_STANDARD_RESULT(disconsInARow);
-							PROCESS_JSON_STANDARD_RESULT(maxDisconsInARow);
-							PROCESS_JSON_STANDARD_RESULT(desyncsInARow);
-							PROCESS_JSON_STANDARD_RESULT(maxDesyncsInARow);
-							PROCESS_JSON_STANDARD_RESULT(builtParticleCannon);
-							PROCESS_JSON_STANDARD_RESULT(builtNuke);
-							PROCESS_JSON_STANDARD_RESULT(builtSCUD);
-							PROCESS_JSON_STANDARD_RESULT(lastLadderPort);
-							PROCESS_JSON_STANDARD_RESULT(lastLadderHost);
-
-							if (stats.id != userID)
-							{
-								NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsRequest] Ignored mismatched stats for user %lld (received %d)", userID, stats.id);
-								cb(false, PSPlayerStats());
-								return;
-							}
-
-							if (!TryCachePlayerStats(stats, cacheRevision))
-							{
-								PSPlayerStats cachedStats;
-								const bool found = getPlayerStatsFromCache(userID, &cachedStats);
-								cb(found, cachedStats);
-								return;
-							}
-
-							cb(true, stats);
-						}
-						else
-						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "Stats: Unparsable JSON 3: Empty body or failure");
-							cb(false, stats);
-						}
-					}
-					catch (nlohmann::json::exception& jsonException)
-					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "Stats: Unparsable JSON 1: %s (%s)", strBody.c_str(), jsonException.what());
+						NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsRequest] Stats for user %lld failed: status %d code %s", userID, outcome.status, outcome.error.code.c_str());
+						PSPlayerStats stats;
+						stats.id = userID;
 						cb(false, stats);
+						return;
 					}
-					catch (...)
+
+					const PSPlayerStats stats = PlayerStatsFromBody(body);
+					if (stats.id != userID)
 					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "Stats: Unparsable JSON 2: %s", strBody.c_str());
-						cb(false, stats);
+						NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsRequest] Ignored mismatched stats for user %lld (received %d)", userID, stats.id);
+						cb(false, PSPlayerStats());
+						return;
 					}
+
+					if (!TryCachePlayerStats(stats, cacheRevision))
+					{
+						PSPlayerStats cachedStats;
+						const bool found = getPlayerStatsFromCache(userID, &cachedStats);
+						cb(found, cachedStats);
+						return;
+					}
+
+					cb(true, stats);
 				});
 		}
 		else // cached data instead
@@ -248,160 +243,75 @@ void GenOnlineStatsInterface::findPlayerStatsByBatch(std::vector<int64_t> vecUse
 		return;
 	}
 
-	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("PlayerStats/Batch");
-
-    std::map<std::string, std::string> mapHeaders;
-	std::unordered_map<int64_t, uint64_t> cacheRevisions;
+	struct BatchState
+	{
+		std::unordered_map<int64_t, uint64_t> cacheRevisions;
+		std::unordered_set<int64_t> receivedUserIDs;
+		size_t pendingRequests = 0;
+		bool parsedAllResults = true;
+	};
+	auto state = std::make_shared<BatchState>();
 	std::vector<int64_t> uniqueUserIDs;
 	uniqueUserIDs.reserve(vecUserIDs.size());
 	for (int64_t userID : vecUserIDs)
 	{
-		if (!cacheRevisions.contains(userID))
+		if (!state->cacheRevisions.contains(userID))
 		{
-			cacheRevisions.emplace(userID, AdvancePlayerStatsCacheRevision(userID));
+			state->cacheRevisions.emplace(userID, AdvancePlayerStatsCacheRevision(userID));
 			uniqueUserIDs.push_back(userID);
 		}
 	}
 
-    nlohmann::json j;
-	j["user_ids"] = uniqueUserIDs;
-    std::string strPostData = j.dump();
-
-    GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [this, cb, cacheRevisions](bool bSuccess, int statusCode, std::string strBody, HTTPRequest*)
-        {
-			if (!bSuccess || statusCode < 200 || statusCode >= 300)
+	// The service takes at most 100 ids per request, the callback runs once every request answered.
+	const std::vector<std::string> paths = GenOnlineRealtime::RestPlayerStatsBatchPaths(uniqueUserIDs);
+	state->pendingRequests = paths.size();
+	for (const std::string& path : paths)
+	{
+		GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Get, path, std::string(), [this, cb, state](const GenOnlineRealtime::RestOutcome& outcome)
 			{
-				cb(false);
-			}
-			else
-			{
-				// returns an array of PlayerStats
-				try
+				GenOnlineRealtime::PlayerStatsBatchResponse batch;
+				if (!outcome.Data(batch))
 				{
-					nlohmann::json jsonObject = nlohmann::json::parse(strBody);
-					std::unordered_set<int64_t> receivedUserIDs;
-					bool parsedAllResults = true;
-
-					std::list<std::pair<int64_t, int64_t>> missingConnections;
-					for (const auto& statsUserIter : jsonObject["stats"])
+					state->parsedAllResults = false;
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsBatch] Request failed: status %d code %s", outcome.status, outcome.error.code.c_str());
+				}
+				else
+				{
+					for (const GenOnlineRealtime::PlayerStatsBody& body : batch.stats)
 					{
-						try
+						const PSPlayerStats stats = PlayerStatsFromBody(body);
+						auto revisionIt = state->cacheRevisions.find(stats.id);
+						if (revisionIt == state->cacheRevisions.end())
 						{
-							PSPlayerStats stats;
-
-							// get user id
-							statsUserIter["userID"].get_to(stats.id);
-
-							// GO extra data
-							statsUserIter["EloRating"].get_to(stats.elo_rating);
-							statsUserIter["EloMatches"].get_to(stats.elo_num_matches);
-							statsUserIter["MonthlyEloRating"].get_to(stats.monthly_elo_rating);
-
-							// now get stats
-							int i = 0;
-
-#define PROCESS_JSON_PER_GENERAL_RESULT(name) i = 0; for (const auto& iter : statsUserIter[#name]) { iter.get_to(stats.##name[i++]); }
-							PROCESS_JSON_PER_GENERAL_RESULT(wins);
-							PROCESS_JSON_PER_GENERAL_RESULT(losses);
-							PROCESS_JSON_PER_GENERAL_RESULT(games);
-							PROCESS_JSON_PER_GENERAL_RESULT(duration);
-							PROCESS_JSON_PER_GENERAL_RESULT(unitsKilled);
-							PROCESS_JSON_PER_GENERAL_RESULT(unitsLost);
-							PROCESS_JSON_PER_GENERAL_RESULT(unitsBuilt);
-							PROCESS_JSON_PER_GENERAL_RESULT(buildingsKilled);
-							PROCESS_JSON_PER_GENERAL_RESULT(buildingsLost);
-							PROCESS_JSON_PER_GENERAL_RESULT(buildingsBuilt);
-							PROCESS_JSON_PER_GENERAL_RESULT(earnings);
-							PROCESS_JSON_PER_GENERAL_RESULT(techCaptured);
-							PROCESS_JSON_PER_GENERAL_RESULT(discons);
-							PROCESS_JSON_PER_GENERAL_RESULT(desyncs);
-							PROCESS_JSON_PER_GENERAL_RESULT(surrenders);
-							PROCESS_JSON_PER_GENERAL_RESULT(gamesOf2p);
-							PROCESS_JSON_PER_GENERAL_RESULT(gamesOf3p);
-							PROCESS_JSON_PER_GENERAL_RESULT(gamesOf4p);
-							PROCESS_JSON_PER_GENERAL_RESULT(gamesOf5p);
-							PROCESS_JSON_PER_GENERAL_RESULT(gamesOf6p);
-							PROCESS_JSON_PER_GENERAL_RESULT(gamesOf7p);
-							PROCESS_JSON_PER_GENERAL_RESULT(gamesOf8p);
-							PROCESS_JSON_PER_GENERAL_RESULT(customGames);
-							PROCESS_JSON_PER_GENERAL_RESULT(QMGames);
-
-#define PROCESS_JSON_STANDARD_RESULT(name) statsUserIter[#name].get_to(stats.##name)
-							PROCESS_JSON_STANDARD_RESULT(locale);
-							PROCESS_JSON_STANDARD_RESULT(gamesAsRandom);
-							PROCESS_JSON_STANDARD_RESULT(options);
-							PROCESS_JSON_STANDARD_RESULT(systemSpec);
-							PROCESS_JSON_STANDARD_RESULT(lastFPS);
-							PROCESS_JSON_STANDARD_RESULT(lastGeneral);
-							PROCESS_JSON_STANDARD_RESULT(gamesInRowWithLastGeneral);
-							PROCESS_JSON_STANDARD_RESULT(challengeMedals);
-							PROCESS_JSON_STANDARD_RESULT(battleHonors);
-							PROCESS_JSON_STANDARD_RESULT(QMwinsInARow);
-							PROCESS_JSON_STANDARD_RESULT(maxQMwinsInARow);
-							PROCESS_JSON_STANDARD_RESULT(winsInARow);
-							PROCESS_JSON_STANDARD_RESULT(maxWinsInARow);
-							PROCESS_JSON_STANDARD_RESULT(lossesInARow);
-							PROCESS_JSON_STANDARD_RESULT(maxLossesInARow);
-							PROCESS_JSON_STANDARD_RESULT(disconsInARow);
-							PROCESS_JSON_STANDARD_RESULT(maxDisconsInARow);
-							PROCESS_JSON_STANDARD_RESULT(desyncsInARow);
-							PROCESS_JSON_STANDARD_RESULT(maxDesyncsInARow);
-							PROCESS_JSON_STANDARD_RESULT(builtParticleCannon);
-							PROCESS_JSON_STANDARD_RESULT(builtNuke);
-							PROCESS_JSON_STANDARD_RESULT(builtSCUD);
-							PROCESS_JSON_STANDARD_RESULT(lastLadderPort);
-							PROCESS_JSON_STANDARD_RESULT(lastLadderHost);
-
-							auto revisionIt = cacheRevisions.find(stats.id);
-							if (revisionIt == cacheRevisions.end())
-							{
-								parsedAllResults = false;
-								NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsBatch] Ignored unexpected stats for user %d", stats.id);
-							}
-							else if (!receivedUserIDs.insert(stats.id).second)
-							{
-								parsedAllResults = false;
-								NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsBatch] Ignored duplicate stats for user %d", stats.id);
-							}
-							else if (!TryCachePlayerStats(stats, revisionIt->second))
-							{
-								parsedAllResults = false;
-							}
+							state->parsedAllResults = false;
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsBatch] Ignored unexpected stats for user %d", stats.id);
 						}
-						catch (nlohmann::json::exception& jsonException)
+						else if (!state->receivedUserIDs.insert(stats.id).second)
 						{
-							parsedAllResults = false;
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "StatsBatch: Unparsable JSON 1: %s (%s)", strBody.c_str(), jsonException.what());
+							state->parsedAllResults = false;
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsBatch] Ignored duplicate stats for user %d", stats.id);
 						}
-						catch (...)
+						else if (!TryCachePlayerStats(stats, revisionIt->second))
 						{
-							parsedAllResults = false;
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "StatsBatch: Unparsable JSON 2: %s", strBody.c_str());
+							state->parsedAllResults = false;
 						}
 					}
-
-					if (receivedUserIDs.size() != cacheRevisions.size())
-					{
-						parsedAllResults = false;
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsBatch] Response omitted %zu requested user(s)", cacheRevisions.size() - receivedUserIDs.size());
-					}
-
-					cb(parsedAllResults);
 				}
-				catch (nlohmann::json::exception& jsonException)
+
+				if (--state->pendingRequests > 0)
 				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "StatsBatchParent: Unparsable JSON 1: %s (%s)", strBody.c_str(), jsonException.what());
-
-					cb(false);
+					return;
 				}
-				catch (...)
+
+				if (state->receivedUserIDs.size() != state->cacheRevisions.size())
 				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "StatsBatchParent: Unparsable JSON 2: %s", strBody.c_str());
-
-					cb(false);
+					state->parsedAllResults = false;
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsBatch] Response omitted %zu requested user(s)", state->cacheRevisions.size() - state->receivedUserIDs.size());
 				}
-			}
-        });
+
+				cb(state->parsedAllResults);
+			});
+	}
 }
 
 bool GenOnlineStatsInterface::getPlayerStatsFromCache(int64_t userID, PSPlayerStats* outStats)
@@ -439,6 +349,15 @@ bool GenOnlineStatsInterface::HasFreshPlayerStats(int64_t userID)
 		&& currentTime - cacheIt->second.lastRefreshAt < STATS_CACHE_TTL;
 }
 
+void GenOnlineStatsInterface::MarkPlayerStatsCacheStale(int64_t userID)
+{
+	PlayerStatsCacheEntry& entry = GetOrCreatePlayerStatsCacheEntry(userID);
+	entry.lastRefreshAt = {};
+	entry.lastAccessAt = std::chrono::steady_clock::now();
+	entry.cacheRevision = ++m_nextStatsCacheRevision;
+	NetworkLog(ELogVerbosity::LOG_DEBUG, "[StatsCache] Marked stats stale for user %lld", userID);
+}
+
 GenOnlineStatsInterface::PlayerStatsCacheEntry& GenOnlineStatsInterface::GetOrCreatePlayerStatsCacheEntry(int64_t userID)
 {
 	auto cacheIt = m_playerStatsCache.find(userID);
@@ -470,14 +389,6 @@ uint64_t GenOnlineStatsInterface::AdvancePlayerStatsCacheRevision(int64_t userID
 	return entry.cacheRevision;
 }
 
-uint64_t GenOnlineStatsInterface::AdvancePlayerStatsUpdateRevision(int64_t userID)
-{
-	PlayerStatsCacheEntry& entry = GetOrCreatePlayerStatsCacheEntry(userID);
-	entry.lastAccessAt = std::chrono::steady_clock::now();
-	entry.updateRevision = ++m_nextStatsUpdateRevision;
-	return entry.updateRevision;
-}
-
 bool GenOnlineStatsInterface::TryCachePlayerStats(const PSPlayerStats& stats, uint64_t expectedRevision)
 {
 	auto cacheIt = m_playerStatsCache.find(stats.id);
@@ -494,50 +405,6 @@ bool GenOnlineStatsInterface::TryCachePlayerStats(const PSPlayerStats& stats, ui
 	entry.hasStats = true;
 	NetworkLog(ELogVerbosity::LOG_DEBUG, "[StatsCache] Cached stats for user %d", stats.id);
 	return true;
-}
-
-void GenOnlineStatsInterface::MarkPlayerStatsCacheStale(int64_t userID)
-{
-	PlayerStatsCacheEntry& entry = GetOrCreatePlayerStatsCacheEntry(userID);
-	entry.lastRefreshAt = {};
-	entry.lastAccessAt = std::chrono::steady_clock::now();
-	entry.cacheRevision = ++m_nextStatsCacheRevision;
-	NetworkLog(ELogVerbosity::LOG_DEBUG, "[StatsCache] Marked stats stale for user %lld", userID);
-}
-
-void GenOnlineStatsInterface::UpdateMyStats(const PSPlayerStats& stats)
-{
-	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("PlayerStats");
-
-	std::map<std::string, std::string> mapHeaders;
-
-	// TODO_NGMP: Only serialize what exists, dont serialize null?
-	std::string strJsonData = JSONSerialize(stats);
-	const int statsID = stats.id;
-	const uint64_t updateRevision = AdvancePlayerStatsUpdateRevision(statsID);
-
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPUTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strJsonData.c_str(), [this, statsID, updateRevision](bool bSuccess, int statusCode, std::string, HTTPRequest*)
-		{
-			auto cacheIt = m_playerStatsCache.find(statsID);
-			if (cacheIt == m_playerStatsCache.end() || cacheIt->second.updateRevision != updateRevision)
-			{
-				NetworkLog(ELogVerbosity::LOG_DEBUG, "[StatsUpdate] Ignored superseded update result for user %d", statsID);
-				return;
-			}
-
-			if (bSuccess && statusCode >= 200 && statusCode < 300)
-			{
-				// The deployed service does not return canonical stats from PUT.
-				// Keep the last-known values available while refreshing them instead
-				// of caching the submitted client values.
-				MarkPlayerStatsCacheStale(statsID);
-				findPlayerStatsByID(statsID, [](bool, PSPlayerStats) {}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
-			}
-			else
-			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsUpdate] Failed to upload stats for user %d (HTTP %d)", statsID, statusCode);
-			}
-		});
 }
 
 void GenOnlineStatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeeper, bool bWon)
@@ -610,156 +477,16 @@ void GenOnlineStatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeeper, bool bW
 				}
 				pManager->SetScreenshotS3URI_EndMatch(currentMatchID, result.screenshot_url);
 				pManager->SetScreenshotS3URI_Replay(currentMatchID, result.replay_url);
+
+				// The service counts the result into the stats of the player, so the cached own stats are fetched again.
+				GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+				GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
+				if (pAuthInterface != nullptr && pStatsInterface != nullptr && pAuthInterface->GetUserID() != -1)
+				{
+					const int64_t localUserID = pAuthInterface->GetUserID();
+					pStatsInterface->MarkPlayerStatsCacheStale(localUserID);
+					pStatsInterface->findPlayerStatsByID(localUserID, [](bool, PSPlayerStats) {}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
+				}
 			});
 	}
-}
-
-std::string GenOnlineStatsInterface::JSONSerialize(const PSPlayerStats& stats) const
-{
-	nlohmann::json j;
-	PerGeneralMap::const_iterator it;
-
-#define ITERATE_OVER_GREATER_THAN_ZERO(ENUMVAL, ARR) i = 0; for (it = ARR.begin(); it != ARR.end(); ++it) \
-{ \
-	if (it->second > 0) \
-	{ \
-		j[((int)ENUMVAL) + i]=it->second; \
-	} \
-	++i;\
-}
-
-#define ITERATE_OVER_ANY(ENUMVAL, ARR) i = 0; for (it = ARR.begin(); it != ARR.end(); ++it) \
-{ \
-		j[((int)ENUMVAL) + i]=it->second; \
-	++i;\
-}
-
-	int i = 0;
-
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::WINS_PER_GENERAL_0, stats.wins);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::LOSSES_PER_GENERAL_0, stats.losses);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::GAMES_PER_GENERAL_0, stats.games);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::DURATION_PER_GENERAL_0, stats.duration);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::UNITSKILLED_PER_GENERAL_0, stats.unitsKilled);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::UNITSLOST_PER_GENERAL_0, stats.unitsLost);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::UNITSBUILT_PER_GENERAL_0, stats.unitsBuilt);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::BUILDINGSKILLED_PER_GENERAL_0, stats.buildingsKilled);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::BUILDINGSLOST_PER_GENERAL_0, stats.buildingsLost);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::BUILDINGSBUILT_PER_GENERAL_0, stats.buildingsBuilt);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::EARNINGS_PER_GENERAL_0, stats.earnings);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::TECHCAPTURED_PER_GENERAL_0, stats.techCaptured);
-	
-	// NOTE: This one doesn't check >0 in the original impl, not sure why
-	ITERATE_OVER_ANY(EStatIndex::DISCONS_PER_GENERAL_0, stats.discons);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::DESYNCS_PER_GENERAL_0, stats.desyncs);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::SURRENDERS_PER_GENERAL_0, stats.surrenders);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::GAMESOF2P_PER_GENERAL_0, stats.gamesOf2p);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::GAMESOF3P_PER_GENERAL_0, stats.gamesOf3p);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::GAMESOF4P_PER_GENERAL_0, stats.gamesOf4p);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::GAMESOF5P_PER_GENERAL_0, stats.gamesOf5p);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::GAMESOF6P_PER_GENERAL_0, stats.gamesOf6p);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::GAMESOF7P_PER_GENERAL_0, stats.gamesOf7p);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::GAMESOF8P_PER_GENERAL_0, stats.gamesOf8p);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::CUSTOMGAMES_PER_GENERAL_0, stats.customGames);
-	ITERATE_OVER_GREATER_THAN_ZERO(EStatIndex::QUICKMATCHES_PER_GENERAL_0, stats.QMGames);
-
-	if (stats.locale > 0)
-	{
-		j[(int)EStatIndex::LOCALE] = stats.locale;
-	}
-
-	if (stats.gamesAsRandom > 0)
-	{
-		j[(int)EStatIndex::GAMES_AS_RANDOM] = stats.gamesAsRandom;
-	}
-
-	if (stats.options.length())
-	{
-		j[(int)EStatIndex::OPTIONS] = stats.options.c_str();
-	}
-
-	if (stats.systemSpec.length())
-	{
-		j[(int)EStatIndex::SYSTEM_SPEC] = stats.systemSpec.c_str();
-	}
-
-	if (stats.lastFPS > 0.0f)
-	{
-		j[(int)EStatIndex::LASTFPS] = stats.lastFPS;
-	}
-	if (stats.lastGeneral >= 0)
-	{
-		j[(int)EStatIndex::LASTGENERAL] = stats.lastGeneral;
-	}
-	if (stats.gamesInRowWithLastGeneral >= 0)
-	{
-		j[(int)EStatIndex::GAMESINROWWITHLASTGENERAL] = stats.gamesInRowWithLastGeneral;
-	}
-	if (stats.builtParticleCannon >= 0)
-	{
-		j[(int)EStatIndex::BUILTPARTICLECANNON] = stats.builtParticleCannon;
-	}
-	if (stats.builtNuke >= 0)
-	{
-		j[(int)EStatIndex::BUILTNUKE] = stats.builtNuke;
-	}
-	if (stats.builtSCUD >= 0)
-	{
-		j[(int)EStatIndex::BUILTSCUD] = stats.builtSCUD;
-	}
-	if (stats.challengeMedals > 0)
-	{
-		j[(int)EStatIndex::CHALLENGEMEDALS] = stats.challengeMedals;
-	}
-	if (stats.battleHonors > 0)
-	{
-		j[(int)EStatIndex::BATTLEHONORS] = stats.battleHonors;
-	}
-
-	//if (stats.winsInARow > 0) // NOTE: Was like this in base game
-	{
-		j[(int)EStatIndex::WINSINAROW] = stats.winsInARow;
-	}
-	if (stats.maxWinsInARow > 0)
-	{
-		j[(int)EStatIndex::MAXWINSINAROW] = stats.maxWinsInARow;
-	}
-
-	//if (stats.lossesInARow > 0) // NOTE: Was like this in base game
-	{
-		j[(int)EStatIndex::LOSSESINAROW] = stats.lossesInARow;
-	}
-	if (stats.maxLossesInARow > 0)
-	{
-		j[(int)EStatIndex::MAXLOSSESINAROW] = stats.maxLossesInARow;
-	}
-
-	//if (stats.disconsInARow > 0) // NOTE: Was like this in base game
-	{
-		j[(int)EStatIndex::DISCONSINAROW] = stats.disconsInARow;
-	}
-	if (stats.maxDisconsInARow > 0)
-	{
-		j[(int)EStatIndex::MAXDISCONSINAROW] = stats.maxDisconsInARow;
-	}
-
-	//if (stats.desyncsInARow > 0) // NOTE: Was like this in base game
-	{
-		j[(int)EStatIndex::DESYNCSINAROW] = stats.desyncsInARow;
-	}
-	if (stats.maxDesyncsInARow > 0)
-	{
-		j[(int)EStatIndex::MAXDESYNCSINAROW] = stats.maxDesyncsInARow;
-	}
-
-	if (stats.lastLadderPort > 0)
-	{
-		j[(int)EStatIndex::LASTLADDERPORT] = stats.lastLadderPort;
-	}
-	if (stats.lastLadderHost.length())
-	{
-		j[(int)EStatIndex::LASTLADDERHOST] = stats.lastLadderHost.c_str();
-	}
-
-	return j.dump();
 }
