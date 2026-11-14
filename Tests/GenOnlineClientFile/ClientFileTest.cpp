@@ -115,6 +115,12 @@ static void TestFiles()
 	// The client never creates the file.
 	CHECK(Read(path, kKeys).status == ReadStatus::Missing);
 	CHECK(!WriteExisting(path, "{}"));
+	CHECK(CreateNew(folder + L"\\created\\client.json", "{\"schema_version\": 1}"));
+	CHECK(Read(folder + L"\\created\\client.json", kKeys).status == ReadStatus::Ok);
+	CHECK(!CreateNew(folder + L"\\created\\client.json", "{}"));
+	CHECK(Read(folder + L"\\created\\client.json", kKeys).status == ReadStatus::Ok);
+	DeleteFileW((folder + L"\\created\\client.json").c_str());
+	RemoveDirectoryW((folder + L"\\created").c_str());
 	CHECK(GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES);
 	CHECK(Read(folder + L"\\missing\\client.json", kKeys).status == ReadStatus::Missing);
 
