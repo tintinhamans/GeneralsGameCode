@@ -996,14 +996,46 @@ void NetworkMesh::SendACPacket(uint32_t userID, const void* pData, uint32_t data
 	// Thread safety: Lock connection map during access
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 
-    if (m_mapConnections.contains(userID))
-    {
-        m_mapConnections[userID].SendACPacket(pData, dataLen);
-    }
-	else
+	// A pair that cannot send yet holds the message until it connects, on any transport and attempt.
+	auto it = m_mapConnections.find(userID);
+	if (it != m_mapConnections.end() && it->second.GetState() == EConnectionState::CONNECTED_DIRECT && it->second.CanSend())
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Send Packet ERR - user %u not found in connections", userID);
+		SendHeldACMessages(it->second);
+		it->second.SendACPacket(pData, dataLen);
+		return;
 	}
+
+	const uint8_t* pBytes = static_cast<const uint8_t*>(pData);
+	if (m_heldACMessages.Push(userID, std::vector<uint8_t>(pBytes, pBytes + dataLen), NowSteadyMs()))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Dropped a new AC message for user %u, %u messages are already waiting", userID,
+			static_cast<uint32_t>(GenOnlineRealtime::AnticheatHoldQueue::MAX_MESSAGES));
+	}
+	NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC] Holding an AC message of %u bytes for user %u until the pair connects", dataLen, userID);
+}
+
+void NetworkMesh::SendHeldACMessages(PlayerConnection& connection)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+
+	const std::vector<std::vector<uint8_t>> messages = m_heldACMessages.Take(connection.m_userID, NowSteadyMs());
+	if (messages.empty())
+	{
+		return;
+	}
+
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Sending %u held AC messages to user %lld", static_cast<uint32_t>(messages.size()), connection.m_userID);
+	for (const std::vector<uint8_t>& message : messages)
+	{
+		connection.SendACPacket(message.data(), static_cast<uint32_t>(message.size()));
+	}
+}
+
+void NetworkMesh::ClearHeldACMessages(int64_t userID)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+
+	m_heldACMessages.Clear(userID);
 }
 
 void NetworkMesh::ApplyConnectionTimeouts(HSteamNetConnection connection, int64_t userID)
@@ -2328,6 +2360,9 @@ void NetworkMesh::DisconnectUser(int64_t remoteUserID)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 	
+	// A user that leaves the mesh gets none of the anti-cheat messages still held for it.
+	m_heldACMessages.Clear(remoteUserID);
+
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Dumping all Steam connections");
 	for (auto& kvPair : m_mapConnections)
 	{
@@ -2400,6 +2435,10 @@ void NetworkMesh::Disconnect()
 
     m_mapConnections.clear();
 	m_reportAttempts.clear();
+	{
+		std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+		m_heldACMessages.ClearAll();
+	}
 
 	if (GenOnlinePluginHost::Transport::IsActive() || m_bUsedPluginTransport)
 	{
@@ -2879,12 +2918,6 @@ int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
 
 void PlayerConnection::SendACPacket(const void* pData, uint32_t dataLen)
 {
-	// Easy Anti-Cheat carries its own messages when the plugin is the anticheat.
-	if (m_ConnectionType == EConnectionType::MiddlewarePluginGeneric && GenOnlinePluginHost::IsPluginAnticheat())
-	{
-		return;
-	}
-
     if (!CanSend())
     {
         NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Cannot send AC packet - connection is invalid for user %ld", m_userID);
@@ -3049,6 +3082,9 @@ void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwni
 			m_userID, nowMs - m_connectStartedMs, GetConnectionType().c_str(), m_SignallingAttempts);
 
 		m_SignallingAttempts = 0;
+
+		// The anti-cheat messages held while the pair was not connected leave first.
+		pOwningMesh->SendHeldACMessages(*this);
 	}
 	pOwningMesh->UpdateConnectivity(this);
 

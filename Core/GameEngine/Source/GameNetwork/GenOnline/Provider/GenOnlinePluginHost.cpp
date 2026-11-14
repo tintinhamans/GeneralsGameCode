@@ -347,48 +347,15 @@ void GENONLINE_PLUGIN_CALL Host_SendMessageViaTransport(void* /*userData*/, uint
 
 	const uint32_t goUserID = static_cast<uint32_t>(userID64);
 
-	// if the plugin owns a secure transport, AC traffic is carried internally by the plugin
-	// (see PlayerConnection::SendACPacket) so there is nothing for the game to route here
-	if (GenOnlinePluginHost::IsPluginAnticheat() && GenOnlinePluginHost::Transport::IsActive())
+	// Anti-cheat messages travel over the pair connection only, the mesh holds them until the pair connects.
+	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
+	if (pMesh != nullptr)
 	{
-		return;
+		pMesh->SendACPacket(goUserID, pData, dataLen);
 	}
-
-	// prefer websocket if we have it, otherwise fall back to p2p mesh
-	bool bFallbackToP2P = false;
-
+	else
 	{
-		std::shared_ptr<WebSocket>  pWS = GenOnlineServicesManager::GetWebSocket();
-		if (pWS != nullptr)
-		{
-			if (pWS->IsConnected())
-			{
-				std::vector<uint8_t> vecPayload((const uint8_t*)pData, (const uint8_t*)pData + dataLen);
-				bFallbackToP2P = !pWS->SendData_ACMessage(goUserID, vecPayload);
-			}
-			else
-			{
-				bFallbackToP2P = true;
-			}
-		}
-		else
-		{
-			bFallbackToP2P = true;
-		}
-	}
-
-	if (bFallbackToP2P)
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] AC Packets - WebSocket unavailable, falling back to P2P");
-		NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-		if (pMesh != nullptr)
-		{
-			pMesh->SendACPacket(goUserID, pData, dataLen);
-		}
-		else
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] ERROR: Cannot send AC packet - NetworkMesh is null");
-		}
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] ERROR: Cannot send AC packet - NetworkMesh is null");
 	}
 }
 
@@ -801,6 +768,13 @@ void GenOnlinePluginHost::LoadPlugin(const std::string& anticheatPlugin, const s
 	s_bPluginLoaded = true;
 	s_bPluginIsAnticheat = selection.bAnticheat;
 
+	// An accepted transport may carry pairs from now on, the service setting never reaches the plugin.
+	if (s_pTransport != nullptr && s_pTransport->SetEnabled != nullptr)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Telling the transport of %s that it may carry pairs", api.name);
+		s_pTransport->SetEnabled(GENONLINE_PLUGIN_TRUE);
+	}
+
 #if _DEBUG
 	// Only a plugin that is the anticheat reports whether the session is secured.
 	if (ApplicationHWnd != nullptr && s_bPluginIsAnticheat)
@@ -1074,43 +1048,18 @@ void GenOnlinePluginHost::Anticheat::MessageArrived(uint32_t userID, const void*
 
 bool GenOnlinePluginHost::Transport::IsActive()
 {
+	// The service setting picks the all-plugin mode, the plugin learns nothing from it.
 	ServiceConfig& serviceConf = GenOnlineServicesManager::GetInstance()->GetServiceConfig();
-	const bool bEnabledByConfig = serviceConf.connection.anticheat_transport;
-
-	// The plugin makes this same decision internally in places the game cannot
-	// reach - notably inside the EOS anti-cheat OnMessageToPeer callback, which
-	// picks between EOS P2P and handing the message back to us - so it needs its
-	// own copy of the flag. Push it whenever it changes: the service config is
-	// re-fetched per lobby, so this can flip between lobbies.
-	static bool s_bPushedValue = false;
-	static bool s_bEverPushed = false;
-	if ((!s_bEverPushed || s_bPushedValue != bEnabledByConfig)
-		&& s_pTransport != nullptr && s_pTransport->SetEnabled != nullptr)
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Secure game transport: telling plugin use_new_networking=%s",
-			bEnabledByConfig ? "true" : "false");
-		s_pTransport->SetEnabled(bEnabledByConfig ? GENONLINE_PLUGIN_TRUE : GENONLINE_PLUGIN_FALSE);
-		s_bPushedValue = bEnabledByConfig;
-		s_bEverPushed = true;
-	}
-
-	if (!bEnabledByConfig)
+	if (!serviceConf.connection.anticheat_transport)
 	{
 		return false;
 	}
 
-	if (s_pTransport != nullptr)
-	{
-		return s_pTransport->IsAvailable() != GENONLINE_PLUGIN_FALSE;
-	}
-
-	return false;
+	return IsAvailable();
 }
 
 bool GenOnlinePluginHost::Transport::IsAvailable()
 {
-	// IsActive pushes the service setting to the plugin, which decides what the plugin reports.
-	IsActive();
 	return s_pTransport != nullptr && s_pTransport->IsAvailable() != GENONLINE_PLUGIN_FALSE;
 }
 

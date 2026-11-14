@@ -1674,14 +1674,6 @@ void WebSocket::SendData_StartGame()
 }
 
 
-bool WebSocket::SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> vecPayload)
-{
-	GenOnlineRealtime::AnticheatMessageRequest request;
-	request.to = targetUserID;
-	request.payload = GenOnlineRealtime::EncodePeerPayload(vecPayload);
-	return FireHub(request);
-}
-
 void WebSocket::SendData_HostStartIntent()
 {
 	// StartGame runs the ready check on the hub and refuses the start while a player is not ready.
