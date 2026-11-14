@@ -641,7 +641,7 @@ void WebSocket::SendData_RoomChatMessage(UnicodeString& msg, bool bIsAction)
 		return;
 	}
 	GenOnlineRealtime::SendMessageRequest request;
-	request.channel_id = "room:" + std::to_string(*pRooms->GetEffectiveRoomID());
+	request.channel_id = "channel:" + std::to_string(*pRooms->GetEffectiveRoomID());
 	request.type = bIsAction ? "action" : "chat";
 	request.content = to_utf8(msg.str());
 	InvokeHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
@@ -680,12 +680,12 @@ void WebSocket::SendData_JoinNetworkRoom(int roomID)
 	};
 	if (roomID < 0)
 	{
-		InvokeHub(GenOnlineRealtime::LeaveRoomRequest(), nullptr);
+		InvokeHub(GenOnlineRealtime::LeaveChannelRequest(), nullptr);
 		return;
 	}
-	// The members arrive as RoomMembers, which completes the room change.
-	GenOnlineRealtime::JoinRoomRequest request;
-	request.room_id = roomID;
+	// The members arrive as ChannelMembers, which completes the room change.
+	GenOnlineRealtime::JoinChannelRequest request;
+	request.channel_id = roomID;
 	InvokeHub(request, onOutcome);
 }
 
@@ -1267,10 +1267,10 @@ static NetworkRoomMember ToRoomMember(const GenOnlineRealtime::Member& member)
 	return roomMember;
 }
 
-void GenOnlineRoomsInterface::SetRealtimeRooms(const std::vector<GenOnlineRealtime::RoomInfo>& rooms)
+void GenOnlineRoomsInterface::SetRealtimeRooms(const std::vector<GenOnlineRealtime::ChannelInfo>& rooms)
 {
 	m_vecRealtimeRooms.clear();
-	for (const GenOnlineRealtime::RoomInfo& room : rooms)
+	for (const GenOnlineRealtime::ChannelInfo& room : rooms)
 	{
 		const int parentRoomID = room.parent_id.isNull || room.parent_id.value <= 0 ? -1 : static_cast<int>(room.parent_id.value);
 		m_vecRealtimeRooms.emplace_back(static_cast<int>(room.id), room.name,
@@ -1288,7 +1288,7 @@ void GenOnlineRoomsInterface::RefreshRoster()
 }
 
 // The full member list after a join and after every reconnect. It also tells which room the session is in.
-void GenOnlineRoomsInterface::OnRealtimeRoomMembers(const GenOnlineRealtime::RoomMembersEvent& event)
+void GenOnlineRoomsInterface::OnRealtimeChannelMembers(const GenOnlineRealtime::ChannelMembersEvent& event)
 {
 	std::unordered_map<uint64_t, NetworkRoomMember> members;
 	for (const GenOnlineRealtime::Member& member : event.members)
@@ -1300,17 +1300,17 @@ void GenOnlineRoomsInterface::OnRealtimeRoomMembers(const GenOnlineRealtime::Roo
 	int roomIndex = -1;
 	for (size_t i = 0; i < m_vecRooms.size(); ++i)
 	{
-		if (m_vecRooms[i].GetRoomID() == event.room_id)
+		if (m_vecRooms[i].GetRoomID() == event.channel_id)
 		{
 			roomIndex = static_cast<int>(i);
 			break;
 		}
 	}
 
-	const bool effectiveRoomChanged = !m_EffectiveRoomID.has_value() || *m_EffectiveRoomID != event.room_id;
-	m_EffectiveRoomID = static_cast<int>(event.room_id);
+	const bool effectiveRoomChanged = !m_EffectiveRoomID.has_value() || *m_EffectiveRoomID != event.channel_id;
+	m_EffectiveRoomID = static_cast<int>(event.channel_id);
 	// Joining a parent room lands in its default child room, which completes the change too.
-	if (m_PendingRoomChange.has_value() && (m_PendingRoomChange->roomID == event.room_id
+	if (m_PendingRoomChange.has_value() && (m_PendingRoomChange->roomID == event.channel_id
 		|| (roomIndex >= 0 && m_vecRooms[roomIndex].GetParentRoomID() == m_PendingRoomChange->roomID)))
 	{
 		m_PendingRoomChange.reset();
@@ -1328,7 +1328,7 @@ void GenOnlineRoomsInterface::OnRealtimeRoomMembers(const GenOnlineRealtime::Roo
 
 void GenOnlineRoomsInterface::OnRealtimeMemberAdd(const GenOnlineRealtime::MemberAddEvent& event)
 {
-	if (!m_EffectiveRoomID.has_value() || event.channel_id != "room:" + std::to_string(*m_EffectiveRoomID))
+	if (!m_EffectiveRoomID.has_value() || event.channel_id != "channel:" + std::to_string(*m_EffectiveRoomID))
 	{
 		return;
 	}
@@ -1338,7 +1338,7 @@ void GenOnlineRoomsInterface::OnRealtimeMemberAdd(const GenOnlineRealtime::Membe
 
 void GenOnlineRoomsInterface::OnRealtimeMemberRemove(const GenOnlineRealtime::MemberRemoveEvent& event)
 {
-	if (!m_EffectiveRoomID.has_value() || event.channel_id != "room:" + std::to_string(*m_EffectiveRoomID))
+	if (!m_EffectiveRoomID.has_value() || event.channel_id != "channel:" + std::to_string(*m_EffectiveRoomID))
 	{
 		return;
 	}
@@ -1361,7 +1361,7 @@ void GenOnlineRoomsInterface::OnRealtimeMemberUpdate(const GenOnlineRealtime::Me
 
 void GenOnlineRoomsInterface::OnRealtimeRoomMessage(const GenOnlineRealtime::ChatMessage& message)
 {
-	if (!m_EffectiveRoomID.has_value() || message.channel_id != "room:" + std::to_string(*m_EffectiveRoomID) || m_OnChatCallback == nullptr)
+	if (!m_EffectiveRoomID.has_value() || message.channel_id != "channel:" + std::to_string(*m_EffectiveRoomID) || m_OnChatCallback == nullptr)
 	{
 		return;
 	}

@@ -22,7 +22,7 @@ static PlaylistEntry PlaylistEntryFromHub(const GenOnlineRealtime::Playlist& pla
 	playlistEntry.AllowTeams = playlist.allow_teams;
 	playlistEntry.TeamSize = playlist.team_size.isNull ? -1 : playlist.team_size.value;
 	playlistEntry.AllowArmySelection = playlist.allow_army_selection;
-	playlistEntry.GracePeriodAtMinPlayersMSec = (uint16_t)(std::clamp)(playlist.grace_period_ms, (int64_t)0, (int64_t)UINT16_MAX);
+	playlistEntry.GracePeriodAtMinPlayersMSec = (uint16_t)(std::clamp)(GenOnlineRealtime::SecondsToMilliseconds(playlist.grace_period_s), (int64_t)0, (int64_t)UINT16_MAX);
 	for (const GenOnlineRealtime::PlaylistMap& map : playlist.maps)
 	{
 		PlaylistMapEntry mapEntry;

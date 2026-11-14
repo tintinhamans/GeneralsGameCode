@@ -1,6 +1,6 @@
 {
   "id": "8812",
-  "channel_id": "room:3",
+  "channel_id": "channel:3",
   "type": "chat",
   "author": {
     "id": 7,
@@ -9,5 +9,6 @@
       "moderator"
     ]
   },
-  "content": "hello"
+  "content": "hello",
+  "created_at": "2026-11-14T20:00:00Z"
 }

@@ -1,4 +1,4 @@
 {
-  "timeout_ms": 7000,
-  "countdown_ms": 5000
+  "timeout_s": 7,
+  "countdown_s": 5
 }

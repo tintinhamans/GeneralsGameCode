@@ -221,8 +221,8 @@ public:
 	std::optional<int> GetEffectiveRoomID() const { return m_EffectiveRoomID; }
 
 	// Realtime protocol v1: the hub sends the rooms with Ready and the members as events.
-	void SetRealtimeRooms(const std::vector<GenOnlineRealtime::RoomInfo>& rooms);
-	void OnRealtimeRoomMembers(const GenOnlineRealtime::RoomMembersEvent& event);
+	void SetRealtimeRooms(const std::vector<GenOnlineRealtime::ChannelInfo>& rooms);
+	void OnRealtimeChannelMembers(const GenOnlineRealtime::ChannelMembersEvent& event);
 	void OnRealtimeMemberAdd(const GenOnlineRealtime::MemberAddEvent& event);
 	void OnRealtimeMemberRemove(const GenOnlineRealtime::MemberRemoveEvent& event);
 	void OnRealtimeMemberUpdate(const GenOnlineRealtime::Member& member);

@@ -7,7 +7,8 @@
         "moderator"
       ],
       "online": true,
-      "activity": "in_game"
+      "activity": "in_game",
+      "channel_id": null
     }
   ],
   "incoming": [],
