@@ -954,6 +954,15 @@ static void TestMatchmakingText()
 	CHECK(!TranslateMapIndexes({ 3 }, { 4, 7, 9 }, out));
 	CHECK(out.empty());
 	CHECK(!TranslateMapIndexes({ -1 }, { 4 }, out));
+
+	CHECK(MatchmakingFailureText("matchmaking.invalid_playlist", json::parse(R"({"playlist_id":3})")) == "That playlist is not available.");
+	CHECK(MatchmakingFailureText("matchmaking.too_few_maps", json::parse(R"({"min":3})")) == "Select at least 3 maps.");
+	CHECK(MatchmakingFailureText("matchmaking.too_few_maps", json::object()) == "Select more maps.");
+	CHECK(MatchmakingFailureText("matchmaking.stats_unavailable", json::object()) == "Your rating could not be loaded. Please try again later.");
+	CHECK(MatchmakingFailureText("matchmaking.already_queued", json::object()) == "You are already searching for a match.");
+	CHECK(MatchmakingFailureText("matchmaking.not_queued", json::object()) == "You are not searching for a match.");
+	CHECK(MatchmakingFailureText("matchmaking.future_code", json::object()) == "Matchmaking failed (matchmaking.future_code).");
+	CHECK(MatchmakingFailureText("chat.too_long", json::object()).empty());
 }
 
 int main(int argc, char** argv)
