@@ -508,6 +508,21 @@ Int parseSetCwd(char *args[], int num)
 	return 1;
 }
 
+// The -packs argument as given, made absolute once the working directory is final
+static Bool s_hasPackList = FALSE;
+static std::string s_packListPath;
+
+Int parsePacks(char *args[], int num)
+{
+	if (num > 1)
+	{
+		s_hasPackList = TRUE;
+		s_packListPath = args[1];
+		return 2;
+	}
+	return 1;
+}
+
 Int parseXRes(char *args[], int num)
 {
 	if (num > 1)
@@ -1248,6 +1263,9 @@ static CommandLineParam paramsForStartup[] =
 
 	// TheSuperHackers @feature tintinhamans 11/11/2026 Select the online service provider by name. The default is GenOnline in GenOnline builds and GameSpy otherwise.
 	{ "-onlineProvider", parseOnlineProvider },
+
+	// TheSuperHackers @feature tintinhamans 14/11/2026 The pack list file of the launcher, relative to the final working directory. The game only reads it.
+	{ "-packs", parsePacks },
 };
 
 // These Params are parsed during Engine Init before INI data is loaded
@@ -1506,6 +1524,25 @@ void CommandLine::parseCommandLineForStartup()
 
 	if (!rts::WorkingDirectory::hasSetWorkingDirectory())
 		rts::WorkingDirectory::setExecutableWorkingDirectory();
+
+	if (s_hasPackList && !s_packListPath.empty())
+	{
+		char fullPath[_MAX_PATH];
+		if (_fullpath(fullPath, s_packListPath.c_str(), ARRAY_SIZE(fullPath)) != nullptr)
+		{
+			s_packListPath = fullPath;
+		}
+	}
+}
+
+bool CommandLine::hasPackList()
+{
+	return s_hasPackList != FALSE;
+}
+
+const char* CommandLine::getPackListPath()
+{
+	return s_packListPath.c_str();
 }
 
 void CommandLine::parseCommandLineForEngineInit()

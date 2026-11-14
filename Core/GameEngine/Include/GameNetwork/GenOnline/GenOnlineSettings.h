@@ -4,13 +4,7 @@
 #include <string>
 #include <vector>
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
-
-// One layer of data_packs in client.json: BIG paths in priority order, the first one wins
-struct GenOnlineDataPackLayer
-{
-	bool m_enabled = true;
-	std::vector<std::string> m_includePaths;
-};
+#include "GameNetwork/GenOnline/GenOnlinePackList.h"
 
 class GenOnlineSettings
 {
@@ -72,15 +66,18 @@ public:
 	{
 		m_bInitialized = true;
 		Load();
+		LoadPackList();
 	}
 
 	// TheSuperHackers @feature arcticdolphin 08/11/2026 Map select favourites, keyed by the lowercased portable map path.
 	bool Maps_IsFavourite(const std::string& portableMapPath) const;
 	void Maps_SetFavourite(const std::string& portableMapPath, bool bFavourite);
 
-	const GenOnlineDataPackLayer& DataPacks_User() const { return m_DataPacks_User; }
-	const GenOnlineDataPackLayer& DataPacks_GeneralsOnline() const { return m_DataPacks_GeneralsOnline; }
-	const GenOnlineDataPackLayer& DataPacks_CommunityPatch() const { return m_DataPacks_CommunityPatch; }
+	// TRUE when the packs come from the -packs file, FALSE when the game uses its built-in packs
+	bool DataPacks_FromPackList() const { return m_bPackList; }
+	// The enabled packs of the -packs file, lowest first
+	const std::vector<GenOnlinePackList::Pack>& DataPacks_Stack() const { return m_PackStack; }
+	// The game folder excludes in effect before loadMods, always empty: the excludes of the -packs stack take effect in loadMods together with the packs
 	const std::vector<std::string>& DataPacks_UserExcludePaths() const { return m_DataPacks_UserExcludePaths; }
 
 	ServiceConnectionSettings Network_GetConnectionSettings() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_ConnectionSettings; }
@@ -91,6 +88,7 @@ public:
 
 private:
 	void Load(void);
+	void LoadPackList();
 	bool Save();
 
 private:
@@ -121,17 +119,10 @@ private:
 
 	std::set<std::string> m_Maps_Favourites;
 
-	// BIG archives above the retail ones. The layers load in this order, highest priority first. A missing or invalid field keeps its default.
-	GenOnlineDataPackLayer m_DataPacks_User;
-	std::vector<std::string> m_DataPacks_UserExcludePaths;	// loose files of the game folder, BIGs of the game folders and BIGs of the user layer that are left out
-#if RTS_GENERALS
-	// The GenOnline and community patch archives hold Zero Hour data, so Generals loads nothing above retail by default.
-	GenOnlineDataPackLayer m_DataPacks_GeneralsOnline = { true, {} };
-	GenOnlineDataPackLayer m_DataPacks_CommunityPatch = { true, {} };
-#else
-	GenOnlineDataPackLayer m_DataPacks_GeneralsOnline = { true, { "user:GeneralsOnlineGameData/GeneralsOnline_Core.big" } };
-	GenOnlineDataPackLayer m_DataPacks_CommunityPatch = { true, { "user:GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big" } };
-#endif
+	// The pack list of -packs, read once at startup. A missing, unusable, newer or other game file leaves the built-in packs.
+	bool m_bPackList = false;
+	std::vector<GenOnlinePackList::Pack> m_PackStack;
+	std::vector<std::string> m_DataPacks_UserExcludePaths;	// always empty, see DataPacks_UserExcludePaths
 
 	std::string m_Plugins_Anticheat = std::string();
 

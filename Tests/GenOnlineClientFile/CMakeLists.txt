@@ -1,4 +1,4 @@
-# Standalone checks of the client.json file rules. Configure this folder on its own, it does not need the game:
+# Standalone checks of the client.json file rules and the -packs pack list rules. Configure this folder on its own, it does not need the game:
 #   cmake -S Tests/GenOnlineClientFile -B <build> && cmake --build <build> && ctest --test-dir <build>
 cmake_minimum_required(VERSION 3.25)
 project(genonline_client_file_test CXX)
@@ -17,3 +17,10 @@ target_link_libraries(genonline_client_file_test PRIVATE shell32 ole32)
 
 enable_testing()
 add_test(NAME genonline_client_file_test COMMAND genonline_client_file_test)
+
+add_executable(genonline_pack_list_test
+    PackListTest.cpp
+    ${GAMEENGINE_DIR}/Source/GameNetwork/GenOnline/GenOnlinePackList.cpp
+)
+target_include_directories(genonline_pack_list_test PRIVATE ${GAMEENGINE_DIR}/Include)
+add_test(NAME genonline_pack_list_test COMMAND genonline_pack_list_test)
