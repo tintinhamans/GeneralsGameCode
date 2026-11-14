@@ -692,7 +692,19 @@ struct ChannelMessageArgument : WireObject
 	}
 };
 
-struct MarkReadRequest : ChannelMessageArgument
+// A whole direct or group conversation.
+struct ConversationArgument : WireObject
+{
+	std::string channel_id;
+
+	template <class V> void Fields(V& v)
+	{
+		v("channel_id", channel_id);
+	}
+};
+
+// Marks the whole conversation read, up to the newest message the service holds.
+struct MarkReadRequest : ConversationArgument
 {
 	static constexpr const char* METHOD = "MarkRead";
 	static constexpr bool EXPECTS_RESULT = true;
@@ -1748,8 +1760,8 @@ struct ConversationsEvent : WireObject
 	}
 };
 
-// The read position changed on another connection of the user.
-struct ReadMarkerEvent : ChannelMessageArgument
+// The conversation was read on another connection of the user.
+struct ReadMarkerEvent : ConversationArgument
 {
 	static constexpr const char* EVENT = "ReadMarker";
 };

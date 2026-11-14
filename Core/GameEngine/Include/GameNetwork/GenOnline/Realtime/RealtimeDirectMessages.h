@@ -93,15 +93,6 @@ public:
 			}
 			State state;
 			state.unread = (std::max)(0, conversation.unread);
-			if (!conversation.last.isNull)
-			{
-				state.lastID = conversation.last.value.id;
-			}
-			// A read conversation is read up to its last message.
-			if (state.unread == 0)
-			{
-				state.readID = state.lastID;
-			}
 			if (state.unread > 0 && Unread(peer) == 0)
 			{
 				++becameUnread;
@@ -143,47 +134,14 @@ public:
 		{
 			return false;
 		}
-		MarkedRead(peer, event.message_id);
+		Clear(peer);
 		return true;
-	}
-
-	// The message id MarkRead sends for the newest shown message of a viewed conversation, or an empty string.
-	// It is empty when that message is the read position, and for an own message while nothing counts as unread.
-	std::string MarkReadTarget(int64_t peer, const ChatMessage& newest, int64_t me) const
-	{
-		if (newest.id.empty())
-		{
-			return std::string();
-		}
-		std::map<int64_t, State>::const_iterator it = m_states.find(peer);
-		const int unread = it != m_states.end() ? it->second.unread : 0;
-		if (it != m_states.end() && it->second.readID == newest.id)
-		{
-			return std::string();
-		}
-		if (unread == 0 && newest.author.id == me)
-		{
-			return std::string();
-		}
-		return newest.id;
-	}
-
-	// Sets the read position of a conversation, which clears its unread count.
-	void MarkedRead(int64_t peer, const std::string& messageID)
-	{
-		State& state = m_states[peer];
-		state.unread = 0;
-		state.readID = messageID;
 	}
 
 private:
 	struct State
 	{
 		int unread = 0;
-		// The last message of the latest snapshot.
-		std::string lastID;
-		// The read position as far as this connection knows it.
-		std::string readID;
 	};
 
 	std::map<int64_t, State> m_states;

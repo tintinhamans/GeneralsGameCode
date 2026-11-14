@@ -654,16 +654,13 @@ void GenOnlineSocialInterface::ViewConversation(int64_t target_user_id)
 			});
 	}
 
-	const GenOnlineRealtime::ChatMessage* pNewest = conversation.NewestMessage();
-	const std::string messageID = pNewest != nullptr ? m_unreadConversations.MarkReadTarget(target_user_id, *pNewest, pAuth->GetUserID()) : std::string();
-	if (messageID.empty())
+	// Viewing an unread conversation marks the whole conversation read.
+	if (m_unreadConversations.Unread(target_user_id) == 0)
 	{
-		m_unreadConversations.Clear(target_user_id);
 		return;
 	}
-	m_unreadConversations.MarkedRead(target_user_id, messageID);
+	m_unreadConversations.Clear(target_user_id);
 	GenOnlineRealtime::MarkReadRequest request;
 	request.channel_id = conversation.ChannelID();
-	request.message_id = messageID;
 	pWS->InvokeHub(request, nullptr);
 }

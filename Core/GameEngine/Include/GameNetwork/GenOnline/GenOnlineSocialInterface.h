@@ -84,7 +84,7 @@ public:
 		return m_unreadConversations.Unread(target_user_id);
 	}
 
-	// The player views the conversation. It loads the history once and sends MarkRead for the newest shown message.
+	// The player views the conversation. It loads the history once and marks an unread conversation read as a whole.
 	void ViewConversation(int64_t target_user_id);
 
 	// Callbacks
