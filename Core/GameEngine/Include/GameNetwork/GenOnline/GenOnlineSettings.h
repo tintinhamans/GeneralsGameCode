@@ -65,7 +65,10 @@ public:
 
 	// the interface style (retail, refit, overhaul), read once at startup
 	const std::string& UI_Style() const { return m_UI_Style; }
+	// The external plugin that provides the anticheat, empty for the built-in GenOnline Anti-Cheat.
 	std::string GetAnticheatPlugin() const;
+	// The plugin transports tried in order after a direct connection fails and before Cloudflare TURN.
+	std::vector<std::string> GetTransportPlugins() const;
 	bool Social_Notifications_FriendComesOnline_Menus() { return m_Social_Notification_FriendComesOnline_Menus; }
 	bool Social_Notifications_FriendComesOnline_Gameplay() { return m_Social_Notification_FriendComesOnline_Gameplay; }
 	bool Social_Notifications_FriendGoesOffline_Menus() { return m_Social_Notification_FriendGoesOffline_Menus; }
@@ -152,7 +155,9 @@ private:
 	std::vector<GenOnlinePackList::Pack> m_PackStack;
 	std::vector<std::string> m_DataPacks_UserExcludePaths;	// always empty, see DataPacks_UserExcludePaths
 
-	std::string m_Plugins_Anticheat = std::string();
+	// The default names GenOnline Anti-Cheat, GENONLINE_ANTICHEAT_PLUGIN_NAME.
+	std::vector<std::string> m_Plugins_Anticheat = { "genonline_anticheat" };
+	std::vector<std::string> m_Plugins_Transport;
 
 	mutable std::mutex m_NetworkMutex;
 	ServiceConnectionSettings m_ConnectionSettings;

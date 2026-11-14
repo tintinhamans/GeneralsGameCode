@@ -100,6 +100,9 @@ public:
 
 	std::string GetConnectionType();
 
+	// A placeholder without a transport counts as a plugin connection while the service puts every pair on the plugin.
+	bool UsesPluginTransport() const;
+
 	void UpdateState(EConnectionState newState, NetworkMesh* pOwningMesh);
 	void SetDisconnected(bool bWasError, NetworkMesh* pOwningMesh, bool bIsRetrying);
 	
@@ -116,6 +119,9 @@ public:
 
 	// The attempt of this pair in this lobby for the connection report, 0 when signalling did not create this connection.
 	int m_reportAttempt = 0;
+	// The step of the connection order that the hub named for this attempt, absent without the order.
+	GenOnlineRealtime::ConnectionStep m_step;
+	GenOnlineRealtime::StepAttemptWatch m_stepWatch;
 	// The state changes of this attempt for the connection report.
 	GenOnlineRealtime::ConnectionTimeline m_timeline;
 	
@@ -124,6 +130,10 @@ public:
 	size_t ConsumeEnvelope(const uint8_t* data, size_t len);	///< envelope size, 0 if malformed
 	int64_t m_lastPacketMs = 0;	///< steady_clock ms of the last enveloped packet, 0 before the first
 	int SendEnveloped(ENetworkChannel channel, const uint8_t* payload, size_t len, int sendFlags);	///< returns an EResult
+	int SendFramed(const uint8_t* data, size_t len, int sendFlags);	///< Sends a packet that starts with its channel byte over the transport of this connection, returns an EResult.
+	bool CanSend() const;	///< True when the transport of this connection can take a packet.
+	bool DispatchControlFrame(ENetworkChannel channel, const uint8_t* payload, size_t len, int64_t arrivalMs);	///< Handles the anticheat, keys, start and ping channels, false for the others.
+	void DispatchLiteFrame(const uint8_t* data, size_t len, int64_t arrivalMs);	///< Handles a packet that arrives before the game transport exists, game packets are dropped.
 	bool GetOutgoingLoss(int windowMs, PacketFeedback::Summary& summary);	///< our packets to the peer, false without feedback
 	bool GetIncomingLoss(int windowMs, PacketFeedback::Summary& summary);	///< the peer's packets to us
 
@@ -264,10 +274,26 @@ public:
 
 	int SendGamePacket(void* pBuffer, uint32_t totalDataSize, int64_t userID);
 
+	// Sends the anti-cheat message over the pair connection, or holds it until the pair connects.
 	void SendACPacket(uint32_t userID, const void* pData, uint32_t dataLen);
+	// Sends the held anti-cheat messages of the connection in order, call when the pair connects.
+	void SendHeldACMessages(PlayerConnection& connection);
+	void ClearHeldACMessages(int64_t userID);
+
+	// Takes up to maxPackets pending plugin packets and hands each to handler with the connection of its sender and its receive time.
+	// A packet whose sender has no plugin connection is dropped. Returns the number of packets handed to handler.
+	using PluginPacketHandler = std::function<void(PlayerConnection& connection, const uint8_t* data, uint32_t len, int64_t arrivalMs)>;
+	int ReceivePluginPackets(int maxPackets, const PluginPacketHandler& handler);
 
 	void ApplyConnectionTimeouts(HSteamNetConnection connection, int64_t userID);
-	void StartConnectionSignalling(const char* szMiddlewareID, int64_t remoteUserID, uint16_t preferredPort);
+	// Applies the ICE settings of the step of the pair to an incoming connection before it is accepted.
+	void ApplyConnectionStep(HSteamNetConnection connection, int64_t userID);
+	void StartConnectionSignalling(const char* szMiddlewareID, int64_t remoteUserID, uint16_t preferredPort, const GenOnlineRealtime::ConnectionStep& step = GenOnlineRealtime::ConnectionStep());
+
+	// True unless the plugin carries every pair, which is the case when the service turns the plugin transport on and no step arrived.
+	bool UsesGameNetworkingSockets() const;
+	// Ends the open attempt of a timed step, reports it failed when bReport is set and asks the hub for the next step then.
+	void EndStepAttempt(PlayerConnection& connection, const char* szReason, bool bReport);
 
 	// A joiner gets its TURN credentials after its mesh exists; signalling waits for them
 	void AwaitTurnCredentials();
@@ -318,6 +344,7 @@ private:
 	std::map<int64_t, PlayerConnection> m_mapConnections;
 	mutable std::recursive_mutex m_mapConnectionsMutex;  // Synchronizes access to m_mapConnections
 	std::map<int64_t, int> m_reportAttempts;	///< Per peer, the connections signalling created in this lobby. Written under m_mapConnectionsMutex on the main thread.
+	GenOnlineRealtime::AnticheatHoldQueue m_heldACMessages;	///< Per peer, the anti-cheat messages that wait for the pair to connect. Guarded by m_mapConnectionsMutex, it outlives connection restarts.
 
 	std::mutex m_pendingStateUpdatesMutex;
 	std::vector<std::pair<int64_t, EConnectionState>> m_vecPendingStateUpdates;
@@ -327,6 +354,12 @@ private:
 	HSteamListenSocket m_hListenSock = k_HSteamListenSocket_Invalid;
 
 	bool m_bDisconnected = false;
+
+	bool m_bPairSteps = false;	///< A StartSignalling of this mesh named a step of the connection order.
+	bool m_bUsedPluginTransport = false;	///< A pair of this mesh used the plugin transport.
+	bool CreateListenSocket();
+	void DropParkedSignalling(int64_t remoteUserID);
+	void DropPendingStateUpdates(int64_t userID);
 
 	struct KeySync
 	{
@@ -407,6 +440,7 @@ private:
 		std::string strMiddlewareID;
 		int64_t remoteUserID;
 		uint16_t preferredPort;
+		GenOnlineRealtime::ConnectionStep step;
 	};
 	bool m_bAwaitingTurnCredentials = false;
 	std::vector<PendingSignalling> m_vecSignallingAwaitingTurn;
