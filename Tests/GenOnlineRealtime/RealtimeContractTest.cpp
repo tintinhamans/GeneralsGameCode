@@ -1023,6 +1023,12 @@ static void TestMatchmakingText()
 	CHECK(MatchmakingStatusText("matchmaking.starting", json::parse(R"({"seconds":5})")) == "Starting in 5 seconds.");
 	CHECK(MatchmakingStatusText("matchmaking.searching", json::parse(R"({"players":"x"})")) == "Searching for players: 0 of 0.");
 	CHECK(MatchmakingStatusText("matchmaking.future_code", json::object()) == "Matchmaking: matchmaking.future_code");
+	CHECK(MatchmakingStatusText("matchmaking.left", json::parse(R"({"reason":"join_timeout"})")) == "You did not join the match in time and left matchmaking.");
+	CHECK(MatchmakingStatusText("matchmaking.left", json::parse(R"({"reason":"setup_failed"})")) == "The match could not be set up. You left matchmaking.");
+	CHECK(MatchmakingStatusText("matchmaking.left", json::parse(R"({"reason":"stats_unavailable"})")) == "Your rating could not be loaded. You left matchmaking.");
+	CHECK(MatchmakingStatusText("matchmaking.left", json::parse(R"({"reason":"invalid_playlist"})")) == "The playlist is no longer available. You left matchmaking.");
+	CHECK(MatchmakingStatusText("matchmaking.left", json::parse(R"({"reason":"something_new"})")) == "You left matchmaking.");
+	CHECK(MatchmakingStatusText("matchmaking.left", json::object()) == "You left matchmaking.");
 
 	CHECK(MatchRequeueText("player_left") == "A player left. Searching again.");
 	CHECK(MatchRequeueText("lobby_gone") == "The match lobby closed. Searching again.");
