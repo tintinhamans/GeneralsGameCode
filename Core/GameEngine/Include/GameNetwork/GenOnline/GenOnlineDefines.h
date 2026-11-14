@@ -67,7 +67,7 @@ void GenOnlineShowNotificationBox(AsciiString nick, UnicodeString message, bool 
 #define GENONLINE_MIN_LOBBY_CAMERA_ZOOM 210
 #define GENONLINE_MAX_LOBBY_CAMERA_ZOOM 1000
 
-#define GENONLINE_CLIENT_ID "gen_online_60hz"
+#define GENONLINE_CLIENT_ID "genonline_game"
 
 extern int FRAME_GROUPING_CAP;
 
