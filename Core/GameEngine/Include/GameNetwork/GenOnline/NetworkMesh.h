@@ -100,6 +100,9 @@ public:
 
 	std::string GetConnectionType();
 
+	// A placeholder without a transport counts as a plugin connection while the service puts every pair on the plugin.
+	bool UsesPluginTransport() const;
+
 	void UpdateState(EConnectionState newState, NetworkMesh* pOwningMesh);
 	void SetDisconnected(bool bWasError, NetworkMesh* pOwningMesh, bool bIsRetrying);
 	
@@ -116,6 +119,9 @@ public:
 
 	// The attempt of this pair in this lobby for the connection report, 0 when signalling did not create this connection.
 	int m_reportAttempt = 0;
+	// The step of the connection order that the hub named for this attempt, absent without the order.
+	GenOnlineRealtime::ConnectionStep m_step;
+	GenOnlineRealtime::StepAttemptWatch m_stepWatch;
 	// The state changes of this attempt for the connection report.
 	GenOnlineRealtime::ConnectionTimeline m_timeline;
 	
@@ -278,7 +284,14 @@ public:
 	int ReceivePluginPackets(int maxPackets, const PluginPacketHandler& handler);
 
 	void ApplyConnectionTimeouts(HSteamNetConnection connection, int64_t userID);
-	void StartConnectionSignalling(const char* szMiddlewareID, int64_t remoteUserID, uint16_t preferredPort);
+	// Applies the ICE settings of the step of the pair to an incoming connection before it is accepted.
+	void ApplyConnectionStep(HSteamNetConnection connection, int64_t userID);
+	void StartConnectionSignalling(const char* szMiddlewareID, int64_t remoteUserID, uint16_t preferredPort, const GenOnlineRealtime::ConnectionStep& step = GenOnlineRealtime::ConnectionStep());
+
+	// True unless the plugin carries every pair, which is the case when the service turns the plugin transport on and no step arrived.
+	bool UsesGameNetworkingSockets() const;
+	// Ends the open attempt of a timed step, reports it failed when bReport is set and asks the hub for the next step then.
+	void EndStepAttempt(PlayerConnection& connection, const char* szReason, bool bReport);
 
 	// A joiner gets its TURN credentials after its mesh exists; signalling waits for them
 	void AwaitTurnCredentials();
@@ -338,6 +351,12 @@ private:
 	HSteamListenSocket m_hListenSock = k_HSteamListenSocket_Invalid;
 
 	bool m_bDisconnected = false;
+
+	bool m_bPairSteps = false;	///< A StartSignalling of this mesh named a step of the connection order.
+	bool m_bUsedPluginTransport = false;	///< A pair of this mesh used the plugin transport.
+	bool CreateListenSocket();
+	void DropParkedSignalling(int64_t remoteUserID);
+	void DropPendingStateUpdates(int64_t userID);
 
 	struct KeySync
 	{
@@ -418,6 +437,7 @@ private:
 		std::string strMiddlewareID;
 		int64_t remoteUserID;
 		uint16_t preferredPort;
+		GenOnlineRealtime::ConnectionStep step;
 	};
 	bool m_bAwaitingTurnCredentials = false;
 	std::vector<PendingSignalling> m_vecSignallingAwaitingTurn;

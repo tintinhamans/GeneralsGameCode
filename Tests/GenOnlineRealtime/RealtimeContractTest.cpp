@@ -121,6 +121,7 @@ static std::map<std::string, RoundTripFn> BuildFixtureTable()
 	t["WidenSearch.request.json"] = RoundTrip<WidenSearchRequest>;
 
 	t["RequestSignalling.request.json"] = RoundTrip<RequestSignallingRequest>;
+	t["SetPeerTransports.request.json"] = RoundTrip<SetPeerTransportsRequest>;
 	t["Signal.request.json"] = RoundTrip<SignalRequest>;
 	t["BeginMeshCheck.request.json"] = RoundTrip<BeginMeshCheckRequest>;
 	t["MeshCheckResponse.request.json"] = RoundTrip<MeshCheckResponseRequest>;
@@ -1793,6 +1794,123 @@ static void TestLobbyJoinHistory()
 	CHECK(!pending.IsHolding(lobby));
 }
 
+// The step fields of StartSignalling choose the transport of the pair, see section 6.6 of the protocol.
+static void TestConnectionStep()
+{
+	StartSignallingEvent legacy = json::parse("{\"lobby_id\":991,\"user_id\":7,\"preferred_port\":8088,\"middleware_id\":\"0002a1b2c3d4e5f6\"}").get<StartSignallingEvent>();
+	CHECK(!legacy.attempt.has_value());
+	CHECK(!legacy.transport.has_value());
+	CHECK(!legacy.relay.has_value());
+	CHECK(!legacy.timeout_s.has_value());
+	CHECK(json(legacy).dump() == "{\"lobby_id\":991,\"middleware_id\":\"0002a1b2c3d4e5f6\",\"preferred_port\":8088,\"user_id\":7}");
+	CHECK(!ConnectionStepOf(legacy).IsPresent());
+
+	StartSignallingEvent direct = legacy;
+	direct.attempt = 1;
+	direct.transport = std::string("gns");
+	direct.relay = false;
+	direct.timeout_s = 6;
+	ConnectionStep step = ConnectionStepOf(direct);
+	CHECK(step.IsPresent());
+	CHECK(step.attempt == 1);
+	CHECK(!step.eos);
+	CHECK(!step.relay);
+	CHECK(step.timeoutS == 6);
+
+	StartSignallingEvent eos = direct;
+	eos.attempt = 2;
+	eos.transport = std::string("eos");
+	eos.timeout_s = 10;
+	step = ConnectionStepOf(eos);
+	CHECK(step.IsPresent());
+	CHECK(step.attempt == 2);
+	CHECK(step.eos);
+	CHECK(step.timeoutS == 10);
+
+	StartSignallingEvent turn = direct;
+	turn.attempt = 3;
+	turn.relay = true;
+	turn.timeout_s = 0;
+	step = ConnectionStepOf(turn);
+	CHECK(step.IsPresent());
+	CHECK(!step.eos);
+	CHECK(step.relay);
+	CHECK(step.timeoutS == 0);
+
+	// A transport this client does not know leaves the pair on the connection of before the order.
+	StartSignallingEvent unknown = direct;
+	unknown.transport = std::string("webrtc");
+	CHECK(!ConnectionStepOf(unknown).IsPresent());
+
+	StartSignallingEvent noAttempt = direct;
+	noAttempt.attempt.reset();
+	CHECK(!ConnectionStepOf(noAttempt).IsPresent());
+
+	StartSignallingEvent negativeTimeout = direct;
+	negativeTimeout.timeout_s = -4;
+	CHECK(ConnectionStepOf(negativeTimeout).timeoutS == 0);
+
+	RequestSignallingRequest restart;
+	restart.target_user_id = 7;
+	CHECK(json(restart).dump() == "{\"target_user_id\":7}");
+	restart.failed_attempt = 1;
+	CHECK(json(restart).dump() == "{\"failed_attempt\":1,\"target_user_id\":7}");
+
+	SetPeerTransportsRequest none;
+	CHECK(json(none).dump() == "{\"transports\":[]}");
+	none.transports.push_back("eos");
+	CHECK(json(none).dump() == "{\"transports\":[\"eos\"]}");
+}
+
+// A timed step reports its attempt failed once, when it ends or runs out of time before it connects.
+static void TestStepAttemptWatch()
+{
+	ConnectionStep direct;
+	direct.attempt = 1;
+	direct.relay = false;
+	direct.timeoutS = 6;
+
+	StepAttemptWatch watch;
+	CHECK(!watch.IsOpen());
+	CHECK(!watch.TakeTimeout(1000000));
+	CHECK(!watch.TakeFailure());
+
+	watch.Begin(direct, 1000);
+	CHECK(watch.IsOpen());
+	CHECK(watch.Attempt() == 1);
+	CHECK(!watch.TakeTimeout(6999));
+	CHECK(watch.TakeTimeout(7000));
+	CHECK(watch.IsReported());
+	CHECK(!watch.TakeTimeout(8000));
+	CHECK(!watch.TakeFailure());
+	CHECK(watch.IsOpen());
+
+	watch.Begin(direct, 1000);
+	CHECK(!watch.IsReported());
+	CHECK(watch.TakeFailure());
+	CHECK(!watch.TakeFailure());
+	CHECK(!watch.TakeTimeout(100000));
+
+	watch.Begin(direct, 1000);
+	watch.MarkConnected();
+	CHECK(!watch.IsOpen());
+	CHECK(!watch.TakeTimeout(100000));
+	CHECK(!watch.TakeFailure());
+
+	ConnectionStep turn;
+	turn.attempt = 3;
+	turn.relay = true;
+	turn.timeoutS = 0;
+	watch.Begin(turn, 1000);
+	CHECK(!watch.IsOpen());
+	CHECK(!watch.TakeTimeout(1000000000));
+	CHECK(!watch.TakeFailure());
+
+	watch.Begin(ConnectionStep(), 1000);
+	CHECK(!watch.IsOpen());
+	CHECK(watch.Attempt() == 0);
+}
+
 int main(int argc, char** argv)
 {
 	if (argc < 4)
@@ -1837,6 +1955,8 @@ int main(int argc, char** argv)
 	TestReconnectPolicy();
 	TestServerSwitching();
 	TestModerationText();
+	TestConnectionStep();
+	TestStepAttemptWatch();
 
 	if (g_failures != 0)
 	{

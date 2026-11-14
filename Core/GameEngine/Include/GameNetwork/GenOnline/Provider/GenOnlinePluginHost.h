@@ -136,6 +136,8 @@ public:
 	public:
 		// True when the service allows the plugin transport and the plugin carries the game traffic.
 		static bool IsActive();
+		// True when a plugin transport is loaded and reports that it can carry packets, the condition for the eos step of a pair.
+		static bool IsAvailable();
 		static void StartSignalling(const char* szPlatformUserID, uint64_t userID);
 		// False when no plugin transport is loaded.
 		static bool SendPacket(const char* szPlatformUserID, uint64_t userID, const void* pData, uint32_t numBytes, ENetworkChannels channel, EPacketReliability reliability);
