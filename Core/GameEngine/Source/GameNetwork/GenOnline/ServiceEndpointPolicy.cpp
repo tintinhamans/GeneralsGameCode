@@ -207,7 +207,7 @@ std::string RealtimeHubURLForBase(const std::string& base)
 	const auto origin = GenOnlineRealtime::OriginOfBase(base);
 	if (origin.empty())
 		return {};
-	return GenOnlineRealtime::WebSocketPrefixOfOrigin(origin) + origin.substr(origin.find("://") + 3) + "/-/realtime";
+	return GenOnlineRealtime::WebSocketPrefixOfOrigin(origin) + origin.substr(origin.find("://") + 3) + "/realtime";
 }
 
 std::string RequestURLForLog(const std::string& value, const std::string& serviceBase)
