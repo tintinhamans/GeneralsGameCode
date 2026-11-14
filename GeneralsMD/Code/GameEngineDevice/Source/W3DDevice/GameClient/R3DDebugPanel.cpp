@@ -715,6 +715,31 @@ namespace
 		printAscii(state, FALSE);
 	}
 
+	// Ronin @diagnostic 14/11/2026 DX9: `meshsort on|off` - a lit mesh in the sorting pool draws as one piece at its mean depth, or every
+	// triangle sorted alone as 2003 did; restarts [PERF]. An A/B for the look: it comes out before the work is staged.
+	void cmdMeshSort(Int argc, const AsciiString *argv)
+	{
+		if (argc == 2 && (stricmp(argv[1].str(), "on") == 0 || stricmp(argv[1].str(), "1") == 0 ||
+			stricmp(argv[1].str(), "off") == 0 || stricmp(argv[1].str(), "0") == 0))
+		{
+			TheSortedMeshWhole = (stricmp(argv[1].str(), "on") == 0 || stricmp(argv[1].str(), "1") == 0);
+			s_perfFirst   = 0;
+			s_perfLast    = 0;
+			s_perfFrames  = 0;
+			s_perfSMSum   = 0.0;
+			s_perfWorstMs = 0.0f;
+		}
+		else if (argc != 1)
+		{
+			printAscii(AsciiString("usage: meshsort [on|off]"), TRUE);
+			return;
+		}
+		AsciiString state;
+		state.format("meshsort: %s%s", TheSortedMeshWhole ? "on (a lit mesh draws as one piece)" : "off (every triangle alone, as 2003)",
+			(argc == 2) ? "  ([PERF] restarted)" : "");
+		printAscii(state, FALSE);
+	}
+
 	// Ronin @diagnostic 13/11/2026 DX9: `dump [label]` - the live rows as text, appended to R3DPanel.txt beside Options.ini. A file
 	// costs a fraction of a screenshot to read, and its numbers cannot be misread.
 	void cmdDump(Int argc, const AsciiString *argv)
@@ -3481,11 +3506,11 @@ namespace
 		// Ronin @diagnostic 06/11/2026 DX9: the sorting pool's CPU time, eased; insert is the list scan, flush holds the rest.
 		if (s_rowOn[R3DDebugPanel::ROW_SORT])
 		{
-			text.format(L"[SORT] insert=%.2fms  flush=%.2fms (build=%.2f sort=%.2f regroup=%.2f draw=%.2f)  nodes=%u  direct=%u  tris=%u  flushes=%u",
+			text.format(L"[SORT] insert=%.2fms  flush=%.2fms (build=%.2f sort=%.2f regroup=%.2f draw=%.2f)  nodes=%u  direct=%u  tris=%u  flushes=%u  meshsort=%s",
 				s_sortEase[SortingRendererStats::MS_INSERT], s_sortEase[SortingRendererStats::MS_FLUSH],
 				s_sortEase[SortingRendererStats::MS_BUILD], s_sortEase[SortingRendererStats::MS_SORT],
 				s_sortEase[SortingRendererStats::MS_REGROUP], s_sortEase[SortingRendererStats::MS_DRAW],
-				s_sortNow.nodes, s_sortNow.direct, s_sortNow.triangles, s_sortNow.flushes);
+				s_sortNow.nodes, s_sortNow.direct, s_sortNow.triangles, s_sortNow.flushes, TheSortedMeshWhole ? L"on" : L"off");
 			putRow(R3DDebugPanel::ROW_SORT, text, GameMakeColor(255, 160, 0, 255));
 		}
 
@@ -3895,6 +3920,7 @@ void R3DDebugPanel::update(void)
 		registerCommand("water", "water [profile sea|lake|river] | water <switch> 0|1 | water view [0..14] | water <knob> <v> | water save|load|defaults - `water` alone shows the table", cmdWater);
 		registerCommand("perf", "perf [reset] - the [PERF] run mean; reset starts it over (measure each switch state apart)", cmdPerf);
 		registerCommand("dump", "dump [label] - the readout rows as text, appended to R3DPanel.txt beside Options.ini", cmdDump);
+		registerCommand("meshsort", "meshsort [on|off] - a lit mesh in the sorting pool (a rotor) draws as one piece at its mean depth; off = every triangle sorted alone, as 2003; restarts [PERF]", cmdMeshSort);
 		registerCommand("rows", "rows [<name>|all 0|1] - list the readout rows, or switch one or all", cmdRows);
 		registerCommand("taa", "taa [0|1] | taa <knob> <v> - temporal AA; the [TAA] row shows live state", cmdTaa);
 		registerCommand("ssao", "ssao [0..3] | trees <auto|0|1> | view [0..4] | sun|bleed|colour <v> | save - quality (not saved); trees: AO on trees; view: 1 depth, 2 raw AO, 3 blurred AO, 4 the bleed; sun kept by save", cmdSsao);

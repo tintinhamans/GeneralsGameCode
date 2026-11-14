@@ -218,6 +218,7 @@ bool SortingRendererClass::_EnableTriangleDraw=true;
 // Ronin @feature 13/11/2026 DX9: the next insert's opacity (dx8renderer sets it round Render_Sorted for a faded mesh).
 static float s_insertOpacity = 1.0f;
 void SortingRendererClass::Set_Insert_Opacity(float opacity) { s_insertOpacity = opacity; }
+bool TheSortedMeshWhole = true;	// Ronin @feature 14/11/2026 DX9: a lit mesh draws as one run in the pool; `meshsort` (A/B)
 static unsigned DEFAULT_SORTING_POLY_COUNT = 16384;	// (count * 3) must be less than 65536
 static unsigned DEFAULT_SORTING_VERTEX_COUNT = 32768;	// count must be less than 65536
 
@@ -239,6 +240,7 @@ struct TempIndexStruct
 	ShortVectorIStruct tri;
 	unsigned short idx;
 	float z;
+	float key;	// Ronin @feature 14/11/2026 DX9: the depth it sorts by while TheSortedMeshWhole is on - its mesh's mean for a lit mesh
 };
 
 bool operator <(const TempIndexStruct &l, const TempIndexStruct &r) { return l.z < r.z; }
@@ -814,7 +816,38 @@ void SortingRendererClass::Flush_Sorting_Pool()
 	}
 
 	Sort_Lap(TheSortingStats.ms[SortingRendererStats::MS_BUILD], step);	// Ronin @diagnostic 06/11/2026 DX9: [SORT] vertex copy and depths
-	Sort(tis, tis + overlapping_polygon_count);
+	// Ronin @feature 14/11/2026 DX9: a lit mesh (a rotor disc) takes one place in the depth order - its triangles' mean depth - and draws
+	// as one run, its own triangles still back to front, so the particles either side merge again; 2003 sorts each triangle alone.
+	bool wholeMeshes = false;
+	if (TheSortedMeshWhole) {
+		unsigned first = 0;
+		for (unsigned node_id = 0; node_id < overlapping_node_count; ++node_id) {
+			const SortingNodeStruct* node = overlapping_nodes[node_id];
+			const unsigned count = node->polygon_count;
+			const bool whole = node->sorting_state.material != nullptr && node->sorting_state.material->Get_Lighting();
+			float mean = 0.0f;
+			for (unsigned k = 0; whole && k < count; ++k)
+				mean += tis[first + k].z;
+			mean = (count > 0) ? mean / (float)count : 0.0f;
+			for (unsigned k = 0; k < count; ++k) {
+				TempIndexStruct& t = tis[first + k];
+				if (!(t.z > -1.0e30f && t.z < 1.0e30f))
+					t.z = 0.0f;	// NaN or infinite: std::sort needs a strict order
+				t.key = (whole && mean > -1.0e30f && mean < 1.0e30f) ? mean : t.z;
+			}
+			wholeMeshes = wholeMeshes || whole;
+			first += count;
+		}
+	}
+	if (wholeMeshes) {
+		std::sort(tis, tis + overlapping_polygon_count, [](const TempIndexStruct& a, const TempIndexStruct& b) {
+			if (a.key != b.key) return a.key < b.key;
+			if (a.idx != b.idx) return a.idx < b.idx;
+			return a.z < b.z;
+		});
+	} else {
+		Sort(tis, tis + overlapping_polygon_count);
+	}
 	Sort_Lap(TheSortingStats.ms[SortingRendererStats::MS_SORT], step);
 
 	// Ronin @perf 09/08/2026 §19b.1 DX9: additive blending (ONE/ONE, SRC_ALPHA/ONE) is COMMUTATIVE, so

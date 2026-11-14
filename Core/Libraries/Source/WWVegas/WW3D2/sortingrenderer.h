@@ -36,6 +36,8 @@ struct SortingRendererStats
 	bool		enabled;
 };
 extern SortingRendererStats TheSortingStats;
+// Ronin @feature 14/11/2026 DX9: a lit mesh in the pool takes one place in the depth order and draws as one run (Flush_Sorting_Pool).
+extern bool TheSortedMeshWhole;
 
 class SortingRendererClass
 {
