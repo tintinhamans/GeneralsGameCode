@@ -22,6 +22,7 @@ def migrate(data):
     removed_teams = set()
     removed_scripts = set()
     for prefix in ['Aslt', 'Demo', 'Chem', 'Slth']:
+        minimum_resources = 7500 if prefix == 'Slth' else 10000
         name = prefix + ' Supply Truck Team'
         template = next(t for t in teams if t['teamName'] == name)
         index = next(i for i, p in enumerate(players) if p['name'] == template['teamOwner'])
@@ -36,7 +37,7 @@ def migrate(data):
         manage['or'] = [[dict(type=3, version=4, name='CONDITION_TRUE', parameters=[])]]
         action = dict(type=489, version=2, name='TEAM_MANAGE_SUPPLY_TRUCKS', parameters=[
             parameter('TEAM', '<This Team>'), parameter('OBJECT_TYPE', prefix + '_GLAInfantryWorker'),
-            parameter('INT', 6), parameter('INT', 10000)])
+            parameter('INT', 6), parameter('INT', minimum_resources)])
         manage['actions'] = [action]
         orders['actions'] = [a for a in orders['actions'] if a['name'] != 'TEAM_MOVE_TO_SUPPLY_SOURCE']
         orders['actions'].append(copy.deepcopy(action))
@@ -48,6 +49,7 @@ def migrate(data):
         build['name'] = 'Supply Truck Build Condition'
         for clause in build['or']:
             safe = next(c for c in clause if c['name'] == 'SUPPLY_SOURCE_SAFE')
+            safe['parameters'][1]['int'] = minimum_resources
             available = copy.deepcopy(safe)
             available.update(type=178, name='PLAYER_HAS_FREE_SUPPLY_SOURCE')
             clause.append(available)

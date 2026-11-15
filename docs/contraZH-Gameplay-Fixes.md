@@ -23,6 +23,9 @@ reserve separate sources while travelling and keep valid assignments after arriv
 
 ## GLA supply trucks keep their sources and workers
 
+New truck destinations exclude sources near enemy base structures. Supply centers placed by the
+AI face their chosen source, including when the AI adjusts their placement to avoid obstacles.
+
 An established truck assignment survives nearby construction and the loss of other trucks.
 The truck keeps collecting until its source empties or becomes invalid. A replacement truck
 claims the freed source without displacing collectors at other sources.

@@ -188,7 +188,7 @@ Bool ResourceGatheringManager::isSupplySourceAvailable(Object *source, const Pla
 	}
 
 	PartitionFilterAcceptByKindOf filterStructure(MAKE_KINDOF_MASK(KINDOF_STRUCTURE), KINDOFMASK_NONE);
-	PartitionFilterPlayerAffiliation filterAllies(player, ALLOW_ALLIES, true);
+	PartitionFilterPlayerAffiliation filterAllies(player, ALLOW_ALLIES | ALLOW_ENEMIES, true);
 	PartitionFilterPlayer filterOtherPlayer(player, false);
 	PartitionFilter *alliedBase[] = { &filterStructure, &filterAllies, &filterOtherPlayer, &filterAlive, &filterOnMap, nullptr };
 	if (ThePartitionManager->getClosestObject(source->getPosition(), TheAI->getAiData()->m_supplyCenterSafeRadius,
