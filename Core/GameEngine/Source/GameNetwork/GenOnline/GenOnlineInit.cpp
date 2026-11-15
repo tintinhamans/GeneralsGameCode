@@ -1438,6 +1438,8 @@ void WebSocket::Shutdown()
 	
 	// Signal that we're shutting down
 	m_bShuttingDown = true;
+	// Parked hub calls capture the interfaces of this instance, so none of them runs after the shutdown.
+	m_standbyHubCalls.Clear();
 	m_proxyResolution.reset();
 	
 	// Disconnect from the websocket (handles the connected case)
