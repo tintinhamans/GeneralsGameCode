@@ -44,6 +44,7 @@
 #include "Common/KindOf.h"
 #include "GameLogic/PolygonTrigger.h"			// Ronin @bugfix 29/09/2026 DX9: the water's polygons, for its reactive mask
 #include "GameLogic/TerrainLogic.h"			// Ronin @bugfix 26/10/2026 DX9: the ground under a moving decal's mark
+#include "GameLogic/GameLogic.h"			// Ronin @bugfix 15/11/2026 DX9: the logic frame, for idle infantry
 #include "W3DDevice/GameClient/W3DWater.h"
 
 Bool R3DTaa::s_enabled = FALSE;
@@ -125,6 +126,7 @@ enum { TAA_MESH_BITS = 12, TAA_MESH_SLOTS = 1 << TAA_MESH_BITS, TAA_MAX_MESH_DRA
 struct TaaMeshSlot { const void *key; Matrix3D prev; UnsignedInt stamp; UnsignedInt movedStamp;
                      Vector3 *skin[2]; Int skinCap; Int skinCount; Int skinCur;
                      Matrix3D prevRoot; UnsignedInt rootStamp;	// Ronin @bugfix 27/09/2026 DX9: its object's transform
+                     UnsignedInt rootMovedLogic;	// Ronin @bugfix 15/11/2026 DX9: the logic frame its object last moved
                      float boxC[3]; float boxE[3]; Bool boxOK; };	// Ronin @bugfix 09/10/2026 DX9: its world box when last drawn, reset if it vanishes
 struct TaaMeshDraw { MeshClass *mesh; Matrix3D cur; Matrix3D prev; Int kind;
                      const Vector3 *skinCur; const Vector3 *skinPrev;	// skinCur NULL = rigid
@@ -1129,6 +1131,7 @@ static TaaMeshSlot *findMeshSlot(const void *key)
 	freeSlot->movedStamp = 0;
 	freeSlot->skinCount  = 0;		// buffers kept for reuse, contents invalid
 	freeSlot->rootStamp  = 0;
+	freeSlot->rootMovedLogic = 0;
 	freeSlot->boxOK      = FALSE;
 	return freeSlot;
 }
@@ -1324,16 +1327,22 @@ void R3DTaa::noteMesh(MeshClass *mesh)
 	else if (movedLast)
 		kind = TAA_KIND_STILL;
 	// Ronin @bugfix 27/09/2026 DX9: IDLE INFANTRY - the mesh moved but its object did not: the top render object (the one the
-	// scene holds, carrying the DrawableInfo) kept last frame's transform. Last frame's must be known, else it counts as moving.
+	// scene holds, carrying the DrawableInfo) kept its transform. Last frame's must be known, else it counts as moving.
+	// Ronin @bugfix 15/11/2026 DX9: per LOGIC step - an object moves only when logic steps (30 Hz) under uncapped frames, so a
+	// runner read as idle between steps, and idle needs `disoccv` to reset: each step left its outline.
 	if (kind == TAA_KIND_VEL)
 	{
 		const Matrix3D root = top->Get_Transform();
-		Bool rootStill = (sl->rootStamp != 0 && s_moverFrame - sl->rootStamp == 1) ? TRUE : FALSE;
-		for (Int r = 0; r < 3 && rootStill; ++r)
+		const UnsignedInt logicFrame = (TheGameLogic != NULL) ? TheGameLogic->getFrame() : s_moverFrame;
+		Bool rootMoved = (sl->rootStamp != 0 && s_moverFrame - sl->rootStamp == 1) ? FALSE : TRUE;
+		for (Int r = 0; r < 3 && !rootMoved; ++r)
 			for (Int c = 0; c < 4; ++c)
-				if (fabsf(root[r][c] - sl->prevRoot[r][c]) > 1.0e-4f) { rootStill = FALSE; break; }
+				if (fabsf(root[r][c] - sl->prevRoot[r][c]) > 1.0e-4f) { rootMoved = TRUE; break; }
+		if (rootMoved)
+			sl->rootMovedLogic = logicFrame;
 		sl->prevRoot  = root;
 		sl->rootStamp = s_moverFrame;
+		const Bool rootStill = ((Int)(logicFrame - sl->rootMovedLogic) >= 2) ? TRUE : FALSE;
 		if (rootStill && topInfo != NULL && topInfo->m_drawable != NULL && topInfo->m_drawable->isKindOf(KINDOF_INFANTRY))
 			kind = TAA_KIND_VEL_IDLE;
 	}
