@@ -64,16 +64,6 @@ sampler2D s_ShadowFar  : register(s8);
 sampler2D s_Shroud     : register(s9);	// Ronin @bugfix 03/10/2026 DX9: the fog of war (W3DShroud's texture)
 sampler2D s_Wake       : register(s10);	// Ronin @feature 03/10/2026 DX9: phase 5 - the wakes: xy slope, z foam, w height
 
-// Ronin @feature 29/09/2026 DX9: shadows on the water - 2x2 taps half a texel out, each a hardware 2x2 compare: a 3x3-texel footprint.
-float shadowPcf4(sampler2D smp, float2 uv, float depth, float texelUV)
-{
-	const float h = 0.5f * texelUV;
-	return 0.25f * (tex2Dproj(smp, float4(uv + float2(-h, -h), depth, 1.0f)).r +
-	                tex2Dproj(smp, float4(uv + float2( h, -h), depth, 1.0f)).r +
-	                tex2Dproj(smp, float4(uv + float2(-h,  h), depth, 1.0f)).r +
-	                tex2Dproj(smp, float4(uv + float2( h,  h), depth, 1.0f)).r);
-}
-
 // Ronin @feature 25/10/2026 DX9: the froth - the normal maps' alpha, equalised: a coverage c foams the fraction c of the area.
 // x: how far the colour goes to foam (thin foam translucent, thick white), y: the milky haze over thin foam.
 float2 frothDissolve(float e, float cover)
@@ -239,8 +229,10 @@ PSOutput main(PSInput input)
 	const float  NdotH  = saturate(dot(n, H));
 	const float3 sun    = pow(NdotH, g_SunDir.w) * g_SunColor.rgb + pow(NdotH, g_Sheen.w) * g_Sheen.rgb;
 
-	// Ronin @feature 29/09/2026 DX9: shadows on the surface: in shadow the sun's glitter and sheen go and the body
-	// darkens by `shadow`. Both cascades are sampled (fxc cannot branch around tex2Dproj); outside the map = lit.
+	// Ronin @feature 29/09/2026 DX9: shadows on the surface: in shadow the sun's glitter and sheen go and the foam darkens
+	// by `shadow`. Both cascades are sampled (fxc cannot branch around tex2Dproj); outside the map = lit.
+	// Ronin @bugfix 15/11/2026 DX9: the water's body takes none - the seabed's own shadow shows through it, and the body's laid a
+	// second copy beside that one. One hardware 2x2 compare a cascade: glitter and foam need no soft edge.
 	float lit = 1.0f;
 	if (g_ShadowCfg.x > 0.5f)
 	{
@@ -252,18 +244,18 @@ PSOutput main(PSInput input)
 		const float  seam    = texelUV * 3.0f;
 		const bool   inNear  = (g_CascadeCfg.y < 1.5f) ||
 		                       (uvN.x >= seam && uvN.x <= 1.0f - seam && uvN.y >= seam && uvN.y <= 1.0f - seam);
-		const float  litN    = shadowPcf4(s_ShadowNear, uvN, clipN.z - g_ShadowCfg.y, texelUV);
-		const float  litF    = shadowPcf4(s_ShadowFar,  uvF, clipF.z - g_CascadeCfg.x, texelUV);
+		const float  litN    = tex2Dproj(s_ShadowNear, float4(uvN, clipN.z - g_ShadowCfg.y, 1.0f)).r;
+		const float  litF    = tex2Dproj(s_ShadowFar,  float4(uvF, clipF.z - g_CascadeCfg.x, 1.0f)).r;
 		const float2 suv     = inNear ? uvN : uvF;
 		if (suv.x >= 0.0f && suv.x <= 1.0f && suv.y >= 0.0f && suv.y <= 1.0f)
 			lit = inNear ? litN : litF;
 	}
-	const float shadeLit = lerp(1.0f - g_ShadowCfg.w, 1.0f, lit);
+	const float shadeLit = lerp(1.0f - g_ShadowCfg.w, 1.0f, lit);	// the foam and froth's
 
 	float4 c;
 	// Ronin @bugfix 29/09/2026 DX9: the reflection is not tinted by the water's colour - it was, and a green lake dyed every
 	// reflection dark green. The mirror already holds the lit scene.
-	c.rgb = lerp(body * shadeLit * input.color.rgb, refl.rgb, share) + sun * lit;
+	c.rgb = lerp(body * input.color.rgb, refl.rgb, share) + sun * lit;
 	c.a   = water.a * edge * input.color.a;
 
 	// Ronin @feature 29/09/2026 DX9: phase 1, flat water only (rivers keep their own edge fade). Opacity: the sea's `opacity`
@@ -440,7 +432,7 @@ PSOutput main(PSInput input)
 		const float2 ruv   = (input.vpos + 0.5f) * g_Refraction.xy + n.xy * bend;
 		const float3 under = tex2D(s_Scene, ruv).rgb;
 		const float  rim   = lerp(1.0f, saturate(shore * 0.5f), nearSurface);
-		float3 r = lerp(under, body * shadeLit * input.color.rgb, aWater);
+		float3 r = lerp(under, body * input.color.rgb, aWater);
 		r = lerp(r, refl.rgb, share * rim) + sun * lit * rim;
 		const float deepFoam = saturate(depth * 2.0f);
 		r = lerp(r, seaCol, max(seaHaze * deepFoam, shoreHaze));	// Ronin @feature 25/10/2026 DX9: the froth's milky haze, once
