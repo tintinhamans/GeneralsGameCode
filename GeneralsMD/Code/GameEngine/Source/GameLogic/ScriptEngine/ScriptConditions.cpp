@@ -33,6 +33,7 @@
 #include "Common/MapObject.h"
 #include "Common/PlayerList.h"
 #include "Common/Player.h"
+#include "Common/ResourceGatheringManager.h"
 #include "Common/SpecialPower.h"
 #include "Common/ThingTemplate.h"
 #include "Common/ThingFactory.h"
@@ -2981,6 +2982,13 @@ Bool ScriptConditions::evaluateCondition( Condition *pCondition )
 
 		case Condition::MUSIC_TRACK_HAS_COMPLETED:
 			return evaluateMusicHasCompleted(pCondition->getParameter(0), pCondition->getParameter(1));
+
+		case Condition::PLAYER_HAS_FREE_SUPPLY_SOURCE:
+		{
+			Player *player = playerFromParam(pCondition->getParameter(0));
+			ResourceGatheringManager *manager = player ? player->getResourceGatheringManager() : nullptr;
+			return manager && manager->hasFreeSupplySource(player, pCondition->getParameter(1)->getInt());
+		}
 
 		case Condition::SUPPLY_SOURCE_SAFE:
 			return evaluateSkirmishSupplySourceSafe(pCondition, pCondition->getParameter(0), pCondition->getParameter(1));

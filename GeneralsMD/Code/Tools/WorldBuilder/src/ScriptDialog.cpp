@@ -3492,12 +3492,15 @@ void ScriptDialog::OnLoad()
 	if (!importScriptFile(fileDlg.GetPathName())) {
 		return;
 	}
+	CTreeCtrl *pTree = (CTreeCtrl*)GetDlgItem(IDC_SCRIPT_TREE);
+	pTree->SetRedraw(FALSE);
+	pTree->DeleteAllItems();
+	m_curSelection = ListType();
 	for (Int i = 0; i < m_sides.getNumSides(); i++) {
-		// Make sure that the dialog tree is updated.
-		ScriptList *pSL = m_sides.getSideInfo(i)->getScriptList();
-		reloadPlayer(i, pSL);
-		updateIcons(TVI_ROOT);
+		addPlayer(i);
 	}
+	pTree->SetRedraw(TRUE);
+	pTree->Invalidate();
 }
 
 /**

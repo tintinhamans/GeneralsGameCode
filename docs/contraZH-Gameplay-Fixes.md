@@ -21,6 +21,30 @@ GLA trucks using the [nearest-free-supply actions](contraZH-Maps-and-Setup.md#mo
 reserve separate sources while travelling and keep valid assignments after arrival.
 ([#220](https://github.com/triatomic/contraZH/issues/220))
 
+## GLA supply trucks keep their sources and workers
+
+GLA command centers generate money but do not occupy supply sites. Occupancy checks require an
+actual supply-center dock module, so a nearby command center does not exclude a home supply.
+
+GLA trucks reserve permanent docks separately while grouping nearby depleting piles into one
+site. The free-source production condition uses the same rule, including after trucks park.
+New assignments choose the nearest available source meeting the resource requirement.
+
+New truck destinations exclude sources near enemy base structures. Supply centers placed by the
+AI face their chosen source, including when the AI adjusts their placement to avoid obstacles.
+
+An established truck assignment survives nearby construction and the loss of other trucks.
+The truck keeps collecting until its source empties or becomes invalid. A replacement truck
+claims the freed source without displacing collectors at other sources.
+
+The [mobile supply crew action](contraZH-Maps-and-Setup.md#manage-mobile-supply-crews) trains and
+replaces workers at each truck. Workers gather from that truck's source and unload at their
+producer truck. Living and queued workers count toward each truck's crew limit. The migrated
+GLA scripts use one repeatable truck template per faction instead of four numbered slots.
+
+Changes the simulation and requires the matching migrated skirmish scripts.
+([#222](https://github.com/triatomic/contraZH/issues/222))
+
 ## Recycled supply centers accept automatic deliveries
 
 Supply centers spawned already complete register as delivery targets during normal gameplay.

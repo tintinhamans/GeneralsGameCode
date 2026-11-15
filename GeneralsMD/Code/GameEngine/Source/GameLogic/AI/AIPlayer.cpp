@@ -1958,6 +1958,10 @@ void AIPlayer::buildBySupplies(Int minimumCash, const AsciiString& thingName)
 		location.x -= offset.x*radius;
 		location.y -= offset.y*radius;
 		Real angle = tTemplate->getPlacementViewAngle();
+		if (tTemplate->isKindOf(KINDOF_CASH_GENERATOR))
+		{
+			angle = WWMath::Atan2(bestSupplyWarehouse->getPosition()->y - location.y, bestSupplyWarehouse->getPosition()->x - location.x);
+		}
 
  		// validate the the position to build at is valid
 		Bool valid=false;
@@ -1986,6 +1990,10 @@ void AIPlayer::buildBySupplies(Int minimumCash, const AsciiString& thingName)
 				for (xPos = location.x-offset; xPos <= location.x+offset; xPos+=PATHFIND_CELL_SIZE_F) {
 					newPos.x = xPos;
 					newPos.y = yPos;
+					if (tTemplate->isKindOf(KINDOF_CASH_GENERATOR))
+					{
+						angle = WWMath::Atan2(bestSupplyWarehouse->getPosition()->y - newPos.y, bestSupplyWarehouse->getPosition()->x - newPos.x);
+					}
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, tTemplate, angle,
 																							 BuildAssistant::CLEAR_PATH |
 																							 BuildAssistant::TERRAIN_RESTRICTIONS |
@@ -1995,6 +2003,10 @@ void AIPlayer::buildBySupplies(Int minimumCash, const AsciiString& thingName)
 					if( TheGlobalData->m_debugSupplyCenterPlacement )
 						DEBUG_LOG(("buildBySupplies -- Fail at (%.2f,%.2f)", newPos.x, newPos.y));
 					newPos.y = yPos+posOffset;
+					if (tTemplate->isKindOf(KINDOF_CASH_GENERATOR))
+					{
+						angle = WWMath::Atan2(bestSupplyWarehouse->getPosition()->y - newPos.y, bestSupplyWarehouse->getPosition()->x - newPos.x);
+					}
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, tTemplate, angle,
 																							 BuildAssistant::CLEAR_PATH |
 																							 BuildAssistant::TERRAIN_RESTRICTIONS |
@@ -2009,6 +2021,10 @@ void AIPlayer::buildBySupplies(Int minimumCash, const AsciiString& thingName)
 				for (yPos = location.y-offset; yPos <= location.y+offset; yPos+=PATHFIND_CELL_SIZE_F) {
 					newPos.x = xPos;
 					newPos.y = yPos;
+					if (tTemplate->isKindOf(KINDOF_CASH_GENERATOR))
+					{
+						angle = WWMath::Atan2(bestSupplyWarehouse->getPosition()->y - newPos.y, bestSupplyWarehouse->getPosition()->x - newPos.x);
+					}
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, tTemplate, angle,
 																							 BuildAssistant::CLEAR_PATH |
 																							 BuildAssistant::TERRAIN_RESTRICTIONS |
@@ -2018,6 +2034,10 @@ void AIPlayer::buildBySupplies(Int minimumCash, const AsciiString& thingName)
 					if( TheGlobalData->m_debugSupplyCenterPlacement )
 						DEBUG_LOG(("buildBySupplies -- Fail at (%.2f,%.2f)", newPos.x, newPos.y));
 					newPos.x = xPos+posOffset;
+					if (tTemplate->isKindOf(KINDOF_CASH_GENERATOR))
+					{
+						angle = WWMath::Atan2(bestSupplyWarehouse->getPosition()->y - newPos.y, bestSupplyWarehouse->getPosition()->x - newPos.x);
+					}
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, tTemplate, angle,
 																							 BuildAssistant::CLEAR_PATH |
 																							 BuildAssistant::TERRAIN_RESTRICTIONS |

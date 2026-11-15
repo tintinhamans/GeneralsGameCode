@@ -703,6 +703,7 @@ public:
 		AI_CLEAR_BUILDLIST,
 		AI_ADD_TO_BUILDLIST,
 		AREA_TRANSFER_TO_PLAYER,
+		TEAM_MANAGE_SUPPLY_TRUCKS,
 		// add new items here, please
 		NUM_ITEMS
 	};
@@ -1224,6 +1225,7 @@ public:
 
 		QUICK_GAME_ENABLED,														// True if the host ticked Quick Game.
 
+		PLAYER_HAS_FREE_SUPPLY_SOURCE,
 		NUM_ITEMS		 // Always the last condition.
 	};
 

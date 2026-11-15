@@ -72,10 +72,26 @@ def prepare_map(allied=False):
         call('create_waypoint', name='Player_2_Start', x=4300, y=4300)
         for letter in 'ABCDE':
             script('Move' + letter, [('NAMED_MOVE_TO_SUPPLY_SOURCE', ['SupplyTest_' + letter, 10000])])
+            script('MoveSmall' + letter, [('NAMED_MOVE_TO_SUPPLY_SOURCE', ['SupplyTest_' + letter, 7500])])
+        script('FillPiles', [('WAREHOUSE_SET_VALUE', ['SupplyTest_Pile' + str(i), 7500]) for i in range(3)])
         script('MoveTeam', [('TEAM_MOVE_TO_SUPPLY_SOURCE', ['teamplayer0', 10000])])
         script('EmptySource', [('WAREHOUSE_SET_VALUE', ['SupplyTest_Source0', 0])])
         script('LowSource', [('WAREHOUSE_SET_VALUE', ['SupplyTest_Source0', 500])])
         script('CaptureA', [('NAMED_TRANSFER_OWNERSHIP_PLAYER', ['SupplyTest_A', 'ReplayObserver'])])
+        call('upsert_script', player_index=0, name='SupplyTest_FreeSource', active=True,
+             subroutine=False, one_shot=False,
+             conditions=[{'type': next(t['id'] for t in types['conditions']
+                                      if t['internal_name'] == 'PLAYER_HAS_FREE_SUPPLY_SOURCE'),
+                          'parameters': ['player0', 10000]}],
+             actions=[{'type': actions['SET_FLAG'], 'parameters': ['SupplyTest_FreeSource', True]}],
+             false_actions=[{'type': actions['SET_FLAG'], 'parameters': ['SupplyTest_FreeSource', False]}])
+        call('upsert_script', player_index=0, name='SupplyTest_FreeSmallSource', active=True,
+             subroutine=False, one_shot=False,
+             conditions=[{'type': next(t['id'] for t in types['conditions']
+                                      if t['internal_name'] == 'PLAYER_HAS_FREE_SUPPLY_SOURCE'),
+                          'parameters': ['player0', 7500]}],
+             actions=[{'type': actions['SET_FLAG'], 'parameters': ['SupplyTest_FreeSmallSource', True]}],
+             false_actions=[{'type': actions['SET_FLAG'], 'parameters': ['SupplyTest_FreeSmallSource', False]}])
         path = original['user_maps_root'] + MAP_NAME + '\\' + MAP_NAME + '.map'
         call('save_map_as', path=path, overwrite=True)
         print('Prepared', path)
@@ -119,6 +135,101 @@ class Game:
             return None
         return min(range(len(SOURCE_POSITIONS)), key=lambda n:
                    (SOURCE_POSITIONS[n][0] - goal['x']) ** 2 + (SOURCE_POSITIONS[n][1] - goal['y']) ** 2)
+
+
+def check_paired(port):
+    game = Game(port)
+    state = game.call('game.status')
+    assert state['frame'] == 1 and MAP_NAME.lower() in state['map'].lower(), state
+    game.call('game.set_speed', fps=0)
+    game.spawn('SupplyDock', 1000, 1000, player='neutral')
+    game.spawn('SupplyDock', 1300, 1000, player='neutral')
+    game.step(3)
+    first = game.spawn('Aslt_GLASupplyStash', 300, 800, name='SupplyTest_A')
+    game.run('MoveA')
+    game.step(3)
+    assert game.object(first)['ai']['goal_position']['x'] < 1100
+    assert game.call('scripts.flags', contains='SupplyTest_FreeSource')['flags']['SupplyTest_FreeSource']
+    print('PASS a neighbouring dock remains available for truck production')
+
+    second = game.spawn('Aslt_GLASupplyStash', 300, 900, name='SupplyTest_B')
+    game.run('MoveB')
+    game.step(3)
+    assert game.object(second)['ai']['goal_position']['x'] > 1100
+    assert not game.call('scripts.flags', contains='SupplyTest_FreeSource')['flags']['SupplyTest_FreeSource']
+    print('PASS two departing trucks claim the two nearby docks separately')
+
+    game.call('orders.stop', id=first)
+    game.call('orders.stop', id=second)
+    game.step(3)
+    game.call('objects.set', id=first, x=1140, y=950)
+    game.call('objects.set', id=second, x=1160, y=1050)
+    game.step(3)
+    third = game.spawn('Aslt_GLASupplyStash', 300, 1000, name='SupplyTest_C')
+    game.run('MoveC')
+    assert not game.object(third)['ai'].get('goal_position')
+    print('PASS parked trucks keep both docks exclusive')
+
+    game.call('game.save', filename='PairedSupplyRegression', description='Adjacent supply dock claims')
+    game.call('game.load', filename='PairedSupplyRegression')
+    game.run('MoveC')
+    assert not game.object(third)['ai'].get('goal_position')
+    print('PASS save/load preserves both neighbouring dock assignments')
+
+    game.call('objects.destroy', id=first, how='remove')
+    game.step(3)
+    game.run('MoveC')
+    assert game.object(third)['ai']['goal_position']['x'] < 1100
+    print('PASS a parked neighbouring truck does not block the freed dock')
+
+
+def check_sites(port):
+    game = Game(port)
+    state = game.call('game.status')
+    assert state['frame'] == 1 and MAP_NAME.lower() in state['map'].lower(), state
+    game.call('game.set_speed', fps=0)
+    game.spawn('SupplyDock', 1000, 1000, player='neutral')
+    game.spawn('SupplyDock', 1300, 1000, player='neutral')
+    game.spawn('SupplyDock', 2500, 1000, player='neutral')
+    game.spawn('Aslt_GLAFactory', 1000, 1150, player='player0')
+    for i in range(3):
+        game.spawn('SupplyPile', 1900 + 80 * i, 2200, player='neutral', name='SupplyTest_Pile' + str(i))
+    game.run('FillPiles')
+    game.step(3)
+
+    def move(letter, x, y):
+        truck = game.spawn('Aslt_GLASupplyStash', x, y, name='SupplyTest_' + letter)
+        game.run('MoveSmall' + letter)
+        game.step(3)
+        return truck, game.object(truck)['ai'].get('goal_position')
+
+    first, goal = move('A', 300, 800)
+    assert goal and goal['x'] < 1100, goal
+    print('PASS a nearby GLA command center does not block its home supply')
+    second, goal = move('B', 300, 900)
+    assert goal and 1100 < goal['x'] < 1600, goal
+    print('PASS the next truck takes the second home dock before a distant dock')
+    third, goal = move('C', 1750, 2100)
+    assert goal and goal['y'] > 1900 and goal['x'] < 2000, goal
+    print('PASS the nearest eligible pile is chosen before the richer distant dock')
+    fourth, goal = move('D', 1750, 2120)
+    assert goal and goal['y'] < 1300 and goal['x'] > 2200, goal
+    print('PASS neighbouring small piles share one truck reservation')
+    flags = game.call('scripts.flags', contains='SupplyTest_FreeSmallSource')['flags']
+    assert not flags['SupplyTest_FreeSmallSource'], flags
+    print('PASS production does not request another truck for each small pile')
+
+    game.call('orders.stop', id=third)
+    game.step(3)
+    game.call('objects.set', id=third, x=1800, y=2200)
+    game.step(3)
+    fifth, goal = move('E', 1750, 2120)
+    assert not goal, goal
+    game.call('game.save', filename='SupplySitesRegression', description='Home supply and grouped piles')
+    game.call('game.load', filename='SupplySitesRegression')
+    game.run('MoveSmallE')
+    assert not game.object(fifth)['ai'].get('goal_position')
+    print('PASS parked trucks and save/load preserve grouped pile exclusivity')
 
 
 def check(port):
@@ -245,11 +356,17 @@ if __name__ == '__main__':
     parser.add_argument('--prepare-map', action='store_true')
     parser.add_argument('--prepare-allied-map', action='store_true')
     parser.add_argument('--allied', action='store_true', help='Use a fresh game with FactionGLA:1,FactionAmerica:easy:1.')
+    parser.add_argument('--paired', action='store_true', help='Use a fresh SupplyClaimsRegression game with two adjacent docks.')
+    parser.add_argument('--sites', action='store_true', help='Check home supplies, nearest-first selection and grouped small piles.')
     parser.add_argument('--port', type=int, default=47822)
     options = parser.parse_args()
     if options.prepare_map or options.prepare_allied_map:
         prepare_map(options.prepare_allied_map)
     elif options.allied:
         check_allied(options.port)
+    elif options.paired:
+        check_paired(options.port)
+    elif options.sites:
+        check_sites(options.port)
     else:
         check(options.port)

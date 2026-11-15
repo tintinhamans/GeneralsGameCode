@@ -35,6 +35,7 @@
 
 class Object;
 class Player;
+class ThingTemplate;
 
 // ------------------------------------------------------------------------------------------------
 class ResourceGatheringManager : public MemoryPoolObject,
@@ -55,8 +56,13 @@ public:
 	void removeSupplyWarehouse( Object *oldWarehouse );	///< Warehouse that doesn't replenish has run out of Supply
 
 	Object *findFreeSupplySource( Object *mover, const Coord3D *position, Int minimumCash );
-	static Bool isSupplySourceAvailable( Object *source, const Player *player, const Object *mover = nullptr );
+	static Bool isSupplySourceAvailable( Object *source, const Player *player, const Object *mover = nullptr, Bool separateSources = false );
 	static Bool isAtSupplySource( const Object *mover, const Object *source );
+	void manageSupplyTruck( Object *truck );
+	Bool hasFreeSupplySource( const Player *player, Int minimumCash );
+	Object *getAssignedSupplySource( Object *mover );
+	void maintainSupplyWorkers( Object *truck, const ThingTemplate *workerType, Int workerCount );
+	Object *getWorkerSupplyTruck( Object *worker );
 
 protected:
 
@@ -73,12 +79,17 @@ private:
 		UnsignedInt lastProgressFrame;
 		UnsignedInt lastFailureFrame;
 		Coord3D lastPosition;
+		Bool managesWorkers;
+		SupplySourceReservation() : sourceID(INVALID_ID), blockedSourceID(INVALID_ID), lastProgressFrame(0), lastFailureFrame(0), managesWorkers(false)
+		{
+			lastPosition.zero();
+		}
 	};
 	typedef std::map<ObjectID, SupplySourceReservation> SupplySourceReservations;
 	SupplySourceReservations m_supplySourceReservations;
 	void updateSupplySourceReservations();
-	void xferSupplySourceReservations( Xfer *xfer );
-	static Bool isSupplySourceReserved( Object *source, const Object *mover );
+	void xferSupplySourceReservations( Xfer *xfer, XferVersion version = 3 );
+	static Bool isSupplySourceReserved( Object *source, const Object *mover, Bool separateSources );
 
 	/// @todo Make sure the allocator for std::list<> is a good one.  Otherwise override it.
 	typedef std::list<ObjectID> objectIDList;

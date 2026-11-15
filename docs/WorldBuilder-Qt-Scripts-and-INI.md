@@ -55,6 +55,7 @@ without closing the window.
 * Export Scripts saves `.json` as well as `.scb`; pick **Script JSON** in the save dialog.
 * Import Scripts opens either kind. A `.json` file imports exactly like the `.scb` it came from, so
 scripts can be edited in a text editor and brought back.
+* The classic editor can import files that remove script groups or replace players without crashing.
 * An unedited `.json` converts back to the original `.scb` byte for byte, so `SkirmishScripts.scb`
 and other script files survive the round trip.
 

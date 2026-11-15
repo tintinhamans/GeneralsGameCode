@@ -65,6 +65,7 @@ public:
 	virtual Bool action( Object* docker, Object *drone = nullptr ) override;	///<For me, this means identifying who is docking and either taking Boxes away or giving them
 
 	Int getBoxesStored() const { return m_boxesStored; }
+	Bool isDeletedWhenEmpty() const { return getSupplyWarehouseDockUpdateModuleData()->m_deleteWhenEmpty; }
 
 	void setCashValue( Int cashValue );
 

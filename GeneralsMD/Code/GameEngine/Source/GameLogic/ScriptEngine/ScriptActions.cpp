@@ -6452,6 +6452,44 @@ static Coord3D getSupplySourceApproach(const Object *source, const Coord3D *from
 }
 
 //-------------------------------------------------------------------------------------------------
+void ScriptActions::doTeamManageSupplyTrucks(const AsciiString& teamName, const AsciiString& workerType, Int workers, Int supplies)
+{
+	Team *team = TheScriptEngine->getTeamNamed(teamName);
+	const ThingTemplate *workerTemplate = TheThingFactory->findTemplate(workerType);
+	if (!team || !workerTemplate)
+	{
+		return;
+	}
+	for (DLINK_ITERATOR<Object> iter = team->iterate_TeamMemberList(); !iter.done(); iter.advance())
+	{
+		Object *truck = iter.cur();
+		AIUpdateInterface *ai = truck->getAIUpdateInterface();
+		Player *player = truck->getControllingPlayer();
+		ResourceGatheringManager *manager = player ? player->getResourceGatheringManager() : nullptr;
+		if (truck->isEffectivelyDead() || !ai || !manager || truck->isKindOf(KINDOF_STRUCTURE) ||
+			!truck->isKindOf(KINDOF_CASH_GENERATOR))
+		{
+			continue;
+		}
+		manager->manageSupplyTruck(truck);
+		Object *source = manager->findFreeSupplySource(truck, truck->getPosition(), supplies);
+		if (!source)
+		{
+			continue;
+		}
+		if (!ResourceGatheringManager::isAtSupplySource(truck, source))
+		{
+			if (!ai->isMoving())
+			{
+				Coord3D destination = getSupplySourceApproach(source, truck->getPosition(), truck->getGeometryInfo().getBoundingCircleRadius());
+				ai->aiMoveToPosition(&destination, CMD_FROM_SCRIPT);
+			}
+			continue;
+		}
+		manager->maintainSupplyWorkers(truck, workerTemplate, workers);
+	}
+}
+
 void ScriptActions::doTeamMoveToSupplySource(const AsciiString& teamName, Int supplies)
 {
 	Team *team = TheScriptEngine->getTeamNamed(teamName);
@@ -7827,6 +7865,10 @@ void ScriptActions::executeAction( ScriptAction *pAction )
 
 		case ScriptAction::TEAM_GUARD_SUPPLY_CENTER:
 			doGuardSupplyCenter(pAction->getParameter(0)->getString(), pAction->getParameter(1)->getInt());
+			return;
+
+		case ScriptAction::TEAM_MANAGE_SUPPLY_TRUCKS:
+			doTeamManageSupplyTrucks(pAction->getParameter(0)->getString(), pAction->getParameter(1)->getString(), pAction->getParameter(2)->getInt(), pAction->getParameter(3)->getInt());
 			return;
 
 		case ScriptAction::TEAM_MOVE_TO_SUPPLY_SOURCE:
