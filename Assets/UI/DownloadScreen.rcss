@@ -56,5 +56,5 @@
 .dl-status .dot
 {
 	margin-right: 10dp;
-	background-color: #D1FD04;
+	background-color: #D8EAFF;
 }

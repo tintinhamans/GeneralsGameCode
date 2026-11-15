@@ -114,31 +114,31 @@
 
 .screen button.mm-item:hover
 {
-	color: #D1FD04;
+	color: #D8EAFF;
 	padding-left: 28dp;
-	border-left-color: #D1FD04;
+	border-left-color: #D8EAFF;
 	background-color: transparent;
 	decorator: horizontal-gradient(#2F37A8DC #2F37A800);
 }
 
 .screen button.mm-item:active
 {
-	color: #D1FD04;
-	border-left-color: #A8CC00;
+	color: #D8EAFF;
+	border-left-color: #8FB4FF;
 	background-color: transparent;
 	decorator: horizontal-gradient(#1E246EE6 #1E246E00);
 }
 
 .screen button.mm-item:focus-visible
 {
-	border-left-color: #D1FD04;
+	border-left-color: #D8EAFF;
 }
 
 /* The root item whose panel is open. */
 .screen button.mm-item.current, .screen button.mm-item.current:hover
 {
 	color: #FFFFFF;
-	border-left-color: #D1FD04;
+	border-left-color: #D8EAFF;
 	decorator: horizontal-gradient(#2F37A8F0 #2F37A840);
 }
 
@@ -159,7 +159,7 @@
 .mm-item:hover .mm-more, .mm-item.current .mm-more
 {
 	opacity: 1;
-	color: #D1FD04;
+	color: #D8EAFF;
 }
 
 .screen button.mm-quiet, .screen button.mm-back
@@ -208,7 +208,7 @@
 	font-weight: bold;
 	letter-spacing: 2dp;
 	text-transform: uppercase;
-	color: #D1FD04;
+	color: #D8EAFF;
 	white-space: nowrap;
 }
 
@@ -457,19 +457,19 @@
 .screen.mm-c button.mm-item:hover, .screen.mm-c button.mm-item:active
 {
 	padding-left: 30dp;
-	border-bottom-color: #D1FD04;
+	border-bottom-color: #D8EAFF;
 	decorator: vertical-gradient(#2F37A800 #2F37A8DC);
 }
 
 .screen.mm-c button.mm-item.current, .screen.mm-c button.mm-item.current:hover
 {
-	border-bottom-color: #D1FD04;
+	border-bottom-color: #D8EAFF;
 	decorator: vertical-gradient(#2F37A840 #2F37A8F0);
 }
 
 .screen.mm-c button.mm-item:focus-visible
 {
-	border-bottom-color: #D1FD04;
+	border-bottom-color: #D8EAFF;
 }
 
 .mm-c .mm-more
@@ -514,7 +514,7 @@
 {
 	padding: 0 22dp 0 24dp;
 	line-height: 64dp;
-	color: #D1FD04;
+	color: #D8EAFF;
 }
 
 .mm-c .mm-build
@@ -673,12 +673,12 @@
 	left: 34dp;
 }
 
-.d-item:hover .d-label, .d-item:active .d-label { color: #D1FD04; }
+.d-item:hover .d-label, .d-item:active .d-label { color: #D8EAFF; }
 .d-item:hover .d-desc { color: #C4CAE4; }
 
 /* The root item whose row is open. */
 .d-item.current .d-label { color: #FFFFFF; }
-.d-item.current:hover .d-label { color: #D1FD04; }
+.d-item.current:hover .d-label { color: #D8EAFF; }
 
 .screen button.d-exit
 {
@@ -709,14 +709,14 @@
 
 .screen button.d-exit:hover, .screen button.d-exit:active
 {
-	color: #D1FD04;
+	color: #D8EAFF;
 	background-color: transparent;
 }
 
 .d-exit:hover .d-exit-mark
 {
 	width: 34dp;
-	background-color: #D1FD04;
+	background-color: #D8EAFF;
 }
 
 /* ---- Card rows -------------------------------------------------------------------------------- */
@@ -760,7 +760,7 @@
 	flex: 0 0 auto;
 	padding: 5dp 20dp 5dp 14dp;
 	background-color: #070A1AD9;
-	border-left: 4dp #D1FD04;
+	border-left: 2dp #D8EAFF;
 	font-size: 22dp;
 	line-height: 30dp;
 	font-weight: bold;
@@ -1032,7 +1032,7 @@
 	background-color: #0A0E26;
 }
 
-.g-net .n0 { left: 86dp; top: 56dp; width: 28dp; height: 28dp; border-radius: 14dp; border-color: #D1FD04; background-color: #D1FD04; }
+.g-net .n0 { left: 86dp; top: 56dp; width: 28dp; height: 28dp; border-radius: 14dp; border-color: #D8EAFF; background-color: #D8EAFF; }
 .g-net .n1 { left: 10dp; top: 60dp; }
 .g-net .n2 { right: 10dp; top: 60dp; }
 .g-net .n3 { left: 90dp; top: 0; }
@@ -1073,8 +1073,8 @@
 
 .d-level .bar.on
 {
-	background-color: #D1FD04;
-	border-color: #E6FF6A;
+	background-color: #D8EAFF;
+	border-color: #E8F2FF;
 }
 
 /* ---- Faction emblem: over the map, above the card row ------------------------------------- */
@@ -1152,3 +1152,205 @@ body[lang=it] .d-label, body[lang=pt-BR] .d-label
 	font-size: 38dp;
 	letter-spacing: 3dp;
 }
+
+/* ==== Ice console ===============================================================================
+   Ronin @feature 11/11/2026 DX9: the logo's thin blue-white lines over navy, the yellow-green accent gone; main menu only (.mm-d).
+   Glows are font-effect glows and gradient decorators: the renderer draws no box-shadow. */
+.d-console
+{
+	display: none;
+}
+
+.mm-d .d-console
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	pointer-events: none;
+}
+
+/* Ronin @feature 11/11/2026 DX9: the radar, right of the menu, and the crosshairs are art (Art/, docs/tools/IceConsoleArt.py):
+   1dp lines drawn as geometry fell between pixel rows below 1080 lines and drew jagged. */
+.d-radar
+{
+	display: block;
+	position: absolute;
+	right: 180dp;
+	top: 230dp;
+	width: 560dp;
+	height: 560dp;
+	decorator: image(Art/RadarScope.png);
+}
+
+/* The sweep turns about the scope's centre once every 14 s, its trail behind it. */
+.d-sweep
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 560dp;
+	height: 560dp;
+	decorator: image(Art/RadarSweep.png);
+	animation: 14s linear infinite d-sweep;
+}
+
+@keyframes d-sweep
+{
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
+}
+
+.d-ret
+{
+	display: block;
+	position: absolute;
+	width: 100dp;
+	height: 100dp;
+	decorator: image(Art/Reticle.png);
+}
+
+.d-ret1 { right: 790dp; top: 170dp; }
+.d-ret2 { right: 110dp; top: 630dp; width: 72dp; height: 72dp; }
+
+/* Telemetry, top right inside the frame, as the loading screen's coordinates. */
+.d-telemetry
+{
+	position: absolute;
+	right: 64dp;
+	top: 140dp;
+	text-align: right;
+	font-family: "Share Tech Mono";
+	font-size: 15dp;
+	line-height: 22dp;
+	letter-spacing: 1dp;
+	color: #8FA9D6C8;
+	font-effect: glow(1dp 6dp 0dp 1dp #000000D0);
+}
+
+.d-cursor
+{
+	display: inline-block;
+	width: 8dp;
+	height: 14dp;
+	margin-left: 6dp;
+	background-color: #8FA9D6;
+	animation: 1.1s linear infinite d-blink;
+}
+
+@keyframes d-blink
+{
+	0% { opacity: 1; }
+	49% { opacity: 1; }
+	50% { opacity: 0; }
+	100% { opacity: 0; }
+}
+
+/* The fade: navy. */
+.mm-d .d-shade
+{
+	decorator: horizontal-gradient(#040A1CE0 #040A1C00);
+}
+
+/* The menu: Exo 2 Light titles, wide tracking; ice and a blue glow on hover and while its row is open. */
+.mm-d .d-label
+{
+	font-family: "Exo 2";
+	font-weight: 300;
+	letter-spacing: 5dp;
+	color: #EEF3FF;
+}
+
+.mm-d .d-item:hover .d-label, .mm-d .d-item:active .d-label, .mm-d .d-item.current .d-label, .mm-d .d-item.current:hover .d-label
+{
+	color: #D8EAFF;
+	font-effect: glow(1dp 10dp 0dp 1dp #000000E6), glow(2dp 10dp 0dp 0dp #4F86FFB0);
+}
+
+.mm-d .d-desc
+{
+	font-family: "Share Tech Mono";
+	font-weight: normal;
+	font-size: 15dp;
+	letter-spacing: 3dp;
+	color: #8FA9D6;
+}
+
+.mm-d .d-item:hover .d-desc { color: #C9DAF5; }
+
+.mm-d.screen button.d-item:hover
+{
+	decorator: horizontal-gradient(#4F86FF30 #4F86FF00);
+}
+
+.mm-d.screen button.d-item:active
+{
+	decorator: horizontal-gradient(#4F86FF55 #4F86FF00);
+}
+
+/* The streak (ShellCommon's .hq-scan) runs further here, almost to the right brackets. */
+.mm-d .d-item:hover .hq-scan, .mm-d .d-item.current .hq-scan
+{
+	width: 86%;
+}
+
+/* Exit: steel, ice on hover, a 1dp mark. */
+.mm-d.screen button.d-exit
+{
+	font-family: "Exo 2";
+	font-weight: normal;
+	letter-spacing: 4dp;
+	color: #8FA9D6;
+}
+
+.mm-d.screen button.d-exit:hover, .mm-d.screen button.d-exit:active
+{
+	color: #D8EAFF;
+}
+
+/* Ronin @feature 11/11/2026 DX9: a 1dp border, not a 1dp fill, which can miss every pixel row. */
+.mm-d .d-exit-mark
+{
+	height: 0;
+	background-color: transparent;
+	border-top: 1dp #4F86FFA0;
+}
+
+.mm-d .d-exit:hover .d-exit-mark
+{
+	background-color: transparent;
+	border-top-color: #D8EAFF;
+}
+
+/* The card rows: a 2dp ice tick on the row title, ice difficulty bars. */
+.mm-d .d-row-title
+{
+	border-left: 2dp #D8EAFF;
+	font-family: "Exo 2";
+	font-weight: normal;
+	letter-spacing: 4dp;
+}
+
+.mm-d .d-group-head
+{
+	font-family: "Exo 2";
+	font-weight: normal;
+	color: #8FA9D6;
+	border-bottom-color: #4F86FF70;
+}
+
+.mm-d .d-level .bar
+{
+	background-color: #4F86FF30;
+	border-color: #4F86FF60;
+}
+
+.mm-d .d-level .bar.on
+{
+	background-color: #D8EAFF;
+	border-color: #FFFFFF;
+}
+

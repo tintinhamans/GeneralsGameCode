@@ -11,6 +11,20 @@
 	<!-- Soft fade behind the menu, darkest at the screen's left edge; under the ruler. -->
 	<div class="d-shade"></div>
 
+	<!-- Ronin @feature 11/11/2026 DX9: the console layer over the shell map - a radar with its sweep, two crosshairs, telemetry
+	     as on the loading screen. Under the ruler and the menu; it takes no clicks (MainMenu.rcss, Ice console). -->
+	<div class="d-console">
+		<div class="d-radar"><div class="d-sweep"></div></div>
+		<div class="d-ret d-ret1"></div>
+		<div class="d-ret d-ret2"></div>
+		<div class="d-telemetry">
+			<div>N39.9042 E116.4074 // BEIJING SECTOR</div>
+			<div>N33.3152 E44.3661 // SCUD STORM CHARGING</div>
+			<div>N34.5553 E69.2075 // AIRFIELD SECURED</div>
+			<div>AWAITING ORDERS, GENERAL<span class="d-cursor"></span></div>
+		</div>
+	</div>
+
 	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
 	<!-- Header strip: logo left; online status and the local time right. -->

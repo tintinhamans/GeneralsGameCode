@@ -54,7 +54,7 @@
 
 .ms-search-box:hover .ms-search-mark
 {
-	border-color: #D1FD04;
+	border-color: #D8EAFF;
 }
 
 .screen .ms-search-input, .screen .ms-search-input:hover, .screen .ms-search-input:focus
@@ -138,7 +138,7 @@
 .map-tile.selected, .map-tile.selected:hover
 {
 	background-color: #2F37A8B4;
-	border-color: #D1FD04;
+	border-color: #D8EAFF;
 }
 
 .thumb

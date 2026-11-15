@@ -41,7 +41,7 @@ body.dc
 	font-size: 28dp;
 	line-height: 36dp;
 	padding-left: 15dp;
-	border-left: 4dp #D1FD04;
+	border-left: 2dp #D8EAFF;
 	font-weight: bold;
 	letter-spacing: 1dp;
 	text-transform: uppercase;
@@ -115,7 +115,7 @@ body.dc
 
 .dc-row .dc-votes
 {
-	color: #D1FD04;
+	color: #D8EAFF;
 	font-weight: bold;
 }
 

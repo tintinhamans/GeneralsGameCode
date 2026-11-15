@@ -102,7 +102,7 @@
 
 @keyframes cl-frame-lit
 {
-	from { border-color: #D1FD04; }
+	from { border-color: #D8EAFF; }
 	to { border-color: #8080FF46; }
 }
 
@@ -159,7 +159,7 @@
 {
 	display: block;
 	position: absolute;
-	border-color: #D1FD04;
+	border-color: #D8EAFF;
 }
 
 .cl-side-r .cl-br, .cl-side-r .cl-tk
@@ -221,7 +221,7 @@
 	margin: 10dp 14dp 0 14dp;
 	padding: 16dp 22dp 18dp 22dp;
 	background-color: #070A1AE6;
-	border-top: 3dp #D1FD04;
+	border-top: 3dp #D8EAFF;
 	opacity: 0;
 }
 
@@ -270,7 +270,7 @@
 	height: 34dp;
 	margin-left: 6dp;
 	vertical-align: -4dp;
-	background-color: #D1FD04;
+	background-color: #D8EAFF;
 }
 
 .cl-opponent .cl-caret
@@ -425,7 +425,7 @@
 	width: 256dp;
 	height: 256dp;
 	border-width: 4dp;
-	border-color: #D1FD04 #D1FD0400 #D1FD04 #D1FD0400;
+	border-color: #D8EAFF #D8EAFF00 #D8EAFF #D8EAFF00;
 	border-radius: 128dp;
 }
 
@@ -476,7 +476,7 @@
 
 .st-vs .cl-plate
 {
-	border-color: #D1FD04;
+	border-color: #D8EAFF;
 	animation: 0.5s 0.2s cubic-out 1 cl-plate-flash, 1.6s 0.7s sine-in-out infinite alternate cl-plate-glow;
 }
 
@@ -494,8 +494,8 @@
 
 @keyframes cl-plate-glow
 {
-	from { border-color: #D1FD04; }
-	to { border-color: #D1FD0450; }
+	from { border-color: #D8EAFF; }
+	to { border-color: #D8EAFF50; }
 }
 
 /* The "vs": dropped in from over twice its size, overshooting a touch. */
@@ -509,8 +509,8 @@
 	line-height: 112dp;
 	font-weight: bold;
 	text-align: center;
-	color: #D1FD04;
-	font-effect: glow(1dp 10dp 0dp 0dp #D1FD0460);
+	color: #D8EAFF;
+	font-effect: glow(1dp 10dp 0dp 0dp #D8EAFF60);
 	opacity: 0;
 }
 
@@ -534,7 +534,7 @@
 	top: 66dp;
 	width: 168dp;
 	height: 168dp;
-	border: 3dp #D1FD04;
+	border: 3dp #D8EAFF;
 	border-radius: 84dp;
 	opacity: 0;
 }

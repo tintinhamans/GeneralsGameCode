@@ -17,5 +17,5 @@ body.ld
 	align-items: center;
 	align-self: stretch;
 	padding: 0 26dp 0 22dp;
-	border-left: 4dp #D1FD04;
+	border-left: 2dp #D8EAFF;
 }

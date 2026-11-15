@@ -7,7 +7,7 @@
 		panel border       #2F37A8                -- thin blue border (47 55 168)
 		text               #FFFFFF                -- white
 		hilite / focus     #8080FF                -- hilite blue (128 128 255)
-		button hilite      #BAFF0C                -- PUSHBUTTON hilite text (186 255 12)
+		button hilite      #D8EAFF                -- ice; the .wnd PUSHBUTTON hilite was green (186 255 12)
 		muted text         #C0C0C0                -- disabled grey (192 192 192)
 		disabled text      #7C7E99                -- text of a disabled control
 
@@ -244,20 +244,20 @@ button, .button
 button:hover, .button:hover
 {
 	decorator: tiled-horizontal(Buttons-HiLite-Left, Buttons-HiLite-Middle, Buttons-HiLite-Right);
-	color: #BAFF0C;
+	color: #D8EAFF;
 }
 
 button:active, .button:active
 {
 	decorator: tiled-horizontal(Buttons-Pushed-Left, Buttons-Pushed-Middle, Buttons-Pushed-Right);
-	color: #BAFF0C;
+	color: #D8EAFF;
 }
 
 /* A toggle button that is on (sort/filter/tab buttons): drawn lit like a hovered button. */
 button.active
 {
 	decorator: tiled-horizontal(Buttons-HiLite-Left, Buttons-HiLite-Middle, Buttons-HiLite-Right);
-	color: #BAFF0C;
+	color: #D8EAFF;
 }
 
 /* <button> never gets :disabled in RmlUi; match the disabled attribute that data-attrif-disabled sets.
@@ -406,7 +406,7 @@ select selectbox option:hover
 
 select selectbox option:checked
 {
-	color: #BAFF0C;
+	color: #D8EAFF;
 }
 
 /* Colour choice: a swatch in front of the colour's name (a hollow swatch for Random). */
@@ -444,7 +444,7 @@ input.range sliderbar
 
 input.range sliderbar:hover
 {
-	background-color: #BAFF0C;
+	background-color: #D8EAFF;
 }
 
 input.range[disabled] sliderbar
@@ -781,9 +781,9 @@ scrolllog
 	display: block;
 	box-sizing: border-box;
 	height: 100%;
-	background-color: #D1FD04;
-	decorator: vertical-gradient(#E6FF6A #8FB000);
-	border-right: 2dp #F4FFC0;
+	background-color: #D8EAFF;
+	decorator: vertical-gradient(#E8F2FF #4F86FF);
+	border-right: 2dp #FFFFFF;
 }
 
 .rank-label
@@ -946,17 +946,18 @@ body.shell
 	            blue      #2F37A8 / #3A46D0 / #8080FF   brand, selected, hover/focus; the retail
 	                                         push buttons' blues (47 55 168 pushed, 0 0 255 lit)
 	            text      #EEF1FA  text-2 #A9B1CF  text-3 #7079A0 (labels, overlines)
-	            accent    #D1FD04            the .wnd push button HILITE green (209 253 4), the one
+	            accent    #D8EAFF            ice, the logo's blue-white (11/11/2026; was the .wnd HILITE green), the one
 	                                         "act here" colour: hover and pressed text, title tick,
 	                                         focus ring, selected-row bar, checks, badges
-	                      #E6FF6A / #A8CC00 / #8FB000   light / dark / pressed green, for fills
-	                                         (progress, rank); #0E1400 text on a green fill
+	                      #E8F2FF / #8FB4FF / #4F86FF   light / pressed / line blue, for fills
+	                                         (progress, rank); #040A1C text on an ice fill
 	            primary   blue plate #3F4CD8-#252E96, 2dp #6170FA edge, white text; on hover and
-	                                         focus the edge and text go green (.btn-cta)
+	                                         focus the edge and text go ice (.btn-cta)
 	                                         Selection fills and "on" segments stay blue.
-	            status    good #36D8B2 (teal, clear of the lime accent)  warn #E8D440  bad #FF5050
+	            status    good #36D8B2 (teal, clear of the ice accent)  warn #E8D440  bad #FF5050
 	                      buddy #14B1FF
-	  Type      Noto Sans for body text; bold text (titles, buttons, labels) draws in Exo 2 Bold, and
+	  Type      Noto Sans for body text; titles in Exo 2 Light, wide tracked; readouts in Share Tech Mono (Latin only: never on translated text); lines 1dp, steel #8FA9D6 or
+	            line blue #4F86FF, weight from glow (11/11/2026); and
 	            each script's own faces take over (RmlTextShaping). Title 40dp bold caps behind an accent tick; crumb and
 	            overline 15-16dp bold caps tracked 2dp; body 20dp (the .wnd Arial 12 at 800x600);
 	            small 16dp; primary button 24dp. Text drawn straight on the map (.on-map, the
@@ -1047,7 +1048,7 @@ body.screen
 	position: absolute;
 	box-sizing: border-box;
 	pointer-events: none;
-	border-color: #8E97F8B8;
+	border-color: #8FA9D6B8;
 }
 
 .screen-ruler .rs > div, .screen-ruler .rc > div
@@ -1059,7 +1060,7 @@ body.screen
 .hq .screen-ruler, .mm-d .screen-ruler
 {
 	border-width: 112dp 40dp 88dp 40dp;
-	border-color: #070A18A8;
+	border-color: #040A1CA8;
 }
 
 /* The tick lanes, 16dp deep, each closed by the frame line on its inner side. */
@@ -1070,7 +1071,7 @@ body.screen
 	top: -16dp;
 	height: 16dp;
 	border-bottom-width: 1dp;
-	decorator: ruler-ticks(bottom #8E97F8A0 none);
+	decorator: ruler-ticks(bottom #8FA9D6A0 none);
 }
 
 .hq .screen-ruler .rs-bottom, .mm-d .screen-ruler .rs-bottom
@@ -1080,7 +1081,7 @@ body.screen
 	bottom: -16dp;
 	height: 16dp;
 	border-top-width: 1dp;
-	decorator: ruler-ticks(top #8E97F8A0 none);
+	decorator: ruler-ticks(top #8FA9D6A0 none);
 }
 
 .hq .screen-ruler .rs-left, .mm-d .screen-ruler .rs-left
@@ -1090,7 +1091,7 @@ body.screen
 	bottom: 0;
 	width: 16dp;
 	border-right-width: 1dp;
-	decorator: ruler-ticks(right #8E97F8A0 none);
+	decorator: ruler-ticks(right #8FA9D6A0 none);
 }
 
 .hq .screen-ruler .rs-right, .mm-d .screen-ruler .rs-right
@@ -1100,7 +1101,7 @@ body.screen
 	bottom: 0;
 	width: 16dp;
 	border-left-width: 1dp;
-	decorator: ruler-ticks(left #8E97F8A0 none);
+	decorator: ruler-ticks(left #8FA9D6A0 none);
 }
 
 /* Corner pieces: a block where two tick lanes meet, its inner sides on the frame line. */
@@ -1109,7 +1110,7 @@ body.screen
 	width: 16dp;
 	height: 16dp;
 	border-width: 1dp;
-	background-color: #8E97F830;
+	background-color: #4F86FF30;
 }
 
 .hq .screen-ruler .rc > div, .mm-d .screen-ruler .rc > div
@@ -1120,7 +1121,7 @@ body.screen
 	top: 4dp;
 	width: 6dp;
 	height: 6dp;
-	background-color: #8E97F8C0;
+	background-color: #D8EAFFC0;
 }
 
 .hq .rc-tl, .mm-d .rc-tl { left: -16dp; top: -16dp; }
@@ -1136,7 +1137,7 @@ body.screen
 	top: 0;
 	height: 20dp;
 	border-bottom-width: 2dp;
-	decorator: ruler-ticks(top #8E97F8B8);
+	decorator: ruler-ticks(top #8FA9D6B8);
 }
 
 .ld .screen-ruler .rs-bottom, .mm-a .screen-ruler .rs-bottom, .mm-b .screen-ruler .rs-bottom, .mm-c .screen-ruler .rs-bottom
@@ -1146,7 +1147,7 @@ body.screen
 	bottom: 0;
 	height: 20dp;
 	border-top-width: 2dp;
-	decorator: ruler-ticks(bottom #8E97F8B8);
+	decorator: ruler-ticks(bottom #8FA9D6B8);
 }
 
 .ld .screen-ruler .rs-left, .mm-a .screen-ruler .rs-left, .mm-b .screen-ruler .rs-left, .mm-c .screen-ruler .rs-left
@@ -1156,7 +1157,7 @@ body.screen
 	bottom: 20dp;
 	width: 20dp;
 	border-right-width: 2dp;
-	decorator: ruler-ticks(left #8E97F8B8);
+	decorator: ruler-ticks(left #8FA9D6B8);
 }
 
 .ld .screen-ruler .rs-right, .mm-a .screen-ruler .rs-right, .mm-b .screen-ruler .rs-right, .mm-c .screen-ruler .rs-right
@@ -1166,7 +1167,7 @@ body.screen
 	bottom: 20dp;
 	width: 20dp;
 	border-left-width: 2dp;
-	decorator: ruler-ticks(right #8E97F8B8);
+	decorator: ruler-ticks(right #8FA9D6B8);
 }
 
 /* Content frame: a flex column. On a framed screen it keeps the 20dp gutter inside the frame line;
@@ -1241,16 +1242,18 @@ body.screen
 	margin: 0 8dp;
 }
 
+/* Ronin @feature 11/11/2026 DX9: titles in Exo 2 Light, wide tracked, behind a 2dp ice tick. */
 .screen-title
 {
+	font-family: "Exo 2";
 	font-size: 40dp;
 	line-height: 50dp;
-	font-weight: bold;
-	letter-spacing: 1dp;
+	font-weight: 300;
+	letter-spacing: 4dp;
 	text-transform: uppercase;
-	color: #FFFFFF;
-	border-left: 4dp #D1FD04;
-	padding-left: 15dp;
+	color: #EEF3FF;
+	border-left: 2dp #D8EAFF;
+	padding-left: 17dp;
 	white-space: nowrap;
 }
 
@@ -1308,11 +1311,12 @@ body.screen
 .overline
 {
 	display: block;
+	font-family: "Exo 2";
 	font-size: 15dp;
-	font-weight: bold;
-	letter-spacing: 2dp;
+	font-weight: normal;
+	letter-spacing: 3dp;
 	text-transform: uppercase;
-	color: #8089B0;
+	color: #8FA9D6;
 	white-space: nowrap;
 }
 
@@ -1390,25 +1394,26 @@ body.screen
 	transition: background-color color border-color 0.12s cubic-out;
 }
 
+/* Ronin @feature 11/11/2026 DX9: hover is ice text over a navy-blue wash, a steel edge; pressed, an ice edge. */
 .screen button:hover, .screen .button:hover
 {
 	decorator: none;
-	color: #D1FD04;
-	background-color: #2F37A8D2;
-	border-color: #8080FF;
+	color: #D8EAFF;
+	background-color: #1A2C66E0;
+	border-color: #8FA9D6;
 }
 
 .screen button:active, .screen .button:active
 {
 	decorator: none;
-	color: #D1FD04;
-	background-color: #1E246EE6;
-	border-color: #8080FF;
+	color: #D8EAFF;
+	background-color: #0F1C48E6;
+	border-color: #D8EAFF;
 }
 
 .screen button:focus-visible
 {
-	border-color: #D1FD04;
+	border-color: #D8EAFF;
 }
 
 .screen button[disabled], .screen button.disabled,
@@ -1440,15 +1445,15 @@ body.screen
 
 .screen button.btn-cta:hover, .screen button.btn-cta:focus-visible
 {
-	color: #D1FD04;
-	border-color: #D1FD04;
+	color: #D8EAFF;
+	border-color: #D8EAFF;
 	decorator: vertical-gradient(#4A58EA #2F37A8);
 }
 
 .screen button.btn-cta:active
 {
-	color: #D1FD04;
-	border-color: #A8CC00;
+	color: #D8EAFF;
+	border-color: #8FB4FF;
 	decorator: vertical-gradient(#1E246E #2A3290);
 }
 
@@ -1485,7 +1490,7 @@ body.screen
 
 .screen button.btn-back:active
 {
-	color: #D1FD04;
+	color: #D8EAFF;
 }
 
 .screen button.btn-back[disabled], .screen button.btn-back[disabled]:hover, .screen button.btn-back[disabled]:active
@@ -1540,8 +1545,8 @@ body.screen
 
 .screen .seg button.seg-item
 {
-	height: 38dp;
-	line-height: 38dp;
+	height: 37dp;
+	line-height: 37dp;
 	padding: 0 15dp;
 	min-width: 38dp;
 	font-size: 18dp;
@@ -1549,7 +1554,8 @@ body.screen
 	text-align: center;
 	color: #A9B1CF;
 	background-color: transparent;
-	border-width: 0;
+	border-width: 0 0 1dp 0;
+	border-color: transparent;
 	margin-left: 2dp;
 }
 
@@ -1564,10 +1570,12 @@ body.screen
 	background-color: #2F37A878;
 }
 
+/* Ronin @feature 11/11/2026 DX9: on - a blue fill, ice text over a 1dp ice underline. */
 .screen .seg button.seg-item.on, .screen .seg button.seg-item.on:hover
 {
-	color: #FFFFFF;
-	background-color: #3A46D0;
+	color: #D8EAFF;
+	background-color: #2E4FB8;
+	border-bottom-color: #D8EAFF;
 }
 
 .screen .seg button.seg-item[disabled], .screen .seg button.seg-item[disabled]:hover
@@ -1713,20 +1721,20 @@ label.check:hover
 	height: 25dp;
 	margin-right: 13dp;
 	background-color: #05070FDC;
-	border: 2dp #8080FF6E;
+	border: 1dp #8FA9D6A0;
 	transition: background-color border-color 0.12s cubic-out;
 }
 
 .screen label.check:hover input.checkbox
 {
-	border-color: #8080FF;
+	border-color: #D8EAFF;
 }
 
 .screen input.checkbox:checked, .screen input.checkbox:checked:hover
 {
 	decorator: none;
-	background-color: #D1FD04;
-	border: 6dp #0B1030;
+	background-color: #D8EAFF;
+	border: 5dp #0B1D45;
 }
 
 .screen input.checkbox[disabled], .screen input.checkbox[disabled]:checked
@@ -1741,26 +1749,30 @@ label.check:hover
 	height: 30dp;
 }
 
+/* Ronin @feature 11/11/2026 DX9: the track a 1dp blue line - a border, as a 1dp fill can miss every pixel row; a steel handle, ice
+   under the pointer. */
 .screen input.range slidertrack
 {
-	margin-top: 13dp;
-	height: 4dp;
-	background-color: #8080FF3C;
-	border-width: 0;
+	margin-top: 9dp;
+	height: 6dp;
+	background-color: transparent;
+	border-width: 0 0 1dp 0;
+	border-color: #4F86FFB0;
 }
 
 .screen input.range sliderbar
 {
-	width: 18dp;
+	width: 12dp;
 	height: 30dp;
-	background-color: #D7DCF0;
-	border-width: 0;
-	transition: background-color 0.12s cubic-out;
+	background-color: #8FA9D6;
+	border: 1dp #D8EAFF80;
+	transition: background-color border-color 0.12s cubic-out;
 }
 
 .screen input.range sliderbar:hover, .screen input.range sliderbar:active
 {
-	background-color: #D1FD04;
+	background-color: #D8EAFF;
+	border-color: #FFFFFF;
 }
 
 /* ---- Dropdown ----------------------------------------------------------------------------- */
@@ -1768,7 +1780,7 @@ label.check:hover
 {
 	height: 45dp;
 	background-color: #05070FD2;
-	border: 1dp #8080FF3C;
+	border: 1dp #8FA9D660;
 	color: #EEF1FA;
 	font-size: 19dp;
 	transition: background-color border-color 0.12s cubic-out;
@@ -1790,7 +1802,7 @@ label.check:hover
 	width: 0;
 	height: 0;
 	margin: 19dp 15dp 0 0;
-	border-top: 8dp #8080FF;
+	border-top: 8dp #8FA9D6;
 	border-left: 6dp transparent;
 	border-right: 6dp transparent;
 }
@@ -1798,7 +1810,7 @@ label.check:hover
 .screen select:hover, .screen select:focus
 {
 	background-color: #141A3EE6;
-	border-color: #8080FF;
+	border-color: #8FA9D6;
 }
 
 .screen select:hover selectarrow, .screen select:checked selectarrow
@@ -1824,7 +1836,7 @@ label.check:hover
 .screen select selectbox
 {
 	background-color: #090C1E;
-	border: 1dp #3A46D0;
+	border: 1dp #8FA9D6A0;
 	padding: 4dp 0;
 	max-height: 450dp;
 }
@@ -1845,7 +1857,7 @@ label.check:hover
 
 .screen select selectbox option:checked
 {
-	color: #D1FD04;
+	color: #D8EAFF;
 }
 
 /* An occupant select's SLOT_PLAYER entry: it only keeps a player's value matched, so it is disabled
@@ -1914,13 +1926,13 @@ label.check:hover
 .screen .send-row button.chat-send:hover
 {
 	background-color: #2F37A8D2;
-	border-color: #D1FD04;
+	border-color: #D8EAFF;
 }
 
 .screen .send-row button.chat-send:active
 {
 	background-color: #1E246EE6;
-	border-color: #D1FD04;
+	border-color: #D8EAFF;
 }
 
 .chat-send .send-arrow
@@ -1929,14 +1941,14 @@ label.check:hover
 	width: 0;
 	height: 0;
 	margin-left: 4dp;
-	border-left: 16dp #D1FD04;
+	border-left: 16dp #D8EAFF;
 	border-top: 10dp transparent;
 	border-bottom: 10dp transparent;
 }
 
 .chat-send:hover .send-arrow
 {
-	border-left-color: #D1FD04;
+	border-left-color: #D8EAFF;
 }
 
 .chat-send .send-emote
@@ -1946,12 +1958,12 @@ label.check:hover
 	font-size: 44dp;
 	line-height: 44dp;
 	font-weight: bold;
-	color: #D1FD04;
+	color: #D8EAFF;
 }
 
 .chat-send:hover .send-emote
 {
-	color: #D1FD04;
+	color: #D8EAFF;
 }
 
 /* ---- Scrollbar: slim, lit on hover -------------------------------------------------------- */
@@ -1992,11 +2004,11 @@ label.check:hover
 
 .screen scrollbarvertical sliderbar:active
 {
-	border-top-color: #E6FF6A;
-	border-left-color: #C8F000;
-	border-right-color: #8FB000;
-	border-bottom-color: #4A5C00;
-	decorator: horizontal-gradient(#D1FD04 #A8CC00);
+	border-top-color: #E8F2FF;
+	border-left-color: #D8EAFF;
+	border-right-color: #4F86FF;
+	border-bottom-color: #1E3A80;
+	decorator: horizontal-gradient(#D8EAFF #8FB4FF);
 }
 
 /* ---- List rows ---------------------------------------------------------------------------
@@ -2023,7 +2035,7 @@ label.check:hover
 .row-item.selected, .row-item.selected:hover
 {
 	background-color: #2F37A8A0;
-	border-left-color: #D1FD04;
+	border-left-color: #D8EAFF;
 }
 
 /* Column caption row over a list. */
@@ -2214,7 +2226,7 @@ mappreview .mp-art
 
 .marker:hover .marker-dot
 {
-	border-color: #D1FD04;
+	border-color: #D8EAFF;
 }
 
 .marker.occupied .marker-dot
@@ -2613,7 +2625,7 @@ mappreview .mp-art
 .screen .pc-add button:hover
 {
 	color: #FFFFFF;
-	border-color: #D1FD04;
+	border-color: #D8EAFF;
 	background-color: #2F37A878;
 }
 
@@ -2639,7 +2651,7 @@ mappreview .mp-art
 
 .pc-plus
 {
-	color: #D1FD04;
+	color: #D8EAFF;
 	margin-right: 4dp;
 }
 
@@ -2684,7 +2696,7 @@ mappreview .mp-art
 {
 	background-color: #141A3EF0;
 	border-color: #8080FF;
-	border-bottom-color: #D1FD04;
+	border-bottom-color: #D8EAFF;
 }
 
 .screen button.tile:active
@@ -2719,7 +2731,7 @@ mappreview .mp-art
 
 .tile:hover .tile-title
 {
-	color: #D1FD04;
+	color: #D8EAFF;
 }
 
 /* ---- Tab rail: categories down the side of a screen ------------------------------------------ */
@@ -2738,34 +2750,35 @@ mappreview .mp-art
 	width: 100%;
 	height: 62dp;
 	line-height: 62dp;
-	padding: 0 24dp 0 22dp;
+	padding: 0 24dp 0 25dp;
 	text-align: left;
 	font-size: 22dp;
 	letter-spacing: 2dp;
 	color: #A9B1CF;
 	background-color: transparent;
 	border-width: 0;
-	border-left: 4dp transparent;
+	border-left: 1dp transparent;
 }
 
 .screen .tab-rail button.rail-item:hover
 {
 	color: #FFFFFF;
-	decorator: horizontal-gradient(#2F37A8B4 #2F37A800);
+	decorator: horizontal-gradient(#1C3577C8 #1C357700);
 }
 
+/* Ronin @feature 11/11/2026 DX9: the open category - ice text, a 1dp ice edge, a navy-blue wash. */
 .screen .tab-rail button.rail-item.on, .screen .tab-rail button.rail-item.on:hover
 {
-	color: #FFFFFF;
-	border-left-color: #D1FD04;
-	decorator: horizontal-gradient(#2F37A8F0 #2F37A840);
+	color: #D8EAFF;
+	border-left-color: #D8EAFF;
+	decorator: horizontal-gradient(#1C3577F0 #1C357740);
 }
 
-/* With the HQ brackets (.hq-brackets): the scan line under the label. */
+/* With the HQ brackets (.hq-brackets): the streak under the label. */
 .rail-item .hq-scan
 {
-	left: 22dp;
-	bottom: 10dp;
+	left: 25dp;
+	bottom: 3dp;
 }
 
 /* ---- Progress bar --------------------------------------------------------------------------- */
@@ -2785,8 +2798,8 @@ mappreview .mp-art
 	display: block;
 	box-sizing: border-box;
 	height: 100%;
-	decorator: vertical-gradient(#E6FF6A #8FB000);
-	border-right: 2dp #F4FFC0;
+	decorator: vertical-gradient(#E8F2FF #4F86FF);
+	border-right: 2dp #FFFFFF;
 }
 
 /* ---- Chips ------------------------------------------------------------------------------------ */
@@ -2805,7 +2818,7 @@ mappreview .mp-art
 }
 
 .chip-label.good { color: #041410; background-color: #36D8B2; }
-.chip-label.accent { color: #0E1400; background-color: #D1FD04; }
+.chip-label.accent { color: #040A1C; background-color: #D8EAFF; }
 .chip-label.warn { color: #1A1604; background-color: #E8D440; }
 
 /* Status chip: a setting shown, not edited. On: a filled green dot on a green tint. Off: a hollow
@@ -2865,7 +2878,7 @@ mappreview .mp-art
 
 .accent-overline
 {
-	color: #D1FD04;
+	color: #D8EAFF;
 }
 
 /* ---- Persona: a player's rank header and career record ---------------------------------------
@@ -2911,8 +2924,8 @@ mappreview .mp-art
 	width: 54dp;
 	height: 54dp;
 	background-color: #070A1AF0;
-	border-top: 1dp #D1FD04;
-	border-left: 1dp #D1FD04;
+	border-top: 1dp #D8EAFF;
+	border-left: 1dp #D8EAFF;
 }
 
 .persona-badge mappedimage
@@ -3140,14 +3153,15 @@ body.modal.over-game
 .modal-title
 {
 	display: block;
+	font-family: "Exo 2";
 	font-size: 30dp;
 	line-height: 38dp;
-	font-weight: bold;
-	letter-spacing: 1dp;
+	font-weight: 300;
+	letter-spacing: 3dp;
 	text-transform: uppercase;
-	color: #FFFFFF;
-	border-left: 4dp #D1FD04;
-	padding-left: 15dp;
+	color: #EEF3FF;
+	border-left: 2dp #D8EAFF;
+	padding-left: 17dp;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -3417,7 +3431,7 @@ body.modal.over-game
 	height: 44dp;
 	margin-left: 22dp;
 	padding-left: 26dp;
-	border-left: 1dp #8080FF38;
+	border-left: 1dp #4F86FF50;
 }
 
 .hq-crumb
@@ -3436,17 +3450,18 @@ body.modal.over-game
 {
 	flex: 0 1 auto;
 	min-width: 0;
+	font-family: "Exo 2";
 	font-size: 34dp;
 	line-height: 40dp;
-	font-weight: bold;
-	letter-spacing: 2dp;
+	font-weight: 300;
+	letter-spacing: 4dp;
 	text-transform: uppercase;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	color: #FFFFFF;
-	border-left: 4dp #D1FD04;
-	padding-left: 14dp;
+	color: #EEF3FF;
+	border-left: 2dp #D8EAFF;
+	padding-left: 16dp;
 }
 
 /* Small controls a screen keeps in the strip (Options, the match summary): quiet until hovered. */
@@ -3478,9 +3493,9 @@ body.modal.over-game
 
 .screen .hq-aside > button:hover
 {
-	color: #D1FD04;
+	color: #D8EAFF;
 	background-color: #141A3EE6;
-	border-color: #D1FD04;
+	border-color: #D8EAFF;
 }
 
 .hq-status
@@ -3496,7 +3511,7 @@ body.modal.over-game
 {
 	margin-left: 20dp;
 	padding-left: 20dp;
-	border-left: 1dp #8080FF38;
+	border-left: 1dp #4F86FF50;
 }
 
 .hq-pill
@@ -3506,14 +3521,15 @@ body.modal.over-game
 	align-items: center;
 	height: 38dp;
 	padding: 0 18dp 0 16dp;
+	font-family: "Share Tech Mono";
 	font-size: 16dp;
-	font-weight: bold;
+	font-weight: normal;
 	letter-spacing: 2dp;
 	text-transform: uppercase;
 	white-space: nowrap;
 	color: #EEF1FA;
-	background-color: #0E1433;
-	border: 1dp #8080FF40;
+	background-color: #0B1D45A0;
+	border: 1dp #8FA9D670;
 }
 
 .hq-dot
@@ -3528,9 +3544,9 @@ body.modal.over-game
 
 .hq-off
 {
-	color: #7079A0;
+	color: #8FA9D6;
 	background-color: transparent;
-	border-color: #8080FF24;
+	border-color: #8FA9D640;
 }
 
 .hq-off .hq-dot
@@ -3539,18 +3555,21 @@ body.modal.over-game
 	border: 2dp #5A6390;
 }
 
+/* Ronin @feature 11/11/2026 DX9: a 1dp border, not a 1dp fill, which can miss every pixel column. */
 .hq-sep
 {
 	display: inline-block;
-	width: 1dp;
+	width: 0;
 	height: 18dp;
 	margin: 0 14dp;
-	background-color: #8080FF50;
+	border-left: 1dp #4F86FF60;
 }
 
+/* Ronin @bugfix 11/11/2026 DX9: a player's name keeps Noto Sans, which has every script the pill can hold. */
 .hq-name
 {
-	color: #D1FD04;
+	font-family: "Noto Sans";
+	color: #D8EAFF;
 	letter-spacing: 1dp;
 	text-transform: none;
 	font-size: 18dp;
@@ -3560,13 +3579,14 @@ body.modal.over-game
 {
 	margin-left: 20dp;
 	padding-left: 20dp;
-	border-left: 1dp #8080FF38;
+	border-left: 1dp #4F86FF50;
 	height: 38dp;
 	line-height: 38dp;
-	font-size: 24dp;
-	font-weight: bold;
-	letter-spacing: 3dp;
-	color: #A9B1CF;
+	font-family: "Exo 2";
+	font-size: 26dp;
+	font-weight: 300;
+	letter-spacing: 4dp;
+	color: #D8EAFF;
 }
 
 /* 5:4 and 4:3: the strip keeps the title; the logo shrinks and the count gives way to the name. */
@@ -3595,13 +3615,14 @@ body.modal.over-game
 	height: 42dp;
 	padding-right: 20dp;
 	margin-right: 4dp;
-	border-right: 1dp #8080FF38;
+	border-right: 1dp #4F86FF50;
+	font-family: "Share Tech Mono";
 	font-size: 14dp;
-	font-weight: bold;
+	font-weight: normal;
 	letter-spacing: 3dp;
 	text-transform: uppercase;
 	white-space: nowrap;
-	color: #D1FD04;
+	color: #D8EAFF;
 }
 
 .hq-tag .hq-dot
@@ -3686,16 +3707,17 @@ body.modal.over-game
 {
 	margin-left: 26dp;
 	padding-left: 26dp;
-	border-left: 2dp #8080FF60;
+	border-left: 1dp #4F86FF70;
 }
 
 .hq-tk-static
 {
 	flex: 1 1 auto;
+	font-family: "Share Tech Mono";
 	font-size: 15dp;
 	letter-spacing: 1dp;
 	white-space: nowrap;
-	color: #7079A0;
+	color: #8FA9D6;
 }
 
 /* ---- Brackets and scan line ------------------------------------------------------------------- */
@@ -3708,51 +3730,53 @@ body.modal.over-game
 {
 	display: block;
 	position: absolute;
-	width: 14dp;
-	height: 14dp;
-	border-color: #D1FD04;
+	width: 16dp;
+	height: 16dp;
+	border-color: #D8EAFF;
 	opacity: 0;
 	transition: opacity 0.12s cubic-out;
 }
 
-.hq-br-tl { left: 0; top: 0; border-left-width: 2dp; border-top-width: 2dp; }
-.hq-br-tr { right: 0; top: 0; border-right-width: 2dp; border-top-width: 2dp; }
-.hq-br-bl { left: 0; bottom: 0; border-left-width: 2dp; border-bottom-width: 2dp; }
-.hq-br-br { right: 0; bottom: 0; border-right-width: 2dp; border-bottom-width: 2dp; }
+.hq-br-tl { left: 0; top: 0; border-left-width: 1dp; border-top-width: 1dp; }
+.hq-br-tr { right: 0; top: 0; border-right-width: 1dp; border-top-width: 1dp; }
+.hq-br-bl { left: 0; bottom: 0; border-left-width: 1dp; border-bottom-width: 1dp; }
+.hq-br-br { right: 0; bottom: 0; border-right-width: 1dp; border-bottom-width: 1dp; }
 
-/* Drawn out from the left under the item's label; the host moves it under its own label. */
+/* Ronin @feature 11/11/2026 DX9: the streak (Art/Streak.png), a white core in a blue glow, 15dp so it never falls between pixel
+   rows; drawn out from the left under the label on hover over 0.45 s, gone at once when the pointer leaves. */
 .hq-scan
 {
 	display: block;
 	position: absolute;
 	left: 0;
-	bottom: 4dp;
+	bottom: -3dp;
 	width: 0%;
-	height: 2dp;
-	decorator: horizontal-gradient(#D1FD04 #D1FD0400);
-	transition: width 0.22s cubic-out;
+	height: 15dp;
+	decorator: image(Art/Streak.png);
 }
 
 .hq-brackets:hover .hq-br, .hq-brackets:focus-visible .hq-br { opacity: 1; }
-.hq-brackets:hover .hq-scan { width: 70%; }
+.hq-brackets:hover .hq-scan { width: 70%; transition: width 0.45s quadratic-out; }
 
-/* The open or chosen one: brackets and scan line stay, quieter. */
+/* The open or chosen one: brackets and streak stay, quieter. */
 .hq-brackets.current .hq-br, .hq-brackets.selected .hq-br { opacity: 0.55; }
-.hq-brackets.current .hq-scan, .hq-brackets.selected .hq-scan { width: 70%; }
+.hq-brackets.current .hq-scan, .hq-brackets.selected .hq-scan { width: 70%; transition: width 0.45s quadratic-out; }
 .hq-brackets.current:hover .hq-br, .hq-brackets.selected:hover .hq-br { opacity: 1; }
 
 /* ---- Section heading ------------------------------------------------------------------------- */
+/* Ronin @bugfix 11/11/2026 DX9: Exo 2 Regular, not the mono - it has no Polish or Cyrillic letters. */
 .hq-section
 {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
+	font-family: "Exo 2";
 	font-size: 15dp;
-	font-weight: bold;
-	letter-spacing: 2dp;
+	font-weight: normal;
+	letter-spacing: 3dp;
 	text-transform: uppercase;
 	white-space: nowrap;
-	color: #B8C0DE;
+	color: #8FA9D6;
 }
 
 /* ---- Art card ------------------------------------------------------------------------------------ */
@@ -3776,13 +3800,13 @@ body.modal.over-game
 .screen button.hq-card:hover, .screen button.hq-card:focus-visible
 {
 	background-color: #0B1030F0;
-	border-color: #D1FD04;
+	border-color: #D8EAFF;
 }
 
 .screen button.hq-card:active
 {
 	background-color: #141A3EF0;
-	border-color: #A8CC00;
+	border-color: #8FB4FF;
 }
 
 .hq-edge
@@ -3792,14 +3816,14 @@ body.modal.over-game
 	left: -1dp;
 	right: -1dp;
 	top: -1dp;
-	height: 4dp;
+	height: 2dp;
 	background-color: transparent;
 	transition: background-color 0.12s cubic-out;
 }
 
 button.hq-card:hover .hq-edge, button.hq-card:focus-visible .hq-edge
 {
-	background-color: #D1FD04;
+	background-color: #D8EAFF;
 }
 
 .hq-art
@@ -3832,7 +3856,7 @@ button.hq-card:hover .hq-edge, button.hq-card:focus-visible .hq-edge
 
 button.hq-card:hover .hq-card-title
 {
-	color: #D1FD04;
+	color: #D8EAFF;
 }
 
 .hq-card-desc
@@ -3956,7 +3980,7 @@ button.hq-card:hover .hq-card-title
 .su-cap span
 {
 	margin-right: 6dp;
-	color: #D1FD04;
+	color: #D8EAFF;
 }
 
 .screen button.su-map-btn
@@ -4016,7 +4040,7 @@ button.hq-card:hover .hq-card-title
 .screen .su-fill button:hover, .screen .prow-add button:hover
 {
 	color: #FFFFFF;
-	border-color: #D1FD04;
+	border-color: #D8EAFF;
 	background-color: #2F37A878;
 }
 
@@ -4068,7 +4092,7 @@ button.hq-card:hover .hq-card-title
 .su-group-no
 {
 	margin-left: 8dp;
-	color: #D1FD04;
+	color: #D8EAFF;
 }
 
 /* The fold over the slots the map has no room for. */
@@ -4106,7 +4130,7 @@ button.hq-card:hover .hq-card-title
 
 .su-fold:hover .su-fold-mark
 {
-	color: #D1FD04;
+	color: #D8EAFF;
 }
 
 .su-fold-count
@@ -4169,7 +4193,7 @@ button.hq-card:hover .hq-card-title
 
 .screen button.prow-chip:hover, .screen button.prow-chip.open
 {
-	border-color: #D1FD04;
+	border-color: #D8EAFF;
 }
 
 .screen button.prow-chip[disabled], .screen button.prow-chip[disabled]:hover
@@ -4336,7 +4360,7 @@ button.hq-card:hover .hq-card-title
 	padding: 8dp 10dp;
 	background-color: #090C1EF5;
 	border: 1dp #3A46D0;
-	border-top: 2dp #D1FD04;
+	border-top: 2dp #D8EAFF;
 	animation: 0.14s cubic-out pop-in;
 }
 
@@ -4445,19 +4469,19 @@ button.hq-card:hover .hq-card-title
 	margin-right: 20dp;
 	padding: 0 20dp 0 16dp;
 	background-color: #070A1AD9;
-	border-left: 3dp #D1FD04;
+	border-left: 2dp #D8EAFF;
 	font-size: 17dp;
 	font-weight: bold;
 	letter-spacing: 1.5dp;
 	text-transform: uppercase;
 	white-space: nowrap;
-	color: #D1FD04;
+	color: #D8EAFF;
 }
 
 .su-ready .dot
 {
 	margin-right: 12dp;
-	background-color: #D1FD04;
+	background-color: #D8EAFF;
 }
 
 /* Up to three reasons fit the bar's 58dp; more are cut (Start still refuses with its message). */

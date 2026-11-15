@@ -42,17 +42,19 @@ body.screen
 	padding-right: 8dp;
 }
 
+/* Ronin @feature 11/11/2026 DX9: section heads in Exo 2 Light caps over a 1dp blue rule. */
 .opt-head
 {
 	display: block;
 	padding: 14dp 0 16dp 0;
+	font-family: "Exo 2";
 	font-size: 26dp;
 	line-height: 32dp;
-	font-weight: bold;
-	letter-spacing: 2dp;
+	font-weight: 300;
+	letter-spacing: 4dp;
 	text-transform: uppercase;
-	color: #FFFFFF;
-	border-bottom: 1dp #8080FF28;
+	color: #EEF3FF;
+	border-bottom: 1dp #4F86FF60;
 }
 
 /* ---- Rows: label and its description on the left, the control in a fixed column on the right -- */
@@ -129,14 +131,16 @@ body.screen
 	min-width: 0;
 }
 
+/* Ronin @feature 11/11/2026 DX9: a readout, in mono. */
 .opt-value
 {
 	flex: 0 0 64dp;
 	width: 64dp;
 	text-align: right;
+	font-family: "Share Tech Mono";
 	font-size: 20dp;
-	font-weight: bold;
-	color: #EEF1FA;
+	font-weight: normal;
+	color: #D8EAFF;
 }
 
 .opt-row.disabled .opt-value
