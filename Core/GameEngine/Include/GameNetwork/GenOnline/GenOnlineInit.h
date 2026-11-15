@@ -111,19 +111,17 @@ public:
 	}
 
 	// Calls a hub method that answers with a Result. Without a hub session the callback reports a transport error.
+	// A standby Result sends the call again later without its callback, see StandbyHubCalls.
 	template <class R>
 	void InvokeHub(const R& request, std::function<void(const GenOnlineRealtime::InvokeOutcome&)> callback)
 	{
-		if (m_pHubSession != nullptr)
-		{
-			m_pHubSession->Invoke(request, callback, HubNowMs());
-		}
-		else if (callback)
-		{
-			GenOnlineRealtime::InvokeOutcome outcome;
-			outcome.transportError = "not connected";
-			callback(outcome);
-		}
+		static_assert(R::EXPECTS_RESULT, "use FireHub for methods without a Result");
+		GenOnlineRealtime::ParkedHubCall call;
+		call.method = R::METHOD;
+		call.request = nlohmann::json(request);
+		call.callback = callback;
+		call.fnWanted = HubCallWanted(call.method, call.request);
+		SendHubCall(call);
 	}
 
 	// Sends a fire-and-forget hub method. Returns false without a ready hub session.
@@ -235,7 +233,16 @@ private:
 	void CollectMeshConnectivity(std::vector<int64_t>& connected, std::vector<int64_t>& connecting);
 	void RegisterPeerHandlers();
 
+	// Sends one try of a hub call. A standby Result parks it in m_standbyHubCalls.
+	void SendHubCall(const GenOnlineRealtime::ParkedHubCall& call);
+	// Sends the parked hub calls that are due and drops the stale ones.
+	void TickStandbyHubCalls();
+	// The guard of a parked hub call. It holds while the signed in user and, for lobby methods, the lobby stay the same.
+	static std::function<bool()> HubCallWanted(const std::string& method, const nlohmann::json& request);
+
 	std::unique_ptr<GenOnlineRealtime::HubSession> m_pHubSession;
+	// Hub calls that got a standby Result. Touched on the main thread only.
+	GenOnlineRealtime::StandbyHubCalls m_standbyHubCalls;
 	mutable GenOnlineRealtime::ReconnectPolicy m_hubReconnectPolicy;
 	bool m_bHubReadyOnce = false;
 	// One token refresh and session registration per connection that never reached Ready.

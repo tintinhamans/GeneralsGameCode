@@ -327,6 +327,12 @@ public:
 		return m_CurrentLobby;
 	}
 
+	// Changes with every join or create attempt and whenever the local lobby state is torn down.
+	uint64_t GetLobbyJoinGeneration() const
+	{
+		return m_LobbyJoinGeneration;
+	}
+
 	GenOnlineGame* GetCurrentGame()
 	{
 		return TheGenOnlineGame;

@@ -1707,6 +1707,154 @@ static void TestStandbyRetry()
 	CHECK(standby.NextDelayMs(true, 74000) == 1000);
 }
 
+static InvokeOutcome FailedResult(const std::string& code, const json& params)
+{
+	InvokeOutcome outcome;
+	outcome.delivered = true;
+	outcome.result.ok = false;
+	outcome.result.code = code;
+	outcome.result.params = params;
+	return outcome;
+}
+
+static void TestStandbyHubCalls()
+{
+	const InvokeOutcome standby = FailedResult("service.unavailable", json{ { "what", "standby" } });
+	CHECK(IsStandbyResult(standby));
+	CHECK(!IsStandbyResult(FailedResult("service.unavailable", json{ { "what", "database" } })));
+	CHECK(!IsStandbyResult(FailedResult("lobby.full", json{ { "what", "standby" } })));
+	InvokeOutcome lost;
+	lost.transportError = "connection lost";
+	CHECK(!IsStandbyResult(lost));
+
+	auto makeCall = [&](const std::string& method, int& calls, InvokeOutcome& last)
+	{
+		ParkedHubCall call;
+		call.method = method;
+		call.request = json{ { "lobby_id", 7 } };
+		call.callback = [&calls, &last](const InvokeOutcome& outcome)
+		{
+			++calls;
+			last = outcome;
+		};
+		return call;
+	};
+
+	// A standby Result parks the call without its callback.
+	StandbyHubCalls queue;
+	int calls = 0;
+	InvokeOutcome last;
+	CHECK(queue.Complete(makeCall("SetReady", calls, last), standby, 1000));
+	CHECK(calls == 0);
+	CHECK(queue.Size() == 1);
+
+	// Another failure code and a transport error run the callback at once.
+	int otherCalls = 0;
+	InvokeOutcome otherLast;
+	CHECK(!queue.Complete(makeCall("SetReady", otherCalls, otherLast), FailedResult("lobby.full", json::object()), 1000));
+	CHECK(otherCalls == 1);
+	CHECK(otherLast.Code() == "lobby.full");
+	CHECK(!queue.Complete(makeCall("SetReady", otherCalls, otherLast), lost, 1000));
+	CHECK(otherCalls == 2);
+	CHECK(otherLast.transportError == "connection lost");
+	CHECK(queue.Size() == 1);
+
+	// The call waits for a ready session and for one second after its standby answer.
+	CHECK(queue.TakeDue(1999, true).empty());
+	CHECK(queue.TakeDue(2000, false).empty());
+	CHECK(queue.TakeDue(5000, false).empty());
+	std::vector<ParkedHubCall> due = queue.TakeDue(5000, true);
+	CHECK(due.size() == 1);
+	CHECK(queue.Size() == 0);
+	CHECK(calls == 0);
+	CHECK(due.size() == 1 && due[0].method == "SetReady" && due[0].request["lobby_id"] == 7);
+
+	// Standby answers in a row park the call again until 10 seconds passed since the first one.
+	ParkedHubCall resent = due[0];
+	CHECK(queue.Complete(resent, standby, 6000));
+	due = queue.TakeDue(7000, true);
+	CHECK(due.size() == 1);
+	CHECK(queue.Complete(due[0], standby, 10999));
+	due = queue.TakeDue(11999, true);
+	CHECK(due.size() == 1);
+	CHECK(!queue.Complete(due[0], standby, 12000));
+	CHECK(calls == 1);
+	CHECK(IsStandbyResult(last));
+	CHECK(queue.Size() == 0);
+	CHECK(queue.TakeDue(30000, true).empty());
+	CHECK(calls == 1);
+
+	// Parked calls come back in the order they were parked.
+	int callsA = 0;
+	int callsB = 0;
+	int callsC = 0;
+	InvokeOutcome lastA;
+	InvokeOutcome lastB;
+	InvokeOutcome lastC;
+	CHECK(queue.Complete(makeCall("A", callsA, lastA), standby, 100));
+	CHECK(queue.Complete(makeCall("B", callsB, lastB), standby, 200));
+	CHECK(queue.Complete(makeCall("C", callsC, lastC), standby, 300));
+	due = queue.TakeDue(1250, true);
+	CHECK(due.size() == 2 && due[0].method == "A" && due[1].method == "B");
+	due = queue.TakeDue(1300, true);
+	CHECK(due.size() == 1 && due[0].method == "C");
+
+	// A stale call is dropped without its callback, ready or not.
+	bool wanted = true;
+	int staleCalls = 0;
+	InvokeOutcome staleLast;
+	ParkedHubCall stale = makeCall("JoinLobby", staleCalls, staleLast);
+	stale.fnWanted = [&wanted]()
+	{
+		return wanted;
+	};
+	CHECK(queue.Complete(stale, standby, 100));
+	int dropped = 0;
+	auto onDropped = [&dropped](const ParkedHubCall&)
+	{
+		++dropped;
+	};
+	CHECK(queue.TakeDue(500, false, onDropped).empty());
+	CHECK(queue.Size() == 1);
+	wanted = false;
+	CHECK(queue.TakeDue(500, false, onDropped).empty());
+	CHECK(queue.Size() == 0);
+	CHECK(dropped == 1);
+	CHECK(staleCalls == 0);
+
+	// Clear drops every parked call without its callback.
+	CHECK(queue.Complete(makeCall("A", callsA, lastA), standby, 100));
+	queue.Clear();
+	CHECK(queue.Size() == 0);
+	CHECK(queue.TakeDue(5000, true).empty());
+	CHECK(callsA == 0);
+
+	// A call that waits for a ready session longer than the standby window fails with its last answer.
+	int waitCalls = 0;
+	InvokeOutcome waitLast;
+	CHECK(queue.Complete(makeCall("SetReady", waitCalls, waitLast), standby, 1000));
+	CHECK(queue.TakeDue(10999, false).empty());
+	CHECK(waitCalls == 0 && queue.Size() == 1);
+	CHECK(queue.TakeDue(11000, false).empty());
+	CHECK(waitCalls == 1 && IsStandbyResult(waitLast));
+	CHECK(queue.Size() == 0);
+
+	// The wait for a ready session counts from the last standby answer, not the first one.
+	int lateCalls = 0;
+	InvokeOutcome lateLast;
+	CHECK(queue.Complete(makeCall("SetReady", lateCalls, lateLast), standby, 1000));
+	due = queue.TakeDue(2000, true);
+	CHECK(due.size() == 1);
+	CHECK(queue.Complete(due[0], standby, 9000));
+	CHECK(queue.TakeDue(11000, false).empty());
+	CHECK(lateCalls == 0 && queue.Size() == 1);
+	CHECK(queue.TakeDue(18999, false).empty());
+	CHECK(lateCalls == 0 && queue.Size() == 1);
+	CHECK(queue.TakeDue(19000, false).empty());
+	CHECK(lateCalls == 1 && IsStandbyResult(lateLast));
+	CHECK(queue.Size() == 0);
+}
+
 static void TestRestPaths()
 {
 	CHECK(RestFriendRequestsPath() == "/api/v1/me/friend_requests");
@@ -2172,6 +2320,7 @@ int main(int argc, char** argv)
 	TestApiError();
 	TestRestRetry();
 	TestStandbyRetry();
+	TestStandbyHubCalls();
 	TestRestPaths();
 	TestLegacyRouteReplacements(argv[3]);
 	TestConnectionTimeline();
