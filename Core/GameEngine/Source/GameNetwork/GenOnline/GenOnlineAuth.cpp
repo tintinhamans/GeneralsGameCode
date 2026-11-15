@@ -291,9 +291,21 @@ void GenOnlineAuthInterface::LogoutOfMyAccount(std::function<void()> fnDone)
 	const std::string strOrigin = ServiceOriginV1();
 	const std::string strRefreshToken = m_strRefreshToken;
 	const std::string strURI = strOrigin + "/api/v1/auth/session";
-	std::map<std::string, std::string> mapHeaders;
-	mapHeaders["Authorization"] = "Bearer " + m_strToken;
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendDELETERequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "",
+	const std::string strAuthorization = "Bearer " + m_strToken;
+	// A standby retry ends with the logout, so a late answer never revokes during a new sign-in.
+	GenOnlineRealtimeBridge::SendWithStandbyRetry("DELETE /api/v1/auth/session",
+		[strURI, strAuthorization](GenOnlineRealtimeBridge::HTTPDoneCallback fnAnswer)
+		{
+			GenOnlineServicesManager* pManager = GenOnlineServicesManager::GetInstance();
+			if (pManager == nullptr || pManager->GetHTTPManager() == nullptr)
+			{
+				fnAnswer(false, 0, std::string(), nullptr);
+				return;
+			}
+			std::map<std::string, std::string> mapHeaders;
+			mapHeaders["Authorization"] = strAuthorization;
+			pManager->GetHTTPManager()->SendDELETERequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "", fnAnswer);
+		},
 		[this, strOrigin, strRefreshToken](bool, int statusCode, std::string, HTTPRequest*)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Session ended with status %d", statusCode);
@@ -301,6 +313,10 @@ void GenOnlineAuthInterface::LogoutOfMyAccount(std::function<void()> fnDone)
 				{
 					FinishLogoutV1();
 				});
+		},
+		[this]()
+		{
+			return GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>() == this && m_logoutDoneV1 != nullptr;
 		});
 	DeleteSavedCredentials();
 	ClearSessionV1();
@@ -551,15 +567,31 @@ void GenOnlineAuthInterface::RegisterSessionV1(std::function<void(int statusCode
 	request.anticheat_id = GenOnlinePluginHost::GetAnticheatIdentifier();
 	const std::string strBody = nlohmann::json(request).dump();
 
-	const std::string strURI = ServiceOriginV1() + "/api/v1/auth/session";
-	std::map<std::string, std::string> mapHeaders;
-	mapHeaders["Content-Type"] = "application/json";
-	mapHeaders["Authorization"] = "Bearer " + m_strToken;
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strBody.c_str(),
+	// A cancelled sign-in, a new sign-in or a logout during a standby wait drops the registration.
+	const int loginAttempt = m_loginAttempt;
+	GenOnlineRealtimeBridge::SendWithStandbyRetry("POST /api/v1/auth/session",
+		[this, strBody](GenOnlineRealtimeBridge::HTTPDoneCallback fnAnswer)
+		{
+			GenOnlineServicesManager* pManager = GenOnlineServicesManager::GetInstance();
+			if (pManager == nullptr || pManager->GetHTTPManager() == nullptr)
+			{
+				fnAnswer(false, 0, std::string(), nullptr);
+				return;
+			}
+			const std::string strURI = ServiceOriginV1() + "/api/v1/auth/session";
+			std::map<std::string, std::string> mapHeaders;
+			mapHeaders["Content-Type"] = "application/json";
+			mapHeaders["Authorization"] = "Bearer " + m_strToken;
+			pManager->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strBody.c_str(), fnAnswer, nullptr, -1, true);
+		},
 		[fnDone](bool bSuccess, int statusCode, std::string strResponse, HTTPRequest*)
 		{
 			fnDone(bSuccess ? statusCode : 0, strResponse);
-		}, nullptr, -1, true);
+		},
+		[this, loginAttempt]()
+		{
+			return GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>() == this && loginAttempt == m_loginAttempt && !m_strToken.empty();
+		});
 }
 
 // Callers that arrive while a refresh runs wait for it, since a second refresh would spend the rotated token twice.

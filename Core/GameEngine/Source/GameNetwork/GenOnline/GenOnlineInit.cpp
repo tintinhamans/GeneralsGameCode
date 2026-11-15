@@ -280,8 +280,19 @@ void GenOnlineServicesManager::ProbeServiceRoute()
 	// anonymous request: no credentials are sent until a route is validated
 	m_serviceBase = m_bootstrapRoutes[m_bootstrapIndex];
 	const std::string url = m_serviceBase + ServiceConnection::CompatibilityProbePath();
-	std::map<std::string, std::string> headers;
-	m_pHTTPManager->SendGETRequest(url.c_str(), EIPProtocolVersion::DONT_CARE, headers,
+	// A standby answer of the route probes the same route again.
+	GenOnlineRealtimeBridge::SendWithStandbyRetry("GET /api/v1/compatibility route probe",
+		[url](GenOnlineRealtimeBridge::HTTPDoneCallback fnAnswer)
+		{
+			auto* manager = GetInstance();
+			if (manager == nullptr || manager->m_pHTTPManager == nullptr)
+			{
+				fnAnswer(false, 0, std::string(), nullptr);
+				return;
+			}
+			std::map<std::string, std::string> headers;
+			manager->m_pHTTPManager->SendGETRequest(url.c_str(), EIPProtocolVersion::DONT_CARE, headers, fnAnswer, nullptr, 6000);
+		},
 		[](bool success, int status, std::string body, HTTPRequest* request)
 		{
 			auto* manager = GetInstance();
@@ -329,7 +340,7 @@ void GenOnlineServicesManager::ProbeServiceRoute()
 			// an access or proxy rejection is not evidence that another route would work
 			manager->m_bootstrapIndex = (status == 401 || status == 403 || status == 407) ? manager->m_bootstrapRoutes.size() : manager->m_bootstrapIndex + 1;
 			manager->ProbeServiceRoute();
-		}, nullptr, 6000);
+		});
 }
 
 void GenOnlineServicesManager::AttemptLoadSteam()
@@ -479,6 +490,9 @@ void GenOnlineServicesManager::Shutdown()
 
 	WifiLowLatency::End();
 
+	// Queued retries capture the interfaces of this instance, so none of them may run on the next one.
+	GenOnlineRealtimeBridge::ShutdownRest();
+
 	NetworkMeshLibrary::Shutdown();
 
 	// Shutdown and completely destroy WebSocket BEFORE cleaning up HTTPManager
@@ -528,8 +542,19 @@ void GenOnlineServicesManager::StartVersionCheckOnSelectedRoute(std::function<vo
 {
 	// The check is anonymous, the session registration checks the executable.
 	const std::string strURI = GetAPIEndpoint("") + ServiceConnection::CompatibilityProbePath();
-	std::map<std::string, std::string> mapHeaders;
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+	GenOnlineRealtimeBridge::SendWithStandbyRetry("GET /api/v1/compatibility version check",
+		[strURI](GenOnlineRealtimeBridge::HTTPDoneCallback fnAnswer)
+		{
+			auto* manager = GetInstance();
+			if (manager == nullptr || manager->m_pHTTPManager == nullptr)
+			{
+				fnAnswer(false, 0, std::string(), nullptr);
+				return;
+			}
+			std::map<std::string, std::string> mapHeaders;
+			manager->m_pHTTPManager->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, fnAnswer, nullptr, -1);
+		},
+		[=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "Version Check: Response code was %d and body was %s", statusCode, strBody.c_str());
 			GenOnlineRealtime::CompatibilityResponse answer;
@@ -554,7 +579,11 @@ void GenOnlineServicesManager::StartVersionCheckOnSelectedRoute(std::function<vo
 				fnCallback(false, false);
 				break;
 			}
-		}, nullptr, -1);
+		},
+		[this]()
+		{
+			return GetInstance() == this;
+		});
 }
 
 void GenOnlineServicesManager::ContinueUpdate()

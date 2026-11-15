@@ -194,6 +194,62 @@ inline int64_t RestRetryDelayMs(const RestOutcome& outcome, int sendsSoFar)
 	return DELAYS_MS[index];
 }
 
+// Standby answers ////////////////////////////////////////////////////////////////
+
+// The wait before the next try after a standby answer.
+constexpr int64_t STANDBY_RETRY_DELAY_MS = 1000;
+// Standby answers in a row for this long count as a normal failure.
+constexpr int64_t STANDBY_RETRY_WINDOW_MS = 10000;
+
+// True when a service copy that is not serving gave the answer, in the second after a failover switch.
+// The body is {"error":"service.unavailable","params":{"what":"standby"}} with a 503. The refused realtime
+// upgrade carries no body, so bUpgrade counts any 503 as a standby answer.
+inline bool IsStandbyAnswer(const RestOutcome& outcome, bool bUpgrade)
+{
+	if (!outcome.delivered || outcome.status != 503)
+	{
+		return false;
+	}
+	if (bUpgrade)
+	{
+		return true;
+	}
+	if (outcome.error.code != "service.unavailable")
+	{
+		return false;
+	}
+	auto what = outcome.error.params.find("what");
+	return what != outcome.error.params.end() && what->is_string() && what->get<std::string>() == "standby";
+}
+
+// Times the retries of standby answers in a row. A standby retry does not count as a send of the call.
+struct StandbyRetry
+{
+	// The time of the first standby answer in a row, or -1.
+	int64_t firstStandbyMs = -1;
+
+	// Takes an answer at nowMs and returns the wait before the next try, or -1 when the answer is no
+	// standby answer or the standby answers in a row lasted STANDBY_RETRY_WINDOW_MS.
+	int64_t NextDelayMs(bool bStandby, int64_t nowMs)
+	{
+		if (!bStandby)
+		{
+			firstStandbyMs = -1;
+			return -1;
+		}
+		if (firstStandbyMs < 0)
+		{
+			firstStandbyMs = nowMs;
+		}
+		return nowMs - firstStandbyMs < STANDBY_RETRY_WINDOW_MS ? STANDBY_RETRY_DELAY_MS : -1;
+	}
+
+	void Reset()
+	{
+		firstStandbyMs = -1;
+	}
+};
+
 // Paths ///////////////////////////////////////////////////////////////////////////
 
 inline std::string RestFriendRequestsPath()

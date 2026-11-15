@@ -908,6 +908,17 @@ int64_t WebSocket::ComputeReconnectDelay() const
 
 void WebSocket::UpdateReconnect()
 {
+	// A first connect that got a standby answer connects again once its wait passed.
+	if (m_nextStandbyConnect != -1 && (m_bReconnecting || NowMs() >= m_nextStandbyConnect))
+	{
+		const bool bConnectNow = !m_bReconnecting && !GenOnlineServicesManager::GetInstance()->IsPendingFullTeardown();
+		m_nextStandbyConnect = -1;
+		if (bConnectNow)
+		{
+			Connect(m_strWebsocketAddr.c_str(), m_fnWebsocketConnectedCallback);
+		}
+	}
+
 	if (!m_bReconnecting)
 	{
 		return;
@@ -1033,8 +1044,25 @@ void WebSocket::Tick()
 							continue;
 						}
 
+                        // A standby service copy refuses the upgrade with a 503 in the second after a failover switch.
+                        const bool bStandby = GenOnlineRealtime::IsStandbyAnswer(GenOnlineRealtime::MakeRestOutcome(true, static_cast<int>(httpResponseCode), std::string()), true);
+                        const int64_t standbyDelayMs = m_upgradeStandby.NextDelayMs(bStandby, NowMs());
+                        if (standbyDelayMs >= 0)
+                        {
+                            // The wait neither grows the backoff nor tears down a first connect.
+                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Connection refused with status %ld by a standby service, connecting again in %lld ms", httpResponseCode, static_cast<long long>(standbyDelayMs));
+                            if (m_bReconnecting)
+                            {
+                                m_reconnectAttemptStarted = -1;
+                                m_nextReconnectAttempt = NowMs() + standbyDelayMs;
+                            }
+                            else
+                            {
+                                m_nextStandbyConnect = NowMs() + standbyDelayMs;
+                            }
+                        }
                         // 401 bad token and 409 session not registered get one refresh and registration, a 403 play ban ends the session
-                        if ((httpResponseCode == 401 || httpResponseCode == 409) && !m_bHubSessionRecoveryTried)
+                        else if ((httpResponseCode == 401 || httpResponseCode == 409) && !m_bHubSessionRecoveryTried)
                         {
                             NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Connection refused with status %ld, renewing the session", httpResponseCode);
                             RecoverHubSession();
@@ -1074,6 +1102,7 @@ void WebSocket::Tick()
                     }
                     else
                     {
+                        m_upgradeStandby.Reset();
                         if (m_bReconnecting)
                         {
                             NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Re-Connected");
