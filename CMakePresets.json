@@ -303,6 +303,19 @@
             "displayName": "Test Windows 32bit VCPKG Debug",
             "description": "Test Windows 32bit VCPKG Debug",
             "configuration": "Debug"
+        },
+        {
+            "name": "run-zerohour-debug",
+            "displayName": "Run Zero Hour (Debug)",
+            "description": "Run generalszh.exe from Zero Hour installation folder",
+            "configurePreset": "win32-debug",
+            "execution": {
+                "noTestsAction": "ignore"
+            },
+            "environment": {
+                "GAME_EXECUTABLE": "C:/Program Files (x86)/Steam/steamapps/common/Command & Conquer Generals - Zero Hour/generalszh.exe",
+                "GAME_ARGS": "-win -quickstart -xres 1280 -yres 720"
+            }
         }
     ],
     "workflowPresets": [
@@ -448,21 +461,6 @@
                     "name": "unix"
                 }
             ]
-        }
-    ],
-    "testPresets": [
-        {
-            "name": "run-zerohour-debug",
-            "displayName": "Run Zero Hour (Debug)",
-            "description": "Run generalszh.exe from Zero Hour installation folder",
-            "configurePreset": "win32-debug",
-            "execution": {
-                "noTestsAction": "ignore"
-            },
-            "environment": {
-                "GAME_EXECUTABLE": "C:/Program Files (x86)/Steam/steamapps/common/Command & Conquer Generals - Zero Hour/generalszh.exe",
-                "GAME_ARGS": "-win -quickstart -xres 1280 -yres 720"
-            }
         }
     ]
 }
