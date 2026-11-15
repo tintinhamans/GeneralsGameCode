@@ -25,7 +25,7 @@ version - see [Rendering](contraZH-Options.md#rendering) for the renamed `Anisot
 * [Campaign](contraZH-Campaign.md) - the campaign screen, campaign tabs, mission unlocks, mission save names and the challenge screen
 * [Options.ini](contraZH-Options.md) - every Options.ini setting: camera, display, hotkeys, selection, input, drag-to-face formations and rendering, including the Path tracing emissive lighting option, plus the Hotkeys screen and Hotkeys.ini
 * [Commandline Options](contraZH-Commandline-Options.md) - all game launch options, arguments and build requirements
-* [Objects & Modules](contraZH-Objects-and-Modules.md) - new object keys, module parameters and behavior modules
+* [Objects & Modules](contraZH-Objects-and-Modules.md) - new object keys, module parameters, bone-attached weapon fire particles and behavior modules
 * [GameData.ini](contraZH-GameData.md) - new GameData.ini keys and simulation rules
 * [SpecialPower.ini](contraZH-SpecialPowers.md) - enum behavior reference, Contra superweapon enums, INI-defined power identities, EVA events and radius cursors, plus new SpecialPower.ini keys
 * [Weapon.ini](contraZH-Weapons.md) - new Weapon.ini keys

@@ -1160,7 +1160,8 @@ UnsignedInt WeaponTemplate::fireWeaponTemplate
 																															reAngle,
 																															reDir,
 																															&targetPos,
-																															fxRadius
+																															fxRadius,
+																															!isProjectileDetonation && TheGameLogic->getFrame() >= firingWeapon->getSuspendFXFrame()
 																															);
 		}
 
