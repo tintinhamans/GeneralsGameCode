@@ -4001,9 +4001,31 @@ Bool GameWindowManager::initTestGUI()
 }
 
 
+// A tab list that lives inside the top modal window may still move the focus
+static Bool isTabListOutsideModal( const GameWindowList &tabList, const ModalWindow *modalHead )
+{
+	if( modalHead == nullptr )
+	{
+		return FALSE;
+	}
+	for( GameWindowList::const_iterator it = tabList.begin(); it != tabList.end(); ++it )
+	{
+		GameWindow *window = *it;
+		while( window != nullptr && window != modalHead->window )
+		{
+			window = window->winGetParent();
+		}
+		if( window == nullptr )
+		{
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
 void GameWindowManager::winNextTab( GameWindow *window )
 {
-	if(m_tabList.empty()|| m_modalHead)
+	if(m_tabList.empty()|| isTabListOutsideModal(m_tabList, m_modalHead))
 		return;
 
 	GameWindowList::iterator it = m_tabList.begin();
@@ -4027,7 +4049,7 @@ void GameWindowManager::winNextTab( GameWindow *window )
 
 void GameWindowManager::winPrevTab( GameWindow *window )
 {
-	if(m_tabList.empty() || m_modalHead)
+	if(m_tabList.empty() || isTabListOutsideModal(m_tabList, m_modalHead))
 		return;
 
 	GameWindowList::reverse_iterator it = m_tabList.rbegin();

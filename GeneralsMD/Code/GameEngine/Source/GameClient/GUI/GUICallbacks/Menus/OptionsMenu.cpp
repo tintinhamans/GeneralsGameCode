@@ -81,6 +81,13 @@
 #include "WW3D2/ww3d.h"
 #include "WW3D2/texturefilter.h"
 
+#include "GameClient/Image.h"
+
+#include <algorithm>
+#include <vector>
+
+#include "OptionsMenuTabs.inl"
+
 // This is for non-RC builds only!!!
 #define VERBOSE_VERSION L"Release"
 
@@ -581,6 +588,12 @@ static Int levelIndex( const Int *levels, Int count, Int level )
 	return 0;
 }
 
+// A tabbed layout spreads the Game Options and Shaders controls over its pages
+static Bool hasGameOptions()
+{
+	return WinGameOptions != nullptr || OptionsTabs::isOn();
+}
+
 // Fields that only matter while their checkbox is on stay greyed out otherwise
 static void updateGameOptionsEnables()
 {
@@ -635,7 +648,7 @@ static void updateGameOptionsEnables()
 
 static void populateGameOptions()
 {
-	if (!WinGameOptions)
+	if (!hasGameOptions())
 	{
 		return;
 	}
@@ -690,7 +703,7 @@ static void populateShaders()
 
 static void setGameOptionsDefaults()
 {
-	if (!WinGameOptions)
+	if (!hasGameOptions())
 	{
 		return;
 	}
@@ -962,14 +975,6 @@ static void saveOptions()
 		TheWritableGlobalData->m_useHeatEffects = GadgetCheckBoxIsChecked( checkHeatEffects );
 		(*pref)["HeatEffects"] = TheGlobalData->m_useHeatEffects ? "yes" : "no";
 
-		// Written only once changed, so an untouched Options.ini keeps vsync on in fullscreen and off in a window.
-		if (checkVSync != nullptr && GadgetCheckBoxIsChecked( checkVSync ) != (Bool)WW3D::Is_VSync_On())
-		{
-			TheWritableGlobalData->m_vsync = GadgetCheckBoxIsChecked( checkVSync ) ? 1 : 0;
-			(*pref)["VSync"] = TheGlobalData->m_vsync ? "yes" : "no";
-			WW3D::Set_VSync_Mode( TheGlobalData->m_vsync );
-		}
-
 		// Never write this out
 		//TheWritableGlobalData->m_useFpsLimit = !GadgetCheckBoxIsChecked( checkUnlockFps );
 		//(*pref)["FPSLimit"] = TheGlobalData->m_useFpsLimit ? "yes" : "no";
@@ -992,6 +997,14 @@ static void saveOptions()
 
 				TheWritableGlobalData->m_maxParticleCount = val;
 		}
+	}
+
+	// Written only once changed, so an untouched Options.ini keeps vsync on in fullscreen and off in a window.
+	if (checkVSync != nullptr && GadgetCheckBoxIsChecked( checkVSync ) != (Bool)WW3D::Is_VSync_On())
+	{
+		TheWritableGlobalData->m_vsync = GadgetCheckBoxIsChecked( checkVSync ) ? 1 : 0;
+		(*pref)["VSync"] = TheGlobalData->m_vsync ? "yes" : "no";
+		WW3D::Set_VSync_Mode( TheGlobalData->m_vsync );
 	}
 
 	//-------------------------------------------------------------------------------------------------
@@ -1215,7 +1228,7 @@ static void saveOptions()
 
 	//-------------------------------------------------------------------------------------------------
 	// game options
-	if (WinGameOptions)
+	if (hasGameOptions())
 	{
 		Int idx = clamp( 0, getComboPos( comboBoxHealthBars, pref->getHealthBarDisplayMode() ), (Int)HealthBarDisplayMode_Count - 1 );
 		(*pref)["HealthBarDisplayMode"] = HealthBarModeNames[idx];
@@ -1649,7 +1662,41 @@ static void DestroyOptionsLayout() {
 
 static void showAdvancedOptions()
 {
+	// a tabbed layout keeps the custom detail toggles on a page of their own
+	if (OptionsTabs::isOn())
+	{
+		OptionsTabs::showPageOf( check3DShadows );
+		return;
+	}
 	WinAdvancedDisplay->winHide(FALSE);
+}
+
+static Bool isCustomDetailControl( GameWindow *control )
+{
+	GameWindow *const controls[] =
+	{
+		check3DShadows, check2DShadows, checkCloudShadows, checkGroundLighting, checkSmoothWater, checkExtraAnimations,
+		checkNoDynamicLod, checkHeatEffects, checkBuildingOcclusion, checkProps, sliderTextureResolution, sliderParticleCap,
+	};
+	for (Int i = 0; i < ARRAY_SIZE(controls); ++i)
+	{
+		if (control != nullptr && controls[i] == control)
+		{
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+// A tabbed layout shows the custom detail toggles all the time, so changing one picks the Custom preset
+static void selectCustomDetailFor( GameWindow *control )
+{
+	if (OptionsTabs::isOn() && comboBoxDetail && isCustomDetailControl( control ))
+	{
+		ignoreSelected = TRUE;
+		GadgetComboBoxSetSelectedPos( comboBoxDetail, STATIC_GAME_LOD_CUSTOM );
+		ignoreSelected = FALSE;
+	}
 }
 
 static void acceptAdvancedOptions()
@@ -1870,7 +1917,7 @@ static void initGameOptionsWindows()
 	ButtonGameOptions = findOptionsWindow( "OptionsMenu.wnd:ButtonGameOptions", ButtonGameOptionsID );
 
 	// A layout without the panel keeps the old menu, minus the button that would open it
-	if (!WinGameOptions)
+	if (!hasGameOptions())
 	{
 		if (ButtonGameOptions)
 		{
@@ -2066,7 +2113,7 @@ static void initShadersWindows()
 	comboBoxPathTracing = findOptionsWindow( "OptionsMenu.wnd:ComboBoxPathTracing" );
 	checkPathTracing = comboBoxPathTracing ? nullptr : createPathTracingCheck();
 	GameWindow *button = findOptionsWindow( "OptionsMenu.wnd:ButtonShaders", ButtonShadersID );
-	if (!WinShaders)
+	if (!WinShaders && !OptionsTabs::isOn())
 	{
 		return;
 	}
@@ -2096,7 +2143,10 @@ static void initShadersWindows()
 	addComboEntries( comboBoxPathTracing, "GUI:PathTracing", ARRAY_SIZE(PathTracingModeNames) );
 
 	// not every layout ships the panel hidden
-	WinShaders->winHide( TRUE );
+	if (WinShaders)
+	{
+		WinShaders->winHide( TRUE );
+	}
 }
 
 // The Hotkeys button: the layout's own, hidden for older exes, or one made beside Shaders
@@ -2147,6 +2197,8 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	}
 
 	SignalUIInteraction(SHELL_SCRIPT_HOOK_OPTIONS_OPENED);
+
+	OptionsTabs::init();
 
 	comboBoxLANIPID				 = TheNameKeyGenerator->nameToKey( "OptionsMenu.wnd:ComboBoxIP" );
 	comboBoxLANIP					 = TheWindowManager->winGetWindowFromId( nullptr,  comboBoxLANIPID);
@@ -2301,7 +2353,10 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	sliderParticleCapID = TheNameKeyGenerator->nameToKey( "OptionsMenu.wnd:ParticleCapSlider" );
   sliderParticleCap = TheWindowManager->winGetWindowFromId( nullptr, sliderParticleCapID );
 
-	WinAdvancedDisplay->winHide(TRUE);
+	if (WinAdvancedDisplay)
+	{
+		WinAdvancedDisplay->winHide(TRUE);
+	}
 	if (WinGameOptions)
 	{
 		WinGameOptions->winHide(TRUE);
@@ -2687,6 +2742,8 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	}
 
 
+	OptionsTabs::start();
+
 	TheWindowManager->winSetModal(parent);
 	ignoreSelected = FALSE;
 }
@@ -2738,6 +2795,11 @@ WindowMsgHandledType OptionsMenuInput( GameWindow *window, UnsignedInt msg,
 		{
 			UnsignedByte key = mData1;
 			UnsignedByte state = mData2;
+
+			if (OptionsTabs::onKey( key, state, window ))
+			{
+				return MSG_HANDLED;
+			}
 
 			switch( key )
 			{
@@ -2869,6 +2931,12 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 			GameWindow *control = (GameWindow *)mData1;
 			Int controlID = control->winGetWindowId();
 
+			if (OptionsTabs::onButtonSelected( control ))
+			{
+				break;
+			}
+			selectCustomDetailFor( control );
+
 			if( controlID == buttonBack )
 			{
 				// go back one screen
@@ -2879,6 +2947,7 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 
 				comboBoxLANIP = nullptr;
 				comboBoxOnlineIP = nullptr;
+				OptionsTabs::shutdown();
 
 				if(GameSpyIsOverlayOpen(GSOVERLAY_OPTIONS))
 					GameSpyCloseOverlay(GSOVERLAY_OPTIONS);
@@ -2901,6 +2970,7 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 
 				comboBoxLANIP = nullptr;
 				comboBoxOnlineIP = nullptr;
+				OptionsTabs::shutdown();
 
 				if(!TheGameLogic->isInGame() || TheGameLogic->isInShellGame())
 					destroyQuitMenu(); // if we're in a game, the change res then enter the same kind of game, we nee the quit menu to be gone.
@@ -3056,6 +3126,16 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 			break;
 
+		}
+
+		//---------------------------------------------------------------------------------------------
+		case GSM_SLIDER_TRACK:
+		{
+			if (!ignoreSelected)
+			{
+				selectCustomDetailFor( (GameWindow *)mData1 );
+			}
+			return MSG_IGNORED;
 		}
 
 		default:
