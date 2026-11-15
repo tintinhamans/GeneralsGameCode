@@ -2,20 +2,12 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/GenOnline/docs/vcpkg.schema.json",
   "builtin-baseline": "b61d33065508ba0d5e393206abb3cb2366299699",
   "vcpkg-configuration": {
-    "overlay-ports": [ "GenOnline/cmake/ports" ],
-    "registries": [
-      {
-        "kind": "git",
-        "repository": "https://github.com/tintinhamans/GNS",
-        "reference": "vcpkg-registry",
-        "baseline": "213a9c0d0cadc33e80336d0330318970d0538be4",
-        "packages": [ "gamenetworkingsockets" ]
-      }
-    ]
+    "overlay-ports": [ "GenOnline/cmake/ports" ]
   },
   "dependencies": [
     "zlib",
     "stb",
+    "genonline-plugin-sdk",
     "protobuf",
     {
       "name": "curl",

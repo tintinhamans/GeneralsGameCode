@@ -100,7 +100,6 @@ public:
 
 	std::string GetConnectionType();
 
-	// A placeholder without a transport counts as a plugin connection while the service puts every pair on the plugin.
 	bool UsesPluginTransport() const;
 
 	void UpdateState(EConnectionState newState, NetworkMesh* pOwningMesh);
@@ -117,9 +116,8 @@ public:
 	// when signalling for this connection started, for connect-time logging
 	int64_t m_connectStartedMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 
-	// The attempt of this pair in this lobby for the connection report, 0 when signalling did not create this connection.
-	int m_reportAttempt = 0;
-	// The step of the connection order that the hub named for this attempt, absent without the order.
+	// The step of the connection order that the hub named for this attempt, invalid when signalling did not create this connection.
+	// Its attempt and transport go into the connection report.
 	GenOnlineRealtime::ConnectionStep m_step;
 	GenOnlineRealtime::StepAttemptWatch m_stepWatch;
 	// The state changes of this attempt for the connection report.
@@ -288,10 +286,8 @@ public:
 	void ApplyConnectionTimeouts(HSteamNetConnection connection, int64_t userID);
 	// Applies the ICE settings of the step of the pair to an incoming connection before it is accepted.
 	void ApplyConnectionStep(HSteamNetConnection connection, int64_t userID);
-	void StartConnectionSignalling(const char* szMiddlewareID, int64_t remoteUserID, uint16_t preferredPort, const GenOnlineRealtime::ConnectionStep& step = GenOnlineRealtime::ConnectionStep());
+	void StartConnectionSignalling(const char* szMiddlewareID, int64_t remoteUserID, uint16_t preferredPort, const GenOnlineRealtime::ConnectionStep& step);
 
-	// True unless the plugin carries every pair, which is the case when the service turns the plugin transport on and no step arrived.
-	bool UsesGameNetworkingSockets() const;
 	// Ends the open attempt of a timed step, reports it failed when bReport is set and asks the hub for the next step then.
 	void EndStepAttempt(PlayerConnection& connection, const char* szReason, bool bReport);
 
@@ -343,7 +339,6 @@ private:
 
 	std::map<int64_t, PlayerConnection> m_mapConnections;
 	mutable std::recursive_mutex m_mapConnectionsMutex;  // Synchronizes access to m_mapConnections
-	std::map<int64_t, int> m_reportAttempts;	///< Per peer, the connections signalling created in this lobby. Written under m_mapConnectionsMutex on the main thread.
 	GenOnlineRealtime::AnticheatHoldQueue m_heldACMessages;	///< Per peer, the anti-cheat messages that wait for the pair to connect. Guarded by m_mapConnectionsMutex, it outlives connection restarts.
 
 	std::mutex m_pendingStateUpdatesMutex;
@@ -355,7 +350,6 @@ private:
 
 	bool m_bDisconnected = false;
 
-	bool m_bPairSteps = false;	///< A StartSignalling of this mesh named a step of the connection order.
 	bool m_bUsedPluginTransport = false;	///< A pair of this mesh used the plugin transport.
 	bool CreateListenSocket();
 	void DropParkedSignalling(int64_t remoteUserID);

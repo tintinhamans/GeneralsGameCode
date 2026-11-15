@@ -243,8 +243,8 @@ private:
 	bool m_bHubReadyOnce = false;
 	// One token refresh and session registration per connection that never reached Ready.
 	bool m_bHubSessionRecoveryTried = false;
-	// The EOS availability that SetPeerTransports last told the hub, -1 before the first one of this connection.
-	int m_lastPeerTransportsEos = -1;
+	// The plugin transport name that SetPeerTransports last told the hub, empty for an empty list, unset before the first one of this connection.
+	std::optional<std::string> m_lastPeerTransports;
 
 	CURLcode ReceiveOneFrame();
 	void PollConnectionSetup();
@@ -356,7 +356,6 @@ struct ServiceConfig
 		bool use_mapped_port = true;
 		bool retry_signalling = true;
 		int reconnect_timeout_ms = MeshConnectionTimeoutPolicy::ReconnectTimeoutMs; // first negotiation keeps 10 s
-		bool anticheat_transport = false; // game traffic through the anticheat plugin's transport
 		int probe_lobby_interval_ms = 250; // time between latency probes sent to each peer while not in a match
 		int probe_match_interval_ms = 1000; // the same in a match, the command acks already measure the round trip
 		bool wifi_low_latency = true;   // Wi-Fi media streaming mode while a match runs, stops background scans from stalling the game
@@ -441,7 +440,6 @@ inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 		ReadServiceConfigValue(s, "use_mapped_port", c.connection.use_mapped_port);
 		ReadServiceConfigValue(s, "retry_signalling", c.connection.retry_signalling);
 		ReadServiceConfigValue(s, "reconnect_timeout_ms", c.connection.reconnect_timeout_ms);
-		ReadServiceConfigValue(s, "anticheat_transport", c.connection.anticheat_transport);
 		ReadServiceConfigValue(s, "probe_lobby_interval_ms", c.connection.probe_lobby_interval_ms);
 		ReadServiceConfigValue(s, "probe_match_interval_ms", c.connection.probe_match_interval_ms);
 		ReadServiceConfigValue(s, "wifi_low_latency", c.connection.wifi_low_latency);

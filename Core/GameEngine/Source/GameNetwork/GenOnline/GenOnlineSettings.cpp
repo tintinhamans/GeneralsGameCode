@@ -83,43 +83,6 @@ float GenOnlineSettings::DetermineCameraMaxHeight()
 	return (float)GENONLINE_DEFAULT_LOBBY_CAMERA_ZOOM;
 }
 
-// The folder of the game executable with a trailing separator, empty when it cannot be resolved.
-static std::wstring ExecutableDirectory()
-{
-    std::vector<wchar_t> buffer(MAX_PATH);
-    for (;;)
-    {
-        const DWORD length = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
-        if (length == 0)
-        {
-            return std::wstring();
-        }
-
-        if (length < buffer.size())
-        {
-            const std::wstring path(buffer.data(), length);
-            const size_t separator = path.find_last_of(L"\\/");
-            return separator == std::wstring::npos ? std::wstring() : path.substr(0, separator + 1);
-        }
-
-        buffer.resize(buffer.size() * 2);
-    }
-}
-
-// TRUE when plugins/<name>/<name>.dll exists next to the game executable.
-static bool IsPluginInstalled(const char* szPlugin)
-{
-    const std::wstring exeDirectory = ExecutableDirectory();
-    if (exeDirectory.empty())
-    {
-        return false;
-    }
-    const std::string name = szPlugin;
-    const std::wstring wideName(name.begin(), name.end());
-    std::error_code ec;
-    return std::filesystem::exists(exeDirectory + L"plugins\\" + wideName + L"\\" + wideName + L".dll", ec);
-}
-
 std::string GenOnlineSettings::GetAnticheatPlugin() const
 {
     // The client runs one anticheat. An empty list means the built-in GenOnline Anti-Cheat.
@@ -145,11 +108,11 @@ std::vector<std::string> GenOnlineSettings::GetTransportPlugins() const
 {
     std::vector<std::string> transports = m_Plugins_Transport;
 
-    // Easy Anti-Cheat through the EOS plugin always runs EOS P2P too.
-    const bool bEosAnticheat = std::find(m_Plugins_Anticheat.begin(), m_Plugins_Anticheat.end(), GENONLINE_EOS_PLUGIN_NAME) != m_Plugins_Anticheat.end();
-    if (bEosAnticheat && std::find(transports.begin(), transports.end(), GENONLINE_EOS_PLUGIN_NAME) == transports.end())
+    // An external anticheat plugin also offers its transport. A plugin without a transport table keeps its other roles.
+    const std::string anticheatPlugin = GetAnticheatPlugin();
+    if (!anticheatPlugin.empty() && std::find(transports.begin(), transports.end(), anticheatPlugin) == transports.end())
     {
-        transports.push_back(GENONLINE_EOS_PLUGIN_NAME);
+        transports.push_back(anticheatPlugin);
     }
     return transports;
 }
@@ -532,8 +495,7 @@ void GenOnlineSettings::Load(void)
                 }
             }
 
-			// Without plugins.transport the EOS plugin carries EOS P2P when it is installed.
-			bool bTransportSet = false;
+			m_Plugins_Transport.clear();
 			if (jsonSettings.contains(SETTINGS_KEY_PLUGINS))
 			{
 				auto pluginSettings = jsonSettings[SETTINGS_KEY_PLUGINS];
@@ -545,15 +507,6 @@ void GenOnlineSettings::Load(void)
 				if (pluginSettings.contains(SETTINGS_KEY_PLUGINS_TRANSPORT))
 				{
 					m_Plugins_Transport = ReadPluginList(pluginSettings[SETTINGS_KEY_PLUGINS_TRANSPORT], SETTINGS_KEY_PLUGINS_TRANSPORT);
-					bTransportSet = true;
-				}
-			}
-			if (!bTransportSet)
-			{
-				m_Plugins_Transport.clear();
-				if (IsPluginInstalled(GENONLINE_EOS_PLUGIN_NAME))
-				{
-					m_Plugins_Transport.push_back(GENONLINE_EOS_PLUGIN_NAME);
 				}
 			}
 

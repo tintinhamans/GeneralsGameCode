@@ -25,12 +25,13 @@
 #include "GameNetwork/GenOnline/Provider/GenOnlinePluginPlatform.h"
 #include "GameNetwork/GenOnline/Provider/GenOnlinePluginTrust.h"
 
-#include "GameNetwork/GenOnline/PluginApi/GenOnlinePluginApi.h"
+#include <GenOnlinePluginApi.h>
 #include "GameNetwork/GenOnline/AntiCheat/GenOnlineAntiCheat.h"
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/GenOnlinePluginRoles.h"
 #include "GameNetwork/GenOnline/NetworkMesh.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 
 #include <chrono>
 #include <cstddef>
@@ -49,9 +50,9 @@ static_assert(static_cast<int32_t>(EAnticheatActionReason::PermaBanned) == GENON
 
 namespace
 {
-// The end of the last field that version 1 of a table defines is the smallest structSize the host accepts.
+// The end of the last field that the current version of a table defines is the smallest structSize the host accepts.
 constexpr uint32_t kPluginApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginApi, transport) + sizeof(void*));
-constexpr uint32_t kLinkedAccountApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginLinkedAccountApi, GetIdentityProof) + sizeof(void*));
+constexpr uint32_t kLinkedAccountApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginLinkedAccountApi, provider) + sizeof(void*));
 constexpr uint32_t kAnticheatApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginAnticheatApi, MessageArrived) + sizeof(void*));
 constexpr uint32_t kTransportApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginTransportApi, DisconnectAll) + sizeof(void*));
 
@@ -91,6 +92,8 @@ std::string s_pluginName;
 bool s_bPluginIsAnticheat = false;
 
 const GenOnlinePluginLinkedAccountApi* s_pLinkedAccount = nullptr;
+// The provider name of the linked account table, copied at load. The service routes and the plugin transport use it.
+std::string s_linkedAccountProvider;
 const GenOnlinePluginAnticheatApi* s_pAnticheat = nullptr;
 const GenOnlinePluginTransportApi* s_pTransport = nullptr;
 // The anticheat table of a transport only plugin. It gets the session and peer calls so that its transport knows its peers.
@@ -167,6 +170,17 @@ std::wstring GetExecutableDirectory()
 	}
 }
 
+// The provider name goes into service routes and SetPeerTransports, so it must have the syntax of a plugin transport name.
+bool IsValidProvider(const char* szProvider)
+{
+	if (szProvider == nullptr || !GenOnlineRealtime::IsPluginTransportName(szProvider))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: The linked_account table names no provider or one that is not 1 to 32 characters of a-z, 0-9 and _ or is gns");
+		return false;
+	}
+	return true;
+}
+
 bool ValidateLinkedAccountApi(const GenOnlinePluginLinkedAccountApi* pApi)
 {
 	return pApi != nullptr
@@ -176,7 +190,8 @@ bool ValidateLinkedAccountApi(const GenOnlinePluginLinkedAccountApi* pApi)
 		&& pApi->Refresh != nullptr
 		&& pApi->IsSignedIn != nullptr
 		&& pApi->GetPlatformUserId != nullptr
-		&& pApi->GetIdentityProof != nullptr;
+		&& pApi->GetIdentityProof != nullptr
+		&& IsValidProvider(pApi->provider);
 }
 
 bool ValidateAnticheatApi(const GenOnlinePluginAnticheatApi* pApi)
@@ -450,6 +465,7 @@ void ResetPluginState()
 	s_hPluginModule = nullptr;
 	s_pluginApi = GenOnlinePluginApi();
 	s_pLinkedAccount = nullptr;
+	s_linkedAccountProvider.clear();
 	s_pAnticheat = nullptr;
 	s_pTransport = nullptr;
 	s_pPeerTracking = nullptr;
@@ -521,7 +537,7 @@ void GENONLINE_PLUGIN_CALL OnSignInStatus(void* /*userData*/, int32_t success)
 			GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 			if (pAuthInterface != nullptr)
 			{
-				pAuthInterface->SendMiddlewareToken(std::string(buf));
+				pAuthInterface->SendMiddlewareToken(s_linkedAccountProvider, std::string(buf));
 			}
 			else
 			{
@@ -758,13 +774,13 @@ void GenOnlinePluginHost::LoadPlugin(const std::string& anticheatPlugin, const s
 	s_hPluginModule = hModule;
 	s_pluginApi = api;
 	s_pLinkedAccount = pLinkedAccount;
+	s_linkedAccountProvider = pLinkedAccount != nullptr ? std::string(pLinkedAccount->provider) : std::string();
 	s_pAnticheat = pAnticheat;
 	s_pTransport = pTransport;
 	s_pPeerTracking = pPeerTracking;
 	s_bPluginLoaded = true;
 	s_bPluginIsAnticheat = selection.bAnticheat;
 
-	// An accepted transport may carry pairs from now on, the service setting never reaches the plugin.
 	if (s_pTransport != nullptr && s_pTransport->SetEnabled != nullptr)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Telling the transport of %s that it may carry pairs", api.name);
@@ -913,8 +929,20 @@ void GenOnlinePluginHost::LinkedAccount::SignIn()
 		return;
 	}
 
-	std::string authToken = pAuthInterface->GetAuthToken();
-	s_pLinkedAccount->SignIn(authToken.c_str(), OnSignInStatus, nullptr);
+	// The plugin signs in to its platform with a short-lived token of its provider, which is minted right before each sign in.
+	pAuthInterface->RequestSignInToken(s_linkedAccountProvider, [](const std::string& token)
+		{
+			if (s_pLinkedAccount == nullptr)
+			{
+				return;
+			}
+			if (token.empty())
+			{
+				OnSignInStatus(nullptr, GENONLINE_PLUGIN_FALSE);
+				return;
+			}
+			s_pLinkedAccount->SignIn(token.c_str(), OnSignInStatus, nullptr);
+		});
 }
 
 void GenOnlinePluginHost::LinkedAccount::Refresh()
@@ -933,8 +961,19 @@ void GenOnlinePluginHost::LinkedAccount::Refresh()
 
 	s_tokenCreationTime = UtcNowMs();
 
-	std::string authToken = pAuthInterface->GetAuthToken();
-	s_pLinkedAccount->Refresh(authToken.c_str(), OnRefreshStatus, nullptr);
+	pAuthInterface->RequestSignInToken(s_linkedAccountProvider, [](const std::string& token)
+		{
+			if (s_pLinkedAccount == nullptr)
+			{
+				return;
+			}
+			if (token.empty())
+			{
+				OnRefreshStatus(nullptr, GENONLINE_PLUGIN_FALSE);
+				return;
+			}
+			s_pLinkedAccount->Refresh(token.c_str(), OnRefreshStatus, nullptr);
+		});
 }
 
 void GenOnlinePluginHost::Anticheat::BeginSession()
@@ -1041,21 +1080,19 @@ void GenOnlinePluginHost::Anticheat::MessageArrived(uint32_t userID, const void*
 	}
 }
 
-bool GenOnlinePluginHost::Transport::IsActive()
-{
-	// The service setting picks the all-plugin mode, the plugin learns nothing from it.
-	ServiceConfig& serviceConf = GenOnlineServicesManager::GetInstance()->GetServiceConfig();
-	if (!serviceConf.connection.anticheat_transport)
-	{
-		return false;
-	}
-
-	return IsAvailable();
-}
-
 bool GenOnlinePluginHost::Transport::IsAvailable()
 {
 	return s_pTransport != nullptr && s_pTransport->IsAvailable() != GENONLINE_PLUGIN_FALSE;
+}
+
+std::string GenOnlinePluginHost::Transport::GetName()
+{
+	// The transport carries the provider name of the linked account table, without that table it is offered to nobody.
+	if (s_pLinkedAccount == nullptr || !IsAvailable())
+	{
+		return std::string();
+	}
+	return s_linkedAccountProvider;
 }
 
 void GenOnlinePluginHost::Transport::StartSignalling(const char* szPlatformUserID, uint64_t userID)
