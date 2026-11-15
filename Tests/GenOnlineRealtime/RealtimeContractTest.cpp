@@ -1940,12 +1940,13 @@ static void TestLegacyRouteReplacements(const std::filesystem::path& folder)
 		CHECK(CompatibilityVerdictOf(MakeRestOutcome(false, 0, ""), answer) == CompatibilityVerdict::Failed);
 	}
 
-	// The config carries the service config object and the MOTD.
+	// The config carries the service config in its grouped sections and the MOTD.
 	CHECK(RestConfigPath() == "/api/v1/config");
 	{
 		ConfigResponse config;
 		CHECK(MakeRestOutcome(true, 200, ReadApiFixture(folder, "get-config.response.json")).Data(config));
-		CHECK(config.service_config.is_object() && config.service_config["ra_slack_percent"] == 30);
+		CHECK(config.service_config.is_object() && config.service_config["connection"]["retry_signalling"] == true);
+		CHECK(config.service_config["input_delay"]["slack_percent"] == 30);
 		CHECK(config.motd == "Thank you for playing Generals Online.\nThere are currently 312 player(s) online.");
 		ConfigResponse withoutLevel;
 		CHECK(MakeRestOutcome(true, 200, R"({"service_config":{},"motd":"hi"})").Data(withoutLevel));
