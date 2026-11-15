@@ -571,6 +571,21 @@ static bool Same_Render_State(const RenderStateStruct& a, const RenderStateStruc
 	return memcmp(&a.world, &b.world, sizeof(a.world))==0 && memcmp(&a.view, &b.view, sizeof(a.view))==0;
 }
 
+// Ronin @diagnostic 14/11/2026 DX9: [SORT] why Same_Render_State said no, first reason in its order: a lit mesh on either side (the rotors),
+// another transform (a mesh; particles all draw at the identity), the shader, the material, a texture alone (what an atlas would merge).
+static unsigned Classify_Run_Break(const RenderStateStruct& a, const RenderStateStruct& b)
+{
+	if (a.material->Get_Lighting() || (b.material != nullptr && b.material->Get_Lighting()))
+		return SortingRendererStats::BREAK_LIT;
+	if (memcmp(&a.world, &b.world, sizeof(a.world)) != 0 || memcmp(&a.view, &b.view, sizeof(a.view)) != 0)
+		return SortingRendererStats::BREAK_TRANSFORM;
+	if (a.shader.Get_Bits() != b.shader.Get_Bits())
+		return SortingRendererStats::BREAK_SHADER;
+	if (a.material != b.material)
+		return SortingRendererStats::BREAK_MATERIAL;
+	return SortingRendererStats::BREAK_TEXTURE;
+}
+
 static void Apply_Render_State(RenderStateStruct& render_state)
 {
 	DX8Wrapper::Set_Shader(render_state.shader);
@@ -944,6 +959,12 @@ void SortingRendererClass::Flush_Sorting_Pool()
 					break;
 				min_vertex=std::min<unsigned>(min_vertex, node->min_vertex_index);
 				end_vertex=std::max<unsigned>(end_vertex, node->min_vertex_index + node->vertex_count);
+			}
+			// Ronin @diagnostic 14/11/2026 DX9: [SORT] this run, and what ended it (Classify_Run_Break); a chunk's end is not counted.
+			if (TheSortingStats.enabled) {
+				++TheSortingStats.draws;
+				if (end < chunkEnd)
+					++TheSortingStats.breaks[Classify_Run_Break(state->sorting_state, overlapping_nodes[tis[end].idx]->sorting_state)];
 			}
 
 			Apply_Render_State(state->sorting_state);

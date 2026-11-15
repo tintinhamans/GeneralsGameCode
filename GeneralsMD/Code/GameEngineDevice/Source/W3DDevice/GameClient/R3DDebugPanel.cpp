@@ -3506,11 +3506,17 @@ namespace
 		// Ronin @diagnostic 06/11/2026 DX9: the sorting pool's CPU time, eased; insert is the list scan, flush holds the rest.
 		if (s_rowOn[R3DDebugPanel::ROW_SORT])
 		{
-			text.format(L"[SORT] insert=%.2fms  flush=%.2fms (build=%.2f sort=%.2f regroup=%.2f draw=%.2f)  nodes=%u  direct=%u  tris=%u  flushes=%u  meshsort=%s",
+			// Ronin @diagnostic 14/11/2026 DX9: the pool's draws and what ended each run: a lit mesh, another transform, the shader, the
+			// material, a texture alone.
+			text.format(L"[SORT] insert=%.2fms  flush=%.2fms (build=%.2f sort=%.2f regroup=%.2f draw=%.2f)  nodes=%u  direct=%u  tris=%u  flushes=%u"
+				L"  draws=%u (ended by lit=%u xform=%u shader=%u mat=%u tex=%u)  meshsort=%s",
 				s_sortEase[SortingRendererStats::MS_INSERT], s_sortEase[SortingRendererStats::MS_FLUSH],
 				s_sortEase[SortingRendererStats::MS_BUILD], s_sortEase[SortingRendererStats::MS_SORT],
 				s_sortEase[SortingRendererStats::MS_REGROUP], s_sortEase[SortingRendererStats::MS_DRAW],
-				s_sortNow.nodes, s_sortNow.direct, s_sortNow.triangles, s_sortNow.flushes, TheSortedMeshWhole ? L"on" : L"off");
+				s_sortNow.nodes, s_sortNow.direct, s_sortNow.triangles, s_sortNow.flushes, s_sortNow.draws,
+				s_sortNow.breaks[SortingRendererStats::BREAK_LIT], s_sortNow.breaks[SortingRendererStats::BREAK_TRANSFORM],
+				s_sortNow.breaks[SortingRendererStats::BREAK_SHADER], s_sortNow.breaks[SortingRendererStats::BREAK_MATERIAL],
+				s_sortNow.breaks[SortingRendererStats::BREAK_TEXTURE], TheSortedMeshWhole ? L"on" : L"off");
 			putRow(R3DDebugPanel::ROW_SORT, text, GameMakeColor(255, 160, 0, 255));
 		}
 

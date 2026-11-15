@@ -28,11 +28,15 @@ class SphereClass;
 struct SortingRendererStats
 {
 	enum { MS_INSERT, MS_FLUSH, MS_BUILD, MS_SORT, MS_REGROUP, MS_DRAW, MS_COUNT };
+	// Ronin @diagnostic 14/11/2026 DX9: what ended a run of the pool's triangles - a lit mesh, another transform, the shader, the material, a texture.
+	enum { BREAK_LIT, BREAK_TRANSFORM, BREAK_SHADER, BREAK_MATERIAL, BREAK_TEXTURE, BREAK_COUNT };
 	double		ms[MS_COUNT];	// insert: the sorted-list scan; flush: all of Flush; build/sort/regroup/draw: the pool's steps
 	unsigned	nodes;			// pooled nodes
 	unsigned	direct;			// sorted nodes drawn from their own buffers
 	unsigned	triangles;		// pooled triangles
 	unsigned	flushes;
+	unsigned	draws;			// Ronin @diagnostic 14/11/2026 DX9: the pool's draws, one per run
+	unsigned	breaks[BREAK_COUNT];	// ... and what ended each run but a chunk's last (Classify_Run_Break)
 	bool		enabled;
 };
 extern SortingRendererStats TheSortingStats;
