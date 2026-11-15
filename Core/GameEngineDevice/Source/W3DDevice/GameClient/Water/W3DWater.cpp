@@ -1664,6 +1664,45 @@ void WaterRenderObjClass::loadSetting( Setting *setting, TimeOfDay timeOfDay )
 
 }
 
+// Ronin @bugfix 15/11/2026 DX9: is any of the map's water in view - each water polygon's bounding rectangle at its height,
+// clipped as getClippedWaterPlane clips GameData's square. 1 in view, 0 not, -1 the map has no water polygons.
+static Int waterAreasInView(CameraClass *cam)
+{
+	const FrustumClass &frustum = cam->Get_Frustum();
+	Int result = -1;
+	for (PolygonTrigger *pTrig = PolygonTrigger::getFirstPolygonTrigger(); pTrig; pTrig = pTrig->getNext())
+	{
+		if (!pTrig->isWaterArea() || pTrig->getNumPoints() < 3)
+			continue;
+		result = 0;
+		const ICoord3D *p0 = pTrig->getPoint(0);
+		Real x0 = (Real)p0->x, x1 = x0, y0 = (Real)p0->y, y1 = y0;
+		for (Int k = 1; k < pTrig->getNumPoints(); k++)
+		{
+			const ICoord3D *p = pTrig->getPoint(k);
+			if ((Real)p->x < x0) x0 = (Real)p->x;
+			if ((Real)p->x > x1) x1 = (Real)p->x;
+			if ((Real)p->y < y0) y0 = (Real)p->y;
+			if ((Real)p->y > y1) y1 = (Real)p->y;
+		}
+		ClipPolyClass a, b;
+		a.Reset();
+		a.Add_Vertex(Vector3(x0, y0, (Real)p0->z));
+		a.Add_Vertex(Vector3(x0, y1, (Real)p0->z));
+		a.Add_Vertex(Vector3(x1, y1, (Real)p0->z));
+		a.Add_Vertex(Vector3(x1, y0, (Real)p0->z));
+		a.Clip(frustum.Planes[0], b);
+		b.Clip(frustum.Planes[1], a);
+		a.Clip(frustum.Planes[2], b);
+		b.Clip(frustum.Planes[3], a);
+		a.Clip(frustum.Planes[4], b);
+		b.Clip(frustum.Planes[5], a);
+		if (a.Verts.Count() >= 3)
+			return 1;
+	}
+	return result;
+}
+
 //-------------------------------------------------------------------------------------------------
 /** Our water may use effects that require run-time rendered textures.  These
 	*	textures need to be updated before we start rendering to the main screen
@@ -1674,8 +1713,11 @@ void WaterRenderObjClass::updateRenderTargetTextures(CameraClass *cam)
 	// Ronin @bugfix 01/10/2026 DX9: no mirror without the sea shaders or with `water mirror 0`; its plane is published for
 	// the tree cull (R3DWaterMirror.h).
 	TheWaterMirror.active = FALSE;
+	// Ronin @bugfix 15/11/2026 DX9: the map's water decides, not GameData's square (WaterExtentX/Y, 2000 shipped): past it the
+	// mirror stopped while WaterType 2's polygons kept sampling its last image. A map with no water polygons keeps the square.
+	const Int areas = waterAreasInView(cam);
 	if (m_waterType == WATER_TYPE_2_PVSHADER && m_pReflectionTexture && TheWaterSeaGlobal.mirror &&
-		getClippedWaterPlane(cam, nullptr) && TheTerrainRenderObject && TheTerrainRenderObject->getMap())
+		(areas > 0 || (areas < 0 && getClippedWaterPlane(cam, nullptr))) && TheTerrainRenderObject && TheTerrainRenderObject->getMap())
 	{
 		TheWaterMirror.active = TRUE;
 		TheWaterMirror.level  = m_level;
