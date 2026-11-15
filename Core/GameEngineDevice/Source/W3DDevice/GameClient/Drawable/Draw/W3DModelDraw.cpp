@@ -48,6 +48,7 @@
 #include "GameClient/Drawable.h"
 #include "GameClient/FXList.h"
 #include "GameClient/Shadow.h"
+#include "GameClient/Snow.h"	// Ronin @feature 15/11/2026 DX9: the map's wind, for the cloth flags
 #include "GameLogic/GameLogic.h"		// for real-time frame
 #include "GameLogic/Object.h"
 #include "GameLogic/WeaponSet.h"
@@ -1718,6 +1719,7 @@ W3DModelDraw::W3DModelDraw(Thing *thing, const ModuleData* moduleData) : DrawMod
 	m_curState = nullptr;
 	m_hexColor = 0;
 	m_renderObject = nullptr;
+	m_windFlagCount = -1;	// Ronin @feature 15/11/2026 DX9: the cloth flags, looked for on the first frame
 	m_shadow = nullptr;
 	m_shadowEnabled = TRUE;
 	m_terrainDecal = nullptr;
@@ -2094,6 +2096,7 @@ void W3DModelDraw::doDrawModule(const Matrix3D* transformMtx)
 	}
 
 	handleClientTurretPositioning();
+	handleClientWindFlags();	// Ronin @feature 15/11/2026 DX9: the cloth flags to the map's wind
 	recalcBonesForClientParticleSystems();
 
   const W3DModelDrawModuleData *modData = getW3DModelDrawModuleData();
@@ -2456,6 +2459,59 @@ void W3DModelDraw::handleClientTurretPositioning()
 				}
 			}
 		}
+	}
+}
+
+// Ronin @feature 15/11/2026 DX9: the cloth flags' root and second bones, as flagcloth.py (the tech flags' two cloths) and
+// flagteam.py (every team flag, FC<n>_..) name them.
+static const char *const s_windFlagRoot[] =
+	{ "FLGU00", "FLGL00", "FC1_00", "FC2_00", "FC3_00", "FC4_00", "FC5_00", "FC6_00", "FC7_00", "FC8_00" };
+static const char *const s_windFlagNext[] =
+	{ "FLGU01", "FLGL01", "FC1_01", "FC2_01", "FC3_01", "FC4_01", "FC5_01", "FC6_01", "FC7_01", "FC8_01" };
+
+// Ronin @feature 15/11/2026 DX9: each cloth flag points where the map's wind blows (Weather's SnowWind*), its root bone
+// turned about the pole after the clip - the wave is untouched; no wind = as built, 2003's direction.
+void W3DModelDraw::handleClientWindFlags()
+{
+	static_assert(ARRAY_SIZE(s_windFlagRoot) == MAX_WIND_FLAGS && ARRAY_SIZE(s_windFlagNext) == MAX_WIND_FLAGS, "one name per flag");
+	if (m_renderObject == nullptr)
+		return;
+	if (m_windFlagCount < 0)
+	{
+		m_windFlagCount = 0;
+		const HTreeClass *htree = m_renderObject->Get_HTree();
+		if (htree == nullptr)
+			return;
+		for (Int k = 0; k < MAX_WIND_FLAGS; ++k)
+		{
+			const Int b0 = htree->Get_Bone_Index(s_windFlagRoot[k]);	// 0 = no such bone
+			const Int b1 = htree->Get_Bone_Index(s_windFlagNext[k]);
+			Matrix3D t0, t1;
+			if (b0 <= 0 || b1 <= 0 || !htree->Simple_Evaluate_Pivot(b0, Matrix3D(1), &t0) || !htree->Simple_Evaluate_Pivot(b1, Matrix3D(1), &t1))
+				continue;
+			const Vector3 along = t1.Get_Translation() - t0.Get_Translation();	// the built direction, in the model
+			if (along.X * along.X + along.Y * along.Y < 1.0e-6f)
+				continue;
+			m_windFlagBone[m_windFlagCount] = b0;
+			m_windFlagYaw[m_windFlagCount] = atan2f(along.Y, along.X);
+			++m_windFlagCount;
+			m_renderObject->Capture_Bone(b0);
+		}
+	}
+	if (m_windFlagCount == 0)
+		return;
+
+	Real windDir = 0.0f, windSpeed = 0.0f, windGust = 0.0f;
+	if (TheSnowManager != nullptr)
+		TheSnowManager->getWind(&windDir, &windSpeed, &windGust);
+	const Vector3 modelX = m_renderObject->Get_Transform().Get_X_Vector();
+	const Real facing = atan2f(modelX.Y, modelX.X);
+	for (Int i = 0; i < m_windFlagCount; ++i)
+	{
+		Matrix3D turn(1);
+		if (windSpeed > 0.0f)
+			turn.Rotate_Z(DEG_TO_RADF(windDir) - facing - m_windFlagYaw[i]);
+		m_renderObject->Control_Bone(m_windFlagBone[i], turn);
 	}
 }
 
@@ -3018,6 +3074,7 @@ void W3DModelDraw::setModelState(const ModelConditionInfo* newState)
 			m_renderObject = W3DDisplay::m_assetManager->Create_Render_Obj(newState->m_modelName.str(), draw->getScale(), m_hexColor);
 			DEBUG_ASSERTCRASH(m_renderObject, ("*** ASSET ERROR: Model %s not found!",newState->m_modelName.str()));
 		}
+		m_windFlagCount = -1;	// Ronin @feature 15/11/2026 DX9: its cloth flags are looked for again
 
 		//BONEPOS_LOG(("validateStuff() from within W3DModelDraw::setModelState()"));
 		//BONEPOS_DUMPREAL(draw->getScale());

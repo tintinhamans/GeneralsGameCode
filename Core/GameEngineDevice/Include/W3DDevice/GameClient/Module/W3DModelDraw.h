@@ -438,6 +438,7 @@ protected:
 	void setModelState(const ModelConditionInfo* newState);
 	const ModelConditionInfo* findBestInfo(const ModelConditionFlags& c) const;
 	void handleClientTurretPositioning();
+	void handleClientWindFlags();	// Ronin @feature 15/11/2026 DX9: the cloth flags turned to the map's wind
 	void handleClientRecoil();
 	void recalcBonesForClientParticleSystems();
 	void stopClientParticleSystems();
@@ -499,6 +500,12 @@ private:
 	Bool													m_fullyObscuredByShroud;
 	Bool													m_shadowEnabled;	///< cached state of shadow.  Used to determine if shadows should be enabled via options screen.
 	RenderObjClass*								m_renderObject;										///< W3D Render object for this drawable
+	// Ronin @feature 15/11/2026 DX9: the cloth flags' root bones on m_renderObject and their built directions (radians, in
+	// the model); m_windFlagCount -1 = not looked for yet on this render object.
+	enum { MAX_WIND_FLAGS = 10 };
+	Int												m_windFlagCount;
+	Int												m_windFlagBone[MAX_WIND_FLAGS];
+	Real												m_windFlagYaw[MAX_WIND_FLAGS];
 	Shadow*												m_shadow;													///< Updates/Renders shadows of this object
 	Shadow*												m_terrainDecal;
 	TerrainTracksRenderObjClass*	m_trackRenderObject;							///< This is rendered under object
