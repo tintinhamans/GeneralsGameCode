@@ -1100,6 +1100,14 @@ static void bakeCasterMesh(MeshClass *mesh)
 	if (model == NULL)
 		return;
 
+	// Ronin @bugfix 15/11/2026 DX9: a skin (the cloth flags) moves through its bones while its transform stays put, so the
+	// sweep never saw it move and it was baked from bone-space vertices: never baked - drawn every frame, as a mover.
+	if (model->Get_Flag(MeshGeometryClass::SKIN))
+	{
+		mesh->Set_Shadow_Caster_Mover(true);
+		return;
+	}
+
 	const int vcount = model->Get_Vertex_Count();
 	const int pcount = model->Get_Polygon_Count();
 	// Ronin @bugfix 30/10/2026 DX9: the index count too - a 24k-triangle mesh wrapped the chunk's 16-bit index count and
