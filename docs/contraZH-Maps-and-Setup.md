@@ -95,7 +95,8 @@ Stash that deploys there.
 | `Contra/Team_/Move/Set to move to the nearest free supply source` | team, minimum resources |
 | `Contra/Unit_/Move/Move a specific unit to the nearest free supply source` | unit, minimum resources |
 
-* Free means not enemy-owned, with no supply center or reserved destination within 20 cells.
+* GLA trucks reserve individual sources. A truck assigned to a neighbouring source does not block
+the requested source. Native supply-center placement keeps its 20-cell spacing checks.
 * Each unit reserves its chosen source immediately, so trucks travelling together choose separate
 sources. The team action uses its lowest-ID living member with AI to hold the reservation.
 * Repeated calls retain a usable source, even below the original resource threshold, and leave a
@@ -140,8 +141,7 @@ each GLA faction. Export the latest scripts as JSON, run
 `python tools/migrate_mobile_supply_scripts.py before.json after.json`, import `after.json` in
 WorldBuilder's Edit mode, and export the resulting SCB. The migration keeps six workers per truck,
 removes 40 obsolete scripts and 12 numbered truck teams, and updates supply-guard prerequisites.
-Stealth uses 7,500 resources in both production checks and truck actions. The other GLA factions
-use 10,000. Free sources near enemy base structures are excluded as well as allied bases.
+Free sources near enemy base structures are excluded as well as allied bases.
 Choose No when Export Scripts offers to save back to the JSON, then select SCB output.
 Both the editor and game must include the new action and condition before using these scripts.
 ([#222](https://github.com/triatomic/contraZH/issues/222))

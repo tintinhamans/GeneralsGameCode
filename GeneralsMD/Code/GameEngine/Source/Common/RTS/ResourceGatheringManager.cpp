@@ -74,12 +74,22 @@ static Int supplySourceCash(Object *source)
 class PartitionFilterSupplySourceOccupant : public PartitionFilter
 {
 public:
-	PartitionFilterSupplySourceOccupant(const Object *mover) : m_mover(mover) { }
+	PartitionFilterSupplySourceOccupant(const Object *mover, const Object *source) : m_mover(mover), m_source(source) { }
 	virtual Bool allow(Object *other) override
 	{
 		if (other == m_mover || !other->isKindOf(KINDOF_CASH_GENERATOR))
 		{
 			return false;
+		}
+		if (m_source && !other->isKindOf(KINDOF_STRUCTURE))
+		{
+			Player *owner = other->getControllingPlayer();
+			ResourceGatheringManager *manager = owner ? owner->getResourceGatheringManager() : nullptr;
+			Object *assigned = manager ? manager->getAssignedSupplySource(other) : nullptr;
+			if (assigned && assigned != m_source)
+			{
+				return false;
+			}
 		}
 		// A travelling stash claims its destination, not the sources it passes.
 		return other->isKindOf(KINDOF_STRUCTURE) || !other->getAI() || !other->getAI()->isMoving();
@@ -89,6 +99,7 @@ public:
 #endif
 private:
 	const Object *m_mover;
+	const Object *m_source;
 };
 
 Bool ResourceGatheringManager::isAtSupplySource(const Object *mover, const Object *source)
@@ -139,7 +150,7 @@ void ResourceGatheringManager::updateSupplySourceReservations()
 	}
 }
 
-Bool ResourceGatheringManager::isSupplySourceReserved(Object *source, const Object *mover)
+Bool ResourceGatheringManager::isSupplySourceReserved(Object *source, const Object *mover, Bool separateSources)
 {
 	for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
 	{
@@ -157,6 +168,14 @@ Bool ResourceGatheringManager::isSupplySourceReserved(Object *source, const Obje
 				continue;
 			}
 			Object *reservedSource = TheGameLogic->findObjectByID(it->second.sourceID);
+			if (reservedSource && separateSources)
+			{
+				if (reservedSource == source)
+				{
+					return true;
+				}
+				continue;
+			}
 			if (reservedSource)
 			{
 				Real radius = SUPPLY_SOURCE_CLOSE_DIST + source->getGeometryInfo().getBoundingCircleRadius() +
@@ -171,13 +190,13 @@ Bool ResourceGatheringManager::isSupplySourceReserved(Object *source, const Obje
 	return false;
 }
 
-Bool ResourceGatheringManager::isSupplySourceAvailable(Object *source, const Player *player, const Object *mover)
+Bool ResourceGatheringManager::isSupplySourceAvailable(Object *source, const Player *player, const Object *mover, Bool separateSources)
 {
 	if (supplySourceCash(source) <= 0 || player->getRelationship(source->getTeam()) == ENEMIES)
 	{
 		return false;
 	}
-	PartitionFilterSupplySourceOccupant filterOccupant(mover);
+	PartitionFilterSupplySourceOccupant filterOccupant(mover, separateSources ? source : nullptr);
 	PartitionFilterAlive filterAlive;
 	PartitionFilterOnMap filterOnMap;
 	PartitionFilter *occupants[] = { &filterOccupant, &filterAlive, &filterOnMap, nullptr };
@@ -196,7 +215,7 @@ Bool ResourceGatheringManager::isSupplySourceAvailable(Object *source, const Pla
 	{
 		return false;
 	}
-	return !isSupplySourceReserved(source, mover);
+	return !isSupplySourceReserved(source, mover, separateSources);
 }
 
 Object *ResourceGatheringManager::findFreeSupplySource(Object *mover, const Coord3D *position, Int minimumCash)
@@ -231,7 +250,7 @@ Object *ResourceGatheringManager::findFreeSupplySource(Object *mover, const Coor
 				continue;
 			}
 			Real distanceSquared = supplySourceDistanceSquared(source->getPosition(), position);
-			if ((bestSource && distanceSquared >= bestDistanceSquared) || !isSupplySourceAvailable(source, player, mover))
+			if ((bestSource && distanceSquared >= bestDistanceSquared) || !isSupplySourceAvailable(source, player, mover, mover->isKindOf(KINDOF_CASH_GENERATOR) && !mover->isKindOf(KINDOF_STRUCTURE)))
 			{
 				continue;
 			}
@@ -281,7 +300,7 @@ Bool ResourceGatheringManager::hasFreeSupplySource(const Player *player, Int min
 	for (Object *source = TheGameLogic->getFirstObject(); source; source = source->getNextObject())
 	{
 		if (source->isKindOf(KINDOF_STRUCTURE) && supplySourceCash(source) >= max(1, minimumCash) &&
-			isSupplySourceAvailable(source, player))
+			isSupplySourceAvailable(source, player, nullptr, true))
 		{
 			return true;
 		}

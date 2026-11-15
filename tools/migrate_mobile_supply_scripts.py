@@ -22,12 +22,15 @@ def migrate(data):
     removed_teams = set()
     removed_scripts = set()
     for prefix in ['Aslt', 'Demo', 'Chem', 'Slth']:
-        minimum_resources = 7500 if prefix == 'Slth' else 10000
         name = prefix + ' Supply Truck Team'
         template = next(t for t in teams if t['teamName'] == name)
         index = next(i for i, p in enumerate(players) if p['name'] == template['teamOwner'])
         script_list = lists[index]
         groups = script_list['groups']
+        build_group = next(g for g in groups if g['name'] == 'Build Conditions')
+        build = next(s for s in build_group['scripts'] if s['name'] == 'Supply Stash 1 Build Condition')
+        minimum_resources = next(c['parameters'][1]['int'] for clause in build['or'] for c in clause
+                                 if c['name'] == 'SUPPLY_SOURCE_SAFE')
         group = next(g for g in groups if g['name'] == 'Supply Truck Scripts')
         scripts = {s['name']: s for s in group['scripts']}
         orders = scripts['GLA Supply Truck Orders']
@@ -43,13 +46,10 @@ def migrate(data):
         orders['actions'].append(copy.deepcopy(action))
         removed_scripts.update(s['name'] for s in group['scripts'] if s is not orders)
         group['scripts'] = [orders, manage]
-        build_group = next(g for g in groups if g['name'] == 'Build Conditions')
-        build = next(s for s in build_group['scripts'] if s['name'] == 'Supply Stash 1 Build Condition')
         removed_scripts.update('Supply Stash %d Build Condition' % n for n in range(1, 5))
         build['name'] = 'Supply Truck Build Condition'
         for clause in build['or']:
             safe = next(c for c in clause if c['name'] == 'SUPPLY_SOURCE_SAFE')
-            safe['parameters'][1]['int'] = minimum_resources
             available = copy.deepcopy(safe)
             available.update(type=178, name='PLAYER_HAS_FREE_SUPPLY_SOURCE')
             clause.append(available)

@@ -56,7 +56,7 @@ public:
 	void removeSupplyWarehouse( Object *oldWarehouse );	///< Warehouse that doesn't replenish has run out of Supply
 
 	Object *findFreeSupplySource( Object *mover, const Coord3D *position, Int minimumCash );
-	static Bool isSupplySourceAvailable( Object *source, const Player *player, const Object *mover = nullptr );
+	static Bool isSupplySourceAvailable( Object *source, const Player *player, const Object *mover = nullptr, Bool separateSources = false );
 	static Bool isAtSupplySource( const Object *mover, const Object *source );
 	void manageSupplyTruck( Object *truck );
 	Bool hasFreeSupplySource( const Player *player, Int minimumCash );
@@ -89,7 +89,7 @@ private:
 	SupplySourceReservations m_supplySourceReservations;
 	void updateSupplySourceReservations();
 	void xferSupplySourceReservations( Xfer *xfer, XferVersion version = 3 );
-	static Bool isSupplySourceReserved( Object *source, const Object *mover );
+	static Bool isSupplySourceReserved( Object *source, const Object *mover, Bool separateSources );
 
 	/// @todo Make sure the allocator for std::list<> is a good one.  Otherwise override it.
 	typedef std::list<ObjectID> objectIDList;
