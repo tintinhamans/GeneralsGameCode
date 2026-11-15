@@ -30,6 +30,8 @@
 #include <string>
 #include <vector>
 
+class HTTPRequest;
+
 namespace GenOnlineRealtimeBridge
 {
 
@@ -74,14 +76,28 @@ typedef std::function<void(const GenOnlineRealtime::RestOutcome&)> RestCallback;
 
 // Calls a REST endpoint on the service origin with the access token of the session. path starts with /api/v1
 // and body is JSON or empty. Without a session or a service route the callback gets an undelivered outcome.
+// A standby answer sends the call again after STANDBY_RETRY_DELAY_MS for up to STANDBY_RETRY_WINDOW_MS, without counting as a send.
 void CallRest(RestMethod method, const std::string& path, const std::string& body, RestCallback callback);
 
 // Calls an endpoint that is safe to repeat. A failure that RestRetryDelayMs retries sends the call again
 // after its delay, and the callback gets the last outcome. A retry is dropped when the signed in user changes.
 void CallRestWithRetry(RestMethod method, const std::string& path, const std::string& body, RestCallback callback);
 
+// The answer of one HTTP request.
+typedef std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pRequest)> HTTPDoneCallback;
+// Sends one try of a request and hands its answer to the callback.
+typedef std::function<void(HTTPDoneCallback)> HTTPSendFunction;
+
+// Sends an /api/v1 request that does not go through CallRest. A standby answer sends it again after
+// STANDBY_RETRY_DELAY_MS until the standby answers lasted STANDBY_RETRY_WINDOW_MS, then fnDone gets the last answer.
+// fnWanted runs before each new try, and false drops the request without calling fnDone.
+void SendWithStandbyRetry(const std::string& label, HTTPSendFunction fnSend, HTTPDoneCallback fnDone, std::function<bool()> fnWanted = nullptr);
+
 // Sends the retries that are due. Runs on every services tick.
 void TickRest();
+
+// Drops every queued retry without its callback, like the HTTP manager drops its requests at the services shutdown.
+void ShutdownRest();
 
 // A system line in the room chat.
 void ShowRoomNotice(const std::wstring& text, bool bError);

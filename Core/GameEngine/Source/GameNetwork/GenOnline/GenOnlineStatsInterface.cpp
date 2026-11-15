@@ -127,9 +127,19 @@ void GenOnlineStatsInterface::GetGlobalStats(std::function<void(GlobalStats)> cb
 	}
 	const std::string strURI = strOrigin + GenOnlineRealtime::RestGlobalStatsPath();
 
-	std::map<std::string, std::string> mapHeaders;
-
-	pManager->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+	GenOnlineRealtimeBridge::SendWithStandbyRetry("GET /api/v1/stats/global",
+		[strURI](GenOnlineRealtimeBridge::HTTPDoneCallback fnAnswer)
+		{
+			GenOnlineServicesManager* pServices = GenOnlineServicesManager::GetInstance();
+			if (pServices == nullptr || pServices->GetHTTPManager() == nullptr)
+			{
+				fnAnswer(false, 0, std::string(), nullptr);
+				return;
+			}
+			std::map<std::string, std::string> mapHeaders;
+			pServices->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, fnAnswer);
+		},
+		[=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 		{
 			GlobalStats stats;
 			GenOnlineRealtime::GlobalStatsResponse global;

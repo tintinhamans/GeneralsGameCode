@@ -1671,6 +1671,42 @@ static void TestRestRetry()
 	CHECK(RestRetryDelayMs(MakeRestOutcome(true, 404, ""), 1) == -1);
 }
 
+static void TestStandbyRetry()
+{
+	const std::string standbyBody = R"({"error":"service.unavailable","params":{"what":"standby"}})";
+
+	// A standby answer is a 503 with service.unavailable and what standby.
+	CHECK(IsStandbyAnswer(MakeRestOutcome(true, 503, standbyBody), false));
+	CHECK(!IsStandbyAnswer(MakeRestOutcome(true, 503, R"({"error":"service.unavailable","params":{"what":"database"}})"), false));
+	CHECK(!IsStandbyAnswer(MakeRestOutcome(true, 503, R"({"error":"server.overloaded","params":{"what":"standby"}})"), false));
+	CHECK(!IsStandbyAnswer(MakeRestOutcome(true, 503, ""), false));
+	CHECK(!IsStandbyAnswer(MakeRestOutcome(true, 500, standbyBody), false));
+	CHECK(!IsStandbyAnswer(MakeRestOutcome(false, 0, ""), false));
+
+	// The refused realtime upgrade has no body, so any 503 there is a standby answer.
+	CHECK(IsStandbyAnswer(MakeRestOutcome(true, 503, ""), true));
+	CHECK(IsStandbyAnswer(MakeRestOutcome(true, 503, R"({"error":"server.overloaded"})"), true));
+	CHECK(!IsStandbyAnswer(MakeRestOutcome(true, 502, ""), true));
+	CHECK(!IsStandbyAnswer(MakeRestOutcome(false, 0, ""), true));
+
+	// Standby answers wait a fixed second until 10 seconds passed since the first one in a row.
+	StandbyRetry standby;
+	CHECK(STANDBY_RETRY_DELAY_MS == 1000);
+	CHECK(standby.NextDelayMs(true, 50000) == 1000);
+	CHECK(standby.NextDelayMs(true, 51000) == 1000);
+	CHECK(standby.NextDelayMs(true, 59999) == 1000);
+	CHECK(standby.NextDelayMs(true, 60000) == -1);
+	CHECK(standby.NextDelayMs(true, 61000) == -1);
+
+	// Any other answer ends the run, and the next standby answer starts a new window.
+	CHECK(standby.NextDelayMs(false, 62000) == -1);
+	CHECK(standby.NextDelayMs(true, 63000) == 1000);
+	CHECK(standby.NextDelayMs(true, 72999) == 1000);
+	CHECK(standby.NextDelayMs(true, 73000) == -1);
+	standby.Reset();
+	CHECK(standby.NextDelayMs(true, 74000) == 1000);
+}
+
 static void TestRestPaths()
 {
 	CHECK(RestFriendRequestsPath() == "/api/v1/me/friend_requests");
@@ -2135,6 +2171,7 @@ int main(int argc, char** argv)
 	TestApiFixtures(argv[3]);
 	TestApiError();
 	TestRestRetry();
+	TestStandbyRetry();
 	TestRestPaths();
 	TestLegacyRouteReplacements(argv[3]);
 	TestConnectionTimeline();
