@@ -20,13 +20,10 @@
 
 #pragma once
 
-#include "GameNetwork/GenOnline/PluginApi/GenOnlinePluginApi.h"
+#include <GenOnlinePluginApi.h>
 
 // Name of GenOnline Anti-Cheat in its plugin table and in the log.
 #define GENONLINE_ANTICHEAT_PLUGIN_NAME "genonline_anticheat"
-
-// Name of the EOS plugin, which carries Easy Anti-Cheat and EOS P2P, in its folder, DLL and manifest.
-#define GENONLINE_EOS_PLUGIN_NAME "genonline_eos"
 
 // Anticheat identifier that the game sends to the service while GenOnline Anti-Cheat is active.
 // The client knows no service value for GenOnline Anti-Cheat, so it reports 0 like a game without anticheat.

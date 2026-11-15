@@ -921,8 +921,8 @@ void GenOnlineStartPatchCheck()
 	if (GenOnlinePluginHost::DidTransportPluginFailToLoad() && !s_shownTransportPluginNotice)
 	{
 		s_shownTransportPluginNotice = TRUE;
-		MessageBoxOk(TheGameText->fetchOrSubstitute("GUI:EOSP2PLoadFailedHeader", L"EOS P2P"),
-			TheGameText->fetchOrSubstitute("GUI:EOSP2PLoadFailed", L"EOS P2P could not be loaded. You can still play online over the standard connection."),
+		MessageBoxOk(TheGameText->fetchOrSubstitute("GUI:TransportPluginLoadFailedHeader", L"Peer-to-peer plugin"),
+			TheGameText->fetchOrSubstitute("GUI:TransportPluginLoadFailed", L"The peer-to-peer plugin could not be loaded. You can still play online over the standard connection."),
 			nullptr);
 	}
 

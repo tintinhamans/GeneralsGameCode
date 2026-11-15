@@ -1,5 +1,5 @@
 #pragma once
-#include "GameNetwork/GenOnline/PluginApi/GenOnlinePluginApi.h"
+#include <GenOnlinePluginApi.h>
 #include <cstdint>
 #include <string>
 #include <vector>

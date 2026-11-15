@@ -55,7 +55,11 @@ public:
 
 	void GoToDetermineNetworkCaps();
 
-	void SendMiddlewareToken(std::string strMWToken);
+	// Links the account at the provider that the plugin reports, with the proof of that account issued by the provider.
+	void SendMiddlewareToken(const std::string& strProvider, const std::string& strProof);
+
+	// Mints the short-lived token the plugin of the provider signs in to its platform with. The callback gets an empty token on failure, and does not run once the services tear down.
+	void RequestSignInToken(const std::string& strProvider, std::function<void(const std::string& strToken)> fnDone);
 
 	void BeginLogin();
 	void BeginLoginOnSelectedRoute();
