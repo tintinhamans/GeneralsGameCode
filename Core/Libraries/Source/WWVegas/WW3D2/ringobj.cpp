@@ -89,6 +89,7 @@
 #include "statistics.h"
 #include "predlod.h"
 #include "dx8wrapper.h"
+#include "Renderer.h"
 #include "dx8indexbuffer.h"
 #include "dx8vertexbuffer.h"
 #include "sortingrenderer.h"
@@ -723,9 +724,9 @@ void RingRenderObjClass::Render(RenderInfoClass & rinfo)
 
 			Matrix3D temp;
 			temp.Look_At(obj_position, obj_position + camera_z_vector, 0.0f);
-			DX8Wrapper::Set_Transform(D3DTS_WORLD, temp);
+			Renderer::Set_Transform(RenderTransform_World, temp);
 		} else {
-			DX8Wrapper::Set_Transform(D3DTS_WORLD, Transform);
+			Renderer::Set_Transform(RenderTransform_World, Transform);
 		}
 
 		//
@@ -1224,7 +1225,7 @@ RingPrototypeClass::RingPrototypeClass(RingRenderObjClass *ring)
 	//
 	if (ring->RingTexture != nullptr) {
 		StringClass name = ring->RingTexture->Get_Full_Path();
-		const char *filename = getFileName (name);
+		const char *filename = getFileName (name.str());
 
 		strlcpy(Definition.TextureName, filename, ARRAY_SIZE(Definition.TextureName));
 	}

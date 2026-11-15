@@ -538,8 +538,8 @@ void Render2DClass::Render()
 	Matrix4x4 view,proj;
 	Matrix4x4 identity(true);
 
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
-	DX8Wrapper::Get_Transform(D3DTS_PROJECTION,proj);
+	Renderer::Get_Transform(RenderTransform_View,view);
+	Renderer::Get_Transform(RenderTransform_Projection,proj);
 
 	//
 	//	Configure the viewport for entire screen
@@ -560,8 +560,8 @@ void Render2DClass::Render()
 	DX8Wrapper::Set_Material(vm);
 	REF_PTR_RELEASE(vm);
 
-	DX8Wrapper::Set_World_Identity();
-	DX8Wrapper::Set_View_Identity();
+	Renderer::Set_World_Identity();
+	Renderer::Set_View_Identity();
 
 	// Ronin @bugfix 09/11/2025 DX9: Disable depth testing/writing for 2D
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZENABLE, FALSE);
@@ -569,7 +569,7 @@ void Render2DClass::Render()
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_LIGHTING, FALSE);
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_CULLMODE, D3DCULL_NONE);
 
-		DX8Wrapper::Set_Transform(D3DTS_PROJECTION,identity);
+		Renderer::Set_Transform(RenderTransform_Projection,identity);
 
 	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,Vertices.Count());
 	{
@@ -636,8 +636,8 @@ void Render2DClass::Render()
 //	SphereClass sphere(Vector3(0.0f,0.0f,0.0f),0.0f);
 //	SortingRendererClass::Insert_Triangles(sphere,0,Indices.Count()/3,0,Vertices.Count());
 
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
-	DX8Wrapper::Set_Transform(D3DTS_PROJECTION,proj);
+	Renderer::Set_Transform(RenderTransform_View,view);
+	Renderer::Set_Transform(RenderTransform_Projection,proj);
 
 	// Restore Z-buffer state
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZENABLE, TRUE);

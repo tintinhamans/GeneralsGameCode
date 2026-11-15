@@ -45,9 +45,9 @@
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "dx8wrapper.h"
+#include "Renderer.h"
 #include "vertmaterial.h"
 #include "texture.h"
-#include <d3dx9math.h>  // Native DX9 math
 #include "statistics.h"
 #include "dx8instancing.h"	// Ronin @perf 07/11/2026 DX9: Flush_Additive_Parts
 #include <WWDebug/wwprofile.h>
@@ -411,14 +411,8 @@ void SortingRendererClass::Insert_Triangles(
 
 	if (bounding_sphere.Is_Valid())
 	{
-		D3DXMATRIX mtx=(D3DXMATRIX&)state->sorting_state.world*(D3DXMATRIX&)state->sorting_state.view;
-		D3DXVECTOR3 vec=(D3DXVECTOR3&)bounding_sphere.Center;
-		D3DXVECTOR4 transformed_vec;
-		D3DXVec3Transform(
-			&transformed_vec,
-			&vec,
-			&mtx);
-		state->transformed_center=Vector3(transformed_vec[0],transformed_vec[1],transformed_vec[2]);
+		const Matrix4x4 mtx=To_Matrix4x4(state->sorting_state.view)*To_Matrix4x4(state->sorting_state.world);
+		Matrix4x4::Transform_Vector(mtx,bounding_sphere.Center,&state->transformed_center);
 
 		LARGE_INTEGER insertStart = Sort_Start();	// Ronin @diagnostic 06/11/2026 DX9: [SORT] the sorted-list scan
 		Insert_To_Sorted_List(state);
@@ -765,8 +759,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			}
 			dest_verts += state->vertex_count;
 
-			D3DXMATRIX d3d_mtx=(D3DXMATRIX&)state->sorting_state.world*(D3DXMATRIX&)state->sorting_state.view;
-			const Matrix4x4& mtx=(const Matrix4x4&)d3d_mtx;
+			const Matrix4x4 mtx=To_Matrix4x4(state->sorting_state.view)*To_Matrix4x4(state->sorting_state.world);
 
 			unsigned short* indices=nullptr;
 			SortingIndexBufferClass* index_buffer=static_cast<SortingIndexBufferClass*>(state->sorting_state.index_buffer);
@@ -776,7 +769,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			indices+=state->start_index;
 			indices+=state->sorting_state.iba_offset;
 
-			if (mtx[0][2] == 0.0f && mtx[1][2] == 0.0f && mtx[3][2] == 0.0f && mtx[2][2] == 1.0f) {
+			if (mtx[2][0] == 0.0f && mtx[2][1] == 0.0f && mtx[2][3] == 0.0f && mtx[2][2] == 1.0f) {
 				// The common case for particle systems.
 				for (int i=0;i<state->polygon_count;++i) {
 					unsigned short idx1=indices[i*3]-state->min_vertex_index;
@@ -816,9 +809,9 @@ void SortingRendererClass::Flush_Sorting_Pool()
 					tis_ptr->tri.j = idx2 + vertex_array_offset;
 					tis_ptr->tri.k = idx3 + vertex_array_offset;
 					tis_ptr->idx = node_id;
-					tis_ptr->z = (mtx[0][2]*(v1->x + v2->x + v3->x) +
-												mtx[1][2]*(v1->y + v2->y + v3->y) +
-												mtx[2][2]*(v1->z + v2->z + v3->z))/3.0f + mtx[3][2];
+					tis_ptr->z = (mtx[2][0]*(v1->x + v2->x + v3->x) +
+												mtx[2][1]*(v1->y + v2->y + v3->y) +
+												mtx[2][2]*(v1->z + v2->z + v3->z))/3.0f + mtx[2][3];
 					DEBUG_ASSERTCRASH((! _isnan(tis_ptr->z) && _finite(tis_ptr->z)), ("Triangle has invalid center"));
 				}
 			}
@@ -1023,8 +1016,8 @@ void SortingRendererClass::Flush()
 
 	Matrix4x4 old_view;
 	Matrix4x4 old_world;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,old_view);
-	DX8Wrapper::Get_Transform(D3DTS_WORLD,old_world);
+	Renderer::Get_Transform(RenderTransform_View,old_view);
+	Renderer::Get_Transform(RenderTransform_World,old_world);
 
 	// TheSuperHackers @perf stephanmeesters 04/07/2026
 	// Splice nodes that have no bounding information (Z=0.0) at the correct location into the sorted list.
@@ -1119,8 +1112,8 @@ void SortingRendererClass::Flush()
 	DynamicVBAccessClass::_Reset(false);
 
 
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,old_view);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,old_world);
+	Renderer::Set_Transform(RenderTransform_View,old_view);
+	Renderer::Set_Transform(RenderTransform_World,old_world);
 
 	// Ronin @perf 07/11/2026 DX9: the additive parts (`parts`), with the camera back: drawn over everything the pool drew.
 	TheDX8InstanceManager.Flush_Additive_Parts();

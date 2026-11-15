@@ -44,6 +44,7 @@
 #include "texture.h"
 #include "vertmaterial.h"
 #include "dx8wrapper.h"
+#include "Renderer.h"
 #include "WWMath/wwmath.h"
 #include "rinfo.h"
 #include "camera.h"
@@ -283,10 +284,10 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 
 	// Save off the view matrix
 	Matrix4x4 view;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW, view);
+	Renderer::Get_Transform(RenderTransform_View, view);
 
 	Matrix4x4 identity(true);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD, identity);
+	Renderer::Set_Transform(RenderTransform_World, identity);
 
 	// if the points are in world space, transform the offsets
 	if (Get_Flag(TRANSFORM)) {
@@ -298,7 +299,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 			Matrix3D::Transform_Vector(xform_mat, offset[i], &offset[i]);
 		}
 	} else {
-		DX8Wrapper::Set_Transform(D3DTS_VIEW, identity);
+		Renderer::Set_Transform(RenderTransform_View, identity);
 	}
 
 	int num_tris=0;
@@ -486,7 +487,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 	}
 
 	// restore the matrices
-	DX8Wrapper::Set_Transform(D3DTS_VIEW, view);
+	Renderer::Set_Transform(RenderTransform_View, view);
 }
 
 int LineGroupClass::Get_Polygon_Count()

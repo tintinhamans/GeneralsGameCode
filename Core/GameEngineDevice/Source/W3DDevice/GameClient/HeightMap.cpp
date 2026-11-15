@@ -2076,7 +2076,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 	DX8Wrapper::Set_Texture(1,nullptr);
 	ShaderClass::Invalidate();
 
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Transform);
+	Renderer::Set_Transform(RenderTransform_World,Transform);
 
 	//Apply the shader and material
 
@@ -2327,7 +2327,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 					DX8Wrapper::Apply_Render_State_Changes();
 					DX8Wrapper::_Get_D3D_Device8()->SetStreamSource(
 						0,
-						m_xformedVertexBuffer[j*m_numVBTilesX+i], 0, D3DXGetFVFVertexSize(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2));
+						m_xformedVertexBuffer[j*m_numVBTilesX+i], 0, FVFInfoClass::Get_FVF_Vertex_Size(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2));
 					DX8Wrapper::_Get_D3D_Device8()->SetFVF(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2);
 				}
 #endif
@@ -2879,7 +2879,7 @@ void HeightMapRenderObjClass::renderTerrainPass(CameraClass *pCamera)
 	// the source texture). One draw per VB tile -- ~half of the old terrain bucket. Windowednew.md §18f-0.7.
 	Debug_Statistics::DrawSubsystemScope drawTag(Debug_Statistics::DRAW_SUBSYS_SHROUD);
 
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Matrix3D(true));
+	Renderer::Set_Transform(RenderTransform_World,Matrix3D(true));
 
 	//Apply the shader and material
 
@@ -2901,7 +2901,7 @@ void HeightMapRenderObjClass::renderTerrainPass(CameraClass *pCamera)
 				DX8Wrapper::Apply_Render_State_Changes();
 				DX8Wrapper::_Get_D3D_Device8()->SetStreamSource(
 					0,
-					m_xformedVertexBuffer[j*m_numVBTilesX+i], 0, D3DXGetFVFVertexSize(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2));
+					m_xformedVertexBuffer[j*m_numVBTilesX+i], 0, FVFInfoClass::Get_FVF_Vertex_Size(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2));
 				DX8Wrapper::_Get_D3D_Device8()->SetFVF(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2);
 			}
 #endif

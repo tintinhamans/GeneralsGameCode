@@ -58,6 +58,7 @@
 #include "WW3D2/camera.h"
 #include "WW3D2/assetmgr.h"
 #include "WW3D2/dx8wrapper.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/scene.h"
 #include "GameLogic/TerrainLogic.h"
 #include "GameLogic/Object.h"
@@ -955,7 +956,7 @@ Try improving the fit to vertical surfaces like cliffs.
 		trackStartIndex=0;
 
 		mod=m_usedModules;
-		DX8Wrapper::Set_Transform(D3DTS_WORLD,mod->Transform);
+		Renderer::Set_Transform(RenderTransform_World,mod->Transform);
 		while (mod)
 		{
 			if (mod->m_drawnEdgeCount >= 2)	// Ronin @feature 09/11/2026 DX9: the edges the fill above wrote (rounded turns add some)

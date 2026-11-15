@@ -31,6 +31,7 @@
 #include "rinfo.h"
 #include "dx8wrapper.h"
 #include "statistics.h"
+#include "Renderer.h"
 #include "sortingrenderer.h"
 #include "WWMath/vp.h"
 #include "WWMath/Vector3i.h"
@@ -321,11 +322,11 @@ void StreakRendererClass::RenderStreak
 	Debug_Statistics::DrawSubsystemScope drawTag(Debug_Statistics::DRAW_SUBSYS_FX_LINE);
 
 	Matrix4x4 view;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+	Renderer::Get_Transform(RenderTransform_View,view);
 
 	Matrix4x4 identity(true);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,identity);
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,identity);
+	Renderer::Set_Transform(RenderTransform_World,identity);
+	Renderer::Set_Transform(RenderTransform_View,identity);
 
 	/*
 	** Handle texture UV offset animation (done once for entire line).
@@ -1403,7 +1404,7 @@ void StreakRendererClass::RenderStreak
 
 	}
 
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+	Renderer::Set_Transform(RenderTransform_View,view);
 
 }
 

@@ -86,6 +86,7 @@
 #include "camera.h"
 #include "statistics.h"
 #include "dx8wrapper.h"
+#include "Renderer.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "sortingrenderer.h"
@@ -662,7 +663,7 @@ void SphereRenderObjClass::Render(RenderInfoClass & rinfo)
 		// Camera Align
 		if (Flags & USE_CAMERA_ALIGN) {
 			Matrix4x4 view,ident(true);
-			DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+			Renderer::Get_Transform(RenderTransform_View,view);
 
 			Vector4 wpos(Transform[0][3],Transform[1][3],Transform[2][3],1);
 			Vector4 cpos;
@@ -673,12 +674,12 @@ void SphereRenderObjClass::Render(RenderInfoClass & rinfo)
 							1.0f, 0.0f, 0.0f, cpos.Z);
 
 			tm.Scale(real_scale);
-			DX8Wrapper::Set_Transform(D3DTS_WORLD,ident);
-			DX8Wrapper::Set_Transform(D3DTS_VIEW,tm);
+			Renderer::Set_Transform(RenderTransform_World,ident);
+			Renderer::Set_Transform(RenderTransform_View,tm);
 			render_sphere();
-			DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+			Renderer::Set_Transform(RenderTransform_View,view);
 		} else {
-			DX8Wrapper::Set_Transform(D3DTS_WORLD,temp);
+			Renderer::Set_Transform(RenderTransform_World,temp);
 			render_sphere();
 		}
 	}
@@ -1179,7 +1180,7 @@ SpherePrototypeClass::SpherePrototypeClass(SphereRenderObjClass *sphere)
 	//
 	if (sphere->SphereTexture != nullptr) {
 		StringClass name = sphere->SphereTexture->Get_Full_Path();
-		const char *filename = getFileName (name);
+		const char *filename = getFileName (name.str());
 
 		strlcpy(Definition.TextureName, filename, ARRAY_SIZE(Definition.TextureName));
 

@@ -623,8 +623,8 @@ void Render2DClass::Render(void)
 	Matrix4x4 view, proj;
 	Matrix4x4 identity(true);
 
-	DX8Wrapper::Get_Transform(D3DTS_VIEW, view);
-	DX8Wrapper::Get_Transform(D3DTS_PROJECTION, proj);
+	Renderer::Get_Transform(RenderTransform_View,view);
+	Renderer::Get_Transform(RenderTransform_Projection,proj);
 
 
 	IDirect3DDevice9* dev = DX8Wrapper::_Get_D3D_Device8();
@@ -648,9 +648,9 @@ void Render2DClass::Render(void)
 	REF_PTR_RELEASE(vm);
 
 	// Set identity transforms for 2D rendering
-	DX8Wrapper::Set_World_Identity();
-	DX8Wrapper::Set_View_Identity();
-	DX8Wrapper::Set_Transform(D3DTS_PROJECTION,identity);
+	Renderer::Set_World_Identity();
+	Renderer::Set_View_Identity();
+	Renderer::Set_Transform(RenderTransform_Projection,identity);
 
 	// Fill dynamic vertex buffer using dynamic_fvf_type (same as vanilla)
 	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC_DX8, dynamic_fvf_type, Vertices.Count());
@@ -730,8 +730,8 @@ void Render2DClass::Render(void)
 	DX8Wrapper::Draw_Triangles(0, Indices.Count() / 3, 0, Vertices.Count());
 
 	// Restore view and projection transforms
-	DX8Wrapper::Set_Transform(D3DTS_VIEW, view);
-	DX8Wrapper::Set_Transform(D3DTS_PROJECTION, proj);
+	Renderer::Set_Transform(RenderTransform_View,view);
+	Renderer::Set_Transform(RenderTransform_Projection,proj);
 	if (IsGrayScale)
 		ShaderClass::Invalidate(); 	// (3D or 2D) fully re-applies its shader states and doesn't inherit our 2D setup.
 

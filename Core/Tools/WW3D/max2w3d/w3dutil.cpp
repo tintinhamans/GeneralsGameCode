@@ -38,17 +38,17 @@
 
 #include "w3dutil.h"
 #include "w3ddesc.h"
-#include "rcmenu.h"
 #include "util.h"
 #include "nodelist.h"
 #include "tchar.h"
 #include "gamemtl.h"
 #include "notify.h"
-#include "Lib/PathUtil.h"
 #include "gennamesdialog.h"
 #include "genmtlnamesdialog.h"
 #include "genlodextensiondialog.h"
 #include "floaterdialog.h"
+#include <Lib/PathUtil.h>
+#include <Utility/stringex.h>
 #include <stdmat.h>
 
 
@@ -360,13 +360,6 @@ void W3DUtilityClass::BeginEditParams(Interface *ip,IUtil *iu)
 		_w3d_utility_tools_dlg_proc,
 		Get_String(IDS_W3DUTILITY_TOOLS),
 		0);
-
-
-//	TheRCMenu.Bind(TheW3DUtility.InterfacePtr,&TheW3DUtility);
-//	RightClickMenuManager *rcm = ip->GetRightClickMenuManager();
-//	if (TheRCMenu.Installed!=TRUE) {
-//		rcm->Register(&TheRCMenu);
-//	}
 
 	SettingsFormClass::Update_All_Instances();
 }
@@ -1529,10 +1522,9 @@ void SettingsFormClass::Init()
 	// string is of the form 'key=value'.  Based on my testing, it appears that windows removes any white
 	// space before or after the equal sign as well.
 	char dllpath[_MAX_PATH];
-	::GetModuleFileName(AppInstance,dllpath,sizeof(dllpath));
-	char * last_slash = getLastPathSeparator(dllpath);
-	last_slash++;
-	strcpy(last_slash,DAZZLE_SETTINGS_FILENAME);
+	::GetModuleFileName(AppInstance,dllpath,ARRAY_SIZE(dllpath));
+	*getFileName(dllpath)=0;
+	strlcat(dllpath,DAZZLE_SETTINGS_FILENAME,ARRAY_SIZE(dllpath));
 
 	char * dazzle_types_buffer = new char[DAZZLE_SECTION_BUFFERSIZE];	// max size of a section for Win95
 
