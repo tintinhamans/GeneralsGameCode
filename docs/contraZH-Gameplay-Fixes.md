@@ -11,6 +11,16 @@ to curved and linear flight paths, including projectiles that tumble or keep a f
 
 Changes the simulation and older replay playback for affected shots.
 
+## AI supply sources respect allied bases
+
+AI supply construction skips sources already occupied by another player's supply center or
+reserved by a scripted supply truck. It also skips sources within `SupplyCenterSafeRadius` of
+allied structures, so an ally's base supplies are protected before its supply center exists.
+
+GLA trucks using the [nearest-free-supply actions](contraZH-Maps-and-Setup.md#move-to-a-free-supply-source)
+reserve separate sources while travelling and keep valid assignments after arrival.
+([#220](https://github.com/triatomic/contraZH/issues/220))
+
 ## Recycled supply centers accept automatic deliveries
 
 Supply centers spawned already complete register as delivery targets during normal gameplay.

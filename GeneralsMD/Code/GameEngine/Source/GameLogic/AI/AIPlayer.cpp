@@ -38,6 +38,7 @@
 #include "Common/Team.h"
 #include "Common/ThingFactory.h"
 #include "Common/PlayerList.h"
+#include "Common/ResourceGatheringManager.h"
 #include "Common/BuildAssistant.h"
 #include "Common/ThingTemplate.h"
 #include "Common/Upgrade.h"
@@ -2280,20 +2281,8 @@ Object *AIPlayer::findSupplyCenter(Int minimumCash)
 					continue;
 				}
 
-				// Make sure we don't have a supply center near it.
-				Coord3D center = *obj->getPosition();
-				Real radius = SUPPLY_CENTER_CLOSE_DIST + obj->getGeometryInfo().getBoundingCircleRadius();
-
-				PartitionFilterAcceptByKindOf f1(MAKE_KINDOF_MASK(KINDOF_CASH_GENERATOR), KINDOFMASK_NONE);
-				PartitionFilterPlayer f2(m_player, true);	// Only find your own units.
-				PartitionFilterOnMap filterMapStatus;
-
-
-				PartitionFilter *filters[] = { &f1, &f2, &filterMapStatus, nullptr };
-
-				Object *supplyCenter = ThePartitionManager->getClosestObject(&center, radius, FROM_BOUNDINGSPHERE_2D, filters);
-				if (supplyCenter) {
-					// We already have a supply center.
+				if (!ResourceGatheringManager::isSupplySourceAvailable(obj, m_player))
+				{
 					continue;
 				}
 
