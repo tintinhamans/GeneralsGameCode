@@ -71,13 +71,37 @@ static Int supplySourceCash(Object *source)
 	return warehouse ? warehouse->getBoxesStored() * TheGlobalData->m_baseValuePerSupplyBox : 0;
 }
 
+static Bool isSupplyCenter(Object *object)
+{
+	static const NameKeyType key = NAMEKEY("SupplyCenterDockUpdate");
+	return object->findUpdateModule(key) != nullptr;
+}
+
+static Bool suppliesShareSite(Object *source, Object *other)
+{
+	if (source == other)
+	{
+		return true;
+	}
+	static const NameKeyType key = NAMEKEY("SupplyWarehouseDockUpdate");
+	SupplyWarehouseDockUpdate *warehouse = (SupplyWarehouseDockUpdate *)source->findUpdateModule(key);
+	SupplyWarehouseDockUpdate *otherWarehouse = (SupplyWarehouseDockUpdate *)other->findUpdateModule(key);
+	if (!warehouse || !otherWarehouse || (!warehouse->isDeletedWhenEmpty() && !otherWarehouse->isDeletedWhenEmpty()))
+	{
+		return false;
+	}
+	Real radius = SUPPLY_SOURCE_CLOSE_DIST + source->getGeometryInfo().getBoundingCircleRadius() +
+		other->getGeometryInfo().getBoundingCircleRadius();
+	return supplySourceDistanceSquared(source->getPosition(), other->getPosition()) <= radius * radius;
+}
+
 class PartitionFilterSupplySourceOccupant : public PartitionFilter
 {
 public:
-	PartitionFilterSupplySourceOccupant(const Object *mover, const Object *source) : m_mover(mover), m_source(source) { }
+	PartitionFilterSupplySourceOccupant(const Object *mover, Object *source) : m_mover(mover), m_source(source) { }
 	virtual Bool allow(Object *other) override
 	{
-		if (other == m_mover || !other->isKindOf(KINDOF_CASH_GENERATOR))
+		if (other == m_mover || !isSupplyCenter(other))
 		{
 			return false;
 		}
@@ -86,7 +110,7 @@ public:
 			Player *owner = other->getControllingPlayer();
 			ResourceGatheringManager *manager = owner ? owner->getResourceGatheringManager() : nullptr;
 			Object *assigned = manager ? manager->getAssignedSupplySource(other) : nullptr;
-			if (assigned && assigned != m_source)
+			if (assigned && !suppliesShareSite(m_source, assigned))
 			{
 				return false;
 			}
@@ -99,7 +123,7 @@ public:
 #endif
 private:
 	const Object *m_mover;
-	const Object *m_source;
+	Object *m_source;
 };
 
 Bool ResourceGatheringManager::isAtSupplySource(const Object *mover, const Object *source)
@@ -170,7 +194,7 @@ Bool ResourceGatheringManager::isSupplySourceReserved(Object *source, const Obje
 			Object *reservedSource = TheGameLogic->findObjectByID(it->second.sourceID);
 			if (reservedSource && separateSources)
 			{
-				if (reservedSource == source)
+				if (suppliesShareSite(source, reservedSource))
 				{
 					return true;
 				}
@@ -291,7 +315,7 @@ Bool ResourceGatheringManager::hasFreeSupplySource(const Player *player, Int min
 	for (Object *obj = TheGameLogic->getFirstObject(); obj; obj = obj->getNextObject())
 	{
 		if (obj->getControllingPlayer() == player && !obj->isEffectivelyDead() &&
-			obj->isKindOf(KINDOF_CASH_GENERATOR) && !obj->isKindOf(KINDOF_STRUCTURE) && obj->getAI() &&
+			isSupplyCenter(obj) && !obj->isKindOf(KINDOF_STRUCTURE) && obj->getAI() &&
 			!getAssignedSupplySource(obj))
 		{
 			return false;

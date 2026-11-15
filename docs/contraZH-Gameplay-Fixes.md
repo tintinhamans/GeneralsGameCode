@@ -23,8 +23,12 @@ reserve separate sources while travelling and keep valid assignments after arriv
 
 ## GLA supply trucks keep their sources and workers
 
-GLA trucks reserve individual supply sources, so one dock's truck does not block a second nearby
-dock. The free-source production condition uses the same rule, including after trucks park.
+GLA command centers generate money but do not occupy supply sites. Occupancy checks require an
+actual supply-center dock module, so a nearby command center does not exclude a home supply.
+
+GLA trucks reserve permanent docks separately while grouping nearby depleting piles into one
+site. The free-source production condition uses the same rule, including after trucks park.
+New assignments choose the nearest available source meeting the resource requirement.
 
 New truck destinations exclude sources near enemy base structures. Supply centers placed by the
 AI face their chosen source, including when the AI adjusts their placement to avoid obstacles.

@@ -54,6 +54,29 @@ def prepare():
         call('open_map', path=original['path'], on_unsaved='discard')
 
 
+def check_home(port, prefix):
+    game = Game(port)
+    state = game.call('game.status')
+    assert 'supplycrewregression' in state['map'].lower() and state['frame'] == 1, state
+    game.call('game.set_speed', fps=0)
+    game.call('players.set', player='player0', money=100000, instant_build=True)
+    source = game.spawn('SupplyDock', 1000, 1000, player='neutral')
+    game.spawn('SupplyDock', 2200, 1000, player='neutral')
+    game.spawn(prefix + '_GLAFactory', 1000, 1150, player='player0')
+    truck = game.spawn(prefix + '_GLASupplyStash', 1000, 1320)
+    game.step(3)
+    for _ in range(20):
+        game.run('Manage' + prefix)
+        game.step(60)
+    position = game.object(truck)['position']
+    crew = [w for w in game.call('objects.list', template=prefix + '_GLAInfantryWorker', limit=100)['objects']
+            if w['producer_id'] == truck]
+    assert position['x'] < 1400 and position['y'] < 1250, position
+    assert len(crew) == 6, crew
+    assert any(game.object(w['id'])['ai'].get('goal_object') == source for w in crew)
+    print('PASS a truck behind the command center reaches the nearest home dock and trains six collectors')
+
+
 def check(port, prefix):
     game = Game(port)
     state = game.call('game.status')
@@ -156,10 +179,13 @@ def check(port, prefix):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--prepare', action='store_true')
+    parser.add_argument('--home', action='store_true', help='Check collection beside a cash-generating command center.')
     parser.add_argument('--port', type=int, default=47822)
     parser.add_argument('--prefix', choices=['Aslt', 'Demo', 'Chem', 'Slth'], default='Aslt')
     args = parser.parse_args()
     if args.prepare:
         prepare()
+    elif args.home:
+        check_home(args.port, args.prefix)
     else:
         check(args.port, args.prefix)

@@ -95,8 +95,10 @@ Stash that deploys there.
 | `Contra/Team_/Move/Set to move to the nearest free supply source` | team, minimum resources |
 | `Contra/Unit_/Move/Move a specific unit to the nearest free supply source` | unit, minimum resources |
 
-* GLA trucks reserve individual sources. A truck assigned to a neighbouring source does not block
-the requested source. Native supply-center placement keeps its 20-cell spacing checks.
+* GLA trucks reserve permanent docks separately and group nearby depleting piles into one site.
+Native supply-center placement keeps its 20-cell spacing checks.
+* An occupied source requires an actual supply-center dock module. A command center or other
+building that generates money does not occupy its owner's supply source.
 * Each unit reserves its chosen source immediately, so trucks travelling together choose separate
 sources. The team action uses its lowest-ID living member with AI to hold the reservation.
 * Repeated calls retain a usable source, even below the original resource threshold, and leave a
@@ -106,7 +108,8 @@ unit that has arrived in place. Reservations survive save/load.
 * Sources near allied structures are excluded within `SupplyCenterSafeRadius`, measured from the
 structures' edges. This also applies to AI supply-center construction, which respects other
 players' supply centers and truck reservations.
-* Nearest is measured from the unit, or from the team's position.
+* Nearest is measured from the unit, or from the team's position. Available sources meeting the
+requested minimum are ranked by distance, so a richer distant source does not take priority.
 * If no source holds the minimum resources, the threshold halves until a source qualifies or it
 drops to 100. Empty sources never qualify.
 * Units stop beside the source on the side facing them, outside the `SupplyBuildBorder`.
