@@ -79,6 +79,7 @@ namespace PathProfile
 		UnsignedInt orderFrame, endFrame, engagedFrame;
 		Real clickX, clickY, startX, startY, goalX, goalY, restClick;
 		Bool sawGoal, moved;
+		Int stillFrames;		///< frames in a row not moving (nor waiting for a path)
 		Int goalMoves;
 		// stuck
 		Real progX, progY;
@@ -258,6 +259,7 @@ namespace PathProfile
 			u.startY = u.lastY;
 			u.sawGoal = FALSE;
 			u.moved = FALSE;
+			u.stillFrames = 0;
 			u.goalMoves = 0;
 			u.restClick = 0.0f;
 		}
@@ -483,9 +485,33 @@ namespace PathProfile
 			}
 			// the order's end
 			u.atRest = !moving;
+			u.stillFrames = moving ? 0 : u.stillFrames + 1;
+			// TheSuperHackers @bugfix simonx645 16/11/2026 A move ends when the unit is idle or has stood still for a second,
+			// not at its first still frame: a blocked unit's one-second wait for a new path was judged as its end (T3a: a
+			// Crusader that then drove onto its goal counted as ended short). And a unit judged short that later comes to
+			// rest within reach of its goal counts as arrived, from then.
+			if (u.outcome == ENDED_SHORT && !moving && ai != nullptr)
+			{
+				const Real tx = u.sawGoal ? u.goalX : u.clickX, ty = u.sawGoal ? u.goalY : u.clickY;
+				const Real dx = p->x - tx, dy = p->y - ty;
+				const Real reach = (2.0f + (Real)u.footR) * CELL;
+				if (dx * dx + dy * dy <= reach * reach)
+				{
+					u.outcome = ARRIVED;
+					u.endFrame = frame;
+					const Real cx = p->x - u.clickX, cy = p->y - u.clickY;
+					u.restClick = sqrtf(cx * cx + cy * cy);
+					if (g.firstArrival == 0)
+					{
+						g.firstArrival = frame;
+						g.lastMove = frame;
+					}
+				}
+			}
 			if (u.outcome == PENDING && frame > u.orderFrame + 1 && !moving && ai != nullptr)
 			{
-				const Bool settled = (u.kind != ORDER_ATTACKMOVE || ai->isIdle())	// an attack-move ends when the fighting does,
+				const Bool settled = (u.kind != ORDER_ATTACKMOVE ? (ai->isIdle() || u.stillFrames >= 30)
+						: ai->isIdle())	// an attack-move ends when the fighting does,
 					&& u.kind != ORDER_GATHER && u.kind != ORDER_ENTER;		// gathering never; an enter order inside
 				const Bool started = u.moved || frame > u.orderFrame + 30;
 				if (settled && started)
