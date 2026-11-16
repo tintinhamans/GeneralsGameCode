@@ -776,6 +776,12 @@ public:
 	/// TheSuperHackers @feature simonx645 16/11/2026 "exitpass" (GameLogic/PathTuning.h): leaving a door at start for end
 	void startExitPass( const Coord3D *start, const Coord3D *end );
 	Bool isExitPassing() const;
+	/// TheSuperHackers @feature simonx645 16/11/2026 "colhold" (GameLogic/PathTuning.h): the goal the group's goal finder
+	/// gave this unit; a move whose goal is exactly it holds it
+	void setGivenGoal( const Coord3D *goal );
+	Bool isGivenGoal( const Coord3D *pos ) const;
+	Bool isOnGivenGoalLastLeg() const;	///< "colhold": a held move on its follow path's last leg
+	const Coord3D *getGivenGoal() const { return m_hasGivenGoal ? &m_givenGoal : nullptr; }	///< "colhold"
 
 	void setAllowedToChase( Bool allow ) { m_allowedToChase = allow; }
 	Bool isAllowedToChase() const { return m_allowedToChase; }
@@ -939,6 +945,9 @@ private:
 	UnsignedInt			m_exitPassUntil;				///< "exitpass": allies pass through until this frame (not saved)
 	Coord3D				m_exitPassFrom;					///< "exitpass": the door
 	Coord3D				m_exitPassTo;					///< "exitpass": the end of the exit corridor
+	Coord3D				m_givenGoal;					///< "colhold": the goal finder's goal (not saved)
+	Bool				m_hasGivenGoal;					///< "colhold"
+	UnsignedInt			m_givenGoalFrame;				///< "colhold": the frame it was given (that frame's commands keep it)
 	Bool				m_allowedToChase;						///< Allowed to pursue targets.
 	Bool				m_isInUpdate;								///< If true, we are inside our update method.
 	Bool				m_fixLocoInPostProcess;

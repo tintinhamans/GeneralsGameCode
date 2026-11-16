@@ -429,6 +429,9 @@ AIUpdateInterface::AIUpdateInterface( Thing *thing, const ModuleData* moduleData
 	m_exitPassUntil = 0;
 	m_exitPassFrom.zero();
 	m_exitPassTo.zero();
+	m_givenGoal.zero();
+	m_hasGivenGoal = FALSE;
+	m_givenGoalFrame = 0;
 	m_pathWasCapped = FALSE;
 	m_cappedLegs = 0;
 	m_isInUpdate = FALSE;
@@ -1249,6 +1252,31 @@ Bool AIUpdateInterface::isExitPassing() const
 	return m_exitPassUntil > TheGameLogic->getFrame();
 }
 
+void AIUpdateInterface::setGivenGoal( const Coord3D *goal )
+{
+	if (goal == nullptr) {
+		m_hasGivenGoal = FALSE;
+		return;
+	}
+	m_givenGoal = *goal;
+	m_hasGivenGoal = TRUE;
+	m_givenGoalFrame = TheGameLogic->getFrame();
+}
+
+Bool AIUpdateInterface::isOnGivenGoalLastLeg() const
+{
+	if (!m_hasGivenGoal || getCurrentStateID() != AI_FOLLOW_PATH) {
+		return FALSE;
+	}
+	const Int index = friend_getCurrentGoalPathIndex();
+	return index >= 0 && friend_getGoalPathPosition(index) != nullptr && friend_getGoalPathPosition(index + 1) == nullptr;
+}
+
+Bool AIUpdateInterface::isGivenGoal( const Coord3D *pos ) const
+{
+	return m_hasGivenGoal && pos != nullptr && pos->x == m_givenGoal.x && pos->y == m_givenGoal.y;
+}
+
 static void Exit_Pass_Check(Object *self, UnsignedInt &until, const Coord3D &from, const Coord3D &to)
 {
 	if (until <= TheGameLogic->getFrame()) {
@@ -2008,6 +2036,25 @@ Bool AIUpdateInterface::processCollision(PhysicsBehavior *physics, Object *other
 			}
 
 			if (!aiOther->isMovingAwayFrom(getObject())) {
+
+				// TheSuperHackers @feature simonx645 16/11/2026 "colhold" (GameLogic/PathTuning.h): make way. A unit whose
+				// footprint was capped (a hull wider than its 5x5 box) wedged against idle allies parked flush with its goal
+				// box: blocked, but turning in place, so its blocked count never grew and nothing repathed it (T12b: a
+				// Seraphim 227 s between two Combat Bikes). On its last leg near its given goal, with the goal's box clear,
+				// it asks the idle ally to move away, as retail asks infantry; the ally's filters are moveAllies'.
+				if (PathTuning::ColHold && isOnGivenGoalLastLeg() && TheAI->pathfinder()->footprintCapped(getObject()) &&
+					getObject()->getRelationship(other) == ALLIES && aiOther->isIdle() && !aiOther->isAttacking() &&
+					!other->testStatus( OBJECT_STATUS_IS_USING_ABILITY ) && !aiOther->isBusy())
+				{
+					const Real gx = getObject()->getPosition()->x - m_givenGoal.x;
+					const Real gy = getObject()->getPosition()->y - m_givenGoal.y;
+					const Real nearDist = (Real)(TheAI->pathfinder()->footprintCells(getObject()) + 3) * PATHFIND_CELL_SIZE_F;
+					if (gx * gx + gy * gy <= nearDist * nearDist && TheAI->pathfinder()->givenBoxClear(getObject(), &m_givenGoal))
+					{
+						aiOther->aiMoveAwayFromUnit(getObject(), CMD_FROM_AI);
+						return FALSE;
+					}
+				}
 
 				if (other->isKindOf(KINDOF_INFANTRY) && !getObject()->isKindOf(KINDOF_INFANTRY))
 				{
@@ -3559,6 +3606,11 @@ void AIUpdateInterface::aiDoCommand(const AICommandParms* parms)
 
 
 	m_cappedLegs = 0;
+	// "colhold": a new command ends the hold, but for the commands of the frame the goal was given (the group move's own)
+	// and a move out of the way
+	if (m_hasGivenGoal && parms->m_cmd != AICMD_MOVE_AWAY_FROM_UNIT && TheGameLogic->getFrame() != m_givenGoalFrame) {
+		m_hasGivenGoal = FALSE;
+	}
 
 	// Any new order cancels a forced-reverse move; the REVERSE_MOVE case below re-sets it.
 	m_forceMoveBackwards = FALSE;

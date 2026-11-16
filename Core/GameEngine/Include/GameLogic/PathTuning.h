@@ -57,6 +57,13 @@
 //              plus a second, 5 s at the most (on top of contraZH's exit collision grace)
 //   lanekeep   (with clearance) a column's lane waypoint is moved off the shore only when the footprint hangs
 //              CLEARANCE_HARD or more rings over water or cliff there, as the search refuses a step only then
+//   colhold    (with groupgoals) a column member keeps its given goal reserved while it drives the column's waypoints, as
+//              long as no other unit's goal or parked unit is in its box; on the last leg the given goal is checked as
+//              before, and if the spiral finds nothing the unit goes to the given goal instead of failing the move. A
+//              held move that ends more than a cell and a half off its given goal with the goal's box free goes on to it
+//              (at most 3 tries, 2 s apart). Make way: a unit whose footprint the pathfinder caps (hull wider than 5x5),
+//              blocked on its last leg near its given goal with the goal's box clear, asks an idle ally it is blocked by to
+//              move away, and the ally's move-away keeps a cell more clear round the capped unit's path
 //
 // All of these change routes, so every player of a game, and a replay's playback, must use the same set. When any is on,
 // the set goes into the pathfinder's CRC, so players with different sets see a mismatch at once. An unknown name stops
@@ -81,6 +88,7 @@ namespace PathTuning
 	extern Bool BridgeFixes;
 	extern Bool ExitPass;
 	extern Bool LaneKeep;
+	extern Bool ColHold;
 
 	const Int CLEARANCE_MAX = 15;			///< "clearance": rings counted (more is open ground)
 	const Int CLEARANCE_HARD = 2;			///< "clearance": rings past the shore that refuse a step

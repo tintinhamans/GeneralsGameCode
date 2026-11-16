@@ -903,6 +903,12 @@ public:
 	/// placed[i] answer members[i]; a placed goal is reserved (updateGoal). Returns how many were placed.
 	Int assignGroupGoals( Object **members, Int count, const Coord3D *click, CommandSourceType cmdSource, Coord3D *goals, Bool *placed );
 	Int groupGoalFit( Int x, Int y );	///< "groupgoals": the widest footprint (1 to 5 cells square) that fits at a ground cell
+	/// TheSuperHackers @feature simonx645 16/11/2026 "colhold" (GameLogic/PathTuning.h): could obj take its footprint's
+	/// box at pos on the ground as its goal (checkDestination)?
+	Bool goalBoxFree( const Object *obj, const Coord3D *pos );
+	Bool givenBoxClear( const Object *obj, const Coord3D *pos );	///< "colhold": no other unit's goal or parked unit in the box
+	Int footprintCells( const Object *obj );						///< the unit's footprint across, in cells
+	Bool footprintCapped( const Object *obj );						///< "colhold": its footprint was capped at MAX_RADIUS
 	Bool goalPosition(Object *obj, Coord3D *pos); // Returns the goal position on the grid.
 
 	PathfindLayerEnum addBridge(Bridge *theBridge); // Adds a bridge layer, and returns the layer id.

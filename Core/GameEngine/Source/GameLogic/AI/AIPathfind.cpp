@@ -11935,6 +11935,12 @@ Path *Pathfinder::getMoveAwayFromPath(Object* obj, Object *otherObj,
 	Bool otherCenter;
 	Int otherRadius;
 	getRadiusAndCenter(otherObj, otherRadius, otherCenter);
+	// TheSuperHackers @feature simonx645 16/11/2026 "colhold" (GameLogic/PathTuning.h): a requester whose footprint was
+	// capped is wider than its box; the unit moving out of its way keeps a cell more clear (T12b: bikes flush against a
+	// Seraphim's 5x5 box still touched its 6x6 hull)
+	if (PathTuning::ColHold && footprintCapped(otherObj)) {
+		otherRadius++;
+	}
 
 	Bool isCrusher = obj ? obj->getCrusherLevel() > 0 : false;
 
@@ -13418,4 +13424,90 @@ Int Pathfinder::assignGroupGoals( Object **members, Int count, const Coord3D *cl
 	delete[] wide;
 	delete[] seen;
 	return placedCount;
+}
+
+static void Goal_Box_Cell( Bool center, const Coord3D *pos, Int &x, Int &y )
+{
+	Coord3D at = *pos;
+	if (!center) {
+		at.x += PATHFIND_CELL_SIZE_F/2;	// as findPath places an even footprint
+		at.y += PATHFIND_CELL_SIZE_F/2;
+	}
+	x = REAL_TO_INT_FLOOR(at.x / PATHFIND_CELL_SIZE_F);
+	y = REAL_TO_INT_FLOOR(at.y / PATHFIND_CELL_SIZE_F);
+}
+
+// TheSuperHackers @feature simonx645 16/11/2026 "colhold" (GameLogic/PathTuning.h): could obj take its footprint's box at
+// pos on the ground as its goal (checkDestination)?
+Bool Pathfinder::goalBoxFree( const Object *obj, const Coord3D *pos )
+{
+	if (obj == nullptr || pos == nullptr) {
+		return FALSE;
+	}
+	Int radius = 0;
+	Bool center = TRUE;
+	getRadiusAndCenter(obj, radius, center);
+	Int x, y;
+	Goal_Box_Cell(center, pos, x, y);
+	if (getCell(LAYER_GROUND, x, y) == nullptr) {
+		return FALSE;
+	}
+	return checkDestination(obj, x, y, LAYER_GROUND, radius, center);
+}
+
+// "colhold": may the unit take its given goal's box back? Not when another unit's goal is in it, nor a unit parked in it:
+// updateGoal writes over every cell of the box, and the destination check passes a cell marked as the unit's own even
+// with a unit parked on it (T6, T12b)
+Bool Pathfinder::givenBoxClear( const Object *obj, const Coord3D *pos )
+{
+	if (obj == nullptr || pos == nullptr) {
+		return FALSE;
+	}
+	Int radius = 0;
+	Bool center = TRUE;
+	getRadiusAndCenter(obj, radius, center);
+	Int x, y;
+	Goal_Box_Cell(center, pos, x, y);
+	const Int above = center ? radius + 1 : radius;
+	for (Int i = x - radius; i < x + above; i++) {
+		for (Int j = y - radius; j < y + above; j++) {
+			PathfindCell *cell = getCell(LAYER_GROUND, i, j);
+			if (cell == nullptr || cell->getFlags() == PathfindCell::NO_UNITS) {
+				continue;
+			}
+			const ObjectID goalUnit = cell->getGoalUnit();
+			if (goalUnit != INVALID_ID && goalUnit != obj->getID()) {
+				return FALSE;
+			}
+			const ObjectID posUnit = cell->getPosUnit();
+			if (cell->getFlags() == PathfindCell::UNIT_PRESENT_FIXED && posUnit != INVALID_ID && posUnit != obj->getID()) {
+				return FALSE;
+			}
+		}
+	}
+	return TRUE;
+}
+
+// "colhold": was the unit's footprint capped? getRadiusAndCenter caps every footprint at 5x5, so a wider hull (a
+// Seraphim's 6x6) overhangs its own box (read-only)
+Bool Pathfinder::footprintCapped( const Object *obj )
+{
+	if (obj == nullptr) {
+		return FALSE;
+	}
+	Real diameter = 2*obj->getGeometryInfo().getBoundingCircleRadius();
+	if (diameter>PATHFIND_CELL_SIZE_F && diameter<2.0f*PATHFIND_CELL_SIZE_F) {
+		diameter = 2.0f*PATHFIND_CELL_SIZE_F;
+	}
+	Int iRadius = REAL_TO_INT_FLOOR(diameter/PATHFIND_CELL_SIZE_F+0.3f);
+	if (iRadius == 0) iRadius++;
+	return iRadius / 2 > 2;	// getRadiusAndCenter's MAX_RADIUS
+}
+
+Int Pathfinder::footprintCells( const Object *obj )
+{
+	Int radius = 0;
+	Bool center = TRUE;
+	getRadiusAndCenter(obj, radius, center);
+	return 2 * radius + (center ? 1 : 0);
 }

@@ -1912,6 +1912,15 @@ StateReturnType AIInternalMoveToState::update()
 		m_pathGoalPosition = m_goalPosition;
 		if (this->getAdjustsDestination()) {
 				TheAI->pathfinder()->updateGoal(obj, thePath->getLastNode()->getPosition(), thePath->getLastNode()->getLayer());
+		} else if (PathTuning::ColHold && ai->getGivenGoal() != nullptr && getMachine()->getCurrentStateID() == AI_FOLLOW_PATH &&
+			TheAI->pathfinder()->givenBoxClear(obj, ai->getGivenGoal())) {
+			// TheSuperHackers @bugfix simonx645 16/11/2026 "colhold" (GameLogic/PathTuning.h): a column member's leg to a
+			// waypoint dropped its given goal's reservation, allies parked in that box, and the last leg's re-spiral then
+			// failed or fell short on it (T1: 40 of 60 with 1 failed + 1 partial find). Only while the box is clear: once
+			// another unit's goal or a parked unit is in it, its marks stay and the last leg's check re-spirals (T6, T12b).
+			// The column's follow path only: an attack-move's approach legs wrote over whoever stood in the box (T6)
+			const Coord3D *given = ai->getGivenGoal();
+			TheAI->pathfinder()->updateGoal(obj, given, TheTerrainLogic->getLayerForDestination(given));
 		} else {
 				TheAI->pathfinder()->removeGoal(obj);
 		}
@@ -2055,7 +2064,12 @@ StateReturnType AIInternalMoveToState::update()
 			const Real gx = obj->getPosition()->x - m_goalPosition.x;
 			const Real gy = obj->getPosition()->y - m_goalPosition.y;
 			const Real reach = 4.0f * PATHFIND_CELL_SIZE_F + obj->getGeometryInfo().getBoundingCircleRadius();
-			if (gx * gx + gy * gy > reach * reach)
+			// TheSuperHackers @feature simonx645 16/11/2026 "colhold" (GameLogic/PathTuning.h): a move whose goal is the unit's
+			// given goal, ending more than a cell and a half off it with that goal's box free, paths on to it (it would
+			// otherwise stop, and its stop reserve the spot, inside a neighbour's box)
+			const Bool settle = PathTuning::ColHold && ai->isGivenGoal(&m_goalPosition) &&
+				gx * gx + gy * gy > sqr(1.5f * PATHFIND_CELL_SIZE_F) && TheAI->pathfinder()->goalBoxFree(obj, &m_goalPosition);
+			if (gx * gx + gy * gy > reach * reach || settle)
 			{
 				++m_shortTries;
 				m_shortTryFrame = TheGameLogic->getFrame();
@@ -3554,8 +3568,18 @@ StateReturnType AIFollowPathState::update()
 			setAdjustsDestination(m_adjustFinal && (m_adjustFinalOverride || ai->isDoingGroundMovement()) && !ai->isExactFormationMove());
 			if (getAdjustsDestination())
 			{
+				// "colhold": the given goal stayed reserved by this unit on the way, so the check keeps it as given; a box
+				// taken since (an ally stopped in it) or with no quick path is re-spiralled as before. Only when the spiral
+				// finds nothing does a held goal stand, instead of failing the move.
+				// TheSuperHackers @bugfix simonx645 16/11/2026 skipping the check sent units into taken boxes (T12b: a
+				// Seraphim froze 227 s among infantry goals; T6: an APC's find failed twice on the chasers' goal)
+				const Bool held = PathTuning::ColHold && ai->isGivenGoal(&m_goalPosition);
+				const Coord3D given = m_goalPosition;
 				if (!TheAI->pathfinder()->adjustDestination(getMachineOwner(), ai->getLocomotorSet(), &m_goalPosition)) {
-					return STATE_FAILURE;
+					if (!held) {
+						return STATE_FAILURE;
+					}
+					m_goalPosition = given;
 				}
 				TheAI->pathfinder()->updateGoal(getMachineOwner(), &m_goalPosition, TheTerrainLogic->getLayerForDestination(&m_goalPosition));
 			}

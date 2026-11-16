@@ -40,6 +40,7 @@ namespace PathTuning
 	Bool BridgeFixes = TRUE;
 	Bool ExitPass = TRUE;
 	Bool LaneKeep = TRUE;
+	Bool ColHold = TRUE;
 
 	// bit: the change's bit in Mask(), as the measured builds numbered it, so the CRC words are theirs
 	struct Name { const char * name; Bool * flag; Int bit; };
@@ -58,6 +59,7 @@ namespace PathTuning
 		{ "bridges", &BridgeFixes, 15 },
 		{ "exitpass", &ExitPass, 23 },
 		{ "lanekeep", &LaneKeep, 29 },
+		{ "colhold", &ColHold, 31 },
 		{ nullptr, nullptr, 0 },	// the end (so the table is never empty)
 	};
 	static const Int NAME_COUNT = sizeof(Names) / sizeof(Names[0]) - 1;
