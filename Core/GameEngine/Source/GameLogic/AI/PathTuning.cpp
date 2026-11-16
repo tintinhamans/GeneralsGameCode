@@ -30,6 +30,7 @@ namespace PathTuning
 	Bool CoarseFix = TRUE;
 	Bool CoarseFootprint = TRUE;
 	Bool Octile = TRUE;
+	Bool Cost32 = TRUE;
 
 	// bit: the change's bit in Mask(), as the measured builds numbered it, so the CRC words are theirs
 	struct Name { const char * name; Bool * flag; Int bit; };
@@ -38,6 +39,7 @@ namespace PathTuning
 		{ "coarse", &CoarseFix, 0 },
 		{ "crossings", &CoarseFootprint, 1 },
 		{ "octile", &Octile, 3 },
+		{ "cost32", &Cost32, 4 },
 		{ nullptr, nullptr, 0 },	// the end (so the table is never empty)
 	};
 	static const Int NAME_COUNT = sizeof(Names) / sizeof(Names[0]) - 1;

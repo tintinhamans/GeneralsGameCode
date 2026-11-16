@@ -269,6 +269,8 @@ protected:
 	PathfindCellInfo *m_pathParent;												///< "parent" cell from pathfinder
 	PathfindCell *m_cell;															///< Cell this info belongs to currently.
 
+	// TheSuperHackers @info simonx645 16/11/2026 "cost32" (GameLogic/PathTuning.h): contraZH keeps 32 bits already, so the
+	// switch changes nothing in this tree.
 	UnsignedInt m_totalCost, m_costSoFar;	///< cost estimates for A* search
 
 	/// have to include cell's coordinates, since cells are often accessed via pointer only

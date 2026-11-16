@@ -28,6 +28,8 @@
 //   octile     among equal totals the cell further along (larger cost so far) is tried first on every open-list insert
 //              (contraZH's estimate is already exact octile; it keeps first in, first out on tunnelling and coarse
 //              bridge-seed inserts)
+//   cost32     search costs keep 32 bits; contraZH already does, so this switch changes nothing here (it is kept so
+//              the names, and the CRC, match the other trees)
 //
 // All of these change routes, so every player of a game, and a replay's playback, must use the same set. When any is on,
 // the set goes into the pathfinder's CRC, so players with different sets see a mismatch at once. An unknown name stops
@@ -42,6 +44,7 @@ namespace PathTuning
 	extern Bool CoarseFix;
 	extern Bool CoarseFootprint;
 	extern Bool Octile;
+	extern Bool Cost32;
 
 	const Int SEARCH_CAP_CELLS = 10000;		///< "cap": the cells a search may use
 
