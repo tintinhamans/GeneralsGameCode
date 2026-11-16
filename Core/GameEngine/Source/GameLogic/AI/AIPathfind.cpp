@@ -5538,6 +5538,11 @@ void Pathfinder::beginSearchBudget( PathfindSearchType type )
 	if (remaining > PATHFIND_SEARCH_CELL_CAP) {
 		remaining = PATHFIND_SEARCH_CELL_CAP;
 	}
+	// TheSuperHackers @feature simonx645 16/11/2026 "cap" (GameLogic/PathTuning.h): the same cap for every search,
+	// whatever else searched this frame, so a route depends on its own search only.
+	if (PathTuning::SearchCap) {
+		remaining = PathTuning::SEARCH_CAP_CELLS;
+	}
 	m_searchCellCap = remaining;
 	m_searchStartFreeCount = PathfindCellInfo::getFreeCount();
 	m_lastSearchHitCap = false;
