@@ -4278,6 +4278,7 @@ void AIUpdateInterface::privateAttackObject( Object *victim, Int maxShotsToFire,
 	if (!victim)
 	{
 		// Hard to kill em if they're already dead.  jba
+		getObject()->releaseWeaponLock(LOCKED_TEMPORARILY);
 		return;
 	}
 
@@ -4296,6 +4297,7 @@ void AIUpdateInterface::privateAttackObject( Object *victim, Int maxShotsToFire,
 void AIUpdateInterface::privateForceAttackObject( Object *victim, Int maxShotsToFire, CommandSourceType cmdSource )
 {
 	if (!victim) {
+		getObject()->releaseWeaponLock(LOCKED_TEMPORARILY);
 		return;
 	}
 
@@ -4314,6 +4316,7 @@ void AIUpdateInterface::privateForceAttackObject( Object *victim, Int maxShotsTo
 void AIUpdateInterface::privateGuardRetaliate( Object *victim, const Coord3D *pos, Int maxShotsToFire, CommandSourceType cmdSource )
 {
 	if (!victim) {
+		getObject()->releaseWeaponLock(LOCKED_TEMPORARILY);
 		return;
 	}
 

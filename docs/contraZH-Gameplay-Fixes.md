@@ -3,6 +3,16 @@
 Always on, no `Options.ini` key. All are retail bugs upstream still carries. Each entry says whether
 it changes the simulation (older replays no longer play back identically) or only what is drawn.
 
+## Patriots return to normal range after assisting
+
+Patriots and other units using `AssistedTargetingUpdate` release their temporary weapon lock
+when the attack ends or a queued attack has lost its target. Destroying the target or giving
+a stop command no longer leaves the extended-range assist weapon selected for later attacks.
+The target of an assist request can no longer be asked to assist against itself.
+
+This changes the simulation and can change older replay playback. Multiplayer clients need
+matching engine versions.
+
 ## Destroyed carrier aircraft fall to the ground
 
 Dead aircraft no longer treat their carrier's deck height as a floor. Aircraft using

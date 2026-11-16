@@ -4131,6 +4131,11 @@ static void makeAssistanceRequest( Object *requestOf, void *userData )
 	if( requestOf == requestData->m_requestingObject )
 		return;
 
+	if( requestOf == requestData->m_victimObject )
+	{
+		return;
+	}
+
 	// Only request of our kind of people
 	if( !requestOf->getTemplate()->isEquivalentTo( requestData->m_requestingObject->getTemplate() ) )
 		return;
