@@ -55,6 +55,8 @@
 //   exitpass   a unit leaving a container, tunnel or factory passes through allied units (only allies), and allies
 //              through it, from the door until it is clear of the exit corridor: at most the time to drive out from rest
 //              plus a second, 5 s at the most (on top of contraZH's exit collision grace)
+//   lanekeep   (with clearance) a column's lane waypoint is moved off the shore only when the footprint hangs
+//              CLEARANCE_HARD or more rings over water or cliff there, as the search refuses a step only then
 //
 // All of these change routes, so every player of a game, and a replay's playback, must use the same set. When any is on,
 // the set goes into the pathfinder's CRC, so players with different sets see a mismatch at once. An unknown name stops
@@ -78,6 +80,7 @@ namespace PathTuning
 	extern Bool DeadLeaveGrid;
 	extern Bool BridgeFixes;
 	extern Bool ExitPass;
+	extern Bool LaneKeep;
 
 	const Int CLEARANCE_MAX = 15;			///< "clearance": rings counted (more is open ground)
 	const Int CLEARANCE_HARD = 2;			///< "clearance": rings past the shore that refuse a step

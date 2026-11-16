@@ -13046,6 +13046,12 @@ Bool Pathfinder::clearWaypoint( const Object *obj, Coord3D *pos )
 	if (ringShortage(cell.x, cell.y, surfaces, radius, &hard) <= 0) {
 		return false;
 	}
+	// TheSuperHackers @feature simonx645 16/11/2026 "lanekeep" (GameLogic/PathTuning.h): only where the search would refuse
+	// the step. At 1 ring over, the water-side lane moved onto the other lane and the two closed into one at an inlet
+	// tip, halving the corner's throughput (T3b)
+	if (PathTuning::LaneKeep && hard < PathTuning::CLEARANCE_HARD) {
+		return false;
+	}
 	const Bool isCrusher = obj->getCrusherLevel() > 0;
 	for (Int ring = 1; ring <= 3; ring++) {
 		Int bestD = 0x7FFFFFFF;
