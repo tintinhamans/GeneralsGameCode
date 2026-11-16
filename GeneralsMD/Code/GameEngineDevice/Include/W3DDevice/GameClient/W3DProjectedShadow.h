@@ -143,5 +143,7 @@ class W3DProjectedShadow	: public Shadow
 		Real	m_footprintHalfWidth;	/// half distance between the hexagon's two flat sides
 		Real	m_footprintShoulder;	/// distance along the pointed axis to where the flat sides end
 		Real	m_footprintTip;		/// distance along the pointed axis to the points
+		Real	m_footprintDottedRadius;	/// radius of the ring's dotted companion, 0 for none
+		UnsignedInt	m_footprintDottedColor;	/// ARGB tint of the dotted ring
 		virtual void release() override	{TheW3DProjectedShadowManager->removeShadow(this);}	///<release shadow from manager
 };

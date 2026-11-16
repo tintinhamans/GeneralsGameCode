@@ -994,7 +994,7 @@ protected:
 
 	void destroyPlacementIcons();													///< Destroy placement icons
 	void handleBuildPlacements();													///< handle updating of placement icons based on mouse pos
-	Real getPlacementRangeCircleRadius( const ThingTemplate *build ) const;	///< widest weapon reach of the thing being placed, 0 when it has none
+	void getPlacementRangeCircleRadii( const ThingTemplate *build, Real &ground, Real &air ) const;	///< widest anti-ground and anti-air reach of the thing being placed, 0 where it has none
 	void updatePlacementRangeCircle( Drawable *icon );			///< put the range ring under a placement ghost, or take it away
 	void handleRadiusCursor();																	///< handle updating of "radius cursors" that follow the mouse pos
 

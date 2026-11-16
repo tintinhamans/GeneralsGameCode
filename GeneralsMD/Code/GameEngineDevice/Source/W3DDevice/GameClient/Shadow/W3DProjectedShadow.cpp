@@ -122,6 +122,9 @@ static const Real FOOTPRINT_TAN_30 = 0.57735f;	//a regular hexagon's points reac
 static const Real FOOTPRINT_MAX_POINT = 12.0f;	//a box's points reach no further than this past its ends
 static const UnsignedInt FOOTPRINT_SWEEP_TIME = 4000;	//milliseconds per turn of the highlights
 static const UnsignedInt FOOTPRINT_PULSE_TIME = 2400;	//milliseconds per glow pulse
+static const Real FOOTPRINT_DOT_RADIUS = 0.6f;
+static const Real FOOTPRINT_DOT_SPACING = 4.0f;	//world units between dot centres
+static const Real FOOTPRINT_NO_RING = -10000.0f;	//a radius no pixel reaches, for a ring the decal lacks
 
 #if defined(BUILD_WITH_D3D9)
 static DWORD footprintShader = 0;
@@ -385,14 +388,24 @@ void W3DProjectedShadowManager::applyFootprintShader(const W3DProjectedShadow *s
 	Vector2 slant(shadow->m_footprintHalfWidth, shadow->m_footprintTip - shadow->m_footprintShoulder);
 	slant.Normalize();
 
-	Vector4 constants[4];
+	// A ring the decal lacks gets a radius no pixel reaches.
+	const Real ringRadius = (shadow->m_footprintRing && shadow->m_footprintTip <= 0.0f) ? FOOTPRINT_NO_RING : shadow->m_footprintTip;
+	const Real dottedRadius = (shadow->m_footprintDottedRadius > 0.0f) ? shadow->m_footprintDottedRadius : FOOTPRINT_NO_RING;
+
+	// A whole number of dots goes around, so the angle's wrap cuts none.
+	const Real dotCount = max(1.0f, (Real)REAL_TO_INT(2.0f * PI * shadow->m_footprintDottedRadius / FOOTPRINT_DOT_SPACING + 0.5f));
+	const UnsignedInt dotColor = shadow->m_footprintDottedColor;
+
+	Vector4 constants[6];
 	constants[0] = Vector4(shadow->m_decalSizeX, shadow->m_decalSizeY, shadow->m_footprintSideways ? 1.0f : 0.0f, shadow->m_footprintHalfWidth);
-	constants[1] = Vector4(slant.X, slant.Y, shadow->m_footprintTip, FOOTPRINT_LINE_HALF_WIDTH);
+	constants[1] = Vector4(slant.X, slant.Y, ringRadius, FOOTPRINT_LINE_HALF_WIDTH);
 	constants[2] = Vector4(cos(turn), sin(turn), 1.0f / innerGlow, 1.0f / FOOTPRINT_OUTER_GLOW);
 	constants[3] = Vector4(FOOTPRINT_GLOW_STRENGTH * (0.85f + 0.15f * sin(pulse)), FOOTPRINT_GAP * shadow->m_footprintShoulder, 0.0f, 0.0f);
+	constants[4] = Vector4(((dotColor >> 16) & 0xff) / 255.0f, ((dotColor >> 8) & 0xff) / 255.0f, (dotColor & 0xff) / 255.0f, dottedRadius);
+	constants[5] = Vector4(dotCount / (2.0f * PI), 2.0f * PI * shadow->m_footprintDottedRadius / dotCount, FOOTPRINT_DOT_RADIUS, 0.0f);
 
 	DX8Wrapper::Set_Pixel_Shader(shadow->m_footprintRing ? footprintRingShader : footprintShader);
-	DX8Wrapper::Set_Pixel_Shader_Constant(0, constants, 4);
+	DX8Wrapper::Set_Pixel_Shader_Constant(0, constants, 6);
 #endif
 }
 
@@ -1882,7 +1895,7 @@ Shadow* W3DProjectedShadowManager::addDecal(RenderObjClass *robj, Shadow::Shadow
 		footprintHalfWidth = shadowInfo->m_footprintMajor;
 		footprintShoulder = footprintHalfWidth * FOOTPRINT_TAN_30;
 		footprintTip = footprintHalfWidth;
-		decalSizeX = (footprintTip + FOOTPRINT_MARGIN) * 2.0f;
+		decalSizeX = (max(footprintTip, shadowInfo->m_footprintDottedRadius) + FOOTPRINT_MARGIN) * 2.0f;
 		decalSizeY = decalSizeX;
 		decalOffsetX = 0.0f;
 		decalOffsetY = 0.0f;
@@ -1932,6 +1945,11 @@ Shadow* W3DProjectedShadowManager::addDecal(RenderObjClass *robj, Shadow::Shadow
 		shadow->m_footprintHalfWidth = footprintHalfWidth;
 		shadow->m_footprintShoulder = footprintShoulder;
 		shadow->m_footprintTip = footprintTip;
+		if (shadowInfo->m_footprintIsRing)
+		{
+			shadow->m_footprintDottedRadius = shadowInfo->m_footprintDottedRadius;
+			shadow->m_footprintDottedColor = shadowInfo->m_footprintDottedColor;
+		}
 	}
 
 	shadow->setRenderObject(robj);
@@ -2402,6 +2420,8 @@ W3DProjectedShadow::W3DProjectedShadow()
 	m_footprintHalfWidth = 0.0f;
 	m_footprintShoulder = 0.0f;
 	m_footprintTip = 0.0f;
+	m_footprintDottedRadius = 0.0f;
+	m_footprintDottedColor = 0;
 	for (Int i=0; i<MAX_SHADOW_LIGHTS; i++)
 		m_shadowTexture[i]=nullptr;
 }

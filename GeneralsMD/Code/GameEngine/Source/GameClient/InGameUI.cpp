@@ -125,6 +125,8 @@ static const RGBColor IllegalBuildColor = { 1.0, 0.0, 0.0 };
 // TheSuperHackers @feature Range ring under a structure being placed. Red marks illegal placement
 // and green marks selection, so the ring takes a third color.
 static const Color PlacementRangeCircleColor = GameMakeColor( 0, 192, 255, 255 );
+static const Color PlacementAirRangeCircleColor = GameMakeColor( 150, 228, 255, 255 );
+static const Int PlacementAirWeaponMask = WEAPON_ANTI_AIRBORNE_VEHICLE | WEAPON_ANTI_AIRBORNE_INFANTRY;
 
 // ------------------------------------------------------------------------------------------------
 static UnicodeString formatMoneyValue(UnsignedInt amount)
@@ -4996,19 +4998,21 @@ void InGameUI::destroySpecialPowerLocationDecals( void )
 //-------------------------------------------------------------------------------------------------
 // TheSuperHackers @feature Placement range ring.
 //-------------------------------------------------------------------------------------------------
-/** Widest reach of any weapon the template can ever field.
+/** Widest reach against ground targets and widest reach against air targets of any weapon the
+	* template can ever field.
 	*
 	* Every weapon set counts, not just the default one, so an upgradeable defense shows the reach it
-	* ends up with rather than one the player has to measure again after the upgrade. Matches the
-	* outermost circle WorldBuilder draws for the same template. */
+	* ends up with rather than one the player has to measure again after the upgrade. */
 //-------------------------------------------------------------------------------------------------
-Real InGameUI::getPlacementRangeCircleRadius( const ThingTemplate *build ) const
+void InGameUI::getPlacementRangeCircleRadii( const ThingTemplate *build, Real &ground, Real &air ) const
 {
+	ground = 0.0f;
+	air = 0.0f;
 	Real widest = 0.0f;
 
 	if( build == nullptr )
 	{
-		return widest;
+		return;
 	}
 
 	const WeaponTemplateSetVector& sets = build->getWeaponTemplateSets();
@@ -5028,6 +5032,15 @@ Real InGameUI::getPlacementRangeCircleRadius( const ThingTemplate *build ) const
 			}
 
 			const Real range = weapon->getUnmodifiedAttackRange();
+			const Int mask = weapon->getAntiMask();
+			if( (mask & WEAPON_ANTI_GROUND) && range > ground )
+			{
+				ground = range;
+			}
+			if( (mask & PlacementAirWeaponMask) && range > air )
+			{
+				air = range;
+			}
 			if( range > widest )
 			{
 				widest = range;
@@ -5035,7 +5048,11 @@ Real InGameUI::getPlacementRangeCircleRadius( const ThingTemplate *build ) const
 		}
 	}
 
-	return widest;
+	// A defense that only shoots down projectiles still gets a ring.
+	if( ground <= 0.0f && air <= 0.0f )
+	{
+		ground = widest;
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -5052,17 +5069,18 @@ void InGameUI::updatePlacementRangeCircle( Drawable *icon )
 		return;
 	}
 
-	Real radius = 0.0f;
+	Real ground = 0.0f;
+	Real air = 0.0f;
 	if( TheGlobalData && TheGlobalData->m_defensesRangeCircle
 			&& m_pendingPlaceType && m_pendingPlaceType->canPossiblyHaveAnyWeapon() )
 	{
-		radius = getPlacementRangeCircleRadius( m_pendingPlaceType );
+		getPlacementRangeCircleRadii( m_pendingPlaceType, ground, air );
 	}
 
-	const Bool wanted = radius > 0.0f;
+	const Bool wanted = ground > 0.0f || air > 0.0f;
 	for( DrawModule **dm = icon->getDrawModules(); *dm; ++dm )
 	{
-		(*dm)->setSelectionDecal( wanted, radius, PlacementRangeCircleColor );
+		(*dm)->setSelectionDecal( wanted, ground, PlacementRangeCircleColor, FALSE, air, PlacementAirRangeCircleColor );
 		break;	// first draw module only, so rings do not stack
 	}
 }

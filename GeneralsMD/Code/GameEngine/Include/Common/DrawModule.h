@@ -86,7 +86,8 @@ public:
 	// TheSuperHackers @feature Selection ring decal, in its own slot so it does not evict the
 	// horde or chem suit decal while a unit is selected.
 	// With footprint set, a renderer that can draws the object's collision shape instead of the ring.
-	virtual void setSelectionDecal(Bool enable, Real radius, Color color, Bool footprint = FALSE) {};
+	// A dotted ring of its own radius and color joins the ring where the renderer can draw it.
+	virtual void setSelectionDecal(Bool enable, Real radius, Color color, Bool footprint = FALSE, Real dottedRadius = 0.0f, Color dottedColor = 0) {};
 
 	virtual void reactToTeleport() {};	///< object was instantly relocated (e.g. chronosphere) - break tread marks etc.
 

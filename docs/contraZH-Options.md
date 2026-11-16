@@ -67,9 +67,11 @@ Non-trainable units show no XP text. Icons above units in the world stay unchang
 Veterancy Level checkbox below Attack Range Ring in Game Options. Applies on Accept.)
 * `SelectionCircle = No` - (Yes draws a green ring under selected objects. The D3D9 build draws
 a hexagon fitted to the object's collision shape with a shader instead, on cards with `ps_2_a`.)
-* `DefensesRangeCircle = No` - (Yes shows an armed structure's widest attack range, upgrades
-included, while placing it. Wall pieces get one ring each. The D3D9 build draws the ring with the
-same shader as `SelectionCircle`, on cards with `ps_2_a`.)
+* `DefensesRangeCircle = No` - (Yes shows an armed structure's attack range, upgrades included,
+while placing it. A solid ring marks its widest anti-ground weapon and a paler dotted ring marks its
+widest anti-air weapon. Wall pieces get their rings each. The D3D9 build draws the rings with the
+same shader as `SelectionCircle`, on cards with `ps_2_a`. Other builds and cards draw one ring at
+the wider of the two ranges.)
 * `ObjectDecals = Yes` - (No hides ground decals requested with `DisplayDecal`. Independent of shadow
 settings. Applies on Accept, including to objects already on the map.)
 * `SmartPips = No` - (Yes keeps ammo and passenger pips visible on own units whenever there is

@@ -2121,6 +2121,8 @@ W3DModelDraw::W3DModelDraw(Thing *thing, const ModuleData* moduleData) : DrawMod
 	m_selectionDecalRadius = 0.0f;
 	m_selectionDecalColor = 0;
 	m_selectionDecalFootprint = FALSE;
+	m_selectionDecalDottedRadius = 0.0f;
+	m_selectionDecalDottedColor = 0;
 	m_objectDecal = nullptr;
 	m_trackRenderObject = nullptr;
 	m_lastTrackWasBackwards = FALSE;
@@ -3565,13 +3567,15 @@ void W3DModelDraw::handleFXEvents()
 	*
 	* With footprint set, a renderer with the footprint shader outlines the collision shape instead. */
 //-------------------------------------------------------------------------------------------------
-void W3DModelDraw::setSelectionDecal(Bool enable, Real radius, Color color, Bool footprint)
+void W3DModelDraw::setSelectionDecal(Bool enable, Real radius, Color color, Bool footprint, Real dottedRadius, Color dottedColor)
 {
 	// remembered so the ring can be recreated after a model swap tears the render object down
 	m_selectionDecalWanted = enable;
 	m_selectionDecalRadius = radius;
 	m_selectionDecalColor = color;
 	m_selectionDecalFootprint = footprint;
+	m_selectionDecalDottedRadius = dottedRadius;
+	m_selectionDecalDottedColor = dottedColor;
 
 	if (m_selectionDecal)
 	{
@@ -3587,8 +3591,8 @@ void W3DModelDraw::setSelectionDecal(Bool enable, Real radius, Color color, Bool
 	decalInfo.allowWorldAlign = TRUE;	//wrap it around terrain and world objects
 	decalInfo.m_type = SHADOW_ALPHA_DECAL;
 	strlcpy(decalInfo.m_ShadowName, "PlainRingSelection", ARRAY_SIZE(decalInfo.m_ShadowName));
-	decalInfo.m_sizeX = radius * 2.0f;
-	decalInfo.m_sizeY = radius * 2.0f;
+	decalInfo.m_sizeX = max(radius, dottedRadius) * 2.0f;
+	decalInfo.m_sizeY = max(radius, dottedRadius) * 2.0f;
 	decalInfo.m_offsetX = 0.0f;
 	decalInfo.m_offsetY = 0.0f;
 
@@ -3606,6 +3610,8 @@ void W3DModelDraw::setSelectionDecal(Bool enable, Real radius, Color color, Bool
 	{
 		decalInfo.m_footprintIsRing = TRUE;
 		decalInfo.m_footprintMajor = radius;
+		decalInfo.m_footprintDottedRadius = dottedRadius;
+		decalInfo.m_footprintDottedColor = dottedColor;
 	}
 
 	m_selectionDecal = TheProjectedShadowManager->addDecal(m_renderObject, &decalInfo);
@@ -4221,7 +4227,7 @@ void W3DModelDraw::setModelState(const ModelConditionInfo* newState)
 		// torn down; the object is still selected, so put the ring back on the new one.
 		if (m_selectionDecalWanted)
 		{
-			setSelectionDecal(TRUE, m_selectionDecalRadius, m_selectionDecalColor, m_selectionDecalFootprint);
+			setSelectionDecal(TRUE, m_selectionDecalRadius, m_selectionDecalColor, m_selectionDecalFootprint, m_selectionDecalDottedRadius, m_selectionDecalDottedColor);
 		}
 
 		if( m_renderObject )
