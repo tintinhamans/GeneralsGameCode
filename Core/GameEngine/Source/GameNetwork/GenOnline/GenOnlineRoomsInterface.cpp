@@ -181,12 +181,9 @@ void WebSocket::StartPeerSignalling(int64_t lobbyID, int64_t userID, uint16_t pr
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Network mesh is null");
 		return;
 	}
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Starting signalling with %lld (MWID: %s), attempt %d, transport %s, relay %d, timeout %d s",
+		userID, middlewareID.c_str(), step.attempt, step.transport.c_str(), step.relay ? 1 : 0, step.timeoutS);
 	pMesh->StartConnectionSignalling(middlewareID.c_str(), userID, preferredPort, step);
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Starting signalling with %lld (MWID: %s)", userID, middlewareID.c_str());
-	if (step.IsPresent())
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Step of %lld: attempt %d, transport %s, relay %d, timeout %d s", userID, step.attempt, step.eos ? "eos" : "gns", step.relay ? 1 : 0, step.timeoutS);
-	}
 }
 
 void WebSocket::DisconnectPeer(int64_t lobbyID, int64_t userID)
@@ -259,7 +256,14 @@ void WebSocket::RegisterPeerHandlers()
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] StartSignalling with an invalid port %d", event.preferred_port);
 				return;
 			}
-			StartPeerSignalling(event.lobby_id, event.user_id, (uint16_t)event.preferred_port, event.middleware_id, ConnectionStepOf(event));
+			// A step with an attempt below 1 or a transport of the wrong syntax makes the event malformed.
+			const ConnectionStep step = ConnectionStepOf(event);
+			if (!step.IsValid())
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] dropped malformed StartSignalling event: attempt %d, transport of %zu chars", event.attempt, event.transport.size());
+				return;
+			}
+			StartPeerSignalling(event.lobby_id, event.user_id, (uint16_t)event.preferred_port, event.middleware_id, step);
 		});
 	m_pHubSession->On<DisconnectPeerEvent>([this](const DisconnectPeerEvent& event)
 		{
@@ -395,7 +399,7 @@ void WebSocket::OnHubReady()
 	m_bHubSessionRecoveryTried = false;
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Ready");
 	// A new session has no transport list yet, so a failed send repeats on the next tick.
-	m_lastPeerTransportsEos = -1;
+	m_lastPeerTransports.reset();
 	SendPeerTransports(true);
 	// Later connections restore their state from the snapshot events, so only the first one completes the login.
 	if (!m_bHubReadyOnce)
@@ -410,8 +414,9 @@ void WebSocket::OnHubReady()
 
 void WebSocket::SendPeerTransports(bool bForce)
 {
-	const int eos = GenOnlinePluginHost::Transport::IsAvailable() ? 1 : 0;
-	if (!bForce && eos == m_lastPeerTransportsEos)
+	// The plugin reports the provider name, the game never makes one up.
+	const std::string transport = GenOnlinePluginHost::Transport::GetName();
+	if (!bForce && m_lastPeerTransports.has_value() && *m_lastPeerTransports == transport)
 	{
 		return;
 	}
@@ -421,14 +426,14 @@ void WebSocket::SendPeerTransports(bool bForce)
 	}
 
 	GenOnlineRealtime::SetPeerTransportsRequest request;
-	if (eos != 0)
+	if (!transport.empty())
 	{
-		request.transports.push_back("eos");
+		request.transports.push_back(transport);
 	}
 	if (FireHub(request))
 	{
-		m_lastPeerTransportsEos = eos;
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] SetPeerTransports eos=%d", eos);
+		m_lastPeerTransports = transport;
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] SetPeerTransports [%s]", transport.c_str());
 	}
 }
 

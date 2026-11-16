@@ -56,10 +56,11 @@ public:
 
 	void GoToDetermineNetworkCaps();
 
-	void SendMiddlewareToken(std::string strMWToken);
+	// Links the account at the provider that the plugin reports, with the provider's own proof of that account.
+	void SendMiddlewareToken(const std::string& strProvider, const std::string& strProof);
 
-	// Mints the short-lived EOS token the EOS plugin signs in to Epic with. The callback gets an empty token on failure, and does not run once the services tear down.
-	void RequestEosToken(std::function<void(const std::string& strEosToken)> fnDone);
+	// Mints the short-lived token the plugin of the provider signs in to its platform with. The callback gets an empty token on failure, and does not run once the services tear down.
+	void RequestSignInToken(const std::string& strProvider, std::function<void(const std::string& strToken)> fnDone);
 
 	void BeginLogin();
 	void BeginLoginOnSelectedRoute();

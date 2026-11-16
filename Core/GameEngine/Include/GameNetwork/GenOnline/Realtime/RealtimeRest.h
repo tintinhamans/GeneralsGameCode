@@ -373,11 +373,11 @@ struct ConnectionReportBody : WireObject
 {
 	int64_t target_user_id = 0;
 	std::string outcome;
-	// gns or eos
+	// The transport of the attempt's StartSignalling: gns or a plugin transport name.
 	std::string transport;
 	int ip_version = 4;
-	// The attempt of this pair in this lobby, 1 or more. The service reads an absent attempt as 1.
-	std::optional<int> attempt;
+	// The attempt of the StartSignalling of this pair in this lobby, 1 or more.
+	int attempt = 0;
 	// Every state change of the attempt, oldest first, at most 32.
 	std::optional<std::vector<ConnectionReportEvent> > events;
 
@@ -801,38 +801,39 @@ struct ConfigResponse : WireObject
 
 // Linked accounts /////////////////////////////////////////////////////////////////
 
-// PUT links the Epic account of the game session and answers 204.
-inline std::string RestEosLinkPath()
+// PUT links the caller to their account at the provider that the plugin reports and answers 204.
+inline std::string RestLinkedAccountPath(const std::string& provider)
 {
-	return "/api/v1/me/linked_accounts/eos";
+	return "/api/v1/me/linked_accounts/" + provider;
 }
 
-// PUT /api/v1/me/linked_accounts/eos
-struct EosLinkBody : WireObject
+// PUT /api/v1/me/linked_accounts/:provider
+struct LinkAccountBody : WireObject
 {
-	std::string id_token;
+	// The provider's own proof of the account.
+	std::string proof;
 
 	template <class V> void Fields(V& v)
 	{
-		v("id_token", id_token);
+		v("proof", proof);
 	}
 };
 
-// POST mints the short-lived token the EOS plugin signs in to Epic with. It has no body.
-inline std::string RestEosTokenPath()
+// POST mints the short-lived token the plugin hands to its platform to sign the player in. It has no body.
+inline std::string RestSignInTokenPath(const std::string& provider)
 {
-	return "/api/v1/me/eos_token";
+	return RestLinkedAccountPath(provider) + "/sign_in_token";
 }
 
-// POST /api/v1/me/eos_token
-struct EosTokenResponse : WireObject
+// POST /api/v1/me/linked_accounts/:provider/sign_in_token
+struct SignInTokenResponse : WireObject
 {
-	std::string eos_token;
+	std::string token;
 	int expires_in = 0;
 
 	template <class V> void Fields(V& v)
 	{
-		v("eos_token", eos_token);
+		v("token", token);
 		v("expires_in", expires_in);
 	}
 };
@@ -1035,11 +1036,12 @@ struct PlayerStatsBatchResponse : WireObject
 
 // Log redaction ///////////////////////////////////////////////////////////////////
 
-// A service path as it may be logged. Route names stay, every other segment and the whole query become [redacted].
+// A service path as it may be logged. Route names stay, and so does a provider name right after linked_accounts.
+// Every other segment and the whole query become [redacted].
 inline std::string RestPathForLog(const std::string& path)
 {
 	static const char* const ROUTE_NAMES[] = {
-		"api", "v1", "me", "auth", "session", "compatibility", "config", "linked_accounts", "eos", "eos_token",
+		"api", "v1", "me", "auth", "session", "compatibility", "config", "linked_accounts", "sign_in_token",
 		"stats", "global", "players", "matches", "results", "lobbies", "connection_reports", "matchmaking",
 		"playlists", "friend_requests", "accept", "friends", "blocks", "groups", "members", "sanctions",
 		"messages", "reports", "roles", "leaderboards", "sessions", "realtime", "connect", "oauth", "token",
@@ -1049,6 +1051,7 @@ inline std::string RestPathForLog(const std::string& path)
 	const std::string route = path.substr(0, queryStart);
 	std::string result;
 	size_t pos = route.empty() || route[0] != '/' ? 0 : 1;
+	bool afterLinkedAccounts = false;
 	while (pos <= route.size())
 	{
 		size_t end = route.find('/', pos);
@@ -1069,8 +1072,13 @@ inline std::string RestPathForLog(const std::string& path)
 					break;
 				}
 			}
+			if (!known && afterLinkedAccounts && IsPluginTransportName(segment))
+			{
+				known = true;
+			}
 			result += known ? segment : std::string("[redacted]");
 		}
+		afterLinkedAccounts = segment == "linked_accounts";
 		if (end == route.size())
 		{
 			break;

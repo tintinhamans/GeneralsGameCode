@@ -1058,12 +1058,33 @@ struct RequestSignallingRequest : WireObject
 	}
 };
 
+// The transport of the GameNetworkingSockets steps of the connection order, see section 6.6 of the protocol.
+constexpr const char* GNS_TRANSPORT = "gns";
+
+// True for a provider name that a plugin may report and use as a peer transport: 1 to 32 characters of a-z, 0-9
+// and _, never the reserved gns. The same syntax holds for SetPeerTransports, StartSignalling and connection_reports.
+inline bool IsPluginTransportName(const std::string& name)
+{
+	if (name.empty() || name.size() > 32 || name == GNS_TRANSPORT)
+	{
+		return false;
+	}
+	for (const char c : name)
+	{
+		if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 struct SetPeerTransportsRequest : WireObject
 {
 	static constexpr const char* METHOD = "SetPeerTransports";
 	static constexpr bool EXPECTS_RESULT = false;
 
-	// The plugin transports this client can use for peers, "eos" or nothing.
+	// The plugin transports this client can use for peers: the provider names its plugins report, empty for none.
 	std::vector<std::string> transports;
 
 	template <class V> void Fields(V& v)
@@ -1812,14 +1833,14 @@ struct StartSignallingEvent : WireObject
 	int64_t user_id = 0;
 	int preferred_port = 0;
 	std::string middleware_id;
-	// The step of the connection order. The service leaves all four out when it does not use the order.
-	std::optional<int> attempt;
-	// "gns" or "eos".
-	std::optional<std::string> transport;
+	// The step of the connection order, see section 6.6 of the protocol. Every StartSignalling carries all four.
+	int attempt = 0;
+	// "gns" or the plugin transport both peers listed in SetPeerTransports.
+	std::string transport;
 	// True when GameNetworkingSockets may use the TURN servers.
-	std::optional<bool> relay;
+	bool relay = false;
 	// Seconds the client tries the step before it reports the attempt failed, 0 for no limit.
-	std::optional<int> timeout_s;
+	int timeout_s = 0;
 
 	template <class V> void Fields(V& v)
 	{
@@ -1837,34 +1858,37 @@ struct StartSignallingEvent : WireObject
 // The step of the connection order that a StartSignalling names, see section 6.6 of the protocol.
 struct ConnectionStep
 {
-	// 0 when the service does not use the connection order for the pair.
+	// 0 for an invalid step, which a client treats as a malformed StartSignalling.
 	int attempt = 0;
-	bool eos = false;
-	bool relay = true;
+	// "gns" or the provider name of a plugin transport.
+	std::string transport;
+	bool relay = false;
 	int timeoutS = 0;
 
-	bool IsPresent() const
+	bool IsValid() const
 	{
 		return attempt > 0;
 	}
+
+	// True when the step hands the pair to the plugin transport that reported this provider name.
+	bool IsPlugin() const
+	{
+		return IsValid() && transport != GNS_TRANSPORT;
+	}
 };
 
-// A StartSignalling without an attempt or with an unknown transport gives no step.
+// A StartSignalling with an attempt below 1 or a transport that is neither gns nor a plugin transport name gives an invalid step.
 inline ConnectionStep ConnectionStepOf(const StartSignallingEvent& event)
 {
 	ConnectionStep step;
-	if (!event.attempt.has_value() || *event.attempt <= 0 || !event.transport.has_value())
+	if (event.attempt <= 0 || (event.transport != GNS_TRANSPORT && !IsPluginTransportName(event.transport)))
 	{
 		return step;
 	}
-	if (*event.transport != "gns" && *event.transport != "eos")
-	{
-		return step;
-	}
-	step.attempt = *event.attempt;
-	step.eos = *event.transport == "eos";
-	step.relay = event.relay.value_or(true);
-	step.timeoutS = event.timeout_s.has_value() && *event.timeout_s > 0 ? *event.timeout_s : 0;
+	step.attempt = event.attempt;
+	step.transport = event.transport;
+	step.relay = event.relay;
+	step.timeoutS = event.timeout_s > 0 ? event.timeout_s : 0;
 	return step;
 }
 
@@ -1876,7 +1900,7 @@ public:
 	void Begin(const ConnectionStep& step, int64_t nowMs)
 	{
 		*this = StepAttemptWatch();
-		if (step.IsPresent() && step.timeoutS > 0)
+		if (step.IsValid() && step.timeoutS > 0)
 		{
 			m_attempt = step.attempt;
 			m_deadlineMs = nowMs + static_cast<int64_t>(step.timeoutS) * 1000;
