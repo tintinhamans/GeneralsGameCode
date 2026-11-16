@@ -41,7 +41,11 @@
 //   order <group> gather <x> <y>                                                dock at the supply source nearest x, y
 //   kill <group>                                                                the group's live units, damaged to 0
 //                                                                               (a structure leaves its rubble)
-//   bridge <x> <y> kill                                                         the nearest bridge, damaged to 0
+//   bridge <x> <y> kill                                                         the nearest bridge, damaged to 0 (a bridge
+//                                                                               with an ImmortalBody, as GenericBridge, stays:
+//                                                                               the run says so)
+//   bridge <x> <y> delete                                                       the nearest bridge removed from the map, as
+//                                                                               TerrainLogic deletes one; what is on it falls
 //   bridge <x> <y> repair <dozer template> <player slot> <from x> <from y>      a dozer is spawned (group "dozer")
 //                                                                               and ordered to repair the nearest tower
 //   phase <name>                                                                a new block of group rows
@@ -713,6 +717,39 @@ namespace PathScenario
 				return;
 			}
 			Kill_Object(bridge);
+			if (bridge->getBodyModule() != nullptr && bridge->getBodyModule()->getDamageState() != BODY_RUBBLE)
+				Say("bridge kill: %s took no harm (its body cannot be destroyed); use bridge <x> <y> delete",
+					bridge->getTemplate()->getName().str());
+			PathProfile::Event("bridge_kill", frame);
+			return;
+		}
+		if (_stricmp(c.tok[3], "delete") == 0)
+		{
+			Object * bridge = Nearest(KINDOF_BRIDGE, wx, wy);
+			::Bridge * logic = nullptr;	// the class (Bridge here is this file's command)
+			for (::Bridge * b = bridge != nullptr ? TheTerrainLogic->getFirstBridge() : nullptr; b != nullptr; b = b->getNext())
+				if (b->peekBridgeInfo()->bridgeObjectID == bridge->getID())
+					logic = b;
+			if (logic == nullptr)
+			{
+				Say("bridge delete: no bridge on the map");
+				return;
+			}
+			// what stands on its layer falls, as when a bridge's damage state turns to rubble
+			const PathfindLayerEnum layer = logic->getLayer();
+			for (Object * o = TheGameLogic->getFirstObject(); o != nullptr; o = o->getNextObject())
+			{
+				if (o != bridge && o->getLayer() == layer)
+				{
+					DamageInfo fall;
+					fall.in.m_damageType = DAMAGE_FALLING;
+					fall.in.m_deathType = DEATH_SPLATTED;
+					fall.in.m_sourceID = o->getID();
+					fall.in.m_amount = HUGE_DAMAGE_AMOUNT;
+					o->attemptDamage(&fall);
+				}
+			}
+			TheTerrainLogic->deleteBridge(logic);
 			PathProfile::Event("bridge_kill", frame);
 			return;
 		}
