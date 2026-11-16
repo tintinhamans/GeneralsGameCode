@@ -136,6 +136,29 @@ namespace PathTuning
 		return mask;
 	}
 
+	static_assert(sizeof(Names) / sizeof(Names[0]) - 1 <= 32, "Mask_Exact holds 32 names");
+
+	// TheSuperHackers @bugfix simonx645 16/11/2026 one bit per name, by its place in the table
+	UnsignedInt Mask_Exact()
+	{
+		UnsignedInt mask = 0;
+		for (Int i = 0; i < NAME_COUNT; ++i)
+			if (*Names[i].flag)
+				mask |= 1u << i;
+		return mask;
+	}
+
+	// names sharing a bit (crossings and nocolholdrecheck, pool and endreaim): Mask() alone stands for all of them on or all
+	// off, as in final v3's 17 ("default")
+	Bool Mask_Ambiguous()
+	{
+		for (Int i = 0; i < NAME_COUNT; ++i)
+			for (Int j = i + 1; j < NAME_COUNT; ++j)
+				if (Names[i].bit == Names[j].bit && *Names[i].flag != *Names[j].flag)
+					return TRUE;
+		return FALSE;
+	}
+
 	void Describe(char * out, Int size)
 	{
 		if (size <= 0)

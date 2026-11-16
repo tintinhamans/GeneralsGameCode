@@ -118,5 +118,7 @@ namespace PathTuning
 	Bool Set(const char * list);			///< -pathFix; FALSE: a name was not known (the others are still set)
 	void Describe(char * out, Int size);	///< "coarse,crossings,..." (or "none")
 	Bool Any();								///< is any change on?
-	UnsignedInt Mask();						///< one bit per change (the measured builds' bit numbers)
+	UnsignedInt Mask();						///< one bit per change (the measured builds' bit numbers; some share one)
+	UnsignedInt Mask_Exact();				///< one bit per name, by its place in the table
+	Bool Mask_Ambiguous();					///< does Mask() alone leave the set open? (never for the 17)
 }

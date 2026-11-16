@@ -12996,6 +12996,12 @@ void Pathfinder::crc( Xfer *xfer )
 			xfer->xferInt(&clearanceHard);
 			xfer->xferInt(&clearanceCost);
 		}
+		// TheSuperHackers @bugfix simonx645 16/11/2026 every name in the CRC: names sharing a bit above; where that leaves the
+		// set open, the exact word follows (not for the 17, whose CRC stands)
+		if (PathTuning::Mask_Ambiguous()) {
+			UnsignedInt exact = PathTuning::Mask_Exact();
+			xfer->xferUnsignedInt(&exact);
+		}
 		CRCDEBUG_LOG(("PathTuning: %8.8X", ((XferCRC *)xfer)->getCRC()));
 	}
 
