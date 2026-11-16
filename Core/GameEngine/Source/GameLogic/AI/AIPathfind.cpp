@@ -8416,6 +8416,29 @@ Path *Pathfinder::findGroundPath( const Coord3D *from,
  * Find a short, valid path between given locations.
  * Uses A* algorithm.
  */
+// TheSuperHackers @feature simonx645 16/11/2026 "crossings" (GameLogic/PathTuning.h): a 4x4 or 5x5 (radius 2 and up) may
+// cross where nothing within radius - 1 cells is off the map, or water or cliff its surfaces cannot use: the footprint
+// would otherwise hang a whole row past the shore. Smaller footprints always may. Structures and other obstacles are left
+// to the zones and the fine search.
+static Bool Coarse_Crossing_Fits( Pathfinder *pathfinder, Int cellX, Int cellY, LocomotorSurfaceTypeMask surfaces, Int radius )
+{
+	const Int reach = radius - 1;
+	for (Int i = cellX - reach; i <= cellX + reach; i++) {
+		for (Int j = cellY - reach; j <= cellY + reach; j++) {
+			PathfindCell *cell = pathfinder->getCell(LAYER_GROUND, i, j);
+			if (!cell) {
+				return false;
+			}
+			const PathfindCell::CellType type = cell->getType();
+			if ((type == PathfindCell::CELL_WATER && !(surfaces & LOCOMOTORSURFACE_WATER)) ||
+				(type == PathfindCell::CELL_CLIFF && !(surfaces & LOCOMOTORSURFACE_CLIFF))) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 void Pathfinder::processHierarchicalCell( const ICoord2D &scanCell, const ICoord2D &delta, PathfindCell *parentCell,
 																				 PathfindCell *goalCell, zoneStorageType parentZone,
 																				 zoneStorageType *examinedZones, Int &numExZones,
@@ -8476,7 +8499,16 @@ void Pathfinder::processHierarchicalCell( const ICoord2D &scanCell, const ICoord
 		}
 #if !(RTS_GENERALS && RETAIL_COMPATIBLE_PATHFINDING)
 		// Zones ignore footprints, so skip a crossing the fine search refuses for this unit
-		if (getClearanceShortage(newCell, locomotorSurface, radius) >= CLEARANCE_HARD_SHORTAGE ||
+		if (PathTuning::CoarseFootprint)
+		{
+			// "crossings": the footprint must fit round both crossing cells
+			if (radius >= 2 && (!Coarse_Crossing_Fits(this, scanCell.x, scanCell.y, locomotorSurface, radius) ||
+				!Coarse_Crossing_Fits(this, adjacentCell.x, adjacentCell.y, locomotorSurface, radius)))
+			{
+				return;
+			}
+		}
+		else if (getClearanceShortage(newCell, locomotorSurface, radius) >= CLEARANCE_HARD_SHORTAGE ||
 			getClearanceShortage(adjNewCell, locomotorSurface, radius) >= CLEARANCE_HARD_SHORTAGE)
 		{
 			return;
