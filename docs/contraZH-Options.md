@@ -205,6 +205,11 @@ Shaders panels. The tab logic is adapted from the tabbed menu by simonx645.
   * A wheel notch over a menu or list still scrolls it and fires nothing.
 * **GENERAL** lists every command that needs no unit (selection, control groups, camera, chat,
   beacons, holds such as Force Attack). **Change**, a double click or Enter waits for a key; **No key** unbinds.
+  * Text tabs over the list show one group at a time: **All**, Selection, Groups, Orders, Info,
+    Interface, Taunts, Other, and GO in the Generals Online build.
+  * Typing in **Quick filter** returns to **All**, so the search covers every group.
+  * A tab's text is red while a command under it shares a key, and yellow while one differs from
+    the game's key.
 * **Drag to Face (hold)** in **GENERAL** changes LMB + RMB to a key or side mouse button,
   with optional modifiers, or a modifier alone. Release the hold to give the order, even while Ctrl is held for snapping.
   **RESET TO DEFAULT** restores the mod's default (LMB + RMB unless overridden); **No key** disables the binding.

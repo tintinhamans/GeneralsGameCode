@@ -176,6 +176,14 @@ const BuiltInText BUILT_IN_TEXT[] =
 	{ "GUI:HotkeysCategoryINTERFACE", L"Interface" },
 	{ "GUI:HotkeysCategoryTAUNT", L"Taunts" },
 	{ "GUI:HotkeysCategoryMISC", L"Other" },
+	{ "GUI:HotkeysTabALL", L"All" },
+	{ "GUI:HotkeysTabSELECTION", L"Selection" },
+	{ "GUI:HotkeysTabTEAM", L"Groups" },
+	{ "GUI:HotkeysTabCONTROL", L"Orders" },
+	{ "GUI:HotkeysTabINFORMATION", L"Info" },
+	{ "GUI:HotkeysTabINTERFACE", L"Interface" },
+	{ "GUI:HotkeysTabTAUNT", L"Taunts" },
+	{ "GUI:HotkeysTabMISC", L"Other" },
 	{ "GUI:HotkeysCommandSELECT_HERO", L"Select Hero" },
 	{ "GUI:HotkeysCommandADD_TEAM0", L"Add to Team 0" },
 	{ "GUI:HotkeysCommandADD_TEAM1", L"Add to Team 1" },
@@ -226,6 +234,7 @@ const BuiltInText BUILT_IN_TEXT[] =
 	{ "GUI:HotkeysCommandTAKE_SCREENSHOT_PNG", L"Screenshot as PNG" },
 #if defined(GENERALS_ONLINE)
 	{ "GUI:HotkeysCategoryGO", L"GO" },
+	{ "GUI:HotkeysTabGO", L"GO" },
 	{ "GUI:HotkeysCommandTOGGLE_NETWORK_STATS", L"Network stats" },
 	{ "GUI:HotkeysCommandTAKE_SCREENSHOT_ALT", L"Screenshot, second key" },
 	{ "GUI:HotkeysCommandTOGGLE_BUDDY_OVERLAY", L"Buddy list" },
@@ -241,6 +250,7 @@ const Color CHANGED_COLOR = GameMakeColor( 255, 214, 92, 255 );
 const Color CLASH_COLOR = GameMakeColor( 255, 72, 48, 255 );
 const Color QUIET_COLOR = GameMakeColor( 150, 150, 150, 255 );
 const Color BLACK_COLOR = GameMakeColor( 0, 0, 0, 255 );
+const Color GOLD_COLOR = GameMakeColor( 100, 90, 4, 255 );
 
 // the middle grid's area and the card's first cell, in the layout's 800 by 600 units
 const Int GRID_LEFT = 194;
@@ -269,6 +279,8 @@ const Int CATEGORY_ORDER[] =
 #endif
 };
 
+enum { COMMAND_TAB_COUNT = ARRAY_SIZE( CATEGORY_ORDER ) + 1 };
+
 GameWindow *s_parent = nullptr;
 GameWindow *s_sideButtons[ SIDE_COUNT ] = { nullptr };
 GameWindow *s_commandsButton = nullptr;
@@ -295,6 +307,7 @@ GameWindow *s_card[ CARD_SLOTS ] = { nullptr };
 GameWindow *s_info = nullptr;
 GameWindow *s_note = nullptr;
 GameWindow *s_commandList = nullptr;
+GameWindow *s_commandTabs[ COMMAND_TAB_COUNT ] = { nullptr };	///< All, then one per CATEGORY_ORDER entry
 GameWindow *s_conflictList = nullptr;
 GameWindow *s_change = nullptr;
 GameWindow *s_clear = nullptr;
@@ -318,6 +331,7 @@ Int s_side = 0;
 Int s_object = -1;
 Int s_slot = -1;
 Int s_commandRow = -1;
+Int s_commandTab = 0;	///< 0 is All
 CaptureKind s_capture = CAPTURE_NONE;
 Int s_holdMods = 0;	///< modifiers pressed alone while a hold command waits for its key
 Bool s_holdBroken = FALSE;
@@ -1282,6 +1296,24 @@ void fillCard()
 	}
 }
 
+/// A command's tab, 1 and up in CATEGORY_ORDER; Other takes a category the list does not show.
+Int commandTabOf( const CommandRow& row )
+{
+	Int other = 0;
+	for( Int i = 0; i < ARRAY_SIZE( CATEGORY_ORDER ); ++i )
+	{
+		if( row.category == CATEGORY_ORDER[i] )
+		{
+			return i + 1;
+		}
+		if( CATEGORY_ORDER[i] == CATEGORY_MISC )
+		{
+			other = i + 1;
+		}
+	}
+	return other;
+}
+
 void fillCommands()
 {
 	s_filling = TRUE;
@@ -1290,20 +1322,19 @@ void fillCommands()
 	Int selectedRow = -1;
 	for( Int c = 0; c < ARRAY_SIZE( CATEGORY_ORDER ); ++c )
 	{
+		if( s_commandTab > 0 && s_commandTab != c + 1 )
+		{
+			continue;
+		}
 		Bool headed = FALSE;
 		for( size_t i = 0; i < s_rows.size(); ++i )
 		{
 			const CommandRow& row = s_rows[i];
-			Bool known = FALSE;
-			for( Int other = 0; other < ARRAY_SIZE( CATEGORY_ORDER ); ++other )
-			{
-				known = known || row.category == CATEGORY_ORDER[other];
-			}
-			if( ( known ? row.category : (Int)CATEGORY_MISC ) != CATEGORY_ORDER[c] || !matchesFilter( row.name ) )
+			if( commandTabOf( row ) != c + 1 || !matchesFilter( row.name ) )
 			{
 				continue;
 			}
-			if( !headed )
+			if( !headed && s_commandTab == 0 )
 			{
 				AsciiString label;
 				label.format( "GUI:HotkeysCategory%s", lookupName( CategoryListName, CATEGORY_ORDER[c] ) );
@@ -1340,6 +1371,83 @@ void fillCommands()
 		GadgetListBoxSetSelected( s_commandList, selectedRow );
 	}
 	GadgetListBoxSetTopVisibleEntry( s_commandList, top );
+	s_filling = FALSE;
+}
+
+/// The tabs over the command list: the current one is lit, and a tab's words tell of a clash or a changed key under it.
+void fillCommandTabs()
+{
+	const Color restFill = GameMakeColor( 2, 2, 2, 150 );
+	const Color hoverFill = GameMakeColor( 44, 32, 0, 170 );
+	const Color hoverBorder = GameMakeColor( 214, 170, 24, 255 );
+	const Color currentFill = GameMakeColor( 112, 56, 0, 150 );
+	const Color currentBorder = GameMakeColor( 255, 170, 0, 255 );
+
+	Bool clash[ COMMAND_TAB_COUNT ] = { FALSE };
+	Bool changed[ COMMAND_TAB_COUNT ] = { FALSE };
+	if( s_view == VIEW_COMMANDS )
+	{
+		for( size_t i = 0; i < s_rows.size(); ++i )
+		{
+			const Int tab = commandTabOf( s_rows[i] );
+			if( !sameChord( s_rows[i] ).isEmpty() )
+			{
+				clash[0] = TRUE;
+				clash[ tab ] = TRUE;
+			}
+			if( isChanged( s_rows[i] ) )
+			{
+				changed[0] = TRUE;
+				changed[ tab ] = TRUE;
+			}
+		}
+	}
+
+	for( Int i = 0; i < COMMAND_TAB_COUNT; ++i )
+	{
+		GameWindow *tab = s_commandTabs[i];
+		showWindow( tab, s_view == VIEW_COMMANDS );
+		const Bool current = i == s_commandTab;
+		Color text = TEXT_COLOR;
+		if( current )
+		{
+			text = SELECTED_COLOR;
+		}
+		else if( clash[i] )
+		{
+			text = CLASH_COLOR;
+		}
+		else if( changed[i] )
+		{
+			text = CHANGED_COLOR;
+		}
+		tab->winSetEnabledTextColors( text, BLACK_COLOR );
+		tab->winSetHiliteTextColors( text, BLACK_COLOR );
+		for( Int state = 0; state < 2; ++state )
+		{
+			tab->winSetEnabledColor( state, current ? currentFill : restFill );
+			tab->winSetEnabledBorderColor( state, current ? currentBorder : GOLD_COLOR );
+			tab->winSetHiliteColor( state, current ? currentFill : hoverFill );
+			tab->winSetHiliteBorderColor( state, current ? currentBorder : hoverBorder );
+		}
+	}
+}
+
+void showCommandTab( Int tab )
+{
+	s_view = VIEW_COMMANDS;
+	if( tab == s_commandTab )
+	{
+		return;
+	}
+	s_commandTab = tab;
+	// a command picked under another tab is not in this list
+	if( s_commandRow >= 0 && tab > 0 && commandTabOf( s_rows[ s_commandRow ] ) != tab )
+	{
+		s_commandRow = -1;
+	}
+	s_filling = TRUE;
+	GadgetListBoxSetTopVisibleEntry( s_commandList, 0 );
 	s_filling = FALSE;
 }
 
@@ -1529,6 +1637,7 @@ void refresh()
 	}
 	s_commandsButton->winSetEnabledTextColors( s_view == VIEW_COMMANDS ? SELECTED_COLOR : TEXT_COLOR, BLACK_COLOR );
 
+	fillCommandTabs();
 	fillGrid();
 	fillCard();
 	if( s_view == VIEW_COMMANDS )
@@ -1955,8 +2064,6 @@ struct Look
 
 Look s_look;
 
-const Color GOLD_COLOR = GameMakeColor( 100, 90, 4, 255 );
-
 GameWindow *optionsWindow( const char *name )
 {
 	return TheWindowManager->winGetWindowFromId( nullptr, TheNameKeyGenerator->nameToKey( name ) );
@@ -2080,6 +2187,23 @@ GameWindow *makeButton( Int left, Int top, Int right, Int bottom, const char *la
 		button->winSetTooltip( HotkeysMenuText( tip ) );
 	}
 	return button;
+}
+
+/// A flat text button; fillCommandTabs gives it its colours.
+GameWindow *makeTab( Int left, Int top, Int right, Int bottom, const char *label )
+{
+	WinInstanceData data;
+	data.m_style = GWS_PUSH_BUTTON | GWS_MOUSE_TRACK;
+	data.m_owner = s_parent;
+	data.m_font = arial( 10, FALSE );
+	data.m_enabledText.color = TEXT_COLOR;
+	data.m_enabledText.borderColor = BLACK_COLOR;
+	data.m_hiliteText = data.m_enabledText;
+	data.m_disabledText = data.m_enabledText;
+	GameWindow *tab = TheWindowManager->gogoGadgetPushButton( s_parent, WIN_STATUS_ENABLED, toX( left ), toY( top ),
+		toX( right ) - toX( left ), toY( bottom ) - toY( top ), &data, data.m_font, FALSE );
+	GadgetButtonSetText( tab, HotkeysMenuText( label ) );
+	return tab;
 }
 
 /// A cameo button whose picture the screen sets; its font draws the corner letter.
@@ -2245,8 +2369,19 @@ Bool buildScreen()
 	s_info = makeLabel( 494, 222, 764, 504, nullptr, nullptr, FALSE, TRUE );
 
 	static const Int COMMAND_COLUMNS[] = { 74, 26 };
-	s_commandList = makeList( 186, 90, 770, 504, 2, COMMAND_COLUMNS );
+	s_commandList = makeList( 186, 116, 770, 504, 2, COMMAND_COLUMNS );
 	s_conflictList = makeList( 186, 90, 770, 504, 1, nullptr );
+	const Int tabGap = 3;
+	const Int tabSpan = 770 - 186 + tabGap;
+	for( Int i = 0; i < COMMAND_TAB_COUNT; ++i )
+	{
+		AsciiString label = "GUI:HotkeysTabALL";
+		if( i > 0 )
+		{
+			label.format( "GUI:HotkeysTab%s", lookupName( CategoryListName, CATEGORY_ORDER[ i - 1 ] ) );
+		}
+		s_commandTabs[i] = makeTab( 186 + tabSpan * i / COMMAND_TAB_COUNT, 90, 186 + tabSpan * ( i + 1 ) / COMMAND_TAB_COUNT - tabGap, 112, label.str() );
+	}
 	s_note = makeLabel( 186, 508, 486, 546, nullptr, nullptr, FALSE, FALSE );
 	s_change = makeButton( 494, 512, 626, 538, "GUI:HotkeysChange", "TOOLTIP:HotkeyChange" );
 	s_clear = makeButton( 634, 512, 762, 538, "GUI:HotkeysClear", "TOOLTIP:HotkeyClear" );
@@ -2338,6 +2473,7 @@ void HotkeysMenuOpen()
 
 	s_buttons = HotKeyManager::getPlayerButtonKeys();
 	s_commandRow = -1;
+	s_commandTab = 0;
 	s_capture = CAPTURE_NONE;
 	s_dirty = FALSE;
 	s_conflictsDirty = TRUE;
@@ -2433,6 +2569,11 @@ WindowMsgHandledType HotkeysMenuSystem( GameWindow *window, UnsignedInt msg, Win
 				return MSG_HANDLED;
 			}
 			s_capture = CAPTURE_NONE;
+			// typing looks through every group
+			if( s_view == VIEW_COMMANDS && !GadgetTextEntryGetText( s_filter ).isEmpty() )
+			{
+				showCommandTab( 0 );
+			}
 			refresh();
 			return MSG_HANDLED;
 		}
@@ -2468,6 +2609,10 @@ WindowMsgHandledType HotkeysMenuSystem( GameWindow *window, UnsignedInt msg, Win
 				{
 					s_view = VIEW_COMMANDS;
 					s_commandRow = ref.general;
+					if( s_commandTab > 0 && commandTabOf( s_rows[ s_commandRow ] ) != s_commandTab )
+					{
+						showCommandTab( 0 );
+					}
 				}
 				else
 				{
@@ -2495,6 +2640,7 @@ WindowMsgHandledType HotkeysMenuSystem( GameWindow *window, UnsignedInt msg, Win
 			const Int side = indexOf( control, s_sideButtons, SIDE_COUNT );
 			const Int icon = indexOf( control, s_icons, ICON_POOL );
 			const Int slot = indexOf( control, s_card, CARD_SLOTS );
+			const Int tab = indexOf( control, s_commandTabs, COMMAND_TAB_COUNT );
 			if( side >= 0 )
 			{
 				showSide( side );
@@ -2512,6 +2658,10 @@ WindowMsgHandledType HotkeysMenuSystem( GameWindow *window, UnsignedInt msg, Win
 					startCapture();
 					return MSG_HANDLED;
 				}
+			}
+			else if( tab >= 0 )
+			{
+				showCommandTab( tab );
 			}
 			else if( control == s_commandsButton )
 			{
