@@ -426,6 +426,9 @@ AIUpdateInterface::AIUpdateInterface( Thing *thing, const ModuleData* moduleData
 	m_retryPath = FALSE;
 	m_headOnFrames = 0;
 	m_headOnSeen = FALSE;
+	m_exitPassUntil = 0;
+	m_exitPassFrom.zero();
+	m_exitPassTo.zero();
 	m_pathWasCapped = FALSE;
 	m_cappedLegs = 0;
 	m_isInUpdate = FALSE;
@@ -1211,6 +1214,62 @@ void AIUpdateInterface::queueForPathOrRetry()
 	setQueueForPathTime(PATHFIND_QUEUE_RETRY_FRAMES + (getObject()->getID() & 3));
 }
 
+// TheSuperHackers @feature simonx645 16/11/2026 "exitpass" (GameLogic/PathTuning.h). The window: a second plus the time to
+// drive from rest to the end of the exit corridor, at most 5 s. It ends early once the unit is past the corridor's end
+// by its own size, or has left the corridor's side.
+void AIUpdateInterface::startExitPass( const Coord3D *start, const Coord3D *end )
+{
+	if (!PathTuning::ExitPass || start == nullptr || end == nullptr) {
+		return;
+	}
+	Int frames = LOGICFRAMES_PER_SECOND;
+	const Locomotor *loco = getCurLocomotor();
+	if (loco != nullptr) {
+		const BodyDamageType damage = getObject()->getBodyModule()->getDamageState();
+		const Real speed = loco->getMaxSpeedForCondition(damage);
+		const Real accel = loco->getMaxAcceleration(damage);
+		const Real dx = end->x - start->x, dy = end->y - start->y;
+		const Real dist = sqrtf(dx * dx + dy * dy);
+		if (speed > 0.0f && accel > 0.0f) {
+			const Real accelDist = speed * speed / (2.0f * accel);
+			const Real travel = dist <= accelDist ? sqrtf(2.0f * dist / accel) : speed / accel + (dist - accelDist) / speed;
+			frames += REAL_TO_INT_CEIL(travel);
+		}
+	}
+	if (frames > 5 * LOGICFRAMES_PER_SECOND) {
+		frames = 5 * LOGICFRAMES_PER_SECOND;
+	}
+	m_exitPassUntil = TheGameLogic->getFrame() + frames;
+	m_exitPassFrom = *start;
+	m_exitPassTo = *end;
+}
+
+Bool AIUpdateInterface::isExitPassing() const
+{
+	return m_exitPassUntil > TheGameLogic->getFrame();
+}
+
+static void Exit_Pass_Check(Object *self, UnsignedInt &until, const Coord3D &from, const Coord3D &to)
+{
+	if (until <= TheGameLogic->getFrame()) {
+		until = 0;
+		return;
+	}
+	const Real ax = to.x - from.x, ay = to.y - from.y;
+	const Real length = sqrtf(ax * ax + ay * ay);
+	const Real r = self->getGeometryInfo().getBoundingCircleRadius();
+	const Real px = self->getPosition()->x - from.x, py = self->getPosition()->y - from.y;
+	if (length < 0.01f) {
+		if (px * px + py * py > (r * 2.0f + PATHFIND_CELL_SIZE_F) * (r * 2.0f + PATHFIND_CELL_SIZE_F)) until = 0;
+		return;
+	}
+	const Real along = (px * ax + py * ay) / length;
+	const Real across = (px * ay - py * ax) / length;
+	if (along > length + r || (across < 0.0f ? -across : across) > r * 2.0f + PATHFIND_CELL_SIZE_F) {
+		until = 0;	// clear of the corridor
+	}
+}
+
 //-------------------------------------------------------------------------------------------------
 Bool AIUpdateInterface::takeCappedPathLeg()
 {
@@ -1894,6 +1953,12 @@ Bool AIUpdateInterface::processCollision(PhysicsBehavior *physics, Object *other
 #endif
 
 	if (m_ignoreCollisionsUntil > TheGameLogic->getFrame())
+		return FALSE;
+
+	// TheSuperHackers @feature simonx645 16/11/2026 "exitpass" (GameLogic/PathTuning.h): a unit coming out of a door and its
+	// allies pass through each other until it is clear of the exit corridor; enemies and structures still collide
+	if (PathTuning::ExitPass && getObject()->getRelationship(other) == ALLIES &&
+		(isExitPassing() || (other->getAI() != nullptr && other->getAI()->isExitPassing())))
 		return FALSE;
 
 	if (m_canPathThroughUnits)
@@ -2704,6 +2769,9 @@ UpdateSleepTime AIUpdateInterface::doLocomotor()
 	if (PathTuning::HeadOnPass) {
 		m_headOnFrames = m_headOnSeen ? m_headOnFrames + 1 : 0;	// "headon"
 		m_headOnSeen = FALSE;
+	}
+	if (m_exitPassUntil != 0) {
+		Exit_Pass_Check(getObject(), m_exitPassUntil, m_exitPassFrom, m_exitPassTo);	// "exitpass"
 	}
 
 	// Disabled check

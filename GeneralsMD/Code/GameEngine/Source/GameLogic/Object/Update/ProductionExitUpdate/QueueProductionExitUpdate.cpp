@@ -133,6 +133,9 @@ void QueueProductionExitUpdate::exitObjectViaDoor( Object *newObj, ExitDoorType 
 		getNaturalRallyPoint(tmp);
 		// Grid it.
 		TheAI->pathfinder()->snapPosition(newObj, &tmp);
+		// TheSuperHackers @feature simonx645 16/11/2026 "exitpass" (GameLogic/PathTuning.h)
+		if (newObj->getAI() && newObj->getAI()->isDoingGroundMovement())
+			newObj->getAI()->startExitPass(&createPoint, &tmp);
 		std::vector<Coord3D> exitPath;
 		exitPath.push_back(tmp);
 

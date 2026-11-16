@@ -773,6 +773,9 @@ public:
 
 	Bool getRetryPath() {return m_retryPath;}
 	Bool takeCappedPathLeg(); ///< True when the current path stopped at the search cap and another leg toward the goal is allowed.
+	/// TheSuperHackers @feature simonx645 16/11/2026 "exitpass" (GameLogic/PathTuning.h): leaving a door at start for end
+	void startExitPass( const Coord3D *start, const Coord3D *end );
+	Bool isExitPassing() const;
 
 	void setAllowedToChase( Bool allow ) { m_allowedToChase = allow; }
 	Bool isAllowedToChase() const { return m_allowedToChase; }
@@ -933,6 +936,9 @@ private:
 	UnsignedByte		m_cappedLegs;								///< Capped paths chained so far toward one goal.
 	Int					m_headOnFrames;							///< "headon": frames held up head on in a row (not saved)
 	Bool				m_headOnSeen;								///< "headon": held up head on this frame
+	UnsignedInt			m_exitPassUntil;				///< "exitpass": allies pass through until this frame (not saved)
+	Coord3D				m_exitPassFrom;					///< "exitpass": the door
+	Coord3D				m_exitPassTo;					///< "exitpass": the end of the exit corridor
 	Bool				m_allowedToChase;						///< Allowed to pursue targets.
 	Bool				m_isInUpdate;								///< If true, we are inside our update method.
 	Bool				m_fixLocoInPostProcess;

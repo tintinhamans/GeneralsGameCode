@@ -52,6 +52,9 @@
 //              bridge or on a route that stops short of the click; column and formation waypoints on a deck keep to the deck.
 //              contraZH's own bridge fixes (zones at once, rubble goals to the ground, a deleted bridge's layer freed,
 //              routes under a bridge rechecked) are kept
+//   exitpass   a unit leaving a container, tunnel or factory passes through allied units (only allies), and allies
+//              through it, from the door until it is clear of the exit corridor: at most the time to drive out from rest
+//              plus a second, 5 s at the most (on top of contraZH's exit collision grace)
 //
 // All of these change routes, so every player of a game, and a replay's playback, must use the same set. When any is on,
 // the set goes into the pathfinder's CRC, so players with different sets see a mismatch at once. An unknown name stops
@@ -74,6 +77,7 @@ namespace PathTuning
 	extern Bool GroupGoals;
 	extern Bool DeadLeaveGrid;
 	extern Bool BridgeFixes;
+	extern Bool ExitPass;
 
 	const Int CLEARANCE_MAX = 15;			///< "clearance": rings counted (more is open ground)
 	const Int CLEARANCE_HARD = 2;			///< "clearance": rings past the shore that refuse a step
