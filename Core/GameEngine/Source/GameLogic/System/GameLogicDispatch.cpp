@@ -29,6 +29,7 @@
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "GameLogic/PathProfile.h"
 
 #include "Common/ActionManager.h"
 #include "Common/CRCDebug.h"
@@ -275,6 +276,8 @@ void GameLogic::clearGameData( Bool showScoreScreen )
 	}
 
 	setClearingGameData( TRUE );
+
+	PathProfile::End_Match();	// TheSuperHackers @feature simonx645 16/11/2026 -pathProfile: the match's summary
 
 //	m_background = TheWindowManager->winCreateLayout("Menus/BlankWindow.wnd");
 //	DEBUG_ASSERTCRASH(m_background,("We Couldn't Load Menus/BlankWindow.wnd"));

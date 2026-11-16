@@ -28,6 +28,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "GameLogic/PathProfile.h"
+#include "GameLogic/PathScenario.h"
 
 #include "Common/AudioAffect.h"
 #include "Common/AudioHandleSpecialValues.h"
@@ -3970,6 +3972,11 @@ void GameLogic::update()
 		TheScriptEngine->UPDATE();
 	}
 
+	// TheSuperHackers @feature simonx645 16/11/2026 -pathScenario / -pathBench: this frame's spawns and orders, before the
+	// command list is processed (so the orders run, and are recorded, this frame).
+	if (PathScenario::Active() && !m_startNewGame)
+		PathScenario::Frame(now);
+
 	if (TheAIMatch) {
 		TheAIMatch->update();
 	}
@@ -4163,6 +4170,10 @@ void GameLogic::update()
 
 
 
+
+	// TheSuperHackers @feature simonx645 16/11/2026 -pathProfile: the frame's pathfinding row and the unit checks (reads only)
+	if (PathProfile::Enabled && (isSoloGameOrReplay || isMPGameOrReplay) && !m_startNewGame && !PathScenario::Done())
+		PathProfile::End_Frame(m_frame);
 
 	// increment world time
 	if (!m_startNewGame)

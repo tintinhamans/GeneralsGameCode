@@ -37,6 +37,8 @@
 #include "GameClient/TerrainVisual.h" // for TERRAIN_LOD_MIN definition
 #include "GameClient/GameText.h"
 #include "GameNetwork/NetworkDefs.h"
+#include "GameLogic/PathProfile.h"
+#include "GameLogic/PathScenario.h"
 
 
 
@@ -468,6 +470,46 @@ Int parseStatsUrl(char *args[], int num)
 	return 1;
 }
 #endif
+
+// TheSuperHackers @feature simonx645 16/11/2026 -pathProfile <file>: pathfinding counters per frame and per match
+// (GameLogic/PathProfile.h): <file>.frames.csv, <file>.json, <file>.summary.csv. Measurement only.
+Int parsePathProfile(char *args[], int num)
+{
+	if (num > 1)
+	{
+		PathProfile::Set_Output(args[1]);
+		return 2;
+	}
+	return 1;
+}
+
+Int parsePathProfileNoTime(char *args[], int num)
+{
+	PathProfile::Set_No_Time();
+	return 1;
+}
+
+// TheSuperHackers @feature simonx645 16/11/2026 -pathScenario <file> / -pathBench <file>: the pathfinding test runner
+// (GameLogic/PathScenario.h).
+Int parsePathScenario(char *args[], int num)
+{
+	if (num > 1)
+	{
+		PathScenario::Set_Scenario(args[1]);
+		return 2;
+	}
+	return 1;
+}
+
+Int parsePathBench(char *args[], int num)
+{
+	if (num > 1)
+	{
+		PathScenario::Set_Bench(args[1]);
+		return 2;
+	}
+	return 1;
+}
 
 Int parseReplay(char *args[], int num)
 {
@@ -1250,6 +1292,16 @@ static CommandLineParam paramsForStartup[] =
 
 	// Run a skirmish between AI players and log it. The map name follows.
 	{ "-aiMatch", parseAIMatch },
+
+	// TheSuperHackers @feature simonx645 16/11/2026
+	// Pathfinding counters per frame and per match to <file>.frames.csv, <file>.json and <file>.summary.csv (measurement only).
+	{ "-pathProfile", parsePathProfile },
+	// Every time column of -pathProfile 0, so two runs of one build give byte-identical files.
+	{ "-pathProfileNoTime", parsePathProfileNoTime },
+	// A skirmish from the file, with spawns, orders and map changes at set frames or conditions (with -headless: unthrottled).
+	{ "-pathScenario", parsePathScenario },
+	// Search-only: findPath for the file's start / goal pairs, with an exact A* as the reference, to <file>.bench.csv.
+	{ "-pathBench", parsePathBench },
 
 	// TheSuperHackers @feature helmutbuhler 23/05/2025
 	// Simulate each replay in a separate process and use 1..N processes at the same time.

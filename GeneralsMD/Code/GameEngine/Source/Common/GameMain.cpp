@@ -33,6 +33,7 @@
 #include "Common/ReplaySimulation.h"
 #include "Common/GameMcp.h"
 #include "GameLogic/AIMatch.h"
+#include "GameLogic/PathScenario.h"
 
 
 /**
@@ -67,6 +68,11 @@ Int GameMain()
 		exitcode = TheGameMcp->runHeadless();
 	}
 #endif
+	// TheSuperHackers @feature simonx645 16/11/2026 -pathScenario / -pathBench with -headless: the logic alone, unthrottled.
+	else if (PathScenario::Active() && TheGlobalData->m_headless)
+	{
+		exitcode = PathScenario::Run_Headless();
+	}
 	else if (TheAIMatch && TheGlobalData->m_headless)
 	{
 		exitcode = TheAIMatch->runHeadless();

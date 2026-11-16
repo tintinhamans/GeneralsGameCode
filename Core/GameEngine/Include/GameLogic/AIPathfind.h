@@ -763,6 +763,21 @@ private:
 	virtual Path *patchPath( const Object *obj, const LocomotorSet& locomotorSet,
 		Path *originalPath, Bool blocked ) override;
 
+	// TheSuperHackers @feature simonx645 16/11/2026 The searches themselves; the entry points above (and getAircraftPath,
+	// findGroundPath, internal_findHierarchicalPath) only count and time them for -pathProfile (GameLogic/PathProfile.h).
+	Path *findPathImpl( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from, const Coord3D *to);
+	Path *findClosestPathImpl( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
+		Coord3D *to, Bool blocked, Real pathCostMultiplier, Bool moveAllies );
+	Path *findAttackPathImpl( const Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
+		const Object *victim, const Coord3D* victimPos, const Weapon *weapon );
+	Path *findSafePathImpl( const Object *obj, const LocomotorSet& locomotorSet,
+		const Coord3D *from, const Coord3D* repulsorPos1, const Coord3D* repulsorPos2, Real repulsorRadius );
+	Path *patchPathImpl( const Object *obj, const LocomotorSet& locomotorSet, Path *originalPath, Bool blocked );
+	Path *getAircraftPathImpl( const Object *obj, const Coord3D *to );
+	Path *findGroundPathImpl( const Coord3D *from, const Coord3D *to, Int pathRadius, Bool crusher );
+	Path *internal_findHierarchicalPathImpl( Bool isHuman, const LocomotorSurfaceTypeMask locomotorSurface, const Coord3D *from,
+		const Coord3D *to, Bool crusher, Bool closestOK, Int radius );
+
 public:
 	Pathfinder();
 	~Pathfinder() ;
@@ -830,6 +845,11 @@ public:
 	Bool worldToCell( const Coord3D *pos, ICoord2D *cell );	///< Given a world position, return grid cell coordinate
 
 	const ICoord2D *getExtent() const {return &m_extent.hi;}
+
+	// TheSuperHackers @feature simonx645 16/11/2026 -pathBench (GameLogic/PathScenario.h): the findPath search for obj with
+	// its own locomotors; cells: the cells it used. The pathfinder's per-frame cell count is left as it was. The caller
+	// owns the path.
+	Path *benchFindPath( Object *obj, const Coord3D *from, const Coord3D *to, Int *cells );
 
 	void setIgnoreObstacleID( ObjectID objID );					///< if non-zero, the pathfinder will ignore the given obstacle
 

@@ -29,6 +29,7 @@
 
 #include "GameLogic/PathTuning.h"
 #include "GameLogic/Module/BodyModule.h"
+#include "GameLogic/PathProfile.h"
 #include "GameLogic/AIPathfind.h"
 
 #include "Common/PerfTimer.h"
@@ -1456,6 +1457,8 @@ Bool PathfindCell::allocateInfo( const ICoord2D &pos )
 {
 	if (!m_info) {
 		m_info = PathfindCellInfo::getACellInfo(this, pos);
+		if (m_info == nullptr)
+			PathProfile::Pool_Exhausted();	// -pathProfile: the search runs out of cell infos
 		return (m_info != nullptr);
 	}
 	return true;
@@ -2830,6 +2833,7 @@ void PathfindZoneManager::markZonesDirtyNow()
  */
 void PathfindZoneManager::calculateZones( PathfindCell **map, PathfindLayer layers[], const IRegion2D &globalBounds )
 {
+	PathProfile::Zones profileZones;	// -pathProfile: counted and timed
 #ifdef DEBUG_QPF
 #if defined(DEBUG_LOGGING)
 	__int64 startTime64;
@@ -6674,6 +6678,7 @@ Bool Pathfinder::queueForPath(ObjectID id)
 	Int slot = m_queuePRHead;
 	while (slot != m_queuePRTail) {
 		if (m_queuedPathfindRequests[slot] == id) {
+			PathProfile::Queue_Request(1);	// -pathProfile: already queued
 			return true;
 		}
 		slot++;
@@ -6690,10 +6695,12 @@ Bool Pathfinder::queueForPath(ObjectID id)
 	if (nextSlot==m_queuePRHead) {
 		DEBUG_CRASH(("Ran out of pathfind queue slots."));
 		s_pathfindStats.droppedQueue++;
+		PathProfile::Queue_Request(2);	// -pathProfile: refused
 		return false;
 	}
 	m_queuedPathfindRequests[m_queuePRTail] = id;
 	m_queuePRTail = nextSlot;
+	PathProfile::Queue_Request(0);	// -pathProfile: queued
 	return true;
 }
 
@@ -6817,7 +6824,7 @@ void Pathfinder::doDebugIcons() {
 /**
  * Create an aircraft path.  Just jogs around tall buildings marked with KINDOF_AIRCRAFT_PATH_AROUND.
  */
-Path *Pathfinder::getAircraftPath( const Object *obj, const Coord3D *to )
+Path *Pathfinder::getAircraftPathImpl( const Object *obj, const Coord3D *to )
 {
 	// for now, quick path objects don't pathfind, generally airborne units
 	// build a trivial one-node path containing destination, then avoid buildings.
@@ -6942,6 +6949,7 @@ void Pathfinder::processPathfindQueue()
 			m_queuePRHead = 0;
 		}
 	}
+	PathProfile::Queue_State( (m_queuePRTail - m_queuePRHead + PATHFIND_QUEUE_LEN) % PATHFIND_QUEUE_LEN );	// -pathProfile
 	if (pathsFound > 0) {
 		PROFILER_PLOT("PathfindCells", (double)m_cumulativeCellsAllocated);
 		PROFILER_PLOT("PathfindPaths", (double)pathsFound);
@@ -7512,7 +7520,7 @@ Int Pathfinder::examineNeighboringCells(PathfindCell *parentCell, PathfindCell *
  * Find a short, valid path between given locations.
  * Uses A* algorithm.
  */
-Path *Pathfinder::findPath( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
+Path *Pathfinder::findPathImpl( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
 													 const Coord3D *rawTo)
 {
 	beginSearchBudget(PFS_FIND);
@@ -8191,7 +8199,7 @@ struct GroundCellsStruct
  * Find a short, valid path between given locations.
  * Uses A* algorithm.
  */
-Path *Pathfinder::findGroundPath( const Coord3D *from,
+Path *Pathfinder::findGroundPathImpl( const Coord3D *from,
 													 const Coord3D *rawTo, Int pathDiameter, Bool crusher)
 {
 	//CRCDEBUG_LOG(("Pathfinder::findGroundPath()"));
@@ -8760,7 +8768,7 @@ Path *Pathfinder::findClosestHierarchicalPath( Bool isHuman, const LocomotorSet&
  * Find a short, valid path between given locations.
  * Uses A* algorithm.
  */
-Path *Pathfinder::internal_findHierarchicalPath( Bool isHuman, const LocomotorSurfaceTypeMask locomotorSurface, const Coord3D *from,
+Path *Pathfinder::internal_findHierarchicalPathImpl( Bool isHuman, const LocomotorSurfaceTypeMask locomotorSurface, const Coord3D *from,
 													 const Coord3D *rawTo, Bool crusher, Bool closestOK, Int radius)
 {
 	//CRCDEBUG_LOG(("Pathfinder::findGroundPath()"));
@@ -10119,7 +10127,7 @@ Int Pathfinder::checkPathCost(Object *obj, const LocomotorSet& locomotorSet, con
  * Find a short, valid path between the FROM location and a location NEAR the to location.
  * Uses A* algorithm.
  */
-Path *Pathfinder::findClosestPath( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
+Path *Pathfinder::findClosestPathImpl( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
 																	Coord3D *rawTo, Bool blocked, Real pathCostMultiplier, Bool moveAllies)
 {
 	//CRCDEBUG_LOG(("Pathfinder::findClosestPath()"));
@@ -12124,7 +12132,7 @@ Path *Pathfinder::getMoveAwayFromPath(Object* obj, Object *otherObj,
 
 /** Patch to the exiting path from the current position, either because we became blocked,
   or because we had to move off the path to avoid other units. */
-Path *Pathfinder::patchPath( const Object *obj, const LocomotorSet& locomotorSet,
+Path *Pathfinder::patchPathImpl( const Object *obj, const LocomotorSet& locomotorSet,
 		Path *originalPath, Bool blocked )
 {
 	//CRCDEBUG_LOG(("Pathfinder::patchPath()"));
@@ -12390,7 +12398,7 @@ Bool Pathfinder::isValidAttackGoal( const Object *obj, const LocomotorSet& locom
 
 
 /** Find a short, valid path to a location that obj can attack victim from.  */
-Path *Pathfinder::findAttackPath( const Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
+Path *Pathfinder::findAttackPathImpl( const Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
 		const Object *victim, const Coord3D* victimPos, const Weapon *weapon )
 {
 	if (!m_isMapReady)
@@ -12746,7 +12754,7 @@ Path *Pathfinder::findAttackPath( const Object *obj, const LocomotorSet& locomot
 }
 
 /** Find a short, valid path to a location that is safe from the repulsors.  */
-Path *Pathfinder::findSafePath( const Object *obj, const LocomotorSet& locomotorSet,
+Path *Pathfinder::findSafePathImpl( const Object *obj, const LocomotorSet& locomotorSet,
 		const Coord3D *from, const Coord3D* repulsorPos1, const Coord3D* repulsorPos2, Real repulsorRadius)
 {
 	//CRCDEBUG_LOG(("Pathfinder::findSafePath()"));
@@ -13522,4 +13530,89 @@ Int Pathfinder::footprintCells( const Object *obj )
 	Bool center = TRUE;
 	getRadiusAndCenter(obj, radius, center);
 	return 2 * radius + (center ? 1 : 0);
+}
+
+// ------------------------------------------------------------------------------------------------
+// TheSuperHackers @feature simonx645 16/11/2026 -pathProfile: each search counted and timed around its body (*Impl).
+// Off, each costs one flag test. The searches run exactly as before either way.
+// ------------------------------------------------------------------------------------------------
+Path *Pathfinder::findPath( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from, const Coord3D *rawTo )
+{
+	PathProfile::Search search( PathProfile::FIND, m_cumulativeCellsAllocated, obj );
+	Path *path = findPathImpl( obj, locomotorSet, from, rawTo );
+	search.Finish( PathProfile::Search::Classify( path, rawTo, FALSE ), path );
+	return path;
+}
+
+Path *Pathfinder::benchFindPath( Object *obj, const Coord3D *from, const Coord3D *to, Int *cells )
+{
+	if (obj == nullptr || obj->getAI() == nullptr)
+		return nullptr;
+	const Int before = m_cumulativeCellsAllocated;
+	Path *path = findPathImpl( obj, obj->getAI()->getLocomotorSet(), from, to );
+	if (cells != nullptr)
+		*cells = m_cumulativeCellsAllocated - before;
+	m_cumulativeCellsAllocated = before;
+	return path;
+}
+
+Path *Pathfinder::findClosestPath( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
+	Coord3D *rawTo, Bool blocked, Real pathCostMultiplier, Bool moveAllies )
+{
+	PathProfile::Search search( PathProfile::CLOSEST, m_cumulativeCellsAllocated, obj );
+	const Coord3D wanted = *rawTo;	// the search may move rawTo to the nearest reachable place
+	Path *path = findClosestPathImpl( obj, locomotorSet, from, rawTo, blocked, pathCostMultiplier, moveAllies );
+	search.Finish( PathProfile::Search::Classify( path, &wanted, FALSE ), path );
+	return path;
+}
+
+Path *Pathfinder::findAttackPath( const Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
+	const Object *victim, const Coord3D* victimPos, const Weapon *weapon )
+{
+	PathProfile::Search search( PathProfile::ATTACK, m_cumulativeCellsAllocated, obj );
+	Path *path = findAttackPathImpl( obj, locomotorSet, from, victim, victimPos, weapon );
+	search.Finish( PathProfile::Search::Classify( path, nullptr, FALSE ), path );
+	return path;
+}
+
+Path *Pathfinder::findSafePath( const Object *obj, const LocomotorSet& locomotorSet,
+	const Coord3D *from, const Coord3D* repulsorPos1, const Coord3D* repulsorPos2, Real repulsorRadius )
+{
+	PathProfile::Search search( PathProfile::SAFE, m_cumulativeCellsAllocated, obj );
+	Path *path = findSafePathImpl( obj, locomotorSet, from, repulsorPos1, repulsorPos2, repulsorRadius );
+	search.Finish( PathProfile::Search::Classify( path, nullptr, FALSE ), path );
+	return path;
+}
+
+Path *Pathfinder::patchPath( const Object *obj, const LocomotorSet& locomotorSet, Path *originalPath, Bool blocked )
+{
+	PathProfile::Search search( PathProfile::PATCH, m_cumulativeCellsAllocated, obj );
+	Path *path = patchPathImpl( obj, locomotorSet, originalPath, blocked );
+	search.Finish( PathProfile::Search::Classify( path, nullptr, FALSE ), path );
+	return path;
+}
+
+Path *Pathfinder::getAircraftPath( const Object *obj, const Coord3D *to )
+{
+	PathProfile::Search search( PathProfile::AIRCRAFT, m_cumulativeCellsAllocated, obj );
+	Path *path = getAircraftPathImpl( obj, to );
+	search.Finish( PathProfile::Search::Classify( path, nullptr, FALSE ), path );
+	return path;
+}
+
+Path *Pathfinder::findGroundPath( const Coord3D *from, const Coord3D *rawTo, Int pathDiameter, Bool crusher )
+{
+	PathProfile::Search search( PathProfile::GROUP, m_cumulativeCellsAllocated );
+	Path *path = findGroundPathImpl( from, rawTo, pathDiameter, crusher );
+	search.Finish( PathProfile::Search::Classify( path, rawTo, FALSE ), path );
+	return path;
+}
+
+Path *Pathfinder::internal_findHierarchicalPath( Bool isHuman, const LocomotorSurfaceTypeMask locomotorSurface, const Coord3D *from,
+	const Coord3D *rawTo, Bool crusher, Bool closestOK, Int radius )
+{
+	PathProfile::Search search( PathProfile::COARSE, m_cumulativeCellsAllocated );
+	Path *path = internal_findHierarchicalPathImpl( isHuman, locomotorSurface, from, rawTo, crusher, closestOK, radius );
+	search.Finish( PathProfile::Search::Classify( path, rawTo, FALSE ), path );
+	return path;
 }
