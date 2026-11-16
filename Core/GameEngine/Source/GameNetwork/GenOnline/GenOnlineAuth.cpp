@@ -270,7 +270,7 @@ void GenOnlineAuthInterface::OnLoginComplete(ELoginResult loginResult, const cha
 
 static int64_t NowMsV1();
 
-// The longest wait for the service to answer a logout.
+// The longest wait for an answer to one logout send.
 static const int64_t LOGOUT_TIMEOUT_MS = 3000;
 
 void GenOnlineAuthInterface::LogoutOfMyAccount(std::function<void()> fnDone)
@@ -292,10 +292,19 @@ void GenOnlineAuthInterface::LogoutOfMyAccount(std::function<void()> fnDone)
 	const std::string strRefreshToken = m_strRefreshToken;
 	const std::string strURI = strOrigin + "/api/v1/auth/session";
 	const std::string strAuthorization = "Bearer " + m_strToken;
+	// Each send gets the full wait for its answer, so standby retries during a service switch finish before the teardown.
+	auto fnRestartWait = [this]()
+	{
+		if (m_logoutDoneV1 != nullptr)
+		{
+			m_logoutDeadlineV1 = NowMsV1() + LOGOUT_TIMEOUT_MS;
+		}
+	};
 	// A standby retry ends with the logout, so a late answer never revokes during a new sign-in.
 	GenOnlineRealtimeBridge::SendWithStandbyRetry("DELETE /api/v1/auth/session",
-		[strURI, strAuthorization](GenOnlineRealtimeBridge::HTTPDoneCallback fnAnswer)
+		[strURI, strAuthorization, fnRestartWait](GenOnlineRealtimeBridge::HTTPDoneCallback fnAnswer)
 		{
+			fnRestartWait();
 			GenOnlineServicesManager* pManager = GenOnlineServicesManager::GetInstance();
 			if (pManager == nullptr || pManager->GetHTTPManager() == nullptr)
 			{
@@ -306,13 +315,13 @@ void GenOnlineAuthInterface::LogoutOfMyAccount(std::function<void()> fnDone)
 			mapHeaders["Authorization"] = strAuthorization;
 			pManager->GetHTTPManager()->SendDELETERequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "", fnAnswer);
 		},
-		[this, strOrigin, strRefreshToken](bool, int statusCode, std::string, HTTPRequest*)
+		[this, strOrigin, strRefreshToken, fnRestartWait](bool, int statusCode, std::string, HTTPRequest*)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Session ended with status %d", statusCode);
 			m_pSignIn->Revoke(strOrigin, strRefreshToken, [this]()
 				{
 					FinishLogoutV1();
-				});
+				}, fnRestartWait);
 		},
 		[this]()
 		{

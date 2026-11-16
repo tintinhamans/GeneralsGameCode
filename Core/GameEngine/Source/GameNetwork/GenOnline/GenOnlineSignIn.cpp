@@ -30,6 +30,7 @@
 
 #include "GameNetwork/GenOnline/GenOnlineSignIn.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
+#include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
 #include "GameNetwork/GenOnline/HTTP/HTTPManager.h"
 #include "GameNetwork/GenOnline/HTTP/HTTPRequest.h"
 
@@ -257,7 +258,7 @@ void GenOnlineSignIn::Refresh(const std::string& origin, const std::string& refr
 		});
 }
 
-void GenOnlineSignIn::Revoke(const std::string& origin, const std::string& refreshToken, std::function<void()> done)
+void GenOnlineSignIn::Revoke(const std::string& origin, const std::string& refreshToken, std::function<void()> done, std::function<void()> onSend)
 {
 	if (refreshToken.empty() || origin != m_discoveredOrigin || m_discovery.revocation_endpoint.empty())
 	{
@@ -267,10 +268,26 @@ void GenOnlineSignIn::Revoke(const std::string& origin, const std::string& refre
 		}
 		return;
 	}
-	std::map<std::string, std::string> headers;
-	headers["Content-Type"] = "application/x-www-form-urlencoded";
+	const std::string endpoint = m_discovery.revocation_endpoint;
 	const std::string body = EncodeForm(RevokeTokenForm(GENONLINE_CLIENT_ID, refreshToken));
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(m_discovery.revocation_endpoint.c_str(), EIPProtocolVersion::DONT_CARE, headers, body.c_str(),
+	// Revoking the old token is safe at any time, so the retry needs no wanted check.
+	GenOnlineRealtimeBridge::SendWithStandbyRetry("POST revoke",
+		[endpoint, body, onSend](GenOnlineRealtimeBridge::HTTPDoneCallback fnAnswer)
+		{
+			if (onSend != nullptr)
+			{
+				onSend();
+			}
+			GenOnlineServicesManager* pManager = GenOnlineServicesManager::GetInstance();
+			if (pManager == nullptr || pManager->GetHTTPManager() == nullptr)
+			{
+				fnAnswer(false, 0, std::string(), nullptr);
+				return;
+			}
+			std::map<std::string, std::string> headers;
+			headers["Content-Type"] = "application/x-www-form-urlencoded";
+			pManager->GetHTTPManager()->SendPOSTRequest(endpoint.c_str(), EIPProtocolVersion::DONT_CARE, headers, body.c_str(), fnAnswer, nullptr, -1, true);
+		},
 		[done](bool, int statusCode, std::string, HTTPRequest*)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[SignIn] Revoke answered %d", statusCode);
@@ -278,7 +295,7 @@ void GenOnlineSignIn::Revoke(const std::string& origin, const std::string& refre
 			{
 				done();
 			}
-		}, nullptr, -1, true);
+		});
 }
 
 void GenOnlineSignIn::Cancel()

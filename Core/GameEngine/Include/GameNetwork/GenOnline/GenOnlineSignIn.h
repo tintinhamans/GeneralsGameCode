@@ -68,7 +68,8 @@ public:
 	void Refresh(const std::string& origin, const std::string& refreshToken, DoneFn done);
 
 	// Revokes a refresh token. Best effort. The done callback runs once the service answered, or at once when nothing is sent.
-	void Revoke(const std::string& origin, const std::string& refreshToken, std::function<void()> done = nullptr);
+	// A standby answer sends the request again. The send callback runs before each send.
+	void Revoke(const std::string& origin, const std::string& refreshToken, std::function<void()> done = nullptr, std::function<void()> onSend = nullptr);
 
 	// Drops the running sign-in or refresh. Its callback never runs.
 	void Cancel();
