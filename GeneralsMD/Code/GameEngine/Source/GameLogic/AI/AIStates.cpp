@@ -3575,7 +3575,9 @@ StateReturnType AIFollowPathState::update()
 				// Seraphim froze 227 s among infantry goals; T6: an APC's find failed twice on the chasers' goal)
 				const Bool held = PathTuning::ColHold && ai->isGivenGoal(&m_goalPosition);
 				const Coord3D given = m_goalPosition;
-				if (!TheAI->pathfinder()->adjustDestination(getMachineOwner(), ai->getLocomotorSet(), &m_goalPosition)) {
+				if (held && PathTuning::NoColHoldRecheck) {
+					// "nocolholdrecheck": colhold's first version, the held given goal as given, no check
+				} else if (!TheAI->pathfinder()->adjustDestination(getMachineOwner(), ai->getLocomotorSet(), &m_goalPosition)) {
 					if (!held) {
 						return STATE_FAILURE;
 					}

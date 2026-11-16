@@ -69,6 +69,8 @@
 //              within 8 cells; else retail's retries (5, 3 s apart, each re-spiralling the goal) take it there; each
 //              fight that ends gives the resumed move its 5 retries again; a resume that stalls within 8 cells of its goal
 //              for 3 s uses a retry, and with none left it ends as retail's does
+//   nocolholdrecheck (with colhold) a held given goal is taken as given on the last leg, with no destination check (no
+//              re-spiral into a box a still-moving ally had not marked yet)
 //
 // All of these change routes, so every player of a game, and a replay's playback, must use the same set. When any is on,
 // the set goes into the pathfinder's CRC, so players with different sets see a mismatch at once. An unknown name stops
@@ -95,6 +97,7 @@ namespace PathTuning
 	extern Bool LaneKeep;
 	extern Bool ColHold;
 	extern Bool AttackMoveResume;
+	extern Bool NoColHoldRecheck;
 
 	const Int CLEARANCE_MAX = 15;			///< "clearance": rings counted (more is open ground)
 	const Int CLEARANCE_HARD = 2;			///< "clearance": rings past the shore that refuse a step
