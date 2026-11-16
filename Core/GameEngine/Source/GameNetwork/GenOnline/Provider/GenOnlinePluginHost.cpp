@@ -917,8 +917,20 @@ void GenOnlinePluginHost::LinkedAccount::SignIn()
 		return;
 	}
 
-	std::string authToken = pAuthInterface->GetAuthToken();
-	s_pLinkedAccount->SignIn(authToken.c_str(), OnSignInStatus, nullptr);
+	// The plugin signs in to Epic with the short-lived EOS token, which is minted right before each sign in.
+	pAuthInterface->RequestEosToken([](const std::string& eosToken)
+		{
+			if (s_pLinkedAccount == nullptr)
+			{
+				return;
+			}
+			if (eosToken.empty())
+			{
+				OnSignInStatus(nullptr, GENONLINE_PLUGIN_FALSE);
+				return;
+			}
+			s_pLinkedAccount->SignIn(eosToken.c_str(), OnSignInStatus, nullptr);
+		});
 }
 
 void GenOnlinePluginHost::LinkedAccount::Refresh()
@@ -937,8 +949,19 @@ void GenOnlinePluginHost::LinkedAccount::Refresh()
 
 	s_tokenCreationTime = UtcNowMs();
 
-	std::string authToken = pAuthInterface->GetAuthToken();
-	s_pLinkedAccount->Refresh(authToken.c_str(), OnRefreshStatus, nullptr);
+	pAuthInterface->RequestEosToken([](const std::string& eosToken)
+		{
+			if (s_pLinkedAccount == nullptr)
+			{
+				return;
+			}
+			if (eosToken.empty())
+			{
+				OnRefreshStatus(nullptr, GENONLINE_PLUGIN_FALSE);
+				return;
+			}
+			s_pLinkedAccount->Refresh(eosToken.c_str(), OnRefreshStatus, nullptr);
+		});
 }
 
 void GenOnlinePluginHost::Anticheat::BeginSession()

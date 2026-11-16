@@ -278,6 +278,7 @@ static std::map<std::string, RoundTripFn> BuildApiFixtureTable()
 	t["get-compatibility.response.json"] = RoundTrip<CompatibilityResponse>;
 	t["get-config.response.json"] = RoundTrip<ConfigResponse>;
 	t["put-me-linked_accounts-eos.request.json"] = RoundTrip<EosLinkBody>;
+	t["post-me-eos_token.response.json"] = RoundTrip<EosTokenResponse>;
 	t["get-stats-global.response.json"] = RoundTrip<GlobalStatsResponse>;
 	t["get-players-stats.response.json"] = RoundTrip<PlayerStatsBody>;
 	t["get-players-stats-ids.response.json"] = RoundTrip<PlayerStatsBatchResponse>;
@@ -1968,6 +1969,17 @@ static void TestLegacyRouteReplacements(const std::filesystem::path& folder)
 		EosLinkBody link;
 		link.id_token = "abc";
 		CHECK(json(link) == json::parse(R"({"id_token":"abc"})"));
+	}
+
+	// The EOS plugin signs in to Epic with the short-lived EOS token, not with the access token.
+	CHECK(RestEosTokenPath() == "/api/v1/me/eos_token");
+	CHECK(RestPathForLog("/api/v1/me/eos_token") == "/api/v1/me/eos_token");
+	{
+		EosTokenResponse token;
+		CHECK(MakeRestOutcome(true, 200, R"({"eos_token":"a.b.c","expires_in":300})").Data(token));
+		CHECK(token.eos_token == "a.b.c" && token.expires_in == 300);
+		EosTokenResponse missing;
+		CHECK(!MakeRestOutcome(true, 200, R"({"expires_in":300})").Data(missing));
 	}
 
 	// The global stats map each playable side onto its service index.

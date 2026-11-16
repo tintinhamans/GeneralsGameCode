@@ -818,6 +818,25 @@ struct EosLinkBody : WireObject
 	}
 };
 
+// POST mints the short-lived token the EOS plugin signs in to Epic with. It has no body.
+inline std::string RestEosTokenPath()
+{
+	return "/api/v1/me/eos_token";
+}
+
+// POST /api/v1/me/eos_token
+struct EosTokenResponse : WireObject
+{
+	std::string eos_token;
+	int expires_in = 0;
+
+	template <class V> void Fields(V& v)
+	{
+		v("eos_token", eos_token);
+		v("expires_in", expires_in);
+	}
+};
+
 // Stats ///////////////////////////////////////////////////////////////////////////
 
 // GET is anonymous.
