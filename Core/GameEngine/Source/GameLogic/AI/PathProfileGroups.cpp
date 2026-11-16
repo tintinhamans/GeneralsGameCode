@@ -81,6 +81,10 @@ namespace PathProfile
 		Bool sawGoal, moved;
 		Int stillFrames;		///< frames in a row not moving (nor waiting for a path)
 		Int goalMoves;
+		Real givenX, givenY;	///< the goal finder's goal for the order
+		Bool hasGiven;
+		Int legs;				///< waypoints in the order's move (1: a direct move)
+		Int failedEarly;		///< failed finds on the order frame and the 3 after it (in "failed" too)
 		Int column;				///< the order's column move: 1 joined, 0 left out, -1 none
 		// stuck
 		Real progX, progY;
@@ -212,6 +216,7 @@ namespace PathProfile
 		u.spawnY = u.lastY = u.progY = p->y;
 		u.outcome = NO_ORDER;
 		u.column = -1;
+		u.legs = 1;
 		UnsignedInt h = ((UnsignedInt)u.id * 2654435761u) & (MAP_SLOTS - 1);
 		for (Int probe = 0; probe < MAP_SLOTS; ++probe)
 		{
@@ -268,6 +273,8 @@ namespace PathProfile
 			u.goalMoves = 0;
 			u.restClick = 0.0f;
 			u.column = -1;
+			u.hasGiven = FALSE;
+			u.legs = 1;
 		}
 	}
 
@@ -298,6 +305,28 @@ namespace PathProfile
 				return TRUE;
 		}
 		return FALSE;
+	}
+
+	void Given_Goal(const Object * unit, const Coord3D * goal)
+	{
+		if (!GroupsActive || unit == nullptr || goal == nullptr)
+			return;
+		GroupUnit * u = Find(unit->getID());
+		if (u != nullptr)
+		{
+			u->givenX = goal->x;
+			u->givenY = goal->y;
+			u->hasGiven = TRUE;
+		}
+	}
+
+	void Move_Legs(const Object * unit, Int legs)
+	{
+		if (!GroupsActive || unit == nullptr)
+			return;
+		GroupUnit * u = Find(unit->getID());
+		if (u != nullptr)
+			u->legs = legs;
 	}
 
 	void Column_Move(const Object * unit, Bool joined)
@@ -340,7 +369,11 @@ namespace PathProfile
 		if (result == PARTIAL)
 			++u->partials;
 		else if (result == FAILED || result == OUT_OF_POOL)
+		{
 			++u->failed;
+			if (u->outcome != NO_ORDER && frame >= u->orderFrame && frame <= u->orderFrame + 3)
+				++u->failedEarly;
+		}
 		if (path != nullptr)
 			for (const PathNode * n = path->getFirstNode(); n != nullptr; n = n->getNext())
 				++u->pathNodes;
@@ -663,7 +696,7 @@ namespace PathProfile
 				fprintf(UnitsFile, "phase,group,unit,template,footprint,outcome,order,order_frame,end_frame,end_s,start_x,start_y,goal_x,goal_y,"
 					"end_x,end_y,driven_cells,straight_cells,stuck_frames,stuck_episodes,longest_stuck_s,blocked_frames,hull_frames,"
 					"ended_on_bad_ground,searches,repaths,partial,failed,path_nodes,goal_moves,engaged_s,rest_click_cells,trips,inside_frames,"
-					"longest_stuck_x,longest_stuck_y,longest_stuck_frame,column\n");
+					"longest_stuck_x,longest_stuck_y,longest_stuck_frame,column,given_x,given_y,given_held,legs,first_frame_failed\n");
 		}
 		for (Int g = 0; g < GroupCount; ++g)
 		{
@@ -740,7 +773,14 @@ namespace PathProfile
 				const GroupUnit & u = GroupUnits[i];
 				const Real tx = u.sawGoal ? u.goalX : u.clickX, ty = u.sawGoal ? u.goalY : u.clickY;
 				const Real dx = tx - u.startX, dy = ty - u.startY;
-				fprintf(UnitsFile, "%s,%s,%u,%s,%d,%s,%s,%u,%u,%.2f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%.2f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.2f,%.1f,%d,%d,%.1f,%.1f,%d,%d\n",
+				// given_held: 1 the unit ended within reach of its given goal (as an arrival is judged), 0 not, -1 none
+				Int givenHeld = -1;
+				if (u.hasGiven)
+				{
+					const Real gx = u.lastX - u.givenX, gy = u.lastY - u.givenY, reach = (2.0f + (Real)u.footR) * CELL;
+					givenHeld = (!u.dead && gx * gx + gy * gy <= reach * reach) ? 1 : 0;
+				}
+				fprintf(UnitsFile, "%s,%s,%u,%s,%d,%s,%s,%u,%u,%.2f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%.2f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.2f,%.1f,%d,%d,%.1f,%.1f,%d,%d,%.1f,%.1f,%d,%d,%d\n",
 					PhaseName, Groups[u.group].name, (UnsignedInt)u.id, u.tmpl, u.footN, OutcomeNames[u.outcome],
 					u.outcome == NO_ORDER ? "none" : KindNames[u.kind], u.orderFrame, u.endFrame,
 					u.endFrame > u.orderFrame ? (Real)(u.endFrame - u.orderFrame) / fps : -1.0f,
@@ -749,7 +789,8 @@ namespace PathProfile
 					u.hullFrames, (!u.dead && u.hullNow) ? 1 : 0, u.searches, u.repaths, u.partials, u.failed, u.pathNodes, u.goalMoves,
 					u.engagedFrame != 0 ? (Real)(u.engagedFrame - u.orderFrame) / fps : -1.0f, u.restClick / CELL, u.trips, u.insideFrames,
 					u.longestStuck > 0 ? u.longestX / CELL : -1.0f, u.longestStuck > 0 ? u.longestY / CELL : -1.0f,
-					u.longestStuck > 0 ? (Int)u.longestFrame : -1, u.column);
+					u.longestStuck > 0 ? (Int)u.longestFrame : -1, u.column,
+					u.hasGiven ? u.givenX / CELL : -1.0f, u.hasGiven ? u.givenY / CELL : -1.0f, givenHeld, u.legs, u.failedEarly);
 			}
 			fflush(UnitsFile);
 		}
@@ -766,7 +807,7 @@ namespace PathProfile
 		{
 			GroupUnit & u = GroupUnits[i];
 			u.stuckFrames = u.stuckEpisodes = u.over5 = u.over10 = u.longestStuck = u.blockedFrames = u.hullFrames = 0;
-			u.searches = u.repaths = u.partials = u.failed = u.pathNodes = u.superseded = 0;
+			u.searches = u.repaths = u.partials = u.failed = u.failedEarly = u.pathNodes = u.superseded = 0;
 			u.trips = u.insideFrames = 0;
 			u.driven = 0.0f;
 			if (u.stuck)

@@ -655,6 +655,7 @@ static Bool takeAssignedSlot(const std::vector<PathfindSlotRequest>& requests, c
 		if (requests[i].obj == obj && requests[i].assigned)
 		{
 			*dest = requests[i].slot;
+			PathProfile::Given_Goal(obj, dest);	// path profiler: the slot is contraZH's given goal
 			return true;
 		}
 	}
@@ -1318,6 +1319,7 @@ Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, CommandSourceType cm
 		path.push_back(dest);
 		ai->aiFollowPath( &path, nullptr, cmdSource );
 		PathProfile::Column_Move(theUnit, TRUE);	// path profiler
+		PathProfile::Move_Legs(theUnit, (Int)path.size());
 		columnUnits.push_back(theUnit);
 	}
 	Column_Left_Out_Report();
@@ -1851,6 +1853,7 @@ Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, CommandSourceType cmd
 		path.push_back(dest);
 		ai->aiFollowPath( &path, nullptr, cmdSource );
 		PathProfile::Column_Move(theUnit, TRUE);	// path profiler
+		PathProfile::Move_Legs(theUnit, (Int)path.size());
 		columnUnits.push_back(theUnit);
 	}
 	Column_Left_Out_Report();

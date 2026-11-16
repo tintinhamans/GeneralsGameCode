@@ -113,4 +113,8 @@ namespace PathProfile
 	/// a group move gave the unit a column move: joined (the column's lane waypoints) or left out (its own route). units.csv
 	/// "column": 1 joined, 0 left out, -1 no column move since its last order
 	void Column_Move(const Object * unit, Bool joined);
+	/// the group's goal finder gave the unit this goal (units.csv given_x, given_y, given_held)
+	void Given_Goal(const Object * unit, const Coord3D * goal);
+	/// the unit's move has this many waypoints (units.csv legs; 1, a direct move, unless a column move says otherwise)
+	void Move_Legs(const Object * unit, Int legs);
 }
