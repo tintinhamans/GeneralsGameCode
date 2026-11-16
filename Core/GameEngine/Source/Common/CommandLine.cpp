@@ -24,6 +24,7 @@
 
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "GameLogic/PathTuning.h"
 
 #include "Common/ArchiveFileSystem.h"
 #include "Common/CommandLine.h"
@@ -971,6 +972,23 @@ Int parseSeed(char *args[], int num)
 	return 2;
 }
 
+// TheSuperHackers @feature simonx645 16/11/2026 Pathfinding changes, all on by default (GameLogic/PathTuning.h).
+Int parsePathFix(char *args[], int num)
+{
+	if (num > 1)
+	{
+		if (!PathTuning::Set(args[1]))
+		{
+			// a misspelt change would run a different test than the one asked for
+			printf("-pathFix %s: stopping (known: none, default; -<name> turns one off)\n", args[1]);
+			fflush(stdout);
+			exit(1);
+		}
+		return 2;
+	}
+	return 1;
+}
+
 Int parseIncrAGPBuf(char *args[], int num)
 {
 	TheWritableGlobalData->m_incrementalAGPBuf = TRUE;
@@ -1258,6 +1276,11 @@ static CommandLineParam paramsForStartup[] =
 
 	// Write DebugLogFile.txt and d3d9render.txt.
 	{ "-log", parseLog },
+
+	// TheSuperHackers @feature simonx645 16/11/2026
+	// Pathfinding changes, one switch each, all on by default: -pathFix none (contraZH's own pathfinding as it was),
+	// -pathFix -<name> (one off). They change routes: every player and a replay's playback must use the same set.
+	{ "-pathFix", parsePathFix },
 };
 
 // These Params are parsed during Engine Init before INI data is loaded

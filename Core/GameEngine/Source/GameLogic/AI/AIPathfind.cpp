@@ -27,6 +27,7 @@
 // Author: Michael S. Booth, October 2001
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include "GameLogic/PathTuning.h"
 #include "GameLogic/AIPathfind.h"
 
 #include "Common/PerfTimer.h"
@@ -12717,6 +12718,20 @@ void Pathfinder::crc( Xfer *xfer )
 	CRCDEBUG_LOG(("m_wallHeight: %8.8X", ((XferCRC *)xfer)->getCRC()));
 	xfer->xferInt(&m_cumulativeCellsAllocated);
 	CRCDEBUG_LOG(("m_cumulativeCellsAllocated: %8.8X", ((XferCRC *)xfer)->getCRC()));
+
+	// TheSuperHackers @feature simonx645 16/11/2026 The pathfinding switches (GameLogic/PathTuning.h), only when one is on,
+	// so a game without them keeps its CRC.
+	if (PathTuning::Any()) {
+		UnsignedInt mask = PathTuning::Mask();
+		Int weight = PathTuning::CRC_WEIGHT, cap = PathTuning::SEARCH_CAP_CELLS;
+		Int queueBase = PathTuning::CRC_QUEUE_BASE, queueMax = PathTuning::CRC_QUEUE_MAX;
+		xfer->xferUnsignedInt(&mask);
+		xfer->xferInt(&weight);
+		xfer->xferInt(&cap);
+		xfer->xferInt(&queueBase);
+		xfer->xferInt(&queueMax);
+		CRCDEBUG_LOG(("PathTuning: %8.8X", ((XferCRC *)xfer)->getCRC()));
+	}
 
 }
 
