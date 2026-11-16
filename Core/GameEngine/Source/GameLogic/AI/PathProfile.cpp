@@ -79,6 +79,21 @@ namespace PathProfile
 		return Frequency > 0 ? (Real)((double)ticks * 1000.0 / (double)Frequency) : 0.0f;
 	}
 
+	// TheSuperHackers @feature simonx645 16/11/2026 -pathTraceUnit <id> <from> <to>: one row per logic frame from..to for
+	// the unit to <file>.trace.csv (pathtrace.csv without -pathProfile): its state, waiting for a path, the path's end,
+	// blocked frames, and the searches it started in the frame. Reads only.
+	ObjectID TraceId = INVALID_ID;
+	UnsignedInt TraceFrom = 0, TraceTo = 0;
+	Int TraceSearches[TYPE_COUNT] = { 0 };
+	FILE * TraceFile = nullptr;
+
+	void Set_Trace(UnsignedInt id, UnsignedInt from, UnsignedInt to)
+	{
+		TraceId = (ObjectID)id;
+		TraceFrom = from;
+		TraceTo = to;
+	}
+
 	void Set_Output(const char * file)
 	{
 		if (file == nullptr || file[0] == 0)
@@ -195,6 +210,8 @@ namespace PathProfile
 		: m_type(type), m_unit(unit != nullptr ? unit->getID() : INVALID_ID), m_cells(&cellCounter), m_cellsAtStart(cellCounter),
 		m_poolAtStart(PoolFailures), m_start(0), m_on(Enabled), m_nested(FALSE)
 	{
+		if (m_unit != INVALID_ID && m_unit == TraceId)
+			++TraceSearches[type];	// -pathTraceUnit
 		if (!m_on)
 			return;
 		m_nested = Depth > 0;
@@ -470,8 +487,66 @@ namespace PathProfile
 
 	const char * const TypeNames[TYPE_COUNT] = { "find", "closest", "attack", "safe", "patch", "group", "aircraft", "coarse" };
 
+	static void Trace_Frame(UnsignedInt frame)
+	{
+		if (TraceId == INVALID_ID)
+			return;
+		if (frame >= TraceFrom && frame <= TraceTo)
+		{
+			if (TraceFile == nullptr)
+			{
+				char path[300];
+				if (Enabled)
+					snprintf(path, sizeof(path), "%s.trace.csv", Base);
+				else
+					snprintf(path, sizeof(path), "pathtrace.csv");
+				TraceFile = fopen(path, "wt");
+				if (TraceFile != nullptr)
+					fprintf(TraceFile, "frame,unit,alive,x,y,state,waiting_for_path,has_path,path_end_x,path_end_y,blocked_frames,"
+						"searches\n");
+			}
+			if (TraceFile != nullptr)
+			{
+				const Real cell = PATHFIND_CELL_SIZE_F;
+				Object * obj = TheGameLogic->findObjectByID(TraceId);
+				AIUpdateInterface * ai = obj != nullptr ? obj->getAI() : nullptr;
+				char kinds[160];
+				kinds[0] = 0;
+				for (Int t = 0; t < TYPE_COUNT; ++t)
+					if (TraceSearches[t] > 0)
+					{
+						char one[32];
+						snprintf(one, sizeof(one), "%s%s:%d", kinds[0] ? "|" : "", TypeNames[t], TraceSearches[t]);
+						strncat(kinds, one, sizeof(kinds) - strlen(kinds) - 1);
+					}
+				if (ai == nullptr)
+					fprintf(TraceFile, "%u,%u,%d,,,,,,,,,%s\n", frame, (UnsignedInt)TraceId, obj != nullptr && !obj->isEffectivelyDead() ? 1 : 0,
+						kinds);
+				else
+				{
+					Path * p = ai->getPath();
+					const PathNode * last = p != nullptr ? p->getLastNode() : nullptr;
+					fprintf(TraceFile, "%u,%u,%d,%.1f,%.1f,%d,%d,%d,%.1f,%.1f,%d,%s\n", frame, (UnsignedInt)TraceId,
+						obj->isEffectivelyDead() ? 0 : 1, obj->getPosition()->x / cell, obj->getPosition()->y / cell,
+						(Int)ai->getCurrentStateID(), ai->isWaitingForPath() ? 1 : 0, p != nullptr ? 1 : 0,
+						last != nullptr ? last->getPosition()->x / cell : -1.0f, last != nullptr ? last->getPosition()->y / cell : -1.0f,
+						ai->getNumFramesBlocked(), kinds);
+				}
+				fflush(TraceFile);
+			}
+		}
+		for (Int t = 0; t < TYPE_COUNT; ++t)
+			TraceSearches[t] = 0;
+		if (frame > TraceTo && TraceFile != nullptr)
+		{
+			fclose(TraceFile);
+			TraceFile = nullptr;
+		}
+	}
+
 	void End_Frame(UnsignedInt frame)
 	{
+		Trace_Frame(frame);	// -pathTraceUnit (also without -pathProfile)
 		if (!Enabled)
 			return;
 		if (!MatchOpen || frame < LastFrame)

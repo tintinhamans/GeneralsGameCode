@@ -55,6 +55,7 @@ namespace PathProfile
 	extern Bool Enabled;	///< -pathProfile was given
 
 	void Set_Output(const char * file);		///< CommandLine: the switch's file
+	void Set_Trace(UnsignedInt id, UnsignedInt from, UnsignedInt to);	///< CommandLine -pathTraceUnit <id> <from> <to>
 	void Set_No_Time();						///< CommandLine -pathProfileNoTime: every time column 0 (runs compare byte for byte)
 	const char * Output_Base();				///< the switch's file without its extension ("" without the switch)
 	void Pool_Exhausted();					///< PathfindCell::allocateInfo found no free cell info

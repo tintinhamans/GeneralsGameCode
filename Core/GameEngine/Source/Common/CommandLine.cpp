@@ -489,6 +489,18 @@ Int parsePathProfileNoTime(char *args[], int num)
 	return 1;
 }
 
+// TheSuperHackers @feature simonx645 16/11/2026 -pathTraceUnit <id> <from> <to>: one unit's pathfinding state per logic
+// frame (GameLogic/PathProfile.h), measurement only
+Int parsePathTraceUnit(char *args[], int num)
+{
+	if (num > 3)
+	{
+		PathProfile::Set_Trace((UnsignedInt)atoi(args[1]), (UnsignedInt)atoi(args[2]), (UnsignedInt)atoi(args[3]));
+		return 4;
+	}
+	return 1;
+}
+
 // TheSuperHackers @feature simonx645 16/11/2026 -pathScenario <file> / -pathBench <file>: the pathfinding test runner
 // (GameLogic/PathScenario.h).
 Int parsePathScenario(char *args[], int num)
@@ -1311,6 +1323,7 @@ static CommandLineParam paramsForStartup[] =
 	{ "-pathProfile", parsePathProfile },
 	// Every time column of -pathProfile 0, so two runs of one build give byte-identical files.
 	{ "-pathProfileNoTime", parsePathProfileNoTime },
+	{ "-pathTraceUnit", parsePathTraceUnit },
 	// A skirmish from the file, with spawns, orders and map changes at set frames or conditions (with -headless: unthrottled).
 	{ "-pathScenario", parsePathScenario },
 	// Search-only: findPath for the file's start / goal pairs, with an exact A* as the reference, to <file>.bench.csv.
