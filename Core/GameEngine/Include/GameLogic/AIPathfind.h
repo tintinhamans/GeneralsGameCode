@@ -898,6 +898,11 @@ public:
 	void snapPosition(Object *obj, Coord3D *pos); // Snaps the current position to it's grid location.
 	void snapClosestGoalPosition(Object *obj, Coord3D *pos); // Snaps the current position to a good goal position.
 	Bool assignGroupSlots(std::vector<PathfindSlotRequest>& units, const Coord3D *click, const Coord3D *centroid); ///< Gives each unit of a group its own arrival cell around the click.
+	/// TheSuperHackers @feature simonx645 16/11/2026 "groupgoals" (GameLogic/PathTuning.h): goals for a group's ground units
+	/// from one flood from the click (see AIPathfind.cpp), used instead of assignGroupSlots while on. goals[i] and
+	/// placed[i] answer members[i]; a placed goal is reserved (updateGoal). Returns how many were placed.
+	Int assignGroupGoals( Object **members, Int count, const Coord3D *click, CommandSourceType cmdSource, Coord3D *goals, Bool *placed );
+	Int groupGoalFit( Int x, Int y );	///< "groupgoals": the widest footprint (1 to 5 cells square) that fits at a ground cell
 	Bool goalPosition(Object *obj, Coord3D *pos); // Returns the goal position on the grid.
 
 	PathfindLayerEnum addBridge(Bridge *theBridge); // Adds a bridge layer, and returns the layer id.

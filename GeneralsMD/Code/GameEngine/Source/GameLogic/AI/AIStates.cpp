@@ -1708,6 +1708,8 @@ StateReturnType AIInternalMoveToState::onEnter()
 		}
 	}
 	m_tryOneMoreRepath = true;  // We may try one more repath after the first one is finished.
+	m_shortTries = 0;	// "groupgoals"
+	m_shortTryFrame = 0;
 	ai->friend_startingMove();
 
 	// get object physics state
@@ -2043,6 +2045,23 @@ StateReturnType AIInternalMoveToState::update()
 			// The search stopped short of the goal, so path on from here
 			computePath();
 			return STATE_CONTINUE;
+		}
+		// TheSuperHackers @feature simonx645 16/11/2026 "groupgoals" (GameLogic/PathTuning.h): a path that ended well short
+		// of a goal that has not changed (a blocked recompute's nearest point, with the units round it in the way) does not
+		// end the move: a normal path to the goal is asked for, at most three times, two seconds apart.
+		if (PathTuning::GroupGoals && ai->isDoingGroundMovement() && m_shortTries < 3 &&
+			TheGameLogic->getFrame() >= m_shortTryFrame + 2 * LOGICFRAMES_PER_SECOND)
+		{
+			const Real gx = obj->getPosition()->x - m_goalPosition.x;
+			const Real gy = obj->getPosition()->y - m_goalPosition.y;
+			const Real reach = 4.0f * PATHFIND_CELL_SIZE_F + obj->getGeometryInfo().getBoundingCircleRadius();
+			if (gx * gx + gy * gy > reach * reach)
+			{
+				++m_shortTries;
+				m_shortTryFrame = TheGameLogic->getFrame();
+				computePath();
+				return STATE_CONTINUE;
+			}
 		}
 		if (getAdjustsDestination())
 		{

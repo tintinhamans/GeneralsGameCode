@@ -261,6 +261,8 @@ public:
 		m_blockedRepathTimestamp = 0;
 		m_adjustDestinations = true;
 		m_goalLayer = LAYER_INVALID;
+		m_shortTries = 0;
+		m_shortTryFrame = 0;
 		m_moveSoundState = MOVESOUND_WAITING;
 		m_ambientPlayingHandle = AHSV_Error;
 		m_moveLoopSound = nullptr;
@@ -271,6 +273,8 @@ public:
 	virtual StateReturnType update() override;
 
 protected:
+	Int m_shortTries;			///< TheSuperHackers @feature simonx645 16/11/2026 "groupgoals": paths that ended short of the goal asked for again this entry (not saved)
+	UnsignedInt m_shortTryFrame;	///< the last such ask
 
 	void setAdjustsDestination(Bool b) { m_adjustDestinations = b; }
 	Bool getAdjustsDestination() const;

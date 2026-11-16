@@ -28,6 +28,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "GameLogic/PathTuning.h"
+#include "GameLogic/Module/BodyModule.h"
 #include "GameLogic/AIPathfind.h"
 
 #include "Common/PerfTimer.h"
@@ -13067,4 +13068,335 @@ Bool Pathfinder::clearWaypoint( const Object *obj, Coord3D *pos )
 		}
 	}
 	return false;
+}
+
+// TheSuperHackers @feature simonx645 16/11/2026 "groupgoals" (PathTuning.h): one goal finder, Reforged's flood with
+// contraZH's spacing. One breadth-first flood from the click; the members, ranked by when they would get there, take the
+// cells as the flood reaches them, so the first to arrive stand deepest and later arrivals stop short of them instead of
+// driving through the group (which is what made groups spiral at the end of a move).
+// - Ground units whose surfaces are ground only; the rest keep the old goals.
+// - Before the first goal, every cell floods, so a click on a building or a lake reaches the nearest open ring; after it,
+//   only open ground floods, so the group stays on the clicked side of a cliff or river. Every goal is in the first
+//   goal's zone.
+// - Within a ring, cells further along the group's way come first. Each cell is offered to the 8 soonest unplaced members
+//   it fits: their own footprint (checkDestination), a cell's gap from goals already given for a 4x4 or 5x5, and never
+//   more than a cell past the click on the far side from the member's own approach.
+// - The flood also carries the widest footprint (1 to 5 cells square) that fits all the way from the click to each cell,
+//   and a member takes a cell only if its own footprint got there: a pocket a 5x5 cannot drive into through a 2-cell gap
+//   between cliffs is no goal for it, though its own footprint would fit at the bottom of the pocket.
+// Integer keys, total-order sorts (key, then ObjectID; ring order, then flood order). The travel direction is a float
+// dot product without trig.
+static Bool Group_Goal_Before(Int keyA, ObjectID idA, Int keyB, ObjectID idB)
+{
+	return keyA != keyB ? keyA < keyB : idA < idB;
+}
+
+// the footprint size of a radius / center pair: 1, 2 (2x2), 3, 4 or 5
+static Int Group_Goal_Size(Int radius, Bool center)
+{
+	const Int size = center ? 2 * radius + 1 : 2 * radius;
+	return size < 1 ? 1 : size;
+}
+
+Int Pathfinder::groupGoalFit( Int x, Int y )
+{
+	// box of size s at (x, y): x - s/2 .. x - s/2 + s - 1 (an even box takes the cell and the ones below it, as an even
+	// footprint is laid out). Each box holds the one before it, so grow until a cell fails.
+	Int fit = 0;
+	for (Int s = 1; s <= 5; s++) {
+		const Int lo = s / 2;
+		Bool ok = TRUE;
+		for (Int i = x - lo; i <= x - lo + s - 1 && ok; i++) {
+			for (Int j = y - lo; j <= y - lo + s - 1 && ok; j++) {
+				PathfindCell *c = getCell(LAYER_GROUND, i, j);
+				if (c == nullptr || !validMovementPosition(false, LOCOMOTORSURFACE_GROUND, 0, 0, c)) {
+					ok = FALSE;
+				}
+			}
+		}
+		if (!ok) {
+			break;
+		}
+		fit = s;
+	}
+	return fit;
+}
+
+Int Pathfinder::assignGroupGoals( Object **members, Int count, const Coord3D *click, CommandSourceType cmdSource, Coord3D *goals, Bool *placed )
+{
+	for (Int m = 0; m < count; m++) {
+		placed[m] = FALSE;
+	}
+	if (!m_isMapReady || m_map == nullptr || count <= 0 || count > 512) {
+		return 0;
+	}
+	struct Member { Object *obj; Int index; Int key; Int radius; Bool center; Real awayX, awayY; Bool done; Int inside; };
+	Member list[512];
+	Int n = 0;
+	Real minX = 1e30f, minY = 1e30f, maxX = -1e30f, maxY = -1e30f, sumX = 0.0f, sumY = 0.0f;
+	for (Int m = 0; m < count; m++) {
+		Object *obj = members[m];
+		AIUpdateInterface *ai = obj ? obj->getAI() : nullptr;
+		if (ai == nullptr || !ai->isDoingGroundMovement() || obj->isKindOf(KINDOF_IMMOBILE)) {
+			continue;
+		}
+		const LocomotorSurfaceTypeMask surfaces = ai->getLocomotorSet().getValidSurfaces();
+		if (!(surfaces & LOCOMOTORSURFACE_GROUND) || (surfaces & (LOCOMOTORSURFACE_WATER | LOCOMOTORSURFACE_CLIFF | LOCOMOTORSURFACE_AIR))) {
+			continue;
+		}
+		const Coord3D *p = obj->getPosition();
+		minX = min(minX, p->x); minY = min(minY, p->y); maxX = max(maxX, p->x); maxY = max(maxY, p->y);
+		sumX += p->x; sumY += p->y;
+		Member &e = list[n++];
+		e.obj = obj;
+		e.index = m;
+		e.done = FALSE;
+		getRadiusAndCenter(obj, e.radius, e.center);
+		// arrival: straight-line cells to the click over cells a frame, in 1/1024ths
+		const Real dx = click->x - p->x, dy = click->y - p->y;
+		const Real dist = sqrtf(dx * dx + dy * dy);
+		Real speed = 0.0f;
+		if (ai->getCurLocomotor()) {
+			speed = ai->getCurLocomotor()->getMaxSpeedForCondition(obj->getBodyModule()->getDamageState());
+		}
+		const Int distCells = REAL_TO_INT_FLOOR(dist / PATHFIND_CELL_SIZE_F * 1024.0f);
+		Int speedCells = REAL_TO_INT_FLOOR(speed / PATHFIND_CELL_SIZE_F * 1024.0f);
+		if (speedCells < 1) speedCells = 1;
+		e.key = (Int)(((Int64)distCells * 1024) / speedCells);
+		e.awayX = dist > 0.01f ? dx / dist : 0.0f;	// the member's approach
+		e.awayY = dist > 0.01f ? dy / dist : 0.0f;
+		// its place in the container it is in, -1 outside
+		e.inside = -1;
+		const Object *holder = obj->getContainedBy();
+		const ContainModuleInterface *contain = holder ? holder->getContain() : nullptr;
+		const ContainedItemsList *items = contain ? contain->getContainedItemsList() : nullptr;
+		if (holder != nullptr) {
+			Int place = 0;
+			if (items != nullptr) {
+				for (ContainedItemsList::const_iterator it = items->begin(); it != items->end() && *it != obj; ++it) {
+					++place;	// not listed: after the listed ones
+				}
+			}
+			e.inside = place;
+		}
+	}
+	if (n == 0) {
+		return 0;
+	}
+	// TheSuperHackers @bugfix simonx645 16/11/2026 A member still inside a container at the order comes out after every
+	// member outside, whatever its distance: it ranks after them, in its container's order. It was ranked from the door as
+	// if it were out and given a goal behind members that parked before it came out (T11b: a Scorpion stuck 28.7 s behind
+	// the parked row).
+	{
+		Int maxOutside = 0;
+		for (Int i = 0; i < n; i++) {
+			if (list[i].inside < 0 && list[i].key > maxOutside) maxOutside = list[i].key;
+		}
+		for (Int i = 0; i < n; i++) {
+			if (list[i].inside >= 0) list[i].key = maxOutside + 1 + list[i].inside;
+		}
+	}
+	// a click inside the group keeps the old offsets (and the tighten move)
+	if (n > 1 && click->x >= minX && click->x <= maxX && click->y >= minY && click->y <= maxY) {
+		return 0;
+	}
+	// soonest first, ties by ObjectID
+	for (Int i = 1; i < n; i++) {
+		const Member e = list[i];
+		Int j = i - 1;
+		while (j >= 0 && Group_Goal_Before(e.key, e.obj->getID(), list[j].key, list[j].obj->getID())) {
+			list[j + 1] = list[j];
+			j--;
+		}
+		list[j + 1] = e;
+	}
+	for (Int i = 0; i < n; i++) {
+		removeGoal(list[i].obj);	// the old goals are not in the way of the new ones
+	}
+	// the group's way, for the order within a ring
+	Real wayX = click->x - sumX / n, wayY = click->y - sumY / n;
+	const Real wayL = sqrtf(wayX * wayX + wayY * wayY);
+	if (wayL > 0.01f) { wayX /= wayL; wayY /= wayL; } else { wayX = 0.0f; wayY = 0.0f; }
+
+	ICoord2D start;
+	worldToCell(click, &start);
+	if (getCell(LAYER_GROUND, start.x, start.y) == nullptr) {
+		return 0;
+	}
+	const Int width = m_extent.hi.x - m_extent.lo.x + 1;
+	const Int height = m_extent.hi.y - m_extent.lo.y + 1;
+	UnsignedByte *seen = MSGNEW("PathfindGroupGoals") UnsignedByte[width * height];	// 1 queued, 2 taken from the ring
+	memset(seen, 0, width * height);
+	// the widest footprint that got to a cell from the click (5: not limited yet, as on the way out of a building or lake
+	// before the first goal); and a cell's own fit, worked out once (0: not yet, else fit + 1)
+	UnsignedByte *wide = MSGNEW("PathfindGroupGoals") UnsignedByte[width * height];
+	UnsignedByte *fitAt = MSGNEW("PathfindGroupGoals") UnsignedByte[width * height];
+	memset(fitAt, 0, width * height);
+	// the open cells the first flood took from a ring: the second flood passes back over them without using its budget
+	UnsignedByte *firstPopped = MSGNEW("PathfindGroupGoals") UnsignedByte[width * height];
+	memset(firstPopped, 0, width * height);
+	// TheSuperHackers @bugfix simonx645 16/11/2026 The budget is the cells the goals take: per member its box with the gap
+	// round it, twice over for the cells past the click that are not for it (at least the old 32). A flat 32 a member ran
+	// out with 120 3x3s and 4x4s (T1b: 27 members had no goal).
+	Int budget = 400;
+	for (Int i = 0; i < n; i++) {
+		const Int span = Group_Goal_Size(list[i].radius, list[i].center) + 2;
+		budget += max(32, 2 * span * span);
+	}
+	Int *ring = MSGNEW("PathfindGroupGoals") Int[budget + 9];
+	Int *next = MSGNEW("PathfindGroupGoals") Int[budget + 9];
+	Int ringCount = 0, nextCount = 0, popped = 0, placedCount = 0;
+	Int visited = 0;	// every cell taken from a ring; popped counts only the open cells nobody holds as a goal
+	Int refZone = -1;
+	struct Given { Int x, y, r; };
+	Given *given = MSGNEW("PathfindGroupGoals") Given[n];
+	Int givenCount = 0;
+	const Int startCell = (start.x - m_extent.lo.x) * height + (start.y - m_extent.lo.y);
+	// TheSuperHackers @bugfix simonx645 16/11/2026 Members the flood left without a goal get a second flood from the click,
+	// without the "a cell past the click" rule, the goals given so far kept, before the old spiral.
+	for (Int pass = 0; pass < 2 && placedCount < n; pass++) {
+	const Bool alongRule = pass == 0;
+	if (pass == 1) {
+		memset(seen, 0, width * height);
+		popped = 0;
+		visited = 0;
+	}
+	ringCount = 0;
+	ring[ringCount++] = startCell;
+	seen[startCell] = 1;
+	wide[startCell] = 5;
+	while (ringCount > 0 && popped < budget && visited < 4 * budget && placedCount < n) {
+		// this ring: further along the way first, then flood order
+		for (Int i = 1; i < ringCount; i++) {
+			const Int c = ring[i];
+			const Real pc = ((c / height + m_extent.lo.x) - start.x) * wayX + ((c % height + m_extent.lo.y) - start.y) * wayY;
+			Int j = i - 1;
+			while (j >= 0) {
+				const Int o = ring[j];
+				const Real po = ((o / height + m_extent.lo.x) - start.x) * wayX + ((o % height + m_extent.lo.y) - start.y) * wayY;
+				if (po >= pc) break;
+				ring[j + 1] = ring[j];
+				j--;
+			}
+			ring[j + 1] = c;
+		}
+		nextCount = 0;
+		for (Int r = 0; r < ringCount && popped < budget && visited < 4 * budget && placedCount < n; r++) {
+			const Int c = ring[r];
+			seen[c] = 2;
+			const Int x = c / height + m_extent.lo.x, y = c % height + m_extent.lo.y;
+			PathfindCell *cell = getCell(LAYER_GROUND, x, y);
+			// a cell another unit holds as its goal (a group that got there first stands on it) does not use up the
+			// budget, so a second group sent to the same click floods past the first; every cell still counts toward a
+			// hard cap of four budgets
+			visited++;
+			const PathfindCell::CellType type = cell->getType();
+			ICoord2D here;
+			here.x = x;
+			here.y = y;
+			const Bool open = (type == PathfindCell::CELL_CLEAR || type == PathfindCell::CELL_RUBBLE) &&
+				!(cmdSource == CMD_FROM_PLAYER && checkCellOutsideExtents(here));
+			// TheSuperHackers @bugfix simonx645 16/11/2026 only open cells use up the budget (a flood out of a lake or a
+			// building no longer spends it before the first goal)
+			if (open && cell->getGoalUnit() == INVALID_ID) {
+				if (pass == 0) {
+					popped++;
+					firstPopped[c] = 1;
+				} else if (!firstPopped[c]) {
+					popped++;	// TheSuperHackers @bugfix simonx645 16/11/2026 the second flood spent its whole budget again on
+								// the field the first had filled, and placed nothing new (T9: 20 of 100 left over)
+				}
+			}
+			// the widest footprint that gets here: as wide as came in, and no wider than fits here.
+			// TheSuperHackers @bugfix simonx645 16/11/2026 What a cell passes on narrows only once a goal is given, and
+			// never at the click: the click's own fit (a prop or a cliff fringe within two cells) shut every 5x5 out of the
+			// whole flood (T9: no goal for any member). The cell's own fit still limits who takes the cell itself.
+			Int cellWide = 0;
+			if (open) {
+				if (fitAt[c] == 0) {
+					fitAt[c] = (UnsignedByte)(groupGoalFit(x, y) + 1);
+				}
+				const Int fitHere = fitAt[c] - 1;
+				// TheSuperHackers @bugfix simonx645 16/11/2026 nor within 2 cells of the click (the widest box's reach): a prop
+				// beside the click narrowed every cell round it, and the width only narrows along the flood, so no cell
+				// past them got a 5x5 back (T9: all 20 Overlords without a goal, the click's own fit 2)
+				const Bool clickArea = IABS(x - start.x) <= 2 && IABS(y - start.y) <= 2;
+				if (refZone >= 0 && !clickArea && wide[c] > fitHere) {
+					wide[c] = (UnsignedByte)fitHere;
+				}
+				// the second flood, for what the first left, asks only that the footprint fit at the cell
+				cellWide = alongRule ? min((Int)wide[c], fitHere) : fitHere;
+			}
+			const Bool zoneOk = refZone < 0 || m_zoneManager.getEffectiveZone(LOCOMOTORSURFACE_GROUND, false, cell->getZone()) == refZone;
+			if (open && zoneOk) {
+				// offered to the 8 soonest unplaced members it fits.
+				// TheSuperHackers @bugfix simonx645 16/11/2026 A member counts toward the 8 only if it passes the cheap tests
+				// (along, apart, size): 8 soonest members that could take no cell starved every member behind them.
+				Int offered = 0;
+				for (Int i = 0; i < n && offered < 8; i++) {
+					Member &e = list[i];
+					if (e.done) continue;
+					// never more than a cell past the click, seen from the member's own approach (first flood only)
+					if (alongRule) {
+						const Real along = (x - start.x) * e.awayX + (y - start.y) * e.awayY;
+						if (along > 1.0f) continue;
+					}
+					Bool apart = TRUE;
+					for (Int g = 0; g < givenCount && apart; g++) {
+						const Int gap = (e.radius >= 2 || given[g].r >= 2) ? 1 : 0;
+						const Int reach = e.radius + given[g].r + gap;
+						if (IABS(x - given[g].x) <= reach && IABS(y - given[g].y) <= reach) apart = FALSE;
+					}
+					if (!apart) continue;
+					if (cellWide < Group_Goal_Size(e.radius, e.center)) continue;	// its footprint cannot get in here
+					offered++;
+					if (!checkDestination(e.obj, x, y, LAYER_GROUND, e.radius, e.center)) continue;
+					Coord3D goal;
+					adjustCoordToCell(x, y, e.center, goal, LAYER_GROUND);
+					goals[e.index] = goal;
+					placed[e.index] = TRUE;
+					e.done = TRUE;
+					updateGoal(e.obj, &goal, LAYER_GROUND);
+					given[givenCount].x = x; given[givenCount].y = y; given[givenCount].r = e.radius;
+					givenCount++;
+					placedCount++;
+					if (refZone < 0) {
+						refZone = m_zoneManager.getEffectiveZone(LOCOMOTORSURFACE_GROUND, false, cell->getZone());
+					}
+					break;
+				}
+			}
+			// flood on: everything until the first goal, open ground after it
+			if (!open && refZone >= 0) continue;
+			for (Int dy = -1; dy <= 1; dy++) {
+				for (Int dx = -1; dx <= 1; dx++) {
+					if (dx == 0 && dy == 0) continue;
+					const Int nx = x + dx, ny = y + dy;
+					if (nx < m_extent.lo.x || ny < m_extent.lo.y || nx > m_extent.hi.x || ny > m_extent.hi.y) continue;
+					const Int nc = (nx - m_extent.lo.x) * height + (ny - m_extent.lo.y);
+					// what this cell passes on: its own width (a cell that is not open passes on what reached it, so the click on
+					// a building or a lake starts unlimited, and a way through a cliff stays as narrow as the open cell before it)
+					const UnsignedByte passOn = wide[c];
+					if (seen[nc] == 1 && wide[nc] < passOn) {
+						wide[nc] = passOn;	// queued from a narrower way in this ring: the wider one counts
+					}
+					if (seen[nc] || nextCount >= budget) continue;
+					seen[nc] = 1;
+					wide[nc] = passOn;
+					next[nextCount++] = nc;
+				}
+			}
+		}
+		Int *swap = ring; ring = next; next = swap;
+		ringCount = nextCount;
+	}
+	}	// the passes
+	delete[] given;
+	delete[] next;
+	delete[] ring;
+	delete[] firstPopped;
+	delete[] fitAt;
+	delete[] wide;
+	delete[] seen;
+	return placedCount;
 }

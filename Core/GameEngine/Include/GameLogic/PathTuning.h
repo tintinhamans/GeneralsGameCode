@@ -42,6 +42,10 @@
 //              past it, or past the playable edge, costs CLEARANCE_COST more; goals, straight lines and column waypoints
 //              keep off the shore the same way. contraZH's locomotor turning check and its group slots keep its own test
 //   headon     two units meeting head on (more than 120 degrees apart, both moving) pass after 8 frames, not 1 s
+//   groupgoals a group move's and an attack-move's goals come from one flood from the click instead of contraZH's arrival
+//              slots: no goal across a cliff or river from the click, the first to arrive take the deepest goals, footprints
+//              apart (big ones a cell apart), each only where its own footprint got to from the click; a path that ends well
+//              short of an unchanged goal asks again (3 times, 2 s apart). contraZH's column join rule is kept
 //
 // All of these change routes, so every player of a game, and a replay's playback, must use the same set. When any is on,
 // the set goes into the pathfinder's CRC, so players with different sets see a mismatch at once. An unknown name stops
@@ -61,6 +65,7 @@ namespace PathTuning
 	extern Bool SearchCap;
 	extern Bool Clearance;
 	extern Bool HeadOnPass;
+	extern Bool GroupGoals;
 
 	const Int CLEARANCE_MAX = 15;			///< "clearance": rings counted (more is open ground)
 	const Int CLEARANCE_HARD = 2;			///< "clearance": rings past the shore that refuse a step

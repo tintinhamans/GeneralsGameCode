@@ -575,6 +575,70 @@ void AIGroup::computeIndividualDestination( Coord3D *dest, const Coord3D *groupD
 
 }
 
+// TheSuperHackers @feature simonx645 16/11/2026 "groupgoals" (GameLogic/PathTuning.h): the goals Pathfinder::assignGroupGoals
+// gave this group move, read by the column moves and the per-unit loop. Filled at the start of a move, emptied on the way
+// out of it (a move is made in one call, so nothing is kept between moves, and nothing is saved).
+static ObjectID s_groupGoalIds[512];
+static Coord3D s_groupGoals[512];
+static Int s_groupGoalCount = 0;
+
+static Bool Group_Goal_For( const Object *obj, Coord3D *dest )
+{
+	for (Int i = 0; i < s_groupGoalCount; i++) {
+		if (s_groupGoalIds[i] == obj->getID()) {
+			*dest = s_groupGoals[i];
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+// The removal loops of a group move drop every member's goal; before a member without a given goal takes one by the old
+// spiral, the given goals are reserved again, so it cannot land on one of them.
+static void Group_Goals_Reserve()
+{
+	for (Int i = 0; i < s_groupGoalCount; i++) {
+		Object *obj = TheGameLogic->findObjectByID(s_groupGoalIds[i]);
+		if (obj && !obj->isEffectivelyDead()) {
+			TheAI->pathfinder()->updateGoal(obj, &s_groupGoals[i], LAYER_GROUND);
+		}
+	}
+}
+
+struct Group_Goal_Scope
+{
+	~Group_Goal_Scope() { s_groupGoalCount = 0; }
+};
+
+// Fills the table for these members (returns the number of goals given).
+static Int Group_Goals_Assign( ListObjectPtr &members, const Coord3D *click, CommandSourceType cmdSource )
+{
+	s_groupGoalCount = 0;
+	if (TheTerrainLogic->getLayerForDestination(click) != LAYER_GROUND) {
+		return 0;	// a click on a bridge deck: the finder works on the ground only, so the old goals
+	}
+	Object *list[512];
+	Coord3D goals[512];
+	Bool placed[512];
+	Int count = 0;
+	for (ListObjectPtr::iterator i = members.begin(); i != members.end() && count < 512; ++i) {
+		Object *obj = *i;
+		if (obj->isDisabledByType(DISABLED_HELD) || obj->isKindOf(KINDOF_IMMOBILE) || obj->getAI() == nullptr) {
+			continue;
+		}
+		list[count++] = obj;
+	}
+	TheAI->pathfinder()->assignGroupGoals(list, count, click, cmdSource, goals, placed);
+	for (Int k = 0; k < count; k++) {
+		if (placed[k]) {
+			s_groupGoalIds[s_groupGoalCount] = list[k]->getID();
+			s_groupGoals[s_groupGoalCount] = goals[k];
+			s_groupGoalCount++;
+		}
+	}
+	return s_groupGoalCount;
+}
+
 static const Int PATH_DIAMETER_IN_CELLS = 6;
 
 // Hands the unit the slot assignGroupSlots gave it, if it got one
@@ -1078,7 +1142,9 @@ Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, CommandSourceType cm
 	{
 		addSlotRequest(requests, theUnit, pos);
 	}
-	TheAI->pathfinder()->assignGroupSlots(requests, pos, &center);
+	if (!PathTuning::GroupGoals) {
+		TheAI->pathfinder()->assignGroupSlots(requests, pos, &center);
+	}
 	for (theUnit = iter2->first(); theUnit; theUnit = iter2->next())
 	{
 		AIUpdateInterface *ai = theUnit->getAIUpdateInterface();
@@ -1169,7 +1235,8 @@ Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, CommandSourceType cm
 		dest.x -= factor*offset*endVector.x;
 		dest.y -= factor*offset*endVector.y;
 		dest.z = TheTerrainLogic->getLayerHeight( dest.x, dest.y, layer );
-		Bool hasSlot = takeAssignedSlot(requests, theUnit, &dest);
+		// "groupgoals": the column ends at the goal finder's goal instead of a slot
+		Bool hasSlot = PathTuning::GroupGoals ? Group_Goal_For(theUnit, &dest) : takeAssignedSlot(requests, theUnit, &dest);
 
 		while (!path.empty()) {
 			Coord2D curVector;
@@ -1186,8 +1253,13 @@ Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, CommandSourceType cm
 		}
 		if (!hasSlot) {
 			clampToMap(&dest, controllingPlayerType);
+			if (PathTuning::GroupGoals) {
+				Group_Goals_Reserve();	// not onto a member's given goal
+			}
 			TheAI->pathfinder()->adjustDestination(theUnit, ai->getLocomotorSet(), &dest, nullptr);
 			TheAI->pathfinder()->updateGoal(theUnit, &dest, layer);
+		} else if (PathTuning::GroupGoals) {
+			TheAI->pathfinder()->updateGoal(theUnit, &dest, LAYER_GROUND);
 		}
 		path.push_back(dest);
 		ai->aiFollowPath( &path, nullptr, cmdSource );
@@ -1574,7 +1646,9 @@ Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, CommandSourceType cmd
 	{
 		addSlotRequest(requests, theUnit, pos);
 	}
-	TheAI->pathfinder()->assignGroupSlots(requests, pos, &center);
+	if (!PathTuning::GroupGoals) {
+		TheAI->pathfinder()->assignGroupSlots(requests, pos, &center);
+	}
 	for (theUnit = iter2->first(); theUnit; theUnit = iter2->next())
 	{
 		AIUpdateInterface *ai = theUnit->getAIUpdateInterface();
@@ -1675,7 +1749,8 @@ Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, CommandSourceType cmd
 		dest.x -= factor*offset*endVector.x;
 		dest.y -= factor*offset*endVector.y;
 		dest.z = TheTerrainLogic->getLayerHeight( dest.x, dest.y, layer );
-		Bool hasSlot = takeAssignedSlot(requests, theUnit, &dest);
+		// "groupgoals": the column ends at the goal finder's goal instead of a slot
+		Bool hasSlot = PathTuning::GroupGoals ? Group_Goal_For(theUnit, &dest) : takeAssignedSlot(requests, theUnit, &dest);
 
 		while (!path.empty()) {
 			Coord2D curVector;
@@ -1692,8 +1767,13 @@ Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, CommandSourceType cmd
 		}
 		if (!hasSlot) {
 			clampToMap(&dest, controllingPlayerType);
+			if (PathTuning::GroupGoals) {
+				Group_Goals_Reserve();	// not onto a member's given goal
+			}
 			TheAI->pathfinder()->adjustDestination(theUnit, ai->getLocomotorSet(), &dest, nullptr);
 			TheAI->pathfinder()->updateGoal(theUnit, &dest, layer);
+		} else if (PathTuning::GroupGoals) {
+			TheAI->pathfinder()->updateGoal(theUnit, &dest, LAYER_GROUND);
 		}
 		path.push_back(dest);
 		ai->aiFollowPath( &path, nullptr, cmdSource );
@@ -1764,7 +1844,11 @@ void AIGroup::groupMoveToPosition( const Coord3D *p_posIn, Bool addWaypoint, Com
   }
 
 
+	Group_Goal_Scope groupGoalScope;	// "groupgoals": the table is emptied however this returns
 	if (!addWaypoint && !isFormation && !reverse) {
+		if (PathTuning::GroupGoals) {
+			Group_Goals_Assign(m_memberList, pos, cmdSource);
+		}
 		friend_computeGroundPath(pos, cmdSource);
 		friend_moveInfantryToPos(pos, cmdSource, columnUnits);
 		friend_moveVehicleToPos(pos, cmdSource, columnUnits);
@@ -1884,7 +1968,7 @@ void AIGroup::groupMoveToPosition( const Coord3D *p_posIn, Bool addWaypoint, Com
 		iter->insert((*i), adjust + dx*dx+dy*dy);
 	}
 
-	if (!addWaypoint && !Coord3DInsideRect2D( pos, &boxMin, &boxMax ))
+	if (!addWaypoint && !Coord3DInsideRect2D( pos, &boxMin, &boxMax ) && !PathTuning::GroupGoals)
 	{
 		TheAI->pathfinder()->assignGroupSlots(requests, pos, &center);
 	}
@@ -1910,7 +1994,19 @@ void AIGroup::groupMoveToPosition( const Coord3D *p_posIn, Bool addWaypoint, Com
 			}
 			firstUnit = false;
 		}
-		if (!takeAssignedSlot(requests, theUnit, &dest))
+		if (PathTuning::GroupGoals)
+		{
+			if (Group_Goal_For(theUnit, &dest))
+			{
+				TheAI->pathfinder()->updateGoal(theUnit, &dest, LAYER_GROUND);	// "groupgoals" (removeGoal above dropped it)
+			}
+			else
+			{
+				Group_Goals_Reserve();
+				computeIndividualDestination( &dest, &goalPos, theUnit, &center, isFormation );
+			}
+		}
+		else if (!takeAssignedSlot(requests, theUnit, &dest))
 		{
 			computeIndividualDestination( &dest, &goalPos, theUnit, &center, isFormation );
 		}
@@ -2516,7 +2612,14 @@ void AIGroup::groupAttackMoveToPosition( const Coord3D *pos, Int maxShotsToFire,
 		TheAI->pathfinder()->removeGoal(*i);
 		addSlotRequest(requests, *i, pos);
 	}
-	if (!Coord3DInsideRect2D( pos, &min, &max ))
+	// TheSuperHackers @feature simonx645 16/11/2026 "groupgoals" (GameLogic/PathTuning.h): each member its goal from the
+	// goal finder instead of a slot
+	Group_Goal_Scope groupGoalScope;
+	if (PathTuning::GroupGoals)
+	{
+		Group_Goals_Assign(m_memberList, pos, cmdSource);
+	}
+	else if (!Coord3DInsideRect2D( pos, &min, &max ))
 	{
 		TheAI->pathfinder()->assignGroupSlots(requests, pos, &center);
 	}
@@ -2527,7 +2630,14 @@ void AIGroup::groupAttackMoveToPosition( const Coord3D *pos, Int maxShotsToFire,
 		if (ai)
 		{
 			Coord3D dest = *pos;
-			takeAssignedSlot(requests, *i, &dest);
+			if (PathTuning::GroupGoals)
+			{
+				Group_Goal_For(*i, &dest);
+			}
+			else
+			{
+				takeAssignedSlot(requests, *i, &dest);
+			}
 			if ((*i)->isAbleToAttack())
 			{
 				ai->aiAttackMoveToPosition( &dest, maxShotsToFire, cmdSource );
