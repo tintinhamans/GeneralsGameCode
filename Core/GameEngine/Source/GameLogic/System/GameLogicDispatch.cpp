@@ -1678,6 +1678,7 @@ bool GameLogic::onDoStop(MAYBE_UNUSED GameMessage *msg, AIGroupPtr &currentlySel
 {
 	if (currentlySelectedGroup)
 	{
+		currentlySelectedGroup->releaseWeaponLockForGroup(LOCKED_TEMPORARILY);	// release any temporary locks.
 		currentlySelectedGroup->groupIdle(CMD_FROM_PLAYER);
 	}
 

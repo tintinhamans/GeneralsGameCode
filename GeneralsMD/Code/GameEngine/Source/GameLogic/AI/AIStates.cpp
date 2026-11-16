@@ -6203,7 +6203,12 @@ void AIAttackState::onExit( StateExitType status )
 	obj->clearModelConditionState( MODELCONDITION_ATTACKING );
 
 	obj->clearLeechRangeModeForAllWeapons();
-	obj->releaseWeaponLock(LOCKED_TEMPORARILY);
+
+	// A reset comes from a new command, which may have locked a weapon for its own attack.
+	if (status != EXIT_RESET)
+	{
+		obj->releaseWeaponLock(LOCKED_TEMPORARILY);
+	}
 
 	AIUpdateInterface *ai = obj->getAI();
 	if (ai)
