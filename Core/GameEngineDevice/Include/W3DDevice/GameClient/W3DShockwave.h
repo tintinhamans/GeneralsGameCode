@@ -26,7 +26,7 @@
 
 class RenderInfoClass;
 
-// Expanding rings that bend the finished scene, for the blast of large explosions.
+// Expanding rings that bend the finished scene, for the blast of large explosions and ripples on water.
 class W3DShockwaveManager
 {
 public:
@@ -35,13 +35,14 @@ public:
 
 	/// radius is how far the ring travels, width its thickness and strength how far it bends the scene, all in world units
 	/// strengthInPixels measures strength in pixels at 1080 lines instead, so the bend is the same at every zoom
-	void add(const Coord3D &position, Real radius, Real width, Real strength, Bool strengthInPixels, UnsignedInt durationMs);
+	/// rings is how many waves ride in the band; onWater lets the shore and anything in front hide the ring
+	void add(const Coord3D &position, Real radius, Real width, Real strength, Bool strengthInPixels, UnsignedInt durationMs, Int rings, Bool onWater);
 	/// draws the live rings over the scene, after the particles
 	void render(RenderInfoClass &rinfo);
 	void ReleaseResources();	///< drops the scene copy and shader before a device reset; render recreates them
 
 private:
-	enum { MAX_SHOCKWAVES = 16 };
+	enum { MAX_SHOCKWAVES = 32 };
 
 	struct Shockwave
 	{
@@ -52,6 +53,8 @@ private:
 		Bool strengthInPixels;
 		UnsignedInt startMs;
 		UnsignedInt durationMs;
+		Int rings;
+		Bool onWater;
 	};
 
 	Shockwave m_shockwaves[MAX_SHOCKWAVES];

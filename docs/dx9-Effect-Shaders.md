@@ -484,6 +484,10 @@ the bend shrinks on screen as the camera pulls back, and is lost when zoomed far
 * `StrengthInPixels = No` - (Yes counts `Strength` in pixels on a 1080p screen instead, scaled to
 other resolutions, so the bend looks the same at every zoom. Around 6 to 12 reads well.)
 * `Duration` - (How long the ring takes to reach `Radius`, in milliseconds. It fades as it goes.)
+* `Rings = 1` - (How many waves ride in the ring. More than one makes ripples that fade toward the
+ring's edges.)
+* `AllowedSurface = ALL` - (`ALL` / `LAND` / `WATER`. With `WATER` the ring plays only over water,
+lies on the water surface, and the shore and units in front of it hide it.)
 
 ```
 FXList FX_NukeExplosion
@@ -497,7 +501,25 @@ FXList FX_NukeExplosion
 End
 ```
 
+This one ripples the water where a tank shell lands.
+
+```
+FXList WeaponFX_GenericTankShellDetonation
+  Shockwave
+    AllowedSurface   = WATER
+    Rings            = 3
+    Radius           = 40
+    Width            = 15
+    Strength         = 5
+    StrengthInPixels = Yes
+    Duration         = 1200
+  End
+End
+```
+
 Notes:
-* At most 16 rings show at once; a new one replaces the oldest.
+* At most 32 rings show at once; a new one replaces the oldest.
 * The ring lies flat at the effect's height, so on steep ground it is centred but not draped.
+* A shell that does not collide with water explodes on the lake bed, and the ring still shows on the
+surface above it.
 
