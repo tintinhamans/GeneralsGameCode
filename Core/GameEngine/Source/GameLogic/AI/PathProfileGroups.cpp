@@ -469,8 +469,9 @@ namespace PathProfile
 				++u.hullFrames;
 			if (ai != nullptr && u.engagedFrame == 0 && u.outcome == PENDING && ai->isAttacking())
 				u.engagedFrame = frame;
-			// the order's goal: the unit's own slot, as its AI holds it while moving
-			if (u.outcome == PENDING && moving && ai != nullptr && ai->getGoalPosition() != nullptr)
+			// the order's goal: the unit's own slot, as its AI holds it while moving (not while it fights: an attack-move's
+			// approach to a target is no goal of the order's)
+			if (u.outcome == PENDING && moving && ai != nullptr && ai->getGoalPosition() != nullptr && !ai->isAttacking())
 			{
 				const Coord3D * goal = ai->getGoalPosition();
 				const Real gx = goal->x - u.goalX, gy = goal->y - u.goalY;
