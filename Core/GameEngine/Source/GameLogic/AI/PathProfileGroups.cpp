@@ -81,6 +81,7 @@ namespace PathProfile
 		Bool sawGoal, moved;
 		Int stillFrames;		///< frames in a row not moving (nor waiting for a path)
 		Int goalMoves;
+		Int column;				///< the order's column move: 1 joined, 0 left out, -1 none
 		// stuck
 		Real progX, progY;
 		UnsignedInt progFrame;
@@ -210,6 +211,7 @@ namespace PathProfile
 		u.spawnX = u.lastX = u.progX = p->x;
 		u.spawnY = u.lastY = u.progY = p->y;
 		u.outcome = NO_ORDER;
+		u.column = -1;
 		UnsignedInt h = ((UnsignedInt)u.id * 2654435761u) & (MAP_SLOTS - 1);
 		for (Int probe = 0; probe < MAP_SLOTS; ++probe)
 		{
@@ -265,6 +267,7 @@ namespace PathProfile
 			u.stillFrames = 0;
 			u.goalMoves = 0;
 			u.restClick = 0.0f;
+			u.column = -1;
 		}
 	}
 
@@ -295,6 +298,15 @@ namespace PathProfile
 				return TRUE;
 		}
 		return FALSE;
+	}
+
+	void Column_Move(const Object * unit, Bool joined)
+	{
+		if (!GroupsActive || unit == nullptr)
+			return;
+		GroupUnit * u = Find(unit->getID());
+		if (u != nullptr)
+			u->column = joined ? 1 : 0;
 	}
 
 	void Event(const char * name, UnsignedInt frame)
@@ -651,7 +663,7 @@ namespace PathProfile
 				fprintf(UnitsFile, "phase,group,unit,template,footprint,outcome,order,order_frame,end_frame,end_s,start_x,start_y,goal_x,goal_y,"
 					"end_x,end_y,driven_cells,straight_cells,stuck_frames,stuck_episodes,longest_stuck_s,blocked_frames,hull_frames,"
 					"ended_on_bad_ground,searches,repaths,partial,failed,path_nodes,goal_moves,engaged_s,rest_click_cells,trips,inside_frames,"
-					"longest_stuck_x,longest_stuck_y,longest_stuck_frame\n");
+					"longest_stuck_x,longest_stuck_y,longest_stuck_frame,column\n");
 		}
 		for (Int g = 0; g < GroupCount; ++g)
 		{
@@ -728,7 +740,7 @@ namespace PathProfile
 				const GroupUnit & u = GroupUnits[i];
 				const Real tx = u.sawGoal ? u.goalX : u.clickX, ty = u.sawGoal ? u.goalY : u.clickY;
 				const Real dx = tx - u.startX, dy = ty - u.startY;
-				fprintf(UnitsFile, "%s,%s,%u,%s,%d,%s,%s,%u,%u,%.2f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%.2f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.2f,%.1f,%d,%d,%.1f,%.1f,%d\n",
+				fprintf(UnitsFile, "%s,%s,%u,%s,%d,%s,%s,%u,%u,%.2f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%.2f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.2f,%.1f,%d,%d,%.1f,%.1f,%d,%d\n",
 					PhaseName, Groups[u.group].name, (UnsignedInt)u.id, u.tmpl, u.footN, OutcomeNames[u.outcome],
 					u.outcome == NO_ORDER ? "none" : KindNames[u.kind], u.orderFrame, u.endFrame,
 					u.endFrame > u.orderFrame ? (Real)(u.endFrame - u.orderFrame) / fps : -1.0f,
@@ -737,7 +749,7 @@ namespace PathProfile
 					u.hullFrames, (!u.dead && u.hullNow) ? 1 : 0, u.searches, u.repaths, u.partials, u.failed, u.pathNodes, u.goalMoves,
 					u.engagedFrame != 0 ? (Real)(u.engagedFrame - u.orderFrame) / fps : -1.0f, u.restClick / CELL, u.trips, u.insideFrames,
 					u.longestStuck > 0 ? u.longestX / CELL : -1.0f, u.longestStuck > 0 ? u.longestY / CELL : -1.0f,
-					u.longestStuck > 0 ? (Int)u.longestFrame : -1);
+					u.longestStuck > 0 ? (Int)u.longestFrame : -1, u.column);
 			}
 			fflush(UnitsFile);
 		}

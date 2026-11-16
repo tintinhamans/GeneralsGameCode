@@ -110,4 +110,7 @@ namespace PathProfile
 	Bool Group_Near(Int group, Real x, Real y, Real radius);	///< is a unit of the group within radius (world units) of x, y?
 	void Event(const char * name, UnsignedInt frame);		///< a map change (a bridge killed or repaired): re-route times count from it
 	void Phase(const char * name, UnsignedInt frame);		///< closes the current phase's rows and starts a new phase
+	/// a group move gave the unit a column move: joined (the column's lane waypoints) or left out (its own route). units.csv
+	/// "column": 1 joined, 0 left out, -1 no column move since its last order
+	void Column_Move(const Object * unit, Bool joined);
 }

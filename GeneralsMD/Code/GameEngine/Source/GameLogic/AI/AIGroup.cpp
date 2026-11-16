@@ -48,6 +48,7 @@
 #include "GameLogic/AI.h"
 #include "GameLogic/AIPathfind.h"
 #include "GameLogic/PathTuning.h"
+#include "GameLogic/PathProfile.h"
 #include "GameLogic/Locomotor.h"
 #include "GameLogic/Module/AIUpdate.h"
 #include "GameLogic/Module/BodyModule.h"
@@ -679,6 +680,19 @@ static void addSlotRequest(std::vector<PathfindSlotRequest>& requests, Object *o
 static const Int COLUMN_JOIN_CELLS = 6;
 static const Real COLUMN_JOIN_FRACTION = 0.25f;
 
+// TheSuperHackers @feature simonx645 16/11/2026 path profiler (measurement only): the members a column move left out, told
+// to the profiler once the column move is made (a fixed table: no allocation)
+static ObjectID s_columnLeftOut[512];
+static Int s_columnLeftOutCount = 0;
+
+static void Column_Left_Out_Report()
+{
+	for (Int k = 0; k < s_columnLeftOutCount; k++) {
+		PathProfile::Column_Move(TheGameLogic->findObjectByID(s_columnLeftOut[k]), FALSE);
+	}
+	s_columnLeftOutCount = 0;
+}
+
 static Bool columnPassesNear(Path *path, const Coord3D *unitPos)
 {
 	Real total = 0.0f;
@@ -928,6 +942,7 @@ static void clampToMap(Coord3D *dest, PlayerType pt)
 Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, CommandSourceType cmdSource, std::vector<Object *> &columnUnits )
 
 {
+	s_columnLeftOutCount = 0;	// path profiler
 	if (m_groundPath==nullptr) return false;
 
 	Int numColumns = 3;
@@ -1024,6 +1039,8 @@ Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, CommandSourceType cm
 		Coord3D unitPos = *((*i)->getPosition());
 		if (!columnPassesNear(m_groundPath, &unitPos))
 		{
+			if (s_columnLeftOutCount < 512)
+				s_columnLeftOut[s_columnLeftOutCount++] = (*i)->getID();	// path profiler
 			continue;
 		}
 		TheAI->pathfinder()->removeGoal(*i);
@@ -1300,8 +1317,10 @@ Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, CommandSourceType cm
 		}
 		path.push_back(dest);
 		ai->aiFollowPath( &path, nullptr, cmdSource );
+		PathProfile::Column_Move(theUnit, TRUE);	// path profiler
 		columnUnits.push_back(theUnit);
 	}
+	Column_Left_Out_Report();
 	return true;
 }
 
@@ -1425,6 +1444,7 @@ void AIGroup::friend_moveFormationToPos( const Coord3D *pos, CommandSourceType c
 Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, CommandSourceType cmdSource, std::vector<Object *> &columnUnits )
 
 {
+	s_columnLeftOutCount = 0;	// path profiler
 
 	if (m_groundPath==nullptr) return false;
 
@@ -1525,6 +1545,8 @@ Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, CommandSourceType cmd
 		Coord3D unitPos = *((*i)->getPosition());
 		if (!columnPassesNear(m_groundPath, &unitPos))
 		{
+			if (s_columnLeftOutCount < 512)
+				s_columnLeftOut[s_columnLeftOutCount++] = (*i)->getID();	// path profiler
 			continue;
 		}
 		TheAI->pathfinder()->removeGoal(*i);
@@ -1828,8 +1850,10 @@ Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, CommandSourceType cmd
 		}
 		path.push_back(dest);
 		ai->aiFollowPath( &path, nullptr, cmdSource );
+		PathProfile::Column_Move(theUnit, TRUE);	// path profiler
 		columnUnits.push_back(theUnit);
 	}
+	Column_Left_Out_Report();
 	return true;
 }
 
