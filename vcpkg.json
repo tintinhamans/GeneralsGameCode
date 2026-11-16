@@ -16,6 +16,7 @@
   "dependencies": [
     "zlib",
     "stb",
+    "genonline-plugin-sdk",
     "protobuf",
     {
       "name": "curl",
