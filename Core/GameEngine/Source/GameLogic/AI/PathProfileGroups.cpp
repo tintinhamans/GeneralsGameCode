@@ -86,6 +86,9 @@ namespace PathProfile
 		UnsignedInt progFrame;
 		Bool stuck;
 		UnsignedInt stuckStart;
+		Real stuckAtX, stuckAtY;	///< where the open stuck episode's progress stopped
+		Real longestX, longestY;	///< the longest episode's place and start frame
+		UnsignedInt longestFrame;
 		// per phase
 		Int stuckFrames, stuckEpisodes, over5, over10, longestStuck, blockedFrames, hullFrames, searches, repaths, partials,
 			failed, pathNodes, superseded;
@@ -338,6 +341,19 @@ namespace PathProfile
 		}
 	}
 
+	// TheSuperHackers @feature simonx645 16/11/2026 the longest stuck episode's place (where its progress stopped) and
+	// start frame, written to units.csv beside its length
+	void Longest(GroupUnit & u, Int length, UnsignedInt start)
+	{
+		if (length > u.longestStuck)
+		{
+			u.longestStuck = length;
+			u.longestX = u.stuckAtX;
+			u.longestY = u.stuckAtY;
+			u.longestFrame = start;
+		}
+	}
+
 	void End_Stuck(GroupUnit & u, UnsignedInt frame)
 	{
 		if (!u.stuck)
@@ -346,7 +362,7 @@ namespace PathProfile
 		const Int length = (Int)(frame - u.stuckStart);
 		if (length > 150) ++u.over5;
 		if (length > 300) ++u.over10;
-		if (length > u.longestStuck) u.longestStuck = length;
+		Longest(u, length, u.stuckStart);
 	}
 
 	Bool Hull_Over_Bad_Ground(const GroupUnit & u, const Object * obj, LocomotorSurfaceTypeMask surfaces)
@@ -455,6 +471,8 @@ namespace PathProfile
 					{
 						u.stuck = TRUE;
 						u.stuckStart = u.progFrame;
+						u.stuckAtX = u.progX;
+						u.stuckAtY = u.progY;
 						++u.stuckEpisodes;
 					}
 				}
@@ -602,6 +620,19 @@ namespace PathProfile
 		if (!GroupsActive || GroupCount == 0)
 			return;
 		const Real fps = (Real)LOGICFRAMES_PER_SECOND;
+		// TheSuperHackers @bugfix simonx645 16/11/2026 A stuck episode still open when the rows are written counted for
+		// nothing (a unit stuck to the end had longest_stuck 0): its length so far counts now. In a new phase it goes on
+		// from there. (As in the SAGE-Modern runner.)
+		for (Int i = 0; i < UnitCount; ++i)
+		{
+			GroupUnit & u = GroupUnits[i];
+			if (!u.stuck || u.dead)
+				continue;
+			const Int length = (Int)(frame - u.stuckStart);
+			if (length > 150) ++u.over5;
+			if (length > 300) ++u.over10;
+			Longest(u, length, u.stuckStart);
+		}
 		if (GroupsFile == nullptr)
 		{
 			GroupsFile = Open_Group_File(".groups.csv");
@@ -611,7 +642,7 @@ namespace PathProfile
 					"stuck_episodes,stuck_over_5s,stuck_over_10s,longest_stuck_s,blocked_unit_frames,jam_frames_10,driven_cells,straight_cells,"
 					"driven_ratio,searches,repaths,partial,failed,path_nodes,never_left,hull_over_unit_frames,ended_on_bad_ground,engaged,"
 					"engaged_first_s,engaged_p90_s,reroute_max_s,reroute_pending,still_5s_after_event,rest_radius_p50_cells,"
-					"rest_radius_p90_cells,rest_radius_max_cells,shuffle_s,overlapping_at_rest\n");
+					"rest_radius_p90_cells,rest_radius_max_cells,shuffle_s,overlapping_at_rest,trips,inside_units\n");
 		}
 		if (UnitsFile == nullptr)
 		{
@@ -619,7 +650,8 @@ namespace PathProfile
 			if (UnitsFile != nullptr)
 				fprintf(UnitsFile, "phase,group,unit,template,footprint,outcome,order,order_frame,end_frame,end_s,start_x,start_y,goal_x,goal_y,"
 					"end_x,end_y,driven_cells,straight_cells,stuck_frames,stuck_episodes,longest_stuck_s,blocked_frames,hull_frames,"
-					"ended_on_bad_ground,searches,repaths,partial,failed,path_nodes,goal_moves,engaged_s,rest_click_cells,trips,inside_frames\n");
+					"ended_on_bad_ground,searches,repaths,partial,failed,path_nodes,goal_moves,engaged_s,rest_click_cells,trips,inside_frames,"
+					"longest_stuck_x,longest_stuck_y,longest_stuck_frame\n");
 		}
 		for (Int g = 0; g < GroupCount; ++g)
 		{
@@ -696,14 +728,16 @@ namespace PathProfile
 				const GroupUnit & u = GroupUnits[i];
 				const Real tx = u.sawGoal ? u.goalX : u.clickX, ty = u.sawGoal ? u.goalY : u.clickY;
 				const Real dx = tx - u.startX, dy = ty - u.startY;
-				fprintf(UnitsFile, "%s,%s,%u,%s,%d,%s,%s,%u,%u,%.2f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%.2f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.2f,%.1f,%d,%d\n",
+				fprintf(UnitsFile, "%s,%s,%u,%s,%d,%s,%s,%u,%u,%.2f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%.2f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.2f,%.1f,%d,%d,%.1f,%.1f,%d\n",
 					PhaseName, Groups[u.group].name, (UnsignedInt)u.id, u.tmpl, u.footN, OutcomeNames[u.outcome],
 					u.outcome == NO_ORDER ? "none" : KindNames[u.kind], u.orderFrame, u.endFrame,
 					u.endFrame > u.orderFrame ? (Real)(u.endFrame - u.orderFrame) / fps : -1.0f,
 					u.startX / CELL, u.startY / CELL, tx / CELL, ty / CELL, u.lastX / CELL, u.lastY / CELL, u.driven / CELL,
 					sqrtf(dx * dx + dy * dy) / CELL, u.stuckFrames, u.stuckEpisodes, (Real)u.longestStuck / fps, u.blockedFrames,
 					u.hullFrames, (!u.dead && u.hullNow) ? 1 : 0, u.searches, u.repaths, u.partials, u.failed, u.pathNodes, u.goalMoves,
-					u.engagedFrame != 0 ? (Real)(u.engagedFrame - u.orderFrame) / fps : -1.0f, u.restClick / CELL, u.trips, u.insideFrames);
+					u.engagedFrame != 0 ? (Real)(u.engagedFrame - u.orderFrame) / fps : -1.0f, u.restClick / CELL, u.trips, u.insideFrames,
+					u.longestStuck > 0 ? u.longestX / CELL : -1.0f, u.longestStuck > 0 ? u.longestY / CELL : -1.0f,
+					u.longestStuck > 0 ? (Int)u.longestFrame : -1);
 			}
 			fflush(UnitsFile);
 		}
@@ -723,6 +757,11 @@ namespace PathProfile
 			u.searches = u.repaths = u.partials = u.failed = u.pathNodes = u.superseded = 0;
 			u.trips = u.insideFrames = 0;
 			u.driven = 0.0f;
+			if (u.stuck)
+			{
+				u.stuckStart = frame;	// the part of the episode in the new phase
+				u.stuckEpisodes = 1;
+			}
 		}
 		for (Int g = 0; g < GroupCount; ++g)
 			Groups[g].jamFrames = 0;
