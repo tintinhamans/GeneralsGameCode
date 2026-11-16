@@ -32,9 +32,9 @@
 //              the names, and the CRC, match the other trees)
 //   pool       150,000 search cell records instead of contraZH's 100,000, and the search code that returns every
 //              record it takes from the start (instead of only after a retail failure case)
-//   cap        every search may use SEARCH_CAP_CELLS (10,000) cells, whatever else searched that frame (contraZH gives a
-//              search what the frame has left, 3,000 to 10,000); a capped search's partial route and the unit's further
-//              legs are contraZH's
+//   cap        every find search may use SEARCH_CAP_CELLS (10,000) cells, whatever else searched that frame (contraZH
+//              gives a search what the frame has left, 3,000 to 10,000; its other search kinds keep that); a capped
+//              search's partial route and the unit's further legs are contraZH's
 //   clearance  a 2x2 to 5x5 footprint keeps off water and cliffs it cannot use, by our rules instead of contraZH's: water
 //              and cliff rings are kept apart (an amphibious unit still keeps off cliffs), a step whose footprint would hang
 //              CLEARANCE_HARD or more rings past the shore is refused unless it hangs less than the cell it leaves (or as far
