@@ -229,6 +229,7 @@ AsciiString DebugDescribeObject(const Object *obj)
 //-------------------------------------------------------------------------------------------------
 Object::Object( const ThingTemplate *tt, const ObjectStatusMaskType &objectStatusMask, Team *team ) :
 	Thing(tt),
+	m_hasCustomSpecialPower(FALSE),
 	m_indicatorColor(0),
 	m_ai(nullptr),
 	m_physics(nullptr),
@@ -643,9 +644,13 @@ void Object::initObject()
 			continue;
 
 		const SpecialPowerTemplate *spTemplate = sp->getSpecialPowerTemplate();
-		if( spTemplate )
+		if( spTemplate && spTemplate->getSpecialPowerType() < SPECIALPOWER_COUNT )
 		{
 			SET_SPECIALPOWERMASK( m_specialPowerBits, spTemplate->getSpecialPowerType() );
+		}
+		else if (spTemplate)
+		{
+			m_hasCustomSpecialPower = TRUE;
 		}
 	}
 
@@ -3507,13 +3512,17 @@ void Object::clearWeaponSetFlag(WeaponSetType wst)
 //-------------------------------------------------------------------------------------------------
 Bool Object::hasSpecialPower( SpecialPowerType type ) const
 {
+	if (type >= SPECIALPOWER_COUNT)
+	{
+		return m_hasCustomSpecialPower && findSpecialPowerModuleInterface(type) != nullptr;
+	}
 	return TEST_SPECIALPOWERMASK( m_specialPowerBits, type );
 }
 
 //-------------------------------------------------------------------------------------------------
 Bool Object::hasAnySpecialPower() const
 {
-  return SPECIALPOWERMASK_ANY_SET( m_specialPowerBits );
+  return SPECIALPOWERMASK_ANY_SET( m_specialPowerBits ) || m_hasCustomSpecialPower;
 }
 
 //-------------------------------------------------------------------------------------------------

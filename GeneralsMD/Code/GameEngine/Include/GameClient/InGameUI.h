@@ -713,9 +713,10 @@ public:  // ********************************************************************
 	// INI file parsing
 	virtual const FieldParse* getFieldParse() const { return s_fieldParseTable; }
 
-	// Generic "RadiusCursor" parser: cursor type is the token after the keyword (e.g. "GUARD_AREA"),
-	// then the RadiusDecalTemplate fields; stores into m_radiusCursors[type].
 	static void parseRadiusCursor( INI* ini, void* instance, void* store, const void* userData );
+	static void parseRadiusCursorType(INI* ini, void* instance, void* store, const void* userData);
+	void validateCustomRadiusCursors() const;
+	const RadiusDecalTemplate* getRadiusCursorTemplate(RadiusCursorType type) const;
 
 
 	//Provides a global way to determine whether or not we can issue orders to what we have selected.
@@ -1315,6 +1316,7 @@ protected:
 	Bool												m_militaryCaptionRandomizeTyping;
 	Int													m_militaryCaptionSpeed;
 
+	std::map<Int, RadiusDecalTemplate> m_customRadiusCursors;
 	RadiusDecalTemplate					m_radiusCursors[RADIUSCURSOR_COUNT];
 	RadiusDecal									m_curRadiusCursor;
 	RadiusCursorType						m_curRcType;

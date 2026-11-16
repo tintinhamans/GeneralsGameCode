@@ -229,6 +229,14 @@ enum SpecialPowerType CPP_11(: Int)
 	SPECIAL_ALL_BATTLE_PLANS,
 	SPECIAL_ALL_BATTLE_PLANS_ACTIVE,
 
+	SPECIAL_NUCLEAR_STORM,
+	SPECIAL_WEATHER_CONTROL,
+	SPECIAL_HATF_MISSILE,
+	SPECIAL_COMMAND_UPLINK,
+	SPECIAL_ATMOSPHERIC_LENS,
+	SPECIAL_ICBM,
+	SPECIAL_TOMAHAWK_STORM,
+
 	SPECIALPOWER_COUNT,
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // NEW CONSTANTS NEED A BEHAVIORTYPE DEFINED IN THE SPECIALPOWER OR return one in getFallbackBehaviorType in ActionManager.cpp

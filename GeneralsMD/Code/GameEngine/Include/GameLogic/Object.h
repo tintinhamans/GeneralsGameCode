@@ -860,6 +860,7 @@ private:
 	Real													m_weaponRateOfFireScalar;
 	Real													m_weaponRangeScalar;
 
+	Bool m_hasCustomSpecialPower;
 	SpecialPowerMaskType					m_specialPowerBits; ///< bits determining what kind of special abilities this object has access to.
 
 	//////////////////////////////////////< for the non-stacking healers like ambulance and propaganda

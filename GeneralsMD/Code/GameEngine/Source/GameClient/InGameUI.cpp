@@ -32,6 +32,8 @@
 #define DEFINE_SHADOW_NAMES
 #define DEFINE_RADIUSCURSOR_NAMES
 
+#include "Common/IniNameRegistry.h"
+#include "Common/INIException.h"
 #include "Common/ActionManager.h"
 #include "Common/ChatCommand.h"
 #include "Common/DrawModule.h"
@@ -944,10 +946,49 @@ const FieldParse InGameUI::s_fieldParseTable[] =
 };
 
 //-------------------------------------------------------------------------------------------------
-/** Generic radius-cursor parser. INI form: "RadiusCursor <CursorType>" where <CursorType> is a name
-	from TheRadiusCursorNames (e.g. GUARD_AREA), followed by the RadiusDecalTemplate fields. The parsed
-	definition is stored in m_radiusCursors[<CursorType>]. */
 //-------------------------------------------------------------------------------------------------
+static IniNameRegistry& radiusCursorNames()
+{
+	static IniNameRegistry names(TheRadiusCursorNames, RADIUSCURSOR_COUNT);
+	return names;
+}
+
+void InGameUI::parseRadiusCursorType(INI* ini, void*, void* store, const void*)
+{
+	const char* token = ini->getNextToken();
+	Int type = radiusCursorNames().resolve(token);
+	if (type < 0)
+	{
+		DEBUG_LOG(("Invalid or colliding RadiusCursor name '%s'", token));
+		throw INI_INVALID_DATA;
+	}
+	*static_cast<RadiusCursorType*>(store) = static_cast<RadiusCursorType>(type);
+}
+
+const RadiusDecalTemplate* InGameUI::getRadiusCursorTemplate(RadiusCursorType type) const
+{
+	if (type > RADIUSCURSOR_NONE && type < RADIUSCURSOR_COUNT)
+	{
+		return &m_radiusCursors[type];
+	}
+	std::map<Int, RadiusDecalTemplate>::const_iterator it = m_customRadiusCursors.find(type);
+	return it == m_customRadiusCursors.end() ? nullptr : &it->second;
+}
+
+void InGameUI::validateCustomRadiusCursors() const
+{
+	const IniNameRegistry::CustomNames& names = radiusCursorNames().getCustomNames();
+	for (IniNameRegistry::CustomNames::const_iterator it = names.begin(); it != names.end(); ++it)
+	{
+		if (m_customRadiusCursors.find(it->first) == m_customRadiusCursors.end())
+		{
+			AsciiString message;
+			message.format("RadiusCursor '%s' is referenced but has no definition", it->second.c_str());
+			throw INIException(message.str());
+		}
+	}
+}
+
 /*static*/ void InGameUI::parseRadiusCursor( INI* ini, void* instance, void* /*store*/, const void* /*userData*/ )
 {
 	InGameUI* self = (InGameUI*)instance;
@@ -960,15 +1001,16 @@ const FieldParse InGameUI::s_fieldParseTable[] =
 		return;
 	}
 
-	Int type = INI::scanIndexList( typeName, TheRadiusCursorNames );	// raises INI_INVALID_DATA if unknown
-	if( type <= RADIUSCURSOR_NONE || type >= RADIUSCURSOR_COUNT )
+	Int type = radiusCursorNames().resolve(typeName);
+	if( type <= RADIUSCURSOR_NONE )
 	{
 		DEBUG_CRASH(( "RadiusCursor: invalid CursorType '%s'", typeName ));
-		return;
+		throw INI_INVALID_DATA;
 	}
 
 	// parse the remaining decal fields into the selected slot (reuse the existing block parser)
-	RadiusDecalTemplate::parseRadiusDecalTemplate( ini, instance, &self->m_radiusCursors[type], nullptr );
+	RadiusDecalTemplate* decal = type < RADIUSCURSOR_COUNT ? &self->m_radiusCursors[type] : &self->m_customRadiusCursors[type];
+	RadiusDecalTemplate::parseRadiusDecalTemplate( ini, instance, decal, nullptr );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2662,7 +2704,12 @@ void InGameUI::setRadiusCursor(RadiusCursorType cursorType, const SpecialPowerTe
 		return;
 
 	Coord3D pos = { 0, 0, 0 };	// will be updated right away
-	m_radiusCursors[cursorType].createRadiusDecal(pos, radius, controller, m_curRadiusCursor);
+	const RadiusDecalTemplate* decal = getRadiusCursorTemplate(cursorType);
+	if (!decal)
+	{
+		return;
+	}
+	decal->createRadiusDecal(pos, radius, controller, m_curRadiusCursor);
 	m_curRcType = cursorType;
 	m_curRcRadiusOverride = radiusOverride;
 
@@ -4795,7 +4842,8 @@ void InGameUI::spawnSpecialPowerLocationMarker( const Coord3D *loc, Bool isAncho
 			rc = m_pendingGUICommand->getAnchorRadiusCursorType();
 		radius = m_pendingGUICommand->getEffectiveAnchorDecalRadius();
 	}
-	if( rc != RADIUSCURSOR_NONE && radius > 0.0f && m_radiusCursors[rc].valid() )
+	const RadiusDecalTemplate* cursorTemplate = getRadiusCursorTemplate(rc);
+	if( cursorTemplate && radius > 0.0f && cursorTemplate->valid() )
 	{
 		Player *localPlayer = ThePlayerList ? ThePlayerList->getLocalPlayer() : nullptr;
 		if( localPlayer )
@@ -4803,7 +4851,7 @@ void InGameUI::spawnSpecialPowerLocationMarker( const Coord3D *loc, Bool isAncho
 			// heap-owned: RadiusDecal's copy ctor/operator= are unimplemented stubs, so it must never be
 			// copied. Construct in place into *decal and store the pointer.
 			RadiusDecal *decal = new RadiusDecal();
-			m_radiusCursors[rc].createRadiusDecal( *loc, radius, localPlayer, *decal );
+			cursorTemplate->createRadiusDecal( *loc, radius, localPlayer, *decal );
 			decal->setPosition( *loc );
 			m_specialPowerLocationDecals.push_back( decal );
 		}

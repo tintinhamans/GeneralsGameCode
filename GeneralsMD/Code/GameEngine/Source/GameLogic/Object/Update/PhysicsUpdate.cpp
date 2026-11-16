@@ -905,7 +905,7 @@ UpdateSleepTime PhysicsBehavior::update()
 			m_vel.z = 0.0f;
 		}
 		Real groundZ = TheTerrainLogic->getLayerHeight(mtx.Get_X_Translation(), mtx.Get_Y_Translation(), obj->getLayer());
-		if( obj->getStatusBits().test( OBJECT_STATUS_DECK_HEIGHT_OFFSET ) )
+		if( obj->getStatusBits().test( OBJECT_STATUS_DECK_HEIGHT_OFFSET ) && !obj->isEffectivelyDead() )
 		{
 			groundZ += obj->getCarrierDeckHeight();
 		}

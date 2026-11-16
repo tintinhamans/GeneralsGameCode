@@ -13,6 +13,15 @@ The target of an assist request can no longer be asked to assist against itself.
 This changes the simulation and can change older replay playback. Multiplayer clients need
 matching engine versions.
 
+## Destroyed carrier aircraft fall to the ground
+
+Dead aircraft no longer treat their carrier's deck height as a floor. Aircraft using
+`HelicopterSlowDeathBehavior` can reach the ground and finish their crash sequence.
+The jet model also stops using the minimum runway height after death, so it follows
+the falling object instead of hovering above its particles.
+
+This changes the simulation and can change older replay playback.
+
 ## Fast projectiles hit close targets
 
 `DumbProjectileBehavior` projectiles whose flight takes less than one frame now move to their
@@ -20,6 +29,40 @@ target before detonating. Previously, these close shots exploded at the barrel. 
 to curved and linear flight paths, including projectiles that tumble or keep a fixed orientation.
 
 Changes the simulation and older replay playback for affected shots.
+
+## AI supply sources respect allied bases
+
+AI supply construction skips sources already occupied by another player's supply center or
+reserved by a scripted supply truck. It also skips sources within `SupplyCenterSafeRadius` of
+allied structures, so an ally's base supplies are protected before its supply center exists.
+
+GLA trucks using the [nearest-free-supply actions](contraZH-Maps-and-Setup.md#move-to-a-free-supply-source)
+reserve separate sources while travelling and keep valid assignments after arrival.
+([#220](https://github.com/triatomic/contraZH/issues/220))
+
+## GLA supply trucks keep their sources and workers
+
+GLA command centers generate money but do not occupy supply sites. Occupancy checks require an
+actual supply-center dock module, so a nearby command center does not exclude a home supply.
+
+GLA trucks reserve permanent docks separately while grouping nearby depleting piles into one
+site. The free-source production condition uses the same rule, including after trucks park.
+New assignments choose the nearest available source meeting the resource requirement.
+
+New truck destinations exclude sources near enemy base structures. Supply centers placed by the
+AI face their chosen source, including when the AI adjusts their placement to avoid obstacles.
+
+An established truck assignment survives nearby construction and the loss of other trucks.
+The truck keeps collecting until its source empties or becomes invalid. A replacement truck
+claims the freed source without displacing collectors at other sources.
+
+The [mobile supply crew action](contraZH-Maps-and-Setup.md#manage-mobile-supply-crews) trains and
+replaces workers at each truck. Workers gather from that truck's source and unload at their
+producer truck. Living and queued workers count toward each truck's crew limit. The migrated
+GLA scripts use one repeatable truck template per faction instead of four numbered slots.
+
+Changes the simulation and requires the matching migrated skirmish scripts.
+([#222](https://github.com/triatomic/contraZH/issues/222))
 
 ## Recycled supply centers accept automatic deliveries
 

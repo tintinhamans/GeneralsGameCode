@@ -23,6 +23,10 @@ private slots:
 	void onTeamRowChanged();
 	void onTeamDoubleClicked(QTreeWidgetItem *item, int column);
 	void onNewTeam();
+	void onEditTeam();
+	void onUndo();
+	void onRedo();
+	void onSaveNow();
 	void onCopyTeam();
 	void onDeleteTeam();
 	void onSelectTeamMembers();

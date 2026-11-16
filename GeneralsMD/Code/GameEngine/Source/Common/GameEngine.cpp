@@ -65,6 +65,8 @@
 #include "Common/MultiplayerSettings.h"
 #include "Common/Recorder.h"
 #include "Common/SpecialPower.h"
+#include "GameClient/Eva.h"
+#include "GameClient/InGameUI.h"
 #include "Common/TerrainTypes.h"
 #include "Common/Upgrade.h"
 #include "Common/OptionPreferences.h"
@@ -787,6 +789,14 @@ void GameEngine::init()
 
 		setStartupStage("Subsystem postProcessLoadAll");
 		TheSubsystemList->postProcessLoadAll();
+		if (TheEva)
+		{
+			TheEva->validateCustomEvents();
+		}
+		if (TheInGameUI)
+		{
+			TheInGameUI->validateCustomRadiusCursors();
+		}
 
 		setStartupStage("Frame pacing and audio settings");
 		TheFramePacer->setFramesPerSecondLimit(TheGlobalData->m_framesPerSecondLimit);

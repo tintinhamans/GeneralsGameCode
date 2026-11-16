@@ -158,6 +158,27 @@ grid slot on the same key swaps with them and takes the unit order's grid key. P
 have no such buttons, so the whole grid works unchanged. Off, unit orders take their slot's grid key
 like any other button.
 
+## Options menu tabs
+
+A layout that pairs radio buttons named `Tab<Name>` with windows named `Page<Name>` gets a tabbed
+Options menu. Any other `OptionsMenu.wnd` keeps the single page menu with its Game Options and
+Shaders panels. The tab logic is adapted from the tabbed menu by simonx645.
+
+* The tabs run left to right in screen order, and the last tab used reopens for the rest of the session.
+* **F1** and up pick a tab. **PageUp**, **PageDown**, **Ctrl+Tab**, **Q** and **E** step through them.
+* **Tab** and **Shift+Tab** move the focus through the shown page's controls, then Defaults, Accept and Cancel.
+* Optional `TabIcon<Name>` and `TabLabel<Name>` windows are drawn by their tab. The icon keeps its
+  shape at any aspect ratio and shows the mapped image `<its image>On` on the current tab. The label
+  reads `GUI:OptionsTab<Name>`, or the tab's name when the string is missing, and takes its hilite
+  colour on the current tab.
+* A tab without the `IMAGE` status is drawn as a flat box, so it keeps its shape at any resolution.
+  Its fill and border come from its draw data: slot 0 of `ENABLEDDRAWDATA` at rest, slot 0 of
+  `HILITEDRAWDATA` under the mouse and slot 1 of `HILITEDRAWDATA` on the current tab. A tab with
+  `IMAGE` keeps its radio button art.
+* The custom detail toggles sit on a page of their own, so changing one sets **Detail** to Custom.
+* **VSync** is saved at any detail level. It used to be saved only with Detail on Custom.
+* Controls are still found by name, so they can sit on any page.
+
 ## Hotkeys screen
 
 **Options > Hotkeys** rebinds keys and writes them to `Hotkeys.ini` in the user data folder, beside

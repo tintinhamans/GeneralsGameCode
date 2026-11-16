@@ -3,6 +3,7 @@
 // label / tree / OK-Cancel / "Continue without replacing...").
 #include "WBQtPickUnitDialog.h"
 #include "ui_WBQtPickUnitDialog.h"
+#include "WBQtWindowPos.h"
 #include "WBQtPickUnitBridge.h"
 #include "WBQtPreviewImage.h"
 #include "WBQtTreeStyle.h"
@@ -576,7 +577,7 @@ extern "C" int WBQtBuildPickPanel_Show(const int *allowable, int allowCount, int
 		g_buildPickPanel->setupAsPanel(allowable, allowCount, factionOnly);
 		// Seed the saved BUILD_PICK_PANEL_SECTION position once; later shows keep
 		// whatever the user dragged it to (moveEvent writes the drags back).
-		g_buildPickPanel->move(left, top);
+		WBQtWindowPos_MoveOnScreen(g_buildPickPanel, left, top);
 	}
 	g_buildPickPanel->show();
 	g_buildPickPanel->raise();

@@ -602,16 +602,228 @@ void CTeamsDialog::qtImportTeams(void)
 	}
 }
 
+// ================= undo / redo / save now =================
+// Undo works on the working copy only; the map changes at OK or Save Now.
+
+namespace
+{
+	struct QtmTeamsSnapshot
+	{
+		SidesList sides;
+		Int curTeam;
+		int curPlayer;
+	};
+
+	const size_t QTM_TEAMS_UNDO_DEPTH = 32;
+	std::vector<QtmTeamsSnapshot *> s_qtTeamsUndo;
+	std::vector<QtmTeamsSnapshot *> s_qtTeamsRedo;
+
+	void qtmFreeSnapshots(std::vector<QtmTeamsSnapshot *> &stack)
+	{
+		for (size_t i = 0; i < stack.size(); i++)
+		{
+			delete stack[i];
+		}
+		stack.clear();
+	}
+
+	Bool qtmDictsEqual(const Dict &a, const Dict &b)
+	{
+		Int count = a.getPairCount();
+		if (count != b.getPairCount())
+		{
+			return false;
+		}
+		for (Int i = 0; i < count; i++)
+		{
+			if (a.getNthKey(i) != b.getNthKey(i) || a.getNthType(i) != b.getNthType(i))
+			{
+				return false;
+			}
+			switch (a.getNthType(i))
+			{
+				case Dict::DICT_BOOL:
+					if (a.getNthBool(i) != b.getNthBool(i))
+					{
+						return false;
+					}
+					break;
+				case Dict::DICT_INT:
+					if (a.getNthInt(i) != b.getNthInt(i))
+					{
+						return false;
+					}
+					break;
+				case Dict::DICT_REAL:
+					if (a.getNthReal(i) != b.getNthReal(i))
+					{
+						return false;
+					}
+					break;
+				case Dict::DICT_ASCIISTRING:
+					if (a.getNthAsciiString(i) != b.getNthAsciiString(i))
+					{
+						return false;
+					}
+					break;
+				case Dict::DICT_UNICODESTRING:
+					if (a.getNthUnicodeString(i) != b.getNthUnicodeString(i))
+					{
+						return false;
+					}
+					break;
+				default:
+					break;
+			}
+		}
+		return true;
+	}
+
+	// The Team Builder edits team dicts only, so equal teams mean an unchanged working copy.
+	Bool qtmTeamsEqual(SidesList &a, SidesList &b)
+	{
+		if (a.getNumTeams() != b.getNumTeams())
+		{
+			return false;
+		}
+		for (Int i = 0; i < a.getNumTeams(); i++)
+		{
+			if (!qtmDictsEqual(*a.getTeamInfo(i)->getDict(), *b.getTeamInfo(i)->getDict()))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+}
+
+void CTeamsDialog::qtBeginEdit(void)
+{
+	QtmTeamsSnapshot *snap = new QtmTeamsSnapshot;
+	snap->sides = m_sides;
+	snap->curTeam = m_curTeam;
+	snap->curPlayer = s_qtCurPlayer;
+	s_qtTeamsUndo.push_back(snap);
+}
+
+void CTeamsDialog::qtEndEdit(void)
+{
+	if (s_qtTeamsUndo.empty())
+	{
+		return;
+	}
+	if (qtmTeamsEqual(s_qtTeamsUndo.back()->sides, m_sides))
+	{
+		// A cancelled or empty action leaves no undo step.
+		delete s_qtTeamsUndo.back();
+		s_qtTeamsUndo.pop_back();
+		return;
+	}
+	qtmFreeSnapshots(s_qtTeamsRedo);
+	if (s_qtTeamsUndo.size() > QTM_TEAMS_UNDO_DEPTH)
+	{
+		delete s_qtTeamsUndo.front();
+		s_qtTeamsUndo.erase(s_qtTeamsUndo.begin());
+	}
+}
+
+int CTeamsDialog::qtStepHistory(int redo)
+{
+	std::vector<QtmTeamsSnapshot *> &from = redo ? s_qtTeamsRedo : s_qtTeamsUndo;
+	std::vector<QtmTeamsSnapshot *> &to = redo ? s_qtTeamsUndo : s_qtTeamsRedo;
+	if (from.empty())
+	{
+		return 0;
+	}
+	QtmTeamsSnapshot *cur = new QtmTeamsSnapshot;
+	cur->sides = m_sides;
+	cur->curTeam = m_curTeam;
+	cur->curPlayer = s_qtCurPlayer;
+	to.push_back(cur);
+
+	QtmTeamsSnapshot *snap = from.back();
+	from.pop_back();
+	m_sides = snap->sides;
+	m_curTeam = snap->curTeam;
+	s_qtCurPlayer = snap->curPlayer;
+	delete snap;
+	qtMRefresh(1);
+	return 1;
+}
+
+void CTeamsDialog::qtSaveNow(void)
+{
+	qtCommit();
+	CWorldBuilderDoc *pDoc = CWorldBuilderDoc::GetActiveDoc();
+	if (pDoc != NULL)
+	{
+		pDoc->DoFileSave();
+	}
+}
+
 // ================= the C facade =================
 
 extern "C" void WBQtTeamsData_Open(void)
 {
+	qtmFreeSnapshots(s_qtTeamsUndo);
+	qtmFreeSnapshots(s_qtTeamsRedo);
 	CTeamsDialog::qtOpen();
 }
 
 extern "C" void WBQtTeamsData_Close(int accepted)
 {
 	CTeamsDialog::qtClose(accepted);
+	qtmFreeSnapshots(s_qtTeamsUndo);
+	qtmFreeSnapshots(s_qtTeamsRedo);
+}
+
+extern "C" void WBQtTeams_BeginEdit(void)
+{
+	CTeamsDialog *dlg = CTeamsDialog::qtInstance();
+	if (dlg != NULL)
+	{
+		dlg->qtBeginEdit();
+	}
+}
+
+extern "C" void WBQtTeams_EndEdit(void)
+{
+	CTeamsDialog *dlg = CTeamsDialog::qtInstance();
+	if (dlg != NULL)
+	{
+		dlg->qtEndEdit();
+	}
+}
+
+extern "C" int WBQtTeams_Undo(void)
+{
+	CTeamsDialog *dlg = CTeamsDialog::qtInstance();
+	return (dlg != NULL) ? dlg->qtStepHistory(0) : 0;
+}
+
+extern "C" int WBQtTeams_Redo(void)
+{
+	CTeamsDialog *dlg = CTeamsDialog::qtInstance();
+	return (dlg != NULL) ? dlg->qtStepHistory(1) : 0;
+}
+
+extern "C" int WBQtTeamsData_CanUndo(void)
+{
+	return s_qtTeamsUndo.empty() ? 0 : 1;
+}
+
+extern "C" int WBQtTeamsData_CanRedo(void)
+{
+	return s_qtTeamsRedo.empty() ? 0 : 1;
+}
+
+extern "C" void WBQtTeams_SaveNow(void)
+{
+	CTeamsDialog *dlg = CTeamsDialog::qtInstance();
+	if (dlg != NULL)
+	{
+		dlg->qtSaveNow();
+	}
 }
 
 extern "C" int WBQtTeamsData_GetPlayerCount(void)

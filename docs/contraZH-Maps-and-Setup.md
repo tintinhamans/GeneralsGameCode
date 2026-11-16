@@ -95,13 +95,59 @@ Stash that deploys there.
 | `Contra/Team_/Move/Set to move to the nearest free supply source` | team, minimum resources |
 | `Contra/Unit_/Move/Move a specific unit to the nearest free supply source` | unit, minimum resources |
 
-* Free means not enemy-owned and no supply center of any player within 20 cells.
-* Nearest is measured from the unit, or from the team's position.
+* GLA trucks reserve permanent docks separately and group nearby depleting piles into one site.
+Native supply-center placement keeps its 20-cell spacing checks.
+* An occupied source requires an actual supply-center dock module. A command center or other
+building that generates money does not occupy its owner's supply source.
+* Each unit reserves its chosen source immediately, so trucks travelling together choose separate
+sources. The team action uses its lowest-ID living member with AI to hold the reservation.
+* Repeated calls retain a usable source, even below the original resource threshold, and leave a
+unit that has arrived in place. Reservations survive save/load.
+* A dead or captured unit releases its reservation. A unit that stops moving before arrival for
+30 seconds releases the source and avoids retrying it for 60 seconds.
+* Sources near allied structures are excluded within `SupplyCenterSafeRadius`, measured from the
+structures' edges. This also applies to AI supply-center construction, which respects other
+players' supply centers and truck reservations.
+* Nearest is measured from the unit, or from the team's position. Available sources meeting the
+requested minimum are ranked by distance, so a richer distant source does not take priority.
 * If no source holds the minimum resources, the threshold halves until a source qualifies or it
 drops to 100. Empty sources never qualify.
 * Units stop beside the source on the side facing them, outside the `SupplyBuildBorder`.
 * Does nothing when no source qualifies.
 ([#134](https://github.com/triatomic/contraZH/issues/134))
+([#220](https://github.com/triatomic/contraZH/issues/220))
+
+### Manage mobile supply crews
+
+`Contra/Team_/Supply/Manage supply trucks and their workers` takes a team, worker object type,
+workers per truck, and minimum source resources. Call it from each truck team's generic hook
+with `<This Team>`. The action manages each living mobile cash generator separately.
+
+* Each truck keeps its assigned source while it has supplies. Nearby construction and losses
+at other sources do not displace it. The minimum resource threshold applies to new assignments.
+* Each truck trains its own workers through its production queue and pays normal unit costs.
+Living and queued workers both count toward its crew limit.
+* Workers use their producer truck's source and unload at that truck. A busy dock makes them
+wait rather than switch to another truck. Their normal collection trips provide the leash.
+* Workers follow a new source when their truck relocates after depletion. If the truck dies or
+changes owner, its workers can use normal supply selection. A replacement truck can adopt nearby
+orphan workers of the configured type before training replacements.
+* Truck assignments and worker bindings survive save/load.
+
+`Contra/Player/Supply/A free supply source is available` takes a player and minimum resources.
+Use it as the production condition for a repeatable truck template. It rejects occupied sources,
+allied bases, reserved destinations, and further production while a living truck lacks a source.
+The skirmish AI already permits only one build of a given team template in its queue at a time.
+
+The supplied migration tool replaces four numbered truck slots with one repeatable template in
+each GLA faction. Export the latest scripts as JSON, run
+`python tools/migrate_mobile_supply_scripts.py before.json after.json`, import `after.json` in
+WorldBuilder's Edit mode, and export the resulting SCB. The migration keeps six workers per truck,
+removes 40 obsolete scripts and 12 numbered truck teams, and updates supply-guard prerequisites.
+Free sources near enemy base structures are excluded as well as allied bases.
+Choose No when Export Scripts offers to save back to the JSON, then select SCB output.
+Both the editor and game must include the new action and condition before using these scripts.
+([#222](https://github.com/triatomic/contraZH/issues/222))
 
 ### CLP_AI scripts
 

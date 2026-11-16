@@ -1,5 +1,43 @@
 # Objects & Modules
 
+## Weapon fire particles
+
+`WeaponFireParticleSys = <weapon slot> <particle system>` creates a bone-attached emitter
+for each shot. It works in `W3DModelDraw` and its derived draw modules, including
+`W3DTankDraw` and `W3DOverlordTankDraw`. It defaults to `None` for each slot.
+
+```ini
+DefaultConditionState
+  Model                 = NVBtMstr
+  WeaponFireFXBone      = PRIMARY Muzzle
+  WeaponFireParticleSys = PRIMARY TankCannonSmokeSmall
+End
+```
+
+The emitter follows the firing barrel's `WeaponFireFXBone`, including turret rotation,
+pitch and recoil. Numbered muzzle bones use the barrel selected by the weapon.
+`ParticlesAttachedToAnimatedBones = Yes` is not required for this parameter.
+The weapon may use `FireFX = None`; ordinary `FireFX` effects remain independent.
+
+The parameter inherits from `DefaultConditionState`. Override it per condition state or
+set `WeaponFireParticleSys = PRIMARY None` to disable it. Ordinary condition changes do
+not stop existing emitters. Model replacements rebind them by bone name; a missing bone
+or a destroyed drawable stops emission while existing particles fade.
+
+Use a particle template with a finite, nonzero `SystemLifetime`. Each shot creates a new
+system, so long emission times can overlap during rapid fire. The template's `InitialDelay`,
+`BurstCount`, `BurstDelay` and particle lifetime keep their usual meanings.
+`TankCannonSmokeSmall`, for example, retains its 12-frame initial delay.
+Only the emitter follows the bone; emitted particles retain their template's behavior.
+
+Hidden or shrouded drawables do not create emitters. Existing emitters pause emission
+while hidden, following `KEEP_PARTICLES_WHEN_HIDDEN`. Weapon FX suspension also suppresses
+new emitters. These temporary systems are client-only and are not saved or recreated on load.
+
+Remove muzzle-smoke `ParticleSysBone` entries and their smoke-only `PREATTACK` and
+`TransitionState` blocks when migrating a unit. Keep states that serve other purposes.
+Do not also put the same smoke in the weapon's `FireFX`, which would create a second emitter.
+
 ## Lifetime progress bars
 
 `LifetimeUpdate` can show a draining lifetime bar on objects with `SHOW_PROGRESS_BAR`

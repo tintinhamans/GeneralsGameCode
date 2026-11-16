@@ -14,6 +14,7 @@
 #include <QListWidget>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QShortcut>
 #include <QTreeWidget>
 
 #include <qt_windows.h>
@@ -25,6 +26,13 @@ namespace
 {
 	const int kTextCap = 1024;
 	const int kTeamColumns = 6;	// name / script / trigger / priority / origin / index
+
+	// Brackets one action so it becomes one undo step, or none when it changed nothing.
+	struct TeamEdit
+	{
+		TeamEdit() { WBQtTeams_BeginEdit(); }
+		~TeamEdit() { WBQtTeams_EndEdit(); }
+	};
 }
 
 WBQtTeamsDialogClassic::WBQtTeamsDialogClassic(QWidget *parent)
@@ -60,6 +68,18 @@ WBQtTeamsDialogClassic::WBQtTeamsDialogClassic(QWidget *parent)
 	connect(m_teams, SIGNAL(itemDoubleClicked(QTreeWidgetItem*,int)), this, SLOT(onTeamDoubleClicked(QTreeWidgetItem*,int)));
 	connect(m_ui->membersButton, SIGNAL(clicked()), this, SLOT(onSelectTeamMembers()));
 	connect(m_newButton, SIGNAL(clicked()), this, SLOT(onNewTeam()));
+	connect(m_ui->editButton, SIGNAL(clicked()), this, SLOT(onEditTeam()));
+	connect(m_ui->undoButton, SIGNAL(clicked()), this, SLOT(onUndo()));
+	connect(m_ui->redoButton, SIGNAL(clicked()), this, SLOT(onRedo()));
+	connect(m_ui->saveNowButton, SIGNAL(clicked()), this, SLOT(onSaveNow()));
+	QShortcut *undoSc = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_Z), this);
+	connect(undoSc, SIGNAL(activated()), this, SLOT(onUndo()));
+	QShortcut *redoSc = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_Y), this);
+	connect(redoSc, SIGNAL(activated()), this, SLOT(onRedo()));
+	QShortcut *redoSc2 = new QShortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_Z), this);
+	connect(redoSc2, SIGNAL(activated()), this, SLOT(onRedo()));
+	QShortcut *saveSc = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_S), this);
+	connect(saveSc, SIGNAL(activated()), this, SLOT(onSaveNow()));
 	connect(m_copyButton, SIGNAL(clicked()), this, SLOT(onCopyTeam()));
 	connect(m_deleteButton, SIGNAL(clicked()), this, SLOT(onDeleteTeam()));
 	connect(m_moveUpButton, SIGNAL(clicked()), this, SLOT(onMoveUpTeam()));
@@ -161,6 +181,9 @@ void WBQtTeamsDialogClassic::refreshButtons()
 	m_newButton->setEnabled(WBQtTeamsData_GetNewEnabled() != 0);
 	m_copyButton->setEnabled(WBQtTeamsData_GetCopyEnabled() != 0);
 	m_deleteButton->setEnabled(WBQtTeamsData_GetDeleteEnabled() != 0);
+	m_ui->editButton->setEnabled(WBQtTeamsData_GetCopyEnabled() != 0);
+	m_ui->undoButton->setEnabled(WBQtTeamsData_CanUndo() != 0);
+	m_ui->redoButton->setEnabled(WBQtTeamsData_CanRedo() != 0);
 	m_moveUpButton->setEnabled(WBQtTeamsData_GetMoveEnabled() != 0);
 	m_moveDownButton->setEnabled(WBQtTeamsData_GetMoveEnabled() != 0);
 	// NOT re-scanned here: refreshButtons runs on every player/team click, and the scan is
@@ -217,27 +240,66 @@ void WBQtTeamsDialogClassic::onTeamDoubleClicked(QTreeWidgetItem *item, int colu
 	if (row >= 0)
 	{
 		WBQtTeams_SelectTeamRow(row);
+		onEditTeam();
+	}
+}
+
+void WBQtTeamsDialogClassic::onEditTeam()
+{
+	{
+		TeamEdit edit;
 		runTeamSheet();		// the Qt team template sheet (== OnEditTemplate)
+	}
+	refreshAll();
+}
+
+void WBQtTeamsDialogClassic::onUndo()
+{
+	if (WBQtTeams_Undo() != 0)
+	{
 		refreshAll();
 	}
 }
 
+void WBQtTeamsDialogClassic::onRedo()
+{
+	if (WBQtTeams_Redo() != 0)
+	{
+		refreshAll();
+	}
+}
+
+void WBQtTeamsDialogClassic::onSaveNow()
+{
+	WBQtTeams_SaveNow();
+	refreshAll();
+}
+
 void WBQtTeamsDialogClassic::onNewTeam()
 {
-	WBQtTeams_NewTeam();	// creates + selects the team (no sheet pop)
-	runTeamSheet();			// == OnNewteam's OnEditTemplate on the fresh team
+	{
+		TeamEdit edit;
+		WBQtTeams_NewTeam();	// creates + selects the team (no sheet pop)
+		runTeamSheet();			// == OnNewteam's OnEditTemplate on the fresh team
+	}
 	refreshAll();
 }
 
 void WBQtTeamsDialogClassic::onCopyTeam()
 {
-	WBQtTeams_CopyTeam();
+	{
+		TeamEdit edit;
+		WBQtTeams_CopyTeam();
+	}
 	refreshAll();
 }
 
 void WBQtTeamsDialogClassic::onDeleteTeam()
 {
-	WBQtTeams_DeleteTeam();	// may pop the in-use confirmation
+	{
+		TeamEdit edit;
+		WBQtTeams_DeleteTeam();	// may pop the in-use confirmation
+	}
 	refreshAll();
 }
 
@@ -249,13 +311,19 @@ void WBQtTeamsDialogClassic::onSelectTeamMembers()
 
 void WBQtTeamsDialogClassic::onMoveUpTeam()
 {
-	WBQtTeams_MoveUpTeam();
+	{
+		TeamEdit edit;
+		WBQtTeams_MoveUpTeam();
+	}
 	refreshAll();
 }
 
 void WBQtTeamsDialogClassic::onMoveDownTeam()
 {
-	WBQtTeams_MoveDownTeam();
+	{
+		TeamEdit edit;
+		WBQtTeams_MoveDownTeam();
+	}
 	refreshAll();
 }
 
@@ -265,14 +333,17 @@ void WBQtTeamsDialogClassic::onMoveDownTeam()
 // edit made here.
 void WBQtTeamsDialogClassic::onFixMissingUnits()
 {
-	const int found = WBQtTeams_ReplaceMissingUnits();
-	if (found == 0)
 	{
-		QMessageBox::information(this, tr("Fix Missing Units"),
-			tr("No missing unit types were found in the team templates."));
-		return;
+		TeamEdit edit;
+		const int found = WBQtTeams_ReplaceMissingUnits();
+		if (found == 0)
+		{
+			QMessageBox::information(this, tr("Fix Missing Units"),
+				tr("No missing unit types were found in the team templates."));
+			return;
+		}
+		WBQtReplaceReport_Run(NULL);
 	}
-	WBQtReplaceReport_Run(NULL);
 	refreshAll();
 }
 
@@ -284,6 +355,9 @@ void WBQtTeamsDialogClassic::onExportTeams()
 
 void WBQtTeamsDialogClassic::onImportTeams()
 {
-	WBQtTeams_ImportTeams();	// MFC file dialog; may pop fix-owner dialogs
+	{
+		TeamEdit edit;
+		WBQtTeams_ImportTeams();	// MFC file dialog; may pop fix-owner dialogs
+	}
 	refreshAll();
 }

@@ -14,6 +14,7 @@ class QCheckBox;
 class QGroupBox;
 class QLineEdit;
 class QListWidget;
+class QListWidgetItem;
 class QTreeWidget;
 class QTreeWidgetItem;
 
@@ -40,16 +41,21 @@ public:
 protected:
 	// Up/Down/PageUp/PageDown in the filter edit walk the visible list rows (== a combo
 	// box), copying the highlighted row's text into the edit without leaving the field.
+	// Enter completes a lone match; the next Enter accepts it.
 	virtual bool eventFilter(QObject *watched, QEvent *event);
 
 private slots:
 	void onRowChanged(int row);
+	void onItemClicked(QListWidgetItem *item);
 	void onTextEdited(const QString &text);
 	void onEditTextChanged(const QString &text);
 	void onPreviewSound();
 
 private:
 	Ui::WBQtParamDialog *m_ui;	// owns the static widget tree (WBQtParamDialog.ui)
+
+	void adoptRow(QListWidgetItem *item);	// select the row and copy its text into the edit
+	QListWidgetItem *loneVisibleRow() const;	// the only unfiltered row, else NULL
 
 	void *m_parameter;
 	int m_kind;
