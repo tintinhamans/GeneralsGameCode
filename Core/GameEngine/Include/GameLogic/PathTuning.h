@@ -30,6 +30,8 @@
 //              bridge-seed inserts)
 //   cost32     search costs keep 32 bits; contraZH already does, so this switch changes nothing here (it is kept so
 //              the names, and the CRC, match the other trees)
+//   pool       150,000 search cell records instead of contraZH's 100,000, and the search code that returns every
+//              record it takes from the start (instead of only after a retail failure case)
 //
 // All of these change routes, so every player of a game, and a replay's playback, must use the same set. When any is on,
 // the set goes into the pathfinder's CRC, so players with different sets see a mismatch at once. An unknown name stops
@@ -45,7 +47,9 @@ namespace PathTuning
 	extern Bool CoarseFootprint;
 	extern Bool Octile;
 	extern Bool Cost32;
+	extern Bool Pool;
 
+	const Int POOL_CELLS = 150000;			///< "pool"
 	const Int SEARCH_CAP_CELLS = 10000;		///< "cap": the cells a search may use
 
 	// The words the set writes into the CRC, as the measured builds wrote them: the switch mask, an estimate weight of

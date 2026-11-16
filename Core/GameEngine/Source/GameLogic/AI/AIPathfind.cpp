@@ -122,7 +122,9 @@ constexpr const Int PATHFIND_SLOT_MAX_RING = 12; // Lattice rings around the cli
 constexpr const UnsignedInt MAX_SAFE_PATH_CELL_COUNT = 2000;
 
 constexpr const UnsignedInt PATHFIND_CELLS_PER_FRAME = 5000; // Number of cells we will search pathfinding per frame.
-constexpr const UnsignedInt CELL_INFOS_TO_ALLOCATE = 100000;
+// TheSuperHackers @feature simonx645 16/11/2026 The pool's size, set when it is made: contraZH's 100,000 records, or
+// 150,000 with "pool" (GameLogic/PathTuning.h). A search that runs out of records fails, so the size changes routes.
+static UnsignedInt CELL_INFOS_TO_ALLOCATE = 100000;
 
 #if RTS_GENERALS && RETAIL_COMPATIBLE_PATHFINDING
 constexpr const Int PATHFIND_SEARCH_CELL_CAP = 0x7fffffff;
@@ -1204,6 +1206,7 @@ void Pathfinder::forceCleanCells()
 void PathfindCellInfo::allocateCellInfos()
 {
 	releaseCellInfos();
+	CELL_INFOS_TO_ALLOCATE = PathTuning::Pool ? PathTuning::POOL_CELLS : 100000;
 	s_infoArray = MSGNEW("PathfindCellInfo") PathfindCellInfo[CELL_INFOS_TO_ALLOCATE];	// pool[]ify
 	s_infoArray[CELL_INFOS_TO_ALLOCATE-1].m_pathParent = nullptr;
 	s_infoArray[CELL_INFOS_TO_ALLOCATE-1].m_isFree = true;
@@ -4312,7 +4315,9 @@ void Pathfinder::reset()
 	m_zoneManager.reset();
 
 #if RETAIL_COMPATIBLE_PATHFINDING
-	s_useFixedPathfinding = false;
+	// TheSuperHackers @feature simonx645 16/11/2026 "pool" (PathTuning.h): the search code that returns every record it
+	// takes on every exit runs from the start, instead of only after a retail failure case was caught.
+	s_useFixedPathfinding = PathTuning::Pool;
 	s_forceCleanCells = false;
 #endif
 
