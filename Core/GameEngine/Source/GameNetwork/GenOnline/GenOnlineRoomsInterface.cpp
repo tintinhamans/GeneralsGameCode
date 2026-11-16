@@ -501,6 +501,139 @@ void WebSocket::OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, co
 	}
 }
 
+// Lobby methods that act on the lobby the client is in. Their parked calls need the same lobby.
+static bool IsInLobbyHubMethod(const std::string& method)
+{
+	static const char* const METHODS[] = { "UpdateLobby", "SetLobbyPassword", "UpdateMySlot", "SetHasMap", "SetReady", "SetSlotState",
+		"UpdateSlots", "KickFromLobby", "ForceReady", "StartGame", "BeginMeshCheck" };
+	for (const char* lobbyMethod : METHODS)
+	{
+		if (method == lobbyMethod)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+static int64_t HubCallUserID()
+{
+	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	return pAuth != nullptr && pAuth->IsLoggedIn() ? pAuth->GetUserID() : -1;
+}
+
+std::function<bool()> WebSocket::HubCallWanted(const std::string& method, const nlohmann::json& request)
+{
+	enum class Scope
+	{
+		Session,
+		InLobby,
+		JoinOrCreate,
+		Leave,
+	};
+	Scope scope = Scope::Session;
+	if (IsInLobbyHubMethod(method))
+	{
+		scope = Scope::InLobby;
+	}
+	else if (method == GenOnlineRealtime::JoinLobbyRequest::METHOD || method == GenOnlineRealtime::CreateLobbyRequest::METHOD)
+	{
+		scope = Scope::JoinOrCreate;
+	}
+	else if (method == GenOnlineRealtime::LeaveLobbyRequest::METHOD)
+	{
+		scope = Scope::Leave;
+	}
+
+	const int64_t userID = HubCallUserID();
+	GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	const int64_t lobbyID = pLobby != nullptr ? pLobby->GetCurrentLobby().lobbyID : -1;
+	const uint64_t joinGeneration = pLobby != nullptr ? pLobby->GetLobbyJoinGeneration() : 0;
+	int64_t targetLobbyID = -1;
+	if (method == GenOnlineRealtime::JoinLobbyRequest::METHOD && request.is_object())
+	{
+		auto it = request.find("lobby_id");
+		if (it != request.end() && it->is_number_integer())
+		{
+			targetLobbyID = it->get<int64_t>();
+		}
+	}
+
+	return [scope, userID, lobbyID, joinGeneration, targetLobbyID]()
+	{
+		if (userID < 0 || HubCallUserID() != userID)
+		{
+			return false;
+		}
+		if (scope == Scope::Session)
+		{
+			return true;
+		}
+		GenOnlineLobbyInterface* pLobbyNow = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+		if (pLobbyNow == nullptr)
+		{
+			return false;
+		}
+		const int64_t lobbyNow = pLobbyNow->GetCurrentLobby().lobbyID;
+		switch (scope)
+		{
+		case Scope::InLobby:
+			return lobbyID != -1 && lobbyNow == lobbyID;
+		case Scope::JoinOrCreate:
+			return pLobbyNow->GetLobbyJoinGeneration() == joinGeneration && (lobbyNow == -1 || (targetLobbyID != -1 && lobbyNow == targetLobbyID));
+		case Scope::Leave:
+			// LeaveLobby leaves the lobby the session is in, so any later join or teardown makes it stale.
+			return pLobbyNow->GetLobbyJoinGeneration() == joinGeneration && (lobbyNow == -1 || lobbyNow == lobbyID);
+		default:
+			return true;
+		}
+	};
+}
+
+void WebSocket::SendHubCall(const GenOnlineRealtime::ParkedHubCall& call)
+{
+	if (m_pHubSession == nullptr)
+	{
+		if (call.callback)
+		{
+			GenOnlineRealtime::InvokeOutcome outcome;
+			outcome.transportError = "not connected";
+			call.callback(outcome);
+		}
+		return;
+	}
+	// The hub session lives inside this socket, so every completion runs while the socket exists.
+	m_pHubSession->InvokeMethod(call.method, call.request, [this, call](const GenOnlineRealtime::InvokeOutcome& outcome)
+		{
+			const bool bStandby = GenOnlineRealtime::IsStandbyResult(outcome);
+			if (m_standbyHubCalls.Complete(call, outcome, HubNowMs()))
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] %s answered standby, sends again once the session is ready", call.method.c_str());
+			}
+			else if (bStandby)
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] %s answered standby for 10 seconds, the call fails", call.method.c_str());
+			}
+		}, HubNowMs());
+}
+
+void WebSocket::TickStandbyHubCalls()
+{
+	if (m_standbyHubCalls.Size() == 0)
+	{
+		return;
+	}
+	const bool bReady = m_pHubSession != nullptr && m_pHubSession->GetState() == GenOnlineRealtime::HubSession::State::Ready;
+	std::vector<GenOnlineRealtime::ParkedHubCall> due = m_standbyHubCalls.TakeDue(HubNowMs(), bReady, [](const GenOnlineRealtime::ParkedHubCall& call)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] %s dropped while it waited after a standby answer", call.method.c_str());
+		});
+	for (const GenOnlineRealtime::ParkedHubCall& call : due)
+	{
+		SendHubCall(call);
+	}
+}
+
 WebSocket::~WebSocket()
 {
 	Shutdown();
@@ -906,6 +1039,17 @@ int64_t WebSocket::ComputeReconnectDelay() const
 
 void WebSocket::UpdateReconnect()
 {
+	// A first connect that got a standby answer connects again once its wait passed.
+	if (m_nextStandbyConnect != -1 && (m_bReconnecting || NowMs() >= m_nextStandbyConnect))
+	{
+		const bool bConnectNow = !m_bReconnecting && !GenOnlineServicesManager::GetInstance()->IsPendingFullTeardown();
+		m_nextStandbyConnect = -1;
+		if (bConnectNow)
+		{
+			Connect(m_strWebsocketAddr.c_str(), m_fnWebsocketConnectedCallback);
+		}
+	}
+
 	if (!m_bReconnecting)
 	{
 		return;
@@ -955,6 +1099,7 @@ void WebSocket::Tick()
 	UpdateReconnect();
 	PollConnectionSetup();
 	SendPeerTransports(false);
+	TickStandbyHubCalls();
 
 	/*
 	if (strSignal.length() == 6)
@@ -1031,8 +1176,25 @@ void WebSocket::Tick()
 							continue;
 						}
 
+                        // A standby service copy refuses the upgrade with a 503 in the second after a failover switch.
+                        const bool bStandby = GenOnlineRealtime::IsStandbyAnswer(GenOnlineRealtime::MakeRestOutcome(true, static_cast<int>(httpResponseCode), std::string()), true);
+                        const int64_t standbyDelayMs = m_upgradeStandby.NextDelayMs(bStandby, NowMs());
+                        if (standbyDelayMs >= 0)
+                        {
+                            // The wait neither grows the backoff nor tears down a first connect.
+                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Connection refused with status %ld by a standby service, connecting again in %lld ms", httpResponseCode, static_cast<long long>(standbyDelayMs));
+                            if (m_bReconnecting)
+                            {
+                                m_reconnectAttemptStarted = -1;
+                                m_nextReconnectAttempt = NowMs() + standbyDelayMs;
+                            }
+                            else
+                            {
+                                m_nextStandbyConnect = NowMs() + standbyDelayMs;
+                            }
+                        }
                         // 401 bad token and 409 session not registered get one refresh and registration, a 403 play ban ends the session
-                        if ((httpResponseCode == 401 || httpResponseCode == 409) && !m_bHubSessionRecoveryTried)
+                        else if ((httpResponseCode == 401 || httpResponseCode == 409) && !m_bHubSessionRecoveryTried)
                         {
                             NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Connection refused with status %ld, renewing the session", httpResponseCode);
                             RecoverHubSession();
@@ -1072,6 +1234,7 @@ void WebSocket::Tick()
                     }
                     else
                     {
+                        m_upgradeStandby.Reset();
                         if (m_bReconnecting)
                         {
                             NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Re-Connected");

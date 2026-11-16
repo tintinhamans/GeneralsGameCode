@@ -22,6 +22,7 @@
 
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeProtocol.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeRest.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -29,6 +30,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace GenOnlineRealtime
 {
@@ -269,6 +271,12 @@ public:
 	void Invoke(const R& request, std::function<void(const InvokeOutcome&)> callback, int64_t nowMs)
 	{
 		static_assert(R::EXPECTS_RESULT, "use Fire for methods without a Result");
+		InvokeMethod(R::METHOD, nlohmann::json(request), callback, nowMs);
+	}
+
+	// Calls a hub method by name with its serialized request. The callback runs exactly once.
+	void InvokeMethod(const std::string& method, const nlohmann::json& request, std::function<void(const InvokeOutcome&)> callback, int64_t nowMs)
+	{
 		if (m_state != State::Ready)
 		{
 			if (callback)
@@ -301,7 +309,7 @@ public:
 			if (callback)
 				callback(outcome);
 		});
-		SendRaw(SerializeInvocation(R::METHOD, nlohmann::json(request), id), nowMs);
+		SendRaw(SerializeInvocation(method, request, id), nowMs);
 	}
 
 	// Sends a fire-and-forget hub method. Returns false when the session is not ready.
@@ -470,6 +478,113 @@ private:
 	int64_t m_lastSendMs = 0;
 	bool m_disconnectReported = false;
 	std::optional<int64_t> m_serverSwitchingRetryAfterMs;
+};
+
+// True when a Result failed with service.unavailable and what standby, the answer of a copy that hands over.
+inline bool IsStandbyResult(const InvokeOutcome& outcome)
+{
+	if (!outcome.delivered || outcome.result.ok || outcome.Code() != "service.unavailable" || !outcome.result.params.has_value())
+	{
+		return false;
+	}
+	const nlohmann::json& params = *outcome.result.params;
+	if (!params.is_object())
+	{
+		return false;
+	}
+	auto what = params.find("what");
+	return what != params.end() && what->is_string() && what->get<std::string>() == "standby";
+}
+
+struct ParkedHubCall
+{
+	std::string method;
+	nlohmann::json request;
+	std::function<void(const InvokeOutcome&)> callback;
+	// Runs before each pass, and false drops the call without its callback.
+	std::function<bool()> fnWanted;
+	StandbyRetry standby;
+	int64_t sendAtMs = 0;
+	// The time of the last standby answer, where the wait for a ready session starts.
+	int64_t parkedAtMs = 0;
+	// The last standby answer, which the callback gets when the session stays away past the window.
+	InvokeOutcome lastOutcome;
+};
+
+// Holds hub calls that got a standby Result until the session is ready and their wait passed.
+// Transport errors and other failures go to the callback unchanged.
+class StandbyHubCalls
+{
+public:
+	// Takes the outcome of a sent call. Returns true when the call is parked, otherwise its callback ran.
+	// Standby answers in a row for STANDBY_RETRY_WINDOW_MS run the callback with the last answer.
+	bool Complete(ParkedHubCall call, const InvokeOutcome& outcome, int64_t nowMs)
+	{
+		const int64_t delayMs = call.standby.NextDelayMs(IsStandbyResult(outcome), nowMs);
+		if (delayMs >= 0)
+		{
+			call.sendAtMs = nowMs + delayMs;
+			call.parkedAtMs = nowMs;
+			call.lastOutcome = outcome;
+			m_calls.push_back(call);
+			return true;
+		}
+		if (call.callback)
+		{
+			call.callback(outcome);
+		}
+		return false;
+	}
+
+	// Drops the calls that are no longer wanted and returns the due calls in the order they were parked.
+	// A call is due once the session is ready and its wait passed. A call whose session stays away for the standby window after its last standby answer fails.
+	std::vector<ParkedHubCall> TakeDue(int64_t nowMs, bool bReady, std::function<void(const ParkedHubCall&)> onDropped = nullptr)
+	{
+		std::vector<ParkedHubCall> due;
+		std::vector<ParkedHubCall> calls;
+		calls.swap(m_calls);
+		for (ParkedHubCall& call : calls)
+		{
+			if (call.fnWanted && !call.fnWanted())
+			{
+				if (onDropped)
+				{
+					onDropped(call);
+				}
+				continue;
+			}
+			if (bReady && nowMs >= call.sendAtMs)
+			{
+				due.push_back(call);
+			}
+			else if (!bReady && nowMs - call.parkedAtMs >= STANDBY_RETRY_WINDOW_MS)
+			{
+				if (call.callback)
+				{
+					call.callback(call.lastOutcome);
+				}
+			}
+			else
+			{
+				m_calls.push_back(call);
+			}
+		}
+		return due;
+	}
+
+	// Drops every parked call without its callback.
+	void Clear()
+	{
+		m_calls.clear();
+	}
+
+	size_t Size() const
+	{
+		return m_calls.size();
+	}
+
+private:
+	std::vector<ParkedHubCall> m_calls;
 };
 
 } // namespace GenOnlineRealtime

@@ -4,6 +4,7 @@
 #include "GameNetwork/NetworkSettings.h"
 #include "GenOnlineInclude.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeHubSession.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeRest.h"
 #include "MeshConnectionTimeoutPolicy.h"
 
 #include <algorithm>
@@ -109,19 +110,17 @@ public:
 	}
 
 	// Calls a hub method that answers with a Result. Without a hub session the callback reports a transport error.
+	// A standby Result sends the call again later without its callback, see StandbyHubCalls.
 	template <class R>
 	void InvokeHub(const R& request, std::function<void(const GenOnlineRealtime::InvokeOutcome&)> callback)
 	{
-		if (m_pHubSession != nullptr)
-		{
-			m_pHubSession->Invoke(request, callback, HubNowMs());
-		}
-		else if (callback)
-		{
-			GenOnlineRealtime::InvokeOutcome outcome;
-			outcome.transportError = "not connected";
-			callback(outcome);
-		}
+		static_assert(R::EXPECTS_RESULT, "use FireHub for methods without a Result");
+		GenOnlineRealtime::ParkedHubCall call;
+		call.method = R::METHOD;
+		call.request = nlohmann::json(request);
+		call.callback = callback;
+		call.fnWanted = HubCallWanted(call.method, call.request);
+		SendHubCall(call);
 	}
 
 	// Sends a fire-and-forget hub method. Returns false without a ready hub session.
@@ -230,7 +229,16 @@ private:
 	void CollectMeshConnectivity(std::vector<int64_t>& connected, std::vector<int64_t>& connecting);
 	void RegisterPeerHandlers();
 
+	// Sends one try of a hub call. A standby Result parks it in m_standbyHubCalls.
+	void SendHubCall(const GenOnlineRealtime::ParkedHubCall& call);
+	// Sends the parked hub calls that are due and drops the stale ones.
+	void TickStandbyHubCalls();
+	// The guard of a parked hub call. It holds while the signed in user and, for lobby methods, the lobby stay the same.
+	static std::function<bool()> HubCallWanted(const std::string& method, const nlohmann::json& request);
+
 	std::unique_ptr<GenOnlineRealtime::HubSession> m_pHubSession;
+	// Hub calls that got a standby Result. Touched on the main thread only.
+	GenOnlineRealtime::StandbyHubCalls m_standbyHubCalls;
 	mutable GenOnlineRealtime::ReconnectPolicy m_hubReconnectPolicy;
 	bool m_bHubReadyOnce = false;
 	// One token refresh and session registration per connection that never reached Ready.
@@ -262,6 +270,10 @@ private:
 	int64_t m_reconnectAttemptStarted = -1; // -1 = none in flight
 	// A handover reconnect after a server.switching close, hidden until SWITCH_HIDDEN_RECONNECT_MS passed.
 	bool m_bSwitchReconnect = false;
+	// The 503 answers in a row of the realtime upgrade, which a standby service copy gives after a failover switch.
+	GenOnlineRealtime::StandbyRetry m_upgradeStandby;
+	// The next try of a first connect that got a standby answer, or -1.
+	int64_t m_nextStandbyConnect = -1;
 
 	void BeginReconnect();
 	void BeginSwitchReconnect(int64_t delayMs);
@@ -652,47 +664,7 @@ public:
 
 	void GetAndParseServiceConfig(std::function<void(void)> cbOnDone);
 
-	~GenOnlineServicesManager()
-	{
-		if (m_pAuthInterface != nullptr)
-		{
-			delete m_pAuthInterface;
-			m_pAuthInterface = nullptr;
-		}
-
-		if (m_pStatsInterface != nullptr)
-		{
-			delete m_pStatsInterface;
-			m_pStatsInterface = nullptr;
-		}
-
-		if (m_pLobbyInterface != nullptr)
-		{
-			delete m_pLobbyInterface;
-			m_pLobbyInterface = nullptr;
-		}
-
-		if (m_pRoomInterface != nullptr)
-		{
-			delete m_pRoomInterface;
-			m_pRoomInterface = nullptr;
-		}
-
-		if (m_pSocialInterface != nullptr)
-		{
-			delete m_pSocialInterface;
-			m_pSocialInterface = nullptr;
-		}
-
-		if (m_pHTTPManager != nullptr)
-		{
-			delete m_pHTTPManager;
-			m_pHTTPManager = nullptr;
-		}
-
-		// Reset shared_ptr, which will delete WebSocket only when all references are released
-		m_pWebSocket.reset();
-	}
+	~GenOnlineServicesManager();
 
 	void StartVersionCheck(std::function<void(bool bSuccess, bool bNeedsUpdate)> fnCallback);
 	void StartVersionCheckOnSelectedRoute(std::function<void(bool, bool)> fnCallback);

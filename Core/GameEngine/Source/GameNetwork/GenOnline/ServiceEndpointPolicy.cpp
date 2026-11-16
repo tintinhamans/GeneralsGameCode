@@ -1,5 +1,8 @@
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
+#include "GameNetwork/GenOnline/GenOnlineDefines.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeRest.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeSignIn.h"
+#include "gitinfo.h"
 #include "GameNetwork/GenOnline/json.hpp"
 #include <algorithm>
 #include <memory>
@@ -105,19 +108,19 @@ std::vector<std::string> BootstrapRoutes(const std::string& environment,
 		std::string origin, error;
 		if ((environment != "dev" && environment != "test" && environment != "prod") || !NormalizeCustomEndpoint(settings.serverAddress, origin, error))
 			return {};
-		return {origin + "/env/" + environment + "/contract/1/"};
+		return {origin};
 	}
 	if (environment == "dev")
-		return {"https://localhost:9000/env/dev/contract/1/"};
+		return {"https://localhost:9000"};
 	if (environment == "test")
-		return {"https://api.playgenerals.online:2087/env/test/contract/1/"};
+		return {"https://api.playgenerals.online:2087"};
 	if (environment != "prod")
 		return {};
 	if (settings.serverMode != "automatic")
 		return {};
 	std::vector<std::string> routes = {
-		"https://api.playgenerals.online/env/prod/contract/1/",
-		"https://api-ru.playgenerals.online/env/prod/contract/1/",
+		"https://api.playgenerals.online",
+		"https://api-ru.playgenerals.online",
 	};
 	const auto remembered_route = std::find_if(routes.begin(), routes.end(), [&](const std::string& route) { return RouteHost(route) == remembered; });
 	if (remembered_route != routes.end())
@@ -232,33 +235,14 @@ std::string RequestURLForLog(const std::string& value, const std::string& servic
 	const std::string origin = scheme + "://" + host + (port.empty() || port == (scheme == "http" ? "80" : "443") ? "" : ":" + port);
 	const auto path = Part(url.get(), CURLUPART_PATH);
 	// only known service routes are logged, other paths may carry private identifiers
-	std::unique_ptr<CURLU, decltype(&curl_url_cleanup)> base(curl_url(), curl_url_cleanup);
-	if (path.find('%') != std::string::npos || !IsTrustedServiceURL(origin + path, serviceBase, false) ||
-		!base || curl_url_set(base.get(), CURLUPART_URL, serviceBase.c_str(), 0) != CURLUE_OK)
+	if (path.find('%') != std::string::npos || !IsTrustedServiceURL(origin + path, serviceBase, false))
 		return origin + "/[redacted]";
-	const auto prefix = Part(base.get(), CURLUPART_PATH);
-	const auto action = path.substr(prefix.size());
-	static const char* const routes[] = {
-		"Matchmaking/Playlists", "Matchmaking/Widen", "PlayerStats/Batch",
-		"Social/Friends/Requests", "Social/Friends", "Social/Blocked",
-		"VersionManifest", "VersionCheck", "CheckLogin", "LoginWithToken", "LoginCode", "RefreshToken",
-		"ProvideMWToken", "ConnectionOutcome", "GlobalStats", "ServiceConfig", "Matchmaking",
-		"PlayerStats", "Lobbies", "Lobby", "Rooms", "MOTD", "User"
-	};
-	for (const std::string name : routes)
-	{
-		if (action == name || action.compare(0, name.size() + 1, name + "/") == 0)
-			return origin + prefix + name + (action.size() == name.size() ? "" : "/[redacted]");
-	}
-	return origin + prefix + "[redacted]";
+	return origin + GenOnlineRealtime::RestPathForLog(path);
 }
 
-bool IsExpectedVersionManifest(const std::string& body)
+std::string CompatibilityProbePath()
 {
-	const auto json = nlohmann::json::parse(body, nullptr, false);
-	return json.is_object() && json.contains("execrc_30") && json.contains("execrc_60") &&
-		json["execrc_30"].is_number_unsigned() && json["execrc_60"].is_number_unsigned() &&
-		json["execrc_30"].get<uint64_t>() <= UINT32_MAX && json["execrc_60"].get<uint64_t>() <= UINT32_MAX;
+	return GenOnlineRealtime::RestCompatibilityPath(GENONLINE_CLIENT_ID, GenOnlineRealtime::CompatibilityVersion(GitReleaseTag, GitCommitDate));
 }
 
 bool ConfigureServiceTransport(CURL* curl, const std::string& url, std::string& error)

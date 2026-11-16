@@ -1867,21 +1867,9 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 						return;
 					}
 
-#if defined(GENONLINE)
-					GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-					int64_t localID = pAuthInterface == nullptr ? -1 : pAuthInterface->GetUserID();
-
-					// do this part sync from cache, should have our own stats + up to date
-					GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
-					if (pStatsInterface == nullptr)
-					{
-						return;
-					}
-
-					pStatsInterface->findPlayerStatsByID(localID, [=](bool bSuccess, PSPlayerStats stats)
-#else
+					// Generals Online keeps no stats of its own here, the service takes them from the match result.
+#if !defined(GENONLINE)
 					PSPlayerStats stats = TheGameSpyPSMessageQueue->findPlayerStatsByID(localID);
-#endif
 					{
 						UnsignedInt latestHumanInGame = 0;
 						UnsignedInt lastFrameOfGame = 0;
@@ -1939,19 +1927,6 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 
 						if (gameEndedInDisconnect)
 						{
-#if defined(GENONLINE)
-							// TODO_GENONLINE we need to detect this on service.
-							// Use victory conditions to avoid penolizing the innocent player for now.
-							if (!TheVictoryConditions->isLocalAlliedVictory())
-							{
-								DEBUG_LOG(("[DISC] we disconnected, gameEndedInDisconnect = true\n"));
-							}
-							else
-							{
-								DEBUG_LOG(("[DISC] opponent disconnected, gameEndedInDisconnect = false\n"));
-								gameEndedInDisconnect = FALSE;
-							}
-#else
 							if (TheNetwork->getPingsRecieved() < max(1, TheNetwork->getPingsSent() / 2))
 							{
 								DEBUG_LOG(("We were to blame. Leaving gameEndedInDisconnect = true\n"));
@@ -1961,7 +1936,6 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 								DEBUG_LOG(("We were not to blame. Changing gameEndedInDisconnect = false\n"));
 								gameEndedInDisconnect = FALSE;
 							}
-#endif
 						}
 
 						ScoreKeeper* s = player->getScoreKeeper();
@@ -2013,7 +1987,6 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 							return;
 						}
 
-#if !defined(GENONLINE)
 						// TODO_GENONLINE_STATS: Impl ladders again, how did these work in the base game?
 						// send ladder results (even if we end the game in the first N seconds)
 
@@ -2043,7 +2016,6 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 						grReq.requestType = PSRequest::PSREQUEST_SENDGAMERESTOGAMESPY;
 						grReq.results = resultsPacket.str();
 						TheGameSpyPSMessageQueue->addRequest(grReq);
-#endif
 
 						Int ptIdx;
 						const PlayerTemplate* myTemplate = player->getPlayerTemplate();
@@ -2077,7 +2049,6 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 								*/
 								DEBUG_LOG(("populatePlayerInfo() - need to save off info for disconnect games!\n"));
 
-#if !defined(GENONLINE)
 								PSRequest req;
 								req.requestType = PSRequest::PSREQUEST_UPDATEPLAYERSTATS;
 								req.email = TheGameSpyInfo->getLocalEmail().str();
@@ -2088,7 +2059,6 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 								req.addDiscon = gameEndedInDisconnect;
 								req.lastHouse = ptIdx;
 								TheGameSpyPSMessageQueue->addRequest(req);
-#endif
 							}
 							DEBUG_CRASH(("populatePlayerInfo() - not tracking stats - we haven't gotten the original stuff yet\n"));
 							return;
@@ -2115,11 +2085,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 						stats.buildingsKilled[ptIdx] += s->getTotalBuildingsDestroyed();
 						stats.buildingsLost[ptIdx] += s->getTotalBuildingsLost();
 
-#if defined(GENONLINE)
-						if (TheGenOnlineGame->isQMGame())
-#else
 						if (TheGameSpyGame->isQMGame())
-#endif
 						{
 							stats.QMGames[ptIdx]++;
 						}
@@ -2181,11 +2147,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 						Int gameSize = 0;
 						for (int i = 0; i < MAX_SLOTS; ++i)
 						{
-#if defined(GENONLINE)
-							if (TheGenOnlineGame->getConstSlot(i)->isOccupied() && TheGenOnlineGame->getConstSlot(i)->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER)
-#else
 							if (TheGameSpyGame->getConstSlot(i)->isOccupied() && TheGameSpyGame->getConstSlot(i)->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER)
-#endif
 								++gameSize;
 						}
 						switch (gameSize)
@@ -2243,13 +2205,11 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 						DEBUG_LOG(("After game built scud:%d, cannon:%d, nuke:%d\n", stats.builtSCUD, stats.builtParticleCannon, stats.builtNuke));
 
 						// TODO_GENONLINE_STATS: ladders
-#if !defined(GENONLINE)
 						if (TheGameSpyGame->getLadderPort() && TheGameSpyGame->getLadderIP().isNotEmpty())
 						{
 							stats.lastLadderPort = TheGameSpyGame->getLadderPort();
 							stats.lastLadderHost = TheGameSpyGame->getLadderIP().str();
 						}
-#endif
 
 						if (!TheNetwork->sawCRCMismatch() && !gameEndedInDisconnect && !TheVictoryConditions->isLocalAlliedDefeat() && TheVictoryConditions->getEndFrame())
 						{
@@ -2257,7 +2217,6 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 							updateChallengeMedals(stats.challengeMedals);
 						}
 
-#if !defined(GENONLINE)
 						DEBUG_LOG(("populatePlayerInfo() - tracking stats for %s/%s/%s\n", TheGameSpyGame->getLocalBaseName().str(), TheGameSpyGame->getLocalEmail().str(), TheGenOnlineGameTheGameSpyGamegetLocalPassword().str()));
 
 						PSRequest req;
@@ -2283,13 +2242,6 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 						mPref.setCachedStats(GameSpyPSMessageQueueInterface::formatPlayerKVPairs(stats).c_str());
 						mPref.write();
 					}
-#else
-
-						pStatsInterface->UpdateMyStats(stats);
-
-						
-
-						}, EStatsRequestPolicy::CACHED_ONLY); // NOTE: we really need the latest stats here, but this could cause a UI delay...
 #endif
 				}
 			}
