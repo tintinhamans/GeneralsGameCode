@@ -357,6 +357,13 @@ namespace PathScenario
 			Slots[0].start = -1;
 			Slots[0].team = -1;
 		}
+		if (Slots[0].type >= 2)
+		{
+			// Slot 1 is the local player, and a skirmish needs one (a human or an observer): with a computer player there it
+			// had none and the game failed at once. It runs as a human of that faction, which has no AI anyway.
+			Say("player 1 is the local player: it runs as a human of its faction (no AI)");
+			Slots[0].type = 0;
+		}
 		if (!PathProfile::Enabled)
 		{
 			// the counters' files go beside the scenario file
