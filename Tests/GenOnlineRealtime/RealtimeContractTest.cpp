@@ -1905,6 +1905,15 @@ static void TestLegacyRouteReplacements(const std::filesystem::path& folder)
 	CHECK(!IsCompatibilityAnswer(R"({"execrc_30":1,"execrc_60":2})"));
 	CHECK(!IsCompatibilityAnswer("not json"));
 
+	// The connection test counts a standby answer as a reached service.
+	const std::string standbyBody = R"({"error":"service.unavailable","params":{"what":"standby"}})";
+	CHECK(ProbeAnswerOf(200, compatibility) == ProbeAnswer::Serving);
+	CHECK(ProbeAnswerOf(503, standbyBody) == ProbeAnswer::Standby);
+	CHECK(ProbeAnswerOf(503, R"({"error":"service.unavailable","params":{"what":"database"}})") == ProbeAnswer::None);
+	CHECK(ProbeAnswerOf(503, "") == ProbeAnswer::None);
+	CHECK(ProbeAnswerOf(200, "{}") == ProbeAnswer::None);
+	CHECK(ProbeAnswerOf(502, compatibility) == ProbeAnswer::None);
+
 	{
 		CompatibilityResponse answer;
 		CHECK(CompatibilityVerdictOf(MakeRestOutcome(true, 200, compatibility), answer) == CompatibilityVerdict::NeedsUpdate);
