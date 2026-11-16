@@ -21,6 +21,7 @@
 // A layout turns it on by pairing radio buttons named Tab<Name> with windows named Page<Name>.
 // TabIcon<Name> and TabLabel<Name> are optional and drawn by their tab. The icon shows the
 // image <its image>On on the current tab. Any other layout keeps the single page menu.
+// TabHotkeys needs no page: it opens the Hotkeys screen over the menu and the shown page stays.
 //
 // A tab without the IMAGE status is a flat box coloured by its draw data: slot 0 of the enabled
 // set at rest, slot 0 of the hilite set under the mouse, slot 1 of the hilite set when current.
@@ -98,6 +99,18 @@ static Int tabOfPage( GameWindow *window )
 	for( Int i = 0; i < s_tabCount; ++i )
 	{
 		if( isInside( window, s_tabs[i].page ) )
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
+static Int firstPageTab()
+{
+	for( Int i = 0; i < s_tabCount; ++i )
+	{
+		if( s_tabs[i].page != nullptr )
 		{
 			return i;
 		}
@@ -248,6 +261,10 @@ static void show( Int index )
 		return;
 	}
 	index = clamp( 0, index, s_tabCount - 1 );
+	if( s_tabs[index].page == nullptr )
+	{
+		return;
+	}
 
 	// an open combo list closes with its page
 	TheWindowManager->winSetLoneWindow( nullptr );
@@ -261,7 +278,10 @@ static void show( Int index )
 	for( Int i = 0; i < s_tabCount; ++i )
 	{
 		const Tab &tab = s_tabs[i];
-		tab.page->winHide( i != index );
+		if( tab.page != nullptr )
+		{
+			tab.page->winHide( i != index );
+		}
 		if( tab.label != nullptr )
 		{
 			const Bool current = i == index;
@@ -281,10 +301,38 @@ static void show( Int index )
 
 static void step( Int delta )
 {
-	if( isOn() )
+	if( !isOn() )
 	{
-		show( ( max( s_current, 0 ) + delta + s_tabCount ) % s_tabCount );
+		return;
 	}
+	Int index = max( s_current, 0 );
+	for( Int i = 0; i < s_tabCount; ++i )
+	{
+		index = ( index + delta + s_tabCount ) % s_tabCount;
+		if( s_tabs[index].page != nullptr )
+		{
+			show( index );
+			return;
+		}
+	}
+}
+
+// A click or an F key on a tab
+static void pick( Int index )
+{
+	if( s_tabs[index].page != nullptr )
+	{
+		show( index );
+		return;
+	}
+	if( s_current >= 0 )
+	{
+		// the click moved the radio group's mark off the shown page's tab
+		s_selecting = TRUE;
+		GadgetRadioSetSelection( s_tabs[s_current].button, FALSE );
+		s_selecting = FALSE;
+	}
+	HotkeysMenuOpen();
 }
 
 static void showPageOf( GameWindow *control )
@@ -307,7 +355,7 @@ static Bool onButtonSelected( GameWindow *control )
 	{
 		if( s_tabs[i].button == control )
 		{
-			show( i );
+			pick( i );
 			return TRUE;
 		}
 	}
@@ -362,7 +410,7 @@ static Bool onKey( UnsignedByte key, UnsignedByte state, GameWindow *from )
 	{
 		if( target >= 0 )
 		{
-			show( target );
+			pick( target );
 		}
 		else
 		{
@@ -431,7 +479,7 @@ static void collectTabs( GameWindow *window )
 		tab.name = name.str() + strlen( prefix );
 		tab.button = child;
 		tab.page = findWindow( "Page", tab.name );
-		if( tab.page == nullptr )
+		if( tab.page == nullptr && tab.name.compareNoCase( "Hotkeys" ) != 0 )
 		{
 			continue;
 		}
@@ -472,8 +520,10 @@ static Bool init()
 		return FALSE;
 	}
 	collectTabs( s_parent );
-	if( !isOn() )
+	// a layout needs at least one page to be tabbed
+	if( firstPageTab() < 0 )
 	{
+		s_tabCount = 0;
 		return FALSE;
 	}
 	std::sort( s_tabs, s_tabs + s_tabCount, isTabLeftOf );
@@ -507,10 +557,10 @@ static void start()
 	{
 		return;
 	}
-	Int index = 0;
+	Int index = firstPageTab();
 	for( Int i = 0; i < s_tabCount; ++i )
 	{
-		if( s_tabs[i].name == s_lastTabName )
+		if( s_tabs[i].page != nullptr && s_tabs[i].name == s_lastTabName )
 		{
 			index = i;
 		}

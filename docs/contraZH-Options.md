@@ -178,11 +178,13 @@ Shaders panels. The tab logic is adapted from the tabbed menu by simonx645.
 * The custom detail toggles sit on a page of their own, so changing one sets **Detail** to Custom.
 * **VSync** is saved at any detail level. It used to be saved only with Detail on Custom.
 * Controls are still found by name, so they can sit on any page.
+* A `TabHotkeys` button needs no page. It opens the [Hotkeys screen](#hotkeys-screen) over the menu,
+  and the page that was showing stays. The stepping keys skip it.
 
 ## Hotkeys screen
 
 **Options > Hotkeys** rebinds keys and writes them to `Hotkeys.ini` in the user data folder, beside
-`Options.ini`. Ported from Zero Hour Reforged.
+`Options.ini`. The tabbed Options menu opens it from its Hotkeys tab. Ported from Zero Hour Reforged.
 
 * Left: **USA**, **CHINA**, **GLA**, then **GENERAL** and **KEY CONFLICTS** (red while any key is shared).
 * Middle: a general picker, then the general's heroes, buildings and units as icons.
