@@ -106,6 +106,23 @@ void GenOnlineAuthInterface::GoToDetermineNetworkCaps()
 		});
 }
 
+void GenOnlineAuthInterface::RequestEosToken(std::function<void(const std::string& strEosToken)> fnDone)
+{
+	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Post, GenOnlineRealtime::RestEosTokenPath(), "", [fnDone](const GenOnlineRealtime::RestOutcome& outcome)
+		{
+			GenOnlineRealtime::EosTokenResponse token;
+			if (!outcome.Succeeded() || !outcome.Data(token) || token.eos_token.empty())
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] EOS token request failed: status %d code %s", outcome.status, outcome.error.code.c_str());
+				fnDone(std::string());
+				return;
+			}
+			// The token is a credential, so only its length and lifetime are logged.
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Got an EOS token (%zu chars, %d s)", token.eos_token.size(), token.expires_in);
+			fnDone(token.eos_token);
+		});
+}
+
 void GenOnlineAuthInterface::SendMiddlewareToken(std::string strMWToken)
 {
     // login

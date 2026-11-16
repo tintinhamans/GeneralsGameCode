@@ -58,6 +58,9 @@ public:
 
 	void SendMiddlewareToken(std::string strMWToken);
 
+	// Mints the short-lived EOS token the EOS plugin signs in to Epic with. The callback gets an empty token on failure, and does not run once the services tear down.
+	void RequestEosToken(std::function<void(const std::string& strEosToken)> fnDone);
+
 	void BeginLogin();
 	void BeginLoginOnSelectedRoute();
 
