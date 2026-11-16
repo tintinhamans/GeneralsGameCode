@@ -1302,6 +1302,10 @@ static CommandLineParam paramsForStartup[] =
 	// Run a skirmish between AI players and log it. The map name follows.
 	{ "-aiMatch", parseAIMatch },
 
+	// TheSuperHackers @bugfix simonx645 16/11/2026 The random seed, for a repeatable -aiMatch (or any game started from the
+	// command line). It was read only by debug builds, so a release build's -aiMatch -seed n got a new seed every run.
+	{ "-seed", parseSeed },
+
 	// TheSuperHackers @feature simonx645 16/11/2026
 	// Pathfinding counters per frame and per match to <file>.frames.csv, <file>.json and <file>.summary.csv (measurement only).
 	{ "-pathProfile", parsePathProfile },
@@ -1482,7 +1486,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-shellmap", parseShellMap },
 	{ "-winCursors", parseWinCursors },
 	{ "-constantDebug", parseConstantDebug },
-	{ "-seed", parseSeed },
 	{ "-noagpfix", parseIncrAGPBuf },
 	{ "-noFPSLimit", parseNoFPSLimit },
 	{ "-dumpAssetUsage", parseDumpAssetUsage },
