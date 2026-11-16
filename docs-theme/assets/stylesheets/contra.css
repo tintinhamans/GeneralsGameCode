@@ -384,7 +384,7 @@ code {
 .rst-content .warning,
 .rst-content .caution,
 .rst-content .attention {
-  background: rgba(232, 144, 28, 0.2);
+  background: rgba(190, 90, 90, 0.5);
 }
 
 .rst-content .danger,

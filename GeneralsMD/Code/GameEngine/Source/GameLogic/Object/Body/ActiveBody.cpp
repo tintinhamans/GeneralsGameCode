@@ -1583,11 +1583,7 @@ void ActiveBody::onJammingChange( Bool isNowJammed )
 			me->setStatus(MAKE_OBJECT_STATUS_MASK(OBJECT_STATUS_UNSELECTABLE));
 		}
 
-		// the status alone only blocks a new click, so drop the jammed unit out of the selection too
-		if( me->getDrawable() )
-		{
-			TheInGameUI->deselectDrawable( me->getDrawable() );
-		}
+		TheGameLogic->deselectObject(me, PLAYERMASK_ALL, TRUE);
 
 		ContainModuleInterface *contain = me->getContain();
 		if ( contain )

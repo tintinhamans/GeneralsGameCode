@@ -2835,6 +2835,49 @@ static void Draw_Polygons(DX8FVFCategoryContainer * container, DX8PolygonRendere
 	}
 }
 
+// The sorter draws after the category has moved on, so a fading mesh hands it a material of its own.
+// Null means the blend or an unlit material gives the fade nothing to act on.
+static VertexMaterialClass * Create_Faded_Material(VertexMaterialClass * material, const ShaderClass & shader, MeshClass * mesh)
+{
+	const float alpha = mesh->Get_Alpha_Override();
+	if (alpha == 1.0f || material == nullptr || !material->Get_Lighting())
+	{
+		return nullptr;
+	}
+
+	const ShaderClass::DstBlendFuncType dst = shader.Get_Dst_Blend_Func();
+	const bool fadesByAlpha = shader.Get_Src_Blend_Func() == ShaderClass::SRCBLEND_SRC_ALPHA;
+	const bool fadesByColour = shader.Get_Src_Blend_Func() == ShaderClass::SRCBLEND_ONE &&
+		(dst == ShaderClass::DSTBLEND_ONE || dst == ShaderClass::DSTBLEND_ONE_MINUS_SRC_COLOR);
+	if (!fadesByAlpha && !fadesByColour)
+	{
+		return nullptr;
+	}
+
+	VertexMaterialClass * faded = material->Clone();
+
+	// the copy cloned the mappers, and an animated one has to keep advancing with the original
+	for (int stage=0;stage<MeshBuilderClass::MAX_STAGES;++stage)
+	{
+		faded->Set_Mapper(material->Peek_Mapper(stage),stage);
+	}
+
+	if (fadesByAlpha)
+	{
+		faded->Set_Opacity(material->Get_Opacity() * alpha);
+	}
+	else
+	{
+		Vector3 diffuse;
+		Vector3 emissive;
+		material->Get_Diffuse(&diffuse);
+		material->Get_Emissive(&emissive);
+		faded->Set_Diffuse(diffuse * alpha);
+		faded->Set_Emissive(emissive * mesh->Get_Emissive_Override());
+	}
+	return faded;
+}
+
 void DX8TextureCategoryClass::Render_Task(PolyRenderTaskClass * prt, VertexMaterialClass * vmaterial, const ShaderClass & theShader, ShaderClass theAlphaShader, bool replay)
 {
 	DX8PolygonRendererClass * renderer = prt->Peek_Polygon_Renderer();
@@ -2930,9 +2973,19 @@ void DX8TextureCategoryClass::Render_Task(PolyRenderTaskClass * prt, VertexMater
 			SortingRendererClass::Set_Insert_Effects(0,nullptr);
 		}
 		if (!mesh->Is_Disruption_Only() || !SortingRendererClass::Can_Disrupt()) {
+			VertexMaterialClass * faded = Create_Faded_Material(vmaterial,theShader,mesh);
+			if (faded != nullptr)
+			{
+				DX8Wrapper::Set_Material(faded);
+			}
 			SortingRendererClass::Set_Insert_Effects(mesh->Get_Shader_Effects(),mesh->Peek_Shader_Effect_Data());
 			renderer->Render_Sorted(mesh->Get_Base_Vertex_Offset(),mesh->Get_Bounding_Sphere());
 			SortingRendererClass::Set_Insert_Effects(0,nullptr);
+			if (faded != nullptr)
+			{
+				DX8Wrapper::Set_Material(vmaterial);
+				faded->Release_Ref();
+			}
 		}
 	} else if (!mesh->Is_Disruption_Only() || !SortingRendererClass::Can_Disrupt()) {
 		//non-transparent mesh that will be rendered immediately.  Okay to adjust the shader/material

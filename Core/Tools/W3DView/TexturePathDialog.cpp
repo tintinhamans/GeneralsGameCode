@@ -24,7 +24,11 @@
 #include "W3DViewDoc.h"
 #include "TexturePathDialog.h"
 #include "Utils.h"
-#include "DirectoryDialog.h"
+#include <atlbase.h>
+#include <shobjidl.h>
+
+#pragma comment(lib, "ole32.lib")
+#pragma comment(lib, "shell32.lib")
 
 #ifdef RTS_DEBUG
 #define new DEBUG_NEW
@@ -57,6 +61,7 @@ TexturePathDialogClass::DoDataExchange (CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
 	//{{AFX_DATA_MAP(TexturePathDialogClass)
+	DDX_Control(pDX, IDC_PATH_LIST, m_PathList);
 		// NOTE: the ClassWizard will add DDX and DDV calls here
 	//}}AFX_DATA_MAP
 }
@@ -64,8 +69,10 @@ TexturePathDialogClass::DoDataExchange (CDataExchange* pDX)
 
 BEGIN_MESSAGE_MAP(TexturePathDialogClass, CDialog)
 	//{{AFX_MSG_MAP(TexturePathDialogClass)
-	ON_BN_CLICKED(IDC_BROWSE1, OnBrowse1)
-	ON_BN_CLICKED(IDC_BROWSE2, OnBrowse2)
+	ON_BN_CLICKED(IDC_ADD_PATH, OnAddPath)
+	ON_BN_CLICKED(IDC_REMOVE_PATH, OnRemovePath)
+	ON_BN_CLICKED(IDC_MOVE_UP, OnMoveUp)
+	ON_BN_CLICKED(IDC_MOVE_DOWN, OnMoveDown)
 	//}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
@@ -82,8 +89,16 @@ TexturePathDialogClass::OnInitDialog ()
 
 	CW3DViewDoc *doc = ::GetCurrentDocument ();
 
-	SetDlgItemText (IDC_PATH1, doc->Get_Texture_Path1 ());
-	SetDlgItemText (IDC_PATH2, doc->Get_Texture_Path2 ());
+	// Set up the list control columns
+	m_PathList.InsertColumn(0, _T("Texture Path"), LVCFMT_LEFT, 400);
+
+	// Populate the list with existing texture paths
+	// Registry order (TexturePath0, 1, 2) matches UI display order directly
+	for (int i = 0; i < doc->Get_Texture_Path_Count (); i++) {
+		const CString &path = doc->Get_Texture_Path (i);
+		m_PathList.InsertItem(i, path);
+	}
+
 	return TRUE;
 }
 
@@ -96,14 +111,21 @@ TexturePathDialogClass::OnInitDialog ()
 void
 TexturePathDialogClass::OnOK ()
 {
-	CString path1;
-	CString path2;
-	GetDlgItemText (IDC_PATH1, path1);
-	GetDlgItemText (IDC_PATH2, path2);
-
 	CW3DViewDoc *doc = ::GetCurrentDocument ();
-	doc->Set_Texture_Path1 (path1);
-	doc->Set_Texture_Path2 (path2);
+
+	// Clear the existing texture paths to start fresh
+	doc->Clear_Texture_Paths ();
+
+	// Add paths from UI to document in forward order (registry indices match UI order)
+	for (int i = 0; i < m_PathList.GetItemCount (); i++) {
+		doc->Add_Texture_Path (m_PathList.GetItemText (i, 0));
+	}
+
+	// Save the paths to the registry
+	doc->Save_Texture_Paths_To_Registry ();
+
+	// Reset and rebuild the file factory search path from the updated vector
+	doc->Refresh_File_Factory_Registrations ();
 
 	CDialog::OnOK ();
 }
@@ -111,36 +133,108 @@ TexturePathDialogClass::OnOK ()
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// OnBrowse1
+// OnAddPath
 //
 /////////////////////////////////////////////////////////////////////////////
 void
-TexturePathDialogClass::OnBrowse1 ()
+TexturePathDialogClass::OnAddPath (void)
 {
-	CString initial_path;
-	GetDlgItemText (IDC_PATH1, initial_path);
+	// Use modern folder picker dialog (IFileDialog with RAII COM wrappers)
+	CComPtr<IFileDialog> pfd;
+	HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pfd));
 
-	CString path;
-	if (::Browse_For_Folder (m_hWnd, initial_path, path)) {
-		SetDlgItemText (IDC_PATH1, path);
+	if (SUCCEEDED(hr)) {
+		DWORD dwOptions = 0;
+		pfd->GetOptions(&dwOptions);
+		pfd->SetOptions(dwOptions | FOS_PICKFOLDERS);
+		pfd->SetTitle(L"Select Texture Directory");
+
+		if (SUCCEEDED(pfd->Show(m_hWnd))) {
+			CComPtr<IShellItem> psi;
+			if (SUCCEEDED(pfd->GetResult(&psi))) {
+				CComHeapPtr<WCHAR> pszPath;
+				if (SUCCEEDED(psi->GetDisplayName(SIGDN_FILESYSPATH, &pszPath))) {
+					CString path(pszPath);
+
+					// Check if path already exists
+					bool exists = false;
+					for (int i = 0; i < m_PathList.GetItemCount (); i++) {
+						if (m_PathList.GetItemText (i, 0).CompareNoCase (path) == 0) {
+							exists = true;
+							break;
+						}
+					}
+
+					if (!exists) {
+						m_PathList.InsertItem(m_PathList.GetItemCount (), path);
+					}
+				}
+			}
+		}
+	}
+
+	return ;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// OnRemovePath
+//
+/////////////////////////////////////////////////////////////////////////////
+void
+TexturePathDialogClass::OnRemovePath ()
+{
+	// Get the selected item
+	int nItem = m_PathList.GetNextItem(-1, LVNI_SELECTED);
+
+	if (nItem >= 0) {
+		m_PathList.DeleteItem(nItem);
 	}
 }
 
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// OnBrowse2
+// OnMoveUp
 //
 /////////////////////////////////////////////////////////////////////////////
 void
-TexturePathDialogClass::OnBrowse2 ()
+TexturePathDialogClass::OnMoveUp ()
 {
-	CString initial_path;
-	GetDlgItemText (IDC_PATH2, initial_path);
+	// Get the selected item
+	int nItem = m_PathList.GetNextItem(-1, LVNI_SELECTED);
 
-	CString path;
-	if (::Browse_For_Folder (m_hWnd, initial_path, path)) {
-		SetDlgItemText (IDC_PATH2, path);
+	// Can only move up if item is selected and not already at the top
+	if (nItem > 0) {
+		CString path = m_PathList.GetItemText (nItem, 0);
+		m_PathList.DeleteItem(nItem);
+		m_PathList.InsertItem(nItem - 1, path);
+		m_PathList.SetItemState(nItem - 1, LVIS_SELECTED, LVIS_SELECTED);
+	}
+
+	return ;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// OnMoveDown
+//
+/////////////////////////////////////////////////////////////////////////////
+void
+TexturePathDialogClass::OnMoveDown (void)
+{
+	// Get the selected item
+	int nItem = m_PathList.GetNextItem(-1, LVNI_SELECTED);
+
+	// Can only move down if item is selected and not already at the bottom
+	if (nItem >= 0 && nItem < m_PathList.GetItemCount () - 1) {
+		CString path = m_PathList.GetItemText (nItem, 0);
+		m_PathList.DeleteItem(nItem);
+		m_PathList.InsertItem(nItem + 1, path);
+		m_PathList.SetItemState(nItem + 1, LVIS_SELECTED, LVIS_SELECTED);
 	}
 }
+
 

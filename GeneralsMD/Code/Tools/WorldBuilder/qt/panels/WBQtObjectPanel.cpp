@@ -16,6 +16,8 @@
 #include <QImage>
 #include <QLabel>
 #include <QLineEdit>
+#include <QList>
+#include <QPair>
 #include <QPainter>
 #include <QPixmap>
 #include <QSpinBox>
@@ -23,7 +25,14 @@
 #include <QTreeWidget>
 #include <QTreeWidgetItemIterator>
 
+#include <algorithm>
+
 WBQtObjectPanel *WBQtObjectPanel::s_instance = NULL;
+
+static bool teamNameLess(const QPair<QString, int> &a, const QPair<QString, int> &b)
+{
+	return a.first.compare(b.first, Qt::CaseInsensitive) < 0;
+}
 
 // The list index a tree leaf represents is stored in this item-data role (>=0 for leaves,
 // absent/-1 for grouping nodes).
@@ -315,16 +324,21 @@ void WBQtObjectPanel::refreshTeamCombo()
 	const int cap = 256;
 	char nameBuf[cap];
 	int teams = WBQtObject_GetTeamCount();
+	// Rows sort by name; each row carries its team index, which the bridge speaks.
+	QList<QPair<QString, int> > rows;
 	for (int i = 0; i < teams; ++i)
 	{
+		QString name;
 		if (WBQtObject_GetTeamName(i, nameBuf, cap))
 		{
-			m_team->addItem(QString::fromLatin1(nameBuf));
+			name = QString::fromLatin1(nameBuf);
 		}
-		else
-		{
-			m_team->addItem(QString());
-		}
+		rows.append(qMakePair(name, i));
+	}
+	std::stable_sort(rows.begin(), rows.end(), teamNameLess);
+	for (int i = 0; i < rows.size(); ++i)
+	{
+		m_team->addItem(rows.at(i).first, rows.at(i).second);
 	}
 	// The ctor styled this combo while it was still empty, so the popup bound was computed
 	// from an estimated row height. Re-apply now that there are rows to measure -- and make
@@ -332,9 +346,10 @@ void WBQtObjectPanel::refreshTeamCombo()
 	WBQtComboStyle::applySearchable(m_team);
 
 	int def = WBQtObject_GetDefaultTeamForCurrent();
-	if (def >= 0 && def < m_team->count())
+	const int defRow = m_team->findData(def);
+	if (defRow >= 0)
 	{
-		m_team->setCurrentIndex(def);
+		m_team->setCurrentIndex(defRow);
 		WBQtObject_SetTeam(def);
 	}
 }
@@ -375,7 +390,10 @@ void WBQtObjectPanel::onTeamChanged(int index)
 	{
 		return;
 	}
-	WBQtObject_SetTeam(index);
+	if (index >= 0)
+	{
+		WBQtObject_SetTeam(m_team->itemData(index).toInt());
+	}
 }
 
 void WBQtObjectPanel::onHeightChanged(int v)

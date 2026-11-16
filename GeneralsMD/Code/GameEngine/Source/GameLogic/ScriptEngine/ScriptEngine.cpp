@@ -4112,6 +4112,21 @@ void ScriptEngine::init()
 	curTemplate->m_uiStrings[0] = "Build a shipyard ";
 	curTemplate->m_uiStrings[1] = ", at next free shipyard waypoint.";
 
+	curTemplate = &m_actionTemplates[ScriptAction::TEAM_MANAGE_SUPPLY_TRUCKS];
+	curTemplate->m_internalName = "TEAM_MANAGE_SUPPLY_TRUCKS";
+	curTemplate->m_uiName = "Contra/Team_/Supply/Manage supply trucks and their workers.";
+	curTemplate->m_numParameters = 4;
+	curTemplate->m_parameters[0] = Parameter::TEAM;
+	curTemplate->m_parameters[1] = Parameter::OBJECT_TYPE;
+	curTemplate->m_parameters[2] = Parameter::INT;
+	curTemplate->m_parameters[3] = Parameter::INT;
+	curTemplate->m_numUiStrings = 5;
+	curTemplate->m_uiStrings[0] = "Have supply trucks in Team ";
+	curTemplate->m_uiStrings[1] = " train ";
+	curTemplate->m_uiStrings[2] = " workers, keeping ";
+	curTemplate->m_uiStrings[3] = " per truck, at free sources with at least ";
+	curTemplate->m_uiStrings[4] = " resources.";
+
 	curTemplate = &m_actionTemplates[ScriptAction::TEAM_MOVE_TO_SUPPLY_SOURCE];
 	curTemplate->m_internalName = "TEAM_MOVE_TO_SUPPLY_SOURCE";
 	curTemplate->m_uiName = "Contra/Team_/Move/Set to move to the nearest free supply source.";
@@ -5229,6 +5244,17 @@ void ScriptEngine::init()
 	curTemplate->m_uiStrings[1] = " has completed at least ";
 	curTemplate->m_uiStrings[2] = " times. (NOTE: This can only be used to "
 		"start other music. USING THIS SCRIPT IN ANY OTHER WAY WILL CAUSE REPLAYS TO NOT WORK.)";
+
+	curTemplate = &m_conditionTemplates[Condition::PLAYER_HAS_FREE_SUPPLY_SOURCE];
+	curTemplate->m_internalName = "PLAYER_HAS_FREE_SUPPLY_SOURCE";
+	curTemplate->m_uiName = "Contra/Player/Supply/A free supply source is available.";
+	curTemplate->m_numParameters = 2;
+	curTemplate->m_parameters[0] = Parameter::SIDE;
+	curTemplate->m_parameters[1] = Parameter::INT;
+	curTemplate->m_numUiStrings = 3;
+	curTemplate->m_uiStrings[0] = "Player ";
+	curTemplate->m_uiStrings[1] = " has a free supply source with at least ";
+	curTemplate->m_uiStrings[2] = " resources and no unassigned supply trucks.";
 
 	curTemplate = &m_conditionTemplates[Condition::SUPPLY_SOURCE_SAFE];
 	curTemplate->m_internalName = "SUPPLY_SOURCE_SAFE";

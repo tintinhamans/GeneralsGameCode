@@ -34,6 +34,7 @@
 
 
 // Forward declarations
+class CW3DViewDoc;
 class ParticleEmitterClass;
 
 
@@ -41,6 +42,7 @@ class ParticleEmitterClass;
 // CGraphicView view
 
 #include "WW3D2/camera.h"
+#include "ViewportOverlay.h"
 
 class CGraphicView : public CView
 {
@@ -83,6 +85,9 @@ protected:
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnRButtonUp(UINT nFlags, CPoint point);
 	afx_msg void OnRButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnMButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnMButtonUp(UINT nFlags, CPoint point);
+	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint point);
 	afx_msg void OnGetMinMaxInfo(MINMAXINFO FAR* lpMMI);
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()
@@ -175,8 +180,67 @@ protected:
 		  float					Get_Camera_Distance () const				{ return m_CameraDistance; }
 		  void					Set_Camera_Distance (float dist);
 
+		  // Turns the camera to a view cube region at once. fit frames the whole displayed object.
+		  void					Snap_Camera_To_Cube_Region (const Vector3 &region, bool fit);
+		  void					Set_Camera_Transform (const Matrix3D &transform);
+
 		  void					Set_Camera_Bone_Pos_X (bool onoff)			{ m_CameraBonePosX = onoff; }
 		  BOOL					Is_Camera_Bone_Pos_X () const			{ return m_CameraBonePosX; }
+
+		  // Invert the vertical (pitch) direction of drag-to-orbit. Persisted to
+		  // the MFC profile so the preference survives restarts.
+		  void					Set_Invert_Camera_Y (bool onoff);
+		  bool					Is_Invert_Camera_Y (void) const				{ return m_InvertCameraY; }
+
+		  // TheSuperHackers @feature Tria When set, a second render pass draws the
+		  // normally-culled back faces flat-tinted with s_BackfaceTintColor. Session-
+		  // only; static so the menu handlers (in CMainFrame and the Material Viewer
+		  // frame) can toggle/recolour it without a view pointer.
+		  static void			Set_Show_Backface_Tint (bool onoff)			{ s_ShowBackfaceTint = onoff; }
+		  static bool			Is_Show_Backface_Tint (void)				{ return s_ShowBackfaceTint; }
+		  static void			Set_Backface_Tint_Color (const Vector3 &c)	{ s_BackfaceTintColor = c; }
+		  static const Vector3 &Get_Backface_Tint_Color (void)				{ return s_BackfaceTintColor; }
+
+		  // Renders the backface-tint second pass on `scene`/`camera` when the toggle
+		  // is on (no-op otherwise). Shared by the main viewport and the Material
+		  // Viewer preview so the pass logic lives in one place.
+		  static void			Render_Backface_Tint_Pass (class SceneClass *scene, class CameraClass *camera);
+
+		  // Colour conversions between the viewer's 0..1 float Vector3 and Win32's
+		  // 0..255 COLORREF, used by the tint-colour menu handlers.
+		  static COLORREF		Tint_Color_To_ColorRef (const Vector3 &c);
+		  static Vector3		ColorRef_To_Tint_Color (COLORREF c);
+
+		  // TheSuperHackers @feature Tria Ground plane (Ground menu): a checkered
+		  // plane with a blob shadow under the displayed object. State is per view
+		  // (the Material Viewer preview keeps its own); only the draw is shared.
+		  void					Set_Show_Ground (bool onoff);
+		  bool					Is_Show_Ground (void) const					{ return m_bShowGround; }
+		  void					Set_Ground_Z (float z)							{ m_GroundZ = z; }
+		  float					Get_Ground_Z (void) const						{ return m_GroundZ; }
+		  // Height bounds for Ground > Height... (bounding-box bottom +/- one
+		  // span, so the default sits mid-slider); false while nothing is shown.
+		  bool					Get_Ground_Z_Range (float &z_min, float &z_max) const;
+		  // Snaps the plane back under the displayed object's bounding box.
+		  void					Reset_Ground_To_Object (void);
+
+		  // Draws the checkered plane + blob shadow for `obj` at height ground_z
+		  // through `camera` (`sphere` sizes the plane when obj is null). The
+		  // checker is lit per vertex from the scene's `ambient` plus `light`'s
+		  // diffuse (may be null), so the plane responds to the movable scene
+		  // light. Must run inside the render bracket BEFORE the scene render:
+		  // the plane writes depth first, so opaque geometry occludes it and
+		  // WW3D's later sorted translucent flush blends the object's glow over
+		  // it. Shared by the main viewport and the Material Viewer preview.
+		  static void			Render_Ground (CameraClass *camera, RenderObjClass *obj, const SphereClass &sphere, float ground_z, const Vector3 &ambient, class LightClass *light);
+
+		  // Ground-height derivation shared with the Material Viewer preview (which
+		  // keeps its own plane but wants identical numbers). Default height is the
+		  // object's bounding-box bottom (0 when obj is null); the slider range is
+		  // bottom +/- one span (twice the half-height, floored at the bounding
+		  // radius), so the default lands mid-slider.
+		  static float			Ground_Default_Z (RenderObjClass *obj);
+		  static void			Ground_Z_Range (RenderObjClass *obj, float &z_min, float &z_max);
 
         //
         // Object rotation methods
@@ -195,7 +259,7 @@ protected:
 			//	Fullscreen mode
 			//
 			BOOL					Is_Fullscreen () const						{ return !(BOOL)m_iWindowed; }
-			void					Set_Fullscreen (bool fullscreen)				{ m_iWindowed = fullscreen ? 0 : 1; InitializeGraphicView (); }
+			void					Set_Fullscreen (bool fullscreen)				{ int prev = m_iWindowed; m_iWindowed = fullscreen ? 0 : 1; if (!InitializeGraphicView ()) m_iWindowed = prev; }
 
 			//
 			//	Misc
@@ -222,11 +286,22 @@ protected:
 
         /////////////////////////////////////////////////
         //
+        //  Private Methods
+        //
+        void                    Clip_Cursor_To_View (void);
+        bool                    Wrap_Cursor_In_View (CPoint &point);
+        void                    Orbit_Camera (int deltaX, int deltaY, CW3DViewDoc *doc);
+        void                    Apply_Camera_Transform (const Matrix3D &transform, CW3DViewDoc *doc);
+        void                    Update_View_Cube_Snap (CW3DViewDoc *doc);
+
+        /////////////////////////////////////////////////
+        //
         //  Private Member Data
         //
         BOOL					m_bInitialized;
         BOOL					m_bActive;
         UINT					m_TimerID;
+        UINT					m_TimerPeriod;
         RefCountPtr<CameraClass>	m_pCamera;
 		  RefCountPtr<RenderObjClass>	m_pLightMesh;
 		  bool					m_bLightMeshInScene;
@@ -235,7 +310,10 @@ protected:
 
         BOOL					m_bMouseDown;
         BOOL					m_bRMouseDown;
+        BOOL					m_bMMouseDown;
         POINT					m_lastPoint;
+        POINT					m_mButtonDownPoint;
+        bool					m_AltOnMDown;
 		  int						m_iWindowed;
 		  int						m_UpdateCounter;
 		  float					m_CameraDistance;
@@ -249,6 +327,16 @@ protected:
         OBJECT_ROTATION		m_objectRotation;
 		  OBJECT_ROTATION		m_LightRotation;
         CAMERA_ROTATION		m_allowedCameraRotation;
+        bool					m_InvertCameraY;
+        ViewCubeClass			m_ViewCube;
+
+        // Ground plane (Ground menu); height defaults to the displayed object's
+        // bounding-box bottom whenever the toggle turns on.
+        bool					m_bShowGround;
+        float					m_GroundZ;
+
+        static bool				s_ShowBackfaceTint;
+        static Vector3			s_BackfaceTintColor;
 };
 
 /////////////////////////////////////////////////////////////////////////////

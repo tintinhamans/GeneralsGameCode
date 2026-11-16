@@ -1160,7 +1160,8 @@ UnsignedInt WeaponTemplate::fireWeaponTemplate
 																															reAngle,
 																															reDir,
 																															&targetPos,
-																															fxRadius
+																															fxRadius,
+																															!isProjectileDetonation && TheGameLogic->getFrame() >= firingWeapon->getSuspendFXFrame()
 																															);
 		}
 
@@ -4129,6 +4130,11 @@ static void makeAssistanceRequest( Object *requestOf, void *userData )
 	// Don't ask ourselves (can't believe I forgot this one)
 	if( requestOf == requestData->m_requestingObject )
 		return;
+
+	if( requestOf == requestData->m_victimObject )
+	{
+		return;
+	}
 
 	// Only request of our kind of people
 	if( !requestOf->getTemplate()->isEquivalentTo( requestData->m_requestingObject->getTemplate() ) )

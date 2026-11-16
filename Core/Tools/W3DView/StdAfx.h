@@ -28,7 +28,10 @@
 #include "WWLib/always.h"
 
 // TheSuperHackers @build jlallas384 05/04/2025 Prevent afxwin.h from loading d3d9types.h, colliding with our own DirectX library.
+// The D3D9 backend includes d3d9.h itself and needs the real d3d9types.h.
+#if !defined(BUILD_WITH_D3D9)
 #define _d3d9TYPES_H_
+#endif
 
 #include <afxwin.h>         // MFC core and standard components
 #include <afxext.h>         // MFC extensions

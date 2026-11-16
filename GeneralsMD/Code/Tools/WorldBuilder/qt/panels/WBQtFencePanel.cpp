@@ -35,8 +35,7 @@ WBQtFencePanel::WBQtFencePanel(QWidget *owner)
 	// "Show all object types" -- the MFC "fence only" checkbox. Checked == show every template,
 	// unchecked == only fence-width templates (the default).
 	m_showAll = m_ui->showAll;
-	// Search row. Only meaningful when showing all types (matches the MFC enable/disable);
-	// searching within the fence-only list is left as-is (the MFC search box is disabled then).
+	// Search row. It filters whichever list is showing, fence-only or all types.
 	m_search = m_ui->search;
 	// The object tree.
 	m_tree = m_ui->tree;
@@ -52,7 +51,6 @@ WBQtFencePanel::WBQtFencePanel(QWidget *owner)
 	// Seed everything under the guard so nothing echoes back while we populate.
 	m_updating = true;
 	m_showAll->setChecked(WBQtFence_GetShowAll() != 0);
-	m_search->setEnabled(m_showAll->isChecked());
 	rebuildTree(QString());
 	refreshSpacingOffset();
 	m_updating = false;
@@ -65,8 +63,7 @@ WBQtFencePanel::WBQtFencePanel(QWidget *owner)
 	connect(m_search, SIGNAL(returnPressed()), this, SLOT(onSearch()));
 	if (WBQtConfig_GetNewSearch() != 0)
 	{
-		// NewSearch: filter live as the user types (only enabled in show-all mode, like
-		// the box itself; the Search button still works).
+		// NewSearch: filter live as the user types (the Search button still works).
 		connect(m_search, SIGNAL(textChanged(QString)), this, SLOT(onSearch()));
 	}
 
@@ -240,15 +237,10 @@ void WBQtFencePanel::onSpacingChanged(double v)
 
 void WBQtFencePanel::onShowAllToggled()
 {
-	// Mirrors OnCheckFenceOnly: flip the flag, toggle the search box's usability, rebuild.
+	// Mirrors OnCheckFenceOnly: flip the flag and rebuild, keeping the typed search.
 	WBQtFence_SetShowAll(m_showAll->isChecked() ? 1 : 0);
 	m_updating = true;
-	m_search->setEnabled(m_showAll->isChecked());
-	if (!m_showAll->isChecked())
-	{
-		m_search->clear();
-	}
-	rebuildTree(QString());
+	rebuildTree(m_search->text().trimmed());
 	m_nameLabel->setText("No Selection");
 	m_updating = false;
 }

@@ -32,7 +32,15 @@
 #include "Common/ResourceGatheringManager.h"
 
 #include "Common/ActionManager.h"
+#include "Common/BuildAssistant.h"
+#include "Common/GlobalData.h"
+#include "Common/Player.h"
+#include "Common/PlayerList.h"
+#include "Common/ThingTemplate.h"
+#include "GameLogic/Module/ProductionUpdate.h"
 #include "Common/Xfer.h"
+#include "GameLogic/AI.h"
+#include "GameLogic/AIPathfind.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/PartitionManager.h"
@@ -40,6 +48,349 @@
 #include "GameLogic/Module/SupplyCenterDockUpdate.h"
 #include "GameLogic/Module/SupplyWarehouseDockUpdate.h"
 #include "GameLogic/Module/UpdateModule.h"
+
+static const Real SUPPLY_SOURCE_CLOSE_DIST = 20 * PATHFIND_CELL_SIZE_F;
+static const UnsignedInt SUPPLY_SOURCE_STALL_FRAMES = 30 * LOGICFRAMES_PER_SECOND;
+static const UnsignedInt SUPPLY_SOURCE_RETRY_FRAMES = 60 * LOGICFRAMES_PER_SECOND;
+
+static Real supplySourceDistanceSquared(const Coord3D *a, const Coord3D *b)
+{
+	Real dx = a->x - b->x;
+	Real dy = a->y - b->y;
+	return dx * dx + dy * dy;
+}
+
+static Int supplySourceCash(Object *source)
+{
+	if (!source || source->isEffectivelyDead() || !source->isKindOf(KINDOF_SUPPLY_SOURCE))
+	{
+		return 0;
+	}
+	static const NameKeyType key = NAMEKEY("SupplyWarehouseDockUpdate");
+	SupplyWarehouseDockUpdate *warehouse = (SupplyWarehouseDockUpdate *)source->findUpdateModule(key);
+	return warehouse ? warehouse->getBoxesStored() * TheGlobalData->m_baseValuePerSupplyBox : 0;
+}
+
+static Bool isSupplyCenter(Object *object)
+{
+	static const NameKeyType key = NAMEKEY("SupplyCenterDockUpdate");
+	return object->findUpdateModule(key) != nullptr;
+}
+
+static Bool suppliesShareSite(Object *source, Object *other)
+{
+	if (source == other)
+	{
+		return true;
+	}
+	static const NameKeyType key = NAMEKEY("SupplyWarehouseDockUpdate");
+	SupplyWarehouseDockUpdate *warehouse = (SupplyWarehouseDockUpdate *)source->findUpdateModule(key);
+	SupplyWarehouseDockUpdate *otherWarehouse = (SupplyWarehouseDockUpdate *)other->findUpdateModule(key);
+	if (!warehouse || !otherWarehouse || (!warehouse->isDeletedWhenEmpty() && !otherWarehouse->isDeletedWhenEmpty()))
+	{
+		return false;
+	}
+	Real radius = SUPPLY_SOURCE_CLOSE_DIST + source->getGeometryInfo().getBoundingCircleRadius() +
+		other->getGeometryInfo().getBoundingCircleRadius();
+	return supplySourceDistanceSquared(source->getPosition(), other->getPosition()) <= radius * radius;
+}
+
+class PartitionFilterSupplySourceOccupant : public PartitionFilter
+{
+public:
+	PartitionFilterSupplySourceOccupant(const Object *mover, Object *source) : m_mover(mover), m_source(source) { }
+	virtual Bool allow(Object *other) override
+	{
+		if (other == m_mover || !isSupplyCenter(other))
+		{
+			return false;
+		}
+		if (m_source && !other->isKindOf(KINDOF_STRUCTURE))
+		{
+			Player *owner = other->getControllingPlayer();
+			ResourceGatheringManager *manager = owner ? owner->getResourceGatheringManager() : nullptr;
+			Object *assigned = manager ? manager->getAssignedSupplySource(other) : nullptr;
+			if (assigned && !suppliesShareSite(m_source, assigned))
+			{
+				return false;
+			}
+		}
+		// A travelling stash claims its destination, not the sources it passes.
+		return other->isKindOf(KINDOF_STRUCTURE) || !other->getAI() || !other->getAI()->isMoving();
+	}
+#if defined(RTS_DEBUG)
+	virtual const char *debugGetName() override { return "PartitionFilterSupplySourceOccupant"; }
+#endif
+private:
+	const Object *m_mover;
+	Object *m_source;
+};
+
+Bool ResourceGatheringManager::isAtSupplySource(const Object *mover, const Object *source)
+{
+	Real radius = source->getGeometryInfo().getBoundingCircleRadius() +
+		2 * TheGlobalData->m_SupplyBuildBorder + mover->getGeometryInfo().getBoundingCircleRadius() +
+		2 * PATHFIND_CELL_SIZE_F;
+	return supplySourceDistanceSquared(mover->getPosition(), source->getPosition()) <= radius * radius;
+}
+
+void ResourceGatheringManager::updateSupplySourceReservations()
+{
+	UnsignedInt frame = TheGameLogic->getFrame();
+	for (SupplySourceReservations::iterator it = m_supplySourceReservations.begin(); it != m_supplySourceReservations.end(); )
+	{
+		Object *mover = TheGameLogic->findObjectByID(it->first);
+		if (!mover || mover->isEffectivelyDead() || !mover->getControllingPlayer() ||
+			mover->getControllingPlayer()->getResourceGatheringManager() != this)
+		{
+			m_supplySourceReservations.erase(it++);
+			continue;
+		}
+		SupplySourceReservation &reservation = it->second;
+		Object *source = TheGameLogic->findObjectByID(reservation.sourceID);
+		if (supplySourceCash(source) <= 0 || mover->getControllingPlayer()->getRelationship(source->getTeam()) == ENEMIES)
+		{
+			reservation.sourceID = INVALID_ID;
+		}
+		else if (isAtSupplySource(mover, source) ||
+			supplySourceDistanceSquared(mover->getPosition(), &reservation.lastPosition) >= PATHFIND_CELL_SIZE_F * PATHFIND_CELL_SIZE_F)
+		{
+			reservation.lastPosition = *mover->getPosition();
+			reservation.lastProgressFrame = frame;
+		}
+		else if (frame - reservation.lastProgressFrame >= SUPPLY_SOURCE_STALL_FRAMES)
+		{
+			reservation.blockedSourceID = reservation.sourceID;
+			reservation.lastFailureFrame = frame;
+			reservation.sourceID = INVALID_ID;
+		}
+		if (!reservation.managesWorkers && reservation.sourceID == INVALID_ID &&
+			(reservation.blockedSourceID == INVALID_ID || frame - reservation.lastFailureFrame >= SUPPLY_SOURCE_RETRY_FRAMES))
+		{
+			m_supplySourceReservations.erase(it++);
+			continue;
+		}
+		++it;
+	}
+}
+
+Bool ResourceGatheringManager::isSupplySourceReserved(Object *source, const Object *mover, Bool separateSources)
+{
+	for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
+	{
+		Player *player = ThePlayerList->getNthPlayer(i);
+		ResourceGatheringManager *manager = player ? player->getResourceGatheringManager() : nullptr;
+		if (!manager)
+		{
+			continue;
+		}
+		manager->updateSupplySourceReservations();
+		for (SupplySourceReservations::const_iterator it = manager->m_supplySourceReservations.begin(); it != manager->m_supplySourceReservations.end(); ++it)
+		{
+			if (mover && it->first == mover->getID())
+			{
+				continue;
+			}
+			Object *reservedSource = TheGameLogic->findObjectByID(it->second.sourceID);
+			if (reservedSource && separateSources)
+			{
+				if (suppliesShareSite(source, reservedSource))
+				{
+					return true;
+				}
+				continue;
+			}
+			if (reservedSource)
+			{
+				Real radius = SUPPLY_SOURCE_CLOSE_DIST + source->getGeometryInfo().getBoundingCircleRadius() +
+					reservedSource->getGeometryInfo().getBoundingCircleRadius();
+				if (supplySourceDistanceSquared(source->getPosition(), reservedSource->getPosition()) <= radius * radius)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+Bool ResourceGatheringManager::isSupplySourceAvailable(Object *source, const Player *player, const Object *mover, Bool separateSources)
+{
+	if (supplySourceCash(source) <= 0 || player->getRelationship(source->getTeam()) == ENEMIES)
+	{
+		return false;
+	}
+	PartitionFilterSupplySourceOccupant filterOccupant(mover, separateSources ? source : nullptr);
+	PartitionFilterAlive filterAlive;
+	PartitionFilterOnMap filterOnMap;
+	PartitionFilter *occupants[] = { &filterOccupant, &filterAlive, &filterOnMap, nullptr };
+	Real radius = SUPPLY_SOURCE_CLOSE_DIST + source->getGeometryInfo().getBoundingCircleRadius();
+	if (ThePartitionManager->getClosestObject(source->getPosition(), radius, FROM_BOUNDINGSPHERE_2D, occupants))
+	{
+		return false;
+	}
+
+	PartitionFilterAcceptByKindOf filterStructure(MAKE_KINDOF_MASK(KINDOF_STRUCTURE), KINDOFMASK_NONE);
+	PartitionFilterPlayerAffiliation filterAllies(player, ALLOW_ALLIES | ALLOW_ENEMIES, true);
+	PartitionFilterPlayer filterOtherPlayer(player, false);
+	PartitionFilter *alliedBase[] = { &filterStructure, &filterAllies, &filterOtherPlayer, &filterAlive, &filterOnMap, nullptr };
+	if (ThePartitionManager->getClosestObject(source->getPosition(), TheAI->getAiData()->m_supplyCenterSafeRadius,
+		FROM_BOUNDINGSPHERE_2D, alliedBase))
+	{
+		return false;
+	}
+	return !isSupplySourceReserved(source, mover, separateSources);
+}
+
+Object *ResourceGatheringManager::findFreeSupplySource(Object *mover, const Coord3D *position, Int minimumCash)
+{
+	updateSupplySourceReservations();
+	Player *player = mover->getControllingPlayer();
+	SupplySourceReservations::iterator existing = m_supplySourceReservations.find(mover->getID());
+	if (existing != m_supplySourceReservations.end())
+	{
+		Object *source = TheGameLogic->findObjectByID(existing->second.sourceID);
+		if (source)
+		{
+			return source;
+		}
+	}
+
+	Object *bestSource = nullptr;
+	Real bestDistanceSquared = 0;
+	do
+	{
+		for (Object *source = TheGameLogic->getFirstObject(); source; source = source->getNextObject())
+		{
+			Int cash = supplySourceCash(source);
+			if (!source->isKindOf(KINDOF_STRUCTURE) || cash <= 0 || cash < minimumCash)
+			{
+				continue;
+			}
+			SupplySourceReservations::const_iterator previous = m_supplySourceReservations.find(mover->getID());
+			if (previous != m_supplySourceReservations.end() && previous->second.blockedSourceID == source->getID() &&
+				TheGameLogic->getFrame() - previous->second.lastFailureFrame < SUPPLY_SOURCE_RETRY_FRAMES)
+			{
+				continue;
+			}
+			Real distanceSquared = supplySourceDistanceSquared(source->getPosition(), position);
+			if ((bestSource && distanceSquared >= bestDistanceSquared) || !isSupplySourceAvailable(source, player, mover, mover->isKindOf(KINDOF_CASH_GENERATOR) && !mover->isKindOf(KINDOF_STRUCTURE)))
+			{
+				continue;
+			}
+			bestSource = source;
+			bestDistanceSquared = distanceSquared;
+		}
+		if (bestSource)
+		{
+			SupplySourceReservation reservation = m_supplySourceReservations[mover->getID()];
+			reservation.sourceID = bestSource->getID();
+			reservation.blockedSourceID = INVALID_ID;
+			reservation.lastProgressFrame = TheGameLogic->getFrame();
+			reservation.lastFailureFrame = 0;
+			reservation.lastPosition = *mover->getPosition();
+			m_supplySourceReservations[mover->getID()] = reservation;
+			break;
+		}
+		minimumCash /= 2;
+	} while (minimumCash > 100);
+	return bestSource;
+}
+
+void ResourceGatheringManager::manageSupplyTruck(Object *truck)
+{
+	m_supplySourceReservations[truck->getID()].managesWorkers = true;
+}
+
+Object *ResourceGatheringManager::getAssignedSupplySource(Object *mover)
+{
+	updateSupplySourceReservations();
+	SupplySourceReservations::const_iterator it = m_supplySourceReservations.find(mover->getID());
+	return it == m_supplySourceReservations.end() ? nullptr : TheGameLogic->findObjectByID(it->second.sourceID);
+}
+
+Bool ResourceGatheringManager::hasFreeSupplySource(const Player *player, Int minimumCash)
+{
+	updateSupplySourceReservations();
+	for (Object *obj = TheGameLogic->getFirstObject(); obj; obj = obj->getNextObject())
+	{
+		if (obj->getControllingPlayer() == player && !obj->isEffectivelyDead() &&
+			isSupplyCenter(obj) && !obj->isKindOf(KINDOF_STRUCTURE) && obj->getAI() &&
+			!getAssignedSupplySource(obj))
+		{
+			return false;
+		}
+	}
+	for (Object *source = TheGameLogic->getFirstObject(); source; source = source->getNextObject())
+	{
+		if (source->isKindOf(KINDOF_STRUCTURE) && supplySourceCash(source) >= max(1, minimumCash) &&
+			isSupplySourceAvailable(source, player, nullptr, true))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+Object *ResourceGatheringManager::getWorkerSupplyTruck(Object *worker)
+{
+	Object *truck = TheGameLogic->findObjectByID(worker->getProducerID());
+	if (!truck || truck->isEffectivelyDead() || truck->getControllingPlayer() != worker->getControllingPlayer() ||
+		truck->isKindOf(KINDOF_STRUCTURE) || !truck->isKindOf(KINDOF_CASH_GENERATOR))
+	{
+		return nullptr;
+	}
+	updateSupplySourceReservations();
+	SupplySourceReservations::const_iterator it = m_supplySourceReservations.find(truck->getID());
+	return it != m_supplySourceReservations.end() && it->second.managesWorkers ? truck : nullptr;
+}
+
+void ResourceGatheringManager::maintainSupplyWorkers(Object *truck, const ThingTemplate *workerType, Int workerCount)
+{
+	Object *source = getAssignedSupplySource(truck);
+	ProductionUpdateInterface *production = truck->getProductionUpdateInterface();
+	if (!source || !isAtSupplySource(truck, source) || !production || !workerType || workerCount <= 0)
+	{
+		return;
+	}
+	Int count = 0;
+	for (const ProductionEntry *entry = production->firstProduction(); entry; entry = production->nextProduction(entry))
+	{
+		if (entry->getProductionType() == PRODUCTION_UNIT && entry->getProductionObject()->isEquivalentTo(workerType))
+		{
+			count += entry->getProductionQuantityRemaining();
+		}
+	}
+	for (Object *worker = TheGameLogic->getFirstObject(); worker; worker = worker->getNextObject())
+	{
+		if (worker->isEffectivelyDead() || worker->getControllingPlayer() != truck->getControllingPlayer() ||
+			!worker->getTemplate()->isEquivalentTo(workerType))
+		{
+			continue;
+		}
+		if (worker->getProducerID() == truck->getID())
+		{
+			++count;
+		}
+	}
+	for (Object *worker = TheGameLogic->getFirstObject(); worker && count < workerCount; worker = worker->getNextObject())
+	{
+		if (!worker->isEffectivelyDead() && worker->getControllingPlayer() == truck->getControllingPlayer() &&
+			worker->getTemplate()->isEquivalentTo(workerType) && worker->getProducerID() != truck->getID() && isAtSupplySource(worker, source))
+		{
+			Object *producer = TheGameLogic->findObjectByID(worker->getProducerID());
+			if (!producer || producer->isEffectivelyDead() || producer->getControllingPlayer() != worker->getControllingPlayer())
+			{
+				worker->setProducer(truck);
+				++count;
+			}
+		}
+	}
+	if (count < workerCount && production->canQueueCreateUnit(workerType) == CANMAKE_OK)
+	{
+		production->queueCreateUnit(workerType, production->requestUniqueUnitID());
+	}
+}
 
 ResourceGatheringManager::ResourceGatheringManager()
 {
@@ -138,6 +489,13 @@ static Real computeRelativeCost( Object *queryObject, Object *destObject, Real *
 
 Object *ResourceGatheringManager::findBestSupplyWarehouse( Object *queryObject )
 {
+	Object *truck = queryObject ? getWorkerSupplyTruck(queryObject) : nullptr;
+	if (truck)
+	{
+		Object *source = getAssignedSupplySource(truck);
+		return source && TheActionManager->canTransferSuppliesAt(queryObject, source) ? source : nullptr;
+	}
+
 	Object *bestWarehouse = nullptr;
 	Real maxDistanceSquared = 100000;
 
@@ -199,6 +557,12 @@ Object *ResourceGatheringManager::findBestSupplyWarehouse( Object *queryObject )
 
 Object *ResourceGatheringManager::findBestSupplyCenter( Object *queryObject )
 {
+	Object *truck = queryObject ? getWorkerSupplyTruck(queryObject) : nullptr;
+	if (truck)
+	{
+		return TheActionManager->canTransferSuppliesAt(queryObject, truck) ? truck : nullptr;
+	}
+
 	Object *bestCenter = nullptr;
 
 	if( ( queryObject == nullptr ) || ( queryObject->getAI() == nullptr ) )
@@ -257,7 +621,47 @@ Object *ResourceGatheringManager::findBestSupplyCenter( Object *queryObject )
 // ------------------------------------------------------------------------------------------------
 void ResourceGatheringManager::crc( Xfer *xfer )
 {
+	xferSupplySourceReservations(xfer);
+}
 
+void ResourceGatheringManager::xferSupplySourceReservations(Xfer *xfer, XferVersion version)
+{
+	UnsignedInt count = (UnsignedInt)m_supplySourceReservations.size();
+	xfer->xferUnsignedInt(&count);
+	if (xfer->getXferMode() == XFER_LOAD)
+	{
+		m_supplySourceReservations.clear();
+		for (UnsignedInt i = 0; i < count; ++i)
+		{
+			ObjectID moverID;
+			SupplySourceReservation reservation;
+			xfer->xferObjectID(&moverID);
+			xfer->xferObjectID(&reservation.sourceID);
+			xfer->xferObjectID(&reservation.blockedSourceID);
+			xfer->xferUnsignedInt(&reservation.lastProgressFrame);
+			xfer->xferUnsignedInt(&reservation.lastFailureFrame);
+			xfer->xferCoord3D(&reservation.lastPosition);
+			if (version >= 3)
+			{
+				xfer->xferBool(&reservation.managesWorkers);
+			}
+			m_supplySourceReservations[moverID] = reservation;
+		}
+	}
+	else
+	{
+		for (SupplySourceReservations::iterator it = m_supplySourceReservations.begin(); it != m_supplySourceReservations.end(); ++it)
+		{
+			ObjectID moverID = it->first;
+			xfer->xferObjectID(&moverID);
+			xfer->xferObjectID(&it->second.sourceID);
+			xfer->xferObjectID(&it->second.blockedSourceID);
+			xfer->xferUnsignedInt(&it->second.lastProgressFrame);
+			xfer->xferUnsignedInt(&it->second.lastFailureFrame);
+			xfer->xferCoord3D(&it->second.lastPosition);
+			xfer->xferBool(&it->second.managesWorkers);
+		}
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -269,7 +673,7 @@ void ResourceGatheringManager::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+	XferVersion currentVersion = 3;
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -278,6 +682,14 @@ void ResourceGatheringManager::xfer( Xfer *xfer )
 
 	// supply centers
 	xfer->xferSTLObjectIDList( &m_supplyCenters );
+	if (version >= 2)
+	{
+		xferSupplySourceReservations(xfer, version);
+	}
+	else
+	{
+		m_supplySourceReservations.clear();
+	}
 
 }
 

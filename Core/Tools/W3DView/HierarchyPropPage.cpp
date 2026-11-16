@@ -26,6 +26,8 @@
 #include "WW3D2/rendobj.h"
 #include "AssetPropertySheet.h"
 #include "MeshPropPage.h"
+#include "WW3D2/mesh.h"
+#include "WW3D2/meshmdl.h"
 
 
 #ifdef RTS_DEBUG
@@ -111,8 +113,33 @@ CHierarchyPropPage::OnInitDialog ()
             // Put the polygon count onto the dialog
             SetDlgItemInt (IDC_TOTAL_POLYGONS, pCHierarchy->Get_Num_Polys ());
 
-            // Put the subobject count onto the dialog
+            // Count total vertices and triangles by walking all subobject meshes.
+            int totalVertices = 0;
+            int totalTriangles = 0;
             int iSubObjects = pCHierarchy->Get_Num_Sub_Objects ();
+            for (int i = 0; i < iSubObjects; i++)
+            {
+                RenderObjClass *pSub = pCHierarchy->Get_Sub_Object (i);
+                if (pSub)
+                {
+                    if (pSub->Class_ID () == RenderObjClass::CLASSID_MESH)
+                    {
+                        MeshClass *pMesh = static_cast<MeshClass *>(pSub);
+                        MeshModelClass *pModel = pMesh->Peek_Model ();
+                        if (pModel)
+                        {
+                            totalVertices  += pModel->Get_Vertex_Count ();
+                            totalTriangles += pModel->Get_Polygon_Count ();
+                        }
+                    }
+                    pSub->Release_Ref ();
+                    pSub = nullptr;
+                }
+            }
+            SetDlgItemInt (IDC_TOTAL_VERTICES,  totalVertices);
+            SetDlgItemInt (IDC_TOTAL_TRIANGLES, totalTriangles);
+
+            // Put the subobject count onto the dialog
             SetDlgItemInt (IDC_SUBOBJECTS, iSubObjects);
 
             // Add the name column to the list control

@@ -78,6 +78,23 @@ public:
 	Bool getControlPlayer() const { return m_controlPlayer; }
 	Bool getSubdueSelected() const { return m_subdueSelected; }
 
+	// For callers that build a command in code, such as the debug panel.
+	void setAddMoney( Int amount ) { m_addMoney = amount; }
+	void setAddRank( UnsignedInt ranks ) { m_addRank = ranks; }
+	void setReadyTimers( Bool enable ) { m_readyTimers = enable; }
+	void setTogglePrerequisites( Bool enable ) { m_togglePrerequisites = enable; }
+	void setToggleInfiniteEnergy( Bool enable ) { m_toggleInfiniteEnergy = enable; }
+	void setGrantAllUpgrades( Bool enable ) { m_grantAllUpgrades = enable; }
+	void setAddVeterancyLevel( Int levels ) { m_addVeterancyLevel = levels; }
+	void setAddSalvageTier( Int tiers ) { m_addSalvageTier = tiers; }
+	void setProductionSpeedMultiplier( Real multiplier ) { m_productionSpeedMultiplier = multiplier; }
+	void setSelectedOwner( Int ownerTarget ) { m_setSelectedOwner = ownerTarget; }
+	void setAddHealth( Real amount ) { m_addHealth = amount; }
+	void setKillSelected( Bool enable ) { m_killSelected = enable; }
+	void setKillSelectedPilots( Bool enable ) { m_killSelectedPilots = enable; }
+	void setControlPlayer( Bool enable ) { m_controlPlayer = enable; }
+	void setSubdueSelected( Bool enable ) { m_subdueSelected = enable; }
+
 	/** Run this command's effects. Inspects the parsed members and acts accordingly.
 			"args" is whatever the user typed after the command name, empty when nothing followed.
 			Effects that accept an argument use it in place of their INI value; the rest ignore it. */

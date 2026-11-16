@@ -11,6 +11,7 @@
 #define WB_QT_SCRIPT_WINDOW_H
 
 #include <QByteArray>
+#include <QElapsedTimer>
 #include <QFont>
 #include <QIcon>
 #include <QTreeWidget>
@@ -61,6 +62,8 @@ public:
 	virtual ~WBQtScriptWindow();
 
 	void rebuildTree();
+	// Rebuild after the model changed outside a window command.
+	void refreshFromModel();
 	// Clear per-session UI state (search text + find cursor) before a fresh dialog session.
 	void resetForNewSession();
 	// Called by WBQtScriptTree on an internal drop: move/reorder the dragged node onto target.
@@ -113,8 +116,13 @@ private slots:
 	void onTreeContextMenu(const QPoint &pos);
 	void onTreeDoubleClicked(QTreeWidgetItem *item, int column);
 	void onReferenceClicked(const QUrl &url);
+	void onFindPrev();
 	void onOk();
 	void onCancel();
+	void onMoreMenuHidden();
+
+protected:
+	virtual bool eventFilter(QObject *watched, QEvent *event);
 
 private:
 	void pushSelectionToDialog();
@@ -212,17 +220,21 @@ private:
 	QPushButton *m_editScript;
 	QPushButton *m_copyScript;
 	QPushButton *m_delete;
-	QPushButton *m_clearAll;
 	QPushButton *m_undoBtn;
 	QPushButton *m_redoBtn;
 	QPushButton *m_verify;
-	QPushButton *m_replaceMissing;
-	QPushButton *m_addDebug;
-	QPushButton *m_removeDebug;
-	QPushButton *m_patchGC;
-	QPushButton *m_export;
-	QPushButton *m_import;
 	QPushButton *m_saveNow;
+
+	// The less used commands sit in a menu that opens when the pointer enters its button.
+	QPushButton *m_moreButton;
+	QElapsedTimer m_moreMenuHidden;	// since the menu last closed, so it does not reopen at once
+	QAction *m_clearAll;
+	QAction *m_replaceMissing;
+	QAction *m_addDebug;
+	QAction *m_removeDebug;
+	QAction *m_patchGC;
+	QAction *m_export;
+	QAction *m_import;
 	QPushButton *m_ok;
 	QPushButton *m_cancel;
 

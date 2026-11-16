@@ -1030,6 +1030,9 @@ void ModelConditionInfo::clear()
 	for (i = 0; i < WEAPONSLOT_COUNT; ++i)
 	{
 		m_weaponFireFXBoneName[i].clear();
+#if RTS_ZEROHOUR
+		m_weaponFireParticleSys[i] = nullptr;
+#endif
 		m_weaponRecoilBoneName[i].clear();
 		m_weaponMuzzleFlashName[i].clear();
 		m_weaponProjectileLaunchBoneName[i].clear();
@@ -1476,6 +1479,15 @@ static void parseWeaponBoneName(INI* ini, void *instance, void * store, const vo
 }
 
 //-------------------------------------------------------------------------------------------------
+#if RTS_ZEROHOUR
+static void parseWeaponFireParticleSys(INI* ini, void* instance, void* store, const void* /*userData*/)
+{
+	const ParticleSystemTemplate** systems = (const ParticleSystemTemplate**)store;
+	WeaponSlotType slot = (WeaponSlotType)INI::scanIndexList(ini->getNextToken(), TheWeaponSlotTypeNames);
+	INI::parseParticleSystemTemplate(ini, instance, &systems[slot], nullptr);
+}
+#endif
+
 static void parseParticleSysBone(INI* ini, void *instance, void * store, const void * /*userData*/)
 {
 	ParticleSysBoneInfo info;
@@ -1624,6 +1636,12 @@ static void mergeConditionStateOverrides(ModelConditionInfo& dst, const ModelCon
 	{
 		if (prev.m_weaponFireFXBoneName[w] != def.m_weaponFireFXBoneName[w])
 			dst.m_weaponFireFXBoneName[w] = prev.m_weaponFireFXBoneName[w];
+#if RTS_ZEROHOUR
+		if (prev.m_weaponFireParticleSys[w] != def.m_weaponFireParticleSys[w])
+		{
+			dst.m_weaponFireParticleSys[w] = prev.m_weaponFireParticleSys[w];
+		}
+#endif
 		if (prev.m_weaponRecoilBoneName[w] != def.m_weaponRecoilBoneName[w])
 			dst.m_weaponRecoilBoneName[w] = prev.m_weaponRecoilBoneName[w];
 		if (prev.m_weaponMuzzleFlashName[w] != def.m_weaponMuzzleFlashName[w])
@@ -1705,6 +1723,9 @@ void W3DModelDrawModuleData::parseConditionState(INI* ini, void *instance, void 
     { "ShowSubObject", parseShowHideSubObject, (void*)nullptr, offsetof(ModelConditionInfo, m_hideShowVec) },
 		{ "HideSubObject", parseShowHideSubObject, (void*)1, offsetof(ModelConditionInfo, m_hideShowVec) },
 		{ "WeaponFireFXBone", parseWeaponBoneName, nullptr, offsetof(ModelConditionInfo, m_weaponFireFXBoneName[0]) },
+#if RTS_ZEROHOUR
+		{ "WeaponFireParticleSys", parseWeaponFireParticleSys, nullptr, offsetof(ModelConditionInfo, m_weaponFireParticleSys[0]) },
+#endif
 		{ "WeaponRecoilBone", parseWeaponBoneName, nullptr, offsetof(ModelConditionInfo, m_weaponRecoilBoneName[0]) },
 		{ "WeaponMuzzleFlash", parseWeaponBoneName, nullptr, offsetof(ModelConditionInfo, m_weaponMuzzleFlashName[0]) },
 		{ "WeaponLaunchBone", parseWeaponBoneName, nullptr, offsetof(ModelConditionInfo, m_weaponProjectileLaunchBoneName[0]) },
@@ -2183,6 +2204,9 @@ W3DModelDraw::~W3DModelDraw()
 		m_trackRenderObject = nullptr;
 	}
 
+#if RTS_ZEROHOUR
+	stopWeaponFireParticleSystems();
+#endif
 	nukeCurrentRender(nullptr);
 }
 
@@ -2206,6 +2230,23 @@ void W3DModelDraw::doStartOrStopParticleSys()
 			}
 		}
 	}
+#if RTS_ZEROHOUR
+	for (std::vector<WeaponFireParticleTracker>::const_iterator it = m_weaponFireParticleSystems.begin(); it != m_weaponFireParticleSystems.end(); ++it)
+	{
+		ParticleSystem* sys = TheParticleSystemManager->findParticleSystem(it->id);
+		if (sys != nullptr)
+		{
+			if (hidden)
+			{
+				sys->stop();
+			}
+			else
+			{
+				sys->start();
+			}
+		}
+	}
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2484,6 +2525,12 @@ void W3DModelDraw::doDrawModule(const Matrix3D* transformMtx)
 	// update whether or not we should be animating.
 	setPauseAnimation( !getDrawable()->getShouldAnimate(getW3DModelDrawModuleData()->m_animationsRequirePower) );
 
+	// an object made while ObjectDecals was off gets its decal once the option is on
+	if (!m_objectDecal && getDrawable()->getTemplate()->displaysDecal())
+	{
+		createObjectDecal();
+	}
+
 	// death and disabled state change without touching the model, so the decal has to follow them here
 	if (m_objectDecal)
 		updateObjectDecalVisibility();
@@ -2560,6 +2607,9 @@ void W3DModelDraw::doDrawModule(const Matrix3D* transformMtx)
                                           // IT REPOSITIONS PARTICLESYSTEMS TO TSTAY IN SYNC WITH ANIMATED BONES
 
   handleClientRecoil();
+#if RTS_ZEROHOUR
+	updateWeaponFireParticleSystems();
+#endif
 
 	handleFXEvents();
 
@@ -2941,6 +2991,63 @@ void W3DModelDraw::doHideShowSubObjs(const std::vector<ModelConditionInfo::HideS
 }
 
 //-------------------------------------------------------------------------------------------------
+#if RTS_ZEROHOUR
+void W3DModelDraw::stopWeaponFireParticleSystems()
+{
+	for (std::vector<WeaponFireParticleTracker>::const_iterator it = m_weaponFireParticleSystems.begin(); it != m_weaponFireParticleSystems.end(); ++it)
+	{
+		ParticleSystem* sys = TheParticleSystemManager->findParticleSystem(it->id);
+		if (sys != nullptr)
+		{
+			sys->destroy();
+			sys->attachToDrawable(nullptr);
+		}
+	}
+	m_weaponFireParticleSystems.clear();
+}
+
+void W3DModelDraw::updateWeaponFireParticleSystems()
+{
+	if (m_weaponFireParticleSystems.empty())
+	{
+		return;
+	}
+	const Drawable* drawable = getDrawable();
+	const Bool hidden = (drawable->isDrawableEffectivelyHidden() && !drawable->testDrawableStatus(DRAWABLE_STATUS_KEEP_PARTICLES_WHEN_HIDDEN))
+		|| m_fullyObscuredByShroud;
+	for (std::vector<WeaponFireParticleTracker>::iterator it = m_weaponFireParticleSystems.begin(); it != m_weaponFireParticleSystems.end(); )
+	{
+		ParticleSystem* sys = TheParticleSystemManager->findParticleSystem(it->id);
+		if (sys == nullptr || sys->isDestroyed())
+		{
+			it = m_weaponFireParticleSystems.erase(it);
+			continue;
+		}
+		if (it->boneIndex == 0 && m_renderObject != nullptr)
+		{
+			it->boneIndex = m_renderObject->Get_Bone_Index(it->boneName.str());
+		}
+		if (m_renderObject == nullptr || it->boneIndex == 0)
+		{
+			sys->destroy();
+			it = m_weaponFireParticleSystems.erase(it);
+			continue;
+		}
+		const Matrix3D boneTransform = m_renderObject->Get_Bone_Transform(it->boneIndex);
+		sys->setLocalTransform(&boneTransform);
+		if (hidden)
+		{
+			sys->stop();
+		}
+		else
+		{
+			sys->start();
+		}
+		++it;
+	}
+}
+#endif
+
 void W3DModelDraw::stopClientParticleSystems()
 {
 	for (std::vector<ParticleSysTrackerType>::const_iterator it = m_particleSystemIDs.begin(); it != m_particleSystemIDs.end(); ++it)
@@ -3562,7 +3669,7 @@ void W3DModelDraw::updateObjectDecalVisibility()
 	if (m_objectDecal == nullptr)
 		return;
 
-	Bool visible = !getDrawable()->isDrawableEffectivelyHidden();
+	Bool visible = TheGlobalData->m_objectDecalsEnabled && !getDrawable()->isDrawableEffectivelyHidden();
 
 	const Object *obj = getDrawable()->getObject();
 
@@ -3648,6 +3755,12 @@ void W3DModelDraw::setTerrainDecalOpacity(Real o)
 //-------------------------------------------------------------------------------------------------
 void W3DModelDraw::nukeCurrentRender(Matrix3D* xform)
 {
+#if RTS_ZEROHOUR
+	for (std::vector<WeaponFireParticleTracker>::iterator it = m_weaponFireParticleSystems.begin(); it != m_weaponFireParticleSystems.end(); ++it)
+	{
+		it->boneIndex = 0;
+	}
+#endif
 	// this needs to be "dirtied" so that the new pausing of the animation will be triggered.
 	m_pauseAnimation = false;
 
@@ -4837,7 +4950,11 @@ Int W3DModelDraw::getBarrelCount(WeaponSlotType wslot) const
 }
 
 //-------------------------------------------------------------------------------------------------
-Bool W3DModelDraw::handleWeaponFireFX(WeaponSlotType wslot, Int specificBarrelToUse, const FXList* fxl, Real weaponSpeed, const Coord3D* victimPos, Real damageRadius)
+Bool W3DModelDraw::handleWeaponFireFX(WeaponSlotType wslot, Int specificBarrelToUse, const FXList* fxl, Real weaponSpeed, const Coord3D* victimPos, Real damageRadius
+#if RTS_ZEROHOUR
+		, Bool emitFireParticles
+#endif
+	)
 {
 	DEBUG_ASSERTCRASH(specificBarrelToUse >= 0, ("specificBarrelToUse should now always be explicit"));
 
@@ -4855,10 +4972,45 @@ Bool W3DModelDraw::handleWeaponFireFX(WeaponSlotType wslot, Int specificBarrelTo
 
 	Bool handled = false;
 
-	if (specificBarrelToUse < 0 || specificBarrelToUse > wbvec.size())
+	if (specificBarrelToUse < 0 || specificBarrelToUse >= wbvec.size())
+	{
 		specificBarrelToUse = 0;
+	}
 
 	const ModelConditionInfo::WeaponBarrelInfo& info = wbvec[specificBarrelToUse];
+
+#if RTS_ZEROHOUR
+	const ParticleSystemTemplate* fireParticles = m_curState->m_weaponFireParticleSys[wslot];
+	const Drawable* drawable = getDrawable();
+	if (emitFireParticles && fireParticles != nullptr && info.m_fxBone != 0 && m_renderObject != nullptr
+		&& !m_renderObject->Is_Hidden() && !m_fullyObscuredByShroud
+		&& (!drawable->isDrawableEffectivelyHidden() || drawable->testDrawableStatus(DRAWABLE_STATUS_KEEP_PARTICLES_WHEN_HIDDEN)))
+	{
+		ParticleSystem* sys = TheParticleSystemManager->createParticleSystem(fireParticles);
+		if (sys != nullptr)
+		{
+			if (sys->isSystemForever())
+			{
+				DEBUG_CRASH(("WeaponFireParticleSys requires a finite SystemLifetime"));
+				sys->destroy();
+			}
+			else
+			{
+				const Matrix3D boneTransform = m_renderObject->Get_Bone_Transform(info.m_fxBone);
+				sys->setLocalTransform(&boneTransform);
+				sys->setSkipParentXfrm(true);
+				sys->setSaveable(FALSE);
+				sys->attachToDrawable(drawable);
+				WeaponFireParticleTracker tracker;
+				tracker.id = sys->getSystemID();
+				tracker.boneName = m_renderObject->Get_Bone_Name(info.m_fxBone);
+				tracker.boneIndex = info.m_fxBone;
+				m_weaponFireParticleSystems.push_back(tracker);
+				handled = true;
+			}
+		}
+	}
+#endif
 
 	if (fxl)
 	{

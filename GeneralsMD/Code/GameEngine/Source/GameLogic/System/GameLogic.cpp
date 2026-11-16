@@ -2964,6 +2964,11 @@ void GameLogic::selectObject(Object *obj, Bool createNewSelection, PlayerMaskTyp
 		return;
 	}
 
+	const BodyModuleInterface *body = obj->getBodyModule();
+	if (body && body->isJammed())
+	{
+		return;
+	}
 
 	while( playerMask )
 	{
@@ -3053,37 +3058,12 @@ void GameLogic::deselectObject(Object *obj, PlayerMaskType playerMask, Bool affe
 		}
 
 		CRCGEN_LOG(( "Removing a unit from a selected group in GameLogic::deselectObject()" ));
-		AIGroupPtr group = TheAI->createGroup();
-#if RETAIL_COMPATIBLE_AIGROUP
-		player->getCurrentSelectionAsAIGroup(group);
-#else
-		player->getCurrentSelectionAsAIGroup(group.Peek());
-#endif
+		player->removeObjectFromCurrentSelection(obj);
 
-		if (group) {
-			Bool emptied = group->remove(obj);
-
-			// Set this to be the currently selected group.
-			if (!emptied) {
-#if RETAIL_COMPATIBLE_AIGROUP
-				player->setCurrentlySelectedAIGroup(group);
-				// Then, cleanup the group.
-				TheAI->destroyGroup(group);
-#else
-				player->setCurrentlySelectedAIGroup(group.Peek());
-				// Then, cleanup the group.
-				group->removeAll();
-#endif
-			} else {
-				// nullptr will clear the group.
-				player->setCurrentlySelectedAIGroup(nullptr);
-			}
-
-			if (affectClient) {
-				Drawable *draw = obj->getDrawable();
-				if (draw) {
-					TheInGameUI->deselectDrawable(draw);
-				}
+		if (affectClient) {
+			Drawable *draw = obj->getDrawable();
+			if (draw) {
+				TheInGameUI->deselectDrawable(draw);
 			}
 		}
 	}

@@ -179,7 +179,7 @@ Bool W3DEmissiveLights::sampleModel(MeshModelClass &model, std::vector<Sample> &
 				(shader.Get_Src_Blend_Func() == ShaderClass::SRCBLEND_ONE || shader.Get_Src_Blend_Func() == ShaderClass::SRCBLEND_SRC_ALPHA);
 			const TriIndex &triangle = triangles[polygon];
 			VertexMaterialClass *material = model.Peek_Material(triangle[0], pass);
-			// Emissive on a mesh that does not add its colour is how art makes it fullbright, so it is no lamp.
+			// Emissive on a mesh that does not add its colour is how art makes it fullbright, so only Specular To Diffuse makes it a lamp.
 			Vector3 emission(0.0f, 0.0f, 0.0f);
 			if (additive)
 			{
@@ -190,6 +190,10 @@ Bool W3DEmissiveLights::sampleModel(MeshModelClass &model, std::vector<Sample> &
 					material->Get_Diffuse(&diffuse);
 				}
 				emission += diffuse;
+			}
+			else if (material != nullptr && material->Get_Flag(VertexMaterialClass::COPY_SPECULAR_TO_DIFFUSE))
+			{
+				material->Get_Emissive(&emission);
 			}
 			TextureClass *base = model.Peek_Texture(polygon, pass);
 			TextureClass *mask = base != nullptr ? W3DShaderManager::findEmissiveMap(base) : nullptr;

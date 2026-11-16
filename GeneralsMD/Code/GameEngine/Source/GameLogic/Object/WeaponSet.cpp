@@ -129,6 +129,7 @@ void WeaponTemplateSet::clear()
 	m_isClipShared = false;
 	m_types.clear();
 	m_ignoreLineOfSightMask = 0;
+	m_syncRequiresValidTargetMask = 0xffffffff;
 	for (int i = 0; i < WEAPONSLOT_COUNT; ++i)
 	{
 		m_template[i] = nullptr;
@@ -173,6 +174,23 @@ void WeaponTemplateSet::parsePreferredAgainst(INI* ini, void *instance, void * /
 }
 
 //-------------------------------------------------------------------------------------------------
+void WeaponTemplateSet::parseSyncRequiresValidTarget(INI* ini, void *instance, void * /*store*/, const void* userData)
+{
+	WeaponTemplateSet* self = (WeaponTemplateSet*)instance;
+	WeaponSlotType wslot = (WeaponSlotType)INI::scanIndexList(ini->getNextToken(), TheWeaponSlotTypeNames);
+	Bool requiresValidTarget;
+	INI::parseBool(ini, instance, &requiresValidTarget, nullptr);
+	if (requiresValidTarget)
+	{
+		self->m_syncRequiresValidTargetMask |= (1U << wslot);
+	}
+	else
+	{
+		self->m_syncRequiresValidTargetMask &= ~(1U << wslot);
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
 void WeaponTemplateSet::parseWeaponTemplateSet( INI* ini, const ThingTemplate* tt )
 {
 	static const FieldParse myFieldParse[] =
@@ -180,6 +198,7 @@ void WeaponTemplateSet::parseWeaponTemplateSet( INI* ini, const ThingTemplate* t
 		{ "Conditions", WeaponSetFlags::parseFromINI, nullptr, offsetof( WeaponTemplateSet, m_types ) },
 		{ "Weapon",	WeaponTemplateSet::parseWeapon,	nullptr, 0 },
 		{ "AutoChooseSources",	WeaponTemplateSet::parseAutoChoose, nullptr, 0 },
+		{ "SyncRequiresValidTarget", WeaponTemplateSet::parseSyncRequiresValidTarget, nullptr, 0 },
 		{ "IgnoreLineOfSight", INI::parseBitString32, TheWeaponSlotTypeNames, offsetof( WeaponTemplateSet, m_ignoreLineOfSightMask ) },
 		{ "PreferredAgainst", WeaponTemplateSet::parsePreferredAgainst, nullptr, 0 },
 		{ "ShareWeaponReloadTime", INI::parseBool, nullptr, offsetof( WeaponTemplateSet, m_isReloadTimeShared ) },
@@ -1021,6 +1040,50 @@ Bool WeaponSet::canSlotAttackGround( WeaponSlotType wslot, CommandSourceType cmd
 		return FALSE;
 	}
 	return isSlotAllowedForCommandSource( wslot, cmdSource );
+}
+
+//-------------------------------------------------------------------------------------------------
+Bool WeaponSet::canFireSyncedWeapon(WeaponSlotType wslot, const Object* source, const Object* victim, const Coord3D* pos) const
+{
+	Weapon* weapon = m_weapons[wslot];
+	if (weapon == nullptr || m_curWeaponTemplateSet == nullptr || weapon->getStatus() != READY_TO_FIRE)
+	{
+		return FALSE;
+	}
+
+	// a continue-attack retarget that finds nothing leaves no victim, and firing at nothing crashes
+	if (victim == nullptr && pos == nullptr)
+	{
+		return FALSE;
+	}
+
+	if (!m_curWeaponTemplateSet->syncRequiresValidTarget(wslot))
+	{
+		return TRUE;
+	}
+	if (victim)
+	{
+		if (victim->isEffectivelyDead() || victim->isDestroyed()
+			|| !(weapon->getAntiMask() & getVictimAntiMask(victim))
+			|| !weapon->isWithinTargetPitch(source, victim)
+			|| !weapon->isWithinAttackRange(source, victim))
+		{
+			return FALSE;
+		}
+		if (weapon->getDamageType() == DAMAGE_TORPEDO && !victim->isOverWater())
+		{
+			return FALSE;
+		}
+		if (weapon->estimateWeaponDamage(source, victim) <= 0.0f && weapon->getDamageType() != DAMAGE_UNRESISTABLE)
+		{
+			return FALSE;
+		}
+	}
+	else if (pos == nullptr || !(weapon->getAntiMask() & WEAPON_ANTI_GROUND) || !weapon->isWithinAttackRange(source, pos))
+	{
+		return FALSE;
+	}
+	return TRUE;
 }
 
 //-------------------------------------------------------------------------------------------------

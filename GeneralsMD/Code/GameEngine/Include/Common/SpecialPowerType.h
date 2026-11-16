@@ -230,6 +230,13 @@ enum SpecialPowerType CPP_11(: Int)
 	SPECIAL_ALL_BATTLE_PLANS_ACTIVE,
 
 	SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK,
+	SPECIAL_NUCLEAR_STORM,
+	SPECIAL_WEATHER_CONTROL,
+	SPECIAL_HATF_MISSILE,
+	SPECIAL_COMMAND_UPLINK,
+	SPECIAL_ATMOSPHERIC_LENS,
+	SPECIAL_ICBM,
+	SPECIAL_TOMAHAWK_STORM,
 
 	SPECIALPOWER_COUNT,
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

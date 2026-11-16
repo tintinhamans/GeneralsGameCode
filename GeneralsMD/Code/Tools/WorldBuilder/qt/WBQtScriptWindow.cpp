@@ -17,6 +17,7 @@
 #include <QDropEvent>
 #include <QFont>
 #include <QInputDialog>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QList>
@@ -118,7 +119,9 @@ void WBQtScriptTree::dropEvent(QDropEvent *event)
 // WBQtScriptWindow
 //----------------------------------------------------------------------------------------
 WBQtScriptWindow::WBQtScriptWindow(QWidget *owner)
-	: QWidget(NULL, Qt::Window),
+	// No minimize button: a minimized editor still holds its session and is easy to forget.
+	: QWidget(NULL, Qt::Window | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
+		| Qt::WindowMaximizeButtonHint | Qt::WindowCloseButtonHint),
 	  m_ui(new Ui::WBQtScriptWindow),
 	  m_lastFoundListType(0),
 	  m_updating(false),
@@ -239,17 +242,29 @@ WBQtScriptWindow::WBQtScriptWindow(QWidget *owner)
 	m_editScript = m_ui->editScript;
 	m_copyScript = m_ui->copyScript;
 	m_delete = m_ui->deleteBtn;
-	m_clearAll = m_ui->clearAllBtn;
 	m_undoBtn = m_ui->undoBtn;
 	m_redoBtn = m_ui->redoBtn;
 	m_verify = m_ui->verify;
-	m_replaceMissing = m_ui->replaceMissing;
-	m_addDebug = m_ui->addDebug;
-	m_removeDebug = m_ui->removeDebug;
-	m_patchGC = m_ui->patchGC;
-	m_export = m_ui->exportBtn;
-	m_import = m_ui->importBtn;
 	m_saveNow = m_ui->saveNow;
+
+	m_moreButton = new QPushButton("&More", this);
+	QMenu *moreMenu = new QMenu(m_moreButton);
+	moreMenu->setToolTipsVisible(true);
+	m_addDebug = moreMenu->addAction("Add Debug");
+	m_removeDebug = moreMenu->addAction("Delete Debug");
+	m_patchGC = moreMenu->addAction("Patch \"GC_\"");
+	moreMenu->addSeparator();
+	m_replaceMissing = moreMenu->addAction("Replace Missing...");
+	m_replaceMissing->setToolTip("Replace every missing object type in the scripts with its closest name match, then show a report you can correct.");
+	m_clearAll = moreMenu->addAction("Clear All...");
+	m_clearAll->setToolTip("Remove every script and folder from the map, for all players. Undoable.");
+	moreMenu->addSeparator();
+	m_export = moreMenu->addAction("Export Scripts");
+	m_import = moreMenu->addAction("Import Scripts");
+	m_moreButton->setMenu(moreMenu);
+	m_moreButton->installEventFilter(this);
+	connect(moreMenu, SIGNAL(aboutToHide()), this, SLOT(onMoreMenuHidden()));
+	m_ui->cmdRow->addWidget(m_moreButton);
 
 	// --- Commit row ---
 	m_ok = m_ui->ok;
@@ -264,6 +279,10 @@ WBQtScriptWindow::WBQtScriptWindow(QWidget *owner)
 	connect(m_tree, SIGNAL(itemSelectionChanged()), this, SLOT(onTreeSelectionChanged()));
 	connect(m_findBtn, SIGNAL(clicked()), this, SLOT(onFind()));
 	connect(m_search, SIGNAL(returnPressed()), this, SLOT(onFind()));
+	connect(m_ui->findPrevBtn, SIGNAL(clicked()), this, SLOT(onFindPrev()));
+	// The arrow alone needs no more than a square button.
+	m_ui->findPrevBtn->setFixedWidth(m_ui->findPrevBtn->sizeHint().height() + 4);
+	m_search->installEventFilter(this);	// Shift+Enter finds the previous match
 	connect(m_search, SIGNAL(textChanged(const QString &)), this, SLOT(onSearchTextChanged(const QString &)));
 	// Debounce the live filter: each keystroke restarts a short single-shot timer, so a burst of
 	// typing runs the (deep-scanning) filter once when typing pauses instead of on every character.
@@ -310,16 +329,16 @@ WBQtScriptWindow::WBQtScriptWindow(QWidget *owner)
 	connect(m_editScript, SIGNAL(clicked()), this, SLOT(onEditScript()));
 	connect(m_copyScript, SIGNAL(clicked()), this, SLOT(onCopyScript()));
 	connect(m_delete, SIGNAL(clicked()), this, SLOT(onDelete()));
-	connect(m_clearAll, SIGNAL(clicked()), this, SLOT(onClearAll()));
+	connect(m_clearAll, SIGNAL(triggered()), this, SLOT(onClearAll()));
 	connect(m_undoBtn, SIGNAL(clicked()), this, SLOT(onUndo()));
 	connect(m_redoBtn, SIGNAL(clicked()), this, SLOT(onRedo()));
 	connect(m_verify, SIGNAL(clicked()), this, SLOT(onVerify()));
-	connect(m_replaceMissing, SIGNAL(clicked()), this, SLOT(onReplaceMissing()));
-	connect(m_addDebug, SIGNAL(clicked()), this, SLOT(onAddDebug()));
-	connect(m_removeDebug, SIGNAL(clicked()), this, SLOT(onRemoveDebug()));
-	connect(m_patchGC, SIGNAL(clicked()), this, SLOT(onPatchGC()));
-	connect(m_export, SIGNAL(clicked()), this, SLOT(onExport()));
-	connect(m_import, SIGNAL(clicked()), this, SLOT(onImport()));
+	connect(m_replaceMissing, SIGNAL(triggered()), this, SLOT(onReplaceMissing()));
+	connect(m_addDebug, SIGNAL(triggered()), this, SLOT(onAddDebug()));
+	connect(m_removeDebug, SIGNAL(triggered()), this, SLOT(onRemoveDebug()));
+	connect(m_patchGC, SIGNAL(triggered()), this, SLOT(onPatchGC()));
+	connect(m_export, SIGNAL(triggered()), this, SLOT(onExport()));
+	connect(m_import, SIGNAL(triggered()), this, SLOT(onImport()));
 	connect(m_saveNow, SIGNAL(clicked()), this, SLOT(onSaveNow()));
 	connect(m_tree, SIGNAL(customContextMenuRequested(const QPoint &)),
 		this, SLOT(onTreeContextMenu(const QPoint &)));
@@ -1084,6 +1103,14 @@ void WBQtScriptWindow::onTreeSelectionChanged()
 	updateDetail();
 }
 
+void WBQtScriptWindow::refreshFromModel()
+{
+	rebuildTree();
+	pushSelectionToDialog();
+	updateButtonStates();
+	updateDetail();
+}
+
 void WBQtScriptWindow::handleDrop(int dragListType, int targetListType)
 {
 	WBQtScript_DropOn(dragListType, targetListType);
@@ -1535,6 +1562,47 @@ void WBQtScriptWindow::onFind()
 	}
 }
 
+// Find Next walks the model forward; this walks the tree rows back from the same cursor.
+void WBQtScriptWindow::onFindPrev()
+{
+	const QByteArray text = m_search->text().trimmed().toLatin1();
+	if (text.isEmpty())
+	{
+		return;
+	}
+	QList<QTreeWidgetItem *> rows;
+	for (QTreeWidgetItemIterator it(m_tree); *it; ++it)
+	{
+		rows.append(*it);
+	}
+	// With no cursor the search starts from the last row.
+	int start = rows.size();
+	for (int i = 0; i < rows.size() && m_lastFoundListType != 0; ++i)
+	{
+		if (rows.at(i)->data(0, kListTypeRole).toInt() == m_lastFoundListType)
+		{
+			start = i;
+			break;
+		}
+	}
+	for (int i = start - 1; i >= 0; --i)
+	{
+		const int listType = rows.at(i)->data(0, kListTypeRole).toInt();
+		const QByteArray label = rows.at(i)->text(0).toLatin1();
+		if (WBQtScript_NodeMatches(listType, text.constData(), label.constData()))
+		{
+			m_lastFoundListType = listType;
+			selectByListType(listType);
+			WBQtScript_SetSelection(listType);
+			updateButtonStates();
+			updateDetail();
+			return;
+		}
+	}
+	m_lastFoundListType = 0;
+	QApplication::beep();
+}
+
 void WBQtScriptWindow::onSearchTextChanged(const QString &text)
 {
 	// The new design always filters as you type; the original only with NewSearch on.
@@ -1921,6 +1989,35 @@ void WBQtScriptWindow::applyFilters()
 	}
 }
 
+void WBQtScriptWindow::onMoreMenuHidden()
+{
+	m_moreMenuHidden.start();
+}
+
+bool WBQtScriptWindow::eventFilter(QObject *watched, QEvent *event)
+{
+	if (watched == m_moreButton && event->type() == QEvent::Enter)
+	{
+		// A closing menu re-enters the button under the pointer, which must not reopen it.
+		const bool justClosed = m_moreMenuHidden.isValid() && m_moreMenuHidden.elapsed() < 400;
+		if (!justClosed && isActiveWindow() && !m_moreButton->menu()->isVisible())
+		{
+			QTimer::singleShot(0, m_moreButton, SLOT(showMenu()));
+		}
+	}
+	if (watched == m_search && event->type() == QEvent::KeyPress)
+	{
+		QKeyEvent *key = static_cast<QKeyEvent *>(event);
+		const bool enter = (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter);
+		if (enter && (key->modifiers() & Qt::ShiftModifier))
+		{
+			onFindPrev();
+			return true;
+		}
+	}
+	return QWidget::eventFilter(watched, event);
+}
+
 void WBQtScriptWindow::onOk()
 {
 	WBQtScript_Commit();
@@ -1975,7 +2072,9 @@ extern "C" void WBQtScript_Open(void *frameHwnd, int x, int y)
 			reinterpret_cast<LONG_PTR>(WBQt_EffectiveOwnerHwnd(frameHwnd)));
 	}
 
-	win->move(x, y);
+	// The position tracker places the window on its first show; later opens keep its spot.
+	(void)x;
+	(void)y;
 	win->show();
 	win->raise();
 	win->activateWindow();
@@ -2044,6 +2143,15 @@ extern "C" void WBQtScript_Focus(void)
 	::SetForegroundWindow(h);
 	::SetFocus(h);
 	win->setFocus(Qt::ActiveWindowFocusReason);
+}
+
+extern "C" void WBQtScript_Refresh(void)
+{
+	WBQtScriptWindow *win = WBQtScriptWindow::instance();
+	if (win != NULL)
+	{
+		win->refreshFromModel();
+	}
 }
 
 extern "C" void WBQtScript_Close(void)

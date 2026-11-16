@@ -64,7 +64,7 @@ class SortingRendererClass
 	static bool _EnableTriangleDraw;
 
 	static void Flush_Sorting_Pool();
-	static void Flush_Additive_Pool();
+	static void Flush_Pool_Batch(unsigned first_node,unsigned end_node,unsigned polygon_count,unsigned vertex_count);
 	static void Insert_To_Sorting_Pool(SortingNodeStruct* state);
 	static const VertexFormatXYZNDUV2* Source_Vertices(const SortingNodeStruct* state);
 	static const unsigned short* Source_Indices(const SortingNodeStruct* state);

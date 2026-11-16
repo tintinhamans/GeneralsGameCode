@@ -24,6 +24,14 @@
 
 #include "DataTreeView.h"
 #include "Toolbar.h"
+#include "WWLib/Vector.h"
+#include "FrameScrubberDlg.h"
+#include "WWMath/matrix3d.h"
+#include "WWLib/wwstring.h"
+#include "GraphicView.h"
+
+// TheSuperHackers @feature Message used to process one file per pump cycle during async batch loading
+#define WM_USER_LOAD_NEXT_FILE (WM_USER + 100)
 
 
 #if defined(_MSC_VER) && _MSC_VER < 1300
@@ -54,6 +62,15 @@ public:
 	virtual BOOL OnCreateClient(LPCREATESTRUCT lpcs, CCreateContext* pContext) override;
 	virtual BOOL PreCreateWindow(CREATESTRUCT& cs) override;
 	virtual BOOL OnCmdMsg(UINT nID, int nCode, void* pExtra, AFX_CMDHANDLERINFO* pHandlerInfo) override;
+	virtual BOOL PreTranslateMessage(MSG* pMsg) override;
+	// TheSuperHackers @feature View > Lock Toolbars suppresses drag-to-float by
+	// short-circuiting FloatControlBar when m_bToolbarsLocked is set. Both
+	// overrides also re-apply dark theming after a layout change because MFC
+	// destroys/recreates the mini-frame and invalidates the dock bars.
+	virtual void FloatControlBar(CControlBar* pBar, CPoint point,
+		DWORD dwStyle = CBRS_ALIGN_TOP);
+	virtual void DockControlBar(CControlBar* pBar, CDockBar* pDockBar = nullptr,
+		LPCRECT lpRect = nullptr);
 	protected:
 	virtual LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam) override;
 	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam) override;
@@ -71,6 +88,11 @@ protected:  // control bar embedded members
 	CStatusBar  m_wndStatusBar;
 	CToolBar    m_wndToolBar;
 
+	// Filter box for the asset tree, hosted at the end of the toolbar
+	enum { TREE_FILTER_WIDTH = 160 };
+	CEdit       m_TreeFilterEdit;
+	afx_msg void OnTreeFilterChanged();
+
 // Generated message map functions
 protected:
 	//{{AFX_MSG(CMainFrame)
@@ -80,6 +102,7 @@ protected:
 	afx_msg void OnLodGenerate();
 	afx_msg void OnActivateApp(BOOL bActive, HTASK_OR_DWORD hTask);
 	afx_msg void OnFileOpen();
+	afx_msg void OnFileOpenFolder();
 	afx_msg void OnAniSpeed();
 	afx_msg void OnAniStop();
 	afx_msg void OnAniStart();
@@ -139,6 +162,8 @@ protected:
 	afx_msg void OnUpdateSaveAggregate(CCmdUI* pCmdUI);
 	afx_msg void OnCameraResetOnLoad();
 	afx_msg void OnUpdateCameraResetOnLoad(CCmdUI* pCmdUI);
+	afx_msg void OnCameraInvertY();
+	afx_msg void OnUpdateCameraInvertY(CCmdUI* pCmdUI);
 	afx_msg void OnObjectRotateYBack();
 	afx_msg void OnObjectRotateZBack();
 	afx_msg void OnLightRotateY();
@@ -214,6 +239,30 @@ protected:
 	afx_msg void OnScaleEmitter();
 	afx_msg void OnUpdateToggleSorting(CCmdUI* pCmdUI);
 	afx_msg void OnToggleSorting();
+	afx_msg void OnUpdateToggleAlpha(CCmdUI* pCmdUI);
+	afx_msg void OnToggleAlpha();
+	afx_msg void OnFilterPoint();
+	afx_msg void OnFilterBilinear();
+	afx_msg void OnFilterTrilinear();
+	afx_msg void OnFilterAniso2x();
+	afx_msg void OnFilterAniso4x();
+	afx_msg void OnFilterAniso8x();
+	afx_msg void OnFilterAniso16x();
+	afx_msg void OnUpdateFilterPoint(CCmdUI* pCmdUI);
+	afx_msg void OnUpdateFilterBilinear(CCmdUI* pCmdUI);
+	afx_msg void OnUpdateFilterTrilinear(CCmdUI* pCmdUI);
+	afx_msg void OnUpdateFilterAniso2x(CCmdUI* pCmdUI);
+	afx_msg void OnUpdateFilterAniso4x(CCmdUI* pCmdUI);
+	afx_msg void OnUpdateFilterAniso8x(CCmdUI* pCmdUI);
+	afx_msg void OnUpdateFilterAniso16x(CCmdUI* pCmdUI);
+	afx_msg void OnMsaaNone();
+	afx_msg void OnMsaa2x();
+	afx_msg void OnMsaa4x();
+	afx_msg void OnMsaa8x();
+	afx_msg void OnUpdateMsaaNone(CCmdUI* pCmdUI);
+	afx_msg void OnUpdateMsaa2x(CCmdUI* pCmdUI);
+	afx_msg void OnUpdateMsaa4x(CCmdUI* pCmdUI);
+	afx_msg void OnUpdateMsaa8x(CCmdUI* pCmdUI);
 	afx_msg void OnCameraBonePosX();
 	afx_msg void OnUpdateCameraBonePosX(CCmdUI* pCmdUI);
 	afx_msg void OnViewPatchGapFill();
@@ -240,6 +289,74 @@ protected:
 	afx_msg void OnUpdateEnableGammaCorrection(CCmdUI* pCmdUI);
 	afx_msg void OnSetGamma();
 	afx_msg void OnEditAnimatedSoundsOptions();
+	// TheSuperHackers @feature Async batch file loading: process one file per message-pump cycle
+	afx_msg LRESULT OnLoadNextFile(WPARAM wParam, LPARAM lParam);
+	// TheSuperHackers @feature Reload all loaded assets with updated texture path priority
+	afx_msg void OnReloadAssets();
+	afx_msg void OnUpdateReloadAssets(CCmdUI* pCmdUI);
+	// TheSuperHackers @feature Tria 18/04/2026 Batch drag-drop through async loader with status bar.
+	afx_msg void OnDropFiles(HDROP hDropInfo);
+	// TheSuperHackers @feature Tria 18/04/2026 Bones submenu in View menu.
+	afx_msg void OnShowBonePivots();
+	afx_msg void OnUpdateShowBonePivots(CCmdUI* pCmdUI);
+	afx_msg void OnBoneSizeTiny();
+	afx_msg void OnBoneSizeSmall();
+	afx_msg void OnBoneSizeMedium();
+	afx_msg void OnBoneSizeLarge();
+	afx_msg void OnBoneSizeHuge();
+	afx_msg void OnUpdateBoneSizeTiny(CCmdUI* pCmdUI);
+	afx_msg void OnUpdateBoneSizeSmall(CCmdUI* pCmdUI);
+	afx_msg void OnUpdateBoneSizeMedium(CCmdUI* pCmdUI);
+	afx_msg void OnUpdateBoneSizeLarge(CCmdUI* pCmdUI);
+	afx_msg void OnUpdateBoneSizeHuge(CCmdUI* pCmdUI);
+	// TheSuperHackers @feature Tria 18/04/2026 W3D Shader filter toggles.
+	afx_msg void OnShaderAdditive();
+	afx_msg void OnUpdateShaderAdditive(CCmdUI* pCmdUI);
+	afx_msg void OnShaderAlphaTest();
+	afx_msg void OnUpdateShaderAlphaTest(CCmdUI* pCmdUI);
+	afx_msg void OnShaderAlphaBlend();
+	afx_msg void OnUpdateShaderAlphaBlend(CCmdUI* pCmdUI);
+	afx_msg void OnShaderAlphaBlendTest();
+	afx_msg void OnUpdateShaderAlphaBlendTest(CCmdUI* pCmdUI);
+	afx_msg void OnShaderDoubleSided();
+	afx_msg void OnUpdateShaderDoubleSided(CCmdUI* pCmdUI);
+	afx_msg void OnShaderBackfaceTint();
+	afx_msg void OnUpdateShaderBackfaceTint(CCmdUI* pCmdUI);
+	afx_msg void OnShaderBackfaceTintColor();
+	// TheSuperHackers @feature Tria Ground menu (ground plane in the viewport).
+	afx_msg void OnGroundShow();
+	afx_msg void OnUpdateGroundShow(CCmdUI* pCmdUI);
+	afx_msg void OnGroundHeight();
+	afx_msg void OnUpdateGroundHeight(CCmdUI* pCmdUI);
+	afx_msg void OnGroundReset();
+	afx_msg void OnUpdateGroundReset(CCmdUI* pCmdUI);
+	afx_msg void OnShowSubObjNames();
+	afx_msg void OnUpdateShowSubObjNames(CCmdUI* pCmdUI);
+	afx_msg void OnShowBoneNames();
+	afx_msg void OnUpdateShowBoneNames(CCmdUI* pCmdUI);
+	afx_msg void OnShowBonesAndSubObjects();
+	afx_msg void OnUpdateShowBonesAndSubObjects(CCmdUI* pCmdUI);
+	// TheSuperHackers @feature View > Lock Toolbars.
+	afx_msg void OnLockToolbars();
+	afx_msg void OnUpdateLockToolbars(CCmdUI* pCmdUI);
+	// TheSuperHackers @feature W3DView native dark mode (Light/Dark/Auto).
+	afx_msg void OnThemeLight();
+	afx_msg void OnThemeDark();
+	afx_msg void OnThemeAuto();
+	afx_msg void OnUpdateThemeLight(CCmdUI* pCmdUI);
+	afx_msg void OnUpdateThemeDark(CCmdUI* pCmdUI);
+	afx_msg void OnUpdateThemeAuto(CCmdUI* pCmdUI);
+	afx_msg LRESULT OnSettingChangeRaw(WPARAM wParam, LPARAM lParam);
+	// TheSuperHackers @feature Swap toolbar image list when dark/light theme changes.
+	afx_msg LRESULT OnW3DViewThemeChanged(WPARAM wParam, LPARAM lParam);
+	// TheSuperHackers @feature W3D Material Viewer window.
+	afx_msg void OnMaterialViewer();
+	// TheSuperHackers @feature F5 refreshes the viewport (re-displays the current asset).
+	afx_msg void OnRefreshViewport();
+	afx_msg BOOL OnCopyData(CWnd *pWnd, COPYDATASTRUCT *pCopyDataStruct);
+	afx_msg void OnMcpServerEnabled();
+	afx_msg void OnUpdateMcpServerEnabled(CCmdUI *pCmdUI);
+	afx_msg void OnMcpServerInformation();
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()
 
@@ -257,9 +374,16 @@ public:
 
 	void	Update_Frame_Time (DWORD milliseconds);
 	void	UpdatePolygonCount (int iPolygons);
+	void	UpdatePolygonCount (int iPolygons, int iVertices, int iTriangles);
 	void	Update_Particle_Count (int particles);
 	void	UpdateCameraDistance (float cameraDistance);
 	void	UpdateFrameCount (int iCurrentFrame, int iTotalFrames, float frame_rate);
+
+	// Seeks through the frame scrubber, whether or not its window is open
+	bool	Go_To_Animation_Frame (int frame)	{ return m_frameScrubberDlg.Go_To_Frame (frame); }
+
+	// Runs the commands still in the queue, such as the start that PlayAnimation posts
+	void	Run_Posted_Commands ();
 	void	RestoreOriginalSize ();
 	void	Select_Device (bool show_dlg = true);
 
@@ -285,6 +409,65 @@ private:
 	RECT m_OrigRect;
 	HMENU m_hEmittersSubMenu;
 	BOOL m_bInitialized;
+	// TheSuperHackers @feature Async batch file loading state
+	DynamicVectorClass<CString> m_pendingLoadFiles;
+	int m_pendingLoadIndex;
+	int m_totalLoadCount;
+	// TheSuperHackers @performance Highest file index already submitted for
+	// async OS-cache prefetch. Prefetch jobs ReadFile() upcoming .w3d files
+	// on worker threads to warm the disk cache before LoadAssetsFromFile
+	// touches them on the main thread.
+	int m_lastPrefetchedIndex;
+	// TheSuperHackers @feature Tria 18/04/2026 Modeless frame scrubber popup.
+	CFrameScrubberDlg m_frameScrubberDlg;
+	// Poly pane display mode: 0 = polys, 1 = vertices, 2 = triangles.
+	int m_polyPaneMode;
+	int m_cachedPolys;
+	int m_cachedVertices;
+	int m_cachedTriangles;
+	// TheSuperHackers @feature Dark-mode toolbar image list. The light variant is
+	// the MFC-owned image list installed by LoadToolBar(IDR_MAINFRAME); we keep a
+	// non-owning pointer to it so we can swap back.
+	CImageList m_toolbarImgDark;
+	CImageList* m_toolbarImgLight;
+	// TheSuperHackers @feature View > Lock Toolbars — when true, FloatControlBar
+	// is suppressed so docked bars can't be torn off by drag/double-click.
+	// Persisted in MFC profile under Config\LockToolbars.
+	bool m_bToolbarsLocked;
+
+	// TheSuperHackers @feature Reload Assets state preservation. OnReloadAssets
+	// calls OnNewDocument which destroys the displayed render object, current
+	// animation, and resets the camera. We snapshot the user-visible state here
+	// before that wipe, then restore it after the last file finishes reloading
+	// in OnLoadNextFile. 'valid' is false until CaptureReloadState writes it.
+	struct ReloadRestoreState
+	{
+		bool						valid;
+		StringClass					displayedAssetName;
+		StringClass					animationName;
+		float						currentFrame;
+		CGraphicView::ANIMATION_STATE	animState;
+		float						animSpeed;
+		Matrix3D					cameraTransform;
+		float						cameraDistance;
+		StringClass					selectedSubItemName;
+		ASSET_TYPE					selectedSubItemType;
+
+		ReloadRestoreState (void)
+			:	valid (false),
+				currentFrame (0.0f),
+				animState (CGraphicView::AnimStopped),
+				animSpeed (1.0f),
+				cameraTransform (1),
+				cameraDistance (0.0f),
+				selectedSubItemType (TypeUnknown)
+		{
+		}
+	};
+	ReloadRestoreState m_reloadRestore;
+
+	void CaptureReloadState (void);
+	void RestoreReloadState (void);
 };
 
 /////////////////////////////////////////////////////////////////////////////

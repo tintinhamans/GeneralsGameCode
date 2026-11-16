@@ -32,7 +32,10 @@
 #define DEFINE_SHADOW_NAMES
 #define DEFINE_RADIUSCURSOR_NAMES
 
+#include "Common/IniNameRegistry.h"
+#include "Common/INIException.h"
 #include "Common/ActionManager.h"
+#include "Common/ChatCommand.h"
 #include "Common/DrawModule.h"
 #include "Common/FramePacer.h"
 #include "Common/GameAudio.h"
@@ -94,6 +97,7 @@
 #include "GameLogic/AIGuard.h"
 #include "GameLogic/AIPathfind.h"
 #include "GameLogic/Module/AIUpdate.h"
+#include "GameLogic/Module/BodyModule.h"
 #include "GameLogic/Weapon.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/GameLogic.h"
@@ -942,10 +946,49 @@ const FieldParse InGameUI::s_fieldParseTable[] =
 };
 
 //-------------------------------------------------------------------------------------------------
-/** Generic radius-cursor parser. INI form: "RadiusCursor <CursorType>" where <CursorType> is a name
-	from TheRadiusCursorNames (e.g. GUARD_AREA), followed by the RadiusDecalTemplate fields. The parsed
-	definition is stored in m_radiusCursors[<CursorType>]. */
 //-------------------------------------------------------------------------------------------------
+static IniNameRegistry& radiusCursorNames()
+{
+	static IniNameRegistry names(TheRadiusCursorNames, RADIUSCURSOR_COUNT);
+	return names;
+}
+
+void InGameUI::parseRadiusCursorType(INI* ini, void*, void* store, const void*)
+{
+	const char* token = ini->getNextToken();
+	Int type = radiusCursorNames().resolve(token);
+	if (type < 0)
+	{
+		DEBUG_LOG(("Invalid or colliding RadiusCursor name '%s'", token));
+		throw INI_INVALID_DATA;
+	}
+	*static_cast<RadiusCursorType*>(store) = static_cast<RadiusCursorType>(type);
+}
+
+const RadiusDecalTemplate* InGameUI::getRadiusCursorTemplate(RadiusCursorType type) const
+{
+	if (type > RADIUSCURSOR_NONE && type < RADIUSCURSOR_COUNT)
+	{
+		return &m_radiusCursors[type];
+	}
+	std::map<Int, RadiusDecalTemplate>::const_iterator it = m_customRadiusCursors.find(type);
+	return it == m_customRadiusCursors.end() ? nullptr : &it->second;
+}
+
+void InGameUI::validateCustomRadiusCursors() const
+{
+	const IniNameRegistry::CustomNames& names = radiusCursorNames().getCustomNames();
+	for (IniNameRegistry::CustomNames::const_iterator it = names.begin(); it != names.end(); ++it)
+	{
+		if (m_customRadiusCursors.find(it->first) == m_customRadiusCursors.end())
+		{
+			AsciiString message;
+			message.format("RadiusCursor '%s' is referenced but has no definition", it->second.c_str());
+			throw INIException(message.str());
+		}
+	}
+}
+
 /*static*/ void InGameUI::parseRadiusCursor( INI* ini, void* instance, void* /*store*/, const void* /*userData*/ )
 {
 	InGameUI* self = (InGameUI*)instance;
@@ -958,15 +1001,16 @@ const FieldParse InGameUI::s_fieldParseTable[] =
 		return;
 	}
 
-	Int type = INI::scanIndexList( typeName, TheRadiusCursorNames );	// raises INI_INVALID_DATA if unknown
-	if( type <= RADIUSCURSOR_NONE || type >= RADIUSCURSOR_COUNT )
+	Int type = radiusCursorNames().resolve(typeName);
+	if( type <= RADIUSCURSOR_NONE )
 	{
 		DEBUG_CRASH(( "RadiusCursor: invalid CursorType '%s'", typeName ));
-		return;
+		throw INI_INVALID_DATA;
 	}
 
 	// parse the remaining decal fields into the selected slot (reuse the existing block parser)
-	RadiusDecalTemplate::parseRadiusDecalTemplate( ini, instance, &self->m_radiusCursors[type], nullptr );
+	RadiusDecalTemplate* decal = type < RADIUSCURSOR_COUNT ? &self->m_radiusCursors[type] : &self->m_customRadiusCursors[type];
+	RadiusDecalTemplate::parseRadiusDecalTemplate( ini, instance, decal, nullptr );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1150,7 +1194,78 @@ const Int SHADER_PANEL_HEIGHT = SHADER_PANEL_VALUE_TOP + ARRAY_SIZE(ShaderDebugV
 GameWindow *ShaderPanelWindow = nullptr;
 DisplayString *ShaderPanelString = nullptr;
 const Int UNIT_SPAWNER_HEIGHT = 450;
-Bool UnitSpawnerTab = FALSE;
+
+enum DebugPanelTabID
+{
+	DEBUG_TAB_SHADERS,
+	DEBUG_TAB_SPAWNER,
+	DEBUG_TAB_CHEATS,
+	DEBUG_TAB_COUNT
+};
+
+const wchar_t *DebugPanelTabNames[] = { L"Shaders", L"Unit spawner", L"Cheats" };
+
+// The cheats that take a value come first; each has a child control beside its label.
+enum DebugCheatID
+{
+	DEBUG_CHEAT_GIVE_SELECTION,
+	DEBUG_CHEAT_CONTROL_PLAYER,
+	DEBUG_CHEAT_ADD_MONEY,
+	DEBUG_CHEAT_ADD_RANK,
+	DEBUG_CHEAT_ADD_VETERANCY,
+	DEBUG_CHEAT_ADD_SALVAGE,
+	DEBUG_CHEAT_ADD_HEALTH,
+	DEBUG_CHEAT_PRODUCTION_SPEED,
+	DEBUG_CHEAT_VALUE_COUNT,
+
+	DEBUG_CHEAT_READY_TIMERS = DEBUG_CHEAT_VALUE_COUNT,
+	DEBUG_CHEAT_PREREQUISITES,
+	DEBUG_CHEAT_INFINITE_POWER,
+	DEBUG_CHEAT_ALL_UPGRADES,
+	DEBUG_CHEAT_KILL_SELECTION,
+	DEBUG_CHEAT_KILL_PILOTS,
+	DEBUG_CHEAT_SUBDUE_SELECTION,
+	DEBUG_CHEAT_COUNT
+};
+
+struct DebugCheat
+{
+	const wchar_t *label;
+	const wchar_t *defaultValue;	///< null when the cheat takes no typed number
+};
+
+const DebugCheat DebugCheats[] =
+{
+	{ L"Give selection to", nullptr },
+	{ L"Control player", nullptr },
+	{ L"Add money", L"10000" },
+	{ L"Add rank", L"1" },
+	{ L"Add veterancy to selection", L"1" },
+	{ L"Add salvage tier to selection", L"1" },
+	{ L"Add health to selection", L"100000" },
+	{ L"Production speed multiplier", L"5" },
+	{ L"Ready special powers", nullptr },
+	{ L"Ignore prerequisites", nullptr },
+	{ L"Infinite power", nullptr },
+	{ L"Grant all upgrades", nullptr },
+	{ L"Kill selection", nullptr },
+	{ L"Decrew selection", nullptr },
+	{ L"Subdue selection", nullptr }
+};
+
+// In ChatCommand::OwnerTarget order.
+const wchar_t *DebugCheatOwnerNames[] = { L"Enemies", L"Neutral", L"Allies", L"Self" };
+
+const Int DEBUG_CHEAT_ROW_HEIGHT = 26;
+const Int DEBUG_CHEAT_TOP = SHADER_PANEL_HEADER + 6;
+const Int DEBUG_CHEAT_CONTROL_X = 200;
+const Int DEBUG_CHEAT_RUN_WIDTH = 56;
+const Int DEBUG_CHEAT_ACTION_TOP = DEBUG_CHEAT_TOP + DEBUG_CHEAT_VALUE_COUNT * DEBUG_CHEAT_ROW_HEIGHT + 8;
+const Int DEBUG_CHEAT_ACTION_ROWS = (DEBUG_CHEAT_COUNT - DEBUG_CHEAT_VALUE_COUNT + 1) / 2;
+const Int DEBUG_CHEATS_HEIGHT = DEBUG_CHEAT_ACTION_TOP + DEBUG_CHEAT_ACTION_ROWS * DEBUG_CHEAT_ROW_HEIGHT + 24;
+const Int DebugPanelHeights[] = { SHADER_PANEL_HEIGHT, UNIT_SPAWNER_HEIGHT, DEBUG_CHEATS_HEIGHT };
+Int DebugPanelTab = DEBUG_TAB_SHADERS;
+GameWindow *DebugCheatControls[DEBUG_CHEAT_VALUE_COUNT] = { nullptr };
 GameWindow *UnitSpawnerSide = nullptr;
 GameWindow *UnitSpawnerKindFilter = nullptr;
 GameWindow *UnitSpawnerSearch = nullptr;
@@ -1432,7 +1547,7 @@ WindowMsgHandledType unitSpawnerComboFieldInput(GameWindow *window, UnsignedInt 
 	return TheWindowManager->winSendInputMsg(button, msg, data, state);
 }
 
-GameWindow *createUnitSpawnerCombo(Int y, Int entries, GameFont *font)
+GameWindow *createUnitSpawnerCombo(Int y, Int entries, GameFont *font, Int x = 64, Int width = SHADER_PANEL_WIDTH - 72)
 {
 	WinInstanceData data;
 	data.m_style = GWS_COMBO_BOX | GWS_MOUSE_TRACK;
@@ -1449,7 +1564,7 @@ GameWindow *createUnitSpawnerCombo(Int y, Int entries, GameFont *font)
 	combo.listboxData->columns = 1;
 	combo.listboxData->scrollBar = TRUE;
 	GameWindow *window = TheWindowManager->gogoGadgetComboBox(ShaderPanelWindow, WIN_STATUS_ENABLED,
-		64, y, SHADER_PANEL_WIDTH - 72, 22, &data, &combo, font, TRUE);
+		x, y, width, 22, &data, &combo, font, TRUE);
 	GameWindow *field = GadgetComboBoxGetEditBox(window);
 	field->winClearStatus(WIN_STATUS_NO_INPUT);
 	field->winSetStatus(WIN_STATUS_NO_FOCUS);
@@ -1540,12 +1655,235 @@ void createUnitSpawner()
 	refreshUnitSpawnerList();
 }
 
-void selectDebugPanelTab(Bool spawner)
+// Replays would diverge from the recorded game.
+Bool canUseDebugCheats()
+{
+	return canSpawnDebugUnit() && !TheGameLogic->isInReplayGame();
+}
+
+void createDebugCheats()
+{
+	if (DebugCheatControls[0] || !ThePlayerList)
+	{
+		return;
+	}
+	GameFont *font = TheWindowManager->winFindFont("Tahoma", 9, FALSE);
+	const Int width = SHADER_PANEL_WIDTH - DEBUG_CHEAT_CONTROL_X - DEBUG_CHEAT_RUN_WIDTH - 16;
+	const Color textColor = GameMakeColor(235, 235, 235, 255);
+	for (Int i = 0; i < DEBUG_CHEAT_VALUE_COUNT; ++i)
+	{
+		const Int y = DEBUG_CHEAT_TOP + i * DEBUG_CHEAT_ROW_HEIGHT;
+		if (i == DEBUG_CHEAT_GIVE_SELECTION)
+		{
+			DebugCheatControls[i] = createUnitSpawnerCombo(y, ARRAY_SIZE(DebugCheatOwnerNames), font, DEBUG_CHEAT_CONTROL_X, width);
+			for (Int owner = 0; owner < ARRAY_SIZE(DebugCheatOwnerNames); ++owner)
+			{
+				GadgetComboBoxAddEntry(DebugCheatControls[i], UnicodeString(DebugCheatOwnerNames[owner]), textColor);
+			}
+		}
+		else if (i == DEBUG_CHEAT_CONTROL_PLAYER)
+		{
+			// Slot 0 is the neutral player, which ControlPlayer refuses.
+			const Int players = ThePlayerList->getPlayerCount() - 1;
+			DebugCheatControls[i] = createUnitSpawnerCombo(y, players, font, DEBUG_CHEAT_CONTROL_X, width);
+			for (Int slot = 1; slot <= players; ++slot)
+			{
+				Player *player = ThePlayerList->getNthPlayer(slot);
+				UnicodeString name = player->getPlayerDisplayName();
+				if (name.isEmpty())
+				{
+					name.translate(TheNameKeyGenerator->keyToName(player->getPlayerNameKey()));
+				}
+				UnicodeString label;
+				label.format(L"%d  %ls", slot, name.str());
+				GadgetComboBoxAddEntry(DebugCheatControls[i], label, textColor);
+			}
+		}
+		else
+		{
+			WinInstanceData data;
+			data.m_style = GWS_ENTRY_FIELD | GWS_MOUSE_TRACK;
+			data.m_font = font;
+			EntryData entry;
+			memset(&entry, 0, sizeof(entry));
+			entry.maxTextLen = 10;
+			entry.aSCIIOnly = TRUE;
+			DebugCheatControls[i] = TheWindowManager->gogoGadgetTextEntry(ShaderPanelWindow, WIN_STATUS_ENABLED,
+				DEBUG_CHEAT_CONTROL_X, y, width, 22, &data, &entry, font, TRUE);
+			styleUnitSpawnerControl(DebugCheatControls[i]);
+			GadgetTextEntrySetText(DebugCheatControls[i], UnicodeString(DebugCheats[i].defaultValue));
+			continue;
+		}
+		if (GadgetComboBoxGetLength(DebugCheatControls[i]) > 0)
+		{
+			GadgetComboBoxSetSelectedPos(DebugCheatControls[i], 0);
+		}
+	}
+	DebugCheatControls[DEBUG_CHEAT_CONTROL_PLAYER]->winBringToTop();
+	DebugCheatControls[DEBUG_CHEAT_GIVE_SELECTION]->winBringToTop();
+}
+
+void runDebugCheat(Int id)
+{
+	if (id < 0 || id >= DEBUG_CHEAT_COUNT || !canUseDebugCheats())
+	{
+		return;
+	}
+	ChatCommand command;
+	AsciiString name;
+	name.translate(UnicodeString(DebugCheats[id].label));
+	command.setName(name);
+	AsciiString args;
+	double value = 0.0;
+	Int choice = 0;
+	if (id < DEBUG_CHEAT_VALUE_COUNT && !DebugCheats[id].defaultValue)
+	{
+		GadgetComboBoxGetSelectedPos(DebugCheatControls[id], &choice);
+		if (choice < 0)
+		{
+			return;
+		}
+	}
+	else if (id < DEBUG_CHEAT_VALUE_COUNT)
+	{
+		value = wcstod(GadgetTextEntryGetText(DebugCheatControls[id]).str(), nullptr);
+		// ChatCommand reads zero as an absent key, and rank and speed only go up.
+		if (value == 0.0 || (value < 0.0 && (id == DEBUG_CHEAT_ADD_RANK || id == DEBUG_CHEAT_PRODUCTION_SPEED)))
+		{
+			TheInGameUI->message(UnicodeString(L"Enter a non-zero number. Rank and production speed need a positive one."));
+			return;
+		}
+	}
+	switch (id)
+	{
+		case DEBUG_CHEAT_GIVE_SELECTION:
+			command.setSelectedOwner(ChatCommand::OWNER_ENEMIES + choice);
+			break;
+		case DEBUG_CHEAT_CONTROL_PLAYER:
+			command.setControlPlayer(TRUE);
+			args.format("%d", choice + 1);
+			break;
+		case DEBUG_CHEAT_ADD_MONEY:
+			command.setAddMoney((Int)value);
+			break;
+		case DEBUG_CHEAT_ADD_RANK:
+			command.setAddRank((UnsignedInt)value);
+			break;
+		case DEBUG_CHEAT_ADD_VETERANCY:
+			command.setAddVeterancyLevel((Int)value);
+			break;
+		case DEBUG_CHEAT_ADD_SALVAGE:
+			command.setAddSalvageTier((Int)value);
+			break;
+		case DEBUG_CHEAT_ADD_HEALTH:
+			command.setAddHealth((Real)value);
+			break;
+		case DEBUG_CHEAT_PRODUCTION_SPEED:
+			command.setProductionSpeedMultiplier((Real)value);
+			break;
+		case DEBUG_CHEAT_READY_TIMERS:
+			command.setReadyTimers(TRUE);
+			break;
+		case DEBUG_CHEAT_PREREQUISITES:
+			command.setTogglePrerequisites(TRUE);
+			break;
+		case DEBUG_CHEAT_INFINITE_POWER:
+			command.setToggleInfiniteEnergy(TRUE);
+			break;
+		case DEBUG_CHEAT_ALL_UPGRADES:
+			command.setGrantAllUpgrades(TRUE);
+			break;
+		case DEBUG_CHEAT_KILL_SELECTION:
+			command.setKillSelected(TRUE);
+			break;
+		case DEBUG_CHEAT_KILL_PILOTS:
+			command.setKillSelectedPilots(TRUE);
+			break;
+		case DEBUG_CHEAT_SUBDUE_SELECTION:
+			command.setSubdueSelected(TRUE);
+			break;
+	}
+	command.execute(args);
+}
+
+// The cheat whose Run box or action cell holds this panel point, or -1.
+Int debugCheatAt(Int x, Int y)
+{
+	if (y >= DEBUG_CHEAT_TOP && y < DEBUG_CHEAT_TOP + DEBUG_CHEAT_VALUE_COUNT * DEBUG_CHEAT_ROW_HEIGHT)
+	{
+		if (x >= SHADER_PANEL_WIDTH - DEBUG_CHEAT_RUN_WIDTH - 8 && x < SHADER_PANEL_WIDTH - 8)
+		{
+			return (y - DEBUG_CHEAT_TOP) / DEBUG_CHEAT_ROW_HEIGHT;
+		}
+		return -1;
+	}
+	if (x >= 8 && x < SHADER_PANEL_WIDTH - 8 && y >= DEBUG_CHEAT_ACTION_TOP
+		&& y < DEBUG_CHEAT_ACTION_TOP + DEBUG_CHEAT_ACTION_ROWS * DEBUG_CHEAT_ROW_HEIGHT)
+	{
+		const Int id = DEBUG_CHEAT_VALUE_COUNT + ((x - 8) / SHADER_PANEL_COLUMN_WIDTH) * DEBUG_CHEAT_ACTION_ROWS
+			+ (y - DEBUG_CHEAT_ACTION_TOP) / DEBUG_CHEAT_ROW_HEIGHT;
+		if (id < DEBUG_CHEAT_COUNT)
+		{
+			return id;
+		}
+	}
+	return -1;
+}
+
+void drawDebugCheats(Int x, Int y, Color white, Color shadow)
+{
+	const Bool usable = canUseDebugCheats();
+	const Color gray = GameMakeColor(130, 130, 130, 255);
+	const Color border = usable ? GameMakeColor(110, 140, 160, 255) : gray;
+	const Color text = usable ? white : gray;
+	const Player *player = ThePlayerList ? ThePlayerList->getLocalPlayer() : nullptr;
+	for (Int i = 0; i < DEBUG_CHEAT_VALUE_COUNT; ++i)
+	{
+		const Int rowY = y + DEBUG_CHEAT_TOP + i * DEBUG_CHEAT_ROW_HEIGHT;
+		const Int runX = x + SHADER_PANEL_WIDTH - DEBUG_CHEAT_RUN_WIDTH - 8;
+		ShaderPanelString->setText(UnicodeString(DebugCheats[i].label));
+		ShaderPanelString->draw(x + 8, rowY + 3, white, shadow);
+		TheDisplay->drawOpenRect(runX, rowY, DEBUG_CHEAT_RUN_WIDTH, 22, 1.0f, border);
+		ShaderPanelString->setText(UnicodeString(L"Run"));
+		ShaderPanelString->draw(runX + 16, rowY + 3, text, shadow);
+	}
+	for (Int i = DEBUG_CHEAT_VALUE_COUNT; i < DEBUG_CHEAT_COUNT; ++i)
+	{
+		const Int cell = i - DEBUG_CHEAT_VALUE_COUNT;
+		const Int cellX = x + 8 + (cell / DEBUG_CHEAT_ACTION_ROWS) * SHADER_PANEL_COLUMN_WIDTH;
+		const Int cellY = y + DEBUG_CHEAT_ACTION_TOP + (cell % DEBUG_CHEAT_ACTION_ROWS) * DEBUG_CHEAT_ROW_HEIGHT;
+		const Bool on = player && ((i == DEBUG_CHEAT_PREREQUISITES && player->ignoresUnitPrereqs())
+			|| (i == DEBUG_CHEAT_INFINITE_POWER && player->getEnergy()->hasInfinitePower()));
+		TheDisplay->drawOpenRect(cellX, cellY, SHADER_PANEL_COLUMN_WIDTH - 4, 22, 1.0f, border);
+		ShaderPanelString->setText(UnicodeString(DebugCheats[i].label));
+		ShaderPanelString->draw(cellX + 8, cellY + 3, on ? GameMakeColor(160, 235, 160, 255) : text, shadow);
+	}
+	ShaderPanelString->setText(UnicodeString(usable ? L"Green cheats are on; selection cheats need a selection"
+		: L"Cheats are disabled in replays"));
+	ShaderPanelString->draw(x + 8, y + DEBUG_CHEATS_HEIGHT - 20, white, shadow);
+}
+
+void selectDebugPanelTab(Int tab)
 {
 	TheWindowManager->winSetFocus(nullptr);
-	if (spawner)
+	if (tab == DEBUG_TAB_SPAWNER)
 	{
 		createUnitSpawner();
+	}
+	if (tab == DEBUG_TAB_CHEATS)
+	{
+		createDebugCheats();
+	}
+	for (Int cheat = 0; cheat < DEBUG_CHEAT_VALUE_COUNT; ++cheat)
+	{
+		if (DebugCheatControls[cheat])
+		{
+			if (!DebugCheats[cheat].defaultValue)
+			{
+				GadgetComboBoxHideList(DebugCheatControls[cheat]);
+			}
+			DebugCheatControls[cheat]->winHide(tab != DEBUG_TAB_CHEATS);
+		}
 	}
 	if (UnitSpawnerSide)
 	{
@@ -1555,17 +1893,17 @@ void selectDebugPanelTab(Bool spawner)
 	{
 		GadgetComboBoxHideList(UnitSpawnerKindFilter);
 	}
-	UnitSpawnerTab = spawner;
+	DebugPanelTab = tab;
 	GameWindow *controls[] = { UnitSpawnerSide, UnitSpawnerKindFilter, UnitSpawnerSearch, UnitSpawnerList, UnitSpawnerSpawnMode };
 	for (Int i = 0; i < ARRAY_SIZE(controls); ++i)
 	{
 		if (controls[i])
 		{
-			controls[i]->winHide(!spawner);
+			controls[i]->winHide(tab != DEBUG_TAB_SPAWNER);
 		}
 	}
-	ShaderPanelWindow->winSetSize(SHADER_PANEL_WIDTH, spawner ? UNIT_SPAWNER_HEIGHT : SHADER_PANEL_HEIGHT);
-	if (spawner && UnitSpawnerSearch)
+	ShaderPanelWindow->winSetSize(SHADER_PANEL_WIDTH, DebugPanelHeights[tab]);
+	if (tab == DEBUG_TAB_SPAWNER && UnitSpawnerSearch)
 	{
 		TheWindowManager->winSetFocus(UnitSpawnerSearch);
 	}
@@ -1588,7 +1926,8 @@ void destroyShaderDebugPanel()
 	UnitSpawnerSearch = nullptr;
 	UnitSpawnerList = nullptr;
 	UnitSpawnerSpawnMode = nullptr;
-	UnitSpawnerTab = FALSE;
+	std::fill(DebugCheatControls, DebugCheatControls + DEBUG_CHEAT_VALUE_COUNT, (GameWindow *)nullptr);
+	DebugPanelTab = DEBUG_TAB_SHADERS;
 	UnitSpawnerTemplates.clear();
 	UnitSpawnerSides.clear();
 	if (ShaderPanelString)
@@ -1619,7 +1958,8 @@ WindowMsgHandledType shaderPanelSystem(GameWindow *window, UnsignedInt msg, Wind
 		UnitSpawnerSearch = nullptr;
 		UnitSpawnerList = nullptr;
 		UnitSpawnerSpawnMode = nullptr;
-		UnitSpawnerTab = FALSE;
+		std::fill(DebugCheatControls, DebugCheatControls + DEBUG_CHEAT_VALUE_COUNT, (GameWindow *)nullptr);
+		DebugPanelTab = DEBUG_TAB_SHADERS;
 		UnitSpawnerTemplates.clear();
 		UnitSpawnerSides.clear();
 	}
@@ -1666,14 +2006,21 @@ WindowMsgHandledType shaderPanelInput(GameWindow *window, UnsignedInt msg, Windo
 		}
 		else if (y >= 28 && y < SHADER_PANEL_HEADER)
 		{
-			selectDebugPanelTab(x >= SHADER_PANEL_WIDTH / 2);
+			if (x >= 0 && x < SHADER_PANEL_WIDTH)
+			{
+				selectDebugPanelTab(x * DEBUG_TAB_COUNT / SHADER_PANEL_WIDTH);
+			}
 		}
-		else if (UnitSpawnerTab)
+		else if (DebugPanelTab == DEBUG_TAB_SPAWNER)
 		{
 			if (y >= UNIT_SPAWNER_HEIGHT - 58 && y < UNIT_SPAWNER_HEIGHT - 30)
 			{
 				startUnitSpawnerPlacement();
 			}
+		}
+		else if (DebugPanelTab == DEBUG_TAB_CHEATS)
+		{
+			runDebugCheat(debugCheatAt(x, y));
 		}
 		else if (x >= 8 && x < SHADER_PANEL_WIDTH - 8 && y >= SHADER_PANEL_HEADER
 			&& y < SHADER_PANEL_HEADER + SHADER_PANEL_ROWS * SHADER_PANEL_ROW_HEIGHT)
@@ -1717,22 +2064,27 @@ void drawShaderDebugPanel(GameWindow *window, WinInstanceData *)
 	window->winGetScreenPosition(&x, &y);
 	const Color white = GameMakeColor(235, 235, 235, 255);
 	const Color shadow = GameMakeColor(0, 0, 0, 255);
-	const Int height = UnitSpawnerTab ? UNIT_SPAWNER_HEIGHT : SHADER_PANEL_HEIGHT;
+	const Int height = DebugPanelHeights[DebugPanelTab];
 	TheDisplay->drawFillRect(x, y, SHADER_PANEL_WIDTH, height, GameMakeColor(12, 16, 20, 205));
 	TheDisplay->drawOpenRect(x, y, SHADER_PANEL_WIDTH, height, 1.0f, GameMakeColor(130, 160, 180, 220));
 	ShaderPanelString->setText(UnicodeString(L"Debug   Ctrl+Shift+Tab"));
 	ShaderPanelString->draw(x + 8, y + 6, white, shadow);
 	ShaderPanelString->setText(UnicodeString(L"X"));
 	ShaderPanelString->draw(x + SHADER_PANEL_WIDTH - 20, y + 6, white, shadow);
-	for (Int tab = 0; tab < 2; ++tab)
+	for (Int tab = 0; tab < DEBUG_TAB_COUNT; ++tab)
 	{
-		TheDisplay->drawFillRect(x + tab * SHADER_PANEL_WIDTH / 2 + 4, y + 28,
-			SHADER_PANEL_WIDTH / 2 - 8, 20, tab == (Int)UnitSpawnerTab
+		TheDisplay->drawFillRect(x + tab * SHADER_PANEL_WIDTH / DEBUG_TAB_COUNT + 4, y + 28,
+			SHADER_PANEL_WIDTH / DEBUG_TAB_COUNT - 8, 20, tab == DebugPanelTab
 			? GameMakeColor(55, 85, 105, 255) : GameMakeColor(25, 35, 45, 255));
-		ShaderPanelString->setText(UnicodeString(tab == 0 ? L"Shaders" : L"Unit spawner"));
-		ShaderPanelString->draw(x + tab * SHADER_PANEL_WIDTH / 2 + 12, y + 30, white, shadow);
+		ShaderPanelString->setText(UnicodeString(DebugPanelTabNames[tab]));
+		ShaderPanelString->draw(x + tab * SHADER_PANEL_WIDTH / DEBUG_TAB_COUNT + 12, y + 30, white, shadow);
 	}
-	if (UnitSpawnerTab)
+	if (DebugPanelTab == DEBUG_TAB_CHEATS)
+	{
+		drawDebugCheats(x, y, white, shadow);
+		return;
+	}
+	if (DebugPanelTab == DEBUG_TAB_SPAWNER)
 	{
 		ShaderPanelString->setText(UnicodeString(L"Side"));
 		ShaderPanelString->draw(x + 8, y + 62, white, shadow);
@@ -2352,7 +2704,12 @@ void InGameUI::setRadiusCursor(RadiusCursorType cursorType, const SpecialPowerTe
 		return;
 
 	Coord3D pos = { 0, 0, 0 };	// will be updated right away
-	m_radiusCursors[cursorType].createRadiusDecal(pos, radius, controller, m_curRadiusCursor);
+	const RadiusDecalTemplate* decal = getRadiusCursorTemplate(cursorType);
+	if (!decal)
+	{
+		return;
+	}
+	decal->createRadiusDecal(pos, radius, controller, m_curRadiusCursor);
 	m_curRcType = cursorType;
 	m_curRcRadiusOverride = radiusOverride;
 
@@ -4485,7 +4842,8 @@ void InGameUI::spawnSpecialPowerLocationMarker( const Coord3D *loc, Bool isAncho
 			rc = m_pendingGUICommand->getAnchorRadiusCursorType();
 		radius = m_pendingGUICommand->getEffectiveAnchorDecalRadius();
 	}
-	if( rc != RADIUSCURSOR_NONE && radius > 0.0f && m_radiusCursors[rc].valid() )
+	const RadiusDecalTemplate* cursorTemplate = getRadiusCursorTemplate(rc);
+	if( cursorTemplate && radius > 0.0f && cursorTemplate->valid() )
 	{
 		Player *localPlayer = ThePlayerList ? ThePlayerList->getLocalPlayer() : nullptr;
 		if( localPlayer )
@@ -4493,7 +4851,7 @@ void InGameUI::spawnSpecialPowerLocationMarker( const Coord3D *loc, Bool isAncho
 			// heap-owned: RadiusDecal's copy ctor/operator= are unimplemented stubs, so it must never be
 			// copied. Construct in place into *decal and store the pointer.
 			RadiusDecal *decal = new RadiusDecal();
-			m_radiusCursors[rc].createRadiusDecal( *loc, radius, localPlayer, *decal );
+			cursorTemplate->createRadiusDecal( *loc, radius, localPlayer, *decal );
 			decal->setPosition( *loc );
 			m_specialPowerLocationDecals.push_back( decal );
 		}
@@ -4947,6 +5305,12 @@ Real InGameUI::getPlacementAngle()
 //-------------------------------------------------------------------------------------------------
 void InGameUI::selectDrawable( Drawable *draw )
 {
+	const Object *obj = draw->getObject();
+	const BodyModuleInterface *body = obj ? obj->getBodyModule() : nullptr;
+	if (body && body->isJammed())
+	{
+		return;
+	}
 
 	if( draw->isSelected() == FALSE )
 	{

@@ -10,6 +10,7 @@
 // IDs without coupling to MFC.
 #include "WBQtPanelBridge.h"
 #include "qwinwidget.h"
+#include "WBQtWindowPos.h"
 #include "panels/WBQtFeatherPanel.h"
 #include "panels/WBQtBrushPanel.h"
 #include "panels/WBQtMoundPanel.h"
@@ -295,8 +296,8 @@ extern "C" int WBQt_ShowOptionsPanel(void *frameHwnd, int dialogID, int x, int y
 		// GetWindowRect coords the profile stores); setGeometry would place the client
 		// area and creep the panel down-right by the frame size now that positions are
 		// written back on every drag.
-		panel->move(x, y);
 		panel->resize(w, h);
+		WBQtWindowPos_MoveOnScreen(panel, x, y);
 		g_positionedPanels.insert(panel);
 		if (g_panelMoveSaver == NULL)
 		{

@@ -43,6 +43,7 @@
 #include "TerrainMaterial.h"
 #include "WaveEditorOptions.h"
 #ifdef RTS_HAS_QT
+#include "qt/WBQtBridge.h"
 #include "qt/panels/WBQtPlayerListBridge.h"
 #include "qt/panels/WBQtTeamsBridge.h"
 #include "qt/panels/WBQtMiscModalsBridge.h"
@@ -213,12 +214,47 @@ void WbView::Dump(CDumpContext& dc) const
 /////////////////////////////////////////////////////////////////////////////
 // WbView message handlers
 
+#ifdef RTS_HAS_QT
+// ----------------------------------------------------------------------------
+// A message box raised while an edit commits swallows the button release, and
+// tracking a press without its release would drag whatever the tool grabbed.
+static Bool buttonReleaseLost(HWND hWnd, TTrackingMode m)
+{
+	UINT upMsg = WM_MBUTTONUP;
+	Int vk = VK_MBUTTON;
+	if (m != TRACK_M)
+	{
+		Bool left = (m == TRACK_L);
+		upMsg = left ? WM_LBUTTONUP : WM_RBUTTONUP;
+		if (::GetSystemMetrics(SM_SWAPBUTTON))
+		{
+			left = !left;
+		}
+		vk = left ? VK_LBUTTON : VK_RBUTTON;
+	}
+	if (0x8000 & ::GetAsyncKeyState(vk))
+	{
+		return false;
+	}
+	MSG msg;
+	return !::PeekMessage(&msg, hWnd, upMsg, upMsg, PM_NOREMOVE);
+}
+#endif
+
 // ----------------------------------------------------------------------------
 void WbView::mouseDown(TTrackingMode m, CPoint viewPt)
 {
 	// can happen if you press 2 mouse buttons.  DEBUG_ASSERTCRASH((m_trackingMode==TRACK_NONE),("oops"));
 	if (m_trackingMode != TRACK_NONE)
 		return;
+
+#ifdef RTS_HAS_QT
+	// A name typed in an options panel must reach its object before this click reselects.
+	if (WBQt_CommitFocusedEdit() && buttonReleaseLost(m_hWnd, m))
+	{
+		return;
+	}
+#endif
 
 	SetCapture();
 	m_mouseDownPoint = viewPt;

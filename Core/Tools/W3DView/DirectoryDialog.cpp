@@ -38,39 +38,16 @@
 #include "StdAfx.h"
 #include "DirectoryDialog.h"
 #include "Utils.h"
-
-
-////////////////////////////////////////////////////////////////////////////
-//
-//	Browse_For_Folder_Hook_Proc
-//
-////////////////////////////////////////////////////////////////////////////
-UINT CALLBACK Browse_For_Folder_Hook_Proc
-(
-	HWND		hdlg,
-	UINT		message,
-	WPARAM	wparam,
-	LPARAM	lparam
-)
-{
-	//
-	//	If the user clicked OK, then stuff a dummy filename
-	// into the control so the dialog will close...
-	//
-	if (	message == WM_COMMAND &&
-			LOWORD (wparam) == IDOK &&
-			HIWORD (wparam) == BN_CLICKED)
-	{
-		::SetDlgItemText (hdlg, 1152, "xxx.xxx");
-	}
-
-	return FALSE;
-}
+#include <atlbase.h>
+#include <shobjidl.h>
 
 
 ////////////////////////////////////////////////////////////////////////////
 //
 //	Browse_For_Folder
+//
+//  TheSuperHackers @refactor Tria 18/04/2026 Replace old GetOpenFileName
+//  hook hack with modern IFileDialog folder picker.
 //
 ////////////////////////////////////////////////////////////////////////////
 bool
@@ -78,26 +55,34 @@ Browse_For_Folder (HWND parent_wnd, LPCTSTR initial_path, CString &path)
 {
 	bool retval = false;
 
-	OPENFILENAME openfilename	= { sizeof (OPENFILENAME), nullptr };
-	TCHAR filename[MAX_PATH]	= { 0 };
+	CComPtr<IFileDialog> pfd;
+	HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pfd));
 
-	openfilename.lpstrInitialDir	= initial_path;
-	openfilename.hwndOwner			= parent_wnd;
-	openfilename.hInstance			= ::AfxGetResourceHandle ();
-	openfilename.lpstrFilter		= _T("\0\0");
-	openfilename.lpstrFile			= filename;
-	openfilename.nMaxFile			= sizeof (filename);
-	openfilename.lpstrTitle			= _T("Choose Directory");
-	openfilename.lpfnHook			= Browse_For_Folder_Hook_Proc;
-	openfilename.lpTemplateName	= MAKEINTRESOURCE (1536);
-	openfilename.Flags				= OFN_HIDEREADONLY | OFN_ENABLETEMPLATE | OFN_ENABLEHOOK | OFN_LONGNAMES;
+	if (SUCCEEDED(hr)) {
+		DWORD dwOptions = 0;
+		pfd->GetOptions(&dwOptions);
+		pfd->SetOptions(dwOptions | FOS_PICKFOLDERS);
+		pfd->SetTitle(L"Choose Directory");
 
-	//
-	//	Display the modified 'file-open' dialog.
-	//
-	if (::GetOpenFileName (&openfilename) == IDOK) {
-		path		= ::Strip_Filename_From_Path (filename);
-		retval	= true;
+		// Set initial folder if provided
+		if (initial_path != nullptr && initial_path[0] != 0) {
+			CComPtr<IShellItem> psiFolder;
+			CStringW wInitialPath(initial_path);
+			if (SUCCEEDED(SHCreateItemFromParsingName(wInitialPath, nullptr, IID_PPV_ARGS(&psiFolder)))) {
+				pfd->SetFolder(psiFolder);
+			}
+		}
+
+		if (SUCCEEDED(pfd->Show(parent_wnd))) {
+			CComPtr<IShellItem> psi;
+			if (SUCCEEDED(pfd->GetResult(&psi))) {
+				CComHeapPtr<WCHAR> pszPath;
+				if (SUCCEEDED(psi->GetDisplayName(SIGDN_FILESYSPATH, &pszPath))) {
+					path = CString(pszPath);
+					retval = true;
+				}
+			}
+		}
 	}
 
 	return retval;

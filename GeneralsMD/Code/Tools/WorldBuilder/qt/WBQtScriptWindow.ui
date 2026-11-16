@@ -5,7 +5,7 @@
   <property name="windowTitle">
    <string>Script Editor</string>
   </property>
-  <layout class="QVBoxLayout" name="rootLayout" stretch="0,0,0,0,1,0,0,0">
+  <layout class="QVBoxLayout" name="rootLayout" stretch="0,0,0,0,1,0,0">
    <item>
     <widget class="QGroupBox" name="optBox">
      <property name="title">
@@ -106,7 +106,7 @@
     </widget>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="searchRow" stretch="0,1,0,0,0">
+    <layout class="QHBoxLayout" name="searchRow" stretch="0,1,0,0,0,0">
      <item>
       <widget class="QLabel" name="searchLabel">
        <property name="text">
@@ -122,9 +122,19 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="findPrevBtn">
+       <property name="toolTip">
+        <string>Find Prev (Shift+Enter in the search box)</string>
+       </property>
+       <property name="text">
+        <string>&#9650;</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="findBtn">
        <property name="text">
-        <string>Find Next</string>
+        <string>&#9660; Find Next</string>
        </property>
       </widget>
      </item>
@@ -393,35 +403,35 @@
      <item>
       <widget class="QPushButton" name="newFolder">
        <property name="text">
-        <string>New Folder</string>
+        <string>New &amp;Folder</string>
        </property>
       </widget>
      </item>
      <item>
       <widget class="QPushButton" name="newScript">
        <property name="text">
-        <string>New Script</string>
+        <string>&amp;New Script</string>
        </property>
       </widget>
      </item>
      <item>
       <widget class="QPushButton" name="editScript">
        <property name="text">
-        <string>Edit</string>
+        <string>&amp;Edit</string>
        </property>
       </widget>
      </item>
      <item>
       <widget class="QPushButton" name="copyScript">
        <property name="text">
-        <string>Copy</string>
+        <string>&amp;Copy</string>
        </property>
       </widget>
      </item>
      <item>
       <widget class="QPushButton" name="deleteBtn">
        <property name="text">
-        <string>Delete</string>
+        <string>&amp;Delete</string>
        </property>
       </widget>
      </item>
@@ -446,75 +456,19 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="clearAllBtn">
-       <property name="text">
-        <string>Clear All...</string>
-       </property>
-       <property name="toolTip">
-        <string>Remove every script and folder from the map, for all players. Undoable.</string>
-       </property>
-      </widget>
-     </item>
-     <item>
       <widget class="QPushButton" name="verify">
        <property name="text">
-        <string>Re-Verify All</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="replaceMissing">
-       <property name="text">
-        <string>Replace Missing...</string>
-       </property>
-       <property name="toolTip">
-        <string>Replace every missing object type in the scripts with its closest name match, then show a report you can correct.</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="cmdRow2">
-     <item>
-      <widget class="QPushButton" name="addDebug">
-       <property name="text">
-        <string>Add Debug</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="removeDebug">
-       <property name="text">
-        <string>Delete Debug</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="patchGC">
-       <property name="text">
-        <string>Patch &quot;GC_&quot;</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="exportBtn">
-       <property name="text">
-        <string>Export Scripts</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="importBtn">
-       <property name="text">
-        <string>Import Scripts</string>
+        <string>&amp;Verify</string>
        </property>
       </widget>
      </item>
      <item>
       <widget class="QPushButton" name="saveNow">
        <property name="text">
-        <string>Save Now (Ctrl+S)</string>
+        <string>Save</string>
+       </property>
+       <property name="toolTip">
+        <string>Commit the scripts and save the map, keeping the editor open (Ctrl+S).</string>
        </property>
       </widget>
      </item>
@@ -532,7 +486,7 @@
      <item>
       <widget class="QPushButton" name="ok">
        <property name="text">
-        <string>Save + Close</string>
+        <string>OK</string>
        </property>
       </widget>
      </item>

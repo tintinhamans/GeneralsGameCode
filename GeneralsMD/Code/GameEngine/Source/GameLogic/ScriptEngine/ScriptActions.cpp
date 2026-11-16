@@ -37,6 +37,7 @@
 #include "Common/PartitionSolver.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
+#include "Common/ResourceGatheringManager.h"
 #include "Common/PlayerTemplate.h"
 #include "Common/Radar.h"									// For TheRadar
 #include "Common/SpecialPower.h"
@@ -6434,72 +6435,6 @@ void ScriptActions::doGuardSupplyCenter(const AsciiString& teamName, Int supplie
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Nearest supply source to pos that is not enemy owned and has no supply center of any player near it. */
-//-------------------------------------------------------------------------------------------------
-static Object *findFreeSupplySource(const Coord3D *pos, const Player *player, Int minimumCash)
-{
-	// Same as SUPPLY_CENTER_CLOSE_DIST in AIPlayer.cpp
-	const Real closeDist = 20*PATHFIND_CELL_SIZE_F;
-	static const NameKeyType key_warehouseUpdate = NAMEKEY("SupplyWarehouseDockUpdate");
-
-	Object *bestSource = nullptr;
-	Real bestDistSqr = 0;
-	do
-	{
-		for (Object *obj = TheGameLogic->getFirstObject(); obj; obj = obj->getNextObject())
-		{
-			if (!obj->isKindOf(KINDOF_STRUCTURE) || !obj->isKindOf(KINDOF_SUPPLY_SOURCE))
-			{
-				continue;
-			}
-			SupplyWarehouseDockUpdate *warehouseModule = (SupplyWarehouseDockUpdate*)obj->findUpdateModule(key_warehouseUpdate);
-			if (!warehouseModule)
-			{
-				continue;
-			}
-			Int availableCash = warehouseModule->getBoxesStored()*TheGlobalData->m_baseValuePerSupplyBox;
-			if (availableCash <= 0 || availableCash < minimumCash)
-			{
-				continue;
-			}
-			if (player->getRelationship(obj->getTeam()) == ENEMIES)
-			{
-				continue;
-			}
-
-			Real dx = obj->getPosition()->x - pos->x;
-			Real dy = obj->getPosition()->y - pos->y;
-			Real distSqr = dx*dx + dy*dy;
-			if (bestSource && distSqr >= bestDistSqr)
-			{
-				continue;
-			}
-
-			// Structures only, so a moving stash does not claim the source it drives past
-			PartitionFilterAcceptByKindOf filterKind(KindOfMaskType(KindOfMaskType::kInit, KINDOF_STRUCTURE, KINDOF_CASH_GENERATOR), KINDOFMASK_NONE);
-			PartitionFilterAlive filterAlive;
-			PartitionFilterOnMap filterMapStatus;
-			PartitionFilter *filters[] = { &filterKind, &filterAlive, &filterMapStatus, nullptr };
-			Real radius = closeDist + obj->getGeometryInfo().getBoundingCircleRadius();
-			if (ThePartitionManager->getClosestObject(obj->getPosition(), radius, FROM_BOUNDINGSPHERE_2D, filters))
-			{
-				continue;
-			}
-
-			bestSource = obj;
-			bestDistSqr = distSqr;
-		}
-		if (bestSource)
-		{
-			break;
-		}
-		minimumCash /= 2;
-	} while (minimumCash > 100);
-
-	return bestSource;
-}
-
-//-------------------------------------------------------------------------------------------------
 /** Point beside the source on the side facing from, clear of its supply build border. */
 //-------------------------------------------------------------------------------------------------
 static Coord3D getSupplySourceApproach(const Object *source, const Coord3D *from, Real moverRadius)
@@ -6517,6 +6452,44 @@ static Coord3D getSupplySourceApproach(const Object *source, const Coord3D *from
 }
 
 //-------------------------------------------------------------------------------------------------
+void ScriptActions::doTeamManageSupplyTrucks(const AsciiString& teamName, const AsciiString& workerType, Int workers, Int supplies)
+{
+	Team *team = TheScriptEngine->getTeamNamed(teamName);
+	const ThingTemplate *workerTemplate = TheThingFactory->findTemplate(workerType);
+	if (!team || !workerTemplate)
+	{
+		return;
+	}
+	for (DLINK_ITERATOR<Object> iter = team->iterate_TeamMemberList(); !iter.done(); iter.advance())
+	{
+		Object *truck = iter.cur();
+		AIUpdateInterface *ai = truck->getAIUpdateInterface();
+		Player *player = truck->getControllingPlayer();
+		ResourceGatheringManager *manager = player ? player->getResourceGatheringManager() : nullptr;
+		if (truck->isEffectivelyDead() || !ai || !manager || truck->isKindOf(KINDOF_STRUCTURE) ||
+			!truck->isKindOf(KINDOF_CASH_GENERATOR))
+		{
+			continue;
+		}
+		manager->manageSupplyTruck(truck);
+		Object *source = manager->findFreeSupplySource(truck, truck->getPosition(), supplies);
+		if (!source)
+		{
+			continue;
+		}
+		if (!ResourceGatheringManager::isAtSupplySource(truck, source))
+		{
+			if (!ai->isMoving())
+			{
+				Coord3D destination = getSupplySourceApproach(source, truck->getPosition(), truck->getGeometryInfo().getBoundingCircleRadius());
+				ai->aiMoveToPosition(&destination, CMD_FROM_SCRIPT);
+			}
+			continue;
+		}
+		manager->maintainSupplyWorkers(truck, workerTemplate, workers);
+	}
+}
+
 void ScriptActions::doTeamMoveToSupplySource(const AsciiString& teamName, Int supplies)
 {
 	Team *team = TheScriptEngine->getTeamNamed(teamName);
@@ -6531,15 +6504,30 @@ void ScriptActions::doTeamMoveToSupplySource(const AsciiString& teamName, Int su
 	if (!teamPos) {
 		return;
 	}
-	Object *source = findFreeSupplySource(teamPos, player, supplies);
-	if (!source) {
-		return;
-	}
-
+	Object *mover = nullptr;
 	Real moverRadius = 0;
 	for (DLINK_ITERATOR<Object> iter = team->iterate_TeamMemberList(); !iter.done(); iter.advance())
 	{
-		moverRadius = max(moverRadius, iter.cur()->getGeometryInfo().getBoundingCircleRadius());
+		Object *member = iter.cur();
+		if (member->isEffectivelyDead() || !member->getAI())
+		{
+			continue;
+		}
+		if (!mover || member->getID() < mover->getID())
+		{
+			mover = member;
+		}
+		moverRadius = max(moverRadius, member->getGeometryInfo().getBoundingCircleRadius());
+	}
+	ResourceGatheringManager *manager = player->getResourceGatheringManager();
+	if (!mover || !manager)
+	{
+		return;
+	}
+	Object *source = manager->findFreeSupplySource(mover, teamPos, supplies);
+	if (!source || ResourceGatheringManager::isAtSupplySource(mover, source))
+	{
+		return;
 	}
 
 	AIGroupPtr theGroup = TheAI->createGroup();
@@ -6570,8 +6558,14 @@ void ScriptActions::doNamedMoveToSupplySource(const AsciiString& unitName, Int s
 	if (!aiUpdate) {
 		return;
 	}
-	Object *source = findFreeSupplySource(theObj->getPosition(), player, supplies);
-	if (!source) {
+	ResourceGatheringManager *manager = player->getResourceGatheringManager();
+	if (!manager)
+	{
+		return;
+	}
+	Object *source = manager->findFreeSupplySource(theObj, theObj->getPosition(), supplies);
+	if (!source || ResourceGatheringManager::isAtSupplySource(theObj, source))
+	{
 		return;
 	}
 
@@ -7871,6 +7865,10 @@ void ScriptActions::executeAction( ScriptAction *pAction )
 
 		case ScriptAction::TEAM_GUARD_SUPPLY_CENTER:
 			doGuardSupplyCenter(pAction->getParameter(0)->getString(), pAction->getParameter(1)->getInt());
+			return;
+
+		case ScriptAction::TEAM_MANAGE_SUPPLY_TRUCKS:
+			doTeamManageSupplyTrucks(pAction->getParameter(0)->getString(), pAction->getParameter(1)->getString(), pAction->getParameter(2)->getInt(), pAction->getParameter(3)->getInt());
 			return;
 
 		case ScriptAction::TEAM_MOVE_TO_SUPPLY_SOURCE:

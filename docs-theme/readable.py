@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 FENCE = re.compile(r'^\s*(```|~~~)')
 LIST_ITEM = re.compile(r'^(\s*)([*+-]|\d+\.)\s+')
-NOTE_LINE = re.compile(r'^(Note|NOTE|Notes?):\s*(.*)$')
+NOTE_LINE = re.compile(r'^(Note|NOTE|Notes?|Warning|WARNING|Warnings?):\s*(.*)$')
 UPSTREAM_WIKI = re.compile(r'https://github\.com/Andreas-W/GeneralsGameCode_Modding/wiki/([^)#\s]+)(#[^)\s]*)?')
 SECTION_ID = re.compile(r'<section([^>]*?) id="([^"]+)"([^>]*)>(\s*)<h([1-6])>')
 SECTION_LEFT = re.compile(r'<section[^>]* id="')
@@ -28,7 +28,7 @@ CORRECTIONS = {
 
 
 def note_admonitions(lines):
-    """Turn 'Note:' paragraphs and 'Notes:' lists into note admonitions."""
+    """Turn 'Note:' and 'Warning:' paragraphs, and 'Notes:' and 'Warnings:' lists, into admonitions."""
     out = []
     in_fence = False
     i = 0
@@ -41,7 +41,8 @@ def note_admonitions(lines):
             out.append(line)
             i += 1
             continue
-        title = 'Notes' if note.group(1).lower() == 'notes' else 'Note'
+        title = note.group(1).capitalize()
+        kind = 'warning' if title.startswith('Warning') else 'note'
         body = [note.group(2)] if note.group(2) else []
         i += 1
         while i < len(lines):
@@ -65,7 +66,7 @@ def note_admonitions(lines):
             continue
         if out and out[-1].strip():
             out.append('')
-        out.extend(['```{admonition} %s' % title, ':class: note', ''] + body + ['```', ''])
+        out.extend(['```{admonition} %s' % title, ':class: %s' % kind, ''] + body + ['```', ''])
     return out
 
 

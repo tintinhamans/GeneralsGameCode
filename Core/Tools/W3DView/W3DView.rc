@@ -32,18 +32,18 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE DISCARDABLE 
+1 TEXTINCLUDE DISCARDABLE
 BEGIN
     "resource.h\0"
 END
 
-2 TEXTINCLUDE DISCARDABLE 
+2 TEXTINCLUDE DISCARDABLE
 BEGIN
     "#include ""afxres.h""\r\n"
     "\0"
 END
 
-3 TEXTINCLUDE DISCARDABLE 
+3 TEXTINCLUDE DISCARDABLE
 BEGIN
     "#define _AFX_NO_OLE_RESOURCES\r\n"
     "#define _AFX_NO_TRACKER_RESOURCES\r\n"
@@ -104,12 +104,27 @@ IDI_LINE                ICON    DISCARDABLE     "res\\line.ico"
 IDI_ROTATION            ICON    DISCARDABLE     "res\\rotation.ico"
 IDI_FRAME               ICON    DISCARDABLE     "res\\frame.ico"
 
+// TheSuperHackers @feature Dark-mode tree-view icons. Filenames intentionally
+// mirror the legacy light icons in res\ â€” same name in a flat dark\ folder.
+IDI_TREE_ANIMATION_DM             ICON    DISCARDABLE     "Res\\icons\\dark\\icon2.ico"
+IDI_TREE_ANIMATION_COMPRESSED_DM  ICON    DISCARDABLE     "Res\\icons\\dark\\ico00013.ico"
+IDI_TREE_ANIMATION_DELTA_DM       ICON    DISCARDABLE     "Res\\icons\\dark\\ico00015.ico"
+IDI_TREE_MESH_DM                  ICON    DISCARDABLE     "Res\\icons\\dark\\animatio.ico"
+IDI_TREE_MATERIAL_DM              ICON    DISCARDABLE     "Res\\icons\\dark\\hierarch.ico"
+IDI_TREE_LOD_DM                   ICON    DISCARDABLE     "Res\\icons\\dark\\ico00001.ico"
+IDI_TREE_HIERARCHY_DM             ICON    DISCARDABLE     "Res\\icons\\dark\\material.ico"
+IDI_TREE_PRIMITIVES_DM            ICON    DISCARDABLE     "Res\\icons\\dark\\ico00017.ico"
+IDI_TREE_SOUND_DM                 ICON    DISCARDABLE     "Res\\icons\\dark\\sound.ico"
+IDI_TREE_BONE_DM                  ICON    DISCARDABLE     "Res\\icons\\dark\\ico00006.ico"
+
 /////////////////////////////////////////////////////////////////////////////
 //
 // Bitmap
 //
 
 IDR_MAINFRAME           BITMAP  MOVEABLE PURE   "res\\Toolbar.bmp"
+// TheSuperHackers @feature Dark-mode toolbar bitmap mirrors light Toolbar.bmp.
+IDR_MAINFRAME_DM        BITMAP  MOVEABLE PURE   "Res\\icons\\dark\\Toolbar.bmp"
 IDB_LOCK_X_UP           BITMAP  DISCARDABLE     "res\\xdir.bmp"
 IDB_LOCK_Y_UP           BITMAP  DISCARDABLE     "res\\ydir.bmp"
 IDB_LOCK_Z_UP           BITMAP  DISCARDABLE     "res\\zdir.bmp"
@@ -156,6 +171,13 @@ BEGIN
     SEPARATOR
     BUTTON      IDC_ADD_TO_LINEUP
     SEPARATOR
+    BUTTON      IDM_TOGGLE_ALPHA
+    BUTTON      IDM_SHADER_ADDITIVE
+    BUTTON      IDM_SHADER_ALPHA_TEST
+    BUTTON      IDM_SHADER_ALPHA_BLEND
+    BUTTON      IDM_SHADER_ALPHA_BLEND_TEST
+    BUTTON      IDM_SHADER_DOUBLE_SIDED
+    SEPARATOR
     BUTTON      ID_APP_ABOUT
 END
 
@@ -176,12 +198,16 @@ END
 // Menu
 //
 
-IDR_MAINFRAME MENU PRELOAD DISCARDABLE 
+IDR_MAINFRAME MENU PRELOAD DISCARDABLE
 BEGIN
     POPUP "&File"
     BEGIN
         MENUITEM "&New\tCtrl+N",                ID_FILE_NEW
         MENUITEM "&Open...\tCtrl+O",            ID_FILE_OPEN
+        MENUITEM "Open &Folder...\tCtrl+Shift+O", ID_FILE_OPEN_FOLDER
+        MENUITEM SEPARATOR
+        MENUITEM "Material &Viewer...\tCtrl+M",  IDM_MATERIAL_VIEWER
+        MENUITEM SEPARATOR
         MENUITEM "&Munge Sort on Load",         IDM_MUNGE_SORT_ON_LOAD
         MENUITEM "&Enable Gamma Correction",    IDM_ENABLE_GAMMA_CORRECTION
         MENUITEM SEPARATOR
@@ -199,6 +225,7 @@ BEGIN
         END
         MENUITEM SEPARATOR
         MENUITEM "&Texture Path...",            IDM_TEXTURE_PATH
+        MENUITEM "Reload Assets\tCtrl+Shift+R", IDM_RELOAD_ASSETS
         MENUITEM "&Animated Sound Options...",  IDM_EDIT_ANIMATED_SOUNDS_OPTIONS
 
         MENUITEM SEPARATOR
@@ -213,19 +240,53 @@ BEGIN
             MENUITEM "&Main",                       ID_VIEW_TOOLBAR
             MENUITEM "Object",                      IDM_VIEW_OBJECT_BAR
             MENUITEM "Animation",                   IDM_VIEW_ANIMATION_BAR
+            MENUITEM SEPARATOR
+            MENUITEM "&Lock Toolbars",              IDM_LOCK_TOOLBARS
         END
         MENUITEM "&Status Bar",                 ID_VIEW_STATUS_BAR
+        POPUP "&Theme"
+        BEGIN
+            MENUITEM "&Light",                      IDM_THEME_LIGHT
+            MENUITEM "&Dark",                       IDM_THEME_DARK
+            MENUITEM "&Auto (Windows)",             IDM_THEME_AUTO
+        END
         MENUITEM SEPARATOR
-        MENUITEM "&Prev\tPgUp",                 IDM_SLIDESHOW_UP
-        MENUITEM "&Next\tPgDn",                 IDM_SLIDESHOW_DOWN
-        MENUITEM SEPARATOR
-        MENUITEM "&View Fullscreen",            IDM_VIEW_FULLSCREEN, GRAYED
-        MENUITEM "&Change Device...",           IDM_DEVICE_CHANGE, GRAYED
-        MENUITEM "Change &Resolution...",       IDM_CHANGE_RESOLUTION
-        , GRAYED
+        MENUITEM "&Prev\tUp",                   IDM_SLIDESHOW_UP
+        MENUITEM "&Next\tDown",                 IDM_SLIDESHOW_DOWN
         MENUITEM SEPARATOR
         MENUITEM "&Wireframe Mode",             IDM_WIREFRAME_MODE
         MENUITEM "Polygon Sorting\tCtrl+P",     IDM_TOGGLE_SORTING
+        POPUP "W3D &Shaders"
+        BEGIN
+            MENUITEM "Alpha Transparency",          IDM_TOGGLE_ALPHA
+            MENUITEM SEPARATOR
+            MENUITEM "Additive",                    IDM_SHADER_ADDITIVE
+            MENUITEM "Alpha Test",                  IDM_SHADER_ALPHA_TEST
+            MENUITEM "Alpha Blend",                 IDM_SHADER_ALPHA_BLEND
+            MENUITEM "Alpha Blend and Test",        IDM_SHADER_ALPHA_BLEND_TEST
+            MENUITEM SEPARATOR
+            MENUITEM "Double-Sided",                IDM_SHADER_DOUBLE_SIDED
+            MENUITEM "Back Faces Tinted",           IDM_SHADER_BACKFACE_TINT
+            MENUITEM "Back Face Tint Color...",     IDM_SHADER_BACKFACE_TINT_COLOR
+        END
+        POPUP "Texture &Filtering"
+        BEGIN
+            MENUITEM "Nearest-Point",               IDM_FILTER_POINT
+            MENUITEM "Bilinear",                    IDM_FILTER_BILINEAR
+            MENUITEM "Trilinear",                   IDM_FILTER_TRILINEAR
+            MENUITEM SEPARATOR
+            MENUITEM "Anisotropic 2x",              IDM_FILTER_ANISO_2X
+            MENUITEM "Anisotropic 4x",              IDM_FILTER_ANISO_4X
+            MENUITEM "Anisotropic 8x",              IDM_FILTER_ANISO_8X
+            MENUITEM "Anisotropic 16x",             IDM_FILTER_ANISO_16X
+        END
+        POPUP "&MSAA"
+        BEGIN
+            MENUITEM "None",                        IDM_MSAA_NONE
+            MENUITEM "2x",                          IDM_MSAA_2X
+            MENUITEM "4x",                          IDM_MSAA_4X
+            MENUITEM "8x",                          IDM_MSAA_8X
+        END
         MENUITEM "Set &Gamma",                  IDM_SET_GAMMA
         MENUITEM SEPARATOR
         POPUP "N-Patches Subdivision Level"
@@ -240,6 +301,25 @@ BEGIN
             MENUITEM "8",                           ID_VIEW_SUBDIVISION_8
         END
         MENUITEM "N-Patches Gap Filling",       ID_VIEW_PATCH_GAP_FILL
+        MENUITEM SEPARATOR
+        MENUITEM "Show Sub-objects and Bones",  IDM_SHOW_BONES_AND_SUBOBJECTS
+        POPUP "&Bones"
+        BEGIN
+            MENUITEM "Show Bone Pivots",            IDM_SHOW_BONE_PIVOTS
+            POPUP "Diamond Size"
+            BEGIN
+                MENUITEM "Tiny",                        IDM_BONE_SIZE_TINY
+                MENUITEM "Small",                       IDM_BONE_SIZE_SMALL
+                MENUITEM "Medium",                      IDM_BONE_SIZE_MEDIUM
+                MENUITEM "Large",                       IDM_BONE_SIZE_LARGE
+                MENUITEM "Huge",                        IDM_BONE_SIZE_HUGE
+            END
+        END
+        MENUITEM SEPARATOR
+        MENUITEM "Show Sub-object Names",       IDM_SHOW_SUBOBJ_NAMES
+        MENUITEM "Show Bone Names",             IDM_SHOW_BONE_NAMES
+        MENUITEM SEPARATOR
+        MENUITEM "&Refresh Viewport\tF5",       IDM_REFRESH_VIEWPORT
     END
     POPUP "&Object"
     BEGIN
@@ -307,12 +387,14 @@ BEGIN
         MENUITEM "&Left\tCtrl+L",               IDM_CAMERA_LEFT
         MENUITEM "&Right\tCtrl+R",              IDM_CAMERA_RIGHT
         MENUITEM "&Top\tCtrl+T",                IDM_CAMERA_TOP
-        MENUITEM "Bo&ttom\tCtrl+M",             IDM_CAMERA_BOTTOM
+        MENUITEM "Bo&ttom\tCtrl+Shift+M",       IDM_CAMERA_BOTTOM
         MENUITEM SEPARATOR
         MENUITEM "Rotate &X Only",              IDM_CAMERA_ALLOW_ROTATE_X
         MENUITEM "Rotate &Y Only",              IDM_CAMERA_ALLOW_ROTATE_Y
         MENUITEM "Rotate &Z Only",              IDM_CAMERA_ALLOW_ROTATE_Z
-        MENUITEM "&Copy Screen Size To Clipboard\tCtrl+C", 
+        MENUITEM SEPARATOR
+        MENUITEM "&Invert Movement (Y)",        IDM_CAMERA_INVERT_Y
+        MENUITEM "&Copy Screen Size To Clipboard\tCtrl+C",
                                                 IDM_COPY_SCREEN_SIZE
         MENUITEM SEPARATOR
         MENUITEM "&Animate Camera\tF8",         IDM_CAMERA_ANIMATE
@@ -332,18 +414,85 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "Fog (CTRL+ALT+F)",            IDM_BACKGROUND_FOG
     END
+    POPUP "&Ground"
+    BEGIN
+        MENUITEM "&Show Ground Plane",          IDM_GROUND_SHOW
+        MENUITEM SEPARATOR
+        MENUITEM "&Height...",                  IDM_GROUND_HEIGHT
+        MENUITEM "&Reset Height",               IDM_GROUND_RESET
+    END
     POPUP "&Movie"
     BEGIN
         MENUITEM "&Make Movie...",              IDM_MAKE_MOVIE
         MENUITEM "&Capture Screen Shot...\tF7", IDM_SAVE_SCREENSHOT
     END
+    POPUP "M&CP"
+    BEGIN
+        MENUITEM "&Enable MCP Server",          IDM_MCP_SERVER_ENABLED
+        MENUITEM SEPARATOR
+        MENUITEM "Server &Information...",      IDM_MCP_SERVER_INFORMATION
+    END
     POPUP "&Help"
     BEGIN
-        MENUITEM "&About W3DView...",           ID_APP_ABOUT
+        MENUITEM "&About W3DView+...",          ID_APP_ABOUT
     END
 END
 
-IDR_LOD_MENU MENU DISCARDABLE 
+// TheSuperHackers @feature W3D Material Viewer window menu.
+IDR_MATERIAL_VIEWER_MENU MENU DISCARDABLE
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&Open...\tCtrl+O",            IDM_MATVIEWER_OPEN
+        MENUITEM SEPARATOR
+        MENUITEM "&Save\tCtrl+S",               IDM_MATVIEWER_SAVE
+        MENUITEM "&Backup File Before Change",  IDM_MATVIEWER_BACKUP
+        MENUITEM SEPARATOR
+        MENUITEM "&Close",                      IDM_MATVIEWER_CLOSE
+    END
+    POPUP "&Edit"
+    BEGIN
+        MENUITEM "&Undo\tCtrl+Z",               IDM_MATVIEWER_UNDO
+        MENUITEM "&Redo\tCtrl+Shift+Z",         IDM_MATVIEWER_REDO
+        MENUITEM SEPARATOR
+        MENUITEM "Re&vert",                     IDM_MATVIEWER_REVERT
+        MENUITEM SEPARATOR
+        MENUITEM "&Batch Edit (all open files)", IDM_MATVIEWER_BATCH_EDIT
+        MENUITEM "Batch &Select (sync mesh across tabs)", IDM_MATVIEWER_BATCH_SELECT
+    END
+    POPUP "&View"
+    BEGIN
+        MENUITEM "Show &Full Object\tShift+F",  IDM_MATVIEWER_SHOW_FULL
+        MENUITEM "&Tint Selected Mesh",         IDM_MATVIEWER_TINT_SELECTION
+        MENUITEM SEPARATOR
+        POPUP "W3D &Shaders"
+        BEGIN
+            MENUITEM "Alpha Transparency",          IDM_TOGGLE_ALPHA
+            MENUITEM SEPARATOR
+            MENUITEM "Additive",                    IDM_SHADER_ADDITIVE
+            MENUITEM "Alpha Test",                  IDM_SHADER_ALPHA_TEST
+            MENUITEM "Alpha Blend",                 IDM_SHADER_ALPHA_BLEND
+            MENUITEM "Alpha Blend and Test",        IDM_SHADER_ALPHA_BLEND_TEST
+            MENUITEM SEPARATOR
+            MENUITEM "Double-Sided",                IDM_SHADER_DOUBLE_SIDED
+            MENUITEM "Back Faces Tinted",           IDM_SHADER_BACKFACE_TINT
+            MENUITEM "Back Face Tint Color...",     IDM_SHADER_BACKFACE_TINT_COLOR
+        END
+    END
+    POPUP "&Ground"
+    BEGIN
+        MENUITEM "&Show Ground Plane\tShift+G", IDM_MATVIEWER_GROUND
+        MENUITEM SEPARATOR
+        MENUITEM "&Reset Height",               IDM_MATVIEWER_GROUND_RESET
+    END
+    POPUP "&Light"
+    BEGIN
+        MENUITEM "&Free Roam",                  IDM_MATVIEWER_LIGHT_FREEROAM
+        MENUITEM "&Per Face",                   IDM_MATVIEWER_LIGHT_PERFACE
+    END
+END
+
+IDR_LOD_MENU MENU DISCARDABLE
 BEGIN
     POPUP "&LOD"
     BEGIN
@@ -358,7 +507,7 @@ BEGIN
     END
 END
 
-IDR_ANI_MENU MENU DISCARDABLE 
+IDR_ANI_MENU MENU DISCARDABLE
 BEGIN
     POPUP "&Animation"
     BEGIN
@@ -375,7 +524,7 @@ BEGIN
     END
 END
 
-IDR_HIERARCHY_MENU MENU DISCARDABLE 
+IDR_HIERARCHY_MENU MENU DISCARDABLE
 BEGIN
     POPUP "&Hierarchy"
     BEGIN
@@ -384,7 +533,7 @@ BEGIN
     END
 END
 
-IDR_AGGREGATE_MENU MENU DISCARDABLE 
+IDR_AGGREGATE_MENU MENU DISCARDABLE
 BEGIN
     POPUP "&Aggregate"
     BEGIN
@@ -404,7 +553,7 @@ END
 // Accelerator
 //
 
-IDR_MAINFRAME ACCELERATORS PRELOAD MOVEABLE PURE 
+IDR_MAINFRAME ACCELERATORS PRELOAD MOVEABLE PURE
 BEGIN
     ",",            IDM_REMOVE_DAMAGE,      ASCII,  NOINVERT
     ".",            IDM_ADD_DAMAGE,         ASCII,  NOINVERT
@@ -423,22 +572,23 @@ BEGIN
     "D",            IDM_SET_CAMERA_DISTANCE, VIRTKEY, CONTROL, NOINVERT
     "F",            IDM_CAMERA_FRONT,       VIRTKEY, CONTROL, NOINVERT
     "F",            IDM_BACKGROUND_FOG,     VIRTKEY, CONTROL, ALT, NOINVERT
-    "F",            IDM_VIEW_FULLSCREEN,    VIRTKEY, SHIFT, CONTROL, 
-                                                    NOINVERT
     "L",            IDM_CAMERA_LEFT,        VIRTKEY, CONTROL, NOINVERT
-    "M",            IDM_CAMERA_BOTTOM,      VIRTKEY, CONTROL, NOINVERT
+    "M",            IDM_MATERIAL_VIEWER,    VIRTKEY, CONTROL, NOINVERT
+    "M",            IDM_CAMERA_BOTTOM,      VIRTKEY, SHIFT, CONTROL, NOINVERT
     "N",            ID_FILE_NEW,            VIRTKEY, CONTROL, NOINVERT
     "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL, NOINVERT
+    "O",            ID_FILE_OPEN_FOLDER,    VIRTKEY, SHIFT, CONTROL, NOINVERT
     "P",            IDM_TOGGLE_SORTING,     VIRTKEY, CONTROL, NOINVERT
     "R",            IDM_CAMERA_RIGHT,       VIRTKEY, CONTROL, NOINVERT
+    "R",            IDM_RELOAD_ASSETS,      VIRTKEY, SHIFT, CONTROL, NOINVERT
     "S",            IDM_SAVE_SETTINGS,      VIRTKEY, CONTROL, NOINVERT
     "T",            IDM_CAMERA_TOP,         VIRTKEY, CONTROL, NOINVERT
     "V",            IDM_ADVANCED_ANIM,      VIRTKEY, CONTROL, NOINVERT
     VK_ADD,         IDM_INC_AMBIENT_LIGHT,  VIRTKEY, NOINVERT
     VK_ADD,         IDM_INC_LIGHT,          VIRTKEY, CONTROL, NOINVERT
-    VK_DOWN,        IDM_OBJECT_ROTATE_Y_BACK, VIRTKEY, NOINVERT
+    VK_DOWN,        IDM_SLIDESHOW_DOWN,     VIRTKEY, NOINVERT
     VK_DOWN,        IDM_LIGHT_ROTATE_Y_BACK, VIRTKEY, CONTROL, NOINVERT
-    VK_F5,          IDM_VIEW_FULLSCREEN,    VIRTKEY, NOINVERT
+    VK_F5,          IDM_REFRESH_VIEWPORT,   VIRTKEY, NOINVERT
     VK_F6,          ID_NEXT_PANE,           VIRTKEY, NOINVERT
     VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT, NOINVERT
     VK_F7,          IDM_SAVE_SCREENSHOT,    VIRTKEY, NOINVERT
@@ -446,18 +596,20 @@ BEGIN
     VK_LEFT,        IDM_OBJECT_ROTATE_Z_BACK, VIRTKEY, NOINVERT
     VK_LEFT,        IDM_LIGHT_ROTATE_Z_BACK, VIRTKEY, CONTROL, NOINVERT
     VK_MULTIPLY,    IDM_KILL_SCENE_LIGHT,   VIRTKEY, CONTROL, NOINVERT
-    VK_NEXT,        IDM_SLIDESHOW_DOWN,     VIRTKEY, NOINVERT
-    VK_PRIOR,       IDM_SLIDESHOW_UP,       VIRTKEY, NOINVERT
+    VK_NEXT,        IDM_OBJECT_ROTATE_Y_BACK, VIRTKEY, NOINVERT
+    VK_NEXT,        IDM_LIGHT_ROTATE_Y_BACK, VIRTKEY, CONTROL, NOINVERT
+    VK_PRIOR,       IDM_OBJECT_ROTATE_Y,    VIRTKEY, NOINVERT
+    VK_PRIOR,       IDM_LIGHT_ROTATE_Y,     VIRTKEY, CONTROL, NOINVERT
     VK_RETURN,      IDM_OBJECT_PROPERTIES,  VIRTKEY, NOINVERT
     VK_RIGHT,       IDM_OBJECT_ROTATE_Z,    VIRTKEY, NOINVERT
     VK_RIGHT,       IDM_LIGHT_ROTATE_Z,     VIRTKEY, CONTROL, NOINVERT
     VK_SPACE,       IDM_LOD_RECORD_SCREEN_AREA, VIRTKEY, NOINVERT
     VK_SUBTRACT,    IDM_DEC_AMBIENT_LIGHT,  VIRTKEY, NOINVERT
     VK_SUBTRACT,    IDM_DEC_LIGHT,          VIRTKEY, CONTROL, NOINVERT
-    VK_UP,          IDM_OBJECT_ROTATE_Y,    VIRTKEY, NOINVERT
+    VK_UP,          IDM_SLIDESHOW_UP,       VIRTKEY, NOINVERT
     VK_UP,          IDM_LIGHT_ROTATE_Y,     VIRTKEY, CONTROL, NOINVERT
     "X",            IDM_OBJECT_ROTATE_X,    VIRTKEY, CONTROL, NOINVERT
-    "X",            IDM_CRASH_APP,          VIRTKEY, SHIFT, CONTROL, 
+    "X",            IDM_CRASH_APP,          VIRTKEY, SHIFT, CONTROL,
                                                     NOINVERT
     "Y",            IDM_OBJECT_ROTATE_Y,    VIRTKEY, CONTROL, NOINVERT
     "Z",            IDM_OBJECT_ROTATE_Z,    VIRTKEY, CONTROL, NOINVERT
@@ -471,25 +623,27 @@ END
 // Dialog
 //
 
-IDD_ABOUTBOX DIALOG DISCARDABLE  0, 0, 217, 55
+IDD_ABOUTBOX DIALOG DISCARDABLE  0, 0, 217, 77
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "About W3DView"
-FONT 8, "MS Sans Serif"
+CAPTION "About W3DView+"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
-    LTEXT           "W3DView Version 1.0",IDC_VERSION,40,10,119,8,
+    LTEXT           "W3DView+ Version 7.0.0",IDC_VERSION,40,10,119,8,
                     SS_NOPREFIX
     LTEXT           "Copyright (C) 1998",IDC_STATIC,40,25,119,8
+    LTEXT           "Modified by Tria 2026",IDC_STATIC,40,36,119,8
+    LTEXT           "Thanks to M.P. for ideas and suggestions",IDC_STATIC,40,47,170,8
     DEFPUSHBUTTON   "OK",IDOK,178,7,32,14,WS_GROUP
 END
 
 IDD_RENDER_DEVICE_SELECTOR DIALOG DISCARDABLE  0, 0, 194, 185
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Select A Render Device"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     DEFPUSHBUTTON   "OK",IDOK,137,7,50,15,WS_GROUP
-    COMBOBOX        IDC_RENDER_DEVICE_COMBO,7,7,112,57,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_RENDER_DEVICE_COMBO,7,7,112,57,CBS_DROPDOWNLIST |
                     CBS_SORT | WS_VSCROLL | WS_GROUP | WS_TABSTOP
     CONTROL         "24 Bit Color Depth",IDC_COLORDEPTH_24,"Button",
                     BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,7,27,73,10
@@ -522,7 +676,7 @@ END
 IDD_PROP_PAGE_MESH DIALOG DISCARDABLE  0, 0, 210, 154
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "General"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_MESH,IDC_STATIC,7,7,20,20
     LTEXT           "Properties for %s",IDC_DESCRIPTION,40,7,163,20,
@@ -546,35 +700,53 @@ BEGIN
     CHECKBOX        "Hidden",IDC_HIDDEN,100,121,39,10
 END
 
-IDD_PROP_PAGE_HIERARCHY DIALOG DISCARDABLE  0, 0, 210, 154
+IDD_PROP_PAGE_HIERARCHY DIALOG DISCARDABLE  0, 0, 210, 182
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "General"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     LTEXT           "Total polygons:",-1,7,41,49,8
     LTEXT           "Subobjects:",-1,7,55,38,8
+    LTEXT           "Total vertices:",-1,7,69,49,8
+    LTEXT           "Total triangles:",-1,7,83,49,8
     ICON            IDI_HIERARCHY,-1,7,7,20,20
     CONTROL         "",-1,"Static",SS_ETCHEDHORZ,7,33,196,1
     LTEXT           "Properties for %s",IDC_DESCRIPTION,40,7,163,20,
                     SS_CENTERIMAGE
-    CONTROL         "List1",IDC_SUBOBJECT_LIST,"SysListView32",LVS_REPORT | 
-                    LVS_SINGLESEL | LVS_SORTASCENDING | LVS_AUTOARRANGE | 
-                    LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,7,77,196,70
-    LTEXT           "Subobject List",-1,7,68,46,8
+    CONTROL         "List1",IDC_SUBOBJECT_LIST,"SysListView32",LVS_REPORT |
+                    LVS_SINGLESEL | LVS_SORTASCENDING | LVS_AUTOARRANGE |
+                    LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,7,105,196,70
+    LTEXT           "Subobject List",-1,7,96,46,8
     LTEXT           "Static",IDC_TOTAL_POLYGONS,65,41,31,8
     LTEXT           "Static",IDC_SUBOBJECTS,53,55,27,8
+    LTEXT           "Static",IDC_TOTAL_VERTICES,65,69,31,8
+    LTEXT           "Static",IDC_TOTAL_TRIANGLES,65,83,31,8
+END
+
+// TheSuperHackers @feature Tria Ground > Height... live slider dialog.
+IDD_GROUND_HEIGHT DIALOG DISCARDABLE  0, 0, 186, 60
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Ground Height"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Drag to move the ground plane up or down.",IDC_STATIC,
+                    7,7,172,10
+    CONTROL         "Slider1",IDC_GROUND_HEIGHT_SLIDER,"msctls_trackbar32",
+                    TBS_BOTH | TBS_NOTICKS | WS_TABSTOP,7,21,172,14
+    DEFPUSHBUTTON   "OK",IDOK,37,39,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,99,39,50,14
 END
 
 IDD_DISPLAYSPEED DIALOG DISCARDABLE  0, 0, 186, 108
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Animation Settings"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     LTEXT           "Select the rate at which you want to display the animation.",
                     IDC_STATIC,35,7,144,21
-    CONTROL         "Slider1",IDC_SPEED_SLIDER,"msctls_trackbar32",TBS_BOTH | 
+    CONTROL         "Slider1",IDC_SPEED_SLIDER,"msctls_trackbar32",TBS_BOTH |
                     TBS_NOTICKS | WS_TABSTOP,7,31,172,14
-    CONTROL         "&Blend frames",IDC_BLEND,"Button",BS_AUTOCHECKBOX | 
+    CONTROL         "&Blend frames",IDC_BLEND,"Button",BS_AUTOCHECKBOX |
                     WS_TABSTOP,113,47,53,10
     DEFPUSHBUTTON   "OK",IDOK,33,87,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,101,87,50,14
@@ -587,24 +759,27 @@ BEGIN
     CONTROL         "8-bit",IDC_8BIT,"Button",BS_AUTORADIOBUTTON,29,69,46,8
 END
 
-IDD_LIGHT_AMBIENT_DIALOG DIALOG DISCARDABLE  0, 0, 186, 148
+IDD_LIGHT_AMBIENT_DIALOG DIALOG DISCARDABLE  0, 0, 186, 165
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Ambient Light"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     CONTROL         "",IDC_RED_GRADIENT,"Static",SS_BLACKFRAME,37,14,135,8
-    CONTROL         "Slider1",IDC_SLIDER_RED,"msctls_trackbar32",TBS_TOP | 
+    CONTROL         "Slider1",IDC_SLIDER_RED,"msctls_trackbar32",TBS_TOP |
                     TBS_NOTICKS | WS_TABSTOP,32,26,147,12
     CONTROL         "",IDC_GREEN_GRADIENT,"Static",SS_BLACKFRAME,37,47,135,8
-    CONTROL         "Slider1",IDC_SLIDER_GREEN,"msctls_trackbar32",TBS_TOP | 
+    CONTROL         "Slider1",IDC_SLIDER_GREEN,"msctls_trackbar32",TBS_TOP |
                     TBS_NOTICKS | WS_TABSTOP,32,58,147,12
     CONTROL         "",IDC_BLUE_GRADIENT,"Static",SS_BLACKFRAME,37,78,135,8
-    CONTROL         "Slider1",IDC_SLIDER_BLUE,"msctls_trackbar32",TBS_TOP | 
+    CONTROL         "Slider1",IDC_SLIDER_BLUE,"msctls_trackbar32",TBS_TOP |
                     TBS_NOTICKS | WS_TABSTOP,32,89,147,12
     CONTROL         "&Grayscale",IDC_GRAYSCALE_CHECK,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,7,109,85,10
-    DEFPUSHBUTTON   "OK",IDOK,37,127,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,97,127,50,14
+                    BS_AUTOCHECKBOX | WS_TABSTOP,7,109,50,10
+    CONTROL         "",IDC_COLOR_SWATCH,"Static",SS_BLACKFRAME | SS_NOTIFY,
+                    107,106,24,14
+    PUSHBUTTON      "Color...",IDC_COLOR_PICK_BTN,135,106,44,14
+    DEFPUSHBUTTON   "OK",IDOK,37,144,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,97,144,50,14
     LTEXT           "Red",IDC_STATIC,7,27,14,8
     LTEXT           "Green",IDC_STATIC,7,59,20,8
     LTEXT           "Blue",IDC_STATIC,7,90,15,8
@@ -613,7 +788,7 @@ END
 IDD_LIGHT_SCENE_DIALOG DIALOG DISCARDABLE  0, 0, 244, 226
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Scene Light"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     GROUPBOX        "&Channel",IDC_STATIC,7,7,230,111
     CONTROL         "&Diffuse",IDC_CHANNEL_DIFFUSE_RADIO,"Button",
@@ -625,18 +800,21 @@ BEGIN
     CONTROL         "",IDC_RED_GRADIENT,"Static",SS_BLACKFRAME | WS_GROUP,42,
                     29,182,8
     LTEXT           "&Red",IDC_STATIC,15,40,14,8
-    CONTROL         "Slider1",IDC_SLIDER_RED,"msctls_trackbar32",TBS_TOP | 
+    CONTROL         "Slider1",IDC_SLIDER_RED,"msctls_trackbar32",TBS_TOP |
                     TBS_NOTICKS | WS_TABSTOP,38,39,192,12
     CONTROL         "",IDC_GREEN_GRADIENT,"Static",SS_BLACKFRAME,42,54,182,8
     LTEXT           "Gree&n",IDC_STATIC,15,65,20,8
-    CONTROL         "Slider1",IDC_SLIDER_GREEN,"msctls_trackbar32",TBS_TOP | 
+    CONTROL         "Slider1",IDC_SLIDER_GREEN,"msctls_trackbar32",TBS_TOP |
                     TBS_NOTICKS | WS_TABSTOP,38,64,192,12
     CONTROL         "",IDC_BLUE_GRADIENT,"Static",SS_BLACKFRAME,42,79,182,8
     LTEXT           "Bl&ue",IDC_STATIC,15,89,15,8
-    CONTROL         "Slider1",IDC_SLIDER_BLUE,"msctls_trackbar32",TBS_TOP | 
+    CONTROL         "Slider1",IDC_SLIDER_BLUE,"msctls_trackbar32",TBS_TOP |
                     TBS_NOTICKS | WS_TABSTOP,38,88,192,12
     CONTROL         "&Grayscale",IDC_GRAYSCALE_CHECK,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,15,102,85,10
+                    BS_AUTOCHECKBOX | WS_TABSTOP,15,102,50,10
+    CONTROL         "",IDC_COLOR_SWATCH,"Static",SS_BLACKFRAME | SS_NOTIFY,
+                    145,99,24,14
+    PUSHBUTTON      "Color...",IDC_COLOR_PICK_BTN,173,99,56,14
     LTEXT           "&Intensity:",IDC_STATIC,7,126,29,8
     CONTROL         "Slider1",IDC_INTENSITY_SLIDER,"msctls_trackbar32",
                     TBS_BOTH | TBS_NOTICKS | WS_TABSTOP,40,126,101,11
@@ -664,24 +842,27 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,134,205,50,14
 END
 
-IDD_BACKGROUND_COLOR DIALOG DISCARDABLE  0, 0, 186, 148
+IDD_BACKGROUND_COLOR DIALOG DISCARDABLE  0, 0, 186, 165
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Background Color"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     CONTROL         "",IDC_RED_GRADIENT,"Static",SS_BLACKFRAME,37,14,135,8
-    CONTROL         "Slider1",IDC_SLIDER_RED,"msctls_trackbar32",TBS_TOP | 
+    CONTROL         "Slider1",IDC_SLIDER_RED,"msctls_trackbar32",TBS_TOP |
                     TBS_NOTICKS | WS_TABSTOP,32,26,147,12
     CONTROL         "",IDC_GREEN_GRADIENT,"Static",SS_BLACKFRAME,37,47,135,8
-    CONTROL         "Slider1",IDC_SLIDER_GREEN,"msctls_trackbar32",TBS_TOP | 
+    CONTROL         "Slider1",IDC_SLIDER_GREEN,"msctls_trackbar32",TBS_TOP |
                     TBS_NOTICKS | WS_TABSTOP,32,58,147,12
     CONTROL         "",IDC_BLUE_GRADIENT,"Static",SS_BLACKFRAME,37,78,135,8
-    CONTROL         "Slider1",IDC_SLIDER_BLUE,"msctls_trackbar32",TBS_TOP | 
+    CONTROL         "Slider1",IDC_SLIDER_BLUE,"msctls_trackbar32",TBS_TOP |
                     TBS_NOTICKS | WS_TABSTOP,32,89,147,12
     CONTROL         "&Grayscale",IDC_GRAYSCALE_CHECK,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,7,109,85,10
-    DEFPUSHBUTTON   "OK",IDOK,37,127,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,97,127,50,14
+                    BS_AUTOCHECKBOX | WS_TABSTOP,7,109,50,10
+    CONTROL         "",IDC_COLOR_SWATCH,"Static",SS_BLACKFRAME | SS_NOTIFY,
+                    107,106,24,14
+    PUSHBUTTON      "Color...",IDC_COLOR_PICK_BTN,135,106,44,14
+    DEFPUSHBUTTON   "OK",IDOK,37,144,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,97,144,50,14
     LTEXT           "Red",IDC_STATIC,7,27,14,8
     LTEXT           "Green",IDC_STATIC,7,59,20,8
     LTEXT           "Blue",IDC_STATIC,7,90,15,8
@@ -690,7 +871,7 @@ END
 IDD_SAVE_SETTINGS DIALOG DISCARDABLE  0, 0, 186, 154
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Save Settings"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     LTEXT           "Select which settings you want saved.  Enter a filename to save the settings under.",
                     IDC_STATIC,7,7,172,20
@@ -699,7 +880,7 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,21,46,75,10
     CONTROL         "Background",IDC_BACKGROUND_CHECKBOX,"Button",
                     BS_AUTOCHECKBOX,21,60,75,10
-    CONTROL         "Camera",IDC_CAMERA_CHECKBOX,"Button",BS_AUTOCHECKBOX | 
+    CONTROL         "Camera",IDC_CAMERA_CHECKBOX,"Button",BS_AUTOCHECKBOX |
                     WS_DISABLED,21,74,75,10
     LTEXT           "&Filename:",IDC_STATIC,7,98,35,8
     EDITTEXT        IDC_FILENAME_EDIT,7,109,117,14,ES_AUTOHSCROLL
@@ -711,14 +892,14 @@ END
 IDD_EDIT_LOD DIALOG DISCARDABLE  0, 0, 207, 186
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Edit LOD"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_LOD,IDC_STATIC,7,7,21,20
     LTEXT           "Select an LOD component from the list below.  Use the spin control to select a maximum screen area for the model.  To include an empty render object as the lowest level, check the 'Include NULL' box.",
                     IDC_STATIC,37,7,163,35
     LTEXT           "&Models:",IDC_STATIC,7,45,26,8
-    CONTROL         "List1",IDC_HIERARCHY_LIST,"SysListView32",LVS_REPORT | 
-                    LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_SORTASCENDING | 
+    CONTROL         "List1",IDC_HIERARCHY_LIST,"SysListView32",LVS_REPORT |
+                    LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_SORTASCENDING |
                     LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,7,55,193,57
     GROUPBOX        "Settings (CONEL1)",IDC_SETTINGS_GROUP,7,116,193,28
     LTEXT           "Ma&ximum screen area:",IDC_STATIC,43,128,74,8
@@ -735,14 +916,14 @@ END
 IDD_BACKGROUND_OBJECT DIALOG DISCARDABLE  0, 0, 194, 158
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Background Object"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     LTEXT           "Select a hierarchy from the list below to use as a background object.",
                     IDC_STATIC,43,7,144,17
     LTEXT           "&Hierarchies:",IDC_STATIC,7,33,38,8
-    CONTROL         "List1",IDC_HIERARCHY_LIST,"SysListView32",LVS_REPORT | 
-                    LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_SORTASCENDING | 
-                    LVS_AUTOARRANGE | LVS_NOSORTHEADER | WS_BORDER | 
+    CONTROL         "List1",IDC_HIERARCHY_LIST,"SysListView32",LVS_REPORT |
+                    LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_SORTASCENDING |
+                    LVS_AUTOARRANGE | LVS_NOSORTHEADER | WS_BORDER |
                     WS_TABSTOP,7,43,180,66
     DEFPUSHBUTTON   "OK",IDOK,14,137,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,72,137,50,14
@@ -755,7 +936,7 @@ END
 IDD_PROP_PAGE_ANIMATION DIALOG DISCARDABLE  0, 0, 210, 110
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "General"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_ANIMATION,IDC_STATIC,7,7,21,20
     LTEXT           "Properties for %s",IDC_DESCRIPTION,40,7,163,20,
@@ -766,7 +947,7 @@ BEGIN
     LTEXT           "Frame rate:",IDC_STATIC,7,54,36,8
     LTEXT           "0",IDC_FRAME_RATE,52,54,61,8
     LTEXT           "Hierarchy name:",IDC_STATIC,7,85,52,8
-    EDITTEXT        IDC_HIERARCHY_NAME,68,82,135,14,ES_AUTOHSCROLL | 
+    EDITTEXT        IDC_HIERARCHY_NAME,68,82,135,14,ES_AUTOHSCROLL |
                     ES_READONLY
     LTEXT           "Total time:",IDC_STATIC,7,69,34,8
     LTEXT           "0",IDC_TOTAL_TIME,52,69,61,8
@@ -775,7 +956,7 @@ END
 IDD_BACKGROUND_BMP DIALOG DISCARDABLE  0, 0, 213, 97
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Background Object"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     LTEXT           "Enter the name of a targa file (.tga) to use as a backdrop for the object view.",
                     IDC_STATIC,7,7,199,17
@@ -789,7 +970,7 @@ END
 IDD_PROP_PAGE_EMITTER_GEN DIALOG DISCARDABLE  0, 0, 220, 166
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "General"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_EMITTER,IDC_STATIC,7,7,20,20
     LTEXT           "Use the controls below to modify the nature of the emitter.  These settings will not take affect until you apply the changes.",
@@ -798,12 +979,12 @@ BEGIN
     EDITTEXT        IDC_NAME_EDIT,64,37,135,14,ES_AUTOHSCROLL
     EDITTEXT        IDC_PARTICLE_LIFETIME_EDIT,75,55,40,14
     CONTROL         "Spin1",IDC_PARTICLE_LIFETIME_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,137,56,11,14
     LTEXT           "secs",IDC_STATIC,119,57,16,8
     GROUPBOX        "&Visual",IDC_STATIC,7,72,206,79
     LTEXT           "&Shader:",IDC_STATIC,16,84,26,8
-    COMBOBOX        IDC_SHADER_COMBO,73,82,131,115,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_SHADER_COMBO,73,82,131,115,CBS_DROPDOWNLIST |
                     CBS_SORT | WS_VSCROLL | WS_TABSTOP
     LTEXT           "&Texure filename:",IDC_STATIC,13,120,53,8
     EDITTEXT        IDC_FILENAME_EDIT,13,131,136,14,ES_AUTOHSCROLL
@@ -811,14 +992,14 @@ BEGIN
     CONTROL         "Particle &Lifetime",IDC_PARTICLE_LIFETIME_CHECK,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,7,57,65,10
     LTEXT           "Rendering Mode:",IDC_STATIC,13,103,56,8
-    COMBOBOX        IDC_RENDER_MODE_COMBO,73,101,131,47,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_RENDER_MODE_COMBO,73,101,131,47,CBS_DROPDOWNLIST |
                     WS_VSCROLL | WS_TABSTOP
 END
 
 IDD_PROP_PAGE_EMITTER_PARTICLE DIALOG DISCARDABLE  0, 0, 220, 166
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "Emission"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_PARTICLE,IDC_STATIC,7,7,20,20
     LTEXT           "Use the controls below to modify the burst and emission rates and the particle creation volume.  These values will not take affect until you apply the changes.",
@@ -828,22 +1009,22 @@ BEGIN
     LTEXT           "&Rate:",IDC_STATIC,22,50,18,8
     EDITTEXT        IDC_EMISSION_RATE_EDIT,44,48,40,14
     CONTROL         "Spin1",IDC_EMISSION_RATE_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,104,51,11,14
     LTEXT           "per sec",IDC_STATIC,88,50,24,8
     LTEXT           "&Particles:",IDC_STATIC,122,50,30,8
     EDITTEXT        IDC_BURST_SIZE_EDIT,153,48,40,14,ES_NUMBER
     CONTROL         "Spin1",IDC_BURST_SIZE_SPIN,"msctls_updown32",
-                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | 
+                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY |
                     UDS_ARROWKEYS | UDS_NOTHOUSANDS,186,52,11,14
     CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,7,74,206,1
     LTEXT           "&Cap",IDC_STATIC,17,71,14,8
     CONTROL         "&Max Particles:",IDC_MAX_PARTICLES_CHECK,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,19,85,60,10
-    EDITTEXT        IDC_MAX_PARTICLES_EDIT,80,83,40,14,ES_NUMBER | 
+    EDITTEXT        IDC_MAX_PARTICLES_EDIT,80,83,40,14,ES_NUMBER |
                     WS_DISABLED | WS_GROUP
     CONTROL         "Spin1",IDC_MAX_PARTICLES_SPIN,"msctls_updown32",
-                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | 
+                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY |
                     UDS_ARROWKEYS | UDS_NOTHOUSANDS | WS_DISABLED,125,84,11,
                     14
     CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,7,109,203,1
@@ -854,7 +1035,7 @@ END
 IDD_PROP_PAGE_EMITTER_PHYSICS DIALOG DISCARDABLE  0, 0, 220, 166
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "Physics"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_PHYSICS,IDC_STATIC,7,7,21,20
     LTEXT           "Use the controls below to modify the particle's starting velocity and acceleration.",
@@ -864,17 +1045,17 @@ BEGIN
     LTEXT           "X:",IDC_STATIC,18,46,8,8
     EDITTEXT        IDC_VELOCITY_X_EDIT,29,44,43,14
     CONTROL         "Spin1",IDC_VELOCITY_X_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,65,47,11,14
     LTEXT           "Y:",IDC_STATIC,82,46,8,8
     EDITTEXT        IDC_VELOCITY_Y_EDIT,93,44,43,14
     CONTROL         "Spin1",IDC_VELOCITY_Y_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,129,49,11,14
     LTEXT           "Z:",IDC_STATIC,146,46,8,8
     EDITTEXT        IDC_VELOCITY_Z_EDIT,157,44,43,14
     CONTROL         "Spin1",IDC_VELOCITY_Z_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,192,51,11,14
     PUSHBUTTON      "&Randomizer...",IDC_SPECIFY_VELOCITY_RANDOM,18,67,57,14
     CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,7,94,206,1
@@ -882,36 +1063,36 @@ BEGIN
     LTEXT           "&Outward:",IDC_STATIC,18,108,30,8
     EDITTEXT        IDC_OUT_FACTOR_EDIT,50,106,35,14
     CONTROL         "Spin1",IDC_OUT_FACTOR_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,77,113,11,14
     LTEXT           "In&heritance:",IDC_STATIC,102,108,38,8
     EDITTEXT        IDC_INHERITANCE_FACTOR_EDIT,144,106,35,14
     CONTROL         "Spin1",IDC_INHERITANCE_FACTOR_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,177,112,11,14
     CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,7,131,206,1
     LTEXT           "&Acceleration",IDC_STATIC,16,128,40,8
     LTEXT           "X:",IDC_STATIC,18,143,8,8
     EDITTEXT        IDC_ACCELERATION_X_EDIT,29,140,43,14
     CONTROL         "Spin1",IDC_ACCELERATION_X_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,65,144,11,14
     LTEXT           "Y:",IDC_STATIC,82,143,8,8
     EDITTEXT        IDC_ACCELERATION_Y_EDIT,93,140,43,14
     CONTROL         "Spin1",IDC_ACCELERATION_Y_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,129,144,11,14
     LTEXT           "Z:",IDC_STATIC,146,143,8,8
     EDITTEXT        IDC_ACCELERATION_Z_EDIT,157,140,43,14
     CONTROL         "Spin1",IDC_ACCELERATION_Z_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,192,144,11,14
 END
 
 IDD_PROP_PAGE_EMITTER_COLOR DIALOG DISCARDABLE  0, 0, 220, 166
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "Color"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_COLOR,IDC_STATIC,7,7,20,20
     LTEXT           "Use the controls below to specify keyframes.  Hold the Ctrl key and click to insert a new key, double click a key to edit its value.",
@@ -924,17 +1105,17 @@ BEGIN
     LTEXT           "&R:",IDC_STATIC,60,78,8,8
     EDITTEXT        IDC_RED_RANDOM_EDIT,71,76,31,14,ES_NUMBER
     CONTROL         "Spin2",IDC_RED_RANDOM_SPIN,"msctls_updown32",
-                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | 
+                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY |
                     UDS_ARROWKEYS | UDS_NOTHOUSANDS,95,80,11,14
     LTEXT           "&G:",IDC_STATIC,109,78,8,8
     EDITTEXT        IDC_GREEN_RANDOM_EDIT,120,76,31,14,ES_NUMBER
     CONTROL         "Spin2",IDC_GREEN_RANDOM_SPIN,"msctls_updown32",
-                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | 
+                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY |
                     UDS_ARROWKEYS | UDS_NOTHOUSANDS,145,80,11,14
     LTEXT           "&B:",IDC_STATIC,157,78,8,8
     EDITTEXT        IDC_BLUE_RANDOM_EDIT,168,76,31,14,ES_NUMBER
     CONTROL         "Spin2",IDC_BLUE_RANDOM_SPIN,"msctls_updown32",
-                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | 
+                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY |
                     UDS_ARROWKEYS | UDS_NOTHOUSANDS,192,80,11,14
     CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,7,104,206,1
     LTEXT           "&Opacity",IDC_STATIC,16,100,25,8
@@ -943,7 +1124,7 @@ BEGIN
     LTEXT           "Rando&mizer:",IDC_STATIC,13,137,40,8
     EDITTEXT        IDC_OPACITY_RANDOM_EDIT,56,135,33,14,ES_NUMBER
     CONTROL         "Spin2",IDC_OPACITY_RANDOM_SPIN,"msctls_updown32",
-                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | 
+                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY |
                     UDS_ARROWKEYS,131,135,11,14
     LTEXT           "% Opaque",IDC_STATIC,93,137,34,8
 END
@@ -951,49 +1132,49 @@ END
 IDD_PROP_PAGE_EMITTER_USER DIALOG DISCARDABLE  0, 0, 220, 166
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "User"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_USER,IDC_STATIC,7,7,20,20
     LTEXT           "These settings allow the user to pass type specific data to the programmer.  The entries in the 'Type' field can be found in ""w3d_file.h"".",
                     IDC_STATIC,37,7,176,27
     LTEXT           "&Type:",IDC_STATIC,7,49,20,8
-    COMBOBOX        IDC_TYPE_COMBO,31,47,115,52,CBS_DROPDOWNLIST | CBS_SORT | 
+    COMBOBOX        IDC_TYPE_COMBO,31,47,115,52,CBS_DROPDOWNLIST | CBS_SORT |
                     WS_VSCROLL | WS_TABSTOP
     LTEXT           "&Programmer settings:",IDC_STATIC,7,72,66,8
-    EDITTEXT        IDC_PROGRAMMER_SETTINGS_EDIT,7,83,206,76,ES_MULTILINE | 
+    EDITTEXT        IDC_PROGRAMMER_SETTINGS_EDIT,7,83,206,76,ES_MULTILINE |
                     ES_AUTOVSCROLL | ES_WANTRETURN
 END
 
 IDD_COLOR_SEL DIALOG DISCARDABLE  0, 0, 234, 170
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Color Selection"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     CONTROL         "",IDC_COLOR_WINDOW,"Static",SS_BLACKFRAME,7,7,29,25
     LTEXT           "Select a color using the controls below.  You can modify red, green, and blue values independently, or check the grayscale box to lock them together.",
                     IDC_STATIC,45,7,182,29
     CONTROL         "",IDC_RED_GRADIENT,"Static",SS_BLACKFRAME,38,47,135,8
     LTEXT           "&Red",IDC_STATIC,8,59,14,8
-    CONTROL         "Slider1",IDC_SLIDER_RED,"msctls_trackbar32",TBS_TOP | 
+    CONTROL         "Slider1",IDC_SLIDER_RED,"msctls_trackbar32",TBS_TOP |
                     TBS_NOTICKS | WS_TABSTOP,33,58,147,12
     EDITTEXT        IDC_RED_EDIT,187,56,40,14
-    CONTROL         "Spin2",IDC_RED_SPIN,"msctls_updown32",UDS_SETBUDDYINT | 
+    CONTROL         "Spin2",IDC_RED_SPIN,"msctls_updown32",UDS_SETBUDDYINT |
                     UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,214,63,13,
                     14
     CONTROL         "",IDC_GREEN_GRADIENT,"Static",SS_BLACKFRAME,38,76,135,8
     LTEXT           "&Green",IDC_STATIC,8,87,20,8
-    CONTROL         "Slider1",IDC_SLIDER_GREEN,"msctls_trackbar32",TBS_TOP | 
+    CONTROL         "Slider1",IDC_SLIDER_GREEN,"msctls_trackbar32",TBS_TOP |
                     TBS_NOTICKS | WS_TABSTOP,33,86,147,12
     EDITTEXT        IDC_GREEN_EDIT,187,83,40,14
-    CONTROL         "Spin2",IDC_GREEN_SPIN,"msctls_updown32",UDS_SETBUDDYINT | 
+    CONTROL         "Spin2",IDC_GREEN_SPIN,"msctls_updown32",UDS_SETBUDDYINT |
                     UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,214,91,13,
                     14
     CONTROL         "",IDC_BLUE_GRADIENT,"Static",SS_BLACKFRAME,38,104,135,8
     LTEXT           "&Blue",IDC_STATIC,8,115,15,8
-    CONTROL         "Slider1",IDC_SLIDER_BLUE,"msctls_trackbar32",TBS_TOP | 
+    CONTROL         "Slider1",IDC_SLIDER_BLUE,"msctls_trackbar32",TBS_TOP |
                     TBS_NOTICKS | WS_TABSTOP,33,114,147,12
     EDITTEXT        IDC_BLUE_EDIT,187,113,40,14
-    CONTROL         "Spin2",IDC_BLUE_SPIN,"msctls_updown32",UDS_SETBUDDYINT | 
+    CONTROL         "Spin2",IDC_BLUE_SPIN,"msctls_updown32",UDS_SETBUDDYINT |
                     UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,214,121,
                     13,14
     CONTROL         "Gray&scale",IDC_GRAYSCALE_CHECK,"Button",
@@ -1005,18 +1186,18 @@ END
 IDD_BONE_MANAGEMENT DIALOG DISCARDABLE  0, 0, 257, 311
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Bone Management"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_BONE,IDC_STATIC,7,7,21,20
     LTEXT           "You can attach objects to bones using the controls below.  Highlight the bone you wish to modify and select a new object to add or an existing object to remove.",
                     IDC_STATIC,38,7,212,26
     LTEXT           "&Bones:",IDC_STATIC,7,34,23,8
-    CONTROL         "Tree1",IDC_BONE_TREE,"SysTreeView32",TVS_HASBUTTONS | 
-                    TVS_HASLINES | TVS_LINESATROOT | TVS_DISABLEDRAGDROP | 
+    CONTROL         "Tree1",IDC_BONE_TREE,"SysTreeView32",TVS_HASBUTTONS |
+                    TVS_HASLINES | TVS_LINESATROOT | TVS_DISABLEDRAGDROP |
                     TVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP,7,44,243,192
     GROUPBOX        "Static",IDC_BONE_GROUPBOX,7,242,243,42
     LTEXT           "&Render object:",IDC_STATIC,17,253,64,8
-    COMBOBOX        IDC_OBJECT_COMBO,16,263,168,221,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_OBJECT_COMBO,16,263,168,221,CBS_DROPDOWNLIST |
                     CBS_SORT | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "&Attach",IDC_ATTACH_BUTTON,192,262,50,14
     DEFPUSHBUTTON   "OK",IDOK,71,290,50,14
@@ -1026,7 +1207,7 @@ END
 IDD_MAKE_AGGREGATE DIALOG DISCARDABLE  0, 0, 221, 103
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "New Aggregate"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_AGGREGATE,IDC_STATIC,7,7,20,20
     LTEXT           "Please give the new aggregate a name using the controls below.  The aggregate will be refered to by this name from now on.  While this name is independent of the filename, for convention's sake they should be the same",
@@ -1040,7 +1221,7 @@ END
 IDD_TEXTURE_MANAGMENT DIALOG DISCARDABLE  0, 0, 309, 242
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Texture Managment"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     DEFPUSHBUTTON   "OK",IDOK,90,221,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,169,221,50,14
@@ -1048,16 +1229,16 @@ BEGIN
                     IDC_STATIC,44,7,258,27
     ICON            IDI_TEXTURE,IDC_STATIC,7,7,20,20
     CONTROL         "List1",IDC_MESH_TEXTURE_LIST_CTRL,"SysListView32",
-                    LVS_REPORT | LVS_SINGLESEL | LVS_SORTASCENDING | 
+                    LVS_REPORT | LVS_SINGLESEL | LVS_SORTASCENDING |
                     LVS_AUTOARRANGE | WS_BORDER | WS_TABSTOP,7,60,295,155
-    LTEXT           "Toolbar goes here",IDC_TOOLBAR_SLOT,7,36,295,23,NOT 
+    LTEXT           "Toolbar goes here",IDC_TOOLBAR_SLOT,7,36,295,23,NOT
                     WS_VISIBLE | WS_BORDER
 END
 
 IDD_TEXTURE_SETTINGS DIALOG DISCARDABLE  0, 0, 234, 210
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Texture Settings"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_TEXTURE,IDC_STATIC,7,7,20,20
     LTEXT           "Use the controls below to modify texture settings.  Use the 'Restore' button to reset the texture to its original state.",
@@ -1069,42 +1250,42 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,7,66,51,10
     CONTROL         "&MipMap Off",IDC_MIPMAP_OFF_CHECK,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,7,78,53,10
-    CONTROL         "Alp&ha Bitmap",IDC_ALPHA_CHECK,"Button",BS_AUTOCHECKBOX | 
+    CONTROL         "Alp&ha Bitmap",IDC_ALPHA_CHECK,"Button",BS_AUTOCHECKBOX |
                     WS_TABSTOP,7,90,57,10
-    CONTROL         "Clamp &U",IDC_CLAMPU_CHECK,"Button",BS_AUTOCHECKBOX | 
+    CONTROL         "Clamp &U",IDC_CLAMPU_CHECK,"Button",BS_AUTOCHECKBOX |
                     WS_TABSTOP,7,102,43,10
-    CONTROL         "Clamp &V",IDC_CLAMPV_CHECK,"Button",BS_AUTOCHECKBOX | 
+    CONTROL         "Clamp &V",IDC_CLAMPV_CHECK,"Button",BS_AUTOCHECKBOX |
                     WS_TABSTOP,7,114,42,10
     PUSHBUTTON      "&Restore",IDC_RESTORE,7,131,50,14,WS_GROUP
-    CONTROL         "",IDC_TEXTURE_THUMBNAIL,"Static",SS_BLACKFRAME | 
+    CONTROL         "",IDC_TEXTURE_THUMBNAIL,"Static",SS_BLACKFRAME |
                     WS_GROUP,128,74,87,68
     GROUPBOX        "",IDC_STATIC,7,152,220,30
     CONTROL         "&Animation",IDC_ANIMATION_CHECK,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,14,152,47,10
     LTEXT           "&Count:",IDC_STATIC,14,166,22,8
-    EDITTEXT        IDC_FRAME_COUNT_EDIT,38,164,34,14,ES_AUTOHSCROLL | 
+    EDITTEXT        IDC_FRAME_COUNT_EDIT,38,164,34,14,ES_AUTOHSCROLL |
                     ES_NUMBER
     CONTROL         "Spin1",IDC_FRAME_COUNT_SPIN,"msctls_updown32",
-                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | 
+                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY |
                     UDS_ARROWKEYS,54,168,11,14
     LTEXT           "&FPS:",IDC_STATIC,79,166,16,8
     EDITTEXT        IDC_FPS_EDIT,99,164,34,14,ES_AUTOHSCROLL | ES_NUMBER
-    CONTROL         "Spin1",IDC_FPS_SPIN,"msctls_updown32",UDS_SETBUDDYINT | 
+    CONTROL         "Spin1",IDC_FPS_SPIN,"msctls_updown32",UDS_SETBUDDYINT |
                     UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,122,165,
                     11,14
     LTEXT           "T&ype:",IDC_STATIC,140,166,19,8
-    COMBOBOX        IDC_TYPE_COMBO,161,164,59,78,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_TYPE_COMBO,161,164,59,78,CBS_DROPDOWNLIST |
                     WS_VSCROLL | WS_TABSTOP
     DEFPUSHBUTTON   "OK",IDOK,27,189,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,91,189,50,14
-    GROUPBOX        "Preview",IDC_STATIC,114,62,113,86
+    GROUPBOX        "Preview",IDC_PREVIEW_GROUP,114,62,113,86
     PUSHBUTTON      "A&pply",IDC_APPLY,155,189,50,14
 END
 
 IDD_TEXTURE_MANAGMENT1 DIALOG DISCARDABLE  0, 0, 249, 206
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Texture Managment"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     DEFPUSHBUTTON   "OK",IDOK,68,185,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,131,185,50,14
@@ -1114,7 +1295,7 @@ BEGIN
     CONTROL         "Tree1",IDC_TREE1,"SysTreeView32",WS_BORDER | WS_TABSTOP,
                     7,32,235,77
     GROUPBOX        "Static",IDC_STATIC,7,114,235,65
-    COMBOBOX        IDC_TEXTURE_FILENAME,13,160,164,97,CBS_DROPDOWN | 
+    COMBOBOX        IDC_TEXTURE_FILENAME,13,160,164,97,CBS_DROPDOWN |
                     CBS_SORT | WS_VSCROLL | WS_TABSTOP
     LTEXT           "&New Texture:",IDC_STATIC,13,150,45,8
     LTEXT           "Original Texture:",IDC_STATIC,13,126,65,8
@@ -1127,7 +1308,7 @@ END
 IDD_RENAME_AGGREGATE DIALOG DISCARDABLE  0, 0, 221, 95
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Rename Aggregate"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_RENAME,IDC_STATIC,7,7,20,20
     LTEXT           "Please give the aggregate a new name using the controls below.  The aggregate will be refered to by this name from now on.",
@@ -1141,7 +1322,7 @@ END
 IDD_OPACITY DIALOG DISCARDABLE  0, 0, 172, 92
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Opacity Settings"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     DEFPUSHBUTTON   "OK",IDOK,30,71,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,92,71,50,14
@@ -1157,7 +1338,7 @@ END
 IDD_VOLUME_RANDOMIZER DIALOG DISCARDABLE  0, 0, 218, 175
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Volume Randomizer"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_VOLUME,IDC_STATIC,7,7,20,20
     LTEXT           "Use the controls below to configure a volume-based randomizer.",
@@ -1165,23 +1346,23 @@ BEGIN
     GROUPBOX        "",IDC_STATIC,7,30,204,36
     GROUPBOX        "",IDC_STATIC,7,71,204,36
     GROUPBOX        "",IDC_STATIC,7,112,204,36
-    CONTROL         "&Box",IDC_BOX_RADIO,"Button",BS_AUTORADIOBUTTON | 
+    CONTROL         "&Box",IDC_BOX_RADIO,"Button",BS_AUTORADIOBUTTON |
                     WS_GROUP | WS_TABSTOP,15,30,26,10
-    CONTROL         "&Sphere",IDC_SPHERE_RADIO,"Button",BS_AUTORADIOBUTTON | 
+    CONTROL         "&Sphere",IDC_SPHERE_RADIO,"Button",BS_AUTORADIOBUTTON |
                     WS_TABSTOP,15,71,40,10
     CONTROL         "&Cylinder",IDC_CYLINDER_RADIO,"Button",
                     BS_AUTORADIOBUTTON | WS_TABSTOP,15,112,40,10
     LTEXT           "&X:",IDC_STATIC,16,47,8,8
     EDITTEXT        IDC_BOX_X_EDIT,27,44,43,14
-    CONTROL         "Spin1",IDC_BOX_X_SPIN,"msctls_updown32",UDS_ALIGNRIGHT | 
+    CONTROL         "Spin1",IDC_BOX_X_SPIN,"msctls_updown32",UDS_ALIGNRIGHT |
                     UDS_AUTOBUDDY | UDS_ARROWKEYS,63,48,11,14
     LTEXT           "&Y:",IDC_STATIC,80,47,8,8
     EDITTEXT        IDC_BOX_Y_EDIT,91,44,43,14
-    CONTROL         "Spin1",IDC_BOX_Y_SPIN,"msctls_updown32",UDS_ALIGNRIGHT | 
+    CONTROL         "Spin1",IDC_BOX_Y_SPIN,"msctls_updown32",UDS_ALIGNRIGHT |
                     UDS_AUTOBUDDY | UDS_ARROWKEYS,127,49,11,14
     LTEXT           "&Z:",IDC_STATIC,144,47,8,8
     EDITTEXT        IDC_BOX_Z_EDIT,155,44,43,14
-    CONTROL         "Spin1",IDC_BOX_Z_SPIN,"msctls_updown32",UDS_ALIGNRIGHT | 
+    CONTROL         "Spin1",IDC_BOX_Z_SPIN,"msctls_updown32",UDS_ALIGNRIGHT |
                     UDS_AUTOBUDDY | UDS_ARROWKEYS,190,49,11,14
     LTEXT           "&Radius:",IDC_STATIC,16,88,25,8
     EDITTEXT        IDC_SPHERE_RADIUS_EDIT,45,85,71,14
@@ -1207,7 +1388,7 @@ END
 IDD_PROP_PAGE_EMITTER_SIZE DIALOG DISCARDABLE  0, 0, 220, 166
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "Size"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_SIZE,-1,7,7,20,20
     LTEXT           "Use the controls below to specify keyframes.  Hold the Ctrl key and click to insert a new key, double click a key to edit its value.",
@@ -1217,7 +1398,7 @@ BEGIN
     LTEXT           "Rando&mizer:",-1,13,108,40,8
     EDITTEXT        IDC_SIZE_RANDOM_EDIT,56,106,33,14
     CONTROL         "Spin2",IDC_SIZE_RANDOM_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,131,106,11,14
     LTEXT           "meters",-1,93,108,22,8
 END
@@ -1225,14 +1406,14 @@ END
 IDD_PARTICLE_SIZE DIALOG DISCARDABLE  0, 0, 150, 94
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Particle Size"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_SIZE,IDC_STATIC,7,7,21,20
     LTEXT           "Use the controls below to specify a size for the particle at this key frame.",
                     IDC_STATIC,36,7,107,26
     LTEXT           "&Size:",IDC_STATIC,7,47,16,8
     EDITTEXT        IDC_SIZE_EDIT,28,45,38,14
-    CONTROL         "Spin2",IDC_SIZE_SPIN,"msctls_updown32",UDS_ALIGNRIGHT | 
+    CONTROL         "Spin2",IDC_SIZE_SPIN,"msctls_updown32",UDS_ALIGNRIGHT |
                     UDS_AUTOBUDDY | UDS_ARROWKEYS,102,45,11,14
     LTEXT           "meters",IDC_STATIC,70,47,22,8
     DEFPUSHBUTTON   "OK",IDOK,18,73,50,14
@@ -1242,10 +1423,10 @@ END
 IDD_PROP_PAGE_ADVANIM_MIXING DIALOG DISCARDABLE  0, 0, 230, 199
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "Animation Mixing"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
-    CONTROL         "List2",IDC_ANIMATION_LIST,"SysListView32",LVS_LIST | 
-                    LVS_SORTASCENDING | LVS_AUTOARRANGE | WS_BORDER | 
+    CONTROL         "List2",IDC_ANIMATION_LIST,"SysListView32",LVS_LIST |
+                    LVS_SORTASCENDING | LVS_AUTOARRANGE | WS_BORDER |
                     WS_TABSTOP,7,16,216,176
     LTEXT           "Select the animations you want to mix:",IDC_STATIC,7,7,
                     121,8
@@ -1254,12 +1435,13 @@ END
 IDD_PROP_PAGE_ADVANIM_REPORT DIALOG DISCARDABLE  0, 0, 230, 199
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "Animation Report"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
-    CONTROL         "List1",IDC_ANIM_REPORT,"SysListView32",LVS_REPORT | 
-                    LVS_SINGLESEL | LVS_SORTASCENDING | LVS_AUTOARRANGE | 
+    CONTROL         "List1",IDC_ANIM_REPORT,"SysListView32",LVS_REPORT |
+                    LVS_SINGLESEL | LVS_SORTASCENDING | LVS_AUTOARRANGE |
                     WS_BORDER | WS_TABSTOP,7,16,216,132
     LTEXT           "Bones affected by each animation:",IDC_STATIC,7,7,110,8
+    PUSHBUTTON      "Copy",IDC_COPY_ANIM_REPORT,173,3,50,14
     GROUPBOX        "Legend",IDC_STATIC,7,150,216,42
     LTEXT           "X - Translation on X Axis",IDC_STATIC,15,160,78,8
     LTEXT           "Y - Translation on Y Axis",IDC_STATIC,15,169,78,8
@@ -1272,7 +1454,7 @@ END
 IDD_CAMERA_SETTINGS DIALOG DISCARDABLE  0, 0, 203, 215
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Camera Settings"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_CAMERA,IDC_STATIC,7,7,20,20
     LTEXT           "Use the controls below to specify the camera's clip planes and aspect ratio.",
@@ -1283,30 +1465,30 @@ BEGIN
     LTEXT           "&Near:",IDC_STATIC,39,50,18,8
     EDITTEXT        IDC_NEAR_CLIP_EDIT,66,47,69,14
     CONTROL         "Spin1",IDC_NEAR_CLIP_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,140,47,11,14
     LTEXT           "&Far:",IDC_STATIC,39,70,13,8
     EDITTEXT        IDC_FAR_CLIP_EDIT,66,67,69,14,ES_AUTOHSCROLL
     CONTROL         "Spin1",IDC_FAR_CLIP_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,142,67,11,14
     GROUPBOX        "",IDC_STATIC,7,100,189,86
-    CONTROL         "Field of &View",IDC_FOV_CHECK,"Button",BS_AUTOCHECKBOX | 
+    CONTROL         "Field of &View",IDC_FOV_CHECK,"Button",BS_AUTOCHECKBOX |
                     WS_TABSTOP,15,100,58,10
     LTEXT           "&Camera Lens",IDC_STATIC,29,119,42,8
     EDITTEXT        IDC_LENS_EDIT,76,116,49,14,ES_AUTOHSCROLL
-    CONTROL         "Spin1",IDC_LENS_SPIN,"msctls_updown32",UDS_ALIGNRIGHT | 
+    CONTROL         "Spin1",IDC_LENS_SPIN,"msctls_updown32",UDS_ALIGNRIGHT |
                     UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,163,117,
                     11,14
     LTEXT           "mm",IDC_STATIC,129,119,12,8
     LTEXT           "&Horizontal:",IDC_STATIC,36,145,34,8
     EDITTEXT        IDC_HFOV_EDIT,76,142,49,14,ES_AUTOHSCROLL
-    CONTROL         "Spin1",IDC_HFOV_SPIN,"msctls_updown32",UDS_ALIGNRIGHT | 
+    CONTROL         "Spin1",IDC_HFOV_SPIN,"msctls_updown32",UDS_ALIGNRIGHT |
                     UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,163,143,
                     11,14
     LTEXT           "V&ertical:",IDC_STATIC,36,165,26,8
     EDITTEXT        IDC_VFOV_EDIT,76,162,49,14,ES_AUTOHSCROLL
-    CONTROL         "Spin1",IDC_VFOV_SPIN,"msctls_updown32",UDS_ALIGNRIGHT | 
+    CONTROL         "Spin1",IDC_VFOV_SPIN,"msctls_updown32",UDS_ALIGNRIGHT |
                     UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,164,162,
                     11,14
     DEFPUSHBUTTON   "OK",IDOK,15,194,50,14
@@ -1316,82 +1498,82 @@ BEGIN
     LTEXT           "degrees",IDC_STATIC,129,165,26,8
 END
 
-IDD_TEXTURE_PATHS DIALOG DISCARDABLE  0, 0, 233, 127
+IDD_TEXTURE_PATHS DIALOG DISCARDABLE  0, 0, 350, 220
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Texture Directories"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_TEXTURE,IDC_STATIC,7,7,20,20
     LTEXT           "Use the controls below to specify additional texture lookup directories.",
-                    IDC_STATIC,39,7,187,24
-    LTEXT           "Texture Path 1:",IDC_STATIC,7,36,76,8
-    EDITTEXT        IDC_PATH1,7,46,159,14,ES_AUTOHSCROLL
-    PUSHBUTTON      "&Browse...",IDC_BROWSE1,176,46,50,14
-    LTEXT           "Texture Path 2:",IDC_STATIC,7,72,76,8
-    EDITTEXT        IDC_PATH2,7,81,159,14,ES_AUTOHSCROLL
-    PUSHBUTTON      "Bro&wse...",IDC_BROWSE2,176,81,50,14
-    DEFPUSHBUTTON   "OK",IDOK,59,106,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,123,106,50,14
+                    IDC_STATIC,39,7,304,24
+    LTEXT           "Texture Paths:",IDC_STATIC,7,36,76,8
+    CONTROL         "",IDC_PATH_LIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | WS_BORDER | WS_TABSTOP,7,46,280,130
+    PUSHBUTTON      "&Add...",IDC_ADD_PATH,7,182,50,14
+    PUSHBUTTON      "&Remove",IDC_REMOVE_PATH,62,182,50,14
+    PUSHBUTTON      "Move &Up",IDC_MOVE_UP,117,182,50,14
+    PUSHBUTTON      "Move &Down",IDC_MOVE_DOWN,172,182,50,14
+    DEFPUSHBUTTON   "OK",IDOK,211,199,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,266,199,50,14
 END
 
 IDD_XXX_BROWSE_DIRECTORY DIALOGEX 0, 0, 217, 178
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 EXSTYLE WS_EX_CONTEXTHELP
 CAPTION "Select Directory"
-FONT 8, "MS Sans Serif", 0, 0, 0x1
+FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
     LTEXT           "Directory &name:",20627,7,7,92,16,0,0,0xd09e5093
     EDITTEXT        20626,7,26,143,12,ES_AUTOHSCROLL,0,0xd09e5092
-    LISTBOX         1121,7,41,143,64,LBS_SORT | LBS_OWNERDRAWFIXED | 
-                    LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT | 
+    LISTBOX         1121,7,41,143,64,LBS_SORT | LBS_OWNERDRAWFIXED |
+                    LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT |
                     LBS_DISABLENOSCROLL | WS_VSCROLL | WS_TABSTOP,0,
                     0xd09e0461
     LTEXT           "Dri&ves:",-1,7,107,92,9,0,0,0xd04affff
-    COMBOBOX        1137,7,117,143,68,CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | 
-                    CBS_AUTOHSCROLL | CBS_SORT | CBS_HASSTRINGS | WS_BORDER | 
+    COMBOBOX        1137,7,117,143,68,CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED |
+                    CBS_AUTOHSCROLL | CBS_SORT | CBS_HASSTRINGS | WS_BORDER |
                     WS_VSCROLL | WS_TABSTOP,0,0xd09e0471
     DEFPUSHBUTTON   "OK",1,160,7,50,14,WS_GROUP
     PUSHBUTTON      "Cancel",2,160,24,50,14,WS_GROUP
     LTEXT           "",1090,7,-106,76,9
     EDITTEXT        1152,7,-116,90,12,ES_AUTOHSCROLL | NOT WS_TABSTOP
     LTEXT           "",1088,7,-116,92,9
-    LISTBOX         1120,7,-132,8,9,LBS_SORT | LBS_OWNERDRAWFIXED | 
-                    LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT | 
+    LISTBOX         1120,7,-132,8,9,LBS_SORT | LBS_OWNERDRAWFIXED |
+                    LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT |
                     LBS_DISABLENOSCROLL | WS_VSCROLL
     LTEXT           "List Files of &Type:",1089,7,-104,90,9
-    COMBOBOX        1136,7,-114,90,36,CBS_DROPDOWNLIST | CBS_AUTOHSCROLL | 
+    COMBOBOX        1136,7,-114,90,36,CBS_DROPDOWNLIST | CBS_AUTOHSCROLL |
                     WS_BORDER | WS_VSCROLL
     PUSHBUTTON      "Net&work...",1037,160,41,50,14,WS_GROUP,0,0xd09e040d
     LTEXT           "",21251,7,142,143,29,SS_SUNKEN
 END
 
 MYFILEOPEN DIALOG DISCARDABLE  36, 24, 268, 134
-STYLE DS_MODALFRAME | DS_3DLOOK | DS_CONTEXTHELP | WS_POPUP | WS_CAPTION | 
+STYLE DS_MODALFRAME | DS_3DLOOK | DS_CONTEXTHELP | WS_POPUP | WS_CAPTION |
     WS_SYSMENU
 CAPTION "Open"
 FONT 8, "MS Shell Dlg"
 BEGIN
     LTEXT           "File &name:",1090,6,6,76,9
     EDITTEXT        1152,6,16,90,12,ES_AUTOHSCROLL | ES_OEMCONVERT
-    LISTBOX         1120,6,32,90,68,LBS_SORT | LBS_OWNERDRAWFIXED | 
-                    LBS_HASSTRINGS | LBS_DISABLENOSCROLL | WS_VSCROLL | 
+    LISTBOX         1120,6,32,90,68,LBS_SORT | LBS_OWNERDRAWFIXED |
+                    LBS_HASSTRINGS | LBS_DISABLENOSCROLL | WS_VSCROLL |
                     WS_TABSTOP
     LTEXT           "&Folders:",-1,110,6,96,9
     LTEXT           "",1088,110,16,96,9,SS_NOPREFIX
-    LISTBOX         1121,110,32,96,68,LBS_SORT | LBS_OWNERDRAWFIXED | 
-                    LBS_HASSTRINGS | LBS_DISABLENOSCROLL | WS_VSCROLL | 
+    LISTBOX         1121,110,32,96,68,LBS_SORT | LBS_OWNERDRAWFIXED |
+                    LBS_HASSTRINGS | LBS_DISABLENOSCROLL | WS_VSCROLL |
                     WS_TABSTOP
     LTEXT           "List files of &type:",1089,6,104,90,9
-    COMBOBOX        1136,6,114,90,96,CBS_DROPDOWNLIST | CBS_AUTOHSCROLL | 
+    COMBOBOX        1136,6,114,90,96,CBS_DROPDOWNLIST | CBS_AUTOHSCROLL |
                     WS_VSCROLL | WS_TABSTOP
     LTEXT           "Dri&ves:",1091,110,104,96,9
-    COMBOBOX        1137,110,114,96,68,CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | 
-                    CBS_AUTOHSCROLL | CBS_SORT | CBS_HASSTRINGS | WS_VSCROLL | 
+    COMBOBOX        1137,110,114,96,68,CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED |
+                    CBS_AUTOHSCROLL | CBS_SORT | CBS_HASSTRINGS | WS_VSCROLL |
                     WS_TABSTOP
     DEFPUSHBUTTON   "OK",IDOK,212,6,50,14,WS_GROUP
     PUSHBUTTON      "Cancel",IDCANCEL,212,24,50,14,WS_GROUP
     PUSHBUTTON      "&Help",1038,212,46,50,14,WS_GROUP
-    CONTROL         "&Read only",1040,"Button",BS_AUTOCHECKBOX | WS_GROUP | 
+    CONTROL         "&Read only",1040,"Button",BS_AUTOCHECKBOX | WS_GROUP |
                     WS_TABSTOP,212,68,50,12
 END
 
@@ -1402,33 +1584,33 @@ CAPTION "Open"
 FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
     LTEXT           "&Folders:",-1,7,7,96,9
-    LISTBOX         1121,7,33,175,78,LBS_SORT | LBS_OWNERDRAWFIXED | 
-                    LBS_HASSTRINGS | LBS_DISABLENOSCROLL | WS_VSCROLL | 
+    LISTBOX         1121,7,33,175,78,LBS_SORT | LBS_OWNERDRAWFIXED |
+                    LBS_HASSTRINGS | LBS_DISABLENOSCROLL | WS_VSCROLL |
                     WS_TABSTOP
     LTEXT           "Dri&ves:",1091,8,116,96,9
-    COMBOBOX        1137,8,126,175,68,CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | 
-                    CBS_AUTOHSCROLL | CBS_SORT | CBS_HASSTRINGS | WS_VSCROLL | 
+    COMBOBOX        1137,8,126,175,68,CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED |
+                    CBS_AUTOHSCROLL | CBS_SORT | CBS_HASSTRINGS | WS_VSCROLL |
                     WS_TABSTOP
     DEFPUSHBUTTON   "OK",IDOK,193,6,50,14,WS_GROUP
     PUSHBUTTON      "Cancel",IDCANCEL,193,24,50,14,WS_GROUP
     PUSHBUTTON      "&Help",1038,193,46,50,14,WS_GROUP
     LTEXT           "",1088,7,19,175,9,SS_NOPREFIX
-    EDITTEXT        1152,203,90,15,12,ES_AUTOHSCROLL | ES_OEMCONVERT | NOT 
+    EDITTEXT        1152,203,90,15,12,ES_AUTOHSCROLL | ES_OEMCONVERT | NOT
                     WS_VISIBLE
 END
 
 IDD_RESOLUTION DIALOG DISCARDABLE  0, 0, 231, 174
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Resolution"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_RESOLUTION,IDC_STATIC,7,7,20,20
     LTEXT           "Use the controls below to select a resolution for this application.  Note:  This setting has no effect in Windowed mode.",
                     IDC_STATIC,37,7,187,24
     LTEXT           "&Resolution:",IDC_STATIC,7,37,44,8
     CONTROL         "List2",IDC_RESOLUTION_LIST_CTRL,"SysListView32",
-                    LVS_REPORT | LVS_SINGLESEL | LVS_SORTASCENDING | 
-                    LVS_AUTOARRANGE | LVS_NOSORTHEADER | WS_BORDER | 
+                    LVS_REPORT | LVS_SINGLESEL | LVS_SORTASCENDING |
+                    LVS_AUTOARRANGE | LVS_NOSORTHEADER | WS_BORDER |
                     WS_TABSTOP,7,48,217,84
     CONTROL         "&Fullscreen",IDC_FULLSCREEN_CHECK,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,7,138,70,10
@@ -1439,7 +1621,7 @@ END
 IDD_PROP_PAGE_SPHERE_GEN DIALOG DISCARDABLE  0, 0, 220, 180
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "General"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_SPHERE,IDC_STATIC,7,7,20,20
     LTEXT           "Use the controls below to modify the nature of the sphere.  These settings will not take affect until you apply the changes.",
@@ -1449,16 +1631,16 @@ BEGIN
     LTEXT           "&Duration:",IDC_STATIC,7,60,29,8
     EDITTEXT        IDC_LIFETIME_EDIT,42,57,40,14
     CONTROL         "Spin1",IDC_LIFETIME_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,106,58,11,14
     LTEXT           "secs",IDC_STATIC,87,59,16,8
     CONTROL         "&Camera Aligned",IDC_CAMERA_ALIGNED_CHECK,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,7,80,74,10
-    CONTROL         "&Looping",IDC_LOOPING_CHECK,"Button",BS_AUTOCHECKBOX | 
+    CONTROL         "&Looping",IDC_LOOPING_CHECK,"Button",BS_AUTOCHECKBOX |
                     WS_TABSTOP,7,93,74,10
     GROUPBOX        "&Visual",IDC_STATIC,7,110,206,62
     LTEXT           "&Shader:",IDC_STATIC,16,126,26,8
-    COMBOBOX        IDC_SHADER_COMBO,49,124,140,115,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_SHADER_COMBO,49,124,140,115,CBS_DROPDOWNLIST |
                     CBS_SORT | WS_VSCROLL | WS_TABSTOP
     LTEXT           "&Texure filename:",IDC_STATIC,13,141,53,8
     EDITTEXT        IDC_FILENAME_EDIT,13,152,136,14,ES_AUTOHSCROLL
@@ -1468,7 +1650,7 @@ END
 IDD_PROP_PAGE_SPHERE_COLOR DIALOG DISCARDABLE  0, 0, 220, 180
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "Color"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_COLOR,IDC_STATIC,7,7,20,20
     LTEXT           "Use the controls below to specify keyframes.  Hold the Ctrl key and click to insert a new key, double click a key to edit its value.",
@@ -1486,14 +1668,14 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_TABSTOP,16,122,63,10
     CONTROL         "&Invert Effect",IDC_INVERT_VECTOR_CHECK,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,27,135,55,10
-    CONTROL         "opacity",IDC_VECTOR_BAR,"WWCOLORBAR",WS_GROUP | 
+    CONTROL         "opacity",IDC_VECTOR_BAR,"WWCOLORBAR",WS_GROUP |
                     WS_TABSTOP | 0x4c,14,150,191,17
 END
 
 IDD_PROP_PAGE_SPHERE_SCALE DIALOG DISCARDABLE  0, 0, 220, 180
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "Size"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_SIZE,IDC_STATIC,7,7,20,20
     LTEXT           "Use the controls below to specify the initial size and relative x, y, and z scale keyframes.",
@@ -1502,17 +1684,17 @@ BEGIN
     LTEXT           "&Initial Size",IDC_STATIC,13,31,32,8
     LTEXT           "&X:",IDC_STATIC,19,47,8,8
     EDITTEXT        IDC_SIZE_X_EDIT,34,44,40,14,ES_AUTOHSCROLL
-    CONTROL         "Spin2",IDC_SIZE_X_SPIN,"msctls_updown32",UDS_ALIGNRIGHT | 
+    CONTROL         "Spin2",IDC_SIZE_X_SPIN,"msctls_updown32",UDS_ALIGNRIGHT |
                     UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,63,54,11,
                     14
     LTEXT           "&Y:",IDC_STATIC,83,47,8,8
     EDITTEXT        IDC_SIZE_Y_EDIT,95,44,40,14,ES_AUTOHSCROLL
-    CONTROL         "Spin2",IDC_SIZE_Y_SPIN,"msctls_updown32",UDS_ALIGNRIGHT | 
+    CONTROL         "Spin2",IDC_SIZE_Y_SPIN,"msctls_updown32",UDS_ALIGNRIGHT |
                     UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,127,53,
                     11,14
     LTEXT           "&Z:",IDC_STATIC,144,47,8,8
     EDITTEXT        IDC_SIZE_Z_EDIT,156,44,40,14,ES_AUTOHSCROLL
-    CONTROL         "Spin2",IDC_SIZE_Z_SPIN,"msctls_updown32",UDS_ALIGNRIGHT | 
+    CONTROL         "Spin2",IDC_SIZE_Z_SPIN,"msctls_updown32",UDS_ALIGNRIGHT |
                     UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,186,51,
                     11,14
     CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,7,66,206,1
@@ -1531,14 +1713,14 @@ END
 IDD_SCALE_KEY DIALOG DISCARDABLE  0, 0, 150, 87
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Scale"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_SIZE,IDC_STATIC,7,7,20,20
     LTEXT           "Use the controls below to specify the scale at the current keyframe.",
                     IDC_PROMPT,36,7,107,26
     LTEXT           "&Scale:",IDC_STATIC,36,40,21,8
     EDITTEXT        IDC_SIZE_EDIT,62,38,38,14
-    CONTROL         "Spin2",IDC_SIZE_SPIN,"msctls_updown32",UDS_SETBUDDYINT | 
+    CONTROL         "Spin2",IDC_SIZE_SPIN,"msctls_updown32",UDS_SETBUDDYINT |
                     UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,118,38,11,
                     14
     LTEXT           "%",IDC_STATIC,104,40,8,8
@@ -1549,27 +1731,27 @@ END
 IDD_OPACITY_VECTOR DIALOG DISCARDABLE  0, 0, 215, 186
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Alpha Vector"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_OPACITY_VECTOR,IDC_STATIC,7,7,21,20
     LTEXT           "Use the controls below to specify the Y and Z-axis rotations and the magnitude of the alpha vector.",
                     IDC_STATIC,32,7,176,19
     GROUPBOX        "&Rotation:",IDC_STATIC,7,29,201,80
     LTEXT           "&Y-Axis:",IDC_STATIC,20,52,22,8
-    CONTROL         "Slider1",IDC_SLIDER_Y,"msctls_trackbar32",TBS_TOP | 
+    CONTROL         "Slider1",IDC_SLIDER_Y,"msctls_trackbar32",TBS_TOP |
                     TBS_NOTICKS | WS_TABSTOP,47,51,147,12
     LTEXT           "&Z-Axis:",IDC_STATIC,20,86,22,8
-    CONTROL         "Slider1",IDC_SLIDER_Z,"msctls_trackbar32",TBS_TOP | 
+    CONTROL         "Slider1",IDC_SLIDER_Z,"msctls_trackbar32",TBS_TOP |
                     TBS_NOTICKS | WS_TABSTOP,47,85,147,12
     GROUPBOX        "&Magnitude:",IDC_STATIC,7,115,201,44
     CONTROL         "test",IDC_OPACITY_BAR,"WWCOLORBAR",WS_TABSTOP | 0x2c,18,
                     138,179,14
     DEFPUSHBUTTON   "OK",IDOK,47,166,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,117,166,50,14
-    LTEXT           "0 °",IDC_STATIC,49,41,10,8
-    LTEXT           "180 °",IDC_STATIC,177,41,18,8
-    LTEXT           "0 °",IDC_STATIC,49,75,10,8
-    LTEXT           "180 °",IDC_STATIC,177,75,18,8
+    LTEXT           "0 ï¿½",IDC_STATIC,49,41,10,8
+    LTEXT           "180 ï¿½",IDC_STATIC,177,41,18,8
+    LTEXT           "0 ï¿½",IDC_STATIC,49,75,10,8
+    LTEXT           "180 ï¿½",IDC_STATIC,177,75,18,8
     LTEXT           "Transparent",IDC_STATIC,158,128,39,8
     LTEXT           "Opaque",IDC_STATIC,18,128,26,8
 END
@@ -1577,7 +1759,7 @@ END
 IDD_PROP_PAGE_RING_SCALE DIALOG DISCARDABLE  0, 0, 220, 201
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "Size"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_SIZE,-1,7,7,20,20
     LTEXT           "Use the controls below to specify the initial size and relative x, y, and z scale keyframes.",
@@ -1587,43 +1769,43 @@ BEGIN
     LTEXT           "&X:",-1,50,43,8,8
     EDITTEXT        IDC_INNER_SIZE_X_EDIT,65,40,40,14,ES_AUTOHSCROLL
     CONTROL         "Spin2",IDC_INNER_SIZE_X_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,100,43,11,14
     LTEXT           "&Y:",-1,114,43,8,8
     EDITTEXT        IDC_INNER_SIZE_Y_EDIT,126,40,40,14,ES_AUTOHSCROLL
     CONTROL         "Spin2",IDC_INNER_SIZE_Y_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,164,42,11,14
     LTEXT           "&X-Axis",-1,7,53,42,8
-    CONTROL         "size",IDC_INNER_SCALE_BAR_X,"WWCOLORBAR",WS_TABSTOP | 
+    CONTROL         "size",IDC_INNER_SCALE_BAR_X,"WWCOLORBAR",WS_TABSTOP |
                     0xcc,7,63,206,15
     LTEXT           "&Y-Axis",-1,7,81,42,8
-    CONTROL         "size",IDC_INNER_SCALE_BAR_Y,"WWCOLORBAR",WS_TABSTOP | 
+    CONTROL         "size",IDC_INNER_SCALE_BAR_Y,"WWCOLORBAR",WS_TABSTOP |
                     0xcc,7,91,206,15
     CONTROL         "",-1,"Static",SS_ETCHEDHORZ,7,118,206,1
     LTEXT           "&Outer Radii:",-1,13,114,38,8
     LTEXT           "&X:",-1,50,128,8,8
     EDITTEXT        IDC_OUTER_SIZE_X_EDIT,65,125,40,14,ES_AUTOHSCROLL
     CONTROL         "Spin2",IDC_OUTER_SIZE_X_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,101,129,11,14
     LTEXT           "&Y:",-1,114,128,8,8
     EDITTEXT        IDC_OUTER_SIZE_Y_EDIT,126,125,40,14,ES_AUTOHSCROLL
     CONTROL         "Spin2",IDC_OUTER_SIZE_Y_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,163,129,11,14
     LTEXT           "X-&Axis",-1,7,139,42,8
-    CONTROL         "size",IDC_OUTER_SCALE_BAR_X,"WWCOLORBAR",WS_TABSTOP | 
+    CONTROL         "size",IDC_OUTER_SCALE_BAR_X,"WWCOLORBAR",WS_TABSTOP |
                     0xcc,7,149,206,15
     LTEXT           "Y-Axi&s",-1,7,167,42,8
-    CONTROL         "size",IDC_OUTER_SCALE_BAR_Y,"WWCOLORBAR",WS_TABSTOP | 
+    CONTROL         "size",IDC_OUTER_SCALE_BAR_Y,"WWCOLORBAR",WS_TABSTOP |
                     0xcc,7,177,206,15
 END
 
 IDD_PROP_PAGE_RING_GEN DIALOG DISCARDABLE  0, 0, 220, 201
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "General"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_SPHERE,IDC_STATIC,7,7,20,20
     LTEXT           "Use the controls below to modify the nature of the ring.  These settings will not take affect until you apply the changes.",
@@ -1633,16 +1815,16 @@ BEGIN
     LTEXT           "&Duration:",IDC_STATIC,7,60,29,8
     EDITTEXT        IDC_LIFETIME_EDIT,42,56,40,14
     CONTROL         "Spin1",IDC_LIFETIME_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,106,57,11,14
     LTEXT           "secs",IDC_STATIC,87,58,16,8
     CONTROL         "&Camera Aligned",IDC_CAMERA_ALIGNED_CHECK,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,7,80,74,10
-    CONTROL         "&Looping",IDC_LOOPING_CHECK,"Button",BS_AUTOCHECKBOX | 
+    CONTROL         "&Looping",IDC_LOOPING_CHECK,"Button",BS_AUTOCHECKBOX |
                     WS_TABSTOP,7,93,74,10
     GROUPBOX        "&Visual",IDC_STATIC,7,110,206,84
     LTEXT           "&Shader:",IDC_STATIC,16,126,26,8
-    COMBOBOX        IDC_SHADER_COMBO,49,124,140,115,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_SHADER_COMBO,49,124,140,115,CBS_DROPDOWNLIST |
                     CBS_SORT | WS_VSCROLL | WS_TABSTOP
     LTEXT           "&Texure filename:",IDC_STATIC,13,141,53,8
     EDITTEXT        IDC_FILENAME_EDIT,13,152,136,14,ES_AUTOHSCROLL
@@ -1650,14 +1832,14 @@ BEGIN
     LTEXT           "Te&xture Tiling:",IDC_STATIC,14,176,47,8
     EDITTEXT        IDC_TEXTURE_TILE_EDIT,61,173,40,14
     CONTROL         "Spin1",IDC_TEXTURE_TILE_SPIN,"msctls_updown32",
-                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | 
+                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY |
                     UDS_ARROWKEYS | UDS_NOTHOUSANDS,108,174,11,14
 END
 
 IDD_PROP_PAGE_RING_COLOR DIALOG DISCARDABLE  0, 0, 220, 180
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "Color"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_COLOR,-1,7,7,20,20
     LTEXT           "Use the controls below to specify keyframes.  Hold the Ctrl key and click to insert a new key, double click a key to edit its value.",
@@ -1675,9 +1857,9 @@ END
 IDD_ADD_TO_LINEUP DIALOG DISCARDABLE  0, 0, 168, 86
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Add To Scene..."
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
-    COMBOBOX        IDC_OBJECT,35,41,122,79,CBS_DROPDOWN | CBS_SORT | 
+    COMBOBOX        IDC_OBJECT,35,41,122,79,CBS_DROPDOWN | CBS_SORT |
                     WS_VSCROLL | WS_TABSTOP
     DEFPUSHBUTTON   "OK",IDOK,28,65,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,88,65,50,14
@@ -1690,7 +1872,7 @@ END
 IDD_CAMERA_DISTANCE DIALOG DISCARDABLE  0, 0, 156, 89
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Camera Distance"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_CAMERA,IDC_STATIC,7,7,20,20
     LTEXT           "Enter the camera distance below.",IDC_STATIC,35,12,114,
@@ -1698,7 +1880,7 @@ BEGIN
     LTEXT           "&Camera Distance:",IDC_STATIC,7,39,57,8
     EDITTEXT        IDC_DISTANCE_EDIT,67,36,51,14,ES_AUTOHSCROLL
     CONTROL         "Spin1",IDC_DISTANCE_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,111,44,11,14
     LTEXT           "meters",IDC_STATIC,124,39,22,8
     DEFPUSHBUTTON   "OK",IDOK,22,68,50,14
@@ -1708,7 +1890,7 @@ END
 IDD_SOUND_EDIT DIALOG DISCARDABLE  0, 0, 236, 247
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Edit Sound"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_SOUND,IDC_STATIC,7,7,21,20
     LTEXT           "Use the controls to configure the sound.  The file can be a WAV, VOC, or MP3 file.  True 3D sound only works with monoaural, uncompressed, WAV files.",
@@ -1725,7 +1907,7 @@ BEGIN
     EDITTEXT        IDC_TRIGGER_RADIUS_EDIT,70,108,34,14,ES_AUTOHSCROLL
     LTEXT           "m",IDC_STATIC,108,112,8,8,NOT WS_GROUP
     GROUPBOX        "",IDC_STATIC,7,134,123,54
-    CONTROL         "&3D Sound",IDC_3D_RADIO,"Button",BS_AUTORADIOBUTTON | 
+    CONTROL         "&3D Sound",IDC_3D_RADIO,"Button",BS_AUTORADIOBUTTON |
                     WS_TABSTOP,14,134,49,10
     LTEXT           "&Dropoff at:",IDC_STATIC,14,151,37,8
     EDITTEXT        IDC_DROP_OFF_EDIT,70,148,34,14,ES_AUTOHSCROLL
@@ -1739,13 +1921,13 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_TABSTOP,7,209,76,10
     CONTROL         "&Sound effect",IDC_SOUNDEFFECT_RADIO,"Button",
                     BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,141,99,58,10
-    CONTROL         "&Music",IDC_MUSIC_RADIO,"Button",BS_AUTORADIOBUTTON | 
+    CONTROL         "&Music",IDC_MUSIC_RADIO,"Button",BS_AUTORADIOBUTTON |
                     WS_TABSTOP,141,112,37,10
     LTEXT           "Priorit&y",IDC_STATIC,142,130,25,8
     CONTROL         "Slider1",IDC_PRIORITY_SLIDER,"msctls_trackbar32",
                     TBS_BOTH | TBS_NOTICKS | WS_TABSTOP,137,140,92,12
     LTEXT           "&Volume",IDC_STATIC,142,156,27,8
-    CONTROL         "Slider1",IDC_VOLUME_SLIDER,"msctls_trackbar32",TBS_BOTH | 
+    CONTROL         "Slider1",IDC_VOLUME_SLIDER,"msctls_trackbar32",TBS_BOTH |
                     TBS_NOTICKS | WS_TABSTOP,137,167,92,12
     PUSHBUTTON      "&Play...",IDC_PLAY,156,183,50,14
     DEFPUSHBUTTON   "OK",IDOK,60,226,50,14
@@ -1755,7 +1937,7 @@ END
 IDD_PLAY_SOUND_EFFECT DIALOG DISCARDABLE  0, 0, 221, 85
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Play Sound"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_OPACITY_VECTOR,IDC_STATIC,7,7,21,20
     LTEXT           "Click the play button to hear the sound effect.  Click the cancel button to exit the dialog.",
@@ -1770,7 +1952,7 @@ END
 IDD_PROP_PAGE_EMITTER_LINEPROPS DIALOG DISCARDABLE  0, 0, 220, 166
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "Line Properties"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_LINE,IDC_STATIC,7,7,20,20
     LTEXT           "Use the controls below to modify the line rendering settings for this particle emitter.  Note that these settings are only used when the emitter is rendered in line mode.",
@@ -1780,50 +1962,50 @@ BEGIN
     LTEXT           "Subdivision Level:",IDC_STATIC,13,98,58,8
     EDITTEXT        IDC_SUBDIVISION_LEVEL_EDIT,79,95,40,14,ES_NUMBER
     CONTROL         "Spin1",IDC_SUBDIVISION_LEVEL_SPIN,"msctls_updown32",
-                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | 
+                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY |
                     UDS_ARROWKEYS | UDS_NOTHOUSANDS,118,98,11,14
     LTEXT           "&Noise Amplitude:",IDC_STATIC,13,118,54,8
     EDITTEXT        IDC_NOISE_AMPLITUDE_EDIT,79,115,40,14
     CONTROL         "Spin1",IDC_NOISE_AMPLITUDE_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,117,117,11,14
     CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDFRAME,7,87,205,2
     LTEXT           "&Parameters",IDC_STATIC,18,83,36,8
     CONTROL         "&Merge Intersections",IDC_MERGE_INTERSECTIONS_CHECK,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,130,46,78,10
-    CONTROL         "&End Caps",IDC_END_CAPS_CHECK,"Button",BS_AUTOCHECKBOX | 
+    CONTROL         "&End Caps",IDC_END_CAPS_CHECK,"Button",BS_AUTOCHECKBOX |
                     WS_TABSTOP,130,59,47,10
     CONTROL         "&Disable Sorting",IDC_DISABLE_SORTING_CHECK,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,130,72,63,10
     LTEXT           "Mapping Mode:",IDC_STATIC,16,50,50,8
-    COMBOBOX        IDC_MAPMODE_COMBO,15,61,102,47,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_MAPMODE_COMBO,15,61,102,47,CBS_DROPDOWNLIST |
                     WS_VSCROLL | WS_TABSTOP
     LTEXT           "Merge Abort Factor:",IDC_STATIC,13,138,64,8
     EDITTEXT        IDC_MERGE_ABORT_FACTOR_EDIT,79,135,40,14
     CONTROL         "Spin1",IDC_MERGE_ABORT_FACTOR_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,117,136,11,14
     LTEXT           "UVTiling:",IDC_STATIC,132,99,30,8
     EDITTEXT        IDC_UVTILING_EDIT,168,96,40,14
     CONTROL         "Spin1",IDC_UVTILING_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,198,97,11,14
     LTEXT           "UPerSec:",IDC_STATIC,132,119,32,8
     EDITTEXT        IDC_UPERSEC_EDIT,168,116,40,14
     CONTROL         "Spin1",IDC_UPERSEC_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,199,117,11,14
     LTEXT           "VPerSec:",IDC_STATIC,132,140,31,8
     EDITTEXT        IDC_VPERSEC_EDIT,167,137,40,14
     CONTROL         "Spin1",IDC_VPERSEC_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,199,136,11,14
 END
 
 IDD_PROP_PAGE_EMITTER_ROTATION DIALOG DISCARDABLE  0, 0, 220, 166
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "Rotation"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_ROTATION,IDC_STATIC,7,7,20,20
     LTEXT           "Use the controls below to specify rotational velocity keyframes.  Hold the Ctrl key and click to insert a new key, double click a key to edit its value.",
@@ -1833,7 +2015,7 @@ BEGIN
     LTEXT           "Velocity Randomizer:",IDC_STATIC,13,107,67,8
     EDITTEXT        IDC_ROTATION_RANDOM_EDIT,91,105,33,14
     CONTROL         "Spin2",IDC_ROTATION_RANDOM_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,166,105,11,14
     LTEXT           "Rotations Per Second",IDC_STATIC,128,107,70,8
     LTEXT           "Note that particle orientation is defined using rotations and rotations per second.  1 rotation = 360 degrees",
@@ -1841,7 +2023,7 @@ BEGIN
     LTEXT           "Orientation Randomizer:",IDC_STATIC,13,127,76,8
     EDITTEXT        IDC_INITIAL_ORIENTATION_RANDOM_EDIT,91,125,33,14
     CONTROL         "Spin2",IDC_INITIAL_ORIENTATION_RANDOM_SPIN,
-                    "msctls_updown32",UDS_ALIGNRIGHT | UDS_AUTOBUDDY | 
+                    "msctls_updown32",UDS_ALIGNRIGHT | UDS_AUTOBUDDY |
                     UDS_ARROWKEYS | UDS_NOTHOUSANDS,166,125,11,14
     LTEXT           "Rotations",IDC_STATIC,128,127,31,8
 END
@@ -1849,7 +2031,7 @@ END
 IDD_PROP_PAGE_EMITTER_FRAME DIALOG DISCARDABLE  0, 0, 220, 166
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "Frame / UCoordinate"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_FRAME,IDC_STATIC,7,7,20,20
     LTEXT           "Use the controls below to specify keyframes (or Ucoordinate for linegroup).  Hold the Ctrl key and click to insert a new key, double click a key to edit its value.",
@@ -1859,10 +2041,10 @@ BEGIN
     LTEXT           "Rando&mizer:",IDC_STATIC,13,108,40,8
     EDITTEXT        IDC_FRAME_RANDOM_EDIT,56,106,33,14
     CONTROL         "Spin2",IDC_FRAME_RANDOM_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,131,106,11,14
     LTEXT           "Frames",IDC_STATIC,93,108,24,8
-    COMBOBOX        IDC_FRAME_LAYOUT_COMBO,86,146,51,115,CBS_DROPDOWNLIST | 
+    COMBOBOX        IDC_FRAME_LAYOUT_COMBO,86,146,51,115,CBS_DROPDOWNLIST |
                     WS_VSCROLL | WS_TABSTOP
     LTEXT           "Texture Grid Layout:",IDC_STATIC,15,148,65,8
     LTEXT           "Particles Only",IDC_STATIC,86,129,44,8
@@ -1872,7 +2054,7 @@ END
 IDD_PARTICLE_ROTATION_KEY DIALOG DISCARDABLE  0, 0, 150, 87
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Particle Rotation Keyframe"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_ROTATION,IDC_STATIC,7,7,20,20
     LTEXT           "Use the controls below to specify the particle rotational velocity at the current keyframe.",
@@ -1880,7 +2062,7 @@ BEGIN
     LTEXT           "Orientation:",IDC_STATIC,7,40,37,8
     EDITTEXT        IDC_ROTATION_EDIT,47,38,38,14
     CONTROL         "Spin2",IDC_ROTATION_SPIN,"msctls_updown32",
-                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | 
+                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY |
                     UDS_ARROWKEYS,132,38,11,14
     LTEXT           "Rotations/Sec",IDC_STATIC,89,41,54,8
     DEFPUSHBUTTON   "OK",IDOK,18,66,50,14
@@ -1890,33 +2072,55 @@ END
 IDD_PARTICLE_FRAME_KEY DIALOG DISCARDABLE  0, 0, 150, 87
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Particle Frame Keyframe"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     ICON            IDI_FRAME,-1,7,7,20,20
     LTEXT           "Use the controls below to specify the texture frame at the current keyframe.",
                     IDC_PROMPT,36,7,107,26
     LTEXT           "&Frame:",-1,36,40,22,8
     EDITTEXT        IDC_FRAME_EDIT,62,38,38,14
-    CONTROL         "Spin2",IDC_FRAME_SPIN,"msctls_updown32",UDS_SETBUDDYINT | 
+    CONTROL         "Spin2",IDC_FRAME_SPIN,"msctls_updown32",UDS_SETBUDDYINT |
                     UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,118,38,11,
                     14
     DEFPUSHBUTTON   "OK",IDOK,18,66,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,81,66,50,14
 END
 
+IDD_MISSING_TEXTURES_LOG DIALOG DISCARDABLE  0, 0, 320, 200
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Missing Textures"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    EDITTEXT        IDC_LOG_EDIT,7,7,306,172,ES_MULTILINE | ES_AUTOVSCROLL |
+                    ES_READONLY | WS_VSCROLL
+    PUSHBUTTON      "Copy",IDC_COPY_LOG,7,183,50,14
+    DEFPUSHBUTTON   "OK",IDOK,263,183,50,14
+END
+
+IDD_DUMP_W3D_LOG DIALOG DISCARDABLE  0, 0, 320, 200
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "W3D Info"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    EDITTEXT        IDC_LOG_EDIT,7,7,306,172,ES_MULTILINE | ES_AUTOVSCROLL |
+                    ES_READONLY | WS_VSCROLL
+    PUSHBUTTON      "Copy",IDC_COPY_LOG,7,183,50,14
+    DEFPUSHBUTTON   "OK",IDOK,263,183,50,14
+END
+
 IDD_PROP_PAGE_EMITTER_LINEGROUP DIALOG DISCARDABLE  0, 0, 220, 127
 STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
 CAPTION "Line Group"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     LTEXT           "Use the controls below to specify blur time keyframes.  Hold the Ctrl key and click to insert a new key, double click a key to edit its value.",
                     -1,36,7,177,27
-    CONTROL         "blurtime",IDC_BLUR_TIME_BAR,"WWCOLORBAR",WS_TABSTOP | 
+    CONTROL         "blurtime",IDC_BLUR_TIME_BAR,"WWCOLORBAR",WS_TABSTOP |
                     0xcc,7,42,206,57
     LTEXT           "Rando&mizer:",-1,13,108,40,8
     EDITTEXT        IDC_BLUR_TIME_RANDOM_EDIT,56,106,71,14
     CONTROL         "Spin2",IDC_BLUR_TIME_RANDOM_SPIN,"msctls_updown32",
-                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | 
+                    UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS |
                     UDS_NOTHOUSANDS,178,106,11,14
     LTEXT           "Blur Times",-1,131,106,34,8
 END
@@ -1924,14 +2128,14 @@ END
 IDD_PARTICLE_BLUR_TIME_KEY DIALOG DISCARDABLE  0, 0, 150, 87
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Particle Blur Time Key"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     LTEXT           "Use the controls below to specify the texture frame at the current keyframe.",
                     IDC_PROMPT,36,7,107,26
     LTEXT           "&Blur Time:",-1,18,40,32,8
     EDITTEXT        IDC_BLUR_TIME_EDIT,62,38,38,14
     CONTROL         "Spin2",IDC_BLUR_TIME_SPIN,"msctls_updown32",
-                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | 
+                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY |
                     UDS_ARROWKEYS,118,38,11,14
     DEFPUSHBUTTON   "OK",IDOK2,18,66,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,81,66,50,14
@@ -1939,7 +2143,7 @@ END
 
 IDD_FORMVIEW DIALOG DISCARDABLE  0, 0, 185, 93
 STYLE WS_CHILD
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     LTEXT           "TODO: layout formview",IDC_STATIC,55,42,74,8
 END
@@ -1947,9 +2151,9 @@ END
 IDD_COLOR_PICKER DIALOG DISCARDABLE  0, 0, 303, 127
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Color Picker"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
-    CONTROL         "test",IDC_HUE_PICKER,"WWCOLORPICKER",WS_BORDER | 
+    CONTROL         "test",IDC_HUE_PICKER,"WWCOLORPICKER",WS_BORDER |
                     WS_TABSTOP,7,7,105,91
     CONTROL         "test",IDC_WHITENESS_BAR,"WWCOLORBAR",WS_TABSTOP | 0x34,
                     117,7,14,91
@@ -1957,21 +2161,21 @@ BEGIN
     CONTROL         "test",IDC_RED_BAR,"WWCOLORBAR",WS_TABSTOP | 0x29,162,9,
                     97,10
     EDITTEXT        1005,264,7,32,14,ES_NUMBER
-    CONTROL         "Spin1",IDC_RED_SPIN,"msctls_updown32",UDS_SETBUDDYINT | 
+    CONTROL         "Spin1",IDC_RED_SPIN,"msctls_updown32",UDS_SETBUDDYINT |
                     UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,251,55,11,
                     14
     LTEXT           "&Green:",IDC_STATIC,137,27,22,8
     CONTROL         "test",IDC_GREEN_BAR,"WWCOLORBAR",WS_TABSTOP | 0x29,162,
                     26,97,10
     EDITTEXT        1006,264,24,32,14,ES_NUMBER
-    CONTROL         "Spin1",IDC_GREEN_SPIN,"msctls_updown32",UDS_SETBUDDYINT | 
+    CONTROL         "Spin1",IDC_GREEN_SPIN,"msctls_updown32",UDS_SETBUDDYINT |
                     UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,264,55,11,
                     14
     LTEXT           "&Blue:",IDC_STATIC,138,45,17,8
     CONTROL         "test",IDC_BLUE_BAR,"WWCOLORBAR",WS_TABSTOP | 0x29,162,
                     43,97,10
     EDITTEXT        1007,264,41,32,14,ES_NUMBER
-    CONTROL         "Spin1",IDC_BLUE_SPIN,"msctls_updown32",UDS_SETBUDDYINT | 
+    CONTROL         "Spin1",IDC_BLUE_SPIN,"msctls_updown32",UDS_SETBUDDYINT |
                     UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,278,55,11,
                     14
     DEFPUSHBUTTON   "OK",IDOK,57,106,50,14
@@ -1979,7 +2183,7 @@ BEGIN
     CONTROL         "test",IDC_ORIG_COLOR_BAR,"WWCOLORBAR",WS_TABSTOP | 0xc,
                     155,76,55,22
     PUSHBUTTON      "Reset",IDC_RESET,126,106,50,14
-    CONTROL         "test",IDC_CURRENT_COLOR_BAR,"WWCOLORBAR",WS_TABSTOP | 
+    CONTROL         "test",IDC_CURRENT_COLOR_BAR,"WWCOLORBAR",WS_TABSTOP |
                     0xc,222,76,55,22
     LTEXT           "Original",IDC_STATIC,155,66,24,8
     LTEXT           "Current",IDC_STATIC,222,66,24,8
@@ -1987,9 +2191,9 @@ END
 
 IDD_COLOR_FORM DIALOG DISCARDABLE  0, 0, 303, 109
 STYLE WS_CHILD
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
-    CONTROL         "test",IDC_HUE_PICKER,"WWCOLORPICKER",WS_BORDER | 
+    CONTROL         "test",IDC_HUE_PICKER,"WWCOLORPICKER",WS_BORDER |
                     WS_TABSTOP,7,7,105,91
     CONTROL         "test",IDC_WHITENESS_BAR,"WWCOLORBAR",WS_TABSTOP | 0x34,
                     117,7,14,91
@@ -1997,26 +2201,26 @@ BEGIN
     CONTROL         "test",IDC_RED_BAR,"WWCOLORBAR",WS_TABSTOP | 0x29,162,9,
                     97,10
     EDITTEXT        1005,264,7,32,14,ES_NUMBER
-    CONTROL         "Spin1",1008,"msctls_updown32",UDS_SETBUDDYINT | 
+    CONTROL         "Spin1",1008,"msctls_updown32",UDS_SETBUDDYINT |
                     UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,28,95,11,
                     14
     LTEXT           "&Green:",IDC_STATIC,137,27,22,8
     CONTROL         "test",IDC_GREEN_BAR,"WWCOLORBAR",WS_TABSTOP | 0x29,162,
                     26,97,10
     EDITTEXT        1006,264,24,32,14,ES_NUMBER
-    CONTROL         "Spin1",1009,"msctls_updown32",UDS_SETBUDDYINT | 
+    CONTROL         "Spin1",1009,"msctls_updown32",UDS_SETBUDDYINT |
                     UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,41,95,11,
                     14
     LTEXT           "&Blue:",IDC_STATIC,138,45,17,8
     CONTROL         "test",IDC_BLUE_BAR,"WWCOLORBAR",WS_TABSTOP | 0x29,162,
                     43,97,10
     EDITTEXT        1007,264,41,32,14,ES_NUMBER
-    CONTROL         "Spin1",1010,"msctls_updown32",UDS_SETBUDDYINT | 
+    CONTROL         "Spin1",1010,"msctls_updown32",UDS_SETBUDDYINT |
                     UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,55,95,11,
                     14
     CONTROL         "test",IDC_ORIG_COLOR_BAR,"WWCOLORBAR",WS_TABSTOP | 0xc,
                     159,67,55,22
-    CONTROL         "test",IDC_CURRENT_COLOR_BAR,"WWCOLORBAR",WS_TABSTOP | 
+    CONTROL         "test",IDC_CURRENT_COLOR_BAR,"WWCOLORBAR",WS_TABSTOP |
                     0xc,225,67,55,22
     LTEXT           "Original",IDC_STATIC,159,58,24,8
     LTEXT           "Current",IDC_STATIC,225,58,24,8
@@ -2026,7 +2230,7 @@ END
 IDD_GAMMA_DIALOG DIALOG DISCARDABLE  0, 0, 231, 270
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Set Gamma"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     DEFPUSHBUTTON   "OK",IDOK,174,249,50,14
     CONTROL         "Slider2",IDC_GAMMA_SLIDER,"msctls_trackbar32",
@@ -2044,7 +2248,7 @@ END
 IDD_ANIMATED_SOUND_DIALOG DIALOG DISCARDABLE  0, 0, 286, 162
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Animated Sound Options"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Shell Dlg"
 BEGIN
     LTEXT           "&Sound Preset Library Path:",IDC_STATIC,7,37,119,8
     EDITTEXT        IDC_SOUND_DEFINITION_LIBRARY_EDIT,7,47,217,14,
@@ -2064,6 +2268,19 @@ BEGIN
                     IDC_STATIC,40,7,239,23
 END
 
+// TheSuperHackers @feature Tria 18/04/2026 Frame scrubber popup window for animation seeking.
+IDD_FRAME_SCRUBBER DIALOGEX 0, 0, 230, 40
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Frame Scrubber"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "Frame 0 / 0",IDC_FRAME_LABEL,7,4,120,10
+    EDITTEXT        IDC_FRAME_GOTO_EDIT,130,2,30,12,ES_NUMBER | ES_AUTOHSCROLL
+    PUSHBUTTON      "<<",IDC_FRAME_REVERSE_BTN,165,1,28,14
+    CONTROL         "",IDC_FRAME_SLIDER,"msctls_trackbar32",TBS_BOTH |
+                    TBS_NOTICKS | WS_TABSTOP,4,16,222,18
+END
+
 
 #ifndef _MAC
 /////////////////////////////////////////////////////////////////////////////
@@ -2072,8 +2289,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 5,3,2,0
- PRODUCTVERSION 5,3,2,0
+ FILEVERSION 7,0,0,0
+ PRODUCTVERSION 7,0,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef RTS_DEBUG
  FILEFLAGS 0x1L
@@ -2090,15 +2307,15 @@ BEGIN
         BEGIN
             VALUE "Comments", "\0"
             VALUE "CompanyName", "\0"
-            VALUE "FileDescription", "W3DView MFC Application\0"
-            VALUE "FileVersion", "5.3.2\0"
-            VALUE "InternalName", "W3DView\0"
+            VALUE "FileDescription", "W3DView+ MFC Application\0"
+            VALUE "FileVersion", "7.0.0\0"
+            VALUE "InternalName", "W3DView+\0"
             VALUE "LegalCopyright", "Copyright (C) 1998\0"
             VALUE "LegalTrademarks", "\0"
             VALUE "OriginalFilename", "W3DView.EXE\0"
             VALUE "PrivateBuild", "\0"
-            VALUE "ProductName", "W3DView Application\0"
-            VALUE "ProductVersion", "5.3.2\0"
+            VALUE "ProductName", "W3DView+ Application\0"
+            VALUE "ProductVersion", "7.0.0\0"
             VALUE "SpecialBuild", "\0"
         END
     END
@@ -2117,7 +2334,7 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO DISCARDABLE 
+GUIDELINES DESIGNINFO DISCARDABLE
 BEGIN
     IDD_ABOUTBOX, DIALOG
     BEGIN
@@ -2620,56 +2837,56 @@ GRAB.TGA                FILE    DISCARDABLE     "Res\\grab.tga"
 IDD_TEXTURE_SETTINGS DLGINIT
 BEGIN
     IDC_TYPE_COMBO, 0x403, 5, 0
-0x6f4c, 0x706f, "\000" 
+0x6f4c, 0x706f, "\000"
     IDC_TYPE_COMBO, 0x403, 5, 0
-0x6e4f, 0x6563, "\000" 
+0x6e4f, 0x6563, "\000"
     IDC_TYPE_COMBO, 0x403, 10, 0
-0x6950, 0x676e, 0x5020, 0x6e6f, 0x0067, 
+0x6950, 0x676e, 0x5020, 0x6e6f, 0x0067,
     IDC_TYPE_COMBO, 0x403, 7, 0
-0x614d, 0x756e, 0x6c61, "\000" 
+0x614d, 0x756e, 0x6c61, "\000"
     0
 END
 
 IDD_PROP_PAGE_EMITTER_LINEPROPS DLGINIT
 BEGIN
     IDC_MAPMODE_COMBO, 0x403, 14, 0
-0x6e55, 0x6669, 0x726f, 0x206d, 0x6957, 0x7464, 0x0068, 
+0x6e55, 0x6669, 0x726f, 0x206d, 0x6957, 0x7464, 0x0068,
     IDC_MAPMODE_COMBO, 0x403, 15, 0
-0x6e55, 0x6669, 0x726f, 0x206d, 0x654c, 0x676e, 0x6874, "\000" 
+0x6e55, 0x6669, 0x726f, 0x206d, 0x654c, 0x676e, 0x6874, "\000"
     IDC_MAPMODE_COMBO, 0x403, 6, 0
-0x6954, 0x656c, 0x0064, 
+0x6954, 0x656c, 0x0064,
     0
 END
 
 IDD_PROP_PAGE_EMITTER_GEN DLGINIT
 BEGIN
     IDC_RENDER_MODE_COMBO, 0x403, 19, 0
-0x7254, 0x6169, 0x676e, 0x656c, 0x5020, 0x7261, 0x6974, 0x6c63, 0x7365, 
-"\000" 
+0x7254, 0x6169, 0x676e, 0x656c, 0x5020, 0x7261, 0x6974, 0x6c63, 0x7365,
+"\000"
     IDC_RENDER_MODE_COMBO, 0x403, 15, 0
-0x7551, 0x6461, 0x5020, 0x7261, 0x6974, 0x6c63, 0x7365, "\000" 
+0x7551, 0x6461, 0x5020, 0x7261, 0x6974, 0x6c63, 0x7365, "\000"
     IDC_RENDER_MODE_COMBO, 0x403, 5, 0
-0x694c, 0x656e, "\000" 
+0x694c, 0x656e, "\000"
     IDC_RENDER_MODE_COMBO, 0x403, 23, 0
-0x6554, 0x7274, 0x6861, 0x6465, 0x6f72, 0x206e, 0x694c, 0x656e, 0x4720, 
-0x6f72, 0x7075, "\000" 
+0x6554, 0x7274, 0x6861, 0x6465, 0x6f72, 0x206e, 0x694c, 0x656e, 0x4720,
+0x6f72, 0x7075, "\000"
     IDC_RENDER_MODE_COMBO, 0x403, 17, 0
-0x7250, 0x7369, 0x206d, 0x694c, 0x656e, 0x4720, 0x6f72, 0x7075, "\000" 
+0x7250, 0x7369, 0x206d, 0x694c, 0x656e, 0x4720, 0x6f72, 0x7075, "\000"
     0
 END
 
 IDD_PROP_PAGE_EMITTER_FRAME DLGINIT
 BEGIN
     IDC_FRAME_LAYOUT_COMBO, 0x403, 4, 0
-0x7831, 0x0031, 
+0x7831, 0x0031,
     IDC_FRAME_LAYOUT_COMBO, 0x403, 4, 0
-0x7832, 0x0032, 
+0x7832, 0x0032,
     IDC_FRAME_LAYOUT_COMBO, 0x403, 4, 0
-0x7834, 0x0034, 
+0x7834, 0x0034,
     IDC_FRAME_LAYOUT_COMBO, 0x403, 4, 0
-0x7838, 0x0038, 
+0x7838, 0x0038,
     IDC_FRAME_LAYOUT_COMBO, 0x403, 6, 0
-0x3631, 0x3178, 0x0036, 
+0x3631, 0x3178, 0x0036,
     0
 END
 
@@ -2679,18 +2896,18 @@ END
 // String Table
 //
 
-STRINGTABLE PRELOAD DISCARDABLE 
+STRINGTABLE PRELOAD DISCARDABLE
 BEGIN
     IDR_MAINFRAME           "W3D Viewer\n\nW3DView\nWestwood 3D Files (*.w3d)\n.w3d\nW3DView.Document\nW3DView Document"
 END
 
-STRINGTABLE PRELOAD DISCARDABLE 
+STRINGTABLE PRELOAD DISCARDABLE
 BEGIN
     AFX_IDS_APP_TITLE       "W3DView"
     AFX_IDS_IDLEMESSAGE     "Ready"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     ID_INDICATOR_EXT        "EXT"
     ID_INDICATOR_CAPS       "CAP"
@@ -2700,7 +2917,7 @@ BEGIN
     ID_INDICATOR_REC        "REC"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     ID_FILE_NEW             "Create a new document\nNew"
     ID_FILE_OPEN            "Open an existing document\nOpen"
@@ -2709,13 +2926,13 @@ BEGIN
     ID_FILE_SAVE_AS         "Save the active document with a new name\nSave As"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     ID_APP_ABOUT            "Display program information, version number and copyright\nAbout"
     ID_APP_EXIT             "Quit the application; prompts to save documents\nExit"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     ID_FILE_MRU_FILE1       "Open this document"
     ID_FILE_MRU_FILE2       "Open this document"
@@ -2735,18 +2952,18 @@ BEGIN
     ID_FILE_MRU_FILE16      "Open this document"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     ID_NEXT_PANE            "Switch to the next window pane\nNext Pane"
     ID_PREV_PANE            "Switch back to the previous window pane\nPrevious Pane"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     ID_WINDOW_SPLIT         "Split the active window into panes\nSplit"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     ID_EDIT_CLEAR           "Erase the selection\nErase"
     ID_EDIT_CLEAR_ALL       "Erase everything\nErase All"
@@ -2761,13 +2978,13 @@ BEGIN
     ID_EDIT_REDO            "Redo the previously undone action\nRedo"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     ID_VIEW_TOOLBAR         "Show or hide the toolbar\nToggle ToolBar"
     ID_VIEW_STATUS_BAR      "Show or hide the status bar\nToggle StatusBar"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     AFX_IDS_SCSIZE          "Change the window size"
     AFX_IDS_SCMOVE          "Change the window position"
@@ -2778,7 +2995,7 @@ BEGIN
     AFX_IDS_SCCLOSE         "Close the active window and prompts to save the documents"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     AFX_IDS_SCRESTORE       "Restore the window to normal size"
     AFX_IDS_SCTASKLIST      "Activate Task List"
@@ -2796,29 +3013,30 @@ BEGIN
     IDS_EMITTER_PROP_TITLE  "Emitter Properties"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     IDM_CREATE_EMITTER      "Create a new emitter.\nCreate emitter."
     IDM_EDIT_EMITTER        "Edit the current emitter.\nEdit emitter"
     IDM_SAVE_EMITTER        "Save selected emitter\nExport emitter"
     IDM_SAVE_AGGREGATE      "Export Aggregate\nExport Aggregate"
-    IDM_CAMERA_RESET_ON_LOAD 
+    IDM_CAMERA_RESET_ON_LOAD
                             "Resets the camera's viewing distance on display\nReset on Display"
+    IDM_CAMERA_INVERT_Y     "Invert the vertical direction of camera drag movement\nInvert Movement (Y)"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     IDM_MAKE_AGGREGATE      "Convert the selected model into an aggregate.\nMake Aggregate"
     IDM_REPLACE_TEXTURES    "Replace textures on a mesh basis.\nReplace Textures"
     IDM_RENAME_AGGREGATE    "Rename the current aggregate.\nRename Aggregate"
-    IDM_LOD_RECORD_SCREEN_AREA 
+    IDM_LOD_RECORD_SCREEN_AREA
                             "Sets the maximum screen area for the current LOD.\nRecord Screen Area (Space)"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
-    IDS_VERSION             "W3DView Version %d.%d"
-    IDS_UNACCEPTABLE_GLIDE_MSG 
+    IDS_VERSION             "W3DView+ Version %d.%d.%d"
+    IDS_UNACCEPTABLE_GLIDE_MSG
                             "System glide drivers are unacceptable for this application.  Please make sure you install the latest glide drivers on this machine before selecting this device."
     IDS_PARTICLE_PANE       "Particles 127127"
     IDS_FPS_PANE            "Frame Time: 22345"
@@ -2827,7 +3045,7 @@ BEGIN
     IDS_RESOLUTION_PANE     "wwwwwwwwwwww"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     IDM_LOD_NEXT_LEVEL      "Switch to the next level of detail.\nNext LOD model"
     IDM_LOD_INCLUDE_NULL    "Include a NULL render object as the lowest level.\nInclude NULL Object"
@@ -2837,39 +3055,38 @@ BEGIN
     IDM_SAVE_SCREENSHOT     "Save a screen shot to file.\nScreen Shot"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     IDM_ADVANCED_ANIM       "Advanced animation controls for mixing multiple animations"
     IDM_COPY_SCREEN_SIZE    "Copy the displayed screen size of the current object to the clipboard."
-    IDC_LIST_MISSING_TEXTURES 
+    IDC_LIST_MISSING_TEXTURES
                             "Disiplay a list of missing textures\nMissing Textures"
     IDC_COPY_ASSETS         "Copy all dependent asset files to directory.\nCopy Asset Files"
     IDC_PROPAGATE           "Propagate changes to other meshes.\nPropagate Changes"
     IDM_TEXTURE_PATH        "Set an additional texture lookup path when required files are not found in the current directory."
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     IDM_LOD_SAVE            "Export LOD\nExport LOD"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
-    IDM_CHANGE_RESOLUTION   "Change the viewing resolution.\nChange Resolution"
     IDM_EXPORT_PRIMITIVE    "Export Primitive\nExport Primitive"
-    ID_FILE_IMPORT_FACIAL_ANIMS 
+    ID_FILE_IMPORT_FACIAL_ANIMS
                             "Importa facial animations from an ini file.\nImport facial animations"
     IDC_ADD_TO_LINEUP       "Add another object to the scene\nAdd To Scene"
     IDC_REMOVE_FROM_LINEUP  "Remove an object to the scene\nRemove From Scene"
     IDM_RESTRICT_ANIMS      "Restrict a heirarchy's animation list to those that match its skeleton.\nRestrict Anims"
     IDM_BIND_SUBOBJECT_LOD  "Force all subobjects to match the LOD of the aggregate.\nBind Subobject LOD"
     IDM_SET_CAMERA_DISTANCE "Set camera distance\nSet Camera Distance"
-    IDM_OBJECT_ALTERNATE_MATERIALS 
+    IDM_OBJECT_ALTERNATE_MATERIALS
                             "Toggle between alternate material if present."
     IDM_CREATE_SOUND_OBJECT "Create a sound object that can be attached to bones.\nCreate Sound Object"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     IDM_EDIT_SOUND_OBJECT   "Edit the currently displayed sound object.\nEdit Sound Object"
     IDM_EXPORT_SOUND_OBJ    "Export Sound Object\nExport Sound Object"
@@ -2877,6 +3094,14 @@ BEGIN
     IDM_BACKGROUND_FOG      "Toggles fog on and off.\nFog"
     IDM_SCALE_EMITTER       "Scale the current emitter.\nScale Emitter"
     IDM_TOGGLE_SORTING      "Turns polygon sorting on/off. This has performance and visual impact."
+    IDM_TOGGLE_ALPHA        "Toggles alpha transparency preview on/off.\nAlpha Transparency"
+    IDM_SHADER_ADDITIVE     "Toggles additive shaders on/off.\nAdditive"
+    IDM_SHADER_ALPHA_TEST   "Toggles alpha test shaders on/off.\nAlpha Test"
+    IDM_SHADER_ALPHA_BLEND  "Toggles alpha blend shaders on/off.\nAlpha Blend"
+    IDM_SHADER_ALPHA_BLEND_TEST "Toggles alpha blend and test shaders on/off.\nAlpha Blend and Test"
+    IDM_SHADER_DOUBLE_SIDED "Toggles double-sided rendering on/off.\nDouble-Sided"
+    IDM_SHADER_BACKFACE_TINT "Toggles a tint on the normally-hidden back faces on/off.\nBack Faces Tinted"
+    IDM_SHADER_BACKFACE_TINT_COLOR "Choose the colour used to tint the back faces.\nBack Face Tint Color"
     IDM_CAMERA_BONE_POS_X   "Camera should look down +X axis"
     ID_VIEW_SUBDIVISION_1   "Triangles are not sub-divided"
     ID_VIEW_SUBDIVISION_2   "Each triangle is split into four triangles"
@@ -2888,13 +3113,13 @@ BEGIN
     ID_VIEW_SUBDIVISION_8   "Each triangle is split into sixty-four triangles"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     IDM_MUNGE_SORT_ON_LOAD  "If enabled, will assign static sort levels to a mesh automatically on load. Required to be set if sorting is turned off."
-    IDM_ENABLE_GAMMA_CORRECTION 
+    IDM_ENABLE_GAMMA_CORRECTION
                             "If checked, enables gamma correction in w3dview"
     IDM_SET_GAMMA           "Sets the gamma for the viewer"
-    IDM_EDIT_ANIMATED_SOUNDS_OPTIONS 
+    IDM_EDIT_ANIMATED_SOUNDS_OPTIONS
                             "Configure animated sounds for use with the viewer.\nConfigure Animated Sounds"
 END
 

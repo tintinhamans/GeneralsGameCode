@@ -25,6 +25,7 @@
 
 #include "StdAfx.h"
 #include "Toolbar.h"
+#include "W3DDarkMode.h"
 
 
 
@@ -216,10 +217,17 @@ CFancyToolbar::Paint ()
         RECT rect;
         ::GetClientRect (m_hWnd, &rect);
 
-        // Paint the background light gray
-        HBRUSH hBrush = ::CreateSolidBrush (RGB (192, 192, 192));
-        ::FillRect (hDC, &rect, hBrush);
-        ::DeleteObject (hBrush);
+        // Paint the background — dark theme uses the dialog bg, light keeps the legacy gray.
+        if (W3DDarkMode::IsDark ())
+        {
+            ::FillRect (hDC, &rect, W3DDarkMode::GetDlgBackgroundBrush ());
+        }
+        else
+        {
+            HBRUSH hBrush = ::CreateSolidBrush (RGB (192, 192, 192));
+            ::FillRect (hDC, &rect, hBrush);
+            ::DeleteObject (hBrush);
+        }
 
         // Loop through each button and paint it
         int iXPos = BORDER_LEFT;

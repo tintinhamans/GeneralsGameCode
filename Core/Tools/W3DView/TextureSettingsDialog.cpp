@@ -33,6 +33,7 @@
 
 #include "StdAfx.h"
 #include "WW3D2/texture.h"
+#include "WW3D2/surfaceclass.h"
 #include "W3DView.h"
 #include "TextureSettingsDialog.h"
 #include "Utils.h"
@@ -74,6 +75,8 @@ TextureSettingsDialogClass::TextureSettingsDialogClass
 	  m_pOriginalTexture (nullptr),
 	  m_pStartingTexture (nullptr),
 	  m_hThumbnail (nullptr),
+	  m_iThumbnailWidth (0),
+	  m_iThumbnailHeight (0),
 	  m_bWereSettingsModified (false),
 	  CDialog(TextureSettingsDialogClass::IDD, pParent)
 {
@@ -176,7 +179,12 @@ TextureSettingsDialogClass::Load_Texture_Settings ()
 	TextureClass *ptexture = m_pTexture->Get_Texture ();
 
 	// Refresh the preview window
-	m_hThumbnail = Make_Bitmap_From_Texture (*ptexture, 96, 96);
+	// TheSuperHackers @feature xezon 17/04/2026 Use native texture size for 1:1 pixel preview.
+	SurfaceClass::SurfaceDescription desc;
+	ptexture->Get_Level_Description(desc);
+	m_iThumbnailWidth = desc.Width;
+	m_iThumbnailHeight = desc.Height;
+	m_hThumbnail = Make_Bitmap_From_Texture (*ptexture, m_iThumbnailWidth, m_iThumbnailHeight);
 	Paint_Thumbnail ();
 
 	// Fill the controls using the texture pointer
@@ -468,36 +476,57 @@ TextureSettingsDialogClass::OnBrowseButton ()
 void
 TextureSettingsDialogClass::Paint_Thumbnail ()
 {
-	// Paint the thumbnail
-	if (m_hThumbnail != nullptr) {
+	// Paint the thumbnail at 1:1 pixel scale, centered in the control.
+	HWND hchild_wnd = ::GetDlgItem (m_hWnd, IDC_TEXTURE_THUMBNAIL);
+	HDC hdc = ::GetDC (hchild_wnd);
 
-		// Get the misc crap windows requries before we can
-		// paint to the screen
-		HWND hchild_wnd = ::GetDlgItem (m_hWnd, IDC_TEXTURE_THUMBNAIL);
-		HDC hdc = ::GetDC (hchild_wnd);
+	CRect rect;
+	::GetClientRect (hchild_wnd, &rect);
+
+	// Clear the control background
+	HBRUSH hbr = (HBRUSH)::GetStockObject (GRAY_BRUSH);
+	::FillRect (hdc, &rect, hbr);
+
+	if (m_hThumbnail != nullptr) {
 		HDC hmem_dc = ::CreateCompatibleDC (nullptr);
 		HBITMAP hold_bmp = (HBITMAP)::SelectObject (hmem_dc, m_hThumbnail);
 
-		// Paint the thumbnail onto the dialog
-		CRect rect;
-		::GetClientRect (hchild_wnd, &rect);
-		::BitBlt (hdc,
-					 rect.left + (rect.Width () >> 1) - 48,
-					 rect.top + (rect.Height () >> 1) - 48,
-					 96,
-					 96,
-					 hmem_dc,
-					 0,
-					 0,
-					 SRCCOPY);
+		// TheSuperHackers @feature xezon 17/04/2026 Display texture at 1:1 pixel scale.
+		int bmp_w = m_iThumbnailWidth;
+		int bmp_h = m_iThumbnailHeight;
+		int ctrl_w = rect.Width ();
+		int ctrl_h = rect.Height ();
 
-		// Release the misc windows crap
+		// Source and destination offsets for centering
+		int src_x = 0, src_y = 0;
+		int dst_x = 0, dst_y = 0;
+		int copy_w = bmp_w, copy_h = bmp_h;
+
+		if (bmp_w > ctrl_w) {
+			src_x = (bmp_w - ctrl_w) / 2;
+			copy_w = ctrl_w;
+		} else {
+			dst_x = (ctrl_w - bmp_w) / 2;
+		}
+
+		if (bmp_h > ctrl_h) {
+			src_y = (bmp_h - ctrl_h) / 2;
+			copy_h = ctrl_h;
+		} else {
+			dst_y = (ctrl_h - bmp_h) / 2;
+		}
+
+		::BitBlt (hdc, dst_x, dst_y, copy_w, copy_h, hmem_dc, src_x, src_y, SRCCOPY);
+
 		::SelectObject (hmem_dc, hold_bmp);
-		::ReleaseDC (hchild_wnd, hmem_dc);
 		::DeleteDC (hmem_dc);
-		::ValidateRect (hchild_wnd, nullptr);
 	}
+
+	::ReleaseDC (hchild_wnd, hdc);
+	::ValidateRect (hchild_wnd, nullptr);
+
 }
+
 
 
 /////////////////////////////////////////////////////////////////////////////

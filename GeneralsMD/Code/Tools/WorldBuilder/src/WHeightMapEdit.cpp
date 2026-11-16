@@ -1963,6 +1963,9 @@ Bool WorldHeightMapEdit::floodFill(Int xIndex, Int yIndex, Int textureClass, Boo
  				ndx = (j*m_width)+i;
 				Int blendNdx = m_blendTileNdxes[ndx];
 				if (curTileClass == getTextureClass(i,j,true)) {
+					if (s_paintWaterOnly && !isWaterCell(i, j)) {
+						continue;
+					}
 					setTileNdx(i, j, textureClass, false);
 					m_blendTileNdxes[ndx] = blendNdx;
 					m_cliffInfoNdxes[ndx] = 0; // remove any cliff adjustment as we are doing a new texture.
@@ -1991,6 +1994,11 @@ Bool WorldHeightMapEdit::floodFill(Int xIndex, Int yIndex, Int textureClass, Boo
 			Int ndx = (pCurNode->m_y*m_width)+pCurNode->m_x;
 			Int blendNdx = m_blendTileNdxes[ndx];
 			setTileNdx(pCurNode->m_x, pCurNode->m_y, textureClass, false);
+			if (curTileClass == getTextureClass(pCurNode->m_x, pCurNode->m_y, true)) {
+				// Water-only painting refused this cell; flooding on from it would requeue it forever.
+				delete pCurNode;
+				continue;
+			}
 			m_blendTileNdxes[ndx] = blendNdx;
 			m_cliffInfoNdxes[ndx] = 0; // remove any cliff adjustment as we are doing a new texture.
 			for (i=pCurNode->m_x-1; i<pCurNode->m_x+2; i++) {

@@ -81,6 +81,7 @@ contra_nav = [
         ('Debug & Cheats', 'contraZH-Debug-and-Cheats'),
         ('Camera Controls', 'CameraControls'),
         ('Generals Online', 'contraZH-Generals-Online'),
+        ('W3DView', 'contraZH-W3DView'),
     ]),
     ('Direct3D 9 Features', [
         ('Overview', 'dx9feat'),

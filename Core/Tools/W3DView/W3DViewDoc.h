@@ -29,6 +29,9 @@
 #include "WW3D2/dynamesh.h"
 #include "WW3D2/rendobj.h"
 #include "LODDefs.h"
+#include "WWLib/hashtemplate.h"
+#include "WWLib/wwstring.h"
+#include "AssetTypes.h"
 
 
 ///////////////////////////////////////////////////////////
@@ -38,6 +41,11 @@
 const DWORD SAVE_SETTINGS_LIGHT     = 0x00000001;
 const DWORD SAVE_SETTINGS_BACK      = 0x00000002;
 const DWORD SAVE_SETTINGS_CAMERA    = 0x00000004;
+
+// TheSuperHackers @feature Per-theme default viewport background.
+// Light = 127/127/127, Dark = 28/28/28 (Vector3 components are 0..1).
+const float W3DVIEW_BG_LIGHT_F      = 127.0f / 255.0f;
+const float W3DVIEW_BG_DARK_F       =  28.0f / 255.0f;
 
 
 // Forward declarations
@@ -118,6 +126,11 @@ public:
 	LightClass *			GetSceneLight () const				{ return m_pCSceneLight.Peek(); }
 	RenderObjClass *		GetDisplayedObject () const		{ return m_pCRenderObj.Peek(); }
 	HAnimClass *			GetCurrentAnimation () const		{ return m_pCAnimation.Peek(); }
+	// TheSuperHackers @feature Tria 18/04/2026 Public accessor for frame scrubber.
+	int					GetCurrentFrame () const			{ return (int)m_CurrentFrame; }
+	// Sub-frame-precision accessors used by Reload-Assets state restore (MainFrm.cpp).
+	float					GetCurrentFrameF () const			{ return m_CurrentFrame; }
+	void					SetCurrentFrame (float frame);
 	const HTreeClass *	Get_Current_HTree () const;
 
 	//
@@ -169,6 +182,10 @@ public:
 	//
 	const Vector3 &	GetBackgroundColor () const								{ return m_backgroundColor; }
 	void					SetBackgroundColor (const Vector3 &backgroundColor);
+	// TheSuperHackers @feature Snap viewport background to the active theme's
+	// default (light=127, dark=28) only when the current value is the OTHER
+	// theme's default — i.e. the user hasn't customized it.
+	void					ApplyThemeBackgroundIfDefault (void);
 
 	//
 	//  Background BMP methods
@@ -273,11 +290,17 @@ public:
 	//
 	//	Texture search paths
 	//
-	const CString &	Get_Texture_Path1 () const { return m_TexturePath1; }
-	const CString &	Get_Texture_Path2 () const { return m_TexturePath2; }
+	int						Get_Texture_Path_Count () const { return m_TexturePaths.Count(); }
+	const CString &	Get_Texture_Path (int index) const { return m_TexturePaths[index]; }
 
-	void					Set_Texture_Path1 (LPCTSTR path);
-	void					Set_Texture_Path2 (LPCTSTR path);
+	int						Get_Load_List_Count () const { return m_LoadList.Count(); }
+	const CString &	Get_Load_List_Item (int i) const { return m_LoadList[i]; }
+
+	void					Add_Texture_Path (LPCTSTR path);
+	void					Remove_Texture_Path (int index);
+	void					Clear_Texture_Paths (void) { m_TexturePaths.Delete_All(); }
+	void					Save_Texture_Paths_To_Registry (void);
+	void					Refresh_File_Factory_Registrations (void);
 
 	//
 	// Dazzle rendering support
@@ -320,12 +343,42 @@ private:
 	bool						m_IsInitialized;
 	bool						m_bFogEnabled;
 
-	CString					m_TexturePath1;
-	CString					m_TexturePath2;
+	DynamicVectorClass<CString>	m_TexturePaths;
 
 	CString					m_LastPath;
+	CString					m_LastFactoryDir;
 
 	DynamicVectorClass<CString>	m_LoadList;
+
+	// TheSuperHackers @feature Tria 18/04/2026 Track which W3D file each render object came from.
+	HashTemplateClass<StringClass, StringClass> m_AssetSourceFileMap;
+	// TheSuperHackers @feature Tria 18/04/2026 Toggle bone overlay rendering.
+	bool						m_bShowBones;
+	bool						m_bShowBonePivots;
+	// TheSuperHackers @feature Tria 18/04/2026 Configurable bone diamond size.
+	float						m_fBoneDiamondSize;
+	// TheSuperHackers @feature Tria 22/04/2026 Toggle sub-object/bone name labels in viewport.
+	bool						m_bShowSubObjNames;
+	bool						m_bShowBoneNames;
+	// TheSuperHackers @feature Tria 23/04/2026 Track which bone or sub-object is selected in the tree.
+	StringClass				m_selectedItemName;
+	ASSET_TYPE				m_selectedItemType;	// TypeBone or TypeMesh, TypeUnknown when none
+public:
+	const HashTemplateClass<StringClass, StringClass> & GetAssetSourceFileMap (void) const { return m_AssetSourceFileMap; }
+	bool						GetShowBones (void) const { return m_bShowBones; }
+	void						SetShowBones (bool b) { m_bShowBones = b; }
+	bool						GetShowBonePivots (void) const { return m_bShowBonePivots; }
+	void						SetShowBonePivots (bool b) { m_bShowBonePivots = b; }
+	float						GetBoneDiamondSize (void) const { return m_fBoneDiamondSize; }
+	void						SetBoneDiamondSize (float f) { m_fBoneDiamondSize = f; }
+	bool						GetShowSubObjNames (void) const { return m_bShowSubObjNames; }
+	void						SetShowSubObjNames (bool b) { m_bShowSubObjNames = b; }
+	bool						GetShowBoneNames (void) const { return m_bShowBoneNames; }
+	void						SetShowBoneNames (bool b) { m_bShowBoneNames = b; }
+	const StringClass &	GetSelectedItemName (void) const { return m_selectedItemName; }
+	ASSET_TYPE				GetSelectedItemType (void) const { return m_selectedItemType; }
+	void						SetSelectedItem (const char *name, ASSET_TYPE type) { m_selectedItemName = name ? name : ""; m_selectedItemType = type; }
+	void						ClearSelectedItem (void) { m_selectedItemName = ""; m_selectedItemType = TypeUnknown; }
 };
 
 /////////////////////////////////////////////////////////////////////////////

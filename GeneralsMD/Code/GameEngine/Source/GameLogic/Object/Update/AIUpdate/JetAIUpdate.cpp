@@ -2618,7 +2618,8 @@ UpdateSleepTime JetAIUpdate::update()
 		Bool needToCheckMinHeight = (id >= JETAISTATETYPE_FIRST && id <= JETAISTATETYPE_LAST) ||
 																	!jet->isAboveTerrain() ||
 																	!getFlag(ALLOW_AIR_LOCO);
-		if( needToCheckMinHeight || jet->getStatusBits().test( OBJECT_STATUS_DECK_HEIGHT_OFFSET ) )
+		if( !jet->isEffectivelyDead() &&
+				(needToCheckMinHeight || jet->getStatusBits().test( OBJECT_STATUS_DECK_HEIGHT_OFFSET )) )
 		{
 			Real ht = jet->isAboveTerrain() ? jet->getHeightAboveTerrain() : 0;
 			if (ht < minHeight)

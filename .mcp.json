@@ -6,6 +6,13 @@
         "-m",
         "tools.worldbuilder_mcp"
       ]
+    },
+    "generals-w3dview": {
+      "command": "python",
+      "args": [
+        "-m",
+        "tools.w3dview_mcp"
+      ]
     }
   }
 }

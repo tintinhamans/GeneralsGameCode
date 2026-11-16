@@ -34,6 +34,13 @@
 #include "Globals.h"
 #include "AnimatedSoundOptionsDialog.h"
 #include "WW3D2/animatedsoundmgr.h"
+#include "W3DDarkMode.h"
+#include "JobSystem.h"
+#include "MaterialViewer/MaterialPanel.h"
+#include "MaterialViewer/MaterialViewerFrame.h"
+
+// TheSuperHackers @build Link comctl32 and enable modern visual styles
+#pragma comment(lib, "comctl32.lib")
 
 
 #undef STRICT
@@ -57,13 +64,6 @@ const char *gAppPrefix = "w3_";
 // Where are the default string files?
 const char *g_strFile = "data\\Generals.str";
 const char *g_csfFile = "data\\%s\\Generals.csf";
-
-/////////////////////////////////////////////////////////////////////////////
-//
-//	Local prototypes
-//
-BOOL CALLBACK fnTopLevelWindowSearch (HWND hwnd, LPARAM lParam);
-
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -175,21 +175,25 @@ BOOL CW3DViewApp::InitInstance ()
 	//  of your final executable, you should remove from the following
 	//  the specific initialization routines you do not need.
 
-#ifdef _AFXDLL
-	Enable3dControls();			// Call this when using MFC in a shared DLL
-#else
-	Enable3dControlsStatic();	// Call this when linking to MFC statically
-#endif
+	// TheSuperHackers @build Replace outdated Enable3dControls with InitCommonControlsEx.
+	// The comctl32 v6 manifest activates modern visual styles; this call ensures all
+	// common control classes are registered before any window is created.
+	INITCOMMONCONTROLSEX icce = { sizeof(icce), ICC_WIN95_CLASSES | ICC_STANDARD_CLASSES };
+	::InitCommonControlsEx(&icce);
 
-	Do_Version_Check ();
+	// TheSuperHackers @performance Tria 25/04/2026 Removed Do_Version_Check call.
+	// It probed the long-defunct Westwood internal UNC path \\cabal\mis\r&d\w3d\w3dview\,
+	// which on modern Windows blocks startup for 5-15+ seconds while NetBIOS / DNS / LLMNR
+	// each time out. The function is left in the file in case anyone wants to repurpose it.
 
 	RegisterColorPicker (::AfxGetInstanceHandle ());
 	RegisterColorBar (::AfxGetInstanceHandle ());
 
-	// Is there already an instance of the viewer running?
-	HWND hprev_instance = nullptr;
-	::EnumWindows (fnTopLevelWindowSearch, (LPARAM)&hprev_instance);
-	if (hprev_instance == nullptr) {
+	// TheSuperHackers @feature Tria 26/04/2026 Allow unlimited concurrent instances.
+	// The previous single-instance check used a shared "WW3DVIEWER" window property,
+	// which also collided with the legacy w3dviewer.exe and any other fork using the
+	// same tag, so launching this build would silently foreground an unrelated process.
+	{
 
 		// Change the registry key under which our settings are stored.
 		// You should modify this string to be something appropriate
@@ -206,6 +210,11 @@ BOOL CW3DViewApp::InitInstance ()
 		//
 		WWMath::Init ();
 		AnimatedSoundOptionsDialogClass::Load_Animated_Sound_Settings ();
+
+		// TheSuperHackers @performance Spin up the background job system before
+		// any document is created so asset/texture/anim-report work can run off
+		// the UI thread. Auto-detects worker count (hardware_concurrency - 1).
+		W3DViewJobs::Init();
 
 		//
 		//	Disable the 3DFX logo
@@ -236,27 +245,46 @@ BOOL CW3DViewApp::InitInstance ()
 		//
 		_TheAssetMgr = new ViewerAssetMgrClass;
 
+		// TheSuperHackers @feature Initialize native dark-mode support before window
+		// creation so the main frame paints with the right colors on first show.
+		{
+			int themeInt = GetProfileInt("Config", "Theme", static_cast<int>(W3DDarkMode::Mode::Auto));
+			if (themeInt < 0 || themeInt > 2) themeInt = static_cast<int>(W3DDarkMode::Mode::Auto);
+			W3DDarkMode::Init(static_cast<W3DDarkMode::Mode>(themeInt));
+		}
+
 		// Dispatch commands specified on the command line
 		if (!ProcessShellCommand(cmdInfo))
 			return FALSE;
 
+		// Apply theming once the main window exists. ProcessShellCommand has already
+		// created and shown the frame, so the menubar/non-client area was painted
+		// before the dark-mode subclasses were installed — force a frame-changed
+		// repaint to flush the stale light pixels. Mirrors what SetMode does at runtime.
+		if (m_pMainWnd)
+		{
+			HWND hwndTop = m_pMainWnd->m_hWnd;
+			W3DDarkMode::ApplyToWindow(hwndTop);
+			::DrawMenuBar(hwndTop);
+			::SetWindowPos(hwndTop, nullptr, 0, 0, 0, 0,
+				SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+			::RedrawWindow(hwndTop, nullptr, nullptr,
+				RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_FRAME);
+		}
+
 		// The one and only window has been initialized, so show and update it.
 		m_pMainWnd->ShowWindow(SW_SHOW);
 		m_pMainWnd->UpdateWindow();
-		::SetProp (*m_pMainWnd, "WW3DVIEWER", (HANDLE)1);
+		// Tagged for our own instance discovery only; distinct from the legacy
+		// "WW3DVIEWER" property used by the original w3dviewer.exe.
+		::SetProp (*m_pMainWnd, "CABAL_W3DVIEW", (HANDLE)1);
 
 		// Enable drag/drop open
 		m_pMainWnd->DragAcceptFiles();
 		m_bInitialized = true;
-	} else {
-
-		// Make the previous instance in the foreground
-		::ShowWindow (hprev_instance, SW_NORMAL);
-		::BringWindowToTop (hprev_instance);
-		::SetForegroundWindow (hprev_instance);
 	}
 
-	return (hprev_instance == nullptr);
+	return TRUE;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -382,6 +410,11 @@ CW3DViewApp::ExitInstance()
 	//
 	if (m_bInitialized) {
 
+		// TheSuperHackers @performance Drain and stop the job system before
+		// WW3D/asset-manager teardown so any pending main-thread jobs that
+		// touch the asset manager run while it's still alive.
+		W3DViewJobs::Shutdown();
+
 	//
 		//	Shutdown the audio system
 		//
@@ -406,6 +439,12 @@ CW3DViewApp::ExitInstance()
 		_TheAssetMgr = nullptr;
 	}
 
+#ifdef W3DVIEW_HAS_QT
+	// TheSuperHackers @feature W3D Material Viewer: tear down the QApplication.
+	// The panel widget itself was destroyed with the viewer window.
+	W3dMaterialViewer::ShutdownQt ();
+#endif
+
 	Debug_Refs ();
 	return CWinApp::ExitInstance ();
 }
@@ -413,25 +452,22 @@ CW3DViewApp::ExitInstance()
 
 //////////////////////////////////////////////////////////////////////////////
 //
-//	fnTopLevelWindowSearch
+//	OnIdle
 //
-BOOL CALLBACK
-fnTopLevelWindowSearch
-(
-	HWND hwnd,
-	LPARAM lParam
-)
+//	TheSuperHackers @feature W3D Material Viewer: Qt's native child windows get
+//	input through the regular Win32 message pump, but posted events and timers
+//	need explicit delivery when Qt runs inside an MFC message loop.
+//
+BOOL
+CW3DViewApp::OnIdle(LONG lCount)
 {
-	BOOL bcontinue = TRUE;
-
-	// Is this a viewer window?
-	if (::GetProp (hwnd, "WW3DVIEWER") != nullptr) {
-		bcontinue = false;
-		(*((HWND *)lParam)) = hwnd;
+	BOOL more = CWinApp::OnIdle (lCount);
+#ifdef W3DVIEW_HAS_QT
+	if (CMaterialViewerFrame::HasQtPanel ()) {
+		W3dMaterialViewer::PumpQtEvents ();
 	}
-
-	// Return the TRUE/FALSE result code
-	return bcontinue;
+#endif
+	return more;
 }
 
 
@@ -473,9 +509,11 @@ CAboutDlg::OnInitDialog ()
 		SAFE_DELETE_ARRAY(pblock);
 	}
 
-	// Put the version string into the dialog
+	// Put the version string into the dialog. FILEVERSION packs major.minor in
+	// the MS dword and patch.build in the LS dword.
 	CString version_string;
-	version_string.Format (IDS_VERSION, (version_major >> 16), (version_major & 0xFFFF));
+	version_string.Format (IDS_VERSION,
+		(version_major >> 16), (version_major & 0xFFFF), (version_minor >> 16));
 	SetDlgItemText (IDC_VERSION, version_string);
 	return TRUE;
 }

@@ -1,5 +1,20 @@
 # ParticleSystem.ini
 
+## Muzzle smoke attached to barrels
+
+Draw modules can use `WeaponFireParticleSys` to create smoke on each shot and keep its
+emitter attached to the firing muzzle. See [Weapon fire particles](contraZH-Objects-and-Modules.md#weapon-fire-particles)
+for the syntax, lifetime requirements and migration from smoke-only condition transitions.
+
+## Stealth visibility
+
+Particle systems attached to an object or its drawable stop emitting while the object is
+undetected and stealthed to the viewing player. Emission resumes when the object becomes visible.
+This covers `TransitionDamageFX`, model `ParticleSysBone` effects and automatic damage smoke
+created by `ActiveBody` from model bones and the `AutoSmokeParticle*` settings in `GameData.ini`.
+Allies, detected objects and observers use the existing object visibility rules.
+Particles already emitted finish their normal lifetime.
+
 ## Attached particle trails
 
 `PerParticleAttachedSystem` samples its controlling particle at the end of each movement step.

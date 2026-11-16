@@ -68,6 +68,8 @@ protected:
 	afx_msg void OnChannelDiffuseRadio();
 	afx_msg void OnChannelSpecularRadio();
 	afx_msg void OnAttenuationCheck();
+	afx_msg void OnColorPick();
+	afx_msg void OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct);
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()
 
@@ -82,6 +84,7 @@ protected:
 		void				Update_Distance (float distance);
 		void				Update_Attenuation ();
 		void				Update_Attenuation_Controls ();
+		void				Update_Color_Swatch ();
 
 	private:
 

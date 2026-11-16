@@ -74,6 +74,11 @@ public:
 	void qtExportTeams(void);
 	void qtImportTeams(void);
 	void qtCommit(void);
+	// Undo history over the working copy: every action is bracketed by Begin and End.
+	void qtBeginEdit(void);
+	void qtEndEdit(void);
+	int  qtStepHistory(int redo);
+	void qtSaveNow(void);	// commit and save the map, dialog stays open
 	// Tier 3b-3: the Qt team property sheet binds hidden Team* pages to the current team.
 	void *qtCurTeamDict(void);
 	void *qtSides(void);

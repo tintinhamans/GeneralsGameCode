@@ -252,3 +252,10 @@ The bar shows shared commands. Build and upgrade commands every producer has are
 * Shift+click a unit: queue five, spread across producers, stopping at money or unit limits.
 * Shift+click an upgrade: queue it on the five fastest producers.
 * Shift+click a queue entry: cancel that type everywhere.
+
+## INI-defined radius cursors
+
+`RadiusCursorType` and `AnchorRadiusCursorType` accept additional names defined through
+`RadiusCursor <name>` blocks inside `InGameUI.ini`. Existing cursor names keep their behavior.
+See [INI-defined identities and announcements](contraZH-SpecialPowers.md#ini-defined-identities-and-announcements)
+for complete power, EVA event and cursor examples.

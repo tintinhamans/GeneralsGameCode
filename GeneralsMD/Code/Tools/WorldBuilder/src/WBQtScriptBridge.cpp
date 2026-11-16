@@ -142,6 +142,8 @@ int ScriptDialog::qtMUndo(void)
 	s_qtScriptUndo.pop_back();
 	m_sides = *snap;
 	delete snap;
+	// A snapshot restores scripts only; players and teams stay the map's.
+	adoptDocSides();
 	// The old selection's indices may not exist in the restored state; fall back to the
 	// player row (the Qt window rebuilds its tree and re-pushes selection on the next click).
 	m_curSelection.m_objType = ListType::PLAYER_TYPE;
@@ -169,6 +171,7 @@ int ScriptDialog::qtMRedo(void)
 	s_qtScriptRedo.pop_back();
 	m_sides = *snap;
 	delete snap;
+	adoptDocSides();
 	m_curSelection.m_objType = ListType::PLAYER_TYPE;
 	m_curSelection.m_groupIndex = 0;
 	m_curSelection.m_scriptIndex = 0;

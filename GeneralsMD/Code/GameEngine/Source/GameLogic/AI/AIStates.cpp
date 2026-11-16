@@ -5756,35 +5756,28 @@ StateReturnType AIAttackFireWeaponState::update()
 	}
 
 
-	// Synced weapon Slots:
 	for (Int slot = PRIMARY_WEAPON; slot < WEAPONSLOT_COUNT; slot++)
 	{
-		// check this slot if the weapon should be synced to the currently fired slot
-		if (slot == wslot || !obj->getWeaponInWeaponSlotSyncedToSlot((WeaponSlotType)slot, wslot)) {
-			// DEBUG_LOG((">> Skipping slot %d.\n", slot));
+		const WeaponSlotType syncedSlot = (WeaponSlotType)slot;
+		if (slot == wslot || !obj->getWeaponInWeaponSlotSyncedToSlot(syncedSlot, wslot))
+		{
 			continue;
 		}
 
-		// DEBUG_LOG((">> Slot %d is synced. Prepare to fire weapon.\n", slot));
-
-		// Yes, we are firing this weapon!
-		Weapon* weapon = obj->getWeaponInWeaponSlot((WeaponSlotType)slot);
-		if (weapon)
+		Object* syncedVictim = m_att->isAttackingObject() ? victim : nullptr;
+		const Coord3D* syncedPos = m_att->isAttackingObject() ? nullptr : getMachineGoalPosition();
+		if (!obj->canFireSyncedWeapon(syncedSlot, syncedVictim, syncedPos))
 		{
-			if (m_att->isAttackingObject()) {
-				if (weapon->fireWeapon(obj, victim)) { //fire() returns 'reloaded'
-					obj->releaseWeaponLock(LOCKED_TEMPORARILY);// unlock, 'cause we're loaded
-				}
-			}
-			else {
-				if (weapon->fireWeapon(obj, getMachineGoalPosition())) { //fire() returns 'reloaded'
-					obj->releaseWeaponLock(LOCKED_TEMPORARILY);// unlock, 'cause we're loaded
-					// DEBUG_LOG((">> On firing Weapon in slot %d: fire synced weapon slot %d. Shot Fired!\n", wslot, slot));
-				}
-			}
-
-			obj->notifyFiringTrackerShotFired(weapon, INVALID_ID);
+			continue;
 		}
+
+		Weapon* syncedWeapon = obj->getWeaponInWeaponSlot(syncedSlot);
+		Bool reloaded = syncedVictim ? syncedWeapon->fireWeapon(obj, syncedVictim) : syncedWeapon->fireWeapon(obj, syncedPos);
+		if (reloaded)
+		{
+			obj->releaseWeaponLock(LOCKED_TEMPORARILY);
+		}
+		obj->notifyFiringTrackerShotFired(syncedWeapon, INVALID_ID);
 	}
 
 
@@ -6210,6 +6203,12 @@ void AIAttackState::onExit( StateExitType status )
 	obj->clearModelConditionState( MODELCONDITION_ATTACKING );
 
 	obj->clearLeechRangeModeForAllWeapons();
+
+	// A reset comes from a new command, which may have locked a weapon for its own attack.
+	if (status != EXIT_RESET)
+	{
+		obj->releaseWeaponLock(LOCKED_TEMPORARILY);
+	}
 
 	AIUpdateInterface *ai = obj->getAI();
 	if (ai)
