@@ -503,8 +503,8 @@ void GenOnlineSettings::Load(void)
                 }
             }
 
-			// Without plugins.transport no plugin loads for its transport only.
-			bool bTransportSet = false;
+			// Without plugins.transport the transport list is empty.
+			m_Plugins_Transport.clear();
 			if (jsonSettings.contains(SETTINGS_KEY_PLUGINS))
 			{
 				auto pluginSettings = jsonSettings[SETTINGS_KEY_PLUGINS];
@@ -516,12 +516,7 @@ void GenOnlineSettings::Load(void)
 				if (pluginSettings.contains(SETTINGS_KEY_PLUGINS_TRANSPORT))
 				{
 					m_Plugins_Transport = ReadPluginList(pluginSettings[SETTINGS_KEY_PLUGINS_TRANSPORT], SETTINGS_KEY_PLUGINS_TRANSPORT);
-					bTransportSet = true;
 				}
-			}
-			if (!bTransportSet)
-			{
-				m_Plugins_Transport.clear();
 			}
 
             if (jsonSettings.contains(SETTINGS_KEY_MAPS))

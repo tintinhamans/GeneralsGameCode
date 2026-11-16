@@ -414,7 +414,6 @@ void WebSocket::OnHubReady()
 
 void WebSocket::SendPeerTransports(bool bForce)
 {
-	// The plugin reports the provider name, the game never makes one up.
 	const std::string transport = GenOnlinePluginHost::Transport::GetName();
 	if (!bForce && m_lastPeerTransports.has_value() && *m_lastPeerTransports == transport)
 	{

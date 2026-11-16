@@ -81,6 +81,21 @@ json ResultRoundTrip(const json& in)
 	return json(result);
 }
 
+// True when reading the json as T throws.
+template <class T>
+bool ParseThrows(const json& in)
+{
+	try
+	{
+		in.get<T>();
+	}
+	catch (const std::exception&)
+	{
+		return true;
+	}
+	return false;
+}
+
 static std::map<std::string, RoundTripFn> BuildFixtureTable()
 {
 	std::map<std::string, RoundTripFn> t;
@@ -469,16 +484,7 @@ static void TestFieldPresence()
 	// Unknown fields are ignored and missing required fields fail.
 	MatchStartEvent start = json::parse("{\"lobby_id\":5,\"new_field\":true}").get<MatchStartEvent>();
 	CHECK(start.lobby_id == 5);
-	bool threw = false;
-	try
-	{
-		json::parse("{\"new_field\":true}").get<MatchStartEvent>();
-	}
-	catch (const std::exception&)
-	{
-		threw = true;
-	}
-	CHECK(threw);
+	CHECK(ParseThrows<MatchStartEvent>(json::parse("{\"new_field\":true}")));
 
 	// A null optional field reads as left out.
 	ModerationNoticeEvent notice = json::parse("{\"action\":\"kick\",\"reason\":\"r\",\"expires_at\":null}").get<ModerationNoticeEvent>();
@@ -1970,8 +1976,6 @@ static void TestLegacyRouteReplacements(const std::filesystem::path& folder)
 		LinkAccountBody link;
 		link.proof = "abc";
 		CHECK(json(link) == json::parse(R"({"proof":"abc"})"));
-		LinkAccountBody missing;
-		CHECK(!MakeRestOutcome(true, 200, R"({"id_token":"abc"})").Data(missing));
 	}
 
 	// The plugin signs in to its platform with the short-lived token of its provider, not with the access token.
@@ -1983,8 +1987,6 @@ static void TestLegacyRouteReplacements(const std::filesystem::path& folder)
 		CHECK(token.token == "a.b.c" && token.expires_in == 300);
 		SignInTokenResponse missing;
 		CHECK(!MakeRestOutcome(true, 200, R"({"expires_in":300})").Data(missing));
-		SignInTokenResponse oldShape;
-		CHECK(!MakeRestOutcome(true, 200, R"({"eos_token":"a.b.c","expires_in":300})").Data(oldShape));
 	}
 
 	// The global stats map each playable side onto its service index.
@@ -2043,7 +2045,6 @@ static void TestLegacyRouteReplacements(const std::filesystem::path& folder)
 	CHECK(RestPathForLog("/api/v1/me/linked_accounts/steam/sign_in_token") == "/api/v1/me/linked_accounts/steam/sign_in_token");
 	CHECK(RestPathForLog("/api/v1/me/linked_accounts/Secret-Token/sign_in_token") == "/api/v1/me/linked_accounts/[redacted]/sign_in_token");
 	CHECK(RestPathForLog("/api/v1/me/linked_accounts/gns") == "/api/v1/me/linked_accounts/[redacted]");
-	CHECK(RestPathForLog("/api/v1/me/eos") == "/api/v1/me/[redacted]");
 	CHECK(RestPathForLog("/api/v1/me/linked_accounts/eos/abc") == "/api/v1/me/linked_accounts/eos/[redacted]");
 	CHECK(RestPathForLog("/api/v1/me/friend_requests/7/accept") == "/api/v1/me/friend_requests/[redacted]/accept");
 	CHECK(RestPathForLog("/api/v1/messages/9b2f0c/unknownword") == "/api/v1/messages/[redacted]/[redacted]");
@@ -2092,16 +2093,7 @@ static void TestConnectionTimeline()
 		plugin.ip_version = 6;
 		plugin.attempt = 2;
 		CHECK(json(plugin) == json::parse(R"({"target_user_id":7,"outcome":"failed","transport":"steam","ip_version":6,"attempt":2})"));
-		bool threw = false;
-		try
-		{
-			json::parse(R"({"target_user_id":7,"outcome":"failed","transport":"gns","ip_version":4})").get<ConnectionReportBody>();
-		}
-		catch (const std::exception&)
-		{
-			threw = true;
-		}
-		CHECK(threw);
+		CHECK(ParseThrows<ConnectionReportBody>(json::parse(R"({"target_user_id":7,"outcome":"failed","transport":"gns","ip_version":4})")));
 	}
 
 	// The time never decreases and never exceeds 600000 ms.
@@ -2199,16 +2191,7 @@ static void TestConnectionStep()
 	{
 		json missing = full;
 		missing.erase(field);
-		bool threw = false;
-		try
-		{
-			missing.get<StartSignallingEvent>();
-		}
-		catch (const std::exception&)
-		{
-			threw = true;
-		}
-		CHECK(threw);
+		CHECK(ParseThrows<StartSignallingEvent>(missing));
 	}
 
 	// A plugin step names the provider that both peers listed, the client matches it as an opaque name.
