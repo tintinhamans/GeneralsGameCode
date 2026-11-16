@@ -183,19 +183,21 @@ typedef struct GenOnlinePluginHostApi
 typedef void (GENONLINE_PLUGIN_CALL *GenOnlinePluginLinkedAccountStatusFn)(void* userData, int32_t success);
 
 /*
- * Linked account. The plugin signs in to its platform with the GenOnline
- * token and produces the identity proof that the GenOnline service verifies.
+ * Linked account. The plugin signs in to its platform with a sign in token
+ * that the Generals Online service issues for that platform, and produces the
+ * identity proof that the Generals Online service verifies. The host treats
+ * both as opaque strings.
  */
 typedef struct GenOnlinePluginLinkedAccountApi
 {
 	uint32_t structSize;
 	uint32_t version;
 
-	/* Signs in to the platform with the GenOnline token. The plugin calls onStatus exactly once, also on failure. */
-	void (GENONLINE_PLUGIN_CALL *SignIn)(const char* genOnlineToken, GenOnlinePluginLinkedAccountStatusFn onStatus, void* userData);
+	/* Signs in to the platform with a fresh sign in token. The plugin calls onStatus exactly once, also on failure. */
+	void (GENONLINE_PLUGIN_CALL *SignIn)(const char* signInToken, GenOnlinePluginLinkedAccountStatusFn onStatus, void* userData);
 
-	/* Refreshes the platform sign in with a current GenOnline token. The plugin calls onStatus exactly once. */
-	void (GENONLINE_PLUGIN_CALL *Refresh)(const char* genOnlineToken, GenOnlinePluginLinkedAccountStatusFn onStatus, void* userData);
+	/* Refreshes the platform sign in with a fresh sign in token. The plugin calls onStatus exactly once. */
+	void (GENONLINE_PLUGIN_CALL *Refresh)(const char* signInToken, GenOnlinePluginLinkedAccountStatusFn onStatus, void* userData);
 
 	/* Returns GENONLINE_PLUGIN_TRUE while the platform sign in is valid. */
 	int32_t (GENONLINE_PLUGIN_CALL *IsSignedIn)(void);
@@ -209,7 +211,7 @@ typedef struct GenOnlinePluginLinkedAccountApi
 	int32_t (GENONLINE_PLUGIN_CALL *GetPlatformUserId)(char* buffer, uint32_t bufferSize);
 
 	/*
-	 * Copies the identity proof that the GenOnline service verifies into buffer.
+	 * Copies the identity proof that the Generals Online service verifies into buffer.
 	 * The host owns buffer. The plugin writes a NUL terminated string of at most
 	 * bufferSize bytes and returns GENONLINE_PLUGIN_TRUE, or returns
 	 * GENONLINE_PLUGIN_FALSE when no proof is available or it does not fit.
@@ -327,7 +329,7 @@ typedef struct GenOnlinePluginApi
 	/* Returns GENONLINE_PLUGIN_TRUE when the external process that the plugin needs is running. This field may be null when the plugin needs no external process. */
 	int32_t (GENONLINE_PLUGIN_CALL *IsExternalProcessRunning)(void);
 
-	/* Returns the anticheat identifier that the game sends to the GenOnline service. This field may be null, which reports 0. */
+	/* Returns the anticheat identifier that the game sends to the Generals Online service. This field may be null, which reports 0. */
 	int32_t (GENONLINE_PLUGIN_CALL *GetAnticheatIdentifier)(void);
 
 	const GenOnlinePluginLinkedAccountApi* linkedAccount;
