@@ -723,6 +723,27 @@ inline bool IsCompatibilityAnswer(const std::string& body)
 	return MakeRestOutcome(true, 200, body).Data(answer);
 }
 
+enum class ProbeAnswer
+{
+	None,
+	Serving,
+	Standby
+};
+
+// Classifies the answer of the compatibility probe. A standby answer also proves the route reaches the service.
+inline ProbeAnswer ProbeAnswerOf(int status, const std::string& body)
+{
+	if (status == 200 && IsCompatibilityAnswer(body))
+	{
+		return ProbeAnswer::Serving;
+	}
+	if (IsStandbyAnswer(MakeRestOutcome(true, status, body), false))
+	{
+		return ProbeAnswer::Standby;
+	}
+	return ProbeAnswer::None;
+}
+
 enum class CompatibilityVerdict
 {
 	UpToDate,

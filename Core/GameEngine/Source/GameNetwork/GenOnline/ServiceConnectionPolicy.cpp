@@ -1167,9 +1167,11 @@ ConnectionTestResult TestServiceConnection(const ServiceConnectionSettings& sett
 				result.outcome = Outcome::ServiceRejected;
 				return result;
 			}
-			if (code == CURLE_OK && status == 200 && GenOnlineRealtime::IsCompatibilityAnswer(body))
+			const GenOnlineRealtime::ProbeAnswer answer = code == CURLE_OK ? GenOnlineRealtime::ProbeAnswerOf(status, body) : GenOnlineRealtime::ProbeAnswer::None;
+			if (answer != GenOnlineRealtime::ProbeAnswer::None)
 			{
 				result.outcome = Outcome::Connected;
+				result.detail = answer == GenOnlineRealtime::ProbeAnswer::Standby ? "standby" : "";
 				return result;
 			}
 			if (code == CURLE_PEER_FAILED_VERIFICATION || code == CURLE_SSL_CONNECT_ERROR)
@@ -1195,7 +1197,10 @@ std::string DescribeConnectionTest(const ConnectionTestResult& result)
 	switch (result.outcome)
 	{
 		case Outcome::Connected:
-			return result.proxyURL.empty() ? "Connected through the " + result.route + " route, no proxy." : "Connected through proxy " + ProxyDisplayName(result.proxyURL) + ".";
+		{
+			const std::string connected = result.proxyURL.empty() ? "Connected through the " + result.route + " route, no proxy." : "Connected through proxy " + ProxyDisplayName(result.proxyURL) + ".";
+			return result.detail == "standby" ? connected + "\nThe service is switching over and is back in a few seconds." : connected;
+		}
 		case Outcome::ProxyAuthRequired:
 			return result.detail == "required" ? "The proxy needs a login." : "The proxy refused the login.";
 		case Outcome::ServiceRejected:
