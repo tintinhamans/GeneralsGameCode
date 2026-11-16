@@ -1317,9 +1317,9 @@ Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, CommandSourceType cm
 			TheAI->pathfinder()->updateGoal(theUnit, &dest, LAYER_GROUND);
 		}
 		path.push_back(dest);
+		PathProfile::Move_Legs(theUnit, (Int)path.size());	// path profiler: before aiFollowPath, which moves the path out
 		ai->aiFollowPath( &path, nullptr, cmdSource );
 		PathProfile::Column_Move(theUnit, TRUE);	// path profiler
-		PathProfile::Move_Legs(theUnit, (Int)path.size());
 		columnUnits.push_back(theUnit);
 	}
 	Column_Left_Out_Report();
@@ -1851,9 +1851,9 @@ Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, CommandSourceType cmd
 			TheAI->pathfinder()->updateGoal(theUnit, &dest, LAYER_GROUND);
 		}
 		path.push_back(dest);
+		PathProfile::Move_Legs(theUnit, (Int)path.size());	// path profiler: before aiFollowPath, which moves the path out
 		ai->aiFollowPath( &path, nullptr, cmdSource );
 		PathProfile::Column_Move(theUnit, TRUE);	// path profiler
-		PathProfile::Move_Legs(theUnit, (Int)path.size());
 		columnUnits.push_back(theUnit);
 	}
 	Column_Left_Out_Report();
