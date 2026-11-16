@@ -806,6 +806,68 @@ neutral locking even when both are configured.
 * These keys currently affect the laser lock ability only. Other abilities that use `SpecialAbilityUpdate` keep their
 own built in target rules and ignore all three.
 
+### Black Lotus vehicle control
+
+`SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK` gives temporary control of an enemy ground vehicle.
+It uses `SpecialAbility` and `SpecialAbilityUpdate`, like the disable vehicle hack, and can coexist
+with that ability on the same unit. Aircraft, structures, contained units and vehicles already
+under temporary control cannot be targeted.
+
+| SpecialAbilityUpdate key | Default | Effect |
+| --- | --- | --- |
+| `ControlWhileHacking` | `No` | `Yes` keeps control while Lotus maintains the hack. |
+| `SustainControlAfterHack` | `0` | Milliseconds of control after continuous hacking stops. |
+| `EffectDuration` | `0` | Milliseconds of control after a completed hack when `ControlWhileHacking = No`. |
+
+Continuous control starts after `UnpackTime` and `PreparationTime`. Moving, stopping, using another
+ability, leaving `AbilityAbortRange`, entering a transport, dying, becoming disabled or changing owners
+ends the hack. The vehicle returns after `SustainControlAfterHack`. The bar stays full while the
+hack continues and drains during that delay.
+
+Timed control lasts for `EffectDuration` after preparation completes. Lotus can then move, use another
+ability or die without shortening the timer. Use a positive duration. Leave `PersistentPrepTime`
+and `PersistenceRequiresRecharge` at their defaults for this ability.
+
+The vehicle returns to its previous team. If that team no longer exists, it returns to its previous
+player's default team. If the previous player has been defeated, the vehicle becomes neutral.
+A later capture by another team cancels the return timer. Saving and loading preserves control and
+the remaining time. The controlling player sees a draining bar above the vehicle without needing
+`SHOW_PROGRESS_BAR` on its template. The bar follows the global health-bar display setting.
+
+```ini
+SpecialPower SpecialAbilityBlackLotusControlVehicleHack
+  Enum = SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK
+  ReloadTime = 0
+  PublicTimer = No
+End
+
+Behavior = SpecialAbility ModuleTag_ControlVehicle
+  SpecialPowerTemplate = SpecialAbilityBlackLotusControlVehicleHack
+  UpdateModuleStartsAttack = Yes
+  InitiateSound = BlackLotusVoiceStartVehicleHack
+End
+
+Behavior = SpecialAbilityUpdate ModuleTag_ControlVehicleUpdate
+  SpecialPowerTemplate = SpecialAbilityBlackLotusControlVehicleHack
+  StartAbilityRange = 200.0
+  AbilityAbortRange = 240.0
+  UnpackTime = 2000
+  PackTime = 1000
+  PreparationTime = 2000
+  ControlWhileHacking = Yes
+  SustainControlAfterHack = 3000
+  SpecialObject = BinaryDataStream
+  PackSound = BlackLotusPack
+  UnpackSound = BlackLotusUnpack
+  TriggerSound = BlackLotusTrigger
+  PrepSoundLoop = BlackLotusPrepLoop
+End
+```
+
+For a completed hack that grants 15 seconds of control, use `ControlWhileHacking = No` and
+`EffectDuration = 15000` instead. Link a `SPECIAL_POWER` command button to the new template and
+use `NEED_TARGET_ENEMY_OBJECT` in its options.
+
 ## ParticleUplinkCannonUpdate
 
 ### ScorchType

@@ -668,6 +668,10 @@ public:
 	void setHealthBoxOffset( const Coord3D& offset ) { m_healthBoxOffset = offset; } ///< for special amorphous like angry mob
 
 	void defect( Team *newTeam, UnsignedInt detectionTime );
+	void startVehicleControl( Object *source, UnsignedInt duration, UnsignedInt sustain, Bool continuous );
+	void stopVehicleControl( ObjectID sourceID );
+	Bool isVehicleControlled() const;
+	Bool isVehicleControlledBy( ObjectID sourceID ) const;
 	void goInvulnerable( UnsignedInt time );
 
 	// This is public, since there is no Thing level master setting of Turret stuff.  It is all done in a sleepy hamlet

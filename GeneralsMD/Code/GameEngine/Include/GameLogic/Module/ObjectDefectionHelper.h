@@ -55,6 +55,17 @@ private:
 	UnsignedInt   m_defectionDetectionStart;				///< this is the timer, mentioned above (absolute frame, NOT counter)
 	UnsignedInt   m_defectionDetectionEnd;					///< this is the timer, mentioned above (absolute frame, NOT counter)
 	Real          m_defectionDetectionFlashPhase;   ///< keeps track of the flashing rate logarithmic curve
+	ObjectID      m_controlSourceID;
+	UnsignedInt   m_controlTeamID;
+	UnsignedInt   m_returnTeamID;
+	Int           m_returnPlayerIndex;
+	UnsignedInt   m_controlStart;
+	UnsignedInt   m_controlEnd;
+	UnsignedInt   m_controlSustain;
+	Bool          m_controlContinuous;
+	void updateVehicleControl();
+	void returnVehicleControl();
+
 	Bool					m_doDefectorFX;	///<AmericaInfPilot uses defect to become temporarily "invulnerable"
 
 public:
@@ -65,6 +76,14 @@ public:
 		m_defectionDetectionFlashPhase = FALSE;
 		m_defectionDetectionStart = 0;
 		m_doDefectorFX = FALSE;
+		m_controlSourceID = INVALID_ID;
+		m_controlTeamID = 0;
+		m_returnTeamID = 0;
+		m_returnPlayerIndex = -1;
+		m_controlStart = 0;
+		m_controlEnd = 0;
+		m_controlSustain = 0;
+		m_controlContinuous = FALSE;
 	}
 	// virtual destructor prototype provided by memory pool object
 
@@ -75,5 +94,10 @@ public:
 
 	// specific to this class.
 	void startDefectionTimer(UnsignedInt numFrames, Bool withDefectorFX = TRUE);
+	void startVehicleControl( Object *source, UnsignedInt duration, UnsignedInt sustain, Bool continuous );
+	void stopVehicleControl( ObjectID sourceID );
+	Bool isVehicleControlled() const { return m_controlSourceID != INVALID_ID; }
+	Bool isVehicleControlledBy( ObjectID sourceID ) const { return isVehicleControlled() && m_controlSourceID == sourceID; }
+	Bool getVehicleControlProgress( Real& progress ) const;
 
 };

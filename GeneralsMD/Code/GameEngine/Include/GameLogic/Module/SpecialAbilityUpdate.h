@@ -78,6 +78,8 @@ public:
 	Bool									m_approachRequiresLOS;
   Bool                  m_needToFaceTarget;
   Bool                  m_persistenceRequiresRecharge;
+  Bool                  m_controlWhileHacking;
+  UnsignedInt           m_sustainControlAfterHack;
   Bool                  m_requiresMoveToTurn;	///< if set, orient by moving toward target (for locomotors that can't turn in place) instead of facing in place
   Real                  m_facingAngleTolerance;	///< heading delta (radians) considered "facing target" when m_requiresMoveToTurn
   KindOfMaskType        m_requiredTargetKindOf;		///< target must have ALL of these kind of bits set (laser guided missiles only)
@@ -120,6 +122,8 @@ public:
 		m_preTriggerUnstealthFrames = 0;
     m_needToFaceTarget = TRUE;
     m_persistenceRequiresRecharge = FALSE;
+    m_controlWhileHacking = FALSE;
+    m_sustainControlAfterHack = 0;
     m_requiresMoveToTurn = FALSE;
     m_facingAngleTolerance = 0.1f;	// ~5.7 degrees
     // TheSuperHackers @feature triatomic 01/09/2026 These defaults reproduce the target rule that
@@ -173,6 +177,8 @@ public:
 			{ "ApproachRequiresLOS",				INI::parseBool,										nullptr, offsetof( SpecialAbilityUpdateModuleData, m_approachRequiresLOS ) },
 			{ "ApproachRequiresLOS",				INI::parseBool,										nullptr, offsetof( SpecialAbilityUpdateModuleData, m_approachRequiresLOS ) },
       { "NeedToFaceTarget",           INI::parseBool,										nullptr, offsetof( SpecialAbilityUpdateModuleData, m_needToFaceTarget ) },
+      { "ControlWhileHacking",        INI::parseBool, nullptr, offsetof( SpecialAbilityUpdateModuleData, m_controlWhileHacking ) },
+      { "SustainControlAfterHack",     INI::parseDurationUnsignedInt, nullptr, offsetof( SpecialAbilityUpdateModuleData, m_sustainControlAfterHack ) },
       { "PersistenceRequiresRecharge",INI::parseBool,										nullptr, offsetof( SpecialAbilityUpdateModuleData, m_persistenceRequiresRecharge ) },
       { "RequiresMoveToTurn",         INI::parseBool,										nullptr, offsetof( SpecialAbilityUpdateModuleData, m_requiresMoveToTurn ) },
       { "FacingAngleTolerance",       INI::parseAngleReal,							nullptr, offsetof( SpecialAbilityUpdateModuleData, m_facingAngleTolerance ) },
@@ -224,6 +230,7 @@ public:
 	UnsignedInt getSpecialObjectMax() const;
 	Object* findSpecialObjectWithProducerID( const Object *target );
 	SpecialPowerType getSpecialPowerType() const;
+	Bool isControllingVehicle( ObjectID targetID ) const;
 	Bool isValidLaserLockTarget( const Object *target ) const
 		{ return getSpecialAbilityUpdateModuleData()->isValidLaserLockTarget( getObject(), target ); }
 
@@ -262,7 +269,12 @@ protected:
 	Bool isPreparationComplete() const { return !m_prepFrames; }
 	UnsignedInt calcPreparationFrames() const;
 	void endPreparation();
-	Bool isPersistentAbility() const { return getSpecialAbilityUpdateModuleData()->m_persistentPrepFrames > 0; }
+	Bool isPersistentAbility() const
+	{
+		const SpecialAbilityUpdateModuleData *data = getSpecialAbilityUpdateModuleData();
+		return data->m_persistentPrepFrames > 0
+			|| (getSpecialPowerType() == SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK && data->m_controlWhileHacking);
+	}
 	void resetPreparation() { m_prepFrames = getSpecialAbilityUpdateModuleData()->m_persistentPrepFrames; }
 
 	Bool isFacing();
@@ -304,6 +316,7 @@ private:
 	UnsignedInt										m_specialObjectEntries;				 //The size of the list of member Objects
 	Real													m_captureFlashPhase;    ///< used to track the accelerating flash of the capture FX
 	PackingState									m_packingState;
+	Bool                          m_vehicleControlStarted;
 	Bool													m_active;
 	Bool													m_noTargetCommand;
 	Bool													m_facingInitiated;

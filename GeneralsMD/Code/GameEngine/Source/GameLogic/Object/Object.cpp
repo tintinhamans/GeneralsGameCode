@@ -1710,6 +1710,14 @@ Bool Object::getAmmoPipShowingInfo(Int& numTotal, Int& numFull) const
 //=============================================================================
 Bool Object::getProgressBarShowingInfo(bool selected, Real& progress, Int& type, RGBAColorInt& color, RGBAColorInt& colorBG) const
 {
+	if( m_defectionHelper && m_defectionHelper->getVehicleControlProgress( progress ) && isLocallyControlled() )
+	{
+		type = 0;
+		color = { 255, 255, 255, 255 };
+		colorBG = { 0, 0, 0, 255 };
+		return TRUE;
+	}
+
 	if (!isKindOf(KINDOF_SHOW_PROGRESS_BAR))
 		return FALSE;
 
@@ -6966,6 +6974,32 @@ Bool Object::canProduceUpgrade( const UpgradeTemplate *upgrade )
 //=============================================================================
 // Object::defect, and related methods                                        =
 //=============================================================================
+void Object::startVehicleControl( Object *source, UnsignedInt duration, UnsignedInt sustain, Bool continuous )
+{
+	if( m_defectionHelper )
+	{
+		m_defectionHelper->startVehicleControl( source, duration, sustain, continuous );
+	}
+}
+
+void Object::stopVehicleControl( ObjectID sourceID )
+{
+	if( m_defectionHelper )
+	{
+		m_defectionHelper->stopVehicleControl( sourceID );
+	}
+}
+
+Bool Object::isVehicleControlled() const
+{
+	return m_defectionHelper && m_defectionHelper->isVehicleControlled();
+}
+
+Bool Object::isVehicleControlledBy( ObjectID sourceID ) const
+{
+	return m_defectionHelper && m_defectionHelper->isVehicleControlledBy( sourceID );
+}
+
 void Object::defect( Team* newTeam, UnsignedInt detectionTime )
 {
 	if ( isContained() ) //@todo (KRIS?) make contained units unselectable, until then... lorenzen

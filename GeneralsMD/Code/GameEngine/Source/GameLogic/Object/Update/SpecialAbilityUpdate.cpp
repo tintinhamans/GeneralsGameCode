@@ -30,6 +30,7 @@
 #include "PreRTS.h" // This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/GameAudio.h"
+#include "Common/ActionManager.h"
 #include "Common/GlobalData.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
@@ -112,6 +113,7 @@ Bool SpecialAbilityUpdateModuleData::isValidLaserLockTarget( const Object *owner
 SpecialAbilityUpdate::SpecialAbilityUpdate( Thing *thing, const ModuleData* moduleData ) : SpecialPowerUpdateModule( thing, moduleData )
 {
   m_captureFlashPhase = 0.0f;
+  m_vehicleControlStarted = false;
   m_active = false;
   m_prepFrames = 0;
   m_animFrames = 0;
@@ -245,7 +247,7 @@ UpdateSleepTime SpecialAbilityUpdate::update()
   //Important! This check will see if there has been any commands issued by either the player
   //or script. When told to do something else, we need to immediately cleanup our special ability.
   //This also means some things might be left around like timed charges to detonate.
-  if( getObject()->isEffectivelyDead() )
+  if( getObject()->isEffectivelyDead() || (data->m_specialPowerTemplate->getSpecialPowerType() == SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK && getObject()->isDisabled()) )
   {
     onExit( TRUE );
     return calcSleepTime();
@@ -348,8 +350,14 @@ UpdateSleepTime SpecialAbilityUpdate::update()
             shouldAbort = TRUE;
           FALLTHROUGH; //deliberately falling through
         }
+        case SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK:
         case SPECIAL_BLACKLOTUS_DISABLE_VEHICLE_HACK:
         {
+          if( data->m_specialPowerTemplate->getSpecialPowerType() == SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK
+            && target->isVehicleControlledBy( getObject()->getID() ) )
+          {
+            break;
+          }
           if ( target->testStatus( OBJECT_STATUS_STEALTHED ) && (target->testStatus( OBJECT_STATUS_DETECTED ) == FALSE ) )
           {
             // where'd my target go? 'Twas here just a second ago.
@@ -375,6 +383,17 @@ UpdateSleepTime SpecialAbilityUpdate::update()
   }
 
 
+
+  if( data->m_specialPowerTemplate->getSpecialPowerType() == SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK && data->m_controlWhileHacking && m_vehicleControlStarted )
+  {
+    Object *target = TheGameLogic->findObjectByID( m_targetID );
+    if( !target || !target->isVehicleControlledBy( getObject()->getID() ) || target->isContained() || !continuePreparation() )
+    {
+      endPreparation();
+      startPacking( false );
+    }
+    return calcSleepTime();
+  }
 
   //DETERMINE OUR PHASE! BRAIN LOGIC
   if( !isPreparationComplete() )
@@ -487,13 +506,16 @@ UpdateSleepTime SpecialAbilityUpdate::update()
 
         // Lorenzen added this additional flag to support the NapalmBombDrop
         // It causes this update to force a recharge of the SPM between drops
-        if( isPersistentAbility() && getDoesPersistenceRequireRecharge())
+        if( isPersistentAbility() && (getDoesPersistenceRequireRecharge() || (getSpecialPowerType() == SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK && data->m_controlWhileHacking)) )
         {
           //VARIATION -- PERSISTENCE (repeats preparation)
           resetPreparation();
 
           //tell the special power module to restart the recharge timer
-          spm->startPowerRecharge();
+          if( getDoesPersistenceRequireRecharge() )
+          {
+            spm->startPowerRecharge();
+          }
 
           return calcSleepTime();
 
@@ -539,6 +561,17 @@ Bool SpecialAbilityUpdate::initiateIntentToDoSpecialPower( const SpecialPowerTem
     //Check to make sure our modules are connected.
     return FALSE;
   }
+
+  if( spTemplate->getSpecialPowerType() == SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK )
+  {
+    if( !TheActionManager->canDoSpecialPowerAtObject( getObject(), targetObj, CMD_FROM_AI, spTemplate, commandOptions, false ) )
+    {
+      return FALSE;
+    }
+    onExit( FALSE );
+  }
+
+  m_vehicleControlStarted = false;
 
   //Clear target values
   m_targetID = INVALID_ID;
@@ -588,6 +621,11 @@ Bool SpecialAbilityUpdate::initiateIntentToDoSpecialPower( const SpecialPowerTem
 
   //Prevent other mutually exclusive specials from running (kill them now if we're starting something else)
   SpecialAbilityUpdate *disableSA;
+  disableSA = getObject()->findSpecialAbilityUpdate( SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK );
+  if( disableSA && disableSA != this )
+  {
+    disableSA->onExit( FALSE );
+  }
   disableSA = getObject()->findSpecialAbilityUpdate( SPECIAL_BLACKLOTUS_DISABLE_VEHICLE_HACK );
   if( disableSA && disableSA != this )
     disableSA->onExit( FALSE );
@@ -829,6 +867,7 @@ void SpecialAbilityUpdate::startPacking(Bool success)
       case SPECIAL_BLACKLOTUS_CAPTURE_BUILDING:
         event = *getObject()->getTemplate()->getPerUnitSound( "VoiceCaptureBuildingComplete" );
         break;
+      case SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK:
       case SPECIAL_BLACKLOTUS_DISABLE_VEHICLE_HACK:
         event = *getObject()->getTemplate()->getPerUnitSound( "VoiceDisableVehicleComplete" );
         break;
@@ -1106,6 +1145,7 @@ void SpecialAbilityUpdate::startPreparation()
 
     case SPECIAL_HACKER_DISABLE_BUILDING:
     case SPECIAL_BLACKLOTUS_CAPTURE_BUILDING:
+    case SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK:
     case SPECIAL_BLACKLOTUS_DISABLE_VEHICLE_HACK:
     case SPECIAL_BLACKLOTUS_STEAL_CASH_HACK:
     {
@@ -1247,6 +1287,7 @@ Bool SpecialAbilityUpdate::continuePreparation()
   switch( spTemplate->getSpecialPowerType() )
   {
     case SPECIAL_MISSILE_DEFENDER_LASER_GUIDED_MISSILES:
+    case SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK:
     case SPECIAL_BLACKLOTUS_DISABLE_VEHICLE_HACK:
     {
       Object *target = TheGameLogic->findObjectByID( m_targetID );
@@ -1270,7 +1311,7 @@ Bool SpecialAbilityUpdate::continuePreparation()
           return false;
         }
       }
-      else if( getObject()->getRelationship( target ) == ALLIES )
+      else if( getObject()->getRelationship( target ) == ALLIES && !(spTemplate->getSpecialPowerType() == SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK && target->isVehicleControlledBy( getObject()->getID() )) )
       {
         //It's been captured by a colleague, so cancel!
         return false;
@@ -1472,6 +1513,16 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
         update->initStickyBomb( target, object );
 
 
+      }
+      break;
+    }
+    case SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK:
+    {
+      m_vehicleControlStarted = true;
+      Object *target = TheGameLogic->findObjectByID( m_targetID );
+      if( isWithinAbilityAbortRange() && TheActionManager->canDoSpecialPowerAtObject( object, target, CMD_FROM_AI, spTemplate, m_commandOptions, false ) )
+      {
+        target->startVehicleControl( object, data->m_effectDuration, data->m_sustainControlAfterHack, data->m_controlWhileHacking );
       }
       break;
     }
@@ -2147,8 +2198,26 @@ Object* SpecialAbilityUpdate::findSpecialObjectWithProducerID( const Object *tar
 }
 
 //-------------------------------------------------------------------------------------------------
+Bool SpecialAbilityUpdate::isControllingVehicle( ObjectID targetID ) const
+{
+  const AIUpdateInterface *ai = getObject()->getAIUpdateInterface();
+  return m_active && m_vehicleControlStarted && m_targetID == targetID && m_packingState == STATE_UNPACKED
+    && !getObject()->isEffectivelyDead() && !getObject()->isDisabled() && !getObject()->isContained()
+    && ai && !ai->isMoving() && ai->getLastCommandSource() == CMD_FROM_AI && isWithinAbilityAbortRange();
+}
+
+//-------------------------------------------------------------------------------------------------
 void SpecialAbilityUpdate::endPreparation()
 {
+  if( getSpecialPowerType() == SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK && getSpecialAbilityUpdateModuleData()->m_controlWhileHacking )
+  {
+    Object *target = TheGameLogic->findObjectByID( m_targetID );
+    if( target )
+    {
+      target->stopVehicleControl( getObject()->getID() );
+    }
+  }
+
 	getObject()->clearStatus( MAKE_OBJECT_STATUS_MASK( OBJECT_STATUS_IS_USING_ABILITY ) );
 	TheAudio->removeAudioEvent( m_prepSoundLoop.getPlayingHandle() );
 
@@ -2173,6 +2242,7 @@ void SpecialAbilityUpdate::endPreparation()
 
 		case SPECIAL_MISSILE_DEFENDER_LASER_GUIDED_MISSILES:
 		case SPECIAL_HACKER_DISABLE_BUILDING:
+		case SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK:
 		case SPECIAL_BLACKLOTUS_DISABLE_VEHICLE_HACK:
 		case SPECIAL_BLACKLOTUS_CAPTURE_BUILDING:
 		case SPECIAL_BLACKLOTUS_STEAL_CASH_HACK:
@@ -2206,7 +2276,7 @@ void SpecialAbilityUpdate::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 2;
+	XferVersion currentVersion = 3;
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -2263,6 +2333,11 @@ void SpecialAbilityUpdate::xfer( Xfer *xfer )
 
   // capture flash phase
   xfer->xferReal( &m_captureFlashPhase );
+
+  if( version >= 3 )
+  {
+    xfer->xferBool( &m_vehicleControlStarted );
+  }
 
 }
 
