@@ -371,7 +371,10 @@ namespace PathProfile
 		else if (result == FAILED || result == OUT_OF_POOL)
 		{
 			++u->failed;
-			if (u->outcome != NO_ORDER && frame >= u->orderFrame && frame <= u->orderFrame + 3)
+			// the logic frame now: "frame" is the profiler's frame, set at the end of a frame, so during a frame it is still
+			// the last one, while the runner records an order with the frame it runs in
+			const UnsignedInt now = TheGameLogic != nullptr ? TheGameLogic->getFrame() : frame;
+			if (u->outcome != NO_ORDER && now >= u->orderFrame && now <= u->orderFrame + 3)
 				++u->failedEarly;
 		}
 		if (path != nullptr)
