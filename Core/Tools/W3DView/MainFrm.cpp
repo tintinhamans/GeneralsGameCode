@@ -20,6 +20,7 @@
 //
 
 #include "StdAfx.h"
+#include <afxdlgs.h>	// CColorDialog
 #include "W3DView.h"
 
 #include "MainFrm.h"
@@ -49,7 +50,9 @@
 #include "WW3D2/part_ldr.h"
 #include "WW3D2/agg_def.h"
 #include "BoneMgrDialog.h"
+#include "GroundHeightDialog.h"
 #include "Utils.h"
+#include "LogDialog.h"
 #include "WW3D2/light.h"
 #include "AggregateNameDialog.h"
 #include "LODDefs.h"
@@ -57,6 +60,17 @@
 #include "RestrictedFileDialog.h"
 #include "WW3D2/hlod.h"
 #include "ViewerScene.h"
+#include "W3DDarkMode.h"
+#include "MaterialViewer/MaterialViewerFrame.h"
+#include "W3DViewMcpBridge.h"
+#ifdef W3DVIEW_HAS_QT
+#include "MaterialViewer/MaterialPanel.h"	// W3dMaterialViewer::PickColor (Qt colour dialog)
+#endif
+#include "JobSystem.h"
+
+#include <string>
+#include <shobjidl.h>
+#include <shlwapi.h>
 #include "EmitterInstanceList.h"
 #include "mmsystem.h"
 #include "AdvancedAnimSheet.h"
@@ -79,6 +93,12 @@
 
 //#undef STRICT
 #include "WW3D2/ww3d.h"
+#include "WW3D2/shader.h"
+#include "WW3D2/texturefilter.h"
+#include "WW3D2/dx8wrapper.h"
+
+// TheSuperHackers @feature Tria 17/04/2026 Track anisotropic filter level for menu radio state.
+static int s_AnisotropicLevel = 0;
 
 
 #ifdef RTS_DEBUG
@@ -135,6 +155,7 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWnd)
 	ON_COMMAND(IDM_LOD_GENERATE, OnLodGenerate)
 	ON_WM_ACTIVATEAPP()
 	ON_COMMAND(ID_FILE_OPEN, OnFileOpen)
+	ON_COMMAND(ID_FILE_OPEN_FOLDER, OnFileOpenFolder)
 	ON_COMMAND(IDM_ANI_SPEED, OnAniSpeed)
 	ON_COMMAND(IDM_ANI_STOP, OnAniStop)
 	ON_COMMAND(IDM_ANI_START, OnAniStart)
@@ -194,6 +215,8 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWnd)
 	ON_UPDATE_COMMAND_UI(IDM_SAVE_AGGREGATE, OnUpdateSaveAggregate)
 	ON_COMMAND(IDM_CAMERA_RESET_ON_LOAD, OnCameraResetOnLoad)
 	ON_UPDATE_COMMAND_UI(IDM_CAMERA_RESET_ON_LOAD, OnUpdateCameraResetOnLoad)
+	ON_COMMAND(IDM_CAMERA_INVERT_Y, OnCameraInvertY)
+	ON_UPDATE_COMMAND_UI(IDM_CAMERA_INVERT_Y, OnUpdateCameraInvertY)
 	ON_COMMAND(IDM_OBJECT_ROTATE_Y_BACK, OnObjectRotateYBack)
 	ON_COMMAND(IDM_OBJECT_ROTATE_Z_BACK, OnObjectRotateZBack)
 	ON_COMMAND(IDM_LIGHT_ROTATE_Y, OnLightRotateY)
@@ -269,6 +292,30 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWnd)
 	ON_COMMAND(IDM_SCALE_EMITTER, OnScaleEmitter)
 	ON_UPDATE_COMMAND_UI(IDM_TOGGLE_SORTING, OnUpdateToggleSorting)
 	ON_COMMAND(IDM_TOGGLE_SORTING, OnToggleSorting)
+	ON_UPDATE_COMMAND_UI(IDM_TOGGLE_ALPHA, OnUpdateToggleAlpha)
+	ON_COMMAND(IDM_TOGGLE_ALPHA, OnToggleAlpha)
+	ON_COMMAND(IDM_FILTER_POINT, OnFilterPoint)
+	ON_COMMAND(IDM_FILTER_BILINEAR, OnFilterBilinear)
+	ON_COMMAND(IDM_FILTER_TRILINEAR, OnFilterTrilinear)
+	ON_COMMAND(IDM_FILTER_ANISO_2X, OnFilterAniso2x)
+	ON_COMMAND(IDM_FILTER_ANISO_4X, OnFilterAniso4x)
+	ON_COMMAND(IDM_FILTER_ANISO_8X, OnFilterAniso8x)
+	ON_COMMAND(IDM_FILTER_ANISO_16X, OnFilterAniso16x)
+	ON_UPDATE_COMMAND_UI(IDM_FILTER_POINT, OnUpdateFilterPoint)
+	ON_UPDATE_COMMAND_UI(IDM_FILTER_BILINEAR, OnUpdateFilterBilinear)
+	ON_UPDATE_COMMAND_UI(IDM_FILTER_TRILINEAR, OnUpdateFilterTrilinear)
+	ON_UPDATE_COMMAND_UI(IDM_FILTER_ANISO_2X, OnUpdateFilterAniso2x)
+	ON_UPDATE_COMMAND_UI(IDM_FILTER_ANISO_4X, OnUpdateFilterAniso4x)
+	ON_UPDATE_COMMAND_UI(IDM_FILTER_ANISO_8X, OnUpdateFilterAniso8x)
+	ON_UPDATE_COMMAND_UI(IDM_FILTER_ANISO_16X, OnUpdateFilterAniso16x)
+	ON_COMMAND(IDM_MSAA_NONE, OnMsaaNone)
+	ON_COMMAND(IDM_MSAA_2X, OnMsaa2x)
+	ON_COMMAND(IDM_MSAA_4X, OnMsaa4x)
+	ON_COMMAND(IDM_MSAA_8X, OnMsaa8x)
+	ON_UPDATE_COMMAND_UI(IDM_MSAA_NONE, OnUpdateMsaaNone)
+	ON_UPDATE_COMMAND_UI(IDM_MSAA_2X, OnUpdateMsaa2x)
+	ON_UPDATE_COMMAND_UI(IDM_MSAA_4X, OnUpdateMsaa4x)
+	ON_UPDATE_COMMAND_UI(IDM_MSAA_8X, OnUpdateMsaa8x)
 	ON_COMMAND(IDM_CAMERA_BONE_POS_X, OnCameraBonePosX)
 	ON_UPDATE_COMMAND_UI(IDM_CAMERA_BONE_POS_X, OnUpdateCameraBonePosX)
 	ON_COMMAND(ID_VIEW_PATCH_GAP_FILL, OnViewPatchGapFill)
@@ -295,6 +342,73 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWnd)
 	ON_UPDATE_COMMAND_UI(IDM_ENABLE_GAMMA_CORRECTION, OnUpdateEnableGammaCorrection)
 	ON_COMMAND(IDM_SET_GAMMA, OnSetGamma)
 	ON_COMMAND(IDM_EDIT_ANIMATED_SOUNDS_OPTIONS, OnEditAnimatedSoundsOptions)
+	// TheSuperHackers @feature Async batch file loading
+	ON_MESSAGE(WM_USER_LOAD_NEXT_FILE, OnLoadNextFile)
+	// TheSuperHackers @feature Reload assets with updated texture path priority (Ctrl+Shift+R)
+	ON_COMMAND(IDM_RELOAD_ASSETS, OnReloadAssets)
+	ON_UPDATE_COMMAND_UI(IDM_RELOAD_ASSETS, OnUpdateReloadAssets)
+	// TheSuperHackers @feature Tria 18/04/2026 Bones submenu in View menu.
+	ON_COMMAND(IDM_SHOW_BONE_PIVOTS, OnShowBonePivots)
+	ON_UPDATE_COMMAND_UI(IDM_SHOW_BONE_PIVOTS, OnUpdateShowBonePivots)
+	ON_COMMAND(IDM_BONE_SIZE_TINY, OnBoneSizeTiny)
+	ON_COMMAND(IDM_BONE_SIZE_SMALL, OnBoneSizeSmall)
+	ON_COMMAND(IDM_BONE_SIZE_MEDIUM, OnBoneSizeMedium)
+	ON_COMMAND(IDM_BONE_SIZE_LARGE, OnBoneSizeLarge)
+	ON_COMMAND(IDM_BONE_SIZE_HUGE, OnBoneSizeHuge)
+	ON_UPDATE_COMMAND_UI(IDM_BONE_SIZE_TINY, OnUpdateBoneSizeTiny)
+	ON_UPDATE_COMMAND_UI(IDM_BONE_SIZE_SMALL, OnUpdateBoneSizeSmall)
+	ON_UPDATE_COMMAND_UI(IDM_BONE_SIZE_MEDIUM, OnUpdateBoneSizeMedium)
+	ON_UPDATE_COMMAND_UI(IDM_BONE_SIZE_LARGE, OnUpdateBoneSizeLarge)
+	ON_UPDATE_COMMAND_UI(IDM_BONE_SIZE_HUGE, OnUpdateBoneSizeHuge)
+	// TheSuperHackers @feature Tria 18/04/2026 W3D Shader filter toggles.
+	ON_COMMAND(IDM_SHADER_ADDITIVE, OnShaderAdditive)
+	ON_UPDATE_COMMAND_UI(IDM_SHADER_ADDITIVE, OnUpdateShaderAdditive)
+	ON_COMMAND(IDM_SHADER_ALPHA_TEST, OnShaderAlphaTest)
+	ON_UPDATE_COMMAND_UI(IDM_SHADER_ALPHA_TEST, OnUpdateShaderAlphaTest)
+	ON_COMMAND(IDM_SHADER_ALPHA_BLEND, OnShaderAlphaBlend)
+	ON_UPDATE_COMMAND_UI(IDM_SHADER_ALPHA_BLEND, OnUpdateShaderAlphaBlend)
+	ON_COMMAND(IDM_SHADER_ALPHA_BLEND_TEST, OnShaderAlphaBlendTest)
+	ON_UPDATE_COMMAND_UI(IDM_SHADER_ALPHA_BLEND_TEST, OnUpdateShaderAlphaBlendTest)
+	ON_COMMAND(IDM_SHADER_DOUBLE_SIDED, OnShaderDoubleSided)
+	ON_UPDATE_COMMAND_UI(IDM_SHADER_DOUBLE_SIDED, OnUpdateShaderDoubleSided)
+	ON_COMMAND(IDM_SHADER_BACKFACE_TINT, OnShaderBackfaceTint)
+	ON_UPDATE_COMMAND_UI(IDM_SHADER_BACKFACE_TINT, OnUpdateShaderBackfaceTint)
+	ON_COMMAND(IDM_SHADER_BACKFACE_TINT_COLOR, OnShaderBackfaceTintColor)
+	ON_COMMAND(IDM_GROUND_SHOW, OnGroundShow)
+	ON_UPDATE_COMMAND_UI(IDM_GROUND_SHOW, OnUpdateGroundShow)
+	ON_COMMAND(IDM_GROUND_HEIGHT, OnGroundHeight)
+	ON_UPDATE_COMMAND_UI(IDM_GROUND_HEIGHT, OnUpdateGroundHeight)
+	ON_COMMAND(IDM_GROUND_RESET, OnGroundReset)
+	ON_UPDATE_COMMAND_UI(IDM_GROUND_RESET, OnUpdateGroundReset)
+	ON_COMMAND(IDM_SHOW_SUBOBJ_NAMES, OnShowSubObjNames)
+	ON_UPDATE_COMMAND_UI(IDM_SHOW_SUBOBJ_NAMES, OnUpdateShowSubObjNames)
+	ON_COMMAND(IDM_SHOW_BONE_NAMES, OnShowBoneNames)
+	ON_UPDATE_COMMAND_UI(IDM_SHOW_BONE_NAMES, OnUpdateShowBoneNames)
+	ON_COMMAND(IDM_SHOW_BONES_AND_SUBOBJECTS, OnShowBonesAndSubObjects)
+	ON_UPDATE_COMMAND_UI(IDM_SHOW_BONES_AND_SUBOBJECTS, OnUpdateShowBonesAndSubObjects)
+	// TheSuperHackers @feature Tria 18/04/2026 Batch drag-drop through async loader with status bar.
+	ON_WM_DROPFILES()
+	// TheSuperHackers @feature W3DView native dark mode (Light/Dark/Auto).
+	ON_COMMAND(IDM_LOCK_TOOLBARS, OnLockToolbars)
+	ON_UPDATE_COMMAND_UI(IDM_LOCK_TOOLBARS, OnUpdateLockToolbars)
+	ON_COMMAND(IDM_THEME_LIGHT, OnThemeLight)
+	ON_COMMAND(IDM_THEME_DARK,  OnThemeDark)
+	ON_COMMAND(IDM_THEME_AUTO,  OnThemeAuto)
+	ON_UPDATE_COMMAND_UI(IDM_THEME_LIGHT, OnUpdateThemeLight)
+	ON_UPDATE_COMMAND_UI(IDM_THEME_DARK,  OnUpdateThemeDark)
+	ON_UPDATE_COMMAND_UI(IDM_THEME_AUTO,  OnUpdateThemeAuto)
+	ON_MESSAGE(WM_SETTINGCHANGE, OnSettingChangeRaw)
+	ON_MESSAGE(WM_W3DVIEW_THEME_CHANGED, OnW3DViewThemeChanged)
+	// TheSuperHackers @feature W3D Material Viewer window.
+	ON_COMMAND(IDM_MATERIAL_VIEWER, OnMaterialViewer)
+	ON_EN_CHANGE(IDC_TREE_FILTER, OnTreeFilterChanged)
+	// TheSuperHackers @feature F5 refreshes the viewport (re-displays the current asset).
+	ON_COMMAND(IDM_REFRESH_VIEWPORT, OnRefreshViewport)
+	ON_WM_COPYDATA()
+	ON_COMMAND(IDM_MCP_SERVER_ENABLED, OnMcpServerEnabled)
+	ON_UPDATE_COMMAND_UI(IDM_MCP_SERVER_ENABLED, OnUpdateMcpServerEnabled)
+	ON_COMMAND(IDM_MCP_SERVER_INFORMATION, OnMcpServerInformation)
+
 	//}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
@@ -329,8 +443,19 @@ typedef enum
 CMainFrame::CMainFrame ()
     : m_currentAssetType (TypeUnknown),
       m_bShowAnimationBar (TRUE),
-		m_bInitialized (FALSE)
+		m_bInitialized (FALSE),
+		m_pendingLoadIndex (0),
+		m_totalLoadCount (0),
+		m_lastPrefetchedIndex (-1),
+		m_polyPaneMode (0),
+		m_cachedPolys (0),
+		m_cachedVertices (0),
+		m_cachedTriangles (0),
+		m_toolbarImgLight (nullptr),
+		m_bToolbarsLocked (false)
 {
+	m_bToolbarsLocked =
+		::AfxGetApp()->GetProfileInt("Config", "LockToolbars", 0) != 0;
 }
 
 
@@ -364,10 +489,55 @@ CMainFrame::OnCreate (LPCREATESTRUCT lpCreateStruct)
 		return -1;
 	}
 
+	if (::AfxGetApp()->GetProfileInt("Config", "McpServerEnabled", 1) != 0) {
+		W3DViewMcpBridge::Attach(m_hWnd);
+	}
+
 	if (!m_wndToolBar.Create(this) ||
 		 !m_wndToolBar.LoadToolBar(IDR_MAINFRAME)) {
 		TRACE0("Failed to create toolbar\n");
 		return -1;      // fail to create
+	}
+
+	// TheSuperHackers @feature Build the dark-mode toolbar image list from the
+	// dark Toolbar.bmp (mirrors how LoadToolBar(IDR_MAINFRAME) builds the light
+	// list). We keep a non-owning pointer to the light list so we can swap back.
+	{
+		m_toolbarImgLight = m_wndToolBar.GetToolBarCtrl().GetImageList();
+
+		// 17 buttons * 16px wide, 15px tall, palette index 15 as the transparency
+		// mask color (matches the convention used by CToolBar::LoadToolBar).
+		// A 4-bit list would snap the strip's own palette colours to the VGA ones.
+		m_toolbarImgDark.Create (16, 15, ILC_COLOR24 | ILC_MASK, 17, 0);
+		HBITMAP hbm = ::LoadBitmap (::AfxGetResourceHandle (),
+			MAKEINTRESOURCE (IDR_MAINFRAME_DM));
+		if (hbm) {
+			::ImageList_AddMasked (m_toolbarImgDark.GetSafeHandle (), hbm,
+				RGB (192, 192, 192));   // standard MFC toolbar transparency color
+			::DeleteObject (hbm);
+		}
+
+		if (W3DDarkMode::IsDark () && m_toolbarImgDark.GetSafeHandle ()) {
+			m_wndToolBar.GetToolBarCtrl ().SetImageList (&m_toolbarImgDark);
+		}
+	}
+
+	// The filter box for the asset tree sits at the end of the toolbar, in a
+	// separator wide enough to hold it
+	{
+		CToolBarCtrl &bar = m_wndToolBar.GetToolBarCtrl ();
+		TBBUTTON slot = { 0 };
+		slot.iBitmap = TREE_FILTER_WIDTH;
+		slot.idCommand = IDC_TREE_FILTER;
+		slot.fsStyle = TBSTYLE_SEP;
+		bar.AddButtons (1, &slot);
+
+		CRect rect;
+		bar.GetItemRect (bar.GetButtonCount () - 1, &rect);
+		rect.DeflateRect (4, 1);
+		m_TreeFilterEdit.Create (WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, rect, &m_wndToolBar, IDC_TREE_FILTER);
+		m_TreeFilterEdit.SetFont (CFont::FromHandle ((HFONT)::GetStockObject (DEFAULT_GUI_FONT)));
+		m_TreeFilterEdit.SendMessage (EM_SETCUEBANNER, FALSE, (LPARAM)L"Filter assets");
 	}
 
 	if (!m_wndStatusBar.Create(this) ||
@@ -458,6 +628,22 @@ CMainFrame::Restore_Window_State ()
 	bool is_max	= (theApp.GetProfileInt ("Window", "Maximized", -1) == 1);
 
 	if (rect.left != -1 && rect.right != -1 && rect.top != -1 && rect.bottom != -1) {
+
+		// TheSuperHackers @bugfix Tria 18/04/2026 Validates restored window rectangle against
+		// virtual screen bounds to prevent off-screen or tiny window from corrupted registry data.
+		int screenLeft   = ::GetSystemMetrics (SM_XVIRTUALSCREEN);
+		int screenTop    = ::GetSystemMetrics (SM_YVIRTUALSCREEN);
+		int screenRight  = screenLeft + ::GetSystemMetrics (SM_CXVIRTUALSCREEN);
+		int screenBottom = screenTop + ::GetSystemMetrics (SM_CYVIRTUALSCREEN);
+
+		bool valid = (rect.Width () >= 200 && rect.Height () >= 150
+			&& rect.right > screenLeft && rect.left < screenRight
+			&& rect.bottom > screenTop && rect.top < screenBottom);
+
+		if (!valid) {
+			return;
+		}
+
 		if (is_max) {
 			::ShowWindow (m_hWnd, SW_MAXIMIZE);
 		} else {
@@ -580,6 +766,27 @@ CMainFrame::OnCreateClient
 				int sort=::AfxGetApp()->GetProfileInt("Config", "EnableSorting",1);
 				WW3D::Enable_Sorting(sort==1?true:false);
 
+				// TheSuperHackers @feature xezon 17/04/2026 Restore alpha transparency preview setting.
+				int alpha=::AfxGetApp()->GetProfileInt("Config", "ForceAlphaBlend",0);
+				ShaderClass::Force_Alpha_Blending(alpha==1?true:false);
+
+				// TheSuperHackers @feature Tria 17/04/2026 Restore MSAA setting.
+				int msaa=::AfxGetApp()->GetProfileInt("Config", "MSAA", D3DMULTISAMPLE_NONE);
+				if (msaa != D3DMULTISAMPLE_NONE) {
+					WW3D::Set_MSAA_Mode((WW3D::MultiSampleModeEnum)msaa);
+					DX8Wrapper::Reset_Device(true);
+				}
+
+				// TheSuperHackers @feature Tria 17/04/2026 Restore texture filtering setting.
+				// Applied after MSAA reset to ensure filter state is not lost.
+				int texfilter=::AfxGetApp()->GetProfileInt("Config", "TextureFilter", TextureFilterClass::TEXTURE_FILTER_BILINEAR);
+				WW3D::Set_Texture_Filter(texfilter);
+				int anisolevel=::AfxGetApp()->GetProfileInt("Config", "AnisotropicLevel", 0);
+				if (texfilter == TextureFilterClass::TEXTURE_FILTER_ANISOTROPIC && anisolevel > 0) {
+					TextureFilterClass::_Set_Max_Anisotropy((TextureFilterClass::AnisotropicFilterMode)anisolevel);
+				}
+				s_AnisotropicLevel = anisolevel;
+
 				// restore gamma settings
 				int setting=::AfxGetApp()->GetProfileInt("Config","EnableGamma",0);
 				if (setting) {
@@ -695,6 +902,53 @@ CMainFrame::WindowProc
 				}
 			}
 			break;
+		}
+	}
+
+	// Open frame scrubber popup when Frame pane clicked; cycle poly/vert/tri when Poly pane clicked.
+	if (message == WM_NOTIFY)
+	{
+		NMHDR *pNMHDR = (NMHDR *)lParam;
+		if (pNMHDR != nullptr && pNMHDR->hwndFrom == m_wndStatusBar.m_hWnd && pNMHDR->code == NM_CLICK)
+		{
+			NMMOUSE *pNMMouse = (NMMOUSE *)lParam;
+			CPoint pt (pNMMouse->pt);
+
+			CRect rcPoly;
+			m_wndStatusBar.GetItemRect (PANE_POLYS, &rcPoly);
+			if (rcPoly.PtInRect (pt))
+			{
+				m_polyPaneMode = (m_polyPaneMode + 1) % 3;
+				UpdatePolygonCount (m_cachedPolys, m_cachedVertices, m_cachedTriangles);
+			}
+			CRect rcPane;
+			m_wndStatusBar.GetItemRect (PANE_FRAMES, &rcPane);
+			if (rcPane.PtInRect (pt))
+			{
+				if (m_frameScrubberDlg.m_hWnd == nullptr)
+					m_frameScrubberDlg.Create (IDD_FRAME_SCRUBBER, this);
+
+				if (!m_frameScrubberDlg.IsWindowVisible ())
+				{
+					// Position near the status bar frame pane
+					CRect rcScreen;
+					m_wndStatusBar.GetWindowRect (&rcScreen);
+					m_frameScrubberDlg.SetWindowPos (nullptr, rcScreen.left + rcPane.left, rcScreen.top - 70, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_SHOWWINDOW);
+
+					// Initialize slider with current values
+					CW3DViewDoc *pDoc = (CW3DViewDoc *)GetActiveDocument ();
+					if (pDoc != nullptr && pDoc->GetCurrentAnimation () != nullptr)
+					{
+						int iTotalFrames = pDoc->GetCurrentAnimation ()->Get_Num_Frames ();
+						int iCurrentFrame = pDoc->GetCurrentFrame ();
+						m_frameScrubberDlg.UpdateSlider (iCurrentFrame, iTotalFrames);
+					}
+				}
+				else
+				{
+					m_frameScrubberDlg.ShowWindow (SW_HIDE);
+				}
+			}
 		}
 	}
 
@@ -1062,8 +1316,10 @@ CMainFrame::Update_Frame_Time (DWORD clocks)
 		//	Average the frame time
 		//
 		float frame_time = ((float) total_clocks) / ((float) frames);
+		DWORD elapsed_ms = ::GetTickCount () - last_update;
+		float fps = (elapsed_ms > 0) ? ((float) frames * 1000.0f / (float) elapsed_ms) : 0.0f;
 		CString text;
-		text.Format ("Clocks: %.2f", frame_time);
+		text.Format ("FPS: %.1f  Clocks: %.2f", fps, frame_time);
 
 		//
 		//	Update the UI
@@ -1098,10 +1354,24 @@ CMainFrame::Update_Frame_Time (DWORD clocks)
 void
 CMainFrame::UpdatePolygonCount (int iPolygons)
 {
-    CString stringPolyCount;
-    stringPolyCount.Format ("Polys %d", iPolygons);
+	UpdatePolygonCount (iPolygons, 0, iPolygons);
+}
 
-    m_wndStatusBar.SetPaneText (PANE_POLYS, stringPolyCount);
+void
+CMainFrame::UpdatePolygonCount (int iPolygons, int iVertices, int iTriangles)
+{
+	m_cachedPolys     = iPolygons;
+	m_cachedVertices  = iVertices;
+	m_cachedTriangles = iTriangles;
+
+	CString text;
+	switch (m_polyPaneMode)
+	{
+		case 1:  text.Format ("Verts %d",  m_cachedVertices);  break;
+		case 2:  text.Format ("Tris %d",   m_cachedTriangles); break;
+		default: text.Format ("Polys %d",  m_cachedPolys);     break;
+	}
+	m_wndStatusBar.SetPaneText (PANE_POLYS, text);
 }
 
 
@@ -1137,6 +1407,9 @@ CMainFrame::UpdateFrameCount
     frames.Format ("Frame %d/%d at %.2f fps", iCurrentFrame, iTotalFrames, frame_rate);
 
     m_wndStatusBar.SetPaneText (PANE_FRAMES, frames);
+
+    // TheSuperHackers @feature Tria 18/04/2026 Update frame scrubber dialog if open.
+    m_frameScrubberDlg.UpdateSlider (iCurrentFrame, iTotalFrames);
 }
 
 
@@ -1157,6 +1430,49 @@ CMainFrame::UpdateCameraDistance (float cameraDistance)
 
 ////////////////////////////////////////////////////////////////////////////
 //
+//  OnDropFiles
+//
+//  TheSuperHackers @feature Tria 18/04/2026 Batch drag-dropped files through
+//  the async loader with status bar progress instead of MFC's default
+//  per-file OnOpenDocument which rebuilds the tree after every file.
+//
+////////////////////////////////////////////////////////////////////////////
+void
+CMainFrame::OnDropFiles (HDROP hDropInfo)
+{
+	CW3DViewDoc *doc = (CW3DViewDoc *)GetActiveDocument ();
+	if (doc == nullptr) {
+		::DragFinish (hDropInfo);
+		return ;
+	}
+
+	UINT fileCount = ::DragQueryFile (hDropInfo, 0xFFFFFFFF, nullptr, 0);
+	if (fileCount == 0) {
+		::DragFinish (hDropInfo);
+		return ;
+	}
+
+	m_pendingLoadFiles.Delete_All ();
+	char szFilePath[MAX_PATH];
+	for (UINT i = 0; i < fileCount; i++) {
+		if (::DragQueryFile (hDropInfo, i, szFilePath, MAX_PATH)) {
+			m_pendingLoadFiles.Add (szFilePath);
+		}
+	}
+	::DragFinish (hDropInfo);
+
+	if (m_pendingLoadFiles.Count () > 0) {
+		m_pendingLoadIndex = 0;
+		m_lastPrefetchedIndex = -1;
+		m_totalLoadCount   = m_pendingLoadFiles.Count ();
+		SetCursor (::LoadCursor (nullptr, IDC_WAIT));
+		PostMessage (WM_USER_LOAD_NEXT_FILE);
+	}
+}
+
+
+////////////////////////////////////////////////////////////////////////////
+//
 //  OnFileOpen
 //
 ////////////////////////////////////////////////////////////////////////////
@@ -1168,46 +1484,553 @@ CMainFrame::OnFileOpen ()
 		return ;
 	}
 
-    CFileDialog openFileDialog (TRUE,
-                                ".w3d",
-                                nullptr,
-                                OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_ALLOWMULTISELECT | OFN_EXPLORER,
-                                "Westwood 3D Files (*.w3d)|*.w3d||",
-                                this);
+	// TheSuperHackers @bugfix Use a large dynamic buffer to support 100+ files without overflow.
+	// OFN_ALLOWMULTISELECT stores "dir\0file1\0file2\0...\0\0"; MAX_PATH*10 was far too small.
+	static const int FILEBUF_CHARS = MAX_PATH * 512;
+	CString fileBuffer;
+	LPTSTR pszBuf = fileBuffer.GetBuffer(FILEBUF_CHARS);
+	pszBuf[0] = 0;
 
-    TCHAR szFileNameList[MAX_PATH*10] = { 0 };
-    openFileDialog.m_ofn.lpstrFile			= szFileNameList;
-    openFileDialog.m_ofn.nMaxFile			= sizeof (szFileNameList);
-	 openFileDialog.m_ofn.lpstrInitialDir	= doc->Get_Last_Path ();
+	CFileDialog openFileDialog (TRUE,
+								".w3d",
+								nullptr,
+								OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_ALLOWMULTISELECT | OFN_EXPLORER,
+								"Westwood 3D Files (*.w3d)|*.w3d||",
+								this);
 
-    // Ask the user what files they want to load.
-    if (openFileDialog.DoModal () == IDOK)
-    {
-        // Show the wait cursor while we load assets
-        SetCursor (::LoadCursor (nullptr, IDC_WAIT));
+	openFileDialog.m_ofn.lpstrFile			= pszBuf;
+	openFileDialog.m_ofn.nMaxFile			= FILEBUF_CHARS;
+	openFileDialog.m_ofn.lpstrInitialDir	= doc->Get_Last_Path ();
 
-         // Loop through all the selected files
-         POSITION pPos = openFileDialog.GetStartPosition ();
-         while (pPos != nullptr)
-         {
-             // Ask the doc to load the assets from this file into memory
-             CString stringFileName = openFileDialog.GetNextPathName (pPos);
-             doc->LoadAssetsFromFile (stringFileName);
+	if (openFileDialog.DoModal () == IDOK) {
+		// Collect all selected paths into the pending queue
+		m_pendingLoadFiles.Delete_All ();
+		POSITION pPos = openFileDialog.GetStartPosition ();
+		while (pPos != nullptr) {
+			m_pendingLoadFiles.Add (openFileDialog.GetNextPathName (pPos));
+		}
+		fileBuffer.ReleaseBuffer ();
 
-             // Add this filename to the MRU
-             ::AfxGetApp ()->AddToRecentFileList (stringFileName);
-         }
+		// TheSuperHackers @feature Kick off async loading: one file processed per message-pump cycle
+		if (m_pendingLoadFiles.Count () > 0) {
+			m_pendingLoadIndex = 0;
+			m_lastPrefetchedIndex = -1;
+			m_totalLoadCount   = m_pendingLoadFiles.Count ();
+			SetCursor (::LoadCursor (nullptr, IDC_WAIT));
+			PostMessage (WM_USER_LOAD_NEXT_FILE);
+		}
+	} else {
+		fileBuffer.ReleaseBuffer ();
+	}
 
-        CDataTreeView *pCDataTreeView = doc->GetDataTreeView ();
-        if (pCDataTreeView)
-        {
-            // Re-load the data list to include all new assets
-            pCDataTreeView->LoadAssetsIntoTree ();
-        }
+	return ;
+}
 
-        // Restore the arrow cursor
-        SetCursor (::LoadCursor (nullptr, IDC_ARROW));
-    }
+
+////////////////////////////////////////////////////////////////////////////
+//
+//  Enumerate_W3D_Files
+//
+// TheSuperHackers @feature Helper for Open Folder. Walks a directory and (if
+// recursive) its subdirectories, appending every *.w3d file to outFiles.
+// Skips folders flagged FILE_ATTRIBUTE_HIDDEN or FILE_ATTRIBUTE_SYSTEM so we
+// don't waste time walking $Recycle.Bin, System Volume Information, etc.
+//
+////////////////////////////////////////////////////////////////////////////
+static void Enumerate_W3D_Files (const CString &folder,
+                                 bool recursive,
+                                 DynamicVectorClass<CString> &outFiles)
+{
+	CString search = folder;
+	if (search.IsEmpty ()) return;
+	if (search[search.GetLength () - 1] != '\\') search += "\\";
+
+	// Phase 1: files in this directory matching *.w3d
+	{
+		CString pattern = search + "*.w3d";
+		WIN32_FIND_DATAA fd;
+		HANDLE h = ::FindFirstFileExA (pattern, FindExInfoBasic, &fd,
+		                              FindExSearchNameMatch, nullptr, 0);
+		if (h != INVALID_HANDLE_VALUE) {
+			do {
+				if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+					outFiles.Add (search + fd.cFileName);
+				}
+			} while (::FindNextFileA (h, &fd));
+			::FindClose (h);
+		}
+	}
+
+	if (!recursive) return;
+
+	// Phase 2: subdirectories
+	CString dirPattern = search + "*";
+	WIN32_FIND_DATAA fd;
+	HANDLE h = ::FindFirstFileExA (dirPattern, FindExInfoBasic, &fd,
+	                              FindExSearchLimitToDirectories, nullptr, 0);
+	if (h == INVALID_HANDLE_VALUE) return;
+	do {
+		if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
+		if (fd.dwFileAttributes & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM)) continue;
+		if (fd.cFileName[0] == '.' &&
+		    (fd.cFileName[1] == '\0' || (fd.cFileName[1] == '.' && fd.cFileName[2] == '\0'))) continue;
+		Enumerate_W3D_Files (search + fd.cFileName, true, outFiles);
+	} while (::FindNextFileA (h, &fd));
+	::FindClose (h);
+}
+
+
+////////////////////////////////////////////////////////////////////////////
+//
+//  OnFileOpenFolder
+//
+// TheSuperHackers @feature Modern folder-picker (IFileDialog) with an
+// "Include subfolders" checkbox. Enumerates .w3d files under the chosen
+// folder and feeds them into the existing async batch-load pipeline.
+//
+////////////////////////////////////////////////////////////////////////////
+void
+CMainFrame::OnFileOpenFolder (void)
+{
+	CW3DViewDoc *doc = (CW3DViewDoc *)GetActiveDocument ();
+	if (doc == nullptr) return;
+
+	HRESULT coHr = ::CoInitializeEx (nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+	bool coOwned = SUCCEEDED (coHr);
+
+	IFileDialog *pDlg = nullptr;
+	HRESULT hr = ::CoCreateInstance (CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER,
+	                                 IID_PPV_ARGS (&pDlg));
+	if (FAILED (hr) || pDlg == nullptr) {
+		if (coOwned) ::CoUninitialize ();
+		::AfxMessageBox ("Failed to open folder picker.", MB_ICONERROR | MB_OK);
+		return;
+	}
+
+	const DWORD kRecurseCheckId = 1001;
+	bool recursive = true; // recommended default - matches user's "ask each time" choice
+
+	{
+		DWORD opts = 0;
+		pDlg->GetOptions (&opts);
+		pDlg->SetOptions (opts | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST);
+		pDlg->SetTitle (L"Choose a folder to load all .w3d files from");
+
+		IFileDialogCustomize *pCust = nullptr;
+		if (SUCCEEDED (pDlg->QueryInterface (IID_PPV_ARGS (&pCust))) && pCust != nullptr) {
+			pCust->AddCheckButton (kRecurseCheckId, L"Include subfolders", TRUE);
+			pCust->Release ();
+		}
+
+		// Set initial folder from doc's last path if available
+		LPCTSTR lastPath = doc->Get_Last_Path ();
+		if (lastPath != nullptr && lastPath[0] != '\0') {
+			wchar_t wpath[MAX_PATH] = {0};
+			::MultiByteToWideChar (CP_ACP, 0, lastPath, -1, wpath, MAX_PATH);
+			IShellItem *pItem = nullptr;
+			if (SUCCEEDED (::SHCreateItemFromParsingName (wpath, nullptr, IID_PPV_ARGS (&pItem)))
+			    && pItem != nullptr) {
+				pDlg->SetFolder (pItem);
+				pItem->Release ();
+			}
+		}
+	}
+
+	hr = pDlg->Show (m_hWnd);
+	if (FAILED (hr)) {
+		pDlg->Release ();
+		if (coOwned) ::CoUninitialize ();
+		return; // user cancelled
+	}
+
+	// Pull the checkbox state.
+	{
+		IFileDialogCustomize *pCust = nullptr;
+		if (SUCCEEDED (pDlg->QueryInterface (IID_PPV_ARGS (&pCust))) && pCust != nullptr) {
+			BOOL checked = TRUE;
+			if (SUCCEEDED (pCust->GetCheckButtonState (kRecurseCheckId, &checked))) {
+				recursive = checked ? true : false;
+			}
+			pCust->Release ();
+		}
+	}
+
+	// Get chosen folder as ANSI path.
+	CString folderPath;
+	{
+		IShellItem *pItem = nullptr;
+		if (SUCCEEDED (pDlg->GetResult (&pItem)) && pItem != nullptr) {
+			PWSTR pszPath = nullptr;
+			if (SUCCEEDED (pItem->GetDisplayName (SIGDN_FILESYSPATH, &pszPath)) && pszPath != nullptr) {
+				char apath[MAX_PATH * 2] = {0};
+				::WideCharToMultiByte (CP_ACP, 0, pszPath, -1, apath, sizeof(apath), nullptr, nullptr);
+				folderPath = apath;
+				::CoTaskMemFree (pszPath);
+			}
+			pItem->Release ();
+		}
+	}
+
+	pDlg->Release ();
+	if (coOwned) ::CoUninitialize ();
+
+	if (folderPath.IsEmpty ()) return;
+
+	// Enumerate.
+	SetCursor (::LoadCursor (nullptr, IDC_WAIT));
+	DynamicVectorClass<CString> files;
+	Enumerate_W3D_Files (folderPath, recursive, files);
+	SetCursor (::LoadCursor (nullptr, IDC_ARROW));
+
+	if (files.Count () == 0) {
+		CString msg;
+		msg.Format ("No .w3d files found in:\n%s%s", (LPCTSTR)folderPath,
+		            recursive ? "\n(searched subfolders too)" : "");
+		::AfxMessageBox (msg, MB_ICONINFORMATION | MB_OK);
+		return;
+	}
+
+	// Feed the existing async pipeline.
+	m_pendingLoadFiles.Delete_All ();
+	for (int i = 0; i < files.Count (); ++i) {
+		m_pendingLoadFiles.Add (files[i]);
+	}
+	m_pendingLoadIndex = 0;
+	m_lastPrefetchedIndex = -1;
+	m_totalLoadCount   = m_pendingLoadFiles.Count ();
+	SetCursor (::LoadCursor (nullptr, IDC_WAIT));
+	PostMessage (WM_USER_LOAD_NEXT_FILE);
+}
+
+
+////////////////////////////////////////////////////////////////////////////
+//
+//  Prefetch_File
+//
+// TheSuperHackers @performance Read the file once on a worker thread purely
+// to warm the OS file-cache, so the subsequent LoadAssetsFromFile() on the
+// main thread hits warm pages instead of waiting on disk. The worker never
+// touches the (single-threaded) WW3D asset manager - it only reads bytes
+// into a throwaway buffer. The path is owned by std::string so we don't
+// share the non-thread-safe CString refcounted buffer across threads.
+//
+////////////////////////////////////////////////////////////////////////////
+static void Prefetch_File (const std::string &path)
+{
+	HANDLE h = ::CreateFileA (path.c_str (), GENERIC_READ,
+							  FILE_SHARE_READ | FILE_SHARE_WRITE,
+							  nullptr, OPEN_EXISTING,
+							  FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
+							  nullptr);
+	if (h == INVALID_HANDLE_VALUE) return;
+
+	char buf[64 * 1024];
+	DWORD bytesRead = 0;
+	while (::ReadFile (h, buf, sizeof(buf), &bytesRead, nullptr) && bytesRead > 0) {
+		// Just walk the file; the goal is to populate the cache, not to keep the data.
+	}
+	::CloseHandle (h);
+}
+
+
+////////////////////////////////////////////////////////////////////////////
+//
+//  OnLoadNextFile
+//
+////////////////////////////////////////////////////////////////////////////
+LRESULT
+CMainFrame::OnLoadNextFile (WPARAM /*wParam*/, LPARAM /*lParam*/)
+{
+	CW3DViewDoc *doc = (CW3DViewDoc *)GetActiveDocument ();
+	if (doc == nullptr || m_pendingLoadIndex >= m_pendingLoadFiles.Count ()) {
+		m_pendingLoadFiles.Delete_All ();
+		m_pendingLoadIndex = 0;
+		m_lastPrefetchedIndex = -1;
+		SetCursor (::LoadCursor (nullptr, IDC_ARROW));
+		return 0;
+	}
+
+	// TheSuperHackers @performance Process a batch of files per WM_USER_LOAD_NEXT_FILE
+	// instead of one. Single-file dispatch added a full MFC message-pump round-trip,
+	// status-bar redraw, and AddToRecentFileList call per file - several ms each, which
+	// adds up to many seconds across thousands of files. Batching amortizes that without
+	// freezing the UI: between batches the pump still runs, so cancel/redraw still work.
+	const int BATCH_SIZE = 16;
+	int batchStart = m_pendingLoadIndex;
+	int batchEnd   = m_pendingLoadIndex + BATCH_SIZE;
+	if (batchEnd > m_pendingLoadFiles.Count ()) batchEnd = m_pendingLoadFiles.Count ();
+
+	// Submit OS-cache prefetch jobs for files BEYOND the current batch only.
+	// TheSuperHackers @performance Tria 2026-05-19 The synchronous batch loop below
+	// reads each file in the current batch via the asset manager - prefetching them
+	// is a redundant native open per file (most painful on single-file/small-batch
+	// opens where prefetch == the entire load). We still warm the next batch's window
+	// so workers stay useful while the main thread parses.
+	{
+		const int PREFETCH_AHEAD = BATCH_SIZE;
+		int prefetchFrom = batchEnd;
+		if (prefetchFrom <= m_lastPrefetchedIndex) prefetchFrom = m_lastPrefetchedIndex + 1;
+		int upTo = batchEnd + PREFETCH_AHEAD;
+		if (upTo > m_pendingLoadFiles.Count ()) upTo = m_pendingLoadFiles.Count ();
+		for (int i = prefetchFrom; i < upTo; ++i) {
+			std::string p ((LPCTSTR)m_pendingLoadFiles[i]);
+			W3DViewJobs::Submit ([p]() { Prefetch_File (p); });
+			m_lastPrefetchedIndex = i;
+		}
+	}
+
+	// One status-bar update per batch (SetPaneText forces a redraw, so doing
+	// it 4000 times during a 4000-file load is itself a perceptible cost).
+	{
+		const CString &firstFile = m_pendingLoadFiles[batchStart];
+		CString statusText;
+		statusText.Format ("Loading %d / %d: %s", batchStart + 1, m_totalLoadCount,
+						   ::Get_Filename_From_Path (firstFile));
+		m_wndStatusBar.SetPaneText (0, statusText);
+	}
+
+	CString lastFileName;
+	for (int i = batchStart; i < batchEnd; ++i) {
+		const CString &fileName = m_pendingLoadFiles[i];
+		doc->LoadAssetsFromFile (fileName);
+		::AfxGetApp ()->AddToRecentFileList (fileName);
+		lastFileName = fileName;
+	}
+	m_pendingLoadIndex = batchEnd;
+
+	if (m_pendingLoadIndex < m_pendingLoadFiles.Count ()) {
+		// More files remain: post next message so the pump stays alive between batches
+		PostMessage (WM_USER_LOAD_NEXT_FILE);
+	} else {
+		// All files loaded: rebuild tree and clean up
+		CDataTreeView *pCDataTreeView = doc->GetDataTreeView ();
+		if (pCDataTreeView) {
+			pCDataTreeView->LoadAssetsIntoTree ();
+		}
+		// TheSuperHackers @feature Tria 18/04/2026 Set the document title to the last loaded file.
+		doc->SetTitle (::Get_Filename_From_Path (lastFileName));
+
+		m_pendingLoadFiles.Delete_All ();
+		m_pendingLoadIndex = 0;
+		m_lastPrefetchedIndex = -1;
+		m_wndStatusBar.SetPaneText (0, "");
+		SetCursor (::LoadCursor (nullptr, IDC_ARROW));
+
+		// Reload Assets: restore the previously displayed object, animation
+		// state and camera. No-op if this wasn't a reload (valid=false) or
+		// the previous asset no longer exists.
+		RestoreReloadState ();
+	}
+
+	return 0;
+}
+
+
+////////////////////////////////////////////////////////////////////////////
+//
+//  CaptureReloadState
+//
+//  Snapshot the user-visible state that OnNewDocument is about to destroy
+//  during Reload Assets: the displayed asset, current animation + frame +
+//  playback state, camera transform, and any sub-object/bone highlight.
+//  RestoreReloadState reapplies it after the last file finishes loading.
+//
+////////////////////////////////////////////////////////////////////////////
+void
+CMainFrame::CaptureReloadState (void)
+{
+	m_reloadRestore = ReloadRestoreState (); // reset to defaults
+
+	CW3DViewDoc *doc = (CW3DViewDoc *)GetActiveDocument ();
+	if (doc == nullptr) {
+		return;
+	}
+
+	RenderObjClass *prender_obj = doc->GetDisplayedObject ();
+	if (prender_obj == nullptr) {
+		return; // nothing displayed — nothing to restore
+	}
+
+	m_reloadRestore.displayedAssetName = prender_obj->Get_Name ();
+
+	HAnimClass *panim = doc->GetCurrentAnimation ();
+	if (panim != nullptr) {
+		m_reloadRestore.animationName = panim->Get_Name ();
+	}
+	m_reloadRestore.currentFrame = doc->GetCurrentFrameF ();
+
+	CGraphicView *pview = (CGraphicView *)m_wndSplitter.GetPane (0, 1);
+	if (pview != nullptr) {
+		m_reloadRestore.animState  = pview->GetAnimationState ();
+		m_reloadRestore.animSpeed  = pview->GetAnimationSpeed ();
+		CameraClass *pcamera = pview->GetCamera ();
+		if (pcamera != nullptr) {
+			m_reloadRestore.cameraTransform = pcamera->Get_Transform ();
+		}
+		m_reloadRestore.cameraDistance = pview->Get_Camera_Distance ();
+	}
+
+	m_reloadRestore.selectedSubItemName = doc->GetSelectedItemName ();
+	m_reloadRestore.selectedSubItemType = doc->GetSelectedItemType ();
+
+	m_reloadRestore.valid = true;
+	return;
+}
+
+
+////////////////////////////////////////////////////////////////////////////
+//
+//  Run_Posted_Commands
+//
+////////////////////////////////////////////////////////////////////////////
+void
+CMainFrame::Run_Posted_Commands (void)
+{
+	MSG message;
+	while (::PeekMessage (&message, m_hWnd, WM_COMMAND, WM_COMMAND, PM_REMOVE)) {
+		::DispatchMessage (&message);
+	}
+}
+
+
+////////////////////////////////////////////////////////////////////////////
+//
+//  RestoreReloadState
+//
+//  Called from OnLoadNextFile after the last file batch has loaded and the
+//  tree has been rebuilt by LoadAssetsIntoTree. Re-selects the previously
+//  displayed asset (which triggers the canonical Display_Asset path),
+//  rebinds the previous animation and frame, restores playback state and
+//  speed, and snaps the camera back to its previous viewpoint. Best-effort:
+//  silently skips anything that no longer exists after reload.
+//
+////////////////////////////////////////////////////////////////////////////
+void
+CMainFrame::RestoreReloadState (void)
+{
+	if (!m_reloadRestore.valid) {
+		return;
+	}
+	// Clear up-front so an early return / exception doesn't replay later.
+	m_reloadRestore.valid = false;
+
+	CW3DViewDoc *doc = (CW3DViewDoc *)GetActiveDocument ();
+	if (doc == nullptr) {
+		return;
+	}
+	CDataTreeView *ptree = doc->GetDataTreeView ();
+	if (ptree == nullptr) {
+		return;
+	}
+
+	HTREEITEM hitem = ptree->Find_Asset_Item_By_Name (m_reloadRestore.displayedAssetName);
+	if (hitem == nullptr) {
+		return; // asset is gone after reload — leave viewport empty
+	}
+
+	// Selecting the item fires CDataTreeView::OnSelChanged -> Display_Asset
+	// which calls doc->DisplayObject. This is the canonical "switch the
+	// viewport to render object X" path; reusing it keeps us out of the
+	// render-obj lifetime business.
+	ptree->GetTreeCtrl ().SelectItem (hitem);
+	ptree->GetTreeCtrl ().EnsureVisible (hitem);
+
+	// Restore animation if the named one still exists in the asset manager.
+	if (m_reloadRestore.animationName.Get_Length () > 0) {
+		HAnimClass *panim = WW3DAssetManager::Get_Instance ()->Get_HAnim (m_reloadRestore.animationName);
+		if (panim != nullptr) {
+			panim->Release_Ref (); // Get_HAnim adds a ref; PlayAnimation will add its own
+			RenderObjClass *pmodel = doc->GetDisplayedObject ();
+			if (pmodel != nullptr) {
+				doc->PlayAnimation (pmodel, m_reloadRestore.animationName);
+
+				// The posted start would otherwise arrive later and undo a paused or stopped state
+				Run_Posted_Commands ();
+			}
+		}
+	}
+
+	// Restore animation playback state and speed. SetAnimationState may snap
+	// the frame back to 0 (AnimStopped branch), so we do it BEFORE
+	// SetCurrentFrame.
+	CGraphicView *pview = (CGraphicView *)m_wndSplitter.GetPane (0, 1);
+	if (pview != nullptr) {
+		pview->SetAnimationSpeed (m_reloadRestore.animSpeed);
+		pview->SetAnimationState (m_reloadRestore.animState);
+	}
+	doc->SetCurrentFrame (m_reloadRestore.currentFrame);
+
+	// Restore camera last: Set_Camera_Distance overwrites the transform, so
+	// apply distance first, then the saved transform wins.
+	if (pview != nullptr) {
+		pview->Set_Camera_Distance (m_reloadRestore.cameraDistance);
+		CameraClass *pcamera = pview->GetCamera ();
+		if (pcamera != nullptr) {
+			pcamera->Set_Transform (m_reloadRestore.cameraTransform);
+		}
+	}
+
+	// Sub-object / bone highlight is cleared by DisplayObject; reapply it
+	// here so the highlight survives reload.
+	if (m_reloadRestore.selectedSubItemName.Get_Length () > 0) {
+		doc->SetSelectedItem (m_reloadRestore.selectedSubItemName,
+									 m_reloadRestore.selectedSubItemType);
+	}
+
+	return;
+}
+
+
+////////////////////////////////////////////////////////////////////////////
+//
+//  OnReloadAssets
+//
+////////////////////////////////////////////////////////////////////////////
+void
+CMainFrame::OnReloadAssets (void)
+{
+	CW3DViewDoc *doc = (CW3DViewDoc *)GetActiveDocument ();
+	if (doc == nullptr || doc->Get_Load_List_Count () == 0) {
+		return ;
+	}
+
+	// Snapshot what's currently displayed so RestoreReloadState can bring it
+	// back after OnNewDocument wipes everything below.
+	CaptureReloadState ();
+
+	// Copy current load list before OnNewDocument wipes it
+	m_pendingLoadFiles.Delete_All ();
+	for (int i = 0; i < doc->Get_Load_List_Count (); i++) {
+		m_pendingLoadFiles.Add (doc->Get_Load_List_Item (i));
+	}
+	m_pendingLoadIndex = 0;
+	m_lastPrefetchedIndex = -1;
+	m_totalLoadCount   = m_pendingLoadFiles.Count ();
+
+	// Reset scene, tree and asset manager (clears m_LoadList)
+	doc->OnNewDocument ();
+
+	// Apply current texture path priority order before reloading
+	doc->Refresh_File_Factory_Registrations ();
+
+	// Kick off async reload so the message pump stays alive between files
+	SetCursor (::LoadCursor (nullptr, IDC_WAIT));
+	PostMessage (WM_USER_LOAD_NEXT_FILE);
+
+	return ;
+}
+
+
+////////////////////////////////////////////////////////////////////////////
+//
+//  OnUpdateReloadAssets
+//
+////////////////////////////////////////////////////////////////////////////
+void
+CMainFrame::OnUpdateReloadAssets (CCmdUI *pCmdUI)
+{
+	CW3DViewDoc *doc = (CW3DViewDoc *)GetActiveDocument ();
+	pCmdUI->Enable (doc != nullptr && doc->Get_Load_List_Count () > 0);
 }
 
 
@@ -1724,8 +2547,9 @@ CMainFrame::OnBackgroundObject ()
 void
 CMainFrame::OnUpdateViewAnimationBar (CCmdUI* pCmdUI)
 {
+    // TheSuperHackers @bugfix Tria 19/04/2026 Fix logic so animation bar can be enabled when an animation is loaded.
     // Are we currently displaying an animation?
-    if ((m_currentAssetType != TypeAnimation) || (m_currentAssetType != TypeCompressedAnimation))
+    if ((m_currentAssetType != TypeAnimation) && (m_currentAssetType != TypeCompressedAnimation))
     {
         // Disable the option and clear the check
         pCmdUI->Enable (FALSE);
@@ -2471,6 +3295,36 @@ CMainFrame::OnUpdateCameraResetOnLoad (CCmdUI *pCmdUI)
 
 ////////////////////////////////////////////////////////////////////////////
 //
+//  OnCameraInvertY
+//
+////////////////////////////////////////////////////////////////////////////
+void
+CMainFrame::OnCameraInvertY (void)
+{
+	CGraphicView *pview = (CGraphicView *)m_wndSplitter.GetPane (0, 1);
+	if (pview != nullptr) {
+		pview->Set_Invert_Camera_Y (pview->Is_Invert_Camera_Y () == false);
+	}
+	return ;
+}
+
+
+////////////////////////////////////////////////////////////////////////////
+//
+//  OnUpdateCameraInvertY
+//
+////////////////////////////////////////////////////////////////////////////
+void
+CMainFrame::OnUpdateCameraInvertY (CCmdUI *pCmdUI)
+{
+	CGraphicView *pview = (CGraphicView *)m_wndSplitter.GetPane (0, 1);
+	pCmdUI->SetCheck ((pview != nullptr) && pview->Is_Invert_Camera_Y ());
+	return ;
+}
+
+
+////////////////////////////////////////////////////////////////////////////
+//
 //  OnObjectRotateYBack
 //
 ////////////////////////////////////////////////////////////////////////////
@@ -2597,6 +3451,8 @@ CMainFrame::OnLightRotateZBack ()
 void
 CMainFrame::OnDestroy ()
 {
+	W3DViewMcpBridge::Detach(m_hWnd);
+
 	CRect rect;
 	WINDOWPLACEMENT wnd_info = { sizeof (WINDOWPLACEMENT), 0 };
 	::GetWindowPlacement (m_hWnd, &wnd_info);
@@ -2865,6 +3721,73 @@ CMainFrame::OnCmdMsg
 
 ////////////////////////////////////////////////////////////////////////////
 //
+//  OnTreeFilterChanged
+//
+////////////////////////////////////////////////////////////////////////////
+void
+CMainFrame::OnTreeFilterChanged ()
+{
+	// The box exists before the panes do
+	if (!::IsWindow (m_wndSplitter.m_hWnd) || !::IsWindow (m_TreeFilterEdit.m_hWnd))
+	{
+		return;
+	}
+
+	CDataTreeView *tree = (CDataTreeView *)m_wndSplitter.GetPane (0, 0);
+	if (tree != nullptr)
+	{
+		CString text;
+		m_TreeFilterEdit.GetWindowText (text);
+		tree->Request_Filter (text);
+	}
+}
+
+
+////////////////////////////////////////////////////////////////////////////
+//
+//  PreTranslateMessage
+//
+////////////////////////////////////////////////////////////////////////////
+BOOL
+CMainFrame::PreTranslateMessage (MSG *pMsg)
+{
+	// Keys typed into the filter box are text. The accelerators would take the digits and arrows.
+	if (pMsg->message >= WM_KEYFIRST && pMsg->message <= WM_KEYLAST &&
+		 m_TreeFilterEdit.m_hWnd != nullptr && pMsg->hwnd == m_TreeFilterEdit.m_hWnd)
+	{
+		if (pMsg->message == WM_KEYDOWN && (pMsg->wParam == VK_RETURN || pMsg->wParam == VK_ESCAPE))
+		{
+			// Escape clears the filter; both hand the keyboard back to the tree
+			if (pMsg->wParam == VK_ESCAPE)
+			{
+				m_TreeFilterEdit.SetWindowText ("");
+			}
+			CWnd *tree = ::IsWindow (m_wndSplitter.m_hWnd) ? m_wndSplitter.GetPane (0, 0) : nullptr;
+			if (tree != nullptr)
+			{
+				tree->SetFocus ();
+			}
+			return TRUE;
+		}
+
+		::TranslateMessage (pMsg);
+		::DispatchMessage (pMsg);
+		return TRUE;
+	}
+
+	// 7 toggles the poly and vertex totals. Keys from other windows pass through here too.
+	if (::GetActiveWindow () == m_hWnd && ViewportStats::Is_Toggle_Key (pMsg))
+	{
+		ViewportStats::Toggle ();
+		return TRUE;
+	}
+
+	return CFrameWnd::PreTranslateMessage (pMsg);
+}
+
+
+////////////////////////////////////////////////////////////////////////////
+//
 //  OnCrashApp
 //
 ////////////////////////////////////////////////////////////////////////////
@@ -3081,28 +4004,40 @@ CMainFrame::OnMakeMovie ()
 //
 //  OnSaveScreenshot
 //
+// TheSuperHackers @bugfix Tria 19/04/2026 Use currently selected object name as the screenshot
+// filename and prompt for a save location with a folder dialog.
+//
 ////////////////////////////////////////////////////////////////////////////
 void
 CMainFrame::OnSaveScreenshot ()
 {
-	// Get the directory where this executable was run from
-	TCHAR filename[MAX_PATH];
-	::GetModuleFileName (nullptr, filename, sizeof (filename));
-
-	//
-	// Strip the filename from the path
-	//
-	LPTSTR ppath = ::strrchr (filename, '\\');
-	if (ppath != nullptr) {
-		ppath[0] = 0;
+	// Determine default filename from the currently displayed object
+	CString defaultName ("ScreenShot");
+	CW3DViewDoc *pdoc = GetCurrentDocument ();
+	if (pdoc != nullptr) {
+		RenderObjClass *prender_obj = pdoc->GetDisplayedObject ();
+		if (prender_obj != nullptr && prender_obj->Get_Name () != nullptr) {
+			defaultName = prender_obj->Get_Name ();
+		}
 	}
 
-	//
-	//	Tag the default filename base onto the end of the path
-	//
-	Delimit_Path (filename);
-	StringClass full_path = filename;
-	full_path += "ScreenShot";
+	// Prompt user for save location
+	CFileDialog dlg (FALSE, "tga", defaultName,
+		OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_EXPLORER,
+		"TGA Files (*.tga)|*.tga||", this);
+	dlg.m_ofn.lpstrTitle = "Screenshot...";
+
+	if (dlg.DoModal () != IDOK) {
+		return;
+	}
+
+	CString savePath = dlg.GetPathName ();
+
+	// Strip the extension — Make_Screen_Shot appends its own numbering and extension
+	int dotPos = savePath.ReverseFind ('.');
+	if (dotPos >= 0) {
+		savePath = savePath.Left (dotPos);
+	}
 
 	//
 	// Take the actual screen shot
@@ -3110,7 +4045,7 @@ CMainFrame::OnSaveScreenshot ()
 	bool cursor_shown = GetCurrentDocument ()->Is_Cursor_Shown ();
 	GetCurrentDocument ()->Show_Cursor (false);
 	Get_Graphic_View ()->RepaintView ();
-	WW3D::Make_Screen_Shot (full_path);
+	WW3D::Make_Screen_Shot ((LPCTSTR)savePath);
 	GetCurrentDocument ()->Show_Cursor (cursor_shown);
 }
 
@@ -3272,18 +4207,23 @@ CMainFrame::OnListMissingTextures ()
 	//
 	//	Get the list of missing textures and preset it to the user
 	//
-	DynamicVectorClass<CString> texture_list = _TheAssetMgr->Get_Missing_Texture_List ();
-	if (texture_list.Count () > 0) {
-		CString message ("Warning!  The following textures are missing:\r\n\r\n");
-
-		for (int index = 0; index < texture_list.Count (); index ++) {
-			message += texture_list[index];
+	// Walk all loaded textures and collect those that resolved to the missing-texture fallback.
+	// Done at button-press time so async loading has already completed.
+	CString message;
+	HashTemplateIterator<StringClass, TextureClass*> it(_TheAssetMgr->Texture_Hash());
+	for (; !it.Is_Done(); it.Next()) {
+		TextureClass* tex = it.Peek_Value();
+		if (tex != nullptr && tex->Is_Missing_Texture()) {
+			message += it.Peek_Key().str();
 			message += "\r\n";
 		}
+	}
 
-		::MessageBox (::AfxGetMainWnd ()->m_hWnd, message, "Missing Textures", MB_ICONEXCLAMATION | MB_OK);
+	if (!message.IsEmpty()) {
+		LogDialog dlg(IDD_MISSING_TEXTURES_LOG, message);
+		dlg.DoModal();
 	} else {
-		::MessageBox (::AfxGetMainWnd ()->m_hWnd, "No Missing Textures!", "Texture Info", MB_ICONEXCLAMATION | MB_OK);
+		::MessageBox (::AfxGetMainWnd ()->m_hWnd, "No Missing Textures!", "Texture Info", MB_ICONINFORMATION | MB_OK);
 	}
 }
 
@@ -3305,6 +4245,9 @@ CMainFrame::OnCopyAssets ()
 		CW3DViewDoc *doc = ::GetCurrentDocument ();
 		if (doc != nullptr) {
 			doc->Copy_Assets_To_Dir (path);
+			CString msg;
+			msg.Format ("Assets successfully copied to:\n%s", (LPCTSTR)path);
+			::AfxMessageBox (msg, MB_ICONINFORMATION);
 		}
 	}
 }
@@ -3536,7 +4479,7 @@ void
 CMainFrame::OnUpdatePrelitMultipass (CCmdUI *pCmdUI)
 {
 	bool enable = (WW3D::Get_Prelit_Mode () == WW3D::PRELIT_MODE_LIGHTMAP_MULTI_PASS);
-	pCmdUI->SetRadio (enable);
+	pCmdUI->SetCheck (enable);
 }
 
 
@@ -3574,7 +4517,7 @@ void
 CMainFrame::OnUpdatePrelitMultitex (CCmdUI *pCmdUI)
 {
 	bool enable = (WW3D::Get_Prelit_Mode () == WW3D::PRELIT_MODE_LIGHTMAP_MULTI_TEXTURE);
-	pCmdUI->SetRadio (enable);
+	pCmdUI->SetCheck (enable);
 }
 
 
@@ -3613,7 +4556,7 @@ void
 CMainFrame::OnUpdatePrelitVertex (CCmdUI *pCmdUI)
 {
 	bool enable = (WW3D::Get_Prelit_Mode () == WW3D::PRELIT_MODE_VERTEX);
-	pCmdUI->SetRadio (enable);
+	pCmdUI->SetCheck (enable);
 }
 
 
@@ -4006,6 +4949,98 @@ CMainFrame::OnUpdateToggleSorting(CCmdUI* pCmdUI)
 
 //////////////////////////////////////////////////////////////////////////
 //
+//  OnToggleAlpha
+//
+//////////////////////////////////////////////////////////////////////////
+void
+CMainFrame::OnToggleAlpha()
+{
+	// TheSuperHackers @feature xezon 17/04/2026 Toggle alpha blending to preview texture transparency.
+	bool alpha = !ShaderClass::Is_Alpha_Blending_Forced();
+	ShaderClass::Force_Alpha_Blending(alpha);
+	::AfxGetApp()->WriteProfileInt("Config", "ForceAlphaBlend", alpha ? 1 : 0);
+}
+
+//////////////////////////////////////////////////////////////////////////
+//
+//  OnUpdateToggleAlpha
+//
+//////////////////////////////////////////////////////////////////////////
+void
+CMainFrame::OnUpdateToggleAlpha(CCmdUI* pCmdUI)
+{
+	pCmdUI->SetCheck(ShaderClass::Is_Alpha_Blending_Forced() ? 1 : 0);
+}
+
+//////////////////////////////////////////////////////////////////////////
+//
+//  Texture Filtering handlers
+//
+// TheSuperHackers @feature Tria 17/04/2026 Add texture filtering options to View menu.
+//////////////////////////////////////////////////////////////////////////
+
+static void SetTextureFilter(int filter, int aniso = 0)
+{
+	WW3D::Set_Texture_Filter(filter);
+	if (filter == TextureFilterClass::TEXTURE_FILTER_ANISOTROPIC && aniso > 0) {
+		TextureFilterClass::_Set_Max_Anisotropy((TextureFilterClass::AnisotropicFilterMode)aniso);
+	}
+	s_AnisotropicLevel = aniso;
+	::AfxGetApp()->WriteProfileInt("Config", "TextureFilter", filter);
+	::AfxGetApp()->WriteProfileInt("Config", "AnisotropicLevel", aniso);
+}
+
+static bool IsTextureFilter(int filter, int aniso = 0)
+{
+	if (WW3D::Get_Texture_Filter() != filter) return false;
+	if (filter == TextureFilterClass::TEXTURE_FILTER_ANISOTROPIC && aniso > 0) {
+		return s_AnisotropicLevel == aniso;
+	}
+	return true;
+}
+
+void CMainFrame::OnFilterPoint()    { SetTextureFilter(TextureFilterClass::TEXTURE_FILTER_POINT); }
+void CMainFrame::OnFilterBilinear() { SetTextureFilter(TextureFilterClass::TEXTURE_FILTER_BILINEAR); }
+void CMainFrame::OnFilterTrilinear(){ SetTextureFilter(TextureFilterClass::TEXTURE_FILTER_TRILINEAR); }
+void CMainFrame::OnFilterAniso2x()  { SetTextureFilter(TextureFilterClass::TEXTURE_FILTER_ANISOTROPIC, 2); }
+void CMainFrame::OnFilterAniso4x()  { SetTextureFilter(TextureFilterClass::TEXTURE_FILTER_ANISOTROPIC, 4); }
+void CMainFrame::OnFilterAniso8x()  { SetTextureFilter(TextureFilterClass::TEXTURE_FILTER_ANISOTROPIC, 8); }
+void CMainFrame::OnFilterAniso16x() { SetTextureFilter(TextureFilterClass::TEXTURE_FILTER_ANISOTROPIC, 16); }
+
+void CMainFrame::OnUpdateFilterPoint(CCmdUI* pCmdUI)    { pCmdUI->SetCheck(IsTextureFilter(TextureFilterClass::TEXTURE_FILTER_POINT)); }
+void CMainFrame::OnUpdateFilterBilinear(CCmdUI* pCmdUI) { pCmdUI->SetCheck(IsTextureFilter(TextureFilterClass::TEXTURE_FILTER_BILINEAR)); }
+void CMainFrame::OnUpdateFilterTrilinear(CCmdUI* pCmdUI){ pCmdUI->SetCheck(IsTextureFilter(TextureFilterClass::TEXTURE_FILTER_TRILINEAR)); }
+void CMainFrame::OnUpdateFilterAniso2x(CCmdUI* pCmdUI)  { pCmdUI->SetCheck(IsTextureFilter(TextureFilterClass::TEXTURE_FILTER_ANISOTROPIC, 2)); }
+void CMainFrame::OnUpdateFilterAniso4x(CCmdUI* pCmdUI)  { pCmdUI->SetCheck(IsTextureFilter(TextureFilterClass::TEXTURE_FILTER_ANISOTROPIC, 4)); }
+void CMainFrame::OnUpdateFilterAniso8x(CCmdUI* pCmdUI)  { pCmdUI->SetCheck(IsTextureFilter(TextureFilterClass::TEXTURE_FILTER_ANISOTROPIC, 8)); }
+void CMainFrame::OnUpdateFilterAniso16x(CCmdUI* pCmdUI) { pCmdUI->SetCheck(IsTextureFilter(TextureFilterClass::TEXTURE_FILTER_ANISOTROPIC, 16)); }
+
+//////////////////////////////////////////////////////////////////////////
+//
+//  MSAA handlers
+//
+// TheSuperHackers @feature Tria 17/04/2026 Add MSAA options to View menu.
+//////////////////////////////////////////////////////////////////////////
+
+static void SetMSAA(D3DMULTISAMPLE_TYPE mode)
+{
+	WW3D::Set_MSAA_Mode((WW3D::MultiSampleModeEnum)mode);
+	DX8Wrapper::Reset_Device(true);
+	::AfxGetApp()->WriteProfileInt("Config", "MSAA", (int)mode);
+}
+
+void CMainFrame::OnMsaaNone() { SetMSAA(D3DMULTISAMPLE_NONE); }
+void CMainFrame::OnMsaa2x()   { SetMSAA(D3DMULTISAMPLE_2_SAMPLES); }
+void CMainFrame::OnMsaa4x()   { SetMSAA(D3DMULTISAMPLE_4_SAMPLES); }
+void CMainFrame::OnMsaa8x()   { SetMSAA(D3DMULTISAMPLE_8_SAMPLES); }
+
+void CMainFrame::OnUpdateMsaaNone(CCmdUI* pCmdUI) { pCmdUI->SetCheck(WW3D::Get_MSAA_Mode() == WW3D::MULTISAMPLE_MODE_NONE); }
+void CMainFrame::OnUpdateMsaa2x(CCmdUI* pCmdUI)   { pCmdUI->SetCheck(WW3D::Get_MSAA_Mode() == WW3D::MULTISAMPLE_MODE_2X); }
+void CMainFrame::OnUpdateMsaa4x(CCmdUI* pCmdUI)   { pCmdUI->SetCheck(WW3D::Get_MSAA_Mode() == WW3D::MULTISAMPLE_MODE_4X); }
+void CMainFrame::OnUpdateMsaa8x(CCmdUI* pCmdUI)   { pCmdUI->SetCheck(WW3D::Get_MSAA_Mode() == WW3D::MULTISAMPLE_MODE_8X); }
+
+//////////////////////////////////////////////////////////////////////////
+//
 //  OnCameraBonePosX
 //
 //////////////////////////////////////////////////////////////////////////
@@ -4243,3 +5278,408 @@ CMainFrame::OnEditAnimatedSoundsOptions ()
 	AnimatedSoundOptionsDialogClass dialog (this);
 	dialog.DoModal ();
 }
+
+
+//////////////////////////////////////////////////////////////////////////
+//
+// TheSuperHackers @feature Tria 18/04/2026 Bones submenu handlers for View menu.
+//
+//////////////////////////////////////////////////////////////////////////
+
+static const float s_BoneSizes[] = { 0.05f, 0.10f, 0.15f, 0.30f, 0.60f };
+
+void CMainFrame::OnShowBonePivots()
+{
+	CW3DViewDoc *doc = ::GetCurrentDocument();
+	if (doc != nullptr) {
+		doc->SetShowBonePivots(!doc->GetShowBonePivots());
+		::AfxGetApp()->WriteProfileInt("Config", "ShowBonePivots", doc->GetShowBonePivots() ? 1 : 0);
+	}
+}
+
+void CMainFrame::OnUpdateShowBonePivots(CCmdUI *pCmdUI)
+{
+	CW3DViewDoc *doc = ::GetCurrentDocument();
+	pCmdUI->SetCheck(doc != nullptr && doc->GetShowBonePivots());
+}
+
+static void SetBoneSize(int index)
+{
+	CW3DViewDoc *doc = ::GetCurrentDocument();
+	if (doc != nullptr) {
+		doc->SetBoneDiamondSize(s_BoneSizes[index]);
+		::AfxGetApp()->WriteProfileInt("Config", "BoneDiamondSize", index);
+	}
+}
+
+static void UpdateBoneSize(CCmdUI *pCmdUI, int index)
+{
+	CW3DViewDoc *doc = ::GetCurrentDocument();
+	float size = (doc != nullptr) ? doc->GetBoneDiamondSize() : 0.15f;
+	float diff = size - s_BoneSizes[index];
+	pCmdUI->SetCheck(diff > -0.001f && diff < 0.001f);
+}
+
+void CMainFrame::OnBoneSizeTiny()   { SetBoneSize(0); }
+void CMainFrame::OnBoneSizeSmall()  { SetBoneSize(1); }
+void CMainFrame::OnBoneSizeMedium() { SetBoneSize(2); }
+void CMainFrame::OnBoneSizeLarge()  { SetBoneSize(3); }
+void CMainFrame::OnBoneSizeHuge()   { SetBoneSize(4); }
+
+void CMainFrame::OnUpdateBoneSizeTiny(CCmdUI *pCmdUI)   { UpdateBoneSize(pCmdUI, 0); }
+void CMainFrame::OnUpdateBoneSizeSmall(CCmdUI *pCmdUI)  { UpdateBoneSize(pCmdUI, 1); }
+void CMainFrame::OnUpdateBoneSizeMedium(CCmdUI *pCmdUI) { UpdateBoneSize(pCmdUI, 2); }
+void CMainFrame::OnUpdateBoneSizeLarge(CCmdUI *pCmdUI)  { UpdateBoneSize(pCmdUI, 3); }
+void CMainFrame::OnUpdateBoneSizeHuge(CCmdUI *pCmdUI)   { UpdateBoneSize(pCmdUI, 4); }
+
+
+//////////////////////////////////////////////////////////////////////////
+//
+// TheSuperHackers @feature Tria 18/04/2026 W3D Shader filter toggles.
+//
+//////////////////////////////////////////////////////////////////////////
+
+void CMainFrame::OnShaderAdditive()
+{
+	ShaderClass::Set_Filter_Additive(!ShaderClass::Get_Filter_Additive());
+}
+
+void CMainFrame::OnUpdateShaderAdditive(CCmdUI *pCmdUI)
+{
+	pCmdUI->SetCheck(ShaderClass::Get_Filter_Additive() ? 1 : 0);
+}
+
+void CMainFrame::OnShaderAlphaTest()
+{
+	ShaderClass::Set_Filter_Alpha_Test(!ShaderClass::Get_Filter_Alpha_Test());
+}
+
+void CMainFrame::OnUpdateShaderAlphaTest(CCmdUI *pCmdUI)
+{
+	pCmdUI->SetCheck(ShaderClass::Get_Filter_Alpha_Test() ? 1 : 0);
+}
+
+void CMainFrame::OnShaderAlphaBlend()
+{
+	ShaderClass::Set_Filter_Alpha_Blend(!ShaderClass::Get_Filter_Alpha_Blend());
+}
+
+void CMainFrame::OnUpdateShaderAlphaBlend(CCmdUI *pCmdUI)
+{
+	pCmdUI->SetCheck(ShaderClass::Get_Filter_Alpha_Blend() ? 1 : 0);
+}
+
+void CMainFrame::OnShaderAlphaBlendTest()
+{
+	ShaderClass::Set_Filter_Alpha_Blend_Test(!ShaderClass::Get_Filter_Alpha_Blend_Test());
+}
+
+void CMainFrame::OnUpdateShaderAlphaBlendTest(CCmdUI *pCmdUI)
+{
+	pCmdUI->SetCheck(ShaderClass::Get_Filter_Alpha_Blend_Test() ? 1 : 0);
+}
+
+// TheSuperHackers @feature Tria 22/04/2026 Toggle double-sided rendering for previewing back faces.
+void CMainFrame::OnShaderDoubleSided()
+{
+	ShaderClass::Force_Double_Sided(!ShaderClass::Is_Double_Sided_Forced());
+}
+
+void CMainFrame::OnUpdateShaderDoubleSided(CCmdUI *pCmdUI)
+{
+	pCmdUI->SetCheck(ShaderClass::Is_Double_Sided_Forced() ? 1 : 0);
+}
+
+// TheSuperHackers @feature Tria Toggle rendering of the normally-culled back faces
+// as a flat tint. Driven by a second render pass in CGraphicView (the mesh renderer
+// defers draws past the scene pass, so the tint is applied at that outer render
+// level rather than inside SceneClass::Render).
+void CMainFrame::OnShaderBackfaceTint()
+{
+	CGraphicView::Set_Show_Backface_Tint(!CGraphicView::Is_Show_Backface_Tint());
+}
+
+void CMainFrame::OnUpdateShaderBackfaceTint(CCmdUI *pCmdUI)
+{
+	pCmdUI->SetCheck(CGraphicView::Is_Show_Backface_Tint() ? 1 : 0);
+}
+
+// TheSuperHackers @feature Tria Pick the back-face tint colour. Uses the Qt colour
+// picker when the material viewer's Qt panel is built (matching the rest of that UI),
+// falling back to the MFC colour dialog otherwise. (0..1 float Vector3 <-> 0..255 COLORREF.)
+void CMainFrame::OnShaderBackfaceTintColor()
+{
+	COLORREF initial = CGraphicView::Tint_Color_To_ColorRef(CGraphicView::Get_Backface_Tint_Color());
+
+	COLORREF chosen = initial;
+	bool ok;
+#ifdef W3DVIEW_HAS_QT
+	ok = W3dMaterialViewer::PickColor(initial, chosen);
+#else
+	CColorDialog dlg(initial, CC_FULLOPEN, this);
+	ok = (dlg.DoModal() == IDOK);
+	if (ok) chosen = dlg.GetColor();
+#endif
+	if (ok) {
+		CGraphicView::Set_Backface_Tint_Color(CGraphicView::ColorRef_To_Tint_Color(chosen));
+	}
+}
+
+// TheSuperHackers @feature Tria Ground menu: checkered ground plane with a blob
+// shadow under the displayed object (same drawing the Material Viewer preview
+// uses). Height... opens a live slider dialog; Reset re-snaps the plane to the
+// object's bounding-box bottom.
+void CMainFrame::OnGroundShow()
+{
+	CGraphicView *view = ::Get_Graphic_View();
+	if (view != nullptr) {
+		view->Set_Show_Ground(!view->Is_Show_Ground());
+	}
+}
+
+void CMainFrame::OnUpdateGroundShow(CCmdUI *pCmdUI)
+{
+	CGraphicView *view = ::Get_Graphic_View();
+	pCmdUI->Enable(view != nullptr);
+	pCmdUI->SetCheck((view != nullptr && view->Is_Show_Ground()) ? 1 : 0);
+}
+
+void CMainFrame::OnGroundHeight()
+{
+	CGroundHeightDialog dialog(this);
+	dialog.DoModal();
+}
+
+void CMainFrame::OnUpdateGroundHeight(CCmdUI *pCmdUI)
+{
+	CGraphicView *view = ::Get_Graphic_View();
+	pCmdUI->Enable(view != nullptr && view->Is_Show_Ground());
+}
+
+void CMainFrame::OnGroundReset()
+{
+	CGraphicView *view = ::Get_Graphic_View();
+	if (view != nullptr) {
+		view->Reset_Ground_To_Object();
+	}
+}
+
+void CMainFrame::OnUpdateGroundReset(CCmdUI *pCmdUI)
+{
+	CGraphicView *view = ::Get_Graphic_View();
+	pCmdUI->Enable(view != nullptr && view->Is_Show_Ground());
+}
+
+void CMainFrame::OnShowSubObjNames()
+{
+	CW3DViewDoc *pdoc = (CW3DViewDoc *)GetActiveDocument();
+	if (pdoc != nullptr) {
+		pdoc->SetShowSubObjNames(!pdoc->GetShowSubObjNames());
+		::AfxGetApp()->WriteProfileInt("Config", "ShowSubObjNames", pdoc->GetShowSubObjNames() ? 1 : 0);
+	}
+}
+
+void CMainFrame::OnUpdateShowSubObjNames(CCmdUI *pCmdUI)
+{
+	CW3DViewDoc *pdoc = (CW3DViewDoc *)GetActiveDocument();
+	pCmdUI->SetCheck(pdoc != nullptr && pdoc->GetShowSubObjNames() ? 1 : 0);
+}
+
+void CMainFrame::OnShowBoneNames()
+{
+	CW3DViewDoc *pdoc = (CW3DViewDoc *)GetActiveDocument();
+	if (pdoc != nullptr) {
+		pdoc->SetShowBoneNames(!pdoc->GetShowBoneNames());
+		::AfxGetApp()->WriteProfileInt("Config", "ShowBoneNames", pdoc->GetShowBoneNames() ? 1 : 0);
+	}
+}
+
+void CMainFrame::OnUpdateShowBoneNames(CCmdUI *pCmdUI)
+{
+	CW3DViewDoc *pdoc = (CW3DViewDoc *)GetActiveDocument();
+	pCmdUI->SetCheck(pdoc != nullptr && pdoc->GetShowBoneNames() ? 1 : 0);
+}
+
+void CMainFrame::OnShowBonesAndSubObjects()
+{
+	CW3DViewDoc *pdoc = (CW3DViewDoc *)GetActiveDocument();
+	if (pdoc != nullptr) {
+		bool newState = !pdoc->GetShowBones();
+		pdoc->SetShowBones(newState);
+		::AfxGetApp()->WriteProfileInt("Config", "ShowBones", newState ? 1 : 0);
+	}
+}
+
+void CMainFrame::OnUpdateShowBonesAndSubObjects(CCmdUI *pCmdUI)
+{
+	CW3DViewDoc *pdoc = (CW3DViewDoc *)GetActiveDocument();
+	pCmdUI->SetCheck(pdoc != nullptr && pdoc->GetShowBones() ? 1 : 0);
+}
+
+// TheSuperHackers @feature W3DView native dark mode (Light/Dark/Auto).
+static void SetTheme(HWND hwnd, W3DDarkMode::Mode mode)
+{
+	W3DDarkMode::SetMode(mode, hwnd);
+	::AfxGetApp()->WriteProfileInt("Config", "Theme", static_cast<int>(mode));
+
+	// The material viewer is an owned popup; the descendant broadcast misses it.
+	CMaterialViewerFrame::NotifyThemeChanged();
+
+	// Snap the viewport background to the new theme's default (28 dark / 127 light)
+	// when the user hasn't customized it. SetMode has already flipped IsDark().
+	CFrameWnd *pFrame = static_cast<CFrameWnd *> (::AfxGetMainWnd ());
+	if (pFrame)
+	{
+		CW3DViewDoc *pDoc = static_cast<CW3DViewDoc *> (pFrame->GetActiveDocument ());
+		if (pDoc)
+			pDoc->ApplyThemeBackgroundIfDefault ();
+	}
+}
+
+void CMainFrame::OnThemeLight() { SetTheme(m_hWnd, W3DDarkMode::Mode::Light); }
+void CMainFrame::OnThemeDark()  { SetTheme(m_hWnd, W3DDarkMode::Mode::Dark);  }
+void CMainFrame::OnThemeAuto()  { SetTheme(m_hWnd, W3DDarkMode::Mode::Auto);  }
+
+void CMainFrame::OnUpdateThemeLight(CCmdUI* pCmdUI)
+{
+	pCmdUI->SetCheck(W3DDarkMode::GetMode() == W3DDarkMode::Mode::Light ? 1 : 0);
+	if (!W3DDarkMode::IsSupported())
+		pCmdUI->Enable(FALSE);
+}
+void CMainFrame::OnUpdateThemeDark(CCmdUI* pCmdUI)
+{
+	pCmdUI->SetCheck(W3DDarkMode::GetMode() == W3DDarkMode::Mode::Dark ? 1 : 0);
+	if (!W3DDarkMode::IsSupported())
+		pCmdUI->Enable(FALSE);
+}
+void CMainFrame::OnUpdateThemeAuto(CCmdUI* pCmdUI)
+{
+	pCmdUI->SetCheck(W3DDarkMode::GetMode() == W3DDarkMode::Mode::Auto ? 1 : 0);
+	if (!W3DDarkMode::IsSupported())
+		pCmdUI->Enable(FALSE);
+}
+
+LRESULT CMainFrame::OnSettingChangeRaw(WPARAM wParam, LPARAM lParam)
+{
+	// lParam carries a wide-string section name from the OS regardless of app build.
+	W3DDarkMode::HandleSettingChange(m_hWnd, lParam);
+	CMaterialViewerFrame::NotifyThemeChanged();
+	return Default();
+}
+
+// TheSuperHackers @feature W3D Material Viewer window. Context-aware (Ctrl+M):
+// a mesh selected in the asset tree opens pre-selected to that mesh; anything
+// else opens the whole currently displayed object.
+void CMainFrame::OnMaterialViewer()
+{
+	CDataTreeView *pCDataTreeView = (CDataTreeView *)m_wndSplitter.GetPane (0, 0);
+	if (pCDataTreeView != nullptr) {
+		pCDataTreeView->OpenSelectionInMaterialViewer ();
+	} else {
+		CMaterialViewerFrame::ShowViewer ();
+	}
+}
+
+BOOL CMainFrame::OnCopyData(CWnd *pWnd, COPYDATASTRUCT *pCopyDataStruct)
+{
+	if (W3DViewMcpBridge::IsEnabled(m_hWnd) && W3DViewMcpBridge::IsRequest(pCopyDataStruct)) {
+		return W3DViewMcpBridge::HandleRequest(pCopyDataStruct);
+	}
+	return CFrameWnd::OnCopyData(pWnd, pCopyDataStruct);
+}
+
+void CMainFrame::OnMcpServerEnabled()
+{
+	if (W3DViewMcpBridge::IsEnabled(m_hWnd)) {
+		W3DViewMcpBridge::Detach(m_hWnd);
+	} else {
+		W3DViewMcpBridge::Attach(m_hWnd);
+	}
+	::AfxGetApp()->WriteProfileInt("Config", "McpServerEnabled", W3DViewMcpBridge::IsEnabled(m_hWnd) ? 1 : 0);
+}
+
+void CMainFrame::OnUpdateMcpServerEnabled(CCmdUI *pCmdUI)
+{
+	pCmdUI->SetCheck(W3DViewMcpBridge::IsEnabled(m_hWnd) ? 1 : 0);
+}
+
+void CMainFrame::OnMcpServerInformation()
+{
+	CString information;
+	information.Format(
+		"Status: %s\n"
+		"Native bridge version: %lu\n"
+		"Process ID: %lu\n"
+		"Discovery marker: GeneralsW3DViewMcp\n"
+		"Transport: local WM_COPYDATA\n"
+		"Request directory: %%TEMP%%\\w3dview-mcp\n\n"
+		"The external Python MCP host (python -m tools.w3dview_mcp) runs as a "
+		"separate process and connects to this native W3DView endpoint.",
+		W3DViewMcpBridge::IsEnabled(m_hWnd) ? "Enabled" : "Disabled",
+		static_cast<unsigned long>(W3DViewMcpBridge::BRIDGE_VERSION),
+		static_cast<unsigned long>(::GetCurrentProcessId()));
+	MessageBox(information, "W3DView MCP Server", MB_OK | MB_ICONINFORMATION);
+}
+
+// TheSuperHackers @feature F5: viewport refresh. Re-runs the exact path a
+// window resize takes (CGraphicView::OnSize -> WW3D::Set_Device_Resolution ->
+// full D3D8 device reset with all resources released and recreated) at the
+// current size — the same effect maximizing the window has on the viewport.
+void CMainFrame::OnRefreshViewport()
+{
+	CW3DViewDoc *doc = (CW3DViewDoc *)GetActiveDocument();
+	CGraphicView *view = (doc != nullptr) ? doc->GetGraphicView() : nullptr;
+	if (view != nullptr && ::IsWindow(view->m_hWnd)) {
+		CRect rect;
+		view->GetClientRect(&rect);
+		view->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));
+	}
+}
+
+// TheSuperHackers @feature View > Lock Toolbars. Short-circuits FloatControlBar so
+// neither user drag nor double-click can tear a docked bar off its dock site.
+// Also reapplies dark theming to the freshly created CMiniDockFrameWnd, since MFC
+// destroys and recreates the mini-frame on every float — themes don't survive that.
+void CMainFrame::FloatControlBar(CControlBar* pBar, CPoint point, DWORD dwStyle)
+{
+	if (m_bToolbarsLocked && pBar && (pBar->GetBarStyle() & CBRS_FLOATING) == 0)
+		return;
+	CFrameWnd::FloatControlBar(pBar, point, dwStyle);
+	if (W3DDarkMode::IsDark())
+		W3DDarkMode::ApplyToOwnedPopups(m_hWnd);
+}
+
+void CMainFrame::DockControlBar(CControlBar* pBar, CDockBar* pDockBar, LPCRECT lpRect)
+{
+	CFrameWnd::DockControlBar(pBar, pDockBar, lpRect);
+	if (W3DDarkMode::IsDark())
+	{
+		// Repaint the dock bar that received the docked control.
+		W3DDarkMode::AutoThemeChildren(m_hWnd);
+		::RedrawWindow(m_hWnd, nullptr, nullptr,
+			RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
+	}
+}
+
+void CMainFrame::OnLockToolbars()
+{
+	m_bToolbarsLocked = !m_bToolbarsLocked;
+	::AfxGetApp()->WriteProfileInt("Config", "LockToolbars", m_bToolbarsLocked ? 1 : 0);
+}
+
+void CMainFrame::OnUpdateLockToolbars(CCmdUI* pCmdUI)
+{
+	pCmdUI->SetCheck(m_bToolbarsLocked ? 1 : 0);
+}
+
+LRESULT CMainFrame::OnW3DViewThemeChanged(WPARAM wDark, LPARAM /*lParam*/)
+{
+	CImageList* active = wDark ? &m_toolbarImgDark : m_toolbarImgLight;
+	if (active && active->GetSafeHandle ()) {
+		m_wndToolBar.GetToolBarCtrl ().SetImageList (active);
+	}
+	m_wndToolBar.Invalidate ();
+	return 0;
+}
+
+

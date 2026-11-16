@@ -49,6 +49,8 @@ typedef enum
 	TypeEmitter,
 	TypeCompressedAnimation,
 	TypePrimitives,
-	TypeSound
+	TypeSound,
+	// TheSuperHackers @feature Tria 18/04/2026 Add bone asset type for Bones tree category.
+	TypeBone
 
 } ASSET_TYPE;

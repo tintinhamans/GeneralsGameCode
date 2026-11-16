@@ -11,6 +11,6 @@ Randomize rerolls the settings. One Undo restores the previous map.
 WorldBuilder can be driven by an AI assistant through a Model Context Protocol (MCP) server. The
 server runs as `python -m tools.worldbuilder_mcp` from the repository root and talks to a running
 editor. It can open maps, place and edit objects, paint terrain, and edit teams, waypoints and
-scripts. The MCP menu turns the editor's side on or off. Setup is in the [MCP
-readme](https://github.com/triatomic/contraZH/blob/main/tools/worldbuilder_mcp/README.md).
+scripts. The MCP menu turns the editor's side on or off. Setup, the tool list and the limits are on
+the [MCP Server](WorldBuilder-Qt-MCP.md) page.
 

@@ -68,6 +68,7 @@ void CAnimReportPage::DoDataExchange(CDataExchange* pDX)
 
 BEGIN_MESSAGE_MAP(CAnimReportPage, CPropertyPage)
 	//{{AFX_MSG_MAP(CAnimReportPage)
+	ON_BN_CLICKED(IDC_COPY_ANIM_REPORT, OnCopy)
 	//}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
@@ -199,6 +200,52 @@ void CAnimReportPage::MakeChannelStr (int bone_idx, HAnimClass *hanim, char chan
 		strcat(channels, "Q");
 	if (hanim->Has_Visibility(bone_idx))
 		strcat(channels, "V");
+}
+
+void CAnimReportPage::OnCopy()
+{
+	const int col_count = m_AnimReport.GetHeaderCtrl()->GetItemCount();
+	const int row_count = m_AnimReport.GetItemCount();
+
+	CString text;
+	TCHAR buf[256];
+
+	for (int c = 0; c < col_count; c++)
+	{
+		LVCOLUMN col;
+		ZeroMemory(&col, sizeof(col));
+		col.mask = LVCF_TEXT;
+		col.pszText = buf;
+		col.cchTextMax = sizeof(buf) / sizeof(buf[0]);
+		buf[0] = 0;
+		m_AnimReport.GetColumn(c, &col);
+		if (c > 0) text += _T("\t");
+		text += buf;
+	}
+	text += _T("\r\n");
+
+	for (int r = 0; r < row_count; r++)
+	{
+		for (int c = 0; c < col_count; c++)
+		{
+			if (c > 0) text += _T("\t");
+			text += m_AnimReport.GetItemText(r, c);
+		}
+		text += _T("\r\n");
+	}
+
+	if (!OpenClipboard())
+		return;
+	EmptyClipboard();
+	const int len = (text.GetLength() + 1) * sizeof(TCHAR);
+	HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, len);
+	if (hMem)
+	{
+		memcpy(GlobalLock(hMem), (LPCTSTR)text, len);
+		GlobalUnlock(hMem);
+		SetClipboardData(CF_TEXT, hMem);
+	}
+	CloseClipboard();
 }
 
 BOOL CAnimReportPage::OnSetActive()

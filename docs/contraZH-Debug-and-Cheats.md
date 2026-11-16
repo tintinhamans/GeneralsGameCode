@@ -25,7 +25,8 @@ The default executable is `C:\Games\contra\contraprerelease\generalszh_c.exe`.
 ## Debug panel
 
 `Ctrl + Shift + Tab` shows or hides the debug panel near the upper-right corner during a match
-or replay. The Shaders and Unit spawner tabs switch between rendering controls and unit placement.
+or replay. The Shaders, Unit spawner and Cheats tabs switch between rendering controls, unit
+placement and gameplay cheats.
 The X hides the panel; the rest of the screen remains usable and the game keeps running.
 Drag the title bar to move the panel. Spawner controls highlight selected entries without changing
 their appearance on hover.
@@ -68,6 +69,43 @@ copy until right-click or Escape ends placement and returns to the panel. Spawn 
 Spawning works in single-player campaign and skirmish matches. Replays and multiplayer games
 can browse the list but cannot place objects. Spawns use the existing chat-command spawn path,
 so the engine creates the object during its logic update and completes its build callbacks.
+
+### Cheats
+
+The tab runs the effects of the chat commands ([upstream fields](ChatCommands.md),
+[contraZH fields](contraZH-ChatCommands.md)) directly, with no `ChatCommands.ini` and no chat window. Each cheat acts on the local player or on the selected
+objects, and confirms with an on-screen message.
+
+Set the value beside a cheat, then click its Run box.
+
+| Cheat | Value | Effect |
+|---|---|---|
+| Give selection to | Enemies, Neutral, Allies or Self | Hands the selected objects to the first player with that relationship. |
+| Control player | A player from the list | Switches control, shroud, radar and control bar to that player. |
+| Add money | Credits, default 10000 | Adds credits. A negative number removes them. |
+| Add rank | Ranks, default 1 | Grants ranks, capped at the highest rank. |
+| Add veterancy to selection | Levels, default 1 | Promotes the selected units. A negative number demotes them. |
+| Add salvage tier to selection | Tiers, default 1 | Raises the crate upgrade tier of selected salvagers, between 0 and 2. A negative number lowers it. |
+| Add health to selection | Health, default 100000 | Raises maximum and current health. A negative number deals that much damage. |
+| Production speed multiplier | Multiplier, default 5 | Sets the local player's build speed. 1 restores the normal speed. |
+
+The cheats without a value run when clicked:
+
+* `Ready special powers` - (Makes every special power of the local player available now.)
+* `Ignore prerequisites` - (Toggles building without unit and building prerequisites. Sciences
+still apply. Green while on.)
+* `Infinite power` - (Toggles infinite power. Green while on.)
+* `Grant all upgrades` - (Completes every player upgrade.)
+* `Kill selection` - (Kills the selected objects.)
+* `Decrew selection` - (Kills the crew of the selected vehicles, as `KillSelectedPilots` does.)
+* `Subdue selection` - (Disables the selected objects as an EMP does.)
+
+Notes:
+* Cheats work in single-player campaign and skirmish matches. Replays show the tab with the
+cheats disabled.
+* Typed values hold up to nine characters. A zero or empty value is refused, and rank and
+production speed need a positive number.
+* Clicking the panel keeps the current selection, so select the objects before opening the tab.
 
 ## Debug name overlays
 
@@ -169,8 +207,8 @@ line per vertex and pixel shader pair with its draw and primitive counts, busies
 means the fixed function pipeline. Extra light batches show their `extralights` shader filenames.
 Refreshes twice a second. Takes the key from `CHEAT_RUNSCRIPT1` in
 CommandMapDemo.ini. `CHEAT_SHOW_SHADER_DRAWS` in CommandMap.ini)
-* `Shift + Ctrl + Tab` - (Opens or hides the shader debug panel. Click an option to toggle its
-rendering effect live. `CHEAT_TOGGLE_SHADER_PANEL` in CommandMap.ini)
+* `Shift + Ctrl + Tab` - (Opens or hides the [debug panel](#debug-panel) with its Shaders, Unit
+spawner and Cheats tabs. `CHEAT_TOGGLE_SHADER_PANEL` in CommandMap.ini)
 * `Alt + V` - (Copies the template (INI) name of the selected objects to the clipboard, one per
 line with duplicates folded, and confirms with a message. `CHEAT_COPY_OBJECT_NAME` in CommandMap.ini)
 

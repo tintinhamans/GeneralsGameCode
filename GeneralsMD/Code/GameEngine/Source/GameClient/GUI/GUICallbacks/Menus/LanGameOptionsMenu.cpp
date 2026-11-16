@@ -53,6 +53,7 @@
 #include "GameClient/ChallengeGenerals.h"
 #include "GameNetwork/GameSpy/LobbyUtils.h"
 
+#include "GameNetwork/FileTransfer.h"
 #include "GameNetwork/FirewallHelper.h"
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/IPEnumeration.h"
@@ -387,6 +388,14 @@ void StartPressed()
 		}
 		if( slot->isHuman() && slot->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER )
 			playerCount++;
+	}
+
+	UnicodeString transferProblem;
+	if (TheLAN->AmIHost() && !CanTransferMap(myGame, &transferProblem))
+	{
+		GadgetListBoxAddEntryText(listboxChatWindowLanGame, TheGameText->fetch("GUI:CouldNotTransferMap"), chatSystemColor, -1, 0);
+		GadgetListBoxAddEntryText(listboxChatWindowLanGame, transferProblem, chatSystemColor, -1, 0);
+		return;
 	}
 
 	if(isReady)

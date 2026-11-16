@@ -56,6 +56,17 @@ void WBQtTeams_MoveDownTeam(void);
 void WBQtTeams_ExportTeams(void);
 void WBQtTeams_ImportTeams(void);
 
+// Undo history over the working copy. The dialog brackets each action with Begin and End;
+// End drops the step when the action changed nothing.
+void WBQtTeams_BeginEdit(void);
+void WBQtTeams_EndEdit(void);
+int  WBQtTeams_Undo(void);		// 1 when a step was undone
+int  WBQtTeams_Redo(void);
+int  WBQtTeamsData_CanUndo(void);
+int  WBQtTeamsData_CanRedo(void);
+// Commit the teams to the map and save the map file; the dialog stays open.
+void WBQtTeams_SaveNow(void);
+
 // Replace every team member unit type that no longer names a real template with its closest
 // existing template, across every team of every player, and fill the shared replace report
 // (WBQT_REPLACE_SOURCE_TEAMS) so the guesses can be reviewed. Returns the number of distinct

@@ -19,7 +19,7 @@
      <item>
       <widget class="QPushButton" name="membersButton">
        <property name="text">
-        <string>Select Team Members From The Map...</string>
+        <string>&amp;Select Team Members</string>
        </property>
        <property name="autoDefault">
         <bool>false</bool>
@@ -29,7 +29,20 @@
      <item>
       <widget class="QPushButton" name="newButton">
        <property name="text">
-        <string>Add New Team</string>
+        <string>&amp;New Team</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="editButton">
+       <property name="text">
+        <string>&amp;Edit</string>
+       </property>
+       <property name="toolTip">
+        <string>Edit the selected team (Alt+E, or double-click it).</string>
        </property>
        <property name="autoDefault">
         <bool>false</bool>
@@ -39,7 +52,7 @@
      <item>
       <widget class="QPushButton" name="copyButton">
        <property name="text">
-        <string>Copy Team</string>
+        <string>&amp;Copy</string>
        </property>
        <property name="autoDefault">
         <bool>false</bool>
@@ -49,7 +62,7 @@
      <item>
       <widget class="QPushButton" name="deleteButton">
        <property name="text">
-        <string>Delete Team</string>
+        <string>&amp;Delete</string>
        </property>
        <property name="autoDefault">
         <bool>false</bool>
@@ -59,7 +72,7 @@
      <item>
       <widget class="QPushButton" name="moveUpButton">
        <property name="text">
-        <string>Move Team Up</string>
+        <string>Move &amp;Up</string>
        </property>
        <property name="autoDefault">
         <bool>false</bool>
@@ -69,7 +82,7 @@
      <item>
       <widget class="QPushButton" name="moveDownButton">
        <property name="text">
-        <string>Move Team Down</string>
+        <string>Move Do&amp;wn</string>
        </property>
        <property name="autoDefault">
         <bool>false</bool>
@@ -79,10 +92,49 @@
      <item>
       <widget class="QPushButton" name="fixMissingButton">
        <property name="text">
-        <string>Fix Missing Units</string>
+        <string>&amp;Fix Missing Units</string>
        </property>
        <property name="toolTip">
         <string>Replace every team member unit type that no longer exists with its closest name match.</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="undoButton">
+       <property name="text">
+        <string>Undo</string>
+       </property>
+       <property name="toolTip">
+        <string>Undo the last team edit (Ctrl+Z).</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="redoButton">
+       <property name="text">
+        <string>Redo</string>
+       </property>
+       <property name="toolTip">
+        <string>Redo the last undone team edit (Ctrl+Y).</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="saveNowButton">
+       <property name="text">
+        <string>Save Now</string>
+       </property>
+       <property name="toolTip">
+        <string>Commit the teams and save the map, keeping this window open (Ctrl+S).</string>
        </property>
        <property name="autoDefault">
         <bool>false</bool>
@@ -159,7 +211,7 @@
        <item>
         <widget class="QPushButton" name="exportButton">
          <property name="text">
-          <string>Export Teams</string>
+          <string>E&amp;xport Teams</string>
          </property>
          <property name="autoDefault">
           <bool>false</bool>
@@ -169,7 +221,7 @@
        <item>
         <widget class="QPushButton" name="importButton">
          <property name="text">
-          <string>Import Teams</string>
+          <string>&amp;Import Teams</string>
          </property>
          <property name="autoDefault">
           <bool>false</bool>

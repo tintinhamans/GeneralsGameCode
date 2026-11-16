@@ -138,6 +138,8 @@ Bool Transport::init( UnsignedInt ip, UnsignedShort port )
 		return false;
 	}
 
+	m_udpsock->SetInputBuffer(UDP_RECEIVE_BUFFER_SIZE);
+
 	// ------- Clear buffers --------
 	int i=0;
 	for (; i<MAX_MESSAGES; ++i)

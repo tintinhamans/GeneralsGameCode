@@ -744,9 +744,11 @@ UpdateSleepTime DumbProjectileBehavior::update()
 
 	if( m_currentFlightPathStep >= m_flightPath.size() || m_flightPath.size() == 1)
 	{
-		// No more steps to use. Would go out of bounds on vector, so have to do something.
-		// We could allow physics to take over and make us fall, but the point of this whole task
-		// is to guarantee where the shell explodes.  This way, it _will_ explode at the target point.
+		if (m_flightPath.size() == 1)
+		{
+			getObject()->setPosition(&m_flightPathEnd);
+		}
+
 		detonate();
 		return UPDATE_SLEEP_NONE;
 	}

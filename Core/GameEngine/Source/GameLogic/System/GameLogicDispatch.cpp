@@ -1691,6 +1691,7 @@ bool GameLogic::onDoStop(MAYBE_UNUSED GameMessage *msg, AIGroupPtr &currentlySel
 {
 	if (currentlySelectedGroup)
 	{
+		currentlySelectedGroup->releaseWeaponLockForGroup(LOCKED_TEMPORARILY);	// release any temporary locks.
 		currentlySelectedGroup->groupIdle(CMD_FROM_PLAYER);
 	}
 
@@ -2692,6 +2693,14 @@ bool GameLogic::onCreateSelectedGroup(MAYBE_UNUSED GameMessage *msg)
 		if (!obj) {
 			continue;
 		}
+
+#if RTS_ZEROHOUR
+		const BodyModuleInterface *body = obj->getBodyModule();
+		if (body && body->isJammed())
+		{
+			continue;
+		}
+#endif
 
 		selectObject(obj, createNewGroup && firstObject, msgPlayer->getPlayerMask());
 		firstObject = FALSE;

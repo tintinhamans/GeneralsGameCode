@@ -683,6 +683,8 @@ void GameInfo::setMap( AsciiString mapName )
 				fp->close();
 				fp = nullptr;
 			}
+
+			m_mapMask = RemoveUntransferableMapContents(m_mapName, m_mapMask);
 		}
 		else
 		{

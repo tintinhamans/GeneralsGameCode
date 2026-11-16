@@ -34,7 +34,9 @@
 #include "Common/PlayerList.h"
 #include "Common/ResourceGatheringManager.h"
 #include "Common/Xfer.h"
+#include "GameLogic/GameLogic.h"
 #include "GameLogic/Module/SupplyCenterCreate.h"
+#include "GameLogic/Object.h"
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -53,6 +55,14 @@ SupplyCenterCreate::~SupplyCenterCreate()
 //-------------------------------------------------------------------------------------------------
 void SupplyCenterCreate::onCreate()
 {
+	if (TheGameLogic == nullptr || ThePlayerList == nullptr ||
+		TheGameLogic->isLoadingMap() || TheGameLogic->isLoadingSave() ||
+		getObject()->testStatus(OBJECT_STATUS_UNDER_CONSTRUCTION))
+	{
+		return;
+	}
+
+	onBuildComplete();
 }
 
 //-------------------------------------------------------------------------------------------------

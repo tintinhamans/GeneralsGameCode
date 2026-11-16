@@ -490,7 +490,8 @@ public:
 							Real recoilAmount,
 							Real recoilAngle,
 							const Coord3D* victimPos,
-							Real damageRadius
+							Real damageRadius,
+							Bool emitFireParticles = TRUE
 							);
 	Bool handleWeaponPreAttackFX(
 		WeaponSlotType wslot,

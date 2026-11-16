@@ -48,6 +48,11 @@ void DebugRenderLog(const char *format, ...)
 	printf("\n");
 }
 
+int DebugLogEnabled()
+{
+	return 1;
+}
+
 #endif
 
 #ifdef DEBUG_CRASHING

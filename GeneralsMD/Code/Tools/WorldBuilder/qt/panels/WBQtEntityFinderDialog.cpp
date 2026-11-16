@@ -5,6 +5,7 @@
 // persisted in the same ShrinkHotkeyList profile value).
 #include "WBQtEntityFinderDialog.h"
 #include "ui_WBQtEntityFinderDialog.h"
+#include "WBQtWindowPos.h"
 #include "WBQtComboStyle.h"
 #include "WBQtEntityFinderBridge.h"
 
@@ -274,7 +275,11 @@ WBQtEntityFinderDialog::WBQtEntityFinderDialog(void *frameHwnd)
 	int leftPos = WBQtEntityFinderData_GetProfileInt("Left", -1);
 	if (top != -1 && leftPos != -1)
 	{
-		move(leftPos, top);
+		WBQtWindowPos_MoveOnScreen(this, leftPos, top);
+	}
+	else
+	{
+		WBQtWindowPos_CenterOnMain(this);
 	}
 }
 

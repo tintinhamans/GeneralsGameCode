@@ -132,8 +132,13 @@ const FieldParse CommandButton::s_commandButtonFieldParseTable[] =
 	{ "SecondCursorName",			INI::parseAsciiString,			 nullptr, offsetof( CommandButton, m_secondCursorName ) },
 	{ "InvalidCursorName",		INI::parseAsciiString,       nullptr, offsetof( CommandButton, m_invalidCursorName ) },
 	{ "ButtonBorderType",			INI::parseLookupList,				 CommandButtonMappedBorderTypeNames, offsetof( CommandButton, m_commandButtonBorder ) },
+#if defined(RTS_ZEROHOUR)
+	{ "RadiusCursorType",			InGameUI::parseRadiusCursorType,				 nullptr, offsetof( CommandButton, m_radiusCursor ) },
+	{ "AnchorRadiusCursorType",	InGameUI::parseRadiusCursorType,				 nullptr, offsetof( CommandButton, m_anchorRadiusCursor ) },
+#else
 	{ "RadiusCursorType",			INI::parseIndexList,				 TheRadiusCursorNames, offsetof( CommandButton, m_radiusCursor ) },
 	{ "AnchorRadiusCursorType",	INI::parseIndexList,				 TheRadiusCursorNames, offsetof( CommandButton, m_anchorRadiusCursor ) },
+#endif
 	{ "AnchorRadius",					INI::parseReal,							 nullptr, offsetof( CommandButton, m_anchorRadius ) },
 	{ "TargetDecalRadius",		INI::parseReal,							 nullptr, offsetof( CommandButton, m_targetDecalRadius ) },
 	{ "AnchorDecalRadius",		INI::parseReal,							 nullptr, offsetof( CommandButton, m_anchorDecalRadius ) },

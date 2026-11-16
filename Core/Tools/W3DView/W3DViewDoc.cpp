@@ -23,6 +23,7 @@
 
 #include "W3DView.h"
 #include "W3DViewDoc.h"
+#include "W3DDarkMode.h"
 #include "WWLib/ffactory.h"
 #include "Globals.h"
 #include "ViewerAssetMgr.h"
@@ -108,17 +109,40 @@ CW3DViewDoc::CW3DViewDoc ()
 		m_bAutoCameraReset (true),
 		m_bOneTimeReset (true),
 		m_pCursor (nullptr),
-      m_backgroundColor (0.5F, 0.5F, 0.5F),
+      // TheSuperHackers @feature Default viewport bg follows the active theme:
+      // 28/255 in dark, 127/255 in light. (W3DDarkMode::Init runs in InitInstance
+      // before any document is created, so IsDark() is valid here.)
+      m_backgroundColor (W3DDarkMode::IsDark () ? W3DVIEW_BG_DARK_F : W3DVIEW_BG_LIGHT_F,
+                         W3DDarkMode::IsDark () ? W3DVIEW_BG_DARK_F : W3DVIEW_BG_LIGHT_F,
+                         W3DDarkMode::IsDark () ? W3DVIEW_BG_DARK_F : W3DVIEW_BG_LIGHT_F),
 		m_ManualFOV (false),
 		m_ManualClipPlanes (false),
 		m_IsInitialized (false),
 		m_bFogEnabled(false),
 		m_nChannelQnBytes(2),
-		m_bCompress_channel_Q(false)
+		m_bCompress_channel_Q(false),
+		m_bShowBones(false),
+		m_bShowBonePivots(true),
+		m_fBoneDiamondSize(0.15f),
+		m_bShowSubObjNames(false),
+		m_bShowBoneNames(false),
+		m_selectedItemType(TypeUnknown)
 {
 	// Read the camera animation settings from the registry
 	m_bAnimateCamera = ((BOOL)theApp.GetProfileInt ("Config", "AnimateCamera", 0)) == TRUE;
 	m_bAutoCameraReset = ((BOOL)theApp.GetProfileInt ("Config", "ResetCamera", 1)) == TRUE;
+
+	// TheSuperHackers @feature Tria 18/04/2026 Load bone display settings from registry.
+	m_bShowBones = theApp.GetProfileInt ("Config", "ShowBones", 0) != 0;
+	m_bShowBonePivots = theApp.GetProfileInt ("Config", "ShowBonePivots", 1) != 0;
+	m_bShowSubObjNames = theApp.GetProfileInt ("Config", "ShowSubObjNames", 0) != 0;
+	m_bShowBoneNames = theApp.GetProfileInt ("Config", "ShowBoneNames", 0) != 0;
+	int boneSizeIndex = theApp.GetProfileInt ("Config", "BoneDiamondSize", 2);
+	static const float s_BoneSizes[] = { 0.05f, 0.10f, 0.15f, 0.30f, 0.60f };
+	if (boneSizeIndex >= 0 && boneSizeIndex <= 4)
+	{
+		m_fBoneDiamondSize = s_BoneSizes[boneSizeIndex];
+	}
 }
 
 ///////////////////////////////////////////////////////////////
@@ -213,7 +237,6 @@ CW3DViewDoc::OnNewDocument ()
 	if (!CDocument::OnNewDocument())
 		return FALSE;
 
-	_TheAssetMgr->Start_Tracking_Textures ();
 	m_LoadList.Delete_All ();
 
 	 m_bOneTimeReset = true;
@@ -240,11 +263,24 @@ CW3DViewDoc::OnNewDocument ()
     CDataTreeView *pCDataTreeView = GetDataTreeView ();
     if (pCDataTreeView)
     {
+        // TheSuperHackers @performance Tria 25/04/2026 Suspend redraw while deleting the
+        // tree. With thousands of items, per-item TVN_DELETEITEM handling combined with
+        // MFC repaint invalidation causes the UI to hang for seconds.
+        pCDataTreeView->GetTreeCtrl ().SetRedraw (FALSE);
+
+        // TheSuperHackers @performance Tria 25/04/2026 Bulk-release all asset data and
+        // texture refs before the per-item delete storm. This turns OnDeleteItem into a
+        // no-op for the DeleteAllItems() call that follows.
+        pCDataTreeView->Free_All_Asset_Data ();
+
         // Delete everything from the tree
         pCDataTreeView->GetTreeCtrl ().DeleteAllItems ();
 
         // Recreate the root nodes
         pCDataTreeView->CreateRootNodes ();
+
+        pCDataTreeView->GetTreeCtrl ().SetRedraw (TRUE);
+        pCDataTreeView->GetTreeCtrl ().Invalidate ();
     }
 
     // Remove everything from the scene and the asset manager
@@ -392,10 +428,32 @@ CW3DViewDoc::InitScene ()
 		//
 		// Read the texture paths from the registry
 		//
-		CString path1 = theApp.GetProfileString ("Config", "TexturePath1", "");
-		CString path2 = theApp.GetProfileString ("Config", "TexturePath2", "");
-		Set_Texture_Path1 (path1);
-		Set_Texture_Path2 (path2);
+		int pathCount = theApp.GetProfileInt ("Config", "TexturePathCount", 0);
+
+		// For backward compatibility, check for old TexturePath1 and TexturePath2 entries
+		if (pathCount == 0) {
+			CString path1 = theApp.GetProfileString ("Config", "TexturePath1", "");
+			CString path2 = theApp.GetProfileString ("Config", "TexturePath2", "");
+			if (!path1.IsEmpty()) {
+				Add_Texture_Path (path1);
+			}
+			if (!path2.IsEmpty()) {
+				Add_Texture_Path (path2);
+			}
+		} else {
+			// Load new format in order: TexturePath0, 1, 2 matches UI display order
+			for (int i = 0; i < pathCount; i++) {
+				CString keyName;
+				keyName.Format("TexturePath%d", i);
+				CString path = theApp.GetProfileString ("Config", keyName, "");
+				if (!path.IsEmpty()) {
+					Add_Texture_Path (path);
+				}
+			}
+		}
+
+		// Register all loaded paths with the file factory in the correct priority order
+		Refresh_File_Factory_Registrations ();
 
 		// Construct a dazzle layer object
 		m_pDazzleLayer  = new DazzleLayerClass();
@@ -493,7 +551,17 @@ CW3DViewDoc::LoadAssetsFromFile (LPCTSTR lpszPathName)
 		CString stringTemp = lpszPathName;
 		stringTemp = stringTemp.Left ((long)::strrchr (lpszPathName, '\\') - (long)lpszPathName);
 		::SetCurrentDirectory (stringTemp);
-		_TheSimpleFileFactory->Append_Sub_Directory(stringTemp);
+		// TheSuperHackers @performance Tria 18/04/2026 Only rebuild search paths when the directory
+		// changes, avoids clearing the path cache on every file during batch loading.
+		if (stringTemp.CompareNoCase(m_LastFactoryDir) != 0) {
+			// TheSuperHackers @bugfix Reset factory to configured paths first so the file's own
+			// directory is appended cleanly each load instead of accumulating duplicates over time.
+			// TheSuperHackers @feature Tria 22/04/2026 Prepend the w3d file's directory so its local
+			// textures take priority over all configured texture paths.
+			Refresh_File_Factory_Registrations ();
+			_TheSimpleFileFactory->Prepend_Sub_Directory(stringTemp);
+			m_LastFactoryDir = stringTemp;
+		}
 	}
 
 	LPCTSTR extension = ::strrchr (lpszPathName, '.');
@@ -506,7 +574,29 @@ CW3DViewDoc::LoadAssetsFromFile (LPCTSTR lpszPathName)
 		}
 
 	} else {
-		WW3DAssetManager::Get_Instance()->Load_3D_Assets (::Get_Filename_From_Path (lpszPathName));
+		// TheSuperHackers @performance Tria 2026-05-19 Track the source-file mapping
+		// by remembering the prototype count *before* the load and only walking the
+		// new tail afterwards. The previous implementation built an O(N) name-snapshot
+		// before every load and then walked all N+k names after, making a batch open
+		// of N files O(N^2) on the iterator and string-hash code. With the index-based
+		// accessor we do exactly O(new prototypes) work per file.
+		ViewerAssetMgrClass *viewerMgr = static_cast<ViewerAssetMgrClass *>(WW3DAssetManager::Get_Instance ());
+		int countBefore = viewerMgr->Get_Prototype_Count ();
+
+		WW3DAssetManager::Get_Instance ()->Load_3D_Assets (::Get_Filename_From_Path (lpszPathName));
+
+		int countAfter = viewerMgr->Get_Prototype_Count ();
+		if (countAfter > countBefore) {
+			StringClass sourceFile (::Get_Filename_From_Path (lpszPathName));
+			for (int i = countBefore; i < countAfter; ++i) {
+				const char *name = viewerMgr->Get_Prototype_Name (i);
+				if (name != nullptr && name[0] != '\0') {
+					StringClass key (name);
+					if (!m_AssetSourceFileMap.Exists (key))
+						m_AssetSourceFileMap.Insert (key, sourceFile);
+				}
+			}
+		}
 	}
 
 	//
@@ -603,6 +693,18 @@ CW3DViewDoc::DisplayObject
 )
 {
     ASSERT (m_pCScene);
+
+	// Clear any per-item selection when a new object is loaded.
+	ClearSelectedItem ();
+
+	// The object already on show stays in the scene. Taking it out strips its parts and can free it.
+	if (pCModel != nullptr && pCModel == m_pCRenderObj.Peek() && add_ghost == false)
+	{
+		SAFE_DELETE (m_pCAnimCombo);
+		m_pCAnimation.Clear();
+		pCModel->Set_Animation ();
+		return;
+	}
 
     // Data OK?
     if (m_pCScene)
@@ -837,6 +939,24 @@ CW3DViewDoc::PlayAnimation
 		  Update_Camera ();
 		  Play_Animation_Sound ();
     }
+}
+
+
+///////////////////////////////////////////////////////////////
+//
+//	SetCurrentFrame
+//
+//	Used by Reload-Assets restore to snap the playhead back to the
+//	saved frame after the animation has been re-bound.
+//
+///////////////////////////////////////////////////////////////
+void
+CW3DViewDoc::SetCurrentFrame (float frame)
+{
+	m_CurrentFrame = frame;
+	if (m_pCRenderObj && m_pCAnimation) {
+		m_pCRenderObj->Set_Animation (m_pCAnimation.Peek (), m_CurrentFrame);
+	}
 }
 
 
@@ -2317,6 +2437,9 @@ CW3DViewDoc::Animate_Camera (bool banimate)
 //
 //  Make_Movie
 //
+// TheSuperHackers @bugfix Tria 19/04/2026 Prompt user for save location with a file dialog,
+// use object name as default filename, and show a message when recording is done.
+//
 ///////////////////////////////////////////////////////////////
 void
 CW3DViewDoc::Make_Movie ()
@@ -2329,16 +2452,39 @@ CW3DViewDoc::Make_Movie ()
 	CGraphicView *graphic_view= GetGraphicView ();
 	if (m_pCRenderObj && m_pCAnimation) {
 
-		// Get the directory where this executable was run from
-		TCHAR filename[MAX_PATH];
-		::GetModuleFileName (nullptr, filename, sizeof (filename));
-
-		// Strip the filename from the path
-		LPTSTR ppath = ::strrchr (filename, '\\');
-		if (ppath != nullptr) {
-			ppath[0] = 0;
+		// Determine default filename from the currently displayed object
+		CString defaultName ("Movie");
+		if (m_pCRenderObj->Get_Name () != nullptr) {
+			defaultName = m_pCRenderObj->Get_Name ();
 		}
-		::SetCurrentDirectory (filename);
+
+		// Prompt user for save location
+		Show_Cursor(true);
+		CFileDialog dlg (FALSE, "avi", defaultName,
+			OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_EXPLORER,
+			"AVI Files (*.avi)|*.avi||", ::AfxGetMainWnd ());
+		dlg.m_ofn.lpstrTitle = "Save Movie...";
+
+		if (dlg.DoModal () != IDOK) {
+			Show_Cursor(restore_cursor);
+			return;
+		}
+		Show_Cursor(false);
+
+		CString savePath = dlg.GetPathName ();
+
+		// Strip the extension — FrameGrabClass appends numbering and .AVI
+		int dotPos = savePath.ReverseFind ('.');
+		if (dotPos >= 0) {
+			savePath = savePath.Left (dotPos);
+		}
+
+		// Set the directory to the chosen location
+		CString saveDir = savePath.Left (savePath.ReverseFind ('\\'));
+		::SetCurrentDirectory ((LPCTSTR)saveDir);
+
+		// Get just the filename base (without directory)
+		CString fileBase = savePath.Mid (savePath.ReverseFind ('\\') + 1);
 
 		// Rewind the animation
 		if (m_pCAnimCombo)
@@ -2354,7 +2500,7 @@ CW3DViewDoc::Make_Movie ()
 
 		// Begin our movie
 		WW3D::Pause_Movie (true);
-		WW3D::Start_Movie_Capture ("Grab", 30);
+		WW3D::Start_Movie_Capture ((LPCTSTR)fileBase, 30);
 		WW3D::Pause_Movie (true);
 
 		float frames = m_pCAnimation->Get_Num_Frames ();
@@ -2405,6 +2551,10 @@ CW3DViewDoc::Make_Movie ()
 
 		// Stop capturing the movie data
 		WW3D::Stop_Movie_Capture ();
+
+		CString msg;
+		msg.Format ("Movie saved to:\n%s", (LPCTSTR)saveDir);
+		::AfxMessageBox (msg, MB_ICONINFORMATION);
 	}
 
 	// Restore the mouse cursor to its previous visibility state.
@@ -2719,9 +2869,26 @@ CW3DViewDoc::Copy_Assets_To_Dir (LPCTSTR directory)
 			//
 			//	Determine the source and destination filenames
 			//
-			StringClass filename		= dependency_list[counter];
-			CString src_filename		= src_path + CString (filename);
-			CString dest_filename	= dest_path + CString (filename);
+			StringClass dep_name		= dependency_list[counter];
+			CString dest_filename	= dest_path + CString (dep_name);
+
+			// TheSuperHackers @bugfix Tria 18/04/2026 Resolve dependency files through the file
+			// factory search paths (including texture paths) instead of only looking in the w3d
+			// file's directory. This ensures textures are found when they reside in a different
+			// directory than the w3d file.
+			CString src_filename;
+			FileClass *resolved_file = _TheFileFactory->Get_File (dep_name);
+			if (resolved_file != nullptr) {
+				resolved_file->Set_Name (resolved_file->File_Name ());
+				if (resolved_file->Is_Available ()) {
+					src_filename = resolved_file->File_Name ();
+				} else {
+					src_filename = src_path + CString (dep_name);
+				}
+				_TheFileFactory->Return_File (resolved_file);
+			} else {
+				src_filename = src_path + CString (dep_name);
+			}
 
 			//
 			//	Copy the file
@@ -2760,45 +2927,92 @@ CW3DViewDoc::Copy_Assets_To_Dir (LPCTSTR directory)
 
 ///////////////////////////////////////////////////////////////
 //
-//  Set_Texture_Path1
+//  Add_Texture_Path
 //
 ///////////////////////////////////////////////////////////////
 void
-CW3DViewDoc::Set_Texture_Path1 (LPCTSTR path)
+CW3DViewDoc::Add_Texture_Path (LPCTSTR path)
 {
-	if (m_TexturePath1.CompareNoCase (path) != 0) {
+	if (path == nullptr || ::lstrlen(path) == 0) {
+		return;
+	}
 
-		//
-		//	Pass the new search path onto the File Factory
-		//
-		if (::lstrlen (path) > 0) {
-			_TheSimpleFileFactory->Append_Sub_Directory(path);
+	CString newPath = path;
+
+	// Check if this path already exists in the list
+	for (int i = 0; i < m_TexturePaths.Count(); i++) {
+		if (m_TexturePaths[i].CompareNoCase(newPath) == 0) {
+			return;  // Path already exists
 		}
+	}
 
-		m_TexturePath1 = path;
-		theApp.WriteProfileString ("Config", "TexturePath1", m_TexturePath1);
+	// Add the new path to the list
+	m_TexturePaths.Add(newPath);
+
+	return;
+}
+
+
+///////////////////////////////////////////////////////////////
+//
+//  Remove_Texture_Path
+//
+///////////////////////////////////////////////////////////////
+void
+CW3DViewDoc::Remove_Texture_Path (int index)
+{
+	if (index >= 0 && index < m_TexturePaths.Count()) {
+		m_TexturePaths.Delete(index);
+	}
+
+	return;
+}
+
+
+///////////////////////////////////////////////////////////////
+//
+//  Save_Texture_Paths_To_Registry
+//
+///////////////////////////////////////////////////////////////
+void
+CW3DViewDoc::Save_Texture_Paths_To_Registry (void)
+{
+	// Write the count
+	theApp.WriteProfileInt ("Config", "TexturePathCount", m_TexturePaths.Count());
+
+	// Write each path with an index
+	for (int i = 0; i < m_TexturePaths.Count(); i++) {
+		CString keyName;
+		keyName.Format("TexturePath%d", i);
+		theApp.WriteProfileString ("Config", keyName, m_TexturePaths[i]);
 	}
 }
 
 
 ///////////////////////////////////////////////////////////////
 //
-//  Set_Texture_Path2
+//  Refresh_File_Factory_Registrations
 //
 ///////////////////////////////////////////////////////////////
 void
-CW3DViewDoc::Set_Texture_Path2 (LPCTSTR path)
+CW3DViewDoc::Refresh_File_Factory_Registrations (void)
 {
-	if (m_TexturePath2.CompareNoCase (path) != 0) {
+	// Reset the factory's search path and rebuild it from the vector in forward order
+	// (TexturePath0 appended first = leftmost in the semicolon list = highest priority)
+	_TheSimpleFileFactory->Reset_Sub_Directory ();
+	for (int i = 0; i < m_TexturePaths.Count(); i++) {
+		_TheSimpleFileFactory->Append_Sub_Directory (m_TexturePaths[i]);
+	}
 
-		//
-		//	Pass the new search path onto Surrender
-		//
-		if (::lstrlen (path) > 0) {
-			_TheSimpleFileFactory->Append_Sub_Directory(path);
-		}
-		m_TexturePath2 = path;
-		theApp.WriteProfileString ("Config", "TexturePath2", m_TexturePath2);
+	// TheSuperHackers @bugfix Tria 18/04/2026 Clear cached directory so LoadAssetsFromFile
+	// will re-append the file's directory after a full search path reset.
+	m_LastFactoryDir.Empty();
+
+	// TheSuperHackers @performance Tria 2026-05-19 Invalidate the missing-file cache
+	// because a name that was missing under the old search path may exist under the new.
+	ViewerAssetMgrClass *viewerMgr = static_cast<ViewerAssetMgrClass *>(WW3DAssetManager::Get_Instance ());
+	if (viewerMgr != nullptr) {
+		viewerMgr->Reset_Missing_File_Cache ();
 	}
 }
 
@@ -2806,6 +3020,7 @@ CW3DViewDoc::Set_Texture_Path2 (LPCTSTR path)
 ///////////////////////////////////////////////////////////////
 //
 //  Import_Facial_Animation
+
 //
 ///////////////////////////////////////////////////////////////
 void
@@ -2996,6 +3211,31 @@ CW3DViewDoc::SetBackgroundColor (const Vector3 &backgroundColor)
 	ASSERT(m_pCScene);
 	if (m_pCScene)
 		m_pCScene->Set_Fog_Color(backgroundColor);
+}
+
+void
+CW3DViewDoc::ApplyThemeBackgroundIfDefault (void)
+{
+	// Treat a small epsilon as equality — Vector3 values came from float math
+	// originally and may not be byte-exact.
+	const float eps = 0.5f / 255.0f;
+	auto IsApprox = [eps] (const Vector3 &c, float v) -> bool
+	{
+		return fabsf (c.X - v) < eps && fabsf (c.Y - v) < eps && fabsf (c.Z - v) < eps;
+	};
+
+	if (W3DDarkMode::IsDark ())
+	{
+		// Switching INTO dark: only override if user currently has the light default.
+		if (IsApprox (m_backgroundColor, W3DVIEW_BG_LIGHT_F))
+			SetBackgroundColor (Vector3 (W3DVIEW_BG_DARK_F, W3DVIEW_BG_DARK_F, W3DVIEW_BG_DARK_F));
+	}
+	else
+	{
+		// Switching INTO light: only override if user currently has the dark default.
+		if (IsApprox (m_backgroundColor, W3DVIEW_BG_DARK_F))
+			SetBackgroundColor (Vector3 (W3DVIEW_BG_LIGHT_F, W3DVIEW_BG_LIGHT_F, W3DVIEW_BG_LIGHT_F));
+	}
 }
 
 

@@ -28,6 +28,8 @@
 #include "GameClient/ControlBar.h"
 #include "GameClient/Eva.h"
 
+#include "Common/IniNameRegistry.h"
+#include "Common/INIException.h"
 #include "Common/GameUtility.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
@@ -248,6 +250,12 @@ const char *const TheEvaMessageNames[] =
 	//****************************************************************************
 };
 static_assert(ARRAY_SIZE(TheEvaMessageNames) == EVA_COUNT, "Incorrect array size");
+
+static IniNameRegistry& evaNames()
+{
+	static IniNameRegistry names(TheEvaMessageNames, EVA_COUNT);
+	return names;
+}
 
 //-------------------------------------------------------------------------------------------------
 const ShouldPlayFunc Eva::s_shouldPlayFuncs[] =
@@ -558,6 +566,8 @@ void Eva::reset()
 	m_previousUnitCount = 0;
 	m_previousBuildingCount = 0;
 
+	m_customShouldPlay.clear();
+
 	// remove all pending counters, etc, here.
 	EvaCheckVecIt it;
 	for (it = m_checks.begin(); it != m_checks.end(); /* empty */) {
@@ -597,6 +607,15 @@ void Eva::update()
 		}
 	}
 
+	for (std::set<EvaMessage>::const_iterator it = m_customShouldPlay.begin(); it != m_customShouldPlay.end(); ++it)
+	{
+		if (m_localPlayer && isTimeForCheck(*it, frame))
+		{
+			playMessage(*it, frame);
+		}
+	}
+	m_customShouldPlay.clear();
+
 	processPlayingMessages(frame);
 	m_localPlayer = nullptr;
 
@@ -610,23 +629,24 @@ void Eva::update()
 //-------------------------------------------------------------------------------------------------
 EvaMessage Eva::nameToMessage(const AsciiString& name)
 {
-	for (Int i = EVA_FIRST; i < EVA_COUNT; ++i) {
-		if (name.compareNoCase(TheEvaMessageNames[i]) == 0) {
-			return (EvaMessage) i;
-		}
+	Int id = evaNames().resolve(name.str());
+	if (id < 0)
+	{
+		DEBUG_LOG(("Invalid or colliding EvaEvent name '%s'", name.str()));
+		throw INI_INVALID_DATA;
 	}
-
-	DEBUG_CRASH(("Invalid requested Eva message translation :%s: jkmcd", name.str()));
-	return EVA_Invalid;
+	return static_cast<EvaMessage>(id);
 }
 
 //-------------------------------------------------------------------------------------------------
 AsciiString Eva::messageToName(EvaMessage message)
 {
-  if (message >= EVA_FIRST && message < EVA_COUNT)
-		return TheEvaMessageNames[message];
-
-	DEBUG_CRASH(("Invalid requested Eva message translation. jkmcd"));
+	const char* name = evaNames().getName(message);
+	if (name)
+	{
+		return name;
+	}
+	DEBUG_CRASH(("Invalid EvaEvent ID %d", message));
 	return AsciiString::TheEmptyString;
 }
 
@@ -666,7 +686,14 @@ const EvaCheckInfo *Eva::getEvaCheckInfo(AsciiString name)
 //-------------------------------------------------------------------------------------------------
 void Eva::setShouldPlay(EvaMessage messageToPlay)
 {
-	m_shouldPlay[messageToPlay] = TRUE;
+	if (messageToPlay >= EVA_FIRST && messageToPlay < EVA_COUNT)
+	{
+		m_shouldPlay[messageToPlay] = TRUE;
+	}
+	else if (evaNames().getName(messageToPlay))
+	{
+		m_customShouldPlay.insert(messageToPlay);
+	}
 
   // DEBUG_LOG( ( "Eva message %s play requested", messageToName( messageToPlay).str() ) );
 }
@@ -674,6 +701,8 @@ void Eva::setShouldPlay(EvaMessage messageToPlay)
 //-------------------------------------------------------------------------------------------------
 void Eva::setEvaEnabled(Bool enabled)
 {
+	m_customShouldPlay.clear();
+
 	// clear out any waiting messages.
 	for (Int i = EVA_FIRST; i < EVA_COUNT; ++i) {
 		m_shouldPlay[i] = FALSE;
@@ -702,6 +731,11 @@ Bool Eva::messageShouldPlay(EvaMessage messageToTest, UnsignedInt currentFrame) 
 	}
 
 	static_assert(ARRAY_SIZE(s_shouldPlayFuncs) == EVA_COUNT, "Incorrect array size");
+
+	if (messageToTest < EVA_FIRST || messageToTest >= EVA_COUNT)
+	{
+		return FALSE;
+	}
 
 	m_messageBeingTested = messageToTest;
 	return s_shouldPlayFuncs[messageToTest](m_localPlayer);
@@ -845,5 +879,28 @@ void Eva::processPlayingMessages(UnsignedInt currentFrame)
 }
 
 //-------------------------------------------------------------------------------------------------
+void Eva::validateCustomEvents() const
+{
+	const IniNameRegistry::CustomNames& names = evaNames().getCustomNames();
+	for (IniNameRegistry::CustomNames::const_iterator name = names.begin(); name != names.end(); ++name)
+	{
+		Bool found = FALSE;
+		for (EvaCheckInfoPtrVec::const_iterator info = m_allCheckInfos.begin(); info != m_allCheckInfos.end(); ++info)
+		{
+			if ((*info)->m_message == name->first)
+			{
+				found = TRUE;
+				break;
+			}
+		}
+		if (!found)
+		{
+			AsciiString message;
+			message.format("EvaEvent '%s' is referenced but has no definition", name->second.c_str());
+			throw INIException(message.str());
+		}
+	}
+}
+
 Eva *TheEva = nullptr;
 

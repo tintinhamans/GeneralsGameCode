@@ -230,6 +230,7 @@ AsciiString DebugDescribeObject(const Object *obj)
 //-------------------------------------------------------------------------------------------------
 Object::Object( const ThingTemplate *tt, const ObjectStatusMaskType &objectStatusMask, Team *team ) :
 	Thing(tt),
+	m_hasCustomSpecialPower(FALSE),
 	m_indicatorColor(0),
 	m_ai(nullptr),
 	m_physics(nullptr),
@@ -649,9 +650,13 @@ void Object::initObject()
 			continue;
 
 		const SpecialPowerTemplate *spTemplate = sp->getSpecialPowerTemplate();
-		if( spTemplate )
+		if( spTemplate && spTemplate->getSpecialPowerType() < SPECIALPOWER_COUNT )
 		{
 			SET_SPECIALPOWERMASK( m_specialPowerBits, spTemplate->getSpecialPowerType() );
+		}
+		else if (spTemplate)
+		{
+			m_hasCustomSpecialPower = TRUE;
 		}
 	}
 
@@ -3213,9 +3218,15 @@ void Object::friend_prepareForMapBoundaryAdjust()
 //-------------------------------------------------------------------------------------------------
 void Object::friend_notifyOfNewMapBoundary()
 {
-	ThePartitionManager->registerObject(this);
+	// the radar keeps occupants listed and hides them, so every object goes back on it
 	TheRadar->addObject(this);
-	TheAI->pathfinder()->addObjectToPathfindMap( this );
+
+	// a container keeps its enclosed occupants out of the partition and the pathfind map
+	if (!getEnclosingContainedBy())
+	{
+		ThePartitionManager->registerObject(this);
+		TheAI->pathfinder()->addObjectToPathfindMap( this );
+	}
 
 	// Now that the PartitionManager has finished its reset, we need to relook
 	handlePartitionCellMaintenance();
@@ -3319,12 +3330,7 @@ void Object::scoreTheKill( const Object *victim, const DamageInfo *damageInfo )
 	/// @todo Multiplayer score hook location?
 
 	Player* victimController = victim->getControllingPlayer();
-	// if the other player is not a playable side (i.e. they are civilian, observer, whatever)
-	// we shouldn't count the kill.
-	if (victimController->isPlayableSide() == FALSE)
-	{
-		return;
-	}
+	const Bool countKill = victimController && victimController->isPlayableSide();
 
 
 	if ( victim->isKindOf( KINDOF_IGNORED_IN_GUI ) )
@@ -3333,7 +3339,7 @@ void Object::scoreTheKill( const Object *victim, const DamageInfo *damageInfo )
 
 	Player* controller = getControllingPlayer();
 
-	if (victimController)
+	if (countKill)
 	{
 		victimController->getScoreKeeper()->addObjectLost(victim);
 	}
@@ -3350,17 +3356,23 @@ void Object::scoreTheKill( const Object *victim, const DamageInfo *damageInfo )
 
 	if (controller)
 	{
-		controller->getScoreKeeper()->addObjectDestroyed(victim);
-		TheScriptCLPState->onObjectKilled(controller, victim);
-		controller->addSkillPointsForKill(this, victim);
-		controller->doBountyForKill(this, victim);
-#if defined(GENERALS_ONLINE)
-		if (TheGlobalData->m_exportStats)
+		if (countKill)
 		{
-			const DamageInfo *damageInfo = victim->getBodyModule() ? victim->getBodyModule()->getLastDamageInfo() : nullptr;
-			StatsExporterRecordKill(this, victim, damageInfo);
+			controller->getScoreKeeper()->addObjectDestroyed(victim);
+			TheScriptCLPState->onObjectKilled(controller, victim);
 		}
+		controller->addSkillPointsForKill(this, victim);
+		if (countKill)
+		{
+			controller->doBountyForKill(this, victim);
+#if defined(GENERALS_ONLINE)
+			if (TheGlobalData->m_exportStats)
+			{
+				const DamageInfo *damageInfo = victim->getBodyModule() ? victim->getBodyModule()->getLastDamageInfo() : nullptr;
+				StatsExporterRecordKill(this, victim, damageInfo);
+			}
 #endif
+		}
 	}
 
 	// Now handle experience, if we can gain any
@@ -3447,6 +3459,12 @@ void Object::setSelectable(Bool selectable)
 //-------------------------------------------------------------------------------------------------
 Bool Object::isSelectable() const
 {
+	const BodyModuleInterface *body = getBodyModule();
+	if (body && body->isJammed())
+	{
+		return FALSE;
+	}
+
 //	return getTemplate()->isKindOf(KINDOF_ALWAYS_SELECTABLE)
 //				|| (m_isSelectable
 //						&& !testStatus(OBJECT_STATUS_UNSELECTABLE)
@@ -3500,13 +3518,17 @@ void Object::clearWeaponSetFlag(WeaponSetType wst)
 //-------------------------------------------------------------------------------------------------
 Bool Object::hasSpecialPower( SpecialPowerType type ) const
 {
+	if (type >= SPECIALPOWER_COUNT)
+	{
+		return m_hasCustomSpecialPower && findSpecialPowerModuleInterface(type) != nullptr;
+	}
 	return TEST_SPECIALPOWERMASK( m_specialPowerBits, type );
 }
 
 //-------------------------------------------------------------------------------------------------
 Bool Object::hasAnySpecialPower() const
 {
-  return SPECIALPOWERMASK_ANY_SET( m_specialPowerBits );
+  return SPECIALPOWERMASK_ANY_SET( m_specialPowerBits ) || m_hasCustomSpecialPower;
 }
 
 //-------------------------------------------------------------------------------------------------

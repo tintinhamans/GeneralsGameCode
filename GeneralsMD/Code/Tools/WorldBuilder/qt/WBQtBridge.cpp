@@ -316,6 +316,22 @@ void WBQt_FocusViewport(void)
 	}
 }
 
+int WBQt_CommitFocusedEdit(void)
+{
+	if (qApp == NULL)
+	{
+		return 0;
+	}
+	QWidget *focus = QApplication::focusWidget();
+	if (focus == NULL || focus->window() == g_wbMainWindow)
+	{
+		return 0;
+	}
+	// The focus-out makes line edits and spin boxes emit editingFinished.
+	focus->clearFocus();
+	return 1;
+}
+
 // Qt-internal (not in the C facade): the owner/parent for floating Qt tool windows.
 // Inverted, that is the main window itself (Qt::Tool children float above their
 // top-level natively); legacy, an invisible QWinWidget bridge rooted in the MFC frame.

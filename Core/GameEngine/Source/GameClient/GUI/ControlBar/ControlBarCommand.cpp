@@ -43,6 +43,7 @@
 #include "Common/BuildAssistant.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Module/BattlePlanUpdate.h"
+#include "GameLogic/Module/BodyModule.h"
 #include "GameLogic/Module/DozerAIUpdate.h"
 #include "GameLogic/Module/JetAIUpdate.h"
 #include "GameLogic/Module/OverchargeBehavior.h"
@@ -1093,6 +1094,14 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 
 	if (obj == nullptr)
 		return COMMAND_HIDDEN;	// probably better than crashing....
+
+#if RTS_ZEROHOUR
+	const BodyModuleInterface *body = obj->getBodyModule();
+	if (body && body->isJammed())
+	{
+		return COMMAND_HIDDEN;
+	}
+#endif
 
 	Player *player = obj->getControllingPlayer();
 

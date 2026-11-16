@@ -113,6 +113,8 @@ protected:
 		IndirectTextureClass *	m_pOriginalTexture;
 		TextureClass *				m_pStartingTexture;
 		HBITMAP						m_hThumbnail;
+		int								m_iThumbnailWidth;
+		int								m_iThumbnailHeight;
 		bool							m_bWereSettingsModified;
 };
 

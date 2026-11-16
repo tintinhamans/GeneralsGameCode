@@ -33,6 +33,7 @@ public:
 // Dialog Data
 	//{{AFX_DATA(TexturePathDialogClass)
 	enum { IDD = IDD_TEXTURE_PATHS };
+	CListCtrl	m_PathList;
 		// NOTE: the ClassWizard will add data members here
 	//}}AFX_DATA
 
@@ -51,10 +52,12 @@ protected:
 	//{{AFX_MSG(TexturePathDialogClass)
 	virtual BOOL OnInitDialog();
 	virtual void OnOK();
-	afx_msg void OnBrowse1();
-	afx_msg void OnBrowse2();
+	afx_msg void OnAddPath();
+	afx_msg void OnRemovePath();
+	afx_msg void OnMoveUp();
+	afx_msg void OnMoveDown();
 	//}}AFX_MSG
-	DECLARE_MESSAGE_MAP()
+	DECLARE_MESSAGE_MAP();
 };
 
 //{{AFX_INSERT_LOCATION}}

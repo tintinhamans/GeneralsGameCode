@@ -46,3 +46,25 @@ AsciiString GetReadmeFromMap( AsciiString path );
 
 // The meat of file (map) transfers
 Bool DoAnyMapTransfers(GameInfo *game);
+
+enum TransferFileProblem CPP_11(: Int)
+{
+	TRANSFER_FILE_OK,
+	TRANSFER_FILE_MISSING,			///< Not on the local file system, which is the only place the sender reads from.
+	TRANSFER_FILE_EMPTY,
+	TRANSFER_FILE_UNREADABLE,
+	TRANSFER_FILE_WRONG_TYPE,
+	TRANSFER_FILE_TOO_LARGE,
+	TRANSFER_FILE_INVALID,
+};
+
+// Applies the checks a receiver runs before it writes a transferred file
+TransferFileProblem CheckTransferFile(const AsciiString& path);
+
+UnicodeString GetTransferFileProblemText(TransferFileProblem problem, const AsciiString& path);
+
+// TRUE when no player needs the map or every file of it passes CheckTransferFile. Only the host holds the files.
+Bool CanTransferMap(const GameInfo *game, UnicodeString *problemText = nullptr);
+
+// Clears the contents bit of a side file that cannot be sent, unless the game data depends on it
+Int RemoveUntransferableMapContents(const AsciiString& mapPath, Int contentsMask);

@@ -4332,6 +4332,18 @@ void Player::addAIGroupToCurrentSelection(AIGroup *group) {
 }
 
 //-------------------------------------------------------------------------------------------------
+void Player::removeObjectFromCurrentSelection(Object *obj)
+{
+	if (m_currentSelection)
+	{
+		while (m_currentSelection->isOnSquad(obj))
+		{
+			m_currentSelection->removeObject(obj);
+		}
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
 /** addTypeOfProductionCostChange adds a production change to the typeof list */
 //-------------------------------------------------------------------------------------------------
 void Player::addKindOfProductionCostChange(	KindOfMaskType kindOf, Real percent,

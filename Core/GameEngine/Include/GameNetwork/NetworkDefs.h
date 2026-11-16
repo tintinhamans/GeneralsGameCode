@@ -93,6 +93,9 @@ static constexpr const Int MAX_PACKET_SIZE = MAX_UDP_PAYLOAD_SIZE - sizeof(Trans
 static constexpr const Int MAX_NETWORK_MESSAGE_LEN = MAX_UDP_PAYLOAD_SIZE;
 #endif
 
+// LAN peers must agree on this to share a game. The high word counts changes to the bytes on the wire, the low word is the packet size.
+static constexpr const UnsignedInt NETWORK_PROTOCOL_VERSION = (1u << 16) | MAX_PACKET_SIZE;
+
 #if defined(GENERALS_ONLINE)
 // Alias used by the GeneralsOnline sources; upstream GO renamed the constant.
 static constexpr const Int MAX_MESSAGE_LEN = MAX_NETWORK_MESSAGE_LEN;
@@ -100,6 +103,9 @@ static constexpr const Int MAX_MESSAGE_LEN = MAX_NETWORK_MESSAGE_LEN;
 
 // TheSuperHackers @bugfix Mauller 08/02/2026 Double send and receive buffer sizes to alleviate the occurance of disconnection issues in retail and non retail code.
 static constexpr const Int MAX_MESSAGES = 256;
+
+// The Windows default of 64 KB overflows when a file transfer sends more than about 58 full packets between two receives
+static constexpr const Int UDP_RECEIVE_BUFFER_SIZE = 512 * 1024;
 
 /**
  * Command packet - contains frame #, total # of commands, and each command.  This is what gets sent

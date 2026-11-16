@@ -2537,6 +2537,13 @@ ParticleSystem::VisibilityState ParticleSystem::updateVisibility( Int localPlaye
 		if (Drawable *attachedTo = TheGameClient->findDrawableByID( m_attachedToDrawableID ))
 		{
 			visibilityState.isShrouded = attachedTo->getFullyObscuredByShroud();
+#if RTS_ZEROHOUR
+			const Object *objectAttachedTo = attachedTo->getObject();
+			if (objectAttachedTo && !objectAttachedTo->isLogicallyVisible())
+			{
+				visibilityState.isShrouded = true;
+			}
+#endif
 		}
 		else
 		{
@@ -2552,6 +2559,12 @@ ParticleSystem::VisibilityState ParticleSystem::updateVisibility( Int localPlaye
 		if (Object *objectAttachedTo = TheGameLogic->findObjectByID( m_attachedToObjectID ))
 		{
 			visibilityState.isShrouded = objectAttachedTo->getShroudedStatus(localPlayerIndex) >= OBJECTSHROUD_FOGGED;
+#if RTS_ZEROHOUR
+			if (!objectAttachedTo->isLogicallyVisible())
+			{
+				visibilityState.isShrouded = true;
+			}
+#endif
 		}
 		else
 		{

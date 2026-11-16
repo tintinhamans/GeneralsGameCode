@@ -87,6 +87,7 @@ public:
 
 protected:
 	void doRetryMetrics();
+	void markCommandsSent(const std::vector<NetCommandRef *> &commands, time_t curtime);
 
 	Bool m_isQuitting;
 	UnsignedInt m_quitTime;
@@ -104,4 +105,7 @@ protected:
 	time_t m_lastTimeSent;				///< The time of the last packet send.
 	Int m_numRetries;							///< The number of retries for the last second.
 	time_t m_retryMetricsTime;		///< The start time of the current retry metrics thing.
+
+	Int m_wrapperWindow;					///< How many wrapper commands may be unacked at once. An ack grows it, a resend halves it.
+	time_t m_lastWrapperWindowCut;	///< The time of the last halving, so one burst of losses halves the window once.
 };

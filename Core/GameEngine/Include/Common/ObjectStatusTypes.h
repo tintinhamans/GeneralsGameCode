@@ -101,10 +101,6 @@ enum ObjectStatusTypes CPP_11(: Int)
 	OBJECT_STATUS_RIDER15,
 	OBJECT_STATUS_RIDER16,
 
-	// Was the reserved padding slot that keeps OBJECT_STATUS_COUNT distinct from WEAPONBONUSCONDITION_COUNT.
-	// BitFlags<N> is keyed only on its bit count, so two flag enums with an equal COUNT would share one name
-	// list (see the guard in BitFlags.cpp). Taking the slot leaves COUNT at 54 against that enum's 55, so the
-	// counts stay distinct -- but the padding is now spent. Re-check both counts before adding another.
 	OBJECT_STATUS_SCUTTLING,				///< Object is being scuttled by its own logic, so its death is not a loss to announce
 
 	OBJECT_STATUS_COUNT

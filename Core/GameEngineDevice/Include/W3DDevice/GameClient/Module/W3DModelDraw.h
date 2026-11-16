@@ -220,6 +220,9 @@ struct ModelConditionInfo
 	std::vector<HideShowSubObjInfo>		m_hideShowVec;
 	mutable std::vector<AsciiString>	m_publicBones;
 	AsciiString												m_weaponFireFXBoneName[WEAPONSLOT_COUNT];
+#if RTS_ZEROHOUR
+	const ParticleSystemTemplate* m_weaponFireParticleSys[WEAPONSLOT_COUNT];
+#endif
 	AsciiString												m_weaponRecoilBoneName[WEAPONSLOT_COUNT];
 	AsciiString												m_weaponMuzzleFlashName[WEAPONSLOT_COUNT];
 	AsciiString												m_weaponProjectileLaunchBoneName[WEAPONSLOT_COUNT];
@@ -441,7 +444,11 @@ public:
 	virtual void replaceModelConditionState(const ModelConditionFlags& c) override;
 	virtual void replaceIndicatorColor(Color color) override;
 	virtual void refreshIndicatorColor() override;
-	virtual Bool handleWeaponFireFX(WeaponSlotType wslot, Int specificBarrelToUse, const FXList* fxl, Real weaponSpeed, const Coord3D* victimPos, Real damageRadius) override;
+	virtual Bool handleWeaponFireFX(WeaponSlotType wslot, Int specificBarrelToUse, const FXList* fxl, Real weaponSpeed, const Coord3D* victimPos, Real damageRadius
+#if RTS_ZEROHOUR
+		, Bool emitFireParticles
+#endif
+	) override;
 	virtual Bool handleWeaponPreAttackFX(WeaponSlotType wslot, Int specificBarrelToUse, const FXList* fxl, Real weaponSpeed, const Coord3D* victimPos, Real damageRadius);
 	virtual Int getBarrelCount(WeaponSlotType wslot) const override;
 	virtual void setSelectable(Bool selectable) override; // Change the selectability of the model.
@@ -505,6 +512,10 @@ protected:
 	void handleClientRecoil();
 	void recalcBonesForClientParticleSystems();
 	void stopClientParticleSystems();
+#if RTS_ZEROHOUR
+	void updateWeaponFireParticleSystems();
+	void stopWeaponFireParticleSystems();
+#endif
 	const ParticleSystemTemplate* findMoveEffectTemplate(const AsciiString& name) const;	///< snow drawables take "<name>Snow" when it exists
 	void doHideShowSubObjs(const std::vector<ModelConditionInfo::HideShowSubObjInfo>* vec);
 	virtual void adjustTransformMtx(Matrix3D& mtx) const;
@@ -591,6 +602,15 @@ private:
 	TerrainTracksRenderObjClass*	m_trackRenderObject;							///< This is rendered under object
 	Bool													m_lastTrackWasBackwards;					///< travel direction of the last laid tread edge, to detect fwd<->rev flips
 	ParticleSystemIDVec						m_particleSystemIDs;							///< The ID numbers of the particle systems currently running.
+#if RTS_ZEROHOUR
+	struct WeaponFireParticleTracker
+	{
+		ParticleSystemID id;
+		AsciiString boneName;
+		Int boneIndex;
+	};
+	std::vector<WeaponFireParticleTracker> m_weaponFireParticleSystems;
+#endif
 	std::vector<ModelConditionInfo::HideShowSubObjInfo>		m_subObjectVec;
 	Bool													m_hideHeadlights;
 

@@ -153,6 +153,7 @@ private:
 	const WeaponTemplate*		m_template[WEAPONSLOT_COUNT];
 	UnsignedInt							m_autoChooseMask[WEAPONSLOT_COUNT];
 	UnsignedInt							m_ignoreLineOfSightMask;
+	UnsignedInt							m_syncRequiresValidTargetMask;
 	KindOfMaskType					m_preferredAgainst[WEAPONSLOT_COUNT];
 	Bool										m_isReloadTimeShared;
 	Bool										m_isClipShared;
@@ -162,6 +163,7 @@ private:
 	static void parseWeapon(INI* ini, void *instance, void *store, const void* userData);
 	static void parseAutoChoose(INI* ini, void *instance, void *store, const void* userData);
 	static void parsePreferredAgainst(INI* ini, void *instance, void *store, const void* userData);
+	static void parseSyncRequiresValidTarget(INI* ini, void *instance, void *store, const void* userData);
 
 public:
 	inline WeaponTemplateSet()
@@ -180,6 +182,7 @@ public:
 	Bool isWeaponReloadSharedAcrossSets() const { return m_isWeaponReloadSharedAcrossSets; }
 	Bool isSharedClip() const { return m_isClipShared; }
 	Bool ignoresLineOfSight(WeaponSlotType n) const { return (m_ignoreLineOfSightMask & (1U << n)) != 0; }
+	Bool syncRequiresValidTarget(WeaponSlotType n) const { return (m_syncRequiresValidTargetMask & (1U << n)) != 0; }
 
 	Bool hasAnyWeapons() const;
 	inline const WeaponTemplate* getNth(WeaponSlotType n) const { return m_template[n]; }
@@ -299,6 +302,7 @@ public:
 
 	// a weapon this command source may pick that can hit the ground and does not fire only in sync with another slot
 	Bool canSlotAttackGround(WeaponSlotType wslot, CommandSourceType cmdSource) const;
+	Bool canFireSyncedWeapon(WeaponSlotType wslot, const Object* source, const Object* victim, const Coord3D* pos) const;
 	Bool isSlotAllowedForCommandSource(WeaponSlotType wslot, CommandSourceType cmdSource) const;
 
 

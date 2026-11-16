@@ -43,6 +43,9 @@ generalszh.exe -mcp -mcpGame "Tournament Desert" -mcpPlayers FactionAmerica,Fact
 | Orders | `orders.move`, `orders.attack`, `orders.stop`, `orders.guard`, `orders.sell`, `orders.build`, `orders.produce`, `orders.upgrade`, `orders.special_power`, `orders.purchase_science` |
 | Scripts | `scripts.run`, `scripts.set_active`, `scripts.flags`, `scripts.counters` |
 | View | `view.camera`, `view.screenshot` |
+
+Object rows include `producer_id`, which identifies the factory or supply truck that created a unit.
+This allows supply crew counts and worker losses to be checked for each truck.
 | Other | `list_commands`, `app.info` |
 
 Orders go through the normal command list, like a player's clicks. `objects.spawn`, `objects.destroy`,

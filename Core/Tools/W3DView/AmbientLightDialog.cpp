@@ -63,6 +63,8 @@ BEGIN_MESSAGE_MAP(CAmbientLightDialog, CDialog)
 	//{{AFX_MSG_MAP(CAmbientLightDialog)
 	ON_WM_HSCROLL()
 	ON_BN_CLICKED(IDC_GRAYSCALE_CHECK, OnGrayscaleCheck)
+	ON_BN_CLICKED(IDC_COLOR_PICK_BTN, OnColorPick)
+	ON_WM_DRAWITEM()
 	//}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
@@ -109,6 +111,14 @@ CAmbientLightDialog::OnInitDialog ()
     m_redSlider.SetPos (m_initialRed);
     m_greenSlider.SetPos (m_initialGreen);
     m_blueSlider.SetPos (m_initialBlue);
+
+    // TheSuperHackers @feature Tria 18/04/2026 Enable owner-draw for color swatch.
+    HWND hSwatch = ::GetDlgItem (m_hWnd, IDC_COLOR_SWATCH);
+    if (hSwatch) {
+        ::SetWindowLong (hSwatch, GWL_STYLE, ::GetWindowLong (hSwatch, GWL_STYLE) | SS_OWNERDRAW);
+    }
+    Update_Color_Swatch ();
+
 	return TRUE;
 }
 
@@ -159,6 +169,8 @@ CAmbientLightDialog::OnHScroll
         // Modify the ambient light for this scene
         pCDoc->GetScene ()->Set_Ambient_Light (lightSettings);
     }
+
+    Update_Color_Swatch ();
 
 	// Allow the base class to process this message
     CDialog::OnHScroll (nSBCode, nPos, pScrollBar);
@@ -239,6 +251,91 @@ CAmbientLightDialog::OnGrayscaleCheck ()
             // Modify the ambient light for this scene
             pCDoc->GetScene ()->Set_Ambient_Light (lightSettings);
         }
+
+        Update_Color_Swatch ();
     }
 }
 
+// TheSuperHackers @feature Tria 18/04/2026 Color swatch and picker for ambient light dialog.
+
+//////////////////////////////////////////////////////////////
+//
+//  Update_Color_Swatch
+//
+void
+CAmbientLightDialog::Update_Color_Swatch (void)
+{
+    HWND hSwatch = ::GetDlgItem (m_hWnd, IDC_COLOR_SWATCH);
+    if (hSwatch) {
+        ::InvalidateRect (hSwatch, nullptr, TRUE);
+    }
+}
+
+//////////////////////////////////////////////////////////////
+//
+//  OnDrawItem
+//
+void
+CAmbientLightDialog::OnDrawItem (int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
+{
+    if (nIDCtl == IDC_COLOR_SWATCH) {
+        int r = (m_redSlider.GetPos () * 255) / 100;
+        int g = (m_greenSlider.GetPos () * 255) / 100;
+        int b = (m_blueSlider.GetPos () * 255) / 100;
+        HBRUSH hBrush = ::CreateSolidBrush (RGB (r, g, b));
+        ::FillRect (lpDrawItemStruct->hDC, &lpDrawItemStruct->rcItem, hBrush);
+        ::DeleteObject (hBrush);
+        ::DrawEdge (lpDrawItemStruct->hDC, &lpDrawItemStruct->rcItem, EDGE_SUNKEN, BF_RECT);
+        return;
+    }
+    CDialog::OnDrawItem (nIDCtl, lpDrawItemStruct);
+}
+
+//////////////////////////////////////////////////////////////
+//
+//  OnColorPick
+//
+void
+CAmbientLightDialog::OnColorPick (void)
+{
+    int r = (m_redSlider.GetPos () * 255) / 100;
+    int g = (m_greenSlider.GetPos () * 255) / 100;
+    int b = (m_blueSlider.GetPos () * 255) / 100;
+
+    static COLORREF s_CustomColors[16] = { 0 };
+
+    CHOOSECOLOR cc = { 0 };
+    cc.lStructSize = sizeof (cc);
+    cc.hwndOwner = m_hWnd;
+    cc.rgbResult = RGB (r, g, b);
+    cc.lpCustColors = s_CustomColors;
+    cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+
+    if (::ChooseColor (&cc)) {
+        int newR = (GetRValue (cc.rgbResult) * 100) / 255;
+        int newG = (GetGValue (cc.rgbResult) * 100) / 255;
+        int newB = (GetBValue (cc.rgbResult) * 100) / 255;
+
+        m_redSlider.SetPos (newR);
+        m_greenSlider.SetPos (newG);
+        m_blueSlider.SetPos (newB);
+
+        if (newR == newG && newR == newB) {
+            SendDlgItemMessage (IDC_GRAYSCALE_CHECK, BM_SETCHECK, (WPARAM)TRUE);
+        } else {
+            SendDlgItemMessage (IDC_GRAYSCALE_CHECK, BM_SETCHECK, (WPARAM)FALSE);
+        }
+
+        Vector3 lightSettings;
+        lightSettings.X = float(newR) / 100.00F;
+        lightSettings.Y = float(newG) / 100.00F;
+        lightSettings.Z = float(newB) / 100.00F;
+
+        CW3DViewDoc *pCDoc = ::GetCurrentDocument ();
+        if (pCDoc && pCDoc->GetScene ()) {
+            pCDoc->GetScene ()->Set_Ambient_Light (lightSettings);
+        }
+
+        Update_Color_Swatch ();
+    }
+}

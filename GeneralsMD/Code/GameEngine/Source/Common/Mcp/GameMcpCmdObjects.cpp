@@ -80,6 +80,7 @@ McpJson describeBrief(const Object *object)
 		row.set("name", object->getName().str());
 	}
 	row.set("owner", gameMcpPlayerName(object->getControllingPlayer()));
+	row.set("producer_id", (unsigned int)object->getProducerID());
 	row.set("position", gameMcpCoord(*object->getPosition()));
 	row.set("angle", degrees(object->getOrientation()));
 	const BodyModuleInterface *body = object->getBodyModule();

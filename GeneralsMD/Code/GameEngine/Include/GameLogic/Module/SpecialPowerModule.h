@@ -193,6 +193,8 @@ protected:
 	void beginCooldownNow();
 	/// give the power back, for a use whose shots never happened
 	void refundUnfiredPower();
+	/// collect a cost that was deferred to the first shot
+	void payPendingCost();
 	/// forget any wait in progress
 	void clearPendingShots();
 	/// TRUE when this use should hold its cooldown until the ordered shots are away
@@ -215,6 +217,7 @@ protected:
 	Int m_pausedCount;									///< Reference count of sources pausing me
 	UnsignedInt m_pausedOnFrame;
 	Real m_pausedPercent;
+	Int m_pendingCost;									///< cost still owed, collected on the first shot
 	Int m_pendingShotsState;						///< one of the PENDING_ values above
 	UnsignedInt m_pendingTimeoutFrame;	///< start the cooldown anyway once this frame passes
 	UnsignedInt m_pendingStartFrame;		///< frame the wait began, so the cameo can count down from it

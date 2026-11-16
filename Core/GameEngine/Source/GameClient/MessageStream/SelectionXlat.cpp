@@ -123,6 +123,14 @@ Bool CanSelectDrawable( const Drawable *draw, Bool dragSelecting )
 	}
 	const Object *obj = draw->getObject();
 
+#if RTS_ZEROHOUR
+	const BodyModuleInterface *body = obj->getBodyModule();
+	if (body && body->isJammed())
+	{
+		return FALSE;
+	}
+#endif
+
 #if defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)
 	// CapsLock in a camera mode: anything with an object can be selected, by click or drag
 	// box -- unselectable kinds, enemies, structures, the lot. The rules below are gameplay
@@ -636,6 +644,13 @@ GameMessageDisposition SelectionTranslator::onMouseLeftDoubleClick(MAYBE_UNUSED 
 	// If there wasn't anyone to pick, then we want to propagate this double click.
 	if (picked == nullptr)
 		return KEEP_MESSAGE;
+
+#if RTS_ZEROHOUR
+	if (!CanSelectDrawable(picked, FALSE))
+	{
+		return KEEP_MESSAGE;
+	}
+#endif
 
 	//ShigureUi 07/09/2026 delay "return KEEP_MESSAGE".
 	//if (!picked->isMassSelectable())  

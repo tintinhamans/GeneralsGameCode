@@ -44,6 +44,8 @@ public:
 	virtual BOOL InitInstance() override;
 	virtual int ExitInstance() override;
 	//}}AFX_VIRTUAL
+	// TheSuperHackers @feature W3D Material Viewer: deliver Qt posted events/timers at idle.
+	virtual BOOL OnIdle(LONG lCount);
 
 // Implementation
 

@@ -720,6 +720,8 @@ public:
 	// adds the given AIGroup to the current selection of this player.
 	void addAIGroupToCurrentSelection(AIGroup *group);
 
+	void removeObjectFromCurrentSelection(Object *obj);
+
 	// return the requested hotkey squad
 	Squad *getHotkeySquad(Int squadNumber);
 

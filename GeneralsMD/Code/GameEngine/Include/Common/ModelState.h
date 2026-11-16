@@ -314,9 +314,7 @@ enum ModelConditionFlagType CPP_11(: Int)
 	// Set by AnimationSteeringUpdate (BackwardsCondition) while the unit reverses (appended to preserve existing save values).
 	MODELCONDITION_MOVING_BACKWARDS,
 
-	// Reserved padding: keeps MODELCONDITION_COUNT distinct from KINDOF_COUNT. BitFlags<N> is keyed only
-	// on its bit count, so two flag enums with an equal COUNT would share one name list (see the guard in
-	// BitFlags.cpp). Do not reuse this slot for a real condition without re-checking the counts.
+	// Unused slot, free to take for a real condition.
 	MODELCONDITION_RESERVED_UNIQUE_SIZE_PAD,
 //
 // Note: these values are saved in save files, so you MUST NOT REMOVE OR CHANGE

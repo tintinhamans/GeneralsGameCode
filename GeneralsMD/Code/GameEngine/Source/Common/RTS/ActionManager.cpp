@@ -1661,7 +1661,7 @@ Bool ActionManager::canDoSpecialPowerAtLocation( const Object *obj, const Coord3
 
 		if (checkSourceRequirements)
 		{
-			if( mod->getPercentReady() < 1.0f )
+			if( !mod->isReadyForCommand(commandOptions) )
 			{
 				//Not fully ready
 				return false;
@@ -1901,7 +1901,7 @@ Bool ActionManager::canDoSpecialPowerAtObject( const Object *obj, const Object *
 	{
 		if (checkSourceRequirements)
 		{
-			if( mod->getPercentReady() < 1.0f )
+			if( !mod->isReadyForCommand(commandOptions) )
 			{
 				//Not fully ready
 				return false;
@@ -2309,7 +2309,7 @@ Bool ActionManager::canDoSpecialPower( const Object *obj, const SpecialPowerTemp
 	{
 		if (checkSourceRequirements)
 		{
-			if( mod->getPercentReady() < 1.0f )
+			if( !mod->isReadyForCommand(commandOptions) )
 			{
 				//Not fully ready
 				return false;

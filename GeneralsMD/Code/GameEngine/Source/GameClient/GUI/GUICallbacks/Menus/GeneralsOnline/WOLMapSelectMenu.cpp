@@ -36,6 +36,7 @@
 #include "GameClient/WindowLayout.h"
 #include "GameClient/Gadget.h"
 #include "GameClient/GadgetRadioButton.h"
+#include "GameClient/GadgetTextEntry.h"
 #include "GameClient/Shell.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GadgetListBox.h"
@@ -59,6 +60,8 @@ static NameKeyType radioButtonUserMapsID = NAMEKEY_INVALID;
 
 extern WindowLayout *WOLMapSelectLayout;			///< Map selection overlay
 static GameWindow *mapList = nullptr;
+static GameWindow *mapFilter = nullptr;
+static Bool showingSystemMaps = TRUE;
 
 static GameWindow *buttonMapStartPosition[MAX_SLOTS] = {0};
 static NameKeyType buttonMapStartPositionID[MAX_SLOTS] = { NAMEKEY_INVALID,NAMEKEY_INVALID,
@@ -76,6 +79,7 @@ static void NullifyControls(void)
 {
 	parent = nullptr;
 	mapList = nullptr;
+	mapFilter = nullptr;
 	if (winMapPreview)
 	{
 		winMapPreview->winSetUserData(nullptr);
@@ -85,6 +89,12 @@ static void NullifyControls(void)
 	{
 		buttonMapStartPosition[i] = nullptr;
 	}
+}
+
+static void populateWolMapList( Bool useSystemMaps, AsciiString mapToSelect )
+{
+	showingSystemMaps = useSystemMaps;
+	populateMapListbox( mapList, useSystemMaps, TRUE, mapToSelect, GadgetTextEntryGetText( mapFilter ) );
 }
 
 static const char *layoutFilename = "GameSpyGameOptionsMenu.wnd";
@@ -201,9 +211,16 @@ void WOLMapSelectMenuInit( WindowLayout *layout, void *userData )
 	
 	if( mapList )
 	{
+		GameWindow *chatEntry = TheWindowManager->winGetWindowFromId( nullptr, TheNameKeyGenerator->nameToKey( "GameSpyGameOptionsMenu.wnd:TextEntryChat" ) );
+		mapFilter = createMapListFilter( mapList, chatEntry );
+		if (mapFilter)
+		{
+			TheWindowManager->winSetFocus( mapFilter );
+		}
+
 		if (TheMapCache)
 			TheMapCache->updateCache();
-		populateMapListbox( mapList, usesSystemMapDir, TRUE, TheNGMPGame->getMap() );
+		populateWolMapList( usesSystemMapDir, TheNGMPGame->getMap() );
 	}
 
 }
@@ -330,6 +347,19 @@ WindowMsgHandledType WOLMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 		}
 
 		//---------------------------------------------------------------------------------------------
+		case GEM_UPDATE_TEXT:
+		{
+			if( mapFilter && (GameWindow *)mData1 == mapFilter )
+			{
+				Int selected = -1;
+				GadgetListBoxGetSelected( mapList, &selected );
+				const char *mapFname = selected >= 0 ? (const char *)GadgetListBoxGetItemData( mapList, selected ) : nullptr;
+				populateWolMapList( showingSystemMaps, mapFname ? AsciiString( mapFname ) : TheNGMPGame->getMap() );
+			}
+			break;
+		}
+
+		//---------------------------------------------------------------------------------------------
 		case GLM_DOUBLE_CLICKED:
 			{
 				GameWindow *control = (GameWindow *)mData1;
@@ -418,7 +448,7 @@ WindowMsgHandledType WOLMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 			{
 				if (TheMapCache)
 					TheMapCache->updateCache();
-				populateMapListbox( mapList, TRUE, TRUE, TheNGMPGame->getMap() );
+				populateWolMapList( TRUE, TheNGMPGame->getMap() );
 				CustomMatchPreferences pref;
 				pref.setUsesSystemMapDir(TRUE);
 				pref.write();
@@ -427,7 +457,7 @@ WindowMsgHandledType WOLMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 			{
 				if (TheMapCache)
 					TheMapCache->updateCache();
-				populateMapListbox( mapList, FALSE, TRUE, TheNGMPGame->getMap() );
+				populateWolMapList( FALSE, TheNGMPGame->getMap() );
 				CustomMatchPreferences pref;
 				pref.setUsesSystemMapDir(FALSE);
 				pref.write();

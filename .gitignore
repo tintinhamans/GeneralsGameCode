@@ -80,6 +80,4 @@ SESSION_CHANGES.md
 /doctrees/
 .venv/
 
-resources/gitinfo/git_watcher.cmake
-
 tools/test_terrain_tiles.py

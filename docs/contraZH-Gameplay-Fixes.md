@@ -3,6 +3,98 @@
 Always on, no `Options.ini` key. All are retail bugs upstream still carries. Each entry says whether
 it changes the simulation (older replays no longer play back identically) or only what is drawn.
 
+## Patriots return to normal range after assisting
+
+Patriots and other units using `AssistedTargetingUpdate` release their temporary weapon lock
+when the attack ends or a queued attack has lost its target. Destroying the target or giving
+a stop command no longer leaves the extended-range assist weapon selected for later attacks.
+The target of an assist request can no longer be asked to assist against itself.
+
+This changes the simulation and can change older replay playback. Multiplayer clients need
+matching engine versions.
+
+## Destroyed carrier aircraft fall to the ground
+
+Dead aircraft no longer treat their carrier's deck height as a floor. Aircraft using
+`HelicopterSlowDeathBehavior` can reach the ground and finish their crash sequence.
+The jet model also stops using the minimum runway height after death, so it follows
+the falling object instead of hovering above its particles.
+
+This changes the simulation and can change older replay playback.
+
+## Fast projectiles hit close targets
+
+`DumbProjectileBehavior` projectiles whose flight takes less than one frame now move to their
+target before detonating. Previously, these close shots exploded at the barrel. The fix applies
+to curved and linear flight paths, including projectiles that tumble or keep a fixed orientation.
+
+Changes the simulation and older replay playback for affected shots.
+
+## AI supply sources respect allied bases
+
+AI supply construction skips sources already occupied by another player's supply center or
+reserved by a scripted supply truck. It also skips sources within `SupplyCenterSafeRadius` of
+allied structures, so an ally's base supplies are protected before its supply center exists.
+
+GLA trucks using the [nearest-free-supply actions](contraZH-Maps-and-Setup.md#move-to-a-free-supply-source)
+reserve separate sources while travelling and keep valid assignments after arrival.
+([#220](https://github.com/triatomic/contraZH/issues/220))
+
+## GLA supply trucks keep their sources and workers
+
+GLA command centers generate money but do not occupy supply sites. Occupancy checks require an
+actual supply-center dock module, so a nearby command center does not exclude a home supply.
+
+GLA trucks reserve permanent docks separately while grouping nearby depleting piles into one
+site. The free-source production condition uses the same rule, including after trucks park.
+New assignments choose the nearest available source meeting the resource requirement.
+
+New truck destinations exclude sources near enemy base structures. Supply centers placed by the
+AI face their chosen source, including when the AI adjusts their placement to avoid obstacles.
+
+An established truck assignment survives nearby construction and the loss of other trucks.
+The truck keeps collecting until its source empties or becomes invalid. A replacement truck
+claims the freed source without displacing collectors at other sources.
+
+The [mobile supply crew action](contraZH-Maps-and-Setup.md#manage-mobile-supply-crews) trains and
+replaces workers at each truck. Workers gather from that truck's source and unload at their
+producer truck. Living and queued workers count toward each truck's crew limit. The migrated
+GLA scripts use one repeatable truck template per faction instead of four numbered slots.
+
+Changes the simulation and requires the matching migrated skirmish scripts.
+([#222](https://github.com/triatomic/contraZH/issues/222))
+
+## Recycled supply centers accept automatic deliveries
+
+Supply centers spawned already complete register as delivery targets during normal gameplay.
+Workers can automatically unload at recycled GLA supply stash trucks without a manual delivery
+order. Supply centers under construction still register when construction finishes.
+
+Map initialization and saved-game loading keep their existing registration paths. No per-frame
+scan is added, and the completion guard prevents duplicate registration.
+
+This changes the simulation and can change older replay playback. Multiplayer clients need
+matching engine versions.
+
+## Garrisons stay protected when map borders change
+
+Shrinking or expanding the active map border no longer exposes enclosed occupants to ordinary
+area damage. This also covers units that entered a garrison outside the active border and units
+inside nested containers, such as infantry in an Overlord bunker.
+
+Enclosed occupants stay out of the spatial partition and the pathfinding map during the border
+rebuild. They stay on the radar list, so they show on the minimap again once they leave. Weapons
+designed to clear garrisons keep their normal behavior.
+
+This changes the simulation and can change older replay playback after a map border change.
+
+## Healed infantry follow the barracks rally point
+
+Infantry leaving a barracks after healing now follow its rally point. The healing container
+reads the rally point from the building's production module when it has no rally point of its own.
+
+Changes the simulation and can change older replay playback.
+
 ## Failed saves clean up safely
 
 A save that fails to load can leave update modules with unfinished queue indices. Cleanup now
@@ -90,16 +182,55 @@ identically.
 
 Network game packets now carry up to about 1100 bytes instead of the 476 bytes sized for a 512-byte
 modem packet, so a burst of orders goes out in one packet instead of several. This applies to every
-multiplayer game. The lobby already refuses a player whose executable differs, so an older build
-cannot join a game hosted on this one.
+multiplayer game. An older build cannot share a game with this one. A GameSpy lobby refuses a
+player whose executable differs, and a LAN lobby refuses one on another network version.
+
+## LAN games need the same network version
+
+Each build carries a network version, which changes when the packet size or the map file format
+changes. A LAN host refuses a joiner on another version, and a joiner leaves a host on another
+version. Both see the CRC mismatch message. Previously, Zero Hour let any build join a LAN game,
+and the two sides then could not understand each other.
+
+Builds of the same code share a version, so a cheats build can join a normal build and a D3D8 build
+can join a D3D9 build. A Generals Online build has its own version, because its packet size differs.
+
+## Map transfer
+
+A host whose map cannot be transferred is told when pressing Start, before anyone enters the
+transfer screen. The lobby chat names the file and the cause, such as a `.map` over 5 MB. Previously
+the whole map was sent, every receiver rejected it silently and all players waited two minutes.
+
+A side file that cannot be sent is left out and the map transfers without it. This applies to the
+preview, `map.str`, `assetusage.txt` and `readme.txt`. One is left out when it is empty, over its size
+limit or not a valid file of its type, such as a preview without a TGA 2.0 footer. Previously, one
+such file failed the whole transfer.
+
+`map.ini` and `solo.ini` change the game data, so a player without them would go out of sync. A map
+whose `map.ini` or `solo.ini` cannot be sent (empty, over 2 MB, or containing a zero byte) still
+blocks Start.
+
+The cause lines use the labels `GUI:MapTransferFileMissing`, `Empty`, `Unreadable`, `WrongType`,
+`TooLarge` and `Invalid`. A translation can supply them, and the game falls back to English text.
+
+The transfer now ends after 60 seconds without progress from any player. Previously, it ended two
+minutes after it began, even while a slow link was still delivering.
+
+The host sends only as many pieces at once as the receiver has acknowledged room for. The amount
+grows while pieces arrive and halves when one has to be sent again. Previously, the host sent up to
+256 packets every frame, most were dropped at the receiver and sent again.
+
+In LAN and GameSpy games every file is compressed for the transfer. Generals Online games send
+the files as they are, because other clients there do not expect compressed data.
 
 ## Drones stay on their leash
 
-* The leash (twice the guard range from the master) was never checked while the master had a
-victim, so drones wandered off indefinitely.
-* The leash is now checked first. A drone past it drops its attack and returns.
-* Unchanged: normal fights within the master's range, drones without guard range, Stinger Site
-stingers.
+The leash is twice the guard range from the parent. The drone now checks that distance before
+attack and scout orders, even when the parent has no target. A drone past the leash clears its
+attack state and moves back toward its parent. Previously, the return order could leave the
+drone's attack active after the parent lost its target.
+
+Drones without a guard range and Stinger Site stingers keep their existing behavior.
 
 Changes the simulation.
 
@@ -129,7 +260,12 @@ until it sinks. Dying vehicles still block until they become hulks.
 ## Jammed units deselect properly
 
 * Jamming deselects the unit, so the control bar no longer appears stuck.
+* Jammed objects reject selection through clicks, hotkeys, idle-worker cycling and command buttons
+until the jam ends, including `ALWAYS_SELECTABLE` objects.
+* Jamming clears both the UI and simulation selections and hides the object's command buttons.
 * `UNSELECTABLE` alone blocks new selection clicks but no longer empties the current selection.
+* Deselecting another object preserves temporarily `UNSELECTABLE` selection members, so control
+returns when their status clears.
 * The jam state is tracked directly, so a promotion or health upgrade can no longer leave a unit
 jammed forever.
 

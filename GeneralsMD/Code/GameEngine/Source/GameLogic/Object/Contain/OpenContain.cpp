@@ -1904,7 +1904,6 @@ const Coord3D *OpenContain::getRallyPoint() const
 	if (m_rallyPointExists)
 		return &m_rallyPoint;
 
-#if !RETAIL_COMPATIBLE_CRC
 	// TheSuperHackers @bugfix arcticdolphin 02/03/2026 Use primary exit interface rally point if available.
 	if (getObject())
 	{
@@ -1914,7 +1913,6 @@ const Coord3D *OpenContain::getRallyPoint() const
 			return primaryExit->getRallyPoint();
 		}
 	}
-#endif
 
 	return nullptr;
 }

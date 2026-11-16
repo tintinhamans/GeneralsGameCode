@@ -27,6 +27,9 @@ extern "C" void WBQtWindowPos_ClearSaved(void);
 extern "C" int  WBQtWindowSize_Get(const char *name, int *widthOut, int *heightOut);
 extern "C" void WBQtWindowSize_Save(const char *name, int width, int height);
 
+// The Qt main window (WBQtBridge.cpp); NULL when the legacy MFC frame is the main window.
+QWidget *WBQt_MainWindowWidget(void);
+
 namespace
 {
 	// Stamped on a tracked window: present (valid) means a second Track() call is a no-op, and
@@ -34,13 +37,12 @@ namespace
 	// is how Reset Window Positions knows not to drag them out of their normal centering.
 	const char *const kTrackedProp = "wbPosTracked";
 
-	// Shift the rect (size preserved) so the window stays reachable on the nearest monitor:
+	// Shift the rect (size preserved) so the window stays reachable on the given monitor:
 	// fully inside the work area horizontally and at the top, but downward it may hang into
 	// or below the taskbar as long as the whole title bar stays visible above it -- enough
 	// to always grab the window back. Used for the live drag clamp and the restore clamp.
-	void clampRectToNearestWorkArea(RECT *r)
+	void clampRectToWorkArea(RECT *r, HMONITOR monitor)
 	{
-		HMONITOR monitor = ::MonitorFromRect(r, MONITOR_DEFAULTTONEAREST);
 		MONITORINFO mi;
 		mi.cbSize = sizeof(mi);
 		if (monitor == NULL || !::GetMonitorInfo(monitor, &mi))
@@ -71,12 +73,23 @@ namespace
 		::OffsetRect(r, dx, dy);
 	}
 
+	void clampRectToNearestWorkArea(RECT *r)
+	{
+		clampRectToWorkArea(r, ::MonitorFromRect(r, MONITOR_DEFAULTTONEAREST));
+	}
+
+	// Where the cursor grabbed the window in the drag under way; only one runs at a time.
+	bool s_dragOffsetValid = false;
+	POINT s_dragOffset;
+
 	// Live drag clamp: adjust the WM_MOVING rect so the user cannot drag a tracked window
 	// outside the monitor work area -- the window just stops at the edge. Clamping the
 	// proposed rect (instead of move()-ing back afterwards) is jitter-free because the OS
-	// itself places the window at the adjusted spot. Crossing to another monitor still
-	// works: once most of the proposed rect overlaps the other monitor, MonitorFromRect
-	// picks that one and the window snaps fully onto it.
+	// itself places the window at the adjusted spot.
+	//
+	// The rect is rebuilt from the cursor each time and clamped to the cursor's monitor.
+	// Windows offsets the rect an earlier WM_MOVING returned, so a rect clamped at one
+	// monitor's edge would stay pinned there and never reach the next monitor.
 	//
 	// This must be a Win32 subclass (SetWindowSubclass), NOT a QAbstractNativeEventFilter:
 	// WM_MOVING is not one of the messages Qt's window proc translates, so it never reaches
@@ -85,10 +98,30 @@ namespace
 		UINT_PTR subclassId, DWORD_PTR refData)
 	{
 		Q_UNUSED(refData);
+		if (msg == WM_ENTERSIZEMOVE)
+		{
+			s_dragOffsetValid = false;
+		}
 		if (msg == WM_MOVING)
 		{
 			::DefSubclassProc(hwnd, msg, wParam, lParam);
-			clampRectToNearestWorkArea(reinterpret_cast<RECT *>(lParam));
+			RECT *r = reinterpret_cast<RECT *>(lParam);
+			POINT cursor;
+			if (!::GetCursorPos(&cursor))
+			{
+				clampRectToNearestWorkArea(r);
+				return TRUE;
+			}
+			if (!s_dragOffsetValid)
+			{
+				// Taken from the first proposed rect, which already accounts for a window
+				// that left its maximized or snapped state when the drag began.
+				s_dragOffset.x = cursor.x - r->left;
+				s_dragOffset.y = cursor.y - r->top;
+				s_dragOffsetValid = true;
+			}
+			::OffsetRect(r, cursor.x - s_dragOffset.x - r->left, cursor.y - s_dragOffset.y - r->top);
+			clampRectToWorkArea(r, ::MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST));
 			return TRUE;
 		}
 		if (msg == WM_NCDESTROY)
@@ -201,13 +234,12 @@ namespace
 			int left = 0;
 			if (WBQtWindowPos_Get(m_name.constData(), &top, &left))
 			{
-				// Clamp the stored position back on screen first -- it can be stale (monitor
-				// unplugged, resolution lowered) or from a pre-clamp build.
-				const QRect frame = m_window->frameGeometry();
-				RECT r = { left, top, left + frame.width(), top + frame.height() };
-				clampRectToNearestWorkArea(&r);
-				// move() targets the frame corner, matching the saved frameGeometry.
-				m_window->move(r.left, r.top);
+				// The stored position can be stale (monitor unplugged, resolution lowered).
+				WBQtWindowPos_MoveOnScreen(m_window, left, top);
+			}
+			else
+			{
+				WBQtWindowPos_CenterOnMain(m_window);
 			}
 		}
 
@@ -257,6 +289,31 @@ namespace
 		window->setProperty(kTrackedProp, trackPos);
 		new WBQtWindowPosTracker(window, QByteArray(name), trackPos);
 	}
+}
+
+void WBQtWindowPos_MoveOnScreen(QWidget *window, int left, int top)
+{
+	if (window == NULL)
+	{
+		return;
+	}
+	const QRect frame = window->frameGeometry();
+	RECT r = { left, top, left + frame.width(), top + frame.height() };
+	clampRectToNearestWorkArea(&r);
+	// move() targets the frame corner, matching a saved frameGeometry.
+	window->move(r.left, r.top);
+}
+
+void WBQtWindowPos_CenterOnMain(QWidget *window)
+{
+	QWidget *mainWindow = WBQt_MainWindowWidget();
+	if (window == NULL || mainWindow == NULL)
+	{
+		return;
+	}
+	const QRect frame = window->frameGeometry();
+	const QPoint center = mainWindow->frameGeometry().center();
+	WBQtWindowPos_MoveOnScreen(window, center.x() - frame.width() / 2, center.y() - frame.height() / 2);
 }
 
 void WBQtWindowPos_Track(QWidget *window, const char *name)

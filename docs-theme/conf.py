@@ -81,6 +81,7 @@ contra_nav = [
         ('Debug & Cheats', 'contraZH-Debug-and-Cheats'),
         ('Camera Controls', 'CameraControls'),
         ('Generals Online', 'contraZH-Generals-Online'),
+        ('W3DView', 'contraZH-W3DView'),
     ]),
     ('Direct3D 9 Features', [
         ('Overview', 'dx9feat'),
@@ -108,6 +109,7 @@ contra_nav = [
         ('Viewing & D3D9 Effects', 'WorldBuilder-Qt-Viewing'),
         ('Scripts & INI', 'WorldBuilder-Qt-Scripts-and-INI'),
         ('Map Generator & MCP', 'WorldBuilder-Qt-Map-Generator'),
+        ('MCP Server', 'WorldBuilder-Qt-MCP'),
     ]),
     ('Upstream reference', [
         ('Changes & Bug Fixes', 'Changes-&-Bug-Fixes'),

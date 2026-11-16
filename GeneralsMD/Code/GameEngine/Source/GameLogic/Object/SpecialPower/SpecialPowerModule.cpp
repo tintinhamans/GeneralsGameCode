@@ -194,6 +194,7 @@ SpecialPowerModule::~SpecialPowerModule()
 void SpecialPowerModule::setReadyFrame( UnsignedInt frame )
 {
 	// the frame given here is the answer, so stop waiting on any shots
+	payPendingCost();
 	clearPendingShots();
 
 	m_availableOnFrame = frame;
@@ -388,7 +389,7 @@ Real SpecialPowerModule::getPercentReady() const
 {
 	// The cooldown has not started, so the frame below is still the previous one and now in the
 	// past; the unsigned subtraction there would wrap. Nothing is charged yet either way.
-	if( m_pendingShotsState != PENDING_NONE )
+	if( m_pendingShotsState != PENDING_NONE && shouldWaitForShots() )
 	{
 		return 0.0f;
 	}
@@ -480,6 +481,8 @@ void SpecialPowerModule::startPowerRecharge()
 //-------------------------------------------------------------------------------------------------
 void SpecialPowerModule::beginCooldownNow()
 {
+	// ending the wait is no cancel, so a deferred cost is still owed
+	payPendingCost();
 	clearPendingShots();
 
 #if defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)
@@ -529,6 +532,7 @@ void SpecialPowerModule::beginCooldownNow()
 //-------------------------------------------------------------------------------------------------
 void SpecialPowerModule::clearPendingShots()
 {
+	m_pendingCost = 0;
 	m_pendingShotsState = PENDING_NONE;
 	m_pendingTimeoutFrame = 0;
 	m_pendingStartFrame = 0;
@@ -536,17 +540,34 @@ void SpecialPowerModule::clearPendingShots()
 }
 
 //-------------------------------------------------------------------------------------------------
-/** TheSuperHackers @feature Nothing was ever fired, so the use did not happen. Hand the power
-	* back rather than charging a cooldown for it. Any credits it cost stay spent, matching how
-	* the money is taken up front. */
+/** Collect a cost that was deferred to the first shot. */
+//-------------------------------------------------------------------------------------------------
+void SpecialPowerModule::payPendingCost()
+{
+	if( m_pendingCost <= 0 )
+	{
+		return;
+	}
+
+	Player *player = getObject()->getControllingPlayer();
+	if( player != nullptr )
+	{
+		player->getMoney()->withdraw( m_pendingCost );
+	}
+	m_pendingCost = 0;
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Cancel the pending use without charging its deferred cost. */
 //-------------------------------------------------------------------------------------------------
 void SpecialPowerModule::refundUnfiredPower()
 {
 	clearPendingShots();
 
-	// Only a power with its own timer can be waiting: shouldWaitForShots turns a shared one
-	// down, since that timer belongs to the player rather than to this caster.
-	m_availableOnFrame = TheGameLogic->getFrame();
+	if( shouldWaitForShots() )
+	{
+		m_availableOnFrame = TheGameLogic->getFrame();
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -582,12 +603,18 @@ Bool SpecialPowerModule::wakeFiringTrackerForWait()
 }
 
 //-------------------------------------------------------------------------------------------------
-/** A shot went out. The first one turns the wait into a burst we watch for its end. */
+/** The first shot pays the deferred cost and starts watching any pending burst. */
 //-------------------------------------------------------------------------------------------------
 void SpecialPowerModule::onShotFired()
 {
 	if( m_pendingShotsState == PENDING_WAITING_FOR_FIRST_SHOT )
 	{
+		payPendingCost();
+		if( !shouldWaitForShots() )
+		{
+			clearPendingShots();
+			return;
+		}
 		m_pendingShotsState = PENDING_FIRING;
 	}
 }
@@ -648,6 +675,12 @@ void SpecialPowerModule::updatePendingShots()
 	{
 		if( m_pendingShotsState == PENDING_WAITING_FOR_FIRST_SHOT )
 		{
+			// a caster still attacking will fire late, so the use is owed
+			if( busy )
+			{
+				payPendingCost();
+			}
+
 			// never fired a shot, so the use was cancelled one way or another
 			DEBUG_LOG(( "SpecialPower '%s' fired no shot before its reload time was up; handing the power back",
 				getPowerName().str() ));
@@ -717,6 +750,7 @@ void SpecialPowerModule::triggerSpecialPower( const Coord3D *location )
 {
 
 	Int cost{ getSpecialPowerTemplate()->getCost() };
+	Bool deferCost = FALSE;
 	if ( cost > 0) {
 		Player* ply = getObject()->getControllingPlayer();
 		if (ply != nullptr && ply->getMoney()->countMoney() < cost) {
@@ -724,7 +758,12 @@ void SpecialPowerModule::triggerSpecialPower( const Coord3D *location )
 			return;
 		}
 		else if (ply!=nullptr) {
-			ply->getMoney()->withdraw(cost);
+			// only a firing tracker can report the shot that pays, so anything else pays here
+			deferCost = getSpecialPowerTemplate()->isDeductCostOnFirstShot() && getObject()->getFiringTracker() != nullptr;
+			if( !deferCost )
+			{
+				ply->getMoney()->withdraw(cost);
+			}
 		}
 		else {
 			DEBUG_LOG(("Cannot withdraw money for SpecialPower '%s', player is null", getSpecialPowerTemplate()->getName().str()));
@@ -740,23 +779,38 @@ void SpecialPowerModule::triggerSpecialPower( const Coord3D *location )
 	// TheSuperHackers @feature StartCooldownOnFirstShot holds the cooldown until the shots this
 	// power orders are away. Only this path waits: startPowerRecharge is also how a sabotage
 	// crate resets an enemy timer, and that must take effect at once.
-	if( shouldWaitForShots() )
+	// DeductCostOnFirstShot uses the same wait to collect its cost.
+	if( shouldWaitForShots() || deferCost )
 	{
 #if RETAIL_COMPATIBLE_CRC
 		// the MissileLauncherBuildingUpdate crash fix parks this frame as a sentinel, and the
 		// paths that read it must keep seeing it, so that use does not wait
 		if( m_availableOnFrame == 0xFFFFFFFF )
 		{
+			m_pendingCost = deferCost ? cost : 0;
 			startPowerRecharge();
 			return;
 		}
 #endif
 
+		// a deferred cost alone leaves the cooldown to start at the use
+		if( !shouldWaitForShots() )
+		{
+			startPowerRecharge();
+		}
+
 		// The wait cannot run longer than the cooldown it is holding back, or the power would be
 		// unavailable for longer than its own reload time.
+		UnsignedInt waitFrames = getSpecialPowerTemplate()->getReloadTime();
+		if( waitFrames < PENDING_CANCEL_SETTLE_FRAMES )
+		{
+			// a very short reload must still leave the caster time to take the attack up
+			waitFrames = PENDING_CANCEL_SETTLE_FRAMES;
+		}
 		const UnsignedInt now = TheGameLogic->getFrame();
+		m_pendingCost = deferCost ? cost : 0;
 		m_pendingShotsState = PENDING_WAITING_FOR_FIRST_SHOT;
-		m_pendingTimeoutFrame = now + getSpecialPowerTemplate()->getReloadTime();
+		m_pendingTimeoutFrame = now + waitFrames;
 		m_pendingStartFrame = now;
 		m_pendingSettleFrame = 0;
 
@@ -1118,7 +1172,7 @@ void SpecialPowerModule::pauseCountdown( Bool pause )
 					m_pendingSettleFrame += pausedFrames;
 				}
 			}
-			else
+			if( m_pendingShotsState == PENDING_NONE || !shouldWaitForShots() )
 			{
 				m_availableOnFrame += pausedFrames;
 			}
@@ -1132,7 +1186,7 @@ UnsignedInt SpecialPowerModule::getReadyFrame() const
 {
 	// Nothing is charging yet, so hold the frame the cooldown would have ended on had it begun
 	// at the use. It counts down like any other, and the real one takes over once a shot lands.
-	if( m_pendingShotsState != PENDING_NONE )
+	if( m_pendingShotsState != PENDING_NONE && shouldWaitForShots() )
 	{
 		return m_pendingStartFrame + getSpecialPowerTemplate()->getReloadTime();
 	}
@@ -1231,7 +1285,7 @@ void SpecialPowerModule::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 2;
+	XferVersion currentVersion = 3;
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -1258,6 +1312,14 @@ void SpecialPowerModule::xfer( Xfer *xfer )
 		xfer->xferUnsignedInt( &m_pendingTimeoutFrame );
 		xfer->xferUnsignedInt( &m_pendingStartFrame );
 		xfer->xferUnsignedInt( &m_pendingSettleFrame );
+	}
+	if( version >= 3 )
+	{
+		xfer->xferInt( &m_pendingCost );
+	}
+	else
+	{
+		m_pendingCost = 0;
 	}
 
 }

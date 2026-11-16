@@ -47,8 +47,9 @@ static Bool doFileTransfer( AsciiString filename, MapTransferLoadScreen *ls, Int
 	if (mask)
 	{
 		ls->setCurrentFilename(filename);
-		UnsignedInt startTime = timeGetTime();
-		const Int timeoutPeriod = 2*60*1000;
+		UnsignedInt lastProgressTime = timeGetTime();
+		Int lastProgressSum = 0;
+		const UnsignedInt timeoutPeriod = 60*1000;
 		ls->processTimeout(timeoutPeriod/1000);
 
 		ls->update(0);
@@ -80,12 +81,14 @@ static Bool doFileTransfer( AsciiString filename, MapTransferLoadScreen *ls, Int
 			// get the progress for each player, and take the min for our overall progress
 			fileTransferDone = TRUE;
 			fileTransferPercent = 100;
+			Int progressSum = 0;
 			for (i=1; i<MAX_SLOTS; ++i)
 			{
 				if (TheGameInfo->getConstSlot(i)->isHuman() && !TheGameInfo->getConstSlot(i)->hasMap())
 				{
 					Int slotTransferPercent = TheNetwork->getFileTransferProgress(i, filename);
 					fileTransferPercent = min(fileTransferPercent, slotTransferPercent);
+					progressSum += slotTransferPercent;
 
 					if (slotTransferPercent == 0)
 						ls->processProgress(i, slotTransferPercent, "MapTransfer:Preparing");
@@ -109,15 +112,23 @@ static Bool doFileTransfer( AsciiString filename, MapTransferLoadScreen *ls, Int
 				ls->processProgress(0, fileTransferPercent, "MapTransfer:Done");
 			}
 
-			Int now = timeGetTime();
-			if (now > startTime + timeoutPeriod) // bail if we don't finish in a reasonable amount of time
+			UnsignedInt now = timeGetTime();
+
+			// Progress by any player restarts the timeout, so a slow link is not cut off while it still delivers
+			if (progressSum > lastProgressSum)
+			{
+				lastProgressSum = progressSum;
+				lastProgressTime = now;
+			}
+
+			if (now - lastProgressTime > timeoutPeriod)
 			{
 				DEBUG_LOG(("Timing out file transfer"));
 				break;
 			}
 			else
 			{
-				ls->processTimeout((startTime + timeoutPeriod - now)/1000);
+				ls->processTimeout((timeoutPeriod - (now - lastProgressTime))/1000);
 			}
 
 			ls->update(fileTransferPercent);
@@ -241,40 +252,124 @@ AsciiString GetReadmeFromMap( AsciiString path )
 //-------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------
 
-Bool DoAnyMapTransfers(GameInfo *game)
+static Int getMapTransferMask(const GameInfo *game)
 {
-	TheGameInfo = game;
 	Int mask = 0;
-	Int i=0;
-	for (i=1; i<MAX_SLOTS; ++i)
+	for (Int i=1; i<MAX_SLOTS; ++i)
 	{
-		if (TheGameInfo->getConstSlot(i)->isHuman() && !TheGameInfo->getConstSlot(i)->hasMap())
+		if (game->getConstSlot(i)->isHuman() && !game->getConstSlot(i)->hasMap())
 		{
 			DEBUG_LOG(("Adding player %d to transfer mask", i));
 			mask |= (1<<i);
 		}
 	}
+	return mask;
+}
+
+struct MapSideFile
+{
+	Int contentsBit;
+	AsciiString (*getPath)(AsciiString mapPath);
+	Bool changesGameData;	///< A player without this file runs a different simulation than the host.
+};
+
+static const MapSideFile s_mapSideFiles[] =
+{
+	{ 2, GetPreviewFromMap, FALSE },
+	{ 4, GetINIFromMap, TRUE },
+	{ 8, GetStrFileFromMap, FALSE },
+	{ 16, GetSoloINIFromMap, TRUE },
+	{ 32, GetAssetUsageFromMap, FALSE },
+	{ 64, GetReadmeFromMap, FALSE },
+};
+
+static void getMapTransferFiles(const GameInfo *game, std::vector<AsciiString>& files)
+{
+	for (Int i = 0; i < ARRAY_SIZE(s_mapSideFiles); ++i)
+	{
+		if (game->getMapContentsMask() & s_mapSideFiles[i].contentsBit)
+		{
+			files.push_back(s_mapSideFiles[i].getPath(game->getMap()));
+		}
+	}
+	files.push_back(game->getMap());
+}
+
+Int RemoveUntransferableMapContents(const AsciiString& mapPath, Int contentsMask)
+{
+	for (Int i = 0; i < ARRAY_SIZE(s_mapSideFiles); ++i)
+	{
+		const Int bit = s_mapSideFiles[i].contentsBit;
+		if (!(contentsMask & bit))
+		{
+			continue;
+		}
+
+		const AsciiString path = s_mapSideFiles[i].getPath(mapPath);
+		const TransferFileProblem problem = CheckTransferFile(path);
+		if (problem == TRANSFER_FILE_OK)
+		{
+			continue;
+		}
+
+		// The bit can come from a file inside an archive, which the sender cannot read. A game data file on disk stays listed, so Start reports it.
+		if (problem != TRANSFER_FILE_MISSING && s_mapSideFiles[i].changesGameData)
+		{
+			continue;
+		}
+
+		DEBUG_LOG(("Side file '%s' cannot be transferred and is left out of the map contents", path.str()));
+		contentsMask &= ~bit;
+	}
+	return contentsMask;
+}
+
+Bool CanTransferMap(const GameInfo *game, UnicodeString *problemText)
+{
+	if (!getMapTransferMask(game))
+	{
+		return TRUE;
+	}
+
+	std::vector<AsciiString> files;
+	getMapTransferFiles(game, files);
+	for (size_t i = 0; i < files.size(); ++i)
+	{
+		const TransferFileProblem problem = CheckTransferFile(files[i]);
+		if (problem != TRANSFER_FILE_OK)
+		{
+			if (problemText != nullptr)
+			{
+				*problemText = GetTransferFileProblemText(problem, files[i]);
+			}
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+Bool DoAnyMapTransfers(GameInfo *game)
+{
+	TheGameInfo = game;
+	Int mask = getMapTransferMask(game);
 	if (!mask)
 		return TRUE;
+
+	if (game->amIHost() && !CanTransferMap(game))
+	{
+		return FALSE;
+	}
 
 	TheShell->hideShell();
 	MapTransferLoadScreen *ls = NEW MapTransferLoadScreen;
 	ls->init(TheGameInfo);
+	std::vector<AsciiString> files;
+	getMapTransferFiles(game, files);
 	Bool ok = TRUE;
-	if (TheGameInfo->getMapContentsMask() & 2)
-		ok = doFileTransfer(GetPreviewFromMap(game->getMap()), ls, mask);
-	if (ok && TheGameInfo->getMapContentsMask() & 4)
-		ok = doFileTransfer(GetINIFromMap(game->getMap()), ls, mask);
-	if (ok && TheGameInfo->getMapContentsMask() & 8)
-		ok = doFileTransfer(GetStrFileFromMap(game->getMap()), ls, mask);
-	if (ok && TheGameInfo->getMapContentsMask() & 16)
-		ok = doFileTransfer(GetSoloINIFromMap(game->getMap()), ls, mask);
-	if (ok && TheGameInfo->getMapContentsMask() & 32)
-		ok = doFileTransfer(GetAssetUsageFromMap(game->getMap()), ls, mask);
-	if (ok && TheGameInfo->getMapContentsMask() & 64)
-		ok = doFileTransfer(GetReadmeFromMap(game->getMap()), ls, mask);
-	if (ok)
-		ok = doFileTransfer(game->getMap(), ls, mask);
+	for (size_t i = 0; ok && i < files.size(); ++i)
+	{
+		ok = doFileTransfer(files[i], ls, mask);
+	}
 	delete ls;
 	ls = nullptr;
 	if (!ok)

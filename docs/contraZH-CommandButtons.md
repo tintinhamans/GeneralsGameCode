@@ -4,7 +4,7 @@
 
 `Options = REQUIRES_POWER` disables a button when its owner lacks sufficient power. It also applies to units using `PoweredBehavior`, whose movement and weapon penalties replace the normal `POWERED` disable. Buttons without this option keep their current behavior. `REQUIRES_POWER` takes precedence over `IGNORES_UNDERPOWERED`.
 
-`Options = IGNORES_UNDERPOWERED` lets an OCL special power activate when low power is its only disable reason. EMP, hacking, subdual, and other disable reasons still block activation. A power that was ready before the shortage remains usable. An unfinished recharge stays paused until power returns, and using the ability starts a new recharge without crediting the earlier pause again.
+`Options = IGNORES_UNDERPOWERED` lets an OCL special power activate when low power is its only disable reason. EMP, hacking, subdual, and other disable reasons still block activation. A power that was ready before the shortage remains usable. An unfinished recharge stays paused until power returns, and using the ability starts a new recharge without crediting the earlier pause again. This holds for untargeted, location-targeted, and object-targeted powers alike.
 
 ```
 CommandButton Command_ElectricityNet
@@ -126,6 +126,60 @@ Automatic deploying when a target comes into range is unchanged outside the manu
 
 Selecting a mixed group and pressing the button moves the whole group to one stance rather than flipping each
 unit separately, so a second press does not undo half of them.
+
+### TOGGLE_TUNNEL_AUTO_POP
+
+Turns a tunnel into an exit. While a player has at least one exit, every other tunnel of that player
+is an entrance, and units that enter the network come straight out of an exit
+([#95](https://github.com/triatomic/contraZH/pull/95)).
+
+```
+CommandButton Command_TunnelAutoExit
+  Command       = TOGGLE_TUNNEL_AUTO_POP
+  Options       = CHECK_LIKE OK_FOR_MULTI_SELECT   ; CHECK_LIKE shows the button as toggled on
+  TextLabel     = CONTROLBAR:TunnelAutoExit
+  ButtonImage   = SUTunnelAutoExit
+  DescriptLabel = CONTROLBAR:ToolTipTunnelAutoExit
+End
+```
+
+The label and image names above are placeholders; use the mod's own.
+
+The button works on objects with a `TunnelContain` module and is unavailable on anything else,
+including `CaveContain`.
+
+Exits:
+* An exit cannot be entered. If every tunnel is an exit, nothing can enter the network.
+* Each logic frame one exit orders everyone inside the network to leave through it. Several exits
+take turns, frame by frame, and a unit uses the exit that ordered it last.
+* Units already inside leave as soon as the first exit is switched on.
+* A disabled exit (EMP, low power) is skipped. If every exit is disabled, units wait inside.
+* A sold, destroyed or captured exit stops being an exit. A captured tunnel joins its new owner's
+network as an ordinary tunnel, or as an entrance if that owner has an exit.
+* Save and load keep the exits.
+
+Model conditions let art mark the two roles:
+* `TUNNEL_AUTO_EXIT` is set on each exit.
+* `TUNNEL_AUTO_ENTRANCE` is set on every other finished tunnel while at least one exit exists.
+* Both clear when the last exit is switched off or lost.
+
+An icon needs a draw module of its own. In the tunnel's main draw module the block would replace
+the building model. `GLATunnelExitIcon` is a placeholder name.
+
+```
+Draw = W3DModelDraw ModuleTag_AutoExitIcon
+  DefaultConditionState
+    Model = NONE
+  End
+  ConditionState = TUNNEL_AUTO_EXIT
+    Model = GLATunnelExitIcon
+  End
+End
+```
+
+With several tunnels selected, one press moves them all to the same state. If any of them is an
+exit, the press switches all of them off; otherwise it makes all of them exits. Tunnels under
+construction are left alone.
 
 ### Queue reorder
 
@@ -268,3 +322,10 @@ working. Dozers and workers both count as builders.
   reach check.
 * The placement preview is legal when any selected builder can build there.
 * A wall line goes to the first selected builder and starts at once.
+
+## INI-defined radius cursors
+
+`RadiusCursorType` and `AnchorRadiusCursorType` accept additional names defined through
+`RadiusCursor <name>` blocks inside `InGameUI.ini`. Existing cursor names keep their behavior.
+See [INI-defined identities and announcements](contraZH-SpecialPowers.md#ini-defined-identities-and-announcements)
+for complete power, EVA event and cursor examples.

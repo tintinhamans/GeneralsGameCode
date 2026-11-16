@@ -215,6 +215,7 @@ struct LANMessage
 			UnsignedInt exeCRC;
 			UnsignedInt iniCRC;
 			char serial[g_maxSerialLength];
+			UnsignedInt protocolVersion;
 		} GameToJoin;
 
 		// GameJoined is sent with JOIN_ACCEPT
@@ -224,6 +225,7 @@ struct LANMessage
 			UnsignedInt gameIP;
 			UnsignedInt playerIP;
 			Int slotPosition;
+			UnsignedInt protocolVersion;
 		} GameJoined;
 
 		// GameNotJoined is sent with JOIN_DENY

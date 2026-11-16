@@ -30,6 +30,8 @@
 #include "DataTreeView.h"
 #include "Utils.h"
 #include "WW3D2/texture.h"
+#include "WW3D2/surfaceclass.h"
+#include "WW3D2/ww3dformat.h"
 #include "WW3D2/assetmgr.h"
 #include "WW3D2/agg_def.h"
 #include "WW3D2/hlod.h"
@@ -486,12 +488,98 @@ Create_DIB_Section
 //
 //  Make_Bitmap_From_Texture
 //
+// TheSuperHackers @feature xezon 17/04/2026 Implement texture-to-bitmap conversion
+// for material preview thumbnails. Reads the D3D surface pixels and converts
+// them to a 24-bit BGR DIB section for GDI display.
+//
 HBITMAP
 Make_Bitmap_From_Texture (TextureClass &texture, int width, int height)
 {
-	// TheSuperHackers @info Not implemented
-	HBITMAP hbitmap = nullptr;
-	// Return a handle to the bitmap
+	SurfaceClass *surface = texture.Get_Surface_Level(0);
+	if (surface == nullptr) {
+		return nullptr;
+	}
+
+	SurfaceClass::SurfaceDescription desc;
+	surface->Get_Description(desc);
+
+	int src_width = desc.Width;
+	int src_height = desc.Height;
+	int src_bpp = 0;
+	unsigned char *src_pixels = surface->CreateCopy(&src_width, &src_height, &src_bpp, false);
+	surface->Release_Ref();
+
+	if (src_pixels == nullptr) {
+		return nullptr;
+	}
+
+	// Use the texture's native size if requested dimensions are zero or negative
+	if (width <= 0) width = src_width;
+	if (height <= 0) height = src_height;
+
+	// Create the destination DIB section (24bpp BGR)
+	UCHAR *dst_bits = nullptr;
+	HBITMAP hbitmap = Create_DIB_Section(&dst_bits, width, height);
+	if (hbitmap == nullptr || dst_bits == nullptr) {
+		delete[] src_pixels;
+		return nullptr;
+	}
+
+	// DIB rows are DWORD-aligned
+	int dst_stride = ((width * 3 + 3) & ~3);
+
+	// Copy pixels, converting from source format to 24-bit BGR.
+	// Center the source in the destination if sizes differ.
+	int copy_w = min(width, src_width);
+	int copy_h = min(height, src_height);
+	int dst_x_off = (width - copy_w) / 2;
+	int dst_y_off = (height - copy_h) / 2;
+	int src_x_off = (src_width - copy_w) / 2;
+	int src_y_off = (src_height - copy_h) / 2;
+
+	// Clear the bitmap to a neutral background
+	memset(dst_bits, 0x80, dst_stride * height);
+
+	for (int y = 0; y < copy_h; y++) {
+		UCHAR *dst_row = dst_bits + (dst_y_off + y) * dst_stride + dst_x_off * 3;
+		unsigned char *src_row = src_pixels + (src_y_off + y) * src_width * src_bpp + src_x_off * src_bpp;
+
+		for (int x = 0; x < copy_w; x++) {
+			unsigned char *src_pixel = src_row + x * src_bpp;
+			UCHAR *dst_pixel = dst_row + x * 3;
+
+			switch (src_bpp) {
+				case 4: // A8R8G8B8 or X8R8G8B8 (BGRA in memory)
+				case 3: // R8G8B8 (BGR in memory)
+					dst_pixel[0] = src_pixel[0]; // B
+					dst_pixel[1] = src_pixel[1]; // G
+					dst_pixel[2] = src_pixel[2]; // R
+					break;
+				case 2: { // R5G6B5 or A1R5G5B5 or A4R4G4B4
+					unsigned short val = *(unsigned short *)src_pixel;
+					if (desc.Format == WW3D_FORMAT_R5G6B5) {
+						dst_pixel[2] = (val >> 8) & 0xf8; // R
+						dst_pixel[1] = (val >> 3) & 0xfc; // G
+						dst_pixel[0] = (val << 3) & 0xf8; // B
+					} else if (desc.Format == WW3D_FORMAT_A1R5G5B5) {
+						dst_pixel[2] = (val >> 7) & 0xf8; // R
+						dst_pixel[1] = (val >> 2) & 0xf8; // G
+						dst_pixel[0] = (val << 3) & 0xf8; // B
+					} else { // A4R4G4B4
+						dst_pixel[2] = ((val >> 4) & 0xf0); // R
+						dst_pixel[1] = (val & 0xf0);        // G
+						dst_pixel[0] = ((val & 0x0f) << 4); // B
+					}
+					break;
+				}
+				default:
+					dst_pixel[0] = dst_pixel[1] = dst_pixel[2] = 0;
+					break;
+			}
+		}
+	}
+
+	delete[] src_pixels;
 	return hbitmap;
 }
 

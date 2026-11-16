@@ -56,10 +56,13 @@ protected:
 	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
 	virtual void OnCancel() override;
 	afx_msg void OnGrayscaleCheck();
+	afx_msg void OnColorPick();
+	afx_msg void OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct);
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()
 
     private:
+        void Update_Color_Swatch(void);
         int m_initialRed;
         int m_initialGreen;
         int m_initialBlue;

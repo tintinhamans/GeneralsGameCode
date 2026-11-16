@@ -228,7 +228,6 @@ void FiringTracker::notifySpecialPowersOfShot()
 		SpecialPowerModuleInterface *sp = (*b)->getSpecialPower();
 		if( sp != nullptr && sp->isWaitingForShots() )
 		{
-			// a shot only ever turns a wait into a burst, so nothing stops waiting here
 			sp->onShotFired();
 		}
 	}

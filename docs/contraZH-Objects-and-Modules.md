@@ -1,5 +1,43 @@
 # Objects & Modules
 
+## Weapon fire particles
+
+`WeaponFireParticleSys = <weapon slot> <particle system>` creates a bone-attached emitter
+for each shot. It works in `W3DModelDraw` and its derived draw modules, including
+`W3DTankDraw` and `W3DOverlordTankDraw`. It defaults to `None` for each slot.
+
+```ini
+DefaultConditionState
+  Model                 = NVBtMstr
+  WeaponFireFXBone      = PRIMARY Muzzle
+  WeaponFireParticleSys = PRIMARY TankCannonSmokeSmall
+End
+```
+
+The emitter follows the firing barrel's `WeaponFireFXBone`, including turret rotation,
+pitch and recoil. Numbered muzzle bones use the barrel selected by the weapon.
+`ParticlesAttachedToAnimatedBones = Yes` is not required for this parameter.
+The weapon may use `FireFX = None`; ordinary `FireFX` effects remain independent.
+
+The parameter inherits from `DefaultConditionState`. Override it per condition state or
+set `WeaponFireParticleSys = PRIMARY None` to disable it. Ordinary condition changes do
+not stop existing emitters. Model replacements rebind them by bone name; a missing bone
+or a destroyed drawable stops emission while existing particles fade.
+
+Use a particle template with a finite, nonzero `SystemLifetime`. Each shot creates a new
+system, so long emission times can overlap during rapid fire. The template's `InitialDelay`,
+`BurstCount`, `BurstDelay` and particle lifetime keep their usual meanings.
+`TankCannonSmokeSmall`, for example, retains its 12-frame initial delay.
+Only the emitter follows the bone; emitted particles retain their template's behavior.
+
+Hidden or shrouded drawables do not create emitters. Existing emitters pause emission
+while hidden, following `KEEP_PARTICLES_WHEN_HIDDEN`. Weapon FX suspension also suppresses
+new emitters. These temporary systems are client-only and are not saved or recreated on load.
+
+Remove muzzle-smoke `ParticleSysBone` entries and their smoke-only `PREATTACK` and
+`TransitionState` blocks when migrating a unit. Keep states that serve other purposes.
+Do not also put the same smoke in the weapon's `FireFX`, which would create a second emitter.
+
 ## Lifetime progress bars
 
 `LifetimeUpdate` can show a draining lifetime bar on objects with `SHOW_PROGRESS_BAR`
@@ -42,6 +80,40 @@ omitted keys inherit the matching `SandStorm...` or `SnowStorm...` GameData defa
 See [Storms](dx9-Environment.md#key-names-and-overrides) for the full key mapping and examples.
 
 ## Object.ini
+
+### Conditional weapon sync
+
+`AutoChooseSources = TERTIARY SYNC_TO_PRIMARY` fires the tertiary weapon alongside the
+primary weapon. Synced slots now require a valid target by default.
+
+```
+  WeaponSet
+    Conditions = PLAYER_UPGRADE
+    Weapon = PRIMARY M113MGGun
+    Weapon = SECONDARY M113MGGunAir
+    Weapon = TERTIARY M113FlashBangGrenadeWeapon
+    AutoChooseSources = TERTIARY SYNC_TO_PRIMARY
+    SyncRequiresValidTarget = TERTIARY Yes
+  End
+```
+
+`SyncRequiresValidTarget` takes one slot and `Yes` or `No`. It defaults to `Yes` for every
+slot and only affects slots synced through `AutoChooseSources`. Repeat the key for
+multiple slots. All eight weapon slots are supported.
+
+* `Yes` checks the synced weapon's target category, target pitch, range and estimated damage.
+  Garrison-clearing weapons use their normal occupied-building damage check. Torpedoes
+  require a target over water. Attack-ground orders require a ground-capable weapon in range.
+* `No` preserves unconditional target selection. The synced weapon follows its lead even
+  when it cannot normally target or damage the victim.
+* Both modes require the synced weapon to be ready. Reloading slots produce no firing sound
+  or shot notification and spend no ammo.
+* Sync still follows the lead weapon's firing events and skips a separate pre-attack wind-up.
+  `PreferredAgainst` remains a selection preference and does not restrict valid targets.
+
+Omit `SyncRequiresValidTarget` for conditional sync. Use `SyncRequiresValidTarget = TERTIARY No`
+to retain unconditional sync for that slot. These changes affect the simulation, so all players
+and replays need matching engine and INI versions.
 
 ### WeaponSet line of sight
 
@@ -365,10 +437,13 @@ What it does, by order type:
 
 | Order | Behaviour |
 |---|---|
-| Move | Drives past enemies without stopping or engaging. |
+| Move | Drives past enemies without stopping or engaging, including while turning in place or waiting for a path. |
 | Attack-move | Drives, spots a target, halts once in range, fires, then carries on. |
 | Attack (direct order) | Closes on the target, halts, fires. |
 | Stationary | Fires normally. |
+
+Warning: a unit with a second turret also holds that turret's idle scan while the chassis turns in
+place to aim. Check multi-turret units that use `NOTWHILEMOVING`.
 
 This takes two separate checks, because the two halves pull against each other. Targets of opportunity - the
 idle scans, including a turret scanning while the chassis under it drives - are suppressed while the object is

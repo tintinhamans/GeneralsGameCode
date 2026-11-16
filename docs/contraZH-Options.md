@@ -71,7 +71,7 @@ a hexagon fitted to the object's collision shape with a shader instead, on cards
 included, while placing it. Wall pieces get one ring each. The D3D9 build draws the ring with the
 same shader as `SelectionCircle`, on cards with `ps_2_a`.)
 * `ObjectDecals = Yes` - (No hides ground decals requested with `DisplayDecal`. Independent of shadow
-settings.)
+settings. Applies on Accept, including to objects already on the map.)
 * `SmartPips = No` - (Yes keeps ammo and passenger pips visible on own units whenever there is
 something to show.)
 * `BuildTimerDisplayMode = None` - (`None` | `Seconds` | `Auto`. Countdowns on build queue and special
@@ -157,6 +157,27 @@ With `GridHotkeyUnitOrders` on, Stop, Guard, Attack Move and Evacuate keep their
 grid slot on the same key swaps with them and takes the unit order's grid key. Production buildings
 have no such buttons, so the whole grid works unchanged. Off, unit orders take their slot's grid key
 like any other button.
+
+## Options menu tabs
+
+A layout that pairs radio buttons named `Tab<Name>` with windows named `Page<Name>` gets a tabbed
+Options menu. Any other `OptionsMenu.wnd` keeps the single page menu with its Game Options and
+Shaders panels. The tab logic is adapted from the tabbed menu by simonx645.
+
+* The tabs run left to right in screen order, and the last tab used reopens for the rest of the session.
+* **F1** and up pick a tab. **PageUp**, **PageDown**, **Ctrl+Tab**, **Q** and **E** step through them.
+* **Tab** and **Shift+Tab** move the focus through the shown page's controls, then Defaults, Accept and Cancel.
+* Optional `TabIcon<Name>` and `TabLabel<Name>` windows are drawn by their tab. The icon keeps its
+  shape at any aspect ratio and shows the mapped image `<its image>On` on the current tab. The label
+  reads `GUI:OptionsTab<Name>`, or the tab's name when the string is missing, and takes its hilite
+  colour on the current tab.
+* A tab without the `IMAGE` status is drawn as a flat box, so it keeps its shape at any resolution.
+  Its fill and border come from its draw data: slot 0 of `ENABLEDDRAWDATA` at rest, slot 0 of
+  `HILITEDRAWDATA` under the mouse and slot 1 of `HILITEDRAWDATA` on the current tab. A tab with
+  `IMAGE` keeps its radio button art.
+* The custom detail toggles sit on a page of their own, so changing one sets **Detail** to Custom.
+* **VSync** is saved at any detail level. It used to be saved only with Detail on Custom.
+* Controls are still found by name, so they can sit on any page.
 
 ## Hotkeys screen
 
@@ -480,7 +501,50 @@ intensity settings; `Specular = No` disables their light.
 
 A mesh lights its surroundings through its material only when it is additive. A mesh that is
 emissive without being additive, the usual way to keep thin parts such as barbed wire bright in
-shadow, emits no light. Give it an `_emi.dds` mask to make it a lamp.
+shadow, emits no light. Give it an `_emi.dds` mask to make it a lamp, or tick `Specular To Diffuse`
+on its vertex material in the W3D exporter. That checkbox has no other effect in the game, and a
+ticked material lights its surroundings with its emissive colour times its texture, by the
+[lamp formula](#lamp-formula) below. W3DView's
+Material Viewer has the same checkbox on the Vertex Material tab and draws the lamp's light on
+the model while it is ticked.
+
+#### Lamp formula
+
+A lamp mesh is sampled four times per triangle. Each sample's colour is
+
+```
+colour = emission * texture * Opacity + mask * UnitEmissiveIntensity
+```
+
+| Term | Value |
+|---|---|
+| `emission` | `Emissive` when `Specular To Diffuse` is ticked. `Emissive + Diffuse` on an additive mesh (destination blend `One`, source blend `One` or `Src Alpha`), ticked or not. Zero on any other mesh. |
+| `texture` | The base texture's pixel at the sample, read from a 32x32 copy. It is multiplied by the pixel's alpha when the shader's source blend is `Src Alpha`. A mesh without a texture counts as white. |
+| `Opacity` | The vertex material's opacity. |
+| `mask` | The `_emi.dds` pixel at the sample, or zero without a mask. At night `UnitEmissiveNightIntensity` takes the place of `UnitEmissiveIntensity`, and `Specular = No` makes both zero. |
+
+Samples within one 24-unit cell merge into one point light, so a larger or brighter lamp
+gives a stronger light, up to a limit.
+
+```
+weight = sum(area * brightness)
+light  = sum(colour * area) / weight * min(sqrt(weight) / 8, 1.5) * PathTracingLightBrightness
+radius = clamp(3 * sqrt(area), 24, 120), then capped at PathTracingLightMaxRadius
+```
+
+* `area` is a quarter of the triangle's area.
+* `brightness` is the largest of the sample colour's red, green and blue.
+* `radius` uses the largest sample in the cell.
+
+A surface point at `distance` from the light receives
+
+```
+ramp = clamp((radius - distance) / (radius - 0.5), 0, 1)
+lit  = light * ramp * ramp * (3 - 2 * ramp) * (max(facing, 0) + 0.1)
+```
+
+where `facing` is the cosine between the surface normal and the direction to the light. The
+surface shows `lit` times its own texture colour.
 
 `PathTracingLightMaxRadius` in `GameData.ini` caps large lights without shrinking
 smaller ones. It defaults to `25`; `0` means no cap. `PathTracingLightBrightness`

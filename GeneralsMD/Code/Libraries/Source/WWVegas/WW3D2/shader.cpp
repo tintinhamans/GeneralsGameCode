@@ -50,6 +50,14 @@
 
 bool ShaderClass::ShaderDirty=true;
 unsigned long ShaderClass::CurrentShader=0;
+bool ShaderClass::_ForceAlphaBlending=false;
+bool ShaderClass::_ForceDoubleSided=false;
+bool ShaderClass::_ForceBackfaceTint=false;
+// TheSuperHackers @feature Tria 18/04/2026 Per-category shader visibility filters.
+static bool _FilterAdditive=true;
+static bool _FilterAlphaTest=true;
+static bool _FilterAlphaBlend=true;
+static bool _FilterAlphaBlendTest=true;
 unsigned long _PolygonCullMode = D3DCULL_CW;
 
 
@@ -410,6 +418,8 @@ const Blend dstBlendLUT[ShaderClass::DSTBLEND_MAX] =
 void ShaderClass::Apply()
 {
 	unsigned long diff;
+	bool suppressAlphaTest = false;
+	bool suppressBlend = false;
 
 	unsigned int TextureOpCaps=DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps().TextureOpCaps;
 
@@ -436,6 +446,27 @@ void ShaderClass::Apply()
 		if(Get_Color_Mask() != ShaderClass::COLOR_WRITE_ENABLE)
 			planeMask = 0;
 
+		// TheSuperHackers @feature Tria 18/04/2026 Filter out shader categories when toggled off.
+		// When a filter is disabled the mesh still renders, but alpha test and alpha blending
+		// are suppressed so the full texture color is visible without cutouts or transparency.
+		if (planeMask != 0) {
+			bool hasAlphaTest = (Get_Alpha_Test() == ShaderClass::ALPHATEST_ENABLE);
+			bool hasBlend = (Get_Src_Blend_Func() == SRCBLEND_SRC_ALPHA || Get_Src_Blend_Func() == SRCBLEND_ONE_MINUS_SRC_ALPHA
+				|| Get_Dst_Blend_Func() == DSTBLEND_SRC_ALPHA || Get_Dst_Blend_Func() == DSTBLEND_ONE_MINUS_SRC_ALPHA);
+			bool hasAdditive = (Get_Src_Blend_Func() == SRCBLEND_ONE && Get_Dst_Blend_Func() == DSTBLEND_ONE);
+
+			if (hasAdditive && !_FilterAdditive)
+				planeMask = 0;
+			else if (hasAlphaTest && hasBlend && !_FilterAlphaBlendTest) {
+				suppressAlphaTest = true;
+				suppressBlend = true;
+			}
+			else if (hasAlphaTest && !hasBlend && !_FilterAlphaTest)
+				suppressAlphaTest = true;
+			else if (hasBlend && !hasAlphaTest && !_FilterAlphaBlend)
+				suppressBlend = true;
+		}
+
 		D3DBLEND	sf;
 		D3DBLEND	df;
 		bool	blendAlpha = false;
@@ -444,6 +475,11 @@ void ShaderClass::Apply()
 		{
 			sf = D3DBLEND_ZERO;
 			df = D3DBLEND_ONE;
+		}
+		else if (suppressBlend)
+		{
+			sf = D3DBLEND_ONE;
+			df = D3DBLEND_ZERO;
 		}
 		else
 		{
@@ -461,11 +497,21 @@ void ShaderClass::Apply()
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,df);
 			blendOn = TRUE;
 		}
+
+		// TheSuperHackers @feature xezon 17/04/2026 Force alpha blending for texture transparency preview.
+		if (_ForceAlphaBlending && !blendOn && !suppressAlphaTest && !suppressBlend)
+		{
+			DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+			DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+			blendOn = TRUE;
+			blendAlpha = true;
+		}
+
 		DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,blendOn);
 
 		BOOL alphaTest = FALSE;
 
-		if(Get_Alpha_Test() == ShaderClass::ALPHATEST_ENABLE)
+		if(Get_Alpha_Test() == ShaderClass::ALPHATEST_ENABLE && !suppressAlphaTest)
 		{
 			unsigned char alphareference = 0x60;	// Alpha reference value that produces best results with mip-mapped textures.
 
@@ -950,7 +996,14 @@ void ShaderClass::Apply()
 //	DX8Wrapper::Set_DX8_Render_State(D3DRS_DITHERENABLE,BOOL(Get_Dither_Mask()));
 
 	// CULLMODE
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_CULLMODE,Get_Cull_Mode() ? _PolygonCullMode : D3DCULL_NONE);
+	// TheSuperHackers @feature Tria 22/04/2026 Force double-sided rendering when enabled.
+	// TheSuperHackers @feature Tria Backface-tint pass culls FRONT faces so only the
+	// normally-hidden back faces draw (the caller sets up the flat colour around it).
+	if (_ForceBackfaceTint) {
+		DX8Wrapper::Set_DX8_Render_State(D3DRS_CULLMODE, D3DCULL_CCW);
+	} else {
+		DX8Wrapper::Set_DX8_Render_State(D3DRS_CULLMODE, (_ForceDoubleSided || !Get_Cull_Mode()) ? D3DCULL_NONE : _PolygonCullMode);
+	}
 
 	// NPATCHES
 	if (diff&ShaderClass::MASK_NPATCHENABLE) {
@@ -960,7 +1013,7 @@ void ShaderClass::Apply()
 	}
 
 	// Enable/disable alpha test
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE,BOOL(Get_Alpha_Test()));
+	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE,BOOL(Get_Alpha_Test()) && !suppressAlphaTest);
 
 	// Enable/disable stencil test
 	// Not supported yet
@@ -1083,6 +1136,47 @@ bool ShaderClass::Is_Backface_Culling_Inverted()
 {
 	return (_PolygonCullMode == D3DCULL_CCW);
 }
+
+// TheSuperHackers @feature xezon 17/04/2026 Global alpha blending override for previewing texture transparency.
+void ShaderClass::Force_Alpha_Blending(bool onoff)
+{
+	_ForceAlphaBlending = onoff;
+	Invalidate();
+}
+
+bool ShaderClass::Is_Alpha_Blending_Forced()
+{
+	return _ForceAlphaBlending;
+}
+
+// TheSuperHackers @feature Tria 22/04/2026 Global double-sided rendering override for W3DView preview.
+void ShaderClass::Force_Double_Sided(bool onoff)
+{
+	_ForceDoubleSided = onoff;
+	Invalidate();
+}
+
+bool ShaderClass::Is_Double_Sided_Forced()
+{
+	return _ForceDoubleSided;
+}
+
+// TheSuperHackers @feature Tria Global backface-tint override for W3DView preview.
+void ShaderClass::Force_Backface_Tint(bool onoff)
+{
+	_ForceBackfaceTint = onoff;
+	Invalidate();
+}
+
+// TheSuperHackers @feature Tria 18/04/2026 Per-category shader visibility filters.
+void ShaderClass::Set_Filter_Additive(bool onoff)       { _FilterAdditive = onoff; Invalidate(); }
+bool ShaderClass::Get_Filter_Additive()                  { return _FilterAdditive; }
+void ShaderClass::Set_Filter_Alpha_Test(bool onoff)      { _FilterAlphaTest = onoff; Invalidate(); }
+bool ShaderClass::Get_Filter_Alpha_Test()                { return _FilterAlphaTest; }
+void ShaderClass::Set_Filter_Alpha_Blend(bool onoff)     { _FilterAlphaBlend = onoff; Invalidate(); }
+bool ShaderClass::Get_Filter_Alpha_Blend()               { return _FilterAlphaBlend; }
+void ShaderClass::Set_Filter_Alpha_Blend_Test(bool onoff){ _FilterAlphaBlendTest = onoff; Invalidate(); }
+bool ShaderClass::Get_Filter_Alpha_Blend_Test()          { return _FilterAlphaBlendTest; }
 
 const StringClass& ShaderClass::Get_Description(StringClass& str) const
 {

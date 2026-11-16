@@ -128,6 +128,11 @@
 #define IDD_PLAY_SOUND_EFFECT           204
 #define IDB_GAMMA                       204
 #define IDD_ANIMATED_SOUND_DIALOG       205
+#define IDD_FRAME_SCRUBBER              206
+#define IDC_FRAME_SLIDER                1080
+#define IDC_FRAME_LABEL                 1081
+#define IDC_FRAME_GOTO_EDIT             1082
+#define IDC_FRAME_REVERSE_BTN           1083
 #define IDC_HUE_PICKER                  1000
 #define IDC_WHITENESS_BAR               1001
 #define IDC_COLLISION_TYPE_PHYSICAL     1002
@@ -407,6 +412,12 @@
 #define IDC_BROWSE2                     1142
 #define IDC_RESOLUTION_LIST_CTRL        1144
 #define IDC_FULLSCREEN_CHECK            1145
+#define IDC_PATH_LIST                   1160
+#define IDC_ADD_PATH                    1161
+#define IDC_REMOVE_PATH                 1162
+#define IDC_MOVE_UP                     1163
+#define IDC_MOVE_DOWN                   1164
+#define IDC_PREVIEW_GROUP               1165
 #define IDC_LIFETIME_EDIT               1146
 #define IDC_LIFETIME_SPIN               1147
 #define IDC_OPACITY_VECTOR_CHECK        1148
@@ -457,6 +468,8 @@
 #define IDC_GAMMA_SLIDER                1186
 #define IDC_GAMMA_DISPLAY               1187
 #define IDC_INSTRUCTIONS                1188
+#define IDC_TOTAL_VERTICES              1205
+#define IDC_TOTAL_TRIANGLES             1206
 #define IDD_BROWSE_DIR                  1536
 #define IDD_BROWSE_DIRECTORY            20638
 #define IDD_XXX_BROWSE_DIRECTORY        20638
@@ -472,6 +485,13 @@
 #define IDD_PROP_PAGE_EMITTER_FRAME     20648
 #define IDD_PARTICLE_ROTATION_KEY       20649
 #define IDD_PARTICLE_FRAME_KEY          20650
+// TheSuperHackers @feature Tria 23/04/2026 Log dialogs with Copy button.
+#define IDD_MISSING_TEXTURES_LOG        20651
+#define IDD_DUMP_W3D_LOG                20652
+#define IDC_LOG_EDIT                    1202
+#define IDC_COPY_LOG                    1203
+// TheSuperHackers @feature Tria 25/04/2026 Copy button on Animation Report page.
+#define IDC_COPY_ANIM_REPORT            1204
 #define IDM_OBJECT_PROPERTIES           32771
 #define IDM_ANI_PAUSE                   32772
 #define IDM_ANI_STOP                    32773
@@ -600,6 +620,95 @@
 #define IDM_PRELIT_VERTEX               32910
 #define IDM_PRELIT_MULTIPASS            32911
 #define IDM_PRELIT_MULTITEX             32912
+#define IDM_RELOAD_ASSETS               32913
+#define IDM_TOGGLE_ALPHA                32914
+#define IDM_FILTER_POINT                32915
+#define IDM_FILTER_BILINEAR             32916
+#define IDM_FILTER_TRILINEAR            32917
+#define IDM_FILTER_ANISO_2X             32918
+#define IDM_FILTER_ANISO_4X             32919
+#define IDM_FILTER_ANISO_8X             32920
+#define IDM_FILTER_ANISO_16X            32921
+#define IDM_MSAA_NONE                   32922
+#define IDM_MSAA_2X                     32923
+#define IDM_MSAA_4X                     32924
+#define IDM_MSAA_8X                     32925
+// TheSuperHackers @feature Tria 18/04/2026 Context menu command for toggling mesh visibility.
+#define IDM_TOGGLE_MESH_VIS             32926
+// TheSuperHackers @feature Tria 18/04/2026 Toggle bone overlay rendering in viewport.
+#define IDM_SHOW_BONES                  32927
+// TheSuperHackers @feature Tria 18/04/2026 Bones submenu in View menu.
+#define IDM_SHOW_BONE_PIVOTS            32928
+#define IDM_BONE_SIZE_TINY              32929
+#define IDM_BONE_SIZE_SMALL             32930
+#define IDM_BONE_SIZE_MEDIUM            32931
+#define IDM_BONE_SIZE_LARGE             32932
+#define IDM_BONE_SIZE_HUGE              32933
+// TheSuperHackers @feature Tria 18/04/2026 W3D Shaders submenu in View menu.
+#define IDM_SHADER_ADDITIVE             32934
+#define IDM_SHADER_ALPHA_TEST           32935
+#define IDM_SHADER_ALPHA_BLEND          32936
+#define IDM_SHADER_ALPHA_BLEND_TEST     32937
+// TheSuperHackers @feature Tria 22/04/2026 Double-sided rendering toggle in W3D Shaders menu.
+#define IDM_SHADER_DOUBLE_SIDED         32939
+// TheSuperHackers @feature Tria Tint the normally-culled back faces in the W3D Shaders menu.
+#define IDM_SHADER_BACKFACE_TINT        32961
+// TheSuperHackers @feature Tria Pick the back-face tint colour.
+#define IDM_SHADER_BACKFACE_TINT_COLOR  32962
+// TheSuperHackers @feature Material Viewer light-placement mode (Light menu).
+#define IDM_MATVIEWER_LIGHT_FREEROAM    32963
+#define IDM_MATVIEWER_LIGHT_PERFACE     32964
+// TheSuperHackers @feature Tria Material Viewer ground plane (Ground menu).
+#define IDM_MATVIEWER_GROUND            32965
+#define IDM_MATVIEWER_GROUND_RESET      32969
+// TheSuperHackers @feature Tria Main-viewport ground plane (Ground menu).
+#define IDM_GROUND_SHOW                 32966
+#define IDM_GROUND_HEIGHT               32967
+#define IDM_GROUND_RESET                32968
+// TheSuperHackers @feature Tria Material Viewer batch edit across open files.
+#define IDM_MATVIEWER_BATCH_EDIT        32970
+// Batch select: selecting a mesh selects the same-sub-named mesh in every tab.
+#define IDM_MATVIEWER_BATCH_SELECT      32971
+// Toggle: make a one-time .bak before a save overwrites the original .w3d.
+#define IDM_MATVIEWER_BACKUP            32972
+// Toggle: tint the selected sub-mesh with the selection colour instead of a box.
+#define IDM_MATVIEWER_TINT_SELECTION    32973
+#define IDD_GROUND_HEIGHT               731
+#define IDC_GROUND_HEIGHT_SLIDER        1189
+// TheSuperHackers @feature Tria 22/04/2026 Show sub-object and bone name labels in viewport.
+#define IDM_SHOW_SUBOBJ_NAMES           32940
+#define IDM_SHOW_BONE_NAMES             32941
+// TheSuperHackers @feature Tria 19/04/2026 Export Info context menu for hierarchy items.
+#define IDM_EXPORT_INFO                 32938
+// TheSuperHackers @feature Tria 23/04/2026 Dump W3D Info popup for hierarchy items.
+#define IDM_DUMP_W3D_INFO               32942
+// TheSuperHackers @feature Tria 23/04/2026 Toggle sub-objects and bones overlay in viewport.
+#define IDM_SHOW_BONES_AND_SUBOBJECTS   32943
+// TheSuperHackers @feature W3DView native dark mode (Light/Dark/Auto).
+#define IDM_THEME_LIGHT                 32944
+#define IDM_THEME_DARK                  32945
+#define IDM_THEME_AUTO                  32946
+// TheSuperHackers @feature Lock toolbars (disable drag-float / drag-dock).
+#define IDM_LOCK_TOOLBARS               32949
+// TheSuperHackers @feature Dark-mode toolbar bitmap. Mirrors the light scheme:
+// one combined 272x15 strip with 17 buttons, swapped in via TB_SETIMAGELIST when
+// dark mode is active.
+#define IDR_MAINFRAME_DM                700
+// Dark-mode tree-view icons (10 unique types). Light variants are the existing
+// IDI_ANIMATION / IDI_MESH / etc. resources already in res\.
+#define IDI_TREE_ANIMATION_DM             720
+#define IDI_TREE_ANIMATION_COMPRESSED_DM  721
+#define IDI_TREE_ANIMATION_DELTA_DM       722
+#define IDI_TREE_MESH_DM                  723
+#define IDI_TREE_MATERIAL_DM              724
+#define IDI_TREE_LOD_DM                   725
+#define IDI_TREE_HIERARCHY_DM             726
+#define IDI_TREE_PRIMITIVES_DM            727
+#define IDI_TREE_SOUND_DM                 728
+#define IDI_TREE_BONE_DM                  729
+// TheSuperHackers @feature Tria 18/04/2026 Color swatch and picker button for color dialogs.
+#define IDC_COLOR_SWATCH                1200
+#define IDC_COLOR_PICK_BTN              1201
 #define IDS_MESH_PROP_DESC              61204
 #define IDS_MESH_PROP_TITLE             61205
 #define IDS_HIERARCHY_PROP_DESC         61206
@@ -620,14 +729,42 @@
 #define IDS_RING_PROP_TITLE             61221
 #define IDS_RESOLUTION_PANE             61222
 
+// TheSuperHackers @feature Open Folder command - load all .w3d in a chosen folder.
+#define ID_FILE_OPEN_FOLDER             32947
+
+// TheSuperHackers @feature W3D Material Viewer window (WW3D preview + Qt material panel).
+#define IDM_MATERIAL_VIEWER             32950
+#define IDM_MATVIEWER_OPEN              32951
+#define IDM_MATVIEWER_CLOSE             32952
+#define IDM_MATVIEWER_FROM_TREE         32953
+#define IDM_MATVIEWER_SHOW_FULL         32954
+#define IDR_MATERIAL_VIEWER_MENU        730
+
+// TheSuperHackers @feature F5 refreshes the viewport (re-displays the current asset).
+#define IDM_REFRESH_VIEWPORT            32955
+
+// TheSuperHackers @feature Invert vertical (pitch) camera drag direction.
+#define IDM_CAMERA_INVERT_Y             32956
+
+// TheSuperHackers @feature Material Viewer edit-mode menu commands.
+#define IDM_MATVIEWER_SAVE              32957
+#define IDM_MATVIEWER_UNDO              32958
+#define IDM_MATVIEWER_REDO             32959
+#define IDM_MATVIEWER_REVERT            32960
+
+#define IDM_SHOW_ONLY_MESH              32974
+#define IDM_MCP_SERVER_ENABLED          32975
+#define IDM_MCP_SERVER_INFORMATION      32976
+#define IDC_TREE_FILTER                 1190
+
 // Next default values for new objects
 //
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        206
-#define _APS_NEXT_COMMAND_VALUE         32901
-#define _APS_NEXT_CONTROL_VALUE         1189
+#define _APS_NEXT_RESOURCE_VALUE        732
+#define _APS_NEXT_COMMAND_VALUE         32977
+#define _APS_NEXT_CONTROL_VALUE         1191
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

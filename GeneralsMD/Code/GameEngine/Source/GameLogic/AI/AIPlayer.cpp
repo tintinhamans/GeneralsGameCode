@@ -38,6 +38,7 @@
 #include "Common/Team.h"
 #include "Common/ThingFactory.h"
 #include "Common/PlayerList.h"
+#include "Common/ResourceGatheringManager.h"
 #include "Common/BuildAssistant.h"
 #include "Common/ThingTemplate.h"
 #include "Common/Upgrade.h"
@@ -1957,6 +1958,10 @@ void AIPlayer::buildBySupplies(Int minimumCash, const AsciiString& thingName)
 		location.x -= offset.x*radius;
 		location.y -= offset.y*radius;
 		Real angle = tTemplate->getPlacementViewAngle();
+		if (tTemplate->isKindOf(KINDOF_CASH_GENERATOR))
+		{
+			angle = WWMath::Atan2(bestSupplyWarehouse->getPosition()->y - location.y, bestSupplyWarehouse->getPosition()->x - location.x);
+		}
 
  		// validate the the position to build at is valid
 		Bool valid=false;
@@ -1985,6 +1990,10 @@ void AIPlayer::buildBySupplies(Int minimumCash, const AsciiString& thingName)
 				for (xPos = location.x-offset; xPos <= location.x+offset; xPos+=PATHFIND_CELL_SIZE_F) {
 					newPos.x = xPos;
 					newPos.y = yPos;
+					if (tTemplate->isKindOf(KINDOF_CASH_GENERATOR))
+					{
+						angle = WWMath::Atan2(bestSupplyWarehouse->getPosition()->y - newPos.y, bestSupplyWarehouse->getPosition()->x - newPos.x);
+					}
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, tTemplate, angle,
 																							 BuildAssistant::CLEAR_PATH |
 																							 BuildAssistant::TERRAIN_RESTRICTIONS |
@@ -1994,6 +2003,10 @@ void AIPlayer::buildBySupplies(Int minimumCash, const AsciiString& thingName)
 					if( TheGlobalData->m_debugSupplyCenterPlacement )
 						DEBUG_LOG(("buildBySupplies -- Fail at (%.2f,%.2f)", newPos.x, newPos.y));
 					newPos.y = yPos+posOffset;
+					if (tTemplate->isKindOf(KINDOF_CASH_GENERATOR))
+					{
+						angle = WWMath::Atan2(bestSupplyWarehouse->getPosition()->y - newPos.y, bestSupplyWarehouse->getPosition()->x - newPos.x);
+					}
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, tTemplate, angle,
 																							 BuildAssistant::CLEAR_PATH |
 																							 BuildAssistant::TERRAIN_RESTRICTIONS |
@@ -2008,6 +2021,10 @@ void AIPlayer::buildBySupplies(Int minimumCash, const AsciiString& thingName)
 				for (yPos = location.y-offset; yPos <= location.y+offset; yPos+=PATHFIND_CELL_SIZE_F) {
 					newPos.x = xPos;
 					newPos.y = yPos;
+					if (tTemplate->isKindOf(KINDOF_CASH_GENERATOR))
+					{
+						angle = WWMath::Atan2(bestSupplyWarehouse->getPosition()->y - newPos.y, bestSupplyWarehouse->getPosition()->x - newPos.x);
+					}
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, tTemplate, angle,
 																							 BuildAssistant::CLEAR_PATH |
 																							 BuildAssistant::TERRAIN_RESTRICTIONS |
@@ -2017,6 +2034,10 @@ void AIPlayer::buildBySupplies(Int minimumCash, const AsciiString& thingName)
 					if( TheGlobalData->m_debugSupplyCenterPlacement )
 						DEBUG_LOG(("buildBySupplies -- Fail at (%.2f,%.2f)", newPos.x, newPos.y));
 					newPos.x = xPos+posOffset;
+					if (tTemplate->isKindOf(KINDOF_CASH_GENERATOR))
+					{
+						angle = WWMath::Atan2(bestSupplyWarehouse->getPosition()->y - newPos.y, bestSupplyWarehouse->getPosition()->x - newPos.x);
+					}
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, tTemplate, angle,
 																							 BuildAssistant::CLEAR_PATH |
 																							 BuildAssistant::TERRAIN_RESTRICTIONS |
@@ -2280,20 +2301,8 @@ Object *AIPlayer::findSupplyCenter(Int minimumCash)
 					continue;
 				}
 
-				// Make sure we don't have a supply center near it.
-				Coord3D center = *obj->getPosition();
-				Real radius = SUPPLY_CENTER_CLOSE_DIST + obj->getGeometryInfo().getBoundingCircleRadius();
-
-				PartitionFilterAcceptByKindOf f1(MAKE_KINDOF_MASK(KINDOF_CASH_GENERATOR), KINDOFMASK_NONE);
-				PartitionFilterPlayer f2(m_player, true);	// Only find your own units.
-				PartitionFilterOnMap filterMapStatus;
-
-
-				PartitionFilter *filters[] = { &f1, &f2, &filterMapStatus, nullptr };
-
-				Object *supplyCenter = ThePartitionManager->getClosestObject(&center, radius, FROM_BOUNDINGSPHERE_2D, filters);
-				if (supplyCenter) {
-					// We already have a supply center.
+				if (!ResourceGatheringManager::isSupplySourceAvailable(obj, m_player))
+				{
 					continue;
 				}
 

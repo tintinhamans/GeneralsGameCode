@@ -180,10 +180,15 @@ void ObjectTool::activate()
 	// (m_staticThis is NULL), which is exactly the case when the object tool has not been
 	// activated -- so without this the first click on the tool showed no selection and only
 	// a second one did.
-	MapObject *theObj = MapObjectProps::getSingleSelectedObject();
-	if (theObj != NULL)
+	// A camera pan or modifier key hands the mouse to another tool and back without a
+	// deactivate, and that return must keep the tree pick and owning team.
+	if (!m_objectToolActive)
 	{
-		ObjectOptions::selectObject(theObj);
+		MapObject *theObj = MapObjectProps::getSingleSelectedObject();
+		if (theObj != NULL)
+		{
+			ObjectOptions::selectObject(theObj);
+		}
 	}
 
 	CWorldBuilderDoc *pDoc = CWorldBuilderDoc::GetActiveDoc();

@@ -129,6 +129,8 @@ WBQtParamDialog::WBQtParamDialog(void *parameter, const char *unitName, QWidget 
 	if (m_list != NULL)
 	{
 		connect(m_list, SIGNAL(currentRowChanged(int)), this, SLOT(onRowChanged(int)));
+		// Typing already highlights the first match, so a click on it changes no row.
+		connect(m_list, SIGNAL(itemClicked(QListWidgetItem*)), this, SLOT(onItemClicked(QListWidgetItem*)));
 	}
 	if (m_edit != NULL && m_kind == WB_QT_PARAM_KIND_COMBO)
 	{
@@ -172,6 +174,42 @@ void WBQtParamDialog::onRowChanged(int row)
 		QByteArray name = text.toLocal8Bit();
 		WBQtParam_PreviewAudio(m_parameter, name.constData());
 	}
+}
+
+void WBQtParamDialog::onItemClicked(QListWidgetItem *item)
+{
+	if (m_edit != NULL && item != NULL && m_edit->text() != item->text())
+	{
+		adoptRow(item);
+	}
+}
+
+void WBQtParamDialog::adoptRow(QListWidgetItem *item)
+{
+	m_updating = true;
+	m_list->setCurrentItem(item, QItemSelectionModel::ClearAndSelect);
+	m_edit->setText(item->text());
+	m_edit->selectAll();
+	m_updating = false;
+}
+
+QListWidgetItem *WBQtParamDialog::loneVisibleRow() const
+{
+	QListWidgetItem *lone = NULL;
+	for (int i = 0; i < m_list->count(); i++)
+	{
+		QListWidgetItem *item = m_list->item(i);
+		if (item->isHidden())
+		{
+			continue;
+		}
+		if (lone != NULL)
+		{
+			return NULL;
+		}
+		lone = item;
+	}
+	return lone;
 }
 
 void WBQtParamDialog::onTextEdited(const QString &text)
@@ -223,6 +261,18 @@ bool WBQtParamDialog::eventFilter(QObject *watched, QEvent *event)
 			case Qt::Key_Up:		step = -1;	break;
 			case Qt::Key_PageDown:	step = 10;	break;
 			case Qt::Key_PageUp:	step = -10;	break;
+			case Qt::Key_Return:
+			case Qt::Key_Enter:
+			{
+				// A lone match is completed first, so the name shows before OK stores it.
+				QListWidgetItem *lone = loneVisibleRow();
+				if (lone != NULL && lone->text() != m_edit->text())
+				{
+					adoptRow(lone);
+					return true;
+				}
+				return QDialog::eventFilter(watched, event);
+			}
 			default:				return QDialog::eventFilter(watched, event);
 		}
 		// Walk to the next VISIBLE row in the step direction (skip filtered-out rows),
@@ -253,6 +303,12 @@ bool WBQtParamDialog::eventFilter(QObject *watched, QEvent *event)
 			m_edit->setText(m_list->item(candidate)->text());
 			m_edit->selectAll();
 			m_updating = false;
+		}
+		else if (row >= 0 && !m_list->item(row)->isHidden()
+			&& m_list->item(row)->text() != m_edit->text())
+		{
+			// No row further that way, so the arrow takes the highlighted match.
+			adoptRow(m_list->item(row));
 		}
 		return true;	// consume: the edit must not move the caret on Up/Down
 	}

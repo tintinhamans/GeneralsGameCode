@@ -8,12 +8,15 @@ Everything here is additional to upstream; the rest of these docs still applies.
 * A few simulation rules are read from the mod's `GameData.ini`; each states its default.
 * NVIDIA cards now load DXT1 textures natively, as AMD and Intel cards do. This halves their memory use and makes one-bit alpha visible.
 * The map editor has its own page, [WorldBuilder Qt](WorldBuilder-Qt.md).
+* A W3D vertex material with `Specular To Diffuse` ticked now acts as a lamp. With [Path tracing](contraZH-Options.md#path-tracing) on, it lights its surroundings with its emissive colour times its texture, by the [lamp formula](contraZH-Options.md#lamp-formula). The checkbox had no effect before.
+* W3DView carries the [W3DView+](https://github.com/triatomic/w3dviewerPlus) changes: dark mode, a Material Viewer with a Qt material panel, bone and sub-object overlays, a frame scrubber, a ground plane, MSAA and texture filter menus, folder loading and asset reload. Both viewports also have a view cube at the top right, and the `7` key shows the poly and vertex totals. The asset tree lists one node per object, with its meshes, skeleton, animations and textures inside, and a filter box on the toolbar that also searches mesh and bone names. The Material Viewer draws the light of a material with `Specular To Diffuse` ticked. W3DView also answers a local MCP server that reads a model's meshes, counts, W3D properties, passes, vertex materials, shaders, textures and texture paths, opens a model, lists its animations and jumps to a frame, searches and hides its meshes, and screenshots it from view cube sides; see [W3DView](contraZH-W3DView.md).
+* The Options menu can be [tabbed](contraZH-Options.md#options-menu-tabs): a layout with `Tab<Name>` and `Page<Name>` windows shows one page at a time, with F-key and PageUp/PageDown switching.
 * On laptops with two GPUs, the game, WorldBuilder and GUIEdit ask the NVIDIA or AMD driver to run them on the dedicated GPU.
 * Synced with TheSuperHackers/GeneralsGameCode as of August 2026 and with GeneralsGameCode_Modding
 as of October 2026. The only casualty was the texture filter option, replaced by TheSuperHackers'
 version - see [Rendering](contraZH-Options.md#rendering) for the renamed `AnisotropyLevel` key.
 * Upstream's WorldBuilder MCP server is not included; contraZH has its own, see
-[Map Generator & MCP](WorldBuilder-Qt-Map-Generator.md#mcp-server).
+[MCP Server](WorldBuilder-Qt-MCP.md).
 
 ## Pages
 
@@ -23,9 +26,9 @@ version - see [Rendering](contraZH-Options.md#rendering) for the renamed `Anisot
 * [Campaign](contraZH-Campaign.md) - the campaign screen, campaign tabs, mission unlocks, mission save names and the challenge screen
 * [Options.ini](contraZH-Options.md) - every Options.ini setting: camera, display, hotkeys, selection, input, drag-to-face formations and rendering, including the Path tracing emissive lighting option, plus the Hotkeys screen and Hotkeys.ini
 * [Commandline Options](contraZH-Commandline-Options.md) - all game launch options, arguments and build requirements
-* [Objects & Modules](contraZH-Objects-and-Modules.md) - new object keys, module parameters and behavior modules
+* [Objects & Modules](contraZH-Objects-and-Modules.md) - new object keys, module parameters, bone-attached weapon fire particles and behavior modules
 * [GameData.ini](contraZH-GameData.md) - new GameData.ini keys and simulation rules
-* [SpecialPower.ini](contraZH-SpecialPowers.md) - new SpecialPower.ini keys
+* [SpecialPower.ini](contraZH-SpecialPowers.md) - enum behavior reference, Contra superweapon enums, INI-defined power identities, EVA events and radius cursors, plus new SpecialPower.ini keys
 * [Weapon.ini](contraZH-Weapons.md) - new Weapon.ini keys
 * [Locomotors](contraZH-Locomotors.md) - terrain-following projectiles and slope collision limits
 * [CommandButtons & Selection](contraZH-CommandButtons.md) - new command buttons and options, queue reorder, auto queue, structure multi-select, advanced waypoints and dozer smart cast
@@ -34,5 +37,5 @@ version - see [Rendering](contraZH-Options.md#rendering) for the renamed `Anisot
 * [ChatCommands.ini](contraZH-ChatCommands.md) - new chat command fields: health, ownership, EMP, crew kill, player control and typed spawns
 * [Extend Blocks](contraZH-Extend.md) - inheriting Armor, Locomotor, Weapon, Object, OCL, FXList and ParticleSystem entries
 * [Animation2D.ini](contraZH-Animation2D.md) - direct textures in Animation2D.ini
-* [Debug and Cheat Features](contraZH-Debug-and-Cheats.md) - debug overlays and cheat hotkeys in cheat builds
+* [Debug and Cheat Features](contraZH-Debug-and-Cheats.md) - debug overlays, cheat hotkeys and the debug panel with its Cheats tab in cheat builds
 * [Generals Online (experimental)](contraZH-Generals-Online.md) - the experimental Generals Online build

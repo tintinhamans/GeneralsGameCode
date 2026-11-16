@@ -41,6 +41,10 @@ enum { MaxQuitFlushTime = 30000 }; // wait this many milliseconds at most to ret
 static const time_t RETRY_TIME_MIN = 50;
 static const time_t RETRY_TIME_MAX = 2000;
 
+// The ceiling leaves half of the receiver's packet slots free for other traffic
+static const Int WRAPPER_WINDOW_MIN = 16;
+static const Int WRAPPER_WINDOW_MAX = MAX_MESSAGES / 2;
+
 Connection::Connection() {
 	m_transport = nullptr;
 	m_user = nullptr;
@@ -52,6 +56,8 @@ Connection::Connection() {
 	m_quitTime = 0;
 	m_averageLatency = 0.0f;
 	m_latencySampleCount = 0;
+	m_wrapperWindow = WRAPPER_WINDOW_MIN;
+	m_lastWrapperWindowCut = 0;
 	Int i;
 	for(i = 0; i < CONNECTION_LATENCY_HISTORY_LENGTH; i++)
 	{
@@ -97,6 +103,8 @@ void Connection::init() {
 	m_latencySampleCount = 0;
 	m_isQuitting = FALSE;
 	m_quitTime = 0;
+	m_wrapperWindow = WRAPPER_WINDOW_MIN;
+	m_lastWrapperWindowCut = 0;
 }
 
 /**
@@ -254,6 +262,18 @@ UnsignedInt Connection::doSend() {
 		return 0;
 	}
 
+	// A file transfer queues thousands of wrapper commands, far more than the receiver can buffer in one update
+	Int wrappersInFlight = 0;
+	for (NetCommandRef *ref = m_netCommandList->getFirstMessage(); ref != nullptr; ref = ref->getNext())
+	{
+		if (ref->getTimeLastSent() != -1 && ref->getCommand()->getNetCommandType() == NETCOMMANDTYPE_WRAPPER)
+		{
+			++wrappersInFlight;
+		}
+	}
+
+	std::vector<NetCommandRef *> packed;
+
 	// iterate through all the messages and put them into a packet(s).
 	NetCommandRef *msg = m_netCommandList->getFirstMessage();
 
@@ -265,24 +285,24 @@ UnsignedInt Connection::doSend() {
 
 		// add the command messages until either we run out of messages or the packet is full.
 		while ((msg != nullptr) && notDone) {
-			NetCommandRef *next = msg->getNext(); // Need this since msg could be deleted
+			NetCommandRef *next = msg->getNext();
 
 			time_t timeLastSent = msg->getTimeLastSent();
 
 			if (((curtime - timeLastSent) > m_retryTime) || (timeLastSent == -1)) {
+				const Bool isNewWrapper = (timeLastSent == -1) && (msg->getCommand()->getNetCommandType() == NETCOMMANDTYPE_WRAPPER);
+				if (isNewWrapper && wrappersInFlight >= m_wrapperWindow)
+				{
+					msg = next;
+					continue;
+				}
+
 				notDone = packet.addCommand(msg);
 				if (notDone) {
-					// the msg command was added to the packet.
-					if (CommandRequiresAck(msg->getCommand())) {
-						if (timeLastSent != -1) {
-							++m_numRetries;
-							msg->setResent();
-						}
-						doRetryMetrics();
-						msg->setTimeLastSent(curtime);
-					} else {
-						m_netCommandList->removeMessage(msg);
-						deleteInstance(msg);
+					packed.push_back(msg);
+					if (isNewWrapper)
+					{
+						++wrappersInFlight;
 					}
 				}
 			}
@@ -300,11 +320,50 @@ UnsignedInt Connection::doSend() {
 			// If the packet actually has any information to give, give it to the transport object
 			// for transmission.
 			couldQueue = m_transport->queueSend(packet.getAddr(), packet.getPort(), packet.getData(), packet.getLength());
-			m_lastTimeSent = curtime;
+
+			// A refused packet leaves its commands as they were, so they go out on the next update
+			if (couldQueue)
+			{
+				m_lastTimeSent = curtime;
+				markCommandsSent(packed, curtime);
+			}
 		}
+
+		packed.clear();
 	}
 
 	return numpackets;
+}
+
+void Connection::markCommandsSent(const std::vector<NetCommandRef *> &commands, time_t curtime)
+{
+	for (size_t i = 0; i < commands.size(); ++i)
+	{
+		NetCommandRef *msg = commands[i];
+
+		if (!CommandRequiresAck(msg->getCommand()))
+		{
+			m_netCommandList->removeMessage(msg);
+			deleteInstance(msg);
+			continue;
+		}
+
+		if (msg->getTimeLastSent() != -1)
+		{
+			++m_numRetries;
+			msg->setResent();
+
+			const Bool isWrapper = msg->getCommand()->getNetCommandType() == NETCOMMANDTYPE_WRAPPER;
+			if (isWrapper && (curtime - m_lastWrapperWindowCut) > m_retryTime)
+			{
+				m_wrapperWindow = max(WRAPPER_WINDOW_MIN, m_wrapperWindow / 2);
+				m_lastWrapperWindowCut = curtime;
+			}
+		}
+
+		doRetryMetrics();
+		msg->setTimeLastSent(curtime);
+	}
 }
 
 NetCommandRef * Connection::processAck(NetAckStage1CommandMsg *msg) {
@@ -365,6 +424,11 @@ NetCommandRef * Connection::processAck(UnsignedShort commandID, UnsignedByte ori
 		m_averageLatency += lat / CONNECTION_LATENCY_HISTORY_LENGTH;
 		m_latencies[index] = lat;
 		updateRetryTime();
+
+		if (temp->getCommand()->getNetCommandType() == NETCOMMANDTYPE_WRAPPER)
+		{
+			m_wrapperWindow = min(WRAPPER_WINDOW_MAX, m_wrapperWindow + 1);
+		}
 	}
 
 #if defined(RTS_DEBUG)

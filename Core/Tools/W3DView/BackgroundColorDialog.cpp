@@ -61,6 +61,8 @@ BEGIN_MESSAGE_MAP(CBackgroundColorDialog, CDialog)
 	//{{AFX_MSG_MAP(CBackgroundColorDialog)
 	ON_WM_HSCROLL()
 	ON_BN_CLICKED(IDC_GRAYSCALE_CHECK, OnGrayscaleCheck)
+	ON_BN_CLICKED(IDC_COLOR_PICK_BTN, OnColorPick)
+	ON_WM_DRAWITEM()
 	//}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
@@ -111,6 +113,14 @@ CBackgroundColorDialog::OnInitDialog ()
     m_redSlider.SetPos (m_initialRed);
     m_greenSlider.SetPos (m_initialGreen);
     m_blueSlider.SetPos (m_initialBlue);
+
+    // TheSuperHackers @feature Tria 18/04/2026 Enable owner-draw for color swatch.
+    HWND hSwatch = ::GetDlgItem (m_hWnd, IDC_COLOR_SWATCH);
+    if (hSwatch) {
+        ::SetWindowLong (hSwatch, GWL_STYLE, ::GetWindowLong (hSwatch, GWL_STYLE) | SS_OWNERDRAW);
+    }
+    Update_Color_Swatch ();
+
 	return TRUE;
 }
 
@@ -163,6 +173,8 @@ CBackgroundColorDialog::OnHScroll
         pCDoc->SetBackgroundColor (colorSettings);
     }
 
+    Update_Color_Swatch ();
+
 	// Allow the base class to process this message
     CDialog::OnHScroll (nSBCode, nPos, pScrollBar);
 }
@@ -193,6 +205,8 @@ CBackgroundColorDialog::OnGrayscaleCheck ()
             // Modify the current background color
             pCDoc->SetBackgroundColor (colorSettings);
         }
+
+        Update_Color_Swatch ();
     }
 }
 
@@ -243,4 +257,88 @@ CBackgroundColorDialog::WindowProc
 
 	// Allow the base class to process this message
     return CDialog::WindowProc (message, wParam, lParam);
+}
+
+// TheSuperHackers @feature Tria 18/04/2026 Color swatch and picker for background color dialog.
+
+//////////////////////////////////////////////////////////////
+//
+//  Update_Color_Swatch
+//
+void
+CBackgroundColorDialog::Update_Color_Swatch (void)
+{
+    HWND hSwatch = ::GetDlgItem (m_hWnd, IDC_COLOR_SWATCH);
+    if (hSwatch) {
+        ::InvalidateRect (hSwatch, nullptr, TRUE);
+    }
+}
+
+//////////////////////////////////////////////////////////////
+//
+//  OnDrawItem
+//
+void
+CBackgroundColorDialog::OnDrawItem (int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
+{
+    if (nIDCtl == IDC_COLOR_SWATCH) {
+        int r = (m_redSlider.GetPos () * 255) / 100;
+        int g = (m_greenSlider.GetPos () * 255) / 100;
+        int b = (m_blueSlider.GetPos () * 255) / 100;
+        HBRUSH hBrush = ::CreateSolidBrush (RGB (r, g, b));
+        ::FillRect (lpDrawItemStruct->hDC, &lpDrawItemStruct->rcItem, hBrush);
+        ::DeleteObject (hBrush);
+        ::DrawEdge (lpDrawItemStruct->hDC, &lpDrawItemStruct->rcItem, EDGE_SUNKEN, BF_RECT);
+        return;
+    }
+    CDialog::OnDrawItem (nIDCtl, lpDrawItemStruct);
+}
+
+//////////////////////////////////////////////////////////////
+//
+//  OnColorPick
+//
+void
+CBackgroundColorDialog::OnColorPick (void)
+{
+    int r = (m_redSlider.GetPos () * 255) / 100;
+    int g = (m_greenSlider.GetPos () * 255) / 100;
+    int b = (m_blueSlider.GetPos () * 255) / 100;
+
+    static COLORREF s_CustomColors[16] = { 0 };
+
+    CHOOSECOLOR cc = { 0 };
+    cc.lStructSize = sizeof (cc);
+    cc.hwndOwner = m_hWnd;
+    cc.rgbResult = RGB (r, g, b);
+    cc.lpCustColors = s_CustomColors;
+    cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+
+    if (::ChooseColor (&cc)) {
+        int newR = (GetRValue (cc.rgbResult) * 100) / 255;
+        int newG = (GetGValue (cc.rgbResult) * 100) / 255;
+        int newB = (GetBValue (cc.rgbResult) * 100) / 255;
+
+        m_redSlider.SetPos (newR);
+        m_greenSlider.SetPos (newG);
+        m_blueSlider.SetPos (newB);
+
+        if (newR == newG && newR == newB) {
+            SendDlgItemMessage (IDC_GRAYSCALE_CHECK, BM_SETCHECK, (WPARAM)TRUE);
+        } else {
+            SendDlgItemMessage (IDC_GRAYSCALE_CHECK, BM_SETCHECK, (WPARAM)FALSE);
+        }
+
+        Vector3 colorSettings;
+        colorSettings.X = float(newR) / 100.00F;
+        colorSettings.Y = float(newG) / 100.00F;
+        colorSettings.Z = float(newB) / 100.00F;
+
+        CW3DViewDoc *pCDoc = ::GetCurrentDocument ();
+        if (pCDoc) {
+            pCDoc->SetBackgroundColor (colorSettings);
+        }
+
+        Update_Color_Swatch ();
+    }
 }

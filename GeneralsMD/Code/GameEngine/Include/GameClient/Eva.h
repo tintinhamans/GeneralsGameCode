@@ -30,6 +30,7 @@
 
 #include "Common/SubsystemInterface.h"
 #include "Common/AudioEventRTS.h"
+#include <set>
 
 class Player;
 class INI;
@@ -323,6 +324,7 @@ class Eva : public SubsystemInterface
 		Int m_previousBuildingCount;
 		Int m_previousUnitCount;
 		mutable EvaMessage m_messageBeingTested;	// Used by the generic hooks so they can figure out which flag to test.
+		std::set<EvaMessage> m_customShouldPlay;
 		Bool m_shouldPlay[EVA_COUNT];	// These aren't all used, but some of them are.
 
 		Bool m_enabled;
@@ -336,6 +338,7 @@ class Eva : public SubsystemInterface
 		virtual void reset() override;
 		virtual void update() override;
 
+		void validateCustomEvents() const;
 		static EvaMessage nameToMessage(const AsciiString& name);
 		static AsciiString messageToName(EvaMessage message);
 

@@ -648,6 +648,7 @@ void LANAPI::RequestGameJoin( LANGameInfo *game, UnsignedInt ip /* = 0 */ )
 	msg.GameToJoin.gameIP = game->getSlot(0)->getIP();
 	msg.GameToJoin.exeCRC = TheGlobalData->m_exeCRC;
 	msg.GameToJoin.iniCRC = TheGlobalData->m_iniCRC;
+	msg.GameToJoin.protocolVersion = NETWORK_PROTOCOL_VERSION;
 
 	AsciiString s;
 	GetStringFromRegistry("\\ergc", "", s);
