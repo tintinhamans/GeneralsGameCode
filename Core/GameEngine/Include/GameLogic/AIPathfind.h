@@ -34,6 +34,7 @@
 //#include "GameLogic/Locomotor.h"	// no, do not include this, unless you like long recompiles
 #include "GameLogic/LocomotorSet.h"
 #include "GameLogic/GameLogic.h"
+#include "GameLogic/PathTuning.h"
 
 #include <vector>
 
@@ -246,9 +247,11 @@ public:
 	}
 
 	// Open-list order for one insert. Without breakTies, equal totals stay first in, first out.
+	// TheSuperHackers @feature simonx645 16/11/2026 "octile" (GameLogic/PathTuning.h): equal totals break by progress on
+	// every insert.
 	Bool sortsBefore(const PathfindCellInfo& other, Bool breakTies) const
 	{
-		if (breakTies)
+		if (breakTies || PathTuning::Octile)
 		{
 			return *this < other;
 		}
