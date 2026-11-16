@@ -1,12 +1,11 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * GenOnline plugin API
+ * Generals Online plugin API
  *
- * Copyright (c) 2026 The GenOnline contributors
+ * Copyright (c) 2026 The Generals Online contributors
  *
- * This file is an exception to the GNU General Public License that covers the
- * rest of this project. This file alone is licensed under the MIT license below,
- * so that plugins may include it and use any license.
+ * This file stays under the MIT license below wherever it is copied, so that
+ * plugins may include it whatever their own license.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
