@@ -11429,6 +11429,10 @@ void Pathfinder::updateGoal( Object *obj, const Coord3D *newGoalPos, PathfindLay
 
 	AIUpdateInterface *ai = obj->getAIUpdateInterface();
 	if (!ai) return; // only consider ai objects.
+	if (PathTuning::DeadLeaveGrid && obj->isEffectivelyDead()) {
+		removeGoal(obj);	// "dead": no goal is kept for a dead unit
+		return;
+	}
 	if (!ai->isDoingGroundMovement()) {
 #if RTS_GENERALS && RETAIL_COMPATIBLE_PATHFINDING
 		Bool isUnmannedHelicopter = false;
@@ -11645,6 +11649,13 @@ void Pathfinder::updatePos( Object *obj, const Coord3D *newPos)
 	}
 	if (!m_isMapReady)
 		return;
+
+	// TheSuperHackers @feature simonx645 16/11/2026 "dead" (PathTuning.h): a dead unit is off the map at once, and a corpse
+	// still sliding is not put back on it
+	if (PathTuning::DeadLeaveGrid && obj->isEffectivelyDead()) {
+		removeUnitFromPathfindMap(obj);
+		return;
+	}
 
 	AIUpdateInterface *ai = obj->getAIUpdateInterface();
 	if (!ai)

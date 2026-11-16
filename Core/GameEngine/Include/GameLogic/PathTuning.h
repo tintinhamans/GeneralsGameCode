@@ -46,6 +46,8 @@
 //              slots: no goal across a cliff or river from the click, the first to arrive take the deepest goals, footprints
 //              apart (big ones a cell apart), each only where its own footprint got to from the click; a path that ends well
 //              short of an unchanged goal asks again (3 times, 2 s apart). contraZH's column join rule is kept
+//   dead       every dead unit leaves the pathfind map at once and is not put back while it slides (contraZH removes
+//              only a dying unit that is not a ground mover)
 //
 // All of these change routes, so every player of a game, and a replay's playback, must use the same set. When any is on,
 // the set goes into the pathfinder's CRC, so players with different sets see a mismatch at once. An unknown name stops
@@ -66,6 +68,7 @@ namespace PathTuning
 	extern Bool Clearance;
 	extern Bool HeadOnPass;
 	extern Bool GroupGoals;
+	extern Bool DeadLeaveGrid;
 
 	const Int CLEARANCE_MAX = 15;			///< "clearance": rings counted (more is open ground)
 	const Int CLEARANCE_HARD = 2;			///< "clearance": rings past the shore that refuse a step

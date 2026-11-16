@@ -1603,7 +1603,9 @@ void AIUpdateInterface::markAsDead()
 {
 	m_isAiDead = TRUE;
 	// the pathfinder drops a unit that stopped being a ground mover on its next move, which a corpse never makes
-	if (!isDoingGroundMovement())
+	// TheSuperHackers @feature simonx645 16/11/2026 "dead" (GameLogic/PathTuning.h): every dead unit leaves the pathfind
+	// map at once, so the search no longer takes a dying soldier for a fixed unit (crushers still squash corpses)
+	if (PathTuning::DeadLeaveGrid || !isDoingGroundMovement())
 	{
 		TheAI->pathfinder()->removeUnitFromPathfindMap(getObject());
 	}
