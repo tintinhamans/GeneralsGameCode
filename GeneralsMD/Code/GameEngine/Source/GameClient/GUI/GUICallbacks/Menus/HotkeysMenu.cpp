@@ -1409,11 +1409,7 @@ void fillCommandTabs()
 		showWindow( tab, s_view == VIEW_COMMANDS );
 		const Bool current = i == s_commandTab;
 		Color text = TEXT_COLOR;
-		if( current )
-		{
-			text = SELECTED_COLOR;
-		}
-		else if( clash[i] )
+		if( clash[i] )
 		{
 			text = CLASH_COLOR;
 		}
@@ -2607,12 +2603,8 @@ WindowMsgHandledType HotkeysMenuSystem( GameWindow *window, UnsignedInt msg, Win
 				const ConflictRef ref = s_conflicts[ row ];
 				if( ref.side < 0 )
 				{
-					s_view = VIEW_COMMANDS;
 					s_commandRow = ref.general;
-					if( s_commandTab > 0 && commandTabOf( s_rows[ s_commandRow ] ) != s_commandTab )
-					{
-						showCommandTab( 0 );
-					}
+					showCommandTab( commandTabOf( s_rows[ s_commandRow ] ) );
 				}
 				else
 				{
