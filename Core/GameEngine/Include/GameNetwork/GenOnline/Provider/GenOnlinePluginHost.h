@@ -119,6 +119,8 @@ public:
 		// Signs in to the platform of the plugin with the GenOnline token and hands the identity proof to the service.
 		static void SignIn();
 		static void Refresh();
+		// The provider name that the linked account table of the plugin reports, empty without that table.
+		static const std::string& GetProvider();
 	};
 
 	class Anticheat
@@ -134,10 +136,11 @@ public:
 	class Transport
 	{
 	public:
-		// True when the service allows the plugin transport and the plugin carries the game traffic.
-		static bool IsActive();
-		// True when a plugin transport is loaded and reports that it can carry packets, the condition for the eos step of a pair.
+		// True when a plugin transport is loaded and reports that it can carry packets.
 		static bool IsAvailable();
+		// The name this client offers in SetPeerTransports and the plugin steps of the connection order name: the provider
+		// of the linked account table while a plugin transport is loaded and available. Empty when there is none.
+		static std::string GetName();
 		static void StartSignalling(const char* szPlatformUserID, uint64_t userID);
 		// False when no plugin transport is loaded.
 		static bool SendPacket(const char* szPlatformUserID, uint64_t userID, const void* pData, uint32_t numBytes, ENetworkChannels channel, EPacketReliability reliability);

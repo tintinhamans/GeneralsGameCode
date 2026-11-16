@@ -206,7 +206,7 @@ void GenOnlineGame::UpdateSlotsFromCurrentLobby()
 				// has map?
 				slot->setMapAvailability(pLobbyMember.has_map);
 
-				// store EOS ID
+				// store the user ID
 				slot->m_userID = pLobbyMember.user_id;
 			}
 			else

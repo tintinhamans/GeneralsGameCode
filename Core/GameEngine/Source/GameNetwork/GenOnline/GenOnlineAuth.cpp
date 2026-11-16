@@ -106,30 +106,30 @@ void GenOnlineAuthInterface::GoToDetermineNetworkCaps()
 		});
 }
 
-void GenOnlineAuthInterface::RequestEosToken(std::function<void(const std::string& strEosToken)> fnDone)
+void GenOnlineAuthInterface::RequestSignInToken(const std::string& strProvider, std::function<void(const std::string& strToken)> fnDone)
 {
-	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Post, GenOnlineRealtime::RestEosTokenPath(), "", [fnDone](const GenOnlineRealtime::RestOutcome& outcome)
+	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Post, GenOnlineRealtime::RestSignInTokenPath(strProvider), "", [fnDone, strProvider](const GenOnlineRealtime::RestOutcome& outcome)
 		{
-			GenOnlineRealtime::EosTokenResponse token;
-			if (!outcome.Succeeded() || !outcome.Data(token) || token.eos_token.empty())
+			GenOnlineRealtime::SignInTokenResponse token;
+			if (!outcome.Succeeded() || !outcome.Data(token) || token.token.empty())
 			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] EOS token request failed: status %d code %s", outcome.status, outcome.error.code.c_str());
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Sign in token request for %s failed: status %d code %s", strProvider.c_str(), outcome.status, outcome.error.code.c_str());
 				fnDone(std::string());
 				return;
 			}
 			// The token is a credential, so only its length and lifetime are logged.
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Got an EOS token (%zu chars, %d s)", token.eos_token.size(), token.expires_in);
-			fnDone(token.eos_token);
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Got a sign in token for %s (%zu chars, %d s)", strProvider.c_str(), token.token.size(), token.expires_in);
+			fnDone(token.token);
 		});
 }
 
-void GenOnlineAuthInterface::SendMiddlewareToken(std::string strMWToken)
+void GenOnlineAuthInterface::SendMiddlewareToken(const std::string& strProvider, const std::string& strProof)
 {
     // login
-    GenOnlineRealtime::EosLinkBody body;
-    body.id_token = strMWToken;
+    GenOnlineRealtime::LinkAccountBody body;
+    body.proof = strProof;
 
-    GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Put, GenOnlineRealtime::RestEosLinkPath(), nlohmann::json(body).dump(), [](const GenOnlineRealtime::RestOutcome& outcome)
+    GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Put, GenOnlineRealtime::RestLinkedAccountPath(strProvider), nlohmann::json(body).dump(), [](const GenOnlineRealtime::RestOutcome& outcome)
         {
             if (!outcome.Succeeded())
             {

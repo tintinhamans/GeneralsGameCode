@@ -277,8 +277,8 @@ static std::map<std::string, RoundTripFn> BuildApiFixtureTable()
 
 	t["get-compatibility.response.json"] = RoundTrip<CompatibilityResponse>;
 	t["get-config.response.json"] = RoundTrip<ConfigResponse>;
-	t["put-me-linked_accounts-eos.request.json"] = RoundTrip<EosLinkBody>;
-	t["post-me-eos_token.response.json"] = RoundTrip<EosTokenResponse>;
+	t["put-me-linked_accounts.request.json"] = RoundTrip<LinkAccountBody>;
+	t["post-me-linked_accounts-sign_in_token.response.json"] = RoundTrip<SignInTokenResponse>;
 	t["get-stats-global.response.json"] = RoundTrip<GlobalStatsResponse>;
 	t["get-players-stats.response.json"] = RoundTrip<PlayerStatsBody>;
 	t["get-players-stats-ids.response.json"] = RoundTrip<PlayerStatsBatchResponse>;
@@ -1963,23 +1963,28 @@ static void TestLegacyRouteReplacements(const std::filesystem::path& folder)
 		CHECK(withoutLevel.motd == "hi" && !withoutLevel.anticheat_level.has_value());
 	}
 
-	// The EOS link sends the Epic ID token.
-	CHECK(RestEosLinkPath() == "/api/v1/me/linked_accounts/eos");
+	// The link sends the provider's own proof of the account to the route of the provider the plugin reports.
+	CHECK(RestLinkedAccountPath("eos") == "/api/v1/me/linked_accounts/eos");
+	CHECK(RestLinkedAccountPath("steam") == "/api/v1/me/linked_accounts/steam");
 	{
-		EosLinkBody link;
-		link.id_token = "abc";
-		CHECK(json(link) == json::parse(R"({"id_token":"abc"})"));
+		LinkAccountBody link;
+		link.proof = "abc";
+		CHECK(json(link) == json::parse(R"({"proof":"abc"})"));
+		LinkAccountBody missing;
+		CHECK(!MakeRestOutcome(true, 200, R"({"id_token":"abc"})").Data(missing));
 	}
 
-	// The EOS plugin signs in to Epic with the short-lived EOS token, not with the access token.
-	CHECK(RestEosTokenPath() == "/api/v1/me/eos_token");
-	CHECK(RestPathForLog("/api/v1/me/eos_token") == "/api/v1/me/eos_token");
+	// The plugin signs in to its platform with the short-lived token of its provider, not with the access token.
+	CHECK(RestSignInTokenPath("eos") == "/api/v1/me/linked_accounts/eos/sign_in_token");
+	CHECK(RestSignInTokenPath("steam") == "/api/v1/me/linked_accounts/steam/sign_in_token");
 	{
-		EosTokenResponse token;
-		CHECK(MakeRestOutcome(true, 200, R"({"eos_token":"a.b.c","expires_in":300})").Data(token));
-		CHECK(token.eos_token == "a.b.c" && token.expires_in == 300);
-		EosTokenResponse missing;
+		SignInTokenResponse token;
+		CHECK(MakeRestOutcome(true, 200, R"({"token":"a.b.c","expires_in":300})").Data(token));
+		CHECK(token.token == "a.b.c" && token.expires_in == 300);
+		SignInTokenResponse missing;
 		CHECK(!MakeRestOutcome(true, 200, R"({"expires_in":300})").Data(missing));
+		SignInTokenResponse oldShape;
+		CHECK(!MakeRestOutcome(true, 200, R"({"eos_token":"a.b.c","expires_in":300})").Data(oldShape));
 	}
 
 	// The global stats map each playable side onto its service index.
@@ -2032,7 +2037,14 @@ static void TestLegacyRouteReplacements(const std::filesystem::path& folder)
 	CHECK(RestPathForLog("/api/v1/players/42/stats") == "/api/v1/players/[redacted]/stats");
 	CHECK(RestPathForLog("/api/v1/players/stats?ids=1,2,3") == "/api/v1/players/stats?[redacted]");
 	CHECK(RestPathForLog("/api/v1/compatibility?client=genonline_zerohour&version=2026.11.3") == "/api/v1/compatibility?[redacted]");
+	// The provider right after linked_accounts stays when it has the syntax of a provider name.
 	CHECK(RestPathForLog("/api/v1/me/linked_accounts/eos") == "/api/v1/me/linked_accounts/eos");
+	CHECK(RestPathForLog("/api/v1/me/linked_accounts/eos/sign_in_token") == "/api/v1/me/linked_accounts/eos/sign_in_token");
+	CHECK(RestPathForLog("/api/v1/me/linked_accounts/steam/sign_in_token") == "/api/v1/me/linked_accounts/steam/sign_in_token");
+	CHECK(RestPathForLog("/api/v1/me/linked_accounts/Secret-Token/sign_in_token") == "/api/v1/me/linked_accounts/[redacted]/sign_in_token");
+	CHECK(RestPathForLog("/api/v1/me/linked_accounts/gns") == "/api/v1/me/linked_accounts/[redacted]");
+	CHECK(RestPathForLog("/api/v1/me/eos") == "/api/v1/me/[redacted]");
+	CHECK(RestPathForLog("/api/v1/me/linked_accounts/eos/abc") == "/api/v1/me/linked_accounts/eos/[redacted]");
 	CHECK(RestPathForLog("/api/v1/me/friend_requests/7/accept") == "/api/v1/me/friend_requests/[redacted]/accept");
 	CHECK(RestPathForLog("/api/v1/messages/9b2f0c/unknownword") == "/api/v1/messages/[redacted]/[redacted]");
 	CHECK(RestPathForLog("/api/v1/secret_token_abc") == "/api/v1/[redacted]");
@@ -2071,6 +2083,25 @@ static void TestConnectionTimeline()
 		body.attempt = 2;
 		body.events = timeline.Events();
 		CHECK(json(body) == json::parse(R"({"target_user_id":7,"outcome":"connected_relay","transport":"gns","ip_version":4,"attempt":2,"events":[{"state":"connecting","t_ms":0},{"state":"finding_route","t_ms":2400},{"state":"connected_relay","t_ms":5100}]})"));
+
+		// The transport of a plugin attempt is the name its StartSignalling carried, and the attempt is always sent.
+		ConnectionReportBody plugin;
+		plugin.target_user_id = 7;
+		plugin.outcome = "failed";
+		plugin.transport = "steam";
+		plugin.ip_version = 6;
+		plugin.attempt = 2;
+		CHECK(json(plugin) == json::parse(R"({"target_user_id":7,"outcome":"failed","transport":"steam","ip_version":6,"attempt":2})"));
+		bool threw = false;
+		try
+		{
+			json::parse(R"({"target_user_id":7,"outcome":"failed","transport":"gns","ip_version":4})").get<ConnectionReportBody>();
+		}
+		catch (const std::exception&)
+		{
+			threw = true;
+		}
+		CHECK(threw);
 	}
 
 	// The time never decreases and never exceeds 600000 ms.
@@ -2152,54 +2183,75 @@ static void TestLobbyJoinHistory()
 // The step fields of StartSignalling choose the transport of the pair, see section 6.6 of the protocol.
 static void TestConnectionStep()
 {
-	StartSignallingEvent legacy = json::parse("{\"lobby_id\":991,\"user_id\":7,\"preferred_port\":8088,\"middleware_id\":\"0002a1b2c3d4e5f6\"}").get<StartSignallingEvent>();
-	CHECK(!legacy.attempt.has_value());
-	CHECK(!legacy.transport.has_value());
-	CHECK(!legacy.relay.has_value());
-	CHECK(!legacy.timeout_s.has_value());
-	CHECK(json(legacy).dump() == "{\"lobby_id\":991,\"middleware_id\":\"0002a1b2c3d4e5f6\",\"preferred_port\":8088,\"user_id\":7}");
-	CHECK(!ConnectionStepOf(legacy).IsPresent());
-
-	StartSignallingEvent direct = legacy;
-	direct.attempt = 1;
-	direct.transport = std::string("gns");
-	direct.relay = false;
-	direct.timeout_s = 6;
+	const json full = json::parse(R"({"lobby_id":991,"user_id":7,"preferred_port":8088,"middleware_id":"0002a1b2c3d4e5f6","attempt":1,"transport":"gns","relay":false,"timeout_s":6})");
+	StartSignallingEvent direct = full.get<StartSignallingEvent>();
+	CHECK(json(direct) == full);
 	ConnectionStep step = ConnectionStepOf(direct);
-	CHECK(step.IsPresent());
+	CHECK(step.IsValid());
+	CHECK(!step.IsPlugin());
 	CHECK(step.attempt == 1);
-	CHECK(!step.eos);
+	CHECK(step.transport == "gns");
 	CHECK(!step.relay);
 	CHECK(step.timeoutS == 6);
 
-	StartSignallingEvent eos = direct;
-	eos.attempt = 2;
-	eos.transport = std::string("eos");
-	eos.timeout_s = 10;
-	step = ConnectionStepOf(eos);
-	CHECK(step.IsPresent());
+	// Every StartSignalling carries attempt, transport, relay and timeout_s, an event without one is malformed.
+	for (const char* field : { "attempt", "transport", "relay", "timeout_s" })
+	{
+		json missing = full;
+		missing.erase(field);
+		bool threw = false;
+		try
+		{
+			missing.get<StartSignallingEvent>();
+		}
+		catch (const std::exception&)
+		{
+			threw = true;
+		}
+		CHECK(threw);
+	}
+
+	// A plugin step names the provider that both peers listed, the client matches it as an opaque name.
+	StartSignallingEvent plugin = direct;
+	plugin.attempt = 2;
+	plugin.transport = "eos";
+	plugin.timeout_s = 10;
+	step = ConnectionStepOf(plugin);
+	CHECK(step.IsValid());
+	CHECK(step.IsPlugin());
 	CHECK(step.attempt == 2);
-	CHECK(step.eos);
+	CHECK(step.transport == "eos");
 	CHECK(step.timeoutS == 10);
+
+	plugin.transport = "steam";
+	step = ConnectionStepOf(plugin);
+	CHECK(step.IsPlugin());
+	CHECK(step.transport == "steam");
 
 	StartSignallingEvent turn = direct;
 	turn.attempt = 3;
 	turn.relay = true;
 	turn.timeout_s = 0;
 	step = ConnectionStepOf(turn);
-	CHECK(step.IsPresent());
-	CHECK(!step.eos);
+	CHECK(step.IsValid());
+	CHECK(!step.IsPlugin());
 	CHECK(step.relay);
 	CHECK(step.timeoutS == 0);
 
-	// A transport this client does not know leaves the pair on the connection of before the order.
-	StartSignallingEvent unknown = direct;
-	unknown.transport = std::string("webrtc");
-	CHECK(!ConnectionStepOf(unknown).IsPresent());
-
-	StartSignallingEvent noAttempt = direct;
-	noAttempt.attempt.reset();
-	CHECK(!ConnectionStepOf(noAttempt).IsPresent());
+	// A transport that is neither gns nor a plugin transport name, or an attempt below 1, gives an invalid step.
+	for (const char* transport : { "", "EOS", "web-rtc", "eos ", "a23456789012345678901234567890123" })
+	{
+		StartSignallingEvent bad = direct;
+		bad.transport = transport;
+		CHECK(!ConnectionStepOf(bad).IsValid());
+		CHECK(!ConnectionStepOf(bad).IsPlugin());
+	}
+	StartSignallingEvent zeroAttempt = direct;
+	zeroAttempt.attempt = 0;
+	CHECK(!ConnectionStepOf(zeroAttempt).IsValid());
+	StartSignallingEvent negativeAttempt = direct;
+	negativeAttempt.attempt = -1;
+	CHECK(!ConnectionStepOf(negativeAttempt).IsValid());
 
 	StartSignallingEvent negativeTimeout = direct;
 	negativeTimeout.timeout_s = -4;
@@ -2211,10 +2263,30 @@ static void TestConnectionStep()
 	restart.failed_attempt = 1;
 	CHECK(json(restart).dump() == "{\"failed_attempt\":1,\"target_user_id\":7}");
 
+	// SetPeerTransports sends the name the plugin reports, or an empty list without a plugin transport.
 	SetPeerTransportsRequest none;
 	CHECK(json(none).dump() == "{\"transports\":[]}");
-	none.transports.push_back("eos");
-	CHECK(json(none).dump() == "{\"transports\":[\"eos\"]}");
+	SetPeerTransportsRequest one;
+	one.transports.push_back("steam");
+	CHECK(json(one).dump() == "{\"transports\":[\"steam\"]}");
+}
+
+// A provider name is 1 to 32 characters of a-z, 0-9 and _, and gns is reserved.
+static void TestPluginTransportName()
+{
+	CHECK(IsPluginTransportName("eos"));
+	CHECK(IsPluginTransportName("steam"));
+	CHECK(IsPluginTransportName("a"));
+	CHECK(IsPluginTransportName("p2p_2"));
+	CHECK(IsPluginTransportName("a2345678901234567890123456789012"));
+	CHECK(!IsPluginTransportName("a23456789012345678901234567890123"));
+	CHECK(!IsPluginTransportName(""));
+	CHECK(!IsPluginTransportName("gns"));
+	CHECK(!IsPluginTransportName("Eos"));
+	CHECK(!IsPluginTransportName("e-os"));
+	CHECK(!IsPluginTransportName("e os"));
+	CHECK(!IsPluginTransportName("../eos"));
+	CHECK(!IsPluginTransportName(std::string("eos\0x", 5)));
 }
 
 // A timed step reports its attempt failed once, when it ends or runs out of time before it connects.
@@ -2377,6 +2449,7 @@ int main(int argc, char** argv)
 	TestServerSwitching();
 	TestModerationText();
 	TestConnectionStep();
+	TestPluginTransportName();
 	TestStepAttemptWatch();
 	TestAnticheatHoldQueue();
 

@@ -762,13 +762,6 @@ void NetworkMeshLibrary::Tick()
 		return;
 	}
 
-	// The all-plugin mode creates no GameNetworkingSockets connection.
-	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-	if (pMesh != nullptr ? !pMesh->UsesGameNetworkingSockets() : GenOnlinePluginHost::Transport::IsActive())
-	{
-		return;
-	}
-
 	if (SteamNetworkingSockets())
 	{
 		SteamNetworkingSockets()->RunCallbacks();
@@ -832,19 +825,6 @@ NetworkMesh::NetworkMesh()
 		return;
 	}
 
-	// When the anti-cheat plugin owns the transport, the listen socket waits for
-	// the first GameNetworkingSockets step of a pair, see StartConnectionSignalling().
-	// Taking a Steam listen socket we never use only
-	// risks colliding with a previous mesh on P2P vport 0, so skip it.
-	if (GenOnlinePluginHost::Transport::IsActive())
-	{
-		m_bInitialized = true;
-
-		// the key of this client for the lobby, peers get it as they connect
-		BeginLobbyKeys();
-		return;
-	}
-
 	if (!CreateListenSocket())
 	{
 		return;
@@ -890,11 +870,6 @@ bool NetworkMesh::CreateListenSocket()
 	return true;
 }
 
-bool NetworkMesh::UsesGameNetworkingSockets() const
-{
-	return m_bPairSteps || !GenOnlinePluginHost::Transport::IsActive();
-}
-
 
 void NetworkMesh::Flush()
 {
@@ -929,8 +904,8 @@ void NetworkMesh::UpdateConnectivity(PlayerConnection* connection)
 		return;
 	}
 
-	// A placeholder entry of a manual retry is no attempt, and a report for it would replace the report of attempt 1.
-	if (connection->m_reportAttempt <= 0)
+	// A placeholder entry of a manual retry is no attempt, and a report for it would replace the report of a real attempt.
+	if (!connection->m_step.IsValid())
 	{
 		return;
 	}
@@ -938,17 +913,10 @@ void NetworkMesh::UpdateConnectivity(PlayerConnection* connection)
 	GenOnlineRealtime::ConnectionReportBody body;
 	body.target_user_id = connection->m_userID;
 	body.outcome = GenOnlineRealtime::ConnectionReportOutcome(bConnected, !connection->IsDirect(), bDisconnected);
-	// The step of the pair names the transport, without a step the connection type does.
-	if (connection->m_step.IsPresent())
-	{
-		body.transport = connection->m_step.eos ? "eos" : "gns";
-	}
-	else
-	{
-		body.transport = connection->m_ConnectionType == EConnectionType::MiddlewarePluginGeneric ? "eos" : "gns";
-	}
+	// The StartSignalling of the attempt names its transport and its number.
+	body.transport = connection->m_step.transport;
 	body.ip_version = connection->IsIPV4() ? 4 : 6;
-	body.attempt = connection->m_reportAttempt;
+	body.attempt = connection->m_step.attempt;
 	if (!connection->m_timeline.Events().empty())
 	{
 		body.events = connection->m_timeline.Events();
@@ -1052,7 +1020,7 @@ void NetworkMesh::ApplyConnectionTimeouts(HSteamNetConnection connection, int64_
 void NetworkMesh::ApplyConnectionStep(HSteamNetConnection connection, int64_t userID)
 {
 	auto it = m_mapConnections.find(userID);
-	if (it == m_mapConnections.end() || !it->second.m_step.IsPresent() || it->second.m_step.relay)
+	if (it == m_mapConnections.end() || !it->second.m_step.IsValid() || it->second.m_step.relay)
 	{
 		return;
 	}
@@ -1068,23 +1036,25 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 	// Thread safety: Lock connection map during access
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 
-	if (step.IsPresent())
+	// Every StartSignalling names a step, the hub handler drops one without a valid step.
+	if (!step.IsValid())
 	{
-		// The service numbers the attempts of a pair upwards, an older attempt changes nothing.
-		auto current = m_mapConnections.find(remoteUserID);
-		if (current != m_mapConnections.end() && current->second.m_step.attempt > step.attempt)
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Ignoring attempt %d with %lld, attempt %d is current", step.attempt, remoteUserID, current->second.m_step.attempt);
-			return;
-		}
-
-		m_bPairSteps = true;
-		DropPendingStateUpdates(remoteUserID);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Ignoring signalling with %lld without a valid step", remoteUserID);
+		return;
 	}
 
-	// The step of the pair chooses the transport, without a step the service setting chooses it for every pair.
-	const bool bPluginPair = step.IsPresent() ? step.eos : GenOnlinePluginHost::Transport::IsActive();
-	if (bPluginPair)
+	// The service numbers the attempts of a pair upwards, an older attempt changes nothing.
+	auto current = m_mapConnections.find(remoteUserID);
+	if (current != m_mapConnections.end() && current->second.m_step.attempt > step.attempt)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Ignoring attempt %d with %lld, attempt %d is current", step.attempt, remoteUserID, current->second.m_step.attempt);
+		return;
+	}
+
+	DropPendingStateUpdates(remoteUserID);
+
+	// The step of the pair chooses the transport.
+	if (step.IsPlugin())
 	{
 		// A repeated StartSignalling restarts the pair. The old connection closes first, because a single-direction connection breaks signalling.
 		auto existing = m_mapConnections.find(remoteUserID);
@@ -1092,11 +1062,8 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld, new connection is being negotiated", remoteUserID);
 			GenOnlinePluginHost::Transport::DisconnectPeer(existing->second.m_strMiddlewareID.c_str(), existing->second.m_userID);
-			if (step.IsPresent())
-			{
-				// States the plugin raises while it closes the old connection belong to the old attempt.
-				DropPendingStateUpdates(remoteUserID);
-			}
+			// States the plugin raises while it closes the old connection belong to the old attempt.
+			DropPendingStateUpdates(remoteUserID);
 
 			if (TheNetwork != nullptr)
 			{
@@ -1115,12 +1082,10 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 			}
 		}
 
-		// The plugin step fails at once when this client has no plugin transport.
-		const bool bTransportReady = !step.IsPresent() || GenOnlinePluginHost::Transport::IsAvailable();
-		if (step.IsPresent())
-		{
-			DropParkedSignalling(remoteUserID);
-		}
+		// The plugin step fails at once when this client has no plugin transport of that name.
+		const std::string ownTransport = GenOnlinePluginHost::Transport::GetName();
+		const bool bTransportReady = !ownTransport.empty() && ownTransport == step.transport;
+		DropParkedSignalling(remoteUserID);
 		if (bTransportReady)
 		{
 			GenOnlinePluginHost::Transport::StartSignalling(szMiddlewareID, remoteUserID);
@@ -1138,14 +1103,12 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             // add attempt; carried over so the retry cap holds across re-signals
             // An attempt of a timed step does not count towards the cap, the hub moves the pair on instead.
             created.m_SignallingAttempts = previousAttempts + (step.timeoutS > 0 ? 0 : 1);
-            // Every connection signalling creates is a new attempt of the connection report.
-            created.m_reportAttempt = step.IsPresent() ? step.attempt : ++m_reportAttempts[remoteUserID];
             created.m_step = step;
             created.m_stepWatch.Begin(step, NowSteadyMs());
 
             if (!bTransportReady)
             {
-                NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Attempt %d with %lld names the plugin transport, which this client does not have", step.attempt, remoteUserID);
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Attempt %d with %lld names the plugin transport %s, this client has '%s'", step.attempt, remoteUserID, step.transport.c_str(), ownTransport.c_str());
                 EndStepAttempt(created, "no plugin transport", created.m_stepWatch.TakeFailure());
             }
         }
@@ -1153,7 +1116,7 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 	else
 	{
         // no relay without our TURN credentials
-        const bool bRelay = !step.IsPresent() || step.relay;
+        const bool bRelay = step.relay;
         if (m_bAwaitingTurnCredentials && bRelay)
         {
             NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Holding signalling with %lld until our TURN credentials arrive", remoteUserID);
@@ -1169,16 +1132,7 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             m_vecSignallingAwaitingTurn.push_back({ szMiddlewareID != nullptr ? szMiddlewareID : "", remoteUserID, preferredPort, step });
             return;
         }
-        if (step.IsPresent())
-        {
-            DropParkedSignalling(remoteUserID);
-        }
-
-        // The all-plugin mode has no listen socket until a pair uses GameNetworkingSockets.
-        if (step.IsPresent() && m_hListenSock == k_HSteamListenSocket_Invalid)
-        {
-            CreateListenSocket();
-        }
+        DropParkedSignalling(remoteUserID);
 
         // if we already have a connection to this use, drop it, having a single-direction connection will break signalling
         int previousAttempts = 0;
@@ -1194,10 +1148,7 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
                 // A pair that moves from the plugin to GameNetworkingSockets ends its plugin connection first.
                 NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing plugin connection %lld, new connection is being negotiated", remoteUserID);
                 GenOnlinePluginHost::Transport::DisconnectPeer(it->second.m_strMiddlewareID.c_str(), it->second.m_userID);
-                if (step.IsPresent())
-                {
-                    DropPendingStateUpdates(remoteUserID);
-                }
+                DropPendingStateUpdates(remoteUserID);
 
                 if (TheNetwork != nullptr)
                 {
@@ -1335,8 +1286,6 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             // An attempt of a timed step does not count towards the cap, the hub moves the pair on instead.
             m_mapConnections[remoteUserID].m_SignallingAttempts = previousAttempts + (step.timeoutS > 0 ? 0 : 1);
             m_mapConnections[remoteUserID].m_retryTimeout = retryTimeout;
-            // Every connection signalling creates is a new attempt of the connection report.
-            m_mapConnections[remoteUserID].m_reportAttempt = step.IsPresent() ? step.attempt : ++m_reportAttempts[remoteUserID];
             m_mapConnections[remoteUserID].m_step = step;
             m_mapConnections[remoteUserID].m_stepWatch.Begin(step, NowSteadyMs());
         }
@@ -2301,7 +2250,7 @@ void NetworkMesh::EndStepAttempt(PlayerConnection& connection, const char* szRea
 {
 	const int64_t userID = connection.m_userID;
 	const int attempt = connection.m_step.attempt;
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Attempt %d with %lld over %s ended before it connected: %s", attempt, userID, connection.m_step.eos ? "eos" : "gns", szReason);
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Attempt %d with %lld over %s ended before it connected: %s", attempt, userID, connection.m_step.transport.c_str(), szReason);
 
 	// The attempt stops on this side, the hub starts the next step on both.
 	if (connection.m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
@@ -2434,13 +2383,12 @@ void NetworkMesh::Disconnect()
     }
 
     m_mapConnections.clear();
-	m_reportAttempts.clear();
 	{
 		std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 		m_heldACMessages.ClearAll();
 	}
 
-	if (GenOnlinePluginHost::Transport::IsActive() || m_bUsedPluginTransport)
+	if (m_bUsedPluginTransport)
 	{
 		GenOnlinePluginHost::Transport::DisconnectAll();
 	}
@@ -2474,8 +2422,8 @@ void NetworkMesh::Tick()
 		{
 			PlayerConnection& connection = it->second;
 
-			// A plugin state only describes a pair on the plugin transport, the all-plugin mode applies it to every pair.
-			if (connection.m_ConnectionType != EConnectionType::MiddlewarePluginGeneric && UsesGameNetworkingSockets())
+			// A plugin state only describes a pair on the plugin transport.
+			if (connection.m_ConnectionType != EConnectionType::MiddlewarePluginGeneric)
 			{
 				continue;
 			}
@@ -2497,7 +2445,7 @@ void NetworkMesh::Tick()
 		}
 	}
 
-	if (UsesGameNetworkingSockets() && m_pSignaling != nullptr)
+	if (m_pSignaling != nullptr)
 	{
 		m_pSignaling->Poll();
 	}
@@ -3016,8 +2964,7 @@ std::string PlayerConnection::GetStats()
 
 bool PlayerConnection::UsesPluginTransport() const
 {
-	return m_ConnectionType == EConnectionType::MiddlewarePluginGeneric
-		|| (m_ConnectionType == EConnectionType::Unknown && GenOnlinePluginHost::Transport::IsActive());
+	return m_ConnectionType == EConnectionType::MiddlewarePluginGeneric;
 }
 
 std::string PlayerConnection::GetConnectionType()
@@ -3113,7 +3060,7 @@ void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwni
 
 void PlayerConnection::SetDisconnected(bool bWasError, NetworkMesh* pOwningMesh, bool bIsRetrying)
 {
-	// TODO_EOS
+	// TODO_PLUGIN
 	if (bWasError)
 	{
 		if (bIsRetrying)
