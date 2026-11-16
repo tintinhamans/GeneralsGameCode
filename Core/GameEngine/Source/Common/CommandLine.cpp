@@ -980,7 +980,7 @@ Int parsePathFix(char *args[], int num)
 		if (!PathTuning::Set(args[1]))
 		{
 			// a misspelt change would run a different test than the one asked for
-			printf("-pathFix %s: stopping (known: none, default, coarse, crossings, octile, cost32, pool, cap, clearance, headon, groupgoals, dead; -<name> turns one off)\n", args[1]);
+			printf("-pathFix %s: stopping (known: none, default, coarse, crossings, octile, cost32, pool, cap, clearance, headon, groupgoals, dead, bridges; -<name> turns one off)\n", args[1]);
 			fflush(stdout);
 			exit(1);
 		}

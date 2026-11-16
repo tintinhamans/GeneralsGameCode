@@ -844,6 +844,38 @@ Bool AIGroup::friend_computeGroundPath( const Coord3D *pos, CommandSourceType cm
 	if (!closeEnough) return false;
 
 	m_groundPath = TheAI->pathfinder()->findGroundPath(&center, pos, PATH_DIAMETER_IN_CELLS, false);
+	// TheSuperHackers @feature simonx645 16/11/2026 "bridges" (GameLogic/PathTuning.h): no column over a bridge, nor on a
+	// route that stops short of the click. A column's lane waypoints over a bridge all led to the bridge head, and the
+	// group crawled through it one waypoint at a time (T4). The members then go to their own goals, each by its own route.
+	if (m_groundPath != nullptr && PathTuning::BridgeFixes) {
+		Bool column = TRUE;
+		const PathNode *last = m_groundPath->getLastNode();
+		if (last == nullptr) {
+			column = FALSE;
+		} else {
+			const Real ex = last->getPosition()->x - pos->x, ey = last->getPosition()->y - pos->y;
+			if (ex * ex + ey * ey > sqr(4.0f * PATHFIND_CELL_SIZE_F)) {
+				column = FALSE;	// stops short
+			}
+		}
+		for (const PathNode *node = m_groundPath->getFirstNode(); node && column; node = node->getNext()) {
+			if (node->getLayer() != LAYER_GROUND) {
+				column = FALSE;	// on a bridge
+				break;
+			}
+			ICoord2D cell;
+			cell.x = REAL_TO_INT_FLOOR(node->getPosition()->x / PATHFIND_CELL_SIZE_F);
+			cell.y = REAL_TO_INT_FLOOR(node->getPosition()->y / PATHFIND_CELL_SIZE_F);
+			const PathfindCell *c = TheAI->pathfinder()->getCell(LAYER_GROUND, cell.x, cell.y);
+			if (c != nullptr && c->getConnectLayer() != LAYER_INVALID) {
+				column = FALSE;	// onto a bridge
+			}
+		}
+		if (!column) {
+			deleteInstance(m_groundPath);
+			m_groundPath = nullptr;
+		}
+	}
 	return m_groundPath!=nullptr;
 
 }
@@ -1349,6 +1381,11 @@ void AIGroup::friend_moveFormationToPos( const Coord3D *pos, CommandSourceType c
 				Coord3D dest = *node->getPosition();
 				dest.x += offset.x;
 				dest.y += offset.y;
+				// "bridges": a formation offset that leaves the deck keeps to the route on it
+				if (PathTuning::BridgeFixes && node->getLayer() != LAYER_GROUND &&
+					TheTerrainLogic->getLayerForDestination(&dest) != node->getLayer()) {
+					dest = *node->getPosition();
+				}
 				TheAI->pathfinder()->clearWaypoint(theUnit, &dest);	// "clearance": off the shore, for this unit's footprint
 
 				path.push_back( dest );
@@ -1700,6 +1737,15 @@ Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, CommandSourceType cmd
 			// the map first and moved off the shore for this unit's footprint (the direction test uses where it ends up)
 			if (PathTuning::Clearance) {
 				clampToMap(&dest, controllingPlayerType);
+			}
+			// TheSuperHackers @bugfix simonx645 16/11/2026 "bridges" (GameLogic/PathTuning.h): on a bridge the column's
+			// sideways step put the waypoint off the deck, on the ground or water under it, and the unit's search to it
+			// could fail or fall short. On a deck the column keeps to the route.
+			if (PathTuning::BridgeFixes && node->getLayer() != LAYER_GROUND &&
+				TheTerrainLogic->getLayerForDestination(&dest) != node->getLayer()) {
+				dest = *node->getPosition();
+			}
+			if (PathTuning::Clearance) {
 				TheAI->pathfinder()->clearWaypoint(theUnit, &dest);
 			}
 			curVector.x = dest.x-prevPos.x;

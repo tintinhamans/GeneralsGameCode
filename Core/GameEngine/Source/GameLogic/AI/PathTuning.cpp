@@ -37,6 +37,7 @@ namespace PathTuning
 	Bool HeadOnPass = TRUE;
 	Bool GroupGoals = TRUE;
 	Bool DeadLeaveGrid = TRUE;
+	Bool BridgeFixes = TRUE;
 
 	// bit: the change's bit in Mask(), as the measured builds numbered it, so the CRC words are theirs
 	struct Name { const char * name; Bool * flag; Int bit; };
@@ -52,6 +53,7 @@ namespace PathTuning
 		{ "headon", &HeadOnPass, 12 },
 		{ "groupgoals", &GroupGoals, 19 },
 		{ "dead", &DeadLeaveGrid, 17 },
+		{ "bridges", &BridgeFixes, 15 },
 		{ nullptr, nullptr, 0 },	// the end (so the table is never empty)
 	};
 	static const Int NAME_COUNT = sizeof(Names) / sizeof(Names[0]) - 1;

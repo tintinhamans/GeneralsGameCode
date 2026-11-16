@@ -6906,7 +6906,9 @@ void Pathfinder::processPathfindQueue()
 
 	if (m_zoneManager.needToCalculateZones()) {
 		m_zoneManager.calculateZones(m_map, m_layers, m_extent);
-		return;
+		if (!PathTuning::BridgeFixes) {
+			return;	// "bridges": the queue goes on serving paths in the frame zones are made, within its budget
+		}
 	}
 
 	// Get the current logical extent.

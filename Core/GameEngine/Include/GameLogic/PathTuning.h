@@ -48,6 +48,10 @@
 //              short of an unchanged goal asks again (3 times, 2 s apart). contraZH's column join rule is kept
 //   dead       every dead unit leaves the pathfind map at once and is not put back while it slides (contraZH removes
 //              only a dying unit that is not a ground mover)
+//   bridges    the path queue goes on serving paths in the frame the zones are made; a group move makes no column over a
+//              bridge or on a route that stops short of the click; column and formation waypoints on a deck keep to the deck.
+//              contraZH's own bridge fixes (zones at once, rubble goals to the ground, a deleted bridge's layer freed,
+//              routes under a bridge rechecked) are kept
 //
 // All of these change routes, so every player of a game, and a replay's playback, must use the same set. When any is on,
 // the set goes into the pathfinder's CRC, so players with different sets see a mismatch at once. An unknown name stops
@@ -69,6 +73,7 @@ namespace PathTuning
 	extern Bool HeadOnPass;
 	extern Bool GroupGoals;
 	extern Bool DeadLeaveGrid;
+	extern Bool BridgeFixes;
 
 	const Int CLEARANCE_MAX = 15;			///< "clearance": rings counted (more is open ground)
 	const Int CLEARANCE_HARD = 2;			///< "clearance": rings past the shore that refuse a step
