@@ -383,7 +383,8 @@ namespace PathProfile
 		if (u->reroutePending && EventOpen)
 		{
 			u->reroutePending = FALSE;
-			const Int latency = (Int)(frame - EventFrame);
+			// the logic frame, as the runner's event frame ("frame" lags it by one during a frame)
+			const Int latency = (Int)((TheGameLogic != nullptr ? TheGameLogic->getFrame() : frame) - EventFrame);
 			if (latency > Groups[u->group].rerouteMax)
 				Groups[u->group].rerouteMax = latency;
 		}
