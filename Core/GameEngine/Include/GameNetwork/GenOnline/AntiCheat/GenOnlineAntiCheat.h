@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include "GameNetwork/GenOnline/PluginApi/GenOnlinePluginApi.h"
+#include <GenOnlinePluginApi.h>
 
 // Name of GenOnline Anti-Cheat in its plugin table and in the log.
 #define GENONLINE_ANTICHEAT_PLUGIN_NAME "genonline_anticheat"

@@ -27,7 +27,7 @@
 #include "GameNetwork/GenOnline/Provider/GenOnlinePluginPlatform.h"
 #include "GameNetwork/GenOnline/Provider/GenOnlinePluginTrust.h"
 
-#include "GameNetwork/GenOnline/PluginApi/GenOnlinePluginApi.h"
+#include <GenOnlinePluginApi.h>
 #include "GameNetwork/GenOnline/AntiCheat/GenOnlineAntiCheat.h"
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"

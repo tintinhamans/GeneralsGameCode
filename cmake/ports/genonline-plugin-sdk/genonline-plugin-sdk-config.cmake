@@ -1,0 +1,6 @@
+if(NOT TARGET GenOnline::PluginApi)
+    get_filename_component(_genonline_plugin_sdk_prefix "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+    add_library(GenOnline::PluginApi INTERFACE IMPORTED)
+    set_target_properties(GenOnline::PluginApi PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${_genonline_plugin_sdk_prefix}/include")
+    unset(_genonline_plugin_sdk_prefix)
+endif()

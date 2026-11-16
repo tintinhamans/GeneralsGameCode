@@ -1257,7 +1257,6 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/HTTP/HTTPManager.h
     Include/GameNetwork/GenOnline/HTTP/HTTPRequest.h
     Include/GameNetwork/GenOnline/GenOnlineTransport.h
-    Include/GameNetwork/GenOnline/PluginApi/GenOnlinePluginApi.h
     Include/GameNetwork/GenOnline/AntiCheat/GenOnlineAntiCheat.h
     Include/GameNetwork/GenOnline/Provider/GenOnlineGameHooks.h
     Include/GameNetwork/GenOnline/Provider/GenOnlineNetworkOverlay.h
@@ -1363,12 +1362,14 @@ if(NOT IS_VS6_BUILD)
     find_package(CURL CONFIG REQUIRED)
     find_package(GameNetworkingSockets CONFIG REQUIRED)
     find_package(sentry CONFIG REQUIRED)
+    find_package(genonline-plugin-sdk CONFIG REQUIRED)
     include(${CMAKE_SOURCE_DIR}/cmake/monocypher.cmake)
 
     target_link_libraries(corei_gameengine_public INTERFACE
         CURL::libcurl
         GameNetworkingSockets::GameNetworkingSockets_s
         sentry::sentry
+        GenOnline::PluginApi
         bcrypt
         monocypher
     )
