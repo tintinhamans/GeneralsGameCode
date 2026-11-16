@@ -780,6 +780,7 @@ public:
 	/// gave this unit; a move whose goal is exactly it holds it
 	void setGivenGoal( const Coord3D *goal );
 	Bool isGivenGoal( const Coord3D *pos ) const;
+	Bool takeGoalTakenAim( const Coord3D *goal, Coord3D *aim );	///< "goaltaken": the re-aim noted for this goal, once
 	Bool isOnGivenGoalLastLeg() const;	///< "colhold": a held move on its follow path's last leg
 	const Coord3D *getGivenGoal() const { return m_hasGivenGoal ? &m_givenGoal : nullptr; }	///< "colhold"
 
@@ -947,6 +948,8 @@ private:
 	Coord3D				m_exitPassTo;					///< "exitpass": the end of the exit corridor
 	Coord3D				m_givenGoal;					///< "colhold": the goal finder's goal (not saved)
 	Bool				m_hasGivenGoal;					///< "colhold"
+	Bool				m_goalTakenPending;							///< "goaltaken": a re-aim is noted (not saved)
+	Coord3D				m_goalTakenFrom, m_goalTakenAim;			///< "goaltaken": the given goal it was for, the box it aims at
 	UnsignedInt			m_givenGoalFrame;				///< "colhold": the frame it was given (that frame's commands keep it)
 	Bool				m_allowedToChase;						///< Allowed to pursue targets.
 	Bool				m_isInUpdate;								///< If true, we are inside our update method.

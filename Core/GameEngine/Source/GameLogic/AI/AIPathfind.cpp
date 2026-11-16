@@ -13003,6 +13003,11 @@ void Pathfinder::crc( Xfer *xfer )
 			UnsignedInt exact = PathTuning::Mask_Exact();
 			xfer->xferUnsignedInt(&exact);
 		}
+		// TheSuperHackers @feature simonx645 16/11/2026 the changes after the 17, a word of their own, only when one is on
+		UnsignedInt trial = PathTuning::Trial_Mask();
+		if (trial != 0) {
+			xfer->xferUnsignedInt(&trial);
+		}
 		CRCDEBUG_LOG(("PathTuning: %8.8X", ((XferCRC *)xfer)->getCRC()));
 	}
 

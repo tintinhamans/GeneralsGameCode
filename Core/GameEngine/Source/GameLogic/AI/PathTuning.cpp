@@ -70,6 +70,31 @@ namespace PathTuning
 	};
 	static const Int NAME_COUNT = sizeof(Names) / sizeof(Names[0]) - 1;
 
+	// TheSuperHackers @feature simonx645 16/11/2026 the changes after the 17: on by default like them ("default" turns them on,
+	// "none" off), with a CRC word of their own (Trial_Mask), written only when one is on, so the 17's words stay as they were
+	Bool GoalTaken = TRUE;
+	static const Name TrialNames[] =
+	{
+		{ "goaltaken", &GoalTaken, 0 },
+		{ nullptr, nullptr, 0 },	// the end
+	};
+	static const Int TRIAL_COUNT = sizeof(TrialNames) / sizeof(TrialNames[0]) - 1;
+
+	UnsignedInt Trial_Mask()
+	{
+		UnsignedInt mask = 0;
+		for (Int i = 0; i < TRIAL_COUNT; ++i)
+			if (*TrialNames[i].flag)
+				mask |= 1u << TrialNames[i].bit;
+		return mask;
+	}
+
+	static void Trial_Set_All(Bool on)
+	{
+		for (Int i = 0; i < TRIAL_COUNT; ++i)
+			*TrialNames[i].flag = on;
+	}
+
 	static void Set_All(Bool on)
 	{
 		for (Int i = 0; i < NAME_COUNT; ++i)
@@ -94,11 +119,13 @@ namespace PathTuning
 			if (_stricmp(word, "none") == 0)
 			{
 				Set_All(FALSE);
+				Trial_Set_All(FALSE);
 				continue;
 			}
 			if (_stricmp(word, "default") == 0)
 			{
 				Set_All(TRUE);
+				Trial_Set_All(TRUE);
 				continue;
 			}
 			const Bool on = word[0] != '-';
@@ -108,6 +135,12 @@ namespace PathTuning
 				if (_stricmp(name, Names[i].name) == 0)
 				{
 					*Names[i].flag = on;
+					found = TRUE;
+				}
+			for (Int i = 0; i < TRIAL_COUNT; ++i)
+				if (_stricmp(name, TrialNames[i].name) == 0)
+				{
+					*TrialNames[i].flag = on;
 					found = TRUE;
 				}
 			if (!found)
@@ -124,7 +157,7 @@ namespace PathTuning
 		for (Int i = 0; i < NAME_COUNT; ++i)
 			if (*Names[i].flag)
 				return TRUE;
-		return FALSE;
+		return Trial_Mask() != 0;
 	}
 
 	UnsignedInt Mask()

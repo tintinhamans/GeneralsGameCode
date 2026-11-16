@@ -431,6 +431,9 @@ AIUpdateInterface::AIUpdateInterface( Thing *thing, const ModuleData* moduleData
 	m_exitPassTo.zero();
 	m_givenGoal.zero();
 	m_hasGivenGoal = FALSE;
+	m_goalTakenPending = FALSE;
+	m_goalTakenFrom.zero();
+	m_goalTakenAim.zero();
 	m_givenGoalFrame = 0;
 	m_pathWasCapped = FALSE;
 	m_cappedLegs = 0;
@@ -623,6 +626,38 @@ void AIUpdateInterface::doPathfind( PathfindServicesInterface *pathfinder )
 	if (m_isFinalGoal && isDoingGroundMovement() && getPath()) {
 		TheAI->pathfinder()->updateGoal(getObject(), getPath()->getLastNode()->getPosition(),
 			getPath()->getLastNode()->getLayer());
+	}
+	// TheSuperHackers @feature simonx645 16/11/2026 "goaltaken" (GameLogic/PathTuning.h): the search to the given goal
+	// failed or ended more than a cell and a half short (not a capped leg, which paths on) while the given goal's box is
+	// taken: the unit would ask for the same goal again and again (T6: an APC 4 cells short of a box an enemy was parked
+	// in, 10 s). Its goal comes off the box, the destination spiral finds the nearest free box from the given goal, and the
+	// move state aims there at once (takeGoalTakenAim). Found nothing, the goal goes back as it was.
+	if (PathTuning::GoalTaken && m_hasGivenGoal && isDoingGroundMovement() && isGivenGoal(&m_requestedDestination) &&
+		!m_pathWasCapped)
+	{
+		Bool shortOfGoal = getPath() == nullptr;
+		if (!shortOfGoal) {
+			const Coord3D *end = getPath()->getLastNode()->getPosition();
+			const Real dx = end->x - m_givenGoal.x;
+			const Real dy = end->y - m_givenGoal.y;
+			shortOfGoal = dx * dx + dy * dy > sqr(1.5f * PATHFIND_CELL_SIZE_F);
+		}
+		if (shortOfGoal && !TheAI->pathfinder()->givenBoxClear(getObject(), &m_givenGoal)) {
+			Coord3D aim = m_givenGoal;
+			TheAI->pathfinder()->removeGoal(getObject());
+			const Bool found = TheAI->pathfinder()->adjustDestination(getObject(), m_locomotorSet, &aim);
+			if (found && (aim.x != m_givenGoal.x || aim.y != m_givenGoal.y)) {
+				TheAI->pathfinder()->updateGoal(getObject(), &aim, LAYER_GROUND);
+				m_goalTakenFrom = m_givenGoal;
+				m_goalTakenAim = aim;
+				m_goalTakenPending = TRUE;
+			} else if (m_isFinalGoal && getPath()) {
+				TheAI->pathfinder()->updateGoal(getObject(), getPath()->getLastNode()->getPosition(),
+					getPath()->getLastNode()->getLayer());
+			} else {
+				TheAI->pathfinder()->updateGoal(getObject(), &m_givenGoal, LAYER_GROUND);
+			}
+		}
 	}
 	if (m_queueForPathFrame > TheGameLogic->getFrame()) {
 		m_waitingForPath = TRUE;
@@ -1270,6 +1305,20 @@ Bool AIUpdateInterface::isOnGivenGoalLastLeg() const
 	}
 	const Int index = friend_getCurrentGoalPathIndex();
 	return index >= 0 && friend_getGoalPathPosition(index) != nullptr && friend_getGoalPathPosition(index + 1) == nullptr;
+}
+
+// "goaltaken": the re-aim doPathfind noted, if it was for this goal; taken once
+Bool AIUpdateInterface::takeGoalTakenAim( const Coord3D *goal, Coord3D *aim )
+{
+	if (!m_goalTakenPending || goal == nullptr) {
+		return FALSE;
+	}
+	m_goalTakenPending = FALSE;
+	if (goal->x != m_goalTakenFrom.x || goal->y != m_goalTakenFrom.y) {
+		return FALSE;
+	}
+	*aim = m_goalTakenAim;
+	return TRUE;
 }
 
 Bool AIUpdateInterface::isGivenGoal( const Coord3D *pos ) const
@@ -3561,6 +3610,9 @@ void AIUpdateInterface::aiDoCommand(const AICommandParms* parms)
 
 	if (!isAllowedToRespondToAiCommands(parms))
 		return;
+
+	if (PathTuning::GoalTaken)
+		m_goalTakenPending = FALSE;	// "goaltaken": a new order drops a noted re-aim
 
 	if (!m_issuingFormationMove)
 	{

@@ -75,6 +75,13 @@
 //              (2 cells + its footprint radius) off its given goal, with that box taken, aims at the box the destination
 //              spiral finds from the given goal
 //
+// Added after the 17 (on by default too; a CRC word of their own, written when one is on, so the default set writes the
+// 17's words and then 0x00000001):
+//   goaltaken  (with colhold) a held move's search to its given goal that fails or ends more than a cell and a half short
+//              (not a capped leg) while that goal's box is taken (a unit of any side parked in it, or another unit's
+//              goal) re-aims at once at the box the destination spiral finds from the given goal ("endreaim" does so only
+//              once the move has ended short)
+//
 // All of these change routes, so every player of a game, and a replay's playback, must use the same set. When any is on,
 // the set goes into the pathfinder's CRC, so players with different sets see a mismatch at once. An unknown name stops
 // the game at start.
@@ -102,6 +109,8 @@ namespace PathTuning
 	extern Bool AttackMoveResume;
 	extern Bool NoColHoldRecheck;
 	extern Bool EndReaim;
+	extern Bool GoalTaken;
+	UnsignedInt Trial_Mask();				///< the changes after the 17, one bit each (goaltaken 1); 0 when none is on
 
 	const Int CLEARANCE_MAX = 15;			///< "clearance": rings counted (more is open ground)
 	const Int CLEARANCE_HARD = 2;			///< "clearance": rings past the shore that refuse a step

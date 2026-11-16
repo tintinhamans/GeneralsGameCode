@@ -1998,6 +1998,23 @@ StateReturnType AIInternalMoveToState::update()
 	if (thePath != nullptr)
 		ai->setLocomotorGoalPositionOnPath();
 
+	// TheSuperHackers @feature simonx645 16/11/2026 "goaltaken" (GameLogic/PathTuning.h): the search to the given goal found
+	// it taken and noted the nearest free box: the move aims there now, and that box is the unit's given goal
+	if (PathTuning::GoalTaken) {
+		Coord3D aim;
+		if (ai->takeGoalTakenAim(&m_goalPosition, &aim)) {
+			m_goalPosition = aim;
+			ai->setGivenGoal(&aim);
+			if (!computePath()) {
+				return STATE_FAILURE;
+			}
+			if (ai->getPath() != nullptr) {
+				ai->setLocomotorGoalPositionOnPath();
+			}
+			return STATE_CONTINUE;
+		}
+	}
+
 	// if our goal has moved, recompute our path
 	if (forceRecompute || TheGameLogic->getFrame() - m_pathTimestamp > MIN_REPATH_TIME)
 	{
