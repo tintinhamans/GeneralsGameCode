@@ -127,6 +127,8 @@ public:
 	Bool includeUnitInCommand(UnsignedInt cmdNodeID, Object *obj, const Coord3D *objDest = nullptr);
 	// ShigreUi 01/10/2026 Moving comand include reverse move/attack move/etc, only do it on newly created command! so no safety check for debug.
 	Bool includeUnitInTypicalMovingCommand(UnsignedInt cmdNodeID, Object* obj, Coord3D objDest);
+	// Queues the order for the unit and runs it at once when nothing is ahead of it; call cleanUpEmptyCommand() after the last unit.
+	void issueCommand(UnsignedInt cmdNodeID, Object *obj, Bool isWaypoint, CommandSourceType cmdSource);
 
 	inline Bool isTypicalMovingCommand(CommandType cmdType);
 	inline Bool isEndCommand(CommandNode *cmdNode);
@@ -181,7 +183,7 @@ protected:
 	CommandNode *findCommandByID(UnsignedInt cmdNodeID);
 	CommandNode *nextCommand(Object *obj, CommandNode *cmdNode);
 
-	void doCurrentCommand(Object *obj, CommandVerifyStatus cvs);
+	void doCurrentCommand(Object *obj, CommandVerifyStatus cvs, CommandSourceType cmdSource = CMD_FROM_PLAYER, Bool doCleanUp = true);
 };
 
 extern CommandSequence* TheCommandSequence;

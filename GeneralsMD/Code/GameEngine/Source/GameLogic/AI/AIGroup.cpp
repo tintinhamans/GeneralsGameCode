@@ -2371,80 +2371,7 @@ void AIGroup::groupAttackObjectPrivate( Bool forced, WeaponSlotType weaponSlot, 
 	Object *theUnit;
 	for (theUnit = iter->first(); theUnit; theUnit = iter->next())
 	{
-
-		if (!isWaypoint)
-		{
-			TheCommandSequence->clearObjectCommand(theUnit);
-		}
-
-		if (!TheCommandSequence->hasAnyCommand(theUnit))
-		{
-			if (cmdSource != CMD_FROM_SCRIPT)
-			{
-				if (weaponSlot == WEAPON_NONE)
-				{
-					theUnit->releaseWeaponLock(LOCKED_TEMPORARILY);
-				}
-				else
-				{
-					theUnit->setWeaponLock(weaponSlot, LOCKED_TEMPORARILY);
-				}
-			}
-
-			//Determine if this object is a garrisoned container capable of firing!
-			//If so, order everyone inside to attack as well!
-			ContainModuleInterface* contain = theUnit->getContain();
-			if (contain && contain->isPassengerAllowedToFire())
-			{
-				//Loop through each member and order them to attack the same target (if possible)
-				const ContainedItemsList* items = contain->getContainedItemsList();
-				if (items)
-				{
-					for (ContainedItemsList::const_iterator it = items->begin(); it != items->end(); ++it)
-					{
-						Object* garrisonedMember = *it;
-
-						if (!contain->isPassengerAllowedToFire(garrisonedMember->getID())) continue;
-
-						CanAttackResult result = garrisonedMember->getAbleToAttackSpecificObject(forced ? ATTACK_NEW_TARGET_FORCED : ATTACK_NEW_TARGET, victim, cmdSource);
-						if (result == ATTACKRESULT_POSSIBLE || result == ATTACKRESULT_POSSIBLE_AFTER_MOVING)
-						{
-							AIUpdateInterface* memberAI = garrisonedMember->getAI();
-							if (memberAI)
-							{
-								if (forced)
-									memberAI->aiForceAttackObject(victim, maxShotsToFire, cmdSource);
-								else
-									memberAI->aiAttackObject(victim, maxShotsToFire, cmdSource);
-							}
-						}
-					}
-				}
-			}
-
-			//Do a check to see if we have a hive object that has slaved objects.
-			SpawnBehaviorInterface* spawnInterface = theUnit->getSpawnBehaviorInterface();
-			if (spawnInterface && !spawnInterface->doSlavesHaveFreedom())
-			{
-				spawnInterface->orderSlavesToAttackTarget(victim, maxShotsToFire, cmdSource);
-			}
-
-			//Order the specific group object to attack!
-			AIUpdateInterface* ai = theUnit->getAIUpdateInterface();
-			if (ai && theUnit != victim)
-			{
-				TheCommandSequence->includeUnitInCommand(cmdNode, theUnit);
-				TheCommandSequence->prepareCommandForVerification(theUnit);
-				if (forced)
-					ai->aiForceAttackObject(victim, maxShotsToFire, cmdSource);
-				else
-					ai->aiAttackObject(victim, maxShotsToFire, cmdSource);
-				if (TheCommandSequence->isStillAwaiting(theUnit))
-					TheCommandSequence->removeCurrentCommand(theUnit, false);
-			}
-		}
-		else
-			TheCommandSequence->includeUnitInCommand(cmdNode, theUnit);
+		TheCommandSequence->issueCommand(cmdNode, theUnit, isWaypoint, cmdSource);
 	}
 
 	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
@@ -2475,94 +2402,12 @@ void AIGroup::groupAttackTeam( const Team *team, Int maxShotsToFire, CommandSour
  */
 void AIGroup::groupAttackPosition( WeaponSlotType weaponSlot, const Coord3D *pos, Int maxShotsToFire, Bool isWaypoint, Bool releaseAfter, CommandSourceType cmdSource )
 {
-	Coord3D attackPos;
-	if( pos )
-	{
-		attackPos = *pos;
-	}
-
 	UnsignedInt cmdNode = TheCommandSequence->newDoWeaponAtLocCommand(pos ? CommandSequence::COMMAND_DO_WEAPON_AT_LOCATION : CommandSequence::COMMAND_DO_WEAPON, weaponSlot, pos, maxShotsToFire, releaseAfter);;
 
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
 	{
-		if( !pos )
-		{
-			//If you specify a nullptr position, it means you are attacking your own location.
-			attackPos.set( *(*i)->getPosition() );
-		}
-
-		if (!isWaypoint)
-		{
-			TheCommandSequence->clearObjectCommand(*i);
-		}
-
-		if (!TheCommandSequence->hasAnyCommand((*i)))
-		{
-
-			if (weaponSlot == WEAPON_NONE)
-			{
-				(*i)->releaseWeaponLock(LOCKED_TEMPORARILY);
-			}
-			else
-			{
-				(*i)->setWeaponLock(weaponSlot, LOCKED_TEMPORARILY);
-			}
-
-			//This code allows garrisoned buildings to force attack a ground position
-			//-----------------------------------------------------------------------
-			//Determine if this object is a garrisoned container capable of firing!
-			//If so, order everyone inside to attack as well!
-			ContainModuleInterface* contain = (*i)->getContain();
-			if (contain && contain->isPassengerAllowedToFire())
-			{
-				//Loop through each member and order them to attack the same target (if possible)
-				const ContainedItemsList* items = contain->getContainedItemsList();
-				if (items)
-				{
-					for (ContainedItemsList::const_iterator it = items->begin(); it != items->end(); ++it)
-					{
-						Object* garrisonedMember = *it;
-
-						if (!contain->isPassengerAllowedToFire(garrisonedMember->getID())) continue;
-
-						CanAttackResult result = garrisonedMember->getAbleToUseWeaponAgainstTarget(ATTACK_NEW_TARGET, nullptr, &attackPos, cmdSource);
-						if (result == ATTACKRESULT_POSSIBLE || result == ATTACKRESULT_POSSIBLE_AFTER_MOVING)
-						{
-							AIUpdateInterface* memberAI = garrisonedMember->getAI();
-							if (memberAI)
-							{
-								memberAI->aiAttackPosition(&attackPos, maxShotsToFire, cmdSource);
-							}
-						}
-					}
-				}
-			}
-
-			//Also handle slaves. If we have slaves, then order them to stop too!
-			SpawnBehaviorInterface* spawnInterface = (*i)->getSpawnBehaviorInterface();
-			if (spawnInterface && !spawnInterface->doSlavesHaveFreedom())
-			{
-				spawnInterface->orderSlavesToAttackPosition(&attackPos, maxShotsToFire, cmdSource);
-			}
-
-			AIUpdateInterface* ai = (*i)->getAIUpdateInterface();
-			if (ai)
-			{
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
-				TheCommandSequence->prepareCommandForVerification(*i);
-				ai->aiAttackPosition(&attackPos, maxShotsToFire, cmdSource);
-				if (TheCommandSequence->isStillAwaiting(*i))
-					TheCommandSequence->removeCurrentCommand(*i, false);
-			}
-
-			if (releaseAfter)
-			{
-				(*i)->releaseWeaponLock(LOCKED_TEMPORARILY);
-			}
-		}
-		else
-			TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+		TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
 	}
 
 	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
@@ -2594,6 +2439,11 @@ void AIGroup::groupAttackMoveToPosition( const Coord3D *pos, Int maxShotsToFire,
 		{
 			continue;
 		}
+		// A unit that only queues this order keeps the goal it has now.
+		if (isWaypoint && TheCommandSequence->hasAnyCommand(*i))
+		{
+			continue;
+		}
 		TheAI->pathfinder()->removeGoal(*i);
 		addSlotRequest(requests, *i, pos);
 	}
@@ -2607,15 +2457,37 @@ void AIGroup::groupAttackMoveToPosition( const Coord3D *pos, Int maxShotsToFire,
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			Coord3D dest = *pos;
-			takeAssignedSlot(requests, *i, &dest);
-			if ((*i)->isAbleToAttack())
+			if (!isWaypoint)
 			{
-				ai->aiAttackMoveToPosition( &dest, maxShotsToFire, cmdSource );
+				TheCommandSequence->clearObjectCommand(*i);
+			}
+
+			if (!TheCommandSequence->hasAnyCommand(*i))
+			{
+				Coord3D dest = *pos;
+				takeAssignedSlot(requests, *i, &dest);
+
+				(*i)->releaseWeaponLock(LOCKED_TEMPORARILY);
+				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+				TheCommandSequence->prepareCommandForVerification(*i);
+
+				if ((*i)->isAbleToAttack())
+				{
+					ai->aiAttackMoveToPosition( &dest, maxShotsToFire, cmdSource );
+				}
+				else
+				{
+					ai->aiMoveToPosition( &dest, cmdSource );
+				}
+
+				if (TheCommandSequence->isStillAwaiting(*i))
+				{
+					TheCommandSequence->removeCurrentCommand(*i, false);
+				}
 			}
 			else
 			{
-				ai->aiMoveToPosition( &dest, cmdSource );
+				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
 			}
 		}
 	}
@@ -2653,23 +2525,7 @@ void AIGroup::groupRepair( Object *obj, Bool isWaypoint, CommandSourceType cmdSo
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			if (!isWaypoint)
-			{
-				TheCommandSequence->clearObjectCommand(*i);
-			}
-
-			if (!TheCommandSequence->hasAnyCommand(*i))
-			{
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
-				TheCommandSequence->prepareCommandForVerification(*i);
-
-				ai->aiRepair( obj, cmdSource );
-
-				if (TheCommandSequence->isStillAwaiting(*i))
-					TheCommandSequence->removeCurrentCommand(*i, false);
-			}
-			else
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+			TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
 		}
 	}
 
@@ -2765,24 +2621,7 @@ void AIGroup::groupConstruct(const ThingTemplate *thing, const Coord3D *pos, Rea
 
 	UnsignedInt cmdNode = TheCommandSequence->newDozerConstructCommand(CommandSequence::COMMAND_DOZER_CONSTRUCT, thing, pos, nullptr, angle);
 
-	if (!isWaypoint)
-	{
-		TheCommandSequence->clearObjectCommand(bestBuilder);
-	}
-
-	if (!TheCommandSequence->hasAnyCommand(bestBuilder))
-	{
-
-		TheCommandSequence->includeUnitInCommand(cmdNode, bestBuilder);
-		TheCommandSequence->prepareCommandForVerification(bestBuilder);
-
-		TheBuildAssistant->buildObjectNow(bestBuilder, thing, pos, angle,
-			bestBuilder->getControllingPlayer());
-
-		if (TheCommandSequence->isStillAwaiting(bestBuilder))
-			TheCommandSequence->removeCurrentCommand(bestBuilder);
-	}
-	else
+	if (isWaypoint && TheCommandSequence->hasAnyCommand(bestBuilder))
 	{
 		UnsignedInt cost = thing->calcCostToBuild(bestBuilder->getControllingPlayer());
 		Money* money = bestBuilder->getControllingPlayer()->getMoney();
@@ -2794,6 +2633,12 @@ void AIGroup::groupConstruct(const ThingTemplate *thing, const Coord3D *pos, Rea
 			TheCommandSequence->setConstructionCashWithdraw(cmdNode, cost);
 		}
 	}
+	else
+	{
+		TheCommandSequence->issueCommand(cmdNode, bestBuilder, isWaypoint, cmdSource);
+	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 /**
@@ -2874,22 +2719,8 @@ void AIGroup::groupResumeConstruction( Object *obj, Bool isWaypoint, CommandSour
 	if (ai)
 	{
 		UnsignedInt cmdNode = TheCommandSequence->newSingleTargetCommand(CommandSequence::COMMAND_RESUME_CONSTRUCTION, obj);
-
-		if (!isWaypoint)
-			TheCommandSequence->clearObjectCommand(bestBuilder);
-
-		if (!TheCommandSequence->hasAnyCommand(bestBuilder))
-		{
-			TheCommandSequence->includeUnitInCommand(cmdNode, bestBuilder);
-			TheCommandSequence->prepareCommandForVerification(bestBuilder);
-
-			ai->aiResumeConstruction(obj, cmdSource);
-
-			if (TheCommandSequence->isStillAwaiting(bestBuilder))
-				TheCommandSequence->removeCurrentCommand(bestBuilder);
-		}
-		else
-			TheCommandSequence->includeUnitInCommand(cmdNode, bestBuilder);
+		TheCommandSequence->issueCommand(cmdNode, bestBuilder, isWaypoint, cmdSource);
+		TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 	}
 }
 
@@ -2900,36 +2731,18 @@ void AIGroup::groupGetHealed( Object *healDepot, Bool isWaypoint, CommandSourceT
 {
 	UnsignedInt cmdNode = TheCommandSequence->newSingleTargetCommand(CommandSequence::COMMAND_GET_HEALED, healDepot);
 
-	Bool canHeal, hasCommand;
-
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
 	{
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			canHeal = TheActionManager->canGetHealedAt(*i, healDepot, cmdSource);
+			Bool canHeal = TheActionManager->canGetHealedAt(*i, healDepot, cmdSource);
 
-			if (!isWaypoint && canHeal)
+			// A unit with orders queued checks the depot again when this one comes up.
+			if (canHeal || (isWaypoint && TheCommandSequence->hasAnyCommand(*i)))
 			{
-				TheCommandSequence->clearObjectCommand(*i);
-			}
-
-			hasCommand = TheCommandSequence->hasAnyCommand(*i);
-
-			if (!hasCommand && canHeal)
-			{
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
-				TheCommandSequence->prepareCommandForVerification(*i);
-
-				ai->aiGetHealed(healDepot, cmdSource);
-
-				if (TheCommandSequence->isStillAwaiting(*i))
-					TheCommandSequence->removeCurrentCommand(*i, false);
-			}
-			else if ((isWaypoint && hasCommand) || canHeal)
-			{
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+				TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
 			}
 		}
 	}
@@ -2944,39 +2757,23 @@ void AIGroup::groupGetRepaired( Object *repairDepot, Bool isWaypoint, CommandSou
 {
 	UnsignedInt cmdNode = TheCommandSequence->newSingleTargetCommand(CommandSequence::COMMAND_GET_REPAIRED, repairDepot);
 
-	Bool canRepair, hasCommand;
-
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
 	{
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			canRepair = TheActionManager->canGetRepairedAt(*i, repairDepot, cmdSource);
+			Bool canRepair = TheActionManager->canGetRepairedAt(*i, repairDepot, cmdSource);
 
-			if (!isWaypoint && canRepair)
+			// A unit with orders queued checks the depot again when this one comes up.
+			if (canRepair || (isWaypoint && TheCommandSequence->hasAnyCommand(*i)))
 			{
-				TheCommandSequence->clearObjectCommand(*i);
-			}
-
-			hasCommand = TheCommandSequence->hasAnyCommand(*i);
-
-			if (!hasCommand && canRepair)
-			{
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
-				TheCommandSequence->prepareCommandForVerification(*i);
-
-				ai->aiGetRepaired(repairDepot, cmdSource);
-
-				if (TheCommandSequence->isStillAwaiting(*i))
-					TheCommandSequence->removeCurrentCommand(*i, false);
-			}
-			else if ((isWaypoint && hasCommand) || canRepair)
-			{
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+				TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
 			}
 		}
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 /**
@@ -2986,36 +2783,18 @@ void AIGroup::groupEnter( Object *obj, Bool isWaypoint, CommandSourceType cmdSou
 {
 	UnsignedInt cmdNode = TheCommandSequence->newSingleTargetCommand(CommandSequence::COMMAND_ENTER, obj);
 
-	Bool canEnter, hasCommand;
-
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
 	{
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			canEnter = TheActionManager->canEnterObject(*i, obj, cmdSource, DONT_CHECK_CAPACITY);
-			if (!isWaypoint && canEnter)
+			Bool canEnter = TheActionManager->canEnterObject(*i, obj, cmdSource, DONT_CHECK_CAPACITY);
+
+			// A unit with orders queued checks the target again when this one comes up.
+			if (canEnter || (isWaypoint && TheCommandSequence->hasAnyCommand(*i)))
 			{
-				TheCommandSequence->clearObjectCommand(*i);
-			}
-
-			hasCommand = TheCommandSequence->hasAnyCommand(*i);
-
-			if (!hasCommand && canEnter)
-			{
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
-				TheCommandSequence->prepareCommandForVerification(*i);
-
-				(*i)->releaseWeaponLock(LOCKED_TEMPORARILY);
-				ai->aiEnter( obj, cmdSource );
-
-				if (TheCommandSequence->isStillAwaiting(*i))
-					TheCommandSequence->removeCurrentCommand(*i, false);
-			}
-			else if ((isWaypoint && hasCommand) || canEnter)
-			{
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+				TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
 			}
 		}
 	}
@@ -3304,23 +3083,7 @@ void AIGroup::groupDock( Object *obj, Bool isWaypoint, CommandSourceType cmdSour
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			if (!isWaypoint)
-			{
-				TheCommandSequence->clearObjectCommand(*i);
-			}
-
-			if (!TheCommandSequence->hasAnyCommand(*i))
-			{
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
-				TheCommandSequence->prepareCommandForVerification(*i);
-
-				ai->aiDock( obj, cmdSource );
-
-				if (TheCommandSequence->isStillAwaiting(*i))
-					TheCommandSequence->removeCurrentCommand(*i, false);
-			}
-			else
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+			TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
 		}
 	}
 
@@ -3513,21 +3276,7 @@ void AIGroup::groupGuardPosition( const Coord3D *pos, GuardMode guardMode, Bool 
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			if (!isWaypoint)
-				TheCommandSequence->clearObjectCommand(*i);
-
-			if (!TheCommandSequence->hasAnyCommand(*i))
-			{
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
-				TheCommandSequence->prepareCommandForVerification(*i);
-
-				ai->aiGuardPosition(pos, guardMode, cmdSource);
-
-				if (TheCommandSequence->isStillAwaiting(*i))
-					TheCommandSequence->removeCurrentCommand(*i, false);
-			}
-			else
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+			TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
 		}
 	}
 
@@ -3551,21 +3300,7 @@ void AIGroup::groupGuardObject( Object *objToGuard, GuardMode guardMode, Bool is
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			if (!isWaypoint)
-				TheCommandSequence->clearObjectCommand(*i);
-
-			if (!TheCommandSequence->hasAnyCommand(*i))
-			{
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
-				TheCommandSequence->prepareCommandForVerification(*i);
-
-				ai->aiGuardObject(objToGuard, guardMode, cmdSource);
-
-				if (TheCommandSequence->isStillAwaiting(*i))
-					TheCommandSequence->removeCurrentCommand(*i, false);
-			}
-			else
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+			TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
 		}
 	}
 
@@ -3622,23 +3357,7 @@ void AIGroup::groupHackInternet( Bool isWaypoint, CommandSourceType cmdSource )	
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			if (!isWaypoint)
-			{
-				TheCommandSequence->clearObjectCommand(*i);
-			}
-
-			if (!TheCommandSequence->hasAnyCommand(*i))
-			{
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
-				TheCommandSequence->prepareCommandForVerification(*i);
-
-				ai->aiHackInternet(cmdSource);
-
-				if (TheCommandSequence->isStillAwaiting(*i))
-					TheCommandSequence->removeCurrentCommand(*i, false);
-			}
-			else
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+			TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
 		}
 	}
 
@@ -4399,23 +4118,7 @@ void AIGroup::groupCombatDrop( Object *target, const Coord3D &pos, Bool isWaypoi
 		AIUpdateInterface *ai = obj->getAIUpdateInterface();
 		if (ai)
 		{
-			if (!isWaypoint)
-			{
-				TheCommandSequence->clearObjectCommand(*i);
-			}
-
-			if (!TheCommandSequence->hasAnyCommand(*i))
-			{
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
-				TheCommandSequence->prepareCommandForVerification(*i);
-
-				ai->aiCombatDrop(target, pos, cmdSource);
-
-				if (TheCommandSequence->isStillAwaiting(*i))
-					TheCommandSequence->removeCurrentCommand(*i, false);
-			}
-			else
-				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+			TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
 		}
 
 	}

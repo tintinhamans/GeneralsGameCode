@@ -722,6 +722,31 @@ Bool CommandSequence::includeUnitInTypicalMovingCommand(UnsignedInt cmdNodeID, O
 	return true;
 }
 
+void CommandSequence::issueCommand(UnsignedInt cmdNodeID, Object *obj, Bool isWaypoint, CommandSourceType cmdSource)
+{
+	if (!obj)
+	{
+		return;
+	}
+
+	if (!isWaypoint)
+	{
+		clearObjectCommand(obj);
+	}
+
+	Bool runNow = !hasAnyCommand(obj);
+	if (!includeUnitInCommand(cmdNodeID, obj))
+	{
+		return;
+	}
+
+	if (runNow)
+	{
+		// The caller may still add units to this node, so it is not freed here.
+		doCurrentCommand(obj, obj->getCommandVerifyStatus(), cmdSource, false);
+	}
+}
+
 Bool CommandSequence::isTypicalMovingCommand(CommandType cmdType)
 {
 	switch (cmdType)
@@ -1000,7 +1025,7 @@ CommandSequence::CommandNode *CommandSequence::nextCommand(Object *obj, CommandN
 }
 
 
-void CommandSequence::doCurrentCommand(Object *obj, CommandVerifyStatus cvs)
+void CommandSequence::doCurrentCommand(Object *obj, CommandVerifyStatus cvs, CommandSourceType cmdSource, Bool doCleanUp)
 {
 	CommandNode *cmdNode = findCommandByID(obj->getCurrentCommand());
 	if (!cmdNode)
@@ -1009,7 +1034,6 @@ void CommandSequence::doCurrentCommand(Object *obj, CommandVerifyStatus cvs)
 	prepareCommandForVerification(obj);
 
 	CommandType cmdType = cmdNode->m_cmdType;
-	const CommandSourceType cmdSource = CMD_FROM_PLAYER;
 
 	AIUpdateInterface *ai = obj->getAIUpdateInterface();
 
@@ -1146,13 +1170,16 @@ void CommandSequence::doCurrentCommand(Object *obj, CommandVerifyStatus cvs)
 			if (!target)
 				break;
 
-			if (cmdNode->m_weaponSlot == WEAPON_NONE)
+			if (cmdSource != CMD_FROM_SCRIPT)
 			{
-				obj->releaseWeaponLock(LOCKED_TEMPORARILY);
-			}
-			else
-			{
-				obj->setWeaponLock(cmdNode->m_weaponSlot, LOCKED_TEMPORARILY);
+				if (cmdNode->m_weaponSlot == WEAPON_NONE)
+				{
+					obj->releaseWeaponLock(LOCKED_TEMPORARILY);
+				}
+				else
+				{
+					obj->setWeaponLock(cmdNode->m_weaponSlot, LOCKED_TEMPORARILY);
+				}
 			}
 
 			//Determine if this object is a garrisoned container capable of firing!
@@ -1488,7 +1515,7 @@ void CommandSequence::doCurrentCommand(Object *obj, CommandVerifyStatus cvs)
 
 	CommandVerifyStatus newCvs = obj->getCommandVerifyStatus();
 	if (newCvs == STATUS_AWAITING || newCvs == STATUS_EXIT_VERIFIED)
-		removeCurrentCommand(obj);
+		removeCurrentCommand(obj, doCleanUp);
 
 	if (cvs == STATUS_EXIT_VERIFIED || newCvs == STATUS_EXIT_VERIFIED)
 		obj->setCommandVerifyStatus(STATUS_EXIT_VERIFIED);
