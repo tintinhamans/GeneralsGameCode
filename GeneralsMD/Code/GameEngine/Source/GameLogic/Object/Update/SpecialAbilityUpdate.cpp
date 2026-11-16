@@ -564,7 +564,7 @@ Bool SpecialAbilityUpdate::initiateIntentToDoSpecialPower( const SpecialPowerTem
 
   if( spTemplate->getSpecialPowerType() == SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK )
   {
-    if( !TheActionManager->canDoSpecialPowerAtObject( getObject(), targetObj, CMD_FROM_AI, spTemplate, commandOptions, false ) )
+    if( !targetObj || !TheActionManager->canDoSpecialPowerAtObject( getObject(), targetObj, CMD_FROM_AI, spTemplate, commandOptions, false ) )
     {
       return FALSE;
     }
@@ -1520,7 +1520,7 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
     {
       m_vehicleControlStarted = true;
       Object *target = TheGameLogic->findObjectByID( m_targetID );
-      if( isWithinAbilityAbortRange() && TheActionManager->canDoSpecialPowerAtObject( object, target, CMD_FROM_AI, spTemplate, m_commandOptions, false ) )
+      if( target && isWithinAbilityAbortRange() && TheActionManager->canDoSpecialPowerAtObject( object, target, CMD_FROM_AI, spTemplate, m_commandOptions, false ) )
       {
         target->startVehicleControl( object, data->m_effectDuration, data->m_sustainControlAfterHack, data->m_controlWhileHacking );
       }

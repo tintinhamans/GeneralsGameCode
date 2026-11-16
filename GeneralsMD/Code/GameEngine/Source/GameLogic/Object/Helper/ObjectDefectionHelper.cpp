@@ -156,11 +156,15 @@ void ObjectDefectionHelper::returnVehicleControl()
 		return;
 	}
 
+	Player *player = ThePlayerList->getNthPlayer( m_returnPlayerIndex );
 	Team *team = TheTeamFactory->findTeamByID( m_returnTeamID );
-	if( !team )
+	if( !player || player->isPlayerDead() )
 	{
-		Player *player = ThePlayerList->getNthPlayer( m_returnPlayerIndex );
-		team = player ? player->getDefaultTeam() : ThePlayerList->getNeutralPlayer()->getDefaultTeam();
+		team = ThePlayerList->getNeutralPlayer()->getDefaultTeam();
+	}
+	else if( !team )
+	{
+		team = player->getDefaultTeam();
 	}
 	obj->setTeam( team );
 	obj->resetTargetingOnSelf();
