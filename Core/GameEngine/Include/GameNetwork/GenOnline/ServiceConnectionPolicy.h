@@ -68,7 +68,7 @@ struct ConnectionTestResult
 	bool proxyAnswered = false;
 	bool proxyIntegratedAuthPossible = false;
 };
-// Worker-only: probes the anonymous VersionManifest request with the given settings
+// Worker-only: probes the anonymous compatibility request with the given settings
 ConnectionTestResult TestServiceConnection(const ServiceConnectionSettings& settings, const std::string& environment, int maxSeconds = 15);
 std::string DescribeConnectionTest(const ConnectionTestResult& result);
 const char* ProtocolName(long version);

@@ -608,10 +608,25 @@ struct PendingRestRetry
 	int64_t userID = -1;
 	RestOutcome lastOutcome;
 	RestCallback callback;
+	bool bRetry = true;
+	StandbyRetry standby;
 };
 
 // Touched on the main thread only, where the HTTP callbacks and the services tick run.
 std::vector<PendingRestRetry> s_restRetries;
+
+struct PendingStandbyRetry
+{
+	std::string label;
+	int64_t sendAtMs = 0;
+	StandbyRetry standby;
+	HTTPSendFunction fnSend;
+	HTTPDoneCallback fnDone;
+	std::function<bool()> fnWanted;
+};
+
+// Touched on the main thread only, like s_restRetries.
+std::vector<PendingStandbyRetry> s_standbyRetries;
 
 int64_t RestNowMs()
 {
@@ -642,13 +657,13 @@ int64_t SignedInUserID()
 	return pAuth != nullptr && pAuth->IsLoggedIn() ? pAuth->GetUserID() : -1;
 }
 
-void SendRest(RestMethod method, const std::string& path, const std::string& body, bool bRetry, int sendsBefore, RestCallback callback)
+void SendRest(RestMethod method, const std::string& path, const std::string& body, bool bRetry, int sendsBefore, const StandbyRetry& standby, RestCallback callback)
 {
 	GenOnlineServicesManager* pManager = GenOnlineServicesManager::GetInstance();
 	const std::string origin = GenOnlineAuthInterface::ServiceOriginV1();
 	if (pManager == nullptr || pManager->GetHTTPManager() == nullptr || origin.empty() || SignedInUserID() < 0)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s not sent, no session or service route", RestMethodName(method), path.c_str());
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s not sent, no session or service route", RestMethodName(method), RestPathForLog(path).c_str());
 		if (callback)
 		{
 			callback(MakeRestOutcome(false, 0, std::string()));
@@ -657,18 +672,38 @@ void SendRest(RestMethod method, const std::string& path, const std::string& bod
 	}
 
 	const int64_t userID = SignedInUserID();
-	auto onDone = [method, path, body, bRetry, sendsBefore, callback, userID](bool bSuccess, int statusCode, std::string strBody, HTTPRequest*)
+	auto onDone = [method, path, body, bRetry, sendsBefore, standby, callback, userID](bool bSuccess, int statusCode, std::string strBody, HTTPRequest*)
 		{
 			const RestOutcome outcome = MakeRestOutcome(bSuccess, statusCode, strBody);
+			// A standby answer sends the same call again without a failure and without counting the send.
+			StandbyRetry nextStandby = standby;
+			const int64_t standbyDelayMs = nextStandby.NextDelayMs(IsStandbyAnswer(outcome, false), RestNowMs());
+			if (standbyDelayMs >= 0)
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s answered standby, sends again in %lld ms", RestMethodName(method), RestPathForLog(path).c_str(), static_cast<long long>(standbyDelayMs));
+				PendingRestRetry retry;
+				retry.method = method;
+				retry.path = path;
+				retry.body = body;
+				retry.sends = sendsBefore;
+				retry.sendAtMs = RestNowMs() + standbyDelayMs;
+				retry.userID = userID;
+				retry.lastOutcome = outcome;
+				retry.callback = callback;
+				retry.bRetry = bRetry;
+				retry.standby = nextStandby;
+				s_restRetries.push_back(retry);
+				return;
+			}
 			const int sends = sendsBefore + 1;
 			if (!outcome.Succeeded())
 			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s failed: status %d code %s", RestMethodName(method), path.c_str(), statusCode, outcome.error.code.c_str());
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s failed: status %d code %s", RestMethodName(method), RestPathForLog(path).c_str(), statusCode, outcome.error.code.c_str());
 			}
 			const int64_t delayMs = bRetry ? RestRetryDelayMs(outcome, sends) : -1;
 			if (delayMs >= 0)
 			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s sends again in %lld ms", RestMethodName(method), path.c_str(), static_cast<long long>(delayMs));
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s sends again in %lld ms", RestMethodName(method), RestPathForLog(path).c_str(), static_cast<long long>(delayMs));
 				PendingRestRetry retry;
 				retry.method = method;
 				retry.path = path;
@@ -678,6 +713,7 @@ void SendRest(RestMethod method, const std::string& path, const std::string& bod
 				retry.userID = userID;
 				retry.lastOutcome = outcome;
 				retry.callback = callback;
+				retry.standby = nextStandby;
 				s_restRetries.push_back(retry);
 				return;
 			}
@@ -711,20 +747,90 @@ void SendRest(RestMethod method, const std::string& path, const std::string& bod
 	}
 }
 
+void SendStandbyTry(const PendingStandbyRetry& pending)
+{
+	const HTTPSendFunction fnSend = pending.fnSend;
+	fnSend([pending](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pRequest)
+		{
+			PendingStandbyRetry next = pending;
+			const bool bStandby = IsStandbyAnswer(MakeRestOutcome(bSuccess, statusCode, strBody), false);
+			const int64_t delayMs = next.standby.NextDelayMs(bStandby, RestNowMs());
+			if (delayMs >= 0)
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s answered standby, sends again in %lld ms", next.label.c_str(), static_cast<long long>(delayMs));
+				next.sendAtMs = RestNowMs() + delayMs;
+				s_standbyRetries.push_back(next);
+				return;
+			}
+			if (next.fnDone)
+			{
+				next.fnDone(bSuccess, statusCode, strBody, pRequest);
+			}
+		});
+}
+
+void TickStandbyRetries()
+{
+	if (s_standbyRetries.empty())
+	{
+		return;
+	}
+	const int64_t now = RestNowMs();
+	std::vector<PendingStandbyRetry> due;
+	for (auto it = s_standbyRetries.begin(); it != s_standbyRetries.end();)
+	{
+		if (it->sendAtMs <= now)
+		{
+			due.push_back(*it);
+			it = s_standbyRetries.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+	for (const PendingStandbyRetry& retry : due)
+	{
+		if (retry.fnWanted && !retry.fnWanted())
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s dropped while it waited for a standby retry", retry.label.c_str());
+			continue;
+		}
+		SendStandbyTry(retry);
+	}
+}
+
 } // namespace
 
 void CallRest(RestMethod method, const std::string& path, const std::string& body, RestCallback callback)
 {
-	SendRest(method, path, body, false, 0, callback);
+	SendRest(method, path, body, false, 0, StandbyRetry(), callback);
 }
 
 void CallRestWithRetry(RestMethod method, const std::string& path, const std::string& body, RestCallback callback)
 {
-	SendRest(method, path, body, true, 0, callback);
+	SendRest(method, path, body, true, 0, StandbyRetry(), callback);
+}
+
+void SendWithStandbyRetry(const std::string& label, HTTPSendFunction fnSend, HTTPDoneCallback fnDone, std::function<bool()> fnWanted)
+{
+	PendingStandbyRetry pending;
+	pending.label = label;
+	pending.fnSend = fnSend;
+	pending.fnDone = fnDone;
+	pending.fnWanted = fnWanted;
+	SendStandbyTry(pending);
+}
+
+void ShutdownRest()
+{
+	s_restRetries.clear();
+	s_standbyRetries.clear();
 }
 
 void TickRest()
 {
+	TickStandbyRetries();
 	if (s_restRetries.empty())
 	{
 		return;
@@ -752,7 +858,7 @@ void TickRest()
 	}
 	for (const PendingRestRetry& retry : dropped)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s dropped, the signed in user changed", RestMethodName(retry.method), retry.path.c_str());
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s dropped, the signed in user changed", RestMethodName(retry.method), RestPathForLog(retry.path).c_str());
 		if (retry.callback)
 		{
 			retry.callback(retry.lastOutcome);
@@ -760,7 +866,7 @@ void TickRest()
 	}
 	for (const PendingRestRetry& retry : due)
 	{
-		SendRest(retry.method, retry.path, retry.body, true, retry.sends, retry.callback);
+		SendRest(retry.method, retry.path, retry.body, retry.bRetry, retry.sends, retry.standby, retry.callback);
 	}
 }
 

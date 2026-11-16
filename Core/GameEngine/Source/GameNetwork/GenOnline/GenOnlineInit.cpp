@@ -7,7 +7,6 @@
 #include "GameClient/MessageBox.h"
 #include "Common/FileSystem.h"
 #include "Common/file.h"
-#include "WWLib/realcrc.h"
 #include "GameNetwork/DownloadManager.h"
 #include <ws2tcpip.h>
 #include "GameClient/DisplayStringManager.h"
@@ -33,7 +32,6 @@
 #include <unordered_set>
 #include <random>
 #include <algorithm>
-#include "gitinfo.h"
 
 extern "C"
 {
@@ -68,12 +66,9 @@ NetworkMesh* GenOnlineServicesManager::GetNetworkMesh()
 
 void GenOnlineServicesManager::GetAndParseServiceConfig(std::function<void(void)> cbOnDone)
 {
-	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("ServiceConfig");
-	std::map<std::string, std::string> mapHeaders;
-	
 	// SECURITY FIX: Capture manager instance through GetInstance() to ensure thread-safety
 	// Lambda will check if manager still exists before accessing members
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [cbOnDone](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Get, GenOnlineRealtime::RestConfigPath(), std::string(), [cbOnDone](const GenOnlineRealtime::RestOutcome& outcome)
 		{
 			try
 			{
@@ -85,15 +80,15 @@ void GenOnlineServicesManager::GetAndParseServiceConfig(std::function<void(void)
 					return;
 				}
 				
-				if (bSuccess && statusCode == 200)
+				GenOnlineRealtime::ConfigResponse config;
+				if (outcome.Data(config))
 				{
-					nlohmann::json jsonObject = nlohmann::json::parse(strBody);
-					pMgr->m_ServiceConfig = jsonObject.get<ServiceConfig>();
+					pMgr->m_ServiceConfig = config.service_config.get<ServiceConfig>();
 				}
 				else
 				{
 					// keep the last good config (defaults if there never was one); resetting would turn off retry_signalling
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Failed to get service config, keeping the current one. Status code: %d", statusCode);
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Failed to get service config, keeping the current one. Status code: %d", outcome.status);
 				}
 				
 			}
@@ -197,23 +192,6 @@ void GenOnlineServicesManager::CaptureScreenshotForProbe(EScreenshotType screens
 	}
 }
 
-enum class EVersionCheckResponseResult : int
-{
-	OK = 0,
-	FAILED = 1,
-	NEEDS_UPDATE = 2
-};
-
-struct VersionCheckResponse
-{
-	EVersionCheckResponseResult result;
-	std::string patcher_name;
-	std::string patcher_path;
-	int64_t patcher_size;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(VersionCheckResponse, result, patcher_name, patcher_path, patcher_size)
-};
-
 GenOnlineSettings GenOnlineServicesManager::Settings;
 
 GenOnlineServicesManager::GenOnlineServicesManager()
@@ -224,6 +202,48 @@ GenOnlineServicesManager::GenOnlineServicesManager()
 #endif
 
 	m_pOnlineServicesManager = this;
+}
+
+GenOnlineServicesManager::~GenOnlineServicesManager()
+{
+	if (m_pAuthInterface != nullptr)
+	{
+		delete m_pAuthInterface;
+		m_pAuthInterface = nullptr;
+	}
+
+	if (m_pStatsInterface != nullptr)
+	{
+		delete m_pStatsInterface;
+		m_pStatsInterface = nullptr;
+	}
+
+	if (m_pLobbyInterface != nullptr)
+	{
+		delete m_pLobbyInterface;
+		m_pLobbyInterface = nullptr;
+	}
+
+	if (m_pRoomInterface != nullptr)
+	{
+		delete m_pRoomInterface;
+		m_pRoomInterface = nullptr;
+	}
+
+	if (m_pSocialInterface != nullptr)
+	{
+		delete m_pSocialInterface;
+		m_pSocialInterface = nullptr;
+	}
+
+	if (m_pHTTPManager != nullptr)
+	{
+		delete m_pHTTPManager;
+		m_pHTTPManager = nullptr;
+	}
+
+	// Reset shared_ptr, which will delete WebSocket only when all references are released
+	m_pWebSocket.reset();
 }
 
 static const char* ServiceEnvironment()
@@ -249,14 +269,7 @@ std::string GenOnlineServicesManager::GetAPIEndpoint(const char* szEndpoint)
 
 bool GenOnlineServicesManager::IsServiceURLTrusted(const std::string& url)
 {
-	const std::string base = GetAPIEndpoint("");
-	if (ServiceConnection::IsTrustedServiceURL(url, base, false))
-	{
-		return true;
-	}
-	// The realtime protocol v1 API sits at the root of the service origin, outside the legacy base path.
-	const std::string origin = GenOnlineRealtime::OriginOfBase(base);
-	return !origin.empty() && ServiceConnection::IsTrustedServiceURL(url, origin + "/", false);
+	return ServiceConnection::IsTrustedServiceURL(url, GetAPIEndpoint(""), false);
 }
 
 void GenOnlineServicesManager::EnsureServiceRoute(std::function<void(bool)> callback)
@@ -308,9 +321,20 @@ void GenOnlineServicesManager::ProbeServiceRoute()
 
 	// anonymous request: no credentials are sent until a route is validated
 	m_serviceBase = m_bootstrapRoutes[m_bootstrapIndex];
-	const std::string url = m_serviceBase + "VersionManifest";
-	std::map<std::string, std::string> headers;
-	m_pHTTPManager->SendGETRequest(url.c_str(), EIPProtocolVersion::DONT_CARE, headers,
+	const std::string url = m_serviceBase + ServiceConnection::CompatibilityProbePath();
+	// A standby answer of the route probes the same route again.
+	GenOnlineRealtimeBridge::SendWithStandbyRetry("GET /api/v1/compatibility route probe",
+		[url](GenOnlineRealtimeBridge::HTTPDoneCallback fnAnswer)
+		{
+			auto* manager = GetInstance();
+			if (manager == nullptr || manager->m_pHTTPManager == nullptr)
+			{
+				fnAnswer(false, 0, std::string(), nullptr);
+				return;
+			}
+			std::map<std::string, std::string> headers;
+			manager->m_pHTTPManager->SendGETRequest(url.c_str(), EIPProtocolVersion::DONT_CARE, headers, fnAnswer, nullptr, 6000);
+		},
 		[](bool success, int status, std::string body, HTTPRequest* request)
 		{
 			auto* manager = GetInstance();
@@ -342,7 +366,7 @@ void GenOnlineServicesManager::ProbeServiceRoute()
 					return;
 				}
 			}
-			if (success && status == 200 && ServiceConnection::IsExpectedVersionManifest(body))
+			if (success && status == 200 && GenOnlineRealtime::IsCompatibilityAnswer(body))
 			{
 				manager->m_routeProxyAuthFailed = false;
 				manager->m_routeValidatedAt = std::chrono::steady_clock::now();
@@ -358,7 +382,7 @@ void GenOnlineServicesManager::ProbeServiceRoute()
 			// an access or proxy rejection is not evidence that another route would work
 			manager->m_bootstrapIndex = (status == 401 || status == 403 || status == 407) ? manager->m_bootstrapRoutes.size() : manager->m_bootstrapIndex + 1;
 			manager->ProbeServiceRoute();
-		}, nullptr, 6000);
+		});
 }
 
 void GenOnlineServicesManager::AttemptLoadSteam()
@@ -508,6 +532,9 @@ void GenOnlineServicesManager::Shutdown()
 
 	WifiLowLatency::End();
 
+	// Queued retries capture the interfaces of this instance, so none of them may run on the next one.
+	GenOnlineRealtimeBridge::ShutdownRest();
+
 	NetworkMeshLibrary::Shutdown();
 
 	// Shutdown and completely destroy WebSocket BEFORE cleaning up HTTPManager
@@ -535,16 +562,6 @@ void GenOnlineServicesManager::Shutdown()
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] OnlineServicesManager shutdown complete");
 }
 
-// The client version is the closest release tag without its v, else 0.0.0 with the commit hash.
-static std::string GetClientVersion()
-{
-	if (GitReleaseTag[0] == 'v' && GitReleaseTag[1] != '\0')
-	{
-		return std::string(GitReleaseTag + 1);
-	}
-	return std::string("0.0.0-g") + GitShortSHA1;
-}
-
 void GenOnlineServicesManager::StartVersionCheck(std::function<void(bool bSuccess, bool bNeedsUpdate)> fnCallback)
 {
     EnsureServiceRoute([fnCallback](bool success)
@@ -563,84 +580,50 @@ void GenOnlineServicesManager::StartVersionCheck(std::function<void(bool bSucces
 
 void GenOnlineServicesManager::StartVersionCheckOnSelectedRoute(std::function<void(bool, bool)> fnCallback)
 {
-	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("VersionCheck");
-
-	// NOTE: Generals 'CRCs' are not true CRC's, its a custom algorithm. This is fine for lobby comparisons, but its not good for patch comparisons.
-	
-	// exe crc
-	Char filePath[_MAX_PATH];
-	GetModuleFileName(NULL, filePath, sizeof(filePath));
-	std::ifstream file(filePath, std::ios::binary | std::ios::ate);
-	std::streamsize size = file.tellg();
-
-	if (!file.is_open() || size <= 0)
-	{
-		fnCallback(false, false);
-		return;
-	}
-
-	file.seekg(0, std::ios::beg);
-	std::vector<uint8_t> buffer(size);
-	file.read((char*)buffer.data(), size);
-	uint32_t realExeCRC = CRC_Memory((unsigned char*)buffer.data(), size);
-
-	nlohmann::json j;
-	j["client_version"] = GetClientVersion();
-#if defined(RTS_ZEROHOUR)
-	j["game"] = "zerohour";
-#else
-	j["game"] = "generals";
-#endif
-	j["exe_crc"] = realExeCRC;
-	std::string strPostData = j.dump();
-
-	std::map<std::string, std::string> mapHeaders;
-	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+	// The check is anonymous, the session registration checks the executable.
+	const std::string strURI = GetAPIEndpoint("") + ServiceConnection::CompatibilityProbePath();
+	GenOnlineRealtimeBridge::SendWithStandbyRetry("GET /api/v1/compatibility version check",
+		[strURI](GenOnlineRealtimeBridge::HTTPDoneCallback fnAnswer)
+		{
+			auto* manager = GetInstance();
+			if (manager == nullptr || manager->m_pHTTPManager == nullptr)
+			{
+				fnAnswer(false, 0, std::string(), nullptr);
+				return;
+			}
+			std::map<std::string, std::string> mapHeaders;
+			manager->m_pHTTPManager->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, fnAnswer, nullptr, -1);
+		},
+		[=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "Version Check: Response code was %d and body was %s", statusCode, strBody.c_str());
-			try
+			GenOnlineRealtime::CompatibilityResponse answer;
+			switch (GenOnlineRealtime::CompatibilityVerdictOf(GenOnlineRealtime::MakeRestOutcome(bSuccess, statusCode, strBody), answer))
 			{
+			case GenOnlineRealtime::CompatibilityVerdict::UpToDate:
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "VERSION CHECK: Up To Date");
-				nlohmann::json jsonObject = nlohmann::json::parse(strBody);
-				VersionCheckResponse authResp = jsonObject.get<VersionCheckResponse>();
+				fnCallback(true, false);
+				break;
+			case GenOnlineRealtime::CompatibilityVerdict::NeedsUpdate:
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "VERSION CHECK: Needs Update");
 
-				if (authResp.result == EVersionCheckResponseResult::OK)
-				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "VERSION CHECK: Up To Date");
-					fnCallback(true, false);
-				}
-				else if (authResp.result == EVersionCheckResponseResult::NEEDS_UPDATE)
-				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "VERSION CHECK: Needs Update");
+				// cache the data
+				m_patcher_name = answer.update.value.patcher_name;
+				m_patcher_path = answer.update.value.patcher_path;
+				m_patcher_size = answer.update.value.patcher_size.value;
 
-					// the name becomes a local path, so it must be a bare file name
-					const std::string& strName = authResp.patcher_name;
-					if (strName.empty() || strName.find_first_of("/\\:") != std::string::npos || strName.find("..") != std::string::npos)
-					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "VERSION CHECK: Rejected invalid patcher name");
-						fnCallback(false, false);
-						return;
-					}
-
-					// cache the data
-					m_patcher_name = authResp.patcher_name;
-					m_patcher_path = authResp.patcher_path;
-					m_patcher_size = authResp.patcher_size;
-
-					fnCallback(true, true);
-				}
-				else
-				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "VERSION CHECK: Failed");
-					fnCallback(false, false);
-				}
-			}
-			catch (...)
-			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "VERSION CHECK: Failed to parse response");
+				fnCallback(true, true);
+				break;
+			default:
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "VERSION CHECK: Failed");
 				fnCallback(false, false);
+				break;
 			}
-		}, nullptr, -1);
+		},
+		[this]()
+		{
+			return GetInstance() == this;
+		});
 }
 
 void GenOnlineServicesManager::ContinueUpdate()
@@ -1494,6 +1477,8 @@ void WebSocket::Shutdown()
 	
 	// Signal that we're shutting down
 	m_bShuttingDown = true;
+	// Parked hub calls capture the interfaces of this instance, so none of them runs after the shutdown.
+	m_standbyHubCalls.Clear();
 	m_proxyResolution.reset();
 	
 	// Disconnect from the websocket (handles the connected case)

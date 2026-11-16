@@ -1,5 +1,6 @@
 #include "GameNetwork/GenOnline/ServiceConnectionPolicy.h"
 #include "GameNetwork/GenOnline/CredentialStore.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeRest.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeSignIn.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -1112,7 +1113,7 @@ ConnectionTestResult TestServiceConnection(const ServiceConnectionSettings& sett
 	const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(maxSeconds);
 	for (const auto& base : BootstrapRoutes(environment, settings, ""))
 	{
-		const std::string url = base + "VersionManifest";
+		const std::string url = base + CompatibilityProbePath();
 		const std::string routeName = RouteHost(base);
 		const auto policy = ResolveProxyPolicy(settings, url);
 		if (!policy.error.empty())
@@ -1162,9 +1163,11 @@ ConnectionTestResult TestServiceConnection(const ServiceConnectionSettings& sett
 				result.outcome = Outcome::ServiceRejected;
 				return result;
 			}
-			if (code == CURLE_OK && status == 200 && IsExpectedVersionManifest(body))
+			const GenOnlineRealtime::ProbeAnswer answer = code == CURLE_OK ? GenOnlineRealtime::ProbeAnswerOf(status, body) : GenOnlineRealtime::ProbeAnswer::None;
+			if (answer != GenOnlineRealtime::ProbeAnswer::None)
 			{
 				result.outcome = Outcome::Connected;
+				result.detail = answer == GenOnlineRealtime::ProbeAnswer::Standby ? "standby" : "";
 				return result;
 			}
 			if (code == CURLE_PEER_FAILED_VERIFICATION || code == CURLE_SSL_CONNECT_ERROR)
@@ -1190,7 +1193,10 @@ std::string DescribeConnectionTest(const ConnectionTestResult& result)
 	switch (result.outcome)
 	{
 		case Outcome::Connected:
-			return result.proxyURL.empty() ? "Connected through the " + result.route + " route, no proxy." : "Connected through proxy " + ProxyDisplayName(result.proxyURL) + ".";
+		{
+			const std::string connected = result.proxyURL.empty() ? "Connected through the " + result.route + " route, no proxy." : "Connected through proxy " + ProxyDisplayName(result.proxyURL) + ".";
+			return result.detail == "standby" ? connected + "\nThe service is switching over and is back in a few seconds." : connected;
+		}
 		case Outcome::ProxyAuthRequired:
 			return result.detail == "required" ? "The proxy needs a login." : "The proxy refused the login.";
 		case Outcome::ServiceRejected:

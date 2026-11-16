@@ -31,7 +31,8 @@ bool IsTrustedServiceURL(const std::string& url, const std::string& base, bool w
 // wss address of the realtime hub on the host of a service base, ws for a loopback http base, empty for any other base
 std::string RealtimeHubURLForBase(const std::string& base);
 std::string RequestURLForLog(const std::string& url, const std::string& serviceBase);
-bool IsExpectedVersionManifest(const std::string& body);
+// The anonymous compatibility GET of this build, which every route check sends
+std::string CompatibilityProbePath();
 // Verified TLS (not in _DEBUG builds), no redirects, no embedded credentials, direct connection, HTTPS or WSS only, or HTTP or WS on a loopback host.
 bool ConfigureServiceTransport(CURL* curl, const std::string& url, std::string& error);
 }
