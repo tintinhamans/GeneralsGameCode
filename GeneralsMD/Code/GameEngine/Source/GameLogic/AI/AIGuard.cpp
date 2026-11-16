@@ -674,7 +674,7 @@ StateReturnType AIGuardReturnState::onEnter()
 //		return STATE_FAILURE; // early termination because we found a target.
 
 	Object* targetToGuard = getGuardMachine()->findTargetToGuardByID();
-	m_goalPosition = targetToGuard ? *targetToGuard->getPosition() : *getGuardMachine()->getPositionToGuard();
+	{ m_goalPosition = targetToGuard ? *targetToGuard->getPosition() : *getGuardMachine()->getPositionToGuard(); m_goalSet = TRUE; }
 
 	const PolygonTrigger *area = getGuardMachine()->getAreaToGuard();
 	if (area)

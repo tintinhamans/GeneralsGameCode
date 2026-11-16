@@ -1858,6 +1858,16 @@ void AIInternalMoveToState::onExit( StateExitType status )
  * Execute the moveTo behavior towards GoalPosition.
  */
 
+// TheSuperHackers @bugfix simonx645 16/11/2026 the short-path retry never aims off the playable area: a goal less than
+// a cell inside the map's pathfind extent is a move off the map (move and delete) or an unset goal (0,0,0)
+static Bool Short_Retry_Goal_On_Map(const Coord3D *goal)
+{
+	Region3D extent;
+	TheTerrainLogic->getMaximumPathfindExtent(&extent);
+	return goal->x >= extent.lo.x + PATHFIND_CELL_SIZE_F && goal->y >= extent.lo.y + PATHFIND_CELL_SIZE_F &&
+		goal->x <= extent.hi.x - PATHFIND_CELL_SIZE_F && goal->y <= extent.hi.y - PATHFIND_CELL_SIZE_F;
+}
+
 StateReturnType AIInternalMoveToState::update()
 {
 
@@ -2003,7 +2013,7 @@ StateReturnType AIInternalMoveToState::update()
 	if (PathTuning::GoalTaken) {
 		Coord3D aim;
 		if (ai->takeGoalTakenAim(&m_goalPosition, &aim)) {
-			m_goalPosition = aim;
+			{ m_goalPosition = aim; m_goalSet = TRUE; }
 			ai->setGivenGoal(&aim);
 			if (!computePath()) {
 				return STATE_FAILURE;
@@ -2075,7 +2085,7 @@ StateReturnType AIInternalMoveToState::update()
 		// TheSuperHackers @feature simonx645 16/11/2026 "groupgoals" (GameLogic/PathTuning.h): a path that ended well short
 		// of a goal that has not changed (a blocked recompute's nearest point, with the units round it in the way) does not
 		// end the move: a normal path to the goal is asked for, at most three times, two seconds apart.
-		if (PathTuning::GroupGoals && ai->isDoingGroundMovement() && m_shortTries < 3 &&
+		if (PathTuning::GroupGoals && m_goalSet && Short_Retry_Goal_On_Map(&m_goalPosition) && ai->isDoingGroundMovement() && m_shortTries < 3 &&
 			TheGameLogic->getFrame() >= m_shortTryFrame + 2 * LOGICFRAMES_PER_SECOND)
 		{
 			const Real gx = obj->getPosition()->x - m_goalPosition.x;
@@ -2113,7 +2123,7 @@ StateReturnType AIInternalMoveToState::update()
 			if (gx * gx + gy * gy > reach * reach || settle || reaim)
 			{
 				if (reaim)
-					m_goalPosition = aim;
+					{ m_goalPosition = aim; m_goalSet = TRUE; }
 				++m_shortTries;
 				m_shortTryFrame = TheGameLogic->getFrame();
 				computePath();
@@ -2237,7 +2247,7 @@ StateReturnType AIMoveToState::onEnter()
 
 	// if we have a goal object, move to it, otherwise move to goal position
 	if (getMachineGoalObject())	{
-		m_goalPosition = *getMachineGoalObject()->getPosition();
+		{ m_goalPosition = *getMachineGoalObject()->getPosition(); m_goalSet = TRUE; }
 		if (getMachineOwner()->isKindOf(KINDOF_PROJECTILE)) {
 			Real halfHeight = getMachineGoalObject()->getGeometryInfo().getMaxHeightAbovePosition()/2.0f;
 			m_goalPosition.z += halfHeight;
@@ -2246,7 +2256,7 @@ StateReturnType AIMoveToState::onEnter()
 			}
 		}
 	} else
-		m_goalPosition = *getMachineGoalPosition();
+		{ m_goalPosition = *getMachineGoalPosition(); m_goalSet = TRUE; }
 
 	StateReturnType ret = AIInternalMoveToState::onEnter();
 	if (getMachineOwner()->getFormationID() != NO_FORMATION_ID) {
@@ -2286,7 +2296,7 @@ StateReturnType AIMoveToState::update()
 	Object *obj = getMachineOwner();
 	if (goalObj)
 	{
-		m_goalPosition = *goalObj->getPosition();
+		{ m_goalPosition = *goalObj->getPosition(); m_goalSet = TRUE; }
 		Bool gotPhysics = obj->getPhysics()!=nullptr && goalObj->getPhysics()!=nullptr;
 		Bool isMissile = obj->isKindOf(KINDOF_PROJECTILE);
 		if (isMissile) {
@@ -2319,7 +2329,7 @@ StateReturnType AIMoveToState::update()
 		Bool isMissile = obj->isKindOf(KINDOF_PROJECTILE);
 		if (isMissile) {
 			// When missiles are moving uphill, they need to start up quickly to clear hills.  jba.
-			m_goalPosition = *getMachineGoalPosition();
+			{ m_goalPosition = *getMachineGoalPosition(); m_goalSet = TRUE; }
 			Real zDelta = m_goalPosition.z - obj->getPosition()->z;
 			if (zDelta>0) {
 				m_goalPosition.z += zDelta;
@@ -2349,7 +2359,7 @@ StateReturnType AIMoveOutOfTheWayState::onEnter()
 		// Must have existing path.
 		return STATE_FAILURE;
 	}
-	m_goalPosition = *ai->getPath()->getLastNode()->getPosition();
+	{ m_goalPosition = *ai->getPath()->getLastNode()->getPosition(); m_goalSet = TRUE; }
 	return AIInternalMoveToState::onEnter();
 }
 
@@ -2433,7 +2443,7 @@ StateReturnType AIMoveAndTightenState::onEnter()
 	m_okToRepathTimes = 1;
 	m_checkForPath = true;
 	TheAI->pathfinder()->removeGoal(obj);
-	m_goalPosition = *getMachineGoalPosition();
+	{ m_goalPosition = *getMachineGoalPosition(); m_goalSet = TRUE; }
 	ai->requestApproachPath(&m_goalPosition);
 	return AIInternalMoveToState::onEnter();
 }
@@ -2507,7 +2517,7 @@ StateReturnType AIMoveAwayFromRepulsorsState::update()
 		AIUpdateInterface *ai = obj->getAI();
 		Path *thePath = ai->getPath();
 		if (thePath && !ai->isWaitingForPath()) {
-			m_goalPosition = *thePath->getLastNode()->getPosition();
+			{ m_goalPosition = *thePath->getLastNode()->getPosition(); m_goalSet = TRUE; }
 			setAdjustsDestination(false);
 			m_checkForPath = false;
 		}
@@ -2676,7 +2686,7 @@ Bool AIAttackApproachTargetState::computePath()
 			ai->setPathExtraDistance(10*PATHFIND_CELL_SIZE_F); // We don't want it to slow down.
 		}
 
-		m_goalPosition = m_prevVictimPos;
+		{ m_goalPosition = m_prevVictimPos; m_goalSet = TRUE; }
 		m_waitingForPath = true;
 
 		Coord3D pos;
@@ -2694,7 +2704,7 @@ Bool AIAttackApproachTargetState::computePath()
 		// goal position.
 		setAdjustsDestination(true);
 		m_stopIfInRange = false; // Attack position is used by missiles, and they hit the position.
-		m_goalPosition = *getMachineGoalPosition();
+		{ m_goalPosition = *getMachineGoalPosition(); m_goalSet = TRUE; }
 		if (!forceRepath)
 		{
 			CRCDEBUG_LOG(("AIAttackApproachTargetState::computePath - bailing because we're aiming for a fixed position for object %d", getMachineOwner()->getID()));
@@ -3107,7 +3117,7 @@ Bool AIAttackPursueTargetState::computePath()
 
 		setAdjustsDestination(true);
 
-		m_goalPosition = m_prevVictimPos;
+		{ m_goalPosition = m_prevVictimPos; m_goalSet = TRUE; }
 		m_waitingForPath = true;
 		ai->requestPath(&m_goalPosition, false);
 		m_stopIfInRange = false; // we have calculated a position to shoot from, so go there.
@@ -3397,7 +3407,7 @@ StateReturnType AIPickUpCrateState::onEnter()
 		return STATE_FAILURE;
 	}
 	setAdjustsDestination(true);
-	m_goalPosition = *goalObj->getPosition();
+	{ m_goalPosition = *goalObj->getPosition(); m_goalSet = TRUE; }
 	m_delayCounter = 3;
 	return STATE_CONTINUE;
 
@@ -3478,7 +3488,7 @@ StateReturnType AIFollowPathState::onEnter()
 		return STATE_FAILURE;
 
 	// set initial movement goal
-	m_goalPosition = *pos;
+	{ m_goalPosition = *pos; m_goalSet = TRUE; }
  	const Coord3D *nextPos = ai->friend_getGoalPathPosition( m_index+1 );
 	m_adjustFinal = true;
 
@@ -3590,7 +3600,7 @@ StateReturnType AIFollowPathState::update()
 
 		ai->friend_startingMove();
 		// set next movement goal
-		m_goalPosition = *pos;
+		{ m_goalPosition = *pos; m_goalSet = TRUE; }
  		const Coord3D *nextPos = ai->friend_getGoalPathPosition( m_index+1 );
 
  		if (nextPos)
@@ -3624,7 +3634,7 @@ StateReturnType AIFollowPathState::update()
 					if (!held) {
 						return STATE_FAILURE;
 					}
-					m_goalPosition = given;
+					{ m_goalPosition = given; m_goalSet = TRUE; }
 				}
 				TheAI->pathfinder()->updateGoal(getMachineOwner(), &m_goalPosition, TheTerrainLogic->getLayerForDestination(&m_goalPosition));
 			}
@@ -3690,9 +3700,9 @@ StateReturnType AIMoveAndEvacuateState::onEnter()
 
 	// if we have a goal object, move to it, otherwise move to goal position
 	if (getMachine()->getGoalObject())
-		m_goalPosition = *getMachine()->getGoalObject()->getPosition();
+		{ m_goalPosition = *getMachine()->getGoalObject()->getPosition(); m_goalSet = TRUE; }
 	else
-		m_goalPosition = *getMachine()->getGoalPosition();
+		{ m_goalPosition = *getMachine()->getGoalPosition(); m_goalSet = TRUE; }
 	return AIInternalMoveToState::onEnter();
 }
 
@@ -4016,9 +4026,9 @@ StateReturnType AIMoveAndDeleteState::onEnter()
 	getMachine()->lock("AIMoveAndDeleteState::onEnter");
 	// if we have a goal object, move to it, otherwise move to goal position
 	if (getMachine()->getGoalObject())
-		m_goalPosition = *getMachine()->getGoalObject()->getPosition();
+		{ m_goalPosition = *getMachine()->getGoalObject()->getPosition(); m_goalSet = TRUE; }
 	else
-		m_goalPosition = *getMachine()->getGoalPosition();
+		{ m_goalPosition = *getMachine()->getGoalPosition(); m_goalSet = TRUE; }
 	m_appendGoalPosition = true; // We may be moving off the map.
 	return AIInternalMoveToState::onEnter();
 }
@@ -4208,12 +4218,12 @@ void AIFollowWaypointPathState::computeGoal(Bool useGroupOffsets)
 #endif
 
 
-	m_goalPosition = dest;
+	{ m_goalPosition = dest; m_goalSet = TRUE; }
 	m_goalPosition.x += m_groupOffset.x;
 	m_goalPosition.y += m_groupOffset.y;
 	if (m_goalLayer == LAYER_WALL) {
 		if (!TheAI->pathfinder()->isPointOnWall(&m_goalPosition)) {
-			m_goalPosition = dest;
+			{ m_goalPosition = dest; m_goalSet = TRUE; }
 		}
 	} else {
 		m_goalPosition.z = TheTerrainLogic->getGroundHeight(m_goalPosition.x, m_goalPosition.y);
@@ -4986,7 +4996,7 @@ StateReturnType AIWanderInPlaceState::onEnter()
 	Coord3D offset;
 	offset.x = GameLogicRandomValue(-delta, delta)*PATHFIND_CELL_SIZE_F;
 	offset.y = GameLogicRandomValue(-delta, delta)*PATHFIND_CELL_SIZE_F;
-	m_goalPosition = m_origin;
+	{ m_goalPosition = m_origin; m_goalSet = TRUE; }
 	m_goalPosition.x += offset.x;
 	m_goalPosition.y += offset.y;
 	m_timer = 0;
@@ -5025,7 +5035,7 @@ StateReturnType AIWanderInPlaceState::update()
 		Coord3D offset;
 		offset.x = GameLogicRandomValue(-delta, delta)*PATHFIND_CELL_SIZE_F;
 		offset.y = GameLogicRandomValue(-delta, delta)*PATHFIND_CELL_SIZE_F;
-		m_goalPosition = m_origin;
+		{ m_goalPosition = m_origin; m_goalSet = TRUE; }
 		m_goalPosition.x += offset.x;
 		m_goalPosition.y += offset.y;
 		AIInternalMoveToState::onEnter();
@@ -6873,7 +6883,7 @@ StateReturnType AIEnterState::onEnter()
 		if( !TheActionManager->canEnterObject( obj, goal, obj->getAI()->getLastCommandSource(), CHECK_CAPACITY ) )
 			return STATE_FAILURE;
 
-		m_goalPosition = goal->getEnterPosition(obj->getID());
+		{ m_goalPosition = goal->getEnterPosition(obj->getID()); m_goalSet = TRUE; }
 
 		ContainModuleInterface* contain = goal->getContain();
 		if (contain)
@@ -6960,9 +6970,9 @@ StateReturnType AIEnterState::update()
 			return STATE_FAILURE;
 		}
 
-		m_goalPosition = goal->getEnterPosition(obj->getID());
+		{ m_goalPosition = goal->getEnterPosition(obj->getID()); m_goalSet = TRUE; }
 		obj->getAI()->friend_setGoalObject(goal);
-		m_goalPosition = goal->getEnterPosition(obj->getID());// setGoalObject will override the goal position
+		{ m_goalPosition = goal->getEnterPosition(obj->getID()); m_goalSet = TRUE; }// setGoalObject will override the goal position
 		if (!TheActionManager->canEnterObject(obj, goal, obj->getAI()->getLastCommandSource(), CHECK_CAPACITY))
 		{
 			/*

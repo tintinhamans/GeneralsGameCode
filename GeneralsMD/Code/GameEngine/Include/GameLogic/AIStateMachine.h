@@ -263,6 +263,7 @@ public:
 		m_goalLayer = LAYER_INVALID;
 		m_shortTries = 0;
 		m_shortTryFrame = 0;
+		m_goalSet = FALSE;
 		m_moveSoundState = MOVESOUND_WAITING;
 		m_ambientPlayingHandle = AHSV_Error;
 		m_moveLoopSound = nullptr;
@@ -275,11 +276,12 @@ public:
 protected:
 	Int m_shortTries;			///< TheSuperHackers @feature simonx645 16/11/2026 "groupgoals": paths that ended short of the goal asked for again this entry (not saved)
 	UnsignedInt m_shortTryFrame;	///< the last such ask
+	Bool m_goalSet;			///< TheSuperHackers @bugfix simonx645 16/11/2026 a move order set m_goalPosition (a state that builds its own path never does; not saved)
 
 	void setAdjustsDestination(Bool b) { m_adjustDestinations = b; }
 	Bool getAdjustsDestination() const;
 
-	void setGoalPos(const Coord3D* pos) { m_goalPosition = *pos; }
+	void setGoalPos(const Coord3D* pos) { { m_goalPosition = *pos; m_goalSet = TRUE; } }
 	const Coord3D* getGoalPos() const { return &m_goalPosition; }
 
 	virtual Bool computePath();												///< compute the path

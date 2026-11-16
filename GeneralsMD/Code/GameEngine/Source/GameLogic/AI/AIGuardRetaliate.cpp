@@ -609,7 +609,7 @@ StateReturnType AIGuardRetaliateReturnState::onEnter()
 //	if (getGuardMachine()->lookForInnerTarget())
 //		return STATE_FAILURE; // early termination because we found a target.
 
-	m_goalPosition = *getGuardMachine()->getPositionToGuard();
+	{ m_goalPosition = *getGuardMachine()->getPositionToGuard(); m_goalSet = TRUE; }
 
 	AIUpdateInterface *ai = getMachineOwner()->getAIUpdateInterface();
 	if (ai && ai->isDoingGroundMovement())
