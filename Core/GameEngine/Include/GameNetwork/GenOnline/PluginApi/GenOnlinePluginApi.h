@@ -217,6 +217,14 @@ typedef struct GenOnlinePluginLinkedAccountApi
 	 * GENONLINE_PLUGIN_FALSE when no proof is available or it does not fit.
 	 */
 	int32_t (GENONLINE_PLUGIN_CALL *GetIdentityProof)(char* buffer, uint32_t bufferSize);
+
+	/*
+	 * Provider name of the platform, for example "eos": 1 to 32 characters of
+	 * a-z, 0-9 and _, never "gns". The host puts it into the Generals Online
+	 * linked account routes and names the plugin transport with it. The host
+	 * treats it as an opaque string. It stays valid until the DLL is unloaded.
+	 */
+	const char* provider;
 } GenOnlinePluginLinkedAccountApi;
 
 /* Anticheat session and peer handling. */
@@ -241,7 +249,12 @@ typedef struct GenOnlinePluginAnticheatApi
 	void (GENONLINE_PLUGIN_CALL *MessageArrived)(uint64_t genOnlineUserId, const void* data, uint32_t dataLength);
 } GenOnlinePluginAnticheatApi;
 
-/* Peer to peer transport that the plugin provides in place of the game transport. */
+/*
+ * Peer to peer transport that the plugin provides in place of the game
+ * transport. The host names it with the provider of the linked account table
+ * and offers it to the Generals Online service only when the plugin provides
+ * that table, because the service pairs peers by their linked account ids.
+ */
 typedef struct GenOnlinePluginTransportApi
 {
 	uint32_t structSize;
