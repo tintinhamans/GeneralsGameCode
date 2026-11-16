@@ -21,6 +21,8 @@
 // -pathFix <name>[,<name>...] edits the set, left to right: "none" turns every change off (the game then runs exactly
 // as without this code: contraZH's own pathfinding), "default" turns the set below on, <name> turns one on and -<name>
 // turns one off. So "-pathFix -<name>" is the default set without that change.
+//   coarse     the coarse pass's corridor is widened by one block along the whole route (contraZH's coarse pass
+//              already leaves its start block, uses the unit's own surfaces and stops after 4,000 cells)
 //
 // All of these change routes, so every player of a game, and a replay's playback, must use the same set. When any is on,
 // the set goes into the pathfinder's CRC, so players with different sets see a mismatch at once. An unknown name stops
@@ -32,6 +34,8 @@
 
 namespace PathTuning
 {
+	extern Bool CoarseFix;
+
 	const Int SEARCH_CAP_CELLS = 10000;		///< "cap": the cells a search may use
 
 	// The words the set writes into the CRC, as the measured builds wrote them: the switch mask, an estimate weight of

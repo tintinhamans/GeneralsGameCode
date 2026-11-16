@@ -7830,6 +7830,27 @@ Path *Pathfinder::buildHierarchicalPath( const Coord3D *fromPos, PathfindCell *g
 
 	prependCells(path, fromPos, goalCell, true);
 
+	// TheSuperHackers @feature simonx645 16/11/2026 "coarse" (GameLogic/PathTuning.h): the corridor is every block the
+	// route crosses and every block next to one, along the whole route, so the fine search can go round a unit or a
+	// corner near the coarse line.
+	if (PathTuning::CoarseFix) {
+		ICoord2D blocks;
+		m_zoneManager.getExtent(blocks);
+		for (PathNode *node = path->getFirstNode(); node; node = node->getNext()) {
+			ICoord2D ndx;
+			worldToCell(node->getPosition(), &ndx);
+			const Int blockX = ndx.x / PathfindZoneManager::ZONE_BLOCK_SIZE;
+			const Int blockY = ndx.y / PathfindZoneManager::ZONE_BLOCK_SIZE;
+			for (Int x = blockX - 1; x <= blockX + 1; x++) {
+				for (Int y = blockY - 1; y <= blockY + 1; y++) {
+					if (x >= 0 && y >= 0 && x < blocks.x && y < blocks.y) {
+						m_zoneManager.setPassable(x * PathfindZoneManager::ZONE_BLOCK_SIZE, y * PathfindZoneManager::ZONE_BLOCK_SIZE, true);
+					}
+				}
+			}
+		}
+	}
+
 #if !(RTS_GENERALS && RETAIL_COMPATIBLE_PATHFINDING)
 	// Expand the hierarchical path around the starting point. jba [8/24/2003]
 	// This allows the unit to get around friendly units that may be near it.
