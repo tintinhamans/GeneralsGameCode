@@ -30,6 +30,7 @@
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/Module/AIUpdate.h"
+#include "GameLogic/Module/SupplyTruckAIUpdate.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -46,7 +47,8 @@ namespace PathProfile
 
 	enum Outcome { PENDING, ARRIVED, ENDED_SHORT, STOPPED_BY_ORDER, SUPERSEDED, DIED, NO_ORDER };
 	const char * const OutcomeNames[] = { "pending", "arrived", "ended_short", "stopped_by_order", "superseded", "died", "no_order" };
-	const char * const KindNames[] = { "move", "attackmove", "guard", "stop", "repair" };
+	const char * const KindNames[] = { "move", "attackmove", "guard", "stop", "repair", "enter", "evacuate", "gather",
+		"reversemove" };
 
 	struct GroupInfo
 	{
@@ -86,6 +88,10 @@ namespace PathProfile
 		// per phase
 		Int stuckFrames, stuckEpisodes, over5, over10, longestStuck, blockedFrames, hullFrames, searches, repaths, partials,
 			failed, pathNodes, superseded;
+		Int trips;				///< deliveries (a supply carrier's box count went down)
+		Int insideFrames;		///< frames spent inside a container
+		Int lastBoxes;
+		Bool inside;			///< in a container this frame (left out of the stuck, hull and overlap counts)
 		Real driven;
 		// state of the last frame
 		Bool hullNow, atRest, overlapNow;
@@ -230,7 +236,7 @@ namespace PathProfile
 			GroupUnit & u = GroupUnits[i];
 			if (u.group != group || u.dead)
 				continue;
-			if (kind == ORDER_STOP)
+			if (kind == ORDER_STOP || kind == ORDER_EVACUATE)	// the order ends the current one (evacuate: the container's)
 			{
 				if (u.outcome == PENDING)
 				{
@@ -388,6 +394,30 @@ namespace PathProfile
 			}
 			const AIUpdateInterface * ai = obj->getAI();
 			const Coord3D * p = obj->getPosition();
+			if (ai != nullptr && ai->getSupplyTruckAIInterface() != nullptr)
+			{
+				const Int boxes = ai->getSupplyTruckAIInterface()->getNumberBoxes();
+				if (boxes < u.lastBoxes)
+					++u.trips;
+				u.lastBoxes = boxes;
+			}
+			u.inside = obj->getContainedBy() != nullptr;
+			if (u.inside)
+			{
+				++u.insideFrames;
+				if (u.outcome == PENDING && u.kind == ORDER_ENTER)
+				{
+					u.outcome = ARRIVED;	// an enter order arrives inside
+					u.endFrame = frame;
+				}
+				End_Stuck(u, frame);
+				u.progFrame = 0;
+				u.lastX = p->x;
+				u.lastY = p->y;
+				u.hullNow = FALSE;
+				u.atRest = FALSE;
+				continue;
+			}
 			const Real mx = p->x - u.lastX, my = p->y - u.lastY;
 			const Real step = sqrtf(mx * mx + my * my);
 			u.driven += step;
@@ -454,7 +484,8 @@ namespace PathProfile
 			u.atRest = !moving;
 			if (u.outcome == PENDING && frame > u.orderFrame + 1 && !moving && ai != nullptr)
 			{
-				const Bool settled = u.kind != ORDER_ATTACKMOVE || ai->isIdle();	// an attack-move ends when the fighting does
+				const Bool settled = (u.kind != ORDER_ATTACKMOVE || ai->isIdle())	// an attack-move ends when the fighting does,
+					&& u.kind != ORDER_GATHER && u.kind != ORDER_ENTER;		// gathering never; an enter order inside
 				const Bool started = u.moved || frame > u.orderFrame + 30;
 				if (settled && started)
 				{
@@ -561,14 +592,14 @@ namespace PathProfile
 			if (UnitsFile != nullptr)
 				fprintf(UnitsFile, "phase,group,unit,template,footprint,outcome,order,order_frame,end_frame,end_s,start_x,start_y,goal_x,goal_y,"
 					"end_x,end_y,driven_cells,straight_cells,stuck_frames,stuck_episodes,longest_stuck_s,blocked_frames,hull_frames,"
-					"ended_on_bad_ground,searches,repaths,partial,failed,path_nodes,goal_moves,engaged_s,rest_click_cells\n");
+					"ended_on_bad_ground,searches,repaths,partial,failed,path_nodes,goal_moves,engaged_s,rest_click_cells,trips,inside_frames\n");
 		}
 		for (Int g = 0; g < GroupCount; ++g)
 		{
 			const GroupInfo & gi = Groups[g];
 			Int units = 0, alive = 0, ordered = 0, arrived = 0, stopped = 0, shortEnd = 0, superseded = 0, died = 0, moved2 = 0;
 			Int stuckF = 0, stuckE = 0, o5 = 0, o10 = 0, longest = 0, blocked = 0, searches = 0, repaths = 0, partial = 0, failed = 0;
-			Int nodes = 0, neverLeft = 0, hull = 0, badEnd = 0, engaged = 0, reroutePending = 0, overlap = 0;
+			Int nodes = 0, neverLeft = 0, hull = 0, badEnd = 0, engaged = 0, reroutePending = 0, overlap = 0, trips = 0, inside = 0;
 			Real driven = 0.0f, straight = 0.0f;
 			Int na = 0, ne = 0, nr = 0;
 			Int arrive[512];
@@ -601,6 +632,8 @@ namespace PathProfile
 				if (u.engagedFrame != 0) { ++engaged; if (ne < 512) engage[ne++] = (Int)(u.engagedFrame - u.orderFrame); }
 				if (u.reroutePending) ++reroutePending;
 				if (u.overlapNow) ++overlap;
+				trips += u.trips;
+				if (!u.dead && u.inside) ++inside;
 				if (u.outcome != NO_ORDER)
 				{
 					driven += u.driven;
@@ -615,7 +648,7 @@ namespace PathProfile
 			if (GroupsFile != nullptr)
 			{
 				fprintf(GroupsFile, "%s,%u,%u,%s,%d,%d,%s,%u,%d,%d,%.1f,%.2f,%.2f,%.2f,%.2f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.2f,%d,%d,%.1f,%.1f,%.3f,"
-					"%d,%d,%d,%d,%d,%d,%d,%d,%d,%.2f,%.2f,%.2f,%d,%d,%.1f,%.1f,%.1f,%.2f,%d\n",
+					"%d,%d,%d,%d,%d,%d,%d,%d,%d,%.2f,%.2f,%.2f,%d,%d,%.1f,%.1f,%.1f,%.2f,%d,%d,%d\n",
 					PhaseName, PhaseStart, frame, gi.name, units, alive, gi.ordered ? KindNames[gi.kind] : "none", gi.orderFrame, ordered,
 					arrived, units > 0 ? 100.0f * arrived / units : 0.0f,
 					na > 0 ? At(arrive, na, 0.0f) / fps : -1.0f, na > 0 ? At(arrive, na, 0.5f) / fps : -1.0f,
@@ -625,7 +658,8 @@ namespace PathProfile
 					neverLeft, hull, badEnd, engaged, ne > 0 ? At(engage, ne, 0.0f) / fps : -1.0f, ne > 0 ? At(engage, ne, 0.9f) / fps : -1.0f,
 					(Real)gi.rerouteMax / fps, reroutePending, StillAfterEvent,
 					nr > 0 ? At(rest, nr, 0.5f) / 10.0f : -1.0f, nr > 0 ? At(rest, nr, 0.9f) / 10.0f : -1.0f, nr > 0 ? At(rest, nr, 1.0f) / 10.0f : -1.0f,
-					gi.firstArrival != 0 && gi.lastMove >= gi.firstArrival ? (Real)(gi.lastMove - gi.firstArrival) / fps : -1.0f, overlap);
+					gi.firstArrival != 0 && gi.lastMove >= gi.firstArrival ? (Real)(gi.lastMove - gi.firstArrival) / fps : -1.0f, overlap,
+					trips, inside);
 			}
 		}
 		if (UnitsFile != nullptr)
@@ -635,14 +669,14 @@ namespace PathProfile
 				const GroupUnit & u = GroupUnits[i];
 				const Real tx = u.sawGoal ? u.goalX : u.clickX, ty = u.sawGoal ? u.goalY : u.clickY;
 				const Real dx = tx - u.startX, dy = ty - u.startY;
-				fprintf(UnitsFile, "%s,%s,%u,%s,%d,%s,%s,%u,%u,%.2f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%.2f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.2f,%.1f\n",
+				fprintf(UnitsFile, "%s,%s,%u,%s,%d,%s,%s,%u,%u,%.2f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%.2f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.2f,%.1f,%d,%d\n",
 					PhaseName, Groups[u.group].name, (UnsignedInt)u.id, u.tmpl, u.footN, OutcomeNames[u.outcome],
 					u.outcome == NO_ORDER ? "none" : KindNames[u.kind], u.orderFrame, u.endFrame,
 					u.endFrame > u.orderFrame ? (Real)(u.endFrame - u.orderFrame) / fps : -1.0f,
 					u.startX / CELL, u.startY / CELL, tx / CELL, ty / CELL, u.lastX / CELL, u.lastY / CELL, u.driven / CELL,
 					sqrtf(dx * dx + dy * dy) / CELL, u.stuckFrames, u.stuckEpisodes, (Real)u.longestStuck / fps, u.blockedFrames,
 					u.hullFrames, (!u.dead && u.hullNow) ? 1 : 0, u.searches, u.repaths, u.partials, u.failed, u.pathNodes, u.goalMoves,
-					u.engagedFrame != 0 ? (Real)(u.engagedFrame - u.orderFrame) / fps : -1.0f, u.restClick / CELL);
+					u.engagedFrame != 0 ? (Real)(u.engagedFrame - u.orderFrame) / fps : -1.0f, u.restClick / CELL, u.trips, u.insideFrames);
 			}
 			fflush(UnitsFile);
 		}
@@ -660,6 +694,7 @@ namespace PathProfile
 			GroupUnit & u = GroupUnits[i];
 			u.stuckFrames = u.stuckEpisodes = u.over5 = u.over10 = u.longestStuck = u.blockedFrames = u.hullFrames = 0;
 			u.searches = u.repaths = u.partials = u.failed = u.pathNodes = u.superseded = 0;
+			u.trips = u.insideFrames = 0;
 			u.driven = 0.0f;
 		}
 		for (Int g = 0; g < GroupCount; ++g)

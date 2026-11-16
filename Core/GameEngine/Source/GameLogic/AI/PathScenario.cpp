@@ -35,11 +35,17 @@
 // Any command may end with "tag <name>". Coordinates are cells (world / 10); facing is in degrees, 0 = east.
 //
 //   spawn <group> <template> <count> <player slot> <x> <y> <spacing> <facing>   a block of units, rows of ceil(sqrt(count))
-//   order <group> move|attackmove|guard|stop [<x> <y>]                          as the owning player's messages
+//   order <group> move|attackmove|guard|reversemove <x> <y>                     as the owning player's messages
+//   order <group> stop|evacuate                                                 (evacuate: the group's containers empty)
+//   order <group> enter <target group>                                          into the target group's first live unit
+//   order <group> gather <x> <y>                                                dock at the supply source nearest x, y
+//   kill <group>                                                                the group's live units, damaged to 0
+//                                                                               (a structure leaves its rubble)
 //   bridge <x> <y> kill                                                         the nearest bridge, damaged to 0
 //   bridge <x> <y> repair <dozer template> <player slot> <from x> <from y>      a dozer is spawned (group "dozer")
 //                                                                               and ordered to repair the nearest tower
 //   phase <name>                                                                a new block of group rows
+// spawn places structures too (as a script does): put a building in its own group to kill or enter it.
 //   end                                                                         the run ends
 //
 // Bench files (-pathBench) take map, seed and player lines, and:
@@ -531,10 +537,37 @@ namespace PathScenario
 		return TRUE;
 	}
 
+	Object * First_Alive(GroupIds * g);
+	Object * Nearest(KindOfType kind, Real wx, Real wy);
+
 	void Order(const Command & c, UnsignedInt frame)
 	{
 		if (c.count < 3)
 			return;
+		// the order and its target are checked before anything is sent, so a bad line sends nothing
+		static const char * const known[] = { "move", "attackmove", "guard", "reversemove", "stop", "evacuate", "enter", "gather" };
+		Bool knownOrder = FALSE;
+		for (Int k = 0; k < (Int)(sizeof(known) / sizeof(known[0])); ++k)
+			if (_stricmp(c.tok[2], known[k]) == 0)
+				knownOrder = TRUE;
+		if (!knownOrder)
+		{
+			Say("order: unknown order %s", c.tok[2]);
+			return;
+		}
+		Object * target = nullptr;
+		if (_stricmp(c.tok[2], "enter") == 0 || _stricmp(c.tok[2], "gather") == 0)
+		{
+			if (_stricmp(c.tok[2], "enter") == 0)
+				target = c.count > 3 ? First_Alive(Group(c.tok[3], FALSE)) : nullptr;
+			else if (c.count > 4)
+				target = Nearest(KINDOF_SUPPLY_SOURCE, (Real)atof(c.tok[3]) * CELL + CELL / 2.0f, (Real)atof(c.tok[4]) * CELL + CELL / 2.0f);
+			if (target == nullptr)
+			{
+				Say("order %s: no target", c.tok[2]);
+				return;
+			}
+		}
 		GroupIds * g = Group(c.tok[1], FALSE);
 		Int playerIndex = 0;
 		if (g == nullptr || !Select(g, &playerIndex))
@@ -548,7 +581,28 @@ namespace PathScenario
 		at.z = TheTerrainLogic->getGroundHeight(at.x, at.y);
 		Int kind = PathProfile::ORDER_MOVE;
 		GameMessage * msg = nullptr;
-		if (_stricmp(c.tok[2], "move") == 0)
+		if (target != nullptr)
+		{
+			const Bool enter = _stricmp(c.tok[2], "enter") == 0;
+			kind = enter ? PathProfile::ORDER_ENTER : PathProfile::ORDER_GATHER;
+			msg = newInstance(GameMessage)(enter ? GameMessage::MSG_ENTER : GameMessage::MSG_DOCK);
+			if (enter)
+				msg->appendObjectIDArgument(INVALID_ID);	// the selected group, as a click sends it
+			msg->appendObjectIDArgument(target->getID());
+			at = *target->getPosition();
+		}
+		else if (_stricmp(c.tok[2], "reversemove") == 0)
+		{
+			kind = PathProfile::ORDER_REVERSE;
+			msg = newInstance(GameMessage)(GameMessage::MSG_DO_REVERSE_MOVETO);
+			msg->appendLocationArgument(at);
+		}
+		else if (_stricmp(c.tok[2], "evacuate") == 0)
+		{
+			kind = PathProfile::ORDER_EVACUATE;
+			msg = newInstance(GameMessage)(GameMessage::MSG_EVACUATE);
+		}
+		else if (_stricmp(c.tok[2], "move") == 0)
 		{
 			msg = newInstance(GameMessage)(GameMessage::MSG_DO_MOVETO);
 			msg->appendLocationArgument(at);
@@ -566,14 +620,57 @@ namespace PathScenario
 			msg->appendLocationArgument(at);
 			msg->appendIntegerArgument(GUARDMODE_NORMAL);
 		}
-		else
+		else if (_stricmp(c.tok[2], "stop") == 0)
 		{
 			kind = PathProfile::ORDER_STOP;
 			msg = newInstance(GameMessage)(GameMessage::MSG_DO_STOP);
 		}
+		else
+			return;	// not reached: checked above
 		msg->friend_setPlayerIndex(playerIndex);
 		TheCommandList->appendMessage(msg);
 		PathProfile::Group_Order(PathProfile::Group_Index(c.tok[1]), kind, at.x, at.y, frame);
+	}
+
+	Object * First_Alive(GroupIds * g)
+	{
+		if (g == nullptr)
+			return nullptr;
+		for (Int i = 0; i < g->count; ++i)
+		{
+			Object * obj = TheGameLogic->findObjectByID(g->ids[i]);
+			if (obj != nullptr && !obj->isEffectivelyDead())
+				return obj;
+		}
+		return nullptr;
+	}
+
+	void Kill_Object(Object * obj)
+	{
+		DamageInfo damage;
+		damage.in.m_damageType = DAMAGE_UNRESISTABLE;
+		damage.in.m_deathType = DEATH_NORMAL;
+		damage.in.m_sourceID = INVALID_ID;
+		BodyModuleInterface * body = obj->getBodyModule();
+		damage.in.m_amount = body != nullptr ? body->getMaxHealth() * 10.0f : 1.0e9f;
+		obj->attemptDamage(&damage);
+	}
+
+	void Kill(const Command & c, UnsignedInt frame)
+	{
+		GroupIds * g = c.count > 1 ? Group(c.tok[1], FALSE) : nullptr;
+		if (g == nullptr)
+		{
+			Say("kill: no group %s", c.count > 1 ? c.tok[1] : "");
+			return;
+		}
+		for (Int i = 0; i < g->count; ++i)
+		{
+			Object * obj = TheGameLogic->findObjectByID(g->ids[i]);
+			if (obj != nullptr && !obj->isEffectivelyDead())
+				Kill_Object(obj);
+		}
+		PathProfile::Event("kill", frame);	// rubble or a cleared footprint: re-route times count from here
 	}
 
 	Object * Nearest(KindOfType kind, Real wx, Real wy)
@@ -608,13 +705,7 @@ namespace PathScenario
 				Say("bridge kill: no bridge on the map");
 				return;
 			}
-			DamageInfo damage;
-			damage.in.m_damageType = DAMAGE_UNRESISTABLE;
-			damage.in.m_deathType = DEATH_NORMAL;
-			damage.in.m_sourceID = INVALID_ID;
-			BodyModuleInterface * body = bridge->getBodyModule();
-			damage.in.m_amount = body != nullptr ? body->getMaxHealth() * 10.0f : 1.0e9f;
-			bridge->attemptDamage(&damage);
+			Kill_Object(bridge);
 			PathProfile::Event("bridge_kill", frame);
 			return;
 		}
@@ -678,6 +769,7 @@ namespace PathScenario
 		if (_stricmp(what, "spawn") == 0) Spawn(c, frame);
 		else if (_stricmp(what, "order") == 0) Order(c, frame);
 		else if (_stricmp(what, "bridge") == 0) Bridge(c, frame);
+		else if (_stricmp(what, "kill") == 0) Kill(c, frame);
 		else if (_stricmp(what, "phase") == 0 && c.count > 1) PathProfile::Phase(c.tok[1], frame);
 		else if (_stricmp(what, "end") == 0) Finish();
 		else Say("unknown command %s", what);

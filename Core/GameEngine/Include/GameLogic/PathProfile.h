@@ -98,7 +98,8 @@ namespace PathProfile
 	// Groups (-pathScenario): named sets of units followed one by one, written per phase to <file>.groups.csv (a row per
 	// group) and <file>.units.csv (a row per unit). Measurement only, as the rest; works with or without -pathProfile's
 	// other files (the group files need -pathProfile for their name).
-	enum OrderKind { ORDER_MOVE, ORDER_ATTACKMOVE, ORDER_GUARD, ORDER_STOP, ORDER_REPAIR };
+	enum OrderKind { ORDER_MOVE, ORDER_ATTACKMOVE, ORDER_GUARD, ORDER_STOP, ORDER_REPAIR, ORDER_ENTER, ORDER_EVACUATE,
+		ORDER_GATHER, ORDER_REVERSE };
 
 	void Groups_On();						///< a scenario runs: follow groups (from its start)
 	Int Group_Index(const char * name);		///< the group's number, made on first use (-1: too many groups)
