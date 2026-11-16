@@ -667,7 +667,7 @@ class ShockwaveFXNugget : public FXNugget
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(ShockwaveFXNugget, "ShockwaveFXNugget")
 public:
 
-	ShockwaveFXNugget() : m_radius(0), m_width(0), m_strength(0), m_strengthInPixels(FALSE), m_durationFrames(0), m_allowedSurfaceType(SURFACE_ALL), m_rings(1)
+	ShockwaveFXNugget() : m_radius(0), m_width(0), m_strength(0), m_strengthInPixels(FALSE), m_durationFrames(0), m_allowedSurfaceType(SURFACE_ALL), m_rings(1), m_highlight(0)
 	{
 	}
 
@@ -706,6 +706,7 @@ public:
 			{ "Duration",					INI::parseDurationUnsignedInt,	nullptr, offsetof( ShockwaveFXNugget, m_durationFrames ) },
 			{ "AllowedSurface",				INI::parseIndexList,				AllowedSurfaceNames, offsetof( ShockwaveFXNugget, m_allowedSurfaceType ) },
 			{ "Rings",						INI::parseInt,										nullptr, offsetof( ShockwaveFXNugget, m_rings ) },
+			{ "Highlight",					INI::parsePercentToReal,							nullptr, offsetof( ShockwaveFXNugget, m_highlight ) },
 			{ nullptr, nullptr, nullptr, 0 }
 		};
 
@@ -736,7 +737,7 @@ private:
 				onWater = TRUE;
 			}
 		}
-		TheDisplay->createShockwave(&pos, m_radius, m_width, m_strength, m_strengthInPixels, m_durationFrames, m_rings, onWater);
+		TheDisplay->createShockwave(&pos, m_radius, m_width, m_strength, m_strengthInPixels, m_durationFrames, m_rings, m_highlight, onWater);
 	}
 
 	Real					m_radius;
@@ -746,6 +747,7 @@ private:
 	UnsignedInt		m_durationFrames;
 	AllowedSurfaceType	m_allowedSurfaceType;
 	Int						m_rings;
+	Real					m_highlight;
 };
 EMPTY_DTOR(ShockwaveFXNugget)
 

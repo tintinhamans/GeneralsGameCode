@@ -88,7 +88,7 @@ void W3DShockwaveManager::ReleaseResources()
 	m_loaded = FALSE;
 }
 
-void W3DShockwaveManager::add(const Coord3D &position, Real radius, Real width, Real strength, Bool strengthInPixels, UnsignedInt durationMs, Int rings, Bool onWater)
+void W3DShockwaveManager::add(const Coord3D &position, Real radius, Real width, Real strength, Bool strengthInPixels, UnsignedInt durationMs, Int rings, Real highlight, Bool onWater)
 {
 	if (radius <= 0.0f || width <= 0.0f || durationMs == 0)
 	{
@@ -114,6 +114,7 @@ void W3DShockwaveManager::add(const Coord3D &position, Real radius, Real width, 
 	shockwave.startMs = WW3D::Get_Sync_Time();
 	shockwave.durationMs = durationMs;
 	shockwave.rings = (rings > 1) ? rings : 1;
+	shockwave.highlight = highlight;
 	shockwave.onWater = onWater;
 }
 
@@ -280,7 +281,7 @@ void W3DShockwaveManager::render(RenderInfoClass &rinfo)
 		// A pixel push is measured in scene heights, with u scaled to match, so it bends the same pixels every way.
 		const Real uScale = shockwave.strengthInPixels ? sceneAspect : 1.0f;
 		const Vector4 ringCenter(centerUV.X, centerUV.Y, uScale, 1.0f / uScale);
-		const Vector4 shape((Real)shockwave.rings, shockwave.rings > 1 ? 1.0f : 0.0f, 0.0f, 0.0f);
+		const Vector4 shape((Real)shockwave.rings, shockwave.rings > 1 ? 1.0f : 0.0f, shockwave.highlight * fade, 0.0f);
 		DX8Wrapper::Set_Pixel_Shader_Constant(0, &ring, 1);
 		DX8Wrapper::Set_Pixel_Shader_Constant(1, &ringCenter, 1);
 		DX8Wrapper::Set_Pixel_Shader_Constant(3, &shape, 1);

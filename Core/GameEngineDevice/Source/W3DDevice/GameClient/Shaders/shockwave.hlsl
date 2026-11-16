@@ -9,7 +9,7 @@ sampler2D Scene : register(s0);
 float4 Ring      : register(c0);   // x = ring radius and y = 1 / half its width, on the quad's scale; z = push in scene uv
 float4 Center    : register(c1);   // xy = the ring's centre in scene uv; z scales u to measure the push in v's pixels, w = 1 / z
 float4 ScreenMap : register(c2);   // xy scale and zw offset from clip space to scene uv
-float4 Shape     : register(c3);   // x = waves across the band; y = 1 fades them toward the band's edges
+float4 Shape     : register(c3);   // x = waves across the band; y = 1 fades them toward the band's edges; z = how far crests brighten and troughs darken
 
 struct PsIn
 {
@@ -27,5 +27,7 @@ float4 main(PsIn input) : COLOR
 
     float2 away = (uv - Center.xy) * float2(Center.z, 1.0f);
     float2 direction = away * rsqrt(max(dot(away, away), 1e-8f));
-    return tex2D(Scene, uv - direction * float2(Center.w, 1.0f) * wave * Ring.z);
+    float4 color = tex2D(Scene, uv - direction * float2(Center.w, 1.0f) * wave * Ring.z);
+    color.rgb *= 1.0f + wave * Shape.z;
+    return color;
 }

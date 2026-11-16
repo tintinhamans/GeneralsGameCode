@@ -138,7 +138,7 @@ public:
 																 UnsignedInt increaseFrameTime, UnsignedInt decayFrameTime//, Bool donut = FALSE
 																 ) = 0;
 	/// an expanding ring that bends the scene, all in world units except strength when strengthInPixels counts it in pixels
-	virtual void createShockwave( const Coord3D *pos, Real radius, Real width, Real strength, Bool strengthInPixels, UnsignedInt durationFrames, Int rings, Bool onWater ) {}
+	virtual void createShockwave( const Coord3D *pos, Real radius, Real width, Real strength, Bool strengthInPixels, UnsignedInt durationFrames, Int rings, Real highlight, Bool onWater ) {}
 	/// a disc on the ground that ripples the scene; fade is the share of its life spent fading in and again fading out, and the settings must outlive it
 	virtual void createDisruption( const Coord3D *pos, Real radius, const DisruptionShaderInfo *info, UnsignedInt durationFrames, Real fade ) {}
 	/// a sandstorm or snowstorm that stands on the ground around pos

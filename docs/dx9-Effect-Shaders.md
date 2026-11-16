@@ -486,6 +486,8 @@ other resolutions, so the bend looks the same at every zoom. Around 6 to 12 read
 * `Duration` - (How long the ring takes to reach `Radius`, in milliseconds. It fades as it goes.)
 * `Rings = 1` - (How many waves ride in the ring. More than one makes ripples that fade toward the
 ring's edges.)
+* `Highlight = 0%` - (Brightens the crests and darkens the troughs by this share of the scene's
+colour, so the rings show on smooth water where a bend alone is lost. Around 20% to 40% reads well.)
 * `AllowedSurface = ALL` - (`ALL` / `LAND` / `WATER`. With `WATER` the ring plays only over water,
 lies on the water surface, and the shore and units in front of it hide it.)
 
@@ -508,6 +510,7 @@ FXList WeaponFX_GenericTankShellDetonation
   Shockwave
     AllowedSurface   = WATER
     Rings            = 3
+    Highlight        = 30%
     Radius           = 40
     Width            = 15
     Strength         = 5
