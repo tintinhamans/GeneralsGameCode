@@ -3699,6 +3699,9 @@ AIAttackMoveToState::AIAttackMoveToState( StateMachine *machine ) : AIMoveToStat
 	m_isMoveTo = false;
 	m_frameToSleepUntil = 0;
 	m_retryCount = ATTACK_RETRY_COUNT;
+	m_resumed = FALSE;
+	m_stallAnchor.zero();
+	m_stallFrame = 0;
 	m_attackMoveMachine = newInstance(AIAttackMoveStateMachine)(getMachineOwner(), "AIAttackMoveMachine");
 	m_attackMoveMachine->initDefaultState();
 }
@@ -3765,6 +3768,8 @@ StateReturnType AIAttackMoveToState::onEnter()
 	m_commandSrc = ai->getLastCommandSource();
 	m_retryCount = ATTACK_RETRY_COUNT;
 	m_frameToSleepUntil = 0;
+	m_resumed = FALSE;
+	m_stallFrame = 0;
 
 	return AIMoveToState::onEnter();
 }
@@ -3804,6 +3809,14 @@ StateReturnType AIAttackMoveToState::update()
 			forceRetargetThisFrame = true;
 			shouldRepathThisFrame = true;
 			ai->friend_setLastCommandSource(m_commandSrc);
+			// TheSuperHackers @feature simonx645 16/11/2026 "amresume" (GameLogic/PathTuning.h): each fight that ends gives the
+			// resumed move its full retries; stop-start moves during the fight had used them up, so the resume ended where
+			// it was without reaching the close-enough test (T6). Bounded: only when a fight ends.
+			if (PathTuning::AttackMoveResume) {
+				m_retryCount = ATTACK_RETRY_COUNT;
+				m_resumed = TRUE;
+				m_stallFrame = 0;
+			}
 		} else {
 			return STATE_CONTINUE;
 		}
@@ -3846,6 +3859,40 @@ StateReturnType AIAttackMoveToState::update()
 	{
 		AIMoveToState::onEnter();
 		forceRepath();
+		m_stallFrame = 0;	// "amresume"
+	}
+
+	// TheSuperHackers @feature simonx645 16/11/2026 "amresume" (GameLogic/PathTuning.h): a stall exit for the post-combat
+	// resume. amresume keeps the resume going past retail's 8-cell acceptance, but a unit stalled near an occupied goal
+	// (waiting, or wedged) keeps the move's update in CONTINUE, so neither the acceptance nor the retries ever ran and it
+	// stood in the state for good (T6: 944, 956, 166 s). Within 8 cells of its goal and with no cell of progress for 3 s,
+	// it uses a retry: the goal re-spiralled and a new path; with none left, it ends as retail's move does.
+	if (PathTuning::AttackMoveResume && m_resumed && ai->isDoingGroundMovement())
+	{
+		const Coord3D *at = owner->getPosition();
+		const UnsignedInt frameNow = TheGameLogic->getFrame();
+		const Real px = at->x - m_stallAnchor.x, py = at->y - m_stallAnchor.y;
+		if (m_stallFrame == 0 || px*px + py*py > sqr(PATHFIND_CELL_SIZE_F))
+		{
+			m_stallAnchor = *at;
+			m_stallFrame = frameNow;
+		}
+		else if (frameNow >= m_stallFrame + 3*LOGICFRAMES_PER_SECOND)
+		{
+			const Real goalSqr = sqr(at->x - m_pathGoalPosition.x) + sqr(at->y - m_pathGoalPosition.y);
+			if (goalSqr < sqr(ATTACK_CLOSE_ENOUGH_CELLS*PATHFIND_CELL_SIZE_F))
+			{
+				m_retryCount--;
+				if (m_retryCount < 1)
+				{
+					return STATE_SUCCESS;
+				}
+				AIMoveToState::onEnter();
+				forceRepath();
+			}
+			m_stallAnchor = *at;
+			m_stallFrame = frameNow;
+		}
 	}
 
 	StateReturnType ret = AIMoveToState::update();
@@ -3853,7 +3900,22 @@ StateReturnType AIAttackMoveToState::update()
 		if (m_retryCount<1) return ret;
 		/* check for close enough. */
 		Real distSqr = sqr(owner->getPosition()->x - m_pathGoalPosition.x) + sqr(owner->getPosition()->y-m_pathGoalPosition.y);
-		if (distSqr < sqr(ATTACK_CLOSE_ENOUGH_CELLS*PATHFIND_CELL_SIZE_F)) {
+		Real closeEnough = ATTACK_CLOSE_ENOUGH_CELLS*PATHFIND_CELL_SIZE_F;
+		// TheSuperHackers @feature simonx645 16/11/2026 "amresume" (GameLogic/PathTuning.h): a ground unit's attack-move ends
+		// at its goal as a move does, within its reach (2 cells + its footprint radius), not anywhere within 8 cells: after a
+		// fight the survivors' resumed moves stopped short in the packed goal field and stood there (T6). Retail's retries
+		// below (5, 3 s apart, each re-spiralling the goal) take it on.
+		if (PathTuning::AttackMoveResume && ai->isDoingGroundMovement()) {
+			closeEnough = (2.0f + (Real)(TheAI->pathfinder()->footprintCells(owner) / 2)) * PATHFIND_CELL_SIZE_F;
+			// measured from the unit's given goal when it has one: the path's end is where the re-spiral put it when a
+			// fighter had stopped in its box, so the resume ended there, 3-8 cells off (T6); a retry's repath tries the
+			// given box again (the machine's goal), kept when free, re-spiralled while still taken
+			const Coord3D *given = ai->getGivenGoal();
+			if (given != nullptr) {
+				distSqr = sqr(owner->getPosition()->x - given->x) + sqr(owner->getPosition()->y - given->y);
+			}
+		}
+		if (distSqr < sqr(closeEnough)) {
 			return ret;
 		}
 		DEBUG_LOG(("AIAttackMoveToState::update Distance from goal %f, retrying.", WWMath::Sqrt(distSqr)));

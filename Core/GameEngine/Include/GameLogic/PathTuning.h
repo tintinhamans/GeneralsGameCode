@@ -64,6 +64,11 @@
 //              (at most 3 tries, 2 s apart). Make way: a unit whose footprint the pathfinder caps (hull wider than 5x5),
 //              blocked on its last leg near its given goal with the goal's box clear, asks an idle ally it is blocked by to
 //              move away, and the ally's move-away keeps a cell more clear round the capped unit's path
+//   amresume   (with groupgoals) a ground unit's attack-move, resumed after a fight, ends at its goal as a move does:
+//              within its reach (2 cells + its footprint radius, from its given goal when it has one) instead of anywhere
+//              within 8 cells; else retail's retries (5, 3 s apart, each re-spiralling the goal) take it there; each
+//              fight that ends gives the resumed move its 5 retries again; a resume that stalls within 8 cells of its goal
+//              for 3 s uses a retry, and with none left it ends as retail's does
 //
 // All of these change routes, so every player of a game, and a replay's playback, must use the same set. When any is on,
 // the set goes into the pathfinder's CRC, so players with different sets see a mismatch at once. An unknown name stops
@@ -89,6 +94,7 @@ namespace PathTuning
 	extern Bool ExitPass;
 	extern Bool LaneKeep;
 	extern Bool ColHold;
+	extern Bool AttackMoveResume;
 
 	const Int CLEARANCE_MAX = 15;			///< "clearance": rings counted (more is open ground)
 	const Int CLEARANCE_HARD = 2;			///< "clearance": rings past the shore that refuse a step

@@ -607,6 +607,10 @@ protected:
 	StateMachine *m_attackMoveMachine;
 	UnsignedInt		m_frameToSleepUntil;
 	Int						m_retryCount;
+	// TheSuperHackers @feature simonx645 16/11/2026 "amresume" (GameLogic/PathTuning.h), not saved: the post-combat resume
+	Bool					m_resumed;				///< a fight has ended in this attack-move
+	Coord3D				m_stallAnchor;			///< where the resume's progress was last measured from
+	UnsignedInt		m_stallFrame;			///< its frame (0: not measuring)
 protected:
 	// snapshot interface
 	virtual void crc( Xfer *xfer ) override;
