@@ -1935,6 +1935,11 @@ Bool CommandSequence::doesBuildCommandHasShadow(const CommandNode *cmdNode)
 {
 	if (cmdNode->m_cmdType == COMMAND_DOZER_CONSTRUCT)
 	{
+		if (cmdNode->m_nextCommand.empty())
+		{
+			return false;
+		}
+
 		Object *builder = TheGameLogic->findObjectByID(cmdNode->m_nextCommand.begin()->first);
 		if (!builder)
 			return false;
@@ -1958,8 +1963,21 @@ UnsignedInt CommandSequence::getConstructionShadowCount(const ThingTemplate *bui
 	for (IDToNodeMap::iterator it = m_allNodes.begin(); it != m_allNodes.end(); it++)
 	{
 		CommandNode *cmdNode = it->second;
-		if (doesBuildCommandHasShadow(cmdNode) && build->isEquivalentTo(TheThingFactory->findByTemplateID(cmdNode->m_templateID)))
-				ret++;
+		if (!doesBuildCommandHasShadow(cmdNode))
+		{
+			continue;
+		}
+
+		const Object *builder = TheGameLogic->findObjectByID(cmdNode->m_nextCommand.begin()->first);
+		if (builder == nullptr || builder->getControllingPlayer() != player)
+		{
+			continue;
+		}
+
+		if (build->isEquivalentTo(TheThingFactory->findByTemplateID(cmdNode->m_templateID)))
+		{
+			ret++;
+		}
 	}
 
 	return ret;
