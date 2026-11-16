@@ -54,6 +54,7 @@
 
 #include "GameLogic/AI.h"
 #include "GameLogic/AIPathfind.h"
+#include "GameLogic/PathTuning.h"
 #include "GameLogic/Locomotor.h"
 #include "GameLogic/Module/AIUpdate.h"
 #include "GameLogic/Module/BodyModule.h"
@@ -423,6 +424,8 @@ AIUpdateInterface::AIUpdateInterface( Thing *thing, const ModuleData* moduleData
 	m_isRecruitable = TRUE; // Things default to being recruitable.
 	m_executingWaypointQueue = FALSE;
 	m_retryPath = FALSE;
+	m_headOnFrames = 0;
+	m_headOnSeen = FALSE;
 	m_pathWasCapped = FALSE;
 	m_cappedLegs = 0;
 	m_isInUpdate = FALSE;
@@ -1790,6 +1793,16 @@ Bool AIUpdateInterface::blockedBy(Object *other)
 	if (getNumFramesBlocked()>LOGICFRAMES_PER_SECOND) {
 		if (dotProduct<=0.0f) return FALSE;  // we are not moving in the same direction.
 	}
+	// TheSuperHackers @feature simonx645 16/11/2026 "headon" (GameLogic/PathTuning.h): the rule above rarely fires, as the
+	// blocked count drops back to 1 on any frame the locomotor reports itself free, so two units meeting nose to nose
+	// stood there. Head on (more than 120 degrees apart, the other moving too) counts on its own: past 8 frames in a
+	// row they pass. The 90 to 120 degree case keeps the rule above.
+	if (PathTuning::HeadOnPass && otherMoving && dotProduct <= -0.5f) {
+		m_headOnSeen = TRUE;
+		if (m_headOnFrames > 8) {
+			return FALSE;
+		}
+	}
 
 	Real collisionAngle = ThePartitionManager->getRelativeAngle2D( obj, &otherPos );
 	Real otherAngle = ThePartitionManager->getRelativeAngle2D( other, &pos );
@@ -2685,6 +2698,11 @@ UpdateSleepTime AIUpdateInterface::doLocomotor()
 		return UPDATE_SLEEP_FOREVER;
 
 	chooseGoodLocomotorFromCurrentSet();
+
+	if (PathTuning::HeadOnPass) {
+		m_headOnFrames = m_headOnSeen ? m_headOnFrames + 1 : 0;	// "headon"
+		m_headOnSeen = FALSE;
+	}
 
 	// Disabled check
 	Bool disabled = getObject()->isDisabled() && !getObject()->isDisabledByType(DISABLED_HELD);

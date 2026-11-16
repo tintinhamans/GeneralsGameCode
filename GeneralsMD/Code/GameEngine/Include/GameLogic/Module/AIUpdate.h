@@ -931,6 +931,8 @@ private:
 	Bool				m_retryPath;								///< If true, we need to try the path a second time.  jba.
 	Bool				m_pathWasCapped;						///< True if the current path stopped at the search cell cap short of the goal.
 	UnsignedByte		m_cappedLegs;								///< Capped paths chained so far toward one goal.
+	Int					m_headOnFrames;							///< "headon": frames held up head on in a row (not saved)
+	Bool				m_headOnSeen;								///< "headon": held up head on this frame
 	Bool				m_allowedToChase;						///< Allowed to pursue targets.
 	Bool				m_isInUpdate;								///< If true, we are inside our update method.
 	Bool				m_fixLocoInPostProcess;
