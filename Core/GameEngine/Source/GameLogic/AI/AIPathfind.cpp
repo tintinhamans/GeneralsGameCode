@@ -4241,6 +4241,8 @@ void PathfindLayer::classifyWallMapCell( Int i, Int j , PathfindCell *cell, Obje
 Pathfinder::Pathfinder() :m_map(nullptr)
 {
 	debugPath = nullptr;
+	m_waterRings = nullptr;
+	m_cliffRings = nullptr;
 	PathfindCellInfo::allocateCellInfos();
 	reset();
 }
@@ -4248,6 +4250,7 @@ Pathfinder::Pathfinder() :m_map(nullptr)
 Pathfinder::~Pathfinder()
 {
 	PathfindCellInfo::releaseCellInfos();
+	freeClearance();
 }
 
 void Pathfinder::reset()
@@ -4283,6 +4286,7 @@ void Pathfinder::reset()
 	m_searchCellCap = PATHFIND_SEARCH_CELL_CAP;
 	m_searchStartFreeCount = PathfindCellInfo::getFreeCount();
 	m_lastSearchHitCap = false;
+	freeClearance();	// "clearance": made again when the next map is classified
 
 	debugPathPos.x = 0.0f;
 	debugPathPos.y = 0.0f;
@@ -5307,6 +5311,111 @@ void Pathfinder::classifyMap()
 		m_layers[LAYER_WALL].classifyWallCells(m_wallPieces, m_numWallPieces);
 	}
 	m_zoneManager.calculateZones(m_map, m_layers, m_extent);
+	if (PathTuning::Clearance) {
+		buildClearance();
+	}
+}
+
+// TheSuperHackers @feature simonx645 16/11/2026 "clearance" (PathTuning.h): Chebyshev distances to the nearest water and
+// cliff cell, by two passes over the map (each cell takes the smallest neighbour seen so far plus one: down and across,
+// then back up). Water and cliff cells only change when the map is classified again, which builds these again.
+void Pathfinder::freeClearance()
+{
+	delete[] m_waterRings;
+	m_waterRings = nullptr;
+	delete[] m_cliffRings;
+	m_cliffRings = nullptr;
+}
+
+void Pathfinder::buildClearance()
+{
+	freeClearance();
+	const Int width = m_extent.hi.x - m_extent.lo.x + 1;
+	const Int height = m_extent.hi.y - m_extent.lo.y + 1;
+	if (m_map == nullptr || width <= 0 || height <= 0) {
+		return;
+	}
+	m_waterRings = MSGNEW("PathfindClearance") UnsignedByte[width * height];
+	m_cliffRings = MSGNEW("PathfindClearance") UnsignedByte[width * height];
+	const UnsignedByte unreached = (UnsignedByte)(PathTuning::CLEARANCE_MAX + 1);
+	for (Int x = 0; x < width; x++) {
+		for (Int y = 0; y < height; y++) {
+			const PathfindCell::CellType type = m_map[x + m_extent.lo.x][y + m_extent.lo.y].getType();
+			m_waterRings[x * height + y] = type == PathfindCell::CELL_WATER ? 0 : unreached;
+			m_cliffRings[x * height + y] = type == PathfindCell::CELL_CLIFF ? 0 : unreached;
+		}
+	}
+	UnsignedByte *maps[2] = { m_waterRings, m_cliffRings };
+	for (Int m = 0; m < 2; m++) {
+		UnsignedByte *d = maps[m];
+		for (Int x = 0; x < width; x++) {
+			for (Int y = 0; y < height; y++) {
+				Int best = d[x * height + y];
+				if (best == 0) continue;
+				if (y > 0) best = min(best, d[x * height + y - 1] + 1);
+				if (x > 0) {
+					best = min(best, d[(x - 1) * height + y] + 1);
+					if (y > 0) best = min(best, d[(x - 1) * height + y - 1] + 1);
+					if (y < height - 1) best = min(best, d[(x - 1) * height + y + 1] + 1);
+				}
+				d[x * height + y] = (UnsignedByte)min(best, (Int)unreached);
+			}
+		}
+		for (Int x = width - 1; x >= 0; x--) {
+			for (Int y = height - 1; y >= 0; y--) {
+				Int best = d[x * height + y];
+				if (best == 0) continue;
+				if (y < height - 1) best = min(best, d[x * height + y + 1] + 1);
+				if (x < width - 1) {
+					best = min(best, d[(x + 1) * height + y] + 1);
+					if (y < height - 1) best = min(best, d[(x + 1) * height + y + 1] + 1);
+					if (y > 0) best = min(best, d[(x + 1) * height + y - 1] + 1);
+				}
+				d[x * height + y] = (UnsignedByte)min(best, (Int)unreached);
+			}
+		}
+	}
+}
+
+Int Pathfinder::ringShortage( Int cellX, Int cellY, LocomotorSurfaceTypeMask surfaces, Int radius, Int *hardShortage ) const
+{
+	*hardShortage = 0;
+	if (radius <= 0 || m_waterRings == nullptr) {
+		return 0;
+	}
+	// ground units only; their whole locomotor set counts, so an amphibious unit ignores water and a climber cliffs
+	if (!(surfaces & LOCOMOTORSURFACE_GROUND) || (surfaces & LOCOMOTORSURFACE_AIR)) {
+		return 0;
+	}
+	if (cellX < m_extent.lo.x || cellY < m_extent.lo.y || cellX > m_extent.hi.x || cellY > m_extent.hi.y) {
+		return 0;
+	}
+	const Int height = m_extent.hi.y - m_extent.lo.y + 1;
+	const Int index = (cellX - m_extent.lo.x) * height + (cellY - m_extent.lo.y);
+	Int shortage = 0;
+	// clearance: the rings between the cell and the nearest water (or cliff) cell; a footprint of radius r hangs
+	// r - clearance rings over it
+	if (!(surfaces & LOCOMOTORSURFACE_WATER)) {
+		const Int rings = m_waterRings[index];
+		const Int clearance = rings > 0 ? rings - 1 : 0;
+		shortage = max(shortage, radius - clearance);
+	}
+	if (!(surfaces & LOCOMOTORSURFACE_CLIFF)) {
+		// classifyMap widens every cliff by one ring of cells (and pins the next), so the first cliff cell is already a
+		// ring of slope: counted from the cliff itself, as water is, the clearance is one more
+		const Int clearance = m_cliffRings[index];
+		shortage = max(shortage, radius - clearance);
+	}
+	*hardShortage = shortage;
+	// the playable edge, which costs but never refuses: units still drive on and off the map
+	if (m_logicalExtent.hi.x > m_logicalExtent.lo.x && m_logicalExtent.hi.y > m_logicalExtent.lo.y) {
+		Int edge = 0;
+		if (cellX >= m_logicalExtent.lo.x && cellY >= m_logicalExtent.lo.y && cellX <= m_logicalExtent.hi.x && cellY <= m_logicalExtent.hi.y) {
+			edge = min(min(cellX - m_logicalExtent.lo.x, m_logicalExtent.hi.x - cellX), min(cellY - m_logicalExtent.lo.y, m_logicalExtent.hi.y - cellY));
+		}
+		shortage = max(shortage, radius - edge);
+	}
+	return shortage;
 }
 
 
@@ -5629,7 +5738,23 @@ Bool Pathfinder::checkDestination(const Object *obj, Int cellX, Int cellY, Pathf
 		checkForAircraft = obj->getAI()->isAircraftThatAdjustsDestination();
 		objID = obj->getID();
 		const PathfindCell *centerCell = getCell(layer, cellX, cellY);
-		if (centerCell && getClearanceShortage(centerCell, obj->getAIUpdateInterface()->getLocomotorSet().getValidSurfaces(), iRadius) >= CLEARANCE_HARD_SHORTAGE) {
+		if (PathTuning::Clearance) {
+			// TheSuperHackers @feature simonx645 16/11/2026 "clearance" (PathTuning.h): no goal the footprint cannot stand
+			// on, except where the unit stands now (so a unit too close can still be given a route from there) and inside
+			// the structure it is going into
+			if (layer == LAYER_GROUND) {
+				Int hard;
+				ringShortage(cellX, cellY, obj->getAIUpdateInterface()->getLocomotorSet().getValidSurfaces(), iRadius, &hard);
+				if (hard >= PathTuning::CLEARANCE_HARD) {
+					ICoord2D here;
+					worldToCell(obj->getPosition(), &here);
+					if (!(here.x == cellX && here.y == cellY) && !(centerCell && centerCell->isObstaclePresent(ignoreId))) {
+						return false;
+					}
+				}
+			}
+		}
+		else if (centerCell && getClearanceShortage(centerCell, obj->getAIUpdateInterface()->getLocomotorSet().getValidSurfaces(), iRadius) >= CLEARANCE_HARD_SHORTAGE) {
 			return false;
 		}
 	}
@@ -7001,7 +7126,16 @@ struct ExamineCellsStruct
 			if (to->getPinched()) {
 				return 1; // abort.
 			}
-			if (d->thePathfinder->getClearanceShortage(to, d->theLoco->getValidSurfaces(), d->radius) > 0) {
+			if (PathTuning::Clearance) {
+				// "clearance": the line stops where the footprint would hang over; the cells near a shore are left to the
+				// search, which prices them
+				Int hard;
+				if (d->obj && d->radius > 0 && to->getLayer() == LAYER_GROUND &&
+					d->thePathfinder->ringShortage(to_x, to_y, d->theLoco->getValidSurfaces(), d->radius, &hard) > 0) {
+					return 1; // abort.
+				}
+			}
+			else if (d->thePathfinder->getClearanceShortage(to, d->theLoco->getValidSurfaces(), d->radius) > 0) {
 				return 1; // abort.
 			}
 			if (d->isHuman) {
@@ -7137,6 +7271,15 @@ Int Pathfinder::examineNeighboringCells(PathfindCell *parentCell, PathfindCell *
 
 		UnsignedInt newCostSoFar = 0;
 
+		// TheSuperHackers @feature simonx645 16/11/2026 "clearance" (PathTuning.h): how far this cell's footprint hangs over
+		// water or cliff. A step that would hang CLEARANCE_HARD or more rings over is refused, unless it hangs less than the
+		// cell it leaves: a unit already too close may always move away. A step that hangs over at all costs more.
+		const Bool ourClearance = PathTuning::Clearance && obj && radius > 0;
+		Int parentHard = 0;
+		if (ourClearance && parentCell->getLayer() == LAYER_GROUND) {
+			ringShortage(parentCell->getXIndex(), parentCell->getYIndex(), locomotorSet.getValidSurfaces(), radius, &parentHard);
+		}
+
 		for( int i=0; i<numNeighbors; i++ )
 		{
 			if (isSearchBudgetExhausted())
@@ -7203,13 +7346,30 @@ Int Pathfinder::examineNeighboringCells(PathfindCell *parentCell, PathfindCell *
 				}
 			}
 
-			Int clearanceShortage = getClearanceShortage(newCell, locomotorSet.getValidSurfaces(), radius);
-			if (clearanceShortage >= CLEARANCE_HARD_SHORTAGE) {
-				movementValid = false;
+			Int clearanceShortage = 0;
+			if (!PathTuning::Clearance) {
+				clearanceShortage = getClearanceShortage(newCell, locomotorSet.getValidSurfaces(), radius);
+				if (clearanceShortage >= CLEARANCE_HARD_SHORTAGE) {
+					movementValid = false;
+				}
 			}
 
 			if (!movementValid && !m_isTunneling) {
 				continue;
+			}
+
+			if (ourClearance && newCell->getLayer() == LAYER_GROUND) {
+				// "clearance" refuses a step that would hang over further than the cell it leaves; or as far, unless the
+				// unit is still near where it started (it may have to drive along the band to get out of a gap it was built
+				// or parked in); never the cell a bridge starts at, or one of the structure the unit is going into
+				Int hard;
+				const Int shortage = ringShortage(newCellCoord.x, newCellCoord.y, locomotorSet.getValidSurfaces(), radius, &hard);
+				const Bool nearStart = IABS(newCellCoord.x - startCellNdx.x) <= radius + 2 && IABS(newCellCoord.y - startCellNdx.y) <= radius + 2;
+				if (hard >= PathTuning::CLEARANCE_HARD && (hard > parentHard || (hard == parentHard && !nearStart)) &&
+					!m_isTunneling && newCell->getConnectLayer() == LAYER_INVALID && !newCell->isObstaclePresent(m_ignoreObstacleID)) {
+					continue;
+				}
+				clearanceShortage = shortage;	// it costs CLEARANCE_SOFT_COST below (contraZH's 40, as ours)
 			}
 
 			if (!dozerHack)
@@ -7520,8 +7680,8 @@ Path *Pathfinder::internalFindPath( Object *obj, const LocomotorSet& locomotorSe
 		// somehow we got to an impassable location.
 		m_isTunneling = true;
 	}
-	if (getClearanceShortage(parentCell, locomotorSet.getValidSurfaces(), radius) >= CLEARANCE_HARD_SHORTAGE) {
-		m_isTunneling = true;
+	if (!PathTuning::Clearance && getClearanceShortage(parentCell, locomotorSet.getValidSurfaces(), radius) >= CLEARANCE_HARD_SHORTAGE) {
+		m_isTunneling = true;	// ("clearance" lets a unit too close move away instead)
 	}
 
 	parentCell->startPathfind(goalCell);
@@ -10060,8 +10220,8 @@ Path *Pathfinder::findClosestPath( Object *obj, const LocomotorSet& locomotorSet
 	if (!checkForMovement(obj, info) || info.enemyFixed) {
 		m_isTunneling = true; // We can't move from our current location.  So relax the constraints.
 	}
-	if (getClearanceShortage(parentCell, locomotorSet.getValidSurfaces(), radius) >= CLEARANCE_HARD_SHORTAGE) {
-		m_isTunneling = true;
+	if (!PathTuning::Clearance && getClearanceShortage(parentCell, locomotorSet.getValidSurfaces(), radius) >= CLEARANCE_HARD_SHORTAGE) {
+		m_isTunneling = true;	// ("clearance" lets a unit too close move away instead)
 	}
 
 	Bool gotHierarchicalPath = false;
@@ -11104,10 +11264,27 @@ struct LinePassableStruct
 		return 1;	// bail out
 	}
 
-	Int clearanceShortage = pathfinder->getClearanceShortage(to, d->acceptableSurfaces, d->radius);
-	if (clearanceShortage >= CLEARANCE_HARD_SHORTAGE || (clearanceShortage > 0 && !d->allowPinched))
+	if (PathTuning::Clearance)
 	{
-		return 1;	// bail out
+		// TheSuperHackers @feature simonx645 16/11/2026 "clearance" (PathTuning.h): a straightened route must not cut
+		// across the cells the search refused or priced near a shore
+		if (d->obj && d->radius > 0 && to->getLayer() == LAYER_GROUND)
+		{
+			Int hard;
+			const Int shortage = pathfinder->ringShortage(to_x, to_y, d->acceptableSurfaces, d->radius, &hard);
+			if (hard >= PathTuning::CLEARANCE_HARD || (shortage > 0 && !d->allowPinched))
+			{
+				return 1;	// bail out
+			}
+		}
+	}
+	else
+	{
+		Int clearanceShortage = pathfinder->getClearanceShortage(to, d->acceptableSurfaces, d->radius);
+		if (clearanceShortage >= CLEARANCE_HARD_SHORTAGE || (clearanceShortage > 0 && !d->allowPinched))
+		{
+			return 1;	// bail out
+		}
 	}
 
 	if (to->getType() == PathfindCell::CELL_WATER && d->requiredWaterDepth > 0 && to->getWaterLevel() < d->requiredWaterDepth) {
@@ -12793,6 +12970,12 @@ void Pathfinder::crc( Xfer *xfer )
 		xfer->xferInt(&cap);
 		xfer->xferInt(&queueBase);
 		xfer->xferInt(&queueMax);
+		// the footprint knobs only with their own switch, so a game with search-core switches only keeps its CRC
+		if (PathTuning::Clearance) {
+			Int clearanceHard = PathTuning::CLEARANCE_HARD, clearanceCost = PathTuning::CLEARANCE_COST;
+			xfer->xferInt(&clearanceHard);
+			xfer->xferInt(&clearanceCost);
+		}
 		CRCDEBUG_LOG(("PathTuning: %8.8X", ((XferCRC *)xfer)->getCRC()));
 	}
 
@@ -12813,4 +12996,75 @@ void Pathfinder::xfer( Xfer *xfer )
 void Pathfinder::loadPostProcess()
 {
 
+}
+
+// TheSuperHackers @feature simonx645 16/11/2026 "clearance" (PathTuning.h): the search keeps a unit's own route off the
+// shore, but a group move's column waypoints are placed beside the group's route (1.5 cells a column) and were driven to
+// as they were, so a column on the water side ran its hull over the water. Such a waypoint moves to the nearest cell,
+// ring by ring up to 3, where the footprint hangs over nothing; ties go to the first in the scan (fixed order, so every
+// player picks the same). The cell must be one the unit can stand on and in its zone, so a waypoint never jumps a river.
+// A waypoint with no such cell stays.
+Bool Pathfinder::clearWaypoint( const Object *obj, Coord3D *pos )
+{
+	const AIUpdateInterface *ai = obj ? obj->getAI() : nullptr;
+	if (!PathTuning::Clearance || ai == nullptr || m_waterRings == nullptr || !ai->isDoingGroundMovement()) {
+		return false;
+	}
+	if (TheTerrainLogic->getLayerForDestination(pos) != LAYER_GROUND) {
+		return false;	// on a bridge deck: the water under it is not in the way
+	}
+	Int radius;
+	Bool center;
+	getRadiusAndCenter(obj, radius, center);
+	if (radius <= 0) {
+		return false;
+	}
+	const LocomotorSet &locomotorSet = ai->getLocomotorSet();
+	const LocomotorSurfaceTypeMask surfaces = locomotorSet.getValidSurfaces();
+	Coord3D cellPos = *pos;
+	if (!center) {
+		cellPos.x += PATHFIND_CELL_SIZE_F/2;
+		cellPos.y += PATHFIND_CELL_SIZE_F/2;
+	}
+	ICoord2D cell;
+	worldToCell(&cellPos, &cell);
+	Int hard;
+	if (ringShortage(cell.x, cell.y, surfaces, radius, &hard) <= 0) {
+		return false;
+	}
+	const Bool isCrusher = obj->getCrusherLevel() > 0;
+	for (Int ring = 1; ring <= 3; ring++) {
+		Int bestD = 0x7FFFFFFF;
+		Coord3D best;
+		for (Int i = -ring; i <= ring; i++) {
+			for (Int j = -ring; j <= ring; j++) {
+				if (IABS(i) != ring && IABS(j) != ring) {
+					continue;
+				}
+				const Int d = i*i + j*j;
+				if (d >= bestD) {
+					continue;
+				}
+				PathfindCell *c = getCell(LAYER_GROUND, cell.x + i, cell.y + j);
+				if (c == nullptr || !validMovementPosition(isCrusher, surfaces, locomotorSet.getRequiredWaterLevel(), obj->getRequiredBridgeHeight(), c)) {
+					continue;
+				}
+				if (ringShortage(cell.x + i, cell.y + j, surfaces, radius, &hard) > 0) {
+					continue;
+				}
+				Coord3D at;
+				adjustCoordToCell(cell.x + i, cell.y + j, center, at, LAYER_GROUND);
+				if (!clientSafeQuickDoesPathExist(locomotorSet, obj->getRequiredBridgeHeight(), obj->getPosition(), &at)) {
+					continue;
+				}
+				bestD = d;
+				best = at;
+			}
+		}
+		if (bestD != 0x7FFFFFFF) {
+			*pos = best;
+			return true;
+		}
+	}
+	return false;
 }

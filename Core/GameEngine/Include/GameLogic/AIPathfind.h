@@ -839,6 +839,20 @@ public:
 	Bool validMovementTerrain( PathfindLayerEnum layer, const Locomotor* locomotor, const Coord3D *pos );		///< Return true if given position is a valid movement location
 	Bool validMovementTerrainForObject( const Object *obj, const Locomotor* locomotor, const Coord3D *pos );	///< validMovementTerrain plus the clearance the object's footprint needs
 	Int getClearanceShortage( const PathfindCell *cell, LocomotorSurfaceTypeMask surfaces, Int radius ) const;	///< Footprint cells that hang past the ground clearance of a cell
+	/// TheSuperHackers @feature simonx645 16/11/2026 "clearance" (GameLogic/PathTuning.h): how many rings of a radius-r
+	/// footprint at this ground cell hang past water, cliff (hard, the ones that refuse a step) or the playable edge
+	/// (returned; the ones that cost). 0 when the unit is not affected.
+	Int ringShortage( Int cellX, Int cellY, LocomotorSurfaceTypeMask surfaces, Int radius, Int *hardShortage ) const;
+	/// "clearance": a waypoint the unit's footprint would hang over water, a cliff or the playable edge from moves to the
+	/// nearest cell within 3 rings, in the unit's zone, where it does not. TRUE if it moved.
+	Bool clearWaypoint( const Object *obj, Coord3D *pos );
+	/// "clearance": per ground cell, the Chebyshev distance to the nearest water cell and to the nearest cliff cell (0 on
+	/// one, capped at CLEARANCE_MAX + 1), made when the map is classified, kept apart so a unit reads only the ones for
+	/// ground it cannot use.
+	UnsignedByte *m_waterRings;
+	UnsignedByte *m_cliffRings;
+	void buildClearance();
+	void freeClearance();
 
 	Locomotor* chooseBestLocomotorForPosition(PathfindLayerEnum layer,  LocomotorSet* locomotorSet, const Coord3D* pos );
 

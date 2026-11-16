@@ -47,6 +47,7 @@
 
 #include "GameLogic/AI.h"
 #include "GameLogic/AIPathfind.h"
+#include "GameLogic/PathTuning.h"
 #include "GameLogic/Locomotor.h"
 #include "GameLogic/Module/AIUpdate.h"
 #include "GameLogic/Module/BodyModule.h"
@@ -1276,6 +1277,7 @@ void AIGroup::friend_moveFormationToPos( const Coord3D *pos, CommandSourceType c
 				Coord3D dest = *node->getPosition();
 				dest.x += offset.x;
 				dest.y += offset.y;
+				TheAI->pathfinder()->clearWaypoint(theUnit, &dest);	// "clearance": off the shore, for this unit's footprint
 
 				path.push_back( dest );
 				if (node==endNode) break;
@@ -1620,9 +1622,17 @@ Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, CommandSourceType cmd
 			}
 
 			Coord2D curVector;
+			// TheSuperHackers @feature simonx645 16/11/2026 "clearance" (GameLogic/PathTuning.h): the waypoint is clamped to
+			// the map first and moved off the shore for this unit's footprint (the direction test uses where it ends up)
+			if (PathTuning::Clearance) {
+				clampToMap(&dest, controllingPlayerType);
+				TheAI->pathfinder()->clearWaypoint(theUnit, &dest);
+			}
 			curVector.x = dest.x-prevPos.x;
 			curVector.y = dest.y-prevPos.y;
-			clampToMap(&dest, controllingPlayerType);
+			if (!PathTuning::Clearance) {
+				clampToMap(&dest, controllingPlayerType);
+			}
 			// Make sure that this dest is going in the same direction as the vector.
 			if (cornerVector.x*curVector.x + cornerVector.y*curVector.y > 0) {
 				path.push_back( dest );

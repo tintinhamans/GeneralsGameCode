@@ -35,6 +35,12 @@
 //   cap        every search may use SEARCH_CAP_CELLS (10,000) cells, whatever else searched that frame (contraZH gives a
 //              search what the frame has left, 3,000 to 10,000); a capped search's partial route and the unit's further
 //              legs are contraZH's
+//   clearance  a 2x2 to 5x5 footprint keeps off water and cliffs it cannot use, by our rules instead of contraZH's: water
+//              and cliff rings are kept apart (an amphibious unit still keeps off cliffs), a step whose footprint would hang
+//              CLEARANCE_HARD or more rings past the shore is refused unless it hangs less than the cell it leaves (or as far
+//              while still near the start; never a bridge's first cell or the structure the unit goes into), one that hangs
+//              past it, or past the playable edge, costs CLEARANCE_COST more; goals, straight lines and column waypoints
+//              keep off the shore the same way. contraZH's locomotor turning check and its group slots keep its own test
 //
 // All of these change routes, so every player of a game, and a replay's playback, must use the same set. When any is on,
 // the set goes into the pathfinder's CRC, so players with different sets see a mismatch at once. An unknown name stops
@@ -52,7 +58,11 @@ namespace PathTuning
 	extern Bool Cost32;
 	extern Bool Pool;
 	extern Bool SearchCap;
+	extern Bool Clearance;
 
+	const Int CLEARANCE_MAX = 15;			///< "clearance": rings counted (more is open ground)
+	const Int CLEARANCE_HARD = 2;			///< "clearance": rings past the shore that refuse a step
+	const Int CLEARANCE_COST = 40;			///< "clearance": the cost of a step that hangs over (four straight steps)
 	const Int POOL_CELLS = 150000;			///< "pool"
 	const Int SEARCH_CAP_CELLS = 10000;		///< "cap": the cells a search may use
 
