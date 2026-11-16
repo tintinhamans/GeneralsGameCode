@@ -524,6 +524,8 @@ struct ParkedHubCall
 	std::function<bool()> fnWanted;
 	StandbyRetry standby;
 	int64_t sendAtMs = 0;
+	// The time of the last standby answer, where the wait for a ready session starts.
+	int64_t parkedAtMs = 0;
 	// The last standby answer, which the callback gets when the session stays away past the window.
 	InvokeOutcome lastOutcome;
 };
@@ -541,6 +543,7 @@ public:
 		if (delayMs >= 0)
 		{
 			call.sendAtMs = nowMs + delayMs;
+			call.parkedAtMs = nowMs;
 			call.lastOutcome = outcome;
 			m_calls.push_back(call);
 			return true;
@@ -553,7 +556,7 @@ public:
 	}
 
 	// Drops the calls that are no longer wanted and returns the due calls in the order they were parked.
-	// A call is due once the session is ready and its wait passed. A call whose standby window passes while the session is away fails.
+	// A call is due once the session is ready and its wait passed. A call whose session stays away for the standby window after its last standby answer fails.
 	std::vector<ParkedHubCall> TakeDue(int64_t nowMs, bool bReady, std::function<void(const ParkedHubCall&)> onDropped = nullptr)
 	{
 		std::vector<ParkedHubCall> due;
@@ -573,7 +576,7 @@ public:
 			{
 				due.push_back(call);
 			}
-			else if (!bReady && call.standby.firstStandbyMs >= 0 && nowMs - call.standby.firstStandbyMs >= STANDBY_RETRY_WINDOW_MS)
+			else if (!bReady && nowMs - call.parkedAtMs >= STANDBY_RETRY_WINDOW_MS)
 			{
 				// A session that stays away for the whole window turns the call into a normal failure.
 				if (call.callback)

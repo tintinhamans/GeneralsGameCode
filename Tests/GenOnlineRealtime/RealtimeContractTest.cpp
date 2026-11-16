@@ -1838,6 +1838,21 @@ static void TestStandbyHubCalls()
 	CHECK(queue.TakeDue(11000, false).empty());
 	CHECK(waitCalls == 1 && IsStandbyResult(waitLast));
 	CHECK(queue.Size() == 0);
+
+	// The wait for a ready session counts from the last standby answer, not the first one.
+	int lateCalls = 0;
+	InvokeOutcome lateLast;
+	CHECK(queue.Complete(makeCall("SetReady", lateCalls, lateLast), standby, 1000));
+	due = queue.TakeDue(2000, true);
+	CHECK(due.size() == 1);
+	CHECK(queue.Complete(due[0], standby, 9000));
+	CHECK(queue.TakeDue(11000, false).empty());
+	CHECK(lateCalls == 0 && queue.Size() == 1);
+	CHECK(queue.TakeDue(18999, false).empty());
+	CHECK(lateCalls == 0 && queue.Size() == 1);
+	CHECK(queue.TakeDue(19000, false).empty());
+	CHECK(lateCalls == 1 && IsStandbyResult(lateLast));
+	CHECK(queue.Size() == 0);
 }
 
 static void TestRestPaths()
