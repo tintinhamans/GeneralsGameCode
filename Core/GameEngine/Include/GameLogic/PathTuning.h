@@ -71,6 +71,9 @@
 //              for 3 s uses a retry, and with none left it ends as retail's does
 //   nocolholdrecheck (with colhold) a held given goal is taken as given on the last leg, with no destination check (no
 //              re-spiral into a box a still-moving ally had not marked yet)
+//   endreaim   (with colhold and nocolholdrecheck) a held column move whose last leg ends more than an arrival's reach
+//              (2 cells + its footprint radius) off its given goal, with that box taken, aims at the box the destination
+//              spiral finds from the given goal
 //
 // All of these change routes, so every player of a game, and a replay's playback, must use the same set. When any is on,
 // the set goes into the pathfinder's CRC, so players with different sets see a mismatch at once. An unknown name stops
@@ -98,6 +101,7 @@ namespace PathTuning
 	extern Bool ColHold;
 	extern Bool AttackMoveResume;
 	extern Bool NoColHoldRecheck;
+	extern Bool EndReaim;
 
 	const Int CLEARANCE_MAX = 15;			///< "clearance": rings counted (more is open ground)
 	const Int CLEARANCE_HARD = 2;			///< "clearance": rings past the shore that refuse a step

@@ -2069,8 +2069,34 @@ StateReturnType AIInternalMoveToState::update()
 			// otherwise stop, and its stop reserve the spot, inside a neighbour's box)
 			const Bool settle = PathTuning::ColHold && ai->isGivenGoal(&m_goalPosition) &&
 				gx * gx + gy * gy > sqr(1.5f * PATHFIND_CELL_SIZE_F) && TheAI->pathfinder()->goalBoxFree(obj, &m_goalPosition);
-			if (gx * gx + gy * gy > reach * reach || settle)
+			// TheSuperHackers @feature simonx645 16/11/2026 "endreaim" (GameLogic/PathTuning.h): with the last leg's check off
+			// ("nocolholdrecheck"), a held column move's last leg that ended beyond an arrival's reach (2 cells + its footprint
+			// radius) of a taken given box aims at the box the destination spiral finds from the given goal (T3a: an Emperor
+			// stopped 4.1 cells short of a box an ally's goal held)
+			const Coord3D *given = PathTuning::ColHold ? ai->getGivenGoal() : nullptr;
+			Bool reaim = FALSE;
+			Coord3D aim;
+			if (given != nullptr && ai->isOnGivenGoalLastLeg())
 			{
+				const Real hx = obj->getPosition()->x - given->x;
+				const Real hy = obj->getPosition()->y - given->y;
+				if (hx * hx + hy * hy > sqr(1.5f * PATHFIND_CELL_SIZE_F))
+				{
+					if (!TheAI->pathfinder()->goalBoxFree(obj, given))
+					{
+						const Real arrive = (2.0f + (Real)(TheAI->pathfinder()->footprintCells(obj) / 2)) * PATHFIND_CELL_SIZE_F;
+						if (PathTuning::EndReaim && PathTuning::NoColHoldRecheck && hx * hx + hy * hy > arrive * arrive)
+						{
+							aim = *given;
+							reaim = TheAI->pathfinder()->adjustDestination(obj, ai->getLocomotorSet(), &aim);
+						}
+					}
+				}
+			}
+			if (gx * gx + gy * gy > reach * reach || settle || reaim)
+			{
+				if (reaim)
+					m_goalPosition = aim;
 				++m_shortTries;
 				m_shortTryFrame = TheGameLogic->getFrame();
 				computePath();

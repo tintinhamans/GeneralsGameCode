@@ -43,6 +43,7 @@ namespace PathTuning
 	Bool ColHold = TRUE;
 	Bool AttackMoveResume = TRUE;
 	Bool NoColHoldRecheck = TRUE;
+	Bool EndReaim = TRUE;
 
 	// bit: the change's bit in Mask(), as the measured builds numbered it, so the CRC words are theirs
 	struct Name { const char * name; Bool * flag; Int bit; };
@@ -64,6 +65,7 @@ namespace PathTuning
 		{ "colhold", &ColHold, 31 },
 		{ "amresume", &AttackMoveResume, 6 },
 		{ "nocolholdrecheck", &NoColHoldRecheck, 1 },
+		{ "endreaim", &EndReaim, 5 },
 		{ nullptr, nullptr, 0 },	// the end (so the table is never empty)
 	};
 	static const Int NAME_COUNT = sizeof(Names) / sizeof(Names[0]) - 1;
