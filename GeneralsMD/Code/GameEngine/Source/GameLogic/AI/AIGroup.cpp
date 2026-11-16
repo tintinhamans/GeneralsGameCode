@@ -588,6 +588,7 @@ static Bool Group_Goal_For( const Object *obj, Coord3D *dest )
 	for (Int i = 0; i < s_groupGoalCount; i++) {
 		if (s_groupGoalIds[i] == obj->getID()) {
 			*dest = s_groupGoals[i];
+			PathProfile::Given_Goal(obj, dest);	// path profiler: the goal finder's goal
 			// "colhold": the move this goal is for holds it
 			AIUpdateInterface *ai = PathTuning::ColHold ? const_cast<Object *>(obj)->getAI() : nullptr;
 			if (ai != nullptr) {
