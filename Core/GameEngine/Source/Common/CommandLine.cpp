@@ -1273,10 +1273,19 @@ Int parseClearDebugLevel(char *args[], int num)
 }
 #endif
 
+// TheSuperHackers @feature simonx645 16/11/2026 -userDataLeaf "<name>": the user data folder is Documents\<name>. GlobalData's
+// constructor reads it (it builds the path before any option is parsed); here the flag and its value are only consumed.
+Int parseUserDataLeaf(char *args[], int num)
+{
+	return num > 1 ? 2 : 1;
+}
+
 // Initial Params are parsed before Windows Creation.
 // Note that except for TheGlobalData, no other global objects exist yet when these are parsed.
 static CommandLineParam paramsForStartup[] =
 {
+	// TheSuperHackers @feature simonx645 16/11/2026 The user data folder's leaf under Documents (GlobalData reads it).
+	{ "-userDataLeaf", parseUserDataLeaf },
 	{ "-win", parseWin },
 	{ "-fullscreen", parseNoWin },
 
