@@ -1036,13 +1036,6 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 	// Thread safety: Lock connection map during access
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 
-	// Every StartSignalling names a step, the hub handler drops one without a valid step.
-	if (!step.IsValid())
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Ignoring signalling with %lld without a valid step", remoteUserID);
-		return;
-	}
-
 	// The service numbers the attempts of a pair upwards, an older attempt changes nothing.
 	auto current = m_mapConnections.find(remoteUserID);
 	if (current != m_mapConnections.end() && current->second.m_step.attempt > step.attempt)
@@ -1053,7 +1046,6 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 
 	DropPendingStateUpdates(remoteUserID);
 
-	// The step of the pair chooses the transport.
 	if (step.IsPlugin())
 	{
 		// A repeated StartSignalling restarts the pair. The old connection closes first, because a single-direction connection breaks signalling.
@@ -1109,7 +1101,9 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             if (!bTransportReady)
             {
                 NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Attempt %d with %lld names the plugin transport %s, this client has '%s'", step.attempt, remoteUserID, step.transport.c_str(), ownTransport.c_str());
-                EndStepAttempt(created, "no plugin transport", created.m_stepWatch.TakeFailure());
+                // An untimed step reports too, the watch only keeps a timed one from reporting twice.
+                created.m_stepWatch.TakeFailure();
+                EndStepAttempt(created, "no plugin transport", true);
             }
         }
 	}

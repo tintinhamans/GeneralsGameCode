@@ -119,8 +119,6 @@ public:
 		// Signs in to the platform of the plugin with the GenOnline token and hands the identity proof to the service.
 		static void SignIn();
 		static void Refresh();
-		// The provider name that the linked account table of the plugin reports, empty without that table.
-		static const std::string& GetProvider();
 	};
 
 	class Anticheat

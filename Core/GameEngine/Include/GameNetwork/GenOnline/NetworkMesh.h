@@ -100,7 +100,6 @@ public:
 
 	std::string GetConnectionType();
 
-	// True for a connection on the plugin transport.
 	bool UsesPluginTransport() const;
 
 	void UpdateState(EConnectionState newState, NetworkMesh* pOwningMesh);

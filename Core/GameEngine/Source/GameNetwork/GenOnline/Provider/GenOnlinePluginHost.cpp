@@ -785,7 +785,7 @@ void GenOnlinePluginHost::LoadPlugin(const std::string& anticheatPlugin, const s
 	s_bPluginLoaded = true;
 	s_bPluginIsAnticheat = selection.bAnticheat;
 
-	// An accepted transport may carry pairs from now on, the service setting never reaches the plugin.
+	// An accepted transport may carry pairs from now on.
 	if (s_pTransport != nullptr && s_pTransport->SetEnabled != nullptr)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Telling the transport of %s that it may carry pairs", api.name);
@@ -1084,11 +1084,6 @@ void GenOnlinePluginHost::Anticheat::MessageArrived(uint32_t userID, const void*
 	{
 		pAnticheat->MessageArrived(userID, pData, dataLen);
 	}
-}
-
-const std::string& GenOnlinePluginHost::LinkedAccount::GetProvider()
-{
-	return s_linkedAccountProvider;
 }
 
 bool GenOnlinePluginHost::Transport::IsAvailable()
