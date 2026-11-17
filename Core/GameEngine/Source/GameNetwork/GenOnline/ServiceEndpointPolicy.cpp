@@ -113,14 +113,13 @@ std::vector<std::string> BootstrapRoutes(const std::string& environment,
 	if (environment == "dev")
 		return {"https://localhost:9000"};
 	if (environment == "stage")
-		return {"https://api.playgenerals.online:2087"};
+		return {"https://api-test.generals.online"};
 	if (environment != "live")
 		return {};
 	if (settings.serverMode != "automatic")
 		return {};
 	std::vector<std::string> routes = {
-		"https://api.playgenerals.online",
-		"https://api-ru.playgenerals.online",
+		"https://api.generals.online",
 	};
 	const auto remembered_route = std::find_if(routes.begin(), routes.end(), [&](const std::string& route) { return RouteHost(route) == remembered; });
 	if (remembered_route != routes.end())
