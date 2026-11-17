@@ -1,6 +1,7 @@
 add_executable(z_generals WIN32)
 
 rts_copy_modern_media_files(z_generals)
+rts_add_license_files(z_generals)
 
 # Use a binary name that doesn't conflict with original game.
 if("${CMAKE_SYSTEM}" MATCHES "Windows")
@@ -65,8 +66,15 @@ if(MSVC AND NOT IS_VS6_BUILD)
         set(_go_redist_arch x86)
     endif()
 
+    # The redist of the toolset in use, VS names its newest redist in the default file even when an older toolset compiles
+    get_filename_component(_go_toolset_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
+    get_filename_component(_go_toolset_dir "${_go_toolset_dir}/../../.." ABSOLUTE)
+    get_filename_component(_go_toolset_version "${_go_toolset_dir}" NAME)
     set(_go_msvcp "")
-    if(EXISTS "${_go_redist_version_file}")
+    if(_go_toolset_version MATCHES "^([0-9]+\\.[0-9]+)\\.")
+        file(GLOB _go_msvcp "${_go_vc_dir}/Redist/MSVC/${CMAKE_MATCH_1}.*/${_go_redist_arch}/Microsoft.VC*.CRT/msvcp140.dll")
+    endif()
+    if(NOT _go_msvcp AND EXISTS "${_go_redist_version_file}")
         file(STRINGS "${_go_redist_version_file}" _go_redist_dir_version LIMIT_COUNT 1)
         string(STRIP "${_go_redist_dir_version}" _go_redist_dir_version)
         file(GLOB _go_msvcp "${_go_vc_dir}/Redist/MSVC/${_go_redist_dir_version}/${_go_redist_arch}/Microsoft.VC*.CRT/msvcp140.dll")
