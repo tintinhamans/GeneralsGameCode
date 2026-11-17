@@ -147,11 +147,58 @@ static void TestFiles()
 	CHECK(DefaultPath().size() > 32 && DefaultPath().substr(DefaultPath().size() - 27) == L"\\GeneralsOnline\\client.json");
 }
 
+static void TestSendCrashReports()
+{
+	// Crash reports are on unless the file turns them off.
+	CHECK(SendCrashReports(Classify(false, false, std::string(), {})));
+	CHECK(SendCrashReports(Classify(true, true, "{}", {})));
+	CHECK(SendCrashReports(Classify(true, true, "{\"send_crash_reports\": true}", {})));
+	CHECK(!SendCrashReports(Classify(true, true, "{\"send_crash_reports\": false}", {})));
+	CHECK(!SendCrashReports(Classify(true, true, "{\"schema_version\": 2, \"send_crash_reports\": false}", {})));
+
+	// A value of another type is an attempt to turn them off.
+	CHECK(!SendCrashReports(Classify(true, true, "{\"send_crash_reports\": \"false\"}", {})));
+	CHECK(!SendCrashReports(Classify(true, true, "{\"send_crash_reports\": 0}", {})));
+
+	// Only the top level counts.
+	CHECK(SendCrashReports(Classify(true, true, "{\"network\": {\"send_crash_reports\": false}}", {})));
+
+	// A file the client cannot use keeps the default.
+	CHECK(SendCrashReports(Classify(true, true, "{ not json", {})));
+	CHECK(SendCrashReports(Classify(true, false, std::string(), {})));
+
+	wchar_t tempRoot[MAX_PATH] = {};
+	GetTempPathW(MAX_PATH, tempRoot);
+	const std::wstring folder = std::wstring(tempRoot) + L"genonline-crash-reports-test-" + std::to_wstring(GetCurrentProcessId());
+	const std::wstring path = folder + L"\\client.json";
+
+	// No file means on, and reading never creates the file or its folder.
+	CHECK(ReadSendCrashReports(path));
+	CHECK(GetFileAttributesW(folder.c_str()) == INVALID_FILE_ATTRIBUTES);
+	CHECK(ReadSendCrashReports(std::wstring()));
+
+	CreateDirectoryW(folder.c_str(), nullptr);
+	WriteAll(path, "{\"schema_version\": 1}");
+	CHECK(ReadSendCrashReports(path));
+	WriteAll(path, "{\"send_crash_reports\": true}");
+	CHECK(ReadSendCrashReports(path));
+
+	// A key of the wrong type elsewhere does not hide the choice, and reading leaves the file byte-identical.
+	const std::string off = "{\"send_crash_reports\": false, \"network\": 5, \"unknown\": [1]}\r\n";
+	WriteAll(path, off);
+	CHECK(!ReadSendCrashReports(path));
+	CHECK(ReadAll(path) == off);
+
+	DeleteFileW(path.c_str());
+	RemoveDirectoryW(folder.c_str());
+}
+
 int main()
 {
 	TestClassify();
 	TestShouldSave();
 	TestFiles();
+	TestSendCrashReports();
 	if (s_failures != 0)
 	{
 		std::printf("%d check(s) failed\n", s_failures);

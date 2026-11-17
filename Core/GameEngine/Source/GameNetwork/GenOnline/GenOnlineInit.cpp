@@ -24,6 +24,7 @@
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
 #include "GameNetwork/GenOnline/ProxyLogin.h"
 #include "GenOnlineCrashReportConfig.h"
+#include "GameNetwork/GenOnline/GenOnlineClientFile.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeRest.h"
 #include "gitinfo.h"
 
@@ -1319,6 +1320,14 @@ void GenOnlineServicesManager::InitSentry()
 	if (GENONLINE_SENTRY_DSN[0] == '\0')
 	{
 		s_sentryOffReason = "this build has no crash report DSN";
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Sentry] Off, %s", s_sentryOffReason);
+		return;
+	}
+
+	// The launcher writes the user's choice into client.json. The client only reads it here.
+	if (!GenOnlineClientFile::ReadSendCrashReports(GenOnlineClientFile::DefaultPath()))
+	{
+		s_sentryOffReason = "send_crash_reports is off in client.json";
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Sentry] Off, %s", s_sentryOffReason);
 		return;
 	}
