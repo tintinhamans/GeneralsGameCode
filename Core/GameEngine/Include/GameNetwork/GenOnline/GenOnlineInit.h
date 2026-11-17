@@ -567,13 +567,13 @@ public:
 	enum EEnvironment
 	{
 		DEV,
-		STAGE,
+		TEST,
 		LIVE
 	};
 
-#if defined(USE_STAGE_ENV)
-	const static EEnvironment g_Environment = EEnvironment::STAGE;
-	#pragma message ("Building for stage environment")
+#if defined(USE_TEST_ENV)
+	const static EEnvironment g_Environment = EEnvironment::TEST;
+	#pragma message ("Building for test environment")
 #elif defined(USE_DEBUG_ON_LIVE_SERVER)
 	const static EEnvironment g_Environment = EEnvironment::LIVE;
 #pragma message ("Building for live environment (Debug Client)")
@@ -586,7 +586,7 @@ public:
 		#pragma message ("Building for live environment")
 	#endif
 #endif
-	// The name of g_Environment: live, stage or dev.
+	// The name of g_Environment: live, test or dev.
 	static const char* EnvironmentName();
 	static std::string GetAPIEndpoint(const char* szEndpoint);
 

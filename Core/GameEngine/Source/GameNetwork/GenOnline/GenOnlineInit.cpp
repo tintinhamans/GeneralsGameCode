@@ -255,7 +255,7 @@ const char* GenOnlineServicesManager::EnvironmentName()
 	switch (g_Environment)
 	{
 		case EEnvironment::DEV: return "dev";
-		case EEnvironment::STAGE: return "stage";
+		case EEnvironment::TEST: return "test";
 		default: return "live";
 	}
 }
