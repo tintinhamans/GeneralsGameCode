@@ -90,6 +90,15 @@ public:
 	// The non-friend users with a conversation, without pending requests, with the name to show.
 	std::vector<std::pair<int64_t, std::string>> GetNonFriendConversations();
 
+	// Finds the players whose display name starts with the name and lists them in the communicator.
+	// A name shorter than 2 characters clears the results.
+	void FindPlayers(const std::string& strName);
+	std::vector<GenOnlineRealtime::Member> GetFoundPlayers()
+	{
+		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
+		return m_vecFoundPlayers;
+	}
+
 	// The message of a line of the conversation with the user, for its context menu. Null for a note or an unknown line.
 	const GenOnlineRealtime::ChatMessage* FindConversationMessage(int64_t target_user_id, uint32_t key) const
 	{
@@ -219,6 +228,7 @@ private:
 	std::map<int64_t, GenOnlineRealtime::DirectConversation> m_mapCachedMessages; // user id here is who we are talking to / target user
 	GenOnlineRealtime::DirectMessageUnread m_unreadConversations; // Keyed by the other user of each conversation.
 	std::map<int64_t, std::string> m_mapConversationNames; // The other user's name, from their last message seen.
+	std::vector<GenOnlineRealtime::Member> m_vecFoundPlayers; // The last player search, guarded by m_friendsMapMutex.
 
 	std::function<void(int newNumNotifications)> m_cbOnNumberGlobalNotificationsChanged = nullptr;
 

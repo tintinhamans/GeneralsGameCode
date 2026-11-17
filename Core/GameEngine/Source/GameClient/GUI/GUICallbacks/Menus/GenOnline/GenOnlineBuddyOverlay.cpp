@@ -116,6 +116,21 @@ void GenOnlineRefreshIgnoreList();
 static void closeRightClickMenu(GameWindow *win);
 static int64_t GetSelectedBuddyID();
 
+static NameKeyType textEntryFindID = NAMEKEY_INVALID;
+static NameKeyType buttonFindID = NAMEKEY_INVALID;
+static GameWindow *textEntryFind = nullptr;
+
+// Searches the players whose name starts with the text of the find box, an empty box clears the results
+static void RunPlayerFind()
+{
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	if (pSocialInterface == nullptr || textEntryFind == nullptr)
+	{
+		return;
+	}
+	pSocialInterface->FindPlayers(to_utf8(GadgetTextEntryGetText(textEntryFind).str()));
+}
+
 void GenOnlineShowNotificationBox( AsciiString nick, UnicodeString message, bool bPlaySound);
 void GenOnlineDeleteNotificationBox();
 static Bool lastNotificationWasStatus = FALSE;
@@ -493,6 +508,7 @@ void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh, bool bUseCache)
 				{
 					continue;
 				}
+				setListedNonFriends.insert(profileID);
 
 				UnicodeString strName(from_utf8(conversation.second).c_str());
 				const int numUnread = pSocialInterface->GetNumberUnreadChatMessagesForUser(profileID);
@@ -504,6 +520,25 @@ void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh, bool bUseCache)
 				int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, strName, GameSpyColor[GSCOLOR_CHAT_EMOTE], -1, -1);
 				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
 				GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"Conversation"), GameSpyColor[GSCOLOR_CHAT_OWNER_EMOTE], index, 1);
+				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_NONBUDDY), index, 1);
+
+				if (profileID == selectedProfile)
+					selected = index;
+			}
+
+			// FOUND by the find box, without self, friends, requests and players listed above
+			for (const GenOnlineRealtime::Member& member : pSocialInterface->GetFoundPlayers())
+			{
+				const int64_t profileID = member.id;
+				if (profileID == user_id || setListedNonFriends.contains(profileID) || pSocialInterface->IsUserFriend(profileID) || pSocialInterface->IsUserPendingRequest(profileID))
+				{
+					continue;
+				}
+				setListedNonFriends.insert(profileID);
+
+				int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(from_utf8(member.name).c_str()), GameSpyColor[GSCOLOR_CHAT_EMOTE], -1, -1);
+				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
+				GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"Found"), GameSpyColor[GSCOLOR_CHAT_OWNER_EMOTE], index, 1);
 				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_NONBUDDY), index, 1);
 
 				if (profileID == selectedProfile)
@@ -863,6 +898,20 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 	parentIgnore = TheWindowManager->winGetWindowFromId( parent,  parentIgnoreID);
 	listboxIgnore = TheWindowManager->winGetWindowFromId( parent,  listboxIgnoreID);
 
+	// find a player by name: the results show as rows of the list
+	textEntryFindID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:TextEntryFind" );
+	buttonFindID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonFind" );
+	textEntryFind = TheWindowManager->winGetWindowFromId( parent, textEntryFindID );
+	GameWindow *buttonFind = TheWindowManager->winGetWindowFromId( parent, buttonFindID );
+	if (textEntryFind != nullptr)
+	{
+		GadgetTextEntrySetText(textEntryFind, UnicodeString::TheEmptyString);
+	}
+	if (buttonFind != nullptr)
+	{
+		GadgetButtonSetText(buttonFind, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOFind", L"Find"));
+	}
+
 	if (radioButtonIgnore)
 		GadgetRadioSetText(radioButtonIgnore, UnicodeString(L"Blocked"));
 
@@ -899,6 +948,7 @@ void GenOnlineBuddyOverlayShutdown( WindowLayout *layout, void *userData )
 	}
 
 	listboxIgnore = NULL;
+	textEntryFind = nullptr;
 
 	// a right-click menu of the Communicator closes with it
 	GenOnlineCloseRightClickMenus();
@@ -1040,7 +1090,7 @@ WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, UnsignedIn
 						}
 						else if (!pSocialInterface->CanChatWith(profileID))
 						{
-                            Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This person is in your lobby or recently played with you but is not a friend yet and cannot be chatted with. You can right click them to add or block them."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+                            Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This player is not a friend yet and cannot be chatted with. You can right click them to add or block them."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
                             GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
 						}
 						else
@@ -1119,6 +1169,14 @@ WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, UnsignedIn
 				}
 				break;
 			}
+		case GEM_EDIT_DONE:
+			{
+				GameWindow *control = (GameWindow *)mData1;
+				if (control == nullptr || control->winGetWindowId() != textEntryFindID)
+					return MSG_IGNORED;
+				RunPlayerFind();
+				break;
+			}
 		case GBM_SELECTED:
 			{
 				GameWindow *control = (GameWindow *)mData1;
@@ -1127,6 +1185,10 @@ WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, UnsignedIn
 				if (controlID == buttonHideID)
 				{
 					GameSpyCloseOverlay( GSOVERLAY_BUDDY );
+				}
+				else if (controlID == buttonFindID)
+				{
+					RunPlayerFind();
 				}
 				else if (controlID == radioButtonBuddiesID)
 				{

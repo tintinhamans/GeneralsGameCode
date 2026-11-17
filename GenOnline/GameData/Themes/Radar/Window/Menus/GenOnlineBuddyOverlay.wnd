@@ -408,8 +408,109 @@ WINDOW
     END
     CHILD
     WINDOW
+      WINDOWTYPE = ENTRYFIELD;
+      SCREENRECT = UPPERLEFT: 461 88,
+                   BOTTOMRIGHT: 697 110,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "WOLBuddyOverlay.wnd:TextEntryFind";
+      STATUS = ENABLED+IMAGE;
+      STYLE = ENTRYFIELD+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOTextEntry";
+      TOOLTIPDELAY = -1;
+      TEXT = "Entry";
+      TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   227 186 108 255, HILITEBORDER:   1 1 1 255;
+      ENABLEDDRAWDATA = IMAGE: TextEntryEnabledLeftEnd, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
+                        IMAGE: TextEntryEnabledRightEnd, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: TextEntryEnabledRepeatingCenter, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: TextEntryEnabledSmallRepeatingCenter, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
+      DISABLEDDRAWDATA = IMAGE: TextEntryDisabledLeftEnd, COLOR: 128 128 128 255, BORDERCOLOR: 0 0 0 255,
+                         IMAGE: TextEntryDisabledRightEnd, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: TextEntryDisabledRepeatingCenter, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: TextEntryDisabledSmallRepeatingCenter, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
+      HILITEDRAWDATA = IMAGE: TextEntryHiliteLeftEnd, COLOR: 0 255 0 255, BORDERCOLOR: 0 128 0 255,
+                       IMAGE: TextEntryHiliteRightEnd, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: TextEntryHiliteRepeatingCenter, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: TextEntryHiliteSmallRepeatingCenter, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 255, BORDERCOLOR: 242 237 224 255;
+      TEXTENTRYDATA = MAXLEN: 32,
+                      SECRETTEXT: 0,
+                      NUMERICALONLY: 0,
+                      ALPHANUMERICALONLY: 0,
+                      ASCIIONLY: 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 701 88,
+                   BOTTOMRIGHT: 769 110,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "WOLBuddyOverlay.wnd:ButtonFind";
+      STATUS = ENABLED+IMAGE+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Generals", SIZE: 15, BOLD: 0;
+      HEADERTEMPLATE = "GOMainButton";
+      TOOLTIPDELAY = -1;
+      TEXT = "GUI:GOFind";
+      TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 143 137 124 255, DISABLEDBORDER: 13 21 27 255,
+                  HILITE:   227 186 108 255, HILITEBORDER:   0 2 0 255;
+      ENABLEDDRAWDATA = IMAGE: Buttons-Left, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
+                        IMAGE: NoImage, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: Buttons-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: Buttons-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                        IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      DISABLEDDRAWDATA = IMAGE: Buttons-Disabled-Left, COLOR: 128 128 128 255, BORDERCOLOR: 143 137 124 255,
+                         IMAGE: NoImage, COLOR: 143 137 124 255, BORDERCOLOR: 128 128 128 255,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-Disabled-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: Buttons-Disabled-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                         IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+      HILITEDRAWDATA = IMAGE: Buttons-HiLite-Left, COLOR: 227 186 108 255, BORDERCOLOR: 59 60 52 255,
+                       IMAGE: Buttons-Pushed-Left, COLOR: 191 144 72 255, BORDERCOLOR: 242 237 224 255,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: Buttons-Pushed-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: Buttons-Pushed-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: Buttons-HiLite-Middle, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: Buttons-HiLite-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
+                       IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
+    END
+    CHILD
+    WINDOW
       WINDOWTYPE = SCROLLLISTBOX;
-      SCREENRECT = UPPERLEFT: 461 90,
+      SCREENRECT = UPPERLEFT: 461 114,
                    BOTTOMRIGHT: 769 251,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLBuddyOverlay.wnd:ListboxBuddies";

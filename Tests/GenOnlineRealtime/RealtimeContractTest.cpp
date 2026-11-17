@@ -1796,6 +1796,19 @@ static void TestMessageActions()
 	CHECK(RestReportsPath() == "/api/v1/reports");
 	CHECK(RestMessagePath("8812") == "/api/v1/messages/8812");
 
+	// Finding a player: the service needs 2 or more characters after trimming, and the name goes into the query encoded.
+	CHECK(PlayerSearchTerm("  Ann  ") == "Ann");
+	CHECK(PlayerSearchTerm(" A ").empty());
+	CHECK(PlayerSearchTerm("").empty());
+	CHECK(RestPlayerSearchPath("Ann") == "/api/v1/players?search=Ann");
+	CHECK(RestPlayerSearchPath("Bob & Co") == "/api/v1/players?search=Bob%20%26%20Co");
+	{
+		const PlayerListResponse found = json::parse(R"({"players":[{"id":7,"name":"Ann","tag":"0007","badges":["moderator"],"client":"game"},{"id":42,"name":"Bob","tag":"0042","badges":[]}]})").get<PlayerListResponse>();
+		CHECK(found.players.size() == 2);
+		CHECK(found.players[0].id == 7 && found.players[0].name == "Ann");
+		CHECK(found.players[1].id == 42 && !found.players[1].client.has_value());
+	}
+
 	// A shown channel line gives back its message id and author; a removed or unknown line gives nothing.
 	{
 		const std::string channel = "channel:3";

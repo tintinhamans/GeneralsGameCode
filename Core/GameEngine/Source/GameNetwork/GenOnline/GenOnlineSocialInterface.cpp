@@ -560,6 +560,43 @@ std::vector<std::pair<int64_t, std::string>> GenOnlineSocialInterface::GetNonFri
 	return conversations;
 }
 
+void GenOnlineSocialInterface::FindPlayers(const std::string& strName)
+{
+	const std::string term = GenOnlineRealtime::PlayerSearchTerm(strName);
+	if (term.empty())
+	{
+		{
+			std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
+			m_vecFoundPlayers.clear();
+		}
+		RefreshCommunicator();
+		return;
+	}
+	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Get, GenOnlineRealtime::RestPlayerSearchPath(term), std::string(), [](const GenOnlineRealtime::RestOutcome& outcome)
+		{
+			GenOnlineSocialInterface* pThis = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+			if (pThis == nullptr)
+			{
+				return;
+			}
+			GenOnlineRealtime::PlayerListResponse found;
+			if (!outcome.Succeeded() || !outcome.Data(found))
+			{
+				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, UnicodeString(GenOnlineRealtimeBridge::FailureText(outcome).c_str()), false);
+				return;
+			}
+			if (found.players.empty())
+			{
+				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GONoPlayerFound", L"No player has a name that starts with that."));
+			}
+			{
+				std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
+				pThis->m_vecFoundPlayers = found.players;
+			}
+			RefreshCommunicator();
+		});
+}
+
 UnicodeString GenOnlineSocialInterface::GetChatLineText(const GenOnlineRealtime::DirectChatLine& line)
 {
 	if (line.IsNote())
