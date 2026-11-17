@@ -30,6 +30,15 @@ Copy-Item -Path "$buildDir\discord-rpc.dll" -Destination $workingDir
 Copy-Item -Path "$buildDir\discord-rpc-LICENSE.txt" -Destination $workingDir
 Copy-Item -Path "$buildDir\genonline_zerohour.exe" -Destination $workingDir
 
+# Copy the license texts that ship with the exe
+Copy-Item -Path "$buildDir\THIRD_PARTY_NOTICES.txt" -Destination $workingDir
+Copy-Item -Path "$buildDir\LICENSE-GPL3.txt" -Destination $workingDir
+Copy-Item -Path "$buildDir\audio-libraries-NOTICE.txt" -Destination $workingDir
+Copy-Item -Path "$buildDir\ffmpeg-LICENSE.txt" -Destination $workingDir
+Copy-Item -Path "$buildDir\openal-soft-LICENSE.txt" -Destination $workingDir
+Copy-Item -Path "$buildDir\openal-soft-pffft-LICENSE.txt" -Destination $workingDir
+Copy-Item -Path "GenOnline\GameData\Fonts\IBMPlex-LICENSE.txt" -Destination $workingDir
+
 # package up our patch and installer
 Compress-Archive -Path "$workingDir\*" -DestinationPath "$workingDir\v$buildVer.zip"
 
