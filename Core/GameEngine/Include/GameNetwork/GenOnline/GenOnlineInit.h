@@ -142,7 +142,7 @@ public:
 	// A reconnect the player is told about. A handover reconnect stays hidden for its first 3 seconds.
 	bool IsReconnectShown() const
 	{
-		return m_bReconnecting && !m_bSwitchReconnect;
+		return m_bReconnecting && !m_bSwitchReconnect && !m_bStandbyReconnect;
 	}
 
 	std::function<void(void)> m_fnWebsocketConnectedCallback = nullptr;
@@ -220,7 +220,7 @@ private:
 	void HubTransportLost(const char* reason);
 	void OnHubReady();
 	void OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, const std::string& reason);
-	void RecoverHubSession();
+	void RecoverHubSession(const GenOnlineRealtime::SessionRecovery& recovery);
 
 	void StartPeerSignalling(int64_t lobbyID, int64_t userID, uint16_t preferredPort, const std::string& middlewareID, const GenOnlineRealtime::ConnectionStep& step);
 	// Tells the hub which plugin transports this client can use for peers, after every Ready and whenever the answer changes.
@@ -272,13 +272,14 @@ private:
 	bool m_bSwitchReconnect = false;
 	// When the server.switching close of the running reconnect came, -1 for any other reconnect.
 	int64_t m_switchClosedAt = -1;
-	// The 503 answers in a row of the realtime upgrade, which a standby service copy gives after a failover switch.
+	// The service.unavailable refusals in a row of the realtime connection, which a standby service copy gives after a failover switch.
 	GenOnlineRealtime::StandbyRetry m_upgradeStandby;
-	// The next try of a first connect that got a standby answer, or -1.
-	int64_t m_nextStandbyConnect = -1;
+	// A reconnect after a standby refusal, hidden while the refusals in a row last less than STANDBY_RETRY_WINDOW_MS.
+	bool m_bStandbyReconnect = false;
 
 	void BeginReconnect();
 	void BeginSwitchReconnect(int64_t delayMs);
+	void BeginStandbyReconnect(int64_t delayMs);
 	void StartReconnect(int64_t delayMs, bool bSwitch);
 	void EndReconnect();
 	void UpdateReconnect();
