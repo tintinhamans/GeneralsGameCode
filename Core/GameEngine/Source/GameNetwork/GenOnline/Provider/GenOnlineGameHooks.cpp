@@ -183,7 +183,7 @@ Bool GenOnlineGameHooks::isLoggedIn()
 void GenOnlineGameHooks::onCRCMismatch( const UnicodeString &strMismatchDetails )
 {
 #if defined(GENONLINE_USE_SENTRY)
-	if (TheGenOnlineGame != nullptr)
+	if (TheGenOnlineGame != nullptr && GenOnlineServicesManager::IsSentryActive())
 	{
 		// local player info
 		int64_t userID = -1;

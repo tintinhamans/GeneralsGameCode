@@ -1382,4 +1382,15 @@ if(NOT IS_VS6_BUILD)
     if(GENONLINE_ALLOW_UNSIGNED_PLUGINS)
         target_compile_definitions(corei_gameengine_public INTERFACE GENONLINE_ALLOW_UNSIGNED_PLUGINS)
     endif()
+
+    # Crash reports go to the DSN set at build time. An empty DSN turns crash reports off.
+    set(GENONLINE_SENTRY_DSN "" CACHE STRING "Crash report DSN of this build, empty turns crash reports off")
+    if(GENONLINE_SENTRY_DSN MATCHES "[\"\\\\]")
+        message(FATAL_ERROR "GENONLINE_SENTRY_DSN must not contain quotes or backslashes")
+    endif()
+    set(GENONLINE_CRASH_REPORT_CONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/GenOnlineCrashReportConfig")
+    file(CONFIGURE OUTPUT "${GENONLINE_CRASH_REPORT_CONFIG_DIR}/GenOnlineCrashReportConfig.h"
+        CONTENT "#pragma once\n#define GENONLINE_SENTRY_DSN \"@GENONLINE_SENTRY_DSN@\"\n"
+        @ONLY)
+    target_include_directories(corei_gameengine_public INTERFACE "${GENONLINE_CRASH_REPORT_CONFIG_DIR}")
 endif()

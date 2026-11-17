@@ -23,6 +23,7 @@
 #include <utility>
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
 #include "GameNetwork/GenOnline/ProxyLogin.h"
+#include "GenOnlineCrashReportConfig.h"
 
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "GameNetwork/GenOnline/Vendor/stb_image/stb_image_write.h"
@@ -1295,6 +1296,10 @@ void GenOnlineServicesManager::Tick()
 static int s_sentryInitResult = INT_MIN;
 // crashpad's unhandled exception filter, called by the game's filter once the game wrote its own dumps
 static LPTOP_LEVEL_EXCEPTION_FILTER s_sentryCrashFilter = nullptr;
+// TRUE from a successful sentry_init until ShutdownSentry
+static Bool s_bSentryActive = FALSE;
+// Set when InitSentry skips Sentry on purpose
+static const char* s_sentryOffReason = nullptr;
 
 void GenOnlineServicesManager::InitSentry()
 {
@@ -1309,6 +1314,13 @@ void GenOnlineServicesManager::InitSentry()
 	}
 
 #if !_DEBUG
+	if (GENONLINE_SENTRY_DSN[0] == '\0')
+	{
+		s_sentryOffReason = "this build has no crash report DSN";
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Sentry] Off, %s", s_sentryOffReason);
+		return;
+	}
+
 	// game paths are in the process code page, sentry's char* API wants UTF-8, so hand it the wide path
 	std::wstring strDumpPath;
 	const AsciiString& strUserDataPath = TheGlobalData->getPath_UserData();
@@ -1325,7 +1337,7 @@ void GenOnlineServicesManager::InitSentry()
 
 	sentry_options_t* options = sentry_options_new();
 
-	sentry_options_set_dsn(options, "https://61750bebd112d279bcc286d617819269@o4509316925554688.ingest.us.sentry.io/4509316927586304");
+	sentry_options_set_dsn(options, GENONLINE_SENTRY_DSN);
 	if (!strDumpPath.empty())
 	{
 		sentry_options_set_database_pathw(options, strDumpPath.c_str());
@@ -1365,6 +1377,7 @@ void GenOnlineServicesManager::InitSentry()
 	SetUnhandledExceptionFilter(gameCrashFilter);
 	const int sentryInitResult = sentry_init(options);
 	s_sentryInitResult = sentryInitResult;
+	s_bSentryActive = sentryInitResult == 0;
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Sentry] Init %s (%d)", sentryInitResult == 0 ? "succeeded" : "FAILED", sentryInitResult);
 
 	// put the game's filter back on top; it hands each crash on to crashpad after writing its own dumps
@@ -1382,6 +1395,11 @@ void GenOnlineServicesManager::InitSentry()
 
 void GenOnlineServicesManager::UpdateSentryUser()
 {
+	if (!IsSentryActive())
+	{
+		return;
+	}
+
 	int64_t userID = -1;
 	std::string strDisplayname = "Unknown";
 	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
@@ -1405,7 +1423,17 @@ void GenOnlineServicesManager::ShutdownSentry()
 {
 	// crashpad's filter must not run once its handler is gone; later crashes only get the game's dumps
 	s_sentryCrashFilter = nullptr;
+	if (!s_bSentryActive)
+	{
+		return;
+	}
+	s_bSentryActive = FALSE;
 	sentry_close();
+}
+
+Bool GenOnlineServicesManager::IsSentryActive()
+{
+	return s_bSentryActive;
 }
 
 Bool GenOnlineServicesManager::ForwardCrashToSentry(struct _EXCEPTION_POINTERS* exceptionInfo, LONG* result)
@@ -1429,6 +1457,10 @@ std::string GenOnlineServicesManager::GetSentryStatus()
 #if _DEBUG
 	return "off in debug builds";
 #else
+	if (s_sentryOffReason != nullptr)
+	{
+		return std::format("off, {}", s_sentryOffReason);
+	}
 	if (s_sentryInitResult == INT_MIN)
 	{
 		return "not started yet";
