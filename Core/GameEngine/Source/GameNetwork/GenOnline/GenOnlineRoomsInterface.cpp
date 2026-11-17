@@ -394,6 +394,7 @@ void WebSocket::OnHubReady()
 {
 	EndReconnect();
 	m_hubReconnectPolicy.Reset();
+	m_upgradeStandby.Reset();
 	m_bHubSessionRecoveryTried = false;
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Ready");
 	// A new session has no transport list yet, so a failed send repeats on the next tick.
@@ -435,7 +436,7 @@ void WebSocket::SendPeerTransports(bool bForce)
 }
 
 // Refreshes the tokens and registers the session again, then reconnects. A second refusal tears down.
-void WebSocket::RecoverHubSession()
+void WebSocket::RecoverHubSession(const GenOnlineRealtime::SessionRecovery& recovery)
 {
 	m_bHubSessionRecoveryTried = true;
 	EndReconnect();
@@ -450,7 +451,7 @@ void WebSocket::RecoverHubSession()
 	{
 		return;
 	}
-	pAuth->RecoverRealtimeSession([this](bool bRecovered)
+	pAuth->RecoverRealtimeSession(recovery.refreshToken, recovery.registerSession, [this](bool bRecovered)
 		{
 			// The socket may have been replaced or shut down while the refresh ran.
 			GenOnlineServicesManager* pManager = GenOnlineServicesManager::GetInstance();
@@ -471,6 +472,11 @@ void WebSocket::RecoverHubSession()
 void WebSocket::OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, const std::string& reason)
 {
 	m_bConnected = false;
+	// Only standby refusals in a row count toward the standby window.
+	if (action != GenOnlineRealtime::DisconnectAction::ReconnectAfterStandby)
+	{
+		m_upgradeStandby.Reset();
+	}
 	switch (action)
 	{
 	case GenOnlineRealtime::DisconnectAction::Reconnect:
@@ -487,14 +493,30 @@ void WebSocket::OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, co
 		BeginSwitchReconnect(delayMs);
 		break;
 	}
+	case GenOnlineRealtime::DisconnectAction::ReconnectAfterStandby:
+	{
+		const int64_t delayMs = GenOnlineRealtime::StandbyRefusalDelayMs(m_upgradeStandby, m_pHubSession->ServerSwitchingRetryAfterMs(), NowMs());
+		if (delayMs < 0)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Standby service refusals for %lld ms, reconnecting with backoff", static_cast<long long>(GenOnlineRealtime::STANDBY_RETRY_WINDOW_MS));
+			BeginReconnect();
+			break;
+		}
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Refused by a standby service, connecting again in %lld ms", static_cast<long long>(delayMs));
+		BeginStandbyReconnect(delayMs);
+		break;
+	}
 	case GenOnlineRealtime::DisconnectAction::RefreshAndReconnect:
+	case GenOnlineRealtime::DisconnectAction::RefreshTokenAndReconnect:
+	case GenOnlineRealtime::DisconnectAction::RegisterAndReconnect:
 		if (m_bHubSessionRecoveryTried)
 		{
 			EndReconnect();
 			GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::AUTH_FAILED);
 			break;
 		}
-		RecoverHubSession();
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Connection closed with %s, renewing the session", reason.c_str());
+		RecoverHubSession(GenOnlineRealtime::RecoveryForAction(action));
 		break;
 	case GenOnlineRealtime::DisconnectAction::StopSignedInElsewhere:
 	case GenOnlineRealtime::DisconnectAction::ReturnToLogin:
@@ -1018,11 +1040,24 @@ void WebSocket::BeginSwitchReconnect(int64_t delayMs)
 	StartReconnect(delayMs, true);
 }
 
+// The reconnect after a standby refusal neither advances the backoff nor shows the reconnect screen.
+void WebSocket::BeginStandbyReconnect(int64_t delayMs)
+{
+	if (m_bReconnecting)
+	{
+		return;
+	}
+
+	StartReconnect(delayMs, false);
+	m_bStandbyReconnect = true;
+}
+
 void WebSocket::StartReconnect(int64_t delayMs, bool bSwitch)
 {
 	ClearOutbound();
 	m_bReconnecting = true;
 	m_bSwitchReconnect = bSwitch;
+	m_bStandbyReconnect = false;
 	m_numReconnectAttempts = 0;
 	m_reconnectAttemptStarted = -1;
 	m_reconnectStartTime = NowMs();
@@ -1034,6 +1069,7 @@ void WebSocket::EndReconnect()
 {
 	m_bReconnecting = false;
 	m_bSwitchReconnect = false;
+	m_bStandbyReconnect = false;
 	m_switchClosedAt = -1;
 	m_reconnectAttemptStarted = -1;
 }
@@ -1045,17 +1081,6 @@ int64_t WebSocket::ComputeReconnectDelay() const
 
 void WebSocket::UpdateReconnect()
 {
-	// A first connect that got a standby answer connects again once its wait passed.
-	if (m_nextStandbyConnect != -1 && (m_bReconnecting || NowMs() >= m_nextStandbyConnect))
-	{
-		const bool bConnectNow = !m_bReconnecting && !GenOnlineServicesManager::GetInstance()->IsPendingFullTeardown();
-		m_nextStandbyConnect = -1;
-		if (bConnectNow)
-		{
-			Connect(m_strWebsocketAddr.c_str(), m_fnWebsocketConnectedCallback);
-		}
-	}
-
 	if (!m_bReconnecting)
 	{
 		return;
@@ -1182,52 +1207,12 @@ void WebSocket::Tick()
 							continue;
 						}
 
-                        // A standby service copy refuses the upgrade with a 503 in the second after a failover switch.
-                        const bool bStandby = GenOnlineRealtime::IsStandbyAnswer(GenOnlineRealtime::MakeRestOutcome(true, static_cast<int>(httpResponseCode), std::string()), true);
-                        const int64_t standbyDelayMs = m_upgradeStandby.NextDelayMs(bStandby, NowMs());
-                        if (standbyDelayMs >= 0)
+                        // The service refuses with close codes after the handshake. Behind the tunnel every failed upgrade
+                        // arrives as a 502 whatever the cause, so any status is a lost connection that backs off.
+                        m_upgradeStandby.Reset();
+                        if (m_bReconnecting)
                         {
-                            // The wait neither grows the backoff nor tears down a first connect.
-                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Connection refused with status %ld by a standby service, connecting again in %lld ms", httpResponseCode, static_cast<long long>(standbyDelayMs));
-                            if (m_bReconnecting)
-                            {
-                                m_reconnectAttemptStarted = -1;
-                                m_nextReconnectAttempt = NowMs() + standbyDelayMs;
-                            }
-                            else
-                            {
-                                m_nextStandbyConnect = NowMs() + standbyDelayMs;
-                            }
-                        }
-                        // 401 bad token and 409 session not registered get one refresh and registration, a 403 play ban ends the session
-                        else if ((httpResponseCode == 401 || httpResponseCode == 409) && !m_bHubSessionRecoveryTried)
-                        {
-                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Connection refused with status %ld, renewing the session", httpResponseCode);
-                            RecoverHubSession();
-                        }
-                        else if (httpResponseCode == 403)
-                        {
-                            // The refused upgrade carries no body, the ban check reads the reason and expiry and ends the session.
-                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Connection refused with status %ld, reading the ban", httpResponseCode);
-                            EndReconnect();
-                            GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-                            if (pAuth != nullptr)
-                            {
-                                pAuth->ReportRealtimeBan();
-                            }
-                            else
-                            {
-                                GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::MODERATION_BAN);
-                            }
-                        }
-                        else if (httpResponseCode == 401 || httpResponseCode == 409)
-                        {
-                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] Connection refused with status %ld", httpResponseCode);
-                            EndReconnect();
-                            GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::AUTH_FAILED);
-                        }
-                        else if (m_bReconnecting)
-                        {
+                            m_bStandbyReconnect = false;
                             m_reconnectAttemptStarted = -1;
                             m_nextReconnectAttempt = NowMs() + ComputeReconnectDelay();
                         }
@@ -1240,7 +1225,6 @@ void WebSocket::Tick()
                     }
                     else
                     {
-                        m_upgradeStandby.Reset();
                         if (m_bReconnecting)
                         {
                             NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Re-Connected");
@@ -1523,7 +1507,8 @@ void GenOnlineRoomsInterface::SetRealtimeRooms(const std::vector<GenOnlineRealti
 	m_vecRealtimeRooms.clear();
 	for (const GenOnlineRealtime::ChannelInfo& room : rooms)
 	{
-		const int parentRoomID = room.parent_id.isNull || room.parent_id.value <= 0 ? -1 : static_cast<int>(room.parent_id.value);
+		// Channel ids start at 0, so a parent_id of 0 names a real parent room.
+		const int parentRoomID = room.parent_id.isNull || room.parent_id.value < 0 ? -1 : static_cast<int>(room.parent_id.value);
 		m_vecRealtimeRooms.emplace_back(static_cast<int>(room.id), room.name,
 			room.show_all_matches ? ERoomFlags::ROOM_FLAGS_SHOW_ALL_MATCHES : ERoomFlags::ROOM_FLAGS_DEFAULT, parentRoomID);
 	}
