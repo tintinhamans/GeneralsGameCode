@@ -86,16 +86,9 @@ void GenOnlineSocialInterface::AcceptPendingRequest(int64_t target_user_id)
 {
 	CallSocialRest(GenOnlineRealtimeBridge::RestMethod::Post, GenOnlineRealtime::RestFriendRequestAcceptPath(target_user_id), std::string(), [target_user_id](GenOnlineSocialInterface* pThis)
 		{
+			// The new friend's FriendPresence usually arrived before this answer and is kept on the request.
 			std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
-			auto it = pThis->m_mapPendingRequests.find(target_user_id);
-			if (it != pThis->m_mapPendingRequests.end())
-			{
-				// Presence arrives as FriendPresence.
-				FriendsEntry entry = it->second;
-				entry.online = false;
-				pThis->m_mapFriends.insert_or_assign(target_user_id, entry);
-				pThis->m_mapPendingRequests.erase(it);
-			}
+			GenOnlineRealtime::MoveAcceptedRequest(pThis->m_mapFriends, pThis->m_mapPendingRequests, target_user_id);
 		});
 	if (m_numTotalNotifications > 0) --m_numTotalNotifications;
 	TriggerCallback_OnNumberGlobalNotificationsChanged();
@@ -477,28 +470,17 @@ void GenOnlineSocialInterface::OnRealtimeFriendRemoved(int64_t user_id)
 
 void GenOnlineSocialInterface::OnRealtimeFriendPresence(const GenOnlineRealtime::FriendPresenceEvent& event)
 {
-	std::string strName;
-	bool bOnlineChanged = false;
-	bool bPresenceChanged = false;
+	const std::string strPresence = GenOnlineRealtimeBridge::ActivityText(event.activity);
+	GenOnlineRealtime::FriendPresenceChange change;
 	{
 		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
-		auto it = m_mapFriends.find(event.user_id);
-		if (it == m_mapFriends.end())
-		{
-			return;
-		}
-		const std::string strPresence = GenOnlineRealtimeBridge::ActivityText(event.activity);
-		bOnlineChanged = it->second.online != event.online;
-		bPresenceChanged = it->second.presence != strPresence;
-		it->second.online = event.online;
-		it->second.presence = strPresence;
-		strName = it->second.display_name;
+		change = GenOnlineRealtime::ApplyFriendPresence(m_mapFriends, m_mapPendingRequests, event, strPresence);
 	}
-	if (bOnlineChanged)
+	if (change.onlineChanged)
 	{
-		OnOnlineStatusChanged(strName, event.online);
+		OnOnlineStatusChanged(change.displayName, event.online);
 	}
-	if (bOnlineChanged || bPresenceChanged)
+	if (change.friendChanged)
 	{
 		RefreshCommunicator();
 	}

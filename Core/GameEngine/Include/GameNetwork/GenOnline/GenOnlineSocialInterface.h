@@ -2,6 +2,7 @@
 
 #include "GenOnlineInclude.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeDirectMessages.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeFriendRoster.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 #include "NetworkMesh.h"
 #include "GameNetwork/RankPointValue.h"
@@ -11,14 +12,6 @@ namespace GenOnlineRealtimeBridge
 {
 enum class RestMethod;
 }
-
-struct FriendsEntry
-{
-	int64_t user_id = -1;
-	std::string display_name;
-	bool online;
-	std::string presence;
-};
 
 struct FriendsResult
 {

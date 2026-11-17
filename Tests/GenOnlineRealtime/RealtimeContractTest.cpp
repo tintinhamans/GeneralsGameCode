@@ -26,6 +26,7 @@
 #include "GameNetwork/GenOnline/Realtime/RealtimeChannelChat.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeConnectionTimeline.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeDirectMessages.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeFriendRoster.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeHubSession.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeLobbyStart.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMatchmaking.h"
@@ -1685,6 +1686,88 @@ static LobbyState MakeLobbyState(const std::string& state, bool started)
 	return lobby;
 }
 
+static FriendsEntry MakeFriendsEntry(int64_t userID, const std::string& name, bool online)
+{
+	FriendsEntry entry;
+	entry.user_id = userID;
+	entry.display_name = name;
+	entry.online = online;
+	return entry;
+}
+
+static FriendPresenceEvent MakePresence(int64_t userID, bool online, const std::string& activity)
+{
+	FriendPresenceEvent presence;
+	presence.user_id = userID;
+	presence.online = online;
+	presence.activity = activity;
+	return presence;
+}
+
+static void TestFriendRoster()
+{
+	const int64_t requester = 7;
+
+	// The service sends the accepting user FriendPresence before the accept call answers: the new friend is online.
+	{
+		FriendsMap friends;
+		FriendsMap pending;
+		pending.insert_or_assign(requester, MakeFriendsEntry(requester, "Requester", false));
+		FriendPresenceChange change = ApplyFriendPresence(friends, pending, MakePresence(requester, true, "in_game"), "In game");
+		CHECK(!change.friendChanged);
+		CHECK(!change.onlineChanged);
+		CHECK(friends.empty());
+		CHECK(MoveAcceptedRequest(friends, pending, requester));
+		CHECK(pending.empty());
+		CHECK(friends.size() == 1);
+		CHECK(friends[requester].online);
+		CHECK(friends[requester].presence == "In game");
+		CHECK(friends[requester].display_name == "Requester");
+	}
+
+	// The accept call answers first: the friend is listed offline until FriendPresence arrives.
+	{
+		FriendsMap friends;
+		FriendsMap pending;
+		pending.insert_or_assign(requester, MakeFriendsEntry(requester, "Requester", false));
+		CHECK(MoveAcceptedRequest(friends, pending, requester));
+		CHECK(!friends[requester].online);
+		FriendPresenceChange change = ApplyFriendPresence(friends, pending, MakePresence(requester, true, "menu"), "Menu");
+		CHECK(change.friendChanged);
+		CHECK(change.onlineChanged);
+		CHECK(change.displayName == "Requester");
+		CHECK(friends[requester].online);
+		CHECK(friends[requester].presence == "Menu");
+	}
+
+	// A friend's presence changes as before; the same presence again changes nothing.
+	{
+		FriendsMap friends;
+		FriendsMap pending;
+		friends.insert_or_assign(requester, MakeFriendsEntry(requester, "Friend", true));
+		friends[requester].presence = "Menu";
+		FriendPresenceChange same = ApplyFriendPresence(friends, pending, MakePresence(requester, true, "menu"), "Menu");
+		CHECK(!same.friendChanged);
+		CHECK(!same.onlineChanged);
+		FriendPresenceChange offline = ApplyFriendPresence(friends, pending, MakePresence(requester, false, "offline"), "Offline");
+		CHECK(offline.friendChanged);
+		CHECK(offline.onlineChanged);
+		CHECK(!friends[requester].online);
+	}
+
+	// Presence of a user who is neither a friend nor pending, and an accept of no pending request, change nothing.
+	{
+		FriendsMap friends;
+		FriendsMap pending;
+		FriendPresenceChange change = ApplyFriendPresence(friends, pending, MakePresence(requester, true, "menu"), "Menu");
+		CHECK(!change.friendChanged);
+		CHECK(friends.empty());
+		CHECK(pending.empty());
+		CHECK(!MoveAcceptedRequest(friends, pending, requester));
+		CHECK(friends.empty());
+	}
+}
+
 static void TestLobbyStateStart()
 {
 	GameStartEvent start;
@@ -2551,6 +2634,7 @@ int main(int argc, char** argv)
 	TestDirectMessagePeer();
 	TestDirectMessageUnread();
 	TestDirectConversation();
+	TestFriendRoster();
 	TestLobbyStateStart();
 	TestFormEncoding();
 	TestLoopbackCallback();
