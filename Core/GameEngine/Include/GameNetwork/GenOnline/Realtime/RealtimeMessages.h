@@ -371,11 +371,14 @@ struct LobbySummaryMap : WireObject
 {
 	std::string name;
 	bool official = false;
+	// The map path the host sent, as in LobbyState. Absent from a service that does not list it.
+	std::optional<std::string> path;
 
 	template <class V> void Fields(V& v)
 	{
 		v("name", name);
 		v("official", official);
+		v("path", path);
 	}
 };
 

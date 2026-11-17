@@ -2264,6 +2264,20 @@ static void TestConnectionStep()
 }
 
 // A provider name is 1 to 32 characters of a-z, 0-9 and _, and gns is reserved.
+// The lobby list may carry the map path. A service without it still parses, with the path left out.
+static void TestLobbySummaryMapPath()
+{
+	const json withPath = json::parse(R"j({"name":"Alpine Assault (2)","official":true,"path":"alpine assault.map"})j");
+	LobbySummaryMap map = withPath.get<LobbySummaryMap>();
+	CHECK(map.path.has_value() && *map.path == "alpine assault.map");
+	CHECK(json(map) == withPath);
+
+	const json withoutPath = json::parse(R"j({"name":"Alpine Assault (2)","official":true})j");
+	LobbySummaryMap legacy = withoutPath.get<LobbySummaryMap>();
+	CHECK(!legacy.path.has_value());
+	CHECK(json(legacy) == withoutPath);
+}
+
 static void TestPluginTransportName()
 {
 	CHECK(IsPluginTransportName("eos"));
@@ -2442,6 +2456,7 @@ int main(int argc, char** argv)
 	TestModerationText();
 	TestConnectionStep();
 	TestPluginTransportName();
+	TestLobbySummaryMapPath();
 	TestStepAttemptWatch();
 	TestAnticheatHoldQueue();
 

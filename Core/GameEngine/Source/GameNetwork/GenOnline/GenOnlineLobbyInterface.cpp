@@ -216,6 +216,29 @@ static uint16_t SlotStateFromWire(const std::string& state)
 	return SlotState::SLOT_CLOSED;
 }
 
+// The map path the map cache knows, from the path a lobby carries.
+static std::string GameMapPath(std::string mapPath, bool bOfficial)
+{
+	// The realtime lobby has the map file name the host sent. A map sits in a folder of the same name, which the legacy service added.
+	if (!mapPath.empty() && mapPath.find_first_of("\\/") == std::string::npos)
+	{
+		const size_t dot = mapPath.find_last_of('.');
+		mapPath = std::format("{}\\{}", mapPath.substr(0, dot), mapPath);
+	}
+
+	// correct map path
+	if (bOfficial)
+	{
+		return std::format("maps\\{}", mapPath.c_str());
+	}
+
+	// TODO_NGMP: This needs to match identically, but why did it change from the base game?
+	AsciiString strUserMapDIr = TheMapCache->getUserMapDir(true);
+	strUserMapDIr.toLower();
+
+	return std::format("{}\\{}", strUserMapDIr.str(), mapPath.c_str());
+}
+
 // A lobby list entry of the hub. The list carries the host as the only member.
 static LobbyEntry LobbyEntryFromSummary(const GenOnlineRealtime::LobbySummary& summary)
 {
@@ -225,6 +248,11 @@ static LobbyEntry LobbyEntryFromSummary(const GenOnlineRealtime::LobbySummary& s
 	lobbyEntry.name = summary.name;
 	lobbyEntry.map_name = summary.map.name;
 	// The list has no map path. The lobby state carries it after the join.
+	// A service that lists the path lets the join say whether this client has the map.
+	if (summary.map.path.has_value())
+	{
+		lobbyEntry.map_path = utf8_to_local(*summary.map.path);
+	}
 	lobbyEntry.map_official = summary.map.official;
 	lobbyEntry.current_players = summary.players;
 	lobbyEntry.max_players = summary.max_players;
@@ -764,26 +792,7 @@ void GenOnlineLobbyInterface::ApplyLobbyUpdate(LobbyEntry lobbyEntry, const std:
 	// store, we'll need it later and lobby obj gets destroyed on leave
 	m_CurrentMatchID = lobbyEntry.match_id;
 
-	// The realtime lobby has the map file name the host sent. A map sits in a folder of the same name, which the legacy service added.
-	if (!lobbyEntry.map_path.empty() && lobbyEntry.map_path.find_first_of("\\/") == std::string::npos)
-	{
-		const size_t dot = lobbyEntry.map_path.find_last_of('.');
-		lobbyEntry.map_path = std::format("{}\\{}", lobbyEntry.map_path.substr(0, dot), lobbyEntry.map_path);
-	}
-
-	// correct map path
-	if (lobbyEntry.map_official)
-	{
-		lobbyEntry.map_path = std::format("maps\\{}", lobbyEntry.map_path.c_str());
-	}
-	else
-	{
-		// TODO_NGMP: This needs to match identically, but why did it change from the base game?
-		AsciiString strUserMapDIr = TheMapCache->getUserMapDir(true);
-		strUserMapDIr.toLower();
-
-		lobbyEntry.map_path = std::format("{}\\{}", strUserMapDIr.str(), lobbyEntry.map_path.c_str());
-	}
+	lobbyEntry.map_path = GameMapPath(lobbyEntry.map_path, lobbyEntry.map_official);
 
 	// did the map change? cache that we need to reset and transmit our ready state
 	bool bNeedsHasMapUpdate = false;
@@ -956,7 +965,10 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Joining lobby with id %d", lobbyInfo.lobbyID);
 
-			bool bHasMap = TheMapCache->findMap(AsciiString(lobbyInfo.map_path.c_str()));
+			// A custom lobby from the list carries the path the host sent, a quick match carries its playlist path as is.
+			const bool bListedPath = lobbyInfo.lobby_type != ELobbyType::QuickMatch && !lobbyInfo.map_path.empty();
+			const std::string strJoinMapPath = bListedPath ? GameMapPath(lobbyInfo.map_path, lobbyInfo.map_official) : lobbyInfo.map_path;
+			bool bHasMap = TheMapCache->findMap(AsciiString(strJoinMapPath.c_str()));
 
 			// create our mesh
 			if (m_pLobbyMesh == nullptr)
