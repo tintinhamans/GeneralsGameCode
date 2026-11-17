@@ -1357,11 +1357,15 @@ void GenOnlineServicesManager::InitSentry()
 	std::string strVersionStr = GetSentryRelease();
 	sentry_options_set_release(options, strVersionStr.c_str());
 
-	// The crash daemon waits this long for the crash report upload before it exits. The default two seconds is too short for the minidump.
+	// The crash daemon waits this long for the crash report upload before it exits. The default two seconds is too short.
 	sentry_options_set_shutdown_timeout(options, 15000);
 
+	// The crash daemon walks the stacks itself and sends the event without a minidump. GlitchTip drops events that carry
+	// a minidump attachment, and the game writes its own dumps anyway.
+	sentry_options_set_crash_reporting_mode(options, SENTRY_CRASH_REPORTING_MODE_NATIVE);
+
 	// Sentry's crash daemon ships as CrashReportHandler.exe beside the game. EAC lets a process whose name starts with CrashReport
-	// read the game after a crash. The daemon walks the stacks itself and attaches its default small dump.
+	// read the game after a crash.
 	wchar_t exePath[MAX_PATH] = {};
 	const DWORD exePathLen = GetModuleFileNameW(nullptr, exePath, MAX_PATH);
 	if (exePathLen > 0 && exePathLen < MAX_PATH)
