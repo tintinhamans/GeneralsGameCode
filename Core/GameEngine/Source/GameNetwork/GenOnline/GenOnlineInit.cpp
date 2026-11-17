@@ -1406,23 +1406,16 @@ void GenOnlineServicesManager::UpdateSentryUser()
 		return;
 	}
 
+	// The numeric account id is the only player detail a crash report holds.
 	int64_t userID = -1;
-	std::string strDisplayname = "Unknown";
 	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	if (pAuthInterface != nullptr)
 	{
 		userID = pAuthInterface->GetUserID();
-		strDisplayname = pAuthInterface->GetDisplayName();
 	}
 	std::string strUserID = std::format("{}", userID);
 
-	sentry_value_t userinfoVal = sentry_value_new_object();
-	sentry_value_set_by_key(userinfoVal, "user_id", sentry_value_new_string(strUserID.c_str()));
-	sentry_value_set_by_key(userinfoVal, "user_displayname", sentry_value_new_string(strDisplayname.c_str()));
-	sentry_set_context("user_info", userinfoVal);
-
 	sentry_set_tag("user_id", strUserID.c_str());
-	sentry_set_tag("user_displayname", strDisplayname.c_str());
 }
 
 void GenOnlineServicesManager::ShutdownSentry()

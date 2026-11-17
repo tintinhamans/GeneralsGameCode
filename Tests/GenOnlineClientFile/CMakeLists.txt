@@ -1,4 +1,4 @@
-# Standalone checks of the client.json file rules, the -packs pack list rules and the plugin role rules. Configure this folder on its own, it does not need the game:
+# Standalone checks of the client.json file rules, the -packs pack list rules, the plugin role rules and the crash report rules. Configure this folder on its own, it does not need the game:
 #   cmake -S Tests/GenOnlineClientFile -B <build> && cmake --build <build> && ctest --test-dir <build>
 cmake_minimum_required(VERSION 3.25)
 project(genonline_client_file_test CXX)
@@ -31,3 +31,9 @@ add_executable(genonline_plugin_roles_test
 )
 target_include_directories(genonline_plugin_roles_test PRIVATE ${GAMEENGINE_DIR}/Include)
 add_test(NAME genonline_plugin_roles_test COMMAND genonline_plugin_roles_test)
+
+add_executable(genonline_crash_report_test
+    CrashReportTest.cpp
+)
+target_include_directories(genonline_crash_report_test PRIVATE ${GAMEENGINE_DIR}/Include)
+add_test(NAME genonline_crash_report_test COMMAND genonline_crash_report_test)

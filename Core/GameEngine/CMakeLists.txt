@@ -1252,6 +1252,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/GenOnlineMatchmakingInterface.h
     Include/GameNetwork/GenOnline/GenOnlineClientDescription.h
     Include/GameNetwork/GenOnline/GenOnlineClientFile.h
+    Include/GameNetwork/GenOnline/GenOnlineCrashReport.h
     Include/GameNetwork/GenOnline/GenOnlinePackList.h
     Include/GameNetwork/GenOnline/GenOnlinePluginRoles.h
     Include/GameNetwork/GenOnline/GenOnlineSettings.h
