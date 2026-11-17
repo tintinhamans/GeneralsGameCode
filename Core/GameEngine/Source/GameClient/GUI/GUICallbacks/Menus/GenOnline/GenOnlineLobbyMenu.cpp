@@ -1775,6 +1775,7 @@ void GenOnlineLobbyMenuShutdown( WindowLayout *layout, void *userData )
 {
 	s_lobbyMenuOpen = FALSE;
 	++s_lobbyMenuGeneration;
+	GenOnlineCloseRightClickMenus();
 
 	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 	if (pRoomsInterface != nullptr)

@@ -84,6 +84,8 @@ extern WindowMsgHandledType GenOnlineMessageRCMenuSystem( GameWindow *window, Un
 /// Selects the row of a chat message and opens its context menu at the mouse: Report on another user's message, Delete
 /// for staff holding chat.delete_any. Nothing opens for a line without a stored message (an empty messageID).
 extern void GenOnlineOpenMessageMenu( GameWindow *listbox, Int row, Int mouseX, Int mouseY, const char *messageID, int64_t authorID );
+/// Closes an open player or message right-click menu, for a screen that goes away without a click.
+extern void GenOnlineCloseRightClickMenus();
 
 // GenOnlinePlayerInfoOverlay
 extern void GenOnlinePlayerInfoOverlayInit( WindowLayout *layout, void *userData );

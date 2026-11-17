@@ -230,7 +230,14 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 
 					GPProfile profileID = (GPProfile)(intptr_t)GadgetListBoxGetItemData(control, rc->pos, 0);
 					RCItemType itemType = (RCItemType)(intptr_t)GadgetListBoxGetItemData(control, rc->pos, 1);
-					UnicodeString nick = UnicodeString(GadgetListBoxGetText(control, rc->pos).str() + 2); // Skip the online/offline indicator
+					// only friend rows start with the online/offline indicator, and a row with unread messages ends with " [n]"
+					std::wstring rowText = GadgetListBoxGetText(control, rc->pos).str();
+					if (itemType == ITEM_BUDDY && rowText.size() >= 2)
+						rowText.erase(0, 2);
+					const size_t unreadSuffix = rowText.rfind(L" [");
+					if (unreadSuffix != std::wstring::npos && !rowText.empty() && rowText.back() == L']')
+						rowText.erase(unreadSuffix);
+					UnicodeString nick(rowText.c_str());
 
 					GadgetListBoxSetSelected(control, rc->pos);
 					if (itemType == ITEM_BUDDY)
@@ -894,11 +901,7 @@ void GenOnlineBuddyOverlayShutdown( WindowLayout *layout, void *userData )
 	listboxIgnore = NULL;
 
 	// a right-click menu of the Communicator closes with it
-	if (rcMenu != nullptr)
-	{
-		closeRightClickMenu(rcMenu);
-		rcMenu = nullptr;
-	}
+	GenOnlineCloseRightClickMenus();
 
 	// hide menu
 	layout->hide( TRUE );
@@ -1399,6 +1402,27 @@ static void DeleteChatMessage(const std::string& messageID)
 				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, UnicodeString(GenOnlineRealtimeBridge::FailureText(outcome).c_str()), false);
 			}
 		});
+}
+
+void GenOnlineCloseRightClickMenus()
+{
+	if (rcMenu != nullptr)
+	{
+		closeRightClickMenu(rcMenu);
+		rcMenu = nullptr;
+	}
+	if (messageMenu != nullptr)
+	{
+		closeRightClickMenu(messageMenu);
+		messageMenu = nullptr;
+		messageMenuID.clear();
+	}
+	// the lobby's player menu is held by the lobby screen alone, it shares the system callback
+	GameWindow *lone = TheWindowManager->winGetLoneWindow();
+	if (lone != nullptr && lone->winGetSystemFunc() == GenOnlineBuddyOverlayRCMenuSystem)
+	{
+		closeRightClickMenu(lone);
+	}
 }
 
 void GenOnlineMessageRCMenuInit( WindowLayout *layout, void *userData )

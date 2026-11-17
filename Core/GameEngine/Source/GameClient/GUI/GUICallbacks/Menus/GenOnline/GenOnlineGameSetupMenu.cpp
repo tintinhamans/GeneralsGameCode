@@ -2471,6 +2471,7 @@ static void shutdownComplete( WindowLayout *layout )
 void GenOnlineGameSetupMenuShutdown( WindowLayout *layout, void *userData )
 {
 	s_gameSetupMenuOpen = FALSE;
+	GenOnlineCloseRightClickMenus();
 	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
 	if (pLobbyInterface != nullptr)
