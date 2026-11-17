@@ -9,6 +9,7 @@ namespace GenOnlineClientFile
 {
 	constexpr int SchemaVersion = 1;
 	constexpr const char* SchemaVersionKey = "schema_version";
+	constexpr const char* SendCrashReportsKey = "send_crash_reports";
 
 	enum class ReadStatus
 	{
@@ -54,6 +55,13 @@ namespace GenOnlineClientFile
 
 	// Replaces an existing file through a temporary file in the same folder. Returns FALSE and writes nothing when the file does not exist.
 	bool WriteExisting(const std::wstring& path, const std::string& bytes);
+
+	// Returns TRUE when crash reports may be sent. A missing file, an unusable file and a missing key keep crash reports on.
+	// A send_crash_reports value other than true turns them off.
+	bool SendCrashReports(const ReadResult& file);
+
+	// Reads the file at path for SendCrashReports only, so a wrong type of another key does not matter. Never creates the file.
+	bool ReadSendCrashReports(const std::wstring& path);
 
 	// Creates the file and its folder with the given content. Returns FALSE and changes nothing when the file already exists.
 	bool CreateNew(const std::wstring& path, const std::string& bytes);

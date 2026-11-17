@@ -1252,6 +1252,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/GenOnlineMatchmakingInterface.h
     Include/GameNetwork/GenOnline/GenOnlineClientDescription.h
     Include/GameNetwork/GenOnline/GenOnlineClientFile.h
+    Include/GameNetwork/GenOnline/GenOnlineCrashReport.h
     Include/GameNetwork/GenOnline/GenOnlinePackList.h
     Include/GameNetwork/GenOnline/GenOnlinePluginRoles.h
     Include/GameNetwork/GenOnline/GenOnlineSettings.h
@@ -1382,4 +1383,20 @@ if(NOT IS_VS6_BUILD)
     if(GENONLINE_ALLOW_UNSIGNED_PLUGINS)
         target_compile_definitions(corei_gameengine_public INTERFACE GENONLINE_ALLOW_UNSIGNED_PLUGINS)
     endif()
+
+    # Crash reports go to the DSN set at build time. An empty DSN turns crash reports off.
+    set(GENONLINE_SENTRY_DSN "" CACHE STRING "Crash report DSN of this build, empty turns crash reports off")
+    if(GENONLINE_SENTRY_DSN MATCHES "[\"\\\\]")
+        message(FATAL_ERROR "GENONLINE_SENTRY_DSN must not contain quotes or backslashes")
+    endif()
+    set(GENONLINE_SENTRY_ENVIRONMENT "dev" CACHE STRING "Crash report environment of this build: live, stage or dev")
+    set_property(CACHE GENONLINE_SENTRY_ENVIRONMENT PROPERTY STRINGS live stage dev)
+    if(NOT GENONLINE_SENTRY_ENVIRONMENT MATCHES "^(live|stage|dev)$")
+        message(FATAL_ERROR "GENONLINE_SENTRY_ENVIRONMENT must be live, stage or dev, not '${GENONLINE_SENTRY_ENVIRONMENT}'")
+    endif()
+    set(GENONLINE_CRASH_REPORT_CONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/GenOnlineCrashReportConfig")
+    file(CONFIGURE OUTPUT "${GENONLINE_CRASH_REPORT_CONFIG_DIR}/GenOnlineCrashReportConfig.h"
+        CONTENT "#pragma once\n#define GENONLINE_SENTRY_DSN \"@GENONLINE_SENTRY_DSN@\"\n#define GENONLINE_SENTRY_ENVIRONMENT \"@GENONLINE_SENTRY_ENVIRONMENT@\"\n"
+        @ONLY)
+    target_include_directories(corei_gameengine_public INTERFACE "${GENONLINE_CRASH_REPORT_CONFIG_DIR}")
 endif()

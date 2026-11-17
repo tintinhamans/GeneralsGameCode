@@ -1389,7 +1389,7 @@ CURLcode WebSocket::ReceiveOneFrame()
 
 		// send event to sentry
 #if defined(GENONLINE_USE_SENTRY)
-        if (TheGenOnlineGame != nullptr)
+        if (TheGenOnlineGame != nullptr && GenOnlineServicesManager::IsSentryActive())
         {
 			AsciiString sentryMsg;
             sentryMsg.format("Got websocket disconnect (ERROR: %s), Attempting reconnect", curl_easy_strerror(ret));

@@ -737,6 +737,8 @@ public:
 	static void InitSentry();
 	static void UpdateSentryUser();
 	static void ShutdownSentry();
+	// Returns TRUE between a successful InitSentry and ShutdownSentry. Every Sentry call outside InitSentry checks it first.
+	static Bool IsSentryActive();
 	// The game's unhandled exception filter hands a crash on to Sentry's crashpad filter after writing its own dumps.
 	// Returns FALSE when there is no Sentry filter to hand it to, before InitSentry or after ShutdownSentry.
 	static Bool ForwardCrashToSentry(struct _EXCEPTION_POINTERS* exceptionInfo, LONG* result);

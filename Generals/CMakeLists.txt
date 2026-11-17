@@ -40,6 +40,11 @@ endif()
 if(RTS_INSTALL_PREFIX_GENERALS)
     install(TARGETS g_generals RUNTIME DESTINATION "${RTS_INSTALL_PREFIX_GENERALS}")
     install(FILES $<TARGET_PDB_FILE:g_generals> DESTINATION "${RTS_INSTALL_PREFIX_GENERALS}" OPTIONAL)
+    if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/crashpad_handler.exe")
+        # sentry's crashpad backend needs this watcher executable next to the game, see Main/CMakeLists.txt.
+        install(PROGRAMS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/crashpad_handler.exe"
+            DESTINATION "${RTS_INSTALL_PREFIX_GENERALS}" RENAME CrashReportHandler.exe)
+    endif()
 
     if(TARGET g_worldbuilder)
         install(TARGETS g_worldbuilder RUNTIME DESTINATION "${RTS_INSTALL_PREFIX_GENERALS}")
