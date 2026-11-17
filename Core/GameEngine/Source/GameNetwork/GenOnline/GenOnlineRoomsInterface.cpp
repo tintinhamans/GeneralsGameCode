@@ -1511,7 +1511,8 @@ void GenOnlineRoomsInterface::SetRealtimeRooms(const std::vector<GenOnlineRealti
 	m_vecRealtimeRooms.clear();
 	for (const GenOnlineRealtime::ChannelInfo& room : rooms)
 	{
-		const int parentRoomID = room.parent_id.isNull || room.parent_id.value <= 0 ? -1 : static_cast<int>(room.parent_id.value);
+		// Channel ids start at 0, so a parent_id of 0 names a real parent room.
+		const int parentRoomID = room.parent_id.isNull || room.parent_id.value < 0 ? -1 : static_cast<int>(room.parent_id.value);
 		m_vecRealtimeRooms.emplace_back(static_cast<int>(room.id), room.name,
 			room.show_all_matches ? ERoomFlags::ROOM_FLAGS_SHOW_ALL_MATCHES : ERoomFlags::ROOM_FLAGS_DEFAULT, parentRoomID);
 	}
