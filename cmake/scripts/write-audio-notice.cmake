@@ -13,7 +13,7 @@ if(GIT_FOUND)
         OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
     if(commit_result EQUAL 0 AND commit MATCHES "^[0-9a-f]+$")
         set(NOTICE_SOURCE_REVISION "commit ${commit}")
-        execute_process(COMMAND "${GIT_EXECUTABLE}" describe --tags --exact-match HEAD
+        execute_process(COMMAND "${GIT_EXECUTABLE}" describe --tags --exact-match --match "v[0-9]*" HEAD
             WORKING_DIRECTORY "${SOURCE_DIR}" OUTPUT_VARIABLE tag RESULT_VARIABLE tag_result
             OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
         if(tag_result EQUAL 0 AND NOT tag STREQUAL "")
