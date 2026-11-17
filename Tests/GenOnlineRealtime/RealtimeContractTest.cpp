@@ -787,6 +787,12 @@ static void TestServerSwitching()
 	CHECK(SwitchReconnectDelayMs(std::optional<int64_t>(0), 0.9) == 0);
 	CHECK(SwitchReconnectDelayMs(std::optional<int64_t>(-5), 0.9) == 0);
 	CHECK(SwitchReconnectDelayMs(std::optional<int64_t>(600000), 0.9) == ReconnectPolicy::STEP_CAP_MS);
+
+	// For a while after a server switch the new copy may still be starting, so retries stay short.
+	CHECK(SwitchWindowDelayMs(16000, 1000, 1000 + 10000) == SWITCH_FAST_RETRY_MAX_MS);
+	CHECK(SwitchWindowDelayMs(1000, 1000, 1000 + 10000) == 1000);
+	CHECK(SwitchWindowDelayMs(16000, 1000, 1000 + SWITCH_FAST_RETRY_WINDOW_MS) == 16000);
+	CHECK(SwitchWindowDelayMs(16000, -1, 5000) == 16000);
 	// Without a ServerSwitching the delay is a random 0 to 1 second.
 	CHECK(SwitchReconnectDelayMs(std::nullopt, 0.0) == 0);
 	CHECK(SwitchReconnectDelayMs(std::nullopt, 0.5) == 500);
