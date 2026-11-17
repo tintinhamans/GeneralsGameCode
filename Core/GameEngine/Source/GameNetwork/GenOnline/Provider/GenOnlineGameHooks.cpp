@@ -22,6 +22,7 @@
 
 #include "GameNetwork/GenOnline/Provider/GenOnlineGameHooks.h"
 #include "GameNetwork/GenOnline/Provider/GenOnlineNetworkOverlay.h"
+#include "GameNetwork/GenOnline/GenOnlineCrashReport.h"
 
 #include "Common/FileSystem.h"
 #include "GameClient/Color.h"
@@ -180,24 +181,12 @@ Bool GenOnlineGameHooks::isLoggedIn()
 void GenOnlineGameHooks::onCRCMismatch( const UnicodeString &strMismatchDetails )
 {
 #if defined(GENONLINE_USE_SENTRY)
-	if (TheGenOnlineGame != nullptr)
+	if (TheGenOnlineGame != nullptr && GenOnlineServicesManager::IsSentryActive())
 	{
-		// local player info
-		int64_t userID = -1;
-		std::string strDisplayname = "Unknown";
-		GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-		if (pAuthInterface != nullptr)
-		{
-			userID = pAuthInterface->GetUserID();
-			strDisplayname = pAuthInterface->GetDisplayName();
-		}
-		std::string strUserID = std::format("{}", userID);
-
-		sentry_set_extra("user_id", sentry_value_new_int32(userID));
-		sentry_set_extra("user_displayname", sentry_value_new_string(strDisplayname.c_str()));
-
+		// The user_id tag on the scope identifies the local player.
+		const UnicodeString strReportDetails(GenOnlineCrashReport::WithoutPlayerNames(strMismatchDetails.str()).c_str());
 		AsciiString sentryMsg;
-		sentryMsg.translate(strMismatchDetails);
+		sentryMsg.translate(strReportDetails);
 
 		// send event to sentry
 		sentry_capture_event(sentry_value_new_message_event(

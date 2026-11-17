@@ -185,6 +185,29 @@ ReadResult Read(const std::wstring& path, const std::vector<KnownKey>& knownKeys
 	return Classify(true, bReadable, bytes, knownKeys);
 }
 
+bool SendCrashReports(const ReadResult& file)
+{
+	if (file.status != ReadStatus::Ok && file.status != ReadStatus::Newer)
+	{
+		return true;
+	}
+	const auto value = file.document.find(SendCrashReportsKey);
+	if (value == file.document.end())
+	{
+		return true;
+	}
+	return value->is_boolean() && value->get<bool>();
+}
+
+bool ReadSendCrashReports(const std::wstring& path)
+{
+	if (path.empty())
+	{
+		return true;
+	}
+	return SendCrashReports(Read(path, {}));
+}
+
 bool CreateNew(const std::wstring& path, const std::string& bytes)
 {
 	const size_t slash = path.find_last_of(L"\\/");
