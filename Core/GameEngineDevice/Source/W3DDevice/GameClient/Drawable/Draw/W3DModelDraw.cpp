@@ -1720,6 +1720,7 @@ W3DModelDraw::W3DModelDraw(Thing *thing, const ModuleData* moduleData) : DrawMod
 	m_hexColor = 0;
 	m_renderObject = nullptr;
 	m_windFlagCount = -1;	// Ronin @feature 15/11/2026 DX9: the cloth flags, looked for on the first frame
+	m_turretTwinsLooked = FALSE;	// Ronin @feature 16/11/2026 DX9: the turrets' twin bones, likewise
 	m_shadow = nullptr;
 	m_shadowEnabled = TRUE;
 	m_terrainDecal = nullptr;
@@ -2416,6 +2417,27 @@ void W3DModelDraw::handleClientTurretPositioning()
 	if (!m_curState || !(m_curState->m_validStuff & ModelConditionInfo::TURRETS_VALID))
 		return;
 
+	// Ronin @feature 16/11/2026 DX9: a bone named as a turret bone plus "_2" turns with it - a second gun on the same
+	// turret (Generals 2's paired side guns); looked for once per render object.
+	if (!m_turretTwinsLooked && m_renderObject != nullptr)
+	{
+		for (int t = 0; t < MAX_TURRETS; ++t)
+		{
+			const NameKeyType keys[2] = { m_curState->m_turrets[t].m_turretAngleNameKey, m_curState->m_turrets[t].m_turretPitchNameKey };
+			for (int k = 0; k < 2; ++k)
+			{
+				m_turretTwinBone[t][k] = 0;
+				if (keys[k] != NAMEKEY_INVALID)
+				{
+					AsciiString twin;
+					twin.format("%s_2", KEYNAME(keys[k]).str());
+					m_turretTwinBone[t][k] = m_renderObject->Get_Bone_Index(twin.str());	// 0 = no such bone
+				}
+			}
+		}
+		m_turretTwinsLooked = TRUE;
+	}
+
 	for (int tslot = 0; tslot < MAX_TURRETS; ++tslot)
 	{
 		const ModelConditionInfo::TurretInfo& tur = m_curState->m_turrets[tslot];
@@ -2442,6 +2464,11 @@ void W3DModelDraw::handleClientTurretPositioning()
 				{
 					m_renderObject->Capture_Bone( tur.m_turretAngleBone );
 					m_renderObject->Control_Bone( tur.m_turretAngleBone, turretXfrm );
+					if (m_turretTwinsLooked && m_turretTwinBone[tslot][0] > 0)	// Ronin @feature 16/11/2026 DX9: its twin turns with it
+					{
+						m_renderObject->Capture_Bone( m_turretTwinBone[tslot][0] );
+						m_renderObject->Control_Bone( m_turretTwinBone[tslot][0], turretXfrm );
+					}
 				}
 			}
 
@@ -2456,6 +2483,11 @@ void W3DModelDraw::handleClientTurretPositioning()
 				{
 					m_renderObject->Capture_Bone( tur.m_turretPitchBone );
 					m_renderObject->Control_Bone( tur.m_turretPitchBone, turretPitchXfrm );
+					if (m_turretTwinsLooked && m_turretTwinBone[tslot][1] > 0)	// Ronin @feature 16/11/2026 DX9: its twin pitches with it
+					{
+						m_renderObject->Capture_Bone( m_turretTwinBone[tslot][1] );
+						m_renderObject->Control_Bone( m_turretTwinBone[tslot][1], turretPitchXfrm );
+					}
 				}
 			}
 		}
@@ -3075,6 +3107,7 @@ void W3DModelDraw::setModelState(const ModelConditionInfo* newState)
 			DEBUG_ASSERTCRASH(m_renderObject, ("*** ASSET ERROR: Model %s not found!",newState->m_modelName.str()));
 		}
 		m_windFlagCount = -1;	// Ronin @feature 15/11/2026 DX9: its cloth flags are looked for again
+		m_turretTwinsLooked = FALSE;	// Ronin @feature 16/11/2026 DX9: and its turrets' twin bones
 
 		//BONEPOS_LOG(("validateStuff() from within W3DModelDraw::setModelState()"));
 		//BONEPOS_DUMPREAL(draw->getScale());

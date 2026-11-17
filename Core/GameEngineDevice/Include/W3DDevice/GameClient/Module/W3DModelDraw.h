@@ -506,6 +506,10 @@ private:
 	Int												m_windFlagCount;
 	Int												m_windFlagBone[MAX_WIND_FLAGS];
 	Real												m_windFlagYaw[MAX_WIND_FLAGS];
+	// Ronin @feature 16/11/2026 DX9: each turret's twin bones on m_renderObject (angle, pitch: <bone>_2, 0 = none);
+	// m_turretTwinsLooked FALSE = not looked for yet on this render object.
+	Int												m_turretTwinBone[MAX_TURRETS][2];
+	Bool												m_turretTwinsLooked;
 	Shadow*												m_shadow;													///< Updates/Renders shadows of this object
 	Shadow*												m_terrainDecal;
 	TerrainTracksRenderObjClass*	m_trackRenderObject;							///< This is rendered under object
