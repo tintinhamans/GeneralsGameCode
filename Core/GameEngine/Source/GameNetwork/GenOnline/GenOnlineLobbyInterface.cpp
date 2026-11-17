@@ -763,6 +763,13 @@ void GenOnlineLobbyInterface::ApplyLobbyUpdate(LobbyEntry lobbyEntry, const std:
 	// store, we'll need it later and lobby obj gets destroyed on leave
 	m_CurrentMatchID = lobbyEntry.match_id;
 
+	// The realtime lobby has the map file name the host sent. A map sits in a folder of the same name, which the legacy service added.
+	if (!lobbyEntry.map_path.empty() && lobbyEntry.map_path.find_first_of("\\/") == std::string::npos)
+	{
+		const size_t dot = lobbyEntry.map_path.find_last_of('.');
+		lobbyEntry.map_path = std::format("{}\\{}", lobbyEntry.map_path.substr(0, dot), lobbyEntry.map_path);
+	}
+
 	// correct map path
 	if (lobbyEntry.map_official)
 	{
