@@ -2603,6 +2603,19 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 						}
 					}
 				}
+				else if (controlID == listboxLobbyChatID)
+				{
+					// a channel chat line keeps the key of its message
+					RightClickStruct* rc = (RightClickStruct*)mData2;
+					GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+					if (rc->pos < 0 || pRoomsInterface == nullptr)
+						break;
+					const uint32_t key = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(GadgetListBoxGetItemData(control, rc->pos, 0)));
+					std::string messageID;
+					int64_t authorID = 0;
+					pRoomsInterface->FindChatMessage(key, messageID, authorID);
+					GenOnlineOpenMessageMenu(control, rc->pos, rc->mouseX, rc->mouseY, messageID.c_str(), authorID);
+				}
 				break;
 		}
 

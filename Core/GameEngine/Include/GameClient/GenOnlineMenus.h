@@ -79,6 +79,11 @@ extern WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, Uns
 extern WindowMsgHandledType GenOnlinePopupBuddyNotificationSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 extern void GenOnlineBuddyOverlayRCMenuInit( WindowLayout *layout, void *userData );
 extern WindowMsgHandledType GenOnlineBuddyOverlayRCMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+extern void GenOnlineMessageRCMenuInit( WindowLayout *layout, void *userData );
+extern WindowMsgHandledType GenOnlineMessageRCMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+/// Selects the row of a chat message and opens its context menu at the mouse: Report on another user's message, Delete
+/// for staff holding chat.delete_any. Nothing opens for a line without a stored message (an empty messageID).
+extern void GenOnlineOpenMessageMenu( GameWindow *listbox, Int row, Int mouseX, Int mouseY, const char *messageID, int64_t authorID );
 
 // GenOnlinePlayerInfoOverlay
 extern void GenOnlinePlayerInfoOverlayInit( WindowLayout *layout, void *userData );

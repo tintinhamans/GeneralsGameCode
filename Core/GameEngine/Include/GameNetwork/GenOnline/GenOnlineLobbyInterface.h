@@ -538,6 +538,12 @@ public:
 		m_OnChatMessageRemovedCallback = std::move(cbRemove);
 	}
 
+	// The message id and author of a shown lobby chat line, for its context menu.
+	bool FindChatMessage(uint32_t key, std::string& messageID, int64_t& authorID) const
+	{
+		return m_LobbyChat.MessageOf(key, messageID, authorID);
+	}
+
 	void RegisterForJoinLobbyCallback(std::function<void(EJoinLobbyResult)> cb)
 	{
 		m_callbackJoinedLobby = cb;

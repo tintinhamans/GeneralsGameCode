@@ -61,6 +61,9 @@
 #include "GameNetwork/GenOnline/GenOnlineInit.h"
 #include "GameNetwork/GenOnline/GenOnlineLobbyInterface.h"
 #include "GameNetwork/GenOnline/GenOnlineAuth.h"
+#include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeMessageActions.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeRest.h"
 #include <unordered_set>
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
@@ -111,6 +114,7 @@ static UnsignedInt noticeExpires = 0;
 void GenOnlineSetUnignoreText( WindowLayout *layout, AsciiString nick, GPProfile id);
 void GenOnlineRefreshIgnoreList();
 static void closeRightClickMenu(GameWindow *win);
+static int64_t GetSelectedBuddyID();
 
 void GenOnlineShowNotificationBox( AsciiString nick, UnicodeString message, bool bPlaySound);
 void GenOnlineDeleteNotificationBox();
@@ -259,6 +263,17 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 					GenOnlineSetUnignoreText(rcLayout, rcData->m_nick, rcData->m_id);
 					rcMenu->winSetUserData((void *)rcData);
 					TheWindowManager->winSetLoneWindow(rcMenu);
+				}
+				else if( controlID == buddyControls.listboxChatID )
+				{
+					// a line keeps the key of its message, the shown conversation is the selected buddy's
+					RightClickStruct *rc = (RightClickStruct *)mData2;
+					GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+					if (rc->pos < 0 || pSocialInterface == nullptr)
+						break;
+					const uint32_t key = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(GadgetListBoxGetItemData(control, rc->pos, 0)));
+					const GenOnlineRealtime::ChatMessage* message = pSocialInterface->FindConversationMessage(GetSelectedBuddyID(), key);
+					GenOnlineOpenMessageMenu(control, rc->pos, rc->mouseX, rc->mouseY, message != nullptr ? message->id.c_str() : "", message != nullptr ? message->author.id : 0);
 				}
 				else
 					return MSG_IGNORED;
@@ -1353,6 +1368,155 @@ static void closeRightClickMenu(GameWindow *win)
 		winLay = nullptr;
 
 	}
+}
+
+// The context menu of a chat message --------------------------------------------------------------------
+static GameWindow *messageMenu = nullptr;
+static std::string messageMenuID;
+static NameKeyType buttonReportMessageID = NAMEKEY_INVALID;
+static NameKeyType buttonDeleteMessageID = NAMEKEY_INVALID;
+
+static void ReportChatMessage(const std::string& messageID)
+{
+	GenOnlineRealtime::ReportBody body;
+	body.message_id = messageID;
+	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Post, GenOnlineRealtime::RestReportsPath(), nlohmann::json(body).dump(), [](const GenOnlineRealtime::RestOutcome& outcome)
+		{
+			const UnicodeString text = outcome.Succeeded()
+				? TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOMessageReported", L"Message reported. Staff will review it.")
+				: UnicodeString(GenOnlineRealtimeBridge::FailureText(outcome).c_str());
+			GenOnlineShowNotificationBox(AsciiString::TheEmptyString, text, false);
+		});
+}
+
+// Every receiver gets MessageDelete from the service, which removes the line in each chat
+static void DeleteChatMessage(const std::string& messageID)
+{
+	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Delete, GenOnlineRealtime::RestMessagePath(messageID), nlohmann::json(GenOnlineRealtime::ReasonBody()).dump(), [](const GenOnlineRealtime::RestOutcome& outcome)
+		{
+			if (!outcome.Succeeded())
+			{
+				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, UnicodeString(GenOnlineRealtimeBridge::FailureText(outcome).c_str()), false);
+			}
+		});
+}
+
+void GenOnlineMessageRCMenuInit( WindowLayout *layout, void *userData )
+{
+	buttonReportMessageID = TheNameKeyGenerator->nameToKey("RCMessageMenu.wnd:ButtonReport");
+	buttonDeleteMessageID = TheNameKeyGenerator->nameToKey("RCMessageMenu.wnd:ButtonDelete");
+}
+
+void GenOnlineOpenMessageMenu( GameWindow *listbox, Int row, Int mouseX, Int mouseY, const char *messageID, int64_t authorID )
+{
+	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	const int64_t localUserID = pAuth != nullptr ? pAuth->GetUserID() : -1;
+	const std::string id = messageID != nullptr ? messageID : "";
+	const GenOnlineRealtime::MessageMenu menu = GenOnlineRealtime::MessageMenuFor(id, authorID, localUserID, GenOnlineRealtimeBridge::HasPermission(GenOnlineRealtime::PERMISSION_DELETE_ANY));
+	if (listbox != nullptr && row >= 0)
+	{
+		GadgetListBoxSetSelected(listbox, row);
+	}
+	if (!menu.Any())
+	{
+		return;
+	}
+
+	WindowLayout *layout = TheWindowManager->winCreateLayout("Menus/GenOnlineRCMessageMenu.wnd");
+	if (layout == nullptr)
+	{
+		return;
+	}
+	GameWindow *menuWindow = layout->getFirstWindow();
+	layout->runInit();
+
+	GameWindow *buttonReport = TheWindowManager->winGetWindowFromId(menuWindow, buttonReportMessageID);
+	GameWindow *buttonDelete = TheWindowManager->winGetWindowFromId(menuWindow, buttonDeleteMessageID);
+	if (buttonReport != nullptr)
+	{
+		GadgetButtonSetText(buttonReport, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOReportMessage", L"Report"));
+	}
+	// one entry: it takes the first row and the menu loses the second
+	if (buttonReport != nullptr && buttonDelete != nullptr && menu.report != menu.remove)
+	{
+		Int reportX, reportY, deleteX, deleteY, width, height;
+		buttonReport->winGetPosition(&reportX, &reportY);
+		buttonDelete->winGetPosition(&deleteX, &deleteY);
+		if (!menu.report)
+		{
+			buttonReport->winHide(TRUE);
+			buttonDelete->winSetPosition(reportX, reportY);
+		}
+		else
+		{
+			buttonDelete->winHide(TRUE);
+		}
+		menuWindow->winGetSize(&width, &height);
+		menuWindow->winSetSize(width, height - (deleteY - reportY));
+	}
+
+	ICoord2D size, pos;
+	menuWindow->winGetSize(&size.x, &size.y);
+	pos.x = mouseX;
+	pos.y = mouseY;
+	const Int displayWidth = (Int)TheDisplay->getWidth();
+	const Int displayHeight = (Int)TheDisplay->getHeight();
+	if (pos.x + size.x > displayWidth)
+		pos.x = displayWidth - size.x;
+	if (pos.y + size.y > displayHeight)
+		pos.y = displayHeight - size.y;
+	menuWindow->winSetPosition(pos.x, pos.y);
+	menuWindow->winBringToTop();
+	menuWindow->winHide(FALSE);
+
+	messageMenu = menuWindow;
+	messageMenuID = id;
+	TheWindowManager->winSetLoneWindow(menuWindow);
+}
+
+WindowMsgHandledType GenOnlineMessageRCMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 )
+{
+	switch (msg)
+	{
+		case GWM_CREATE:
+			break;
+
+		case GWM_DESTROY:
+			if (messageMenu == window)
+			{
+				messageMenu = nullptr;
+				messageMenuID.clear();
+			}
+			break;
+
+		case GGM_CLOSE:
+			closeRightClickMenu(window);
+			break;
+
+		case GBM_SELECTED:
+		{
+			const Int controlID = ((GameWindow *)mData1)->winGetWindowId();
+			const std::string id = messageMenuID;
+			closeRightClickMenu(window);
+			if (id.empty())
+			{
+				break;
+			}
+			if (controlID == buttonReportMessageID)
+			{
+				ReportChatMessage(id);
+			}
+			else if (controlID == buttonDeleteMessageID)
+			{
+				DeleteChatMessage(id);
+			}
+			break;
+		}
+
+		default:
+			return MSG_IGNORED;
+	}
+	return MSG_HANDLED;
 }
 
 void GenOnlineRequestBuddyAdd(Int profileID, AsciiString nick)
