@@ -126,6 +126,29 @@ public:
 		return it != m_states.end() ? it->second.unread : 0;
 	}
 
+	// True when the service listed a conversation with the user, or a message of it arrived since.
+	bool HasConversation(int64_t peer) const
+	{
+		return m_states.find(peer) != m_states.end();
+	}
+
+	// Knows the conversation of a message that arrived, without changing its unread count.
+	void NoteConversation(int64_t peer)
+	{
+		m_states[peer];
+	}
+
+	// The users of every known conversation.
+	std::vector<int64_t> Peers() const
+	{
+		std::vector<int64_t> peers;
+		for (const auto& entry : m_states)
+		{
+			peers.push_back(entry.first);
+		}
+		return peers;
+	}
+
 	// A ReadMarker clears the unread count of its conversation. Returns false for a channel that is no direct conversation.
 	bool ApplyReadMarker(const ReadMarkerEvent& event)
 	{
@@ -170,6 +193,23 @@ public:
 
 	const std::string& ChannelID() const { return m_channelID; }
 	const std::vector<DirectChatLine>& Lines() const { return m_lines; }
+
+	// The message of a shown line, for its context menu. Null for a note or an unknown key.
+	const ChatMessage* MessageOf(uint32_t key) const
+	{
+		if (key == 0)
+		{
+			return nullptr;
+		}
+		for (const DirectChatLine& line : m_lines)
+		{
+			if (line.key == key)
+			{
+				return &line.message;
+			}
+		}
+		return nullptr;
+	}
 
 	// A conversation loads its history once per connection, and again after a failed load.
 	bool NeedsHistory() const { return !m_historyLoaded && !m_historyPending; }

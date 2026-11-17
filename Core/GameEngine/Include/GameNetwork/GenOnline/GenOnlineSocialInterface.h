@@ -3,6 +3,7 @@
 #include "GenOnlineInclude.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeDirectMessages.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeFriendRoster.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeMessageActions.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 #include "NetworkMesh.h"
 #include "GameNetwork/RankPointValue.h"
@@ -80,6 +81,20 @@ public:
 	int GetNumberUnreadChatMessagesForUser(int64_t target_user_id)
 	{
 		return m_unreadConversations.Unread(target_user_id);
+	}
+
+	// True when the communicator may open a chat with the user: a friend, anyone for staff holding
+	// chat.message_anyone, or a non-friend whose conversation the service lists (a staff member who wrote).
+	bool CanChatWith(int64_t target_user_id);
+
+	// The non-friend users with a conversation, without pending requests, with the name to show.
+	std::vector<std::pair<int64_t, std::string>> GetNonFriendConversations();
+
+	// The message of a line of the conversation with the user, for its context menu. Null for a note or an unknown line.
+	const GenOnlineRealtime::ChatMessage* FindConversationMessage(int64_t target_user_id, uint32_t key) const
+	{
+		auto it = m_mapCachedMessages.find(target_user_id);
+		return it != m_mapCachedMessages.end() ? it->second.MessageOf(key) : nullptr;
 	}
 
 	// The player views the conversation. It loads the history once and marks an unread conversation read as a whole.
@@ -203,6 +218,7 @@ private:
 	// TODO_SOCIAL: Limit this
 	std::map<int64_t, GenOnlineRealtime::DirectConversation> m_mapCachedMessages; // user id here is who we are talking to / target user
 	GenOnlineRealtime::DirectMessageUnread m_unreadConversations; // Keyed by the other user of each conversation.
+	std::map<int64_t, std::string> m_mapConversationNames; // The other user's name, from their last message seen.
 
 	std::function<void(int newNumNotifications)> m_cbOnNumberGlobalNotificationsChanged = nullptr;
 

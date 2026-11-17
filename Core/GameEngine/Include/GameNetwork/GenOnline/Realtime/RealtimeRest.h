@@ -281,6 +281,18 @@ inline std::string RestBlockPath(int64_t userID)
 	return "/api/v1/me/blocks/" + std::to_string(userID);
 }
 
+// POST reports a message or a player (ReportBody).
+inline std::string RestReportsPath()
+{
+	return "/api/v1/reports";
+}
+
+// DELETE deletes a message, staff only (ReasonBody).
+inline std::string RestMessagePath(const std::string& messageID)
+{
+	return "/api/v1/messages/" + messageID;
+}
+
 // PATCH changes the display name.
 inline std::string RestMePath()
 {

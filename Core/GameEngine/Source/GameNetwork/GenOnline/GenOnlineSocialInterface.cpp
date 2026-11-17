@@ -526,7 +526,38 @@ void GenOnlineSocialInterface::OnRealtimeDirectMessage(const GenOnlineRealtime::
 	{
 		return;
 	}
+	// a staff member who is no friend can write, the communicator then lists the conversation
+	m_unreadConversations.NoteConversation(peerID);
+	if (message.author.id == peerID && !message.author.name.empty())
+	{
+		m_mapConversationNames[peerID] = message.author.name;
+	}
 	OnConversationLine(peerID, message.author.id == pAuth->GetUserID(), line.key, GetChatLineText(line));
+}
+
+bool GenOnlineSocialInterface::CanChatWith(int64_t target_user_id)
+{
+	return GenOnlineRealtime::CanChatWith(IsUserFriend(target_user_id), GenOnlineRealtimeBridge::HasPermission(GenOnlineRealtime::PERMISSION_MESSAGE_ANYONE), m_unreadConversations.HasConversation(target_user_id));
+}
+
+std::vector<std::pair<int64_t, std::string>> GenOnlineSocialInterface::GetNonFriendConversations()
+{
+	std::vector<std::pair<int64_t, std::string>> conversations;
+	for (int64_t peer : m_unreadConversations.Peers())
+	{
+		if (IsUserFriend(peer) || IsUserPendingRequest(peer))
+		{
+			continue;
+		}
+		auto it = m_mapConversationNames.find(peer);
+		std::string name = it != m_mapConversationNames.end() ? it->second : FindDisplayName(peer);
+		if (name.empty())
+		{
+			name = "Player " + std::to_string(peer);
+		}
+		conversations.emplace_back(peer, name);
+	}
+	return conversations;
 }
 
 UnicodeString GenOnlineSocialInterface::GetChatLineText(const GenOnlineRealtime::DirectChatLine& line)
@@ -543,6 +574,14 @@ UnicodeString GenOnlineSocialInterface::GetChatLineText(const GenOnlineRealtime:
 void GenOnlineSocialInterface::OnRealtimeConversations(const GenOnlineRealtime::ConversationsEvent& event)
 {
 	const int numBecameUnread = m_unreadConversations.ApplySnapshot(event);
+	for (const GenOnlineRealtime::Conversation& conversation : event.conversations)
+	{
+		const int64_t peer = GenOnlineRealtime::DirectMessagePeer(conversation.channel_id);
+		if (peer >= 0 && !conversation.last.isNull && conversation.last.value.author.id == peer && !conversation.last.value.author.name.empty())
+		{
+			m_mapConversationNames[peer] = conversation.last.value.author.name;
+		}
+	}
 	for (auto& kvPair : m_mapCachedMessages)
 	{
 		kvPair.second.ForgetHistory();

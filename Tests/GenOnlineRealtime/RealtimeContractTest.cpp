@@ -29,6 +29,7 @@
 #include "GameNetwork/GenOnline/Realtime/RealtimeFriendRoster.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeHubSession.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeLobbyStart.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeMessageActions.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMatchmaking.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeNoticeText.h"
@@ -1768,6 +1769,91 @@ static void TestFriendRoster()
 	}
 }
 
+static void TestMessageActions()
+{
+	const int64_t me = 1;
+	const int64_t other = 7;
+
+	// Friends chat; staff holding chat.message_anyone chat with anyone; a non-friend chats back when the service lists the conversation.
+	CHECK(CanChatWith(true, false, false));
+	CHECK(CanChatWith(false, true, false));
+	CHECK(CanChatWith(false, false, true));
+	CHECK(!CanChatWith(false, false, false));
+
+	// Report is offered on another user's message, Delete to staff holding chat.delete_any, on their own messages too.
+	MessageMenu theirs = MessageMenuFor("88", other, me, false);
+	CHECK(theirs.report && !theirs.remove && theirs.Any());
+	MessageMenu theirsAsStaff = MessageMenuFor("88", other, me, true);
+	CHECK(theirsAsStaff.report && theirsAsStaff.remove);
+	MessageMenu mine = MessageMenuFor("89", me, me, false);
+	CHECK(!mine.report && !mine.remove && !mine.Any());
+	MessageMenu mineAsStaff = MessageMenuFor("89", me, me, true);
+	CHECK(!mineAsStaff.report && mineAsStaff.remove);
+	// A line without a stored message, such as a note or a line older than the log remembers, offers nothing.
+	MessageMenu note = MessageMenuFor("", other, me, true);
+	CHECK(!note.Any());
+
+	CHECK(RestReportsPath() == "/api/v1/reports");
+	CHECK(RestMessagePath("8812") == "/api/v1/messages/8812");
+
+	// A shown channel line gives back its message id and author; a removed or unknown line gives nothing.
+	{
+		const std::string channel = "channel:3";
+		ChannelChatLog log;
+		log.Start(channel);
+		ChatMessage first = MakeChat("10", channel);
+		first.author.id = other;
+		ChatMessage second = MakeChat("11", channel);
+		second.author.id = me;
+		const ChannelChatUpdate update = log.AddHistory(MakeHistory(channel, { first, second }));
+		CHECK(update.shown.size() == 2);
+		std::string id;
+		int64_t author = 0;
+		CHECK(log.MessageOf(update.shown[0].key, id, author) && id == "10" && author == other);
+		CHECK(log.MessageOf(update.shown[1].key, id, author) && id == "11" && author == me);
+		CHECK(log.Remove(channel, "10") == update.shown[0].key);
+		CHECK(!log.MessageOf(update.shown[0].key, id, author));
+		CHECK(!log.MessageOf(0, id, author));
+		CHECK(!log.MessageOf(9999, id, author));
+	}
+
+	// A direct conversation line gives back its message; a note gives nothing.
+	{
+		DirectConversation conversation(DirectMessageChannel(other));
+		DirectChatLine line;
+		CHECK(conversation.AddLive(MakeDirect("20", other, other), line));
+		const ChatMessage* message = conversation.MessageOf(line.key);
+		CHECK(message != nullptr && message->id == "20" && message->author.id == other);
+		conversation.AddNote(L"note");
+		CHECK(conversation.MessageOf(0) == nullptr);
+		CHECK(conversation.MessageOf(line.key + 100) == nullptr);
+	}
+
+	// The service lists a conversation with a non-friend (a staff member wrote): it is known until the next snapshot drops it.
+	{
+		DirectMessageUnread unread;
+		CHECK(!unread.HasConversation(other));
+		ConversationsEvent snapshot;
+		snapshot.conversations.push_back(MakeConversation(DirectMessageChannel(other), 0, "30"));
+		unread.ApplySnapshot(snapshot);
+		CHECK(unread.HasConversation(other));
+		unread.Clear(other);
+		CHECK(unread.HasConversation(other));
+		unread.ApplySnapshot(ConversationsEvent());
+		CHECK(!unread.HasConversation(other));
+		unread.AddUnread(other);
+		CHECK(unread.HasConversation(other));
+		CHECK(unread.Peers() == std::vector<int64_t>({ other }));
+
+		// A message read at once, with the communicator open, still makes the conversation known, without an unread count.
+		const int64_t staff = 9;
+		unread.NoteConversation(staff);
+		CHECK(unread.HasConversation(staff));
+		CHECK(unread.Unread(staff) == 0);
+		CHECK(unread.Unread(other) == 1);
+	}
+}
+
 static void TestLobbyStateStart()
 {
 	GameStartEvent start;
@@ -2635,6 +2721,7 @@ int main(int argc, char** argv)
 	TestDirectMessageUnread();
 	TestDirectConversation();
 	TestFriendRoster();
+	TestMessageActions();
 	TestLobbyStateStart();
 	TestFormEncoding();
 	TestLoopbackCallback();

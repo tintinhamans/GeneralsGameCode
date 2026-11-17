@@ -431,6 +431,7 @@ void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh, bool bUseCache)
             }
 
 			// RECENTLY PLAYED WITH
+			std::unordered_set<int64_t> setListedNonFriends = setCurrentGameMembers;
 			for (auto& kvPair : pSocialInterface->GetRecentlyPlayedWithList())
 			{
                 FriendsEntry friendsEntry = kvPair.second;
@@ -439,6 +440,7 @@ void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh, bool bUseCache)
 				// dont add if they are in current lobby
 				if (!setCurrentGameMembers.contains(profileID))
 				{
+					setListedNonFriends.insert(profileID);
                     // dont need to check self here as this is checked when populating the recently played list, but do need to check friend status as it could have changed since population
 
                 // dont show if already friends, or if they sent a request: the request row below covers them
@@ -459,6 +461,31 @@ void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh, bool bUseCache)
                             selected = index;
                     }
 				}
+			}
+
+			// CONVERSATIONS with non-friends, which the service lists when a staff member wrote or the local user is staff
+			for (const std::pair<int64_t, std::string>& conversation : pSocialInterface->GetNonFriendConversations())
+			{
+				const int64_t profileID = conversation.first;
+				if (profileID == user_id || setListedNonFriends.contains(profileID))
+				{
+					continue;
+				}
+
+				UnicodeString strName(from_utf8(conversation.second).c_str());
+				const int numUnread = pSocialInterface->GetNumberUnreadChatMessagesForUser(profileID);
+				if (numUnread > 0)
+				{
+					strName.format(L"%s [%d]", strName.str(), numUnread);
+				}
+
+				int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, strName, GameSpyColor[GSCOLOR_CHAT_EMOTE], -1, -1);
+				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
+				GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"Conversation"), GameSpyColor[GSCOLOR_CHAT_OWNER_EMOTE], index, 1);
+				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_NONBUDDY), index, 1);
+
+				if (profileID == selectedProfile)
+					selected = index;
 			}
 
 			// REQUESTS
@@ -781,7 +808,7 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 				{
 					return;
 				}
-				if ((peer_user_id == -1 || peer_user_id == profileID) && pSocialInterface->IsUserFriend(profileID))
+				if ((peer_user_id == -1 || peer_user_id == profileID) && pSocialInterface->CanChatWith(profileID))
 				{
 					ShowBuddyConversation(pSocialInterface, profileID);
 					pSocialInterface->ViewConversation(profileID);
@@ -987,15 +1014,15 @@ WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, UnsignedIn
 					GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 					if (pSocialInterface != nullptr)
 					{
-						// If it's the "current lobby" list, the user wont be a friend, so we cant chat to them
-						if (!pSocialInterface->IsUserFriend(profileID) && !pSocialInterface->IsUserPendingRequest(profileID))
-						{
-                            Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This person is in your lobby or recently played with you but is not a friend yet and cannot be chatted with. You can right click them to add or block them."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-                            GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
-						}
-                        else if (pSocialInterface->IsUserPendingRequest(profileID))
+						// friends, a staff conversation, and anyone for staff holding chat.message_anyone
+						if (!pSocialInterface->CanChatWith(profileID) && pSocialInterface->IsUserPendingRequest(profileID))
 						{
                             Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This is a pending friend request. You cannot chat with the player until you accept it."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+                            GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
+						}
+						else if (!pSocialInterface->CanChatWith(profileID))
+						{
+                            Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This person is in your lobby or recently played with you but is not a friend yet and cannot be chatted with. You can right click them to add or block them."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
                             GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
 						}
 						else

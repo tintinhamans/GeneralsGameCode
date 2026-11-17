@@ -162,11 +162,31 @@ public:
 			if (it->id == messageID)
 			{
 				m_waiting.erase(it);
-				Remember(messageID, 0);
+				Remember(messageID, 0, 0);
 				return 0;
 			}
 		}
 		return Forget(messageID);
+	}
+
+	// The message id and author of a shown line, for its context menu. False for a removed line,
+	// or one older than the MAX_SHOWN messages the log remembers.
+	bool MessageOf(uint32_t key, std::string& messageID, int64_t& authorID) const
+	{
+		if (key == 0)
+		{
+			return false;
+		}
+		for (const ShownID& shown : m_shown)
+		{
+			if (shown.key == key)
+			{
+				messageID = shown.id;
+				authorID = shown.authorID;
+				return true;
+			}
+		}
+		return false;
 	}
 
 private:
@@ -175,6 +195,7 @@ private:
 		std::string id;
 		// 0 once the line is removed. The id stays known so a late copy does not show again.
 		uint32_t key;
+		int64_t authorID;
 	};
 
 	bool IsKnown(const std::string& messageID) const
@@ -189,13 +210,13 @@ private:
 		return false;
 	}
 
-	void Remember(const std::string& messageID, uint32_t key)
+	void Remember(const std::string& messageID, uint32_t key, int64_t authorID)
 	{
 		if (m_shown.size() >= MAX_SHOWN)
 		{
 			m_shown.pop_front();
 		}
-		m_shown.push_back(ShownID{ messageID, key });
+		m_shown.push_back(ShownID{ messageID, key, authorID });
 	}
 
 	// Marks a message as removed and returns the key of its shown line, or 0.
@@ -219,7 +240,7 @@ private:
 		line.key = NextKey();
 		line.live = live;
 		line.message = message;
-		Remember(message.id, line.key);
+		Remember(message.id, line.key, message.author.id);
 		return line;
 	}
 

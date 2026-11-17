@@ -45,6 +45,9 @@ void OnReady(const GenOnlineRealtime::ReadyEvent& ready, bool bFirstReady);
 // operators define them at runtime, so the client never looks at badge ids. Returns false without a badge.
 bool BadgeColor(const std::vector<std::string>& badges, int& color);
 
+// True when the local user holds the permission, e.g. GenOnlineRealtime::PERMISSION_DELETE_ANY.
+bool HasPermission(const char* szPermission);
+
 // True when the local user holds a moderation permission.
 bool HasModerationPermission();
 
