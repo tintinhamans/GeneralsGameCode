@@ -705,7 +705,7 @@ void GenOnlineDrawNetworkOverlay(Int mode, DisplayString *fontSource, Color game
 		y += lineH;
 
 		text = L"saving ms";
-		for (Int l = 1; l < AdaptiveQualityOverlay::LEVELS; ++l)
+		for (Int l = 1; l < aq.levelCount; ++l)
 		{
 			UnicodeString part;
 			part.format(L"  L%d %.1f%ls", l, aq.savingMs[l], aq.savingLearned[l] ? L"" : L"*");

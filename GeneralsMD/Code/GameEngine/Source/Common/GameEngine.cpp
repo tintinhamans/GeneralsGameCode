@@ -103,6 +103,7 @@
 #include "GameClient/GUICallbacks.h"
 
 #include "GameNetwork/NetworkInterface.h"
+#include "GameNetwork/ConnectionManager.h"
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/GameSpy/GameResultsThread.h"
@@ -880,7 +881,10 @@ Bool GameEngine::canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags)
 	const Bool useFastMode = TheGlobalData->m_TiVOFastMode && TheGameLogic->isInReplayGame();
 #endif
 
-	if (useFastMode || logicTimeScaleFps >= maxRenderFps)
+	// with catch-up a capped logic rate always counts time, so a slow drawn frame owes the missed logic frames
+	const Int catchUpFrames = getCatchUpFrames();
+	const Bool countTime = catchUpFrames > 1 && logicTimeScaleFps < (Int)RenderFpsPreset::UncappedFpsValue;
+	if (useFastMode || (logicTimeScaleFps >= maxRenderFps && !countTime))
 	{
 		// Logic time scale is uncapped or larger equal Render FPS. Update straight away.
 		return true;
@@ -890,7 +894,10 @@ Bool GameEngine::canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags)
 		// TheSuperHackers @tweak xezon 06/08/2025
 		// The logic time step is now decoupled from the render update.
 		const Real targetFrameTime = 1.0f / logicTimeScaleFps;
-		m_logicTimeAccumulator += min(TheFramePacer->getUpdateTime(), targetFrameTime);
+		// one drawn frame credits up to catch_up_frames logic frames, the catch-up loop spends the rest;
+		// the bound only holds a backlog the loop could not spend, at 1 it never applies
+		const Real maxCredit = targetFrameTime * catchUpFrames;
+		m_logicTimeAccumulator = min(m_logicTimeAccumulator + min(TheFramePacer->getUpdateTime(), maxCredit), maxCredit + targetFrameTime);
 
 		if (m_logicTimeAccumulator >= targetFrameTime)
 		{
@@ -900,6 +907,42 @@ Bool GameEngine::canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags)
 	}
 
 	return false;
+}
+
+/// -----------------------------------------------------------------------------------------------
+Bool GameEngine::canUpdateGameLogicFromBacklog()
+{
+	TheGameLogic->preUpdate();
+	TheFramePacer->setTimeFrozen(isTimeFrozen());
+	TheFramePacer->setGameHalted(isGameHalted());
+	if (TheNetwork != nullptr)
+	{
+		return canUpdateNetworkGameLogic();
+	}
+
+	// offline: spend time the drawn frame already credited, never credit it again
+	const Int logicTimeScaleFps = TheFramePacer->getActualLogicTimeScaleFps(FramePacer::IgnoreFrozenTime);
+	if (logicTimeScaleFps <= 0 || logicTimeScaleFps >= (Int)RenderFpsPreset::UncappedFpsValue)
+	{
+		return false;
+	}
+	const Real targetFrameTime = 1.0f / logicTimeScaleFps;
+	if (m_logicTimeAccumulator >= targetFrameTime)
+	{
+		m_logicTimeAccumulator -= targetFrameTime;
+		return true;
+	}
+	return false;
+}
+
+/// -----------------------------------------------------------------------------------------------
+Int GameEngine::getCatchUpFrames() const
+{
+	if (TheGameLogic == nullptr || !TheGameLogic->isInGame() || TheGameLogic->isInShellGame() || TheGameLogic->isInReplayGame())
+	{
+		return 1;
+	}
+	return AdaptiveQualityTuning::values().catchUpFrames;
 }
 
 /// -----------------------------------------------------------------------------------------------
@@ -972,6 +1015,52 @@ void GameEngine::update()
 			if (!TheFramePacer->isTimeFrozen())
 			{
 				TheGameClient->step();
+			}
+
+			// run logic frames that are already due before the next draw, up to the catch-up budget
+			const Int catchUpFrames = getCatchUpFrames();
+			static LARGE_INTEGER s_catchUpFrequency = {};
+			if (s_catchUpFrequency.QuadPart == 0)
+			{
+				QueryPerformanceFrequency(&s_catchUpFrequency);
+			}
+			for (Int i = 1; i < catchUpFrames; ++i)
+			{
+				// frame 1 runs from the main step, whose frame tick lets the network leave pregame
+				if (TheGameLogic->getFrame() <= 1)
+				{
+					break;
+				}
+				// the first catch-up frame always runs when it is due; later ones only while this drawn frame's logic has time
+				// left, so a slow machine draws instead of only catching up; the time it skips stays owed
+				if (i >= 2)
+				{
+					const double logicMs = (double)(AdaptiveQuality::now() - aqLogicStart) * 1000.0 / (double)s_catchUpFrequency.QuadPart;
+					if (logicMs >= AdaptiveQualityTuning::values().catchUpBudgetMs)
+					{
+						break;
+					}
+				}
+				// hands on what the last logic frame queued (its CRC), so it reaches the same frame as without catch-up
+				TheMessageStream->propagateMessages();
+				if (TheNetwork != nullptr)
+				{
+					TheNetwork->UPDATE();
+					if (TheNetwork->isGameExitPending())
+					{
+						TheGameLogic->processPendingGameExit();
+						return;
+					}
+				}
+				if (!canUpdateGameLogicFromBacklog())
+				{
+					break;
+				}
+				TheGameLogic->UPDATE();
+				if (!TheFramePacer->isTimeFrozen())
+				{
+					TheGameClient->step();
+				}
 			}
 			AdaptiveQuality::get().addOwn(AdaptiveQuality::now() - aqLogicStart);
 		}

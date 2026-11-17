@@ -7,9 +7,10 @@
 // Read-only snapshot for the network overlay
 struct AdaptiveQualityOverlay
 {
-	enum { LEVELS = AdaptiveQualityLevels::LEVEL_COUNT };
+	enum { LEVELS = AdaptiveQualityLevels::MAX_LEVELS };
 
 	Int level;
+	Int levelCount;				// levels in use, including level 0
 	Int lastFrom;				// the last step, -1 when there was none this match
 	Int lastTo;
 	Int lastReason;				// AdaptiveQualityModel::Reason
