@@ -184,6 +184,10 @@ std::wstring FailureText(const std::string& code, const nlohmann::json& params)
 	{
 		return L"You are sending messages too quickly. Please wait a moment.";
 	}
+	if (code == "lobby.army_selection_disabled")
+	{
+		return L"This playlist plays random armies, so the army cannot be changed.";
+	}
 	if (code == "chat.too_long")
 	{
 		return std::format(L"Your message is too long. Messages can have up to {} characters.", ParamInt(params, "max", 512));
