@@ -56,7 +56,8 @@ public:
 
 	// Signs in in the system browser. origin is the origin of the environment, https or a loopback http origin.
 	// A successful sign-in brings the game window back to the front.
-	void Start(const std::string& origin, DoneFn done);
+	// promptLogin shows the sign-in form even when the browser is still signed in, for another account.
+	void Start(const std::string& origin, DoneFn done, bool promptLogin = false);
 
 	// Exchanges a refresh token for new tokens. The refresh token rotates on every use.
 	void Refresh(const std::string& origin, const std::string& refreshToken, DoneFn done);
@@ -90,4 +91,5 @@ private:
 	int64_t m_browserDeadline = -1;
 	// The running sign-in went through the browser, so a success brings the game window back to the front.
 	bool m_viaBrowser = false;
+	bool m_promptLogin = false;
 };

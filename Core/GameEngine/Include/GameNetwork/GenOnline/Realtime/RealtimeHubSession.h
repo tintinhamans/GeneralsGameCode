@@ -129,6 +129,22 @@ inline bool SwitchReconnectHidden(int64_t closedAtMs, int64_t nowMs)
 	return nowMs - closedAtMs < SWITCH_HIDDEN_RECONNECT_MS;
 }
 
+// For this long after a server.switching close the new copy may still be starting.
+constexpr int64_t SWITCH_FAST_RETRY_WINDOW_MS = 30000;
+// The longest reconnect delay in that window, so the client is back soon after the new copy is.
+constexpr int64_t SWITCH_FAST_RETRY_MAX_MS = 2000;
+
+// The backoff delay of a reconnect, held at SWITCH_FAST_RETRY_MAX_MS within the window after a server switch.
+// switchClosedAtMs is -1 when the reconnect did not start with a server switch.
+inline int64_t SwitchWindowDelayMs(int64_t backoffMs, int64_t switchClosedAtMs, int64_t nowMs)
+{
+	if (switchClosedAtMs < 0 || nowMs - switchClosedAtMs >= SWITCH_FAST_RETRY_WINDOW_MS)
+	{
+		return backoffMs;
+	}
+	return (std::min)(backoffMs, SWITCH_FAST_RETRY_MAX_MS);
+}
+
 // The outcome of a hub method that expects a Result. transportError is set when no Result
 // arrived, for example because the connection dropped.
 struct InvokeOutcome

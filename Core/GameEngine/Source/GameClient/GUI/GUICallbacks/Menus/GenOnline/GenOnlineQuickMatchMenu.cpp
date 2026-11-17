@@ -164,6 +164,7 @@ static Int matchStartCountdownDurationMs = defaultMatchStartCountdownMs;
 static Int matchStartCountdownLastSecond = 0;
 
 static const LadderInfo * getLadderInfo();
+static Bool selectedPlaylistLocksArmy();
 
 static Bool isInfoShown()
 {
@@ -220,7 +221,7 @@ static void enableOptionsGadgets(Bool doIt)
 	{
 		parentOptions->winEnable(doIt);
 		if (comboBoxSide)
-			comboBoxSide->winEnable(doIt && (!li || !li->randomFactions));
+			comboBoxSide->winEnable(doIt && (!li || !li->randomFactions) && !selectedPlaylistLocksArmy());
 		if (comboBoxColor)
 			comboBoxColor->winEnable(doIt);
 		if (comboBoxNumPlayers)
@@ -338,6 +339,20 @@ static void populateQMColorComboBox(QuickMatchPreferences& pref)
 
 // -----------------------------------------------------------------------------
 
+// The selected playlist plays random armies, so the army list shows Random only.
+static Bool selectedPlaylistLocksArmy()
+{
+	if (comboBoxNumPlayers == nullptr)
+		return FALSE;
+	Int selected = -1;
+	GadgetComboBoxGetSelectedPos(comboBoxNumPlayers, &selected);
+	GenOnlineMatchmakingInterface* pMatchmakingInterface = GenOnlineServicesManager::GetInterface<GenOnlineMatchmakingInterface>();
+	if (selected < 0 || pMatchmakingInterface == nullptr)
+		return FALSE;
+	const PlaylistEntry plEntry = pMatchmakingInterface->GetCachedPlaylistFromIndex(selected);
+	return plEntry.PlaylistID != -1 && !plEntry.AllowArmySelection;
+}
+
 static void populateQMSideComboBox(Int favSide, const LadderInfo *li = nullptr)
 {
 	Int numPlayerTemplates = ThePlayerTemplateStore->getPlayerTemplateCount();
@@ -392,8 +407,9 @@ static void populateQMSideComboBox(Int favSide, const LadderInfo *li = nullptr)
 	}
 	seenSides.clear();
 
-	GadgetComboBoxSetSelectedPos(comboBoxSide, entryToSelect);
-	if (li && li->randomFactions)
+	const Bool randomOnly = (li && li->randomFactions) || selectedPlaylistLocksArmy();
+	GadgetComboBoxSetSelectedPos(comboBoxSide, randomOnly ? 0 : entryToSelect);
+	if (randomOnly)
 		comboBoxSide->winEnable(FALSE);
 	else
 		comboBoxSide->winEnable(TRUE);
@@ -746,9 +762,13 @@ static void saveQuickMatchOptions()
 	pref.setMaxPing(selected);
 
 	Int item;
-	GadgetComboBoxGetSelectedPos(comboBoxSide, &selected);
-	item = (Int)(intptr_t)GadgetComboBoxGetItemData(comboBoxSide, selected);
-	pref.setSide(max(0, item));
+	// A locked army list shows Random only, which is not a choice of the player to keep.
+	if (BitIsSet(comboBoxSide->winGetStatus(), WIN_STATUS_ENABLED))
+	{
+		GadgetComboBoxGetSelectedPos(comboBoxSide, &selected);
+		item = (Int)(intptr_t)GadgetComboBoxGetItemData(comboBoxSide, selected);
+		pref.setSide(max(0, item));
+	}
 	GadgetComboBoxGetSelectedPos(comboBoxColor, &selected);
 	pref.setColor(max(0, selected));
 
@@ -1656,6 +1676,8 @@ WindowMsgHandledType GenOnlineQuickMatchMenuSystem( GameWindow *window, Unsigned
 				if (!isInInit)
 				{
 					QuickMatchPreferences pref;
+					if (controlID == comboBoxNumPlayersID)
+						populateQMSideComboBox(pref.getSide(), getLadderInfo());
 					populateQuickMatchMapSelectListbox(pref);
 					GenOnlineUpdateQuickMatchStartButton();
 				}
