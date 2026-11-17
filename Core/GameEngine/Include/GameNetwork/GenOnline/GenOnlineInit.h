@@ -729,9 +729,12 @@ public:
 	static void ShutdownSentry();
 	// Returns TRUE between a successful InitSentry and ShutdownSentry. Every Sentry call outside InitSentry checks it first.
 	static Bool IsSentryActive();
-	// The game's unhandled exception filter hands a crash on to Sentry's crashpad filter after writing its own dumps.
+	// The unhandled exception filter of the game hands a crash on to the Sentry filter after writing its own dumps.
 	// Returns FALSE when there is no Sentry filter to hand it to, before InitSentry or after ShutdownSentry.
 	static Bool ForwardCrashToSentry(struct _EXCEPTION_POINTERS* exceptionInfo, LONG* result);
+	// A release crash ends the game without an unhandled exception. This hands it to the Sentry filter with its reason
+	// and returns once the crash daemon sent the report, or at once when there is no Sentry filter.
+	static void ReportReleaseCrashToSentry(const char* reason);
 	static std::string GetSentryRelease();
 	static std::string GetSentryStatus();
 	static void LogDisplayAdapter();

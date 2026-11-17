@@ -41,9 +41,9 @@ if(RTS_INSTALL_PREFIX_GENERALS)
     install(TARGETS g_generals RUNTIME DESTINATION "${RTS_INSTALL_PREFIX_GENERALS}")
     install(FILES $<TARGET_PDB_FILE:g_generals> DESTINATION "${RTS_INSTALL_PREFIX_GENERALS}" OPTIONAL)
     rts_install_license_files(g_generals "${RTS_INSTALL_PREFIX_GENERALS}")
-    if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/crashpad_handler.exe")
-        # sentry's crashpad backend needs this watcher executable next to the game, see Main/CMakeLists.txt.
-        install(PROGRAMS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/crashpad_handler.exe"
+    if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/sentry-crash.exe")
+        # sentry's native backend needs its crash daemon next to the game, see Main/CMakeLists.txt.
+        install(PROGRAMS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/sentry-crash.exe"
             DESTINATION "${RTS_INSTALL_PREFIX_GENERALS}" RENAME CrashReportHandler.exe)
     endif()
 

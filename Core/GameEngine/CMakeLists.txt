@@ -1384,8 +1384,9 @@ if(NOT IS_VS6_BUILD)
         target_compile_definitions(corei_gameengine_public INTERFACE GENONLINE_ALLOW_UNSIGNED_PLUGINS)
     endif()
 
-    # Crash reports go to the DSN set at build time. An empty DSN turns crash reports off.
-    set(GENONLINE_SENTRY_DSN "" CACHE STRING "Crash report DSN of this build, empty turns crash reports off")
+    # Release builds send crash reports to the GlitchTip project genonline-client by default. Debug builds never send them.
+    # An empty DSN turns crash reports off. The key in the DSN is public by design.
+    set(GENONLINE_SENTRY_DSN "https://54558e0eda1648a3994a73de9118c2e2@errors.generals.online/1" CACHE STRING "Crash report DSN of release builds, empty turns crash reports off")
     if(GENONLINE_SENTRY_DSN MATCHES "[\"\\\\]")
         message(FATAL_ERROR "GENONLINE_SENTRY_DSN must not contain quotes or backslashes")
     endif()

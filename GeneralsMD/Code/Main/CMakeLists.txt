@@ -121,14 +121,13 @@ if(WIN32)
 			"$<TARGET_FILE_DIR:z_generals>/discord-rpc-LICENSE.txt"
 	)
 
-	if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/crashpad_handler.exe")
-		# sentry's crashpad backend is an out-of-process watcher: it needs its
-		# own executable next to the game.
-		# The handler is renamed to CrashReportHandler.exe because EAC lets a process whose name starts with CrashReport
+	if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/sentry-crash.exe")
+		# sentry's native backend runs its crash daemon as a separate process next to the game.
+		# The daemon is renamed to CrashReportHandler.exe because EAC lets a process whose name starts with CrashReport
 		# read the game after a crash. InitSentry passes this name to sentry_options_set_handler_pathw.
 		add_custom_command(TARGET z_generals POST_BUILD
 			COMMAND ${CMAKE_COMMAND} -E copy_if_different
-				"${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/crashpad_handler.exe"
+				"${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/sentry-crash.exe"
 				"$<TARGET_FILE_DIR:z_generals>/CrashReportHandler.exe"
 		)
 	endif()
