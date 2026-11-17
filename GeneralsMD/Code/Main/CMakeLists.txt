@@ -1,6 +1,7 @@
 add_executable(z_generals WIN32)
 
 rts_copy_modern_media_files(z_generals)
+rts_add_license_files(z_generals)
 
 # Use a binary name that doesn't conflict with original game.
 if("${CMAKE_SYSTEM}" MATCHES "Windows")

@@ -1,0 +1,7 @@
+Copyright (c) Microsoft Corporation. All rights reserved.
+
+The game links the d3dx8 static library and the import libraries of the
+Microsoft DirectX 8 SDK, taken from the minimal SDK excerpt that
+TheSuperHackers publish for the open source releases of the Command & Conquer
+games. The excerpt carries no license text of its own. The libraries remain
+subject to the license terms of the Microsoft DirectX 8 SDK.
