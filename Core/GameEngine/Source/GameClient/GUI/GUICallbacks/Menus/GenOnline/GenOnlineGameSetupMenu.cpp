@@ -2928,7 +2928,7 @@ Bool GenOnlineHandleGameSetupSlashCommands(UnicodeString uText)
 	}
 	else if (token == "support")
 	{
-		ShellExecuteA(NULL, "open", "https://discord.playgenerals.online", NULL, NULL, SW_SHOWNORMAL);
+		ShellExecuteA(NULL, "open", "https://discord.generals.online", NULL, NULL, SW_SHOWNORMAL);
 		return TRUE;
 	}
 	else if (token == "net")
