@@ -25,7 +25,7 @@ New-Item -ItemType Directory -Path "$updaterDir"
 New-Item -ItemType Directory -Path "$workingDir"
 
 # Copy runtime libraries and release exe to working dir
-Copy-Item -Path "$buildDir\crashpad_handler.exe" -Destination $workingDir
+Copy-Item -Path "$buildDir\CrashReportHandler.exe" -Destination $workingDir
 Copy-Item -Path "$buildDir\discord-rpc.dll" -Destination $workingDir
 Copy-Item -Path "$buildDir\discord-rpc-LICENSE.txt" -Destination $workingDir
 Copy-Item -Path "$buildDir\genonline_zerohour.exe" -Destination $workingDir

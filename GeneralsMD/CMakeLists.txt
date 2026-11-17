@@ -43,7 +43,7 @@ if(RTS_INSTALL_PREFIX_ZEROHOUR)
     if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/crashpad_handler.exe")
         # sentry's crashpad backend needs this watcher executable next to the game (see Main/CMakeLists.txt).
         install(PROGRAMS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/crashpad_handler.exe"
-            DESTINATION "${RTS_INSTALL_PREFIX_ZEROHOUR}")
+            DESTINATION "${RTS_INSTALL_PREFIX_ZEROHOUR}" RENAME CrashReportHandler.exe)
     endif()
     if(WIN32)
         # discord-rpc.dll is copied next to the build output in Main/CMakeLists.txt.

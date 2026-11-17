@@ -1360,6 +1360,22 @@ void GenOnlineServicesManager::InitSentry()
 	// keep crashpad_handler alive until the crash report upload completes
 	sentry_options_set_crashpad_wait_for_upload(options, 1);
 
+	// The crashpad handler ships as CrashReportHandler.exe beside the game. EAC lets a process whose name starts with CrashReport
+	// read the game after a crash. Crashpad keeps its default small dumps because nothing asks it for more memory.
+	wchar_t exePath[MAX_PATH] = {};
+	const DWORD exePathLen = GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+	if (exePathLen > 0 && exePathLen < MAX_PATH)
+	{
+		std::wstring strHandlerPath(exePath, exePathLen);
+		const size_t slash = strHandlerPath.find_last_of(L"\\/");
+		if (slash != std::wstring::npos)
+		{
+			strHandlerPath.resize(slash + 1);
+			strHandlerPath += L"CrashReportHandler.exe";
+			sentry_options_set_handler_pathw(options, strHandlerPath.c_str());
+		}
+	}
+
 	sentry_options_set_environment(options, GENONLINE_SENTRY_ENVIRONMENT);
 
 #if _DEBUG
@@ -1378,7 +1394,7 @@ void GenOnlineServicesManager::InitSentry()
 	}, nullptr);
 #endif
 
-	// fails as a whole when crashpad_handler.exe is missing or older than this client
+	// fails as a whole when CrashReportHandler.exe is missing or older than this client
 	// sentry_init puts crashpad's unhandled exception filter in place of the game's, which writes the game's dumps and crash info
 	const LPTOP_LEVEL_EXCEPTION_FILTER gameCrashFilter = SetUnhandledExceptionFilter(nullptr);
 	SetUnhandledExceptionFilter(gameCrashFilter);
