@@ -35,6 +35,7 @@
 #include "GameClient/TerrainVisual.h" // for TERRAIN_LOD_MIN definition
 #include "GameClient/GameText.h"
 #include "GameNetwork/NetworkDefs.h"
+#include "GameNetwork/GenOnline/GenOnlineClientDescription.h"
 #include "GameNetwork/Online/OnlineProviderFactory.h"
 
 
@@ -1509,8 +1510,23 @@ void createGlobalData()
 		TheWritableGlobalData = NEW GlobalData;
 }
 
+static bool hasCommandLineArgument(const char *name)
+{
+	for (int arg = 1; arg < __argc; ++arg)
+	{
+		if (stricmp(__argv[arg], name) == 0)
+			return true;
+	}
+	return false;
+}
+
 void CommandLine::parseCommandLineForStartup()
 {
+	// -describe answers the launcher and exits before GlobalData creates the user data folders.
+	// _exit skips the static destructors of the engine, which is not initialized yet.
+	if (hasCommandLineArgument("-describe"))
+		_exit(GenOnlineWriteClientDescription() ? 0 : 1);
+
 	// We need the GlobalData initialized before parsing the command line.
 	// Note that this function is potentially called multiple times and only initializes the first time.
 	createGlobalData();
