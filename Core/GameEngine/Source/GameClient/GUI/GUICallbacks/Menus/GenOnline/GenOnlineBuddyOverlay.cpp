@@ -60,6 +60,9 @@
 #include "GameNetwork/GenOnline/GenOnlineInit.h"
 #include "GameNetwork/GenOnline/GenOnlineLobbyInterface.h"
 #include "GameNetwork/GenOnline/GenOnlineAuth.h"
+#include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeMessageActions.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeRest.h"
 #include <unordered_set>
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
@@ -109,6 +112,22 @@ static UnsignedInt noticeExpires = 0;
 
 void GenOnlineSetUnignoreText( WindowLayout *layout, AsciiString nick, GPProfile id);
 void GenOnlineRefreshIgnoreList();
+static void closeRightClickMenu(GameWindow *win);
+static int64_t GetSelectedBuddyID();
+
+static NameKeyType textEntryFindID = NAMEKEY_INVALID;
+static NameKeyType buttonFindID = NAMEKEY_INVALID;
+static GameWindow *textEntryFind = nullptr;
+
+static void RunPlayerFind()
+{
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	if (pSocialInterface == nullptr || textEntryFind == nullptr)
+	{
+		return;
+	}
+	pSocialInterface->FindPlayers(to_utf8(GadgetTextEntryGetText(textEntryFind).str()));
+}
 
 void GenOnlineShowNotificationBox( AsciiString nick, UnicodeString message, bool bPlaySound);
 void GenOnlineDeleteNotificationBox();
@@ -224,7 +243,14 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 
 					GPProfile profileID = (GPProfile)(intptr_t)GadgetListBoxGetItemData(control, rc->pos, 0);
 					RCItemType itemType = (RCItemType)(intptr_t)GadgetListBoxGetItemData(control, rc->pos, 1);
-					UnicodeString nick = UnicodeString(GadgetListBoxGetText(control, rc->pos).str() + 2); // Skip the online/offline indicator
+					// Only friend rows start with the online/offline indicator and a row with unread messages ends with " [n]"
+					std::wstring rowText = GadgetListBoxGetText(control, rc->pos).str();
+					if (itemType == ITEM_BUDDY && rowText.size() >= 2)
+						rowText.erase(0, 2);
+					const size_t unreadSuffix = rowText.rfind(L" [");
+					if (unreadSuffix != std::wstring::npos && !rowText.empty() && rowText.back() == L']')
+						rowText.erase(unreadSuffix);
+					UnicodeString nick(rowText.c_str());
 
 					GadgetListBoxSetSelected(control, rc->pos);
 					if (itemType == ITEM_BUDDY)
@@ -257,6 +283,16 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 					GenOnlineSetUnignoreText(rcLayout, rcData->m_nick, rcData->m_id);
 					rcMenu->winSetUserData((void *)rcData);
 					TheWindowManager->winSetLoneWindow(rcMenu);
+				}
+				else if( controlID == buddyControls.listboxChatID )
+				{
+					RightClickStruct *rc = (RightClickStruct *)mData2;
+					GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+					if (rc->pos < 0 || pSocialInterface == nullptr)
+						break;
+					const uint32_t key = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(GadgetListBoxGetItemData(control, rc->pos, 0)));
+					const GenOnlineRealtime::ChatMessage* message = pSocialInterface->FindConversationMessage(GetSelectedBuddyID(), key);
+					GenOnlineOpenMessageMenu(control, rc->pos, rc->mouseX, rc->mouseY, message != nullptr ? message->id.c_str() : "", message != nullptr ? message->author.id : 0, message != nullptr ? message->author.name.c_str() : "");
 				}
 				else
 					return MSG_IGNORED;
@@ -429,6 +465,7 @@ void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh, bool bUseCache)
             }
 
 			// RECENTLY PLAYED WITH
+			std::unordered_set<int64_t> setListedNonFriends = setCurrentGameMembers;
 			for (auto& kvPair : pSocialInterface->GetRecentlyPlayedWithList())
 			{
                 FriendsEntry friendsEntry = kvPair.second;
@@ -437,6 +474,7 @@ void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh, bool bUseCache)
 				// dont add if they are in current lobby
 				if (!setCurrentGameMembers.contains(profileID))
 				{
+					setListedNonFriends.insert(profileID);
                     // dont need to check self here as this is checked when populating the recently played list, but do need to check friend status as it could have changed since population
 
                 // dont show if already friends, or if they sent a request: the request row below covers them
@@ -457,6 +495,49 @@ void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh, bool bUseCache)
                             selected = index;
                     }
 				}
+			}
+
+			for (const std::pair<int64_t, std::string>& conversation : pSocialInterface->GetNonFriendConversations())
+			{
+				const int64_t profileID = conversation.first;
+				if (profileID == user_id || setListedNonFriends.contains(profileID))
+				{
+					continue;
+				}
+				setListedNonFriends.insert(profileID);
+
+				UnicodeString strName(from_utf8(conversation.second).c_str());
+				const int numUnread = pSocialInterface->GetNumberUnreadChatMessagesForUser(profileID);
+				if (numUnread > 0)
+				{
+					strName.format(L"%s [%d]", strName.str(), numUnread);
+				}
+
+				int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, strName, GameSpyColor[GSCOLOR_CHAT_EMOTE], -1, -1);
+				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
+				GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"Conversation"), GameSpyColor[GSCOLOR_CHAT_OWNER_EMOTE], index, 1);
+				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_NONBUDDY), index, 1);
+
+				if (profileID == selectedProfile)
+					selected = index;
+			}
+
+			for (const GenOnlineRealtime::Member& member : pSocialInterface->GetFoundPlayers())
+			{
+				const int64_t profileID = member.id;
+				if (profileID == user_id || setListedNonFriends.contains(profileID) || pSocialInterface->IsUserFriend(profileID) || pSocialInterface->IsUserPendingRequest(profileID))
+				{
+					continue;
+				}
+				setListedNonFriends.insert(profileID);
+
+				int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(from_utf8(member.name).c_str()), GameSpyColor[GSCOLOR_CHAT_EMOTE], -1, -1);
+				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
+				GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"Found"), GameSpyColor[GSCOLOR_CHAT_OWNER_EMOTE], index, 1);
+				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_NONBUDDY), index, 1);
+
+				if (profileID == selectedProfile)
+					selected = index;
 			}
 
 			// REQUESTS
@@ -776,7 +857,7 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 				{
 					return;
 				}
-				if ((peer_user_id == -1 || peer_user_id == profileID) && pSocialInterface->IsUserFriend(profileID))
+				if ((peer_user_id == -1 || peer_user_id == profileID) && pSocialInterface->CanChatWith(profileID))
 				{
 					ShowBuddyConversation(pSocialInterface, profileID);
 					pSocialInterface->ViewConversation(profileID);
@@ -808,6 +889,19 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 	parentBuddies = TheWindowManager->winGetWindowFromId( parent,  parentBuddiesID);
 	parentIgnore = TheWindowManager->winGetWindowFromId( parent,  parentIgnoreID);
 	listboxIgnore = TheWindowManager->winGetWindowFromId( parent,  listboxIgnoreID);
+
+	textEntryFindID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:TextEntryFind" );
+	buttonFindID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonFind" );
+	textEntryFind = TheWindowManager->winGetWindowFromId( parent, textEntryFindID );
+	GameWindow *buttonFind = TheWindowManager->winGetWindowFromId( parent, buttonFindID );
+	if (textEntryFind != nullptr)
+	{
+		GadgetTextEntrySetText(textEntryFind, UnicodeString::TheEmptyString);
+	}
+	if (buttonFind != nullptr)
+	{
+		GadgetButtonSetText(buttonFind, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOFind", L"Find"));
+	}
 
 	if (radioButtonIgnore)
 		GadgetRadioSetText(radioButtonIgnore, UnicodeString(L"Blocked"));
@@ -845,6 +939,9 @@ void GenOnlineBuddyOverlayShutdown( WindowLayout *layout, void *userData )
 	}
 
 	listboxIgnore = NULL;
+	textEntryFind = nullptr;
+
+	GenOnlineCloseRightClickMenus();
 
 	// hide menu
 	layout->hide( TRUE );
@@ -975,15 +1072,14 @@ WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, UnsignedIn
 					GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 					if (pSocialInterface != nullptr)
 					{
-						// If it's the "current lobby" list, the user wont be a friend, so we cant chat to them
-						if (!pSocialInterface->IsUserFriend(profileID) && !pSocialInterface->IsUserPendingRequest(profileID))
-						{
-                            Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This person is in your lobby or recently played with you but is not a friend yet and cannot be chatted with. You can right click them to add or block them."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-                            GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
-						}
-                        else if (pSocialInterface->IsUserPendingRequest(profileID))
+						if (!pSocialInterface->CanChatWith(profileID) && pSocialInterface->IsUserPendingRequest(profileID))
 						{
                             Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This is a pending friend request. You cannot chat with the player until you accept it."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+                            GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
+						}
+						else if (!pSocialInterface->CanChatWith(profileID))
+						{
+                            Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This player is not a friend yet and cannot be chatted with. You can right click them to add or block them."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
                             GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
 						}
 						else
@@ -1062,6 +1158,14 @@ WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, UnsignedIn
 				}
 				break;
 			}
+		case GEM_EDIT_DONE:
+			{
+				GameWindow *control = (GameWindow *)mData1;
+				if (control == nullptr || control->winGetWindowId() != textEntryFindID)
+					return MSG_IGNORED;
+				RunPlayerFind();
+				break;
+			}
 		case GBM_SELECTED:
 			{
 				GameWindow *control = (GameWindow *)mData1;
@@ -1070,6 +1174,10 @@ WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, UnsignedIn
 				if (controlID == buttonHideID)
 				{
 					GameSpyCloseOverlay( GSOVERLAY_BUDDY );
+				}
+				else if (controlID == buttonFindID)
+				{
+					RunPlayerFind();
 				}
 				else if (controlID == radioButtonBuddiesID)
 				{
@@ -1316,6 +1424,259 @@ static void closeRightClickMenu(GameWindow *win)
 	}
 }
 
+void GenOnlineRequestBuddyAdd(Int profileID, AsciiString nick);
+
+static GameWindow *messageMenu = nullptr;
+static std::string messageMenuID;
+static int64_t messageMenuAuthorID = 0;
+static AsciiString messageMenuAuthorName;
+static NameKeyType buttonReportMessageID = NAMEKEY_INVALID;
+static NameKeyType buttonDeleteMessageID = NAMEKEY_INVALID;
+static NameKeyType buttonProfileMessageID = NAMEKEY_INVALID;
+static NameKeyType buttonFriendMessageID = NAMEKEY_INVALID;
+static NameKeyType buttonBlockMessageID = NAMEKEY_INVALID;
+
+static void ReportChatMessage(const std::string& messageID)
+{
+	GenOnlineRealtime::ReportBody body;
+	body.message_id = messageID;
+	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Post, GenOnlineRealtime::RestReportsPath(), nlohmann::json(body).dump(), [](const GenOnlineRealtime::RestOutcome& outcome)
+		{
+			const UnicodeString text = outcome.Succeeded()
+				? TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOMessageReported", L"Message reported. Staff will review it.")
+				: UnicodeString(GenOnlineRealtimeBridge::FailureText(outcome).c_str());
+			GenOnlineShowNotificationBox(AsciiString::TheEmptyString, text, false);
+		});
+}
+
+// Every receiver gets MessageDelete from the service, which removes the line in each chat
+static void DeleteChatMessage(const std::string& messageID)
+{
+	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Delete, GenOnlineRealtime::RestMessagePath(messageID), nlohmann::json(GenOnlineRealtime::ReasonBody()).dump(), [](const GenOnlineRealtime::RestOutcome& outcome)
+		{
+			if (!outcome.Succeeded())
+			{
+				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, UnicodeString(GenOnlineRealtimeBridge::FailureText(outcome).c_str()), false);
+			}
+		});
+}
+
+void GenOnlineCloseRightClickMenus()
+{
+	if (rcMenu != nullptr)
+	{
+		closeRightClickMenu(rcMenu);
+		rcMenu = nullptr;
+	}
+	if (messageMenu != nullptr)
+	{
+		closeRightClickMenu(messageMenu);
+		messageMenu = nullptr;
+		messageMenuID.clear();
+	}
+	// the player menu of the lobby is held by the lobby screen alone and shares the system callback
+	GameWindow *lone = TheWindowManager->winGetLoneWindow();
+	if (lone != nullptr && lone->winGetSystemFunc() == GenOnlineBuddyOverlayRCMenuSystem)
+	{
+		closeRightClickMenu(lone);
+	}
+}
+
+void GenOnlineMessageRCMenuInit( WindowLayout *layout, void *userData )
+{
+	buttonReportMessageID = TheNameKeyGenerator->nameToKey("RCMessageMenu.wnd:ButtonReport");
+	buttonDeleteMessageID = TheNameKeyGenerator->nameToKey("RCMessageMenu.wnd:ButtonDelete");
+	buttonProfileMessageID = TheNameKeyGenerator->nameToKey("RCMessageMenu.wnd:ButtonProfile");
+	buttonFriendMessageID = TheNameKeyGenerator->nameToKey("RCMessageMenu.wnd:ButtonFriend");
+	buttonBlockMessageID = TheNameKeyGenerator->nameToKey("RCMessageMenu.wnd:ButtonBlock");
+}
+
+void GenOnlineOpenMessageMenu( GameWindow *listbox, Int row, Int mouseX, Int mouseY, const char *messageID, int64_t authorID, const char *authorName )
+{
+	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	const int64_t localUserID = pAuth != nullptr ? pAuth->GetUserID() : -1;
+	const std::string id = messageID != nullptr ? messageID : "";
+	const GenOnlineRealtime::MessageMenu menu = GenOnlineRealtime::MessageMenuFor(id, authorID, localUserID, GenOnlineRealtimeBridge::HasPermission(GenOnlineRealtime::PERMISSION_DELETE_ANY));
+	// The author entries need a real other player, a system line or the local player only gets the message entries.
+	const Bool authorEntries = authorID > 0 && authorID != localUserID && pSocial != nullptr;
+	if (listbox != nullptr && row >= 0)
+	{
+		GadgetListBoxSetSelected(listbox, row);
+	}
+	if (!menu.Any() && !authorEntries)
+	{
+		return;
+	}
+
+	WindowLayout *layout = TheWindowManager->winCreateLayout("Menus/GenOnlineRCMessageMenu.wnd");
+	if (layout == nullptr)
+	{
+		return;
+	}
+	GameWindow *menuWindow = layout->getFirstWindow();
+	layout->runInit();
+
+	struct MenuEntry
+	{
+		NameKeyType id;
+		Bool shown;
+	};
+	const MenuEntry entries[] =
+	{
+		{ buttonProfileMessageID, authorEntries },
+		{ buttonFriendMessageID, authorEntries },
+		{ buttonBlockMessageID, authorEntries },
+		{ buttonReportMessageID, menu.report },
+		{ buttonDeleteMessageID, menu.remove },
+	};
+
+	GameWindow *buttonProfile = TheWindowManager->winGetWindowFromId(menuWindow, buttonProfileMessageID);
+	GameWindow *buttonFriend = TheWindowManager->winGetWindowFromId(menuWindow, buttonFriendMessageID);
+	GameWindow *buttonBlock = TheWindowManager->winGetWindowFromId(menuWindow, buttonBlockMessageID);
+	GameWindow *buttonReport = TheWindowManager->winGetWindowFromId(menuWindow, buttonReportMessageID);
+	if (buttonProfile != nullptr)
+		GadgetButtonSetText(buttonProfile, UnicodeString(L"Profile"));
+	if (buttonFriend != nullptr && authorEntries)
+		GadgetButtonSetText(buttonFriend, UnicodeString(pSocial->IsUserFriend(authorID) ? L"Remove friend" : L"Add friend"));
+	if (buttonBlock != nullptr && authorEntries)
+		GadgetButtonSetText(buttonBlock, UnicodeString(pSocial->IsUserIgnored(authorID) ? L"Unblock" : L"Block"));
+	if (buttonReport != nullptr)
+		GadgetButtonSetText(buttonReport, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOReportMessage", L"Report"));
+
+	// The shown entries stack from the first row in layout order, and the menu shrinks by the rows left over.
+	Int firstX = 0, firstY = 0, rowStep = 0, shownCount = 0, entryCount = 0;
+	for (const MenuEntry& entry : entries)
+	{
+		GameWindow *button = TheWindowManager->winGetWindowFromId(menuWindow, entry.id);
+		if (button == nullptr)
+			continue;
+		Int x, y;
+		button->winGetPosition(&x, &y);
+		if (entryCount == 0)
+		{
+			firstX = x;
+			firstY = y;
+		}
+		else if (entryCount == 1)
+		{
+			rowStep = y - firstY;
+		}
+		++entryCount;
+	}
+	for (const MenuEntry& entry : entries)
+	{
+		GameWindow *button = TheWindowManager->winGetWindowFromId(menuWindow, entry.id);
+		if (button == nullptr)
+			continue;
+		button->winHide(!entry.shown);
+		if (entry.shown)
+		{
+			button->winSetPosition(firstX, firstY + shownCount * rowStep);
+			++shownCount;
+		}
+	}
+	Int width, height;
+	menuWindow->winGetSize(&width, &height);
+	menuWindow->winSetSize(width, height - (entryCount - shownCount) * rowStep);
+
+	ICoord2D size, pos;
+	menuWindow->winGetSize(&size.x, &size.y);
+	pos.x = mouseX;
+	pos.y = mouseY;
+	const Int displayWidth = (Int)TheDisplay->getWidth();
+	const Int displayHeight = (Int)TheDisplay->getHeight();
+	if (pos.x + size.x > displayWidth)
+		pos.x = displayWidth - size.x;
+	if (pos.y + size.y > displayHeight)
+		pos.y = displayHeight - size.y;
+	menuWindow->winSetPosition(pos.x, pos.y);
+	menuWindow->winBringToTop();
+	menuWindow->winHide(FALSE);
+
+	messageMenu = menuWindow;
+	messageMenuID = id;
+	messageMenuAuthorID = authorEntries ? authorID : 0;
+	messageMenuAuthorName = authorName != nullptr ? authorName : "";
+	TheWindowManager->winSetLoneWindow(menuWindow);
+}
+
+WindowMsgHandledType GenOnlineMessageRCMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 )
+{
+	switch (msg)
+	{
+		case GWM_CREATE:
+			break;
+
+		case GWM_DESTROY:
+			if (messageMenu == window)
+			{
+				messageMenu = nullptr;
+				messageMenuID.clear();
+			}
+			break;
+
+		case GGM_CLOSE:
+			closeRightClickMenu(window);
+			break;
+
+		case GBM_SELECTED:
+		{
+			const Int controlID = ((GameWindow *)mData1)->winGetWindowId();
+			const std::string id = messageMenuID;
+			const int64_t authorID = messageMenuAuthorID;
+			const AsciiString authorName = messageMenuAuthorName;
+			closeRightClickMenu(window);
+			GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+			if (authorID > 0 && pSocial != nullptr)
+			{
+				if (controlID == buttonProfileMessageID)
+				{
+					GenOnlineSetLookAtPlayer(authorID, UnicodeString(from_utf8(authorName.str()).c_str()));
+					GameSpyOpenOverlay(GSOVERLAY_PLAYERINFO);
+					break;
+				}
+				if (controlID == buttonFriendMessageID)
+				{
+					if (pSocial->IsUserFriend(authorID))
+						pSocial->RemoveFriend(authorID);
+					else
+						GenOnlineRequestBuddyAdd((Int)authorID, authorName);
+					break;
+				}
+				if (controlID == buttonBlockMessageID)
+				{
+					if (pSocial->IsUserIgnored(authorID))
+						pSocial->UnignoreUser(authorID);
+					else
+						pSocial->IgnoreUser(authorID);
+					GenOnlineUpdateBuddyInfo();
+					GenOnlineRefreshIgnoreList();
+					GenOnlinePopulateLobbyPlayerListbox();
+					break;
+				}
+			}
+			if (id.empty())
+			{
+				break;
+			}
+			if (controlID == buttonReportMessageID)
+			{
+				ReportChatMessage(id);
+			}
+			else if (controlID == buttonDeleteMessageID)
+			{
+				DeleteChatMessage(id);
+			}
+			break;
+		}
+
+		default:
+			return MSG_IGNORED;
+	}
+	return MSG_HANDLED;
+}
+
 void GenOnlineRequestBuddyAdd(Int profileID, AsciiString nick)
 {
 
@@ -1379,14 +1740,17 @@ WindowMsgHandledType GenOnlineBuddyOverlayRCMenuSystem( GameWindow *window, Unsi
 
 		case GWM_DESTROY:
 			{
-				rcMenu = nullptr;
+				// a menu closed without picking an entry still holds its data
+				delete (GameSpyRCMenuData*)window->winGetUserData();
+				window->winSetUserData(nullptr);
+				if (rcMenu == window)
+					rcMenu = nullptr;
 				break;
 			}
 
 		case GGM_CLOSE:
 			{
 				closeRightClickMenu(window);
-				//rcMenu = nullptr;
 				break;
 			}
 

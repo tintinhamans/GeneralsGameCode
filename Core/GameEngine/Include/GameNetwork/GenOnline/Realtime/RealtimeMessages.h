@@ -1483,12 +1483,15 @@ struct Conversation : WireObject
 	int unread = 0;
 	// Null for a group with no messages yet.
 	Nullable<ChatMessage> last;
+	// The other user of a dm: conversation, left out for a group.
+	std::optional<Member> peer;
 
 	template <class V> void Fields(V& v)
 	{
 		v("channel_id", channel_id);
 		v("unread", unread);
 		v("last", last);
+		v("peer", peer);
 	}
 };
 

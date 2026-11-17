@@ -2457,6 +2457,7 @@ static void shutdownComplete( WindowLayout *layout )
 void GenOnlineGameSetupMenuShutdown( WindowLayout *layout, void *userData )
 {
 	s_gameSetupMenuOpen = FALSE;
+	GenOnlineCloseRightClickMenus();
 	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
 	if (pLobbyInterface != nullptr)
@@ -3203,6 +3204,24 @@ WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, UnsignedI
 				if (windowMap)
 					windowMap->winSetUserData(NULL);
 
+				break;
+			}
+		//-------------------------------------------------------------------------------------------------
+		case GLM_RIGHT_CLICKED:
+			{
+				GameWindow *control = (GameWindow *)mData1;
+				if (control == nullptr || control != GenOnlineListboxGameSetupChat)
+					return MSG_IGNORED;
+				RightClickStruct *rc = (RightClickStruct *)mData2;
+				GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+				if (rc->pos < 0 || pLobbyInterface == nullptr)
+					break;
+				const uint32_t key = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(GadgetListBoxGetItemData(control, rc->pos, 0)));
+				std::string messageID;
+				int64_t authorID = 0;
+				pLobbyInterface->FindChatMessage(key, messageID, authorID);
+				const LobbyMemberEntry author = pLobbyInterface->GetRoomMemberFromID(authorID);
+				GenOnlineOpenMessageMenu(control, rc->pos, rc->mouseX, rc->mouseY, messageID.c_str(), authorID, author.display_name.c_str());
 				break;
 			}
 		//-------------------------------------------------------------------------------------------------

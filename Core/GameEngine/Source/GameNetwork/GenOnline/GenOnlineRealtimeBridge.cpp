@@ -115,6 +115,11 @@ bool HasClientFeature(const char* szFeature)
 	return szFeature != nullptr && std::find(s_features.begin(), s_features.end(), szFeature) != s_features.end();
 }
 
+bool HasPermission(const char* szPermission)
+{
+	return szPermission != nullptr && std::find(s_permissions.begin(), s_permissions.end(), szPermission) != s_permissions.end();
+}
+
 bool HasModerationPermission()
 {
 	for (const std::string& permission : s_permissions)

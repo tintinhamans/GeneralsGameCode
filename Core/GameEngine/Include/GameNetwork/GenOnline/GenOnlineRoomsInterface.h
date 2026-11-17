@@ -165,6 +165,12 @@ public:
 		m_OnChatMessageRemovedCallback = std::move(cbRemove);
 	}
 
+	// The message id and author of a shown channel chat line, for its context menu.
+	bool FindChatMessage(uint32_t key, std::string& messageID, int64_t& authorID) const
+	{
+		return m_ChannelChat.MessageOf(key, messageID, authorID);
+	}
+
 	std::function<void()> m_RosterNeedsRefreshCallback = nullptr;
 	mutable std::mutex m_rosterCallbackMutex;
 	void RegisterForRosterNeedsRefreshCallback(std::function<void()> cb)

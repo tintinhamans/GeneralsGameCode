@@ -86,16 +86,9 @@ void GenOnlineSocialInterface::AcceptPendingRequest(int64_t target_user_id)
 {
 	CallSocialRest(GenOnlineRealtimeBridge::RestMethod::Post, GenOnlineRealtime::RestFriendRequestAcceptPath(target_user_id), std::string(), [target_user_id](GenOnlineSocialInterface* pThis)
 		{
+			// The FriendPresence of the new friend usually arrived before this answer and is kept on the request.
 			std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
-			auto it = pThis->m_mapPendingRequests.find(target_user_id);
-			if (it != pThis->m_mapPendingRequests.end())
-			{
-				// Presence arrives as FriendPresence.
-				FriendsEntry entry = it->second;
-				entry.online = false;
-				pThis->m_mapFriends.insert_or_assign(target_user_id, entry);
-				pThis->m_mapPendingRequests.erase(it);
-			}
+			GenOnlineRealtime::MoveAcceptedRequest(pThis->m_mapFriends, pThis->m_mapPendingRequests, target_user_id);
 		});
 	if (m_numTotalNotifications > 0) --m_numTotalNotifications;
 	TriggerCallback_OnNumberGlobalNotificationsChanged();
@@ -476,28 +469,17 @@ void GenOnlineSocialInterface::OnRealtimeFriendRemoved(int64_t user_id)
 
 void GenOnlineSocialInterface::OnRealtimeFriendPresence(const GenOnlineRealtime::FriendPresenceEvent& event)
 {
-	std::string strName;
-	bool bOnlineChanged = false;
-	bool bPresenceChanged = false;
+	const std::string strPresence = GenOnlineRealtimeBridge::ActivityText(event.activity);
+	GenOnlineRealtime::FriendPresenceChange change;
 	{
 		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
-		auto it = m_mapFriends.find(event.user_id);
-		if (it == m_mapFriends.end())
-		{
-			return;
-		}
-		const std::string strPresence = GenOnlineRealtimeBridge::ActivityText(event.activity);
-		bOnlineChanged = it->second.online != event.online;
-		bPresenceChanged = it->second.presence != strPresence;
-		it->second.online = event.online;
-		it->second.presence = strPresence;
-		strName = it->second.display_name;
+		change = GenOnlineRealtime::ApplyFriendPresence(m_mapFriends, m_mapPendingRequests, event, strPresence);
 	}
-	if (bOnlineChanged)
+	if (change.onlineChanged)
 	{
-		OnOnlineStatusChanged(strName, event.online);
+		OnOnlineStatusChanged(change.displayName, event.online);
 	}
-	if (bOnlineChanged || bPresenceChanged)
+	if (change.friendChanged)
 	{
 		RefreshCommunicator();
 	}
@@ -543,7 +525,75 @@ void GenOnlineSocialInterface::OnRealtimeDirectMessage(const GenOnlineRealtime::
 	{
 		return;
 	}
+	// a staff member who is no friend can write, and the communicator then lists the conversation
+	m_unreadConversations.NoteConversation(peerID);
+	if (message.author.id == peerID && !message.author.name.empty())
+	{
+		m_mapConversationNames[peerID] = message.author.name;
+	}
 	OnConversationLine(peerID, message.author.id == pAuth->GetUserID(), line.key, GetChatLineText(line));
+}
+
+bool GenOnlineSocialInterface::CanChatWith(int64_t target_user_id)
+{
+	return GenOnlineRealtime::CanChatWith(IsUserFriend(target_user_id), GenOnlineRealtimeBridge::HasPermission(GenOnlineRealtime::PERMISSION_MESSAGE_ANYONE), m_unreadConversations.HasConversation(target_user_id));
+}
+
+std::vector<std::pair<int64_t, std::string>> GenOnlineSocialInterface::GetNonFriendConversations()
+{
+	std::vector<std::pair<int64_t, std::string>> conversations;
+	for (int64_t peer : m_unreadConversations.Peers())
+	{
+		if (IsUserFriend(peer) || IsUserPendingRequest(peer))
+		{
+			continue;
+		}
+		auto it = m_mapConversationNames.find(peer);
+		std::string name = it != m_mapConversationNames.end() ? it->second : FindDisplayName(peer);
+		if (name.empty())
+		{
+			name = "Player " + std::to_string(peer);
+		}
+		conversations.emplace_back(peer, name);
+	}
+	return conversations;
+}
+
+void GenOnlineSocialInterface::FindPlayers(const std::string& strName)
+{
+	const std::string term = GenOnlineRealtime::PlayerSearchTerm(strName);
+	if (term.empty())
+	{
+		{
+			std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
+			m_vecFoundPlayers.clear();
+		}
+		RefreshCommunicator();
+		return;
+	}
+	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Get, GenOnlineRealtime::RestPlayerSearchPath(term), std::string(), [](const GenOnlineRealtime::RestOutcome& outcome)
+		{
+			GenOnlineSocialInterface* pThis = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+			if (pThis == nullptr)
+			{
+				return;
+			}
+			GenOnlineRealtime::PlayerListResponse found;
+			if (!outcome.Succeeded() || !outcome.Data(found))
+			{
+				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, UnicodeString(GenOnlineRealtimeBridge::FailureText(outcome).c_str()), false);
+				return;
+			}
+			if (found.players.empty())
+			{
+				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GONoPlayerFound", L"No player has a name that starts with that."));
+			}
+			{
+				std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
+				pThis->m_vecFoundPlayers = found.players;
+			}
+			RefreshCommunicator();
+		});
 }
 
 UnicodeString GenOnlineSocialInterface::GetChatLineText(const GenOnlineRealtime::DirectChatLine& line)
@@ -560,6 +610,19 @@ UnicodeString GenOnlineSocialInterface::GetChatLineText(const GenOnlineRealtime:
 void GenOnlineSocialInterface::OnRealtimeConversations(const GenOnlineRealtime::ConversationsEvent& event)
 {
 	const int numBecameUnread = m_unreadConversations.ApplySnapshot(event);
+	for (const GenOnlineRealtime::Conversation& conversation : event.conversations)
+	{
+		const int64_t peer = GenOnlineRealtime::DirectMessagePeer(conversation.channel_id);
+		// The peer of the snapshot names the other user even when the last message is the local player's own.
+		if (peer >= 0 && conversation.peer.has_value() && conversation.peer->id == peer && !conversation.peer->name.empty())
+		{
+			m_mapConversationNames[peer] = conversation.peer->name;
+		}
+		else if (peer >= 0 && !conversation.last.isNull && conversation.last.value.author.id == peer && !conversation.last.value.author.name.empty())
+		{
+			m_mapConversationNames[peer] = conversation.last.value.author.name;
+		}
+	}
 	for (auto& kvPair : m_mapCachedMessages)
 	{
 		kvPair.second.ForgetHistory();

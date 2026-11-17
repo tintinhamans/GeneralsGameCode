@@ -41,6 +41,8 @@ void OnReady(const GenOnlineRealtime::ReadyEvent& ready, bool bFirstReady);
 // operators define them at runtime, so the client never looks at badge ids. Returns false without a badge.
 bool BadgeColor(const std::vector<std::string>& badges, int& color);
 
+bool HasPermission(const char* szPermission);
+
 bool HasModerationPermission();
 
 // True when the service switched the client feature on for this player, for example stats_exporter or observer.
