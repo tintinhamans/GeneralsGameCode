@@ -110,6 +110,7 @@
 #include "GameClient/GUICallbacks.h"
 
 #include "GameLogic/AIMatch.h"
+#include "GameLogic/PathScenario.h"
 #include "Common/GameMcp.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
@@ -873,6 +874,15 @@ void GameEngine::init()
 		if (TheAIMatch)
 		{
 			TheAIMatch->start();
+		}
+
+		// TheSuperHackers @feature simonx645 16/11/2026 -pathScenario / -pathBench in a window: the file's skirmish starts at
+		// once (with -headless, GameMain runs it instead).
+		if (PathScenario::Active() && !TheGlobalData->m_headless)
+		{
+			TheWritableGlobalData->m_shellMapOn = FALSE;
+			if (!PathScenario::Start(FALSE))
+				m_quitting = TRUE;
 		}
 
 #ifdef RTS_GAME_MCP

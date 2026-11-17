@@ -27,6 +27,9 @@
 // Author: Michael S. Booth, October 2001
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include "GameLogic/PathTuning.h"
+#include "GameLogic/Module/BodyModule.h"
+#include "GameLogic/PathProfile.h"
 #include "GameLogic/AIPathfind.h"
 
 #include "Common/PerfTimer.h"
@@ -121,7 +124,9 @@ constexpr const Int PATHFIND_SLOT_MAX_RING = 12; // Lattice rings around the cli
 constexpr const UnsignedInt MAX_SAFE_PATH_CELL_COUNT = 2000;
 
 constexpr const UnsignedInt PATHFIND_CELLS_PER_FRAME = 5000; // Number of cells we will search pathfinding per frame.
-constexpr const UnsignedInt CELL_INFOS_TO_ALLOCATE = 100000;
+// TheSuperHackers @feature simonx645 16/11/2026 The pool's size, set when it is made: contraZH's 100,000 records, or
+// 150,000 with "pool" (GameLogic/PathTuning.h). A search that runs out of records fails, so the size changes routes.
+static UnsignedInt CELL_INFOS_TO_ALLOCATE = 100000;
 
 #if RTS_GENERALS && RETAIL_COMPATIBLE_PATHFINDING
 constexpr const Int PATHFIND_SEARCH_CELL_CAP = 0x7fffffff;
@@ -1203,6 +1208,7 @@ void Pathfinder::forceCleanCells()
 void PathfindCellInfo::allocateCellInfos()
 {
 	releaseCellInfos();
+	CELL_INFOS_TO_ALLOCATE = PathTuning::Pool ? PathTuning::POOL_CELLS : 100000;
 	s_infoArray = MSGNEW("PathfindCellInfo") PathfindCellInfo[CELL_INFOS_TO_ALLOCATE];	// pool[]ify
 	s_infoArray[CELL_INFOS_TO_ALLOCATE-1].m_pathParent = nullptr;
 	s_infoArray[CELL_INFOS_TO_ALLOCATE-1].m_isFree = true;
@@ -1451,6 +1457,8 @@ Bool PathfindCell::allocateInfo( const ICoord2D &pos )
 {
 	if (!m_info) {
 		m_info = PathfindCellInfo::getACellInfo(this, pos);
+		if (m_info == nullptr)
+			PathProfile::Pool_Exhausted();	// -pathProfile: the search runs out of cell infos
 		return (m_info != nullptr);
 	}
 	return true;
@@ -2825,6 +2833,7 @@ void PathfindZoneManager::markZonesDirtyNow()
  */
 void PathfindZoneManager::calculateZones( PathfindCell **map, PathfindLayer layers[], const IRegion2D &globalBounds )
 {
+	PathProfile::Zones profileZones;	// -pathProfile: counted and timed
 #ifdef DEBUG_QPF
 #if defined(DEBUG_LOGGING)
 	__int64 startTime64;
@@ -4237,6 +4246,8 @@ void PathfindLayer::classifyWallMapCell( Int i, Int j , PathfindCell *cell, Obje
 Pathfinder::Pathfinder() :m_map(nullptr)
 {
 	debugPath = nullptr;
+	m_waterRings = nullptr;
+	m_cliffRings = nullptr;
 	PathfindCellInfo::allocateCellInfos();
 	reset();
 }
@@ -4244,6 +4255,7 @@ Pathfinder::Pathfinder() :m_map(nullptr)
 Pathfinder::~Pathfinder()
 {
 	PathfindCellInfo::releaseCellInfos();
+	freeClearance();
 }
 
 void Pathfinder::reset()
@@ -4279,6 +4291,7 @@ void Pathfinder::reset()
 	m_searchCellCap = PATHFIND_SEARCH_CELL_CAP;
 	m_searchStartFreeCount = PathfindCellInfo::getFreeCount();
 	m_lastSearchHitCap = false;
+	freeClearance();	// "clearance": made again when the next map is classified
 
 	debugPathPos.x = 0.0f;
 	debugPathPos.y = 0.0f;
@@ -4311,7 +4324,9 @@ void Pathfinder::reset()
 	m_zoneManager.reset();
 
 #if RETAIL_COMPATIBLE_PATHFINDING
-	s_useFixedPathfinding = false;
+	// TheSuperHackers @feature simonx645 16/11/2026 "pool" (PathTuning.h): the search code that returns every record it
+	// takes on every exit runs from the start, instead of only after a retail failure case was caught.
+	s_useFixedPathfinding = PathTuning::Pool;
 	s_forceCleanCells = false;
 #endif
 
@@ -5301,6 +5316,111 @@ void Pathfinder::classifyMap()
 		m_layers[LAYER_WALL].classifyWallCells(m_wallPieces, m_numWallPieces);
 	}
 	m_zoneManager.calculateZones(m_map, m_layers, m_extent);
+	if (PathTuning::Clearance) {
+		buildClearance();
+	}
+}
+
+// TheSuperHackers @feature simonx645 16/11/2026 "clearance" (PathTuning.h): Chebyshev distances to the nearest water and
+// cliff cell, by two passes over the map (each cell takes the smallest neighbour seen so far plus one: down and across,
+// then back up). Water and cliff cells only change when the map is classified again, which builds these again.
+void Pathfinder::freeClearance()
+{
+	delete[] m_waterRings;
+	m_waterRings = nullptr;
+	delete[] m_cliffRings;
+	m_cliffRings = nullptr;
+}
+
+void Pathfinder::buildClearance()
+{
+	freeClearance();
+	const Int width = m_extent.hi.x - m_extent.lo.x + 1;
+	const Int height = m_extent.hi.y - m_extent.lo.y + 1;
+	if (m_map == nullptr || width <= 0 || height <= 0) {
+		return;
+	}
+	m_waterRings = MSGNEW("PathfindClearance") UnsignedByte[width * height];
+	m_cliffRings = MSGNEW("PathfindClearance") UnsignedByte[width * height];
+	const UnsignedByte unreached = (UnsignedByte)(PathTuning::CLEARANCE_MAX + 1);
+	for (Int x = 0; x < width; x++) {
+		for (Int y = 0; y < height; y++) {
+			const PathfindCell::CellType type = m_map[x + m_extent.lo.x][y + m_extent.lo.y].getType();
+			m_waterRings[x * height + y] = type == PathfindCell::CELL_WATER ? 0 : unreached;
+			m_cliffRings[x * height + y] = type == PathfindCell::CELL_CLIFF ? 0 : unreached;
+		}
+	}
+	UnsignedByte *maps[2] = { m_waterRings, m_cliffRings };
+	for (Int m = 0; m < 2; m++) {
+		UnsignedByte *d = maps[m];
+		for (Int x = 0; x < width; x++) {
+			for (Int y = 0; y < height; y++) {
+				Int best = d[x * height + y];
+				if (best == 0) continue;
+				if (y > 0) best = min(best, d[x * height + y - 1] + 1);
+				if (x > 0) {
+					best = min(best, d[(x - 1) * height + y] + 1);
+					if (y > 0) best = min(best, d[(x - 1) * height + y - 1] + 1);
+					if (y < height - 1) best = min(best, d[(x - 1) * height + y + 1] + 1);
+				}
+				d[x * height + y] = (UnsignedByte)min(best, (Int)unreached);
+			}
+		}
+		for (Int x = width - 1; x >= 0; x--) {
+			for (Int y = height - 1; y >= 0; y--) {
+				Int best = d[x * height + y];
+				if (best == 0) continue;
+				if (y < height - 1) best = min(best, d[x * height + y + 1] + 1);
+				if (x < width - 1) {
+					best = min(best, d[(x + 1) * height + y] + 1);
+					if (y < height - 1) best = min(best, d[(x + 1) * height + y + 1] + 1);
+					if (y > 0) best = min(best, d[(x + 1) * height + y - 1] + 1);
+				}
+				d[x * height + y] = (UnsignedByte)min(best, (Int)unreached);
+			}
+		}
+	}
+}
+
+Int Pathfinder::ringShortage( Int cellX, Int cellY, LocomotorSurfaceTypeMask surfaces, Int radius, Int *hardShortage ) const
+{
+	*hardShortage = 0;
+	if (radius <= 0 || m_waterRings == nullptr) {
+		return 0;
+	}
+	// ground units only; their whole locomotor set counts, so an amphibious unit ignores water and a climber cliffs
+	if (!(surfaces & LOCOMOTORSURFACE_GROUND) || (surfaces & LOCOMOTORSURFACE_AIR)) {
+		return 0;
+	}
+	if (cellX < m_extent.lo.x || cellY < m_extent.lo.y || cellX > m_extent.hi.x || cellY > m_extent.hi.y) {
+		return 0;
+	}
+	const Int height = m_extent.hi.y - m_extent.lo.y + 1;
+	const Int index = (cellX - m_extent.lo.x) * height + (cellY - m_extent.lo.y);
+	Int shortage = 0;
+	// clearance: the rings between the cell and the nearest water (or cliff) cell; a footprint of radius r hangs
+	// r - clearance rings over it
+	if (!(surfaces & LOCOMOTORSURFACE_WATER)) {
+		const Int rings = m_waterRings[index];
+		const Int clearance = rings > 0 ? rings - 1 : 0;
+		shortage = max(shortage, radius - clearance);
+	}
+	if (!(surfaces & LOCOMOTORSURFACE_CLIFF)) {
+		// classifyMap widens every cliff by one ring of cells (and pins the next), so the first cliff cell is already a
+		// ring of slope: counted from the cliff itself, as water is, the clearance is one more
+		const Int clearance = m_cliffRings[index];
+		shortage = max(shortage, radius - clearance);
+	}
+	*hardShortage = shortage;
+	// the playable edge, which costs but never refuses: units still drive on and off the map
+	if (m_logicalExtent.hi.x > m_logicalExtent.lo.x && m_logicalExtent.hi.y > m_logicalExtent.lo.y) {
+		Int edge = 0;
+		if (cellX >= m_logicalExtent.lo.x && cellY >= m_logicalExtent.lo.y && cellX <= m_logicalExtent.hi.x && cellY <= m_logicalExtent.hi.y) {
+			edge = min(min(cellX - m_logicalExtent.lo.x, m_logicalExtent.hi.x - cellX), min(cellY - m_logicalExtent.lo.y, m_logicalExtent.hi.y - cellY));
+		}
+		shortage = max(shortage, radius - edge);
+	}
+	return shortage;
 }
 
 
@@ -5532,6 +5652,12 @@ void Pathfinder::beginSearchBudget( PathfindSearchType type )
 	if (remaining > PATHFIND_SEARCH_CELL_CAP) {
 		remaining = PATHFIND_SEARCH_CELL_CAP;
 	}
+	// TheSuperHackers @feature simonx645 16/11/2026 "cap" (GameLogic/PathTuning.h): the same cap for every find search,
+	// whatever else searched this frame, so a route depends on its own search only. Find searches only, as in the M8
+	// engine: the other kinds keep contraZH's frame budget.
+	if (PathTuning::SearchCap && type == PFS_FIND) {
+		remaining = PathTuning::SEARCH_CAP_CELLS;
+	}
 	m_searchCellCap = remaining;
 	m_searchStartFreeCount = PathfindCellInfo::getFreeCount();
 	m_lastSearchHitCap = false;
@@ -5618,7 +5744,23 @@ Bool Pathfinder::checkDestination(const Object *obj, Int cellX, Int cellY, Pathf
 		checkForAircraft = obj->getAI()->isAircraftThatAdjustsDestination();
 		objID = obj->getID();
 		const PathfindCell *centerCell = getCell(layer, cellX, cellY);
-		if (centerCell && getClearanceShortage(centerCell, obj->getAIUpdateInterface()->getLocomotorSet().getValidSurfaces(), iRadius) >= CLEARANCE_HARD_SHORTAGE) {
+		if (PathTuning::Clearance) {
+			// TheSuperHackers @feature simonx645 16/11/2026 "clearance" (PathTuning.h): no goal the footprint cannot stand
+			// on, except where the unit stands now (so a unit too close can still be given a route from there) and inside
+			// the structure it is going into
+			if (layer == LAYER_GROUND) {
+				Int hard;
+				ringShortage(cellX, cellY, obj->getAIUpdateInterface()->getLocomotorSet().getValidSurfaces(), iRadius, &hard);
+				if (hard >= PathTuning::CLEARANCE_HARD) {
+					ICoord2D here;
+					worldToCell(obj->getPosition(), &here);
+					if (!(here.x == cellX && here.y == cellY) && !(centerCell && centerCell->isObstaclePresent(ignoreId))) {
+						return false;
+					}
+				}
+			}
+		}
+		else if (centerCell && getClearanceShortage(centerCell, obj->getAIUpdateInterface()->getLocomotorSet().getValidSurfaces(), iRadius) >= CLEARANCE_HARD_SHORTAGE) {
 			return false;
 		}
 	}
@@ -6536,6 +6678,7 @@ Bool Pathfinder::queueForPath(ObjectID id)
 	Int slot = m_queuePRHead;
 	while (slot != m_queuePRTail) {
 		if (m_queuedPathfindRequests[slot] == id) {
+			PathProfile::Queue_Request(1);	// -pathProfile: already queued
 			return true;
 		}
 		slot++;
@@ -6552,10 +6695,12 @@ Bool Pathfinder::queueForPath(ObjectID id)
 	if (nextSlot==m_queuePRHead) {
 		DEBUG_CRASH(("Ran out of pathfind queue slots."));
 		s_pathfindStats.droppedQueue++;
+		PathProfile::Queue_Request(2);	// -pathProfile: refused
 		return false;
 	}
 	m_queuedPathfindRequests[m_queuePRTail] = id;
 	m_queuePRTail = nextSlot;
+	PathProfile::Queue_Request(0);	// -pathProfile: queued
 	return true;
 }
 
@@ -6679,7 +6824,7 @@ void Pathfinder::doDebugIcons() {
 /**
  * Create an aircraft path.  Just jogs around tall buildings marked with KINDOF_AIRCRAFT_PATH_AROUND.
  */
-Path *Pathfinder::getAircraftPath( const Object *obj, const Coord3D *to )
+Path *Pathfinder::getAircraftPathImpl( const Object *obj, const Coord3D *to )
 {
 	// for now, quick path objects don't pathfind, generally airborne units
 	// build a trivial one-node path containing destination, then avoid buildings.
@@ -6769,7 +6914,9 @@ void Pathfinder::processPathfindQueue()
 
 	if (m_zoneManager.needToCalculateZones()) {
 		m_zoneManager.calculateZones(m_map, m_layers, m_extent);
-		return;
+		if (!PathTuning::BridgeFixes) {
+			return;	// "bridges": the queue goes on serving paths in the frame zones are made, within its budget
+		}
 	}
 
 	// Get the current logical extent.
@@ -6802,6 +6949,7 @@ void Pathfinder::processPathfindQueue()
 			m_queuePRHead = 0;
 		}
 	}
+	PathProfile::Queue_State( (m_queuePRTail - m_queuePRHead + PATHFIND_QUEUE_LEN) % PATHFIND_QUEUE_LEN );	// -pathProfile
 	if (pathsFound > 0) {
 		PROFILER_PLOT("PathfindCells", (double)m_cumulativeCellsAllocated);
 		PROFILER_PLOT("PathfindPaths", (double)pathsFound);
@@ -6990,7 +7138,16 @@ struct ExamineCellsStruct
 			if (to->getPinched()) {
 				return 1; // abort.
 			}
-			if (d->thePathfinder->getClearanceShortage(to, d->theLoco->getValidSurfaces(), d->radius) > 0) {
+			if (PathTuning::Clearance) {
+				// "clearance": the line stops where the footprint would hang over; the cells near a shore are left to the
+				// search, which prices them
+				Int hard;
+				if (d->obj && d->radius > 0 && to->getLayer() == LAYER_GROUND &&
+					d->thePathfinder->ringShortage(to_x, to_y, d->theLoco->getValidSurfaces(), d->radius, &hard) > 0) {
+					return 1; // abort.
+				}
+			}
+			else if (d->thePathfinder->getClearanceShortage(to, d->theLoco->getValidSurfaces(), d->radius) > 0) {
 				return 1; // abort.
 			}
 			if (d->isHuman) {
@@ -7126,6 +7283,15 @@ Int Pathfinder::examineNeighboringCells(PathfindCell *parentCell, PathfindCell *
 
 		UnsignedInt newCostSoFar = 0;
 
+		// TheSuperHackers @feature simonx645 16/11/2026 "clearance" (PathTuning.h): how far this cell's footprint hangs over
+		// water or cliff. A step that would hang CLEARANCE_HARD or more rings over is refused, unless it hangs less than the
+		// cell it leaves: a unit already too close may always move away. A step that hangs over at all costs more.
+		const Bool ourClearance = PathTuning::Clearance && obj && radius > 0;
+		Int parentHard = 0;
+		if (ourClearance && parentCell->getLayer() == LAYER_GROUND) {
+			ringShortage(parentCell->getXIndex(), parentCell->getYIndex(), locomotorSet.getValidSurfaces(), radius, &parentHard);
+		}
+
 		for( int i=0; i<numNeighbors; i++ )
 		{
 			if (isSearchBudgetExhausted())
@@ -7192,13 +7358,30 @@ Int Pathfinder::examineNeighboringCells(PathfindCell *parentCell, PathfindCell *
 				}
 			}
 
-			Int clearanceShortage = getClearanceShortage(newCell, locomotorSet.getValidSurfaces(), radius);
-			if (clearanceShortage >= CLEARANCE_HARD_SHORTAGE) {
-				movementValid = false;
+			Int clearanceShortage = 0;
+			if (!PathTuning::Clearance) {
+				clearanceShortage = getClearanceShortage(newCell, locomotorSet.getValidSurfaces(), radius);
+				if (clearanceShortage >= CLEARANCE_HARD_SHORTAGE) {
+					movementValid = false;
+				}
 			}
 
 			if (!movementValid && !m_isTunneling) {
 				continue;
+			}
+
+			if (ourClearance && newCell->getLayer() == LAYER_GROUND) {
+				// "clearance" refuses a step that would hang over further than the cell it leaves; or as far, unless the
+				// unit is still near where it started (it may have to drive along the band to get out of a gap it was built
+				// or parked in); never the cell a bridge starts at, or one of the structure the unit is going into
+				Int hard;
+				const Int shortage = ringShortage(newCellCoord.x, newCellCoord.y, locomotorSet.getValidSurfaces(), radius, &hard);
+				const Bool nearStart = IABS(newCellCoord.x - startCellNdx.x) <= radius + 2 && IABS(newCellCoord.y - startCellNdx.y) <= radius + 2;
+				if (hard >= PathTuning::CLEARANCE_HARD && (hard > parentHard || (hard == parentHard && !nearStart)) &&
+					!m_isTunneling && newCell->getConnectLayer() == LAYER_INVALID && !newCell->isObstaclePresent(m_ignoreObstacleID)) {
+					continue;
+				}
+				clearanceShortage = shortage;	// it costs CLEARANCE_SOFT_COST below (contraZH's 40, as ours)
 			}
 
 			if (!dozerHack)
@@ -7337,7 +7520,7 @@ Int Pathfinder::examineNeighboringCells(PathfindCell *parentCell, PathfindCell *
  * Find a short, valid path between given locations.
  * Uses A* algorithm.
  */
-Path *Pathfinder::findPath( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
+Path *Pathfinder::findPathImpl( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
 													 const Coord3D *rawTo)
 {
 	beginSearchBudget(PFS_FIND);
@@ -7509,8 +7692,8 @@ Path *Pathfinder::internalFindPath( Object *obj, const LocomotorSet& locomotorSe
 		// somehow we got to an impassable location.
 		m_isTunneling = true;
 	}
-	if (getClearanceShortage(parentCell, locomotorSet.getValidSurfaces(), radius) >= CLEARANCE_HARD_SHORTAGE) {
-		m_isTunneling = true;
+	if (!PathTuning::Clearance && getClearanceShortage(parentCell, locomotorSet.getValidSurfaces(), radius) >= CLEARANCE_HARD_SHORTAGE) {
+		m_isTunneling = true;	// ("clearance" lets a unit too close move away instead)
 	}
 
 	parentCell->startPathfind(goalCell);
@@ -7829,6 +8012,27 @@ Path *Pathfinder::buildHierarchicalPath( const Coord3D *fromPos, PathfindCell *g
 
 	prependCells(path, fromPos, goalCell, true);
 
+	// TheSuperHackers @feature simonx645 16/11/2026 "coarse" (GameLogic/PathTuning.h): the corridor is every block the
+	// route crosses and every block next to one, along the whole route, so the fine search can go round a unit or a
+	// corner near the coarse line.
+	if (PathTuning::CoarseFix) {
+		ICoord2D blocks;
+		m_zoneManager.getExtent(blocks);
+		for (PathNode *node = path->getFirstNode(); node; node = node->getNext()) {
+			ICoord2D ndx;
+			worldToCell(node->getPosition(), &ndx);
+			const Int blockX = ndx.x / PathfindZoneManager::ZONE_BLOCK_SIZE;
+			const Int blockY = ndx.y / PathfindZoneManager::ZONE_BLOCK_SIZE;
+			for (Int x = blockX - 1; x <= blockX + 1; x++) {
+				for (Int y = blockY - 1; y <= blockY + 1; y++) {
+					if (x >= 0 && y >= 0 && x < blocks.x && y < blocks.y) {
+						m_zoneManager.setPassable(x * PathfindZoneManager::ZONE_BLOCK_SIZE, y * PathfindZoneManager::ZONE_BLOCK_SIZE, true);
+					}
+				}
+			}
+		}
+	}
+
 #if !(RTS_GENERALS && RETAIL_COMPATIBLE_PATHFINDING)
 	// Expand the hierarchical path around the starting point. jba [8/24/2003]
 	// This allows the unit to get around friendly units that may be near it.
@@ -7995,7 +8199,7 @@ struct GroundCellsStruct
  * Find a short, valid path between given locations.
  * Uses A* algorithm.
  */
-Path *Pathfinder::findGroundPath( const Coord3D *from,
+Path *Pathfinder::findGroundPathImpl( const Coord3D *from,
 													 const Coord3D *rawTo, Int pathDiameter, Bool crusher)
 {
 	//CRCDEBUG_LOG(("Pathfinder::findGroundPath()"));
@@ -8394,6 +8598,29 @@ Path *Pathfinder::findGroundPath( const Coord3D *from,
  * Find a short, valid path between given locations.
  * Uses A* algorithm.
  */
+// TheSuperHackers @feature simonx645 16/11/2026 "crossings" (GameLogic/PathTuning.h): a 4x4 or 5x5 (radius 2 and up) may
+// cross where nothing within radius - 1 cells is off the map, or water or cliff its surfaces cannot use: the footprint
+// would otherwise hang a whole row past the shore. Smaller footprints always may. Structures and other obstacles are left
+// to the zones and the fine search.
+static Bool Coarse_Crossing_Fits( Pathfinder *pathfinder, Int cellX, Int cellY, LocomotorSurfaceTypeMask surfaces, Int radius )
+{
+	const Int reach = radius - 1;
+	for (Int i = cellX - reach; i <= cellX + reach; i++) {
+		for (Int j = cellY - reach; j <= cellY + reach; j++) {
+			PathfindCell *cell = pathfinder->getCell(LAYER_GROUND, i, j);
+			if (!cell) {
+				return false;
+			}
+			const PathfindCell::CellType type = cell->getType();
+			if ((type == PathfindCell::CELL_WATER && !(surfaces & LOCOMOTORSURFACE_WATER)) ||
+				(type == PathfindCell::CELL_CLIFF && !(surfaces & LOCOMOTORSURFACE_CLIFF))) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 void Pathfinder::processHierarchicalCell( const ICoord2D &scanCell, const ICoord2D &delta, PathfindCell *parentCell,
 																				 PathfindCell *goalCell, zoneStorageType parentZone,
 																				 zoneStorageType *examinedZones, Int &numExZones,
@@ -8454,7 +8681,16 @@ void Pathfinder::processHierarchicalCell( const ICoord2D &scanCell, const ICoord
 		}
 #if !(RTS_GENERALS && RETAIL_COMPATIBLE_PATHFINDING)
 		// Zones ignore footprints, so skip a crossing the fine search refuses for this unit
-		if (getClearanceShortage(newCell, locomotorSurface, radius) >= CLEARANCE_HARD_SHORTAGE ||
+		if (PathTuning::CoarseFootprint)
+		{
+			// "crossings": the footprint must fit round both crossing cells
+			if (radius >= 2 && (!Coarse_Crossing_Fits(this, scanCell.x, scanCell.y, locomotorSurface, radius) ||
+				!Coarse_Crossing_Fits(this, adjacentCell.x, adjacentCell.y, locomotorSurface, radius)))
+			{
+				return;
+			}
+		}
+		else if (getClearanceShortage(newCell, locomotorSurface, radius) >= CLEARANCE_HARD_SHORTAGE ||
 			getClearanceShortage(adjNewCell, locomotorSurface, radius) >= CLEARANCE_HARD_SHORTAGE)
 		{
 			return;
@@ -8532,7 +8768,7 @@ Path *Pathfinder::findClosestHierarchicalPath( Bool isHuman, const LocomotorSet&
  * Find a short, valid path between given locations.
  * Uses A* algorithm.
  */
-Path *Pathfinder::internal_findHierarchicalPath( Bool isHuman, const LocomotorSurfaceTypeMask locomotorSurface, const Coord3D *from,
+Path *Pathfinder::internal_findHierarchicalPathImpl( Bool isHuman, const LocomotorSurfaceTypeMask locomotorSurface, const Coord3D *from,
 													 const Coord3D *rawTo, Bool crusher, Bool closestOK, Int radius)
 {
 	//CRCDEBUG_LOG(("Pathfinder::findGroundPath()"));
@@ -9891,7 +10127,7 @@ Int Pathfinder::checkPathCost(Object *obj, const LocomotorSet& locomotorSet, con
  * Find a short, valid path between the FROM location and a location NEAR the to location.
  * Uses A* algorithm.
  */
-Path *Pathfinder::findClosestPath( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
+Path *Pathfinder::findClosestPathImpl( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
 																	Coord3D *rawTo, Bool blocked, Real pathCostMultiplier, Bool moveAllies)
 {
 	//CRCDEBUG_LOG(("Pathfinder::findClosestPath()"));
@@ -9996,8 +10232,8 @@ Path *Pathfinder::findClosestPath( Object *obj, const LocomotorSet& locomotorSet
 	if (!checkForMovement(obj, info) || info.enemyFixed) {
 		m_isTunneling = true; // We can't move from our current location.  So relax the constraints.
 	}
-	if (getClearanceShortage(parentCell, locomotorSet.getValidSurfaces(), radius) >= CLEARANCE_HARD_SHORTAGE) {
-		m_isTunneling = true;
+	if (!PathTuning::Clearance && getClearanceShortage(parentCell, locomotorSet.getValidSurfaces(), radius) >= CLEARANCE_HARD_SHORTAGE) {
+		m_isTunneling = true;	// ("clearance" lets a unit too close move away instead)
 	}
 
 	Bool gotHierarchicalPath = false;
@@ -11040,10 +11276,27 @@ struct LinePassableStruct
 		return 1;	// bail out
 	}
 
-	Int clearanceShortage = pathfinder->getClearanceShortage(to, d->acceptableSurfaces, d->radius);
-	if (clearanceShortage >= CLEARANCE_HARD_SHORTAGE || (clearanceShortage > 0 && !d->allowPinched))
+	if (PathTuning::Clearance)
 	{
-		return 1;	// bail out
+		// TheSuperHackers @feature simonx645 16/11/2026 "clearance" (PathTuning.h): a straightened route must not cut
+		// across the cells the search refused or priced near a shore
+		if (d->obj && d->radius > 0 && to->getLayer() == LAYER_GROUND)
+		{
+			Int hard;
+			const Int shortage = pathfinder->ringShortage(to_x, to_y, d->acceptableSurfaces, d->radius, &hard);
+			if (hard >= PathTuning::CLEARANCE_HARD || (shortage > 0 && !d->allowPinched))
+			{
+				return 1;	// bail out
+			}
+		}
+	}
+	else
+	{
+		Int clearanceShortage = pathfinder->getClearanceShortage(to, d->acceptableSurfaces, d->radius);
+		if (clearanceShortage >= CLEARANCE_HARD_SHORTAGE || (clearanceShortage > 0 && !d->allowPinched))
+		{
+			return 1;	// bail out
+		}
 	}
 
 	if (to->getType() == PathfindCell::CELL_WATER && d->requiredWaterDepth > 0 && to->getWaterLevel() < d->requiredWaterDepth) {
@@ -11187,6 +11440,10 @@ void Pathfinder::updateGoal( Object *obj, const Coord3D *newGoalPos, PathfindLay
 
 	AIUpdateInterface *ai = obj->getAIUpdateInterface();
 	if (!ai) return; // only consider ai objects.
+	if (PathTuning::DeadLeaveGrid && obj->isEffectivelyDead()) {
+		removeGoal(obj);	// "dead": no goal is kept for a dead unit
+		return;
+	}
 	if (!ai->isDoingGroundMovement()) {
 #if RTS_GENERALS && RETAIL_COMPATIBLE_PATHFINDING
 		Bool isUnmannedHelicopter = false;
@@ -11403,6 +11660,13 @@ void Pathfinder::updatePos( Object *obj, const Coord3D *newPos)
 	}
 	if (!m_isMapReady)
 		return;
+
+	// TheSuperHackers @feature simonx645 16/11/2026 "dead" (PathTuning.h): a dead unit is off the map at once, and a corpse
+	// still sliding is not put back on it
+	if (PathTuning::DeadLeaveGrid && obj->isEffectivelyDead()) {
+		removeUnitFromPathfindMap(obj);
+		return;
+	}
 
 	AIUpdateInterface *ai = obj->getAIUpdateInterface();
 	if (!ai)
@@ -11680,6 +11944,12 @@ Path *Pathfinder::getMoveAwayFromPath(Object* obj, Object *otherObj,
 	Bool otherCenter;
 	Int otherRadius;
 	getRadiusAndCenter(otherObj, otherRadius, otherCenter);
+	// TheSuperHackers @feature simonx645 16/11/2026 "colhold" (GameLogic/PathTuning.h): a requester whose footprint was
+	// capped is wider than its box; the unit moving out of its way keeps a cell more clear (T12b: bikes flush against a
+	// Seraphim's 5x5 box still touched its 6x6 hull)
+	if (PathTuning::ColHold && footprintCapped(otherObj)) {
+		otherRadius++;
+	}
 
 	Bool isCrusher = obj ? obj->getCrusherLevel() > 0 : false;
 
@@ -11862,7 +12132,7 @@ Path *Pathfinder::getMoveAwayFromPath(Object* obj, Object *otherObj,
 
 /** Patch to the exiting path from the current position, either because we became blocked,
   or because we had to move off the path to avoid other units. */
-Path *Pathfinder::patchPath( const Object *obj, const LocomotorSet& locomotorSet,
+Path *Pathfinder::patchPathImpl( const Object *obj, const LocomotorSet& locomotorSet,
 		Path *originalPath, Bool blocked )
 {
 	//CRCDEBUG_LOG(("Pathfinder::patchPath()"));
@@ -12128,7 +12398,7 @@ Bool Pathfinder::isValidAttackGoal( const Object *obj, const LocomotorSet& locom
 
 
 /** Find a short, valid path to a location that obj can attack victim from.  */
-Path *Pathfinder::findAttackPath( const Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
+Path *Pathfinder::findAttackPathImpl( const Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
 		const Object *victim, const Coord3D* victimPos, const Weapon *weapon )
 {
 	if (!m_isMapReady)
@@ -12484,7 +12754,7 @@ Path *Pathfinder::findAttackPath( const Object *obj, const LocomotorSet& locomot
 }
 
 /** Find a short, valid path to a location that is safe from the repulsors.  */
-Path *Pathfinder::findSafePath( const Object *obj, const LocomotorSet& locomotorSet,
+Path *Pathfinder::findSafePathImpl( const Object *obj, const LocomotorSet& locomotorSet,
 		const Coord3D *from, const Coord3D* repulsorPos1, const Coord3D* repulsorPos2, Real repulsorRadius)
 {
 	//CRCDEBUG_LOG(("Pathfinder::findSafePath()"));
@@ -12718,6 +12988,37 @@ void Pathfinder::crc( Xfer *xfer )
 	xfer->xferInt(&m_cumulativeCellsAllocated);
 	CRCDEBUG_LOG(("m_cumulativeCellsAllocated: %8.8X", ((XferCRC *)xfer)->getCRC()));
 
+	// TheSuperHackers @feature simonx645 16/11/2026 The pathfinding switches (GameLogic/PathTuning.h), only when one is on,
+	// so a game without them keeps its CRC.
+	if (PathTuning::Any()) {
+		UnsignedInt mask = PathTuning::Mask();
+		Int weight = PathTuning::CRC_WEIGHT, cap = PathTuning::SEARCH_CAP_CELLS;
+		Int queueBase = PathTuning::CRC_QUEUE_BASE, queueMax = PathTuning::CRC_QUEUE_MAX;
+		xfer->xferUnsignedInt(&mask);
+		xfer->xferInt(&weight);
+		xfer->xferInt(&cap);
+		xfer->xferInt(&queueBase);
+		xfer->xferInt(&queueMax);
+		// the footprint knobs only with their own switch, so a game with search-core switches only keeps its CRC
+		if (PathTuning::Clearance) {
+			Int clearanceHard = PathTuning::CLEARANCE_HARD, clearanceCost = PathTuning::CLEARANCE_COST;
+			xfer->xferInt(&clearanceHard);
+			xfer->xferInt(&clearanceCost);
+		}
+		// TheSuperHackers @bugfix simonx645 16/11/2026 every name in the CRC: names sharing a bit above; where that leaves the
+		// set open, the exact word follows (not for the 17, whose CRC stands)
+		if (PathTuning::Mask_Ambiguous()) {
+			UnsignedInt exact = PathTuning::Mask_Exact();
+			xfer->xferUnsignedInt(&exact);
+		}
+		// TheSuperHackers @feature simonx645 16/11/2026 the changes after the 17, a word of their own, only when one is on
+		UnsignedInt trial = PathTuning::Trial_Mask();
+		if (trial != 0) {
+			xfer->xferUnsignedInt(&trial);
+		}
+		CRCDEBUG_LOG(("PathTuning: %8.8X", ((XferCRC *)xfer)->getCRC()));
+	}
+
 }
 
 //-----------------------------------------------------------------------------
@@ -12735,4 +13036,583 @@ void Pathfinder::xfer( Xfer *xfer )
 void Pathfinder::loadPostProcess()
 {
 
+}
+
+// TheSuperHackers @feature simonx645 16/11/2026 "clearance" (PathTuning.h): the search keeps a unit's own route off the
+// shore, but a group move's column waypoints are placed beside the group's route (1.5 cells a column) and were driven to
+// as they were, so a column on the water side ran its hull over the water. Such a waypoint moves to the nearest cell,
+// ring by ring up to 3, where the footprint hangs over nothing; ties go to the first in the scan (fixed order, so every
+// player picks the same). The cell must be one the unit can stand on and in its zone, so a waypoint never jumps a river.
+// A waypoint with no such cell stays.
+Bool Pathfinder::clearWaypoint( const Object *obj, Coord3D *pos )
+{
+	const AIUpdateInterface *ai = obj ? obj->getAI() : nullptr;
+	if (!PathTuning::Clearance || ai == nullptr || m_waterRings == nullptr || !ai->isDoingGroundMovement()) {
+		return false;
+	}
+	if (TheTerrainLogic->getLayerForDestination(pos) != LAYER_GROUND) {
+		return false;	// on a bridge deck: the water under it is not in the way
+	}
+	Int radius;
+	Bool center;
+	getRadiusAndCenter(obj, radius, center);
+	if (radius <= 0) {
+		return false;
+	}
+	const LocomotorSet &locomotorSet = ai->getLocomotorSet();
+	const LocomotorSurfaceTypeMask surfaces = locomotorSet.getValidSurfaces();
+	Coord3D cellPos = *pos;
+	if (!center) {
+		cellPos.x += PATHFIND_CELL_SIZE_F/2;
+		cellPos.y += PATHFIND_CELL_SIZE_F/2;
+	}
+	ICoord2D cell;
+	worldToCell(&cellPos, &cell);
+	Int hard;
+	if (ringShortage(cell.x, cell.y, surfaces, radius, &hard) <= 0) {
+		return false;
+	}
+	// TheSuperHackers @feature simonx645 16/11/2026 "lanekeep" (GameLogic/PathTuning.h): only where the search would refuse
+	// the step. At 1 ring over, the water-side lane moved onto the other lane and the two closed into one at an inlet
+	// tip, halving the corner's throughput (T3b)
+	if (PathTuning::LaneKeep && hard < PathTuning::CLEARANCE_HARD) {
+		return false;
+	}
+	const Bool isCrusher = obj->getCrusherLevel() > 0;
+	for (Int ring = 1; ring <= 3; ring++) {
+		Int bestD = 0x7FFFFFFF;
+		Coord3D best;
+		for (Int i = -ring; i <= ring; i++) {
+			for (Int j = -ring; j <= ring; j++) {
+				if (IABS(i) != ring && IABS(j) != ring) {
+					continue;
+				}
+				const Int d = i*i + j*j;
+				if (d >= bestD) {
+					continue;
+				}
+				PathfindCell *c = getCell(LAYER_GROUND, cell.x + i, cell.y + j);
+				if (c == nullptr || !validMovementPosition(isCrusher, surfaces, locomotorSet.getRequiredWaterLevel(), obj->getRequiredBridgeHeight(), c)) {
+					continue;
+				}
+				if (ringShortage(cell.x + i, cell.y + j, surfaces, radius, &hard) > 0) {
+					continue;
+				}
+				Coord3D at;
+				adjustCoordToCell(cell.x + i, cell.y + j, center, at, LAYER_GROUND);
+				if (!clientSafeQuickDoesPathExist(locomotorSet, obj->getRequiredBridgeHeight(), obj->getPosition(), &at)) {
+					continue;
+				}
+				bestD = d;
+				best = at;
+			}
+		}
+		if (bestD != 0x7FFFFFFF) {
+			*pos = best;
+			return true;
+		}
+	}
+	return false;
+}
+
+// TheSuperHackers @feature simonx645 16/11/2026 "groupgoals" (PathTuning.h): one goal finder, Reforged's flood with
+// contraZH's spacing. One breadth-first flood from the click; the members, ranked by when they would get there, take the
+// cells as the flood reaches them, so the first to arrive stand deepest and later arrivals stop short of them instead of
+// driving through the group (which is what made groups spiral at the end of a move).
+// - Ground units whose surfaces are ground only; the rest keep the old goals.
+// - Before the first goal, every cell floods, so a click on a building or a lake reaches the nearest open ring; after it,
+//   only open ground floods, so the group stays on the clicked side of a cliff or river. Every goal is in the first
+//   goal's zone.
+// - Within a ring, cells further along the group's way come first. Each cell is offered to the 8 soonest unplaced members
+//   it fits: their own footprint (checkDestination), a cell's gap from goals already given for a 4x4 or 5x5, and never
+//   more than a cell past the click on the far side from the member's own approach.
+// - The flood also carries the widest footprint (1 to 5 cells square) that fits all the way from the click to each cell,
+//   and a member takes a cell only if its own footprint got there: a pocket a 5x5 cannot drive into through a 2-cell gap
+//   between cliffs is no goal for it, though its own footprint would fit at the bottom of the pocket.
+// Integer keys, total-order sorts (key, then ObjectID; ring order, then flood order). The travel direction is a float
+// dot product without trig.
+static Bool Group_Goal_Before(Int keyA, ObjectID idA, Int keyB, ObjectID idB)
+{
+	return keyA != keyB ? keyA < keyB : idA < idB;
+}
+
+// the footprint size of a radius / center pair: 1, 2 (2x2), 3, 4 or 5
+static Int Group_Goal_Size(Int radius, Bool center)
+{
+	const Int size = center ? 2 * radius + 1 : 2 * radius;
+	return size < 1 ? 1 : size;
+}
+
+Int Pathfinder::groupGoalFit( Int x, Int y )
+{
+	// box of size s at (x, y): x - s/2 .. x - s/2 + s - 1 (an even box takes the cell and the ones below it, as an even
+	// footprint is laid out). Each box holds the one before it, so grow until a cell fails.
+	Int fit = 0;
+	for (Int s = 1; s <= 5; s++) {
+		const Int lo = s / 2;
+		Bool ok = TRUE;
+		for (Int i = x - lo; i <= x - lo + s - 1 && ok; i++) {
+			for (Int j = y - lo; j <= y - lo + s - 1 && ok; j++) {
+				PathfindCell *c = getCell(LAYER_GROUND, i, j);
+				if (c == nullptr || !validMovementPosition(false, LOCOMOTORSURFACE_GROUND, 0, 0, c)) {
+					ok = FALSE;
+				}
+			}
+		}
+		if (!ok) {
+			break;
+		}
+		fit = s;
+	}
+	return fit;
+}
+
+Int Pathfinder::assignGroupGoals( Object **members, Int count, const Coord3D *click, CommandSourceType cmdSource, Coord3D *goals, Bool *placed )
+{
+	for (Int m = 0; m < count; m++) {
+		placed[m] = FALSE;
+	}
+	if (!m_isMapReady || m_map == nullptr || count <= 0 || count > 512) {
+		return 0;
+	}
+	struct Member { Object *obj; Int index; Int key; Int radius; Bool center; Real awayX, awayY; Bool done; Int inside; };
+	Member list[512];
+	Int n = 0;
+	Real minX = 1e30f, minY = 1e30f, maxX = -1e30f, maxY = -1e30f, sumX = 0.0f, sumY = 0.0f;
+	for (Int m = 0; m < count; m++) {
+		Object *obj = members[m];
+		AIUpdateInterface *ai = obj ? obj->getAI() : nullptr;
+		if (ai == nullptr || !ai->isDoingGroundMovement() || obj->isKindOf(KINDOF_IMMOBILE)) {
+			continue;
+		}
+		const LocomotorSurfaceTypeMask surfaces = ai->getLocomotorSet().getValidSurfaces();
+		if (!(surfaces & LOCOMOTORSURFACE_GROUND) || (surfaces & (LOCOMOTORSURFACE_WATER | LOCOMOTORSURFACE_CLIFF | LOCOMOTORSURFACE_AIR))) {
+			continue;
+		}
+		const Coord3D *p = obj->getPosition();
+		minX = min(minX, p->x); minY = min(minY, p->y); maxX = max(maxX, p->x); maxY = max(maxY, p->y);
+		sumX += p->x; sumY += p->y;
+		Member &e = list[n++];
+		e.obj = obj;
+		e.index = m;
+		e.done = FALSE;
+		getRadiusAndCenter(obj, e.radius, e.center);
+		// arrival: straight-line cells to the click over cells a frame, in 1/1024ths
+		const Real dx = click->x - p->x, dy = click->y - p->y;
+		const Real dist = sqrtf(dx * dx + dy * dy);
+		Real speed = 0.0f;
+		if (ai->getCurLocomotor()) {
+			speed = ai->getCurLocomotor()->getMaxSpeedForCondition(obj->getBodyModule()->getDamageState());
+		}
+		const Int distCells = REAL_TO_INT_FLOOR(dist / PATHFIND_CELL_SIZE_F * 1024.0f);
+		Int speedCells = REAL_TO_INT_FLOOR(speed / PATHFIND_CELL_SIZE_F * 1024.0f);
+		if (speedCells < 1) speedCells = 1;
+		e.key = (Int)(((Int64)distCells * 1024) / speedCells);
+		e.awayX = dist > 0.01f ? dx / dist : 0.0f;	// the member's approach
+		e.awayY = dist > 0.01f ? dy / dist : 0.0f;
+		// its place in the container it is in, -1 outside
+		e.inside = -1;
+		const Object *holder = obj->getContainedBy();
+		const ContainModuleInterface *contain = holder ? holder->getContain() : nullptr;
+		const ContainedItemsList *items = contain ? contain->getContainedItemsList() : nullptr;
+		if (holder != nullptr) {
+			Int place = 0;
+			if (items != nullptr) {
+				for (ContainedItemsList::const_iterator it = items->begin(); it != items->end() && *it != obj; ++it) {
+					++place;	// not listed: after the listed ones
+				}
+			}
+			e.inside = place;
+		}
+	}
+	if (n == 0) {
+		return 0;
+	}
+	// TheSuperHackers @bugfix simonx645 16/11/2026 A member still inside a container at the order comes out after every
+	// member outside, whatever its distance: it ranks after them, in its container's order. It was ranked from the door as
+	// if it were out and given a goal behind members that parked before it came out (T11b: a Scorpion stuck 28.7 s behind
+	// the parked row).
+	{
+		Int maxOutside = 0;
+		for (Int i = 0; i < n; i++) {
+			if (list[i].inside < 0 && list[i].key > maxOutside) maxOutside = list[i].key;
+		}
+		for (Int i = 0; i < n; i++) {
+			if (list[i].inside >= 0) list[i].key = maxOutside + 1 + list[i].inside;
+		}
+	}
+	// a click inside the group keeps the old offsets (and the tighten move)
+	if (n > 1 && click->x >= minX && click->x <= maxX && click->y >= minY && click->y <= maxY) {
+		return 0;
+	}
+	// soonest first, ties by ObjectID
+	for (Int i = 1; i < n; i++) {
+		const Member e = list[i];
+		Int j = i - 1;
+		while (j >= 0 && Group_Goal_Before(e.key, e.obj->getID(), list[j].key, list[j].obj->getID())) {
+			list[j + 1] = list[j];
+			j--;
+		}
+		list[j + 1] = e;
+	}
+	for (Int i = 0; i < n; i++) {
+		removeGoal(list[i].obj);	// the old goals are not in the way of the new ones
+	}
+	// the group's way, for the order within a ring
+	Real wayX = click->x - sumX / n, wayY = click->y - sumY / n;
+	const Real wayL = sqrtf(wayX * wayX + wayY * wayY);
+	if (wayL > 0.01f) { wayX /= wayL; wayY /= wayL; } else { wayX = 0.0f; wayY = 0.0f; }
+
+	ICoord2D start;
+	worldToCell(click, &start);
+	if (getCell(LAYER_GROUND, start.x, start.y) == nullptr) {
+		return 0;
+	}
+	const Int width = m_extent.hi.x - m_extent.lo.x + 1;
+	const Int height = m_extent.hi.y - m_extent.lo.y + 1;
+	UnsignedByte *seen = MSGNEW("PathfindGroupGoals") UnsignedByte[width * height];	// 1 queued, 2 taken from the ring
+	memset(seen, 0, width * height);
+	// the widest footprint that got to a cell from the click (5: not limited yet, as on the way out of a building or lake
+	// before the first goal); and a cell's own fit, worked out once (0: not yet, else fit + 1)
+	UnsignedByte *wide = MSGNEW("PathfindGroupGoals") UnsignedByte[width * height];
+	UnsignedByte *fitAt = MSGNEW("PathfindGroupGoals") UnsignedByte[width * height];
+	memset(fitAt, 0, width * height);
+	// the open cells the first flood took from a ring: the second flood passes back over them without using its budget
+	UnsignedByte *firstPopped = MSGNEW("PathfindGroupGoals") UnsignedByte[width * height];
+	memset(firstPopped, 0, width * height);
+	// TheSuperHackers @bugfix simonx645 16/11/2026 The budget is the cells the goals take: per member its box with the gap
+	// round it, twice over for the cells past the click that are not for it (at least the old 32). A flat 32 a member ran
+	// out with 120 3x3s and 4x4s (T1b: 27 members had no goal).
+	Int budget = 400;
+	for (Int i = 0; i < n; i++) {
+		const Int span = Group_Goal_Size(list[i].radius, list[i].center) + 2;
+		budget += max(32, 2 * span * span);
+	}
+	Int *ring = MSGNEW("PathfindGroupGoals") Int[budget + 9];
+	Int *next = MSGNEW("PathfindGroupGoals") Int[budget + 9];
+	Int ringCount = 0, nextCount = 0, popped = 0, placedCount = 0;
+	Int visited = 0;	// every cell taken from a ring; popped counts only the open cells nobody holds as a goal
+	Int refZone = -1;
+	struct Given { Int x, y, r; };
+	Given *given = MSGNEW("PathfindGroupGoals") Given[n];
+	Int givenCount = 0;
+	const Int startCell = (start.x - m_extent.lo.x) * height + (start.y - m_extent.lo.y);
+	// TheSuperHackers @bugfix simonx645 16/11/2026 Members the flood left without a goal get a second flood from the click,
+	// without the "a cell past the click" rule, the goals given so far kept, before the old spiral.
+	for (Int pass = 0; pass < 2 && placedCount < n; pass++) {
+	const Bool alongRule = pass == 0;
+	if (pass == 1) {
+		memset(seen, 0, width * height);
+		popped = 0;
+		visited = 0;
+	}
+	ringCount = 0;
+	ring[ringCount++] = startCell;
+	seen[startCell] = 1;
+	wide[startCell] = 5;
+	while (ringCount > 0 && popped < budget && visited < 4 * budget && placedCount < n) {
+		// this ring: further along the way first, then flood order
+		for (Int i = 1; i < ringCount; i++) {
+			const Int c = ring[i];
+			const Real pc = ((c / height + m_extent.lo.x) - start.x) * wayX + ((c % height + m_extent.lo.y) - start.y) * wayY;
+			Int j = i - 1;
+			while (j >= 0) {
+				const Int o = ring[j];
+				const Real po = ((o / height + m_extent.lo.x) - start.x) * wayX + ((o % height + m_extent.lo.y) - start.y) * wayY;
+				if (po >= pc) break;
+				ring[j + 1] = ring[j];
+				j--;
+			}
+			ring[j + 1] = c;
+		}
+		nextCount = 0;
+		for (Int r = 0; r < ringCount && popped < budget && visited < 4 * budget && placedCount < n; r++) {
+			const Int c = ring[r];
+			seen[c] = 2;
+			const Int x = c / height + m_extent.lo.x, y = c % height + m_extent.lo.y;
+			PathfindCell *cell = getCell(LAYER_GROUND, x, y);
+			// a cell another unit holds as its goal (a group that got there first stands on it) does not use up the
+			// budget, so a second group sent to the same click floods past the first; every cell still counts toward a
+			// hard cap of four budgets
+			visited++;
+			const PathfindCell::CellType type = cell->getType();
+			ICoord2D here;
+			here.x = x;
+			here.y = y;
+			const Bool open = (type == PathfindCell::CELL_CLEAR || type == PathfindCell::CELL_RUBBLE) &&
+				!(cmdSource == CMD_FROM_PLAYER && checkCellOutsideExtents(here));
+			// TheSuperHackers @bugfix simonx645 16/11/2026 only open cells use up the budget (a flood out of a lake or a
+			// building no longer spends it before the first goal)
+			if (open && cell->getGoalUnit() == INVALID_ID) {
+				if (pass == 0) {
+					popped++;
+					firstPopped[c] = 1;
+				} else if (!firstPopped[c]) {
+					popped++;	// TheSuperHackers @bugfix simonx645 16/11/2026 the second flood spent its whole budget again on
+								// the field the first had filled, and placed nothing new (T9: 20 of 100 left over)
+				}
+			}
+			// the widest footprint that gets here: as wide as came in, and no wider than fits here.
+			// TheSuperHackers @bugfix simonx645 16/11/2026 What a cell passes on narrows only once a goal is given, and
+			// never at the click: the click's own fit (a prop or a cliff fringe within two cells) shut every 5x5 out of the
+			// whole flood (T9: no goal for any member). The cell's own fit still limits who takes the cell itself.
+			Int cellWide = 0;
+			if (open) {
+				if (fitAt[c] == 0) {
+					fitAt[c] = (UnsignedByte)(groupGoalFit(x, y) + 1);
+				}
+				const Int fitHere = fitAt[c] - 1;
+				// TheSuperHackers @bugfix simonx645 16/11/2026 nor within 2 cells of the click (the widest box's reach): a prop
+				// beside the click narrowed every cell round it, and the width only narrows along the flood, so no cell
+				// past them got a 5x5 back (T9: all 20 Overlords without a goal, the click's own fit 2)
+				const Bool clickArea = IABS(x - start.x) <= 2 && IABS(y - start.y) <= 2;
+				if (refZone >= 0 && !clickArea && wide[c] > fitHere) {
+					wide[c] = (UnsignedByte)fitHere;
+				}
+				// the second flood, for what the first left, asks only that the footprint fit at the cell
+				cellWide = alongRule ? min((Int)wide[c], fitHere) : fitHere;
+			}
+			const Bool zoneOk = refZone < 0 || m_zoneManager.getEffectiveZone(LOCOMOTORSURFACE_GROUND, false, cell->getZone()) == refZone;
+			if (open && zoneOk) {
+				// offered to the 8 soonest unplaced members it fits.
+				// TheSuperHackers @bugfix simonx645 16/11/2026 A member counts toward the 8 only if it passes the cheap tests
+				// (along, apart, size): 8 soonest members that could take no cell starved every member behind them.
+				Int offered = 0;
+				for (Int i = 0; i < n && offered < 8; i++) {
+					Member &e = list[i];
+					if (e.done) continue;
+					// never more than a cell past the click, seen from the member's own approach (first flood only)
+					if (alongRule) {
+						const Real along = (x - start.x) * e.awayX + (y - start.y) * e.awayY;
+						if (along > 1.0f) continue;
+					}
+					Bool apart = TRUE;
+					for (Int g = 0; g < givenCount && apart; g++) {
+						const Int gap = (e.radius >= 2 || given[g].r >= 2) ? 1 : 0;
+						const Int reach = e.radius + given[g].r + gap;
+						if (IABS(x - given[g].x) <= reach && IABS(y - given[g].y) <= reach) apart = FALSE;
+					}
+					if (!apart) continue;
+					if (cellWide < Group_Goal_Size(e.radius, e.center)) continue;	// its footprint cannot get in here
+					offered++;
+					if (!checkDestination(e.obj, x, y, LAYER_GROUND, e.radius, e.center)) continue;
+					Coord3D goal;
+					adjustCoordToCell(x, y, e.center, goal, LAYER_GROUND);
+					goals[e.index] = goal;
+					placed[e.index] = TRUE;
+					e.done = TRUE;
+					updateGoal(e.obj, &goal, LAYER_GROUND);
+					given[givenCount].x = x; given[givenCount].y = y; given[givenCount].r = e.radius;
+					givenCount++;
+					placedCount++;
+					if (refZone < 0) {
+						refZone = m_zoneManager.getEffectiveZone(LOCOMOTORSURFACE_GROUND, false, cell->getZone());
+					}
+					break;
+				}
+			}
+			// flood on: everything until the first goal, open ground after it
+			if (!open && refZone >= 0) continue;
+			for (Int dy = -1; dy <= 1; dy++) {
+				for (Int dx = -1; dx <= 1; dx++) {
+					if (dx == 0 && dy == 0) continue;
+					const Int nx = x + dx, ny = y + dy;
+					if (nx < m_extent.lo.x || ny < m_extent.lo.y || nx > m_extent.hi.x || ny > m_extent.hi.y) continue;
+					const Int nc = (nx - m_extent.lo.x) * height + (ny - m_extent.lo.y);
+					// what this cell passes on: its own width (a cell that is not open passes on what reached it, so the click on
+					// a building or a lake starts unlimited, and a way through a cliff stays as narrow as the open cell before it)
+					const UnsignedByte passOn = wide[c];
+					if (seen[nc] == 1 && wide[nc] < passOn) {
+						wide[nc] = passOn;	// queued from a narrower way in this ring: the wider one counts
+					}
+					if (seen[nc] || nextCount >= budget) continue;
+					seen[nc] = 1;
+					wide[nc] = passOn;
+					next[nextCount++] = nc;
+				}
+			}
+		}
+		Int *swap = ring; ring = next; next = swap;
+		ringCount = nextCount;
+	}
+	}	// the passes
+	delete[] given;
+	delete[] next;
+	delete[] ring;
+	delete[] firstPopped;
+	delete[] fitAt;
+	delete[] wide;
+	delete[] seen;
+	return placedCount;
+}
+
+static void Goal_Box_Cell( Bool center, const Coord3D *pos, Int &x, Int &y )
+{
+	Coord3D at = *pos;
+	if (!center) {
+		at.x += PATHFIND_CELL_SIZE_F/2;	// as findPath places an even footprint
+		at.y += PATHFIND_CELL_SIZE_F/2;
+	}
+	x = REAL_TO_INT_FLOOR(at.x / PATHFIND_CELL_SIZE_F);
+	y = REAL_TO_INT_FLOOR(at.y / PATHFIND_CELL_SIZE_F);
+}
+
+// TheSuperHackers @feature simonx645 16/11/2026 "colhold" (GameLogic/PathTuning.h): could obj take its footprint's box at
+// pos on the ground as its goal (checkDestination)?
+Bool Pathfinder::goalBoxFree( const Object *obj, const Coord3D *pos )
+{
+	if (obj == nullptr || pos == nullptr) {
+		return FALSE;
+	}
+	Int radius = 0;
+	Bool center = TRUE;
+	getRadiusAndCenter(obj, radius, center);
+	Int x, y;
+	Goal_Box_Cell(center, pos, x, y);
+	if (getCell(LAYER_GROUND, x, y) == nullptr) {
+		return FALSE;
+	}
+	return checkDestination(obj, x, y, LAYER_GROUND, radius, center);
+}
+
+// "colhold": may the unit take its given goal's box back? Not when another unit's goal is in it, nor a unit parked in it:
+// updateGoal writes over every cell of the box, and the destination check passes a cell marked as the unit's own even
+// with a unit parked on it (T6, T12b)
+Bool Pathfinder::givenBoxClear( const Object *obj, const Coord3D *pos )
+{
+	if (obj == nullptr || pos == nullptr) {
+		return FALSE;
+	}
+	Int radius = 0;
+	Bool center = TRUE;
+	getRadiusAndCenter(obj, radius, center);
+	Int x, y;
+	Goal_Box_Cell(center, pos, x, y);
+	const Int above = center ? radius + 1 : radius;
+	for (Int i = x - radius; i < x + above; i++) {
+		for (Int j = y - radius; j < y + above; j++) {
+			PathfindCell *cell = getCell(LAYER_GROUND, i, j);
+			if (cell == nullptr || cell->getFlags() == PathfindCell::NO_UNITS) {
+				continue;
+			}
+			const ObjectID goalUnit = cell->getGoalUnit();
+			if (goalUnit != INVALID_ID && goalUnit != obj->getID()) {
+				return FALSE;
+			}
+			const ObjectID posUnit = cell->getPosUnit();
+			if (cell->getFlags() == PathfindCell::UNIT_PRESENT_FIXED && posUnit != INVALID_ID && posUnit != obj->getID()) {
+				return FALSE;
+			}
+		}
+	}
+	return TRUE;
+}
+
+// "colhold": was the unit's footprint capped? getRadiusAndCenter caps every footprint at 5x5, so a wider hull (a
+// Seraphim's 6x6) overhangs its own box (read-only)
+Bool Pathfinder::footprintCapped( const Object *obj )
+{
+	if (obj == nullptr) {
+		return FALSE;
+	}
+	Real diameter = 2*obj->getGeometryInfo().getBoundingCircleRadius();
+	if (diameter>PATHFIND_CELL_SIZE_F && diameter<2.0f*PATHFIND_CELL_SIZE_F) {
+		diameter = 2.0f*PATHFIND_CELL_SIZE_F;
+	}
+	Int iRadius = REAL_TO_INT_FLOOR(diameter/PATHFIND_CELL_SIZE_F+0.3f);
+	if (iRadius == 0) iRadius++;
+	return iRadius / 2 > 2;	// getRadiusAndCenter's MAX_RADIUS
+}
+
+Int Pathfinder::footprintCells( const Object *obj )
+{
+	Int radius = 0;
+	Bool center = TRUE;
+	getRadiusAndCenter(obj, radius, center);
+	return 2 * radius + (center ? 1 : 0);
+}
+
+// ------------------------------------------------------------------------------------------------
+// TheSuperHackers @feature simonx645 16/11/2026 -pathProfile: each search counted and timed around its body (*Impl).
+// Off, each costs one flag test. The searches run exactly as before either way.
+// ------------------------------------------------------------------------------------------------
+Path *Pathfinder::findPath( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from, const Coord3D *rawTo )
+{
+	PathProfile::Search search( PathProfile::FIND, m_cumulativeCellsAllocated, obj );
+	Path *path = findPathImpl( obj, locomotorSet, from, rawTo );
+	search.Finish( PathProfile::Search::Classify( path, rawTo, FALSE ), path );
+	return path;
+}
+
+Path *Pathfinder::benchFindPath( Object *obj, const Coord3D *from, const Coord3D *to, Int *cells )
+{
+	if (obj == nullptr || obj->getAI() == nullptr)
+		return nullptr;
+	const Int before = m_cumulativeCellsAllocated;
+	Path *path = findPathImpl( obj, obj->getAI()->getLocomotorSet(), from, to );
+	if (cells != nullptr)
+		*cells = m_cumulativeCellsAllocated - before;
+	m_cumulativeCellsAllocated = before;
+	return path;
+}
+
+Path *Pathfinder::findClosestPath( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
+	Coord3D *rawTo, Bool blocked, Real pathCostMultiplier, Bool moveAllies )
+{
+	PathProfile::Search search( PathProfile::CLOSEST, m_cumulativeCellsAllocated, obj );
+	const Coord3D wanted = *rawTo;	// the search may move rawTo to the nearest reachable place
+	Path *path = findClosestPathImpl( obj, locomotorSet, from, rawTo, blocked, pathCostMultiplier, moveAllies );
+	search.Finish( PathProfile::Search::Classify( path, &wanted, FALSE ), path );
+	return path;
+}
+
+Path *Pathfinder::findAttackPath( const Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
+	const Object *victim, const Coord3D* victimPos, const Weapon *weapon )
+{
+	PathProfile::Search search( PathProfile::ATTACK, m_cumulativeCellsAllocated, obj );
+	Path *path = findAttackPathImpl( obj, locomotorSet, from, victim, victimPos, weapon );
+	search.Finish( PathProfile::Search::Classify( path, nullptr, FALSE ), path );
+	return path;
+}
+
+Path *Pathfinder::findSafePath( const Object *obj, const LocomotorSet& locomotorSet,
+	const Coord3D *from, const Coord3D* repulsorPos1, const Coord3D* repulsorPos2, Real repulsorRadius )
+{
+	PathProfile::Search search( PathProfile::SAFE, m_cumulativeCellsAllocated, obj );
+	Path *path = findSafePathImpl( obj, locomotorSet, from, repulsorPos1, repulsorPos2, repulsorRadius );
+	search.Finish( PathProfile::Search::Classify( path, nullptr, FALSE ), path );
+	return path;
+}
+
+Path *Pathfinder::patchPath( const Object *obj, const LocomotorSet& locomotorSet, Path *originalPath, Bool blocked )
+{
+	PathProfile::Search search( PathProfile::PATCH, m_cumulativeCellsAllocated, obj );
+	Path *path = patchPathImpl( obj, locomotorSet, originalPath, blocked );
+	search.Finish( PathProfile::Search::Classify( path, nullptr, FALSE ), path );
+	return path;
+}
+
+Path *Pathfinder::getAircraftPath( const Object *obj, const Coord3D *to )
+{
+	PathProfile::Search search( PathProfile::AIRCRAFT, m_cumulativeCellsAllocated, obj );
+	Path *path = getAircraftPathImpl( obj, to );
+	search.Finish( PathProfile::Search::Classify( path, nullptr, FALSE ), path );
+	return path;
+}
+
+Path *Pathfinder::findGroundPath( const Coord3D *from, const Coord3D *rawTo, Int pathDiameter, Bool crusher )
+{
+	PathProfile::Search search( PathProfile::GROUP, m_cumulativeCellsAllocated );
+	Path *path = findGroundPathImpl( from, rawTo, pathDiameter, crusher );
+	search.Finish( PathProfile::Search::Classify( path, rawTo, FALSE ), path );
+	return path;
+}
+
+Path *Pathfinder::internal_findHierarchicalPath( Bool isHuman, const LocomotorSurfaceTypeMask locomotorSurface, const Coord3D *from,
+	const Coord3D *rawTo, Bool crusher, Bool closestOK, Int radius )
+{
+	PathProfile::Search search( PathProfile::COARSE, m_cumulativeCellsAllocated );
+	Path *path = internal_findHierarchicalPathImpl( isHuman, locomotorSurface, from, rawTo, crusher, closestOK, radius );
+	search.Finish( PathProfile::Search::Classify( path, rawTo, FALSE ), path );
+	return path;
 }

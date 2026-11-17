@@ -261,6 +261,9 @@ public:
 		m_blockedRepathTimestamp = 0;
 		m_adjustDestinations = true;
 		m_goalLayer = LAYER_INVALID;
+		m_shortTries = 0;
+		m_shortTryFrame = 0;
+		m_goalSet = FALSE;
 		m_moveSoundState = MOVESOUND_WAITING;
 		m_ambientPlayingHandle = AHSV_Error;
 		m_moveLoopSound = nullptr;
@@ -271,11 +274,14 @@ public:
 	virtual StateReturnType update() override;
 
 protected:
+	Int m_shortTries;			///< TheSuperHackers @feature simonx645 16/11/2026 "groupgoals": paths that ended short of the goal asked for again this entry (not saved)
+	UnsignedInt m_shortTryFrame;	///< the last such ask
+	Bool m_goalSet;			///< TheSuperHackers @bugfix simonx645 16/11/2026 a move order set m_goalPosition (a state that builds its own path never does; not saved)
 
 	void setAdjustsDestination(Bool b) { m_adjustDestinations = b; }
 	Bool getAdjustsDestination() const;
 
-	void setGoalPos(const Coord3D* pos) { m_goalPosition = *pos; }
+	void setGoalPos(const Coord3D* pos) { { m_goalPosition = *pos; m_goalSet = TRUE; } }
 	const Coord3D* getGoalPos() const { return &m_goalPosition; }
 
 	virtual Bool computePath();												///< compute the path
@@ -603,6 +609,10 @@ protected:
 	StateMachine *m_attackMoveMachine;
 	UnsignedInt		m_frameToSleepUntil;
 	Int						m_retryCount;
+	// TheSuperHackers @feature simonx645 16/11/2026 "amresume" (GameLogic/PathTuning.h), not saved: the post-combat resume
+	Bool					m_resumed;				///< a fight has ended in this attack-move
+	Coord3D				m_stallAnchor;			///< where the resume's progress was last measured from
+	UnsignedInt		m_stallFrame;			///< its frame (0: not measuring)
 protected:
 	// snapshot interface
 	virtual void crc( Xfer *xfer ) override;

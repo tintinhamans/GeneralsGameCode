@@ -34,6 +34,7 @@
 //#include "GameLogic/Locomotor.h"	// no, do not include this, unless you like long recompiles
 #include "GameLogic/LocomotorSet.h"
 #include "GameLogic/GameLogic.h"
+#include "GameLogic/PathTuning.h"
 
 #include <vector>
 
@@ -246,9 +247,11 @@ public:
 	}
 
 	// Open-list order for one insert. Without breakTies, equal totals stay first in, first out.
+	// TheSuperHackers @feature simonx645 16/11/2026 "octile" (GameLogic/PathTuning.h): equal totals break by progress on
+	// every insert.
 	Bool sortsBefore(const PathfindCellInfo& other, Bool breakTies) const
 	{
-		if (breakTies)
+		if (breakTies || PathTuning::Octile)
 		{
 			return *this < other;
 		}
@@ -266,6 +269,8 @@ protected:
 	PathfindCellInfo *m_pathParent;												///< "parent" cell from pathfinder
 	PathfindCell *m_cell;															///< Cell this info belongs to currently.
 
+	// TheSuperHackers @info simonx645 16/11/2026 "cost32" (GameLogic/PathTuning.h): contraZH keeps 32 bits already, so the
+	// switch changes nothing in this tree.
 	UnsignedInt m_totalCost, m_costSoFar;	///< cost estimates for A* search
 
 	/// have to include cell's coordinates, since cells are often accessed via pointer only
@@ -758,6 +763,21 @@ private:
 	virtual Path *patchPath( const Object *obj, const LocomotorSet& locomotorSet,
 		Path *originalPath, Bool blocked ) override;
 
+	// TheSuperHackers @feature simonx645 16/11/2026 The searches themselves; the entry points above (and getAircraftPath,
+	// findGroundPath, internal_findHierarchicalPath) only count and time them for -pathProfile (GameLogic/PathProfile.h).
+	Path *findPathImpl( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from, const Coord3D *to);
+	Path *findClosestPathImpl( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
+		Coord3D *to, Bool blocked, Real pathCostMultiplier, Bool moveAllies );
+	Path *findAttackPathImpl( const Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
+		const Object *victim, const Coord3D* victimPos, const Weapon *weapon );
+	Path *findSafePathImpl( const Object *obj, const LocomotorSet& locomotorSet,
+		const Coord3D *from, const Coord3D* repulsorPos1, const Coord3D* repulsorPos2, Real repulsorRadius );
+	Path *patchPathImpl( const Object *obj, const LocomotorSet& locomotorSet, Path *originalPath, Bool blocked );
+	Path *getAircraftPathImpl( const Object *obj, const Coord3D *to );
+	Path *findGroundPathImpl( const Coord3D *from, const Coord3D *to, Int pathRadius, Bool crusher );
+	Path *internal_findHierarchicalPathImpl( Bool isHuman, const LocomotorSurfaceTypeMask locomotorSurface, const Coord3D *from,
+		const Coord3D *to, Bool crusher, Bool closestOK, Int radius );
+
 public:
 	Pathfinder();
 	~Pathfinder() ;
@@ -826,6 +846,11 @@ public:
 
 	const ICoord2D *getExtent() const {return &m_extent.hi;}
 
+	// TheSuperHackers @feature simonx645 16/11/2026 -pathBench (GameLogic/PathScenario.h): the findPath search for obj with
+	// its own locomotors; cells: the cells it used. The pathfinder's per-frame cell count is left as it was. The caller
+	// owns the path.
+	Path *benchFindPath( Object *obj, const Coord3D *from, const Coord3D *to, Int *cells );
+
 	void setIgnoreObstacleID( ObjectID objID );					///< if non-zero, the pathfinder will ignore the given obstacle
 
 	Bool validMovementPosition( Bool isCrusher, LocomotorSurfaceTypeMask acceptableSurfaces, Int requiredWaterLevel, Short requiredBridgeHeight, PathfindCell *toCell, PathfindCell *fromCell = NULL );		///< Return true if given position is a valid movement location
@@ -834,6 +859,20 @@ public:
 	Bool validMovementTerrain( PathfindLayerEnum layer, const Locomotor* locomotor, const Coord3D *pos );		///< Return true if given position is a valid movement location
 	Bool validMovementTerrainForObject( const Object *obj, const Locomotor* locomotor, const Coord3D *pos );	///< validMovementTerrain plus the clearance the object's footprint needs
 	Int getClearanceShortage( const PathfindCell *cell, LocomotorSurfaceTypeMask surfaces, Int radius ) const;	///< Footprint cells that hang past the ground clearance of a cell
+	/// TheSuperHackers @feature simonx645 16/11/2026 "clearance" (GameLogic/PathTuning.h): how many rings of a radius-r
+	/// footprint at this ground cell hang past water, cliff (hard, the ones that refuse a step) or the playable edge
+	/// (returned; the ones that cost). 0 when the unit is not affected.
+	Int ringShortage( Int cellX, Int cellY, LocomotorSurfaceTypeMask surfaces, Int radius, Int *hardShortage ) const;
+	/// "clearance": a waypoint the unit's footprint would hang over water, a cliff or the playable edge from moves to the
+	/// nearest cell within 3 rings, in the unit's zone, where it does not. TRUE if it moved.
+	Bool clearWaypoint( const Object *obj, Coord3D *pos );
+	/// "clearance": per ground cell, the Chebyshev distance to the nearest water cell and to the nearest cliff cell (0 on
+	/// one, capped at CLEARANCE_MAX + 1), made when the map is classified, kept apart so a unit reads only the ones for
+	/// ground it cannot use.
+	UnsignedByte *m_waterRings;
+	UnsignedByte *m_cliffRings;
+	void buildClearance();
+	void freeClearance();
 
 	Locomotor* chooseBestLocomotorForPosition(PathfindLayerEnum layer,  LocomotorSet* locomotorSet, const Coord3D* pos );
 
@@ -879,6 +918,17 @@ public:
 	void snapPosition(Object *obj, Coord3D *pos); // Snaps the current position to it's grid location.
 	void snapClosestGoalPosition(Object *obj, Coord3D *pos); // Snaps the current position to a good goal position.
 	Bool assignGroupSlots(std::vector<PathfindSlotRequest>& units, const Coord3D *click, const Coord3D *centroid); ///< Gives each unit of a group its own arrival cell around the click.
+	/// TheSuperHackers @feature simonx645 16/11/2026 "groupgoals" (GameLogic/PathTuning.h): goals for a group's ground units
+	/// from one flood from the click (see AIPathfind.cpp), used instead of assignGroupSlots while on. goals[i] and
+	/// placed[i] answer members[i]; a placed goal is reserved (updateGoal). Returns how many were placed.
+	Int assignGroupGoals( Object **members, Int count, const Coord3D *click, CommandSourceType cmdSource, Coord3D *goals, Bool *placed );
+	Int groupGoalFit( Int x, Int y );	///< "groupgoals": the widest footprint (1 to 5 cells square) that fits at a ground cell
+	/// TheSuperHackers @feature simonx645 16/11/2026 "colhold" (GameLogic/PathTuning.h): could obj take its footprint's
+	/// box at pos on the ground as its goal (checkDestination)?
+	Bool goalBoxFree( const Object *obj, const Coord3D *pos );
+	Bool givenBoxClear( const Object *obj, const Coord3D *pos );	///< "colhold": no other unit's goal or parked unit in the box
+	Int footprintCells( const Object *obj );						///< the unit's footprint across, in cells
+	Bool footprintCapped( const Object *obj );						///< "colhold": its footprint was capped at MAX_RADIUS
 	Bool goalPosition(Object *obj, Coord3D *pos); // Returns the goal position on the grid.
 
 	PathfindLayerEnum addBridge(Bridge *theBridge); // Adds a bridge layer, and returns the layer id.

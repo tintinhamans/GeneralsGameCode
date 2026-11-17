@@ -102,6 +102,9 @@ void DefaultProductionExitUpdate::exitObjectViaDoor( Object *newObj, ExitDoorTyp
 		TheAI->pathfinder()->addObjectToPathfindMap( newObj );
 		Coord3D tmp;
 		getNaturalRallyPoint(tmp);
+		// TheSuperHackers @feature simonx645 16/11/2026 "exitpass" (GameLogic/PathTuning.h)
+		if (newObj->getAI() && newObj->getAI()->isDoingGroundMovement())
+			newObj->getAI()->startExitPass(&createPoint, &tmp);
 		std::vector<Coord3D> exitPath;
 		exitPath.push_back(tmp);
 
