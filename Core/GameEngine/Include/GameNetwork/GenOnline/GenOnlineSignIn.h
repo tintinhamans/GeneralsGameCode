@@ -55,6 +55,7 @@ public:
 	~GenOnlineSignIn();
 
 	// Signs in in the system browser. origin is the origin of the environment, https or a loopback http origin.
+	// A successful sign-in brings the game window back to the front.
 	void Start(const std::string& origin, DoneFn done);
 
 	// Exchanges a refresh token for new tokens. The refresh token rotates on every use.
@@ -87,4 +88,6 @@ private:
 	std::string m_codeVerifier;
 	std::string m_redirectUri;
 	int64_t m_browserDeadline = -1;
+	// The running sign-in went through the browser, so a success brings the game window back to the front.
+	bool m_viaBrowser = false;
 };
