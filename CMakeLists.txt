@@ -73,6 +73,7 @@ else()
 endif()
 include(cmake/lzhl.cmake)
 include(cmake/stb.cmake)
+include(GenOnline/cmake/third-party-notices.cmake)
 
 if(RTS_BUILD_OPTION_PROFILE_TRACY)
     include(cmake/tracy.cmake)

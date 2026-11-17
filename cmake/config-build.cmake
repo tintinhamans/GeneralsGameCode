@@ -27,6 +27,7 @@ if(RTS_BUILD_OPTION_MODERN_MEDIA)
 endif()
 set(RTS_EXE_CRC "" CACHE STRING "Exe CRC this build reports in lobbies and network games instead of the real one, hex (0xC8FC6170) or decimal. Empty uses the real exe CRC.")
 set(RTS_REPLAY_EXE_CRC "" CACHE STRING "Exe CRC written to replays instead of the real one, hex (0xC8FC6170) or decimal. Empty writes the real exe CRC.")
+set(RTS_SOURCE_URL "https://github.com/community-outpost/genonline-client" CACHE STRING "Public repository of this source that the audio library notice names as the source of the build.")
 set(RTS_REPLAY_COMPATIBLE_EXE_CRCS "" CACHE STRING "Extra exe CRCs that replays treat as this build, hex or decimal separated by ; or ,. The real and written exe CRC always match.")
 
 # Converts a hex or decimal 32 bit value to a padded 0xXXXXXXXX string.
@@ -248,8 +249,12 @@ function(rts_copy_modern_media_files target)
     endif()
     set(licenses "${CMAKE_SOURCE_DIR}/GenOnline/licenses/media")
     add_custom_command(TARGET ${target} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${licenses}/audio-libraries-NOTICE.txt" "$<TARGET_FILE_DIR:${target}>/audio-libraries-NOTICE.txt"
+        COMMAND ${CMAKE_COMMAND}
+            "-DTEMPLATE=${licenses}/audio-libraries-NOTICE.txt.in"
+            "-DOUTPUT=$<TARGET_FILE_DIR:${target}>/audio-libraries-NOTICE.txt"
+            "-DSOURCE_DIR=${CMAKE_SOURCE_DIR}"
+            "-DSOURCE_URL=${RTS_SOURCE_URL}"
+            -P "${CMAKE_SOURCE_DIR}/GenOnline/cmake/scripts/write-audio-notice.cmake"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${licenses}/FFmpeg-LGPL-2.1.txt" "$<TARGET_FILE_DIR:${target}>/ffmpeg-LICENSE.txt"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
