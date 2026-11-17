@@ -1026,6 +1026,7 @@ void WebSocket::StartReconnect(int64_t delayMs, bool bSwitch)
 	m_numReconnectAttempts = 0;
 	m_reconnectAttemptStarted = -1;
 	m_reconnectStartTime = NowMs();
+	m_switchClosedAt = bSwitch ? m_reconnectStartTime : -1;
 	m_nextReconnectAttempt = m_reconnectStartTime + delayMs;
 }
 
@@ -1033,12 +1034,13 @@ void WebSocket::EndReconnect()
 {
 	m_bReconnecting = false;
 	m_bSwitchReconnect = false;
+	m_switchClosedAt = -1;
 	m_reconnectAttemptStarted = -1;
 }
 
 int64_t WebSocket::ComputeReconnectDelay() const
 {
-	return m_hubReconnectPolicy.NextDelayMs();
+	return GenOnlineRealtime::SwitchWindowDelayMs(m_hubReconnectPolicy.NextDelayMs(), m_switchClosedAt, NowMs());
 }
 
 void WebSocket::UpdateReconnect()

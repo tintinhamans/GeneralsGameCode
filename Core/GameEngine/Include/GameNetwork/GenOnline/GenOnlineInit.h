@@ -270,6 +270,8 @@ private:
 	int64_t m_reconnectAttemptStarted = -1; // -1 = none in flight
 	// A handover reconnect after a server.switching close, hidden until SWITCH_HIDDEN_RECONNECT_MS passed.
 	bool m_bSwitchReconnect = false;
+	// When the server.switching close of the running reconnect came, -1 for any other reconnect.
+	int64_t m_switchClosedAt = -1;
 	// The 503 answers in a row of the realtime upgrade, which a standby service copy gives after a failover switch.
 	GenOnlineRealtime::StandbyRetry m_upgradeStandby;
 	// The next try of a first connect that got a standby answer, or -1.

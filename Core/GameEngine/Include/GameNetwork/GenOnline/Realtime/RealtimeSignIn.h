@@ -195,8 +195,9 @@ inline std::string LoopbackRedirectUri(int port)
 }
 
 // The authorize URL opened in the system browser, on the authorization endpoint of the discovery document.
+// promptLogin asks for the sign-in form even when the browser is still signed in, so the player can pick another account.
 inline std::string BuildAuthorizeUrl(const std::string& authorizationEndpoint, const std::string& clientId, const std::string& redirectUri,
-	const std::string& state, const std::string& codeChallenge)
+	const std::string& state, const std::string& codeChallenge, bool promptLogin = false)
 {
 	FormFields query;
 	query.push_back(std::make_pair("client_id", clientId));
@@ -206,6 +207,10 @@ inline std::string BuildAuthorizeUrl(const std::string& authorizationEndpoint, c
 	query.push_back(std::make_pair("state", state));
 	query.push_back(std::make_pair("code_challenge", codeChallenge));
 	query.push_back(std::make_pair("code_challenge_method", "S256"));
+	if (promptLogin)
+	{
+		query.push_back(std::make_pair("prompt", "login"));
+	}
 	return authorizationEndpoint + "?" + EncodeForm(query);
 }
 
