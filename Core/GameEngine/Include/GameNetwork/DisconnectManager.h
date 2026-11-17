@@ -132,6 +132,7 @@ protected:
 	Bool m_playerLeft[MAX_SLOTS - 1];	///< The player of the translated slot has left and waits for its removal.
 	Bool m_ownLeaveReceived[MAX_SLOTS - 1];	///< The leave came from the player itself, not from a notice of another player.
 	Bool m_leftPlayerHold;
+	Bool m_screenDeferred;	///< The removal of a player that has left runs without the window until the normal stall wait has passed.
 	Bool m_removedInRound;
 	UnsignedInt m_catchUpFrame;
 	Int m_heldRemovalFrom[MAX_SLOTS];	///< The sender of a removal of the slot that came before it was the acting packet router here, or -1.

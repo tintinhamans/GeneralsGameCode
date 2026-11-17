@@ -85,6 +85,7 @@ DisconnectManager::DisconnectManager()
 	}
 #if !RETAIL_COMPATIBLE_NETWORKING
 	m_leftPlayerHold = FALSE;
+	m_screenDeferred = FALSE;
 	m_removedInRound = FALSE;
 	m_catchUpFrame = 0;
 #endif
@@ -135,6 +136,7 @@ void DisconnectManager::init() {
 		m_ownLeaveReceived[i] = FALSE;
 	}
 	m_leftPlayerHold = FALSE;
+	m_screenDeferred = FALSE;
 	m_removedInRound = FALSE;
 	m_catchUpFrame = 0;
 #endif
@@ -169,6 +171,13 @@ void DisconnectManager::update(ConnectionManager *conMgr) {
 			if (m_disconnectState == DISCONNECTSTATETYPE_SCREENOFF) {
 				turnOnScreen(conMgr);
 			}
+#if !RETAIL_COMPATIBLE_NETWORKING
+			// A removal that takes as long as a stall shows the window like the stall would.
+			if ((m_screenDeferred == TRUE) && ((curTime - m_lastFrameTime) > TheGlobalData->m_networkDisconnectTime)) {
+				m_screenDeferred = FALSE;
+				TheDisconnectMenu->showScreen();
+			}
+#endif
 			sendKeepAlive(conMgr);
 		}
 	} else {
@@ -711,6 +720,7 @@ void DisconnectManager::allCommandsReady(UnsignedInt frame, ConnectionManager *c
 			// no removal: a stall on the next frame brings the screen back soon
 			m_catchUpFrame = (m_removedInRound == TRUE) ? 0 : frame + 1;
 			m_removedInRound = FALSE;
+			m_screenDeferred = FALSE;
 #endif
 
 			TheDisconnectMenu->hideScreen();
@@ -811,7 +821,15 @@ void DisconnectManager::resetPacketRouterTimeout() {
 }
 
 void DisconnectManager::turnOnScreen(ConnectionManager *conMgr) {
+#if RETAIL_COMPATIBLE_NETWORKING
 	TheDisconnectMenu->showScreen();
+#else
+	// The removal of a player that has left starts at once and needs no window. The window waits for the normal stall time.
+	m_screenDeferred = (m_leftPlayerHold == TRUE) && ((timeGetTime() - m_lastFrameTime) <= TheGlobalData->m_networkDisconnectTime);
+	if (m_screenDeferred == FALSE) {
+		TheDisconnectMenu->showScreen();
+	}
+#endif
 	DEBUG_LOG(("DisconnectManager::turnOnScreen - turning on screen on frame %d", TheGameLogic->getFrame()));
 	m_disconnectState = DISCONNECTSTATETYPE_SCREENON;
 	m_lastKeepAliveSendTime = -1;
