@@ -805,6 +805,118 @@ static void TestServerSwitching()
 	CHECK(!SwitchReconnectHidden(1000, 60000));
 }
 
+static void TestConnectRefusals()
+{
+	// The service refuses a connection after the handshake with at most one event and a close record, and never sends Ready.
+	struct Case
+	{
+		const char* records;
+		const char* code;
+		DisconnectAction action;
+	};
+	const Case cases[] = {
+		{ "{\"type\":7,\"error\":\"unauthorized\",\"allowReconnect\":false}\x1E", "unauthorized", DisconnectAction::RefreshTokenAndReconnect },
+		{ "{\"type\":7,\"error\":\"session.not_registered\",\"allowReconnect\":false}\x1E", "session.not_registered", DisconnectAction::RegisterAndReconnect },
+		{ "{\"type\":1,\"target\":\"ModerationNotice\",\"arguments\":[{\"action\":\"ban\",\"reason\":\"cheating\",\"expires_at\":\"2026-12-01T00:00:00Z\"}]}\x1E"
+			"{\"type\":7,\"error\":\"moderation.banned\",\"allowReconnect\":false}\x1E", "moderation.banned", DisconnectAction::ReturnToLogin },
+		{ "{\"type\":1,\"target\":\"ServerSwitching\",\"arguments\":[{\"retry_after_ms\":1500}]}\x1E"
+			"{\"type\":7,\"error\":\"service.unavailable\",\"allowReconnect\":true}\x1E", "service.unavailable", DisconnectAction::ReconnectAfterStandby },
+		{ "{\"type\":7,\"error\":\"service.unavailable\",\"allowReconnect\":false}\x1E", "service.unavailable", DisconnectAction::ReturnToLogin },
+		{ "{\"type\":7,\"error\":\"auth.revoked\",\"allowReconnect\":false}\x1E", "auth.revoked", DisconnectAction::RefreshAndReconnect },
+	};
+	for (const Case& c : cases)
+	{
+		FakeHub hub;
+		int bans = 0;
+		hub.session.On<ModerationNoticeEvent>([&](const ModerationNoticeEvent& notice)
+		{
+			if (notice.action == "ban")
+			{
+				++bans;
+			}
+		});
+		hub.session.OnTransportOpen(0);
+		hub.Receive(std::string("{}\x1E") + c.records, 1);
+		CHECK(hub.readies == 0);
+		CHECK(hub.disconnects == 1);
+		CHECK(hub.lastAction == c.action);
+		CHECK(hub.lastReason == c.code);
+		CHECK(hub.closes == 1);
+		CHECK(bans == (std::string(c.code) == "moderation.banned" ? 1 : 0));
+	}
+
+	// The ban notice before Ready carries the reason and expiry, both absent for a permanent ban without a reason.
+	FakeHub banned;
+	ModerationNoticeEvent ban;
+	banned.session.On<ModerationNoticeEvent>([&](const ModerationNoticeEvent& notice)
+	{
+		ban = notice;
+	});
+	banned.session.OnTransportOpen(0);
+	banned.Receive("{}\x1E{\"type\":1,\"target\":\"ModerationNotice\",\"arguments\":[{\"action\":\"ban\",\"reason\":\"cheating\",\"expires_at\":\"2026-12-01T00:00:00Z\"}]}\x1E", 1);
+	CHECK(ban.action == "ban");
+	CHECK(ban.reason.has_value() && *ban.reason == "cheating");
+	CHECK(ban.expires_at.has_value() && *ban.expires_at == "2026-12-01T00:00:00Z");
+	CHECK(banned.session.GetState() == HubSession::State::WaitingForReady);
+	FakeHub permanent;
+	ModerationNoticeEvent permanentBan;
+	permanentBan.reason = std::string("stale");
+	permanent.session.On<ModerationNoticeEvent>([&](const ModerationNoticeEvent& notice)
+	{
+		permanentBan = notice;
+	});
+	permanent.session.OnTransportOpen(0);
+	permanent.Receive("{}\x1E{\"type\":1,\"target\":\"ModerationNotice\",\"arguments\":[{\"action\":\"ban\"}]}\x1E", 1);
+	CHECK(permanentBan.action == "ban");
+	CHECK(!permanentBan.reason.has_value());
+	CHECK(!permanentBan.expires_at.has_value());
+
+	// The standby refusal keeps the retry_after_ms of its ServerSwitching for the reconnect.
+	FakeHub standby;
+	standby.session.OnTransportOpen(0);
+	standby.Receive("{}\x1E{\"type\":1,\"target\":\"ServerSwitching\",\"arguments\":[{\"retry_after_ms\":1500}]}\x1E{\"type\":7,\"error\":\"service.unavailable\",\"allowReconnect\":true}\x1E", 1);
+	CHECK(standby.session.ServerSwitchingRetryAfterMs().has_value() && *standby.session.ServerSwitchingRetryAfterMs() == 1500);
+
+	// Other events before Ready still end the connection.
+	FakeHub chatFirst;
+	chatFirst.session.OnTransportOpen(0);
+	chatFirst.Receive("{}\x1E{\"type\":1,\"target\":\"Notice\",\"arguments\":[{\"code\":\"x\",\"params\":{}}]}\x1E", 1);
+	CHECK(chatFirst.lastAction == DisconnectAction::ReturnToLogin);
+
+	// unauthorized refreshes the token, session.not_registered registers the session, auth.revoked does both.
+	CHECK(RecoveryForAction(DisconnectAction::RefreshTokenAndReconnect).refreshToken);
+	CHECK(!RecoveryForAction(DisconnectAction::RefreshTokenAndReconnect).registerSession);
+	CHECK(!RecoveryForAction(DisconnectAction::RegisterAndReconnect).refreshToken);
+	CHECK(RecoveryForAction(DisconnectAction::RegisterAndReconnect).registerSession);
+	CHECK(RecoveryForAction(DisconnectAction::RefreshAndReconnect).refreshToken);
+	CHECK(RecoveryForAction(DisconnectAction::RefreshAndReconnect).registerSession);
+	CHECK(!RecoveryForAction(DisconnectAction::Reconnect).refreshToken);
+	CHECK(!RecoveryForAction(DisconnectAction::Reconnect).registerSession);
+	CHECK(!RecoveryForAction(DisconnectAction::ReturnToLogin).refreshToken);
+	CHECK(!RecoveryForAction(DisconnectAction::ReturnToLogin).registerSession);
+}
+
+static void TestStandbyRefusalDelay()
+{
+	// A standby refusal reconnects after its retry_after_ms until the refusals in a row lasted 10 seconds.
+	StandbyRetry standby;
+	CHECK(StandbyRefusalDelayMs(standby, std::optional<int64_t>(1500), 1000) == 1500);
+	CHECK(StandbyRefusalDelayMs(standby, std::optional<int64_t>(800), 6000) == 800);
+	CHECK(StandbyRefusalDelayMs(standby, std::optional<int64_t>(800), 1000 + STANDBY_RETRY_WINDOW_MS - 1) == 800);
+	CHECK(StandbyRefusalDelayMs(standby, std::optional<int64_t>(800), 1000 + STANDBY_RETRY_WINDOW_MS) == -1);
+	CHECK(StandbyRefusalDelayMs(standby, std::optional<int64_t>(800), 1000 + STANDBY_RETRY_WINDOW_MS + 5000) == -1);
+
+	// A new row starts after a reset, which a Ready or any other ending of the connection does.
+	standby.Reset();
+	CHECK(StandbyRefusalDelayMs(standby, std::optional<int64_t>(800), 30000) == 800);
+
+	// Without a ServerSwitching the wait is the standby retry delay, and the value stays within 0 and the backoff cap.
+	StandbyRetry bare;
+	CHECK(StandbyRefusalDelayMs(bare, std::nullopt, 0) == STANDBY_RETRY_DELAY_MS);
+	CHECK(StandbyRefusalDelayMs(bare, std::optional<int64_t>(-5), 1) == 0);
+	CHECK(StandbyRefusalDelayMs(bare, std::optional<int64_t>(600000), 2) == ReconnectPolicy::STEP_CAP_MS);
+}
+
 static void TestModerationText()
 {
 	const auto format = [](const std::string& utc) { return "<" + utc + ">"; };
@@ -2459,6 +2571,8 @@ int main(int argc, char** argv)
 	TestHubSessionClose();
 	TestReconnectPolicy();
 	TestServerSwitching();
+	TestConnectRefusals();
+	TestStandbyRefusalDelay();
 	TestModerationText();
 	TestConnectionStep();
 	TestPluginTransportName();

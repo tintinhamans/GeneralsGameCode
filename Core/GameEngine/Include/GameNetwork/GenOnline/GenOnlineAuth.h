@@ -94,11 +94,8 @@ public:
 	static std::string GetCredentialsFilePath();
 
 	// Refreshes the tokens and registers the session again, for a realtime hub that refused or revoked the session.
-	void RecoverRealtimeSession(std::function<void(bool bRecovered)> fnDone);
-
-	// A refused realtime upgrade carries no ban body, so the session registration, which the ban refuses
-	// with the same body, reads it. Then the session ends with the ban dialog.
-	void ReportRealtimeBan();
+	// Each step runs only when its flag is set.
+	void RecoverRealtimeSession(bool bRefreshToken, bool bRegisterSession, std::function<void(bool bRecovered)> fnDone);
 
 	// The origin of the realtime hub and the v1 REST endpoints, or empty without a trusted route.
 	static std::string ServiceOriginV1();

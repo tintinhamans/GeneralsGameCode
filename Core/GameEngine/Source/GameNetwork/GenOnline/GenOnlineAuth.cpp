@@ -667,18 +667,18 @@ void GenOnlineAuthInterface::RefreshTokensV1(std::function<void(bool bRefreshed)
 		});
 }
 
-void GenOnlineAuthInterface::RecoverRealtimeSession(std::function<void(bool bRecovered)> fnDone)
+void GenOnlineAuthInterface::RecoverRealtimeSession(bool bRefreshToken, bool bRegisterSession, std::function<void(bool bRecovered)> fnDone)
 {
-	if (!IsLoggedIn() || m_strRefreshToken.empty())
+	if (!IsLoggedIn() || (bRefreshToken && m_strRefreshToken.empty()))
 	{
 		fnDone(false);
 		return;
 	}
-	RefreshTokensV1([this, fnDone](bool bRefreshed)
+	std::function<void()> fnRegister = [this, bRegisterSession, fnDone]()
 		{
-			if (!bRefreshed)
+			if (!bRegisterSession)
 			{
-				fnDone(false);
+				fnDone(true);
 				return;
 			}
 			RegisterSessionV1([fnDone](int statusCode, const std::string& strBody)
@@ -692,27 +692,20 @@ void GenOnlineAuthInterface::RecoverRealtimeSession(std::function<void(bool bRec
 					}
 					fnDone(statusCode == 200);
 				});
-		});
-}
-
-void GenOnlineAuthInterface::ReportRealtimeBan()
-{
-	if (!IsLoggedIn())
+		};
+	if (!bRefreshToken)
 	{
-		HandleModerationBan(BanDetailsFromError(GenOnlineRealtime::ApiErrorInfo()));
+		fnRegister();
 		return;
 	}
-	// A logout or another sign-in during the check drops its answer.
-	const int64_t userID = m_userID;
-	RegisterSessionV1([this, userID](int statusCode, const std::string& strBody)
+	RefreshTokensV1([fnRegister, fnDone](bool bRefreshed)
 		{
-			if (m_userID != userID)
+			if (!bRefreshed)
 			{
+				fnDone(false);
 				return;
 			}
-			const GenOnlineRealtime::ApiErrorInfo error = GenOnlineRealtime::ParseApiError(strBody);
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Ban check of the refused realtime upgrade answered %d %s", statusCode, error.code.c_str());
-			HandleModerationBan(BanDetailsFromError(statusCode == 403 ? error : GenOnlineRealtime::ApiErrorInfo()));
+			fnRegister();
 		});
 }
 

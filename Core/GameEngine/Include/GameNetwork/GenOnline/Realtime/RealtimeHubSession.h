@@ -52,8 +52,14 @@ enum class DisconnectAction
 	ReconnectAfterKick,
 	// Reconnect once after SwitchReconnectDelayMs, without backoff and without a reconnect screen.
 	ReconnectAfterSwitch,
+	// Reconnect after StandbyRefusalDelayMs, without backoff and without a reconnect screen.
+	ReconnectAfterStandby,
 	// Refresh the access token once, register the session again and reconnect, otherwise return to login.
 	RefreshAndReconnect,
+	// Refresh the access token once and reconnect, otherwise return to login.
+	RefreshTokenAndReconnect,
+	// Register the session once and reconnect, otherwise return to login.
+	RegisterAndReconnect,
 	// Stop and tell the user that the account signed in elsewhere.
 	StopSignedInElsewhere,
 	// Return to the login screen.
@@ -68,6 +74,18 @@ inline DisconnectAction ActionForCloseCode(const std::string& code, bool allowRe
 		return DisconnectAction::StopSignedInElsewhere;
 	if (code == "auth.revoked")
 		return DisconnectAction::RefreshAndReconnect;
+	if (code == "unauthorized")
+	{
+		return DisconnectAction::RefreshTokenAndReconnect;
+	}
+	if (code == "session.not_registered")
+	{
+		return DisconnectAction::RegisterAndReconnect;
+	}
+	if (code == "service.unavailable" && allowReconnect)
+	{
+		return DisconnectAction::ReconnectAfterStandby;
+	}
 	if (code == "moderation.kicked")
 		return DisconnectAction::ReconnectAfterKick;
 	if (code == "server.switching" && allowReconnect)
@@ -77,6 +95,27 @@ inline DisconnectAction ActionForCloseCode(const std::string& code, bool allowRe
 	if (code == "moderation.banned" || code == "protocol.error")
 		return DisconnectAction::ReturnToLogin;
 	return allowReconnect ? DisconnectAction::Reconnect : DisconnectAction::ReturnToLogin;
+}
+
+// The steps that renew the session before the reconnect of an action.
+struct SessionRecovery
+{
+	bool refreshToken = false;
+	bool registerSession = false;
+};
+
+inline SessionRecovery RecoveryForAction(DisconnectAction action)
+{
+	SessionRecovery recovery;
+	recovery.refreshToken = action == DisconnectAction::RefreshAndReconnect || action == DisconnectAction::RefreshTokenAndReconnect;
+	recovery.registerSession = action == DisconnectAction::RefreshAndReconnect || action == DisconnectAction::RegisterAndReconnect;
+	return recovery;
+}
+
+// The events a refusing service sends before its close record, in place of Ready.
+inline bool IsRefusalEvent(const std::string& target)
+{
+	return target == ModerationNoticeEvent::EVENT || target == ServerSwitchingEvent::EVENT;
 }
 
 // Reconnect delays: a random 0.5 to 3 seconds first, then 2 seconds doubling up to 30 seconds.
@@ -156,6 +195,22 @@ inline int64_t SwitchWindowDelayMs(int64_t backoffMs, int64_t switchClosedAtMs, 
 		return backoffMs;
 	}
 	return (std::min)(backoffMs, SWITCH_FAST_RETRY_MAX_MS);
+}
+
+// The delay of the reconnect after a service.unavailable close, or -1 once the refusals in a row lasted
+// STANDBY_RETRY_WINDOW_MS and the reconnect uses the backoff. The delay is the retry_after_ms of the
+// ServerSwitching before the close, kept within 0 and the backoff cap, else STANDBY_RETRY_DELAY_MS.
+inline int64_t StandbyRefusalDelayMs(StandbyRetry& standby, const std::optional<int64_t>& retryAfterMs, int64_t nowMs)
+{
+	if (standby.NextDelayMs(true, nowMs) < 0)
+	{
+		return -1;
+	}
+	if (!retryAfterMs.has_value())
+	{
+		return STANDBY_RETRY_DELAY_MS;
+	}
+	return (std::min)((std::max)(*retryAfterMs, static_cast<int64_t>(0)), ReconnectPolicy::STEP_CAP_MS);
 }
 
 // The outcome of a hub method that expects a Result. transportError is set when no Result
@@ -417,6 +472,12 @@ private:
 	{
 		if (m_state == State::WaitingForReady)
 		{
+			// A refusal event comes before the close record of a refused connection, which never gets Ready.
+			if (IsRefusalEvent(record.target))
+			{
+				DispatchEvent(record);
+				return;
+			}
 			if (record.target != ReadyEvent::EVENT)
 			{
 				Fail(DisconnectAction::ReturnToLogin, "first event was " + record.target + " instead of Ready");
@@ -443,6 +504,11 @@ private:
 			return;
 		}
 
+		DispatchEvent(record);
+	}
+
+	void DispatchEvent(const Record& record)
+	{
 		if (record.target == ServerSwitchingEvent::EVENT)
 		{
 			RememberServerSwitching(record.argument);
