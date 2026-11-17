@@ -649,6 +649,8 @@ private:
 	// Lobby GET responses older than the last applied one are dropped.
 	std::atomic<uint64_t> m_LobbyUpdateRequestSeq = 0;
 	std::atomic<uint64_t> m_LobbyUpdateAppliedSeq = 0;
+	// When this client last told the service whether it has the map, so a lobby that still shows the old answer gets it again only after a pause.
+	std::chrono::steady_clock::time_point m_LastHasMapSent = {};
 	// Invalidates asynchronous callbacks left behind by an abandoned lobby join.
 	std::atomic<uint64_t> m_LobbyJoinGeneration = 0;
 	LobbyEntry m_LobbyTryingToJoin;

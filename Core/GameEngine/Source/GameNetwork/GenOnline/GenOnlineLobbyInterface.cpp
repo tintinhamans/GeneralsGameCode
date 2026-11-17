@@ -360,6 +360,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_HasMap()
 
 	GenOnlineRealtime::SetHasMapRequest request;
 	request.has_map = bHasMap;
+	m_LastHasMapSent = std::chrono::steady_clock::now();
 	InvokeLobbyUpdate(request);
 }
 
@@ -808,6 +809,7 @@ void GenOnlineLobbyInterface::ApplyLobbyUpdate(LobbyEntry lobbyEntry, const std:
 	{
 		bool bFoundSelfInOld = false;
 		bool bFoundSelfInNew = false;
+		bool bServiceSaysSelfHasMap = false;
 		GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 		int64_t myUserID = pAuthInterface == nullptr ? -1 : pAuthInterface->GetUserID();
 
@@ -828,6 +830,10 @@ void GenOnlineLobbyInterface::ApplyLobbyUpdate(LobbyEntry lobbyEntry, const std:
 		for (const LobbyMemberEntry& memberEntry : parsedMembers)
 		{
 			lobbyEntry.members.push_back(memberEntry);
+			if (memberEntry.IsHuman() && memberEntry.user_id == myUserID)
+			{
+				bServiceSaysSelfHasMap = memberEntry.has_map;
+			}
 
 			// TODO_NGMP: Much more robust system here
 			// TODO_NGMP: If we lose connection to someone in the mesh, who is STILL in otehrs mesh, we need to disconnect or retry
@@ -898,7 +904,12 @@ void GenOnlineLobbyInterface::ApplyLobbyUpdate(LobbyEntry lobbyEntry, const std:
 			TheGenOnlineGame->SyncWithLobby(m_CurrentLobby);
 			TheGenOnlineGame->UpdateSlotsFromCurrentLobby();
 
-			if (bNeedsHasMapUpdate)
+			// A joiner learns the map path only from the lobby, and an answer sent before the join completed may be lost, so a
+			// lobby that still shows the wrong answer for this client gets the right one again.
+			const bool bHasMap = TheMapCache->findMap(AsciiString(m_CurrentLobby.map_path.c_str())) != nullptr;
+			const bool bServiceDisagrees = bFoundSelfInNew && bServiceSaysSelfHasMap != bHasMap
+				&& std::chrono::steady_clock::now() - m_LastHasMapSent >= std::chrono::seconds(1);
+			if (bNeedsHasMapUpdate || bServiceDisagrees)
 			{
 				UpdateCurrentLobby_HasMap();
 			}
