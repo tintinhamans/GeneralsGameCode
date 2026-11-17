@@ -106,15 +106,15 @@ std::vector<std::string> BootstrapRoutes(const std::string& environment,
 	if (settings.serverMode == "custom")
 	{
 		std::string origin, error;
-		if ((environment != "dev" && environment != "test" && environment != "prod") || !NormalizeCustomEndpoint(settings.serverAddress, origin, error))
+		if ((environment != "dev" && environment != "stage" && environment != "live") || !NormalizeCustomEndpoint(settings.serverAddress, origin, error))
 			return {};
 		return {origin};
 	}
 	if (environment == "dev")
 		return {"https://localhost:9000"};
-	if (environment == "test")
+	if (environment == "stage")
 		return {"https://api.playgenerals.online:2087"};
-	if (environment != "prod")
+	if (environment != "live")
 		return {};
 	if (settings.serverMode != "automatic")
 		return {};

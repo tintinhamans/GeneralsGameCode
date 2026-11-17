@@ -17,8 +17,8 @@
 
 #pragma comment(lib, "Crypt32.lib")
 
-#if defined(USE_TEST_ENV)
-#define CREDENTIALS_FILENAME "credentials_env_test.json"
+#if defined(USE_STAGE_ENV)
+#define CREDENTIALS_FILENAME "credentials_env_stage.json"
 #elif !defined(DEBUG) || defined(USE_DEBUG_ON_LIVE_SERVER)
 #define CREDENTIALS_FILENAME "credentials.json"
 #endif
@@ -372,7 +372,7 @@ void GenOnlineAuthInterface::LoginAsSecondaryDevAccount()
 
 bool GenOnlineAuthInterface::GetCredentials()
 {
-#if defined(_DEBUG) && !defined(USE_TEST_ENV) && !defined(USE_DEBUG_ON_LIVE_SERVER)
+#if defined(_DEBUG) && !defined(USE_STAGE_ENV) && !defined(USE_DEBUG_ON_LIVE_SERVER)
 	return false;
 #endif
 	std::string strToken;
@@ -392,7 +392,7 @@ std::string GenOnlineAuthInterface::CredentialServerKey()
 std::string GenOnlineAuthInterface::GetCredentialsFilePath()
 {
 	// debug supports multi inst, so needs seperate tokens
-#if defined(_DEBUG) && !defined(USE_TEST_ENV) && !defined(USE_DEBUG_ON_LIVE_SERVER)
+#if defined(_DEBUG) && !defined(USE_STAGE_ENV) && !defined(USE_DEBUG_ON_LIVE_SERVER)
 	std::string strCredsPath = std::format("{}/GeneralsOnlineData/credentials_dev_env_{}.json", TheGlobalData->getPath_UserData().str(), rts::ClientInstance::getInstanceIndex());
 #else
 	std::string strCredsPath = std::format("{}/GeneralsOnlineData/{}", TheGlobalData->getPath_UserData().str(), CREDENTIALS_FILENAME);

@@ -34,8 +34,8 @@ static std::string GetBuildDescriptionForLog()
 #else
 	std::string strBuild = "Release";
 #endif
-#if defined(USE_TEST_ENV)
-	strBuild += ", test environment";
+#if defined(USE_STAGE_ENV)
+	strBuild += ", stage environment";
 #endif
 	if (GitHaveInfo)
 	{

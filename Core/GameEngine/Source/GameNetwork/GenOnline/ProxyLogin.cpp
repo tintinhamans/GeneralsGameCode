@@ -71,8 +71,7 @@ Dialog dialog;
 
 const char *environmentName()
 {
-	return GenOnlineServicesManager::g_Environment == GenOnlineServicesManager::EEnvironment::DEV ? "dev" :
-		GenOnlineServicesManager::g_Environment == GenOnlineServicesManager::EEnvironment::TEST ? "test" : "prod";
+	return GenOnlineServicesManager::EnvironmentName();
 }
 
 GameWindow *control(const char *name)

@@ -250,13 +250,13 @@ GenOnlineServicesManager::~GenOnlineServicesManager()
 	m_pWebSocket.reset();
 }
 
-static const char* ServiceEnvironment()
+const char* GenOnlineServicesManager::EnvironmentName()
 {
-	switch (GenOnlineServicesManager::g_Environment)
+	switch (g_Environment)
 	{
-		case GenOnlineServicesManager::EEnvironment::DEV: return "dev";
-		case GenOnlineServicesManager::EEnvironment::TEST: return "test";
-		default: return "prod";
+		case EEnvironment::DEV: return "dev";
+		case EEnvironment::STAGE: return "stage";
+		default: return "live";
 	}
 }
 
@@ -267,7 +267,7 @@ std::string GenOnlineServicesManager::GetAPIEndpoint(const char* szEndpoint)
 	{
 		return manager->m_serviceBase + szEndpoint;
 	}
-	const auto routes = ServiceConnection::BootstrapRoutes(ServiceEnvironment(), Settings.Network_GetConnectionSettings(), Settings.Network_GetLastRoute());
+	const auto routes = ServiceConnection::BootstrapRoutes(EnvironmentName(), Settings.Network_GetConnectionSettings(), Settings.Network_GetLastRoute());
 	return routes.empty() ? std::string() : routes.front() + szEndpoint;
 }
 
@@ -299,7 +299,7 @@ void GenOnlineServicesManager::EnsureServiceRoute(std::function<void(bool)> call
 	m_routeSettingsKey = key;
 	m_routeProxyPrompted = false;
 	m_routeProxyAuthFailed = false;
-	m_bootstrapRoutes = ServiceConnection::BootstrapRoutes(ServiceEnvironment(), settings, Settings.Network_GetLastRoute());
+	m_bootstrapRoutes = ServiceConnection::BootstrapRoutes(EnvironmentName(), settings, Settings.Network_GetLastRoute());
 	m_bootstrapIndex = 0;
 	ProbeServiceRoute();
 }
@@ -374,7 +374,7 @@ void GenOnlineServicesManager::ProbeServiceRoute()
 			{
 				manager->m_routeProxyAuthFailed = false;
 				manager->m_routeValidatedAt = std::chrono::steady_clock::now();
-				if (g_Environment == EEnvironment::PROD && Settings.Network_GetConnectionSettings().serverMode != "custom")
+				if (g_Environment == EEnvironment::LIVE && Settings.Network_GetConnectionSettings().serverMode != "custom")
 				{
 					Settings.Network_SaveLastRoute(ServiceConnection::RouteHost(manager->m_serviceBase));
 				}
@@ -1376,7 +1376,7 @@ void GenOnlineServicesManager::InitSentry()
 		}
 	}
 
-	sentry_options_set_environment(options, GENONLINE_SENTRY_ENVIRONMENT);
+	sentry_options_set_environment(options, EnvironmentName());
 
 #if _DEBUG
 	sentry_options_set_debug(options, 1);
@@ -1474,7 +1474,7 @@ Bool GenOnlineServicesManager::ForwardCrashToSentry(struct _EXCEPTION_POINTERS* 
 std::string GenOnlineServicesManager::GetSentryRelease()
 {
 	// The release is the client version the services see, so a crash and a version check name the same build.
-	return "genonlineclient@" + GenOnlineRealtime::CompatibilityVersion(GitReleaseTag, GitCommitDate);
+	return "genonline-client@" + GenOnlineRealtime::CompatibilityVersion(GitReleaseTag, GitCommitDate);
 }
 
 std::string GenOnlineServicesManager::GetSentryStatus()
