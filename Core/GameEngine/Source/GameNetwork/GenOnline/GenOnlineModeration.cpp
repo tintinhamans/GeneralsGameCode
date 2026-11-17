@@ -32,7 +32,7 @@ namespace
 
 	void OpenDiscord()
 	{
-		ShellExecuteA(nullptr, "open", "https://discord.playgenerals.online", nullptr, nullptr, SW_SHOWNORMAL);
+		ShellExecuteA(nullptr, "open", "https://discord.generals.online", nullptr, nullptr, SW_SHOWNORMAL);
 	}
 
 	void OpenDiscordFromLogin()

@@ -22,7 +22,7 @@
     },
     {
       "name": "sentry-native",
-      "version>=": "0.17.0",
+      "version>=": "0.17.6",
       "default-features": false,
       "features": [ "backend", "transport" ]
     }

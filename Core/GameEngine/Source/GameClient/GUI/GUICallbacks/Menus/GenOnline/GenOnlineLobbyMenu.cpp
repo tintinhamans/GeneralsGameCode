@@ -446,7 +446,7 @@ Bool GenOnlineHandleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited
 	}
 	else if (token == "support")
 	{
-		ShellExecuteA(NULL, "open", "https://discord.playgenerals.online", NULL, NULL, SW_SHOWNORMAL);
+		ShellExecuteA(NULL, "open", "https://discord.generals.online", NULL, NULL, SW_SHOWNORMAL);
 		return TRUE; // was a slash command
 	}
 	else if ((token == "name" && uText.getLength() > 6) || (token == "nick" && uText.getLength() > 6))
