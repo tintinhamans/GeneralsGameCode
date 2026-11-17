@@ -220,7 +220,7 @@ void GenOnlineAuthInterface::UseAnotherAccount()
 	++m_loginAttempt;
 	DeleteSavedCredentials();
 	m_strRefreshToken = std::string();
-	StartBrowserSignInV1(m_loginAttempt);
+	StartBrowserSignInV1(m_loginAttempt, true);
 }
 
 void GenOnlineAuthInterface::CancelLogin()
@@ -431,7 +431,7 @@ void GenOnlineAuthInterface::BeginLoginV1()
 
 	if (!GetCredentials() || m_strRefreshToken.empty())
 	{
-		StartBrowserSignInV1(loginAttempt);
+		StartBrowserSignInV1(loginAttempt, true);
 		return;
 	}
 
@@ -452,14 +452,14 @@ void GenOnlineAuthInterface::BeginLoginV1()
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: The saved login is no longer valid, signing in again");
 				DeleteSavedCredentials();
 				m_strRefreshToken = std::string();
-				StartBrowserSignInV1(loginAttempt);
+				StartBrowserSignInV1(loginAttempt, false);
 				return;
 			}
 			FailLoginV1(L"The sign-in service could not be reached. Try again later.");
 		});
 }
 
-void GenOnlineAuthInterface::StartBrowserSignInV1(int loginAttempt)
+void GenOnlineAuthInterface::StartBrowserSignInV1(int loginAttempt, bool promptLogin)
 {
 	AbandonRefreshV1();
 	// The accounts page offers every sign-in provider, so the client opens it directly.
@@ -494,7 +494,7 @@ void GenOnlineAuthInterface::StartBrowserSignInV1(int loginAttempt)
 				return;
 			}
 			FailLoginV1(L"The sign-in did not complete. Try again.");
-		});
+		}, promptLogin);
 }
 
 // A body without the moderation.banned code leaves the length of the ban unsaid.

@@ -882,6 +882,15 @@ static void TestSignInFixtures(const std::filesystem::path& folder)
 	CHECK(DecodeForm(url.substr(prefix.size()), query));
 	CHECK(json(query) == authorize);
 
+	// A sign-in for another account asks for the sign-in form even when the browser is still signed in.
+	std::string loginUrl = BuildAuthorizeUrl("https://accounts.example.org/oauth/authorize", authorize["client_id"], authorize["redirect_uri"], authorize["state"], authorize["code_challenge"], true);
+	CHECK(loginUrl.compare(0, prefix.size(), prefix) == 0);
+	std::map<std::string, std::string> loginQuery;
+	CHECK(DecodeForm(loginUrl.substr(prefix.size()), loginQuery));
+	json loginAuthorize = authorize;
+	loginAuthorize["prompt"] = "login";
+	CHECK(json(loginQuery) == loginAuthorize);
+
 	json codeRequest = load("OAuthToken.code.request.json");
 	CHECK(FormToJson(CodeTokenForm(codeRequest["client_id"], codeRequest["code"], codeRequest["code_verifier"], codeRequest["redirect_uri"])) == codeRequest);
 	// The fixture verifier belongs to the fixture challenge.

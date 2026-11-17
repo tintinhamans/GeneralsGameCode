@@ -260,12 +260,13 @@ GenOnlineSignIn::~GenOnlineSignIn()
 {
 }
 
-void GenOnlineSignIn::Start(const std::string& origin, DoneFn done)
+void GenOnlineSignIn::Start(const std::string& origin, DoneFn done, bool promptLogin)
 {
 	Cancel();
 	const int attempt = m_attempt;
 	m_done = done;
 	m_viaBrowser = true;
+	m_promptLogin = promptLogin;
 	WithDiscovery(origin, attempt, [this, attempt]()
 		{
 			OpenBrowser(attempt);
@@ -454,7 +455,7 @@ void GenOnlineSignIn::OpenBrowser(int attempt)
 	}
 	m_browserDeadline = SignInNowMs() + BROWSER_TIMEOUT_MS;
 
-	const std::string url = BuildAuthorizeUrl(m_discovery.authorization_endpoint, GENONLINE_CLIENT_ID, m_redirectUri, m_state, challenge);
+	const std::string url = BuildAuthorizeUrl(m_discovery.authorization_endpoint, GENONLINE_CLIENT_ID, m_redirectUri, m_state, challenge, m_promptLogin);
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[SignIn] Opening the browser sign-in, listening on port %d", m_listener->Port());
 	ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL);
 }

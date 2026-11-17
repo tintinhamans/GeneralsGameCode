@@ -112,7 +112,8 @@ private:
 	static std::string CredentialServerKey();
 
 	void BeginLoginV1();
-	void StartBrowserSignInV1(int loginAttempt);
+	// promptLogin shows the sign-in form even when the browser is still signed in: no saved login, or the player chose another account.
+	void StartBrowserSignInV1(int loginAttempt, bool promptLogin);
 	void CompleteSignInV1(const GenOnlineRealtime::TokenResponse& tokens, int loginAttempt);
 	void ApplyTokensV1(const GenOnlineRealtime::TokenResponse& tokens);
 	void RegisterSessionV1(std::function<void(int statusCode, const std::string& strBody)> fnDone);
