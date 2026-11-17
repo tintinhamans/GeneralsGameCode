@@ -1388,9 +1388,14 @@ if(NOT IS_VS6_BUILD)
     if(GENONLINE_SENTRY_DSN MATCHES "[\"\\\\]")
         message(FATAL_ERROR "GENONLINE_SENTRY_DSN must not contain quotes or backslashes")
     endif()
+    set(GENONLINE_SENTRY_ENVIRONMENT "dev" CACHE STRING "Crash report environment of this build: live, stage or dev")
+    set_property(CACHE GENONLINE_SENTRY_ENVIRONMENT PROPERTY STRINGS live stage dev)
+    if(NOT GENONLINE_SENTRY_ENVIRONMENT MATCHES "^(live|stage|dev)$")
+        message(FATAL_ERROR "GENONLINE_SENTRY_ENVIRONMENT must be live, stage or dev, not '${GENONLINE_SENTRY_ENVIRONMENT}'")
+    endif()
     set(GENONLINE_CRASH_REPORT_CONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/GenOnlineCrashReportConfig")
     file(CONFIGURE OUTPUT "${GENONLINE_CRASH_REPORT_CONFIG_DIR}/GenOnlineCrashReportConfig.h"
-        CONTENT "#pragma once\n#define GENONLINE_SENTRY_DSN \"@GENONLINE_SENTRY_DSN@\"\n"
+        CONTENT "#pragma once\n#define GENONLINE_SENTRY_DSN \"@GENONLINE_SENTRY_DSN@\"\n#define GENONLINE_SENTRY_ENVIRONMENT \"@GENONLINE_SENTRY_ENVIRONMENT@\"\n"
         @ONLY)
     target_include_directories(corei_gameengine_public INTERFACE "${GENONLINE_CRASH_REPORT_CONFIG_DIR}")
 endif()

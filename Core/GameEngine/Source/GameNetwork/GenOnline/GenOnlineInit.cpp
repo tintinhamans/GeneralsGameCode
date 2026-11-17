@@ -24,6 +24,8 @@
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
 #include "GameNetwork/GenOnline/ProxyLogin.h"
 #include "GenOnlineCrashReportConfig.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeRest.h"
+#include "gitinfo.h"
 
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "GameNetwork/GenOnline/Vendor/stb_image/stb_image_write.h"
@@ -1349,11 +1351,7 @@ void GenOnlineServicesManager::InitSentry()
 	// keep crashpad_handler alive until the crash report upload completes
 	sentry_options_set_crashpad_wait_for_upload(options, 1);
 
-#if defined(USE_TEST_ENV)
-	sentry_options_set_environment(options, "test");
-#else
-	sentry_options_set_environment(options, "production");
-#endif
+	sentry_options_set_environment(options, GENONLINE_SENTRY_ENVIRONMENT);
 
 #if _DEBUG
 	sentry_options_set_debug(options, 1);
@@ -1385,6 +1383,14 @@ void GenOnlineServicesManager::InitSentry()
 	{
 		const LPTOP_LEVEL_EXCEPTION_FILTER sentryCrashFilter = SetUnhandledExceptionFilter(gameCrashFilter);
 		s_sentryCrashFilter = sentryCrashFilter != gameCrashFilter ? sentryCrashFilter : nullptr;
+	}
+	if (s_bSentryActive)
+	{
+#if defined(RTS_ZEROHOUR)
+		sentry_set_tag("game", "generalsmd");
+#else
+		sentry_set_tag("game", "generals");
+#endif
 	}
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Sentry] Crash handling: %s", s_sentryCrashFilter != nullptr ? "game dumps, then Sentry" : "game dumps only");
 
@@ -1449,7 +1455,8 @@ Bool GenOnlineServicesManager::ForwardCrashToSentry(struct _EXCEPTION_POINTERS* 
 
 std::string GenOnlineServicesManager::GetSentryRelease()
 {
-	return std::format("generalsonline-client@{}", GENONLINE_VERSION_STRING);
+	// The release is the client version the services see, so a crash and a version check name the same build.
+	return "genonlineclient@" + GenOnlineRealtime::CompatibilityVersion(GitReleaseTag, GitCommitDate);
 }
 
 std::string GenOnlineServicesManager::GetSentryStatus()
