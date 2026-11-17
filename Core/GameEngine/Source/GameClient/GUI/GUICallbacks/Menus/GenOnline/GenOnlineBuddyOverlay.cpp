@@ -110,6 +110,7 @@ static UnsignedInt noticeExpires = 0;
 
 void GenOnlineSetUnignoreText( WindowLayout *layout, AsciiString nick, GPProfile id);
 void GenOnlineRefreshIgnoreList();
+static void closeRightClickMenu(GameWindow *win);
 
 void GenOnlineShowNotificationBox( AsciiString nick, UnicodeString message, bool bPlaySound);
 void GenOnlineDeleteNotificationBox();
@@ -850,6 +851,13 @@ void GenOnlineBuddyOverlayShutdown( WindowLayout *layout, void *userData )
 
 	listboxIgnore = NULL;
 
+	// a right-click menu of the Communicator closes with it
+	if (rcMenu != nullptr)
+	{
+		closeRightClickMenu(rcMenu);
+		rcMenu = nullptr;
+	}
+
 	// hide menu
 	layout->hide( TRUE );
 
@@ -1384,14 +1392,17 @@ WindowMsgHandledType GenOnlineBuddyOverlayRCMenuSystem( GameWindow *window, Unsi
 
 		case GWM_DESTROY:
 			{
-				rcMenu = nullptr;
+				// a menu closed without picking an entry still holds its data
+				delete (GameSpyRCMenuData*)window->winGetUserData();
+				window->winSetUserData(nullptr);
+				if (rcMenu == window)
+					rcMenu = nullptr;
 				break;
 			}
 
 		case GGM_CLOSE:
 			{
 				closeRightClickMenu(window);
-				//rcMenu = nullptr;
 				break;
 			}
 

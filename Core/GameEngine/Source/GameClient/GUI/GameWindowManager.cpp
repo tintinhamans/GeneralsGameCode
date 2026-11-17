@@ -103,7 +103,7 @@ void GameWindowManager::processDestroyList()
 		winSendSystemMsg( doDestroy, GWM_DESTROY, 0, 0 );
 
 		DEBUG_ASSERTCRASH( m_mouseCaptor != doDestroy && m_keyboardFocus != doDestroy &&
-			m_currMouseRgn != doDestroy && m_grabWindow != doDestroy,
+			m_currMouseRgn != doDestroy && m_grabWindow != doDestroy && m_loneWindow != doDestroy,
 			("processDestroyList: manager still points at a window being destroyed") );
 
 		DEBUG_ASSERTCRASH(doDestroy->winGetUserData() == nullptr, ("Win user data is expected to be deleted now"));
@@ -1589,6 +1589,10 @@ Int GameWindowManager::winDestroy( GameWindow *window )
 
 	if( m_currMouseRgn == window )
 		m_currMouseRgn = nullptr;
+
+	// TheSuperHackers @bugfix arcticdolphin 17/11/2026 A lone window destroyed by its own button, such as a right-click menu, no longer stays the lone window the next one sends GGM_CLOSE to.
+	if( m_loneWindow == window )
+		m_loneWindow = nullptr;
 
 	if( m_grabWindow == window )
 		m_grabWindow = nullptr;
