@@ -672,7 +672,7 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 							{
 								AsciiString strMatchURL;
 #if defined(USE_TEST_ENV)
-								strMatchURL.format("https://www.playgenerals.online/viewmatch?match=%" PRIu64 "&env=test", currentMatchID);
+								strMatchURL.format("https://www.generals.online/viewmatch?match=%" PRIu64 "&env=test", currentMatchID);
 #else
 								strMatchURL.format("https://strata.gamereplays.org/zh/match/%" PRIu64, currentMatchID);
 #endif
@@ -1224,7 +1224,7 @@ void initInternetMultiPlayer(void)
 				buttonContinue->winHide(FALSE);
 
 #if defined(USE_TEST_ENV)
-				strMatchURL.format(L"\nView match data, participants, replays, anti-cheat data: https://www.playgenerals.online/viewmatch?match=%" PRIu64 "&env=test", lobby.match_id);
+				strMatchURL.format(L"\nView match data, participants, replays, anti-cheat data: https://www.generals.online/viewmatch?match=%" PRIu64 "&env=test", lobby.match_id);
 #else
 				strMatchURL.format(L"\nView match data, participants, replays, anti-cheat data: https://strata.gamereplays.org/zh/match/%" PRIu64, lobby.match_id);
 #endif

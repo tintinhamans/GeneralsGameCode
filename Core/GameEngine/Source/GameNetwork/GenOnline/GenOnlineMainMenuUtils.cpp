@@ -1010,13 +1010,13 @@ void GenOnlineStartPatchCheck()
 							};
 						if (GOSignInDialogIsOpen())
 						{
-							GOSignInDialogShowUpdate(UnicodeString(L"Press Update to begin updating.\nOtherwise, you can visit www.playgenerals.online to download the latest update manually."),
+							GOSignInDialogShowUpdate(UnicodeString(L"Press Update to begin updating.\nOtherwise, you can visit www.generals.online to download the latest update manually."),
 								startUpdate, GenOnlineCancelPatchCheckCallbackAndReopenDropdown);
 						}
 						else
 						{
 							genOnlineCancelWindow = MessageBoxOkCancel(TheGameText->fetch("GUI:PatchAvailable"),
-								UnicodeString(L"Press OK to begin updating.\n\nOtherwise, you can visit www.playgenerals.online to download the latest update manually."), startUpdate, GenOnlineCancelPatchCheckCallbackAndReopenDropdown);
+								UnicodeString(L"Press OK to begin updating.\n\nOtherwise, you can visit www.generals.online to download the latest update manually."), startUpdate, GenOnlineCancelPatchCheckCallbackAndReopenDropdown);
 						}
 					}
 				}

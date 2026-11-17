@@ -681,7 +681,7 @@ void GenOnlineServicesManager::ContinueUpdate()
 									TheGameEngine->setQuitting(TRUE);
 								});
 						}
-						ShellExecuteA(NULL, "open", "https://www.playgenerals.online/updatefailed", NULL, NULL, SW_SHOWNORMAL);
+						ShellExecuteA(NULL, "open", "https://www.generals.online/updatefailed", NULL, NULL, SW_SHOWNORMAL);
 					};
 
 				if (statusCode != 200)
@@ -991,7 +991,7 @@ void GenOnlineServicesManager::LaunchPatcher(std::function<void(void)> cbFailed)
 					TheGameEngine->setQuitting(TRUE);
 				});
 		}
-		ShellExecuteA(NULL, "open", "https://www.playgenerals.online/updatefailed", NULL, NULL, SW_SHOWNORMAL);
+		ShellExecuteA(NULL, "open", "https://www.generals.online/updatefailed", NULL, NULL, SW_SHOWNORMAL);
 	}
 }
 
