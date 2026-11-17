@@ -39,8 +39,32 @@
 
 using namespace GenOnlineRealtime;
 
+extern HWND ApplicationHWnd;
+
 namespace
 {
+
+// Brings the game window back in front of the browser. Windows refuses this while another program has the focus, the taskbar button then flashes instead.
+void BringGameWindowToFront()
+{
+	if (ApplicationHWnd == nullptr)
+	{
+		return;
+	}
+	if (IsIconic(ApplicationHWnd))
+	{
+		ShowWindow(ApplicationHWnd, SW_RESTORE);
+	}
+	if (SetForegroundWindow(ApplicationHWnd))
+	{
+		return;
+	}
+	FLASHWINFO flash = {};
+	flash.cbSize = sizeof(flash);
+	flash.hwnd = ApplicationHWnd;
+	flash.dwFlags = FLASHW_ALL | FLASHW_TIMERNOFG;
+	FlashWindowEx(&flash);
+}
 
 // The player has this long to finish the sign-in in the browser.
 constexpr int64_t BROWSER_TIMEOUT_MS = 10 * 60 * 1000;
@@ -241,6 +265,7 @@ void GenOnlineSignIn::Start(const std::string& origin, DoneFn done)
 	Cancel();
 	const int attempt = m_attempt;
 	m_done = done;
+	m_viaBrowser = true;
 	WithDiscovery(origin, attempt, [this, attempt]()
 		{
 			OpenBrowser(attempt);
@@ -252,6 +277,7 @@ void GenOnlineSignIn::Refresh(const std::string& origin, const std::string& refr
 	Cancel();
 	const int attempt = m_attempt;
 	m_done = done;
+	m_viaBrowser = false;
 	WithDiscovery(origin, attempt, [this, attempt, refreshToken]()
 		{
 			PostTokenForm(RefreshTokenForm(GENONLINE_CLIENT_ID, refreshToken), attempt);
@@ -508,6 +534,10 @@ void GenOnlineSignIn::Finish(int attempt, const Result& result)
 	if (result.outcome != Outcome::Succeeded)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[SignIn] %s", result.error.c_str());
+	}
+	else if (m_viaBrowser)
+	{
+		BringGameWindowToFront();
 	}
 	if (done)
 	{
