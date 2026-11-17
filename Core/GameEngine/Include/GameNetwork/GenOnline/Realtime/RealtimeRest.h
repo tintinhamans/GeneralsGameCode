@@ -21,6 +21,7 @@
 #pragma once
 
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
+#include "GameNetwork/GenOnline/Realtime/RealtimeSignIn.h"
 #include "GameNetwork/GenOnline/json.hpp"
 
 #include <algorithm>
@@ -263,6 +264,37 @@ inline std::string RestFriendPath(int64_t userID)
 inline std::string RestBlockPath(int64_t userID)
 {
 	return "/api/v1/me/blocks/" + std::to_string(userID);
+}
+
+// POST reports a message or a player (ReportBody).
+inline std::string RestReportsPath()
+{
+	return "/api/v1/reports";
+}
+
+// DELETE deletes a message, staff only (ReasonBody).
+inline std::string RestMessagePath(const std::string& messageID)
+{
+	return "/api/v1/messages/" + messageID;
+}
+
+// The name a player search sends: trimmed, and empty when shorter than the 2 characters the service needs.
+inline std::string PlayerSearchTerm(const std::string& input)
+{
+	const size_t first = input.find_first_not_of(" \t");
+	if (first == std::string::npos)
+	{
+		return std::string();
+	}
+	const size_t last = input.find_last_not_of(" \t");
+	std::string term = input.substr(first, last - first + 1);
+	return term.size() >= 2 ? term : std::string();
+}
+
+// GET finds players whose display name starts with the search, ignoring case (PlayerListResponse).
+inline std::string RestPlayerSearchPath(const std::string& search)
+{
+	return "/api/v1/players?search=" + UrlEncode(search);
 }
 
 // PATCH changes the display name.
@@ -525,6 +557,17 @@ struct MyFriendsResponse : WireObject
 		v("friends", friends);
 		v("incoming", incoming);
 		v("outgoing", outgoing);
+	}
+};
+
+// GET /api/v1/players?search=
+struct PlayerListResponse : WireObject
+{
+	std::vector<Member> players;
+
+	template <class V> void Fields(V& v)
+	{
+		v("players", players);
 	}
 };
 

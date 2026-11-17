@@ -682,7 +682,7 @@ WINDOW
                    BOTTOMRIGHT: 753 480,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLCustomLobby.wnd:ListboxChat";
-      STATUS = ENABLED+NOFOCUS;
+      STATUS = ENABLED;
       STYLE = SCROLLLISTBOX+MOUSETRACK;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";

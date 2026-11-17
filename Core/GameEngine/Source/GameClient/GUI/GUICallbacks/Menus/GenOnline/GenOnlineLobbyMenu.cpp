@@ -1769,6 +1769,7 @@ void GenOnlineLobbyMenuShutdown( WindowLayout *layout, void *userData )
 {
 	s_lobbyMenuOpen = FALSE;
 	++s_lobbyMenuGeneration;
+	GenOnlineCloseRightClickMenus();
 
 	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 	if (pRoomsInterface != nullptr)
@@ -2596,6 +2597,19 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 							}
 						}
 					}
+				}
+				else if (controlID == listboxLobbyChatID)
+				{
+					RightClickStruct* rc = (RightClickStruct*)mData2;
+					GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+					if (rc->pos < 0 || pRoomsInterface == nullptr)
+						break;
+					const uint32_t key = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(GadgetListBoxGetItemData(control, rc->pos, 0)));
+					std::string messageID;
+					int64_t authorID = 0;
+					pRoomsInterface->FindChatMessage(key, messageID, authorID);
+					const NetworkRoomMember* author = pRoomsInterface->GetRoomMemberFromID(authorID);
+					GenOnlineOpenMessageMenu(control, rc->pos, rc->mouseX, rc->mouseY, messageID.c_str(), authorID, author != nullptr ? author->display_name.c_str() : "");
 				}
 				break;
 		}
