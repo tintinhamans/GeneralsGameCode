@@ -164,8 +164,7 @@ static std::string networkSystemProxyText;
 
 static const char *networkEnvironment()
 {
-	return GenOnlineServicesManager::g_Environment == GenOnlineServicesManager::EEnvironment::DEV ? "dev" :
-		GenOnlineServicesManager::g_Environment == GenOnlineServicesManager::EEnvironment::TEST ? "test" : "prod";
+	return GenOnlineServicesManager::EnvironmentName();
 }
 
 // the host the Automatic server choice uses, the route that worked last first
@@ -190,7 +189,7 @@ static void networkStartSystemLookup()
 	ServiceConnectionSettings selected = GenOnlineServicesManager::Settings.Network_GetConnectionSettings();
 	const auto routes = ServiceConnection::BootstrapRoutes(networkEnvironment(), selected, GenOnlineServicesManager::Settings.Network_GetLastRoute());
 	networkSystemProxyText.clear();
-	networkSystemProxy = ServiceConnection::StartProxyResolution(system, routes.empty() ? std::string("https://api.playgenerals.online/") : routes.front());
+	networkSystemProxy = ServiceConnection::StartProxyResolution(system, routes.empty() ? std::string("https://api.generals.online/") : routes.front());
 }
 
 static void networkRefresh()

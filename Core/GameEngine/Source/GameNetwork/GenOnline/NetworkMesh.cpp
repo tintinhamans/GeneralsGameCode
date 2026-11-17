@@ -720,7 +720,7 @@ bool NetworkMeshLibrary::EnsureInitialized(int64_t userID)
 
 	// Every STUN entry must resolve to a distinct address, or the native ICE client retries
 	// duplicates forever.
-	SteamNetworkingUtils()->SetGlobalConfigValueString(k_ESteamNetworkingConfig_P2P_STUN_ServerList, "stun:stun.playgenerals.online:53,stun:stun.playgenerals.online:3478,stun:stun.l.google.com:19302");
+	SteamNetworkingUtils()->SetGlobalConfigValueString(k_ESteamNetworkingConfig_P2P_STUN_ServerList, "stun:stun.generals.online:53,stun:stun.generals.online:3478,stun:stun.l.google.com:19302");
 
 
 	ESteamNetworkingSocketsDebugOutputType logType =
@@ -798,7 +798,7 @@ NetworkMesh::NetworkMesh()
 
 	// comma-separated; no "?transport=udp" suffix, the native ICE client takes everything after
 	// the host as the port
-	m_strTurnServerList = "turn:turn.playgenerals.online:53,turn:turn.playgenerals.online:3478";
+	m_strTurnServerList = "turn:turn.generals.online:53,turn:turn.generals.online:3478";
 
 	m_strTurnUsername = pLobbyInterface->GetLobbyTurnUsername();
 	m_strTurnToken = pLobbyInterface->GetLobbyTurnToken();

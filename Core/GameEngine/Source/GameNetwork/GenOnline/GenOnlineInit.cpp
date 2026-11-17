@@ -250,13 +250,51 @@ GenOnlineServicesManager::~GenOnlineServicesManager()
 	m_pWebSocket.reset();
 }
 
-static const char* ServiceEnvironment()
+static const char* s_environmentReason = "";
+
+GenOnlineServicesManager::EEnvironment GenOnlineServicesManager::GetEnvironment()
 {
-	switch (GenOnlineServicesManager::g_Environment)
+#if defined(USE_TEST_ENV)
+	s_environmentReason = "this build is fixed to the test services";
+	return EEnvironment::TEST;
+#elif defined(USE_DEBUG_ON_LIVE_SERVER)
+	s_environmentReason = "this debug build is fixed to the live services";
+	return EEnvironment::LIVE;
+#elif defined(_DEBUG)
+	s_environmentReason = "this debug build is fixed to the dev services";
+	return EEnvironment::DEV;
+#else
+	static const EEnvironment environment = []()
 	{
-		case GenOnlineServicesManager::EEnvironment::DEV: return "dev";
-		case GenOnlineServicesManager::EEnvironment::TEST: return "test";
-		default: return "prod";
+		const std::string tag = GitTag;
+		const std::string requested = GenOnlineClientFile::ReadEnvironmentOverride(GenOnlineClientFile::DefaultPath());
+		if (!requested.empty())
+		{
+			s_environmentReason = "network.environment of client.json";
+		}
+		else
+		{
+			s_environmentReason = GenOnlineClientFile::EnvironmentOfTag(tag) == "test" ? "the release candidate tag of this build" : "this build is not a release candidate";
+		}
+		return GenOnlineClientFile::ChooseEnvironment(tag, requested) == "test" ? EEnvironment::TEST : EEnvironment::LIVE;
+	}();
+	return environment;
+#endif
+}
+
+const char* GenOnlineServicesManager::EnvironmentReason()
+{
+	GetEnvironment();
+	return s_environmentReason;
+}
+
+const char* GenOnlineServicesManager::EnvironmentName()
+{
+	switch (GetEnvironment())
+	{
+		case EEnvironment::DEV: return "dev";
+		case EEnvironment::TEST: return "test";
+		default: return "live";
 	}
 }
 
@@ -267,7 +305,7 @@ std::string GenOnlineServicesManager::GetAPIEndpoint(const char* szEndpoint)
 	{
 		return manager->m_serviceBase + szEndpoint;
 	}
-	const auto routes = ServiceConnection::BootstrapRoutes(ServiceEnvironment(), Settings.Network_GetConnectionSettings(), Settings.Network_GetLastRoute());
+	const auto routes = ServiceConnection::BootstrapRoutes(EnvironmentName(), Settings.Network_GetConnectionSettings(), Settings.Network_GetLastRoute());
 	return routes.empty() ? std::string() : routes.front() + szEndpoint;
 }
 
@@ -299,7 +337,7 @@ void GenOnlineServicesManager::EnsureServiceRoute(std::function<void(bool)> call
 	m_routeSettingsKey = key;
 	m_routeProxyPrompted = false;
 	m_routeProxyAuthFailed = false;
-	m_bootstrapRoutes = ServiceConnection::BootstrapRoutes(ServiceEnvironment(), settings, Settings.Network_GetLastRoute());
+	m_bootstrapRoutes = ServiceConnection::BootstrapRoutes(EnvironmentName(), settings, Settings.Network_GetLastRoute());
 	m_bootstrapIndex = 0;
 	ProbeServiceRoute();
 }
@@ -374,7 +412,7 @@ void GenOnlineServicesManager::ProbeServiceRoute()
 			{
 				manager->m_routeProxyAuthFailed = false;
 				manager->m_routeValidatedAt = std::chrono::steady_clock::now();
-				if (g_Environment == EEnvironment::PROD && Settings.Network_GetConnectionSettings().serverMode != "custom")
+				if (GetEnvironment() == EEnvironment::LIVE && Settings.Network_GetConnectionSettings().serverMode != "custom")
 				{
 					Settings.Network_SaveLastRoute(ServiceConnection::RouteHost(manager->m_serviceBase));
 				}
@@ -679,7 +717,7 @@ void GenOnlineServicesManager::ContinueUpdate()
 									TheGameEngine->setQuitting(TRUE);
 								});
 						}
-						ShellExecuteA(NULL, "open", "https://www.playgenerals.online/updatefailed", NULL, NULL, SW_SHOWNORMAL);
+						ShellExecuteA(NULL, "open", "https://www.generals.online/updatefailed", NULL, NULL, SW_SHOWNORMAL);
 					};
 
 				if (statusCode != 200)
@@ -989,7 +1027,7 @@ void GenOnlineServicesManager::LaunchPatcher(std::function<void(void)> cbFailed)
 					TheGameEngine->setQuitting(TRUE);
 				});
 		}
-		ShellExecuteA(NULL, "open", "https://www.playgenerals.online/updatefailed", NULL, NULL, SW_SHOWNORMAL);
+		ShellExecuteA(NULL, "open", "https://www.generals.online/updatefailed", NULL, NULL, SW_SHOWNORMAL);
 	}
 }
 
@@ -1371,7 +1409,7 @@ void GenOnlineServicesManager::InitSentry()
 		}
 	}
 
-	sentry_options_set_environment(options, GENONLINE_SENTRY_ENVIRONMENT);
+	sentry_options_set_environment(options, EnvironmentName());
 
 #if _DEBUG
 	sentry_options_set_debug(options, 1);
@@ -1469,7 +1507,7 @@ Bool GenOnlineServicesManager::ForwardCrashToSentry(struct _EXCEPTION_POINTERS* 
 std::string GenOnlineServicesManager::GetSentryRelease()
 {
 	// The release is the client version the services see, so a crash and a version check name the same build.
-	return "genonlineclient@" + GenOnlineRealtime::CompatibilityVersion(GitReleaseTag, GitCommitDate);
+	return "genonline-client@" + GenOnlineRealtime::CompatibilityVersion(GitReleaseTag, GitCommitDate);
 }
 
 std::string GenOnlineServicesManager::GetSentryStatus()

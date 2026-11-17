@@ -66,7 +66,6 @@
 #define SETTINGS_KEY_NETWORK_PROXY_ADDRESS "address"
 #define SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN "windows_login"
 #define SETTINGS_KEY_NETWORK_LAST_ROUTE "last_route"
-#define LEGACY_ALTERNATIVE_ROUTE_HOST "api-ru.playgenerals.online"
 
 #define SETTINGS_KEY_PLUGINS "plugins"
 #define SETTINGS_KEY_PLUGINS_ANTICHEAT "anticheat"
@@ -500,13 +499,6 @@ void GenOnlineSettings::Load(void)
                         {
                             resetField(std::string(SETTINGS_KEY_NETWORK) + "." + SETTINGS_KEY_NETWORK_LAST_ROUTE, found, false);
                         }
-                    }
-                    else if (networkSettings.contains(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT) &&
-                        networkSettings[SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT].is_boolean() &&
-                        networkSettings[SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT].get<bool>())
-                    {
-                        // the old switch of the released client now only prefers that route
-                        m_LastRoute = LEGACY_ALTERNATIVE_ROUTE_HOST;
                     }
                 }
             }

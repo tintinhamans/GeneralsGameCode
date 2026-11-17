@@ -17,12 +17,6 @@
 
 #pragma comment(lib, "Crypt32.lib")
 
-#if defined(USE_TEST_ENV)
-#define CREDENTIALS_FILENAME "credentials_env_test.json"
-#elif !defined(DEBUG) || defined(USE_DEBUG_ON_LIVE_SERVER)
-#define CREDENTIALS_FILENAME "credentials.json"
-#endif
-
 #include <curl/curl.h>
 #include "GameClient/ClientInstance.h"
 
@@ -387,13 +381,19 @@ std::string GenOnlineAuthInterface::CredentialServerKey()
 	return ServiceConnection::CredentialServerKey(GenOnlineServicesManager::Settings.Network_GetConnectionSettings());
 }
 
+// The test and the live services keep their logins in separate files
+static const char* CredentialsFileName()
+{
+	return GenOnlineServicesManager::GetEnvironment() == GenOnlineServicesManager::EEnvironment::TEST ? "credentials_env_test.json" : "credentials.json";
+}
+
 std::string GenOnlineAuthInterface::GetCredentialsFilePath()
 {
 	// debug supports multi inst, so needs seperate tokens
 #if defined(_DEBUG) && !defined(USE_TEST_ENV) && !defined(USE_DEBUG_ON_LIVE_SERVER)
 	std::string strCredsPath = std::format("{}/GeneralsOnlineData/credentials_dev_env_{}.json", TheGlobalData->getPath_UserData().str(), rts::ClientInstance::getInstanceIndex());
 #else
-	std::string strCredsPath = std::format("{}/GeneralsOnlineData/{}", TheGlobalData->getPath_UserData().str(), CREDENTIALS_FILENAME);
+	std::string strCredsPath = std::format("{}/GeneralsOnlineData/{}", TheGlobalData->getPath_UserData().str(), CredentialsFileName());
 #endif
 	return strCredsPath;
 }

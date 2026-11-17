@@ -63,6 +63,20 @@ namespace GenOnlineClientFile
 	// Reads the file at path for SendCrashReports only, so a wrong type of another key does not matter. Never creates the file.
 	bool ReadSendCrashReports(const std::wstring& path);
 
+	// The services this build talks to, "live" or "test". A release candidate tag, vYYYY.M.PATCH-rc.N and nothing after it,
+	// gives "test". Every other tag, a development build past a tag and a build without a tag give "live".
+	std::string EnvironmentOfTag(const std::string& tag);
+
+	// The network.environment of client.json: "live" or "test". Empty when the file cannot be used, the key is missing, has another
+	// type or holds another value. The client never writes this key, it only keeps it.
+	std::string EnvironmentOverride(const ReadResult& file);
+
+	// Reads the file at path for EnvironmentOverride only, so a wrong type of another key does not matter. Never creates the file.
+	std::string ReadEnvironmentOverride(const std::wstring& path);
+
+	// The override wins over the tag.
+	std::string ChooseEnvironment(const std::string& tag, const std::string& overrideValue);
+
 	// Creates the file and its folder with the given content. Returns FALSE and changes nothing when the file already exists.
 	bool CreateNew(const std::wstring& path, const std::string& bytes);
 }
