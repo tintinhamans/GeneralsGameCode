@@ -1034,13 +1034,11 @@ static void WriteGameCrashDataGuarded(struct _EXCEPTION_POINTERS* e_info)
 static LONG WINAPI UnHandledExceptionFilter(struct _EXCEPTION_POINTERS* e_info)
 {
 #if defined(GENONLINE)
-	// the game's dumps and crash info first, then crashpad uploads its report to Sentry and ends the process
+	// The game's dumps and crash info come first, then the Sentry filter waits while its crash daemon uploads the report.
+	// The game ends the process itself because the Sentry filter asks Windows to keep searching, which opens the Windows crash dialog.
 	WriteGameCrashDataGuarded(e_info);
 	LONG sentryResult = EXCEPTION_EXECUTE_HANDLER;
-	if (GenOnlineServicesManager::ForwardCrashToSentry(e_info, &sentryResult))
-	{
-		return sentryResult;
-	}
+	GenOnlineServicesManager::ForwardCrashToSentry(e_info, &sentryResult);
 #else
 	WriteGameCrashData(e_info);
 #endif

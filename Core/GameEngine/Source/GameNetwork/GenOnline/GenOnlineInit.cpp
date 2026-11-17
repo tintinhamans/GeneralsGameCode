@@ -1297,7 +1297,7 @@ void GenOnlineServicesManager::Tick()
 
 // INT_MIN until InitSentry ran, then the sentry_init result
 static int s_sentryInitResult = INT_MIN;
-// crashpad's unhandled exception filter, called by the game's filter once the game wrote its own dumps
+// Sentry's unhandled exception filter, called by the game's filter once the game wrote its own dumps
 static LPTOP_LEVEL_EXCEPTION_FILTER s_sentryCrashFilter = nullptr;
 // TRUE from a successful sentry_init until ShutdownSentry
 static Bool s_bSentryActive = FALSE;
@@ -1357,11 +1357,11 @@ void GenOnlineServicesManager::InitSentry()
 	std::string strVersionStr = GetSentryRelease();
 	sentry_options_set_release(options, strVersionStr.c_str());
 
-	// keep crashpad_handler alive until the crash report upload completes
-	sentry_options_set_crashpad_wait_for_upload(options, 1);
+	// The crash daemon waits this long for the crash report upload before it exits. The default two seconds is too short for the minidump.
+	sentry_options_set_shutdown_timeout(options, 15000);
 
-	// The crashpad handler ships as CrashReportHandler.exe beside the game. EAC lets a process whose name starts with CrashReport
-	// read the game after a crash. Crashpad keeps its default small dumps because nothing asks it for more memory.
+	// Sentry's crash daemon ships as CrashReportHandler.exe beside the game. EAC lets a process whose name starts with CrashReport
+	// read the game after a crash. The daemon walks the stacks itself and attaches its default small dump.
 	wchar_t exePath[MAX_PATH] = {};
 	const DWORD exePathLen = GetModuleFileNameW(nullptr, exePath, MAX_PATH);
 	if (exePathLen > 0 && exePathLen < MAX_PATH)
@@ -1395,7 +1395,7 @@ void GenOnlineServicesManager::InitSentry()
 #endif
 
 	// fails as a whole when CrashReportHandler.exe is missing or older than this client
-	// sentry_init puts crashpad's unhandled exception filter in place of the game's, which writes the game's dumps and crash info
+	// sentry_init puts Sentry's unhandled exception filter in place of the game's, which writes the game's dumps and crash info
 	const LPTOP_LEVEL_EXCEPTION_FILTER gameCrashFilter = SetUnhandledExceptionFilter(nullptr);
 	SetUnhandledExceptionFilter(gameCrashFilter);
 	const int sentryInitResult = sentry_init(options);
@@ -1403,7 +1403,7 @@ void GenOnlineServicesManager::InitSentry()
 	s_bSentryActive = sentryInitResult == 0;
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Sentry] Init %s (%d)", sentryInitResult == 0 ? "succeeded" : "FAILED", sentryInitResult);
 
-	// put the game's filter back on top; it hands each crash on to crashpad after writing its own dumps
+	// put the game's filter back on top; it hands each crash on to Sentry after writing its own dumps
 	if (gameCrashFilter != nullptr)
 	{
 		const LPTOP_LEVEL_EXCEPTION_FILTER sentryCrashFilter = SetUnhandledExceptionFilter(gameCrashFilter);
@@ -1445,7 +1445,7 @@ void GenOnlineServicesManager::UpdateSentryUser()
 
 void GenOnlineServicesManager::ShutdownSentry()
 {
-	// crashpad's filter must not run once its handler is gone; later crashes only get the game's dumps
+	// Sentry's filter must not run once its daemon is gone; later crashes only get the game's dumps
 	s_sentryCrashFilter = nullptr;
 	if (!s_bSentryActive)
 	{
@@ -1493,7 +1493,7 @@ void GenOnlineServicesManager::ReportReleaseCrashToSentry(const char* reason)
 	{
 		return;
 	}
-	// crashpad sends the scope as it stands when the filter runs, so the reason goes in first
+	// the crash daemon sends the scope as it stands when the filter runs, so the reason goes in first
 	sentry_set_tag("crash_kind", "release_crash");
 	sentry_set_extra("release_crash_reason", sentry_value_new_string(reason != nullptr ? reason : ""));
 	RaiseReleaseCrashForSentry(sentryCrashFilter);

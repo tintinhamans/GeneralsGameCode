@@ -98,11 +98,11 @@ if(WIN32)
 			"$<TARGET_FILE_DIR:g_generals>/discord-rpc-LICENSE.txt"
 	)
 
-	if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/crashpad_handler.exe")
-		# The crashpad handler runs beside the game as CrashReportHandler.exe, the name InitSentry passes to sentry.
+	if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/sentry-crash.exe")
+		# Sentry's crash daemon runs beside the game as CrashReportHandler.exe, the name InitSentry passes to sentry.
 		add_custom_command(TARGET g_generals POST_BUILD
 			COMMAND ${CMAKE_COMMAND} -E copy_if_different
-				"${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/crashpad_handler.exe"
+				"${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/sentry-crash.exe"
 				"$<TARGET_FILE_DIR:g_generals>/CrashReportHandler.exe"
 		)
 	endif()
