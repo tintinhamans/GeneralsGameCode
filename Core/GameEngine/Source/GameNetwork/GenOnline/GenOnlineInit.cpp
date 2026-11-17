@@ -1471,6 +1471,34 @@ Bool GenOnlineServicesManager::ForwardCrashToSentry(struct _EXCEPTION_POINTERS* 
 	return TRUE;
 }
 
+// The exception code of a release crash in Sentry: 0xE0 marks it as raised by the game, then the letters RCR.
+static const DWORD ReleaseCrashExceptionCode = 0xE0524352;
+
+// Kept apart from the caller because a function with __try cannot hold objects that need unwinding.
+static void RaiseReleaseCrashForSentry(LPTOP_LEVEL_EXCEPTION_FILTER sentryCrashFilter)
+{
+	__try
+	{
+		RaiseException(ReleaseCrashExceptionCode, EXCEPTION_NONCONTINUABLE, 0, nullptr);
+	}
+	__except (sentryCrashFilter(GetExceptionInformation()), EXCEPTION_EXECUTE_HANDLER)
+	{
+	}
+}
+
+void GenOnlineServicesManager::ReportReleaseCrashToSentry(const char* reason)
+{
+	const LPTOP_LEVEL_EXCEPTION_FILTER sentryCrashFilter = s_sentryCrashFilter;
+	if (sentryCrashFilter == nullptr || !s_bSentryActive)
+	{
+		return;
+	}
+	// crashpad sends the scope as it stands when the filter runs, so the reason goes in first
+	sentry_set_tag("crash_kind", "release_crash");
+	sentry_set_extra("release_crash_reason", sentry_value_new_string(reason != nullptr ? reason : ""));
+	RaiseReleaseCrashForSentry(sentryCrashFilter);
+}
+
 std::string GenOnlineServicesManager::GetSentryRelease()
 {
 	// The release is the client version the services see, so a crash and a version check name the same build.

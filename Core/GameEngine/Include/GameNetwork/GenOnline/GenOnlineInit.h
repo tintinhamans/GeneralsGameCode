@@ -754,6 +754,9 @@ public:
 	// The game's unhandled exception filter hands a crash on to Sentry's crashpad filter after writing its own dumps.
 	// Returns FALSE when there is no Sentry filter to hand it to, before InitSentry or after ShutdownSentry.
 	static Bool ForwardCrashToSentry(struct _EXCEPTION_POINTERS* exceptionInfo, LONG* result);
+	// A release crash ends the game without an unhandled exception. This hands it to Sentry's crashpad filter with its reason,
+	// which uploads the report and ends the process. Returns only when there is no Sentry filter.
+	static void ReportReleaseCrashToSentry(const char* reason);
 	static std::string GetSentryRelease();
 	static std::string GetSentryStatus();
 	static void LogDisplayAdapter();
