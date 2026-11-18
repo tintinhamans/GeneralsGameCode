@@ -89,6 +89,7 @@ private:
 	GameMessageDisposition onRawMouseRightButtonDown(const GameMessage *msg);
 	GameMessageDisposition onRawMouseRightButtonUp(const GameMessage *msg);
 	GameMessageDisposition onMetaCreateTeam(const GameMessage *msg);
+	GameMessageDisposition onMetaAutoCreateTeams(const GameMessage *msg);
 	GameMessageDisposition onMetaSelectTeam(const GameMessage *msg);
 	GameMessageDisposition onMetaAddTeam(const GameMessage *msg);
 	GameMessageDisposition onMetaViewTeam(const GameMessage *msg);

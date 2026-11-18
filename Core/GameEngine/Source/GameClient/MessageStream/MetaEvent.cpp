@@ -138,6 +138,7 @@ static const LookupListRec GameMessageMetaTypeNames[] =
 	{ "VIEW_TEAM7",																GameMessage::MSG_META_VIEW_TEAM7 },
 	{ "VIEW_TEAM8",																GameMessage::MSG_META_VIEW_TEAM8 },
 	{ "VIEW_TEAM9",																GameMessage::MSG_META_VIEW_TEAM9 },
+	{ "AUTO_CREATE_TEAMS",												GameMessage::MSG_META_AUTO_CREATE_TEAMS },
 	{ "SELECT_MATCHING_UNITS",										GameMessage::MSG_META_SELECT_MATCHING_UNITS },
 	{ "SMART_SELECTION_NEXT_TYPE",								GameMessage::MSG_META_SMART_SELECTION_NEXT_TYPE },
 	{ "SMART_SELECTION_PREV_TYPE",								GameMessage::MSG_META_SMART_SELECTION_PREV_TYPE },
@@ -1373,6 +1374,20 @@ void MetaMap::generateMetaMap()
 		}
 	}
 	{
+		// TheSuperHackers @feature Numpad * is unbound in retail and in Contra's CommandMap.ini.
+		MetaMapRec *map = TheMetaMap->getMetaMapRec(GameMessage::MSG_META_AUTO_CREATE_TEAMS);
+		if (map->m_key == MK_NONE)
+		{
+			map->m_key = MK_KPSTAR;
+			map->m_transition = DOWN;
+			map->m_modState = NONE;
+			map->m_usableIn = COMMANDUSABLE_GAME;
+			map->m_category = CATEGORY_TEAM;
+			map->m_description = TheGameText->FETCH_OR_SUBSTITUTE("GUI:AutoCreateTeamsDescription", L"Give each of the first ten selected objects its own team, 1 to 9 then 0");
+			map->m_displayName = TheGameText->FETCH_OR_SUBSTITUTE("GUI:AutoCreateTeams", L"Auto Create Teams");
+		}
+	}
+	{
 		// Caps Lock arms a reverse move for the next terrain click. No cameo or stock binding
 		// wants the key, so nothing can shadow it.
 		MetaMapRec *map = TheMetaMap->getMetaMapRec(GameMessage::MSG_META_TOGGLE_REVERSEMOVE);
@@ -1395,11 +1410,12 @@ void MetaMap::generateMetaMap()
 		{
 #if RTS_ZEROHOUR && (defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE))
 			map->m_key = MK_KPSTAR;
+			map->m_modState = CTRL; // plain numpad * is AUTO_CREATE_TEAMS
 #else
 			map->m_key = MK_F;
+			map->m_modState = NONE;
 #endif
 			map->m_transition = DOWN;
-			map->m_modState = NONE;
 			map->m_usableIn = COMMANDUSABLE_GAME; // @todo COMMANDUSABLE_OBSERVER
 		}
 	}

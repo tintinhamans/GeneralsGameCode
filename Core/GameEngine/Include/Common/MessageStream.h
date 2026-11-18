@@ -211,6 +211,7 @@ public:
 		MSG_META_VIEW_TEAM7,												///< center view on given user-defined team (but do not affect selection)
 		MSG_META_VIEW_TEAM8,												///< center view on given user-defined team (but do not affect selection)
 		MSG_META_VIEW_TEAM9,												///< center view on given user-defined team (but do not affect selection)
+		MSG_META_AUTO_CREATE_TEAMS,									///< TheSuperHackers @feature give each of the first ten selected objects its own user-defined team
 
 		MSG_META_SELECT_MATCHING_UNITS,              ///< selects matching units, used for both on screen and across map
 		MSG_META_SMART_SELECTION_NEXT_TYPE,					///< TheSuperHackers @feature narrow the selection to the next type in the smart selection row
