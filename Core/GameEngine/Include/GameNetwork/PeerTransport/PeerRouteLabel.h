@@ -3,6 +3,7 @@
 #include "GameNetwork/PeerTransport/PeerTransport.h"
 
 #include <string>
+#include <vector>
 
 // How far a peer connection got, as the user interface tells it apart.
 enum class PeerLinkState
@@ -27,7 +28,9 @@ enum class PeerNetAction
 	RelayUsage,
 	SetGnsIce,	///< /net gns ice auto | native | webrtc, the value is the ICE implementation override.
 	GnsIceUsage,
-	Reset,	///< /net reset clears both overrides.
+	SetTransport,	///< /net transport auto | gns, the value is the transport override.
+	TransportUsage,	///< /net transport with another value or none, the word holds the value.
+	Reset,	///< /net reset clears every override.
 	Usage
 };
 
@@ -35,7 +38,13 @@ struct PeerNetCommand
 {
 	PeerNetAction action = PeerNetAction::Usage;
 	int value = -1;	///< The override of a set action, -1 means auto.
+	std::string word;	///< The lower case value of a transport usage action, empty when none was given.
 };
 
 /// Parses the lower case words after /net. The subcommand is the first word, args the rest of the line.
+/// The value of /net transport is case insensitive.
 PeerNetCommand ParsePeerNetCommand(const std::string& subcommand, const std::string& args);
+
+/// The plugin transports this client offers to the service. A transport override of 1 offers none, so every pair uses GNS.
+/// Any other override offers every available one.
+std::vector<std::string> FilterOfferedTransports(const std::vector<std::string>& available, int transportOverride);

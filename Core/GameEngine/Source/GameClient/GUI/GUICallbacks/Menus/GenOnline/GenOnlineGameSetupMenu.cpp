@@ -2922,7 +2922,7 @@ Bool GenOnlineHandleGameSetupSlashCommands(UnicodeString uText)
 		GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/maxcameraheight <value> - Set the camera height limit (host only)."), helpColor, -1, -1);
 		// GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/leave - Return to the main lobby."), helpColor, -1, -1);
 		// GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/quit - Exit the game."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/net - Show how you reach each player. /net relay, /net gns ice and /net reset change your settings."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/net - Show how you reach each player. /net transport, /net relay, /net gns ice and /net reset change your settings."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/support - Open the GeneralsOnline Discord."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/help - Show these commands. You can also use /commands."), helpColor, -1, -1);
 		return TRUE; // was a slash command

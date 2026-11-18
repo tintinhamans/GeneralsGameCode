@@ -79,6 +79,31 @@ PeerNetCommand ParsePeerNetCommand(const std::string& subcommand, const std::str
 		return command;
 	}
 
+	if (subcommand == "transport")
+	{
+		std::string value;
+		for (char c : first)
+		{
+			value += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+		}
+
+		command.action = PeerNetAction::SetTransport;
+		if (value == "gns")
+		{
+			command.value = 1;
+		}
+		else if (value == "auto")
+		{
+			command.value = -1;
+		}
+		else
+		{
+			command.action = PeerNetAction::TransportUsage;
+			command.word = value;
+		}
+		return command;
+	}
+
 	if (subcommand == "relay")
 	{
 		command.action = PeerNetAction::SetRelay;
@@ -127,4 +152,13 @@ PeerNetCommand ParsePeerNetCommand(const std::string& subcommand, const std::str
 
 	command.action = PeerNetAction::Usage;
 	return command;
+}
+
+std::vector<std::string> FilterOfferedTransports(const std::vector<std::string>& available, int transportOverride)
+{
+	if (transportOverride == 1)
+	{
+		return std::vector<std::string>();
+	}
+	return available;
 }

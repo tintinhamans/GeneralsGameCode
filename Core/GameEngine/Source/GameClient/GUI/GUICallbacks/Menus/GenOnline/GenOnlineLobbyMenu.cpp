@@ -74,6 +74,7 @@
 #include "GameNetwork/RankPointValue.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/GenOnlineModeration.h"
+#include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
 
 #include <deque>
 #include <string>
@@ -181,7 +182,7 @@ int getQR2HostingStatus();
 }
 extern int isThreadHosting;
 
-// /net: the relay and GNS ICE settings for the next lobby mesh, and the transport and route to each player of the current one
+// /net: the transport, relay and GNS ICE settings for the next lobby mesh, and the transport and route to each player of the current one
 static const wchar_t* netRelaySetting()
 {
 	extern int g_relayOverride;
@@ -222,6 +223,37 @@ static const wchar_t* netGnsIceSetting()
 	}
 }
 
+// The transport setting. The service reads the offered plugin transports when it plans a pair.
+static UnicodeString netTransportSetting()
+{
+	extern int g_transportOverride;
+	if (g_transportOverride == 1)
+	{
+		return UnicodeString(L"gns only");
+	}
+	const std::string pluginTransport = GenOnlinePluginHost::Transport::GetName();
+	if (pluginTransport.empty())
+	{
+		return UnicodeString(L"auto (no plugin transport available)");
+	}
+	UnicodeString setting;
+	setting.format(L"auto (offers %hs)", pluginTransport.c_str());
+	return setting;
+}
+
+// The transports /net transport can choose from, gns and each available plugin transport.
+static UnicodeString netTransportChoices()
+{
+	const std::string pluginTransport = GenOnlinePluginHost::Transport::GetName();
+	if (pluginTransport.empty())
+	{
+		return UnicodeString(L"gns");
+	}
+	UnicodeString choices;
+	choices.format(L"gns, %hs", pluginTransport.c_str());
+	return choices;
+}
+
 // Applies the relay setting of the next lobby. Every transport takes it from here.
 // GNS takes it through g_relayOverride. The plugin transports do not take it yet.
 static void applyNetRelaySetting(int wanted)
@@ -233,6 +265,8 @@ static void applyNetRelaySetting(int wanted)
 void GenOnlineHandleNetSlashCommand(AsciiString subcommand, AsciiString value, GameWindow* listbox)
 {
 	extern int g_iceImplementationOverride;
+	// The websocket tick sends SetPeerTransports again when this changes the offered list.
+	extern int g_transportOverride;
 
 	const Color netColor = GOUIColor(GOUICOLOR_HILITE, GameMakeColor(255, 255, 0, 255));
 	UnicodeString line;
@@ -243,7 +277,27 @@ void GenOnlineHandleNetSlashCommand(AsciiString subcommand, AsciiString value, G
 	case PeerNetAction::Reset:
 		applyNetRelaySetting(-1);
 		g_iceImplementationOverride = -1;
-		line.format(L"Next lobby: relay %ls; GNS ICE %ls. Existing connections are unchanged.", netRelaySetting(), netGnsIceSetting());
+		g_transportOverride = -1;
+		line.format(L"Next lobby: transport %ls; relay %ls; GNS ICE %ls. Existing connections are unchanged.",
+			netTransportSetting().str(), netRelaySetting(), netGnsIceSetting());
+		GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
+		return;
+
+	case PeerNetAction::TransportUsage:
+	{
+		const std::string pluginTransport = GenOnlinePluginHost::Transport::GetName();
+		const bool bPluginName = !command.word.empty() && command.word == pluginTransport;
+		line.format(L"%lsNext lobby transport: %ls. Available transports: %ls. Usage: /net transport auto | gns",
+			bPluginName ? L"Forcing a plugin transport is not supported. " : L"",
+			netTransportSetting().str(), netTransportChoices().str());
+		GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
+		return;
+	}
+
+	case PeerNetAction::SetTransport:
+		g_transportOverride = command.value;
+		line.format(L"New connections: transport %ls. Existing connections are unchanged.%ls", netTransportSetting().str(),
+			(command.value == 1) ? L" Use /net transport auto to undo this." : L"");
 		GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
 		return;
 
@@ -272,14 +326,15 @@ void GenOnlineHandleNetSlashCommand(AsciiString subcommand, AsciiString value, G
 		return;
 
 	case PeerNetAction::Usage:
-		GadgetListBoxAddEntryText(listbox, UnicodeString(L"Usage: /net, /net relay auto | force, /net gns ice auto | native | webrtc, /net reset"), netColor, -1, -1);
+		GadgetListBoxAddEntryText(listbox, UnicodeString(L"Usage: /net, /net transport auto | gns, /net relay auto | force, /net gns ice auto | native | webrtc, /net reset"), netColor, -1, -1);
 		return;
 
 	case PeerNetAction::Status:
 		break;
 	}
 
-	line.format(L"Next lobby: relay %ls; GNS ICE %ls. Existing connections are unchanged.", netRelaySetting(), netGnsIceSetting());
+	line.format(L"Next lobby: transport %ls; relay %ls; GNS ICE %ls. Existing connections are unchanged.",
+		netTransportSetting().str(), netRelaySetting(), netGnsIceSetting());
 	GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
 
 	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
@@ -320,7 +375,7 @@ void GenOnlineHandleNetSlashCommand(AsciiString subcommand, AsciiString value, G
 		}
 	}
 
-	GadgetListBoxAddEntryText(listbox, UnicodeString(L"Change with /net relay auto | force and /net gns ice auto | native | webrtc. /net reset clears both overrides."), netColor, -1, -1);
+	GadgetListBoxAddEntryText(listbox, UnicodeString(L"Change with /net transport auto | gns, /net relay auto | force and /net gns ice auto | native | webrtc. /net reset clears every override."), netColor, -1, -1);
 }
 
 Bool GenOnlineHandleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited);
@@ -398,7 +453,7 @@ Bool GenOnlineHandleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited
 		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/me <message> - Send an emote."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/name <value> - Changes your display name - Example: /name General Granger. You can also use /nick."), helpColor, -1, -1);
 		// GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/refresh - Refresh the game and player lists."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/net - Show your connection settings. /net relay, /net gns ice and /net reset change them."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/net - Show your connection settings. /net transport, /net relay, /net gns ice and /net reset change them."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/support - Open the GeneralsOnline Discord."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/help - Show these commands. You can also use /commands."), helpColor, -1, -1);
 		return TRUE; // was a slash command

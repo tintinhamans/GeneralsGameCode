@@ -20,9 +20,10 @@
 #include "../GenOnlineLobbyInterface.h"
 #include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
 
-// set by the /net relay and /net engine chat commands, -1 follows the service config
+// set by the /net relay, /net gns ice and /net transport chat commands, -1 follows the service config
 int g_relayOverride = -1;             // 1 = relay only, -1 = service policy
 int g_iceImplementationOverride = -1; // 1 = native, 2 = WebRTC
+int g_transportOverride = -1;         // 1 = GNS only, -1 = offer every available plugin transport
 
 // The plugin packets the lobby takes per tick, 255 for each of up to 8 peers like the per connection GNS receive.
 static constexpr int k_pluginLitePacketsPerTick = 255 * 8;

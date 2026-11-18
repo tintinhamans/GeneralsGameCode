@@ -2,6 +2,7 @@
 // the route text and the plugin adapter over a fake plugin table.
 // It also tests the provider boundary: the log sink, the signal queues and the network config mapping.
 // It also tests the route labels of the user interface and the parsing of the /net command.
+// It also tests the filter of the plugin transports this client offers to the service.
 
 #include "GameNetwork/PeerTransport/PeerTransport.h"
 #include "GameNetwork/PeerTransport/PluginPeerTransport.h"
@@ -527,7 +528,60 @@ static void TestNetCommandParsing()
 	CHECK(ParsePeerNetCommand("engine", "native").action == PeerNetAction::Usage);
 	CHECK(ParsePeerNetCommand("engine", "").action == PeerNetAction::Usage);
 	CHECK(ParsePeerNetCommand("bogus", "").action == PeerNetAction::Usage);
-	CHECK(ParsePeerNetCommand("transport", "eos").action == PeerNetAction::Usage);
+}
+
+static void TestNetTransportCommandParsing()
+{
+	PeerNetCommand command = ParsePeerNetCommand("transport", "auto");
+	CHECK(command.action == PeerNetAction::SetTransport && command.value == -1);
+	command = ParsePeerNetCommand("transport", "gns");
+	CHECK(command.action == PeerNetAction::SetTransport && command.value == 1);
+	// Words after the value are ignored like the other settings.
+	command = ParsePeerNetCommand("transport", "  gns  now ");
+	CHECK(command.action == PeerNetAction::SetTransport && command.value == 1);
+
+	// The value is case insensitive.
+	command = ParsePeerNetCommand("transport", "GNS");
+	CHECK(command.action == PeerNetAction::SetTransport && command.value == 1);
+	command = ParsePeerNetCommand("transport", "Auto");
+	CHECK(command.action == PeerNetAction::SetTransport && command.value == -1);
+
+	// A plugin transport name gives the usage and carries the name, a plugin transport cannot be forced.
+	command = ParsePeerNetCommand("transport", "eos");
+	CHECK(command.action == PeerNetAction::TransportUsage && command.word == "eos");
+	command = ParsePeerNetCommand("transport", "EOS");
+	CHECK(command.action == PeerNetAction::TransportUsage && command.word == "eos");
+
+	// No value shows the setting and the available transports.
+	command = ParsePeerNetCommand("transport", "");
+	CHECK(command.action == PeerNetAction::TransportUsage && command.word.empty());
+
+	// The set actions carry no word.
+	CHECK(ParsePeerNetCommand("transport", "gns").word.empty());
+
+	// /net reset still takes no value and clears every override.
+	CHECK(ParsePeerNetCommand("reset", "").action == PeerNetAction::Reset);
+	CHECK(ParsePeerNetCommand("reset", "transport").action == PeerNetAction::Usage);
+}
+
+static void TestFilterOfferedTransports()
+{
+	const std::vector<std::string> none;
+	const std::vector<std::string> eos = { "eos" };
+	const std::vector<std::string> two = { "eos", "steam" };
+
+	// Auto offers every available plugin transport in order.
+	CHECK(FilterOfferedTransports(eos, -1) == eos);
+	CHECK(FilterOfferedTransports(two, -1) == two);
+	CHECK(FilterOfferedTransports(none, -1).empty());
+
+	// GNS only offers no plugin transport.
+	CHECK(FilterOfferedTransports(eos, 1).empty());
+	CHECK(FilterOfferedTransports(two, 1).empty());
+	CHECK(FilterOfferedTransports(none, 1).empty());
+
+	// An unknown override offers every available transport like auto.
+	CHECK(FilterOfferedTransports(eos, 7) == eos);
 }
 
 int main()
@@ -543,6 +597,8 @@ int main()
 	TestNetworkConfigMapping();
 	TestRouteLabel();
 	TestNetCommandParsing();
+	TestNetTransportCommandParsing();
+	TestFilterOfferedTransports();
 
 	if (g_failures != 0)
 	{
