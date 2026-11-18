@@ -140,7 +140,7 @@ static std::string CreateResponseFromOutcome(const GenOnlineRealtime::InvokeOutc
 }
 
 // Sends a lobby change to the hub. A refusal shows in the lobby chat.
-// With bRestoreOnFailure a refusal also puts the lobby the service last sent back on screen.
+// With bRestoreOnFailure a refusal of the service also puts the lobby it last sent back on screen. A transport failure keeps the local change.
 template <class R>
 static void InvokeLobbyUpdate(const R& request, bool bRestoreOnFailure = false)
 {
@@ -154,9 +154,9 @@ static void InvokeLobbyUpdate(const R& request, bool bRestoreOnFailure = false)
 			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 			if (pLobbyInterface != nullptr)
 			{
-				if (bRestoreOnFailure)
+				if (bRestoreOnFailure && outcome.delivered)
 				{
-					pLobbyInterface->RestoreGameFromCurrentLobby();
+					pLobbyInterface->RequestRestoreFromCurrentLobby();
 				}
 				pLobbyInterface->ShowRealtimeLobbyFailure(outcome);
 			}
@@ -640,6 +640,11 @@ bool GenOnlineLobbyInterface::CanChangeLobbySettings()
 	return TheGenOnlineGame == nullptr || !TheGenOnlineGame->isQMGame();
 }
 
+void GenOnlineLobbyInterface::RequestRestoreFromCurrentLobby()
+{
+	m_bRestorePending = true;
+}
+
 void GenOnlineLobbyInterface::RestoreGameFromCurrentLobby()
 {
 	if (!IsInLobby() || TheGenOnlineGame == nullptr || TheGenOnlineGame->isGameInProgress())
@@ -651,20 +656,29 @@ void GenOnlineLobbyInterface::RestoreGameFromCurrentLobby()
 	TheGenOnlineGame->UpdateSlotsFromCurrentLobby();
 
 	// The redraw selects the restored values in the controls, and their handlers must not send them back to the service.
-	m_bRestoringFromLobby = true;
+	struct RestoringScope
 	{
-		std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
-		if (m_RosterNeedsRefreshCallback != nullptr)
-		{
-			m_RosterNeedsRefreshCallback();
-		}
+		bool& m_bFlag;
+		explicit RestoringScope(bool& bFlag) : m_bFlag(bFlag) { m_bFlag = true; }
+		~RestoringScope() { m_bFlag = false; }
+	} restoring(m_bRestoringFromLobby);
+
+	std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
+	if (m_RosterNeedsRefreshCallback != nullptr)
+	{
+		m_RosterNeedsRefreshCallback();
 	}
-	m_bRestoringFromLobby = false;
 }
 
 
 void GenOnlineLobbyInterface::Tick()
 {
+	if (m_bRestorePending)
+	{
+		m_bRestorePending = false;
+		RestoreGameFromCurrentLobby();
+	}
+
 	// The held history of a join shows once the lobby menu takes chat lines, or at the deadline.
 	if (IsInLobby() && m_PendingLobbyHistory.IsHolding(m_LobbyChat.ChannelID())
 		&& (m_OnChatCallback != nullptr || m_OnChatMessageCallback != nullptr || std::chrono::steady_clock::now() >= m_LobbyChatHistoryDeadline))

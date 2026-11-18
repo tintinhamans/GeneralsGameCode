@@ -450,11 +450,14 @@ public:
 	// Only the host of a custom game changes the map, the starting cash and the superweapon limit. Quick match settings are fixed.
 	bool CanChangeLobbySettings();
 
-	// Shows the lobby the service last sent again, so a refused local change does not stay on screen.
-	void RestoreGameFromCurrentLobby();
+	// Shows the lobby the service last sent again on the next tick, so a refused local change does not stay on screen.
+	void RequestRestoreFromCurrentLobby();
 
 private:
+	// Runs from Tick and never from a hub callback, because a callback can arrive while the roster lock is held.
+	void RestoreGameFromCurrentLobby();
 	bool m_bRestoringFromLobby = false;
+	bool m_bRestorePending = false;
 	std::set<int64_t> m_setMembersBeforeUs;
 	bool m_bJoinOrderKnown = false;
 	void ResetJoinOrder();
