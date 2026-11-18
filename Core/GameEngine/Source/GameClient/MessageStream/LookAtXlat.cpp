@@ -539,6 +539,22 @@ GameMessageDisposition LookAtTranslator::translateGameMessage(const GameMessage 
 					break;
 				}
 
+				// TheSuperHackers @tweak tintinhamans 18/11/2026 Scrolling now moves the same share of the view at any zoom.
+				// The speed scales with the camera height over the default camera height of GameData.ini, so the retail speed
+				// holds at the default height, a higher camera scrolls faster and a lower camera scrolls slower. This also
+				// covers the higher camera that wide screens allow.
+				if (TheGlobalData->m_cameraHeight > 0.0f)
+				{
+					Real height = TheTacticalView->getCurrentHeightAboveGround();
+					if (height < 1.0f)
+					{
+						height = 1.0f;
+					}
+					const Real heightScale = height / TheGlobalData->m_cameraHeight;
+					offset.x *= heightScale;
+					offset.y *= heightScale;
+				}
+
 				TheInGameUI->setScrollAmount(offset);
 				TheTacticalView->userScrollBy( &offset );
 			}
