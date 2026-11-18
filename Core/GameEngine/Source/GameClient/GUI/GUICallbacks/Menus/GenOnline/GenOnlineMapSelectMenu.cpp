@@ -264,6 +264,13 @@ void GenOnlinePositionStartSpots();
 
 static void applySelectedMap( AsciiString asciiMap )
 {
+	// Only the host of a custom game changes the map. The selector closes without a change for anyone else.
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pLobbyInterface == nullptr || !pLobbyInterface->CanChangeLobbySettings())
+	{
+		return;
+	}
+
 	int newMaxPlayers = -1;
 	UnicodeString strMapName;
 	bool bOfficialMap = false;
@@ -293,12 +300,7 @@ static void applySelectedMap( AsciiString asciiMap )
 	GenOnlineDisplaySlotList();
 	GenOnlineDisplayGameOptions();
 
-	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-
-	if (pLobbyInterface != nullptr)
-	{
-		pLobbyInterface->UpdateCurrentLobby_Map(strMapName, TheGenOnlineGame->getMap(), bOfficialMap, newMaxPlayers);
-	}
+	pLobbyInterface->UpdateCurrentLobby_Map(strMapName, TheGenOnlineGame->getMap(), bOfficialMap, newMaxPlayers);
 }
 
 // The same without the selector window, for the stats pipe.

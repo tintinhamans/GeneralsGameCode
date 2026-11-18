@@ -137,10 +137,11 @@ static std::string CreateResponseFromOutcome(const GenOnlineRealtime::InvokeOutc
 }
 
 // Sends a lobby change to the hub. A refusal shows in the lobby chat.
+// With bRestoreOnFailure a refusal of the service also puts the lobby it last sent back on screen. A transport failure keeps the local change.
 template <class R>
-static void InvokeLobbyUpdate(const R& request)
+static void InvokeLobbyUpdate(const R& request, bool bRestoreOnFailure = false)
 {
-	InvokeLobbyHub(request, [](const GenOnlineRealtime::InvokeOutcome& outcome)
+	InvokeLobbyHub(request, [bRestoreOnFailure](const GenOnlineRealtime::InvokeOutcome& outcome)
 		{
 			if (outcome.Succeeded())
 			{
@@ -150,6 +151,10 @@ static void InvokeLobbyUpdate(const R& request)
 			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 			if (pLobbyInterface != nullptr)
 			{
+				if (bRestoreOnFailure && outcome.delivered)
+				{
+					pLobbyInterface->RequestRestoreFromCurrentLobby();
+				}
 				pLobbyInterface->ShowRealtimeLobbyFailure(outcome);
 			}
 		});
@@ -346,6 +351,11 @@ static void LobbyEntryFromState(const GenOnlineRealtime::LobbyState& lobby, Lobb
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_Map(UnicodeString strMap, AsciiString strMapPath, bool bIsOfficial, int newMaxPlayers)
 {
+	if (m_bRestoringFromLobby || !CanChangeLobbySettings())
+	{
+		return;
+	}
+
 	// sanitize map path
 	// we need to parse out the map name for custom maps... its an absolute path
 	// it's safe to just get the file name, dir name and file name MUST be the same. Game enforces this
@@ -358,23 +368,33 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_Map(UnicodeString strMap, Ascii
 	map.official = bIsOfficial;
 	map.max_players = newMaxPlayers;
 	request.map = map;
-	InvokeLobbyUpdate(request);
+	InvokeLobbyUpdate(request, true);
 }
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_LimitSuperweapons(bool bLimitSuperweapons)
 {
+	if (m_bRestoringFromLobby || !CanChangeLobbySettings())
+	{
+		return;
+	}
+
 	GenOnlineRealtime::UpdateLobbyRequest request;
 	request.settings = GenOnlineRealtime::UpdateLobbySettings();
 	request.settings->limit_superweapons = bLimitSuperweapons;
-	InvokeLobbyUpdate(request);
+	InvokeLobbyUpdate(request, true);
 }
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_StartingCash(UnsignedInt startingCashValue)
 {
+	if (m_bRestoringFromLobby || !CanChangeLobbySettings())
+	{
+		return;
+	}
+
 	GenOnlineRealtime::UpdateLobbyRequest request;
 	request.settings = GenOnlineRealtime::UpdateLobbySettings();
 	request.settings->starting_cash = (int)startingCashValue;
-	InvokeLobbyUpdate(request);
+	InvokeLobbyUpdate(request, true);
 }
 
 void GenOnlineLobbyInterface::UpdateCurrentLobby_HasMap()
@@ -607,9 +627,54 @@ bool GenOnlineLobbyInterface::IsHost()
 	return false;
 }
 
+bool GenOnlineLobbyInterface::CanChangeLobbySettings()
+{
+	if (!IsHost() || m_CurrentLobby.lobby_type == ELobbyType::QuickMatch)
+	{
+		return false;
+	}
+	return TheGenOnlineGame == nullptr || !TheGenOnlineGame->isQMGame();
+}
+
+void GenOnlineLobbyInterface::RequestRestoreFromCurrentLobby()
+{
+	m_bRestorePending = true;
+}
+
+void GenOnlineLobbyInterface::RestoreGameFromCurrentLobby()
+{
+	if (!IsInLobby() || TheGenOnlineGame == nullptr || TheGenOnlineGame->isGameInProgress())
+	{
+		return;
+	}
+
+	TheGenOnlineGame->SyncWithLobby(m_CurrentLobby);
+	TheGenOnlineGame->UpdateSlotsFromCurrentLobby();
+
+	// The redraw selects the restored values in the controls, and their handlers must not send them back to the service.
+	struct RestoringScope
+	{
+		bool& m_bFlag;
+		explicit RestoringScope(bool& bFlag) : m_bFlag(bFlag) { m_bFlag = true; }
+		~RestoringScope() { m_bFlag = false; }
+	} restoring(m_bRestoringFromLobby);
+
+	std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
+	if (m_RosterNeedsRefreshCallback != nullptr)
+	{
+		m_RosterNeedsRefreshCallback();
+	}
+}
+
 
 void GenOnlineLobbyInterface::Tick()
 {
+	if (m_bRestorePending)
+	{
+		m_bRestorePending = false;
+		RestoreGameFromCurrentLobby();
+	}
+
 	// The held history of a join shows once the lobby menu takes chat lines, or at the deadline.
 	if (IsInLobby() && m_PendingLobbyHistory.IsHolding(m_LobbyChat.ChannelID())
 		&& (m_OnChatCallback != nullptr || m_OnChatMessageCallback != nullptr || std::chrono::steady_clock::now() >= m_LobbyChatHistoryDeadline))

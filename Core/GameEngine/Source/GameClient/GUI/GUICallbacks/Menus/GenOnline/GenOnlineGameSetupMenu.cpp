@@ -1714,7 +1714,7 @@ void GenOnlineInitGameGadgets()
   GadgetCheckBoxSetChecked(checkBoxUseStats, isUsingStats );
   checkBoxUseStats->winSetTooltip( TheGameText->fetch( isUsingStats ? "TOOLTIP:UseStatsOn" : "TOOLTIP:UseStatsOff" ) );
 
-  if (!pLobbyInterface->IsHost())
+  if (!pLobbyInterface->CanChangeLobbySettings())
   {
     checkBoxLimitSuperweapons->winEnable( false );
     comboBoxStartingCash->winEnable( false );
@@ -2257,6 +2257,9 @@ void GenOnlineGameSetupMenuInit( WindowLayout *layout, void *userData )
 
 		// TheSuperHackers @tweak disable the combo box for the host's player name
 		comboBoxPlayer[0]->winEnable(FALSE);
+
+		// A quick match host keeps the map the service chose.
+		buttonSelectMap->winEnable(pLobbyInterface->CanChangeLobbySettings());
 	}
 	else
 	{
@@ -2616,9 +2619,10 @@ static void UpdateStartControls()
 	}
 
 	buttonBack->winEnable(settingsOpen);
-	buttonSelectMap->winEnable(isHost && phase == EStartPhase::Idle);
-	comboBoxStartingCash->winEnable(isHost && settingsOpen);
-	checkBoxLimitSuperweapons->winEnable(isHost && settingsOpen);
+	const bool canChangeSettings = lobby->CanChangeLobbySettings();
+	buttonSelectMap->winEnable(canChangeSettings && phase == EStartPhase::Idle);
+	comboBoxStartingCash->winEnable(canChangeSettings && settingsOpen);
+	checkBoxLimitSuperweapons->winEnable(canChangeSettings && settingsOpen);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3390,6 +3394,12 @@ WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, UnsignedI
 				}
 				else if ( controlID == buttonSelectMapID )
 				{
+					GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+					if (pLobbyInterface == nullptr || !pLobbyInterface->CanChangeLobbySettings())
+					{
+						break;
+					}
+
 					GenOnlineMapSelectLayout = TheWindowManager->winCreateLayout( "Menus/GenOnlineMapSelectMenu.wnd" );
 					GenOnlineMapSelectLayout->runInit();
 					GenOnlineMapSelectLayout->hide( FALSE );
