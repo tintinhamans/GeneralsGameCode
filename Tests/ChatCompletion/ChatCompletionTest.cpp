@@ -3,6 +3,7 @@
 
 #include "GameClient/GUI/ChatCompletion.h"
 #include "GameClient/GUI/ChatCompletionSets.h"
+#include "GameClient/GUI/ChatMentions.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -488,6 +489,50 @@ static void TestAppendChatNames()
 	CHECK_LIST(names, List(L"Alice", L"Bob", L"carol", L"Dave"));
 }
 
+static void TestMentionBoundaries()
+{
+	CHECK(ChatTextMentionsName(L"@Bob", L"Bob"));
+	CHECK(ChatTextMentionsName(L"hi @Bob how are you", L"Bob"));
+	CHECK(ChatTextMentionsName(L"@Bob, come here", L"Bob"));
+	CHECK(ChatTextMentionsName(L"@Bob!", L"Bob"));
+	CHECK(ChatTextMentionsName(L"@Bob#0042 we need a fourth", L"Bob"));
+	CHECK(ChatTextMentionsName(L"@Bob	there", L"Bob"));
+	CHECK(!ChatTextMentionsName(L"@Bobby", L"Bob"));
+	CHECK(!ChatTextMentionsName(L"@Bob2", L"Bob"));
+	CHECK(!ChatTextMentionsName(L"@Bob", L"Bobby"));
+	CHECK(ChatTextMentionsName(L"@Bobby and @Bob", L"Bob"));
+}
+
+static void TestMentionCase()
+{
+	CHECK(ChatTextMentionsName(L"@bob", L"Bob"));
+	CHECK(ChatTextMentionsName(L"@BOB?", L"bob"));
+}
+
+static void TestMentionSpaces()
+{
+	CHECK(ChatTextMentionsName(L"gg @Big Bob", L"Big Bob"));
+	CHECK(ChatTextMentionsName(L"@big bob. rematch?", L"Big Bob"));
+	CHECK(!ChatTextMentionsName(L"@Big Bobby", L"Big Bob"));
+	CHECK(!ChatTextMentionsName(L"@Big", L"Big Bob"));
+}
+
+static void TestMentionNeedsAtSign()
+{
+	CHECK(!ChatTextMentionsName(L"Bob", L"Bob"));
+	CHECK(!ChatTextMentionsName(L"hi Bob", L"Bob"));
+	CHECK(!ChatTextMentionsName(L"@ Bob", L"Bob"));
+	CHECK(!ChatTextMentionsName(L"@", L"Bob"));
+	CHECK(!ChatTextMentionsName(L"", L"Bob"));
+}
+
+static void TestMentionEmptyName()
+{
+	CHECK(!ChatTextMentionsName(L"@Bob", L""));
+	CHECK(!ChatTextMentionsName(L"@", L""));
+	CHECK(!ChatTextMentionsName(L"@ hi", L""));
+}
+
 int main()
 {
 	TestNamesWithSpaces();
@@ -514,6 +559,11 @@ int main()
 	TestUnknownCommandGetsNothing();
 	TestRecentChatters();
 	TestAppendChatNames();
+	TestMentionBoundaries();
+	TestMentionCase();
+	TestMentionSpaces();
+	TestMentionNeedsAtSign();
+	TestMentionEmptyName();
 
 	if (g_failures != 0)
 	{

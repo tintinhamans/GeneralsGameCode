@@ -801,10 +801,18 @@ void GenOnlineDeleteNotificationBox()
 }
 
 // A chat line keeps the key of its message as item data, so a MessageDelete finds the row again.
-static void AddBuddyChatLine(const UnicodeString& text, uint32_t key)
+// A message that mentions the local player takes the mention colour.
+static void AddBuddyChatLine(int64_t peerID, const UnicodeString& text, uint32_t key)
 {
-	Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, text, GameSpyColor[GSCOLOR_PLAYER_BUDDY], -1, -1);
-	GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_PLAYER_BUDDY], index, 1);
+	Color color = GameSpyColor[GSCOLOR_PLAYER_BUDDY];
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	const GenOnlineRealtime::ChatMessage* pMessage = pSocialInterface != nullptr ? pSocialInterface->FindConversationMessage(peerID, key) : nullptr;
+	if (pMessage != nullptr && GenOnlineMentionsLocalUser(*pMessage))
+	{
+		color = DetermineMentionColor();
+	}
+	Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, text, color, -1, -1);
+	GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, color, index, 1);
 	if (index >= 0 && key != 0)
 	{
 		GadgetListBoxSetItemData(buddyControls.listboxChat, reinterpret_cast<void*>(static_cast<uintptr_t>(key)), index, 0);
@@ -852,7 +860,7 @@ static void ShowBuddyConversation(GenOnlineSocialInterface* pSocialInterface, in
 
 	for (const GenOnlineRealtime::DirectChatLine& line : vecMessages)
 	{
-		AddBuddyChatLine(GenOnlineSocialInterface::GetChatLineText(line), line.key);
+		AddBuddyChatLine(profileID, GenOnlineSocialInterface::GetChatLineText(line), line.key);
 	}
 
 	if (vecMessages.empty())
@@ -914,7 +922,7 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 					// sending to them, or getting from them, is valid
 					if (profileID == peer_user_id)
 					{
-						AddBuddyChatLine(unicodeStr, key);
+						AddBuddyChatLine(peer_user_id, unicodeStr, key);
 
 						// we read the message, so clear it
                         GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();

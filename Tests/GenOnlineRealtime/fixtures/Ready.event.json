@@ -11,8 +11,8 @@
     "moderation.mute"
   ],
   "features": [
-    "stats_exporter",
-    "observer"
+    "observer",
+    "stats_exporter"
   ],
   "badges": {
     "moderator": {
@@ -40,6 +40,7 @@
     },
     "name_min_length": 3,
     "name_max_length": 16,
-    "group_max_members": 10
+    "group_max_members": 10,
+    "mention_max": 10
   }
 }

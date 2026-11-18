@@ -20,7 +20,8 @@
 // Description: Chat log of the channel a session is in, GenOnline realtime
 //              protocol v1. It decides which messages of MessageCreate and
 //              ChannelHistory the chat shows, deduplicated by message id, and
-//              which shown line a MessageDelete removes.
+//              which shown line a MessageDelete removes, and which messages
+//              and MentionCreate events mention the local user.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -295,6 +296,112 @@ public:
 
 private:
 	std::optional<ChannelHistoryEvent> m_history;
+};
+
+// Mentions //////////////////////////////////////////////////////////////////////
+
+// The most characters of the message content a mention notice shows.
+static constexpr size_t MENTION_NOTICE_CONTENT_MAX = 80;
+
+// True when the message mentions the user and another user wrote it.
+inline bool MentionsUser(const ChatMessage& message, int64_t userID)
+{
+	if (message.IsDeleted() || !message.mentions.has_value() || message.author.id == userID)
+	{
+		return false;
+	}
+	for (int64_t mentioned : *message.mentions)
+	{
+		if (mentioned == userID)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+// The name of a channel: channel in the Ready channel list, or the channel id when the list does not hold it.
+inline std::string ChannelNameOf(const std::vector<ChannelInfo>& channels, const std::string& channelID)
+{
+	static const std::string PREFIX = "channel:";
+	if (channelID.compare(0, PREFIX.size(), PREFIX) == 0)
+	{
+		const std::string number = channelID.substr(PREFIX.size());
+		for (const ChannelInfo& channel : channels)
+		{
+			if (std::to_string(channel.id) == number)
+			{
+				return channel.name;
+			}
+		}
+	}
+	return channelID;
+}
+
+// UTF-8 text of at most maxCharacters characters. Longer text is cut on a character boundary and ends with "...".
+inline std::string ShortenUtf8(const std::string& text, size_t maxCharacters)
+{
+	size_t characters = 0;
+	size_t cut = 0;
+	const size_t keep = maxCharacters > 3 ? maxCharacters - 3 : 0;
+	for (size_t i = 0; i < text.size(); ++i)
+	{
+		// A continuation byte belongs to the character before it.
+		if ((static_cast<unsigned char>(text[i]) & 0xC0) == 0x80)
+		{
+			continue;
+		}
+		if (characters == keep)
+		{
+			cut = i;
+		}
+		++characters;
+	}
+	if (characters <= maxCharacters)
+	{
+		return text;
+	}
+	return text.substr(0, cut) + "...";
+}
+
+// The chat line that tells the user about a mention in another channel.
+inline std::string MentionNoticeText(const MentionCreateEvent& mention, const std::vector<ChannelInfo>& channels)
+{
+	return mention.message.author.name + " mentioned you in " + ChannelNameOf(channels, mention.channel_id) + ": "
+		+ ShortenUtf8(mention.message.content, MENTION_NOTICE_CONTENT_MAX);
+}
+
+// Decides which MentionCreate events show a notice. Each message id shows once.
+class MentionNoticeLog
+{
+public:
+	// The number of message ids remembered.
+	static constexpr size_t MAX_REMEMBERED = 64;
+
+	// True the first time a mention by another user arrives.
+	bool Accept(const MentionCreateEvent& mention, int64_t localUserID)
+	{
+		if (!MentionsUser(mention.message, localUserID))
+		{
+			return false;
+		}
+		for (const std::string& id : m_ids)
+		{
+			if (id == mention.message.id)
+			{
+				return false;
+			}
+		}
+		if (m_ids.size() >= MAX_REMEMBERED)
+		{
+			m_ids.pop_front();
+		}
+		m_ids.push_back(mention.message.id);
+		return true;
+	}
+
+private:
+	std::deque<std::string> m_ids;
 };
 
 } // namespace GenOnlineRealtime

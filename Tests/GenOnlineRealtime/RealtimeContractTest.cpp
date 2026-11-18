@@ -158,6 +158,7 @@ static std::map<std::string, RoundTripFn> BuildFixtureTable()
 	t["MemberRemove.event.json"] = RoundTrip<MemberRemoveEvent>;
 	t["MemberUpdate.event.json"] = RoundTrip<MemberUpdateEvent>;
 	t["MessageCreate.event.json"] = RoundTrip<MessageCreateEvent>;
+	t["MentionCreate.event.json"] = RoundTrip<MentionCreateEvent>;
 	t["MessageDelete.event.json"] = RoundTrip<MessageDeleteEvent>;
 	t["Conversations.event.json"] = RoundTrip<ConversationsEvent>;
 	t["ReadMarker.event.json"] = RoundTrip<ReadMarkerEvent>;
@@ -1496,6 +1497,74 @@ static void TestChannelChatLog()
 	}
 }
 
+static void TestMentions(const std::filesystem::path& folder)
+{
+	// A message without mentions leaves the field out, and a message with mentions keeps them in order.
+	const MessageCreateEvent plain = LoadJson(folder / "MessageCreate.event.json").get<MessageCreateEvent>();
+	CHECK(!plain.mentions.has_value());
+	CHECK(!json(plain).contains("mentions"));
+	CHECK(!MentionsUser(plain, 42));
+
+	const MentionCreateEvent mention = LoadJson(folder / "MentionCreate.event.json").get<MentionCreateEvent>();
+	CHECK(mention.channel_id == "channel:3");
+	CHECK(mention.message.id == "8813");
+	CHECK(mention.message.author.id == 7);
+	CHECK(mention.message.mentions.has_value() && *mention.message.mentions == std::vector<int64_t>({ 42 }));
+	CHECK(MentionsUser(mention.message, 42));
+	CHECK(!MentionsUser(mention.message, 9));
+
+	const ReadyEvent ready = LoadJson(folder / "Ready.event.json").get<ReadyEvent>();
+	CHECK(ready.limits.mention_max.has_value() && *ready.limits.mention_max == 10);
+	const ReadyEvent oldReady = json::parse("{\"protocol_version\":1,\"session_type\":\"game\",\"user\":{\"id\":42,\"name\":\"Bob\",\"badges\":[]},\"permissions\":[],\"badges\":{},\"channels\":[],\"limits\":{\"chat_max_length\":512,\"chat_rate\":{\"messages\":3,\"window_s\":9},\"name_min_length\":3,\"name_max_length\":16,\"group_max_members\":10}}").get<ReadyEvent>();
+	CHECK(!oldReady.limits.mention_max.has_value());
+	CHECK(!json(oldReady)["limits"].contains("mention_max"));
+
+	// The author of a mention never gets it highlighted, and a tombstone mentions nobody.
+	ChatMessage own = mention.message;
+	own.author.id = 42;
+	CHECK(!MentionsUser(own, 42));
+	ChatMessage tombstone = MakeTombstone("8813", "channel:3");
+	tombstone.mentions = std::vector<int64_t>({ 42 });
+	CHECK(!MentionsUser(tombstone, 42));
+
+	// The notice names the channel from the Ready channel list.
+	CHECK(ChannelNameOf(ready.channels, "channel:1") == "General");
+	std::vector<ChannelInfo> channels(1);
+	channels[0].id = 3;
+	channels[0].name = "Europe";
+	CHECK(ChannelNameOf(channels, "channel:3") == "Europe");
+	CHECK(ChannelNameOf(channels, "channel:4") == "channel:4");
+	CHECK(ChannelNameOf(channels, "lobby:3") == "lobby:3");
+	CHECK(MentionNoticeText(mention, channels) == "Ann mentioned you in Europe: @Bob#0042 we need a fourth");
+
+	// Long content is cut on a character boundary.
+	CHECK(ShortenUtf8("abcdef", 6) == "abcdef");
+	CHECK(ShortenUtf8("abcdefg", 6) == "abc...");
+	CHECK(ShortenUtf8("ééééé", 4) == "é...");
+	MentionCreateEvent longMention = mention;
+	longMention.message.content = std::string(200, 'x');
+	CHECK(MentionNoticeText(longMention, channels) == "Ann mentioned you in Europe: " + std::string(MENTION_NOTICE_CONTENT_MAX - 3, 'x') + "...");
+
+	// A mention shows once per message id and never for the local author.
+	MentionNoticeLog log;
+	CHECK(log.Accept(mention, 42));
+	CHECK(!log.Accept(mention, 42));
+	MentionCreateEvent second = mention;
+	second.message.id = "8814";
+	CHECK(log.Accept(second, 42));
+	MentionCreateEvent mine = mention;
+	mine.message.id = "8815";
+	mine.message.author.id = 42;
+	CHECK(!log.Accept(mine, 42));
+	for (int i = 0; i < static_cast<int>(MentionNoticeLog::MAX_REMEMBERED) + 1; ++i)
+	{
+		MentionCreateEvent other = mention;
+		other.message.id = "m" + std::to_string(i);
+		CHECK(log.Accept(other, 42));
+	}
+	CHECK(log.Accept(mention, 42));
+}
+
 static void TestLobbyChatReplay()
 {
 	typedef std::vector<std::string> Ids;
@@ -2729,6 +2798,7 @@ int main(int argc, char** argv)
 	TestPeerPayload();
 	TestMatchmakingText();
 	TestChannelChatLog();
+	TestMentions(argv[1]);
 	TestLobbyChatReplay();
 	TestDirectMessagePeer();
 	TestDirectMessageUnread();

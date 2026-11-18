@@ -533,6 +533,10 @@ void GenOnlineSocialInterface::OnRealtimeDirectMessage(const GenOnlineRealtime::
 		m_mapConversationNames[peerID] = message.author.name;
 	}
 	OnConversationLine(peerID, message.author.id == pAuth->GetUserID(), line.key, GetChatLineText(line));
+	if (GenOnlineRealtime::MentionsUser(message, pAuth->GetUserID()))
+	{
+		GenOnlinePlayMentionSound();
+	}
 }
 
 bool GenOnlineSocialInterface::CanChatWith(int64_t target_user_id)

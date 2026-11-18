@@ -298,6 +298,8 @@ struct ChatMessage : WireObject
 	std::string type;
 	Member author;
 	std::string content;
+	// The users the service found as @name or @name#tag in the content, in order. Absent when there is none.
+	std::optional<std::vector<int64_t> > mentions;
 	std::string created_at;
 	std::optional<bool> deleted;
 
@@ -316,6 +318,7 @@ struct ChatMessage : WireObject
 		v("type", type);
 		v("author", author);
 		v("content", content);
+		v("mentions", mentions);
 	}
 };
 
@@ -1308,6 +1311,8 @@ struct SessionLimits : WireObject
 	int name_min_length = 0;
 	int name_max_length = 0;
 	int group_max_members = 0;
+	// The most users one message mentions. Absent from a service without mentions.
+	std::optional<int> mention_max;
 
 	template <class V> void Fields(V& v)
 	{
@@ -1316,6 +1321,7 @@ struct SessionLimits : WireObject
 		v("name_min_length", name_min_length);
 		v("name_max_length", name_max_length);
 		v("group_max_members", group_max_members);
+		v("mention_max", mention_max);
 	}
 };
 
@@ -1483,6 +1489,21 @@ struct MemberUpdateEvent : WireObject
 struct MessageCreateEvent : ChatMessage
 {
 	static constexpr const char* EVENT = "MessageCreate";
+};
+
+// A channel message mentioned the user while none of the user's connections was in that channel.
+struct MentionCreateEvent : WireObject
+{
+	static constexpr const char* EVENT = "MentionCreate";
+
+	std::string channel_id;
+	ChatMessage message;
+
+	template <class V> void Fields(V& v)
+	{
+		v("channel_id", channel_id);
+		v("message", message);
+	}
 };
 
 // Staff deleted the message. Sent to everyone who received it.

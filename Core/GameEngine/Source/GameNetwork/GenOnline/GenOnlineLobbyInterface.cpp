@@ -2151,6 +2151,12 @@ void GenOnlineLobbyInterface::ShowLobbyChatLine(const GenOnlineRealtime::Channel
 	Color color = bAnnouncement
 		? DetermineSystemNoticeColor(false, false)
 		: DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_LOBBY, true, bAction, false, false, lobbySlot);
+	// A mention of the local player colours the whole line. Only a live mention plays the sound.
+	const bool bMention = GenOnlineMentionsLocalUser(message);
+	if (bMention)
+	{
+		color = DetermineMentionColor();
+	}
 
 #if RTS_ZEROHOUR
 	// Only live chat goes to the stats exporter, so a replayed history line is not exported again.
@@ -2168,5 +2174,9 @@ void GenOnlineLobbyInterface::ShowLobbyChatLine(const GenOnlineRealtime::Channel
 	else
 	{
 		m_OnChatCallback(unicodeStr, color);
+	}
+	if (bMention && line.live)
+	{
+		GenOnlinePlayMentionSound();
 	}
 }

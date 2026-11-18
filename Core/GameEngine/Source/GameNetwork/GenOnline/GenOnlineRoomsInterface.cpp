@@ -15,6 +15,8 @@
 #include "../GenOnlineInit.h"
 #include "../HTTP/HTTPManager.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
+#include "Common/AudioEventRTS.h"
+#include "Common/GameAudio.h"
 
 // -----------------------------
 // Module info structure
@@ -1506,8 +1508,24 @@ static NetworkRoomMember ToRoomMember(const GenOnlineRealtime::Member& member)
 	return roomMember;
 }
 
+bool GenOnlineMentionsLocalUser(const GenOnlineRealtime::ChatMessage& message)
+{
+	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	return pAuth != nullptr && GenOnlineRealtime::MentionsUser(message, pAuth->GetUserID());
+}
+
+void GenOnlinePlayMentionSound()
+{
+	AudioEventRTS mentionAudio("GUIMessageReceived");
+	if (TheAudio != nullptr)
+	{
+		TheAudio->addAudioEvent(&mentionAudio);
+	}
+}
+
 void GenOnlineRoomsInterface::SetRealtimeRooms(const std::vector<GenOnlineRealtime::ChannelInfo>& rooms)
 {
+	m_vecRealtimeChannels = rooms;
 	m_vecRealtimeRooms.clear();
 	for (const GenOnlineRealtime::ChannelInfo& room : rooms)
 	{
@@ -1636,6 +1654,31 @@ void GenOnlineRoomsInterface::OnRealtimeMessageDelete(const GenOnlineRealtime::M
 	}
 }
 
+// The notice goes to the game setup chat inside a lobby, else to the channel chat when it shows, else to the notification box.
+void GenOnlineRoomsInterface::OnRealtimeMentionCreate(const GenOnlineRealtime::MentionCreateEvent& event)
+{
+	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	if (pAuth == nullptr || !m_MentionNotices.Accept(event, pAuth->GetUserID()))
+	{
+		return;
+	}
+	const UnicodeString text(from_utf8(GenOnlineRealtime::MentionNoticeText(event, m_vecRealtimeChannels)).c_str());
+	GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pLobby != nullptr && pLobby->IsInLobby() && pLobby->m_OnChatCallback != nullptr)
+	{
+		pLobby->m_OnChatCallback(text, DetermineMentionColor());
+	}
+	else if (m_OnChatCallback != nullptr)
+	{
+		m_OnChatCallback(text, DetermineMentionColor());
+	}
+	else
+	{
+		GenOnlineShowNotificationBox(AsciiString::TheEmptyString, text, false);
+	}
+	GenOnlinePlayMentionSound();
+}
+
 // Reads the minute of an ISO 8601 UTC time as local time.
 static bool UtcTextToLocalTime(const std::string& strTime, SYSTEMTIME& localTime)
 {
@@ -1694,6 +1737,12 @@ void GenOnlineRoomsInterface::ShowRoomChatLine(const GenOnlineRealtime::ChannelC
 	{
 		color = badgeColor;
 	}
+	// A mention of the local player colours the whole line. Only a live mention plays the sound.
+	const bool bMention = GenOnlineMentionsLocalUser(message);
+	if (bMention)
+	{
+		color = DetermineMentionColor();
+	}
 #if RTS_ZEROHOUR
 	// Only live chat goes to the stats exporter, so a replayed history line is not exported again.
 	if (line.live)
@@ -1710,6 +1759,10 @@ void GenOnlineRoomsInterface::ShowRoomChatLine(const GenOnlineRealtime::ChannelC
 	else
 	{
 		m_OnChatCallback(unicodeStr, color);
+	}
+	if (bMention && line.live)
+	{
+		GenOnlinePlayMentionSound();
 	}
 }
 
