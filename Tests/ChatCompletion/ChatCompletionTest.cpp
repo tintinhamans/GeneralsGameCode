@@ -1,7 +1,10 @@
 // Standalone test of the chat completion engine in GameClient/GUI/ChatCompletion.
+// It also tests the chat box command sets in GameClient/GUI/ChatCompletionSets.
 
 #include "GameClient/GUI/ChatCompletion.h"
+#include "GameClient/GUI/ChatCompletionSets.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cwchar>
 #include <string>
@@ -329,6 +332,162 @@ static void TestDuplicateNames()
 	CHECK_LIST(ChatCompletionMatches(L"b", context, replaceFrom), List(L"Bob", L"bob"));
 }
 
+static std::vector<std::wstring> SortedNextWords(const ChatCommandRegistry& commands, int parent)
+{
+	std::vector<std::wstring> words;
+	commands.GetNextWords(parent, words);
+	std::sort(words.begin(), words.end());
+	return words;
+}
+
+static std::vector<std::wstring> Words(const wchar_t* const* items)
+{
+	std::vector<std::wstring> result;
+	for (size_t i = 0; items[i] != nullptr; ++i)
+	{
+		result.push_back(items[i]);
+	}
+	return result;
+}
+
+static void CheckNetTree(const ChatCommandRegistry& commands, int line)
+{
+	const int net = commands.FindNext(CHAT_COMMAND_ROOT, L"net");
+	CheckTrue(net != CHAT_COMMAND_NONE, "net command", line);
+	const wchar_t* const netWords[] = { L"engine", L"relay", L"reset", nullptr };
+	CheckList(SortedNextWords(commands, net), Words(netWords), line);
+	const wchar_t* const relayWords[] = { L"auto", L"force", nullptr };
+	CheckList(SortedNextWords(commands, commands.FindNext(net, L"relay")), Words(relayWords), line);
+	const wchar_t* const engineWords[] = { L"auto", L"native", L"webrtc", nullptr };
+	CheckList(SortedNextWords(commands, commands.FindNext(net, L"engine")), Words(engineWords), line);
+	CheckTrue(SortedNextWords(commands, commands.FindNext(net, L"reset")).empty(), "net reset takes no argument", line);
+}
+
+static void TestLobbyCommands()
+{
+	ChatCommandRegistry commands;
+	BuildLobbyChatCommands(commands);
+	const wchar_t* const expected[] = { L"allowrelay", L"commands", L"forcerelay", L"help", L"me", L"name", L"net", L"nick", L"refresh", L"support", nullptr };
+	CHECK_LIST(SortedNextWords(commands, CHAT_COMMAND_ROOT), Words(expected));
+	CHECK(commands.FindNext(CHAT_COMMAND_ROOT, L"commands") == commands.FindNext(CHAT_COMMAND_ROOT, L"help"));
+	CHECK(commands.FindNext(CHAT_COMMAND_ROOT, L"nick") == commands.FindNext(CHAT_COMMAND_ROOT, L"name"));
+	CHECK(commands.FindNext(CHAT_COMMAND_ROOT, L"forcerelay") != commands.FindNext(CHAT_COMMAND_ROOT, L"allowrelay"));
+	CheckNetTree(commands, __LINE__);
+}
+
+static void TestGameSetupCommands()
+{
+	ChatCommandRegistry commands;
+	BuildGameSetupChatCommands(commands);
+	const wchar_t* const expected[] = { L"advnet", L"clearpassword", L"commands", L"friendsonly", L"help", L"host", L"maxcameraheight", L"me", L"net",
+		L"public", L"removepassword", L"resetpassword", L"setpassword", L"steam", L"support", nullptr };
+	CHECK_LIST(SortedNextWords(commands, CHAT_COMMAND_ROOT), Words(expected));
+	CHECK(commands.FindNext(CHAT_COMMAND_ROOT, L"commands") == commands.FindNext(CHAT_COMMAND_ROOT, L"help"));
+	CHECK(commands.FindNext(CHAT_COMMAND_ROOT, L"advnet") == commands.FindNext(CHAT_COMMAND_ROOT, L"steam"));
+	CHECK(commands.FindNext(CHAT_COMMAND_ROOT, L"clearpassword") == commands.FindNext(CHAT_COMMAND_ROOT, L"removepassword"));
+	CHECK(commands.FindNext(CHAT_COMMAND_ROOT, L"resetpassword") == commands.FindNext(CHAT_COMMAND_ROOT, L"removepassword"));
+	CHECK(commands.FindNext(CHAT_COMMAND_ROOT, L"setpassword") != commands.FindNext(CHAT_COMMAND_ROOT, L"removepassword"));
+	CheckNetTree(commands, __LINE__);
+}
+
+static void TestInGameCommands()
+{
+	ChatCommandRegistry commands;
+	BuildInGameChatCommands(commands);
+	CHECK_LIST(SortedNextWords(commands, CHAT_COMMAND_ROOT), List(L"host"));
+	CHECK(SortedNextWords(commands, commands.FindNext(CHAT_COMMAND_ROOT, L"host")).empty());
+}
+
+static void TestDebugCommandsLeftOut()
+{
+	ChatCommandRegistry lobby;
+	BuildLobbyChatCommands(lobby);
+	ChatCommandRegistry setup;
+	BuildGameSetupChatCommands(setup);
+	CHECK(lobby.FindNext(CHAT_COMMAND_ROOT, L"fakecrc") == CHAT_COMMAND_NONE);
+	CHECK(lobby.FindNext(CHAT_COMMAND_ROOT, L"slots") == CHAT_COMMAND_NONE);
+	CHECK(setup.FindNext(CHAT_COMMAND_ROOT, L"slots") == CHAT_COMMAND_NONE);
+}
+
+static void TestLobbyCompletion()
+{
+	ChatCommandRegistry commands;
+	BuildLobbyChatCommands(commands);
+	ChatCompletionContext context;
+	context.commands = &commands;
+
+	ChatTabCycler cycler;
+	std::wstring text = L"/net en";
+	CHECK(cycler.Complete(text, context, false));
+	CHECK_TEXT(text, L"/net engine ");
+
+	cycler.Reset();
+	text = L"/net relay f";
+	CHECK(cycler.Complete(text, context, false));
+	CHECK_TEXT(text, L"/net relay force ");
+
+	cycler.Reset();
+	text = L"/ni";
+	CHECK(cycler.Complete(text, context, false));
+	CHECK_TEXT(text, L"/nick ");
+}
+
+static void TestUnknownCommandGetsNothing()
+{
+	ChatCommandRegistry commands;
+	BuildLobbyChatCommands(commands);
+	ChatCompletionContext context;
+	context.commands = &commands;
+	context.names = List(L"Bob");
+
+	ChatTabCycler cycler;
+	std::wstring text = L"/bogus b";
+	CHECK(!cycler.Complete(text, context, false));
+	CHECK_TEXT(text, L"/bogus b");
+	text = L"/fake";
+	CHECK(!cycler.Complete(text, context, false));
+	CHECK_TEXT(ChatCompletionHint(L"/bogus b", context), L"");
+	CHECK_TEXT(ChatCompletionHint(L"/fake", context), L"");
+}
+
+static void TestRecentChatters()
+{
+	std::vector<std::wstring> chatters;
+	AddRecentChatter(chatters, L"Alice", L"Me");
+	AddRecentChatter(chatters, L"Bob", L"Me");
+	AddRecentChatter(chatters, L"Me", L"Me");
+	AddRecentChatter(chatters, L"me", L"Me");
+	AddRecentChatter(chatters, L"", L"Me");
+	CHECK_LIST(chatters, List(L"Bob", L"Alice"));
+
+	AddRecentChatter(chatters, L"alice", L"Me");
+	CHECK_LIST(chatters, List(L"alice", L"Bob"));
+
+	chatters.clear();
+	for (int i = 0; i < 20; ++i)
+	{
+		wchar_t name[16];
+		std::swprintf(name, 16, L"p%02d", i);
+		AddRecentChatter(chatters, name, L"Me");
+	}
+	CHECK(chatters.size() == static_cast<size_t>(CHAT_RECENT_CHATTERS_MAX));
+	CHECK(!chatters.empty() && chatters.front() == L"p19");
+	CHECK(!chatters.empty() && chatters.back() == L"p04");
+}
+
+static void TestAppendChatNames()
+{
+	std::vector<std::wstring> names;
+	AppendChatName(names, L"Alice", L"Me");
+	AppendChatName(names, L"Me", L"Me");
+	AppendChatName(names, L"", L"Me");
+	AppendChatName(names, L"Bob", L"Me");
+	CHECK_LIST(names, List(L"Alice", L"Bob"));
+
+	AppendChatNames(names, List(L"carol", L"BOB", L"ME", L"alice", L"Dave"), L"Me");
+	CHECK_LIST(names, List(L"Alice", L"Bob", L"carol", L"Dave"));
+}
+
 int main()
 {
 	TestNamesWithSpaces();
@@ -347,6 +506,14 @@ int main()
 	TestHint();
 	TestLimits();
 	TestDuplicateNames();
+	TestLobbyCommands();
+	TestGameSetupCommands();
+	TestInGameCommands();
+	TestDebugCommandsLeftOut();
+	TestLobbyCompletion();
+	TestUnknownCommandGetsNothing();
+	TestRecentChatters();
+	TestAppendChatNames();
 
 	if (g_failures != 0)
 	{

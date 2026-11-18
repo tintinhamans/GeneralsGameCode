@@ -47,6 +47,7 @@
 #include "GameClient/GadgetPushButton.h"
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/GadgetTextEntry.h"
+#include "GameClient/GUI/ChatCompletionSets.h"
 #include "GameClient/GadgetRadioButton.h"
 #include "GameClient/Display.h"
 #include "GameNetwork/GameSpyOverlay.h"
@@ -152,6 +153,9 @@ public:
 };
 
 static GenOnlineBuddyControls buddyControls;
+
+// Tab completion state of the direct message box.
+static ChatTabCycler s_buddyChatCycler;
 GenOnlineBuddyControls::GenOnlineBuddyControls(	)
 {
 	listboxChat = nullptr;
@@ -193,6 +197,8 @@ void GenOnlineInitBuddyControls(Int type)
 		SetListBoxRowAnimMode(buddyControls.listboxChat, LIST_ROW_ANIM_SLOT);
 		SetListBoxRowAnimMode(buddyControls.listboxBuddies, LIST_ROW_ANIM_ID);
 		GadgetTextEntrySetText(buddyControls.textEntryEdit, UnicodeString::TheEmptyString);
+		GadgetTextEntrySetCompletionEnabled(buddyControls.textEntryEdit, TRUE);
+		s_buddyChatCycler.Reset();
 		buddyControls.isInit = TRUE;
 
 		{
@@ -219,6 +225,53 @@ void GenOnlineInitBuddyControls(Int type)
 		DEBUG_CRASH(("Well, you really shouldn't have gotten here, if you really care about GUI Bugs, search for this string, you you don't care, call chris (who probably doesn't care either"));
 	}
 
+}
+
+// The direct message box completes friends and the other conversation partners. It has no slash commands.
+static void BuildBuddyChatCompletionContext(ChatCompletionContext& context)
+{
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	if (pSocialInterface == nullptr)
+		return;
+
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	const std::wstring self = (pAuthInterface != nullptr) ? pAuthInterface->GetDisplayNameW() : std::wstring();
+
+	// The cached friends list takes the friends map mutex itself.
+	const std::unordered_map<int64_t, FriendsEntry> friends = pSocialInterface->GetCachedFriendsList();
+	for (const auto& kvPair : friends)
+	{
+		AppendChatName(context.names, from_utf8(kvPair.second.display_name), self);
+	}
+
+	// A conversation partner without a known name shows as Player and the user id, which is not a name to complete.
+	const std::vector<std::pair<int64_t, std::string>> conversations = pSocialInterface->GetNonFriendConversations();
+	for (const auto& conversation : conversations)
+	{
+		if (conversation.second != "Player " + std::to_string(conversation.first))
+			AppendChatName(context.names, from_utf8(conversation.second), self);
+	}
+}
+
+static void UpdateBuddyChatCompletionHint(GameWindow *textEntry)
+{
+	s_buddyChatCycler.Reset();
+	ChatCompletionContext context;
+	BuildBuddyChatCompletionContext(context);
+	const std::wstring text = GadgetTextEntryGetText(textEntry).str();
+	GadgetTextEntrySetCompletionHint(textEntry, UnicodeString(ChatCompletionHint(text, context).c_str()));
+}
+
+static void CompleteBuddyChat(GameWindow *textEntry, Bool reverse)
+{
+	ChatCompletionContext context;
+	BuildBuddyChatCompletionContext(context);
+	std::wstring text = GadgetTextEntryGetText(textEntry).str();
+	if (!s_buddyChatCycler.Complete(text, context, reverse != FALSE))
+		return;
+
+	GadgetTextEntrySetText(textEntry, UnicodeString(text.c_str()));
+	GadgetTextEntrySetCompletionHint(textEntry, UnicodeString(ChatCompletionHint(text, context).c_str()));
 }
 
 WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedInt msg,
@@ -301,12 +354,32 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 					return MSG_IGNORED;
 				break;
 			}
+			case GEM_UPDATE_TEXT:
+			{
+				GameWindow *control = (GameWindow *)mData1;
+				if (control == nullptr || control != buddyControls.textEntryEdit)
+					return MSG_IGNORED;
+
+				UpdateBuddyChatCompletionHint(control);
+				break;
+			}
+			case GEM_TAB_COMPLETE:
+			{
+				GameWindow *control = (GameWindow *)mData1;
+				if (control == nullptr || control != buddyControls.textEntryEdit)
+					return MSG_IGNORED;
+
+				CompleteBuddyChat(control, mData2 != 0);
+				break;
+			}
 			case GEM_EDIT_DONE:
 			{
 				GameWindow *control = (GameWindow *)mData1;
 				Int controlID = control->winGetWindowId();
 				if(controlID != buddyControls.textEntryEditID)
 					return MSG_IGNORED;
+
+				s_buddyChatCycler.Reset();
 
 				// see if someone's selected
 				Int selected = -1;
