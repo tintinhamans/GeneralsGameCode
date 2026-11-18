@@ -1,11 +1,13 @@
 // Tests the per-peer transport layer without GameNetworkingSockets: the slot that holds the transport of a connection,
 // the route text and the plugin adapter over a fake plugin table.
 // It also tests the provider boundary: the log sink, the signal queues and the network config mapping.
+// It also tests the route labels of the user interface and the parsing of the /net command.
 
 #include "GameNetwork/PeerTransport/PeerTransport.h"
 #include "GameNetwork/PeerTransport/PluginPeerTransport.h"
 #include "GameNetwork/PeerTransport/PeerSignalChannel.h"
 #include "GameNetwork/PeerTransport/GnsNetworkConfig.h"
+#include "GameNetwork/PeerTransport/PeerRouteLabel.h"
 
 #include <cstdio>
 #include <cstring>
@@ -457,6 +459,77 @@ static void TestNetworkConfigMapping()
 	CHECK(config.GetTimeouts(true).initialMs == 45000 && config.GetTimeouts(true).connectedMs == 45000);
 }
 
+static void TestRouteLabel()
+{
+	// A connected peer shows its transport upper case and its route.
+	CHECK(PeerRouteLabel("GNS", PeerRoute::Direct, PeerLinkState::Connected) == "GNS direct");
+	CHECK(PeerRouteLabel("GNS", PeerRoute::Relayed, PeerLinkState::Connected) == "GNS relay");
+	CHECK(PeerRouteLabel("eos", PeerRoute::Direct, PeerLinkState::Connected) == "EOS direct");
+	CHECK(PeerRouteLabel("eos", PeerRoute::Relayed, PeerLinkState::Connected) == "EOS relay");
+
+	// A connected peer without a known route shows the state as /net does.
+	CHECK(PeerRouteLabel("GNS", PeerRoute::Unknown, PeerLinkState::Connected) == "connecting");
+	CHECK(PeerRouteLabel("eos", PeerRoute::Disconnected, PeerLinkState::Connected) == "not connected");
+
+	// A peer that is not connected shows its state whatever the transport says.
+	for (PeerRoute route : { PeerRoute::Direct, PeerRoute::Relayed, PeerRoute::Unknown, PeerRoute::Disconnected })
+	{
+		CHECK(PeerRouteLabel("GNS", route, PeerLinkState::Connecting) == "connecting");
+		CHECK(PeerRouteLabel("eos", route, PeerLinkState::Connecting) == "connecting");
+		CHECK(PeerRouteLabel("GNS", route, PeerLinkState::NotConnected) == "not connected");
+		CHECK(PeerRouteLabel("eos", route, PeerLinkState::NotConnected) == "not connected");
+	}
+
+	// A transport without a name shows the route alone.
+	CHECK(PeerRouteLabel("", PeerRoute::Relayed, PeerLinkState::Connected) == "relay");
+
+	// The dev view adds the IP version of GNS peers only, a plugin does not tell it.
+	CHECK(PeerPathLabel("GNS", PeerTransportKind::Gns, true, PeerRoute::Direct, PeerLinkState::Connected) == "GNS direct IPv4");
+	CHECK(PeerPathLabel("GNS", PeerTransportKind::Gns, false, PeerRoute::Relayed, PeerLinkState::Connected) == "GNS relay IPv6");
+	CHECK(PeerPathLabel("eos", PeerTransportKind::Plugin, false, PeerRoute::Direct, PeerLinkState::Connected) == "EOS direct");
+	CHECK(PeerPathLabel("eos", PeerTransportKind::Plugin, false, PeerRoute::Relayed, PeerLinkState::Connected) == "EOS relay");
+	CHECK(PeerPathLabel("GNS", PeerTransportKind::Gns, true, PeerRoute::Unknown, PeerLinkState::Connected) == "connecting");
+	CHECK(PeerPathLabel("GNS", PeerTransportKind::Gns, true, PeerRoute::Direct, PeerLinkState::Connecting) == "connecting");
+	CHECK(PeerPathLabel("GNS", PeerTransportKind::Gns, false, PeerRoute::Disconnected, PeerLinkState::NotConnected) == "not connected");
+}
+
+static void TestNetCommandParsing()
+{
+	// /net alone shows the status.
+	PeerNetCommand command = ParsePeerNetCommand("", "");
+	CHECK(command.action == PeerNetAction::Status);
+
+	command = ParsePeerNetCommand("relay", "force");
+	CHECK(command.action == PeerNetAction::SetRelay && command.value == 1);
+	command = ParsePeerNetCommand("relay", "auto");
+	CHECK(command.action == PeerNetAction::SetRelay && command.value == -1);
+	// Words after the value are ignored as before.
+	command = ParsePeerNetCommand("relay", "force now");
+	CHECK(command.action == PeerNetAction::SetRelay && command.value == 1);
+	CHECK(ParsePeerNetCommand("relay", "").action == PeerNetAction::RelayUsage);
+	CHECK(ParsePeerNetCommand("relay", "always").action == PeerNetAction::RelayUsage);
+
+	command = ParsePeerNetCommand("gns", "ice native");
+	CHECK(command.action == PeerNetAction::SetGnsIce && command.value == 1);
+	command = ParsePeerNetCommand("gns", "ice webrtc");
+	CHECK(command.action == PeerNetAction::SetGnsIce && command.value == 2);
+	command = ParsePeerNetCommand("gns", "  ice   auto  ");
+	CHECK(command.action == PeerNetAction::SetGnsIce && command.value == -1);
+	CHECK(ParsePeerNetCommand("gns", "ice").action == PeerNetAction::GnsIceUsage);
+	CHECK(ParsePeerNetCommand("gns", "ice turn").action == PeerNetAction::GnsIceUsage);
+	CHECK(ParsePeerNetCommand("gns", "").action == PeerNetAction::GnsIceUsage);
+	CHECK(ParsePeerNetCommand("gns", "relay force").action == PeerNetAction::GnsIceUsage);
+
+	CHECK(ParsePeerNetCommand("reset", "").action == PeerNetAction::Reset);
+	CHECK(ParsePeerNetCommand("reset", "now").action == PeerNetAction::Usage);
+
+	// /net engine is gone, unknown subcommands give the usage.
+	CHECK(ParsePeerNetCommand("engine", "native").action == PeerNetAction::Usage);
+	CHECK(ParsePeerNetCommand("engine", "").action == PeerNetAction::Usage);
+	CHECK(ParsePeerNetCommand("bogus", "").action == PeerNetAction::Usage);
+	CHECK(ParsePeerNetCommand("transport", "eos").action == PeerNetAction::Usage);
+}
+
 int main()
 {
 	TestRestartClosesPreviousOnce();
@@ -468,6 +541,8 @@ int main()
 	TestSignalOutboxOrderAndCap();
 	TestSignalInboxOrderSenderAndCap();
 	TestNetworkConfigMapping();
+	TestRouteLabel();
+	TestNetCommandParsing();
 
 	if (g_failures != 0)
 	{

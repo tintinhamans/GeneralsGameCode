@@ -2335,6 +2335,41 @@ std::string PlayerConnection::GetConnectionType()
 	return PeerRouteText(m_transport->GetRoute(m_State == EConnectionState::CONNECTED_DIRECT));
 }
 
+// The connection state as the route labels tell it apart.
+static PeerLinkState PeerLinkStateOf(EConnectionState state)
+{
+	if (state == EConnectionState::CONNECTED_DIRECT)
+	{
+		return PeerLinkState::Connected;
+	}
+	if (state == EConnectionState::CONNECTING_DIRECT || state == EConnectionState::FINDING_ROUTE)
+	{
+		return PeerLinkState::Connecting;
+	}
+	return PeerLinkState::NotConnected;
+}
+
+std::string PlayerConnection::GetRouteLabel() const
+{
+	const PeerLinkState linkState = PeerLinkStateOf(m_State);
+	if (linkState != PeerLinkState::Connected)
+	{
+		return PeerRouteLabel(GetTransportLabel(), PeerRoute::Unknown, linkState);
+	}
+	return PeerRouteLabel(GetTransportLabel(), m_transport->GetRoute(true), linkState);
+}
+
+std::string PlayerConnection::GetPathLabel() const
+{
+	const PeerLinkState linkState = PeerLinkStateOf(m_State);
+	if (linkState != PeerLinkState::Connected)
+	{
+		return PeerRouteLabel(GetTransportLabel(), PeerRoute::Unknown, linkState);
+	}
+	const PeerRoute route = m_transport->GetRoute(true);
+	return PeerPathLabel(GetTransportLabel(), m_transport->GetKind(), m_transport->IsIPv4(), route, linkState);
+}
+
 void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwningMesh)
 {
 	if (newState == EConnectionState::CONNECTED_DIRECT)

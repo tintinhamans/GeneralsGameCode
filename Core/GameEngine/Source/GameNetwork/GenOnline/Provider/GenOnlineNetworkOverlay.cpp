@@ -66,7 +66,7 @@ namespace
 
 	struct OverlayRow
 	{
-		OverlayRow() : used(FALSE), bars(-1), slowPc(FALSE), direct(FALSE), pingMs(0), lossPercent(0.0f), latePercent(0.0f)
+		OverlayRow() : used(FALSE), bars(-1), slowPc(FALSE), pingMs(0), lossPercent(0.0f), latePercent(0.0f)
 		{
 			for (Int c = 0; c < COL_COUNT; ++c)
 			{
@@ -78,7 +78,7 @@ namespace
 		UnicodeString name;
 		Int bars;
 		Bool slowPc;
-		Bool direct;
+		UnicodeString routeLabel;	///< The transport and route, such as "GNS direct" or "EOS relay".
 		Int pingMs;
 		Real lossPercent;
 		Real latePercent;
@@ -330,7 +330,7 @@ void GenOnlineDrawNetworkOverlay(Int mode, DisplayString *fontSource, Color game
 			row.name.set(from_utf8(member.display_name).c_str());
 			row.bars = conn.ComputeConnectionRating();
 			row.slowPc = conn.m_rating.slowPc;
-			row.direct = conn.IsDirect();
+			row.routeLabel.set(from_utf8(conn.GetRouteLabel()).c_str());
 			row.pingMs = conn.GetLatency();
 			++rowCount;
 
@@ -369,7 +369,8 @@ void GenOnlineDrawNetworkOverlay(Int mode, DisplayString *fontSource, Color game
 			{
 				cell[COL_BARS] = L"-";
 			}
-			cell[COL_PATH].format(L"%hs %hs", conn.IsIPV4() ? "IPv4" : "IPv6", row.direct ? "direct" : "relay");
+			// A plugin peer shows no IP version, the plugin does not tell it.
+			cell[COL_PATH].format(L"%hs", conn.GetPathLabel().c_str());
 
 			if (probeStats.getSampleCount() > 0)
 			{
@@ -527,7 +528,7 @@ void GenOnlineDrawNetworkOverlay(Int mode, DisplayString *fontSource, Color game
 			x += nameWidth + segmentGap;
 			text.format(L"ping %d ms", row.pingMs);
 			x += overlayDrawText(rowStr + 1, x, y, text, neutral, dropColor) + segmentGap;
-			text = row.direct ? L"direct" : L"relay";
+			text = row.routeLabel;
 			x += overlayDrawText(rowStr + 2, x, y, text, dim, dropColor) + segmentGap;
 			if (row.lossPercent >= 0.5f)
 			{

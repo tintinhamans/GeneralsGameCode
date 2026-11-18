@@ -15,6 +15,7 @@ add_executable(genonline_peer_transport_test
     ${REPO_ROOT}/Core/GameEngine/Source/GameNetwork/PeerTransport/PluginPeerTransport.cpp
     ${REPO_ROOT}/Core/GameEngine/Source/GameNetwork/PeerTransport/PeerTransportLog.cpp
     ${REPO_ROOT}/Core/GameEngine/Source/GameNetwork/PeerTransport/PeerSignalChannel.cpp
+    ${REPO_ROOT}/Core/GameEngine/Source/GameNetwork/PeerTransport/PeerRouteLabel.cpp
 )
 target_include_directories(genonline_peer_transport_test PRIVATE ${REPO_ROOT}/Core/GameEngine/Include)
 if(MSVC)

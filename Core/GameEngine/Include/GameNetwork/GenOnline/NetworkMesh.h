@@ -15,6 +15,7 @@
 #include "GameNetwork/PeerTransport/GnsPeerTransport.h"
 #include "GameNetwork/PeerTransport/PluginPeerTransport.h"
 #include "GameNetwork/PeerTransport/GnsPeerNetwork.h"
+#include "GameNetwork/PeerTransport/PeerRouteLabel.h"
 
 class NetRoom_ChatMessagePacket;
 
@@ -90,6 +91,10 @@ public:
 
 	bool UsesPluginTransport() const;
 	std::string GetTransportLabel() const { return m_transport->GetLabel(); }
+	/// The transport and route for the user interface, such as "GNS direct" or "EOS relay", see PeerRouteLabel.
+	std::string GetRouteLabel() const;
+	/// The route label with the IP version of a GNS connection for the dev view, see PeerPathLabel.
+	std::string GetPathLabel() const;
 
 	// The GameNetworkingSockets handle of the connection, invalid on another transport.
 	HSteamNetConnection GetSteamConnection() const;
