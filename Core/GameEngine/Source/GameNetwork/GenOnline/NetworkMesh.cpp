@@ -23,8 +23,6 @@
 #include <steam/isteamnetworkingsockets.h>
 #include <steam/steamnetworkingsockets.h>
 
-UnsignedInt m_exeCRCOriginal = 0;
-
 // set by the /net relay and /net engine chat commands, -1 follows the service config
 int g_relayOverride = -1;             // 1 = relay only, -1 = service policy
 int g_iceImplementationOverride = -1; // 1 = native, 2 = WebRTC

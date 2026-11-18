@@ -225,18 +225,6 @@ static const wchar_t* netEngineSetting()
 static void setNetRelayOverride(int wanted)
 {
 	extern int g_relayOverride;
-	extern UnsignedInt m_exeCRCOriginal;
-	// Keep relay-only lobbies separate without losing the real build CRC.
-	if (wanted == 1 && g_relayOverride != 1)
-	{
-		m_exeCRCOriginal = TheWritableGlobalData->m_exeCRC;
-		TheWritableGlobalData->m_exeCRC = m_exeCRCOriginal ^ 0x52454C59;
-	}
-	else if (wanted != 1 && g_relayOverride == 1)
-	{
-		TheWritableGlobalData->m_exeCRC = m_exeCRCOriginal;
-		m_exeCRCOriginal = 0;
-	}
 	g_relayOverride = wanted;
 }
 
@@ -277,7 +265,7 @@ void GenOnlineHandleNetSlashCommand(AsciiString subcommand, AsciiString value, G
 
 		setNetRelayOverride(wanted);
 		line.format(L"Next lobby: relay %ls. Existing connections are unchanged.%ls", netRelaySetting(),
-			(wanted == 1) ? L" You can only join lobbies of players who also force relay. Use /net relay auto to undo this." : L"");
+			(wanted == 1) ? L" Use /net relay auto to undo this." : L"");
 		GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
 		return;
 	}
