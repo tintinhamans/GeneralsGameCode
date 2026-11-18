@@ -790,6 +790,8 @@ public:
 	void updateFocusGroup();
 	/// a cameo in the command group row selects its hotkey squad
 	void processCommandGroupClick( GameWindow *button );
+	/// the bar draws the cameo rows' housing in two passes, around its own art, for the money tab
+	void drawCameoRowHousing( Bool overBar );
 
 	//-----------------------------------------------------------------------------------------------
 	// the remaining methods are used to construct the command buttons and command sets for
@@ -987,7 +989,17 @@ protected:
 	GameWindow *createCameoRow( GameWinSystemFunc systemFunc, Int slotCount, Bool rightClick, GameWindow **buttons );
 	static const Image *getCameoImage( const ThingTemplate *thingTemplate );
 	Int getCameoRowWidth( Int cameoCount ) const;
-	static void getCameoRowSpacing( ICoord2D *margin, Int *gap );
+	/// where the cameo rows sit, in screen pixels
+	struct CameoRowLayout
+	{
+		Bool housed;	///< the bar has the Pro art, so the rows sit in a housing
+		Int cameoLeft;	///< left edge of every row's first cameo
+		Int restBottom;	///< cameo bottom of the row resting on the bar
+		Int liftedBottom;	///< cameo bottom of a row lifted over the money tab
+		Int tabLeft;	///< a housing whose right edge passes this reaches the money tab
+		Int side;	///< how far the housing's right edge reaches past the last cameo
+	};
+	CameoRowLayout getCameoRowLayout() const;
 	void initSmartSelectionBar( const ICoord2D &commandButtonSize );
 	void destroySmartSelectionBar();
 	void resetSmartSelection();

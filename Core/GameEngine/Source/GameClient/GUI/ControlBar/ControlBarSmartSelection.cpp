@@ -31,11 +31,13 @@
 // It is SEE_THRU so the gaps between cameos still reach the world.
 //
 // The cameos copy the command buttons' font and text colors from the layout, and wear the active
-// control bar scheme's build border. Under a Pro scheme each row sits in a frame cut from the
-// faction's command bar art and scaled like it. A see through window never draws itself, so a
-// disabled first child draws the frame: children draw after their parent and in reverse order,
-// so it lands behind the cameos, and the hit test skips disabled children. Without that art the
-// rows have no frame and keep the CAMEO_ROW_GAP spacing.
+// control bar scheme's build border. Under a Pro scheme the bar's own frame rises around the rows:
+// one housing, cut from the faction's command bar art and scaled like it, whose left edge
+// continues the bar's left frame and whose panel runs down to the bar's top stone line, which
+// then divides the rows from the header strip. The bar draws the part above its top edge before
+// its art, so the money tab stays in front, and the band down to the stone line after its art,
+// around the tab. The rows are top level windows created after the bar, so their cameos draw
+// over both. Without that art the rows have no housing and keep the CAMEO_ROW_GAP spacing.
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
@@ -123,7 +125,7 @@ struct FrameSlice
 	Int height;
 };
 
-// the art frames the command grid with the same pixels in all three factions
+// the bar's frame and panel, at the same pixels in all three factions
 static const FrameSlice FRAME_TOP_LEFT = { 500, 326, 12, 12 };
 static const FrameSlice FRAME_TOP_RIGHT = { 1406, 326, 12, 12 };
 static const FrameSlice FRAME_TOP = { 836, 326, 20, 12 };
@@ -134,6 +136,16 @@ static const Int FRAME_THICKNESS = 12;
 static const Int FRAME_PADDING = 2;
 static const Int FRAME_ART_RIGHT = 1418;
 static const Int FRAME_ART_BOTTOM = 376;
+
+// the bar's outer top left corner, which the CommandWindow's screen position marks
+static const Int BAR_LEFT = 500;
+static const Int BAR_TOP = 326;
+// the bar's top stone line, which the housing's sides and panel run down to
+static const Int BAR_STONE_TOP = 334;
+// the money tab, the only art above the bar's top edge
+static const Int MONEY_TAB_LEFT = 862;
+static const Int MONEY_TAB_RIGHT = 1056;
+static const Int MONEY_TAB_TOP = 302;
 
 static const char *const PRO_COMMAND_BAR_IMAGES[] = { "AmericaProCommandBar", "ChinaProCommandBar", "GlaProCommandBar" };
 
@@ -190,21 +202,16 @@ static const ControlBarSchemeImage *findFramePart( Coord2D *scale )
 }
 
 //-------------------------------------------------------------------------------------------------
-/** How far the frame reaches past a row's cameos: its thickness plus a little air. */
-//-------------------------------------------------------------------------------------------------
-static ICoord2D getFrameMargin( const Coord2D &scale )
+static Int scaleArt( Int artPixels, Real scale )
 {
-	ICoord2D margin;
-	margin.x = REAL_TO_INT( ( FRAME_THICKNESS + FRAME_PADDING ) * scale.x + 0.5f );
-	margin.y = REAL_TO_INT( ( FRAME_THICKNESS + FRAME_PADDING ) * scale.y + 0.5f );
-	return margin;
+	const Real pixels = artPixels * scale;
+	return pixels < 0.0f ? -REAL_TO_INT( 0.5f - pixels ) : REAL_TO_INT( pixels + 0.5f );
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Tile a slice over a screen rect at the art's own scale, cropping the last tile by UV. A
-	* flipped slice draws upside down because its V range runs backwards. */
+/** Tile a slice over a screen rect at the art's own scale, cropping the last tile by UV. */
 //-------------------------------------------------------------------------------------------------
-static void drawFrameTiles( const Image *source, const FrameSlice &slice, Bool flip, const Coord2D &scale,
+static void drawFrameTiles( const Image *source, const FrameSlice &slice, const Coord2D &scale,
 														Int x0, Int y0, Int x1, Int y1 )
 {
 	const Real tileWidth = slice.width * scale.x;
@@ -217,8 +224,6 @@ static void drawFrameTiles( const Image *source, const FrameSlice &slice, Bool f
 	const Region2D *sourceUV = source->getUV();
 	const Real uPerPixel = ( sourceUV->hi.x - sourceUV->lo.x ) / source->getImageWidth();
 	const Real vPerPixel = ( sourceUV->hi.y - sourceUV->lo.y ) / source->getImageHeight();
-	const Real sliceTop = sourceUV->lo.y + slice.top * vPerPixel;
-	const Real sliceBottom = sliceTop + slice.height * vPerPixel;
 
 	for( Int row = 0; y0 + REAL_TO_INT( row * tileHeight + 0.5f ) < y1; row++ )
 	{
@@ -228,8 +233,8 @@ static void drawFrameTiles( const Image *source, const FrameSlice &slice, Bool f
 		const Real shareY = (Real)( bottom - top ) / (Real)( fullBottom - top );
 
 		Region2D uv;
-		uv.lo.y = flip ? sliceBottom : sliceTop;
-		uv.hi.y = flip ? sliceBottom - slice.height * shareY * vPerPixel : sliceTop + slice.height * shareY * vPerPixel;
+		uv.lo.y = sourceUV->lo.y + slice.top * vPerPixel;
+		uv.hi.y = uv.lo.y + slice.height * shareY * vPerPixel;
 
 		for( Int column = 0; x0 + REAL_TO_INT( column * tileWidth + 0.5f ) < x1; column++ )
 		{
@@ -247,19 +252,105 @@ static void drawFrameTiles( const Image *source, const FrameSlice &slice, Bool f
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Draws the frame and its panel around the row, behind the cameos. */
+/** Under the Pro art, art pixels map to the screen from the bar's corner at the CommandWindow. */
 //-------------------------------------------------------------------------------------------------
-static void CameoRowFrameDraw( GameWindow *window, WinInstanceData *instData )
+ControlBar::CameoRowLayout ControlBar::getCameoRowLayout() const
 {
-	GameWindow *row = window->winGetParent();
+	CameoRowLayout layout;
+	GameWindow *commandWindow = m_contextParent[ CP_COMMAND ] ? m_contextParent[ CP_COMMAND ] : m_contextParent[ CP_MASTER ];
+	ICoord2D commandPos;
+	commandPos.x = 0;
+	commandPos.y = 0;
+	if( commandWindow )
+	{
+		commandWindow->winGetScreenPosition( &commandPos.x, &commandPos.y );
+	}
+
 	Coord2D scale;
-	const ControlBarSchemeImage *part = row ? findFramePart( &scale ) : nullptr;
-	if( part == nullptr )
+	layout.housed = commandWindow != nullptr && findFramePart( &scale ) != nullptr;
+	if( !layout.housed )
+	{
+		layout.cameoLeft = commandPos.x;
+		layout.restBottom = commandPos.y - CAMEO_ROW_GAP;
+		layout.liftedBottom = layout.restBottom;
+		layout.tabLeft = commandPos.x;
+		layout.side = 0;
+		return layout;
+	}
+
+	layout.cameoLeft = commandPos.x + scaleArt( FRAME_THICKNESS + FRAME_PADDING, scale.x );
+	layout.restBottom = commandPos.y + scaleArt( BAR_STONE_TOP - FRAME_PADDING - BAR_TOP, scale.y );
+	layout.liftedBottom = commandPos.y + scaleArt( MONEY_TAB_TOP - FRAME_PADDING - BAR_TOP, scale.y );
+	layout.tabLeft = commandPos.x + scaleArt( MONEY_TAB_LEFT - BAR_LEFT, scale.x );
+	layout.side = scaleArt( FRAME_PADDING + FRAME_THICKNESS, scale.x );
+	return layout;
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Every piece of the housing; the display's clip region decides which part of it lands. */
+//-------------------------------------------------------------------------------------------------
+static void drawHousingPieces( const Image *source, const Coord2D &scale, Int x0, Int y0, Int x1, Int y1 )
+{
+	const Int borderX = scaleArt( FRAME_THICKNESS, scale.x );
+	const Int borderY = scaleArt( FRAME_THICKNESS, scale.y );
+	drawFrameTiles( source, FRAME_FILL, scale, x0 + borderX, y0 + borderY, x1 - borderX, y1 );
+	drawFrameTiles( source, FRAME_TOP, scale, x0 + borderX, y0, x1 - borderX, y0 + borderY );
+	drawFrameTiles( source, FRAME_LEFT, scale, x0, y0 + borderY, x0 + borderX, y1 );
+	drawFrameTiles( source, FRAME_RIGHT, scale, x1 - borderX, y0 + borderY, x1, y1 );
+	drawFrameTiles( source, FRAME_TOP_LEFT, scale, x0, y0, x0 + borderX, y0 + borderY );
+	drawFrameTiles( source, FRAME_TOP_RIGHT, scale, x1 - borderX, y0, x1, y0 + borderY );
+}
+
+//-------------------------------------------------------------------------------------------------
+/** One housing around every shown row with cameos, from above the top row down to the bar's top
+	* stone line. Before the bar's art it draws the part above the bar's top edge, so the money tab
+	* covers it; over the bar it draws the band that hides the bar's dark top bevel, around the tab. */
+//-------------------------------------------------------------------------------------------------
+void ControlBar::drawCameoRowHousing( Bool overBar )
+{
+	GameWindow *commandWindow = m_contextParent[ CP_COMMAND ] ? m_contextParent[ CP_COMMAND ] : m_contextParent[ CP_MASTER ];
+	Coord2D scale;
+	const ControlBarSchemeImage *part = findFramePart( &scale );
+	if( commandWindow == nullptr || part == nullptr )
 	{
 		return;
 	}
-	const Image *source = part->m_image;
 
+	GameWindow *rows[ 2 ];
+	rows[ 0 ] = m_smartSelectionGroups.empty() ? nullptr : m_smartSelectionParent;
+	rows[ 1 ] = m_commandGroupEntries.empty() ? nullptr : m_commandGroupParent;
+	Bool anyRow = FALSE;
+	IRegion2D cameos;
+	for( Int i = 0; i < 2; i++ )
+	{
+		if( rows[ i ] == nullptr || rows[ i ]->winIsHidden() )
+		{
+			continue;
+		}
+		ICoord2D rowPos, rowSize;
+		rows[ i ]->winGetScreenPosition( &rowPos.x, &rowPos.y );
+		rows[ i ]->winGetSize( &rowSize.x, &rowSize.y );
+		if( !anyRow )
+		{
+			cameos.lo = rowPos;
+			cameos.hi.x = rowPos.x + rowSize.x;
+			cameos.hi.y = rowPos.y + rowSize.y;
+			anyRow = TRUE;
+		}
+		else
+		{
+			cameos.lo.x = MIN( cameos.lo.x, rowPos.x );
+			cameos.lo.y = MIN( cameos.lo.y, rowPos.y );
+			cameos.hi.x = MAX( cameos.hi.x, rowPos.x + rowSize.x );
+			cameos.hi.y = MAX( cameos.hi.y, rowPos.y + rowSize.y );
+		}
+	}
+	if( !anyRow )
+	{
+		return;
+	}
+
+	const Image *source = part->m_image;
 	if( s_frameSlice == nullptr )
 	{
 		s_frameSlice = newInstance( Image );
@@ -268,48 +359,50 @@ static void CameoRowFrameDraw( GameWindow *window, WinInstanceData *instData )
 	s_frameSlice->setTextureWidth( source->getTextureSize()->x );
 	s_frameSlice->setTextureHeight( source->getTextureSize()->y );
 
-	const ICoord2D margin = getFrameMargin( scale );
-	ICoord2D rowPos, rowSize;
-	row->winGetScreenPosition( &rowPos.x, &rowPos.y );
-	row->winGetSize( &rowSize.x, &rowSize.y );
+	ICoord2D commandPos;
+	commandWindow->winGetScreenPosition( &commandPos.x, &commandPos.y );
+	const Int reach = FRAME_THICKNESS + FRAME_PADDING;
+	const Int x0 = commandPos.x;
+	const Int y0 = cameos.lo.y - scaleArt( reach, scale.y );
+	const Int x1 = cameos.hi.x + scaleArt( reach, scale.x );
+	const Int y1 = commandPos.y + scaleArt( BAR_STONE_TOP - BAR_TOP, scale.y );
 
-	const Int x0 = rowPos.x - margin.x;
-	const Int y0 = rowPos.y - margin.y;
-	const Int x1 = rowPos.x + rowSize.x + margin.x;
-	const Int y1 = rowPos.y + rowSize.y + margin.y;
-	const Int borderX = REAL_TO_INT( FRAME_THICKNESS * scale.x + 0.5f );
-	const Int borderY = REAL_TO_INT( FRAME_THICKNESS * scale.y + 0.5f );
-
-	// the art has no bottom edge, since the bar runs off the screen, so the top edge flips into one
+	IRegion2D clip;
 	TheDisplay->beginBatch();
-	drawFrameTiles( source, FRAME_FILL, FALSE, scale, x0 + borderX, y0 + borderY, x1 - borderX, y1 - borderY );
-	drawFrameTiles( source, FRAME_TOP, FALSE, scale, x0 + borderX, y0, x1 - borderX, y0 + borderY );
-	drawFrameTiles( source, FRAME_TOP, TRUE, scale, x0 + borderX, y1 - borderY, x1 - borderX, y1 );
-	drawFrameTiles( source, FRAME_LEFT, FALSE, scale, x0, y0 + borderY, x0 + borderX, y1 - borderY );
-	drawFrameTiles( source, FRAME_RIGHT, FALSE, scale, x1 - borderX, y0 + borderY, x1, y1 - borderY );
-	drawFrameTiles( source, FRAME_TOP_LEFT, FALSE, scale, x0, y0, x0 + borderX, y0 + borderY );
-	drawFrameTiles( source, FRAME_TOP_RIGHT, FALSE, scale, x1 - borderX, y0, x1, y0 + borderY );
-	drawFrameTiles( source, FRAME_TOP_LEFT, TRUE, scale, x0, y1 - borderY, x0 + borderX, y1 );
-	drawFrameTiles( source, FRAME_TOP_RIGHT, TRUE, scale, x1 - borderX, y1 - borderY, x1, y1 );
-	TheDisplay->endBatch();
-}
-
-//-------------------------------------------------------------------------------------------------
-/** The frame's reach past a row's cameos, and the gap between a frame or row and what it stacks
-	* on: a framed row sits flush, a bare row keeps CAMEO_ROW_GAP. */
-//-------------------------------------------------------------------------------------------------
-void ControlBar::getCameoRowSpacing( ICoord2D *margin, Int *gap )
-{
-	Coord2D scale;
-	if( findFramePart( &scale ) == nullptr )
+	if( !overBar )
 	{
-		margin->x = 0;
-		margin->y = 0;
-		*gap = CAMEO_ROW_GAP;
-		return;
+		clip.lo.x = x0;
+		clip.lo.y = y0;
+		clip.hi.x = x1;
+		clip.hi.y = commandPos.y;
+		TheDisplay->setClipRegion( &clip );
+		drawHousingPieces( source, scale, x0, y0, x1, y1 );
 	}
-	*margin = getFrameMargin( scale );
-	*gap = 0;
+	else
+	{
+		const Int tabLeft = commandPos.x + scaleArt( MONEY_TAB_LEFT - BAR_LEFT, scale.x );
+		const Int tabRight = commandPos.x + scaleArt( MONEY_TAB_RIGHT - BAR_LEFT, scale.x );
+		clip.lo.y = commandPos.y;
+		clip.hi.y = y1;
+
+		clip.lo.x = x0;
+		clip.hi.x = MIN( x1, tabLeft );
+		if( clip.lo.x < clip.hi.x )
+		{
+			TheDisplay->setClipRegion( &clip );
+			drawHousingPieces( source, scale, x0, y0, x1, y1 );
+		}
+
+		clip.lo.x = MAX( x0, tabRight );
+		clip.hi.x = x1;
+		if( clip.lo.x < clip.hi.x )
+		{
+			TheDisplay->setClipRegion( &clip );
+			drawHousingPieces( source, scale, x0, y0, x1, y1 );
+		}
+	}
+	TheDisplay->endBatch();
+	TheDisplay->enableClipping( FALSE );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -352,13 +445,6 @@ GameWindow *ControlBar::createCameoRow( GameWinSystemFunc systemFunc, Int slotCo
 		return nullptr;
 	}
 	parent->winSetInputFunc( CameoRowInput );
-
-	// created first so it ends the child list, which draws first
-	GameWindow *frame = TheWindowManager->winCreate( parent, 0, 0, 0, 1, 1, nullptr );
-	if( frame )
-	{
-		frame->winSetDrawFunc( CameoRowFrameDraw );
-	}
 
 	GameWindow *commandButton = m_commandWindows[ 0 ];
 	GameFont *font = commandButton ? commandButton->winGetFont() : nullptr;
@@ -689,7 +775,6 @@ void ControlBar::updateSmartSelection()
 	updateCommandGroupBar();
 
 	GameWindow *master = m_contextParent[ CP_MASTER ];
-	GameWindow *commandWindow = m_contextParent[ CP_COMMAND ] ? m_contextParent[ CP_COMMAND ] : master;
 	if( master == nullptr || master->winIsHidden() || m_smartSelectionGroups.empty() )
 	{
 		if( !m_smartSelectionParent->winIsHidden() )
@@ -699,36 +784,41 @@ void ControlBar::updateSmartSelection()
 		return;
 	}
 
-	// the bar's parent window starts well above its visible frame, so anchor to the command
-	// grid, whose top sits at the frame
-	ICoord2D commandPos;
-	commandWindow->winGetScreenPosition( &commandPos.x, &commandPos.y );
-	ICoord2D margin;
-	Int gap;
-	getCameoRowSpacing( &margin, &gap );
-	const Int rowX = commandPos.x + margin.x;
-	Int rowY = commandPos.y - gap - margin.y - m_smartSelectionButtonSize.y;
+	// the bar's parent window starts well above its visible frame, so the layout anchors to the
+	// command grid, whose top sits at the frame
+	const CameoRowLayout layout = getCameoRowLayout();
+	const Int cameoHeight = m_smartSelectionButtonSize.y;
+	Int rowY = layout.restBottom - cameoHeight;
 	if( isCommandGroupRowShown() )
 	{
-		rowY -= m_smartSelectionButtonSize.y + margin.y * 2 + gap;
+		rowY -= cameoHeight + CAMEO_ROW_GAP;
 	}
 
 	// the money display rises out of the frame, so a row long enough to reach its housing
 	// lifts above it instead of running into it
-	if( m_smartSelectionMoneyWindow && !m_smartSelectionMoneyWindow->winIsHidden() )
+	const Int rowRight = layout.cameoLeft + getCameoRowWidth( (Int)m_smartSelectionGroups.size() );
+	if( layout.housed )
+	{
+		const Int liftedY = layout.liftedBottom - cameoHeight;
+		if( rowRight + layout.side > layout.tabLeft && liftedY < rowY )
+		{
+			rowY = liftedY;
+		}
+	}
+	else if( m_smartSelectionMoneyWindow && !m_smartSelectionMoneyWindow->winIsHidden() )
 	{
 		ICoord2D moneyPos;
 		m_smartSelectionMoneyWindow->winGetScreenPosition( &moneyPos.x, &moneyPos.y );
 		// the housing slopes out about a cameo's width left of the money text
 		const Int housingMargin = m_smartSelectionButtonSize.x;
-		const Int liftedY = moneyPos.y - gap - margin.y - m_smartSelectionButtonSize.y;
-		if( rowX + getCameoRowWidth( (Int)m_smartSelectionGroups.size() ) + margin.x > moneyPos.x - housingMargin && liftedY < rowY )
+		const Int liftedY = moneyPos.y - CAMEO_ROW_GAP - cameoHeight;
+		if( rowRight > moneyPos.x - housingMargin && liftedY < rowY )
 		{
 			rowY = liftedY;
 		}
 	}
 
-	m_smartSelectionParent->winSetPosition( rowX, rowY );
+	m_smartSelectionParent->winSetPosition( layout.cameoLeft, rowY );
 	m_smartSelectionParent->winHide( FALSE );
 
 	// a cameo for a type wears the best rank among its members, so one pass over the selection

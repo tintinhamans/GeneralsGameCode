@@ -639,7 +639,9 @@ void W3DCommandBarBackgroundDraw( GameWindow *window, WinInstanceData *instData 
 	offset.x = pos.x - basePos.x;
 	offset.y = pos.y - basePos.y;
 
+	TheControlBar->drawCameoRowHousing( FALSE );
 	man->drawBackground(offset);
+	TheControlBar->drawCameoRowHousing( TRUE );
 }
 
 

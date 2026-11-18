@@ -100,7 +100,6 @@ void ControlBar::updateCommandGroupBar()
 	}
 
 	GameWindow *master = m_contextParent[ CP_MASTER ];
-	GameWindow *commandWindow = m_contextParent[ CP_COMMAND ] ? m_contextParent[ CP_COMMAND ] : master;
 	Player *player = ThePlayerList ? ThePlayerList->getLocalPlayer() : nullptr;
 	if( master == nullptr || master->winIsHidden() || player == nullptr || m_isObserverCommandBar ||
 			!TheGlobalData->m_smartSelection || !TheGlobalData->m_smartCommandGroup )
@@ -164,14 +163,10 @@ void ControlBar::updateCommandGroupBar()
 		}
 	}
 
-	// the bar's parent window starts well above its visible frame, so anchor to the command
-	// grid, whose top sits at the frame
-	ICoord2D commandPos;
-	commandWindow->winGetScreenPosition( &commandPos.x, &commandPos.y );
-	ICoord2D margin;
-	Int gap;
-	getCameoRowSpacing( &margin, &gap );
-	m_commandGroupParent->winSetPosition( commandPos.x + margin.x, commandPos.y - gap - margin.y - m_smartSelectionButtonSize.y );
+	// the bar's parent window starts well above its visible frame, so the layout anchors to the
+	// command grid, whose top sits at the frame
+	const CameoRowLayout layout = getCameoRowLayout();
+	m_commandGroupParent->winSetPosition( layout.cameoLeft, layout.restBottom - m_smartSelectionButtonSize.y );
 	m_commandGroupParent->winHide( FALSE );
 }
 
