@@ -1014,6 +1014,7 @@ ControlBar::ControlBar()
 	m_specialPowerLayout = nullptr;
 	m_smartSelectionParent = nullptr;
 	m_smartSelectionMoneyWindow = nullptr;
+	m_cameoRowBlocker = nullptr;
 	for( i = 0; i < MAX_SMART_SELECTION_BUTTONS; i++ )
 	{
 		m_smartSelectionButtons[i] = nullptr;

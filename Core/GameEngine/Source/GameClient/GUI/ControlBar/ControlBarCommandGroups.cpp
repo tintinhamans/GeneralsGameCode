@@ -166,7 +166,7 @@ void ControlBar::updateCommandGroupBar()
 	// the bar's parent window starts well above its visible frame, so the layout anchors to the
 	// command grid, whose top sits at the frame
 	const CameoRowLayout layout = getCameoRowLayout();
-	m_commandGroupParent->winSetPosition( layout.cameoLeft, layout.restBottom - m_smartSelectionButtonSize.y );
+	m_commandGroupParent->winSetPosition( layout.cameoLeft, getCameoStackBottom( layout, TRUE ) - m_smartSelectionButtonSize.y );
 	m_commandGroupParent->winHide( FALSE );
 }
 

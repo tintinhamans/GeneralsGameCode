@@ -1000,6 +1000,10 @@ protected:
 		Int side;	///< how far the housing's right edge reaches past the last cameo
 	};
 	CameoRowLayout getCameoRowLayout() const;
+	Int getCameoStackBottom( const CameoRowLayout &layout, Bool groupRowShown ) const;
+	Bool getCameoRowHousing( IRegion2D *housing ) const;
+	UnsignedInt getCameoRowStatus() const;
+	void updateCameoRowBlocker();
 	void initSmartSelectionBar( const ICoord2D &commandButtonSize );
 	void destroySmartSelectionBar();
 	void resetSmartSelection();
@@ -1106,6 +1110,7 @@ protected:
 	std::vector<SmartSelectionGroup> m_smartSelectionGroups;	///< one per type in a mixed selection, one per object otherwise
 	GameWindow *m_smartSelectionParent;												///< top level container for the row, created in code
 	GameWindow *m_smartSelectionMoneyWindow;									///< the money display the row must not run into
+	GameWindow *m_cameoRowBlocker;														///< invisible top level window that keeps clicks on the housing off the world
 	GameWindow *m_smartSelectionButtons[ MAX_SMART_SELECTION_BUTTONS ];
 	ICoord2D m_smartSelectionButtonSize;
 	Int m_smartSelectionActive;																///< cameo whose command set the bar shows, or -1 for the common set
