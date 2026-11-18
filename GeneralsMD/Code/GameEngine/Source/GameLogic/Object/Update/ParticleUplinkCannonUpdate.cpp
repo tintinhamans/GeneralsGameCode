@@ -1119,7 +1119,7 @@ void ParticleUplinkCannonUpdate::createTornado()
 	TornadoUpdate *update = findTornadoUpdate( tornado );
 	if( update )
 	{
-		update->setExternallyControlled();
+		update->setExternallyControlled( data->m_widthGrowFrames );
 	}
 }
 
@@ -1569,12 +1569,14 @@ void ParticleUplinkCannonUpdate::xfer( Xfer *xfer )
 	const ParticleUplinkCannonUpdateModuleData *data = getParticleUplinkCannonUpdateModuleData();
 
 	// version
-#if RETAIL_COMPATIBLE_XFER_SAVE
-	const XferVersion currentVersion = 3;
-#else
 	const XferVersion currentVersion = 5;
-#endif
 	XferVersion version = currentVersion;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	if( xfer->getXferMode() == XFER_SAVE && m_tornadoObjectID == INVALID_ID )
+	{
+		version = 3;
+	}
+#endif
 	xfer->xferVersion( &version, currentVersion );
 	m_xferVersion = version;
 
@@ -1755,6 +1757,33 @@ void ParticleUplinkCannonUpdate::loadPostProcess()
 			{
 				m_annihilationSound.setDrawableID( m_orbitToTargetBeamID );
 				m_annihilationSound.setPlayingHandle( TheAudio->addAudioEvent( &m_annihilationSound ) );
+			}
+		}
+	}
+
+	// Older retail-compatible saves kept the tornado's producer but omitted the cannon's reference.
+	if( m_xferVersion < 5 && m_tornadoObjectID == INVALID_ID )
+	{
+		for( Object *obj = TheGameLogic->getFirstObject(); obj; obj = obj->getNextObject() )
+		{
+			if( obj->getProducerID() == getObject()->getID() && findTornadoUpdate( obj ) )
+			{
+				m_tornadoObjectID = obj->getID();
+				break;
+			}
+		}
+	}
+
+	Object *tornado = getTornado();
+	if( tornado )
+	{
+		TornadoUpdate *update = findTornadoUpdate( tornado );
+		if( update )
+		{
+			update->setExternallyControlled( getParticleUplinkCannonUpdateModuleData()->m_widthGrowFrames );
+			if( m_laserStatus == LASERSTATUS_DECAYING || m_startAttackFrame == 0 )
+			{
+				update->beginRampDown();
 			}
 		}
 	}

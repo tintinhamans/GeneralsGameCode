@@ -45,8 +45,8 @@ public:
 	Real				m_yawRate;					///< how fast a victim spins about its own axis
 	Real				m_maxLiftHeight;			///< above this height over the tornado's ground, lift stops
 	Real				m_maxVictimSpeed;			///< speed cap on victims, 0 disables the cap
-	Real				m_massReference;			///< victims heavier than this spin slower, 0 disables scaling
-	Real				m_releaseSpeed;				///< horizontal speed kept when a victim is let go
+	Real				m_massReference;			///< heavier victims spin up more slowly, 0 disables scaling
+	Real				m_releaseSpeed;				///< horizontal speed in a random direction when released
 	KindOfMaskType		m_requiredKindOf;			///< a victim must be at least one of these
 	KindOfMaskType		m_forbiddenKindOf;			///< a victim must be none of these
 	Int					m_targetsMask;				///< ALLIES, ENEMIES or NEUTRALS
@@ -54,7 +54,7 @@ public:
 	Bool				m_ignoreVictimGeometry;		///< stop held victims shoving each other apart
 	UnsignedInt			m_rampUpFrames;				///< time to reach full strength
 	UnsignedInt			m_fullStrengthFrames;		///< time at full strength, 0 lasts until told to stop
-	UnsignedInt			m_rampDownFrames;			///< time to fade from full strength to nothing
+	UnsignedInt			m_rampDownFrames;			///< time to fade and release victims
 	Real				m_damagePerSecond;			///< damage rate at full strength
 	Real				m_damageRadius;				///< 0 uses Radius
 	UnsignedInt			m_damagePulseFrames;		///< time between damage pulses, 0 disables damage
@@ -82,8 +82,8 @@ public:
 	/// Start fading out now; safe to call repeatedly and on an already fading tornado.
 	void beginRampDown( void );
 
-	/// A controller promises to end us, so an endless tornado must not end itself.
-	void setExternallyControlled( void ) { m_externallyControlled = TRUE; }
+	// The beam supplies both ramp durations and controls when the hold ends.
+	void setExternallyControlled( UnsignedInt rampFrames );
 
 protected:
 
@@ -91,6 +91,7 @@ protected:
 	struct HoldParams
 	{
 		Coord3D	center;
+		Coord3D	velocity;
 		Real	strength;
 		Real	ring;			///< where victims settle; inside it the pull pushes back out
 		Real	steady;			///< inside this the radial direction is too noisy to steer by
@@ -103,13 +104,29 @@ protected:
 	Bool canAffect( const Object *obj ) const;
 	Bool canGrab( const Object *obj ) const;
 	void gatherTargets( const Coord3D *center, Real radius, ObjectIDVector &out );
+	void lockEnemyVictim( Object *obj, UnsignedInt &flags );
 	void captureVictim( Object *obj );
 	void holdVictim( Object *obj, const HoldParams &p );
-	void releaseVictim( Object *obj );
+	void releaseVictim( Object *obj, UnsignedInt flags );
 	void releaseAll( void );
 	void doDamagePulse( const Coord3D *center, Real strength );
 
-	ObjectIDVector	m_victims;				///< who we are currently holding, sorted by id
+	enum VictimFlags
+	{
+		RESTORE_NO_ATTACK = 1,
+		RESTORE_UNSELECTABLE = 2,
+		RESTORE_COLLIDE_FORCE = 4,
+		LEGACY_VICTIM = 8
+	};
+
+	struct Victim
+	{
+		ObjectID id;
+		UnsignedInt flags;
+	};
+
+	typedef std::vector<Victim> VictimVector;
+	VictimVector	m_victims;
 	ObjectIDVector	m_scratch;				///< this frame's gather, kept so it stops reallocating; not saved
 	UnsignedInt		m_startFrame;
 	UnsignedInt		m_rampDownStartFrame;	///< valid once m_rampingDown is set
@@ -117,6 +134,10 @@ protected:
 	UnsignedInt		m_nextDamagePulseFrame;
 	Bool			m_rampingDown;
 	Bool			m_externallyControlled;
+	UnsignedInt		m_rampUpFrames;
+	UnsignedInt		m_rampDownFrames;
+	Coord3D			m_previousCenter;
+	Bool				m_hasPreviousCenter;
 };
 
 #endif

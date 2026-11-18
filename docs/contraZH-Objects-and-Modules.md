@@ -905,9 +905,13 @@ name it.
   beam appears, drags it along with the beam, ramps it down when the beam starts decaying, and
   destroys it when the beam dies or the cannon is sold or destroyed.)
 
-The named object is expected to carry a [TornadoUpdate](#tornadoupdate). Give it
-`FullStrengthTime = 0` and a `RampDownTime` matching the cannon `WidthGrowTime`, so that the tornado
-follows the beam for as long as it fires and then fades out with it.
+The named object must carry a [TornadoUpdate](#tornadoupdate). The cannon supplies both ramp
+durations from `WidthGrowTime` and holds the tornado until the orbital beam starts decaying.
+`TotalFiringTime` therefore controls the hold through the beam's own schedule. The tornado's
+`RampUpTime`, `FullStrengthTime` and `RampDownTime` apply only when it runs without a cannon.
+An interrupted beam starts the tornado's fade at its current strength. Selling or destroying the
+cannon releases every held unit immediately. An active tornado uses the extended cannon save
+format even when retail-compatible saving is enabled, so the controller link survives loading.
 
 ## Model conditions
 
@@ -1195,11 +1199,11 @@ Behavior = TornadoUpdate ModuleTag_Tornado
   PullForce = 0.6                 ; (inward speed toward the centre, in distance per frame)
   LiftForce = 1.5                 ; (climb speed toward MaxLiftHeight, in height per frame)
   SpinForce = 6                   ; (orbit speed around the centre; a negative value orbits the other way)
-  YawRate = 360                   ; (how fast a victim spins about its own axis, in degrees per second)
+  YawRate = 360                   ; (full-strength yaw in degrees per second; also drives pitch and roll)
   MaxLiftHeight = 40              ; (above this height over the tornado ground, lift stops, so victims hover)
-  MaxVictimSpeed = 12             ; (speed cap on victims; 0 = uncapped, which lets them spiral away)
-  MassReference = 100             ; (victims heavier than this spin proportionally slower; 0 = no scaling)
-  ReleaseSpeed = 0                ; (horizontal speed kept when released; 0 drops them straight down)
+  MaxVictimSpeed = 12             ; (speed cap relative to the tornado; 0 = uncapped)
+  MassReference = 100             ; (heavier victims spin up more slowly during ramp-up; 0 = no scaling)
+  ReleaseSpeed = 0                ; (horizontal release speed in a random direction; 0 drops straight down)
   RequiredKindOf = VEHICLE INFANTRY   ; (optional; a victim must be at least one of these)
   ForbiddenKindOf = AIRCRAFT      ; (optional; a victim must be none of these)
   AffectsTargets = ENEMIES NEUTRALS   ; (default = ALLIES ENEMIES NEUTRALS)
@@ -1207,9 +1211,9 @@ Behavior = TornadoUpdate ModuleTag_Tornado
   IgnoreVictimGeometry = No       ; (default = No; Yes stops held victims shoving each other apart)
   RampUpTime = 2000               ; (ms to reach full strength)
   FullStrengthTime = 6000         ; (ms at full strength; 0 = until the object dies or a controller ends it)
-  RampDownTime = 2000             ; (ms to fade to nothing; victims fall once it reaches zero)
+  RampDownTime = 2000             ; (ms to fade; victims are released at random times during this interval)
   DamagePerSecond = 20            ; (damage rate at full strength)
-  DamageRadius = 0                ; (default = 0, which uses Radius)
+  DamageRadius = 0                ; (default = 0 damages held victims; positive values search that radius)
   DamagePulseDelay = 500          ; (ms between damage pulses; 0 disables damage)
   DamageType = EXPLOSION          ; (default = EXPLOSION)
   DeathType = EXPLODED            ; (default = EXPLODED)
@@ -1217,11 +1221,18 @@ Behavior = TornadoUpdate ModuleTag_Tornado
 End
 ```
 **Notes:**
-- A victim needs a `PhysicsBehavior`. Lift, pull and spin all ignore `Mass`, so every held unit
-  rides at the same height and speed. The one per unit resistance is `ShockResistance`, which
-  scales the whole effect down and doubles as an immunity dial.
-- Structures, immobile objects and projectiles take damage but are never pulled. Units inside a
-  transport are untouched; only the transport itself is grabbed.
+- A victim needs a `PhysicsBehavior`. `ShockResistance` slows pull, lift and rotation. Full
+  resistance prevents capture. `MassReference` slows heavy units' rotation while strength builds.
+- Structures, immobile objects, projectiles and units inside transports are skipped.
+- `Radius` controls initial capture. Captured units remain held outside that radius and at
+  `MaxLiftHeight`. The height stays fixed during decay until each unit is released.
+- Orbit speed, yaw, pitch and roll build and fade with strength. Pitch and roll vary by unit and
+  time at up to a quarter of the yaw rate.
+- Each victim gets a release time within `RampDownTime`. Release order and directions survive
+  save/load. The tornado stops capturing new units when decay begins.
+- Enemy victims receive `NO_ATTACK` and `UNSELECTABLE` while held. Release clears the flags the
+  tornado added and preserves flags that were already set. Overlapping tornadoes give each
+  victim to one controller.
 - Airborne targets are skipped unless `AffectAirborne = Yes`. Aircraft with a fixed flight height
   overwrite their own height every frame, so lifting them does not work well.
 - Falling damage on release is the victim's own, from `MinFallHeightForDamage` and
@@ -1230,9 +1241,9 @@ End
 - `IgnoreVictimGeometry` suppresses collision push-apart between held victims. Because they are
   all steered onto the same ring they overlap constantly, and wide units can be shoved around
   faster than the orbit settles, which reads as juddering. It is restored on release.
-- The module does not end the object. Pair it with a `LifetimeUpdate`, or the OCL `MinLifetime` and
-  `MaxLifetime` fields, or set `KillObjectWhenDone`. A tornado with `FullStrengthTime = 0` and none
-  of these, and no controller such as the cannon, fades out by itself after 30 seconds.
+- `KillObjectWhenDone = Yes` destroys the object after decay. A `LifetimeUpdate` or OCL lifetime
+  can also destroy the object and release its victims. A standalone tornado with
+  `FullStrengthTime = 0` and no `LifetimeUpdate` starts fading after 30 seconds at full strength.
 
 ### ThermiteBehavior
 

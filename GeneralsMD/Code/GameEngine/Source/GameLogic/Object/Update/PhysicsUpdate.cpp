@@ -232,6 +232,7 @@ PhysicsBehavior::PhysicsBehavior( Thing *thing, const ModuleData* moduleData ) :
 	m_lastCollidee = INVALID_ID;
 
 	m_ignoreCollisionsWith = INVALID_ID;
+	m_tornadoController = INVALID_ID;
 
 	setAllowBouncing(getPhysicsBehaviorModuleData()->m_allowBouncing);
 	setAllowCollideForce(getPhysicsBehaviorModuleData()->m_allowCollideForce);
@@ -825,7 +826,7 @@ UpdateSleepTime PhysicsBehavior::update()
 		}
 
 		// Check when to clear the stunned status
-		if (getIsStunned())
+		if (m_tornadoController == INVALID_ID && getIsStunned())
 		{
 			if ( (WWMath::Fabs(m_vel.x) < STUN_RELIEF_EPSILON &&
 				    WWMath::Fabs(m_vel.y) < STUN_RELIEF_EPSILON &&
@@ -2018,8 +2019,10 @@ Bool PhysicsBehavior::checkForOverlapCollision(Object *other)
 void PhysicsBehavior::testStunnedUnitForDestruction()
 {
 	// Only do test if unit is stunned
-	if (!getFlag(IS_STUNNED))
+	if (!getFlag(IS_STUNNED) || m_tornadoController != INVALID_ID)
+	{
 		return;
+	}
 
 	// Grab the object
 	Object *obj = getObject();
@@ -2078,7 +2081,7 @@ void PhysicsBehavior::xfer( Xfer *xfer )
 {
 
 	// version
-	const XferVersion currentVersion = 2;
+	const XferVersion currentVersion = 3;
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -2146,6 +2149,11 @@ void PhysicsBehavior::xfer( Xfer *xfer )
 
 	// mag of current vel
 	xfer->xferReal( &m_velMag );
+
+	if( version >= 3 )
+	{
+		xfer->xferObjectID( &m_tornadoController );
+	}
 
 }
 
