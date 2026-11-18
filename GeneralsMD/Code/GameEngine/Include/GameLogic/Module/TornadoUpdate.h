@@ -40,9 +40,10 @@ public:
 	Real				m_radius;					///< how far from this object victims are grabbed
 	Real				m_ringRadius;				///< distance from the axis victims settle into orbit at
 	Real				m_pullForce;				///< inward speed toward the center, per frame
-	Real				m_liftForce;				///< how fast victims climb toward MaxLiftHeight, per frame
+	Real				m_liftForce;				///< how fast victims climb toward their chosen height, per frame
 	Real				m_spinForce;				///< orbit speed around the center; negative orbits the other way
 	Real				m_yawRate;					///< how fast a victim spins about its own axis
+	Real				m_minLiftHeight;			///< negative uses MaxLiftHeight for every victim
 	Real				m_maxLiftHeight;			///< above this height over the tornado's ground, lift stops
 	Real				m_maxVictimSpeed;			///< speed cap on victims, 0 disables the cap
 	Real				m_massReference;			///< heavier victims spin up more slowly, 0 disables scaling
@@ -95,7 +96,7 @@ protected:
 		Real	strength;
 		Real	ring;			///< where victims settle; inside it the pull pushes back out
 		Real	steady;			///< inside this the radial direction is too noisy to steer by
-		Real	ceiling;		///< absolute height victims are lifted to
+		Real	groundHeight;
 		Real	riseSpeed;		///< climb rate toward the ceiling
 	};
 
@@ -104,9 +105,10 @@ protected:
 	Bool canAffect( const Object *obj ) const;
 	Bool canGrab( const Object *obj ) const;
 	void gatherTargets( const Coord3D *center, Real radius, ObjectIDVector &out );
-	void lockEnemyVictim( Object *obj, UnsignedInt &flags );
+	Real chooseLiftHeight( ObjectID id ) const;
+	void lockVictim( Object *obj, UnsignedInt &flags );
 	void captureVictim( Object *obj );
-	void holdVictim( Object *obj, const HoldParams &p );
+	void holdVictim( Object *obj, const HoldParams &p, Real liftHeight );
 	void releaseVictim( Object *obj, UnsignedInt flags );
 	void releaseAll( void );
 	void doDamagePulse( const Coord3D *center, Real strength );
@@ -123,6 +125,7 @@ protected:
 	{
 		ObjectID id;
 		UnsignedInt flags;
+		Real liftHeight;
 	};
 
 	typedef std::vector<Victim> VictimVector;

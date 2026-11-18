@@ -67,6 +67,7 @@ TornadoUpdateModuleData::TornadoUpdateModuleData()
 	m_liftForce = 0.0f;
 	m_spinForce = 0.0f;
 	m_yawRate = 0.0f;
+	m_minLiftHeight = -1.0f;
 	m_maxLiftHeight = 0.0f;
 	m_maxVictimSpeed = 0.0f;
 	m_massReference = 0.0f;
@@ -100,6 +101,7 @@ TornadoUpdateModuleData::TornadoUpdateModuleData()
 		{ "LiftForce",			INI::parseReal,							nullptr,					offsetof( TornadoUpdateModuleData, m_liftForce ) },
 		{ "SpinForce",			INI::parseReal,							nullptr,					offsetof( TornadoUpdateModuleData, m_spinForce ) },
 		{ "YawRate",			INI::parseAngularVelocityReal,			nullptr,					offsetof( TornadoUpdateModuleData, m_yawRate ) },
+		{ "MinLiftHeight",		INI::parseReal,							nullptr,					offsetof( TornadoUpdateModuleData, m_minLiftHeight ) },
 		{ "MaxLiftHeight",		INI::parseReal,							nullptr,					offsetof( TornadoUpdateModuleData, m_maxLiftHeight ) },
 		{ "MaxVictimSpeed",		INI::parseReal,							nullptr,					offsetof( TornadoUpdateModuleData, m_maxVictimSpeed ) },
 		{ "MassReference",		INI::parseReal,							nullptr,					offsetof( TornadoUpdateModuleData, m_massReference ) },
@@ -307,20 +309,31 @@ void TornadoUpdate::gatherTargets( const Coord3D *center, Real radius, ObjectIDV
 }
 
 //-------------------------------------------------------------------------------------------------
-void TornadoUpdate::lockEnemyVictim( Object *obj, UnsignedInt &flags )
+Real TornadoUpdate::chooseLiftHeight( ObjectID id ) const
 {
-	if( getObject()->getRelationship( obj ) == ENEMIES )
+	const TornadoUpdateModuleData *data = getTornadoUpdateModuleData();
+	Real maximum = __max( 0.0f, data->m_maxLiftHeight );
+	Real minimum = data->m_minLiftHeight < 0.0f ? maximum : __min( maximum, data->m_minLiftHeight );
+	UnsignedInt seed = (UnsignedInt)id ^ (UnsignedInt)getObject()->getID() * 2654435761U ^ m_startFrame;
+	seed ^= seed >> 16;
+	seed *= 2246822519U;
+	seed ^= seed >> 13;
+	Real fraction = (Real)( seed & 0x00ffffffU ) / (Real)0x00ffffffU;
+	return minimum + ( maximum - minimum ) * fraction;
+}
+
+//-------------------------------------------------------------------------------------------------
+void TornadoUpdate::lockVictim( Object *obj, UnsignedInt &flags )
+{
+	if( !obj->testStatus( OBJECT_STATUS_NO_ATTACK ) )
 	{
-		if( !obj->testStatus( OBJECT_STATUS_NO_ATTACK ) )
-		{
-			flags |= RESTORE_NO_ATTACK;
-		}
-		if( !obj->testStatus( OBJECT_STATUS_UNSELECTABLE ) )
-		{
-			flags |= RESTORE_UNSELECTABLE;
-		}
-		obj->setStatus( MAKE_OBJECT_STATUS_MASK2( OBJECT_STATUS_NO_ATTACK, OBJECT_STATUS_UNSELECTABLE ) );
+		flags |= RESTORE_NO_ATTACK;
 	}
+	if( !obj->testStatus( OBJECT_STATUS_UNSELECTABLE ) )
+	{
+		flags |= RESTORE_UNSELECTABLE;
+	}
+	obj->setStatus( MAKE_OBJECT_STATUS_MASK2( OBJECT_STATUS_NO_ATTACK, OBJECT_STATUS_UNSELECTABLE ) );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -336,11 +349,12 @@ void TornadoUpdate::captureVictim( Object *obj )
 	Victim victim;
 	victim.id = obj->getID();
 	victim.flags = 0;
+	victim.liftHeight = chooseLiftHeight( victim.id );
 	if( physics->getAllowCollideForce() )
 	{
 		victim.flags |= RESTORE_COLLIDE_FORCE;
 	}
-	lockEnemyVictim( obj, victim.flags );
+	lockVictim( obj, victim.flags );
 	m_victims.push_back( victim );
 	physics->setTornadoController( getObject()->getID() );
 	physics->clearAcceleration();
@@ -377,7 +391,7 @@ void TornadoUpdate::captureVictim( Object *obj )
 //-------------------------------------------------------------------------------------------------
 /** Drag one victim for a frame. Physics undoes most of this every frame, so it is re-applied. */
 //-------------------------------------------------------------------------------------------------
-void TornadoUpdate::holdVictim( Object *obj, const HoldParams &p )
+void TornadoUpdate::holdVictim( Object *obj, const HoldParams &p, Real liftHeight )
 {
 	const TornadoUpdateModuleData *data = getTornadoUpdateModuleData();
 	PhysicsBehavior *physics = obj->getPhysics();
@@ -417,23 +431,24 @@ void TornadoUpdate::holdVictim( Object *obj, const HoldParams &p )
 		}
 	}
 
-	// The ceiling stays fixed during decay until each victim is released.
-	if( pos->z > p.ceiling )
+	// Each victim keeps its chosen height until release.
+	Real ceiling = p.groundHeight + liftHeight;
+	if( pos->z > ceiling )
 	{
 		Coord3D ceilingPos = *pos;
-		ceilingPos.z = p.ceiling;
+		ceilingPos.z = ceiling;
 		obj->setPosition( &ceilingPos );
 		physics->scrubVelocityZ( 0.0f );
 	}
 
 	// A climb rate rather than a push, else the victim keeps accelerating and shoots through the ceiling.
 	Real wantedRise = 0.0f;
-	if( pos->z < p.ceiling )
+	if( pos->z < ceiling )
 	{
 		wantedRise = p.riseSpeed * physics->getShockResistanceScale();
 
 		// Ease off over the last stretch so the victim arrives already slow.
-		Real remaining = p.ceiling - pos->z;
+		Real remaining = ceiling - pos->z;
 		if( remaining < wantedRise * TORNADO_APPROACH_FRAMES )
 		{
 			wantedRise = remaining / TORNADO_APPROACH_FRAMES;
@@ -650,7 +665,7 @@ UpdateSleepTime TornadoUpdate::update( void )
 	p.strength = strength;
 	p.ring = __max( 0.01f, ( data->m_ringRadius > 0.0f ) ? data->m_ringRadius : ( data->m_radius * TORNADO_DEFAULT_RING_FRACTION ) );
 	p.steady = p.ring * TORNADO_STEADY_FRACTION;
-	p.ceiling = TheTerrainLogic->getGroundHeight( p.center.x, p.center.y ) + data->m_maxLiftHeight;
+	p.groundHeight = TheTerrainLogic->getGroundHeight( p.center.x, p.center.y );
 	p.riseSpeed = data->m_liftForce * strength;
 	if( data->m_maxVictimSpeed > 0.0f && p.riseSpeed > data->m_maxVictimSpeed )
 	{
@@ -695,7 +710,7 @@ UpdateSleepTime TornadoUpdate::update( void )
 			releaseVictim( obj, it->flags );
 			continue;
 		}
-		holdVictim( obj, p );
+		holdVictim( obj, p, it->liftHeight );
 		m_victims[held++] = *it;
 	}
 	m_victims.resize( held );
@@ -729,7 +744,7 @@ void TornadoUpdate::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 2;
+	XferVersion currentVersion = 3;
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -750,6 +765,7 @@ void TornadoUpdate::xfer( Xfer *xfer )
 			Victim victim;
 			victim.id = *it;
 			victim.flags = 0;
+			victim.liftHeight = __max( 0.0f, getTornadoUpdateModuleData()->m_maxLiftHeight );
 			if( version < 2 )
 			{
 				victim.flags = LEGACY_VICTIM;
@@ -772,6 +788,14 @@ void TornadoUpdate::xfer( Xfer *xfer )
 		for( VictimVector::iterator it = m_victims.begin(); it != m_victims.end(); ++it )
 		{
 			xfer->xferUnsignedInt( &it->flags );
+		}
+	}
+
+	if( version >= 3 )
+	{
+		for( VictimVector::iterator it = m_victims.begin(); it != m_victims.end(); ++it )
+		{
+			xfer->xferReal( &it->liftHeight );
 		}
 	}
 
@@ -803,8 +827,8 @@ void TornadoUpdate::loadPostProcess( void )
 				{
 					it->flags |= RESTORE_COLLIDE_FORCE;
 				}
-				lockEnemyVictim( obj, it->flags );
 			}
+			lockVictim( obj, it->flags );
 		}
 	}
 

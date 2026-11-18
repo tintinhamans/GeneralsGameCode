@@ -1197,10 +1197,11 @@ Behavior = TornadoUpdate ModuleTag_Tornado
   Radius = 120                    ; (required; how far out units are grabbed)
   RingRadius = 12                 ; (distance from the axis victims orbit at; 0 = a tenth of Radius)
   PullForce = 0.6                 ; (inward speed toward the centre, in distance per frame)
-  LiftForce = 1.5                 ; (climb speed toward MaxLiftHeight, in height per frame)
+  LiftForce = 1.5                 ; (climb speed toward the chosen height, in height per frame)
   SpinForce = 6                   ; (orbit speed around the centre; a negative value orbits the other way)
   YawRate = 360                   ; (full-strength yaw in degrees per second; also drives pitch and roll)
-  MaxLiftHeight = 40              ; (above this height over the tornado ground, lift stops, so victims hover)
+  MinLiftHeight = 20              ; (minimum randomly chosen hover height above the tornado ground)
+  MaxLiftHeight = 40              ; (maximum randomly chosen hover height above the tornado ground)
   MaxVictimSpeed = 12             ; (speed cap relative to the tornado; 0 = uncapped)
   MassReference = 100             ; (heavier victims spin up more slowly during ramp-up; 0 = no scaling)
   ReleaseSpeed = 0                ; (horizontal release speed in a random direction; 0 drops straight down)
@@ -1224,15 +1225,18 @@ End
 - A victim needs a `PhysicsBehavior`. `ShockResistance` slows pull, lift and rotation. Full
   resistance prevents capture. `MassReference` slows heavy units' rotation while strength builds.
 - Structures, immobile objects, projectiles and units inside transports are skipped.
-- `Radius` controls initial capture. Captured units remain held outside that radius and at
-  `MaxLiftHeight`. The height stays fixed during decay until each unit is released.
+- `Radius` controls initial capture. Captured units remain held outside that radius.
+- Each unit gets a random hover height between `MinLiftHeight` and `MaxLiftHeight` when captured.
+  The chosen height survives save/load and stays fixed during decay until release. Omitting
+  `MinLiftHeight` gives every unit `MaxLiftHeight`. Equal bounds also give a fixed height.
+  The minimum is capped at the maximum, and negative maximum heights are treated as zero.
 - Orbit speed, yaw, pitch and roll build and fade with strength. Pitch and roll vary by unit and
   time at up to a quarter of the yaw rate.
 - Each victim gets a release time within `RampDownTime`. Release order and directions survive
   save/load. The tornado stops capturing new units when decay begins.
-- Enemy victims receive `NO_ATTACK` and `UNSELECTABLE` while held. Release clears the flags the
-  tornado added and preserves flags that were already set. Overlapping tornadoes give each
-  victim to one controller.
+- Every captured target allowed by `AffectsTargets` receives `NO_ATTACK` and `UNSELECTABLE` while held.
+  Release clears flags added by the tornado and preserves preexisting flags. Overlapping tornadoes
+  give each victim to one controller.
 - Airborne targets are skipped unless `AffectAirborne = Yes`. Aircraft with a fixed flight height
   overwrite their own height every frame, so lifting them does not work well.
 - Falling damage on release is the victim's own, from `MinFallHeightForDamage` and
