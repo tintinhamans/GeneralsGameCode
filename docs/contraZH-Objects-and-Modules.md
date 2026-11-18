@@ -1203,7 +1203,7 @@ Behavior = TornadoUpdate ModuleTag_Tornado
   MinLiftHeight = 20              ; (minimum randomly chosen hover height above the tornado ground)
   MaxLiftHeight = 40              ; (maximum randomly chosen hover height above the tornado ground)
   MaxVictimSpeed = 12             ; (speed cap relative to the tornado; 0 = uncapped)
-  MassReference = 100             ; (heavier victims spin up more slowly during ramp-up; 0 = no scaling)
+  MassReference = 100             ; (heavier victims move and spin more slowly and hover lower; 0 = no scaling)
   ReleaseSpeed = 0                ; (horizontal release speed in a random direction; 0 drops straight down)
   RequiredKindOf = VEHICLE INFANTRY   ; (optional; a victim must be at least one of these)
   ForbiddenKindOf = AIRCRAFT      ; (optional; a victim must be none of these)
@@ -1223,12 +1223,17 @@ End
 ```
 **Notes:**
 - A victim needs a `PhysicsBehavior`. `ShockResistance` slows pull, lift and rotation. Full
-  resistance prevents capture. `MassReference` slows heavy units' rotation while strength builds.
+  resistance prevents capture.
+- Above `MassReference`, pull speed, climb speed, orbit speed, yaw, pitch, roll, hover height and
+  release speed are multiplied by `MassReference / Mass` throughout the effect. Twice the
+  reference mass gives half the speed and height. Four times gives a quarter. Units at or below
+  the reference mass use full strength. `MassReference = 0` disables mass scaling.
 - Structures, immobile objects, projectiles and units inside transports are skipped.
 - `Radius` controls initial capture. Captured units remain held outside that radius.
-- Each unit gets a random hover height between `MinLiftHeight` and `MaxLiftHeight` when captured.
-  The chosen height survives save/load and stays fixed during decay until release. Omitting
-  `MinLiftHeight` gives every unit `MaxLiftHeight`. Equal bounds also give a fixed height.
+- Each unit gets a random base hover height between `MinLiftHeight` and `MaxLiftHeight` when
+  captured. That base survives save/load and stays fixed during decay until release. Mass scaling
+  lowers the actual hover height and can place heavy units below `MinLiftHeight`. Omitting
+  `MinLiftHeight` uses `MaxLiftHeight` as the base for every unit. Equal bounds also give a fixed base.
   The minimum is capped at the maximum, and negative maximum heights are treated as zero.
 - Orbit speed, yaw, pitch and roll build and fade with strength. Pitch and roll vary by unit and
   time at up to a quarter of the yaw rate.

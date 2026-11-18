@@ -46,7 +46,7 @@ public:
 	Real				m_minLiftHeight;			///< negative uses MaxLiftHeight for every victim
 	Real				m_maxLiftHeight;			///< above this height over the tornado's ground, lift stops
 	Real				m_maxVictimSpeed;			///< speed cap on victims, 0 disables the cap
-	Real				m_massReference;			///< heavier victims spin up more slowly, 0 disables scaling
+	Real				m_massReference;			///< heavier victims move and rotate more slowly and hover lower, 0 disables scaling
 	Real				m_releaseSpeed;				///< horizontal speed in a random direction when released
 	KindOfMaskType		m_requiredKindOf;			///< a victim must be at least one of these
 	KindOfMaskType		m_forbiddenKindOf;			///< a victim must be none of these
@@ -105,6 +105,7 @@ protected:
 	Bool canAffect( const Object *obj ) const;
 	Bool canGrab( const Object *obj ) const;
 	void gatherTargets( const Coord3D *center, Real radius, ObjectIDVector &out );
+	Real getMassScale( Real mass ) const;
 	Real chooseLiftHeight( ObjectID id ) const;
 	void lockVictim( Object *obj, UnsignedInt &flags );
 	void captureVictim( Object *obj );

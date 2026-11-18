@@ -309,6 +309,17 @@ void TornadoUpdate::gatherTargets( const Coord3D *center, Real radius, ObjectIDV
 }
 
 //-------------------------------------------------------------------------------------------------
+Real TornadoUpdate::getMassScale( Real mass ) const
+{
+	Real reference = getTornadoUpdateModuleData()->m_massReference;
+	if( reference <= 0.0f || mass <= reference )
+	{
+		return 1.0f;
+	}
+	return reference / mass;
+}
+
+//-------------------------------------------------------------------------------------------------
 Real TornadoUpdate::chooseLiftHeight( ObjectID id ) const
 {
 	const TornadoUpdateModuleData *data = getTornadoUpdateModuleData();
@@ -431,8 +442,9 @@ void TornadoUpdate::holdVictim( Object *obj, const HoldParams &p, Real liftHeigh
 		}
 	}
 
-	// Each victim keeps its chosen height until release.
-	Real ceiling = p.groundHeight + liftHeight;
+	Real mass = physics->getMass();
+	Real massScale = getMassScale( mass );
+	Real ceiling = p.groundHeight + liftHeight * massScale;
 	if( pos->z > ceiling )
 	{
 		Coord3D ceilingPos = *pos;
@@ -445,7 +457,7 @@ void TornadoUpdate::holdVictim( Object *obj, const HoldParams &p, Real liftHeigh
 	Real wantedRise = 0.0f;
 	if( pos->z < ceiling )
 	{
-		wantedRise = p.riseSpeed * physics->getShockResistanceScale();
+		wantedRise = p.riseSpeed * physics->getShockResistanceScale() * massScale;
 
 		// Ease off over the last stretch so the victim arrives already slow.
 		Real remaining = ceiling - pos->z;
@@ -455,8 +467,7 @@ void TornadoUpdate::holdVictim( Object *obj, const HoldParams &p, Real liftHeigh
 		}
 	}
 
-	// Mass is multiplied back in because applyForce divides it out; every victim then rides alike.
-	Real mass = physics->getMass();
+	// Gravity support keeps victims aloft until their scheduled release.
 	const Coord3D *vel = physics->getVelocity();
 	Real lift = -TheGlobalData->m_gravity * mass + ( wantedRise - vel->z ) * mass * TORNADO_HOVER_DAMPING;
 	if( lift < 0.0f )
@@ -465,17 +476,18 @@ void TornadoUpdate::holdVictim( Object *obj, const HoldParams &p, Real liftHeigh
 	}
 
 	// Flown as a target speed, so that air drag, which grows with speed, cannot bleed the orbit away.
-	Real scale = p.strength * physics->getShockResistanceScale();
+	Real scale = p.strength * physics->getShockResistanceScale() * massScale;
 	Coord3D wantedVel;
 	wantedVel.x = ( data->m_pullForce * pullScale * radial.x - data->m_spinForce * radial.y ) * scale;
 	wantedVel.y = ( data->m_pullForce * pullScale * radial.y + data->m_spinForce * radial.x ) * scale;
 	wantedVel.z = 0.0f;
 	if( data->m_maxVictimSpeed > 0.0f )
 	{
+		Real maximumSpeed = data->m_maxVictimSpeed * massScale;
 		Real wantedSpeedSqr = sqr( wantedVel.x ) + sqr( wantedVel.y );
-		if( wantedSpeedSqr > sqr( data->m_maxVictimSpeed ) )
+		if( wantedSpeedSqr > sqr( maximumSpeed ) )
 		{
-			wantedVel.scale( data->m_maxVictimSpeed / sqrtf( wantedSpeedSqr ) );
+			wantedVel.scale( maximumSpeed / sqrtf( wantedSpeedSqr ) );
 		}
 	}
 
@@ -489,14 +501,7 @@ void TornadoUpdate::holdVictim( Object *obj, const HoldParams &p, Real liftHeigh
 	// Not applyMotiveForce: an AI holding position scrubs the velocity of motive units every tick.
 	physics->applyForce( &force );
 
-	// MassReference only slows the spin-up of heavy victims while the tornado is still building.
-	Real massScale = 1.0f;
-	if( data->m_massReference > 0.0f && p.strength < 1.0f )
-	{
-		massScale = __min( 1.0f, data->m_massReference / mass );
-		massScale += ( 1.0f - massScale ) * p.strength;
-	}
-	Real spin = data->m_yawRate * massScale * scale;
+	Real spin = data->m_yawRate * scale;
 	Real phase = (Real)( TheGameLogic->getFrame() - m_startFrame ) * SECONDS_PER_LOGICFRAME_REAL;
 	phase += deg2rad( (Real)( (UnsignedInt)obj->getID() % 360 ) );
 	physics->setYawRate( spin );
@@ -534,7 +539,7 @@ void TornadoUpdate::releaseVictim( Object *obj, UnsignedInt flags )
 	physics->setYawRate( 0.0f );
 	physics->clearAcceleration();
 	physics->scrubVelocity2D( 0.0f );
-	Real releaseSpeed = getTornadoUpdateModuleData()->m_releaseSpeed;
+	Real releaseSpeed = getTornadoUpdateModuleData()->m_releaseSpeed * getMassScale( physics->getMass() );
 	if( releaseSpeed > 0.0f )
 	{
 		UnsignedInt seed = (UnsignedInt)obj->getID() * 2654435761U ^ m_rampDownStartFrame ^ (UnsignedInt)getObject()->getID();
