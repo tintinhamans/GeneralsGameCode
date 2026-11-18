@@ -1275,7 +1275,8 @@ GameMessageDisposition SelectionTranslator::onMetaAutoCreateTeams(MAYBE_UNUSED c
 	// teams run 1 to 9 then 0, the order of the number row
 	Int taken = 0;
 	const DrawableList *selected = TheInGameUI->getAllSelectedDrawables();
-	for (DrawableListCIt it = selected->begin(); it != selected->end() && taken < NUM_HOTKEY_SQUADS; ++it)
+	// the list holds the newest selection first
+	for (DrawableList::const_reverse_iterator it = selected->rbegin(); it != selected->rend() && taken < NUM_HOTKEY_SQUADS; ++it)
 	{
 		Object *obj = (*it)->getObject();
 		if (obj == nullptr || !obj->isLocallyControlled())
