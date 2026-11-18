@@ -13,6 +13,8 @@ set(REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 add_executable(genonline_peer_transport_test
     PeerTransportTest.cpp
     ${REPO_ROOT}/Core/GameEngine/Source/GameNetwork/PeerTransport/PluginPeerTransport.cpp
+    ${REPO_ROOT}/Core/GameEngine/Source/GameNetwork/PeerTransport/PeerTransportLog.cpp
+    ${REPO_ROOT}/Core/GameEngine/Source/GameNetwork/PeerTransport/PeerSignalChannel.cpp
 )
 target_include_directories(genonline_peer_transport_test PRIVATE ${REPO_ROOT}/Core/GameEngine/Include)
 if(MSVC)

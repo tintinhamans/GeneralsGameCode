@@ -35,7 +35,13 @@ constexpr int k_peerSendReliable = 8;
 constexpr int k_peerSendOK = 1;
 constexpr int k_peerSendNoConnection = 3;
 
-// Writes a line to the network log. The online provider implements it.
+// Takes one formatted line of the peer transports. The online provider sets it.
+using PeerTransportLogSink = void (*)(PeerLogLevel level, const char* szLine);
+
+// Sets the sink of the peer transport log lines. Without a sink the lines are dropped.
+void SetPeerTransportLogSink(PeerTransportLogSink sink);
+
+// Writes a line to the sink of the online provider.
 void PeerTransportLog(PeerLogLevel level, const char* fmt, ...);
 
 // Takes one received packet that starts with its channel byte, with its arrival time in steady_clock ms.

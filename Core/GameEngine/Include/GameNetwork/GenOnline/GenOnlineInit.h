@@ -6,6 +6,7 @@
 #include "GameNetwork/GenOnline/Realtime/RealtimeHubSession.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeRest.h"
 #include "MeshConnectionTimeoutPolicy.h"
+#include "GameNetwork/PeerTransport/PeerSignalChannel.h"
 
 #include <algorithm>
 #include <stdexcept>
@@ -178,43 +179,23 @@ public:
 
 	// An inbound P2P signal and the user the service says it came from. The service sets the sender itself
 	// from the authenticated websocket session, the payload is whatever the peer wrote.
-	struct PendingSignal
-	{
-		int64_t senderUserID = -1;
-		std::vector<uint8_t> payload;
-	};
+	using PendingSignal = PeerSignal;
 
-	// Thread-safe queue of inbound P2P signal payloads; drained by CSignalingClient::Poll().
+	// Thread-safe queue of inbound P2P signal payloads; drained by the signal channel of the network mesh.
 	void PushPendingSignal(int64_t senderUserID, std::vector<uint8_t> payload)
 	{
-		std::scoped_lock<std::mutex> lock(m_pendingSignalsMutex);
-
-		static constexpr size_t kMaxPendingSignals = 256;
-		if (m_pendingSignals.size() >= kMaxPendingSignals)
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Pending signal queue full (%zu), discarding oldest signal", m_pendingSignals.size());
-			m_pendingSignals.pop();
-		}
-
-		PendingSignal signal;
-		signal.senderUserID = senderUserID;
-		signal.payload = std::move(payload);
-		m_pendingSignals.push(std::move(signal));
+		m_pendingSignals.Push(senderUserID, std::move(payload));
 	}
 
 	// Drops queued signals so they never reach the next lobby.
 	void ClearPendingSignals()
 	{
-		std::scoped_lock<std::mutex> lock(m_pendingSignalsMutex);
-		m_pendingSignals = std::queue<PendingSignal>();
+		m_pendingSignals.Clear();
 	}
 
-	std::queue<PendingSignal> DrainPendingSignals()
+	std::deque<PendingSignal> DrainPendingSignals()
 	{
-		std::scoped_lock<std::mutex> lock(m_pendingSignalsMutex);
-		std::queue<PendingSignal> drained;
-		drained.swap(m_pendingSignals);
-		return drained;
+		return m_pendingSignals.Drain();
 	}
 
 private:
@@ -310,8 +291,7 @@ private:
 	void ClearOutbound();
 	CURLcode FlushOutbound();
 
-	std::mutex m_pendingSignalsMutex;
-	std::queue<PendingSignal> m_pendingSignals;
+	PeerSignalInbox m_pendingSignals;
 };
 
 enum class ERoomFlags : int

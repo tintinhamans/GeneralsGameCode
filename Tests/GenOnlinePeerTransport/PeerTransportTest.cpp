@@ -1,11 +1,15 @@
 // Tests the per-peer transport layer without GameNetworkingSockets: the slot that holds the transport of a connection,
 // the route text and the plugin adapter over a fake plugin table.
+// It also tests the provider boundary: the log sink, the signal queues and the network config mapping.
 
 #include "GameNetwork/PeerTransport/PeerTransport.h"
 #include "GameNetwork/PeerTransport/PluginPeerTransport.h"
+#include "GameNetwork/PeerTransport/PeerSignalChannel.h"
+#include "GameNetwork/PeerTransport/GnsNetworkConfig.h"
 
 #include <cstdio>
 #include <cstring>
+#include <deque>
 #include <memory>
 #include <string>
 #include <vector>
@@ -294,6 +298,165 @@ static void TestPluginSharedReceive()
 	FakePlugin::queue.clear();
 }
 
+// The log lines the transports wrote through the sink.
+static std::vector<std::string> g_logLines;
+
+static void CaptureLog(PeerLogLevel level, const char* szLine)
+{
+	g_logLines.push_back(std::string(level == PeerLogLevel::Release ? "R " : "D ") + szLine);
+}
+
+static void TestLogSink()
+{
+	// Without a sink the line is dropped.
+	SetPeerTransportLogSink(nullptr);
+	PeerTransportLog(PeerLogLevel::Release, "dropped %d", 1);
+	CHECK(g_logLines.empty());
+
+	SetPeerTransportLogSink(&CaptureLog);
+	PeerTransportLog(PeerLogLevel::Release, "[SIGNAL] user %lld", 42LL);
+	PeerTransportLog(PeerLogLevel::Debug, "%s", "debug line");
+	CHECK(g_logLines == std::vector<std::string>({ "R [SIGNAL] user 42", "D debug line" }));
+
+	// A long line keeps its text up to the size the network log takes.
+	g_logLines.clear();
+	const std::string longText(5000, 'x');
+	PeerTransportLog(PeerLogLevel::Release, "%s", longText.c_str());
+	CHECK(g_logLines.size() == 1 && g_logLines[0] == "R " + longText);
+	g_logLines.clear();
+}
+
+// A signal channel that records what it sends and hands out the signals a test queued.
+class FakeSignalChannel : public IPeerSignalChannel
+{
+public:
+	virtual ~FakeSignalChannel() override {}
+
+	virtual bool IsOpen() const override { return m_open; }
+	virtual void SendSignal(int64_t targetUserID, const std::vector<uint8_t>& payload) override
+	{
+		PeerSignal signal;
+		signal.senderUserID = targetUserID;
+		signal.payload = payload;
+		sent.push_back(signal);
+	}
+	virtual void DrainSignals(std::deque<PeerSignal>& out) override
+	{
+		std::deque<PeerSignal> drained = inbox.Drain();
+		for (PeerSignal& signal : drained)
+		{
+			out.push_back(std::move(signal));
+		}
+	}
+
+	bool m_open = true;
+	std::vector<PeerSignal> sent;	///< The user id field holds the target.
+	PeerSignalInbox inbox;
+};
+
+static void TestSignalOutboxOrderAndCap()
+{
+	PeerSignalOutbox outbox;
+	outbox.Push(7, { 1 });
+	outbox.Push(8, { 2, 3 });
+	outbox.Push(7, { 4 });
+
+	FakeSignalChannel channel;
+	outbox.FlushTo(channel);
+	CHECK(channel.sent.size() == 3);
+	CHECK(channel.sent.size() == 3 && channel.sent[0].senderUserID == 7 && channel.sent[0].payload == std::vector<uint8_t>({ 1 }));
+	CHECK(channel.sent.size() == 3 && channel.sent[1].senderUserID == 8 && channel.sent[1].payload == std::vector<uint8_t>({ 2, 3 }));
+	CHECK(channel.sent.size() == 3 && channel.sent[2].senderUserID == 7 && channel.sent[2].payload == std::vector<uint8_t>({ 4 }));
+	CHECK(outbox.Size() == 0);
+
+	// A backlog keeps the newest signals, every push over the cap drops the oldest with one log line.
+	g_logLines.clear();
+	for (int i = 0; i < 200; ++i)
+	{
+		outbox.Push(i, { static_cast<uint8_t>(i) });
+	}
+	const size_t kept = PeerSignalOutbox::k_maxBacklog + 1;
+	CHECK(outbox.Size() == kept);
+	CHECK(g_logLines.size() == 200 - kept);
+	CHECK(!g_logLines.empty() && g_logLines[0] == "R Signaling send queue is backed up.  Discarding oldest signals\n");
+	channel.sent.clear();
+	outbox.FlushTo(channel);
+	CHECK(channel.sent.size() == kept);
+	CHECK(!channel.sent.empty() && channel.sent.front().senderUserID == 200 - static_cast<int64_t>(kept));
+	CHECK(!channel.sent.empty() && channel.sent.back().senderUserID == 199);
+
+	// Clear drops the signals that wait.
+	outbox.Push(1, { 1 });
+	outbox.Clear();
+	CHECK(outbox.Size() == 0);
+	g_logLines.clear();
+}
+
+static void TestSignalInboxOrderSenderAndCap()
+{
+	PeerSignalInbox inbox;
+	inbox.Push(11, { 1 });
+	inbox.Push(12, { 2 });
+	std::deque<PeerSignal> drained = inbox.Drain();
+	CHECK(drained.size() == 2);
+	CHECK(drained.size() == 2 && drained[0].senderUserID == 11 && drained[0].payload == std::vector<uint8_t>({ 1 }));
+	CHECK(drained.size() == 2 && drained[1].senderUserID == 12 && drained[1].payload == std::vector<uint8_t>({ 2 }));
+	CHECK(inbox.Drain().empty());
+
+	// A full inbox discards its oldest signal for each new one.
+	g_logLines.clear();
+	for (int i = 0; i < 300; ++i)
+	{
+		inbox.Push(i, { static_cast<uint8_t>(i) });
+	}
+	CHECK(g_logLines.size() == 300 - PeerSignalInbox::k_maxSignals);
+	CHECK(!g_logLines.empty() && g_logLines[0] == "R [WebSocket] Pending signal queue full (256), discarding oldest signal");
+	drained = inbox.Drain();
+	CHECK(drained.size() == PeerSignalInbox::k_maxSignals);
+	CHECK(!drained.empty() && drained.front().senderUserID == 300 - static_cast<int64_t>(PeerSignalInbox::k_maxSignals));
+	CHECK(!drained.empty() && drained.back().senderUserID == 299);
+
+	inbox.Push(1, { 1 });
+	inbox.Clear();
+	CHECK(inbox.Drain().empty());
+	g_logLines.clear();
+}
+
+static void TestNetworkConfigMapping()
+{
+	// The /net override wins over the service value, an unknown engine falls back to WebRTC.
+	CHECK(GnsNetworkConfig::ResolveIceImplementation(0, -1) == 0);
+	CHECK(GnsNetworkConfig::ResolveIceImplementation(1, -1) == 1);
+	CHECK(GnsNetworkConfig::ResolveIceImplementation(1, 2) == 2);
+	CHECK(GnsNetworkConfig::ResolveIceImplementation(2, 1) == 1);
+	CHECK(GnsNetworkConfig::ResolveIceImplementation(7, -1) == 2);
+	CHECK(GnsNetworkConfig::ResolveIceImplementation(-3, -1) == 2);
+	CHECK(GnsNetworkConfig::ResolveIceImplementation(1, 9) == 2);
+
+	// Relay only follows the service unless /net forces it.
+	CHECK(!GnsNetworkConfig::ResolveRelayOnly(false, -1));
+	CHECK(GnsNetworkConfig::ResolveRelayOnly(true, -1));
+	CHECK(GnsNetworkConfig::ResolveRelayOnly(false, 1));
+	CHECK(GnsNetworkConfig::ResolveRelayOnly(true, 0));
+
+	GnsNetworkConfig config;
+	CHECK(config.GetIceEnable() == k_gnsIceEnableAll);
+	config.relayOnly = true;
+	CHECK(config.GetIceEnable() == k_gnsIceEnableRelay);
+	static_assert(k_gnsIceEnableDirectOnly == 6, "A direct step gathers host and server reflexive candidates");
+
+	// The TURN lists name the credentials once for each TURN server.
+	config.turnUsername = "user";
+	config.turnToken = "token";
+	CHECK(config.GetTurnUserList() == "user,user");
+	CHECK(config.GetTurnPassList() == "token,token");
+
+	config.firstAttemptTimeouts = { 10000, 45000 };
+	config.retryTimeouts = { 45000, 45000 };
+	CHECK(config.GetTimeouts(false).initialMs == 10000 && config.GetTimeouts(false).connectedMs == 45000);
+	CHECK(config.GetTimeouts(true).initialMs == 45000 && config.GetTimeouts(true).connectedMs == 45000);
+}
+
 int main()
 {
 	TestRestartClosesPreviousOnce();
@@ -301,6 +464,10 @@ int main()
 	TestLabelAndRouteFromTransport();
 	TestPluginAdapter();
 	TestPluginSharedReceive();
+	TestLogSink();
+	TestSignalOutboxOrderAndCap();
+	TestSignalInboxOrderSenderAndCap();
+	TestNetworkConfigMapping();
 
 	if (g_failures != 0)
 	{

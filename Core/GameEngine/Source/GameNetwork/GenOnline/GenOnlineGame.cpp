@@ -11,6 +11,7 @@
 #include "GameNetwork/GenOnline/WifiLowLatency.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/GenOnline/GenOnlineTransport.h"
+#include "GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.h"
 #include "Common/GlobalData.h"
 #include "GameClient/View.h"
 #include "../GenOnlineDefines.h"
@@ -433,8 +434,9 @@ void GenOnlineGame::launchGame(void)
 	// TODO_NGMP: Do we really care about these values anymore
 	TheNetwork->setLocalAddress(getLocalIP(), 8888);
 
+	// The provider picks the game transport from the registered transports.
 	RegisterGenOnlineTransport();
-	TheNetwork->initTransport(GENONLINE_TRANSPORT_NAME);
+	TheNetwork->initTransport(GenOnlineProviderFactory::getGameTransport());
 
 	TheNetwork->parseUserList(this);
 
