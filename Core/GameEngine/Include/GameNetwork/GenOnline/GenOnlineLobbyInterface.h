@@ -447,7 +447,14 @@ public:
 
 	bool IsHost();
 
+	// Only the host of a custom game changes the map, the starting cash and the superweapon limit. Quick match settings are fixed.
+	bool CanChangeLobbySettings();
+
+	// Shows the lobby the service last sent again, so a refused local change does not stay on screen.
+	void RestoreGameFromCurrentLobby();
+
 private:
+	bool m_bRestoringFromLobby = false;
 	std::set<int64_t> m_setMembersBeforeUs;
 	bool m_bJoinOrderKnown = false;
 	void ResetJoinOrder();
