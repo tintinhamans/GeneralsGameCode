@@ -32,8 +32,8 @@
 //
 // The cameos copy the command buttons' font and text colors from the layout, and wear the active
 // control bar scheme's build border. Under a Pro scheme the bar's own frame rises around the rows:
-// one housing, cut from the faction's command bar art and scaled like it, whose left edge
-// continues the bar's left frame and whose panel runs down to the bar's top stone line, which
+// one housing, cut from the faction's command bar art and scaled like it, whose thin left frame
+// continues the bar's left stone line and whose panel runs down to the bar's top stone line, which
 // then divides the rows from the header strip. The bar draws the part above its top edge before
 // its art, so the money tab stays in front, and the band down to the stone line after its art,
 // around the tab. The rows are top level windows created after the bar, so their cameos draw
@@ -125,21 +125,25 @@ struct FrameSlice
 	Int height;
 };
 
-// the bar's frame and panel, at the same pixels in all three factions
-static const FrameSlice FRAME_TOP_LEFT = { 500, 326, 12, 12 };
-static const FrameSlice FRAME_TOP_RIGHT = { 1406, 326, 12, 12 };
-static const FrameSlice FRAME_TOP = { 836, 326, 20, 12 };
-static const FrameSlice FRAME_LEFT = { 500, 346, 12, 20 };
-static const FrameSlice FRAME_RIGHT = { 1406, 346, 12, 20 };
+// the bar's stone line with two pixels of its outer bevel, and its panel, at the same pixels in
+// all three factions
+static const FrameSlice FRAME_TOP_LEFT = { 505, 332, 7, 6 };
+static const FrameSlice FRAME_TOP_RIGHT = { 1406, 332, 7, 6 };
+static const FrameSlice FRAME_TOP = { 836, 332, 20, 6 };
+static const FrameSlice FRAME_LEFT = { 505, 346, 7, 20 };
+static const FrameSlice FRAME_RIGHT = { 1406, 346, 7, 20 };
 static const FrameSlice FRAME_FILL = { 524, 356, 20, 20 };
-static const Int FRAME_THICKNESS = 12;
+static const Int FRAME_THICKNESS_X = 7;
+static const Int FRAME_THICKNESS_Y = 6;
 static const Int FRAME_PADDING = 2;
-static const Int FRAME_ART_RIGHT = 1418;
+static const Int FRAME_ART_RIGHT = 1413;
 static const Int FRAME_ART_BOTTOM = 376;
 
 // the bar's outer top left corner, which the CommandWindow's screen position marks
 static const Int BAR_LEFT = 500;
 static const Int BAR_TOP = 326;
+// the outer edge of the bar's left stone line, which the housing's left frame continues
+static const Int HOUSING_LEFT = 505;
 // the bar's top stone line, which the housing's sides and panel run down to
 static const Int BAR_STONE_TOP = 334;
 // the money tab, the only art above the bar's top edge
@@ -278,11 +282,11 @@ ControlBar::CameoRowLayout ControlBar::getCameoRowLayout() const
 		return layout;
 	}
 
-	layout.cameoLeft = commandPos.x + scaleArt( FRAME_THICKNESS + FRAME_PADDING, scale.x );
+	layout.cameoLeft = commandPos.x + scaleArt( HOUSING_LEFT + FRAME_THICKNESS_X + FRAME_PADDING - BAR_LEFT, scale.x );
 	layout.restBottom = commandPos.y + scaleArt( BAR_STONE_TOP - FRAME_PADDING - BAR_TOP, scale.y );
 	layout.liftedBottom = commandPos.y + scaleArt( MONEY_TAB_TOP - FRAME_PADDING - BAR_TOP, scale.y );
 	layout.tabLeft = commandPos.x + scaleArt( MONEY_TAB_LEFT - BAR_LEFT, scale.x );
-	layout.side = scaleArt( FRAME_PADDING + FRAME_THICKNESS, scale.x );
+	layout.side = scaleArt( FRAME_PADDING + FRAME_THICKNESS_X, scale.x );
 	return layout;
 }
 
@@ -291,8 +295,8 @@ ControlBar::CameoRowLayout ControlBar::getCameoRowLayout() const
 //-------------------------------------------------------------------------------------------------
 static void drawHousingPieces( const Image *source, const Coord2D &scale, Int x0, Int y0, Int x1, Int y1 )
 {
-	const Int borderX = scaleArt( FRAME_THICKNESS, scale.x );
-	const Int borderY = scaleArt( FRAME_THICKNESS, scale.y );
+	const Int borderX = scaleArt( FRAME_THICKNESS_X, scale.x );
+	const Int borderY = scaleArt( FRAME_THICKNESS_Y, scale.y );
 	drawFrameTiles( source, FRAME_FILL, scale, x0 + borderX, y0 + borderY, x1 - borderX, y1 );
 	drawFrameTiles( source, FRAME_TOP, scale, x0 + borderX, y0, x1 - borderX, y0 + borderY );
 	drawFrameTiles( source, FRAME_LEFT, scale, x0, y0 + borderY, x0 + borderX, y1 );
@@ -361,10 +365,9 @@ void ControlBar::drawCameoRowHousing( Bool overBar )
 
 	ICoord2D commandPos;
 	commandWindow->winGetScreenPosition( &commandPos.x, &commandPos.y );
-	const Int reach = FRAME_THICKNESS + FRAME_PADDING;
-	const Int x0 = commandPos.x;
-	const Int y0 = cameos.lo.y - scaleArt( reach, scale.y );
-	const Int x1 = cameos.hi.x + scaleArt( reach, scale.x );
+	const Int x0 = commandPos.x + scaleArt( HOUSING_LEFT - BAR_LEFT, scale.x );
+	const Int y0 = cameos.lo.y - scaleArt( FRAME_THICKNESS_Y + FRAME_PADDING, scale.y );
+	const Int x1 = cameos.hi.x + scaleArt( FRAME_PADDING + FRAME_THICKNESS_X, scale.x );
 	const Int y1 = commandPos.y + scaleArt( BAR_STONE_TOP - BAR_TOP, scale.y );
 
 	IRegion2D clip;
