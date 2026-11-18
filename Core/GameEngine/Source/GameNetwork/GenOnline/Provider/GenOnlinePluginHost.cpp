@@ -1212,3 +1212,39 @@ void GenOnlinePluginHost::Transport::DisconnectAll()
 		s_pTransport->DisconnectAll();
 	}
 }
+
+// The plugin transport calls of the per-peer transports. Every packet travels on the game channel.
+static_assert(static_cast<int32_t>(PeerReliability::UnreliableUnordered) == static_cast<int32_t>(EPacketReliability::PACKET_RELIABILITY_UNRELIABLE_UNORDERED), "PeerReliability must match the plugin API");
+static_assert(static_cast<int32_t>(PeerReliability::ReliableUnordered) == static_cast<int32_t>(EPacketReliability::PACKET_RELIABILITY_RELIABLE_UNORDERED), "PeerReliability must match the plugin API");
+static_assert(static_cast<int32_t>(PeerReliability::ReliableOrdered) == static_cast<int32_t>(EPacketReliability::PACKET_RELIABILITY_RELIABLE_ORDERED), "PeerReliability must match the plugin API");
+
+static bool PeerSendPacket(const char* szPlatformUserID, uint64_t userID, const void* pData, uint32_t numBytes, PeerReliability reliability)
+{
+	return GenOnlinePluginHost::Transport::SendPacket(szPlatformUserID, userID, pData, numBytes, ENetworkChannels::Game, static_cast<EPacketReliability>(reliability));
+}
+
+static uint32_t PeerGetNextPacketSize()
+{
+	return GenOnlinePluginHost::Transport::GetNextPacketSize(ENetworkChannels::Game);
+}
+
+static bool PeerReceivePacket(const uint8_t** ppOutData, uint32_t* pOutNumBytes, int64_t* pOutSenderUserID)
+{
+	return GenOnlinePluginHost::Transport::ReceivePacket(ENetworkChannels::Game, ppOutData, pOutNumBytes, pOutSenderUserID);
+}
+
+const PluginPeerTransportApi& GenOnlinePluginHost::Transport::GetPeerTransportApi()
+{
+	static const PluginPeerTransportApi api =
+	{
+		&GenOnlinePluginHost::Transport::GetName,
+		&PeerSendPacket,
+		&PeerGetNextPacketSize,
+		&PeerReceivePacket,
+		&GenOnlinePluginHost::Transport::FreePacket,
+		&GenOnlinePluginHost::Transport::GetLatency,
+		&GenOnlinePluginHost::Transport::IsRelayed,
+		&GenOnlinePluginHost::Transport::DisconnectPeer
+	};
+	return api;
+}

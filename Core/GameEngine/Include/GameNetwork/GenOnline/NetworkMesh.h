@@ -13,6 +13,8 @@
 #include "GameNetwork/GenOnline/PacketFeedback.h"
 #include "GameNetwork/GenOnline/MatchKeys.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeConnectionTimeline.h"
+#include "GameNetwork/PeerTransport/GnsPeerTransport.h"
+#include "GameNetwork/PeerTransport/PluginPeerTransport.h"
 
 class NetRoom_ChatMessagePacket;
 
@@ -28,26 +30,19 @@ public:
 	virtual void Release() = 0;
 };
 
-enum class EConnectionType
-{
-	Unknown = -1,
-	BuiltIn_ValveSockets = 0,
-	MiddlewarePluginGeneric = 1
-};
-
 class NetworkMesh;
 class PlayerConnection
 {
 public:
+	// A connection without an attempt behaves as a GameNetworkingSockets connection without a handle.
  	PlayerConnection()
+		: m_transport(std::make_unique<GnsPeerTransport>(-1, k_HSteamNetConnection_Invalid))
  	{
-		m_ConnectionType = EConnectionType::Unknown;
-        m_hSteamConnection = k_HSteamNetConnection_Invalid;
-        m_strMiddlewareID = std::string("NOT SET");
  	}
 
+	explicit PlayerConnection(int64_t userID);	///< A connection to the user without an attempt.
 	PlayerConnection(int64_t userID, HSteamNetConnection hSteamConnection);
-	PlayerConnection(int64_t userID, const char* szMiddlewareID);
+	PlayerConnection(int64_t userID, const PluginPeerTransportApi& pluginApi, const char* szMiddlewareID);
 
 	EConnectionState GetState() const { return m_State; }
 
@@ -60,10 +55,11 @@ public:
 	void TickProbe(int64_t nowMs);
 	void HandleProbe(const uint8_t* payload, size_t len, int64_t arrivalMs);
 	void ResetProbe();
-	static int64_t GetArrivalMs(const SteamNetworkingMessage_t* msg);	///< transport receive time in steady_clock ms
 	ConnectionStats m_probeStats;
 
 	void Close();
+	void CloseTransport(const char* szReason);	///< Closes the connection of the transport when it can send.
+	void ForgetTransport();	///< Drops the connection of the transport without closing it.
 
 	bool IsIPV4();
 	bool IsDirect()
@@ -80,7 +76,11 @@ public:
 	}
 
 
-	int Recv(SteamNetworkingMessage_t** pMsg, int maxMessages = 255);
+	/// False when the packets of the transport arrive through the shared plugin queue, see NetworkMesh::ReceivePluginPackets.
+	bool ReceivesPerConnection() const { return m_transport->ReceivesPerConnection(); }
+	/// Hands up to maxFrames received packets to handler, returns the number taken or -1 without a connection.
+	int ReceiveFrames(int maxFrames, const PeerFrameHandler& handler) { return m_transport->Receive(maxFrames, handler); }
+	void FlushTransport() { m_transport->Flush(); }
 
 	// the p75 probe round trip of the stats window, -1 with too few samples: a spike or a lossy spell must not set the start run ahead
 	int GetSeedLatency(int minSamples = k_seedMinSamples) const
@@ -101,12 +101,16 @@ public:
 	std::string GetConnectionType();
 
 	bool UsesPluginTransport() const;
+	std::string GetTransportLabel() const { return m_transport->GetLabel(); }
+
+	// The GameNetworkingSockets handle of the connection, invalid on another transport.
+	HSteamNetConnection GetSteamConnection() const;
+	void SetSteamConnection(HSteamNetConnection hSteamConnection);	///< Has no effect on another transport.
 
 	void UpdateState(EConnectionState newState, NetworkMesh* pOwningMesh);
 	void SetDisconnected(bool bWasError, NetworkMesh* pOwningMesh, bool bIsRetrying);
 	
 	int64_t m_userID = -1;
-	EConnectionType m_ConnectionType = EConnectionType::Unknown;
 
 	EConnectionState m_State = EConnectionState::NOT_CONNECTED;
 	
@@ -146,15 +150,11 @@ public:
 	std::chrono::steady_clock::time_point m_connectedSinceTime = (std::chrono::steady_clock::time_point::min)();
 	ConnectionRating::State m_rating;
 
-	// Only set for Steam connections
-	HSteamNetConnection m_hSteamConnection = k_HSteamNetConnection_Invalid;
-
-	// Only set for MW connections
-	std::string m_strMiddlewareID = std::string("NOT SET");
-
 	void LiteUpdateForAC();
 
 private:
+	PeerTransportSlot m_transport;	///< Never empty.
+
 	static constexpr size_t k_probeRingSize = 64;
 	static constexpr uint16_t k_noProbeSeq = 0xFFFF;
 
@@ -284,6 +284,7 @@ public:
 	// A packet whose sender has no plugin connection is dropped. Returns the number of packets handed to handler.
 	using PluginPacketHandler = std::function<void(PlayerConnection& connection, const uint8_t* data, uint32_t len, int64_t arrivalMs)>;
 	int ReceivePluginPackets(int maxPackets, const PluginPacketHandler& handler);
+	bool HasPluginPackets() const;	///< True when the shared plugin queue holds a packet.
 
 	void ApplyConnectionTimeouts(HSteamNetConnection connection, int64_t userID);
 	// Applies the ICE settings of the step of the pair to an incoming connection before it is accepted.
@@ -354,6 +355,8 @@ private:
 
 	bool m_bUsedPluginTransport = false;	///< A pair of this mesh used the plugin transport.
 	bool CreateListenSocket();
+	// Closes the connection of a pair that restarts, on any transport. A single-direction connection breaks signalling.
+	void CloseForRestart(int64_t remoteUserID, PlayerConnection& existing, bool bNextIsPlugin);
 	void DropParkedSignalling(int64_t remoteUserID);
 	void DropPendingStateUpdates(int64_t userID);
 

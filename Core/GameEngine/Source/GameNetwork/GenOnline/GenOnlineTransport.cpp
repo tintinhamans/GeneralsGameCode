@@ -124,7 +124,7 @@ Bool GenOnlineTransport::doRecv(void)
     for (auto& kvPair : connections)
     {
         // Plugin connections share one plugin queue, the mesh receives their packets below.
-        if (kvPair.second.m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
+        if (!kvPair.second.ReceivesPerConnection())
         {
             continue;
         }
@@ -140,40 +140,22 @@ Bool GenOnlineTransport::doRecv(void)
             continue;
         }
 
-        SteamNetworkingMessage_t* pMsg[255] = { nullptr };
-        int numPackets = kvPair.second.Recv(pMsg, std::min<int>(numFreeSlots, static_cast<int>(std::size(pMsg))));
-
-        if (numPackets <= 0)
-            continue;
-
-        if (numPackets > static_cast<int>(std::size(pMsg)))
+        PlayerConnection& connection = kvPair.second;
+        connection.ReceiveFrames(numFreeSlots, [&](const uint8_t* data, uint32_t len, int64_t arrivalMs)
         {
-            NetworkLog(ELogVerbosity::LOG_RELEASE,
-                "Game Packet Recv: numPackets (%d) > pMsg capacity (%zu), clamping",
-                numPackets, std::size(pMsg));
-            numPackets = static_cast<int>(std::size(pMsg));
-        }
-
-        for (int iPacket = 0; iPacket < numPackets; ++iPacket)
-        {
-            SteamNetworkingMessage_t* msg = pMsg[iPacket];
-            if (!msg)
-                continue;
-
-            if (dispatchFrame(kvPair.second, static_cast<const uint8_t*>(msg->GetData()), msg->m_cbSize, PlayerConnection::GetArrivalMs(msg)))
+            if (dispatchFrame(connection, data, len, arrivalMs))
             {
                 ++numRead;
                 bRet = TRUE;
             }
-            msg->Release();
-        }
+        });
     }
 
     // Only take as many plugin packets as there are free slots, the rest stay queued in the plugin.
     const int numFreePluginSlots = countFreeInSlots();
     if (numFreePluginSlots == 0)
     {
-        if (GenOnlinePluginHost::Transport::GetNextPacketSize(ENetworkChannels::Game) > 0)
+        if (pMesh->HasPluginPackets())
         {
             NetworkLog(ELogVerbosity::LOG_RELEASE, "Game Packet Recv: m_inBuffer is full, leaving plugin packets queued");
         }

@@ -32,6 +32,8 @@
 #include <string>
 #include <vector>
 
+struct PluginPeerTransportApi;
+
 enum class EConnectionState : uint8_t
 {
     NOT_CONNECTED,
@@ -150,5 +152,8 @@ public:
 		static bool IsRelayed(const char* szPlatformUserID, uint64_t userID);
 		static void DisconnectPeer(const char* szPlatformUserID, uint64_t userID);
 		static void DisconnectAll();
+
+		// The calls above as the table of the per-peer plugin transport.
+		static const PluginPeerTransportApi& GetPeerTransportApi();
 	};
 };

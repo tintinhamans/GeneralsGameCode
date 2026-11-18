@@ -1241,7 +1241,7 @@ static void StartPressed()
 		
 		int64_t myUserID = pAuthInterface->GetUserID();
 		auto vecLobbyMembers = pLobbyInterface->GetCurrentLobby().members;
-		auto allConnections = pMesh->GetAllConnections();
+		const auto& allConnections = pMesh->GetAllConnections();
 
 		for (LobbyMemberEntry& lobbyMember : vecLobbyMembers)
 		{

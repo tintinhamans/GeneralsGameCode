@@ -6,6 +6,8 @@
 #include <ws2ipdef.h>
 #include <algorithm>
 #include <charconv>
+#include <cstdarg>
+#include <cstdio>
 #include <chrono>
 #include "GameNetwork/NetworkDefs.h"
 #include "GameNetwork/NetworkInterface.h"
@@ -29,6 +31,8 @@ int g_iceImplementationOverride = -1; // 1 = native, 2 = WebRTC
 
 // The plugin packets the lobby takes per tick, 255 for each of up to 8 peers like the per connection GNS receive.
 static constexpr int k_pluginLitePacketsPerTick = 255 * 8;
+// The packets the lobby takes per tick from each connection that receives on its own.
+static constexpr int k_maxFramesPerReceive = 255;
 
 // The ICE setting of a direct step, host and server reflexive candidates without TURN.
 static constexpr int k_iceEnableDirectOnly = k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_Private | k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_Public;
@@ -36,6 +40,20 @@ static constexpr int k_iceEnableDirectOnly = k_nSteamNetworkingConfig_P2P_Transp
 static int64_t NowSteadyMs()
 {
 	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+// The reason a pair that restarts gives for closing its connection. The peer looks for it to tell a restart from a leave.
+static const char* const k_szRestartCloseReason = "Client Disconnecting Gracefully (new connection being negotiated)";
+
+// The per-peer transports write to the Generals Online network log.
+void PeerTransportLog(PeerLogLevel level, const char* fmt, ...)
+{
+	char szLine[1024];
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(szLine, sizeof(szLine), fmt, args);
+	va_end(args);
+	NetworkLog(level == PeerLogLevel::Debug ? ELogVerbosity::LOG_DEBUG : ELogVerbosity::LOG_RELEASE, "%s", szLine);
 }
 
 // Pool for deferred deletion of ConnectionSignaling objects; avoids "delete this" races during
@@ -99,7 +117,7 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 	std::map<int64_t, PlayerConnection>& connections = pMesh->GetAllConnections();
 	for (auto& kvPair : connections)
 	{
-		if (kvPair.second.m_hSteamConnection == pInfo->m_hConn)
+		if (kvPair.second.GetSteamConnection() == pInfo->m_hConn)
 		{
 			connectionID = kvPair.first;
 			break;
@@ -298,7 +316,7 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 
 #if _DEBUG
 				if (connectionID != -1)
-					assert(plrConnection.m_hSteamConnection == k_HSteamNetConnection_Invalid); // not really a bug in this code, but a bug in the test
+					assert(plrConnection.GetSteamConnection() == k_HSteamNetConnection_Invalid); // not really a bug in this code, but a bug in the test
 #endif
 
 				// the identity of the peer must be the user this connection is for
@@ -315,9 +333,9 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 
 
 					plrConnection.UpdateState(EConnectionState::CONNECTING_DIRECT, pMesh);
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM CONNECTION] Updating connection from %u to %u on user %lld", plrConnection.m_hSteamConnection, pInfo->m_hConn, plrConnection.m_userID);
-					SteamNetworkingSockets()->SetConnectionName(pInfo->m_hConn, std::format("Steam Connection User{}", plrConnection.m_userID).c_str());
-					plrConnection.m_hSteamConnection = pInfo->m_hConn;
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM CONNECTION] Updating connection from %u to %u on user %lld", plrConnection.GetSteamConnection(), pInfo->m_hConn, plrConnection.m_userID);
+					GnsPeerTransport::NameConnection(pInfo->m_hConn, plrConnection.m_userID);
+					plrConnection.SetSteamConnection(pInfo->m_hConn);
 				}
 
 				// check user is in the lobby, otherwise reject
@@ -357,7 +375,7 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 
 #if _DEBUG
 				if (connectionID != -1)
-					assert(plrConnection.m_hSteamConnection == pInfo->m_hConn);
+					assert(plrConnection.GetSteamConnection() == pInfo->m_hConn);
 #endif
 
 				plrConnection.UpdateState(EConnectionState::CONNECTING_DIRECT, pMesh);
@@ -878,7 +896,7 @@ void NetworkMesh::Flush()
 	{
 		for (auto& connectionData : m_mapConnections)
 		{
-			SteamNetworkingSockets()->FlushMessagesOnConnection(connectionData.second.m_hSteamConnection);
+			connectionData.second.FlushTransport();
 		}
 	}
 }
@@ -1047,29 +1065,11 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 	if (step.IsPlugin())
 	{
 		// A repeated StartSignalling restarts the pair. The old connection closes first, because a single-direction connection breaks signalling.
+		// A pair that moves from GameNetworkingSockets to the plugin closes its old connection like a restart does.
 		auto existing = m_mapConnections.find(remoteUserID);
-		if (existing != m_mapConnections.end() && existing->second.m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
+		if (existing != m_mapConnections.end())
 		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld, new connection is being negotiated", remoteUserID);
-			GenOnlinePluginHost::Transport::DisconnectPeer(existing->second.m_strMiddlewareID.c_str(), existing->second.m_userID);
-			// States the plugin raises while it closes the old connection belong to the old attempt.
-			DropPendingStateUpdates(remoteUserID);
-
-			if (TheNetwork != nullptr)
-			{
-				TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
-			}
-		}
-		else if (existing != m_mapConnections.end() && existing->second.m_hSteamConnection != k_HSteamNetConnection_Invalid)
-		{
-			// A pair that moves from GameNetworkingSockets to the plugin closes its old connection like a restart does.
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld, new connection is being negotiated", remoteUserID);
-			SteamNetworkingSockets()->CloseConnection(existing->second.m_hSteamConnection, 0, "Client Disconnecting Gracefully (new connection being negotiated)", false);
-
-			if (TheNetwork != nullptr)
-			{
-				TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
-			}
+			CloseForRestart(remoteUserID, existing->second, true);
 		}
 
 		// The plugin step fails at once when this client has no plugin transport of that name.
@@ -1087,7 +1087,7 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
             auto it = m_mapConnections.find(remoteUserID);
             int previousAttempts = it != m_mapConnections.end() ? it->second.m_SignallingAttempts : 0;
-            m_mapConnections[remoteUserID] = PlayerConnection(remoteUserID, szMiddlewareID);
+            m_mapConnections[remoteUserID] = PlayerConnection(remoteUserID, GenOnlinePluginHost::Transport::GetPeerTransportApi(), szMiddlewareID);
             PlayerConnection& created = m_mapConnections[remoteUserID];
 
             // add attempt; carried over so the retry cap holds across re-signals
@@ -1135,28 +1135,8 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             previousAttempts = it->second.m_SignallingAttempts;
             retryTimeout = true;
 
-            if (it->second.m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
-            {
-                // A pair that moves from the plugin to GameNetworkingSockets ends its plugin connection first.
-                NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing plugin connection %lld, new connection is being negotiated", remoteUserID);
-                GenOnlinePluginHost::Transport::DisconnectPeer(it->second.m_strMiddlewareID.c_str(), it->second.m_userID);
-                DropPendingStateUpdates(remoteUserID);
-
-                if (TheNetwork != nullptr)
-                {
-                    TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
-                }
-            }
-            else if (it->second.m_hSteamConnection != k_HSteamNetConnection_Invalid)
-            {
-                NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld, new connection is being negotiated", remoteUserID);
-                SteamNetworkingSockets()->CloseConnection(it->second.m_hSteamConnection, 0, "Client Disconnecting Gracefully (new connection being negotiated)", false);
-
-                if (TheNetwork != nullptr)
-                {
-                    TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
-                }
-            }
+            // A pair that moves from the plugin to GameNetworkingSockets ends its plugin connection first.
+            CloseForRestart(remoteUserID, it->second, false);
 
             NetworkLog(ELogVerbosity::LOG_RELEASE, "[ERASE 3] Removing user %lld", it->second.m_userID);
             m_mapConnections.erase(it);
@@ -2238,6 +2218,36 @@ void NetworkMesh::DropPendingStateUpdates(int64_t userID)
 		}), m_vecPendingStateUpdates.end());
 }
 
+void NetworkMesh::CloseForRestart(int64_t remoteUserID, PlayerConnection& existing, bool bNextIsPlugin)
+{
+	if (!existing.CanSend())
+	{
+		return;
+	}
+
+	const bool bWasPlugin = existing.UsesPluginTransport();
+	if (bWasPlugin && !bNextIsPlugin)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing plugin connection %lld, new connection is being negotiated", remoteUserID);
+	}
+	else
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld, new connection is being negotiated", remoteUserID);
+	}
+	existing.CloseTransport(k_szRestartCloseReason);
+
+	// States the plugin raises while it closes the old connection belong to the old attempt.
+	if (bWasPlugin)
+	{
+		DropPendingStateUpdates(remoteUserID);
+	}
+
+	if (TheNetwork != nullptr)
+	{
+		TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
+	}
+}
+
 void NetworkMesh::EndStepAttempt(PlayerConnection& connection, const char* szReason, bool bReport)
 {
 	const int64_t userID = connection.m_userID;
@@ -2245,15 +2255,8 @@ void NetworkMesh::EndStepAttempt(PlayerConnection& connection, const char* szRea
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Attempt %d with %lld over %s ended before it connected: %s", attempt, userID, connection.m_step.transport.c_str(), szReason);
 
 	// The attempt stops on this side, the hub starts the next step on both.
-	if (connection.m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
-	{
-		GenOnlinePluginHost::Transport::DisconnectPeer(connection.m_strMiddlewareID.c_str(), userID);
-	}
-	else if (connection.m_hSteamConnection != k_HSteamNetConnection_Invalid)
-	{
-		SteamNetworkingSockets()->CloseConnection(connection.m_hSteamConnection, 0, "Client Disconnecting Gracefully (new connection being negotiated)", false);
-		connection.m_hSteamConnection = k_HSteamNetConnection_Invalid;
-	}
+	connection.CloseTransport(k_szRestartCloseReason);
+	connection.ForgetTransport();
 
 	if (!bReport)
 	{
@@ -2290,7 +2293,12 @@ void NetworkMesh::PrepareManualRetry(int64_t userID, int64_t nowMs)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 
-	PlayerConnection& target = m_mapConnections[userID];
+	auto it = m_mapConnections.find(userID);
+	if (it == m_mapConnections.end())
+	{
+		it = m_mapConnections.emplace(userID, PlayerConnection(userID)).first;
+	}
+	PlayerConnection& target = it->second;
 	target.m_userID = userID;
 	target.m_SignallingAttempts = 0;
 	target.m_retryTimeout = true;
@@ -2307,35 +2315,26 @@ void NetworkMesh::DisconnectUser(int64_t remoteUserID)
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Dumping all Steam connections");
 	for (auto& kvPair : m_mapConnections)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Dumped steam connection, Handle %u User %lld (%lld)", kvPair.second.m_hSteamConnection, kvPair.second.m_userID, kvPair.first);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Dumped steam connection, Handle %u User %lld (%lld)", kvPair.second.GetSteamConnection(), kvPair.second.m_userID, kvPair.first);
 	}
 
 	if (m_mapConnections.find(remoteUserID) != m_mapConnections.end())
 	{
 
-        if (m_mapConnections[remoteUserID].UsesPluginTransport())
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld", remoteUserID);
-
-			GenOnlinePluginHost::Transport::DisconnectPeer(m_mapConnections[remoteUserID].m_strMiddlewareID.c_str(), m_mapConnections[remoteUserID].m_userID);
-            if (TheNetwork != nullptr)
-            {
-                TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
-            }
-        }
-		else
+		PlayerConnection& connection = m_mapConnections[remoteUserID];
+		if (connection.CanSend())
 		{
-            if (m_mapConnections[remoteUserID].m_hSteamConnection != k_HSteamNetConnection_Invalid)
-            {
-                NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld", remoteUserID);
-                NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Steam connection handle is %u", m_mapConnections[remoteUserID].m_hSteamConnection);
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld", remoteUserID);
+			if (!connection.UsesPluginTransport())
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Steam connection handle is %u", connection.GetSteamConnection());
+			}
 
-                SteamNetworkingSockets()->CloseConnection(m_mapConnections[remoteUserID].m_hSteamConnection, 0, "Client Disconnecting Gracefully (Got DisconnectPeer from service)", false);
-                if (TheNetwork != nullptr)
-                {
-                    TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
-                }
-            }
+			connection.CloseTransport("Client Disconnecting Gracefully (Got DisconnectPeer from service)");
+			if (TheNetwork != nullptr)
+			{
+				TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
+			}
 		}
 
 
@@ -2415,7 +2414,7 @@ void NetworkMesh::Tick()
 			PlayerConnection& connection = it->second;
 
 			// A plugin state only describes a pair on the plugin transport.
-			if (connection.m_ConnectionType != EConnectionType::MiddlewarePluginGeneric)
+			if (!connection.UsesPluginTransport())
 			{
 				continue;
 			}
@@ -2485,85 +2484,39 @@ void NetworkMesh::Tick()
 
 int NetworkMesh::ReceivePluginPackets(int maxPackets, const PluginPacketHandler& handler)
 {
-	int numHandled = 0;
-	for (int numTaken = 0; numTaken < maxPackets; ++numTaken)
-	{
-		if (GenOnlinePluginHost::Transport::GetNextPacketSize(ENetworkChannels::Game) == 0)
+	return PluginPeerTransport::ReceiveShared(GenOnlinePluginHost::Transport::GetPeerTransportApi(), maxPackets,
+		[&](int64_t senderUserID, const uint8_t* pData, uint32_t numBytes, int64_t arrivalMs)
 		{
-			break;
-		}
+			std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+			auto it = m_mapConnections.find(senderUserID);
+			if (it == m_mapConnections.end() || !it->second.UsesPluginTransport())
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[PLUGIN PACKET] Dropping a packet of %u bytes from user %lld, the user has no plugin connection", numBytes, static_cast<long long>(senderUserID));
+				return false;
+			}
 
-		// the plugin returns its own buffer through pData
-		const uint8_t* pData = nullptr;
-		uint32_t numBytes = 0;
-		int64_t senderUserID = -1;
-		if (!GenOnlinePluginHost::Transport::ReceivePacket(ENetworkChannels::Game, &pData, &numBytes, &senderUserID) || pData == nullptr)
-		{
-			// nothing was dequeued, stop instead of spinning forever on the same pending packet
-			break;
-		}
+			handler(it->second, pData, numBytes, arrivalMs);
+			return true;
+		});
+}
 
-		// the buffer belongs to the plugin, make sure every exit path below releases it
-		struct ScopedPluginPacket
-		{
-			const uint8_t* m_pData;
-			~ScopedPluginPacket() { GenOnlinePluginHost::Transport::FreePacket(m_pData); }
-		} scopedPacket{ pData };
-
-		// The plugin hands the packet over when the main loop asks, so the receive time is the arrival time.
-		const int64_t arrivalMs = NowSteadyMs();
-
-		std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
-		auto it = m_mapConnections.find(senderUserID);
-		if (it == m_mapConnections.end() || it->second.m_ConnectionType != EConnectionType::MiddlewarePluginGeneric)
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[PLUGIN PACKET] Dropping a packet of %u bytes from user %lld, the user has no plugin connection", numBytes, static_cast<long long>(senderUserID));
-			continue;
-		}
-
-		handler(it->second, pData, numBytes, arrivalMs);
-		++numHandled;
-	}
-
-	return numHandled;
+bool NetworkMesh::HasPluginPackets() const
+{
+	return PluginPeerTransport::HasSharedPackets(GenOnlinePluginHost::Transport::GetPeerTransportApi());
 }
 
 void PlayerConnection::LiteUpdateForAC()
 {
 	// The mesh drains the plugin queue for every plugin connection in NetworkMesh::Tick.
-	if (m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
+	if (!ReceivesPerConnection())
 	{
 		return;
 	}
 
-	SteamNetworkingMessage_t* pMsg[255] = { nullptr };
-	int numPackets = Recv(pMsg);
-
-	if (numPackets <= 0)
-		return;
-
-	if (numPackets > static_cast<int>(std::size(pMsg)))
+	ReceiveFrames(k_maxFramesPerReceive, [this](const uint8_t* data, uint32_t len, int64_t arrivalMs)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE,
-			"Game Packet Recv: numPackets (%d) > pMsg capacity (%zu), clamping",
-			numPackets, std::size(pMsg));
-		numPackets = static_cast<int>(std::size(pMsg));
-	}
-
-	for (int iPacket = 0; iPacket < numPackets; ++iPacket)
-	{
-		SteamNetworkingMessage_t* msg = pMsg[iPacket];
-		if (!msg)
-		{
-			// CRITICAL BUG FIX: Don't return early - continue loop to release remaining messages
-			// Skipping null entry but continue processing others
-			NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC PACKET] Received null message at index %d", iPacket);
-			continue;
-		}
-
-		DispatchLiteFrame(static_cast<const uint8_t*>(msg->GetData()), msg->m_cbSize, GetArrivalMs(msg));
-		msg->Release();
-	}
+		DispatchLiteFrame(data, len, arrivalMs);
+	});
 }
 
 void PlayerConnection::DispatchLiteFrame(const uint8_t* data, size_t len, int64_t arrivalMs)
@@ -2705,19 +2658,6 @@ void PlayerConnection::HandleKeyMessage(const uint8_t* data, size_t len)
 	}
 }
 
-int64_t PlayerConnection::GetArrivalMs(const SteamNetworkingMessage_t* msg)
-{
-	const int64_t nowMs = NowSteadyMs();
-	if (msg == nullptr || SteamNetworkingUtils() == nullptr || msg->m_usecTimeReceived <= 0)
-	{
-		return nowMs;
-	}
-
-	// how long the message waited in the transport's queue for the main loop
-	const int64_t queuedMs = (SteamNetworkingUtils()->GetLocalTimestamp() - msg->m_usecTimeReceived) / 1000;
-	return nowMs - (std::max)(static_cast<int64_t>(0), queuedMs);
-}
-
 void PlayerConnection::HandleProbe(const uint8_t* payload, size_t len, int64_t arrivalMs)
 {
 	const size_t envelopeSize = (payload != nullptr) ? ConsumeEnvelope(payload, len) : 0;
@@ -2774,28 +2714,30 @@ void PlayerConnection::HandleProbe(const uint8_t* payload, size_t len, int64_t a
 	}
 }
 
-PlayerConnection::PlayerConnection(int64_t userID, HSteamNetConnection hSteamConnection)
+PlayerConnection::PlayerConnection(int64_t userID)
+	: m_transport(std::make_unique<GnsPeerTransport>(userID, k_HSteamNetConnection_Invalid))
 {
 	m_userID = userID;
-	m_ConnectionType = EConnectionType::BuiltIn_ValveSockets;
+}
+
+PlayerConnection::PlayerConnection(int64_t userID, HSteamNetConnection hSteamConnection)
+	: m_transport(std::make_unique<GnsPeerTransport>(userID, hSteamConnection))
+{
+	m_userID = userID;
 	
 	// no connection yet
-	m_hSteamConnection = hSteamConnection;
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM CONNECTION] Attaching connection %u to user %lld", hSteamConnection, userID);
 
-	SteamNetworkingSockets()->SetConnectionName(hSteamConnection, std::format("Steam Connection User{}", userID).c_str());
+	GnsPeerTransport::NameConnection(hSteamConnection, userID);
 
 }
 
-PlayerConnection::PlayerConnection(int64_t userID, const char* szMiddlewareID)
+PlayerConnection::PlayerConnection(int64_t userID, const PluginPeerTransportApi& pluginApi, const char* szMiddlewareID)
+	: m_transport(std::make_unique<PluginPeerTransport>(pluginApi, userID, szMiddlewareID))
 {
     m_userID = userID;
-    m_ConnectionType = EConnectionType::MiddlewarePluginGeneric;
 
     // no connection yet
-    m_hSteamConnection = k_HSteamNetConnection_Invalid;
-	m_strMiddlewareID = std::string(szMiddlewareID);
-
     NetworkLog(ELogVerbosity::LOG_RELEASE, "[MIDDLEWARE CONNECTION] Attaching connection %s to user %lld", szMiddlewareID, userID);
 
 }
@@ -2881,20 +2823,7 @@ void PlayerConnection::SendACPacket(const void* pData, uint32_t dataLen)
 
 void PlayerConnection::Close()
 {
-	if (m_ConnectionType == EConnectionType::BuiltIn_ValveSockets)
-	{
-        if (SteamNetworkingSockets())
-        {
-            SteamNetworkingSockets()->CloseConnection(m_hSteamConnection, 0, "Client Disconnecting Gracefully", false);
-        }
-	}
-	else
-	{
-		if (UsesPluginTransport())
-		{
-			GenOnlinePluginHost::Transport::DisconnectPeer(m_strMiddlewareID.c_str(), m_userID);
-        }
-	}
+	m_transport->Close("Client Disconnecting Gracefully");
     
     if (TheNetwork != nullptr)
     {
@@ -2902,31 +2831,37 @@ void PlayerConnection::Close()
     }
 }
 
-bool PlayerConnection::IsIPV4()
+void PlayerConnection::CloseTransport(const char* szReason)
 {
-	if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
-		return false;
-
-	SteamNetConnectionInfo_t info;
-	SteamNetworkingSockets()->GetConnectionInfo(m_hSteamConnection, &info);
-
-	return info.m_addrRemote.IsIPv4();
+	m_transport.CloseIfOpen(szReason);
 }
 
-int PlayerConnection::Recv(SteamNetworkingMessage_t** pMsg, int maxMessages)
+void PlayerConnection::ForgetTransport()
 {
-	int r = -1;
-	if (m_hSteamConnection != k_HSteamNetConnection_Invalid)
+	m_transport->Forget();
+}
+
+HSteamNetConnection PlayerConnection::GetSteamConnection() const
+{
+	if (!m_transport.Is(PeerTransportKind::Gns))
 	{
-		r = SteamNetworkingSockets()->ReceiveMessagesOnConnection(m_hSteamConnection, pMsg, maxMessages);
-		NetworkLog(ELogVerbosity::LOG_DEBUG, "[DISC] Recv Result %d from user %lld", r, m_userID);
-	}
-	else
-	{
-		NetworkLog(ELogVerbosity::LOG_DEBUG, "[DISC] Recv Failed 1 from user %lld", m_userID);
+		return k_HSteamNetConnection_Invalid;
 	}
 
-	return r;
+	return static_cast<const GnsPeerTransport*>(m_transport.Get())->GetHandle();
+}
+
+void PlayerConnection::SetSteamConnection(HSteamNetConnection hSteamConnection)
+{
+	if (m_transport.Is(PeerTransportKind::Gns))
+	{
+		static_cast<GnsPeerTransport*>(m_transport.Get())->SetHandle(hSteamConnection);
+	}
+}
+
+bool PlayerConnection::IsIPV4()
+{
+	return m_transport->IsIPv4();
 }
 
 
@@ -2943,53 +2878,23 @@ std::string PlayerConnection::GetStats()
 		snprintf(szSummary, sizeof(szSummary), "Lat %d\n", GetLatency());
 	}
 
-	if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
+	std::string strDetail;
+	if (!m_transport->GetDetailedStats(strDetail))
 		return std::string(szSummary) + "(disconnected)";
 
-	char szBuf[2048] = { 0 };
-	int ret = SteamNetworkingSockets()->GetDetailedConnectionStatus(m_hSteamConnection, szBuf, 2048);
-
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM] PlayerConnection::GetStats returned %d", ret);
-	return std::string(szSummary) + szBuf;
+	return std::string(szSummary) + strDetail;
 }
 
 
 bool PlayerConnection::UsesPluginTransport() const
 {
-	return m_ConnectionType == EConnectionType::MiddlewarePluginGeneric;
+	return m_transport.Is(PeerTransportKind::Plugin);
 }
 
 std::string PlayerConnection::GetConnectionType()
 {
-	if (UsesPluginTransport())
-	{
-		if (m_State == EConnectionState::CONNECTED_DIRECT)
-		{
-			bool bIsConnectionRelayed = GenOnlinePluginHost::Transport::IsRelayed(m_strMiddlewareID.c_str(), m_userID);
-			return bIsConnectionRelayed ? "Relayed" : "Direct";
-		}
-		else
-		{
-			return "(disconnected)";
-		}
-	}
-	else
-	{
-        if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
-            return "(disconnected)";
-
-        SteamNetConnectionInfo_t info;
-        if (!SteamNetworkingSockets()->GetConnectionInfo(m_hSteamConnection, &info))
-        {
-            NetworkLog(ELogVerbosity::LOG_DEBUG, "[STEAM] PlayerConnection::GetConnectionType failed to get connection info");
-            return "(unknown)";
-        }
-
-        // IsDirect() relies on relayed connections reporting "Relayed".
-        return (info.m_nFlags & k_nSteamNetworkConnectionInfoFlags_Relayed) != 0 ? "Relayed" : "Direct";
-	}
-
-	return "(unknown)";
+	// IsDirect() relies on relayed connections reporting "Relayed".
+	return PeerRouteText(m_transport->GetRoute(m_State == EConnectionState::CONNECTED_DIRECT));
 }
 
 void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwningMesh)
@@ -3081,12 +2986,12 @@ void PlayerConnection::SetDisconnected(bool bWasError, NetworkMesh* pOwningMesh,
 	// Save values we need after the callback: the callback can erase this
 	// PlayerConnection from the mesh's map (UAF), so we must not access
 	// member variables after UpdateState fires the external callback.
-	const HSteamNetConnection savedHandle = m_hSteamConnection;
+	const HSteamNetConnection savedHandle = GetSteamConnection();
 	const int64_t savedUserID = m_userID;
 
 	// Invalidate the handle before firing the callback so any re-entrant
 	// query sees the connection as already gone.
-	m_hSteamConnection = k_HSteamNetConnection_Invalid;
+	ForgetTransport();
 
 	// Dont update backend until we're actually done
 	if (!bIsRetrying)
@@ -3096,38 +3001,12 @@ void PlayerConnection::SetDisconnected(bool bWasError, NetworkMesh* pOwningMesh,
 
 	// Use saved stack values � do NOT touch any member after this point.
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM CONNECTION] Setting connection %u to disconnected/invalid on user %lld", savedHandle, savedUserID);
-	if (SteamNetworkingSockets())
-	{
-		SteamNetworkingSockets()->SetConnectionName(savedHandle, std::format("Steam Connection User{}", savedUserID).c_str());
-	}
+	GnsPeerTransport::NameConnection(savedHandle, savedUserID);
 }
 
 int PlayerConnection::GetLatency()
 {
-	if (m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
-	{
-		return GenOnlinePluginHost::Transport::GetLatency(m_strMiddlewareID.c_str(), m_userID);
-	}
-	else
-	{
-        // TODO_STEAM: consider using lanes
-        if (m_hSteamConnection != k_HSteamNetConnection_Invalid)
-        {
-            const int k_nLanes = 1;
-            SteamNetConnectionRealTimeStatus_t status;
-            SteamNetConnectionRealTimeLaneStatus_t laneStatus[k_nLanes];
-
-
-
-            EResult res = SteamNetworkingSockets()->GetConnectionRealTimeStatus(m_hSteamConnection, &status, k_nLanes, laneStatus);
-            if (res == k_EResultOK)
-            {
-                return status.m_nPing;
-            }
-        }
-	}
-
-	return -1;
+	return m_transport->GetLatency();
 }
 
 size_t PlayerConnection::ConsumeEnvelope(const uint8_t* data, size_t len)
@@ -3163,28 +3042,12 @@ int PlayerConnection::SendEnveloped(ENetworkChannel channel, const uint8_t* payl
 
 int PlayerConnection::SendFramed(const uint8_t* data, size_t len, int sendFlags)
 {
-	if (m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
-	{
-		// A reliable send stays reliable and ordered on the plugin, every other send is unreliable.
-		const EPacketReliability reliability = (sendFlags & k_nSteamNetworkingSend_Reliable) != 0
-			? EPacketReliability::PACKET_RELIABILITY_RELIABLE_ORDERED
-			: EPacketReliability::PACKET_RELIABILITY_UNRELIABLE_UNORDERED;
-		const bool bSent = GenOnlinePluginHost::Transport::SendPacket(m_strMiddlewareID.c_str(), m_userID, data, static_cast<uint32_t>(len), ENetworkChannels::Game, reliability);
-		return static_cast<int>(bSent ? k_EResultOK : k_EResultNoConnection);
-	}
-
-	return static_cast<int>(SteamNetworkingSockets()->SendMessageToConnection(m_hSteamConnection, data, static_cast<uint32>(len), sendFlags, nullptr));
+	return m_transport->SendFramed(data, len, sendFlags);
 }
 
 bool PlayerConnection::CanSend() const
 {
-	// The plugin addresses its peers by user id, so a plugin connection has no handle to lose.
-	if (m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
-	{
-		return true;
-	}
-
-	return m_hSteamConnection != k_HSteamNetConnection_Invalid;
+	return m_transport->CanSend();
 }
 
 bool PlayerConnection::GetOutgoingLoss(int windowMs, PacketFeedback::Summary& summary)
