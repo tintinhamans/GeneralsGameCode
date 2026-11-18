@@ -229,6 +229,12 @@ static void collectIdleUnit( Object *obj, void *userData )
 		category = QUEUE_BAR_SUPPORT;
 	}
 
+	// An angry mob's nexus stands for its members
+	if( obj->isKindOf( KINDOF_IGNORED_IN_GUI ) || obj->isOffMap() )
+	{
+		return;
+	}
+
 	if( !obj->isMassSelectable() || obj->isEffectivelyDead() || obj->getDrawable() == nullptr || obj->getContainedBy() != nullptr )
 	{
 		return;

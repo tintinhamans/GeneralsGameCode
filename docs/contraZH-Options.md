@@ -77,7 +77,8 @@ aircraft and support units. A button shows while the player has an idle unit of 
 selects one idle unit and centres the camera on it, and clicking again steps to the next. `Shift` +
 click selects every idle unit of that kind without moving the camera. Support units are those with
 `IGNORES_SELECT_ALL`, such as radar vans, listening outposts and sentry drones; they show under
-Support only. Dozers, workers, supply gatherers and units inside a transport or building are left out.
+Support only. Dozers, workers, supply gatherers, units off the map and units inside a transport or
+building are left out. An angry mob counts once.
 A unit is idle when its AI has no order and no target, so a parked jet with full ammo counts and one
 that is reloading does not. Hidden for observers and while the control bar is hidden. Also the Idle
 unit tracker checkbox on the Interface tab. Applies on Accept.)
