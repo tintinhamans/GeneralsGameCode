@@ -2937,6 +2937,8 @@ GameWindow *GameWindowManager::gogoGadgetTextEntry( GameWindow *parent,
 	data->text = TheDisplayStringManager->newDisplayString();
 	data->sText = TheDisplayStringManager->newDisplayString();
 	data->constructText = TheDisplayStringManager->newDisplayString();
+	data->completionHint = TheDisplayStringManager->newDisplayString();
+	data->completionEnabled = FALSE;
 
 	// set the max for the text lengths
 //	data->text->allocateFixed( ENTRY_TEXT_LEN );
