@@ -23,6 +23,6 @@
 
 #include <string>
 
-// True when the text holds @ followed by the name without case, and the name ends at the end of the text,
-// whitespace, punctuation or #. An empty name never matches.
+// True when the text holds @ followed by the name without case. The @ starts the text or follows whitespace
+// or punctuation. The name ends at the end of the text, whitespace, punctuation or #. An empty name never matches.
 bool ChatTextMentionsName(const std::wstring& text, const std::wstring& name);

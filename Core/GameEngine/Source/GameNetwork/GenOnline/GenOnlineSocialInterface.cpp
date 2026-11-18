@@ -140,6 +140,16 @@ GenOnlineRealtime::DirectConversation& GenOnlineSocialInterface::GetConversation
 	return it->second;
 }
 
+// True when the settings show the notification box for a conversation line in the current game state.
+static bool ConversationNotificationsEnabled()
+{
+	if (TheGenOnlineGame != nullptr && TheGenOnlineGame->isGameInProgress())
+	{
+		return GenOnlineServicesManager::Settings.Social_Notifications_FriendComesOnline_Gameplay();
+	}
+	return GenOnlineServicesManager::Settings.Social_Notifications_FriendComesOnline_Menus();
+}
+
 void GenOnlineSocialInterface::OnConversationLine(int64_t user_id_to_store, bool bFromMe, uint32_t key, const UnicodeString& unicodeStr)
 {
 	// only if I am not the sender and overlay isnt active
@@ -151,27 +161,13 @@ void GenOnlineSocialInterface::OnConversationLine(int64_t user_id_to_store, bool
 			TriggerCallback_OnNumberGlobalNotificationsChanged();
 		}
 		// show popup for incoming message
-		if (TheGenOnlineGame != nullptr && TheGenOnlineGame->isGameInProgress())
+		if (ConversationNotificationsEnabled())
 		{
-			if (GenOnlineServicesManager::Settings.Social_Notifications_FriendComesOnline_Gameplay())
-			{
 #if defined(GENONLINE)
-				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr, true /*bPlaySound*/);
+			GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr, true /*bPlaySound*/);
 #else
-				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr);
+			GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr);
 #endif
-			}
-		}
-		else
-		{
-			if (GenOnlineServicesManager::Settings.Social_Notifications_FriendComesOnline_Menus())
-			{
-#if defined(GENONLINE)
-				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr, true /*bPlaySound*/);
-#else
-				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr);
-#endif
-			}
 		}
 	}
 	if (m_cbOnChatMessage != nullptr)
@@ -532,8 +528,11 @@ void GenOnlineSocialInterface::OnRealtimeDirectMessage(const GenOnlineRealtime::
 	{
 		m_mapConversationNames[peerID] = message.author.name;
 	}
-	OnConversationLine(peerID, message.author.id == pAuth->GetUserID(), line.key, GetChatLineText(line));
-	if (GenOnlineRealtime::MentionsUser(message, pAuth->GetUserID()))
+	const bool bFromMe = message.author.id == pAuth->GetUserID();
+	// The notification box plays its own sound, so a mention it shows plays no second sound.
+	const bool bNoticeSound = !bFromMe && !m_bOverlayActive && ConversationNotificationsEnabled();
+	OnConversationLine(peerID, bFromMe, line.key, GetChatLineText(line));
+	if (!bNoticeSound && GenOnlineRealtime::MentionsUser(message, pAuth->GetUserID()))
 	{
 		GenOnlinePlayMentionSound();
 	}

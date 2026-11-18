@@ -17,6 +17,7 @@
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "Common/AudioEventRTS.h"
 #include "Common/GameAudio.h"
+#include "GameClient/Shell.h"
 
 // -----------------------------
 // Module info structure
@@ -1654,7 +1655,14 @@ void GenOnlineRoomsInterface::OnRealtimeMessageDelete(const GenOnlineRealtime::M
 	}
 }
 
+// The shell chat lists show while the shell is up and no match runs.
+static bool ShellChatShown()
+{
+	return TheShell != nullptr && TheShell->isShellActive() && (TheGenOnlineGame == nullptr || !TheGenOnlineGame->isGameInProgress());
+}
+
 // The notice goes to the game setup chat inside a lobby, else to the channel chat when it shows, else to the notification box.
+// A chat list takes the notice only while its menu is open and the shell shows.
 void GenOnlineRoomsInterface::OnRealtimeMentionCreate(const GenOnlineRealtime::MentionCreateEvent& event)
 {
 	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
@@ -1664,11 +1672,12 @@ void GenOnlineRoomsInterface::OnRealtimeMentionCreate(const GenOnlineRealtime::M
 	}
 	const UnicodeString text(from_utf8(GenOnlineRealtime::MentionNoticeText(event, m_vecRealtimeChannels)).c_str());
 	GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-	if (pLobby != nullptr && pLobby->IsInLobby() && pLobby->m_OnChatCallback != nullptr)
+	const bool bChatShown = ShellChatShown();
+	if (bChatShown && pLobby != nullptr && pLobby->IsInLobby() && pLobby->m_OnChatCallback != nullptr)
 	{
 		pLobby->m_OnChatCallback(text, DetermineMentionColor());
 	}
-	else if (m_OnChatCallback != nullptr)
+	else if (bChatShown && m_OnChatCallback != nullptr)
 	{
 		m_OnChatCallback(text, DetermineMentionColor());
 	}

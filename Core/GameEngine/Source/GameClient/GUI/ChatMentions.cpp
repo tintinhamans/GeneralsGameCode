@@ -31,6 +31,17 @@ static bool IsMentionEnd(const std::wstring& text, size_t pos)
 	return iswspace(c) || iswpunct(c) || c == L'#';
 }
 
+// The @ starts the text or follows whitespace or punctuation.
+static bool IsMentionStart(const std::wstring& text, size_t at)
+{
+	if (at == 0)
+	{
+		return true;
+	}
+	const wchar_t c = text[at - 1];
+	return iswspace(c) || iswpunct(c);
+}
+
 static bool NameAtNoCase(const std::wstring& text, size_t pos, const std::wstring& name)
 {
 	if (text.size() - pos < name.size())
@@ -57,7 +68,7 @@ bool ChatTextMentionsName(const std::wstring& text, const std::wstring& name)
 	while (at != std::wstring::npos)
 	{
 		const size_t start = at + 1;
-		if (NameAtNoCase(text, start, name) && IsMentionEnd(text, start + name.size()))
+		if (IsMentionStart(text, at) && NameAtNoCase(text, start, name) && IsMentionEnd(text, start + name.size()))
 		{
 			return true;
 		}

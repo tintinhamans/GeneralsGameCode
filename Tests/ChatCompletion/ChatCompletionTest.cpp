@@ -526,6 +526,15 @@ static void TestMentionNeedsAtSign()
 	CHECK(!ChatTextMentionsName(L"", L"Bob"));
 }
 
+static void TestMentionStartBoundary()
+{
+	CHECK(!ChatTextMentionsName(L"x@Bob", L"Bob"));
+	CHECK(ChatTextMentionsName(L"(@Bob)", L"Bob"));
+	CHECK(ChatTextMentionsName(L"hi @Bob", L"Bob"));
+	CHECK(ChatTextMentionsName(L"@Bob", L"Bob"));
+	CHECK(ChatTextMentionsName(L"x@Bob and @Bob", L"Bob"));
+}
+
 static void TestMentionEmptyName()
 {
 	CHECK(!ChatTextMentionsName(L"@Bob", L""));
@@ -564,6 +573,7 @@ int main()
 	TestMentionSpaces();
 	TestMentionNeedsAtSign();
 	TestMentionEmptyName();
+	TestMentionStartBoundary();
 
 	if (g_failures != 0)
 	{
