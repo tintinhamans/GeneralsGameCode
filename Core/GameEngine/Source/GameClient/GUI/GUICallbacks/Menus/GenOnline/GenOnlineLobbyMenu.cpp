@@ -255,7 +255,7 @@ static UnicodeString netTransportChoices()
 }
 
 // Applies the relay setting of the next lobby. Every transport takes it from here.
-// GNS takes it through g_relayOverride. The plugin transports do not take it yet.
+// GNS and the plugin transport both take it through g_relayOverride when the next lobby mesh starts.
 static void applyNetRelaySetting(int wanted)
 {
 	extern int g_relayOverride;

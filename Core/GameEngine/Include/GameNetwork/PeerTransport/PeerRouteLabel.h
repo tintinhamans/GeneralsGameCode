@@ -2,6 +2,8 @@
 
 #include "GameNetwork/PeerTransport/PeerTransport.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -48,3 +50,10 @@ PeerNetCommand ParsePeerNetCommand(const std::string& subcommand, const std::str
 /// The plugin transports this client offers to the service. A transport override of 1 offers none, so every pair uses GNS.
 /// Any other override offers every available one.
 std::vector<std::string> FilterOfferedTransports(const std::vector<std::string>& available, int transportOverride);
+
+/// The relay policy of a plugin transport for the resolved relay only setting that GNS also uses.
+/// 1 forces the relay of the plugin and 0 allows direct connections, the values of GENONLINE_PLUGIN_RELAY_FORCE and GENONLINE_PLUGIN_RELAY_ALLOW.
+int PluginRelayPolicy(bool bRelayOnly);
+
+/// True when a plugin table that reports structSize bytes holds the whole field at fieldOffset of fieldSize bytes.
+bool PluginTableCoversField(uint32_t structSize, size_t fieldOffset, size_t fieldSize);

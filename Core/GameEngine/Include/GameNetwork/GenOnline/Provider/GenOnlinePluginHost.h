@@ -152,6 +152,8 @@ public:
 		static bool IsRelayed(const char* szPlatformUserID, uint64_t userID);
 		static void DisconnectPeer(const char* szPlatformUserID, uint64_t userID);
 		static void DisconnectAll();
+		// Sets the relay policy of the plugin for the connections that start after the call. A plugin without SetRelayPolicy keeps its own policy.
+		static void SetRelayPolicy(bool bForceRelay);
 
 		// The calls above as the table of the per-peer plugin transport.
 		static const PluginPeerTransportApi& GetPeerTransportApi();

@@ -417,6 +417,8 @@ NetworkMesh::NetworkMesh()
 	gnsConfig.firstAttemptTimeouts = { firstTimeouts.initialMs, firstTimeouts.connectedMs };
 	gnsConfig.retryTimeouts = { retryTimeouts.initialMs, retryTimeouts.connectedMs };
 	gnsConfig.relayOnly = GnsNetworkConfig::ResolveRelayOnly(serviceConf.connection.relay_only, g_relayOverride);
+	// The plugin transport follows the same relay rule as GNS for the connections of this lobby.
+	GenOnlinePluginHost::Transport::SetRelayPolicy(gnsConfig.relayOnly);
 
 	// 0 = library default, 1 = native, 2 = WebRTC
 	gnsConfig.iceImplementation = GnsNetworkConfig::ResolveIceImplementation(serviceConf.connection.ice_engine, g_iceImplementationOverride);

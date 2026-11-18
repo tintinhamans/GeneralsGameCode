@@ -3,6 +3,7 @@
 // It also tests the provider boundary: the log sink, the signal queues and the network config mapping.
 // It also tests the route labels of the user interface and the parsing of the /net command.
 // It also tests the filter of the plugin transports this client offers to the service.
+// It also tests the relay policy of a plugin transport and the size check of an optional plugin table field.
 
 #include "GameNetwork/PeerTransport/PeerTransport.h"
 #include "GameNetwork/PeerTransport/PluginPeerTransport.h"
@@ -10,6 +11,8 @@
 #include "GameNetwork/PeerTransport/GnsNetworkConfig.h"
 #include "GameNetwork/PeerTransport/PeerRouteLabel.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <deque>
@@ -584,6 +587,38 @@ static void TestFilterOfferedTransports()
 	CHECK(FilterOfferedTransports(eos, 7) == eos);
 }
 
+static void TestPluginRelayPolicy()
+{
+	// The plugin follows the same relay only rule as GNS. 1 forces the relay, 0 allows direct connections.
+	CHECK(PluginRelayPolicy(GnsNetworkConfig::ResolveRelayOnly(false, -1)) == 0);
+	CHECK(PluginRelayPolicy(GnsNetworkConfig::ResolveRelayOnly(true, -1)) == 1);
+	CHECK(PluginRelayPolicy(GnsNetworkConfig::ResolveRelayOnly(false, 1)) == 1);
+	CHECK(PluginRelayPolicy(GnsNetworkConfig::ResolveRelayOnly(true, 1)) == 1);
+}
+
+// A table whose last field is optional, like the transport table of an older or newer plugin.
+struct FakePluginTable
+{
+	uint32_t structSize;
+	void (*First)(void);
+	void (*Optional)(int32_t);
+};
+
+static void TestPluginTableCoversField()
+{
+	const size_t offset = offsetof(FakePluginTable, Optional);
+	const size_t size = sizeof(void (*)(int32_t));
+
+	// A table that ends before the field or inside it does not hold it.
+	CHECK(!PluginTableCoversField(static_cast<uint32_t>(offset), offset, size));
+	CHECK(!PluginTableCoversField(static_cast<uint32_t>(offset + size - 1), offset, size));
+	CHECK(!PluginTableCoversField(0, offset, size));
+
+	// A table that ends at the field end or after it holds the field.
+	CHECK(PluginTableCoversField(static_cast<uint32_t>(offset + size), offset, size));
+	CHECK(PluginTableCoversField(static_cast<uint32_t>(sizeof(FakePluginTable) + 16), offset, size));
+}
+
 int main()
 {
 	TestRestartClosesPreviousOnce();
@@ -599,6 +634,8 @@ int main()
 	TestNetCommandParsing();
 	TestNetTransportCommandParsing();
 	TestFilterOfferedTransports();
+	TestPluginRelayPolicy();
+	TestPluginTableCoversField();
 
 	if (g_failures != 0)
 	{

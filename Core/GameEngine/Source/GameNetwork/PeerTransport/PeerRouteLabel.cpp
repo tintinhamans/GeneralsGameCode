@@ -162,3 +162,13 @@ std::vector<std::string> FilterOfferedTransports(const std::vector<std::string>&
 	}
 	return available;
 }
+
+int PluginRelayPolicy(bool bRelayOnly)
+{
+	return bRelayOnly ? 1 : 0;
+}
+
+bool PluginTableCoversField(uint32_t structSize, size_t fieldOffset, size_t fieldSize)
+{
+	return static_cast<size_t>(structSize) >= fieldOffset + fieldSize;
+}

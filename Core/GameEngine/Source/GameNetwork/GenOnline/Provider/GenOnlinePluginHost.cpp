@@ -34,6 +34,7 @@
 #include "GameNetwork/GenOnline/GenOnlinePluginRoles.h"
 #include "GameNetwork/GenOnline/NetworkMesh.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessages.h"
+#include "GameNetwork/PeerTransport/PeerRouteLabel.h"
 
 #include <chrono>
 #include <cstddef>
@@ -1211,6 +1212,29 @@ void GenOnlinePluginHost::Transport::DisconnectAll()
 	{
 		s_pTransport->DisconnectAll();
 	}
+}
+
+static_assert(GENONLINE_PLUGIN_RELAY_ALLOW == 0 && GENONLINE_PLUGIN_RELAY_FORCE == 1, "PluginRelayPolicy must match the plugin API");
+
+void GenOnlinePluginHost::Transport::SetRelayPolicy(bool bForceRelay)
+{
+	if (s_pTransport == nullptr)
+	{
+		return;
+	}
+
+	// The field is optional, so a plugin built against an older table neither holds it nor reports a size that covers it.
+	const bool bSupported = PluginTableCoversField(s_pTransport->structSize, offsetof(GenOnlinePluginTransportApi, SetRelayPolicy), sizeof(s_pTransport->SetRelayPolicy))
+		&& s_pTransport->SetRelayPolicy != nullptr;
+	if (!bSupported)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] The transport of %s does not support SetRelayPolicy, it keeps its own relay policy", s_pluginApi.name);
+		return;
+	}
+
+	const int32_t policy = static_cast<int32_t>(PluginRelayPolicy(bForceRelay));
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Setting the relay policy of the transport of %s to %s", s_pluginApi.name, (policy == GENONLINE_PLUGIN_RELAY_FORCE) ? "force" : "allow");
+	s_pTransport->SetRelayPolicy(policy);
 }
 
 // The plugin transport calls of the per-peer transports. Every packet travels on the game channel.
