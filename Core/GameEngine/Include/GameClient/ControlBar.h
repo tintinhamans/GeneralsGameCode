@@ -987,6 +987,7 @@ protected:
 	GameWindow *createCameoRow( GameWinSystemFunc systemFunc, Int slotCount, Bool rightClick, GameWindow **buttons );
 	static const Image *getCameoImage( const ThingTemplate *thingTemplate );
 	Int getCameoRowWidth( Int cameoCount ) const;
+	static void getCameoRowSpacing( ICoord2D *margin, Int *gap );
 	void initSmartSelectionBar( const ICoord2D &commandButtonSize );
 	void destroySmartSelectionBar();
 	void resetSmartSelection();

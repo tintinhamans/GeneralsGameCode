@@ -168,7 +168,10 @@ void ControlBar::updateCommandGroupBar()
 	// grid, whose top sits at the frame
 	ICoord2D commandPos;
 	commandWindow->winGetScreenPosition( &commandPos.x, &commandPos.y );
-	m_commandGroupParent->winSetPosition( commandPos.x, commandPos.y - m_smartSelectionButtonSize.y - CAMEO_ROW_GAP );
+	ICoord2D margin;
+	Int gap;
+	getCameoRowSpacing( &margin, &gap );
+	m_commandGroupParent->winSetPosition( commandPos.x + margin.x, commandPos.y - gap - margin.y - m_smartSelectionButtonSize.y );
 	m_commandGroupParent->winHide( FALSE );
 }
 
