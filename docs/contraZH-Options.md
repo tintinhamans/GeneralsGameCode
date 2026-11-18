@@ -72,6 +72,15 @@ while placing it. A solid ring marks its widest anti-ground weapon and a paler d
 widest anti-air weapon. Wall pieces get their rings each. The D3D9 build draws the rings with the
 same shader as `SelectionCircle`, on cards with `ps_2_a`. Other builds and cards draw one ring at
 the wider of the two ranges.)
+* `QueueBar = No` - (Yes shows up to four buttons at the top right in game: infantry, vehicles,
+aircraft and support units. A button shows while the player has an idle unit of that kind. Clicking it
+selects one idle unit and centres the camera on it, and clicking again steps to the next. `Shift` +
+click selects every idle unit of that kind without moving the camera. Support units are those with
+`IGNORES_SELECT_ALL`, such as radar vans, listening outposts and sentry drones; they show under
+Support only. Dozers, workers, supply gatherers and units inside a transport or building are left out.
+A unit is idle when its AI has no order and no target, so a parked jet with full ammo counts and one
+that is reloading does not. Hidden for observers and while the control bar is hidden. Also the Idle
+unit tracker checkbox on the Interface tab. Applies on Accept.)
 * `ObjectDecals = Yes` - (No hides ground decals requested with `DisplayDecal`. Independent of shadow
 settings. Applies on Accept, including to objects already on the map.)
 * `SmartPips = No` - (Yes keeps ammo and passenger pips visible on own units whenever there is
@@ -108,6 +117,10 @@ greyscale ring with alpha).
 * `DisplayDecal` needs the `.tga` named by `DecalTexture`; there is no default.
 * The `DefensesRangeCircle` checkbox needs `CheckDefensesRangeCircle` in `OptionsMenu.wnd`.
 * The `VeterancyLevel` checkbox needs `CheckVeterancyLevel` in `OptionsMenu.wnd`.
+* `QueueBar` needs mod-side windows in `ControlBar.wnd`: a second top-level window `QueueBarParent`
+(hidden, `SYSTEMCALLBACK = "QueueBarSystem"`) holding the push buttons `ButtonQueueBarInfantry`,
+`ButtonQueueBarVehicle`, `ButtonQueueBarAircraft` and `ButtonQueueBarSupport`. The layout sets their
+place, images and tooltips. Its checkbox needs `CheckQueueBar` in `OptionsMenu.wnd`.
 
 ### Recommended detail level
 

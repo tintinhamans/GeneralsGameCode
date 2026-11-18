@@ -147,6 +147,7 @@ static FunctionLexicon::TableEntry gameWinSystemTable[] =
 	{ NAMEKEY_INVALID, "DifficultySelectSystem",             (void*)DifficultySelectSystem },
 
 	{ NAMEKEY_INVALID, "IdleWorkerSystem",                   (void*)IdleWorkerSystem },
+	{ NAMEKEY_INVALID, "QueueBarSystem",                     (void*)QueueBarSystem },
 	{ NAMEKEY_INVALID, "EstablishConnectionsControlSystem",  (void*)EstablishConnectionsControlSystem },
 	{ NAMEKEY_INVALID, "GameInfoWindowSystem",               (void*)GameInfoWindowSystem },
 	{ NAMEKEY_INVALID, "ScoreScreenSystem",                  (void*)ScoreScreenSystem },

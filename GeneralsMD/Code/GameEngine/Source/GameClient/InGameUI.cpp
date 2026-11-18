@@ -82,6 +82,7 @@
 #include "GameClient/GameWindowID.h"
 #include "GameClient/GUICallbacks.h"
 #include "GameClient/InGameUI.h"
+#include "GameClient/Keyboard.h"
 #include "GameClient/VideoPlayer.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/GadgetStaticText.h"
@@ -159,6 +160,243 @@ static UnicodeString formatIncomeValue(UnsignedInt cashPerMin)
 		result.format(L"%u", (cashPerMin / 10) * 10);
 	}
 	return result;
+}
+
+// ------------------------------------------------------------------------------------------------
+enum
+{
+	QUEUE_BAR_INFANTRY,
+	QUEUE_BAR_VEHICLE,
+	QUEUE_BAR_AIRCRAFT,
+	QUEUE_BAR_SUPPORT,
+	QUEUE_BAR_BUTTON_COUNT
+};
+
+static const char *const TheQueueBarButtons[ QUEUE_BAR_BUTTON_COUNT ] =
+{
+	"ControlBar.wnd:ButtonQueueBarInfantry",
+	"ControlBar.wnd:ButtonQueueBarVehicle",
+	"ControlBar.wnd:ButtonQueueBarAircraft",
+	"ControlBar.wnd:ButtonQueueBarSupport",
+};
+
+static std::vector<ObjectID> s_queueBarIdle[ QUEUE_BAR_BUTTON_COUNT ];
+// logic frame of the last scan
+static UnsignedInt s_queueBarFrame = ~0u;
+
+// ------------------------------------------------------------------------------------------------
+static NameKeyType queueBarButtonKey( Int index )
+{
+	static NameKeyType keys[ QUEUE_BAR_BUTTON_COUNT ] = { NAMEKEY_INVALID, NAMEKEY_INVALID, NAMEKEY_INVALID, NAMEKEY_INVALID };
+	if( keys[ index ] == NAMEKEY_INVALID )
+	{
+		keys[ index ] = TheNameKeyGenerator->nameToKey( TheQueueBarButtons[ index ] );
+	}
+	return keys[ index ];
+}
+
+// ------------------------------------------------------------------------------------------------
+static void collectIdleUnit( Object *obj, void *userData )
+{
+	// Aircraft first because most aircraft are also vehicles
+	Int category;
+	if( obj->isKindOf( KINDOF_AIRCRAFT ) )
+	{
+		category = QUEUE_BAR_AIRCRAFT;
+	}
+	else if( obj->isKindOf( KINDOF_INFANTRY ) )
+	{
+		category = QUEUE_BAR_INFANTRY;
+	}
+	else if( obj->isKindOf( KINDOF_VEHICLE ) )
+	{
+		category = QUEUE_BAR_VEHICLE;
+	}
+	else
+	{
+		return;
+	}
+
+	// Dozers and harvesters are workers, not army
+	if( obj->isKindOf( KINDOF_DOZER ) || obj->isKindOf( KINDOF_HARVESTER ) )
+	{
+		return;
+	}
+
+	// Contra tags its non-combat units with IGNORES_SELECT_ALL
+	if( obj->isKindOf( KINDOF_IGNORES_SELECT_ALL ) )
+	{
+		category = QUEUE_BAR_SUPPORT;
+	}
+
+	if( !obj->isMassSelectable() || obj->isEffectivelyDead() || obj->getDrawable() == nullptr || obj->getContainedBy() != nullptr )
+	{
+		return;
+	}
+
+	AIUpdateInterface *ai = obj->getAIUpdateInterface();
+	if( ai == nullptr || !ai->isIdle() )
+	{
+		return;
+	}
+
+	s_queueBarIdle[ category ].push_back( obj->getID() );
+}
+
+// ------------------------------------------------------------------------------------------------
+static void resetQueueBar()
+{
+	for( Int i = 0; i < QUEUE_BAR_BUTTON_COUNT; ++i )
+	{
+		s_queueBarIdle[ i ].clear();
+	}
+	s_queueBarFrame = ~0u;
+}
+
+// ------------------------------------------------------------------------------------------------
+static void updateQueueBar()
+{
+	static NameKeyType parentKey = TheNameKeyGenerator->nameToKey( "ControlBar.wnd:QueueBarParent" );
+	static NameKeyType controlBarKey = TheNameKeyGenerator->nameToKey( "ControlBar.wnd:ControlBarParent" );
+
+	GameWindow *parent = TheWindowManager->winGetWindowFromId( nullptr, parentKey );
+	if( parent == nullptr )
+	{
+		return;
+	}
+
+	Player *player = nullptr;
+	Bool show = TheGlobalData->m_queueBar && TheGameLogic->isInGame() && !TheGameLogic->isInShellGame();
+	if( show )
+	{
+		player = ThePlayerList->getLocalPlayer();
+		GameWindow *controlBar = TheWindowManager->winGetWindowFromId( nullptr, controlBarKey );
+		show = player != nullptr && player->isPlayerActive() && controlBar != nullptr && !controlBar->winIsHidden();
+	}
+
+	if( show )
+	{
+		UnsignedInt frame = TheGameLogic->getFrame();
+		if( frame != s_queueBarFrame )
+		{
+			for( Int i = 0; i < QUEUE_BAR_BUTTON_COUNT; ++i )
+			{
+				s_queueBarIdle[ i ].clear();
+			}
+			player->iterateObjects( collectIdleUnit, nullptr );
+			s_queueBarFrame = frame;
+		}
+	}
+	else
+	{
+		resetQueueBar();
+	}
+
+	Bool anyIdle = FALSE;
+	for( Int i = 0; i < QUEUE_BAR_BUTTON_COUNT; ++i )
+	{
+		Bool hide = s_queueBarIdle[ i ].empty();
+		if( !hide )
+		{
+			anyIdle = TRUE;
+		}
+		GameWindow *button = TheWindowManager->winGetWindowFromId( parent, queueBarButtonKey( i ) );
+		if( button != nullptr && button->winIsHidden() != hide )
+		{
+			button->winHide( hide );
+		}
+	}
+
+	Bool hideParent = !show || !anyIdle;
+	if( parent->winIsHidden() != hideParent )
+	{
+		parent->winHide( hideParent );
+	}
+}
+
+// ------------------------------------------------------------------------------------------------
+static void selectNextIdleUnit( Int index )
+{
+	const std::vector<ObjectID> &idle = s_queueBarIdle[ index ];
+	size_t count = idle.size();
+	if( count == 0 )
+	{
+		return;
+	}
+
+	size_t start = 0;
+	if( TheInGameUI->getSelectCount() == 1 )
+	{
+		Drawable *selected = TheInGameUI->getFirstSelectedDrawable();
+		Object *selectedObj = selected ? selected->getObject() : nullptr;
+		if( selectedObj != nullptr )
+		{
+			for( size_t i = 0; i < count; ++i )
+			{
+				if( idle[ i ] == selectedObj->getID() )
+				{
+					start = ( i + 1 ) % count;
+					break;
+				}
+			}
+		}
+	}
+
+	for( size_t n = 0; n < count; ++n )
+	{
+		Object *obj = TheGameLogic->findObjectByID( idle[ ( start + n ) % count ] );
+		if( obj != nullptr && obj->getDrawable() != nullptr )
+		{
+			TheInGameUI->deselectAllDrawables();
+			GameMessage *teamMsg = TheMessageStream->appendMessage( GameMessage::MSG_CREATE_SELECTED_GROUP );
+			teamMsg->appendBooleanArgument( TRUE );
+			teamMsg->appendObjectIDArgument( obj->getID() );
+			TheInGameUI->selectDrawable( obj->getDrawable() );
+			TheTacticalView->userLookAt( obj->getPosition() );
+			return;
+		}
+	}
+}
+
+// GameMessage counts its arguments in an UnsignedByte
+static const Int QUEUE_BAR_MAX_MSG_ARGS = 255;
+
+// ------------------------------------------------------------------------------------------------
+static void selectAllIdleUnits( Int index )
+{
+	const std::vector<ObjectID> &idle = s_queueBarIdle[ index ];
+	GameMessage *teamMsg = nullptr;
+	for( size_t i = 0; i < idle.size(); ++i )
+	{
+		Object *obj = TheGameLogic->findObjectByID( idle[ i ] );
+		if( obj == nullptr || obj->getDrawable() == nullptr )
+		{
+			continue;
+		}
+
+		if( teamMsg == nullptr )
+		{
+			TheInGameUI->deselectAllDrawables();
+			teamMsg = TheMessageStream->appendMessage( GameMessage::MSG_CREATE_SELECTED_GROUP );
+			teamMsg->appendBooleanArgument( TRUE );
+		}
+		else if( teamMsg->getArgumentCount() >= QUEUE_BAR_MAX_MSG_ARGS )
+		{
+			teamMsg = TheMessageStream->appendMessage( GameMessage::MSG_CREATE_SELECTED_GROUP );
+			teamMsg->appendBooleanArgument( FALSE );
+		}
+
+		if( TheInGameUI->getMaxSelectCount() > 0 && TheInGameUI->getSelectCount() >= TheInGameUI->getMaxSelectCount() )
+		{
+			UnicodeString msg;
+			msg.format( TheGameText->fetch( "GUI:MaxSelectionSize" ).str(), TheInGameUI->getMaxSelectCount() );
+			TheInGameUI->message( msg );
+			return;
+		}
+
+		teamMsg->appendObjectIDArgument( obj->getID() );
+		TheInGameUI->selectDrawable( obj->getDrawable() );
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3521,6 +3759,7 @@ void InGameUI::update()
 	TheControlBar->update();
 
 	updateIdleWorker();
+	updateQueueBar();
 
 	// update any random window layout that so requests
 	for (std::list<WindowLayout *>::iterator it = m_windowLayouts.begin(); it != m_windowLayouts.end(); ++it)
@@ -3651,6 +3890,7 @@ void InGameUI::reset()
 	clearFloatingText();
 	clearWorldAnimations();
 	resetIdleWorker();
+	resetQueueBar();
 	// clear hint lists
 	for( i = 0; i < MAX_MOVE_HINTS; i++ )
 	{
@@ -8905,6 +9145,58 @@ WindowMsgHandledType IdleWorkerSystem( GameWindow *window, UnsignedInt msg,
 			if (control && control->winGetWindowId() == buttonSelectID)
 			{
 				TheInGameUI->selectNextIdleWorker();
+			}
+			break;
+
+		}
+
+		//---------------------------------------------------------------------------------------------
+		default:
+			return MSG_IGNORED;
+
+	}
+
+	return MSG_HANDLED;
+
+}
+
+WindowMsgHandledType QueueBarSystem( GameWindow *window, UnsignedInt msg,
+																			WindowMsgData mData1, WindowMsgData mData2 )
+{
+	switch( msg )
+	{
+		//---------------------------------------------------------------------------------------------
+		case GWM_INPUT_FOCUS:
+		{
+			if( mData1 == TRUE )
+			{
+				*(Bool *)mData2 = FALSE;
+			}
+			break;
+
+		}
+		//---------------------------------------------------------------------------------------------
+		case GBM_SELECTED:
+		{
+			GameWindow *control = (GameWindow *)mData1;
+			if( control != nullptr )
+			{
+				Int id = control->winGetWindowId();
+				for( Int i = 0; i < QUEUE_BAR_BUTTON_COUNT; ++i )
+				{
+					if( id == queueBarButtonKey( i ) )
+					{
+						if( TheKeyboard != nullptr && ( TheKeyboard->getModifierFlags() & KEY_STATE_SHIFT ) )
+						{
+							selectAllIdleUnits( i );
+						}
+						else
+						{
+							selectNextIdleUnit( i );
+						}
+						break;
+					}
+				}
 			}
 			break;
 

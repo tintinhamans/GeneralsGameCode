@@ -211,6 +211,8 @@ public:
 	Bool m_selectionCircleEnabled;
 	// TheSuperHackers @feature Ring the attack range of an armed structure while it is being placed.
 	Bool m_defensesRangeCircle;
+	// Show a button each for idle infantry, vehicles, aircraft and support units.
+	Bool m_queueBar;
 	// TheSuperHackers @feature Draw the decals objects ask for with DisplayDecal.
 	Bool m_objectDecalsEnabled;
 	// TheSuperHackers @feature Keep ammo and passenger pips on screen when there is something

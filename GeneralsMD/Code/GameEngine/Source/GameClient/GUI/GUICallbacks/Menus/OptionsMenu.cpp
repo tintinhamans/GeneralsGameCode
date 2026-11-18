@@ -220,6 +220,7 @@ static GameWindow *   checkNumericalHealth        = nullptr;
 static GameWindow *   checkSmartPips              = nullptr;
 static GameWindow *   checkSelectionCircle        = nullptr;
 static GameWindow *   checkDefensesRangeCircle    = nullptr;
+static GameWindow *   checkQueueBar               = nullptr;
 static GameWindow *   checkVeterancyLevel         = nullptr;
 static GameWindow *   checkObjectDecals           = nullptr;
 static GameWindow *   checkEasyMilitaryDrag       = nullptr;
@@ -522,6 +523,7 @@ static const BoolOption BoolOptions[] =
 	{ &checkSmartPips, "SmartPips", &OptionPreferences::getSmartPipsEnabled, &GlobalData::m_smartPips, FALSE },
 	{ &checkSelectionCircle, "SelectionCircle", &OptionPreferences::getSelectionCircleEnabled, &GlobalData::m_selectionCircleEnabled, FALSE },
 	{ &checkDefensesRangeCircle, "DefensesRangeCircle", &OptionPreferences::getDefensesRangeCircleEnabled, &GlobalData::m_defensesRangeCircle, FALSE },
+	{ &checkQueueBar, "QueueBar", &OptionPreferences::getQueueBarEnabled, &GlobalData::m_queueBar, FALSE },
 	{ &checkObjectDecals, "ObjectDecals", &OptionPreferences::getObjectDecalsEnabled, &GlobalData::m_objectDecalsEnabled, TRUE },
 	{ &checkEasyMilitaryDrag, "EasyMilitaryDrag", &OptionPreferences::getEasyMilitaryDragEnabled, &GlobalData::m_easyMilitaryDrag, FALSE },
 	{ &checkFacingDrag, "UseFacingDrag", &OptionPreferences::getFacingDragEnabled, &GlobalData::m_facingDrag, TRUE },
@@ -1944,6 +1946,7 @@ static void initGameOptionsWindows()
 	checkSmartPips = findOptionsWindow( "OptionsMenu.wnd:CheckSmartPips" );
 	checkSelectionCircle = findOptionsWindow( "OptionsMenu.wnd:CheckSelectionCircle" );
 	checkDefensesRangeCircle = findOptionsWindow( "OptionsMenu.wnd:CheckDefensesRangeCircle" );
+	checkQueueBar = findOptionsWindow( "OptionsMenu.wnd:CheckQueueBar" );
 	checkVeterancyLevel = findOptionsWindow( "OptionsMenu.wnd:CheckVeterancyLevel" );
 	checkObjectDecals = findOptionsWindow( "OptionsMenu.wnd:CheckObjectDecals" );
 	checkEasyMilitaryDrag = findOptionsWindow( "OptionsMenu.wnd:CheckEasyMilitaryDrag" );
@@ -2023,6 +2026,7 @@ static void initGameOptionsWindows()
 	setCheckText( checkSmartPips, "GUI:SmartPips", "TOOLTIP:SmartPips" );
 	setCheckText( checkSelectionCircle, "GUI:SelectionCircle", "TOOLTIP:SelectionCircle" );
 	setCheckText( checkDefensesRangeCircle, "GUI:DefensesRangeCircle", "TOOLTIP:DefensesRangeCircle" );
+	setCheckText( checkQueueBar, "GUI:QueueBar", "TOOLTIP:QueueBar" );
 	setCheckText( checkVeterancyLevel, "GUI:VeterancyLevel", "TOOLTIP:VeterancyLevel" );
 	setCheckText( checkObjectDecals, "GUI:ObjectDecals", "TOOLTIP:ObjectDecals" );
 	setCheckText( checkEasyMilitaryDrag, "GUI:EasyMilitaryDrag", "TOOLTIP:EasyMilitaryDrag" );

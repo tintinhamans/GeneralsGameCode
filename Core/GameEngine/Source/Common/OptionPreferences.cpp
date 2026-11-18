@@ -363,6 +363,11 @@ Bool OptionPreferences::getDefensesRangeCircleEnabled(void) const
 	return getBool("DefensesRangeCircle", FALSE);
 }
 
+Bool OptionPreferences::getQueueBarEnabled(void) const
+{
+	return getBool("QueueBar", FALSE);
+}
+
 // TheSuperHackers @feature Options.ini: ObjectDecals = No suppresses the decals objects ask for
 // with DisplayDecal. On by default, since the templates opted in.
 Bool OptionPreferences::getObjectDecalsEnabled(void) const
