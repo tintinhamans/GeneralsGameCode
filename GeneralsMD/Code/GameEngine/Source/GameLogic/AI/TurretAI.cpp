@@ -1564,6 +1564,8 @@ void TurretAIIdleState::resetIdleScan()
 //----------------------------------------------------------------------------------------------------------
 StateReturnType TurretAIIdleState::onEnter()
 {
+	getMachineOwner()->clearModelConditionState(MODELCONDITION_TURRET_ROTATE);
+
 	AIUpdateInterface *ai = getMachineOwner()->getAIUpdateInterface();
 	if (ai)
 	{
@@ -1708,6 +1710,8 @@ void TurretAIHoldTurretState::loadPostProcess()
 //----------------------------------------------------------------------------------------------------------
 StateReturnType TurretAIHoldTurretState::onEnter()
 {
+	getMachineOwner()->clearModelConditionState(MODELCONDITION_TURRET_ROTATE);
+
 	m_timestamp = TheGameLogic->getFrame() + getTurretAI()->getRecenterTime();
 
 	TurretAI* turret = getTurretAI();

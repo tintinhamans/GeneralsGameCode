@@ -572,3 +572,13 @@ Changes the simulation; affects replays.
 
 See [Pathfinding Improvements](contraZH-Pathfinding-Improvements.md) for search limits, queue retries,
 shoreline clearance, group movement and bridge handling.
+
+## Idle turret scans reach their chosen angles
+
+GO 60 Hz builds no longer end idle scans up to 29 degrees short. Leonidas now turns through
+its chosen scan angle, and the Technical gunner stops its turning animation when the turn ends.
+The turning animation also stops when a turret holds or goes idle, so a gunner no longer loops
+it after losing a target mid-turn.
+
+Changes the simulation in GO 60 Hz builds; affects replays.
+([#153](https://github.com/triatomic/contraZH/issues/153))
