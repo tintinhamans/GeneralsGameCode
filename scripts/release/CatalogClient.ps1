@@ -12,6 +12,7 @@ param(
    [Parameter(Mandatory = $true)][string]$ProductId,
    [Parameter(Mandatory = $true)][string]$PluginPublicKey,
    [string]$ConfigFile = "",
+   [string]$CrashReporterName = "CrashReportHandler.exe",
    [string]$Minisign = "",
    [string]$PublisherCertificateSha256 = ""
 )
@@ -26,17 +27,29 @@ $devtools = Join-Path $EacToolsDir "devtools"
 $tool = Join-Path $devtools "anticheat_integritytool.exe"
 $key = Join-Path $devtools "base_private.key"
 $certificate = Join-Path $devtools "base_public.cer"
-if (-not $ConfigFile)
-{
-   $ConfigFile = Join-Path $devtools "anticheat_integritytool.cfg"
-}
-foreach ($required in $tool, $key, $certificate, $ConfigFile, $PluginPublicKey)
+$templateConfig = if ($ConfigFile) { $ConfigFile } else { Join-Path $devtools "anticheat_integritytool.cfg" }
+foreach ($required in $tool, $key, $certificate, $templateConfig, $PluginPublicKey)
 {
    if (-not (Test-Path -LiteralPath $required -PathType Leaf))
    {
       throw "$required is missing."
    }
 }
+
+# The SDK template leaves the crash reporter out. The game's own crash handler must be named, or Easy Anti-Cheat
+# treats it as a foreign process inside the protected game.
+$ConfigFile = Join-Path ([IO.Path]::GetTempPath()) ("genonline-integrity-" + [guid]::NewGuid().ToString("N") + ".cfg")
+$configText = [IO.File]::ReadAllText($templateConfig)
+$pattern = '/\*\s*crash_reporter_name\s*=\s*"[^"]*"\s*;\s*\*/'
+if ($CrashReporterName)
+{
+   if ($configText -notmatch $pattern)
+   {
+      throw "$templateConfig has no crash_reporter_name line to set."
+   }
+   $configText = [regex]::Replace($configText, $pattern, "crash_reporter_name = `"$CrashReporterName`";")
+}
+[IO.File]::WriteAllText($ConfigFile, $configText)
 if (-not $Minisign)
 {
    $Minisign = Get-Command minisign -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1 | ForEach-Object Source
@@ -113,3 +126,5 @@ foreach ($game in $Games)
       }
    }
 }
+
+Remove-Item -LiteralPath $ConfigFile -Force -ErrorAction SilentlyContinue

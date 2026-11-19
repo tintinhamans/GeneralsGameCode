@@ -114,6 +114,10 @@ The script checks the Authenticode signatures and the plugin manifest signature,
 and `anticheat_integritytool.exe -productid <id> verify <game folder>`. The catalog lands in
 `EasyAntiCheat\Certificates\`. No file of the folder may change after this step.
 
+The script runs the tool with a copy of the SDK configuration that sets `crash_reporter_name` to
+`CrashReportHandler.exe`, so Easy Anti-Cheat accepts the game's crash handler. `-CrashReporterName ""` keeps the
+template unchanged.
+
 ### 8. Pack and promote on the test channel
 
 ```powershell
