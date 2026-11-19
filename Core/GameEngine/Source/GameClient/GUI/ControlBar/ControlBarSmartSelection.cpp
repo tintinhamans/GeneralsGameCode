@@ -145,8 +145,10 @@ static const Int FRAME_ART_BOTTOM = 376;
 // the bar's outer top left corner, which the CommandWindow's screen position marks
 static const Int BAR_LEFT = 500;
 static const Int BAR_TOP = 326;
-// the outer edge of the bar's left stone line, which the housing's left frame continues
+// the outer edge of the bar's left stone line, where the span a full row's housing centres in starts
 static const Int HOUSING_LEFT = 505;
+// the outer edge of the bar's right stone line, where that span ends
+static const Int HOUSING_RIGHT = 1413;
 // the bar's top stone line, which the housing's sides and panel run down to
 static const Int BAR_STONE_TOP = 334;
 // the money tab, the only art above the bar's top edge
@@ -301,11 +303,14 @@ ControlBar::CameoRowLayout ControlBar::getCameoRowLayout() const
 		return layout;
 	}
 
-	layout.cameoLeft = commandPos.x + scaleArt( HOUSING_LEFT + FRAME_THICKNESS_X + FRAME_PADDING - BAR_LEFT, scale.x );
+	layout.side = scaleArt( FRAME_PADDING + FRAME_THICKNESS_X, scale.x );
+	// a full row's housing sits centred between the bar's stone lines
+	const Int fullHousing = getCameoRowWidth( MAX_SMART_SELECTION_BUTTONS ) + 2 * layout.side;
+	const Int inset = MAX( ( scaleArt( HOUSING_RIGHT - HOUSING_LEFT, scale.x ) - fullHousing ) / 2, 0 );
+	layout.cameoLeft = commandPos.x + scaleArt( HOUSING_LEFT - BAR_LEFT, scale.x ) + inset + layout.side;
 	layout.restBottom = commandPos.y + scaleArt( BAR_STONE_TOP - FRAME_PADDING - BAR_TOP, scale.y );
 	layout.liftedBottom = commandPos.y + scaleArt( MONEY_TAB_TOP - FRAME_PADDING - BAR_TOP, scale.y );
 	layout.tabLeft = commandPos.x + scaleArt( MONEY_TAB_LEFT - BAR_LEFT, scale.x );
-	layout.side = scaleArt( FRAME_PADDING + FRAME_THICKNESS_X, scale.x );
 	return layout;
 }
 
@@ -378,7 +383,7 @@ Bool ControlBar::getCameoRowHousing( IRegion2D *housing, Bool *closed ) const
 
 	ICoord2D commandPos;
 	commandWindow->winGetScreenPosition( &commandPos.x, &commandPos.y );
-	housing->lo.x = commandPos.x + scaleArt( HOUSING_LEFT - BAR_LEFT, scale.x );
+	housing->lo.x = cameos.lo.x - scaleArt( FRAME_PADDING + FRAME_THICKNESS_X, scale.x );
 	housing->lo.y = cameos.lo.y - scaleArt( FRAME_THICKNESS_Y + FRAME_PADDING, scale.y );
 	housing->hi.x = cameos.hi.x + scaleArt( FRAME_PADDING + FRAME_THICKNESS_X, scale.x );
 	const Int closedBottom = cameos.hi.y + scaleArt( FRAME_PADDING + FRAME_THICKNESS_Y, scale.y );
