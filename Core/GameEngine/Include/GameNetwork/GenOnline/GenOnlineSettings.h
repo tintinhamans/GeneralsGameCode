@@ -5,6 +5,7 @@
 #include <vector>
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
 #include "GameNetwork/GenOnline/GenOnlinePackList.h"
+#include "GameNetwork/GenOnline/GenOnlineClientOptions.h"
 
 class GenOnlineSettings
 {
@@ -15,6 +16,28 @@ public:
 	float Camera_GetMaxHeight_WhenLobbyHost() const { return m_Camera_MaxHeight_LobbyHost; }
 
 	float DetermineCameraMaxHeight();
+
+	// The keyboard camera rotate and pitch speeds and the keyboard and mouse wheel zoom speeds, value / 100 of camera.rotate_factor,
+	// camera.pitch_factor and camera.zoom_factor. The camera code multiplies them by SCROLL_MULTIPLIER.
+	float Camera_GetRotateFactor() const { return GenOnlineClientOptions::CameraFactorToReal(m_Camera_RotateFactor); }
+	float Camera_GetPitchFactor() const { return GenOnlineClientOptions::CameraFactorToReal(m_Camera_PitchFactor); }
+	float Camera_GetZoomFactor() const { return GenOnlineClientOptions::CameraFactorToReal(m_Camera_ZoomFactor); }
+
+	// TRUE for Miles audio with Bink movies instead of OpenAL with FFmpeg movies, in builds that have both.
+	bool Media_UseLegacy() const { return m_Media_Legacy; }
+
+	int Observer_GetStatsFontSize() const { return m_Observer_StatsFontSize; }
+	int Observer_GetNotificationFontSize() const { return m_Observer_NotificationFontSize; }
+	bool Observer_NotificationSpecialPowerUsage() const { return m_Observer_NotificationSpecialPowerUsage; }
+	bool Observer_NotificationSpecialPowerPurchase() const { return m_Observer_NotificationSpecialPowerPurchase; }
+	bool Observer_NotificationMilestone() const { return m_Observer_NotificationMilestone; }
+	// The font sizes are clamped to 0 to 15 and saved to client.json.
+	void Observer_SetStatsFontSize(int fontSize);
+	void Observer_SetNotificationFontSize(int fontSize);
+
+	// Takes the Options.ini values of the moved settings that client.json does not hold, saves them to client.json and then removes
+	// the old keys from Options.ini. Runs once, as soon as the user data folder is known.
+	void MoveOptionsIniSettings();
 
 	void Graphics_SetFPS(int fpsLimit, bool bLimitFramerate)
 	{
@@ -93,12 +116,31 @@ private:
 	void Load(void);
 	void LoadPackList();
 	bool Save();
+	// Takes the Options.ini values of the moved settings that still wait for them.
+	void TakeOptionsIniValues();
+	// Removes the old keys of these settings from Options.ini once client.json holds every one of them.
+	void RemoveOptionsIniKeys();
 
 private:
 	const float m_Camera_MinHeight_default = 100.f;
 	float m_Camera_MinHeight = m_Camera_MinHeight_default;
 
 	float m_Camera_MaxHeight_LobbyHost = GENONLINE_DEFAULT_LOBBY_CAMERA_ZOOM;
+	int m_Camera_RotateFactor = GenOnlineClientOptions::CameraFactorDefault;
+	int m_Camera_PitchFactor = GenOnlineClientOptions::CameraFactorDefault;
+	int m_Camera_ZoomFactor = GenOnlineClientOptions::CameraFactorDefault;
+
+	bool m_Media_Legacy = GenOnlineClientOptions::LegacyMediaDefault;
+
+	int m_Observer_StatsFontSize = GenOnlineClientOptions::ObserverStatsFontSizeDefault;
+	int m_Observer_NotificationFontSize = GenOnlineClientOptions::ObserverNotificationFontSizeDefault;
+	bool m_Observer_NotificationSpecialPowerUsage = GenOnlineClientOptions::ObserverNotificationDefault;
+	bool m_Observer_NotificationSpecialPowerPurchase = GenOnlineClientOptions::ObserverNotificationDefault;
+	bool m_Observer_NotificationMilestone = GenOnlineClientOptions::ObserverNotificationDefault;
+
+	// The dotted paths of the moved settings that wait for their Options.ini value. Save leaves them out of client.json.
+	std::set<std::string> m_PendingOptionsIni;
+	bool m_bOptionsIniMoved = false;
 
 	bool m_bInitialized = false;
 

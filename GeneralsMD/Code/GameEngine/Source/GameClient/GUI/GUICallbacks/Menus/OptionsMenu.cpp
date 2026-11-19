@@ -840,15 +840,8 @@ static void saveOptions()
 		TheWritableGlobalData->m_jpegQuality = quality;
 	}
 
-		// Set Observer Stats Font Size
-	val = pref->getObserverStatsFontSize();
-	if (val >= 0)
-	{
-		AsciiString prefString;
-		prefString.format("%d", val);
-		(*pref)["ObserverStatsFontSize"] = prefString;
-		TheInGameUI->initObserverOverlay();
-	}
+	// The observer stats font size lives in client.json. The overlay is set up again with it.
+	TheInGameUI->initObserverOverlay();
 
 	//-------------------------------------------------------------------------------------------------
 

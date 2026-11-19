@@ -32,10 +32,12 @@
 #include "Common/GameCommon.h"
 #include "Common/GameSounds.h"
 #include "Common/GlobalData.h"
-#include "Common/OptionPreferences.h"
 #include "GameClient/DebugDisplay.h"
 #include "GameClient/VideoPlayer.h"
 #include "GameClient/View.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInit.h"
+#endif
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -1368,8 +1370,8 @@ void OpenALAudioManager::audioDebugDisplay(DebugDisplayInterface *display, void 
 
 Bool isOpenALMediaSelected()
 {
-#if defined(RTS_HAS_LEGACY_MEDIA)
-    static const Bool selected = !OptionPreferences().getLegacyMediaEnabled();
+#if defined(RTS_HAS_LEGACY_MEDIA) && defined(GENONLINE)
+    static const Bool selected = !GenOnlineServicesManager::Settings.Media_UseLegacy();
     return selected;
 #else
     return TRUE;

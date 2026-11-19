@@ -108,6 +108,9 @@
 #include "GameNetwork/GameSpy/GameResultsThread.h"
 #include "GameNetwork/Online/OnlineProviderFactory.h"
 #include "GameNetwork/Online/IOnlineGameHooks.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInit.h"
+#endif
 
 #include "Common/version.h"
 
@@ -465,6 +468,13 @@ void GameEngine::init()
 		DEBUG_ASSERTCRASH(TheWritableGlobalData, ("TheWritableGlobalData expected to be created"));
 		initSubsystem(TheWritableGlobalData, "TheWritableGlobalData", TheWritableGlobalData, &xferCRC, "Data\\INI\\Default\\GameData", "Data\\INI\\GameData");
 		TheWritableGlobalData->parseCustomDefinition();
+
+#if defined(GENONLINE)
+		// The user data folder is final once both GameData files are parsed, Generals takes its leaf name from the second one.
+		// The settings that were in Options.ini move to client.json here and the global data takes their values again.
+		GenOnlineServicesManager::Settings.MoveOptionsIniSettings();
+		TheWritableGlobalData->applyGenOnlineClientSettings();
+#endif
 
 		// Init sentry ASAP to catch early crashes
 		GetOnlineGameHooks()->onGlobalDataLoaded();

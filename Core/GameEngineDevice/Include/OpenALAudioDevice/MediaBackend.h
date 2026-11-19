@@ -20,5 +20,5 @@
 
 #include "Lib/BaseType.h"
 
-// True unless Options.ini has LegacyMedia = yes in a build that also has Miles and Bink. The value is read once per run.
+// True unless client.json has media.legacy set to true in a build that also has Miles and Bink. The value is read once per run.
 Bool isOpenALMediaSelected();

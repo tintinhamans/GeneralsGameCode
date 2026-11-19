@@ -29,6 +29,17 @@
 
 #include "GameClient/InGameUI.h"
 
+// TheSuperHackers @tweak Introduces the SCROLL_MULTIPLIER for all scrolling to
+//
+//  1. bring the RMB scroll speed back to how it was at 30 FPS in the retail game version
+//  2. increase the upper limit of the Scroll Factor when set from the Options Menu (0.20 to 2.90 instead of 0.10 to 1.45)
+//  3. increase the scroll speed for Edge/Key scrolling to better fit the high speeds of RMB scrolling
+//
+// The multiplier of 2 was logically chosen because originally the Scroll Factor did practically not affect the RMB scroll speed
+// and because the default Scroll Factor is/was 0.5, it needs to be doubled to get to a neutral 1x multiplier.
+
+constexpr const Real SCROLL_MULTIPLIER = 2.0f;
+
 //-----------------------------------------------------------------------------
 // TheSuperHackers @feature The Screen Edge Scrolling can now be enabled or
 // disabled depending on the App being Windowed or Fullscreen.
