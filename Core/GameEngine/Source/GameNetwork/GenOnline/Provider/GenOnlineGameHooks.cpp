@@ -109,6 +109,7 @@ void GenOnlineGameHooks::onGlobalDataLoaded()
 void GenOnlineGameHooks::loadSettings()
 {
 	GenOnlineServicesManager::Settings.Initialize();
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Services: %s, chosen by %s", GenOnlineServicesManager::EnvironmentName(), GenOnlineServicesManager::EnvironmentReason());
 	TheFileSystem->setExcludedPaths(GenOnlineServicesManager::Settings.DataPacks_UserExcludePaths());
 }
 
