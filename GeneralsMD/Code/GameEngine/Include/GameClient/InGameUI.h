@@ -822,6 +822,8 @@ public:  // ********************************************************************
 	void setDrawRMBScrollAnchor(Bool b) { m_drawRMBScrollAnchor = b; }
 	void setMoveRMBScrollAnchor(Bool b) { m_moveRMBScrollAnchor = b; }
 
+	Int getHudAnchorBottom() const;	///< screen y just below the inline HUD line, 0 when nothing draws at the anchor
+
 	// The colour of an action line says what the order is for.
 	enum ActionLineKind
 	{

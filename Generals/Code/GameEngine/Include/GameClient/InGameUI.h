@@ -579,6 +579,8 @@ public:  // ********************************************************************
 	void setDrawRMBScrollAnchor(Bool b) { m_drawRMBScrollAnchor = b; }
 	void setMoveRMBScrollAnchor(Bool b) { m_moveRMBScrollAnchor = b; }
 
+	Int getHudAnchorBottom() const;	///< screen y just below the inline HUD line, 0 when nothing draws at the anchor
+
 	void showReplayControls();
 	void hideReplayControls();
 	void toggleReplayControls();

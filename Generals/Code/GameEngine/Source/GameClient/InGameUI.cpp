@@ -3762,6 +3762,14 @@ void InGameUI::postDraw()
 
 		x = m_messagePosition.x;
 		y = m_messagePosition.y;
+
+		// the messages start under the command group box while it shows
+		const Int commandGroupBottom = TheControlBar ? TheControlBar->getCommandGroupBarBottom() : 0;
+		if( commandGroupBottom > 0 )
+		{
+			y = max( y, commandGroupBottom + COMMAND_GROUP_SCREEN_MARGIN );
+		}
+
 		for( i = MAX_UI_MESSAGES - 1; i >= 0; i-- )
 		{
 
@@ -6180,6 +6188,32 @@ void InGameUI::drawSystemTime(Int &x, Int &y)
 	{
 		m_systemTimeString->draw(m_systemTimePosition.x, m_systemTimePosition.y, m_systemTimeColor, m_systemTimeDropColor);
 	}
+}
+
+// the font height, since a string has no text until its first draw
+static Int getHudStringBottom(DisplayString *string)
+{
+	GameFont *font = string ? string->getFont() : nullptr;
+	return font ? kHudAnchorY + font->height : 0;
+}
+
+Int InGameUI::getHudAnchorBottom() const
+{
+	Int bottom = 0;
+	if (m_networkLatencyPointSize > 0 && TheGameLogic && TheGameLogic->isInMultiplayerGame() && isAtHudAnchorPos(m_networkLatencyPosition))
+	{
+		bottom = max(bottom, getHudStringBottom(m_networkLatencyString));
+	}
+	if (m_renderFpsPointSize > 0 && isAtHudAnchorPos(m_renderFpsPosition))
+	{
+		bottom = max(bottom, getHudStringBottom(m_renderFpsString));
+		bottom = max(bottom, getHudStringBottom(m_renderFpsLimitString));
+	}
+	if (m_systemTimePointSize > 0 && isAtHudAnchorPos(m_systemTimePosition))
+	{
+		bottom = max(bottom, getHudStringBottom(m_systemTimeString));
+	}
+	return bottom;
 }
 
 void InGameUI::drawGameTime()

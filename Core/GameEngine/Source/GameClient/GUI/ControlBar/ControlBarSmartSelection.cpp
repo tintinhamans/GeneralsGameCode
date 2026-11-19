@@ -367,28 +367,41 @@ Bool ControlBar::getCameoRowHousing( IRegion2D *housing, Bool *closed ) const
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Every piece of the housing whose outer rect runs from x0, y0 to x1, y1. A closed housing gets
-	* a bottom edge of the top edge's slices upside down; the clip decides which part of it lands. */
+/** Every piece of the housing whose outer rect runs from x0, y0 to x1, y1, the fill at the art's
+	* scale and the edges and corners at frameScale. A closed housing gets a bottom edge of the top
+	* edge's slices upside down; the clip decides which part of it lands. */
 //-------------------------------------------------------------------------------------------------
-static void drawHousingPieces( const Image *source, const Coord2D &scale, Int x0, Int y0, Int x1, Int y1,
-															 Bool closed, IRegion2D clip )
+static void drawHousingPieces( const Image *source, const Coord2D &scale, const Coord2D &frameScale,
+															 Int x0, Int y0, Int x1, Int y1, Bool closed, IRegion2D clip )
 {
-	const Int borderX = scaleArt( FRAME_THICKNESS_X, scale.x );
-	const Int borderY = scaleArt( FRAME_THICKNESS_Y, scale.y );
+	const Int borderX = scaleArt( FRAME_THICKNESS_X, frameScale.x );
+	const Int borderY = scaleArt( FRAME_THICKNESS_Y, frameScale.y );
 	const Int sideBottom = closed ? y1 - borderY : y1;
 	TheDisplay->setClipRegion( &clip );
 	drawFrameTiles( source, FRAME_FILL, scale, x0 + borderX, y0 + borderY, x1 - borderX, sideBottom, FALSE, clip );
-	drawFrameTiles( source, FRAME_TOP, scale, x0 + borderX, y0, x1 - borderX, y0 + borderY, FALSE, clip );
-	drawFrameTiles( source, FRAME_LEFT, scale, x0, y0 + borderY, x0 + borderX, sideBottom, FALSE, clip );
-	drawFrameTiles( source, FRAME_RIGHT, scale, x1 - borderX, y0 + borderY, x1, sideBottom, FALSE, clip );
-	drawFrameTiles( source, FRAME_TOP_LEFT, scale, x0, y0, x0 + borderX, y0 + borderY, FALSE, clip );
-	drawFrameTiles( source, FRAME_TOP_RIGHT, scale, x1 - borderX, y0, x1, y0 + borderY, FALSE, clip );
+	drawFrameTiles( source, FRAME_TOP, frameScale, x0 + borderX, y0, x1 - borderX, y0 + borderY, FALSE, clip );
+	drawFrameTiles( source, FRAME_LEFT, frameScale, x0, y0 + borderY, x0 + borderX, sideBottom, FALSE, clip );
+	drawFrameTiles( source, FRAME_RIGHT, frameScale, x1 - borderX, y0 + borderY, x1, sideBottom, FALSE, clip );
+	drawFrameTiles( source, FRAME_TOP_LEFT, frameScale, x0, y0, x0 + borderX, y0 + borderY, FALSE, clip );
+	drawFrameTiles( source, FRAME_TOP_RIGHT, frameScale, x1 - borderX, y0, x1, y0 + borderY, FALSE, clip );
 	if( closed )
 	{
-		drawFrameTiles( source, FRAME_TOP, scale, x0 + borderX, sideBottom, x1 - borderX, y1, TRUE, clip );
-		drawFrameTiles( source, FRAME_TOP_LEFT, scale, x0, sideBottom, x0 + borderX, y1, TRUE, clip );
-		drawFrameTiles( source, FRAME_TOP_RIGHT, scale, x1 - borderX, sideBottom, x1, y1, TRUE, clip );
+		drawFrameTiles( source, FRAME_TOP, frameScale, x0 + borderX, sideBottom, x1 - borderX, y1, TRUE, clip );
+		drawFrameTiles( source, FRAME_TOP_LEFT, frameScale, x0, sideBottom, x0 + borderX, y1, TRUE, clip );
+		drawFrameTiles( source, FRAME_TOP_RIGHT, frameScale, x1 - borderX, sideBottom, x1, y1, TRUE, clip );
 	}
+}
+
+//-------------------------------------------------------------------------------------------------
+/** The edge and corner scale at framePercent of the art's, kept to at least one pixel of thickness. */
+//-------------------------------------------------------------------------------------------------
+static Coord2D getFrameScale( const Coord2D &scale, Int framePercent )
+{
+	// the float reciprocals round up, so a clamped edge still spans one whole pixel
+	Coord2D frameScale;
+	frameScale.x = MAX( scale.x * ( framePercent / 100.0f ), 1.0f / FRAME_THICKNESS_X );
+	frameScale.y = MAX( scale.y * ( framePercent / 100.0f ), 1.0f / FRAME_THICKNESS_Y );
+	return frameScale;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -404,7 +417,7 @@ static void prepareFrameSlice( const Image *source )
 }
 
 //-------------------------------------------------------------------------------------------------
-Bool ControlBar::getCameoFrameInset( ICoord2D *inset ) const
+Bool ControlBar::getCameoFrameInset( ICoord2D *inset, Int framePercent ) const
 {
 	Coord2D scale;
 	if( findFramePart( &scale ) == nullptr )
@@ -413,15 +426,16 @@ Bool ControlBar::getCameoFrameInset( ICoord2D *inset ) const
 		inset->y = 0;
 		return FALSE;
 	}
-	inset->x = scaleArt( FRAME_THICKNESS_X + FRAME_PADDING, scale.x );
-	inset->y = scaleArt( FRAME_THICKNESS_Y + FRAME_PADDING, scale.y );
+	const Coord2D frameScale = getFrameScale( scale, framePercent );
+	inset->x = scaleArt( FRAME_THICKNESS_X, frameScale.x ) + scaleArt( FRAME_PADDING, scale.x );
+	inset->y = scaleArt( FRAME_THICKNESS_Y, frameScale.y ) + scaleArt( FRAME_PADDING, scale.y );
 	return TRUE;
 }
 
 //-------------------------------------------------------------------------------------------------
-/** A closed housing over the rect, drawn whole. */
+/** A closed housing over the rect, drawn whole, its frame at framePercent of the art's thickness. */
 //-------------------------------------------------------------------------------------------------
-void ControlBar::drawCameoFrame( const IRegion2D &rect )
+void ControlBar::drawCameoFrame( const IRegion2D &rect, Int framePercent )
 {
 	Coord2D scale;
 	const ControlBarSchemeImage *part = findFramePart( &scale );
@@ -432,7 +446,7 @@ void ControlBar::drawCameoFrame( const IRegion2D &rect )
 
 	prepareFrameSlice( part->m_image );
 	TheDisplay->beginBatch();
-	drawHousingPieces( part->m_image, scale, rect.lo.x, rect.lo.y, rect.hi.x, rect.hi.y, TRUE, rect );
+	drawHousingPieces( part->m_image, scale, getFrameScale( scale, framePercent ), rect.lo.x, rect.lo.y, rect.hi.x, rect.hi.y, TRUE, rect );
 	TheDisplay->endBatch();
 	TheDisplay->enableClipping( FALSE );
 }
@@ -459,7 +473,7 @@ void ControlBar::drawCameoRowHousing( Bool overBar )
 	}
 	if( closed )
 	{
-		drawCameoFrame( housing );
+		drawCameoFrame( housing, 100 );
 		return;
 	}
 
@@ -477,7 +491,7 @@ void ControlBar::drawCameoRowHousing( Bool overBar )
 	if( !overBar )
 	{
 		clip = housing;
-		drawHousingPieces( source, scale, x0, y0, x1, y1, FALSE, clip );
+		drawHousingPieces( source, scale, scale, x0, y0, x1, y1, FALSE, clip );
 	}
 	else
 	{
@@ -493,14 +507,14 @@ void ControlBar::drawCameoRowHousing( Bool overBar )
 		clip.hi.x = MIN( x1, tabLeft );
 		if( clip.lo.x < clip.hi.x )
 		{
-			drawHousingPieces( source, scale, x0, y0, x1, y1, FALSE, clip );
+			drawHousingPieces( source, scale, scale, x0, y0, x1, y1, FALSE, clip );
 		}
 
 		clip.lo.x = MAX( x0, tabRight );
 		clip.hi.x = x1;
 		if( clip.lo.x < clip.hi.x )
 		{
-			drawHousingPieces( source, scale, x0, y0, x1, y1, FALSE, clip );
+			drawHousingPieces( source, scale, scale, x0, y0, x1, y1, FALSE, clip );
 		}
 	}
 	TheDisplay->endBatch();

@@ -1030,9 +1030,12 @@ ControlBar::ControlBar()
 	{
 		m_commandGroupButtons[i] = nullptr;
 		m_commandGroupNumbers[i] = nullptr;
+		m_commandGroupImages[i] = nullptr;
 	}
 	m_commandGroupButtonSize.x = 0;
 	m_commandGroupButtonSize.y = 0;
+	m_commandGroupNumberColor = GAME_COLOR_UNDEFINED;
+	m_commandGroupNumberDropColor = GAME_COLOR_UNDEFINED;
 	m_scienceLayout = nullptr;
 	m_rightHUDWindow = nullptr;
 	m_rightHUDCameoWindow = nullptr;

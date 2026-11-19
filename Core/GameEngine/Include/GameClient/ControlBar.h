@@ -495,7 +495,8 @@ enum { MAX_SPECIAL_POWER_SHORTCUTS = 32};
 enum { MAX_SMART_SELECTION_BUTTONS = 16 };	///< TheSuperHackers @feature per type cameos above the command bar
 enum { MAX_COMMAND_GROUP_BUTTONS = 10 };		///< TheSuperHackers @feature one cameo per hotkey squad, in a box at the screen's top left corner
 enum { CAMEO_SCALE_PERCENT = 60 };								///< cameo size as a share of a command button
-enum { COMMAND_GROUP_CAMEO_SCALE_PERCENT = 46 };	///< command group cameo size as a share of a command button
+enum { COMMAND_GROUP_CAMEO_SCALE_PERCENT = 46 };	///< command group cameo width and box cell size as a share of a command button
+enum { COMMAND_GROUP_FRAME_PERCENT = 50 };				///< the command group box's frame thickness as a share of the housing's
 enum { COMMAND_GROUP_SCREEN_MARGIN = 4 };				///< pixels between the screen's top left corner and the command group box
 enum { CAMEO_ROW_GAP = 2 };									///< pixels between cameos in a row
 enum { MAX_CAMEO_COUNT_BADGE = 999 };				///< a count past this gets no badge, it would not fit
@@ -794,6 +795,8 @@ public:
 	void processCommandGroupClick( GameWindow *button );
 	/// the command group box draws its frame and the squad numbers under its cameos
 	void drawCommandGroupBar();
+	/// screen y just below the command group box, 0 while it is hidden
+	Int getCommandGroupBarBottom() const;
 	/// the bar draws the smart selection row's housing in two passes, around its own art, for the money tab
 	void drawCameoRowHousing( Bool overBar );
 
@@ -1006,9 +1009,9 @@ protected:
 	CameoRowLayout getCameoRowLayout() const;
 	Int getCameoStackBottom( const CameoRowLayout &layout ) const;
 	Bool getCameoRowHousing( IRegion2D *housing, Bool *closed ) const;
-	/// how far the Pro frame's edge and padding reach in from a housing's sides, or FALSE and zero without that art
-	Bool getCameoFrameInset( ICoord2D *inset ) const;
-	void drawCameoFrame( const IRegion2D &rect );
+	/// how far the Pro frame's edge, drawn at framePercent of its thickness, and padding reach in from a housing's sides, or FALSE and zero without that art
+	Bool getCameoFrameInset( ICoord2D *inset, Int framePercent ) const;
+	void drawCameoFrame( const IRegion2D &rect, Int framePercent );
 	UnsignedInt getCameoRowStatus() const;
 	void updateCameoRowBlocker();
 	void initSmartSelectionBar( const ICoord2D &commandButtonSize );
@@ -1139,6 +1142,9 @@ protected:
 	GameWindow *m_commandGroupButtons[ MAX_COMMAND_GROUP_BUTTONS ];
 	ICoord2D m_commandGroupButtonSize;
 	DisplayString *m_commandGroupNumbers[ MAX_COMMAND_GROUP_BUTTONS ];	///< squad number under each cameo
+	Image *m_commandGroupImages[ MAX_COMMAND_GROUP_BUTTONS ];					///< each cameo's picture cropped to the button's shape
+	Color m_commandGroupNumberColor;													///< the buttons' text colour from before the badge colour replaced it
+	Color m_commandGroupNumberDropColor;
 
 	GameWindow *m_commandWindows[ MAX_COMMANDS_PER_SET ];			///< command window controls for easy access
 	Int m_gridRow[ MAX_COMMANDS_PER_SET ];							///< each command window's row on the bar, for grid hotkeys
