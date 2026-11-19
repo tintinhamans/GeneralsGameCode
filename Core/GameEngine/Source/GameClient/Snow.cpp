@@ -111,6 +111,9 @@ void SnowManager::getWind(Real *directionDegrees, Real *speed, Real *gust) const
 void SnowManager::reset()
 {
 	m_isVisible = TRUE;	//default to showing if it's enabled via INI.
+	// Ronin @bugfix 19/11/2026 DX9: the map's wind ends with the map - GameLogic::reset has already dropped its Weather override.
+	if (TheWeatherSetting != nullptr)
+		setWind(TheWeatherSetting->m_snowWindDirection, TheWeatherSetting->m_snowWindSpeed, TheWeatherSetting->m_snowWindGust);
 }
 
 SnowManager::~SnowManager()
