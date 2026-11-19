@@ -982,10 +982,10 @@ namespace
 		{
 			out->mutable_endpoint()->set_relayed(true);	// the address the client holds would be the relay's, so none is exported
 		}
-		else if (connection.m_hSteamConnection != k_HSteamNetConnection_Invalid)
+		else if (connection.GetSteamConnection() != k_HSteamNetConnection_Invalid)
 		{
 			SteamNetConnectionInfo_t info;
-			if (SteamNetworkingSockets()->GetConnectionInfo(connection.m_hSteamConnection, &info) && !info.m_addrRemote.IsIPv6AllZeros())
+			if (SteamNetworkingSockets()->GetConnectionInfo(connection.GetSteamConnection(), &info) && !info.m_addrRemote.IsIPv6AllZeros())
 			{
 				char ip[SteamNetworkingIPAddr::k_cchMaxString];
 				info.m_addrRemote.ToString(ip, sizeof(ip), false);

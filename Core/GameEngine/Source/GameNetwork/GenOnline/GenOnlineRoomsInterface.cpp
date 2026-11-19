@@ -12,6 +12,7 @@
 #include "GameNetwork/GenOnline/GenOnlineModeration.h"
 #include "GameNetwork/GenOnline/json.hpp"
 #include "GameNetwork/GenOnline/JsonHelpers.h"
+#include "GameNetwork/PeerTransport/PeerRouteLabel.h"
 #include "../GenOnlineInit.h"
 #include "../HTTP/HTTPManager.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
@@ -413,7 +414,16 @@ void WebSocket::OnHubReady()
 
 void WebSocket::SendPeerTransports(bool bForce)
 {
-	const std::string transport = GenOnlinePluginHost::Transport::GetName();
+	// /net transport gns offers no plugin transport. A change of the setting shows as a changed list and sends it on the next tick.
+	extern int g_transportOverride;
+	std::vector<std::string> available;
+	const std::string pluginTransport = GenOnlinePluginHost::Transport::GetName();
+	if (!pluginTransport.empty())
+	{
+		available.push_back(pluginTransport);
+	}
+	const std::vector<std::string> offered = FilterOfferedTransports(available, g_transportOverride);
+	const std::string transport = offered.empty() ? std::string() : offered.front();
 	if (!bForce && m_lastPeerTransports.has_value() && *m_lastPeerTransports == transport)
 	{
 		return;

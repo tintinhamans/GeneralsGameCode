@@ -4,7 +4,6 @@
 #include <ws2ipdef.h>
 #include <chrono>
 #include <mutex>
-#include <steam/steamnetworkingcustomsignaling.h>
 #include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
 #include "GameNetwork/GenOnline/MeshConnectionTimeoutPolicy.h"
 #include "Lib/BaseType.h"
@@ -13,41 +12,26 @@
 #include "GameNetwork/GenOnline/PacketFeedback.h"
 #include "GameNetwork/GenOnline/MatchKeys.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeConnectionTimeline.h"
+#include "GameNetwork/PeerTransport/GnsPeerTransport.h"
+#include "GameNetwork/PeerTransport/PluginPeerTransport.h"
+#include "GameNetwork/PeerTransport/GnsPeerNetwork.h"
+#include "GameNetwork/PeerTransport/PeerRouteLabel.h"
 
 class NetRoom_ChatMessagePacket;
-
-// trivial signalling client interface
-class ISignalingClient
-{
-public:
-	virtual ISteamNetworkingConnectionSignaling* CreateSignalingForConnection(const SteamNetworkingIdentity& identityPeer, SteamNetworkingErrMsg& errMsg) = 0;
-
-	virtual void Poll() = 0;
-
-	/// Disconnect from the server and close down our polling thread.
-	virtual void Release() = 0;
-};
-
-enum class EConnectionType
-{
-	Unknown = -1,
-	BuiltIn_ValveSockets = 0,
-	MiddlewarePluginGeneric = 1
-};
 
 class NetworkMesh;
 class PlayerConnection
 {
 public:
+	// A connection without an attempt behaves as a GameNetworkingSockets connection without a handle.
  	PlayerConnection()
+		: m_transport(std::make_unique<GnsPeerTransport>(-1, k_HSteamNetConnection_Invalid))
  	{
-		m_ConnectionType = EConnectionType::Unknown;
-        m_hSteamConnection = k_HSteamNetConnection_Invalid;
-        m_strMiddlewareID = std::string("NOT SET");
  	}
 
+	explicit PlayerConnection(int64_t userID);	///< A connection to the user without an attempt.
 	PlayerConnection(int64_t userID, HSteamNetConnection hSteamConnection);
-	PlayerConnection(int64_t userID, const char* szMiddlewareID);
+	PlayerConnection(int64_t userID, const PluginPeerTransportApi& pluginApi, const char* szMiddlewareID);
 
 	EConnectionState GetState() const { return m_State; }
 
@@ -60,10 +44,11 @@ public:
 	void TickProbe(int64_t nowMs);
 	void HandleProbe(const uint8_t* payload, size_t len, int64_t arrivalMs);
 	void ResetProbe();
-	static int64_t GetArrivalMs(const SteamNetworkingMessage_t* msg);	///< transport receive time in steady_clock ms
 	ConnectionStats m_probeStats;
 
 	void Close();
+	void CloseTransport(const char* szReason);	///< Closes the connection of the transport when it can send.
+	void ForgetTransport();	///< Drops the connection of the transport without closing it.
 
 	bool IsIPV4();
 	bool IsDirect()
@@ -80,7 +65,11 @@ public:
 	}
 
 
-	int Recv(SteamNetworkingMessage_t** pMsg, int maxMessages = 255);
+	/// False when the packets of the transport arrive through the shared plugin queue, see NetworkMesh::ReceivePluginPackets.
+	bool ReceivesPerConnection() const { return m_transport->ReceivesPerConnection(); }
+	/// Hands up to maxFrames received packets to handler, returns the number taken or -1 without a connection.
+	int ReceiveFrames(int maxFrames, const PeerFrameHandler& handler) { return m_transport->Receive(maxFrames, handler); }
+	void FlushTransport() { m_transport->Flush(); }
 
 	// the p75 probe round trip of the stats window, -1 with too few samples: a spike or a lossy spell must not set the start run ahead
 	int GetSeedLatency(int minSamples = k_seedMinSamples) const
@@ -101,12 +90,20 @@ public:
 	std::string GetConnectionType();
 
 	bool UsesPluginTransport() const;
+	std::string GetTransportLabel() const { return m_transport->GetLabel(); }
+	/// The transport and route for the user interface, such as "GNS direct" or "EOS relay", see PeerRouteLabel.
+	std::string GetRouteLabel() const;
+	/// The route label with the IP version of a GNS connection for the dev view, see PeerPathLabel.
+	std::string GetPathLabel() const;
+
+	// The GameNetworkingSockets handle of the connection, invalid on another transport.
+	HSteamNetConnection GetSteamConnection() const;
+	void SetSteamConnection(HSteamNetConnection hSteamConnection);	///< Has no effect on another transport.
 
 	void UpdateState(EConnectionState newState, NetworkMesh* pOwningMesh);
 	void SetDisconnected(bool bWasError, NetworkMesh* pOwningMesh, bool bIsRetrying);
 	
 	int64_t m_userID = -1;
-	EConnectionType m_ConnectionType = EConnectionType::Unknown;
 
 	EConnectionState m_State = EConnectionState::NOT_CONNECTED;
 	
@@ -146,15 +143,11 @@ public:
 	std::chrono::steady_clock::time_point m_connectedSinceTime = (std::chrono::steady_clock::time_point::min)();
 	ConnectionRating::State m_rating;
 
-	// Only set for Steam connections
-	HSteamNetConnection m_hSteamConnection = k_HSteamNetConnection_Invalid;
-
-	// Only set for MW connections
-	std::string m_strMiddlewareID = std::string("NOT SET");
-
 	void LiteUpdateForAC();
 
 private:
+	PeerTransportSlot m_transport;	///< Never empty.
+
 	static constexpr size_t k_probeRingSize = 64;
 	static constexpr uint16_t k_noProbeSeq = 0xFFFF;
 
@@ -179,7 +172,7 @@ struct QueuedGamePacket
 	int64_t m_userID = -1;
 };
 
-// Owns the process-wide GameNetworkingSockets library lifetime.
+// Runs the process-wide GameNetworkingSockets library with the Generals Online settings and listener.
 class NetworkMeshLibrary
 {
 public:
@@ -190,13 +183,10 @@ public:
 	// Tears the library down. Safe to call when not initialized.
 	static void Shutdown();
 
-	static bool IsInitialized() { return s_bInitialized; }
+	static bool IsInitialized() { return GnsPeerLibrary::IsInitialized(); }
 
 	// Drives SteamNetworkingSockets()->RunCallbacks(), independent of NetworkMesh lifetime.
 	static void Tick();
-
-private:
-	static bool s_bInitialized;
 };
 
 class NetworkMesh
@@ -207,12 +197,6 @@ public:
 	~NetworkMesh()
 	{
 		Disconnect();
-
-		if (m_pSignaling != nullptr)
-		{
-			delete m_pSignaling;
-			m_pSignaling = nullptr;
-		}
 	}
 
 	void Flush();
@@ -282,10 +266,10 @@ public:
 	// A packet whose sender has no plugin connection is dropped. Returns the number of packets handed to handler.
 	using PluginPacketHandler = std::function<void(PlayerConnection& connection, const uint8_t* data, uint32_t len, int64_t arrivalMs)>;
 	int ReceivePluginPackets(int maxPackets, const PluginPacketHandler& handler);
+	bool HasPluginPackets() const;	///< True when the shared plugin queue holds a packet.
 
-	void ApplyConnectionTimeouts(HSteamNetConnection connection, int64_t userID);
-	// Applies the ICE settings of the step of the pair to an incoming connection before it is accepted.
-	void ApplyConnectionStep(HSteamNetConnection connection, int64_t userID);
+	// The timeouts and the ICE settings of the step of the pair for an incoming connection before it is accepted.
+	GnsIncomingSetup GetIncomingSetup(int64_t userID);
 	void StartConnectionSignalling(const char* szMiddlewareID, int64_t remoteUserID, uint16_t preferredPort, const GenOnlineRealtime::ConnectionStep& step);
 
 	// Ends the open attempt of a timed step, reports it failed when bReport is set and asks the hub for the next step then.
@@ -303,7 +287,8 @@ public:
 	// false if construction failed; callers must not use a mesh that failed to initialize.
 	bool IsInitialized() const { return m_bInitialized; }
 
-	HSteamListenSocket GetListenSocketHandle() const { return m_hListenSock; }
+	HSteamListenSocket GetListenSocketHandle() const { return m_gns.GetListenSocket(); }
+	GnsPeerNetwork& GetGnsNetwork() { return m_gns; }
 
 	std::map<int64_t, PlayerConnection>& GetAllConnections()
 	{
@@ -344,14 +329,13 @@ private:
 	std::mutex m_pendingStateUpdatesMutex;
 	std::vector<std::pair<int64_t, EConnectionState>> m_vecPendingStateUpdates;
 
-	ISignalingClient* m_pSignaling = nullptr;
-
-	HSteamListenSocket m_hListenSock = k_HSteamListenSocket_Invalid;
+	GnsPeerNetwork m_gns;	///< The listen socket, the custom signalling and the GameNetworkingSockets settings of this lobby.
 
 	bool m_bDisconnected = false;
 
 	bool m_bUsedPluginTransport = false;	///< A pair of this mesh used the plugin transport.
-	bool CreateListenSocket();
+	// Closes the connection of a pair that restarts, on any transport. A single-direction connection breaks signalling.
+	void CloseForRestart(int64_t remoteUserID, PlayerConnection& existing, bool bNextIsPlugin);
 	void DropParkedSignalling(int64_t remoteUserID);
 	void DropPendingStateUpdates(int64_t userID);
 
@@ -423,12 +407,6 @@ private:
 	int CountSyncMissing(int stage, int64_t nowMs, int& total);	///< start players still to be heard from, players that left do not count
 	void FinishSyncedStart(int stage, const char* szReason, int64_t nowMs);
 
-	std::string m_strTurnUsername;
-	std::string m_strTurnToken;
-	std::string m_strTurnUsernameString;
-	std::string m_strTurnTokenString;
-	std::string m_strTurnServerList;
-
 	struct PendingSignalling
 	{
 		std::string strMiddlewareID;
@@ -438,9 +416,4 @@ private:
 	};
 	bool m_bAwaitingTurnCredentials = false;
 	std::vector<PendingSignalling> m_vecSignallingAwaitingTurn;
-
-	// k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_* for this lobby's connections.
-	int m_iceEnable = 0;
-	int m_iceImplementation = 2;
-	int m_reconnectTimeoutMs = MeshConnectionTimeoutPolicy::ReconnectTimeoutMs;
 };
