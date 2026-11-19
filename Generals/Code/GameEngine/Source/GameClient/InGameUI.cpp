@@ -3763,7 +3763,8 @@ void InGameUI::postDraw()
 		x = m_messagePosition.x;
 		y = m_messagePosition.y;
 
-		// the messages start under the command group box while it shows
+		// the messages start under the inline HUD line, and under the command group box while it shows
+		y = max( y, getHudAnchorBottom() );
 		const Int commandGroupBottom = TheControlBar ? TheControlBar->getCommandGroupBarBottom() : 0;
 		if( commandGroupBottom > 0 )
 		{

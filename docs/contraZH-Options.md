@@ -341,9 +341,10 @@ step the focus through the row.
 
 ### Command group row
 
-A row on the command bar frame with one cameo per non-empty command group (1-9, then 0). Each shows
-the group's most common unit, its number and live member count. Shown whenever any group has
-members.
+A box at the top left of the screen with one cameo per non-empty command group (1-9, then 0). Each
+shows the group's most common unit with its live member count, and the group's number under the
+cameo. Shown whenever any group has members. The box sits under the FPS, clock and latency readouts
+when they are at the top left, and in-game messages start under the box.
 
 * `SmartCommandGroup = Yes` - (No hides the row. `SmartSelection = No` hides it too.)
 

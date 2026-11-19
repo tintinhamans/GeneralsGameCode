@@ -393,14 +393,13 @@ static void drawHousingPieces( const Image *source, const Coord2D &scale, const 
 }
 
 //-------------------------------------------------------------------------------------------------
-/** The edge and corner scale at framePercent of the art's, kept to at least one pixel of thickness. */
+/** The edge and corner scale at framePercent of the art's. */
 //-------------------------------------------------------------------------------------------------
 static Coord2D getFrameScale( const Coord2D &scale, Int framePercent )
 {
-	// the float reciprocals round up, so a clamped edge still spans one whole pixel
 	Coord2D frameScale;
-	frameScale.x = MAX( scale.x * ( framePercent / 100.0f ), 1.0f / FRAME_THICKNESS_X );
-	frameScale.y = MAX( scale.y * ( framePercent / 100.0f ), 1.0f / FRAME_THICKNESS_Y );
+	frameScale.x = scale.x * ( framePercent / 100.0f );
+	frameScale.y = scale.y * ( framePercent / 100.0f );
 	return frameScale;
 }
 
