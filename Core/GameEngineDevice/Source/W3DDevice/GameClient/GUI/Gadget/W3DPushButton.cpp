@@ -448,6 +448,12 @@ static void drawButtonText( GameWindow *window, WinInstanceData *instData )
 		textPos.y = origin.y + size.y - height - 1;
 		drawTextPlate( textPos.x, textPos.y, width, height, CAMEO_PLATE_COLOR );
 	}
+	else if( BitIsSet( window->winGetStatus(), WIN_STATUS_COUNT_FOOTER ) )
+	{
+		// TheSuperHackers @feature A count under a framed icon sits bottom centre, clear of the frame
+		textPos.x = origin.x + (size.x / 2) - (width / 2);
+		textPos.y = origin.y + size.y - height - MAX( size.y / 32, 1 );
+	}
 	else if( BitIsSet( window->winGetStatus(), WIN_STATUS_SHORTCUT_BUTTON ) )
 	{
 		// Oh god... this is a total hack for shortcut buttons to handle rendering text top left corner...

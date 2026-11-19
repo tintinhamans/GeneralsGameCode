@@ -183,6 +183,11 @@ static const char *const TheQueueBarButtons[ QUEUE_BAR_BUTTON_COUNT ] =
 static std::vector<ObjectID> s_queueBarIdle[ QUEUE_BAR_BUTTON_COUNT ];
 // logic frame of the last scan
 static UnsignedInt s_queueBarFrame = ~0u;
+// frame each idle unit was first seen idle, as of the last scan and of the scan in progress
+static std::map<ObjectID, UnsignedInt> s_queueBarIdleSince;
+static std::map<ObjectID, UnsignedInt> s_queueBarIdleNow;
+// a unit shows once it has been idle this long, so a pause between targets does not count
+static const UnsignedInt QUEUE_BAR_IDLE_GRACE_FRAMES = LOGICFRAMES_PER_SECOND * 6;
 
 // ------------------------------------------------------------------------------------------------
 static NameKeyType queueBarButtonKey( Int index )
@@ -246,7 +251,19 @@ static void collectIdleUnit( Object *obj, void *userData )
 		return;
 	}
 
-	s_queueBarIdle[ category ].push_back( obj->getID() );
+	UnsignedInt now = TheGameLogic->getFrame();
+	UnsignedInt start = now;
+	std::map<ObjectID, UnsignedInt>::const_iterator it = s_queueBarIdleSince.find( obj->getID() );
+	if( it != s_queueBarIdleSince.end() )
+	{
+		start = it->second;
+	}
+	s_queueBarIdleNow[ obj->getID() ] = start;
+
+	if( now - start >= QUEUE_BAR_IDLE_GRACE_FRAMES )
+	{
+		s_queueBarIdle[ category ].push_back( obj->getID() );
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -256,7 +273,43 @@ static void resetQueueBar()
 	{
 		s_queueBarIdle[ i ].clear();
 	}
+	s_queueBarIdleSince.clear();
+	s_queueBarIdleNow.clear();
 	s_queueBarFrame = ~0u;
+}
+
+// ------------------------------------------------------------------------------------------------
+static void setQueueBarCount( GameWindow *button, size_t idle )
+{
+	if( !BitIsSet( button->winGetStatus(), WIN_STATUS_COUNT_FOOTER ) )
+	{
+		static NameKeyType commandButtonKey = TheNameKeyGenerator->nameToKey( "ControlBar.wnd:ButtonCommand01" );
+
+		// a button fresh from the layout takes the command group row's count font and colours
+		button->winSetStatus( WIN_STATUS_COUNT_FOOTER );
+		GameWindow *commandButton = TheWindowManager->winGetWindowFromId( nullptr, commandButtonKey );
+		if( commandButton != nullptr )
+		{
+			GameFont *font = commandButton->winGetFont();
+			if( font != nullptr )
+			{
+				button->winSetFont( font );
+			}
+			button->winSetEnabledTextColors( commandButton->winGetEnabledTextColor(), commandButton->winGetEnabledTextBorderColor() );
+			button->winSetHiliteTextColors( commandButton->winGetHiliteTextColor(), commandButton->winGetHiliteTextBorderColor() );
+			button->winSetDisabledTextColors( commandButton->winGetDisabledTextColor(), commandButton->winGetDisabledTextBorderColor() );
+		}
+	}
+
+	UnicodeString count;
+	if( idle > 0 && idle <= MAX_CAMEO_COUNT_BADGE )
+	{
+		count.format( L"%d", (Int)idle );
+	}
+	if( count != button->winGetText() )
+	{
+		GadgetButtonSetText( button, count );
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -289,7 +342,9 @@ static void updateQueueBar()
 			{
 				s_queueBarIdle[ i ].clear();
 			}
+			s_queueBarIdleNow.clear();
 			player->iterateObjects( collectIdleUnit, nullptr );
+			s_queueBarIdleSince.swap( s_queueBarIdleNow );
 			s_queueBarFrame = frame;
 		}
 	}
@@ -310,6 +365,10 @@ static void updateQueueBar()
 		if( button != nullptr && button->winIsHidden() != hide )
 		{
 			button->winHide( hide );
+		}
+		if( button != nullptr )
+		{
+			setQueueBarCount( button, s_queueBarIdle[ i ].size() );
 		}
 	}
 

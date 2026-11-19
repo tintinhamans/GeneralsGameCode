@@ -73,14 +73,16 @@ widest anti-air weapon. Wall pieces get their rings each. The D3D9 build draws t
 same shader as `SelectionCircle`, on cards with `ps_2_a`. Other builds and cards draw one ring at
 the wider of the two ranges.)
 * `QueueBar = No` - (Yes shows up to four buttons at the top right in game: infantry, vehicles,
-aircraft and support units. A button shows while the player has an idle unit of that kind. Clicking it
+aircraft and support units. A button shows while the player has an idle unit of that kind, with the
+number of them at its bottom centre in the font and colours of the command group row's count. Clicking it
 selects one idle unit and centres the camera on it, and clicking again steps to the next. `Shift` +
 click selects every idle unit of that kind without moving the camera. Support units are those with
 `IGNORES_SELECT_ALL`, such as radar vans, listening outposts and sentry drones; they show under
 Support only. Dozers, workers, supply gatherers, units off the map and units inside a transport or
 building are left out. An angry mob counts once.
 A unit is idle when its AI has no order and no target, so a parked jet with full ammo counts and one
-that is reloading does not. Hidden for observers and while the control bar is hidden. Also the Idle
+that is reloading does not. It shows after 6 seconds of unbroken idling, so a pause between targets
+does not count. Hidden for observers and while the control bar is hidden. Also the Idle
 unit tracker checkbox on the Interface tab. Applies on Accept.)
 * `ObjectDecals = Yes` - (No hides ground decals requested with `DisplayDecal`. Independent of shadow
 settings. Applies on Accept, including to objects already on the map.)
@@ -121,7 +123,9 @@ greyscale ring with alpha).
 * `QueueBar` needs mod-side windows in `ControlBar.wnd`: a second top-level window `QueueBarParent`
 (hidden, `SYSTEMCALLBACK = "QueueBarSystem"`) holding the push buttons `ButtonQueueBarInfantry`,
 `ButtonQueueBarVehicle`, `ButtonQueueBarAircraft` and `ButtonQueueBarSupport`. The layout sets their
-place, images and tooltips. Its checkbox needs `CheckQueueBar` in `OptionsMenu.wnd`.
+place, images and tooltips. The count is drawn bottom centre inside each button, so the button
+image should leave about a fifth of its height free under the icon.
+Its checkbox needs `CheckQueueBar` in `OptionsMenu.wnd`.
 
 ### Recommended detail level
 
