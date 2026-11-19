@@ -1055,10 +1055,12 @@ namespace
 		}
 		if (!ok)
 		{
-			printAscii(AsciiString("usage: lights [0|1] | locallighting <0|1> | save | load | defaults | intensity <0..8> | range <0.25..4> | small <0|1> | over <1..8> | boost <0..8> | view <0..6|9> | beams <0..4> | shafts <0..2> | rays <0..2> | rayturn <0|1> | lampwidth <0..4> | spill <0..1> | spillwide <1.2..4> | glows <0..4> | glowreach <0.25..4> | glowjoin <0..10> | coronas <0..4> | coronasize <0.25..4> | pools <0|1> | beamreach <1..3> | poolfill <0..4> | hotspot <0..0.9> | sunfill <0..1> | sunerase <0..8> | mapshadow <0..1> | reflect <0..2> | reflectground <0..1> | fresnel <0..4> | ssr <0|1> | bounce <0..2> | sunshafts <0..4> | shaftgaps <0.5..1> | shaftlayer <20..400> | shaftdust <0..4> | vibrance <0..2> | localcontrast <0..2> | nightvibrance <0..2> | nightcontrast <0..2> | fxlights <0..64> | fxstrength <0..4> | fxreach <0.25..4> | fxsmooth <0..0.95> | night... (as `night`) | lampmaps <0|1> | lampshadows <0..1> | lampbias <0..4> | lampself <0|1> | lampselfnear <0..0.5> | pointmaps <0|1> | pointsides <0|1>"), TRUE);
+			printAscii(AsciiString("usage: lights [0|1] | locallighting <0|1> | save | load | defaults | intensity <0..8> | range <0.25..4> | small <0|1> | over <1..8> | boost <0..8> | view <0..6|9> | beams <0..4> | shafts <0..2> | rays <0..2> | rayturn <0|1> | lampwidth <0..4> | spill <0..1> | spillwide <1.2..4> | glows <0..4> | glowreach <0.25..4> | glowjoin <0..10> | modellamps <0..4> | modelcore <0..1> | coronas <0..4> | coronasize <0.25..4> | pools <0|1> | beamreach <1..3> | poolfill <0..4> | hotspot <0..0.9> | sunfill <0..1> | sunerase <0..8> | mapshadow <0..1> | reflect <0..2> | reflectground <0..1> | fresnel <0..4> | ssr <0|1> | bounce <0..2> | sunshafts <0..4> | shaftgaps <0.5..1> | shaftlayer <20..400> | shaftdust <0..4> | vibrance <0..2> | localcontrast <0..2> | nightvibrance <0..2> | nightcontrast <0..2> | fxlights <0..64> | fxstrength <0..4> | fxreach <0.25..4> | fxsmooth <0..0.95> | night... (as `night`) | lampmaps <0|1> | lampshadows <0..1> | lampbias <0..4> | lampself <0|1> | lampselfnear <0..0.5> | pointmaps <0|1> | pointsides <0|1>"), TRUE);
 			printAscii(AsciiString("  beams: headlights and lamp cones as spot lights, their strength; 0 = the art's own beams, no lights; shafts: the beam in the air, drawn by the shader - its strength beside the light's, 0 = none; rays: soft rays from the lamp in that beam, 0 = the smooth cone; rayturn: 1 = they turn with the world as the camera goes round a beam, 0 = they stay with the view; lampwidth: how wide the beam leaves its lamp, in the art's own width there, 0 = from a point"), FALSE);
 			printAscii(AsciiString("  spill: the dim light around a beam's cone, its strength beside the cone's, 0 = a hard cone; spillwide: how wide it reaches, in cone widths"), FALSE);
 			printAscii(AsciiString("  glows: the lamp glows (street lamps, warning and runway lights) as point lights, their strength, 0 = none; glowreach: their reach; glowjoin: lamps this near each other (art units) light as one - a string of bulbs - each keeping its corona, 0 = each its own"), FALSE);
+			// Ronin @feature 30/10/2026 DX9: the converted models' lamps
+			printAscii(AsciiString("  modellamps: converted models' lamps (Data/INI/DX9ModelLamps.ini: idle, producing, research, after a unit), their strength, 0 = none; modelcore: where their light halves, in their reach - on the fixture as in Generals 2; 0 = the plateau the other lights have"), FALSE);
 			printAscii(AsciiString("  coronas: the lamp's own glow drawn by the shader, its strength, 0 = the art's glow textures; coronasize: its radius, in the art glow's own"), FALSE);
 			printAscii(AsciiString("  beamreach: how far a beam's light runs on surfaces, in the art cone's length (it fades all the way); poolfill: the light that stands in for a painted pool with no lamp near, 0 = none; hotspot: the share of a beam's cone at full strength, 0 = it fades from the axis out"), FALSE);
 			printAscii(AsciiString("  sunfill: how much of the sun's shadow a lamp fills on a mesh, 1 = all of it, 0 = the lamp only scales what the shadow left"), FALSE);
@@ -1091,7 +1093,8 @@ namespace
 		static const char *const groups[10][PANEL_COLUMN_ROWS] = {
 			{ "LIGHTS", "locallighting", "intensity", "range", "small", "over", "boost", "view", NULL },
 			{ "BEAMS", "beams", "shafts", "rays", "rayturn", "lampwidth", "spill", "spillwide", "beamreach", "hotspot", NULL },
-			{ "GLOWS", "glows", "glowreach", "glowjoin", "coronas", "coronasize", "pools", "poolfill", "searchlight", NULL },
+			{ "GLOWS", "glows", "glowreach", "glowjoin", "coronas", "coronasize", "pools", "poolfill", "searchlight", "modellamps", "modelcore",
+			  NULL },		// Ronin @feature 30/10/2026 DX9: the converted models' lamps
 			{ "EFFECTS", "fxlights", "fxstrength", "fxreach", "fxmerge", "fxflares", "fxfire", "fxsmooth", "pulsemin", "pulsefade", NULL },
 			{ "LAMP SHADOWS", "lampmaps", "lampshadows", "lampbias", "lampself", "lampselfnear", "pointmaps", "pointsides", NULL },
 			{ "LAMPS & SUN", "sunfill", "sunerase", "daysun", "dayshade", "sunmorning", "sunafternoon", "sunevening", "sunnight", NULL },
@@ -3813,10 +3816,10 @@ namespace
 		{
 			R3DLocalLights::Stats ls;
 			R3DLocalLights::getStats(&ls);
-			text.format(L"[LIGHT] on=%d  depth=%s  live=%d  drawn=%d  area=%.2f  taamask=%d  surf=%.2f/%.2f/%.2f  sunshade=%d  glows=%d  poolfill=%d  fx=%d/%d/%d",
+			text.format(L"[LIGHT] on=%d  depth=%s  live=%d  drawn=%d  area=%.2f  taamask=%d  surf=%.2f/%.2f/%.2f  sunshade=%d  glows=%d  models=%d  poolfill=%d  fx=%d/%d/%d",
 				ls.active ? 1 : 0, ls.active ? (ls.ownsDepth ? L"own" : L"shared") : L"none",
 				ls.live, ls.drawn, ls.coverage, ls.masked ? 1 : 0, ls.sceneLight[0], ls.sceneLight[1], ls.sceneLight[2], ls.sunShade,
-				ls.glows, ls.pools, ls.fx, ls.fxCandidates, ls.fxGlowing);
+				ls.glows, ls.modelLamps, ls.pools, ls.fx, ls.fxCandidates, ls.fxGlowing);
 			putRow(R3DDebugPanel::ROW_LIGHT, text, GameMakeColor(255, 190, 110, 255));
 		}
 		// Ronin @diagnostic 11/10/2026 DX9: [LIGHT2] - the beams as spot lights (art meshes skipped, models read); the lamp shadow
@@ -3931,7 +3934,7 @@ void R3DDebugPanel::update(void)
 		registerCommand("taa", "taa [0|1] | taa <knob> <v> - temporal AA; the [TAA] row shows live state", cmdTaa);
 		registerCommand("ssao", "ssao [0..3] | trees <auto|0|1> | view [0..4] | sun|bleed|colour <v> | save - quality (not saved); trees: AO on trees; view: 1 depth, 2 raw AO, 3 blurred AO, 4 the bleed; sun kept by save", cmdSsao);
 		registerCommand("shadows", "shadows [0..3] - shadow-map quality, 0 off (stencil shadows) .. 3 ultra (not saved)", cmdShadows);
-		registerCommand("lights", "lights [0|1] | save|load|defaults | intensity|range|small|over|boost|view|beams|shafts|rays|rayturn|lampwidth|spill|spillwide|glows|glowreach|glowjoin|coronas|coronasize|pools|beamreach|poolfill|hotspot|sunfill|sunerase|mapshadow|reflect|reflectground|fresnel|ssr|bounce|fxlights|fxstrength|fxreach|fxmerge|fxflares|fxfire|fxsmooth|pulsemin|pulsefade|searchlight|night*|daysun|dayshade|sun*|lampmaps|lampshadows|lampbias|lampself|lampselfnear|pointmaps|pointsides <v> - local lights per pixel from the scene depth; 0 = the old vertex paths; save keeps the knobs in DX9Lights.ini", cmdLights);
+		registerCommand("lights", "lights [0|1] | save|load|defaults | intensity|range|small|over|boost|view|beams|shafts|rays|rayturn|lampwidth|spill|spillwide|glows|glowreach|glowjoin|modellamps|modelcore|coronas|coronasize|pools|beamreach|poolfill|hotspot|sunfill|sunerase|mapshadow|reflect|reflectground|fresnel|ssr|bounce|fxlights|fxstrength|fxreach|fxmerge|fxflares|fxfire|fxsmooth|pulsemin|pulsefade|searchlight|night*|daysun|dayshade|sun*|lampmaps|lampshadows|lampbias|lampself|lampselfnear|pointmaps|pointsides <v> - local lights per pixel from the scene depth; 0 = the old vertex paths; save keeps the knobs in DX9Lights.ini", cmdLights);
 		registerCommand("glowfx", "glowfx - the glowing (additive) particle systems now: how many, how many on screen, the strongest by colour x alpha x size^2", cmdGlowFx);
 		registerCommand("night", "night [0|1] | night tint|lo|hi|floor|full|lift <v> - the night look and the dark lift: dim colour into one tint from the map's light, lamps keep theirs (at night; not saved)", cmdNight);
 		registerCommand("hdr", "hdr [0|1] | hdr sun <1..4> | hdr warm <0..1> | hdr white <1..2> | hdr spill <0..1> - HDR stage 1: a float scene, the sun lifted above 1, a tone curve (needs MSAA off; on / off: Options.ini DX9HDR; the rest: DX9Lights.ini)", cmdHdr);

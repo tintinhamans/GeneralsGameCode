@@ -106,6 +106,18 @@ float ease(float x)
     return x * x * x * (x * (x * 6.0f - 15.0f) + 10.0f);
 }
 
+// Ronin @feature 30/10/2026 DX9: how much of a light reaches dist. The engine's: full to its inner radius (c6.w), then eased out
+// (c5.w = 1 / (outer - inner)). A model lamp (c6.w < 0, R3DLocalLights): Generals 2's - on its fixture, halved at -c6.w, gone at its reach.
+float reachOf(float dist, float inner, float invSpan)
+{
+    if (inner >= 0.0f)
+        return ease(saturate(1.0f - (dist - inner) * invSpan));
+    float core  = -inner;
+    float outer = 1.0f / invSpan - core;
+    float d     = dist / core;
+    return ease(saturate(1.0f - dist / max(outer, 0.001f))) / (1.0f + d * d);
+}
+
 // Ronin @feature 09/10/2026 DX9: a spot's cone: the art's at full strength, inside a dim, wider spill (c30.w, c31.w) - a lamp's light does not
 // stop at a line (a hard disc showed on whatever a headlight touched). A point light (cosine -2) comes out as 1.
 float coneTerm(float cosA, float4 axis, float edge)
@@ -604,11 +616,11 @@ PS_OUTPUT main(float2 uv : TEXCOORD0)
     float3 P     = viewPosition(uv);
     float3 toL   = g_LightPos.xyz - P;
     float  dist  = length(toL);
-    float  reach = ease(saturate(1.0f - (dist - g_LightDiff.w) * g_LightPos.w));
+    float  reach = reachOf(dist, g_LightDiff.w, g_LightPos.w);
     reach *= coneTerm(dot(-toL / max(dist, 0.001f), g_LightAxis.xyz), g_LightAxis, g_LightAmb.w);
     float3 toP    = g_PrevPos.xyz - P;
     float  distP  = length(toP);
-    float  reachP = ease(saturate(1.0f - (distP - g_PrevDiff.w) * g_PrevPos.w));
+    float  reachP = reachOf(distP, g_PrevDiff.w, g_PrevPos.w);
     reachP *= coneTerm(dot(-toP / max(distP, 0.001f), g_PrevAxis.xyz), g_PrevAxis, g_PrevAmb.w);
 
     float3 result  = float3(0.0f, 0.0f, 0.0f);

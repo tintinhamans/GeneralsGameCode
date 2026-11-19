@@ -29,6 +29,9 @@
 #include "GameClient/ParticleSys.h"			// Ronin @feature 15/10/2026 DX9: item 7, glowing effects as lights
 #include "GameLogic/GameLogic.h"			// Ronin @bugfix 17/10/2026 DX9: a projectile's exhaust is lit at the projectile
 #include "GameLogic/Object.h"
+#include "GameClient/Drawable.h"				// Ronin @feature 30/10/2026 DX9: the model lamps - a building's state
+#include "GameClient/DrawableInfo.h"
+#include "GameLogic/Module/ProductionUpdate.h"
 #include "W3DDevice/GameClient/W3DScene.h"
 #include "W3DDevice/GameClient/R3DSsao.h"
 #include "W3DDevice/GameClient/R3DTaa.h"
@@ -1112,6 +1115,339 @@ static Bool lampSunk(MeshClass *mesh)
 	return (bb->top - t.Z > 0.5f * bb->jump) ? TRUE : FALSE;
 }
 
+// Ronin @feature 09/10/2026 DX9: once a frame - the water's mirror renders the scene again inside the same window. TRUE the first
+// time a mesh asks this frame.
+static Bool firstNoteThisFrame(const MeshClass *mesh)
+{
+	const UnsignedInt h = fixtureHash(mesh, 511);
+	SeenMesh *spot = NULL;
+	for (Int probe = 0; probe < 8 && spot == NULL; ++probe)
+	{
+		SeenMesh &s = s_seenMesh[(h + probe) & 511];
+		if (s.frame == s_fixFrame && s.mesh == mesh)
+			return FALSE;
+		if (s.frame != s_fixFrame)
+			spot = &s;
+	}
+	if (spot == NULL)
+		return FALSE;
+	spot->mesh  = mesh;
+	spot->frame = s_fixFrame;
+	return TRUE;
+}
+
+// Ronin @feature 30/10/2026 DX9: THE MODEL LAMPS. A converted model's lamps (Data/INI/DX9ModelLamps.ini, docs/tools/fbx2w3d.py): a
+// light each, no corona, switched by timelines per building state. Its marker mesh <model>.G2LAMPS says where the model stands.
+enum { LAMP_IDLE, LAMP_PRODUCING, LAMP_RESEARCH, LAMP_PRODUCED, LAMP_STATES };
+static const Int MAX_LAMP_SETS          = 64;
+static const Int MAX_LAMP_SET_NAMES     = 256;
+static const Int MAX_MODEL_LAMPS        = 1024;
+static const Int MAX_LAMP_TRACKS        = 2048;
+static const Int MAX_LAMP_KEYS          = 16384;
+static const Int MAX_FRAME_MODEL_LAMPS  = 256;
+static const Int MAX_LAMP_INSTANCES     = 256;		// a power of two
+struct LampSetName    { char name[40]; Int set; };
+struct LampSet        { Int firstLamp, lampCount, firstTrack, trackCount; };
+struct ModelLamp      { Vector3 pos; float colour[3]; float reach, corona; char pivot[16]; };	// Ronin @feature 17/11/2026 DX9: the model's own space, or its pivot's when one is named ("" = none); corona 0 = none
+struct LampTrack      { Int lamp, state; float length; Bool loop, linear; Int firstKey, keyCount; };
+struct FrameModelLamp { const void *mesh; Int index; Vector3 pos; float colour[3]; float reach, corona; };	// world; colour x strength
+struct LampInstance   { DrawableID id; UnsignedInt seen; Int state; UnsignedInt since; Bool doneWas; UnsignedInt produced; };
+static LampSetName		s_lampNames[MAX_LAMP_SET_NAMES];
+static LampSet			s_lampSets[MAX_LAMP_SETS];
+static ModelLamp		s_modelLamps[MAX_MODEL_LAMPS];
+static float			s_modelLampLevel[MAX_MODEL_LAMPS];
+static LampTrack		s_lampTracks[MAX_LAMP_TRACKS];
+static float			s_lampKeys[MAX_LAMP_KEYS * 2];		// time ms, strength
+static Int				s_lampNameCount = 0, s_lampSetCount = 0, s_modelLampCount = 0, s_lampTrackCount = 0, s_lampKeyCount = 0;
+static Bool				s_lampFileRead  = FALSE;
+static FrameModelLamp	s_frameModelLamps[MAX_FRAME_MODEL_LAMPS];
+static Int				s_frameModelLampCount = 0;
+static LampInstance		s_lampInstances[MAX_LAMP_INSTANCES];
+static float			s_modelLampStrength = 1.0f;			// `lights modellamps`
+// Ronin @feature 19/11/2026 DX9: 0.8, the spread nearest Generals 2's look.
+static float			s_modelLampCore = 0.8f;			// `lights modelcore`: where a lamp's light halves, in its reach; 0 = the plateau
+static Bool				s_modelLampsOn = FALSE;			// this frame they are lights (decided in beginFrame)
+
+// Ronin @feature 30/10/2026 DX9: the file, once, through the game's file system (a mod's .big can carry it). `;` comments.
+static void readModelLamps(void)
+{
+	s_lampFileRead = TRUE;
+	s_lampNameCount = s_lampSetCount = s_modelLampCount = s_lampTrackCount = s_lampKeyCount = 0;
+	File *file = (TheFileSystem != NULL) ? TheFileSystem->openFile("Data\\INI\\DX9ModelLamps.ini", File::READ | File::BINARY) : NULL;
+	if (file == NULL)
+		return;
+	const Int size = file->size();
+	char *text = new char[(size > 0 ? size : 0) + 1];
+	const Int got = (size > 0) ? file->read(text, size) : 0;
+	file->close();
+	text[(got > 0) ? got : 0] = 0;
+	static const char *const STATE_NAMES[LAMP_STATES] = { "idle", "producing", "research", "produced" };
+	const char *const SPACE = " \t\r";
+	Int set = -1;
+	for (char *line = text, *next = NULL; line != NULL && *line != 0; line = next)
+	{
+		next = strchr(line, '\n');
+		if (next != NULL)
+			*next++ = 0;
+		char *comment = strchr(line, ';');
+		if (comment != NULL)
+			*comment = 0;
+		const char *word = strtok(line, SPACE);
+		if (word == NULL)
+			continue;
+		if (_stricmp(word, "Model") == 0)
+		{
+			set = (s_lampSetCount < MAX_LAMP_SETS) ? s_lampSetCount++ : -1;
+			if (set < 0)
+				continue;
+			LampSet &ls = s_lampSets[set];
+			ls.firstLamp  = s_modelLampCount;
+			ls.lampCount  = 0;
+			ls.firstTrack = s_lampTrackCount;
+			ls.trackCount = 0;
+			for (const char *n = strtok(NULL, SPACE); n != NULL && s_lampNameCount < MAX_LAMP_SET_NAMES; n = strtok(NULL, SPACE))
+			{
+				LampSetName &ln = s_lampNames[s_lampNameCount++];
+				strncpy(ln.name, n, sizeof(ln.name) - 1);
+				ln.name[sizeof(ln.name) - 1] = 0;
+				ln.set = set;
+			}
+		}
+		else if (_stricmp(word, "Lamp") == 0 && set >= 0 && s_modelLampCount < MAX_MODEL_LAMPS)
+		{
+			float v[8];
+			Int n = 0;
+			const char *t = strtok(NULL, SPACE);
+			for (; t != NULL && n < 8; t = strtok(NULL, SPACE))
+				v[n++] = (float)atof(t);
+			if (n < 7)
+				continue;
+			ModelLamp &ml = s_modelLamps[s_modelLampCount++];
+			ml.pos.Set(v[0], v[1], v[2]);
+			ml.colour[0] = v[3];
+			ml.colour[1] = v[4];
+			ml.colour[2] = v[5];
+			ml.reach = v[6];
+			ml.corona = (n >= 8) ? v[7] : 0.0f;		// the lamp art's own radius round it
+			// Ronin @feature 17/11/2026 DX9: the token after the eighth number: the pivot the lamp rides (x y z measured from it).
+			strncpy(ml.pivot, (n >= 8 && t != NULL) ? t : "", sizeof(ml.pivot) - 1);
+			ml.pivot[sizeof(ml.pivot) - 1] = 0;
+			++s_lampSets[set].lampCount;
+		}
+		else if (_stricmp(word, "Track") == 0 && set >= 0 && s_lampTrackCount < MAX_LAMP_TRACKS)
+		{
+			const char *stateName = strtok(NULL, SPACE);
+			Int state = -1;
+			for (Int s = 0; stateName != NULL && s < LAMP_STATES; ++s)
+				if (_stricmp(stateName, STATE_NAMES[s]) == 0)
+					state = s;
+			float head[4];
+			Int n = 0;
+			for (const char *t = (n < 4) ? strtok(NULL, SPACE) : NULL; t != NULL; t = (n < 4) ? strtok(NULL, SPACE) : NULL)
+				head[n++] = (float)atof(t);
+			if (state < 0 || n < 4 || (Int)head[0] < 0 || (Int)head[0] >= s_lampSets[set].lampCount)
+				continue;
+			LampTrack &tr = s_lampTracks[s_lampTrackCount];
+			tr.lamp = (Int)head[0];
+			tr.state = state;
+			tr.length = head[1];
+			tr.loop = (head[2] != 0.0f) ? TRUE : FALSE;
+			tr.linear = (head[3] != 0.0f) ? TRUE : FALSE;
+			tr.firstKey = s_lampKeyCount;
+			tr.keyCount = 0;
+			for (const char *t = strtok(NULL, SPACE); t != NULL && s_lampKeyCount < MAX_LAMP_KEYS; t = strtok(NULL, SPACE))
+			{
+				const char *v = strtok(NULL, SPACE);
+				if (v == NULL)
+					break;
+				s_lampKeys[s_lampKeyCount * 2]     = (float)atof(t);
+				s_lampKeys[s_lampKeyCount * 2 + 1] = (float)atof(v);
+				++s_lampKeyCount;
+				++tr.keyCount;
+			}
+			if (tr.keyCount > 0)
+			{
+				++s_lampTrackCount;
+				++s_lampSets[set].trackCount;
+			}
+		}
+	}
+	delete [] text;
+}
+
+// Ronin @feature 30/10/2026 DX9: a timeline's strength t ms after its state began. A timeline that does not loop is over at its end.
+static float lampTrackValue(const LampTrack &tr, float t)
+{
+	if (tr.loop && tr.length > 0.0f)
+		t = fmodf(t, tr.length);
+	else if (t >= tr.length)
+		return 0.0f;
+	const float *k = &s_lampKeys[tr.firstKey * 2];
+	if (tr.keyCount == 1 || t <= k[0])
+		return k[1];
+	for (Int i = 1; i < tr.keyCount; ++i)
+	{
+		if (t < k[i * 2])
+		{
+			const float t0 = k[i * 2 - 2], t1 = k[i * 2];
+			if (!tr.linear || t1 <= t0)
+				return k[i * 2 - 1];
+			return k[i * 2 - 1] + (k[i * 2 + 1] - k[i * 2 - 1]) * (t - t0) / (t1 - t0);
+		}
+	}
+	return k[tr.keyCount * 2 - 1];
+}
+
+// Ronin @feature 30/10/2026 DX9: a building's own memory: its state and since when, and when a unit last came out. By drawable id;
+// a slot not seen for 300 frames is free.
+static LampInstance *lampInstance(DrawableID id)
+{
+	const UnsignedInt h = ((UnsignedInt)id * 2654435761u) & (MAX_LAMP_INSTANCES - 1);
+	LampInstance *slot = NULL;
+	for (Int probe = 0; probe < 8; ++probe)
+	{
+		LampInstance &li = s_lampInstances[(h + probe) & (MAX_LAMP_INSTANCES - 1)];
+		if (li.id == id)
+			return &li;
+		if (slot == NULL && (li.id == INVALID_DRAWABLE_ID || s_fixFrame - li.seen > 300))
+			slot = &li;
+	}
+	if (slot != NULL)
+	{
+		slot->id = id;
+		slot->seen = 0;
+		slot->state = -1;
+		slot->since = 0;
+		slot->doneWas = FALSE;
+		slot->produced = 0;
+	}
+	return slot;
+}
+
+static Bool isLampMarker(const MeshClass *mesh)
+{
+	const char *name = mesh->Get_Name();
+	const char *dot = (name != NULL) ? strrchr(name, '.') : NULL;
+	return (dot != NULL && _stricmp(dot + 1, "G2LAMPS") == 0) ? TRUE : FALSE;
+}
+
+// Ronin @feature 30/10/2026 DX9: a converted model's lamp levels this frame (s_modelLampLevel), for its marker and its lamp art.
+// Its set, or -1: none, or dark while the building is built, sold, disabled or destroyed. Else idle, producing (a unit at the
+// queue's head) or research (an upgrade), and `produced` once as a unit comes out.
+static Int modelLampLevels(MeshClass *mesh)
+{
+	if (!s_lampFileRead)
+		readModelLamps();
+	const char *full = mesh->Get_Name();
+	const Int len = (Int)(strrchr(full, '.') - full);
+	Int set = -1;
+	for (Int n = 0; n < s_lampNameCount && set < 0; ++n)
+		if ((Int)strlen(s_lampNames[n].name) == len && _strnicmp(s_lampNames[n].name, full, (size_t)len) == 0)
+			set = s_lampNames[n].set;
+	if (set < 0)
+		return -1;
+
+	RenderObjClass *top = mesh;
+	while (top->Get_Container() != NULL)
+		top = top->Get_Container();
+	const DrawableInfo *di = (const DrawableInfo *)top->Get_User_Data();
+	Drawable *draw = (di != NULL) ? di->m_drawable : NULL;
+	Object *obj = (draw != NULL) ? draw->getObject() : NULL;
+	Int state = LAMP_IDLE;
+	if (obj != NULL)
+	{
+		if (obj->isEffectivelyDead() || obj->isDisabled() || obj->testStatus(OBJECT_STATUS_UNDER_CONSTRUCTION) ||
+			obj->testStatus(OBJECT_STATUS_SOLD))
+			return -1;
+		ProductionUpdateInterface *pu = obj->getProductionUpdateInterface();
+		const ProductionEntry *pe = (pu != NULL) ? pu->firstProduction() : NULL;
+		if (pe != NULL)
+			state = (pe->getProductionType() == PRODUCTION_UPGRADE) ? LAMP_RESEARCH : LAMP_PRODUCING;
+	}
+	const UnsignedInt now = timeGetTime();
+	UnsignedInt since = now, produced = 0;
+	LampInstance *li = (draw != NULL) ? lampInstance(draw->getID()) : NULL;
+	if (li != NULL)
+	{
+		const Bool done = draw->getModelConditionFlags().test(MODELCONDITION_CONSTRUCTION_COMPLETE) ? TRUE : FALSE;
+		if (li->state != state)
+		{
+			li->state = state;
+			li->since = now;
+		}
+		if (done && !li->doneWas && li->seen != 0)
+			li->produced = now;		// a unit just came out
+		li->doneWas = done;
+		li->seen = s_fixFrame;
+		since = li->since;
+		produced = li->produced;
+	}
+
+	const LampSet &ls = s_lampSets[set];
+	for (Int l = 0; l < ls.lampCount; ++l)
+		s_modelLampLevel[ls.firstLamp + l] = 0.0f;
+	for (Int k = 0; k < ls.trackCount; ++k)
+	{
+		const LampTrack &tr = s_lampTracks[ls.firstTrack + k];
+		float t;
+		if (tr.state == state)
+			t = (float)(now - since);
+		else if (tr.state == LAMP_PRODUCED && produced != 0)
+			t = (float)(now - produced);
+		else
+			continue;
+		const float v = lampTrackValue(tr, t);
+		float &level = s_modelLampLevel[ls.firstLamp + tr.lamp];
+		if (v > level)
+			level = v;
+	}
+	return set;
+}
+
+// Ronin @feature 30/10/2026 DX9: the marker's lamps for this frame - a light each that is on.
+static void collectModelLamps(MeshClass *mesh)
+{
+	const Int set = modelLampLevels(mesh);
+	if (set < 0)
+		return;
+	const LampSet &ls = s_lampSets[set];
+	const Matrix3D &tm = mesh->Get_Transform();
+	RenderObjClass *model = mesh->Get_Container();	// Ronin @feature 17/11/2026 DX9: its pivots carry the lamps on moving parts
+	for (Int l = 0; l < ls.lampCount && s_frameModelLampCount < MAX_FRAME_MODEL_LAMPS; ++l)
+	{
+		const float level = s_modelLampLevel[ls.firstLamp + l];
+		if (level <= 0.01f)
+			continue;
+		const ModelLamp &ml = s_modelLamps[ls.firstLamp + l];
+		// Ronin @feature 17/11/2026 DX9: a lamp on a moving part turns with it, placed from its pivot's transform now;
+		// a pivot this model lacks (Get_Bone_Index gives 0, the root) drops the lamp.
+		const Int bone = (ml.pivot[0] != 0 && model != NULL) ? model->Get_Bone_Index(ml.pivot) : 0;
+		if (ml.pivot[0] != 0 && bone <= 0)
+			continue;
+		const Matrix3D &place = (bone > 0) ? model->Get_Bone_Transform(bone) : tm;
+		FrameModelLamp &o = s_frameModelLamps[s_frameModelLampCount++];
+		Vector3 beside;
+		Matrix3D::Transform_Vector(place, ml.pos, &o.pos);
+		Matrix3D::Transform_Vector(place, ml.pos + Vector3(1.0f, 0.0f, 0.0f), &beside);
+		o.reach  = ml.reach * (beside - o.pos).Length();
+		o.corona = ml.corona * (beside - o.pos).Length();
+		for (Int ch = 0; ch < 3; ++ch)
+			o.colour[ch] = ml.colour[ch] * level;
+		o.mesh  = mesh;
+		o.index = l;
+	}
+}
+
+// Ronin @feature 30/10/2026 DX9: a lamp's art (<model>.G2ART<lamp>: the painted fixture as a glowing copy): its lamp, or -1.
+static Int lampArtIndex(const MeshClass *mesh)
+{
+	const char *name = mesh->Get_Name();
+	const char *dot = (name != NULL) ? strrchr(name, '.') : NULL;
+	if (dot == NULL || _strnicmp(dot + 1, "G2ART", 5) != 0 || dot[6] < '0' || dot[6] > '9')
+		return -1;
+	return atoi(dot + 6);
+}
+
 // Ronin @feature 09/10/2026 DX9: called by MeshClass::Render for every mesh it has not ruled out, in every pass. Only a mesh that
 // is being drawn reaches this, so a unit hidden by the fog of war gives no light away.
 int R3DLocalLights::noteFixtureMesh(MeshClass *mesh)
@@ -1119,30 +1455,30 @@ int R3DLocalLights::noteFixtureMesh(MeshClass *mesh)
 	MeshModelClass *mdl = (mesh != NULL) ? mesh->Peek_Model() : NULL;
 	if (mdl == NULL)
 		return 1;		// no model yet: ask again
+	// Ronin @feature 30/10/2026 DX9: a converted model's lamp marker: its lamps; the marker itself is never drawn.
+	if (isLampMarker(mesh))
+	{
+		if (s_collect && s_modelLampsOn && firstNoteThisFrame(mesh))
+			collectModelLamps(mesh);
+		return 2;
+	}
+	// Ronin @feature 30/10/2026 DX9: a lamp's art glows (is drawn) while its lamp is on.
+	const Int art = lampArtIndex(mesh);
+	if (art >= 0)
+	{
+		const Int set = s_modelLampsOn ? modelLampLevels(mesh) : -1;
+		const Int lamp = (set >= 0 && art < s_lampSets[set].lampCount) ? s_lampSets[set].firstLamp + art : -1;
+		if (lamp < 0 || s_modelLampLevel[lamp] <= 0.05f)
+			return 2;
+		return 1;
+	}
 	const FixtureModel *fm = fixtureModel(mdl);
 	if (fm == NULL)
 		return 0;
 	if (s_collect && ((s_beamsOn && fm->beamCount > 0) || (s_glowsOn && fm->glowCount > 0) || (s_poolsOn && fm->poolCount > 0)))
 	{
-		// Ronin @feature 09/10/2026 DX9: once a frame - the water's mirror renders the scene again inside the same window.
-		const UnsignedInt h = fixtureHash(mesh, 511);
-		Bool taken = FALSE;
-		SeenMesh *spot = NULL;
-		for (Int probe = 0; probe < 8 && spot == NULL; ++probe)
+		if (firstNoteThisFrame(mesh))
 		{
-			SeenMesh &s = s_seenMesh[(h + probe) & 511];
-			if (s.frame == s_fixFrame && s.mesh == mesh)
-			{
-				taken = TRUE;
-				break;
-			}
-			if (s.frame != s_fixFrame)
-				spot = &s;
-		}
-		if (!taken && spot != NULL)
-		{
-			spot->mesh  = mesh;
-			spot->frame = s_fixFrame;
 			const Matrix3D &tm = mesh->Get_Transform();
 			RenderObjClass *top = mesh;
 			while (top->Get_Container() != NULL)
@@ -1615,6 +1951,10 @@ void  R3DLocalLights::setGlowJoin(float v)
 		s_fixReread = TRUE;
 }
 float R3DLocalLights::getGlowJoin(void)	{ return s_glowJoin; }
+void  R3DLocalLights::setModelLamps(float v)	{ s_modelLampStrength = (v < 0.0f) ? 0.0f : ((v > 4.0f) ? 4.0f : v); }	// Ronin @feature 30/10/2026 DX9
+float R3DLocalLights::getModelLamps(void)	{ return s_modelLampStrength; }
+void  R3DLocalLights::setModelCore(float v)	{ s_modelLampCore = (v < 0.0f) ? 0.0f : ((v > 1.0f) ? 1.0f : v); }
+float R3DLocalLights::getModelCore(void)	{ return s_modelLampCore; }
 void  R3DLocalLights::setCoronas(float v)	{ s_coronas = (v < 0.0f) ? 0.0f : ((v > 4.0f) ? 4.0f : v); }
 float R3DLocalLights::getCoronas(void)	{ return s_coronas; }
 void  R3DLocalLights::setCoronaSize(float v)	{ s_coronaSize = (v < 0.25f) ? 0.25f : ((v > 4.0f) ? 4.0f : v); }
@@ -2068,6 +2408,8 @@ static const R3DLocalLights::Knob s_knobs[] =
 	LIGHT_REAL("glows", setGlows, getGlows),
 	LIGHT_REAL("glowreach", setGlowReach, getGlowReach),
 	LIGHT_REAL("glowjoin", setGlowJoin, getGlowJoin),
+	LIGHT_REAL("modellamps", setModelLamps, getModelLamps),		// Ronin @feature 30/10/2026 DX9: DX9ModelLamps.ini's lamps
+	LIGHT_REAL("modelcore", setModelCore, getModelCore),
 	LIGHT_REAL("coronas", setCoronas, getCoronas),
 	LIGHT_REAL("coronasize", setCoronaSize, getCoronaSize),
 	LIGHT_SWITCH("pools", setPools, getPools),
@@ -2326,6 +2668,7 @@ void R3DLocalLights::beginFrame(void)
 	s_stats.masked   = FALSE;
 	s_stats.beams      = 0;
 	s_stats.glows      = 0;
+	s_stats.modelLamps = 0;		// Ronin @feature 30/10/2026 DX9
 	s_stats.pools      = 0;
 	s_stats.fx         = 0;
 	s_stats.fxCandidates = 0;
@@ -2384,6 +2727,7 @@ void R3DLocalLights::beginFrame(void)
 	s_frameBeamCount = 0;
 	s_frameGlowCount = 0;
 	s_framePoolCount = 0;
+	s_frameModelLampCount = 0;		// Ronin @feature 30/10/2026 DX9: the model lamps
 	// Ronin @feature 15/10/2026 DX9: how far this time of day is day, for `daysun` / `dayshade` / `sunerase`. The glows light at every time.
 	{
 		const Int tod = (TheGlobalData != NULL) ? (Int)TheGlobalData->m_timeOfDay : 4;
@@ -2394,7 +2738,8 @@ void R3DLocalLights::beginFrame(void)
 	s_glowsOn = (active && s_effects && s_glows > 0.0f) ? TRUE : FALSE;
 	s_coronasOn = (s_glowsOn && s_coronas > 0.0f) ? TRUE : FALSE;
 	s_poolsOn = (s_coronasOn && !s_keepPools && s_poolFill > 0.0f) ? TRUE : FALSE;	// the painted pools are hidden and want filling
-	s_collect = (s_beamsOn || s_glowsOn || s_poolsOn) ? TRUE : FALSE;
+	s_modelLampsOn = (active && s_effects && s_modelLampStrength > 0.0f) ? TRUE : FALSE;	// Ronin @feature 30/10/2026 DX9
+	s_collect = (s_beamsOn || s_glowsOn || s_poolsOn || s_modelLampsOn) ? TRUE : FALSE;
 	// Ronin @feature 09/10/2026 DX9: with the lamps' glows drawn by the shader, their textures go clear - and with them the pools
 	// of light painted on ground and walls, which the real lights now make.
 	swapBeamTextures(dev, s_beamsOn, (s_coronasOn && !s_keepPools) ? TRUE : FALSE);
@@ -3548,6 +3893,60 @@ void R3DLocalLights::renderPass(const CameraClass &camera, RTS3DScene *scene)
 			++count;
 			++lightCount;
 			++s_stats.glows;
+		}
+
+		// Ronin @feature 30/10/2026 DX9: the model lamps: a point light each at its own colour, strength and reach, with Generals 2's
+		// falloff (a negative inner radius: LocalLight_ps reachOf) and a corona the size of its lamp art.
+		for (Int fl = 0; fl < s_frameModelLampCount; ++fl)
+		{
+			const FrameModelLamp &ml = s_frameModelLamps[fl];
+			++s_stats.live;
+			const float k = s_modelLampStrength * s_intensity;
+			if (count >= MAX_LIGHTS_DRAWN || k <= 0.002f)
+				continue;
+			LightMemo now;
+			now.key   = ml.mesh;
+			now.sub   = 3000 + ml.index;		// apart from the glows' and pools' numbers
+			now.seen  = FALSE;
+			now.world = ml.pos;
+			now.outer = ml.reach * s_range;
+			now.inner = (s_modelLampCore > 0.0f) ? -(now.outer * s_modelLampCore) : now.outer * 0.25f;
+			now.coronaRadius   = ml.corona * s_coronaSize;
+			now.coronaStrength = (s_coronasOn && ml.corona > 0.0f) ? s_coronas / k : 0.0f;	// the shader multiplies by colour x k
+			if (now.outer - now.inner < 0.5f)
+				continue;
+			now.axis.Set(0.0f, 0.0f, 1.0f);
+			now.cosOuter = -2.0f;
+			now.edge     = 1.0f;
+			now.shaft    = 0.0f;
+			now.boundCentre = now.world;
+			now.boundRadius = now.outer;
+			// Ronin @bugfix 17/11/2026 DX9: a model lamp lights only what faces it - half of it was ambient, so the control room's
+			// lamp lit the deck above it through the floor.
+			for (Int ch = 0; ch < 3; ++ch)
+			{
+				now.diffuse[ch] = ml.colour[ch] * k;
+				now.ambient[ch] = 0.0f;
+			}
+			LightMemo was = now;
+			was.diffuse[0] = was.diffuse[1] = was.diffuse[2] = 0.0f;
+			was.ambient[0] = was.ambient[1] = was.ambient[2] = 0.0f;
+			for (Int m = 0; m < lastCount; ++m)
+			{
+				if (last[m].key == now.key && last[m].sub == now.sub)
+				{
+					was = last[m];
+					last[m].seen = TRUE;
+					break;
+				}
+			}
+			if (!makeDraw(draws[count], now, was, cameraTM, vm))
+				continue;		// off screen
+			s_stats.coverage += ((draws[count].x1 - draws[count].x0) * (draws[count].y1 - draws[count].y0)) / (targetW * targetH);
+			s_memo[s_memoCount++] = now;
+			++count;
+			++lightCount;
+			++s_stats.modelLamps;
 		}
 
 		// Ronin @feature 09/10/2026 DX9: a painted pool that no beam lands on and no lamp stands by (351 of the art's 1155) would go

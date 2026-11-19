@@ -110,6 +110,10 @@ public:
 	static float getGlowReach(void);
 	static void  setGlowJoin(float v);		// lamps this near each other (art units) light as one, each keeping its corona; 0 = apart
 	static float getGlowJoin(void);
+	static void  setModelLamps(float v);	// Ronin @feature 30/10/2026 DX9: converted models' lamps (DX9ModelLamps.ini), their strength; 0 = none
+	static float getModelLamps(void);
+	static void  setModelCore(float v);		// ... where their light halves, in their reach (Generals 2's falloff); 0 = the engine's plateau
+	static float getModelCore(void);
 	static void  setCoronas(float v);		// the lamp's own glow drawn by the shader, its strength; 0 = the art's glow textures
 	static float getCoronas(void);
 	static void  setCoronaSize(float v);	// its radius, in the art glow's own
@@ -221,6 +225,7 @@ public:
 		float sceneLight[3];	// the frame-to-surface factor in use
 		Int   beams;			// beams that became spot lights
 		Int   glows;			// lamp glows that became point lights
+		Int   modelLamps;		// Ronin @feature 30/10/2026 DX9: converted models' lamps drawn
 		Int   pools;			// painted pools no lamp covers that got a light of their own
 		Int   fx;				// Ronin @feature 15/10/2026 DX9: glowing effects drawn as lights (item 7)
 		Int   fxCandidates;		// ... those with weight on screen
