@@ -108,6 +108,10 @@ public:
 	Bool drawsShadowDecals() const { return m_useShadowDecals && !AdaptiveQualityLevels::shadowDecalsOff(m_adaptiveQualityLevel); }
 	Int getEffectiveMaxParticleCount() const { return AdaptiveQualityLevels::particleCap(m_maxParticleCount, m_adaptiveQualityLevel); }
 	void parseCustomDefinition();
+#if defined(GENONLINE)
+	// Copies the camera factors and the observer overlay settings of client.json into the global data.
+	void applyGenOnlineClientSettings();
+#endif
 
 	//-----------------------------------------------------------------------------------------------
 	struct TerrainLighting

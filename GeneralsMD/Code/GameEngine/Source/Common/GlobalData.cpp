@@ -1326,20 +1326,8 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_showMoneyPerMinute = optionPref.getShowMoneyPerMinute();
 	TheWritableGlobalData->m_gameWindowTransitionSpeedMultiplier = optionPref.getGameWindowTransitionSpeedMultiplier();
 #if defined(GENONLINE)
-	// The camera factors and the observer overlay settings come from client.json. The user data folder is known here,
-	// so the settings that were in Options.ini move to client.json first.
-	{
-		GenOnlineServicesManager::Settings.MoveOptionsIniSettings();
-		const GenOnlineSettings& genOnlineSettings = GenOnlineServicesManager::Settings;
-		TheWritableGlobalData->m_cameraRotateFactor = genOnlineSettings.Camera_GetRotateFactor();
-		TheWritableGlobalData->m_cameraPitchFactor = genOnlineSettings.Camera_GetPitchFactor();
-		TheWritableGlobalData->m_cameraZoomFactor = genOnlineSettings.Camera_GetZoomFactor();
-		TheWritableGlobalData->m_observerStatsFontSize = genOnlineSettings.Observer_GetStatsFontSize();
-		TheWritableGlobalData->m_observerNotificationFontSize = genOnlineSettings.Observer_GetNotificationFontSize();
-		TheWritableGlobalData->m_observerNotificationSpecialPowerUsage = genOnlineSettings.Observer_NotificationSpecialPowerUsage();
-		TheWritableGlobalData->m_observerNotificationSpecialPowerPurchase = genOnlineSettings.Observer_NotificationSpecialPowerPurchase();
-		TheWritableGlobalData->m_observerNotificationMilestone = genOnlineSettings.Observer_NotificationMilestone();
-	}
+	// The camera factors and the observer overlay settings come from client.json.
+	TheWritableGlobalData->applyGenOnlineClientSettings();
 #endif
 	TheWritableGlobalData->m_antiAliasLevel = optionPref.getAntiAliasing();
 
@@ -1368,6 +1356,22 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_xResolution = xres;
 	TheWritableGlobalData->m_yResolution = yres;
 }
+
+#if defined(GENONLINE)
+//-------------------------------------------------------------------------------------------------
+void GlobalData::applyGenOnlineClientSettings()
+{
+	const GenOnlineSettings& genOnlineSettings = GenOnlineServicesManager::Settings;
+	m_cameraRotateFactor = genOnlineSettings.Camera_GetRotateFactor();
+	m_cameraPitchFactor = genOnlineSettings.Camera_GetPitchFactor();
+	m_cameraZoomFactor = genOnlineSettings.Camera_GetZoomFactor();
+	m_observerStatsFontSize = genOnlineSettings.Observer_GetStatsFontSize();
+	m_observerNotificationFontSize = genOnlineSettings.Observer_GetNotificationFontSize();
+	m_observerNotificationSpecialPowerUsage = genOnlineSettings.Observer_NotificationSpecialPowerUsage();
+	m_observerNotificationSpecialPowerPurchase = genOnlineSettings.Observer_NotificationSpecialPowerPurchase();
+	m_observerNotificationMilestone = genOnlineSettings.Observer_NotificationMilestone();
+}
+#endif
 
 void GlobalData::parseCustomDefinition()
 {
