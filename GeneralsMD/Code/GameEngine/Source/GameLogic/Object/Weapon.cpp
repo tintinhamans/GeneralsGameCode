@@ -38,6 +38,8 @@
 #define DEFINE_WEAPONRELOAD_NAMES
 #define DEFINE_WEAPONPREFIRE_NAMES
 
+#include "WWMath/quat.h"
+
 #include "Common/crc.h"
 #include "Common/CRCDebug.h"
 #include "Common/GameAudio.h"
@@ -4206,17 +4208,19 @@ void Weapon::processRequestAssistance( const Object *requestingObject, Object *v
 	//CRCDEBUG_LOG(("calcProjectileLaunchPosition(): Turret %d, slot %d, barrel %d for %s", tur, wslot, specificBarrelToUse, DescribeObject(launcher).str()));
 
 	Matrix3D attachTransform(true);
+	Matrix3D turretAxes(true);
 	Coord3D turretRotPos = {0.0f, 0.0f, 0.0f};
 	Coord3D turretPitchPos = {0.0f, 0.0f, 0.0f};
 	const Drawable* draw = launcher->getDrawable();
 	//CRCDEBUG_LOG(("Do we have a drawable? %d", (draw != nullptr)));
-	if (!draw || !draw->getProjectileLaunchOffset(wslot, specificBarrelToUse, &attachTransform, tur, &turretRotPos, &turretPitchPos))
+	if (!draw || !draw->getProjectileLaunchOffset(wslot, specificBarrelToUse, &attachTransform, tur, &turretRotPos, &turretPitchPos, &turretAxes))
 	{
 		//CRCDEBUG_LOG(("ProjectileLaunchPos %d %d not found!",wslot, specificBarrelToUse));
 		DEBUG_CRASH(("ProjectileLaunchPos %d %d not found!",wslot, specificBarrelToUse));
 		attachTransform.Make_Identity();
 		turretRotPos.zero();
 		turretPitchPos.zero();
+		turretAxes.Make_Identity();
 	}
 	if (tur != TURRET_INVALID)
 	{
@@ -4229,11 +4233,25 @@ void Weapon::processRequestAssistance( const Object *requestingObject, Object *v
 		// To rotate about a point, move that point to 0,0, rotate, then move it back.
 		// Pre rotate will keep the first twist from screwing the angle of the second pitch
 		pitchAdjustment.Translate( turretPitchPos.x, turretPitchPos.y, turretPitchPos.z );
-		pitchAdjustment.In_Place_Pre_Rotate_Y(-turretPitch);
+		if (turretAxes == Matrix3D::Identity)
+		{
+			pitchAdjustment.In_Place_Pre_Rotate_Y(-turretPitch);
+		}
+		else
+		{
+			pitchAdjustment.Set_Rotation(Quaternion(turretAxes.Get_Y_Vector(), -turretPitch));
+		}
 		pitchAdjustment.Translate( -turretPitchPos.x, -turretPitchPos.y, -turretPitchPos.z );
 
 		turnAdjustment.Translate( turretRotPos.x, turretRotPos.y, turretRotPos.z );
-		turnAdjustment.In_Place_Pre_Rotate_Z(turretAngle);
+		if (turretAxes == Matrix3D::Identity)
+		{
+			turnAdjustment.In_Place_Pre_Rotate_Z(turretAngle);
+		}
+		else
+		{
+			turnAdjustment.Set_Rotation(Quaternion(turretAxes.Get_Z_Vector(), turretAngle));
+		}
 		turnAdjustment.Translate( -turretRotPos.x, -turretRotPos.y, -turretRotPos.z );
 
 #ifdef ALLOW_TEMPORARIES

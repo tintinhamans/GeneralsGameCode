@@ -30,6 +30,8 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 #define DEFINE_WEAPONCONDITIONMAP
+#include "WWMath/quat.h"
+
 #include "Common/BitFlagsIO.h"
 #include "Common/BuildAssistant.h"
 #include "Common/Dict.h"
@@ -6877,7 +6879,8 @@ Bool Object::getSingleLogicalBonePositionOnTurret( WhichTurretType whichTurret, 
 		return FALSE;
 
 	// We need to find the TurretBone's pristine position.
-	getDrawable()->getProjectileLaunchOffset( PRIMARY_WEAPON, 1, nullptr, whichTurret, &turretPosition, nullptr );
+	Matrix3D turretAxes(true);
+	getDrawable()->getProjectileLaunchOffset( PRIMARY_WEAPON, 1, nullptr, whichTurret, &turretPosition, nullptr, &turretAxes );
 	// And the required bone's pristine position
 	if( getDrawable()->getPristineBonePositions(boneName, 0, &bonePosition, nullptr, 1) != 1 )
 		return FALSE;
@@ -6898,7 +6901,14 @@ Bool Object::getSingleLogicalBonePositionOnTurret( WhichTurretType whichTurret, 
 	Matrix3D turnAdjustment(TRUE);// this is the turret twist to be applied to the final answer
 
 	turnAdjustment.Translate( turretPosition.x, turretPosition.y, turretPosition.z );
-	turnAdjustment.In_Place_Pre_Rotate_Z(turretRotation);
+	if (turretAxes == Matrix3D::Identity)
+	{
+		turnAdjustment.In_Place_Pre_Rotate_Z(turretRotation);
+	}
+	else
+	{
+		turnAdjustment.Set_Rotation(Quaternion(turretAxes.Get_Z_Vector(), turretRotation));
+	}
 	turnAdjustment.Translate( -turretPosition.x, -turretPosition.y, -turretPosition.z );
 
 	Matrix3D boneLogicTransform;

@@ -1519,10 +1519,11 @@ enum DebugPanelTabID
 	DEBUG_TAB_SHADERS,
 	DEBUG_TAB_SPAWNER,
 	DEBUG_TAB_CHEATS,
+	DEBUG_TAB_MODEL_ALIGNMENT,
 	DEBUG_TAB_COUNT
 };
 
-const wchar_t *DebugPanelTabNames[] = { L"Shaders", L"Unit spawner", L"Cheats" };
+const wchar_t *DebugPanelTabNames[] = { L"Shaders", L"Unit spawner", L"Cheats", L"Model alignment" };
 
 // The cheats that take a value come first; each has a child control beside its label.
 enum DebugCheatID
@@ -1582,7 +1583,15 @@ const Int DEBUG_CHEAT_RUN_WIDTH = 56;
 const Int DEBUG_CHEAT_ACTION_TOP = DEBUG_CHEAT_TOP + DEBUG_CHEAT_VALUE_COUNT * DEBUG_CHEAT_ROW_HEIGHT + 8;
 const Int DEBUG_CHEAT_ACTION_ROWS = (DEBUG_CHEAT_COUNT - DEBUG_CHEAT_VALUE_COUNT + 1) / 2;
 const Int DEBUG_CHEATS_HEIGHT = DEBUG_CHEAT_ACTION_TOP + DEBUG_CHEAT_ACTION_ROWS * DEBUG_CHEAT_ROW_HEIGHT + 24;
-const Int DebugPanelHeights[] = { SHADER_PANEL_HEIGHT, UNIT_SPAWNER_HEIGHT, DEBUG_CHEATS_HEIGHT };
+const wchar_t* ModelAlignmentLabels[] = { L"Offset X", L"Offset Y", L"Offset Z", L"Yaw (deg)", L"Pitch (deg)", L"Roll (deg)" };
+const Int MODEL_ALIGNMENT_ROW_HEIGHT = 24;
+const Int MODEL_ALIGNMENT_VALUE_TOP = SHADER_PANEL_HEADER + MODEL_ALIGNMENT_ROW_HEIGHT + 6;
+const Int MODEL_ALIGNMENT_RESET_TOP = MODEL_ALIGNMENT_VALUE_TOP + ARRAY_SIZE(ModelAlignmentLabels) * MODEL_ALIGNMENT_ROW_HEIGHT;
+const Int MODEL_ALIGNMENT_HEIGHT = MODEL_ALIGNMENT_RESET_TOP + 48;
+const Int MODEL_ALIGNMENT_BUTTON_X = SHADER_PANEL_WIDTH - 72;
+const Int DebugPanelHeights[] = { SHADER_PANEL_HEIGHT, UNIT_SPAWNER_HEIGHT, DEBUG_CHEATS_HEIGHT, MODEL_ALIGNMENT_HEIGHT };
+DrawableID DebugModelAlignmentDrawable = INVALID_DRAWABLE_ID;
+Int DebugModelAlignmentModule = 0;
 Int DebugPanelTab = DEBUG_TAB_SHADERS;
 GameWindow *DebugCheatControls[DEBUG_CHEAT_VALUE_COUNT] = { nullptr };
 GameWindow *UnitSpawnerSide = nullptr;
@@ -2182,6 +2191,140 @@ void drawDebugCheats(Int x, Int y, Color white, Color shadow)
 	ShaderPanelString->draw(x + 8, y + DEBUG_CHEATS_HEIGHT - 20, white, shadow);
 }
 
+ObjectDrawInterface* getDebugModelAlignmentModule(ModelAlignment& alignment, AsciiString& tag, Int& count)
+{
+	count = 0;
+	const DrawableList* selected = TheInGameUI->getAllSelectedDrawables();
+	Drawable* draw = selected->size() == 1 ? selected->front() : nullptr;
+	const DrawableID id = draw ? draw->getID() : INVALID_DRAWABLE_ID;
+	if (id != DebugModelAlignmentDrawable)
+	{
+		DebugModelAlignmentDrawable = id;
+		DebugModelAlignmentModule = 0;
+	}
+	if (!draw)
+	{
+		return nullptr;
+	}
+
+	ObjectDrawInterface* result = nullptr;
+	Int resultIndex = 0;
+	for (DrawModule** dm = draw->getDrawModules(); *dm; ++dm)
+	{
+		ObjectDrawInterface* candidate = (*dm)->getObjectDrawInterface();
+		ModelAlignment values;
+		if (candidate && candidate->getDebugModelAlignment(values))
+		{
+			if (count <= DebugModelAlignmentModule)
+			{
+				result = candidate;
+				resultIndex = count;
+				alignment = values;
+				tag = TheNameKeyGenerator->keyToName((*dm)->getModuleTagNameKey());
+			}
+			++count;
+		}
+	}
+	DebugModelAlignmentModule = resultIndex;
+	return result;
+}
+
+void handleModelAlignmentClick(Int x, Int y)
+{
+	if (!canUseDebugCheats())
+	{
+		return;
+	}
+	ModelAlignment alignment;
+	AsciiString tag;
+	Int count;
+	ObjectDrawInterface* module = getDebugModelAlignmentModule(alignment, tag, count);
+	if (!module)
+	{
+		return;
+	}
+
+	if (y >= MODEL_ALIGNMENT_RESET_TOP && y < MODEL_ALIGNMENT_RESET_TOP + MODEL_ALIGNMENT_ROW_HEIGHT && x >= 8 && x < 110)
+	{
+		module->setDebugModelAlignment(nullptr);
+		return;
+	}
+	if (x < MODEL_ALIGNMENT_BUTTON_X || x >= MODEL_ALIGNMENT_BUTTON_X + 56)
+	{
+		return;
+	}
+	const Int direction = x < MODEL_ALIGNMENT_BUTTON_X + 28 ? -1 : 1;
+	if (y >= SHADER_PANEL_HEADER && y < MODEL_ALIGNMENT_VALUE_TOP)
+	{
+		DebugModelAlignmentModule = (DebugModelAlignmentModule + direction + count) % count;
+	}
+	else if (y >= MODEL_ALIGNMENT_VALUE_TOP && y < MODEL_ALIGNMENT_RESET_TOP)
+	{
+		const Int index = (y - MODEL_ALIGNMENT_VALUE_TOP) / MODEL_ALIGNMENT_ROW_HEIGHT;
+		Real* values[] = { &alignment.offset.x, &alignment.offset.y, &alignment.offset.z, &alignment.yaw, &alignment.pitch, &alignment.roll };
+		*values[index] += direction * (index < 3 ? 0.25f : DEG_TO_RADF(1.0f));
+		module->setDebugModelAlignment(&alignment);
+	}
+}
+
+void drawModelAlignmentButtons(Int x, Int y, Color text, Color shadow)
+{
+	for (Int button = 0; button < 2; ++button)
+	{
+		const Int buttonX = x + MODEL_ALIGNMENT_BUTTON_X + button * 28;
+		TheDisplay->drawOpenRect(buttonX, y, 24, MODEL_ALIGNMENT_ROW_HEIGHT - 4, 1.0f, text);
+		ShaderPanelString->setText(UnicodeString(button == 0 ? L"-" : L"+"));
+		ShaderPanelString->draw(buttonX + 8, y + 2, text, shadow);
+	}
+}
+
+void drawModelAlignment(Int x, Int y, Color text, Color shadow)
+{
+	if (!canUseDebugCheats())
+	{
+		ShaderPanelString->setText(UnicodeString(L"Model alignment editing is available in single-player matches"));
+		ShaderPanelString->draw(x + 8, y + SHADER_PANEL_HEADER + 6, text, shadow);
+		return;
+	}
+
+	ModelAlignment alignment;
+	AsciiString tag;
+	Int count;
+	if (!getDebugModelAlignmentModule(alignment, tag, count))
+	{
+		ShaderPanelString->setText(UnicodeString(L"Select one object with a W3D model draw module"));
+		ShaderPanelString->draw(x + 8, y + SHADER_PANEL_HEADER + 6, text, shadow);
+		return;
+	}
+
+	UnicodeString moduleTag;
+	moduleTag.translate(tag);
+	UnicodeString label;
+	label.format(L"%d/%d  %ls", DebugModelAlignmentModule + 1, count, moduleTag.str());
+	ShaderPanelString->setText(label);
+	ShaderPanelString->draw(x + 8, y + SHADER_PANEL_HEADER + 4, text, shadow);
+	if (count > 1)
+	{
+		drawModelAlignmentButtons(x, y + SHADER_PANEL_HEADER, text, shadow);
+	}
+
+	const Real values[] = { alignment.offset.x, alignment.offset.y, alignment.offset.z,
+		alignment.yaw / DEG_TO_RADF(1.0f), alignment.pitch / DEG_TO_RADF(1.0f), alignment.roll / DEG_TO_RADF(1.0f) };
+	for (Int i = 0; i < ARRAY_SIZE(values); ++i)
+	{
+		const Int rowY = y + MODEL_ALIGNMENT_VALUE_TOP + i * MODEL_ALIGNMENT_ROW_HEIGHT;
+		label.format(L"%ls  %.2f", ModelAlignmentLabels[i], values[i]);
+		ShaderPanelString->setText(label);
+		ShaderPanelString->draw(x + 8, rowY + 2, text, shadow);
+		drawModelAlignmentButtons(x, rowY, text, shadow);
+	}
+	TheDisplay->drawOpenRect(x + 8, y + MODEL_ALIGNMENT_RESET_TOP, 102, MODEL_ALIGNMENT_ROW_HEIGHT - 4, 1.0f, text);
+	ShaderPanelString->setText(UnicodeString(L"Reset to INI"));
+	ShaderPanelString->draw(x + 16, y + MODEL_ALIGNMENT_RESET_TOP + 2, text, shadow);
+	ShaderPanelString->setText(UnicodeString(L"Changes apply to this object for this level"));
+	ShaderPanelString->draw(x + 8, y + MODEL_ALIGNMENT_HEIGHT - 20, text, shadow);
+}
+
 void selectDebugPanelTab(Int tab)
 {
 	TheWindowManager->winSetFocus(nullptr);
@@ -2247,6 +2390,8 @@ void destroyShaderDebugPanel()
 	UnitSpawnerSpawnMode = nullptr;
 	std::fill(DebugCheatControls, DebugCheatControls + DEBUG_CHEAT_VALUE_COUNT, (GameWindow *)nullptr);
 	DebugPanelTab = DEBUG_TAB_SHADERS;
+	DebugModelAlignmentDrawable = INVALID_DRAWABLE_ID;
+	DebugModelAlignmentModule = 0;
 	UnitSpawnerTemplates.clear();
 	UnitSpawnerSides.clear();
 	if (ShaderPanelString)
@@ -2341,6 +2486,10 @@ WindowMsgHandledType shaderPanelInput(GameWindow *window, UnsignedInt msg, Windo
 		{
 			runDebugCheat(debugCheatAt(x, y));
 		}
+		else if (DebugPanelTab == DEBUG_TAB_MODEL_ALIGNMENT)
+		{
+			handleModelAlignmentClick(x, y);
+		}
 		else if (x >= 8 && x < SHADER_PANEL_WIDTH - 8 && y >= SHADER_PANEL_HEADER
 			&& y < SHADER_PANEL_HEADER + SHADER_PANEL_ROWS * SHADER_PANEL_ROW_HEIGHT)
 		{
@@ -2401,6 +2550,11 @@ void drawShaderDebugPanel(GameWindow *window, WinInstanceData *)
 	if (DebugPanelTab == DEBUG_TAB_CHEATS)
 	{
 		drawDebugCheats(x, y, white, shadow);
+		return;
+	}
+	if (DebugPanelTab == DEBUG_TAB_MODEL_ALIGNMENT)
+	{
+		drawModelAlignment(x, y, white, shadow);
 		return;
 	}
 	if (DebugPanelTab == DEBUG_TAB_SPAWNER)
