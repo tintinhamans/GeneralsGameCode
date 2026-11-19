@@ -2065,10 +2065,11 @@ void InGameUI::update()
 	{
 		// TheSuperHackers @tweak The camera rotation and zoom are now decoupled from the render update.
 		const Real fpsRatio = TheFramePacer->getBaseOverUpdateFpsRatio();
-		const Real rotateAngle = TheGlobalData->m_keyboardCameraRotateSpeed * fpsRatio;
-		const Real zoomHeight = (Real)View::ZoomHeightPerSecond * fpsRatio;
+		const Real turnAngle = TheGlobalData->m_keyboardCameraRotateSpeed * fpsRatio;
+		const Real rotateAngle = turnAngle * SCROLL_MULTIPLIER * TheGlobalData->m_cameraRotateFactor;
+		const Real zoomHeight = (Real)View::ZoomHeightPerSecond * fpsRatio * SCROLL_MULTIPLIER * TheGlobalData->m_cameraZoomFactor;
 		// Slower than rotate to feel alike: shorter range, larger view change per degree.
-		const Real pitchAngle = rotateAngle * 0.3f * TheGlobalData->m_cameraPitchSpeedMultiplier;
+		const Real pitchAngle = turnAngle * 0.3f * SCROLL_MULTIPLIER * TheGlobalData->m_cameraPitchFactor;
 
 		if( m_cameraRotatingLeft && !m_cameraRotatingRight )
 		{

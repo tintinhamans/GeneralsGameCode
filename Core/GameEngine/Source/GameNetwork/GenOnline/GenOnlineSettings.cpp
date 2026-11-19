@@ -5,14 +5,30 @@
 #include "../GenOnlineLobbyInterface.h"
 #include "../GenOnlineInit.h"
 #include <algorithm>
+#include <iterator>
 #include "GameNetwork/GenOnline/CredentialStore.h"
 #include "GameNetwork/GenOnline/AntiCheat/GenOnlineAntiCheat.h"
 #include "GameNetwork/GenOnline/GenOnlineAuth.h"
+#include "Common/GlobalData.h"
+#include "Common/OptionPreferences.h"
 
 #define SETTINGS_KEY_CAMERA "camera"
 #define SETTINGS_KEY_CAMERA_MIN_HEIGHT "min_height"
 #define SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO "move_speed_ratio"
 #define SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST "max_height_only_when_lobby_host"
+#define SETTINGS_KEY_CAMERA_ROTATE_FACTOR "rotate_factor"
+#define SETTINGS_KEY_CAMERA_PITCH_FACTOR "pitch_factor"
+#define SETTINGS_KEY_CAMERA_ZOOM_FACTOR "zoom_factor"
+
+#define SETTINGS_KEY_MEDIA "media"
+#define SETTINGS_KEY_MEDIA_LEGACY "legacy"
+
+#define SETTINGS_KEY_OBSERVER "observer"
+#define SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE "stats_font_size"
+#define SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE "notification_font_size"
+#define SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE "notification_special_power_usage"
+#define SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE "notification_special_power_purchase"
+#define SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE "notification_milestone"
 
 #define SETTINGS_KEY_RENDER "render"
 #define SETTINGS_KEY_RENDER_LIMIT_FRAMERATE "limit_framerate"
@@ -142,6 +158,17 @@ static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 		{ SETTINGS_KEY_CAMERA, ValueType::Object },
 		{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_MIN_HEIGHT, ValueType::Number },
 		{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST, ValueType::Number },
+		{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_ROTATE_FACTOR, ValueType::Number },
+		{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_PITCH_FACTOR, ValueType::Number },
+		{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_ZOOM_FACTOR, ValueType::Number },
+		{ SETTINGS_KEY_MEDIA, ValueType::Object },
+		{ SETTINGS_KEY_MEDIA "." SETTINGS_KEY_MEDIA_LEGACY, ValueType::Boolean },
+		{ SETTINGS_KEY_OBSERVER, ValueType::Object },
+		{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE, ValueType::Number },
+		{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE, ValueType::Number },
+		{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE, ValueType::Boolean },
+		{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE, ValueType::Boolean },
+		{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE, ValueType::Boolean },
 		{ SETTINGS_KEY_RENDER, ValueType::Object },
 		{ SETTINGS_KEY_RENDER "." SETTINGS_KEY_RENDER_LIMIT_FRAMERATE, ValueType::Boolean },
 		{ SETTINGS_KEY_RENDER "." SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL, ValueType::Number },
@@ -220,9 +247,11 @@ void GenOnlineSettings::Load(void)
 	{
 	case GenOnlineClientFile::ReadStatus::Missing:
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json cannot be created, using the built-in defaults without saving");
+		TakeOptionsIniValues({});
 		return;
 	case GenOnlineClientFile::ReadStatus::Unusable:
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json is not usable (%s), using the defaults this session and leaving the file untouched", clientFile.reason.c_str());
+		TakeOptionsIniValues({});
 		return;
 	case GenOnlineClientFile::ReadStatus::Newer:
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json has schema_version %d, newer than %d, reading it without saving", clientFile.schemaVersion, GenOnlineClientFile::SchemaVersion);
@@ -233,6 +262,8 @@ void GenOnlineSettings::Load(void)
 
 	const bool bWritable = clientFile.status == GenOnlineClientFile::ReadStatus::Ok;
 	bool bApplyDefaults = false;
+	// The dotted paths of the settings that Options.ini held before and that the file holds now.
+	std::set<std::string> presentSettings;
 
 	// The values of the file go over the built-in defaults.
 	{
@@ -251,6 +282,69 @@ void GenOnlineSettings::Load(void)
 				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST))
 				{
 					m_Camera_MaxHeight_LobbyHost = std::clamp<float>(static_cast<float>(cameraSettings[SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST]), GENONLINE_MIN_LOBBY_CAMERA_ZOOM, GENONLINE_MAX_LOBBY_CAMERA_ZOOM);
+				}
+
+				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_ROTATE_FACTOR))
+				{
+					m_Camera_RotateFactor = GenOnlineClientOptions::ClampCameraFactor(cameraSettings[SETTINGS_KEY_CAMERA_ROTATE_FACTOR].get<double>());
+					presentSettings.insert(SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_ROTATE_FACTOR);
+				}
+
+				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_PITCH_FACTOR))
+				{
+					m_Camera_PitchFactor = GenOnlineClientOptions::ClampCameraFactor(cameraSettings[SETTINGS_KEY_CAMERA_PITCH_FACTOR].get<double>());
+					presentSettings.insert(SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_PITCH_FACTOR);
+				}
+
+				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_ZOOM_FACTOR))
+				{
+					m_Camera_ZoomFactor = GenOnlineClientOptions::ClampCameraFactor(cameraSettings[SETTINGS_KEY_CAMERA_ZOOM_FACTOR].get<double>());
+				}
+			}
+
+			if (jsonSettings.contains(SETTINGS_KEY_MEDIA))
+			{
+				const auto mediaSettings = jsonSettings[SETTINGS_KEY_MEDIA];
+
+				if (mediaSettings.contains(SETTINGS_KEY_MEDIA_LEGACY))
+				{
+					m_Media_Legacy = mediaSettings[SETTINGS_KEY_MEDIA_LEGACY].get<bool>();
+					presentSettings.insert(SETTINGS_KEY_MEDIA "." SETTINGS_KEY_MEDIA_LEGACY);
+				}
+			}
+
+			if (jsonSettings.contains(SETTINGS_KEY_OBSERVER))
+			{
+				const auto observerSettings = jsonSettings[SETTINGS_KEY_OBSERVER];
+
+				if (observerSettings.contains(SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE))
+				{
+					m_Observer_StatsFontSize = GenOnlineClientOptions::ClampObserverFontSize(observerSettings[SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE].get<double>());
+					presentSettings.insert(SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE);
+				}
+
+				if (observerSettings.contains(SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE))
+				{
+					m_Observer_NotificationFontSize = GenOnlineClientOptions::ClampObserverFontSize(observerSettings[SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE].get<double>());
+					presentSettings.insert(SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE);
+				}
+
+				if (observerSettings.contains(SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE))
+				{
+					m_Observer_NotificationSpecialPowerUsage = observerSettings[SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE].get<bool>();
+					presentSettings.insert(SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE);
+				}
+
+				if (observerSettings.contains(SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE))
+				{
+					m_Observer_NotificationSpecialPowerPurchase = observerSettings[SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE].get<bool>();
+					presentSettings.insert(SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE);
+				}
+
+				if (observerSettings.contains(SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE))
+				{
+					m_Observer_NotificationMilestone = observerSettings[SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE].get<bool>();
+					presentSettings.insert(SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE);
 				}
 			}
 
@@ -527,15 +621,178 @@ void GenOnlineSettings::Load(void)
         m_Social_Notification_FriendGoesOffline_Menus = true;
         m_Social_Notification_FriendGoesOffline_Gameplay = true;
 
+		m_Camera_RotateFactor = GenOnlineClientOptions::CameraFactorDefault;
+		m_Camera_PitchFactor = GenOnlineClientOptions::CameraFactorDefault;
+		m_Camera_ZoomFactor = GenOnlineClientOptions::CameraFactorDefault;
+		m_Media_Legacy = GenOnlineClientOptions::LegacyMediaDefault;
+		m_Observer_StatsFontSize = GenOnlineClientOptions::ObserverStatsFontSizeDefault;
+		m_Observer_NotificationFontSize = GenOnlineClientOptions::ObserverNotificationFontSizeDefault;
+		m_Observer_NotificationSpecialPowerUsage = GenOnlineClientOptions::ObserverNotificationDefault;
+		m_Observer_NotificationSpecialPowerPurchase = GenOnlineClientOptions::ObserverNotificationDefault;
+		m_Observer_NotificationMilestone = GenOnlineClientOptions::ObserverNotificationDefault;
+
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json is not usable (a value cannot be read), using the defaults this session and leaving the file untouched");
+		TakeOptionsIniValues({});
 		return;
 	}
+
+	// The settings that the file does not hold yet take their Options.ini values, which the save below moves into the file.
+	TakeOptionsIniValues(presentSettings);
 
 	// The first save writes every setting, which fills the keys the file does not have yet.
 	m_PreservedJSON = "{}";
 	m_bClientFileWritable = bWritable;
 
 	// The save writes keys that are new or missing and skips a file that already holds every value.
+	// Options.ini loses the old keys only after client.json holds the values.
+	if (Save() && m_bClientFileWritable)
+	{
+		RemoveOptionsIniKeys();
+	}
+}
+
+// The Options.ini key of each setting that moved to client.json, by the dotted path of the setting.
+struct OptionsIniSetting
+{
+	const char* path;
+	const char* optionsIniKey;
+};
+
+static const OptionsIniSetting s_OptionsIniSettings[] = {
+	{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_ROTATE_FACTOR, GenOnlineClientOptions::OptionsIniCameraRotate },
+	{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_PITCH_FACTOR, GenOnlineClientOptions::OptionsIniCameraPitch },
+	{ SETTINGS_KEY_MEDIA "." SETTINGS_KEY_MEDIA_LEGACY, GenOnlineClientOptions::OptionsIniLegacyMedia },
+	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE, GenOnlineClientOptions::OptionsIniObserverStatsFontSize },
+	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE, GenOnlineClientOptions::OptionsIniObserverNotificationFontSize },
+	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE, GenOnlineClientOptions::OptionsIniObserverNotificationSpecialPowerUsage },
+	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE, GenOnlineClientOptions::OptionsIniObserverNotificationSpecialPowerPurchase },
+	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE, GenOnlineClientOptions::OptionsIniObserverNotificationMilestone },
+};
+
+void GenOnlineSettings::TakeOptionsIniValues(const std::set<std::string>& presentSettings)
+{
+	if (presentSettings.size() == std::size(s_OptionsIniSettings))
+	{
+		return;
+	}
+
+	// Options.ini lives in the user data folder, which TheGlobalData knows.
+	if (TheGlobalData == nullptr)
+	{
+		return;
+	}
+
+	OptionPreferences optionsIni;
+	for (const OptionsIniSetting& setting : s_OptionsIniSettings)
+	{
+		if (presentSettings.count(setting.path) != 0)
+		{
+			continue;
+		}
+		OptionPreferences::const_iterator it = optionsIni.find(setting.optionsIniKey);
+		if (it == optionsIni.end())
+		{
+			continue;
+		}
+
+		const char* text = it->second.str();
+		const std::string path = setting.path;
+		bool bTaken = false;
+		if (path == SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_ROTATE_FACTOR)
+		{
+			bTaken = GenOnlineClientOptions::ParseOptionsIniCameraMultiplier(text, m_Camera_RotateFactor);
+		}
+		else if (path == SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_PITCH_FACTOR)
+		{
+			bTaken = GenOnlineClientOptions::ParseOptionsIniCameraMultiplier(text, m_Camera_PitchFactor);
+		}
+		else if (path == SETTINGS_KEY_MEDIA "." SETTINGS_KEY_MEDIA_LEGACY)
+		{
+			bTaken = GenOnlineClientOptions::ParseOptionsIniYesNo(text, m_Media_Legacy);
+		}
+		else if (path == SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE)
+		{
+			bTaken = GenOnlineClientOptions::ParseOptionsIniFontSize(text, m_Observer_StatsFontSize);
+		}
+		else if (path == SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE)
+		{
+			bTaken = GenOnlineClientOptions::ParseOptionsIniFontSize(text, m_Observer_NotificationFontSize);
+		}
+		else if (path == SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE)
+		{
+			bTaken = GenOnlineClientOptions::ParseOptionsIniYesNo(text, m_Observer_NotificationSpecialPowerUsage);
+		}
+		else if (path == SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE)
+		{
+			bTaken = GenOnlineClientOptions::ParseOptionsIniYesNo(text, m_Observer_NotificationSpecialPowerPurchase);
+		}
+		else if (path == SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE)
+		{
+			bTaken = GenOnlineClientOptions::ParseOptionsIniYesNo(text, m_Observer_NotificationMilestone);
+		}
+
+		if (bTaken)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Took %s of Options.ini for %s", setting.optionsIniKey, setting.path);
+		}
+		else
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Ignoring %s of Options.ini, its value is not valid", setting.optionsIniKey);
+		}
+	}
+}
+
+void GenOnlineSettings::RemoveOptionsIniKeys()
+{
+	if (TheGlobalData == nullptr)
+	{
+		return;
+	}
+
+	OptionPreferences optionsIni;
+	bool bErased = false;
+	for (const OptionsIniSetting& setting : s_OptionsIniSettings)
+	{
+		if (optionsIni.erase(setting.optionsIniKey) != 0)
+		{
+			bErased = true;
+		}
+	}
+	if (!bErased)
+	{
+		return;
+	}
+
+	// A failed write keeps the keys. client.json already holds the values and the next start tries again.
+	if (optionsIni.write())
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Removed the settings that moved to client.json from Options.ini");
+	}
+	else
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Cannot remove the settings that moved to client.json from Options.ini");
+	}
+}
+
+void GenOnlineSettings::Observer_SetStatsFontSize(int fontSize)
+{
+	const int clamped = GenOnlineClientOptions::ClampObserverFontSize(fontSize);
+	if (clamped == m_Observer_StatsFontSize)
+	{
+		return;
+	}
+	m_Observer_StatsFontSize = clamped;
+	Save();
+}
+
+void GenOnlineSettings::Observer_SetNotificationFontSize(int fontSize)
+{
+	const int clamped = GenOnlineClientOptions::ClampObserverFontSize(fontSize);
+	if (clamped == m_Observer_NotificationFontSize)
+	{
+		return;
+	}
+	m_Observer_NotificationFontSize = clamped;
 	Save();
 }
 
@@ -631,8 +888,29 @@ bool GenOnlineSettings::Save()
 				{
 					{SETTINGS_KEY_CAMERA_MIN_HEIGHT, m_Camera_MinHeight},
 					{SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST, m_Camera_MaxHeight_LobbyHost},
+					{SETTINGS_KEY_CAMERA_ROTATE_FACTOR, m_Camera_RotateFactor},
+					{SETTINGS_KEY_CAMERA_PITCH_FACTOR, m_Camera_PitchFactor},
+					{SETTINGS_KEY_CAMERA_ZOOM_FACTOR, m_Camera_ZoomFactor},
 				}
 		  },
+
+		{
+			SETTINGS_KEY_MEDIA,
+				{
+					{SETTINGS_KEY_MEDIA_LEGACY, m_Media_Legacy},
+				}
+		},
+
+		{
+			SETTINGS_KEY_OBSERVER,
+				{
+					{SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE, m_Observer_StatsFontSize},
+					{SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE, m_Observer_NotificationFontSize},
+					{SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE, m_Observer_NotificationSpecialPowerUsage},
+					{SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE, m_Observer_NotificationSpecialPowerPurchase},
+					{SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE, m_Observer_NotificationMilestone},
+				}
+		},
 
 		{
 			SETTINGS_KEY_RENDER,

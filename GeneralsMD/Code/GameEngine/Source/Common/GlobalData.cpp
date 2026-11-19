@@ -62,6 +62,9 @@
 #include "GameClient/TerrainVisual.h"
 
 #include "GameNetwork/FirewallHelper.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInit.h"
+#endif
 
 // PUBLIC DATA ////////////////////////////////////////////////////////////////////////////////////
 GlobalData* TheWritableGlobalData = nullptr;				///< The global data singleton
@@ -1107,8 +1110,9 @@ GlobalData::GlobalData()
 	m_forceBenchmark = FALSE;	///<forces running of CPU detection benchmark, even on known cpu's.
 
 	m_keyboardCameraRotateSpeed = 0.1f;
-	m_cameraRotateSpeedMultiplier = 1.0f;
-	m_cameraPitchSpeedMultiplier = 1.0f;
+	m_cameraRotateFactor = 0.5f;
+	m_cameraPitchFactor = 0.5f;
+	m_cameraZoomFactor = 0.5f;
 
 #if defined(USE_MAULLER_ONEDRIVE_FIX)
 	// Set user data directory based on registry settings instead of INI parameters.
@@ -1321,13 +1325,20 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_playerInfoListFontSize = optionPref.getPlayerInfoListFontSize();
 	TheWritableGlobalData->m_showMoneyPerMinute = optionPref.getShowMoneyPerMinute();
 	TheWritableGlobalData->m_gameWindowTransitionSpeedMultiplier = optionPref.getGameWindowTransitionSpeedMultiplier();
-	TheWritableGlobalData->m_cameraRotateSpeedMultiplier = optionPref.getCameraRotateSpeedMultiplier();
-	TheWritableGlobalData->m_cameraPitchSpeedMultiplier = optionPref.getCameraPitchSpeedMultiplier();
-	TheWritableGlobalData->m_observerStatsFontSize = optionPref.getObserverStatsFontSize();
-	TheWritableGlobalData->m_observerNotificationFontSize = optionPref.getObserverNotificationFontSize();
-	TheWritableGlobalData->m_observerNotificationSpecialPowerUsage = optionPref.getObserverNotificationSpecialPowerUsage();
-	TheWritableGlobalData->m_observerNotificationSpecialPowerPurchase = optionPref.getObserverNotificationSpecialPowerPurchase();
-	TheWritableGlobalData->m_observerNotificationMilestone = optionPref.getObserverNotificationMilestone();
+#if defined(GENONLINE)
+	// The camera factors and the observer overlay settings come from client.json.
+	{
+		const GenOnlineSettings& genOnlineSettings = GenOnlineServicesManager::Settings;
+		TheWritableGlobalData->m_cameraRotateFactor = genOnlineSettings.Camera_GetRotateFactor();
+		TheWritableGlobalData->m_cameraPitchFactor = genOnlineSettings.Camera_GetPitchFactor();
+		TheWritableGlobalData->m_cameraZoomFactor = genOnlineSettings.Camera_GetZoomFactor();
+		TheWritableGlobalData->m_observerStatsFontSize = genOnlineSettings.Observer_GetStatsFontSize();
+		TheWritableGlobalData->m_observerNotificationFontSize = genOnlineSettings.Observer_GetNotificationFontSize();
+		TheWritableGlobalData->m_observerNotificationSpecialPowerUsage = genOnlineSettings.Observer_NotificationSpecialPowerUsage();
+		TheWritableGlobalData->m_observerNotificationSpecialPowerPurchase = genOnlineSettings.Observer_NotificationSpecialPowerPurchase();
+		TheWritableGlobalData->m_observerNotificationMilestone = genOnlineSettings.Observer_NotificationMilestone();
+	}
+#endif
 	TheWritableGlobalData->m_antiAliasLevel = optionPref.getAntiAliasing();
 
 #if !defined(GENONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)

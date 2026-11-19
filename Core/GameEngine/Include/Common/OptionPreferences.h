@@ -91,7 +91,6 @@ public:
 	Bool usesSystemMapDir();
 	AsciiString getPreferred3DProvider();
 	AsciiString getSpeakerType();
-	Bool getLegacyMediaEnabled() const;
 	Real getSoundVolume();
 	Real get3DSoundVolume();
 	Real getSpeechVolume();
@@ -132,11 +131,4 @@ public:
 	Bool getShowMoneyPerMinute() const;
 
 	Real getGameWindowTransitionSpeedMultiplier() const;
-	Real getCameraRotateSpeedMultiplier() const;
-	Real getCameraPitchSpeedMultiplier() const;
-
-    Int getObserverStatsFontSize(void);
-    Int getObserverNotificationFontSize(void);
-	Bool getObserverNotificationSpecialPowerUsage(void);
-	Bool getObserverNotificationSpecialPowerPurchase(void);
-	Bool getObserverNotificationMilestone(void);};
+};
