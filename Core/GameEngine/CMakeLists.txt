@@ -196,6 +196,9 @@ set(GAMEENGINE_SRC
     Include/GameClient/GenOnlineMenus.h
     Include/GameClient/GlobalLanguage.h
     Include/GameClient/GraphDraw.h
+    Include/GameClient/GUI/ChatCompletion.h
+    Include/GameClient/GUI/ChatCompletionSets.h
+    Include/GameClient/GUI/ChatMentions.h
 #    Include/GameClient/GUICallbacks.h
     Include/GameClient/GUICommandTranslator.h
     Include/GameClient/HeaderTemplate.h
@@ -759,6 +762,9 @@ set(GAMEENGINE_SRC
     Source/GameClient/GraphDraw.cpp
     Source/GameClient/GUI/AnimateWindowManager.cpp
     Source/GameClient/GUI/ChallengeGenerals.cpp
+    Source/GameClient/GUI/ChatCompletion.cpp
+    Source/GameClient/GUI/ChatCompletionSets.cpp
+    Source/GameClient/GUI/ChatMentions.cpp
     Source/GameClient/GUI/ControlBar/ControlBar.cpp
     Source/GameClient/GUI/ControlBar/ControlBarBeacon.cpp
     Source/GameClient/GUI/ControlBar/ControlBarCommand.cpp
