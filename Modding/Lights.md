@@ -160,3 +160,19 @@ model lamp's fixture.
 We built and tested model lamps internally on Generals 2 buildings converted with our own tool. It writes the marker, the
 fixtures, their texture and the lamp file from Generals 2's own data: each lamp's place, colour, reach and timing per
 state, and the bone it rides. Those models and the tool are not part of this repository.
+
+---
+
+## 3. Infantry
+
+Infantry are lit by the map's lights like everything else.
+
+Zero Hour lights infantry with their own copies of the map's lights, each multiplied by `GameData.ini`'s
+`InfantryLight<time>Scale` and capped at 1. EA meant 1 by day and 2 at night, as its WorldBuilder text says, but the
+shipped file writes them as percentages (`100f`, `200f`) into a value read as a plain multiplier. Every light therefore
+turned full white on a soldier: lit as by day at night, and glowing against a dark scene. **This build does not use
+those four keys.**
+
+A map script's *Map / Environment / Infantry Lighting - Set* still works, as in 2003: each light × its value, capped at
+1, until *Infantry Lighting - Reset*. The one shipped map that uses it, the night intro to the USA's fifth mission,
+sets 1.
