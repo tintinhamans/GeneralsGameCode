@@ -314,9 +314,17 @@ public:
 			//Calc length
 			Real length = WWMath::Sqrt( dx*dx + dy*dy );
 
-			//Normalize length
-			dx /= length;
-			dy /= length;
+			if (length > 0.0f)
+			{
+				dx /= length;
+				dy /= length;
+			}
+			else
+			{
+				// Coincident locations use the default delivery heading along positive X.
+				dx = -1.0f;
+				dy = 0.0f;
+			}
 
 			targetOffsetX = dx * m_targetOffset.x - dy * m_targetOffset.y;
 			targetOffsetY = dy * m_targetOffset.x + dx * m_targetOffset.y;

@@ -54,6 +54,13 @@ Notes:
 * Each of `NumberOfShots` spawns at the placement. A new order drops the placement with the
 attack, unless `FireRegardlessOfOrders = Yes`. Save/load keeps it.
 
+## DeliverPayload formations
+
+`FormationSize` and `FormationSpacing` now work when an `OCLSpecialPower` uses
+`CreateLocation = CREATE_AT_LOCATION` or `CREATE_ABOVE_LOCATION`. When the spawn and
+target share the same X/Y coordinates, the formation uses the default delivery heading
+along positive X. `TargetOffset` also uses that heading.
+
 ## ObjectCreationListExtend
 
 See [Extend Blocks](contraZH-Extend.md#objectcreationlistini).
