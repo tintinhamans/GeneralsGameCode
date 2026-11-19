@@ -1001,7 +1001,7 @@ protected:
 	};
 	CameoRowLayout getCameoRowLayout() const;
 	Int getCameoStackBottom( const CameoRowLayout &layout, Bool groupRowShown ) const;
-	Bool getCameoRowHousing( IRegion2D *housing ) const;
+	Bool getCameoRowHousing( IRegion2D *housing, Bool *closed ) const;
 	UnsignedInt getCameoRowStatus() const;
 	void updateCameoRowBlocker();
 	void initSmartSelectionBar( const ICoord2D &commandButtonSize );

@@ -221,7 +221,7 @@ static Int scaleArt( Int artPixels, Real scale )
 	* lines up however the rect is clipped. */
 //-------------------------------------------------------------------------------------------------
 static void drawFrameTiles( const Image *source, const FrameSlice &slice, const Coord2D &scale,
-														Int x0, Int y0, Int x1, Int y1, const IRegion2D &clip )
+														Int x0, Int y0, Int x1, Int y1, Bool flip, const IRegion2D &clip )
 {
 	const Real tileWidth = slice.width * scale.x;
 	const Real tileHeight = slice.height * scale.y;
@@ -248,8 +248,16 @@ static void drawFrameTiles( const Image *source, const FrameSlice &slice, const 
 		const Real shareY = (Real)( bottom - top ) / (Real)( fullBottom - top );
 
 		Region2D uv;
-		uv.lo.y = sourceUV->lo.y + slice.top * vPerPixel;
-		uv.hi.y = uv.lo.y + slice.height * shareY * vPerPixel;
+		if( flip )
+		{
+			uv.lo.y = sourceUV->lo.y + ( slice.top + slice.height ) * vPerPixel;
+			uv.hi.y = uv.lo.y - slice.height * shareY * vPerPixel;
+		}
+		else
+		{
+			uv.lo.y = sourceUV->lo.y + slice.top * vPerPixel;
+			uv.hi.y = uv.lo.y + slice.height * shareY * vPerPixel;
+		}
 
 		for( Int column = firstColumn; x0 + REAL_TO_INT( column * tileWidth + 0.5f ) < lastX; column++ )
 		{
@@ -321,10 +329,11 @@ Int ControlBar::getCameoStackBottom( const CameoRowLayout &layout, Bool groupRow
 }
 
 //-------------------------------------------------------------------------------------------------
-/** The housing's outer rect, from its top down to the bar's top edge, around every shown row with
-	* cameos, or FALSE when no housing is drawn. The picture and the input blocker both use it. */
+/** The housing's outer rect around every shown row with cameos, or FALSE when no housing is drawn.
+	* It is closed, ending under the cameos with a bottom edge, when that fits above the bar's top
+	* edge, and otherwise ends at the bar's top edge. The picture and the input blocker both use it. */
 //-------------------------------------------------------------------------------------------------
-Bool ControlBar::getCameoRowHousing( IRegion2D *housing ) const
+Bool ControlBar::getCameoRowHousing( IRegion2D *housing, Bool *closed ) const
 {
 	GameWindow *commandWindow = m_contextParent[ CP_COMMAND ] ? m_contextParent[ CP_COMMAND ] : m_contextParent[ CP_MASTER ];
 	Coord2D scale;
@@ -372,40 +381,54 @@ Bool ControlBar::getCameoRowHousing( IRegion2D *housing ) const
 	housing->lo.x = commandPos.x + scaleArt( HOUSING_LEFT - BAR_LEFT, scale.x );
 	housing->lo.y = cameos.lo.y - scaleArt( FRAME_THICKNESS_Y + FRAME_PADDING, scale.y );
 	housing->hi.x = cameos.hi.x + scaleArt( FRAME_PADDING + FRAME_THICKNESS_X, scale.x );
-	housing->hi.y = commandPos.y;
+	const Int closedBottom = cameos.hi.y + scaleArt( FRAME_PADDING + FRAME_THICKNESS_Y, scale.y );
+	*closed = closedBottom <= commandPos.y;
+	housing->hi.y = *closed ? closedBottom : commandPos.y;
 	return TRUE;
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Every piece of the housing whose outer rect runs from x0, y0 to x1 and down to the bar's top
-	* edge at barTop; the clip decides which part of it lands. */
+/** Every piece of the housing whose outer rect runs from x0, y0 to x1, y1. A closed housing gets
+	* a bottom edge of the top edge's slices upside down; the clip decides which part of it lands. */
 //-------------------------------------------------------------------------------------------------
-static void drawHousingPieces( const Image *source, const Coord2D &scale, Int x0, Int y0, Int x1, Int barTop,
-															 IRegion2D clip )
+static void drawHousingPieces( const Image *source, const Coord2D &scale, Int x0, Int y0, Int x1, Int y1,
+															 Bool closed, IRegion2D clip )
 {
 	const Int borderX = scaleArt( FRAME_THICKNESS_X, scale.x );
 	const Int borderY = scaleArt( FRAME_THICKNESS_Y, scale.y );
-	const Int y1 = barTop + scaleArt( BAR_STONE_TOP - BAR_TOP, scale.y );
+	const Int sideBottom = closed ? y1 - borderY : y1;
 	TheDisplay->setClipRegion( &clip );
-	drawFrameTiles( source, FRAME_FILL, scale, x0 + borderX, y0 + borderY, x1 - borderX, y1, clip );
-	drawFrameTiles( source, FRAME_TOP, scale, x0 + borderX, y0, x1 - borderX, y0 + borderY, clip );
-	drawFrameTiles( source, FRAME_LEFT, scale, x0, y0 + borderY, x0 + borderX, y1, clip );
-	drawFrameTiles( source, FRAME_RIGHT, scale, x1 - borderX, y0 + borderY, x1, y1, clip );
-	drawFrameTiles( source, FRAME_TOP_LEFT, scale, x0, y0, x0 + borderX, y0 + borderY, clip );
-	drawFrameTiles( source, FRAME_TOP_RIGHT, scale, x1 - borderX, y0, x1, y0 + borderY, clip );
+	drawFrameTiles( source, FRAME_FILL, scale, x0 + borderX, y0 + borderY, x1 - borderX, sideBottom, FALSE, clip );
+	drawFrameTiles( source, FRAME_TOP, scale, x0 + borderX, y0, x1 - borderX, y0 + borderY, FALSE, clip );
+	drawFrameTiles( source, FRAME_LEFT, scale, x0, y0 + borderY, x0 + borderX, sideBottom, FALSE, clip );
+	drawFrameTiles( source, FRAME_RIGHT, scale, x1 - borderX, y0 + borderY, x1, sideBottom, FALSE, clip );
+	drawFrameTiles( source, FRAME_TOP_LEFT, scale, x0, y0, x0 + borderX, y0 + borderY, FALSE, clip );
+	drawFrameTiles( source, FRAME_TOP_RIGHT, scale, x1 - borderX, y0, x1, y0 + borderY, FALSE, clip );
+	if( closed )
+	{
+		drawFrameTiles( source, FRAME_TOP, scale, x0 + borderX, sideBottom, x1 - borderX, y1, TRUE, clip );
+		drawFrameTiles( source, FRAME_TOP_LEFT, scale, x0, sideBottom, x0 + borderX, y1, TRUE, clip );
+		drawFrameTiles( source, FRAME_TOP_RIGHT, scale, x1 - borderX, sideBottom, x1, y1, TRUE, clip );
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
-/** The housing runs from above the top row down to the bar's top stone line. Before the bar's art
-	* it draws the part above the bar's top edge, so the money tab covers it; over the bar it draws
-	* the band that hides the bar's dark top bevel, around the tab. */
+/** An open housing runs from above the top row down to the bar's top stone line. Before the bar's
+	* art it draws the part above the bar's top edge, so the money tab covers it; over the bar it draws
+	* the band that hides the bar's dark top bevel, around the tab. A closed housing draws whole
+	* before the bar's art and nothing over the bar. */
 //-------------------------------------------------------------------------------------------------
 void ControlBar::drawCameoRowHousing( Bool overBar )
 {
 	IRegion2D housing;
+	Bool closed;
 	Coord2D scale;
 	const ControlBarSchemeImage *part = findFramePart( &scale );
-	if( part == nullptr || !getCameoRowHousing( &housing ) )
+	if( part == nullptr || !getCameoRowHousing( &housing, &closed ) )
+	{
+		return;
+	}
+	if( closed && overBar )
 	{
 		return;
 	}
@@ -423,13 +446,19 @@ void ControlBar::drawCameoRowHousing( Bool overBar )
 	const Int y0 = housing.lo.y;
 	const Int x1 = housing.hi.x;
 	const Int barTop = housing.hi.y;
+	const Int y1 = barTop + scaleArt( BAR_STONE_TOP - BAR_TOP, scale.y );
 
 	IRegion2D clip;
 	TheDisplay->beginBatch();
-	if( !overBar )
+	if( closed )
 	{
 		clip = housing;
-		drawHousingPieces( source, scale, x0, y0, x1, barTop, clip );
+		drawHousingPieces( source, scale, x0, y0, x1, housing.hi.y, TRUE, clip );
+	}
+	else if( !overBar )
+	{
+		clip = housing;
+		drawHousingPieces( source, scale, x0, y0, x1, y1, FALSE, clip );
 	}
 	else
 	{
@@ -445,14 +474,14 @@ void ControlBar::drawCameoRowHousing( Bool overBar )
 		clip.hi.x = MIN( x1, tabLeft );
 		if( clip.lo.x < clip.hi.x )
 		{
-			drawHousingPieces( source, scale, x0, y0, x1, barTop, clip );
+			drawHousingPieces( source, scale, x0, y0, x1, y1, FALSE, clip );
 		}
 
 		clip.lo.x = MAX( x0, tabRight );
 		clip.hi.x = x1;
 		if( clip.lo.x < clip.hi.x )
 		{
-			drawHousingPieces( source, scale, x0, y0, x1, barTop, clip );
+			drawHousingPieces( source, scale, x0, y0, x1, y1, FALSE, clip );
 		}
 	}
 	TheDisplay->endBatch();
@@ -492,7 +521,8 @@ void ControlBar::updateCameoRowBlocker()
 	}
 
 	IRegion2D housing;
-	if( !getCameoRowHousing( &housing ) || housing.hi.x <= housing.lo.x || housing.hi.y <= housing.lo.y )
+	Bool closed;
+	if( !getCameoRowHousing( &housing, &closed ) || housing.hi.x <= housing.lo.x || housing.hi.y <= housing.lo.y )
 	{
 		if( !m_cameoRowBlocker->winIsHidden() )
 		{
