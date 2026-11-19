@@ -349,7 +349,7 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
 
 	// Ronin @feature 10/11/2026 DX9: wind - a flake drifts across in step with how far it has fallen, so snow and rain fall at a
 	// slant, varied by slow gusts. The emitters sit upwind by half a fall's drift: the slanted column stays round the camera.
-	const Real gust = 1.0f + m_windGust * (0.6f * WWMath::Sin(m_gustTime * 0.4f) + 0.4f * WWMath::Sin(m_gustTime + 1.3f));
+	const Real gust = getGustFactor();	// Ronin @feature 19/11/2026 DX9: shared with the trees' sway
 	const Real across = (m_velocity > 0.001f) ? m_windSpeed * gust / m_velocity : 0.0f;
 	m_driftX = across * WWMath::Cos(DEG_TO_RADF(m_windDirection));
 	m_driftY = across * WWMath::Sin(DEG_TO_RADF(m_windDirection));

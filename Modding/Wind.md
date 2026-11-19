@@ -1,7 +1,8 @@
 # The map's wind
 
-A map can have a wind. It blows the snow and rain at a slant, and turns flags that are rigged for it (section 3) to point
-downwind. Zero Hour has no wind: snow and rain fall straight down, and flags keep the direction they were built with.
+A map can have a wind. It blows the snow and rain at a slant, turns flags that are rigged for it (section 3) to point
+downwind, and leans and sways the map's trees (section 4). Zero Hour has no wind: snow and rain fall straight down, flags
+keep the direction they were built with, and trees sway in a fixed breeze unless a mission script sets one.
 
 ---
 
@@ -65,7 +66,19 @@ bones with one of these pairs:
 - Up to ten flags per model, each name once.
 - Flags are not stopped at walls. A flag hung on a wall turns into the wall when the wind blows that way.
 
-## 4. Trying it
+## 4. Trees
+
+The map's trees (the ones a map places, drawn together by the engine) lean downwind and sway with the wind.
+
+- **Direction:** `SnowWindDirection`; the trees lean the way it blows.
+- **Strength:** at `SnowWindSpeed` 2 they lean and sway as much as Zero Hour's own breeze does by default (about 3°
+  each). Both grow with the speed up to 4 times that, at 8 and above.
+- **Gusts:** `SnowWindGust` varies it, in step with the snow's gusts.
+- With no wind, trees keep Zero Hour's own breeze.
+- **A mission script wins.** Once a script runs *Map / Environment / Set wind sway amount and direction*, the trees
+  follow the script, whatever the map's wind.
+
+## 5. Trying it
 
 In the debug panel (Ctrl+Shift+Z):
 - `snow` shows the weather and the wind, with the snow's slant.

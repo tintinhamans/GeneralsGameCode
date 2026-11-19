@@ -75,6 +75,7 @@ enum
 #include "GameLogic/PartitionManager.h"
 #include "GameClient/ClientRandomValue.h"
 #include "GameClient/FXList.h"
+#include "GameClient/Snow.h"	// Ronin @feature 19/11/2026 DX9: the map's wind sways the trees
 #include "W3DDevice/GameClient/TerrainTex.h"
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DDynamicLight.h"
@@ -377,6 +378,23 @@ Int W3DTreeBuffer::getPartitionBucket(const Coord3D &pos) const
 	Int yIndex = REAL_TO_INT_FLOOR ( (y/(m_bounds.hi.y-m_bounds.lo.y)) * (PARTITION_WIDTH_HEIGHT-0.1f) );
 	DEBUG_ASSERTCRASH(xIndex>=0 && yIndex>=0 && xIndex<PARTITION_WIDTH_HEIGHT && yIndex<PARTITION_WIDTH_HEIGHT, ("Invalid range."));
 	return yIndex*PARTITION_WIDTH_HEIGHT + xIndex;
+}
+
+// Ronin @feature 19/11/2026 DX9: the breeze the map's wind makes - 2003's period and randomness, turned to the wind (degrees
+// it blows to, 0 = +x); its lean and sway are 2003's at SnowWindSpeed 2 and grow with the speed, up to 4 times.
+static const Short WIND_SWAY_VERSION = -2;
+static BreezeInfo windBreeze(const BreezeInfo &base, Real dirDegrees, Real speed)
+{
+	const Real rad = dirDegrees * PI / 180.0f;
+	const Real k = (speed < 8.0f) ? speed / 2.0f : 4.0f;
+	BreezeInfo b = base;
+	b.m_direction = rad;
+	b.m_directionVec.x = Cos(rad);
+	b.m_directionVec.y = Sin(rad);
+	b.m_intensity = base.m_intensity * k;
+	b.m_lean = base.m_lean * k;
+	b.m_breezeVersion = WIND_SWAY_VERSION;
+	return b;
 }
 
 //=============================================================================
@@ -1072,6 +1090,8 @@ W3DTreeBuffer::W3DTreeBuffer()
 	allocateTreeBuffers();
 	m_initialized = true;
 	m_curSwayVersion = -1;
+	m_swayWindDir = 0.0f;	// Ronin @feature 19/11/2026 DX9
+	m_swayWindSpeed = 0.0f;
 
 	m_shadow = nullptr;
 	R3DTreeFire::attach(this);	// Ronin @feature 25/10/2026 DX9: the logic's fire reports reach this buffer
@@ -1518,11 +1538,28 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 	const Bool mirrorPass = ShaderClass::Is_Backface_Culling_Inverted();
 	const Bool depthPass  = lightPass || mirrorPass;
 
+	// Ronin @feature 19/11/2026 DX9: the map's wind (Weather's SnowWind*) sways the trees, gusts included; a mission script's
+	// own breeze (version > 0) wins, and with neither the 2003 breeze is as it was.
+	const BreezeInfo& info = TheScriptEngine->getBreezeInfo();
+	Real windDir = 0.0f, windSpeed = 0.0f, windGust = 0.0f;
+	if (TheSnowManager != nullptr)
+		TheSnowManager->getWind(&windDir, &windSpeed, &windGust);
+	const Bool useWind = (info.m_breezeVersion == 0 && windSpeed > 0.0f);
+	const Real gust = useWind ? TheSnowManager->getGustFactor() : 1.0f;
+
 	// if breeze changes, always process the full update, even if not visible,
 	// so that things offscreen won't 'pop' when first viewed
 	if (!depthPass) {
-		const BreezeInfo& info = TheScriptEngine->getBreezeInfo();
-		if (info.m_breezeVersion != m_curSwayVersion)
+		if (useWind)
+		{
+			if (m_curSwayVersion != WIND_SWAY_VERSION || windDir != m_swayWindDir || windSpeed != m_swayWindSpeed)
+			{
+				updateSway(windBreeze(info, windDir, windSpeed));
+				m_swayWindDir = windDir;
+				m_swayWindSpeed = windSpeed;
+			}
+		}
+		else if (info.m_breezeVersion != m_curSwayVersion)
 		{
 			updateSway(info);
 		}
@@ -1554,7 +1591,7 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 			Real f2 = m_curSwayOffset[i] - minOffset;
 			Real f1 = 1.0f - f2;
 			swayFactor[i] = f1*m_swayOffsets[minOffset] + f2*m_swayOffsets[minOffset+1];
-			swayFactor[i] *= m_curSwayFactor[i];
+			swayFactor[i] *= m_curSwayFactor[i] * gust;	// Ronin @feature 19/11/2026 DX9: the wind's gusts (1 without wind)
 		}
 	}
 

@@ -108,6 +108,13 @@ void SnowManager::getWind(Real *directionDegrees, Real *speed, Real *gust) const
 	*gust = m_windGust;
 }
 
+// Ronin @feature 19/11/2026 DX9: the gusts - two slow waves on the wind's speed (m_gustTime wraps at 10 pi s), one
+// formula for the snow and the trees.
+Real SnowManager::getGustFactor() const
+{
+	return 1.0f + m_windGust * (0.6f * Sin(m_gustTime * 0.4f) + 0.4f * Sin(m_gustTime + 1.3f));
+}
+
 void SnowManager::reset()
 {
 	m_isVisible = TRUE;	//default to showing if it's enabled via INI.

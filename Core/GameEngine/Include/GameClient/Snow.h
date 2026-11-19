@@ -102,6 +102,7 @@ class SnowManager : public SubsystemInterface
 	// Ronin @feature 10/11/2026 DX9: the wind - degrees it blows to (0 = +X), world units/sec across, gusts 0..1.
 	void setWind(Real directionDegrees, Real speed, Real gust);
 	void getWind(Real *directionDegrees, Real *speed, Real *gust) const;
+	Real getGustFactor() const;	// Ronin @feature 19/11/2026 DX9: the wind's speed now over SnowWindSpeed - its gusts
 	void setVisible(Bool showWeather);	///<enable/disable rendering of weather - assuming it's available on map.
 
   protected :

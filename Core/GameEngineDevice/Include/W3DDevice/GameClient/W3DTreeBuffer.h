@@ -260,6 +260,9 @@ private:
 	Vector3 m_cameraLookAtVector;
 	Vector3 m_swayOffsets[NUM_SWAY_ENTRIES];
 	Int			m_curSwayVersion;
+	// Ronin @feature 19/11/2026 DX9: the map's wind the sway table was built from, while the wind sways the trees.
+	Real		m_swayWindDir;
+	Real		m_swayWindSpeed;
 
 	Real		m_curSwayOffset[MAX_SWAY_TYPES];
 	Real		m_curSwayStep[MAX_SWAY_TYPES];
