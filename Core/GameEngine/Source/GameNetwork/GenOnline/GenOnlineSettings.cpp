@@ -5,14 +5,29 @@
 #include "../GenOnlineLobbyInterface.h"
 #include "../GenOnlineInit.h"
 #include <algorithm>
+#include <iterator>
 #include "GameNetwork/GenOnline/CredentialStore.h"
 #include "GameNetwork/GenOnline/AntiCheat/GenOnlineAntiCheat.h"
 #include "GameNetwork/GenOnline/GenOnlineAuth.h"
+#include "Common/GlobalData.h"
 
 #define SETTINGS_KEY_CAMERA "camera"
 #define SETTINGS_KEY_CAMERA_MIN_HEIGHT "min_height"
 #define SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO "move_speed_ratio"
 #define SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST "max_height_only_when_lobby_host"
+#define SETTINGS_KEY_CAMERA_ROTATE_FACTOR "rotate_factor"
+#define SETTINGS_KEY_CAMERA_PITCH_FACTOR "pitch_factor"
+#define SETTINGS_KEY_CAMERA_ZOOM_FACTOR "zoom_factor"
+
+#define SETTINGS_KEY_MEDIA "media"
+#define SETTINGS_KEY_MEDIA_LEGACY "legacy"
+
+#define SETTINGS_KEY_OBSERVER "observer"
+#define SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE "stats_font_size"
+#define SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE "notification_font_size"
+#define SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE "notification_special_power_usage"
+#define SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE "notification_special_power_purchase"
+#define SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE "notification_milestone"
 
 #define SETTINGS_KEY_RENDER "render"
 #define SETTINGS_KEY_RENDER_LIMIT_FRAMERATE "limit_framerate"
@@ -141,6 +156,17 @@ static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 		{ SETTINGS_KEY_CAMERA, ValueType::Object },
 		{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_MIN_HEIGHT, ValueType::Number },
 		{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST, ValueType::Number },
+		{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_ROTATE_FACTOR, ValueType::Number },
+		{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_PITCH_FACTOR, ValueType::Number },
+		{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_ZOOM_FACTOR, ValueType::Number },
+		{ SETTINGS_KEY_MEDIA, ValueType::Object },
+		{ SETTINGS_KEY_MEDIA "." SETTINGS_KEY_MEDIA_LEGACY, ValueType::Boolean },
+		{ SETTINGS_KEY_OBSERVER, ValueType::Object },
+		{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE, ValueType::Number },
+		{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE, ValueType::Number },
+		{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE, ValueType::Boolean },
+		{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE, ValueType::Boolean },
+		{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE, ValueType::Boolean },
 		{ SETTINGS_KEY_RENDER, ValueType::Object },
 		{ SETTINGS_KEY_RENDER "." SETTINGS_KEY_RENDER_LIMIT_FRAMERATE, ValueType::Boolean },
 		{ SETTINGS_KEY_RENDER "." SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL, ValueType::Number },
@@ -248,6 +274,61 @@ void GenOnlineSettings::Load(void)
 				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST))
 				{
 					m_Camera_MaxHeight_LobbyHost = std::clamp<float>(static_cast<float>(cameraSettings[SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST]), GENONLINE_MIN_LOBBY_CAMERA_ZOOM, GENONLINE_MAX_LOBBY_CAMERA_ZOOM);
+				}
+
+				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_ROTATE_FACTOR))
+				{
+					m_Camera_RotateFactor = GenOnlineClientOptions::ClampCameraFactor(cameraSettings[SETTINGS_KEY_CAMERA_ROTATE_FACTOR].get<double>());
+				}
+
+				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_PITCH_FACTOR))
+				{
+					m_Camera_PitchFactor = GenOnlineClientOptions::ClampCameraFactor(cameraSettings[SETTINGS_KEY_CAMERA_PITCH_FACTOR].get<double>());
+				}
+
+				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_ZOOM_FACTOR))
+				{
+					m_Camera_ZoomFactor = GenOnlineClientOptions::ClampCameraFactor(cameraSettings[SETTINGS_KEY_CAMERA_ZOOM_FACTOR].get<double>());
+				}
+			}
+
+			if (jsonSettings.contains(SETTINGS_KEY_MEDIA))
+			{
+				const auto mediaSettings = jsonSettings[SETTINGS_KEY_MEDIA];
+
+				if (mediaSettings.contains(SETTINGS_KEY_MEDIA_LEGACY))
+				{
+					m_Media_Legacy = mediaSettings[SETTINGS_KEY_MEDIA_LEGACY].get<bool>();
+				}
+			}
+
+			if (jsonSettings.contains(SETTINGS_KEY_OBSERVER))
+			{
+				const auto observerSettings = jsonSettings[SETTINGS_KEY_OBSERVER];
+
+				if (observerSettings.contains(SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE))
+				{
+					m_Observer_StatsFontSize = GenOnlineClientOptions::ClampObserverFontSize(observerSettings[SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE].get<double>());
+				}
+
+				if (observerSettings.contains(SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE))
+				{
+					m_Observer_NotificationFontSize = GenOnlineClientOptions::ClampObserverFontSize(observerSettings[SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE].get<double>());
+				}
+
+				if (observerSettings.contains(SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE))
+				{
+					m_Observer_NotificationSpecialPowerUsage = observerSettings[SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE].get<bool>();
+				}
+
+				if (observerSettings.contains(SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE))
+				{
+					m_Observer_NotificationSpecialPowerPurchase = observerSettings[SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE].get<bool>();
+				}
+
+				if (observerSettings.contains(SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE))
+				{
+					m_Observer_NotificationMilestone = observerSettings[SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE].get<bool>();
 				}
 			}
 
@@ -518,6 +599,16 @@ void GenOnlineSettings::Load(void)
         m_Social_Notification_FriendGoesOffline_Menus = true;
         m_Social_Notification_FriendGoesOffline_Gameplay = true;
 
+		m_Camera_RotateFactor = GenOnlineClientOptions::CameraFactorDefault;
+		m_Camera_PitchFactor = GenOnlineClientOptions::CameraFactorDefault;
+		m_Camera_ZoomFactor = GenOnlineClientOptions::CameraFactorDefault;
+		m_Media_Legacy = GenOnlineClientOptions::LegacyMediaDefault;
+		m_Observer_StatsFontSize = GenOnlineClientOptions::ObserverStatsFontSizeDefault;
+		m_Observer_NotificationFontSize = GenOnlineClientOptions::ObserverNotificationFontSizeDefault;
+		m_Observer_NotificationSpecialPowerUsage = GenOnlineClientOptions::ObserverNotificationDefault;
+		m_Observer_NotificationSpecialPowerPurchase = GenOnlineClientOptions::ObserverNotificationDefault;
+		m_Observer_NotificationMilestone = GenOnlineClientOptions::ObserverNotificationDefault;
+
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json is not usable (a value cannot be read), using the defaults this session and leaving the file untouched");
 		return;
 	}
@@ -527,6 +618,28 @@ void GenOnlineSettings::Load(void)
 	m_bClientFileWritable = bWritable;
 
 	// The save writes keys that are new or missing and skips a file that already holds every value.
+	Save();
+}
+
+void GenOnlineSettings::Observer_SetStatsFontSize(int fontSize)
+{
+	const int clamped = GenOnlineClientOptions::ClampObserverFontSize(fontSize);
+	if (clamped == m_Observer_StatsFontSize)
+	{
+		return;
+	}
+	m_Observer_StatsFontSize = clamped;
+	Save();
+}
+
+void GenOnlineSettings::Observer_SetNotificationFontSize(int fontSize)
+{
+	const int clamped = GenOnlineClientOptions::ClampObserverFontSize(fontSize);
+	if (clamped == m_Observer_NotificationFontSize)
+	{
+		return;
+	}
+	m_Observer_NotificationFontSize = clamped;
 	Save();
 }
 
@@ -621,8 +734,29 @@ bool GenOnlineSettings::Save()
 				{
 					{SETTINGS_KEY_CAMERA_MIN_HEIGHT, m_Camera_MinHeight},
 					{SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST, m_Camera_MaxHeight_LobbyHost},
+					{SETTINGS_KEY_CAMERA_ROTATE_FACTOR, m_Camera_RotateFactor},
+					{SETTINGS_KEY_CAMERA_PITCH_FACTOR, m_Camera_PitchFactor},
+					{SETTINGS_KEY_CAMERA_ZOOM_FACTOR, m_Camera_ZoomFactor},
 				}
 		  },
+
+		{
+			SETTINGS_KEY_MEDIA,
+				{
+					{SETTINGS_KEY_MEDIA_LEGACY, m_Media_Legacy},
+				}
+		},
+
+		{
+			SETTINGS_KEY_OBSERVER,
+				{
+					{SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE, m_Observer_StatsFontSize},
+					{SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE, m_Observer_NotificationFontSize},
+					{SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE, m_Observer_NotificationSpecialPowerUsage},
+					{SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE, m_Observer_NotificationSpecialPowerPurchase},
+					{SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE, m_Observer_NotificationMilestone},
+				}
+		},
 
 		{
 			SETTINGS_KEY_RENDER,

@@ -106,6 +106,9 @@
 #include "GameNetwork/GameSpy/GameResultsThread.h"
 #include "GameNetwork/Online/OnlineProviderFactory.h"
 #include "GameNetwork/Online/IOnlineGameHooks.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInit.h"
+#endif
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "Common/Player.h"
@@ -397,6 +400,10 @@ void GameEngine::init()
 		DEBUG_ASSERTCRASH(TheWritableGlobalData,("TheWritableGlobalData expected to be created"));
 		initSubsystem(TheWritableGlobalData, "TheWritableGlobalData", TheWritableGlobalData, &xferCRC, "Data\\INI\\Default\\GameData", "Data\\INI\\GameData");
 		TheWritableGlobalData->parseCustomDefinition();
+
+#if defined(GENONLINE)
+		TheWritableGlobalData->applyGenOnlineClientSettings();
+#endif
 
 		GetOnlineGameHooks()->onGlobalDataLoaded();
 

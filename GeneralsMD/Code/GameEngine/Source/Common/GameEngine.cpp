@@ -108,6 +108,9 @@
 #include "GameNetwork/GameSpy/GameResultsThread.h"
 #include "GameNetwork/Online/OnlineProviderFactory.h"
 #include "GameNetwork/Online/IOnlineGameHooks.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInit.h"
+#endif
 
 #include "Common/version.h"
 
@@ -465,6 +468,10 @@ void GameEngine::init()
 		DEBUG_ASSERTCRASH(TheWritableGlobalData, ("TheWritableGlobalData expected to be created"));
 		initSubsystem(TheWritableGlobalData, "TheWritableGlobalData", TheWritableGlobalData, &xferCRC, "Data\\INI\\Default\\GameData", "Data\\INI\\GameData");
 		TheWritableGlobalData->parseCustomDefinition();
+
+#if defined(GENONLINE)
+		TheWritableGlobalData->applyGenOnlineClientSettings();
+#endif
 
 		// Init sentry ASAP to catch early crashes
 		GetOnlineGameHooks()->onGlobalDataLoaded();

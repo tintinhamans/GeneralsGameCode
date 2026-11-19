@@ -2158,9 +2158,9 @@ void InGameUI::update()
 		const Real fpsRatio = TheFramePacer->getBaseOverUpdateFpsRatio();
 		// Pitch at half speed feels alike: shorter range, larger view change per degree.
 		const Real turnAngle = TheGlobalData->m_keyboardCameraRotateSpeed * 0.6f * fpsRatio;
-		const Real rotateAngle = turnAngle * TheGlobalData->m_cameraRotateSpeedMultiplier;
-		const Real pitchAngle = turnAngle * 0.5f * TheGlobalData->m_cameraPitchSpeedMultiplier;
-		const Real zoomHeight = (Real)View::ZoomHeightPerSecond * fpsRatio;
+		const Real rotateAngle = turnAngle * SCROLL_MULTIPLIER * TheGlobalData->m_cameraRotateFactor;
+		const Real pitchAngle = turnAngle * 0.5f * SCROLL_MULTIPLIER * TheGlobalData->m_cameraPitchFactor;
+		const Real zoomHeight = (Real)View::ZoomHeightPerSecond * fpsRatio * SCROLL_MULTIPLIER * TheGlobalData->m_cameraZoomFactor;
 
 		if (m_cameraRotatingLeft && !m_cameraRotatingRight)
 		{

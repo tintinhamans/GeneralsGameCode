@@ -54,12 +54,12 @@ Two options pick what a build contains; both default to `ON`:
 
 | `RTS_BUILD_OPTION_MODERN_MEDIA` | `RTS_BUILD_OPTION_LEGACY_MEDIA` | Build |
 |---|---|---|
-| `ON` | `ON` | Both; `LegacyMedia = yes` in `Options.ini` picks Miles with Bink movies at startup, `no` or no entry picks OpenAL with FFmpeg movies |
+| `ON` | `ON` | Both; `"media": { "legacy": true }` in `client.json` picks Miles with Bink movies at startup, `false` or no entry picks OpenAL with FFmpeg movies |
 | `ON` | `OFF` | OpenAL with FFmpeg movies only |
 | `OFF` | `ON` | Miles with Bink movies only, as retail |
 | `OFF` | `OFF` | Configuration error |
 
-`LegacyMedia` is read once at startup, so a change needs a restart. Miles with FFmpeg
+`media.legacy` is read once at startup, so a change needs a restart. `client.json` lives in `%LOCALAPPDATA%\GeneralsOnline`. Miles with FFmpeg
 movies and Bink with OpenAL are not offered: FFmpeg movie audio plays only through
 OpenAL, and Bink movie audio only through Miles.
 

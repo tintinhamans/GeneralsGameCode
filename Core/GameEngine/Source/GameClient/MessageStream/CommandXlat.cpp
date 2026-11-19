@@ -51,7 +51,6 @@
 #include "Common/StatsCollector.h"
 #include "Common/ThingTemplate.h"
 #include "Common/GameLOD.h"
-#include "Common/OptionPreferences.h"
 
 #include "GameClient/InGameUI.h"
 #include "GameClient/Keyboard.h"
@@ -209,15 +208,6 @@ static Int applyObserverFontSizeChange(Int fontSize, ObserverFontSizeChange chan
 	return fontSize;
 }
 
-static void writeObserverFontSizePref(const char* prefKey, Int fontSize)
-{
-	OptionPreferences optPref;
-	AsciiString prefString;
-	prefString.format("%d", fontSize);
-	optPref[prefKey] = prefString;
-	optPref.write();
-}
-
 static bool changeObserverNotificationFontSize(ObserverFontSizeChange change)
 {
 	const Int fontSize = applyObserverFontSizeChange(TheWritableGlobalData->m_observerNotificationFontSize, change);
@@ -233,7 +223,9 @@ static bool changeObserverNotificationFontSize(ObserverFontSizeChange change)
 		TheInGameUI->refreshObserverNotificationResources();
 #endif
 
-	writeObserverFontSizePref("ObserverNotificationFontSize", fontSize);
+#if defined(GENONLINE)
+	GenOnlineServicesManager::Settings.Observer_SetNotificationFontSize(fontSize);
+#endif
 
 	return true;
 }
@@ -253,7 +245,9 @@ static bool changeObserverStatsFontSize(ObserverFontSizeChange change)
 		TheInGameUI->initObserverOverlay();
 #endif
 
-	writeObserverFontSizePref("ObserverStatsFontSize", fontSize);
+#if defined(GENONLINE)
+	GenOnlineServicesManager::Settings.Observer_SetStatsFontSize(fontSize);
+#endif
 
 	return true;
 }
