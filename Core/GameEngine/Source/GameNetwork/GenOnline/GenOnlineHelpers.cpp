@@ -34,9 +34,10 @@ static std::string GetBuildDescriptionForLog()
 #else
 	std::string strBuild = "Release";
 #endif
-#if defined(USE_TEST_ENV)
-	strBuild += ", test environment";
-#endif
+	if (GenOnlineServicesManager::GetEnvironment() == GenOnlineServicesManager::EEnvironment::TEST)
+	{
+		strBuild += ", test environment";
+	}
 	if (GitHaveInfo)
 	{
 		strBuild += std::format(", commit {}{} from {}", static_cast<const char*>(GitShortSHA1), GitUncommittedChanges ? " (modified)" : "", static_cast<const char*>(GitCommitDate));

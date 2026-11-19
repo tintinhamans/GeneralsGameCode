@@ -208,6 +208,71 @@ bool ReadSendCrashReports(const std::wstring& path)
 	return SendCrashReports(Read(path, {}));
 }
 
+// Reads a run of digits at pos and moves pos behind it. A run of digits needs at least minDigits and at most maxDigits.
+static bool SkipDigits(const std::string& text, size_t& pos, size_t minDigits, size_t maxDigits)
+{
+	size_t count = 0;
+	while (pos < text.size() && text[pos] >= '0' && text[pos] <= '9')
+	{
+		++pos;
+		++count;
+	}
+	return count >= minDigits && count <= maxDigits;
+}
+
+static bool SkipText(const std::string& text, size_t& pos, const char* expected)
+{
+	const std::string wanted(expected);
+	if (text.compare(pos, wanted.size(), wanted) != 0)
+	{
+		return false;
+	}
+	pos += wanted.size();
+	return true;
+}
+
+std::string EnvironmentOfTag(const std::string& tag)
+{
+	size_t pos = 0;
+	const bool bCandidate = SkipText(tag, pos, "v") && SkipDigits(tag, pos, 4, 4) && SkipText(tag, pos, ".") && SkipDigits(tag, pos, 1, 2)
+		&& SkipText(tag, pos, ".") && SkipDigits(tag, pos, 1, 9) && SkipText(tag, pos, "-rc.") && SkipDigits(tag, pos, 1, 9) && pos == tag.size();
+	return bCandidate ? "test" : "live";
+}
+
+std::string EnvironmentOverride(const ReadResult& file)
+{
+	if (file.status != ReadStatus::Ok && file.status != ReadStatus::Newer)
+	{
+		return std::string();
+	}
+	const auto network = file.document.find("network");
+	if (network == file.document.end() || !network->is_object())
+	{
+		return std::string();
+	}
+	const auto value = network->find("environment");
+	if (value == network->end() || !value->is_string())
+	{
+		return std::string();
+	}
+	const std::string environment = value->get<std::string>();
+	return environment == "live" || environment == "test" ? environment : std::string();
+}
+
+std::string ReadEnvironmentOverride(const std::wstring& path)
+{
+	if (path.empty())
+	{
+		return std::string();
+	}
+	return EnvironmentOverride(Read(path, {}));
+}
+
+std::string ChooseEnvironment(const std::string& tag, const std::string& overrideValue)
+{
+	return overrideValue.empty() ? EnvironmentOfTag(tag) : overrideValue;
+}
+
 bool CreateNew(const std::wstring& path, const std::string& bytes)
 {
 	const size_t slash = path.find_last_of(L"\\/");

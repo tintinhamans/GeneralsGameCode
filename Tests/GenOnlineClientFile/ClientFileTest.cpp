@@ -193,12 +193,74 @@ static void TestSendCrashReports()
 	RemoveDirectoryW(folder.c_str());
 }
 
+static void TestEnvironment()
+{
+	// Only an exact release candidate tag defaults to the test services.
+	CHECK(EnvironmentOfTag("v2026.11.0-rc.1") == "test");
+	CHECK(EnvironmentOfTag("v2026.11.0-rc.12") == "test");
+	CHECK(EnvironmentOfTag("v2026.1.10-rc.3") == "test");
+	CHECK(EnvironmentOfTag("v2026.11.0") == "live");
+	CHECK(EnvironmentOfTag("v2026.11.1") == "live");
+	CHECK(EnvironmentOfTag("") == "live");
+	CHECK(EnvironmentOfTag("v2026.11.0-rc.1-5-g0123abc") == "live");
+	CHECK(EnvironmentOfTag("v2026.11.0-rc.") == "live");
+	CHECK(EnvironmentOfTag("v2026.11.0-rc") == "live");
+	CHECK(EnvironmentOfTag("v2026.11.0-rc.1x") == "live");
+	CHECK(EnvironmentOfTag("v2026.11.0-beta.1") == "live");
+	CHECK(EnvironmentOfTag("2026.11.0-rc.1") == "live");
+	CHECK(EnvironmentOfTag("v2026.11-rc.1") == "live");
+	CHECK(EnvironmentOfTag("v26.11.0-rc.1") == "live");
+
+	// network.environment is read from a file the client can use.
+	CHECK(EnvironmentOverride(Classify(true, true, "{\"network\": {\"environment\": \"test\"}}", {})) == "test");
+	CHECK(EnvironmentOverride(Classify(true, true, "{\"network\": {\"environment\": \"live\"}}", {})) == "live");
+	CHECK(EnvironmentOverride(Classify(true, true, "{\"schema_version\": 2, \"network\": {\"environment\": \"test\"}}", {})) == "test");
+
+	// Anything else is no override: a missing file, key or section, another type, another value, an unusable file.
+	CHECK(EnvironmentOverride(Classify(false, false, std::string(), {})).empty());
+	CHECK(EnvironmentOverride(Classify(true, true, "{}", {})).empty());
+	CHECK(EnvironmentOverride(Classify(true, true, "{\"network\": {}}", {})).empty());
+	CHECK(EnvironmentOverride(Classify(true, true, "{\"network\": []}", {})).empty());
+	CHECK(EnvironmentOverride(Classify(true, true, "{\"network\": {\"environment\": true}}", {})).empty());
+	CHECK(EnvironmentOverride(Classify(true, true, "{\"network\": {\"environment\": \"dev\"}}", {})).empty());
+	CHECK(EnvironmentOverride(Classify(true, true, "{\"network\": {\"environment\": \"Test\"}}", {})).empty());
+	CHECK(EnvironmentOverride(Classify(true, true, "{\"environment\": \"test\"}", {})).empty());
+	CHECK(EnvironmentOverride(Classify(true, true, "{ not json", {})).empty());
+	CHECK(EnvironmentOverride(Classify(true, false, std::string(), {})).empty());
+
+	// The override wins over the tag, in both directions.
+	CHECK(ChooseEnvironment("v2026.11.0-rc.1", "") == "test");
+	CHECK(ChooseEnvironment("v2026.11.0", "") == "live");
+	CHECK(ChooseEnvironment("v2026.11.0-rc.1", "live") == "live");
+	CHECK(ChooseEnvironment("v2026.11.0", "test") == "test");
+	CHECK(ChooseEnvironment("", "test") == "test");
+
+	// A missing file or an empty path gives no override and creates nothing.
+	CHECK(ReadEnvironmentOverride(std::wstring()).empty());
+	wchar_t tempRoot[MAX_PATH] = {};
+	GetTempPathW(MAX_PATH, tempRoot);
+	const std::wstring folder = std::wstring(tempRoot) + L"genonline-environment-test-" + std::to_wstring(GetCurrentProcessId());
+	const std::wstring path = folder + L"\\client.json";
+	CHECK(ReadEnvironmentOverride(path).empty());
+	CHECK(GetFileAttributesW(folder.c_str()) == INVALID_FILE_ATTRIBUTES);
+
+	// A file with a wrong type of another key still gives its override, and reading leaves the file byte-identical.
+	CHECK(CreateDirectoryW(folder.c_str(), nullptr) != 0);
+	const std::string content = "{\"schema_version\": 1, \"render\": 7, \"network\": {\"environment\": \"test\"}}";
+	CHECK(CreateNew(path, content));
+	CHECK(ReadEnvironmentOverride(path) == "test");
+	CHECK(ReadAll(path) == content);
+	DeleteFileW(path.c_str());
+	RemoveDirectoryW(folder.c_str());
+}
+
 int main()
 {
 	TestClassify();
 	TestShouldSave();
 	TestFiles();
 	TestSendCrashReports();
+	TestEnvironment();
 	if (s_failures != 0)
 	{
 		std::printf("%d check(s) failed\n", s_failures);

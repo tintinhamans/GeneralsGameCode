@@ -250,9 +250,47 @@ GenOnlineServicesManager::~GenOnlineServicesManager()
 	m_pWebSocket.reset();
 }
 
+static const char* s_environmentReason = "";
+
+GenOnlineServicesManager::EEnvironment GenOnlineServicesManager::GetEnvironment()
+{
+#if defined(USE_TEST_ENV)
+	s_environmentReason = "this build is fixed to the test services";
+	return EEnvironment::TEST;
+#elif defined(USE_DEBUG_ON_LIVE_SERVER)
+	s_environmentReason = "this debug build is fixed to the live services";
+	return EEnvironment::LIVE;
+#elif defined(_DEBUG)
+	s_environmentReason = "this debug build is fixed to the dev services";
+	return EEnvironment::DEV;
+#else
+	static const EEnvironment environment = []()
+	{
+		const std::string tag = GitTag;
+		const std::string requested = GenOnlineClientFile::ReadEnvironmentOverride(GenOnlineClientFile::DefaultPath());
+		if (!requested.empty())
+		{
+			s_environmentReason = "network.environment of client.json";
+		}
+		else
+		{
+			s_environmentReason = GenOnlineClientFile::EnvironmentOfTag(tag) == "test" ? "the release candidate tag of this build" : "this build is not a release candidate";
+		}
+		return GenOnlineClientFile::ChooseEnvironment(tag, requested) == "test" ? EEnvironment::TEST : EEnvironment::LIVE;
+	}();
+	return environment;
+#endif
+}
+
+const char* GenOnlineServicesManager::EnvironmentReason()
+{
+	GetEnvironment();
+	return s_environmentReason;
+}
+
 const char* GenOnlineServicesManager::EnvironmentName()
 {
-	switch (g_Environment)
+	switch (GetEnvironment())
 	{
 		case EEnvironment::DEV: return "dev";
 		case EEnvironment::TEST: return "test";
@@ -374,7 +412,7 @@ void GenOnlineServicesManager::ProbeServiceRoute()
 			{
 				manager->m_routeProxyAuthFailed = false;
 				manager->m_routeValidatedAt = std::chrono::steady_clock::now();
-				if (g_Environment == EEnvironment::LIVE && Settings.Network_GetConnectionSettings().serverMode != "custom")
+				if (GetEnvironment() == EEnvironment::LIVE && Settings.Network_GetConnectionSettings().serverMode != "custom")
 				{
 					Settings.Network_SaveLastRoute(ServiceConnection::RouteHost(manager->m_serviceBase));
 				}

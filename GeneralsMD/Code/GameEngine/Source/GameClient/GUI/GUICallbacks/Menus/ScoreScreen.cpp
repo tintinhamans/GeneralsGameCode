@@ -583,6 +583,14 @@ WindowMsgHandledType ScoreScreenInput( GameWindow *window, UnsignedInt msg,
 
 }
 
+// The GameReplays page of a match. Matches of the test services are on the staging leaderboards.
+static const char* matchPageAddress()
+{
+	return GenOnlineServicesManager::GetEnvironment() == GenOnlineServicesManager::EEnvironment::TEST
+		? "https://stage-leaderboards.gamereplays.org/zh/match/"
+		: "https://strata.gamereplays.org/zh/match/";
+}
+
 static Bool showReplayButtonContinue()
 {
 	bool hasSimulationReplay = ReplaySimulation::getReplayCount() > 0;
@@ -671,11 +679,7 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 							if (currentMatchID != 0)
 							{
 								AsciiString strMatchURL;
-#if defined(USE_TEST_ENV)
-								strMatchURL.format("https://www.generals.online/viewmatch?match=%" PRIu64 "&env=test", currentMatchID);
-#else
-								strMatchURL.format("https://strata.gamereplays.org/zh/match/%" PRIu64, currentMatchID);
-#endif
+								strMatchURL.format("%s%" PRIu64, matchPageAddress(), currentMatchID);
 								ShellExecuteA(NULL, "open", strMatchURL.str(), NULL, NULL, SW_SHOWNORMAL);
 							}
 						}
@@ -1223,11 +1227,7 @@ void initInternetMultiPlayer(void)
 			{
 				buttonContinue->winHide(FALSE);
 
-#if defined(USE_TEST_ENV)
-				strMatchURL.format(L"\nView match data, participants, replays, anti-cheat data: https://www.generals.online/viewmatch?match=%" PRIu64 "&env=test", lobby.match_id);
-#else
-				strMatchURL.format(L"\nView match data, participants, replays, anti-cheat data: https://strata.gamereplays.org/zh/match/%" PRIu64, lobby.match_id);
-#endif
+				strMatchURL.format(L"\nView match data, participants, replays, anti-cheat data: %hs%" PRIu64, matchPageAddress(), lobby.match_id);
 
 				buttonContinue->winSetText(UnicodeString(L"VIEW MATCH ONLINE"));
 
