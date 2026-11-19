@@ -451,7 +451,7 @@ void TornadoUpdate::holdVictim( Object *obj, const HoldParams &p, Real liftHeigh
 
 	Real mass = physics->getMass();
 	Real massScale = getMassScale( mass );
-	Real ceiling = p.groundHeight + liftHeight * massScale;
+	Real ceiling = __max( p.groundHeight, TheTerrainLogic->getGroundHeight( pos->x, pos->y ) ) + liftHeight * massScale;
 	if( pos->z > ceiling )
 	{
 		Coord3D ceilingPos = *pos;
