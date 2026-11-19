@@ -48,17 +48,21 @@ static size_t FindNameNoCase(const std::vector<std::wstring>& names, const std::
 	return names.size();
 }
 
-// The /net command takes relay force or auto, engine native, webrtc or auto, and reset.
+// The /net command takes transport auto or gns, relay auto or force, gns ice auto, native or webrtc, and reset.
 static void AddNetCommand(ChatCommandRegistry& commands)
 {
 	int net = commands.AddCommand(L"net");
+	int transport = commands.AddArgument(net, L"transport");
+	commands.AddArgument(transport, L"auto");
+	commands.AddArgument(transport, L"gns");
 	int relay = commands.AddArgument(net, L"relay");
-	commands.AddArgument(relay, L"force");
 	commands.AddArgument(relay, L"auto");
-	int engine = commands.AddArgument(net, L"engine");
-	commands.AddArgument(engine, L"native");
-	commands.AddArgument(engine, L"webrtc");
-	commands.AddArgument(engine, L"auto");
+	commands.AddArgument(relay, L"force");
+	int gns = commands.AddArgument(net, L"gns");
+	int ice = commands.AddArgument(gns, L"ice");
+	commands.AddArgument(ice, L"auto");
+	commands.AddArgument(ice, L"native");
+	commands.AddArgument(ice, L"webrtc");
 	commands.AddArgument(net, L"reset");
 }
 

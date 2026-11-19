@@ -355,12 +355,18 @@ static void CheckNetTree(const ChatCommandRegistry& commands, int line)
 {
 	const int net = commands.FindNext(CHAT_COMMAND_ROOT, L"net");
 	CheckTrue(net != CHAT_COMMAND_NONE, "net command", line);
-	const wchar_t* const netWords[] = { L"engine", L"relay", L"reset", nullptr };
+	const wchar_t* const netWords[] = { L"gns", L"relay", L"reset", L"transport", nullptr };
 	CheckList(SortedNextWords(commands, net), Words(netWords), line);
+	const wchar_t* const transportWords[] = { L"auto", L"gns", nullptr };
+	CheckList(SortedNextWords(commands, commands.FindNext(net, L"transport")), Words(transportWords), line);
 	const wchar_t* const relayWords[] = { L"auto", L"force", nullptr };
 	CheckList(SortedNextWords(commands, commands.FindNext(net, L"relay")), Words(relayWords), line);
-	const wchar_t* const engineWords[] = { L"auto", L"native", L"webrtc", nullptr };
-	CheckList(SortedNextWords(commands, commands.FindNext(net, L"engine")), Words(engineWords), line);
+	const int gns = commands.FindNext(net, L"gns");
+	const wchar_t* const gnsWords[] = { L"ice", nullptr };
+	CheckList(SortedNextWords(commands, gns), Words(gnsWords), line);
+	const wchar_t* const iceWords[] = { L"auto", L"native", L"webrtc", nullptr };
+	CheckList(SortedNextWords(commands, commands.FindNext(gns, L"ice")), Words(iceWords), line);
+	CheckTrue(commands.FindNext(net, L"engine") == CHAT_COMMAND_NONE, "net engine is gone", line);
 	CheckTrue(SortedNextWords(commands, commands.FindNext(net, L"reset")).empty(), "net reset takes no argument", line);
 }
 
@@ -418,9 +424,9 @@ static void TestLobbyCompletion()
 	context.commands = &commands;
 
 	ChatTabCycler cycler;
-	std::wstring text = L"/net en";
+	std::wstring text = L"/net gns i";
 	CHECK(cycler.Complete(text, context, false));
-	CHECK_TEXT(text, L"/net engine ");
+	CHECK_TEXT(text, L"/net gns ice ");
 
 	cycler.Reset();
 	text = L"/net relay f";
