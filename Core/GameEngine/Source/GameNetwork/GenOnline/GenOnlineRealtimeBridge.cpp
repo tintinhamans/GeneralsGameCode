@@ -499,6 +499,14 @@ void RegisterHandlers(HubSession& session)
 				}
 			}
 		});
+	session.On<MentionCreateEvent>([](const MentionCreateEvent& event)
+		{
+			GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+			if (pRooms != nullptr)
+			{
+				pRooms->OnRealtimeMentionCreate(event);
+			}
+		});
 	session.On<ConversationsEvent>([](const ConversationsEvent& event)
 		{
 			GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();

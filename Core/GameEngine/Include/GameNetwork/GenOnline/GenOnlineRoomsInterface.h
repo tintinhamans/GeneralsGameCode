@@ -36,6 +36,17 @@ static Color DetermineSystemNoticeColor(bool bWarning = false, bool bError = fal
 	return GOUIColor(GOUICOLOR_MUTED, GameMakeColor(192, 192, 192, 255));
 }
 
+// A chat line that mentions the local player takes the Mention role of the GO UI colour table, orange without it.
+static Color DetermineMentionColor()
+{
+	return GOUIColor(GOUICOLOR_MENTION, GameMakeColor(255, 136, 0, 255));
+}
+
+// True when the realtime message mentions the signed in user and another user wrote it.
+bool GenOnlineMentionsLocalUser(const GenOnlineRealtime::ChatMessage& message);
+
+void GenOnlinePlayMentionSound();
+
 static Color DetermineColorForChatMessage(EChatMessageType chatMessageType, Bool isPublic, bool bAction, bool bAdmin, bool bIsNameChange, int lobbySlot = -1)
 {
 	Color style = GOUIColor(GOUICOLOR_TEXT, GameMakeColor(255, 255, 255, 255));
@@ -249,6 +260,8 @@ public:
 	void OnRealtimeRoomMessage(const GenOnlineRealtime::ChatMessage& message);
 	void OnRealtimeChannelHistory(const GenOnlineRealtime::ChannelHistoryEvent& event);
 	void OnRealtimeMessageDelete(const GenOnlineRealtime::MessageDeleteEvent& event);
+	// A message in a channel the session is not in mentioned the user. The notice goes to the chat the player looks at.
+	void OnRealtimeMentionCreate(const GenOnlineRealtime::MentionCreateEvent& event);
 	void OnRealtimeNameChanged(const std::string& strOldName, const std::string& strNewName);
 	void OnRealtimeRoomJoinFailed(int roomID, const std::wstring& strReason);
 
@@ -261,6 +274,9 @@ private:
 	GenOnlineRealtime::ChannelChatLog m_ChannelChat;
 	std::chrono::steady_clock::time_point m_ChannelHistoryDeadline;
 	std::vector<NetworkRoom> m_vecRealtimeRooms;
+	// The channel list of the last Ready, which names the channel of a mention notice.
+	std::vector<GenOnlineRealtime::ChannelInfo> m_vecRealtimeChannels;
+	GenOnlineRealtime::MentionNoticeLog m_MentionNotices;
 
 	struct PendingRoomChange
 	{

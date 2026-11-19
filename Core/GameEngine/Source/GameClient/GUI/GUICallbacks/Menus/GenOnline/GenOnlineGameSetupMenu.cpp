@@ -51,6 +51,7 @@
 #include "GameClient/GadgetComboBox.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetTextEntry.h"
+#include "GameClient/GUI/ChatCompletionSets.h"
 #include "GameClient/GadgetPushButton.h"
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/GadgetCheckBox.h"
@@ -181,6 +182,8 @@ static GameWindow *buttonChat = nullptr;
 static GameWindow *textEntryChat = nullptr;
 static GameWindow *textEntryMapDisplay = nullptr;
 static GameWindow *windowMap = nullptr;
+
+static ChatTabCycler s_gameSetupChatCycler;
 static GameWindow *checkBoxUseStats = nullptr;
 static GameWindow *checkBoxLimitSuperweapons = nullptr;
 static GameWindow *comboBoxStartingCash = nullptr;
@@ -746,7 +749,7 @@ static void handlePlayerTemplateSelection(int index, bool bInitialSetup = false)
 				updatedStartPos = -1;
 			}
 
-		// GenOnline: Only a local change goes to the lobby, remote players arrive from the service.
+			// GenOnline: Only a local change goes to the lobby, remote players arrive from the service.
 			if (index == myGame->getLocalSlotNum())
 			{
 				pLobbyInterface->UpdateCurrentLobby_MySide(playerTemplate, updatedStartPos);
@@ -831,7 +834,7 @@ static void handleTeamSelection(int index)
 		// GenOnline: The lobby service sets this value, not the local slot.
 		//slot->setTeamNumber(team);
 
-			// GenOnline: Only a local change goes to the lobby, remote players arrive from the service.
+		// GenOnline: Only a local change goes to the lobby, remote players arrive from the service.
 		if (index == myGame->getLocalSlotNum())
 		{
 			pLobbyInterface->UpdateCurrentLobby_MyTeam(team);
@@ -2323,6 +2326,8 @@ void GenOnlineGameSetupMenuInit( WindowLayout *layout, void *userData )
 	// Make sure the text fields are clear
 	GadgetListBoxReset( GenOnlineListboxGameSetupChat );
 	GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
+	GadgetTextEntrySetCompletionEnabled(textEntryChat, TRUE);
+	s_gameSetupChatCycler.Reset();
 
 	initDone = true;
 
@@ -3187,6 +3192,51 @@ static Int getFirstSelectablePlayer(const GameInfo *game)
 	return game->getLocalSlotNum();
 }
 
+static void BuildGameSetupChatCompletionContext(ChatCompletionContext& context)
+{
+	static ChatCommandRegistry s_commands;
+	static Bool s_commandsBuilt = FALSE;
+	if (!s_commandsBuilt)
+	{
+		BuildGameSetupChatCommands(s_commands);
+		s_commandsBuilt = TRUE;
+	}
+	context.commands = &s_commands;
+
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pLobbyInterface == nullptr)
+		return;
+
+	const std::wstring self = (pAuthInterface != nullptr) ? pAuthInterface->GetDisplayNameW() : std::wstring();
+	for (const LobbyMemberEntry& member : pLobbyInterface->GetCurrentLobby().members)
+	{
+		if (member.user_id != -1)
+			AppendChatName(context.names, from_utf8(member.display_name), self);
+	}
+}
+
+static void UpdateGameSetupChatCompletionHint()
+{
+	s_gameSetupChatCycler.Reset();
+	ChatCompletionContext context;
+	BuildGameSetupChatCompletionContext(context);
+	const std::wstring text = GadgetTextEntryGetText(textEntryChat).str();
+	GadgetTextEntrySetCompletionHint(textEntryChat, UnicodeString(ChatCompletionHint(text, context).c_str()));
+}
+
+static void CompleteGameSetupChat(Bool reverse)
+{
+	ChatCompletionContext context;
+	BuildGameSetupChatCompletionContext(context);
+	std::wstring text = GadgetTextEntryGetText(textEntryChat).str();
+	if (!s_gameSetupChatCycler.Complete(text, context, reverse != FALSE))
+		return;
+
+	GadgetTextEntrySetText(textEntryChat, UnicodeString(text.c_str()));
+	GadgetTextEntrySetCompletionHint(textEntryChat, UnicodeString(ChatCompletionHint(text, context).c_str()));
+}
+
 //-------------------------------------------------------------------------------------------------
 /** WOL Game Options menu window system callback */
 //-------------------------------------------------------------------------------------------------
@@ -3382,6 +3432,7 @@ WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, UnsignedI
 					txtInput.set(GadgetTextEntryGetText( textEntryChat ));
 					// Clear the text entry line
 					GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
+					s_gameSetupChatCycler.Reset();
 					// Clean up the text (remove leading/trailing chars, etc)
 					txtInput.trim();
 					// Echo the user's input to the chat window
@@ -3571,6 +3622,24 @@ WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, UnsignedI
 			}
 
 		//-------------------------------------------------------------------------------------------------
+		case GEM_UPDATE_TEXT:
+			{
+				if ((GameWindow *)mData1 != textEntryChat)
+					return MSG_IGNORED;
+
+				UpdateGameSetupChatCompletionHint();
+				break;
+			}
+		//-------------------------------------------------------------------------------------------------
+		case GEM_TAB_COMPLETE:
+			{
+				if ((GameWindow *)mData1 != textEntryChat)
+					return MSG_IGNORED;
+
+				CompleteGameSetupChat(mData2 != 0);
+				break;
+			}
+		//-------------------------------------------------------------------------------------------------
 		case GEM_EDIT_DONE:
 			{
 				GameWindow *control = (GameWindow *)mData1;
@@ -3584,6 +3653,7 @@ WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, UnsignedI
 					txtInput.set(GadgetTextEntryGetText( textEntryChat ));
 					// Clear the text entry line
 					GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
+					s_gameSetupChatCycler.Reset();
 					// Clean up the text (remove leading/trailing chars, etc)
 					txtInput.trim();
 					// Echo the user's input to the chat window
