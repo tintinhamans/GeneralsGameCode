@@ -3949,6 +3949,11 @@ Bool PartitionManager::tryPosition( const Coord3D *center,
 					( them->isKindOf( KINDOF_NO_COLLIDE ) || them->testStatus( OBJECT_STATUS_NO_COLLISIONS ) ) )
 				continue;
 
+			if( BitIsSet( options->flags, FPF_IGNORE_MINES ) && them->isKindOf( KINDOF_MINE ) )
+			{
+				continue;
+			}
+
 			// relationship checks
 			if( options->relationshipObject )
 			{

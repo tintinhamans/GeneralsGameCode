@@ -3,6 +3,15 @@
 Always on, no `Options.ini` key. All are retail bugs upstream still carries. Each entry says whether
 it changes the simulation (older replays no longer play back identically) or only what is drawn.
 
+## Mines leave docking approach positions clear
+
+Docking units ignore mines when choosing an approach position, matching normal pathfinding.
+Adding mines to a China supply center no longer pushes its trucks toward farther docking
+positions. This applies to mines owned by any player.
+
+This changes the simulation and can change older replay playback. Multiplayer clients need
+matching engine versions.
+
 ## Patriots return to normal range after assisting
 
 Patriots and other units using `AssistedTargetingUpdate` release their temporary weapon lock
