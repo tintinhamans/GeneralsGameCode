@@ -640,7 +640,9 @@ CanAttackResult WeaponSet::getAbleToAttackSpecificObject( AbleToAttackType attac
 			victim == source)
 		return ATTACKRESULT_NOT_POSSIBLE;
 
-	Bool sameOwnerForceAttack = ((source->getControllingPlayer() == victim->getControllingPlayer()) && isForcedAttack(attackType));
+	Bool alliedForceAttack = isForcedAttack(attackType) &&
+		(source->getControllingPlayer() == victim->getControllingPlayer() ||
+		 source->getRelationship(victim) == ALLIES);
 
 // ----- examine VICTIM to determine legality of attack
 
@@ -675,8 +677,10 @@ CanAttackResult WeaponSet::getAbleToAttackSpecificObject( AbleToAttackType attac
 	}
 
   Bool allowStealthToPreventAttacks = TRUE;
-	if (source->testStatus(OBJECT_STATUS_IGNORING_STEALTH) || sameOwnerForceAttack)
+	if (source->testStatus(OBJECT_STATUS_IGNORING_STEALTH) || alliedForceAttack)
+	{
 		allowStealthToPreventAttacks = FALSE;
+	}
   if( isForcedAttack( attackType ) && victim->isKindOf( KINDOF_DISGUISER ) )
   {
     // force-attack allows you to attack disguised things, which also happen to be stealthed.

@@ -3,6 +3,14 @@
 Always on, no `Options.ini` key. All are retail bugs upstream still carries. Each entry says whether
 it changes the simulation (older replays no longer play back identically) or only what is drawn.
 
+## Force fire can target allied stealthed objects
+
+Force fire can target stealthed units and buildings owned by an allied player.
+The attack check now recognizes allied stealth visibility as well as ownership.
+
+This changes the simulation and can change older replay playback. Multiplayer clients need
+matching engine versions.
+
 ## Mines leave docking approach positions clear
 
 Docking units ignore mines when choosing an approach position, matching normal pathfinding.
