@@ -1164,6 +1164,21 @@ void GameEngine::update()
 extern bool DX8Wrapper_IsWindowed;
 extern HWND ApplicationHWnd;
 
+// try to save info off
+static void cleanUpReplayBeforeCrash()
+{
+	try
+	{
+		if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD && TheRecorder->isMultiplayer())
+		{
+			TheRecorder->cleanUpReplayFile();
+		}
+	}
+	catch (...)
+	{
+	}
+}
+
 /** -----------------------------------------------------------------------------------------------
  * The "main loop" of the game engine. It will not return until the game exits.
  */
@@ -1222,17 +1237,16 @@ void GameEngine::execute()
 					else
 						RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
 				}
+				catch (const std::exception &e)
+				{
+					cleanUpReplayBeforeCrash();
+					AsciiString msg;
+					msg.format("Uncaught Exception in GameEngine::update: %s", e.what());
+					RELEASE_CRASH((msg.str()));
+				}
 				catch (...)
 				{
-					// try to save info off
-					try
-					{
-						if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD && TheRecorder->isMultiplayer())
-							TheRecorder->cleanUpReplayFile();
-					}
-					catch (...)
-					{
-					}
+					cleanUpReplayBeforeCrash();
 					RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
 				}
 			}

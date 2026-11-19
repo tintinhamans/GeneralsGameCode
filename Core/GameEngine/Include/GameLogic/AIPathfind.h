@@ -232,6 +232,7 @@ public:
 
 	static PathfindCellInfo * getACellInfo(PathfindCell *cell, const ICoord2D &pos);
 	static void releaseACellInfo(PathfindCellInfo *theInfo);
+	static Int recycleUnusedCellInfos();	///< Returns leaked records to the pool; only between searches
 	static Int getFreeCount() {return s_freeCount;}
 
 	// Orders the open list. On equal totals the cell further along its path sorts first.
@@ -324,6 +325,7 @@ private:
  */
 class PathfindCell
 {
+	friend class PathfindCellInfo;
 public:
 
 	enum CellType
@@ -727,6 +729,7 @@ enum PathfindStatEvent CPP_11(: Int)
 	PFE_ZONE_REJECT = 0,   ///< findPath refused by the zone screen before searching
 	PFE_BLOCKED_REPATH,    ///< a move state repathing because its unit is blocked
 	PFE_INVALID_FIX,       ///< the locomotor shoving a unit off an invalid cell
+	PFE_RECYCLED,          ///< leaked cell records returned to the pool
 	PFE_EVENT_COUNT
 };
 

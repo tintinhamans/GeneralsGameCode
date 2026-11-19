@@ -71,6 +71,7 @@
 
 
 enum { INFINITE_LOOP_COUNT = 1000000 };
+enum { MAX_AUDIO_REQUESTS = 128, TRIMMED_AUDIO_REQUESTS = 64 };
 
 // Callback functions useful for Miles ////////////////////////////////////////////////////////////
 static void AILCALLBACK setSampleCompleted( HSAMPLE sampleCompleted );
@@ -2371,6 +2372,21 @@ void MilesAudioManager::removeAllDisabledAudio()
 void MilesAudioManager::processRequestList()
 {
 	std::list<AudioRequest*>::iterator it;
+
+	// A full queue drops its oldest unplayed sound effects; stops stay so loops can end.
+	if (m_audioRequests.size() > MAX_AUDIO_REQUESTS) {
+		for (it = m_audioRequests.begin(); it != m_audioRequests.end() && m_audioRequests.size() > TRIMMED_AUDIO_REQUESTS; ) {
+			AudioRequest *req = (*it);
+			const AudioEventInfo *info = req->m_pendingEvent.Peek() ? req->m_pendingEvent->getAudioEventInfo() : nullptr;
+			if (req->m_request == AR_Play && info && info->m_soundType == AT_SoundEffect) {
+				deleteInstance(req);
+				it = m_audioRequests.erase(it);
+			} else {
+				++it;
+			}
+		}
+	}
+
 	for (it = m_audioRequests.begin(); it != m_audioRequests.end(); ) {
 		AudioRequest *req = (*it);
 		if (!shouldProcessRequestThisFrame(req)) {

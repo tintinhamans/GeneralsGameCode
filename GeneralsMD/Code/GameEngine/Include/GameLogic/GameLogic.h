@@ -301,6 +301,8 @@ private:
 
 	void updateDisplayBusyState();
 
+	void dumpMismatchDiagnostic();	///< Writes MismatchInfo.txt to the user data folder
+
 	void pauseGameLogic(Bool paused);
 	void pauseGameSound(Bool paused);
 	void pauseGameMusic(Bool paused);

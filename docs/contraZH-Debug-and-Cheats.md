@@ -200,8 +200,8 @@ movement in Cells or Paths mode.
 While on, a `PFSTAT` line lands once a second whenever the pathfinder did anything: requests waiting,
 requests refused by a full queue, searches and how many stopped at the cell cap, coarse hits and
 misses, cell records used, the largest search, records left, zone count, searches by kind (find,
-closest, patch, move-away, attack, safe, ground), zone screen refusals, blocked repaths, and units
-shoved off invalid cells. The file explains each field in its header. The first start in a session
+closest, patch, move-away, attack, safe, ground), zone screen refusals, blocked repaths, units
+shoved off invalid cells, and leaked cell records returned to the pool. The file explains each field in its header. The first start in a session
 replaces the file, later starts append.
 
 ## Other cheat hotkeys

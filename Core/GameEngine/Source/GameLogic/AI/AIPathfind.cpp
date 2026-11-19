@@ -1281,10 +1281,42 @@ void PathfindCellInfo::releaseACellInfo(PathfindCellInfo *theInfo)
 	DEBUG_ASSERTCRASH(!theInfo->m_isFree, ("Shouldn't be free."));
 	//@ todo -fix this assert on usa04.  jba.
 	//DEBUG_ASSERTCRASH(theInfo->m_obstacleID==0, ("Shouldn't be obstacle."));
+	theInfo->m_cell = nullptr;
 	theInfo->m_pathParent = s_firstFree;
 	s_firstFree = theInfo;
 	s_firstFree->m_isFree = true;
 	s_freeCount++;
+}
+
+Int PathfindCellInfo::recycleUnusedCellInfos()
+{
+	if (s_infoArray == nullptr) {
+		return 0;
+	}
+	Int inUse = (Int)CELL_INFOS_TO_ALLOCATE - s_freeCount;
+	if (inUse < (Int)(CELL_INFOS_TO_ALLOCATE / 4)) {
+		return 0;
+	}
+
+	Int freeBefore = s_freeCount;
+	for (UnsignedInt i = 0; i < CELL_INFOS_TO_ALLOCATE; i++) {
+		PathfindCellInfo *info = &s_infoArray[i];
+		if (info->m_isFree || info->m_open || info->m_closed || info->m_prevOpen || info->m_nextOpen) {
+			continue;
+		}
+		if (info->m_obstacleID != INVALID_ID || info->m_posUnitID != INVALID_ID
+			|| info->m_goalUnitID != INVALID_ID || info->m_goalAircraftID != INVALID_ID) {
+			continue;
+		}
+
+		PathfindCell *cell = info->m_cell;
+		if (cell && cell->m_info == info) {
+			cell->releaseInfo();
+		} else {
+			releaseACellInfo(info);
+		}
+	}
+	return s_freeCount - freeBefore;
 }
 
 //-----------------------------------------------------------------------------------
@@ -6971,6 +7003,16 @@ void Pathfinder::processPathfindQueue()
 	doDebugIcons();
 #endif
 
+	// Runs between searches because a record a search just took looks leaked.
+#if RETAIL_COMPATIBLE_PATHFINDING
+	if (s_useFixedPathfinding)
+#endif
+	{
+		if (TheGameLogic->getFrame() % LOGICFRAMES_PER_SECOND == 0) {
+			s_pathfindStats.events[PFE_RECYCLED] += (UnsignedInt)PathfindCellInfo::recycleUnusedCellInfos();
+		}
+	}
+
 	logStatsIfDue();
 }
 
@@ -6997,7 +7039,7 @@ void Pathfinder::setStatsLogging( Bool enable )
 			fprintf(s_statsFile, "Pathfinding log on at frame %u. One line a second while the pathfinder is busy.\n", TheGameLogic->getFrame());
 			fprintf(s_statsFile, "queued: requests waiting  drop: refused by a full queue  srch: searches  cap: stopped at the cell cap  hier: coarse ok/fail\n");
 			fprintf(s_statsFile, "cells: cell records used  max: largest search  free: records left  zones: raw count/overflow\n");
-			fprintf(s_statsFile, "kind: find/closest/patch/away/attack/safe/ground  zr: zone screen refusals  blk: blocked repaths  fix: shoved off invalid cells\n");
+			fprintf(s_statsFile, "kind: find/closest/patch/away/attack/safe/ground  zr: zone screen refusals  blk: blocked repaths  fix: shoved off invalid cells  rec: leaked records returned\n");
 			fflush(s_statsFile);
 		}
 	}
@@ -7048,11 +7090,11 @@ void Pathfinder::logStatsIfDue()
 	if (queued == 0 && stats.droppedQueue == 0 && stats.searches == 0 && stats.cells == 0 && stats.hierOk == 0 && stats.hierFail == 0 && stats.zoneOverflow == 0) {
 		return;
 	}
-	fprintf(s_statsFile, "PFSTAT f=%u queued=%d drop=%u srch=%u cap=%u hier=%u/%u cells=%u max=%u free=%d zones=%u/%u kind=%u/%u/%u/%u/%u/%u/%u zr=%u blk=%u fix=%u\n",
+	fprintf(s_statsFile, "PFSTAT f=%u queued=%d drop=%u srch=%u cap=%u hier=%u/%u cells=%u max=%u free=%d zones=%u/%u kind=%u/%u/%u/%u/%u/%u/%u zr=%u blk=%u fix=%u rec=%u\n",
 		TheGameLogic->getFrame(), queued, stats.droppedQueue, stats.searches, stats.cappedSearches, stats.hierOk, stats.hierFail, stats.cells, stats.maxCellsOneSearch,
 		PathfindCellInfo::getFreeCount(), stats.rawZoneHighWater, stats.zoneOverflow,
 		stats.byType[PFS_FIND], stats.byType[PFS_CLOSEST], stats.byType[PFS_PATCH], stats.byType[PFS_AWAY], stats.byType[PFS_ATTACK], stats.byType[PFS_SAFE], stats.byType[PFS_GROUND],
-		stats.events[PFE_ZONE_REJECT], stats.events[PFE_BLOCKED_REPATH], stats.events[PFE_INVALID_FIX]);
+		stats.events[PFE_ZONE_REJECT], stats.events[PFE_BLOCKED_REPATH], stats.events[PFE_INVALID_FIX], stats.events[PFE_RECYCLED]);
 	fflush(s_statsFile);
 	stats.droppedQueue = 0;
 	stats.searches = 0;
