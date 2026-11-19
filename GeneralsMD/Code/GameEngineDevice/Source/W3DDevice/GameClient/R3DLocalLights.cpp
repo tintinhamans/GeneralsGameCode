@@ -1162,6 +1162,11 @@ static Int				s_lampNameCount = 0, s_lampSetCount = 0, s_modelLampCount = 0, s_l
 static Bool				s_lampFileRead  = FALSE;
 static FrameModelLamp	s_frameModelLamps[MAX_FRAME_MODEL_LAMPS];
 static Int				s_frameModelLampCount = 0;
+// Ronin @feature 18/11/2026 DX9: the lamp art lit in the main view this frame (each mesh valid this frame only), for R3DTaa's glow.
+struct GlowArt { MeshClass *mesh; float colour[3]; };
+static const Int		MAX_GLOW_ART = 256;
+static GlowArt			s_glowArt[MAX_GLOW_ART];
+static Int				s_glowArtCount = 0;
 static LampInstance		s_lampInstances[MAX_LAMP_INSTANCES];
 static float			s_modelLampStrength = 1.0f;			// `lights modellamps`
 // Ronin @feature 19/11/2026 DX9: 0.8, the spread nearest Generals 2's look.
@@ -1448,6 +1453,22 @@ static Int lampArtIndex(const MeshClass *mesh)
 	return atoi(dot + 6);
 }
 
+// Ronin @feature 18/11/2026 DX9: the lit lamp art this frame, for R3DTaa's glow round a lamp: its mesh and the colour its art shows.
+Int R3DLocalLights::getGlowArtCount(void)
+{
+	return s_glowArtCount;
+}
+
+Bool R3DLocalLights::getGlowArt(Int index, MeshClass **mesh, float colour[3])
+{
+	if (index < 0 || index >= s_glowArtCount || mesh == NULL || colour == NULL)
+		return FALSE;
+	*mesh = s_glowArt[index].mesh;
+	for (Int ch = 0; ch < 3; ++ch)
+		colour[ch] = s_glowArt[index].colour[ch];
+	return TRUE;
+}
+
 // Ronin @feature 09/10/2026 DX9: called by MeshClass::Render for every mesh it has not ruled out, in every pass. Only a mesh that
 // is being drawn reaches this, so a unit hidden by the fog of war gives no light away.
 int R3DLocalLights::noteFixtureMesh(MeshClass *mesh)
@@ -1470,6 +1491,19 @@ int R3DLocalLights::noteFixtureMesh(MeshClass *mesh)
 		const Int lamp = (set >= 0 && art < s_lampSets[set].lampCount) ? s_lampSets[set].firstLamp + art : -1;
 		if (lamp < 0 || s_modelLampLevel[lamp] <= 0.05f)
 			return 2;
+		// Ronin @feature 18/11/2026 DX9: lit, in the main view (not the mirror, not a depth pass): a source of R3DTaa's glow, in the
+		// colour its art shows (the lamp's x 2.5, as fbx2w3d.py burns it) at the lamp's level.
+		if (s_glowArtCount < MAX_GLOW_ART && !ShaderClass::Is_Backface_Culling_Inverted() && !MeshClass::s_InShadowDepthPass &&
+			!TheTerrainShadowPass.inDepthPass && !TheTerrainShadowPass.viewDepthPass && firstNoteThisFrame(mesh))
+		{
+			GlowArt &g = s_glowArt[s_glowArtCount++];
+			g.mesh = mesh;
+			for (Int ch = 0; ch < 3; ++ch)
+			{
+				const float shown = s_modelLamps[lamp].colour[ch] * 2.5f;
+				g.colour[ch] = ((shown < 1.0f) ? shown : 1.0f) * s_modelLampLevel[lamp];
+			}
+		}
 		return 1;
 	}
 	const FixtureModel *fm = fixtureModel(mdl);
@@ -2410,6 +2444,12 @@ static const R3DLocalLights::Knob s_knobs[] =
 	LIGHT_REAL("glowjoin", setGlowJoin, getGlowJoin),
 	LIGHT_REAL("modellamps", setModelLamps, getModelLamps),		// Ronin @feature 30/10/2026 DX9: DX9ModelLamps.ini's lamps
 	LIGHT_REAL("modelcore", setModelCore, getModelCore),
+	// Ronin @feature 19/11/2026 DX9: the glow round a lit model lamp's art (R3DTaa, final pass) - not `glows` (the 2003 glow textures).
+	// modelglowview (1 = the glow alone, 2 = its unblurred source) is the panel's only, never in DX9Lights.ini.
+	{ "modelglow", FALSE, TRUE, [](float v) { R3DTaa::setGlow(v); }, []() -> float { return R3DTaa::getGlow(); } },
+	{ "modelglowgain", FALSE, TRUE, [](float v) { R3DTaa::setGlowGain(v); }, []() -> float { return R3DTaa::getGlowGain(); } },
+	{ "modelglowsize", FALSE, TRUE, [](float v) { R3DTaa::setGlowSize(v); }, []() -> float { return R3DTaa::getGlowSize(); } },
+	{ "modelglowview", TRUE, FALSE, [](float v) { R3DTaa::setGlowView((Int)v); }, []() -> float { return (float)R3DTaa::getGlowView(); } },
 	LIGHT_REAL("coronas", setCoronas, getCoronas),
 	LIGHT_REAL("coronasize", setCoronaSize, getCoronaSize),
 	LIGHT_SWITCH("pools", setPools, getPools),
@@ -2728,6 +2768,7 @@ void R3DLocalLights::beginFrame(void)
 	s_frameGlowCount = 0;
 	s_framePoolCount = 0;
 	s_frameModelLampCount = 0;		// Ronin @feature 30/10/2026 DX9: the model lamps
+	s_glowArtCount = 0;			// Ronin @feature 18/11/2026 DX9: and the lit lamp art, for the glow
 	// Ronin @feature 15/10/2026 DX9: how far this time of day is day, for `daysun` / `dayshade` / `sunerase`. The glows light at every time.
 	{
 		const Int tod = (TheGlobalData != NULL) ? (Int)TheGlobalData->m_timeOfDay : 4;

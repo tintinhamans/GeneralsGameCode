@@ -581,10 +581,43 @@ void  R3DTaa::setNightContrast(float v)	{ s_nightContrast = (v < 0.0f) ? 0.0f : 
 float R3DTaa::getNightContrast(void)	{ return s_nightContrast; }
 static void releaseSurround(void);		// local contrast's surroundings, beside drawFinish
 
+// Ronin @feature 18/11/2026 DX9: THE GLOW ROUND A LAMP (docs/Lighting_Work.md 6j) - the lit lamp art (R3DLocalLights::getGlowArt) drawn
+// again into a float target where nothing nearer hides it, blurred at quarter size, screen-blended by the screen copy: never the history.
+static const Int              GLOW_MAX_VERTS  = 4096;
+static IDirect3DTexture9     *s_glowSrc       = NULL;		// the frame buffer's size, as the scene and its depth
+static IDirect3DTexture9     *s_glowBlur[2]   = { NULL, NULL };	// a quarter of the 3D view; [0] is what the screen copy reads
+static UnsignedInt            s_glowSrcW      = 0;
+static UnsignedInt            s_glowSrcH      = 0;
+static UnsignedInt            s_glowW         = 0;
+static UnsignedInt            s_glowH         = 0;
+static Bool                   s_glowReady     = FALSE;		// built for the screen copy about to draw
+static Int                    s_glowDrawn     = 0;			// art meshes in it this frame
+static float                  s_glowStrength  = 0.8f;		// `lights modelglow` (0 = off)
+static float                  s_glowGain      = 8.0f;		// `lights modelglowgain`: the art's light before the blur
+static float                  s_glowSize      = 1.0f;		// `lights modelglowsize`: the blur's width
+static Int                    s_glowView      = 0;			// `lights modelglowview`: 1 = the glow alone, 2 = its unblurred source
+static IDirect3DPixelShader9 *s_glowArtPS     = NULL;		// GlowArt.pso, with TaaDecalMark.vso
+static IDirect3DPixelShader9 *s_glowBlurPS    = NULL;		// GlowBlur.pso
+static void releaseGlow(void);
+static Bool glowWanted(void)
+{
+	return (s_glowStrength > 0.0f && R3DLocalLights::getGlowArtCount() > 0) ? TRUE : FALSE;
+}
+void  R3DTaa::setGlow(float v)		{ s_glowStrength = (v < 0.0f) ? 0.0f : ((v > 4.0f) ? 4.0f : v); }
+float R3DTaa::getGlow(void)			{ return s_glowStrength; }
+void  R3DTaa::setGlowGain(float v)	{ s_glowGain = (v < 0.0f) ? 0.0f : ((v > 64.0f) ? 64.0f : v); }
+float R3DTaa::getGlowGain(void)		{ return s_glowGain; }
+void  R3DTaa::setGlowSize(float v)	{ s_glowSize = (v < 0.25f) ? 0.25f : ((v > 4.0f) ? 4.0f : v); }
+float R3DTaa::getGlowSize(void)		{ return s_glowSize; }
+void  R3DTaa::setGlowView(Int mode)	{ s_glowView = (mode < 0) ? 0 : ((mode > 2) ? 2 : mode); }
+Int   R3DTaa::getGlowView(void)		{ return s_glowView; }
+
 static Bool finishWanted(void)
 {
 	if (s_active)
 		return FALSE;
+	if (glowWanted())
+		return TRUE;		// Ronin @feature 18/11/2026 DX9: so is the glow round a lamp
 	if (gradeNow())
 		return TRUE;		// Ronin @feature 21/10/2026 DX9: the grade is drawn by the finish pass
 	if (vividNow())
@@ -1966,6 +1999,21 @@ static void ensureShaders(IDirect3DDevice9 *dev)
 			s_waterMaskPS = NULL;
 		HeapFree(GetProcessHeap(), 0, blob);
 	}
+	// Ronin @feature 18/11/2026 DX9: the glow round a lamp - its art drawn again, and its blur. Missing = no glow.
+	blob = readShaderBlob("shaders\\GlowArt.pso");
+	if (blob != NULL)
+	{
+		if (FAILED(dev->CreatePixelShader(blob, &s_glowArtPS)))
+			s_glowArtPS = NULL;
+		HeapFree(GetProcessHeap(), 0, blob);
+	}
+	blob = readShaderBlob("shaders\\GlowBlur.pso");
+	if (blob != NULL)
+	{
+		if (FAILED(dev->CreatePixelShader(blob, &s_glowBlurPS)))
+			s_glowBlurPS = NULL;
+		HeapFree(GetProcessHeap(), 0, blob);
+	}
 	gpuCreate(dev);
 }
 
@@ -2222,12 +2270,16 @@ void R3DTaa::releaseResources(void)
 	releaseOpaque();		// Ronin @feature 12/10/2026 DX9: a raw default-pool texture: a reset fails while it lives
 	R3DLocalLights::releaseQueries();	// Ronin @diagnostic 20/10/2026 DX9: the lights' GPU timer, likewise
 	R3DLocalLights::releaseShaftBuffers();	// Ronin @feature 22/10/2026 DX9: the sun shafts' raw default-pool buffers
+	releaseGlow();		// Ronin @feature 18/11/2026 DX9: the glow's raw default-pool targets, likewise
 }
 
 void R3DTaa::shutdown(void)
 {
 	s_camera = NULL;
 	releaseSurround();		// Ronin @feature 22/10/2026 DX9: local contrast's surroundings
+	releaseGlow();			// Ronin @feature 18/11/2026 DX9: the glow round a lamp
+	if (s_glowArtPS  != NULL) { s_glowArtPS->Release();  s_glowArtPS  = NULL; }
+	if (s_glowBlurPS != NULL) { s_glowBlurPS->Release(); s_glowBlurPS = NULL; }
 	if (s_resolvePS != NULL) { s_resolvePS->Release(); s_resolvePS = NULL; }
 	if (s_quadVS    != NULL) { s_quadVS->Release();    s_quadVS    = NULL; }
 	if (s_depthStorePS != NULL) { s_depthStorePS->Release(); s_depthStorePS = NULL; }
@@ -2451,11 +2503,278 @@ static void bindVivid(IDirect3DDevice9 *dev)
 	}
 }
 
+// Ronin @feature 18/11/2026 DX9: the glow's targets - raw, default pool, 16-bit float (8-bit if the card refuses): releaseResources
+// lets them go before a reset, the next glow frame makes them again.
+static void releaseGlow(void)
+{
+	if (s_glowSrc != NULL) { s_glowSrc->Release(); s_glowSrc = NULL; }
+	if (s_glowBlur[0] != NULL) { s_glowBlur[0]->Release(); s_glowBlur[0] = NULL; }
+	if (s_glowBlur[1] != NULL) { s_glowBlur[1]->Release(); s_glowBlur[1] = NULL; }
+	s_glowSrcW  = 0;
+	s_glowSrcH  = 0;
+	s_glowW     = 0;
+	s_glowH     = 0;
+	s_glowReady = FALSE;
+}
+
+static Bool ensureGlowTargets(IDirect3DDevice9 *dev, UnsignedInt srcW, UnsignedInt srcH, UnsignedInt w, UnsignedInt h)
+{
+	if (s_glowSrc != NULL && s_glowBlur[0] != NULL && s_glowBlur[1] != NULL && s_glowSrcW == srcW && s_glowSrcH == srcH &&
+		s_glowW == w && s_glowH == h)
+		return TRUE;
+	releaseGlow();
+	const D3DFORMAT formats[2] = { D3DFMT_A16B16G16R16F, D3DFMT_A8R8G8B8 };
+	for (Int f = 0; f < 2; ++f)
+	{
+		if (SUCCEEDED(dev->CreateTexture(srcW, srcH, 1, D3DUSAGE_RENDERTARGET, formats[f], D3DPOOL_DEFAULT, &s_glowSrc, NULL)) &&
+			SUCCEEDED(dev->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, formats[f], D3DPOOL_DEFAULT, &s_glowBlur[0], NULL)) &&
+			SUCCEEDED(dev->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, formats[f], D3DPOOL_DEFAULT, &s_glowBlur[1], NULL)))
+		{
+			s_glowSrcW   = srcW;
+			s_glowSrcH   = srcH;
+			s_glowW      = w;
+			s_glowH      = h;
+			return TRUE;
+		}
+		releaseGlow();
+	}
+	return FALSE;
+}
+
+// Ronin @feature 18/11/2026 DX9: the camera's clean view-projection and clip planes (no TAA jitter: the glow does not shimmer).
+static Bool cameraViewProj(D3DXMATRIX &viewProj, float &zNear, float &zFar)
+{
+	if (s_camera == NULL)
+		return FALSE;
+	CameraClass &cam = const_cast<CameraClass &>(*s_camera);
+	Matrix4x4 projMtx;
+	cam.Get_D3D_Projection_Matrix(&projMtx);
+	const Matrix4x4 viewMtx(cam.Get_View_Matrix());
+	const D3DMATRIX dv = To_D3DMATRIX(viewMtx);
+	const D3DMATRIX dp = To_D3DMATRIX(projMtx);
+	D3DXMATRIX dxView(dv), dxProj(dp);
+	D3DXMatrixMultiply(&viewProj, &dxView, &dxProj);
+	cam.Get_Clip_Planes(zNear, zFar);
+	return TRUE;
+}
+
+// Ronin @feature 18/11/2026 DX9: the glow round a lamp, for the screen copy about to draw: the lit art drawn again over `vp` (the 3D
+// view in a texW x texH frame) where `depthTex` holds nothing nearer, then a quarter of it blurred across and down. Targets, depth and
+// states put back.
+static Bool buildGlow(IDirect3DDevice9 *dev, IDirect3DTexture9 *depthTex, UnsignedInt texW, UnsignedInt texH, const D3DVIEWPORT9 &vp,
+					  const D3DXMATRIX &viewProj, float zNear, float zFar)
+{
+	s_glowReady = FALSE;
+	s_glowDrawn = 0;
+	const Int arts = R3DLocalLights::getGlowArtCount();
+	if (s_glowStrength <= 0.0f || arts <= 0 || dev == NULL || depthTex == NULL ||
+		s_decalMarkVS == NULL || s_glowArtPS == NULL || s_glowBlurPS == NULL || s_quadVS == NULL)
+		return FALSE;
+	if (texW == 0 || texH == 0 || vp.Width == 0 || vp.Height == 0 || vp.X + vp.Width > texW || vp.Y + vp.Height > texH)
+		return FALSE;
+	const UnsignedInt w = (vp.Width + 3) / 4, h = (vp.Height + 3) / 4;
+	if (!ensureGlowTargets(dev, texW, texH, w, h))
+		return FALSE;
+	IDirect3DSurface9 *oldRT = NULL, *oldRT1 = NULL, *oldDS = NULL;
+	if (FAILED(dev->GetRenderTarget(0, &oldRT)) || oldRT == NULL)
+		return FALSE;
+	// Ronin @bugfix 18/11/2026 DX9: the shaders put back too - TAA's screen copy draws with whatever this leaves bound.
+	IDirect3DVertexShader9 *oldVS = NULL;
+	IDirect3DPixelShader9  *oldPS = NULL;
+	dev->GetVertexShader(&oldVS);
+	dev->GetPixelShader(&oldPS);
+	if (SUCCEEDED(dev->GetRenderTarget(1, &oldRT1)) && oldRT1 != NULL)
+		dev->SetRenderTarget(1, NULL);
+	dev->GetDepthStencilSurface(&oldDS);
+	dev->SetDepthStencilSurface(NULL);		// the art is tested against the scene depth in its shader
+	D3DVIEWPORT9 oldVp;
+	const Bool haveOldVp = SUCCEEDED(dev->GetViewport(&oldVp)) ? TRUE : FALSE;
+	DWORD oldZ = 0, oldZW = 0, oldAB = 0, oldAT = 0, oldCull = 0, oldCW = 0, oldSrc = 0, oldDst = 0, oldOp = 0;
+	dev->GetRenderState(D3DRS_ZENABLE,          &oldZ);
+	dev->GetRenderState(D3DRS_ZWRITEENABLE,     &oldZW);
+	dev->GetRenderState(D3DRS_ALPHABLENDENABLE, &oldAB);
+	dev->GetRenderState(D3DRS_ALPHATESTENABLE,  &oldAT);
+	dev->GetRenderState(D3DRS_CULLMODE,         &oldCull);
+	dev->GetRenderState(D3DRS_COLORWRITEENABLE, &oldCW);
+	dev->GetRenderState(D3DRS_SRCBLEND,         &oldSrc);
+	dev->GetRenderState(D3DRS_DESTBLEND,        &oldDst);
+	dev->GetRenderState(D3DRS_BLENDOP,          &oldOp);
+	dev->SetRenderState(D3DRS_ZENABLE,          FALSE);
+	dev->SetRenderState(D3DRS_ZWRITEENABLE,     FALSE);
+	dev->SetRenderState(D3DRS_ALPHATESTENABLE,  FALSE);
+	dev->SetRenderState(D3DRS_CULLMODE,         D3DCULL_NONE);
+	dev->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE |
+												D3DCOLORWRITEENABLE_ALPHA);
+
+	// The art, added up where lamps overlap, into the source's 3D view - cleared first.
+	IDirect3DSurface9 *surf = NULL;
+	Bool ok = (SUCCEEDED(s_glowSrc->GetSurfaceLevel(0, &surf)) && surf != NULL && SUCCEEDED(dev->SetRenderTarget(0, surf))) ? TRUE : FALSE;
+	if (surf != NULL)
+		surf->Release();
+	if (ok)
+	{
+		dev->SetViewport(&vp);
+		dev->Clear(0, NULL, D3DCLEAR_TARGET, 0x00000000, 1.0f, 0);		// the viewport's rect
+		dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+		dev->SetRenderState(D3DRS_SRCBLEND,         D3DBLEND_ONE);
+		dev->SetRenderState(D3DRS_DESTBLEND,        D3DBLEND_ONE);
+		dev->SetRenderState(D3DRS_BLENDOP,          D3DBLENDOP_ADD);
+		DX8Wrapper::BindLayoutFVF(D3DFVF_XYZ | D3DFVF_TEX2 | D3DFVF_TEXCOORDSIZE2(0) | D3DFVF_TEXCOORDSIZE3(1), "R3DTaa::buildGlow");
+		dev->SetVertexShader(s_decalMarkVS);	// after the layout bind - BindLayoutFVF clears the VS
+		dev->SetPixelShader(s_glowArtPS);
+		// Ronin @bugfix 18/11/2026 DX9: c30-c32 - the resolve never reads them; c10-c12 it may, after this.
+		const float c30[4] = { (float)vp.Width, (float)vp.Height, zNear, zFar };
+		const float c31[4] = { (float)vp.X / (float)texW, (float)vp.Y / (float)texH, (float)vp.Width / (float)texW,
+							   (float)vp.Height / (float)texH };
+		const float c32[4] = { 1.0f, 0.004f, 0.0f, 0.0f };		// hidden once 1 unit behind the scene's surface, 0.4% of its depth further off
+		dev->SetPixelShaderConstantF(30, c30, 1);
+		dev->SetPixelShaderConstantF(31, c31, 1);
+		dev->SetPixelShaderConstantF(32, c32, 1);
+		IDirect3DBaseTexture9 *oldTex2 = NULL;		// TAA's pass 2 keeps the depth on stage 2: put back below
+		dev->GetTexture(2, &oldTex2);
+		dev->SetTexture(2, depthTex);
+		setResolveSampler(dev, 2);		// POINT, 1:1 with the frame
+		dev->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+		dev->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+		dev->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
+		dev->SetSamplerState(0, D3DSAMP_ADDRESSU,  D3DTADDRESS_WRAP);
+		dev->SetSamplerState(0, D3DSAMP_ADDRESSV,  D3DTADDRESS_WRAP);
+		struct GlowVertex { float x, y, z; float u, v; float px, py, pz; };
+		static GlowVertex verts[GLOW_MAX_VERTS];
+		for (Int a = 0; a < arts; ++a)
+		{
+			MeshClass *mesh = NULL;
+			float colour[3] = { 0.0f, 0.0f, 0.0f };
+			if (!R3DLocalLights::getGlowArt(a, &mesh, colour) || mesh == NULL)
+				continue;
+			MeshModelClass *mdl = mesh->Peek_Model();
+			if (mdl == NULL)
+				continue;
+			const Int vcount = mdl->Get_Vertex_Count();
+			const Int pcount = mdl->Get_Polygon_Count();
+			const TriIndex *polys = mdl->Get_Polygon_Array();
+			const Vector3 *pos = mdl->Get_Vertex_Array();
+			const Vector2 *uvs = mdl->Get_UV_Array_By_Index(0);
+			TextureClass *tex = mdl->Peek_Single_Texture(0, 0);
+			if (vcount <= 0 || vcount > GLOW_MAX_VERTS || pcount <= 0 || polys == NULL || pos == NULL || uvs == NULL || tex == NULL ||
+				tex->Peek_D3D_Base_Texture() == NULL)
+				continue;
+			for (Int v = 0; v < vcount; ++v)
+			{
+				GlowVertex &g = verts[v];
+				g.x = g.px = pos[v].X;
+				g.y = g.py = pos[v].Y;
+				g.z = g.pz = pos[v].Z;
+				g.u = uvs[v].U;
+				g.v = uvs[v].V;
+			}
+			D3DXMATRIX world(To_D3DMATRIX(mesh->Get_Transform())), m, mT;
+			D3DXMatrixMultiply(&m, &world, &viewProj);
+			D3DXMatrixTranspose(&mT, &m);
+			dev->SetVertexShaderConstantF(0, (const float *)&mT, 4);
+			dev->SetVertexShaderConstantF(4, (const float *)&mT, 4);	// TaaDecalMark.vso's last-frame output, unused here
+			const float c0[4] = { colour[0] * s_glowGain, colour[1] * s_glowGain, colour[2] * s_glowGain, 0.0f };
+			dev->SetPixelShaderConstantF(0, c0, 1);
+			dev->SetTexture(0, tex->Peek_D3D_Base_Texture());
+			dev->DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, (UINT)vcount, (UINT)pcount, polys, D3DFMT_INDEX16, verts, sizeof(GlowVertex));
+			++s_glowDrawn;
+		}
+		dev->SetTexture(0, NULL);
+		dev->SetTexture(2, oldTex2);
+		if (oldTex2 != NULL)
+			oldTex2->Release();
+		dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+	}
+	// A quarter of it, then across, then down: [0] -> [1] -> [0].
+	if (ok && s_glowDrawn > 0)
+	{
+		DX8Wrapper::BindLayoutFVF(D3DFVF_XYZ | D3DFVF_TEX1, "R3DTaa::buildGlow blur");
+		dev->SetVertexShader(s_quadVS);		// after the layout bind - BindLayoutFVF clears the VS
+		dev->SetPixelShader(s_glowBlurPS);
+		const float rect[4] = { (float)vp.X / (float)texW, (float)vp.Y / (float)texH, (float)vp.Width / (float)texW,
+								(float)vp.Height / (float)texH };
+		dev->SetPixelShaderConstantF(30, rect, 1);		// Ronin @bugfix 18/11/2026 DX9: c30, as GlowArt's - never the resolve's
+		const float step = 0.4f * s_glowSize * (float)vp.Height / 900.0f;		// sigma 2 quarter texels, 8 pixels, at 900 rows
+		for (Int pass = 0; pass < 3 && ok; ++pass)
+		{
+			IDirect3DSurface9 *dst = NULL;
+			ok = (SUCCEEDED(s_glowBlur[(pass == 1) ? 1 : 0]->GetSurfaceLevel(0, &dst)) && dst != NULL &&
+				  SUCCEEDED(dev->SetRenderTarget(0, dst))) ? TRUE : FALSE;
+			if (dst != NULL)
+				dst->Release();
+			if (!ok)
+				break;
+			D3DVIEWPORT9 bvp;
+			bvp.X = 0; bvp.Y = 0; bvp.Width = w; bvp.Height = h; bvp.MinZ = 0.0f; bvp.MaxZ = 1.0f;
+			dev->SetViewport(&bvp);
+			const float c0[4] = { (float)pass, (pass == 0) ? 1.0f / (float)texW : 1.0f / (float)w,
+								  (pass == 0) ? 1.0f / (float)texH : 1.0f / (float)h, step };
+			dev->SetPixelShaderConstantF(0, c0, 1);
+			dev->SetTexture(0, (pass == 0) ? s_glowSrc : s_glowBlur[(pass == 1) ? 0 : 1]);
+			setResolveSampler(dev, 0, TRUE);
+			surroundQuad(dev, w, h);
+		}
+		dev->SetTexture(0, NULL);
+	}
+	dev->SetRenderTarget(0, oldRT);
+	if (oldRT1 != NULL)
+	{
+		dev->SetRenderTarget(1, oldRT1);
+		oldRT1->Release();
+	}
+	dev->SetDepthStencilSurface(oldDS);
+	if (oldDS != NULL)
+		oldDS->Release();
+	oldRT->Release();
+	if (haveOldVp)
+		dev->SetViewport(&oldVp);
+	dev->SetRenderState(D3DRS_ZENABLE,          oldZ);
+	dev->SetRenderState(D3DRS_ZWRITEENABLE,     oldZW);
+	dev->SetRenderState(D3DRS_ALPHABLENDENABLE, oldAB);
+	dev->SetRenderState(D3DRS_ALPHATESTENABLE,  oldAT);
+	dev->SetRenderState(D3DRS_CULLMODE,         oldCull);
+	dev->SetRenderState(D3DRS_COLORWRITEENABLE, oldCW);
+	dev->SetRenderState(D3DRS_SRCBLEND,         oldSrc);
+	dev->SetRenderState(D3DRS_DESTBLEND,        oldDst);
+	dev->SetRenderState(D3DRS_BLENDOP,          oldOp);
+	// Ronin @bugfix 18/11/2026 DX9: both screen copies draw an XYZ + UV quad - that layout, through the wrapper so its cache agrees,
+	// then the shaders found here (BindLayoutFVF clears the VS).
+	DX8Wrapper::BindLayoutFVF(D3DFVF_XYZ | D3DFVF_TEX1, "R3DTaa::buildGlow done");
+	dev->SetVertexShader(oldVS);
+	dev->SetPixelShader(oldPS);
+	if (oldVS != NULL)
+		oldVS->Release();
+	if (oldPS != NULL)
+		oldPS->Release();
+	s_glowReady = (ok && s_glowDrawn > 0) ? TRUE : FALSE;
+	return s_glowReady;
+}
+
+// Ronin @feature 18/11/2026 DX9: the glow into a screen copy: c23 and s13. Every screen copy sets c23 - the rigid and tree shaders use
+// that register too, and a stale one would switch the glow on. `lights modelglowview 2` binds the unblurred source instead.
+static void bindGlow(IDirect3DDevice9 *dev)
+{
+	const float c23[4] = { s_glowReady ? s_glowStrength : 0.0f, (s_glowView > 0) ? 1.0f : 0.0f, (s_glowView == 2) ? 1.0f : 0.0f, 0.0f };
+	dev->SetPixelShaderConstantF(23, c23, 1);
+	if (s_glowReady)
+	{
+		dev->SetTexture(13, (s_glowView == 2) ? s_glowSrc : s_glowBlur[0]);
+		setResolveSampler(dev, 13, TRUE);
+	}
+}
+
 // Ronin @feature 17/10/2026 DX9: the screen copy without TAA - `src` over `vp` through the resolve shader at weight 0: the tone curve
 // for the float scene, then at night the dark lift and the night look. No history, CAS or flash (the scene drew its own).
 static void drawFinish(IDirect3DDevice9 *dev, IDirect3DTexture9 *src, const D3DVIEWPORT9 &vp, UnsignedInt texW, UnsignedInt texH,
-					   Bool floatScene)
+					   Bool floatScene, IDirect3DTexture9 *depthTex)
 {
+	// Ronin @feature 18/11/2026 DX9: the glow round a lamp, from the camera's clean view; `depthTex` NULL = none this frame.
+	D3DXMATRIX glowViewProj;
+	float glowNear = 1.0f, glowFar = 1000.0f;
+	if (!cameraViewProj(glowViewProj, glowNear, glowFar))
+		s_glowReady = FALSE;
+	else
+		buildGlow(dev, depthTex, texW, texH, vp, glowViewProj, glowNear, glowFar);
 	// Ronin @feature 22/10/2026 DX9: local contrast's surroundings, from this source, before anything below is set.
 	const float surroundRect[4] = { (float)vp.X / (float)texW, (float)vp.Y / (float)texH, (float)vp.Width / (float)texW,
 								   (float)vp.Height / (float)texH };
@@ -2521,10 +2840,12 @@ static void drawFinish(IDirect3DDevice9 *dev, IDirect3DTexture9 *src, const D3DV
 	dev->SetPixelShaderConstantF(19, nightLiftC, 1);
 	bindGrade(dev);		// Ronin @feature 21/10/2026 DX9: the daytime grade
 	bindVivid(dev);
+	bindGlow(dev);		// Ronin @feature 18/11/2026 DX9: the glow round a lamp
 	dev->SetTexture(0, src);
 	setResolveSampler(dev, 0);
 	dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, q, sizeof(QuadVertex));
 
+	dev->SetTexture(13, NULL);
 	dev->SetTexture(11, NULL);
 	dev->SetTexture(8, NULL);
 	dev->SetTexture(0, NULL);
@@ -2710,7 +3031,8 @@ static void endHdrAlone(void)
 		}
 	}
 	if (fbW > 0 && fbH > 0 && s_viewportOK)
-		drawFinish(dev, sceneTex, s_viewport, (UnsignedInt)fbW, (UnsignedInt)fbH, TRUE);
+		drawFinish(dev, sceneTex, s_viewport, (UnsignedInt)fbW, (UnsignedInt)fbH, TRUE,
+				   depthSuspended ? DX8Wrapper::Peek_Scene_Depth_Texture() : NULL);	// Ronin @feature 18/11/2026 DX9: for the glow
 	if (depthSuspended)
 		DX8Wrapper::Resume_Scene_Depth();
 }
@@ -2845,7 +3167,14 @@ void R3DTaa::finishScene(const CameraClass &camera)
 	}
 	rt->Release();
 	if (ready && vpOK)
-		drawFinish(dev, s_finishCopy->Peek_D3D_Texture(), vp, rd.Width, rd.Height, FALSE);
+	{
+		// Ronin @feature 18/11/2026 DX9: the glow tests its art against the scene depth - readable only while suspended.
+		const Bool glowDepth = (glowWanted() && DX8Wrapper::Suspend_Scene_Depth()) ? TRUE : FALSE;
+		drawFinish(dev, s_finishCopy->Peek_D3D_Texture(), vp, rd.Width, rd.Height, FALSE,
+				   glowDepth ? DX8Wrapper::Peek_Scene_Depth_Texture() : NULL);
+		if (glowDepth)
+			DX8Wrapper::Resume_Scene_Depth();
+	}
 }
 
 void R3DTaa::postRender(void)
@@ -2972,6 +3301,9 @@ void R3DTaa::postRender(void)
 	DX8Wrapper::BindLayoutFVF(D3DFVF_XYZ | D3DFVF_TEX1, "R3DTaa::postRender");
 	dev->SetVertexShader(s_quadVS);		// AFTER the layout bind — BindLayoutFVF clears the VS
 	dev->SetPixelShader(s_resolvePS);
+	// Ronin @feature 18/11/2026 DX9: no glow into the history - pass 1's copy (no history yet) reads c23, which the rigid shaders set too.
+	const float glowOffC23[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	dev->SetPixelShaderConstantF(23, glowOffC23, 1);
 
 	const Bool haveHistory = ensureHistory((UnsignedInt)fbW, (UnsignedInt)fbH);
 
@@ -3591,6 +3923,11 @@ void R3DTaa::postRender(void)
 	// Weight 0 makes the shader a straight copy of stage 0. If pass 1 could not run we fall back to copying the raw
 	// scene, so a missing history target costs quality, never a broken frame.
 	{
+		// Ronin @feature 18/11/2026 DX9: the glow round a lamp, over the scene's 3D view, from this frame's clean camera.
+		if (!s_curViewProjValid)
+			s_glowReady = FALSE;
+		else
+			buildGlow(dev, depthTex, (UnsignedInt)fbW, (UnsignedInt)fbH, svp, s_curViewProjClean, s_zNear, s_zFar);
 		// Ronin @feature 22/10/2026 DX9: local contrast's surroundings, from what this copy shows, before its constants are set.
 		buildSurround(dev, wroteHistory ? (IDirect3DBaseTexture9 *)s_history[s_historyIndex]->Peek_D3D_Texture() : (IDirect3DBaseTexture9 *)sceneTex,
 					  (UnsignedInt)fbW, (UnsignedInt)fbH, c5, (s_floatNow && !wroteHistory) ? TRUE : FALSE);
@@ -3645,7 +3982,9 @@ void R3DTaa::postRender(void)
 		setResolveSampler(dev, 0);
 		bindGrade(dev);		// Ronin @feature 21/10/2026 DX9: the daytime grade, on the screen copy only - never the history
 		bindVivid(dev);
+		bindGlow(dev);		// Ronin @feature 18/11/2026 DX9: the glow round a lamp, likewise
 		dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, q, sizeof(QuadVertex));
+		dev->SetTexture(13, NULL);
 		dev->SetTexture(11, NULL);
 		dev->SetTexture(10, NULL);
 		dev->SetTexture(8, NULL);	// Ronin @feature 15/10/2026 DX9: the night look's light mask

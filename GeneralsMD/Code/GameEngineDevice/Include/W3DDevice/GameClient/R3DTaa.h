@@ -115,6 +115,17 @@ public:
 	static float getGradeSat(void);
 	static void  setGradeMids(float v);
 	static float getGradeMids(void);
+	// Ronin @feature 18/11/2026 DX9: THE GLOW ROUND A LAMP (final pass): the lit lamp art blurred and screen-blended. glow 0 = off;
+	// gain = the art's light before the blur; size = the blur's width (1 = sigma 8 px at 900 rows); view 1 = the glow alone,
+	// 2 = its unblurred source.
+	static void  setGlow(float v);
+	static float getGlow(void);
+	static void  setGlowGain(float v);
+	static float getGlowGain(void);
+	static void  setGlowSize(float v);
+	static float getGlowSize(void);
+	static void  setGlowView(Int mode);
+	static Int   getGlowView(void);
 	// Ronin @feature 22/10/2026 DX9: vibrance (dull colours raised most) and local contrast, by day in the final pass; 0 = off.
 	static void  setVibrance(float v);
 	static float getVibrance(void);

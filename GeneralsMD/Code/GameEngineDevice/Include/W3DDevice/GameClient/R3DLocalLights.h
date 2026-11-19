@@ -51,6 +51,10 @@ public:
 	// Ronin @feature 11/10/2026 DX9: lamp shadow maps. MeshClass::Render calls this for every mesh it draws; kept for the frame
 	// (main pass, solid meshes) so each lamp's map can be drawn from what stands in its light. Lighting_Work.md 6b.
 	static void noteCaster(MeshClass *mesh);
+	// Ronin @feature 18/11/2026 DX9: the lamp art lit in the main view this frame (noteFixtureMesh lists it), for R3DTaa's glow round
+	// a lamp: each mesh is valid for this frame only; colour = what its art shows, at its lamp's level.
+	static Int  getGlowArtCount(void);
+	static Bool getGlowArt(Int index, MeshClass **mesh, float colour[3]);
 	// Ronin @feature 09/10/2026 DX9: TRUE = this mesh's beam polygons are clear this frame (their texture is swapped); TAA must not
 	// treat the mesh as a moving-texture translucent one on their account.
 	static Bool beamsHiddenIn(const MeshClass *mesh);

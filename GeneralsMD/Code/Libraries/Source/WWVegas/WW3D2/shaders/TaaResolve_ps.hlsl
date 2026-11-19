@@ -110,6 +110,11 @@ float3 grade(float3 c)
     return saturate((l > 0.0005f) ? c * pow(max(l, 0.0005f), g_Grade.z - 1.0f) : c);
 }
 
+// Ronin @feature 18/11/2026 DX9: THE GLOW ROUND A LAMP (screen copy only; R3DTaa buildGlow): s13 = the lit lamp art blurred at quarter
+// size over the 3D view. c23.x = `lights modelglow` (0 = none), y = 1: the glow alone (`modelglowview`), z = 1: s13 is the unblurred source, frame-sized.
+float4    g_GlowPrm  : register(c23);
+sampler2D g_Glow     : register(s13);
+
 // Ronin @feature 22/10/2026 DX9: VIBRANCE and LOCAL CONTRAST (screen copy only): the duller a colour the more it is raised, then
 // each pixel against its surroundings - s11, the frame's luminance blurred at quarter size. c22 = (on, vibrance, local contrast, night).
 float4    g_Vivid    : register(c22);
@@ -337,6 +342,15 @@ float4 resolve(float2 uv, out float3 lowBits)
             shown = vivid(shown, uv);		// Ronin @feature 22/10/2026 DX9: by day; then the grade, if a modder turns it on
         if (g_Grade.x > 0.0f)
             shown = grade(shown);		// Ronin @feature 21/10/2026 DX9: by day; before the flash, which keeps its colour
+        // Ronin @feature 18/11/2026 DX9: the glow round the lit lamps, screen-blended (it brightens, never past white); a strong
+        // glow comes up softly (g / (1 + g)). Here, never in the history.
+        if (g_GlowPrm.x > 0.0f)
+        {
+            float2 guv = (g_GlowPrm.z > 0.5f) ? uv : (uv - g_Viewport.xy) / max(g_Viewport.zw, 0.0001f);	// `modelglowview 2`: the source
+            float3 g   = tex2Dlod(g_Glow, float4(guv, 0.0f, 0.0f)).rgb;
+            g     = saturate(g / (1.0f + g) * g_GlowPrm.x);
+            shown = (g_GlowPrm.y > 0.5f) ? g : 1.0f - (1.0f - shown) * (1.0f - g);
+        }
         // Ronin @bugfix 09/10/2026 DX9: SELECTION FLASH, after the resolve. Lit like a local light: the surface colour (frame over the
         // map's light) x the flash, never past the surface's own colour. The history never sees it, so nothing lags.
         if (g_FlashPrm.w > 0.0f)

@@ -162,6 +162,13 @@ if(MSVC)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${SHADER_SOURCE_DIR}/TaaResolve.pso"
             "${ZEROHOUR_INSTALL_PATH}/shaders/TaaResolve.pso"
+        # Ronin @build 18/11/2026 the glow round a lamp - its art drawn again, and its blur (R3DTaa).
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SHADER_SOURCE_DIR}/GlowArt.pso"
+            "${ZEROHOUR_INSTALL_PATH}/shaders/GlowArt.pso"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SHADER_SOURCE_DIR}/GlowBlur.pso"
+            "${ZEROHOUR_INSTALL_PATH}/shaders/GlowBlur.pso"
         # Ronin @build 23/09/2026 TAA — the depth history. This is the history-validation signal; a stale one
         # silently disables it.
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
