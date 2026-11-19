@@ -445,6 +445,14 @@ static void TestNetworkConfigMapping()
 	CHECK(GnsNetworkConfig::ResolveRelayOnly(false, 1));
 	CHECK(GnsNetworkConfig::ResolveRelayOnly(true, 0));
 
+	// A direct step goes through TURN while relay only holds, so forcing the relay covers every GNS step.
+	GnsNetworkConfig stepConfig;
+	CHECK(!stepConfig.StepUsesTurn(false));
+	CHECK(stepConfig.StepUsesTurn(true));
+	stepConfig.relayOnly = true;
+	CHECK(stepConfig.StepUsesTurn(false));
+	CHECK(stepConfig.StepUsesTurn(true));
+
 	GnsNetworkConfig config;
 	CHECK(config.GetIceEnable() == k_gnsIceEnableAll);
 	config.relayOnly = true;

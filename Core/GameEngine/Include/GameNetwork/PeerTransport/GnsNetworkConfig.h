@@ -40,6 +40,9 @@ struct GnsNetworkConfig
 	GnsTimeouts firstAttemptTimeouts;	///< The timeouts of the first attempt of a pair and of the listen socket.
 	GnsTimeouts retryTimeouts = { 30000, 30000 };	///< The timeouts of a retry and of a connection during a match.
 
+	/// True when a step goes through TURN. Relay only turns a direct step into a relayed one, so forcing the relay covers every step.
+	bool StepUsesTurn(bool bStepRelay) const { return bStepRelay || relayOnly; }
+
 	/// The k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_* value of a relayed step.
 	int GetIceEnable() const { return relayOnly ? k_gnsIceEnableRelay : k_gnsIceEnableAll; }
 

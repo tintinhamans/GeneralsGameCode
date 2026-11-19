@@ -577,8 +577,8 @@ GnsIncomingSetup NetworkMesh::GetIncomingSetup(int64_t userID)
 	setup.retryTimeouts = (it != m_mapConnections.end() && it->second.m_retryTimeout)
 		|| (TheGameLogic != nullptr && TheGameLogic->isInInternetGame());
 
-	// A direct step of the pair takes the TURN servers of the listen socket away.
-	if (it != m_mapConnections.end() && it->second.m_step.IsValid() && !it->second.m_step.relay)
+	// A direct step of the pair takes the TURN servers of the listen socket away, unless relay only makes it a relayed step.
+	if (it != m_mapConnections.end() && it->second.m_step.IsValid() && !m_gns.GetConfig().StepUsesTurn(it->second.m_step.relay))
 	{
 		setup.directOnly = true;
 		setup.stepAttempt = it->second.m_step.attempt;
@@ -648,7 +648,7 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 	else
 	{
         // no relay without our TURN credentials
-        const bool bRelay = step.relay;
+        const bool bRelay = m_gns.GetConfig().StepUsesTurn(step.relay);
         if (m_bAwaitingTurnCredentials && bRelay)
         {
             NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Holding signalling with %lld until our TURN credentials arrive", remoteUserID);
