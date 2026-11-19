@@ -5228,18 +5228,29 @@ Bool WbView3d::presentTopView(Int size, void *window, const Real area[4])
 	Bool ok = rt != NULL && SUCCEEDED(s.swapChain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &back)) && back != NULL;
 	if (ok)
 	{
-		// The copy stays on the card. The bars around a map that is not square stay black.
-		LPDIRECT3DDEVICE8 dev = DX8Wrapper::_Get_D3D_Device8();
 		D3DSURFACE_DESC desc;
 		back->GetDesc(&desc);
+#if defined(BUILD_WITH_D3D9)
+		LPDIRECT3DDEVICE8 dev = DX8Wrapper::_Get_D3D_Device8();
 		dev->ColorFill(back, NULL, D3DCOLOR_XRGB(0, 0, 0));
+#else
+		const D3DCOLOR black = D3DCOLOR_XRGB(0, 0, 0);
+		const RECT pixel = { 0, 0, 1, 1 };
+		ok = SUCCEEDED(D3DXLoadSurfaceFromMemory(back, NULL, NULL, &black, D3DFMT_A8R8G8B8,
+			sizeof(black), NULL, &pixel, D3DX_FILTER_POINT, 0));
+#endif
 		RECT dst;
 		dst.left = (LONG)(area[0] * desc.Width);
 		dst.top = (LONG)(area[1] * desc.Height);
 		dst.right = (LONG)(area[2] * desc.Width + 0.5f);
 		dst.bottom = (LONG)(area[3] * desc.Height + 0.5f);
+#if defined(BUILD_WITH_D3D9)
 		ok = SUCCEEDED(dev->StretchRect(rt, NULL, back, &dst, D3DTEXF_LINEAR))
 			&& SUCCEEDED(s.swapChain->Present(NULL, NULL, NULL, NULL, 0));
+#else
+		ok = ok && SUCCEEDED(D3DXLoadSurfaceFromSurface(back, NULL, &dst, rt, NULL, NULL, D3DX_FILTER_LINEAR, 0))
+			&& SUCCEEDED(s.swapChain->Present(NULL, NULL, NULL, NULL));
+#endif
 		if (!ok)
 		{
 			m_topViewError = "couldn't show the frame in the preview";
