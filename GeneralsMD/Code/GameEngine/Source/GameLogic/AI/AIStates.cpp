@@ -5212,6 +5212,14 @@ void AIAttackAimAtTargetState::loadPostProcess()
 }
 
 //----------------------------------------------------------------------------------------------------------
+#if !RETAIL_COMPATIBLE_CRC || !PRESERVE_SKIPPED_PREATTACK_DELAY
+static Bool isTooEarlyToStartPreAttack(const Weapon *weapon, const Object *source, const Object *victim)
+{
+	return weapon && TheGameLogic->getFrame() + 1 < weapon->getPossibleNextShotFrame()
+		&& weapon->getPreAttackDelay(source, victim) > 0;
+}
+#endif
+
 StateReturnType AIAttackAimAtTargetState::onEnter()
 {
 	// contained by AIAttackState, so no separate timer
@@ -5302,7 +5310,14 @@ StateReturnType AIAttackAimAtTargetState::onEnter()
 
 			// Contact weapons don't aim.  They just go boom.  jba.
 			if( weapon && weapon->isContactWeapon() && inFiringRange && !preventing )
-				return STATE_SUCCESS;
+			{
+#if !RETAIL_COMPATIBLE_CRC || !PRESERVE_SKIPPED_PREATTACK_DELAY
+				if (!isTooEarlyToStartPreAttack(weapon, source, victim))
+#endif
+				{
+					return STATE_SUCCESS;
+				}
+			}
 		}
 	}
 	m_setLocomotor = false;
@@ -5352,6 +5367,28 @@ StateReturnType AIAttackAimAtTargetState::update()
 	}
 
 	WhichTurretType tur = sourceAI->getWhichTurretForCurWeapon();
+#if !RETAIL_COMPATIBLE_CRC || !PRESERVE_SKIPPED_PREATTACK_DELAY
+	// A contact weapon may still be in aim after its shot because of cooldown.
+	Weapon *contactWeapon = source->getCurrentWeapon();
+	if (tur == TURRET_INVALID && !sourceAI->areTurretsLinked()
+		&& (m_isAttackingObject || !sourceAI->forceFiresAllWeapons())
+		&& contactWeapon && contactWeapon->isContactWeapon()
+		&& contactWeapon->getPreAttackDelay(source, victim) > 0
+		&& (victim ? contactWeapon->isWithinAttackRange(source, victim)
+			: contactWeapon->isWithinAttackRange(source, getMachineGoalPosition())))
+	{
+		AIUpdateInterface *victimAI = victim ? victim->getAI() : nullptr;
+		if (victimAI)
+		{
+			victimAI->addTargeter(source->getID(), true);
+			if (victimAI->isTemporarilyPreventingAimSuccess())
+			{
+				return STATE_CONTINUE;
+			}
+		}
+		return isTooEarlyToStartPreAttack(contactWeapon, source, victim) ? STATE_CONTINUE : STATE_SUCCESS;
+	}
+#endif
 	if (tur != TURRET_INVALID)
 	{
 		if (m_isAttackingObject)
@@ -5736,11 +5773,7 @@ StateReturnType AIAttackFireWeaponState::onEnter()
 	Object *victim = getMachineGoalObject();
 
 #if !RETAIL_COMPATIBLE_CRC || !PRESERVE_SKIPPED_PREATTACK_DELAY
-	Weapon* weapon = obj->getCurrentWeapon();
-
-	// An early entry can skip the wind-up and then fire when reload finishes.
-	if (weapon && weapon->getPreAttackDelay(obj, victim) > 0
-		&& TheGameLogic->getFrame() + 1 < weapon->getPossibleNextShotFrame())
+	if (isTooEarlyToStartPreAttack(obj->getCurrentWeapon(), obj, victim))
 	{
 		return STATE_FAILURE;
 	}

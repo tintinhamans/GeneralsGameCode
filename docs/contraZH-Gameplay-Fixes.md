@@ -1,7 +1,15 @@
 # Gameplay Fixes
 
-Always on, no `Options.ini` key. All are retail bugs upstream still carries. Each entry says whether
+Always on, no `Options.ini` key. Each entry says whether
 it changes the simulation (older replays no longer play back identically) or only what is drawn.
+
+## The Demolisher keeps attacking after its first shot
+
+The Demolisher waits out the cooldown before starting its next wind-up. It keeps attacking
+while its order and target remain valid. The Omega Cannon still winds up before every prism
+shot.
+
+This changes the simulation and can change older replay playback. ([#244](https://github.com/triatomic/contraZH/issues/244))
 
 ## Force fire can target allied stealthed objects
 
