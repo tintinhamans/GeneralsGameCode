@@ -74,6 +74,7 @@
 #include "GameNetwork/RankPointValue.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/GenOnlineModeration.h"
+#include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
 
 #include <deque>
 #include <string>
@@ -181,7 +182,7 @@ int getQR2HostingStatus();
 }
 extern int isThreadHosting;
 
-// /net: the relay and connection engine settings for the next lobby mesh, and the route to each player of the current one
+// /net: the transport, relay and GNS ICE settings for the next lobby mesh, and the transport and route to each player of the current one
 static const wchar_t* netRelaySetting()
 {
 	extern int g_relayOverride;
@@ -194,11 +195,11 @@ static const wchar_t* netRelaySetting()
 	{
 		return L"auto (service setting unavailable)";
 	}
-	return manager->GetServiceConfig().connection.relay_only
+	return GnsNetworkConfig::ResolveRelayOnly(manager->GetServiceConfig().connection.relay_only, -1)
 		? L"auto (service requires relay)" : L"auto (service allows direct connections)";
 }
 
-static const wchar_t* netEngineSetting()
+static const wchar_t* netGnsIceSetting()
 {
 	extern int g_iceImplementationOverride;
 	if (g_iceImplementationOverride == 1)
@@ -214,7 +215,7 @@ static const wchar_t* netEngineSetting()
 	{
 		return L"auto (service setting unavailable)";
 	}
-	switch (manager->GetServiceConfig().connection.ice_engine)
+	switch (GnsNetworkConfig::ResolveIceImplementation(manager->GetServiceConfig().connection.ice_engine, -1))
 	{
 	case 0: return L"auto (service selects the library default)";
 	case 1: return L"auto (service selects native)";
@@ -222,104 +223,118 @@ static const wchar_t* netEngineSetting()
 	}
 }
 
-static void setNetRelayOverride(int wanted)
+// The transport setting. The service reads the offered plugin transports when it plans a pair.
+static UnicodeString netTransportSetting()
+{
+	extern int g_transportOverride;
+	if (g_transportOverride == 1)
+	{
+		return UnicodeString(L"gns only");
+	}
+	const std::string pluginTransport = GenOnlinePluginHost::Transport::GetName();
+	if (pluginTransport.empty())
+	{
+		return UnicodeString(L"auto (no plugin transport available)");
+	}
+	UnicodeString setting;
+	setting.format(L"auto (offers %hs)", pluginTransport.c_str());
+	return setting;
+}
+
+// The transports /net transport can choose from, gns and each available plugin transport.
+static UnicodeString netTransportChoices()
+{
+	const std::string pluginTransport = GenOnlinePluginHost::Transport::GetName();
+	if (pluginTransport.empty())
+	{
+		return UnicodeString(L"gns");
+	}
+	UnicodeString choices;
+	choices.format(L"gns, %hs", pluginTransport.c_str());
+	return choices;
+}
+
+// Applies the relay setting of the next lobby. Every transport takes it from here.
+// GNS and the plugin transport both take it through g_relayOverride when the next lobby mesh starts.
+static void applyNetRelaySetting(int wanted)
 {
 	extern int g_relayOverride;
-	extern UnsignedInt m_exeCRCOriginal;
-	// Keep relay-only lobbies separate without losing the real build CRC.
-	if (wanted == 1 && g_relayOverride != 1)
-	{
-		m_exeCRCOriginal = TheWritableGlobalData->m_exeCRC;
-		TheWritableGlobalData->m_exeCRC = m_exeCRCOriginal ^ 0x52454C59;
-	}
-	else if (wanted != 1 && g_relayOverride == 1)
-	{
-		TheWritableGlobalData->m_exeCRC = m_exeCRCOriginal;
-		m_exeCRCOriginal = 0;
-	}
 	g_relayOverride = wanted;
 }
 
 void GenOnlineHandleNetSlashCommand(AsciiString subcommand, AsciiString value, GameWindow* listbox)
 {
 	extern int g_iceImplementationOverride;
+	// The websocket tick sends SetPeerTransports again when this changes the offered list.
+	extern int g_transportOverride;
 
 	const Color netColor = GOUIColor(GOUICOLOR_HILITE, GameMakeColor(255, 255, 0, 255));
 	UnicodeString line;
 
-	if (subcommand == "reset" && value.isEmpty())
+	const PeerNetCommand command = ParsePeerNetCommand(subcommand.str(), value.str());
+	switch (command.action)
 	{
-		setNetRelayOverride(-1);
+	case PeerNetAction::Reset:
+		applyNetRelaySetting(-1);
 		g_iceImplementationOverride = -1;
-		line.format(L"Next lobby: relay %ls; engine %ls. Existing connections are unchanged.", netRelaySetting(), netEngineSetting());
+		g_transportOverride = -1;
+		line.format(L"Next lobby: transport %ls; relay %ls; GNS ICE %ls. Existing connections are unchanged.",
+			netTransportSetting().str(), netRelaySetting(), netGnsIceSetting());
+		GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
+		return;
+
+	case PeerNetAction::TransportUsage:
+	{
+		const std::string pluginTransport = GenOnlinePluginHost::Transport::GetName();
+		const bool bPluginName = !command.word.empty() && command.word == pluginTransport;
+		line.format(L"%lsNext lobby transport: %ls. Available transports: %ls. Usage: /net transport auto | gns",
+			bPluginName ? L"Forcing a plugin transport is not supported. " : L"",
+			netTransportSetting().str(), netTransportChoices().str());
 		GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
 		return;
 	}
 
-	if (subcommand == "relay")
-	{
-		int wanted = -2;
-		if (value == "force")
-		{
-			wanted = 1;
-		}
-		else if (value == "auto")
-		{
-			wanted = -1;
-		}
+	case PeerNetAction::SetTransport:
+		g_transportOverride = command.value;
+		line.format(L"New connections: transport %ls. Existing connections are unchanged.%ls", netTransportSetting().str(),
+			(command.value == 1) ? L" Use /net transport auto to undo this." : L"");
+		GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
+		return;
 
-		if (wanted == -2)
-		{
-			line.format(L"Next lobby relay: %ls. Usage: /net relay force | auto", netRelaySetting());
-			GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
-			return;
-		}
+	case PeerNetAction::RelayUsage:
+		line.format(L"Next lobby relay: %ls. Usage: /net relay auto | force", netRelaySetting());
+		GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
+		return;
 
-		setNetRelayOverride(wanted);
+	case PeerNetAction::SetRelay:
+		applyNetRelaySetting(command.value);
 		line.format(L"Next lobby: relay %ls. Existing connections are unchanged.%ls", netRelaySetting(),
-			(wanted == 1) ? L" You can only join lobbies of players who also force relay. Use /net relay auto to undo this." : L"");
+			(command.value == 1) ? L" Use /net relay auto to undo this." : L"");
 		GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
 		return;
-	}
 
-	if (subcommand == "engine")
-	{
-		int wanted = -2;
-		if (value == "native")
-		{
-			wanted = 1;
-		}
-		else if (value == "webrtc")
-		{
-			wanted = 2;
-		}
-		else if (value == "auto")
-		{
-			wanted = -1;
-		}
-
-		if (wanted == -2)
-		{
-			line.format(L"Next lobby engine: %ls. Usage: /net engine native | webrtc | auto", netEngineSetting());
-			GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
-			return;
-		}
-
-		g_iceImplementationOverride = wanted;
-
-		line.format(L"Next lobby engine: %ls. Existing connections are unchanged.%ls", netEngineSetting(),
-			(wanted == -1) ? L"" : L" Use /net engine auto to undo this.");
+	case PeerNetAction::GnsIceUsage:
+		line.format(L"Next lobby GNS ICE: %ls. Usage: /net gns ice auto | native | webrtc", netGnsIceSetting());
 		GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
 		return;
-	}
 
-	if (subcommand.isNotEmpty())
-	{
-		GadgetListBoxAddEntryText(listbox, UnicodeString(L"Usage: /net, /net relay force | auto, /net engine native | webrtc | auto, /net reset"), netColor, -1, -1);
+	case PeerNetAction::SetGnsIce:
+		g_iceImplementationOverride = command.value;
+		line.format(L"Next lobby GNS ICE: %ls. Existing connections are unchanged.%ls", netGnsIceSetting(),
+			(command.value == -1) ? L"" : L" Use /net gns ice auto to undo this.");
+		GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
 		return;
+
+	case PeerNetAction::Usage:
+		GadgetListBoxAddEntryText(listbox, UnicodeString(L"Usage: /net, /net transport auto | gns, /net relay auto | force, /net gns ice auto | native | webrtc, /net reset"), netColor, -1, -1);
+		return;
+
+	case PeerNetAction::Status:
+		break;
 	}
 
-	line.format(L"Next lobby: relay %ls; engine %ls. Existing connections are unchanged.", netRelaySetting(), netEngineSetting());
+	line.format(L"Next lobby: transport %ls; relay %ls; GNS ICE %ls. Existing connections are unchanged.",
+		netTransportSetting().str(), netRelaySetting(), netGnsIceSetting());
 	GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
 
 	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
@@ -347,23 +362,20 @@ void GenOnlineHandleNetSlashCommand(AsciiString subcommand, AsciiString value, G
 				}
 			}
 
+			const std::string strRoute = conn.GetRouteLabel();
 			if (conn.GetState() == EConnectionState::CONNECTED_DIRECT)
 			{
-				line.format(L"%ls: %ls, ping %d ms", strName.c_str(), conn.IsDirect() ? L"direct" : L"via relay", conn.GetLatency());
-			}
-			else if (conn.GetState() == EConnectionState::CONNECTING_DIRECT || conn.GetState() == EConnectionState::FINDING_ROUTE)
-			{
-				line.format(L"%ls: connecting", strName.c_str());
+				line.format(L"%ls: %hs, ping %d ms", strName.c_str(), strRoute.c_str(), conn.GetLatency());
 			}
 			else
 			{
-				line.format(L"%ls: not connected", strName.c_str());
+				line.format(L"%ls: %hs", strName.c_str(), strRoute.c_str());
 			}
 			GadgetListBoxAddEntryText(listbox, line, netColor, -1, -1);
 		}
 	}
 
-	GadgetListBoxAddEntryText(listbox, UnicodeString(L"Change with /net relay force | auto and /net engine native | webrtc | auto. /net reset clears both overrides."), netColor, -1, -1);
+	GadgetListBoxAddEntryText(listbox, UnicodeString(L"Change with /net transport auto | gns, /net relay auto | force and /net gns ice auto | native | webrtc. /net reset clears every override."), netColor, -1, -1);
 }
 
 Bool GenOnlineHandleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited);
@@ -441,7 +453,7 @@ Bool GenOnlineHandleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited
 		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/me <message> - Send an emote."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/name <value> - Changes your display name - Example: /name General Granger. You can also use /nick."), helpColor, -1, -1);
 		// GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/refresh - Refresh the game and player lists."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/net - Show your connection settings. /net relay and /net engine change them."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/net - Show your connection settings. /net transport, /net relay, /net gns ice and /net reset change them."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/support - Open the GeneralsOnline Discord."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/help - Show these commands. You can also use /commands."), helpColor, -1, -1);
 		return TRUE; // was a slash command
@@ -475,7 +487,9 @@ Bool GenOnlineHandleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited
 		AsciiString subcommand;
 		AsciiString value;
 		remainder.nextToken(&subcommand);
-		remainder.nextToken(&value);
+		// The value is the rest of the line, /net gns ice takes two words.
+		value = remainder;
+		value.trim();
 		subcommand.toLower();
 		value.toLower();
 		GenOnlineHandleNetSlashCommand(subcommand, value, listboxLobbyChat);

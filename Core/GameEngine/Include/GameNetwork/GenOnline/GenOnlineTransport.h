@@ -58,6 +58,7 @@ public:
 private:
 	// Dispatches one packet of a peer by its channel byte, the same for every transport. TRUE when it stored a game packet.
 	Bool dispatchFrame(PlayerConnection& connection, const uint8_t* data, uint32_t len, int64_t arrivalMs);
+	Bool sendQueued();	///< Hands the queued packets to the peer connections.
 	Int countFreeInSlots() const;	///< The m_inBuffer slots that can take a packet.
 
 	Bool sendFailureLogDue();	///< true once a second, the other failure lines are counted

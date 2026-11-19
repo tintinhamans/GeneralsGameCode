@@ -49,6 +49,10 @@ public:
 
 	virtual Int chooseGameTransport( const TransportInfo *transports, Int count ) const override;
 
+	// The name of the game transport that the registered GenOnline provider picks from the registered transports.
+	// Without a registered GenOnline provider, or when it picks none, this returns the GameNetworkingSockets transport.
+	static const char *getGameTransport();
+
 	virtual IOnlineGameHooks *getGameHooks() override { return &m_gameHooks; }
 
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) override;

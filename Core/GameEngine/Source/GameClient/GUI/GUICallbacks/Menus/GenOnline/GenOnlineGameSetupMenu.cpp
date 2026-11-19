@@ -485,7 +485,7 @@ static void playerTooltip(GameWindow *window,
 
 			if (pConnection != nullptr)
 			{
-				strConnectionType = pConnection->GetConnectionType();
+				strConnectionType = pConnection->GetRouteLabel();
 				if (pConnection->GetState() == EConnectionState::CONNECTED_DIRECT)
 				{
 					bIsConnected = true;
@@ -1241,7 +1241,7 @@ static void StartPressed()
 		
 		int64_t myUserID = pAuthInterface->GetUserID();
 		auto vecLobbyMembers = pLobbyInterface->GetCurrentLobby().members;
-		auto allConnections = pMesh->GetAllConnections();
+		const auto& allConnections = pMesh->GetAllConnections();
 
 		for (LobbyMemberEntry& lobbyMember : vecLobbyMembers)
 		{
@@ -2926,7 +2926,7 @@ Bool GenOnlineHandleGameSetupSlashCommands(UnicodeString uText)
 		GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/maxcameraheight <value> - Set the camera height limit (host only)."), helpColor, -1, -1);
 		// GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/leave - Return to the main lobby."), helpColor, -1, -1);
 		// GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/quit - Exit the game."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/net - Show how you reach each player. /net relay and /net engine change your settings."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/net - Show how you reach each player. /net transport, /net relay, /net gns ice and /net reset change your settings."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/support - Open the GeneralsOnline Discord."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/help - Show these commands. You can also use /commands."), helpColor, -1, -1);
 		return TRUE; // was a slash command
@@ -2941,7 +2941,9 @@ Bool GenOnlineHandleGameSetupSlashCommands(UnicodeString uText)
 		AsciiString subcommand;
 		AsciiString value;
 		remainder.nextToken(&subcommand);
-		remainder.nextToken(&value);
+		// The value is the rest of the line, /net gns ice takes two words.
+		value = remainder;
+		value.trim();
 		subcommand.toLower();
 		value.toLower();
 		GenOnlineHandleNetSlashCommand(subcommand, value, GenOnlineListboxGameSetupChat);
