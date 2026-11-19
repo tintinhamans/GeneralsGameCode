@@ -79,7 +79,6 @@ const char* DXGetErrorString9A(HRESULT hr)
 }
 
 #include "dx8wrapper.h"
-#include "dx8webbrowser.h"
 #include "dx8fvf.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
@@ -2581,9 +2580,6 @@ void DX8Wrapper::Begin_Scene()
 #endif*/
 
 
-#if ENABLE_EMBEDDED_BROWSER
-	DX8WebBrowser::Update();
-#endif
 		return;
 	}
 
@@ -2614,8 +2610,6 @@ void DX8Wrapper::End_Scene(bool flip_frames)
 		WWDEBUG_SAY(("EndScene FAILED: 0x%08X (%s)", hr, DXGetErrorString9A(hr)));
 		s_inScene = false;
 	}
-
-	DX8WebBrowser::Render(0);
 
 	if (flip_frames) {
 		DX8_Assert();

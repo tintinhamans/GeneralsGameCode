@@ -64,8 +64,6 @@ set(WW3D2_SRC
     dx8todx9.h 
     dx8vertexbuffer.cpp
     dx8vertexbuffer.h
-    dx8webbrowser.cpp
-    dx8webbrowser.h
     dx8wrapper.cpp
     dx8wrapper.h
     dynamesh.cpp
@@ -250,14 +248,7 @@ target_include_directories(corei_ww3d2 INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
-if (MSVC AND NOT IS_VS6_BUILD)
-    target_link_libraries(corei_ww3d2 INTERFACE
-        comsuppw
-    )
-endif()
-
 target_link_libraries(corei_ww3d2 INTERFACE
-    core_browserengine
     d3d9  # DirectX 9 library for DX9Wrapper
     core_wwlib
     core_wwmath

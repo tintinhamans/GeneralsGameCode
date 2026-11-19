@@ -21,6 +21,7 @@ if(MINGW)
     # Compatibility flags for legacy code
     add_compile_options(
         -fno-strict-aliasing        # Avoid type-punning issues with DX8/COM
+        -msse2                      # GameMath uses SSE intrinsics; some i686 toolchains default to no SSE
     )
 
     # MSVC compatibility macros for MinGW
@@ -67,11 +68,6 @@ if(MINGW)
         vfw32       # Video for Windows (AVIFile functions)
         winmm       # Multimedia (timeGetTime, etc.)
     )
-
-    # Note: MinGW-w64 does not provide comsuppw (COM support utilities library).
-    # COM support utilities (_com_util::ConvertStringToBSTR, ConvertBSTRToString)
-    # are provided by Dependencies/Utility/Utility/comsupp_compat.h as header-only
-    # implementations. No library linking required.
 
     # MinGW-w64 compatibility: Create d3dx8 as an alias to d3dx8d
     # MinGW-w64 only provides libd3dx8d.a (debug library), not libd3dx8.a

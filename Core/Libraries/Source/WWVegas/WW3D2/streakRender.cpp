@@ -1341,28 +1341,19 @@ void StreakRendererClass::RenderStreak
 		{
 			DynamicVBAccessClass::WriteLockClass Lock(&Verts);
 			unsigned int i;
-			unsigned char *vb=(unsigned char*)Lock.Get_Formatted_Vertex_Array();
-			const FVFInfoClass& fvfinfo=Verts.FVF_Info();
-
-			const unsigned verticesOffset = fvfinfo.Get_Location_Offset();
-			const unsigned diffuseOffset = fvfinfo.Get_Diffuse_Offset();
-			const unsigned textureOffset = fvfinfo.Get_Tex_Offset(0);
-			const unsigned vbSize = fvfinfo.Get_FVF_Size();
+			VertexFormatXYZNDUV2* vb=Lock.Get_Formatted_Vertex_Array();
 
 			for (i=0; i<vnum; i++)
 			{
 				DEBUG_ASSERTCRASH(vertexArray[i].x != (float)0xdeadbeef && vertexArray[i].y != (float)0xdeadbeef && vertexArray[i].z != (float)0xdeadbeef && vertexArray[i].u1 != (float)0xdeadbeeef && vertexArray[i].v1 != (float)0xdeadbeef, ("Uninitialized vertexArray[%d]", i));
 				DEBUG_ASSERTCRASH((! _isnan(vertexArray[i].x) && _finite(vertexArray[i].x) && ! _isnan(vertexArray[i].y) && _finite(vertexArray[i].y) && ! _isnan(vertexArray[i].z) && _finite(vertexArray[i].z)) , ("Bad vertexArray[%d]", i));
-				Vector3 *vertex = reinterpret_cast<Vector3 *>(vb + verticesOffset);
-				vertex->X = vertexArray[i].x;
-				vertex->Y = vertexArray[i].y;
-				vertex->Z = vertexArray[i].z;
-				*reinterpret_cast<unsigned int *>(vb + diffuseOffset) = DX8Wrapper::Convert_Color_Clamp(colors[MIN((i/2), point_cnt)]); // TODO: Does not work correctly when subdivision are not 0
-				Vector2 *texture = reinterpret_cast<Vector2 *>(vb + textureOffset);
+				vb[i].x = vertexArray[i].x;
+				vb[i].y = vertexArray[i].y;
+				vb[i].z = vertexArray[i].z;
+				vb[i].diffuse = DX8Wrapper::Convert_Color_Clamp(colors[MIN((i/2), point_cnt)]); // TODO: Does not work correctly when subdivision are not 0
 				// Ronin @perf 06/11/2026 DX9: into the texture's atlas cell, so a streak shares the particles' page and draws with them.
-				texture->U = TextureUVRect.X + vertexArray[i].u1 * (TextureUVRect.Z - TextureUVRect.X);
-				texture->V = TextureUVRect.Y + vertexArray[i].v1 * (TextureUVRect.W - TextureUVRect.Y);
-				vb += vbSize;
+				vb[i].u1 = TextureUVRect.X + vertexArray[i].u1 * (TextureUVRect.Z - TextureUVRect.X);
+				vb[i].v1 = TextureUVRect.Y + vertexArray[i].v1 * (TextureUVRect.W - TextureUVRect.Y);
 			}
 		}
 
