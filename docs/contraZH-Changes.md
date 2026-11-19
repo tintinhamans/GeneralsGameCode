@@ -7,6 +7,7 @@ Everything here is additional to upstream; the rest of these docs still applies.
 * [Gameplay Fixes](contraZH-Gameplay-Fixes.md) are always on and fix retail simulation bugs.
 * A few simulation rules are read from the mod's `GameData.ini`; each states its default.
 * NVIDIA cards now load DXT1 textures natively, as AMD and Intel cards do. This halves their memory use and makes one-bit alpha visible.
+* DDS textures whose size is not a power of two, such as 510 x 510 or 600 x 600, now load every mip level correctly. Their lower mips drew as coloured block noise from a distance.
 * The map editor has its own page, [WorldBuilder Qt](WorldBuilder-Qt.md).
 * A W3D vertex material with `Specular To Diffuse` ticked now acts as a lamp. With [Path tracing](contraZH-Options.md#path-tracing) on, it lights its surroundings with its emissive colour times its texture, by the [lamp formula](contraZH-Options.md#lamp-formula). The checkbox had no effect before.
 * The FXList [Shockwave](dx9-Effect-Shaders.md#shockwave-fxlistini) block can ripple water. `Rings` sets how many waves ride in the ring, and `AllowedSurface = WATER` plays it only over water, on the water surface, so a tank shell that lands in a lake bends the water around it.
