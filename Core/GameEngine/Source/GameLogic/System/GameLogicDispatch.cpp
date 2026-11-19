@@ -292,6 +292,11 @@ void GameLogic::clearGameData( Bool showScoreScreen )
 		destroyQuitMenu();
 	}
 
+#if defined(GENONLINE)
+	// The menus and the next game start from the player's own logic time scale.
+	TheFramePacer->endGameSpeed();
+#endif
+
 	TheGameEngine->reset();
 	setGameMode(GAME_NONE);
 //	m_background->bringForward();
@@ -897,13 +902,25 @@ bool GameLogic::onNewGame(MAYBE_UNUSED GameMessage *msg)
 
 	if ( msg->getArgumentCount() >= 4 )
 	{
+#if !defined(GENONLINE)
 		Int maxFPS = msg->getArgument( 3 )->integer;
 		if (maxFPS < 1 || maxFPS > 1000)
 			maxFPS = TheGlobalData->m_framesPerSecondLimit;
 		DEBUG_LOG(("Setting max FPS limit to %d FPS", maxFPS));
 		TheFramePacer->setFramesPerSecondLimit(maxFPS);
+#endif
 		TheWritableGlobalData->m_useFpsLimit = true;
 	}
+
+#if defined(GENONLINE)
+	// The engine sets the render limit every frame, so the skirmish game speed runs through the logic time scale.
+	// Only the skirmish menu and the restart of its game keep the game speed, every other game plays at normal speed.
+	if ( msg->getArgumentCount() < 4 || (gameMode != GAME_SKIRMISH && gameMode != GAME_SINGLE_PLAYER) )
+	{
+		TheFramePacer->resetGameSpeed();
+	}
+	TheFramePacer->beginGameSpeed();
+#endif
 
 	// prepare for new game
 	prepareNewGame( gameMode, diff, rankPoints );
