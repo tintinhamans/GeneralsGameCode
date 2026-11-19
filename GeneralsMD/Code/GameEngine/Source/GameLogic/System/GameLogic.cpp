@@ -4602,30 +4602,12 @@ void GameLogic::dumpMismatchDiagnostic()
 	fprintf(fp, "  PlayerList: 0x%08X\n", calcSnapshotCRC("MismatchPlayerList", ThePlayerList));
 	fprintf(fp, "  AI: 0x%08X\n", calcSnapshotCRC("MismatchAI", TheAI));
 
-	fprintf(fp, "\nFirst objects\n");
-	Int listed = 0;
-	for (Object *obj = m_objList; obj && listed < 25; obj = obj->getNextObject())
+	fprintf(fp, "\nObject CRCs\n");
+	for (Object *obj = m_objList; obj; obj = obj->getNextObject())
 	{
 		const ThingTemplate *tmpl = obj->getTemplate();
-		Player *owner = obj->getControllingPlayer();
-		if (owner)
-		{
-			name.translate(owner->getPlayerDisplayName());
-		}
-		else
-		{
-			name = "<none>";
-		}
-		Real health = 100.0f;
-		BodyModuleInterface *body = obj->getBodyModule();
-		if (body && body->getMaxHealth() > 0.0f)
-		{
-			health = body->getHealth() * 100.0f / body->getMaxHealth();
-		}
-		const Coord3D *pos = obj->getPosition();
-		fprintf(fp, "  id=%u %s owner=%s health=%.0f%% pos=%.2f %.2f %.2f\n", (UnsignedInt)obj->getID(),
-			tmpl ? tmpl->getName().str() : "<none>", name.str(), health, pos->x, pos->y, pos->z);
-		++listed;
+		fprintf(fp, "  id=%u %s 0x%08X\n", (UnsignedInt)obj->getID(),
+			tmpl ? tmpl->getName().str() : "<none>", calcSnapshotCRC("MismatchObject", obj));
 	}
 
 	fclose(fp);

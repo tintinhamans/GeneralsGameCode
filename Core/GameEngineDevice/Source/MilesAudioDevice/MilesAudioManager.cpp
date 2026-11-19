@@ -2373,12 +2373,12 @@ void MilesAudioManager::processRequestList()
 {
 	std::list<AudioRequest*>::iterator it;
 
-	// A full queue drops its oldest unplayed sound effects; stops stay so loops can end.
+	// A full queue drops its oldest unplayed one-shot sound effects; loops and stops stay.
 	if (m_audioRequests.size() > MAX_AUDIO_REQUESTS) {
 		for (it = m_audioRequests.begin(); it != m_audioRequests.end() && m_audioRequests.size() > TRIMMED_AUDIO_REQUESTS; ) {
 			AudioRequest *req = (*it);
 			const AudioEventInfo *info = req->m_pendingEvent.Peek() ? req->m_pendingEvent->getAudioEventInfo() : nullptr;
-			if (req->m_request == AR_Play && info && info->m_soundType == AT_SoundEffect) {
+			if (req->m_request == AR_Play && info && info->m_soundType == AT_SoundEffect && !BitIsSet(info->m_control, AC_LOOP)) {
 				deleteInstance(req);
 				it = m_audioRequests.erase(it);
 			} else {

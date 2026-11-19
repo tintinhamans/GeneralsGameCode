@@ -1309,11 +1309,8 @@ Int PathfindCellInfo::recycleUnusedCellInfos()
 			continue;
 		}
 
-		PathfindCell *cell = info->m_cell;
-		if (cell && cell->m_info == info) {
-			cell->releaseInfo();
-		} else {
-			releaseACellInfo(info);
+		if (info->m_cell) {
+			info->m_cell->releaseInfo();
 		}
 	}
 	return s_freeCount - freeBefore;

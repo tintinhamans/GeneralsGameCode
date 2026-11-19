@@ -325,7 +325,6 @@ private:
  */
 class PathfindCell
 {
-	friend class PathfindCellInfo;
 public:
 
 	enum CellType

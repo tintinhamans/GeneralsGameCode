@@ -1240,9 +1240,9 @@ void GameEngine::execute()
 				catch (const std::exception &e)
 				{
 					cleanUpReplayBeforeCrash();
-					AsciiString msg;
-					msg.format("Uncaught Exception in GameEngine::update: %s", e.what());
-					RELEASE_CRASH((msg.str()));
+					char msg[256];
+					snprintf(msg, sizeof(msg), "Uncaught Exception in GameEngine::update: %s", e.what());
+					RELEASE_CRASH((msg));
 				}
 				catch (...)
 				{
