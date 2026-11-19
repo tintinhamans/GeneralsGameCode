@@ -8,9 +8,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-if ($Version -notmatch "^\d{4}\.([1-9]|1[0-2])\.\d+$")
+# A release candidate for the test channel carries -rc.N, the release that goes live has none.
+if ($Version -notmatch "^\d{4}\.([1-9]|1[0-2])\.\d+(-rc\.[1-9]\d*)?$")
 {
-   throw "Version $Version is not YYYY.M.PATCH, for example 2026.11.1."
+   throw "Version $Version is not YYYY.M.PATCH or YYYY.M.PATCH-rc.N, for example 2026.11.1 or 2026.11.1-rc.1."
 }
 $tag = "v$Version"
 

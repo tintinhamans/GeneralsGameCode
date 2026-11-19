@@ -9,7 +9,7 @@ $workingDir = "$patchDirectoryPath/working_dir"
 
 # The audio notice must name the release tag and the exact commit that the LGPL source offer points to
 $notice = Get-Content -Raw -Path "$buildDir\audio-libraries-NOTICE.txt"
-if ($notice -notmatch "built from tag v\d{4}\.\d{1,2}\.\d+, commit [0-9a-f]{40}\r?\n")
+if ($notice -notmatch "built from tag v\d{4}\.\d{1,2}\.\d+(-rc\.\d+)?, commit [0-9a-f]{40}\r?\n")
 {
    throw "audio-libraries-NOTICE.txt names no release tag and exact commit. Tag the commit with TagRelease.ps1 and build it from a clean checkout before packaging."
 }

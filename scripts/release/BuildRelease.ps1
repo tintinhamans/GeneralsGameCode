@@ -22,7 +22,7 @@ if ($LASTEXITCODE -ne 0)
 {
    throw "The checkout has uncommitted changes. A release build must match its tag."
 }
-$tags = @(git tag --points-at HEAD | Where-Object { $_ -match "^v\d{4}\.\d{1,2}\.\d+$" })
+$tags = @(git tag --points-at HEAD | Where-Object { $_ -match "^v\d{4}\.\d{1,2}\.\d+(-rc\.\d+)?$" })
 if ($tags.Count -eq 0 -and -not $AllowUntagged)
 {
    throw "HEAD carries no release tag. Tag it with TagRelease.ps1 first, or pass -AllowUntagged for a test build."

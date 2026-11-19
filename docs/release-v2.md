@@ -34,10 +34,12 @@ needs no secret. Run it first.
 ### 1. Tag
 
 ```powershell
-pwsh -File TagRelease.ps1 -Version 2026.11.0
+pwsh -File TagRelease.ps1 -Version 2026.11.0-rc.1
 ```
 
-The build names the tag and commit in `audio-libraries-NOTICE.txt`, and step 4 refuses a build without it.
+A release for the test channel is a release candidate, `YYYY.M.PATCH-rc.N` with N from 1. The release that goes live
+carries no suffix. The build names the tag and commit in `audio-libraries-NOTICE.txt`, and step 4 refuses a build
+without it. The client reads its compatibility version without the suffix, so `2026.11.0-rc.1` plays with `2026.11.0`.
 
 ### 2. Build both games with the 14.44 toolset
 
@@ -67,7 +69,7 @@ Git Bash rewrites its `/imports` option into a path.
 ### 4. Stage the client folders
 
 ```powershell
-pwsh -File scripts\release\StageClient.ps1 -OutputDir D:\gb\release-2026.11.0\stage `
+pwsh -File scripts\release\StageClient.ps1 -OutputDir D:\gb\release-2026.11.0-rc.1\stage `
    -EacToolsDir <AntiCheatTools> -PluginDir <signed genonline_eos folder> -BootstrapperIcon <icon> `
    -ProductId <id> -SandboxId <id> -DeploymentId <id>
 ```
@@ -81,8 +83,8 @@ three ids, hides the bootstrapper, its window and the logo animation, and reques
 ### 5. Sign (Authenticode)
 
 ```powershell
-pwsh -File scripts\release\SignClient.ps1 -StageDir D:\gb\release-2026.11.0\stage -PluginSdkDir <genonline-plugin-sdk> -WhatIf
-pwsh -File scripts\release\SignClient.ps1 -StageDir D:\gb\release-2026.11.0\stage -PluginSdkDir <genonline-plugin-sdk>
+pwsh -File scripts\release\SignClient.ps1 -StageDir D:\gb\release-2026.11.0-rc.1\stage -PluginSdkDir <genonline-plugin-sdk> -WhatIf
+pwsh -File scripts\release\SignClient.ps1 -StageDir D:\gb\release-2026.11.0-rc.1\stage -PluginSdkDir <genonline-plugin-sdk>
 ```
 
 The script signs `genonline_<game>.exe`, `CrashReportHandler.exe` and `genonline_eos.dll` with ssign, all in one login:
@@ -105,7 +107,7 @@ not list. When step 5 reports identical manifests, sign one and copy the signatu
 ### 7. Easy Anti-Cheat integrity catalog
 
 ```powershell
-pwsh -File scripts\release\CatalogClient.ps1 -StageDir D:\gb\release-2026.11.0\stage -EacToolsDir <AntiCheatTools> `
+pwsh -File scripts\release\CatalogClient.ps1 -StageDir D:\gb\release-2026.11.0-rc.1\stage -EacToolsDir <AntiCheatTools> `
    -ProductId <id> -PluginPublicKey D:\keys\genonline-plugins\genonline-plugins-current.pub
 ```
 
@@ -121,9 +123,9 @@ template unchanged.
 ### 8. Pack and promote on the test channel
 
 ```powershell
-pwsh -File scripts\release\PackClient.ps1 -StageDir D:\gb\release-2026.11.0\stage -Id 2026.11.0 `
+pwsh -File scripts\release\PackClient.ps1 -StageDir D:\gb\release-2026.11.0-rc.1\stage -Id 2026.11.0-rc.1 `
    -PublishDir D:\gb\genonline-v2-publish -LauncherDir <GenOnlineLauncher> -DryRun
-pwsh -File scripts\release\PackClient.ps1 -StageDir D:\gb\release-2026.11.0\stage -Id 2026.11.0 `
+pwsh -File scripts\release\PackClient.ps1 -StageDir D:\gb\release-2026.11.0-rc.1\stage -Id 2026.11.0-rc.1 `
    -PublishDir D:\gb\genonline-v2-publish -LauncherDir <GenOnlineLauncher>
 ```
 
@@ -144,8 +146,4 @@ one with a higher sequence.
 
 ## Known gaps
 
-- `patch_pack client` admits only client scope files (code, `plugins\`, anti-cheat files). The license texts at the root
-  of the client folder are outside it, so step 8 fails until the launcher's `packs::client_scope` admits them.
-- `GeneralsMD/Code/Main/CMakeLists.txt` stamps the VC++ runtime check with the default redistributable of the Visual
-  Studio install (14.51 on VS 18), not the one of the 14.44 toolset. Step 3 fails until that is fixed.
 - No code reads `deployment.json` yet. The plugin has its ids compiled in.
