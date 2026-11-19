@@ -18,6 +18,7 @@
 
 #include "../StdAfx.h"
 #include "MaterialViewerFrame.h"
+#include <afxdlgs.h>
 
 #include "MaterialPanel.h"
 #include "MaterialPreviewPane.h"
@@ -599,15 +600,24 @@ void CMaterialViewerFrame::GroundSliderChangedThunk(int pos)
 	}
 }
 
-// TheSuperHackers @feature Tria Pick the back-face tint colour via the Qt colour
-// picker (to match the rest of the Material Viewer UI). Converts between the viewer's
-// 0..1 float Vector3 and Win32's 0..255 COLORREF.
 void CMaterialViewerFrame::OnShaderBackfaceTintColor()
 {
 	COLORREF initial = CGraphicView::Tint_Color_To_ColorRef(CGraphicView::Get_Backface_Tint_Color());
 
 	COLORREF chosen = initial;
-	if (W3dMaterialViewer::PickColor(initial, chosen)) {
+	bool picked;
+#ifdef W3DVIEW_HAS_QT
+	picked = W3dMaterialViewer::PickColor(initial, chosen);
+#else
+	CColorDialog dialog(initial, CC_FULLOPEN, this);
+	picked = dialog.DoModal() == IDOK;
+	if( picked )
+	{
+		chosen = dialog.GetColor();
+	}
+#endif
+	if( picked )
+	{
 		CGraphicView::Set_Backface_Tint_Color(CGraphicView::ColorRef_To_Tint_Color(chosen));
 	}
 }
