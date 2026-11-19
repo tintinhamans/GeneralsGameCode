@@ -77,3 +77,6 @@ __pycache__/
 /InstancingMergePlan.md
 /Generals 2013 model pack v2/
 /Assets/UI/Local/
+# Ronin @build 19/11/2026: our own tool scripts - the rest of scripts/ is upstream's, tracked
+/scripts/water/
+/scripts/treads/
