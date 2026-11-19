@@ -223,6 +223,7 @@ enum ACBits CPP_11(: Int)
 	MAINTAIN_FRAME_ACROSS_STATES2,
 	MAINTAIN_FRAME_ACROSS_STATES3,
 	MAINTAIN_FRAME_ACROSS_STATES4,
+	ANIMATE_BY_CONSTRUCTION_PERCENT,	// Ronin @feature 01/11/2026 DX9: the construction percent picks the frame
 
 	AC_BITS_COUNT
 };
@@ -239,6 +240,7 @@ static const char *const ACBitsNames[] =
 	"MAINTAIN_FRAME_ACROSS_STATES2",
 	"MAINTAIN_FRAME_ACROSS_STATES3",
 	"MAINTAIN_FRAME_ACROSS_STATES4",
+	"ANIMATE_BY_CONSTRUCTION_PERCENT",	// Ronin @feature 01/11/2026 DX9: Generals 2's build-up
 
 	nullptr
 };
@@ -2046,6 +2048,17 @@ void W3DModelDraw::doDrawModule(const Matrix3D* transformMtx)
 		transformMtx = &scaledTransform;
 		if (m_renderObject)
 			m_renderObject->Set_ObjectScale(getDrawable()->getInstanceScale());
+	}
+
+	// Ronin @feature 01/11/2026 DX9: the construction percent picks a MANUAL animation's frame (Generals 2's build-up).
+	if (m_curState && m_renderObject && m_whichAnimInCurState >= 0 && testFlagBit(m_curState->m_flags, ANIMATE_BY_CONSTRUCTION_PERCENT))
+	{
+		const Object* obj = getDrawable()->getObject();
+		Real pct = obj ? obj->getConstructionPercent() : -1.0f;
+		HAnimClass* anim = m_curState->m_animations[m_whichAnimInCurState].getAnimHandle();	// addrefed: released below
+		if (anim && pct >= 0.0f)
+			m_renderObject->Set_Animation(anim, pct * (anim->Get_Num_Frames() - 1) / 100.0f, RenderObjClass::ANIM_MODE_MANUAL);
+		REF_PTR_RELEASE(anim);
 	}
 
 	if (isAnimationComplete(m_renderObject))
