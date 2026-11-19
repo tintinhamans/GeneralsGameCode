@@ -123,6 +123,7 @@ static void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCal
 		{
 			// Why are we hearing about any another connection?
 			//assert(false);
+			pNetwork->ForgetHeldIncoming(pInfo->m_hConn);
 		}
 
 		break;
@@ -166,6 +167,19 @@ static void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCal
 				PeerTransportLog(PeerLogLevel::Release, "[STEAM NETWORKING][%s] Accepting - Server started signalling\n", pInfo->m_info.m_szConnectionDescription);
 				pNetwork->ApplyIncomingSetup(pInfo->m_hConn, peer.userID, pListener->GetIncomingSetup(peer));
 				SteamNetworkingSockets()->AcceptConnection(pInfo->m_hConn);
+			}
+			else
+			{
+				// The peer started before this side. A connect of this side would merge with the unaccepted connection
+				// and break its crypto handshake, so the connection waits here until this side starts the pair.
+				int64_t remoteUserID = 0;
+				if (!ParseUserIdentity(pInfo->m_info.m_identityRemote, remoteUserID))
+				{
+					PeerTransportLog(PeerLogLevel::Release, "[SECURITY] Rejecting incoming connection %s: its identity is not a user", pInfo->m_info.m_szConnectionDescription);
+					SteamNetworkingSockets()->CloseConnection(pInfo->m_hConn, 1001, "Identity mismatch (Rejected)", false);
+					return;
+				}
+				pNetwork->HoldIncoming(remoteUserID, pInfo->m_hConn);
 			}
 
 		}
@@ -720,6 +734,48 @@ void GnsPeerNetwork::ApplyIncomingSetup(HSteamNetConnection hConnection, int64_t
 	PeerTransportLog(PeerLogLevel::Release, "[MESH] Incoming connection of %lld uses step %d without TURN, applied=%d", userID, setup.stepAttempt, iceSet && turnSet ? 1 : 0);
 }
 
+void GnsPeerNetwork::HoldIncoming(int64_t userID, HSteamNetConnection hConnection)
+{
+	auto it = m_heldIncoming.find(userID);
+	if (it != m_heldIncoming.end() && it->second != hConnection)
+	{
+		CloseConnection(it->second, 0, "Replaced by a newer incoming connection");
+	}
+	m_heldIncoming[userID] = hConnection;
+	PeerTransportLog(PeerLogLevel::Release, "[MESH] Holding incoming connection %u of %lld until this side starts the pair", hConnection, static_cast<long long>(userID));
+}
+
+void GnsPeerNetwork::ForgetHeldIncoming(HSteamNetConnection hConnection)
+{
+	for (auto it = m_heldIncoming.begin(); it != m_heldIncoming.end(); ++it)
+	{
+		if (it->second == hConnection)
+		{
+			m_heldIncoming.erase(it);
+			return;
+		}
+	}
+}
+
+HSteamNetConnection GnsPeerNetwork::TakeHeldIncoming(int64_t userID)
+{
+	auto it = m_heldIncoming.find(userID);
+	if (it == m_heldIncoming.end())
+	{
+		return k_HSteamNetConnection_Invalid;
+	}
+	const HSteamNetConnection hConnection = it->second;
+	m_heldIncoming.erase(it);
+	return hConnection;
+}
+
+void GnsPeerNetwork::AcceptHeldIncoming(HSteamNetConnection hConnection, int64_t userID, const GnsIncomingSetup& setup)
+{
+	PeerTransportLog(PeerLogLevel::Release, "[MESH] Accepting held incoming connection %u of %lld", hConnection, static_cast<long long>(userID));
+	ApplyIncomingSetup(hConnection, userID, setup);
+	SteamNetworkingSockets()->AcceptConnection(hConnection);
+}
+
 void GnsPeerNetwork::Poll()
 {
 	if (m_pSignaling != nullptr)
@@ -730,6 +786,16 @@ void GnsPeerNetwork::Poll()
 
 void GnsPeerNetwork::CloseListenSocket()
 {
+	// Held incoming connections belong to the listen socket and close with it.
+	if (SteamNetworkingSockets())
+	{
+		for (auto it = m_heldIncoming.begin(); it != m_heldIncoming.end(); ++it)
+		{
+			CloseConnection(it->second, 0, "Listen socket closed");
+		}
+	}
+	m_heldIncoming.clear();
+
 	if (SteamNetworkingSockets() && m_hListenSock != k_HSteamListenSocket_Invalid)
 	{
 		SteamNetworkingSockets()->CloseListenSocket(m_hListenSock);

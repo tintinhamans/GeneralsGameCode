@@ -702,8 +702,13 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 
         int g_nVirtualPortRemote = serviceConf.connection.use_mapped_port ? preferredPort : 0;
 
+        // A connection the peer started before this side is accepted, a new connect would merge with it and break its handshake.
+        const HSteamNetConnection hHeldIncoming = m_gns.TakeHeldIncoming(remoteUserID);
+
         // make a steam connection obj
-        HSteamNetConnection hSteamConnection = m_gns.Connect(remoteUserID, g_nVirtualPortRemote, bRelay, retryTimeout);
+        HSteamNetConnection hSteamConnection = (hHeldIncoming != k_HSteamNetConnection_Invalid)
+            ? hHeldIncoming
+            : m_gns.Connect(remoteUserID, g_nVirtualPortRemote, bRelay, retryTimeout);
 
         if (hSteamConnection == k_HSteamNetConnection_Invalid)
         {
@@ -721,6 +726,12 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             m_mapConnections[remoteUserID].m_retryTimeout = retryTimeout;
             m_mapConnections[remoteUserID].m_step = step;
             m_mapConnections[remoteUserID].m_stepWatch.Begin(step, NowSteadyMs());
+        }
+
+        // The setup reads the step and the retry timeouts of the new entry.
+        if (hHeldIncoming != k_HSteamNetConnection_Invalid)
+        {
+            m_gns.AcceptHeldIncoming(hHeldIncoming, remoteUserID, GetIncomingSetup(remoteUserID));
         }
 	}
 

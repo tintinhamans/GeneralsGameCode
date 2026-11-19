@@ -4,6 +4,7 @@
 #include "GameNetwork/PeerTransport/PeerSignalChannel.h"
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
 #include <steam/steamnetworkingtypes.h>
@@ -109,6 +110,15 @@ public:
 	/// Applies the timeouts and the ICE settings of the pair to an incoming connection before it is accepted.
 	void ApplyIncomingSetup(HSteamNetConnection hConnection, int64_t userID, const GnsIncomingSetup& setup);
 
+	/// Keeps an incoming connection of a user that has no connection on this side yet, a newer one replaces it.
+	void HoldIncoming(int64_t userID, HSteamNetConnection hConnection);
+	/// Removes a held incoming connection that closed.
+	void ForgetHeldIncoming(HSteamNetConnection hConnection);
+	/// Hands over the held incoming connection of the user, invalid when there is none.
+	HSteamNetConnection TakeHeldIncoming(int64_t userID);
+	/// Accepts a held incoming connection with the setup of the pair.
+	void AcceptHeldIncoming(HSteamNetConnection hConnection, int64_t userID, const GnsIncomingSetup& setup);
+
 	/// Sends the queued signals and dispatches the received ones. Call it on the main thread.
 	void Poll();
 
@@ -122,4 +132,5 @@ private:
 	GnsNetworkConfig m_config;
 	std::unique_ptr<GnsSignalingClient> m_pSignaling;
 	HSteamListenSocket m_hListenSock = k_HSteamListenSocket_Invalid;
+	std::map<int64_t, HSteamNetConnection> m_heldIncoming;	///< Incoming connections of users this side has not started yet.
 };
