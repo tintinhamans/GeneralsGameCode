@@ -1,5 +1,18 @@
 # Weapon.ini
 
+## RequiresTransportOccupants
+
+`RequiresTransportOccupants = Yes` makes a weapon usable only while its source contains at least
+one passenger. The default is `No`. Works in `WeaponExtend`.
+
+* The weapon button is disabled while the transport is empty.
+* Target checks, weapon selection, and firing reject an empty transport.
+* Loading a passenger enables the weapon subject to its usual shot and reload delays.
+* Pair this with `CreateObject` and `UseTransportOccupants = Yes` in the weapon's `FireOCL`.
+* Cargo does not replace clip ammunition. Use `ClipSize = 0` and `AutoReloadsClip = Yes` for cargo-only firing.
+
+Changes simulation when enabled. [Issue #126](https://github.com/triatomic/contraZH/issues/126).
+
 ## LineOfSightGraceHeight
 
 * `LineOfSightGraceHeight = 0` - (Default. Terrain that rises this many feet above the firing line

@@ -57,6 +57,9 @@ public:
 	Bool							m_destroyRidersWhoAreNotFreeToExit;
 	Bool							m_isDelayExitInAir;
 
+	AsciiString m_exitInAirTemplate;
+	AsciiString m_exitInAirVehicleTemplate;
+
 	TransportContainModuleData();
 
 	static void buildFieldParse(MultiIniFieldParse& p);
@@ -93,6 +96,10 @@ public:
 	virtual Bool isExitBusy() const override;	///< Contain style exiters are getting the ability to space out exits, so ask this before reserveDoor as a kind of no-commitment check.
 	virtual ExitDoorType reserveDoorForExit( const ThingTemplate* objType, Object *specificObject ) override;
 	virtual void unreserveDoorForExit( ExitDoorType exitDoor ) override;
+	virtual void exitObjectViaDoor(Object *obj, ExitDoorType exitDoor) override;
+	virtual Object* launchPassengers(const ObjectCreationNugget *nugget) override;
+	virtual Bool isPassengerLaunchPending() const override { return !m_launchPassengers.empty(); }
+	virtual const AsciiString& getExitInAirTemplateFor(const Object *passenger) const override;
 	virtual Bool isDisplayedOnControlBar() const override {return TRUE;}///< Does this container display its contents on the ControlBar?
 
 protected:
@@ -109,5 +116,8 @@ protected:
 	Int m_extraSlotsInUse;
 
 	UnsignedInt m_frameExitNotBusy;
+	Int m_launchNuggetIndex;
+	std::list<ObjectID> m_launchPassengers;
+	Object* processPassengerLaunch();
 
 };

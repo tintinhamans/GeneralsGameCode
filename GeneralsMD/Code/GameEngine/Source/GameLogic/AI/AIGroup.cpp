@@ -51,6 +51,7 @@
 #include "GameLogic/PathProfile.h"
 #include "GameLogic/Locomotor.h"
 #include "GameLogic/Module/AIUpdate.h"
+#include "GameLogic/Module/JetAIUpdate.h"
 #include "GameLogic/Module/BodyModule.h"
 #include "GameLogic/Module/ContainModule.h"
 #include "GameLogic/Module/DeployStyleAIUpdate.h"
@@ -3137,7 +3138,9 @@ void AIGroup::groupEvacuate( CommandSourceType cmdSource )
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			if( (*i)->isKindOf( KINDOF_AIRCRAFT ) && (*i)->isAirborneTarget() )
+			const JetAIUpdate *jetAI = ai->getJetAIUpdate();
+			if( (*i)->isKindOf( KINDOF_AIRCRAFT ) && (*i)->isAirborneTarget() &&
+				!(jetAI && jetAI->returnsToBaseAfterUnload()) )
 			{
 				//Calculate the highest point on the ground to drop off troops (chinook or other air transports)
 				Coord3D pos = *((*i)->getPosition());

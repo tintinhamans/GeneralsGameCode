@@ -1,5 +1,43 @@
 # Objects & Modules
 
+## JetAIUpdate return after unloading
+
+`ReturnToBaseAfterUnload = Yes` makes a jet return to its airfield on the next AI update after
+its last passenger leaves. The default is `No`.
+
+* A completed weapon drop, the last inventory exit, and Evacuate trigger the return while airborne.
+* The completed drop clears the attack order and any pending command.
+* Evacuate starts unloading without issuing a takeoff command, including while parked.
+* The Evacuate button releases passengers in flight without an approach to the ground beneath the aircraft.
+* `TransportContain`'s `ExitDelay` spaces weapon drops, ordinary Evacuate, and inventory exits.
+* Explicit instant-evacuation script commands bypass `ExitDelay`.
+* A parked aircraft stays parked after unloading.
+* A return requested during takeoff or landing waits for that maneuver to finish.
+
+The C27 configures this in its `JetAIUpdate` module. Changes simulation when enabled.
+
+## TransportContain airborne exits
+
+* `ExitInAirTemplate` names a container for passengers unloaded above the ground. It defaults to empty.
+* `ExitInAirVehicleTemplate` overrides that container for vehicle passengers. It defaults to empty.
+* Inventory exits and `EVACUATE` use these templates while the transport is significantly above terrain.
+* An OCL with `UseTransportOccupants = Yes` uses the same templates for weapon drops.
+* Ground exits use the transport's usual exit path.
+* Missing templates and incompatible containers leave the passenger aboard.
+* The templates must have a contain module, such as `ParachuteContain`.
+
+```
+Behavior = TransportContain ModuleTag_Transport
+  Slots = 6
+  AllowInsideKindOf = INFANTRY VEHICLE
+  ForbidInsideKindOf = NO_GARRISON AIRCRAFT
+  ExitInAirTemplate = AmericaParachuteSelectable
+  ExitInAirVehicleTemplate = LargeParachute
+End
+```
+
+Changes simulation when configured. [Issue #126](https://github.com/triatomic/contraZH/issues/126).
+
 ## Model alignment
 
 Set these optional fields in a `W3DModelDraw` block or in a draw module derived

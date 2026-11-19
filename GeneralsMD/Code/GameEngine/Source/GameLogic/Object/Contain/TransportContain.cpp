@@ -36,14 +36,17 @@
 #include "Common/Xfer.h"
 #include "GameClient/Drawable.h"
 #include "GameLogic/AI.h"
+#include "GameLogic/GameLogic.h"
 #include "GameLogic/AIPathfind.h"
 #include "GameLogic/Locomotor.h"
 #include "GameLogic/Module/AIUpdate.h"
 #include "GameLogic/Module/BodyModule.h"
+#include "GameLogic/Module/JetAIUpdate.h"
 #include "GameLogic/Module/PhysicsUpdate.h"
 #include "GameLogic/Module/StealthUpdate.h"
 #include "GameLogic/Module/TransportContain.h"
 #include "GameLogic/Object.h"
+#include "GameLogic/ObjectCreationList.h"
 #include "GameLogic/Weapon.h"
 #include "GameLogic/WeaponSetType.h"
 
@@ -111,6 +114,8 @@ void TransportContainModuleData::buildFieldParse(MultiIniFieldParse& p)
 		{ "HealthRegen%PerSec", INI::parseReal, nullptr, offsetof( TransportContainModuleData, m_healthRegen ) },
 		{ "ExitDelay",	INI::parseDurationUnsignedInt,		nullptr, offsetof( TransportContainModuleData, m_exitDelay ) },
 		{ "ArmedRidersUpgradeMyWeaponSet",	INI::parseBool,		nullptr, offsetof( TransportContainModuleData, m_armedRidersUpgradeWeaponSet ) },
+		{ "ExitInAirTemplate", INI::parseAsciiString, nullptr, offsetof(TransportContainModuleData, m_exitInAirTemplate) },
+		{ "ExitInAirVehicleTemplate", INI::parseAsciiString, nullptr, offsetof(TransportContainModuleData, m_exitInAirVehicleTemplate) },
 		{ "DelayExitInAir",	INI::parseBool,		nullptr, offsetof( TransportContainModuleData, m_isDelayExitInAir ) },
 
     { nullptr, nullptr, nullptr, 0 }
@@ -140,6 +145,7 @@ TransportContain::TransportContain( Thing *thing, const ModuleData *moduleData )
 {
 	m_extraSlotsInUse = 0;
 	m_frameExitNotBusy = 0;
+	m_launchNuggetIndex = -1;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -394,6 +400,11 @@ void TransportContain::onRemoving( Object *rider )
 		if( draw )
 			draw->clearModelConditionState( MODELCONDITION_LOADED );
 
+		JetAIUpdate *jetAI = getObject()->getAI() ? getObject()->getAI()->getJetAIUpdate() : nullptr;
+		if (jetAI)
+		{
+			jetAI->onTransportUnloaded();
+		}
 	}
 
 	if (getObject()->isAboveTerrain())
@@ -535,6 +546,7 @@ UpdateSleepTime TransportContain::update()
 			}
 		}
 	}
+	processPassengerLaunch();
 	return OpenContain::update(); //extend
 }
 
@@ -652,6 +664,112 @@ Bool TransportContain::isPassengerAllowedToFire( ObjectID id ) const
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
+Object* TransportContain::launchPassengers(const ObjectCreationNugget *nugget)
+{
+	if (!isPassengerLaunchPending())
+	{
+		m_launchNuggetIndex = TheObjectCreationListStore->findNuggetIndex(nugget);
+		if (m_launchNuggetIndex < 0)
+		{
+			return nullptr;
+		}
+		for (ContainedItemsList::const_iterator it = getContainList().begin(); it != getContainList().end(); ++it)
+		{
+			m_launchPassengers.push_back((*it)->getID());
+		}
+	}
+	return processPassengerLaunch();
+}
+
+// ------------------------------------------------------------------------------------------------
+Object* TransportContain::processPassengerLaunch()
+{
+	const ObjectCreationNugget *nugget = TheObjectCreationListStore->getNuggetByIndex(m_launchNuggetIndex);
+	if (!nugget || getObject()->isEffectivelyDead())
+	{
+		m_launchPassengers.clear();
+		m_launchNuggetIndex = -1;
+		return nullptr;
+	}
+	Object *firstObject = nullptr;
+	while (!m_launchPassengers.empty() && !isExitBusy())
+	{
+		Object *passenger = TheGameLogic->findObjectByID(m_launchPassengers.front());
+		m_launchPassengers.pop_front();
+		if (!passenger || !isContained(passenger))
+		{
+			continue;
+		}
+		Object *container = nugget->createForTransportPassenger(getObject(), passenger);
+		if (!firstObject)
+		{
+			firstObject = container;
+		}
+	}
+	if (m_launchPassengers.empty())
+	{
+		m_launchNuggetIndex = -1;
+	}
+	return firstObject;
+}
+
+// ------------------------------------------------------------------------------------------------
+const AsciiString& TransportContain::getExitInAirTemplateFor(const Object *passenger) const
+{
+	const TransportContainModuleData *data = getTransportContainModuleData();
+	return passenger->isKindOf(KINDOF_VEHICLE) && !data->m_exitInAirVehicleTemplate.isEmpty()
+		? data->m_exitInAirVehicleTemplate : data->m_exitInAirTemplate;
+}
+
+// ------------------------------------------------------------------------------------------------
+void TransportContain::exitObjectViaDoor(Object *obj, ExitDoorType exitDoor)
+{
+	const AsciiString& containerName = getExitInAirTemplateFor(obj);
+	if (!getObject()->isSignificantlyAboveTerrain() || containerName.isEmpty())
+	{
+		OpenContain::exitObjectViaDoor(obj, exitDoor);
+		return;
+	}
+
+	const ThingTemplate *tmpl = TheThingFactory->findTemplate(containerName);
+	if (!tmpl)
+	{
+		return;
+	}
+	Object *container = TheThingFactory->newObject(tmpl, obj->getTeam());
+	if (!container)
+	{
+		return;
+	}
+	ContainModuleInterface *contain = container->getContain();
+	if (!contain || !contain->isValidContainerFor(obj, TRUE))
+	{
+		TheGameLogic->destroyObject(container);
+		return;
+	}
+
+	container->setProducer(getObject());
+	container->setOrientation(getObject()->getOrientation());
+	container->setPosition(getObject()->getPosition());
+	if (container->getPhysics())
+	{
+		container->getPhysics()->setAllowToFall(TRUE);
+		container->getPhysics()->setIgnoreCollisionsWith(getObject());
+	}
+	removeFromContain(obj);
+	if (obj->getAI())
+	{
+		obj->getAI()->aiIdle(CMD_FROM_AI);
+	}
+	obj->setLayer(LAYER_GROUND);
+	if (obj->getPhysics())
+	{
+		obj->getPhysics()->setIgnoreCollisionsWith(getObject());
+	}
+	contain->addToContain(obj);
+}
+
+// ------------------------------------------------------------------------------------------------
 ExitDoorType TransportContain::reserveDoorForExit( const ThingTemplate* objType, Object *specificObject )
 {
 	return isSpecificRiderFreeToExit(specificObject) ? DOOR_1 : DOOR_NONE_AVAILABLE;
@@ -713,7 +831,7 @@ void TransportContain::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+	XferVersion currentVersion = 2;
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -728,6 +846,11 @@ void TransportContain::xfer( Xfer *xfer )
 
 	// frame exit not busy
 	xfer->xferUnsignedInt( &m_frameExitNotBusy );
+	if (version >= 2)
+	{
+		xfer->xferInt(&m_launchNuggetIndex);
+		xfer->xferSTLObjectIDList(&m_launchPassengers);
+	}
 
 }
 

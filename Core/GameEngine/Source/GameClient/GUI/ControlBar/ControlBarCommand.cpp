@@ -1400,6 +1400,12 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 
 			// ask the ai if the weapon is ready to fire
 			const Weapon* w = obj->getWeaponInWeaponSlot( command->getWeaponSlot() );
+#if defined(RTS_ZEROHOUR)
+			if (w && !w->hasRequiredTransportOccupants(obj))
+			{
+				return COMMAND_RESTRICTED;
+			}
+#endif
 
 			// changed this to Log rather than Crash, because this can legitimately happen now for
 			// dozers and workers with mine-clearing stuff... (srj)

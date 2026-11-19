@@ -1,0 +1,23 @@
+--- a/ObjectCreationList.ini
++++ b/ObjectCreationList.ini
+@@ -2901,6 +2901,20 @@
+ End
+ 
+ ; ----------------------------------------------
++ObjectCreationList OCL_DropTransportOccupants
++  CreateObject
++    UseTransportOccupants = Yes
++    IgnorePrimaryObstacle = Yes
++    Disposition = RANDOM_FORCE
++    MinForceMagnitude = 10
++    MaxForceMagnitude = 12
++    MinForcePitch = 50
++    MaxForcePitch = 60
++    InvulnerableTime = 2000
++    RequiresLivePlayer = Yes
++  End
++End
++
+ ObjectCreationList OCL_DropPlaneParachute
+   CreateObject
+     ObjectNames = AirF_AmericaInfantryRanger

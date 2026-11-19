@@ -233,6 +233,7 @@ const FieldParse WeaponTemplate::TheWeaponTemplateFieldParseTable[] =
 	{ "FireSoundLoopTime",				INI::parseDurationUnsignedInt,					nullptr,							offsetof(WeaponTemplate, m_fireSoundLoopTime) },
 	{ "FireFX",											parseAllVetLevelsFXList,							nullptr,							offsetof(WeaponTemplate, m_fireFXs) },
 	{ "ProjectileDetonationFX",			parseAllVetLevelsFXList,							nullptr,							offsetof(WeaponTemplate, m_projectileDetonateFXs) },
+	{ "RequiresTransportOccupants", INI::parseBool, nullptr, offsetof(WeaponTemplate, m_requiresTransportOccupants) },
 	{ "FireOCL",										parseAllVetLevelsAsciiString,					nullptr,							offsetof(WeaponTemplate, m_fireOCLNames) },
 	{ "ProjectileDetonationOCL",		parseAllVetLevelsAsciiString,					nullptr,							offsetof(WeaponTemplate, m_projectileDetonationOCLNames) },
 	{ "ProjectileExhaust",					parseAllVetLevelsPSys,								nullptr,							offsetof(WeaponTemplate, m_projectileExhausts) },
@@ -381,6 +382,7 @@ WeaponTemplate::WeaponTemplate() : m_nextTemplate(nullptr)
 	m_historicBonusWeapon						= nullptr;
 	m_leechRangeWeapon							= FALSE;
 	m_capableOfFollowingWaypoint		= FALSE;
+	m_requiresTransportOccupants = FALSE;
 	m_isShowsAmmoPips								= FALSE;
 	m_allowAttackGarrisonedBldgs		= FALSE;
 	m_playFXWhenStealthed						= FALSE;
@@ -3396,10 +3398,23 @@ Real Weapon::getAttackDistance(const Object *source, const Object *victimObj, co
 }
 
 //-------------------------------------------------------------------------------------------------
+Bool Weapon::hasRequiredTransportOccupants(const Object *source) const
+{
+	if (!m_template->requiresTransportOccupants())
+	{
+		return TRUE;
+	}
+	const ContainModuleInterface *contain = source ? source->getContain() : nullptr;
+	return contain && contain->getContainCount() > 0;
+}
+
+//-------------------------------------------------------------------------------------------------
 Real Weapon::estimateWeaponDamage(const Object *sourceObj, const Object *victimObj, const Coord3D* victimPos)
 {
-	if (!m_template)
+	if (!m_template || !hasRequiredTransportOccupants(sourceObj))
+	{
 		return 0.0f;
+	}
 
 	// if the weapon is just reloading, it's ok. if it's out of ammo
 	// (and won't autoreload), then we aren't gonna do any damage.
@@ -3556,6 +3571,11 @@ Bool Weapon::privateFireWeapon(
 
 	if (!m_template)
 		return false;
+
+	if (!isProjectileDetonation && !hasRequiredTransportOccupants(sourceObj))
+	{
+		return false;
+	}
 
 	// Hoisted above the damage type switch so the mine clearing path shares it. computeBonus only
 	// fills its out parameter, so computing it here costs nothing else.

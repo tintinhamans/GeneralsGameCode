@@ -1,0 +1,29 @@
+--- a/Weapon.ini
++++ b/Weapon.ini
+@@ -11757,19 +11757,20 @@
+ 
+ ;------------------------------------------------------------------------------
+ Weapon AirF_DropPlaneWeapon
+   PrimaryDamage = 0.1
+   ScatterRadius = 10.0
+-  AttackRange = 150.0
++  AttackRange = 25.0
+   DamageType = SMALL_ARMS
+   DeathType = EXTRA_2
+-  FireOCL = OCL_DropPlaneParachute
++  FireOCL = OCL_DropTransportOccupants
++  RequiresTransportOccupants = Yes
+   DelayBetweenShots = 200
+-  ClipSize = 3
+-  ClipReloadTime = 48000
+-  AutoReloadsClip = RETURN_TO_BASE
++  ClipSize = 0
++  ClipReloadTime = 0
++  AutoReloadsClip = Yes
+   AcceptableAimDelta = 180
+   AntiGround = Yes
+-  ShowsAmmoPips = Yes
++  ShowsAmmoPips = No
+   LaserName = DummyWeaponLaser
+   LaserBoneName = NONE
+ End

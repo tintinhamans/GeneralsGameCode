@@ -544,6 +544,14 @@ counts for range, and the attack cursor agrees.
 Changes the simulation; affects replays.
 ([#66](https://github.com/triatomic/contraZH/issues/66))
 
+## Parked aircraft and nearby units
+
+Jets that are parked, taking off, or landing reject pathfinding requests to make room for nearby
+units before those requests can enter the takeoff queue. Boarding and unloading passengers can
+move around a parked aircraft without triggering a takeoff.
+
+This changes the simulation. Multiplayer clients need matching engine versions.
+
 ## Empty jets fly their move orders
 
 A parked jet with no ammo that was told to move, or to land at another airfield, took off, turned

@@ -35,6 +35,7 @@
 
 //-------------------------------------------------------------------------------------------------
 class OpenContain;
+class ObjectCreationNugget;
 class Player;
 class ExitInterface;
 class Matrix3D;
@@ -166,6 +167,12 @@ public:
 	virtual Bool measuresWeaponRangeFromContainerCenter() const = 0;	///< do our add-ons measure weapon range from our center instead of their own bone?
 	virtual void setPassengerAllowedToFire( Bool permission = TRUE ) = 0;	///< Hey, can I shoot out of this container?
 	virtual void setOverrideDestination( const Coord3D * ) = 0; ///< Instead of falling peacefully towards a clear spot, I will now aim here
+	virtual Object* launchPassengers(const ObjectCreationNugget *nugget) { return nullptr; }
+	virtual Bool isPassengerLaunchPending() const { return FALSE; }
+	virtual const AsciiString& getExitInAirTemplateFor(const Object *passenger) const
+	{
+		return AsciiString::TheEmptyString;
+	}
 	virtual Bool isDisplayedOnControlBar() const = 0;///< Does this container display its contents on the ControlBar?
 	virtual Int getExtraSlotsInUse() = 0;
 	virtual Bool isKickOutOnCapture() = 0;///< Does this contain module kick people out when captured?

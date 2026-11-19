@@ -82,6 +82,7 @@ public:
 		Bool useOwner determines whether we are creating the the master object or not (for deliverpayload)
 	*/
 	virtual Object* create( const Object* primaryObj, const Coord3D *primary, const Coord3D* secondary, Real angle, UnsignedInt lifetimeFrames = 0 ) const = 0;
+	virtual Object* createForTransportPassenger(const Object *source, Object *passenger) const { return nullptr; }
 
 	/**
 		the object-based version... by default, just call the location-based implementation.
@@ -203,6 +204,8 @@ public:
 	static void parseObjectCreationListExtendDefinition(INI* ini);
 
 	void addObjectCreationNugget(ObjectCreationNugget* nugget);
+	Int findNuggetIndex(const ObjectCreationNugget *nugget) const;
+	const ObjectCreationNugget* getNuggetByIndex(Int index) const;
 
 private:
 
