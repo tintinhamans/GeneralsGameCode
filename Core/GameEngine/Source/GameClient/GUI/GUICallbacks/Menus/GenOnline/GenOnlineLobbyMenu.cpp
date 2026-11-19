@@ -53,6 +53,7 @@
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetSlider.h"
 #include "GameClient/GadgetTextEntry.h"
+#include "GameClient/GUI/ChatCompletionSets.h"
 #include "GameClient/GameText.h"
 #include "GameClient/MessageBox.h"
 #include "GameClient/Mouse.h"
@@ -136,6 +137,10 @@ static GameWindow *listboxLobbyPlayers = nullptr;
 static GameWindow *listboxLobbyChat = nullptr;
 static GameWindow *comboLobbyGroupRooms = nullptr;
 static GameWindow *parent = nullptr;
+
+// Tab completion state of the chat box and the last authors of the channel chat, most recent first.
+static ChatTabCycler s_lobbyChatCycler;
+static std::vector<std::wstring> s_lobbyRecentChatters;
 
 static Int groupRoomToJoin = 0;
 static Int	initialGadgetDelay = 2;
@@ -969,9 +974,30 @@ static void PopulateLobbyFilterComboBox(GameWindow* comboBox)
 	s_populatingLobbyCombo = FALSE;
 }
 
+// The author of a channel chat line becomes the first recent chatter for name completion.
+static void RememberRoomChatAuthor(uint32_t key)
+{
+	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	if (pRoomsInterface == nullptr || pAuthInterface == nullptr)
+		return;
+
+	std::string messageID;
+	int64_t authorID = 0;
+	if (!pRoomsInterface->FindChatMessage(key, messageID, authorID) || authorID == pAuthInterface->GetUserID())
+		return;
+
+	const NetworkRoomMember* pMember = pRoomsInterface->GetRoomMemberFromID(authorID);
+	if (pMember == nullptr)
+		return;
+
+	AddRecentChatter(s_lobbyRecentChatters, from_utf8(pMember->display_name), pAuthInterface->GetDisplayNameW());
+}
+
 // A chat message line keeps its key as item data, so the row is found again after older rows scroll out.
 static void AddRoomChatMessageLine(UnicodeString strMessage, Color color, uint32_t key)
 {
+	RememberRoomChatAuthor(key);
 	const Int row = GadgetListBoxAddEntryText(listboxLobbyChat, strMessage, color, -1, -1);
 	if (row >= 0)
 	{
@@ -1009,6 +1035,7 @@ static void HandleNetworkRoomChanged(int roomIndex, bool effectiveRoomChanged)
 	if (effectiveRoomChanged)
 	{
 		GadgetListBoxReset(listboxLobbyChat);
+		s_lobbyRecentChatters.clear();
 		GenOnlineRefreshPlayerList(TRUE);
 	}
 
@@ -1593,6 +1620,8 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
 	//GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Welcome to Generals Online for Zero Hour!"), GameMakeColor(255, 194, 15, 255), -1, -1);
 
 	GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
+	GadgetTextEntrySetCompletionEnabled(textEntryChat, TRUE);
+	s_lobbyChatCycler.Reset();
 
 	PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
 
@@ -2159,6 +2188,51 @@ WindowMsgHandledType GenOnlineLobbyMenuInput( GameWindow *window, UnsignedInt ms
 ////	listboxLobbyGameInfo->winSetSize(gwiW, newH);
 
 
+// The chat box completes the recent chatters, then the channel members, and the lobby slash commands.
+static void BuildLobbyChatCompletionContext(ChatCompletionContext& context)
+{
+	static ChatCommandRegistry s_commands;
+	static Bool s_commandsBuilt = FALSE;
+	if (!s_commandsBuilt)
+	{
+		BuildLobbyChatCommands(s_commands);
+		s_commandsBuilt = TRUE;
+	}
+	context.commands = &s_commands;
+
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	const std::wstring self = (pAuthInterface != nullptr) ? pAuthInterface->GetDisplayNameW() : std::wstring();
+
+	// Recent chatters come first, so the completion limit never drops them in a large channel.
+	AppendChatNames(context.names, s_lobbyRecentChatters, self);
+	// The player list rows hold the current channel members, friends first.
+	for (const LobbyPlayerRow& row : s_lobbyPlayerRows)
+	{
+		AppendChatName(context.names, from_utf8(row.displayName), self);
+	}
+}
+
+static void UpdateLobbyChatCompletionHint()
+{
+	s_lobbyChatCycler.Reset();
+	ChatCompletionContext context;
+	BuildLobbyChatCompletionContext(context);
+	const std::wstring text = GadgetTextEntryGetText(textEntryChat).str();
+	GadgetTextEntrySetCompletionHint(textEntryChat, UnicodeString(ChatCompletionHint(text, context).c_str()));
+}
+
+static void CompleteLobbyChat(Bool reverse)
+{
+	ChatCompletionContext context;
+	BuildLobbyChatCompletionContext(context);
+	std::wstring text = GadgetTextEntryGetText(textEntryChat).str();
+	if (!s_lobbyChatCycler.Complete(text, context, reverse != FALSE))
+		return;
+
+	GadgetTextEntrySetText(textEntryChat, UnicodeString(text.c_str()));
+	GadgetTextEntrySetCompletionHint(textEntryChat, UnicodeString(ChatCompletionHint(text, context).c_str()));
+}
+
 //-------------------------------------------------------------------------------------------------
 /** WOL Lobby Menu window system callback */
 //-------------------------------------------------------------------------------------------------
@@ -2450,6 +2524,7 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 					}
 
 					GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
+					s_lobbyChatCycler.Reset();
 					GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 					if (pRoomsInterface != nullptr)
 					{
@@ -2651,10 +2726,32 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 //		}
 
 		//---------------------------------------------------------------------------------------------
+		case GEM_UPDATE_TEXT:
+			{
+				if ((GameWindow *)mData1 != textEntryChat)
+					return MSG_IGNORED;
+
+				UpdateLobbyChatCompletionHint();
+				break;
+			}
+
+		//---------------------------------------------------------------------------------------------
+		case GEM_TAB_COMPLETE:
+			{
+				if ((GameWindow *)mData1 != textEntryChat)
+					return MSG_IGNORED;
+
+				CompleteLobbyChat(mData2 != 0);
+				break;
+			}
+
+		//---------------------------------------------------------------------------------------------
 		case GEM_EDIT_DONE:
 			{
 				if (buttonPushed)
 					break;
+
+				s_lobbyChatCycler.Reset();
 
 				// read the user's input
 				UnicodeString txtInput;

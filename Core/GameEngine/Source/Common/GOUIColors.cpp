@@ -60,6 +60,7 @@ static const char *const s_roleNames[] =
 	"PlayerNormal",
 	"LobbyRow",
 	"Buddy",
+	"Mention",
 };
 static_assert( ARRAY_SIZE( s_roleNames ) == GOUICOLOR_COUNT, "s_roleNames needs a key for every GOUIColorRole" );
 

@@ -62,6 +62,7 @@
 #include "Common/StatsExporterLive.h"
 #endif
 #include "../GenOnlineInterfaces.h"
+#include "GameClient/GUI/ChatMentions.h"
 
 #include <algorithm>
 
@@ -1797,6 +1798,12 @@ void ConnectionManager::processChat(NetChatCommandMsg *msg)
 		RGBColor rgb;
 		rgb.setFromInt(player->getPlayerColor());
 #if defined(GENONLINE)
+		// Peer to peer chat has no service mentions, so @name of the local player is matched here.
+		const Bool isMention = playerID != m_localSlot && ChatTextMentionsName(msg->getText().str(), m_localUser->GetName().str());
+		if (isMention)
+		{
+			rgb.setFromInt(DetermineMentionColor());
+		}
 		TheInGameUI->messageColor(true, &rgb, UnicodeString(L"%ls"), unitext.str());
 #if RTS_ZEROHOUR
 		StatsExporterLiveChatInGame((Int)playerID, name, msg->getText(), msg->getPlayerMask(), playerID == m_localSlot);
@@ -1806,8 +1813,17 @@ void ConnectionManager::processChat(NetChatCommandMsg *msg)
 #endif
 
 		// feedback for received chat messages in-game
-		AudioEventRTS audioEvent("GUICommunicatorIncoming");
-		TheAudio->addAudioEvent(&audioEvent);
+#if defined(GENONLINE)
+		if (isMention)
+		{
+			GenOnlinePlayMentionSound();
+		}
+		else
+#endif
+		{
+			AudioEventRTS audioEvent("GUICommunicatorIncoming");
+			TheAudio->addAudioEvent(&audioEvent);
+		}
 	}
 }
 

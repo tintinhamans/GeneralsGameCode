@@ -202,6 +202,19 @@ static void drawTextEntryText( GameWindow *window, WinInstanceData *instData,
 	if(parent && !BitIsSet(parent->winGetStyle(), GWS_COMBO_BOX))
 		parent = nullptr;
 
+	// The completion hint draws in grey at the caret while the box has focus and no composition is active.
+	const Bool hasFocus = window == TheWindowManager->winGetFocus() || (parent && parent == TheWindowManager->winGetFocus());
+	if( e->completionEnabled && !e->secretText && hasFocus &&
+			e->constructText->getTextLength() == 0 && e->completionHint->getTextLength() > 0 )
+	{
+		if( e->completionHint->getFont() != window->winGetFont() )
+		{
+			e->completionHint->setFont( window->winGetFont() );
+		}
+		e->completionHint->setClipRegion( &clipRegion );
+		e->completionHint->draw( cursorPos, y, GameMakeColor( 128, 128, 128, 255 ), textDropColor );
+	}
+
 	if( (window == TheWindowManager->winGetFocus() || (parent && parent == TheWindowManager->winGetFocus())) && ((drawCnt++ >> 3) & 0x1) )
 		TheWindowManager->winFillRect( textColor, WIN_DRAW_LINE_WIDTH,
 																	 cursorPos, origin.y + 3,

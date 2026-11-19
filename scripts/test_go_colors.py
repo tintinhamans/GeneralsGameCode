@@ -30,7 +30,7 @@ CHAT_ROLES = {"ChatDefault", "PlayerNormal", "LobbyRow", "Buddy"}
 
 # roles drawn as text, which need 4.5:1 on the field fill
 TEXT_ROLES = {"Text", "Muted", "Disabled", "Help", "Hilite", "Notice", "Error", "Success", "Admin", "Offline",
-              "LobbyJoinable", "LobbyNotJoinable", "LobbyAltRow", "LobbyAlmostFull"} | CHAT_ROLES
+              "LobbyJoinable", "LobbyNotJoinable", "LobbyAltRow", "LobbyAlmostFull", "Mention"} | CHAT_ROLES
 
 # the colours each role's sites draw today, without the table: a set when the sites disagree
 TODAY = {
@@ -55,6 +55,7 @@ TODAY = {
     "LobbyAltRow": {"#BFC6C9"},
     "LobbyAlmostFull": {"#10AD90"},
     "ConnectionSpinner": {"#2F37A8"},
+    "Mention": {"#FF8800"},                 # chat lines that mention the local player
 }
 
 # the Signal values the colour audit changed: one value per duplicated role, and three readability or kit fixes
@@ -72,7 +73,7 @@ RADAR_TOKENS = {
     "Notice": "tan", "Error": "danger", "Success": "green", "Admin": "sand", "Offline": "empty",
     "TooltipFill": "fill-block", "TooltipBorder": "bronze", "TooltipText": "text", "TooltipSweep": "tan",
     "FieldFill": "fill-field", "LobbyJoinable": "tan", "LobbyNotJoinable": "bronze", "LobbyAltRow": "muted",
-    "LobbyAlmostFull": "green", "ConnectionSpinner": "bronze",
+    "LobbyAlmostFull": "green", "ConnectionSpinner": "bronze", "Mention": "bronze",
     "ChatDefault": "text", "PlayerNormal": "text", "LobbyRow": "text", "Buddy": "tan",
 }
 
