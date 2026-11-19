@@ -1326,8 +1326,10 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_showMoneyPerMinute = optionPref.getShowMoneyPerMinute();
 	TheWritableGlobalData->m_gameWindowTransitionSpeedMultiplier = optionPref.getGameWindowTransitionSpeedMultiplier();
 #if defined(GENONLINE)
-	// The camera factors and the observer overlay settings come from client.json.
+	// The camera factors and the observer overlay settings come from client.json. The user data folder is known here,
+	// so the settings that were in Options.ini move to client.json first.
 	{
+		GenOnlineServicesManager::Settings.MoveOptionsIniSettings();
 		const GenOnlineSettings& genOnlineSettings = GenOnlineServicesManager::Settings;
 		TheWritableGlobalData->m_cameraRotateFactor = genOnlineSettings.Camera_GetRotateFactor();
 		TheWritableGlobalData->m_cameraPitchFactor = genOnlineSettings.Camera_GetPitchFactor();

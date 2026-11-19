@@ -35,6 +35,10 @@ public:
 	void Observer_SetStatsFontSize(int fontSize);
 	void Observer_SetNotificationFontSize(int fontSize);
 
+	// Takes the Options.ini values of the moved settings that client.json does not hold, saves them to client.json and then removes
+	// the old keys from Options.ini. Runs once, as soon as the user data folder is known.
+	void MoveOptionsIniSettings();
+
 	void Graphics_SetFPS(int fpsLimit, bool bLimitFramerate)
 	{
 		m_Render_FramerateLimit_FPSVal = fpsLimit;
@@ -112,8 +116,8 @@ private:
 	void Load(void);
 	void LoadPackList();
 	bool Save();
-	// Takes the values of Options.ini for the settings that client.json does not hold. The Options.ini keys of the present settings are skipped.
-	void TakeOptionsIniValues(const std::set<std::string>& presentSettings);
+	// Takes the Options.ini values of the moved settings that still wait for them.
+	void TakeOptionsIniValues();
 	// Removes the old keys of these settings from Options.ini once client.json holds every one of them.
 	void RemoveOptionsIniKeys();
 
@@ -133,6 +137,10 @@ private:
 	bool m_Observer_NotificationSpecialPowerUsage = GenOnlineClientOptions::ObserverNotificationDefault;
 	bool m_Observer_NotificationSpecialPowerPurchase = GenOnlineClientOptions::ObserverNotificationDefault;
 	bool m_Observer_NotificationMilestone = GenOnlineClientOptions::ObserverNotificationDefault;
+
+	// The dotted paths of the moved settings that wait for their Options.ini value. Save leaves them out of client.json.
+	std::set<std::string> m_PendingOptionsIni;
+	bool m_bOptionsIniMoved = false;
 
 	bool m_bInitialized = false;
 

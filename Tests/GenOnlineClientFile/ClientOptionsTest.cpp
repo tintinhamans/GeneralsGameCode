@@ -56,58 +56,50 @@ static void TestClientFileValues()
 
 static void TestOptionsIniCameraMultiplier()
 {
-	int factor = 0;
-
 	// The old multiplier 1.0 is the neutral factor 50.
-	CHECK(ParseOptionsIniCameraMultiplier("1.0", factor));
-	CHECK(factor == 50);
+	CHECK(ReadOptionsIniCameraMultiplier("1.0") == 50);
+	CHECK(ReadOptionsIniCameraMultiplier("1.5") == 75);
+	CHECK(ReadOptionsIniCameraMultiplier("0.25") == 13);
 
-	CHECK(ParseOptionsIniCameraMultiplier("1.5", factor));
-	CHECK(factor == 75);
+	// The old reader clamped the multiplier to 0.1 to 10 before it was used, so 20 acted as 10.
+	CHECK(ReadOptionsIniCameraMultiplier("0.1") == 5);
+	CHECK(ReadOptionsIniCameraMultiplier("10") == 500);
+	CHECK(ReadOptionsIniCameraMultiplier("20") == 500);
+	CHECK(ReadOptionsIniCameraMultiplier("0.001") == 5);
+	CHECK(ReadOptionsIniCameraMultiplier("-3") == 5);
 
-	CHECK(ParseOptionsIniCameraMultiplier("0.25", factor));
-	CHECK(factor == 13);
-
-	// The old range of 0.1 to 10 becomes 5 to 500, a value below 1 becomes 1.
-	CHECK(ParseOptionsIniCameraMultiplier("0.1", factor));
-	CHECK(factor == 5);
-
-	CHECK(ParseOptionsIniCameraMultiplier("10", factor));
-	CHECK(factor == 500);
-
-	CHECK(ParseOptionsIniCameraMultiplier("0.001", factor));
-	CHECK(factor == 1);
-
-	CHECK(ParseOptionsIniCameraMultiplier("-3", factor));
-	CHECK(factor == 1);
-
-	// A value that is not a number is not taken.
-	factor = 99;
-	CHECK(!ParseOptionsIniCameraMultiplier("fast", factor));
-	CHECK(!ParseOptionsIniCameraMultiplier("", factor));
-	CHECK(!ParseOptionsIniCameraMultiplier("1.5x", factor));
-	CHECK(!ParseOptionsIniCameraMultiplier("nan", factor));
-	CHECK(factor == 99);
+	// The old reader used atof, so text reads as its leading number or as 0, which the clamp made 0.1.
+	CHECK(ReadOptionsIniCameraMultiplier("1.5x") == 75);
+	CHECK(ReadOptionsIniCameraMultiplier("fast") == 5);
+	CHECK(ReadOptionsIniCameraMultiplier("") == 5);
+	CHECK(ReadOptionsIniCameraMultiplier("1e9") == 500);
 }
 
 static void TestOptionsIniFontSize()
 {
-	int size = 0;
+	CHECK(ReadOptionsIniFontSize("12") == 12);
+	CHECK(ReadOptionsIniFontSize("-4") == 0);
+	CHECK(ReadOptionsIniFontSize("40") == 15);
 
-	CHECK(ParseOptionsIniFontSize("12", size));
-	CHECK(size == 12);
+	// The old reader used atoi, so text reads as its leading whole number or as 0.
+	CHECK(ReadOptionsIniFontSize("12.5") == 12);
+	CHECK(ReadOptionsIniFontSize("big") == 0);
+	CHECK(ReadOptionsIniFontSize("") == 0);
+	CHECK(ReadOptionsIniFontSize("99999999999999999999") == 15);
+}
 
-	CHECK(ParseOptionsIniFontSize("-4", size));
-	CHECK(size == 0);
-
-	CHECK(ParseOptionsIniFontSize("40", size));
-	CHECK(size == 15);
-
-	size = 99;
-	CHECK(!ParseOptionsIniFontSize("big", size));
-	CHECK(!ParseOptionsIniFontSize("12.5", size));
-	CHECK(!ParseOptionsIniFontSize("", size));
-	CHECK(size == 99);
+static void TestOptionsIniObserverFlag()
+{
+	// The old reader took yes in any case as true and any other text as false.
+	CHECK(ReadOptionsIniObserverFlag("yes"));
+	CHECK(ReadOptionsIniObserverFlag("YES"));
+	CHECK(ReadOptionsIniObserverFlag("Yes"));
+	CHECK(!ReadOptionsIniObserverFlag("no"));
+	CHECK(!ReadOptionsIniObserverFlag("maybe"));
+	CHECK(!ReadOptionsIniObserverFlag("1"));
+	CHECK(!ReadOptionsIniObserverFlag("true"));
+	CHECK(!ReadOptionsIniObserverFlag("yess"));
+	CHECK(!ReadOptionsIniObserverFlag(""));
 }
 
 static void TestOptionsIniYesNo()
@@ -132,13 +124,38 @@ static void TestOptionsIniYesNo()
 	CHECK(value);
 }
 
+static void TestDropPendingSettings()
+{
+	// A setting that still waits for its Options.ini value is not written to client.json.
+	nlohmann::json root = {
+		{ "camera", { { "min_height", 100 }, { "rotate_factor", 50 }, { "pitch_factor", 50 } } },
+		{ "observer", { { "stats_font_size", 7 } } },
+		{ "chat", { { "duration_seconds_until_fade_out", 30 } } },
+	};
+	DropPendingSettings(root, { "camera.rotate_factor", "observer.stats_font_size", "media.legacy" });
+
+	CHECK(root["camera"].contains("min_height"));
+	CHECK(!root["camera"].contains("rotate_factor"));
+	CHECK(root["camera"].contains("pitch_factor"));
+	CHECK(!root["observer"].contains("stats_font_size"));
+	CHECK(root["chat"].contains("duration_seconds_until_fade_out"));
+	CHECK(!root.contains("media"));
+
+	// Without pending settings the document stays the same.
+	const nlohmann::json before = root;
+	DropPendingSettings(root, {});
+	CHECK(root == before);
+}
+
 int main()
 {
 	TestDefaults();
 	TestClientFileValues();
 	TestOptionsIniCameraMultiplier();
 	TestOptionsIniFontSize();
+	TestOptionsIniObserverFlag();
 	TestOptionsIniYesNo();
+	TestDropPendingSettings();
 
 	if (s_failures != 0)
 	{

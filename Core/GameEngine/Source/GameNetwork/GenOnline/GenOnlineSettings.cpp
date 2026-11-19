@@ -208,6 +208,35 @@ static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 	return keys;
 }
 
+// The Options.ini key of each setting that moved to client.json, by the dotted path of the setting.
+struct OptionsIniSetting
+{
+	const char* path;
+	const char* optionsIniKey;
+};
+
+static const OptionsIniSetting s_OptionsIniSettings[] = {
+	{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_ROTATE_FACTOR, GenOnlineClientOptions::OptionsIniCameraRotate },
+	{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_PITCH_FACTOR, GenOnlineClientOptions::OptionsIniCameraPitch },
+	{ SETTINGS_KEY_MEDIA "." SETTINGS_KEY_MEDIA_LEGACY, GenOnlineClientOptions::OptionsIniLegacyMedia },
+	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE, GenOnlineClientOptions::OptionsIniObserverStatsFontSize },
+	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE, GenOnlineClientOptions::OptionsIniObserverNotificationFontSize },
+	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE, GenOnlineClientOptions::OptionsIniObserverNotificationSpecialPowerUsage },
+	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE, GenOnlineClientOptions::OptionsIniObserverNotificationSpecialPowerPurchase },
+	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE, GenOnlineClientOptions::OptionsIniObserverNotificationMilestone },
+};
+
+// The dotted paths of all settings that moved from Options.ini to client.json.
+static std::set<std::string> AllOptionsIniSettingPaths()
+{
+	std::set<std::string> paths;
+	for (const OptionsIniSetting& setting : s_OptionsIniSettings)
+	{
+		paths.insert(setting.path);
+	}
+	return paths;
+}
+
 void GenOnlineSettings::Load(void)
 {
 	ServiceConnection::ConfigureCredentialStore(&GenOnlineAuthInterface::GetCredentialsFilePath);
@@ -216,6 +245,9 @@ void GenOnlineSettings::Load(void)
 	m_ClientFilePath = GenOnlineClientFile::DefaultPath();
 	m_bClientFileWritable = false;
 	m_PreservedJSON = "{}";
+	m_bOptionsIniMoved = false;
+	// Until MoveOptionsIniSettings reads Options.ini, every moved setting waits for its Options.ini value.
+	m_PendingOptionsIni = AllOptionsIniSettingPaths();
 
 	GenOnlineClientFile::ReadResult clientFile;
 	if (m_ClientFilePath.empty())
@@ -247,11 +279,9 @@ void GenOnlineSettings::Load(void)
 	{
 	case GenOnlineClientFile::ReadStatus::Missing:
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json cannot be created, using the built-in defaults without saving");
-		TakeOptionsIniValues({});
 		return;
 	case GenOnlineClientFile::ReadStatus::Unusable:
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json is not usable (%s), using the defaults this session and leaving the file untouched", clientFile.reason.c_str());
-		TakeOptionsIniValues({});
 		return;
 	case GenOnlineClientFile::ReadStatus::Newer:
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json has schema_version %d, newer than %d, reading it without saving", clientFile.schemaVersion, GenOnlineClientFile::SchemaVersion);
@@ -632,18 +662,42 @@ void GenOnlineSettings::Load(void)
 		m_Observer_NotificationMilestone = GenOnlineClientOptions::ObserverNotificationDefault;
 
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json is not usable (a value cannot be read), using the defaults this session and leaving the file untouched");
-		TakeOptionsIniValues({});
 		return;
 	}
 
-	// The settings that the file does not hold yet take their Options.ini values, which the save below moves into the file.
-	TakeOptionsIniValues(presentSettings);
+	// The moved settings that the file holds do not wait for Options.ini.
+	for (const std::string& path : presentSettings)
+	{
+		m_PendingOptionsIni.erase(path);
+	}
 
 	// The first save writes every setting, which fills the keys the file does not have yet.
 	m_PreservedJSON = "{}";
 	m_bClientFileWritable = bWritable;
 
 	// The save writes keys that are new or missing and skips a file that already holds every value.
+	// It leaves out the moved settings that still wait for their Options.ini value.
+	Save();
+}
+
+void GenOnlineSettings::MoveOptionsIniSettings()
+{
+	// Options.ini lives in the user data folder. Generals knows that folder only once GameData.ini is parsed.
+	if (m_bOptionsIniMoved || TheGlobalData == nullptr || TheGlobalData->getPath_UserData().isEmpty())
+	{
+		return;
+	}
+	m_bOptionsIniMoved = true;
+
+	TakeOptionsIniValues();
+	m_PendingOptionsIni.clear();
+
+	// Without a client.json this client may write, the values last for this session and Options.ini keeps them.
+	if (!m_bClientFileWritable)
+	{
+		return;
+	}
+
 	// Options.ini loses the old keys only after client.json holds the values.
 	if (Save() && m_bClientFileWritable)
 	{
@@ -651,33 +705,9 @@ void GenOnlineSettings::Load(void)
 	}
 }
 
-// The Options.ini key of each setting that moved to client.json, by the dotted path of the setting.
-struct OptionsIniSetting
+void GenOnlineSettings::TakeOptionsIniValues()
 {
-	const char* path;
-	const char* optionsIniKey;
-};
-
-static const OptionsIniSetting s_OptionsIniSettings[] = {
-	{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_ROTATE_FACTOR, GenOnlineClientOptions::OptionsIniCameraRotate },
-	{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_PITCH_FACTOR, GenOnlineClientOptions::OptionsIniCameraPitch },
-	{ SETTINGS_KEY_MEDIA "." SETTINGS_KEY_MEDIA_LEGACY, GenOnlineClientOptions::OptionsIniLegacyMedia },
-	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE, GenOnlineClientOptions::OptionsIniObserverStatsFontSize },
-	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE, GenOnlineClientOptions::OptionsIniObserverNotificationFontSize },
-	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE, GenOnlineClientOptions::OptionsIniObserverNotificationSpecialPowerUsage },
-	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE, GenOnlineClientOptions::OptionsIniObserverNotificationSpecialPowerPurchase },
-	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE, GenOnlineClientOptions::OptionsIniObserverNotificationMilestone },
-};
-
-void GenOnlineSettings::TakeOptionsIniValues(const std::set<std::string>& presentSettings)
-{
-	if (presentSettings.size() == std::size(s_OptionsIniSettings))
-	{
-		return;
-	}
-
-	// Options.ini lives in the user data folder, which TheGlobalData knows.
-	if (TheGlobalData == nullptr)
+	if (m_PendingOptionsIni.empty())
 	{
 		return;
 	}
@@ -685,7 +715,7 @@ void GenOnlineSettings::TakeOptionsIniValues(const std::set<std::string>& presen
 	OptionPreferences optionsIni;
 	for (const OptionsIniSetting& setting : s_OptionsIniSettings)
 	{
-		if (presentSettings.count(setting.path) != 0)
+		if (m_PendingOptionsIni.count(setting.path) == 0)
 		{
 			continue;
 		}
@@ -695,16 +725,17 @@ void GenOnlineSettings::TakeOptionsIniValues(const std::set<std::string>& presen
 			continue;
 		}
 
+		// Each value is read the way the old Options.ini reader read it, so the move keeps what the player had.
 		const char* text = it->second.str();
 		const std::string path = setting.path;
-		bool bTaken = false;
+		bool bTaken = true;
 		if (path == SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_ROTATE_FACTOR)
 		{
-			bTaken = GenOnlineClientOptions::ParseOptionsIniCameraMultiplier(text, m_Camera_RotateFactor);
+			m_Camera_RotateFactor = GenOnlineClientOptions::ReadOptionsIniCameraMultiplier(text);
 		}
 		else if (path == SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_PITCH_FACTOR)
 		{
-			bTaken = GenOnlineClientOptions::ParseOptionsIniCameraMultiplier(text, m_Camera_PitchFactor);
+			m_Camera_PitchFactor = GenOnlineClientOptions::ReadOptionsIniCameraMultiplier(text);
 		}
 		else if (path == SETTINGS_KEY_MEDIA "." SETTINGS_KEY_MEDIA_LEGACY)
 		{
@@ -712,23 +743,23 @@ void GenOnlineSettings::TakeOptionsIniValues(const std::set<std::string>& presen
 		}
 		else if (path == SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE)
 		{
-			bTaken = GenOnlineClientOptions::ParseOptionsIniFontSize(text, m_Observer_StatsFontSize);
+			m_Observer_StatsFontSize = GenOnlineClientOptions::ReadOptionsIniFontSize(text);
 		}
 		else if (path == SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE)
 		{
-			bTaken = GenOnlineClientOptions::ParseOptionsIniFontSize(text, m_Observer_NotificationFontSize);
+			m_Observer_NotificationFontSize = GenOnlineClientOptions::ReadOptionsIniFontSize(text);
 		}
 		else if (path == SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE)
 		{
-			bTaken = GenOnlineClientOptions::ParseOptionsIniYesNo(text, m_Observer_NotificationSpecialPowerUsage);
+			m_Observer_NotificationSpecialPowerUsage = GenOnlineClientOptions::ReadOptionsIniObserverFlag(text);
 		}
 		else if (path == SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE)
 		{
-			bTaken = GenOnlineClientOptions::ParseOptionsIniYesNo(text, m_Observer_NotificationSpecialPowerPurchase);
+			m_Observer_NotificationSpecialPowerPurchase = GenOnlineClientOptions::ReadOptionsIniObserverFlag(text);
 		}
 		else if (path == SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE)
 		{
-			bTaken = GenOnlineClientOptions::ParseOptionsIniYesNo(text, m_Observer_NotificationMilestone);
+			m_Observer_NotificationMilestone = GenOnlineClientOptions::ReadOptionsIniObserverFlag(text);
 		}
 
 		if (bTaken)
@@ -996,6 +1027,9 @@ bool GenOnlineSettings::Save()
 		m_bClientFileWritable = false;
 		return true;
 	}
+
+	// A moved setting is not written before its Options.ini value was read, so its default never hides that value.
+	GenOnlineClientOptions::DropPendingSettings(root, m_PendingOptionsIni);
 
 	const nlohmann::json lastWritten = nlohmann::json::parse(m_PreservedJSON);
 	nlohmann::json updated = current.document;

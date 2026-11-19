@@ -1,9 +1,11 @@
 #pragma once
 #include <algorithm>
 #include <cctype>
-#include <cerrno>
 #include <cmath>
 #include <cstdlib>
+#include <set>
+#include <string>
+#include "GameNetwork/GenOnline/json.hpp"
 
 // The defaults and ranges of the client.json settings of the camera and the observer overlay and of the legacy media setting, and the
 // reading of the old Options.ini values of those that Options.ini held before. Options.ini keeps only the keys of the upstream game.
@@ -62,41 +64,70 @@ namespace GenOnlineClientOptions
 		return static_cast<int>(clamped);
 	}
 
-	// Takes the old CameraRotateSpeedMultiplier or CameraPitchSpeedMultiplier, where 1.0 was neutral, as the factor of the multiplier times 50, rounded and at least 1.
-	// Returns false and leaves factor alone when the text is not a number.
-	inline bool ParseOptionsIniCameraMultiplier(const char* text, int& factor)
+	// Reads an old CameraRotateSpeedMultiplier or CameraPitchSpeedMultiplier the way the old reader did, with atof and a clamp to 0.1 to 10,
+	// and returns it as a factor where 1.0 is 50. A value that is not a number at all reads as the default factor.
+	inline int ReadOptionsIniCameraMultiplier(const char* text)
 	{
-		if (text == nullptr || *text == '\0')
+		float multiplier = static_cast<float>(std::atof(text != nullptr ? text : ""));
+		if (std::isnan(multiplier))
 		{
-			return false;
+			return CameraFactorDefault;
 		}
-		char* end = nullptr;
-		errno = 0;
-		const double multiplier = std::strtod(text, &end);
-		if (end == text || *end != '\0' || errno == ERANGE || !std::isfinite(multiplier))
+		if (multiplier < 0.1f)
 		{
-			return false;
+			multiplier = 0.1f;
 		}
-		factor = ClampCameraFactor(multiplier * CameraFactorDefault);
-		return true;
+		else if (multiplier > 10.0f)
+		{
+			multiplier = 10.0f;
+		}
+		return ClampCameraFactor(static_cast<double>(multiplier) * CameraFactorDefault);
 	}
 
-	// Takes an old observer font size, a whole number. Returns false and leaves size alone when the text is not a whole number.
-	inline bool ParseOptionsIniFontSize(const char* text, int& size)
+	// Reads an old observer font size the way the old reader did, with atoi and a clamp to 0 to 15.
+	inline int ReadOptionsIniFontSize(const char* text)
 	{
-		if (text == nullptr || *text == '\0')
+		const long size = std::strtol(text != nullptr ? text : "", nullptr, 10);
+		return ClampObserverFontSize(static_cast<double>(size));
+	}
+
+	// Reads an old observer notification value the way the old reader did. Yes in any case is true and any other text is false.
+	inline bool ReadOptionsIniObserverFlag(const char* text)
+	{
+		if (text == nullptr)
 		{
 			return false;
 		}
-		char* end = nullptr;
-		errno = 0;
-		const long value = std::strtol(text, &end, 10);
-		if (end == text || *end != '\0' || errno == ERANGE)
+		const char* word = "yes";
+		while (*text != '\0' && *word != '\0')
 		{
-			return false;
+			if (std::tolower(static_cast<unsigned char>(*text)) != *word)
+			{
+				return false;
+			}
+			++text;
+			++word;
 		}
-		size = ClampObserverFontSize(static_cast<double>(value));
-		return true;
+		return *text == '\0' && *word == '\0';
+	}
+
+	// Removes the settings that still wait for their Options.ini value from a document client.json is written from.
+	// The paths are a section and a key joined by a dot.
+	inline void DropPendingSettings(nlohmann::json& root, const std::set<std::string>& pendingPaths)
+	{
+		for (const std::string& path : pendingPaths)
+		{
+			const std::string::size_type dot = path.find('.');
+			if (dot == std::string::npos)
+			{
+				continue;
+			}
+			const std::string section = path.substr(0, dot);
+			if (root.contains(section) && root[section].is_object())
+			{
+				root[section].erase(path.substr(dot + 1));
+			}
+		}
 	}
 
 	// Takes an old yes or no value in any case. Returns false and leaves value alone for any other text.
