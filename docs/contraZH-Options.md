@@ -353,10 +353,9 @@ when they are at the top left, and in-game messages start under the box.
 * `SmartCommandGroup = Yes` - (No hides the row. `SmartSelection = No` hides it too.)
 
 * Left click selects the group; double click also centres the camera on it.
-* Numpad `*` (`AUTO_CREATE_TEAMS` in CommandMap.ini) gives each of the first ten selected objects a
+* The `=` key (`AUTO_CREATE_TEAMS` in CommandMap.ini) gives each of the first ten selected objects a
 group of its own, in selection order: 1 to 9, then 0. A group that takes a new object loses its old
-members, and objects past the tenth are left alone. In cheat builds the fast forward toggle moves from
-numpad `*` to Ctrl + numpad `*`.
+members, and objects past the tenth are left alone.
 
 ## Action lines
 

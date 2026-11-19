@@ -1374,11 +1374,11 @@ void MetaMap::generateMetaMap()
 		}
 	}
 	{
-		// TheSuperHackers @feature Numpad * is unbound in retail and in Contra's CommandMap.ini.
+		// TheSuperHackers @feature Plain = is unbound in retail and in Contra's command maps, which use only Ctrl+=.
 		MetaMapRec *map = TheMetaMap->getMetaMapRec(GameMessage::MSG_META_AUTO_CREATE_TEAMS);
 		if (map->m_key == MK_NONE)
 		{
-			map->m_key = MK_KPSTAR;
+			map->m_key = MK_EQUAL;
 			map->m_transition = DOWN;
 			map->m_modState = NONE;
 			map->m_usableIn = COMMANDUSABLE_GAME;
@@ -1410,12 +1410,11 @@ void MetaMap::generateMetaMap()
 		{
 #if RTS_ZEROHOUR && (defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE))
 			map->m_key = MK_KPSTAR;
-			map->m_modState = CTRL; // plain numpad * is AUTO_CREATE_TEAMS
 #else
 			map->m_key = MK_F;
-			map->m_modState = NONE;
 #endif
 			map->m_transition = DOWN;
+			map->m_modState = NONE;
 			map->m_usableIn = COMMANDUSABLE_GAME; // @todo COMMANDUSABLE_OBSERVER
 		}
 	}

@@ -14,7 +14,7 @@ Everything here is additional to upstream; the rest of these docs still applies.
 * The Options menu can be [tabbed](contraZH-Options.md#options-menu-tabs): a layout with `Tab<Name>` and `Page<Name>` windows shows one page at a time, with F-key and PageUp/PageDown switching.
 * The [idle unit tracker](contraZH-Options.md) option (`QueueBar`) shows buttons at the top right for idle infantry, vehicles, aircraft and support units, each with a count of the units idle for 6 seconds or more; clicking one selects an idle unit, and Shift + click selects all of them.
 * [Smart selection](contraZH-Options.md#smart-selection) shows the selection as a row of cameos above the command bar, and the [command groups](contraZH-Options.md#command-group-row) as a box of cameos at the top left of the screen.
-* Numpad `*` gives each of the first ten selected objects its own [command group](contraZH-Options.md#command-group-row), 1 to 9 then 0.
+* The `=` key gives each of the first ten selected objects its own [command group](contraZH-Options.md#command-group-row), 1 to 9 then 0.
 * On laptops with two GPUs, the game, WorldBuilder and GUIEdit ask the NVIDIA or AMD driver to run them on the dedicated GPU.
 * Synced with TheSuperHackers/GeneralsGameCode as of August 2026 and with GeneralsGameCode_Modding
 as of October 2026. The only casualty was the texture filter option, replaced by TheSuperHackers'
