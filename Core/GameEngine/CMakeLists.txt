@@ -1220,6 +1220,19 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/Online/GameSpy/PeerThread.cpp
     Source/GameNetwork/Online/GameSpy/PersistentStorageThread.cpp
     Source/GameNetwork/Online/OnlineProviderFactory.cpp
+    Include/GameNetwork/PeerTransport/PeerTransport.h
+    Include/GameNetwork/PeerTransport/GnsNetworkConfig.h
+    Include/GameNetwork/PeerTransport/GnsPeerNetwork.h
+    Include/GameNetwork/PeerTransport/GnsPeerTransport.h
+    Include/GameNetwork/PeerTransport/PeerRouteLabel.h
+    Include/GameNetwork/PeerTransport/PeerSignalChannel.h
+    Include/GameNetwork/PeerTransport/PluginPeerTransport.h
+    Source/GameNetwork/PeerTransport/GnsPeerNetwork.cpp
+    Source/GameNetwork/PeerTransport/GnsPeerTransport.cpp
+    Source/GameNetwork/PeerTransport/PeerRouteLabel.cpp
+    Source/GameNetwork/PeerTransport/PeerSignalChannel.cpp
+    Source/GameNetwork/PeerTransport/PeerTransportLog.cpp
+    Source/GameNetwork/PeerTransport/PluginPeerTransport.cpp
     Source/GameNetwork/Transport.cpp
     Source/GameNetwork/TransportFactory.cpp
     Source/GameNetwork/UDPTransport.cpp

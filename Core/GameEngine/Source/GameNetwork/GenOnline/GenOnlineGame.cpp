@@ -11,6 +11,7 @@
 #include "GameNetwork/GenOnline/WifiLowLatency.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/GenOnline/GenOnlineTransport.h"
+#include "GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.h"
 #include "Common/GlobalData.h"
 #include "GameClient/View.h"
 #include "../GenOnlineDefines.h"
@@ -429,7 +430,7 @@ void GenOnlineGame::launchGame(void)
 	TheNetwork->setLocalAddress(getLocalIP(), 8888);
 
 	RegisterGenOnlineTransport();
-	TheNetwork->initTransport(GENONLINE_TRANSPORT_NAME);
+	TheNetwork->initTransport(GenOnlineProviderFactory::getGameTransport());
 
 	TheNetwork->parseUserList(this);
 

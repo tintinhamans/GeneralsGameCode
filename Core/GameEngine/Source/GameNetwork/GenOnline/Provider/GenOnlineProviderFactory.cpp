@@ -83,6 +83,36 @@ Int GenOnlineProviderFactory::chooseGameTransport( const TransportInfo *transpor
 	return -1;
 }
 
+// The GenOnline services manager does not set up the active online provider, so this asks the registered provider directly.
+const char *GenOnlineProviderFactory::getGameTransport()
+{
+	const OnlineProviderFactory *factory = GetOnlineProvider(ONLINE_PROVIDER_GENONLINE);
+	if (factory == nullptr)
+	{
+		return GENONLINE_TRANSPORT_NAME;
+	}
+
+	TransportInfo transports[16];
+	Int count = TransportFactory::getTransportCount();
+	if (count > (Int)ARRAY_SIZE(transports))
+	{
+		count = (Int)ARRAY_SIZE(transports);
+	}
+
+	for (Int i = 0; i < count; ++i)
+	{
+		transports[i] = TransportFactory::getTransportInfo(i);
+	}
+
+	const Int choice = factory->chooseGameTransport(transports, count);
+	if (choice < 0 || choice >= count)
+	{
+		return GENONLINE_TRANSPORT_NAME;
+	}
+
+	return transports[choice].name;
+}
+
 // The GenOnline services manager has its own lifetime, so there are no services to create here.
 void GenOnlineProviderFactory::createServices( const char *motdBuffer, const char *configBuffer )
 {
