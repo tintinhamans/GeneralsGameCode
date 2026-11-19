@@ -493,9 +493,11 @@ enum { MAX_STRUCTURE_INVENTORY_BUTTONS = 10 }; // there are this many physical b
 enum { MAX_BUILD_QUEUE_BUTTONS = 9 };// physical button count for the build queue
 enum { MAX_SPECIAL_POWER_SHORTCUTS = 32};
 enum { MAX_SMART_SELECTION_BUTTONS = 16 };	///< TheSuperHackers @feature per type cameos above the command bar
-enum { MAX_COMMAND_GROUP_BUTTONS = 10 };		///< TheSuperHackers @feature one cameo per hotkey squad, under the smart selection row
+enum { MAX_COMMAND_GROUP_BUTTONS = 10 };		///< TheSuperHackers @feature one cameo per hotkey squad, in a box at the screen's top left corner
 enum { CAMEO_SCALE_PERCENT = 60 };								///< cameo size as a share of a command button
-enum { CAMEO_ROW_GAP = 2 };									///< pixels between cameos in a row, and between the rows
+enum { COMMAND_GROUP_CAMEO_SCALE_PERCENT = 46 };	///< command group cameo size as a share of a command button
+enum { COMMAND_GROUP_SCREEN_MARGIN = 4 };				///< pixels between the screen's top left corner and the command group box
+enum { CAMEO_ROW_GAP = 2 };									///< pixels between cameos in a row
 enum { MAX_CAMEO_COUNT_BADGE = 999 };				///< a count past this gets no badge, it would not fit
 class CommandSet : public Overridable
 {
@@ -790,7 +792,9 @@ public:
 	void updateFocusGroup();
 	/// a cameo in the command group row selects its hotkey squad
 	void processCommandGroupClick( GameWindow *button );
-	/// the bar draws the cameo rows' housing in two passes, around its own art, for the money tab
+	/// the command group box draws its frame and the squad numbers under its cameos
+	void drawCommandGroupBar();
+	/// the bar draws the smart selection row's housing in two passes, around its own art, for the money tab
 	void drawCameoRowHousing( Bool overBar );
 
 	//-----------------------------------------------------------------------------------------------
@@ -985,8 +989,8 @@ protected:
 	void populateSpecialPowerShortcut( Player *player);
 	void updateSpecialPowerShortcut();
 
-	// the following methods are for the smart selection row and the command group row under it
-	GameWindow *createCameoRow( GameWinSystemFunc systemFunc, Int slotCount, Bool rightClick, GameWindow **buttons );
+	// the following methods are for the smart selection row and the command group box
+	GameWindow *createCameoRow( GameWinSystemFunc systemFunc, Int slotCount, Bool rightClick, const ICoord2D &buttonSize, GameWindow **buttons );
 	static const Image *getCameoImage( const ThingTemplate *thingTemplate );
 	Int getCameoRowWidth( Int cameoCount ) const;
 	/// where the cameo rows sit, in screen pixels
@@ -1000,8 +1004,11 @@ protected:
 		Int side;	///< how far the housing's right edge reaches past the last cameo
 	};
 	CameoRowLayout getCameoRowLayout() const;
-	Int getCameoStackBottom( const CameoRowLayout &layout, Bool groupRowShown ) const;
+	Int getCameoStackBottom( const CameoRowLayout &layout ) const;
 	Bool getCameoRowHousing( IRegion2D *housing, Bool *closed ) const;
+	/// how far the Pro frame's edge and padding reach in from a housing's sides, or FALSE and zero without that art
+	Bool getCameoFrameInset( ICoord2D *inset ) const;
+	void drawCameoFrame( const IRegion2D &rect );
 	UnsignedInt getCameoRowStatus() const;
 	void updateCameoRowBlocker();
 	void initSmartSelectionBar( const ICoord2D &commandButtonSize );
@@ -1013,10 +1020,11 @@ protected:
 	void smartSelectionFocus( Int groupIndex );
 	void smartSelectionRemove( Int groupIndex, Bool keepGroup );
 
-	void initCommandGroupBar();
+	void initCommandGroupBar( const ICoord2D &commandButtonSize );
 	void destroyCommandGroupBar();
 	void resetCommandGroupBar();
 	void updateCommandGroupBar();
+	void layoutCommandGroupBar();
 	void refreshCommandGroupButtons();
 	Bool isCommandGroupRowShown() const;
 
@@ -1129,6 +1137,8 @@ protected:
 	UnsignedInt m_commandGroupFrame;													///< logic frame the entries were built on; they cannot change within one
 	GameWindow *m_commandGroupParent;													///< top level container for the row, created in code
 	GameWindow *m_commandGroupButtons[ MAX_COMMAND_GROUP_BUTTONS ];
+	ICoord2D m_commandGroupButtonSize;
+	DisplayString *m_commandGroupNumbers[ MAX_COMMAND_GROUP_BUTTONS ];	///< squad number under each cameo
 
 	GameWindow *m_commandWindows[ MAX_COMMANDS_PER_SET ];			///< command window controls for easy access
 	Int m_gridRow[ MAX_COMMANDS_PER_SET ];							///< each command window's row on the bar, for grid hotkeys

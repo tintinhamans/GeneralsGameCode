@@ -1029,7 +1029,10 @@ ControlBar::ControlBar()
 	for( i = 0; i < MAX_COMMAND_GROUP_BUTTONS; i++ )
 	{
 		m_commandGroupButtons[i] = nullptr;
+		m_commandGroupNumbers[i] = nullptr;
 	}
+	m_commandGroupButtonSize.x = 0;
+	m_commandGroupButtonSize.y = 0;
 	m_scienceLayout = nullptr;
 	m_rightHUDWindow = nullptr;
 	m_rightHUDCameoWindow = nullptr;
