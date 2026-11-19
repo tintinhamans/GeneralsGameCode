@@ -61,6 +61,12 @@ public:
 	Int  getLogicTimeScaleFps() const; ///< Get the raw logic time scale fps value.
 	void enableLogicTimeScale( Bool enable ); ///< Enable or disable the logic time scale setup. If disabled, the simulation time scale is bound to the render frame time or network update time.
 	Bool isLogicTimeScaleEnabled() const; ///< Check whether the logic time scale setup is enabled.
+#if defined(GENONLINE)
+	void setGameSpeedFps( Int fps ); ///< Set the game speed of the next skirmish in logic frames per second. LOGICFRAMES_PER_SECOND is normal, 1000 and more is unlimited.
+	void resetGameSpeed(); ///< Set the normal game speed for the next game.
+	void beginGameSpeed(); ///< Run the logic time scale at the game speed and remember the player's own logic time scale.
+	void endGameSpeed(); ///< Restore the player's own logic time scale.
+#endif
 	Int  getActualLogicTimeScaleFps(LogicTimeQueryFlags flags = 0) const; ///< Get the real logic time scale fps, depending on the max render fps, network state and enabled state.
 	Real getActualLogicTimeScaleRatio(LogicTimeQueryFlags flags = 0) const; ///< Get the real logic time scale ratio, depending on the max render fps, network state and enabled state.
 	Real getActualLogicTimeScaleOverFpsRatio(LogicTimeQueryFlags flags = 0) const; ///< Get the real logic time scale over render fps ratio, used to scale down steps in render updates to match logic updates.
@@ -87,6 +93,13 @@ protected:
 	Bool m_enableLogicTimeScale;
 	Bool m_isTimeFrozen;
 	Bool m_isGameHalted;
+
+#if defined(GENONLINE)
+	Int m_gameSpeedFps; ///< Game speed of the next skirmish in logic frames per second
+	Int m_savedLogicTimeScaleFPS; ///< The player's own logic time scale fps while the game speed runs
+	Bool m_savedEnableLogicTimeScale; ///< The player's own logic time scale state while the game speed runs
+	Bool m_isGameSpeedActive;
+#endif
 };
 
 extern FramePacer* TheFramePacer;
