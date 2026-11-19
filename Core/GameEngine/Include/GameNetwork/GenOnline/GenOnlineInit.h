@@ -542,23 +542,12 @@ public:
 		LIVE
 	};
 
-#if defined(USE_TEST_ENV)
-	const static EEnvironment g_Environment = EEnvironment::TEST;
-	#pragma message ("Building for test environment")
-#elif defined(USE_DEBUG_ON_LIVE_SERVER)
-	const static EEnvironment g_Environment = EEnvironment::LIVE;
-#pragma message ("Building for live environment (Debug Client)")
-#else
-	#if defined(_DEBUG)
-		const static EEnvironment g_Environment = EEnvironment::DEV;
-		#pragma message ("Building for dev environment")
-	#else
-		const static EEnvironment g_Environment = EEnvironment::LIVE;
-		#pragma message ("Building for live environment")
-	#endif
-#endif
-	// The name of g_Environment: live, test or dev.
+	// The services this client talks to. Debug builds and builds with USE_TEST_ENV or USE_DEBUG_ON_LIVE_SERVER have a fixed environment.
+	// Any other build follows network.environment of client.json when it holds live or test, and otherwise its release tag:
+	// a release candidate (vYYYY.M.PATCH-rc.N) uses the test services, every other build the live ones. Resolved once.
+	static EEnvironment GetEnvironment();
 	static const char* EnvironmentName();
+	static const char* EnvironmentReason();
 	static std::string GetAPIEndpoint(const char* szEndpoint);
 
 	static void CreateInstance()
