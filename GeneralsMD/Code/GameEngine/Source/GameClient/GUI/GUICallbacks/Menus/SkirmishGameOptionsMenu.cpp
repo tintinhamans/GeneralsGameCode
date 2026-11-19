@@ -58,6 +58,7 @@
 #include "GameClient/MapUtil.h"
 #if defined(GENONLINE)
 #include "GameClient/MapPreviewIcons.h"
+#include "Common/FramePacer.h"
 #endif
 #include "GameClient/Mouse.h"
 #include "GameClient/GameWindowTransitions.h"
@@ -411,12 +412,13 @@ void setFPSTextBox( Int sliderPos )
 		GadgetStaticTextSetText(staticTextGameSpeed, text);
 		return;
 	}
-	else if( sliderPos == TheGlobalData->m_framesPerSecondLimit )
+	else if( sliderPos == BaseFps )
 	{
 		// set different color
 		staticTextGameSpeed->winEnable(FALSE);
 	}
-	text.format(L"%2d", sliderPos);
+	// The slider holds the retail frame rate, so the retail base frame rate is the normal speed.
+	text.format(L"%d%%", (sliderPos * 100 + BaseFps / 2) / BaseFps);
 	GadgetStaticTextSetText(staticTextGameSpeed, text);
 }
 
@@ -433,6 +435,11 @@ void reallyDoStart()
 		maxFPS = 1000;
 	if (maxFPS < 15)
 		maxFPS = 15;
+
+#if defined(GENONLINE)
+	// The logic runs faster than retail, so the retail frame rate scales to logic frames per second.
+	TheFramePacer->setGameSpeedFps(maxFPS * LOGICFRAMES_PER_BASEFRAME);
+#endif
 
   TheWritableGlobalData->m_mapName = TheSkirmishGameInfo->getMap();
   TheSkirmishGameInfo->startGame(0);
@@ -1399,7 +1406,12 @@ void SkirmishGameOptionsMenuInit( WindowLayout *layout, void *userData )
 	// set up the game speed slider
 //	NameKeyType sliderGameSpeedID = TheNameKeyGenerator->nameToKey( "SkirmishGameOptionsMenu.wnd:SliderGameSpeed" );
 	GameWindow *sliderGameSpeed = TheWindowManager->winGetWindowFromId( parentSkirmishGameOptions, sliderGameSpeedID );
+#if defined(GENONLINE)
+	// Skirmish.ini holds the retail frame rate, so a missing value is the retail normal speed.
+	Int sliderPos = max(15,min(61,prefs.getInt("FPS", BaseFps)));
+#else
 	Int sliderPos = max(15,min(61,prefs.getInt("FPS", TheGlobalData->m_framesPerSecondLimit)));
+#endif
 	GadgetSliderSetPosition( sliderGameSpeed, sliderPos );
 	setFPSTextBox(sliderPos);
 	buttonStart->winSetText(TheGameText->fetch("GUI:Start"));

@@ -45,6 +45,12 @@ FramePacer::FramePacer()
 	m_enableLogicTimeScale = FALSE;
 	m_isTimeFrozen = FALSE;
 	m_isGameHalted = FALSE;
+#if defined(GENONLINE)
+	m_gameSpeedFps = LOGICFRAMES_PER_SECOND;
+	m_savedLogicTimeScaleFPS = LOGICFRAMES_PER_SECOND;
+	m_savedEnableLogicTimeScale = FALSE;
+	m_isGameSpeedActive = FALSE;
+#endif
 }
 
 FramePacer::~FramePacer()
@@ -229,6 +235,49 @@ Bool FramePacer::isLogicTimeScaleEnabled() const
 {
 	return m_enableLogicTimeScale;
 }
+
+#if defined(GENONLINE)
+void FramePacer::setGameSpeedFps( Int fps )
+{
+	m_gameSpeedFps = fps;
+}
+
+void FramePacer::resetGameSpeed()
+{
+	m_gameSpeedFps = LOGICFRAMES_PER_SECOND;
+}
+
+void FramePacer::beginGameSpeed()
+{
+	endGameSpeed();
+
+	// The normal game speed leaves the logic time scale of the player alone.
+	if (m_gameSpeedFps == LOGICFRAMES_PER_SECOND)
+	{
+		return;
+	}
+
+	m_savedLogicTimeScaleFPS = m_logicTimeScaleFPS;
+	m_savedEnableLogicTimeScale = m_enableLogicTimeScale;
+	m_isGameSpeedActive = TRUE;
+
+	// The render limit rises with the logic time scale, so the game speed applies without touching it.
+	m_logicTimeScaleFPS = m_gameSpeedFps >= 1000 ? (Int)RenderFpsPreset::UncappedFpsValue : std::max<Int>(m_gameSpeedFps, 1);
+	m_enableLogicTimeScale = TRUE;
+}
+
+void FramePacer::endGameSpeed()
+{
+	if (!m_isGameSpeedActive)
+	{
+		return;
+	}
+
+	m_logicTimeScaleFPS = m_savedLogicTimeScaleFPS;
+	m_enableLogicTimeScale = m_savedEnableLogicTimeScale;
+	m_isGameSpeedActive = FALSE;
+}
+#endif
 
 Int FramePacer::getActualLogicTimeScaleFps(LogicTimeQueryFlags flags) const
 {
