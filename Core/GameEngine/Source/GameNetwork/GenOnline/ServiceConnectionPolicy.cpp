@@ -448,6 +448,83 @@ bool ValidateProxyURL(const std::string& proxyURL, std::string& error)
 
 namespace
 {
+// Wine has no Windows proxy settings and no working proxy resolver
+bool IsRunningUnderWine()
+{
+	const HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+	return ntdll != nullptr && GetProcAddress(ntdll, "wine_get_version") != nullptr;
+}
+
+std::string EnvironmentText(const char* name)
+{
+	char buffer[2048];
+	const DWORD length = GetEnvironmentVariableA(name, buffer, sizeof(buffer));
+	return length > 0 && length < sizeof(buffer) ? std::string(buffer, length) : std::string();
+}
+
+std::string FirstEnvironmentText(std::initializer_list<const char*> names)
+{
+	for (const char* name : names)
+	{
+		std::string value = EnvironmentText(name);
+		if (!value.empty())
+			return value;
+	}
+	return {};
+}
+
+// no_proxy entries are host names or domain suffixes, written as a comma separated list
+std::wstring NoProxyAsBypassList(const std::string& noProxy)
+{
+	std::string bypass;
+	std::string entry;
+	std::istringstream stream(noProxy);
+	while (std::getline(stream, entry, ','))
+	{
+		entry = Lower(entry);
+		entry.erase(0, entry.find_first_not_of(" \t"));
+		entry.erase(entry.find_last_not_of(" \t") + 1);
+		if (entry.empty())
+			continue;
+		if (entry == "*")
+			bypass += "*;";
+		else if (entry[0] == '.')
+			bypass += "*" + entry + ";";
+		else
+			bypass += entry + ";*." + entry + ";";
+	}
+	return Wide(bypass);
+}
+
+// Automatic mode under Wine follows the Linux convention: the proxy environment variables, otherwise direct access.
+// Nothing here may stop the sign in, so an unusable variable is ignored with a note.
+ResolvedProxyPolicy ResolveWineProxy(const std::string& destination)
+{
+	ResolvedProxyPolicy result;
+	const bool secure = destination.compare(0, 6, "https:") == 0;
+	std::string proxy = secure ? FirstEnvironmentText({"https_proxy", "HTTPS_PROXY"}) : FirstEnvironmentText({"http_proxy", "HTTP_PROXY"});
+	if (proxy.empty())
+		proxy = FirstEnvironmentText({"all_proxy", "ALL_PROXY"});
+	if (proxy.empty())
+	{
+		result.routes.push_back({});
+		result.source = "Direct";
+		return result;
+	}
+	if (!StaticProxy(Wide(proxy), NoProxyAsBypassList(FirstEnvironmentText({"no_proxy", "NO_PROXY"})), destination, result))
+	{
+		result.routes.clear();
+		result.routes.push_back({});
+		result.error.clear();
+		result.fallbackReason = "The proxy environment variable is not a usable proxy address; using direct access.";
+		result.source = "Direct";
+		return result;
+	}
+	result.fallbackReason = "Running under Wine; using the proxy environment variables.";
+	result.source = SourceOfRoutes(result);
+	return result;
+}
+
 ResolvedProxyPolicy ResolveProxyRoutes(const ServiceConnectionSettings& settings, const std::string& destinationURL)
 {
 	ResolvedProxyPolicy result;
@@ -473,6 +550,8 @@ ResolvedProxyPolicy ResolveProxyRoutes(const ServiceConnectionSettings& settings
 		return result;
 	}
 	const std::string destination = ProxyDestination(destinationURL);
+	if (IsRunningUnderWine())
+		return ResolveWineProxy(destination);
 	WINHTTP_CURRENT_USER_IE_PROXY_CONFIG config{};
 	if (!WinHttpGetIEProxyConfigForCurrentUser(&config))
 	{
@@ -790,7 +869,8 @@ std::shared_ptr<ProxyResolution> StartProxyResolution(ServiceConnectionSettings 
 		return state;
 	}
 	// Explicit direct/custom policy needs neither discovery nor a background worker
-	if (settings.proxyMode != "automatic" || IsLoopbackDestination(destinationURL))
+	// Under Wine the answer comes from environment variables, so no Windows lookup or worker is needed
+	if (settings.proxyMode != "automatic" || IsLoopbackDestination(destinationURL) || IsRunningUnderWine())
 	{
 		CompleteProxy(*state, ResolveProxyPolicy(settings, destinationURL));
 		return state;
