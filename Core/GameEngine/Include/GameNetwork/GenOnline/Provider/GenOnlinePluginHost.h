@@ -154,6 +154,8 @@ public:
 		static void DisconnectAll();
 		// Sets the relay policy of the plugin for the connections that start after the call. A plugin without SetRelayPolicy keeps its own policy.
 		static void SetRelayPolicy(bool bForceRelay);
+		// Ticks a loaded plugin transport, so packets queued since the last tick go out and arrived packets are taken in now.
+		static void Pump();
 
 		// The calls above as the table of the per-peer plugin transport.
 		static const PluginPeerTransportApi& GetPeerTransportApi();

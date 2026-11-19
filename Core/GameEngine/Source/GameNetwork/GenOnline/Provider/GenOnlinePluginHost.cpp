@@ -1237,6 +1237,16 @@ void GenOnlinePluginHost::Transport::SetRelayPolicy(bool bForceRelay)
 	s_pTransport->SetRelayPolicy(policy);
 }
 
+// The plugin moves its packets only inside its tick, so the game transport ticks it around its own receive and send.
+void GenOnlinePluginHost::Transport::Pump()
+{
+	if (!s_bPluginLoaded || s_pTransport == nullptr)
+	{
+		return;
+	}
+	s_pluginApi.Tick();
+}
+
 // The plugin transport calls of the per-peer transports. Every packet travels on the game channel.
 static_assert(static_cast<int32_t>(PeerReliability::UnreliableUnordered) == static_cast<int32_t>(EPacketReliability::PACKET_RELIABILITY_UNRELIABLE_UNORDERED), "PeerReliability must match the plugin API");
 static_assert(static_cast<int32_t>(PeerReliability::ReliableUnordered) == static_cast<int32_t>(EPacketReliability::PACKET_RELIABILITY_RELIABLE_UNORDERED), "PeerReliability must match the plugin API");

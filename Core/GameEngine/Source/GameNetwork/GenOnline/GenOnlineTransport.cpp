@@ -88,6 +88,9 @@ Bool GenOnlineTransport::update(void)
 
 Bool GenOnlineTransport::doRecv(void)
 {
+    // The plugin transport moves packets only inside its tick, so it takes in what arrived since then before the receive.
+    GenOnlinePluginHost::Transport::Pump();
+
     bool bRet = FALSE;
     int numRead = 0;
 
@@ -424,6 +427,14 @@ Bool GenOnlineTransport::sendFailureLogDue()
 }
 
 Bool GenOnlineTransport::doSend(void)
+{
+    const Bool bSent = sendQueued();
+    // The plugin transport sends the packets of this frame now instead of at its next main loop tick.
+    GenOnlinePluginHost::Transport::Pump();
+    return bSent;
+}
+
+Bool GenOnlineTransport::sendQueued()
 {
     Bool retval = TRUE;
     int numSent = 0;
