@@ -18,6 +18,8 @@ MapData* TheWriteableMapData = NULL;				///< The current map data singleton
 {
 	{ "HeightMapScale",									INI::parseReal,				NULL,			offsetof( MapData, m_HeightmapScale) },
 	{ "EnableShips",									  INI::parseBool,       NULL,     offsetof( MapData, m_enableShips) },
+	{ "AISpecialPowersRespectFog", INI::parseBool, NULL, offsetof( MapData, m_aiSpecialPowersRespectFog) },
+	{ "AISpecialPowersRespectStealth", INI::parseBool, NULL, offsetof( MapData, m_aiSpecialPowersRespectStealth) },
 	{ "TerrainHeightAmbientLightColor1",	INI::parseRGBColor,		NULL,			offsetof( MapData, m_terrainHeightAmbientLightColor1) },
 	{ "TerrainHeightAmbientLightColor2",	INI::parseRGBColor,		NULL,			offsetof( MapData, m_terrainHeightAmbientLightColor2) },
 	{ "TerrainHeightAmbientLightStart",		INI::parseReal,				NULL,			offsetof( MapData, m_terrainHeightAmbientLightHeightStart) },
@@ -32,6 +34,8 @@ void MapData::setDefaults()
 {
 	m_HeightmapScale = 1.0f;
 	m_enableShips = false;
+	m_aiSpecialPowersRespectFog = true;
+	m_aiSpecialPowersRespectStealth = true;
 
 	m_terrainHeightAmbientLightColor1.red = 0;
 	m_terrainHeightAmbientLightColor1.green = 0;

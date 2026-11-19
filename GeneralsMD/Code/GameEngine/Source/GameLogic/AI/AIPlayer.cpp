@@ -542,13 +542,6 @@ Object *AIPlayer::buildStructureWithDozer(const ThingTemplate *bldgPlan, BuildLi
 		return nullptr;
 	}
 	Real angle = info->getAngle();
- 	if( TheBuildAssistant->isLocationLegalToBuild( &pos, bldgPlan, angle,
-																								 BuildAssistant::NO_ENEMY_OBJECT_OVERLAP,
-																								 dozer, m_player ) != LBC_OK ) {
-		// If there's enemy units or structures, don't build/rebuild.
-		TheTerrainVisual->removeAllBibs();	// isLocationLegalToBuild adds bib feedback, turn it off.  jba.
-		return nullptr;
-	}
 
 	// validate the the position to build at is valid
 	if( TheBuildAssistant->isLocationLegalToBuild( &pos, bldgPlan, angle,
@@ -564,23 +557,19 @@ Object *AIPlayer::buildStructureWithDozer(const ThingTemplate *bldgPlan, BuildLi
 			Real posOffset;
 			Bool valid = false;
 			// Wiggle it a little :)
-			Real limit = 10*PATHFIND_CELL_SIZE_F;
+			Real limit = 2*TheAI->getAiData()->m_buildingSearchDistance;
 			if (isSkirmishAI()) {
-				limit = 120*PATHFIND_CELL_SIZE_F;
+				limit = 2*TheAI->getAiData()->m_skirmishBuildingSearchDistance;
 			}
 			if (info->isExactPositionOnly()) {
 				limit = 0;
 			}
 			Coord3D newPos = pos;
-			for (posOffset = 0; posOffset<limit; posOffset += 2*PATHFIND_CELL_SIZE_F) {
-				if (isSkirmishAI()) {
-					posOffset += 2*PATHFIND_CELL_SIZE_F;
-				}
+			for (posOffset = 2*PATHFIND_CELL_SIZE_F; posOffset<=limit; posOffset += 2*PATHFIND_CELL_SIZE_F) {
 				Real offset = posOffset/2;
 				Real xPos, yPos;
 				yPos = pos.y-offset;
 				for (xPos = pos.x-offset; xPos <= pos.x+offset; xPos+=PATHFIND_CELL_SIZE_F) {
-					if (isSkirmishAI()) xPos += PATHFIND_CELL_SIZE_F;
 					newPos.x = xPos;
 					newPos.y = yPos;
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, bldgPlan, angle,
@@ -588,18 +577,24 @@ Object *AIPlayer::buildStructureWithDozer(const ThingTemplate *bldgPlan, BuildLi
 																							 BuildAssistant::TERRAIN_RESTRICTIONS |
 																							 BuildAssistant::NO_OBJECT_OVERLAP,
 																							 dozer, m_player ) == LBC_OK;
-					if (valid) break;
+					if (valid)
+					{
+						break;
+					}
 					newPos.y = yPos+posOffset;
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, bldgPlan, angle,
 																							 BuildAssistant::CLEAR_PATH |
 																							 BuildAssistant::TERRAIN_RESTRICTIONS |
 																							 BuildAssistant::NO_OBJECT_OVERLAP,
 																							 dozer, m_player ) == LBC_OK;
+					if (valid)
+					{
+						break;
+					}
 				}
 				if (valid) break;
 				xPos = pos.x-offset;
 				for (yPos = pos.y-offset; yPos <= pos.y+offset; yPos+=PATHFIND_CELL_SIZE_F) {
-					if (isSkirmishAI()) yPos += PATHFIND_CELL_SIZE_F;
 					newPos.x = xPos;
 					newPos.y = yPos;
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, bldgPlan, angle,
@@ -607,37 +602,33 @@ Object *AIPlayer::buildStructureWithDozer(const ThingTemplate *bldgPlan, BuildLi
 																							 BuildAssistant::TERRAIN_RESTRICTIONS |
 																							 BuildAssistant::NO_OBJECT_OVERLAP,
 																							 dozer, m_player ) == LBC_OK;
-					if (valid) break;
+					if (valid)
+					{
+						break;
+					}
 					newPos.x = xPos+posOffset;
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, bldgPlan, angle,
 																							 BuildAssistant::CLEAR_PATH |
 																							 BuildAssistant::TERRAIN_RESTRICTIONS |
 																							 BuildAssistant::NO_OBJECT_OVERLAP,
 																							 dozer, m_player ) == LBC_OK;
+					if (valid)
+					{
+						break;
+					}
 				}
 				if (valid) break;
 			}
-			if (valid) pos = newPos;
-			if (!valid) {
-				valid = TheBuildAssistant->isLocationLegalToBuild( &pos, bldgPlan, angle,
-																						 BuildAssistant::NO_ENEMY_OBJECT_OVERLAP,
-																						 dozer, m_player ) == LBC_OK;
-				if (!valid) {
-					return nullptr;
-				}
+			if (!valid)
+			{
+				TheTerrainVisual->removeAllBibs();
+				return nullptr;
 			}
+			pos = newPos;
 
 	}
 
 	TheTerrainVisual->removeAllBibs();	// isLocationLegalToBuild adds bib feedback, turn it off.  jba.
-	if (!TheAI->pathfinder()->clientSafeQuickDoesPathExist(dozer->getAI()->getLocomotorSet(),
-		dozer->getRequiredBridgeHeight(),
-		dozer->getPosition(), &pos)) {
-		AsciiString bldgName = bldgPlan->getName();
-		bldgName.concat(" - Dozer unable to reach building.  Teleporting.");
-		TheScriptEngine->AppendDebugMessage(bldgName, false);
-		dozer->setPosition(&pos);
-	}
 
 	Object *bldg = TheBuildAssistant->buildObjectNow( dozer,
 																						bldgPlan,
@@ -1290,8 +1281,7 @@ Bool AIPlayer::computeSuperweaponTarget(const SpecialPowerTemplate *power, Coord
 	if (!success)
 		return false;
 
-	// Nothing the AI can see is worth firing at.
-	if (cash <= 0 && clpAIPlaysFair(m_player))
+	if (cash <= 0 && clpAIUsesTargetingRestrictions(m_player))
 	{
 		return false;
 	}
