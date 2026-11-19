@@ -159,6 +159,15 @@
             }
         },
         {
+            "name": "win32-vcpkg-release",
+            "inherits": "win32-vcpkg",
+            "displayName": "Windows 32bit VCPKG Release for publishing (MSVC 14.44)",
+            "cacheVariables": {
+                "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/cmake/require-msvc-toolset.cmake",
+                "GENONLINE_REQUIRED_MSVC_TOOLSET": "14.44"
+            }
+        },
+        {
             "name": "win32-vcpkg-profile",
             "inherits": "win32-vcpkg",
             "displayName": "Windows 32bit VCPKG Profile",
@@ -313,6 +322,17 @@
             "displayName": "Build Windows 32bit VCPKG Release",
             "description": "Build Windows 32bit VCPKG Release",
             "configuration": "Release"
+        },
+        {
+            "name": "win32-vcpkg-release",
+            "configurePreset": "win32-vcpkg-release",
+            "displayName": "Build Windows 32bit VCPKG Release for publishing (MSVC 14.44)",
+            "description": "Build both game exes with the MSVC 14.44 toolset",
+            "configuration": "Release",
+            "targets": [
+                "z_generals",
+                "g_generals"
+            ]
         },
         {
             "name": "win32-vcpkg-profile",
