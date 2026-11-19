@@ -1,5 +1,4 @@
 #include "GameNetwork/GenOnline/GenOnlineSettings.h"
-#include "Common/OptionPreferences.h"
 #include "GameNetwork/GenOnline/GenOnlineClientFile.h"
 #include "Common/CommandLine.h"
 #include "../json.hpp"
@@ -134,25 +133,6 @@ static std::vector<std::string> ReadPluginList(const nlohmann::json& list, const
     return names;
 }
 
-// The old right mouse scroll speed was ratio * Options.ini scroll speed * (screen width / 2) pixels. The scroll now measures the drag at 800x600
-// and uses the 1.6 horizontal speed factor of GameData.ini, so the same speed needs a scroll speed of
-// old scroll speed * ratio * (width / 2) / (1.6 * 400), within the range of the options slider.
-static void MigrateMoveSpeedRatioToOptions(float ratio)
-{
-	OptionPreferences options;
-	Int width = 0;
-	Int height = 0;
-	options.getResolution(&width, &height);
-	const auto scrollFactor = options.find("ScrollFactor");
-	const Int oldSlider = scrollFactor == options.end() ? 50 : (std::max)(1, atoi(scrollFactor->second.str()));
-	const Int newSlider = (std::max)(1, static_cast<Int>(oldSlider * ratio * (width / 2.0f) / (1.6f * 400.0f) + 0.5f));
-	AsciiString text;
-	text.format("%d", newSlider);
-	options["ScrollFactor"] = text;
-	options.write();
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Moved camera.move_speed_ratio=%.2f to Options.ini ScrollFactor: %d -> %d at %dx%d", ratio, oldSlider, newSlider, width, height);
-}
-
 // The keys client.json holds and the type each one must have. A key of another type makes the whole file unusable.
 static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 {
@@ -263,12 +243,6 @@ void GenOnlineSettings::Load(void)
 				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_MIN_HEIGHT))
 				{
 					m_Camera_MinHeight = std::max<float>(static_cast<float>(cameraSettings[SETTINGS_KEY_CAMERA_MIN_HEIGHT]), m_Camera_MinHeight_default);
-				}
-
-				// the right mouse scroll speed is the Options.ini scroll speed now, an old ratio is converted once
-				if (bWritable && cameraSettings.contains(SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO) && cameraSettings[SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO].is_number())
-				{
-					MigrateMoveSpeedRatioToOptions(std::clamp<float>(static_cast<float>(cameraSettings[SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO]), 0.05f, 25.f));
 				}
 
 				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST))
