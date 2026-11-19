@@ -59,6 +59,16 @@ static const Real TORNADO_LIFTOFF_HEIGHT = 2.0f;
 static const UnsignedInt TORNADO_ORPHAN_FRAMES = 30 * LOGICFRAMES_PER_SECOND;
 
 //-------------------------------------------------------------------------------------------------
+static UnsignedInt tornadoVictimHash( ObjectID victim, ObjectID tornado, UnsignedInt frame )
+{
+	UnsignedInt seed = (UnsignedInt)victim ^ (UnsignedInt)tornado * 2654435761U ^ frame;
+	seed ^= seed >> 16;
+	seed *= 2246822519U;
+	seed ^= seed >> 13;
+	return seed;
+}
+
+//-------------------------------------------------------------------------------------------------
 TornadoUpdateModuleData::TornadoUpdateModuleData()
 {
 	m_radius = 0.0f;
@@ -325,10 +335,7 @@ Real TornadoUpdate::chooseLiftHeight( ObjectID id ) const
 	const TornadoUpdateModuleData *data = getTornadoUpdateModuleData();
 	Real maximum = __max( 0.0f, data->m_maxLiftHeight );
 	Real minimum = data->m_minLiftHeight < 0.0f ? maximum : __min( maximum, data->m_minLiftHeight );
-	UnsignedInt seed = (UnsignedInt)id ^ (UnsignedInt)getObject()->getID() * 2654435761U ^ m_startFrame;
-	seed ^= seed >> 16;
-	seed *= 2246822519U;
-	seed ^= seed >> 13;
+	UnsignedInt seed = tornadoVictimHash( id, getObject()->getID(), m_startFrame );
 	Real fraction = (Real)( seed & 0x00ffffffU ) / (Real)0x00ffffffU;
 	return minimum + ( maximum - minimum ) * fraction;
 }
@@ -542,7 +549,7 @@ void TornadoUpdate::releaseVictim( Object *obj, UnsignedInt flags )
 	Real releaseSpeed = getTornadoUpdateModuleData()->m_releaseSpeed * getMassScale( physics->getMass() );
 	if( releaseSpeed > 0.0f )
 	{
-		UnsignedInt seed = (UnsignedInt)obj->getID() * 2654435761U ^ m_rampDownStartFrame ^ (UnsignedInt)getObject()->getID();
+		UnsignedInt seed = tornadoVictimHash( obj->getID(), getObject()->getID(), m_rampDownStartFrame );
 		Real angle = deg2rad( (Real)( seed % 360 ) );
 		Coord3D velocity;
 		velocity.x = Cos( angle ) * releaseSpeed;
@@ -698,11 +705,7 @@ UpdateSleepTime TornadoUpdate::update( void )
 		UnsignedInt releaseDelay = 0;
 		if( m_rampingDown && m_rampDownFrames > 0 )
 		{
-			// Mix stable ids so release order survives saving and consumes no random stream.
-			UnsignedInt seed = (UnsignedInt)it->id ^ (UnsignedInt)me->getID() * 2654435761U ^ m_rampDownStartFrame;
-			seed ^= seed >> 16;
-			seed *= 2246822519U;
-			seed ^= seed >> 13;
+			UnsignedInt seed = tornadoVictimHash( it->id, me->getID(), m_rampDownStartFrame );
 			releaseDelay = 1 + seed % m_rampDownFrames;
 		}
 		if( obj == nullptr )
@@ -749,7 +752,7 @@ void TornadoUpdate::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 3;
+	XferVersion currentVersion = 2;
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -793,13 +796,6 @@ void TornadoUpdate::xfer( Xfer *xfer )
 		for( VictimVector::iterator it = m_victims.begin(); it != m_victims.end(); ++it )
 		{
 			xfer->xferUnsignedInt( &it->flags );
-		}
-	}
-
-	if( version >= 3 )
-	{
-		for( VictimVector::iterator it = m_victims.begin(); it != m_victims.end(); ++it )
-		{
 			xfer->xferReal( &it->liftHeight );
 		}
 	}
