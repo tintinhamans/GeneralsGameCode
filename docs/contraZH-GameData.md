@@ -1,5 +1,21 @@
 # GameData.ini
 
+## Guard target visibility
+
+`GuardRequiresVisibility` defaults to `No`, preserving guard mode's ability to acquire
+unseen targets. Set it to `Yes` inside the `GameData` block in `GameData.ini` to require
+new guard targets to be visible to the guarding player, including through shared vision.
+Fogged and unexplored targets are excluded, including shared team targets.
+
+```ini
+  GuardRequiresVisibility = Yes
+```
+
+The setting applies to guard-position, guard-object, guard-area and tunnel network guard
+target searches.
+Existing attacks and retaliation keep their normal behavior. Enabling this setting changes
+the simulation, so multiplayer clients and replay playback need matching values.
+
 ## Headlight aim
 
 `HeadlightPerConeAim` defaults to `Yes`, so each cone of a `HEADLIGHT` mesh aims in its own direction.

@@ -268,6 +268,7 @@ static const char *DistanceFogPresetNames[] = { "SUN", "DESERT", "FUTURISTIC", "
 	{ "DrawEntireTerrain",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_drawEntireTerrain ) },
 	{ "TerrainLOD",									INI::parseIndexList,	TerrainLODNames,	offsetof( GlobalData, m_terrainLOD ) },
 	{ "TerrainLODTargetTimeMS",			INI::parseInt,				nullptr,			offsetof( GlobalData, m_terrainLODTargetTimeMS ) },
+	{ "GuardRequiresVisibility",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_guardRequiresVisibility ) },
 	{ "RightMouseAlwaysScrolls",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_rightMouseAlwaysScrolls ) },
 	{ "UseWaterPlane",							INI::parseBool,				nullptr,			offsetof( GlobalData, m_useWaterPlane ) },
 	{ "UseCloudPlane",							INI::parseBool,				nullptr,			offsetof( GlobalData, m_useCloudPlane ) },
@@ -1640,6 +1641,7 @@ GlobalData::GlobalData()
 	m_useRightMouseScrollWithAlternateMouse = TRUE;
 #endif
 	m_clientRetaliationModeEnabled = TRUE; //On by default.
+	m_guardRequiresVisibility = FALSE;
 	// TheSuperHackers @feature Health bars behave exactly as they always have unless Options.ini says otherwise.
 	m_healthBarDisplayMode = HealthBarDisplayMode_Default;
 	m_alliedDecalMode = AlliedDecalMode_Default;
