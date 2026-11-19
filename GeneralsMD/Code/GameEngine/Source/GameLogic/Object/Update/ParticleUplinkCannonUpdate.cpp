@@ -1569,14 +1569,12 @@ void ParticleUplinkCannonUpdate::xfer( Xfer *xfer )
 	const ParticleUplinkCannonUpdateModuleData *data = getParticleUplinkCannonUpdateModuleData();
 
 	// version
-	const XferVersion currentVersion = 5;
-	XferVersion version = currentVersion;
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	if( xfer->getXferMode() == XFER_SAVE && m_tornadoObjectID == INVALID_ID )
-	{
-		version = 3;
-	}
+	const XferVersion currentVersion = 3;
+#else
+	const XferVersion currentVersion = 5;
 #endif
+	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 	m_xferVersion = version;
 
@@ -1761,7 +1759,7 @@ void ParticleUplinkCannonUpdate::loadPostProcess()
 		}
 	}
 
-	// Older retail-compatible saves kept the tornado's producer but omitted the cannon's reference.
+	// Retail-compatible saves keep the tornado's producer but omit the cannon's reference.
 	if( m_xferVersion < 5 && m_tornadoObjectID == INVALID_ID )
 	{
 		for( Object *obj = TheGameLogic->getFirstObject(); obj; obj = obj->getNextObject() )
