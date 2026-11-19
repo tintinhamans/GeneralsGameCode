@@ -48,8 +48,6 @@ namespace
 		COL_COUNT
 	};
 
-	const Int k_playerViewTop = 500;
-	const Real k_devViewTopFraction = 0.10f;	// the dev table sits higher to clear the control bar
 	const Int k_changeShownMs = 10000;
 	const Int k_nameMaxChars = 14;
 	const Int k_devViewHeaderLines = 2;
@@ -157,6 +155,10 @@ namespace
 	{
 		OverlayCache() : valid(FALSE), mode(0), refreshedMs(0), lineH(12), logicRate(0), rowCount(0), aqValid(FALSE), fpsAverage(0), fpsLow(0)
 		{
+			for (Int m = 0; m < 3; ++m)
+			{
+				drawnHeight[m] = 0;
+			}
 			for (Int i = 0; i < k_strTotal; ++i)
 			{
 				strings[i] = nullptr;
@@ -182,6 +184,7 @@ namespace
 		UnicodeString headerCell[COL_COUNT];
 		OverlayRow rows[MAX_SLOTS];
 		DisplayString *strings[k_strTotal];
+		Int drawnHeight[3];	///< The height each view drew last frame, so the next frame centers the real block.
 	};
 
 	OverlayCache *s_overlayCache = nullptr;
@@ -453,9 +456,13 @@ void GenOnlineDrawNetworkOverlay(Int mode, DisplayString *fontSource, Color game
 	const NetworkOverlayInfo& header = cache.header;
 
 	const Int tableLines = (mode == 2) ? (k_devViewHeaderLines + rowCount + k_devViewFooterLines + (cache.aqValid ? k_aqDevLines : 0)) : (1 + rowCount + (cache.aqValid ? 1 : 0));
-	Int y = (mode == 2) ? (Int)(displayHeight * k_devViewTopFraction) : k_playerViewTop;
-	y = (std::min)(y, displayHeight - 4 - tableLines * lineH);
+	// Both views are centered vertically on the height they drew last frame, the line count only covers the first frame.
+	const Int viewIndex = (mode == 2) ? 2 : 1;
+	const Int blockHeight = (cache.drawnHeight[viewIndex] > 0) ? cache.drawnHeight[viewIndex] : tableLines * lineH;
+	Int y = (displayHeight - blockHeight) / 2;
+	y = (std::min)(y, displayHeight - 4 - blockHeight);
 	y = (std::max)(y, 0);
+	const Int top = y;
 
 	const Int delayMs = header.runAhead * 1000 / LOGICFRAMES_PER_SECOND;
 	{
@@ -575,6 +582,7 @@ void GenOnlineDrawNetworkOverlay(Int mode, DisplayString *fontSource, Color game
 				ConnectionRating::DrawIndicator(left, barRowY[barRow], lineH, barRowBars[barRow]);
 			}
 		}
+		cache.drawnHeight[viewIndex] = y - top;
 		return;
 	}
 
@@ -748,6 +756,7 @@ void GenOnlineDrawNetworkOverlay(Int mode, DisplayString *fontSource, Color game
 		overlayDrawText(k_strAqBase + 4, left, y, text, dim, dropColor);
 		y += lineH;
 	}
+	cache.drawnHeight[viewIndex] = y - top;
 #endif
 }
 
