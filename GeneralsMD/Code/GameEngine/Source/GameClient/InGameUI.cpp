@@ -183,9 +183,13 @@ static const char *const TheQueueBarButtons[ QUEUE_BAR_BUTTON_COUNT ] =
 static std::vector<ObjectID> s_queueBarIdle[ QUEUE_BAR_BUTTON_COUNT ];
 // logic frame of the last scan
 static UnsignedInt s_queueBarFrame = ~0u;
-// frame each idle unit was first seen idle, as of the last scan and of the scan in progress
-static std::map<ObjectID, UnsignedInt> s_queueBarIdleSince;
-static std::map<ObjectID, UnsignedInt> s_queueBarIdleNow;
+struct QueueBarIdleRecord
+{
+	UnsignedInt start;	///< frame the unit was first seen idle
+	UnsignedInt seen;		///< frame of the last scan that found it idle
+};
+// when each idle unit was first seen idle, and the scan that last saw it
+static std::map<ObjectID, QueueBarIdleRecord> s_queueBarIdleSince;
 // a unit shows once it has been idle this long, so a pause between targets does not count
 static const UnsignedInt QUEUE_BAR_IDLE_GRACE_FRAMES = LOGICFRAMES_PER_SECOND * 6;
 
@@ -252,13 +256,12 @@ static void collectIdleUnit( Object *obj, void *userData )
 	}
 
 	UnsignedInt now = TheGameLogic->getFrame();
-	UnsignedInt start = now;
-	std::map<ObjectID, UnsignedInt>::const_iterator it = s_queueBarIdleSince.find( obj->getID() );
-	if( it != s_queueBarIdleSince.end() )
-	{
-		start = it->second;
-	}
-	s_queueBarIdleNow[ obj->getID() ] = start;
+	QueueBarIdleRecord record;
+	record.start = now;
+	record.seen = now;
+	std::pair<std::map<ObjectID, QueueBarIdleRecord>::iterator, bool> result = s_queueBarIdleSince.insert( std::make_pair( obj->getID(), record ) );
+	result.first->second.seen = now;
+	UnsignedInt start = result.first->second.start;
 
 	if( now - start >= QUEUE_BAR_IDLE_GRACE_FRAMES )
 	{
@@ -274,7 +277,6 @@ static void resetQueueBar()
 		s_queueBarIdle[ i ].clear();
 	}
 	s_queueBarIdleSince.clear();
-	s_queueBarIdleNow.clear();
 	s_queueBarFrame = ~0u;
 }
 
@@ -325,15 +327,17 @@ static void updateQueueBar()
 	}
 
 	Player *player = nullptr;
-	Bool show = TheGlobalData->m_queueBar && TheGameLogic->isInGame() && !TheGameLogic->isInShellGame();
-	if( show )
+	Bool track = TheGlobalData->m_queueBar && TheGameLogic->isInGame() && !TheGameLogic->isInShellGame();
+	Bool show = FALSE;
+	if( track )
 	{
 		player = ThePlayerList->getLocalPlayer();
+		track = player != nullptr && player->isPlayerActive();
 		GameWindow *controlBar = TheWindowManager->winGetWindowFromId( nullptr, controlBarKey );
-		show = player != nullptr && player->isPlayerActive() && controlBar != nullptr && !controlBar->winIsHidden();
+		show = track && controlBar != nullptr && !controlBar->winIsHidden();
 	}
 
-	if( show )
+	if( track )
 	{
 		UnsignedInt frame = TheGameLogic->getFrame();
 		if( frame != s_queueBarFrame )
@@ -342,9 +346,19 @@ static void updateQueueBar()
 			{
 				s_queueBarIdle[ i ].clear();
 			}
-			s_queueBarIdleNow.clear();
 			player->iterateObjects( collectIdleUnit, nullptr );
-			s_queueBarIdleSince.swap( s_queueBarIdleNow );
+			std::map<ObjectID, QueueBarIdleRecord>::iterator it = s_queueBarIdleSince.begin();
+			while( it != s_queueBarIdleSince.end() )
+			{
+				if( it->second.seen != frame )
+				{
+					s_queueBarIdleSince.erase( it++ );
+				}
+				else
+				{
+					++it;
+				}
+			}
 			s_queueBarFrame = frame;
 		}
 	}
