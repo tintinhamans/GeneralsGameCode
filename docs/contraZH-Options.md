@@ -368,6 +368,8 @@ built shows the build clock. Up to 10 cameos. Hidden while nothing is queued.
 * Left click selects a building that has the cameo queued. Further clicks step through the others.
 * The box sits above `ControlBarProBlockInputRadar` in `ControlBar.wnd`, or at the bottom left above
 the command bar when the layout has no such window.
+* The single-page Options menu makes the checkbox itself, under the command group one. A tabbed
+`OptionsMenu.wnd` needs a `CheckBuildQueueBar` checkbox of its own.
 
 ## Action lines
 

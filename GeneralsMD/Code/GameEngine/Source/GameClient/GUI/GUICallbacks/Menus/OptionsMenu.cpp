@@ -298,6 +298,8 @@ static_assert( ARRAY_SIZE(CastModeNames) == CastMode_Count, "CastModeNames out o
 static const char *const GridHotkeyLayouts[] = { GRID_HOTKEY_LAYOUT_DEFAULT,"ASDFGHJKLZXCVBNM,.", "QWERTYUIOZXCVBNM,." };
 static const wchar_t *const GridHotkeyLayoutNames[] = { L"QWER / ASDF", L"ASDF / ZXCV", L"QWER / ZXCV" };
 static_assert( ARRAY_SIZE(GridHotkeyLayoutNames) == ARRAY_SIZE(GridHotkeyLayouts), "GridHotkeyLayoutNames out of date" );
+static const char *const GridHotkeyLayoutLabels[] = { "GUI:GridHotkeyLayoutQwerAsdf", "GUI:GridHotkeyLayoutAsdfZxcv", "GUI:GridHotkeyLayoutQwerZxcv" };
+static_assert( ARRAY_SIZE(GridHotkeyLayoutLabels) == ARRAY_SIZE(GridHotkeyLayouts), "GridHotkeyLayoutLabels out of date" );
 
 static NameKeyType    sliderTextureResolutionID = NAMEKEY_INVALID;
 static GameWindow *   sliderTextureResolution = nullptr;
@@ -2111,7 +2113,7 @@ static void initGameOptionsWindows()
 		GadgetComboBoxReset( comboBoxGridHotkeyLayout );
 		for (Int i = 0; i < ARRAY_SIZE(GridHotkeyLayoutNames); ++i)
 		{
-			GadgetComboBoxAddEntry( comboBoxGridHotkeyLayout, UnicodeString( GridHotkeyLayoutNames[i] ), GameMakeColor( 255, 255, 255, 255 ) );
+			GadgetComboBoxAddEntry( comboBoxGridHotkeyLayout, TheGameText->FETCH_OR_SUBSTITUTE( GridHotkeyLayoutLabels[i], GridHotkeyLayoutNames[i] ), GameMakeColor( 255, 255, 255, 255 ) );
 		}
 	}
 }

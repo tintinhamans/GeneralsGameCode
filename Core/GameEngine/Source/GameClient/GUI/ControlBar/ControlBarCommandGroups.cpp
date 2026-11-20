@@ -35,6 +35,7 @@
 #include "GameClient/DisplayStringManager.h"
 #include "GameClient/GadgetPushButton.h"
 #include "GameClient/GameFont.h"
+#include "GameClient/GameText.h"
 #include "GameClient/GameWindow.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/Image.h"
@@ -447,8 +448,7 @@ void ControlBar::refreshCommandGroupButtons()
 			m_commandGroupNumbers[ i ]->setText( number );
 		}
 
-		UnicodeString tooltip;
-		tooltip.format( L"Group %d: %s", entry.group, entry.thingTemplate->getDisplayName().str() );
+		UnicodeString tooltip = TheGameText->FETCH_OR_SUBSTITUTE_FORMAT( "TOOLTIP:CommandGroupCameo", L"Group %d: %s", entry.group, entry.thingTemplate->getDisplayName().str() );
 		button->winSetTooltip( tooltip );
 		button->winHide( FALSE );
 	}
