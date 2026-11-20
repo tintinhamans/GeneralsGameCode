@@ -720,6 +720,7 @@ void ControlBar::initSmartSelectionBar( const ICoord2D &commandButtonSize )
 	}
 
 	initCommandGroupBar( commandButtonSize );
+	initBuildQueueBar();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -736,6 +737,7 @@ void ControlBar::destroySmartSelectionBar()
 		m_smartSelectionButtons[ i ] = nullptr;
 	}
 	destroyCommandGroupBar();
+	destroyBuildQueueBar();
 	if( m_cameoRowBlocker )
 	{
 		TheWindowManager->winDestroy( m_cameoRowBlocker );
@@ -956,6 +958,7 @@ void ControlBar::updateSmartSelection()
 	}
 
 	updateCommandGroupBar();
+	updateBuildQueueBar();
 
 	GameWindow *master = m_contextParent[ CP_MASTER ];
 	if( master == nullptr || master->winIsHidden() || m_smartSelectionGroups.empty() )

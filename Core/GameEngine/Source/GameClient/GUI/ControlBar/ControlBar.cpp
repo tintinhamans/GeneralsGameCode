@@ -1036,6 +1036,14 @@ ControlBar::ControlBar()
 	m_commandGroupButtonSize.y = 0;
 	m_commandGroupNumberColor = GAME_COLOR_UNDEFINED;
 	m_commandGroupNumberDropColor = GAME_COLOR_UNDEFINED;
+	m_buildQueueFrame = ~0u;
+	m_buildQueueParent = nullptr;
+	for( i = 0; i < MAX_BUILD_QUEUE_BAR_BUTTONS; i++ )
+	{
+		m_buildQueueButtons[i] = nullptr;
+		m_buildQueueImages[i] = nullptr;
+	}
+	m_buildQueueRadarWindow = nullptr;
 	m_scienceLayout = nullptr;
 	m_rightHUDWindow = nullptr;
 	m_rightHUDCameoWindow = nullptr;
@@ -1446,6 +1454,7 @@ void ControlBar::reset()
 #endif
 	hideSpecialPowerShortcut();
 	resetSmartSelection();
+	resetBuildQueueBar();
 	// the logic side focus goes with the old game, so the next one starts from no cache
 	m_sentFocusGroup.clear();
 	// do not destroy the rally drawables, they get destroyed with everything else during a reset
@@ -3418,6 +3427,7 @@ void ControlBar::setControlBarSchemeByPlayer(Player *p)
 		m_isObserverCommandBar = TRUE;
 		// the observer update returns before the smart selection hooks, so clear the row here
 		resetSmartSelection();
+		resetBuildQueueBar();
 		switchToContext( CB_CONTEXT_OBSERVER_LIST, nullptr );
 		DEBUG_LOG(("We're loading the Observer Command Bar"));
 
@@ -3464,6 +3474,7 @@ void ControlBar::setControlBarSchemeByPlayerTemplate( const PlayerTemplate *pt)
 	{
 		m_isObserverCommandBar = TRUE;
 		resetSmartSelection();
+		resetBuildQueueBar();
 		switchToContext( CB_CONTEXT_OBSERVER_LIST, nullptr );
 		DEBUG_LOG(("We're loading the Observer Command Bar"));
 

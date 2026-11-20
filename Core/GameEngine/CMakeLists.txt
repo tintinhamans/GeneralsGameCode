@@ -743,6 +743,7 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/ControlBar/ControlBarBeacon.cpp
     Source/GameClient/GUI/ControlBar/ControlBarCommand.cpp
     Source/GameClient/GUI/ControlBar/ControlBarCommandGroups.cpp
+    Source/GameClient/GUI/ControlBar/ControlBarBuildQueue.cpp
     Source/GameClient/GUI/ControlBar/ControlBarCommandProcessing.cpp
     Source/GameClient/GUI/ControlBar/ControlBarMultiSelect.cpp
     Source/GameClient/GUI/ControlBar/ControlBarObserver.cpp

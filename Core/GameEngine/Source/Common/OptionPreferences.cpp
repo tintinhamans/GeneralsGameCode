@@ -708,6 +708,12 @@ Bool OptionPreferences::getSmartCommandGroupEnabled(void) const
 	return getBool("SmartCommandGroup", TRUE);
 }
 
+// TheSuperHackers @feature Options.ini: BuildQueueBar = Yes shows the queued units and upgrades as cameos above the radar.
+Bool OptionPreferences::getBuildQueueBarEnabled(void) const
+{
+	return getBool("BuildQueueBar", TRUE);
+}
+
 // TheSuperHackers @feature Options.ini: CastMode = Normal | QuickCast | QuickCastWithIndicator
 CastMode OptionPreferences::getCastMode(void) const
 {

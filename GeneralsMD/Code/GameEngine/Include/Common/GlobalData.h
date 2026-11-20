@@ -246,6 +246,7 @@ public:
 	Bool m_smartSelection;
 	Bool m_smartSelectionUseMouse;
 	Bool m_smartCommandGroup;
+	Bool m_buildQueueBar;
 	Int m_actionLineMode;						///< holds an ActionLineMode
 	Bool m_doubleClickAttackMove;
 	Bool m_facingDrag;

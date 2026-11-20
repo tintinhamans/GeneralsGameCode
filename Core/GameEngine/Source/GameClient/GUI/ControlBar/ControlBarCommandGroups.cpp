@@ -72,7 +72,7 @@ static Int commandGroupPlateHeight( Int buttonHeight )
 /** Fill the slot's image with the centred part of the source picture that has the button's
 	* aspect ratio, since the button stretches its image over the whole window. */
 //-------------------------------------------------------------------------------------------------
-static const Image *cropCameoImage( Image *&slot, const Image *source, const ICoord2D &buttonSize )
+const Image *ControlBar::cropCameoImage( Image *&slot, const Image *source, const ICoord2D &buttonSize )
 {
 	if( source == nullptr || source->getImageWidth() <= 0 || source->getImageHeight() <= 0 ||
 			buttonSize.x <= 0 || buttonSize.y <= 0 )
@@ -127,6 +127,43 @@ static const Image *cropCameoImage( Image *&slot, const Image *source, const ICo
 }
 
 //-------------------------------------------------------------------------------------------------
+/** Give the buttons' text, which is the count badge, its colour and a larger font. */
+//-------------------------------------------------------------------------------------------------
+void ControlBar::styleCameoCountBadges( GameWindow **buttons, Int count )
+{
+	const Color badgeColor = GameMakeColor( 255, 210, 40, 255 );
+	for( Int i = 0; i < count; i++ )
+	{
+		GameWindow *button = buttons[ i ];
+		if( button )
+		{
+			button->winSetEnabledTextColors( badgeColor, button->winGetEnabledTextBorderColor() );
+			button->winSetHiliteTextColors( badgeColor, button->winGetHiliteTextBorderColor() );
+			button->winSetDisabledTextColors( badgeColor, button->winGetDisabledTextBorderColor() );
+		}
+	}
+
+	GameFont *cameoFont = buttons[ 0 ] ? buttons[ 0 ]->winGetFont() : nullptr;
+	if( cameoFont == nullptr )
+	{
+		return;
+	}
+	const Int countPoint = MAX( cameoFont->pointSize * 3 / 2, cameoFont->pointSize + 2 );
+	GameFont *countFont = TheFontLibrary->getFont( cameoFont->nameString, countPoint, cameoFont->bold );
+	if( countFont == nullptr )
+	{
+		countFont = cameoFont;
+	}
+	for( Int i = 0; i < count; i++ )
+	{
+		if( buttons[ i ] )
+		{
+			buttons[ i ]->winSetFont( countFont );
+		}
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 void ControlBar::initCommandGroupBar( const ICoord2D &commandButtonSize )
 {
@@ -157,35 +194,11 @@ void ControlBar::initCommandGroupBar( const ICoord2D &commandButtonSize )
 		m_commandGroupNumberColor = m_commandGroupButtons[ 0 ]->winGetEnabledTextColor();
 		m_commandGroupNumberDropColor = m_commandGroupButtons[ 0 ]->winGetEnabledTextBorderColor();
 	}
-	const Color badgeColor = GameMakeColor( 255, 210, 40, 255 );
-	for( Int i = 0; i < MAX_COMMAND_GROUP_BUTTONS; i++ )
-	{
-		GameWindow *button = m_commandGroupButtons[ i ];
-		if( button )
-		{
-			button->winSetEnabledTextColors( badgeColor, button->winGetEnabledTextBorderColor() );
-			button->winSetHiliteTextColors( badgeColor, button->winGetHiliteTextBorderColor() );
-			button->winSetDisabledTextColors( badgeColor, button->winGetDisabledTextBorderColor() );
-		}
-	}
-
 	GameFont *cameoFont = m_commandGroupButtons[ 0 ] ? m_commandGroupButtons[ 0 ]->winGetFont() : nullptr;
+	styleCameoCountBadges( m_commandGroupButtons, MAX_COMMAND_GROUP_BUTTONS );
 	if( cameoFont == nullptr )
 	{
 		return;
-	}
-	const Int countPoint = MAX( cameoFont->pointSize * 3 / 2, cameoFont->pointSize + 2 );
-	GameFont *countFont = TheFontLibrary->getFont( cameoFont->nameString, countPoint, cameoFont->bold );
-	if( countFont == nullptr )
-	{
-		countFont = cameoFont;
-	}
-	for( Int i = 0; i < MAX_COMMAND_GROUP_BUTTONS; i++ )
-	{
-		if( m_commandGroupButtons[ i ] )
-		{
-			m_commandGroupButtons[ i ]->winSetFont( countFont );
-		}
 	}
 
 	const Int plate = commandGroupPlateHeight( m_commandGroupButtonSize.y );

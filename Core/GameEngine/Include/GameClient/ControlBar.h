@@ -494,6 +494,7 @@ enum { MAX_BUILD_QUEUE_BUTTONS = 9 };// physical button count for the build queu
 enum { MAX_SPECIAL_POWER_SHORTCUTS = 32};
 enum { MAX_SMART_SELECTION_BUTTONS = 16 };	///< TheSuperHackers @feature per type cameos above the command bar
 enum { MAX_COMMAND_GROUP_BUTTONS = 10 };		///< TheSuperHackers @feature one cameo per hotkey squad, in a box at the screen's top left corner
+enum { MAX_BUILD_QUEUE_BAR_BUTTONS = 10 };	///< TheSuperHackers @feature one cameo per queued unit type or upgrade, in a box above the radar
 enum { CAMEO_SCALE_PERCENT = 60 };								///< cameo size as a share of a command button
 enum { COMMAND_GROUP_CAMEO_SCALE_PERCENT = 46 };	///< command group cameo width and box cell size as a share of a command button
 enum { COMMAND_GROUP_FRAME_PERCENT = 50 };				///< the command group box's frame thickness as a share of the housing's
@@ -797,6 +798,10 @@ public:
 	void drawCommandGroupBar();
 	/// screen y just below the command group box, 0 while it is hidden
 	Int getCommandGroupBarBottom() const;
+	/// a cameo in the build queue bar selects an object that has it queued
+	void processBuildQueueClick( GameWindow *button );
+	/// the build queue box draws its frame
+	void drawBuildQueueBar();
 	/// the bar draws the smart selection row's housing in two passes, around its own art, for the money tab
 	void drawCameoRowHousing( Bool overBar );
 
@@ -994,7 +999,9 @@ protected:
 
 	// the following methods are for the smart selection row and the command group box
 	GameWindow *createCameoRow( GameWinSystemFunc systemFunc, Int slotCount, Bool rightClick, const ICoord2D &buttonSize, GameWindow **buttons );
+	void styleCameoCountBadges( GameWindow **buttons, Int count );
 	static const Image *getCameoImage( const ThingTemplate *thingTemplate );
+	static const Image *cropCameoImage( Image *&slot, const Image *source, const ICoord2D &buttonSize );
 	Int getCameoRowWidth( Int cameoCount ) const;
 	/// where the cameo rows sit, in screen pixels
 	struct CameoRowLayout
@@ -1030,6 +1037,13 @@ protected:
 	void layoutCommandGroupBar();
 	void refreshCommandGroupButtons();
 	Bool isCommandGroupRowShown() const;
+
+	void initBuildQueueBar();
+	void destroyBuildQueueBar();
+	void resetBuildQueueBar();
+	void updateBuildQueueBar();
+	void layoutBuildQueueBar();
+	void refreshBuildQueueButtons();
 
 	static const Image* calculateVeterancyOverlayForLevel( VeterancyLevel level );
 	static const Image* calculateVeterancyOverlayForThing( const ThingTemplate *thingTemplate );
@@ -1145,6 +1159,22 @@ protected:
 	Image *m_commandGroupImages[ MAX_COMMAND_GROUP_BUTTONS ];					///< each cameo's picture cropped to the button's shape
 	Color m_commandGroupNumberColor;													///< the buttons' text colour from before the badge colour replaced it
 	Color m_commandGroupNumberDropColor;
+
+	struct BuildQueueEntry
+	{
+		const ThingTemplate *thingTemplate;			///< the queued unit, or null for an upgrade
+		const UpgradeTemplate *upgradeTemplate;	///< the queued upgrade, or null for a unit
+		Int count;															///< queue entries of this kind across all producers
+		Bool building;													///< some producer has it at the head of its queue
+		Int percent;														///< progress of the head entry furthest along
+		std::vector<ObjectID> producers;				///< the objects that have it queued
+	};
+	std::vector<BuildQueueEntry> m_buildQueueEntries;
+	UnsignedInt m_buildQueueFrame;														///< logic frame the entries were built on
+	GameWindow *m_buildQueueParent;														///< top level container for the box, created in code
+	GameWindow *m_buildQueueButtons[ MAX_BUILD_QUEUE_BAR_BUTTONS ];
+	Image *m_buildQueueImages[ MAX_BUILD_QUEUE_BAR_BUTTONS ];				///< each cameo's picture cropped to the button's shape
+	GameWindow *m_buildQueueRadarWindow;											///< the radar's input block, which the bar sits on top of
 
 	GameWindow *m_commandWindows[ MAX_COMMANDS_PER_SET ];			///< command window controls for easy access
 	Int m_gridRow[ MAX_COMMANDS_PER_SET ];							///< each command window's row on the bar, for grid hotkeys

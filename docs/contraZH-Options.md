@@ -357,6 +357,18 @@ when they are at the top left, and in-game messages start under the box.
 group of its own, in selection order: 1 to 9, then 0. A group that takes a new object loses its old
 members, and objects past the tenth are left alone.
 
+### Build queue bar
+
+A box above the radar with one cameo per unit type or upgrade you have queued, across all your
+buildings and units. A type queued more than once shows its count, and the cameo of anything being
+built shows the build clock. Up to 10 cameos. Hidden while nothing is queued.
+
+* `BuildQueueBar = Yes` - (No hides the box. It does not depend on `SmartSelection`.)
+
+* Left click selects a building that has the cameo queued. Further clicks step through the others.
+* The box sits above `ControlBarProBlockInputRadar` in `ControlBar.wnd`, or at the bottom left above
+the command bar when the layout has no such window.
+
 ## Action lines
 
 A faint line from each selected unit to where its order sends it, fading in from the unit and
