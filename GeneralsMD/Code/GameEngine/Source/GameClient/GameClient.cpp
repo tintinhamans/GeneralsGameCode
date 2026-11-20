@@ -766,7 +766,7 @@ void GameClient::update()
 #if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
 	// Particles step on the legacy frame, which follows the logic frame and not the wall clock.
 	m_frameLegacyLast = m_frameLegacy;
-	if (!freezeTime && TheGameLogic->hasUpdated() && TheGameLogic->HasLegacyFrameAdvanced())
+	if (!freezeTime && TheGameLogic->hasUpdated() && TheGameLogic->getFrame() % GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER == 0)
 	{
 		m_frameLegacy++;
 	}
