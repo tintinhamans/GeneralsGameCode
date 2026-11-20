@@ -304,17 +304,7 @@ void ControlBar::drawBuildQueueBar()
 		return;
 	}
 
-	ICoord2D inset;
-	if( getCameoFrameInset( &inset, COMMAND_GROUP_FRAME_PERCENT ) )
-	{
-		IRegion2D rect;
-		ICoord2D size;
-		m_buildQueueParent->winGetScreenPosition( &rect.lo.x, &rect.lo.y );
-		m_buildQueueParent->winGetSize( &size.x, &size.y );
-		rect.hi.x = rect.lo.x + size.x;
-		rect.hi.y = rect.lo.y + size.y;
-		drawCameoFrame( rect, COMMAND_GROUP_FRAME_PERCENT );
-	}
+	drawCameoBoxFrame( m_buildQueueParent );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -395,7 +385,7 @@ void ControlBar::processBuildQueueClick( GameWindow *button )
 	for( size_t n = 0; n < count; ++n )
 	{
 		Object *obj = TheGameLogic->findObjectByID( producers[ ( start + n ) % count ] );
-		if( obj != nullptr && obj->getDrawable() != nullptr )
+		if( obj != nullptr && obj->getDrawable() != nullptr && obj->isSelectable() )
 		{
 			TheInGameUI->deselectAllDrawables();
 			GameMessage *teamMsg = TheMessageStream->appendMessage( GameMessage::MSG_CREATE_SELECTED_GROUP );

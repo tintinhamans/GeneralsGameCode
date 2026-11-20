@@ -1019,6 +1019,7 @@ protected:
 	/// how far the Pro frame's edge, drawn at framePercent of its thickness, and padding reach in from a housing's sides, or FALSE and zero without that art
 	Bool getCameoFrameInset( ICoord2D *inset, Int framePercent ) const;
 	void drawCameoFrame( const IRegion2D &rect, Int framePercent );
+	void drawCameoBoxFrame( GameWindow *box );
 	UnsignedInt getCameoRowStatus() const;
 	void updateCameoRowBlocker();
 	void initSmartSelectionBar( const ICoord2D &commandButtonSize );

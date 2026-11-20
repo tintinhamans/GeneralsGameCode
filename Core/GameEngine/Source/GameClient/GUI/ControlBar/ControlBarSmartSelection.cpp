@@ -451,6 +451,24 @@ void ControlBar::drawCameoFrame( const IRegion2D &rect, Int framePercent )
 }
 
 //-------------------------------------------------------------------------------------------------
+/** The command group box's frame around the window, when the scheme has the frame art. */
+//-------------------------------------------------------------------------------------------------
+void ControlBar::drawCameoBoxFrame( GameWindow *box )
+{
+	ICoord2D inset;
+	if( getCameoFrameInset( &inset, COMMAND_GROUP_FRAME_PERCENT ) )
+	{
+		IRegion2D rect;
+		ICoord2D size;
+		box->winGetScreenPosition( &rect.lo.x, &rect.lo.y );
+		box->winGetSize( &size.x, &size.y );
+		rect.hi.x = rect.lo.x + size.x;
+		rect.hi.y = rect.lo.y + size.y;
+		drawCameoFrame( rect, COMMAND_GROUP_FRAME_PERCENT );
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
 /** An open housing runs from above the top row down to the bar's top stone line. Before the bar's
 	* art it draws the part above the bar's top edge, so the money tab covers it; over the bar it draws
 	* the band that hides the bar's dark top bevel, around the tab. A closed housing draws whole

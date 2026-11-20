@@ -389,17 +389,7 @@ void ControlBar::drawCommandGroupBar()
 		return;
 	}
 
-	ICoord2D inset;
-	if( getCameoFrameInset( &inset, COMMAND_GROUP_FRAME_PERCENT ) )
-	{
-		IRegion2D rect;
-		ICoord2D size;
-		m_commandGroupParent->winGetScreenPosition( &rect.lo.x, &rect.lo.y );
-		m_commandGroupParent->winGetSize( &size.x, &size.y );
-		rect.hi.x = rect.lo.x + size.x;
-		rect.hi.y = rect.lo.y + size.y;
-		drawCameoFrame( rect, COMMAND_GROUP_FRAME_PERCENT );
-	}
+	drawCameoBoxFrame( m_commandGroupParent );
 
 	const Int plate = commandGroupPlateHeight( m_commandGroupButtonSize.y );
 	const size_t entryCount = m_commandGroupEntries.size();

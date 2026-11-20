@@ -711,6 +711,7 @@ GlobalData::GlobalData()
 	m_smartSelection = TRUE;
 	m_smartSelectionUseMouse = TRUE;
 	m_smartCommandGroup = TRUE;
+	m_buildQueueBar = TRUE;
 	m_radarBlipSize = RadarBlipSize_Default;
 
 #if defined(RTS_DEBUG) || ENABLE_CONFIGURABLE_SHROUD
@@ -1368,6 +1369,7 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_smartSelection = optionPref.getSmartSelectionEnabled();
 	TheWritableGlobalData->m_smartSelectionUseMouse = optionPref.getSmartSelectionUseMouse();
 	TheWritableGlobalData->m_smartCommandGroup = optionPref.getSmartCommandGroupEnabled();
+	TheWritableGlobalData->m_buildQueueBar = optionPref.getBuildQueueBarEnabled();
 	TheWritableGlobalData->m_radarBlipSize = optionPref.getRadarBlipSize();
 	TheWritableGlobalData->m_useRightMouseScrollWithAlternateMouse = optionPref.getRightMouseScrollWithAlternateMouseEnabled();
 	TheWritableGlobalData->m_clientRetaliationModeEnabled = optionPref.getRetaliationModeEnabled();
