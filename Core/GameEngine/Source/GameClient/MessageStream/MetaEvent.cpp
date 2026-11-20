@@ -179,6 +179,22 @@ static const LookupListRec GameMessageMetaTypeNames[] =
 #if RTS_ZEROHOUR
 	{ "BEGIN_FACING_DRAG", GameMessage::MSG_META_BEGIN_FACING_DRAG },
 	{ "END_FACING_DRAG", GameMessage::MSG_META_END_FACING_DRAG },
+	{ "SPECIAL_POWER_1", GameMessage::MSG_META_SPECIAL_POWER_1 },
+	{ "SPECIAL_POWER_2", GameMessage::MSG_META_SPECIAL_POWER_2 },
+	{ "SPECIAL_POWER_3", GameMessage::MSG_META_SPECIAL_POWER_3 },
+	{ "SPECIAL_POWER_4", GameMessage::MSG_META_SPECIAL_POWER_4 },
+	{ "SPECIAL_POWER_5", GameMessage::MSG_META_SPECIAL_POWER_5 },
+	{ "SPECIAL_POWER_6", GameMessage::MSG_META_SPECIAL_POWER_6 },
+	{ "SPECIAL_POWER_7", GameMessage::MSG_META_SPECIAL_POWER_7 },
+	{ "SPECIAL_POWER_8", GameMessage::MSG_META_SPECIAL_POWER_8 },
+	{ "SPECIAL_POWER_9", GameMessage::MSG_META_SPECIAL_POWER_9 },
+	{ "SPECIAL_POWER_10", GameMessage::MSG_META_SPECIAL_POWER_10 },
+	{ "SPECIAL_POWER_11", GameMessage::MSG_META_SPECIAL_POWER_11 },
+	{ "SPECIAL_POWER_12", GameMessage::MSG_META_SPECIAL_POWER_12 },
+	{ "SPECIAL_POWER_13", GameMessage::MSG_META_SPECIAL_POWER_13 },
+	{ "SPECIAL_POWER_14", GameMessage::MSG_META_SPECIAL_POWER_14 },
+	{ "SPECIAL_POWER_15", GameMessage::MSG_META_SPECIAL_POWER_15 },
+	{ "SPECIAL_POWER_16", GameMessage::MSG_META_SPECIAL_POWER_16 },
 #endif
 #if defined(GENERALS_ONLINE)
 	{ "TOGGLE_NETWORK_STATS",											GameMessage::MSG_META_TOGGLE_NETWORK_STATS },
@@ -1574,6 +1590,42 @@ void MetaMap::generateMetaMap()
 				map->m_usableIn = COMMANDUSABLE_GAME;
 				map->m_category = CATEGORY_CONTROL;
 				map->m_transition = i == 0 ? DOWN : UP;
+			}
+		}
+	}
+	{
+		// Powers 1 to 11 take the bare F1 to F11, and a command found on one moves to Shift plus that key.
+		const MappableKeyType powerKeys[] = { MK_F1, MK_F2, MK_F3, MK_F4, MK_F5, MK_F6, MK_F7, MK_F8, MK_F9, MK_F10, MK_F11 };
+		for (Int i = 0; GameMessage::MSG_META_SPECIAL_POWER_1 + i <= GameMessage::MSG_META_SPECIAL_POWER_16; ++i)
+		{
+			const GameMessage::Type meta = (GameMessage::Type)(GameMessage::MSG_META_SPECIAL_POWER_1 + i);
+			const MetaMapRec *existing = getFirstMetaMapRec();
+			while (existing && existing->m_meta != meta)
+			{
+				existing = existing->m_next;
+			}
+			if (existing)
+			{
+				continue;
+			}
+			if (i < ARRAY_SIZE(powerKeys))
+			{
+				for (MetaMapRec *rec = m_metaMaps; rec; rec = rec->m_next)
+				{
+					if (rec->m_key == powerKeys[i] && rec->m_modState == NONE && (rec->m_usableIn & COMMANDUSABLE_GAME))
+					{
+						rec->m_modState = SHIFT;
+					}
+				}
+			}
+			MetaMapRec *map = getMetaMapRec(meta);
+			map->m_category = CATEGORY_CONTROL;
+			map->m_transition = DOWN;
+			if (i < ARRAY_SIZE(powerKeys))
+			{
+				map->m_key = powerKeys[i];
+				map->m_modState = NONE;
+				map->m_usableIn = COMMANDUSABLE_GAME;
 			}
 		}
 	}

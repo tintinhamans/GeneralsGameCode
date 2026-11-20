@@ -817,6 +817,12 @@ public:
 	/// find existing command set
 	const CommandSet *findCommandSet( const AsciiString& name );
 
+#if RTS_ZEROHOUR
+	const CommandSet *findPowerHotkeySet( const PlayerTemplate *side, Player *player );	///< the army's Powers Menu card, read off a live player's holder object when one is given
+	const CommandButton *getPowerHotkeyButton( const CommandSet *set, Int number, Int *slot = nullptr ) const;	///< power 1 and up in slot order, null past the last
+	void firePowerHotkey( Int number );	///< what a SPECIAL_POWER key does
+#endif
+
 	void showPurchaseScience();
 	void refreshPurchaseScience();	///< repopulate the panel only while it is showing
 	void hidePurchaseScience();
@@ -1052,7 +1058,7 @@ protected:
 	static const Image* calculateVeterancyOverlayForObject( const Object *obj );
 
 	// the following methods do command processing for GUI selections
-	CBCommandStatus processCommandUI( GameWindow *control, GadgetGameMessage gadgetMessage );
+	CBCommandStatus processCommandUI( GameWindow *control, GadgetGameMessage gadgetMessage, const CommandButton *windowless = nullptr );
 	CBCommandStatus processCommandTransitionUI( GameWindow *control, GadgetGameMessage gadgetMessage );
 
 	// methods to help out with each context

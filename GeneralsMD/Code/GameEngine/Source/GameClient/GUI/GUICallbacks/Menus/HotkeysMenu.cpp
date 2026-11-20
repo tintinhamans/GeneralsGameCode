@@ -60,7 +60,8 @@ enum
 	SIDE_COUNT = 3,
 	CARD_SLOTS = 18,
 	ICON_POOL = 200,	///< object icons the layout holds for the middle grid
-	SECTION_COUNT = 3
+	SECTION_COUNT = 4,
+	POWER_KEYS = GameMessage::MSG_META_SPECIAL_POWER_16 - GameMessage::MSG_META_SPECIAL_POWER_1 + 1
 };
 
 enum View
@@ -72,6 +73,7 @@ enum View
 
 enum Section
 {
+	SECTION_POWERS,
 	SECTION_HEROES,
 	SECTION_BUILDINGS,
 	SECTION_UNITS
@@ -98,6 +100,7 @@ struct BarObject
 	Int section;
 	const Image *image;
 	const CommandButton *slots[ CARD_SLOTS ];
+	Bool powers;	///< the army's Powers Menu card, whose slots take the SPECIAL_POWER keys
 };
 
 struct BarGeneral
@@ -143,6 +146,8 @@ const BuiltInText BUILT_IN_TEXT[] =
 	{ "TOOLTIP:HotkeysGeneral", L"Commands that need no unit: selection, control groups, camera, chat." },
 	{ "GUI:HotkeysConflicts", L"KEY CONFLICTS" },
 	{ "TOOLTIP:HotkeysConflicts", L"Every key that two buttons on one card, or two commands, share." },
+	{ "GUI:HotkeysPowers", L"SPECIAL POWERS" },
+	{ "GUI:HotkeysPowersCard", L"Special powers" },
 	{ "GUI:HotkeysHeroes", L"HEROES" },
 	{ "GUI:HotkeysBuildings", L"BUILDINGS" },
 	{ "GUI:HotkeysUnits", L"UNITS" },
@@ -168,6 +173,7 @@ const BuiltInText BUILT_IN_TEXT[] =
 	{ "GUI:HotkeysAlsoOn", L"Same key as %s." },
 	{ "GUI:HotkeysGameKey", L"The game's own key is %s." },
 	{ "GUI:HotkeysButtonEverywhere", L"A letter holds on every bar that has the button." },
+	{ "GUI:HotkeysPowerEverywhere", L"This is %s. Every army fires its own power on that key." },
 	{ "GUI:HotkeysGridKeys", L"Grid hotkeys are on, so buttons take the key of their place." },
 	{ "GUI:HotkeysGridUnitOrders", L"Grid hotkeys are on, so most buttons take the key of their place. Unit orders use these letters." },
 	{ "GUI:HotkeysPick", L"Pick a command or a button, then double-click it or press Change." },
@@ -234,6 +240,7 @@ const BuiltInText BUILT_IN_TEXT[] =
 	{ "GUI:HotkeysCommandCYCLE_HEALTH_BAR_MODE", L"Cycle health bars" },
 	{ "GUI:HotkeysCommandCYCLE_HOUSE_COLOR_MODE", L"Cycle house colors" },
 	{ "GUI:HotkeysCommandTAKE_SCREENSHOT_PNG", L"Screenshot as PNG" },
+	{ "GUI:HotkeysCommandSPECIAL_POWER", L"Special power %d" },
 #if defined(GENERALS_ONLINE)
 	{ "GUI:HotkeysCategoryGO", L"GO" },
 	{ "GUI:HotkeysTabGO", L"GO" },
@@ -496,6 +503,12 @@ UnicodeString commandName( const MetaMapRec *rec, const char *id )
 	if( rec && !rec->m_displayName.isEmpty() && wcsncmp( rec->m_displayName.str(), MISSING, 8 ) != 0 )
 	{
 		return rec->m_displayName;
+	}
+	if( strncmp( id, "SPECIAL_POWER_", 14 ) == 0 )
+	{
+		UnicodeString power;
+		power.format( HotkeysMenuText( "GUI:HotkeysCommandSPECIAL_POWER" ), atoi( id + 14 ) );
+		return power;
 	}
 	AsciiString label;
 	label.format( "GUI:HotkeysCommand%s", id );
@@ -854,6 +867,7 @@ BarGeneral findGeneral( const PlayerTemplate *side, const AsciiString& path, con
 			findPaths( set, *swaps, paths );
 		}
 		BarObject object;
+		object.powers = FALSE;
 		Bool any = FALSE;
 		for( Int slot = 0; slot < CARD_SLOTS; ++slot )
 		{
@@ -920,6 +934,42 @@ BarGeneral findGeneral( const PlayerTemplate *side, const AsciiString& path, con
 	return general;
 }
 
+/// The army's Powers Menu card, first in the general's list, when the army has one.
+void addPowers( const PlayerTemplate *side, BarGeneral& general )
+{
+	const CommandSet *set = TheControlBar->findPowerHotkeySet( side, nullptr );
+	BarObject object;
+	object.powers = TRUE;
+	object.section = SECTION_POWERS;
+	object.name = HotkeysMenuText( "GUI:HotkeysPowersCard" );
+	object.image = nullptr;
+	for( Int slot = 0; slot < CARD_SLOTS; ++slot )
+	{
+		object.slots[ slot ] = nullptr;
+	}
+	for( Int number = 1; number <= POWER_KEYS; ++number )
+	{
+		Int slot = 0;
+		const CommandButton *button = TheControlBar->getPowerHotkeyButton( set, number, &slot );
+		if( button == nullptr )
+		{
+			break;
+		}
+		if( slot < CARD_SLOTS )
+		{
+			object.slots[ slot ] = button;
+			if( object.image == nullptr )
+			{
+				object.image = button->getButtonImage();
+			}
+		}
+	}
+	if( object.image )
+	{
+		general.objects.insert( general.objects.begin(), object );
+	}
+}
+
 void addGeneral( Int which, const PlayerTemplate *side, BarGeneral& general )
 {
 	if( general.objects.empty() )
@@ -965,6 +1015,7 @@ void findBars()
 		BarGeneral general = findGeneral( side, AsciiString::TheEmptyString, nullptr, nullptr, &swaps, &paths );
 		if( paths.empty() )
 		{
+			addPowers( side, general );
 			addGeneral( which, side, general );
 			continue;
 		}
@@ -995,6 +1046,7 @@ void findBars()
 			BarGeneral onPath = findGeneral( side, paths[p].upgrade, &exclude, nullptr, nullptr, nullptr );
 			onPath.name.concat( L": " );
 			onPath.name.concat( paths[p].label );
+			addPowers( side, onPath );
 			addGeneral( which, side, onPath );
 		}
 	}
@@ -1022,12 +1074,67 @@ const BarObject *selectedObject()
 	return &s_sides[ s_side ][ general ].objects[ s_object ];
 }
 
+Int rowOf( GameMessage::Type meta )
+{
+	for( size_t i = 0; i < s_rows.size(); ++i )
+	{
+		if( s_rows[i].meta == meta )
+		{
+			return (Int)i;
+		}
+	}
+	return -1;
+}
+
+/// The command row of a powers card slot's SPECIAL_POWER key, -1 for any other slot.
+Int powerRow( const BarObject *object, Int slot )
+{
+	if( !( object && object->powers && slot >= 0 && slot < CARD_SLOTS && object->slots[ slot ] ) )
+	{
+		return -1;
+	}
+	Int number = 0;
+	for( Int i = 0; i <= slot; ++i )
+	{
+		if( object->slots[i] )
+		{
+			++number;
+		}
+	}
+	return rowOf( (GameMessage::Type)( GameMessage::MSG_META_SPECIAL_POWER_1 + number - 1 ) );
+}
+
+/// The corner character of a command's chord: a bare letter, digit, mouse or function key, '*' for the rest.
+Char chordCorner( const Binding& binding )
+{
+	if( !isBound( binding ) )
+	{
+		return 0;
+	}
+	if( binding.modState == NONE )
+	{
+		const Char function = HotKeyManager::functionKeyCorner( binding.key );
+		if( function != 0 )
+		{
+			return function;
+		}
+		const char *name = lookupName( KeyNames, binding.key );
+		const Char corner = name ? HotKeyManager::cornerOf( AsciiString( name + 4 ) ) : 0;
+		if( corner != 0 )
+		{
+			return corner;
+		}
+	}
+	return '*';
+}
+
 /// Letters two or more buttons of a card share, each with those buttons' names.
 std::map<AsciiString, UnicodeString> cardClashes( const BarObject *object )
 {
 	std::map<AsciiString, std::vector<UnicodeString> > byLetter;
 	std::map<AsciiString, UnicodeString> clashes;
-	if( object == nullptr )
+	// a powers card's keys are commands, whose clashes sameChord reports
+	if( object == nullptr || object->powers )
 	{
 		return clashes;
 	}
@@ -1267,9 +1374,9 @@ void fillCard()
 			continue;
 		}
 		const AsciiString letter = buttonLetter( button );
-		const Bool waiting = s_capture == CAPTURE_BUTTON && slot == s_slot;
+		const Bool waiting = s_capture != CAPTURE_NONE && slot == s_slot;
+		const Int power = powerRow( object, slot );
 		setButtonImage( s_card[ slot ], button->getButtonImage() );
-		GadgetButtonSetCornerLetter( s_card[ slot ], waiting ? '?' : HotKeyManager::cornerOf( letter ) );
 		Color border = GAME_COLOR_UNDEFINED;
 		if( slot == s_slot )
 		{
@@ -1278,22 +1385,46 @@ void fillCard()
 			cardRect( slot, &left, &top );
 			showRing( s_slotRing, left, top, CARD_CELL_WIDTH, CARD_CELL_HEIGHT, waiting ? WAITING_COLOR : SELECTED_COLOR );
 		}
-		if( clashes.count( letter ) )
+		UnicodeString tip = buttonName( button );
+		if( power >= 0 )
 		{
-			border = CLASH_COLOR;
+			const CommandRow& row = s_rows[ power ];
+			const Binding binding = bindingOf( row.meta );
+			GadgetButtonSetCornerLetter( s_card[ slot ], waiting ? '?' : chordCorner( binding ) );
+			if( !sameChord( row ).isEmpty() )
+			{
+				border = CLASH_COLOR;
+			}
+			else if( isChanged( row ) )
+			{
+				border = CHANGED_COLOR;
+			}
+			if( isBound( binding ) )
+			{
+				tip.concat( L" (" );
+				tip.concat( chordText( binding ) );
+				tip.concat( L')' );
+			}
 		}
-		else if( s_buttons.count( lowerName( button ) ) )
+		else
 		{
-			border = CHANGED_COLOR;
+			GadgetButtonSetCornerLetter( s_card[ slot ], waiting ? '?' : HotKeyManager::cornerOf( letter ) );
+			if( clashes.count( letter ) )
+			{
+				border = CLASH_COLOR;
+			}
+			else if( s_buttons.count( lowerName( button ) ) )
+			{
+				border = CHANGED_COLOR;
+			}
+			if( letter.isNotEmpty() )
+			{
+				tip.concat( L" (" );
+				tip.concat( keyText( letter ) );
+				tip.concat( L')' );
+			}
 		}
 		setBorder( s_card[ slot ], border );
-		UnicodeString tip = buttonName( button );
-		if( letter.isNotEmpty() )
-		{
-			tip.concat( L" (" );
-			tip.concat( keyText( letter ) );
-			tip.concat( L')' );
-		}
 		s_card[ slot ]->winSetTooltip( tip );
 	}
 }
@@ -1534,7 +1665,36 @@ void updateInfo()
 	{
 		const BarObject *object = selectedObject();
 		const CommandButton *button = ( object && s_slot >= 0 ) ? object->slots[ s_slot ] : nullptr;
-		if( button )
+		const Int power = powerRow( object, s_slot );
+		if( power >= 0 )
+		{
+			const CommandRow& row = s_rows[ power ];
+			canChange = TRUE;
+			appendLine( text, buttonName( button ) );
+			if( s_capture != CAPTURE_NONE )
+			{
+				appendLine( text, HotkeysMenuText( "GUI:HotkeysPressKey" ) );
+			}
+			else
+			{
+				line.format( HotkeysMenuText( "GUI:HotkeysKeyIs" ), chordText( bindingOf( row.meta ) ).str() );
+				appendLine( text, line );
+				const UnicodeString others = sameChord( row );
+				if( !others.isEmpty() )
+				{
+					line.format( HotkeysMenuText( "GUI:HotkeysAlsoOn" ), others.str() );
+					appendLine( text, line );
+				}
+				if( isChanged( row ) )
+				{
+					line.format( HotkeysMenuText( "GUI:HotkeysGameKey" ), chordText( defaultOf( row.meta ) ).str() );
+					appendLine( text, line );
+				}
+				line.format( HotkeysMenuText( "GUI:HotkeysPowerEverywhere" ), row.name.str() );
+				appendLine( text, line );
+			}
+		}
+		else if( button )
 		{
 			canChange = TRUE;
 			appendLine( text, buttonName( button ) );
@@ -1568,7 +1728,15 @@ void updateInfo()
 		{
 			for( Int slot = 0; slot < CARD_SLOTS && !canReset; ++slot )
 			{
-				canReset = object->slots[ slot ] && s_buttons.count( lowerName( object->slots[ slot ] ) );
+				const Int slotPower = powerRow( object, slot );
+				if( slotPower >= 0 )
+				{
+					canReset = isChanged( s_rows[ slotPower ] );
+				}
+				else
+				{
+					canReset = object->slots[ slot ] && s_buttons.count( lowerName( object->slots[ slot ] ) );
+				}
 			}
 		}
 		if( s_capture == CAPTURE_NONE )
@@ -1579,7 +1747,7 @@ void updateInfo()
 				line.format( HotkeysMenuText( "GUI:HotkeysClash" ), keyText( it->first ).str(), it->second.str() );
 				appendLine( text, line );
 			}
-			if( TheGlobalData->m_gridHotkeysEnabled )
+			if( TheGlobalData->m_gridHotkeysEnabled && !( object && object->powers ) )
 			{
 				appendLine( text, HotkeysMenuText( TheGlobalData->m_gridHotkeyUnitOrders ? "GUI:HotkeysGridUnitOrders" : "GUI:HotkeysGridKeys" ) );
 			}
@@ -1703,6 +1871,11 @@ void startCapture()
 	{
 		s_capture = CAPTURE_COMMAND;
 	}
+	else if( s_view == VIEW_SIDE && powerRow( selectedObject(), s_slot ) >= 0 )
+	{
+		s_commandRow = powerRow( selectedObject(), s_slot );
+		s_capture = CAPTURE_COMMAND;
+	}
 	else if( s_view == VIEW_SIDE && selectedObject() && s_slot >= 0 && selectedObject()->slots[ s_slot ] )
 	{
 		s_capture = CAPTURE_BUTTON;
@@ -1773,6 +1946,10 @@ void clearSelected()
 			clearCommand( s_rows[ s_commandRow ].pair );
 		}
 	}
+	else if( s_view == VIEW_SIDE && powerRow( selectedObject(), s_slot ) >= 0 )
+	{
+		clearCommand( s_rows[ powerRow( selectedObject(), s_slot ) ].meta );
+	}
 	else if( s_view == VIEW_SIDE && selectedObject() && s_slot >= 0 && selectedObject()->slots[ s_slot ] )
 	{
 		s_buttons[ lowerName( selectedObject()->slots[ s_slot ] ) ].clear();
@@ -1801,7 +1978,12 @@ void resetSelected()
 	{
 		for( Int slot = 0; slot < CARD_SLOTS; ++slot )
 		{
-			if( selectedObject()->slots[ slot ] )
+			const Int power = powerRow( selectedObject(), slot );
+			if( power >= 0 )
+			{
+				s_keys[ s_rows[ power ].meta ] = defaultOf( s_rows[ power ].meta );
+			}
+			else if( selectedObject()->slots[ slot ] )
 			{
 				s_buttons.erase( lowerName( selectedObject()->slots[ slot ] ) );
 			}
@@ -2355,7 +2537,7 @@ Bool buildScreen()
 		s_cardCells[ slot ] = makeFrame( left, top, left + CARD_CELL_WIDTH, top + CARD_CELL_HEIGHT, GameMakeColor( 0, 0, 0, 220 ), GameMakeColor( 60, 54, 3, 255 ) );
 	}
 
-	static const char *const SECTION_LABELS[ SECTION_COUNT ] = { "GUI:HotkeysHeroes", "GUI:HotkeysBuildings", "GUI:HotkeysUnits" };
+	static const char *const SECTION_LABELS[ SECTION_COUNT ] = { "GUI:HotkeysPowers", "GUI:HotkeysHeroes", "GUI:HotkeysBuildings", "GUI:HotkeysUnits" };
 	for( Int s = 0; s < SECTION_COUNT; ++s )
 	{
 		s_headings[s] = makeLabel( GRID_LEFT, GRID_TOP, GRID_LEFT + GRID_WIDTH, GRID_TOP + 18, SECTION_LABELS[s], arial( 12, TRUE ), FALSE, FALSE );

@@ -467,15 +467,153 @@ CBCommandStatus ControlBar::processCommandTransitionUI( GameWindow *control, Gad
 
 }
 
+#if RTS_ZEROHOUR
+//-------------------------------------------------------------------------------------------------
+static Bool isPowerHotkeyButton( const CommandButton *button )
+{
+	if( button == nullptr )
+	{
+		return FALSE;
+	}
+	if( button->getCommandType() != GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT &&
+			button->getCommandType() != GUI_COMMAND_SPECIAL_POWER_CONSTRUCT_FROM_SHORTCUT )
+	{
+		return FALSE;
+	}
+	return !BitIsSet( button->getOptions(), SCRIPT_ONLY ) && button->getButtonImage() != nullptr &&
+		button->getSpecialPowerTemplate() != nullptr;
+}
+
+//-------------------------------------------------------------------------------------------------
+const CommandButton *ControlBar::getPowerHotkeyButton( const CommandSet *set, Int number, Int *slot ) const
+{
+	if( set == nullptr || number < 1 )
+	{
+		return nullptr;
+	}
+	Int count = 0;
+	for( Int i = 0; i < MAX_COMMANDS_PER_SET; ++i )
+	{
+		const CommandButton *button = set->getCommandButton( i );
+		if( !isPowerHotkeyButton( button ) )
+		{
+			continue;
+		}
+		if( ++count == number )
+		{
+			if( slot )
+			{
+				*slot = i;
+			}
+			return button;
+		}
+	}
+	return nullptr;
+}
+
+//-------------------------------------------------------------------------------------------------
+const CommandSet *ControlBar::findPowerHotkeySet( const PlayerTemplate *side, Player *player )
+{
+	if( side == nullptr )
+	{
+		return nullptr;
+	}
+	const AsciiString barName = side->getCommandSet( PLAYER_COMMANDSET_SHORTCUT, player );
+	if( barName.isEmpty() )
+	{
+		return nullptr;
+	}
+	const CommandSet *bar = findCommandSet( barName );
+	if( bar == nullptr )
+	{
+		return nullptr;
+	}
+	for( Int i = 0; i < MAX_COMMANDS_PER_SET; ++i )
+	{
+		const CommandButton *button = bar->getCommandButton( i );
+		if( button == nullptr || button->getCommandType() != GUI_COMMAND_SELECT_ALL_UNITS_OF_TYPE )
+		{
+			continue;
+		}
+		const ThingTemplate *thing = button->getThingTemplate();
+		if( thing == nullptr )
+		{
+			continue;
+		}
+		Object *holder = player ? player->findAnyExistingObjectWithThingTemplate( thing ) : nullptr;
+		const AsciiString& name = holder ? holder->getCommandSetString() : thing->friend_getCommandSetString();
+		const CommandSet *held = findCommandSet( name );
+		if( getPowerHotkeyButton( held, 1 ) )
+		{
+			return held;
+		}
+	}
+
+	// a mod without a holder object keeps its powers on the shortcut bar itself
+	return getPowerHotkeyButton( bar, 1 ) ? bar : nullptr;
+}
+
+//-------------------------------------------------------------------------------------------------
+void ControlBar::firePowerHotkey( Int number )
+{
+	Player *player = ThePlayerList ? ThePlayerList->getLocalPlayer() : nullptr;
+	if( player == nullptr || !player->isPlayerActive() || player->getPlayerTemplate() == nullptr )
+	{
+		return;
+	}
+	if( TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_PLAYBACK )
+	{
+		return;
+	}
+	const CommandButton *button = getPowerHotkeyButton( findPowerHotkeySet( player->getPlayerTemplate(), player ), number );
+	if( button == nullptr )
+	{
+		return;
+	}
+
+	Bool usable = TRUE;
+	const SpecialPowerTemplate *power = button->getSpecialPowerTemplate();
+	if( BitIsSet( button->getOptions(), NEED_SPECIAL_POWER_SCIENCE ) &&
+			power->getRequiredScience() != SCIENCE_INVALID && !player->hasScience( power->getRequiredScience() ) )
+	{
+		usable = FALSE;
+	}
+	if( usable )
+	{
+		usable = getCommandAvailability( button, nullptr, nullptr ) == COMMAND_AVAILABLE;
+	}
+
+	if( !usable )
+	{
+		AudioEventRTS disabledClick( "GUIClickDisabled" );
+		if( TheAudio )
+		{
+			TheAudio->addAudioEvent( &disabledClick );
+		}
+		return;
+	}
+
+	processCommandUI( nullptr, GBM_SELECTED, button );
+
+	AudioEventRTS buttonClick( "GUIClick" );
+	if( TheAudio )
+	{
+		TheAudio->addAudioEvent( &buttonClick );
+	}
+}
+#endif
+
 //-------------------------------------------------------------------------------------------------
 /** Process a button selected message from the window system that should be for one of
 	* our GUI commands */
 //-------------------------------------------------------------------------------------------------
 CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
-																							GadgetGameMessage gadgetMessage )
+																							GadgetGameMessage gadgetMessage,
+																							const CommandButton *windowless )
 {
 	// get the command pointer from the control user data we put in the button
-	const CommandButton *commandButton = (const CommandButton *)GadgetButtonGetData(control);
+	// a windowless command is one of the shortcut power types, which need no selection and no button
+	const CommandButton *commandButton = control ? (const CommandButton *)GadgetButtonGetData(control) : windowless;
 	if( !commandButton )
 	{
 		DEBUG_CRASH( ("ControlBar::processCommandUI() -- Button activated has no data. Ignoring...") );
@@ -499,11 +637,11 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 	}
 
 	// sanity
-	if( control == nullptr )
+	if( control == nullptr && windowless == nullptr )
 		return CBC_COMMAND_NOT_USED;
 
 	// the context sensitive gui only is only made of buttons ... sanity
-	if( control->winGetInputFunc() != GadgetPushButtonInput )
+	if( control && control->winGetInputFunc() != GadgetPushButtonInput )
 		return CBC_COMMAND_NOT_USED;
 
 
@@ -520,7 +658,7 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 		// commands on the build queue, whose cameo populateBuildQueue stamps afterwards -
 		// must not have its image nulled by the click, or any click that ends without a
 		// repopulate leaves that cameo blank. Same guard setControlCommand uses.
-		if( commandButton->getButtonImage() )
+		if( control && commandButton->getButtonImage() )
 		{
 			GadgetButtonSetEnabledImage( control, commandButton->getButtonImage() );
 		}
