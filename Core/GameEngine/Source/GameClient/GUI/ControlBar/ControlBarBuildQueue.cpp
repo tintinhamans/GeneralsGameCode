@@ -248,13 +248,17 @@ void ControlBar::updateBuildQueueBar()
 	layoutBuildQueueBar();
 	m_buildQueueParent->winHide( FALSE );
 
+	UnsignedByte r, g, b, a;
+	GameGetColorComponents( m_buildUpClockColor, &r, &g, &b, &a );
+	const Color clockColor = GameMakeColor( r, g, b, a * BUILD_QUEUE_CLOCK_ALPHA_PERCENT / 100 );
+
 	// the button drops its clock after each draw, so it is set again every frame
 	const size_t entryCount = m_buildQueueEntries.size();
 	for( Int i = 0; i < MAX_BUILD_QUEUE_BAR_BUTTONS && (size_t)i < entryCount; i++ )
 	{
 		if( m_buildQueueButtons[ i ] && m_buildQueueEntries[ i ].building )
 		{
-			GadgetButtonDrawInverseClock( m_buildQueueButtons[ i ], m_buildQueueEntries[ i ].percent, m_buildUpClockColor );
+			GadgetButtonDrawInverseClock( m_buildQueueButtons[ i ], m_buildQueueEntries[ i ].percent, clockColor );
 		}
 	}
 }

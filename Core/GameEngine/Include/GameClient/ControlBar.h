@@ -498,6 +498,7 @@ enum { MAX_BUILD_QUEUE_BAR_BUTTONS = 10 };	///< TheSuperHackers @feature one cam
 enum { CAMEO_SCALE_PERCENT = 60 };								///< cameo size as a share of a command button
 enum { COMMAND_GROUP_CAMEO_SCALE_PERCENT = 46 };	///< command group cameo width and box cell size as a share of a command button
 enum { COMMAND_GROUP_FRAME_PERCENT = 50 };				///< the command group box's frame thickness as a share of the housing's
+enum { BUILD_QUEUE_CLOCK_ALPHA_PERCENT = 50 };	///< the build queue bar's clock opacity as a share of the command bar's
 enum { COMMAND_GROUP_SCREEN_MARGIN = 4 };				///< pixels between the screen's top left corner and the command group box
 enum { CAMEO_ROW_GAP = 2 };									///< pixels between cameos in a row
 enum { MAX_CAMEO_COUNT_BADGE = 999 };				///< a count past this gets no badge, it would not fit
