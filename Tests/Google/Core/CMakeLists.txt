@@ -6,6 +6,7 @@ set(COREI_GOOGLETEST_SRC
     GameEngine/Common/FileSystemTestFixture.h
     GameEngine/Common/INITest.cpp
     GameEngine/GameClient/DisplayStringDummyTest.cpp
+    GameEngine/GameLogic/PathfindHierarchyTest.cpp
     GameEngine/GameLogic/PathfindTieBreakingTest.cpp
     GameEngine/GameNetwork/GenOnline/GenOnlineSlotValidationTest.cpp
     GameEngine/GameNetwork/NetCommandWrapperListTest.cpp
