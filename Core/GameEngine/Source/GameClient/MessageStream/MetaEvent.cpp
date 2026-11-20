@@ -1594,7 +1594,7 @@ void MetaMap::generateMetaMap()
 		}
 	}
 	{
-		// Powers 1 to 11 take the bare F1 to F11, and a command found on one moves to Shift plus that key.
+		// Powers 1 to 11 take the bare F1 to F11, and a command found on one moves to Shift plus that key. Appended, so a key Hotkeys.ini gives another command stays with it.
 		const MappableKeyType powerKeys[] = { MK_F1, MK_F2, MK_F3, MK_F4, MK_F5, MK_F6, MK_F7, MK_F8, MK_F9, MK_F10, MK_F11 };
 		for (Int i = 0; GameMessage::MSG_META_SPECIAL_POWER_1 + i <= GameMessage::MSG_META_SPECIAL_POWER_16; ++i)
 		{
@@ -1618,7 +1618,7 @@ void MetaMap::generateMetaMap()
 					}
 				}
 			}
-			MetaMapRec *map = getMetaMapRec(meta);
+			MetaMapRec *map = appendMetaMapRec(meta);
 			map->m_category = CATEGORY_CONTROL;
 			map->m_transition = DOWN;
 			if (i < ARRAY_SIZE(powerKeys))

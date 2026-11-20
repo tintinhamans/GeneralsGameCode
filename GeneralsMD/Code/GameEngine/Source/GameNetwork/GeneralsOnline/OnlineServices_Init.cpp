@@ -36,7 +36,7 @@ std::vector<S3ScreenshotEntry> NGMP_OnlineServicesManager::m_vecGuardedSSData;
 
 bool NGMP_OnlineServicesManager::g_bAdvancedNetworkStats;
 
-// GO's F10 overlay: one line per mesh connection, green when the link and the peer's frame rate
+// GO's network stats overlay: one line per mesh connection, green when the link and the peer's frame rate
 // are healthy, red otherwise. contraZH: GO returned out of drawGameTime when the mesh had no
 // connections, which hid the game timer; this only returns from the overlay.
 void NGMP_OnlineServicesManager::DrawAdvancedNetworkStats(DisplayString* str, Color dropColor)

@@ -160,6 +160,10 @@ GameNetworkingSockets ICE P2P transport, lobbies/matchmaking/stats).
   which zi_always defines for every Zero Hour target, so the meta enum agrees across libs.
   The meta translator fires only the first matching record, so the GO records are
   appended (`appendMetaMapRec`) and any other command on the same key keeps it.
+  The special power keys take the bare F1 to F11, so the defaults end up as Shift+F5
+  (buddy overlay), Shift+F10 (network stats) and Shift+F11 (screenshot); Insert is
+  unchanged. The two "Press F5 or INSERT" texts (NGMPGame.cpp, OnlineServices_RoomsInterface.cpp)
+  say Shift+F5 to match, which differs from upstream GO.
   `INI::loadHotKeys` skips a CommandMap block it cannot read instead of the rest of the
   file, because the offline build reads the same Hotkeys.ini and lacks these names.
   The F10 overlay moved from InGameUI.cpp to `NGMP_OnlineServicesManager::DrawAdvancedNetworkStats`
