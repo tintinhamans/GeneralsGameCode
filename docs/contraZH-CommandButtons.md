@@ -185,10 +185,12 @@ construction are left alone.
 
 Off by default; enable with `QueueReorder = Yes` in the `GameData` block of GameData.ini.
 
-* Ctrl+click a queue cameo moves it one place earlier. The displaced entry restarts its build time;
-finished units of a batch stay finished.
+* Right click a queue cameo moves it one place earlier. The displaced entry keeps its build
+progress and resumes when it is first again.
+* Works for units and upgrades, with one production building selected.
 * No effect on the first entry or a finished unit waiting to exit.
-* Plain click still cancels; Shift+click still cancels all of that type.
+* Left click still cancels; Shift+click still cancels all of that type.
+* The Hotkeys screen lists it under Interface as a fixed row, `Move queue entry earlier: Right click`.
 
 ### Auto queue
 

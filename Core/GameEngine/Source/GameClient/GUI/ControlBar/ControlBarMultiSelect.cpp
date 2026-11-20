@@ -410,6 +410,9 @@ void ControlBar::populateMultiSelectBuildQueue(ObjectVector *producerList)
 		//become invisible meaning the image that was there will be showed.
 		m_queueData[i].control->winClearStatus(WIN_STATUS_USE_OVERLAY_STATES);
 
+		// an empty slot takes no right click
+		m_queueData[i].control->winClearStatus(WIN_STATUS_RIGHT_CLICK_ON_PRESS);
+
 		// set the text of the window to nothing by default
 		GadgetButtonSetText(m_queueData[i].control, L"");
 

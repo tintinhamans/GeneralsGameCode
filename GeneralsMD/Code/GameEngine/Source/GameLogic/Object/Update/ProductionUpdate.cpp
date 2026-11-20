@@ -453,9 +453,7 @@ Bool ProductionUpdate::cancelUnitCreate( ProductionID productionID )
 /** Swap the given production entry with the one directly before it, by relinking only.
 	* removeFromProductionQueue and addToProductionQueue are not usable here: removing
 	* unreserves the exit door and re-adding disturbs the count and the constructing model
-	* condition. The displaced entry loses its build progress: only the queue head ever
-	* accumulates frames, so after the swap the former head must start over. Already produced
-	* units of a quantity batch stay produced. */
+	* condition. The displaced entry keeps its build progress and resumes when it is first again. */
 //-------------------------------------------------------------------------------------------------
 void ProductionUpdate::moveProductionEarlier( ProductionEntry *production )
 {
@@ -502,12 +500,6 @@ void ProductionUpdate::moveProductionEarlier( ProductionEntry *production )
 	{
 		m_productionQueueTail = previous;
 	}
-
-	// the displaced entry starts its current work over. The percent is re-derived from
-	// the frame count every update, so the frames are the authoritative reset; percent
-	// is cleared as well so the UI shows zero on this same frame.
-	previous->m_framesUnderConstruction = 0;
-	previous->m_percentComplete = 0.0f;
 
 }
 

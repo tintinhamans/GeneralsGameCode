@@ -991,15 +991,11 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 			// the the production ID to cancel
 			ProductionID productionIDToCancel = m_queueData[ i ].productionID;
 
-			// Ctrl moves the clicked entry one position earlier in the queue instead of
-			// cancelling it. Break unconditionally so a Ctrl click can never fall through
-			// to the cancel below, and never combines with the Shift cancel either. Gated
-			// behind the QueueReorder GameData option; with it off, Ctrl+click cancels
-			// like retail.
+			// A right click moves the entry one place earlier and never cancels.
 			// ShigureUi 13/9/2026 only work when there's no multiselect
-			if( TheGlobalData->m_queueReorder && TheKeyboard && TheKeyboard->isCtrl() && factories.size() == 1)
+			if( gadgetMessage == GBM_SELECTED_RIGHT )
 			{
-				if( i > 0 )
+				if( TheGlobalData->m_queueReorder && factories.size() == 1 && !factories.front()->getObject()->isDisabled() && i > 0 )
 				{
 					GameMessage *moveMsg = TheMessageStream->appendMessage( GameMessage::MSG_MOVE_UNIT_CREATE_EARLIER );
 					moveMsg->appendIntegerArgument( productionIDToCancel );
@@ -1311,15 +1307,11 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 			if (curFactory == nullptr)
 				break;
 
-			// Ctrl moves the clicked entry one position earlier in the queue instead of
-			// cancelling it. Break unconditionally so a Ctrl click can never fall through
-			// to the cancel below. Unlike the cancel above, the move checks local control
-			// here like the unit branch does - the logic side rejects the message anyway,
-			// so sending one for someone else's producer only wastes network traffic.
+			// A right click moves the entry one place earlier and never cancels.
 			// ShigureUi 13/9/2026 only if there is only 1 producer
-			if (TheGlobalData->m_queueReorder && TheKeyboard && TheKeyboard->isCtrl() && factories.size() == 1)
+			if (gadgetMessage == GBM_SELECTED_RIGHT)
 			{
-				if (i > 0 && curFactory->isLocallyControlled())
+				if (TheGlobalData->m_queueReorder && factories.size() == 1 && i > 0 && curFactory->isLocallyControlled() && !curFactory->isDisabled())
 				{
 					GameMessage *moveMsg = TheMessageStream->appendMessage(GameMessage::MSG_MOVE_UPGRADE_EARLIER);
 					moveMsg->appendIntegerArgument(upgradeT->getUpgradeNameKey());

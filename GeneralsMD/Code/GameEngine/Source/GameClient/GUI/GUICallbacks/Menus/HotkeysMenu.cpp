@@ -159,6 +159,8 @@ const BuiltInText BUILT_IN_TEXT[] =
 	{ "TOOLTIP:HotkeyDefault", L"Put back the game's keys for the selected building or unit, or the selected command." },
 	{ "TOOLTIP:HotkeyResetAll", L"Put back the game's own key for every command and button." },
 	{ "GUI:HotkeysNone", L"none" },
+	{ "GUI:HotkeysQueueReorder", L"Move queue entry earlier" },
+	{ "GUI:HotkeysRightClick", L"Right click" },
 	{ "GUI:HotkeysPressKey", L"Press a key, a mouse button or the wheel, with Ctrl, Alt or Shift if you like. Esc cancels." },
 	{ "GUI:HotkeysPressHold", L"Press a key or side mouse button, or press and let go of Ctrl, Alt or Shift alone to hold it. Esc cancels." },
 	{ "GUI:HotkeysPressLetter", L"Press a letter, a side or middle mouse button, or the wheel. Backspace takes the key off, Esc cancels." },
@@ -1363,6 +1365,25 @@ void fillCommands()
 			if( (Int)i == s_commandRow )
 			{
 				selectedRow = at;
+			}
+		}
+		// the queue reorder click is fixed, so its row carries no command to pick
+		if( CATEGORY_ORDER[c] == CATEGORY_INTERFACE && TheGlobalData->m_queueReorder )
+		{
+			const UnicodeString name = HotkeysMenuText( "GUI:HotkeysQueueReorder" );
+			if( matchesFilter( name ) )
+			{
+				if( !headed && s_commandTab == 0 )
+				{
+					AsciiString label;
+					label.format( "GUI:HotkeysCategory%s", lookupName( CategoryListName, CATEGORY_ORDER[c] ) );
+					const Int heading = GadgetListBoxAddEntryText( s_commandList, HotkeysMenuText( label.str() ), HEADING_COLOR, -1, 0 );
+					GadgetListBoxSetItemData( s_commandList, (void *)0, heading, 0 );
+					headed = TRUE;
+				}
+				const Int at = GadgetListBoxAddEntryText( s_commandList, name, QUIET_COLOR, -1, 0 );
+				GadgetListBoxAddEntryText( s_commandList, HotkeysMenuText( "GUI:HotkeysRightClick" ), QUIET_COLOR, at, 1 );
+				GadgetListBoxSetItemData( s_commandList, (void *)0, at, 0 );
 			}
 		}
 	}

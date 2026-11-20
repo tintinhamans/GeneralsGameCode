@@ -746,7 +746,7 @@ public:
 	Bool m_specialPowerUsesDelay ;
 #endif
   Bool m_TiVOFastMode;            ///< When true, the client speeds up the framerate... set by HOTKEY!
-  Bool m_queueReorder;            ///< Ctrl+click moves a build queue entry one position earlier; off unless GameData enables it
+  Bool m_queueReorder;            ///< Right click moves a build queue entry one position earlier; off unless GameData enables it
   Bool m_noOccupantFriendlyFire;  ///< spares the container a passenger is riding in from its own splash; off unless GameData enables it
   Bool m_batchParticles;          ///< draws same-looking particle systems in one batch; off unless GameData enables it
   Bool m_particleAtlas;           ///< packs particle textures into shared premultiplied pages so mixed systems batch together; off unless GameData enables it

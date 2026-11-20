@@ -2765,8 +2765,12 @@ void ControlBar::setControlCommand( GameWindow *button, const CommandButton *com
 	//button->winSetUserData( commandButton );
 
 #if RTS_ZEROHOUR
-	// right click toggles auto queue on a unit cameo
-	if( commandButton->getCommandType() == GUI_COMMAND_UNIT_BUILD && TheGameLogic->isAutoQueue() )
+	// right click toggles auto queue on a unit cameo and moves a queue cameo one place earlier
+	const GUICommandType clickCommandType = commandButton->getCommandType();
+	const Bool autoQueueClick = clickCommandType == GUI_COMMAND_UNIT_BUILD && TheGameLogic->isAutoQueue();
+	const Bool queueReorderClick = TheGlobalData->m_queueReorder &&
+		( clickCommandType == GUI_COMMAND_CANCEL_UNIT_BUILD || clickCommandType == GUI_COMMAND_CANCEL_UPGRADE );
+	if( autoQueueClick || queueReorderClick )
 	{
 		button->winSetStatus( WIN_STATUS_RIGHT_CLICK_ON_PRESS );
 	}
