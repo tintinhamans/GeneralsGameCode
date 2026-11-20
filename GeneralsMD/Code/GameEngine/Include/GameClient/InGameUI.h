@@ -797,6 +797,7 @@ public:  // ********************************************************************
 	virtual void removeIdleWorker( Object *obj, Int playerNumber );
 	virtual void selectNextIdleWorker();
 	static std::vector<Object*> getUniqueIdleWorkers(const ObjectList& idleWorkers);
+	virtual Int getIdleWorkerCount();
 
 	virtual void recreateControlBar();
 	virtual void refreshCustomUiResources();
@@ -848,7 +849,6 @@ public:  // ********************************************************************
 	void toggleReplayControls();
 
 private:
-	virtual Int getIdleWorkerCount();
 	virtual Object *findIdleWorker( Object *obj);
 	virtual void showIdleWorkerLayout();
 	virtual void hideIdleWorkerLayout();
