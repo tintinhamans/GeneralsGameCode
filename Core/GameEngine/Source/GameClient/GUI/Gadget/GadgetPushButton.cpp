@@ -735,7 +735,7 @@ void GadgetButtonDrawAmmoBar( GameWindow *g, Int ammoInClip, Int clipSize )
 /** TheSuperHackers @feature A letter in the top left of the button, where the hotkey overlay
 	* draws. Stays until set to 0. */
 //=============================================================================
-void GadgetButtonSetCornerLetter( GameWindow *g, Char letter )
+void GadgetButtonSetCornerLetter( GameWindow *g, Int letter )
 {
 
 	if( g == nullptr )
@@ -746,7 +746,7 @@ void GadgetButtonSetCornerLetter( GameWindow *g, Char letter )
 	{
 		pData = getNewPushButtonData();
 	}
-	pData->cornerLetter = letter;
+	pData->cornerLetter = (UnsignedShort)letter;
 	g->winSetUserData(pData);
 
 }

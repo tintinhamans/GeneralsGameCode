@@ -1104,8 +1104,8 @@ Int powerRow( const BarObject *object, Int slot )
 	return rowOf( (GameMessage::Type)( GameMessage::MSG_META_SPECIAL_POWER_1 + number - 1 ) );
 }
 
-/// The corner character of a command's chord: a bare letter, digit, mouse or function key, '*' for the rest.
-Char chordCorner( const Binding& binding )
+/// The corner code of a command's chord, 0 for an unbound command.
+Int chordCorner( const Binding& binding )
 {
 	return isBound( binding ) ? HotKeyManager::chordCorner( binding.key, binding.modState ) : 0;
 }

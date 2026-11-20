@@ -489,29 +489,38 @@ Char HotKeyManager::functionKeyCorner( Int key )
 }
 
 //-----------------------------------------------------------------------------
-Char HotKeyManager::chordCorner( Int key, Int modState )
+Int HotKeyManager::chordCorner( Int key, Int modState )
 {
-	if( modState == NONE )
+	Char base = functionKeyCorner( key );
+	if( base == 0 )
 	{
-		const Char function = functionKeyCorner( key );
-		if( function != 0 )
-		{
-			return function;
-		}
 		for( const LookupListRec *rec = KeyNames; rec->name; ++rec )
 		{
 			if( rec->value == key )
 			{
-				const Char corner = cornerOf( AsciiString( rec->name + 4 ) );
-				if( corner != 0 )
-				{
-					return corner;
-				}
+				base = cornerOf( AsciiString( rec->name + 4 ) );
 				break;
 			}
 		}
 	}
-	return '*';
+	if( base == 0 )
+	{
+		return '*';
+	}
+	Int code = (UnsignedByte)base;
+	if( modState & CTRL )
+	{
+		code |= CTRL_CORNER;
+	}
+	if( modState & ALT )
+	{
+		code |= ALT_CORNER;
+	}
+	if( modState & SHIFT )
+	{
+		code |= SHIFT_CORNER;
+	}
+	return code;
 }
 
 //-----------------------------------------------------------------------------

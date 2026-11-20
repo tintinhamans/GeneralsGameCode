@@ -604,7 +604,7 @@ void ControlBar::firePowerHotkey( Int number )
 }
 
 //-------------------------------------------------------------------------------------------------
-Char ControlBar::getPowerHotkeyCorner( const CommandButton *button )
+Int ControlBar::getPowerHotkeyCorner( const CommandButton *button )
 {
 	if( !isPowerHotkeyButton( button ) )
 	{
