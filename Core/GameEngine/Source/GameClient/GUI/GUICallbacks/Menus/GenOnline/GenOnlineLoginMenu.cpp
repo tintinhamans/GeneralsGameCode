@@ -428,9 +428,30 @@ static void showSignInState( ELoginStage stage )
 		status = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInSigningIn", L"Signing in...");
 	GadgetStaticTextSetText(staticTextSignInStatus, status);
 
-	buttonUseAnotherAccount->winHide(stage != ELoginStage::SavedLogin);
 	// GenOnline @bugfix arcticdolphin 09/11/2026 Cancel stays up while the login finishes, so a websocket that never connects is no dead end.
 	buttonSignInCancel->winHide(stage == ELoginStage::Failed);
+}
+
+// GenOnline @bugfix arcticdolphin 17/11/2026 A saved login usually refreshes in a moment and moves on, so Use another account
+// waits this long into the refresh before it shows, so a quick refresh no longer flashes it up and away.
+static const UnsignedInt USE_ANOTHER_ACCOUNT_DELAY_MS = 1000;
+static UnsignedInt shownSignInStageSince = 0;
+
+static void refreshSignInState( ELoginStage stage, Bool force )
+{
+	const UnsignedInt now = timeGetTime();
+	const Bool changed = stage != shownSignInStage;
+	if (changed)
+	{
+		shownSignInStage = stage;
+		shownSignInStageSince = now;
+	}
+	if (force || changed)
+		showSignInState(stage);
+
+	const Bool offerAnotherAccount = stage == ELoginStage::SavedLogin && now - shownSignInStageSince >= USE_ANOTHER_ACCOUNT_DELAY_MS;
+	if (buttonUseAnotherAccount->winIsHidden() == offerAnotherAccount)
+		buttonUseAnotherAccount->winHide(!offerAnotherAccount);
 }
 
 static void updateSignInScreen( Bool force )
@@ -442,12 +463,7 @@ static void updateSignInScreen( Bool force )
 	if (pAuthInterface == nullptr)
 		return;
 
-	const ELoginStage stage = pAuthInterface->GetLoginStage();
-	if (force || stage != shownSignInStage)
-	{
-		shownSignInStage = stage;
-		showSignInState(stage);
-	}
+	refreshSignInState(pAuthInterface->GetLoginStage(), force);
 }
 
 // GenOnline @feature arcticdolphin 09/11/2026 The sign-in screen and the sign-in dialog share these windows, and only one of them is up at a time.
@@ -553,12 +569,7 @@ static void updateSignInDialog( Bool force )
 	if (pAuthInterface == nullptr)
 		return;
 
-	const ELoginStage stage = pAuthInterface->GetLoginStage();
-	if (force || stage != shownSignInStage)
-	{
-		shownSignInStage = stage;
-		showSignInState(stage);
-	}
+	refreshSignInState(pAuthInterface->GetLoginStage(), force);
 }
 
 // The auth keeps this callback after the dialog closes until the next login registers its own, so it only acts while the dialog is up
