@@ -191,7 +191,7 @@ struct QueueBarIdleRecord
 // when each idle unit was first seen idle, and the scan that last saw it
 static std::map<ObjectID, QueueBarIdleRecord> s_queueBarIdleSince;
 // a unit shows once it has been idle this long, so a pause between targets does not count
-static const UnsignedInt QUEUE_BAR_IDLE_GRACE_FRAMES = LOGICFRAMES_PER_SECOND * 6;
+static const UnsignedInt QUEUE_BAR_IDLE_GRACE_FRAMES = LOGICFRAMES_PER_SECOND * 2;
 
 // ------------------------------------------------------------------------------------------------
 static NameKeyType queueBarButtonKey( Int index )

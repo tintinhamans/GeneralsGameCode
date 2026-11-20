@@ -81,7 +81,7 @@ click selects every idle unit of that kind without moving the camera. Support un
 Support only. Dozers, workers, supply gatherers, units off the map and units inside a transport or
 building are left out. An angry mob counts once.
 A unit is idle when its AI has no order and no target, so a parked jet with full ammo counts and one
-that is reloading does not. It shows after 6 seconds of unbroken idling, so a pause between targets
+that is reloading does not. It shows after 2 seconds of unbroken idling, so a pause between targets
 does not count. Hidden for observers and while the control bar is hidden. Also the Idle
 unit tracker checkbox on the Interface tab. Applies on Accept.)
 * `ObjectDecals = Yes` - (No hides ground decals requested with `DisplayDecal`. Independent of shadow
