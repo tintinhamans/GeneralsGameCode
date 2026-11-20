@@ -734,6 +734,19 @@ UnsignedInt W3DTreeBuffer::doLighting(const Vector3 *normal,
 
 }
 
+// Ronin @perf 20/11/2026 DX9: one vertex + index buffer pair - allocateTreeBuffers makes the first, the fill the others
+// as it needs them (64 made up front would hold ~77 MB on every map).
+static void makeTreeBuffers(DX8VertexBufferClass *&vb, DX8IndexBufferClass *&ib, unsigned short verts, unsigned short indices)
+{
+#ifdef USE_STATIC
+	vb = NEW_REF(DX8VertexBufferClass, (DX8_FVF_XYZNDUV1, verts, DX8VertexBufferClass::USAGE_DEFAULT));
+	ib = NEW_REF(DX8IndexBufferClass, (indices, DX8IndexBufferClass::USAGE_DEFAULT));
+#else
+	vb = NEW_REF(DX8VertexBufferClass, (DX8_FVF_XYZNDUV1, verts, DX8VertexBufferClass::USAGE_DYNAMIC));
+	ib = NEW_REF(DX8IndexBufferClass, (indices, DX8IndexBufferClass::USAGE_DYNAMIC));
+#endif
+}
+
 //=============================================================================
 // W3DTreeBuffer::loadTreesInVertexAndIndexBuffers
 //=============================================================================
@@ -771,6 +784,9 @@ void W3DTreeBuffer::loadTreesInVertexAndIndexBuffers(RefRenderObjListIterator *p
 		m_curNumTreeIndices[bNdx] = 0;
 		if (curTree >= m_numTrees) {
 			break;
+		}
+		if (m_vertexTree[bNdx] == nullptr || m_indexTree[bNdx] == nullptr) {	// Ronin @perf 20/11/2026 DX9: made when needed
+			makeTreeBuffers(m_vertexTree[bNdx], m_indexTree[bNdx], MAX_TREE_VERTEX+4, MAX_TREE_INDEX+4);
 		}
 		VertexFormatXYZNDUV1 *vb;
 		UnsignedShort *ib;
@@ -1209,13 +1225,8 @@ void W3DTreeBuffer::allocateTreeBuffers()
 {
 	Int i;
 	for	(i=0; i<MAX_BUFFERS; i++) {
-	#ifdef USE_STATIC
-		m_vertexTree[i]=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZNDUV1,MAX_TREE_VERTEX+4,DX8VertexBufferClass::USAGE_DEFAULT));
-		m_indexTree[i]=NEW_REF(DX8IndexBufferClass,(MAX_TREE_INDEX+4, DX8IndexBufferClass::USAGE_DEFAULT));
-	#else
-		m_vertexTree[i]=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZNDUV1,MAX_TREE_VERTEX+4,DX8VertexBufferClass::USAGE_DYNAMIC));
-		m_indexTree[i]=NEW_REF(DX8IndexBufferClass,(MAX_TREE_INDEX+4, DX8IndexBufferClass::USAGE_DYNAMIC));
-	#endif
+		if (i == 0)	// Ronin @perf 20/11/2026 DX9: the first only; the fill makes the others as it needs them
+			makeTreeBuffers(m_vertexTree[i], m_indexTree[i], MAX_TREE_VERTEX+4, MAX_TREE_INDEX+4);
 		m_curNumTreeVertices[i]=0;
 		m_curNumTreeIndices[i]=0;
 	}

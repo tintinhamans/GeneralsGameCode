@@ -221,14 +221,16 @@ public:
 	void freeTreeBuffers();									 ///< Frees the index and vertex buffers.
 
 private:
+	// Ronin @feature 20/11/2026 DX9: the remade pine is ~2,900 vertices, ~3,100 triangles. A buffer's counts are 16-bit
+	// (DX8IndexBufferClass), so 65,000 indices = 7 pines a buffer; 64 buffers, made as the fill needs them = ~450 in view.
 	enum { MAX_TREE_VERTEX=30000,
-					MAX_TREE_INDEX=60000,
+					MAX_TREE_INDEX=65000,
 					MAX_TREES=4000};
 	enum {MAX_TYPES = 64,
 				MAX_TILES = 512,
 				NUM_SWAY_ENTRIES = 100,
 				MAX_SWAY_TYPES = 10,
-				MAX_BUFFERS = 1,
+				MAX_BUFFERS = 64,
 				SORT_ITERATIONS_PER_FRAME=10};
 	enum {PARTITION_WIDTH_HEIGHT = 100};
 	DX8VertexBufferClass	*m_vertexTree[MAX_BUFFERS];	///<Tree vertex buffer.
