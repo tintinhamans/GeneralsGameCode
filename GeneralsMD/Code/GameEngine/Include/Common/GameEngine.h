@@ -88,6 +88,8 @@ protected:
 	Bool canUpdateGameLogic(UnsignedInt logicTimeQueryFlags);
 	Bool canUpdateNetworkGameLogic();
 	Bool canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags);
+	Bool canUpdateGameLogicFromBacklog();	///< another logic frame already due this drawn frame, without crediting more time
+	Int getCatchUpFrames() const;			///< logic frames per drawn frame at most, 1 outside matches and in replays
 
 	virtual FileSystem *createFileSystem();								///< Factory for FileSystem classes
 	virtual LocalFileSystem *createLocalFileSystem() = 0;	///< Factory for LocalFileSystem classes

@@ -10,6 +10,8 @@
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/GenOnline/GenOnlineLobbyInterface.h"
 
+#include <algorithm>
+
 extern HWND ApplicationHWnd;
 
 static const double BIN_MS = 0.05;
@@ -66,7 +68,7 @@ AdaptiveQuality::AdaptiveQuality()
 	m_cpuSumMs = m_presentSumMs = 0.0;
 	m_splitFrames = 0;
 	m_lastCpuMs = m_lastPresentMs = 0.0;
-	m_lastDeadlineMs = AdaptiveQualityTuning::kOverFrameMs;
+	m_lastDeadlineMs = AdaptiveQualityTuning::values().overFrameMs;
 	m_refreshMs = 1000.0 / 60.0;
 	m_windowed = FALSE;
 	m_intervalSynced = TRUE;
@@ -105,6 +107,7 @@ void AdaptiveQuality::frameBegin()
 
 Bool AdaptiveQuality::shouldSkipRender()
 {
+	// logic catch-up replaces render skipping unless a level has render_skip
 	if (!m_inMatch || !AdaptiveQualityLevels::rendersSkipped(m_model.level()))
 	{
 		m_renderSkipPhase = FALSE;
@@ -363,8 +366,8 @@ void AdaptiveQuality::closeSecond(long long t)
 		s.meanMs = (float)(m_sumMs / m_frames);
 	}
 
-	const Bool ignore = m_frames == 0 || matchSeconds < AdaptiveQualityTuning::kWarmupSeconds || m_minimized || m_paused
-		|| (double)m_waitFrames > AdaptiveQualityTuning::kNetworkWaitIgnoreFraction * m_iterations;
+	const Bool ignore = m_frames == 0 || matchSeconds < AdaptiveQualityTuning::values().warmupSeconds || m_minimized || m_paused
+		|| (double)m_waitFrames > AdaptiveQualityTuning::values().networkWaitIgnoreFraction * m_iterations;
 
 	if (!ignore)
 	{
@@ -442,11 +445,12 @@ Bool AdaptiveQuality::getOverlay(AdaptiveQualityOverlay& out) const
 	out.p95Ms = m_lastP95Ms;
 	out.cpuMs = (float)m_lastCpuMs;
 	out.presentMs = (float)m_lastPresentMs;
-	out.stepDownP50Ms = (float)AdaptiveQualityTuning::kStepDownP50Ms;
-	out.stepUpP95Ms = (float)AdaptiveQualityTuning::kStepUpP95Ms;
+	out.stepDownP50Ms = (float)AdaptiveQualityTuning::values().stepDownP50Ms;
+	out.stepUpP95Ms = (float)AdaptiveQualityTuning::values().stepUpP95Ms;
 	out.deadlineMs = (float)m_lastDeadlineMs;
 	out.deadlineKind = m_deadlineKind;
 	out.refreshHz = (float)(1000.0 / m_refreshMs);
+	out.levelCount = AdaptiveQualityLevels::levelCount();
 	for (Int l = 0; l < AdaptiveQualityOverlay::LEVELS; ++l)
 	{
 		out.savingMs[l] = (float)m_model.delta(l);

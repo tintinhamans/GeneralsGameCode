@@ -769,11 +769,12 @@ void GameLODManager::applyEffectiveParticleLOD()
 void GameLODManager::setAdaptiveParticleLevel(Int adaptiveQualityLevel)
 {
 	DynamicGameLODLevel source = DYNAMIC_GAME_LOD_UNKNOWN;
-	if (adaptiveQualityLevel >= AdaptiveQualityLevels::LEVEL_MINIMUM)
+	const Int particleLod = AdaptiveQualityLevels::level(adaptiveQualityLevel).particleLod;
+	if (particleLod == AdaptiveQualityLevels::PARTICLE_LOD_LOW)
 	{
 		source = DYNAMIC_GAME_LOD_LOW;
 	}
-	else if (adaptiveQualityLevel >= AdaptiveQualityLevels::LEVEL_PARTICLES)
+	else if (particleLod == AdaptiveQualityLevels::PARTICLE_LOD_MEDIUM)
 	{
 		source = DYNAMIC_GAME_LOD_MEDIUM;
 	}

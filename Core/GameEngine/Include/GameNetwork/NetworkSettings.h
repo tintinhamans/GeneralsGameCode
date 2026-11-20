@@ -28,7 +28,7 @@ struct NetworkSettings
 		bool fast_recovery = true;      // the run ahead falls a third of the excess per step, after an isolated spike to the recent need
 		int decision_interval_ms = 1000;
 		int fps_history_samples = 30;   // median of this many per-second FPS samples
-		int catch_up_frames = 1;        // a frame later than this many frame times resets the clock, retail catches up from 2
+		int catch_up_frames = 2;        // a frame later than this many frame times resets the clock, retail catches up from 2; 2 so the engine can catch up
 		int slack_percent = 30;         // percent added to the measured round trip, also sets the start run ahead and the rating
 
 		struct Formula
