@@ -1,0 +1,61 @@
+# A static text with the kit label look; `text_color` is the enabled text colour, `fill` and `border` draw
+# slot 0, the other slots share `spare`. The role components (label, section_title, title) extend this one.
+params:
+  font: "Arial"
+  font_size: 10
+  bold: 0
+  header: "GOLabelRegular"
+  text_color: "255 255 255 255"
+  fill: "255 4 0 0"
+  border: "255 132 130 0"
+  spare: "255 255 255 0"
+  centered: 0
+status: [ENABLED]
+template: |
+  WINDOWTYPE = STATICTEXT;
+  SCREENRECT = UPPERLEFT: {x0} {y0},
+               BOTTOMRIGHT: {x1} {y1},
+               CREATIONRESOLUTION: 800 600;
+  NAME = "{name}";
+  STATUS = {status};
+  STYLE = STATICTEXT+MOUSETRACK;
+  SYSTEMCALLBACK = "{system}";
+  INPUTCALLBACK = "{input}";
+  TOOLTIPCALLBACK = "{tooltip_callback}";
+  DRAWCALLBACK = "{draw}";
+  FONT = NAME: "{font}", SIZE: {font_size}, BOLD: {bold};
+  HEADERTEMPLATE = "{header}";
+  TOOLTIPTEXT = "{tooltip}";
+  TOOLTIPDELAY = -1;
+  TEXT = "{text}";
+  TEXTCOLOR = ENABLED:  {text_color}, ENABLEDBORDER:  0 0 0 255,
+              DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+              HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+  ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: {fill}, BORDERCOLOR: {border},
+                    IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                    IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                    IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                    IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                    IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                    IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                    IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                    IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare};
+  DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 64 64 64 255, BORDERCOLOR: 192 192 192 255,
+                     IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                     IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                     IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                     IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                     IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                     IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                     IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                     IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare};
+  HILITEDRAWDATA = IMAGE: NoImage, COLOR: 0 128 0 255, BORDERCOLOR: 128 255 128 255,
+                   IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                   IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                   IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                   IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                   IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                   IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                   IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                   IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare};
+  STATICTEXTDATA = CENTERED: {centered};

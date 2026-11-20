@@ -66,7 +66,8 @@ FireWeaponCollide::FireWeaponCollide( Thing *thing, const ModuleData* moduleData
 //-------------------------------------------------------------------------------------------------
 FireWeaponCollide::~FireWeaponCollide()
 {
-	deleteInstance(m_collideWeapon);
+	if (m_collideWeapon)
+		deleteInstance(m_collideWeapon);
 }
 
 //-------------------------------------------------------------------------------------------------

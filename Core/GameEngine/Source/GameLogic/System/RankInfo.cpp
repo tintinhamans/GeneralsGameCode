@@ -49,7 +49,10 @@ RankInfoStore::~RankInfoStore()
 	for (level =0; level < getRankLevelCount(); level++)
 	{
 		RankInfo* ri = m_rankInfos[level];
-		deleteInstance(ri);
+		if (ri)
+		{
+			deleteInstance(ri);
+		}
 	}
 	m_rankInfos.clear();
 }

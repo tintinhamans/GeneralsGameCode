@@ -78,8 +78,15 @@ void MouseThreadClass::Thread_Function()
 	while (running)
 	{
 		isThread=TRUE;
+        // Hold the mutex for the TheMouse check AND the draw() call together so
+        // that TheMouse cannot be destroyed between the null-check and the actual
+        // dereference. CriticalSectionClass uses a Windows CRITICAL_SECTION which
+        // is re-entrant per-thread, so the nested acquisition inside draw() is safe.
+        {
+            CriticalSectionClass::LockClass m(mutex);
 		if (TheMouse)
 			TheMouse->draw();
+        }
 		isThread=FALSE;
 		Switch_Thread();
 	}
@@ -111,6 +118,12 @@ W3DMouse::W3DMouse()
 
 W3DMouse::~W3DMouse()
 {
+    // Stop the mouse update thread FIRST, before freeing any assets it may be
+    // actively using. If the thread is mid-draw(), Stop() will wait for it to
+    // finish before returning, preventing a use-after-free when we release
+    // D3D/W3D resources below.
+    thread.Stop();
+
 	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
 
 	if (m_pDev)
@@ -121,8 +134,6 @@ W3DMouse::~W3DMouse()
 
 	freeD3DAssets();
 	freeW3DAssets();
-
-	thread.Stop();
 
 }
 
@@ -401,8 +412,10 @@ void W3DMouse::setCursor( MouseCursor cursor )
 		{
 			m_pDev->ShowCursor(FALSE);	//disable DX8 cursor
 			if (cursor != m_currentD3DCursor)
-			{	if (!isThread)
-				{	releaseD3DCursorTextures(m_currentD3DCursor);
+            {
+                if (!isThread)
+                {
+                    releaseD3DCursorTextures(m_currentD3DCursor);
 					//Since this type of cursor is updated from a non-D3D thread, we need
 					//to preallocate all surfaces in main thread.
 					loadD3DCursorTextures(cursor);
@@ -492,7 +505,8 @@ void W3DMouse::draw()
 		//to draw the mouse cursor.
 		LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
 		if (m_pDev)
-		{	m_pDev->ShowCursor(TRUE);	//Enable DX8 cursor
+        {
+            m_pDev->ShowCursor(TRUE);	//Enable DX8 cursor
 
 			if (TheDisplay && !TheDisplay->getWindowed())
 			{

@@ -39,6 +39,8 @@
 #include "GameLogic/GameMode.h"
 #include "GameLogic/Module/UpdateModule.h"	// needed for DIRECT_UPDATEMODULE_ACCESS
 
+#include "../GenOnlineDefines.h"
+
 /*
 	At one time, we distinguished between sleepy and nonsleepy
 	update modules, and kept a separate list for each. however,
@@ -131,6 +133,10 @@ public:
 	void setObjectIDCounter( ObjectID nextObjID ) { m_nextObjID = nextObjID; }
 	ObjectID getObjectIDCounter() { return m_nextObjID; }
 
+	UnsignedInt getFrameLegacy(void);
+	bool HasLegacyFrameAdvanced(void);
+
+
 	//-----------------------------------------------------------------------------------------------
 	void setBuildableStatusOverride(const ThingTemplate* tt, BuildableStatus bs);
 	Bool findBuildableStatusOverride(const ThingTemplate* tt, BuildableStatus& bs) const;
@@ -152,6 +158,7 @@ public:
 
 	void updateLoadProgress( Int progress );
 	void deleteLoadScreen();
+	void revealFromLoadScreen(Bool loadingSaveGame);	///< Fades the load screen out and deletes it.
 
 	//Kris: Cut setGameLoading() and replaced with setLoadingMap() and setLoadingSave() -- reason: nomenclature
 	//void setGameLoading( Bool loading ) { m_loadingScene = loading; }
@@ -199,6 +206,9 @@ public:
 	UnsignedInt getFrameObjectsChangedTriggerAreas() {return m_frameObjectsChangedTriggerAreas;}
 
 	void exitGame();
+#if defined(GENONLINE)
+	void processPendingGameExit();
+#endif
 	void quit(Bool toDesktop);
 	void clearGameData(Bool showScoreScreen = TRUE);														///< Clear the game data
 	void closeWindows();
@@ -221,6 +231,9 @@ public:
 	void initTimeOutValues();
 	UnsignedInt getObjectCount();
 
+#if defined(GENONLINE)
+	bool IsLoadScreenActive() const { return m_loadScreen != nullptr; }
+#endif
 	Int getRankLevelLimit() const { return m_rankLevelLimit; }
 	void setRankLevelLimit(Int limit)
 	{
@@ -429,7 +442,8 @@ private:
 
 	ObjectID m_nextObjID;																		///< For allocating object id's
 
-	void processDestroyList();												///< Destroy all pending objects on the destroy list
+	void setDefaults(Bool loadSaveGame);									///< Set default values of class object
+	void processDestroyList(void);												///< Destroy all pending objects on the destroy list
 
 	void destroyAllObjectsImmediate();											///< destroy, and process destroy list immediately
 
@@ -454,7 +468,16 @@ private:
 	Bool m_logicTimeScaleEnabledMemory;
 
 	Bool m_progressComplete[MAX_SLOTS];
+#if defined(GENONLINE)
+	Int m_progressMade[MAX_SLOTS];
+#endif
+
+#if defined(GENONLINE)
+	enum { PROGRESS_COMPLETE_TIMEOUT_PROGRESS_MADE = 30000 };							///< Timeout we wait for when we've completed our Load, if they made SOME progress
+	enum { PROGRESS_COMPLETE_TIMEOUT_ZERO_PROGRESS_MADE = 5000 };							///< Timeout we wait for when we've completed our Load, when they made zero progress
+#else
 	enum { PROGRESS_COMPLETE_TIMEOUT = 60000 };							///< Timeout we wait for when we've completed our Load
+#endif
 	Int m_progressCompleteTimeout[MAX_SLOTS];
 	void testTimeOut();
 	void lastHeardFrom( Int playerId );
@@ -504,6 +527,10 @@ inline Bool GameLogic::isInInternetGame() const { return rts::isInternetGame(m_g
 inline Bool GameLogic::isInShellGame() const { return rts::isShellGame(m_gameMode); }
 inline Bool GameLogic::isInMultiplayerGame() const { return rts::isMultiplayerGame(m_gameMode); }
 inline Bool GameLogic::isInInteractiveGame() const { return rts::isInteractiveGame(m_gameMode); }
+
+// The base frame derives from the saved logic frame, so it stays correct after loading a save game.
+inline UnsignedInt GameLogic::getFrameLegacy(void) { return m_frame / LOGICFRAMES_PER_BASEFRAME; }
+inline bool GameLogic::HasLegacyFrameAdvanced(void) { return (m_frame % LOGICFRAMES_PER_BASEFRAME) == 0; }
 inline UnsignedShort GameLogic::getSuperweaponRestriction() const { return m_superweaponRestriction; }
 
 inline Object* GameLogic::findObjectByID( ObjectID id )
@@ -519,6 +546,12 @@ inline Object* GameLogic::findObjectByID( ObjectID id )
 }
 
 
+
+class GameInfo;
+class GameSlot;
+
+// Whether this slot is the local player's; the initial camera and the stats exporter use the same test.
+extern Bool GameLogicIsLocalSlot(GameInfo* game, GameSlot* slot);
 
 // the singleton
 extern GameLogic *TheGameLogic;

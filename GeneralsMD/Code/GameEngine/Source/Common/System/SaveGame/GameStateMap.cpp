@@ -341,7 +341,7 @@ void GameStateMap::xfer( Xfer *xfer )
 		if (version >= 2)
 		{
 			// save the game mode.
-			Int gameMode = (Int)TheGameLogic->getGameMode();
+			Int gameMode = TheGameLogic->getGameMode();
 			xfer->xferInt( &gameMode);
 		}
 
@@ -506,7 +506,10 @@ void GameStateMap::clearScratchPadMaps()
 			// start search
 			hFile = FindFirstFile( "*", &item );
 			if( hFile == INVALID_HANDLE_VALUE )
+			{
+				SetCurrentDirectory( currentDirectory );
 				return;
+			}
 
 			// we are no longer on our first item
 			first = FALSE;

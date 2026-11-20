@@ -864,12 +864,28 @@ Try improving the fit to vertical surfaces like cliffs.
 	//check if there is anything to draw and fill vertex buffer
 	if (m_edgesToFlush >= 2)
 	{
+		// Guard against a null vertex buffer (e.g. if ReleaseResources() was called
+		// without a matching ReAcquireResources() during a device reset).
+		if (!m_vertexBuffer)
+		{
+			m_edgesToFlush = 0;
+			return;
+		}
+
 		// Ronin @bugfix 21/08/2026 DX9: §29j.9. flags=0 on a USAGE_DYNAMIC buffer makes the driver BLOCK
 		// until the GPU stops reading it — a full pipeline stall whose length is however much GPU work is
 		// queued. Invisible before shadow maps, ~1.5 ms after. flush() refills the whole buffer from
 		// scratch every frame, so DISCARD is exactly right.
 		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBuffer, D3DLOCK_DISCARD);
 		VertexFormatXYZDUV1 *verts = (VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
+
+		// Guard against a failed buffer lock returning a null pointer.
+		if (!verts)
+		{
+			m_edgesToFlush = 0;
+			return;
+		}
+
 		trackStartIndex=0;
 
 		// Ronin @feature 09/11/2026 DX9: rounded tread marks - each track's stored edges go through R3DTreadMarks::writeRoundedStrip,
@@ -886,24 +902,31 @@ Try improving the fit to vertical surfaces like cliffs.
 			Int i,index;
 			mod->m_drawnEdgeCount = 0;
 
-			if (mod->m_activeEdgeCount >= 2 && mod->Is_Really_Visible())
+			// Clamp activeEdgeCount to m_maxTankTrackEdges to prevent writing past the
+			// end of the vertex buffer when m_maxTankTrackEdges was reduced (e.g. by a
+			// graphics-detail change) while tracks still hold edges from the old, larger
+			// limit.  This also keeps index within the fixed-size m_edges[] array.
+			Int activeEdgeCount = mod->m_activeEdgeCount;
+			if (activeEdgeCount > m_maxTankTrackEdges)
+				activeEdgeCount = m_maxTankTrackEdges;
+
+			if (activeEdgeCount >= 2 && mod->Is_Really_Visible())
 			{
 				static Vector3 edgeLeft[MAX_TRACK_EDGE_COUNT];
 				static Vector3 edgeRight[MAX_TRACK_EDGE_COUNT];
 				static Real edgeV[MAX_TRACK_EDGE_COUNT];
 				static Real edgeFade[MAX_TRACK_EDGE_COUNT];
-				for (i=0,index=mod->m_bottomIndex; i<mod->m_activeEdgeCount; i++,index++)
+				for (i=0,index=mod->m_bottomIndex; i<activeEdgeCount; i++,index++)	// Ronin @bugfix 20/11/2026 DX9: GO's clamped count
 				{
 					if (index >= m_maxTankTrackEdges)
 						index=0;
 
 					distanceFade=1.0f;
 
-					if ((mod->m_activeEdgeCount -1 -i) >= m_maxTankTrackOpaqueEdges)// && i < (MAX_PER_TRACK_EDGE_COUNT-FORCE_FADE_AT_EDGE))
-					{
-						//we're getting close to the limit on the number of track pieces allowed
+					if ((activeEdgeCount -1 -i) >= m_maxTankTrackOpaqueEdges)// && i < (MAX_PER_TRACK_EDGE_COUNT-FORCE_FADE_AT_EDGE))
+					{	//we're getting close to the limit on the number of track pieces allowed
 						//so force it to fade out.
-						distanceFade=1.0f-(float)((mod->m_activeEdgeCount -i)-m_maxTankTrackOpaqueEdges)/numFadedEdges;
+						distanceFade=1.0f-(float)((activeEdgeCount -i)-m_maxTankTrackOpaqueEdges)/numFadedEdges;
 					}
 
 					distanceFade *= mod->m_edges[index].alpha;	//adjust fade with distance from start of track
@@ -913,12 +936,12 @@ Try improving the fit to vertical surfaces like cliffs.
 					edgeV[i] = mod->m_edges[index].endPointUV[0].Y;
 					edgeFade[i] = distanceFade;
 				}
-				Int maxEdges = mod->m_activeEdgeCount + ((spareEdges > 0) ? spareEdges : 0);
+				Int maxEdges = activeEdgeCount + ((spareEdges > 0) ? spareEdges : 0);
 				if (maxEdges > m_maxTankTrackEdges*R3DTreadMarks::ROUND_EDGE_FACTOR)	//the index buffer's length
 					maxEdges = m_maxTankTrackEdges*R3DTreadMarks::ROUND_EDGE_FACTOR;
-				mod->m_drawnEdgeCount = R3DTreadMarks::writeRoundedStrip(edgeLeft, edgeRight, edgeV, edgeFade, mod->m_activeEdgeCount,
+				mod->m_drawnEdgeCount = R3DTreadMarks::writeRoundedStrip(edgeLeft, edgeRight, edgeV, edgeFade, activeEdgeCount,
 					mod->m_length, (UnsignedInt)diffuseLight, verts, maxEdges);
-				spareEdges -= mod->m_drawnEdgeCount - mod->m_activeEdgeCount;
+				spareEdges -= mod->m_drawnEdgeCount - activeEdgeCount;
 				verts += mod->m_drawnEdgeCount*2;
 			}
 			mod = mod->m_nextSystem;

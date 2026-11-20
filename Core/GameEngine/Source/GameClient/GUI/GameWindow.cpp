@@ -1418,6 +1418,23 @@ GameWindow *GameWindow::winPointInChild( Int x, Int y, Bool ignoreEnableCheck, B
 	GameWindow *child;
 	ICoord2D origin;
 
+	// The open list of a combo box is hit tested before the rects of its parents.
+	GameWindow *open = TheWindowManager ? TheWindowManager->winGetLoneWindow() : nullptr;
+	if( open && open != this && BitIsSet( open->winGetStyle(), GWS_COMBO_BOX ) && winIsChild( open ) )
+	{
+		GameWindow *list = GadgetComboBoxGetListBox( open );
+		Bool reachable = list && !list->winIsHidden();
+		for( parent = open; parent && reachable; parent = parent->m_parent )
+		{
+			reachable = !BitIsSet( parent->m_status, WIN_STATUS_HIDDEN ) &&
+				( ignoreEnableCheck || BitIsSet( parent->m_status, WIN_STATUS_ENABLED ) );
+		}
+		if( reachable && open->winPointInWindow( x, y ) )
+		{
+			return open->winPointInChild( x, y, ignoreEnableCheck, playDisabledSound );
+		}
+	}
+
 	for( child = m_child; child; child = child->m_next )
 	{
 

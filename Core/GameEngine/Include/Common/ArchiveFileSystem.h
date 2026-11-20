@@ -53,6 +53,10 @@
 #include "Common/AsciiString.h"
 #include "Common/FileSystem.h" // for typedefs, etc.
 #include "Common/STLTypedefs.h"
+#include "GameNetwork/GenOnline/GenOnlinePackList.h"
+#include <map>
+#include <string>
+#include <vector>
 
 //----------------------------------------------------------------------------
 //           Forward References
@@ -64,6 +68,9 @@ class ArchiveFile;
 //----------------------------------------------------------------------------
 //           Type Defines
 //----------------------------------------------------------------------------
+
+// Picks the files of a BIG to mount by their path inside it, TRUE keeps the file
+typedef Bool (*ArchivePathFilter)(const char* path);
 
 
 //===============================
@@ -120,6 +127,42 @@ public:
 };
 
 
+// Lookup priority of an archive, lower wins. The archive mounted first wins on equal priority.
+enum ArchivePriority
+{
+	ARCHIVE_PRIORITY_GENONLINE_THEME = -1001,	///< the archive of the chosen GO interface palette next to the generals_online archives, over the GO menu layouts
+	ARCHIVE_PRIORITY_GENONLINE_GUI = -1000,	///< the GO menu layouts of the generals_online archives, above every archive; in-game layouts stay in the generals_online tier
+	ARCHIVE_PRIORITY_EXCLUDED = -1,			///< not mounted: a BIG of a game folder that matches an exclude of the -packs stack
+	ARCHIVE_PRIORITY_MOD = 0,						///< -mod and -modDir, 0 to 999, a later one is lower and wins
+	ARCHIVE_PRIORITY_GAME_FOLDER = 1000,	///< BIGs of the Zero Hour folder that are not retail, in name order
+	ARCHIVE_PRIORITY_GAME_FOLDER_GENERALS = 1100,	///< BIGs of the Generals data (ZH_Generals or the Generals install) that are not retail
+	ARCHIVE_PRIORITY_USER = 100000,				///< the user tier of the -packs stack, ARCHIVE_PRIORITY_PACK_STRIDE for each pack above its lowest one
+	ARCHIVE_PRIORITY_GENONLINE = 1000000,	///< the generals_online tier of the -packs stack or the built-in Generals Online pack
+	ARCHIVE_PRIORITY_COMMUNITY_PATCH = 2000000,	///< the community_patch tier of the -packs stack or the built-in community patch pack
+	ARCHIVE_PRIORITY_RETAIL = 3000000,		///< Zero Hour retail and official patch BIGs
+	ARCHIVE_PRIORITY_RETAIL_GENERALS = 3000100	///< Generals retail and official patch BIGs
+};
+
+// The priorities of one pack of the -packs stack, from its base: its loose files, the BIGs at the top of its folder, the BIGs in its GeneralsOnlineGameData folder
+enum PackPriority
+{
+	ARCHIVE_PRIORITY_PACK_FILES = 0,
+	ARCHIVE_PRIORITY_PACK_TOP_BIGS = 1,
+	ARCHIVE_PRIORITY_PACK_DATA_BIGS = 2,
+	ARCHIVE_PRIORITY_PACK_STRIDE = 10
+};
+
+// One entry of the include_paths of a data pack layer, see ArchiveFileSystem::parseMountEntry
+struct ArchiveMountEntry
+{
+	enum Kind { KIND_BIG, KIND_BIG_GLOB };
+	enum Base { BASE_GAME, BASE_USER, BASE_ABSOLUTE };
+
+	Kind m_kind;
+	Base m_base;
+	AsciiString m_path;	///< with backslashes, relative to the base, the BASE_ABSOLUTE path is complete
+};
+
 class ArchiveFileSystem : public SubsystemInterface
 {
 public:
@@ -129,7 +172,7 @@ public:
 	virtual void postProcessLoad() override = 0;
 
 	// ArchiveFile operations
-	virtual ArchiveFile*	openArchiveFile( const Char *filename ) = 0;		///< Create new or return existing Archive file from file name
+	virtual ArchiveFile*	openArchiveFile( const Char *filename, ArchivePathFilter includePath = nullptr ) = 0;		///< Create new or return existing Archive file from file name
 	virtual void					closeArchiveFile( const Char *filename ) = 0;		///< Close the one specified big file.
 	virtual void					closeAllArchiveFiles() = 0;								///< Close all Archive files currently open
 
@@ -145,7 +188,29 @@ public:
 
 	virtual void loadMods() = 0;
 
+	/// Parses an entry of the include_paths of a data pack layer: "game:<path>", "user:<path>" or an absolute path. A path ending in .big is one BIG,
+	/// a last component with * or ? and ending in .big is a set of BIGs, a path ending in a slash is every BIG in that folder.
+	/// Returns FALSE and a reason for an entry that is not valid.
+	static Bool parseMountEntry(const AsciiString& text, ArchiveMountEntry* entry, AsciiString* reason);
+
+	/// TRUE for the retail archives and the official patches of Zero Hour and Generals, in every language.
+	static Bool isGeneralsArchivePath(const AsciiString& path, Bool generalsFolder);	///< TRUE for the Generals archives: the Generals install folder, or a ZH_Generals folder
+
+	static Bool isRetailArchive(const AsciiString& path, Bool generalsFolder, Bool zeroHour);
+
+	/// BIGs of the game folders that are not retail and not excluded by the -packs stack, which are mounted above the data pack layers
+	const std::vector<AsciiString>& getGameFolderArchives() const { return m_gameFolderArchives; }
+
 	ArchivedDirectoryInfo* friend_getArchivedDirectoryInfo(const Char* directory);
+
+	Bool usesRetailInterface() const { return m_retailInterface; }	///< the Retail style: retail layouts, art and fonts, none of the GO interface files
+
+	/// Makes the -packs stack, lowest first, the one that loadMods mounts. Its excludes take effect here for the archives mounted before, the game
+	/// folder BIGs they match are unmounted and the files they hide are removed from the lookup. loadMods calls it right before it mounts the packs.
+	void activatePackStack(const std::vector<GenOnlinePackList::Pack>& stack);
+	Bool hasPackStack() const { return !m_packStack.empty(); }
+	/// TRUE when a pack of the -packs stack has this game path, which then wins over the loose file of the game folder.
+	Bool isLooseFileShadowedByPack(const Char* filename) const;
 
 protected:
 	struct ArchivedDirectoryInfoResult
@@ -160,9 +225,33 @@ protected:
 	ArchiveFile* getArchiveFile(const AsciiString& filename, FileInstance instance = 0) const;
 	ArchivedDirectoryInfoResult getArchivedDirectoryInfo(const Char* directory);
 
-	virtual void loadIntoDirectoryTree(ArchiveFile *archiveFile, Bool overwrite = FALSE);	///< load the archive file's header information and apply it to the global archive directory tree.
+	virtual void loadIntoDirectoryTree(ArchiveFile *archiveFile, Int priority = ARCHIVE_PRIORITY_RETAIL);	///< load the archive file's header information and apply it to the global archive directory tree. The lowest priority number wins, the first mounted wins on equal priority.
+
+	Int getNextModPriority() { return m_nextModPriority > ARCHIVE_PRIORITY_MOD ? m_nextModPriority-- : ARCHIVE_PRIORITY_MOD; }	///< -mod and -modDir: a later one wins
+	Int getGameFolderArchivePriority(const AsciiString& path, Bool generalsFolder, Bool zeroHour);	///< retail archives are the bottom, any other BIG of the game folders ranks above the data pack layers unless an exclude of the -packs stack matches it
+
+	void mountListedArchive(const ArchiveMountEntry& entry, Int priority, const PathExcludeList* excludes, std::vector<AsciiString>* mounted = nullptr, ArchivePathFilter includePath = nullptr);
+	void setInterfaceStyle(const AsciiString& style, const AsciiString& palette);	///< the interface style and palette the generals_online archives are mounted for, before mountGenOnlineLayer
+	void mountGenOnlineLayer(Bool enabled, const std::vector<std::string>& includePaths);	///< mounts the generals_online layer for the interface style, then its menu layouts and the palette archive
+	void mountGenOnlineTheme(const std::vector<AsciiString>& genOnlineArchives);	///< mounts Themes\GeneralsOnline_Theme_<palette>.big next to the generals_online archives over the paths it replaces, nothing for the Signal palette
+	void mountGenOnlineMenus(const std::vector<AsciiString>& genOnlineArchives);	///< mounts the menu layouts of the generals_online archives again at ARCHIVE_PRIORITY_GENONLINE_GUI
+	void mountDataPackLayer(const char* layer, Bool enabled, const std::vector<std::string>& includePaths, const PathExcludeList* excludes, Int priority, std::vector<AsciiString>* mounted = nullptr, ArchivePathFilter includePath = nullptr);	///< mounts the include_paths of one layer in list order, the first one wins, minus what excludes matches
+	void mountPackStack(Bool communityPatchEnabled);	///< mounts every pack of the -packs stack in its tier, then the menu layouts and the palette archive of its generals_online packs
+	void mountPackFolderFiles(const GenOnlinePackList::Pack& pack, Int priority);	///< mounts the loose files of a pack folder, every file that is not a BIG, at their paths in the folder
+	Bool isHiddenByPack(const AsciiString& path, Int priority) const;	///< TRUE when a pack of the -packs stack above this priority excludes the path
+	void removeHiddenFiles(ArchivedDirectoryInfo& dirInfo, const std::vector<ArchiveFile*>& unmounted);	///< removes the files of unmounted archives and the files the -packs stack hides from the lookup
 
 	ArchiveFileMap m_archiveFileMap;
+	std::vector<AsciiString> m_gameFolderArchives;
+	AsciiString m_generalsBaseSource;	///< where the Generals data came from, for the log
+	Int m_nextModPriority = ARCHIVE_PRIORITY_MOD + 999;
+	Bool m_retailInterface = FALSE;
+	AsciiString m_interfacePalette;	///< the palette whose theme archive is mounted, empty for none
+	std::vector<GenOnlinePackList::Pack> m_packStack;	///< the -packs stack, lowest first
+	std::vector<Int> m_packPriorities;	///< the base priority of each pack of m_packStack
+	Bool m_hasPackExcludes = FALSE;
+	std::map<ArchiveFile*, AsciiString> m_packFolderArchives;	///< the loose files of a pack folder and that folder, opened from the folder
+	std::vector<ArchiveFile*> m_unmountedArchives;	///< game folder BIGs that the -packs stack excludes after init mounted them, kept until shutdown
 	ArchivedDirectoryInfo m_rootDirectory;
 };
 

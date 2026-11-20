@@ -53,6 +53,7 @@
 #include "GameClient/Eva.h"
 #include "GameClient/InGameUI.h"
 #include "GameClient/ControlBar.h"
+#include "Common/StatsExporterLive.h"
 
 
 
@@ -525,6 +526,27 @@ void SpecialPowerModule::triggerSpecialPower( const Coord3D *location )
 
 	// we won't be able to use the power for X number of frames now
 	startPowerRecharge();
+
+	// building-capture powers report from SpecialAbilityUpdate on success instead
+	const SpecialPowerTemplate *spTemplateForStats = getSpecialPowerTemplate();
+	const Bool isBuildingCapturePower = ( spTemplateForStats != nullptr ) &&
+		( spTemplateForStats->getSpecialPowerType() == SPECIAL_BLACKLOTUS_CAPTURE_BUILDING ||
+		  spTemplateForStats->getSpecialPowerType() == SPECIAL_INFANTRY_CAPTURE_BUILDING );
+	if( !isBuildingCapturePower )
+	{
+		StatsExporterLiveSuperweaponFired( getObject(), spTemplateForStats, location );
+		Player *statsPlayer = getObject()->getControllingPlayer();
+		if( statsPlayer != nullptr )
+		{
+			StatsExporterLiveAbilityUse(
+				statsPlayer->getPlayerIndex(),
+				spTemplateForStats,
+				getObject()->getTemplate(),
+				nullptr,
+				location,
+				nullptr );
+		}
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -680,6 +702,15 @@ void SpecialPowerModule::aboutToDoSpecialPower( const Coord3D *location )
       }
     }
 	}
+
+  // Notify the UI that this special power was activated (for observer notifications)
+  const Object* obj = getObject();
+  const SpecialPowerTemplate* tpl = getSpecialPowerTemplate();
+  if (obj && tpl && TheInGameUI) {
+	  Player* p = obj->getControllingPlayer();
+	  if (p && !obj->isKindOf(KINDOF_AIRCRAFT)) // exclude aircraft as they are spawned by the command center which already fires its notification
+		  TheInGameUI->notifySpecialPowerUsed(p, tpl);
+  }
 
 	// get module data
 	const SpecialPowerModuleData *modData = getSpecialPowerModuleData();

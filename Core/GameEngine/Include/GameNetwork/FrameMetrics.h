@@ -26,6 +26,13 @@
 
 #pragma once
 
+
+
+#if defined(GENONLINE)
+#define USE_NEW_FRAMEMETRIC_LOGIC 1
+#endif
+
+#include "Lib/BaseType.h"
 #include "GameNetwork/NetworkDefs.h"
 
 class FrameMetrics {
@@ -41,8 +48,11 @@ public:
 	void addCushion(Int cushion);
 
 	Real getAverageLatency();
-	Int getAverageFPS();
+	Int getAverageFPS();	///< The median of the per-second fps samples.
 	Int getMinimumCushion();
+	Bool isPending(UnsignedInt frame);
+
+	void SeedLatencyData(int latency);
 
 protected:
 	// These are used for keeping track of parameters to the run ahead equation.
@@ -50,13 +60,29 @@ protected:
 	Real *m_fpsList;								///< A record of how many game logic frames per second there were for the last 60 seconds.
 	time_t m_lastFpsTimeThing;																///< The time when the last fps entry started being recorded.
 	Int m_fpsListIndex;																				///< Index into the array of the current fps list entry being measured.
+#if defined(GENONLINE)
+	UnsignedInt m_fpsListLength;																						///< Entries m_fpsList holds, the history length can change after construction.
+#endif
 	Real m_averageFps;																				///< The current average logic fps, computed just like m_averageLatency below but with the fps numbers.
 
 	// round trip time to packet router variables.
 	// The lists are indexed off the frame number of the frame info packet they are associated with.
 	// The index used should be the frame number mod the array length.
+#if !defined(USE_NEW_FRAMEMETRIC_LOGIC)
 	Real *m_latencyList;				///< A record of the round trip latencies of the frame info packets to the packet router.  Values in seconds.
 	time_t *m_pendingLatencies;																///< The latencies of frame info packets that are "in the air."
+#else
+    std::unordered_map<UnsignedInt, time_t> m_mapPendingLatenciesLookup;
+	std::map<UnsignedInt, time_t> m_mapPendingLatenciesSorted;
+
+
+	std::unordered_map<UnsignedInt, Real> m_mapLatenciesLookup;
+	std::map<UnsignedInt, Real> m_mapLatenciesSorted;
+
+	int oldestPendingLatencyInMap = -1;
+	int oldestLatencyInMap = -1;
+#endif
+
 	Real m_averageLatency;																		///< The current average latency, this is used to save calculation time.
 																														///< When a new latency value is received, the old one is subtracted out and the new
 																														///< one is added in.

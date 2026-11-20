@@ -1,14 +1,40 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-  "builtin-baseline": "9e593bb18ea69cc5095e012465dcd675a822ed0d",
+  "builtin-baseline": "b61d33065508ba0d5e393206abb3cb2366299699",
+  "vcpkg-configuration": {
+    "overlay-ports": [ "cmake/ports" ]
+  },
   "dependencies": [
     "zlib",
-    "stb"
+    "stb",
+    "genonline-plugin-sdk",
+    "protobuf",
+    {
+      "name": "curl",
+      "default-features": false,
+      "features": [ "openssl", "websockets", "http2", "http3", "sspi" ]
+    },
+    {
+      "name": "gamenetworkingsockets",
+      "version>=": "1.6.1#1",
+      "default-features": false,
+      "features": [ "ice", "webrtc" ]
+    },
+    {
+      "name": "sentry-native",
+      "version>=": "0.17.6",
+      "default-features": false,
+      "features": [ "backend", "transport" ]
+    }
   ],
   "features": {
     "ffmpeg": {
-      "description": "Use FFmpeg instead of Bink for video rendering",
+      "description": "Use FFmpeg instead of Bink for video rendering (trimmed overlay port in cmake/ports/ffmpeg)",
       "dependencies": [ "ffmpeg" ]
+    },
+    "openal-audio": {
+      "description": "Trimmed static FFmpeg and OpenAL Soft for the OpenAL audio backend",
+      "dependencies": [ "ffmpeg", "openal-soft" ]
     }
   }
 }

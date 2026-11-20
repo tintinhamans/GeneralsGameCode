@@ -71,6 +71,7 @@
 #include "Common/Xfer.h"
 #include "Common/XferCRC.h"
 #include "Common/GameLOD.h"
+#include "Common/AdaptiveQuality.h"
 #include "Common/Registry.h"
 #include "Common/GameCommon.h"	// FOR THE ALLOW_DEBUG_CHEATS_IN_RELEASE #define
 
@@ -105,11 +106,23 @@
 #include "GameClient/GUICallbacks.h"
 
 #include "GameNetwork/NetworkInterface.h"
+#include "GameNetwork/ConnectionManager.h"
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/GameSpy/GameResultsThread.h"
+#include "GameNetwork/Online/OnlineProviderFactory.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInit.h"
+#endif
 
 #include "Common/version.h"
 
+#include "../GenOnlineDefines.h"
+
+#include "Common/StatsExporterPipe.h"
+#include "Common/StatsExporterLive.h"
+#include <chrono>
+#include "WW3D2/ww3d.h"
 
 //-------------------------------------------------------------------------------------------------
 
@@ -252,6 +265,9 @@ GameEngine::GameEngine()
 //-------------------------------------------------------------------------------------------------
 GameEngine::~GameEngine()
 {
+	// stop the stats pipe thread before the state it samples is torn down
+	StatsExporterPipeShutdown();
+
 	//extern std::vector<std::string>	preloadTextureNamesGlobalHack;
 	//preloadTextureNamesGlobalHack.clear();
 
@@ -291,15 +307,18 @@ GameEngine::~GameEngine()
 
 	delete TheGameLODManager;
 	TheGameLODManager = nullptr;
-
+	// GENERALS ONLINE
+	GetOnlineGameHooks()->onEngineShutdown();
 	Drawable::killStaticImages();
 
 #ifdef PERF_TIMERS
 	PerfGather::termPerfDump();
 #endif
-}
+	// Kill sentry
+	GetOnlineGameHooks()->onEngineExit();}
 
 //-------------------------------------------------------------------------------------------------
+
 Bool GameEngine::isTimeFrozen()
 {
 	// TheSuperHackers @fix The time can no longer be frozen in Network games. It would disconnect the player.
@@ -429,6 +448,9 @@ void GameEngine::init()
 	#endif/////////////////////////////////////////////////////////////////////////////////////////////
 
 
+		// NGMP_CHANGE: Init our settings before the archives are mounted, they read the -packs list whose packs loadMods mounts. Needs TheGlobalData for the user data path.
+		GetOnlineGameHooks()->loadSettings();
+
 		initSubsystem(TheArchiveFileSystem, "TheArchiveFileSystem", createArchiveFileSystem(), nullptr); // this MUST come after TheLocalFileSystem creation
 
     	#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
@@ -442,6 +464,15 @@ void GameEngine::init()
 		initSubsystem(TheWritableGlobalData, "TheWritableGlobalData", TheWritableGlobalData, &xferCRC, "Data\\INI\\Default\\GameData", "Data\\INI\\GameData");
 		TheWritableGlobalData->parseCustomDefinition();
 
+#if defined(GENONLINE)
+		// The user data folder is final once both GameData files are parsed, Generals takes its leaf name from the second one.
+		// The settings that were in Options.ini move to client.json here and the global data takes their values again.
+		GenOnlineServicesManager::Settings.MoveOptionsIniSettings();
+		TheWritableGlobalData->applyGenOnlineClientSettings();
+#endif
+
+		// Init sentry ASAP to catch early crashes
+		GetOnlineGameHooks()->onGlobalDataLoaded();
 
 	#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
 	GetPrecisionTimer(&endTime64);//////////////////////////////////////////////////////////////////
@@ -579,6 +610,9 @@ void GameEngine::init()
 		initSubsystem(TheUpgradeCenter,"TheUpgradeCenter", MSGNEW("GameEngineSubsystem") UpgradeCenter, &xferCRC, "Data\\INI\\Default\\Upgrade", "Data\\INI\\Upgrade");
 		initSubsystem(TheGameClient,"TheGameClient", createGameClient(), nullptr);
 
+		// GENERALS ONLINE: the D3D8 device exists from here on
+		GetOnlineGameHooks()->onDisplayCreated();
+
 
 	#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
 	GetPrecisionTimer(&endTime64);//////////////////////////////////////////////////////////////////
@@ -625,8 +659,16 @@ void GameEngine::init()
 		initSubsystem(TheGameStateMap,"TheGameStateMap", MSGNEW("GameEngineSubsystem") GameStateMap, nullptr );
 		initSubsystem(TheGameState,"TheGameState", MSGNEW("GameEngineSubsystem") GameState, nullptr );
 
-		// Create the interface for sending game results
-		initSubsystem(TheGameResultsQueue,"TheGameResultsQueue", GameResultsInterface::createNewGameResultsInterface(), nullptr);
+		// Create the interface for sending game results through the provider selected
+		// before Online entry. The subsystem list owns this one instance for the
+		// complete engine lifetime; Online setup/teardown never replaces it.
+		OnlineProviderFactory *resultsFactory = nullptr;
+		IOnlineResults *results = CreateOnlineResults(&resultsFactory);
+		if (results == nullptr)
+			RELEASE_CRASH(("Unable to create the selected online results provider."));
+		initSubsystem(TheGameResultsQueue,"TheGameResultsQueue", results, nullptr);
+		if (!BindOnlineResultsProvider(resultsFactory))
+			RELEASE_CRASH(("Unable to bind the selected online results provider."));
 
 
 	#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
@@ -744,6 +786,8 @@ void GameEngine::init()
 	resetSubsystems();
 
 	HideControlBar();
+
+	GetOnlineGameHooks()->onEngineInitialized();
 }
 
 /** -----------------------------------------------------------------------------------------------
@@ -840,7 +884,10 @@ Bool GameEngine::canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags)
 	const Bool useFastMode = TheGlobalData->m_TiVOFastMode && TheGameLogic->isInReplayGame();
 #endif
 
-	if (useFastMode || logicTimeScaleFps >= maxRenderFps)
+	// with catch-up a capped logic rate always counts time, so a slow drawn frame owes the missed logic frames
+	const Int catchUpFrames = getCatchUpFrames();
+	const Bool countTime = catchUpFrames > 1 && logicTimeScaleFps < (Int)RenderFpsPreset::UncappedFpsValue;
+	if (useFastMode || (logicTimeScaleFps >= maxRenderFps && !countTime))
 	{
 		// Logic time scale is uncapped or larger equal Render FPS. Update straight away.
 		return true;
@@ -850,7 +897,10 @@ Bool GameEngine::canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags)
 		// TheSuperHackers @tweak xezon 06/08/2025
 		// The logic time step is now decoupled from the render update.
 		const Real targetFrameTime = 1.0f / logicTimeScaleFps;
-		m_logicTimeAccumulator += min(TheFramePacer->getUpdateTime(), targetFrameTime);
+		// one drawn frame credits up to catch_up_frames logic frames, the catch-up loop spends the rest;
+		// the bound only holds a backlog the loop could not spend, at 1 it never applies
+		const Real maxCredit = targetFrameTime * catchUpFrames;
+		m_logicTimeAccumulator = min(m_logicTimeAccumulator + min(TheFramePacer->getUpdateTime(), maxCredit), maxCredit + targetFrameTime);
 
 		if (m_logicTimeAccumulator >= targetFrameTime)
 		{
@@ -863,6 +913,42 @@ Bool GameEngine::canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags)
 }
 
 /// -----------------------------------------------------------------------------------------------
+Bool GameEngine::canUpdateGameLogicFromBacklog()
+{
+	TheGameLogic->preUpdate();
+	TheFramePacer->setTimeFrozen(isTimeFrozen());
+	TheFramePacer->setGameHalted(isGameHalted());
+	if (TheNetwork != nullptr)
+	{
+		return canUpdateNetworkGameLogic();
+	}
+
+	// offline: spend time the drawn frame already credited, never credit it again
+	const Int logicTimeScaleFps = TheFramePacer->getActualLogicTimeScaleFps(FramePacer::IgnoreFrozenTime);
+	if (logicTimeScaleFps <= 0 || logicTimeScaleFps >= (Int)RenderFpsPreset::UncappedFpsValue)
+	{
+		return false;
+	}
+	const Real targetFrameTime = 1.0f / logicTimeScaleFps;
+	if (m_logicTimeAccumulator >= targetFrameTime)
+	{
+		m_logicTimeAccumulator -= targetFrameTime;
+		return true;
+	}
+	return false;
+}
+
+/// -----------------------------------------------------------------------------------------------
+Int GameEngine::getCatchUpFrames() const
+{
+	if (TheGameLogic == nullptr || !TheGameLogic->isInGame() || TheGameLogic->isInShellGame() || TheGameLogic->isInReplayGame())
+	{
+		return 1;
+	}
+	return AdaptiveQualityTuning::values().catchUpFrames;
+}
+
+/// -----------------------------------------------------------------------------------------------
 DECLARE_PERF_TIMER(GameEngine_update)
 
 /** -----------------------------------------------------------------------------------------------
@@ -872,28 +958,62 @@ void GameEngine::update()
 {
 	USE_PERF_TIMER(GameEngine_update)
 	{
+		// keeps the stats pipe listener up so a client can connect from the shell
+		StatsExporterPipeStart();
+		StatsExporterLiveTick();
+
 		{
 			// VERIFY CRC needs to be in this code block.  Please to not pull TheGameLogic->update() inside this block.
 			VERIFY_CRC
 
+#if defined(GENONLINE)
+			// NGMP_NOTE: Lock the shellmap to 30fps until we fix everything
+			Int matchFpsLimit = 0;
+			if (GetOnlineGameHooks()->getMatchFrameRateLimit(matchFpsLimit) && TheGameLogic->isInGame() && !TheShell->isShellActive())
+			{
+				TheFramePacer->setFramesPerSecondLimit(matchFpsLimit);
+				TheWritableGlobalData->m_useFpsLimit = matchFpsLimit;
+			}
+			else
+			{
+				TheFramePacer->setFramesPerSecondLimit(LOGICFRAMES_PER_SECOND);
+			}
+#endif
+			
 			TheRadar->UPDATE();
 
 			/// @todo Move audio init, update, etc, into GameClient update
 
 			TheAudio->UPDATE();
+			{
+				const long long aqClientStart = AdaptiveQuality::now();
 			TheGameClient->UPDATE();
+				AdaptiveQuality::get().addOwn(AdaptiveQuality::now() - aqClientStart);
+			}
+			StatsExporterLiveCamera();
 			TheMessageStream->propagateMessages();
 
 			if (TheNetwork != nullptr)
 			{
 				TheNetwork->UPDATE();
 			}
+
+			GetOnlineGameHooks()->onEngineUpdate();
 		}
+
+#if defined(GENONLINE)
+		if (TheNetwork != nullptr && TheNetwork->isGameExitPending()) {
+			// Teardown can delete Network and must not run another gameplay update.
+			TheGameLogic->processPendingGameExit();
+			return;
+		}
+#endif
 
 		// TheSuperHackers @info Ignores frozen time because the script engine needs updating in the logic update regardless.
 		if (canUpdateGameLogic(FramePacer::IgnoreFrozenTime))
 		{
 			const double logicStart = FrameCost_Now();	// Ronin @diagnostic 07/11/2026 DX9: [CPU] the logic step
+			const long long aqLogicStart = AdaptiveQuality::now();
 			TheGameLogic->UPDATE();
 			FrameCost_Add(FrameCostStats::MS_LOGIC, logicStart);
 			++TheFrameCostStats.logicSteps;
@@ -902,6 +1022,57 @@ void GameEngine::update()
 			{
 				TheGameClient->step();
 			}
+
+			// run logic frames that are already due before the next draw, up to the catch-up budget
+			const Int catchUpFrames = getCatchUpFrames();
+			static LARGE_INTEGER s_catchUpFrequency = {};
+			if (s_catchUpFrequency.QuadPart == 0)
+			{
+				QueryPerformanceFrequency(&s_catchUpFrequency);
+			}
+			for (Int i = 1; i < catchUpFrames; ++i)
+			{
+				// frame 1 runs from the main step, whose frame tick lets the network leave pregame
+				if (TheGameLogic->getFrame() <= 1)
+				{
+					break;
+				}
+				// the first catch-up frame always runs when it is due; later ones only while this drawn frame's logic has time
+				// left, so a slow machine draws instead of only catching up; the time it skips stays owed
+				if (i >= 2)
+				{
+					const double logicMs = (double)(AdaptiveQuality::now() - aqLogicStart) * 1000.0 / (double)s_catchUpFrequency.QuadPart;
+					if (logicMs >= AdaptiveQualityTuning::values().catchUpBudgetMs)
+					{
+						break;
+					}
+				}
+				// hands on what the last logic frame queued (its CRC), so it reaches the same frame as without catch-up
+				TheMessageStream->propagateMessages();
+				if (TheNetwork != nullptr)
+				{
+					TheNetwork->UPDATE();
+					if (TheNetwork->isGameExitPending())
+					{
+						TheGameLogic->processPendingGameExit();
+						return;
+					}
+				}
+				if (!canUpdateGameLogicFromBacklog())
+				{
+					break;
+				}
+				TheGameLogic->UPDATE();
+				if (!TheFramePacer->isTimeFrozen())
+				{
+					TheGameClient->step();
+				}
+			}
+			AdaptiveQuality::get().addOwn(AdaptiveQuality::now() - aqLogicStart);
+		}
+		else if (TheNetwork != nullptr && TheNetwork->isStalling())
+		{
+			AdaptiveQuality::get().noteNetworkWait();
 		}
 	}
 }
@@ -955,35 +1126,40 @@ void GameEngine::execute()
 #endif
 
 			{
-				try
-				{
-					// compute a frame
+				AdaptiveQuality::get().frameBegin();
 					update();
-				}
-				catch (INIException e)
-				{
-					// Release CRASH doesn't return, so don't worry about executing additional code.
-					if (e.mFailureMessage)
-						RELEASE_CRASH((e.mFailureMessage));
-					else
-						RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
-				}
-				catch (...)
-				{
-					// try to save info off
-					try
-					{
-						if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD && TheRecorder->isMultiplayer())
-							TheRecorder->cleanUpReplayFile();
-					}
-					catch (...)
-					{
-					}
-					RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
-				}
+// 				try
+// 				{
+// 					// compute a frame
+// 					update();
+// 				}
+// 				catch (INIException e)
+// 				{
+// 					// Release CRASH doesn't return, so don't worry about executing additional code.
+// 					if (e.mFailureMessage)
+// 						RELEASE_CRASH((e.mFailureMessage));
+// 					else
+// 						RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
+// 				}
+// #if !defined(GENONLINE_USE_SENTRY)
+// 				catch (...)
+// 				{
+// 					// try to save info off
+// 					try
+// 					{
+// 						if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD && TheRecorder->isMultiplayer())
+// 							TheRecorder->cleanUpReplayFile();
+// 					}
+// 					catch (...)
+// 					{
+// 					}
+// 					RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
+// 				}
+// #endif
 			}
 
 			TheFramePacer->update();
+			AdaptiveQuality::get().frameEnd();
 		}
 
 #ifdef PERF_TIMERS
@@ -1070,7 +1246,8 @@ void updateTGAtoDDS()
 					 infoTGA.timestampLow > infoDDS.timestampLow)) {
 				needsToBeUpdated = TRUE;
 			}
-		} else {
+		}
+		else {
 			needsToBeUpdated = TRUE;
 		}
 

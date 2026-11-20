@@ -647,8 +647,12 @@ protected:
 					Real delayInMsec = m_delay.getValue();
 					if (delayInMsec >= 0.0f)
 					{
-						UnsignedInt delayInFrames = REAL_TO_INT_CEIL(ConvertDurationFromMsecsToFrames(delayInMsec));
-						sys->setInitialDelay(delayInFrames);
+						Real delayInFrames = ConvertDurationFromMsecsToFrames(delayInMsec);
+#if defined(GENONLINE)
+						// Info: Particle systems update on legacy frames, so their delays must use the same cadence at 60Hz.
+						delayInFrames /= LOGICFRAMES_PER_BASEFRAME;
+#endif
+						sys->setInitialDelay(REAL_TO_INT_CEIL(delayInFrames));
 					}
 
 					if( m_useCallersRadius  &&  overrideRadius )
@@ -797,7 +801,8 @@ void FXList::clear()
 {
 	for (FXNuggetList::iterator it = m_nuggets.begin(); it != m_nuggets.end(); ++it)
 	{
-		deleteInstance(*it);
+		if (*it)
+			deleteInstance(*it);
 	}
 	m_nuggets.clear();
 }

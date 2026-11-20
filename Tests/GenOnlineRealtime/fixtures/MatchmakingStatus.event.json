@@ -1,0 +1,8 @@
+{
+  "code": "matchmaking.searching",
+  "params": {
+    "players": 1,
+    "desired": 2,
+    "required": 2
+  }
+}

@@ -48,11 +48,27 @@ struct DataChunkInfo;
 enum { SUPPLY_TECH_SIZE = 15};
 typedef std::list <ICoord2D> ICoord2DList;
 
+#if defined(GENONLINE)
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Preview marker that carries its icon category.
+struct MapPreviewMarker
+{
+	ICoord2D m_pos; ///< top left of the getMapPreviewMarkerSize() marker, relative to the preview window
+	AsciiString m_category; ///< MapPreviewIcons category name, empty when no rule matched
+	AsciiString m_templateName;
+	Bool m_isTech; ///< KINDOF_TECH_BUILDING, else KINDOF_SUPPLY_SOURCE_ON_PREVIEW
+};
+typedef std::list<MapPreviewMarker> MapPreviewMarkerList;
+#endif
+
 class TechAndSupplyImages
 {
 public:
 	ICoord2DList m_techPosList;
 	ICoord2DList m_supplyPosList;
+#if defined(GENONLINE)
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Typed markers; when set, the two position lists above stay empty.
+	MapPreviewMarkerList m_typedMarkers;
+#endif
 };
 
 struct WinTimeStamp
@@ -70,6 +86,30 @@ public:
 };
 
 typedef std::list <Coord3D> Coord3DList;
+
+#if defined(GENONLINE)
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Typed supply and tech objects of a map for the preview icons and mapcache.json.
+struct MapTypedObject
+{
+	AsciiString m_templateName;
+	AsciiString m_category; ///< MapPreviewIcons category name, empty when no rule matched
+	Bool m_isTech; ///< KINDOF_TECH_BUILDING, else KINDOF_SUPPLY_SOURCE_ON_PREVIEW
+	Coord3D m_pos;
+};
+typedef std::vector<MapTypedObject> MapTypedObjectVector;
+
+class MapTypedObjects
+{
+public:
+	MapTypedObjects() : m_isKnown(FALSE) {}
+
+	MapTypedObjectVector m_objects;
+	Bool m_isKnown; ///< TRUE once read from the map or mapcache.json; an empty list then means the map has none
+};
+
+// Parses the map file for its typed objects only; returns FALSE when the map cannot be read.
+Bool loadMapTypedObjects( const AsciiString &mapPath, MapTypedObjectVector &outObjects );
+#endif
 
 class MapMetaData
 {
@@ -91,6 +131,10 @@ public:
 	Coord3DList m_supplyPositions;
 	Coord3DList m_techPositions;
 	AsciiString m_fileName;
+#if defined(GENONLINE)
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Typed objects for the preview icons; not written to MapCache.ini.
+	MapTypedObjects m_typedObjects;
+#endif
 };
 
 // TheSuperHackers @performance xezon 02/11/2025 Simplifies and improves the implementation of MapCache
@@ -109,8 +153,8 @@ public:
 
 	void updateCache();
 
-	AsciiString getMapDir() const;
-	AsciiString getUserMapDir() const;
+	AsciiString getMapDir(bool bCustomMapDebug = false) const;
+	AsciiString getUserMapDir(bool bCustomMapDebug = false) const;
 	AsciiString getMapExtension() const;
 
 	const MapMetaData *findMap(AsciiString mapName);
@@ -122,7 +166,7 @@ private:
 	static AsciiString getCachePath(const AsciiString &mapDir);
 	void prepareUnseenMaps(const AsciiString &mapDir);
 	Bool clearUnseenMaps(const AsciiString &mapDir);
-	void loadMapsFromMapCacheINI(const AsciiString &mapDir);
+	Bool loadMapsFromMapCacheINI(const AsciiString &mapDir); // returns false if the cache file was unreadable
 	Bool loadMapsFromDisk(const AsciiString &mapDir, Bool isOfficial, Bool filterByAllowedMaps = FALSE); // returns true if we needed to (re)parse a map
 	Bool addMap(const AsciiString &mapDir, const AsciiString &fname, const AsciiString &lowerFname, FileInfo &fileInfo, Bool isOfficial); ///< returns true if it had to (re)parse the map
 	void writeCacheINI(const AsciiString &mapDir);
@@ -152,3 +196,4 @@ Bool parseMapPreviewChunk(DataChunkInput &file, DataChunkInfo *info, void *userD
 void findDrawPositions( Int startX, Int startY, Int width, Int height, Region3D extent,
 															 ICoord2D *ul, ICoord2D *lr );
 Bool WouldMapTransfer( const AsciiString& mapName );
+UnicodeString getMapNameFromPath( const AsciiString& mapPath ); ///< Map file name without folders or the .map extension

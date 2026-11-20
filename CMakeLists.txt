@@ -74,6 +74,7 @@ include(cmake/lzhl.cmake)
 include(cmake/stb.cmake)
 # Ronin @feature 28/10/2026 DX9: RmlUi for the modern control bar (docs/UI_Work.md); fetched and built when vcpkg has none.
 include(cmake/rmlui.cmake)
+include(cmake/third-party-notices.cmake)
 
 if(RTS_BUILD_OPTION_PROFILE_TRACY)
     include(cmake/tracy.cmake)
@@ -94,6 +95,9 @@ endif()
 add_subdirectory(Dependencies)
 
 add_subdirectory(resources)
+
+# Generals Online code in Core and its libraries checks this, so every target needs it.
+add_compile_definitions(GENONLINE)
 
 add_subdirectory(Core)
 

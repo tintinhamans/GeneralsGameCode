@@ -1,0 +1,10 @@
+# A section panel inside a frame: black fill and the kit line colour.
+extends: user
+params:
+  fill: "0 0 2 255"
+  border: "47 75 255 255"
+  disabled_fill: "64 64 64 255"
+  disabled_border: "254 254 254 255"
+  hilite_fill: "106 123 255 255"
+  hilite_border: "254 254 254 255"
+callbacks: {system: PassMessagesToParentSystem}

@@ -43,6 +43,7 @@
 #include "GameClient/GUI/GUICallbacks/Menus/LanGameSetupActions.h"
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameClient/MapUtil.h"
+#include "GameClient/MapSelectList.h"
 #include "GameNetwork/GUIUtil.h"
 
 
@@ -54,8 +55,9 @@ static NameKeyType winMapPreviewID = NAMEKEY_INVALID;
 static GameWindow *parent = nullptr;
 static GameWindow *mapList = nullptr;
 static GameWindow *winMapPreview = nullptr;
-static NameKeyType radioButtonSystemMapsID = NAMEKEY_INVALID;
-static NameKeyType radioButtonUserMapsID = NAMEKEY_INVALID;
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Search, filters and favourites replace the system and user map tabs.
+static MapSelectList mapSelectList;
+static MapSelectFilter mapSelectFilter;
 
 static GameWindow *buttonMapStartPosition[MAX_SLOTS] = {0};
 static NameKeyType buttonMapStartPositionID[MAX_SLOTS] = { NAMEKEY_INVALID,NAMEKEY_INVALID,
@@ -68,25 +70,17 @@ static NameKeyType buttonMapStartPositionID[MAX_SLOTS] = { NAMEKEY_INVALID,NAMEK
 void positionStartSpots( AsciiString mapName, GameWindow *buttonMapStartPositions[], GameWindow *mapWindow);
 static const char *layoutFilename = "LanGameOptionsMenu.wnd";
 static const char *parentName = "LanGameOptionsMenuParent";
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 Rows stay visible behind the dialog; only the preview hides, it shares the marker list.
 static const char *gadgetsToHide[] =
 {
 	"MapWindow",
 	//"StaticTextTitle",
-	"StaticTextTeam",
-	"StaticTextFaction",
-	"StaticTextColor",
-	"TextEntryMapDisplay",
-	"ButtonSelectMap",
-	"ButtonStart",
 	"StaticTextMapPreview",
 
 	nullptr
 };
 static const char *perPlayerGadgetsToHide[] =
 {
-	"ComboBoxTeam",
-	"ComboBoxColor",
-	"ComboBoxPlayerTemplate",
 	nullptr
 };
 
@@ -103,6 +97,7 @@ static void NullifyControls()
 {
 	parent = nullptr;
 	mapList = nullptr;
+	mapSelectList.shutdown();
 	if (winMapPreview)
 	{
 		winMapPreview->winSetUserData(nullptr);
@@ -127,30 +122,12 @@ void LanMapSelectMenuInit( WindowLayout *layout, void *userData )
 
 	TheWindowManager->winSetFocus( parent );
 
-	LANPreferences pref;
-	Bool usesSystemMapDir = pref.usesSystemMapDir();
-
-	const MapMetaData *mmd = TheMapCache->findMap(TheLAN->GetMyGame()->getMap());
-	if (mmd)
-	{
-		usesSystemMapDir = mmd->m_isOfficial;
-	}
-
-
 	buttonBack = TheNameKeyGenerator->nameToKey( "LanMapSelectMenu.wnd:ButtonBack" );
 	buttonOK = TheNameKeyGenerator->nameToKey( "LanMapSelectMenu.wnd:ButtonOK" );
 	listboxMap = TheNameKeyGenerator->nameToKey( "LanMapSelectMenu.wnd:ListboxMap" );
 	winMapPreviewID = TheNameKeyGenerator->nameToKey( "LanMapSelectMenu.wnd:WinMapPreview" );
 
-	radioButtonSystemMapsID = TheNameKeyGenerator->nameToKey( "LanMapSelectMenu.wnd:RadioButtonSystemMaps" );
-	radioButtonUserMapsID = TheNameKeyGenerator->nameToKey( "LanMapSelectMenu.wnd:RadioButtonUserMaps" );
-	GameWindow *radioButtonSystemMaps = TheWindowManager->winGetWindowFromId( parent, radioButtonSystemMapsID );
-	GameWindow *radioButtonUserMaps = TheWindowManager->winGetWindowFromId( parent, radioButtonUserMapsID );
 	winMapPreview = TheWindowManager->winGetWindowFromId(parent, winMapPreviewID);
-	if (usesSystemMapDir)
-		GadgetRadioSetSelection( radioButtonSystemMaps, FALSE );
-	else
-		GadgetRadioSetSelection( radioButtonUserMaps, FALSE );
 
 	AsciiString tmpString;
 	for (Int i = 0; i < MAX_SLOTS; i++)
@@ -170,7 +147,7 @@ void LanMapSelectMenuInit( WindowLayout *layout, void *userData )
 	{
 		if (TheMapCache)
 			TheMapCache->updateCache();
-		populateMapListbox( mapList, usesSystemMapDir, TRUE, TheLAN->GetMyGame()->getMap() );
+		mapSelectList.init( parent, "LanMapSelectMenu.wnd", MapSelectOptions(), &mapSelectFilter, TheLAN->GetMyGame()->getMap() );
 	}
 }
 
@@ -249,6 +226,30 @@ WindowMsgHandledType LanMapSelectMenuInput( GameWindow *window, UnsignedInt msg,
 
 }
 
+// The OK path's effect on the lobby: the map, its checksum and size, and the start spots and slots adjusting to it.
+static void applySelectedMap( AsciiString asciiMap )
+{
+	TheLAN->GetMyGame()->setMap( asciiMap );
+	asciiMap.toLower();
+	std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(asciiMap);
+	if (it != TheMapCache->end())
+	{
+		TheLAN->GetMyGame()->getSlot(0)->setMapAvailability(true);
+		TheLAN->GetMyGame()->setMapCRC( it->second.m_CRC );
+		TheLAN->GetMyGame()->setMapSize( it->second.m_filesize );
+
+		TheLAN->GetMyGame()->resetStartSpots();
+		TheLAN->GetMyGame()->adjustSlotsForMap(); // BGC- adjust the slots for the new map.
+	}
+}
+
+// The same without the selector window, for the stats pipe.
+void LanMapSelectMenuApplyMap( const AsciiString& map )
+{
+	applySelectedMap( map );
+	PostToLanGameOptions( SEND_GAME_OPTS );
+}
+
 //-------------------------------------------------------------------------------------------------
 /** MapSelect menu window system callback */
 //-------------------------------------------------------------------------------------------------
@@ -260,6 +261,21 @@ WindowMsgHandledType LanMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 	{
 		mapWindow = TheWindowManager->winGetWindowFromId( parent, listboxMap );
 	}
+
+	const MapSelectMsgResult filterResult = mapSelectList.handleSystemMessage( msg, mData1, mData2 );
+	if (filterResult == MAP_SELECT_MSG_SOURCE_CHANGED)
+	{
+		// the single player map menu shares this preference
+		const MapSelectSource source = mapSelectFilter.m_source;
+		if (source == MAP_SOURCE_OFFICIAL || source == MAP_SOURCE_USER)
+		{
+			LANPreferences pref;
+			pref["UseSystemMapDir"] = (source == MAP_SOURCE_OFFICIAL) ? "yes" : "no";
+			pref.write();
+		}
+	}
+	if (filterResult != MAP_SELECT_MSG_IGNORED)
+		return MSG_HANDLED;
 
 	switch( msg )
 	{
@@ -319,25 +335,7 @@ WindowMsgHandledType LanMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 			GameWindow *control = (GameWindow *)mData1;
 			Int controlID = control->winGetWindowId();
 
-			if ( controlID == radioButtonSystemMapsID )
-			{
-				if (TheMapCache)
-					TheMapCache->updateCache();
-				populateMapListbox( mapList, TRUE, TRUE, TheLAN->GetMyGame()->getMap() );
-				LANPreferences pref;
-				pref["UseSystemMapDir"] = "yes";
-				pref.write();
-			}
-			else if ( controlID == radioButtonUserMapsID )
-			{
-				if (TheMapCache)
-					TheMapCache->updateCache();
-				populateMapListbox( mapList, FALSE, TRUE, TheLAN->GetMyGame()->getMap() );
-				LANPreferences pref;
-				pref["UseSystemMapDir"] = "no";
-				pref.write();
-			}
-			else if ( controlID == buttonBack )
+			if ( controlID == buttonBack )
 			{
 
 				if (mapSelectLayout)
@@ -408,6 +406,7 @@ WindowMsgHandledType LanMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 					if( rowSelected < 0 )
 					{
 						positionStartSpots( AsciiString::TheEmptyString, buttonMapStartPosition, winMapPreview);
+						mapSelectList.refreshLegend( AsciiString::TheEmptyString );
 //						winMapPreview->winClearStatus(WIN_STATUS_IMAGE);
 						break;
 					}
@@ -436,6 +435,7 @@ WindowMsgHandledType LanMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 						winMapPreview->winClearStatus(WIN_STATUS_IMAGE);
 					}
 					positionStartSpots( asciiMap, buttonMapStartPosition, winMapPreview);
+					mapSelectList.refreshLegend( asciiMap );
 				}
 				break;
 			}

@@ -62,6 +62,7 @@
 #include "GameClient/GadgetPushButton.h"
 #include "GameClient/GadgetSlider.h"
 #include "GameClient/GameWindowGlobal.h"
+#include "GameClient/Mouse.h"
 
 // DEFINES ////////////////////////////////////////////////////////////////////
 
@@ -81,6 +82,28 @@
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 void HideListBox(GameWindow * window);
+
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 A kit drop-down fits its compact rows and its frame instead of the retail row padding.
+static Int getDropDownHeight( GameWindow *listBox, Int rows )
+{
+	Int kitHeight = GadgetListBoxGetKitComboHeight( listBox, rows );
+	if( kitHeight > 0 )
+		return kitHeight;
+
+	WinInstanceData *listInstData = listBox->winGetInstanceData();
+	return ((TheWindowManager->winFontHeight( listInstData->getFont() ) ) * rows) + rows * 2 + 4;
+}
+
+// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Raise an opening combo box and the windows holding it above their siblings,
+// so its drop down list draws over the panels laid out below it
+static void bringComboBoxToTop(GameWindow *comboBox)
+{
+	for (GameWindow *window = comboBox; window != nullptr && window->winGetParent() != nullptr; window = window->winGetParent())
+	{
+		window->winBringToTop();
+	}
+}
+
 
 // GadgetComboBoxInput =========================================================
 /** Handle input for Combo box */
@@ -167,9 +190,9 @@ WindowMsgHandledType GadgetComboBoxInput( GameWindow *window, UnsignedInt msg,
 					// If the Listbox isn't showing, Show it.
 					if(listBox->winIsHidden())
 					{
+						bringComboBoxToTop(window);
 						listBox->winHide(FALSE);
 						window->winGetSize(&winSize.x, &winSize.y);
-						WinInstanceData *listInstData = listBox->winGetInstanceData();
 						ListboxData *listData = (ListboxData *)listBox->winGetUserData();
 						// If we have less entries then our max display is set to, only show
 						// those entries and not additional blank lines.  Also, just so it looks
@@ -199,9 +222,11 @@ WindowMsgHandledType GadgetComboBoxInput( GameWindow *window, UnsignedInt msg,
 
 						}
 
-						newSize.y = ((TheWindowManager->winFontHeight( listInstData->getFont() ) ) * multiplier) + multiplier * 2 + 4;
-						window->winSetSize(winSize.x , winSize.y + newSize.y );
-						listBox->winSetPosition(0, winSize.y);
+						newSize.y = getDropDownHeight( listBox, multiplier );
+						// TheSuperHackers @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the field's bottom line.
+						const Int frameOverlap = GadgetListBoxGetKitComboFrame( listBox );
+						window->winSetSize(winSize.x , winSize.y + newSize.y - frameOverlap );
+						listBox->winSetPosition(0, winSize.y - frameOverlap);
 
 						listBox->winSetSize(listX , newSize.y);
 					}
@@ -516,7 +541,6 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 				ICoord2D editBoxSize;
 				Int listX;
 				Int multiplier;
-				WinInstanceData *listInstData = listBox->winGetInstanceData();
 				GameWindow *editBox = GadgetComboBoxGetEditBox(window);
 				window->winGetSize(&winSize.x, &winSize.y);
 				editBox->winGetSize(&editBoxSize.x, &editBoxSize.y);
@@ -544,8 +568,9 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 					if(listData->slider)
 						listData->slider->winHide(FALSE);
 				}
-				newSize.y = ((TheWindowManager->winFontHeight( listInstData->getFont() ) ) * multiplier) + multiplier * 2 + 4;
-				listBox->winSetPosition(0, editBoxSize.y);
+				newSize.y = getDropDownHeight( listBox, multiplier );
+				// TheSuperHackers @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the field's bottom line.
+				listBox->winSetPosition(0, editBoxSize.y - GadgetListBoxGetKitComboFrame( listBox ));
 				listBox->winSetSize(listX , newSize.y);
 			}
 
@@ -649,9 +674,9 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 					// If the Listbox isn't showing, Show it.
 					if(listBox->winIsHidden())
 					{
+						bringComboBoxToTop(window);
 						listBox->winHide(FALSE);
 						window->winGetSize(&winSize.x, &winSize.y);
-						WinInstanceData *listInstData = listBox->winGetInstanceData();
 						ListboxData *listData = (ListboxData *)listBox->winGetUserData();
 						// If we have less entries then our max display is set to, only show
 						// those entries and not additional blank lines.  Also, just so it looks
@@ -681,9 +706,11 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 
 						}
 
-						newSize.y = ((TheWindowManager->winFontHeight( listInstData->getFont() ) ) * multiplier) + multiplier * 2 + 4;
-						window->winSetSize(winSize.x , winSize.y + newSize.y );
-						listBox->winSetPosition(0, winSize.y);
+						newSize.y = getDropDownHeight( listBox, multiplier );
+						// TheSuperHackers @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the field's bottom line.
+						const Int frameOverlap = GadgetListBoxGetKitComboFrame( listBox );
+						window->winSetSize(winSize.x , winSize.y + newSize.y - frameOverlap );
+						listBox->winSetPosition(0, winSize.y - frameOverlap);
 
 						listBox->winSetSize(listX , newSize.y);
 					}
@@ -1105,3 +1132,57 @@ Int GadgetComboBoxGetLength( GameWindow *combobox )
 	return 0;
 }
 
+// GadgetComboBoxIsKitField ===================================================
+/** TRUE when the combo draws as one GO kit field box: kit field and arrow art, no divider between them */
+//=============================================================================
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 A kit combo draws its edit box and arrow as one field box.
+Bool GadgetComboBoxIsKitField( GameWindow *comboBox )
+{
+	if( comboBox == nullptr || BitIsSet( comboBox->winGetStyle(), GWS_COMBO_BOX ) == FALSE )
+		return FALSE;
+
+	GameWindow *button = GadgetComboBoxGetDropDownButton( comboBox );
+	if( button == nullptr || GadgetComboBoxGetEditBox( comboBox ) == nullptr )
+		return FALSE;
+
+	// the arrow art must carry border rows like the field art the kit drop-down frame checks
+	const Image *arrow = GadgetButtonGetEnabledImage( button );
+	if( arrow == nullptr || arrow->getBorder() <= 0.0f )
+		return FALSE;
+
+	return GadgetListBoxGetKitComboFrame( GadgetComboBoxGetListBox( comboBox ) ) > 0;
+}
+
+// GadgetComboBoxIsKitFieldLit ================================================
+/** TRUE when a kit combo field shows its hover look: the mouse is over the edit box or the arrow, or the combo has focus */
+//=============================================================================
+Bool GadgetComboBoxIsKitFieldLit( GameWindow *comboBox )
+{
+	if( GadgetComboBoxIsKitField( comboBox ) == FALSE )
+		return FALSE;
+
+	GameWindow *parts[ 3 ];
+	parts[ 0 ] = comboBox;
+	parts[ 1 ] = GadgetComboBoxGetEditBox( comboBox );
+	parts[ 2 ] = GadgetComboBoxGetDropDownButton( comboBox );
+
+	Int i;
+	for( i = 0; i < 3; ++i )
+	{
+		if( BitIsSet( parts[ i ]->winGetInstanceData()->getState(), WIN_STATE_HILITED ) )
+			return TRUE;
+	}
+
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 A read-only edit box takes no mouse input, so also light the field when the mouse is inside the edit box and arrow.
+	if( TheMouse == nullptr || comboBox->winIsHidden() )
+		return FALSE;
+	const MouseIO *mouse = TheMouse->getMouseStatus();
+	Int left, top, right, bottom;
+	parts[ 1 ]->winGetScreenPosition( &left, &top );
+	parts[ 2 ]->winGetScreenPosition( &right, &bottom );
+	Int buttonWidth, buttonHeight;
+	parts[ 2 ]->winGetSize( &buttonWidth, &buttonHeight );
+	right += buttonWidth;
+	bottom += buttonHeight;
+	return mouse->pos.x >= left && mouse->pos.x < right && mouse->pos.y >= top && mouse->pos.y < bottom;
+}

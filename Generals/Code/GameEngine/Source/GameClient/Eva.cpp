@@ -25,7 +25,6 @@
 // GameClient/Eva.cpp /////////////////////////////////////////////////////////////////////////////
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
-#include "GameClient/ControlBar.h"
 #include "GameClient/Eva.h"
 
 #include "Common/GameUtility.h"
@@ -173,7 +172,8 @@ Eva::~Eva()
 {
 	EvaCheckInfoPtrVecIt it;
 	for (it = m_allCheckInfos.begin(); it != m_allCheckInfos.end(); ++it) {
-		deleteInstance(*it);
+		if (*it)
+			deleteInstance(*it);
 	}
 }
 

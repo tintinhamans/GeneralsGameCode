@@ -68,6 +68,10 @@ void MissileLauncherBuildingUpdate::switchToState(DoorStateType dst)
 	if (m_doorState == dst)
 		return;
 
+	// Safety check: if the object has been destroyed, don't attempt state changes
+	if (!getObject())
+		return;
+
 	const MissileLauncherBuildingUpdateModuleData* d = getMissileLauncherBuildingUpdateModuleData();
 	ModelConditionFlags clr, set;
 	UnsignedInt now = TheGameLogic->getFrame();
@@ -220,6 +224,11 @@ Bool MissileLauncherBuildingUpdate::initiateIntentToDoSpecialPower( const Specia
 		return FALSE;
 	}
 
+	if (m_specialPowerModule == nullptr)
+	{
+		return FALSE;
+	}
+
 	if( m_specialPowerModule->getSpecialPowerTemplate() != specialPowerTemplate )
 	{
 		return FALSE;
@@ -246,6 +255,10 @@ Bool MissileLauncherBuildingUpdate::isPowerCurrentlyInUse( const CommandButton *
 //-------------------------------------------------------------------------------------------------
 UpdateSleepTime MissileLauncherBuildingUpdate::update()
 {
+	// Safety check: if the object has been destroyed, don't update
+	if (!getObject())
+		return UPDATE_SLEEP_NONE;
+
 	const MissileLauncherBuildingUpdateModuleData* d = getMissileLauncherBuildingUpdateModuleData();
 
 	UnsignedInt now = TheGameLogic->getFrame();

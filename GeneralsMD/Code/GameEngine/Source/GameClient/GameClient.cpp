@@ -86,6 +86,10 @@
 #include "GameLogic/Object.h"
 #include "GameLogic/ScriptEngine.h"		// For TheScriptEngine - jkmcd
 
+#include "../GenOnlineDefines.h"
+#include <chrono>
+
+
 #define DRAWABLE_HASH_SIZE	8192
 
 /// The GameClient singleton instance
@@ -105,6 +109,12 @@ GameClient::GameClient()
 	m_textBearingDrawableList.clear();
 
 	m_frame = 0;
+
+#if defined(GENONLINE)
+	m_legacyFrameMSAccured = 0;
+	m_frameLegacy = 0;
+	m_frameLegacyLast = 0;
+#endif
 
 	m_drawableList = nullptr;
 
@@ -178,7 +188,6 @@ GameClient::~GameClient()
 	delete TheFontLibrary;
 	TheFontLibrary = nullptr;
 
-	TheMouse->reset();
 	delete TheMouse;
 	TheMouse = nullptr;
 
@@ -546,7 +555,9 @@ void GameClient::update()
 	TheAnim2DCollection->UPDATE();
 
 	// update the keyboard
-	if( TheKeyboard )
+	const Bool inputSuspended = TheGameEngine != nullptr && TheGameEngine->isInputSuspended();
+
+	if( TheKeyboard && !inputSuspended )
 	{
 		TheKeyboard->UPDATE();
 		TheKeyboard->createStreamMessages();
@@ -557,7 +568,7 @@ void GameClient::update()
 	TheEva->UPDATE();
 
 	// update the mouse
-	if( TheMouse )
+	if( TheMouse && !inputSuspended )
 	{
 		TheMouse->UPDATE();
 		TheMouse->createStreamMessages();
@@ -725,6 +736,7 @@ void GameClient::update()
 		TheDisplayStringManager->update();
 	}
 
+
 	{
 		// update the shell
 		TheShell->UPDATE();
@@ -734,6 +746,32 @@ void GameClient::update()
 		// update the in game UI
 		TheInGameUI->UPDATE();
 	}
+
+#if defined(GENONLINE)
+	int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+
+	// The accumulator counts milliseconds times the base frame rate, so one base frame is MSEC_PER_SECOND units.
+	if (!freezeTime)
+	{
+		m_legacyFrameMSAccured += (currTime - m_LegacyFrameEndLastFrame) * BaseFps;
+	}
+	m_LegacyFrameEndLastFrame = currTime;
+
+	// TODO_NGMP: This should really use partial frame intervals instead of a fixed 60hz update
+	if (m_legacyFrameMSAccured >= MSEC_PER_SECOND)
+	{
+		// The remainder carries over so the base frame rate does not depend on the render rate.
+		m_legacyFrameMSAccured -= MSEC_PER_SECOND;
+		// A stall advances one base frame only and does not queue a burst of catch up frames.
+		if (m_legacyFrameMSAccured >= MSEC_PER_SECOND)
+			m_legacyFrameMSAccured = 0;
+		m_frameLegacy++;
+	}
+	else
+	{
+		m_frameLegacyLast = m_frameLegacy;
+	}
+#endif
 }
 
 void GameClient::draw()
@@ -886,6 +924,7 @@ void GameClient::destroyDrawable( Drawable *draw )
 	deleteInstance(draw);
 
 }
+
 
 // ------------------------------------------------------------------------------------------------
 /** Add drawable to lookup table for fast id searching */

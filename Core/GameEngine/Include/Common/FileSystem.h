@@ -53,6 +53,9 @@
 
 #include <Utility/hash_map_adapter.h>
 
+#include <string>
+#include <vector>
+
 #include "WWLib/mutex.h"
 
 //----------------------------------------------------------------------------
@@ -136,6 +139,30 @@ struct FileInfo {
 };
 
 //===============================
+// PathExcludeList
+//===============================
+/**
+  * The excludes of the -packs stack for the game folder. An entry is game:<pattern>, user:<pattern> or an absolute pattern, where * matches any text
+  * including folders and ? one character. A pattern ending in a slash is a folder and everything in it. Matching ignores case and slash direction.
+  * A path is tested as a key: game:<path relative to the game folder>, user:<path relative to the user data folder> or the absolute path.
+  */
+class PathExcludeList
+{
+public:
+	static Bool parse(const std::string& text, std::string* pattern, AsciiString* reason);	///< FALSE and a reason for an entry that is not valid
+	static std::string makeKey(const Char* path);	///< key of a path that is relative to the game folder or absolute
+	static std::string makeKey(const Char* path, const Char* userDataPath);	///< same, a path inside the user data folder becomes user:<path>
+
+	void set(const std::vector<std::string>& entries);	///< entries that are not valid are dropped
+	Bool isEmpty() const { return m_patterns.empty(); }
+	Bool matches(const std::string& key) const;
+	Bool matchesPath(const Char* path) const { return !m_patterns.empty() && matches(makeKey(path)); }
+
+private:
+	std::vector<std::string> m_patterns;
+};
+
+//===============================
 // FileSystem
 //===============================
 /**
@@ -174,6 +201,11 @@ public:
 
 	Bool createDirectory(AsciiString directory); ///< create a directory of the given name.
 
+	/// Loose files of the game folder that match are treated as if they did not exist: not opened, not found, not listed. Files that are written and files outside the game folder are not affected.
+	/// A loose file of the game folder that a pack of the -packs stack also has is not opened or found either, the file of the pack wins.
+	void setExcludedPaths(const std::vector<std::string>& entries) { m_excludedPaths.set(entries); }
+	const PathExcludeList& getExcludedPaths() const { return m_excludedPaths; }
+
 	static AsciiString normalizePath(const AsciiString& path);	///< normalizes a file path. The path can refer to a directory. File path must be absolute, but does not need to exist. Returns an empty string on failure.
 	static Bool isPathInDirectory(const AsciiString& testPath, const AsciiString& basePath);	///< determines if a file path is within a base path. Both paths must be absolute, but do not need to exist.
 
@@ -194,6 +226,10 @@ public:
 	static Int comparePath(const Char* a, const Char* b);
 
 protected:
+	Bool isLooseFileExcluded(const Char *filename) const;
+
+	PathExcludeList m_excludedPaths;
+
 #if ENABLE_FILESYSTEM_EXISTENCE_CACHE
 	struct FileExistData
 	{

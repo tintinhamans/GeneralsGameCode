@@ -51,6 +51,11 @@
 #include "GameLogic/ScriptEngine.h"
 #include "Common/Recorder.h"
 #include "GameClient/MessageBox.h"
+#include "../GenOnlineInclude.h"
+#include "../GenOnlineInterfaces.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/WifiLowLatency.h"
+#endif
 
 
 #if defined(DEBUG_CRC) && !RETAIL_COMPATIBLE_NETWORKING
@@ -74,7 +79,7 @@ struct ConnectionMessage
 {
 	Int id;
 	NetMessageFlags flags;
-	UnsignedByte data[MAX_NETWORK_MESSAGE_LEN];
+	UnsignedByte data[MAX_MESSAGE_LEN];
 	time_t lastSendTime;
 	Int retries;
 	Int length;
@@ -82,6 +87,9 @@ struct ConnectionMessage
 #pragma pack(pop)
 
 static const int CmdMsgLen = 6; //< Minimum size of a command packet (Int + Unsigned Short)
+#if defined(GENONLINE)
+static const time_t START_RUNAHEAD_TIMEOUT_MS = 15000;	//< A router that stays connected has this long after the load to send the start run ahead.
+#endif
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////
 
@@ -90,7 +98,7 @@ static const int CmdMsgLen = 6; //< Minimum size of a command packet (Int + Unsi
 // PUBLIC DATA ////////////////////////////////////////////////////////////////
 
 /// The Network singleton instance
-NetworkInterface *TheNetwork = nullptr;
+NetworkInterface* TheNetwork = NULL;
 
 // PRIVATE PROTOTYPES /////////////////////////////////////////////////////////
 
@@ -111,16 +119,28 @@ public:
 	virtual void liteupdate() override;																	///< Do a lightweight update to send packets and pass messages.
 	Bool deinit();																			///< Shutdown connections, release memory
 
-	virtual void setLocalAddress(UnsignedInt ip, UnsignedInt port) override;
-	virtual UnsignedInt getRunAhead() override { return m_runAhead; }
-	virtual UnsignedInt getFrameRate() override { return m_frameRate; }
-	virtual UnsignedInt getPacketArrivalCushion() override;								///< Returns the smallest packet arrival cushion since this was last called.
-	virtual Bool isFrameDataReady() override;
-	virtual Bool isStalling() override;
-	virtual void parseUserList( const GameInfo *game ) override;
-	virtual void startGame() override;																			///< Sets the network game frame counter to -1
+#if defined(GENONLINE)
+	virtual void SeedLatencyData(int latency);
+	virtual void requireMatchKeys() override { m_matchKeysRequired = TRUE; }
+	virtual Bool matchKeysRequired() const override { return m_matchKeysRequired; }
+	virtual void setStartRunAheadRequired(Bool required) override { m_startRunAheadRequired = required; }
+	virtual void applyStartRunAhead(Int runAhead, Int maxRttMs, Int pairs) override;
+#endif
 
-	virtual void sendChat(UnicodeString text, Int playerMask) override;
+	void setLocalAddress(UnsignedInt ip, UnsignedInt port);
+	UnsignedInt getRunAhead(void) { return m_runAhead; }
+	UnsignedInt getFrameRate(void) { return m_frameRate; }
+	UnsignedInt getPacketArrivalCushion(void);								///< Returns the smallest packet arrival cushion since this was last called.
+	Bool isFrameDataReady(void);
+#if defined(GENONLINE)
+	virtual Bool isGameExitPending() const override { return m_localStatus == NETLOCALSTATUS_POSTGAME; }
+	virtual UnsignedInt getMeasuredLogicRate() override;
+#endif
+	virtual Bool isStalling();
+	void parseUserList(const GameInfo* game);
+	void startGame(void);																			///< Sets the network game frame counter to -1
+
+	void sendChat(UnicodeString text, Int playerMask);
 	virtual void sendDisconnectChat(UnicodeString text) override;
 
 	virtual void sendFile(AsciiString path, UnsignedByte playerMask, UnsignedShort commandID) override;
@@ -160,13 +180,21 @@ public:
 
 	virtual Int getAverageFPS() override { return m_conMgr->getAverageFPS(); }
 	virtual Int getSlotAverageFPS(Int slot) override;
+	virtual const ConnectionStats* getConnectionStats(Int slot) const override;
+#if defined(GENONLINE)
+	virtual Bool getOverlayInfo(Int slot, NetworkOverlayInfo &info) override;
+#endif
 
 	virtual void attachTransport(Transport *transport) override;
-	virtual void initTransport() override;
+	virtual void initTransport(const char *transportName) override;
 
-	virtual void setSawCRCMismatch() override;
-	virtual Bool sawCRCMismatch() override { return m_sawCRCMismatch; }
-	virtual Bool isPlayerConnected( Int playerID ) override;
+#if defined(GENONLINE)
+	void setSawCRCMismatch(UnicodeString& strMismatchDetails);
+#else
+	void setSawCRCMismatch(void);
+#endif
+	Bool sawCRCMismatch( void ) { return m_sawCRCMismatch; }
+	Bool isPlayerConnected( Int playerID );
 
 	virtual void notifyOthersOfCurrentFrame() override;														///< Tells all the other players what frame we are on.
 	virtual void notifyOthersOfNewFrame(UnsignedInt frame) override;								///< Tells all the other players that we are on a new frame.
@@ -177,6 +205,13 @@ public:
 	virtual UnsignedInt getPingFrame() override;
 	virtual Int getPingsSent() override;
 	virtual Int getPingsReceived() override;
+
+#if defined(GENONLINE)
+	ConnectionManager* GetConnectionManager() override { return m_conMgr; }
+
+	bool IsSlugging() override { return m_didSelfSlug; }
+	
+#endif
 
 protected:
 	void GetCommandsFromCommandList();														///< Remove commands from TheCommandList and put them on the Network command list.
@@ -203,6 +238,11 @@ protected:
 	Int m_lastExecutionFrame;																	///< The highest frame number that a command could have been executed on.
 	Int m_lastFrameCompleted;
 	Bool m_didSelfSlug;
+#if defined(GENONLINE)
+	DWORD m_rateSampleMs;
+	UnsignedInt m_rateSampleFrame;
+	UnsignedInt m_measuredLogicRate;
+#endif
 	__int64 m_perfCountFreq;														///< The frequency of the performance counter.
 
 	__int64 m_nextFrameTime;														///< When did we execute the last frame?  For slugging the GameLogic...
@@ -215,29 +255,44 @@ protected:
 	Bool m_sawCRCMismatch;
 	std::vector<UnsignedInt> m_CRC[MAX_SLOTS];
 	std::list<Int> m_playersToDisconnect;
-	GameWindow *m_messageWindow;
+	GameWindow* m_messageWindow;
 
 #if defined(RTS_DEBUG)
 	Bool m_networkOn;
+#endif
+
+#if defined(GENONLINE)
+	Bool m_matchKeysRequired;
+	Bool m_matchStartFailed;
+	Bool startPrerequisitesReady() const;
+	Bool m_startRunAheadRequired;	///< The router sends the start run ahead, the load is not complete until it arrived.
+	Bool m_startRunAheadApplied;
+	Bool m_loggedRejectedRunAhead;	///< A run ahead outside the floor and cap was ignored and logged.
+	Bool m_loadCompletePending;	///< The load finished before all start prerequisites arrived.
+	time_t m_loadCompletePendingSince;
+	void failMatchStart();		///< Leaves rather than starting without authentication or the router decision.
+
+	void updatePace();				///< Sets the speed of the next frame from how far ahead the remote commands are.
+	Real m_paceSpeed;				///< Share of the full frame rate the next frame runs at, 1 = full.
 #endif
 };
 
 UnsignedInt Network::getPingFrame()
 {
-	return (m_conMgr)?m_conMgr->getPingFrame():0;
+	return (m_conMgr) ? m_conMgr->getPingFrame() : 0;
 }
 
 Int Network::getPingsSent()
 {
-	return (m_conMgr)?m_conMgr->getPingsSent():0;
+	return (m_conMgr) ? m_conMgr->getPingsSent() : 0;
 }
 
 Int Network::getPingsReceived()
 {
-	return (m_conMgr)?m_conMgr->getPingsReceived():0;
+	return (m_conMgr) ? m_conMgr->getPingsReceived() : 0;
 }
 
-Bool Network::isPlayerConnected( Int playerID ) {
+Bool Network::isPlayerConnected(Int playerID) {
 	if (playerID == getLocalPlayerID()) {
 		return m_localStatus == NETLOCALSTATUS_INGAME || m_localStatus == NETLOCALSTATUS_LEAVING;
 	}
@@ -254,7 +309,7 @@ Bool Network::isPlayerConnected( Int playerID ) {
 /**
  * This creates a network object and returns it.
  */
-NetworkInterface *NetworkInterface::createNetwork()
+NetworkInterface* NetworkInterface::createNetwork()
 {
 	return NEW Network;
 }
@@ -271,8 +326,8 @@ Network::Network()
 	m_frameDataReady = FALSE;
 	m_isStalling = FALSE;
 	m_sawCRCMismatch = FALSE;
-	m_conMgr = nullptr;
-	m_messageWindow = nullptr;
+	m_conMgr = NULL;
+	m_messageWindow = NULL;
 
 #if defined(RTS_DEBUG)
 	m_networkOn = TRUE;
@@ -285,6 +340,10 @@ Network::Network()
 Network::~Network()
 {
 	deinit();
+#if defined(GENONLINE)
+	// the match is over, release the Wi-Fi tuning
+	WifiLowLatency::End();
+#endif
 }
 
 /**
@@ -292,15 +351,24 @@ Network::~Network()
  */
 Bool Network::deinit()
 {
+#if defined(GENONLINE)
+	if (m_matchKeysRequired) {
+		NetworkMesh* mesh = GenOnlineServicesManager::GetNetworkMesh();
+		if (mesh != nullptr) {
+			mesh->EndMatchKeys();
+		}
+		m_matchKeysRequired = FALSE;
+	}
+#endif
 	if (m_conMgr)
 	{
 		m_conMgr->destroyGameMessages();
 		delete m_conMgr;
-		m_conMgr = nullptr;
+		m_conMgr = NULL;
 	}
 	if (m_messageWindow) {
 		TheWindowManager->winDestroy(m_messageWindow);
-		m_messageWindow = nullptr;
+		m_messageWindow = NULL;
 	}
 
 	return true;
@@ -328,8 +396,12 @@ void Network::init()
 	m_conMgr->init();
 
 	m_lastFrame = 0;
-	m_runAhead = min(max(30, MIN_RUNAHEAD), MAX_FRAMES_AHEAD/2); ///< @todo: don't hard-code the run-ahead.
+	m_runAhead = min(max(30, MIN_RUNAHEAD), MAX_FRAMES_AHEAD / 2); ///< @todo: don't hard-code the run-ahead.
+#if defined(GENONLINE)
+	m_frameRate = LOGICFRAMES_PER_SECOND; // the logic rate update() sets once the match runs
+#else
 	m_frameRate = 30;
+#endif
 	m_lastExecutionFrame = m_runAhead - 1; // subtract 1 since we're starting on frame 0
 	m_lastFrameCompleted = m_runAhead - 1; // subtract 1 since we're starting on frame 0
 	m_frameDataReady = FALSE;
@@ -338,7 +410,21 @@ void Network::init()
 
 	m_localStatus = NETLOCALSTATUS_PREGAME;
 
-	QueryPerformanceFrequency((LARGE_INTEGER *)&m_perfCountFreq);
+#if defined(GENONLINE)
+	m_matchKeysRequired = FALSE;
+	m_matchStartFailed = FALSE;
+	m_rateSampleMs = 0;
+	m_rateSampleFrame = 0;
+	m_measuredLogicRate = 0;
+	m_startRunAheadRequired = FALSE;
+	m_startRunAheadApplied = FALSE;
+	m_loggedRejectedRunAhead = FALSE;
+	m_loadCompletePending = FALSE;
+	m_loadCompletePendingSince = 0;
+	m_paceSpeed = 1.0f;
+#endif
+
+	QueryPerformanceFrequency((LARGE_INTEGER*)&m_perfCountFreq);
 	m_nextFrameTime = 0;
 	m_sawCRCMismatch = FALSE;
 	m_checkCRCsThisFrame = FALSE;
@@ -363,14 +449,65 @@ void Network::init()
 #endif
 }
 
-void Network::setSawCRCMismatch()
+#if defined(GENONLINE)
+void Network::SeedLatencyData(int highestLatency)
+{
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[PRESEED] Seeding with the lobby round trip %d ms (p75 of the probes)", highestLatency);
+
+	m_conMgr->SeedLatencyData(highestLatency);
+}
+
+void Network::applyStartRunAhead(Int runAhead, Int maxRttMs, Int pairs)
+{
+	if (m_conMgr == nullptr || m_startRunAheadApplied || m_localStatus == NETLOCALSTATUS_POSTGAME)
+	{
+		return;
+	}
+
+	runAhead = clamp<Int>(m_conMgr->getRunAheadFloor(), runAhead, m_conMgr->getRunAheadCap());
+	const Int previousRunAhead = m_runAhead;
+
+	// no frame of the match has run and no peer sent commands for one, every peer waits for our load complete first
+	m_conMgr->applyStartRunAhead(previousRunAhead, runAhead);
+	m_runAhead = runAhead;
+	m_lastExecutionFrame = m_runAhead - 1;
+	m_lastFrameCompleted = m_runAhead - 1;
+	if (maxRttMs > 0)
+	{
+		m_conMgr->SeedLatencyData(maxRttMs);
+	}
+	m_startRunAheadApplied = TRUE;
+
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[RUNAHEAD] start R=%d (pairs=%d, max rtt=%dms)", m_runAhead, pairs, maxRttMs);
+
+	if (m_loadCompletePending)
+	{
+		loadProgressComplete();
+	}
+}
+#endif
+
+#if defined(GENONLINE)
+void Network::setSawCRCMismatch(UnicodeString& strMismatchDetails)
+#else
+void Network::setSawCRCMismatch( void )
+#endif
 {
 	m_sawCRCMismatch = TRUE;
 
 	TheScriptActions->closeWindows( TRUE );
+#if defined(GENONLINE)
+	m_messageWindow = MessageBoxOk(UnicodeString(L"Mismatch Occurred"), strMismatchDetails, nullptr);
+#else
 	m_messageWindow = TheWindowManager->winCreateFromScript("Menus/CRCMismatch.wnd");
-	TheScriptEngine->startEndGameTimer();
+#endif
 
+#if defined(GENONLINE)
+	TheScriptEngine->startEndGameTimer(true);
+#else
+	TheScriptEngine->startEndGameTimer();
+#endif
+	
 	TheRecorder->logCRCMismatch();
 
 	// dump GameLogic random seed
@@ -398,11 +535,11 @@ void Network::setSawCRCMismatch()
 /**
  * Take a user list and build the connection queues and player lists and stuff like that.
  */
-void Network::parseUserList( const GameInfo *game )
+void Network::parseUserList(const GameInfo* game)
 {
 	if (!game)
 	{
-		DEBUG_LOG(("FAILED parseUserList with a null game"));
+		DEBUG_LOG(("FAILED parseUserList with a NULL game"));
 		return;
 	}
 
@@ -410,7 +547,7 @@ void Network::parseUserList( const GameInfo *game )
 
 	// Now that we have the players in this game, we need to reset the FrameData stuff.
 	m_conMgr->destroyGameMessages();
-	m_conMgr->zeroFrames(1, m_runAhead-1); ///< we zero out m_runAhead frames +1 because the game actually starts at frame 1.
+	m_conMgr->zeroFrames(1, m_runAhead - 1); ///< we zero out m_runAhead frames +1 because the game actually starts at frame 1.
 }
 
 /**
@@ -424,8 +561,8 @@ void Network::startGame() {
  * it explicitly, but regardless, this is the one we're going to use.
  */
 void Network::setLocalAddress(UnsignedInt ip, UnsignedInt port) {
-	DEBUG_ASSERTCRASH(m_conMgr != nullptr, ("Connection manager does not exist."));
-	if (m_conMgr != nullptr) {
+	DEBUG_ASSERTCRASH(m_conMgr != NULL, ("Connection manager does not exist."));
+	if (m_conMgr != NULL) {
 		m_conMgr->setLocalAddress(ip, port);
 	}
 }
@@ -433,16 +570,16 @@ void Network::setLocalAddress(UnsignedInt ip, UnsignedInt port) {
 /**
  * Tell the network to initialize the transport object
  */
-void Network::initTransport() {
-	DEBUG_ASSERTCRASH(m_conMgr != nullptr, ("Connection manager does not exist."));
-	if (m_conMgr != nullptr) {
-		m_conMgr->initTransport();
+void Network::initTransport(const char *transportName) {
+	DEBUG_ASSERTCRASH(m_conMgr != NULL, ("Connection manager does not exist."));
+	if (m_conMgr != NULL) {
+		m_conMgr->initTransport(transportName);
 	}
 }
 
-void Network::attachTransport(Transport *transport) {
-	DEBUG_ASSERTCRASH(m_conMgr != nullptr, ("Connection manager does not exist."));
-	if (m_conMgr != nullptr) {
+void Network::attachTransport(Transport* transport) {
+	DEBUG_ASSERTCRASH(m_conMgr != NULL, ("Connection manager does not exist."));
+	if (m_conMgr != NULL) {
 		m_conMgr->attachTransport(transport);
 	}
 }
@@ -470,7 +607,8 @@ void Network::GetCommandsFromCommandList() {
 			}
 			TheCommandList->removeMessage(msg); // This does not destroy msg's prev and next pointers, so they should still be valid.
 			deleteInstance(msg);
-		} else {
+		}
+		else {
 			if (processCommand(msg)) {
 				TheCommandList->removeMessage(msg);
 				deleteInstance(msg);
@@ -502,7 +640,23 @@ void Network::updateLogicFrame()
 		if (m_localStatus == NETLOCALSTATUS_PREGAME) {
 			// a sort-of-hack that prevents extraneous frames from being executed before the game actually starts.
 			// Ideally this shouldn't be necessary, but I don't think its hurting anything by being here.
+#if defined(GENONLINE_RUN_FAST)
 			if (TheGameLogic->getFrame() == 1) {
+#else
+			if (TheGameLogic->getFrame() == 1) {
+#endif
+#if defined(GENONLINE)
+				// Pregame updates drive loading; only entering gameplay requires completed setup.
+				// A load that was forced on because the router went silent has no start run ahead, every player that got here starts at the retail one.
+				if (m_startRunAheadRequired && !m_startRunAheadApplied) {
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[RUNAHEAD] the load was forced on without the router's decision, start R=%d as in retail", (Int)m_runAhead);
+					applyStartRunAhead(m_runAhead, 0, 0);
+				}
+				if (!startPrerequisitesReady()) {
+					failMatchStart();
+					return;
+				}
+#endif
 				m_localStatus = NETLOCALSTATUS_INGAME;
 				NetCommandList *netcmdlist = m_conMgr->getFrameCommandList(0); // clear out frame 0 since we skipped it
 				deleteInstance(netcmdlist);
@@ -536,20 +690,27 @@ void Network::updateLogicFrame()
  */
 Bool Network::processCommand(GameMessage *msg)
 {
+#if defined(GENONLINE)
+	if (msg->getType() == GameMessage::MSG_CLEAR_GAME_DATA &&
+		(m_localStatus == NETLOCALSTATUS_LEAVING || m_localStatus == NETLOCALSTATUS_LEFT)) {
+		return TRUE; // the exit is already under way
+	}
+#endif
+
 	// Are we leaving the game?
 	// This has to happen after the check to see if this is the start of a new logic frame.
 	// The reason is that we have to send all the frame info packets necessary to get to the
 	// frame where everyone else is going to see that we left.
 	if ((msg->getType() == GameMessage::MSG_CLEAR_GAME_DATA) && (m_localStatus == NETLOCALSTATUS_INGAME)) {
 		Int executionFrame = getExecutionFrame();
-		DEBUG_LOG(("Network::processCommand - local player leaving, executionFrame = %d, player leaving on frame %d", executionFrame, executionFrame+1));
+		DEBUG_LOG(("Network::processCommand - local player leaving, executionFrame = %d, player leaving on frame %d", executionFrame, executionFrame + 1));
 
-		m_conMgr->handleLocalPlayerLeaving(executionFrame+1);
+		m_conMgr->handleLocalPlayerLeaving(executionFrame + 1);
 		m_conMgr->processFrameTick(executionFrame); // This is the last command we will execute, so send the command count.
-																								// Also, we are guaranteed not to send any more commands for this frame
-																								// since the local status will change to "Leaving" so we don't have to
-																								// worry about messing up the other players.
-		m_conMgr->processFrameTick(executionFrame+1); // since we send it for executionFrame+1, we need to process both ticks
+		// Also, we are guaranteed not to send any more commands for this frame
+		// since the local status will change to "Leaving" so we don't have to
+		// worry about messing up the other players.
+		m_conMgr->processFrameTick(executionFrame + 1); // since we send it for executionFrame+1, we need to process both ticks
 		m_lastFrameCompleted = executionFrame;
 		DEBUG_LOG(("Network::processCommand - player leaving on frame %d", executionFrame));
 		m_localStatus = NETLOCALSTATUS_LEAVING;
@@ -562,7 +723,7 @@ Bool Network::processCommand(GameMessage *msg)
  * returns true if all the commands are ready for the given frame.
  */
 Bool Network::AllCommandsReady(UnsignedInt frame) {
-	if (m_conMgr == nullptr) {
+	if (m_conMgr == NULL) {
 		return TRUE;
 	}
 
@@ -582,7 +743,7 @@ Bool Network::AllCommandsReady(UnsignedInt frame) {
  * The commands need to be put on in the same order across all clients.
  */
 void Network::RelayCommandsToCommandList(UnsignedInt frame) {
-	if ((m_conMgr == nullptr) || (m_localStatus == NETLOCALSTATUS_PREGAME)) {
+	if ((m_conMgr == NULL) || (m_localStatus == NETLOCALSTATUS_PREGAME)) {
 		return;
 	}
 	m_checkCRCsThisFrame = FALSE;
@@ -626,46 +787,69 @@ void Network::RelayCommandsToCommandList(UnsignedInt frame) {
 /**
  * This is where network commands that need to be executed on the same frame should be executed.
  */
-void Network::processFrameSynchronizedNetCommand(NetCommandRef *msg) {
-	NetCommandMsg *cmdMsg = msg->getCommand();
+void Network::processFrameSynchronizedNetCommand(NetCommandRef* msg) {
+	NetCommandMsg* cmdMsg = msg->getCommand();
 	if (cmdMsg->getNetCommandType() == NETCOMMANDTYPE_PLAYERLEAVE) {
-		PlayerLeaveCode retval = m_conMgr->processPlayerLeave((NetPlayerLeaveCommandMsg *)cmdMsg);
+		PlayerLeaveCode retval = m_conMgr->processPlayerLeave((NetPlayerLeaveCommandMsg*)cmdMsg);
 		if (retval == PLAYERLEAVECODE_LOCAL) {
 			DEBUG_LOG(("Network::processFrameSynchronizedNetCommand - Local player left the game on frame %d.", TheGameLogic->getFrame()));
 			m_localStatus = NETLOCALSTATUS_LEFT;
-		} else if (retval == PLAYERLEAVECODE_PACKETROUTER) {
+		}
+		else if (retval == PLAYERLEAVECODE_PACKETROUTER) {
 			DEBUG_LOG(("Network::processFrameSynchronizedNetCommand - Packet router left the game on frame %d", TheGameLogic->getFrame()));
-		} else {
+		}
+		else {
 			DEBUG_LOG(("Network::processFrameSynchronizedNetCommand - Client left the game on frame %d", TheGameLogic->getFrame()));
 		}
 	}
 	else if (cmdMsg->getNetCommandType() == NETCOMMANDTYPE_RUNAHEAD) {
-		NetRunAheadCommandMsg *netmsg = (NetRunAheadCommandMsg *)cmdMsg;
+		NetRunAheadCommandMsg* netmsg = (NetRunAheadCommandMsg*)cmdMsg;
 		processRunAheadCommand(netmsg);
 		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("command to set run ahead to %d and frame rate to %d on frame %d actually executed on frame %d", netmsg->getRunAhead(), netmsg->getFrameRate(), netmsg->getExecutionFrame(), TheGameLogic->getFrame()));
 	}
 	else if (cmdMsg->getNetCommandType() == NETCOMMANDTYPE_DESTROYPLAYER) {
-		NetDestroyPlayerCommandMsg *netmsg = (NetDestroyPlayerCommandMsg *)cmdMsg;
+		NetDestroyPlayerCommandMsg* netmsg = (NetDestroyPlayerCommandMsg*)cmdMsg;
 		processDestroyPlayerCommand(netmsg);
 	}
 }
 
-void Network::processRunAheadCommand(NetRunAheadCommandMsg *msg) {
+void Network::processRunAheadCommand(NetRunAheadCommandMsg* msg) {
+#if defined(GENONLINE)
+	if (!m_conMgr->acceptsRunAhead(msg->getRunAhead())) {
+		if (!m_loggedRejectedRunAhead) {
+			m_loggedRejectedRunAhead = TRUE;
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[SECURITY] ignored a run ahead of %d, outside %d..%d", (Int)msg->getRunAhead(), m_conMgr->getRunAheadFloor(), m_conMgr->getRunAheadCap());
+		}
+		return;
+	}
+	const Int previousRunAhead = m_runAhead;
+#endif
 	m_runAhead = msg->getRunAhead();
+#if defined(GENONLINE)
+	m_conMgr->noteRunAheadApplied(previousRunAhead, m_runAhead);
+#endif
 	m_frameRate = msg->getFrameRate();
 	time_t frameGrouping = (1000 * m_runAhead) / m_frameRate; // number of miliseconds between packet sends
 	frameGrouping = frameGrouping / 2; // since we only want the latency for one way to be a factor.
-//	DEBUG_LOG(("Network::processRunAheadCommand - trying to set frame grouping to %d.  run ahead = %d, m_frameRate = %d", frameGrouping, m_runAhead, m_frameRate));
+	//	DEBUG_LOG(("Network::processRunAheadCommand - trying to set frame grouping to %d.  run ahead = %d, m_frameRate = %d", frameGrouping, m_runAhead, m_frameRate));
 	if (frameGrouping < 1) {
 		frameGrouping = 1; // Having a value less than 1 doesn't make sense.
 	}
+
+#if defined(GENONLINE)
+	if (frameGrouping > FRAME_GROUPING_CAP) {
+		frameGrouping = FRAME_GROUPING_CAP; // Max of a half a second.
+	}
+#else
 	if (frameGrouping > 500) {
 		frameGrouping = 500; // Max of a half a second.
 	}
+#endif
+
 	m_conMgr->setFrameGrouping(frameGrouping);
 }
 
-void Network::processDestroyPlayerCommand(NetDestroyPlayerCommandMsg *msg)
+void Network::processDestroyPlayerCommand(NetDestroyPlayerCommandMsg* msg)
 {
 	UnsignedInt slotIndex = msg->getPlayerIndex();
 	DEBUG_ASSERTCRASH(slotIndex < MAX_SLOTS, ("Bad slot index"));
@@ -675,7 +859,7 @@ void Network::processDestroyPlayerCommand(NetDestroyPlayerCommandMsg *msg)
 	Player *pPlayer = ThePlayerList->getPlayerFromSlotIndex(slotIndex);
 	if (pPlayer)
 	{
-		GameMessage *msg = newInstance(GameMessage)(GameMessage::MSG_SELF_DESTRUCT);
+		GameMessage* msg = newInstance(GameMessage)(GameMessage::MSG_SELF_DESTRUCT);
 #if RETAIL_COMPATIBLE_CRC
 		const Bool transferAssets = FALSE;
 #else
@@ -695,12 +879,12 @@ void Network::processDestroyPlayerCommand(NetDestroyPlayerCommandMsg *msg)
  */
 void Network::update()
 {
-//
-// 1. Take Commands off TheCommandList, hand them off to the ConnectionManager.
-// 2. Call ConnectionManager->update;
-// 3. Check to see if all the commands for the next frame are there.
-// 4. If all commands are there, put that frame's commands on TheCommandList.
-//
+	//
+	// 1. Take Commands off TheCommandList, hand them off to the ConnectionManager.
+	// 2. Call ConnectionManager->update;
+	// 3. Check to see if all the commands for the next frame are there.
+	// 4. If all commands are there, put that frame's commands on TheCommandList.
+	//
 	m_frameDataReady = FALSE;
 	m_isStalling = FALSE;
 
@@ -710,9 +894,27 @@ void Network::update()
 	}
 #endif
 
+#if defined(GENONLINE)
+	if (m_matchStartFailed) {
+		// Discard gameplay input, but leave the queued exit command for normal teardown.
+		GetCommandsFromCommandList();
+		return;
+	}
+#endif
+
 	GetCommandsFromCommandList(); // Remove commands from TheCommandList and send them to the connection manager.
-	if (m_conMgr != nullptr) {
+#if defined(GENONLINE)
+	if (m_matchStartFailed) {
+		return;
+	}
+#endif
+	if (m_conMgr != NULL) {
 		if (m_localStatus == NETLOCALSTATUS_INGAME) {
+#if defined(GENONLINE_RUN_FAST)
+			m_frameRate = 60;
+#else
+			m_frameRate = LOGICFRAMES_PER_SECOND;
+#endif
 			m_conMgr->updateRunAhead(m_runAhead, m_frameRate, m_didSelfSlug, getExecutionFrame());
 			m_didSelfSlug = FALSE;
 		}
@@ -721,11 +923,24 @@ void Network::update()
 	}
 
 	liteupdate();
+#if defined(GENONLINE)
+	if (m_matchStartFailed) {
+		return;
+	}
+#endif
 
 	if (m_localStatus == NETLOCALSTATUS_LEFT) {
 		// || (m_localStatus == NETLOCALSTATUS_LEAVING)) {
 		endOfGameCheck();
+#if defined(GENONLINE)
+		return;
+#endif
 	}
+#if defined(GENONLINE)
+	if (m_localStatus == NETLOCALSTATUS_POSTGAME) {
+		return;
+	}
+#endif
 
 	if (AllCommandsReady(TheGameLogic->getFrame())) {
 		// If all the commands are ready for the next frame...
@@ -739,12 +954,31 @@ void Network::update()
 	}
 	else {
 		__int64 curTime;
-		QueryPerformanceCounter((LARGE_INTEGER *)&curTime);
+		QueryPerformanceCounter((LARGE_INTEGER*)&curTime);
 		m_isStalling = curTime >= m_nextFrameTime;
 	}
+
+#if defined(GENONLINE)
+	if (m_conMgr != nullptr && m_localStatus == NETLOCALSTATUS_INGAME) {
+		m_conMgr->noteStalling(m_isStalling, TheGameLogic->getFrame());
+	}
+#endif
 }
 
 void Network::liteupdate() {
+#if defined(GENONLINE)
+	if (m_matchStartFailed) {
+		return;
+	}
+	if (m_loadCompletePending) {
+		if (startPrerequisitesReady()) {
+			loadProgressComplete();
+		} else if ((timeGetTime() - m_loadCompletePendingSince) >= START_RUNAHEAD_TIMEOUT_MS) {
+			failMatchStart();
+			return;
+		}
+	}
+#endif
 
 #if defined(RTS_DEBUG)
 	if (m_networkOn == FALSE) {
@@ -752,17 +986,18 @@ void Network::liteupdate() {
 	}
 #endif
 
-	if (m_conMgr != nullptr) {
+	if (m_conMgr != NULL) {
 		if (m_localStatus == NETLOCALSTATUS_PREGAME) {
 			m_conMgr->update(FALSE);
-		} else {
+		}
+		else {
 			m_conMgr->update(TRUE);
 		}
 	}
 }
 
 void Network::endOfGameCheck() {
-	if (m_conMgr != nullptr) {
+	if (m_conMgr != NULL) {
 		if (m_conMgr->canILeave()) {
 			m_conMgr->disconnectLocalPlayer();
 			TheGameLogic->exitGame();
@@ -780,7 +1015,7 @@ void Network::endOfGameCheck() {
 
 Bool Network::timeForNewFrame() {
 	__int64 curTime;
-	QueryPerformanceCounter((LARGE_INTEGER *)&curTime);
+	QueryPerformanceCounter((LARGE_INTEGER*)&curTime);
 	__int64 frameDelay = m_perfCountFreq / m_frameRate;
 
 	/*
@@ -788,45 +1023,98 @@ Bool Network::timeForNewFrame() {
 	 * to avoid being frozen by spikes in network lag.  This will happen if another user's computer is
 	 * running too far behind us, so we need to slow down to let them catch up.
 	 */
-	if (m_conMgr != nullptr) {
+#if defined(GENONLINE)
+	// stretch the next frame while a remote player's commands are short
+	if (m_conMgr != NULL && curTime >= m_nextFrameTime) {
+		updatePace();
+		frameDelay = (__int64)((double)frameDelay / (double)m_paceSpeed);
+	}
+#else
+	if (m_conMgr != NULL) {
 		Real cushion = m_conMgr->getMinimumCushion();
 		Real runAheadPercentage = m_runAhead * (TheGlobalData->m_networkRunAheadSlack / (Real)100.0); // If we are at least 50% into our slack, we need to slow down.
 		if (cushion < runAheadPercentage) {
 			__int64 oldFrameDelay = frameDelay;
 			frameDelay += oldFrameDelay / 10; // temporarily decrease the frame rate by 20%.
-//			DEBUG_LOG(("Average cushion = %f, run ahead percentage = %f.  Adjusting frameDelay from %I64d to %I64d", cushion, runAheadPercentage, oldFrameDelay, frameDelay));
+			NetworkLog(ELogVerbosity::LOG_DEBUG, "Average cushion = %f, run ahead percentage = %f.  Adjusting frameDelay from %I64d to %I64d", cushion, runAheadPercentage, oldFrameDelay, frameDelay);
 			m_didSelfSlug = TRUE;
 //		} else {
 //			DEBUG_LOG(("Average cushion = %f, run ahead percentage = %f", cushion, runAheadPercentage));
 		}
 	}
+#endif
 
 	// Check to see if we can run another frame.
 	if (curTime >= m_nextFrameTime) {
-//		DEBUG_LOG(("Allowing a new frame, frameDelay = %I64d, curTime - m_nextFrameTime = %I64d", frameDelay, curTime - m_nextFrameTime));
+		NetworkLog(ELogVerbosity::LOG_DEBUG, "Allowing a new frame, frameDelay = %I64d, curTime - m_nextFrameTime = %I64d", frameDelay, curTime - m_nextFrameTime);
 
-//		if (m_nextFrameTime + frameDelay < curTime) {
-		if ((m_nextFrameTime + (2 * frameDelay)) < curTime) {
+		__int64 catchUpFrames = 1;
+#if defined(GENONLINE)
+		if (m_conMgr != nullptr) {
+			catchUpFrames = m_conMgr->getNetworkSettings().input_delay.catch_up_frames;
+		}
+#endif
+		if (m_nextFrameTime + catchUpFrames * frameDelay < curTime) {
 			// If we get too far behind on our framerate we need to reset the nextFrameTime thing.
+#if defined(GENONLINE)
+			// after a stall the lost time is not caught up
+			m_nextFrameTime = curTime + frameDelay;
+#else
 			m_nextFrameTime = curTime;
-//			DEBUG_LOG(("Initializing m_nextFrameTime to %I64d", m_nextFrameTime));
+#endif
+			NetworkLog(ELogVerbosity::LOG_DEBUG, "Initializing m_nextFrameTime to %I64d", m_nextFrameTime);
 		} else {
 			// Set the soonest possible starting time for the next frame.
 			m_nextFrameTime += frameDelay;
-//			DEBUG_LOG(("m_nextFrameTime = %I64d", m_nextFrameTime));
+			NetworkLog(ELogVerbosity::LOG_DEBUG, "m_nextFrameTime = %I64d", m_nextFrameTime);
 		}
 
 		return TRUE;
 	}
-//	DEBUG_LOG(("Slowing down frame rate. frame rate = %d, frame delay = %I64d, curTime - m_nextFrameTime = %I64d", m_frameRate, frameDelay, curTime - m_nextFrameTime));
+	NetworkLog(ELogVerbosity::LOG_DEBUG, "Slowing down frame rate. frame rate = %d, frame delay = %I64d, curTime - m_nextFrameTime = %I64d", m_frameRate, frameDelay, curTime - m_nextFrameTime);
 	return FALSE;
 }
+
+#if defined(GENONLINE)
+/** Slows the next frame while a remote player's commands run short; 90% floor, ramps down over 4 frames and up over 10. */
+void Network::updatePace() {
+	static const Real PACE_FLOOR_SPEED = 0.9f;
+	enum { PACE_SLOW_FRAMES = 4, PACE_RECOVER_FRAMES = 10 };
+
+	const Int margin = m_conMgr->getNetworkSettings().input_delay.margin_frames;
+	const Int lowFrames = margin + 1;
+
+	Bool overdue = FALSE;
+	const Int ahead = m_conMgr->getRemoteLookAhead(TheGameLogic->getFrame(), lowFrames, overdue);
+	Int shortFrames = 0;
+	if (ahead >= 0) {
+		if (overdue) {
+			shortFrames = lowFrames - ahead;
+		} else if (ahead == 0) {
+			shortFrames = 1;
+		}
+	}
+	shortFrames = clamp<Int>(0, shortFrames, lowFrames);
+
+	const Real share = (1.0f - PACE_FLOOR_SPEED) / (Real)lowFrames;
+	const Real target = 1.0f - share * (Real)shortFrames;
+	if (target < m_paceSpeed) {
+		m_paceSpeed = max(target, m_paceSpeed - (1.0f - PACE_FLOOR_SPEED) / (Real)PACE_SLOW_FRAMES);
+	} else {
+		m_paceSpeed = min(target, m_paceSpeed + (1.0f - PACE_FLOOR_SPEED) / (Real)PACE_RECOVER_FRAMES);
+	}
+}
+#endif
 
 /**
  * Returns true if the game commands for the next frame have been put on the command list.
  */
 Bool Network::isFrameDataReady() {
+#if defined(GENONLINE)
+	return m_frameDataReady;
+#else
 	return (m_frameDataReady || (m_localStatus == NETLOCALSTATUS_LEFT));
+#endif
 }
 
 Bool Network::isStalling()
@@ -842,7 +1130,7 @@ Real Network::getIncomingBytesPerSecond()
 	if (m_conMgr)
 		return m_conMgr->getIncomingBytesPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
@@ -853,7 +1141,7 @@ Real Network::getIncomingPacketsPerSecond()
 	if (m_conMgr)
 		return m_conMgr->getIncomingPacketsPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
@@ -864,7 +1152,7 @@ Real Network::getOutgoingBytesPerSecond()
 	if (m_conMgr)
 		return m_conMgr->getOutgoingBytesPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
@@ -875,7 +1163,7 @@ Real Network::getOutgoingPacketsPerSecond()
 	if (m_conMgr)
 		return m_conMgr->getOutgoingPacketsPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
@@ -886,7 +1174,7 @@ Real Network::getUnknownBytesPerSecond()
 	if (m_conMgr)
 		return m_conMgr->getUnknownBytesPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
@@ -897,7 +1185,7 @@ Real Network::getUnknownPacketsPerSecond()
 	if (m_conMgr)
 		return m_conMgr->getUnknownPacketsPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
@@ -952,13 +1240,13 @@ Bool Network::areAllQueuesEmpty()
  * Quit the game now.  This should only be called from the disconnect screen.
  */
 void Network::quitGame() {
-	if (m_conMgr != nullptr) {
+	if (m_conMgr != NULL) {
 		m_conMgr->quitGame();
 	}
 
 #if !RTS_GENERALS || !RETAIL_COMPATIBLE_CRC
 	// Blow up / Transfer your units when you quit.  Like a normal quit menu quit.
-	GameMessage *msg = TheMessageStream->appendMessage(GameMessage::MSG_SELF_DESTRUCT);
+	GameMessage* msg = TheMessageStream->appendMessage(GameMessage::MSG_SELF_DESTRUCT);
 	msg->appendBooleanArgument(TRUE);
 #endif
 
@@ -982,20 +1270,66 @@ Bool Network::isPacketRouter()
  * Register a vote towards a player being disconnected.
  */
 void Network::voteForPlayerDisconnect(Int slot) {
-	if (m_conMgr != nullptr) {
+	if (m_conMgr != NULL) {
 		m_conMgr->voteForPlayerDisconnect(slot);
 	}
 }
 
-void Network::updateLoadProgress( Int percent )
+void Network::updateLoadProgress(Int percent)
 {
-	if (m_conMgr != nullptr) {
-		m_conMgr->updateLoadProgress( percent );
+	if (m_conMgr != NULL) {
+		m_conMgr->updateLoadProgress(percent);
 	}
 }
 
+#if defined(GENONLINE)
+Bool Network::startPrerequisitesReady() const
+{
+	if (m_matchStartFailed || (m_startRunAheadRequired && !m_startRunAheadApplied)) {
+		return FALSE;
+	}
+	if (m_matchKeysRequired) {
+		NetworkMesh* mesh = GenOnlineServicesManager::GetNetworkMesh();
+		return mesh != nullptr && mesh->GetMatchKeys().IsReady();
+	}
+	return TRUE;
+}
+
+void Network::failMatchStart()
+{
+	if (m_matchStartFailed) {
+		return;
+	}
+	NetworkMesh* mesh = GenOnlineServicesManager::GetNetworkMesh();
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[START] Missing start run ahead of a connected router, leaving (router=%d, keys=%zu/%zu)",
+		!m_startRunAheadRequired || m_startRunAheadApplied,
+		mesh != nullptr ? mesh->GetMatchKeys().GetPeerKeyCount() : 0,
+		mesh != nullptr ? mesh->GetMatchKeys().GetExpectedPeers() : 0);
+	m_matchStartFailed = TRUE;
+	quitGame();
+	if (m_conMgr != nullptr) {
+		TheGameLogic->processProgressComplete((Int)m_conMgr->getLocalPlayerID());
+	}
+}
+#endif
+
 void Network::loadProgressComplete()
 {
+#if defined(GENONLINE)
+	if (m_matchStartFailed) {
+		return;
+	}
+	// load complete waits for the peer keys and the start run ahead of the router
+	if (!startPrerequisitesReady()) {
+		if (!m_loadCompletePending) {
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[START] Load complete, waiting for authenticated peers and router decision");
+			m_loadCompletePendingSince = timeGetTime();
+		}
+		m_loadCompletePending = TRUE;
+		return;
+	}
+	m_loadCompletePending = FALSE;
+#endif
 	if (m_conMgr != nullptr) {
 		m_conMgr->loadProgressComplete();
 	}
@@ -1003,7 +1337,7 @@ void Network::loadProgressComplete()
 
 void Network::sendTimeOutGameStart()
 {
-	if (m_conMgr != nullptr) {
+	if (m_conMgr != NULL) {
 		m_conMgr->sendTimeOutGameStart();
 	}
 }
@@ -1011,7 +1345,7 @@ void Network::sendTimeOutGameStart()
 
 UnsignedInt Network::getLocalPlayerID()
 {
-if (m_conMgr != nullptr) {
+	if (m_conMgr != NULL) {
 		return m_conMgr->getLocalPlayerID();
 	}
 	return 49;
@@ -1023,44 +1357,77 @@ UnicodeString Network::getPlayerName(Int playerNum)
 			return UnicodeString::TheEmptyString;
 		}
 	}
-	if (m_conMgr != nullptr) {
-		return m_conMgr->getPlayerName( playerNum );
+	if (m_conMgr != NULL) {
+		return m_conMgr->getPlayerName(playerNum);
 	}
 	return UnicodeString::TheEmptyString;
 }
 Int Network::getNumPlayers()
 {
-	if (m_conMgr != nullptr) {
+	if (m_conMgr != NULL) {
 		return m_conMgr->getNumPlayers();
 	}
 	return -1;
 }
 
 Int Network::getSlotAverageFPS(Int slot) {
-	if (m_conMgr != nullptr) {
+	if (m_conMgr != NULL) {
 		return m_conMgr->getSlotAverageFPS(slot);
 	}
 	return -1;
 }
 
+#if defined(GENONLINE)
+UnsignedInt Network::getMeasuredLogicRate() {
+	const DWORD now = timeGetTime();
+	const UnsignedInt frame = TheGameLogic->getFrame();
+	if (m_rateSampleMs == 0 || frame < m_rateSampleFrame) {
+		m_rateSampleMs = now;
+		m_rateSampleFrame = frame;
+	} else if (now - m_rateSampleMs >= 1000) {
+		m_measuredLogicRate = (UnsignedInt)(((frame - m_rateSampleFrame) * 1000.0f) / (Real)(now - m_rateSampleMs) + 0.5f);
+		m_rateSampleMs = now;
+		m_rateSampleFrame = frame;
+	}
+	return m_measuredLogicRate;
+}
+#endif
+
+const ConnectionStats* Network::getConnectionStats(Int slot) const {
+	if (m_conMgr != nullptr) {
+		return m_conMgr->getConnectionStats(slot);
+	}
+	return nullptr;
+}
+
+#if defined(GENONLINE)
+Bool Network::getOverlayInfo(Int slot, NetworkOverlayInfo &info) {
+	if (m_conMgr != nullptr) {
+		return m_conMgr->getOverlayInfo(slot, info);
+	}
+	return FALSE;
+}
+#endif
+
 #if defined(RTS_DEBUG)
 void Network::toggleNetworkOn() {
 	if (m_networkOn == TRUE) {
 		m_networkOn = FALSE;
-	} else {
+	}
+	else {
 		m_networkOn = TRUE;
 	}
 }
 #endif
 
 void Network::notifyOthersOfCurrentFrame() {
-	if (m_conMgr != nullptr) {
+	if (m_conMgr != NULL) {
 		m_conMgr->notifyOthersOfCurrentFrame(TheGameLogic->getFrame());
 	}
 }
 
 void Network::notifyOthersOfNewFrame(UnsignedInt frame) {
-	if (m_conMgr != nullptr) {
+	if (m_conMgr != NULL) {
 		m_conMgr->notifyOthersOfNewFrame(frame);
 	}
 }

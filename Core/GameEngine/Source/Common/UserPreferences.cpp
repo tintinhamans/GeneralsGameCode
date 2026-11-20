@@ -51,6 +51,10 @@
 #include "GameClient/ChallengeGenerals.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
+#endif
+
 
 //-----------------------------------------------------------------------------
 // DEFINES ////////////////////////////////////////////////////////////////////
@@ -106,7 +110,7 @@ static AsciiString realAsStr(Real val)
 // UserPreferences Class
 //-----------------------------------------------------------------------------
 
-UserPreferences::UserPreferences()
+UserPreferences::UserPreferences() : m_loadFailed(FALSE)
 {
 }
 
@@ -122,8 +126,14 @@ Bool UserPreferences::load(AsciiString fname)
 
 	m_filename = TheGlobalData->getPath_UserData();
 	m_filename.concat(fname);
+	m_loadFailed = FALSE;
 
 	FILE *fp = fopen(m_filename.str(), "r");
+	if (fp == nullptr && errno != ENOENT)
+	{
+		DEBUG_LOG(("UserPreferences::load - could not open '%s', errno %d", m_filename.str(), errno));
+		m_loadFailed = TRUE;
+	}
 	if (fp)
 	{
 		char buf[LINE_LEN];
@@ -134,6 +144,8 @@ Bool UserPreferences::load(AsciiString fname)
 
 			AsciiString key, val;
 			line.nextToken(&key, "=");
+			if (line.isEmpty())	// no '=' in the line, nothing follows the key
+				continue;
 			val = line.str() + 1;
 
 			key.trim();
@@ -144,7 +156,14 @@ Bool UserPreferences::load(AsciiString fname)
 
 			(*this)[key] = val;
 		}
+		const Bool readFailed = ferror(fp) != 0;
 		fclose(fp);
+		if (readFailed)
+		{
+			DEBUG_LOG(("UserPreferences::load - read error in '%s'", m_filename.str()));
+			m_loadFailed = TRUE;
+			return false;
+		}
 		return true;
 	}
 	return false;
@@ -155,17 +174,43 @@ Bool UserPreferences::write()
 	if (m_filename.isEmpty())
 		return false;
 
-	FILE *fp = fopen(m_filename.str(), "w");
+	// the existing file is unreadable, replacing it with what we hold would lose the user's settings
+	if (m_loadFailed)
+		return false;
+
+	// write to a temp file and swap it in so a failed write never leaves a truncated preference file
+	AsciiString tempFilename = m_filename;
+	tempFilename.concat(".tmp");
+
+	FILE *fp = fopen(tempFilename.str(), "w");
 	if (fp)
 	{
+		Bool ok = TRUE;
 		PreferenceMap::const_iterator it = begin();
 		while (it != end())
 		{
-			fprintf(fp, "%s = %s\n", it->first.str(), it->second.str());
+			if (fprintf(fp, "%s = %s\n", it->first.str(), it->second.str()) < 0)
+				ok = FALSE;
 			++it;
 		}
-		fclose(fp);
-		return true;
+		if (fflush(fp) != 0 || ferror(fp))
+			ok = FALSE;
+		if (fclose(fp) != 0)
+			ok = FALSE;
+
+#ifdef _WIN32
+		if (ok && !MoveFileExA(tempFilename.str(), m_filename.str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+			ok = FALSE;
+#else
+		if (ok && rename(tempFilename.str(), m_filename.str()) != 0)
+			ok = FALSE;
+#endif
+		if (!ok)
+		{
+			DEBUG_LOG(("UserPreferences::write - failed to write '%s'", m_filename.str()));
+			remove(tempFilename.str());
+		}
+		return ok;
 	}
 	return false;
 }
@@ -215,6 +260,19 @@ AsciiString UserPreferences::getAsciiString(AsciiString key, AsciiString default
 	return it->second;
 }
 
+UnicodeString UserPreferences::getUnicodeString(AsciiString key, UnicodeString defaultValue) const
+{
+	UserPreferences::const_iterator it = find(key);
+	if (it == end())
+	{
+		return defaultValue;
+	}
+
+	UnicodeString ret;
+	ret.translate(it->second);
+	return ret;
+}
+
 void UserPreferences::setBool(AsciiString key, Bool val)
 {
 	(*this)[key] = boolAsStr(val);
@@ -235,6 +293,13 @@ void UserPreferences::setAsciiString(AsciiString key, AsciiString val)
 	(*this)[key] = val;
 }
 
+void UserPreferences::setUnicodeString(AsciiString key, UnicodeString val)
+{
+	AsciiString str;
+	str.translate(val);
+	(*this)[key] = str;
+}
+
 //-----------------------------------------------------------------------------
 // QuickMatchPreferences base class
 //-----------------------------------------------------------------------------
@@ -242,8 +307,16 @@ void UserPreferences::setAsciiString(AsciiString key, AsciiString val)
 QuickMatchPreferences::QuickMatchPreferences()
 {
 	AsciiString userPrefFilename;
+	
+#if defined(GENONLINE)
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+
+	int64_t localProfile = pAuthInterface != nullptr ? pAuthInterface->GetUserID() : -1;
+	userPrefFilename.format("GeneralsOnlineData\\QMPref%lld.ini", localProfile);
+#else
 	Int localProfile = TheGameSpyInfo->getLocalProfileID();
-	userPrefFilename.format("GeneralsOnline\\QMPref%d.ini", localProfile);
+	userPrefFilename.format("GeneralsOnline\\QMPref%d.ini", profileID);
+#endif
 	load(userPrefFilename);
 }
 
@@ -424,11 +497,29 @@ Int QuickMatchPreferences::getSide()
 // CustomMatchPreferences base class
 //-----------------------------------------------------------------------------
 
+#include <filesystem>
 CustomMatchPreferences::CustomMatchPreferences()
 {
 	AsciiString userPrefFilename;
+
+#if defined(GENONLINE)
+	// NOTE: We need to use a different folder to avoid conflict with GS/Revora
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+
+	int64_t user_id = pAuthInterface != nullptr ? pAuthInterface->GetUserID() : -1;
+	userPrefFilename.format("GeneralsOnlineData\\CustomPref%lld.ini", user_id);
+
+	AsciiString prefsDirectory = TheGlobalData->getPath_UserData();
+	prefsDirectory.concat("GeneralsOnlineData");
+
+	if (!std::filesystem::exists(prefsDirectory.str()))
+	{
+		std::filesystem::create_directory(prefsDirectory.str());
+	}
+#else
 	Int localProfile = TheGameSpyInfo->getLocalProfileID();
-	userPrefFilename.format("GeneralsOnline\\CustomPref%d.ini", localProfile);
+	userPrefFilename.format("GeneralsOnline\\CustomPref%.ini", localProfile);
+#endif
 	load(userPrefFilename);
 }
 
@@ -444,7 +535,19 @@ void CustomMatchPreferences::setLastLadder(const AsciiString& addr, UnsignedShor
 	(*this)["LastLadderPort"] = strVal;
 }
 
-AsciiString CustomMatchPreferences::getLastLadderAddr()
+UnicodeString CustomMatchPreferences::getLastLobbyName() const
+{
+	UnicodeString ret = getUnicodeString("LastLobbyName", UnicodeString::TheEmptyString);
+	ret.trim();
+	return ret;
+}
+
+void CustomMatchPreferences::setLastLobbyName(const UnicodeString& name)
+{
+	setUnicodeString("LastLobbyName", name);
+}
+
+AsciiString CustomMatchPreferences::getLastLadderAddr( void )
 {
 	QuickMatchPreferences::const_iterator it = find("LastLadderAddr");
 	if (it == end())
@@ -778,8 +881,15 @@ void CustomMatchPreferences::setUseStats( Bool useStats )
 GameSpyMiscPreferences::GameSpyMiscPreferences()
 {
 	AsciiString userPrefFilename;
+	
+#if defined(GENONLINE)
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	int64_t localProfile = pAuthInterface == nullptr ? -1 : pAuthInterface->GetUserID();
+	userPrefFilename.format("GeneralsOnlineData\\GSMiscPref%lld.ini", localProfile);
+#else
 	Int localProfile = TheGameSpyInfo->getLocalProfileID();
 	userPrefFilename.format("GeneralsOnline\\GSMiscPref%d.ini", localProfile);
+#endif
 	load(userPrefFilename);
 }
 
@@ -825,8 +935,15 @@ IgnorePreferences::IgnorePreferences()
 {
 	AsciiString userPrefFilename;
 //	if(!TheGameSpyInfo)
+	
+#if defined(GENONLINE)
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	int64_t localProfile = pAuthInterface == nullptr ? -1 : pAuthInterface->GetUserID();
+	userPrefFilename.format("GeneralsOnlineData\\IgnorePref%lld.ini", localProfile);
+#else
 	Int localProfile = TheGameSpyInfo->getLocalProfileID();
 	userPrefFilename.format("GeneralsOnline\\IgnorePref%d.ini", localProfile);
+#endif
 	load(userPrefFilename);
 }
 
@@ -882,7 +999,13 @@ Bool LadderPreferences::loadProfile( Int profileID )
 	clear();
 	m_ladders.clear();
 	AsciiString userPrefFilename;
+
+#if defined(GENONLINE)
+	userPrefFilename.format("GeneralsOnlineData\\Ladders%d.ini", profileID);
+#else
 	userPrefFilename.format("GeneralsOnline\\Ladders%d.ini", profileID);
+#endif
+
 	Bool success = load(userPrefFilename);
 	if (!success)
 		return success;
@@ -958,3 +1081,4 @@ void LadderPreferences::addRecentLadder( LadderPref ladder )
 
 	m_ladders[ladder.lastPlayDate] = ladder;
 }
+

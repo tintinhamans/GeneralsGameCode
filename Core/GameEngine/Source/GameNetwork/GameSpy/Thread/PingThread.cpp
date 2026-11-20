@@ -34,6 +34,7 @@
 #include "WWLib/mutex.h"
 #include "WWLib/thread.h"
 
+#include "Common/StackDump.h"
 #include "Common/SubsystemInterface.h"
 
 //-------------------------------------------------------------------------
@@ -244,6 +245,7 @@ AsciiString Pinger::getPingString( Int timeout )
 void PingThreadClass::Thread_Function()
 {
 	try {
+	_set_se_translator( DumpExceptionInfo ); // Hook that allows stack trace.
 	PingRequest req;
 
 	WSADATA wsaData;
@@ -260,7 +262,7 @@ void PingThreadClass::Thread_Function()
 			// resolve the hostname
 			const char *hostnameBuffer = req.hostname.c_str();
 			UnsignedInt IP = 0xFFFFFFFF;
-			if (isdigit(hostnameBuffer[0]))
+			if (isdigit((unsigned char)hostnameBuffer[0]))
 			{
 				IP = inet_addr(hostnameBuffer);
 				in_addr hostNode;

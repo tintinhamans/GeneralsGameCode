@@ -209,7 +209,11 @@ public:
 	virtual	void Add_Camera_Shake(const Coord3D & position,float radius, float duration, float power) override; //WST 10.18.2002
 	virtual Int	 getTimeMultiplier() override {return m_timeMultiplier;};///< Get the time multiplier.
 	virtual void setTimeMultiplier(Int multiple) override {m_timeMultiplier = multiple;}; ///< Set the time multiplier.
-	virtual void setDefaultView(Real pitch, Real angle, Real maxHeight) override;
+		#if defined(GENONLINE)
+	virtual void setDefaultView(Real pitch, Real angle, Real maxHeight, bool bForceDefaultCam = true);
+#else
+	virtual void setDefaultView(Real pitch, Real angle, Real maxHeight);
+#endif
 	virtual void zoomCamera( Real finalZoom, Int milliseconds, Real easeIn, Real easeOut ) override;
 	virtual void pitchCamera( Real finalPitch, Int milliseconds, Real easeIn, Real easeOut ) override;
 
@@ -288,6 +292,9 @@ private:
 	Coord2D m_scrollAmount;													///< scroll speed
 	Real m_scrollAmountCutoffSqr;										///< scroll speed at which we do not adjust height
 
+	// Stable reset target; m_maxHeightAboveGround itself is widened live for observer free-zoom.
+	Real m_defaultMaxHeightAboveGround;
+
 #if PRESERVE_RETAIL_SCRIPTED_CAMERA
 	// TheSuperHackers @tweak Uses the initial ground level for preserving the original look of the scripted camera,
 	// because alterations to the ground level do affect the positioning in subtle ways.
@@ -305,6 +312,8 @@ private:
 	Real getDesiredZoom(Real x, Real y) const;
 	Real getMaxHeight(Real x, Real y) const;
 	Real getMaxZoom(Real x, Real y) const;
+	Real getDefaultMaxHeight(Real x, Real y) const;
+	Real getDefaultMaxZoom(Real x, Real y) const;
 	void updateCameraTransform(); ///< update the transform matrix of m_3DCamera, based on m_pos & m_angle
 	void updateCameraClipPlanes(const Matrix3D &transform);
 	void setCameraTransform(const Matrix3D &transform);

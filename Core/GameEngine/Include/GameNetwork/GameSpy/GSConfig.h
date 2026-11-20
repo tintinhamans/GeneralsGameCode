@@ -1,6 +1,6 @@
 /*
 **	Command & Conquer Generals Zero Hour(tm)
-**	Copyright 2025 Electronic Arts Inc.
+**	Copyright 2025 TheSuperHackers
 **
 **	This program is free software: you can redistribute it and/or modify
 **	it under the terms of the GNU General Public License as published by
@@ -16,62 +16,17 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-////////////////////////////////////////////////////////////////////////////////
-//																																						//
-//  (c) 2001-2003 Electronic Arts Inc.																				//
-//																																						//
-////////////////////////////////////////////////////////////////////////////////
-
 // FILE: GSConfig.h ///////////////////////////////////////////////////////////
-// Author: Matthew D. Campbell, Sept 2002
-// Description: GameSpy online config
+// TheSuperHackers @refactor GenMP Phase 1 - The online config interface moved
+// to GameNetwork/Online/IOnlineConfig.h. This forwarding header keeps the old
+// include path valid for existing consumers with no source edits.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
-#include "Common/AsciiString.h"
-#include "Common/STLTypedefs.h"
+#include "GameNetwork/Online/IOnlineConfig.h"
 
-class GameSpyConfigInterface
-{
-public:
-	virtual ~GameSpyConfigInterface() {}
-
-	// Pings
-	virtual std::list<AsciiString> getPingServers() = 0;
-	virtual Int getNumPingRepetitions() = 0;
-	virtual Int getPingTimeoutInMs() = 0;
-	virtual Int getPingCutoffGood() = 0;
-	virtual Int getPingCutoffBad() = 0;
-
-	// QM
-	virtual std::list<AsciiString> getQMMaps() = 0;
-	virtual Int getQMBotID() = 0;
-	virtual Int getQMChannel() = 0;
-	virtual void setQMChannel(Int channel) = 0;
-
-	// Player Info
-	virtual Int getPointsForRank(Int rank) = 0;
-	virtual Bool isPlayerVIP(Int id) = 0;
-
-	// mangler Info
-	virtual Bool getManglerLocation(Int index, AsciiString& host, UnsignedShort& port) = 0;
-
-	// Ladder / Any other external parsing
-	virtual AsciiString getLeftoverConfig() = 0;
-
-	// NAT Timeouts
-	virtual Int getTimeBetweenRetries() = 0;
-	virtual Int getMaxManglerRetries() = 0;
-	virtual time_t getRetryInterval() = 0;
-	virtual time_t getKeepaliveInterval() = 0;
-	virtual time_t getPortTimeout() = 0;
-	virtual time_t getRoundTimeout() = 0;
-
-	// Custom match
-	virtual Bool restrictGamesToLobby() = 0;
-
-	static GameSpyConfigInterface* create(AsciiString config);
-};
-
-extern GameSpyConfigInterface *TheGameSpyConfig;
+// TheSuperHackers @refactor GenMP Phase 1 - Compatibility alias. Existing code
+// that names GameSpyConfigInterface (including qualified static calls such as
+// GameSpyConfigInterface::create) keeps compiling unchanged.
+typedef IOnlineConfig GameSpyConfigInterface;

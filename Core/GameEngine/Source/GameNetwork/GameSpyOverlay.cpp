@@ -29,7 +29,10 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 #include "Common/AudioEventRTS.h"
 
+#include "GameClient/Display.h"
 #include "GameClient/GadgetListBox.h"
+#include "GameClient/GadgetPushButton.h"
+#include "GameClient/GadgetStaticText.h"
 #include "GameClient/GameText.h"
 #include "GameClient/MessageBox.h"
 #include "GameClient/ShellHooks.h"
@@ -39,8 +42,8 @@
 #include "GameNetwork/GameSpyOverlay.h"
 //#include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/BuddyThread.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 
-void deleteNotificationBox();
 static void raiseOverlays();
 
 // Message boxes -------------------------------------
@@ -125,6 +128,73 @@ void GSMessageBoxOkCancel(UnicodeString title, UnicodeString message, GameWinMsg
 	cancelFunc = newCancelFunc;
 }
 
+void GSMessageBoxOkCancelWithLabels(
+	UnicodeString title,
+	UnicodeString message,
+	UnicodeString okLabel,
+	UnicodeString cancelLabel,
+	GameWinMsgBoxFunc newOkFunc,
+	GameWinMsgBoxFunc newCancelFunc)
+{
+	GSMessageBoxOkCancel(title, message, newOkFunc, newCancelFunc);
+	if (messageBoxWindow == nullptr)
+	{
+		return;
+	}
+
+	GameWindow* buttonOk = TheWindowManager->winGetWindowFromId(messageBoxWindow, TheNameKeyGenerator->nameToKey("MessageBox.wnd:ButtonOk"));
+	GameWindow* buttonCancel = TheWindowManager->winGetWindowFromId(messageBoxWindow, TheNameKeyGenerator->nameToKey("MessageBox.wnd:ButtonCancel"));
+	if (buttonOk != nullptr)
+	{
+		GadgetButtonSetText(buttonOk, okLabel);
+	}
+
+	if (buttonCancel != nullptr)
+	{
+		GadgetButtonSetText(buttonCancel, cancelLabel);
+	}
+
+	// Grow the box to fit a long reason instead of clipping it.
+	GameWindow* parentPanel = TheWindowManager->winGetWindowFromId(messageBoxWindow, TheNameKeyGenerator->nameToKey("MessageBox.wnd:MessageBoxParent"));
+	GameWindow* staticTextMessage = TheWindowManager->winGetWindowFromId(messageBoxWindow, TheNameKeyGenerator->nameToKey("MessageBox.wnd:StaticTextMessage"));
+	if (parentPanel != nullptr && staticTextMessage != nullptr)
+	{
+		ICoord2D messageSize;
+		staticTextMessage->winGetSize(&messageSize.x, &messageSize.y);
+
+		const Int wrapWidth = messageSize.x - 10; // padding used by the static text draw code
+		const Int neededHeight = GadgetStaticTextGetTextHeight(staticTextMessage, wrapWidth);
+
+		ICoord2D parentPos, parentSize;
+		parentPanel->winGetScreenPosition(&parentPos.x, &parentPos.y);
+		parentPanel->winGetSize(&parentSize.x, &parentSize.y);
+
+		// Stop at the screen bottom; text past that clips.
+		const Int maxDeltaY = TheDisplay->getHeight() - (parentPos.y + parentSize.y) - 10;
+		const Int deltaY = min(neededHeight - messageSize.y, maxDeltaY);
+
+		if (deltaY > 0)
+		{
+			staticTextMessage->winSetSize(messageSize.x, messageSize.y + deltaY);
+			parentPanel->winSetSize(parentSize.x, parentSize.y + deltaY);
+
+			if (buttonOk != nullptr)
+			{
+				ICoord2D pos;
+				buttonOk->winGetPosition(&pos.x, &pos.y);
+				buttonOk->winSetPosition(pos.x, pos.y + deltaY);
+			}
+
+			if (buttonCancel != nullptr)
+			{
+				ICoord2D pos;
+				buttonCancel->winGetPosition(&pos.x, &pos.y);
+				buttonCancel->winSetPosition(pos.x, pos.y + deltaY);
+			}
+		}
+	}
+}
+
 /**
 	* GSMessageBoxYesNo puts up a Yes/No dialog box and saves the
 	* pointers to it and its callbacks.
@@ -149,6 +219,18 @@ void RaiseGSMessageBox()
 		return;
 
 	messageBoxWindow->winBringToTop();
+}
+
+void GSMessageBoxCancel(UnicodeString title, UnicodeString message, GameWinMsgBoxFunc cancelFunc)
+{
+	ClearGSMessageBoxes();
+	messageBoxWindow = MessageBoxCancel(title, message, cancelFunc);
+}
+
+void GSMessageBoxNoButtons(UnicodeString title, UnicodeString message, bool bShowLogo)
+{
+	ClearGSMessageBoxes();
+	messageBoxWindow = MessageBoxNoButtons(title, message, bShowLogo);
 }
 
 // Overlay screens -------------------------------------
@@ -195,7 +277,8 @@ void GameSpyOpenOverlay( GSOverlayType overlay )
 {
 	if (overlay == GSOVERLAY_BUDDY)
 	{
-		if (!TheGameSpyBuddyMessageQueue->isConnected())
+		// Only the GameSpy services have a buddy queue to check.
+		if (TheGameSpyBuddyMessageQueue != nullptr && !TheGameSpyBuddyMessageQueue->isConnected())
 		{
 			// not connected - is it because we were disconnected?
 			if (TheGameSpyBuddyMessageQueue->getLocalProfileID())
@@ -224,7 +307,7 @@ void GameSpyOpenOverlay( GSOverlayType overlay )
 	}
 	else
 	{
-		overlayLayouts[overlay] = TheWindowManager->winCreateLayout( AsciiString( gsOverlays[overlay] ) );
+		overlayLayouts[overlay] = TheWindowManager->winCreateLayout( AsciiString( GetOnlineGameHooks()->getOverlayLayout( overlay, gsOverlays[overlay] ) ) );
 		overlayLayouts[overlay]->runInit();
 		overlayLayouts[overlay]->hide( FALSE );
 		overlayLayouts[overlay]->bringForward();
@@ -305,7 +388,7 @@ void GameSpyCloseAllOverlays()
 	}
 
 	// if we're shutting down the rest, chances are we don't want this popping up.
-	deleteNotificationBox();
+	GetOnlineGameHooks()->onCloseAllOverlays();
 }
 
 void GameSpyUpdateOverlays()

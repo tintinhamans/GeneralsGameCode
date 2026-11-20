@@ -447,6 +447,9 @@ void MilesAudioManager::postProcessLoad()
 //-------------------------------------------------------------------------------------------------
 void MilesAudioManager::reset()
 {
+#if defined(RTS_HAS_FFMPEG)
+	m_metadata.clear();
+#endif
 #if defined(RTS_DEBUG)
 	dumpAllAssetsUsed();
 	m_allEventsLoaded.clear();
@@ -468,6 +471,7 @@ void MilesAudioManager::update()
 	processRequestList();
 	processPlayingList();
 	processFadingList();
+	m_audioCache->releaseEvictedFiles();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -703,10 +707,13 @@ void MilesAudioManager::playAudioEvent( AudioRequest* req )
 					setDisallowSpeech(TRUE);
 	 			}
 				AIL_set_stream_volume_pan(stream, getEffectiveVolume(event), 0.5f);
-				playStream(event, stream);
-
-				CriticalSectionClass::LockClass lock(m_playingStreamsCS);
-				m_playingStreams.push_back(newPlaying);
+				prepareStream(event, stream);
+				// TheSuperHackers @bugfix Register the sound before starting it so the completion callback finds it.
+				{
+					CriticalSectionClass::LockClass lock(m_playingStreamsCS);
+					m_playingStreams.push_back(newPlaying);
+				}
+				AIL_start_stream(stream);
 				newPlaying = nullptr;
 			}
 			break;
@@ -767,7 +774,7 @@ void MilesAudioManager::playAudioEvent( AudioRequest* req )
 				newPlaying->m_type = PAT_3DSample;
 
 				if (sample3D) {
-					newPlaying->m_file = playSample3D(event, sample3D);
+					newPlaying->m_file = prepareSample3D(event, sample3D);
 				}
 
 				if( !newPlaying->m_file )
@@ -778,8 +785,11 @@ void MilesAudioManager::playAudioEvent( AudioRequest* req )
 				}
 				else
 				{
-					CriticalSectionClass::LockClass lock(m_playing3DSoundsCS);
-					m_playing3DSounds.push_back(newPlaying);
+					{
+						CriticalSectionClass::LockClass lock(m_playing3DSoundsCS);
+						m_playing3DSounds.push_back(newPlaying);
+					}
+					AIL_start_3D_sample(sample3D);
 					newPlaying = nullptr;
 					#ifdef INTENSIVE_AUDIO_DEBUG
 						DEBUG_LOG((" Playing."));
@@ -833,7 +843,7 @@ void MilesAudioManager::playAudioEvent( AudioRequest* req )
 				newPlaying->m_type = PAT_Sample;
 
 				if (sample) {
-					newPlaying->m_file = playSample(event, sample);
+					newPlaying->m_file = prepareSample(event, sample);
 				}
 
 				if (!newPlaying->m_file) {
@@ -841,8 +851,11 @@ void MilesAudioManager::playAudioEvent( AudioRequest* req )
 						DEBUG_LOG((" Killed (no handles available)"));
 					#endif
 				} else {
-					CriticalSectionClass::LockClass lock(m_playingSoundsCS);
-					m_playingSounds.push_back(newPlaying);
+					{
+						CriticalSectionClass::LockClass lock(m_playingSoundsCS);
+						m_playingSounds.push_back(newPlaying);
+					}
+					AIL_start_sample(sample);
 					newPlaying = nullptr;
 					#ifdef INTENSIVE_AUDIO_DEBUG
 						DEBUG_LOG((" Playing."));
@@ -1221,6 +1234,8 @@ void MilesAudioManager::stopAllAudioImmediately()
 	}
 
 	m_audioForcePlayed.clear();
+
+	m_audioCache->releaseEvictedFiles();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1563,11 +1578,10 @@ void MilesAudioManager::notifyOfAudioCompletion( UnsignedInt handle, UnsignedInt
 	{
 		if (playing->m_audioEventRTS->getNextPlayPortion() != PP_Done) {
 			closeFile(playing->m_file);	// close it so as not to leak it.
-			playing->m_file = playSample(playing->m_audioEventRTS.Peek(), playing->m_sample);
 
 			// If we don't have a file now, then we should drop to the stopped status so that
 			// We correctly close this handle.
-			if (playing->m_file) {
+			if (playSample(playing)) {
 				return;
 			}
 		}
@@ -1577,11 +1591,10 @@ void MilesAudioManager::notifyOfAudioCompletion( UnsignedInt handle, UnsignedInt
 	{
 		if (playing->m_audioEventRTS->getNextPlayPortion() != PP_Done) {
 			closeFile(playing->m_file);	// close it so as not to leak it.
-			playing->m_file = playSample3D(playing->m_audioEventRTS.Peek(), playing->m_3DSample);
 
 			// If we don't have a file now, then we should drop to the stopped status so that
 			// We correctly close this handle.
-			if (playing->m_file) {
+			if (playSample3D(playing)) {
 				return;
 			}
 		}
@@ -2349,7 +2362,8 @@ void MilesAudioManager::processPlayingList()
 			}
 			else
 			{
-				Real volForConsideration = getEffectiveVolume(playing->m_audioEventRTS.Peek());
+				const Real effectiveVolume = getEffectiveVolume(playing->m_audioEventRTS.Peek());
+				Real volForConsideration = effectiveVolume;
 				volForConsideration /= (m_sound3DVolume > 0.0f ? m_soundVolume : 1.0f);
 				Bool playAnyways = BitIsSet( playing->m_audioEventRTS->getAudioEventInfo()->m_type, ST_GLOBAL) ||
 					playing->m_audioEventRTS->getAudioEventInfo()->m_priority == AP_CRITICAL;
@@ -2364,6 +2378,8 @@ void MilesAudioManager::processPlayingList()
 					Real z = pos->z;
 					DEBUG_ASSERTCRASH(playing->m_3DSample, ("3D Sample is not expected to be null"));
 					AIL_set_3D_position( playing->m_3DSample, x, y, z );
+					// TheSuperHackers @bugfix arcticdolphin 13/10/2026 Reapply the range volume fade every frame as the sound moves.
+					AIL_set_3D_sample_volume(playing->m_3DSample, effectiveVolume);
 				}
 			}
 		}
@@ -2581,6 +2597,9 @@ void MilesAudioManager::setSpeakerSurround(Bool surround)
 //-------------------------------------------------------------------------------------------------
 Real MilesAudioManager::getFileLengthMS( AsciiString strToLoad ) const
 {
+#if defined(RTS_HAS_FFMPEG)
+	return m_metadata.getLengthMS(strToLoad);
+#else
 	if (strToLoad.isEmpty()) {
 		return 0.0f;
 	}
@@ -2597,6 +2616,7 @@ Real MilesAudioManager::getFileLengthMS( AsciiString strToLoad ) const
 	AIL_close_stream(stream);
 
 	return INT_TO_REAL(retVal);
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2746,18 +2766,15 @@ Bool MilesAudioManager::startNextLoop( PlayingAudio *playing )
 		}
 
 		if (playing->m_type == PAT_3DSample) {
-			playing->m_file = playSample3D(playing->m_audioEventRTS.Peek(), playing->m_3DSample);
-		} else {
-			playing->m_file = playSample(playing->m_audioEventRTS.Peek(), playing->m_sample);
+			return playSample3D(playing);
 		}
-
-		return playing->m_file != nullptr;
+		return playSample(playing);
 	}
 	return false;
 }
 
 //-------------------------------------------------------------------------------------------------
-void MilesAudioManager::playStream( AudioEventRTS *event, HSTREAM stream )
+void MilesAudioManager::prepareStream( AudioEventRTS *event, HSTREAM stream )
 {
 	// Force it to the beginning
 	if (event->getAudioEventInfo()->m_soundType == AT_Music) {
@@ -2765,6 +2782,12 @@ void MilesAudioManager::playStream( AudioEventRTS *event, HSTREAM stream )
 	}
 
 	AIL_register_stream_callback(stream, setStreamCompleted);
+}
+
+//-------------------------------------------------------------------------------------------------
+void MilesAudioManager::playStream( AudioEventRTS *event, HSTREAM stream )
+{
+	prepareStream(event, stream);
 	AIL_start_stream(stream);
 	if (event->getAudioEventInfo()->m_soundType == AT_Music) {
 		// Need to stop/fade out the old music here.
@@ -2772,7 +2795,7 @@ void MilesAudioManager::playStream( AudioEventRTS *event, HSTREAM stream )
 }
 
 //-------------------------------------------------------------------------------------------------
-void *MilesAudioManager::playSample( AudioEventRTS *event, HSAMPLE sample )
+void *MilesAudioManager::prepareSample( AudioEventRTS *event, HSAMPLE sample )
 {
 	AIL_init_sample(sample);
 
@@ -2785,16 +2808,13 @@ void *MilesAudioManager::playSample( AudioEventRTS *event, HSAMPLE sample )
 	fileBuffer = loadFileForRead(event);
 	if (fileBuffer) {
 		AIL_set_sample_file(sample, fileBuffer, 0);
-
-		// Start playback
-		AIL_start_sample(sample);
 	}
 
 	return fileBuffer;
 }
 
 //-------------------------------------------------------------------------------------------------
-void *MilesAudioManager::playSample3D( AudioEventRTS *event, H3DSAMPLE sample3D )
+void *MilesAudioManager::prepareSample3D( AudioEventRTS *event, H3DSAMPLE sample3D )
 {
 	const Coord3D *pos = getCurrentPositionFromEvent(event);
 	if (pos) {
@@ -2819,14 +2839,33 @@ void *MilesAudioManager::playSample3D( AudioEventRTS *event, H3DSAMPLE sample3D 
 			Real z = pos->z;
 			AIL_set_3D_position( sample3D, x, y, z );
 			initFilters3D(sample3D, event, pos);
-
-			// Start playback
-			AIL_start_3D_sample(sample3D);
 		}
 		return fileBuffer;
 	}
 
 	return nullptr;
+}
+
+//-------------------------------------------------------------------------------------------------
+Bool MilesAudioManager::playSample( PlayingAudio *playing )
+{
+	playing->m_file = prepareSample(playing->m_audioEventRTS.Peek(), playing->m_sample);
+	if (!playing->m_file) {
+		return false;
+	}
+	AIL_start_sample(playing->m_sample);
+	return true;
+}
+
+//-------------------------------------------------------------------------------------------------
+Bool MilesAudioManager::playSample3D( PlayingAudio *playing )
+{
+	playing->m_file = prepareSample3D(playing->m_audioEventRTS.Peek(), playing->m_3DSample);
+	if (!playing->m_file) {
+		return false;
+	}
+	AIL_start_3D_sample(playing->m_3DSample);
+	return true;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3077,14 +3116,17 @@ U32 AILCALLBACK streamingFileRead(void *file_handle, void *buffer, U32 bytes)
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-AudioFileCache::AudioFileCache() : m_maxSize(0), m_currentlyUsedSize(0), m_mutexName("AudioFileCacheMutex")
+AudioFileCache::AudioFileCache() : m_maxSize(0), m_currentlyUsedSize(0), m_evictedSize(0), m_mutexName("AudioFileCacheMutex")
 {
 	m_mutex = CreateMutex(nullptr, FALSE, m_mutexName);
+	m_readMutex = CreateMutex(nullptr, FALSE, "AudioFileReadMutex");
 }
 
 //-------------------------------------------------------------------------------------------------
 AudioFileCache::~AudioFileCache()
 {
+	OpenAudioFileList filesToFree;
+	std::list<const void *> filesToStop;
 	{
 		ScopedMutex mut(m_mutex);
 
@@ -3093,23 +3135,32 @@ AudioFileCache::~AudioFileCache()
 		for ( it = m_openFiles.begin(); it != m_openFiles.end(); ++it ) {
 			if (it->second.m_openCount > 0) {
 				DEBUG_CRASH(("Sample '%s' is still playing, and we're trying to quit.", it->second.m_eventInfo->m_audioName.str()));
+				filesToStop.push_back(it->second.m_file);
 			}
 
-			releaseOpenAudioFile(&it->second);
-			// Don't erase it from the map, cause it makes this whole process way more complicated, and
-			// we're about to go away anyways.
+			filesToFree.push_back(it->second);
 		}
+		m_openFiles.clear();
+
+		OpenAudioFileList::iterator eit;
+		for ( eit = m_evictedFiles.begin(); eit != m_evictedFiles.end(); ++eit ) {
+			if (eit->m_openCount > 0) {
+				filesToStop.push_back(eit->m_file);
+			}
+		}
+		filesToFree.splice(filesToFree.end(), m_evictedFiles);
 	}
 
+	stopSamplesUsingFiles(filesToStop);
+	freeOpenAudioFiles(filesToFree);
+
 	CloseHandle(m_mutex);
+	CloseHandle(m_readMutex);
 }
 
 //-------------------------------------------------------------------------------------------------
 void *AudioFileCache::openFile( AudioEventRTS *eventToOpenFrom )
 {
-	// Protect the entire openFile function
-	ScopedMutex mut(m_mutex);
-
 	AsciiString strToFind;
 	switch (eventToOpenFrom->getNextPlayPortion())
 	{
@@ -3126,23 +3177,38 @@ void *AudioFileCache::openFile( AudioEventRTS *eventToOpenFrom )
 			return nullptr;
 	}
 
-	OpenFilesHash::iterator it;
-	it = m_openFiles.find(strToFind);
+	{
+		ScopedMutex mut(m_mutex);
 
-	if (it != m_openFiles.end()) {
-		++it->second.m_openCount;
-		return it->second.m_file;
+		OpenFilesHash::iterator it;
+		it = m_openFiles.find(strToFind);
+
+		if (it != m_openFiles.end()) {
+			++it->second.m_openCount;
+			return it->second.m_file;
+		}
 	}
 
 	// Couldn't find the file, so actually open it.
-	File *file = TheFileSystem->openFile(strToFind.str());
-	if (!file) {
-		DEBUG_ASSERTLOG(strToFind.isEmpty(), ("Missing Audio File: '%s'", strToFind.str()));
+	// TheSuperHackers @bugfix arcticdolphin 28/10/2026 Read and decode outside the mutex because Miles calls closeFile under its own lock.
+	UnsignedInt fileSize;
+	char* buffer;
+	{
+		// Files in one archive share a handle, so reads must not interleave.
+		ScopedMutex readMut(m_readMutex);
+
+		File *file = TheFileSystem->openFile(strToFind.str());
+		if (!file) {
+			DEBUG_ASSERTLOG(strToFind.isEmpty(), ("Missing Audio File: '%s'", strToFind.str()));
+			return nullptr;
+		}
+
+		fileSize = file->size();
+		buffer = file->readEntireAndClose();
+	}
+	if (buffer == nullptr) {
 		return nullptr;
 	}
-
-	UnsignedInt fileSize = file->size();
-	char* buffer = file->readEntireAndClose();
 
 	OpenAudioFile openedAudioFile;
 	openedAudioFile.m_eventInfo = eventToOpenFrom->getAudioEventInfo();
@@ -3181,18 +3247,41 @@ void *AudioFileCache::openFile( AudioEventRTS *eventToOpenFrom )
 	}
 
 	openedAudioFile.m_fileSize = fileSize;
-	m_currentlyUsedSize += openedAudioFile.m_fileSize;
-	if (m_currentlyUsedSize > m_maxSize) {
-		// We need to free some samples, or we're not going to be able to play this sound.
-		if (!freeEnoughSpaceForSample(openedAudioFile)) {
-			m_currentlyUsedSize -= openedAudioFile.m_fileSize;
-			releaseOpenAudioFile(&openedAudioFile);
-			return nullptr;
+
+	void *result = openedAudioFile.m_file;
+	OpenAudioFileList filesToFree;
+	{
+		ScopedMutex mut(m_mutex);
+
+		OpenFilesHash::iterator it;
+		it = m_openFiles.find(strToFind);
+
+		if (it != m_openFiles.end()) {
+			// Reuse the copy another thread opened meanwhile.
+			++it->second.m_openCount;
+			result = it->second.m_file;
+			openedAudioFile.m_openCount = 0;
+			filesToFree.push_back(openedAudioFile);
+		} else {
+			m_currentlyUsedSize += openedAudioFile.m_fileSize;
+			if (m_currentlyUsedSize > m_maxSize) {
+				// We need to free some samples, or we're not going to be able to play this sound.
+				if (!freeEnoughSpaceForSample(openedAudioFile, filesToFree)) {
+					m_currentlyUsedSize -= openedAudioFile.m_fileSize;
+					openedAudioFile.m_openCount = 0;
+					filesToFree.push_back(openedAudioFile);
+					result = nullptr;
+				}
+			}
+
+			if (result) {
+				m_openFiles[strToFind] = openedAudioFile;
+			}
 		}
 	}
 
-	m_openFiles[strToFind] = openedAudioFile;
-	return openedAudioFile.m_file;
+	freeOpenAudioFiles(filesToFree);
+	return result;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3212,6 +3301,14 @@ void AudioFileCache::closeFile( void *fileToClose )
 			return;
 		}
 	}
+
+	OpenAudioFileList::iterator eit;
+	for ( eit = m_evictedFiles.begin(); eit != m_evictedFiles.end(); ++eit ) {
+		if ( eit->m_file == fileToClose ) {
+			--eit->m_openCount;
+			return;
+		}
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3224,28 +3321,83 @@ void AudioFileCache::setMaxSize( UnsignedInt size )
 }
 
 //-------------------------------------------------------------------------------------------------
-void AudioFileCache::releaseOpenAudioFile( OpenAudioFile *fileToRelease )
+void AudioFileCache::releaseEvictedFiles()
 {
-	if (fileToRelease->m_openCount > 0) {
-		// This thing needs to be terminated IMMEDIATELY.
-		TheAudio->closeAnySamplesUsingFile(fileToRelease->m_file);
+	std::list<const void *> filesToStop;
+	{
+		ScopedMutex mut(m_mutex);
+
+		if (m_evictedFiles.empty()) {
+			return;
+		}
+
+		OpenAudioFileList::iterator it;
+		for ( it = m_evictedFiles.begin(); it != m_evictedFiles.end(); ++it ) {
+			if (it->m_openCount > 0) {
+				filesToStop.push_back(it->m_file);
+			}
+		}
 	}
 
-	if (fileToRelease->m_file) {
-		if (fileToRelease->m_compressed) {
-			// Files read in via AIL_decompress_ADPCM must be freed with AIL_mem_free_lock.
-			AIL_mem_free_lock(fileToRelease->m_file);
-		} else {
-			// Otherwise, we read it, we own it, blow it away.
-			delete [] fileToRelease->m_file;
+	// These things need to be terminated IMMEDIATELY.
+	stopSamplesUsingFiles(filesToStop);
+
+	OpenAudioFileList filesToFree;
+	{
+		ScopedMutex mut(m_mutex);
+
+		OpenAudioFileList::iterator it = m_evictedFiles.begin();
+		while (it != m_evictedFiles.end()) {
+			if (it->m_openCount == 0) {
+				m_evictedSize -= it->m_fileSize;
+				filesToFree.push_back(*it);
+				it = m_evictedFiles.erase(it);
+			} else {
+				++it;
+			}
 		}
-		fileToRelease->m_file = nullptr;
-		fileToRelease->m_eventInfo = nullptr;
+	}
+
+	freeOpenAudioFiles(filesToFree);
+}
+
+//-------------------------------------------------------------------------------------------------
+void AudioFileCache::stopSamplesUsingFiles( const std::list<const void *>& filesToStop )
+{
+	std::list<const void *>::const_iterator it;
+	for ( it = filesToStop.begin(); it != filesToStop.end(); ++it ) {
+		TheAudio->closeAnySamplesUsingFile(*it);
 	}
 }
 
 //-------------------------------------------------------------------------------------------------
-Bool AudioFileCache::freeEnoughSpaceForSample(const OpenAudioFile& sampleThatNeedsSpace)
+void AudioFileCache::freeOpenAudioFile( OpenAudioFile *fileToFree )
+{
+	if (fileToFree->m_file) {
+		if (fileToFree->m_compressed) {
+			// Files read in via AIL_decompress_ADPCM must be freed with AIL_mem_free_lock.
+			AIL_mem_free_lock(fileToFree->m_file);
+		} else {
+			// Otherwise, we read it, we own it, blow it away.
+			delete [] fileToFree->m_file;
+		}
+		fileToFree->m_file = nullptr;
+		fileToFree->m_eventInfo = nullptr;
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+void AudioFileCache::freeOpenAudioFiles( OpenAudioFileList& filesToFree )
+{
+	OpenAudioFileList::iterator it;
+	for ( it = filesToFree.begin(); it != filesToFree.end(); ++it ) {
+		freeOpenAudioFile(&*it);
+	}
+	filesToFree.clear();
+}
+
+//-------------------------------------------------------------------------------------------------
+Bool AudioFileCache::freeEnoughSpaceForSample(const OpenAudioFile& sampleThatNeedsSpace, OpenAudioFileList& filesToFree)
 {
 
 	Int spaceRequired = m_currentlyUsedSize - m_maxSize;
@@ -3296,7 +3448,12 @@ Bool AudioFileCache::freeEnoughSpaceForSample(const OpenAudioFile& sampleThatNee
 	for (ait = filesToClose.begin(); ait != filesToClose.end(); ++ait) {
 		OpenFilesHashIt itToErase = m_openFiles.find(*ait);
 		if (itToErase != m_openFiles.end()) {
-			releaseOpenAudioFile(&itToErase->second);
+			if (itToErase->second.m_openCount > 0) {
+				m_evictedFiles.push_back(itToErase->second);
+				m_evictedSize += itToErase->second.m_fileSize;
+			} else {
+				filesToFree.push_back(itToErase->second);
+			}
 			m_currentlyUsedSize -= itToErase->second.m_fileSize;
 			m_openFiles.erase(itToErase);
 		}

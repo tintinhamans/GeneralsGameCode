@@ -44,6 +44,7 @@ static void drawFramerateBar();
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "Common/FramePacer.h"
+#include "Common/AdaptiveQuality.h"
 #include "Common/ThingFactory.h"
 #include "Common/GlobalData.h"
 #include "Common/PerfTimer.h"
@@ -143,6 +144,7 @@ static Int theFlashCount = 0;
 #ifdef DUMP_PERF_STATS
 
 #include <cstdarg>
+#include "../GenOnlineDefines.h"
 
 class StatDumpClass
 {
@@ -389,6 +391,54 @@ inline Int64 getPerformanceCounterFrequency()
 	Int64 tmp;
 	QueryPerformanceFrequency((LARGE_INTEGER*)&tmp);
 	return tmp;
+}
+
+// Startup splash window created by WinMain; the game window stays hidden until handed over here
+HWND ApplicationSplashHWnd = nullptr;
+
+// Show the game window and close the splash
+static void finishStartupSplash()
+{
+	extern HWND ApplicationHWnd;
+	if (ApplicationSplashHWnd == nullptr)
+		return;
+
+	if (ApplicationHWnd != nullptr)
+	{
+		::ShowWindow(ApplicationHWnd, SW_SHOW);
+		::SetForegroundWindow(ApplicationHWnd);
+		::SetFocus(ApplicationHWnd);
+	}
+	::DestroyWindow(ApplicationSplashHWnd);
+	ApplicationSplashHWnd = nullptr;
+}
+
+// Windowed hand-over, once per frame until done: the first frame shows the game window behind the
+// splash without activating it, the next one (after a presented frame) closes the splash
+static void updateStartupSplash()
+{
+	extern HWND ApplicationHWnd;
+	if (ApplicationSplashHWnd == nullptr || ApplicationHWnd == nullptr)
+		return;
+
+	if (!::IsWindowVisible(ApplicationHWnd))
+	{
+		// the game window can still have its creation size when the first frames are drawn; it is shown once it has the
+		// requested resolution, so the splash is not followed by a small window with a title bar (after about 10 seconds it is shown anyway)
+		static Int s_sizeWaitFrames = 0;
+		RECT client;
+		::GetClientRect(ApplicationHWnd, &client);
+		if (++s_sizeWaitFrames < 600
+			&& (client.right - client.left != (LONG)TheGlobalData->m_xResolution || client.bottom - client.top != (LONG)TheGlobalData->m_yResolution))
+		{
+			return;
+		}
+		::SetWindowPos(ApplicationHWnd, ApplicationSplashHWnd, 0, 0, 0, 0,
+			SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+		return;
+	}
+
+	finishStartupSplash();
 }
 
 // W3DDisplay::W3DDisplay =====================================================
@@ -926,6 +976,13 @@ void W3DDisplay::init()
 				setBitDepth( bitDepth );
 				break;
 			}
+			}
+
+			// exclusive fullscreen needs the game window visible and in the foreground when the device is
+			// created, and the mode switch blanks the screen anyway, so hand over from the splash now
+			if (!getWindowed())
+			{
+				finishStartupSplash();
 			}
 
 
@@ -1632,6 +1689,20 @@ void W3DDisplay::gatherDebugStats()
 			// Network performance stats
 			unibuffer.format(L"Run Ahead: %d, Net FPS: %d, Packet arrival cushion: %d",
 				TheNetwork->getRunAhead(), TheNetwork->getFrameRate(), TheNetwork->getPacketArrivalCushion());
+
+			// per-connection latency, jitter and loss
+			for (Int slot = 0; slot < MAX_SLOTS; ++slot) {
+				const ConnectionStats* stats = TheNetwork->getConnectionStats(slot);
+				if (stats != nullptr && stats->getSampleCount() > 0) {
+					UnicodeString statsstr;
+					if (stats->getLatePercent() > 0.0f) {
+						statsstr.format(L" P%d %.0fms j%.1f l%.0f/%.0f%%", slot, stats->getLatency(), stats->getJitter(), stats->getLossPercent(), stats->getLatePercent());
+					} else {
+						statsstr.format(L" P%d %.0fms j%.1f l%.0f%%", slot, stats->getLatency(), stats->getJitter(), stats->getLossPercent());
+					}
+					unibuffer.concat(statsstr);
+				}
+			}
 			m_displayStrings[NetStats]->setText( unibuffer );
 
 			// Client frame rate averages for all players in the game.  This only works right for the packet router.
@@ -2000,10 +2071,11 @@ void W3DDisplay::draw()
 	if (TheGlobalData->m_headless)
 		return;
 
+	updateStartupSplash();
+
 	// TheSuperHackers @feature bobtista 10/07/2026 Show messages for screenshots finished by the screenshot thread.
 	W3D_UpdateScreenshotMessages();
 
-	updatePerformanceMetrics();
 	if (TheGlobalData->m_enableDynamicLOD && TheGameLogic->getShowDynamicLOD())
 	{
 		DynamicGameLODLevel lod=TheGameLODManager->findDynamicLODLevel(m_averageFPS);
@@ -2079,12 +2151,12 @@ AGAIN:
   	//
 	//PredictiveLODOptimizerClass::Optimize_LODs( 5000 );
 
-	Bool freezeTime = TheFramePacer->isTimeFrozen() || TheFramePacer->isGameHalted();
-
 	/// @todo: I'm assuming the first view is our main 3D view.
 	W3DView *primaryW3DView=(W3DView *)getFirstView();
 
-	if (!freezeTime && TheScriptEngine->isTimeFast())
+	const Bool freezeTime = TheFramePacer->isTimeFrozen();
+
+	if ((!freezeTime || TheFramePacer->isGameHalted()) && TheScriptEngine->isTimeFast())
 	{
 		return;
 	}
@@ -2118,6 +2190,20 @@ AGAIN:
 			return;
 		timeMultiplierCounter = TheTacticalView->getTimeMultiplier();
 		// limit the framerate, because while fast time is on, the game logic is running as fast as it can.
+	}
+
+	// never skipped while time is frozen: scripted cameras render in the loop below
+	const Bool skipRender = !freezeTime && AdaptiveQuality::get().shouldSkipRender();
+
+	// only rendered frames enter the fps history, so skipped frames do not inflate the shown fps
+	if (!skipRender)
+	{
+		updatePerformanceMetrics();
+	}
+
+	if (skipRender && m_cinematicText != AsciiString::TheEmptyString && m_cinematicTextFrames != 0)
+	{
+		m_cinematicTextFrames--;
 	}
 
 	Bool viewsUpdated = TRUE;
@@ -2166,6 +2252,7 @@ AGAIN:
 		#else
 	    if ( (TheGameLogic->getFrame() % 30 == 1) || ( ! (!TheGameLogic->isGamePaused() && TheGlobalData->m_TiVOFastMode && TheGameLogic->isInReplayGame())) )
     #endif
+		if (!skipRender)
 		{
 			//USE_PERF_TIMER(BigAssRenderLoop)
 			static Bool couldRender = true;
@@ -2301,8 +2388,13 @@ AGAIN:
 				// Ronin @feature 09/10/2026 DX9: likewise for the local lights - a no-op unless they began the scene depth.
 				R3DLocalLights::endFrame();
 
+				// sorted geometry is drawn here so that only the Present below is timed as a wait
+				SortingRendererClass::Flush();
+				AdaptiveQuality::get().notePresentMode(WW3D::Is_Windowed(), WW3D::Get_Ext_Swap_Interval() != (long)D3DPRESENT_INTERVAL_IMMEDIATE);
+				const long long presentStart = AdaptiveQuality::now();
 				// render is all done!
 				WW3D::End_Render();
+				AdaptiveQuality::get().addPresentWait(AdaptiveQuality::now() - presentStart);
 			}
 			else
 			{
@@ -2316,7 +2408,7 @@ AGAIN:
 
 		if (TheScriptEngine->isTimeFrozenDebug() || TheScriptEngine->isTimeFrozenScript() || TheGameLogic->isGamePaused())
 		{
-			freezeTime = false; // We're frozen for debug or for pause, and need to continue out of the loop.
+			break; // We're frozen for debug or for pause, and need to break out of the loop.
 		}
 
 	} while (freezeTime && !TheTacticalView->isCameraMovementFinished());
@@ -2409,6 +2501,8 @@ void W3DDisplay::createLightPulse( const Coord3D *pos, const RGBColor *color,
 																	 )
 {
 	if (m_3DScene == nullptr)
+		return;
+	if (AdaptiveQualityLevels::lightPulsesOff(TheGlobalData->m_adaptiveQualityLevel))
 		return;
 	// Ronin @feature 17/10/2026 DX9: with the screen-space lights a pulse gets a minimum reach and fade (`lights pulsemin`,
 	// `pulsefade`) - a Gatling's muzzle pulse was 10 units for 3 frames.
@@ -3026,6 +3120,28 @@ void W3DDisplay::drawImage( const Image *image, Int startX, Int startY,
 	RectClass screen_rect(startX,startY,endX,endY);
 	RectClass uv_rect(uv->lo.x,uv->lo.y,uv->hi.x,uv->hi.y);
 
+	const Bool rotated = BitIsSet( image->getStatus(), IMAGE_STATUS_ROTATED_90_CLOCKWISE );
+
+	// A stretched image samples half a texel inside its rect so atlas neighbours do not bleed in.
+	const Int imageWidth = image->getImageWidth();
+	const Int imageHeight = image->getImageHeight();
+	const Bool stretchedX = endX - startX != imageWidth;
+	const Bool stretchedY = endY - startY != imageHeight;
+	const Int texelsU = rotated ? imageHeight : imageWidth;
+	const Int texelsV = rotated ? imageWidth : imageHeight;
+	if ((rotated ? stretchedY : stretchedX) && texelsU > 1)
+	{
+		const Real insetU = 0.5f * uv_rect.Width() / (Real)texelsU;
+		uv_rect.Left += insetU;
+		uv_rect.Right -= insetU;
+	}
+	if ((rotated ? stretchedX : stretchedY) && texelsV > 1)
+	{
+		const Real insetV = 0.5f * uv_rect.Height() / (Real)texelsV;
+		uv_rect.Top += insetV;
+		uv_rect.Bottom -= insetV;
+	}
+
 	if (m_isClippedEnabled)
 	{
 		//need to clip this quad to clip rectangle
@@ -3034,7 +3150,7 @@ void W3DDisplay::drawImage( const Image *image, Int startX, Int startY,
 			RectClass clipped_rect;
 			RectClass clipped_uv_rect;
 
-			if( BitIsSet( image->getStatus(), IMAGE_STATUS_ROTATED_90_CLOCKWISE ) )
+			if( rotated )
 			{
 
 
@@ -3102,7 +3218,7 @@ void W3DDisplay::drawImage( const Image *image, Int startX, Int startY,
 	}
 
 	// if rotated 90 degrees clockwise we have to adjust the uv coords
-	if( BitIsSet( image->getStatus(), IMAGE_STATUS_ROTATED_90_CLOCKWISE ) )
+	if( rotated )
 	{
 
 		m_2DRender->Add_Tri( Vector2( screen_rect.Left, screen_rect.Top ),

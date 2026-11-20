@@ -316,10 +316,13 @@ WeaponTemplate::WeaponTemplate() : m_nextTemplate(nullptr)
 //-------------------------------------------------------------------------------------------------
 WeaponTemplate::~WeaponTemplate()
 {
-	deleteInstance(m_nextTemplate);
+	if (m_nextTemplate) {
+		deleteInstance(m_nextTemplate);
+	}
 
 	// delete any extra-bonus that's present
-	deleteInstance(m_extraBonus);
+	if (m_extraBonus)
+		deleteInstance(m_extraBonus);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -384,8 +387,8 @@ void WeaponTemplate::reset()
 
 	// No matter what we have now, we want to convert it to frames from msec.
 	// ShotDelay used to use parseDurationUnsignedInt, and we are expanding on that.
-	self->m_minDelayBetweenShots = WWMath::Ceilf(ConvertDurationFromMsecsToFrames((Real)self->m_minDelayBetweenShots));
-	self->m_maxDelayBetweenShots = WWMath::Ceilf(ConvertDurationFromMsecsToFrames((Real)self->m_maxDelayBetweenShots));
+	self->m_minDelayBetweenShots = ConvertDurationFromMsecsToFramesRoundedUp((Real)self->m_minDelayBetweenShots);
+	self->m_maxDelayBetweenShots = ConvertDurationFromMsecsToFramesRoundedUp((Real)self->m_maxDelayBetweenShots);
 
 }
 
@@ -493,13 +496,13 @@ Int WeaponTemplate::getDelayBetweenShots(const WeaponBonus& bonus) const
 	if( m_minDelayBetweenShots == m_maxDelayBetweenShots )
 		delayToUse = m_minDelayBetweenShots; // Random number thing doesn't like this case
 	else
-		delayToUse = GameLogicRandomValue( m_minDelayBetweenShots, m_maxDelayBetweenShots );
+		delayToUse = GameLogicRandomFramesInBaseFrames( m_minDelayBetweenShots, m_maxDelayBetweenShots );
 
 	Real bonusROF = bonus.getField(WeaponBonus::RATE_OF_FIRE);
 	//CRCDEBUG_LOG(("WeaponTemplate::getDelayBetweenShots() - min:%d max:%d val:%d, bonusROF=%g/%8.8X",
 		//m_minDelayBetweenShots, m_maxDelayBetweenShots, delayToUse, bonusROF, AS_INT(bonusROF)));
 
-	return REAL_TO_INT_FLOOR(delayToUse / bonusROF);
+	return DivideFramesInBaseFrames(delayToUse, bonusROF);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -507,13 +510,13 @@ Int WeaponTemplate::getClipReloadTime(const WeaponBonus& bonus) const
 {
 	// yes, divide, not multiply; the larger the rate-of-fire bonus, the shorter
 	// we want the reload time to be.
-	return REAL_TO_INT_FLOOR(m_clipReloadTime / bonus.getField(WeaponBonus::RATE_OF_FIRE));
+	return DivideFramesInBaseFrames(m_clipReloadTime, bonus.getField(WeaponBonus::RATE_OF_FIRE));
 }
 
 //-------------------------------------------------------------------------------------------------
 Int WeaponTemplate::getPreAttackDelay( const WeaponBonus& bonus ) const
 {
-	return m_preAttackDelay * bonus.getField( WeaponBonus::PRE_ATTACK );
+	return MultiplyFramesInBaseFrames(m_preAttackDelay, bonus.getField( WeaponBonus::PRE_ATTACK ));
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -991,7 +994,7 @@ UnsignedInt WeaponTemplate::fireWeaponTemplate
 			UnsignedInt when = 0;
 			if (TheWeaponStore)
 			{
-				UnsignedInt delayInWholeFrames = REAL_TO_INT_CEIL(delayInFrames);
+				UnsignedInt delayInWholeFrames = ConvertBaseFramesToFrames(REAL_TO_INT_CEIL(ConvertFramesToBaseFramesReal(delayInFrames)));
 				when = TheGameLogic->getFrame() + delayInWholeFrames;
 				//DEBUG_LOG(("WeaponTemplate::fireWeaponTemplate: firing weapon in %d frames (= %d)!", delayInWholeFrames,when));
 				TheWeaponStore->setDelayedDamage(this, damagePos, when, sourceID, damageID, bonus);
@@ -1464,7 +1467,8 @@ WeaponStore::~WeaponStore()
 	for (size_t i = 0; i < m_weaponTemplateVector.size(); i++)
 	{
 		WeaponTemplate* wt = m_weaponTemplateVector[i];
-		deleteInstance(wt);
+		if (wt)
+			deleteInstance(wt);
 	}
 	m_weaponTemplateVector.clear();
 	m_weaponTemplateHashMap.clear();

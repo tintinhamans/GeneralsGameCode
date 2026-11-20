@@ -76,7 +76,7 @@ public:
 	/** - Called for all subsystems after all other Subsystems are inited.
 		* (allows for initializing inter-system dependencies)
 		*/
-	virtual void postProcessLoad() { }
+	virtual void postProcessLoad() {}
 
 	//-----------------------------------------------------------------------------------------------
 	/** - Any system should be able to reset all data and go back to an empty state
@@ -147,7 +147,7 @@ public:
 	SubsystemInterfaceList();
 	~SubsystemInterfaceList();
 
-	void initSubsystem(SubsystemInterface* sys, const char* path1, const char* path2, Xfer *pXfer, AsciiString name="");
+	void initSubsystem(SubsystemInterface* sys, const char* path1, const char* path2, Xfer* pXfer, AsciiString name = "");
 	void addSubsystem(SubsystemInterface* sys);
 	void removeSubsystem(SubsystemInterface* sys);
 	void postProcessLoadAll();

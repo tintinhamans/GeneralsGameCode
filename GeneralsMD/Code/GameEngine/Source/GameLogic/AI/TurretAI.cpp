@@ -328,7 +328,8 @@ TurretAI::~TurretAI()
 {
 	stopRotOrPitchSound();
 
-	deleteInstance(m_turretStateMachine);
+	if (m_turretStateMachine)
+		deleteInstance(m_turretStateMachine);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -398,6 +399,9 @@ Bool TurretAI::friend_turnTowardsAngle(Real desiredAngle, Real rateModifier, Rea
 	Real origAngle = getTurretAngle();
 	Real actualAngle = origAngle;
 	Real turnRate = getTurnRate() * rateModifier;
+
+	turnRate *= (Real)LOGICFRAMES_PER_BASEFRAME;
+
 	Real angleDiff = normalizeAngle(desiredAngle - actualAngle);
 
 	// Are we close enough to the desired angle to just snap there?
@@ -688,6 +692,12 @@ void TurretAI::friend_notifyStateMachineChanged()
 DECLARE_PERF_TIMER(TurretAI)
 UpdateSleepTime TurretAI::updateTurretAI()
 {
+	if (!TheGameLogic->HasLegacyFrameAdvanced())
+	{
+		return UPDATE_SLEEP_NONE;
+	}
+
+
 	USE_PERF_TIMER(TurretAI)
 
 #if defined(RTS_DEBUG)
@@ -1286,7 +1296,7 @@ void TurretAIIdleState::loadPostProcess()
 void TurretAIIdleState::resetIdleScan()
 {
 	UnsignedInt now = TheGameLogic->getFrame();
-	UnsignedInt delay = GameLogicRandomValue(getTurretAI()->getMinIdleScanInterval(), getTurretAI()->getMaxIdleScanInterval());
+	UnsignedInt delay = GameLogicRandomFramesInBaseFrames(getTurretAI()->getMinIdleScanInterval(), getTurretAI()->getMaxIdleScanInterval());
 	m_nextIdleScan = now + delay;
 }
 
@@ -1386,7 +1396,11 @@ StateReturnType TurretAIIdleScanState::update()
   if( getMachineOwner()->testStatus( OBJECT_STATUS_UNDER_CONSTRUCTION))
     return STATE_CONTINUE;//ML so that under-construction base-defenses do not idle-scan while under construction
 
+#if defined(GENONLINE)
+	Bool angleAligned = getTurretAI()->friend_turnTowardsAngle(getTurretAI()->getNaturalTurretAngle() + m_desiredAngle, 0.5f, 0.5f);
+#else
 	Bool angleAligned = getTurretAI()->friend_turnTowardsAngle(getTurretAI()->getNaturalTurretAngle() + m_desiredAngle, 0.5f, 0.0f);
+#endif
 	Bool pitchAligned = getTurretAI()->friend_turnTowardsPitch(getTurretAI()->getNaturalTurretPitch(), 0.5f);
 
 	if( angleAligned && pitchAligned )

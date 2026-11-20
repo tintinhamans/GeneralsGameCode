@@ -1,0 +1,350 @@
+/*
+**	Command & Conquer Generals Zero Hour(tm)
+**	Copyright 2026 TheSuperHackers
+**
+**	This program is free software: you can redistribute it and/or modify
+**	it under the terms of the GNU General Public License as published by
+**	the Free Software Foundation, either version 3 of the License, or
+**	(at your option) any later version.
+**
+**	This program is distributed in the hope that it will be useful,
+**	but WITHOUT ANY WARRANTY; without even the implied warranty of
+**	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**	GNU General Public License for more details.
+**
+**	You should have received a copy of the GNU General Public License
+**	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+// FILE: GenOnlineGameHooks.cpp ///////////////////////////////////////////////
+// Description: GenOnline game hooks.
+///////////////////////////////////////////////////////////////////////////////
+
+#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+
+#include "GameNetwork/GenOnline/Provider/GenOnlineGameHooks.h"
+#include "GameNetwork/GenOnline/Provider/GenOnlineNetworkOverlay.h"
+#include "GameNetwork/GenOnline/GenOnlineCrashReport.h"
+
+#include "Common/FileSystem.h"
+#include "GameClient/Color.h"
+#include "GameClient/DisplayString.h"
+#include "GameClient/GameText.h"
+#include "GameNetwork/GameSpyOverlay.h"
+#include "GameNetwork/NetworkInterface.h"
+#include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
+#include "GameNetwork/GenOnline/GenOnlineDefines.h"
+#include "GameNetwork/GenOnline/GenOnlineGame.h"
+#include "GameNetwork/GenOnline/DiscordRichPresence.h"
+#include "GameNetwork/GenOnline/NetworkMesh.h"
+#include "GameNetwork/GenOnline/ProxyLogin.h"
+#include "GameNetwork/GenOnline/GenOnlineMainMenuUtils.h"
+#include "GameClient/GenOnlineMenus.h"
+#include <steam/isteamnetworkingsockets.h>
+
+static bool g_bTearDownGeneralsOnlineRequested = false;
+void TearDownGeneralsOnline()
+{
+	g_bTearDownGeneralsOnlineRequested = true;
+
+	if (GenOnlineServicesManager::GetInstance() == nullptr)
+		return;
+
+	EGOTearDownReason teardownReason = GenOnlineServicesManager::GetInstance()->GetTeardownReason();
+
+	if (teardownReason != EGOTearDownReason::USER_REQUESTED_SILENT && !IsModerationTeardownReason(teardownReason))
+	{
+		UnicodeString title, body;
+
+		if (teardownReason == EGOTearDownReason::USER_LOGOUT)
+		{
+			title = L"Logged Out";
+			body = L"You are now logged out of GeneralsOnline.";
+		}
+		else if (teardownReason == EGOTearDownReason::LOST_CONNECTION)
+		{
+			title = TheGameText->fetch("GUI:GSErrorTitle");
+			body = L"Your connection to the Generals Online servers was lost.";
+		}
+        else if (teardownReason == EGOTearDownReason::AUTH_FAILED)
+        {
+            title = TheGameText->fetch("GUI:GSErrorTitle");
+            body = L"Authentication with the Generals Online servers failed.";
+        }
+		else if (teardownReason == EGOTearDownReason::MIDDLEWARE_LOGIN_FAILED)
+		{
+            title = TheGameText->fetch("GUI:GSErrorTitle");
+            body = L"Middleware Authentication failed.";
+		}
+		else
+		{
+			title = TheGameText->fetch("GUI:GSErrorTitle");
+			body = L"An unknown error occurred.";
+		}
+
+		GenOnlineServicesManager::GetInstance()->ResetPendingFullTeardownReason();
+
+		GameSpyCloseAllOverlays();
+		GSMessageBoxOk(title, body);
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+GenOnlineGameHooks::GenOnlineGameHooks()
+	: m_discordRichPresence(nullptr)
+{
+}
+
+GenOnlineGameHooks::~GenOnlineGameHooks()
+{
+	delete m_discordRichPresence;
+	m_discordRichPresence = nullptr;
+}
+
+void GenOnlineGameHooks::onGlobalDataLoaded()
+{
+	GenOnlineServicesManager::InitSentry();
+}
+
+void GenOnlineGameHooks::loadSettings()
+{
+	GenOnlineServicesManager::Settings.Initialize();
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Services: %s, chosen by %s", GenOnlineServicesManager::EnvironmentName(), GenOnlineServicesManager::EnvironmentReason());
+	TheFileSystem->setExcludedPaths(GenOnlineServicesManager::Settings.DataPacks_UserExcludePaths());
+}
+
+void GenOnlineGameHooks::onDisplayCreated()
+{
+	GenOnlineServicesManager::LogDisplayAdapter();
+}
+
+void GenOnlineGameHooks::onEngineInitialized()
+{
+	m_discordRichPresence = new GenOnlineDiscordRPC();
+	m_discordRichPresence->Initialize();
+}
+
+void GenOnlineGameHooks::onEngineUpdate()
+{
+	if (g_bTearDownGeneralsOnlineRequested) // delayed tear down
+	{
+		g_bTearDownGeneralsOnlineRequested = false;
+
+		GenOnlineServicesManager::DestroyInstance();
+
+	}
+
+	// work handed back by worker threads, also while no online services instance exists
+	ServiceConnection::PumpMainThreadTasks();
+
+	if (GenOnlineServicesManager::GetInstance() != nullptr)
+	{
+		GenOnlineServicesManager::GetInstance()->Tick();
+	}
+
+	if (m_discordRichPresence != nullptr)
+	{
+		m_discordRichPresence->Tick(
+			GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>());
+	}
+}
+
+void GenOnlineGameHooks::onEngineShutdown()
+{
+	delete m_discordRichPresence;
+	m_discordRichPresence = nullptr;
+
+	GenOnlineServicesManager::DestroyInstance();
+}
+
+void GenOnlineGameHooks::onEngineExit()
+{
+	GenOnlineServicesManager::ShutdownSentry();
+}
+
+// A GenOnline match runs at the frame rate limit from the GenOnline settings.
+Bool GenOnlineGameHooks::getMatchFrameRateLimit( Int &outLimit )
+{
+	if (TheGenOnlineGame == nullptr)
+		return FALSE;
+
+	outLimit = GenOnlineServicesManager::Settings.Graphics_GetFPSLimit();
+	return TRUE;
+}
+
+GameInfo *GenOnlineGameHooks::getGameInfo()
+{
+	return TheGenOnlineGame;
+}
+
+Bool GenOnlineGameHooks::isLoggedIn()
+{
+	return GenOnlineServicesManager::GetInstance() != nullptr;
+}
+
+void GenOnlineGameHooks::onCRCMismatch( const UnicodeString &strMismatchDetails )
+{
+#if defined(GENONLINE_USE_SENTRY)
+	if (TheGenOnlineGame != nullptr && GenOnlineServicesManager::IsSentryActive())
+	{
+		// The user_id tag on the scope identifies the local player.
+		const UnicodeString strReportDetails(GenOnlineCrashReport::WithoutPlayerNames(strMismatchDetails.str()).c_str());
+		AsciiString sentryMsg;
+		sentryMsg.translate(strReportDetails);
+
+		// send event to sentry
+		sentry_capture_event(sentry_value_new_message_event(
+			SENTRY_LEVEL_ERROR,
+			"CRC_MISMATCH",
+			sentryMsg.str()
+		));
+	}
+#endif
+}
+
+Bool GenOnlineGameHooks::shouldLeaveGame()
+{
+	return TheGenOnlineGame != nullptr && TheGenOnlineGame->canKickOnObserversDisabled();
+}
+
+void GenOnlineGameHooks::onReplayWritten( const AsciiString &absoluteReplayPath )
+{
+	if (TheGenOnlineGame != nullptr)
+	{
+		GenOnlineServicesManager* pOnlineServicesMgr = GenOnlineServicesManager::GetInstance();
+		if (pOnlineServicesMgr != nullptr)
+		{
+			pOnlineServicesMgr->CommitReplay(absoluteReplayPath);
+		}
+	}
+}
+
+Bool GenOnlineGameHooks::beginSyncedStart( Int phase )
+{
+	NetworkMesh* pStartMesh = GenOnlineServicesManager::GetNetworkMesh();
+	return pStartMesh != nullptr && pStartMesh->BeginSyncedStart(phase);
+}
+
+Bool GenOnlineGameHooks::isSyncedStartDone( Int phase )
+{
+	NetworkMesh* pStartMesh = GenOnlineServicesManager::GetNetworkMesh();
+	return pStartMesh == nullptr || pStartMesh->SyncedStartDone(phase);
+}
+
+Int GenOnlineGameHooks::getChatMessageLifeSeconds()
+{
+	return GenOnlineServicesManager::Settings.GetChatLifeSeconds();
+}
+
+void GenOnlineGameHooks::drawNetworkOverlay( DisplayString *text, Int dropColor )
+{
+	if (GenOnlineServicesManager::GetNetworkOverlayMode() != 0)
+	{
+		GenOnlineDrawNetworkOverlay(GenOnlineServicesManager::GetNetworkOverlayMode(), text, dropColor);
+	}
+	else
+	{
+		GenOnlineReleaseNetworkOverlay();
+	}
+}
+
+void GenOnlineGameHooks::releaseNetworkOverlay()
+{
+	GenOnlineReleaseNetworkOverlay();
+}
+
+// The GenOnline menus open their own layouts for the overlays they show.
+const char *GenOnlineGameHooks::getOverlayLayout( Int overlay, const char *gameSpyLayout )
+{
+	switch (overlay)
+	{
+		case GSOVERLAY_PLAYERINFO:
+			return "Menus/GenOnlinePopupPlayerInfo.wnd";
+		case GSOVERLAY_MAPSELECT:
+			return "Menus/GenOnlineMapSelectMenu.wnd";
+		case GSOVERLAY_BUDDY:
+			return "Menus/GenOnlineBuddyOverlay.wnd";
+		case GSOVERLAY_GAMEOPTIONS:
+			return "Menus/GenOnlinePopupHostGame.wnd";
+		case GSOVERLAY_GAMEPASSWORD:
+			return "Menus/GenOnlinePopupJoinGame.wnd";
+		default:
+			return gameSpyLayout;
+	}
+}
+
+void GenOnlineGameHooks::onShellScreenChanged()
+{
+	GenOnlineRaiseNotificationBox();
+}
+
+void GenOnlineGameHooks::onCloseAllOverlays()
+{
+	GenOnlineDeleteNotificationBox();
+}
+
+void GenOnlineGameHooks::startOnline()
+{
+	GenOnlineStartPatchCheck();
+}
+
+// The sign-in dialog sits over the main menu, which stays the shell screen and ticks it.
+void GenOnlineGameHooks::updateMainMenu()
+{
+	GenOnlineHTTPThinkWrapper();
+	GOSignInDialogUpdate();
+}
+
+void GenOnlineGameHooks::updateDownloadMenu( WindowLayout *layout, void *userData )
+{
+	GenOnlineDownloadMenuUpdate(layout, userData);
+}
+
+// TheSuperHackers @bugfix arcticdolphin 09/11/2026 An Online attempt can end before the online services exist or after their teardown.
+void GenOnlineGameHooks::onDownloadCanceled()
+{
+	if (GenOnlineServicesManager::GetInstance() != nullptr)
+	{
+		GenOnlineServicesManager::GetInstance()->CancelUpdate();
+	}
+}
+
+void GenOnlineGameHooks::stopOnlineChecks()
+{
+	GenOnlineStopAsyncDNSCheck();
+}
+
+void GenOnlineGameHooks::cancelPatchCheck()
+{
+	GenOnlineCancelPatchCheckCallback();
+}
+
+void GenOnlineGameHooks::startDownloadingPatches()
+{
+	GenOnlineStartDownloadingPatches();
+}
+
+void GenOnlineGameHooks::onOptionsMenuInit( Bool locked )
+{
+	GenOnlineOptionsMenuInit(locked);
+}
+
+Bool GenOnlineGameHooks::onOptionsMenuComboSelected( GameWindow *control )
+{
+	return GenOnlineOptionsMenuComboSelected(control);
+}
+
+Bool GenOnlineGameHooks::onOptionsMenuButtonSelected( GameWindow *control )
+{
+	return GenOnlineOptionsMenuButtonSelected(control);
+}
+
+Bool GenOnlineGameHooks::onOptionsMenuAccept()
+{
+	return GenOnlineOptionsMenuAccept();
+}
+
+void GenOnlineGameHooks::onOptionsMenuDefaults()
+{
+	GenOnlineOptionsMenuDefaults();
+}

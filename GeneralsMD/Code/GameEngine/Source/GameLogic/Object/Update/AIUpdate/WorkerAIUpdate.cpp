@@ -122,9 +122,14 @@ WorkerAIUpdate::~WorkerAIUpdate()
 {
 
 	// delete our behavior state machine
-	deleteInstance(m_dozerMachine);
-	deleteInstance(m_supplyTruckStateMachine);
-	deleteInstance(m_workerMachine);
+	if( m_dozerMachine )
+		deleteInstance(m_dozerMachine);
+
+	if( m_supplyTruckStateMachine )
+		deleteInstance(m_supplyTruckStateMachine);
+
+	if( m_workerMachine )
+		deleteInstance(m_workerMachine);
 
 }
 

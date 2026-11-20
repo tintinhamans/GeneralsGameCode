@@ -48,6 +48,10 @@
 #ifdef RTS_ENABLE_CRASHDUMP
 #include "MiniDumper/MiniDumper.h"
 #endif
+#if defined(GENONLINE)
+#include "../GenOnlineInclude.h"
+#include "../GenOnlineInit.h"
+#endif
 
 
 // Horrible reference, but we really, really need to know if we are windowed.
@@ -295,6 +299,11 @@ void ReleaseCrash(const char *reason)
 
 #endif
 
+#if defined(GENONLINE)
+	// TheSuperHackers @bugfix arcticdolphin 17/11/2026 A release crash, like a failed start, reaches Sentry and not only the local dumps.
+	GenOnlineServicesManager::ReportReleaseCrashToSentry(reason);
+#endif
+
 	_exit(1);
 }
 
@@ -368,6 +377,11 @@ void ReleaseCrashLocalized(const AsciiString& p, const AsciiString& m)
 		fclose(theReleaseCrashLogFile);
 		theReleaseCrashLogFile = nullptr;
 	}
+
+#if defined(GENONLINE)
+	// TheSuperHackers @bugfix arcticdolphin 17/11/2026 A release crash, like a failed start, reaches Sentry and not only the local dumps.
+	GenOnlineServicesManager::ReportReleaseCrashToSentry(m.str());
+#endif
 
 	_exit(1);
 }

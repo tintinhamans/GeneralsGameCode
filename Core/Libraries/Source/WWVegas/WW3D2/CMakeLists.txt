@@ -185,8 +185,6 @@ set(WW3D2_SRC
     sortingrenderer.cpp
     sortingrenderer.h
     soundlibrarybridge.h
-    soundrobj.cpp
-    soundrobj.h
     sphereobj.cpp
     sphereobj.h
     static_sort_list.cpp
@@ -241,6 +239,9 @@ set(WW3D2_SRC
 add_library(corei_ww3d2 INTERFACE)
 
 target_sources(corei_ww3d2 INTERFACE ${WW3D2_SRC})
+if(RTS_NEEDS_LEGACY_MEDIA)
+    target_sources(corei_ww3d2 INTERFACE soundrobj.cpp soundrobj.h)
+endif()
 
 target_include_directories(corei_ww3d2 INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}"

@@ -643,7 +643,7 @@ void PlayMovieAndBlock(AsciiString movieTitle)
 
 	GameWindow *movieWindow = s_blankLayout->getFirstWindow();
 	TheWritableGlobalData->m_loadScreenRender = TRUE;
-	while (videoStream->frameIndex() < videoStream->frameCount() - 1)
+	while (!videoStream->isPlaybackComplete())
 	{
 		// TheSuperHackers @feature User can now skip video by pressing ESC
 		if (TheKeyboard)
@@ -1782,7 +1782,7 @@ void grabMultiPlayerInfo()
 	Int adder = 1; // Varible used to add on an offset to the score to make sure we don't add people to the same map
 
 	Player *localPlayer = ThePlayerList->getLocalPlayer();
-	if (localPlayer)
+	if (localPlayer && parent)
 	{
 		const Image *image = TheMappedImageCollection->findImageByName("MutiPlayer_ScoreScreen");
 		if(image)

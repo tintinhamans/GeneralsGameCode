@@ -90,12 +90,11 @@ MutexClass::LockClass::~LockClass()
 
 // ----------------------------------------------------------------------------
 
-CriticalSectionClass::CriticalSectionClass() : handle(nullptr), locked(false)
+CriticalSectionClass::CriticalSectionClass() : locked(false)
 {
 	#ifdef _UNIX
 		//assert(0);
 	#else
-		handle=W3DNEWARRAY char[sizeof(CRITICAL_SECTION)];
 		InitializeCriticalSection((CRITICAL_SECTION*)handle);
 	#endif
 }
@@ -105,9 +104,8 @@ CriticalSectionClass::~CriticalSectionClass()
 	#ifdef _UNIX
 		//assert(0);
 	#else
-		WWASSERT(!locked); // Can't delete locked mutex!
+		WWASSERT(!locked); // Can't delete locked critical section!
 		DeleteCriticalSection((CRITICAL_SECTION*)handle);
-		delete[] handle;
 	#endif
 }
 

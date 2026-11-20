@@ -58,6 +58,10 @@
 #include "GameClient/GadgetSlider.h"
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/MapUtil.h"
+#if defined(GENONLINE)
+#include "GameClient/MapPreviewIcons.h"
+#include "Common/FramePacer.h"
+#endif
 #include "GameClient/Mouse.h"
 #include "GameClient/GameWindowTransitions.h"
 
@@ -398,12 +402,13 @@ void setFPSTextBox( Int sliderPos )
 		GadgetStaticTextSetText(staticTextGameSpeed, text);
 		return;
 	}
-	else if( sliderPos == TheGlobalData->m_framesPerSecondLimit )
+	else if( sliderPos == BaseFps )
 	{
 		// set different color
 		staticTextGameSpeed->winEnable(FALSE);
 	}
-	text.format(L"%2d", sliderPos);
+	// The slider holds the retail frame rate, so the retail base frame rate is the normal speed.
+	text.format(L"%d%%", (sliderPos * 100 + BaseFps / 2) / BaseFps);
 	GadgetStaticTextSetText(staticTextGameSpeed, text);
 }
 
@@ -420,6 +425,11 @@ void reallyDoStart()
 		maxFPS = 1000;
 	if (maxFPS < 15)
 		maxFPS = 15;
+
+#if defined(GENONLINE)
+	// The logic runs faster than retail, so the retail frame rate scales to logic frames per second.
+	TheFramePacer->setGameSpeedFps(maxFPS * LOGICFRAMES_PER_BASEFRAME);
+#endif
 
   TheWritableGlobalData->m_mapName = TheSkirmishGameInfo->getMap();
   TheSkirmishGameInfo->startGame(0);
@@ -507,6 +517,16 @@ void MapSelectorTooltip(GameWindow *window,
 
 	Int pixelX, pixelY;
 	window->winGetScreenPosition(&pixelX, &pixelY);
+
+#if defined(GENONLINE)
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Name the type of the typed marker under the mouse.
+	UnicodeString typedTooltip;
+	if (getMapPreviewMarkerTooltip(x - pixelX, y - pixelY, typedTooltip))
+	{
+		TheMouse->setCursorTooltip( typedTooltip, -1, nullptr);
+		return;
+	}
+#endif
 
 	const Image *image = TheMappedImageCollection->findImageByName("TecBuilding");
 	const Image *image2 = TheMappedImageCollection->findImageByName("Cash");
@@ -604,6 +624,9 @@ void positionAdditionalImages( MapMetaData *mmd, GameWindow *mapWindow, Bool for
 {
 	TheSupplyAndTechImageLocations.m_supplyPosList.clear();
 	TheSupplyAndTechImageLocations.m_techPosList.clear();
+#if defined(GENONLINE)
+	TheSupplyAndTechImageLocations.m_typedMarkers.clear();
+#endif
 
 	if( !mmd || !mapWindow || mapWindow->winIsHidden())
 		return;
@@ -622,6 +645,12 @@ void positionAdditionalImages( MapMetaData *mmd, GameWindow *mapWindow, Bool for
 	findDrawPositions(0,0, winMapSize.x, winMapSize.y,mmd->m_extent, &ul, &lr);
 	Int smallWidth = lr.x - ul.x;
 	Int smallHeight= lr.y - ul.y;
+
+#if defined(GENONLINE)
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Use the typed objects so each marker carries its icon category.
+	if (positionTypedPreviewImages(mmd, ul, smallWidth, smallHeight))
+		return;
+#endif
 
 	Coord3DList::iterator it = mmd->m_supplyPositions.begin();
 		// loop through and make sure we're not on top of anyone else
@@ -1271,7 +1300,12 @@ void SkirmishGameOptionsMenuInit( WindowLayout *layout, void *userData )
 	// set up the game speed slider
 //	NameKeyType sliderGameSpeedID = TheNameKeyGenerator->nameToKey( "SkirmishGameOptionsMenu.wnd:SliderGameSpeed" );
 	GameWindow *sliderGameSpeed = TheWindowManager->winGetWindowFromId( parentSkirmishGameOptions, sliderGameSpeedID );
+#if defined(GENONLINE)
+	// Skirmish.ini holds the retail frame rate, so a missing value is the retail normal speed.
+	Int sliderPos = max(15,min(61,prefs.getInt("FPS", BaseFps)));
+#else
 	Int sliderPos = max(15,min(61,prefs.getInt("FPS", TheGlobalData->m_framesPerSecondLimit)));
+#endif
 	GadgetSliderSetPosition( sliderGameSpeed, sliderPos );
 	setFPSTextBox(sliderPos);
 	buttonStart->winSetText(TheGameText->fetch("GUI:Start"));

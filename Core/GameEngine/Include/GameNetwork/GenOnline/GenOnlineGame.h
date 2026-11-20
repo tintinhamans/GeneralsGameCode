@@ -1,0 +1,178 @@
+#pragma once
+#include "GameNetwork/GameInfo.h"
+#include <chrono>
+
+class LobbyEntry;
+
+// The host walks the phases in order. A client skips StartRequested.
+enum class EStartPhase
+{
+	Idle,
+	StartRequested,
+	Countdown,
+	Starting
+};
+
+class GenOnlineGameSlot : public GameSlot
+{
+public:
+	GenOnlineGameSlot();
+	Int getProfileID(void) const { return m_profileID; }
+	void setProfileID(Int id) { m_profileID = id; }
+	Int getWins(void) const { return m_wins; }
+	Int getLosses(void) const { return m_losses; }
+	void setWins(Int wins) { m_wins = wins; }
+	void setLosses(Int losses) { m_losses = losses; }
+
+	Int getSlotRankPoints(void) const { return m_rankPoints; }
+	Int getFavoriteSide(void) const { return m_favoriteSide; }
+	void setSlotRankPoints(Int val) { m_rankPoints = val; }
+	void setFavoriteSide(Int val) { m_favoriteSide = val; }
+
+	void setPingString(UnicodeString pingStr) { m_pingStr = pingStr; }
+	inline UnicodeString getPingString(void) const { return m_pingStr; }
+	inline Int getPingAsInt(void) const { return m_pingInt; }
+
+	int64_t m_userID = -1;
+
+	void UpdateLatencyFromConnection(UnicodeString pingStr, int ping)
+	{
+		m_pingStr = pingStr;
+		m_pingInt = ping;
+	}
+
+protected:
+	Int m_profileID;
+
+	UnicodeString m_pingStr;
+	Int m_pingInt;
+	Int m_wins, m_losses;
+	Int m_rankPoints, m_favoriteSide;
+};
+
+
+class GenOnlineGame : public GameInfo
+{
+private:
+	GenOnlineGameSlot m_Slots[MAX_SLOTS];
+	UnicodeString m_gameName;
+	Int m_id;
+	Bool m_requiresPassword;
+	Bool m_allowObservers;
+	UnsignedInt m_version;
+	UnsignedInt m_exeCRC;
+	UnsignedInt m_iniCRC;
+	Bool m_isQM;
+
+	AsciiString m_ladderIP;
+	AsciiString m_pingStr;
+	Int m_pingInt;
+	UnsignedShort m_ladderPort;
+
+	Int m_reportedNumPlayers;
+	Int m_reportedMaxPlayers;
+	Int m_reportedNumObservers;
+
+	bool m_bHasCommittedOutcome = false;
+	EStartPhase m_startPhase = EStartPhase::Idle;
+	int64_t m_startPhaseTime = -1;
+
+	std::chrono::system_clock::time_point matchStartTime;
+
+	std::chrono::steady_clock::time_point m_countdownEnd;
+
+public:
+	GenOnlineGame();
+	virtual ~GenOnlineGame();
+	virtual void reset(void);
+
+	void SetStartPhase(EStartPhase phase);
+	// A start the service confirmed is not aborted.
+	void AbortStart();
+	EStartPhase GetStartPhase() const { return m_startPhase; }
+	int64_t GetStartPhaseTime() const { return m_startPhaseTime; }
+	Int getSlotOfUser(int64_t userID) const
+	{
+		for (Int slotNum = 0; slotNum < MAX_SLOTS; ++slotNum)
+		{
+			const GenOnlineGameSlot* pSlot = (const GenOnlineGameSlot*)getConstSlot(slotNum);
+			if (pSlot != nullptr && pSlot->isHuman() && pSlot->m_userID == userID)
+			{
+				return slotNum;
+			}
+		}
+		return -1;
+	}
+
+	int64_t getUserOfSlot(Int slotNum) const
+	{
+		const GenOnlineGameSlot* pSlot = (slotNum >= 0 && slotNum < MAX_SLOTS) ? (const GenOnlineGameSlot*)getConstSlot(slotNum) : nullptr;
+		return (pSlot != nullptr && pSlot->isHuman()) ? pSlot->m_userID : -1;
+	}
+
+	bool HasCommittedOutcome() const { return m_bHasCommittedOutcome; }
+	void SetHasCommittedOutcome() { m_bHasCommittedOutcome = true; }
+
+	// The countdown ends the given time after its event arrived, measured on the local monotonic clock.
+	void StartCountdown(int64_t durationMs);
+	int64_t GetCountdownRemainingMs() const;
+
+	void StartMatchTimer() { matchStartTime = std::chrono::system_clock::now(); }
+	std::chrono::system_clock::time_point GetStartTime() { return matchStartTime; }
+
+	void SyncWithLobby(LobbyEntry& lobby);
+	void UpdateSlotsFromCurrentLobby();
+
+	void cleanUpSlotPointers(void);
+	inline void setID(Int id) { m_id = id; }
+	inline Int getID(void) const { return m_id; }
+
+	inline void setHasPassword(Bool val) { m_requiresPassword = val; }
+	inline Bool getHasPassword(void) const { return m_requiresPassword; }
+	inline void setAllowObservers(Bool val) { m_allowObservers = val; }
+	inline Bool getAllowObservers(void) const { return m_allowObservers; }
+	Bool canKickOnObserversDisabled();		///< Returns true when the local is defeated and observers are disabled for GO lobbies.
+
+	inline void setVersion(UnsignedInt val) { m_version = val; }
+	inline UnsignedInt getVersion(void) const { return m_version; }
+	inline void setExeCRC(UnsignedInt val) { m_exeCRC = val; }
+	inline UnsignedInt getExeCRC(void) const { return m_exeCRC; }
+	inline void setIniCRC(UnsignedInt val) { m_iniCRC = val; }
+	inline UnsignedInt getIniCRC(void) const { return m_iniCRC; }
+
+	inline void setReportedNumPlayers(Int val) { m_reportedNumPlayers = val; }
+	inline Int getReportedNumPlayers(void) const { return m_reportedNumPlayers; }
+
+	inline void setReportedMaxPlayers(Int val) { m_reportedMaxPlayers = val; }
+	inline Int getReportedMaxPlayers(void) const { return m_reportedMaxPlayers; }
+
+	inline void setReportedNumObservers(Int val) { m_reportedNumObservers = val; }
+	inline Int getReportedNumObservers(void) const { return m_reportedNumObservers; }
+
+	inline void setLadderIP(AsciiString ladderIP) { m_ladderIP = ladderIP; }
+	inline AsciiString getLadderIP(void) const { return m_ladderIP; }
+	inline void setLadderPort(UnsignedShort ladderPort) { m_ladderPort = ladderPort; }
+	inline UnsignedShort getLadderPort(void) const { return m_ladderPort; }
+	void setPingString(AsciiString pingStr);
+	inline AsciiString getPingString(void) const { return m_pingStr; }
+	inline Int getPingAsInt(void) const { return m_pingInt; }
+
+	virtual Bool amIHost(void) const;															///< Convenience function - is the local player the game host?
+
+	GenOnlineGameSlot* getGameSpySlot(Int index);
+
+	AsciiString generateGameSpyGameResultsPacket(void);
+	AsciiString generateLadderGameResultsPacket(void);
+	void markGameAsQM(void) { m_isQM = TRUE; }
+	Bool isQMGame(void) { return m_isQM; }
+
+	virtual void init(void);
+	virtual void resetAccepted(void);															///< Reset the accepted flag on all players
+
+	virtual void startGame(Int gameID);														///< Mark our game as started and record the game ID.
+	void launchGame(void);																			///< NAT negotiation has finished - really start
+	virtual Int getLocalSlotNum(void) const;										///< Get the local slot number, or -1 if we're not present
+
+	inline void setGameName(UnicodeString name) { m_gameName = name; }
+	inline UnicodeString getGameName(void) const { return m_gameName; }
+};

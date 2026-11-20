@@ -55,11 +55,16 @@
 #include "Common/AddonCompat.h"
 #include "Common/INI.h"
 #include "Common/Registry.h"
+#include "Common/ArchiveFileSystem.h"
 #include "Common/FileSystem.h"
 #include "Common/OptionPreferences.h"
 
 #include "GameClient/Display.h"
 #include "GameClient/GlobalLanguage.h"
+
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInclude.h"
+#endif
 
 //-----------------------------------------------------------------------------
 // DEFINES ////////////////////////////////////////////////////////////////////
@@ -133,6 +138,7 @@ GlobalLanguage::GlobalLanguage()
 	m_militaryCaptionDelayMS = 750;
 
 	m_userResolutionFontSizeAdjustment = -1.0f;
+	m_uiFontRegistered = FALSE;
 }
 
 GlobalLanguage::~GlobalLanguage()
@@ -145,6 +151,8 @@ GlobalLanguage::~GlobalLanguage()
 		//SendMessage( HWND_BROADCAST, WM_FONTCHANGE, 0, 0);
 		++it;
 	}
+
+	unregisterUIFonts();
 }
 
 void GlobalLanguage::init()
@@ -172,6 +180,15 @@ void GlobalLanguage::init()
 		++it;
 	}
 
+#if defined(GENONLINE)
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Register the GO UI font process private from the file system.
+	// The Retail interface style keeps the retail fonts.
+	if (TheArchiveFileSystem == nullptr || !TheArchiveFileSystem->usesRetailInterface())
+	{
+		registerUIFonts();
+	}
+#endif
+
 	// override values with user preferences
 	OptionPreferences optionPref;
 	m_userResolutionFontSizeAdjustment = optionPref.getResolutionFontAdjustment();
@@ -179,6 +196,108 @@ void GlobalLanguage::init()
 
 void GlobalLanguage::reset()
 {
+}
+
+#if defined(GENONLINE)
+// TheSuperHackers @feature arcticdolphin 08/11/2026 GO UI font files and the GDI faces they register; render2dsentence.cpp substitutes the same faces.
+struct UIFontFile
+{
+	const char *path;
+	const char *face;
+	Int weight;
+};
+
+static const UIFontFile UIFontFiles[] =
+{
+	{ "Fonts\\IBMPlexSans-Regular.ttf", "IBM Plex Sans", FW_NORMAL },
+	{ "Fonts\\IBMPlexSansCondensed-SemiBold.ttf", "IBM Plex Sans Cond SmBld", FW_SEMIBOLD },
+	{ "Fonts\\IBMPlexSans-Bold.ttf", "IBM Plex Sans", FW_BOLD },
+};
+
+// GDI silently substitutes a missing face, so ask the DC which face it really selected.
+static Bool isUIFontFaceSelected(HDC dc, const UIFontFile &fontFile)
+{
+	HFONT font = CreateFontA(-16, 0, 0, 0, fontFile.weight, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+		CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, VARIABLE_PITCH, fontFile.face);
+	if (font == nullptr)
+		return FALSE;
+
+	HGDIOBJ oldFont = SelectObject(dc, font);
+	char selectedFace[LF_FACESIZE] = { 0 };
+	const Int length = GetTextFaceA(dc, LF_FACESIZE, selectedFace);
+	SelectObject(dc, oldFont);
+	DeleteObject(font);
+
+	if (length > 0 && _stricmp(selectedFace, fontFile.face) == 0)
+		return TRUE;
+
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "UI font: GDI selected '%s' instead of '%s'", selectedFace, fontFile.face);
+	return FALSE;
+}
+
+void GlobalLanguage::registerUIFonts()
+{
+	for (Int fileIndex = 0; fileIndex < (Int)ARRAY_SIZE(UIFontFiles); ++fileIndex)
+	{
+		const UIFontFile &fontFile = UIFontFiles[fileIndex];
+		File *file = TheFileSystem->openFile(fontFile.path, File::READ | File::BINARY);
+		if (file == nullptr)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "UI font: %s is missing, the retail fonts stay", fontFile.path);
+			unregisterUIFonts();
+			return;
+		}
+
+		const Int size = file->size();
+		char *data = file->readEntireAndClose();
+		DWORD fontCount = 0;
+		HANDLE handle = nullptr;
+		if (data != nullptr && size > 0)
+			handle = AddFontMemResourceEx(data, (DWORD)size, nullptr, &fontCount);
+		// GDI keeps its own copy of the font data.
+		delete[] data;
+
+		if (handle == nullptr || fontCount == 0)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "UI font: %s could not be registered, the retail fonts stay", fontFile.path);
+			if (handle != nullptr)
+				RemoveFontMemResourceEx(handle);
+			unregisterUIFonts();
+			return;
+		}
+
+		m_uiFontHandles.push_back(handle);
+	}
+
+	HDC dc = CreateCompatibleDC(nullptr);
+	Bool facesSelected = dc != nullptr;
+	for (Int faceIndex = 0; facesSelected && faceIndex < (Int)ARRAY_SIZE(UIFontFiles); ++faceIndex)
+	{
+		facesSelected = isUIFontFaceSelected(dc, UIFontFiles[faceIndex]);
+	}
+	if (dc != nullptr)
+		DeleteDC(dc);
+
+	if (!facesSelected)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "UI font: IBM Plex Sans is registered but not selectable, the retail fonts stay");
+		unregisterUIFonts();
+		return;
+	}
+
+	m_uiFontRegistered = TRUE;
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "UI font: IBM Plex Sans registered, the retail UI faces draw with it");
+}
+#endif
+
+void GlobalLanguage::unregisterUIFonts()
+{
+	for (size_t handleIndex = 0; handleIndex < m_uiFontHandles.size(); ++handleIndex)
+	{
+		RemoveFontMemResourceEx(m_uiFontHandles[handleIndex]);
+	}
+	m_uiFontHandles.clear();
+	m_uiFontRegistered = FALSE;
 }
 
 void GlobalLanguage::parseFontDesc(INI *ini, void *instance, void *store, const void *userData)

@@ -1263,19 +1263,24 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 	W3DBufferManager::W3DVertexBufferSlot *vbSlot=m_shadowVolumeVB[lightIndex][ meshIndex ];
 	if (!vbSlot)
 		return;
+	
+	// Check if buffer is too small - skip rendering if shadow is too complex
+	if (vbSlot->m_size < numVerts)
+		return;
+	
 	if (vbSlot->m_VB->m_DX8VertexBuffer->Get_DX8_Vertex_Buffer() != lastActiveVertexBuffer)
 	{	lastActiveVertexBuffer=vbSlot->m_VB->m_DX8VertexBuffer->Get_DX8_Vertex_Buffer();
 		m_pDev->SetStreamSource(0,lastActiveVertexBuffer,
 			vbSlot->m_VB->m_DX8VertexBuffer->FVF_Info().Get_FVF_Size());	//12 bytes per vertex.
 	}
 
-	DEBUG_ASSERTCRASH(vbSlot->m_size >= numVerts,("Overflowing Shadow Vertex Buffer Slot"));
-
 	W3DBufferManager::W3DIndexBufferSlot *ibSlot=m_shadowVolumeIB[lightIndex][ meshIndex ];
 	if (!ibSlot)
 		return;
 
-	DEBUG_ASSERTCRASH(ibSlot->m_size >= numIndex,("Overflowing Shadow Index Buffer Slot"));
+	// Check if buffer is too small - skip rendering if shadow is too complex
+	if (ibSlot->m_size < numIndex)
+		return;
 
 	m_pDev->SetIndices(ibSlot->m_IB->m_DX8IndexBuffer->Get_DX8_Index_Buffer(),vbSlot->m_start);
 
@@ -1674,6 +1679,9 @@ void W3DVolumetricShadow::Update()
 	if( m_geometry == nullptr)
 		return;
 
+	if( m_robj == NULL)
+		return;
+
 	//
 	// for now we will just rebuild a shadow volume every so often, this
 	// should be changed to be built only when the light angle sufficiently
@@ -1746,6 +1754,9 @@ void W3DVolumetricShadow::Update()
 void W3DVolumetricShadow::updateVolumes(Real zoffset)
 {
 	Int i,j;
+
+	if( m_robj == NULL)
+		return;
 
 	HLodClass *hlod=(HLodClass *)m_robj;
 	MeshClass *mesh;
@@ -2859,9 +2870,10 @@ void W3DVolumetricShadow::constructVolumeVB( Vector3 *lightPosObject,Real shadow
 		DEBUG_ASSERTCRASH(ibSlot->m_size >= (polygonCount*3),("Overflowing Shadow Index Buffer Slot"));
 	}
 
-	if (!ibSlot || !vbSlot)
+	if (!ibSlot || !vbSlot || vbSlot->m_size < vertexCount || ibSlot->m_size < (polygonCount*3))
 	{
 		//could not allocate storage to hold buffers
+		// Shadow volume too complex for available buffers - skip rendering instead of crashing
 		if (ibSlot)
 			TheW3DBufferManager->releaseSlot(ibSlot);
 		if (vbSlot)

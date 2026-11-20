@@ -65,6 +65,7 @@ const Real MIN_AERO_FRICTION = 0.00f;
 const Real MIN_NON_AERO_FRICTION = 0.01f;
 const Real MAX_FRICTION = 0.99f;
 
+// Velocity per base frame below which a stun ends.
 const Real STUN_RELIEF_EPSILON = 0.5f;
 
 #include "Common/CRCDebug.h"
@@ -363,7 +364,7 @@ void PhysicsBehavior::applyShock( const Coord3D *force )
 {
 	Coord3D resistedForce = *force;
 	resistedForce.scale( 1.0f - min( 1.0f, max( 0.0f, getPhysicsBehaviorModuleData()->m_shockResistance ) ) );
-
+    resistedForce.scale(1.0f / (Real)LOGICFRAMES_PER_BASEFRAME);
 	// Apply the processed shock force to the object
 	applyForce(&resistedForce);
 }
@@ -382,14 +383,15 @@ void PhysicsBehavior::applyRandomRotation()
 
 	Real randomModifier;
 
-	randomModifier = GameLogicRandomValue(-1.0f, 1.0f);
-	m_yawRate += getPhysicsBehaviorModuleData()->m_shockMaxYaw * randomModifier;
 
 	randomModifier = GameLogicRandomValue(-1.0f, 1.0f);
-	m_pitchRate += getPhysicsBehaviorModuleData()->m_shockMaxPitch * randomModifier;
+	m_yawRate += (getPhysicsBehaviorModuleData()->m_shockMaxYaw / (Real)LOGICFRAMES_PER_BASEFRAME) * randomModifier;
 
 	randomModifier = GameLogicRandomValue(-1.0f, 1.0f);
-	m_rollRate += getPhysicsBehaviorModuleData()->m_shockMaxRoll * randomModifier;
+	m_pitchRate += (getPhysicsBehaviorModuleData()->m_shockMaxPitch / (Real)LOGICFRAMES_PER_BASEFRAME) * randomModifier;
+
+	randomModifier = GameLogicRandomValue(-1.0f, 1.0f);
+	m_rollRate += (getPhysicsBehaviorModuleData()->m_shockMaxRoll / (Real)LOGICFRAMES_PER_BASEFRAME) * randomModifier;
 
 #ifdef SLEEPY_PHYSICS
 	if (getFlag(IS_IN_UPDATE))
@@ -653,8 +655,12 @@ UpdateSleepTime PhysicsBehavior::update()
 
 		// when vel gets tiny, just clamp to zero
 		const Real THRESH = 0.001f;
+		// Info: At 60Hz, motive acceleration can be smaller than THRESH and must accumulate across frames.
+		if (LOGICFRAMES_PER_BASEFRAME == 1 || !isMotive())
+		{
 		if (WWMath::Fabsf(m_vel.x) < THRESH) m_vel.x = 0.0f;
 		if (WWMath::Fabsf(m_vel.y) < THRESH) m_vel.y = 0.0f;
+		}
 		if (WWMath::Fabsf(m_vel.z) < THRESH) m_vel.z = 0.0f;
 
 		m_velMag = INVALID_VEL_MAG;
@@ -688,9 +694,10 @@ UpdateSleepTime PhysicsBehavior::update()
 		// Check when to clear the stunned status
 		if (getIsStunned())
 		{
-			if ( (WWMath::Fabs(m_vel.x) < STUN_RELIEF_EPSILON &&
-				    WWMath::Fabs(m_vel.y) < STUN_RELIEF_EPSILON &&
-				    WWMath::Fabs(m_vel.z) < STUN_RELIEF_EPSILON) ||
+			const Real stunReliefEpsilon = STUN_RELIEF_EPSILON / (Real)LOGICFRAMES_PER_BASEFRAME;
+			if ( (WWMath::Fabs(m_vel.x) < stunReliefEpsilon &&
+				    WWMath::Fabs(m_vel.y) < stunReliefEpsilon &&
+				    WWMath::Fabs(m_vel.z) < stunReliefEpsilon) ||
            obj->isSignificantlyAboveTerrain() == FALSE )
 			{
 				setStunned(false);

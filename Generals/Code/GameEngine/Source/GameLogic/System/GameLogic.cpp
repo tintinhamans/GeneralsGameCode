@@ -110,6 +110,7 @@
 #include "GameNetwork/GameSpy/ThreadUtils.h"
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/NetworkInterface.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 
 struct QuitGameException {};
 
@@ -1097,7 +1098,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 		else
 		{
 			DEBUG_LOG(("Starting gamespy game"));
-			TheGameInfo = TheGameSpyGame;	/// @todo: MDC add back in after demo
+			TheGameInfo = GetOnlineGameHooks()->getGameInfo();	/// @todo: MDC add back in after demo
 		}
 	}
 	else
@@ -2374,7 +2375,13 @@ void GameLogic::processCommandList( CommandList *list )
 					player?player->getPlayerDisplayName().str():L"<NONE>", crcIt->second));
 			}
 #endif // DEBUG_LOGGING
+#if defined(GENONLINE)
+			UnicodeString strMismatchDetails;
+			TheNetwork->setSawCRCMismatch(strMismatchDetails);
+			GetOnlineGameHooks()->onCRCMismatch(strMismatchDetails);
+#else
 			TheNetwork->setSawCRCMismatch();
+#endif
 		}
 	}
 
@@ -3246,7 +3253,7 @@ void GameLogic::update()
 	// would be getting the CRC anyway, so replays can get the CRCs from the exact instant in time as the original.
 	Bool isMPGameOrReplay = (TheRecorder && TheRecorder->isMultiplayer() && getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE);
 	Bool isSoloGameOrReplay = (TheRecorder && !TheRecorder->isMultiplayer() && getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE);
-	Bool generateForMP = (isMPGameOrReplay && (m_frame % TheGameInfo->getCRCInterval()) == 0);
+	Bool generateForMP = (isMPGameOrReplay && TheGameInfo->getCRCInterval() > 0 && (m_frame % TheGameInfo->getCRCInterval()) == 0);
 #if RETAIL_COMPATIBLE_CRC
 	// TheSuperHackers @info The local player of a network game only goes in game on logic frame 1.
 	// Retail clients therefore never sent the CRC of logic frame 0, and their replays do not contain it.
@@ -3255,9 +3262,9 @@ void GameLogic::update()
 #endif
 #ifdef DEBUG_CRC
 	Bool generateForSolo = isSoloGameOrReplay && ((m_frame && (m_frame%100 == 0)) ||
-		(getFrame() >= TheCRCFirstFrameToLog && getFrame() < TheCRCLastFrameToLog && ((m_frame % REPLAY_CRC_INTERVAL) == 0)));
+		(getFrame() >= TheCRCFirstFrameToLog && getFrame() < TheCRCLastFrameToLog && (REPLAY_CRC_INTERVAL > 0 && (m_frame % REPLAY_CRC_INTERVAL) == 0)));
 #else
-	Bool generateForSolo = isSoloGameOrReplay && ((m_frame % REPLAY_CRC_INTERVAL) == 0);
+	Bool generateForSolo = isSoloGameOrReplay && (REPLAY_CRC_INTERVAL > 0 && (m_frame % REPLAY_CRC_INTERVAL) == 0);
 #endif // DEBUG_CRC
 
 	if (generateForSolo || generateForMP)
@@ -3423,6 +3430,11 @@ void GameLogic::update()
 				obj->checkDisabledStatus();
 			}
 		}
+	}
+
+	if (GetOnlineGameHooks()->shouldLeaveGame())
+	{
+		TheGameLogic->exitGame();
 	}
 
 	// increment world time

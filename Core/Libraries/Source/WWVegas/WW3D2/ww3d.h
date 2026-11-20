@@ -41,6 +41,7 @@
 #include "WW3D2/layer.h"
 #include "WW3D2/w3derr.h"
 #include "WW3D2/robjlist.h"
+#include "../../../GameEngine/Include/GameNetwork/GenOnline/GenOnlineDefines.h"
 
 class		SceneClass;
 class		CameraClass;

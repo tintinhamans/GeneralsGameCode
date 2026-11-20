@@ -471,7 +471,7 @@ Bool DumbProjectileBehavior::projectileHandleCollision( Object *other )
 		Object *projectileLauncher = TheGameLogic->findObjectByID( projectileGetLauncherID() );
 
 			// if it's not the specific thing we were targeting, see if we should incidentally collide...
-		if (!m_detonationWeaponTmpl->shouldProjectileCollideWith(projectileLauncher, getObject(), other, m_victimID))
+		if (m_detonationWeaponTmpl && !m_detonationWeaponTmpl->shouldProjectileCollideWith(projectileLauncher, getObject(), other, m_victimID))
 		{
 			//DEBUG_LOG(("ignoring projectile collision with %s at frame %d",other->getTemplate()->getName().str(),TheGameLogic->getFrame()));
 			return true;
@@ -661,7 +661,14 @@ UpdateSleepTime DumbProjectileBehavior::update()
 			if (m_flightPath.size() >= 2)
 			{
 				prevPos = m_flightPath[0];
-				curPos = m_flightPath[1];
+				// Info: Look one legacy frame ahead so launch orientation matches the retail 30Hz path.
+				const Int highFpsPathPointCount = (Int)m_flightPath.size();
+				const Int legacyPathPointCount = (highFpsPathPointCount + LOGICFRAMES_PER_BASEFRAME - 1)
+					/ LOGICFRAMES_PER_BASEFRAME;
+				const Int legacyPathIntervalCount = max(legacyPathPointCount - 1, 1);
+				const Int orientationStep = (highFpsPathPointCount - 1 + legacyPathIntervalCount / 2)
+					/ legacyPathIntervalCount;
+				curPos = m_flightPath[orientationStep];
 			}
 			else
 			{

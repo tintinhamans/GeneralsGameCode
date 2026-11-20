@@ -51,6 +51,8 @@
 #include "GameClient/Gadget.h"
 #include "GameClient/GameWindowGlobal.h"
 #include "GameClient/GameWindowManager.h"
+#include "GameClient/GadgetComboBox.h"
+#include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetPushButton.h"
 #include "GameClient/Display.h"
 #include "W3DDevice/GameClient/W3DGameWindow.h"
@@ -124,7 +126,8 @@ static void drawButtonText( GameWindow *window, WinInstanceData *instData )
 	if( BitIsSet( window->winGetStatus(), WIN_STATUS_SHORTCUT_BUTTON ) )
 	{
 		// Oh god... this is a total hack for shortcut buttons to handle rendering text top left corner...
-		textPos.x = origin.x + 2;
+		// TheSuperHackers @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
+		textPos.x = origin.x + GameWindowManager::winScaleLayoutSize( 2 );
 		textPos.y = origin.y + 0;
 	}
 	else
@@ -310,6 +313,51 @@ void W3DGadgetPushButtonImageDraw( GameWindow *window,
 	}
 }
 
+// W3DGadgetPushButtonKitScrollArrowDraw ======================================
+/** Draw a list box scroll arrow as a kit chevron in the scroll column */
+//=============================================================================
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Draw list scroll arrows as kit chevrons when the GO kit scroll images exist.
+void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window,
+																						WinInstanceData *instData )
+{
+	// the list box owns its up and down buttons
+	GameWindow *listbox = window->winGetParent();
+	KitScrollImage arrow = KIT_SCROLL_UP;
+	if( listbox && GadgetListBoxGetDownButton( listbox ) == window )
+		arrow = KIT_SCROLL_DOWN;
+
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Hover and pushed light only the chevron, with no cell behind it.
+	if( BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) == FALSE )
+		arrow = (KitScrollImage)(arrow + 3);
+	else if( BitIsSet( instData->getState(), WIN_STATE_SELECTED ) )
+		arrow = (KitScrollImage)(arrow + 2);
+	else if( BitIsSet( instData->getState(), WIN_STATE_HILITED ) )
+		arrow = (KitScrollImage)(arrow + 1);
+
+	const Image *image = GadgetListBoxGetKitScrollImage( arrow );
+	if( image == nullptr )
+	{
+		W3DGadgetPushButtonImageDraw( window, instData );
+		return;
+	}
+
+	ICoord2D start, size;
+	window->winGetScreenPosition( &start.x, &start.y );
+	window->winGetSize( &size.x, &size.y );
+
+	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 The chevron centres on the column line the scroll thumb shares.
+	// the chevron at its own aspect, centred down the cell
+	Int chevronX, chevronWidth;
+	GadgetListBoxGetKitScrollSpan( KIT_SCROLL_SPAN_CHEVRON, start.x, size.x, &chevronX, &chevronWidth );
+	Int chevronHeight = chevronWidth;
+	if( image->getImageWidth() > 0 )
+		chevronHeight = (image->getImageHeight() * chevronWidth + image->getImageWidth() / 2) / image->getImageWidth();
+	if( chevronHeight > size.y )
+		chevronHeight = size.y;
+	Int chevronY = start.y + (size.y - chevronHeight) / 2;
+	TheWindowManager->winDrawImage( image, chevronX, chevronY, chevronX + chevronWidth, chevronY + chevronHeight );
+}
+
 void W3DGadgetPushButtonImageDrawOne( GameWindow *window,
 																	 WinInstanceData *instData )
 {
@@ -349,6 +397,17 @@ void W3DGadgetPushButtonImageDrawOne( GameWindow *window,
 
 			if( BitIsSet( instData->getState(), WIN_STATE_SELECTED ) )
 				image			= GadgetButtonGetHiliteSelectedImage( window );
+		}
+
+		// TheSuperHackers @tweak arcticdolphin 08/11/2026 A kit combo arrow lights with its whole field, never on its own.
+		GameWindow *combo = window->winGetParent();
+		if( BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) && GadgetComboBoxIsKitField( combo ) &&
+				GadgetComboBoxGetDropDownButton( combo ) == window )
+		{
+			if( GadgetComboBoxIsKitFieldLit( combo ) && GadgetButtonGetHiliteImage( window ) != nullptr )
+				image = GadgetButtonGetHiliteImage( window );
+			else
+				image = GadgetButtonGetEnabledImage( window );
 		}
 	}
 
@@ -393,7 +452,11 @@ void W3DGadgetPushButtonImageDrawOne( GameWindow *window,
 				}
 			}
 		}
-		TheDisplay->drawImage( image, start.x, start.y, end.x, end.y, colorMultiplier, drawMode );
+		// TheSuperHackers @tweak arcticdolphin 08/11/2026 Kit symbol and arrow images keep their border at the kit line weight.
+		if( image->getBorder() > 0.0f && drawMode == Display::DRAW_IMAGE_ALPHA && colorMultiplier == (Int)0xffffffff )
+			TheWindowManager->winDrawImage( image, start.x, start.y, end.x, end.y );
+		else
+			TheDisplay->drawImage( image, start.x, start.y, end.x, end.y, colorMultiplier, drawMode );
 	}
 
 	// draw the button text
@@ -488,9 +551,8 @@ void W3DGadgetPushButtonImageDrawThree(GameWindow *window, WinInstanceData *inst
 {
 
 	const Image *leftImage, *rightImage, *centerImage;
-	ICoord2D origin, size, start, end;
+	ICoord2D origin, size, start;
 	Int xOffset, yOffset;
-	Int i;
 
 	// get screen position and size
 	window->winGetScreenPosition( &origin.x, &origin.y );
@@ -568,92 +630,8 @@ void W3DGadgetPushButtonImageDrawThree(GameWindow *window, WinInstanceData *inst
 			centerImage == nullptr )
 		return;
 
-	// get image sizes for the ends
-	ICoord2D leftSize, rightSize;
-	leftSize.x = leftImage->getImageWidth();
-	leftSize.y = leftImage->getImageHeight();
-	rightSize.x = rightImage->getImageWidth();
-	rightSize.y = rightImage->getImageHeight();
-
-	// get two key points used in the end drawing
-	ICoord2D leftEnd, rightStart;
-	leftEnd.x = origin.x + leftSize.x + xOffset;
-	leftEnd.y = origin.y + size.y + yOffset;
-	rightStart.x = origin.x + size.x - rightSize.x + xOffset;
-	rightStart.y = origin.y + yOffset;
-
-	// draw the center repeating bar
-	Int centerWidth, pieces;
-
-	// get width we have to draw our repeating center in
-	centerWidth = rightStart.x - leftEnd.x;
-
-	if( centerWidth <= 0)
-	{
-		// draw left end
-		start.x = origin.x + xOffset;
-		start.y = origin.y + yOffset;
-		end.y = leftEnd.y;
-		end.x = origin.x + xOffset + size.x/2;
-		TheWindowManager->winDrawImage(leftImage, start.x, start.y, end.x, end.y);
-
-		// draw right end
-		start.y = rightStart.y;
-		start.x = end.x;
-		end.x = origin.x + size.x;
-		end.y = start.y + size.y;
-		TheWindowManager->winDrawImage(rightImage, start.x, start.y, end.x, end.y);
-	}
-	else
-	{
-
-		// how many whole repeating pieces will fit in that width
-		pieces = centerWidth / centerImage->getImageWidth();
-
-		// draw the pieces
-		start.x = leftEnd.x;
-		start.y = origin.y + yOffset;
-		end.y = start.y + size.y + yOffset; //centerImage->getImageHeight() + yOffset;
-		for( i = 0; i < pieces; i++ )
-		{
-
-			end.x = start.x + centerImage->getImageWidth();
-			TheWindowManager->winDrawImage( centerImage,
-																			start.x, start.y,
-																			end.x, end.y );
-			start.x += centerImage->getImageWidth();
-
-		}
-
-		// we will draw the image but clip the parts we don't want to show
-		IRegion2D reg;
-		reg.lo.x = start.x;
-		reg.lo.y = start.y;
-		reg.hi.x = rightStart.x;
-		reg.hi.y = end.y;
-		centerWidth = rightStart.x - start.x;
-		if( centerWidth > 0)
-		{
-			TheDisplay->setClipRegion(&reg);
-			end.x = start.x + centerImage->getImageWidth();
-			TheWindowManager->winDrawImage( centerImage,
-																			start.x, start.y,
-																			end.x, end.y );
-			TheDisplay->enableClipping(FALSE);
-		}
-
-		// draw left end
-		start.x = origin.x + xOffset;
-		start.y = origin.y + yOffset;
-		end = leftEnd;
-		TheWindowManager->winDrawImage(leftImage, start.x, start.y, end.x, end.y);
-
-		// draw right end
-		start = rightStart;
-		end.x = start.x + rightSize.x;
-		end.y = start.y + size.y;
-		TheWindowManager->winDrawImage(rightImage, start.x, start.y, end.x, end.y);
-	}
+	TheWindowManager->winDrawThreePieceImage( leftImage, centerImage, nullptr, rightImage,
+																						 origin.x + xOffset, origin.y + yOffset, size.x, size.y );
 
 	// draw the button text
 	if( instData->getTextLength() )

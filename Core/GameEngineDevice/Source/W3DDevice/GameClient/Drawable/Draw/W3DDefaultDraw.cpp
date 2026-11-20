@@ -91,8 +91,8 @@ void W3DDefaultDraw::reactToTransformChange( const Matrix3D *oldMtx,
 																						 Real oldAngle )
 {
 #ifdef LOAD_TEST_ASSETS
-	if( m_renderObject )
-		m_renderObject->Set_Transform( *getDrawable()->getTransformMatrix() );
+	if (m_renderObject)
+		m_renderObject->Set_Transform(*getDrawable()->getTransformMatrix());
 #endif
 }
 

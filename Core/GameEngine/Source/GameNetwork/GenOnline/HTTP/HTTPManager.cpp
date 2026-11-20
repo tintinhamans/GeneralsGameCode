@@ -1,0 +1,229 @@
+#include "GameNetwork/GenOnline/HTTP/HTTPManager.h"
+#include "../GenOnlineInclude.h"
+#include "../GenOnlineInit.h"
+
+HTTPManager::HTTPManager() noexcept
+{
+	
+}
+
+void HTTPManager::SendGETRequest(const char* szURI, EIPProtocolVersion protover, std::map<std::string, std::string>& inHeaders, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback, int timeoutMS)
+{
+	CHECK_MAIN_THREAD;
+
+	HTTPRequest* pRequest = PlatformCreateRequest(EHTTPVerb::HTTP_VERB_GET, protover, szURI, inHeaders, completionCallback, progressCallback, timeoutMS);
+
+	m_vecRequestsPendingStart.push_back(pRequest);
+}
+
+void HTTPManager::SendPOSTRequest(const char* szURI, EIPProtocolVersion protover, std::map<std::string, std::string>& inHeaders, const char* szPostData, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback, int timeoutMS, bool bDisableServiceAuth)
+{
+	CHECK_MAIN_THREAD;
+
+	HTTPRequest* pRequest = PlatformCreateRequest(EHTTPVerb::HTTP_VERB_POST, protover, szURI, inHeaders, completionCallback, progressCallback, timeoutMS);
+
+	if (bDisableServiceAuth)
+	{
+		pRequest->DisableServiceAuth();
+	}
+
+	pRequest->SetPostData(szPostData);
+
+	m_vecRequestsPendingStart.push_back(pRequest);
+}
+
+void HTTPManager::SendPUTRequest(const char* szURI, EIPProtocolVersion protover, std::map<std::string, std::string>& inHeaders, const char* szData, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback /*= nullptr*/, int timeoutMS)
+{
+	CHECK_MAIN_THREAD;
+
+	HTTPRequest* pRequest = PlatformCreateRequest(EHTTPVerb::HTTP_VERB_PUT, protover, szURI, inHeaders, completionCallback, progressCallback, timeoutMS);
+	pRequest->SetPostData(szData);
+
+	m_vecRequestsPendingStart.push_back(pRequest);
+}
+
+
+void HTTPManager::SendPATCHRequest(const char* szURI, EIPProtocolVersion protover, std::map<std::string, std::string>& inHeaders, const char* szData, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback /*= nullptr*/, int timeoutMS)
+{
+	CHECK_MAIN_THREAD;
+
+	HTTPRequest* pRequest = PlatformCreateRequest(EHTTPVerb::HTTP_VERB_PATCH, protover, szURI, inHeaders, completionCallback, progressCallback, timeoutMS);
+	pRequest->SetPostData(szData);
+
+	m_vecRequestsPendingStart.push_back(pRequest);
+}
+
+void HTTPManager::SendS3PUTRequest(const char* szURI, EIPProtocolVersion protover, std::map<std::string, std::string>& inHeaders, std::vector<uint8_t> vecBuffer, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback /*= nullptr*/, int timeoutMS /*= -1*/, int maxSendBytesPerSec /*= 0*/)
+{
+    CHECK_MAIN_THREAD;
+
+    HTTPRequest* pRequest = PlatformCreateRequest(EHTTPVerb::HTTP_VERB_PUT, protover, szURI, inHeaders, completionCallback, progressCallback, timeoutMS);
+	pRequest->DisableServiceAuth();
+	pRequest->SetMaxSendSpeed(maxSendBytesPerSec);
+    pRequest->SetPostDataBuffer(std::move(vecBuffer));
+
+    m_vecRequestsPendingStart.push_back(pRequest);
+}
+
+void HTTPManager::SendDELETERequest(const char* szURI, EIPProtocolVersion protover, std::map<std::string, std::string>& inHeaders, const char* szData, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback /*= nullptr*/, int timeoutMS)
+{
+	CHECK_MAIN_THREAD;
+
+	HTTPRequest* pRequest = PlatformCreateRequest(EHTTPVerb::HTTP_VERB_DELETE, protover, szURI, inHeaders, completionCallback, progressCallback, timeoutMS);
+	pRequest->SetPostData(szData);
+
+	m_vecRequestsPendingStart.push_back(pRequest);
+}
+
+void HTTPManager::Shutdown()
+{
+	CHECK_MAIN_THREAD;
+
+	// Signal that we're shutting down
+	m_bShuttingDown = true;
+
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTPManager] Shutdown initiated, canceling pending requests...");
+
+	// Cancel all pending requests
+	for (HTTPRequest* pRequest : m_vecRequestsPendingStart)
+	{
+		if (pRequest != nullptr)
+		{
+			delete pRequest;
+		}
+	}
+	m_vecRequestsPendingStart.clear();
+
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTPManager] Canceling %d in-flight requests...", (int)m_vecRequestsInFlight.size());
+
+	// removing handles cancels transfers; resolver workers hold value snapshots, so abandoned results never block shutdown
+	for (HTTPRequest* request : m_vecRequestsInFlight)
+		delete request;
+	m_vecRequestsInFlight.clear();
+	if (m_pCurl != nullptr)
+	{
+		curl_multi_cleanup(m_pCurl);
+		m_pCurl = nullptr;
+	}
+
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTPManager] Shutdown complete");
+}
+
+
+HTTPRequest* HTTPManager::PlatformCreateRequest(EHTTPVerb httpVerb, EIPProtocolVersion protover, const char* szURI, std::map<std::string, std::string>& inHeaders, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback /*= nullptr*/, int timeoutMS /* = -1 */) noexcept
+{
+	CHECK_MAIN_THREAD;
+
+	HTTPRequest* pNewRequest = new HTTPRequest(httpVerb, protover, szURI, inHeaders, completionCallback, progressCallback, timeoutMS);
+	return pNewRequest;
+}
+
+HTTPManager::~HTTPManager()
+{
+	CHECK_MAIN_THREAD;
+
+	Shutdown();
+}
+
+void HTTPManager::Initialize()
+{
+	CHECK_MAIN_THREAD;
+
+	m_pCurl = curl_multi_init();
+}
+
+void HTTPManager::Tick()
+{
+	CHECK_MAIN_THREAD;
+
+	std::vector<HTTPRequest*> vecItemsToRemove = std::vector<HTTPRequest*>();
+
+	// Callbacks may enqueue new requests; do not iterate the live pending vector.
+	auto pending = std::move(m_vecRequestsPendingStart);
+	m_vecRequestsPendingStart.clear();
+	for (HTTPRequest* request : pending)
+	{
+		request->StartRequest();
+		m_vecRequestsInFlight.push_back(request);
+	}
+	for (HTTPRequest* request : m_vecRequestsInFlight)
+	{
+		request->PollConnectionSetup();
+		if (request->IsComplete())
+			vecItemsToRemove.push_back(request);
+	}
+
+	// perform and poll
+	if (m_pCurl == nullptr)
+		return;
+
+	int numReqs = 0;
+	curl_multi_perform(m_pCurl, &numReqs);
+	curl_multi_poll(m_pCurl, NULL, 0, 0, NULL);
+
+#if defined(ARTIFICIAL_DELAY_HTTP_REQUESTS)
+	// tick delays
+	for (HTTPRequest* pRequest : m_vecRequestsInFlight)
+	{
+		if (pRequest->WaitingDelayAction())
+		{
+			bool bDone = pRequest->InvokeDelayAction();
+			if (bDone && pRequest->IsComplete())
+			{
+				vecItemsToRemove.push_back(pRequest);
+			}
+		}
+		
+	}
+#endif
+
+	// are we done?
+	int msgq = 0;
+	CURLMsg* m = nullptr;
+	while ((m = curl_multi_info_read(m_pCurl, &msgq)) != nullptr)
+	{
+		if (m->msg == CURLMSG_DONE)
+		{
+			CURL* pCurlHandle = m->easy_handle;
+
+			if (pCurlHandle != nullptr)
+			{
+				// find the associated request
+				for (HTTPRequest* pRequest : m_vecRequestsInFlight)
+				{
+					if (pRequest != nullptr && pRequest->EasyHandleMatches(pCurlHandle))
+					{
+#if defined(ARTIFICIAL_DELAY_HTTP_REQUESTS)
+						pRequest->SetWaitingDelay(m->data.result);
+#else
+						pRequest->Threaded_SetComplete(m->data.result);
+						if (pRequest->IsComplete())
+							vecItemsToRemove.push_back(pRequest);
+#endif
+					}
+				}
+			}
+		}
+	}
+
+	// remove any completed
+	for (HTTPRequest* pRequestToDestroy : vecItemsToRemove)
+	{
+		m_vecRequestsInFlight.erase(std::remove(m_vecRequestsInFlight.begin(), m_vecRequestsInFlight.end(), pRequestToDestroy), m_vecRequestsInFlight.end());
+		delete pRequestToDestroy;
+	}
+}
+
+bool HTTPManager::AddHandleToMulti(CURL* pNewHandle)
+{
+	CHECK_MAIN_THREAD;
+
+	return m_pCurl != nullptr && curl_multi_add_handle(m_pCurl, pNewHandle) == CURLM_OK;
+}
+
+void HTTPManager::RemoveHandleFromMulti(CURL* pHandleToRemove)
+{
+	CHECK_MAIN_THREAD;
+
+	curl_multi_remove_handle(m_pCurl, pHandleToRemove);
+}

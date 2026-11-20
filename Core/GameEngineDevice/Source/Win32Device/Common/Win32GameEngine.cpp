@@ -32,10 +32,40 @@
 #include <windows.h>
 
 #include "Win32Device/Common/Win32GameEngine.h"
+#if defined(RTS_HAS_MODERN_MEDIA)
+#include "OpenALAudioDevice/MediaBackend.h"
+#include "OpenALAudioDevice/OpenALAudioManager.h"
+#endif
+#if defined(RTS_HAS_LEGACY_MEDIA)
+#include "MilesAudioDevice/MilesAudioManager.h"
+#endif
 #include "Common/PerfTimer.h"
 #include "GameClient/GameText.h"
+#include "Common/FramePacer.h"
+#include "Common/MessageStream.h"
+#include "GameClient/InGameUI.h"
+#include "GameClient/Keyboard.h"
+#include "GameClient/Mouse.h"
+#include "GameClient/SelectionXlat.h"
+#include "GameClient/View.h"
 
 #include "GameNetwork/LANAPICallbacks.h"
+#include "../GenOnlineInit.h"
+
+AudioManager *Win32GameEngine::createAudioManager(Bool dummy)
+{
+#if defined(RTS_HAS_MODERN_MEDIA)
+	if (isOpenALMediaSelected())
+		return NEW OpenALAudioManager(dummy);
+#endif
+#if defined(RTS_HAS_LEGACY_MEDIA)
+	if (dummy)
+		return NEW MilesAudioManagerDummy;
+	return NEW MilesAudioManager;
+#else
+	return NEW OpenALAudioManager(dummy);
+#endif
+}
 
 extern DWORD TheMessageTime;
 
@@ -44,6 +74,9 @@ extern DWORD TheMessageTime;
 //-------------------------------------------------------------------------------------------------
 Win32GameEngine::Win32GameEngine()
 {
+	m_isAtFrameBoundary = FALSE;
+	m_isInModalStep = FALSE;
+
 	// Stop blue screen
 	m_previousErrorMode = SetErrorMode( SEM_FAILCRITICALERRORS );
 }
@@ -81,6 +114,91 @@ void Win32GameEngine::reset()
 }
 
 //-------------------------------------------------------------------------------------------------
+Bool Win32GameEngine::shouldKeepRunningInBackground()
+{
+	if (TheNetwork != nullptr || TheLAN != nullptr)
+	{
+		return TRUE;
+	}
+
+	if (TheGameLogic != nullptr)
+	{
+		if (TheGameLogic->isInMultiplayerGame())
+		{
+			return TRUE;
+		}
+
+		// a single player, skirmish or replay game pauses, also when logged in online
+		if (TheGameLogic->isInGame() && !TheGameLogic->isInShellGame())
+		{
+			return FALSE;
+		}
+	}
+
+	if (GenOnlineServicesManager::GetInstance() != nullptr)
+	{
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Runs one frame from a Windows modal loop, only at the end of the frame message service. */
+//-------------------------------------------------------------------------------------------------
+Bool Win32GameEngine::stepFrameFromModalLoop()
+{
+	if (m_isInModalStep || !m_isAtFrameBoundary || getQuitting() || !shouldKeepRunningInBackground())
+	{
+		return FALSE;
+	}
+
+	m_isInModalStep = TRUE;
+	update();
+	TheFramePacer->update();
+	m_isInModalStep = FALSE;
+	return TRUE;
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Drops buttons, keys, scrolling and area selection that a Windows modal loop leaves stale. */
+//-------------------------------------------------------------------------------------------------
+void Win32GameEngine::releaseInputForModalLoop()
+{
+	if (TheInGameUI != nullptr)
+	{
+		TheInGameUI->setScrolling(FALSE);
+		TheInGameUI->setSelecting(FALSE);
+		TheInGameUI->endAreaSelectHint(nullptr);
+	}
+
+	if (TheSelectionTranslator != nullptr)
+	{
+		TheSelectionTranslator->setLeftMouseButton(FALSE);
+		TheSelectionTranslator->setDragSelecting(FALSE);
+	}
+
+	if (TheTacticalView != nullptr)
+	{
+		TheTacticalView->setMouseLock(FALSE);
+	}
+
+	if (TheMouse != nullptr)
+	{
+		// reads and drops the mouse events buffered by the device meanwhile
+		TheMouse->UPDATE();
+		TheMouse->resetButtons();
+	}
+
+	if (TheKeyboard != nullptr && TheMessageStream != nullptr)
+	{
+		// reads and drops the keys buffered by the device meanwhile
+		TheKeyboard->UPDATE();
+		TheKeyboard->resetKeys();
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
 /** Update the game engine by updating the GameClient and
 	* GameLogic singletons. */
 //-------------------------------------------------------------------------------------------------
@@ -90,6 +208,11 @@ void Win32GameEngine::update()
 
 	// call the engine normal update
 	GameEngine::update();
+
+	if (m_isInModalStep)
+	{
+		return;
+	}
 
 	extern HWND ApplicationHWnd;
 	if (ApplicationHWnd && ::IsIconic(ApplicationHWnd)) {
@@ -106,10 +229,17 @@ void Win32GameEngine::update()
 				TheLAN->update();
 			}
 
+			if (GenOnlineServicesManager::GetInstance() != nullptr)
+			{
+				GenOnlineServicesManager::GetInstance()->Tick();
+			}
+
 			// If we are running a multiplayer game, keep running the logic.
 			// There is code in the client to skip client redraw if we are
 			// iconic.  jba.
-			if (TheGameEngine->getQuitting() || TheGameLogic->isInInternetGame() || TheGameLogic->isInLanGame()) {
+			// GO_CHANGE: If we have an active network session, keep running to prevent disconnecting us from
+			// other players during lobby and loading screen where isInMultiplayerGame() returns false
+			if (TheGameEngine->getQuitting() || shouldKeepRunningInBackground()) {
 				break; // keep running.
 			}
 		}
@@ -122,7 +252,9 @@ void Win32GameEngine::update()
 	}
 
 	// allow windows to perform regular windows maintenance stuff like msgs
+	m_isAtFrameBoundary = TRUE;
 	serviceWindowsOS();
+	m_isAtFrameBoundary = FALSE;
 
 }
 
@@ -137,15 +269,22 @@ void Win32GameEngine::serviceWindowsOS()
 	MSG msg;
   Int returnValue;
 
+	// The modal loop that runs the frame pumps the messages itself.
+	if (m_isInModalStep)
+	{
+		return;
+	}
+
 	//
 	// see if we have any messages to process, a nullptr window handle tells the
 	// OS to look at the main window associated with the calling thread, us!
 	//
-	while( PeekMessage( &msg, nullptr, 0, 0, PM_NOREMOVE ) )
+	// W variants: an A pump would convert the Unicode window's WM_CHAR back to the code page
+	while( PeekMessageW( &msg, nullptr, 0, 0, PM_NOREMOVE ) )
 	{
 
 		// get the message
-		returnValue = GetMessage( &msg, nullptr, 0, 0 );
+		returnValue = GetMessageW( &msg, nullptr, 0, 0 );
 
 		// this is one possible way to check for quitting conditions as a message
 		// of WM_QUIT will cause GetMessage() to return 0
@@ -162,7 +301,7 @@ void Win32GameEngine::serviceWindowsOS()
 		TheMessageTime = msg.time;
 		// translate and dispatch the message
 		TranslateMessage( &msg );
-		DispatchMessage( &msg );
+		DispatchMessageW( &msg );
 		TheMessageTime = 0;
 
 	}

@@ -253,9 +253,9 @@ void SlowDeathBehavior::beginSlowDeath(const DamageInfo *damageInfo)
 			}
 			else
 			{
-				m_sinkFrame = timeScale * (d->m_sinkDelay + GameLogicRandomValue(0, d->m_sinkDelayVariance));
-				m_destructionFrame = timeScale * (d->m_destructionDelay + GameLogicRandomValue(0, d->m_destructionDelayVariance));
-				m_midpointFrame = GameLogicRandomValue( BEGIN_MIDPOINT_RATIO * m_destructionFrame, END_MIDPOINT_RATIO * m_destructionFrame );
+				m_sinkFrame = timeScale * (d->m_sinkDelay + GameLogicRandomFramesInBaseFrames(0, d->m_sinkDelayVariance));
+				m_destructionFrame = timeScale * (d->m_destructionDelay + GameLogicRandomFramesInBaseFrames(0, d->m_destructionDelayVariance));
+				m_midpointFrame = ConvertBaseFramesToFrames(GameLogicRandomValue( BEGIN_MIDPOINT_RATIO * ConvertFramesToBaseFramesReal(m_destructionFrame), END_MIDPOINT_RATIO * ConvertFramesToBaseFramesReal(m_destructionFrame) ));
 				m_acceleratedTimeScale = timeScale;
 			}
 		}
@@ -294,6 +294,11 @@ void SlowDeathBehavior::beginSlowDeath(const DamageInfo *damageInfo)
 				Coord3D force;
 				calcRandomForce(d->m_flingForce, d->m_flingForce + d->m_flingForceVariance,
 												d->m_flingPitch, d->m_flingPitch + d->m_flingPitchVariance, force);
+
+				force.x /= (Real)LOGICFRAMES_PER_BASEFRAME;
+				force.y /= (Real)LOGICFRAMES_PER_BASEFRAME;
+				force.z /= (Real)LOGICFRAMES_PER_BASEFRAME;
+
 				physics->setAllowToFall(true);
 				physics->applyForce(&force);
 				physics->setExtraBounciness(-1.0);					// we don't want this guy to bounce at all

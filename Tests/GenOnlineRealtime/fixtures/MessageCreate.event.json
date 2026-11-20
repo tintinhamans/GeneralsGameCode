@@ -1,0 +1,14 @@
+{
+  "id": "8812",
+  "channel_id": "channel:3",
+  "type": "chat",
+  "author": {
+    "id": 7,
+    "name": "Ann",
+    "badges": [
+      "moderator"
+    ]
+  },
+  "content": "hello",
+  "created_at": "2026-11-14T20:00:00Z"
+}

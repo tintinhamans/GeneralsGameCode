@@ -128,6 +128,7 @@ enum { K_SCRIPTS_DATA_VERSION_1 = 1 };
 enum { MAX_SPIN_COUNT = 20 };
 #define NONE_STRING "<none>"
 
+// The frame counts below are base frames.
 static const Int FRAMES_TO_SHOW_WIN_LOSE_MESSAGE = 120;
 
 static const Int FRAMES_TO_FADE_IN_AT_START = 33;
@@ -4777,7 +4778,7 @@ void ScriptEngine::newMap()
 	m_maxFade = 0.0f;
 	m_fadeFramesIncrease = 0;
 	m_fadeFramesHold = 0;
-	m_fadeFramesDecrease = FRAMES_TO_FADE_IN_AT_START;
+	m_fadeFramesDecrease = ConvertBaseFramesToFrames(FRAMES_TO_FADE_IN_AT_START);
 	m_curFadeValue = 0.0f;
 
 }
@@ -4807,6 +4808,7 @@ void ScriptEngine::update()
 */
 #endif
 #endif
+	const bool legacyFrameAdvanced = TheGameLogic->HasLegacyFrameAdvanced();
 	if (m_firstUpdate) {
 		createNamedCache();
 		particleEditorUpdate();
@@ -4824,7 +4826,8 @@ void ScriptEngine::update()
 	if (m_endGameTimer>0) {
 		m_endGameTimer--;
 		if (m_endGameTimer < 1) {
-			TheGameLogic->exitGame();
+			// clear out all the game data
+			/*GameMessage *msg =*/ TheMessageStream->appendMessage( GameMessage::MSG_CLEAR_GAME_DATA );
 			//TheScriptActions->closeWindows(FALSE); // Close victory or defeat windows.
 		}
 	}
@@ -4855,9 +4858,11 @@ void ScriptEngine::update()
 		if (m_counters[i].isCountdownTimer) {
 			// If counter has any time left, decrement.  Counters go to -1 and stop.
 			if (m_counters[i].value >= 0) {
+				if (legacyFrameAdvanced) {
 				m_counters[i].value--;
 			}
 		}
+	}
 	}
 
 	// Evaluate the scripts.
@@ -4994,9 +4999,24 @@ void ScriptEngine::startQuickEndGameTimer()
 //-------------------------------------------------------------------------------------------------
 /** startEndGameTimer */
 //-------------------------------------------------------------------------------------------------
+#if defined(GENONLINE)
+void ScriptEngine::startEndGameTimer(bool bExtendForErrorMsg)
+#else
 void ScriptEngine::startEndGameTimer()
+#endif
 {
-	m_endGameTimer = FRAMES_TO_SHOW_WIN_LOSE_MESSAGE;
+#if defined(GENONLINE)
+	if (bExtendForErrorMsg)
+	{
+		m_endGameTimer = ConvertBaseFramesToFrames(FRAMES_TO_SHOW_WIN_LOSE_MESSAGE) * 5;
+	}
+	else
+	{
+		m_endGameTimer = ConvertBaseFramesToFrames(FRAMES_TO_SHOW_WIN_LOSE_MESSAGE);
+	}
+#else
+	m_endGameTimer = ConvertBaseFramesToFrames(FRAMES_TO_SHOW_WIN_LOSE_MESSAGE);
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -5004,7 +5024,7 @@ void ScriptEngine::startEndGameTimer()
 //-------------------------------------------------------------------------------------------------
 void ScriptEngine::startCloseWindowTimer()
 {
-	m_closeWindowTimer = FRAMES_TO_SHOW_WIN_LOSE_MESSAGE;
+	m_closeWindowTimer = ConvertBaseFramesToFrames(FRAMES_TO_SHOW_WIN_LOSE_MESSAGE);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -6048,7 +6068,7 @@ void ScriptEngine::setTimer( ScriptAction *pAction, Bool millisecondTimer, Bool 
 			Real randomValue = pAction->getParameter(2)->getReal();
 			value = GameLogicRandomValue(value, randomValue);
 		}
-		m_counters[counterNdx].value = REAL_TO_INT_CEIL(ConvertDurationFromMsecsToFrames(value*1000));
+		m_counters[counterNdx].value = REAL_TO_INT_CEIL(value * (Real)BaseFps);
 	} else {
 		Int value = pAction->getParameter(1)->getInt();
 		if (random) {
@@ -6105,7 +6125,7 @@ void ScriptEngine::adjustTimer( ScriptAction *pAction, Bool millisecondTimer, Bo
 		Real value = pAction->getParameter(0)->getReal();
 		if (!add)
 			value = -value;
-		m_counters[counterNdx].value += REAL_TO_INT_CEIL(ConvertDurationFromMsecsToFrames(value*1000));
+		m_counters[counterNdx].value += REAL_TO_INT_CEIL(value * (Real)BaseFps);
 	} else {
 		Int value = pAction->getParameter(0)->getInt();
 		if (!add)
@@ -6601,7 +6621,7 @@ Bool ScriptEngine::isSpeechComplete( const AsciiString& testSpeech, Bool removeF
 		PairAsciiStringUINT newPair;
 		AudioEventRTS event(testSpeech);
 		Real audioLength = TheAudio->getAudioLengthMS(&event);
-		UnsignedInt frameCount = REAL_TO_UNSIGNEDINT(audioLength / MSEC_PER_LOGICFRAME_REAL);
+		UnsignedInt frameCount = ConvertBaseFramesToFrames(REAL_TO_UNSIGNEDINT(ConvertFramesToBaseFramesReal(audioLength / MSEC_PER_LOGICFRAME_REAL)));
 
 		newPair.first = testSpeech;
 		newPair.second = frameCount + TheGameLogic->getFrame();
@@ -6636,7 +6656,7 @@ Bool ScriptEngine::isAudioComplete( const AsciiString& testAudio, Bool removeFro
 		PairAsciiStringUINT newPair;
 		AudioEventRTS event(testAudio);
 		Real audioLength = TheAudio->getAudioLengthMS(&event);
-		UnsignedInt frameCount = REAL_TO_UNSIGNEDINT(audioLength / MSEC_PER_LOGICFRAME_REAL);
+		UnsignedInt frameCount = ConvertBaseFramesToFrames(REAL_TO_UNSIGNEDINT(ConvertFramesToBaseFramesReal(audioLength / MSEC_PER_LOGICFRAME_REAL)));
 
 		newPair.first = testAudio;
 		newPair.second = frameCount + TheGameLogic->getFrame();
@@ -8659,7 +8679,7 @@ void ScriptEngine::xfer( Xfer *xfer )
 			m_maxFade = 0.0f;
 			m_fadeFramesIncrease = 0;
 			m_fadeFramesHold = 0;
-			m_fadeFramesDecrease = FRAMES_TO_FADE_IN_AT_START;
+			m_fadeFramesDecrease = ConvertBaseFramesToFrames(FRAMES_TO_FADE_IN_AT_START);
 			m_curFadeValue = 0.0f;
 		}
 	}

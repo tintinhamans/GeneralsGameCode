@@ -1,0 +1,11 @@
+# A small check-like button that switches the pages of a panel; it shows its pushed images while selected.
+extends: button
+params:
+  font: "Arial"
+  font_size: 10
+  header: "GOButtonSmall"
+  pushed_left: "Buttons-Pushed-Left"
+  pushed_middle: "Buttons-Pushed-Middle"
+  pushed_right: "Buttons-Pushed-Right"
+status: [ENABLED, IMAGE, CHECK_LIKE]
+place: {w: tab_w, h: tab_h, valign: middle}

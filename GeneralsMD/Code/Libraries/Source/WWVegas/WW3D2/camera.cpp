@@ -353,7 +353,8 @@ void CameraClass::Set_View_Plane(float hfov,float vfov)
 
 	if (vfov == -1) {
 		height_half = (1.0f / AspectRatio) * width_half;		// use the aspect ratio
-	} else {
+	}
+	else {
 		height_half = tan(vfov/2.0f);
 		AspectRatio = width_half / height_half;					// or, initialize the aspect ratio
 	}
@@ -659,7 +660,8 @@ void CameraClass::Update_Frustum() const
 															vpmin.Y*znear_dist, vpmax.Y*znear_dist,
 															znear_dist, zfar_dist );
 
-	} else {
+	}
+	else {
 
 		ProjectionTransform.Init_Ortho( vpmin.X,vpmax.X,vpmin.Y,vpmax.Y,znear_dist,zfar_dist);
 
@@ -858,7 +860,8 @@ void CameraClass::Get_D3D_Projection_Matrix(Matrix4x4 * set_tm)
 	if (Projection == PERSPECTIVE) {
 		(*set_tm)[2][2] = -(ZFar) * oozdiff;
 		(*set_tm)[2][3] = -(ZFar*ZNear) * oozdiff;
-	} else {
+	}
+	else {
 		(*set_tm)[2][2] = -oozdiff;
 		(*set_tm)[2][3] = -ZNear * oozdiff;
 	}

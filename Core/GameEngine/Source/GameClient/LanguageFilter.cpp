@@ -80,6 +80,7 @@ WideChar ignoredChars[] = L"-_*'\"";
 
 void LanguageFilter::filterLine(UnicodeString &line)
 {
+#if !defined(GENONLINE)
 	WideChar *buf = NEW WideChar[line.getLength()+1];
 	wcscpy(buf, line.str());
 
@@ -108,6 +109,7 @@ void LanguageFilter::filterLine(UnicodeString &line)
 
 	line.set(buf);
 	delete[] buf;
+#endif
 }
 
 void LanguageFilter::unHaxor(UnicodeString &word) {

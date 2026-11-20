@@ -168,6 +168,9 @@ class SurfaceClass : public RefCountClass
 
 		WW3DFormat Get_Surface_Format() const { return SurfaceFormat; }
 
+		// Check if the underlying D3D surface is valid
+		bool Is_Valid() const { return D3DSurface != NULL; }
+
 	private:
 
 		// Ronin @feature 08/11/2026 DX9Ex: `rect` in this level's pixels; nullptr = the whole texture.

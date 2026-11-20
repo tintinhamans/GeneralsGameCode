@@ -30,6 +30,8 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/Xfer.h"
+#include "Common/Player.h"
+#include "Common/StatsExporterLive.h"
 #include "Common/ThingTemplate.h"
 #include "GameLogic/ExperienceTracker.h"
 #include "GameLogic/GameLogic.h"
@@ -101,7 +103,7 @@ ObjectID ExperienceTracker::getExperienceSink() const
 
 //-------------------------------------------------------------------------------------------------
 // Set Level to AT LEAST this... if we are already >= this level, do nothing.
-void ExperienceTracker::setMinVeterancyLevel( VeterancyLevel newLevel, Bool provideFeedback )
+void ExperienceTracker::setMinVeterancyLevel( VeterancyLevel newLevel )
 {
 	// This does not check for IsTrainable, because this function is for explicit setting,
 	// so the setter is assumed to know what they are doing.  The game function
@@ -112,7 +114,7 @@ void ExperienceTracker::setMinVeterancyLevel( VeterancyLevel newLevel, Bool prov
 		m_currentLevel = newLevel;
 		m_currentExperience = m_parent->getTemplate()->getExperienceRequired(m_currentLevel); //Minimum for this level
 		if (m_parent)
-			m_parent->onVeterancyLevelChanged( oldLevel, newLevel, provideFeedback );
+			m_parent->onVeterancyLevelChanged( oldLevel, newLevel );
 	}
 }
 
@@ -200,6 +202,14 @@ void ExperienceTracker::addExperiencePoints( Int experienceGain, Bool canScaleFo
 	{
 		// Edge trigger special level gain effects.
 		m_parent->onVeterancyLevelChanged( oldLevel, m_currentLevel );
+
+		// the live stats feed reports only promotions earned from experience, not levels assigned at creation
+		const Player* statsController = m_parent->getControllingPlayer();
+		if (statsController != nullptr && m_currentLevel > oldLevel)
+		{
+			StatsExporterLiveVeterancyChange(statsController->getPlayerIndex(), m_parent->getTemplate(), m_parent->getID(),
+				static_cast<Int>(oldLevel), static_cast<Int>(m_currentLevel));
+		}
 	}
 
 }

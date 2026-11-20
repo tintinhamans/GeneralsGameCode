@@ -38,6 +38,7 @@
 
 #include "GameLogic/Locomotor.h"
 #include "GameLogic/Module/AIUpdate.h"
+#include "GameLogic/Module/DeletionUpdate.h"
 #include "GameLogic/Module/ParachuteContain.h"
 #include "GameLogic/Module/PhysicsUpdate.h"
 #include "GameLogic/Object.h"
@@ -465,6 +466,14 @@ void ParachuteContain::onRemoving( Object *rider )
 	const ParachuteContainModuleData* d = getParachuteContainModuleData();
 
 	// object is no longer held inside a transport
+	// Info: At 60Hz, a short-lived object can reach its DeletionUpdate lifetime while parachuting, then be destroyed
+	// before its delayed OCLUpdate runs after landing. Restart an expired lifetime before releasing the object.
+	static NameKeyType key_DeletionUpdate = NAMEKEY( "DeletionUpdate" );
+	DeletionUpdate *dup = (DeletionUpdate*)rider->findUpdateModule( key_DeletionUpdate );
+	if (LOGICFRAMES_PER_BASEFRAME > 1 && dup && dup->getDieFrame() <= TheGameLogic->getFrame())
+	{
+		dup->restartLifetime();
+	}
 	rider->clearDisabled( DISABLED_HELD );
 	rider->clearStatus( MAKE_OBJECT_STATUS_MASK( OBJECT_STATUS_PARACHUTING ) );
 

@@ -1,5 +1,5 @@
 /*
-**	Command & Conquer Generals Zero Hour(tm)
+**	Command & Conquer Generals(tm)
 **	Copyright 2025 Electronic Arts Inc.
 **
 **	This program is free software: you can redistribute it and/or modify
@@ -25,7 +25,7 @@
 // FILE: W3DDisplay.h /////////////////////////////////////////////////////////
 //
 // W3D Implementation for the W3D Display which is responsible for creating
-// and maintaining the entire visual display
+// and maintaning the entire visual display
 //
 // Author: Colin Day, April 2001
 //
@@ -96,7 +96,7 @@ public:
 	W3DDisplay();
 	virtual ~W3DDisplay() override;
 
-	virtual void init() override;  ///< initialize or re-initialize the system
+	virtual void init() override;  ///< initialize or re-initialize the sytsem
  	virtual void reset() override;																///< Reset system
 
 	virtual void setWidth( UnsignedInt width ) override;
@@ -115,6 +115,8 @@ public:
 	virtual void setClipRegion( IRegion2D *region ) override;	///< Set clip rectangle for 2D draw operations.
 	virtual Bool	isClippingEnabled() override { return m_isClippedEnabled; }
 	virtual void	enableClipping( Bool onoff ) override { m_isClippedEnabled = onoff; }
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Read back the clip rectangle so a draw can restore it.
+	virtual Bool	getClipRegion(IRegion2D* region) override { *region = m_clipRegion; return TRUE; }	///< Fill the clip rectangle.
 
 	virtual void update() override; ///< Update the client state of the display
 	virtual void step() override; ///< Do one fixed time step

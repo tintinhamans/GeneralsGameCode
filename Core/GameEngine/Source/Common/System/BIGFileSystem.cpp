@@ -36,6 +36,8 @@
 #include "Common/GameAudio.h"
 #include "Common/GameMemory.h"
 #include "Common/LocalFileSystem.h"
+#include "../GenOnlineInclude.h"
+#include "../GenOnlineInit.h"
 
 #if RTS_ZEROHOUR
 #include "Common/Registry.h"
@@ -90,12 +92,20 @@ void BIGFileSystem::init() {
 
 #if RTS_ZEROHOUR
     // load original Generals assets
+    // The Steam install ships them in ZH_Generals, which the scan above already mounted. Mounting the Generals install as well would only add its mods.
+    if (TheLocalFileSystem->doesFileExist("ZH_Generals\\INI.big")) {
+      m_generalsBaseSource = "ZH_Generals folder";
+      return;
+    }
+
     AsciiString installPath;
     GetStringFromGeneralsRegistry("", "InstallPath", installPath );
     //@todo this will need to be ramped up to a crash for release
     DEBUG_ASSERTCRASH(!installPath.isEmpty(), ("Be 1337! Go install Generals!"));
-    if (!installPath.isEmpty())
+    if (!installPath.isEmpty()) {
+      m_generalsBaseSource.format("Generals install folder %s", installPath.str());
       loadArchiveFilesFromDirectory(installPath, "*.big");
+    }
 #endif
 }
 
@@ -108,7 +118,7 @@ void BIGFileSystem::update() {
 void BIGFileSystem::postProcessLoad() {
 }
 
-ArchiveFile * BIGFileSystem::openArchiveFile(const Char *filename) {
+ArchiveFile * BIGFileSystem::openArchiveFile(const Char *filename, ArchivePathFilter includePath) {
 	File *fp = TheLocalFileSystem->openFile(filename, File::READ | File::BINARY);
 	AsciiString archiveFileName;
 	archiveFileName = filename;
@@ -168,6 +178,11 @@ ArchiveFile * BIGFileSystem::openArchiveFile(const Char *filename) {
 		if (pathIndex < 0) {
 			corrupt = TRUE;
 			break;
+		}
+
+		// a file the filter leaves out is not part of this archive
+		if (includePath != nullptr && !includePath(buffer)) {
+			continue;
 		}
 
 		char *leafName = getFileName(buffer);
@@ -247,11 +262,23 @@ Bool BIGFileSystem::loadArchiveFilesFromDirectory(AsciiString dir, AsciiString f
 		}
 #endif
 
+#if RTS_ZEROHOUR
+		const Bool zeroHour = TRUE;
+#else
+		const Bool zeroHour = FALSE;
+#endif
+		// The first scan is the game folder, the second one the Generals install: the retail archives are the bottom of the lookup
+		const Int priority = overwrite ? getNextModPriority() : getGameFolderArchivePriority((*it), dir.isNotEmpty(), zeroHour);
+		if (priority == ARCHIVE_PRIORITY_EXCLUDED) {
+			it++;
+			continue;
+		}
+
 		ArchiveFile *archiveFile = openArchiveFile((*it).str());
 
 		if (archiveFile != nullptr) {
 			DEBUG_LOG(("BIGFileSystem::loadArchiveFilesFromDirectory - loading %s into the directory tree.", (*it).str()));
-			loadIntoDirectoryTree(archiveFile, overwrite);
+			loadIntoDirectoryTree(archiveFile, priority);
 			m_archiveFileMap[(*it)] = archiveFile;
 			DEBUG_LOG(("BIGFileSystem::loadArchiveFilesFromDirectory - %s inserted into the archive file map.", (*it).str()));
 			actuallyAdded = TRUE;
@@ -265,13 +292,59 @@ Bool BIGFileSystem::loadArchiveFilesFromDirectory(AsciiString dir, AsciiString f
 
 void BIGFileSystem::loadMods()
 {
+#if defined(GENONLINE)
+	const GenOnlineSettings& settings = GenOnlineServicesManager::Settings;
+	// The excludes of the -packs stack take effect together with the packs that replace the files they hide, so the reads before loadMods,
+	// like GameData.ini, see the game folder and the retail archives in full.
+	if (settings.DataPacks_FromPackList())
+	{
+		activatePackStack(settings.DataPacks_Stack());
+	}
+
+	// Order, highest first: loose files of the game folder, the GO menu layouts of the generals_online archives, -mod and -modDir, the BIGs of the game folders that are not retail (the -packs stack excludes some),
+	// the data pack layers (user, generals_online, community_patch) of the -packs file or the built-in packs, the retail archives. The BIGs of the game folders were mounted by init().
+	// With -packs the files of a pack also win over the loose files of the game folder, which are retail.
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Generals data: %s", m_generalsBaseSource.isEmpty() ? "none" : m_generalsBaseSource.str());
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Game folder archives above the data pack layers: %d", static_cast<int>(m_gameFolderArchives.size()));
+	for (const AsciiString& gameFolderArchive : m_gameFolderArchives)
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "  %s", gameFolderArchive.str());
+
+	setInterfaceStyle(AsciiString(settings.UI_Style().c_str()), AsciiString(settings.UI_Palette().c_str()));
+
+#if defined(GENONLINE_COMMUNITY_PATCH_CHANGES)
+	// -disableCommunityDataPatch skips the community_patch layer for this launch only
+	const Bool communityPatchEnabled = !TheGlobalData->m_commandLineData.isCommunityDataPatchDisabled();
+#else
+	const Bool communityPatchEnabled = TRUE;
+#endif
+
+	if (settings.DataPacks_FromPackList())
+	{
+		mountPackStack(communityPatchEnabled);
+	}
+	else
+	{
+		// The built-in packs. The Generals Online and community patch archives hold Zero Hour data, so Generals loads nothing above retail.
+		const std::vector<std::string> noPaths;
+		mountDataPackLayer("user", TRUE, noPaths, &TheFileSystem->getExcludedPaths(), ARCHIVE_PRIORITY_USER);
+#if RTS_GENERALS
+		mountGenOnlineLayer(TRUE, noPaths);
+#else
+		mountGenOnlineLayer(TRUE, std::vector<std::string>(1, "user:GeneralsOnlineGameData/GeneralsOnline_Core.big"));
+#endif
+#if defined(GENONLINE_COMMUNITY_PATCH_CHANGES)
+		mountDataPackLayer("community_patch", communityPatchEnabled, std::vector<std::string>(1, "user:GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big"), nullptr, ARCHIVE_PRIORITY_COMMUNITY_PATCH);
+#endif
+	}
+#endif
+
 	if (TheGlobalData->m_modBIG.isNotEmpty())
 	{
 		ArchiveFile *archiveFile = openArchiveFile(TheGlobalData->m_modBIG.str());
 
 		if (archiveFile != nullptr) {
 			DEBUG_LOG(("BIGFileSystem::loadMods - loading %s into the directory tree.", TheGlobalData->m_modBIG.str()));
-			loadIntoDirectoryTree(archiveFile, TRUE);
+			loadIntoDirectoryTree(archiveFile, getNextModPriority());
 			m_archiveFileMap[TheGlobalData->m_modBIG] = archiveFile;
 			DEBUG_LOG(("BIGFileSystem::loadMods - %s inserted into the archive file map.", TheGlobalData->m_modBIG.str()));
 		}

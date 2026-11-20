@@ -61,6 +61,9 @@
 #include "GameClient/TerrainVisual.h"
 
 #include "GameNetwork/FirewallHelper.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInit.h"
+#endif
 
 // PUBLIC DATA ////////////////////////////////////////////////////////////////////////////////////
 GlobalData* TheWritableGlobalData = nullptr;				///< The global data singleton
@@ -630,14 +633,15 @@ GlobalData::GlobalData()
 	m_useTreeSway = TRUE;
 	m_useDrawModuleLOD = FALSE;
 	m_useHeatEffects = TRUE;
+	m_adaptiveQualityLevel = 0;
 	m_useFpsLimit = FALSE;
 	m_dumpAssetUsage = FALSE;
 	m_framesPerSecondLimit = 0;
 	m_chipSetType = 0;
 	m_headless = FALSE;
 	m_windowed = 0;
-	m_xResolution = DEFAULT_DISPLAY_WIDTH;
-	m_yResolution = DEFAULT_DISPLAY_HEIGHT;
+	m_xResolution = 800;
+	m_yResolution = 600;
 	m_maxShellScreens = 0;
 	m_useCloudMap = FALSE;
 	m_use3WayTerrainBlends = 1;
@@ -956,10 +960,16 @@ GlobalData::GlobalData()
 	m_gameTimeFontSize = 8;
 	m_playerInfoListFontSize = 8;
 
+	m_observerStatsFontSize = 7;
+	m_observerNotificationFontSize = 10;
+	m_observerNotificationSpecialPowerUsage = TRUE;
+	m_observerNotificationSpecialPowerPurchase = TRUE;
+	m_observerNotificationMilestone = TRUE;
+
 	m_showMoneyPerMinute = FALSE;
 	m_allowMoneyPerMinuteForPlayer = FALSE;
 
-	m_gameWindowTransitionSpeedMultiplier = 1.0f;
+	m_gameWindowTransitionSpeedMultiplier = 2.5f;
 
 	m_debugShowGraphicalFramerate = FALSE;
 
@@ -973,7 +983,11 @@ GlobalData::GlobalData()
 	m_networkFPSHistoryLength = 30;
 	m_networkLatencyHistoryLength = 200;
 	m_networkRunAheadMetricsTime = 500;
+#if defined(GENONLINE)
+	m_networkCushionHistoryLength = 10 * LOGICFRAMES_PER_BASEFRAME; // the 333 ms that retail's 10 frames covered
+#else
 	m_networkCushionHistoryLength = 10;
+#endif
 	m_networkRunAheadSlack = 10;
 	m_networkKeepAliveDelay = 20;
 	m_networkDisconnectTime = 5000;
@@ -1040,6 +1054,9 @@ GlobalData::GlobalData()
 	m_forceBenchmark = FALSE;	///<forces running of CPU detection benchmark, even on known cpu's.
 
 	m_keyboardCameraRotateSpeed = 0.1f;
+	m_cameraRotateFactor = 0.5f;
+	m_cameraPitchFactor = 0.5f;
+	m_cameraZoomFactor = 0.5f;
 
 	m_useAlternateMouse = FALSE;
 #if RTS_GENERALS
@@ -1065,7 +1082,8 @@ GlobalData::~GlobalData()
 {
 	DEBUG_ASSERTCRASH( TheWritableGlobalData->m_next == nullptr, ("~GlobalData: theOriginal is not original") );
 
-	deleteInstance(m_weaponBonusSet);
+	if (m_weaponBonusSet)
+		deleteInstance(m_weaponBonusSet);
 
 	if( m_theOriginal == this )	{
 		m_theOriginal = nullptr;
@@ -1221,6 +1239,10 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_playerInfoListFontSize = optionPref.getPlayerInfoListFontSize();
 	TheWritableGlobalData->m_showMoneyPerMinute = optionPref.getShowMoneyPerMinute();
 	TheWritableGlobalData->m_gameWindowTransitionSpeedMultiplier = optionPref.getGameWindowTransitionSpeedMultiplier();
+#if defined(GENONLINE)
+	// The camera factors and the observer overlay settings come from client.json.
+	TheWritableGlobalData->applyGenOnlineClientSettings();
+#endif
 
 	TheWritableGlobalData->m_antiAliasLevel = optionPref.getAntiAliasing();
 	TheWritableGlobalData->m_textureFilteringMode = optionPref.getTextureFilterMode();
@@ -1246,6 +1268,22 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_xResolution = xres;
 	TheWritableGlobalData->m_yResolution = yres;
 }
+
+#if defined(GENONLINE)
+//-------------------------------------------------------------------------------------------------
+void GlobalData::applyGenOnlineClientSettings()
+{
+	const GenOnlineSettings& genOnlineSettings = GenOnlineServicesManager::Settings;
+	m_cameraRotateFactor = genOnlineSettings.Camera_GetRotateFactor();
+	m_cameraPitchFactor = genOnlineSettings.Camera_GetPitchFactor();
+	m_cameraZoomFactor = genOnlineSettings.Camera_GetZoomFactor();
+	m_observerStatsFontSize = genOnlineSettings.Observer_GetStatsFontSize();
+	m_observerNotificationFontSize = genOnlineSettings.Observer_GetNotificationFontSize();
+	m_observerNotificationSpecialPowerUsage = genOnlineSettings.Observer_NotificationSpecialPowerUsage();
+	m_observerNotificationSpecialPowerPurchase = genOnlineSettings.Observer_NotificationSpecialPowerPurchase();
+	m_observerNotificationMilestone = genOnlineSettings.Observer_NotificationMilestone();
+}
+#endif
 
 void GlobalData::parseCustomDefinition()
 {
@@ -1329,6 +1367,12 @@ UnsignedInt GlobalData::generateExeCRC()
 
 	DEBUG_LOG(("EXE+Version(%d.%d)+SCB CRC is 0x%8.8X", version >> 16, version & 0xffff, exeCRC.get()));
 
+	// the exe CRC this build is compatible with, set by RTS_EXE_CRC
+	if (RTS_EXE_CRC != 0)
+	{
+		DEBUG_LOG(("Exe CRC set to 0x%8.8X by RTS_EXE_CRC", (UnsignedInt)RTS_EXE_CRC));
+		return (UnsignedInt)RTS_EXE_CRC;
+	}
 	return exeCRC.get();
 }
 

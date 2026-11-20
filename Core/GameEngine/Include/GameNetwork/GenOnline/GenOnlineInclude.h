@@ -1,0 +1,109 @@
+#pragma once
+
+
+enum class ELogVerbosity
+{
+	LOG_DEBUG = 0,
+	LOG_RELEASE = 1
+};
+
+enum class ENetworkChannel : BYTE
+{
+	NETWORK_CHANNEL_GAME = 0,
+	NETWORK_CHANNEL_AC = 1,
+	NETWORK_CHANNEL_PING = 2,
+	NETWORK_CHANNEL_KEYS = 3,	// match signing keys, sent reliably
+	NETWORK_CHANNEL_START = 4	// lobby round trips to the router and its start run ahead back, sent reliably at match start
+};
+
+#define CHECK_MAIN_THREAD assert(std::this_thread::get_id() == GenOnlineServicesManager::g_MainThreadID);
+#define CHECK_WORKER_THREAD assert(std::this_thread::get_id() != GenOnlineServicesManager::g_MainThreadID);
+
+static const ELogVerbosity g_LogVerbosity =
+#if _DEBUG
+ELogVerbosity::LOG_DEBUG;
+#else
+ELogVerbosity::LOG_RELEASE;
+#endif
+
+void NetworkLog(ELogVerbosity logVerbosity, const char* fmt, ...);
+
+std::string to_utf8(const std::wstring& wstr);
+std::wstring from_utf8(const std::string& utf8_str);
+std::string local_to_utf8(const std::string& local_str);
+std::string utf8_to_local(const std::string& utf8_str);
+std::wstring NormalizeSingleLineText(const std::wstring& text);
+std::wstring WidenFormatSpecifiers(const std::wstring& format);
+
+int RoundUpLatencyToFrameInterval(int latency, int frameInterval);
+int ConvertMSLatencyToFrames(int ms);
+// NGMP_NOTE: Plr Templates look like this:
+/*
+| NAME							|	GAME INDEX	|	SERVICE INDEX	|	PLAYABLE	|
+-------------------------------------------------------------------------------------
+Civilian								0				-1					No
+Observer								1				-1					No
+America									2				0					Yes
+China									3				1					Yes
+GLA										4				2					Yes
+AmericaSuperWeaponGeneral				5				3					Yes
+AmericaLaserGeneral						6				4					Yes
+AmericaAirForceGeneral					7				5					Yes
+ChinaTankGeneral						8				6					Yes
+ChinaInfantryGeneral					9				7					Yes
+ChinaNukeGeneral						10				8					Yes
+ChinaNukeGeneral						11				9					Yes
+GLAToxinGeneral							12				10					Yes
+GLADemolitionGeneral					13				11					Yes
+GLAStealthGeneral						14				12					Yes
+Boss									15				-1					No
+*/
+
+static std::unordered_map<int, std::string> g_mapServiceIndexToPlayerTemplateString =
+{
+	{ 0, "USA" }, // NOTE: Gamespy used "America", the game uses "USA"
+	{ 1, "China" },
+	{ 2, "GLA" },
+	{ 3, "AmericaSuperWeaponGeneral" },
+	{ 4, "AmericaLaserGeneral" },
+	{ 5, "AmericaAirForceGeneral" },
+	{ 6, "ChinaTankGeneral" },
+	{ 7, "ChinaInfantryGeneral" },
+	{ 8, "ChinaNukeGeneral" },
+	{ 9, "GLAToxinGeneral" },
+	{ 10, "GLADemolitionGeneral" },
+	{ 11, "GLAStealthGeneral" }
+};
+
+// common game engine includes
+#include "Common/UnicodeString.h"
+#include "Common/AsciiString.h"
+// standard libs
+#include <fstream>
+#include <vector>
+#include <map>
+#include <unordered_map>
+#include <functional>
+
+#include "GameNetwork/GenOnline/GenOnlineDefines.h"
+#include "GameNetwork/GenOnline/NetworkPacket.h"
+#include "GameNetwork/GenOnline/NetworkBitstream.h"
+#include "GameNetwork/GenOnline/GenOnlineTypes.h"
+#include "GameNetwork/GenOnline/GenOnlineGame.h"
+
+#include "GenOnlineTransport.h"
+
+
+#if defined(GENONLINE_BRANCH_JMARSHALL)
+#include "../Console/Console.h"
+#endif
+
+#include "../json.hpp"
+
+std::string Base64Encode(const std::vector<uint8_t>& data);
+std::vector<uint8_t> Base64Decode(const std::string& encodedData);
+
+std::string GetMachineGuid();
+std::string GetPrimaryMacAddress();
+std::string GetVolumeSerial();
+std::string getGameExeCRC();

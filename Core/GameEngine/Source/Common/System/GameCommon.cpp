@@ -30,6 +30,8 @@
 
 #include "Common/GameCommon.h"
 
+#include "WWMath/wwmath.h"
+
 const char *const TheVeterancyNames[] =
 {
 	"REGULAR",
@@ -50,7 +52,6 @@ const char *const TheRelationshipNames[] =
 static_assert(ARRAY_SIZE(TheRelationshipNames) == RELATIONSHIP_COUNT + 1, "Incorrect array size");
 
 //-------------------------------------------------------------------------------------------------
-// TheSuperHackers @todo DO NOT USE THIS FUNCTION! Use WWMath::Normalize_Angle instead. Delete this.
 Real normalizeAngle(Real angle)
 {
 	DEBUG_ASSERTCRASH(!std::isnan(angle), ("Angle is NAN in normalizeAngle!"));
@@ -65,5 +66,36 @@ Real normalizeAngle(Real angle)
 		angle += 2*PI;
 
 	return angle;
+}
+
+//-------------------------------------------------------------------------------------------------
+Real ConvertDurationFromMsecsToFramesRoundedUp(Real msec)
+{
+	const Real baseFrames = ConvertFramesToBaseFramesReal(ConvertDurationFromMsecsToFrames(msec));
+	return WWMath::Ceilf(baseFrames) * (Real)LOGICFRAMES_PER_BASEFRAME;
+}
+
+//-------------------------------------------------------------------------------------------------
+Int DivideFramesInBaseFrames(Int frames, Real divisor)
+{
+	const Int baseFrames = ConvertFramesToBaseFrames(frames);
+	return ConvertBaseFramesToFrames(REAL_TO_INT_FLOOR(baseFrames / divisor));
+}
+
+//-------------------------------------------------------------------------------------------------
+Int MultiplyFramesInBaseFrames(Int frames, Real factor)
+{
+	const Int baseFrames = ConvertFramesToBaseFrames(frames);
+	return ConvertBaseFramesToFrames((Int)(baseFrames * factor));
+}
+
+//-------------------------------------------------------------------------------------------------
+Real ConvertBaseFrameFactorToFrameFactor(Real factorPerBaseFrame)
+{
+	// A root of a factor that is not positive has no real value, so the factor stays unchanged.
+	if (LOGICFRAMES_PER_BASEFRAME == 1 || factorPerBaseFrame <= 0.0f)
+		return factorPerBaseFrame;
+
+	return WWMath::Powf(factorPerBaseFrame, 1.0f / (Real)LOGICFRAMES_PER_BASEFRAME);
 }
 

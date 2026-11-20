@@ -41,7 +41,6 @@
 #include "GameLogic/Object.h"
 
 #include "GameClient/Color.h"
-#include "GameClient/ControlBar.h"
 #include "GameClient/Display.h"
 #include "GameClient/GameClient.h"
 #include "GameClient/GameWindow.h"
@@ -55,6 +54,7 @@
 #include "WW3D2/texture.h"
 #include "WW3D2/dx8caps.h"
 #include "WWMath/vector2i.h"
+#include "GameClient/ControlBar.h"
 
 
 
@@ -144,8 +144,8 @@ void W3DRadar::deleteResources()
 	if( m_terrainTexture )
 		m_terrainTexture->Release_Ref();
 	m_terrainTexture = nullptr;
-
-	deleteInstance(m_terrainImage);
+	if( m_terrainImage )
+		deleteInstance(m_terrainImage);
 	m_terrainImage = nullptr;
 
 	//
@@ -154,8 +154,8 @@ void W3DRadar::deleteResources()
 	if( m_overlayTexture )
 		m_overlayTexture->Release_Ref();
 	m_overlayTexture = nullptr;
-
-	deleteInstance(m_overlayImage);
+	if( m_overlayImage )
+		deleteInstance(m_overlayImage);
 	m_overlayImage = nullptr;
 
 	//
@@ -164,8 +164,8 @@ void W3DRadar::deleteResources()
 	if( m_shroudTexture )
 		m_shroudTexture->Release_Ref();
 	m_shroudTexture = nullptr;
-
-	deleteInstance(m_shroudImage);
+	if( m_shroudImage )
+		deleteInstance(m_shroudImage);
 	m_shroudImage = nullptr;
 
 	DEBUG_ASSERTCRASH(m_shroudSurface == nullptr, ("W3DRadar::deleteResources: m_shroudSurface is expected null"));
@@ -1514,6 +1514,94 @@ void W3DRadar::draw( Int pixelX, Int pixelY, Int width, Int height )
 
 	// draw the view region on top of the radar reconstructing if necessary
 	drawViewBox( ul.x, ul.y, scaledWidth, scaledHeight );
+
+}
+
+// ------------------------------------------------------------------------------------------------
+/** Copy the terrain texture out as RGBA for the stats exporter. Reads the surface, changes nothing. */
+// ------------------------------------------------------------------------------------------------
+Bool W3DRadar::getTerrainImageForStats( UnsignedByte *rgba, UnsignedInt capacity, Int *width, Int *height )
+{
+
+	if( m_terrainTexture == nullptr || rgba == nullptr || width == nullptr || height == nullptr )
+		return FALSE;
+	if( m_textureWidth <= 0 || m_textureHeight <= 0 || capacity < (UnsignedInt)m_textureWidth * (UnsignedInt)m_textureHeight * 4 )
+		return FALSE;
+
+	SurfaceClass *surface = m_terrainTexture->Get_Surface_Level();
+	if( surface == nullptr )
+		return FALSE;
+
+	SurfaceClass::SurfaceDescription surfaceDesc;
+	surface->Get_Description( surfaceDesc );
+	const unsigned int bytesPerPixel = Get_Bytes_Per_Pixel( surfaceDesc.Format );
+	Bool known = TRUE;
+	switch( surfaceDesc.Format )
+	{
+		case WW3D_FORMAT_R8G8B8:
+		case WW3D_FORMAT_X8R8G8B8:
+		case WW3D_FORMAT_A8R8G8B8:
+		case WW3D_FORMAT_R5G6B5:
+		case WW3D_FORMAT_X1R5G5B5:
+		case WW3D_FORMAT_A1R5G5B5:
+			break;
+		default:
+			known = FALSE;
+			break;
+	}
+
+	int pitch = 0;
+	const UnsignedByte *bits = nullptr;
+	if( known )
+	{
+		bits = (const UnsignedByte *)surface->Lock( &pitch );
+	}
+	if( bits == nullptr )
+	{
+		REF_PTR_RELEASE(surface);
+		return FALSE;
+	}
+
+	for( Int y = 0; y < m_textureHeight; y++ )
+	{
+		for( Int x = 0; x < m_textureWidth; x++ )
+		{
+			const UnsignedByte *src = bits + y * pitch + x * bytesPerPixel;
+			UnsignedByte *dst = rgba + ( y * m_textureWidth + x ) * 4;
+			UnsignedInt r, g, b;
+
+			if( surfaceDesc.Format == WW3D_FORMAT_R5G6B5 )
+			{
+				const UnsignedInt v = src[0] | ( (UnsignedInt)src[1] << 8 );
+				r = ( ( v >> 11 ) & 31 ) * 255 / 31;
+				g = ( ( v >> 5 ) & 63 ) * 255 / 63;
+				b = ( v & 31 ) * 255 / 31;
+			}
+			else if( surfaceDesc.Format == WW3D_FORMAT_X1R5G5B5 || surfaceDesc.Format == WW3D_FORMAT_A1R5G5B5 )
+			{
+				const UnsignedInt v = src[0] | ( (UnsignedInt)src[1] << 8 );
+				r = ( ( v >> 10 ) & 31 ) * 255 / 31;
+				g = ( ( v >> 5 ) & 31 ) * 255 / 31;
+				b = ( v & 31 ) * 255 / 31;
+			}
+			else
+			{
+				b = src[0];
+				g = src[1];
+				r = src[2];
+			}
+			dst[0] = (UnsignedByte)r;
+			dst[1] = (UnsignedByte)g;
+			dst[2] = (UnsignedByte)b;
+			dst[3] = 255;
+		}
+	}
+
+	surface->Unlock();
+	REF_PTR_RELEASE(surface);
+	*width = m_textureWidth;
+	*height = m_textureHeight;
+	return TRUE;
 
 }
 

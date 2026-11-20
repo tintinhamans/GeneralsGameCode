@@ -207,6 +207,7 @@ bool								DX8Wrapper::SceneDepthFromPrepass						= false;
 unsigned							DX8Wrapper::_MainThreadID								= 0;
 bool								DX8Wrapper::CurrentDX8LightEnables[MAX_LIGHTS];
 bool								DX8Wrapper::IsDeviceLost;
+bool								DX8Wrapper::DeviceResetFailed = false;
 int								DX8Wrapper::ZBias;
 float								DX8Wrapper::ZNear;
 float								DX8Wrapper::ZFar;
@@ -1292,6 +1293,7 @@ D3DPOOL DX8Wrapper::_Get_Managed_Pool(D3DPOOL pool, DWORD *usage)
 bool DX8Wrapper::Create_Device()
 {
 	WWASSERT(D3DDevice==nullptr);	// for now, once you've created a device, you're stuck with it!
+	DeviceResetFailed = false;
 
 	D3DCAPS9 caps;
 	if
@@ -1424,7 +1426,11 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 {
 	WWDEBUG_SAY(("Resetting device."));
 	DX8_THREAD_ASSERT();
-	if ((IsInitted) && (D3DDevice != nullptr)) {
+	if (!IsInitted || D3DDevice == nullptr) {
+		WWDEBUG_SAY(("Device reset failed"));
+		return false;
+	}
+
 		// Release all non-MANAGED stuff
 		WW3D::_Invalidate_Textures();
 
@@ -1477,8 +1483,6 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 			if (hr != D3D_OK)
 				return false;	//reset failed.
 		}
-		else
-			return false;	//device is lost and can't be reset.
 
 		if (reload_assets)
 		{
@@ -1497,8 +1501,15 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 		WWDEBUG_SAY(("Device reset completed"));
 		return true;
 	}
-	WWDEBUG_SAY(("Device reset failed"));
-	return false;
+
+// Unbinds on the device because Set_Vertex_Buffer and Set_Index_Buffer are deferred.
+void DX8Wrapper::Unbind_Device_Buffers()
+{
+	for (unsigned stream = 0; stream < MAX_VERTEX_STREAMS; ++stream)
+	{
+		DX8CALL(SetStreamSource(stream, nullptr, 0));
+	}
+	DX8CALL(SetIndices(nullptr, 0));
 }
 
 void DX8Wrapper::Release_Device()
@@ -1509,6 +1520,8 @@ void DX8Wrapper::Release_Device()
 		SceneDepthSupport = -1;
 		NullTargetSupport = -1;
 
+		if (!DeviceResetFailed)
+		{
 		for (int a=0;a<MAX_TEXTURE_STAGES;++a)
 		{
 			//release references to any textures that were used in last rendering call
@@ -1764,7 +1777,30 @@ void DX8Wrapper::Resize_And_Position_Window()
 		// Resize the window to fit this resolution
 		if (!IsWindowed)
 		{
-			::SetWindowPos(_Hwnd, HWND_TOPMOST, 0, 0, width, height, 0);
+#if defined(GENONLINE_WINDOWED_FULLSCREEN)
+            // Assume hwnd is your application?s window handle
+            LONG_PTR style = GetWindowLongPtr(_Hwnd, GWL_STYLE);
+
+            // Remove all overlapped-window styles and add WS_POPUP
+            style &= ~(WS_OVERLAPPEDWINDOW);
+            style |= WS_POPUP;
+
+            // Apply the new style
+            SetWindowLongPtr(_Hwnd, GWL_STYLE, style);
+
+            // Move window to (0,0) with the monitor?s resolution:
+            SetWindowPos(
+                _Hwnd,
+                HWND_TOP,
+                0,
+                0,
+                width,
+                height,
+                SWP_FRAMECHANGED | SWP_NOOWNERZORDER
+            );
+#else
+            ::SetWindowPos(_Hwnd, HWND_TOPMOST, 0, 0, width, height, SWP_NOSIZE | SWP_NOMOVE);
+#endif
 
 			DEBUG_LOG(("Window resized to w:%d h:%d", width, height));
 		}
@@ -1806,7 +1842,8 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	*/
 	if ((CurRenderDevice == -1) && (dev == -1)) {
 		CurRenderDevice = 0;
-	} else if (dev != -1) {
+	}
+	else if (dev != -1) {
 		CurRenderDevice = dev;
 	}
 
@@ -1850,7 +1887,11 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	//I changed this to discard all the time (even when full-screen) since that the most efficient. 07-16-03 MW:
 	_PresentParameters.SwapEffect = IsWindowed ? D3DSWAPEFFECT_COPY : D3DSWAPEFFECT_DISCARD;
 	_PresentParameters.hDeviceWindow = _Hwnd;
+#if defined(GENONLINE_WINDOWED_FULLSCREEN)
+    _PresentParameters.Windowed = TRUE; // always windowed now
+#else
 	_PresentParameters.Windowed = IsWindowed;
+#endif
 
 	_PresentParameters.EnableAutoDepthStencil = TRUE;				// Driver will attempt to match Z-buffer depth
 	_PresentParameters.Flags=0;											// We're not going to lock the backbuffer
@@ -1912,7 +1953,8 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 			}
 		}
 
-	} else {
+	}
+	else {
 
 		/*
 		** Try to find a mode that matches the user's desired bit-depth.
@@ -2018,7 +2060,8 @@ bool DX8Wrapper::Toggle_Windowed()
 								 resolutions[0].Height,
 								 resolutions[0].BitDepth,
 								 !IsWindowed, true);
-		} else {
+		}
+		else {
 
 			// Toggle the windowed state
 			return Set_Device_Resolution (-1, -1, -1, !IsWindowed, true);
@@ -2111,7 +2154,8 @@ bool DX8Wrapper::Set_Device_Resolution(int width,int height,int bits,int windowe
 #pragma message("TODO: support changing windowed status and changing the bit depth")
 		WWDEBUG_SAY(("DX8Wrapper::Set_Device_Resolution is resetting the device."));
 		return Reset_Device();
-	} else {
+	}
+	else {
 		return false;
 	}
 }
@@ -2139,7 +2183,8 @@ void DX8Wrapper::Get_Render_Target_Resolution(int & set_w,int & set_h,int & set_
 		set_bits			= BitDepth;		// should we get the actual bit depth of the target?
 		set_windowed	= IsWindowed;	// this doesn't really make sense for render targets (shouldn't matter)...
 
-	} else {
+	}
+	else {
 		Get_Device_Resolution (set_w, set_h, set_bits, set_windowed);
 	}
 }
@@ -2194,7 +2239,8 @@ bool DX8Wrapper::Registry_Load_Render_Device( const char * sub_key, bool resize_
 
 		if (TextureBitDepth==16 || TextureBitDepth==32) {
 //			WWDEBUG_SAY(( "Texture depth %d", TextureBitDepth));
-		} else {
+		}
+		else {
 			WWDEBUG_SAY(( "Invalid texture depth %d, switching to 16 bits", TextureBitDepth));
 			TextureBitDepth=16;
 		}
@@ -2312,7 +2358,8 @@ bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,D3DFORMAT 
 	if (BitDepth == 16) {
 		format_table = _formats16;
 		format_count = sizeof(_formats16) / sizeof(D3DFORMAT);
-	} else {
+	}
+	else {
 		format_table = _formats32;
 		format_count = sizeof(_formats32) / sizeof(D3DFORMAT);
 	}
@@ -2331,7 +2378,8 @@ bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,D3DFORMAT 
 
 	if (!found) {
 		return false;
-	} else {
+	}
+	else {
 		*set_backbuffer=*set_colorbuffer = format_table[format_index];
 	}
 
@@ -2719,7 +2767,8 @@ void DX8Wrapper::Flip_To_Primary()
 					Reset_Device();
 					resetAttempts++;
 				}
-			} else {
+			}
+			else {
 				WWDEBUG_SAY(("Flipping: %ld", FrameCount));
 				hr = _Get_D3D_Device8()->Present(nullptr, nullptr, nullptr, nullptr);
 				DX8_RECORD_DX8_CALLS();
@@ -5163,7 +5212,8 @@ void DX8Wrapper::Set_Gamma(float gamma,float bright,float contrast,bool calibrat
 	// IML: I'm not really sure what the intent of the 'limit' variable is. It does not produce useful results for my purposes.
 	if (uselimit) {
 		limit=(contrast-1)/2*contrast;
-	} else {
+	}
+	else {
 		limit = 0.0f;
 	}
 

@@ -297,7 +297,7 @@ static void readUntilSemicolon( File *fp, char *buffer, int maxBufLen )
 		fp->read(buffer + i, 1);
 
 		// make all whitespace characters spaces
-		if( isspace( buffer[ i ] ) )
+		if( isspace( (unsigned char)buffer[ i ] ) )
 		{
 
 			if( start == FALSE )
@@ -561,12 +561,17 @@ static Bool parseScreenRect( const char *token, char *buffer,
 	// shrink or expand the screen region by the ratio of the current
 	// resolution divided by the creation resolution
 	//
-	Real xScale = (Real)TheDisplay->getWidth() / (Real)createRes.x;
-	Real yScale = (Real)TheDisplay->getHeight() / (Real)createRes.y;
-	screenRegion.lo.x = (Int)((Real)screenRegion.lo.x * xScale);
-	screenRegion.lo.y = (Int)((Real)screenRegion.lo.y * yScale);
-	screenRegion.hi.x = (Int)((Real)screenRegion.hi.x * xScale);
-	screenRegion.hi.y = (Int)((Real)screenRegion.hi.y * yScale);
+	// Away from the creation resolution an edge on its last pixel maps to the screen edge.
+	const Bool remapLastPixel = (Int)TheDisplay->getWidth() != createRes.x || (Int)TheDisplay->getHeight() != createRes.y;
+	const Int hiX = (remapLastPixel && screenRegion.hi.x == createRes.x - 1) ? createRes.x : screenRegion.hi.x;
+	const Int hiY = (remapLastPixel && screenRegion.hi.y == createRes.y - 1) ? createRes.y : screenRegion.hi.y;
+	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Round the origin and scale the size as a whole, so equal layout sizes give equal pixel sizes.
+	const Int layoutWidth = hiX - screenRegion.lo.x;
+	const Int layoutHeight = hiY - screenRegion.lo.y;
+	screenRegion.lo.x = GameWindowManager::winScaleRounded( screenRegion.lo.x, TheDisplay->getWidth(), createRes.x );
+	screenRegion.lo.y = GameWindowManager::winScaleRounded( screenRegion.lo.y, TheDisplay->getHeight(), createRes.y );
+	screenRegion.hi.x = screenRegion.lo.x + GameWindowManager::winScaleRounded( layoutWidth, TheDisplay->getWidth(), createRes.x );
+	screenRegion.hi.y = screenRegion.lo.y + GameWindowManager::winScaleRounded( layoutHeight, TheDisplay->getHeight(), createRes.y );
 
 	//
 	// given the screen region upper left compute the upper left that we
@@ -652,6 +657,10 @@ static Bool parseFont( const char *token, WinInstanceData *instData,
 	c = strtok( nullptr, seps );  // label
 	c = strtok( nullptr, seps );  // value
 	scanInt( c, fontBold );
+
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Layout text scales with the screen height like the layout rows.
+	if( GameWindowManager::winUseLegacyLayoutFonts() == FALSE )
+		fontSize = GameWindowManager::winScaleLayoutFontSize( fontSize );
 
 	if( TheFontLibrary )
 	{
@@ -1175,8 +1184,9 @@ static Bool parseStaticTextData( const char *token, WinInstanceData *instData,
 	// These are initialized here because any TextData constructor would never get called.
 	// The behavior with these defaults is the same as it was before these members were added.
 	textData->centeredVertically = TRUE;
-	textData->leftMargin = 7;
-	textData->topMargin = 7;
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Text margins scale with the screen height.
+	textData->leftMargin = GameWindowManager::winScaleLayoutSize( 7 );
+	textData->topMargin = GameWindowManager::winScaleLayoutSize( 7 );
 
 	return TRUE;
 

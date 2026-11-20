@@ -129,6 +129,9 @@ public:
 	void setObjectIDCounter( ObjectID nextObjID ) { m_nextObjID = nextObjID; }
 	ObjectID getObjectIDCounter() { return m_nextObjID; }
 
+	UnsignedInt getFrameLegacy(void);
+	bool HasLegacyFrameAdvanced(void);
+
 	//-----------------------------------------------------------------------------------------------
 	void setBuildableStatusOverride(const ThingTemplate* tt, BuildableStatus bs);
 	Bool findBuildableStatusOverride(const ThingTemplate* tt, BuildableStatus& bs) const;
@@ -172,6 +175,9 @@ public:
 
 	//Kris: Cut isLoadingGame() and replaced with isLoadingMap() and isLoadingSave() -- reason: nomenclature
 	//Bool isLoadingGame() const { return m_loadingScene; }		// This is the old function that isn't very clear on it's definition.
+#if defined(GENONLINE)
+	bool IsLoadScreenActive() const { return m_loadScreen != nullptr; }
+#endif
 	Bool isLoadingMap() const { return m_loadingMap; }			// Whenever a map is in the process of loading.
 	Bool isLoadingSave() const { return m_loadingSave; }		// Whenever a saved game is in the process of loading.
 	Bool isClearingGameData() const { return m_clearingGameData; }
@@ -197,6 +203,9 @@ public:
 	UnsignedInt getFrameObjectsChangedTriggerAreas() {return m_frameObjectsChangedTriggerAreas;}
 
 	void exitGame();
+#if defined(GENONLINE)
+	void processPendingGameExit();
+#endif
 	void quit(Bool toDesktop);
 	void clearGameData(Bool showScoreScreen = TRUE);														///< Clear the game data
 	void closeWindows();
@@ -494,6 +503,10 @@ inline Bool GameLogic::isInInternetGame() const { return rts::isInternetGame(m_g
 inline Bool GameLogic::isInShellGame() const { return rts::isShellGame(m_gameMode); }
 inline Bool GameLogic::isInMultiplayerGame() const { return rts::isMultiplayerGame(m_gameMode); }
 inline Bool GameLogic::isInInteractiveGame() const { return rts::isInteractiveGame(m_gameMode); }
+
+// The base frame derives from the saved logic frame, so it stays correct after loading a save game.
+inline UnsignedInt GameLogic::getFrameLegacy(void) { return m_frame / LOGICFRAMES_PER_BASEFRAME; }
+inline bool GameLogic::HasLegacyFrameAdvanced(void) { return (m_frame % LOGICFRAMES_PER_BASEFRAME) == 0; }
 
 inline Object* GameLogic::findObjectByID( ObjectID id )
 {

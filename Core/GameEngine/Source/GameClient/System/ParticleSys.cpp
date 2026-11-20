@@ -326,7 +326,16 @@ Particle::Particle( ParticleSystem *system, const ParticleInfo *info )
 
 	m_lifetime = info->m_lifetime;
 	m_lifetimeLeft = info->m_lifetime;
+	
+#if defined(GENONLINE_RUN_FAST)
+	m_createTimestamp = TheGameLogic->getFrame();
+#else
+#if defined(GENONLINE)
+	m_createTimestamp = TheGameClient->getFrameLegacy();
+#else
 	m_createTimestamp = TheGameClient->getFrame();
+#endif
+#endif
 	m_personality = 0;
 
 	m_size = info->m_size;
@@ -679,7 +688,15 @@ ParticlePriorityType Particle::getPriority()
 // ------------------------------------------------------------------------------------------------
 UnsignedInt Particle::getElapsedFrames() const
 {
+#if defined(GENONLINE_RUN_FAST)
+	return TheGameLogic->getFrame() - m_createTimestamp;
+#else
+#if defined(GENONLINE)
+	return TheGameClient->getFrameLegacy() - m_createTimestamp;
+#else
 	return TheGameClient->getFrame() - m_createTimestamp;
+#endif
+#endif
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1298,7 +1315,15 @@ ParticleSystem::ParticleSystem( const ParticleSystemTemplate *sysTemplate,
 
 	m_delayLeft = (UnsignedInt)sysTemplate->m_initialDelay.getValue();
 
+#if defined(GENONLINE_RUN_FAST)
+	m_startTimestamp = TheGameLogic->getFrame();
+#else
+#if defined(GENONLINE)
+	m_startTimestamp = TheGameClient->getFrameLegacy();
+#else
 	m_startTimestamp = TheGameClient->getFrame();
+#endif
+#endif
 	m_systemLifetimeLeft = sysTemplate->m_systemLifetime;
 	if (sysTemplate->m_systemLifetime)
 		m_isForever = false;
@@ -1561,6 +1586,13 @@ void ParticleSystem::attachToDrawable( const Drawable *draw )
 		DEBUG_ASSERTCRASH( m_attachedToObjectID == INVALID_ID, ( "ParticleSystem is already attached to an Object" ) );
 		m_attachedToDrawableID = draw->getID();
 		m_attachedToObjectID = INVALID_ID;
+
+#if defined(GENONLINE)
+		// Info: One-frame attached systems can otherwise lose their only burst when the drawable is created and destroyed
+		// between legacy particle updates at 60Hz.
+		if (m_systemLifetimeLeft == 1 && m_delayLeft == 0 && getParticleCount() == 0)
+			update(0);
+#endif
 	}
 	else
 	{
@@ -1929,14 +1961,14 @@ Particle *ParticleSystem::createParticle( const ParticleInfo *info,
 		// ALWAYS_RENDER particles are exempt from all count limits, and are always created, regardless of LOD issues.
 		if (priority != ALWAYS_RENDER)
 		{
-			int numInExcess = TheParticleSystemManager->getParticleCount() - (UnsignedInt)TheGlobalData->m_maxParticleCount;
+			int numInExcess = TheParticleSystemManager->getParticleCount() - (UnsignedInt)TheGlobalData->getEffectiveMaxParticleCount();
 			if ( numInExcess > 0)
 			{
 				if( TheParticleSystemManager->removeOldestParticles((UnsignedInt) numInExcess, priority) != numInExcess )
 					return nullptr;  // could not remove enough particles, don't create new stuff
 			}
 
-			if (TheGlobalData->m_maxParticleCount == 0)
+			if (TheGlobalData->getEffectiveMaxParticleCount() == 0)
 				return nullptr;
 		}
 
@@ -2087,7 +2119,15 @@ Bool ParticleSystem::update( Int localPlayerIndex  )
 		// system actually "starts" once initial delay is over
 		/// @todo reset start time when system is stopped/started
 		if (m_delayLeft == 0)
+#if defined(GENONLINE_RUN_FAST)
+			m_startTimestamp = TheGameLogic->getFrame();
+#else
+#if defined(GENONLINE)
+			m_startTimestamp = TheGameClient->getFrameLegacy();
+#else
 			m_startTimestamp = TheGameClient->getFrame();
+#endif
+#endif
 
 		return true;
 	}
@@ -3264,6 +3304,12 @@ void FrameCost_Add(Int slot, double startMs)
 //DECLARE_PERF_TIMER(ParticleSystemManager)
 void ParticleSystemManager::update()
 {
+#if defined(GENONLINE)
+	if (!TheGameClient->HasLegacyFrameAdvanced()) {
+		return;
+	}
+#endif
+
 	//USE_PERF_TIMER(ParticleSystemManager)
 	const double updateStart = FrameCost_Now();	// Ronin @diagnostic 07/11/2026 DX9: [CPU] the particle update
 
@@ -3283,7 +3329,7 @@ void ParticleSystemManager::update()
 		}
 	}
 
-	const Bool drawSmudge = TheSmudgeManager && TheSmudgeManager->getHardwareSupport() && TheGlobalData->m_useHeatEffects;
+	const Bool drawSmudge = TheSmudgeManager && TheSmudgeManager->getHardwareSupport() && TheGlobalData->drawsHeatEffects();
 
 	if (drawSmudge)
 	{

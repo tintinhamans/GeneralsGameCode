@@ -88,6 +88,7 @@
 
 #include "GameNetwork/GameInfo.h"
 #include "GameNetwork/NetworkInterface.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 
 
 
@@ -1807,12 +1808,11 @@ void InGameUI::update()
 		{
 			m_videoStream->frameDecompress();
 			m_videoStream->frameRender( m_videoBuffer );
-			m_videoStream->frameNext();
-			if ( m_videoStream->frameIndex() == 0 )
-			{
-				stopMovie();
-			}
+			if ( !m_videoStream->isPlaybackComplete() )
+				m_videoStream->frameNext();
 		}
+		if ( m_videoStream->isPlaybackComplete() )
+			stopMovie();
 	}
 
 	if ( m_cameoVideoStream && m_cameoVideoBuffer )
@@ -1821,12 +1821,15 @@ void InGameUI::update()
 		{
 			m_cameoVideoStream->frameDecompress();
 			m_cameoVideoStream->frameRender( m_cameoVideoBuffer );
-			m_cameoVideoStream->frameNext();
+			if ( !m_cameoVideoStream->isPlaybackComplete() )
+				m_cameoVideoStream->frameNext();
 //			if ( m_cameoVideoStream->frameIndex() == 0 )
 //			{
 //				stopMovie();
 //			}
 		}
+		if ( m_cameoVideoStream->isPlaybackComplete() )
+			m_cameoVideoStream->frameGoto( 0 );
 	}
 
 	//
@@ -2057,12 +2060,16 @@ void InGameUI::update()
 		layout->runUpdate();
 	}
 
-	if (m_cameraRotatingLeft || m_cameraRotatingRight || m_cameraZoomingIn || m_cameraZoomingOut)
+	if (m_cameraRotatingLeft || m_cameraRotatingRight || m_cameraZoomingIn || m_cameraZoomingOut
+		|| m_cameraPitchingUp || m_cameraPitchingDown)
 	{
 		// TheSuperHackers @tweak The camera rotation and zoom are now decoupled from the render update.
 		const Real fpsRatio = TheFramePacer->getBaseOverUpdateFpsRatio();
-		const Real rotateAngle = TheGlobalData->m_keyboardCameraRotateSpeed * fpsRatio;
-		const Real zoomHeight = (Real)View::ZoomHeightPerSecond * fpsRatio;
+		const Real turnAngle = TheGlobalData->m_keyboardCameraRotateSpeed * fpsRatio;
+		const Real rotateAngle = turnAngle * SCROLL_MULTIPLIER * TheGlobalData->m_cameraRotateFactor;
+		const Real zoomHeight = (Real)View::ZoomHeightPerSecond * fpsRatio * SCROLL_MULTIPLIER * TheGlobalData->m_cameraZoomFactor;
+		// Slower than rotate to feel alike: shorter range, larger view change per degree.
+		const Real pitchAngle = turnAngle * 0.3f * SCROLL_MULTIPLIER * TheGlobalData->m_cameraPitchFactor;
 
 		if( m_cameraRotatingLeft && !m_cameraRotatingRight )
 		{
@@ -2080,6 +2087,15 @@ void InGameUI::update()
 		else if( m_cameraZoomingOut && !m_cameraZoomingIn )
 		{
 			TheTacticalView->userZoom( +zoomHeight );
+		}
+
+		if( m_cameraPitchingUp && !m_cameraPitchingDown )
+		{
+			TheTacticalView->userSetPitch( TheTacticalView->getPitch() + pitchAngle );
+		}
+		else if( m_cameraPitchingDown && !m_cameraPitchingUp )
+		{
+			TheTacticalView->userSetPitch( TheTacticalView->getPitch() - pitchAngle );
 		}
 	}
 
@@ -2197,6 +2213,8 @@ void InGameUI::reset()
 	setCameraRotateRight(false);
 	setCameraZoomIn(false);
 	setCameraZoomOut(false);
+	setCameraPitchUp(false);
+	setCameraPitchDown(false);
 
 	m_windowLayouts.clear();
 
@@ -2233,6 +2251,7 @@ void InGameUI::freeMessageResources()
 
 void InGameUI::freeCustomUiResources()
 {
+	GetOnlineGameHooks()->releaseNetworkOverlay();
 	TheDisplayStringManager->freeDisplayString(m_networkLatencyString);
 	m_networkLatencyString = nullptr;
 	TheDisplayStringManager->freeDisplayString(m_renderFpsString);
@@ -2328,7 +2347,12 @@ void InGameUI::message( UnicodeString format, ... )
 /** Interface for display text messages to the user */
 //-------------------------------------------------------------------------------------------------
 // srj sez: passing as const-ref screws up varargs for some reason. dunno why. just pass by value.
+#if defined(GENONLINE)
+// The chat flag only changes the message timeout in Zero Hour
+void InGameUI::messageColor( bool bIsChatMsg, const RGBColor *rgbColor, UnicodeString format, ... )
+#else
 void InGameUI::messageColor( const RGBColor *rgbColor, UnicodeString format, ... )
+#endif
 {
 	UnicodeString formattedMessage;
 
@@ -3686,6 +3710,8 @@ void InGameUI::setInputEnabled( Bool enable )
 		setCameraRotateRight( false );		// KP6
 		setCameraZoomIn( false );					// KP8
 		setCameraZoomOut( false );				// KP2
+		setCameraPitchUp( false );				// KP9
+		setCameraPitchDown( false );			// KP3
 	}
 }
 
@@ -3974,7 +4000,7 @@ void InGameUI::postDraw()
 				UnsignedInt readyFrame = TheGameLogic->getFrame();
 				if (framesLeft > 0)
 					readyFrame += framesLeft;
-				Int readySecs = (Int)(SECONDS_PER_LOGICFRAME_REAL * (readyFrame - TheGameLogic->getFrame()));
+				Int readySecs = (Int)(SECONDS_PER_LOGICFRAME_REAL * LOGICFRAMES_PER_BASEFRAME * (readyFrame - TheGameLogic->getFrame()));
 				if ( (info->isCountdown && readySecs != info->timestamp) || (!info->isCountdown && framesLeft != info->timestamp) )
 				{
 					if (!readySecs && info->isCountdown)
@@ -6196,6 +6222,9 @@ void InGameUI::drawSystemTime(Int &x, Int &y)
 
 void InGameUI::drawGameTime()
 {
+	// draw connections
+	GetOnlineGameHooks()->drawNetworkOverlay(m_gameTimeString, m_gameTimeDropColor);
+
 	Int currentFrame = TheGameLogic->getFrame();
 	Int gameSeconds = (Int) (SECONDS_PER_LOGICFRAME_REAL * currentFrame );
 	Int hours = gameSeconds / 60 / 60;

@@ -1,0 +1,23 @@
+{
+  "friends": [
+    {
+      "id": 7,
+      "name": "Ann",
+      "badges": [
+        "moderator"
+      ],
+      "online": true,
+      "activity": "in_game",
+      "channel_id": null
+    }
+  ],
+  "incoming": [],
+  "outgoing": [
+    {
+      "id": 88,
+      "name": "Cid",
+      "badges": []
+    }
+  ],
+  "blocked": []
+}

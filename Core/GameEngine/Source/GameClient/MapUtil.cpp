@@ -64,6 +64,14 @@
 #include "GameNetwork/GameInfo.h"
 #include "GameNetwork/NetworkDefs.h"
 
+#include "../GenOnlineDefines.h"
+#include "../GenOnlineInterfaces.h"
+
+#if defined(GENONLINE)
+#include "GameClient/MapCacheJson.h"
+#include "GameClient/MapPreviewIcons.h"
+#endif
+
 
 //-------------------------------------------------------------------------------
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
@@ -80,6 +88,9 @@ static Dict worldDict = 0;
 static WaypointMap *m_waypoints = nullptr;
 static Coord3DList	m_supplyPositions;
 static Coord3DList	m_techPositions;
+#if defined(GENONLINE)
+static MapTypedObjectVector m_parsedTypedObjects;	///< typed supply and tech objects of the parsed map
+#endif
 
 static Int m_mapDX = 0;
 static Int m_mapDY = 0;
@@ -108,6 +119,19 @@ static UnsignedInt calcCRC( AsciiString fname )
 
 	return theCRC.get();
 }
+
+#if defined(GENONLINE)
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Records a supply or tech object with its icon category for mapcache.json.
+static void addTypedObject(const ThingTemplate *thingTemplate, const Coord3D &loc, Bool isTech)
+{
+	MapTypedObject obj;
+	obj.m_templateName = thingTemplate->getName();
+	obj.m_category = resolveMapPreviewCategory(obj.m_templateName, thingTemplate);
+	obj.m_isTech = isTech;
+	obj.m_pos = loc;
+	m_parsedTypedObjects.push_back(obj);
+}
+#endif
 
 static Bool ParseObjectDataChunk(DataChunkInput &file, DataChunkInfo *info, void *userData)
 {
@@ -148,10 +172,16 @@ static Bool ParseObjectDataChunk(DataChunkInput &file, DataChunkInfo *info, void
 	else if (pThisOne->getThingTemplate() && pThisOne->getThingTemplate()->isKindOf(KINDOF_TECH_BUILDING))
 	{
 		m_techPositions.push_back(loc);
+#if defined(GENONLINE)
+		addTypedObject(pThisOne->getThingTemplate(), loc, TRUE);
+#endif
 	}
 	else if (pThisOne->getThingTemplate() && pThisOne->getThingTemplate()->isKindOf(KINDOF_SUPPLY_SOURCE_ON_PREVIEW))
 	{
 		m_supplyPositions.push_back(loc);
+#if defined(GENONLINE)
+		addTypedObject(pThisOne->getThingTemplate(), loc, FALSE);
+#endif
 	}
 
 	deleteInstance(pThisOne);
@@ -256,6 +286,9 @@ static void resetMap()
 
 	m_techPositions.clear();
 	m_supplyPositions.clear();
+#if defined(GENONLINE)
+	m_parsedTypedObjects.clear();
+#endif
 }
 
 static void getExtent( Region3D *extent )
@@ -315,15 +348,17 @@ void WaypointMap::update()
 
 const char *const MapCache::m_mapCacheName = "MapCache.ini";
 
-AsciiString MapCache::getMapDir() const
+AsciiString MapCache::getMapDir(bool bCustomMapDebug) const
 {
 	return "Maps";
 }
 
-AsciiString MapCache::getUserMapDir() const
+
+AsciiString MapCache::getUserMapDir(bool bCustomMapDebug) const
 {
 	AsciiString tmp = TheGlobalData->getPath_UserData();
-	tmp.concat(getMapDir());
+
+	tmp.concat(getMapDir(bCustomMapDebug));
 	return tmp;
 }
 
@@ -346,8 +381,11 @@ void MapCache::writeCacheINI( const AsciiString &mapDir )
 
 	TheFileSystem->createDirectory(mapDir);
 
-	FILE *fp = fopen(filepath.str(), "w");
-	DEBUG_ASSERTCRASH(fp != nullptr, ("Failed to create %s", filepath.str()));
+	// write to a temp file and swap it in so a failed write never leaves a truncated MapCache.ini
+	AsciiString tempFilepath = filepath;
+	tempFilepath.concat(".tmp");
+	FILE *fp = fopen(tempFilepath.str(), "w");
+	DEBUG_ASSERTCRASH(fp != nullptr, ("Failed to create %s", tempFilepath.str()));
 	if (fp == nullptr) {
 		return;
 	}
@@ -410,7 +448,22 @@ void MapCache::writeCacheINI( const AsciiString &mapDir )
 		}
 	}
 
-	fclose(fp);
+	Bool ok = fflush(fp) == 0 && !ferror(fp);
+	if (fclose(fp) != 0)
+		ok = FALSE;
+
+#ifdef _WIN32
+	if (ok && !MoveFileExA(tempFilepath.str(), filepath.str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+		ok = FALSE;
+#else
+	if (ok && rename(tempFilepath.str(), filepath.str()) != 0)
+		ok = FALSE;
+#endif
+	if (!ok)
+	{
+		DEBUG_LOG(("MapCache::writeCacheINI - failed to write '%s'", filepath.str()));
+		remove(tempFilepath.str());
+	}
 }
 
 void MapCache::updateCache()
@@ -464,6 +517,11 @@ void MapCache::updateCache()
 		loadMapsFromMapCacheINI(mapDir);
 		m_doLoadStandardMapCacheINI = FALSE;
 	}
+
+#if defined(GENONLINE)
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Restore typed objects the INI loads dropped and save new ones to mapcache.json.
+	syncMapCacheJson(*this);
+#endif
 }
 
 void MapCache::prepareUnseenMaps( const AsciiString &mapDir )
@@ -505,15 +563,25 @@ Bool MapCache::clearUnseenMaps( const AsciiString &mapDir )
 	return erasedSomething;
 }
 
-void MapCache::loadMapsFromMapCacheINI( const AsciiString &mapDir )
+Bool MapCache::loadMapsFromMapCacheINI( const AsciiString &mapDir )
 {
 	INI ini;
 	AsciiString fname = getCachePath(mapDir);
 
 	if (TheFileSystem->doesFileExist(fname.str()))
 	{
+		// a partial or unreadable cache must not abort startup, the disk scan re-caches the maps and rewrites it
+		try
+		{
 		ini.load( fname, INI_LOAD_OVERWRITE, nullptr );
 	}
+		catch (...)
+		{
+			DEBUG_LOG(("MapCache::loadMapsFromMapCacheINI - ignoring unreadable '%s'", fname.str()));
+			return FALSE;
+		}
+	}
+	return TRUE;
 }
 
 Bool MapCache::loadMapsFromDisk( const AsciiString &mapDir, Bool isOfficial, Bool filterByAllowedMaps )
@@ -600,9 +668,8 @@ Bool MapCache::addMap(
 			if (md.m_nameLookupTag.isEmpty())
 			{
 				// unofficial maps or maps without names
-				AsciiString tempdisplayname;
-				tempdisplayname = getFileName(fname.str());
-				(*this)[lowerFname].m_displayName.translate(tempdisplayname);
+				// TheSuperHackers @tweak arcticdolphin 09/11/2026 Without the .map extension.
+				(*this)[lowerFname].m_displayName = getMapNameFromPath(fname);
 				if (md.m_numPlayers >= 2)
 				{
 					UnicodeString extension;
@@ -635,7 +702,25 @@ Bool MapCache::addMap(
 
 	DEBUG_LOG(("MapCache::addMap(): caching '%s' because '%s' was not found", fname.str(), lowerFname.str()));
 
-	loadMap(fname); // Just load for querying the data, since we aren't playing this map.
+	// Just load for querying the data, since we aren't playing this map.
+	Bool loaded = FALSE;
+	try
+	{
+		loaded = loadMap(fname);
+	}
+	catch (...)
+	{
+		loaded = FALSE;
+	}
+
+	const UnsignedInt mapCRC = loaded ? calcCRC(fname) : 0;
+	if (!loaded || mapCRC == 0)
+	{
+		// never cache a map we could not read; drop a stale entry so writeCacheINI does not persist it
+		DEBUG_LOG(("MapCache::addMap(): could not read '%s', not caching it", fname.str()));
+		resetMap();
+		return erase(lowerFname) > 0;
+	}
 
 	// The map is now loaded.  Pick out what we need.
 	MapMetaData md;
@@ -650,7 +735,11 @@ Bool MapCache::addMap(
 	md.m_timestamp.m_lowTimeStamp = fileInfo.timestampLow;
 	md.m_supplyPositions = m_supplyPositions;
 	md.m_techPositions = m_techPositions;
-	md.m_CRC = calcCRC(fname);
+#if defined(GENONLINE)
+	md.m_typedObjects.m_objects = m_parsedTypedObjects;
+	md.m_typedObjects.m_isKnown = TRUE;
+#endif
+	md.m_CRC = mapCRC;
 
 	Bool exists = false;
 	AsciiString nameLookupTag = worldDict.getAsciiString(TheKey_mapName, &exists);
@@ -659,9 +748,8 @@ Bool MapCache::addMap(
 	if (!exists || nameLookupTag.isEmpty())
 	{
 		DEBUG_LOG(("Missing TheKey_mapName!"));
-		AsciiString tempdisplayname;
-		tempdisplayname = getFileName(fname.str());
-		md.m_displayName.translate(tempdisplayname);
+		// TheSuperHackers @tweak arcticdolphin 09/11/2026 Without the .map extension.
+		md.m_displayName = getMapNameFromPath(fname);
 		if (md.m_numPlayers >= 2)
 		{
 			UnicodeString extension;
@@ -722,16 +810,51 @@ MapCache *TheMapCache = nullptr;
 
 // PUBLIC FUNCTIONS //////////////////////////////////////////////////////////////////////////////
 
+// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name is the file name without folders or the .map extension.
+UnicodeString getMapNameFromPath( const AsciiString& mapPath )
+{
+	AsciiString name = getFileName(mapPath.str());
+	if (name.endsWithNoCase(".map"))
+	{
+		name.truncateBy(4);
+	}
+	UnicodeString result;
+	result.translate(name);
+	return result;
+}
+#if defined(GENONLINE)
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Parses a map for its typed objects only, for maps cached before mapcache.json had them.
+Bool loadMapTypedObjects( const AsciiString &mapPath, MapTypedObjectVector &outObjects )
+{
+	Bool loaded = FALSE;
+	try
+	{
+		loaded = loadMap(mapPath);
+	}
+	catch (...)
+	{
+		loaded = FALSE;
+	}
+
+	if (loaded)
+	{
+		outObjects = m_parsedTypedObjects;
+	}
+	resetMap();
+	return loaded;
+}
+#endif
+
 Bool WouldMapTransfer( const AsciiString& mapName )
 {
 	return mapName.startsWithNoCase(TheMapCache->getUserMapDir());
 }
 
 //-------------------------------------------------------------------------------------------------
-typedef std::set<UnicodeString, rts::less_than_nocase<UnicodeString>/**/> MapNameList;
-typedef std::map<UnicodeString, AsciiString> MapDisplayToFileNameList;
+// Maps that share a display name each keep their own row.
+typedef std::multimap<UnicodeString, AsciiString, rts::less_than_nocase<UnicodeString> > MapDisplayToFileNameList;
 
-static void buildMapListForNumPlayers(MapNameList &outMapNames, MapDisplayToFileNameList &outFileNames, Int numPlayers)
+static void buildMapListForNumPlayers(MapDisplayToFileNameList &outFileNames, Int numPlayers)
 {
 	MapCache::iterator it = TheMapCache->begin();
 
@@ -740,8 +863,7 @@ static void buildMapListForNumPlayers(MapNameList &outMapNames, MapDisplayToFile
 		const MapMetaData &mapData = it->second;
 		if (mapData.m_numPlayers == numPlayers)
 		{
-			outMapNames.insert(it->second.m_displayName);
-			outFileNames[it->second.m_displayName] = it->first;
+			outFileNames.insert(MapDisplayToFileNameList::value_type(it->second.m_displayName, it->first));
 		}
 	}
 }
@@ -867,16 +989,12 @@ static Bool addMapToMapListbox(
 static Bool addMapCollectionToMapListbox(
 	MapListBoxData& lbData,
 	const AsciiString& mapDir,
-	const MapNameList& mapNames,
 	const MapDisplayToFileNameList& fileNames)
 {
-	MapNameList::const_iterator mapNameIt = mapNames.begin();
+	MapDisplayToFileNameList::const_iterator fileNameIt = fileNames.begin();
 
-	for (; mapNameIt != mapNames.end(); ++mapNameIt)
+	for (; fileNameIt != fileNames.end(); ++fileNameIt)
 	{
-		MapDisplayToFileNameList::const_iterator fileNameIt = fileNames.find(*mapNameIt);
-		DEBUG_ASSERTCRASH(fileNameIt != fileNames.end(), ("Map '%s' not found in file names map", mapNameIt->str()));
-
 		const AsciiString& asciiMapName = fileNameIt->second;
 
 #if RTS_ZEROHOUR
@@ -889,7 +1007,7 @@ static Bool addMapCollectionToMapListbox(
 #endif
 
 		MapCache::iterator mapCacheIt = TheMapCache->find(asciiMapName);
-		DEBUG_ASSERTCRASH(mapCacheIt != TheMapCache->end(), ("Map '%s' not found in map cache.", mapNameIt->str()));
+		DEBUG_ASSERTCRASH(mapCacheIt != TheMapCache->end(), ("Map '%s' not found in map cache.", asciiMapName.str()));
 		/*
 		if (it != TheMapCache->end())
 		{
@@ -951,17 +1069,15 @@ Int populateMapListboxNoReset( GameWindow *listbox, Bool useSystemMaps, Bool isM
 	}
 	mapDir.toLower();
 
-	MapNameList mapNames;
 	MapDisplayToFileNameList fileNames;
 	Int curNumPlayersInMap = 1;
 
 	for (; curNumPlayersInMap <= MAX_SLOTS; ++curNumPlayersInMap)
 	{
-		buildMapListForNumPlayers(mapNames, fileNames, curNumPlayersInMap);
+		buildMapListForNumPlayers(fileNames, curNumPlayersInMap);
 
-		const Bool ok = addMapCollectionToMapListbox(lbData, mapDir, mapNames, fileNames);
+		const Bool ok = addMapCollectionToMapListbox(lbData, mapDir, fileNames);
 
-		mapNames.clear();
 		fileNames.clear();
 
 		if (!ok)

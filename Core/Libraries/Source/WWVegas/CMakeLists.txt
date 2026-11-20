@@ -8,7 +8,6 @@ target_link_libraries(core_wwcommon INTERFACE
     dinput8
     dxguid
     deps_dbghelp
-    deps_miles
     deps_usp10
     stlport
 )
@@ -18,7 +17,10 @@ target_include_directories(core_wwcommon INTERFACE
 )
 
 add_subdirectory(WW3D2)
+if(RTS_NEEDS_LEGACY_MEDIA)
+    target_link_libraries(core_wwcommon INTERFACE deps_miles)
 add_subdirectory(WWAudio)
+endif()
 add_subdirectory(WWDebug)
 add_subdirectory(WWDownload)
 add_subdirectory(WWLib)

@@ -279,36 +279,36 @@ void MinefieldBehavior::detonateOnce(const Coord3D& position)
 	if (m_virtualMinesRemaining > 0)
 		--m_virtualMinesRemaining;
 
+	// Calculate the desired health based on remaining virtual mines
+	Real percent = (Real)m_virtualMinesRemaining / (Real)d->m_numVirtualMines;
+	BodyModuleInterface* body = getObject()->getBodyModule();
+	Real health = body->getHealth();
+	Real desired = percent * body->getMaxHealth();
+	
+	// If we don't regenerate and have no mines left, health should go to 0 to trigger natural death
+	// Otherwise, keep a minimum health for regenerating minefields
 	if (!m_regenerates && m_virtualMinesRemaining == 0)
+		desired = 0.0f;
+	else if (desired < MIN_HEALTH)
+		desired = MIN_HEALTH;
+	
+	Real amount = health - desired;
+
+	if (amount > 0.0f)
 	{
-		TheGameLogic->destroyObject(getObject());
-	}
-	else
-	{
-		Real percent = (Real)m_virtualMinesRemaining / (Real)d->m_numVirtualMines;
-		BodyModuleInterface* body = getObject()->getBodyModule();
-		Real health = body->getHealth();
-		Real desired = percent * body->getMaxHealth();
-		if (desired < MIN_HEALTH)
-			desired = MIN_HEALTH;
-		Real amount = health - desired;
+		m_ignoreDamage = true;
 
-		if (amount > 0.0f)
-		{
-			m_ignoreDamage = true;
+		//body->internalChangeHealth(desired - health);
+		//can't use this, AutoHeal won't work unless we go thru normal damage stuff
 
-			//body->internalChangeHealth(desired - health);
-			//can't use this, AutoHeal won't work unless we go thru normal damage stuff
+		DamageInfo extraDamageInfo;
+		extraDamageInfo.in.m_damageType = DAMAGE_UNRESISTABLE;
+		extraDamageInfo.in.m_deathType = DEATH_NONE;
+		extraDamageInfo.in.m_sourceID = getObject()->getID();
+		extraDamageInfo.in.m_amount = amount;
+		getObject()->attemptDamage(&extraDamageInfo);
 
-			DamageInfo extraDamageInfo;
-			extraDamageInfo.in.m_damageType = DAMAGE_UNRESISTABLE;
-			extraDamageInfo.in.m_deathType = DEATH_NONE;
-			extraDamageInfo.in.m_sourceID = getObject()->getID();
-			extraDamageInfo.in.m_amount = amount;
-			getObject()->attemptDamage(&extraDamageInfo);
-
-			m_ignoreDamage = false;
-		}
+		m_ignoreDamage = false;
 	}
 
 	if (m_virtualMinesRemaining == 0)
@@ -570,7 +570,7 @@ void MinefieldBehavior::setScootParms(const Coord3D& start, const Coord3D& end)
 	if (start.z > endOnGround.z)
 	{
 		// figure out how long it will take to fall, and replace scoot time with that
-		UnsignedInt fallingTime = REAL_TO_INT_CEIL(WWMath::Sqrtf(2.0f * (start.z - endOnGround.z) / WWMath::Fabs(TheGlobalData->m_gravity)));
+		UnsignedInt fallingTime = ConvertBaseFramesToFrames(REAL_TO_INT_CEIL(ConvertFramesToBaseFramesReal(WWMath::Sqrtf(2.0f * (start.z - endOnGround.z) / WWMath::Fabs(TheGlobalData->m_gravity)))));
 		// we can scoot after we land, but don't want to stop scooting before we land
 		if (scootFromStartingPointTime < fallingTime)
 			scootFromStartingPointTime = fallingTime;

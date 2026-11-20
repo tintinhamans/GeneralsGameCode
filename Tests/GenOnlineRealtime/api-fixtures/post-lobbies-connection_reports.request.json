@@ -1,0 +1,21 @@
+{
+  "target_user_id": 7,
+  "outcome": "connected_relay",
+  "transport": "gns",
+  "ip_version": 4,
+  "attempt": 2,
+  "events": [
+    {
+      "state": "connecting",
+      "t_ms": 0
+    },
+    {
+      "state": "finding_route",
+      "t_ms": 2400
+    },
+    {
+      "state": "connected_relay",
+      "t_ms": 5100
+    }
+  ]
+}

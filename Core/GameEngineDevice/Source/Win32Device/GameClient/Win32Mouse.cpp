@@ -30,6 +30,8 @@
 #include <windows.h>
 
 #include "Common/Debug.h"
+#include "Common/File.h"
+#include "Common/FileSystem.h"
 #include "Common/GlobalData.h"
 #include "Common/LocalFileSystem.h"
 #include "GameClient/GameClient.h"
@@ -44,6 +46,106 @@ HCURSOR cursorResources[Mouse::NUM_MOUSE_CURSORS][MAX_2D_CURSOR_DIRECTIONS];
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Little endian 32 bit read for the cursor file parser.
+static UnsignedInt readCursorUInt32( const UnsignedByte *p )
+{
+	return (UnsignedInt)p[0] | ((UnsignedInt)p[1] << 8) | ((UnsignedInt)p[2] << 16) | ((UnsignedInt)p[3] << 24);
+}
+
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Create a cursor from the first image of a .cur file held in memory.
+static HCURSOR createCursorFromCurData( const UnsignedByte *data, UnsignedInt size )
+{
+	if (size < 22)
+		return nullptr;
+
+	const UnsignedInt type = data[2] | (data[3] << 8);
+	const UnsignedInt count = data[4] | (data[5] << 8);
+	if (count == 0)
+		return nullptr;
+
+	// a .cur entry holds the hotspot where an .ico entry holds planes and bit count
+	UnsignedInt hotX = 0;
+	UnsignedInt hotY = 0;
+	if (type == 2)
+	{
+		hotX = data[10] | (data[11] << 8);
+		hotY = data[12] | (data[13] << 8);
+	}
+
+	const UnsignedInt imageSize = readCursorUInt32(data + 14);
+	const UnsignedInt imageOffset = readCursorUInt32(data + 18);
+	if (imageOffset > size || imageSize > size - imageOffset || imageSize < 40)
+		return nullptr;
+
+	// CreateIconFromResourceEx takes a cursor image as its hotspot followed by the bitmap
+	UnsignedByte *resource = NEW UnsignedByte[imageSize + 4];
+	resource[0] = (UnsignedByte)(hotX & 0xFF);
+	resource[1] = (UnsignedByte)(hotX >> 8);
+	resource[2] = (UnsignedByte)(hotY & 0xFF);
+	resource[3] = (UnsignedByte)(hotY >> 8);
+	memcpy(resource + 4, data + imageOffset, imageSize);
+
+	HCURSOR cursor = (HCURSOR)CreateIconFromResourceEx(resource, imageSize + 4, FALSE, 0x00030000, 0, 0, LR_DEFAULTCOLOR);
+	delete[] resource;
+	return cursor;
+}
+
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Load an .ani through TheFileSystem so archived cursors work; only its first frame is used.
+static HCURSOR loadArchiveCursor( const char *path )
+{
+	if (TheFileSystem == nullptr)
+		return nullptr;
+
+	File *file = TheFileSystem->openFile(path, File::READ | File::BINARY);
+	if (file == nullptr)
+		return nullptr;
+
+	const Int fileSize = file->size();
+	char *buffer = file->readEntireAndClose();
+	if (buffer == nullptr)
+		return nullptr;
+
+	const UnsignedByte *data = (const UnsignedByte *)buffer;
+	const UnsignedInt size = fileSize > 0 ? (UnsignedInt)fileSize : 0;
+	HCURSOR cursor = nullptr;
+
+	// walk the RIFF ACON chunks to the LIST fram chunk and take its first icon chunk
+	if (size >= 12 && memcmp(data, "RIFF", 4) == 0 && memcmp(data + 8, "ACON", 4) == 0)
+	{
+		UnsignedInt pos = 12;
+		while (pos + 8 <= size)
+		{
+			const UnsignedInt chunkSize = readCursorUInt32(data + pos + 4);
+			if (chunkSize > size - pos - 8)
+				break;
+
+			if (chunkSize >= 4 && memcmp(data + pos, "LIST", 4) == 0 && memcmp(data + pos + 8, "fram", 4) == 0)
+			{
+				const UnsignedInt end = pos + 8 + chunkSize;
+				UnsignedInt sub = pos + 12;
+				while (sub + 8 <= end)
+				{
+					const UnsignedInt subSize = readCursorUInt32(data + sub + 4);
+					if (subSize > end - sub - 8)
+						break;
+
+					if (memcmp(data + sub, "icon", 4) == 0)
+					{
+						cursor = createCursorFromCurData(data + sub + 8, subSize);
+						break;
+					}
+					sub += 8 + subSize + (subSize & 1);
+				}
+				break;
+			}
+			pos += 8 + chunkSize + (chunkSize & 1);
+		}
+	}
+
+	delete[] buffer;
+	return cursor;
+}
 
 //-------------------------------------------------------------------------------------------------
 /** Get a mouse event from the buffer if available, we need to translate
@@ -398,6 +500,15 @@ void Win32Mouse::initCursorResources()
 
 				if (!loaded)
 					cursorResources[cursor][direction]=LoadCursorFromFile(resourcePath);
+
+				// TheSuperHackers @feature arcticdolphin 08/11/2026 A cursor missing on disk may ship inside an archive, such as the GO Hand.
+				if (!cursorResources[cursor][direction])
+					cursorResources[cursor][direction]=loadArchiveCursor(resourcePath);
+
+				// TheSuperHackers @feature arcticdolphin 08/11/2026 Hand shows the Normal cursor when its art is missing.
+				if (!cursorResources[cursor][direction] && cursor == HAND)
+					cursorResources[cursor][direction]=cursorResources[NORMAL][0];
+
 				DEBUG_ASSERTCRASH(cursorResources[cursor][direction], ("MissingCursor %s",resourcePath));
 			}
 		}

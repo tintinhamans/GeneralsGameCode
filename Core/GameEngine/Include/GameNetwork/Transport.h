@@ -32,8 +32,8 @@
 #include "GameNetwork/NetworkDefs.h"
 
 /**
- * The transport layer handles the UDP socket for the game, and will packetize and
- * de-packetize multiple ACK/CommandPacket/etc packets into larger aggregates.
+ * The transport interface sends and receives game packets through the shared message queues.
+ * Subclasses own the connection that carries the packets.
  */
 // we only ever allocate one of there, and it is quite large, so we really DON'T want
 // it to be a MemoryPoolObject (srj)
@@ -43,20 +43,20 @@ class Transport //: public MemoryPoolObject
 public:
 
 	Transport();
-	~Transport();
+	virtual ~Transport();
 
-	Bool init( AsciiString ip, UnsignedShort port );
-	Bool init( UnsignedInt ip, UnsignedShort port );
-	void reset();
-	Bool update();									///< Call this once a GameEngine tick, regardless of whether the frame advances.
+	virtual Bool init( AsciiString ip, UnsignedShort port ) = 0;
+	virtual Bool init( UnsignedInt ip, UnsignedShort port ) = 0;
+	virtual void reset() = 0;
+	virtual Bool update() = 0;									///< Call this once a GameEngine tick, regardless of whether the frame advances.
 
-	Bool doRecv();		///< call this to service the receive packets
-	Bool doSend();		///< call this to service the send queue.
+	virtual Bool doRecv() = 0;		///< call this to service the receive packets
+	virtual Bool doSend() = 0;		///< call this to service the send queue.
 
-	Bool queueSend(UnsignedInt addr, UnsignedShort port, const UnsignedByte *buf, Int len /*,
-		NetMessageFlags flags, Int id */);				///< Queue a packet for sending to the specified address and port.  This will be sent on the next update() call.
+	virtual Bool queueSend(UnsignedInt addr, UnsignedShort port, const UnsignedByte *buf, Int len /*,
+		NetMessageFlags flags, Int id */) = 0;				///< Queue a packet for sending to the specified address and port.  This will be sent on the next update() call.
 
-	Bool allowBroadcasts(Bool val) { if (!m_udpsock) return false; return (m_udpsock->AllowBroadcasts(val))?true:false; }
+	virtual Bool allowBroadcasts(Bool val) = 0;
 
 	// Latency insertion and packet loss
 	void setLatency( Bool val ) { m_useLatency = val; }
@@ -77,11 +77,7 @@ public:
 	DelayedTransportMessage m_delayedInBuffer[MAX_MESSAGES];
 #endif
 
-	UnsignedShort m_port;
-private:
-	Bool m_winsockInit;
-	UDP *m_udpsock;
-
+protected:
 	// Latency insertion and packet loss
 	Bool m_useLatency;
 	Bool m_usePacketLoss;

@@ -247,6 +247,11 @@ public:
 		MSG_META_TOGGLE_CONTROL_BAR,								///< show/hide controlbar
 		MSG_META_TOGGLE_PLAYER_OBSERVER,						///< TheSuperHackers @feature Toggle the player observer view in game
 
+		MSG_META_INCREASE_OBSERVER_STATS_FONT,                ///< Generals Online @feature Increase observer overlay size
+		MSG_META_DECREASE_OBSERVER_STATS_FONT,                ///< Generals Online @feature Decrease observer overlay size
+		MSG_META_INCREASE_OBSERVER_NOTIFICATION_FONT,         ///< Generals Online @feature Increase observer notification size
+		MSG_META_DECREASE_OBSERVER_NOTIFICATION_FONT,         ///< Generals Online @feature Decrease observer notification size
+
 		MSG_META_BEGIN_PATH_BUILD,									///< enter path-building mode
 		MSG_META_END_PATH_BUILD,										///< exit path-building mode
 		MSG_META_BEGIN_FORCEATTACK,									///< enter force-attack mode
@@ -273,7 +278,17 @@ public:
 		MSG_META_END_CAMERA_ZOOM_IN,
 		MSG_META_BEGIN_CAMERA_ZOOM_OUT,
 		MSG_META_END_CAMERA_ZOOM_OUT,
+		MSG_META_BEGIN_CAMERA_PITCH_UP,
+		MSG_META_END_CAMERA_PITCH_UP,
+		MSG_META_ALT_BEGIN_CAMERA_PITCH_UP,
+		MSG_META_ALT_END_CAMERA_PITCH_UP,
+		MSG_META_BEGIN_CAMERA_PITCH_DOWN,
+		MSG_META_END_CAMERA_PITCH_DOWN,
+		MSG_META_ALT_BEGIN_CAMERA_PITCH_DOWN,
+		MSG_META_ALT_END_CAMERA_PITCH_DOWN,
 		MSG_META_CAMERA_RESET,
+		MSG_META_CAMERA_PITCH_RESET,
+		MSG_META_ALT_CAMERA_PITCH_RESET,
     MSG_META_TOGGLE_CAMERA_TRACKING_DRAWABLE, // Added in Zero Hour
 		MSG_META_TOGGLE_FAST_FORWARD_REPLAY,				///< Toggle the fast forward feature, // Added in Zero Hour
 		MSG_META_TOGGLE_PAUSE,											///< TheSuperHackers @feature Toggle game pause

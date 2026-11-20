@@ -48,6 +48,9 @@
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "GameClient/GameWindowGlobal.h"
+#include "GameClient/GameWindowManager.h"
+#include "GameClient/GadgetComboBox.h"
+#include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetTextEntry.h"
 #include "GameClient/IMEManager.h"
 #include "W3DDevice/GameClient/W3DGadget.h"
@@ -148,7 +151,8 @@ static void drawTextEntryText( GameWindow *window, WinInstanceData *instData,
 		//if( e->constructList && e->constructText->getTextLength() )
 		//	e->constructList->winSetPosition( (x + textWidth1), (y + fontHeight) );
 
-		x+= 2;
+		// TheSuperHackers @tweak arcticdolphin 08/11/2026 The text margins scale with the screen height.
+		x+= GameWindowManager::winScaleLayoutSize( 2 );
 		// draw the text
 		if(textWidth < width)
 		{
@@ -179,7 +183,7 @@ static void drawTextEntryText( GameWindow *window, WinInstanceData *instData,
 		//if( e->constructList && e->constructText->getTextLength() )
 		//	e->constructList->winSetPosition( (x + textWidth1), (y + fontHeight) );
 
-		x+= 5;
+		x+= GameWindowManager::winScaleLayoutSize( 5 );
 		// draw the text
 		text->draw( x, y, textColor, textDropColor );
 		cursorPos = textWidth + x;
@@ -196,6 +200,19 @@ static void drawTextEntryText( GameWindow *window, WinInstanceData *instData,
 	parent = window->winGetParent();
 	if(parent && !BitIsSet(parent->winGetStyle(), GWS_COMBO_BOX))
 		parent = nullptr;
+
+	// The completion hint draws in grey at the caret while the box has focus and no composition is active.
+	const Bool hasFocus = window == TheWindowManager->winGetFocus() || (parent && parent == TheWindowManager->winGetFocus());
+	if( e->completionEnabled && !e->secretText && hasFocus &&
+			e->constructText->getTextLength() == 0 && e->completionHint->getTextLength() > 0 )
+	{
+		if( e->completionHint->getFont() != window->winGetFont() )
+		{
+			e->completionHint->setFont( window->winGetFont() );
+		}
+		e->completionHint->setClipRegion( &clipRegion );
+		e->completionHint->draw( cursorPos, y, GameMakeColor( 128, 128, 128, 255 ), textDropColor );
+	}
 
 	// Ronin @bugfix 24/10/2026 DX9: blink by the clock, 2003's 8 frames at 30 FPS - it counted draws, so it raced at a high frame rate.
 	if( (window == TheWindowManager->winGetFocus() || (parent && parent == TheWindowManager->winGetFocus())) && ((timeGetTime() / 267) & 0x1) )
@@ -262,8 +279,17 @@ void W3DGadgetTextEntryDraw( GameWindow *window, WinInstanceData *instData )
 
 	}
 
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 With the GO kit, a visible border draws at the kit line weight like the kit list frames.
+	Bool kitBorder = FALSE;
+	if( backBorder != WIN_COLOR_UNDEFINED && GadgetListBoxGetKitScrollLineWidth() > 0 )
+	{
+		UnsignedByte red, green, blue, alpha;
+		GameGetColorComponents( backBorder, &red, &green, &blue, &alpha );
+		kitBorder = alpha > 0;
+	}
+
 	// draw the back border
-	if( backBorder != WIN_COLOR_UNDEFINED )
+	if( backBorder != WIN_COLOR_UNDEFINED && kitBorder == FALSE )
 	{
 
 		start.x = origin.x;
@@ -288,17 +314,19 @@ void W3DGadgetTextEntryDraw( GameWindow *window, WinInstanceData *instData )
 
 	}
 
+	if( kitBorder )
+		GadgetListBoxDrawKitLines( origin.x, origin.y, size.x, size.y, TRUE, TRUE, TRUE, TRUE );
+
 	// draw the text
 	Int fontHeight = TheWindowManager->winFontHeight( instData->getFont() );
-	Int startOffset = 5;
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
+	Int startOffset = GameWindowManager::winScaleLayoutSize( 5 );
 	Int width;
 
 	width = size.x - (2 * startOffset);
 	start.x = origin.x + startOffset;  // offset a little bit into the entry
-	if( BitIsSet( window->winGetStatus(), WIN_STATUS_ONE_LINE ) )
-		start.y = size.y / 2 - fontHeight / 2;
-	else
-		start.y = origin.y + startOffset;  // offset a little bit into the entry
+	// TheSuperHackers @bugfix arcticdolphin 23/10/2026 The text is centered vertically in the entry.
+	start.y = origin.y + (size.y - fontHeight) / 2;
 
 	// draw the edit text
 	drawTextEntryText( window, instData, textColor, textBorder, compositeColor, compositeBorder,
@@ -314,12 +342,11 @@ void W3DGadgetTextEntryDraw( GameWindow *window, WinInstanceData *instData )
 void W3DGadgetTextEntryImageDraw( GameWindow *window, WinInstanceData *instData )
 {
 	EntryData *e = (EntryData *)window->winGetUserData();
-	ICoord2D origin, size, start, end;
+	ICoord2D origin, size, start;
 	Color textColor, textBorder;
 	Color compositeColor, compositeBorder;
 	const Image *leftImage, *rightImage, *centerImage, *smallCenterImage;
 	Int xOffset, yOffset;
-	Int i;
 
 	// cancel unichar flag
 	e->receivedUnichar = FALSE;
@@ -331,6 +358,10 @@ void W3DGadgetTextEntryImageDraw( GameWindow *window, WinInstanceData *instData 
 	// get image offset
 	xOffset = instData->m_imageOffset.x;
 	yOffset = instData->m_imageOffset.y;
+
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The edit box of a kit combo lights with its whole field and draws no line before the arrow.
+	GameWindow *combo = window->winGetParent();
+	const Bool kitField = GadgetComboBoxIsKitField( combo ) && GadgetComboBoxGetEditBox( combo ) == window;
 
 	// get the right colors
 	if( BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) == FALSE )
@@ -346,7 +377,7 @@ void W3DGadgetTextEntryImageDraw( GameWindow *window, WinInstanceData *instData 
 		smallCenterImage	= GadgetTextEntryGetDisabledImageSmallCenter( window );
 
 	}
-	else if( BitIsSet( instData->getState(), WIN_STATE_HILITED ) )
+	else if( BitIsSet( instData->getState(), WIN_STATE_HILITED ) || (kitField && GadgetComboBoxIsKitFieldLit( combo )) )
 	{
 
 		textColor					= window->winGetHiliteTextColor();
@@ -357,6 +388,13 @@ void W3DGadgetTextEntryImageDraw( GameWindow *window, WinInstanceData *instData 
 		rightImage				= GadgetTextEntryGetHiliteImageRight( window );
 		centerImage				= GadgetTextEntryGetHiliteImageCenter( window );
 		smallCenterImage	= GadgetTextEntryGetHiliteImageSmallCenter( window );
+
+		// TheSuperHackers @tweak arcticdolphin 08/11/2026 A lit kit combo field keeps its enabled text colours, only its outline lights.
+		if( kitField )
+		{
+			textColor				= window->winGetEnabledTextColor();
+			textBorder			= window->winGetEnabledTextBorderColor();
+		}
 
 	}
 	else
@@ -373,86 +411,23 @@ void W3DGadgetTextEntryImageDraw( GameWindow *window, WinInstanceData *instData 
 
 	}
 
-	// get image sizes for the ends
-	ICoord2D leftSize, rightSize;
-	leftSize.x = leftImage->getImageWidth();
-	leftSize.y = leftImage->getImageHeight();
-	rightSize.x = rightImage->getImageWidth();
-	rightSize.y = rightImage->getImageHeight();
+	// the arrow square closes the field on the right, so the edit box ends in a middle piece
+	if( kitField )
+		rightImage = smallCenterImage != nullptr ? smallCenterImage : centerImage;
 
-	// get two key points used in the end drawing
-	ICoord2D leftEnd, rightStart;
-	leftEnd.x = origin.x + leftSize.x + xOffset;
-	leftEnd.y = origin.y + size.y + yOffset;
-	rightStart.x = origin.x + size.x - rightSize.x + xOffset;
-	rightStart.y = origin.y + yOffset;
-
-	// draw the center repeating bar
-	Int centerWidth, pieces;
-
-	// get width we have to draw our repeating center in
-	centerWidth = rightStart.x - leftEnd.x;
-
-	// how many whole repeating pieces will fit in that width
-	pieces = centerWidth / centerImage->getImageWidth();
-
-	// draw the pieces
-	start.x = leftEnd.x;
-	start.y = origin.y + yOffset;
-	end.y = start.y + size.y;
-	for( i = 0; i < pieces; i++ )
-	{
-
-		end.x = start.x + centerImage->getImageWidth();
-		TheWindowManager->winDrawImage( centerImage,
-																		start.x, start.y,
-																		end.x, end.y );
-		start.x += centerImage->getImageWidth();
-
-	}
-
-	//
-	// how many small repeating pieces will fit in the gap from where the
-	// center repeating bar stopped and the right image, draw them
-	// and overlapping underneath where the right end will go
-	//
-	centerWidth = rightStart.x - start.x;
-	pieces = centerWidth / smallCenterImage->getImageWidth() + 1;
-	end.y = start.y + size.y;
-	for( i = 0; i < pieces; i++ )
-	{
-
-		end.x = start.x + smallCenterImage->getImageWidth();
-		TheWindowManager->winDrawImage( smallCenterImage,
-																		start.x, start.y,
-																		end.x, end.y );
-		start.x += smallCenterImage->getImageWidth();
-
-	}
-
-	// draw left end
-	start.x = origin.x + xOffset;
-	start.y = origin.y + yOffset;
-	end = leftEnd;
-	TheWindowManager->winDrawImage(leftImage, start.x, start.y, end.x, end.y);
-
-	// draw right end
-	start = rightStart;
-	end.x = start.x + rightSize.x;
-	end.y = start.y + size.y;
-	TheWindowManager->winDrawImage(rightImage, start.x, start.y, end.x, end.y);
+	TheWindowManager->winDrawThreePieceImage( leftImage, centerImage, smallCenterImage, rightImage,
+																						 origin.x + xOffset, origin.y + yOffset, size.x, size.y );
 
 	// draw the text
 	Int fontHeight = TheWindowManager->winFontHeight( instData->getFont() );
-	Int startOffset = 5;
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
+	Int startOffset = GameWindowManager::winScaleLayoutSize( 5 );
 	Int width;
 
 	width = size.x - (2 * startOffset);
 	start.x = origin.x + startOffset;  // offset a little bit into the entry
-		if( BitIsSet( window->winGetStatus(), WIN_STATUS_ONE_LINE ) )
-		start.y = size.y / 2 - fontHeight / 2;
-	else
-		start.y = origin.y + startOffset;  // offset a little bit into the entry
+	// TheSuperHackers @bugfix arcticdolphin 23/10/2026 The text is centered vertically in the entry.
+	start.y = origin.y + (size.y - fontHeight) / 2;
 
 	// draw the edit text
 	drawTextEntryText( window, instData, textColor, textBorder, compositeColor, compositeBorder,

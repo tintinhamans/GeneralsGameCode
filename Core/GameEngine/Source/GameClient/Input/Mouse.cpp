@@ -33,6 +33,7 @@
 #include "Common/MessageStream.h"
 #include "Common/GameEngine.h"
 #include "Common/GlobalData.h"
+#include "Common/GOUIColors.h"
 #include "Common/INI.h"
 #include "Common/OptionPreferences.h"
 
@@ -45,6 +46,7 @@
 #include "GameClient/Keyboard.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/GlobalLanguage.h"
+#include "GameClient/Shell.h"
 
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/ScriptEngine.h"
@@ -65,6 +67,7 @@ const char *const Mouse::CursorCaptureBlockReasonNames[] = {
 	"CursorCaptureBlockReason_Paused",
 	"CursorCaptureBlockReason_Unfocused",
 	"CursorCaptureBlockReason_CursorIsOutside",
+	"CursorCaptureBlockReason_MovingWindow",
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -567,12 +570,36 @@ Mouse::~Mouse()
 
 }
 
+// TheSuperHackers @feature arcticdolphin 09/11/2026 In the shell menus a tooltip colour the GO UI colour table sets replaces the Mouse INI one.
+static Color shellTooltipColor( GOUIColorRole role, Color iniColor )
+{
+	Color value;
+	if( TheShell == nullptr || TheShell->isShellActive() == FALSE || GOUIColorFind( role, &value ) == FALSE )
+		return iniColor;
+
+	return value;
+}
+
 /**Had to move this out of main init() because I need this data to properly initialize
 the Win32 version of the mouse (by preloading resources before D3D device is created).*/
 void Mouse::parseIni()
 {
 	INI ini;
 	ini.loadFileDirectory( "Data\\INI\\Mouse", INI_LOAD_OVERWRITE, nullptr );
+
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Hand shows the Normal cursor when no INI defines it, and Normal's model in W3D mode.
+	CursorInfo *hand = &m_cursorInfo[ HAND ];
+	if( hand->cursorName.isEmpty() )
+	{
+		*hand = m_cursorInfo[ NORMAL ];
+	}
+	else if( hand->W3DModelName.isEmpty() )
+	{
+		hand->W3DModelName = m_cursorInfo[ NORMAL ].W3DModelName;
+		hand->W3DAnimName = m_cursorInfo[ NORMAL ].W3DAnimName;
+		hand->W3DScale = m_cursorInfo[ NORMAL ].W3DScale;
+		hand->loop = m_cursorInfo[ NORMAL ].loop;
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -684,6 +711,17 @@ void Mouse::update()
 	// update the mouse data
 	updateMouseData();
 
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Release all buttons without an event, so no click or drag is created for a release the OS ate */
+//-------------------------------------------------------------------------------------------------
+void Mouse::resetButtons()
+{
+	m_currMouse.leftState = m_currMouse.middleState = m_currMouse.rightState = MBS_Up;
+	m_currMouse.leftEvent = m_currMouse.middleEvent = m_currMouse.rightEvent = MOUSE_EVENT_NONE;
+	m_prevMouse.leftState = m_prevMouse.middleState = m_prevMouse.rightState = MBS_Up;
+	m_prevMouse.leftEvent = m_prevMouse.middleEvent = m_prevMouse.rightEvent = MOUSE_EVENT_NONE;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1039,6 +1077,19 @@ void Mouse::regainFocus()
 }
 
 // ------------------------------------------------------------------------------------------------
+void Mouse::onWindowMoveSizeBegin()
+{
+	// TheSuperHackers @bugfix arcticdolphin 23/10/2026 Do not capture the cursor while the window is dragged because the clip drags the window along.
+	blockCapture(CursorCaptureBlockReason_MovingWindow);
+}
+
+// ------------------------------------------------------------------------------------------------
+void Mouse::onWindowMoveSizeEnd()
+{
+	unblockCapture(CursorCaptureBlockReason_MovingWindow);
+}
+
+// ------------------------------------------------------------------------------------------------
 void Mouse::onCursorMovedOutside()
 {
 	blockCapture(CursorCaptureBlockReadon_CursorIsOutside);
@@ -1175,44 +1226,53 @@ void Mouse::drawTooltip()
 		Int width, xPos;
 		Int height, yPos;
 		m_tooltipDisplayString->getSize(&width,&height);
+		// TheSuperHackers @tweak arcticdolphin 08/11/2026 Keep the text clear of the box edges, scaled with the display height
+		const Int padX = max(2, (Int)REAL_TO_INT_CEIL(3.0f * TheDisplay->getHeight() / 600.0f));
+		const Int padY = max(1, (Int)REAL_TO_INT_CEIL(2.0f * TheDisplay->getHeight() / 600.0f));
 		xPos = m_currMouse.pos.x + 20;
 		yPos = m_currMouse.pos.y;// + 20;
 
-		if( xPos + width + 4 > m_maxX ) // +4 for spill
+		if( xPos + width + 2 * padX + 2 > m_maxX ) // +2 for spill
 		{
 			//xPos = m_maxX - width;
-			xPos -= 20 + width;
+			xPos -= 20 + width + 2 * padX;
 		}
-		if( yPos + height + 4 > m_maxY ) // +4 for spill
+		if( yPos + height + 2 * padY + 2 > m_maxY ) // +2 for spill
 		{
 			//yPos = m_maxY - height;
-			yPos -= /*40 +*/ height;
+			yPos -= /*40 +*/ height + 2 * padY;
 		}
 
 		Int boxWidth = (m_tooltipAnimateBackground)?(min(width, m_highlightPos)):width;
 
 #define GMC(x) GameMakeColor(x.red, x.green, x.blue, x.alpha)
 #define COLOR(x) GMC(m_tooltipColor##x)
-		TheDisplay->drawFillRect(xPos, yPos, boxWidth + 2,height + 2, GMC(m_tooltipBackColor));//GameMakeColor(0,0,0,125));
-		TheDisplay->drawOpenRect(xPos, yPos, boxWidth + 2,height + 2, 1.0, COLOR(Border));//GameMakeColor(20,20,20,255));
+		const Color backColor = shellTooltipColor( GOUICOLOR_TOOLTIP_FILL, GMC(m_tooltipBackColor) );
+		const Color borderColor = shellTooltipColor( GOUICOLOR_TOOLTIP_BORDER, COLOR(Border) );
+		const Color textColor = shellTooltipColor( GOUICOLOR_TOOLTIP_TEXT, GMC(m_tooltipTextColor) );
+		const Color highlightColor = shellTooltipColor( GOUICOLOR_TOOLTIP_SWEEP, COLOR(Highlight) );
+		TheDisplay->drawFillRect(xPos, yPos, boxWidth + 2 * padX, height + 2 * padY, backColor);//GameMakeColor(0,0,0,125));
+		TheDisplay->drawOpenRect(xPos, yPos, boxWidth + 2 * padX, height + 2 * padY, 1.0, borderColor);//GameMakeColor(20,20,20,255));
 
 		// build clip rect
+		const Int textX = xPos + padX;
+		const Int textY = yPos + padY;
 		IRegion2D clipRegion;
-		clipRegion.lo.x = xPos+2;
-		clipRegion.lo.y = yPos+1;
-		clipRegion.hi.x = xPos+2+m_highlightPos;
-		clipRegion.hi.y = yPos+1+height;
+		clipRegion.lo.x = textX;
+		clipRegion.lo.y = textY;
+		clipRegion.hi.x = textX+m_highlightPos;
+		clipRegion.hi.y = textY+height;
 		m_tooltipDisplayString->setClipRegion(&clipRegion);
-		m_tooltipDisplayString->draw(xPos +2, yPos +1, GMC(m_tooltipTextColor), COLOR(Shadow));//GameMakeColor(220,220,220,255),GameMakeColor(20,20,20,125));
+		m_tooltipDisplayString->draw(textX, textY, textColor, COLOR(Shadow));//GameMakeColor(220,220,220,255),GameMakeColor(20,20,20,125));
 
 		// highlight section
 		const Int HIGHLIGHT_WIDTH = 15;
-		clipRegion.lo.x = xPos+2+m_highlightPos-HIGHLIGHT_WIDTH;
-		clipRegion.lo.y = yPos+1;
-		clipRegion.hi.x = xPos+2+m_highlightPos;
-		clipRegion.hi.y = yPos+1+height;
+		clipRegion.lo.x = textX+m_highlightPos-HIGHLIGHT_WIDTH;
+		clipRegion.lo.y = textY;
+		clipRegion.hi.x = textX+m_highlightPos;
+		clipRegion.hi.y = textY+height;
 		m_tooltipDisplayString->setClipRegion(&clipRegion);
-		m_tooltipDisplayString->draw(xPos +2, yPos +1, COLOR(Highlight), COLOR(Shadow));//GameMakeColor(255,255,0,255),GameMakeColor(20,20,20,125));
+		m_tooltipDisplayString->draw(textX, textY, highlightColor, COLOR(Shadow));//GameMakeColor(255,255,0,255),GameMakeColor(20,20,20,125));
 
 		// get ready for the next part of the anim
 		if (m_highlightPos < width + HIGHLIGHT_WIDTH)
@@ -1322,6 +1382,7 @@ Int Mouse::getCursorIndex(const AsciiString& name)
 		"PlaceChargeInvalid",
 		"Hack",
 		"ParticleUplinkCannon",
+		"Hand",
 
 	};
 	static_assert(ARRAY_SIZE(CursorININames) == NUM_MOUSE_CURSORS, "Incorrect array size");

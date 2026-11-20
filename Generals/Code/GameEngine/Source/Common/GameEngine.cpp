@@ -87,6 +87,7 @@
 #include "GameLogic/SidesList.h"
 
 #include "GameClient/ClientInstance.h"
+#include "GameClient/Display.h"
 #include "GameClient/FXList.h"
 #include "GameClient/GameClient.h"
 #include "GameClient/Keyboard.h"
@@ -105,6 +106,11 @@
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/GameSpy/GameResultsThread.h"
+#include "GameNetwork/Online/OnlineProviderFactory.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInit.h"
+#endif
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "Common/Player.h"
@@ -288,14 +294,15 @@ GameEngine::~GameEngine()
 	delete TheFileSystem;
 	TheFileSystem = nullptr;
 
+	GetOnlineGameHooks()->onEngineShutdown();
 	Drawable::killStaticImages();
 
 #ifdef PERF_TIMERS
 	PerfGather::termPerfDump();
 #endif
+	GetOnlineGameHooks()->onEngineExit();
 }
 
-//-------------------------------------------------------------------------------------------------
 Bool GameEngine::isTimeFrozen()
 {
 	// TheSuperHackers @fix The time can no longer be frozen in Network games. It would disconnect the player.
@@ -379,11 +386,23 @@ void GameEngine::init()
 		xferCRC.open("lightCRC");
 
 		initSubsystem(TheLocalFileSystem, "TheLocalFileSystem", createLocalFileSystem(), nullptr);
+
+		GetOnlineGameHooks()->loadSettings();
+
 		initSubsystem(TheArchiveFileSystem, "TheArchiveFileSystem", createArchiveFileSystem(), nullptr); // this MUST come after TheLocalFileSystem creation
 
 		DEBUG_ASSERTCRASH(TheWritableGlobalData,("TheWritableGlobalData expected to be created"));
 		initSubsystem(TheWritableGlobalData, "TheWritableGlobalData", TheWritableGlobalData, &xferCRC, "Data\\INI\\Default\\GameData", "Data\\INI\\GameData");
 		TheWritableGlobalData->parseCustomDefinition();
+
+#if defined(GENONLINE)
+		// The user data folder is final once both GameData files are parsed, Generals takes its leaf name from the second one.
+		// The settings that were in Options.ini move to client.json here and the global data takes their values again.
+		GenOnlineServicesManager::Settings.MoveOptionsIniSettings();
+		TheWritableGlobalData->applyGenOnlineClientSettings();
+#endif
+
+		GetOnlineGameHooks()->onGlobalDataLoaded();
 
 
 
@@ -467,6 +486,8 @@ void GameEngine::init()
 
 		initSubsystem(TheUpgradeCenter,"TheUpgradeCenter", MSGNEW("GameEngineSubsystem") UpgradeCenter, &xferCRC, "Data\\INI\\Default\\Upgrade", "Data\\INI\\Upgrade");
 		initSubsystem(TheGameClient,"TheGameClient", createGameClient(), nullptr);
+
+		GetOnlineGameHooks()->onDisplayCreated();
 		initSubsystem(TheAI,"TheAI", MSGNEW("GameEngineSubsystem") AI(), &xferCRC,  "Data\\INI\\Default\\AIData", "Data\\INI\\AIData");
 		initSubsystem(TheGameLogic,"TheGameLogic", createGameLogic(), nullptr);
 		initSubsystem(TheTeamFactory,"TheTeamFactory", MSGNEW("GameEngineSubsystem") TeamFactory(), nullptr);
@@ -495,8 +516,16 @@ void GameEngine::init()
 		initSubsystem(TheGameStateMap,"TheGameStateMap", MSGNEW("GameEngineSubsystem") GameStateMap, nullptr );
 		initSubsystem(TheGameState,"TheGameState", MSGNEW("GameEngineSubsystem") GameState, nullptr );
 
-		// Create the interface for sending game results
-		initSubsystem(TheGameResultsQueue,"TheGameResultsQueue", GameResultsInterface::createNewGameResultsInterface(), nullptr);
+		// Create the interface for sending game results through the provider selected
+		// before Online entry. The subsystem list owns this one instance for the
+		// complete engine lifetime; Online setup/teardown never replaces it.
+		OnlineProviderFactory *resultsFactory = nullptr;
+		IOnlineResults *results = CreateOnlineResults(&resultsFactory);
+		if (results == nullptr)
+			RELEASE_CRASH(("Unable to create the selected online results provider."));
+		initSubsystem(TheGameResultsQueue,"TheGameResultsQueue", results, nullptr);
+		if (!BindOnlineResultsProvider(resultsFactory))
+			RELEASE_CRASH(("Unable to bind the selected online results provider."));
 
 		xferCRC.close();
 		TheWritableGlobalData->m_iniCRC = xferCRC.getCRC();
@@ -598,6 +627,8 @@ void GameEngine::init()
 	resetSubsystems();
 
 	HideControlBar();
+
+	GetOnlineGameHooks()->onEngineInitialized();
 }
 
 /** -----------------------------------------------------------------------------------------------
@@ -721,12 +752,16 @@ DECLARE_PERF_TIMER(GameEngine_update)
 
 /** -----------------------------------------------------------------------------------------------
  * Update the game engine by updating the GameClient and GameLogic singletons.
+ * @todo Allow the client to run as fast as possible, but limit the execution
+ * of TheNetwork and TheGameLogic to a fixed framerate.
  */
 void GameEngine::update()
 {
 	USE_PERF_TIMER(GameEngine_update)
 	{
+
 		{
+
 			// VERIFY CRC needs to be in this code block.  Please to not pull TheGameLogic->update() inside this block.
 			VERIFY_CRC
 
@@ -742,7 +777,17 @@ void GameEngine::update()
 			{
 				TheNetwork->UPDATE();
 			}
+
+			GetOnlineGameHooks()->onEngineUpdate();
 		}
+
+#if defined(GENONLINE)
+		if (TheNetwork != nullptr && TheNetwork->isGameExitPending()) {
+			// Teardown can delete Network and must not run another gameplay update.
+			TheGameLogic->processPendingGameExit();
+			return;
+		}
+#endif
 
 		// TheSuperHackers @info Ignores frozen time because the script engine needs updating in the logic update regardless.
 		if (canUpdateGameLogic(FramePacer::IgnoreFrozenTime))

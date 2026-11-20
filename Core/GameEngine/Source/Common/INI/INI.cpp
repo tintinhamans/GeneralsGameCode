@@ -59,7 +59,7 @@
 #include "GameLogic/ScriptEngine.h"
 #include "GameLogic/Weapon.h"
 
-#if __cplusplus >= 201611L
+#if __cplusplus >= 201611L && !defined(GENONLINE_DISABLE_STD_FROM_CHARS_PARSING)
 #define USE_STD_FROM_CHARS_PARSING 1
 #else
 #define USE_STD_FROM_CHARS_PARSING 0
@@ -306,6 +306,12 @@ void INI::prepFile( AsciiString filename, INILoadType loadType )
 	m_readBufferNext = 0;
 	m_readBufferUsed = file->size();
 	m_readBuffer = file->readEntireAndClose();
+	if (m_readBuffer == nullptr)
+	{
+		m_readBufferUsed = 0;
+		DEBUG_CRASH(( "INI::load, cannot read file '%s'", filename.str() ));
+		throw INI_CANT_OPEN_FILE;
+	}
 
 	// save our filename
 	m_filename = filename;
@@ -1816,7 +1822,7 @@ void INI::parseDurationReal( INI *ini, void * /*instance*/, void *store, const v
 void INI::parseDurationUnsignedInt( INI *ini, void * /*instance*/, void *store, const void* /*userData*/ )
 {
 	UnsignedInt val = scanUnsignedInt(ini->getNextToken());
-	*(UnsignedInt *)store = (UnsignedInt)WWMath::Ceilf(ConvertDurationFromMsecsToFrames((Real)val));
+	*(UnsignedInt *)store = (UnsignedInt)ConvertDurationFromMsecsToFramesRoundedUp((Real)val);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1824,7 +1830,7 @@ void INI::parseDurationUnsignedInt( INI *ini, void * /*instance*/, void *store, 
 void INI::parseDurationUnsignedShort( INI *ini, void * /*instance*/, void *store, const void* /*userData*/ )
 {
 	UnsignedInt val = scanUnsignedInt(ini->getNextToken());
-	*(UnsignedShort *)store = (UnsignedShort)WWMath::Ceilf(ConvertDurationFromMsecsToFrames((Real)val));
+	*(UnsignedShort *)store = (UnsignedShort)ConvertDurationFromMsecsToFramesRoundedUp((Real)val);
 }
 
 //-------------------------------------------------------------------------------------------------

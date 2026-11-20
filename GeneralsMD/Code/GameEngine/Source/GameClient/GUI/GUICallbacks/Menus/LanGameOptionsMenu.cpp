@@ -61,6 +61,7 @@
 #include "GameNetwork/GUIUtil.h"
 #include "GameClient/GUI/GUICallbacks/Menus/LanLobbyData.h"
 #include "GameClient/GUI/GUICallbacks/Menus/LanGameSetupActions.h"
+#include "Common/StatsExporterLobby.h"
 
 
 extern char *LANnextScreen;
@@ -176,14 +177,14 @@ static void playerTooltip(GameWindow *window,
 	if (!myGame)
 		return;
 
-	LANGameSlot *slot = myGame->getLANSlot(i);
+	LANGameSlot *slot = myGame->getLANSlot(idx);
 	if (!slot)
 		return;
 
 	LANPlayer *player = slot->getUser();
 	if (!player)
 	{
-		DEBUG_ASSERTCRASH(myGame->getIP(i) == 0, ("No player info in listbox!"));
+		DEBUG_ASSERTCRASH(myGame->getIP(idx) == 0, ("No player info in listbox!"));
 		TheMouse->setCursorTooltip( UnicodeString::TheEmptyString );
 		return;
 	}
@@ -451,8 +452,22 @@ void DeinitLanGameGadgets()
 //-------------------------------------------------------------------------------------------------
 /** Initialize the Lan Game Options Menu */
 //-------------------------------------------------------------------------------------------------
+static Bool s_lanGameOptionsMenuOpen = FALSE;
+
+// Handles a line as the LAN game setup's typed-line path does (it has no commands: a trimmed, non-empty line is sent).
+Bool LanGameOptionsMenuSubmitChatLine( UnicodeString text )
+{
+	text.trim();
+	if (!s_lanGameOptionsMenuOpen || TheLAN == nullptr || text.isEmpty())
+		return FALSE;
+
+	TheLAN->RequestChat(text, LANAPIInterface::LANCHAT_NORMAL);
+	return TRUE;
+}
+
 void LanGameOptionsMenuInit( WindowLayout *layout, void *userData )
 {
+	s_lanGameOptionsMenuOpen = TRUE;
 	if (TheLAN->GetMyGame() && TheLAN->GetMyGame()->isGameInProgress())
 	{
 		// If we init while the game is in progress, we are really returning to the menu
@@ -581,7 +596,8 @@ void updateGameOptions()
 		}
 		else
 		{
-			mapDisplayName.format(L"%hs", getFileName(TheLAN->GetMyGame()->getMap().str()));
+			// TheSuperHackers @tweak arcticdolphin 09/11/2026 The map name without the .map extension.
+			mapDisplayName = getMapNameFromPath(TheLAN->GetMyGame()->getMap());
 		}
 		UnicodeString old = GadgetStaticTextGetText(textEntryMapDisplay);
 		if(old.compare(mapDisplayName) != 0)
@@ -650,6 +666,7 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void LanGameOptionsMenuShutdown( WindowLayout *layout, void *userData )
 {
+	s_lanGameOptionsMenuOpen = FALSE;
 	TheMouse->setCursor(Mouse::ARROW);
 	TheMouse->setMouseText(UnicodeString::TheEmptyString,nullptr,nullptr);
 	EnableSlotListUpdates(FALSE);
@@ -998,4 +1015,38 @@ void PostToLanGameOptions( PostToLanGameType post )
 		default:
 			return;
 	}
+}
+
+// Stats pipe lobby control: the start position buttons' own handler.
+static void statsMoveStartPosition(Int slot, Int position)
+{
+	handleStartPositionSelection(slot, position);
+}
+
+Bool LanGameOptionsMenuStatsLobby( StatsLobbyScreen& out )
+{
+	if (!parentLanGameOptions || !TheLAN || !TheLAN->GetMyGame() || !buttonStart)
+		return FALSE;
+
+	out.game = TheLAN->GetMyGame();
+	out.isHost = TheLAN->AmIHost();
+	out.localSlot = out.game->getLocalSlotNum();
+	if (LANbuttonPushed)
+		out.blocked = "the screen is leaving or starting the game";
+	else if (mapSelectLayout)
+		out.blocked = "the map selector is open";
+	else if (!AreSlotListUpdatesEnabled() || s_isIniting)
+		out.blocked = "the screen is still opening";
+	out.comboPlayer = comboBoxPlayer;
+	out.comboColor = comboBoxColor;
+	out.comboTemplate = comboBoxPlayerTemplate;
+	out.comboTeam = comboBoxTeam;
+	out.buttonStartPosition = buttonMapStartPosition;
+	out.comboStartingCash = comboBoxStartingCash;
+	out.checkLimitSuperweapons = checkboxLimitSuperweapons;
+	out.buttonSelectMap = buttonSelectMap;
+	out.buttonStart = buttonStart;
+	out.moveStartPosition = statsMoveStartPosition;
+	out.applyMap = LanMapSelectMenuApplyMap;
+	return TRUE;
 }

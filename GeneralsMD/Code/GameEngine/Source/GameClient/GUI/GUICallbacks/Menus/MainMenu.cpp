@@ -64,6 +64,7 @@
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameClient/GameWindowTransitions.h"
 #include "GameClient/ChallengeGenerals.h"
+#include "GameClient/GUICallbacks.h"
 
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/PeerThread.h"
@@ -71,6 +72,7 @@
 
 #include "GameNetwork/DownloadManager.h"
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 
 #include "GameClient/InGameUI.h"
 
@@ -214,6 +216,8 @@ extern Bool dispChanged;
 void diffReverseSide();
 void HandleCanceledDownload( Bool resetDropDown )
 {
+	GetOnlineGameHooks()->onDownloadCanceled();
+
 	buttonPushed = FALSE;
 	if (resetDropDown && dropDownWindows[DROPDOWN_MAIN])	// Ronin @bugfix 29/10/2026 DX9: none while the RmlUi main menu is up (ModernUI)
 	{
@@ -259,7 +263,7 @@ static void quitCallback()
 
 	}
 	if (TheGameLogic->isInGame())
-		TheGameLogic->exitGame();
+		TheMessageStream->appendMessage( GameMessage::MSG_CLEAR_GAME_DATA );
 }
 
 
@@ -411,6 +415,30 @@ static void initLabelVersion()
 {
 	NameKeyType versionID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:LabelVersion" );
 	GameWindow *labelVersion = TheWindowManager->winGetWindowFromId( nullptr, versionID );
+#if defined(GENONLINE)
+	// Generals Online: the shell puts the version label on the ruler, which the main menu hides, so here it moves to the main menu itself
+	if (labelVersion == nullptr && parentMainMenu != nullptr)
+	{
+		labelVersion = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( "MainMenuVersion.wnd:LabelVersion" ) );
+		if (labelVersion == nullptr)
+		{
+			labelVersion = TheWindowManager->winCreateFromScript( AsciiString("Menus/MainMenuVersion.wnd") );
+		}
+		if (labelVersion != nullptr && labelVersion->winGetParent() != parentMainMenu)
+		{
+			ICoord2D labelPos;
+			ICoord2D parentPos;
+			labelVersion->winGetScreenPosition( &labelPos.x, &labelPos.y );
+			parentMainMenu->winGetScreenPosition( &parentPos.x, &parentPos.y );
+			labelVersion->winSetParent( parentMainMenu );
+			labelVersion->winSetPosition( labelPos.x - parentPos.x, labelPos.y - parentPos.y );
+		}
+		if (labelVersion != nullptr)
+		{
+			labelVersion->winHide( FALSE );
+		}
+	}
+#endif
 
 	if (labelVersion)
 	{
@@ -648,7 +676,7 @@ void MainMenuShutdown( WindowLayout *layout, void *userData )
 	if (!startGame)
 		isShuttingDown = TRUE;
 
-	CancelPatchCheckCallback();
+	GetOnlineGameHooks()->cancelPatchCheck();
 
 	// if we are shutting down for an immediate pop, skip the animations
 	Bool popImmediate = *(Bool *)userData;
@@ -779,6 +807,17 @@ void ResolutionDialogUpdate()
 }
 */
 
+// TheSuperHackers @tweak arcticdolphin 09/11/2026 Show the main menu and the mouse the first time, the way the first mouse move does.
+static void showInitialMainMenu()
+{
+	initialGadgetDelay = 1;
+	dropDownWindows[DROPDOWN_MAIN]->winHide(FALSE);
+	TheTransitionHandler->setGroup("MainMenuFade", TRUE);
+	TheTransitionHandler->setGroup("MainMenuDefaultMenu");
+	TheMouse->setVisibility(TRUE);
+	notShown = FALSE;
+}
+
 //-------------------------------------------------------------------------------------------------
 /** Main menu update method */
 //-------------------------------------------------------------------------------------------------
@@ -795,7 +834,7 @@ void MainMenuUpdate( WindowLayout *layout, void *userData )
 	if (TheDownloadManager && !TheDownloadManager->isDone())
 	{
 		TheDownloadManager->update();
-		DownloadMenuUpdate(layout, userData);
+		GetOnlineGameHooks()->updateDownloadMenu(layout, userData);
 	}
 
 	/* This is also commented for the same reason as the top
@@ -817,6 +856,12 @@ void MainMenuUpdate( WindowLayout *layout, void *userData )
 		}
 		else
 			initialGadgetDelay--;
+	}
+
+	// TheSuperHackers @tweak arcticdolphin 09/11/2026 The main menu shows after the load screen without waiting for the mouse to move.
+	if(notShown && TheTransitionHandler->isFinished())
+	{
+		showInitialMainMenu();
 	}
 
 	if(dontAllowTransitions && TheTransitionHandler->isFinished())
@@ -879,7 +924,7 @@ void MainMenuUpdate( WindowLayout *layout, void *userData )
 		raiseMessageBoxes = FALSE;
 	}
 
-	HTTPThinkWrapper();
+	GetOnlineGameHooks()->updateMainMenu();
 	GameSpyUpdateOverlays();
 //	if(localAnimateWindowManager)
 //		localAnimateWindowManager->update();
@@ -1011,7 +1056,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 			ghttpCleanup();
 			DEBUG_LOG(("Tearing down GameSpy from MainMenuSystem(GWM_DESTROY)"));
 			TearDownGameSpy();
-			StopAsyncDNSCheck(); // kill off the async DNS check thread in case it is still running
+			GetOnlineGameHooks()->stopOnlineChecks(); // kill off the async DNS check thread in case it is still running
 			break;
 
 		}
@@ -1421,7 +1466,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				dropDownWindows[DROPDOWN_MULTIPLAYER]->winHide(FALSE);
 				TheTransitionHandler->reverse("MainMenuMultiPlayerMenuTransitionToNext");
 
-				StartPatchCheck();
+				GetOnlineGameHooks()->startOnline();
 //				localAnimateWindowManager->reverseAnimateWindow();
 				dropDown = DROPDOWN_NONE;
 
@@ -1465,7 +1510,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 			else if( controlID == getUpdateID )
 			{
-				StartDownloadingPatches();
+				GetOnlineGameHooks()->startDownloadingPatches();
 			}
 			else if( controlID == exitID )
 			{

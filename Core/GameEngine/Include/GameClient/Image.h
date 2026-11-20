@@ -46,6 +46,8 @@ typedef enum
 	IMAGE_STATUS_NONE									= 0x00000000,
 	IMAGE_STATUS_ROTATED_90_CLOCKWISE	= 0x00000001,  // image should be treated as rotated
 	IMAGE_STATUS_RAW_TEXTURE					= 0x00000002,  // image struct contains raw texture data
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Window images can fit their window without stretching.
+	IMAGE_STATUS_KEEP_ASPECT					= 0x00000004,  // window draws fit the image inside the window at its own aspect
 
 	IMAGE_STATUS_END // keep after the last named flag
 } ImageStatus;
@@ -54,6 +56,7 @@ static const char *const imageStatusNames[] =
 {
 	"ROTATED_90_CLOCKWISE",
 	"RAW_TEXTURE",
+	"KEEP_ASPECT",
 	nullptr
 };
 static_assert(equalsEnumBitFlagsCount(ARRAY_SIZE(imageStatusNames) - 1, IMAGE_STATUS_END), "Incorrect array size");
@@ -90,6 +93,8 @@ public:
 	UnsignedInt setStatus( UnsignedInt bit );			///< set status bit
 	UnsignedInt clearStatus( UnsignedInt bit );		///< clear status bit
 	UnsignedInt getStatus() const;								///< get status bits
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Optional border thickness for three-piece bars that keep fixed outlines.
+	Real getBorder() const;												///< border rows in image pixels, 0 for none
 
 
 	// for parsing from INI
@@ -108,6 +113,7 @@ friend class ImageCollection;
 	ICoord2D m_imageSize;			///< dimensions of image
 	void *m_rawTextureData;		///< raw texture data
 	UnsignedInt m_status;			///< status bits from ImageStatus
+	Real m_border;						///< border rows in image pixels from the INI, 0 for none
 
 	static const FieldParse m_imageFieldParseTable[];		///< the parse table for INI definition
 
@@ -168,6 +174,7 @@ inline Int Image::getImageHeight() const { return m_imageSize.y; }
 inline void Image::setRawTextureData( void *data ) { m_rawTextureData = data; }
 inline const void *Image::getRawTextureData() const { return m_rawTextureData; }
 inline UnsignedInt Image::getStatus() const { return m_status; }
+inline Real Image::getBorder() const { return m_border; }
 
 // EXTERNALS //////////////////////////////////////////////////////////////////////////////////////
 extern ImageCollection *TheMappedImageCollection;  ///< mapped images

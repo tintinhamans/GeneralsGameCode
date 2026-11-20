@@ -48,6 +48,7 @@
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "GameClient/Gadget.h"
+#include "GameClient/GadgetListBox.h"
 #include "GameClient/GameWindowGlobal.h"
 #include "W3DDevice/GameClient/W3DGameWindow.h"
 #include "W3DDevice/GameClient/W3DGameWindowManager.h"
@@ -360,21 +361,45 @@ void W3DGameWinDefaultDraw( GameWindow *window, WinInstanceData *instData )
 
 		}
 
+		// TheSuperHackers @tweak arcticdolphin 08/11/2026 With the GO kit, a layout border in a kit or palette line colour draws at the kit line weight.
+		Color kitFrameColor;
+		Bool kitFrame = GadgetListBoxGetKitFrameColor( borderColor, &kitFrameColor );
+
 		//
 		// draw the border at the edges
 		//
-		if( borderColor != WIN_COLOR_UNDEFINED )
+		if( borderColor != WIN_COLOR_UNDEFINED && kitFrame == FALSE )
 			TheWindowManager->winOpenRect( borderColor, borderWidth,
 																		 origin.x, origin.y,
 																		 origin.x + size.x, origin.y + size.y );
 
+		// Away from the creation resolution a window without a visible border fills to its own edges.
+		Real fillInset = borderWidth;
+		if( TheDisplay != nullptr && ( TheDisplay->getWidth() != DEFAULT_DISPLAY_WIDTH || TheDisplay->getHeight() != DEFAULT_DISPLAY_HEIGHT ) )
+		{
+			if( borderColor == WIN_COLOR_UNDEFINED )
+			{
+				fillInset = 0.0f;
+			}
+			else
+			{
+				Real red, green, blue, alpha;
+				GameGetColorComponentsReal( borderColor, &red, &green, &blue, &alpha );
+				if( alpha <= 0.0f )
+					fillInset = 0.0f;
+			}
+		}
+
 		// draw filled background
 		if( color != WIN_COLOR_UNDEFINED )
 			TheWindowManager->winFillRect( color, borderWidth,
-																		 origin.x + borderWidth,
-																		 origin.y + borderWidth,
-																		 origin.x + size.x - borderWidth,
-																		 origin.y + size.y - borderWidth );
+																		 origin.x + fillInset,
+																		 origin.y + fillInset,
+																		 origin.x + size.x - fillInset,
+																		 origin.y + size.y - fillInset );
+
+		if( kitFrame )
+			GadgetListBoxDrawKitFrame( kitFrameColor, origin.x, origin.y, size.x, size.y );
 
 	}
 

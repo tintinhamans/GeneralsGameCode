@@ -272,6 +272,11 @@ void HelicopterSlowDeathBehavior::beginSlowDeath( const DamageInfo *damageInfo )
 //-------------------------------------------------------------------------------------------------
 UpdateSleepTime HelicopterSlowDeathBehavior::update()
 {
+	if (!TheGameLogic->HasLegacyFrameAdvanced())
+	{
+		return UPDATE_SLEEP_NONE;
+	}
+
 /// @todo srj use SLEEPY_UPDATE here
 	// call the base class cause we're extending functionality
 	SlowDeathBehavior::update();
@@ -355,8 +360,8 @@ UpdateSleepTime HelicopterSlowDeathBehavior::update()
 		// is *NOT* the angle the object is facing
 		//
 		Coord3D force;
-		force.x = DOUBLE_TO_REAL( Cos( m_forwardAngle ) ) * m_forwardSpeed;
-		force.y = DOUBLE_TO_REAL( Sin( m_forwardAngle ) ) * m_forwardSpeed;
+		force.x = DOUBLE_TO_REAL( Cos( m_forwardAngle ) ) * m_forwardSpeed / (Real)LOGICFRAMES_PER_BASEFRAME;
+		force.y = DOUBLE_TO_REAL( Sin( m_forwardAngle ) ) * m_forwardSpeed / (Real)LOGICFRAMES_PER_BASEFRAME;
 		force.z = 0.0f;
 		physics->applyMotiveForce( &force );
 

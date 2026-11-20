@@ -1,0 +1,12 @@
+{
+  "mesh_check_id": 12,
+  "attempt": 1,
+  "complete": false,
+  "reason": "timeout",
+  "missing": [
+    {
+      "source_user_id": 42,
+      "target_user_id": 7
+    }
+  ]
+}

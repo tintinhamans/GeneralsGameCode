@@ -780,11 +780,12 @@ UpdateSleepTime RailroadBehavior::update()
 
 		if ( m_conductorState == COAST )
 		{
-			conductorPullInfo.speed *= modData->m_friction;
+			conductorPullInfo.speed *= ConvertBaseFrameFactorToFrameFactor(modData->m_friction);
 			TheAudio->removeAudioEvent( m_runningSound.getPlayingHandle() );
 		}
 
-		conductorPullInfo.trackDistance += conductorPullInfo.speed ;
+        // compensate for 60hz update rate so movement matches retail 30hz
+        conductorPullInfo.trackDistance += conductorPullInfo.speed / (Real)LOGICFRAMES_PER_BASEFRAME;
 		// only normalize track position for a looping track, otherwise, let train exit by exceeding tracklength
 		while ( (conductorPullInfo.trackDistance > m_track->m_length) && m_track->m_isLooping)
 			conductorPullInfo.trackDistance -= m_track->m_length;

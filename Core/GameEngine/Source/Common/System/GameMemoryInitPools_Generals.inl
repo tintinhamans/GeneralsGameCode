@@ -554,6 +554,8 @@ static PoolSizeRec PoolSizes[] =
 	{ "NetProgressCommandMsg", 32, 32 },
 	{ "NetLoadCompleteCommandMsg", 32, 32 },
 	{ "NetTimeOutGameStartCommandMsg", 32, 32 },
+	{ "NetSignedFrameCommandMsg", 32, 32 },
+	{ "NetSignaturesCommandMsg", 32, 32 },
 	{ "NetWrapperCommandMsg", 32, 32 },
 	{ "NetFileCommandMsg", 32, 32 },
 	{ "NetFileAnnounceCommandMsg", 32, 32 },

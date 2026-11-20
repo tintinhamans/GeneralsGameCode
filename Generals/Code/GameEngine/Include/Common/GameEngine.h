@@ -50,6 +50,8 @@ class FunctionLexicon;
 class Radar;
 class ParticleSystemManager;
 
+void TearDownGeneralsOnline();
+
 class GameEngine : public SubsystemInterface
 {
 public:
@@ -79,6 +81,7 @@ public:
 	virtual OSDisplayButtonType displayWarningBox(AsciiString p, AsciiString m, UnsignedInt buttonFlags, UnsignedInt otherFlags) { return OSDBT_ERROR; }
 	virtual Bool isActive() {return m_isActive;}	///< returns whether app has OS focus.
 	virtual void setIsActive(Bool isActive) { m_isActive = isActive; };
+	virtual Bool isInputSuspended() { return FALSE; }	///< true while a frame runs from a Windows modal loop, the input is not read
 	virtual void checkAbnormalQuitting();	///< check if user is quitting at an unusual time - as in cheating!
 
 protected:

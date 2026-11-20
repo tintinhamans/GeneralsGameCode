@@ -37,7 +37,6 @@
 #include "GameClient/ParticleSys.h"
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/NetworkInterface.h"
-#include "MilesAudioDevice/MilesAudioManager.h"
 #include "Win32Device/Common/Win32LocalFileSystem.h"
 #include "W3DDevice/Common/W3DModuleFactory.h"
 #include "W3DDevice/GameLogic/W3DGameLogic.h"
@@ -67,6 +66,11 @@ public:
 	virtual void setBusyState(Bool busyDisplay, Bool busySystem) override;	///< tell the OS to keep the display and/or system awake
 	virtual OSDisplayButtonType displayWarningBox(AsciiString p, AsciiString m, UnsignedInt buttonFlags, UnsignedInt otherFlags) override;
 
+	static Bool shouldKeepRunningInBackground();								///< network games and online sessions never stop for the window state
+	Bool stepFrameFromModalLoop();														///< runs one frame from a Windows modal loop, FALSE if it must not
+	void releaseInputForModalLoop();													///< drops the held input state when a Windows modal loop starts or ends
+	virtual Bool isInputSuspended() override { return m_isInModalStep; }	///< a modal loop frame never reads the input
+
 protected:
 
 	virtual GameLogic *createGameLogic() override;							///< factory for game logic
@@ -84,6 +88,8 @@ protected:
 
 protected:
 	UINT m_previousErrorMode;
+	Bool m_isAtFrameBoundary;															///< the engine is in the message service that ends the frame
+	Bool m_isInModalStep;																	///< a modal loop runs the frame and pumps the messages
 };
 
 // INLINE -----------------------------------------------------------------------------------------

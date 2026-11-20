@@ -50,6 +50,11 @@ class FunctionLexicon;
 class Radar;
 class ParticleSystemManager;
 
+void TearDownGeneralsOnline();
+
+/**
+ * The implementation of the game engine
+ */
 class GameEngine : public SubsystemInterface
 {
 public:
@@ -79,6 +84,7 @@ public:
 	virtual OSDisplayButtonType displayWarningBox(AsciiString p, AsciiString m, UnsignedInt buttonFlags, UnsignedInt otherFlags) { return OSDBT_ERROR; }
 	virtual Bool isActive() {return m_isActive;}	///< returns whether app has OS focus.
 	virtual void setIsActive(Bool isActive) { m_isActive = isActive; };
+	virtual Bool isInputSuspended() { return FALSE; }	///< true while a frame runs from a Windows modal loop, the input is not read
 
 protected:
 
@@ -87,6 +93,8 @@ protected:
 	Bool canUpdateGameLogic(UnsignedInt logicTimeQueryFlags);
 	Bool canUpdateNetworkGameLogic();
 	Bool canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags);
+	Bool canUpdateGameLogicFromBacklog();	///< another logic frame already due this drawn frame, without crediting more time
+	Int getCatchUpFrames() const;			///< logic frames per drawn frame at most, 1 outside matches and in replays
 
 	virtual FileSystem *createFileSystem();								///< Factory for FileSystem classes
 	virtual LocalFileSystem *createLocalFileSystem() = 0;	///< Factory for LocalFileSystem classes

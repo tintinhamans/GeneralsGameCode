@@ -47,6 +47,7 @@
 #include <stdlib.h>
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
+#include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetSlider.h"
 #include "GameClient/GameWindowGlobal.h"
 #include "GameClient/GameWindowManager.h"
@@ -64,6 +65,40 @@
 // PRIVATE PROTOTYPES /////////////////////////////////////////////////////////
 
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
+
+// Draw top, center and bottom pieces down a column, the ends at the column width and their own aspect
+static void drawVerticalThreePieceImage( const Image *top, const Image *center, const Image *bottom,
+																				 Int x, Int y, Int width, Int height )
+{
+	if( top == nullptr || center == nullptr || bottom == nullptr || width <= 0 || height <= 0 )
+		return;
+
+	Int topHeight = width;
+	if( top->getImageWidth() > 0 )
+		topHeight = (top->getImageHeight() * width + top->getImageWidth() / 2) / top->getImageWidth();
+	Int bottomHeight = width;
+	if( bottom->getImageWidth() > 0 )
+		bottomHeight = (bottom->getImageHeight() * width + bottom->getImageWidth() / 2) / bottom->getImageWidth();
+
+	// too short for both ends, split the height between them
+	if( topHeight + bottomHeight > height )
+	{
+		topHeight = height / 2;
+		bottomHeight = height - topHeight;
+	}
+
+	TheWindowManager->winDrawImage( top, x, y, x + width, y + topHeight );
+	if( height - topHeight - bottomHeight > 0 )
+		TheWindowManager->winDrawImage( center, x, y + topHeight, x + width, y + height - bottomHeight );
+	TheWindowManager->winDrawImage( bottom, x, y + height - bottomHeight, x + width, y + height );
+}
+
+// The kit channel, centred between the column separator and the list frame
+static void getKitChannel( Int columnX, Int columnWidth, Int &channelX, Int &channelWidth )
+{
+	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 The channel takes the column line the arrow chevrons share.
+	GadgetListBoxGetKitScrollSpan( KIT_SCROLL_SPAN_PILL, columnX, columnWidth, &channelX, &channelWidth );
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
@@ -195,16 +230,42 @@ void W3DGadgetVerticalSliderImageDraw( GameWindow *window,
 
 	if(topSize.y + bottomSize.y >= size.y)
 	{
+		// scale each end to the slider width, at most half the slider height
+		Int halfHeight = size.y / 2;
+		ICoord2D topDraw, bottomDraw;
+		topDraw = topSize;
+		bottomDraw = bottomSize;
+		if( topSize.x > 0 && topSize.y > 0 )
+		{
+			topDraw.x = size.x;
+			topDraw.y = (topSize.y * size.x + topSize.x / 2) / topSize.x;
+			if( topDraw.y > halfHeight )
+			{
+				topDraw.y = halfHeight;
+				topDraw.x = (topSize.x * halfHeight + topSize.y / 2) / topSize.y;
+			}
+		}
+		if( bottomSize.x > 0 && bottomSize.y > 0 )
+		{
+			bottomDraw.x = size.x;
+			bottomDraw.y = (bottomSize.y * size.x + bottomSize.x / 2) / bottomSize.x;
+			if( bottomDraw.y > halfHeight )
+			{
+				bottomDraw.y = halfHeight;
+				bottomDraw.x = (bottomSize.x * halfHeight + bottomSize.y / 2) / bottomSize.y;
+			}
+		}
+
 		// draw top end
 		start.x = origin.x + xOffset;
 		start.y = origin.y + yOffset;
-		end.x = origin.x + xOffset + topSize.x;
-		end.y = origin.y + size.y /2;
+		end.x = start.x + topDraw.x;
+		end.y = start.y + topDraw.y;
 		TheWindowManager->winDrawImage(topImage, start.x, start.y, end.x, end.y);
 
 		// draw bottom end
-		start.y = origin.y + size.y /2;
-		end.x = origin.x + xOffset + bottomSize.x;
+		start.y = origin.y + yOffset + size.y - bottomDraw.y;
+		end.x = start.x + bottomDraw.x;
 		end.y = origin.y + yOffset + size.y;
 		TheWindowManager->winDrawImage(bottomImage, start.x, start.y, end.x, end.y);
 	}
@@ -276,6 +337,51 @@ void W3DGadgetVerticalSliderImageDraw( GameWindow *window,
 	}
 
 
+}
+
+// W3DGadgetVerticalSliderKitTrackDraw ========================================
+/** Draw a list box scroll track as a rounded kit channel */
+//=============================================================================
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Draw the list scroll track as a rounded channel when the GO kit scroll images exist.
+void W3DGadgetVerticalSliderKitTrackDraw( GameWindow *window, WinInstanceData *instData )
+{
+	ICoord2D origin, size;
+	window->winGetScreenPosition( &origin.x, &origin.y );
+	window->winGetSize( &size.x, &size.y );
+
+	Int channelX, channelWidth;
+	getKitChannel( origin.x, size.x, channelX, channelWidth );
+	drawVerticalThreePieceImage( GadgetListBoxGetKitScrollImage( KIT_SCROLL_TRACK_TOP ),
+															 GadgetListBoxGetKitScrollImage( KIT_SCROLL_TRACK_CENTER ),
+															 GadgetListBoxGetKitScrollImage( KIT_SCROLL_TRACK_BOTTOM ),
+															 channelX, origin.y, channelWidth, size.y );
+}
+
+// W3DGadgetVerticalSliderKitThumbDraw ========================================
+/** Draw a list box scroll thumb as a kit pill filling the channel */
+//=============================================================================
+void W3DGadgetVerticalSliderKitThumbDraw( GameWindow *window, WinInstanceData *instData )
+{
+	ICoord2D origin, size;
+	window->winGetScreenPosition( &origin.x, &origin.y );
+	window->winGetSize( &size.x, &size.y );
+
+	// disabled with its slider, brighter while hovered or pressed
+	GameWindow *slider = window->winGetParent();
+	Bool enabled = BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) &&
+								 ( slider == nullptr || BitIsSet( slider->winGetStatus(), WIN_STATUS_ENABLED ) );
+	KitScrollImage top = KIT_SCROLL_THUMB_TOP;
+	if( enabled == FALSE )
+		top = KIT_SCROLL_THUMB_DISABLED_TOP;
+	else if( BitIsSet( instData->getState(), WIN_STATE_HILITED ) || BitIsSet( instData->getState(), WIN_STATE_SELECTED ) )
+		top = KIT_SCROLL_THUMB_HILITE_TOP;
+
+	Int channelX, channelWidth;
+	getKitChannel( origin.x, size.x, channelX, channelWidth );
+	drawVerticalThreePieceImage( GadgetListBoxGetKitScrollImage( top ),
+															 GadgetListBoxGetKitScrollImage( (KitScrollImage)(top + 1) ),
+															 GadgetListBoxGetKitScrollImage( (KitScrollImage)(top + 2) ),
+															 channelX, origin.y, channelWidth, size.y );
 }
 
 

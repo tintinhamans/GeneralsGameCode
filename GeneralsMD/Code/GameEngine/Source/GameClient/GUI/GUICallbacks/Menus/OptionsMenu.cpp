@@ -69,6 +69,7 @@
 #include "GameClient/GUICallbacks.h"
 #include "GameClient/GlobalLanguage.h"
 #include "GameNetwork/FirewallHelper.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 #include "GameNetwork/IPEnumeration.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
@@ -78,6 +79,8 @@
 #include "GameClient/MessageBox.h"
 
 #include "WW3D2/ww3d.h"
+
+#include "../GenOnlineInit.h"
 
 // This is for non-RC builds only!!!
 #define VERBOSE_VERSION L"Release"
@@ -845,6 +848,11 @@ static void saveOptions()
 		TheWritableGlobalData->m_jpegQuality = quality;
 	}
 
+	// The observer stats font size lives in client.json. The overlay is set up again with it.
+	TheInGameUI->initObserverOverlay();
+
+	//-------------------------------------------------------------------------------------------------
+
 	//-------------------------------------------------------------------------------------------------
 	// Resolution
 	//
@@ -1159,6 +1167,12 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 		}
 	}
 
+	if (comboBoxLANIP)
+		GadgetComboBoxSetText(comboBoxLANIP, L"***.***.***.***");
+
+	if (comboBoxOnlineIP)
+		GadgetComboBoxSetText(comboBoxOnlineIP, L"***.***.***.***");
+
 #if ENABLE_GUI_HACKS
 	// TheSuperHackers @tweak 26/07/2026 The http proxy feature was obsoleted because it did nothing for the UDP game traffic or match sockets.
 	// Hide the relevant obsoleted UI elements accordingly.
@@ -1405,7 +1419,7 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	GameWindow *parent = TheWindowManager->winGetWindowFromId( nullptr, parentID );
 	TheWindowManager->winSetFocus( parent );
 
-	if( (TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || TheGameSpyInfo )
+	if( (TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || GetOnlineGameHooks()->isLoggedIn() )
 	{
 		// disable controls that you can't change the options for in game
 		comboBoxLANIP->winEnable(FALSE);
@@ -1413,6 +1427,7 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 		if (comboBoxOnlineIP)
 			comboBoxOnlineIP->winEnable(FALSE);
 
+		if (buttonFirewallRefresh)
 		buttonFirewallRefresh->winEnable(FALSE);
 
 		if (comboBoxDetail)
@@ -1432,6 +1447,7 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	}
 
 
+	GetOnlineGameHooks()->onOptionsMenuInit((TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || GetOnlineGameHooks()->isLoggedIn());
 	TheWindowManager->winSetModal(parent);
 	ignoreSelected = FALSE;
 }
@@ -1465,7 +1481,6 @@ void OptionsMenuShutdown( WindowLayout *layout, void *userData )
 //-------------------------------------------------------------------------------------------------
 void OptionsMenuUpdate( WindowLayout *layout, void *userData )
 {
-
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1586,6 +1601,10 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 
 					showAdvancedOptions();
 				}
+				else
+				{
+					GetOnlineGameHooks()->onOptionsMenuComboSelected(control);
+				}
 			break;
 		}
 
@@ -1618,6 +1637,9 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 			else if (controlID == buttonAccept )
 			{
+				// changed connection settings are tested first; a rejected address keeps the menu open
+				if (!GetOnlineGameHooks()->onOptionsMenuAccept())
+					break;
 				saveOptions();
 
 				if (pref)
@@ -1649,6 +1671,11 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 			else if (controlID == buttonDefaults )
 			{
 				setDefaults();
+				GetOnlineGameHooks()->onOptionsMenuDefaults();
+			}
+			else if (GetOnlineGameHooks()->onOptionsMenuButtonSelected(control))
+			{
+				// The provider handled a button of its own section.
 			}
 			else if (controlID == ButtonAdvancedAcceptID )
 			{

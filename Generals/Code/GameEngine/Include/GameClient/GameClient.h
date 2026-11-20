@@ -134,6 +134,12 @@ public:
 	//---------------------------------------------------------------------------------------
 	virtual UnsignedInt getFrame() { return m_frame; }						///< Returns the current simulation frame number
 
+#if defined(GENONLINE)
+	UnsignedInt getFrameLegacy(void) { return m_frameLegacy; }
+	UnsignedInt getFrameLegacyLast(void) { return m_frameLegacyLast; }
+	bool HasLegacyFrameAdvanced(void) { return m_frameLegacy != m_frameLegacyLast; }
+#endif
+
 	//---------------------------------------------------------------------------
 	virtual void setTeamColor( Int red, Int green, Int blue ) = 0;  ///< @todo superhack for demo, remove!!!
 
@@ -163,6 +169,13 @@ protected:
 
 	// @todo Should there be a separate GameClient frame counter?
 	UnsignedInt m_frame;																				///< Simulation frame number from server
+
+#if defined(GENONLINE)
+	int64_t m_LegacyFrameEndLastFrame = 0;
+	int64_t m_legacyFrameMSAccured = 0;
+	UnsignedInt m_frameLegacy;
+	UnsignedInt m_frameLegacyLast;
+#endif
 
 	Drawable *m_drawableList;																		///< All of the drawables in the world
 	DrawablePtrHash m_drawableHash;															///< Used for DrawableID lookups

@@ -937,7 +937,7 @@ Bool AIPlayer::isSupplySourceAttacked()
 {
 	// TheSuperHackers @bugfix WebbontheWeb 27/09/2026 No longer scans for supply source attacks for just the last 10 frames.
 	// A prior EA comment indicated that the intent was to look for 10 seconds into the attack history.
-	const Int RefreshRate = 10;
+	const Int RefreshRate = ConvertBaseFramesToFrames(10);
 #if RETAIL_COMPATIBLE_CRC
 	const Int ScanWindow = 10;
 #else
@@ -1269,13 +1269,9 @@ Bool AIPlayer::computeSuperweaponTarget(const SpecialPowerTemplate *power, Coord
 			{
 				cash = curCash;
 				bestPos = pos;
-				success = true;
 			}
 		}
 	}
-
-	if (!success)
-		return false;
 
 	//Fine tune that position by looking at a even smaller radius.
 	Coord3D veryBestPos;

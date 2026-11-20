@@ -122,6 +122,8 @@
 #include "static_sort_list.h"
 #include "shdlib.h"
 #include "framgrab.h"
+
+#include "../../../GameEngine/Include/GameNetwork/GenOnline/GenOnlineDefines.h"
 #include "Lib/BaseType.h"
 
 

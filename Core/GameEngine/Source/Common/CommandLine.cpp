@@ -35,6 +35,8 @@
 #include "GameClient/TerrainVisual.h" // for TERRAIN_LOD_MIN definition
 #include "GameClient/GameText.h"
 #include "GameNetwork/NetworkDefs.h"
+#include "GameNetwork/GenOnline/GenOnlineClientDescription.h"
+#include "GameNetwork/Online/OnlineProviderFactory.h"
 
 
 
@@ -168,6 +170,18 @@ Int parseFullViewport(char *args[], int num)
 {
 	TheWritableGlobalData->m_viewportHeightScale = 1.0f;
 
+	return 1;
+}
+
+//=============================================================================
+//=============================================================================
+Int parseOnlineProvider(char *args[], int num)
+{
+	if (num > 1)
+	{
+		SetCommandLineOnlineProvider(args[1]);
+		return 2;
+	}
 	return 1;
 }
 
@@ -424,6 +438,25 @@ Int parseHeadless(char *args[], int num)
 	return 1;
 }
 
+#if RTS_ZEROHOUR
+// Match stats export is only implemented in Zero Hour
+Int parseExportStats(char *args[], int num)
+{
+	TheWritableGlobalData->m_exportStats = TRUE;
+	return 1;
+}
+
+Int parseStatsUrl(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_statsUrl = args[1];
+		return 2;
+	}
+	return 1;
+}
+#endif
+
 Int parseReplay(char *args[], int num)
 {
 	if (num > 1)
@@ -471,6 +504,21 @@ Int parseSetCwd(char *args[], int num)
 	if (num > 1)
 	{
 		rts::WorkingDirectory::setCustomWorkingDirectory(args[1]);
+		return 2;
+	}
+	return 1;
+}
+
+// The -packs argument as given, made absolute once the working directory is final
+static Bool s_hasPackList = FALSE;
+static std::string s_packListPath;
+
+Int parsePacks(char *args[], int num)
+{
+	if (num > 1)
+	{
+		s_hasPackList = TRUE;
+		s_packListPath = args[1];
 		return 2;
 	}
 	return 1;
@@ -1131,6 +1179,16 @@ Int parseMod(char *args[], Int num)
 	return 1;
 }
 
+#if RTS_ZEROHOUR
+// The community data patch is Zero Hour data
+Int parseDisableCommunityDataPatch(char *args[], Int num)
+{
+	TheWritableGlobalData->m_commandLineData.disableCommunityDataPatch();
+
+	return 1;
+}
+#endif
+
 #ifdef DEBUG_LOGGING
 Int parseSetDebugLevel(char *args[], int num)
 {
@@ -1190,11 +1248,25 @@ static CommandLineParam paramsForStartup[] =
 	// If you do not call this, all replays will be simulated in sequence in the same process.
 	{ "-jobs", parseJobs },
 
+#if RTS_ZEROHOUR
+	// Export game stats as JSON alongside replay file.
+	{ "-exportStats", parseExportStats },
+
+	// URL to POST compressed stats JSON after export.
+	{ "-statsUrl", parseStatsUrl },
+#endif
+
 	// TheSuperHackers @feature CryoTheRenegade 14/08/2026
 	// Use the current working directory as provided by the OS, or an explicit path.
 	// The last successful selection wins; otherwise use the executable directory.
 	{ "-setCwd", parseSetCwd },
 	{ "-useCwd", parseUseCwd },
+
+	// TheSuperHackers @feature tintinhamans 11/11/2026 Select the online service provider by name. The default is GenOnline in GenOnline builds and GameSpy otherwise.
+	{ "-onlineProvider", parseOnlineProvider },
+
+	// TheSuperHackers @feature tintinhamans 14/11/2026 The pack list file of the launcher, relative to the final working directory. The game only reads it.
+	{ "-packs", parsePacks },
 };
 
 // These Params are parsed during Engine Init before INI data is loaded
@@ -1210,6 +1282,9 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-scriptDebug", parseScriptDebug },
 	{ "-playStats", parsePlayStats },
 	{ "-mod", parseMod },
+#if RTS_ZEROHOUR
+	{ "-disableCommunityDataPatch", parseDisableCommunityDataPatch },
+#endif
 	{ "-noshaders", parseNoShaders },
 	{ "-quickstart", parseQuickStart },
 	{ "-useWaveEditor", parseUseWaveEditor },
@@ -1435,8 +1510,23 @@ void createGlobalData()
 		TheWritableGlobalData = NEW GlobalData;
 }
 
+static bool hasCommandLineArgument(const char *name)
+{
+	for (int arg = 1; arg < __argc; ++arg)
+	{
+		if (stricmp(__argv[arg], name) == 0)
+			return true;
+	}
+	return false;
+}
+
 void CommandLine::parseCommandLineForStartup()
 {
+	// -describe answers the launcher and exits before GlobalData creates the user data folders.
+	// _exit skips the static destructors of the engine, which is not initialized yet.
+	if (hasCommandLineArgument("-describe"))
+		_exit(GenOnlineWriteClientDescription() ? 0 : 1);
+
 	// We need the GlobalData initialized before parsing the command line.
 	// Note that this function is potentially called multiple times and only initializes the first time.
 	createGlobalData();
@@ -1450,6 +1540,25 @@ void CommandLine::parseCommandLineForStartup()
 
 	if (!rts::WorkingDirectory::hasSetWorkingDirectory())
 		rts::WorkingDirectory::setExecutableWorkingDirectory();
+
+	if (s_hasPackList && !s_packListPath.empty())
+	{
+		char fullPath[_MAX_PATH];
+		if (_fullpath(fullPath, s_packListPath.c_str(), ARRAY_SIZE(fullPath)) != nullptr)
+		{
+			s_packListPath = fullPath;
+		}
+	}
+}
+
+bool CommandLine::hasPackList()
+{
+	return s_hasPackList != FALSE;
+}
+
+const char* CommandLine::getPackListPath()
+{
+	return s_packListPath.c_str();
 }
 
 void CommandLine::parseCommandLineForEngineInit()

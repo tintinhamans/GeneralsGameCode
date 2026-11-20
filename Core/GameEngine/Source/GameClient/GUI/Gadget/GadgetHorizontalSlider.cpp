@@ -64,6 +64,14 @@
 
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 
+// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Refresh the slider tooltip after a drag, the window manager clears it on every mouse event.
+static void refreshDragTooltip( GameWindow *window, WindowMsgData mouse )
+{
+	GameWinTooltipFunc tooltip = window->winGetTooltipFunc();
+	if( tooltip != nullptr )
+		tooltip( window, window->winGetInstanceData(), (UnsignedInt)mouse );
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -190,7 +198,7 @@ WindowMsgHandledType GadgetHorizontalSliderInput( GameWindow *window, UnsignedIn
 			if( clickPos < childSize.x / 2 )
 				clickPos = childSize.x / 2;
 
-			child->winSetPosition( clickPos - childSize.x / 2, HORIZONTAL_SLIDER_THUMB_POSITION);
+			child->winSetPosition( clickPos - childSize.x / 2, GadgetHorizontalSliderThumbTop( window, child ));
 			TheWindowManager->winSendSystemMsg( window, GGM_LEFT_DRAG, 0, mData1 );
 			break;
 
@@ -219,7 +227,7 @@ WindowMsgHandledType GadgetHorizontalSliderInput( GameWindow *window, UnsignedIn
 																									s->position );
 
 							// Translate to window coords
-							child->winSetPosition( (Int)((s->position - s->minVal) * s->numTicks), HORIZONTAL_SLIDER_THUMB_POSITION );
+							child->winSetPosition( (Int)((s->position - s->minVal) * s->numTicks), GadgetHorizontalSliderThumbTop( window, child ) );
 
 						}
 
@@ -244,7 +252,7 @@ WindowMsgHandledType GadgetHorizontalSliderInput( GameWindow *window, UnsignedIn
 																									s->position );
 
 							// Translate to window coords
-							child->winSetPosition( (Int)((s->position - s->minVal) * s->numTicks),HORIZONTAL_SLIDER_THUMB_POSITION );
+							child->winSetPosition( (Int)((s->position - s->minVal) * s->numTicks),GadgetHorizontalSliderThumbTop( window, child ) );
 
 						}
 
@@ -320,7 +328,8 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 			// ignore drag attempts when the mouse is right or left of slider totally
 			// and put the dragging thumb back at the slider pos
 			//
-			if( mousex > x + size.x -HORIZONTAL_SLIDER_THUMB_WIDTH/2 )
+			// TheSuperHackers @tweak arcticdolphin 08/11/2026 Use the thumb's own width, which scales with the screen height.
+			if( mousex > x + size.x - childSize.x/2 )
 			{
 
 				TheWindowManager->winSendSystemMsg( window, GSM_SET_SLIDER,
@@ -330,10 +339,11 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 																						GSM_SLIDER_TRACK,
 																						(WindowMsgData)window,
 																						s->position );
+				refreshDragTooltip( window, mData2 );
 				break;
 
 			}
-			else if( mousex < x + HORIZONTAL_SLIDER_THUMB_WIDTH/2)
+			else if( mousex < x + childSize.x/2)
 			{
 
 				TheWindowManager->winSendSystemMsg( window, GSM_SET_SLIDER,
@@ -343,25 +353,26 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 																						GSM_SLIDER_TRACK,
 																						(WindowMsgData)window,
 																						s->position );
+				refreshDragTooltip( window, mData2 );
 				break;
 
 			}
 
 			if( childCenter.x < x + childSize.x / 2 )
 			{
-				child->winSetPosition( 0,HORIZONTAL_SLIDER_THUMB_POSITION );
+				child->winSetPosition( 0,GadgetHorizontalSliderThumbTop( window, child ) );
 				s->position = s->minVal;
 
 			}
 			else if( childCenter.x >= x + size.x - childSize.x / 2 )
 			{
-				child->winSetPosition( (Int)((s->maxVal - s->minVal) * s->numTicks) -HORIZONTAL_SLIDER_THUMB_WIDTH/2 , HORIZONTAL_SLIDER_THUMB_POSITION );
+				child->winSetPosition( (Int)((s->maxVal - s->minVal) * s->numTicks) - childSize.x/2 , GadgetHorizontalSliderThumbTop( window, child ) );
 				s->position = s->maxVal;
 
 			}
 			else
 			{
-				delta = childCenter.x - x -HORIZONTAL_SLIDER_THUMB_WIDTH/2;
+				delta = childCenter.x - x - childSize.x/2;
 
 				// Calc slider position
 				s->position = (Int)((delta) / s->numTicks)+ s->minVal ;
@@ -375,7 +386,7 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 				if( s->position < s->minVal)
 					s->position = s->minVal;
 
-				child->winSetPosition( childRelativePos.x, HORIZONTAL_SLIDER_THUMB_POSITION );
+				child->winSetPosition( childRelativePos.x, GadgetHorizontalSliderThumbTop( window, child ) );
 			}
 
 			// tell owner i moved
@@ -384,6 +395,7 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 																					(WindowMsgData)window,
 																					s->position );
 
+			refreshDragTooltip( window, mData2 );
 			break;
 
 		}
@@ -403,7 +415,7 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 			newPos = (Int)((newPos - s->minVal) * s->numTicks);
 			newPos = clamp(0, newPos, (Int)((s->maxVal - s->minVal) * s->numTicks));
 
-			child->winSetPosition( newPos , HORIZONTAL_SLIDER_THUMB_POSITION );
+			child->winSetPosition( newPos , GadgetHorizontalSliderThumbTop( window, child ) );
 			break;
 
 		}
@@ -412,16 +424,19 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 		case GSM_SET_MIN_MAX:
 		{
 			ICoord2D size;
+			ICoord2D thumbSize;
 			GameWindow *child = window->winGetChild();
 
 			window->winGetSize( &size.x, &size.y );
+			child->winGetSize( &thumbSize.x, &thumbSize.y );
 
 			s->minVal = (Int)mData1;
 			s->maxVal = (Int)mData2;
-			s->numTicks = (Real)(size.x - HORIZONTAL_SLIDER_THUMB_WIDTH)/(Real)(s->maxVal - s->minVal);
+			// TheSuperHackers @tweak arcticdolphin 08/11/2026 Use the thumb's own width, which scales with the screen height.
+			s->numTicks = (Real)(size.x - thumbSize.x)/(Real)(s->maxVal - s->minVal);
 			s->position = s->minVal;
 
-			child->winSetPosition( 0, HORIZONTAL_SLIDER_THUMB_POSITION );
+			child->winSetPosition( 0, GadgetHorizontalSliderThumbTop( window, child ) );
 			break;
 
 		}
@@ -465,7 +480,7 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 			GameWindow *thumb = window->winGetChild();
 
 			if( thumb )
-				thumb->winSetSize( GADGET_SIZE, height );
+				thumb->winSetSize( GameWindowManager::winScaleLayoutSize( GADGET_SIZE ), height );
 
 			break;
 

@@ -1,0 +1,11 @@
+{
+  "channel_id": "channel:3",
+  "member": {
+    "id": 7,
+    "name": "Ann",
+    "badges": [
+      "moderator"
+    ],
+    "client": "game"
+  }
+}
