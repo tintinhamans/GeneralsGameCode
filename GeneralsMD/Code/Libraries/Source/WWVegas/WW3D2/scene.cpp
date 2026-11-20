@@ -200,7 +200,7 @@ void SceneClass::Render(RenderInfoClass & rinfo)
 	// Any stuff that needs to get done before anything else
 	Pre_Render_Processing(rinfo);
 
-	DX8Wrapper::Set_Fog(FogEnabled, FogColor, FogStart, FogEnd);
+	Renderer::Set_Fog(FogEnabled, FogColor, FogStart, FogEnd);
 
 	if (Get_Extra_Pass_Polygon_Mode()==EXTRA_PASS_DISABLE) {
 		Customized_Render(rinfo);
@@ -486,7 +486,7 @@ void SimpleSceneClass::Customized_Render(RenderInfoClass & rinfo)
 	WWASSERT(rinfo.light_environment==nullptr);
 	for (int lightIndex = 0; lightIndex < LightEnvironmentClass::MAX_LIGHTS; ++lightIndex)
 	{
-		DX8Wrapper::Set_Light(lightIndex,nullptr);
+		Renderer::Clear_Light(lightIndex);
 	}
 
 
@@ -499,7 +499,7 @@ void SimpleSceneClass::Customized_Render(RenderInfoClass & rinfo)
 	{
 		if (count<4)
 		{
-			DX8Wrapper::Set_Light(count,*(LightClass*)it.Peek_Obj());
+			Renderer::Set_Light(count,*(LightClass*)it.Peek_Obj());
 		} else
 		{
 			// Simple scene only supports 4 global lights
