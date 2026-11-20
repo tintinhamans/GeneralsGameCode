@@ -17,7 +17,7 @@ Everything here is additional to upstream; the rest of these docs still applies.
 * [Smart selection](contraZH-Options.md#smart-selection) shows the selection as a row of cameos above the command bar, and the [command groups](contraZH-Options.md#command-group-row) as a box of cameos at the top left of the screen.
 * The `=` key gives each of the first ten selected objects its own [command group](contraZH-Options.md#command-group-row), 1 to 9 then 0.
 * A network mismatch writes `MismatchInfo.txt` to the user data folder (the previous one is kept as `MismatchInfoPrev.txt`): the frame, every player's CRC, separate CRCs for objects, the partition manager, the player list and the AI, and one CRC per object. A diff of two players' files names the objects that differ.
-* When more than 128 audio requests are waiting, the oldest unplayed one-shot sound effects are dropped down to 64. Loops, stops, pauses, music and speech are never dropped.
+* When more than 128 one-shot sound effects are waiting to play, the oldest are dropped down to 64. Loops, stops, pauses, music and speech are never dropped and do not count toward the limit.
 * On laptops with two GPUs, the game, WorldBuilder and GUIEdit ask the NVIDIA or AMD driver to run them on the dedicated GPU.
 * Synced with TheSuperHackers/GeneralsGameCode as of August 2026 and with GeneralsGameCode_Modding
 as of October 2026. The only casualty was the texture filter option, replaced by TheSuperHackers'

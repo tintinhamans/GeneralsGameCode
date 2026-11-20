@@ -2369,20 +2369,40 @@ void MilesAudioManager::removeAllDisabledAudio()
 }
 
 //-------------------------------------------------------------------------------------------------
+static Bool isDroppableRequest( AudioRequest *req )
+{
+	if (req->m_request != AR_Play || req->m_pendingEvent.Peek() == nullptr) {
+		return false;
+	}
+
+	const AudioEventInfo *info = req->m_pendingEvent->getAudioEventInfo();
+	return info && info->m_soundType == AT_SoundEffect && !BitIsSet(info->m_control, AC_LOOP);
+}
+
+//-------------------------------------------------------------------------------------------------
 void MilesAudioManager::processRequestList()
 {
 	std::list<AudioRequest*>::iterator it;
 
-	// A full queue drops its oldest unplayed one-shot sound effects; loops and stops stay.
+	// Only one-shot sound effects count, so waiting loops cannot hold the queue over its limit.
 	if (m_audioRequests.size() > MAX_AUDIO_REQUESTS) {
-		for (it = m_audioRequests.begin(); it != m_audioRequests.end() && m_audioRequests.size() > TRIMMED_AUDIO_REQUESTS; ) {
-			AudioRequest *req = (*it);
-			const AudioEventInfo *info = req->m_pendingEvent.Peek() ? req->m_pendingEvent->getAudioEventInfo() : nullptr;
-			if (req->m_request == AR_Play && info && info->m_soundType == AT_SoundEffect && !BitIsSet(info->m_control, AC_LOOP)) {
-				deleteInstance(req);
-				it = m_audioRequests.erase(it);
-			} else {
-				++it;
+		size_t droppable = 0;
+		for (it = m_audioRequests.begin(); it != m_audioRequests.end(); ++it) {
+			if (isDroppableRequest(*it)) {
+				++droppable;
+			}
+		}
+
+		if (droppable > MAX_AUDIO_REQUESTS) {
+			for (it = m_audioRequests.begin(); it != m_audioRequests.end() && droppable > TRIMMED_AUDIO_REQUESTS; ) {
+				AudioRequest *req = (*it);
+				if (isDroppableRequest(req)) {
+					deleteInstance(req);
+					it = m_audioRequests.erase(it);
+					--droppable;
+				} else {
+					++it;
+				}
 			}
 		}
 	}
