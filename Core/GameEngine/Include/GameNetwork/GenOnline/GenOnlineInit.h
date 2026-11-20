@@ -450,7 +450,6 @@ inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 		ReadServiceConfigValue(s, "fast_recovery", c.input_delay.fast_recovery);
 		ReadServiceConfigValue(s, "decision_interval_ms", c.input_delay.decision_interval_ms);
 		ReadServiceConfigValue(s, "fps_history_samples", c.input_delay.fps_history_samples);
-		ReadServiceConfigValue(s, "catch_up_frames", c.input_delay.catch_up_frames);
 		ReadServiceConfigValue(s, "slack_percent", c.input_delay.slack_percent);
 		if (s.contains("formula"))
 		{
@@ -492,7 +491,6 @@ inline void ClampServiceConfig(ServiceConfig& c)
 	c.send.frames_per_packet_lossy = std::clamp(c.send.frames_per_packet_lossy, 0, 8);
 
 	c.input_delay.formula.decrease_after_decisions = std::clamp(c.input_delay.formula.decrease_after_decisions, 0, 20);
-	c.input_delay.catch_up_frames = std::clamp(c.input_delay.catch_up_frames, 1, 4);
 	c.input_delay.min_frames = std::clamp(c.input_delay.min_frames, 0, 30); // the start run ahead is at least 30, a higher floor would make configs disagree
 	c.input_delay.max_frames = std::clamp(c.input_delay.max_frames, (std::max)(30, c.input_delay.min_frames), 128);
 	c.input_delay.slack_percent = std::clamp(c.input_delay.slack_percent, 0, 200);

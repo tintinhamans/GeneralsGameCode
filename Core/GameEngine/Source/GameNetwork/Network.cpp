@@ -55,6 +55,7 @@
 #include "../GenOnlineInterfaces.h"
 #if defined(GENONLINE)
 #include "GameNetwork/GenOnline/WifiLowLatency.h"
+#include "Common/AdaptiveQuality.h"
 #endif
 
 
@@ -1048,9 +1049,7 @@ Bool Network::timeForNewFrame() {
 
 		__int64 catchUpFrames = 1;
 #if defined(GENONLINE)
-		if (m_conMgr != nullptr) {
-			catchUpFrames = m_conMgr->getNetworkSettings().input_delay.catch_up_frames;
-		}
+		catchUpFrames = AdaptiveQuality::get().catchUpFrames();
 #endif
 		if (m_nextFrameTime + catchUpFrames * frameDelay < curTime) {
 			// If we get too far behind on our framerate we need to reset the nextFrameTime thing.

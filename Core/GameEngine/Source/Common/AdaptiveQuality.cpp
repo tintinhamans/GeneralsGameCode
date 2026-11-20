@@ -10,6 +10,8 @@
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/GenOnline/GenOnlineLobbyInterface.h"
 
+#include <algorithm>
+
 extern HWND ApplicationHWnd;
 
 static const double BIN_MS = 0.05;
@@ -66,7 +68,11 @@ AdaptiveQuality::AdaptiveQuality()
 	m_cpuSumMs = m_presentSumMs = 0.0;
 	m_splitFrames = 0;
 	m_lastCpuMs = m_lastPresentMs = 0.0;
-	m_lastDeadlineMs = AdaptiveQualityTuning::kOverFrameMs;
+	m_lastDeadlineMs = AdaptiveQualityTuning::values().overFrameMs;
+	m_catchUpTicks = 0;
+	m_catchUpFrames = 0;
+	m_lastCatchUpFrames = 0;
+	m_lastCatchUpMs = 0.0;
 	m_refreshMs = 1000.0 / 60.0;
 	m_windowed = FALSE;
 	m_intervalSynced = TRUE;
@@ -96,6 +102,19 @@ long long AdaptiveQuality::now()
 	return t.QuadPart;
 }
 
+Int AdaptiveQuality::catchUpFrames() const
+{
+	const Int levelFrames = AdaptiveQualityLevels::catchUpFrames(m_inMatch ? m_model.level() : 0);
+	const Int maxFrames = AdaptiveQualityTuning::values().catchUpFrames;
+	return std::max<Int>(1, std::min<Int>(levelFrames, maxFrames));
+}
+
+double AdaptiveQuality::catchUpBudgetMs() const
+{
+	const double deadlineMs = m_lastDeadlineMs > 0.0 ? m_lastDeadlineMs : AdaptiveQualityTuning::values().budgetMs;
+	return deadlineMs * AdaptiveQualityTuning::values().catchUpBudgetFraction;
+}
+
 void AdaptiveQuality::frameBegin()
 {
 	m_ownTicks = 0;
@@ -105,6 +124,7 @@ void AdaptiveQuality::frameBegin()
 
 Bool AdaptiveQuality::shouldSkipRender()
 {
+	// logic catch-up replaces render skipping unless a level has render_skip
 	if (!m_inMatch || !AdaptiveQualityLevels::rendersSkipped(m_model.level()))
 	{
 		m_renderSkipPhase = FALSE;
@@ -311,6 +331,9 @@ void AdaptiveQuality::startMatch()
 	m_lastReason = AdaptiveQualityModel::REASON_NONE;
 	m_lastStepAt = 0.0;
 	m_powerChecked = FALSE;
+	m_catchUpTicks = 0;
+	m_catchUpFrames = m_lastCatchUpFrames = 0;
+	m_lastCatchUpMs = 0.0;
 	checkDisplay();
 }
 
@@ -363,8 +386,8 @@ void AdaptiveQuality::closeSecond(long long t)
 		s.meanMs = (float)(m_sumMs / m_frames);
 	}
 
-	const Bool ignore = m_frames == 0 || matchSeconds < AdaptiveQualityTuning::kWarmupSeconds || m_minimized || m_paused
-		|| (double)m_waitFrames > AdaptiveQualityTuning::kNetworkWaitIgnoreFraction * m_iterations;
+	const Bool ignore = m_frames == 0 || matchSeconds < AdaptiveQualityTuning::values().warmupSeconds || m_minimized || m_paused
+		|| (double)m_waitFrames > AdaptiveQualityTuning::values().networkWaitIgnoreFraction * m_iterations;
 
 	if (!ignore)
 	{
@@ -383,6 +406,11 @@ void AdaptiveQuality::closeSecond(long long t)
 			setLevel(from, m_model.level(), s);
 		}
 	}
+
+	m_lastCatchUpFrames = m_catchUpFrames;
+	m_lastCatchUpMs = (double)m_catchUpTicks * 1000.0 / (double)m_freq;
+	m_catchUpFrames = 0;
+	m_catchUpTicks = 0;
 
 	memset(m_hist, 0, sizeof(m_hist));
 	m_frames = m_over = m_waitFrames = m_iterations = 0;
@@ -412,8 +440,8 @@ void AdaptiveQuality::setLevel(Int from, Int level, const AdaptiveSecond& s)
 
 	static const char* const reasons[] = { "none", "over", "p50", "calm" };
 	const Int changed = level > from ? level : from;
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[ADAPTIVE] level %d -> %d reason=%s cost p50=%.2f p95=%.2f missed=%.1f%% deadline=%.2f cpu=%.2f present=%.2f refresh=%.0fHz synced=%d delta(L%d)=%.2f%s upwait=%.0fs", (int)from, (int)level, reasons[m_model.reason()],
-		s.p50Ms, s.p95Ms, s.frames ? 100.0 * s.over / s.frames : 0.0, m_lastDeadlineMs, m_lastCpuMs, m_lastPresentMs, 1000.0 / m_refreshMs, (int)m_presentSynced, (int)changed, m_model.delta(changed), m_model.deltaLearned(changed) ? "" : " (default)", m_model.stepUpWait());
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[ADAPTIVE] level %d -> %d reason=%s cost p50=%.2f p95=%.2f missed=%.1f%% deadline=%.2f cpu=%.2f present=%.2f refresh=%.0fHz synced=%d delta(L%d)=%.2f%s upwait=%.0fs catchup=%d frames=%d/s", (int)from, (int)level, reasons[m_model.reason()],
+		s.p50Ms, s.p95Ms, s.frames ? 100.0 * s.over / s.frames : 0.0, m_lastDeadlineMs, m_lastCpuMs, m_lastPresentMs, 1000.0 / m_refreshMs, (int)m_presentSynced, (int)changed, m_model.delta(changed), m_model.deltaLearned(changed) ? "" : " (default)", m_model.stepUpWait(), (int)AdaptiveQualityLevels::catchUpFrames(level), (int)m_lastCatchUpFrames);
 
 	if (level > from)
 	{
@@ -442,11 +470,12 @@ Bool AdaptiveQuality::getOverlay(AdaptiveQualityOverlay& out) const
 	out.p95Ms = m_lastP95Ms;
 	out.cpuMs = (float)m_lastCpuMs;
 	out.presentMs = (float)m_lastPresentMs;
-	out.stepDownP50Ms = (float)AdaptiveQualityTuning::kStepDownP50Ms;
-	out.stepUpP95Ms = (float)AdaptiveQualityTuning::kStepUpP95Ms;
+	out.stepDownP50Ms = (float)AdaptiveQualityTuning::values().stepDownP50Ms;
+	out.stepUpP95Ms = (float)AdaptiveQualityTuning::values().stepUpP95Ms;
 	out.deadlineMs = (float)m_lastDeadlineMs;
 	out.deadlineKind = m_deadlineKind;
 	out.refreshHz = (float)(1000.0 / m_refreshMs);
+	out.levelCount = AdaptiveQualityLevels::levelCount();
 	for (Int l = 0; l < AdaptiveQualityOverlay::LEVELS; ++l)
 	{
 		out.savingMs[l] = (float)m_model.delta(l);
@@ -456,5 +485,8 @@ Bool AdaptiveQuality::getOverlay(AdaptiveQualityOverlay& out) const
 	out.downInSec = m_model.canStepDown() ? (float)cooldown : -1.0f;
 	const double calmLeft = m_model.stepUpRequired() - (double)m_model.calmSeconds();
 	out.upInSec = m_model.level() > 0 ? (float)(std::max)(cooldown, calmLeft > 0.0 ? calmLeft : 0.0) : -1.0f;
+	out.catchUpFrames = catchUpFrames();
+	out.catchUpPerSec = m_lastCatchUpFrames;
+	out.catchUpMs = (float)m_lastCatchUpMs;
 	return TRUE;
 }
