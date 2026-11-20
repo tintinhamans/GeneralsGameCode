@@ -143,6 +143,7 @@ public:
 	static Char cornerOf( const AsciiString& key );	///< the one character a cameo corner shows for a key, 0 for none
 	static const char *cornerText( Char corner );	///< "M4" for a mouse key's corner character, null for a letter
 	static Char functionKeyCorner( Int key );	///< the corner character of F1 to F12, 0 for any other key
+	static Char chordCorner( Int key, Int modState );	///< the corner character of a command's chord: a bare letter, digit, mouse or function key, '*' for the rest
 
 	// Hotkeys.ini in the user data folder, laid over the shipped command map and button letters
 	static AsciiString getPlayerKeysPath();

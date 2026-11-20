@@ -1107,25 +1107,7 @@ Int powerRow( const BarObject *object, Int slot )
 /// The corner character of a command's chord: a bare letter, digit, mouse or function key, '*' for the rest.
 Char chordCorner( const Binding& binding )
 {
-	if( !isBound( binding ) )
-	{
-		return 0;
-	}
-	if( binding.modState == NONE )
-	{
-		const Char function = HotKeyManager::functionKeyCorner( binding.key );
-		if( function != 0 )
-		{
-			return function;
-		}
-		const char *name = lookupName( KeyNames, binding.key );
-		const Char corner = name ? HotKeyManager::cornerOf( AsciiString( name + 4 ) ) : 0;
-		if( corner != 0 )
-		{
-			return corner;
-		}
-	}
-	return '*';
+	return isBound( binding ) ? HotKeyManager::chordCorner( binding.key, binding.modState ) : 0;
 }
 
 /// Letters two or more buttons of a card share, each with those buttons' names.

@@ -51,6 +51,7 @@
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/InGameUI.h"
 #include "GameClient/Keyboard.h"
+#include "GameClient/MetaEvent.h"
 // TheSuperHackers @feature for quick cast
 #include "Common/OptionPreferences.h"
 #include "Common/Recorder.h"
@@ -600,6 +601,46 @@ void ControlBar::firePowerHotkey( Int number )
 	{
 		TheAudio->addAudioEvent( &buttonClick );
 	}
+}
+
+//-------------------------------------------------------------------------------------------------
+Char ControlBar::getPowerHotkeyCorner( const CommandButton *button )
+{
+	if( !isPowerHotkeyButton( button ) )
+	{
+		return 0;
+	}
+	Player *player = ThePlayerList ? ThePlayerList->getLocalPlayer() : nullptr;
+	if( player == nullptr || player->getPlayerTemplate() == nullptr || TheMetaMap == nullptr )
+	{
+		return 0;
+	}
+	const CommandSet *set = findPowerHotkeySet( player->getPlayerTemplate(), player );
+	for( Int meta = GameMessage::MSG_META_SPECIAL_POWER_1; meta <= GameMessage::MSG_META_SPECIAL_POWER_16; ++meta )
+	{
+		const CommandButton *numbered = getPowerHotkeyButton( set, meta - GameMessage::MSG_META_SPECIAL_POWER_1 + 1 );
+		if( numbered == nullptr )
+		{
+			return 0;
+		}
+		if( numbered != button )
+		{
+			continue;
+		}
+
+		// getMetaMapRec would add a record for an unmapped command
+		const MetaMapRec *rec = TheMetaMap->getFirstMetaMapRec();
+		while( rec && rec->m_meta != meta )
+		{
+			rec = rec->m_next;
+		}
+		if( rec == nullptr || rec->m_usableIn == COMMANDUSABLE_NONE || ( rec->m_key == MK_NONE && rec->m_modState == NONE ) )
+		{
+			return 0;
+		}
+		return HotKeyManager::chordCorner( rec->m_key, rec->m_modState );
+	}
+	return 0;
 }
 #endif
 

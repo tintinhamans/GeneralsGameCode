@@ -2774,6 +2774,9 @@ void ControlBar::setControlCommand( GameWindow *button, const CommandButton *com
 	//button->winSetUserData( commandButton );
 
 #if RTS_ZEROHOUR
+	// a power of the army's Powers Menu shows its SPECIAL_POWER key in the corner
+	GadgetButtonSetCornerLetter( button, getPowerHotkeyCorner( commandButton ) );
+
 	// right click toggles auto queue on a unit cameo and moves a queue cameo one place earlier
 	const GUICommandType clickCommandType = commandButton->getCommandType();
 	const Bool autoQueueClick = clickCommandType == GUI_COMMAND_UNIT_BUILD && TheGameLogic->isAutoQueue();

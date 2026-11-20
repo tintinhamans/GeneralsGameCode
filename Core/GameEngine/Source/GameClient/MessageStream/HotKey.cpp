@@ -489,6 +489,32 @@ Char HotKeyManager::functionKeyCorner( Int key )
 }
 
 //-----------------------------------------------------------------------------
+Char HotKeyManager::chordCorner( Int key, Int modState )
+{
+	if( modState == NONE )
+	{
+		const Char function = functionKeyCorner( key );
+		if( function != 0 )
+		{
+			return function;
+		}
+		for( const LookupListRec *rec = KeyNames; rec->name; ++rec )
+		{
+			if( rec->value == key )
+			{
+				const Char corner = cornerOf( AsciiString( rec->name + 4 ) );
+				if( corner != 0 )
+				{
+					return corner;
+				}
+				break;
+			}
+		}
+	}
+	return '*';
+}
+
+//-----------------------------------------------------------------------------
 AsciiString HotKeyManager::getButtonHotKey( const AsciiString& buttonName, const AsciiString& label )
 {
 	if( s_playerButtonKeys.empty() )
