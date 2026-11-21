@@ -2638,7 +2638,17 @@ void AIGroup::groupAttackMoveToPosition( const Coord3D *pos, Int maxShotsToFire,
 	Group_Goal_Scope groupGoalScope;
 	if (PathTuning::GroupGoals)
 	{
-		Group_Goals_Assign(m_memberList, pos, cmdSource);
+		// Members that only queue this order stay out of the goal finder, which re-reserves every goal it is given
+		ListObjectPtr takers;
+		for (i = m_memberList.begin(); i != m_memberList.end(); ++i)
+		{
+			if (isWaypoint && TheCommandSequence->hasAnyCommand(*i))
+			{
+				continue;
+			}
+			takers.push_back(*i);
+		}
+		Group_Goals_Assign(takers, pos, cmdSource);
 	}
 	else if (!Coord3DInsideRect2D( pos, &min, &max ))
 	{
