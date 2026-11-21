@@ -49,7 +49,7 @@
 #include "Common/ActionManager.h"
 #include "Common/BuildAssistant.h"
 #include "Common/StatsExporter.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 #include "Common/CRCDebug.h"
 #include "Common/DisabledTypes.h"
 #include "Common/GameState.h"
@@ -1542,7 +1542,7 @@ void Player::onUnitCreated( Object *factory, Object *unit )
 	// GenOnline @feature arcticdolphin 21/11/2026 The live stats pipe and the JSON export need the unit cost
 	const Int unitCost = unit->getTemplate()->calcCostToBuild(this);
 	m_scoreKeeper.addMoneySpent(unitCost);
-	StatsExporterLiveSpend(getPlayerIndex(), STATS_EXPORTER_SPEND_UNITS, unitCost);
+	LocalApiLiveSpend(getPlayerIndex(), LOCAL_API_SPEND_UNITS, unitCost);
 
 	// GenOnline @feature arcticdolphin 21/11/2026 The exporter gates itself on an active recording
 	StatsExporterRecordBuild(factory, unit);
@@ -1637,7 +1637,7 @@ void Player::onStructureConstructionComplete( Object *builder, Object *structure
 		// GenOnline @feature arcticdolphin 21/11/2026 The live stats pipe and the JSON export need the structure cost
 		const Int structureCost = structure->getTemplate()->calcCostToBuild(this);
 		m_scoreKeeper.addMoneySpent(structureCost);
-		StatsExporterLiveSpend(getPlayerIndex(), STATS_EXPORTER_SPEND_STRUCTURES, structureCost);
+		LocalApiLiveSpend(getPlayerIndex(), LOCAL_API_SPEND_STRUCTURES, structureCost);
 		// GenOnline @feature arcticdolphin 21/11/2026 The exporter gates itself on an active recording
 		StatsExporterRecordBuild(builder, structure);
 	}
@@ -2581,10 +2581,10 @@ Bool Player::attemptToPurchaseScience(ScienceType science)
 	Int cost = TheScienceStore->getSciencePurchaseCost(science);
 	addSciencePurchasePoints(-cost);
 	// GenOnline @feature arcticdolphin 21/11/2026 Only purchases are events, rank grants and setup grants go through addScience too
-	StatsExporterLiveSpend(getPlayerIndex(), STATS_EXPORTER_SPEND_SCIENCES, cost);
+	LocalApiLiveSpend(getPlayerIndex(), LOCAL_API_SPEND_SCIENCES, cost);
 	if (addScience(science))
 	{
-		StatsExporterLiveScienceAcquired(
+		LocalApiLiveScienceAcquired(
 			getPlayerIndex(), getRankLevel(), getSciencePurchasePoints(),
 			TheScienceStore->getInternalNameForScience(science).str());
 	}
@@ -3049,7 +3049,7 @@ Upgrade *Player::addUpgrade( const UpgradeTemplate *upgradeTemplate, UpgradeStat
 		// GenOnline @feature arcticdolphin 21/11/2026 Report each upgrade completion once
 		if( !wasComplete )
 		{
-			StatsExporterLiveUpgradeComplete( getPlayerIndex(), upgradeTemplate->getUpgradeName().str(), upgradeTemplate->calcCostToBuild( this ), FALSE );
+			LocalApiLiveUpgradeComplete( getPlayerIndex(), upgradeTemplate->getUpgradeName().str(), upgradeTemplate->calcCostToBuild( this ), FALSE );
 		}
 	}
 
@@ -3155,7 +3155,7 @@ void Player::addRadar( Bool disableProof )
 	}
 
 	// GenOnline @feature arcticdolphin 21/11/2026 Report the radar change to the stats pipe
-	StatsExporterLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
+	LocalApiLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3183,7 +3183,7 @@ void Player::removeRadar( Bool disableProof )
 	}
 
 	// GenOnline @feature arcticdolphin 21/11/2026 Report the radar change to the stats pipe
-	StatsExporterLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
+	LocalApiLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3204,7 +3204,7 @@ void Player::disableRadar()
 	}
 
 	// GenOnline @feature arcticdolphin 21/11/2026 Report the radar change to the stats pipe
-	StatsExporterLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
+	LocalApiLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3224,7 +3224,7 @@ void Player::enableRadar()
 	}
 
 	// GenOnline @feature arcticdolphin 21/11/2026 Report the radar change to the stats pipe
-	StatsExporterLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
+	LocalApiLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
 }
 
 //-------------------------------------------------------------------------------------------------

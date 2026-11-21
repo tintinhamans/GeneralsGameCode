@@ -72,7 +72,7 @@
 #include "GameNetwork/GUIUtil.h"
 #include "GameNetwork/IPEnumeration.h"
 #include "WWDownload/Registry.h"
-#include "Common/StatsExporterLobby.h"
+#include "Common/LocalApiLobby.h"
 
 UnsignedInt GetTeamUiColor(Int teamNumber);
 

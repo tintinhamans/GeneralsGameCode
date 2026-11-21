@@ -109,7 +109,7 @@
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/Online/IOnlineGameHooks.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 #include "Common/StatsExporter.h"
 
 struct QuitGameException {};
@@ -1242,7 +1242,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	populateRandomStartPosition( TheGameInfo );
 
 	// GenOnline @feature arcticdolphin 21/11/2026 The resolved sides, colors and start positions are in the slots now and the exporter only reads them
-	StatsExporterLiveMatchLoading( TheGameInfo, randomCrcBeforeResolve, loadingSaveGame );
+	LocalApiLiveMatchLoading( TheGameInfo, randomCrcBeforeResolve, loadingSaveGame );
 
 	//****************************//
 	// Start the LoadScreen Now!	//
@@ -3380,7 +3380,7 @@ void GameLogic::update()
 		m_startNewGame = FALSE;
 
 		// GenOnline @feature arcticdolphin 21/11/2026 Players are fully set up now and nothing happens for the shell map
-		StatsExporterLiveMatchStarted();
+		LocalApiLiveMatchStarted();
 
 	#ifdef DUMP_PERF_STATS
 		__int64 freq64;
@@ -3464,7 +3464,7 @@ void GameLogic::update()
 	}
 
 	// GenOnline @feature arcticdolphin 21/11/2026 Live stats pipe sample of the state at the end of the previous frame, an early out while no reader is connected
-	StatsExporterLiveUpdate();
+	LocalApiLiveUpdate();
 
 	// GenOnline @feature arcticdolphin 21/11/2026 Snapshot of the game being recorded, the headless replay simulation collects its own
 	if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD)
@@ -3612,7 +3612,7 @@ void GameLogic::update()
 	}
 
 	// GenOnline @feature arcticdolphin 21/11/2026 Send the events of this logic frame to the live stats pipe
-	StatsExporterLiveFrameEnd();
+	LocalApiLiveFrameEnd();
 
 	// increment world time
 	if (!m_startNewGame)

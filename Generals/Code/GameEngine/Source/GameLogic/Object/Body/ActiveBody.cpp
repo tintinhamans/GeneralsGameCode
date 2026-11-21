@@ -32,7 +32,7 @@
 #include "Common/BitFlagsIO.h"
 #include "Common/CRCDebug.h"
 #include "Common/DamageFX.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 #include "Common/Player.h"
 #include "Common/GameState.h"
 #include "Common/GlobalData.h"
@@ -427,7 +427,7 @@ void ActiveBody::attemptDamage( DamageInfo *damageInfo )
 		// GenOnline @feature arcticdolphin 21/11/2026 Read only tap for the stats pipe that reports the health this hit actually took, not subdual or status damage
 		if (!alreadyHandled)
 		{
-			StatsExporterLiveDamage(obj, damageInfo->in.m_sourceID, damageInfo->out.m_actualDamageClipped);
+			LocalApiLiveDamage(obj, damageInfo->in.m_sourceID, damageInfo->out.m_actualDamageClipped);
 		}
 
 		// then copy the whole DamageInfo struct for easy lookup

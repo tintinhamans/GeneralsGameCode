@@ -53,7 +53,7 @@
 #include "GameLogic/AIPathfind.h"
 #include "GameLogic/GameLogic.h"
 #if defined(GENONLINE)
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 #endif
 #include "GameLogic/Locomotor.h"
 #include "GameLogic/Object.h"
@@ -262,7 +262,7 @@ void GameLogic::clearGameData( Bool showScoreScreen )
 
 #if defined(GENONLINE)
 	// Every way a match ends (quit, replay left early, disconnect) passes here. A no-op if ENDED already went out.
-	StatsExporterLiveGameDataCleared();
+	LocalApiLiveGameDataCleared();
 #endif
 
 	setClearingGameData( TRUE );
@@ -416,7 +416,7 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 					TheStatsCollector->collectMsgStats(msg);
 
 #if defined(GENONLINE)
-				StatsExporterLiveCommand(msgPlayer->getPlayerIndex(), msg->getType());
+				LocalApiLiveCommand(msgPlayer->getPlayerIndex(), msg->getType());
 #endif
 			}
 		}
@@ -2159,7 +2159,7 @@ bool GameLogic::onPlaceBeacon(MAYBE_UNUSED GameMessage *msg)
 		object->setPosition( &pos );
 		object->setProducer(nullptr);
 #if defined(GENONLINE)
-		StatsExporterLiveBeacon(msgPlayer->getPlayerIndex(), &pos);
+		LocalApiLiveBeacon(msgPlayer->getPlayerIndex(), &pos);
 #endif
 
 		if (msgPlayer->getRelationship( ThePlayerList->getLocalPlayer()->getDefaultTeam() ) == ALLIES || ThePlayerList->getLocalPlayer()->isPlayerObserver())
@@ -2322,7 +2322,7 @@ bool GameLogic::onSelfDestruct(MAYBE_UNUSED GameMessage *msg)
 {
 	Player *msgPlayer = getMessagePlayer(msg);
 #if defined(GENONLINE)
-	StatsExporterLivePlayerLeft(msgPlayer->getPlayerIndex(), "self_destruct");
+	LocalApiLivePlayerLeft(msgPlayer->getPlayerIndex(), "self_destruct");
 #endif
 
 	if (msg->getArgument(0)->boolean)

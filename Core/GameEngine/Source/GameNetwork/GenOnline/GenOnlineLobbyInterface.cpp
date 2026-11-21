@@ -8,7 +8,7 @@
 #include "GameNetwork/GenOnline/LobbyConnectionPolicy.h"
 #include "Lib/PathUtil.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMatchmaking.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 
 #include <algorithm>
 
@@ -2215,7 +2215,7 @@ void GenOnlineLobbyInterface::ShowLobbyChatLine(const GenOnlineRealtime::Channel
 	{
 		GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 		const bool bIsLocal = pAuthInterface != nullptr && pAuthInterface->GetUserID() == message.author.id;
-		StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_GAME_LOBBY, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, bAnnouncement, bIsLocal);
+		LocalApiLiveChatOnline(LOCAL_API_CHAT_GAME_LOBBY, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, bAnnouncement, bIsLocal);
 	}
 	if (m_OnChatMessageCallback != nullptr)
 	{

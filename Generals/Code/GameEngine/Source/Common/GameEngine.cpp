@@ -118,8 +118,8 @@
 
 #include "Common/version.h"
 
-#include "Common/StatsExporterPipe.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiReaders.h"
+#include "Common/LocalApiLive.h"
 
 //-------------------------------------------------------------------------------------------------
 
@@ -268,8 +268,8 @@ GameEngine::GameEngine()
 //-------------------------------------------------------------------------------------------------
 GameEngine::~GameEngine()
 {
-	// GenOnline @feature arcticdolphin 21/11/2026 Stop the stats pipe thread before the state it samples is torn down
-	StatsExporterPipeShutdown();
+	// GenOnline @feature arcticdolphin 21/11/2026 Stop the stats readers feed before the state it samples is torn down
+	LocalApiReadersShutdown();
 #if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 The caster plugin unloads after the sink stopped using it
 	GenOnlinePluginHost::UnloadToolPlugin();
@@ -828,13 +828,13 @@ void GameEngine::update()
 {
 	USE_PERF_TIMER(GameEngine_update)
 	{
-		// GenOnline @feature arcticdolphin 21/11/2026 Keeps the stats pipe listener up so a client can connect from the shell
-		StatsExporterPipeStart();
+		// GenOnline @feature arcticdolphin 21/11/2026 Keeps the stats readers feed up so a reader can connect from the shell
+		LocalApiReadersStart();
 #if defined(GENONLINE)
 		// GenOnline @feature arcticdolphin 21/11/2026 Runs the caster plugin once per frame
 		GenOnlinePluginHost::TickToolPlugin();
 #endif
-		StatsExporterLiveTick();
+		LocalApiLiveTick();
 
 		{
 
@@ -867,7 +867,7 @@ void GameEngine::update()
 				AdaptiveQuality::get().addOwn(AdaptiveQuality::now() - aqClientStart);
 			}
 			// GenOnline @feature arcticdolphin 21/11/2026 Sends the camera frame after the client update has moved the views
-			StatsExporterLiveCamera();
+			LocalApiLiveCamera();
 			TheMessageStream->propagateMessages();
 
 			if (TheNetwork != nullptr)

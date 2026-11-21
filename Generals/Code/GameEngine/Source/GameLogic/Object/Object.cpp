@@ -53,7 +53,7 @@
 #include "Common/XferCRC.h"
 #include "Common/PerfTimer.h"
 #include "Common/StatsExporter.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 
 #include "GameClient/Anim2D.h"
 #include "GameClient/ControlBar.h"
@@ -2737,7 +2737,7 @@ void Object::scoreTheKill( const Object *victim )
 	{
 		victimController->getScoreKeeper()->addObjectLost(victim);
 		// GenOnline @feature arcticdolphin 21/11/2026 Report the loss to the live stats pipe
-		StatsExporterLiveLoss(victimController->getPlayerIndex(), victim, this);
+		LocalApiLiveLoss(victimController->getPlayerIndex(), victim, this);
 	}
 
 	Relationship r = getRelationship(victim);
@@ -4208,7 +4208,7 @@ void Object::onCapture( Player *oldOwner, Player *newOwner )
 
 	// GenOnline @feature arcticdolphin 21/11/2026 Report the capture to the JSON export and the live stats pipe
 	StatsExporterRecordCapture(this, oldOwner, newOwner);
-	StatsExporterLiveCapture(this, oldOwner, newOwner);
+	LocalApiLiveCapture(this, oldOwner, newOwner);
 
 	// rip through the behavior modules and call the onCapture for any modules that care
 	for( BehaviorModule **module = m_behaviors; *module; ++module )

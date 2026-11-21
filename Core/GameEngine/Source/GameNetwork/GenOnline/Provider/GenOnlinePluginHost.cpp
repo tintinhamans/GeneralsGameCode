@@ -56,9 +56,9 @@ constexpr uint32_t kPluginApiMinSize = static_cast<uint32_t>(offsetof(GenOnlineP
 constexpr uint32_t kLinkedAccountApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginLinkedAccountApi, provider) + sizeof(void*));
 constexpr uint32_t kAnticheatApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginAnticheatApi, MessageArrived) + sizeof(void*));
 constexpr uint32_t kTransportApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginTransportApi, DisconnectAll) + sizeof(void*));
-constexpr uint32_t kToolApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginToolApi, FreeInbound) + sizeof(void*));
+constexpr uint32_t kLocalApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginLocalApi, FreeInbound) + sizeof(void*));
 // A plugin table that ends before the tool field comes from a plugin built before the tool table existed.
-constexpr uint32_t kPluginApiToolEnd = static_cast<uint32_t>(offsetof(GenOnlinePluginApi, tool) + sizeof(void*));
+constexpr uint32_t kPluginApiLocalApiEnd = static_cast<uint32_t>(offsetof(GenOnlinePluginApi, localApi) + sizeof(void*));
 
 constexpr const char* s_pluginPublicKeys[] = { GenOnlinePluginKeys::kPluginsCurrent, GenOnlinePluginKeys::kPluginsNext };
 
@@ -120,8 +120,8 @@ int64_t s_tokenCreationTime = -1;
 GenOnlinePluginTrust::PluginFiles s_toolPluginFiles;
 GenOnlinePluginPlatform::Module s_hToolPluginModule = nullptr;
 GenOnlinePluginApi s_toolPluginApi = {};
-GenOnlinePluginHostApi s_toolHostApi = {};
-const GenOnlinePluginToolApi* s_pTool = nullptr;
+GenOnlinePluginHostApi s_localApiHostApi = {};
+const GenOnlinePluginLocalApi* s_pLocalApi = nullptr;
 
 int64_t UtcNowMs()
 {
@@ -240,11 +240,11 @@ bool ValidateTransportApi(const GenOnlinePluginTransportApi* pApi)
 		&& pApi->DisconnectAll != nullptr;
 }
 
-bool ValidateToolApi(const GenOnlinePluginToolApi* pApi)
+bool ValidateLocalApi(const GenOnlinePluginLocalApi* pApi)
 {
 	return pApi != nullptr
-		&& pApi->structSize >= kToolApiMinSize
-		&& pApi->version == GENONLINE_PLUGIN_TOOL_API_VERSION
+		&& pApi->structSize >= kLocalApiMinSize
+		&& pApi->version == GENONLINE_PLUGIN_LOCAL_API_VERSION
 		&& pApi->StartListener != nullptr
 		&& pApi->IsConnected != nullptr
 		&& pApi->EnqueueFrame != nullptr
@@ -1047,12 +1047,12 @@ void GenOnlinePluginHost::LoadToolPlugin()
 	{
 		FillHostApi();
 	}
-	s_toolHostApi = s_transportOnlyHostApi;
-	s_toolHostApi.enabledCapabilities = GENONLINE_PLUGIN_CAP_TOOL;
+	s_localApiHostApi = s_transportOnlyHostApi;
+	s_localApiHostApi.enabledCapabilities = GENONLINE_PLUGIN_CAP_LOCAL_API;
 
 	GenOnlinePluginApi api = {};
 	api.structSize = sizeof(GenOnlinePluginApi);
-	const int32_t getApiResult = fnGetApi(GENONLINE_PLUGIN_API_VERSION, &s_toolHostApi, &api);
+	const int32_t getApiResult = fnGetApi(GENONLINE_PLUGIN_API_VERSION, &s_localApiHostApi, &api);
 	if (getApiResult != GENONLINE_PLUGIN_RESULT_OK)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: %s of the caster plugin returned %d - %s", GENONLINE_PLUGIN_GET_API_EXPORT_NAME, getApiResult, DescribeResult(getApiResult));
@@ -1075,16 +1075,16 @@ void GenOnlinePluginHost::LoadToolPlugin()
 		return;
 	}
 
-	if ((api.capabilities & GENONLINE_PLUGIN_CAP_TOOL) == 0)
+	if ((api.capabilities & GENONLINE_PLUGIN_CAP_LOCAL_API) == 0)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: Refusing caster plugin %s, it does not offer the tool capability", api.name);
 		failLoad();
 		return;
 	}
 
-	const GenOnlinePluginToolApi* pToolField = api.structSize >= kPluginApiToolEnd ? api.tool : nullptr;
-	const GenOnlinePluginToolApi* pTool = nullptr;
-	if (!AcceptSubInterface(api, GENONLINE_PLUGIN_CAP_TOOL, pToolField, ValidateToolApi, "caster", pTool))
+	const GenOnlinePluginLocalApi* pLocalApiField = api.structSize >= kPluginApiLocalApiEnd ? api.localApi : nullptr;
+	const GenOnlinePluginLocalApi* pLocalApi = nullptr;
+	if (!AcceptSubInterface(api, GENONLINE_PLUGIN_CAP_LOCAL_API, pLocalApiField, ValidateLocalApi, "caster", pLocalApi))
 	{
 		failLoad();
 		return;
@@ -1103,7 +1103,7 @@ void GenOnlinePluginHost::LoadToolPlugin()
 
 	s_hToolPluginModule = hModule;
 	s_toolPluginApi = api;
-	s_pTool = pTool;
+	s_pLocalApi = pLocalApi;
 }
 
 void GenOnlinePluginHost::UnloadToolPlugin()
@@ -1119,7 +1119,7 @@ void GenOnlinePluginHost::UnloadToolPlugin()
 	// all function pointers reference the unloaded module now
 	s_hToolPluginModule = nullptr;
 	s_toolPluginApi = GenOnlinePluginApi();
-	s_pTool = nullptr;
+	s_pLocalApi = nullptr;
 	s_toolPluginFiles.Close();
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Unloaded the caster plugin");
 }
@@ -1132,9 +1132,9 @@ void GenOnlinePluginHost::TickToolPlugin()
 	}
 }
 
-const GenOnlinePluginToolApi* GenOnlinePluginHost::GetToolApi()
+const GenOnlinePluginLocalApi* GenOnlinePluginHost::GetLocalApi()
 {
-	return s_pTool;
+	return s_pLocalApi;
 }
 
 void GenOnlinePluginHost::LinkedAccount::SignIn()

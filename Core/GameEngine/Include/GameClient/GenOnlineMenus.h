@@ -145,7 +145,7 @@ extern void OnKickedFromLobby();
 
 extern Bool GenOnlineGameSetupMenuSubmitChatLine( UnicodeString text );
 extern Bool GenOnlineLobbyMenuSubmitChatLine( UnicodeString text );
-/// Describes the game setup controls for the stats pipe lobby control. FALSE when the screen is not open.
+/// Describes the game setup controls for the stats readers lobby control. FALSE when the screen is not open.
 extern Bool GenOnlineGameSetupMenuStatsLobby( StatsLobbyScreen& out );
 
 extern GameWindow *GenOnlineQuickMatchTextWindow;	///< Text box on the quick match screen

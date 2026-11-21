@@ -65,7 +65,7 @@
 
 #include "GameLogic/Object.h"
 #include "GameLogic/GameLogic.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 
 //-----------------------------------------------------------------------------
 // DEFINES ////////////////////////////////////////////////////////////////////
@@ -154,7 +154,7 @@ void ScoreKeeper::addObjectBuilt( const Object *o)
 		// authoritative build outcome for both units and structures
 		if (o->getControllingPlayer() != nullptr)
 		{
-			StatsExporterLiveBuild(o->getControllingPlayer()->getPlayerIndex(), o->getTemplate(), o->getID(), static_cast<Int>(o->getVeterancyLevel()));
+			LocalApiLiveBuild(o->getControllingPlayer()->getPlayerIndex(), o->getTemplate(), o->getID(), static_cast<Int>(o->getVeterancyLevel()));
 		}
 	}
 }

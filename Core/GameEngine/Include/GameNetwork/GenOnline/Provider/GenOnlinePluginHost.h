@@ -26,7 +26,7 @@
 #include <vector>
 
 struct PluginPeerTransportApi;
-struct GenOnlinePluginToolApi;
+struct GenOnlinePluginLocalApi;
 
 enum class EConnectionState : uint8_t
 {
@@ -108,14 +108,14 @@ public:
 	static bool IsExternalProcessRunning();
 	static int GetAnticheatIdentifier();
 
-	// Loads the caster plugin that client.json plugins.caster names. It has its own slot next to the online plugin and also
+	// Loads the caster plugin that settings.client.json plugins.caster names. It has its own slot next to the online plugin and also
 	// loads offline and in headless runs, with the same folder, allowlist and manifest checks.
 	static void LoadToolPlugin();
 	static void UnloadToolPlugin();
 	static void TickToolPlugin();
 
 	// The tool table of the loaded caster plugin, nullptr when none is loaded.
-	static const GenOnlinePluginToolApi* GetToolApi();
+	static const GenOnlinePluginLocalApi* GetLocalApi();
 
 	class LinkedAccount
 	{

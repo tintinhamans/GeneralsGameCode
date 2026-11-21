@@ -43,7 +43,7 @@
 #include "GameClient/InGameUI.h"
 #include "GameLogic/ExperienceTracker.h"
 #include "GameLogic/Object.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -188,7 +188,7 @@ void SalvageCrateCollide::doWeaponSet( Object *other )
 	Player* statsController = other->getControllingPlayer();
 	if( statsController != nullptr )
 	{
-		StatsExporterLiveSalvageUpgrade(
+		LocalApiLiveSalvageUpgrade(
 			statsController->getPlayerIndex(), other->getTemplate(), "WEAPON", reachedTier );
 	}
 }

@@ -123,7 +123,7 @@ struct QuitGameException {};
 #include "../GenOnlineInterfaces.h"
 
 #include "../GenOnlineDefines.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 #include "Common/StatsExporter.h"
 
 DECLARE_PERF_TIMER(SleepyMaintenance)
@@ -752,7 +752,7 @@ void handleNameChange(MapObject* mapObj)
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-// Mirrored by predictLobby() in StatsExporterLive.cpp for the lobby prediction, keep them in sync.
+// Mirrored by predictLobby() in LocalApiLive.cpp for the lobby prediction, keep them in sync.
 static void checkForDuplicateColors(GameInfo* game)
 {
 	if (!game)
@@ -789,7 +789,7 @@ static void checkForDuplicateColors(GameInfo* game)
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-// Mirrored line by line by predictLobby() in StatsExporterLive.cpp for the lobby prediction, keep them in sync.
+// Mirrored line by line by predictLobby() in LocalApiLive.cpp for the lobby prediction, keep them in sync.
 static void populateRandomSideAndColor(GameInfo* game)
 {
 	if (!game)
@@ -886,7 +886,7 @@ static void populateRandomSideAndColor(GameInfo* game)
 // ------------------------------------------------------------------------------------------------
 static const WaypointMap s_emptyWaypoints = WaypointMap();
 
-// Mirrored line by line by predictLobby() in StatsExporterLive.cpp for the lobby prediction, keep them in sync.
+// Mirrored line by line by predictLobby() in LocalApiLive.cpp for the lobby prediction, keep them in sync.
 static void populateRandomStartPosition(GameInfo* game)
 {
 	if (!game)
@@ -1468,7 +1468,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	populateRandomStartPosition(game);
 
 	// The resolved sides, colors and start positions are in the slots now, the exporter only reads them.
-	StatsExporterLiveMatchLoading(game, randomCrcBeforeResolve, loadingSaveGame);
+	LocalApiLiveMatchLoading(game, randomCrcBeforeResolve, loadingSaveGame);
 
 	//****************************//
 	// Start the LoadScreen Now!	//
@@ -3986,7 +3986,7 @@ void GameLogic::update()
 		m_startNewGame = FALSE;
 
 		// players are fully set up now, nothing happens for the shell map
-		StatsExporterLiveMatchStarted();
+		LocalApiLiveMatchStarted();
 
 	#ifdef DUMP_PERF_STATS
 		char Buf[1024];
@@ -4071,7 +4071,7 @@ void GameLogic::update()
 	}
 
 	// live stats pipe sample (state at the end of the previous frame), an early-out while no reader is connected
-	StatsExporterLiveUpdate();
+	LocalApiLiveUpdate();
 
 	// GenOnline @feature arcticdolphin 21/11/2026 Snapshot of the game being recorded, the headless replay simulation collects its own
 	if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD)
@@ -4218,7 +4218,7 @@ void GameLogic::update()
 		TheGameLogic->exitGame();
 	}
 
-	StatsExporterLiveFrameEnd();
+	LocalApiLiveFrameEnd();
 
 	// increment world time
 	if (!m_startNewGame)

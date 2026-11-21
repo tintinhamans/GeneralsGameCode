@@ -15,9 +15,9 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// Protocol reference: GenOnline/docs/stats-exporter.md
-#include "Common/StatsExporterLobby.h"
-#include "Common/StatsExporterLive.h"
+// Protocol reference: GenOnline/docs/local-api.md
+#include "Common/LocalApiLobby.h"
+#include "Common/LocalApiLive.h"
 
 #include "Common/GlobalData.h"
 #include "Common/Money.h"
@@ -39,17 +39,17 @@
 #include <string.h>
 #include <string>
 
-#include "StatsExporter.pb.h"
+#include "LocalApi.pb.h"
 
 namespace
 {
-	typedef statsexporter::ResponseStatus Status;
+	typedef localapi::ResponseStatus Status;
 
-	const Status kOk = statsexporter::RESPONSE_STATUS_OK;
-	const Status kBadRequest = statsexporter::RESPONSE_STATUS_BAD_REQUEST;
-	const Status kNotFound = statsexporter::RESPONSE_STATUS_NOT_FOUND;
-	const Status kUnavailable = statsexporter::RESPONSE_STATUS_UNAVAILABLE;
-	const Status kNotAllowed = statsexporter::RESPONSE_STATUS_NOT_ALLOWED;
+	const Status kOk = localapi::RESPONSE_STATUS_OK;
+	const Status kBadRequest = localapi::RESPONSE_STATUS_BAD_REQUEST;
+	const Status kNotFound = localapi::RESPONSE_STATUS_NOT_FOUND;
+	const Status kUnavailable = localapi::RESPONSE_STATUS_UNAVAILABLE;
+	const Status kNotAllowed = localapi::RESPONSE_STATUS_NOT_ALLOWED;
 
 	const Int kMinGameSpeed = 15;
 	const Int kMaxGameSpeed = 61;
@@ -58,7 +58,7 @@ namespace
 	struct Target
 	{
 		StatsLobbyScreen screen;
-		statsexporter::LobbyKind kind;
+		localapi::LobbyKind kind;
 		std::string note;
 	};
 
@@ -151,18 +151,18 @@ namespace
 	Status openScreen(Target& target, std::string& message)
 	{
 		Bool open = FALSE;
-		switch (StatsExporterLiveCurrentScreen())
+		switch (LocalApiLiveCurrentScreen())
 		{
-			case statsexporter::UI_SCREEN_SKIRMISH_SETUP:
-				target.kind = statsexporter::LOBBY_KIND_SKIRMISH;
+			case localapi::UI_SCREEN_SKIRMISH_SETUP:
+				target.kind = localapi::LOBBY_KIND_SKIRMISH;
 				open = SkirmishGameOptionsMenuStatsLobby(target.screen);
 				break;
-			case statsexporter::UI_SCREEN_LAN_GAME_SETUP:
-				target.kind = statsexporter::LOBBY_KIND_LAN;
+			case localapi::UI_SCREEN_LAN_GAME_SETUP:
+				target.kind = localapi::LOBBY_KIND_LAN;
 				open = LanGameOptionsMenuStatsLobby(target.screen);
 				break;
-			case statsexporter::UI_SCREEN_ONLINE_GAME_SETUP:
-				target.kind = statsexporter::LOBBY_KIND_ONLINE;
+			case localapi::UI_SCREEN_ONLINE_GAME_SETUP:
+				target.kind = localapi::LOBBY_KIND_ONLINE;
 				open = GenOnlineGameSetupMenuStatsLobby(target.screen);
 				break;
 			default:
@@ -181,16 +181,16 @@ namespace
 		return kOk;
 	}
 
-	statsexporter::LobbyChangeRoute routeFor(const Target& target)
+	localapi::LobbyChangeRoute routeFor(const Target& target)
 	{
 		switch (target.kind)
 		{
-			case statsexporter::LOBBY_KIND_ONLINE:
-				return statsexporter::LOBBY_CHANGE_REQUESTED_FROM_SERVICE;
-			case statsexporter::LOBBY_KIND_LAN:
-				return target.screen.isHost ? statsexporter::LOBBY_CHANGE_APPLIED : statsexporter::LOBBY_CHANGE_REQUESTED_FROM_HOST;
+			case localapi::LOBBY_KIND_ONLINE:
+				return localapi::LOBBY_CHANGE_REQUESTED_FROM_SERVICE;
+			case localapi::LOBBY_KIND_LAN:
+				return target.screen.isHost ? localapi::LOBBY_CHANGE_APPLIED : localapi::LOBBY_CHANGE_REQUESTED_FROM_HOST;
 			default:
-				return statsexporter::LOBBY_CHANGE_APPLIED;
+				return localapi::LOBBY_CHANGE_APPLIED;
 		}
 	}
 
@@ -356,7 +356,7 @@ namespace
 		}
 
 		GadgetComboBoxSetSelectedPos(combo, index);
-		if (target.kind != statsexporter::LOBBY_KIND_ONLINE && gameSlot->getColor() != wantedColor)
+		if (target.kind != localapi::LOBBY_KIND_ONLINE && gameSlot->getColor() != wantedColor)
 		{
 			return refuse(message, "the screen did not accept the change");
 		}
@@ -387,7 +387,7 @@ namespace
 		}
 
 		GadgetComboBoxSetSelectedPos(combo, index);
-		if (target.kind != statsexporter::LOBBY_KIND_ONLINE && gameSlot->getTeamNumber() != team)
+		if (target.kind != localapi::LOBBY_KIND_ONLINE && gameSlot->getTeamNumber() != team)
 		{
 			return refuse(message, "the screen did not accept the change");
 		}
@@ -441,7 +441,7 @@ namespace
 		}
 
 		screen.moveStartPosition(slot, position);
-		if (target.kind != statsexporter::LOBBY_KIND_ONLINE && gameSlot->getStartPos() != position)
+		if (target.kind != localapi::LOBBY_KIND_ONLINE && gameSlot->getStartPos() != position)
 		{
 			return refuse(message, "the screen did not accept the change");
 		}
@@ -519,7 +519,7 @@ namespace
 		}
 
 		GadgetComboBoxSetSelectedPos(screen.comboStartingCash, index);
-		if (target.kind != statsexporter::LOBBY_KIND_ONLINE && (UnsignedInt)screen.game->getStartingCash().countMoney() != cash)
+		if (target.kind != localapi::LOBBY_KIND_ONLINE && (UnsignedInt)screen.game->getStartingCash().countMoney() != cash)
 		{
 			return refuse(message, "the screen did not accept the change");
 		}
@@ -539,7 +539,7 @@ namespace
 		}
 
 		GadgetCheckBoxSetChecked(screen.checkLimitSuperweapons, limited);
-		if (target.kind != statsexporter::LOBBY_KIND_ONLINE && (screen.game->getSuperweaponRestriction() != 0) != (limited != FALSE))
+		if (target.kind != localapi::LOBBY_KIND_ONLINE && (screen.game->getSuperweaponRestriction() != 0) != (limited != FALSE))
 		{
 			return refuse(message, "the screen did not accept the change");
 		}
@@ -583,18 +583,18 @@ namespace
 		}
 
 		pressButton(screen.buttonStart);
-		if (start && target.kind != statsexporter::LOBBY_KIND_SKIRMISH)
+		if (start && target.kind != localapi::LOBBY_KIND_SKIRMISH)
 		{
 			target.note = "pressed Start: the game starts once every human has accepted, otherwise the players are only told the host wants to start";
 		}
 		return kOk;
 	}
 
-	Status runAction(Target& target, const statsexporter::LobbyControlQuery& query, std::string& message)
+	Status runAction(Target& target, const localapi::LobbyControlQuery& query, std::string& message)
 	{
 		const Int slot = (Int)query.lobby_slot();
-		const Bool slotAction = query.action_case() >= statsexporter::LobbyControlQuery::kSetSlotState
-			&& query.action_case() <= statsexporter::LobbyControlQuery::kStartPosition;
+		const Bool slotAction = query.action_case() >= localapi::LobbyControlQuery::kSetSlotState
+			&& query.action_case() <= localapi::LobbyControlQuery::kStartPosition;
 		if (slotAction && (slot < 0 || slot >= MAX_SLOTS || target.screen.game->getSlot(slot) == NULL))
 		{
 			return badRequest(message, "lobby_slot must be 0 to 7");
@@ -602,24 +602,24 @@ namespace
 
 		switch (query.action_case())
 		{
-			case statsexporter::LobbyControlQuery::kSetSlotState:
+			case localapi::LobbyControlQuery::kSetSlotState:
 			{
 				SlotState state = SLOT_OPEN;
 				switch (query.set_slot_state())
 				{
-					case statsexporter::LOBBY_SLOT_OPEN:
+					case localapi::LOBBY_SLOT_OPEN:
 						state = SLOT_OPEN;
 						break;
-					case statsexporter::LOBBY_SLOT_CLOSED:
+					case localapi::LOBBY_SLOT_CLOSED:
 						state = SLOT_CLOSED;
 						break;
-					case statsexporter::LOBBY_SLOT_AI_EASY:
+					case localapi::LOBBY_SLOT_AI_EASY:
 						state = SLOT_EASY_AI;
 						break;
-					case statsexporter::LOBBY_SLOT_AI_MEDIUM:
+					case localapi::LOBBY_SLOT_AI_MEDIUM:
 						state = SLOT_MED_AI;
 						break;
-					case statsexporter::LOBBY_SLOT_AI_BRUTAL:
+					case localapi::LOBBY_SLOT_AI_BRUTAL:
 						state = SLOT_BRUTAL_AI;
 						break;
 					default:
@@ -627,27 +627,27 @@ namespace
 				}
 				return changeSlotState(target, slot, state, FALSE, message);
 			}
-			case statsexporter::LobbyControlQuery::kKick:
+			case localapi::LobbyControlQuery::kKick:
 				return changeSlotState(target, slot, query.kick().close_slot() ? SLOT_CLOSED : SLOT_OPEN, TRUE, message);
-			case statsexporter::LobbyControlQuery::kFaction:
+			case localapi::LobbyControlQuery::kFaction:
 				return changeFaction(target, slot, query.faction(), message);
-			case statsexporter::LobbyControlQuery::kColor:
+			case localapi::LobbyControlQuery::kColor:
 				return changeColor(target, slot, query.color(), message);
-			case statsexporter::LobbyControlQuery::kTeam:
+			case localapi::LobbyControlQuery::kTeam:
 				return changeTeam(target, slot, query.team(), message);
-			case statsexporter::LobbyControlQuery::kStartPosition:
+			case localapi::LobbyControlQuery::kStartPosition:
 				return changeStartPosition(target, slot, query.start_position(), message);
-			case statsexporter::LobbyControlQuery::kMapName:
+			case localapi::LobbyControlQuery::kMapName:
 				return changeMap(target, query.map_name(), message);
-			case statsexporter::LobbyControlQuery::kStartingCash:
+			case localapi::LobbyControlQuery::kStartingCash:
 				return changeStartingCash(target, query.starting_cash(), message);
-			case statsexporter::LobbyControlQuery::kLimitSuperweapons:
+			case localapi::LobbyControlQuery::kLimitSuperweapons:
 				return changeSuperweaponLimit(target, query.limit_superweapons() ? TRUE : FALSE, message);
-			case statsexporter::LobbyControlQuery::kGameSpeedFps:
+			case localapi::LobbyControlQuery::kGameSpeedFps:
 				return changeGameSpeed(target, query.game_speed_fps(), message);
-			case statsexporter::LobbyControlQuery::kAccept:
+			case localapi::LobbyControlQuery::kAccept:
 				return pressStartOrAccept(target, FALSE, message);
-			case statsexporter::LobbyControlQuery::kStart:
+			case localapi::LobbyControlQuery::kStart:
 				return pressStartOrAccept(target, TRUE, message);
 			default:
 				return badRequest(message, "no action set");
@@ -655,9 +655,9 @@ namespace
 	}
 }
 
-int StatsExporterLobbyControl(const statsexporter::LobbyControlQuery& query, std::string& result, std::string& message)
+int LocalApiLobbyControl(const localapi::LobbyControlQuery& query, std::string& result, std::string& message)
 {
-	if (query.action_case() == statsexporter::LobbyControlQuery::ACTION_NOT_SET)
+	if (query.action_case() == localapi::LobbyControlQuery::ACTION_NOT_SET)
 	{
 		message = "no action set";
 		return kBadRequest;
@@ -676,7 +676,7 @@ int StatsExporterLobbyControl(const statsexporter::LobbyControlQuery& query, std
 		return status;
 	}
 
-	statsexporter::LobbyControlResult out;
+	localapi::LobbyControlResult out;
 	out.set_kind(target.kind);
 	out.set_route(routeFor(target));
 	out.set_note(target.note);

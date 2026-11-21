@@ -15,10 +15,10 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "Common/StatsExporterPipe.h"
+#include "Common/LocalApiReaders.h"
 
 #include "Common/GlobalData.h"
-#include "StatsExporter.pb.h"
+#include "LocalApi.pb.h"
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"	// NetworkLog
 #include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
 
@@ -130,29 +130,29 @@ namespace
 	{
 		switch (frameType)
 		{
-			case STATS_EXPORTER_FRAME_HELLO:
-				return GENONLINE_PLUGIN_TOOL_FRAME_HELLO;
-			case STATS_EXPORTER_FRAME_STATS_SNAPSHOT:
-			case STATS_EXPORTER_FRAME_EVENTS:
-			case STATS_EXPORTER_FRAME_CAMERA:
-			case STATS_EXPORTER_FRAME_VIEW_STATS:
-			case STATS_EXPORTER_FRAME_INTEREST_MAP:
-				return GENONLINE_PLUGIN_TOOL_FRAME_PERIODIC;
+			case LOCAL_API_FRAME_HELLO:
+				return GENONLINE_PLUGIN_LOCAL_API_FRAME_HELLO;
+			case LOCAL_API_FRAME_STATS_SNAPSHOT:
+			case LOCAL_API_FRAME_EVENTS:
+			case LOCAL_API_FRAME_CAMERA:
+			case LOCAL_API_FRAME_VIEW_STATS:
+			case LOCAL_API_FRAME_INTEREST_MAP:
+				return GENONLINE_PLUGIN_LOCAL_API_FRAME_PERIODIC;
 			default:
-				return GENONLINE_PLUGIN_TOOL_FRAME_LIFECYCLE;
+				return GENONLINE_PLUGIN_LOCAL_API_FRAME_LIFECYCLE;
 		}
 	}
 
-	/// StatsExporterSink over the tool table of the caster plugin. The plugin owns the readers and their queues, and this class
+	/// LocalApiSink over the tool table of the caster plugin. The plugin owns the readers and their queues, and this class
 	/// keeps the slot table of the readers, the feed configs and the decoding of inbound frames. The slot table is guarded by a
 	/// critical section because isConnected, getReaders and enqueueFrame run on any thread. Reader events and inbound frames are
 	/// taken on the main thread only.
-	class PluginToolSink : public StatsExporterSink
+	class PluginLocalApiSink : public LocalApiSink
 	{
 	public:
-		static PluginToolSink& TheInstance()
+		static PluginLocalApiSink& TheInstance()
 		{
-			static PluginToolSink s_instance;
+			static PluginLocalApiSink s_instance;
 			return s_instance;
 		}
 
@@ -165,16 +165,16 @@ namespace
 			if (m_api == NULL)
 			{
 				// The plugin may load after the first call, so a missing plugin is not remembered.
-				const GenOnlinePluginToolApi* api = GenOnlinePluginHost::GetToolApi();
+				const GenOnlinePluginLocalApi* api = GenOnlinePluginHost::GetLocalApi();
 				if (api == NULL)
 				{
 					return FALSE;
 				}
 				m_api = api;
-				m_listening = m_api->StartListener((uint32_t)STATS_EXPORTER_MAX_READERS) != GENONLINE_PLUGIN_FALSE;
+				m_listening = m_api->StartListener((uint32_t)LOCAL_API_MAX_READERS) != GENONLINE_PLUGIN_FALSE;
 				if (!m_listening)
 				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[Stats] ERROR: The caster plugin could not start its listener, the live stats pipe stays off");
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[Stats] ERROR: The caster plugin could not start its listener, the live stats readers stays off");
 				}
 			}
 			return m_listening;
@@ -188,7 +188,7 @@ namespace
 			m_chats.clear();
 			m_requests.clear();
 			EnterCriticalSection(&m_lock);
-			for (Int i = 0; i < STATS_EXPORTER_MAX_READERS; ++i)
+			for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
 			{
 				m_slots[i] = Slot();
 				m_feedEpoch[i] = 0;
@@ -201,18 +201,18 @@ namespace
 			return m_listening && m_api->IsConnected() != GENONLINE_PLUGIN_FALSE;
 		}
 
-		virtual void getReaders(StatsExporterReaders& out) const
+		virtual void getReaders(LocalApiReaders& out) const
 		{
 			collectReaders(TRUE, out);
 		}
 
-		virtual void getUnwelcomedReaders(StatsExporterReaders& out) const
+		virtual void getUnwelcomedReaders(LocalApiReaders& out) const
 		{
 			pumpReaderEvents();
 			collectReaders(FALSE, out);
 		}
 
-		virtual void markWelcomed(const StatsExporterReaders& readers)
+		virtual void markWelcomed(const LocalApiReaders& readers)
 		{
 			if (!m_listening)
 			{
@@ -220,7 +220,7 @@ namespace
 			}
 			pumpReaderEvents();
 			EnterCriticalSection(&m_lock);
-			for (Int i = 0; i < STATS_EXPORTER_MAX_READERS; ++i)
+			for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
 			{
 				if (m_slots[i].readerId != 0 && readers.epoch(i) == m_slots[i].epoch)
 				{
@@ -230,15 +230,15 @@ namespace
 			LeaveCriticalSection(&m_lock);
 		}
 
-		virtual Bool enqueueFrame(UnsignedByte frameType, const UnsignedByte* body, UnsignedInt bodyLength, const StatsExporterReaders& to)
+		virtual Bool enqueueFrame(UnsignedByte frameType, const UnsignedByte* body, UnsignedInt bodyLength, const LocalApiReaders& to)
 		{
-			if (!m_listening || body == NULL || bodyLength == 0 || bodyLength > STATS_EXPORTER_MAX_BODY_BYTES)
+			if (!m_listening || body == NULL || bodyLength == 0 || bodyLength > LOCAL_API_MAX_BODY_BYTES)
 			{
 				return FALSE;
 			}
-			uint32_t ids[STATS_EXPORTER_MAX_READERS];
+			uint32_t ids[LOCAL_API_MAX_READERS];
 			EnterCriticalSection(&m_lock);
-			for (Int i = 0; i < STATS_EXPORTER_MAX_READERS; ++i)
+			for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
 			{
 				const Bool current = m_slots[i].readerId != 0 && to.epoch(i) == m_slots[i].epoch;
 				ids[i] = current ? m_slots[i].readerId : 0;
@@ -246,8 +246,8 @@ namespace
 			LeaveCriticalSection(&m_lock);
 
 			Bool queued = FALSE;
-			const UnsignedInt64 now = StatsExporterNowMicros();
-			for (Int i = 0; i < STATS_EXPORTER_MAX_READERS; ++i)
+			const UnsignedInt64 now = LocalApiNowMicros();
+			for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
 			{
 				if (ids[i] != 0 && m_api->EnqueueFrame(frameType, frameClassOf(frameType), body, bodyLength, now, ids[i]) != GENONLINE_PLUGIN_FALSE)
 				{
@@ -264,7 +264,7 @@ namespace
 
 		virtual void bumpEpoch(Int slot, UnsignedInt epoch)
 		{
-			if (!m_listening || slot < 0 || slot >= STATS_EXPORTER_MAX_READERS)
+			if (!m_listening || slot < 0 || slot >= LOCAL_API_MAX_READERS)
 			{
 				return;
 			}
@@ -277,10 +277,10 @@ namespace
 			LeaveCriticalSection(&m_lock);
 		}
 
-		virtual void getFeedConfig(Int slot, StatsExporterFeedConfig& out) const
+		virtual void getFeedConfig(Int slot, LocalApiFeedConfig& out) const
 		{
 			out.setDefaults();
-			if (!m_listening || slot < 0 || slot >= STATS_EXPORTER_MAX_READERS)
+			if (!m_listening || slot < 0 || slot >= LOCAL_API_MAX_READERS)
 			{
 				return;
 			}
@@ -293,9 +293,9 @@ namespace
 			LeaveCriticalSection(&m_lock);
 		}
 
-		virtual void setFeedConfig(Int slot, UnsignedInt epoch, const StatsExporterFeedConfig& config)
+		virtual void setFeedConfig(Int slot, UnsignedInt epoch, const LocalApiFeedConfig& config)
 		{
-			if (!m_listening || slot < 0 || slot >= STATS_EXPORTER_MAX_READERS || epoch == 0)
+			if (!m_listening || slot < 0 || slot >= LOCAL_API_MAX_READERS || epoch == 0)
 			{
 				return;
 			}
@@ -309,7 +309,7 @@ namespace
 			LeaveCriticalSection(&m_lock);
 		}
 
-		virtual Bool takeChatSend(StatsExporterChatSend& out)
+		virtual Bool takeChatSend(LocalApiChatSend& out)
 		{
 			pumpReaderEvents();
 			pumpInbound();
@@ -330,7 +330,7 @@ namespace
 			return FALSE;
 		}
 
-		virtual Bool takeRequest(StatsExporterQueuedRequest& out)
+		virtual Bool takeRequest(LocalApiQueuedRequest& out)
 		{
 			pumpReaderEvents();
 			pumpInbound();
@@ -357,14 +357,14 @@ namespace
 	private:
 		enum
 		{
-			CHAT_QUEUE_SLOTS = 8 * STATS_EXPORTER_MAX_READERS,
-			REQUEST_QUEUE_SLOTS = STATS_EXPORTER_REQUEST_QUEUE_SLOTS * STATS_EXPORTER_MAX_READERS
+			CHAT_QUEUE_SLOTS = 8 * LOCAL_API_MAX_READERS,
+			REQUEST_QUEUE_SLOTS = LOCAL_API_REQUEST_QUEUE_SLOTS * LOCAL_API_MAX_READERS
 		};
 
 		struct QueuedChat
 		{
 			Int slot;
-			StatsExporterChatSend chat;
+			LocalApiChatSend chat;
 		};
 
 		struct QueuedRequest
@@ -382,16 +382,16 @@ namespace
 			Bool welcomed;
 		};
 
-		PluginToolSink() : m_api(NULL), m_listening(FALSE), m_stopped(FALSE), m_nextEpoch(1)
+		PluginLocalApiSink() : m_api(NULL), m_listening(FALSE), m_stopped(FALSE), m_nextEpoch(1)
 		{
 			InitializeCriticalSection(&m_lock);
-			for (Int i = 0; i < STATS_EXPORTER_MAX_READERS; ++i)
+			for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
 			{
 				m_feedEpoch[i] = 0;
 			}
 		}
-		PluginToolSink(const PluginToolSink&);
-		PluginToolSink& operator=(const PluginToolSink&);
+		PluginLocalApiSink(const PluginLocalApiSink&);
+		PluginLocalApiSink& operator=(const PluginLocalApiSink&);
 
 		UnsignedInt newEpoch() const
 		{
@@ -403,11 +403,11 @@ namespace
 		}
 
 		/// Welcomed readers when welcomed is TRUE, the others otherwise. Any thread.
-		void collectReaders(Bool welcomed, StatsExporterReaders& out) const
+		void collectReaders(Bool welcomed, LocalApiReaders& out) const
 		{
 			out.clear();
 			EnterCriticalSection(&m_lock);
-			for (Int i = 0; i < STATS_EXPORTER_MAX_READERS; ++i)
+			for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
 			{
 				if (m_slots[i].readerId != 0 && m_slots[i].welcomed == welcomed)
 				{
@@ -431,7 +431,7 @@ namespace
 
 		Int findSlot(uint32_t readerId) const
 		{
-			for (Int i = 0; i < STATS_EXPORTER_MAX_READERS; ++i)
+			for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
 			{
 				if (m_slots[i].readerId == readerId)
 				{
@@ -458,7 +458,7 @@ namespace
 				}
 				EnterCriticalSection(&m_lock);
 				const Int known = findSlot(readerId);
-				if (event == GENONLINE_PLUGIN_TOOL_READER_HELLO_NEEDED)
+				if (event == GENONLINE_PLUGIN_LOCAL_API_READER_HELLO_NEEDED)
 				{
 					if (known >= 0)
 					{
@@ -476,7 +476,7 @@ namespace
 						}
 					}
 				}
-				else if (event == GENONLINE_PLUGIN_TOOL_READER_GONE && known >= 0)
+				else if (event == GENONLINE_PLUGIN_LOCAL_API_READER_GONE && known >= 0)
 				{
 					m_slots[known] = Slot();
 					m_feedEpoch[known] = 0;
@@ -514,11 +514,11 @@ namespace
 
 		void handleInbound(UnsignedByte frameType, Int slot, UnsignedInt epoch, UnsignedInt flags, const UnsignedByte* body, UnsignedInt bodyLength)
 		{
-			if (frameType == STATS_EXPORTER_INBOUND_REQUEST)
+			if (frameType == LOCAL_API_INBOUND_REQUEST)
 			{
-				if ((flags & GENONLINE_PLUGIN_TOOL_INBOUND_RATE_LIMITED) != 0 || m_requests.size() >= (size_t)REQUEST_QUEUE_SLOTS)
+				if ((flags & GENONLINE_PLUGIN_LOCAL_API_INBOUND_RATE_LIMITED) != 0 || m_requests.size() >= (size_t)REQUEST_QUEUE_SLOTS)
 				{
-					queueRefusal(slot, epoch, extractRequestId(body, bodyLength), statsexporter::RESPONSE_STATUS_RATE_LIMITED, "too many requests");
+					queueRefusal(slot, epoch, extractRequestId(body, bodyLength), localapi::RESPONSE_STATUS_RATE_LIMITED, "too many requests");
 					return;
 				}
 				m_requests.push_back(QueuedRequest());
@@ -526,11 +526,11 @@ namespace
 				m_requests.back().body.assign((const char*)body, bodyLength);
 				return;
 			}
-			if (frameType != STATS_EXPORTER_INBOUND_CHAT_SEND)
+			if (frameType != LOCAL_API_INBOUND_CHAT_SEND)
 			{
 				return;	// unknown type: skipped, not an error
 			}
-			statsexporter::ChatSend chat;
+			localapi::ChatSend chat;
 			if (!chat.ParseFromArray(body, (int)bodyLength))
 			{
 				return;	// decode failure: skipped
@@ -550,36 +550,36 @@ namespace
 		/// Queues a Response without a result (a refusal) for the one reader the request came from.
 		void queueRefusal(Int slot, UnsignedInt epoch, UnsignedInt requestId, int status, const char* message)
 		{
-			statsexporter::Response response;
+			localapi::Response response;
 			std::string body;
 
 			response.set_id(requestId);
-			response.set_status((statsexporter::ResponseStatus)status);
+			response.set_status((localapi::ResponseStatus)status);
 			response.set_message(message);
 			if (!response.SerializeToString(&body) || body.empty())
 			{
 				return;
 			}
 
-			StatsExporterReaders to;
+			LocalApiReaders to;
 			to.add(slot, epoch);
-			enqueueFrame(STATS_EXPORTER_FRAME_RESPONSE, (const UnsignedByte*)body.data(), (UnsignedInt)body.size(), to);
+			enqueueFrame(LOCAL_API_FRAME_RESPONSE, (const UnsignedByte*)body.data(), (UnsignedInt)body.size(), to);
 		}
 
-		const GenOnlinePluginToolApi* m_api;
+		const GenOnlinePluginLocalApi* m_api;
 		Bool m_listening;
 		Bool m_stopped;	///< set by shutdown() and never cleared, so the sink does not restart during engine teardown
 		mutable CRITICAL_SECTION m_lock;	///< guards m_slots, m_feed, m_feedEpoch and m_nextEpoch
-		mutable Slot m_slots[STATS_EXPORTER_MAX_READERS];
+		mutable Slot m_slots[LOCAL_API_MAX_READERS];
 		mutable UnsignedInt m_nextEpoch;
-		mutable StatsExporterFeedConfig m_feed[STATS_EXPORTER_MAX_READERS];
-		mutable UnsignedInt m_feedEpoch[STATS_EXPORTER_MAX_READERS];	///< 0 = defaults
+		mutable LocalApiFeedConfig m_feed[LOCAL_API_MAX_READERS];
+		mutable UnsignedInt m_feedEpoch[LOCAL_API_MAX_READERS];	///< 0 = defaults
 		std::deque<QueuedChat> m_chats;
 		std::deque<QueuedRequest> m_requests;
 	};
 }
 
-UnsignedInt64 StatsExporterNowMicros()
+UnsignedInt64 LocalApiNowMicros()
 {
 	ExporterClock& clock = exporterClock();
 	LARGE_INTEGER now;
@@ -590,28 +590,28 @@ UnsignedInt64 StatsExporterNowMicros()
 	return (ticks / frequency) * 1000000 + (ticks % frequency) * 1000000 / frequency;
 }
 
-UnsignedInt64 StatsExporterEpochUnixMs()
+UnsignedInt64 LocalApiEpochUnixMs()
 {
 	return exporterClock().epochUnixMs;
 }
 
-StatsExporterSink* StatsExporterPipeGetSink()
+LocalApiSink* LocalApiReadersGetSink()
 {
-	// A batch of replay simulations (headless) must not open pipes.
+	// A batch of replay simulations (headless) must not start the reader feed.
 	if (TheGlobalData != NULL && (TheGlobalData->m_headless || !TheGlobalData->m_simulateReplays.empty()))
 	{
 		return NULL;
 	}
-	PluginToolSink& sink = PluginToolSink::TheInstance();
+	PluginLocalApiSink& sink = PluginLocalApiSink::TheInstance();
 	return sink.start() ? &sink : NULL;
 }
 
-void StatsExporterPipeStart()
+void LocalApiReadersStart()
 {
-	StatsExporterPipeGetSink();
+	LocalApiReadersGetSink();
 }
 
-void StatsExporterPipeShutdown()
+void LocalApiReadersShutdown()
 {
-	PluginToolSink::TheInstance().shutdown();
+	PluginLocalApiSink::TheInstance().shutdown();
 }

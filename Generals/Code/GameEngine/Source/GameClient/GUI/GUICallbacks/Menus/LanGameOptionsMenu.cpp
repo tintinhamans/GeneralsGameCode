@@ -56,7 +56,7 @@
 #include "Common/MultiplayerSettings.h"
 #include "GameClient/GameText.h"
 #include "GameNetwork/GUIUtil.h"
-#include "Common/StatsExporterLobby.h"
+#include "Common/LocalApiLobby.h"
 
 
 extern char *LANnextScreen;

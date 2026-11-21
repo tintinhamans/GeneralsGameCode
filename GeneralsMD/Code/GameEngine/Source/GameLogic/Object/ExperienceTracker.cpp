@@ -31,7 +31,7 @@
 
 #include "Common/Xfer.h"
 #include "Common/Player.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 #include "Common/ThingTemplate.h"
 #include "GameLogic/ExperienceTracker.h"
 #include "GameLogic/GameLogic.h"
@@ -207,7 +207,7 @@ void ExperienceTracker::addExperiencePoints( Int experienceGain, Bool canScaleFo
 		const Player* statsController = m_parent->getControllingPlayer();
 		if (statsController != nullptr && m_currentLevel > oldLevel)
 		{
-			StatsExporterLiveVeterancyChange(statsController->getPlayerIndex(), m_parent->getTemplate(), m_parent->getID(),
+			LocalApiLiveVeterancyChange(statsController->getPlayerIndex(), m_parent->getTemplate(), m_parent->getID(),
 				static_cast<Int>(oldLevel), static_cast<Int>(m_currentLevel));
 		}
 	}

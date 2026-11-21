@@ -840,7 +840,7 @@ static void saveOptions()
 		TheWritableGlobalData->m_jpegQuality = quality;
 	}
 
-	// The observer stats font size lives in client.json so the overlay is set up again with it.
+	// The observer stats font size lives in settings.client.json so the overlay is set up again with it.
 	TheInGameUI->initObserverOverlay();
 
 	//-------------------------------------------------------------------------------------------------

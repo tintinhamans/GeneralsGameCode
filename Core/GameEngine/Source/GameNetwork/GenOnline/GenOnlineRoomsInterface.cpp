@@ -4,7 +4,7 @@
 #include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 #include "GameNetwork/GenOnline/NetworkPacket.h"
 #include "GameNetwork/GenOnline/NetworkBitstream.h"
 #include "GameNetwork/GenOnline/GenOnlineModeration.h"
@@ -1769,7 +1769,7 @@ void GenOnlineRoomsInterface::ShowRoomChatLine(const GenOnlineRealtime::ChannelC
 	{
 		GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 		const bool bLocal = pAuth != nullptr && pAuth->GetUserID() == message.author.id;
-		StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_ROOM, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, FALSE, bLocal);
+		LocalApiLiveChatOnline(LOCAL_API_CHAT_ROOM, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, FALSE, bLocal);
 	}
 	if (m_OnChatMessageCallback != nullptr)
 	{

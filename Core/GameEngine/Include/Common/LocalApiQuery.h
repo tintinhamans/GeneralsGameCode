@@ -15,15 +15,15 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// Protocol reference: GenOnline/docs/stats-exporter.md
-// Request/Response channel of the live stats pipe: the pipe thread only queues the Requests, this module decodes and answers them on
+// Protocol reference: GenOnline/docs/local-api.md
+// Request/Response channel of the live stats readers: the plugin's reader thread only queues the Requests, this module decodes and answers them on
 // the main thread. Every query reads game state and changes none of it: no random draws, no commands, no object changes.
 #pragma once
 
 #include "Lib/BaseType.h"
 #include <string>
 
-class StatsExporterSink;
+class LocalApiSink;
 
 namespace google
 {
@@ -33,11 +33,11 @@ namespace google
 	}
 }
 
-/// The arena the long-lived exporter messages live on (aligned blocks, see StatsExporterLive.cpp).
-google::protobuf::Arena& StatsExporterArena();
+/// The arena the long-lived local API messages live on (aligned blocks, see LocalApiLive.cpp).
+google::protobuf::Arena& LocalApiArena();
 
 /// The current map name as MatchInfo reports it (UTF-8, user data folder stripped), empty when no map is loaded.
-std::string StatsExporterCurrentMapName();
+std::string LocalApiCurrentMapName();
 
 /// Main thread, once per tick: answers the Requests that arrived since the last call (a few per call, the rest wait for the next tick).
-void StatsExporterQueryPump(StatsExporterSink* sink);
+void LocalApiQueryPump(LocalApiSink* sink);
