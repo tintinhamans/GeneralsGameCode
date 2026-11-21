@@ -65,6 +65,10 @@ public:
 	bool HasFreshPlayerStats(int64_t userID);
 
 	void CommitMyOutcome(ScoreKeeper* pScoreKeeper, bool bWon);
+	/// Sends the last match result again, for fresh upload URLs after the first ones expired.
+	void RetryMatchResult(uint64_t matchID);
+	/// Tells the service how the upload of one file of a match ended. A null failureReason means it was stored.
+	void ReportUpload(uint64_t matchID, const std::string& key, const char* failureReason, int httpStatus);
 
 private:
 	struct PlayerStatsCacheEntry

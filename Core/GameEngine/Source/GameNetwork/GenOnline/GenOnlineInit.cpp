@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <climits>
 #include <mutex>
+#include <random>
 #include <utility>
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
 #include "GameNetwork/GenOnline/ProxyLogin.h"
@@ -109,6 +110,139 @@ void GenOnlineServicesManager::GetAndParseServiceConfig(std::function<void(void)
 		});
 }
 
+// The presigned upload URL has no size limit of its own, so the client enforces one on every upload.
+static bool IsWithinUploadLimit(size_t size, const char* what)
+{
+	constexpr size_t uploadMaxBytes = 8 * 1024 * 1024;
+	if (size > uploadMaxBytes)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[MediaUpload] The %s is %zu bytes, over the %zu byte upload limit, so it is not uploaded", what, size, uploadMaxBytes);
+		return false;
+	}
+	return true;
+}
+
+// The timeout of an upload: HTTP_UPLOAD_TIMEOUT without an expiry, else the time left until the signed URL stops working, or 0 when that is too short to start.
+static int GetUploadTimeoutMS(std::chrono::system_clock::time_point expiresAt)
+{
+	if (expiresAt == std::chrono::system_clock::time_point())
+	{
+		return HTTP_UPLOAD_TIMEOUT;
+	}
+	constexpr int64_t marginMS = 3000;
+	const int64_t leftMS = std::chrono::duration_cast<std::chrono::milliseconds>(expiresAt - std::chrono::system_clock::now()).count() - marginMS;
+	return leftMS <= 0 ? 0 : static_cast<int>(std::min<int64_t>(leftMS, HTTP_UPLOAD_TIMEOUT));
+}
+
+// A form upload that the storage refused with a 4xx has an expired or bad policy, so fresh forms are asked for.
+static bool IsUploadStatusRetryable(int statusCode, bool isForm)
+{
+	return statusCode <= 0 || statusCode == 403 || (isForm && statusCode == 400);
+}
+
+static std::string NewFormBoundary()
+{
+	std::random_device random;
+	char text[64];
+	snprintf(text, sizeof(text), "----GenOnlineForm%08x%08x%08x", random(), random(), random());
+	return text;
+}
+
+// The fields go first as text parts, the file goes last as the part named file.
+static std::vector<uint8_t> BuildUploadForm(const UploadFormFields& fields, const std::string& boundary, const std::string& fileType, const std::vector<uint8_t>& bytes)
+{
+	std::string head;
+	for (const auto& field : fields)
+	{
+		head += "--" + boundary + "\r\nContent-Disposition: form-data; name=\"" + field.first + "\"\r\n\r\n" + field.second + "\r\n";
+	}
+	head += "--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"upload\"\r\nContent-Type: " + fileType + "\r\n\r\n";
+	const std::string tail = "\r\n--" + boundary + "--\r\n";
+
+	std::vector<uint8_t> body;
+	body.reserve(head.size() + bytes.size() + tail.size());
+	body.insert(body.end(), head.begin(), head.end());
+	body.insert(body.end(), bytes.begin(), bytes.end());
+	body.insert(body.end(), tail.begin(), tail.end());
+	return body;
+}
+
+// The object key of an upload: the key form field, or the path of a PUT URL after the host without its query.
+static std::string UploadObjectKey(const std::string& uri, const UploadFormFields& fields)
+{
+	const auto field = fields.find("key");
+	if (field != fields.end())
+	{
+		return field->second;
+	}
+	const size_t hostStart = uri.find("://");
+	const size_t pathStart = uri.find('/', hostStart == std::string::npos ? 0 : hostStart + 3);
+	if (pathStart == std::string::npos)
+	{
+		return std::string();
+	}
+	const size_t pathEnd = uri.find_first_of("?#", pathStart);
+	const std::string path = uri.substr(pathStart + 1, pathEnd == std::string::npos ? std::string::npos : pathEnd - pathStart - 1);
+	std::string key;
+	for (size_t i = 0; i < path.size(); ++i)
+	{
+		if (path[i] == '%' && i + 2 < path.size() && isxdigit((unsigned char)path[i + 1]) && isxdigit((unsigned char)path[i + 2]))
+		{
+			key += (char)strtol(path.substr(i + 1, 2).c_str(), nullptr, 16);
+			i += 2;
+		}
+		else
+		{
+			key += path[i];
+		}
+	}
+	return key;
+}
+
+// Tells the service how a file of a match ended. A failure after the URL expired is reported as expired.
+static void ReportUploadEnd(uint64_t matchID, const std::string& key, int statusCode, std::chrono::system_clock::time_point expiresAt, std::chrono::steady_clock::time_point startedAt, int timeoutMS)
+{
+	GenOnlineStatsInterface* pStats = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
+	if (pStats == nullptr || key.empty())
+	{
+		return;
+	}
+	const char* reason = nullptr;
+	if (statusCode / 100 != 2)
+	{
+		const auto elapsedMS = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startedAt).count();
+		if (expiresAt != std::chrono::system_clock::time_point() && std::chrono::system_clock::now() >= expiresAt)
+		{
+			reason = "expired";
+		}
+		else if (statusCode <= 0)
+		{
+			reason = (timeoutMS > 0 && elapsedMS >= timeoutMS) ? "timeout" : "network";
+		}
+		else
+		{
+			reason = "http_error";
+		}
+	}
+	pStats->ReportUpload(matchID, key, reason, statusCode);
+}
+
+// A PUT of the bytes to the URL, or a multipart POST form to it when the service sent form fields.
+static void SendUploadBytes(HTTPManager* pHTTP, const std::string& uri, const UploadFormFields& fields, const char* contentType, std::vector<uint8_t> bytes, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completion, int timeoutMS, int maxSendBytesPerSec)
+{
+	std::map<std::string, std::string> mapHeaders;
+	if (fields.empty())
+	{
+		mapHeaders["Content-Type"] = contentType;
+		pHTTP->SendS3PUTRequest(uri.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, std::move(bytes), completion, nullptr, timeoutMS, maxSendBytesPerSec);
+		return;
+	}
+	const std::string boundary = NewFormBoundary();
+	const auto type = fields.find("Content-Type");
+	mapHeaders["Content-Type"] = "multipart/form-data; boundary=" + boundary;
+	pHTTP->SendS3POSTRequest(uri.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, BuildUploadForm(fields, boundary, type != fields.end() ? type->second : contentType, bytes), completion, nullptr, timeoutMS, maxSendBytesPerSec);
+}
+
 // Staggers the screenshot upload by match slot so players do not upload at once.
 static std::chrono::steady_clock::time_point GetScreenshotUploadTime()
 {
@@ -166,6 +300,11 @@ void GenOnlineServicesManager::CaptureScreenshotForProbe(EScreenshotType screens
 						if (vecData.empty())
 						{
 							NetworkLog(ELogVerbosity::LOG_RELEASE, "Screenshot capture failed, no data");
+							return;
+						}
+
+						if (!IsWithinUploadLimit(vecData.size(), "screenshot"))
+						{
 							return;
 						}
 
@@ -492,7 +631,7 @@ void GenOnlineServicesManager::CommitReplay(AsciiString absoluteReplayPath)
 					fseek(pFile, 0, SEEK_END);
 					long fileSize = ftell(pFile);
 					fseek(pFile, 0, SEEK_SET);
-					if (fileSize > 0)
+					if (fileSize > 0 && IsWithinUploadLimit(static_cast<size_t>(fileSize), "replay file"))
 					{
 						replayData.resize(fileSize);
 						fread(replayData.data(), 1, fileSize, pFile);
@@ -517,11 +656,8 @@ void GenOnlineServicesManager::CommitReplay(AsciiString absoluteReplayPath)
 					fseek(pStatsFile, 0, SEEK_END);
 					long statsSize = ftell(pStatsFile);
 					fseek(pStatsFile, 0, SEEK_SET);
-					// The presigned upload URL has no size limit of its own, so the client enforces one.
-					constexpr long statsUploadMaxBytes = 8 * 1024 * 1024;
-					if (statsSize > statsUploadMaxBytes)
+					if (statsSize > 0 && !IsWithinUploadLimit(static_cast<size_t>(statsSize), "stats file"))
 					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "[MediaUpload] The stats file is %ld bytes, over the %ld byte upload limit, so it is not uploaded", statsSize, statsUploadMaxBytes);
 						statsSize = 0;
 					}
 					if (statsSize > 0)
@@ -583,6 +719,101 @@ void GenOnlineServicesManager::CacheStatsBytes(uint64_t matchID, std::vector<uin
 void GenOnlineServicesManager::SetStatsS3URI(uint64_t matchID, std::string uri)
 {
 	CacheMatchUploadURI(m_cachedStatsUpload, matchID, std::move(uri));
+}
+
+void GenOnlineServicesManager::SetResultUploadExpiry(uint64_t matchID, std::chrono::system_clock::time_point expiresAt)
+{
+	std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
+	for (CachedMatchUpload* upload : { &m_cachedMatchEndUpload, &m_cachedReplayUpload, &m_cachedStatsUpload })
+	{
+		if (upload->uriMatchID == matchID)
+		{
+			upload->expiresAt = expiresAt;
+		}
+	}
+}
+
+void GenOnlineServicesManager::SetResultUploadForms(uint64_t matchID, UploadFormFields screenshot, UploadFormFields replay, UploadFormFields stats)
+{
+	std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
+	if (m_cachedMatchEndUpload.uriMatchID == matchID)
+	{
+		m_cachedMatchEndUpload.formFields = std::move(screenshot);
+	}
+	if (m_cachedReplayUpload.uriMatchID == matchID)
+	{
+		m_cachedReplayUpload.formFields = std::move(replay);
+	}
+	if (m_cachedStatsUpload.uriMatchID == matchID)
+	{
+		m_cachedStatsUpload.formFields = std::move(stats);
+	}
+}
+
+bool GenOnlineServicesManager::RequestFreshUploadURLs(uint64_t matchID)
+{
+	constexpr int maxRetries = 2;
+	if (m_uploadRetryMatchID != matchID)
+	{
+		m_uploadRetryMatchID = matchID;
+		m_uploadRetries = 0;
+		m_uploadRetryInFlight = false;
+	}
+	if (m_uploadRetryInFlight)
+	{
+		return true;
+	}
+	GenOnlineStatsInterface* pStatsInterface = GetInterface<GenOnlineStatsInterface>();
+	if (pStatsInterface == nullptr || m_uploadRetries >= maxRetries)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[MediaUpload] The upload URLs of match %llu expired and are not asked for again", matchID);
+		return false;
+	}
+	++m_uploadRetries;
+	m_uploadRetryInFlight = true;
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[MediaUpload] Asking for fresh upload URLs for match %llu, attempt %d", matchID, m_uploadRetries);
+	pStatsInterface->RetryMatchResult(matchID);
+	return true;
+}
+
+// The caller holds m_ScreenshotMutex. The bytes go back into the cache when the upload fails, so fresh URLs can pick them up.
+void GenOnlineServicesManager::StartResultUpload(CachedMatchUpload& upload, const char* label, const char* contentType)
+{
+	const uint64_t matchID = upload.dataMatchID;
+	const int timeoutMS = GetUploadTimeoutMS(upload.expiresAt);
+	if (timeoutMS == 0)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[MediaUpload] The %s upload URL has expired, so it is not started", label);
+		upload.uriMatchID = 0;
+		upload.signedURI.clear();
+		upload.formFields.clear();
+		upload.expiresAt = std::chrono::system_clock::time_point();
+		if (!RequestFreshUploadURLs(matchID))
+		{
+			upload = {};
+		}
+		return;
+	}
+
+	CachedMatchUpload* pUpload = &upload;
+	auto data = std::make_shared<std::vector<uint8_t>>(std::move(upload.bytes));
+	const bool isForm = !upload.formFields.empty();
+	const std::string key = UploadObjectKey(upload.signedURI, upload.formFields);
+	const auto expiresAt = upload.expiresAt;
+	const auto startedAt = std::chrono::steady_clock::now();
+	SendUploadBytes(GetHTTPManager(), upload.signedURI, upload.formFields, contentType, std::vector<uint8_t>(*data), [this, pUpload, data, matchID, label, isForm, key, expiresAt, startedAt, timeoutMS](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "%s upload, result: %d", label, statusCode);
+			ReportUploadEnd(matchID, key, statusCode, expiresAt, startedAt, timeoutMS);
+			if (IsUploadStatusRetryable(statusCode, isForm))
+			{
+				if (RequestFreshUploadURLs(matchID))
+				{
+					CacheMatchUploadBytes(*pUpload, matchID, std::move(*data));
+				}
+			}
+		}, timeoutMS, 0);
+	upload = {};
 }
 
 void GenOnlineServicesManager::SetScreenshotS3URI_EndMatch(uint64_t matchID, std::string uri)
@@ -1259,6 +1490,20 @@ void GenOnlineServicesManager::Tick()
 			}
 			else // we have the data we need, send away
 			{
+				const int uploadTimeoutMS = GetUploadTimeoutMS(screenshotEntry.expiresAt);
+				if (uploadTimeoutMS == 0)
+				{
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[MediaUpload] The screenshot upload URL has expired, so it is not started");
+					if (screenshotEntry.screenshotType == EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN && RequestFreshUploadURLs(screenshotEntry.matchID))
+					{
+						m_cachedMatchEndUpload = {};
+						m_cachedMatchEndUpload.dataMatchID = screenshotEntry.matchID;
+						m_cachedMatchEndUpload.bytes = std::move(screenshotEntry.vecBytes);
+					}
+					it = m_vecGuardedSSData.erase(it);
+					continue;
+				}
+
 				if (!bUnthrottled)
 				{
 					const int64_t sendMS = (int64_t)screenshotEntry.vecBytes.size() * 1000 / uploadBytesPerSec;
@@ -1270,22 +1515,24 @@ void GenOnlineServicesManager::Tick()
                 {
                     TheNetwork->GetConnectionManager()->noteScreenshotCapture(true);
                 }
-                std::map<std::string, std::string> mapHeaders;
-                mapHeaders["Content-Type"] = "image/jpeg";
-                GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendS3PUTRequest(screenshotEntry.strSignedURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, std::move(screenshotEntry.vecBytes), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+                const std::shared_ptr<std::vector<uint8_t>> sentBytes = std::make_shared<std::vector<uint8_t>>(std::move(screenshotEntry.vecBytes));
+                const auto startedAt = std::chrono::steady_clock::now();
+                SendUploadBytes(GenOnlineServicesManager::GetInstance()->GetHTTPManager(), screenshotEntry.strSignedURI, screenshotEntry.formFields, "image/jpeg", std::vector<uint8_t>(*sentBytes), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
                     {
-#if _DEBUG
-                        if (statusCode != 200)
-                        {
-                            __debugbreak();
-                        }
-#endif
                         NetworkLog(ELogVerbosity::LOG_RELEASE, "Screenshot upload, result: %d", statusCode);
+                        if (screenshotEntry.screenshotType == EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN)
+                        {
+                            ReportUploadEnd(screenshotEntry.matchID, UploadObjectKey(screenshotEntry.strSignedURI, screenshotEntry.formFields), statusCode, screenshotEntry.expiresAt, startedAt, uploadTimeoutMS);
+                        }
+                        if (screenshotEntry.screenshotType == EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN && IsUploadStatusRetryable(statusCode, !screenshotEntry.formFields.empty()) && RequestFreshUploadURLs(screenshotEntry.matchID))
+                        {
+                            CacheMatchUploadBytes(m_cachedMatchEndUpload, screenshotEntry.matchID, *sentBytes);
+                        }
                         if (screenshotEntry.screenshotType == EScreenshotType::SCREENSHOT_TYPE_GAMEPLAY && TheNetwork != nullptr && TheNetwork->GetConnectionManager() != nullptr)
                         {
                             TheNetwork->GetConnectionManager()->noteScreenshotDone();
                         }
-                    }, nullptr, HTTP_UPLOAD_TIMEOUT, bUnthrottled ? 0 : uploadBytesPerSec);
+                    }, uploadTimeoutMS, bUnthrottled ? 0 : uploadBytesPerSec);
 			}
 
 			it = m_vecGuardedSSData.erase(it);
@@ -1319,6 +1566,9 @@ void GenOnlineServicesManager::Tick()
                 newEntry.screenshotType = EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN;
                 newEntry.vecBytes = std::move(m_cachedMatchEndUpload.bytes);
                 newEntry.strSignedURI = std::move(m_cachedMatchEndUpload.signedURI);
+                newEntry.expiresAt = m_cachedMatchEndUpload.expiresAt;
+                newEntry.formFields = std::move(m_cachedMatchEndUpload.formFields);
+                newEntry.matchID = m_cachedMatchEndUpload.dataMatchID;
                 m_vecGuardedSSData.push_back(std::move(newEntry));
 
                 // clear data
@@ -1330,23 +1580,7 @@ void GenOnlineServicesManager::Tick()
         {
             if (m_cachedReplayUpload.dataMatchID == m_cachedReplayUpload.uriMatchID && !m_cachedReplayUpload.signedURI.empty()) // and we have a matching URL
             {
-				// do the upload
-                std::map<std::string, std::string> mapHeaders;
-                mapHeaders["Content-Type"] = "application/octet-stream";
-                GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendS3PUTRequest(m_cachedReplayUpload.signedURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, std::move(m_cachedReplayUpload.bytes), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-                    {
-#if _DEBUG
-                        if (statusCode != 200)
-                        {
-                            __debugbreak();
-                        }
-#endif
-
-                        NetworkLog(ELogVerbosity::LOG_RELEASE, "Replay upload, result: %d", statusCode);
-                    }, nullptr, HTTP_UPLOAD_TIMEOUT);
-
-                // clear data
-                m_cachedReplayUpload = {};
+				StartResultUpload(m_cachedReplayUpload, "Replay", "application/octet-stream");
             }
         }
 
@@ -1355,14 +1589,7 @@ void GenOnlineServicesManager::Tick()
         {
             if (m_cachedStatsUpload.dataMatchID == m_cachedStatsUpload.uriMatchID && !m_cachedStatsUpload.signedURI.empty())
             {
-                std::map<std::string, std::string> mapHeaders;
-                mapHeaders["Content-Type"] = "application/gzip";
-                GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendS3PUTRequest(m_cachedStatsUpload.signedURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, std::move(m_cachedStatsUpload.bytes), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-                    {
-                        NetworkLog(ELogVerbosity::LOG_RELEASE, "Stats upload, result: %d", statusCode);
-                    }, nullptr, HTTP_UPLOAD_TIMEOUT);
-
-                m_cachedStatsUpload = {};
+                StartResultUpload(m_cachedStatsUpload, "Stats", "application/gzip");
             }
         }
 	}

@@ -325,6 +325,12 @@ inline std::string RestMatchResultPath(int64_t matchID)
 	return "/api/v1/matches/" + std::to_string(matchID) + "/results/me";
 }
 
+// POST tells the service how the upload of one file of the caller ended. Safe to repeat, the first failure reason is kept.
+inline std::string RestMatchFileReportPath(int64_t matchID)
+{
+	return "/api/v1/matches/" + std::to_string(matchID) + "/files/me/report";
+}
+
 inline std::string RestPlaylistsPath()
 {
 	return "/api/v1/matchmaking/playlists";
@@ -405,18 +411,46 @@ struct ConnectionReportBody : WireObject
 	}
 };
 
+// POST /api/v1/matches/:id/files/me/report
+struct FileReportBody : WireObject
+{
+	std::string key; // the key form field of the file, or the path of its URL after the bucket
+	std::string result; // uploaded or failed
+	std::optional<std::string> reason; // size_limit, expired, http_error, network, timeout, read_failed or cancelled, only with failed
+	std::optional<int> http_status;
+	std::optional<std::string> detail;
+
+	template <class V> void Fields(V& v)
+	{
+		v("key", key);
+		v("result", result);
+		v("reason", reason);
+		v("http_status", http_status);
+		v("detail", detail);
+	}
+};
+
 // The URLs are presigned upload targets.
 struct MatchResultResponse : WireObject
 {
 	std::string screenshot_url;
 	std::string replay_url;
 	std::optional<std::string> stats_url;
+	std::optional<std::string> expires_at; // UTC ISO 8601, when the three URLs stop working
+	// With a fields object the matching URL is the target of a multipart POST form that holds these fields, else the upload is a PUT.
+	std::optional<std::map<std::string, std::string> > screenshot_fields;
+	std::optional<std::map<std::string, std::string> > replay_fields;
+	std::optional<std::map<std::string, std::string> > stats_fields;
 
 	template <class V> void Fields(V& v)
 	{
 		v("screenshot_url", screenshot_url);
 		v("replay_url", replay_url);
 		v("stats_url", stats_url);
+		v("expires_at", expires_at);
+		v("screenshot_fields", screenshot_fields);
+		v("replay_fields", replay_fields);
+		v("stats_fields", stats_fields);
 	}
 };
 
