@@ -220,12 +220,14 @@ static GameWindow *   checkNumericalHealth        = nullptr;
 static GameWindow *   checkSmartPips              = nullptr;
 static GameWindow *   checkSelectionCircle        = nullptr;
 static GameWindow *   checkDefensesRangeCircle    = nullptr;
+static GameWindow *   checkQueueBar               = nullptr;
 static GameWindow *   checkVeterancyLevel         = nullptr;
 static GameWindow *   checkObjectDecals           = nullptr;
 static GameWindow *   checkEasyMilitaryDrag       = nullptr;
 static GameWindow *   checkSmartSelection         = nullptr;
 static GameWindow *   checkSmartSelectionUseMouse = nullptr;
 static GameWindow *   checkSmartCommandGroup      = nullptr;
+static GameWindow *   checkBuildQueueBar          = nullptr;
 static GameWindow *   checkNewRadar               = nullptr;
 static GameWindow *   checkLargeBlips             = nullptr;
 static NameKeyType    checkGridHotkeysID          = NAMEKEY_INVALID;
@@ -296,6 +298,8 @@ static_assert( ARRAY_SIZE(CastModeNames) == CastMode_Count, "CastModeNames out o
 static const char *const GridHotkeyLayouts[] = { GRID_HOTKEY_LAYOUT_DEFAULT,"ASDFGHJKLZXCVBNM,.", "QWERTYUIOZXCVBNM,." };
 static const wchar_t *const GridHotkeyLayoutNames[] = { L"QWER / ASDF", L"ASDF / ZXCV", L"QWER / ZXCV" };
 static_assert( ARRAY_SIZE(GridHotkeyLayoutNames) == ARRAY_SIZE(GridHotkeyLayouts), "GridHotkeyLayoutNames out of date" );
+static const char *const GridHotkeyLayoutLabels[] = { "GUI:GridHotkeyLayoutQwerAsdf", "GUI:GridHotkeyLayoutAsdfZxcv", "GUI:GridHotkeyLayoutQwerZxcv" };
+static_assert( ARRAY_SIZE(GridHotkeyLayoutLabels) == ARRAY_SIZE(GridHotkeyLayouts), "GridHotkeyLayoutLabels out of date" );
 
 static NameKeyType    sliderTextureResolutionID = NAMEKEY_INVALID;
 static GameWindow *   sliderTextureResolution = nullptr;
@@ -522,12 +526,14 @@ static const BoolOption BoolOptions[] =
 	{ &checkSmartPips, "SmartPips", &OptionPreferences::getSmartPipsEnabled, &GlobalData::m_smartPips, FALSE },
 	{ &checkSelectionCircle, "SelectionCircle", &OptionPreferences::getSelectionCircleEnabled, &GlobalData::m_selectionCircleEnabled, FALSE },
 	{ &checkDefensesRangeCircle, "DefensesRangeCircle", &OptionPreferences::getDefensesRangeCircleEnabled, &GlobalData::m_defensesRangeCircle, FALSE },
+	{ &checkQueueBar, "QueueBar", &OptionPreferences::getQueueBarEnabled, &GlobalData::m_queueBar, FALSE },
 	{ &checkObjectDecals, "ObjectDecals", &OptionPreferences::getObjectDecalsEnabled, &GlobalData::m_objectDecalsEnabled, TRUE },
 	{ &checkEasyMilitaryDrag, "EasyMilitaryDrag", &OptionPreferences::getEasyMilitaryDragEnabled, &GlobalData::m_easyMilitaryDrag, FALSE },
 	{ &checkFacingDrag, "UseFacingDrag", &OptionPreferences::getFacingDragEnabled, &GlobalData::m_facingDrag, TRUE },
 	{ &checkSmartSelection, "SmartSelection", &OptionPreferences::getSmartSelectionEnabled, &GlobalData::m_smartSelection, TRUE },
 	{ &checkSmartSelectionUseMouse, "SmartSelectionUseMouse", &OptionPreferences::getSmartSelectionUseMouse, &GlobalData::m_smartSelectionUseMouse, TRUE },
 	{ &checkSmartCommandGroup, "SmartCommandGroup", &OptionPreferences::getSmartCommandGroupEnabled, &GlobalData::m_smartCommandGroup, TRUE },
+	{ &checkBuildQueueBar, "BuildQueueBar", &OptionPreferences::getBuildQueueBarEnabled, &GlobalData::m_buildQueueBar, TRUE },
 	// the radar caches this when it is created, so it waits for the next launch
 	{ &checkNewRadar, "NewRadar", &OptionPreferences::getNewRadarEnabled, &GlobalData::m_newRadar, FALSE },
 	{ &checkGridHotkeys, "GridHotkeys", &OptionPreferences::getGridHotkeysEnabled, &GlobalData::m_gridHotkeysEnabled, FALSE },
@@ -1796,10 +1802,9 @@ static void setCheckText( GameWindow *check, const char *label, const char *tip 
 	}
 }
 
-static GameWindow *createFacingDragCheck()
+static GameWindow *createCheckBelow( GameWindow *anchor, const char *name, const char *labelKey, const wchar_t *label, const char *tipKey, const wchar_t *tip )
 {
-	GameWindow *check = findOptionsWindow( "OptionsMenu.wnd:CheckFacingDrag" );
-	GameWindow *anchor = checkSmartCommandGroup;
+	GameWindow *check = findOptionsWindow( name );
 	if (!check && WinGameOptions && anchor && anchor->winGetParent() == WinGameOptions)
 	{
 		Int x, y, width, height, panelWidth, panelHeight;
@@ -1808,7 +1813,7 @@ static GameWindow *createFacingDragCheck()
 		WinGameOptions->winGetSize( &panelWidth, &panelHeight );
 		const Int step = max(height * 21 / 20, 1);
 		check = CreateCheckBoxLike( anchor, WinGameOptions, x, y + step,
-			TheGameText->fetchOrSubstitute( "GUI:FacingDrag", L"Drag to Face" ), "OptionsMenu.wnd:CheckFacingDrag" );
+			TheGameText->fetchOrSubstitute( labelKey, label ), name );
 		if (check)
 		{
 			for (GameWindow *child = WinGameOptions->winGetChild(); child; child = child->winGetNext())
@@ -1825,11 +1830,16 @@ static GameWindow *createFacingDragCheck()
 	}
 	if (check)
 	{
-		GadgetCheckBoxSetText( check, TheGameText->fetchOrSubstitute( "GUI:FacingDrag", L"Drag to Face" ) );
-		check->winSetTooltip( TheGameText->fetchOrSubstitute( "TOOLTIP:FacingDrag",
-			L"Hold both mouse buttons and drag to set the selected units' destination and facing." ) );
+		GadgetCheckBoxSetText( check, TheGameText->fetchOrSubstitute( labelKey, label ) );
+		check->winSetTooltip( TheGameText->fetchOrSubstitute( tipKey, tip ) );
 	}
 	return check;
+}
+
+static GameWindow *createFacingDragCheck()
+{
+	return createCheckBelow( checkSmartCommandGroup, "OptionsMenu.wnd:CheckFacingDrag", "GUI:FacingDrag", L"Drag to Face",
+		"TOOLTIP:FacingDrag", L"Hold both mouse buttons and drag to set the selected units' destination and facing." );
 }
 
 static GameWindow *createPathTracingCheck()
@@ -1944,6 +1954,7 @@ static void initGameOptionsWindows()
 	checkSmartPips = findOptionsWindow( "OptionsMenu.wnd:CheckSmartPips" );
 	checkSelectionCircle = findOptionsWindow( "OptionsMenu.wnd:CheckSelectionCircle" );
 	checkDefensesRangeCircle = findOptionsWindow( "OptionsMenu.wnd:CheckDefensesRangeCircle" );
+	checkQueueBar = findOptionsWindow( "OptionsMenu.wnd:CheckQueueBar" );
 	checkVeterancyLevel = findOptionsWindow( "OptionsMenu.wnd:CheckVeterancyLevel" );
 	checkObjectDecals = findOptionsWindow( "OptionsMenu.wnd:CheckObjectDecals" );
 	checkEasyMilitaryDrag = findOptionsWindow( "OptionsMenu.wnd:CheckEasyMilitaryDrag" );
@@ -1951,6 +1962,8 @@ static void initGameOptionsWindows()
 	checkSmartSelectionUseMouse = findOptionsWindow( "OptionsMenu.wnd:CheckSmartSelectionUseMouse" );
 	checkSmartCommandGroup = findOptionsWindow( "OptionsMenu.wnd:CheckSmartCommandGroup" );
 	checkFacingDrag = createFacingDragCheck();
+	checkBuildQueueBar = createCheckBelow( checkSmartCommandGroup, "OptionsMenu.wnd:CheckBuildQueueBar", "GUI:BuildQueueBar", L"Build Queue Bar",
+		"TOOLTIP:BuildQueueBar", L"Show every queued unit and upgrade as cameos above the radar. Click one to select its producer." );
 	checkNewRadar = findOptionsWindow( "OptionsMenu.wnd:CheckNewRadar" );
 	checkLargeBlips = findOptionsWindow( "OptionsMenu.wnd:CheckLargeBlips" );
 	checkGridHotkeys = findOptionsWindow( "OptionsMenu.wnd:CheckGridHotkeys", checkGridHotkeysID );
@@ -2023,6 +2036,7 @@ static void initGameOptionsWindows()
 	setCheckText( checkSmartPips, "GUI:SmartPips", "TOOLTIP:SmartPips" );
 	setCheckText( checkSelectionCircle, "GUI:SelectionCircle", "TOOLTIP:SelectionCircle" );
 	setCheckText( checkDefensesRangeCircle, "GUI:DefensesRangeCircle", "TOOLTIP:DefensesRangeCircle" );
+	setCheckText( checkQueueBar, "GUI:QueueBar", "TOOLTIP:QueueBar" );
 	setCheckText( checkVeterancyLevel, "GUI:VeterancyLevel", "TOOLTIP:VeterancyLevel" );
 	setCheckText( checkObjectDecals, "GUI:ObjectDecals", "TOOLTIP:ObjectDecals" );
 	setCheckText( checkEasyMilitaryDrag, "GUI:EasyMilitaryDrag", "TOOLTIP:EasyMilitaryDrag" );
@@ -2099,7 +2113,7 @@ static void initGameOptionsWindows()
 		GadgetComboBoxReset( comboBoxGridHotkeyLayout );
 		for (Int i = 0; i < ARRAY_SIZE(GridHotkeyLayoutNames); ++i)
 		{
-			GadgetComboBoxAddEntry( comboBoxGridHotkeyLayout, UnicodeString( GridHotkeyLayoutNames[i] ), GameMakeColor( 255, 255, 255, 255 ) );
+			GadgetComboBoxAddEntry( comboBoxGridHotkeyLayout, TheGameText->FETCH_OR_SUBSTITUTE( GridHotkeyLayoutLabels[i], GridHotkeyLayoutNames[i] ), GameMakeColor( 255, 255, 255, 255 ) );
 		}
 	}
 }

@@ -211,6 +211,7 @@ public:
 		MSG_META_VIEW_TEAM7,												///< center view on given user-defined team (but do not affect selection)
 		MSG_META_VIEW_TEAM8,												///< center view on given user-defined team (but do not affect selection)
 		MSG_META_VIEW_TEAM9,												///< center view on given user-defined team (but do not affect selection)
+		MSG_META_AUTO_CREATE_TEAMS,									///< TheSuperHackers @feature give each of the first ten selected objects its own user-defined team
 
 		MSG_META_SELECT_MATCHING_UNITS,              ///< selects matching units, used for both on screen and across map
 		MSG_META_SMART_SELECTION_NEXT_TYPE,					///< TheSuperHackers @feature narrow the selection to the next type in the smart selection row
@@ -483,6 +484,22 @@ public:
 #if RTS_ZEROHOUR
 		MSG_META_BEGIN_FACING_DRAG,
 		MSG_META_END_FACING_DRAG,
+		MSG_META_SPECIAL_POWER_1,									///< fire the Nth power of the army's Powers Menu card
+		MSG_META_SPECIAL_POWER_2,
+		MSG_META_SPECIAL_POWER_3,
+		MSG_META_SPECIAL_POWER_4,
+		MSG_META_SPECIAL_POWER_5,
+		MSG_META_SPECIAL_POWER_6,
+		MSG_META_SPECIAL_POWER_7,
+		MSG_META_SPECIAL_POWER_8,
+		MSG_META_SPECIAL_POWER_9,
+		MSG_META_SPECIAL_POWER_10,
+		MSG_META_SPECIAL_POWER_11,
+		MSG_META_SPECIAL_POWER_12,
+		MSG_META_SPECIAL_POWER_13,
+		MSG_META_SPECIAL_POWER_14,
+		MSG_META_SPECIAL_POWER_15,
+		MSG_META_SPECIAL_POWER_16,
 #endif
 
 #if defined(GENERALS_ONLINE)

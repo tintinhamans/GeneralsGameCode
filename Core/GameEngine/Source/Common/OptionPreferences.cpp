@@ -363,6 +363,11 @@ Bool OptionPreferences::getDefensesRangeCircleEnabled(void) const
 	return getBool("DefensesRangeCircle", FALSE);
 }
 
+Bool OptionPreferences::getQueueBarEnabled(void) const
+{
+	return getBool("QueueBar", FALSE);
+}
+
 // TheSuperHackers @feature Options.ini: ObjectDecals = No suppresses the decals objects ask for
 // with DisplayDecal. On by default, since the templates opted in.
 Bool OptionPreferences::getObjectDecalsEnabled(void) const
@@ -701,6 +706,12 @@ Bool OptionPreferences::getSmartSelectionUseMouse(void) const
 Bool OptionPreferences::getSmartCommandGroupEnabled(void) const
 {
 	return getBool("SmartCommandGroup", TRUE);
+}
+
+// TheSuperHackers @feature Options.ini: BuildQueueBar = Yes shows the queued units and upgrades as cameos above the radar.
+Bool OptionPreferences::getBuildQueueBarEnabled(void) const
+{
+	return getBool("BuildQueueBar", TRUE);
 }
 
 // TheSuperHackers @feature Options.ini: CastMode = Normal | QuickCast | QuickCastWithIndicator

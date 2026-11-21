@@ -110,6 +110,7 @@
 #include "GameClient/GUICallbacks.h"
 
 #include "GameLogic/AIMatch.h"
+#include "GameLogic/PathScenario.h"
 #include "Common/GameMcp.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
@@ -875,6 +876,15 @@ void GameEngine::init()
 			TheAIMatch->start();
 		}
 
+		// TheSuperHackers @feature simonx645 16/11/2026 -pathScenario / -pathBench in a window: the file's skirmish starts at
+		// once (with -headless, GameMain runs it instead).
+		if (PathScenario::Active() && !TheGlobalData->m_headless)
+		{
+			TheWritableGlobalData->m_shellMapOn = FALSE;
+			if (!PathScenario::Start(FALSE))
+				m_quitting = TRUE;
+		}
+
 #ifdef RTS_GAME_MCP
 		// The bridge for tools that drive the game, asked for on the command line.
 		TheGameMcp = GameMcp::createFromCommandLine();
@@ -1154,6 +1164,21 @@ void GameEngine::update()
 extern bool DX8Wrapper_IsWindowed;
 extern HWND ApplicationHWnd;
 
+// try to save info off
+static void cleanUpReplayBeforeCrash()
+{
+	try
+	{
+		if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD && TheRecorder->isMultiplayer())
+		{
+			TheRecorder->cleanUpReplayFile();
+		}
+	}
+	catch (...)
+	{
+	}
+}
+
 /** -----------------------------------------------------------------------------------------------
  * The "main loop" of the game engine. It will not return until the game exits.
  */
@@ -1212,17 +1237,16 @@ void GameEngine::execute()
 					else
 						RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
 				}
+				catch (const std::exception &e)
+				{
+					cleanUpReplayBeforeCrash();
+					char msg[256];
+					snprintf(msg, sizeof(msg), "Uncaught Exception in GameEngine::update: %s", e.what());
+					RELEASE_CRASH((msg));
+				}
 				catch (...)
 				{
-					// try to save info off
-					try
-					{
-						if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD && TheRecorder->isMultiplayer())
-							TheRecorder->cleanUpReplayFile();
-					}
-					catch (...)
-					{
-					}
+					cleanUpReplayBeforeCrash();
 					RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
 				}
 			}

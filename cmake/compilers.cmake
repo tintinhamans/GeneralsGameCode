@@ -50,6 +50,8 @@ if (NOT IS_VS6_BUILD)
         add_compile_options(/MP)
         # Enforce strict __cplusplus version
         add_compile_options(/Zc:__cplusplus)
+        # Float results stay identical across machines
+        add_compile_options(/fp:precise)
     else()
         add_compile_options(-Wsuggest-override)
         # Prevent FMA contraction (a*b+c -> fmadd) which skips intermediate

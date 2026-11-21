@@ -69,5 +69,4 @@ class DiscreteCircle
 
 	protected:
 		void generateEdgePairs(Int xCenter, Int yCenter, Int radius);
-		void removeDuplicates();
 };

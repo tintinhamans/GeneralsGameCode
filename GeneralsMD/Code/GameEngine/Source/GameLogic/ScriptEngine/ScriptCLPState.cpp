@@ -22,6 +22,7 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include "Common/MapData.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
 #include "Common/Team.h"
@@ -217,13 +218,20 @@ Bool clpIsSeenByPlayer(const Object *obj, const Player *player)
 //-------------------------------------------------------------------------------------------------
 Bool clpAIPlaysFair(const Player *player)
 {
-	return player && player->getPlayerType() == PLAYER_COMPUTER && !TheGameLogic->isInSinglePlayerGame();
+	return player && player->getPlayerType() == PLAYER_COMPUTER;
+}
+
+//-------------------------------------------------------------------------------------------------
+Bool clpAIUsesTargetingRestrictions(const Player *player)
+{
+	return clpAIPlaysFair(player) &&
+		(TheMapData->m_aiSpecialPowersRespectFog || TheMapData->m_aiSpecialPowersRespectStealth);
 }
 
 //-------------------------------------------------------------------------------------------------
 Bool clpIsFairAITarget(const Object *obj, const Player *player)
 {
-	if (!clpAIPlaysFair(player))
+	if (!clpAIUsesTargetingRestrictions(player))
 	{
 		return TRUE;
 	}
@@ -231,18 +239,22 @@ Bool clpIsFairAITarget(const Object *obj, const Player *player)
 	{
 		return FALSE;
 	}
-	ObjectShroudStatus status = obj->getShroudedStatus(player->getPlayerIndex());
-	if (status == OBJECTSHROUD_SHROUDED)
+	if (TheMapData->m_aiSpecialPowersRespectFog)
 	{
-		return FALSE;
-	}
+		ObjectShroudStatus status = obj->getShroudedStatus(player->getPlayerIndex());
+		if (status == OBJECTSHROUD_SHROUDED)
+		{
+			return FALSE;
+		}
 
-	// A fogged structure stays targetable through the ghost a human would see.
-	if (status == OBJECTSHROUD_FOGGED && !obj->isKindOf(KINDOF_STRUCTURE))
-	{
-		return FALSE;
+		// A fogged structure stays targetable through the ghost a human would see.
+		if (status == OBJECTSHROUD_FOGGED && !obj->isKindOf(KINDOF_STRUCTURE))
+		{
+			return FALSE;
+		}
 	}
-	if (obj->testStatus(OBJECT_STATUS_STEALTHED) && !obj->testStatus(OBJECT_STATUS_DETECTED)
+	if (TheMapData->m_aiSpecialPowersRespectStealth &&
+		obj->testStatus(OBJECT_STATUS_STEALTHED) && !obj->testStatus(OBJECT_STATUS_DETECTED)
 		&& player->getRelationship(obj->getTeam()) != ALLIES)
 	{
 		return FALSE;

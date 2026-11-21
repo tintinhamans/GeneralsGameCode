@@ -473,6 +473,7 @@ Coord3D DockUpdate::computeApproachPosition( Int positionIndex, Object *forWhom 
 		workingPosition.z += offset.Z;
 	}
 
+	fpOptions.flags = FPF_IGNORE_MINES;
 	fpOptions.minRadius = 0.0f;
 	fpOptions.maxRadius = 100.0f;
 	fpOptions.sourceToPathToDest = forWhom;// This makes it find a place forWhom can get to.

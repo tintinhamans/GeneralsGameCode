@@ -373,6 +373,9 @@ WindowMsgHandledType GeneralsExpPointsInput( GameWindow *window, UnsignedInt msg
 // IdleWorker Controls --------------------------------------------------------------------------------
 WindowMsgHandledType IdleWorkerSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 
+// Queue Bar Controls --------------------------------------------------------------------------------
+WindowMsgHandledType QueueBarSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+
 // Disconnect Menu --------------------------------------------------------------------------------
 extern void ShowDisconnectWindow();
 extern void HideDisconnectWindow();

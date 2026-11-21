@@ -3386,6 +3386,31 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			break;
 		}
 
+#if RTS_ZEROHOUR
+		//-----------------------------------------------------------------------------------------
+		case GameMessage::MSG_META_SPECIAL_POWER_1:
+		case GameMessage::MSG_META_SPECIAL_POWER_2:
+		case GameMessage::MSG_META_SPECIAL_POWER_3:
+		case GameMessage::MSG_META_SPECIAL_POWER_4:
+		case GameMessage::MSG_META_SPECIAL_POWER_5:
+		case GameMessage::MSG_META_SPECIAL_POWER_6:
+		case GameMessage::MSG_META_SPECIAL_POWER_7:
+		case GameMessage::MSG_META_SPECIAL_POWER_8:
+		case GameMessage::MSG_META_SPECIAL_POWER_9:
+		case GameMessage::MSG_META_SPECIAL_POWER_10:
+		case GameMessage::MSG_META_SPECIAL_POWER_11:
+		case GameMessage::MSG_META_SPECIAL_POWER_12:
+		case GameMessage::MSG_META_SPECIAL_POWER_13:
+		case GameMessage::MSG_META_SPECIAL_POWER_14:
+		case GameMessage::MSG_META_SPECIAL_POWER_15:
+		case GameMessage::MSG_META_SPECIAL_POWER_16:
+		{
+			TheControlBar->firePowerHotkey( t - GameMessage::MSG_META_SPECIAL_POWER_1 + 1 );
+			disp = DESTROY_MESSAGE;
+			break;
+		}
+#endif
+
 		//-----------------------------------------------------------------------------------------
 		case GameMessage::MSG_META_SELECT_HERO:
 		{

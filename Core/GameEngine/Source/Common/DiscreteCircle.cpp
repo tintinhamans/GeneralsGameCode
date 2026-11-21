@@ -53,7 +53,6 @@ DiscreteCircle::DiscreteCircle(Int xCenter, Int yCenter, Int radius)
 	m_edges.reserve(radius << 1);	// largest that it should ever be.
 
 	generateEdgePairs(xCenter, yCenter, radius);
-	removeDuplicates();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -76,6 +75,11 @@ void DiscreteCircle::generateEdgePairs(Int xCenter, Int yCenter, Int radius)
 	Int d = (1 - radius) << 1;
 
 	while (y >= 0) {
+		// A row's last visit is its widest.
+		if (!m_edges.empty() && m_edges.back().yPos == yCenter + y) {
+			m_edges.pop_back();
+		}
+
 		HorzLine hl;
 		hl.xStart = xCenter - x;
 		hl.xEnd		= xCenter + x;
@@ -90,25 +94,6 @@ void DiscreteCircle::generateEdgePairs(Int xCenter, Int yCenter, Int radius)
 		if (x > d) {
 			++x;
 			d += ((x << 1) + 1);
-		}
-	}
-}
-
-//-------------------------------------------------------------------------------------------------
-void DiscreteCircle::removeDuplicates()
-{
-	VecHorzLineIt it, nextIt;
-	for ( it = m_edges.begin(); it != m_edges.end(); /* empty */) {
-		nextIt = it;
-		++nextIt;
-		if (nextIt == m_edges.end()) {
-			break;
-		}
-
-		if (it->yPos == nextIt->yPos) {
-			it = m_edges.erase(it);
-		} else {
-			++it;
 		}
 	}
 }

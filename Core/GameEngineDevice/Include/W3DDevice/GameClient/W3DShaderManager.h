@@ -33,6 +33,7 @@
 
 #pragma once
 
+#include "WW3D2/dx8compat.h"
 #include "WW3D2/texture.h"
 #include "WWMath/vector4.h"
 #include <vector>

@@ -268,6 +268,7 @@ static const char *DistanceFogPresetNames[] = { "SUN", "DESERT", "FUTURISTIC", "
 	{ "DrawEntireTerrain",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_drawEntireTerrain ) },
 	{ "TerrainLOD",									INI::parseIndexList,	TerrainLODNames,	offsetof( GlobalData, m_terrainLOD ) },
 	{ "TerrainLODTargetTimeMS",			INI::parseInt,				nullptr,			offsetof( GlobalData, m_terrainLODTargetTimeMS ) },
+	{ "GuardRequiresVisibility",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_guardRequiresVisibility ) },
 	{ "RightMouseAlwaysScrolls",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_rightMouseAlwaysScrolls ) },
 	{ "UseWaterPlane",							INI::parseBool,				nullptr,			offsetof( GlobalData, m_useWaterPlane ) },
 	{ "UseCloudPlane",							INI::parseBool,				nullptr,			offsetof( GlobalData, m_useCloudPlane ) },
@@ -1640,6 +1641,7 @@ GlobalData::GlobalData()
 	m_useRightMouseScrollWithAlternateMouse = TRUE;
 #endif
 	m_clientRetaliationModeEnabled = TRUE; //On by default.
+	m_guardRequiresVisibility = FALSE;
 	// TheSuperHackers @feature Health bars behave exactly as they always have unless Options.ini says otherwise.
 	m_healthBarDisplayMode = HealthBarDisplayMode_Default;
 	m_alliedDecalMode = AlliedDecalMode_Default;
@@ -1648,6 +1650,7 @@ GlobalData::GlobalData()
 	m_castMode = CastMode_Default;
 	m_selectionCircleEnabled = FALSE;
 	m_defensesRangeCircle = FALSE;
+	m_queueBar = FALSE;
 	m_objectDecalsEnabled = TRUE;
 	m_smartPips = FALSE;
 	m_numericalHealth = FALSE;
@@ -1665,6 +1668,7 @@ GlobalData::GlobalData()
 	m_smartSelection = TRUE;
 	m_smartSelectionUseMouse = TRUE;
 	m_smartCommandGroup = TRUE;
+	m_buildQueueBar = TRUE;
 	m_actionLineMode = ActionLineMode_Default;
 	m_doubleClickAttackMove = FALSE;
 	m_facingDrag = TRUE;		// on by default (the Options check box turns it off)
@@ -2060,6 +2064,7 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_castMode = optionPref.getCastMode();
 	TheWritableGlobalData->m_selectionCircleEnabled = optionPref.getSelectionCircleEnabled();
 	TheWritableGlobalData->m_defensesRangeCircle = optionPref.getDefensesRangeCircleEnabled();
+	TheWritableGlobalData->m_queueBar = optionPref.getQueueBarEnabled();
 	TheWritableGlobalData->m_objectDecalsEnabled = optionPref.getObjectDecalsEnabled();
 	TheWritableGlobalData->m_smartPips = optionPref.getSmartPipsEnabled();
 	TheWritableGlobalData->m_numericalHealth = optionPref.getNumericalHealthEnabled();
@@ -2079,6 +2084,7 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_smartSelection = optionPref.getSmartSelectionEnabled();
 	TheWritableGlobalData->m_smartSelectionUseMouse = optionPref.getSmartSelectionUseMouse();
 	TheWritableGlobalData->m_smartCommandGroup = optionPref.getSmartCommandGroupEnabled();
+	TheWritableGlobalData->m_buildQueueBar = optionPref.getBuildQueueBarEnabled();
 	TheWritableGlobalData->m_actionLineMode = optionPref.getActionLineMode();
 	TheWritableGlobalData->m_jpegQuality = optionPref.getJpegQuality();
 	TheWritableGlobalData->m_keyboardScrollFactor = optionPref.getScrollFactor();
@@ -2255,6 +2261,54 @@ UnsignedInt GlobalData::generateExeCRC()
 	return exeCRC.get();
 }
 
+// TheSuperHackers @feature simonx645 16/11/2026 -userDataLeaf "<name>": the user data folder is Documents\<name> instead
+// of the one the registry names (tests and other installs keep their settings, replays and maps apart). Read here straight
+// from the command line, since the constructor builds the path before any option is parsed (CommandLine.cpp only consumes
+// it). A name that is not one plain folder name is ignored and the registry's folder kept.
+static Bool User_Data_Leaf_Valid(const char * name)
+{
+	const size_t length = strlen(name);
+	if (length == 0 || length > 100 || name[0] == ' ' || name[length - 1] == ' ' || name[length - 1] == '.')
+		return FALSE;
+	Bool onlyDots = TRUE;
+	for (const char * c = name; *c != 0; ++c)
+	{
+		if ((unsigned char)*c < 32 || strchr("\\/:*?\"<>|", *c) != nullptr)
+			return FALSE;
+		if (*c != '.')
+			onlyDots = FALSE;
+	}
+	if (onlyDots)
+		return FALSE;
+	static const char * const devices[] = { "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+		"COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9", nullptr };
+	for (const char * const * d = devices; *d != nullptr; ++d)
+	{
+		const size_t n = strlen(*d);
+		if (_strnicmp(name, *d, n) == 0 && (name[n] == 0 || name[n] == '.'))
+			return FALSE;
+	}
+	return TRUE;
+}
+
+static Bool User_Data_Leaf_From_Command_Line(AsciiString & leaf)
+{
+	for (int i = 1; i < __argc; ++i)
+	{
+		if (stricmp(__argv[i], "-userDataLeaf") != 0)
+			continue;
+		const char * name = i + 1 < __argc ? __argv[i + 1] : "";
+		if (!User_Data_Leaf_Valid(name))
+		{
+			DEBUG_LOG(("-userDataLeaf \"%s\" is not a valid folder name; the registry's folder is kept", name));
+			return FALSE;
+		}
+		leaf = name;
+		return TRUE;
+	}
+	return FALSE;
+}
+
 AsciiString GlobalData::BuildUserDataPathFromRegistry()
 {
 #if defined(_MSC_VER) && (_MSC_VER < 1300)
@@ -2298,7 +2352,7 @@ AsciiString GlobalData::BuildUserDataPathFromRegistry()
 			myDocumentsDirectory.concat('\\');
 
 		AsciiString leafName;
-		if (!GetStringFromRegistry("", "UserDataLeafName", leafName))
+		if (!User_Data_Leaf_From_Command_Line(leafName) && !GetStringFromRegistry("", "UserDataLeafName", leafName))
 		{
 			// Use something, anything
 			// [MH] had to remove this, otherwise mapcache build step won't run... DEBUG_CRASH( ( "Could not find registry key UserDataLeafName; defaulting to \"Command and Conquer Generals Zero Hour Data\" " ) );

@@ -63,8 +63,10 @@ GameNetworkingSockets ICE P2P transport, lobbies/matchmaking/stats).
   - `GameLogic::getFrameLegacy()` / `HasLegacyFrameAdvanced()` are derived from `m_frame`
     and the frame multiplier instead of two stored counters with a hardcoded `% 2`; nothing
     new is zeroed or xfer'd. The unused `getFrameLegacyLast()` is not ported.
-  - `GameClient`'s wall-clock legacy counter uses `std::chrono::steady_clock` and a
-    `MSEC_PER_SECOND / BaseFps` tick instead of `utc_clock` and a literal 33.
+  - `GameClient`'s legacy counter, which steps the particles, ticks once per
+    `GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER` logic frames. GO accrues wall-clock
+    milliseconds instead, which makes the particle rate depend on each client's render rate
+    and ignore network slowdowns. Keep the logic-frame tick when merging GO particle code.
   - The FramePacer render floor and `FrameMetrics::init()` seeds are guarded on
     `HIGH_FPS_SERVER` and use `LOGICFRAMES_PER_SECOND`; GO guarded the floor on plain
     `GENERALS_ONLINE`. `htree.cpp`'s static_assert accepts 30 or 60 without a GO include.
@@ -158,6 +160,10 @@ GameNetworkingSockets ICE P2P transport, lobbies/matchmaking/stats).
   which zi_always defines for every Zero Hour target, so the meta enum agrees across libs.
   The meta translator fires only the first matching record, so the GO records are
   appended (`appendMetaMapRec`) and any other command on the same key keeps it.
+  The special power keys take the bare F1 to F11, so the defaults end up as Shift+F5
+  (buddy overlay), Shift+F10 (network stats) and Shift+F11 (screenshot); Insert is
+  unchanged. The two "Press F5 or INSERT" texts (NGMPGame.cpp, OnlineServices_RoomsInterface.cpp)
+  say Shift+F5 to match, which differs from upstream GO.
   `INI::loadHotKeys` skips a CommandMap block it cannot read instead of the rest of the
   file, because the offline build reads the same Hotkeys.ini and lacks these names.
   The F10 overlay moved from InGameUI.cpp to `NGMP_OnlineServicesManager::DrawAdvancedNetworkStats`

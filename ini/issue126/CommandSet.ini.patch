@@ -1,0 +1,16 @@
+--- a/CommandSet.ini
++++ b/CommandSet.ini
+@@ -5947,6 +5947,13 @@
+ 
+ CommandSet AmericaDropPlaneCommandSet
+   1  = AirF_Command_AmericaVehicleC130Drop
++  2 = Command_TransportExit
++  3 = Command_TransportExit
++  4 = Command_TransportExit
++  5 = Command_TransportExit
++  6 = Command_TransportExit
++  7 = Command_TransportExit
++  8 = Command_Evacuate
+   16 = Command_Disassemble
+   15 = Command_AttackMove
+   17 = Command_Guard

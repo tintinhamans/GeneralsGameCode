@@ -258,6 +258,7 @@ public:
 	void setControlBarSchemeByPlayer(Player *p);																				///< Based off the playerTemplate, pick the right scheme for the control bar
 	void setControlBarSchemeByPlayerTemplate( const PlayerTemplate *pt, Bool useSmall = FALSE);
 	void setControlBarScheme(AsciiString schemeName);																										///< SchemeName must be a valid INI entry
+	ControlBarScheme *getCurrentScheme() const { return m_currentScheme; }															///< null when no scheme is loaded
 
 	// parse Functions for the INI file
 	const FieldParse *getFieldParse() const { return m_controlBarSchemeFieldParseTable; }								///< returns the parsing fields

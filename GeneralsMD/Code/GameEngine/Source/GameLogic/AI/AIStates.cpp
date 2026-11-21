@@ -1756,6 +1756,8 @@ StateReturnType AIInternalMoveToState::onEnter()
 		}
 	}
 	m_tryOneMoreRepath = true;  // We may try one more repath after the first one is finished.
+	m_shortTries = 0;	// "groupgoals"
+	m_shortTryFrame = 0;
 	ai->friend_startingMove();
 
 	// get object physics state
@@ -1904,6 +1906,16 @@ void AIInternalMoveToState::onExit( StateExitType status )
  * Execute the moveTo behavior towards GoalPosition.
  */
 
+// TheSuperHackers @bugfix simonx645 16/11/2026 the short-path retry never aims off the playable area: a goal less than
+// a cell inside the map's pathfind extent is a move off the map (move and delete) or an unset goal (0,0,0)
+static Bool Short_Retry_Goal_On_Map(const Coord3D *goal)
+{
+	Region3D extent;
+	TheTerrainLogic->getMaximumPathfindExtent(&extent);
+	return goal->x >= extent.lo.x + PATHFIND_CELL_SIZE_F && goal->y >= extent.lo.y + PATHFIND_CELL_SIZE_F &&
+		goal->x <= extent.hi.x - PATHFIND_CELL_SIZE_F && goal->y <= extent.hi.y - PATHFIND_CELL_SIZE_F;
+}
+
 StateReturnType AIInternalMoveToState::update()
 {
 
@@ -1958,6 +1970,15 @@ StateReturnType AIInternalMoveToState::update()
 		m_pathGoalPosition = m_goalPosition;
 		if (this->getAdjustsDestination()) {
 				TheAI->pathfinder()->updateGoal(obj, thePath->getLastNode()->getPosition(), thePath->getLastNode()->getLayer());
+		} else if (PathTuning::ColHold && ai->getGivenGoal() != nullptr && getMachine()->getCurrentStateID() == AI_FOLLOW_PATH &&
+			TheAI->pathfinder()->givenBoxClear(obj, ai->getGivenGoal())) {
+			// TheSuperHackers @bugfix simonx645 16/11/2026 "colhold" (GameLogic/PathTuning.h): a column member's leg to a
+			// waypoint dropped its given goal's reservation, allies parked in that box, and the last leg's re-spiral then
+			// failed or fell short on it (T1: 40 of 60 with 1 failed + 1 partial find). Only while the box is clear: once
+			// another unit's goal or a parked unit is in it, its marks stay and the last leg's check re-spirals (T6, T12b).
+			// The column's follow path only: an attack-move's approach legs wrote over whoever stood in the box (T6)
+			const Coord3D *given = ai->getGivenGoal();
+			TheAI->pathfinder()->updateGoal(obj, given, TheTerrainLogic->getLayerForDestination(given));
 		} else {
 				TheAI->pathfinder()->removeGoal(obj);
 		}
@@ -2035,6 +2056,23 @@ StateReturnType AIInternalMoveToState::update()
 	if (thePath != nullptr)
 		ai->setLocomotorGoalPositionOnPath();
 
+	// TheSuperHackers @feature simonx645 16/11/2026 "goaltaken" (GameLogic/PathTuning.h): the search to the given goal found
+	// it taken and noted the nearest free box: the move aims there now, and that box is the unit's given goal
+	if (PathTuning::GoalTaken) {
+		Coord3D aim;
+		if (ai->takeGoalTakenAim(&m_goalPosition, &aim)) {
+			{ m_goalPosition = aim; m_goalSet = TRUE; }
+			ai->setGivenGoal(&aim);
+			if (!computePath()) {
+				return STATE_FAILURE;
+			}
+			if (ai->getPath() != nullptr) {
+				ai->setLocomotorGoalPositionOnPath();
+			}
+			return STATE_CONTINUE;
+		}
+	}
+
 	// if our goal has moved, recompute our path
 	if (forceRecompute || TheGameLogic->getFrame() - m_pathTimestamp > MIN_REPATH_TIME)
 	{
@@ -2091,6 +2129,54 @@ StateReturnType AIInternalMoveToState::update()
 			// The search stopped short of the goal, so path on from here
 			computePath();
 			return STATE_CONTINUE;
+		}
+		// TheSuperHackers @feature simonx645 16/11/2026 "groupgoals" (GameLogic/PathTuning.h): a path that ended well short
+		// of a goal that has not changed (a blocked recompute's nearest point, with the units round it in the way) does not
+		// end the move: a normal path to the goal is asked for, at most three times, two seconds apart.
+		if (PathTuning::GroupGoals && m_goalSet && Short_Retry_Goal_On_Map(&m_goalPosition) && ai->isDoingGroundMovement() && m_shortTries < 3 &&
+			TheGameLogic->getFrame() >= m_shortTryFrame + 2 * LOGICFRAMES_PER_SECOND)
+		{
+			const Real gx = obj->getPosition()->x - m_goalPosition.x;
+			const Real gy = obj->getPosition()->y - m_goalPosition.y;
+			const Real reach = 4.0f * PATHFIND_CELL_SIZE_F + obj->getGeometryInfo().getBoundingCircleRadius();
+			// TheSuperHackers @feature simonx645 16/11/2026 "colhold" (GameLogic/PathTuning.h): a move whose goal is the unit's
+			// given goal, ending more than a cell and a half off it with that goal's box free, paths on to it (it would
+			// otherwise stop, and its stop reserve the spot, inside a neighbour's box)
+			const Bool settle = PathTuning::ColHold && ai->isGivenGoal(&m_goalPosition) &&
+				gx * gx + gy * gy > sqr(1.5f * PATHFIND_CELL_SIZE_F) && TheAI->pathfinder()->goalBoxFree(obj, &m_goalPosition);
+			// TheSuperHackers @feature simonx645 16/11/2026 "endreaim" (GameLogic/PathTuning.h): with the last leg's check off
+			// ("nocolholdrecheck"), a held column move's last leg that ended beyond an arrival's reach (2 cells + its footprint
+			// radius) of a taken given box aims at the box the destination spiral finds from the given goal (T3a: an Emperor
+			// stopped 4.1 cells short of a box an ally's goal held)
+			const Coord3D *given = PathTuning::ColHold ? ai->getGivenGoal() : nullptr;
+			Bool reaim = FALSE;
+			Coord3D aim;
+			if (given != nullptr && ai->isOnGivenGoalLastLeg())
+			{
+				const Real hx = obj->getPosition()->x - given->x;
+				const Real hy = obj->getPosition()->y - given->y;
+				if (hx * hx + hy * hy > sqr(1.5f * PATHFIND_CELL_SIZE_F))
+				{
+					if (!TheAI->pathfinder()->goalBoxFree(obj, given))
+					{
+						const Real arrive = (2.0f + (Real)(TheAI->pathfinder()->footprintCells(obj) / 2)) * PATHFIND_CELL_SIZE_F;
+						if (PathTuning::EndReaim && PathTuning::NoColHoldRecheck && hx * hx + hy * hy > arrive * arrive)
+						{
+							aim = *given;
+							reaim = TheAI->pathfinder()->adjustDestination(obj, ai->getLocomotorSet(), &aim);
+						}
+					}
+				}
+			}
+			if (gx * gx + gy * gy > reach * reach || settle || reaim)
+			{
+				if (reaim)
+					{ m_goalPosition = aim; m_goalSet = TRUE; }
+				++m_shortTries;
+				m_shortTryFrame = TheGameLogic->getFrame();
+				computePath();
+				return STATE_CONTINUE;
+			}
 		}
 		if (getAdjustsDestination())
 		{
@@ -2209,7 +2295,7 @@ StateReturnType AIMoveToState::onEnter()
 
 	// if we have a goal object, move to it, otherwise move to goal position
 	if (getMachineGoalObject())	{
-		m_goalPosition = *getMachineGoalObject()->getPosition();
+		{ m_goalPosition = *getMachineGoalObject()->getPosition(); m_goalSet = TRUE; }
 		if (getMachineOwner()->isKindOf(KINDOF_PROJECTILE)) {
 			Real halfHeight = getMachineGoalObject()->getGeometryInfo().getMaxHeightAbovePosition()/2.0f;
 			m_goalPosition.z += halfHeight;
@@ -2218,7 +2304,7 @@ StateReturnType AIMoveToState::onEnter()
 			}
 		}
 	} else
-		m_goalPosition = *getMachineGoalPosition();
+		{ m_goalPosition = *getMachineGoalPosition(); m_goalSet = TRUE; }
 
 	StateReturnType ret = AIInternalMoveToState::onEnter();
 	if (getMachineOwner()->getFormationID() != NO_FORMATION_ID) {
@@ -2271,7 +2357,7 @@ StateReturnType AIMoveToState::update()
 	Object *obj = getMachineOwner();
 	if (goalObj)
 	{
-		m_goalPosition = *goalObj->getPosition();
+		{ m_goalPosition = *goalObj->getPosition(); m_goalSet = TRUE; }
 		Bool gotPhysics = obj->getPhysics()!=nullptr && goalObj->getPhysics()!=nullptr;
 		Bool isMissile = obj->isKindOf(KINDOF_PROJECTILE);
 		if (isMissile) {
@@ -2304,7 +2390,7 @@ StateReturnType AIMoveToState::update()
 		Bool isMissile = obj->isKindOf(KINDOF_PROJECTILE);
 		if (isMissile) {
 			// When missiles are moving uphill, they need to start up quickly to clear hills.  jba.
-			m_goalPosition = *getMachineGoalPosition();
+			{ m_goalPosition = *getMachineGoalPosition(); m_goalSet = TRUE; }
 			Real zDelta = m_goalPosition.z - obj->getPosition()->z;
 			if (zDelta>0) {
 				m_goalPosition.z += zDelta;
@@ -2334,7 +2420,7 @@ StateReturnType AIMoveOutOfTheWayState::onEnter()
 		// Must have existing path.
 		return STATE_FAILURE;
 	}
-	m_goalPosition = *ai->getPath()->getLastNode()->getPosition();
+	{ m_goalPosition = *ai->getPath()->getLastNode()->getPosition(); m_goalSet = TRUE; }
 	return AIInternalMoveToState::onEnter();
 }
 
@@ -2418,7 +2504,7 @@ StateReturnType AIMoveAndTightenState::onEnter()
 	m_okToRepathTimes = 1;
 	m_checkForPath = true;
 	TheAI->pathfinder()->removeGoal(obj);
-	m_goalPosition = *getMachineGoalPosition();
+	{ m_goalPosition = *getMachineGoalPosition(); m_goalSet = TRUE; }
 	ai->requestApproachPath(&m_goalPosition);
 	return AIInternalMoveToState::onEnter();
 }
@@ -2492,7 +2578,7 @@ StateReturnType AIMoveAwayFromRepulsorsState::update()
 		AIUpdateInterface *ai = obj->getAI();
 		Path *thePath = ai->getPath();
 		if (thePath && !ai->isWaitingForPath()) {
-			m_goalPosition = *thePath->getLastNode()->getPosition();
+			{ m_goalPosition = *thePath->getLastNode()->getPosition(); m_goalSet = TRUE; }
 			setAdjustsDestination(false);
 			m_checkForPath = false;
 		}
@@ -2661,7 +2747,7 @@ Bool AIAttackApproachTargetState::computePath()
 			ai->setPathExtraDistance(10*PATHFIND_CELL_SIZE_F); // We don't want it to slow down.
 		}
 
-		m_goalPosition = m_prevVictimPos;
+		{ m_goalPosition = m_prevVictimPos; m_goalSet = TRUE; }
 		m_waitingForPath = true;
 
 		Coord3D pos;
@@ -2679,7 +2765,7 @@ Bool AIAttackApproachTargetState::computePath()
 		// goal position.
 		setAdjustsDestination(true);
 		m_stopIfInRange = false; // Attack position is used by missiles, and they hit the position.
-		m_goalPosition = *getMachineGoalPosition();
+		{ m_goalPosition = *getMachineGoalPosition(); m_goalSet = TRUE; }
 		if (!forceRepath)
 		{
 			CRCDEBUG_LOG(("AIAttackApproachTargetState::computePath - bailing because we're aiming for a fixed position for object %d", getMachineOwner()->getID()));
@@ -3092,7 +3178,7 @@ Bool AIAttackPursueTargetState::computePath()
 
 		setAdjustsDestination(true);
 
-		m_goalPosition = m_prevVictimPos;
+		{ m_goalPosition = m_prevVictimPos; m_goalSet = TRUE; }
 		m_waitingForPath = true;
 		ai->requestPath(&m_goalPosition, false);
 		m_stopIfInRange = false; // we have calculated a position to shoot from, so go there.
@@ -3382,7 +3468,7 @@ StateReturnType AIPickUpCrateState::onEnter()
 		return STATE_FAILURE;
 	}
 	setAdjustsDestination(true);
-	m_goalPosition = *goalObj->getPosition();
+	{ m_goalPosition = *goalObj->getPosition(); m_goalSet = TRUE; }
 	m_delayCounter = 3;
 	return STATE_CONTINUE;
 
@@ -3469,7 +3555,7 @@ StateReturnType AIFollowPathState::onEnter()
 		return STATE_FAILURE;
 
 	// set initial movement goal
-	m_goalPosition = *pos;
+	{ m_goalPosition = *pos; m_goalSet = TRUE; }
  	const Coord3D *nextPos = ai->friend_getGoalPathPosition( m_index+1 );
 	m_adjustFinal = true;
 
@@ -3605,7 +3691,7 @@ StateReturnType AIFollowPathState::update()
 
 		ai->friend_startingMove();
 		// set next movement goal
-		m_goalPosition = *pos;
+		{ m_goalPosition = *pos; m_goalSet = TRUE; }
  		const Coord3D *nextPos = ai->friend_getGoalPathPosition( m_index+1 );
 
  		if (nextPos)
@@ -3626,8 +3712,20 @@ StateReturnType AIFollowPathState::update()
 			setAdjustsDestination(m_adjustFinal && (m_adjustFinalOverride || ai->isDoingGroundMovement()) && !ai->isExactFormationMove());
 			if (getAdjustsDestination())
 			{
-				if (!TheAI->pathfinder()->adjustDestination(getMachineOwner(), ai->getLocomotorSet(), &m_goalPosition)) {
-					return STATE_FAILURE;
+				// "colhold": the given goal stayed reserved by this unit on the way, so the check keeps it as given; a box
+				// taken since (an ally stopped in it) or with no quick path is re-spiralled as before. Only when the spiral
+				// finds nothing does a held goal stand, instead of failing the move.
+				// TheSuperHackers @bugfix simonx645 16/11/2026 skipping the check sent units into taken boxes (T12b: a
+				// Seraphim froze 227 s among infantry goals; T6: an APC's find failed twice on the chasers' goal)
+				const Bool held = PathTuning::ColHold && ai->isGivenGoal(&m_goalPosition);
+				const Coord3D given = m_goalPosition;
+				if (held && PathTuning::NoColHoldRecheck) {
+					// "nocolholdrecheck": colhold's first version, the held given goal as given, no check
+				} else if (!TheAI->pathfinder()->adjustDestination(getMachineOwner(), ai->getLocomotorSet(), &m_goalPosition)) {
+					if (!held) {
+						return STATE_FAILURE;
+					}
+					{ m_goalPosition = given; m_goalSet = TRUE; }
 				}
 				TheAI->pathfinder()->updateGoal(getMachineOwner(), &m_goalPosition, TheTerrainLogic->getLayerForDestination(&m_goalPosition));
 			}
@@ -3717,9 +3815,9 @@ StateReturnType AIMoveAndEvacuateState::onEnter()
 
 	// if we have a goal object, move to it, otherwise move to goal position
 	if (getMachine()->getGoalObject())
-		m_goalPosition = *getMachine()->getGoalObject()->getPosition();
+		{ m_goalPosition = *getMachine()->getGoalObject()->getPosition(); m_goalSet = TRUE; }
 	else
-		m_goalPosition = *getMachine()->getGoalPosition();
+		{ m_goalPosition = *getMachine()->getGoalPosition(); m_goalSet = TRUE; }
 	return AIInternalMoveToState::onEnter();
 }
 
@@ -3771,6 +3869,9 @@ AIAttackMoveToState::AIAttackMoveToState( StateMachine *machine ) : AIMoveToStat
 	m_isMoveTo = false;
 	m_frameToSleepUntil = 0;
 	m_retryCount = ATTACK_RETRY_COUNT;
+	m_resumed = FALSE;
+	m_stallAnchor.zero();
+	m_stallFrame = 0;
 	m_attackMoveMachine = newInstance(AIAttackMoveStateMachine)(getMachineOwner(), "AIAttackMoveMachine");
 	m_attackMoveMachine->initDefaultState();
 }
@@ -3837,6 +3938,8 @@ StateReturnType AIAttackMoveToState::onEnter()
 	m_commandSrc = ai->getLastCommandSource();
 	m_retryCount = ATTACK_RETRY_COUNT;
 	m_frameToSleepUntil = 0;
+	m_resumed = FALSE;
+	m_stallFrame = 0;
 
 	return AIMoveToState::onEnter();
 }
@@ -3876,6 +3979,14 @@ StateReturnType AIAttackMoveToState::update()
 			forceRetargetThisFrame = true;
 			shouldRepathThisFrame = true;
 			ai->friend_setLastCommandSource(m_commandSrc);
+			// TheSuperHackers @feature simonx645 16/11/2026 "amresume" (GameLogic/PathTuning.h): each fight that ends gives the
+			// resumed move its full retries; stop-start moves during the fight had used them up, so the resume ended where
+			// it was without reaching the close-enough test (T6). Bounded: only when a fight ends.
+			if (PathTuning::AttackMoveResume) {
+				m_retryCount = ATTACK_RETRY_COUNT;
+				m_resumed = TRUE;
+				m_stallFrame = 0;
+			}
 		} else {
 			return STATE_CONTINUE;
 		}
@@ -3918,6 +4029,40 @@ StateReturnType AIAttackMoveToState::update()
 	{
 		AIMoveToState::onEnter();
 		forceRepath();
+		m_stallFrame = 0;	// "amresume"
+	}
+
+	// TheSuperHackers @feature simonx645 16/11/2026 "amresume" (GameLogic/PathTuning.h): a stall exit for the post-combat
+	// resume. amresume keeps the resume going past retail's 8-cell acceptance, but a unit stalled near an occupied goal
+	// (waiting, or wedged) keeps the move's update in CONTINUE, so neither the acceptance nor the retries ever ran and it
+	// stood in the state for good (T6: 944, 956, 166 s). Within 8 cells of its goal and with no cell of progress for 3 s,
+	// it uses a retry: the goal re-spiralled and a new path; with none left, it ends as retail's move does.
+	if (PathTuning::AttackMoveResume && m_resumed && ai->isDoingGroundMovement())
+	{
+		const Coord3D *at = owner->getPosition();
+		const UnsignedInt frameNow = TheGameLogic->getFrame();
+		const Real px = at->x - m_stallAnchor.x, py = at->y - m_stallAnchor.y;
+		if (m_stallFrame == 0 || px*px + py*py > sqr(PATHFIND_CELL_SIZE_F))
+		{
+			m_stallAnchor = *at;
+			m_stallFrame = frameNow;
+		}
+		else if (frameNow >= m_stallFrame + 3*LOGICFRAMES_PER_SECOND)
+		{
+			const Real goalSqr = sqr(at->x - m_pathGoalPosition.x) + sqr(at->y - m_pathGoalPosition.y);
+			if (goalSqr < sqr(ATTACK_CLOSE_ENOUGH_CELLS*PATHFIND_CELL_SIZE_F))
+			{
+				m_retryCount--;
+				if (m_retryCount < 1)
+				{
+					return STATE_SUCCESS;
+				}
+				AIMoveToState::onEnter();
+				forceRepath();
+			}
+			m_stallAnchor = *at;
+			m_stallFrame = frameNow;
+		}
 	}
 
 	StateReturnType ret = AIMoveToState::update();
@@ -3925,7 +4070,22 @@ StateReturnType AIAttackMoveToState::update()
 		if (m_retryCount<1) return ret;
 		/* check for close enough. */
 		Real distSqr = sqr(owner->getPosition()->x - m_pathGoalPosition.x) + sqr(owner->getPosition()->y-m_pathGoalPosition.y);
-		if (distSqr < sqr(ATTACK_CLOSE_ENOUGH_CELLS*PATHFIND_CELL_SIZE_F)) {
+		Real closeEnough = ATTACK_CLOSE_ENOUGH_CELLS*PATHFIND_CELL_SIZE_F;
+		// TheSuperHackers @feature simonx645 16/11/2026 "amresume" (GameLogic/PathTuning.h): a ground unit's attack-move ends
+		// at its goal as a move does, within its reach (2 cells + its footprint radius), not anywhere within 8 cells: after a
+		// fight the survivors' resumed moves stopped short in the packed goal field and stood there (T6). Retail's retries
+		// below (5, 3 s apart, each re-spiralling the goal) take it on.
+		if (PathTuning::AttackMoveResume && ai->isDoingGroundMovement()) {
+			closeEnough = (2.0f + (Real)(TheAI->pathfinder()->footprintCells(owner) / 2)) * PATHFIND_CELL_SIZE_F;
+			// measured from the unit's given goal when it has one: the path's end is where the re-spiral put it when a
+			// fighter had stopped in its box, so the resume ended there, 3-8 cells off (T6); a retry's repath tries the
+			// given box again (the machine's goal), kept when free, re-spiralled while still taken
+			const Coord3D *given = ai->getGivenGoal();
+			if (given != nullptr) {
+				distSqr = sqr(owner->getPosition()->x - given->x) + sqr(owner->getPosition()->y - given->y);
+			}
+		}
+		if (distSqr < sqr(closeEnough)) {
 			return ret;
 		}
 		DEBUG_LOG(("AIAttackMoveToState::update Distance from goal %f, retrying.", WWMath::Sqrt(distSqr)));
@@ -3981,9 +4141,9 @@ StateReturnType AIMoveAndDeleteState::onEnter()
 	getMachine()->lock("AIMoveAndDeleteState::onEnter");
 	// if we have a goal object, move to it, otherwise move to goal position
 	if (getMachine()->getGoalObject())
-		m_goalPosition = *getMachine()->getGoalObject()->getPosition();
+		{ m_goalPosition = *getMachine()->getGoalObject()->getPosition(); m_goalSet = TRUE; }
 	else
-		m_goalPosition = *getMachine()->getGoalPosition();
+		{ m_goalPosition = *getMachine()->getGoalPosition(); m_goalSet = TRUE; }
 	m_appendGoalPosition = true; // We may be moving off the map.
 	return AIInternalMoveToState::onEnter();
 }
@@ -4173,12 +4333,12 @@ void AIFollowWaypointPathState::computeGoal(Bool useGroupOffsets)
 #endif
 
 
-	m_goalPosition = dest;
+	{ m_goalPosition = dest; m_goalSet = TRUE; }
 	m_goalPosition.x += m_groupOffset.x;
 	m_goalPosition.y += m_groupOffset.y;
 	if (m_goalLayer == LAYER_WALL) {
 		if (!TheAI->pathfinder()->isPointOnWall(&m_goalPosition)) {
-			m_goalPosition = dest;
+			{ m_goalPosition = dest; m_goalSet = TRUE; }
 		}
 	} else {
 		m_goalPosition.z = TheTerrainLogic->getGroundHeight(m_goalPosition.x, m_goalPosition.y);
@@ -4951,7 +5111,7 @@ StateReturnType AIWanderInPlaceState::onEnter()
 	Coord3D offset;
 	offset.x = GameLogicRandomValue(-delta, delta)*PATHFIND_CELL_SIZE_F;
 	offset.y = GameLogicRandomValue(-delta, delta)*PATHFIND_CELL_SIZE_F;
-	m_goalPosition = m_origin;
+	{ m_goalPosition = m_origin; m_goalSet = TRUE; }
 	m_goalPosition.x += offset.x;
 	m_goalPosition.y += offset.y;
 	m_timer = 0;
@@ -4990,7 +5150,7 @@ StateReturnType AIWanderInPlaceState::update()
 		Coord3D offset;
 		offset.x = GameLogicRandomValue(-delta, delta)*PATHFIND_CELL_SIZE_F;
 		offset.y = GameLogicRandomValue(-delta, delta)*PATHFIND_CELL_SIZE_F;
-		m_goalPosition = m_origin;
+		{ m_goalPosition = m_origin; m_goalSet = TRUE; }
 		m_goalPosition.x += offset.x;
 		m_goalPosition.y += offset.y;
 		AIInternalMoveToState::onEnter();
@@ -5167,6 +5327,14 @@ void AIAttackAimAtTargetState::loadPostProcess()
 }
 
 //----------------------------------------------------------------------------------------------------------
+#if !RETAIL_COMPATIBLE_CRC || !PRESERVE_SKIPPED_PREATTACK_DELAY
+static Bool isTooEarlyToStartPreAttack(const Weapon *weapon, const Object *source, const Object *victim)
+{
+	return weapon && TheGameLogic->getFrame() + 1 < weapon->getPossibleNextShotFrame()
+		&& weapon->getPreAttackDelay(source, victim) > 0;
+}
+#endif
+
 StateReturnType AIAttackAimAtTargetState::onEnter()
 {
 	// contained by AIAttackState, so no separate timer
@@ -5257,7 +5425,14 @@ StateReturnType AIAttackAimAtTargetState::onEnter()
 
 			// Contact weapons don't aim.  They just go boom.  jba.
 			if( weapon && weapon->isContactWeapon() && inFiringRange && !preventing )
-				return STATE_SUCCESS;
+			{
+#if !RETAIL_COMPATIBLE_CRC || !PRESERVE_SKIPPED_PREATTACK_DELAY
+				if (!isTooEarlyToStartPreAttack(weapon, source, victim))
+#endif
+				{
+					return STATE_SUCCESS;
+				}
+			}
 		}
 	}
 	m_setLocomotor = false;
@@ -5307,6 +5482,28 @@ StateReturnType AIAttackAimAtTargetState::update()
 	}
 
 	WhichTurretType tur = sourceAI->getWhichTurretForCurWeapon();
+#if !RETAIL_COMPATIBLE_CRC || !PRESERVE_SKIPPED_PREATTACK_DELAY
+	// A contact weapon may still be in aim after its shot because of cooldown.
+	Weapon *contactWeapon = source->getCurrentWeapon();
+	if (tur == TURRET_INVALID && !sourceAI->areTurretsLinked()
+		&& (m_isAttackingObject || !sourceAI->forceFiresAllWeapons())
+		&& contactWeapon && contactWeapon->isContactWeapon()
+		&& contactWeapon->getPreAttackDelay(source, victim) > 0
+		&& (victim ? contactWeapon->isWithinAttackRange(source, victim)
+			: contactWeapon->isWithinAttackRange(source, getMachineGoalPosition())))
+	{
+		AIUpdateInterface *victimAI = victim ? victim->getAI() : nullptr;
+		if (victimAI)
+		{
+			victimAI->addTargeter(source->getID(), true);
+			if (victimAI->isTemporarilyPreventingAimSuccess())
+			{
+				return STATE_CONTINUE;
+			}
+		}
+		return isTooEarlyToStartPreAttack(contactWeapon, source, victim) ? STATE_CONTINUE : STATE_SUCCESS;
+	}
+#endif
 	if (tur != TURRET_INVALID)
 	{
 		if (m_isAttackingObject)
@@ -5691,11 +5888,7 @@ StateReturnType AIAttackFireWeaponState::onEnter()
 	Object *victim = getMachineGoalObject();
 
 #if !RETAIL_COMPATIBLE_CRC || !PRESERVE_SKIPPED_PREATTACK_DELAY
-	Weapon* weapon = obj->getCurrentWeapon();
-
-	// An early entry can skip the wind-up and then fire when reload finishes.
-	if (weapon && weapon->getPreAttackDelay(obj, victim) > 0
-		&& TheGameLogic->getFrame() + 1 < weapon->getPossibleNextShotFrame())
+	if (isTooEarlyToStartPreAttack(obj->getCurrentWeapon(), obj, victim))
 	{
 		return STATE_FAILURE;
 	}
@@ -6862,7 +7055,7 @@ StateReturnType AIEnterState::onEnter()
 		if( !TheActionManager->canEnterObject( obj, goal, obj->getAI()->getLastCommandSource(), CHECK_CAPACITY ) )
 			return STATE_FAILURE;
 
-		m_goalPosition = goal->getEnterPosition(obj->getID());
+		{ m_goalPosition = goal->getEnterPosition(obj->getID()); m_goalSet = TRUE; }
 
 		ContainModuleInterface* contain = goal->getContain();
 		if (contain)
@@ -6952,9 +7145,9 @@ StateReturnType AIEnterState::update()
 			return STATE_FAILURE;
 		}
 
-		m_goalPosition = goal->getEnterPosition(obj->getID());
+		{ m_goalPosition = goal->getEnterPosition(obj->getID()); m_goalSet = TRUE; }
 		obj->getAI()->friend_setGoalObject(goal);
-		m_goalPosition = goal->getEnterPosition(obj->getID());// setGoalObject will override the goal position
+		{ m_goalPosition = goal->getEnterPosition(obj->getID()); m_goalSet = TRUE; }// setGoalObject will override the goal position
 		if (!TheActionManager->canEnterObject(obj, goal, obj->getAI()->getLastCommandSource(), CHECK_CAPACITY))
 		{
 			/*

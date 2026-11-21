@@ -17,8 +17,8 @@
 */
 
 // TheSuperHackers @feature Command group row, part of smart selection. One cameo per hotkey
-// squad with live members, on the command bar frame under the smart selection row. A click
-// goes through the same meta message the number key sends.
+// squad with live members, in its own box at the screen's top left corner, with the squad number
+// under each cameo. A click goes through the same meta message the number key sends.
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
@@ -31,9 +31,15 @@
 #include "GameLogic/Object.h"
 #include "GameLogic/Squad.h"
 #include "GameClient/ControlBar.h"
+#include "GameClient/DisplayString.h"
+#include "GameClient/DisplayStringManager.h"
 #include "GameClient/GadgetPushButton.h"
+#include "GameClient/GameFont.h"
+#include "GameClient/GameText.h"
 #include "GameClient/GameWindow.h"
 #include "GameClient/GameWindowManager.h"
+#include "GameClient/Image.h"
+#include "GameClient/InGameUI.h"
 
 //-------------------------------------------------------------------------------------------------
 /** The container owns the cameos, so their clicks land here. */
@@ -50,16 +56,180 @@ static WindowMsgHandledType CommandGroupBarSystem( GameWindow *window, UnsignedI
 }
 
 //-------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------
-void ControlBar::initCommandGroupBar()
+static void CommandGroupBarDraw( GameWindow *window, WinInstanceData *instData )
 {
-	m_commandGroupParent = createCameoRow( CommandGroupBarSystem, MAX_COMMAND_GROUP_BUTTONS, FALSE, m_commandGroupButtons );
+	TheControlBar->drawCommandGroupBar();
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Height of the number strip under a cameo. */
+//-------------------------------------------------------------------------------------------------
+static Int commandGroupPlateHeight( Int buttonHeight )
+{
+	return buttonHeight * 2 / 7;
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Fill the slot's image with the centred part of the source picture that has the button's
+	* aspect ratio, since the button stretches its image over the whole window. */
+//-------------------------------------------------------------------------------------------------
+const Image *ControlBar::cropCameoImage( Image *&slot, const Image *source, const ICoord2D &buttonSize )
+{
+	if( source == nullptr || source->getImageWidth() <= 0 || source->getImageHeight() <= 0 ||
+			buttonSize.x <= 0 || buttonSize.y <= 0 )
+	{
+		return source;
+	}
+
+	if( slot == nullptr )
+	{
+		slot = newInstance( Image );
+	}
+	slot->setName( source->getName() );
+	slot->setFilename( source->getFilename() );
+	slot->setTextureWidth( source->getTextureSize()->x );
+	slot->setTextureHeight( source->getTextureSize()->y );
+	slot->setRawTextureData( const_cast<void *>( source->getRawTextureData() ) );
+	slot->clearStatus( slot->getStatus() );
+	slot->setStatus( source->getStatus() );
+
+	const Real sourceAspect = (Real)source->getImageWidth() / (Real)source->getImageHeight();
+	const Real targetAspect = (Real)buttonSize.x / (Real)buttonSize.y;
+	Real keepWidth = 1.0f;
+	Real keepHeight = 1.0f;
+	if( targetAspect < sourceAspect )
+	{
+		keepWidth = targetAspect / sourceAspect;
+	}
+	else
+	{
+		keepHeight = sourceAspect / targetAspect;
+	}
+
+	// a rotated image draws V across the screen and U down it
+	const Bool rotated = BitIsSet( source->getStatus(), IMAGE_STATUS_ROTATED_90_CLOCKWISE );
+	const Real keepU = rotated ? keepHeight : keepWidth;
+	const Real keepV = rotated ? keepWidth : keepHeight;
+	const Region2D *sourceUV = source->getUV();
+	const Real marginU = ( sourceUV->hi.x - sourceUV->lo.x ) * ( 1.0f - keepU ) / 2.0f;
+	const Real marginV = ( sourceUV->hi.y - sourceUV->lo.y ) * ( 1.0f - keepV ) / 2.0f;
+	Region2D uv;
+	uv.lo.x = sourceUV->lo.x + marginU;
+	uv.hi.x = sourceUV->hi.x - marginU;
+	uv.lo.y = sourceUV->lo.y + marginV;
+	uv.hi.y = sourceUV->hi.y - marginV;
+	slot->setUV( &uv );
+
+	ICoord2D size;
+	size.x = REAL_TO_INT( source->getImageWidth() * keepWidth + 0.5f );
+	size.y = REAL_TO_INT( source->getImageHeight() * keepHeight + 0.5f );
+	slot->setImageSize( &size );
+	return slot;
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Give the buttons' text, which is the count badge, its colour and a larger font. */
+//-------------------------------------------------------------------------------------------------
+void ControlBar::styleCameoCountBadges( GameWindow **buttons, Int count )
+{
+	const Color badgeColor = GameMakeColor( 255, 210, 40, 255 );
+	for( Int i = 0; i < count; i++ )
+	{
+		GameWindow *button = buttons[ i ];
+		if( button )
+		{
+			button->winSetEnabledTextColors( badgeColor, button->winGetEnabledTextBorderColor() );
+			button->winSetHiliteTextColors( badgeColor, button->winGetHiliteTextBorderColor() );
+			button->winSetDisabledTextColors( badgeColor, button->winGetDisabledTextBorderColor() );
+		}
+	}
+
+	GameFont *cameoFont = buttons[ 0 ] ? buttons[ 0 ]->winGetFont() : nullptr;
+	if( cameoFont == nullptr )
+	{
+		return;
+	}
+	const Int countPoint = MAX( cameoFont->pointSize * 3 / 2, cameoFont->pointSize + 2 );
+	GameFont *countFont = TheFontLibrary->getFont( cameoFont->nameString, countPoint, cameoFont->bold );
+	if( countFont == nullptr )
+	{
+		countFont = cameoFont;
+	}
+	for( Int i = 0; i < count; i++ )
+	{
+		if( buttons[ i ] )
+		{
+			buttons[ i ]->winSetFont( countFont );
+		}
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+void ControlBar::initCommandGroupBar( const ICoord2D &commandButtonSize )
+{
+	ICoord2D base;
+	base.x = commandButtonSize.x * COMMAND_GROUP_CAMEO_SCALE_PERCENT / 100;
+	base.y = commandButtonSize.y * COMMAND_GROUP_CAMEO_SCALE_PERCENT / 100;
+	m_commandGroupButtonSize.x = base.x;
+	m_commandGroupButtonSize.y = base.y * 7 / 6;
+	if( m_commandGroupButtonSize.x <= 0 || m_commandGroupButtonSize.y <= 0 )
+	{
+		return;
+	}
+
+	m_commandGroupParent = createCameoRow( CommandGroupBarSystem, MAX_COMMAND_GROUP_BUTTONS, FALSE, m_commandGroupButtonSize, m_commandGroupButtons );
+	if( m_commandGroupParent == nullptr )
+	{
+		return;
+	}
+
+	// the box draws its frame itself and keeps clicks on it off the world
+	m_commandGroupParent->winClearStatus( WIN_STATUS_SEE_THRU );
+	m_commandGroupParent->winSetInputFunc( GameWinBlockInput );
+	m_commandGroupParent->winSetDrawFunc( CommandGroupBarDraw );
+
+	// the squad numbers keep the row's text colours, the member count badges get their own
+	if( m_commandGroupButtons[ 0 ] )
+	{
+		m_commandGroupNumberColor = m_commandGroupButtons[ 0 ]->winGetEnabledTextColor();
+		m_commandGroupNumberDropColor = m_commandGroupButtons[ 0 ]->winGetEnabledTextBorderColor();
+	}
+	GameFont *cameoFont = m_commandGroupButtons[ 0 ] ? m_commandGroupButtons[ 0 ]->winGetFont() : nullptr;
+	styleCameoCountBadges( m_commandGroupButtons, MAX_COMMAND_GROUP_BUTTONS );
+	if( cameoFont == nullptr )
+	{
+		return;
+	}
+
+	const Int plate = commandGroupPlateHeight( m_commandGroupButtonSize.y );
+	GameFont *font = TheFontLibrary->getFont( cameoFont->nameString, MAX( plate * 9 / 10, 6 ), TRUE );
+	if( font == nullptr )
+	{
+		font = cameoFont;
+	}
+	for( Int i = 0; i < MAX_COMMAND_GROUP_BUTTONS; i++ )
+	{
+		m_commandGroupNumbers[ i ] = TheDisplayStringManager->newDisplayString();
+		if( m_commandGroupNumbers[ i ] )
+		{
+			m_commandGroupNumbers[ i ]->setFont( font );
+		}
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 void ControlBar::destroyCommandGroupBar()
 {
+	// destroyed windows are freed later, so they must not keep pointers to the slot images
+	for( Int i = 0; i < MAX_COMMAND_GROUP_BUTTONS; i++ )
+	{
+		if( m_commandGroupButtons[ i ] )
+		{
+			GadgetButtonSetEnabledImage( m_commandGroupButtons[ i ], nullptr );
+		}
+	}
 	if( m_commandGroupParent )
 	{
 		TheWindowManager->winDestroy( m_commandGroupParent );
@@ -68,6 +238,13 @@ void ControlBar::destroyCommandGroupBar()
 	for( Int i = 0; i < MAX_COMMAND_GROUP_BUTTONS; i++ )
 	{
 		m_commandGroupButtons[ i ] = nullptr;
+		if( m_commandGroupNumbers[ i ] && TheDisplayStringManager )
+		{
+			TheDisplayStringManager->freeDisplayString( m_commandGroupNumbers[ i ] );
+		}
+		m_commandGroupNumbers[ i ] = nullptr;
+		deleteInstance( m_commandGroupImages[ i ] );
+		m_commandGroupImages[ i ] = nullptr;
 	}
 }
 
@@ -89,6 +266,19 @@ Bool ControlBar::isCommandGroupRowShown() const
 }
 
 //-------------------------------------------------------------------------------------------------
+Int ControlBar::getCommandGroupBarBottom() const
+{
+	if( !isCommandGroupRowShown() )
+	{
+		return 0;
+	}
+	ICoord2D pos, size;
+	m_commandGroupParent->winGetScreenPosition( &pos.x, &pos.y );
+	m_commandGroupParent->winGetSize( &size.x, &size.y );
+	return pos.y + size.y;
+}
+
+//-------------------------------------------------------------------------------------------------
 /** Every frame: the squads change under the row when members die, which marks nothing dirty,
 	* so the entries are rebuilt once per logic frame and the row only repainted when they differ. */
 //-------------------------------------------------------------------------------------------------
@@ -100,7 +290,6 @@ void ControlBar::updateCommandGroupBar()
 	}
 
 	GameWindow *master = m_contextParent[ CP_MASTER ];
-	GameWindow *commandWindow = m_contextParent[ CP_COMMAND ] ? m_contextParent[ CP_COMMAND ] : master;
 	Player *player = ThePlayerList ? ThePlayerList->getLocalPlayer() : nullptr;
 	if( master == nullptr || master->winIsHidden() || player == nullptr || m_isObserverCommandBar ||
 			!TheGlobalData->m_smartSelection || !TheGlobalData->m_smartCommandGroup )
@@ -164,12 +353,62 @@ void ControlBar::updateCommandGroupBar()
 		}
 	}
 
-	// the bar's parent window starts well above its visible frame, so anchor to the command
-	// grid, whose top sits at the frame
-	ICoord2D commandPos;
-	commandWindow->winGetScreenPosition( &commandPos.x, &commandPos.y );
-	m_commandGroupParent->winSetPosition( commandPos.x, commandPos.y - m_smartSelectionButtonSize.y - CAMEO_ROW_GAP );
+	layoutCommandGroupBar();
 	m_commandGroupParent->winHide( FALSE );
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Every frame, since the frame inset follows the active scheme. */
+//-------------------------------------------------------------------------------------------------
+void ControlBar::layoutCommandGroupBar()
+{
+	ICoord2D inset;
+	getCameoFrameInset( &inset, COMMAND_GROUP_FRAME_PERCENT );
+	const Int plate = commandGroupPlateHeight( m_commandGroupButtonSize.y );
+	const Int stride = m_commandGroupButtonSize.x + CAMEO_ROW_GAP;
+	const Int count = (Int)m_commandGroupEntries.size();
+	const Int hudBottom = TheInGameUI ? TheInGameUI->getHudAnchorBottom() : 0;
+
+	m_commandGroupParent->winSetPosition( COMMAND_GROUP_SCREEN_MARGIN, MAX( COMMAND_GROUP_SCREEN_MARGIN, hudBottom + COMMAND_GROUP_SCREEN_MARGIN ) );
+	m_commandGroupParent->winSetSize( count * stride - CAMEO_ROW_GAP + 2 * inset.x, m_commandGroupButtonSize.y + plate + 2 * inset.y );
+	for( Int i = 0; i < MAX_COMMAND_GROUP_BUTTONS; i++ )
+	{
+		if( m_commandGroupButtons[ i ] )
+		{
+			m_commandGroupButtons[ i ]->winSetPosition( inset.x + i * stride, inset.y );
+		}
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+/** The frame behind the cameos, and each squad number centred in the strip under its cameo. */
+//-------------------------------------------------------------------------------------------------
+void ControlBar::drawCommandGroupBar()
+{
+	if( m_commandGroupParent == nullptr || m_commandGroupParent->winIsHidden() )
+	{
+		return;
+	}
+
+	drawCameoBoxFrame( m_commandGroupParent );
+
+	const Int plate = commandGroupPlateHeight( m_commandGroupButtonSize.y );
+	const size_t entryCount = m_commandGroupEntries.size();
+	for( Int i = 0; i < MAX_COMMAND_GROUP_BUTTONS && (size_t)i < entryCount; i++ )
+	{
+		GameWindow *button = m_commandGroupButtons[ i ];
+		DisplayString *number = m_commandGroupNumbers[ i ];
+		if( button == nullptr || number == nullptr )
+		{
+			continue;
+		}
+		ICoord2D buttonPos, buttonSize, textSize;
+		button->winGetScreenPosition( &buttonPos.x, &buttonPos.y );
+		button->winGetSize( &buttonSize.x, &buttonSize.y );
+		number->getSize( &textSize.x, &textSize.y );
+		number->draw( buttonPos.x + ( buttonSize.x - textSize.x ) / 2, buttonPos.y + buttonSize.y + ( plate - textSize.y ) / 2,
+			m_commandGroupNumberColor, m_commandGroupNumberDropColor );
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -194,7 +433,7 @@ void ControlBar::refreshCommandGroupButtons()
 
 		const CommandGroupEntry &entry = m_commandGroupEntries[ i ];
 		GadgetButtonSetData( button, (void *)(size_t)( entry.group + 1 ) );
-		GadgetButtonSetEnabledImage( button, getCameoImage( entry.thingTemplate ) );
+		GadgetButtonSetEnabledImage( button, cropCameoImage( m_commandGroupImages[ i ], getCameoImage( entry.thingTemplate ), m_commandGroupButtonSize ) );
 
 		UnicodeString count;
 		if( entry.count <= MAX_CAMEO_COUNT_BADGE )
@@ -202,15 +441,17 @@ void ControlBar::refreshCommandGroupButtons()
 			count.format( L"%d", entry.count );
 		}
 		GadgetButtonSetText( button, count );
-		GadgetButtonSetCornerLetter( button, (Char)( '0' + entry.group ) );
+		if( m_commandGroupNumbers[ i ] )
+		{
+			UnicodeString number;
+			number.format( L"%d", entry.group );
+			m_commandGroupNumbers[ i ]->setText( number );
+		}
 
-		UnicodeString tooltip;
-		tooltip.format( L"Group %d: %s", entry.group, entry.thingTemplate->getDisplayName().str() );
+		UnicodeString tooltip = TheGameText->FETCH_OR_SUBSTITUTE_FORMAT( "TOOLTIP:CommandGroupCameo", L"Group %d: %s", entry.group, entry.thingTemplate->getDisplayName().str() );
 		button->winSetTooltip( tooltip );
 		button->winHide( FALSE );
 	}
-
-	m_commandGroupParent->winSetSize( MAX( getCameoRowWidth( (Int)entryCount ), 1 ), m_smartSelectionButtonSize.y );
 }
 
 //-------------------------------------------------------------------------------------------------

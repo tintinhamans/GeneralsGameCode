@@ -111,10 +111,16 @@ void W3DDependencyCarrierDraw::adjustTransformMtx(Matrix3D& mtx) const
 			if ((slot > -1) && theirDrawable->getCurrentWorldspaceClientBonePositions(boneName.str(), theirBoneMtx))
 			{
 				mtx = theirBoneMtx;
+#if RTS_ZEROHOUR
+				m_hasAlignedAttachment = true;
+#endif
 			}
 			else if (theirDrawable->getCurrentWorldspaceClientBonePositions(md->m_attachToDrawableBoneInContainer.str(), theirBoneMtx))
 			{
 				mtx = theirBoneMtx;
+#if RTS_ZEROHOUR
+				m_hasAlignedAttachment = true;
+#endif
 			}
 			else
 			{

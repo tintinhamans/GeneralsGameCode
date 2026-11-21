@@ -176,6 +176,9 @@ public:
 	void setRollRate(Real roll);
 	void setYawRate(Real yaw);
 
+	ObjectID getTornadoController() const { return m_tornadoController; }
+	void setTornadoController(ObjectID controller) { m_tornadoController = controller; }
+
 	/*
 		stickToGround and allowToFall seem contradictory... here's the deal.
 
@@ -290,6 +293,7 @@ private:
 	Coord3D											m_vel;										///< current velocity
 	PhysicsTurningType					m_turning;								///< 0 = not turning, -1 = turn negative, 1 = turn positive.
 	ObjectID										m_ignoreCollisionsWith;
+	ObjectID										m_tornadoController;
 	Int													m_flags;
 	Real												m_mass;
 	ObjectID										m_currentOverlap;					///< object(s) being overlapped, if any

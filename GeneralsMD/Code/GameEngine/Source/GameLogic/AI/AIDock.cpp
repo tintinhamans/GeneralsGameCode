@@ -794,7 +794,7 @@ StateReturnType AIDockMoveToRallyState::onEnter()
 	}
 
 	// get the rally point and set as our goal position
-	m_goalPosition = *goalObject->getObjectExitInterface()->getRallyPoint();
+	{ m_goalPosition = *goalObject->getObjectExitInterface()->getRallyPoint(); m_goalSet = TRUE; }
 
 	// this behavior is an extension of basic MoveTo
 	return AIInternalMoveToState::onEnter();

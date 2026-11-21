@@ -341,6 +341,12 @@ public:
 
   Bool                              m_ignoreAnimScaling; ///< ignore external scaling of animation speed, e.g. for PreAttack.
 
+#if RTS_ZEROHOUR
+	Coord3D m_modelOffset;
+	Real m_modelYaw;
+	Real m_modelPitch;
+	Real m_modelRoll;
+#endif
 	Bool															m_ignoreRotation;  ///< ignore all rotations for this draw module 
 
 	Bool															m_showForOwnerOnly;  ///< show this model only to the owning player 
@@ -417,7 +423,7 @@ public:
 	virtual void setTerrainDecal(TerrainDecalType type) override;
 	// TheSuperHackers @feature Selection ring, kept in its own slot so it does not evict the
 	// horde or chem suit decal while a unit is selected.
-	virtual void setSelectionDecal(Bool enable, Real radius, Color color, Bool footprint = FALSE) override;
+	virtual void setSelectionDecal(Bool enable, Real radius, Color color, Bool footprint = FALSE, Real dottedRadius = 0.0f, Color dottedColor = 0) override;
 
 	virtual Bool isVisible() const override;
 	virtual void reactToTransformChange(const Matrix3D* oldMtx, const Coord3D* oldPos, Real oldAngle) override;
@@ -435,7 +441,11 @@ public:
 	virtual Int getPristineBonePositionsForConditionState(const ModelConditionFlags& condition, const char* boneNamePrefix, Int startIndex, Coord3D* positions, Matrix3D* transforms, Int maxBones) const override;
 	virtual Int getCurrentBonePositions(const char* boneNamePrefix, Int startIndex, Coord3D* positions, Matrix3D* transforms, Int maxBones) const override;
 	virtual Bool getCurrentWorldspaceClientBonePositions(const char* boneName, Matrix3D& transform) const override;
-	virtual Bool getProjectileLaunchOffset(const ModelConditionFlags& condition, WeaponSlotType wslot, Int specificBarrelToUse, Matrix3D* launchPos, WhichTurretType tur, Coord3D* turretRotPos, Coord3D* turretPitchPos = nullptr) const override;
+	virtual Bool getProjectileLaunchOffset(const ModelConditionFlags& condition, WeaponSlotType wslot, Int specificBarrelToUse, Matrix3D* launchPos, WhichTurretType tur, Coord3D* turretRotPos, Coord3D* turretPitchPos = nullptr
+#if RTS_ZEROHOUR
+		, Matrix3D* turretAxes = nullptr
+#endif
+	) const override;
 	virtual void updateProjectileClipStatus( UnsignedInt shotsRemaining, UnsignedInt maxShots, WeaponSlotType slot ) override; ///< This will do the show/hide work if ProjectileBoneFeedbackEnabled is set.
 	virtual void updateDrawModuleSupplyStatus( Int maxSupply, Int currentSupply ) override; ///< This will do visual feedback on Supplies carried
 	virtual void notifyDrawModuleDependencyCleared() override {}///< if you were waiting for something before you drew, it's ready now
@@ -510,7 +520,16 @@ protected:
 	void handleClientTurretPositioning();
 	void computeDrawnTurretAngles(Real* angles, Real* pitches);
 	void handleClientRecoil();
+#if RTS_ZEROHOUR && (defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE))
+	virtual Bool getDebugModelAlignment(ModelAlignment& alignment) const override;
+	virtual void setDebugModelAlignment(const ModelAlignment* alignment) override;
+#endif
 	void recalcBonesForClientParticleSystems();
+#if RTS_ZEROHOUR
+	void updateFrozenBoneParticleSystems();
+	Bool m_useModelTransformForParticles;
+	mutable Bool m_hasAlignedAttachment;
+#endif
 	void stopClientParticleSystems();
 #if RTS_ZEROHOUR
 	void updateWeaponFireParticleSystems();
@@ -519,6 +538,16 @@ protected:
 	const ParticleSystemTemplate* findMoveEffectTemplate(const AsciiString& name) const;	///< snow drawables take "<name>Snow" when it exists
 	void doHideShowSubObjs(const std::vector<ModelConditionInfo::HideShowSubObjInfo>* vec);
 	virtual void adjustTransformMtx(Matrix3D& mtx) const;
+#if RTS_ZEROHOUR
+	ModelAlignment getModelAlignment() const;
+	Bool hasModelAlignment() const;
+	void applyModelAlignment(Matrix3D& mtx, Real offsetScale = 1.0f) const;
+	Bool getBoneAlignment(const ModelConditionFlags& condition, Matrix3D& mtx, Int remainingAttachments = -1, Vector3* unalignedAttachment = nullptr) const;
+	Bool getDrawableBoneAttachment(const ModelConditionFlags& condition, Matrix3D& attachment, Bool& aligned, Int remainingAttachments) const;
+	virtual Bool getPristineBoneAttachment(const ModelConditionFlags& condition, const char* boneName, Matrix3D& attachment, Bool& aligned, Int remainingAttachments) const override;
+	void updateRenderObjectTransform(const Matrix3D& transform, Bool adjustForState);
+	void updateRenderObjectTransform(Bool adjustForState);
+#endif
 
 	Real getCurAnimDistanceCovered() const;
 	Bool setCurAnimDurationInMsec(Real duration);
@@ -557,6 +586,10 @@ private:
 	{
 		ParticleSystemID id;
 		Int				boneIndex;
+#if RTS_ZEROHOUR
+		Matrix3D frozenBoneTransform;
+		Bool followsAnimatedBone;
+#endif
 	};
 
 	struct AnimInfoHelper
@@ -582,6 +615,10 @@ private:
 	Int														m_whichAnimInCurState;						///< the index of the currently playing anim in cur state (if any)
 	WeaponRecoilInfoVec						m_weaponRecoilInfoVec[WEAPONSLOT_COUNT];
 	Bool													m_needRecalcBoneParticleSystems;
+#if RTS_ZEROHOUR && (defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE))
+	ModelAlignment m_debugModelAlignment;
+	Bool m_hasDebugModelAlignment;
+#endif
 	Bool													m_fullyObscuredByShroud;
 	Bool													m_shadowEnabled;	///< cached state of shadow.  Used to determine if shadows should be enabled via options screen.
 	RenderObjClass*								m_renderObject;										///< W3D Render object for this drawable
@@ -596,6 +633,8 @@ private:
 	Real													m_selectionDecalRadius;
 	Color													m_selectionDecalColor;
 	Bool													m_selectionDecalFootprint;
+	Real													m_selectionDecalDottedRadius;
+	Color													m_selectionDecalDottedColor;
 	// TheSuperHackers @feature Display decal from the template, in its own slot so it coexists
 	// with the object's shadow.
 	Shadow*												m_objectDecal;

@@ -38,6 +38,8 @@
 #define DEFINE_WEAPONRELOAD_NAMES
 #define DEFINE_WEAPONPREFIRE_NAMES
 
+#include "WWMath/quat.h"
+
 #include "Common/crc.h"
 #include "Common/CRCDebug.h"
 #include "Common/GameAudio.h"
@@ -231,6 +233,7 @@ const FieldParse WeaponTemplate::TheWeaponTemplateFieldParseTable[] =
 	{ "FireSoundLoopTime",				INI::parseDurationUnsignedInt,					nullptr,							offsetof(WeaponTemplate, m_fireSoundLoopTime) },
 	{ "FireFX",											parseAllVetLevelsFXList,							nullptr,							offsetof(WeaponTemplate, m_fireFXs) },
 	{ "ProjectileDetonationFX",			parseAllVetLevelsFXList,							nullptr,							offsetof(WeaponTemplate, m_projectileDetonateFXs) },
+	{ "RequiresTransportOccupants", INI::parseBool, nullptr, offsetof(WeaponTemplate, m_requiresTransportOccupants) },
 	{ "FireOCL",										parseAllVetLevelsAsciiString,					nullptr,							offsetof(WeaponTemplate, m_fireOCLNames) },
 	{ "ProjectileDetonationOCL",		parseAllVetLevelsAsciiString,					nullptr,							offsetof(WeaponTemplate, m_projectileDetonationOCLNames) },
 	{ "ProjectileExhaust",					parseAllVetLevelsPSys,								nullptr,							offsetof(WeaponTemplate, m_projectileExhausts) },
@@ -379,6 +382,7 @@ WeaponTemplate::WeaponTemplate() : m_nextTemplate(nullptr)
 	m_historicBonusWeapon						= nullptr;
 	m_leechRangeWeapon							= FALSE;
 	m_capableOfFollowingWaypoint		= FALSE;
+	m_requiresTransportOccupants = FALSE;
 	m_isShowsAmmoPips								= FALSE;
 	m_allowAttackGarrisonedBldgs		= FALSE;
 	m_playFXWhenStealthed						= FALSE;
@@ -3394,10 +3398,23 @@ Real Weapon::getAttackDistance(const Object *source, const Object *victimObj, co
 }
 
 //-------------------------------------------------------------------------------------------------
+Bool Weapon::hasRequiredTransportOccupants(const Object *source) const
+{
+	if (!m_template->requiresTransportOccupants())
+	{
+		return TRUE;
+	}
+	const ContainModuleInterface *contain = source ? source->getContain() : nullptr;
+	return contain && contain->getContainCount() > 0;
+}
+
+//-------------------------------------------------------------------------------------------------
 Real Weapon::estimateWeaponDamage(const Object *sourceObj, const Object *victimObj, const Coord3D* victimPos)
 {
-	if (!m_template)
+	if (!m_template || !hasRequiredTransportOccupants(sourceObj))
+	{
 		return 0.0f;
+	}
 
 	// if the weapon is just reloading, it's ok. if it's out of ammo
 	// (and won't autoreload), then we aren't gonna do any damage.
@@ -3554,6 +3571,11 @@ Bool Weapon::privateFireWeapon(
 
 	if (!m_template)
 		return false;
+
+	if (!isProjectileDetonation && !hasRequiredTransportOccupants(sourceObj))
+	{
+		return false;
+	}
 
 	// Hoisted above the damage type switch so the mine clearing path shares it. computeBonus only
 	// fills its out parameter, so computing it here costs nothing else.
@@ -4206,17 +4228,19 @@ void Weapon::processRequestAssistance( const Object *requestingObject, Object *v
 	//CRCDEBUG_LOG(("calcProjectileLaunchPosition(): Turret %d, slot %d, barrel %d for %s", tur, wslot, specificBarrelToUse, DescribeObject(launcher).str()));
 
 	Matrix3D attachTransform(true);
+	Matrix3D turretAxes(true);
 	Coord3D turretRotPos = {0.0f, 0.0f, 0.0f};
 	Coord3D turretPitchPos = {0.0f, 0.0f, 0.0f};
 	const Drawable* draw = launcher->getDrawable();
 	//CRCDEBUG_LOG(("Do we have a drawable? %d", (draw != nullptr)));
-	if (!draw || !draw->getProjectileLaunchOffset(wslot, specificBarrelToUse, &attachTransform, tur, &turretRotPos, &turretPitchPos))
+	if (!draw || !draw->getProjectileLaunchOffset(wslot, specificBarrelToUse, &attachTransform, tur, &turretRotPos, &turretPitchPos, &turretAxes))
 	{
 		//CRCDEBUG_LOG(("ProjectileLaunchPos %d %d not found!",wslot, specificBarrelToUse));
 		DEBUG_CRASH(("ProjectileLaunchPos %d %d not found!",wslot, specificBarrelToUse));
 		attachTransform.Make_Identity();
 		turretRotPos.zero();
 		turretPitchPos.zero();
+		turretAxes.Make_Identity();
 	}
 	if (tur != TURRET_INVALID)
 	{
@@ -4229,11 +4253,25 @@ void Weapon::processRequestAssistance( const Object *requestingObject, Object *v
 		// To rotate about a point, move that point to 0,0, rotate, then move it back.
 		// Pre rotate will keep the first twist from screwing the angle of the second pitch
 		pitchAdjustment.Translate( turretPitchPos.x, turretPitchPos.y, turretPitchPos.z );
-		pitchAdjustment.In_Place_Pre_Rotate_Y(-turretPitch);
+		if (turretAxes == Matrix3D::Identity)
+		{
+			pitchAdjustment.In_Place_Pre_Rotate_Y(-turretPitch);
+		}
+		else
+		{
+			pitchAdjustment.Set_Rotation(Quaternion(turretAxes.Get_Y_Vector(), -turretPitch));
+		}
 		pitchAdjustment.Translate( -turretPitchPos.x, -turretPitchPos.y, -turretPitchPos.z );
 
 		turnAdjustment.Translate( turretRotPos.x, turretRotPos.y, turretRotPos.z );
-		turnAdjustment.In_Place_Pre_Rotate_Z(turretAngle);
+		if (turretAxes == Matrix3D::Identity)
+		{
+			turnAdjustment.In_Place_Pre_Rotate_Z(turretAngle);
+		}
+		else
+		{
+			turnAdjustment.Set_Rotation(Quaternion(turretAxes.Get_Z_Vector(), turretAngle));
+		}
 		turnAdjustment.Translate( -turretRotPos.x, -turretRotPos.y, -turretRotPos.z );
 
 #ifdef ALLOW_TEMPORARIES

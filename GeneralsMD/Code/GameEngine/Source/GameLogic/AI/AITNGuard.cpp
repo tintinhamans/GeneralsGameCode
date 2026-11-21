@@ -38,6 +38,7 @@
 /*---------------------------------------------------------------------------*/
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include "Common/GlobalData.h"
 #include "Common/PerfTimer.h"
 #include "Common/Team.h"
 #include "Common/Player.h"
@@ -201,7 +202,8 @@ Bool AITNGuardMachine::lookForInnerTarget()
 	if (owner->getTeam()->getPrototype()->getTemplateInfo()->m_attackCommonTarget)
 	{
 		teamVictim = owner->getTeam()->getTeamTargetObject();
-		if (teamVictim)
+		if (teamVictim && (!TheGlobalData->m_guardRequiresVisibility ||
+			teamVictim->getShroudedStatus(owner->getControllingPlayer()->getPlayerIndex()) == OBJECTSHROUD_CLEAR))
 		{
 			setNemesisID(teamVictim->getID());
 			return true;	// Transitions to AITNGuardInnerState.
@@ -363,6 +365,7 @@ static Object *TunnelNetworkScan(Object *owner)
 		PartitionFilterRelationship					f1(owner, PartitionFilterRelationship::ALLOW_ENEMIES);
 		PartitionFilterPossibleToAttack			f2(ATTACK_NEW_TARGET, owner, CMD_FROM_AI);
 		PartitionFilterSameMapStatus				filterMapStatus(owner);
+		PartitionFilterFreeOfFog filterFogged(owner->getControllingPlayer()->getPlayerIndex());
 
 		PartitionFilter *filters[16];
 		Int count = 0;
@@ -370,6 +373,10 @@ static Object *TunnelNetworkScan(Object *owner)
 		filters[count++] = &f1;
 		filters[count++] = &f2;
 		filters[count++] = &filterMapStatus;
+		if (TheGlobalData->m_guardRequiresVisibility)
+		{
+			filters[count++] = &filterFogged;
+		}
 
 		Real visionRange = AITNGuardMachine::getStdGuardRange(owner);
 

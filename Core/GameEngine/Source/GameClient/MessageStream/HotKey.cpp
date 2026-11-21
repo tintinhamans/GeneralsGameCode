@@ -392,6 +392,29 @@ namespace
 		{ MK_WHEELDOWN, "wheeldown", "WD", L"Wheel down" },
 	};
 
+	struct FunctionKey
+	{
+		Int key;
+		const char *corner;
+	};
+
+	// a function key's corner character follows the mouse ones in this order
+	const FunctionKey FUNCTION_KEYS[] =
+	{
+		{ MK_F1, "F1" },
+		{ MK_F2, "F2" },
+		{ MK_F3, "F3" },
+		{ MK_F4, "F4" },
+		{ MK_F5, "F5" },
+		{ MK_F6, "F6" },
+		{ MK_F7, "F7" },
+		{ MK_F8, "F8" },
+		{ MK_F9, "F9" },
+		{ MK_F10, "F10" },
+		{ MK_F11, "F11" },
+		{ MK_F12, "F12" },
+	};
+
 	Int mouseKeyIndex( Int key )
 	{
 		for( Int i = 0; i < ARRAY_SIZE( MOUSE_KEYS ); ++i )
@@ -446,7 +469,59 @@ Char HotKeyManager::cornerOf( const AsciiString& key )
 //-----------------------------------------------------------------------------
 const char *HotKeyManager::cornerText( Char corner )
 {
+	if( corner > ARRAY_SIZE( MOUSE_KEYS ) && corner <= ARRAY_SIZE( MOUSE_KEYS ) + ARRAY_SIZE( FUNCTION_KEYS ) )
+	{
+		return FUNCTION_KEYS[ corner - ARRAY_SIZE( MOUSE_KEYS ) - 1 ].corner;
+	}
 	return corner >= 1 && corner <= ARRAY_SIZE( MOUSE_KEYS ) ? MOUSE_KEYS[ corner - 1 ].corner : nullptr;
+}
+
+//-----------------------------------------------------------------------------
+Char HotKeyManager::functionKeyCorner( Int key )
+{
+	for( Int i = 0; i < ARRAY_SIZE( FUNCTION_KEYS ); ++i )
+	{
+		if( FUNCTION_KEYS[i].key == key )
+		{
+			return (Char)( ARRAY_SIZE( MOUSE_KEYS ) + 1 + i );
+		}
+	}
+	return 0;
+}
+
+//-----------------------------------------------------------------------------
+Int HotKeyManager::chordCorner( Int key, Int modState )
+{
+	Char base = functionKeyCorner( key );
+	if( base == 0 )
+	{
+		for( const LookupListRec *rec = KeyNames; rec->name; ++rec )
+		{
+			if( rec->value == key )
+			{
+				base = cornerOf( AsciiString( rec->name + 4 ) );
+				break;
+			}
+		}
+	}
+	if( base == 0 )
+	{
+		return '*';
+	}
+	Int code = (UnsignedByte)base;
+	if( modState & CTRL )
+	{
+		code |= CTRL_CORNER;
+	}
+	if( modState & ALT )
+	{
+		code |= ALT_CORNER;
+	}
+	if( modState & SHIFT )
+	{
+		code |= SHIFT_CORNER;
+	}
+	return code;
 }
 
 //-----------------------------------------------------------------------------

@@ -75,6 +75,7 @@
 #include "GameClient/Display.h"
 #include "GameClient/DisplayStringManager.h"
 #include "GameClient/GameClient.h"
+#include "GameClient/GameWindow.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GadgetPushButton.h"
@@ -86,6 +87,7 @@
 #include "GameClient/ControlBarResizer.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/HotKey.h"
+#include "GameClient/Image.h"
 #include "GameClient/GameWindowTransitions.h"
 #include "GameClient/GUICallbacks.h"
 
@@ -152,6 +154,92 @@ static void commandButtonTooltip(GameWindow *window,
 													UnsignedInt mouse)
 {
 	TheControlBar->showBuildTooltipLayout(window);
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Draws the idle worker button, then its count from sprites the size of the button. */
+//-------------------------------------------------------------------------------------------------
+static void IdleWorkerButtonDraw( GameWindow *window, WinInstanceData *instData )
+{
+	enum { STATE_ENABLED, STATE_HILITE, STATE_PUSHED, STATE_COUNT };
+	enum { SLOT_SINGLE, SLOT_TENS, SLOT_ONES, SLOT_COUNT };
+	enum { DIGIT_COUNT = 10, MAX_SHOWN_COUNT = 99 };
+
+	static const Image *images[ STATE_COUNT ][ SLOT_COUNT ][ DIGIT_COUNT ];
+	static Bool imagesLoaded = FALSE;
+
+	// Fetch the stock draw each time, since init can run again on this window.
+	GameWinDrawFunc baseDraw = TheWindowManager->getPushButtonImageDrawFunc();
+	if( baseDraw )
+	{
+		baseDraw( window, instData );
+	}
+
+	// The disabled art has its own zero painted in.
+	if( TheInGameUI == nullptr || !BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) )
+	{
+		return;
+	}
+
+	if( !imagesLoaded && TheMappedImageCollection )
+	{
+		imagesLoaded = TRUE;
+		const char *stateLetters = "EHP";
+		const char *slotLetters = "STO";
+		for( Int state = 0; state < STATE_COUNT; ++state )
+		{
+			for( Int slot = 0; slot < SLOT_COUNT; ++slot )
+			{
+				for( Int digit = 0; digit < DIGIT_COUNT; ++digit )
+				{
+					AsciiString name;
+					name.format( "IdleWorkerCount%c%c%d", stateLetters[ state ], slotLetters[ slot ], digit );
+					images[ state ][ slot ][ digit ] = TheMappedImageCollection->findImageByName( name );
+				}
+			}
+		}
+	}
+
+	Int state = STATE_ENABLED;
+	if( BitIsSet( instData->getState(), WIN_STATE_SELECTED ) )
+	{
+		state = STATE_PUSHED;
+	}
+	else if( BitIsSet( instData->getState(), WIN_STATE_HILITED ) )
+	{
+		state = STATE_HILITE;
+	}
+
+	Int count = TheInGameUI->getIdleWorkerCount();
+	if( count > MAX_SHOWN_COUNT )
+	{
+		count = MAX_SHOWN_COUNT;
+	}
+
+	const Image *digits[ 2 ] = { nullptr, nullptr };
+	if( count < DIGIT_COUNT )
+	{
+		digits[ 0 ] = images[ state ][ SLOT_SINGLE ][ count ];
+	}
+	else
+	{
+		digits[ 0 ] = images[ state ][ SLOT_TENS ][ count / DIGIT_COUNT ];
+		digits[ 1 ] = images[ state ][ SLOT_ONES ][ count % DIGIT_COUNT ];
+	}
+
+	ICoord2D start, size;
+	window->winGetScreenPosition( &start.x, &start.y );
+	window->winGetSize( &size.x, &size.y );
+	start.x += instData->m_imageOffset.x;
+	start.y += instData->m_imageOffset.y;
+
+	for( Int i = 0; i < 2; ++i )
+	{
+		if( digits[ i ] )
+		{
+			TheDisplay->drawImage( digits[ i ], start.x, start.y, start.x + size.x, start.y + size.y );
+		}
+	}
 }
 
 /// mark the UI as dirty so the context of everything is re-evaluated
@@ -1014,6 +1102,7 @@ ControlBar::ControlBar()
 	m_specialPowerLayout = nullptr;
 	m_smartSelectionParent = nullptr;
 	m_smartSelectionMoneyWindow = nullptr;
+	m_cameoRowBlocker = nullptr;
 	for( i = 0; i < MAX_SMART_SELECTION_BUTTONS; i++ )
 	{
 		m_smartSelectionButtons[i] = nullptr;
@@ -1028,7 +1117,21 @@ ControlBar::ControlBar()
 	for( i = 0; i < MAX_COMMAND_GROUP_BUTTONS; i++ )
 	{
 		m_commandGroupButtons[i] = nullptr;
+		m_commandGroupNumbers[i] = nullptr;
+		m_commandGroupImages[i] = nullptr;
 	}
+	m_commandGroupButtonSize.x = 0;
+	m_commandGroupButtonSize.y = 0;
+	m_commandGroupNumberColor = GAME_COLOR_UNDEFINED;
+	m_commandGroupNumberDropColor = GAME_COLOR_UNDEFINED;
+	m_buildQueueFrame = ~0u;
+	m_buildQueueParent = nullptr;
+	for( i = 0; i < MAX_BUILD_QUEUE_BAR_BUTTONS; i++ )
+	{
+		m_buildQueueButtons[i] = nullptr;
+		m_buildQueueImages[i] = nullptr;
+	}
+	m_buildQueueRadarWindow = nullptr;
 	m_scienceLayout = nullptr;
 	m_rightHUDWindow = nullptr;
 	m_rightHUDCameoWindow = nullptr;
@@ -1342,6 +1445,7 @@ void ControlBar::init()
 		{
 			setControlCommand(win, findCommandButton("NonCommand_IdleWorker") );
 			win->winSetTooltipFunc(commandButtonTooltip);
+			win->winSetDrawFunc( IdleWorkerButtonDraw );
 		}
 		win = TheWindowManager->winGetWindowFromId(nullptr,TheNameKeyGenerator->nameToKey("ControlBar.wnd:ButtonPlaceBeacon"));
 		if(win)
@@ -1439,6 +1543,7 @@ void ControlBar::reset()
 #endif
 	hideSpecialPowerShortcut();
 	resetSmartSelection();
+	resetBuildQueueBar();
 	// the logic side focus goes with the old game, so the next one starts from no cache
 	m_sentFocusGroup.clear();
 	// do not destroy the rally drawables, they get destroyed with everything else during a reset
@@ -2758,8 +2863,15 @@ void ControlBar::setControlCommand( GameWindow *button, const CommandButton *com
 	//button->winSetUserData( commandButton );
 
 #if RTS_ZEROHOUR
-	// right click toggles auto queue on a unit cameo
-	if( commandButton->getCommandType() == GUI_COMMAND_UNIT_BUILD && TheGameLogic->isAutoQueue() )
+	// a power of the army's Powers Menu shows its SPECIAL_POWER key in the corner
+	GadgetButtonSetCornerLetter( button, getPowerHotkeyCorner( commandButton ) );
+
+	// right click toggles auto queue on a unit cameo and moves a queue cameo one place earlier
+	const GUICommandType clickCommandType = commandButton->getCommandType();
+	const Bool autoQueueClick = clickCommandType == GUI_COMMAND_UNIT_BUILD && TheGameLogic->isAutoQueue();
+	const Bool queueReorderClick = TheGlobalData->m_queueReorder &&
+		( clickCommandType == GUI_COMMAND_CANCEL_UNIT_BUILD || clickCommandType == GUI_COMMAND_CANCEL_UPGRADE );
+	if( autoQueueClick || queueReorderClick )
 	{
 		button->winSetStatus( WIN_STATUS_RIGHT_CLICK_ON_PRESS );
 	}
@@ -3407,6 +3519,7 @@ void ControlBar::setControlBarSchemeByPlayer(Player *p)
 		m_isObserverCommandBar = TRUE;
 		// the observer update returns before the smart selection hooks, so clear the row here
 		resetSmartSelection();
+		resetBuildQueueBar();
 		switchToContext( CB_CONTEXT_OBSERVER_LIST, nullptr );
 		DEBUG_LOG(("We're loading the Observer Command Bar"));
 
@@ -3453,6 +3566,7 @@ void ControlBar::setControlBarSchemeByPlayerTemplate( const PlayerTemplate *pt)
 	{
 		m_isObserverCommandBar = TRUE;
 		resetSmartSelection();
+		resetBuildQueueBar();
 		switchToContext( CB_CONTEXT_OBSERVER_LIST, nullptr );
 		DEBUG_LOG(("We're loading the Observer Command Bar"));
 

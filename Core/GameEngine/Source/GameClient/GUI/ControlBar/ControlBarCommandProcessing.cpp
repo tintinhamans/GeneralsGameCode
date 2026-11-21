@@ -51,6 +51,7 @@
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/InGameUI.h"
 #include "GameClient/Keyboard.h"
+#include "GameClient/MetaEvent.h"
 // TheSuperHackers @feature for quick cast
 #include "Common/OptionPreferences.h"
 #include "Common/Recorder.h"
@@ -467,15 +468,193 @@ CBCommandStatus ControlBar::processCommandTransitionUI( GameWindow *control, Gad
 
 }
 
+#if RTS_ZEROHOUR
+//-------------------------------------------------------------------------------------------------
+static Bool isPowerHotkeyButton( const CommandButton *button )
+{
+	if( button == nullptr )
+	{
+		return FALSE;
+	}
+	if( button->getCommandType() != GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT &&
+			button->getCommandType() != GUI_COMMAND_SPECIAL_POWER_CONSTRUCT_FROM_SHORTCUT )
+	{
+		return FALSE;
+	}
+	return !BitIsSet( button->getOptions(), SCRIPT_ONLY ) && button->getButtonImage() != nullptr &&
+		button->getSpecialPowerTemplate() != nullptr;
+}
+
+//-------------------------------------------------------------------------------------------------
+const CommandButton *ControlBar::getPowerHotkeyButton( const CommandSet *set, Int number, Int *slot ) const
+{
+	if( set == nullptr || number < 1 )
+	{
+		return nullptr;
+	}
+	Int count = 0;
+	for( Int i = 0; i < MAX_COMMANDS_PER_SET; ++i )
+	{
+		const CommandButton *button = set->getCommandButton( i );
+		if( !isPowerHotkeyButton( button ) )
+		{
+			continue;
+		}
+		if( ++count == number )
+		{
+			if( slot )
+			{
+				*slot = i;
+			}
+			return button;
+		}
+	}
+	return nullptr;
+}
+
+//-------------------------------------------------------------------------------------------------
+const CommandSet *ControlBar::findPowerHotkeySet( const PlayerTemplate *side, Player *player )
+{
+	if( side == nullptr )
+	{
+		return nullptr;
+	}
+	const AsciiString barName = side->getCommandSet( PLAYER_COMMANDSET_SHORTCUT, player );
+	if( barName.isEmpty() )
+	{
+		return nullptr;
+	}
+	const CommandSet *bar = findCommandSet( barName );
+	if( bar == nullptr )
+	{
+		return nullptr;
+	}
+	for( Int i = 0; i < MAX_COMMANDS_PER_SET; ++i )
+	{
+		const CommandButton *button = bar->getCommandButton( i );
+		if( button == nullptr || button->getCommandType() != GUI_COMMAND_SELECT_ALL_UNITS_OF_TYPE )
+		{
+			continue;
+		}
+		const ThingTemplate *thing = button->getThingTemplate();
+		if( thing == nullptr )
+		{
+			continue;
+		}
+		Object *holder = player ? player->findAnyExistingObjectWithThingTemplate( thing ) : nullptr;
+		const AsciiString& name = holder ? holder->getCommandSetString() : thing->friend_getCommandSetString();
+		const CommandSet *held = findCommandSet( name );
+		if( getPowerHotkeyButton( held, 1 ) )
+		{
+			return held;
+		}
+	}
+
+	// a mod without a holder object keeps its powers on the shortcut bar itself
+	return getPowerHotkeyButton( bar, 1 ) ? bar : nullptr;
+}
+
+//-------------------------------------------------------------------------------------------------
+void ControlBar::firePowerHotkey( Int number )
+{
+	Player *player = ThePlayerList ? ThePlayerList->getLocalPlayer() : nullptr;
+	if( player == nullptr || !player->isPlayerActive() || player->getPlayerTemplate() == nullptr )
+	{
+		return;
+	}
+	if( TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_PLAYBACK )
+	{
+		return;
+	}
+	const CommandButton *button = getPowerHotkeyButton( findPowerHotkeySet( player->getPlayerTemplate(), player ), number );
+	if( button == nullptr )
+	{
+		return;
+	}
+
+	Bool usable = TRUE;
+	const SpecialPowerTemplate *power = button->getSpecialPowerTemplate();
+	if( BitIsSet( button->getOptions(), NEED_SPECIAL_POWER_SCIENCE ) &&
+			power->getRequiredScience() != SCIENCE_INVALID && !player->hasScience( power->getRequiredScience() ) )
+	{
+		usable = FALSE;
+	}
+	if( usable )
+	{
+		usable = getCommandAvailability( button, nullptr, nullptr ) == COMMAND_AVAILABLE;
+	}
+
+	if( !usable )
+	{
+		AudioEventRTS disabledClick( "GUIClickDisabled" );
+		if( TheAudio )
+		{
+			TheAudio->addAudioEvent( &disabledClick );
+		}
+		return;
+	}
+
+	processCommandUI( nullptr, GBM_SELECTED, button );
+
+	AudioEventRTS buttonClick( "GUIClick" );
+	if( TheAudio )
+	{
+		TheAudio->addAudioEvent( &buttonClick );
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+Int ControlBar::getPowerHotkeyCorner( const CommandButton *button )
+{
+	if( !isPowerHotkeyButton( button ) )
+	{
+		return 0;
+	}
+	Player *player = ThePlayerList ? ThePlayerList->getLocalPlayer() : nullptr;
+	if( player == nullptr || player->getPlayerTemplate() == nullptr || TheMetaMap == nullptr )
+	{
+		return 0;
+	}
+	const CommandSet *set = findPowerHotkeySet( player->getPlayerTemplate(), player );
+	for( Int meta = GameMessage::MSG_META_SPECIAL_POWER_1; meta <= GameMessage::MSG_META_SPECIAL_POWER_16; ++meta )
+	{
+		const CommandButton *numbered = getPowerHotkeyButton( set, meta - GameMessage::MSG_META_SPECIAL_POWER_1 + 1 );
+		if( numbered == nullptr )
+		{
+			return 0;
+		}
+		if( numbered != button )
+		{
+			continue;
+		}
+
+		// getMetaMapRec would add a record for an unmapped command
+		const MetaMapRec *rec = TheMetaMap->getFirstMetaMapRec();
+		while( rec && rec->m_meta != meta )
+		{
+			rec = rec->m_next;
+		}
+		if( rec == nullptr || rec->m_usableIn == COMMANDUSABLE_NONE || ( rec->m_key == MK_NONE && rec->m_modState == NONE ) )
+		{
+			return 0;
+		}
+		return HotKeyManager::chordCorner( rec->m_key, rec->m_modState );
+	}
+	return 0;
+}
+#endif
+
 //-------------------------------------------------------------------------------------------------
 /** Process a button selected message from the window system that should be for one of
 	* our GUI commands */
 //-------------------------------------------------------------------------------------------------
 CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
-																							GadgetGameMessage gadgetMessage )
+																							GadgetGameMessage gadgetMessage,
+																							const CommandButton *windowless )
 {
 	// get the command pointer from the control user data we put in the button
-	const CommandButton *commandButton = (const CommandButton *)GadgetButtonGetData(control);
+	// a windowless command is one of the shortcut power types, which need no selection and no button
+	const CommandButton *commandButton = control ? (const CommandButton *)GadgetButtonGetData(control) : windowless;
 	if( !commandButton )
 	{
 		DEBUG_CRASH( ("ControlBar::processCommandUI() -- Button activated has no data. Ignoring...") );
@@ -499,11 +678,11 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 	}
 
 	// sanity
-	if( control == nullptr )
+	if( control == nullptr && windowless == nullptr )
 		return CBC_COMMAND_NOT_USED;
 
 	// the context sensitive gui only is only made of buttons ... sanity
-	if( control->winGetInputFunc() != GadgetPushButtonInput )
+	if( control && control->winGetInputFunc() != GadgetPushButtonInput )
 		return CBC_COMMAND_NOT_USED;
 
 
@@ -520,7 +699,7 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 		// commands on the build queue, whose cameo populateBuildQueue stamps afterwards -
 		// must not have its image nulled by the click, or any click that ends without a
 		// repopulate leaves that cameo blank. Same guard setControlCommand uses.
-		if( commandButton->getButtonImage() )
+		if( control && commandButton->getButtonImage() )
 		{
 			GadgetButtonSetEnabledImage( control, commandButton->getButtonImage() );
 		}
@@ -1019,15 +1198,11 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 			// the the production ID to cancel
 			ProductionID productionIDToCancel = m_queueData[ i ].productionID;
 
-			// Ctrl moves the clicked entry one position earlier in the queue instead of
-			// cancelling it. Break unconditionally so a Ctrl click can never fall through
-			// to the cancel below, and never combines with the Shift cancel either. Gated
-			// behind the QueueReorder GameData option; with it off, Ctrl+click cancels
-			// like retail.
+			// A right click moves the entry one place earlier and never cancels.
 			// ShigureUi 13/9/2026 only work when there's no multiselect
-			if( TheGlobalData->m_queueReorder && TheKeyboard && TheKeyboard->isCtrl() && factories.size() == 1)
+			if( gadgetMessage == GBM_SELECTED_RIGHT )
 			{
-				if( i > 0 )
+				if( TheGlobalData->m_queueReorder && factories.size() == 1 && !factories.front()->getObject()->isDisabled() && i > 0 )
 				{
 					GameMessage *moveMsg = TheMessageStream->appendMessage( GameMessage::MSG_MOVE_UNIT_CREATE_EARLIER );
 					moveMsg->appendIntegerArgument( productionIDToCancel );
@@ -1339,15 +1514,11 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 			if (curFactory == nullptr)
 				break;
 
-			// Ctrl moves the clicked entry one position earlier in the queue instead of
-			// cancelling it. Break unconditionally so a Ctrl click can never fall through
-			// to the cancel below. Unlike the cancel above, the move checks local control
-			// here like the unit branch does - the logic side rejects the message anyway,
-			// so sending one for someone else's producer only wastes network traffic.
+			// A right click moves the entry one place earlier and never cancels.
 			// ShigureUi 13/9/2026 only if there is only 1 producer
-			if (TheGlobalData->m_queueReorder && TheKeyboard && TheKeyboard->isCtrl() && factories.size() == 1)
+			if (gadgetMessage == GBM_SELECTED_RIGHT)
 			{
-				if (i > 0 && curFactory->isLocallyControlled())
+				if (TheGlobalData->m_queueReorder && factories.size() == 1 && i > 0 && curFactory->isLocallyControlled() && !curFactory->isDisabled())
 				{
 					GameMessage *moveMsg = TheMessageStream->appendMessage(GameMessage::MSG_MOVE_UPGRADE_EARLIER);
 					moveMsg->appendIntegerArgument(upgradeT->getUpgradeNameKey());

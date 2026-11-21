@@ -1,0 +1,32 @@
+--- a/Object/AirforceGeneral.ini
++++ b/Object/AirforceGeneral.ini
+@@ -18121,6 +18121,21 @@
+     SubdualDamageHealAmount = 32
+   End
+ 
++  Behavior = TransportContain ModuleTag_Transport
++    Slots = 6
++    ExitInAirTemplate = AmericaParachuteSelectable
++    ExitInAirVehicleTemplate = LargeParachute
++    AllowInsideKindOf = INFANTRY VEHICLE VEHICLE
++    ForbidInsideKindOf = NO_GARRISON AIRCRAFT
++    AllowAlliesInside = Yes
++    AllowNeutralInside = No
++    AllowEnemiesInside = No
++    PassengersAllowedToFire = No
++    ScatterNearbyOnExit = No
++    OrientLikeContainerOnExit = Yes
++    ResetMoodCheckTimeOnExit = No
++  End
++
+   Behavior = PhysicsBehavior ModuleTag_04
+     Mass = 500.0
+   End
+@@ -18134,6 +18149,7 @@
+     TakeoffPause              = 500
+     MinHeight                 = 5
+     ReturnToBaseIdleTime      = 10000
++    ReturnToBaseAfterUnload   = Yes
+     ParkingOffset             = 0
+   End
+ 

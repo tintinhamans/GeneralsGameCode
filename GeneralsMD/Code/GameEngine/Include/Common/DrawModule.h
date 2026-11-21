@@ -86,7 +86,8 @@ public:
 	// TheSuperHackers @feature Selection ring decal, in its own slot so it does not evict the
 	// horde or chem suit decal while a unit is selected.
 	// With footprint set, a renderer that can draws the object's collision shape instead of the ring.
-	virtual void setSelectionDecal(Bool enable, Real radius, Color color, Bool footprint = FALSE) {};
+	// A dotted ring of its own radius and color joins the ring where the renderer can draw it.
+	virtual void setSelectionDecal(Bool enable, Real radius, Color color, Bool footprint = FALSE, Real dottedRadius = 0.0f, Color dottedColor = 0) {};
 
 	virtual void reactToTeleport() {};	///< object was instantly relocated (e.g. chronosphere) - break tread marks etc.
 
@@ -166,6 +167,14 @@ public:
 //};
 
 //-------------------------------------------------------------------------------------------------
+struct ModelAlignment
+{
+	Coord3D offset;
+	Real yaw;
+	Real pitch;
+	Real roll;
+};
+
 class ObjectDrawInterface
 {
 public:
@@ -184,6 +193,8 @@ public:
 	virtual Int clientOnly_getSubObjectNames(AsciiString* names, Int maxNames) const = 0;
 	// The W3D model this module has loaded and the world centre of its bounds. FALSE when it has none.
 	virtual Bool clientOnly_getModelNameAndCenter(AsciiString* name, Coord3D* center) const = 0;
+	virtual Bool getDebugModelAlignment(ModelAlignment&) const { return false; }
+	virtual void setDebugModelAlignment(const ModelAlignment*) {}
 #endif
 	/**
 		Find the bone(s) with the given name and return their positions and/or transforms in the given arrays.
@@ -201,7 +212,8 @@ public:
 	virtual Int getPristineBonePositionsForConditionState(const ModelConditionFlags& condition, const char* boneNamePrefix, Int startIndex, Coord3D* positions, Matrix3D* transforms, Int maxBones) const = 0;
 	virtual Int getCurrentBonePositions(const char* boneNamePrefix, Int startIndex, Coord3D* positions, Matrix3D* transforms, Int maxBones) const = 0;
 	virtual Bool getCurrentWorldspaceClientBonePositions(const char* boneName, Matrix3D& transform) const = 0;
-	virtual Bool getProjectileLaunchOffset(const ModelConditionFlags& condition, WeaponSlotType wslot, Int specificBarrelToUse, Matrix3D* launchPos, WhichTurretType tur, Coord3D* turretRotPos, Coord3D* turretPitchPos) const = 0;
+	virtual Bool getPristineBoneAttachment(const ModelConditionFlags&, const char*, Matrix3D&, Bool&, Int) const { return false; }
+	virtual Bool getProjectileLaunchOffset(const ModelConditionFlags& condition, WeaponSlotType wslot, Int specificBarrelToUse, Matrix3D* launchPos, WhichTurretType tur, Coord3D* turretRotPos, Coord3D* turretPitchPos, Matrix3D* turretAxes = nullptr) const = 0;
 	virtual void updateProjectileClipStatus( UnsignedInt shotsRemaining, UnsignedInt maxShots, WeaponSlotType slot ) = 0; ///< This will do the show/hide work if ProjectileBoneFeedbackEnabled is set.
 	virtual void updateDrawModuleSupplyStatus( Int maxSupply, Int currentSupply ) = 0; ///< This will do visual feedback on Supplies carried
 	virtual void notifyDrawModuleDependencyCleared() = 0; ///< if you were waiting for something before you drew, it's ready now

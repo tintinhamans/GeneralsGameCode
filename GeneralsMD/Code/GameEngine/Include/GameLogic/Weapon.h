@@ -464,6 +464,7 @@ public:
 	Bool isLeechRangeWeapon() const { return m_leechRangeWeapon; }
 	Bool isCapableOfFollowingWaypoint() const { return m_capableOfFollowingWaypoint; }
 	Bool isShowsAmmoPips() const { return m_isShowsAmmoPips; }
+	Bool requiresTransportOccupants() const { return m_requiresTransportOccupants; }
 	Bool isPlayFXWhenStealthed() const { return m_playFXWhenStealthed; }
 	Bool getDieOnDetonate() const { return m_dieOnDetonate; }
 
@@ -600,6 +601,7 @@ private:
 	const WeaponTemplate* m_historicBonusWeapon;	///< see above
 	Bool m_leechRangeWeapon;								///< once the weapon has fired once at the proper range, the weapon gains unlimited range for the remainder of the attack cycle
 	Bool m_capableOfFollowingWaypoint;			///< determines if the weapon is capable of following a waypoint path.
+	Bool m_requiresTransportOccupants;
 	Bool m_isShowsAmmoPips;									///< shows ammo pips
 	Bool m_allowAttackGarrisonedBldgs;			///< allow attacks on garrisoned bldgs, even if estimated damage would be zero
 	Bool m_playFXWhenStealthed;					///< Ignores rule about not playing FX when stealthed
@@ -810,6 +812,7 @@ public:
 	DeathType getDeathType() const { return m_template->getDeathType(); }
 	Real getContinueAttackRange() const { return m_template->getContinueAttackRange(); }
 	Bool isShowsAmmoPips() const { return m_template->isShowsAmmoPips(); }
+	Bool hasRequiredTransportOccupants(const Object *source) const;
 	Int getClipSize() const { return m_template->getClipSize(); }
 	UnsignedInt getContinuousLaserLoopTime() const { return m_template->getContinuousLaserLoopTime(); }
 	// Contact weapons (like car bombs) need to basically collide with their target.

@@ -63,6 +63,8 @@ public:
 	Real										m_lockonBlinky;
 	UnsignedInt							m_returnToBaseIdleTime;						///< if we're idle for this long, return to base
 
+	Bool m_returnToBaseAfterUnload;
+
 	JetAIUpdateModuleData();
 	static void buildFieldParse(MultiIniFieldParse& p);
 };
@@ -128,6 +130,8 @@ public:
 	AICommandType friend_getPendingCommandType() const;
 	void friend_purgePendingCommand();
 	Bool isParkedInHangar() const;
+	void onTransportUnloaded();
+	Bool returnsToBaseAfterUnload() const { return getJetAIUpdateModuleData()->m_returnToBaseAfterUnload; }
 
 protected:
 
@@ -155,7 +159,8 @@ private:
 		USE_SPECIAL_RETURN_LOCO,
 		ALLOW_CIRCLING,
 		ALLOW_INTERRUPT_AND_RESUME_OF_CUR_STATE_FOR_RELOAD,
-		TAXI_IN_PROGRESS
+		TAXI_IN_PROGRESS,
+		RETURN_AFTER_UNLOAD
 	};
 
 	Coord3D									m_producerLocation;		///< remember this, so that if our producer dies, we have a place to circle aimlessly

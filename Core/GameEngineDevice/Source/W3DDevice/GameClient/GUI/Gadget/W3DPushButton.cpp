@@ -90,7 +90,7 @@ void W3DGadgetPushButtonImageDrawOne(GameWindow *window, WinInstanceData *instDa
 static DisplayString *s_countdownString = nullptr;
 static Int s_countdownLastSeconds = -1;
 static Int s_countdownLastMode = -1;
-static DisplayString *s_letterStrings[ 256 ] = { nullptr };
+static DisplayString *s_letterStrings[ HotKeyManager::CORNER_CODES ] = { nullptr };
 static DisplayString *s_autoQueueString = nullptr;
 
 // the plate behind a count badge or corner letter over a cameo
@@ -110,7 +110,7 @@ void W3DGadgetPushButtonFreeDisplayStrings( void )
 	}
 	s_autoQueueString = nullptr;
 
-	for( Int i = 0; i < 256; ++i )
+	for( Int i = 0; i < ARRAY_SIZE( s_letterStrings ); ++i )
 	{
 		if( s_letterStrings[ i ] != nullptr && TheDisplayStringManager != nullptr )
 			TheDisplayStringManager->freeDisplayString( s_letterStrings[ i ] );
@@ -250,10 +250,15 @@ static void drawButtonAmmoBar( GameWindow *window, Int ammoInClip, Int clipSize 
 /** TheSuperHackers @feature One letter in the top left of a cameo, drawn for the hotkey overlay
 	* and for a caller's own corner letter. */
 //=============================================================================
-static void drawButtonCornerLetter( GameWindow *window, UnsignedByte index, GameFont *font, Bool plate, Color plateColor, Color textColor )
+static void drawButtonCornerLetter( GameWindow *window, Int index, GameFont *font, Bool plate, Color plateColor, Color textColor )
 {
 	if( TheDisplayStringManager == nullptr || font == nullptr )
 		return;
+
+	if( index <= 0 || index >= HotKeyManager::CORNER_CODES )
+	{
+		return;
+	}
 
 	// One display string per letter, so that drawing many cameos in a row does not
 	// rebuild sentence geometry over and over. There are only ever a handful of
@@ -268,16 +273,31 @@ static void drawButtonCornerLetter( GameWindow *window, UnsignedByte index, Game
 
 		// the manager stores keys lowercased, but shortcuts read better as capitals
 		UnicodeString text;
-		const char *mouseText = HotKeyManager::cornerText( (Char)index );
+		const UnsignedByte key = (UnsignedByte)( index & 0xFF );
+		const char *mouseText = HotKeyManager::cornerText( (Char)key );
 		if( mouseText )
 		{
 			text.translate( AsciiString( mouseText ) );
 		}
 		else
 		{
-			text.concat( (WideChar)toupper( (Int)index ) );
+			text.concat( (WideChar)toupper( (Int)key ) );
 		}
-		letterString->setText( text );
+		UnicodeString label;
+		if( index & HotKeyManager::CTRL_CORNER )
+		{
+			label.concat( L'!' );
+		}
+		if( index & HotKeyManager::ALT_CORNER )
+		{
+			label.concat( L'#' );
+		}
+		if( index & HotKeyManager::SHIFT_CORNER )
+		{
+			label.concat( L'^' );
+		}
+		label.concat( text );
+		letterString->setText( label );
 
 		s_letterStrings[ index ] = letterString;
 	}
@@ -311,9 +331,10 @@ static void drawButtonCornerLetter( GameWindow *window, UnsignedByte index, Game
 	*
 	* The letter comes from what actually got registered in the hotkey manager, not
 	* from the button's label -- colliding hotkeys are dropped at registration, and
-	* drawing those would advertise a key that does nothing. */
+	* drawing those would advertise a key that does nothing.
+	* A button's own corner letter, such as a power's SPECIAL_POWER key, takes its place. */
 //=============================================================================
-static void drawButtonHotKeyOverlay( GameWindow *window )
+static void drawButtonHotKeyOverlay( GameWindow *window, Int ownCorner )
 {
 	if( !TheGlobalData || !TheGlobalData->m_keyboardOverlayEnabled )
 		return;
@@ -325,23 +346,27 @@ static void drawButtonHotKeyOverlay( GameWindow *window )
 	if( !BitIsSet( window->winGetStatus(), WIN_STATUS_USE_OVERLAY_STATES ) )
 		return;
 
-	AsciiString hotKey = TheHotKeyManager->getHotKeyForWindow( window );
-	if( hotKey.isEmpty() )
-		return;
-
-	// Only a single byte printable key or a mouse key can be shown faithfully. A localized mnemonic outside
-	// ASCII arrives as a multi byte sequence here, and drawing its first byte would show a
-	// wrong or garbled shortcut - better to draw nothing for those.
-	const Char corner = HotKeyManager::cornerOf( hotKey );
+	Int corner = ownCorner;
 	if( corner == 0 )
-		return;
+	{
+		AsciiString hotKey = TheHotKeyManager->getHotKeyForWindow( window );
+		if( hotKey.isEmpty() )
+			return;
+
+		// Only a single byte printable key or a mouse key can be shown faithfully. A localized mnemonic outside
+		// ASCII arrives as a multi byte sequence here, and drawing its first byte would show a
+		// wrong or garbled shortcut - better to draw nothing for those.
+		corner = (UnsignedByte)HotKeyManager::cornerOf( hotKey );
+		if( corner == 0 )
+			return;
+	}
 
 	Int pointSize = 10;
 	if( TheGlobalLanguageData )
 		pointSize = TheGlobalLanguageData->adjustFontSize( pointSize );
 	GameFont *font = TheFontLibrary->getFont( AsciiString( "Arial" ), pointSize, TRUE );
 
-	drawButtonCornerLetter( window, (UnsignedByte)corner, font, TheGlobalData->m_keyboardOverlayBackdrop,
+	drawButtonCornerLetter( window, corner, font, TheGlobalData->m_keyboardOverlayBackdrop,
 		TheGlobalData->m_keyboardOverlayBackdropColor, TheGlobalData->m_keyboardOverlayColor );
 }
 
@@ -447,6 +472,12 @@ static void drawButtonText( GameWindow *window, WinInstanceData *instData )
 		textPos.x = origin.x + size.x - width - 2;
 		textPos.y = origin.y + size.y - height - 1;
 		drawTextPlate( textPos.x, textPos.y, width, height, CAMEO_PLATE_COLOR );
+	}
+	else if( BitIsSet( window->winGetStatus(), WIN_STATUS_COUNT_FOOTER ) )
+	{
+		// TheSuperHackers @feature A count under a framed icon sits bottom centre, clear of the frame
+		textPos.x = origin.x + (size.x / 2) - (width / 2);
+		textPos.y = origin.y + size.y - height - MAX( size.y / 32, 1 );
 	}
 	else if( BitIsSet( window->winGetStatus(), WIN_STATUS_SHORTCUT_BUTTON ) )
 	{
@@ -856,15 +887,15 @@ void W3DGadgetPushButtonImageDrawOne( GameWindow *window,
 	}
 
 	// TheSuperHackers @feature Draw the corner letter last, so it stays readable on top of the
-	// hilite and pushed overlays. A caller's own letter takes the corner over the hotkey and
-	// draws in the button's font, so it scales with the badge text.
-	if( pData && pData->cornerLetter != 0 )
+	// hilite and pushed overlays. A caller's own letter takes the corner over the hotkey; a cameo
+	// draws it in the overlay style, any other button in its own font to scale with the badge text.
+	if( pData && pData->cornerLetter != 0 && !BitIsSet( window->winGetStatus(), WIN_STATUS_USE_OVERLAY_STATES ) )
 	{
-		drawButtonCornerLetter( window, (UnsignedByte)pData->cornerLetter, window->winGetFont(), TRUE, CAMEO_PLATE_COLOR, GameMakeColor( 255, 255, 255, 255 ) );
+		drawButtonCornerLetter( window, pData->cornerLetter, window->winGetFont(), TRUE, CAMEO_PLATE_COLOR, GameMakeColor( 255, 255, 255, 255 ) );
 	}
 	else
 	{
-		drawButtonHotKeyOverlay( window );
+		drawButtonHotKeyOverlay( window, pData ? pData->cornerLetter : 0 );
 	}
 
 	if( pData && pData->autoQueue )

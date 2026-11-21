@@ -39,7 +39,9 @@
 /*---------------------------------------------------------------------------*/
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include "Common/GlobalData.h"
 #include "Common/PerfTimer.h"
+#include "Common/Player.h"
 #include "Common/Team.h"
 #include "Common/Xfer.h"
 #include "Common/ThingTemplate.h"
@@ -224,7 +226,8 @@ Bool AIGuardMachine::lookForInnerTarget()
 	if (owner->getTeam()->getPrototype()->getTemplateInfo()->m_attackCommonTarget)
 	{
 		teamVictim = owner->getTeam()->getTeamTargetObject();
-		if (teamVictim)
+		if (teamVictim && (!TheGlobalData->m_guardRequiresVisibility ||
+			teamVictim->getShroudedStatus(owner->getControllingPlayer()->getPlayerIndex()) == OBJECTSHROUD_CLEAR))
 		{
 			setNemesisID(teamVictim->getID());
 			return true;	// Transitions to AIGuardInnerState.
@@ -243,6 +246,7 @@ Bool AIGuardMachine::lookForInnerTarget()
 	PartitionFilterRelationship					f5(owner, PartitionFilterRelationship::ALLOW_NEUTRAL);
 	PartitionFilterPossibleToEnter			f6(owner, CMD_FROM_AI);
 	PartitionFilterPossibleToHijack			f7(owner, CMD_FROM_AI);
+	PartitionFilterFreeOfFog filterFogged(owner->getControllingPlayer()->getPlayerIndex());
 
 	PartitionFilter *filters[16];
 	Int count = 0;
@@ -271,6 +275,10 @@ Bool AIGuardMachine::lookForInnerTarget()
 	}
 
 	filters[count++] = &filterMapStatus;
+	if (TheGlobalData->m_guardRequiresVisibility)
+	{
+		filters[count++] = &filterFogged;
+	}
 
 	Real visionRange = AIGuardMachine::getStdGuardRange(owner);
 
@@ -674,7 +682,7 @@ StateReturnType AIGuardReturnState::onEnter()
 //		return STATE_FAILURE; // early termination because we found a target.
 
 	Object* targetToGuard = getGuardMachine()->findTargetToGuardByID();
-	m_goalPosition = targetToGuard ? *targetToGuard->getPosition() : *getGuardMachine()->getPositionToGuard();
+	{ m_goalPosition = targetToGuard ? *targetToGuard->getPosition() : *getGuardMachine()->getPositionToGuard(); m_goalSet = TRUE; }
 
 	const PolygonTrigger *area = getGuardMachine()->getAreaToGuard();
 	if (area)

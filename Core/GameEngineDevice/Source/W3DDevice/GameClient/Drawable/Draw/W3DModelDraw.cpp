@@ -1085,6 +1085,12 @@ W3DModelDrawModuleData::W3DModelDrawModuleData() :
   m_receivesDynamicLights = TRUE;
 
 	m_ignoreAnimScaling = FALSE;
+#if RTS_ZEROHOUR
+	m_modelOffset.zero();
+	m_modelYaw = 0.0f;
+	m_modelPitch = 0.0f;
+	m_modelRoll = 0.0f;
+#endif
 	m_ignoreRotation = FALSE;
 	m_showForOwnerOnly = FALSE;
 	m_keepRecoilAcrossStates = FALSE;
@@ -1332,6 +1338,12 @@ void W3DModelDrawModuleData::buildFieldParse(MultiIniFieldParse& p)
 		{ "IgnoreConditionStates", ModelConditionFlags::parseFromINI, nullptr, offsetof(W3DModelDrawModuleData, m_ignoreConditionStates) },
 		{ "ReceivesDynamicLights", INI::parseBool, nullptr, offsetof(W3DModelDrawModuleData, m_receivesDynamicLights) },
 		{ "IgnoreAnimationSpeedScaling", INI::parseBool, NULL, offsetof(W3DModelDrawModuleData, m_ignoreAnimScaling) },
+#if RTS_ZEROHOUR
+		{ "ModelOffset", INI::parseCoord3D, nullptr, offsetof(W3DModelDrawModuleData, m_modelOffset) },
+		{ "ModelYaw", INI::parseAngleReal, nullptr, offsetof(W3DModelDrawModuleData, m_modelYaw) },
+		{ "ModelPitch", INI::parseAngleReal, nullptr, offsetof(W3DModelDrawModuleData, m_modelPitch) },
+		{ "ModelRoll", INI::parseAngleReal, nullptr, offsetof(W3DModelDrawModuleData, m_modelRoll) },
+#endif
 		{ "IgnoreRotation", INI::parseBool, NULL, offsetof(W3DModelDrawModuleData, m_ignoreRotation) },
 		{ "OnlyVisibleToOwningPlayer", INI::parseBool, NULL, offsetof(W3DModelDrawModuleData, m_showForOwnerOnly) },
 		{ "KeepRecoilAcrossStates", INI::parseBool, NULL, offsetof(W3DModelDrawModuleData, m_keepRecoilAcrossStates) },
@@ -2121,6 +2133,8 @@ W3DModelDraw::W3DModelDraw(Thing *thing, const ModuleData* moduleData) : DrawMod
 	m_selectionDecalRadius = 0.0f;
 	m_selectionDecalColor = 0;
 	m_selectionDecalFootprint = FALSE;
+	m_selectionDecalDottedRadius = 0.0f;
+	m_selectionDecalDottedColor = 0;
 	m_objectDecal = nullptr;
 	m_trackRenderObject = nullptr;
 	m_lastTrackWasBackwards = FALSE;
@@ -2135,6 +2149,13 @@ W3DModelDraw::W3DModelDraw(Thing *thing, const ModuleData* moduleData) : DrawMod
 		m_weaponRecoilInfoVec[i].clear();
 	}
 	m_needRecalcBoneParticleSystems = false;
+#if RTS_ZEROHOUR
+	m_useModelTransformForParticles = false;
+	m_hasAlignedAttachment = false;
+#endif
+#if RTS_ZEROHOUR && (defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE))
+	m_hasDebugModelAlignment = false;
+#endif
 	m_fullyObscuredByShroud = false;
 
 	m_prevAnimHelper.frameNum = 0;
@@ -2463,6 +2484,26 @@ void W3DModelDraw::adjustTransformMtx(Matrix3D& mtx) const
 	const W3DModelDrawModuleData* d = getW3DModelDrawModuleData();
 
 #ifdef CACHE_ATTACH_BONE
+#if RTS_ZEROHOUR
+	Matrix3D attachment;
+	Bool aligned = false;
+	const Bool attached = getDrawableBoneAttachment(getDrawable()->getModelConditionFlags(), attachment, aligned, -1);
+	m_hasAlignedAttachment = attached && aligned;
+	if (attached)
+	{
+		if (aligned)
+		{
+			const Drawable* draw = getDrawable();
+			const Real scale = draw->getInstanceScale() * (d->m_ignoreRotation ? 1.0f : draw->getObjectScale());
+			if (scale != 0.0f && scale != 1.0f)
+			{
+				// The aligned attachment translation is already scaled.
+				attachment.Set_Translation(attachment.Get_Translation() * (1.0f / scale));
+			}
+		}
+		mtx.postMul(attachment);
+	}
+#else
 	const Vector3* offset = d->getAttachToDrawableBoneOffset(getDrawable());
 	if (offset)
 	{
@@ -2471,6 +2512,7 @@ void W3DModelDraw::adjustTransformMtx(Matrix3D& mtx) const
 		mtx.Adjust_Y_Translation(tmp.Y);
 		mtx.Adjust_Z_Translation(tmp.Z);
 	}
+#endif
 #else
 	if (d->m_attachToDrawableBone.isNotEmpty())
 	{
@@ -2504,6 +2546,200 @@ void W3DModelDraw::adjustTransformMtx(Matrix3D& mtx) const
 }
 
 //-------------------------------------------------------------------------------------------------
+#if RTS_ZEROHOUR
+ModelAlignment W3DModelDraw::getModelAlignment() const
+{
+#if defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)
+	if (m_hasDebugModelAlignment)
+	{
+		return m_debugModelAlignment;
+	}
+#endif
+	const W3DModelDrawModuleData* d = getW3DModelDrawModuleData();
+	const ModelAlignment alignment = { d->m_modelOffset, d->m_modelYaw, d->m_modelPitch, d->m_modelRoll };
+	return alignment;
+}
+
+Bool W3DModelDraw::hasModelAlignment() const
+{
+	const ModelAlignment alignment = getModelAlignment();
+	return alignment.offset.x != 0.0f || alignment.offset.y != 0.0f || alignment.offset.z != 0.0f ||
+		alignment.yaw != 0.0f || alignment.pitch != 0.0f || alignment.roll != 0.0f;
+}
+
+#if defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)
+Bool W3DModelDraw::getDebugModelAlignment(ModelAlignment& alignment) const
+{
+	alignment = getModelAlignment();
+	return true;
+}
+
+void W3DModelDraw::setDebugModelAlignment(const ModelAlignment* alignment)
+{
+	m_hasDebugModelAlignment = alignment != nullptr;
+	if (alignment)
+	{
+		m_debugModelAlignment = *alignment;
+	}
+	if (m_trackRenderObject)
+	{
+		m_trackRenderObject->breakTrack();
+	}
+	if (m_renderObject)
+	{
+		updateRenderObjectTransform(TRUE);
+	}
+}
+#endif
+
+void W3DModelDraw::applyModelAlignment(Matrix3D& mtx, Real offsetScale) const
+{
+	const ModelAlignment alignment = getModelAlignment();
+	const Coord3D& offset = alignment.offset;
+	if (offset.x != 0.0f || offset.y != 0.0f || offset.z != 0.0f)
+	{
+		const Vector3 delta = mtx.Rotate_Vector(Vector3(offset.x * offsetScale, offset.y * offsetScale, offset.z * offsetScale));
+		mtx.Adjust_X_Translation(delta.X);
+		mtx.Adjust_Y_Translation(delta.Y);
+		mtx.Adjust_Z_Translation(delta.Z);
+	}
+	if (alignment.yaw != 0.0f)
+	{
+		mtx.Rotate_Z(alignment.yaw);
+	}
+	if (alignment.pitch != 0.0f)
+	{
+		mtx.Rotate_Y(alignment.pitch);
+	}
+	if (alignment.roll != 0.0f)
+	{
+		mtx.Rotate_X(alignment.roll);
+	}
+}
+
+Bool W3DModelDraw::getDrawableBoneAttachment(const ModelConditionFlags& condition, Matrix3D& attachment, Bool& aligned, Int remainingAttachments) const
+{
+	const AsciiString& name = getW3DModelDrawModuleData()->m_attachToDrawableBone;
+	if (name.isEmpty() || remainingAttachments == 0)
+	{
+		return false;
+	}
+	if (remainingAttachments < 0)
+	{
+		// The number of draw modules bounds the search even if attachment names form a cycle.
+		remainingAttachments = 0;
+		for (const DrawModule** dm = getDrawable()->getDrawModules(); *dm; ++dm)
+		{
+			++remainingAttachments;
+		}
+	}
+	for (const DrawModule** dm = getDrawable()->getDrawModules(); *dm; ++dm)
+	{
+		if (*dm == this)
+		{
+			continue;
+		}
+		const ObjectDrawInterface* source = (*dm)->getObjectDrawInterface();
+		if (source && source->getPristineBoneAttachment(condition, name.str(), attachment, aligned, remainingAttachments - 1))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+Bool W3DModelDraw::getPristineBoneAttachment(const ModelConditionFlags& condition, const char* boneName,
+	Matrix3D& attachment, Bool& aligned, Int remainingAttachments) const
+{
+	const ModelConditionInfo* state = findBestInfo(condition);
+	if (!state)
+	{
+		return false;
+	}
+	state->validateStuff(state == m_curState ? m_renderObject : nullptr, getDrawable()->getScale(),
+		getW3DModelDrawModuleData()->m_extraPublicBones);
+	AsciiString name(boneName);
+	name.toLower();
+	const Matrix3D* bone = state->findPristineBone(NAMEKEY(name.str()), nullptr);
+	if (!bone)
+	{
+		return false;
+	}
+
+	const Vector3 position = bone->Get_Translation();
+	aligned = getBoneAlignment(condition, attachment, remainingAttachments);
+	attachment.Translate(position);
+	return true;
+}
+
+Bool W3DModelDraw::getBoneAlignment(const ModelConditionFlags& condition, Matrix3D& mtx, Int remainingAttachments, Vector3* unalignedAttachment) const
+{
+	Bool inherited = false;
+	const Bool attached = getDrawableBoneAttachment(condition, mtx, inherited, remainingAttachments);
+	const Bool own = hasModelAlignment();
+	if (unalignedAttachment)
+	{
+		*unalignedAttachment = attached ? mtx.Get_Translation() : Vector3(0.0f, 0.0f, 0.0f);
+	}
+	if (!attached || (!own && !inherited))
+	{
+		mtx.Make_Identity();
+	}
+	if (own)
+	{
+		// Cached bones already include the asset scale.
+		const Drawable* draw = getDrawable();
+		applyModelAlignment(mtx, draw->getTemplate()->getAssetScale() * draw->getObjectScale());
+	}
+	return own || inherited;
+}
+
+void W3DModelDraw::updateRenderObjectTransform(const Matrix3D& transform, Bool adjustForState)
+{
+	const W3DModelDrawModuleData* d = getW3DModelDrawModuleData();
+	Matrix3D mtx = transform;
+	if (d->m_ignoreRotation)
+	{
+		Vector3 translation;
+		mtx.Get_Translation(&translation);
+		mtx.Set(translation);
+	}
+
+	const Real scale = getDrawable()->getInstanceScale();
+	if (scale != 1.0f)
+	{
+		mtx.Scale(scale);
+	}
+
+	m_hasAlignedAttachment = false;
+	if (adjustForState)
+	{
+		adjustTransformMtx(mtx);
+	}
+
+	applyModelAlignment(mtx);
+
+	m_renderObject->Set_ObjectScale(scale);
+	m_renderObject->Set_Transform(mtx);
+}
+
+void W3DModelDraw::updateRenderObjectTransform(Bool adjustForState)
+{
+	const Drawable* draw = getDrawable();
+	Matrix3D mtx = *draw->getTransformMatrix();
+	if (!draw->isInstanceIdentity())
+	{
+		mtx.postMul(*draw->getInstanceMatrix());
+	}
+	if (draw->getObjectScale() != 1.0f)
+	{
+		mtx.Scale(draw->getObjectScale());
+	}
+	updateRenderObjectTransform(mtx, adjustForState);
+}
+#endif
+
+//-------------------------------------------------------------------------------------------------
 void W3DModelDraw::doDrawModule(const Matrix3D* transformMtx)
 {
 	if (getW3DModelDrawModuleData()->m_showForOwnerOnly &&
@@ -2513,6 +2749,7 @@ void W3DModelDraw::doDrawModule(const Matrix3D* transformMtx)
 		return;
 	}
 
+#if !RTS_ZEROHOUR
 	Matrix3D transformMtxLocal; // = Matrix3D::Identity;
 	if (getW3DModelDrawModuleData()->m_ignoreRotation) {
 		//transformMtxLocal = *transformMtx;
@@ -2521,6 +2758,8 @@ void W3DModelDraw::doDrawModule(const Matrix3D* transformMtx)
 		transformMtxLocal.Set(trans);
 		transformMtx = &transformMtxLocal;
 	}
+
+#endif
 
 	// update whether or not we should be animating.
 	setPauseAnimation( !getDrawable()->getShouldAnimate(getW3DModelDrawModuleData()->m_animationsRequirePower) );
@@ -2535,6 +2774,7 @@ void W3DModelDraw::doDrawModule(const Matrix3D* transformMtx)
 	if (m_objectDecal)
 		updateObjectDecalVisibility();
 
+#if !RTS_ZEROHOUR
 	Matrix3D scaledTransform;
 	if (getDrawable()->getInstanceScale() != 1.0f)
 	{
@@ -2545,6 +2785,8 @@ void W3DModelDraw::doDrawModule(const Matrix3D* transformMtx)
 		if (m_renderObject)
 			m_renderObject->Set_ObjectScale(getDrawable()->getInstanceScale());
 	}
+
+#endif
 
 	if (isAnimationComplete(m_renderObject))
 	{
@@ -2593,18 +2835,38 @@ void W3DModelDraw::doDrawModule(const Matrix3D* transformMtx)
 	// set our position in the render object to our position of the drawable
 	if (m_renderObject)
 	{
+#if RTS_ZEROHOUR
+		updateRenderObjectTransform(*transformMtx, TRUE);
+#else
 		Matrix3D mtx = *transformMtx;
 		adjustTransformMtx(mtx);
 		m_renderObject->Set_Transform(mtx);
+#endif
 	}
 
 	handleClientTurretPositioning();
+#if RTS_ZEROHOUR
+	const Bool useModelTransform = hasModelAlignment() || m_hasAlignedAttachment;
+	if (m_useModelTransformForParticles != useModelTransform)
+	{
+		stopClientParticleSystems();
+		m_needRecalcBoneParticleSystems = true;
+		m_useModelTransformForParticles = useModelTransform;
+	}
+#endif
 	recalcBonesForClientParticleSystems();
 
   const W3DModelDrawModuleData *modData = getW3DModelDrawModuleData();
   if ( modData->m_particlesAttachedToAnimatedBones )
     updateBonesForClientParticleSystems();// LORENZEN ADDED THIS
                                           // IT REPOSITIONS PARTICLESYSTEMS TO TSTAY IN SYNC WITH ANIMATED BONES
+
+#if RTS_ZEROHOUR
+  if (m_useModelTransformForParticles)
+  {
+    updateFrozenBoneParticleSystems();
+  }
+#endif
 
   handleClientRecoil();
 #if RTS_ZEROHOUR
@@ -3374,16 +3636,30 @@ void W3DModelDraw::recalcBonesForClientParticleSystems()
 						pos.zero();
 						Real rotation = 0.0f;
 
-						Int boneIndex = m_renderObject ? m_renderObject->Get_Bone_Index(it->boneName.str()) : 0;
-						if (boneIndex != 0)
+						ParticleSysTrackerType tracker;
+						tracker.id = sys->getSystemID();
+						tracker.boneIndex = m_renderObject ? m_renderObject->Get_Bone_Index(it->boneName.str()) : 0;
+#if RTS_ZEROHOUR
+						tracker.frozenBoneTransform.Make_Identity();
+						tracker.followsAnimatedBone = false;
+						const Bool useAlignedBone = m_renderObject && m_useModelTransformForParticles;
+#endif
+						if (tracker.boneIndex != 0)
 						{
 							// ugh... kill the mtx so we get it in modelspace, not world space
 							Matrix3D originalTransform = m_renderObject->Get_Transform();	// save the transform
 							Matrix3D tmp(true);
+#if RTS_ZEROHOUR
+							if (!useAlignedBone)
+							{
+								tmp.Scale(getDrawable()->getScale());
+							}
+#else
 							tmp.Scale(getDrawable()->getScale());
+#endif
 							m_renderObject->Set_Transform(tmp);					// set to identity transform
 
-							const Matrix3D boneTransform = m_renderObject->Get_Bone_Transform(boneIndex);
+							const Matrix3D boneTransform = m_renderObject->Get_Bone_Transform(tracker.boneIndex);
 							Vector3 vpos = boneTransform.Get_Translation();
 							rotation = boneTransform.Get_Z_Rotation();
 
@@ -3392,13 +3668,28 @@ void W3DModelDraw::recalcBonesForClientParticleSystems()
 							pos.x = vpos.X;
 							pos.y = vpos.Y;
 							pos.z = vpos.Z;
+#if RTS_ZEROHOUR
+							if (useAlignedBone)
+							{
+								tracker.frozenBoneTransform = boneTransform;
+							}
+#endif
 						}
 
-						// got the bone position...
-						sys->setPosition(&pos);
-
-						// and the direction, so that the system is oriented like the bone is
-						sys->rotateLocalTransformZ(rotation);
+#if RTS_ZEROHOUR
+						if (useAlignedBone)
+						{
+							Matrix3D worldTransform;
+							worldTransform.mul(m_renderObject->Get_Transform(), tracker.frozenBoneTransform);
+							sys->setLocalTransform(&worldTransform);
+							sys->setSkipParentXfrm(true);
+						}
+						else
+#endif
+						{
+							sys->setPosition(&pos);
+							sys->rotateLocalTransformZ(rotation);
+						}
 
 						// Attach it to the object...
 						sys->attachToDrawable(drawable);
@@ -3414,10 +3705,6 @@ void W3DModelDraw::recalcBonesForClientParticleSystems()
 
 						// store the particle system id so we can kill it later.
 
-						ParticleSysTrackerType tracker;
-						tracker.id = sys->getSystemID();
-						tracker.boneIndex = boneIndex;
-
 						m_particleSystemIDs.push_back( tracker );
 					}
 				}
@@ -3428,6 +3715,31 @@ void W3DModelDraw::recalcBonesForClientParticleSystems()
 }
 
 
+
+#if RTS_ZEROHOUR
+void W3DModelDraw::updateFrozenBoneParticleSystems()
+{
+	if (!m_renderObject)
+	{
+		return;
+	}
+
+	const Matrix3D& modelTransform = m_renderObject->Get_Transform();
+	for (std::vector<ParticleSysTrackerType>::const_iterator it = m_particleSystemIDs.begin(); it != m_particleSystemIDs.end(); ++it)
+	{
+		if (!it->followsAnimatedBone)
+		{
+			ParticleSystem* sys = TheParticleSystemManager->findParticleSystem(it->id);
+			if (sys)
+			{
+				Matrix3D worldTransform;
+				worldTransform.mul(modelTransform, it->frozenBoneTransform);
+				sys->setLocalTransform(&worldTransform);
+			}
+		}
+	}
+}
+#endif
 
 //-------------------------------------------------------------------------------------------------
 /*
@@ -3449,12 +3761,15 @@ Bool W3DModelDraw::updateBonesForClientParticleSystems()
 	const Drawable* drawable = getDrawable();
 	if (drawable != nullptr && m_curState != nullptr && m_renderObject != nullptr )
 	{
-		for (std::vector<ParticleSysTrackerType>::const_iterator it = m_particleSystemIDs.begin(); it != m_particleSystemIDs.end(); ++it)
+		for (std::vector<ParticleSysTrackerType>::iterator it = m_particleSystemIDs.begin(); it != m_particleSystemIDs.end(); ++it)
 		{
 			ParticleSystem *sys = TheParticleSystemManager->findParticleSystem((*it).id);
 			Int boneIndex = (*it).boneIndex;
 			if ( (sys != nullptr) && (boneIndex != 0)  )
 			{
+#if RTS_ZEROHOUR
+				it->followsAnimatedBone = true;
+#endif
     		const Matrix3D boneTransform = m_renderObject->Get_Bone_Transform(boneIndex);// just a little worried about state changes
 
         Vector3 vpos = boneTransform.Get_Translation();
@@ -3565,13 +3880,15 @@ void W3DModelDraw::handleFXEvents()
 	*
 	* With footprint set, a renderer with the footprint shader outlines the collision shape instead. */
 //-------------------------------------------------------------------------------------------------
-void W3DModelDraw::setSelectionDecal(Bool enable, Real radius, Color color, Bool footprint)
+void W3DModelDraw::setSelectionDecal(Bool enable, Real radius, Color color, Bool footprint, Real dottedRadius, Color dottedColor)
 {
 	// remembered so the ring can be recreated after a model swap tears the render object down
 	m_selectionDecalWanted = enable;
 	m_selectionDecalRadius = radius;
 	m_selectionDecalColor = color;
 	m_selectionDecalFootprint = footprint;
+	m_selectionDecalDottedRadius = dottedRadius;
+	m_selectionDecalDottedColor = dottedColor;
 
 	if (m_selectionDecal)
 	{
@@ -3587,8 +3904,8 @@ void W3DModelDraw::setSelectionDecal(Bool enable, Real radius, Color color, Bool
 	decalInfo.allowWorldAlign = TRUE;	//wrap it around terrain and world objects
 	decalInfo.m_type = SHADOW_ALPHA_DECAL;
 	strlcpy(decalInfo.m_ShadowName, "PlainRingSelection", ARRAY_SIZE(decalInfo.m_ShadowName));
-	decalInfo.m_sizeX = radius * 2.0f;
-	decalInfo.m_sizeY = radius * 2.0f;
+	decalInfo.m_sizeX = max(radius, dottedRadius) * 2.0f;
+	decalInfo.m_sizeY = max(radius, dottedRadius) * 2.0f;
 	decalInfo.m_offsetX = 0.0f;
 	decalInfo.m_offsetY = 0.0f;
 
@@ -3606,6 +3923,8 @@ void W3DModelDraw::setSelectionDecal(Bool enable, Real radius, Color color, Bool
 	{
 		decalInfo.m_footprintIsRing = TRUE;
 		decalInfo.m_footprintMajor = radius;
+		decalInfo.m_footprintDottedRadius = dottedRadius;
+		decalInfo.m_footprintDottedColor = dottedColor;
 	}
 
 	m_selectionDecal = TheProjectedShadowManager->addDecal(m_renderObject, &decalInfo);
@@ -4125,6 +4444,9 @@ void W3DModelDraw::setModelState(const ModelConditionInfo* newState)
 			//|| (newState->m_validStuff & ModelConditionInfo::HAS_PROJECTILE_BONES)
 		)
 	{
+#if RTS_ZEROHOUR
+		const Bool hadRenderObject = m_renderObject != nullptr;
+#endif
 		Matrix3D transform;
 		nukeCurrentRender(&transform);
 		Drawable* draw = getDrawable();
@@ -4221,7 +4543,7 @@ void W3DModelDraw::setModelState(const ModelConditionInfo* newState)
 		// torn down; the object is still selected, so put the ring back on the new one.
 		if (m_selectionDecalWanted)
 		{
-			setSelectionDecal(TRUE, m_selectionDecalRadius, m_selectionDecalColor, m_selectionDecalFootprint);
+			setSelectionDecal(TRUE, m_selectionDecalRadius, m_selectionDecalColor, m_selectionDecalFootprint, m_selectionDecalDottedRadius, m_selectionDecalDottedColor);
 		}
 
 		if( m_renderObject )
@@ -4293,7 +4615,20 @@ void W3DModelDraw::setModelState(const ModelConditionInfo* newState)
 			// model transition is smooth and will immediately appear at the same orientation and location
 			// as the previous one
 			//
+#if RTS_ZEROHOUR
+			if (hadRenderObject)
+			{
+				m_renderObject->Set_ObjectScale(draw->getInstanceScale());
+				m_renderObject->Set_Transform(transform);
+			}
+			else
+			{
+				// The draw module list can still be under construction.
+				updateRenderObjectTransform(FALSE);
+			}
+#else
 			m_renderObject->Set_Transform(transform);
+#endif
 			onRenderObjRecreated();
 		}
 	}
@@ -4420,6 +4755,9 @@ Bool W3DModelDraw::getProjectileLaunchOffset(
 	WhichTurretType tur,
 	Coord3D* turretRotPos,
 	Coord3D* turretPitchPos
+#if RTS_ZEROHOUR
+	, Matrix3D* turretAxes
+#endif
 ) const
 {
 	/*
@@ -4481,6 +4819,12 @@ Bool W3DModelDraw::getProjectileLaunchOffset(
 	}
 #endif
 
+#if RTS_ZEROHOUR
+	const Bool queryTurretAxes = turretAxes && !launchPos && tur != TURRET_INVALID;
+	Matrix3D alignment;
+	Vector3 unalignedAttachment;
+	const Bool applyAlignment = getBoneAlignment(condition, alignment, -1, &unalignedAttachment);
+#endif
 	CRCDEBUG_LOG(("wslot = %d", wslot));
 	const ModelConditionInfo::WeaponBarrelInfoVec& wbvec = stateToUse->m_weaponBarrelInfoVec[wslot];
 	if( wbvec.empty() )
@@ -4522,7 +4866,11 @@ Bool W3DModelDraw::getProjectileLaunchOffset(
 	if (tur != TURRET_INVALID)
 	{
 #ifdef CACHE_ATTACH_BONE
+#if RTS_ZEROHOUR
+		const Vector3* offset = applyAlignment ? nullptr : &unalignedAttachment;
+#else
 		const Vector3* offset = d->getAttachToDrawableBoneOffset(getDrawable());
+#endif
 #endif
 		const ModelConditionInfo::TurretInfo& turInfo = stateToUse->m_turrets[tur];
 		if (turretRotPos)
@@ -4558,6 +4906,45 @@ Bool W3DModelDraw::getProjectileLaunchOffset(
 #endif
 		}
 	}
+#if RTS_ZEROHOUR
+	if (turretAxes)
+	{
+		turretAxes->Make_Identity();
+	}
+	if (applyAlignment)
+	{
+		if (turretAxes)
+		{
+			*turretAxes = alignment;
+			turretAxes->Set_Translation(Vector3(0.0f, 0.0f, 0.0f));
+		}
+		if (launchPos)
+		{
+			launchPos->preMul(alignment);
+		}
+		if (tur != TURRET_INVALID)
+		{
+			if (turretRotPos)
+			{
+				Vector3 pos;
+				Matrix3D::Transform_Vector(alignment, Vector3(turretRotPos->x, turretRotPos->y, turretRotPos->z), &pos);
+				turretRotPos->set(pos.X, pos.Y, pos.Z);
+			}
+			if (turretPitchPos)
+			{
+				Vector3 pos;
+				Matrix3D::Transform_Vector(alignment, Vector3(turretPitchPos->x, turretPitchPos->y, turretPitchPos->z), &pos);
+				turretPitchPos->set(pos.X, pos.Y, pos.Z);
+			}
+		}
+	}
+#endif
+#if RTS_ZEROHOUR
+	if (queryTurretAxes && applyAlignment && stateToUse->m_turrets[tur].m_turretAngleNameKey != NAMEKEY_INVALID)
+	{
+		return true;
+	}
+#endif
 	return launchPos != nullptr;// return if LaunchPos is valid or not
 }
 
@@ -4598,6 +4985,11 @@ Int W3DModelDraw::getPristineBonePositionsForConditionState(
 		getDrawable()->getScale(),
 		getW3DModelDrawModuleData()->m_extraPublicBones);
 
+#if RTS_ZEROHOUR
+	Matrix3D alignment;
+	const Bool applyAlignment = (positions || transforms) && getBoneAlignment(condition, alignment);
+#endif
+
 	const int MAX_BONE_GET = 64;
 	Matrix3D tmpMtx[MAX_BONE_GET];
 
@@ -4628,6 +5020,12 @@ Int W3DModelDraw::getPristineBonePositionsForConditionState(
 		if (mtx)
 		{
 			transforms[posCount] = *mtx;
+#if RTS_ZEROHOUR
+			if (applyAlignment)
+			{
+				transforms[posCount].preMul(alignment);
+			}
+#endif
 //			if (isValidTimeToCalcLogicStuff())
 //			{
 //				DUMPMATRIX3D(mtx);
@@ -4810,8 +5208,17 @@ Int W3DModelDraw::getCurrentBonePositions(
 #define DO_INV
 #ifdef DO_INV
 	Matrix3D inverse;
-	originalTransform.Get_Orthogonal_Inverse(inverse);
-	inverse.Scale(getDrawable()->getScale());
+#if RTS_ZEROHOUR
+	if (hasModelAlignment() || m_hasAlignedAttachment)
+	{
+		getDrawable()->getTransformMatrix()->Get_Inverse(inverse);
+	}
+	else
+#endif
+	{
+		originalTransform.Get_Orthogonal_Inverse(inverse);
+		inverse.Scale(getDrawable()->getScale());
+	}
 #else
 	Matrix3D tmp(true);
 	tmp.Scale(getDrawable()->getScale());
@@ -4882,14 +5289,15 @@ void W3DModelDraw::reactToTransformChange( const Matrix3D* oldMtx,
 	// set the position of our render object
 	if( m_renderObject )
 	{
-		Matrix3D mtx = *getDrawable()->getTransformMatrix();
-
-		// Scale like doDrawModule, or a fogged object that was never drawn is ghosted at its unscaled size.
 #if RTS_ZEROHOUR
-		Real scale = getDrawable()->getObjectScale() * getDrawable()->getInstanceScale();
+		updateRenderObjectTransform(TRUE);
+		if (m_useModelTransformForParticles)
+		{
+			updateFrozenBoneParticleSystems();
+		}
 #else
+		Matrix3D mtx = *getDrawable()->getTransformMatrix();
 		Real scale = getDrawable()->getInstanceScale();
-#endif
 		if (scale != 1.0f)
 		{
 			mtx.Scale(scale);
@@ -4897,12 +5305,28 @@ void W3DModelDraw::reactToTransformChange( const Matrix3D* oldMtx,
 
 		adjustTransformMtx(mtx);
 		m_renderObject->Set_Transform(mtx);
+#endif
 	}
 
 	if (m_trackRenderObject && getDrawable()->getObject())
 	{
 		Object *obj = getDrawable()->getObject();
 		const Coord3D* pos = getDrawable()->getPosition();
+#if RTS_ZEROHOUR
+		Coord3D trackCenter;
+		if (m_renderObject && (hasModelAlignment() || m_hasAlignedAttachment))
+		{
+			const Int left = m_renderObject->Get_Bone_Index("TREADFX01");
+			const Int right = m_renderObject->Get_Bone_Index("TREADFX02");
+			if (left != 0 && right != 0)
+			{
+				const Vector3 center = (m_renderObject->Get_Bone_Transform(left).Get_Translation() +
+					m_renderObject->Get_Bone_Transform(right).Get_Translation()) * 0.5f;
+				trackCenter.set(center.X, center.Y, center.Z);
+				pos = &trackCenter;
+			}
+		}
+#endif
 
 		// Tread edges are oriented from the direction of travel, so a forward<->reverse switch would flip
 		// the handedness of the next edge and twist the quad bridging it to the previous one. Track the

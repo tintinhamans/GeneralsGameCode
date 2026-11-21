@@ -460,6 +460,11 @@ GameMessageDisposition SelectionTranslator::translateGameMessage(const GameMessa
 			disp = onMetaCreateTeam(msg);
 			break;
 		}
+		case GameMessage::MSG_META_AUTO_CREATE_TEAMS:
+		{
+			disp = onMetaAutoCreateTeams(msg);
+			break;
+		}
 		case GameMessage::MSG_META_SELECT_TEAM0:
 		case GameMessage::MSG_META_SELECT_TEAM1:
 		case GameMessage::MSG_META_SELECT_TEAM2:
@@ -1260,6 +1265,31 @@ GameMessageDisposition SelectionTranslator::onMetaCreateTeam(MAYBE_UNUSED const 
 			}
 			drawable = drawable->getNextDrawable();
 		}
+	}
+
+	return DESTROY_MESSAGE;
+}
+
+GameMessageDisposition SelectionTranslator::onMetaAutoCreateTeams(MAYBE_UNUSED const GameMessage *msg)
+{
+	// teams run 1 to 9 then 0, the order of the number row
+	Int taken = 0;
+	const DrawableList *selected = TheInGameUI->getAllSelectedDrawables();
+	// the list holds the newest selection first
+	for (DrawableList::const_reverse_iterator it = selected->rbegin(); it != selected->rend() && taken < NUM_HOTKEY_SQUADS; ++it)
+	{
+		Object *obj = (*it)->getObject();
+		if (obj == nullptr || !obj->isLocallyControlled())
+		{
+			continue;
+		}
+		if (obj->isKindOf(KINDOF_IGNORED_IN_GUI) || obj->getStatusBits().test(OBJECT_STATUS_SOLD))
+		{
+			continue;
+		}
+		++taken;
+		GameMessage *newmsg = TheMessageStream->appendMessage((GameMessage::Type)(GameMessage::MSG_CREATE_TEAM0 + taken % NUM_HOTKEY_SQUADS));
+		newmsg->appendObjectIDArgument(obj->getID());
 	}
 
 	return DESTROY_MESSAGE;

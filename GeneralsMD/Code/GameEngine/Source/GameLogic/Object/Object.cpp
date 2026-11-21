@@ -30,6 +30,8 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 #define DEFINE_WEAPONCONDITIONMAP
+#include "WWMath/quat.h"
+
 #include "Common/BitFlagsIO.h"
 #include "Common/BuildAssistant.h"
 #include "Common/Dict.h"
@@ -1716,6 +1718,14 @@ Bool Object::getAmmoPipShowingInfo(Int& numTotal, Int& numFull) const
 //=============================================================================
 Bool Object::getProgressBarShowingInfo(bool selected, Real& progress, Int& type, RGBAColorInt& color, RGBAColorInt& colorBG) const
 {
+	if( m_defectionHelper && m_defectionHelper->getVehicleControlProgress( progress ) && isLocallyControlled() )
+	{
+		type = 0;
+		color = { 255, 255, 255, 255 };
+		colorBG = { 0, 0, 0, 255 };
+		return TRUE;
+	}
+
 	if (!isKindOf(KINDOF_SHOW_PROGRESS_BAR))
 		return FALSE;
 
@@ -6892,7 +6902,8 @@ Bool Object::getSingleLogicalBonePositionOnTurret( WhichTurretType whichTurret, 
 		return FALSE;
 
 	// We need to find the TurretBone's pristine position.
-	getDrawable()->getProjectileLaunchOffset( PRIMARY_WEAPON, 1, nullptr, whichTurret, &turretPosition, nullptr );
+	Matrix3D turretAxes(true);
+	getDrawable()->getProjectileLaunchOffset( PRIMARY_WEAPON, 1, nullptr, whichTurret, &turretPosition, nullptr, &turretAxes );
 	// And the required bone's pristine position
 	if( getDrawable()->getPristineBonePositions(boneName, 0, &bonePosition, nullptr, 1) != 1 )
 		return FALSE;
@@ -6913,7 +6924,14 @@ Bool Object::getSingleLogicalBonePositionOnTurret( WhichTurretType whichTurret, 
 	Matrix3D turnAdjustment(TRUE);// this is the turret twist to be applied to the final answer
 
 	turnAdjustment.Translate( turretPosition.x, turretPosition.y, turretPosition.z );
-	turnAdjustment.In_Place_Pre_Rotate_Z(turretRotation);
+	if (turretAxes == Matrix3D::Identity)
+	{
+		turnAdjustment.In_Place_Pre_Rotate_Z(turretRotation);
+	}
+	else
+	{
+		turnAdjustment.Set_Rotation(Quaternion(turretAxes.Get_Z_Vector(), turretRotation));
+	}
 	turnAdjustment.Translate( -turretPosition.x, -turretPosition.y, -turretPosition.z );
 
 	Matrix3D boneLogicTransform;
@@ -6989,6 +7007,32 @@ Bool Object::canProduceUpgrade( const UpgradeTemplate *upgrade )
 //=============================================================================
 // Object::defect, and related methods                                        =
 //=============================================================================
+void Object::startVehicleControl( Object *source, UnsignedInt duration, UnsignedInt sustain, Bool continuous )
+{
+	if( m_defectionHelper )
+	{
+		m_defectionHelper->startVehicleControl( source, duration, sustain, continuous );
+	}
+}
+
+void Object::stopVehicleControl( ObjectID sourceID )
+{
+	if( m_defectionHelper )
+	{
+		m_defectionHelper->stopVehicleControl( sourceID );
+	}
+}
+
+Bool Object::isVehicleControlled() const
+{
+	return m_defectionHelper && m_defectionHelper->isVehicleControlled();
+}
+
+Bool Object::isVehicleControlledBy( ObjectID sourceID ) const
+{
+	return m_defectionHelper && m_defectionHelper->isVehicleControlledBy( sourceID );
+}
+
 void Object::defect( Team* newTeam, UnsignedInt detectionTime )
 {
 	if ( isContained() ) //@todo (KRIS?) make contained units unselectable, until then... lorenzen

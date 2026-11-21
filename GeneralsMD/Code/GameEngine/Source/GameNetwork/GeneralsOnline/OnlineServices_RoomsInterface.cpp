@@ -1124,7 +1124,7 @@ void WebSocket::Tick()
 											}
 											else
 											{
-												strFormat = UnicodeString(L"Press F5 or INSERT to bring up the communicator at any time (including in-game).");
+												strFormat = UnicodeString(L"Press Shift+F5 or INSERT to bring up the communicator at any time (including in-game).");
 											}
 
 											// show it on the communicator too

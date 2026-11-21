@@ -782,6 +782,16 @@ public:
 
 	Bool getRetryPath() {return m_retryPath;}
 	Bool takeCappedPathLeg(); ///< True when the current path stopped at the search cap and another leg toward the goal is allowed.
+	/// TheSuperHackers @feature simonx645 16/11/2026 "exitpass" (GameLogic/PathTuning.h): leaving a door at start for end
+	void startExitPass( const Coord3D *start, const Coord3D *end );
+	Bool isExitPassing() const;
+	/// TheSuperHackers @feature simonx645 16/11/2026 "colhold" (GameLogic/PathTuning.h): the goal the group's goal finder
+	/// gave this unit; a move whose goal is exactly it holds it
+	void setGivenGoal( const Coord3D *goal );
+	Bool isGivenGoal( const Coord3D *pos ) const;
+	Bool takeGoalTakenAim( const Coord3D *goal, Coord3D *aim );	///< "goaltaken": the re-aim noted for this goal, once
+	Bool isOnGivenGoalLastLeg() const;	///< "colhold": a held move on its follow path's last leg
+	const Coord3D *getGivenGoal() const { return m_hasGivenGoal ? &m_givenGoal : nullptr; }	///< "colhold"
 
 	void setAllowedToChase( Bool allow ) { m_allowedToChase = allow; }
 	Bool isAllowedToChase() const { return m_allowedToChase; }
@@ -940,6 +950,16 @@ private:
 	Bool				m_retryPath;								///< If true, we need to try the path a second time.  jba.
 	Bool				m_pathWasCapped;						///< True if the current path stopped at the search cell cap short of the goal.
 	UnsignedByte		m_cappedLegs;								///< Capped paths chained so far toward one goal.
+	Int					m_headOnFrames;							///< "headon": frames held up head on in a row (not saved)
+	Bool				m_headOnSeen;								///< "headon": held up head on this frame
+	UnsignedInt			m_exitPassUntil;				///< "exitpass": allies pass through until this frame (not saved)
+	Coord3D				m_exitPassFrom;					///< "exitpass": the door
+	Coord3D				m_exitPassTo;					///< "exitpass": the end of the exit corridor
+	Coord3D				m_givenGoal;					///< "colhold": the goal finder's goal (not saved)
+	Bool				m_hasGivenGoal;					///< "colhold"
+	Bool				m_goalTakenPending;							///< "goaltaken": a re-aim is noted (not saved)
+	Coord3D				m_goalTakenFrom, m_goalTakenAim;			///< "goaltaken": the given goal it was for, the box it aims at
+	UnsignedInt			m_givenGoalFrame;				///< "colhold": the frame it was given (that frame's commands keep it)
 	Bool				m_allowedToChase;						///< Allowed to pursue targets.
 	Bool				m_isInUpdate;								///< If true, we are inside our update method.
 	Bool				m_fixLocoInPostProcess;

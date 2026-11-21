@@ -1037,11 +1037,26 @@ void ScriptActions::doCreateObject(const AsciiString& objectName, const AsciiStr
 			obj->setOrientation(angle);
 			obj->setPosition( pos );
 
+			// TheSuperHackers @bugfix simonx645 16/11/2026 An object a script makes is placed as the map places one: built
+			// (its create modules' onBuildComplete, so a supply center registers and creation upgrades are given), and a
+			// structure is stamped into the pathfind map, as an object creation list's structure is. It was neither, so
+			// units drove through a scripted building and trucks never unloaded at a scripted supply center.
+			for (BehaviorModule** m = obj->getBehaviorModules(); *m; ++m)
+			{
+				CreateModuleInterface* create = (*m)->getCreate();
+				if (create)
+					create->onBuildComplete();
+			}
+
       if ( obj->isKindOf( KINDOF_BLAST_CRATER ) ) // since these footprints are permanent
       {
         TheTerrainLogic->createCraterInTerrain( obj );
         TheAI->pathfinder()->addObjectToPathfindMap( obj );
       }
+			else if ( obj->isKindOf( KINDOF_STRUCTURE ) )
+			{
+				TheAI->pathfinder()->addObjectToPathfindMap( obj );
+			}
 
 
 		}

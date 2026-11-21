@@ -43,6 +43,9 @@ W3DShockwaveManager *TheW3DShockwaves = nullptr;
 // StrengthInPixels counts pixels on a screen this many lines tall, so it looks the same at any resolution.
 static const Real REFERENCE_SCREEN_LINES = 1080.0f;
 
+// A water ring sits this high above the surface so it clears water that writes depth.
+static const Real WATER_RING_LIFT = 0.5f;
+
 // Where a world position lands in the scene copy, and its clip-space w.
 static Vector3 Scene_UV(const Vector3 &world, const D3DMATRIX &viewProjection, const Vector4 &screenMap)
 {
@@ -85,7 +88,7 @@ void W3DShockwaveManager::ReleaseResources()
 	m_loaded = FALSE;
 }
 
-void W3DShockwaveManager::add(const Coord3D &position, Real radius, Real width, Real strength, Bool strengthInPixels, UnsignedInt durationMs)
+void W3DShockwaveManager::add(const Coord3D &position, Real radius, Real width, Real strength, Bool strengthInPixels, UnsignedInt durationMs, Int rings, Real highlight, Bool onWater)
 {
 	if (radius <= 0.0f || width <= 0.0f || durationMs == 0)
 	{
@@ -110,6 +113,9 @@ void W3DShockwaveManager::add(const Coord3D &position, Real radius, Real width, 
 	shockwave.strengthInPixels = strengthInPixels;
 	shockwave.startMs = WW3D::Get_Sync_Time();
 	shockwave.durationMs = durationMs;
+	shockwave.rings = (rings > 1) ? rings : 1;
+	shockwave.highlight = highlight;
+	shockwave.onWater = onWater;
 }
 
 void W3DShockwaveManager::render(RenderInfoClass &rinfo)
@@ -192,7 +198,7 @@ void W3DShockwaveManager::render(RenderInfoClass &rinfo)
 			{
 				verts->x = shockwave.position.x + corners[c][0] * halfSize;
 				verts->y = shockwave.position.y + corners[c][1] * halfSize;
-				verts->z = shockwave.position.z;
+				verts->z = shockwave.onWater ? shockwave.position.z + WATER_RING_LIFT : shockwave.position.z;
 				verts->nx = 0.0f;
 				verts->ny = 0.0f;
 				verts->nz = 1.0f;
@@ -226,10 +232,11 @@ void W3DShockwaveManager::render(RenderInfoClass &rinfo)
 	DX8Wrapper::Set_Index_Buffer(ibAccess, 0);
 	DX8Wrapper::Apply_Render_State_Changes();
 
-	// The rings ripple the air, so nothing in front of them hides them. No shader restores ZENABLE, so it is put back after.
+	// Air rings ignore depth, and the shore and anything in front hide water rings. No shader restores ZENABLE, so it is put back after.
 	DWORD depthTest = D3DZB_TRUE;
 	device->GetRenderState(D3DRS_ZENABLE, &depthTest);
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZENABLE, FALSE);
+	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZWRITEENABLE, FALSE);
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE, FALSE);
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE, FALSE);
@@ -274,8 +281,11 @@ void W3DShockwaveManager::render(RenderInfoClass &rinfo)
 		// A pixel push is measured in scene heights, with u scaled to match, so it bends the same pixels every way.
 		const Real uScale = shockwave.strengthInPixels ? sceneAspect : 1.0f;
 		const Vector4 ringCenter(centerUV.X, centerUV.Y, uScale, 1.0f / uScale);
+		const Vector4 shape((Real)shockwave.rings, shockwave.rings > 1 ? 1.0f : 0.0f, shockwave.highlight * fade, 0.0f);
 		DX8Wrapper::Set_Pixel_Shader_Constant(0, &ring, 1);
 		DX8Wrapper::Set_Pixel_Shader_Constant(1, &ringCenter, 1);
+		DX8Wrapper::Set_Pixel_Shader_Constant(3, &shape, 1);
+		DX8Wrapper::Set_DX8_Render_State(D3DRS_ZENABLE, shockwave.onWater ? D3DZB_TRUE : D3DZB_FALSE);
 		DX8Wrapper::Draw_Triangles(i * 6, 2, i * 4, 4);
 	}
 

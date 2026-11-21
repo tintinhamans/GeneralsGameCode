@@ -25,8 +25,8 @@ The default executable is `C:\Games\contra\contraprerelease\generalszh_c.exe`.
 ## Debug panel
 
 `Ctrl + Shift + Tab` shows or hides the debug panel near the upper-right corner during a match
-or replay. The Shaders, Unit spawner and Cheats tabs switch between rendering controls, unit
-placement and gameplay cheats.
+or replay. The Shaders, Unit spawner, Cheats, and Model alignment tabs provide
+rendering controls, unit placement, gameplay cheats, and live model adjustments.
 The X hides the panel; the rest of the screen remains usable and the game keeps running.
 Drag the title bar to move the panel. Spawner controls highlight selected entries without changing
 their appearance on hover.
@@ -69,6 +69,17 @@ copy until right-click or Escape ends placement and returns to the panel. Spawn 
 Spawning works in single-player campaign and skirmish matches. Replays and multiplayer games
 can browse the list but cannot place objects. Spawns use the existing chat-command spawn path,
 so the engine creates the object during its logic update and completes its build callbacks.
+
+### Model alignment
+
+Select one object in a single-player match and open **Model alignment**. If the
+object has several W3D draw modules, use the buttons beside the module tag to
+switch between them. Offset changes in 0.25-unit steps. Yaw, pitch, and roll
+change in one-degree steps.
+
+Changes apply to the selected instance. **Reset to INI** restores that module's
+configured values. The panel keeps edits for the current match and does not
+write them to INI files or saves.
 
 ### Cheats
 
@@ -189,8 +200,8 @@ movement in Cells or Paths mode.
 While on, a `PFSTAT` line lands once a second whenever the pathfinder did anything: requests waiting,
 requests refused by a full queue, searches and how many stopped at the cell cap, coarse hits and
 misses, cell records used, the largest search, records left, zone count, searches by kind (find,
-closest, patch, move-away, attack, safe, ground), zone screen refusals, blocked repaths, and units
-shoved off invalid cells. The file explains each field in its header. The first start in a session
+closest, patch, move-away, attack, safe, ground), zone screen refusals, blocked repaths, units
+shoved off invalid cells, and leaked cell records returned to the pool. The file explains each field in its header. The first start in a session
 replaces the file, later starts append.
 
 ## Other cheat hotkeys

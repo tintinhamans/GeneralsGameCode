@@ -55,6 +55,7 @@
 #include "GameLogic/AI.h"
 #include "GameLogic/AIPathfind.h"
 #include "GameLogic/CommandSequence.h"
+#include "GameLogic/PathTuning.h"
 #include "GameLogic/Locomotor.h"
 #include "GameLogic/Module/AIUpdate.h"
 #include "GameLogic/Module/BodyModule.h"
@@ -424,6 +425,17 @@ AIUpdateInterface::AIUpdateInterface( Thing *thing, const ModuleData* moduleData
 	m_isRecruitable = TRUE; // Things default to being recruitable.
 	m_executingWaypointQueue = FALSE;
 	m_retryPath = FALSE;
+	m_headOnFrames = 0;
+	m_headOnSeen = FALSE;
+	m_exitPassUntil = 0;
+	m_exitPassFrom.zero();
+	m_exitPassTo.zero();
+	m_givenGoal.zero();
+	m_hasGivenGoal = FALSE;
+	m_goalTakenPending = FALSE;
+	m_goalTakenFrom.zero();
+	m_goalTakenAim.zero();
+	m_givenGoalFrame = 0;
 	m_pathWasCapped = FALSE;
 	m_cappedLegs = 0;
 	m_isInUpdate = FALSE;
@@ -615,6 +627,38 @@ void AIUpdateInterface::doPathfind( PathfindServicesInterface *pathfinder )
 	if (m_isFinalGoal && isDoingGroundMovement() && getPath()) {
 		TheAI->pathfinder()->updateGoal(getObject(), getPath()->getLastNode()->getPosition(),
 			getPath()->getLastNode()->getLayer());
+	}
+	// TheSuperHackers @feature simonx645 16/11/2026 "goaltaken" (GameLogic/PathTuning.h): the search to the given goal
+	// failed or ended more than a cell and a half short (not a capped leg, which paths on) while the given goal's box is
+	// taken: the unit would ask for the same goal again and again (T6: an APC 4 cells short of a box an enemy was parked
+	// in, 10 s). Its goal comes off the box, the destination spiral finds the nearest free box from the given goal, and the
+	// move state aims there at once (takeGoalTakenAim). Found nothing, the goal goes back as it was.
+	if (PathTuning::GoalTaken && m_hasGivenGoal && isDoingGroundMovement() && isGivenGoal(&m_requestedDestination) &&
+		!m_pathWasCapped)
+	{
+		Bool shortOfGoal = getPath() == nullptr;
+		if (!shortOfGoal) {
+			const Coord3D *end = getPath()->getLastNode()->getPosition();
+			const Real dx = end->x - m_givenGoal.x;
+			const Real dy = end->y - m_givenGoal.y;
+			shortOfGoal = dx * dx + dy * dy > sqr(1.5f * PATHFIND_CELL_SIZE_F);
+		}
+		if (shortOfGoal && !TheAI->pathfinder()->givenBoxClear(getObject(), &m_givenGoal)) {
+			Coord3D aim = m_givenGoal;
+			TheAI->pathfinder()->removeGoal(getObject());
+			const Bool found = TheAI->pathfinder()->adjustDestination(getObject(), m_locomotorSet, &aim);
+			if (found && (aim.x != m_givenGoal.x || aim.y != m_givenGoal.y)) {
+				TheAI->pathfinder()->updateGoal(getObject(), &aim, LAYER_GROUND);
+				m_goalTakenFrom = m_givenGoal;
+				m_goalTakenAim = aim;
+				m_goalTakenPending = TRUE;
+			} else if (m_isFinalGoal && getPath()) {
+				TheAI->pathfinder()->updateGoal(getObject(), getPath()->getLastNode()->getPosition(),
+					getPath()->getLastNode()->getLayer());
+			} else {
+				TheAI->pathfinder()->updateGoal(getObject(), &m_givenGoal, LAYER_GROUND);
+			}
+		}
 	}
 	if (m_queueForPathFrame > TheGameLogic->getFrame()) {
 		m_waitingForPath = TRUE;
@@ -1209,6 +1253,101 @@ void AIUpdateInterface::queueForPathOrRetry()
 	setQueueForPathTime(PATHFIND_QUEUE_RETRY_FRAMES + (getObject()->getID() & 3));
 }
 
+// TheSuperHackers @feature simonx645 16/11/2026 "exitpass" (GameLogic/PathTuning.h). The window: a second plus the time to
+// drive from rest to the end of the exit corridor, at most 5 s. It ends early once the unit is past the corridor's end
+// by its own size, or has left the corridor's side.
+void AIUpdateInterface::startExitPass( const Coord3D *start, const Coord3D *end )
+{
+	if (!PathTuning::ExitPass || start == nullptr || end == nullptr) {
+		return;
+	}
+	Int frames = LOGICFRAMES_PER_SECOND;
+	const Locomotor *loco = getCurLocomotor();
+	if (loco != nullptr) {
+		const BodyDamageType damage = getObject()->getBodyModule()->getDamageState();
+		const Real speed = loco->getMaxSpeedForCondition(damage);
+		const Real accel = loco->getMaxAcceleration(damage);
+		const Real dx = end->x - start->x, dy = end->y - start->y;
+		const Real dist = sqrtf(dx * dx + dy * dy);
+		if (speed > 0.0f && accel > 0.0f) {
+			const Real accelDist = speed * speed / (2.0f * accel);
+			const Real travel = dist <= accelDist ? sqrtf(2.0f * dist / accel) : speed / accel + (dist - accelDist) / speed;
+			frames += REAL_TO_INT_CEIL(travel);
+		}
+	}
+	if (frames > 5 * LOGICFRAMES_PER_SECOND) {
+		frames = 5 * LOGICFRAMES_PER_SECOND;
+	}
+	m_exitPassUntil = TheGameLogic->getFrame() + frames;
+	m_exitPassFrom = *start;
+	m_exitPassTo = *end;
+}
+
+Bool AIUpdateInterface::isExitPassing() const
+{
+	return m_exitPassUntil > TheGameLogic->getFrame();
+}
+
+void AIUpdateInterface::setGivenGoal( const Coord3D *goal )
+{
+	if (goal == nullptr) {
+		m_hasGivenGoal = FALSE;
+		return;
+	}
+	m_givenGoal = *goal;
+	m_hasGivenGoal = TRUE;
+	m_givenGoalFrame = TheGameLogic->getFrame();
+}
+
+Bool AIUpdateInterface::isOnGivenGoalLastLeg() const
+{
+	if (!m_hasGivenGoal || getCurrentStateID() != AI_FOLLOW_PATH) {
+		return FALSE;
+	}
+	const Int index = friend_getCurrentGoalPathIndex();
+	return index >= 0 && friend_getGoalPathPosition(index) != nullptr && friend_getGoalPathPosition(index + 1) == nullptr;
+}
+
+// "goaltaken": the re-aim doPathfind noted, if it was for this goal; taken once
+Bool AIUpdateInterface::takeGoalTakenAim( const Coord3D *goal, Coord3D *aim )
+{
+	if (!m_goalTakenPending || goal == nullptr) {
+		return FALSE;
+	}
+	m_goalTakenPending = FALSE;
+	if (goal->x != m_goalTakenFrom.x || goal->y != m_goalTakenFrom.y) {
+		return FALSE;
+	}
+	*aim = m_goalTakenAim;
+	return TRUE;
+}
+
+Bool AIUpdateInterface::isGivenGoal( const Coord3D *pos ) const
+{
+	return m_hasGivenGoal && pos != nullptr && pos->x == m_givenGoal.x && pos->y == m_givenGoal.y;
+}
+
+static void Exit_Pass_Check(Object *self, UnsignedInt &until, const Coord3D &from, const Coord3D &to)
+{
+	if (until <= TheGameLogic->getFrame()) {
+		until = 0;
+		return;
+	}
+	const Real ax = to.x - from.x, ay = to.y - from.y;
+	const Real length = sqrtf(ax * ax + ay * ay);
+	const Real r = self->getGeometryInfo().getBoundingCircleRadius();
+	const Real px = self->getPosition()->x - from.x, py = self->getPosition()->y - from.y;
+	if (length < 0.01f) {
+		if (px * px + py * py > (r * 2.0f + PATHFIND_CELL_SIZE_F) * (r * 2.0f + PATHFIND_CELL_SIZE_F)) until = 0;
+		return;
+	}
+	const Real along = (px * ax + py * ay) / length;
+	const Real across = (px * ay - py * ax) / length;
+	if (along > length + r || (across < 0.0f ? -across : across) > r * 2.0f + PATHFIND_CELL_SIZE_F) {
+		until = 0;	// clear of the corridor
+	}
+}
+
 //-------------------------------------------------------------------------------------------------
 Bool AIUpdateInterface::takeCappedPathLeg()
 {
@@ -1603,7 +1742,9 @@ void AIUpdateInterface::markAsDead()
 {
 	m_isAiDead = TRUE;
 	// the pathfinder drops a unit that stopped being a ground mover on its next move, which a corpse never makes
-	if (!isDoingGroundMovement())
+	// TheSuperHackers @feature simonx645 16/11/2026 "dead" (GameLogic/PathTuning.h): every dead unit leaves the pathfind
+	// map at once, so the search no longer takes a dying soldier for a fixed unit (crushers still squash corpses)
+	if (PathTuning::DeadLeaveGrid || !isDoingGroundMovement())
 	{
 		TheAI->pathfinder()->removeUnitFromPathfindMap(getObject());
 	}
@@ -1793,6 +1934,16 @@ Bool AIUpdateInterface::blockedBy(Object *other)
 	if (getNumFramesBlocked()>LOGICFRAMES_PER_SECOND) {
 		if (dotProduct<=0.0f) return FALSE;  // we are not moving in the same direction.
 	}
+	// TheSuperHackers @feature simonx645 16/11/2026 "headon" (GameLogic/PathTuning.h): the rule above rarely fires, as the
+	// blocked count drops back to 1 on any frame the locomotor reports itself free, so two units meeting nose to nose
+	// stood there. Head on (more than 120 degrees apart, the other moving too) counts on its own: past 8 frames in a
+	// row they pass. The 90 to 120 degree case keeps the rule above.
+	if (PathTuning::HeadOnPass && otherMoving && dotProduct <= -0.5f) {
+		m_headOnSeen = TRUE;
+		if (m_headOnFrames > 8) {
+			return FALSE;
+		}
+	}
 
 	Real collisionAngle = ThePartitionManager->getRelativeAngle2D( obj, &otherPos );
 	Real otherAngle = ThePartitionManager->getRelativeAngle2D( other, &pos );
@@ -1884,6 +2035,12 @@ Bool AIUpdateInterface::processCollision(PhysicsBehavior *physics, Object *other
 	if (m_ignoreCollisionsUntil > TheGameLogic->getFrame())
 		return FALSE;
 
+	// TheSuperHackers @feature simonx645 16/11/2026 "exitpass" (GameLogic/PathTuning.h): a unit coming out of a door and its
+	// allies pass through each other until it is clear of the exit corridor; enemies and structures still collide
+	if (PathTuning::ExitPass && getObject()->getRelationship(other) == ALLIES &&
+		(isExitPassing() || (other->getAI() != nullptr && other->getAI()->isExitPassing())))
+		return FALSE;
+
 	if (m_canPathThroughUnits)
 		return FALSE;
 
@@ -1931,6 +2088,25 @@ Bool AIUpdateInterface::processCollision(PhysicsBehavior *physics, Object *other
 			}
 
 			if (!aiOther->isMovingAwayFrom(getObject())) {
+
+				// TheSuperHackers @feature simonx645 16/11/2026 "colhold" (GameLogic/PathTuning.h): make way. A unit whose
+				// footprint was capped (a hull wider than its 5x5 box) wedged against idle allies parked flush with its goal
+				// box: blocked, but turning in place, so its blocked count never grew and nothing repathed it (T12b: a
+				// Seraphim 227 s between two Combat Bikes). On its last leg near its given goal, with the goal's box clear,
+				// it asks the idle ally to move away, as retail asks infantry; the ally's filters are moveAllies'.
+				if (PathTuning::ColHold && isOnGivenGoalLastLeg() && TheAI->pathfinder()->footprintCapped(getObject()) &&
+					getObject()->getRelationship(other) == ALLIES && aiOther->isIdle() && !aiOther->isAttacking() &&
+					!other->testStatus( OBJECT_STATUS_IS_USING_ABILITY ) && !aiOther->isBusy())
+				{
+					const Real gx = getObject()->getPosition()->x - m_givenGoal.x;
+					const Real gy = getObject()->getPosition()->y - m_givenGoal.y;
+					const Real nearDist = (Real)(TheAI->pathfinder()->footprintCells(getObject()) + 3) * PATHFIND_CELL_SIZE_F;
+					if (gx * gx + gy * gy <= nearDist * nearDist && TheAI->pathfinder()->givenBoxClear(getObject(), &m_givenGoal))
+					{
+						aiOther->aiMoveAwayFromUnit(getObject(), CMD_FROM_AI);
+						return FALSE;
+					}
+				}
 
 				if (other->isKindOf(KINDOF_INFANTRY) && !getObject()->isKindOf(KINDOF_INFANTRY))
 				{
@@ -2689,6 +2865,14 @@ UpdateSleepTime AIUpdateInterface::doLocomotor()
 
 	chooseGoodLocomotorFromCurrentSet();
 
+	if (PathTuning::HeadOnPass) {
+		m_headOnFrames = m_headOnSeen ? m_headOnFrames + 1 : 0;	// "headon"
+		m_headOnSeen = FALSE;
+	}
+	if (m_exitPassUntil != 0) {
+		Exit_Pass_Check(getObject(), m_exitPassUntil, m_exitPassFrom, m_exitPassTo);	// "exitpass"
+	}
+
 	// Disabled check
 	Bool disabled = getObject()->isDisabled() && !getObject()->isDisabledByType(DISABLED_HELD);
 	if (disabled && m_curLocomotor != NULL)
@@ -3430,6 +3614,9 @@ void AIUpdateInterface::aiDoCommand(const AICommandParms* parms)
 	if (!isAllowedToRespondToAiCommands(parms))
 		return;
 
+	if (PathTuning::GoalTaken)
+		m_goalTakenPending = FALSE;	// "goaltaken": a new order drops a noted re-aim
+
 	if (!m_issuingFormationMove)
 	{
 		cancelFacingMove();
@@ -3474,6 +3661,11 @@ void AIUpdateInterface::aiDoCommand(const AICommandParms* parms)
 
 
 	m_cappedLegs = 0;
+	// "colhold": a new command ends the hold, but for the commands of the frame the goal was given (the group move's own)
+	// and a move out of the way
+	if (m_hasGivenGoal && parms->m_cmd != AICMD_MOVE_AWAY_FROM_UNIT && TheGameLogic->getFrame() != m_givenGoalFrame) {
+		m_hasGivenGoal = FALSE;
+	}
 
 	// Any new order cancels a forced-reverse move; the REVERSE_MOVE case below re-sets it.
 	m_forceMoveBackwards = FALSE;

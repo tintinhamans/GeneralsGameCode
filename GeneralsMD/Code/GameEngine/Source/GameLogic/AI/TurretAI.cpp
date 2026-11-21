@@ -632,6 +632,9 @@ Bool TurretAI::friend_turnTowardsPitch(Real desiredPitch, Real rateModifier)
 	// rotate turret back to zero angle
 	Real actualPitch = getTurretPitch();
 	Real pitchRate = getPitchRate() * rateModifier;
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+	pitchRate *= 2.f;
+#endif
 	Real pitchDiff = normalizeAngle(desiredPitch - actualPitch);
 
 	if (WWMath::Fabs(pitchDiff) < pitchRate)
@@ -1561,6 +1564,8 @@ void TurretAIIdleState::resetIdleScan()
 //----------------------------------------------------------------------------------------------------------
 StateReturnType TurretAIIdleState::onEnter()
 {
+	getMachineOwner()->clearModelConditionState(MODELCONDITION_TURRET_ROTATE);
+
 	AIUpdateInterface *ai = getMachineOwner()->getAIUpdateInterface();
 	if (ai)
 	{
@@ -1654,11 +1659,7 @@ StateReturnType TurretAIIdleScanState::update()
   if( getMachineOwner()->testStatus( OBJECT_STATUS_UNDER_CONSTRUCTION))
     return STATE_CONTINUE;//ML so that under-construction base-defenses do not idle-scan while under construction
 
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
-	Bool angleAligned = getTurretAI()->friend_turnTowardsAngle(getTurretAI()->getNaturalTurretAngle() + m_desiredAngle, 0.5f, 0.5f);
-#else
 	Bool angleAligned = getTurretAI()->friend_turnTowardsAngle(getTurretAI()->getNaturalTurretAngle() + m_desiredAngle, 0.5f, 0.0f);
-#endif
 	Bool pitchAligned = getTurretAI()->friend_turnTowardsPitch(getTurretAI()->getNaturalTurretPitch(), 0.5f);
 
 	if( angleAligned && pitchAligned )
@@ -1709,6 +1710,8 @@ void TurretAIHoldTurretState::loadPostProcess()
 //----------------------------------------------------------------------------------------------------------
 StateReturnType TurretAIHoldTurretState::onEnter()
 {
+	getMachineOwner()->clearModelConditionState(MODELCONDITION_TURRET_ROTATE);
+
 	m_timestamp = TheGameLogic->getFrame() + getTurretAI()->getRecenterTime();
 
 	TurretAI* turret = getTurretAI();

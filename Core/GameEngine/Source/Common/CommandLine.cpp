@@ -24,6 +24,7 @@
 
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "GameLogic/PathTuning.h"
 
 #include "Common/ArchiveFileSystem.h"
 #include "Common/CommandLine.h"
@@ -36,6 +37,8 @@
 #include "GameClient/TerrainVisual.h" // for TERRAIN_LOD_MIN definition
 #include "GameClient/GameText.h"
 #include "GameNetwork/NetworkDefs.h"
+#include "GameLogic/PathProfile.h"
+#include "GameLogic/PathScenario.h"
 
 
 
@@ -467,6 +470,58 @@ Int parseStatsUrl(char *args[], int num)
 	return 1;
 }
 #endif
+
+// TheSuperHackers @feature simonx645 16/11/2026 -pathProfile <file>: pathfinding counters per frame and per match
+// (GameLogic/PathProfile.h): <file>.frames.csv, <file>.json, <file>.summary.csv. Measurement only.
+Int parsePathProfile(char *args[], int num)
+{
+	if (num > 1)
+	{
+		PathProfile::Set_Output(args[1]);
+		return 2;
+	}
+	return 1;
+}
+
+Int parsePathProfileNoTime(char *args[], int num)
+{
+	PathProfile::Set_No_Time();
+	return 1;
+}
+
+// TheSuperHackers @feature simonx645 16/11/2026 -pathTraceUnit <id> <from> <to>: one unit's pathfinding state per logic
+// frame (GameLogic/PathProfile.h), measurement only
+Int parsePathTraceUnit(char *args[], int num)
+{
+	if (num > 3)
+	{
+		PathProfile::Set_Trace((UnsignedInt)atoi(args[1]), (UnsignedInt)atoi(args[2]), (UnsignedInt)atoi(args[3]));
+		return 4;
+	}
+	return 1;
+}
+
+// TheSuperHackers @feature simonx645 16/11/2026 -pathScenario <file> / -pathBench <file>: the pathfinding test runner
+// (GameLogic/PathScenario.h).
+Int parsePathScenario(char *args[], int num)
+{
+	if (num > 1)
+	{
+		PathScenario::Set_Scenario(args[1]);
+		return 2;
+	}
+	return 1;
+}
+
+Int parsePathBench(char *args[], int num)
+{
+	if (num > 1)
+	{
+		PathScenario::Set_Bench(args[1]);
+		return 2;
+	}
+	return 1;
+}
 
 Int parseReplay(char *args[], int num)
 {
@@ -971,6 +1026,23 @@ Int parseSeed(char *args[], int num)
 	return 2;
 }
 
+// TheSuperHackers @feature simonx645 16/11/2026 Pathfinding changes, all on by default (GameLogic/PathTuning.h).
+Int parsePathFix(char *args[], int num)
+{
+	if (num > 1)
+	{
+		if (!PathTuning::Set(args[1]))
+		{
+			// a misspelt change would run a different test than the one asked for
+			printf("-pathFix %s: stopping (known: none, default, coarse, crossings, octile, cost32, pool, cap, clearance, headon, groupgoals, dead, bridges, exitpass, lanekeep, colhold, amresume, nocolholdrecheck, endreaim, goaltaken; -<name> turns one off)\n", args[1]);
+			fflush(stdout);
+			exit(1);
+		}
+		return 2;
+	}
+	return 1;
+}
+
 Int parseIncrAGPBuf(char *args[], int num)
 {
 	TheWritableGlobalData->m_incrementalAGPBuf = TRUE;
@@ -1213,10 +1285,19 @@ Int parseClearDebugLevel(char *args[], int num)
 }
 #endif
 
+// TheSuperHackers @feature simonx645 16/11/2026 -userDataLeaf "<name>": the user data folder is Documents\<name>. GlobalData's
+// constructor reads it (it builds the path before any option is parsed); here the flag and its value are only consumed.
+Int parseUserDataLeaf(char *args[], int num)
+{
+	return num > 1 ? 2 : 1;
+}
+
 // Initial Params are parsed before Windows Creation.
 // Note that except for TheGlobalData, no other global objects exist yet when these are parsed.
 static CommandLineParam paramsForStartup[] =
 {
+	// TheSuperHackers @feature simonx645 16/11/2026 The user data folder's leaf under Documents (GlobalData reads it).
+	{ "-userDataLeaf", parseUserDataLeaf },
 	{ "-win", parseWin },
 	{ "-fullscreen", parseNoWin },
 
@@ -1232,6 +1313,21 @@ static CommandLineParam paramsForStartup[] =
 
 	// Run a skirmish between AI players and log it. The map name follows.
 	{ "-aiMatch", parseAIMatch },
+
+	// TheSuperHackers @bugfix simonx645 16/11/2026 The random seed, for a repeatable -aiMatch (or any game started from the
+	// command line). It was read only by debug builds, so a release build's -aiMatch -seed n got a new seed every run.
+	{ "-seed", parseSeed },
+
+	// TheSuperHackers @feature simonx645 16/11/2026
+	// Pathfinding counters per frame and per match to <file>.frames.csv, <file>.json and <file>.summary.csv (measurement only).
+	{ "-pathProfile", parsePathProfile },
+	// Every time column of -pathProfile 0, so two runs of one build give byte-identical files.
+	{ "-pathProfileNoTime", parsePathProfileNoTime },
+	{ "-pathTraceUnit", parsePathTraceUnit },
+	// A skirmish from the file, with spawns, orders and map changes at set frames or conditions (with -headless: unthrottled).
+	{ "-pathScenario", parsePathScenario },
+	// Search-only: findPath for the file's start / goal pairs, with an exact A* as the reference, to <file>.bench.csv.
+	{ "-pathBench", parsePathBench },
 
 	// TheSuperHackers @feature helmutbuhler 23/05/2025
 	// Simulate each replay in a separate process and use 1..N processes at the same time.
@@ -1258,6 +1354,11 @@ static CommandLineParam paramsForStartup[] =
 
 	// Write DebugLogFile.txt and d3d9render.txt.
 	{ "-log", parseLog },
+
+	// TheSuperHackers @feature simonx645 16/11/2026
+	// Pathfinding changes, one switch each, all on by default: -pathFix none (contraZH's own pathfinding as it was),
+	// -pathFix -<name> (one off). They change routes: every player and a replay's playback must use the same set.
+	{ "-pathFix", parsePathFix },
 };
 
 // These Params are parsed during Engine Init before INI data is loaded
@@ -1398,7 +1499,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-shellmap", parseShellMap },
 	{ "-winCursors", parseWinCursors },
 	{ "-constantDebug", parseConstantDebug },
-	{ "-seed", parseSeed },
 	{ "-noagpfix", parseIncrAGPBuf },
 	{ "-noFPSLimit", parseNoFPSLimit },
 	{ "-dumpAssetUsage", parseDumpAssetUsage },

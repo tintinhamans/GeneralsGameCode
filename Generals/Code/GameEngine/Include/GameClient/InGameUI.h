@@ -559,6 +559,7 @@ public:  // ********************************************************************
 	virtual void addIdleWorker( Object *obj );
 	virtual void removeIdleWorker( Object *obj, Int playerNumber );
 	virtual void selectNextIdleWorker();
+	virtual Int getIdleWorkerCount();
 	static std::vector<Object*> getUniqueIdleWorkers(const ObjectList& idleWorkers);
 
 	virtual void recreateControlBar();
@@ -579,12 +580,13 @@ public:  // ********************************************************************
 	void setDrawRMBScrollAnchor(Bool b) { m_drawRMBScrollAnchor = b; }
 	void setMoveRMBScrollAnchor(Bool b) { m_moveRMBScrollAnchor = b; }
 
+	Int getHudAnchorBottom() const;	///< screen y just below the inline HUD line, 0 when nothing draws at the anchor
+
 	void showReplayControls();
 	void hideReplayControls();
 	void toggleReplayControls();
 
 private:
-	virtual Int getIdleWorkerCount();
 	virtual Object *findIdleWorker( Object *obj);
 	virtual void showIdleWorkerLayout();
 	virtual void hideIdleWorkerLayout();

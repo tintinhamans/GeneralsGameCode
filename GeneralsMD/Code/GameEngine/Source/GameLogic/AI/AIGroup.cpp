@@ -48,8 +48,11 @@
 #include "GameLogic/AI.h"
 #include "GameLogic/AIPathfind.h"
 #include "GameLogic/CommandSequence.h"
+#include "GameLogic/PathTuning.h"
+#include "GameLogic/PathProfile.h"
 #include "GameLogic/Locomotor.h"
 #include "GameLogic/Module/AIUpdate.h"
+#include "GameLogic/Module/JetAIUpdate.h"
 #include "GameLogic/Module/BodyModule.h"
 #include "GameLogic/Module/ContainModule.h"
 #include "GameLogic/Module/DeployStyleAIUpdate.h"
@@ -576,6 +579,76 @@ void AIGroup::computeIndividualDestination( Coord3D *dest, const Coord3D *groupD
 
 }
 
+// TheSuperHackers @feature simonx645 16/11/2026 "groupgoals" (GameLogic/PathTuning.h): the goals Pathfinder::assignGroupGoals
+// gave this group move, read by the column moves and the per-unit loop. Filled at the start of a move, emptied on the way
+// out of it (a move is made in one call, so nothing is kept between moves, and nothing is saved).
+static ObjectID s_groupGoalIds[512];
+static Coord3D s_groupGoals[512];
+static Int s_groupGoalCount = 0;
+
+static Bool Group_Goal_For( const Object *obj, Coord3D *dest )
+{
+	for (Int i = 0; i < s_groupGoalCount; i++) {
+		if (s_groupGoalIds[i] == obj->getID()) {
+			*dest = s_groupGoals[i];
+			PathProfile::Given_Goal(obj, dest);	// path profiler: the goal finder's goal
+			// "colhold": the move this goal is for holds it
+			AIUpdateInterface *ai = PathTuning::ColHold ? const_cast<Object *>(obj)->getAI() : nullptr;
+			if (ai != nullptr) {
+				ai->setGivenGoal(dest);
+			}
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+// The removal loops of a group move drop every member's goal; before a member without a given goal takes one by the old
+// spiral, the given goals are reserved again, so it cannot land on one of them.
+static void Group_Goals_Reserve()
+{
+	for (Int i = 0; i < s_groupGoalCount; i++) {
+		Object *obj = TheGameLogic->findObjectByID(s_groupGoalIds[i]);
+		if (obj && !obj->isEffectivelyDead()) {
+			TheAI->pathfinder()->updateGoal(obj, &s_groupGoals[i], LAYER_GROUND);
+		}
+	}
+}
+
+struct Group_Goal_Scope
+{
+	~Group_Goal_Scope() { s_groupGoalCount = 0; }
+};
+
+// Fills the table for these members (returns the number of goals given).
+static Int Group_Goals_Assign( ListObjectPtr &members, const Coord3D *click, CommandSourceType cmdSource )
+{
+	s_groupGoalCount = 0;
+	if (TheTerrainLogic->getLayerForDestination(click) != LAYER_GROUND) {
+		return 0;	// a click on a bridge deck: the finder works on the ground only, so the old goals
+	}
+	Object *list[512];
+	Coord3D goals[512];
+	Bool placed[512];
+	Int count = 0;
+	for (ListObjectPtr::iterator i = members.begin(); i != members.end() && count < 512; ++i) {
+		Object *obj = *i;
+		if (obj->isDisabledByType(DISABLED_HELD) || obj->isKindOf(KINDOF_IMMOBILE) || obj->getAI() == nullptr) {
+			continue;
+		}
+		list[count++] = obj;
+	}
+	TheAI->pathfinder()->assignGroupGoals(list, count, click, cmdSource, goals, placed);
+	for (Int k = 0; k < count; k++) {
+		if (placed[k]) {
+			s_groupGoalIds[s_groupGoalCount] = list[k]->getID();
+			s_groupGoals[s_groupGoalCount] = goals[k];
+			s_groupGoalCount++;
+		}
+	}
+	return s_groupGoalCount;
+}
+
 static const Int PATH_DIAMETER_IN_CELLS = 6;
 
 // Hands the unit the slot assignGroupSlots gave it, if it got one
@@ -586,6 +659,7 @@ static Bool takeAssignedSlot(const std::vector<PathfindSlotRequest>& requests, c
 		if (requests[i].obj == obj && requests[i].assigned)
 		{
 			*dest = requests[i].slot;
+			PathProfile::Given_Goal(obj, dest);	// path profiler: the slot is contraZH's given goal
 			return true;
 		}
 	}
@@ -610,6 +684,19 @@ static void addSlotRequest(std::vector<PathfindSlotRequest>& requests, Object *o
 // A unit joins a column only when its route passes within this reach, else the far half of a split group gets dragged to the leader
 static const Int COLUMN_JOIN_CELLS = 6;
 static const Real COLUMN_JOIN_FRACTION = 0.25f;
+
+// TheSuperHackers @feature simonx645 16/11/2026 path profiler (measurement only): the members a column move left out, told
+// to the profiler once the column move is made (a fixed table: no allocation)
+static ObjectID s_columnLeftOut[512];
+static Int s_columnLeftOutCount = 0;
+
+static void Column_Left_Out_Report()
+{
+	for (Int k = 0; k < s_columnLeftOutCount; k++) {
+		PathProfile::Column_Move(TheGameLogic->findObjectByID(s_columnLeftOut[k]), FALSE);
+	}
+	s_columnLeftOutCount = 0;
+}
 
 static Bool columnPassesNear(Path *path, const Coord3D *unitPos)
 {
@@ -781,6 +868,38 @@ Bool AIGroup::friend_computeGroundPath( const Coord3D *pos, CommandSourceType cm
 	if (!closeEnough) return false;
 
 	m_groundPath = TheAI->pathfinder()->findGroundPath(&center, pos, PATH_DIAMETER_IN_CELLS, false);
+	// TheSuperHackers @feature simonx645 16/11/2026 "bridges" (GameLogic/PathTuning.h): no column over a bridge, nor on a
+	// route that stops short of the click. A column's lane waypoints over a bridge all led to the bridge head, and the
+	// group crawled through it one waypoint at a time (T4). The members then go to their own goals, each by its own route.
+	if (m_groundPath != nullptr && PathTuning::BridgeFixes) {
+		Bool column = TRUE;
+		const PathNode *last = m_groundPath->getLastNode();
+		if (last == nullptr) {
+			column = FALSE;
+		} else {
+			const Real ex = last->getPosition()->x - pos->x, ey = last->getPosition()->y - pos->y;
+			if (ex * ex + ey * ey > sqr(4.0f * PATHFIND_CELL_SIZE_F)) {
+				column = FALSE;	// stops short
+			}
+		}
+		for (const PathNode *node = m_groundPath->getFirstNode(); node && column; node = node->getNext()) {
+			if (node->getLayer() != LAYER_GROUND) {
+				column = FALSE;	// on a bridge
+				break;
+			}
+			ICoord2D cell;
+			cell.x = REAL_TO_INT_FLOOR(node->getPosition()->x / PATHFIND_CELL_SIZE_F);
+			cell.y = REAL_TO_INT_FLOOR(node->getPosition()->y / PATHFIND_CELL_SIZE_F);
+			const PathfindCell *c = TheAI->pathfinder()->getCell(LAYER_GROUND, cell.x, cell.y);
+			if (c != nullptr && c->getConnectLayer() != LAYER_INVALID) {
+				column = FALSE;	// onto a bridge
+			}
+		}
+		if (!column) {
+			deleteInstance(m_groundPath);
+			m_groundPath = nullptr;
+		}
+	}
 	return m_groundPath!=nullptr;
 
 }
@@ -828,6 +947,7 @@ static void clampToMap(Coord3D *dest, PlayerType pt)
 Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, UnsignedInt cmdNode, CommandSourceType cmdSource, std::vector<Object *> &columnUnits )
 
 {
+	s_columnLeftOutCount = 0;	// path profiler
 	if (m_groundPath==nullptr) return false;
 
 	Int numColumns = 3;
@@ -924,6 +1044,8 @@ Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, UnsignedInt cmdNode,
 		Coord3D unitPos = *((*i)->getPosition());
 		if (!columnPassesNear(m_groundPath, &unitPos))
 		{
+			if (s_columnLeftOutCount < 512)
+				s_columnLeftOut[s_columnLeftOutCount++] = (*i)->getID();	// path profiler
 			continue;
 		}
 		TheAI->pathfinder()->removeGoal(*i);
@@ -1079,7 +1201,9 @@ Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, UnsignedInt cmdNode,
 	{
 		addSlotRequest(requests, theUnit, pos);
 	}
-	TheAI->pathfinder()->assignGroupSlots(requests, pos, &center);
+	if (!PathTuning::GroupGoals) {
+		TheAI->pathfinder()->assignGroupSlots(requests, pos, &center);
+	}
 	for (theUnit = iter2->first(); theUnit; theUnit = iter2->next())
 	{
 		AIUpdateInterface *ai = theUnit->getAIUpdateInterface();
@@ -1170,7 +1294,8 @@ Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, UnsignedInt cmdNode,
 		dest.x -= factor*offset*endVector.x;
 		dest.y -= factor*offset*endVector.y;
 		dest.z = TheTerrainLogic->getLayerHeight( dest.x, dest.y, layer );
-		Bool hasSlot = takeAssignedSlot(requests, theUnit, &dest);
+		// "groupgoals": the column ends at the goal finder's goal instead of a slot
+		Bool hasSlot = PathTuning::GroupGoals ? Group_Goal_For(theUnit, &dest) : takeAssignedSlot(requests, theUnit, &dest);
 
 		while (!path.empty()) {
 			Coord2D curVector;
@@ -1187,18 +1312,26 @@ Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, UnsignedInt cmdNode,
 		}
 		if (!hasSlot) {
 			clampToMap(&dest, controllingPlayerType);
+			if (PathTuning::GroupGoals) {
+				Group_Goals_Reserve();	// not onto a member's given goal
+			}
 			TheAI->pathfinder()->adjustDestination(theUnit, ai->getLocomotorSet(), &dest, nullptr);
 			TheAI->pathfinder()->updateGoal(theUnit, &dest, layer);
+		} else if (PathTuning::GroupGoals) {
+			TheAI->pathfinder()->updateGoal(theUnit, &dest, LAYER_GROUND);
 		}
 		path.push_back(dest);
 		TheCommandSequence->clearObjectCommand(theUnit);
 		TheCommandSequence->includeUnitInTypicalMovingCommand(cmdNode, theUnit, dest);
 		TheCommandSequence->prepareCommandForVerification(theUnit);
+		PathProfile::Move_Legs(theUnit, (Int)path.size());	// path profiler: before aiFollowPath, which moves the path out
 		ai->aiFollowPath( &path, nullptr, cmdSource );
+		PathProfile::Column_Move(theUnit, TRUE);	// path profiler
 		if (TheCommandSequence->isStillAwaiting(theUnit))
 			TheCommandSequence->removeCurrentCommand(theUnit, false);
 		columnUnits.push_back(theUnit);
 	}
+	Column_Left_Out_Report();
 	return true;
 }
 
@@ -1283,6 +1416,12 @@ void AIGroup::friend_moveFormationToPos( const Coord3D *pos, CommandSourceType c
 				Coord3D dest = *node->getPosition();
 				dest.x += offset.x;
 				dest.y += offset.y;
+				// "bridges": a formation offset that leaves the deck keeps to the route on it
+				if (PathTuning::BridgeFixes && node->getLayer() != LAYER_GROUND &&
+					TheTerrainLogic->getLayerForDestination(&dest) != node->getLayer()) {
+					dest = *node->getPosition();
+				}
+				TheAI->pathfinder()->clearWaypoint(theUnit, &dest);	// "clearance": off the shore, for this unit's footprint
 
 				path.push_back( dest );
 				if (node==endNode) break;
@@ -1317,6 +1456,7 @@ void AIGroup::friend_moveFormationToPos( const Coord3D *pos, CommandSourceType c
 Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, UnsignedInt cmdNode, CommandSourceType cmdSource, std::vector<Object *> &columnUnits )
 
 {
+	s_columnLeftOutCount = 0;	// path profiler
 
 	if (m_groundPath==nullptr) return false;
 
@@ -1417,6 +1557,8 @@ Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, UnsignedInt cmdNode, 
 		Coord3D unitPos = *((*i)->getPosition());
 		if (!columnPassesNear(m_groundPath, &unitPos))
 		{
+			if (s_columnLeftOutCount < 512)
+				s_columnLeftOut[s_columnLeftOutCount++] = (*i)->getID();	// path profiler
 			continue;
 		}
 		TheAI->pathfinder()->removeGoal(*i);
@@ -1580,7 +1722,9 @@ Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, UnsignedInt cmdNode, 
 	{
 		addSlotRequest(requests, theUnit, pos);
 	}
-	TheAI->pathfinder()->assignGroupSlots(requests, pos, &center);
+	if (!PathTuning::GroupGoals) {
+		TheAI->pathfinder()->assignGroupSlots(requests, pos, &center);
+	}
 	for (theUnit = iter2->first(); theUnit; theUnit = iter2->next())
 	{
 		AIUpdateInterface *ai = theUnit->getAIUpdateInterface();
@@ -1628,9 +1772,26 @@ Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, UnsignedInt cmdNode, 
 			}
 
 			Coord2D curVector;
+			// TheSuperHackers @feature simonx645 16/11/2026 "clearance" (GameLogic/PathTuning.h): the waypoint is clamped to
+			// the map first and moved off the shore for this unit's footprint (the direction test uses where it ends up)
+			if (PathTuning::Clearance) {
+				clampToMap(&dest, controllingPlayerType);
+			}
+			// TheSuperHackers @bugfix simonx645 16/11/2026 "bridges" (GameLogic/PathTuning.h): on a bridge the column's
+			// sideways step put the waypoint off the deck, on the ground or water under it, and the unit's search to it
+			// could fail or fall short. On a deck the column keeps to the route.
+			if (PathTuning::BridgeFixes && node->getLayer() != LAYER_GROUND &&
+				TheTerrainLogic->getLayerForDestination(&dest) != node->getLayer()) {
+				dest = *node->getPosition();
+			}
+			if (PathTuning::Clearance) {
+				TheAI->pathfinder()->clearWaypoint(theUnit, &dest);
+			}
 			curVector.x = dest.x-prevPos.x;
 			curVector.y = dest.y-prevPos.y;
-			clampToMap(&dest, controllingPlayerType);
+			if (!PathTuning::Clearance) {
+				clampToMap(&dest, controllingPlayerType);
+			}
 			// Make sure that this dest is going in the same direction as the vector.
 			if (cornerVector.x*curVector.x + cornerVector.y*curVector.y > 0) {
 				path.push_back( dest );
@@ -1673,7 +1834,8 @@ Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, UnsignedInt cmdNode, 
 		dest.x -= factor*offset*endVector.x;
 		dest.y -= factor*offset*endVector.y;
 		dest.z = TheTerrainLogic->getLayerHeight( dest.x, dest.y, layer );
-		Bool hasSlot = takeAssignedSlot(requests, theUnit, &dest);
+		// "groupgoals": the column ends at the goal finder's goal instead of a slot
+		Bool hasSlot = PathTuning::GroupGoals ? Group_Goal_For(theUnit, &dest) : takeAssignedSlot(requests, theUnit, &dest);
 
 		while (!path.empty()) {
 			Coord2D curVector;
@@ -1690,19 +1852,27 @@ Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, UnsignedInt cmdNode, 
 		}
 		if (!hasSlot) {
 			clampToMap(&dest, controllingPlayerType);
+			if (PathTuning::GroupGoals) {
+				Group_Goals_Reserve();	// not onto a member's given goal
+			}
 			TheAI->pathfinder()->adjustDestination(theUnit, ai->getLocomotorSet(), &dest, nullptr);
 			TheAI->pathfinder()->updateGoal(theUnit, &dest, layer);
+		} else if (PathTuning::GroupGoals) {
+			TheAI->pathfinder()->updateGoal(theUnit, &dest, LAYER_GROUND);
 		}
 		path.push_back(dest);
 		TheCommandSequence->clearObjectCommand(theUnit);
 		TheCommandSequence->includeUnitInTypicalMovingCommand(cmdNode, theUnit, dest);
 		TheCommandSequence->prepareCommandForVerification(theUnit);
-		ai->aiFollowPath(&path, nullptr, cmdSource);
+		PathProfile::Move_Legs(theUnit, (Int)path.size());	// path profiler: before aiFollowPath, which moves the path out
+		ai->aiFollowPath( &path, nullptr, cmdSource );
+		PathProfile::Column_Move(theUnit, TRUE);	// path profiler
 		if (TheCommandSequence->isStillAwaiting(theUnit))
 			TheCommandSequence->removeCurrentCommand(theUnit, false);
     
 		columnUnits.push_back(theUnit);
 	}
+	Column_Left_Out_Report();
 	return true;
 }
 
@@ -1774,7 +1944,11 @@ void AIGroup::groupMoveToPosition( const Coord3D *p_posIn, Bool addWaypoint, Com
 		cmdNode = TheCommandSequence->newSinglePosCommand(CommandSequence::COMMAND_DO_MOVETO, pos);
 
 
+	Group_Goal_Scope groupGoalScope;	// "groupgoals": the table is emptied however this returns
 	if (!addWaypoint && !isFormation && !reverse) {
+		if (PathTuning::GroupGoals) {
+			Group_Goals_Assign(m_memberList, pos, cmdSource);
+		}
 		friend_computeGroundPath(pos, cmdSource);
 		friend_moveInfantryToPos(pos, cmdNode, cmdSource, columnUnits);
 		friend_moveVehicleToPos(pos, cmdNode, cmdSource, columnUnits);
@@ -1894,7 +2068,7 @@ void AIGroup::groupMoveToPosition( const Coord3D *p_posIn, Bool addWaypoint, Com
 		iter->insert((*i), adjust + dx*dx+dy*dy);
 	}
 
-	if (!addWaypoint && !Coord3DInsideRect2D( pos, &boxMin, &boxMax ))
+	if (!addWaypoint && !Coord3DInsideRect2D( pos, &boxMin, &boxMax ) && !PathTuning::GroupGoals)
 	{
 		TheAI->pathfinder()->assignGroupSlots(requests, pos, &center);
 	}
@@ -1921,7 +2095,19 @@ void AIGroup::groupMoveToPosition( const Coord3D *p_posIn, Bool addWaypoint, Com
 			}
 			firstUnit = false;
 		}
-		if (!takeAssignedSlot(requests, theUnit, &dest))
+		if (PathTuning::GroupGoals)
+		{
+			if (Group_Goal_For(theUnit, &dest))
+			{
+				TheAI->pathfinder()->updateGoal(theUnit, &dest, LAYER_GROUND);	// "groupgoals" (removeGoal above dropped it)
+			}
+			else
+			{
+				Group_Goals_Reserve();
+				computeIndividualDestination( &dest, &goalPos, theUnit, &center, isFormation );
+			}
+		}
+		else if (!takeAssignedSlot(requests, theUnit, &dest))
 		{
 			computeIndividualDestination( &dest, &goalPos, theUnit, &center, isFormation );
 		}
@@ -2447,7 +2633,14 @@ void AIGroup::groupAttackMoveToPosition( const Coord3D *pos, Int maxShotsToFire,
 		TheAI->pathfinder()->removeGoal(*i);
 		addSlotRequest(requests, *i, pos);
 	}
-	if (!Coord3DInsideRect2D( pos, &min, &max ))
+	// TheSuperHackers @feature simonx645 16/11/2026 "groupgoals" (GameLogic/PathTuning.h): each member its goal from the
+	// goal finder instead of a slot
+	Group_Goal_Scope groupGoalScope;
+	if (PathTuning::GroupGoals)
+	{
+		Group_Goals_Assign(m_memberList, pos, cmdSource);
+	}
+	else if (!Coord3DInsideRect2D( pos, &min, &max ))
 	{
 		TheAI->pathfinder()->assignGroupSlots(requests, pos, &center);
 	}
@@ -2465,7 +2658,14 @@ void AIGroup::groupAttackMoveToPosition( const Coord3D *pos, Int maxShotsToFire,
 			if (!TheCommandSequence->hasAnyCommand(*i))
 			{
 				Coord3D dest = *pos;
-				takeAssignedSlot(requests, *i, &dest);
+				if (PathTuning::GroupGoals)
+				{
+					Group_Goal_For(*i, &dest);
+				}
+				else
+				{
+					takeAssignedSlot(requests, *i, &dest);
+				}
 
 				(*i)->releaseWeaponLock(LOCKED_TEMPORARILY);
 				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
@@ -3119,7 +3319,9 @@ void AIGroup::groupEvacuate( Bool isWaypoint, CommandSourceType cmdSource )
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			if( (*i)->isKindOf( KINDOF_AIRCRAFT ) && (*i)->isAirborneTarget() )
+			const JetAIUpdate *jetAI = ai->getJetAIUpdate();
+			if( (*i)->isKindOf( KINDOF_AIRCRAFT ) && (*i)->isAirborneTarget() &&
+				!(jetAI && jetAI->returnsToBaseAfterUnload()) )
 			{
 				if (!isWaypoint)
 				{

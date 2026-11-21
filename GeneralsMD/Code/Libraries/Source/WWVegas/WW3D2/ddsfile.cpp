@@ -126,41 +126,39 @@ DDSFileClass::DDSFileClass(const char* name,unsigned reduction_factor)
 	Height=SurfaceDesc.Height>>ReductionFactor;
 	Depth=SurfaceDesc.Depth;
 
-	unsigned level_size=Calculate_DXTC_Surface_Size
-	(
-		SurfaceDesc.Width,
-		SurfaceDesc.Height,
-		Format
-	);
+	unsigned level_width=SurfaceDesc.Width;
+	unsigned level_height=SurfaceDesc.Height;
+	unsigned level_depth=SurfaceDesc.Depth;
 	unsigned level_offset=0;
-
-	unsigned level_mip_dec=4;
-	if (Type==DDS_VOLUME)
-	{
-		// add slices to level data size
-		level_size*=SurfaceDesc.Depth;
-		level_mip_dec=8;
-	}
 
 	LevelSizes=W3DNEWARRAY unsigned[MipLevels];
 	LevelOffsets=W3DNEWARRAY unsigned[MipLevels];
 	unsigned level=0;
 	for (;level<ReductionFactor;++level)
 	{
-		if (level_size>16)
-		{	// If surface is bigger than one block (8 or 16 bytes)...
-			level_size/=level_mip_dec;
-		}
+		level_width/=2;
+		level_height/=2;
+		level_depth/=2;
 	}
+
+	// Each level is sized from its own dimensions, which a quarter of the level above only matches at powers of two
 	for (level=0;level<MipLevels;++level)
 	{
+		unsigned level_size=Calculate_DXTC_Surface_Size(level_width,level_height,Format);
+		if (Type==DDS_VOLUME)
+		{
+			// add slices to level data size
+			if (level_depth>1)
+			{
+				level_size*=level_depth;
+			}
+		}
 		LevelSizes[level]=level_size;
 		LevelOffsets[level]=level_offset;
 		level_offset+=level_size;
-		if (level_size>16)
-		{	// If surface is bigger than one block (8 or 16 bytes)...
-			level_size/=level_mip_dec;
-		}
+		level_width/=2;
+		level_height/=2;
+		level_depth/=2;
 	}
 
 	if (Type==DDS_CUBEMAP)
@@ -230,7 +228,18 @@ unsigned DDSFileClass::Calculate_DXTC_Surface_Size
 	WW3DFormat format
 )
 {
-	unsigned level_size=(width/4)*(height/4);
+	// A level stores whole 4x4 blocks, so a partial block at the edge still takes one
+	unsigned blocks_wide=(width+3)/4;
+	unsigned blocks_high=(height+3)/4;
+	if (blocks_wide==0)
+	{
+		blocks_wide=1;
+	}
+	if (blocks_high==0)
+	{
+		blocks_high=1;
+	}
+	unsigned level_size=blocks_wide*blocks_high;
 	switch (format)
 	{
 	case WW3D_FORMAT_DXT1:
@@ -270,22 +279,17 @@ bool DDSFileClass::Load()
 	}
 
 	// Skip mip levels if reduction factor is not zero
-	unsigned level_size=Calculate_DXTC_Surface_Size
-	(
-		SurfaceDesc.Width,
-		SurfaceDesc.Height,
-		Format
-	);
+	unsigned level_width=SurfaceDesc.Width;
+	unsigned level_height=SurfaceDesc.Height;
 
 	unsigned skipped_offset=0;
 	for (unsigned i=0;i<ReductionFactor;++i)
 	{
+		unsigned level_size=Calculate_DXTC_Surface_Size(level_width,level_height,Format);
 		skipped_offset+=level_size;
 		size-=level_size;
-		if (level_size>16)
-		{	// If surface is bigger than one block (8 or 16 bytes)...
-			level_size/=4;
-		}
+		level_width/=2;
+		level_height/=2;
 	}
 
 	// Skip the header and info block and possible unused mip levels
@@ -779,7 +783,7 @@ unsigned DDSFileClass::Get_Pixel(unsigned level,unsigned x,unsigned y) const
 	// or we don't.
 	case WW3D_FORMAT_DXT1:
 		{
-			const unsigned char* block_memory=Get_Memory_Pointer(level)+(x/4)*8+((y/4)*(Get_Width(level)/4))*8;
+			const unsigned char* block_memory=Get_Memory_Pointer(level)+(x/4)*8+((y/4)*((Get_Width(level)+3)/4))*8;
 
 			unsigned col0=RGB565_To_ARGB8888(*(unsigned short*)&block_memory[0]);
 			unsigned col1=RGB565_To_ARGB8888(*(unsigned short*)&block_memory[2]);
@@ -812,7 +816,7 @@ unsigned DDSFileClass::Get_Pixel(unsigned level,unsigned x,unsigned y) const
 		return 0xffffffff;
 	case WW3D_FORMAT_DXT5:
 		{
-			const unsigned char* alpha_block=Get_Memory_Pointer(level)+(x/4)*16+((y/4)*(Get_Width(level)/4))*16;
+			const unsigned char* alpha_block=Get_Memory_Pointer(level)+(x/4)*16+((y/4)*((Get_Width(level)+3)/4))*16;
 
 			unsigned alpha0=alpha_block[0];
 			unsigned alpha1=alpha_block[1];
@@ -924,7 +928,7 @@ bool DDSFileClass::Get_4x4_Block(
 	// or we don't.
 	case WW3D_FORMAT_DXT1:
 		{
-			const unsigned char* block_memory=Get_Memory_Pointer(level)+(source_x/4)*8+((source_y/4)*(Get_Width(level)/4))*8;
+			const unsigned char* block_memory=Get_Memory_Pointer(level)+(source_x/4)*8+((source_y/4)*((Get_Width(level)+3)/4))*8;
 
 			unsigned col0=RGB565_To_ARGB8888(*(unsigned short*)&block_memory[0]);
 			unsigned col1=RGB565_To_ARGB8888(*(unsigned short*)&block_memory[2]);
@@ -991,7 +995,7 @@ bool DDSFileClass::Get_4x4_Block(
 	case WW3D_FORMAT_DXT5:
 		{
 			// Init alphas
-			const unsigned char* alpha_block=Get_Memory_Pointer(level)+(source_x/4)*16+((source_y/4)*(Get_Width(level)/4))*16;
+			const unsigned char* alpha_block=Get_Memory_Pointer(level)+(source_x/4)*16+((source_y/4)*((Get_Width(level)+3)/4))*16;
 
 			unsigned alphas[8];
 			alphas[0]=alpha_block[0];

@@ -60,7 +60,8 @@ enum
 	SIDE_COUNT = 3,
 	CARD_SLOTS = 18,
 	ICON_POOL = 200,	///< object icons the layout holds for the middle grid
-	SECTION_COUNT = 3
+	SECTION_COUNT = 4,
+	POWER_KEYS = GameMessage::MSG_META_SPECIAL_POWER_16 - GameMessage::MSG_META_SPECIAL_POWER_1 + 1
 };
 
 enum View
@@ -72,6 +73,7 @@ enum View
 
 enum Section
 {
+	SECTION_POWERS,
 	SECTION_HEROES,
 	SECTION_BUILDINGS,
 	SECTION_UNITS
@@ -98,6 +100,7 @@ struct BarObject
 	Int section;
 	const Image *image;
 	const CommandButton *slots[ CARD_SLOTS ];
+	Bool powers;	///< the army's Powers Menu card, whose slots take the SPECIAL_POWER keys
 };
 
 struct BarGeneral
@@ -143,6 +146,8 @@ const BuiltInText BUILT_IN_TEXT[] =
 	{ "TOOLTIP:HotkeysGeneral", L"Commands that need no unit: selection, control groups, camera, chat." },
 	{ "GUI:HotkeysConflicts", L"KEY CONFLICTS" },
 	{ "TOOLTIP:HotkeysConflicts", L"Every key that two buttons on one card, or two commands, share." },
+	{ "GUI:HotkeysPowers", L"SPECIAL POWERS" },
+	{ "GUI:HotkeysPowersCard", L"Special powers" },
 	{ "GUI:HotkeysHeroes", L"HEROES" },
 	{ "GUI:HotkeysBuildings", L"BUILDINGS" },
 	{ "GUI:HotkeysUnits", L"UNITS" },
@@ -159,6 +164,8 @@ const BuiltInText BUILT_IN_TEXT[] =
 	{ "TOOLTIP:HotkeyDefault", L"Put back the game's keys for the selected building or unit, or the selected command." },
 	{ "TOOLTIP:HotkeyResetAll", L"Put back the game's own key for every command and button." },
 	{ "GUI:HotkeysNone", L"none" },
+	{ "GUI:HotkeysQueueReorder", L"Move queue entry earlier" },
+	{ "GUI:HotkeysRightClick", L"Right click" },
 	{ "GUI:HotkeysPressKey", L"Press a key, a mouse button or the wheel, with Ctrl, Alt or Shift if you like. Esc cancels." },
 	{ "GUI:HotkeysPressHold", L"Press a key or side mouse button, or press and let go of Ctrl, Alt or Shift alone to hold it. Esc cancels." },
 	{ "GUI:HotkeysPressLetter", L"Press a letter, a side or middle mouse button, or the wheel. Backspace takes the key off, Esc cancels." },
@@ -166,6 +173,7 @@ const BuiltInText BUILT_IN_TEXT[] =
 	{ "GUI:HotkeysAlsoOn", L"Same key as %s." },
 	{ "GUI:HotkeysGameKey", L"The game's own key is %s." },
 	{ "GUI:HotkeysButtonEverywhere", L"A letter holds on every bar that has the button." },
+	{ "GUI:HotkeysPowerEverywhere", L"This is %s. Every army fires its own power on that key." },
 	{ "GUI:HotkeysGridKeys", L"Grid hotkeys are on, so buttons take the key of their place." },
 	{ "GUI:HotkeysGridUnitOrders", L"Grid hotkeys are on, so most buttons take the key of their place. Unit orders use these letters." },
 	{ "GUI:HotkeysPick", L"Pick a command or a button, then double-click it or press Change." },
@@ -176,6 +184,14 @@ const BuiltInText BUILT_IN_TEXT[] =
 	{ "GUI:HotkeysCategoryINTERFACE", L"Interface" },
 	{ "GUI:HotkeysCategoryTAUNT", L"Taunts" },
 	{ "GUI:HotkeysCategoryMISC", L"Other" },
+	{ "GUI:HotkeysTabALL", L"All" },
+	{ "GUI:HotkeysTabSELECTION", L"Selection" },
+	{ "GUI:HotkeysTabTEAM", L"Groups" },
+	{ "GUI:HotkeysTabCONTROL", L"Orders" },
+	{ "GUI:HotkeysTabINFORMATION", L"Info" },
+	{ "GUI:HotkeysTabINTERFACE", L"Interface" },
+	{ "GUI:HotkeysTabTAUNT", L"Taunts" },
+	{ "GUI:HotkeysTabMISC", L"Other" },
 	{ "GUI:HotkeysCommandSELECT_HERO", L"Select Hero" },
 	{ "GUI:HotkeysCommandADD_TEAM0", L"Add to Team 0" },
 	{ "GUI:HotkeysCommandADD_TEAM1", L"Add to Team 1" },
@@ -224,8 +240,10 @@ const BuiltInText BUILT_IN_TEXT[] =
 	{ "GUI:HotkeysCommandCYCLE_HEALTH_BAR_MODE", L"Cycle health bars" },
 	{ "GUI:HotkeysCommandCYCLE_HOUSE_COLOR_MODE", L"Cycle house colors" },
 	{ "GUI:HotkeysCommandTAKE_SCREENSHOT_PNG", L"Screenshot as PNG" },
+	{ "GUI:HotkeysCommandSPECIAL_POWER", L"Special power %d" },
 #if defined(GENERALS_ONLINE)
 	{ "GUI:HotkeysCategoryGO", L"GO" },
+	{ "GUI:HotkeysTabGO", L"GO" },
 	{ "GUI:HotkeysCommandTOGGLE_NETWORK_STATS", L"Network stats" },
 	{ "GUI:HotkeysCommandTAKE_SCREENSHOT_ALT", L"Screenshot, second key" },
 	{ "GUI:HotkeysCommandTOGGLE_BUDDY_OVERLAY", L"Buddy list" },
@@ -241,6 +259,7 @@ const Color CHANGED_COLOR = GameMakeColor( 255, 214, 92, 255 );
 const Color CLASH_COLOR = GameMakeColor( 255, 72, 48, 255 );
 const Color QUIET_COLOR = GameMakeColor( 150, 150, 150, 255 );
 const Color BLACK_COLOR = GameMakeColor( 0, 0, 0, 255 );
+const Color GOLD_COLOR = GameMakeColor( 100, 90, 4, 255 );
 
 // the middle grid's area and the card's first cell, in the layout's 800 by 600 units
 const Int GRID_LEFT = 194;
@@ -269,6 +288,8 @@ const Int CATEGORY_ORDER[] =
 #endif
 };
 
+enum { COMMAND_TAB_COUNT = ARRAY_SIZE( CATEGORY_ORDER ) + 1 };
+
 GameWindow *s_parent = nullptr;
 GameWindow *s_sideButtons[ SIDE_COUNT ] = { nullptr };
 GameWindow *s_commandsButton = nullptr;
@@ -295,6 +316,7 @@ GameWindow *s_card[ CARD_SLOTS ] = { nullptr };
 GameWindow *s_info = nullptr;
 GameWindow *s_note = nullptr;
 GameWindow *s_commandList = nullptr;
+GameWindow *s_commandTabs[ COMMAND_TAB_COUNT ] = { nullptr };	///< All, then one per CATEGORY_ORDER entry
 GameWindow *s_conflictList = nullptr;
 GameWindow *s_change = nullptr;
 GameWindow *s_clear = nullptr;
@@ -318,6 +340,7 @@ Int s_side = 0;
 Int s_object = -1;
 Int s_slot = -1;
 Int s_commandRow = -1;
+Int s_commandTab = 0;	///< 0 is All
 CaptureKind s_capture = CAPTURE_NONE;
 Int s_holdMods = 0;	///< modifiers pressed alone while a hold command waits for its key
 Bool s_holdBroken = FALSE;
@@ -480,6 +503,12 @@ UnicodeString commandName( const MetaMapRec *rec, const char *id )
 	if( rec && !rec->m_displayName.isEmpty() && wcsncmp( rec->m_displayName.str(), MISSING, 8 ) != 0 )
 	{
 		return rec->m_displayName;
+	}
+	if( strncmp( id, "SPECIAL_POWER_", 14 ) == 0 )
+	{
+		UnicodeString power;
+		power.format( HotkeysMenuText( "GUI:HotkeysCommandSPECIAL_POWER" ), atoi( id + 14 ) );
+		return power;
 	}
 	AsciiString label;
 	label.format( "GUI:HotkeysCommand%s", id );
@@ -838,6 +867,7 @@ BarGeneral findGeneral( const PlayerTemplate *side, const AsciiString& path, con
 			findPaths( set, *swaps, paths );
 		}
 		BarObject object;
+		object.powers = FALSE;
 		Bool any = FALSE;
 		for( Int slot = 0; slot < CARD_SLOTS; ++slot )
 		{
@@ -904,6 +934,42 @@ BarGeneral findGeneral( const PlayerTemplate *side, const AsciiString& path, con
 	return general;
 }
 
+/// The army's Powers Menu card, first in the general's list, when the army has one.
+void addPowers( const PlayerTemplate *side, BarGeneral& general )
+{
+	const CommandSet *set = TheControlBar->findPowerHotkeySet( side, nullptr );
+	BarObject object;
+	object.powers = TRUE;
+	object.section = SECTION_POWERS;
+	object.name = HotkeysMenuText( "GUI:HotkeysPowersCard" );
+	object.image = nullptr;
+	for( Int slot = 0; slot < CARD_SLOTS; ++slot )
+	{
+		object.slots[ slot ] = nullptr;
+	}
+	for( Int number = 1; number <= POWER_KEYS; ++number )
+	{
+		Int slot = 0;
+		const CommandButton *button = TheControlBar->getPowerHotkeyButton( set, number, &slot );
+		if( button == nullptr )
+		{
+			break;
+		}
+		if( slot < CARD_SLOTS )
+		{
+			object.slots[ slot ] = button;
+			if( object.image == nullptr )
+			{
+				object.image = button->getButtonImage();
+			}
+		}
+	}
+	if( object.image )
+	{
+		general.objects.insert( general.objects.begin(), object );
+	}
+}
+
 void addGeneral( Int which, const PlayerTemplate *side, BarGeneral& general )
 {
 	if( general.objects.empty() )
@@ -949,6 +1015,7 @@ void findBars()
 		BarGeneral general = findGeneral( side, AsciiString::TheEmptyString, nullptr, nullptr, &swaps, &paths );
 		if( paths.empty() )
 		{
+			addPowers( side, general );
 			addGeneral( which, side, general );
 			continue;
 		}
@@ -979,6 +1046,7 @@ void findBars()
 			BarGeneral onPath = findGeneral( side, paths[p].upgrade, &exclude, nullptr, nullptr, nullptr );
 			onPath.name.concat( L": " );
 			onPath.name.concat( paths[p].label );
+			addPowers( side, onPath );
 			addGeneral( which, side, onPath );
 		}
 	}
@@ -1006,12 +1074,49 @@ const BarObject *selectedObject()
 	return &s_sides[ s_side ][ general ].objects[ s_object ];
 }
 
+Int rowOf( GameMessage::Type meta )
+{
+	for( size_t i = 0; i < s_rows.size(); ++i )
+	{
+		if( s_rows[i].meta == meta )
+		{
+			return (Int)i;
+		}
+	}
+	return -1;
+}
+
+/// The command row of a powers card slot's SPECIAL_POWER key, -1 for any other slot.
+Int powerRow( const BarObject *object, Int slot )
+{
+	if( !( object && object->powers && slot >= 0 && slot < CARD_SLOTS && object->slots[ slot ] ) )
+	{
+		return -1;
+	}
+	Int number = 0;
+	for( Int i = 0; i <= slot; ++i )
+	{
+		if( object->slots[i] )
+		{
+			++number;
+		}
+	}
+	return rowOf( (GameMessage::Type)( GameMessage::MSG_META_SPECIAL_POWER_1 + number - 1 ) );
+}
+
+/// The corner code of a command's chord, 0 for an unbound command.
+Int chordCorner( const Binding& binding )
+{
+	return isBound( binding ) ? HotKeyManager::chordCorner( binding.key, binding.modState ) : 0;
+}
+
 /// Letters two or more buttons of a card share, each with those buttons' names.
 std::map<AsciiString, UnicodeString> cardClashes( const BarObject *object )
 {
 	std::map<AsciiString, std::vector<UnicodeString> > byLetter;
 	std::map<AsciiString, UnicodeString> clashes;
-	if( object == nullptr )
+	// a powers card's keys are commands, whose clashes sameChord reports
+	if( object == nullptr || object->powers )
 	{
 		return clashes;
 	}
@@ -1251,9 +1356,9 @@ void fillCard()
 			continue;
 		}
 		const AsciiString letter = buttonLetter( button );
-		const Bool waiting = s_capture == CAPTURE_BUTTON && slot == s_slot;
+		const Bool waiting = s_capture != CAPTURE_NONE && slot == s_slot;
+		const Int power = powerRow( object, slot );
 		setButtonImage( s_card[ slot ], button->getButtonImage() );
-		GadgetButtonSetCornerLetter( s_card[ slot ], waiting ? '?' : HotKeyManager::cornerOf( letter ) );
 		Color border = GAME_COLOR_UNDEFINED;
 		if( slot == s_slot )
 		{
@@ -1262,24 +1367,66 @@ void fillCard()
 			cardRect( slot, &left, &top );
 			showRing( s_slotRing, left, top, CARD_CELL_WIDTH, CARD_CELL_HEIGHT, waiting ? WAITING_COLOR : SELECTED_COLOR );
 		}
-		if( clashes.count( letter ) )
+		UnicodeString tip = buttonName( button );
+		if( power >= 0 )
 		{
-			border = CLASH_COLOR;
+			const CommandRow& row = s_rows[ power ];
+			const Binding binding = bindingOf( row.meta );
+			GadgetButtonSetCornerLetter( s_card[ slot ], waiting ? '?' : chordCorner( binding ) );
+			if( !sameChord( row ).isEmpty() )
+			{
+				border = CLASH_COLOR;
+			}
+			else if( isChanged( row ) )
+			{
+				border = CHANGED_COLOR;
+			}
+			if( isBound( binding ) )
+			{
+				tip.concat( L" (" );
+				tip.concat( chordText( binding ) );
+				tip.concat( L')' );
+			}
 		}
-		else if( s_buttons.count( lowerName( button ) ) )
+		else
 		{
-			border = CHANGED_COLOR;
+			GadgetButtonSetCornerLetter( s_card[ slot ], waiting ? '?' : HotKeyManager::cornerOf( letter ) );
+			if( clashes.count( letter ) )
+			{
+				border = CLASH_COLOR;
+			}
+			else if( s_buttons.count( lowerName( button ) ) )
+			{
+				border = CHANGED_COLOR;
+			}
+			if( letter.isNotEmpty() )
+			{
+				tip.concat( L" (" );
+				tip.concat( keyText( letter ) );
+				tip.concat( L')' );
+			}
 		}
 		setBorder( s_card[ slot ], border );
-		UnicodeString tip = buttonName( button );
-		if( letter.isNotEmpty() )
-		{
-			tip.concat( L" (" );
-			tip.concat( keyText( letter ) );
-			tip.concat( L')' );
-		}
 		s_card[ slot ]->winSetTooltip( tip );
 	}
+}
+
+/// A command's tab, 1 and up in CATEGORY_ORDER; Other takes a category the list does not show.
+Int commandTabOf( const CommandRow& row )
+{
+	Int other = 0;
+	for( Int i = 0; i < ARRAY_SIZE( CATEGORY_ORDER ); ++i )
+	{
+		if( row.category == CATEGORY_ORDER[i] )
+		{
+			return i + 1;
+		}
+		if( CATEGORY_ORDER[i] == CATEGORY_MISC )
+		{
+			other = i + 1;
+		}
+	}
+	return other;
 }
 
 void fillCommands()
@@ -1290,20 +1437,19 @@ void fillCommands()
 	Int selectedRow = -1;
 	for( Int c = 0; c < ARRAY_SIZE( CATEGORY_ORDER ); ++c )
 	{
+		if( s_commandTab > 0 && s_commandTab != c + 1 )
+		{
+			continue;
+		}
 		Bool headed = FALSE;
 		for( size_t i = 0; i < s_rows.size(); ++i )
 		{
 			const CommandRow& row = s_rows[i];
-			Bool known = FALSE;
-			for( Int other = 0; other < ARRAY_SIZE( CATEGORY_ORDER ); ++other )
-			{
-				known = known || row.category == CATEGORY_ORDER[other];
-			}
-			if( ( known ? row.category : (Int)CATEGORY_MISC ) != CATEGORY_ORDER[c] || !matchesFilter( row.name ) )
+			if( commandTabOf( row ) != c + 1 || !matchesFilter( row.name ) )
 			{
 				continue;
 			}
-			if( !headed )
+			if( !headed && s_commandTab == 0 )
 			{
 				AsciiString label;
 				label.format( "GUI:HotkeysCategory%s", lookupName( CategoryListName, CATEGORY_ORDER[c] ) );
@@ -1334,12 +1480,104 @@ void fillCommands()
 				selectedRow = at;
 			}
 		}
+		// the queue reorder click is fixed, so its row carries no command to pick
+		if( CATEGORY_ORDER[c] == CATEGORY_INTERFACE && TheGlobalData->m_queueReorder )
+		{
+			const UnicodeString name = HotkeysMenuText( "GUI:HotkeysQueueReorder" );
+			if( matchesFilter( name ) )
+			{
+				if( !headed && s_commandTab == 0 )
+				{
+					AsciiString label;
+					label.format( "GUI:HotkeysCategory%s", lookupName( CategoryListName, CATEGORY_ORDER[c] ) );
+					const Int heading = GadgetListBoxAddEntryText( s_commandList, HotkeysMenuText( label.str() ), HEADING_COLOR, -1, 0 );
+					GadgetListBoxSetItemData( s_commandList, (void *)0, heading, 0 );
+					headed = TRUE;
+				}
+				const Int at = GadgetListBoxAddEntryText( s_commandList, name, QUIET_COLOR, -1, 0 );
+				GadgetListBoxAddEntryText( s_commandList, HotkeysMenuText( "GUI:HotkeysRightClick" ), QUIET_COLOR, at, 1 );
+				GadgetListBoxSetItemData( s_commandList, (void *)0, at, 0 );
+			}
+		}
 	}
 	if( selectedRow >= 0 )
 	{
 		GadgetListBoxSetSelected( s_commandList, selectedRow );
 	}
 	GadgetListBoxSetTopVisibleEntry( s_commandList, top );
+	s_filling = FALSE;
+}
+
+/// The tabs over the command list: the current one is lit, and a tab's words tell of a clash or a changed key under it.
+void fillCommandTabs()
+{
+	const Color restFill = GameMakeColor( 2, 2, 2, 150 );
+	const Color hoverFill = GameMakeColor( 44, 32, 0, 170 );
+	const Color hoverBorder = GameMakeColor( 214, 170, 24, 255 );
+	const Color currentFill = GameMakeColor( 112, 56, 0, 150 );
+	const Color currentBorder = GameMakeColor( 255, 170, 0, 255 );
+
+	Bool clash[ COMMAND_TAB_COUNT ] = { FALSE };
+	Bool changed[ COMMAND_TAB_COUNT ] = { FALSE };
+	if( s_view == VIEW_COMMANDS )
+	{
+		for( size_t i = 0; i < s_rows.size(); ++i )
+		{
+			const Int tab = commandTabOf( s_rows[i] );
+			if( !sameChord( s_rows[i] ).isEmpty() )
+			{
+				clash[0] = TRUE;
+				clash[ tab ] = TRUE;
+			}
+			if( isChanged( s_rows[i] ) )
+			{
+				changed[0] = TRUE;
+				changed[ tab ] = TRUE;
+			}
+		}
+	}
+
+	for( Int i = 0; i < COMMAND_TAB_COUNT; ++i )
+	{
+		GameWindow *tab = s_commandTabs[i];
+		showWindow( tab, s_view == VIEW_COMMANDS );
+		const Bool current = i == s_commandTab;
+		Color text = TEXT_COLOR;
+		if( clash[i] )
+		{
+			text = CLASH_COLOR;
+		}
+		else if( changed[i] )
+		{
+			text = CHANGED_COLOR;
+		}
+		tab->winSetEnabledTextColors( text, BLACK_COLOR );
+		tab->winSetHiliteTextColors( text, BLACK_COLOR );
+		for( Int state = 0; state < 2; ++state )
+		{
+			tab->winSetEnabledColor( state, current ? currentFill : restFill );
+			tab->winSetEnabledBorderColor( state, current ? currentBorder : GOLD_COLOR );
+			tab->winSetHiliteColor( state, current ? currentFill : hoverFill );
+			tab->winSetHiliteBorderColor( state, current ? currentBorder : hoverBorder );
+		}
+	}
+}
+
+void showCommandTab( Int tab )
+{
+	s_view = VIEW_COMMANDS;
+	if( tab == s_commandTab )
+	{
+		return;
+	}
+	s_commandTab = tab;
+	// a command picked under another tab is not in this list
+	if( s_commandRow >= 0 && tab > 0 && commandTabOf( s_rows[ s_commandRow ] ) != tab )
+	{
+		s_commandRow = -1;
+	}
+	s_filling = TRUE;
+	GadgetListBoxSetTopVisibleEntry( s_commandList, 0 );
 	s_filling = FALSE;
 }
 
@@ -1409,7 +1647,36 @@ void updateInfo()
 	{
 		const BarObject *object = selectedObject();
 		const CommandButton *button = ( object && s_slot >= 0 ) ? object->slots[ s_slot ] : nullptr;
-		if( button )
+		const Int power = powerRow( object, s_slot );
+		if( power >= 0 )
+		{
+			const CommandRow& row = s_rows[ power ];
+			canChange = TRUE;
+			appendLine( text, buttonName( button ) );
+			if( s_capture != CAPTURE_NONE )
+			{
+				appendLine( text, HotkeysMenuText( "GUI:HotkeysPressKey" ) );
+			}
+			else
+			{
+				line.format( HotkeysMenuText( "GUI:HotkeysKeyIs" ), chordText( bindingOf( row.meta ) ).str() );
+				appendLine( text, line );
+				const UnicodeString others = sameChord( row );
+				if( !others.isEmpty() )
+				{
+					line.format( HotkeysMenuText( "GUI:HotkeysAlsoOn" ), others.str() );
+					appendLine( text, line );
+				}
+				if( isChanged( row ) )
+				{
+					line.format( HotkeysMenuText( "GUI:HotkeysGameKey" ), chordText( defaultOf( row.meta ) ).str() );
+					appendLine( text, line );
+				}
+				line.format( HotkeysMenuText( "GUI:HotkeysPowerEverywhere" ), row.name.str() );
+				appendLine( text, line );
+			}
+		}
+		else if( button )
 		{
 			canChange = TRUE;
 			appendLine( text, buttonName( button ) );
@@ -1443,7 +1710,15 @@ void updateInfo()
 		{
 			for( Int slot = 0; slot < CARD_SLOTS && !canReset; ++slot )
 			{
-				canReset = object->slots[ slot ] && s_buttons.count( lowerName( object->slots[ slot ] ) );
+				const Int slotPower = powerRow( object, slot );
+				if( slotPower >= 0 )
+				{
+					canReset = isChanged( s_rows[ slotPower ] );
+				}
+				else
+				{
+					canReset = object->slots[ slot ] && s_buttons.count( lowerName( object->slots[ slot ] ) );
+				}
 			}
 		}
 		if( s_capture == CAPTURE_NONE )
@@ -1454,7 +1729,7 @@ void updateInfo()
 				line.format( HotkeysMenuText( "GUI:HotkeysClash" ), keyText( it->first ).str(), it->second.str() );
 				appendLine( text, line );
 			}
-			if( TheGlobalData->m_gridHotkeysEnabled )
+			if( TheGlobalData->m_gridHotkeysEnabled && !( object && object->powers ) )
 			{
 				appendLine( text, HotkeysMenuText( TheGlobalData->m_gridHotkeyUnitOrders ? "GUI:HotkeysGridUnitOrders" : "GUI:HotkeysGridKeys" ) );
 			}
@@ -1529,6 +1804,7 @@ void refresh()
 	}
 	s_commandsButton->winSetEnabledTextColors( s_view == VIEW_COMMANDS ? SELECTED_COLOR : TEXT_COLOR, BLACK_COLOR );
 
+	fillCommandTabs();
 	fillGrid();
 	fillCard();
 	if( s_view == VIEW_COMMANDS )
@@ -1575,6 +1851,11 @@ void startCapture()
 {
 	if( s_view == VIEW_COMMANDS && s_commandRow >= 0 )
 	{
+		s_capture = CAPTURE_COMMAND;
+	}
+	else if( s_view == VIEW_SIDE && powerRow( selectedObject(), s_slot ) >= 0 )
+	{
+		s_commandRow = powerRow( selectedObject(), s_slot );
 		s_capture = CAPTURE_COMMAND;
 	}
 	else if( s_view == VIEW_SIDE && selectedObject() && s_slot >= 0 && selectedObject()->slots[ s_slot ] )
@@ -1647,6 +1928,10 @@ void clearSelected()
 			clearCommand( s_rows[ s_commandRow ].pair );
 		}
 	}
+	else if( s_view == VIEW_SIDE && powerRow( selectedObject(), s_slot ) >= 0 )
+	{
+		clearCommand( s_rows[ powerRow( selectedObject(), s_slot ) ].meta );
+	}
 	else if( s_view == VIEW_SIDE && selectedObject() && s_slot >= 0 && selectedObject()->slots[ s_slot ] )
 	{
 		s_buttons[ lowerName( selectedObject()->slots[ s_slot ] ) ].clear();
@@ -1675,7 +1960,12 @@ void resetSelected()
 	{
 		for( Int slot = 0; slot < CARD_SLOTS; ++slot )
 		{
-			if( selectedObject()->slots[ slot ] )
+			const Int power = powerRow( selectedObject(), slot );
+			if( power >= 0 )
+			{
+				s_keys[ s_rows[ power ].meta ] = defaultOf( s_rows[ power ].meta );
+			}
+			else if( selectedObject()->slots[ slot ] )
 			{
 				s_buttons.erase( lowerName( selectedObject()->slots[ slot ] ) );
 			}
@@ -1955,8 +2245,6 @@ struct Look
 
 Look s_look;
 
-const Color GOLD_COLOR = GameMakeColor( 100, 90, 4, 255 );
-
 GameWindow *optionsWindow( const char *name )
 {
 	return TheWindowManager->winGetWindowFromId( nullptr, TheNameKeyGenerator->nameToKey( name ) );
@@ -2080,6 +2368,23 @@ GameWindow *makeButton( Int left, Int top, Int right, Int bottom, const char *la
 		button->winSetTooltip( HotkeysMenuText( tip ) );
 	}
 	return button;
+}
+
+/// A flat text button; fillCommandTabs gives it its colours.
+GameWindow *makeTab( Int left, Int top, Int right, Int bottom, const char *label )
+{
+	WinInstanceData data;
+	data.m_style = GWS_PUSH_BUTTON | GWS_MOUSE_TRACK;
+	data.m_owner = s_parent;
+	data.m_font = arial( 10, FALSE );
+	data.m_enabledText.color = TEXT_COLOR;
+	data.m_enabledText.borderColor = BLACK_COLOR;
+	data.m_hiliteText = data.m_enabledText;
+	data.m_disabledText = data.m_enabledText;
+	GameWindow *tab = TheWindowManager->gogoGadgetPushButton( s_parent, WIN_STATUS_ENABLED, toX( left ), toY( top ),
+		toX( right ) - toX( left ), toY( bottom ) - toY( top ), &data, data.m_font, FALSE );
+	GadgetButtonSetText( tab, HotkeysMenuText( label ) );
+	return tab;
 }
 
 /// A cameo button whose picture the screen sets; its font draws the corner letter.
@@ -2214,7 +2519,7 @@ Bool buildScreen()
 		s_cardCells[ slot ] = makeFrame( left, top, left + CARD_CELL_WIDTH, top + CARD_CELL_HEIGHT, GameMakeColor( 0, 0, 0, 220 ), GameMakeColor( 60, 54, 3, 255 ) );
 	}
 
-	static const char *const SECTION_LABELS[ SECTION_COUNT ] = { "GUI:HotkeysHeroes", "GUI:HotkeysBuildings", "GUI:HotkeysUnits" };
+	static const char *const SECTION_LABELS[ SECTION_COUNT ] = { "GUI:HotkeysPowers", "GUI:HotkeysHeroes", "GUI:HotkeysBuildings", "GUI:HotkeysUnits" };
 	for( Int s = 0; s < SECTION_COUNT; ++s )
 	{
 		s_headings[s] = makeLabel( GRID_LEFT, GRID_TOP, GRID_LEFT + GRID_WIDTH, GRID_TOP + 18, SECTION_LABELS[s], arial( 12, TRUE ), FALSE, FALSE );
@@ -2245,8 +2550,19 @@ Bool buildScreen()
 	s_info = makeLabel( 494, 222, 764, 504, nullptr, nullptr, FALSE, TRUE );
 
 	static const Int COMMAND_COLUMNS[] = { 74, 26 };
-	s_commandList = makeList( 186, 90, 770, 504, 2, COMMAND_COLUMNS );
+	s_commandList = makeList( 186, 116, 770, 504, 2, COMMAND_COLUMNS );
 	s_conflictList = makeList( 186, 90, 770, 504, 1, nullptr );
+	const Int tabGap = 3;
+	const Int tabSpan = 770 - 186 + tabGap;
+	for( Int i = 0; i < COMMAND_TAB_COUNT; ++i )
+	{
+		AsciiString label = "GUI:HotkeysTabALL";
+		if( i > 0 )
+		{
+			label.format( "GUI:HotkeysTab%s", lookupName( CategoryListName, CATEGORY_ORDER[ i - 1 ] ) );
+		}
+		s_commandTabs[i] = makeTab( 186 + tabSpan * i / COMMAND_TAB_COUNT, 90, 186 + tabSpan * ( i + 1 ) / COMMAND_TAB_COUNT - tabGap, 112, label.str() );
+	}
 	s_note = makeLabel( 186, 508, 486, 546, nullptr, nullptr, FALSE, FALSE );
 	s_change = makeButton( 494, 512, 626, 538, "GUI:HotkeysChange", "TOOLTIP:HotkeyChange" );
 	s_clear = makeButton( 634, 512, 762, 538, "GUI:HotkeysClear", "TOOLTIP:HotkeyClear" );
@@ -2338,6 +2654,7 @@ void HotkeysMenuOpen()
 
 	s_buttons = HotKeyManager::getPlayerButtonKeys();
 	s_commandRow = -1;
+	s_commandTab = 0;
 	s_capture = CAPTURE_NONE;
 	s_dirty = FALSE;
 	s_conflictsDirty = TRUE;
@@ -2433,6 +2750,11 @@ WindowMsgHandledType HotkeysMenuSystem( GameWindow *window, UnsignedInt msg, Win
 				return MSG_HANDLED;
 			}
 			s_capture = CAPTURE_NONE;
+			// typing looks through every group
+			if( s_view == VIEW_COMMANDS && !GadgetTextEntryGetText( s_filter ).isEmpty() )
+			{
+				showCommandTab( 0 );
+			}
 			refresh();
 			return MSG_HANDLED;
 		}
@@ -2466,8 +2788,8 @@ WindowMsgHandledType HotkeysMenuSystem( GameWindow *window, UnsignedInt msg, Win
 				const ConflictRef ref = s_conflicts[ row ];
 				if( ref.side < 0 )
 				{
-					s_view = VIEW_COMMANDS;
 					s_commandRow = ref.general;
+					showCommandTab( commandTabOf( s_rows[ s_commandRow ] ) );
 				}
 				else
 				{
@@ -2495,6 +2817,7 @@ WindowMsgHandledType HotkeysMenuSystem( GameWindow *window, UnsignedInt msg, Win
 			const Int side = indexOf( control, s_sideButtons, SIDE_COUNT );
 			const Int icon = indexOf( control, s_icons, ICON_POOL );
 			const Int slot = indexOf( control, s_card, CARD_SLOTS );
+			const Int tab = indexOf( control, s_commandTabs, COMMAND_TAB_COUNT );
 			if( side >= 0 )
 			{
 				showSide( side );
@@ -2512,6 +2835,10 @@ WindowMsgHandledType HotkeysMenuSystem( GameWindow *window, UnsignedInt msg, Win
 					startCapture();
 					return MSG_HANDLED;
 				}
+			}
+			else if( tab >= 0 )
+			{
+				showCommandTab( tab );
 			}
 			else if( control == s_commandsButton )
 			{

@@ -71,6 +71,7 @@
 
 
 enum { INFINITE_LOOP_COUNT = 1000000 };
+enum { MAX_AUDIO_REQUESTS = 128, TRIMMED_AUDIO_REQUESTS = 64 };
 
 // Callback functions useful for Miles ////////////////////////////////////////////////////////////
 static void AILCALLBACK setSampleCompleted( HSAMPLE sampleCompleted );
@@ -2368,9 +2369,44 @@ void MilesAudioManager::removeAllDisabledAudio()
 }
 
 //-------------------------------------------------------------------------------------------------
+static Bool isDroppableRequest( AudioRequest *req )
+{
+	if (req->m_request != AR_Play || req->m_pendingEvent.Peek() == nullptr) {
+		return false;
+	}
+
+	const AudioEventInfo *info = req->m_pendingEvent->getAudioEventInfo();
+	return info && info->m_soundType == AT_SoundEffect && !BitIsSet(info->m_control, AC_LOOP);
+}
+
+//-------------------------------------------------------------------------------------------------
 void MilesAudioManager::processRequestList()
 {
 	std::list<AudioRequest*>::iterator it;
+
+	// Only one-shot sound effects count, so waiting loops cannot hold the queue over its limit.
+	if (m_audioRequests.size() > MAX_AUDIO_REQUESTS) {
+		size_t droppable = 0;
+		for (it = m_audioRequests.begin(); it != m_audioRequests.end(); ++it) {
+			if (isDroppableRequest(*it)) {
+				++droppable;
+			}
+		}
+
+		if (droppable > MAX_AUDIO_REQUESTS) {
+			for (it = m_audioRequests.begin(); it != m_audioRequests.end() && droppable > TRIMMED_AUDIO_REQUESTS; ) {
+				AudioRequest *req = (*it);
+				if (isDroppableRequest(req)) {
+					deleteInstance(req);
+					it = m_audioRequests.erase(it);
+					--droppable;
+				} else {
+					++it;
+				}
+			}
+		}
+	}
+
 	for (it = m_audioRequests.begin(); it != m_audioRequests.end(); ) {
 		AudioRequest *req = (*it);
 		if (!shouldProcessRequestThisFrame(req)) {

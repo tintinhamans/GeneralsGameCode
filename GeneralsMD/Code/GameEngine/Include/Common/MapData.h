@@ -24,6 +24,8 @@ public:
 
 	Real m_HeightmapScale;
 	Bool m_enableShips;
+	Bool m_aiSpecialPowersRespectFog;
+	Bool m_aiSpecialPowersRespectStealth;
 
 	// Height based terrain ambient light (e.g. water depth lighting). Per-map.
 	RGBColor m_terrainHeightAmbientLightColor1;

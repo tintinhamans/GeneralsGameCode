@@ -195,6 +195,7 @@ public:
 	Bool m_useAlternateMouse;
 	Bool m_useRightMouseScrollWithAlternateMouse; // TheSuperHackers @feature User option for RMB scroll in Alternate Mouse mode.
 	Bool m_clientRetaliationModeEnabled;
+	Bool m_guardRequiresVisibility;
 	// TheSuperHackers @feature Client side health bar display preference, from Options.ini.
 	// Holds a HealthBarDisplayMode; stored as Int so this widely included header does not
 	// have to pull in OptionPreferences.h.
@@ -211,6 +212,8 @@ public:
 	Bool m_selectionCircleEnabled;
 	// TheSuperHackers @feature Ring the attack range of an armed structure while it is being placed.
 	Bool m_defensesRangeCircle;
+	// Show a button each for idle infantry, vehicles, aircraft and support units.
+	Bool m_queueBar;
 	// TheSuperHackers @feature Draw the decals objects ask for with DisplayDecal.
 	Bool m_objectDecalsEnabled;
 	// TheSuperHackers @feature Keep ammo and passenger pips on screen when there is something
@@ -243,6 +246,7 @@ public:
 	Bool m_smartSelection;
 	Bool m_smartSelectionUseMouse;
 	Bool m_smartCommandGroup;
+	Bool m_buildQueueBar;
 	Int m_actionLineMode;						///< holds an ActionLineMode
 	Bool m_doubleClickAttackMove;
 	Bool m_facingDrag;
@@ -743,7 +747,7 @@ public:
 	Bool m_specialPowerUsesDelay ;
 #endif
   Bool m_TiVOFastMode;            ///< When true, the client speeds up the framerate... set by HOTKEY!
-  Bool m_queueReorder;            ///< Ctrl+click moves a build queue entry one position earlier; off unless GameData enables it
+  Bool m_queueReorder;            ///< Right click moves a build queue entry one position earlier; off unless GameData enables it
   Bool m_noOccupantFriendlyFire;  ///< spares the container a passenger is riding in from its own splash; off unless GameData enables it
   Bool m_batchParticles;          ///< draws same-looking particle systems in one batch; off unless GameData enables it
   Bool m_particleAtlas;           ///< packs particle textures into shared premultiplied pages so mixed systems batch together; off unless GameData enables it

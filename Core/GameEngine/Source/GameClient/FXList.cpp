@@ -667,15 +667,15 @@ class ShockwaveFXNugget : public FXNugget
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(ShockwaveFXNugget, "ShockwaveFXNugget")
 public:
 
-	ShockwaveFXNugget() : m_radius(0), m_width(0), m_strength(0), m_strengthInPixels(FALSE), m_durationFrames(0)
+	ShockwaveFXNugget() : m_radius(0), m_width(0), m_strength(0), m_strengthInPixels(FALSE), m_durationFrames(0), m_allowedSurfaceType(SURFACE_ALL), m_rings(1), m_highlight(0)
 	{
 	}
 
-	virtual void doFXObj(const Object* primary, const Object* /*secondary*/, FXSurfaceInfo* /*surfaceInfo*/) const
+	virtual void doFXObj(const Object* primary, const Object* /*secondary*/, FXSurfaceInfo* surfaceInfo) const
 	{
 		if (primary)
 		{
-			TheDisplay->createShockwave(primary->getPosition(), m_radius, m_width, m_strength, m_strengthInPixels, m_durationFrames);
+			create(primary->getPosition(), surfaceInfo);
 		}
 		else
 		{
@@ -683,11 +683,11 @@ public:
 		}
 	}
 
-	virtual void doFXPos(const Coord3D *primary, const Matrix3D* /*primaryMtx*/, const Real /*primarySpeed*/, const Coord3D * /*secondary*/, const Real /*overrideRadius*/, FXSurfaceInfo* /*surfaceInfo*/) const
+	virtual void doFXPos(const Coord3D *primary, const Matrix3D* /*primaryMtx*/, const Real /*primarySpeed*/, const Coord3D * /*secondary*/, const Real /*overrideRadius*/, FXSurfaceInfo* surfaceInfo) const
 	{
 		if (primary)
 		{
-			TheDisplay->createShockwave(primary, m_radius, m_width, m_strength, m_strengthInPixels, m_durationFrames);
+			create(primary, surfaceInfo);
 		}
 		else
 		{
@@ -704,6 +704,9 @@ public:
 			{ "Strength",					INI::parseReal,										nullptr, offsetof( ShockwaveFXNugget, m_strength ) },
 			{ "StrengthInPixels",			INI::parseBool,										nullptr, offsetof( ShockwaveFXNugget, m_strengthInPixels ) },
 			{ "Duration",					INI::parseDurationUnsignedInt,	nullptr, offsetof( ShockwaveFXNugget, m_durationFrames ) },
+			{ "AllowedSurface",				INI::parseIndexList,				AllowedSurfaceNames, offsetof( ShockwaveFXNugget, m_allowedSurfaceType ) },
+			{ "Rings",						INI::parseInt,										nullptr, offsetof( ShockwaveFXNugget, m_rings ) },
+			{ "Highlight",					INI::parsePercentToReal,							nullptr, offsetof( ShockwaveFXNugget, m_highlight ) },
 			{ nullptr, nullptr, nullptr, 0 }
 		};
 
@@ -713,11 +716,38 @@ public:
 	}
 
 private:
+	void create(const Coord3D *position, FXSurfaceInfo *surfaceInfo) const
+	{
+		Coord3D pos = *position;
+		Bool onWater = FALSE;
+		if (m_allowedSurfaceType != SURFACE_ALL)
+		{
+			if (!getSurfaceInfo(position, surfaceInfo, TRUE))
+			{
+				return;
+			}
+			if ((surfaceInfo->m_isWater && m_allowedSurfaceType == SURFACE_LAND) || (!surfaceInfo->m_isWater && m_allowedSurfaceType == SURFACE_WATER))
+			{
+				return;
+			}
+			if (surfaceInfo->m_isWater)
+			{
+				// The ring lies on the water surface, even when the shell detonated on the lake bed.
+				pos.z = surfaceInfo->m_waterHeight;
+				onWater = TRUE;
+			}
+		}
+		TheDisplay->createShockwave(&pos, m_radius, m_width, m_strength, m_strengthInPixels, m_durationFrames, m_rings, m_highlight, onWater);
+	}
+
 	Real					m_radius;
 	Real					m_width;
 	Real					m_strength;
 	Bool					m_strengthInPixels;
 	UnsignedInt		m_durationFrames;
+	AllowedSurfaceType	m_allowedSurfaceType;
+	Int						m_rings;
+	Real					m_highlight;
 };
 EMPTY_DTOR(ShockwaveFXNugget)
 

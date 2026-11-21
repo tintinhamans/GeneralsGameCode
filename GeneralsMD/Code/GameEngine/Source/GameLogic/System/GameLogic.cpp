@@ -28,6 +28,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "GameLogic/PathProfile.h"
+#include "GameLogic/PathScenario.h"
 
 #include "Common/AudioAffect.h"
 #include "Common/AudioHandleSpecialValues.h"
@@ -124,6 +126,9 @@ extern NGMPGame* TheNGMPGame;
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 
 #include <rts/profile.h>
+#include <stdio.h>
+#include <xmmintrin.h>
+#include <pmmintrin.h>
 
 struct QuitGameException {};
 
@@ -225,6 +230,11 @@ void setFPMode()
 	newVal = (newVal & ~_MCW_PC) | (_PC_24   & _MCW_PC);
 
 	_controlfp(newVal, _MCW_PC | _MCW_RC);
+
+	// SSE2 math rounds to nearest and flushes denormals to zero on every client.
+	_MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
+	_MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+	_MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2632,6 +2642,9 @@ static void findAndSelectCommandCenter(Object *obj, void* alreadyFound)
 void GameLogic::loadMapINI( AsciiString mapName )
 {
 	TheWriteableMapData->reset();
+	Bool respectAITargetVisibility = !isInSinglePlayerGame();
+	TheWriteableMapData->m_aiSpecialPowersRespectFog = respectAITargetVisibility;
+	TheWriteableMapData->m_aiSpecialPowersRespectStealth = respectAITargetVisibility;
 
 	if (!TheMapCache) {
 		// Need the map cache to get the map and user map directories.
@@ -2857,6 +2870,7 @@ void GameLogic::processCommandList( CommandList *list )
 
 		if (sawCRCMismatch)
 		{
+			dumpMismatchDiagnostic();
 #ifdef DEBUG_LOGGING
 			DEBUG_LOG(("CRC Mismatch - saw %d CRCs from %d players", m_cachedCRCs.size(), numPlayers));
 			for (CachedCRCMap::const_iterator crcIt = m_cachedCRCs.begin(); crcIt != m_cachedCRCs.end(); ++crcIt)
@@ -3981,6 +3995,11 @@ void GameLogic::update()
 		TheScriptEngine->UPDATE();
 	}
 
+	// TheSuperHackers @feature simonx645 16/11/2026 -pathScenario / -pathBench: this frame's spawns and orders, before the
+	// command list is processed (so the orders run, and are recorded, this frame).
+	if (PathScenario::Active() && !m_startNewGame)
+		PathScenario::Frame(now);
+
 	if (TheAIMatch) {
 		TheAIMatch->update();
 	}
@@ -4179,6 +4198,10 @@ void GameLogic::update()
 
 
 
+
+	// TheSuperHackers @feature simonx645 16/11/2026 -pathProfile: the frame's pathfinding row and the unit checks (reads only)
+	if (PathProfile::Enabled && (isSoloGameOrReplay || isMPGameOrReplay) && !m_startNewGame && !PathScenario::Done())
+		PathProfile::End_Frame(m_frame);
 
 	// increment world time
 	if (!m_startNewGame)
@@ -4513,6 +4536,97 @@ UnsignedInt GameLogic::getCRC( Int mode, AsciiString deepCRCFileName )
 		CRCGEN_LOG(("CRC for frame %d is 0x%8.8X", m_frame, theCRC));
 	}
 	return theCRC;
+}
+
+// ------------------------------------------------------------------------------------------------
+static UnsignedInt calcSnapshotCRC( const char *name, Snapshot *snapshot )
+{
+	if (snapshot == nullptr)
+	{
+		return 0;
+	}
+	XferCRC xfer;
+	xfer.open(name);
+	xfer.xferSnapshot(snapshot);
+	xfer.close();
+	return xfer.getCRC();
+}
+
+// ------------------------------------------------------------------------------------------------
+void GameLogic::dumpMismatchDiagnostic()
+{
+	if (TheGlobalData == nullptr)
+	{
+		return;
+	}
+
+	AsciiString path;
+	AsciiString prevPath;
+	path.format("%sMismatchInfo.txt", TheGlobalData->getPath_UserData().str());
+	prevPath.format("%sMismatchInfoPrev.txt", TheGlobalData->getPath_UserData().str());
+	remove(prevPath.str());
+	rename(path.str(), prevPath.str());
+	FILE *fp = fopen(path.str(), "w");
+	if (fp == nullptr)
+	{
+		return;
+	}
+
+	char timeText[32] = "unknown";
+	time_t now = time(nullptr);
+	struct tm *local = localtime(&now);
+	if (local)
+	{
+		strftime(timeText, sizeof(timeText), "%Y-%m-%d %H:%M:%S", local);
+	}
+
+	fprintf(fp, "Network mismatch report\n");
+	fprintf(fp, "Time: %s\n", timeText);
+	fprintf(fp, "Logic frame: %u\n", m_frame);
+	fprintf(fp, "Local CRC: 0x%08X\n", m_CRC);
+	fprintf(fp, "Random seed CRC: 0x%08X\n", GetGameLogicRandomSeedCRC());
+
+	AsciiString name;
+	fprintf(fp, "\nPlayer CRCs\n");
+	for (CachedCRCMap::const_iterator crcIt = m_cachedCRCs.begin(); crcIt != m_cachedCRCs.end(); ++crcIt)
+	{
+		Player *player = ThePlayerList ? ThePlayerList->getNthPlayer(crcIt->first) : nullptr;
+		if (player)
+		{
+			name.translate(player->getPlayerDisplayName());
+		}
+		else
+		{
+			name = "<none>";
+		}
+		fprintf(fp, "  player %d %s%s 0x%08X\n", crcIt->first, name.str(), (player && player->isLocalPlayer()) ? " (local)" : "", crcIt->second);
+	}
+
+	XferCRC objectXfer;
+	objectXfer.open("MismatchObjects");
+	Int objectCount = 0;
+	for (Object *obj = m_objList; obj; obj = obj->getNextObject())
+	{
+		objectXfer.xferSnapshot(obj);
+		++objectCount;
+	}
+	objectXfer.close();
+
+	fprintf(fp, "\nSubsystem CRCs\n");
+	fprintf(fp, "  Objects (%d): 0x%08X\n", objectCount, objectXfer.getCRC());
+	fprintf(fp, "  PartitionManager: 0x%08X\n", calcSnapshotCRC("MismatchPartitionManager", ThePartitionManager));
+	fprintf(fp, "  PlayerList: 0x%08X\n", calcSnapshotCRC("MismatchPlayerList", ThePlayerList));
+	fprintf(fp, "  AI: 0x%08X\n", calcSnapshotCRC("MismatchAI", TheAI));
+
+	fprintf(fp, "\nObject CRCs\n");
+	for (Object *obj = m_objList; obj; obj = obj->getNextObject())
+	{
+		const ThingTemplate *tmpl = obj->getTemplate();
+		fprintf(fp, "  id=%u %s 0x%08X\n", (UnsignedInt)obj->getID(),
+			tmpl ? tmpl->getName().str() : "<none>", calcSnapshotCRC("MismatchObject", obj));
+	}
+
+	fclose(fp);
 }
 
 // ------------------------------------------------------------------------------------------------

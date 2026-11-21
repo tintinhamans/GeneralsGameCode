@@ -152,6 +152,8 @@ public:
 	virtual void xfer( Xfer *xfer ) override;
 	virtual void loadPostProcess() override;
 
+	Real m_buildingSearchDistance;
+	Real m_skirmishBuildingSearchDistance;
 	Real m_structureSeconds;		// Try to build a structure every N seconds.
 	Real m_teamSeconds;					// Try to build a team every N seconds.
 	Int m_resourcesWealthy;		// How many resources to be wealthy.

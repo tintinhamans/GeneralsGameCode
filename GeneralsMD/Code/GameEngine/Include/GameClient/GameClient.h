@@ -140,10 +140,10 @@ public:
 	//---------------------------------------------------------------------------------------
 	virtual UnsignedInt getFrame() { return m_frame; }						///< Returns the current simulation frame number
 #if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
-	// The legacy frame ticks at 30 Hz on the wall clock so client effects keep their retail cadence.
+	// The legacy frame ticks with the logic frame at the retail rate, so client effects age alike on every client.
 	UnsignedInt getFrameLegacy() const { return m_frameLegacy; }
 	Bool HasLegacyFrameAdvanced() const { return m_frameLegacy != m_frameLegacyLast; }
-	Real getLegacyFramePhase() const { return min(1.0f, (Real)m_legacyFrameMsAccrued * BaseFps / MSEC_PER_SECOND); }
+	Real getLegacyFramePhase() const;
 #endif
 
 	//---------------------------------------------------------------------------
@@ -179,8 +179,6 @@ protected:
 #if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
 	UnsignedInt m_frameLegacy;
 	UnsignedInt m_frameLegacyLast;
-	Int64 m_legacyFrameEndLastMs;
-	Int64 m_legacyFrameMsAccrued;
 #endif
 
 	Drawable *m_drawableList;																		///< All of the drawables in the world

@@ -604,6 +604,9 @@ void ControlBar::populateBuildQueue( Object *producer )
 		//become invisible meaning the image that was there will be showed.
 		m_queueData[ i ].control->winClearStatus( WIN_STATUS_USE_OVERLAY_STATES );
 
+		// an empty slot takes no right click
+		m_queueData[ i ].control->winClearStatus( WIN_STATUS_RIGHT_CLICK_ON_PRESS );
+
 		// set the text of the window to nothing by default
 		GadgetButtonSetText( m_queueData[ i ].control, L"" );
 
@@ -1400,6 +1403,12 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 
 			// ask the ai if the weapon is ready to fire
 			const Weapon* w = obj->getWeaponInWeaponSlot( command->getWeaponSlot() );
+#if defined(RTS_ZEROHOUR)
+			if (w && !w->hasRequiredTransportOccupants(obj))
+			{
+				return COMMAND_RESTRICTED;
+			}
+#endif
 
 			// changed this to Log rather than Crash, because this can legitimately happen now for
 			// dozers and workers with mine-clearing stuff... (srj)

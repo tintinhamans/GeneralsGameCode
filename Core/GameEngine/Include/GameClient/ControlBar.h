@@ -493,9 +493,14 @@ enum { MAX_STRUCTURE_INVENTORY_BUTTONS = 10 }; // there are this many physical b
 enum { MAX_BUILD_QUEUE_BUTTONS = 9 };// physical button count for the build queue
 enum { MAX_SPECIAL_POWER_SHORTCUTS = 32};
 enum { MAX_SMART_SELECTION_BUTTONS = 16 };	///< TheSuperHackers @feature per type cameos above the command bar
-enum { MAX_COMMAND_GROUP_BUTTONS = 10 };		///< TheSuperHackers @feature one cameo per hotkey squad, under the smart selection row
+enum { MAX_COMMAND_GROUP_BUTTONS = 10 };		///< TheSuperHackers @feature one cameo per hotkey squad, in a box at the screen's top left corner
+enum { MAX_BUILD_QUEUE_BAR_BUTTONS = 10 };	///< TheSuperHackers @feature one cameo per queued unit type or upgrade, in a box above the radar
 enum { CAMEO_SCALE_PERCENT = 60 };								///< cameo size as a share of a command button
-enum { CAMEO_ROW_GAP = 2 };									///< pixels between cameos in a row, and between the rows
+enum { COMMAND_GROUP_CAMEO_SCALE_PERCENT = 46 };	///< command group cameo width and box cell size as a share of a command button
+enum { COMMAND_GROUP_FRAME_PERCENT = 50 };				///< the command group box's frame thickness as a share of the housing's
+enum { BUILD_QUEUE_CLOCK_ALPHA_PERCENT = 50 };	///< the build queue bar's clock opacity as a share of the command bar's
+enum { COMMAND_GROUP_SCREEN_MARGIN = 4 };				///< pixels between the screen's top left corner and the command group box
+enum { CAMEO_ROW_GAP = 2 };									///< pixels between cameos in a row
 enum { MAX_CAMEO_COUNT_BADGE = 999 };				///< a count past this gets no badge, it would not fit
 class CommandSet : public Overridable
 {
@@ -790,6 +795,16 @@ public:
 	void updateFocusGroup();
 	/// a cameo in the command group row selects its hotkey squad
 	void processCommandGroupClick( GameWindow *button );
+	/// the command group box draws its frame and the squad numbers under its cameos
+	void drawCommandGroupBar();
+	/// screen y just below the command group box, 0 while it is hidden
+	Int getCommandGroupBarBottom() const;
+	/// a cameo in the build queue bar selects an object that has it queued
+	void processBuildQueueClick( GameWindow *button );
+	/// the build queue box draws its frame
+	void drawBuildQueueBar();
+	/// the bar draws the smart selection row's housing in two passes, around its own art, for the money tab
+	void drawCameoRowHousing( Bool overBar );
 
 	//-----------------------------------------------------------------------------------------------
 	// the remaining methods are used to construct the command buttons and command sets for
@@ -801,6 +816,13 @@ public:
 
 	/// find existing command set
 	const CommandSet *findCommandSet( const AsciiString& name );
+
+#if RTS_ZEROHOUR
+	const CommandSet *findPowerHotkeySet( const PlayerTemplate *side, Player *player );	///< the army's Powers Menu card, read off a live player's holder object when one is given
+	const CommandButton *getPowerHotkeyButton( const CommandSet *set, Int number, Int *slot = nullptr ) const;	///< power 1 and up in slot order, null past the last
+	void firePowerHotkey( Int number );	///< what a SPECIAL_POWER key does
+	Int getPowerHotkeyCorner( const CommandButton *button );	///< the corner code of the SPECIAL_POWER key that fires this button for the local player, 0 for none
+#endif
 
 	void showPurchaseScience();
 	void refreshPurchaseScience();	///< repopulate the panel only while it is showing
@@ -983,10 +1005,31 @@ protected:
 	void populateSpecialPowerShortcut( Player *player);
 	void updateSpecialPowerShortcut();
 
-	// the following methods are for the smart selection row and the command group row under it
-	GameWindow *createCameoRow( GameWinSystemFunc systemFunc, Int slotCount, Bool rightClick, GameWindow **buttons );
+	// the following methods are for the smart selection row and the command group box
+	GameWindow *createCameoRow( GameWinSystemFunc systemFunc, Int slotCount, Bool rightClick, const ICoord2D &buttonSize, GameWindow **buttons );
+	void styleCameoCountBadges( GameWindow **buttons, Int count );
 	static const Image *getCameoImage( const ThingTemplate *thingTemplate );
+	static const Image *cropCameoImage( Image *&slot, const Image *source, const ICoord2D &buttonSize );
 	Int getCameoRowWidth( Int cameoCount ) const;
+	/// where the cameo rows sit, in screen pixels
+	struct CameoRowLayout
+	{
+		Bool housed;	///< the bar has the Pro art, so the rows sit in a housing
+		Int cameoLeft;	///< left edge of every row's first cameo
+		Int restBottom;	///< cameo bottom of the row resting on the bar
+		Int liftedBottom;	///< cameo bottom of a row lifted over the money tab
+		Int tabLeft;	///< a housing whose right edge passes this reaches the money tab
+		Int side;	///< how far the housing's right edge reaches past the last cameo
+	};
+	CameoRowLayout getCameoRowLayout() const;
+	Int getCameoStackBottom( const CameoRowLayout &layout ) const;
+	Bool getCameoRowHousing( IRegion2D *housing, Bool *closed ) const;
+	/// how far the Pro frame's edge, drawn at framePercent of its thickness, and padding reach in from a housing's sides, or FALSE and zero without that art
+	Bool getCameoFrameInset( ICoord2D *inset, Int framePercent ) const;
+	void drawCameoFrame( const IRegion2D &rect, Int framePercent );
+	void drawCameoBoxFrame( GameWindow *box );
+	UnsignedInt getCameoRowStatus() const;
+	void updateCameoRowBlocker();
 	void initSmartSelectionBar( const ICoord2D &commandButtonSize );
 	void destroySmartSelectionBar();
 	void resetSmartSelection();
@@ -996,19 +1039,27 @@ protected:
 	void smartSelectionFocus( Int groupIndex );
 	void smartSelectionRemove( Int groupIndex, Bool keepGroup );
 
-	void initCommandGroupBar();
+	void initCommandGroupBar( const ICoord2D &commandButtonSize );
 	void destroyCommandGroupBar();
 	void resetCommandGroupBar();
 	void updateCommandGroupBar();
+	void layoutCommandGroupBar();
 	void refreshCommandGroupButtons();
 	Bool isCommandGroupRowShown() const;
+
+	void initBuildQueueBar();
+	void destroyBuildQueueBar();
+	void resetBuildQueueBar();
+	void updateBuildQueueBar();
+	void layoutBuildQueueBar();
+	void refreshBuildQueueButtons();
 
 	static const Image* calculateVeterancyOverlayForLevel( VeterancyLevel level );
 	static const Image* calculateVeterancyOverlayForThing( const ThingTemplate *thingTemplate );
 	static const Image* calculateVeterancyOverlayForObject( const Object *obj );
 
 	// the following methods do command processing for GUI selections
-	CBCommandStatus processCommandUI( GameWindow *control, GadgetGameMessage gadgetMessage );
+	CBCommandStatus processCommandUI( GameWindow *control, GadgetGameMessage gadgetMessage, const CommandButton *windowless = nullptr );
 	CBCommandStatus processCommandTransitionUI( GameWindow *control, GadgetGameMessage gadgetMessage );
 
 	// methods to help out with each context
@@ -1093,6 +1144,7 @@ protected:
 	std::vector<SmartSelectionGroup> m_smartSelectionGroups;	///< one per type in a mixed selection, one per object otherwise
 	GameWindow *m_smartSelectionParent;												///< top level container for the row, created in code
 	GameWindow *m_smartSelectionMoneyWindow;									///< the money display the row must not run into
+	GameWindow *m_cameoRowBlocker;														///< invisible top level window that keeps clicks on the housing off the world
 	GameWindow *m_smartSelectionButtons[ MAX_SMART_SELECTION_BUTTONS ];
 	ICoord2D m_smartSelectionButtonSize;
 	Int m_smartSelectionActive;																///< cameo whose command set the bar shows, or -1 for the common set
@@ -1111,6 +1163,27 @@ protected:
 	UnsignedInt m_commandGroupFrame;													///< logic frame the entries were built on; they cannot change within one
 	GameWindow *m_commandGroupParent;													///< top level container for the row, created in code
 	GameWindow *m_commandGroupButtons[ MAX_COMMAND_GROUP_BUTTONS ];
+	ICoord2D m_commandGroupButtonSize;
+	DisplayString *m_commandGroupNumbers[ MAX_COMMAND_GROUP_BUTTONS ];	///< squad number under each cameo
+	Image *m_commandGroupImages[ MAX_COMMAND_GROUP_BUTTONS ];					///< each cameo's picture cropped to the button's shape
+	Color m_commandGroupNumberColor;													///< the buttons' text colour from before the badge colour replaced it
+	Color m_commandGroupNumberDropColor;
+
+	struct BuildQueueEntry
+	{
+		const ThingTemplate *thingTemplate;			///< the queued unit, or null for an upgrade
+		const UpgradeTemplate *upgradeTemplate;	///< the queued upgrade, or null for a unit
+		Int count;															///< queue entries of this kind across all producers
+		Bool building;													///< some producer has it at the head of its queue
+		Int percent;														///< progress of the head entry furthest along
+		std::vector<ObjectID> producers;				///< the objects that have it queued
+	};
+	std::vector<BuildQueueEntry> m_buildQueueEntries;
+	UnsignedInt m_buildQueueFrame;														///< logic frame the entries were built on
+	GameWindow *m_buildQueueParent;														///< top level container for the box, created in code
+	GameWindow *m_buildQueueButtons[ MAX_BUILD_QUEUE_BAR_BUTTONS ];
+	Image *m_buildQueueImages[ MAX_BUILD_QUEUE_BAR_BUTTONS ];				///< each cameo's picture cropped to the button's shape
+	GameWindow *m_buildQueueRadarWindow;											///< the radar's input block, which the bar sits on top of
 
 	GameWindow *m_commandWindows[ MAX_COMMANDS_PER_SET ];			///< command window controls for easy access
 	Int m_gridRow[ MAX_COMMANDS_PER_SET ];							///< each command window's row on the bar, for grid hotkeys

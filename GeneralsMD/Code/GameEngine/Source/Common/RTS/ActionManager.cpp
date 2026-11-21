@@ -1825,6 +1825,7 @@ Bool ActionManager::canDoSpecialPowerAtLocation( const Object *obj, const Coord3
 			case SPECIAL_DEFECTOR:
 			case SPECIAL_BLACKLOTUS_CAPTURE_BUILDING:
 			case SPECIAL_BLACKLOTUS_DISABLE_VEHICLE_HACK:
+			case SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK:
 			case SPECIAL_BLACKLOTUS_STEAL_CASH_HACK:
 			case SPECIAL_INFANTRY_CAPTURE_BUILDING:
 			case SPECIAL_DETONATE_DIRTY_NUKE:
@@ -1993,6 +1994,11 @@ Bool ActionManager::canDoSpecialPowerAtObject( const Object *obj, const Object *
 			case SPECIAL_INFANTRY_CAPTURE_BUILDING:
 			case SPECIAL_BLACKLOTUS_CAPTURE_BUILDING:
 				return canCaptureBuilding( obj, target, commandSource );
+
+			case SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK:
+				return !target->isContained() && !target->isVehicleControlled()
+					&& !target->isKindOf( KINDOF_STRUCTURE )
+					&& canDisableVehicleViaHacking( obj, target, commandSource, false );
 
 			case SPECIAL_BLACKLOTUS_DISABLE_VEHICLE_HACK:
 				return canDisableVehicleViaHacking( obj, target, commandSource, false );
@@ -2276,6 +2282,9 @@ SpecialPowerType ActionManager::getFallbackBehaviorType(SpecialPowerType type) {
 	case CHEM_SPECIAL_VIRUS:
 	case SUPW_SPECIAL_CRYOBOMB:
 		return SPECIAL_LEAFLET_DROP;
+
+	case SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK:
+		return SPECIAL_BLACKLOTUS_CONTROL_VEHICLE_HACK;
 
 	case SPECIAL_TOGGLE_DRAWBRIDGE:
 		// this has special code

@@ -140,8 +140,18 @@ public:
 	static const char *mouseKeyName( Int key );	///< "mouse4" for a mouse key code, null for anything else
 	static Int mouseKeyFromName( const AsciiString& name );	///< the mouse key code a name stands for, 0 for none
 	static const WideChar *mouseKeyText( Int key );	///< "Mouse 4" for a mouse key code, null for anything else
+	// A corner label's code is a corner character, and above it the chord's modifiers, drawn before the key as ! # ^
+	enum
+	{
+		CTRL_CORNER = 0x100,
+		ALT_CORNER = 0x200,
+		SHIFT_CORNER = 0x400,
+		CORNER_CODES = 0x800
+	};
 	static Char cornerOf( const AsciiString& key );	///< the one character a cameo corner shows for a key, 0 for none
 	static const char *cornerText( Char corner );	///< "M4" for a mouse key's corner character, null for a letter
+	static Char functionKeyCorner( Int key );	///< the corner character of F1 to F12, 0 for any other key
+	static Int chordCorner( Int key, Int modState );	///< the corner code of a command's chord, '*' when its key has no corner label
 
 	// Hotkeys.ini in the user data folder, laid over the shipped command map and button letters
 	static AsciiString getPlayerKeysPath();

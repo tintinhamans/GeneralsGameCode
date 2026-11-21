@@ -5275,7 +5275,11 @@ static Bool bindCloudTexture(Int stage, D3DMATRIX &cameraToCloud)
 
 Bool W3DShaderManager::bindCloudMap(Int stage, D3DMATRIX &cameraToCloud)
 {
+#if defined(BUILD_WITH_D3D9)
 	return UnitCloudsEnabled && bindCloudTexture(stage, cameraToCloud);
+#else
+	return FALSE;
+#endif
 }
 
 // Projects the terrain's cloud map onto a fixed-function receiver, the way the terrain samples it.

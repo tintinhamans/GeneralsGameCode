@@ -797,6 +797,7 @@ public:  // ********************************************************************
 	virtual void removeIdleWorker( Object *obj, Int playerNumber );
 	virtual void selectNextIdleWorker();
 	static std::vector<Object*> getUniqueIdleWorkers(const ObjectList& idleWorkers);
+	virtual Int getIdleWorkerCount();
 
 	virtual void recreateControlBar();
 	virtual void refreshCustomUiResources();
@@ -822,6 +823,8 @@ public:  // ********************************************************************
 	void setDrawRMBScrollAnchor(Bool b) { m_drawRMBScrollAnchor = b; }
 	void setMoveRMBScrollAnchor(Bool b) { m_moveRMBScrollAnchor = b; }
 
+	Int getHudAnchorBottom() const;	///< screen y just below the inline HUD line, 0 when nothing draws at the anchor
+
 	// The colour of an action line says what the order is for.
 	enum ActionLineKind
 	{
@@ -846,7 +849,6 @@ public:  // ********************************************************************
 	void toggleReplayControls();
 
 private:
-	virtual Int getIdleWorkerCount();
 	virtual Object *findIdleWorker( Object *obj);
 	virtual void showIdleWorkerLayout();
 	virtual void hideIdleWorkerLayout();
@@ -994,7 +996,7 @@ protected:
 
 	void destroyPlacementIcons();													///< Destroy placement icons
 	void handleBuildPlacements();													///< handle updating of placement icons based on mouse pos
-	Real getPlacementRangeCircleRadius( const ThingTemplate *build ) const;	///< widest weapon reach of the thing being placed, 0 when it has none
+	void getPlacementRangeCircleRadii( const ThingTemplate *build, Real &ground, Real &air ) const;	///< widest anti-ground and anti-air reach of the thing being placed, 0 where it has none
 	void updatePlacementRangeCircle( Drawable *icon );			///< put the range ring under a placement ghost, or take it away
 	void handleRadiusCursor();																	///< handle updating of "radius cursors" that follow the mouse pos
 

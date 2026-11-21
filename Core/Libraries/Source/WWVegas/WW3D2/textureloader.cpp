@@ -1449,9 +1449,12 @@ static void Apply_Dim_Reduction(unsigned& width, unsigned& height, unsigned& red
 			width = w;
 			height = h;
 			reduction = r;
-			break;
+			return;
 		}
 	}
+
+	// No reduced size is valid, so the texture loads at full size and the file reader must skip no levels
+	reduction = 0;
 }
 
 // If the size doesn't match, try and see if texture reduction would help...
@@ -1475,9 +1478,11 @@ static void Apply_Dim_Reduction_With_Depth(unsigned& width, unsigned& height, un
 			height = h;
 			depth = d;
 			reduction = r;
-			break;
+			return;
 		}
 	}
+
+	reduction = 0;
 }
 
 

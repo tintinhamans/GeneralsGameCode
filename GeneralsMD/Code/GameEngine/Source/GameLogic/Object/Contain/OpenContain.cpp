@@ -1326,6 +1326,7 @@ void OpenContain::exitObjectViaDoor( Object *exitObj, ExitDoorType exitDoor )
 			// The units often come out at the same position, and need to ignore collisions briefly
 			// as they move out.  jba.
 			ai->setIgnoreCollisionTime(computeExitIgnoreCollisionFrames(exitObj, ai, startPosition, endPosition));
+			ai->startExitPass(&startPosition, &endPosition);	// TheSuperHackers @feature simonx645 16/11/2026 "exitpass"
 		}
 		std::vector<Coord3D> exitPath;
 		exitPath.push_back(endPosition);
@@ -1431,6 +1432,7 @@ void OpenContain::exitObjectInAHurry( Object *exitObj )
 			// The units often come out at the same position, and need to ignore collisions briefly
 			// as they move out.  jba.
 			ai->setIgnoreCollisionTime(computeExitIgnoreCollisionFrames(exitObj, ai, startPosition, endPosition));
+			ai->startExitPass(&startPosition, &endPosition);	// TheSuperHackers @feature simonx645 16/11/2026 "exitpass"
 		}
 		exitPath.push_back(endPosition);
 		if (m_rallyPointExists) {

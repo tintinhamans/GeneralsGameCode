@@ -39,6 +39,7 @@
 #include "GameLogic/ExperienceTracker.h"
 #include "GameLogic/Locomotor.h"
 #include "GameLogic/Module/BodyModule.h"
+#include "GameLogic/Module/ContainModule.h"
 #include "GameLogic/Module/CountermeasuresBehavior.h"
 #include "GameLogic/Module/JetAIUpdate.h"
 #include "GameLogic/Module/ParkingPlaceBehavior.h"
@@ -2370,6 +2371,7 @@ JetAIUpdateModuleData::JetAIUpdateModuleData()
 	m_lockonFreq = 0.5;
 	m_lockonAngleSpin = 720;
 	m_returnToBaseIdleTime = 0;
+	m_returnToBaseAfterUnload = FALSE;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2397,6 +2399,7 @@ JetAIUpdateModuleData::JetAIUpdateModuleData()
 		{ "LockonFreq",										INI::parseReal, nullptr, offsetof( JetAIUpdateModuleData, m_lockonFreq ) },
 		{ "LockonAngleSpin",							INI::parseAngleReal, nullptr, offsetof( JetAIUpdateModuleData, m_lockonAngleSpin ) },
 		{ "LockonBlinky",									INI::parseBool, nullptr, offsetof( JetAIUpdateModuleData, m_lockonBlinky ) },
+		{ "ReturnToBaseAfterUnload", INI::parseBool, nullptr, offsetof(JetAIUpdateModuleData, m_returnToBaseAfterUnload) },
 		{ "ReturnToBaseIdleTime",					INI::parseDurationUnsignedInt, nullptr, offsetof( JetAIUpdateModuleData, m_returnToBaseIdleTime ) },
 		{ nullptr, nullptr, nullptr, 0 }
 	};
@@ -2563,6 +2566,20 @@ void JetAIUpdate::getProducerLocation()
 }
 
 //-------------------------------------------------------------------------------------------------
+void JetAIUpdate::onTransportUnloaded()
+{
+	if (!getJetAIUpdateModuleData()->m_returnToBaseAfterUnload || getObject()->isEffectivelyDead())
+	{
+		return;
+	}
+	getProducerLocation();
+	if (getFlag(ALLOW_AIR_LOCO))
+	{
+		setFlag(RETURN_AFTER_UNLOAD, true);
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
 UpdateSleepTime JetAIUpdate::update()
 {
 	// Suspend jet AI (taxi/takeoff/landing/ammo logic) while disabled; only the locomotor runs.
@@ -2572,6 +2589,32 @@ UpdateSleepTime JetAIUpdate::update()
 	const JetAIUpdateModuleData* d = getJetAIUpdateModuleData();
 
 	getProducerLocation();
+
+	if (getObject()->getContain() && getObject()->getContain()->isPassengerLaunchPending())
+	{
+		m_returnToBaseFrame = 0;
+		if (isAttacking())
+		{
+			friend_purgePendingCommand();
+			AIUpdateInterface::privateIdle(CMD_FROM_AI);
+		}
+	}
+
+	// Defer the return until the current weapon or passenger exit callback finishes.
+	if (getFlag(RETURN_AFTER_UNLOAD) && !getFlag(TAKEOFF_IN_PROGRESS) && !getFlag(LANDING_IN_PROGRESS))
+	{
+		setFlag(RETURN_AFTER_UNLOAD, false);
+		if (getFlag(ALLOW_AIR_LOCO))
+		{
+			friend_purgePendingCommand();
+			m_returnToBaseFrame = 0;
+			setFlag(USE_SPECIAL_RETURN_LOCO, false);
+			setFlag(ALLOW_INTERRUPT_AND_RESUME_OF_CUR_STATE_FOR_RELOAD, false);
+			getStateMachine()->clear();
+			setLastCommandSource(CMD_FROM_AI);
+			getStateMachine()->setState(RETURNING_FOR_LANDING);
+		}
+	}
 
 	Object* jet = getObject();
 
@@ -3199,6 +3242,30 @@ void JetAIUpdate::aiDoCommand(const AICommandParms* parms)
 
 	if (!isAllowedToRespondToAiCommands(parms))
 		return;
+
+	if (parms->m_cmd == AICMD_MOVE_AWAY_FROM_UNIT && !isAllowedToMoveAwayFromUnit())
+	{
+		return;
+	}
+
+	if (getJetAIUpdateModuleData()->m_returnToBaseAfterUnload &&
+		(parms->m_cmd == AICMD_EVACUATE || parms->m_cmd == AICMD_EVACUATE_INSTANTLY))
+	{
+		friend_purgePendingCommand();
+		if (isAttacking())
+		{
+			AIUpdateInterface::privateIdle(parms->m_cmdSource);
+		}
+		if (parms->m_cmd == AICMD_EVACUATE_INSTANTLY)
+		{
+			privateEvacuateInstantly(parms->m_intValue, parms->m_cmdSource);
+		}
+		else
+		{
+			privateEvacuate(parms->m_intValue, parms->m_cmdSource);
+		}
+		return;
+	}
 
 	// note that we always store this, even if nothing will be "pending".
 	m_mostRecentCommand.store(*parms);
