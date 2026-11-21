@@ -13,6 +13,9 @@
 #include "GameNetwork/Online/GameSpy/GameSpyLadder.h"
 
 #include <algorithm>
+#include <chrono>
+#include <ctime>
+#include <optional>
 #include <memory>
 #include <unordered_set>
 
@@ -417,6 +420,113 @@ bool GenOnlineStatsInterface::TryCachePlayerStats(const PSPlayerStats& stats, ui
 	return true;
 }
 
+// The last match result, kept so it can be sent again for fresh upload URLs.
+static uint64_t s_resultMatchID = 0;
+static std::string s_resultPath;
+static std::string s_resultBody;
+
+// Reads the UTC ISO 8601 time of expires_at, the epoch when it is missing or malformed.
+static std::chrono::system_clock::time_point ParseUploadExpiry(const std::optional<std::string>& text)
+{
+	if (!text.has_value())
+	{
+		return std::chrono::system_clock::time_point();
+	}
+	int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
+	if (sscanf(text->c_str(), "%d-%d-%dT%d:%d:%d", &year, &month, &day, &hour, &minute, &second) != 6)
+	{
+		return std::chrono::system_clock::time_point();
+	}
+	tm utc = {};
+	utc.tm_year = year - 1900;
+	utc.tm_mon = month - 1;
+	utc.tm_mday = day;
+	utc.tm_hour = hour;
+	utc.tm_min = minute;
+	utc.tm_sec = second;
+	const time_t seconds = _mkgmtime(&utc);
+	return seconds < 0 ? std::chrono::system_clock::time_point() : std::chrono::system_clock::from_time_t(seconds);
+}
+
+// The result is safe to send again, so a lost answer or a server error retries.
+static void SendMatchResult(uint64_t currentMatchID, bool bRetry)
+{
+	GenOnlineRealtimeBridge::CallRestWithRetry(GenOnlineRealtimeBridge::RestMethod::Put, s_resultPath, s_resultBody,
+		[currentMatchID, bRetry](const GenOnlineRealtime::RestOutcome& outcome)
+		{
+			GenOnlineServicesManager* pManager = GenOnlineServicesManager::GetInstance();
+			if (pManager != nullptr)
+			{
+				pManager->NoteUploadURLsAnswered();
+			}
+			GenOnlineRealtime::MatchResultResponse result;
+			if (!outcome.Data(result))
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] Match result for match %llu failed: status %d code %s", currentMatchID, outcome.status, outcome.error.code.c_str());
+				return;
+			}
+			if (pManager == nullptr)
+			{
+				return;
+			}
+			pManager->SetScreenshotS3URI_EndMatch(currentMatchID, result.screenshot_url);
+			pManager->SetScreenshotS3URI_Replay(currentMatchID, result.replay_url);
+			// The service may leave out the stats URL
+			if (result.stats_url.has_value())
+			{
+				pManager->SetStatsS3URI(currentMatchID, *result.stats_url);
+			}
+			pManager->SetResultUploadExpiry(currentMatchID, ParseUploadExpiry(result.expires_at));
+			pManager->SetResultUploadForms(currentMatchID, result.screenshot_fields.value_or(UploadFormFields()), result.replay_fields.value_or(UploadFormFields()), result.stats_fields.value_or(UploadFormFields()));
+
+			if (bRetry)
+			{
+				return;
+			}
+
+			// The service counts the result into the stats of the player, so the cached own stats are fetched again.
+			GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+			GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
+			if (pAuthInterface != nullptr && pStatsInterface != nullptr && pAuthInterface->GetUserID() != -1)
+			{
+				const int64_t localUserID = pAuthInterface->GetUserID();
+				pStatsInterface->MarkPlayerStatsCacheStale(localUserID);
+				pStatsInterface->findPlayerStatsByID(localUserID, [](bool, PSPlayerStats) {}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
+			}
+		});
+}
+
+void GenOnlineStatsInterface::RetryMatchResult(uint64_t matchID)
+{
+	if (matchID == s_resultMatchID && !s_resultPath.empty())
+	{
+		SendMatchResult(matchID, true);
+	}
+}
+
+void GenOnlineStatsInterface::ReportUpload(uint64_t matchID, const std::string& key, const char* failureReason, int httpStatus)
+{
+	GenOnlineRealtime::FileReportBody report;
+	report.key = key;
+	report.result = failureReason == nullptr ? "uploaded" : "failed";
+	if (failureReason != nullptr)
+	{
+		report.reason = failureReason;
+	}
+	if (httpStatus >= 100 && httpStatus <= 599)
+	{
+		report.http_status = httpStatus;
+	}
+	GenOnlineRealtimeBridge::CallRestWithRetry(GenOnlineRealtimeBridge::RestMethod::Post, GenOnlineRealtime::RestMatchFileReportPath((int64_t)matchID), nlohmann::json(report).dump(),
+		[matchID](const GenOnlineRealtime::RestOutcome& outcome)
+		{
+			if (outcome.status < 200 || outcome.status > 299)
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] Upload report for match %llu failed: status %d code %s", matchID, outcome.status, outcome.error.code.c_str());
+			}
+		});
+}
+
 void GenOnlineStatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeeper, bool bWon)
 {
 	int buildingsBuilt = 0;
@@ -470,38 +580,9 @@ void GenOnlineStatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeeper, bool bW
 		request.stats.units_killed = unitsDestroyed;
 		request.stats.units_lost = unitsLost;
 		request.stats.total_money = totalMoney;
-		// The result is safe to send again, so a lost answer or a server error retries.
-		GenOnlineRealtimeBridge::CallRestWithRetry(GenOnlineRealtimeBridge::RestMethod::Put, GenOnlineRealtime::RestMatchResultPath((int64_t)currentMatchID), nlohmann::json(request).dump(),
-			[currentMatchID](const GenOnlineRealtime::RestOutcome& outcome)
-			{
-				GenOnlineRealtime::MatchResultResponse result;
-				if (!outcome.Data(result))
-				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] Match result for match %llu failed: status %d code %s", currentMatchID, outcome.status, outcome.error.code.c_str());
-					return;
-				}
-				GenOnlineServicesManager* pManager = GenOnlineServicesManager::GetInstance();
-				if (pManager == nullptr)
-				{
-					return;
-				}
-				pManager->SetScreenshotS3URI_EndMatch(currentMatchID, result.screenshot_url);
-				pManager->SetScreenshotS3URI_Replay(currentMatchID, result.replay_url);
-				// The service may leave out the stats URL
-				if (result.stats_url.has_value())
-				{
-					pManager->SetStatsS3URI(currentMatchID, *result.stats_url);
-				}
-
-				// The service counts the result into the stats of the player, so the cached own stats are fetched again.
-				GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-				GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
-				if (pAuthInterface != nullptr && pStatsInterface != nullptr && pAuthInterface->GetUserID() != -1)
-				{
-					const int64_t localUserID = pAuthInterface->GetUserID();
-					pStatsInterface->MarkPlayerStatsCacheStale(localUserID);
-					pStatsInterface->findPlayerStatsByID(localUserID, [](bool, PSPlayerStats) {}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
-				}
-			});
+		s_resultMatchID = currentMatchID;
+		s_resultPath = GenOnlineRealtime::RestMatchResultPath((int64_t)currentMatchID);
+		s_resultBody = nlohmann::json(request).dump();
+		SendMatchResult(currentMatchID, false);
 	}
 }

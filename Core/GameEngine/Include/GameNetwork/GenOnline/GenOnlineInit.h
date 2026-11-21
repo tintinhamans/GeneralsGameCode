@@ -38,12 +38,18 @@ enum class EScreenshotType : int
     SCREENSHOT_TYPE_SCORESCREEN = 2
 };
 
+// The fields of a signed multipart upload form, empty for a plain PUT.
+typedef std::map<std::string, std::string> UploadFormFields;
+
 struct S3ScreenshotEntry
 {
     std::vector<uint8_t> vecBytes;
     std::string strSignedURI;
 	EScreenshotType screenshotType;
 	std::chrono::steady_clock::time_point notBefore; // upload is held back until this time
+	std::chrono::system_clock::time_point expiresAt; // when the signed URL stops working, the epoch when unknown
+	UploadFormFields formFields;
+	uint64_t matchID = 0;
 
     bool operator==(const S3ScreenshotEntry& other) const
 	{
@@ -755,6 +761,12 @@ public:
 	void SetScreenshotS3URI_EndMatch(uint64_t matchID, std::string uri);
 	void SetScreenshotS3URI_Replay(uint64_t matchID, std::string uri);
 	void SetStatsS3URI(uint64_t matchID, std::string uri);
+	void SetResultUploadExpiry(uint64_t matchID, std::chrono::system_clock::time_point expiresAt);
+	void SetResultUploadForms(uint64_t matchID, UploadFormFields screenshot, UploadFormFields replay, UploadFormFields stats);
+
+	/// An upload timed out or was refused, so the result is asked for again to get fresh URLs. FALSE when it already tried enough.
+	bool RequestFreshUploadURLs(uint64_t matchID);
+	void NoteUploadURLsAnswered() { m_uploadRetryInFlight = false; }
 
 private:
 	// NOTE: Accessed from multiple threads, dont access directly, use helpers above to lock
@@ -769,7 +781,14 @@ private:
 		uint64_t uriMatchID = 0;
 		std::vector<uint8_t> bytes;
 		std::string signedURI;
+		std::chrono::system_clock::time_point expiresAt;	// when the signed URL stops working, the epoch when unknown
+		UploadFormFields formFields;
 	};
+
+	void StartResultUpload(CachedMatchUpload& upload, const char* label, const char* contentType);
+	uint64_t m_uploadRetryMatchID = 0;
+	int m_uploadRetries = 0;
+	bool m_uploadRetryInFlight = false;
 
 	void CacheMatchUploadBytes(CachedMatchUpload& upload, uint64_t matchID, std::vector<uint8_t> data);
 	void CacheMatchUploadURI(CachedMatchUpload& upload, uint64_t matchID, std::string uri);
