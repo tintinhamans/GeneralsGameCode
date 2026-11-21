@@ -1020,7 +1020,7 @@ void PostToLanGameOptions( PostToLanGameType post )
 // Stats pipe lobby control: the start position buttons' own handler.
 static void statsMoveStartPosition(Int slot, Int position)
 {
-	handleStartPositionSelection(slot, position);
+	LanGameSetupActions::selectStartPosition(TheLAN->GetMyGame(), slot, position, s_isIniting);
 }
 
 Bool LanGameOptionsMenuStatsLobby( StatsLobbyScreen& out )

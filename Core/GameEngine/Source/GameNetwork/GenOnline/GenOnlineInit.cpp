@@ -37,11 +37,7 @@
 #include <random>
 #include <algorithm>
 
-extern "C"
-{
-	__declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
-	__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
-}
+// Ronin @build 21/11/2026 DX9: NvOptimusEnablement and AmdPowerXpressRequestHighPerformance are in GpuPreferenceExports.cpp.
 
 GenOnlineServicesManager* GenOnlineServicesManager::m_pOnlineServicesManager = nullptr;
 std::recursive_mutex GenOnlineServicesManager::m_singletonMutex;
@@ -1570,7 +1566,7 @@ std::string GenOnlineServicesManager::GetSentryStatus()
 
 void GenOnlineServicesManager::LogDisplayAdapter()
 {
-	const D3DADAPTER_IDENTIFIER8& adapter = DX8Wrapper::Get_Current_Adapter_Identifier();
+	const D3DADAPTER_IDENTIFIER9& adapter = DX8Wrapper::Get_Current_Adapter_Identifier();	// Ronin @build 21/11/2026 DX9
 	if (adapter.Description[0] == '\0')
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Session] GPU: no D3D8 adapter (headless or no device)");

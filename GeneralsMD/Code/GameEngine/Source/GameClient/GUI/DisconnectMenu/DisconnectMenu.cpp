@@ -26,6 +26,7 @@
 
 #include "GameClient/DisconnectMenu.h"
 #include "GameClient/GUICallbacks.h"
+#include "GameClient/GameWindowManager.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameClient/GUI/GUICallbacks/Menus/DisconnectMenuActions.h"
 

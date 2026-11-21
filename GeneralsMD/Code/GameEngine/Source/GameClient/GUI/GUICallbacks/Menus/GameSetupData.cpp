@@ -44,18 +44,7 @@ static UnicodeString FormatStartingCashLabel( const Money &moneyAmount )
 	return rtn;
 }
 
-// Ronin @feature 30/10/2026 DX9: his GUIUtil.cpp team colours (team list and start markers); not in our GUIUtil.
-UnsignedInt GetTeamUiColor(Int teamNumber)
-{
-	switch (teamNumber)
-	{
-		case 0: return GameMakeColor(255, 60, 60, 255);		// Red
-		case 1: return GameMakeColor(60, 255, 60, 255);		// Green
-		case 2: return GameMakeColor(60, 120, 255, 255);	// Blue
-		case 3: return GameMakeColor(255, 220, 60, 255);	// Yellow
-	}
-	return GameMakeColor(255, 255, 255, 255);	// none
-}
+UnsignedInt GetTeamUiColor(Int teamNumber);	// Ronin @build 21/11/2026 DX9: GO's GUIUtil.cpp has it now (the same colours)
 
 GameSetupData GameSetupData::build( GameInfo *game, Bool allowObservers )
 {

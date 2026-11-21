@@ -114,9 +114,3 @@ inline Radar *Win32GameEngine::createRadar(Bool dummy)
 		return NEW RadarDummy;
 	return NEW W3DRadar;
 }
-inline AudioManager *Win32GameEngine::createAudioManager(Bool dummy)
-{
-	if (dummy)
-		return NEW MilesAudioManagerDummy;
-	return NEW MilesAudioManager;
-}

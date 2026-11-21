@@ -1,0 +1,3 @@
+# Ronin @build 21/11/2026: vcpkg applies the port patches with git apply - keep them byte for byte (core.autocrlf
+# would check them out with CRLF, which git apply rejects as a corrupt patch).
+*.patch -text

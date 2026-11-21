@@ -1,7 +1,7 @@
-# The SDK repository is private, so git fetches it over SSH with the builder's own key.
+# The SDK repository, fetched over HTTPS (the builder's git credentials when it is private).
 vcpkg_from_git(
     OUT_SOURCE_PATH SOURCE_PATH
-    URL git@github.com:community-outpost/genonline-plugin-sdk.git
+    URL https://github.com/community-outpost/genonline-plugin-sdk.git
     REF 3facd6999df39572297e9088a6f106e9c59790d2
 )
 

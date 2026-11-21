@@ -2190,7 +2190,7 @@ static void gatherGameSpySlotInfo( GameInfo *game, GameSpyGameSlot *slot, GameSp
 
 #if defined(GENONLINE)
 	// if QM, show ELO
-	NGMPGame* pNGMPGame = (NGMPGame*)game;
+	GenOnlineGame* pNGMPGame = (GenOnlineGame*)game;
 	if (pNGMPGame->isQMGame())
 	{
 		info.m_name.format(L"%s (Elo: %d)", slot->getName().str(), stats.elo_rating);

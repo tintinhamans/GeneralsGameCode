@@ -156,19 +156,20 @@ endif()
 if(MSVC)
     # Ronin @build 02/11/2025 AUTOMATIC deployment to Zero Hour folder
     # This copies exe + pdb to Zero Hour installation after every build
-    set(ZEROHOUR_INSTALL_PATH "C:/Program Files (x86)/Steam/steamapps/common/Command & Conquer Generals - Zero Hour")
+    set(ZEROHOUR_INSTALL_PATH "${CMAKE_BINARY_DIR}/deploy")
     
     # Ronin @build 18/02/2026 Path to the compiled instancing/distortion vertex/pixel shaders
     set(SHADER_SOURCE_DIR "${CMAKE_SOURCE_DIR}/GeneralsMD/Code/GameEngineDevice/Source/W3DDevice/GameClient/Shaders")
 
     add_custom_command(TARGET z_generals POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E echo "Deploying to Zero Hour installation..."
+        # Ronin @build 21/11/2026 DX9: the target's own names - GO's genonline_zerohour beside the fork's generalszh
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             $<TARGET_FILE:z_generals>
-   "${ZEROHOUR_INSTALL_PATH}/generalszh.exe"
+   "${ZEROHOUR_INSTALL_PATH}/$<TARGET_FILE_NAME:z_generals>"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-   $<TARGET_FILE_DIR:z_generals>/generalszh.pdb
-        "${ZEROHOUR_INSTALL_PATH}/generalszh.pdb"
+   $<TARGET_PDB_FILE:z_generals>
+        "${ZEROHOUR_INSTALL_PATH}/$<TARGET_PDB_FILE_NAME:z_generals>"
         # Ronin @build 18/02/2026 Deploy instancing vertex shaders to shaders subfolder
         COMMAND ${CMAKE_COMMAND} -E make_directory
             "${ZEROHOUR_INSTALL_PATH}/shaders"

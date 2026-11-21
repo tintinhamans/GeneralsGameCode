@@ -1507,9 +1507,9 @@ void DX8Wrapper::Unbind_Device_Buffers()
 {
 	for (unsigned stream = 0; stream < MAX_VERTEX_STREAMS; ++stream)
 	{
-		DX8CALL(SetStreamSource(stream, nullptr, 0));
+		DX8CALL(SetStreamSource(stream, nullptr, 0, 0));	// Ronin @build 21/11/2026 DX9: D3D9's signatures
 	}
-	DX8CALL(SetIndices(nullptr, 0));
+	DX8CALL(SetIndices(nullptr));
 }
 
 void DX8Wrapper::Release_Device()
@@ -1530,6 +1530,7 @@ void DX8Wrapper::Release_Device()
 
 		DX8CALL(SetStreamSource(0, nullptr, 0, 0));	//release reference count on last rendered vertex buffer
 		DX8CALL(SetIndices(nullptr));	//release reference count on last rendered index buffer
+		}
 
 
 		/*
