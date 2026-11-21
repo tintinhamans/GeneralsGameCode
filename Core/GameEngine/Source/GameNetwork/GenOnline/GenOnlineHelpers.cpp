@@ -70,7 +70,7 @@ static std::string GetBuildDescriptionForLog()
 // written under every session separator, never with secrets, paths or addresses
 static void AppendNetworkLogSessionHeader(std::string& strOut)
 {
-	AppendNetworkLogLine(strOut, std::format("[Session] Client version: {} ({})", GENONLINE_VERSION_STRING, GENONLINE_CLIENT_ID));
+	AppendNetworkLogLine(strOut, std::format("[Session] Client version: {} ({})", GenOnlineRealtime::ClientVersionText(GitTag, GitReleaseTag, GitCommitDate, GitHaveInfo ? GitShortSHA1 : ""), GENONLINE_CLIENT_ID));
 	AppendNetworkLogLine(strOut, std::format("[Session] Sentry release: {}", GenOnlineServicesManager::GetSentryRelease()));
 	AppendNetworkLogLine(strOut, std::format("[Session] Sentry: {}", GenOnlineServicesManager::GetSentryStatus()));
 	AppendNetworkLogLine(strOut, std::format("[Session] Build: {}", GetBuildDescriptionForLog()));

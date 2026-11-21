@@ -740,6 +740,16 @@ inline std::string CompatibilityVersion(const std::string& releaseTag, const std
 	return "1970.1.0";
 }
 
+// The version a build shows: the release tag it sits on (2026.11.0 or 2026.11.0-rc.1), else the release it follows with the commit.
+inline std::string ClientVersionText(const std::string& exactTag, const std::string& releaseTag, const std::string& commitDate, const std::string& shortCommit)
+{
+	if (exactTag.size() > 1 && exactTag[0] == 'v')
+	{
+		return exactTag.substr(1);
+	}
+	return CompatibilityVersion(releaseTag, commitDate) + "-dev" + (shortCommit.empty() ? std::string() : "+" + shortCommit);
+}
+
 struct CompatibilityUpdate : WireObject
 {
 	std::string patcher_name;
