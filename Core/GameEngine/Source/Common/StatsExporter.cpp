@@ -37,9 +37,10 @@
 #define __MACTYPES__
 #include <zlib.h>
 
-#include <GenOnlinePluginApi.h>
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"	// NetworkLog
-#include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
+#include "Common/StatsUploader.h"
+#include "GameNetwork/GenOnline/GenOnlineInit.h"
+#include <windows.h>
 
 #include "GameNetwork/GenOnline/json.hpp"
 
@@ -266,9 +267,23 @@ static void initPlayerMapping()
 
 //-----------------------------------------------------------------------------
 
+bool StatsExporterLiveRecordingEnabled()
+{
+	return (TheGlobalData != nullptr && TheGlobalData->m_exportStats) || GenOnlineServicesManager::Settings.GetStatsExport();
+}
+
+//-----------------------------------------------------------------------------
+
+bool StatsExporterIsActive()
+{
+	return s_state.exportingActive;
+}
+
+//-----------------------------------------------------------------------------
+
 void StatsExporterCollectSnapshot()
 {
-	if (ThePlayerList == nullptr || TheGameLogic == nullptr)
+	if (!s_state.exportingActive || ThePlayerList == nullptr || TheGameLogic == nullptr)
 		return;
 
 	UnsignedInt currentFrame = TheGameLogic->getFrame();
@@ -429,10 +444,6 @@ void StatsExporterRecordKill(const Object *killer, const Object *victim, const D
 		StatsExporterLiveKill(killer->getControllingPlayer()->getPlayerIndex(), killer, victim);
 	}
 
-	if (!TheGlobalData->m_exportStats)
-	{
-		return;
-	}
 	if (!s_state.exportingActive)
 		return;
 	if (killer == nullptr || victim == nullptr || TheGameLogic == nullptr)
@@ -747,22 +758,8 @@ static bool gzipInMemory(const std::string& input, std::string& output)
 
 //-----------------------------------------------------------------------------
 
-bool ExportGameStatsJSON(const AsciiString& replayDir, const AsciiString& replayFileName)
+void StatsExporterGetStatsPath(AsciiString& statsPath, const AsciiString& replayDir, const AsciiString& replayFileName)
 {
-	if (ThePlayerList == nullptr || TheGameLogic == nullptr || TheGlobalData == nullptr)
-		return false;
-
-	const GenOnlinePluginToolApi* stats = GenOnlinePluginHost::GetToolApi();
-	if (stats == nullptr)
-	{
-		printf("[stats] ERROR: -exportStats needs the tool plugin, set plugins.tool in client.json\n");
-		fflush(stdout);
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Stats] ERROR: -exportStats needs the tool plugin, set plugins.tool in client.json");
-		s_state.resetData();
-		s_state.exportingActive = FALSE;
-		return false;
-	}
-
 	// Strip any directory components from the replay filename
 	const char *replayBase = replayFileName.str();
 	const char *lastSlash = strrchr(replayBase, '/');
@@ -778,8 +775,55 @@ bool ExportGameStatsJSON(const AsciiString& replayDir, const AsciiString& replay
 	char *dot = strrchr(baseName, '.');
 	if (dot != nullptr) *dot = '\0';
 
-	AsciiString statsPath;
 	statsPath.format("%s%s.gamestats.json.gz", replayDir.str(), baseName);
+}
+
+void StatsExporterGetStatsPathForReplay(AsciiString& statsPath, const AsciiString& replayPath)
+{
+	const char *path = replayPath.str();
+	const char *lastSeparator = strrchr(path, '/');
+	const char *lastBackslash = strrchr(path, '\\');
+	if (lastBackslash != nullptr && (lastSeparator == nullptr || lastBackslash > lastSeparator))
+		lastSeparator = lastBackslash;
+	const char *dot = strrchr(path, '.');
+	const int length = (dot != nullptr && (lastSeparator == nullptr || dot > lastSeparator)) ? static_cast<int>(dot - path) : static_cast<int>(strlen(path));
+	statsPath.format("%.*s.gamestats.json.gz", length, path);
+}
+
+// The temp file sits in the same folder so the replace is atomic and a half file never exists.
+static bool writeFileAtomic(const char *path, const std::string& bytes)
+{
+	std::string tempPath = std::string(path) + ".tmp";
+	FILE *file = fopen(tempPath.c_str(), "wb");
+	if (file == nullptr)
+		return false;
+	const bool ok = fwrite(bytes.data(), 1, bytes.size(), file) == bytes.size();
+	if (fclose(file) != 0 || !ok)
+	{
+		DeleteFileA(tempPath.c_str());
+		return false;
+	}
+	if (!MoveFileExA(tempPath.c_str(), path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+	{
+		DeleteFileA(tempPath.c_str());
+		return false;
+	}
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+
+bool ExportGameStatsJSON(const AsciiString& replayDir, const AsciiString& replayFileName)
+{
+	if (ThePlayerList == nullptr || TheGameLogic == nullptr || TheGlobalData == nullptr)
+	{
+		s_state.resetData();
+		s_state.exportingActive = FALSE;
+		return false;
+	}
+
+	AsciiString statsPath;
+	StatsExporterGetStatsPath(statsPath, replayDir, replayFileName);
 
 	initPlayerMapping();
 
@@ -869,7 +913,6 @@ bool ExportGameStatsJSON(const AsciiString& replayDir, const AsciiString& replay
 
 	std::string jsonStr = root.dump(2);
 
-	// The plugin writes the file and uploads it, so the game only compresses the document.
 	std::string gzipped;
 	if (!gzipInMemory(jsonStr, gzipped))
 	{
@@ -881,16 +924,18 @@ bool ExportGameStatsJSON(const AsciiString& replayDir, const AsciiString& replay
 	}
 
 	printf("[stats] Writing %u bytes JSON (%u bytes compressed) to %s\n", static_cast<unsigned int>(jsonStr.size()), static_cast<unsigned int>(gzipped.size()), statsPath.str());
-	if (!TheGlobalData->m_statsUrl.isEmpty())
-	{
-		printf("[stats] Uploading %u bytes to %s\n", static_cast<unsigned int>(gzipped.size()), TheGlobalData->m_statsUrl.str());
-	}
 	fflush(stdout);
-	const bool written = stats->ExportMatch(statsPath.str(), gzipped.data(), static_cast<uint32_t>(gzipped.size()), TheGlobalData->m_statsUrl.str(), GetGameLogicRandomSeed()) != GENONLINE_PLUGIN_FALSE;
+	const bool written = writeFileAtomic(statsPath.str(), gzipped);
 	if (!written)
 	{
-		printf("[stats] ERROR: The tool plugin failed to write %s\n", statsPath.str());
+		printf("[stats] ERROR: Failed to write %s\n", statsPath.str());
 		fflush(stdout);
+	}
+	else if (!TheGlobalData->m_statsUrl.isEmpty())
+	{
+		printf("[stats] Uploading %u bytes to %s\n", static_cast<unsigned int>(gzipped.size()), TheGlobalData->m_statsUrl.str());
+		fflush(stdout);
+		UploadStatsToServer(TheGlobalData->m_statsUrl, gzipped.data(), static_cast<unsigned int>(gzipped.size()), GetGameLogicRandomSeed());
 	}
 
 	s_state.resetData();

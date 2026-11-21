@@ -49,6 +49,7 @@
 #include "Common/CRCDebug.h"
 #include "Common/OptionPreferences.h"
 #include "Common/StatsExporterLive.h"
+#include "Common/StatsExporter.h"
 #include "Common/version.h"
 #include "GameNetwork/Online/IOnlineGameHooks.h"
 #include <Utility/bit_adapter.h>
@@ -568,11 +569,24 @@ void RecorderClass::startRecording(GameDifficulty diff, GameMode originalGameMod
 	m_fileName = getLastReplayFileName();
 	m_fileName.concat(getReplayExtention());
 	filepath.concat(m_fileName);
-	m_file = TheFileSystem->openFile(filepath.str(), File::WRITE | File::BINARY);
+	// GenOnline @feature arcticdolphin 21/11/2026 Lock the replay while it is written, a second instance on the same profile then records nothing
+	m_file = TheFileSystem->openFile(filepath.str(), File::WRITE | File::BINARY | File::EXCLUSIVE);
 	if (m_file == nullptr) {
 		DEBUG_ASSERTCRASH(m_file != nullptr, ("Failed to create replay file"));
+		// GenOnline @feature arcticdolphin 21/11/2026 The game carries on without recording when the replay file is locked or cannot be created
+		DEBUG_LOG(("RecorderClass::startRecording: Cannot open %s, this game is not recorded", filepath.str()));
 		return;
 	}
+
+	// GenOnline @feature arcticdolphin 21/11/2026 The replay file belongs to this game now, so a stats file of the previous game is stale, and this game records its stats
+	{
+		AsciiString staleStatsPath;
+		StatsExporterGetStatsPathForReplay(staleStatsPath, filepath);
+		DeleteFile(staleStatsPath.str());
+		if (StatsExporterLiveRecordingEnabled())
+			StatsExporterBeginRecording();
+	}
+
 	// TheSuperHackers @info the null terminator needs to be ignored to maintain retail replay file layout
 	m_file->writeFormat("%s", s_genrep);
 
@@ -746,6 +760,10 @@ void RecorderClass::stopRecording() {
 		m_file->close();
 		m_file = nullptr;
 
+		// GenOnline @feature arcticdolphin 21/11/2026 Write the stats file next to the finished replay before it is archived and before the replay upload hook
+		if (StatsExporterIsActive())
+			ExportGameStatsJSON(getReplayDir(), m_fileName);
+
 		if (m_archiveReplays)
 			archiveReplay(m_fileName);
 		// upload
@@ -783,6 +801,15 @@ void RecorderClass::archiveReplay(AsciiString fileName)
 
 	if (!CopyFile(sourcePath.str(), destPath.str(), FALSE))
 		DEBUG_LOG(("RecorderClass::archiveReplay: Failed to copy %s to %s", sourcePath.str(), destPath.str()));
+
+	// GenOnline @feature arcticdolphin 21/11/2026 The stats file travels with its replay, a missing one is fine
+	{
+		AsciiString sourceStatsPath;
+		AsciiString destStatsPath;
+		StatsExporterGetStatsPathForReplay(sourceStatsPath, sourcePath);
+		StatsExporterGetStatsPathForReplay(destStatsPath, destPath);
+		CopyFile(sourceStatsPath.str(), destStatsPath.str(), FALSE);
+	}
 }
 
 /**

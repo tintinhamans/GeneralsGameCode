@@ -50,6 +50,7 @@
 #include <fcntl.h>
 #include <io.h>
 #include <sys/stat.h>
+#include <share.h>
 #include <stdlib.h>
 #include <ctype.h>
 
@@ -189,6 +190,12 @@ Bool LocalFile::open( const Char *filename, Int access, size_t bufferSize )
 		mode = binary ? "rb" : "r";
 	}
 
+#if defined(GENONLINE)
+	// GenOnline @feature arcticdolphin 21/11/2026 The replay is locked while the game writes it
+	if (m_access & EXCLUSIVE)
+		m_file = _fsopen(filename, mode, _SH_DENYRW);
+	else
+#endif
 	m_file = fopen(filename, mode);
 	if (m_file == nullptr)
 	{

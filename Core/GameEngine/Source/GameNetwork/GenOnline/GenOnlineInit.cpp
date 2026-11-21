@@ -7,6 +7,7 @@
 #include "GameClient/MessageBox.h"
 #include "Common/FileSystem.h"
 #include "Common/file.h"
+#include "Common/StatsExporter.h"
 #include "GameNetwork/DownloadManager.h"
 #include <ws2tcpip.h>
 #include "GameClient/DisplayStringManager.h"
@@ -472,7 +473,7 @@ void GenOnlineServicesManager::CommitReplay(AsciiString absoluteReplayPath)
 	{
 		ServiceConfig& serviceConf = pOnlineServicesMgr->GetServiceConfig();
 
-		if (serviceConf.telemetry.replay_upload)
+		if (serviceConf.telemetry.replay_upload || serviceConf.telemetry.stats_upload)
 		{
 			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 			const uint64_t matchID = pLobbyInterface == nullptr ? 0 : pLobbyInterface->GetCurrentMatchID();
@@ -481,24 +482,54 @@ void GenOnlineServicesManager::CommitReplay(AsciiString absoluteReplayPath)
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[MediaUpload] Cannot cache replay: match ID is unavailable");
 				return;
 			}
-			FILE* pFile = fopen(absoluteReplayPath.str(), "rb");
-
-			std::vector<unsigned char> replayData;
-			if (pFile)
+			if (serviceConf.telemetry.replay_upload)
 			{
-				fseek(pFile, 0, SEEK_END);
-				long fileSize = ftell(pFile);
-				fseek(pFile, 0, SEEK_SET);
-				if (fileSize > 0)
+				FILE* pFile = fopen(absoluteReplayPath.str(), "rb");
+
+				std::vector<unsigned char> replayData;
+				if (pFile)
 				{
-					replayData.resize(fileSize);
-					fread(replayData.data(), 1, fileSize, pFile);
+					fseek(pFile, 0, SEEK_END);
+					long fileSize = ftell(pFile);
+					fseek(pFile, 0, SEEK_SET);
+					if (fileSize > 0)
+					{
+						replayData.resize(fileSize);
+						fread(replayData.data(), 1, fileSize, pFile);
+					}
+					fclose(pFile);
 				}
-				fclose(pFile);
+
+				// cache the data until we get an S3 URL from server
+				GenOnlineServicesManager::GetInstance()->CacheReplayBytes(matchID, std::move(replayData));
 			}
 
-			// cache the data until we get an S3 URL from server
-			GenOnlineServicesManager::GetInstance()->CacheReplayBytes(matchID, std::move(replayData));
+			// The stats file written next to the replay is uploaded the same way, under its own flag
+			if (serviceConf.telemetry.stats_upload)
+			{
+				AsciiString statsPath;
+				StatsExporterGetStatsPathForReplay(statsPath, absoluteReplayPath);
+
+				std::vector<unsigned char> statsData;
+				FILE* pStatsFile = fopen(statsPath.str(), "rb");
+				if (pStatsFile)
+				{
+					fseek(pStatsFile, 0, SEEK_END);
+					long statsSize = ftell(pStatsFile);
+					fseek(pStatsFile, 0, SEEK_SET);
+					if (statsSize > 0)
+					{
+						statsData.resize(statsSize);
+						if (fread(statsData.data(), 1, statsSize, pStatsFile) != static_cast<size_t>(statsSize))
+							statsData.clear();
+					}
+					fclose(pStatsFile);
+				}
+				if (!statsData.empty())
+				{
+					GenOnlineServicesManager::GetInstance()->CacheStatsBytes(matchID, std::move(statsData));
+				}
+			}
 		}
 	}
 }
@@ -535,6 +566,16 @@ void GenOnlineServicesManager::CacheScreenshotBytes_EndMatch(uint64_t matchID, s
 void GenOnlineServicesManager::CacheReplayBytes(uint64_t matchID, std::vector<uint8_t> data)
 {
 	CacheMatchUploadBytes(m_cachedReplayUpload, matchID, std::move(data));
+}
+
+void GenOnlineServicesManager::CacheStatsBytes(uint64_t matchID, std::vector<uint8_t> data)
+{
+	CacheMatchUploadBytes(m_cachedStatsUpload, matchID, std::move(data));
+}
+
+void GenOnlineServicesManager::SetStatsS3URI(uint64_t matchID, std::string uri)
+{
+	CacheMatchUploadURI(m_cachedStatsUpload, matchID, std::move(uri));
 }
 
 void GenOnlineServicesManager::SetScreenshotS3URI_EndMatch(uint64_t matchID, std::string uri)
@@ -1299,6 +1340,22 @@ void GenOnlineServicesManager::Tick()
 
                 // clear data
                 m_cachedReplayUpload = {};
+            }
+        }
+
+        // Stats file upload, same pairing rule as the replay
+        if (!m_cachedStatsUpload.bytes.empty())
+        {
+            if (m_cachedStatsUpload.dataMatchID == m_cachedStatsUpload.uriMatchID && !m_cachedStatsUpload.signedURI.empty())
+            {
+                std::map<std::string, std::string> mapHeaders;
+                mapHeaders["Content-Type"] = "application/gzip";
+                GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendS3PUTRequest(m_cachedStatsUpload.signedURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, std::move(m_cachedStatsUpload.bytes), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+                    {
+                        NetworkLog(ELogVerbosity::LOG_RELEASE, "Stats upload, result: %d", statusCode);
+                    }, nullptr, HTTP_UPLOAD_TIMEOUT);
+
+                m_cachedStatsUpload = {};
             }
         }
 	}

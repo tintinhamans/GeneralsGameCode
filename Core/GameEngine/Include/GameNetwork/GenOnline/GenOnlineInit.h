@@ -360,6 +360,7 @@ struct ServiceConfig
 	{
 		bool screenshot_probes = true;
 		bool replay_upload = true;
+		bool stats_upload = true;
 		int screenshot_width = 960;
 		int screenshot_height = 600;
 		int screenshot_upload_bytes_per_sec = 131072; // 128 KB/s
@@ -474,6 +475,7 @@ inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 		const nlohmann::json& s = j["telemetry"];
 		ReadServiceConfigValue(s, "screenshot_probes", c.telemetry.screenshot_probes);
 		ReadServiceConfigValue(s, "replay_upload", c.telemetry.replay_upload);
+		ReadServiceConfigValue(s, "stats_upload", c.telemetry.stats_upload);
 		ReadServiceConfigValue(s, "screenshot_width", c.telemetry.screenshot_width);
 		ReadServiceConfigValue(s, "screenshot_height", c.telemetry.screenshot_height);
 		ReadServiceConfigValue(s, "screenshot_upload_bytes_per_sec", c.telemetry.screenshot_upload_bytes_per_sec);
@@ -743,6 +745,7 @@ public:
 
 	void CacheScreenshotBytes_EndMatch(uint64_t matchID, std::vector<uint8_t> data);
 	void CacheReplayBytes(uint64_t matchID, std::vector<uint8_t> data);
+	void CacheStatsBytes(uint64_t matchID, std::vector<uint8_t> data);
     void SetScreenshotS3URI_StartMatch(const char* szURI)
     {
         std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
@@ -751,6 +754,7 @@ public:
 
 	void SetScreenshotS3URI_EndMatch(uint64_t matchID, std::string uri);
 	void SetScreenshotS3URI_Replay(uint64_t matchID, std::string uri);
+	void SetStatsS3URI(uint64_t matchID, std::string uri);
 
 private:
 	// NOTE: Accessed from multiple threads, dont access directly, use helpers above to lock
@@ -774,6 +778,7 @@ private:
 	// prevents a late response from being paired with media from another match.
 	CachedMatchUpload m_cachedMatchEndUpload;
 	CachedMatchUpload m_cachedReplayUpload;
+	CachedMatchUpload m_cachedStatsUpload;
 
 	// main thread SS Upload
 	static std::mutex m_ScreenshotMutex;

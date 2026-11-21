@@ -3044,7 +3044,7 @@ void Object::scoreTheKill( const Object *victim )
 		controller->doBountyForKill(this, victim);
 
 		// one entry point feeds the live pipe and the JSON export, each under its own gate
-		const DamageInfo *damageInfo = (TheGlobalData->m_exportStats && victim->getBodyModule()) ? victim->getBodyModule()->getLastDamageInfo() : nullptr;
+		const DamageInfo *damageInfo = (StatsExporterIsActive() && victim->getBodyModule()) ? victim->getBodyModule()->getLastDamageInfo() : nullptr;
 		StatsExporterRecordKill(this, victim, damageInfo);
 	}
 
@@ -4699,8 +4699,7 @@ void Object::onCapture( Player *oldOwner, Player *newOwner )
 	// this gets the new owner some points
 	newOwner->getScoreKeeper()->addObjectCaptured(this);
 
-	if (TheGlobalData->m_exportStats)
-		StatsExporterRecordCapture(this, oldOwner, newOwner);
+	StatsExporterRecordCapture(this, oldOwner, newOwner);
 	StatsExporterLiveCapture(this, oldOwner, newOwner);
 
 	// rip through the behavior modules and call the onCapture for any modules that care

@@ -124,6 +124,7 @@ struct QuitGameException {};
 
 #include "../GenOnlineDefines.h"
 #include "Common/StatsExporterLive.h"
+#include "Common/StatsExporter.h"
 
 DECLARE_PERF_TIMER(SleepyMaintenance)
 
@@ -4071,6 +4072,10 @@ void GameLogic::update()
 
 	// live stats pipe sample (state at the end of the previous frame), an early-out while no reader is connected
 	StatsExporterLiveUpdate();
+
+	// GenOnline @feature arcticdolphin 21/11/2026 Snapshot of the game being recorded, the headless replay simulation collects its own
+	if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD)
+		StatsExporterCollectSnapshot();
 
 	// Update the Recorder
 	{

@@ -22,6 +22,7 @@ list(APPEND GAMEENGINE_SRC
     Include/Common/StatsExporterLobby.h
     Include/Common/StatsExporterPipe.h
     Include/Common/StatsExporterQuery.h
+    Include/Common/StatsUploader.h
     Include/GameClient/GenOnlineMenus.h
     Include/GameClient/GUI/ChatCompletion.h
     Include/GameClient/GUI/ChatCompletionSets.h
@@ -57,6 +58,7 @@ list(APPEND GAMEENGINE_SRC
     Source/Common/StatsExporterLobby.cpp
     Source/Common/StatsExporterPipe.cpp
     Source/Common/StatsExporterQuery.cpp
+    Source/Common/StatsUploader.cpp
     Source/GameClient/GUI/ChatCompletion.cpp
     Source/GameClient/GUI/ChatCompletionSets.cpp
     Source/GameClient/GUI/ChatMentions.cpp

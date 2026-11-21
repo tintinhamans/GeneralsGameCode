@@ -487,6 +487,11 @@ void GenOnlineStatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeeper, bool bW
 				}
 				pManager->SetScreenshotS3URI_EndMatch(currentMatchID, result.screenshot_url);
 				pManager->SetScreenshotS3URI_Replay(currentMatchID, result.replay_url);
+				// The service may leave out the stats URL
+				if (result.stats_url.has_value())
+				{
+					pManager->SetStatsS3URI(currentMatchID, *result.stats_url);
+				}
 
 				// The service counts the result into the stats of the player, so the cached own stats are fetched again.
 				GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();

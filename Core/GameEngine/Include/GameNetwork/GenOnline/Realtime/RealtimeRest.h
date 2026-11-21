@@ -410,11 +410,13 @@ struct MatchResultResponse : WireObject
 {
 	std::string screenshot_url;
 	std::string replay_url;
+	std::optional<std::string> stats_url;
 
 	template <class V> void Fields(V& v)
 	{
 		v("screenshot_url", screenshot_url);
 		v("replay_url", replay_url);
+		v("stats_url", stats_url);
 	}
 };
 
