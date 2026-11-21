@@ -19,12 +19,13 @@
 //#define ARTIFICIAL_DELAY_HTTP_REQUESTS 1
 #endif
 
-#if defined(_DEBUG)
-//#define USE_DEBUG_ON_LIVE_SERVER 1
-#endif
-
-#if !defined(_DEBUG)
-//#define USE_TEST_ENV 1
+// The GENONLINE_ENVIRONMENT CMake option sets the services of a build when settings.client.json names none. Without it the release tag decides.
+#if defined(GENONLINE_BUILD_ENVIRONMENT_LIVE)
+#define GENONLINE_BUILD_ENVIRONMENT "live"
+#elif defined(GENONLINE_BUILD_ENVIRONMENT_TEST)
+#define GENONLINE_BUILD_ENVIRONMENT "test"
+#elif defined(GENONLINE_BUILD_ENVIRONMENT_DEV)
+#define GENONLINE_BUILD_ENVIRONMENT "dev"
 #endif
 
 #define HTTP_UPLOAD_TIMEOUT 600000
@@ -47,7 +48,7 @@ void GenOnlineShowNotificationBox(AsciiString nick, UnicodeString message, bool 
 
 #define ALLOW_NON_PROFILED_LOGIN 1
 
-#if !_DEBUG || defined(USE_DEBUG_ON_LIVE_SERVER)
+#if !_DEBUG || defined(GENONLINE_BUILD_ENVIRONMENT)
 #define GENONLINE_ENCRYPT_CREDENTIALS 1
 #endif
 

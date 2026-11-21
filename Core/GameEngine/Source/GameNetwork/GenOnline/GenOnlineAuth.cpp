@@ -364,7 +364,7 @@ void GenOnlineAuthInterface::LoginAsSecondaryDevAccount()
 
 bool GenOnlineAuthInterface::GetCredentials()
 {
-#if defined(_DEBUG) && !defined(USE_TEST_ENV) && !defined(USE_DEBUG_ON_LIVE_SERVER)
+#if defined(_DEBUG) && !defined(GENONLINE_BUILD_ENVIRONMENT)
 	return false;
 #endif
 	std::string strToken;
@@ -390,7 +390,7 @@ static const char* CredentialsFileName()
 std::string GenOnlineAuthInterface::GetCredentialsFilePath()
 {
 	// debug supports multi inst, so needs seperate tokens
-#if defined(_DEBUG) && !defined(USE_TEST_ENV) && !defined(USE_DEBUG_ON_LIVE_SERVER)
+#if defined(_DEBUG) && !defined(GENONLINE_BUILD_ENVIRONMENT)
 	std::string strCredsPath = std::format("{}/GeneralsOnlineData/credentials_dev_env_{}.json", TheGlobalData->getPath_UserData().str(), rts::ClientInstance::getInstanceIndex());
 #else
 	std::string strCredsPath = std::format("{}/GeneralsOnlineData/{}", TheGlobalData->getPath_UserData().str(), CredentialsFileName());
