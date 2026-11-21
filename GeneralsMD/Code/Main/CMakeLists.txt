@@ -156,7 +156,7 @@ endif()
 if(MSVC)
     # Ronin @build 02/11/2025 AUTOMATIC deployment to Zero Hour folder
     # This copies exe + pdb to Zero Hour installation after every build
-    set(ZEROHOUR_INSTALL_PATH "${CMAKE_BINARY_DIR}/deploy")
+    set(ZEROHOUR_INSTALL_PATH "C:/Program Files (x86)/Steam/steamapps/common/Command & Conquer Generals - Zero Hour")
     
     # Ronin @build 18/02/2026 Path to the compiled instancing/distortion vertex/pixel shaders
     set(SHADER_SOURCE_DIR "${CMAKE_SOURCE_DIR}/GeneralsMD/Code/GameEngineDevice/Source/W3DDevice/GameClient/Shaders")
