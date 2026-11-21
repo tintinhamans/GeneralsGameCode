@@ -101,7 +101,7 @@ public:
 	Int getEffectiveMaxParticleCount() const { return AdaptiveQualityLevels::particleCap(m_maxParticleCount, m_adaptiveQualityLevel); }
 	void parseCustomDefinition();
 #if defined(GENONLINE)
-	// Copies the camera factors and the observer overlay settings of client.json into the global data.
+	// Copies the camera factors and the observer overlay settings of settings.client.json into the global data.
 	void applyGenOnlineClientSettings();
 #endif
 
@@ -523,9 +523,9 @@ public:
 	UnsignedInt	m_networkDisconnectScreenNotifyTime; ///< The number of milliseconds between when the disconnect screen comes up and when the other players are notified that we are on the disconnect screen.
 
 	Real				m_keyboardCameraRotateSpeed;    ///< How fast the camera rotates when rotated via keyboard controls.
-	Real				m_cameraRotateFactor;           ///< User scale for keyboard camera rotate speed, camera.rotate_factor of client.json / 100.
-	Real				m_cameraPitchFactor;            ///< User scale for keyboard camera pitch speed, camera.pitch_factor of client.json / 100.
-	Real				m_cameraZoomFactor;             ///< User scale for keyboard and mouse wheel zoom speed, camera.zoom_factor of client.json / 100.
+	Real				m_cameraRotateFactor;           ///< User scale for keyboard camera rotate speed, camera.rotate_factor of settings.client.json / 100.
+	Real				m_cameraPitchFactor;            ///< User scale for keyboard camera pitch speed, camera.pitch_factor of settings.client.json / 100.
+	Real				m_cameraZoomFactor;             ///< User scale for keyboard and mouse wheel zoom speed, camera.zoom_factor of settings.client.json / 100.
   Int					m_playStats;									///< Int whether we want to log play stats or not, if <= 0 then we don't log
 
 #if defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)

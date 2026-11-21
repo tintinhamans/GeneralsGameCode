@@ -1289,7 +1289,7 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_showMoneyPerMinute = optionPref.getShowMoneyPerMinute();
 	TheWritableGlobalData->m_gameWindowTransitionSpeedMultiplier = optionPref.getGameWindowTransitionSpeedMultiplier();
 #if defined(GENONLINE)
-	// The camera factors and the observer overlay settings come from client.json.
+	// The camera factors and the observer overlay settings come from settings.client.json.
 	TheWritableGlobalData->applyGenOnlineClientSettings();
 #endif
 

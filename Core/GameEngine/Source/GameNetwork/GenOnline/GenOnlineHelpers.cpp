@@ -8,7 +8,9 @@
 #include "../GenOnlineInit.h"
 #include "../GenOnlineAuth.h"
 #include "GameNetwork/GenOnline/GenOnlineLogFile.h"
+#include "GameNetwork/GenOnline/GenOnlineClientFile.h"
 #include "gitinfo.h"
+#include <filesystem>
 
 std::string m_strNetworkLogFileName;
 std::mutex m_logMutex;
@@ -19,6 +21,26 @@ static constexpr const char* NETWORK_LOG_SESSION_SEPARATOR = "==================
 static constexpr const char* NETWORK_LOG_CONTINUED_SEPARATOR = "==================== Generals Online session continued after log rotation ====================";
 static uint64_t m_networkLogBytes = 0;
 static bool m_bNetworkLogRotateFailed = false;
+
+// The logs folder under the GenOnline root, created on demand. The old user data folder stays the fallback when the root cannot be resolved.
+static std::string GetNetworkLogFolder()
+{
+	const std::wstring root = GenOnlineClientFile::RootFolder();
+	if (!root.empty())
+	{
+		const std::wstring folder = root + L"\\logs";
+		std::error_code ec;
+		std::filesystem::create_directories(folder, ec);
+		const int len = WideCharToMultiByte(CP_ACP, 0, folder.c_str(), -1, nullptr, 0, nullptr, nullptr);
+		if (len > 1)
+		{
+			std::string narrow(len - 1, '\0');
+			WideCharToMultiByte(CP_ACP, 0, folder.c_str(), -1, narrow.data(), len, nullptr, nullptr);
+			return narrow;
+		}
+	}
+	return std::format("{}\\GeneralsOnlineData", TheGlobalData->getPath_UserData().str());
+}
 
 static void AppendNetworkLogLine(std::string& strOut, const std::string& strLine)
 {
@@ -197,14 +219,14 @@ void NetworkLog(ELogVerbosity logVerbosity, const char* fmt, ...)
 		GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 		if (pAuthInterface != nullptr && pAuthInterface->GetUserID() != -1)
 		{
-			m_strNetworkLogFileName = std::format("{}\\GeneralsOnlineData\\GeneralsOnline_UserID_{}.log", TheGlobalData->getPath_UserData().str(), pAuthInterface->GetUserID());
+			m_strNetworkLogFileName = std::format("{}\\GeneralsOnline_UserID_{}.log", GetNetworkLogFolder(), pAuthInterface->GetUserID());
 		}
 		else
 		{
 			return;
 		}
 #else
-		m_strNetworkLogFileName = std::format("{}\\GeneralsOnlineData\\GeneralsOnline.log", TheGlobalData->getPath_UserData().str());
+		m_strNetworkLogFileName = std::format("{}\\GeneralsOnline.log", GetNetworkLogFolder());
 #endif
 		/*
 			std::stringstream ss;

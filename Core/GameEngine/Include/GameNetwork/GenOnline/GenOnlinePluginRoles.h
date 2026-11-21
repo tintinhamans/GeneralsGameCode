@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-// Decides which external plugin DLL the plugin host loads and for which role, from plugins.anticheat and plugins.transport of client.json.
+// Decides which external plugin DLL the plugin host loads and for which role, from plugins.anticheat and plugins.transport of settings.client.json.
 namespace GenOnlinePluginRoles
 {
 	struct Selection

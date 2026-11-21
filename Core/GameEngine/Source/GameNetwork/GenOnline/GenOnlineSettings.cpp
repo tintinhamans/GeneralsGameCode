@@ -77,6 +77,10 @@
 #define SETTINGS_KEY_MAPS "maps"
 #define SETTINGS_KEY_MAPS_FAVOURITES "favourites"
 
+#define SETTINGS_KEY_DATA "data"
+#define SETTINGS_KEY_DATA_INCLUDE "include"
+#define SETTINGS_KEY_DATA_EXCLUDE "exclude"
+
 GenOnlineSettings::GenOnlineSettings()
 {
 	
@@ -151,7 +155,25 @@ static std::vector<std::string> ReadPluginList(const nlohmann::json& list, const
     return names;
 }
 
-// The keys client.json holds and the type each one must have. A key of another type makes the whole file unusable.
+// Reads a list of strings, entries that are not non-empty strings are dropped with one log line.
+static std::vector<std::string> ReadStringList(const nlohmann::json& list, const char* key)
+{
+	std::vector<std::string> values;
+	for (const nlohmann::json& entry : list)
+	{
+		if (entry.is_string() && !entry.get<std::string>().empty())
+		{
+			values.push_back(entry.get<std::string>());
+		}
+		else
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Ignoring an entry of data.%s that is not a path", key);
+		}
+	}
+	return values;
+}
+
+// The keys settings.client.json holds and the type each one must have. A key of another type makes the whole file unusable.
 static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 {
 	using GenOnlineClientFile::ValueType;
@@ -203,6 +225,9 @@ static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_TRANSPORT, ValueType::Array },
 		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_CASTER, ValueType::String },
 		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_SETTINGS, ValueType::Object },
+		{ SETTINGS_KEY_DATA, ValueType::Object },
+		{ SETTINGS_KEY_DATA "." SETTINGS_KEY_DATA_INCLUDE, ValueType::Array },
+		{ SETTINGS_KEY_DATA "." SETTINGS_KEY_DATA_EXCLUDE, ValueType::Array },
 		{ SETTINGS_KEY_MAPS, ValueType::Object },
 		{ SETTINGS_KEY_MAPS "." SETTINGS_KEY_MAPS_FAVOURITES, ValueType::Array },
 	};
@@ -229,37 +254,56 @@ void GenOnlineSettings::Load(void)
 		clientFile = GenOnlineClientFile::Read(m_ClientFilePath, ClientFileKeys());
 	}
 
-	// A missing client.json is created with the built-in defaults, which the first save below writes into it.
+	// A missing settings.client.json is created with the built-in defaults, which the first save below writes into it.
 	if (clientFile.status == GenOnlineClientFile::ReadStatus::Missing)
 	{
 		nlohmann::json created = nlohmann::json::object();
 		created[GenOnlineClientFile::SchemaVersionKey] = GenOnlineClientFile::SchemaVersion;
 		if (GenOnlineClientFile::CreateNew(m_ClientFilePath, created.dump(2)))
 		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Created client.json with the built-in defaults");
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Created settings.client.json with the built-in defaults");
 			clientFile.status = GenOnlineClientFile::ReadStatus::Ok;
 			clientFile.document = created;
 			clientFile.schemaVersion = GenOnlineClientFile::SchemaVersion;
 		}
 	}
 
-	// The client never writes a client.json it cannot use, the settings then only last for this session.
+	// The client never writes a settings.client.json it cannot use, the settings then only last for this session.
 	switch (clientFile.status)
 	{
 	case GenOnlineClientFile::ReadStatus::Missing:
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json cannot be created, using the built-in defaults without saving");
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] settings.client.json cannot be created, using the built-in defaults without saving");
 		return;
 	case GenOnlineClientFile::ReadStatus::Unusable:
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json is not usable (%s), using the defaults this session and leaving the file untouched", clientFile.reason.c_str());
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] settings.client.json is not usable (%s), using the defaults this session and leaving the file untouched", clientFile.reason.c_str());
 		return;
 	case GenOnlineClientFile::ReadStatus::Newer:
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json has schema_version %d, newer than %d, reading it without saving", clientFile.schemaVersion, GenOnlineClientFile::SchemaVersion);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] settings.client.json has schema_version %d, newer than %d, reading it without saving", clientFile.schemaVersion, GenOnlineClientFile::SchemaVersion);
 		break;
 	case GenOnlineClientFile::ReadStatus::Ok:
 		break;
 	}
 
-	const bool bWritable = clientFile.status == GenOnlineClientFile::ReadStatus::Ok;
+	bool bWritable = clientFile.status == GenOnlineClientFile::ReadStatus::Ok;
+
+	// A launch with a settings overlay never saves settings.client.json, so the overlay values cannot reach the file.
+	for (const std::string& overlayValue : CommandLine::getSettingsOverlays())
+	{
+		bWritable = false;
+
+		nlohmann::json overlay;
+		std::string reason;
+		if (GenOnlineClientFile::ParseOverlay(overlayValue, overlay, reason))
+		{
+			clientFile.document = GenOnlineClientFile::MergeOverlay(clientFile.document, overlay);
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Applied a settings overlay, settings.client.json is not saved this session");
+		}
+		else
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Ignored a settings overlay (%s), settings.client.json is not saved this session", reason.c_str());
+		}
+	}
+
 	bool bApplyDefaults = false;
 
 	{
@@ -576,6 +620,24 @@ void GenOnlineSettings::Load(void)
 				}
 			}
 
+			// The launcher owns the data lists. The game reads them and never writes them.
+			m_bDataInclude = false;
+			m_Data_Include.clear();
+			m_Data_Exclude.clear();
+			if (jsonSettings.contains(SETTINGS_KEY_DATA) && jsonSettings[SETTINGS_KEY_DATA].is_object())
+			{
+				const nlohmann::json& dataSettings = jsonSettings[SETTINGS_KEY_DATA];
+				if (dataSettings.contains(SETTINGS_KEY_DATA_INCLUDE) && dataSettings[SETTINGS_KEY_DATA_INCLUDE].is_array())
+				{
+					m_bDataInclude = true;
+					m_Data_Include = ReadStringList(dataSettings[SETTINGS_KEY_DATA_INCLUDE], SETTINGS_KEY_DATA_INCLUDE);
+				}
+				if (dataSettings.contains(SETTINGS_KEY_DATA_EXCLUDE) && dataSettings[SETTINGS_KEY_DATA_EXCLUDE].is_array())
+				{
+					m_Data_Exclude = ReadStringList(dataSettings[SETTINGS_KEY_DATA_EXCLUDE], SETTINGS_KEY_DATA_EXCLUDE);
+				}
+			}
+
             if (jsonSettings.contains(SETTINGS_KEY_MAPS))
             {
                 auto mapSettings = jsonSettings[SETTINGS_KEY_MAPS];
@@ -629,7 +691,7 @@ void GenOnlineSettings::Load(void)
 		m_Observer_NotificationSpecialPowerPurchase = GenOnlineClientOptions::ObserverNotificationDefault;
 		m_Observer_NotificationMilestone = GenOnlineClientOptions::ObserverNotificationDefault;
 
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json is not usable (a value cannot be read), using the defaults this session and leaving the file untouched");
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] settings.client.json is not usable (a value cannot be read), using the defaults this session and leaving the file untouched");
 		return;
 	}
 
@@ -703,36 +765,18 @@ static void EraseSettingKey(nlohmann::json& document, const char* section, const
 	}
 }
 
-void GenOnlineSettings::LoadPackList()
+std::vector<std::string> GenOnlineSettings::Data_ExcludePaths() const
 {
-	m_bPackList = false;
-	m_PackStack.clear();
-	m_DataPacks_UserExcludePaths.clear();
-	if (!CommandLine::hasPackList())
+	std::vector<std::string> paths;
+	for (const std::string& entry : m_Data_Exclude)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Pack list: no -packs, using the built-in packs");
-		return;
+		const std::string prefix = entry.substr(0, 5);
+		const bool hasBase = _strnicmp(prefix.c_str(), "game:", 5) == 0 || _strnicmp(prefix.c_str(), "user:", 5) == 0;
+		const bool isAbsolute = (entry.size() > 2 && isalpha(static_cast<unsigned char>(entry[0])) && entry[1] == ':' && (entry[2] == '\\' || entry[2] == '/'))
+			|| (entry.size() > 1 && (entry[0] == '\\' || entry[0] == '/') && (entry[1] == '\\' || entry[1] == '/'));
+		paths.push_back(hasBase || isAbsolute ? entry : "game:" + entry);
 	}
-
-#if RTS_GENERALS
-	const char* game = "generals";
-#else
-	const char* game = "generalsmd";
-#endif
-	const GenOnlinePackList::Result result = GenOnlinePackList::ReadFile(CommandLine::getPackListPath(), game);
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "Pack list: %s", CommandLine::getPackListPath());
-	for (const std::string& line : result.log)
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "%s", line.c_str());
-	}
-	if (result.status != GenOnlinePackList::Status::Ok)
-	{
-		return;
-	}
-
-	m_bPackList = true;
-	m_PackStack = result.stack;
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "Pack list: %d packs above retail", static_cast<int>(m_PackStack.size()));
+	return paths;
 }
 
 bool GenOnlineSettings::Save()
@@ -742,7 +786,7 @@ bool GenOnlineSettings::Save()
 		Initialize();
 	}
 
-	// Without a client.json this client may write, a change only lasts for this session.
+	// Without a settings.client.json this client may write, a change only lasts for this session.
 	if (!m_bClientFileWritable)
 	{
 		return true;
@@ -860,12 +904,12 @@ bool GenOnlineSettings::Save()
         }
     };
 	
-	// The launcher and other game instances also write client.json, so the save reads the file again and only writes the
+	// The launcher and other game instances also write settings.client.json, so the save reads the file again and only writes the
 	// settings this client changed since its last save.
 	const GenOnlineClientFile::ReadResult current = GenOnlineClientFile::Read(m_ClientFilePath, ClientFileKeys());
 	if (current.status != GenOnlineClientFile::ReadStatus::Ok)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json is no longer writable (%s), the change lasts for this session", current.reason.c_str());
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] settings.client.json is no longer writable (%s), the change lasts for this session", current.reason.c_str());
 		m_bClientFileWritable = false;
 		return true;
 	}
@@ -892,7 +936,7 @@ bool GenOnlineSettings::Save()
 	const std::string strData = updated.dump(2);
 	if (!GenOnlineClientFile::WriteExisting(m_ClientFilePath, strData))
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Failed to save client.json");
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Failed to save settings.client.json");
 		return false;
 	}
 
@@ -943,7 +987,7 @@ bool GenOnlineSettings::Network_SaveConnectionSettings(const ServiceConnectionSe
 		return true;
 	}
 	m_ConnectionSettings = previous;
-	error = "Could not save connection settings. Check the permissions of client.json.";
+	error = "Could not save connection settings. Check the permissions of settings.client.json.";
 	return false;
 }
 

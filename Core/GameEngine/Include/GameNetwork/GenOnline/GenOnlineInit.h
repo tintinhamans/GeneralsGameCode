@@ -543,7 +543,7 @@ public:
 	};
 
 	// The services this client talks to. Debug builds and builds with USE_TEST_ENV or USE_DEBUG_ON_LIVE_SERVER have a fixed environment.
-	// Any other build follows network.environment of client.json when it holds live or test, and otherwise its release tag:
+	// Any other build follows network.environment of settings.client.json when it holds live or test, and otherwise its release tag:
 	// a release candidate (vYYYY.M.PATCH-rc.N) uses the test services, every other build the live ones. Resolved once.
 	static EEnvironment GetEnvironment();
 	static const char* EnvironmentName();
