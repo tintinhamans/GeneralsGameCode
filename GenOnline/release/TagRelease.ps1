@@ -1,5 +1,5 @@
 # Tags the checked out commit as a client release and pushes the tag. Run it before the release build:
-# the build reads the tag for its version and names it in audio-libraries-NOTICE.txt, which GenOnline/release/GenOnline/release/MakePatch.ps1 requires.
+# the build reads the tag for its version and names it in audio-libraries-NOTICE.txt, which the release packaging requires.
 param(
    [Parameter(Mandatory = $true)][string]$Version,
    [string]$Remote = "",

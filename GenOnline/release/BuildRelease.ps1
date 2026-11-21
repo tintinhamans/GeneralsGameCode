@@ -1,6 +1,6 @@
 #Requires -Version 7.0
 # Builds both games for a release with the pinned MSVC toolset, then checks the exes against the pinned VC++ runtime.
-# Run it on the tagged commit (GenOnline/release/GenOnline/release/TagRelease.ps1): the build names the tag in audio-libraries-NOTICE.txt.
+# Run it on the tagged commit (TagRelease.ps1): the build names the tag in audio-libraries-NOTICE.txt.
 # The win32-vcpkg-release preset refuses any other compiler, and this script opens the toolset itself.
 param(
    [string]$BuildDir = "build\win32-vcpkg-release",
@@ -28,7 +28,7 @@ if ($LASTEXITCODE -ne 0)
 $tags = @(git tag --points-at HEAD | Where-Object { $_ -match "^v\d{4}\.\d{1,2}\.\d+(-rc\.\d+)?$" })
 if ($tags.Count -eq 0 -and -not $AllowUntagged)
 {
-   throw "HEAD carries no release tag. Tag it with GenOnline/release/GenOnline/release/TagRelease.ps1 first, or pass -AllowUntagged for a test build."
+   throw "HEAD carries no release tag. Tag it with TagRelease.ps1 first, or pass -AllowUntagged for a test build."
 }
 if (-not $env:VCPKG_ROOT)
 {
