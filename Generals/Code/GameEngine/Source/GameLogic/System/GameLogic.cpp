@@ -109,6 +109,7 @@
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/Online/IOnlineGameHooks.h"
+#include "Common/StatsExporterLive.h"
 
 struct QuitGameException {};
 
@@ -543,6 +544,14 @@ static Object * placeObjectAtPosition(Int slotNum, AsciiString objectTemplateNam
 	}
 
 	return obj;
+}
+
+// GenOnline @feature arcticdolphin 21/11/2026 The stats exporter needs the same local slot test as Zero Hour.
+Bool GameLogicIsLocalSlot(GameInfo* game, GameSlot* slot)
+{
+	AsciiString slotNameAscii;
+	slotNameAscii.translate(slot->getName());
+	return slot->isHuman() && game->getSlotNum(slotNameAscii) == game->getLocalSlotNum();
 }
 
 static void placeNetworkBuildingsForPlayer(Int slotNum, const GameSlot *pSlot, Player *pPlayer, const PlayerTemplate *pTemplate)
@@ -1225,8 +1234,14 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 		}
 	}
 
+	// GenOnline @feature arcticdolphin 21/11/2026 Read only state of the logic generator going into the resolution, for the lobby prediction check of the exporter
+	const UnsignedInt randomCrcBeforeResolve = GetGameLogicRandomSeedCRC();
+
 	populateRandomSideAndColor( TheGameInfo );
 	populateRandomStartPosition( TheGameInfo );
+
+	// GenOnline @feature arcticdolphin 21/11/2026 The resolved sides, colors and start positions are in the slots now and the exporter only reads them
+	StatsExporterLiveMatchLoading( TheGameInfo, randomCrcBeforeResolve, loadingSaveGame );
 
 	//****************************//
 	// Start the LoadScreen Now!	//
@@ -3363,6 +3378,9 @@ void GameLogic::update()
 		startNewGame( FALSE );
 		m_startNewGame = FALSE;
 
+		// GenOnline @feature arcticdolphin 21/11/2026 Players are fully set up now and nothing happens for the shell map
+		StatsExporterLiveMatchStarted();
+
 	#ifdef DUMP_PERF_STATS
 		__int64 freq64;
 		GetPrecisionTimerTicksPerSec(&freq64);
@@ -3443,6 +3461,9 @@ void GameLogic::update()
 	{
 		TheStatsCollector->update();
 	}
+
+	// GenOnline @feature arcticdolphin 21/11/2026 Live stats pipe sample of the state at the end of the previous frame, an early out while no reader is connected
+	StatsExporterLiveUpdate();
 
 	// Update the Recorder
 	{
@@ -3584,6 +3605,9 @@ void GameLogic::update()
 	{
 		TheGameLogic->exitGame();
 	}
+
+	// GenOnline @feature arcticdolphin 21/11/2026 Send the events of this logic frame to the live stats pipe
+	StatsExporterLiveFrameEnd();
 
 	// increment world time
 	if (!m_startNewGame)

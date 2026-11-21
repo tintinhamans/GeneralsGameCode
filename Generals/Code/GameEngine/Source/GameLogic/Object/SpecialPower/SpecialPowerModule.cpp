@@ -52,6 +52,7 @@
 #include "GameClient/Eva.h"
 #include "GameClient/InGameUI.h"
 #include "GameClient/ControlBar.h"
+#include "Common/StatsExporterLive.h"
 
 
 
@@ -459,6 +460,27 @@ void SpecialPowerModule::triggerSpecialPower( const Coord3D *location )
 
 	// we won't be able to use the power for X number of frames now
 	startPowerRecharge();
+
+	// GenOnline @feature arcticdolphin 21/11/2026 Building capture powers report from SpecialAbilityUpdate on success instead
+	const SpecialPowerTemplate *spTemplateForStats = getSpecialPowerTemplate();
+	const Bool isBuildingCapturePower = ( spTemplateForStats != nullptr ) &&
+		( spTemplateForStats->getSpecialPowerType() == SPECIAL_BLACKLOTUS_CAPTURE_BUILDING ||
+		  spTemplateForStats->getSpecialPowerType() == SPECIAL_INFANTRY_CAPTURE_BUILDING );
+	if( !isBuildingCapturePower )
+	{
+		StatsExporterLiveSuperweaponFired( getObject(), spTemplateForStats, location );
+		Player *statsPlayer = getObject()->getControllingPlayer();
+		if( statsPlayer != nullptr )
+		{
+			StatsExporterLiveAbilityUse(
+				statsPlayer->getPlayerIndex(),
+				spTemplateForStats,
+				getObject()->getTemplate(),
+				nullptr,
+				location,
+				nullptr );
+		}
+	}
 }
 
 //-------------------------------------------------------------------------------------------------

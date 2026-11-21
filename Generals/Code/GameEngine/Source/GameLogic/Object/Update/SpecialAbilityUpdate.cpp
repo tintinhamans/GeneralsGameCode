@@ -62,6 +62,7 @@
 #include "GameLogic/Module/StickyBombUpdate.h"
 #include "GameLogic/Module/StealthUpdate.h"
 #include "GameLogic/Module/ContainModule.h"
+#include "Common/StatsExporterLive.h"
 
 
 
@@ -1327,6 +1328,15 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
 				// only for black lotus, not infantry capture which resets in contunueprep()
 				spmInterface->startPowerRecharge();
 			}
+
+			// GenOnline @feature arcticdolphin 21/11/2026 Success point for building capture powers, excluded from SpecialPowerModule::triggerSpecialPower
+			StatsExporterLiveAbilityUse(
+				object->getControllingPlayer()->getPlayerIndex(),
+				spTemplate,
+				object->getTemplate(),
+				target->getTemplate(),
+				nullptr,
+				nullptr );
 			break;
 
 			break;

@@ -301,6 +301,13 @@ namespace
 		}
 
 		Object* obj = TheGameLogic->findObjectByID((ObjectID)query.object_id());
+		const Int gated = StatsExporterGatedPlayerIndex();
+		// The same answer for a missing object keeps hidden objects from being probed by id.
+		if (gated >= 0 && (obj == NULL || ownerIndex(obj) != gated))
+		{
+			message = "only an observer or a replay may read other players' objects";
+			return statsexporter::RESPONSE_STATUS_NOT_ALLOWED;
+		}
 		if (obj == NULL || obj->getTemplate() == NULL)
 		{
 			message = "no such object";
@@ -426,11 +433,16 @@ namespace
 			return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
 		}
 
+		const Int gated = StatsExporterGatedPlayerIndex();
 		std::vector<Object*>& matches = s_matches;
 		matches.clear();
 		for (Object* obj = TheGameLogic->getFirstObject(); obj != NULL; obj = obj->getNextObject())
 		{
 			if (obj->getTemplate() == NULL)
+			{
+				continue;
+			}
+			if (gated >= 0 && ownerIndex(obj) != gated)
 			{
 				continue;
 			}
@@ -537,6 +549,12 @@ namespace
 		{
 			message = "player_index must not be negative";
 			return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+		}
+		const Int gated = StatsExporterGatedPlayerIndex();
+		if (gated >= 0 && query.player_index() != gated)
+		{
+			message = "only an observer or a replay may read other players";
+			return statsexporter::RESPONSE_STATUS_NOT_ALLOWED;
 		}
 		if (query.player_index() >= ThePlayerList->getPlayerCount())
 		{

@@ -58,6 +58,13 @@ void StatsExporterControlCameraSent(const StatsExporterCameraReport& report);
 /// The match is over (or a new one begins): lets go of the lock, stops the transition and puts back the replay pacing this module changed.
 void StatsExporterControlReset();
 
+/// The local player index while the exporter may only show the local player's own state, -1 when it may show everything.
+/// Gated: a LAN or online match the local player plays, until the local player is defeated or the match is decided.
+Int StatsExporterGatedPlayerIndex();
+
+/// TRUE when StatsExporterGatedPlayerIndex() is -1.
+Bool StatsExporterRevealsHiddenState();
+
 /// The query handlers return a statsexporter::ResponseStatus value, fill `result` with the serialized result message and `message` with the reason of a refusal.
 int StatsExporterControlCamera(const statsexporter::CameraControlQuery& query, std::string& result, std::string& message);
 int StatsExporterControlFollow(const statsexporter::CameraFollowQuery& query, std::string& result, std::string& message);

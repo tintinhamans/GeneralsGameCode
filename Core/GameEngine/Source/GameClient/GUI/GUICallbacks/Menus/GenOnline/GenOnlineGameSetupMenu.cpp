@@ -68,9 +68,7 @@
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/NAT.h"
 #include "GameNetwork/GUIUtil.h"
-#if RTS_ZEROHOUR
 #include "Common/StatsExporterLobby.h"
-#endif
 #include "GameNetwork/GameSpy/GSConfig.h"
 
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
@@ -3695,8 +3693,6 @@ void OnKickedFromLobby()
 	TheShell->pop();
 }
 
-// The stats pipe and its lobby control are Zero Hour only.
-#if RTS_ZEROHOUR
 static void statsMoveStartPosition(Int slot, Int position)
 {
 	handleStartPositionSelection(slot, position);
@@ -3736,4 +3732,3 @@ Bool GenOnlineGameSetupMenuStatsLobby( StatsLobbyScreen& out )
 	out.applyMap = GenOnlineMapSelectMenuApplyMap;
 	return TRUE;
 }
-#endif

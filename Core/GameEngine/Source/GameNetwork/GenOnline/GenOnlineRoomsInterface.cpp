@@ -4,9 +4,7 @@
 #include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"
-#if RTS_ZEROHOUR
 #include "Common/StatsExporterLive.h"
-#endif
 #include "GameNetwork/GenOnline/NetworkPacket.h"
 #include "GameNetwork/GenOnline/NetworkBitstream.h"
 #include "GameNetwork/GenOnline/GenOnlineModeration.h"
@@ -1766,7 +1764,6 @@ void GenOnlineRoomsInterface::ShowRoomChatLine(const GenOnlineRealtime::ChannelC
 	{
 		color = DetermineMentionColor();
 	}
-#if RTS_ZEROHOUR
 	// Only live chat goes to the stats exporter, so a replayed history line is not exported again.
 	if (line.live)
 	{
@@ -1774,7 +1771,6 @@ void GenOnlineRoomsInterface::ShowRoomChatLine(const GenOnlineRealtime::ChannelC
 		const bool bLocal = pAuth != nullptr && pAuth->GetUserID() == message.author.id;
 		StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_ROOM, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, FALSE, bLocal);
 	}
-#endif
 	if (m_OnChatMessageCallback != nullptr)
 	{
 		m_OnChatMessageCallback(unicodeStr, color, line.key);

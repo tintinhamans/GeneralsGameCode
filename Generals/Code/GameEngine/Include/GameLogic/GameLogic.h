@@ -530,5 +530,11 @@ inline Object* GameLogic::findObjectByID( ObjectID id )
 
 
 
+class GameInfo;
+class GameSlot;
+
+// GenOnline @feature arcticdolphin 21/11/2026 The stats exporter needs the same local slot test as Zero Hour.
+extern Bool GameLogicIsLocalSlot(GameInfo* game, GameSlot* slot);
+
 // the singleton
 extern GameLogic *TheGameLogic;

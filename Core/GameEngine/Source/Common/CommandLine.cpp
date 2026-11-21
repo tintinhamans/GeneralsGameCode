@@ -438,8 +438,6 @@ Int parseHeadless(char *args[], int num)
 	return 1;
 }
 
-#if RTS_ZEROHOUR
-// Match stats export is only implemented in Zero Hour
 Int parseExportStats(char *args[], int num)
 {
 	TheWritableGlobalData->m_exportStats = TRUE;
@@ -455,7 +453,6 @@ Int parseStatsUrl(char *args[], int num)
 	}
 	return 1;
 }
-#endif
 
 Int parseReplay(char *args[], int num)
 {
@@ -1247,13 +1244,11 @@ static CommandLineParam paramsForStartup[] =
 	// If you do not call this, all replays will be simulated in sequence in the same process.
 	{ "-jobs", parseJobs },
 
-#if RTS_ZEROHOUR
 	// Export game stats as JSON alongside replay file.
 	{ "-exportStats", parseExportStats },
 
 	// URL to POST compressed stats JSON after export.
 	{ "-statsUrl", parseStatsUrl },
-#endif
 
 	// TheSuperHackers @feature CryoTheRenegade 14/08/2026
 	// Use the current working directory as provided by the OS, or an explicit path.

@@ -1,6 +1,6 @@
 # Live stats pipe
 
-The Generals Online client streams live match data to out-of-process readers over a Windows named pipe, and answers their queries. This document is the authoritative protocol reference for **protocol version 2** (a breaking change from version 1: new frame header, a Hello handshake, several readers, requests). The wire schema is `GeneralsMD/Code/GameEngine/Source/Common/StatsExporter.proto`; a Java library (`com.generalsonline:stats-pipe-client`, with a test client and example programs) lives in `Tools/StatsExporterClient/`.
+The Generals Online client streams live match data to out-of-process readers over a Windows named pipe, and answers their queries. This document is the authoritative protocol reference for **protocol version 2** (a breaking change from version 1: new frame header, a Hello handshake, several readers, requests). The wire schema is `Core/GameEngine/Source/Common/StatsExporter.proto`; a Java library (`com.generalsonline:stats-pipe-client`, with a test client and example programs) lives in `Tools/StatsExporterClient/`.
 
 ## Transport
 
@@ -65,6 +65,7 @@ The first frame on every connection is a `Hello` (type 0x09, sequence 0). The ga
 |---|---|
 | `protocol_version` | 2 for this document. A reader must refuse a version it does not know. |
 | `game_version`, `game_build` | the game's human-readable version, and the git version plus build time; for logs and bug reports |
+| `game` | `zerohour` or `generals`, the game this client runs; Generals has no battle plans, power sabotage or Strategy Centers, so those fields stay at their defaults there |
 | `process_id` | the game process, also the pipe name suffix |
 | `logic_frames_per_second` | the build's logic rate (30, or 60 for the high-fps server build); game seconds are frame / this. Also on every `MatchInfo`, but known before any match here |
 | `capabilities` | feature names, see below; ignore the ones you do not know |
@@ -339,6 +340,7 @@ The template buckets (`category` for kill, loss, build, sell, capture, evacuate,
 
 - Stats are the simulation's: they are not filtered by fog of war, so they show every player's economy, army, production and positions, not just what the local client can see. They are an exporter for casting, not an anti-cheat surface.
 - Campaign and solo games have no lobby slots to map players to and get no per-player snapshots (events, camera, UiState and the MatchInfo frames still flow).
+- The exporter runs in Generals and Zero Hour alike (`MatchInfo.game` and `Hello.game` say which). Generals has no battle plans, Strategy Centers, power sabotage, salvage armor upgrades, challenge generals or sub faction base sides, so those fields and events stay at their defaults there, the base side is the side, and the lobby prediction and the superweapon highlights only cover what Generals has (a single particle cannon, start positions without the Zero Hour team grouping). Zero Hour only special powers are never reported by Generals. Generals counts the cost of a finished unit as money spent for its score screen and for the `Spend` events, as Zero Hour does.
 - Online identity data (match id, user ids, IPs) is exported exactly as the client knows it; fields are 0 or empty when unknown.
 - A frame dropped to backpressure is not retransmitted, except the one-shot resync described above; counters in snapshots are cumulative where noted, so the next snapshot recovers them, but discrete events in a dropped frame are lost. The sequence numbers tell a reader exactly how many frames it lost.
 - At most four readers at a time. Inbound frames other than `ChatSend` and `Request` are ignored.
@@ -1061,6 +1063,7 @@ The first frame of every connection (sequence 0). Everything a reader needs to k
 | 11 | `max_request_burst` | uint32 | requests that may arrive at once before the rate limit bites |
 | 12 | `max_page_size` | uint32 | the largest page_size a paged query honours |
 | 13 | `queue_capacity_bytes` | uint32 | outbound queue per reader; a reader that falls this far behind loses frames (visible as sequence gaps) |
+| 14 | `game` | string | "zerohour" or "generals", the game this client runs |
 
 #### enum `ResponseStatus`
 

@@ -117,6 +117,8 @@
 
 #include "Common/version.h"
 
+#include "Common/StatsExporterPipe.h"
+#include "Common/StatsExporterLive.h"
 
 //-------------------------------------------------------------------------------------------------
 
@@ -265,6 +267,9 @@ GameEngine::GameEngine()
 //-------------------------------------------------------------------------------------------------
 GameEngine::~GameEngine()
 {
+	// GenOnline @feature arcticdolphin 21/11/2026 Stop the stats pipe thread before the state it samples is torn down
+	StatsExporterPipeShutdown();
+
 	//extern std::vector<std::string>	preloadTextureNamesGlobalHack;
 	//preloadTextureNamesGlobalHack.clear();
 
@@ -816,6 +821,9 @@ void GameEngine::update()
 {
 	USE_PERF_TIMER(GameEngine_update)
 	{
+		// GenOnline @feature arcticdolphin 21/11/2026 Keeps the stats pipe listener up so a client can connect from the shell
+		StatsExporterPipeStart();
+		StatsExporterLiveTick();
 
 		{
 
@@ -847,6 +855,8 @@ void GameEngine::update()
 				TheGameClient->UPDATE();
 				AdaptiveQuality::get().addOwn(AdaptiveQuality::now() - aqClientStart);
 			}
+			// GenOnline @feature arcticdolphin 21/11/2026 Sends the camera frame after the client update has moved the views
+			StatsExporterLiveCamera();
 			TheMessageStream->propagateMessages();
 
 			if (TheNetwork != nullptr)

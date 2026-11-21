@@ -780,7 +780,12 @@ void ExportGameStatsJSON(const AsciiString& replayDir, const AsciiString& replay
 		if (pt != nullptr)
 			p["faction"] = pt->getName().str();
 		p["side"] = player->getSide().str();
+#if RTS_ZEROHOUR
 		p["baseSide"] = player->getBaseSide().str();
+#else
+		// GenOnline @feature arcticdolphin 21/11/2026 Generals has no sub faction base side, so the side is the base side.
+		p["baseSide"] = player->getSide().str();
+#endif
 		p["type"] = player->getPlayerType() == PLAYER_HUMAN ? "Human" : "Computer";
 
 		char colorBuf[8];

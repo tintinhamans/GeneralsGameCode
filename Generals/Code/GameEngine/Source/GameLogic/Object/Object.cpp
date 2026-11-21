@@ -52,6 +52,8 @@
 #include "Common/Xfer.h"
 #include "Common/XferCRC.h"
 #include "Common/PerfTimer.h"
+#include "Common/StatsExporter.h"
+#include "Common/StatsExporterLive.h"
 
 #include "GameClient/Anim2D.h"
 #include "GameClient/ControlBar.h"
@@ -2734,6 +2736,8 @@ void Object::scoreTheKill( const Object *victim )
 	if (victimController)
 	{
 		victimController->getScoreKeeper()->addObjectLost(victim);
+		// GenOnline @feature arcticdolphin 21/11/2026 Report the loss to the live stats pipe
+		StatsExporterLiveLoss(victimController->getPlayerIndex(), victim, this);
 	}
 
 	Relationship r = getRelationship(victim);
@@ -2751,6 +2755,10 @@ void Object::scoreTheKill( const Object *victim )
 		controller->getScoreKeeper()->addObjectDestroyed(victim);
 		controller->addSkillPointsForKill(this, victim);
 		controller->doBountyForKill(this, victim);
+
+		// GenOnline @feature arcticdolphin 21/11/2026 One entry point feeds the live pipe and the JSON export, each under its own gate
+		const DamageInfo *damageInfo = (TheGlobalData->m_exportStats && victim->getBodyModule()) ? victim->getBodyModule()->getLastDamageInfo() : nullptr;
+		StatsExporterRecordKill(this, victim, damageInfo);
 	}
 
 	// Now handle experience, if we can gain any
@@ -4197,6 +4205,11 @@ void Object::onCapture( Player *oldOwner, Player *newOwner )
 
 	// this gets the new owner some points
 	newOwner->getScoreKeeper()->addObjectCaptured(this);
+
+	// GenOnline @feature arcticdolphin 21/11/2026 Report the capture to the JSON export and the live stats pipe
+	if (TheGlobalData->m_exportStats)
+		StatsExporterRecordCapture(this, oldOwner, newOwner);
+	StatsExporterLiveCapture(this, oldOwner, newOwner);
 
 	// rip through the behavior modules and call the onCapture for any modules that care
 	for( BehaviorModule **module = m_behaviors; *module; ++module )

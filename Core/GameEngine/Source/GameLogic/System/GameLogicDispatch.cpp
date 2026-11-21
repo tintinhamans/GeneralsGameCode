@@ -52,7 +52,7 @@
 
 #include "GameLogic/AIPathfind.h"
 #include "GameLogic/GameLogic.h"
-#if defined(GENONLINE) && RTS_ZEROHOUR
+#if defined(GENONLINE)
 #include "Common/StatsExporterLive.h"
 #endif
 #include "GameLogic/Locomotor.h"
@@ -260,7 +260,7 @@ void GameLogic::clearGameData( Bool showScoreScreen )
 		return;
 	}
 
-#if defined(GENONLINE) && RTS_ZEROHOUR
+#if defined(GENONLINE)
 	// Every way a match ends (quit, replay left early, disconnect) passes here. A no-op if ENDED already went out.
 	StatsExporterLiveGameDataCleared();
 #endif
@@ -415,7 +415,7 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 				if(TheStatsCollector)
 					TheStatsCollector->collectMsgStats(msg);
 
-#if defined(GENONLINE) && RTS_ZEROHOUR
+#if defined(GENONLINE)
 				StatsExporterLiveCommand(msgPlayer->getPlayerIndex(), msg->getType());
 #endif
 			}
@@ -2158,7 +2158,7 @@ bool GameLogic::onPlaceBeacon(MAYBE_UNUSED GameMessage *msg)
 		Object *object = TheThingFactory->newObject( thing, msgPlayer->getDefaultTeam() );
 		object->setPosition( &pos );
 		object->setProducer(nullptr);
-#if defined(GENONLINE) && RTS_ZEROHOUR
+#if defined(GENONLINE)
 		StatsExporterLiveBeacon(msgPlayer->getPlayerIndex(), &pos);
 #endif
 
@@ -2321,7 +2321,7 @@ bool GameLogic::onSetBeaconText(MAYBE_UNUSED GameMessage *msg, AIGroupPtr &curre
 bool GameLogic::onSelfDestruct(MAYBE_UNUSED GameMessage *msg)
 {
 	Player *msgPlayer = getMessagePlayer(msg);
-#if defined(GENONLINE) && RTS_ZEROHOUR
+#if defined(GENONLINE)
 	StatsExporterLivePlayerLeft(msgPlayer->getPlayerIndex(), "self_destruct");
 #endif
 

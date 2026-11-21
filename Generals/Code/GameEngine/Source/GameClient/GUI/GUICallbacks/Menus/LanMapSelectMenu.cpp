@@ -225,6 +225,30 @@ WindowMsgHandledType LanMapSelectMenuInput( GameWindow *window, UnsignedInt msg,
 
 }
 
+// GenOnline @feature arcticdolphin 21/11/2026 The effect of the OK path on the lobby: the map, its checksum and size, and the start spots and slots adjusting to it.
+static void applySelectedMap( AsciiString asciiMap )
+{
+	TheLAN->GetMyGame()->setMap( asciiMap );
+	asciiMap.toLower();
+	std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(asciiMap);
+	if (it != TheMapCache->end())
+	{
+		TheLAN->GetMyGame()->getSlot(0)->setMapAvailability(true);
+		TheLAN->GetMyGame()->setMapCRC( it->second.m_CRC );
+		TheLAN->GetMyGame()->setMapSize( it->second.m_filesize );
+
+		TheLAN->GetMyGame()->resetStartSpots();
+		TheLAN->GetMyGame()->adjustSlotsForMap(); // BGC- adjust the slots for the new map.
+	}
+}
+
+// The same without the selector window, for the stats pipe.
+void LanMapSelectMenuApplyMap( const AsciiString& map )
+{
+	applySelectedMap( map );
+	PostToLanGameOptions( SEND_GAME_OPTS );
+}
+
 //-------------------------------------------------------------------------------------------------
 /** MapSelect menu window system callback */
 //-------------------------------------------------------------------------------------------------
@@ -349,19 +373,8 @@ WindowMsgHandledType LanMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 						asciiMap = mapFname;
 					else
 						asciiMap.translate( map );
-					TheLAN->GetMyGame()->setMap( asciiMap );
-					asciiMap.toLower();
-					std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(asciiMap);
-					if (it != TheMapCache->end())
-					{
-						TheLAN->GetMyGame()->getSlot(0)->setMapAvailability(true);
-						TheLAN->GetMyGame()->setMapCRC( it->second.m_CRC );
-						TheLAN->GetMyGame()->setMapSize( it->second.m_filesize );
-
-						TheLAN->GetMyGame()->resetStartSpots();
-						TheLAN->GetMyGame()->adjustSlotsForMap(); // BGC- adjust the slots for the new map.
-					}
-
+					// GenOnline @feature arcticdolphin 21/11/2026 The OK path is shared with the stats pipe.
+					applySelectedMap( asciiMap );
 
 					if (mapSelectLayout)
 					{

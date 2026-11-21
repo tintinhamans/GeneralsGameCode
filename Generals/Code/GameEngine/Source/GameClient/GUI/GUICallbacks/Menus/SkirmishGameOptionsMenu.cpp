@@ -70,6 +70,7 @@
 #include "GameNetwork/GUIUtil.h"
 #include "GameNetwork/IPEnumeration.h"
 #include "WWDownload/Registry.h"
+#include "Common/StatsExporterLobby.h"
 
 #if defined(GENONLINE)
 UnsignedInt GetTeamUiColor(Int teamNumber);
@@ -1901,4 +1902,47 @@ void populateSkirmishBattleHonors()
 		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("OfficersClub"), TRUE,
 			BATTLE_HONOR_OFFICERSCLUB, row, column);
 	}
+}
+
+// GenOnline @feature arcticdolphin 21/11/2026 The stats pipe moves start positions, sets the speed and describes the screen controls.
+static void statsMoveStartPosition(Int slot, Int position)
+{
+	handleStartPositionSelection(slot, position);
+	skirmishUpdateSlotList();
+	sandboxOk = FALSE;
+}
+
+static void statsSetGameSpeed(Int fps)
+{
+	GameWindow *sliderGameSpeed = TheWindowManager->winGetWindowFromId( parentSkirmishGameOptions, sliderGameSpeedID );
+	GadgetSliderSetPosition( sliderGameSpeed, fps );
+	setFPSTextBox( fps );
+}
+
+Bool SkirmishGameOptionsMenuStatsLobby( StatsLobbyScreen& out )
+{
+	if (!parentSkirmishGameOptions || !TheSkirmishGameInfo || !buttonStart)
+		return FALSE;
+
+	out.game = TheSkirmishGameInfo;
+	out.isHost = TRUE;
+	out.localSlot = TheSkirmishGameInfo->getLocalSlotNum();
+	if (buttonPushed)
+		out.blocked = "the Start button was pressed: the screen is leaving";
+	else if (skirmishMapSelectLayout)
+		out.blocked = "the map selector is open";
+	else if (!doUpdateSlotList)
+		out.blocked = "the screen is still opening";
+	out.comboPlayer = comboBoxPlayer;
+	out.comboColor = comboBoxColor;
+	out.comboTemplate = comboBoxPlayerTemplate;
+	out.comboTeam = comboBoxTeam;
+	out.buttonStartPosition = buttonMapStartPosition;
+	out.buttonSelectMap = buttonSelectMap;
+	out.buttonStart = buttonStart;
+	out.sliderGameSpeed = TheWindowManager->winGetWindowFromId( parentSkirmishGameOptions, sliderGameSpeedID );
+	out.moveStartPosition = statsMoveStartPosition;
+	out.applyMap = SkirmishMapSelectMenuApplyMap;
+	out.setGameSpeed = statsSetGameSpeed;
+	return TRUE;
 }

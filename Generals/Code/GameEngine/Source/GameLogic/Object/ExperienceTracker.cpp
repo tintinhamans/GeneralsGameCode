@@ -30,6 +30,8 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/Xfer.h"
+#include "Common/Player.h"
+#include "Common/StatsExporterLive.h"
 #include "Common/ThingTemplate.h"
 #include "GameLogic/ExperienceTracker.h"
 #include "GameLogic/GameLogic.h"
@@ -200,6 +202,14 @@ void ExperienceTracker::addExperiencePoints( Int experienceGain, Bool canScaleFo
 	{
 		// Edge trigger special level gain effects.
 		m_parent->onVeterancyLevelChanged( oldLevel, m_currentLevel );
+
+		// GenOnline @feature arcticdolphin 21/11/2026 The live stats feed reports only promotions earned from experience, not levels assigned at creation
+		const Player* statsController = m_parent->getControllingPlayer();
+		if (statsController != nullptr && m_currentLevel > oldLevel)
+		{
+			StatsExporterLiveVeterancyChange(statsController->getPlayerIndex(), m_parent->getTemplate(), m_parent->getID(),
+				static_cast<Int>(oldLevel), static_cast<Int>(m_currentLevel));
+		}
 	}
 
 }
