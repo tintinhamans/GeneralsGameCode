@@ -1026,7 +1026,7 @@ BUBBLE_TAIL_OVER = 1.5     # the tail's top rows cover the bubble's bottom line,
 BUBBLE_CONSTANTS = {"GO_LOGO_DISH_X": 306, "GO_LOGO_DISH_Y": 0, "GO_BUBBLE_SHOW_MS": 600}
 BUBBLE_MARGIN_UNITS = 8.0
 BUBBLE_TIP_GAP_UNITS = 2.0  # the tip stops this far over the dish rim, in 800x600 units
-LOGO_TEXTURE_PATH = DATA.parent / "zerohour" / "Art" / "Textures" / "GeneralsOnline_LoadLogo.tga"
+LOGO_TEXTURE_PATH = DATA / "Art" / "Textures" / "GeneralsOnline_LoadLogo.tga"
 LOGO_COORDS = (383, 9, 1665, 503)  # GOLoadLogo Coords
 
 

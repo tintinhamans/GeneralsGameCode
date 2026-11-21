@@ -27,6 +27,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "GenOnline" / "data" / "zerohour"
+LOGO_DATA = ROOT / "GenOnline" / "data" / "core"  # the load logo is brand art that both games show on the intro
 
 # launcher colour tokens (ui/theme.slint); "pushed" is the only derived one, a bronze-tinted dark for pressed fills
 PALETTE = {
@@ -103,8 +104,8 @@ def load_logo_ini_text(texture):
 
 def load_logo_outputs():
     """[(path, bytes)] of the load logo INI, from the committed load logo texture; no tool runs."""
-    texture = (DATA / LOAD_LOGO_TGA).read_bytes()
-    return [(DATA / LOAD_LOGO_INI, load_logo_ini_text(texture).encode("ascii"))]
+    texture = (LOGO_DATA / LOAD_LOGO_TGA).read_bytes()
+    return [(LOGO_DATA / LOAD_LOGO_INI, load_logo_ini_text(texture).encode("ascii"))]
 
 
 def tga_size_problem(path, size):
@@ -270,7 +271,7 @@ def check(retail_dir=RETAIL_DIR):
         path, data = DATA / BASE_LOGO_INI, build_base_logo(retail_dir).encode("ascii")
         if not path.exists() or path.read_bytes() != data:
             problems.append(f"out of date: {path.relative_to(ROOT).as_posix()}")
-    problem = tga_size_problem(DATA / LOAD_LOGO_TGA, LOAD_LOGO_TEXTURE_SIZE)
+    problem = tga_size_problem(LOGO_DATA / LOAD_LOGO_TGA, LOAD_LOGO_TEXTURE_SIZE)
     if problem:
         problems.append(problem)
     else:
@@ -299,7 +300,7 @@ def main():
         raise SystemExit(f"retail archives not found in {args.retail}: {', '.join(missing)} (pass --retail)")
     outputs = [(DATA / BASE_LOGO_INI, build_base_logo(args.retail).encode("ascii"))]
     if not args.no_inkscape:
-        outputs.insert(0, (DATA / LOAD_LOGO_TGA, build_load_logo(args.svg, args.inkscape)))
+        outputs.insert(0, (LOGO_DATA / LOAD_LOGO_TGA, build_load_logo(args.svg, args.inkscape)))
     for path, data in outputs:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
