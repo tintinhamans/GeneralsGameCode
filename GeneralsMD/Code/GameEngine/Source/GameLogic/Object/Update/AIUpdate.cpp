@@ -54,6 +54,7 @@
 
 #include "GameLogic/AI.h"
 #include "GameLogic/AIPathfind.h"
+#include "GameLogic/CommandSequence.h"
 #include "GameLogic/PathTuning.h"
 #include "GameLogic/Locomotor.h"
 #include "GameLogic/Module/AIUpdate.h"
@@ -1489,6 +1490,8 @@ UpdateSleepTime AIUpdateInterface::update()
 	}
 
 	m_completedWaypoint = nullptr; // Reset so state machine update can set it if we just completed the path.
+
+	proceedNextCommand();
 
 	// assume we can sleep forever, unless the state machine (or turret, etc) demand otherwise
 	UpdateSleepTime subMachineSleep = UPDATE_SLEEP_FOREVER;
@@ -3714,11 +3717,11 @@ void AIUpdateInterface::aiDoCommand(const AICommandParms* parms)
 		case AICMD_FOLLOW_PATH:
 		{
 			std::vector<Coord3D> coords = parms->m_coords;
-			privateFollowPath(&coords, parms->m_obj, parms->m_cmdSource, FALSE);
+			privateFollowPath(&coords, parms->m_obj, parms->m_cmdSource, FALSE, parms->m_intValue < 0, abs(parms->m_intValue));
 			break;
 		}
 		case AICMD_FOLLOW_PATH_APPEND:
-			privateFollowPathAppend(&parms->m_pos, parms->m_cmdSource);
+			privateFollowPathAppend(&parms->m_pos, parms->m_cmdSource, parms->m_intValue < 0, abs(parms->m_intValue));
 			break;
 		case AICMD_FOLLOW_EXITPRODUCTION_PATH:
 		{
@@ -4391,31 +4394,14 @@ void AIUpdateInterface::privateFollowWaypointPathAsTeamExact( const Waypoint *wa
 }
 
 //----------------------------------------------------------------------------------------
-void AIUpdateInterface::privateFollowPathAppend( const Coord3D *pos, CommandSourceType cmdSource )
+void AIUpdateInterface::privateFollowPathAppend( const Coord3D *pos, CommandSourceType cmdSource, Bool isReverse, UnsignedInt cmdNodeID)
 {
-	// We're adding a dynamic waypoint!
-	Bool effectivelyMoving = isMoving() || isWaitingForPath();
 
-	if (getAIStateType() == AI_FOLLOW_PATH && getStateMachine()->getGoalPathSize() > 0 && effectivelyMoving)
+	if (getAIStateType() == AI_FOLLOW_PATH && getStateMachine()->getGoalPathSize() > 0)
 	{
 		//We already have a path, so simply add the point to the end of it!
-		getStateMachine()->addToGoalPath(pos);
-	}
-	else if (effectivelyMoving)
-	{
-		//Our unit is moving to a point already so simply add our waypoint after that point
-		//and convert it to a waypoint command!
-		std::vector<Coord3D> path;
-		path.push_back( *getGoalPosition() );
-		path.push_back( *pos );
-		privateFollowPath( &path, nullptr, cmdSource, false );
-	}
-	else
-	{
-		//Hopefully we're idle or doing something that doesn't require movement.
-		std::vector<Coord3D> path;
-		path.push_back( *pos );
-		privateFollowPath( &path, nullptr, cmdSource, false );
+		PathPointInfo ppi(isReverse, cmdNodeID);
+		getStateMachine()->addToGoalPath(pos, &ppi);
 	}
 }
 
@@ -4423,7 +4409,7 @@ void AIUpdateInterface::privateFollowPathAppend( const Coord3D *pos, CommandSour
 /**
  * Follow the path defined by the given array of points
  */
-void AIUpdateInterface::privateFollowPath( std::vector<Coord3D>* path, Object *ignoreObject, CommandSourceType cmdSource, Bool exitProduction )
+void AIUpdateInterface::privateFollowPath( std::vector<Coord3D>* path, Object *ignoreObject, CommandSourceType cmdSource, Bool exitProduction, Bool isReverse, UnsignedInt lastCmdNodeID)
 {
 	if (getObject()->isMobile() == FALSE)
 		return;
@@ -4442,7 +4428,7 @@ void AIUpdateInterface::privateFollowPath( std::vector<Coord3D>* path, Object *i
 		getStateMachine()->setGoalPosition(&goal);
 	}
 	// set path info
-	getStateMachine()->setGoalPath( path );
+	getStateMachine()->setGoalPath( path, isReverse, lastCmdNodeID);
 
 
 	// set the command source
@@ -5617,6 +5603,39 @@ Bool AIUpdateInterface::canAutoAcquireWhileStealthed() const
   return getAIUpdateModuleData()->m_autoAcquireEnemiesWhenIdle & AAS_Idle_Stealthed;
 }
 
+//ShigureUi 01/10/2026 code reuse from groupMoveToPosition() but it's on single ai so it's here
+void AIUpdateInterface::handleStealthCombatUnitMove()
+{
+	Object *theUnit = getObject();
+
+	if (!getObject())
+		return;
+
+	if (theUnit->getStatusBits().test(OBJECT_STATUS_CAN_STEALTH) && canAutoAcquire())
+	{
+		//When ordering a combat stealth unit to move, there is a single special case we want to handle.
+		//When a stealth unit is currently not stealthed and doesn't autoacquire while stealthed,
+		//then when the player specifically orders the unit to stop, we want to not autoacquire until
+		//he is able to stealth again. Of course, if he's detected, then don't bother trying.
+		if (!theUnit->getStatusBits().test(OBJECT_STATUS_STEALTHED) && !theUnit->getStatusBits().test(OBJECT_STATUS_DETECTED))
+		{
+			//Not stealthed, not detected -- so do auto-acquire while stealthed?
+			if (!canAutoAcquireWhileStealthed())
+			{
+				StealthUpdate* stealth = theUnit->getStealth();
+				if (stealth)
+				{
+					//Delay the mood check time (for autoacquire) until after the unit can stealth again.
+					UnsignedInt stealthFrames = stealth->getStealthDelay();
+					//Skew it a little due to having a large group selected.
+					UnsignedInt randomFrames = GameLogicRandomValue(0, LOGICFRAMES_PER_SECOND);
+					setNextMoodCheckTime(TheGameLogic->getFrame() + stealthFrames + randomFrames);
+				}
+			}
+		}
+	}
+}
+
 
 //----------------------------------------------------------------------------------------------
 void AIUpdateInterface::applySpeedMultiplier(Real scalar) {
@@ -6711,4 +6730,33 @@ Bool AIUpdateInterface::arePathLayersStillValid() {
 		}
 	}
 	return true;
+}
+
+void AIUpdateInterface::proceedNextCommand()
+{
+	Object *obj = getObject();
+	CommandVerifyStatus cvs = obj->getCommandVerifyStatus();
+
+	if (cvs == STATUS_ON_HELD && obj->getContainedBy() == nullptr)
+		cvs = STATUS_COMPLETE;
+
+	if (cvs == STATUS_COMPLETE || cvs == STATUS_OCL_COMPLETE)
+	{
+		TheCommandSequence->removeCurrentCommand(obj);
+	}
+	else if (cvs == STATUS_EXIT_VERIFIED && obj->isPendingExitListEmpty())
+	{
+		if (TheCommandSequence->hasAnyCommand(obj))
+			obj->setCommandVerifyStatus(STATUS_FRESH);
+		else
+			obj->setCommandVerifyStatus(STATUS_NONE);
+	}
+	else if (cvs == STATUS_EXIT_VERIFIED && TheCommandSequence->isCurrentExitCommand(obj))
+	{
+		TheCommandSequence->proceedNextCommand(obj);
+	}
+
+	cvs = obj->getCommandVerifyStatus();
+	if (cvs == STATUS_FRESH)
+		TheCommandSequence->proceedNextCommand(obj);
 }

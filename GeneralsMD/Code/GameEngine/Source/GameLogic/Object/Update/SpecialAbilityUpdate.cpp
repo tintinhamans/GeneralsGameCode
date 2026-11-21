@@ -50,6 +50,7 @@
 #include "GameClient/GameText.h"
 
 #include "GameLogic/AIPathfind.h"
+#include "GameLogic/CommandSequence.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Locomotor.h"
 #include "GameLogic/Object.h"
@@ -543,6 +544,7 @@ UpdateSleepTime SpecialAbilityUpdate::update()
     //STEP 1 -- APPROACH
     approachTarget();
   }
+
   return calcSleepTime();
 }
 
@@ -648,6 +650,7 @@ Bool SpecialAbilityUpdate::initiateIntentToDoSpecialPower( const SpecialPowerTem
   if( disableSA && disableSA != this )
     disableSA->onExit( FALSE );
 
+  TheCommandSequence->verifyObjectCommand(getObject());
 
   setWakeFrame(getObject(), UPDATE_SLEEP_NONE);
 
@@ -1968,12 +1971,17 @@ void SpecialAbilityUpdate::finishAbility()
   m_withinStartAbilityRange = false;
   m_packingState = STATE_NONE;
 
+  Object *obj = getObject();
+
+  TheCommandSequence->terminateVerifiedCommand(obj);
+
   //The flee range code is used only if the unit has completed a special ability against a target.
   //If we don't have a valid target, then we don't flee -- the specific example is when Colonel Burton
   //uses his remote charge special ability. With a target, he will plant the charge then flee. Without
   //a target, he simply detonates it without fleeing.
   Bool validTarget = m_targetPos.x || m_targetPos.y || m_targetPos.z || m_targetID != INVALID_ID;
-  if( data->m_fleeRangeAfterCompletion && validTarget )
+  // ShigureUi 18/10/2026 add command check for burton, if there's another pending command don't flee
+  if( data->m_fleeRangeAfterCompletion && validTarget && obj->getCurrentCommand() == obj->getLastCommand())
   {
     Coord3D pos;
     pos.set( *getObject()->getPosition() );

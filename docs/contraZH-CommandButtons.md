@@ -255,6 +255,76 @@ The bar shows shared commands. Build and upgrade commands every producer has are
 * Shift+click an upgrade: queue it on the five fastest producers.
 * Shift+click a queue entry: cancel that type everywhere.
 
+## Advanced Waypoints
+
+Waypoint mode queues almost every order a unit can take. Hold the Waypoints key (Alt by default)
+and give orders, and each unit carries them out in sequence.
+
+| Type | Orders that can be queued |
+| --- | --- |
+| Movement | Move, force move, reverse move, attack move |
+| Combat | Attack, force attack on a unit or the ground, weapon buttons, guard a position or unit |
+| Construction | Build a structure, resume construction, repair |
+| Transport | Enter, exit, evacuate, combat drop, dock |
+| Services | Get repaired, get healed, hack the internet |
+| Special | Special powers and special abilities, with or without a target |
+| Toggles | Switch weapon, overcharge, Hold Fire, Deploy |
+
+### Queue rules
+
+* An order given without the key replaces the queue, and Stop and Scatter empty it.
+* A toggle given without the key applies at once and leaves the queue alone.
+* A queued Deploy only deploys, so it never packs a unit up.
+* Units given one order share it, and each unit moves on when its own part ends.
+* Consecutive moves join one path, so a unit does not stop at each point.
+* An order whose target is gone, or that a unit cannot carry out, is skipped.
+* Guard position, hack the internet and an unlimited attack on a location never end, so nothing can
+  be queued after them.
+* A transport starts its next order after the passengers it is unloading have left.
+* A unit that enters a transport keeps the rest of its queue and resumes after it leaves.
+* A jet, Chinook or hacker that must take off, land, reload or pack up starts the order afterward.
+* Alt plus a command bar hotkey presses that button, so bar orders can be queued from the keyboard.
+* A radar click in waypoint mode moves the camera and queues nothing.
+* Wall lines, Auto Fill, drag-to-face formations and shortcut special power buttons cannot be
+  queued.
+* Alt over a transport now queues Enter, so it no longer starts
+  [Smart Garrison](GameData.md#smart-garrison).
+
+### Waypoint display
+
+* Holding the key shows the queues of the selected units.
+* One queued order draws one marker at the point you clicked, however many units share it.
+* Each unit draws a line to its first marker, and shared legs between markers draw once.
+* A marker on a target follows that target and disappears when the target is gone.
+* Orders with no map position, such as Exit, Evacuate or a toggle, draw no marker.
+* A unit shown here draws no [action line](contraZH-Options.md#action-lines) while the key is held.
+
+### Queued buildings
+
+* A queued building appears as a ghost at its site, visible to its owner.
+* It is paid for when placed, and the order is refused without the full cost.
+* Clearing the queue before the builder starts it refunds the cost.
+* Its site blocks later placements, and it counts toward the build limit.
+* The build button stays available in waypoint mode while the builder is already constructing.
+
+## Dozer Smart Cast
+
+Build buttons shared by every selected builder are available without `OK_FOR_MULTI_SELECT`. Placing
+a building or resuming a scaffold sends one builder, chosen from the selection, and the others keep
+working. Dozers and workers both count as builders.
+
+| Order | Builder chosen |
+| --- | --- |
+| Normal | The nearest idle builder, or the nearest one that is only repairing if none is idle |
+| Waypoint mode | The builder with the fewest queued construction orders, then the nearest |
+
+* A normal order skips builders that are already constructing.
+* The order does nothing if no builder qualifies.
+* A new building considers only builders that can make it and reach the site. Shipyards skip the
+  reach check.
+* The placement preview is legal when any selected builder can build there.
+* A wall line goes to the first selected builder and starts at once.
+
 ## INI-defined radius cursors
 
 `RadiusCursorType` and `AnchorRadiusCursorType` accept additional names defined through

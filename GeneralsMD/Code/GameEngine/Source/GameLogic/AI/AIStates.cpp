@@ -32,6 +32,7 @@
 #include "Common/AudioHandleSpecialValues.h"
 #include "Common/CRCDebug.h"
 #include "Common/GameAudio.h"
+#include "Common/GameState.h"
 #include "Common/GlobalData.h"
 #include "Common/Money.h"
 #include "Common/PerfTimer.h"
@@ -54,6 +55,7 @@
 #include "GameLogic/AITNGuard.h"
 #include "GameLogic/AIStateMachine.h"
 #include "GameLogic/AIPathfind.h"
+#include "GameLogic/CommandSequence.h"
 #include "GameLogic/Locomotor.h"
 #include "GameLogic/PartitionManager.h"
 #include "GameLogic/PolygonTrigger.h"
@@ -65,6 +67,7 @@
 
 #include "GameLogic/Module/AIUpdate.h"
 #include "GameLogic/Module/BodyModule.h"
+#include "GameLogic/Module/ChinookAIUpdate.h"
 #include "GameLogic/Module/ContainModule.h"
 #include "GameLogic/Module/JetAIUpdate.h"
 #include "GameLogic/Module/PhysicsUpdate.h"
@@ -676,6 +679,7 @@ AIStateMachine::AIStateMachine( Object *obj, AsciiString name ) : StateMachine( 
 	DEBUG_ASSERTCRASH(getOwner()->getAI(), ("An AI State Machine '%s' was constructed without an AIUpdateInterface, please tell JKMCD", name.str()));
 
 	m_goalPath.clear();
+	m_goalPathInfo.clear();
 	m_goalWaypoint = nullptr;
 	m_goalSquad = nullptr;
 
@@ -750,7 +754,7 @@ void AIStateMachine::crc( Xfer *xfer )
 void AIStateMachine::xfer( Xfer *xfer )
 {
   // version
-  XferVersion currentVersion = 1;
+  XferVersion currentVersion = 2;
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
@@ -760,6 +764,16 @@ void AIStateMachine::xfer( Xfer *xfer )
 	Int i;
 	Int count = m_goalPath.size();
 	xfer->xferInt(&count);
+	if (count < 0)
+	{
+		throw SC_INVALID_DATA;
+	}
+	if (xfer->getXferMode() == XFER_LOAD)
+	{
+		m_goalPath.clear();
+		m_goalPathInfo.assign(count, PathPointInfo());
+	}
+
 	for (i=0; i<count; i++) {
 		Coord3D pos;
 		if (xfer->getXferMode() != XFER_LOAD)
@@ -770,6 +784,11 @@ void AIStateMachine::xfer( Xfer *xfer )
 		if (xfer->getXferMode() == XFER_LOAD)
 		{
 			m_goalPath.push_back(pos);
+		}
+		if (version >= 2)
+		{
+			xfer->xferBool(&m_goalPathInfo[i].m_isReverse);
+			xfer->xferUnsignedInt(&m_goalPathInfo[i].m_cmdNodeID);
 		}
 	}
 
@@ -822,9 +841,18 @@ void AIStateMachine::loadPostProcess()
 /**
  * Define a simple path
  */
-void AIStateMachine::setGoalPath( std::vector<Coord3D>* path )
+void AIStateMachine::setGoalPath( std::vector<Coord3D>* path, Bool isReverse, UnsignedInt lastCmdNodeID)
 {
 	MOVE_TO(m_goalPath) = std::move(*path);
+	m_goalPathInfo.resize(m_goalPath.size());
+	for (Int i = 0; i < m_goalPathInfo.size(); i++)
+	{
+		m_goalPathInfo[i].m_isReverse = isReverse;
+		if (i == m_goalPathInfo.size() - 1)
+			m_goalPathInfo[i].m_cmdNodeID = lastCmdNodeID;
+		else
+			m_goalPathInfo[i].m_cmdNodeID = 0;
+	}
 }
 
 #ifdef STATE_MACHINE_DEBUG
@@ -976,8 +1004,10 @@ StateReturnType AIStateMachine::setTemporaryState( StateID newStateID, Int frame
 /**
  * Add a point to a simple path
  */
-void AIStateMachine::addToGoalPath( const Coord3D *pathPoint)
+void AIStateMachine::addToGoalPath( const Coord3D *pathPoint, const PathPointInfo *pointInfo)
 {
+	// ShigureUi 27/10/2026 recieve or not now determined by command sequence, otherwise it will leak
+	/*
 	if (m_goalPath.empty()) {
 		m_goalPath.push_back(*pathPoint);
 	}	else {
@@ -986,6 +1016,15 @@ void AIStateMachine::addToGoalPath( const Coord3D *pathPoint)
 		{
 			m_goalPath.push_back(*pathPoint);
 		}
+	}*/
+
+	m_goalPath.push_back(*pathPoint);
+	m_goalPathInfo.push_back(pointInfo ? *pointInfo : PathPointInfo(false, 0));
+
+	if (getCurrentStateID() == AI_FOLLOW_PATH)
+	{
+		AIFollowPathState *state = (AIFollowPathState*)internalGetState(AI_FOLLOW_PATH);
+		state->friend_recheckFinalDestination(m_goalPath.size()-1);
 	}
 }
 
@@ -999,6 +1038,14 @@ const Coord3D *AIStateMachine::getGoalPathPosition( Int i ) const
 		return nullptr;
 
 	return &m_goalPath[i];
+}
+
+const PathPointInfo *AIStateMachine::getPathPointInfo(Int i) const
+{
+	if (i < 0 || i >= m_goalPath.size())
+		return nullptr;
+
+	return &m_goalPathInfo[i];
 }
 
 //----------------------------------------------------------------------------------------------------------
@@ -1025,6 +1072,7 @@ void AIStateMachine::clear()
 {
 	StateMachine::clear();
 	m_goalPath.clear();
+	m_goalPathInfo.clear();
 	m_goalWaypoint = nullptr;
 	m_goalSquad = nullptr;
 
@@ -2266,12 +2314,25 @@ StateReturnType AIMoveToState::onEnter()
 			ai->setDesiredSpeed(speed);
 		}
 	}
+
+	if ((ai->getLastCommandSource() == CMD_FROM_PLAYER && ai->isSameMachine((AIStateMachine*)getMachine()))
+		|| (ai->getLastCommandSource() == CMD_FROM_AI && getID() == MOVE_TO_AND_EVAC)) //Chinook MOVE_TO_AND_EVAC
+	{
+		TheCommandSequence->verifyObjectCommand(getMachineOwner());
+	}
+
 	return ret;
 }
 
 //----------------------------------------------------------------------------------------------------------
 void AIMoveToState::onExit( StateExitType status )
 {
+	AIUpdateInterface* ai = getMachineOwner()->getAI();
+	if (ai && ai->getLastCommandSource() == CMD_FROM_PLAYER && ai->isSameMachine((AIStateMachine*)getMachine()))
+		TheCommandSequence->terminateVerifiedCommand(getMachineOwner());
+
+	if (ai && ai->getLastCommandSource() == CMD_FROM_AI && getID() == MOVE_TO_AND_EVAC)
+		TheCommandSequence->terminateVerifiedCommand(getMachineOwner());
 	AIInternalMoveToState::onExit( status );
 }
 
@@ -3483,6 +3544,12 @@ StateReturnType AIFollowPathState::onEnter()
 
 	m_index = 0;
 	const Coord3D *pos = ai->friend_getGoalPathPosition( m_index );
+	const PathPointInfo *ppi = ai->friend_getPathPointInfo(m_index);
+
+	if (ai->getLastCommandSource() == CMD_FROM_PLAYER && ai->isSameMachine((AIStateMachine*)getMachine()))
+	{
+		TheCommandSequence->verifyFollowPathCommand(getMachineOwner());
+	}
 
 	if (pos == nullptr)
 		return STATE_FAILURE;
@@ -3491,6 +3558,11 @@ StateReturnType AIFollowPathState::onEnter()
 	{ m_goalPosition = *pos; m_goalSet = TRUE; }
  	const Coord3D *nextPos = ai->friend_getGoalPathPosition( m_index+1 );
 	m_adjustFinal = true;
+
+	if (ppi->m_isReverse)
+		ai->friend_setForcedMoveBackwards(true);
+	else
+		ai->friend_setForcedMoveBackwards(false);
 
 	//Assign this value to the AIUpdateInterface so object's can access this value while
 	//determine which waypoints to plot in the waypoint renderer.
@@ -3534,6 +3606,7 @@ StateReturnType AIFollowPathState::onEnter()
 				ai->getCurLocomotor()->setUsePreciseZPos(true);
 		}
 	}
+
 	return ret;
 }
 
@@ -3552,6 +3625,9 @@ void AIFollowPathState::onExit( StateExitType status )
 	//Assign this value to the AIUpdateInterface so object's can access this value while
 	//determine which waypoints to plot in the waypoint renderer.
 	ai->friend_setCurrentGoalPathIndex( -1 );
+
+	if (ai->getLastCommandSource() == CMD_FROM_PLAYER && ai->isSameMachine((AIStateMachine*)getMachine()))
+		TheCommandSequence->terminateVerifiedFollowPathCommand(getMachineOwner());
 }
 
 //----------------------------------------------------------------------------------------------------------
@@ -3565,10 +3641,14 @@ StateReturnType AIFollowPathState::update()
 	{
 		Object *obj = getMachineOwner();
 		AIUpdateInterface *ai = obj->getAI();
+		const PathPointInfo *ppi;
 		if (status == STATE_FAILURE && m_retryCount>0) {
 			// If we failed, & haven't reached retry limit, try again.  jba.
 			m_retryCount--;
 		}	else {
+			ppi = ai->friend_getPathPointInfo(m_index);
+			if (ppi->m_cmdNodeID == obj->getCurrentCommand() && ppi->m_cmdNodeID != obj->getLastCommandInMoveStreak())
+				TheCommandSequence->removeCurrentCommand(obj);
 			++m_index;
 		}
 		const Coord3D *pos = ai->friend_getGoalPathPosition( m_index );
@@ -3582,11 +3662,22 @@ StateReturnType AIFollowPathState::update()
 				tooClose = true;
 			}
 			if (tooClose) {
+				ppi = ai->friend_getPathPointInfo(m_index);
+				if (ppi->m_cmdNodeID == obj->getCurrentCommand() && ppi->m_cmdNodeID != obj->getLastCommandInMoveStreak())
+					TheCommandSequence->removeCurrentCommand(obj);
 				m_index++;
 				pos = ai->friend_getGoalPathPosition(m_index);
 			}
 		}
 
+		ppi = ai->friend_getPathPointInfo(m_index);
+		if (ppi)
+		{
+			if (ppi->m_isReverse)
+				ai->friend_setForcedMoveBackwards(true);
+			else
+				ai->friend_setForcedMoveBackwards(false);
+		}
 
 		//Assign this value to the AIUpdateInterface so object's can access this value while
 		//determine which waypoints to plot in the waypoint renderer.
@@ -3651,6 +3742,30 @@ StateReturnType AIFollowPathState::update()
 	}
 
 	return status;
+}
+
+void AIFollowPathState::friend_recheckFinalDestination(Int index)
+{
+	Object* obj = getMachineOwner();
+	AIUpdateInterface* ai = obj->getAI();
+	const Coord3D* pos = ai->friend_getGoalPathPosition(m_index);
+
+	m_goalPosition = *pos;
+	const Coord3D* nextPos = ai->friend_getGoalPathPosition(m_index + 1);
+
+	if (nextPos && m_index + 1 == index)
+	{
+		Coord2D delta;
+		delta.x = nextPos->x - pos->x;
+		delta.y = nextPos->y - pos->y;
+		Real offset = delta.length();
+		const Coord3D* followingPos = ai->friend_getGoalPathPosition(m_index + 2);
+		if (followingPos) offset += 4 * PATHFIND_CELL_SIZE_F;
+		ai->setPathExtraDistance(offset);
+		// We are in the middle of a path, so don't set the final goal location yet.
+		setAdjustsDestination(false);
+	}
+	computePath();
 }
 
 //----------------------------------------------------------------------------------------------------------
@@ -6162,6 +6277,17 @@ StateReturnType AIAttackState::onEnter()
 	//CRCDEBUG_LOG(("AIAttackState::onEnter() - start for object %d", getMachineOwner()->getID()));
 	Object* source = getMachineOwner();
 	AIUpdateInterface *ai = source->getAI();
+
+	if (ai->getLastCommandSource() == CMD_FROM_PLAYER && ai->isSameMachine((AIStateMachine*)getMachine()))
+	{
+		TheCommandSequence->verifyObjectCommand(getMachineOwner());
+	}
+
+	if (ai->getLastCommandSource() == CMD_FROM_AI)
+	{
+		TheCommandSequence->verifyOCLPendingCommand(getMachineOwner());
+	}
+
 	// if we are in sleep mode, we will not attack
 	if ((ai->getMoodMatrixActionAdjustment(MM_Action_Attack) & MAA_Action_Ok) == 0)
 		return STATE_SUCCESS;
@@ -6412,6 +6538,12 @@ void AIAttackState::onExit( StateExitType status )
 			ai->setTurretTargetObject((WhichTurretType)i, nullptr, FALSE);
 		ai->friend_setGoalObject(nullptr);
 	}
+
+	if (ai && ai->getLastCommandSource() == CMD_FROM_PLAYER && ai->isSameMachine((AIStateMachine*)getMachine()))
+		TheCommandSequence->terminateVerifiedCommand(getMachineOwner());
+
+	if (ai && ai->getLastCommandSource() == CMD_FROM_AI)
+		TheCommandSequence->terminateOCLVerifiedCommand(getMachineOwner());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -6782,6 +6914,9 @@ StateReturnType AIDockState::onEnter()
 {
 	// who are we docking with?
 	Object *dockWithMe = getMachineGoalObject();
+
+	TheCommandSequence->verifyObjectCommand(getMachineOwner());
+
 	if (dockWithMe == nullptr)
 	{
 		// we have nothing to dock with!
@@ -6836,6 +6971,7 @@ void AIDockState::onExit( StateExitType status )
 		ai->ignoreObstacle( nullptr );
 	}
 
+	TheCommandSequence->terminateVerifiedCommand(getMachineOwner());
 }
 
 /**
@@ -6909,8 +7045,11 @@ StateReturnType AIEnterState::onEnter()
 {
 	m_entryToClear = INVALID_ID;
 
-	Object* obj = getMachineOwner();
-	Object* goal = getMachineGoalObject();
+	Object *obj = getMachineOwner();
+	Object *goal = getMachineGoalObject();
+
+	TheCommandSequence->verifyObjectCommand(obj);
+
 	if (goal)
 	{
 		if( !TheActionManager->canEnterObject( obj, goal, obj->getAI()->getLastCommandSource(), CHECK_CAPACITY ) )
@@ -6944,14 +7083,13 @@ StateReturnType AIEnterState::onEnter()
 //----------------------------------------------------------------------------------------------------------
 void AIEnterState::onExit( StateExitType status )
 {
-	Object* obj = getMachineOwner();
+	Object *obj = getMachineOwner();
 	AIInternalMoveToState::onExit( status );
 
 	// tell the pathfinder to stop ignoring the object
 	AIUpdateInterface *ai = obj->getAI();
 	if (ai)
 	{
-
 		ai->ignoreObstacle( nullptr );
 		if (ai->getCurLocomotor())
 		{
@@ -6969,10 +7107,14 @@ void AIEnterState::onExit( StateExitType status )
 			ContainModuleInterface* contain = goal->getContain();
 			if (contain)
 			{
+				if (contain->isContained(obj) || obj->isDisabledByType(DISABLED_HELD))
+					TheCommandSequence->unitOnHeld(obj);
 				contain->onObjectWantsToEnterOrExit(obj, WANTS_NEITHER);
 			}
 		}
 	}
+
+	TheCommandSequence->terminateVerifiedCommand(obj);
 }
 
 static bool hasVerticalOverlap(const Object* a, const Object* b)
@@ -7132,6 +7274,10 @@ StateReturnType AIExitState::onEnter()
 
 	Object* obj = getMachineOwner();
 	Object* goal = getMachineGoalObject();
+
+	//if (obj->getAI() && obj->getAI()->getLastCommandSource() == CMD_FROM_PLAYER)
+		TheCommandSequence->verifyExitCommand(obj, goal);
+
 	if (goal)
 	{
 		ContainModuleInterface* contain = goal->getContain();
@@ -7213,6 +7359,9 @@ void AIExitState::onExit( StateExitType status )
 			}
 		}
 	}
+
+	//if (obj->getAI() && obj->getAI()->getLastCommandSource() == CMD_FROM_PLAYER)
+		TheCommandSequence->confirmExitCommand(obj, getMachineGoalObject());
 }
 
 //----------------------------------------------------------------------------------------------------------
@@ -7419,12 +7568,15 @@ StateReturnType AIGuardState::onEnter()
 	}
 	m_guardMachine->setGuardMode(ai->getGuardMode());
 
+	obj->getControllingPlayer()->getAcademyStats()->recordGuardAbilityUsed();
+
+	if (ai->getLastCommandSource() == CMD_FROM_PLAYER && ai->isSameMachine((AIStateMachine*)getMachine()))
+		TheCommandSequence->verifyObjectCommand(obj);
+
 	// now that essential parameters are set, set the machine's initial state
 	if (m_guardMachine->initDefaultState() == STATE_FAILURE)
 		return STATE_FAILURE;
 	return m_guardMachine->setState(AI_GUARD_RETURN);
-
-	obj->getControllingPlayer()->getAcademyStats()->recordGuardAbilityUsed();
 }
 
 //----------------------------------------------------------------------------------------------------------
@@ -7433,8 +7585,12 @@ void AIGuardState::onExit( StateExitType status )
 	deleteInstance(m_guardMachine);
 	m_guardMachine = nullptr;
 
-	Object *obj = getMachineOwner();
-	obj->getAI()->clearGuardTargetType();
+	AIUpdateInterface *ai = getMachineOwner()->getAI();
+	if (ai)
+		ai->clearGuardTargetType();
+
+	if (ai && ai->getLastCommandSource() == CMD_FROM_PLAYER && ai->isSameMachine((AIStateMachine*)getMachine()))
+		TheCommandSequence->terminateVerifiedCommand(getMachineOwner());
 }
 
 //----------------------------------------------------------------------------------------------------------

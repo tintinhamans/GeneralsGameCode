@@ -1160,7 +1160,7 @@ GameMessageDisposition SelectionTranslator::onRawMouseLeftButtonUp(MAYBE_UNUSED 
 		if( !TheInGameUI->getGUICommand() && !TheKeyboard->isShift() && !TheKeyboard->isCtrl() && !TheKeyboard->isAlt() )
 		{
 			//No GUI command mode, so deselect everyone if we're in alternate mouse mode.
-			if( TheGlobalData->m_useAlternateMouse && TheInGameUI->getPendingPlaceSourceObjectID() == INVALID_ID )
+			if( TheGlobalData->m_useAlternateMouse && TheInGameUI->getPendingPlaceSourceObjectIDs()->empty() )
 			{
 				if( !TheInGameUI->getPreventLeftClickDeselectionInAlternateMouseModeForOneClick() )
 				{
@@ -1229,7 +1229,7 @@ GameMessageDisposition SelectionTranslator::onRawMouseRightButtonUp(MAYBE_UNUSED
 		{
 			//In alternate mouse mode, right click still cancels building placement.
 			// TheSuperHackers @tweak Stubbjax 08/08/2025 Canceling building placement no longer deselects the builder.
-			if (TheInGameUI->getPendingPlaceSourceObjectID() != INVALID_ID)
+			if (!TheInGameUI->getPendingPlaceSourceObjectIDs()->empty())
 			{
 				TheInGameUI->placeBuildAvailable(nullptr, nullptr);
 				TheInGameUI->setPreventLeftClickDeselectionInAlternateMouseModeForOneClick(FALSE);

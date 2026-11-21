@@ -453,6 +453,7 @@ MetaEventTranslator::MetaEventTranslator()
 	for (Int i = 0; i < NUM_MOUSE_BUTTONS; ++i) {
 		m_nextUpShouldCreateDoubleClick[i] = FALSE;
 	}
+	m_lastModState = NONE;
 	m_middleDragged = FALSE;
 	m_middleDownTime = 0;
 	m_wheelSpin = 0.0f;
@@ -694,11 +695,23 @@ void MetaEventTranslator::onKeyEvent(const GameMessage *msg, GameMessageDisposit
 	{
 		onKeyPressed(disp, systemKeyState, keyType, keyModState);
 	}
+
+	m_lastModState = keyModState;
 }
 
 //-------------------------------------------------------------------------------------------------
 void MetaEventTranslator::onKeyModStateRemoved(GameMessageDisposition &disp, MappableKeyModState keyModState)
 {
+	for (const MetaMapRec *map = TheMetaMap->getFirstMetaMapRec(); map; map = map->m_next)
+	{
+		if (map->m_key == NONE && map->m_transition == UP && (m_lastModState & map->m_modState) == map->m_modState && !(keyModState & map->m_modState))
+		{
+			TheMessageStream->appendMessage(map->m_meta);
+			disp = DESTROY_MESSAGE;
+			break;
+		}
+	}
+
 	// TheSuperHackers @fix The key handler now ignores the order in which modifier keys are released.
 	// This avoids frustrating experiences where a wrong button release order would skip an important key event.
 
@@ -760,9 +773,10 @@ void MetaEventTranslator::onKeyPressed(GameMessageDisposition &disp, Int systemK
 #endif
 		const Bool isMatchingTransitionUp = map->m_transition == UP && (systemKeyState & KEY_STATE_UP) != 0;
 		const Bool isMatchingTransitionDown = map->m_transition == DOWN && (systemKeyState & KEY_STATE_DOWN) != 0;
+		const Bool isModKeyDown = keyType == MK_NONE && map->m_key == NONE && map->m_transition == DOWN && !(m_lastModState & map->m_modState) && (keyModState & map->m_modState) == map->m_modState;
 		//const Bool isMatchingTransitionDoubleDown = map->m_transition == DOUBLEDOWN && (systemKeyState & KEY_STATE_DOWN) && m_lastKeyDown == key;
 
-		if (isMatchingKeyCombo && (isMatchingTransitionUp || isMatchingTransitionDown /*|| isMatchingTransitionDoubleDown*/))
+		if ((isMatchingKeyCombo && (isMatchingTransitionUp || isMatchingTransitionDown)) || isModKeyDown/*|| isMatchingTransitionDoubleDown*/)
 		{
 			if( systemKeyState & KEY_STATE_AUTOREPEAT )
 			{
@@ -842,7 +856,7 @@ void MetaEventTranslator::onKeyPressed(GameMessageDisposition &disp, Int systemK
 			break;
 		}
 	}
-
+	
 	if (systemKeyState & KEY_STATE_DOWN)
 	{
 #ifdef DUMP_ALL_KEYS_TO_LOG
@@ -854,7 +868,7 @@ void MetaEventTranslator::onKeyPressed(GameMessageDisposition &disp, Int systemK
 		DEBUG_LOG(("^%s ", aKey.str()));
 #endif
 
-		if (keyModState != NONE)
+		if (keyType != MK_NONE && keyModState != NONE)
 		{
 			// Remember that this key and mod state are pressed.
 			m_keyDownInfos[keyType].setKeyModState(keyModState);
@@ -862,9 +876,9 @@ void MetaEventTranslator::onKeyPressed(GameMessageDisposition &disp, Int systemK
 	}
 	else
 	{
-		if (keyModState != NONE)
+		if (keyType != MK_NONE && keyModState != NONE)
 		{
-			DEBUG_ASSERTCRASH(keyType != MK_NONE, ("Key is expected to be not MK_NONE"));
+			//DEBUG_ASSERTCRASH(keyType != MK_NONE, ("Key is expected to be not MK_NONE"));
 
 			// Forget that this key and mod state are pressed.
 			m_keyDownInfos[keyType].clearKeyModState(keyModState);

@@ -445,11 +445,11 @@ void clpTeamAttack(const AsciiString &teamName, const AsciiString &objectType, c
 	}
 	if (attackMove)
 	{
-		theGroup->groupAttackMoveToPosition(bestObj->getPosition(), NO_MAX_SHOTS_LIMIT, CMD_FROM_SCRIPT);
+		theGroup->groupAttackMoveToPosition(bestObj->getPosition(), NO_MAX_SHOTS_LIMIT, false, CMD_FROM_SCRIPT);
 	}
 	else
 	{
-		theGroup->groupAttackObject(bestObj, NO_MAX_SHOTS_LIMIT, CMD_FROM_SCRIPT);
+		theGroup->groupAttackObject(WEAPON_NONE, bestObj, NO_MAX_SHOTS_LIMIT, false, CMD_FROM_SCRIPT);
 	}
 }
 
@@ -1093,7 +1093,7 @@ void ScriptActions::doTeamAttackMoveLocation(const AsciiString& teamName, const 
 	{
 		return;
 	}
-	theGroup->groupAttackMoveToPosition(way->getLocation(), NO_MAX_SHOTS_LIMIT, CMD_FROM_SCRIPT);
+	theGroup->groupAttackMoveToPosition(way->getLocation(), NO_MAX_SHOTS_LIMIT, false, CMD_FROM_SCRIPT);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1163,7 +1163,7 @@ void ScriptActions::doTeamAttackMovePath(const AsciiString& teamName, const Asci
 	{
 		return;
 	}
-	theGroup->groupAttackMoveToPosition(way->getLocation(), NO_MAX_SHOTS_LIMIT, CMD_FROM_SCRIPT);
+	theGroup->groupAttackMoveToPosition(way->getLocation(), NO_MAX_SHOTS_LIMIT, false, CMD_FROM_SCRIPT);
 }
 
 //-------------------------------------------------------------------------------------------------

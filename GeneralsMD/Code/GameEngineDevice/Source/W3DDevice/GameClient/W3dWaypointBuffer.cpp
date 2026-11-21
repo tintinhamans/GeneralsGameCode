@@ -69,6 +69,7 @@
 #include "GameClient/GameClient.h"
 #include "GameClient/InGameUI.h"
 
+#include "GameLogic/CommandSequence.h">
 #include "GameLogic/Object.h"
 
 #include "GameLogic/Module/AIUpdate.h"
@@ -160,8 +161,7 @@ void W3DWaypointBuffer::drawWaypoints(RenderInfoClass &rinfo)
 
 
 
-	// action lines for every order already draw the queued path, so this white copy is skipped
-	if( TheInGameUI->isInWaypointMode() && TheGlobalData->m_actionLineMode != ActionLineMode_All )
+	if( TheInGameUI->isInWaypointMode() )
 	{
 		//Create a default light environment with no lights and only full ambient.
 		//@todo: Fix later by copying default scene light environment from W3DScene.cpp.
@@ -172,15 +172,75 @@ void W3DWaypointBuffer::drawWaypoints(RenderInfoClass &rinfo)
 		localRinfo.light_environment=&lightEnv;
 		Vector3 points[ MAX_DISPLAY_NODES + 1 ]; //Lines have nodes + 1 points.
 
+		// ShigureUi 13/10/2026 edge set prevent same edge render multiple times
+		typedef std::set<std::pair<UnsignedInt, UnsignedInt>> EDGESET;
+		EDGESET edgeSet;
+
 		const DrawableList *selected = TheInGameUI->getAllSelectedDrawables();
 		Drawable *draw;
 		for( DrawableListCIt it = selected->begin(); it != selected->end(); ++it )
 		{
 			draw = *it;
 			Object *obj = draw->getObject();
-			Int numPoints = 1;
+			Int numPoints = 1, totalPoints = 1;
 			if( obj && ! obj->isKindOf( KINDOF_IGNORED_IN_GUI ))//so mobs and stuff sont make a gazillion lines
 			{
+				const Coord3D *pos = obj->getPosition();
+				points[0].Set(Vector3(pos->x, pos->y, pos->z));
+
+				UnsignedInt prevCmd = TheCommandSequence->getFirstLocatableCommand(obj), nextCmd;
+				Coord3D pos1, pos2;
+
+				if (prevCmd)
+				{
+					TheCommandSequence->getCommandLoc(prevCmd, pos1);
+					points[1].Set(Vector3(pos1.x, pos1.y, pos1.z));
+					numPoints++, totalPoints++;
+					m_waypointNodeRobj->Set_Position(points[1]);
+					WW3D::Render(*m_waypointNodeRobj, localRinfo);
+
+					while ((nextCmd = TheCommandSequence->getNextLocatableCommand(obj, prevCmd)) != 0)
+					{
+						TheCommandSequence->getCommandLoc(nextCmd, pos2);
+
+						EDGESET::iterator it = edgeSet.find(std::make_pair(prevCmd, nextCmd));
+
+						if (it != edgeSet.end())
+						{
+							if (numPoints > 1)
+							{
+								m_line->Set_Points(numPoints, points);
+								m_line->Render(localRinfo);
+							}
+							numPoints = 1;
+							points[0].Set(Vector3(pos2.x, pos2.y, pos2.z));
+						}
+						else
+						{
+							if (totalPoints < MAX_DISPLAY_NODES + 1)
+							{
+								points[numPoints].Set(Vector3(pos2.x, pos2.y, pos2.z));
+								numPoints++;
+								edgeSet.insert(std::make_pair(prevCmd, nextCmd));
+							}
+						}
+
+						totalPoints++;
+
+						m_waypointNodeRobj->Set_Position(Vector3(pos2.x, pos2.y, pos2.z));
+						WW3D::Render(*m_waypointNodeRobj, localRinfo);
+
+						prevCmd = nextCmd;
+					}
+
+					if (numPoints > 1)
+					{
+						m_line->Set_Points(numPoints, points);
+						m_line->Render(localRinfo);
+					}
+				}
+
+				/*
 				AIUpdateInterface *ai = obj->getAI();
 				Int goalSize = ai ? ai->friend_getWaypointGoalPathSize() : 0;
 				Int gpIdx = ai ? ai->friend_getCurrentGoalPathIndex() : 0;
@@ -210,6 +270,7 @@ void W3DWaypointBuffer::drawWaypoints(RenderInfoClass &rinfo)
 					m_line->Set_Points( numPoints, points );
 					m_line->Render( localRinfo );
 				}
+				*/
 			}
 		}
 	}

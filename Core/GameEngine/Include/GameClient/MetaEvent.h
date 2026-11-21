@@ -461,6 +461,7 @@ private:
 	enum { NUM_MOUSE_BUTTONS = 3 };
 	ICoord2D m_mouseDownPosition[NUM_MOUSE_BUTTONS];
 	Bool	m_nextUpShouldCreateDoubleClick[NUM_MOUSE_BUTTONS];
+	MappableKeyModState m_lastModState;
 	Bool	m_middleDragged;	///< the middle button moved past the drag tolerance since it went down
 	UnsignedInt m_middleDownTime;
 	Real	m_wheelSpin;	///< wheel travel not yet spent on a whole notch

@@ -471,7 +471,7 @@ Bool ActionManager::canRepairObject( const Object *obj, const Object *objectToRe
 // ------------------------------------------------------------------------------------------------
 Bool ActionManager::canResumeConstructionOf( const Object *obj,
 																						 const Object *objectBeingConstructed,
-																						 CommandSourceType commandSource )
+																						 CommandSourceType commandSource)
 {
 
 	// sanity

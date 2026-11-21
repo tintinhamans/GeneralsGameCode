@@ -34,6 +34,7 @@
 #include "GameClient/Drawable.h"
 #include "GameClient/InGameUI.h"
 #include "GameClient/GameText.h"
+#include "GameLogic/CommandSequence.h"
 #include "GameLogic/ExperienceTracker.h"
 #include "GameLogic/Module/BodyModule.h"
 #include "GameLogic/Module/ContainModule.h"
@@ -114,7 +115,31 @@ UpdateSleepTime HackInternetAIUpdate::update()
 			m_pendingCommand.reconstitute( parms );
 			m_hasPendingCommand = false;
 
- 			aiDoCommand(&parms);
+			Object *obj = getObject();
+			CommandVerifyStatus cvs = obj->getCommandVerifyStatus();
+			if (cvs == STATUS_UNIT_PENDING)
+			{
+				TheCommandSequence->prepareCommandForVerification(obj);
+
+				aiDoCommand(&parms);
+
+				cvs = obj->getCommandVerifyStatus();
+
+				if (cvs == STATUS_AWAITING || cvs == STATUS_EXIT_VERIFIED)
+					TheCommandSequence->removeCurrentCommand(obj);
+
+				if (cvs == STATUS_EXIT_VERIFIED)
+					obj->setCommandVerifyStatus(cvs);
+
+				if (obj->getCommandVerifyStatus() != STATUS_UNIT_PENDING)
+				{
+					while (TheCommandSequence->handleMoveStreak(obj))
+					{
+					}
+				}
+			}
+			else
+				aiDoCommand(&parms);
 		}
 	}
 
@@ -148,6 +173,8 @@ void HackInternetAIUpdate::aiDoCommand(const AICommandParms* parms)
 		// nuke any existing pending cmd
 		m_pendingCommand.store(*parms);
 		m_hasPendingCommand = true;
+
+		TheCommandSequence->unitPendingCommand(getObject());
 
 		if( currentState == HACK_INTERNET )
 		{
@@ -307,6 +334,8 @@ StateReturnType UnpackingState::onEnter()
 	AudioEventRTS sound = *owner->getTemplate()->getPerUnitSound( "UnitUnpack" );
 	sound.setObjectID( owner->getID() );
 	TheAudio->addAudioEvent( &sound );
+
+	TheCommandSequence->verifyObjectCommand(owner);
 
 	Real variationFactor = ai->getPackUnpackVariationFactor();
 	Real variation = GameLogicRandomValueReal( 1.0f - variationFactor, 1.0f + variationFactor );

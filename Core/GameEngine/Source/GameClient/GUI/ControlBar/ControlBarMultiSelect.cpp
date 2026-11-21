@@ -138,10 +138,12 @@ void ControlBar::addCommonCommands( Drawable *draw, Bool firstDrawable )
 
 			// add if present and can be used in a multi select
 			if ((BitIsSet(command->getOptions(), OK_FOR_MULTI_SELECT) == TRUE ||
-					// ShigureUi 07/09/2026 Allows unit build and upgrade command button OK_FOR_MULTI_SELECT by default.
+					// ShigureUi 07/09/2026 Smart cast: allows unit build and upgrade command button OK_FOR_MULTI_SELECT by default.
 					command->getCommandType() == GUI_COMMAND_UNIT_BUILD ||
 					command->getCommandType() == GUI_COMMAND_PLAYER_UPGRADE ||
-					command->getCommandType() == GUI_COMMAND_OBJECT_UPGRADE
+					command->getCommandType() == GUI_COMMAND_OBJECT_UPGRADE ||
+					// ShigureUi 08/11/2026 Smart cast: allows dozer construct command button OK_FOR_MULTI_SELECT by default.
+					command->getCommandType() == GUI_COMMAND_DOZER_CONSTRUCT
 				))
 			{
 

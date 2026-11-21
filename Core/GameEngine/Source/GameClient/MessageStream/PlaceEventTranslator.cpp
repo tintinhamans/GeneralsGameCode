@@ -91,7 +91,15 @@ GameMessageDisposition PlaceEventTranslator::translateGameMessage(const GameMess
 				// placing things causes a dozer to go over and build it ... get the dozer in question
 				// from the in game UI
 				//
-				Object *builderObject = TheGameLogic->findObjectByID( TheInGameUI->getPendingPlaceSourceObjectID() );
+
+				Object *builderObject = nullptr;
+				const std::list<ObjectID> *objIDList = TheInGameUI->getPendingPlaceSourceObjectIDs();
+				for (std::list<ObjectID>::const_iterator it = objIDList->cbegin(); it != objIDList->cend(); it++)
+				{
+					builderObject = TheGameLogic->findObjectByID(*it);
+					if (builderObject)
+						break;
+				}
 
 				// if our source object is gone cancel this whole placement process
 				if( builderObject == nullptr )
@@ -193,14 +201,92 @@ GameMessageDisposition PlaceEventTranslator::translateGameMessage(const GameMess
 						worldStart.z = std::max(worldStart.z, waterZ);
 					}
 				}
+				
+				const std::list<ObjectID> *objIDList = TheInGameUI->getPendingPlaceSourceObjectIDs();
+				CanMakeType cmt = CANMAKE_NO_PREREQ, curCmt;
+				LegalBuildCode lbc = LBC_GENERIC_FAILURE, curLbc;
+				Int rating;
+				Object *singleBuilderObj = nullptr, *builderObj, *cantBuildObj = nullptr;
+				Bool hasCmt = false, hasLbc = false;
 
-				Object *builderObj = TheGameLogic->findObjectByID( TheInGameUI->getPendingPlaceSourceObjectID() );
+				for (std::list<ObjectID>::const_iterator it = objIDList->cbegin(); it != objIDList->cend(); it++)
+				{
+					builderObj = TheGameLogic->findObjectByID(*it);
+					if (!singleBuilderObj)
+					{
+						if (builderObj)
+							singleBuilderObj = builderObj;
+					}
+					else
+					{
+						if (builderObj)
+							singleBuilderObj = nullptr;
+					}
 
-				//Kris: September 27, 2002
-				//Make sure we have enough CASH to build it! It's possible that between the
-				//time we initiated it and the time we confirm it, a hacker has stolen some of
-				//our cash!
-				CanMakeType cmt = TheBuildAssistant->canMakeUnit( builderObj, build );
+					//Kris: September 27, 2002
+					//Make sure we have enough CASH to build it! It's possible that between the
+					//time we initiated it and the time we confirm it, a hacker has stolen some of
+					//our cash!
+					curCmt = TheBuildAssistant->canMakeUnit(builderObj, build);
+					rating = rateCanMakeType(curCmt);
+
+					if (rating < 0)
+					{
+						cmt = curCmt;
+						hasCmt = true;
+						singleBuilderObj = nullptr;
+						break;
+					}
+
+					if (!hasCmt)
+					{
+						cmt = curCmt;
+						hasCmt = true;
+					}
+					else if (rating < rateCanMakeType(cmt))
+						cmt = curCmt;
+
+					if (curCmt == CANMAKE_OK)
+					{
+						// check to see if this is a legal location to build something at
+						curLbc = TheBuildAssistant->isLocationLegalToBuild(&worldStart,
+							build,
+							angle,
+							BuildAssistant::USE_QUICK_PATHFIND |
+							BuildAssistant::TERRAIN_RESTRICTIONS |
+							BuildAssistant::CLEAR_PATH |
+							BuildAssistant::NO_OBJECT_OVERLAP |
+							BuildAssistant::SHROUD_REVEALED |
+							BuildAssistant::IGNORE_STEALTHED |
+							BuildAssistant::FAIL_STEALTHED_WITHOUT_FEEDBACK,
+							builderObj, nullptr);
+
+						rating = rateLegalBuildCode(curLbc);
+						if (rating < 0)
+						{
+							hasLbc = true;
+							lbc = curLbc;
+							cantBuildObj = builderObj;
+							break;
+						}
+
+						if (!hasLbc)
+						{
+							hasLbc = true;
+							lbc = curLbc;
+							cantBuildObj = builderObj;
+						}
+						else if (rating < rateLegalBuildCode(lbc))
+						{
+							lbc = curLbc;
+							cantBuildObj = builderObj;
+						}
+					}
+				}
+
+				if (!hasCmt)
+					break;
+
 				if( cmt != CANMAKE_OK )
 				{
 					if (cmt == CANMAKE_NO_MONEY)
@@ -229,27 +315,15 @@ GameMessageDisposition PlaceEventTranslator::translateGameMessage(const GameMess
 					break;
 				}
 
-				DEBUG_ASSERTCRASH(builderObj != nullptr, ("builderObj is null"));
+				if (!hasLbc)
+					break;
 
-				// check to see if this is a legal location to build something at
-				LegalBuildCode lbc;
-				lbc = TheBuildAssistant->isLocationLegalToBuild( &worldStart,
-																												 build,
-																												 angle,
-																												 BuildAssistant::USE_QUICK_PATHFIND |
-																												 BuildAssistant::TERRAIN_RESTRICTIONS |
-																												 BuildAssistant::CLEAR_PATH |
-																												 BuildAssistant::NO_OBJECT_OVERLAP |
-																												 BuildAssistant::SHROUD_REVEALED |
-																												 BuildAssistant::IGNORE_STEALTHED |
-																												 BuildAssistant::FAIL_STEALTHED_WITHOUT_FEEDBACK,
-																												 builderObj, nullptr );
 				if( lbc == LBC_OK )
 				{
 					//Are we building this structure via the special power system? (special case for sneak attack)
-					if( builderObj )
+					if(singleBuilderObj)
 					{
-						ProductionUpdateInterface *puInterface = builderObj->getProductionUpdateInterface();
+						ProductionUpdateInterface *puInterface = singleBuilderObj->getProductionUpdateInterface();
 						if( puInterface )
 						{
 							const CommandButton *commandButton = puInterface->getSpecialPowerConstructionCommandButton();
@@ -264,7 +338,8 @@ GameMessageDisposition PlaceEventTranslator::translateGameMessage(const GameMess
 								placeMsg->appendRealArgument( angle ); //Angle of special to be fired.
 								placeMsg->appendObjectIDArgument( INVALID_ID ); //There is no object in the way.
 								placeMsg->appendIntegerArgument( commandButton->getOptions() ); //Command button options.
-								placeMsg->appendObjectIDArgument( builderObj->getID() ); //The source object responsible for firing the special.
+								placeMsg->appendObjectIDArgument(singleBuilderObj->getID() ); //The source object responsible for firing the special.
+								placeMsg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 
 								// get out of pending placement mode, this will also clear the arrow anchor status
 								TheInGameUI->placeBuildAvailable( nullptr, nullptr );
@@ -286,6 +361,7 @@ GameMessageDisposition PlaceEventTranslator::translateGameMessage(const GameMess
 					placeMsg->appendIntegerArgument(build->getTemplateID());
 					placeMsg->appendLocationArgument(worldStart);
 					placeMsg->appendRealArgument(angle);
+					placeMsg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 					if( isLineBuild )
 					{
 						placeMsg->appendLocationArgument( worldEnd );
@@ -303,8 +379,8 @@ GameMessageDisposition PlaceEventTranslator::translateGameMessage(const GameMess
 					TheInGameUI->displayCantBuildMessage( lbc );
 
 					//Cannot build here -- play the voice sound from the dozer
-					AudioEventRTS sound = *builderObj->getTemplate()->getPerUnitSound( "VoiceNoBuild" );
-					sound.setObjectID( builderObj->getID() );
+					AudioEventRTS sound = *cantBuildObj->getTemplate()->getPerUnitSound( "VoiceNoBuild" );
+					sound.setObjectID(cantBuildObj->getID() );
 					TheAudio->addAudioEvent( &sound );
 
 					// play a can't do that sound (UI beep type sound)

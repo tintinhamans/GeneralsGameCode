@@ -772,6 +772,7 @@ void AIDockMoveToExitState::onExit( StateExitType status )
  */
 StateReturnType AIDockMoveToRallyState::onEnter()
 {
+	Object *obj = getMachineOwner();
 	Object *goalObject = getMachineGoalObject();
 
   DockUpdateInterface *dock = nullptr;
@@ -786,6 +787,7 @@ StateReturnType AIDockMoveToRallyState::onEnter()
 	if( ! dock->isRallyPointAfterDockType()															//Chooses not to
 		|| goalObject->getObjectExitInterface() == nullptr										//or can't
 		|| goalObject->getObjectExitInterface()->getRallyPoint() == nullptr	//or can't right now.
+		|| obj->getCurrentCommand() != obj->getLastCommand()
 		)
 	{
 		return STATE_SUCCESS; // Success in an Enter is like success in an update.  We're all fine here

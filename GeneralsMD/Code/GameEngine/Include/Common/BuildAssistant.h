@@ -80,6 +80,29 @@ enum CanMakeType CPP_11(: Int)
 	CANMAKE_MAXED_OUT_FOR_PLAYER	// player has as many as they are allowed at once (eg, Black Lotus
 };
 
+// ShigureUi 08/11/2026 -1 means impossible no matter which unit it is, you can break early, >= 0 is normal rating
+static inline Int rateCanMakeType(CanMakeType cmt)
+{
+	switch (cmt)
+	{
+		case CANMAKE_MAXED_OUT_FOR_PLAYER:
+		case CANMAKE_NO_MONEY:
+			return -1;
+		case CANMAKE_OK:
+			return 0;
+		case CANMAKE_QUEUE_FULL:
+			return 1;
+		case CANMAKE_PARKING_PLACES_FULL:
+			return 2;
+		case CANMAKE_FACTORY_IS_DISABLED:
+			return 3;
+		case CANMAKE_NO_PREREQ:
+			return 4;
+		default:
+			return 10;
+	}
+}
+
 //-------------------------------------------------------------------------------------------------
 /** Return codes for queries about legal build locations */
 //-------------------------------------------------------------------------------------------------
@@ -94,6 +117,27 @@ enum LegalBuildCode CPP_11(: Int)
 	LBC_TOO_CLOSE_TO_SUPPLIES,
 	LBC_GENERIC_FAILURE,
 };
+
+// ShigureUi 08/11/2026 -1 means impossible no matter which unit it is, you can break early, >= 0 is normal rating
+static inline Int rateLegalBuildCode(LegalBuildCode lbc)
+{
+	switch (lbc)
+	{
+		case LBC_RESTRICTED_TERRAIN:
+		case LBC_NOT_FLAT_ENOUGH:
+		case LBC_OBJECTS_IN_THE_WAY:
+		case LBC_SHROUD:
+		case LBC_TOO_CLOSE_TO_SUPPLIES:
+		case LBC_GENERIC_FAILURE:
+			return -1;
+		case LBC_OK:
+			return 0;
+		case LBC_NO_CLEAR_PATH:
+			return 1;
+		default:
+			return 10;
+	}
+}
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -180,7 +224,7 @@ public:
 	virtual Bool isLineBuildTemplate( const ThingTemplate *tTemplate );
 
 	/// are all the requirements for making this unit satisfied
-	virtual CanMakeType canMakeUnit( Object *builder, const ThingTemplate *whatToBuild ) const;
+	virtual CanMakeType canMakeUnit( Object *builder, const ThingTemplate *whatToBuild, Bool checkCash = true ) const;
 
 	/// are all the requirements for making this unit (except available cash) are satisfied
 	virtual Bool isPossibleToMakeUnit( Object *builder, const ThingTemplate *whatToBuild ) const;

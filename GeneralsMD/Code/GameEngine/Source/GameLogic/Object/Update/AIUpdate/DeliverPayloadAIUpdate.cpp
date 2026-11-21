@@ -559,10 +559,10 @@ DeliverPayloadStateMachine::DeliverPayloadStateMachine( Object *owner ) : StateM
 
 	// order matters: first state is the default state.
 	defineState( APPROACH,								newInstance(ApproachState)( this ), DELIVERING, CONSIDER_NEW_APPROACH );
-	defineState( DELIVERING,							newInstance(DeliveringState)( this ), HEAD_OFF_MAP, CONSIDER_NEW_APPROACH );
-	defineState( CONSIDER_NEW_APPROACH,		newInstance(ConsiderNewApproachState)( this ), APPROACH, HEAD_OFF_MAP, considerConditions );
+	defineState( DELIVERING,							newInstance(DeliveringState)( this ), D_HEAD_OFF_MAP, CONSIDER_NEW_APPROACH );
+	defineState( CONSIDER_NEW_APPROACH,		newInstance(ConsiderNewApproachState)( this ), APPROACH, D_HEAD_OFF_MAP, considerConditions );
 	defineState( RECOVER_FROM_OFF_MAP,		newInstance(RecoverFromOffMapState)( this ), APPROACH, APPROACH );
-	defineState( HEAD_OFF_MAP,						newInstance(HeadOffMapState)( this ), CLEAN_UP, CLEAN_UP );
+	defineState( D_HEAD_OFF_MAP,						newInstance(HeadOffMapState)( this ), CLEAN_UP, CLEAN_UP );
 	defineState( CLEAN_UP,								newInstance(CleanUpState)( this ), INVALID_STATE_ID, INVALID_STATE_ID );
 }
 

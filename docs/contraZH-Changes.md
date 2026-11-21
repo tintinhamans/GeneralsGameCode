@@ -41,7 +41,7 @@ version - see [Rendering](contraZH-Options.md#rendering) for the renamed `Anisot
 * [SpecialPower.ini](contraZH-SpecialPowers.md) - enum behavior reference, Contra superweapon enums, INI-defined power identities, EVA events and radius cursors, plus new SpecialPower.ini keys
 * [Weapon.ini](contraZH-Weapons.md) - new Weapon.ini keys
 * [Locomotors](contraZH-Locomotors.md) - terrain-following projectiles and slope collision limits
-* [CommandButtons & Selection](contraZH-CommandButtons.md) - new command buttons and options, queue reorder, auto queue and structure multi-select
+* [CommandButtons & Selection](contraZH-CommandButtons.md) - new command buttons and options, queue reorder, auto queue, structure multi-select, advanced waypoints and dozer smart cast
 * [ParticleSystem.ini](contraZH-ParticleSystems.md) - new ParticleSystem.ini keys
 * [ObjectCreationList.ini](contraZH-Object-Creation-List.md) - new ObjectCreationList.ini nuggets
 * [ChatCommands.ini](contraZH-ChatCommands.md) - new chat command fields: health, ownership, EMP, crew kill, player control and typed spawns

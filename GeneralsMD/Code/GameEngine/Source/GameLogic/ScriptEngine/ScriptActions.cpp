@@ -1509,7 +1509,7 @@ void ScriptActions::doTeamAttackNamed(const AsciiString& teamName, const AsciiSt
 #else
 	theTeam->getTeamAsAIGroup(theGroup.Peek());
 #endif
-	theGroup->groupAttackObject(theVictim, NO_MAX_SHOTS_LIMIT, CMD_FROM_SCRIPT);
+	theGroup->groupAttackObject(WEAPON_NONE, theVictim, NO_MAX_SHOTS_LIMIT, false, CMD_FROM_SCRIPT);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1617,7 +1617,7 @@ void ScriptActions::doTeamEnterNamed(const AsciiString& teamName, const AsciiStr
 #else
 	theSrcTeam->getTeamAsAIGroup(theGroup.Peek());
 #endif
-	theGroup->groupEnter(theTransport, CMD_FROM_SCRIPT);
+	theGroup->groupEnter(theTransport, false, CMD_FROM_SCRIPT);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1657,7 +1657,7 @@ void ScriptActions::doTeamExitAll(const AsciiString& teamName)
 #else
 	theTeamOfTransports->getTeamAsAIGroup(theGroup.Peek());
 #endif
-	theGroup->groupEvacuate( CMD_FROM_SCRIPT );
+	theGroup->groupEvacuate( false, CMD_FROM_SCRIPT );
 }
 
 
@@ -2023,7 +2023,7 @@ void ScriptActions::doTeamGuardPosition(const AsciiString& teamName, const Ascii
 #endif
 	Coord3D position = *way->getLocation();
 
-	theGroup->groupGuardPosition( &position, GUARDMODE_NORMAL, CMD_FROM_SCRIPT );
+	theGroup->groupGuardPosition( &position, GUARDMODE_NORMAL, false, CMD_FROM_SCRIPT );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2046,7 +2046,7 @@ void ScriptActions::doTeamGuardObject(const AsciiString& teamName, const AsciiSt
 #else
 	theTeam->getTeamAsAIGroup(theGroup.Peek());
 #endif
-	theGroup->groupGuardObject( theUnit, GUARDMODE_NORMAL, CMD_FROM_SCRIPT );
+	theGroup->groupGuardObject( theUnit, GUARDMODE_NORMAL, false, CMD_FROM_SCRIPT );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3456,7 +3456,7 @@ void ScriptActions::doTeamGarrisonSpecificBuilding(const AsciiString& teamName, 
 #else
 	theTeam->getTeamAsAIGroup(theGroup.Peek());
 #endif
-	theGroup->groupEnter(theBuilding, CMD_FROM_SCRIPT);
+	theGroup->groupEnter(theBuilding, false, CMD_FROM_SCRIPT);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -5521,7 +5521,7 @@ void ScriptActions::doSkirmishAttackNearestGroupWithValue( const AsciiString& te
 			&groupLoc, value, true, &loc);
 	}
 
-	theGroup->groupAttackMoveToPosition( &loc, NO_MAX_SHOTS_LIMIT, CMD_FROM_SCRIPT );
+	theGroup->groupAttackMoveToPosition( &loc, NO_MAX_SHOTS_LIMIT, false, CMD_FROM_SCRIPT );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -6067,7 +6067,7 @@ void ScriptActions::doTeamCaptureNearestUnownedFactionUnit( const AsciiString& t
 		return;
 	}
 
-	theGroup->groupEnter(obj, CMD_FROM_SCRIPT);
+	theGroup->groupEnter(obj, false, CMD_FROM_SCRIPT);
 }
 
 //-------------------------------------------------------------------------------------------------

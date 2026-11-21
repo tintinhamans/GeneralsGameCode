@@ -88,6 +88,7 @@
 #include "GameLogic/AIMatch.h"
 #include "GameLogic/AIPathfind.h"
 #include "GameLogic/AISkirmishPlayer.h"
+#include "GameLogic/CommandSequence.h"
 #include "GameLogic/ExperienceTracker.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/Scripts.h"
@@ -3310,7 +3311,8 @@ Bool Player::canBuildMoreOfType( const ThingTemplate *whatToBuild, UnsignedInt b
     typeCountData.checkProductionInterface = !whatToBuild->isKindOf( KINDOF_STRUCTURE );
 
     iterateObjects( countExisting, &typeCountData );
-    if( typeCountData.count + buildCount > maxSimultaneousOfType )
+
+    if( typeCountData.count + buildCount + TheCommandSequence->getConstructionShadowCount(whatToBuild, this) > maxSimultaneousOfType)
       return false;
   }
   return true;

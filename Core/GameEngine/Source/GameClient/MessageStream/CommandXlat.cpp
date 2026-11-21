@@ -1156,11 +1156,14 @@ GameMessage::Type CommandTranslator::issueMoveToLocationCommand( const Coord3D *
 
 	if (m_teamExists)
 	{
-		if( TheInGameUI->isInWaypointMode() )
-		{
-			msgType = GameMessage::MSG_ADD_WAYPOINT;
-		}
-		else if( TheInGameUI->isInAttackMoveToMode())
+		//ShigureUi 01/10/2026 we override existing waypoint message
+		//if( TheInGameUI->isInWaypointMode() )
+		//{
+		//msgType = GameMessage::MSG_ADD_WAYPOINT;
+		//}
+		//else
+
+		if( TheInGameUI->isInAttackMoveToMode())
 		{
 			msgType = GameMessage::MSG_DO_ATTACKMOVETO;
 		}
@@ -1184,9 +1187,15 @@ GameMessage::Type CommandTranslator::issueMoveToLocationCommand( const Coord3D *
 		{
 			GameMessage *movemsg = TheMessageStream->appendMessage( msgType );
 			if (msgType == GameMessage::MSG_DO_ATTACK_OBJECT)
-				movemsg->appendObjectIDArgument( obj->getID() );
+			{
+				movemsg->appendObjectIDArgument(obj->getID());
+				movemsg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
+			}
 			else
-				movemsg->appendLocationArgument( *pos );
+			{
+				movemsg->appendLocationArgument(*pos);
+				movemsg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
+			}
 
 		}
 	}
@@ -1270,6 +1279,7 @@ GameMessage::Type CommandTranslator::createAttackMessage( Drawable *draw,
 		GameMessage *attackmsg = TheMessageStream->appendMessage( msgType );
 
 		attackmsg->appendObjectIDArgument( other->getObject()->getID() );	// must pass object IDs to logic
+		attackmsg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 
 	}
 
@@ -1326,6 +1336,7 @@ GameMessage::Type CommandTranslator::issueAttackCommand( Drawable *target,
 			attackMsg = TheMessageStream->appendMessage( msgType );
 
 			attackMsg->appendObjectIDArgument( targetObj->getID() );	// must pass target object ID to logic
+			attackMsg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 
 			// if we have a stats collector, increment the stats
 			if(TheStatsCollector)
@@ -1390,6 +1401,7 @@ GameMessage::Type CommandTranslator::issueSpecialPowerCommand( const CommandButt
 			msg->appendObjectIDArgument( target->getObject()->getID() );
 			msg->appendIntegerArgument( command->getOptions() );
 			msg->appendObjectIDArgument( specificSource );
+			msg->appendBooleanArgument(specificSource ? false : TheInGameUI->isInWaypointMode());
 
 			// say   something like " I think I'll put some dynamite on that there tank."
 			PickAndPlayInfo info;
@@ -1470,6 +1482,7 @@ GameMessage::Type CommandTranslator::issueSpecialPowerCommand( const CommandButt
 			msg->appendObjectIDArgument( targetID );
 			msg->appendIntegerArgument( command->getOptions() );
 			msg->appendObjectIDArgument( specificSource );
+			msg->appendBooleanArgument(specificSource ? false : TheInGameUI->isInWaypointMode());
 
 			// say   something like " I think I'll put a timed charge on the ground, here."
 			PickAndPlayInfo info;
@@ -1490,6 +1503,7 @@ GameMessage::Type CommandTranslator::issueSpecialPowerCommand( const CommandButt
 			msg->appendIntegerArgument( command->getSpecialPowerTemplate()->getID() );
 			msg->appendIntegerArgument( command->getOptions() );
 			msg->appendObjectIDArgument( specificSource );
+			msg->appendBooleanArgument(specificSource ? false : TheInGameUI->isInWaypointMode());
 
 			// say   something like " I think I'll set down my laptop and hack some cash from a bank in the Cayman Islands."
 			PickAndPlayInfo info;
@@ -1553,6 +1567,7 @@ GameMessage::Type CommandTranslator::issueCombatDropCommand( const CommandButton
 			GameMessage *msg = TheMessageStream->appendMessage( msgType );
 			ObjectID targetID = (target && target->getObject()) ? target->getObject()->getID() : INVALID_ID;
 			msg->appendObjectIDArgument( targetID );
+			msg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 			pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_COMBATDROP_AT_OBJECT );
 		}
 		return msgType;
@@ -1564,6 +1579,7 @@ GameMessage::Type CommandTranslator::issueCombatDropCommand( const CommandButton
 		{
 			GameMessage *msg = TheMessageStream->appendMessage( msgType );
 			msg->appendLocationArgument( *pos );
+			msg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 			pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_COMBATDROP_AT_LOCATION );
 		}
 		return msgType;
@@ -1604,9 +1620,11 @@ GameMessage::Type CommandTranslator::issueFireWeaponCommand( const CommandButton
 				msg->appendIntegerArgument( command->getWeaponSlot() );
 				msg->appendLocationArgument( *pos );
 				msg->appendIntegerArgument( command->getMaxShotsToFire() );
-				//Object in way.... some location weapons care, others don't
-				ObjectID targetID = (target && target->getObject()) ? target->getObject()->getID() : INVALID_ID;
-				msg->appendObjectIDArgument( targetID );
+				//ShigureUi 04/10/2026 comment it out cuz no one ever use it
+				////Object in way.... some location weapons care, others don't
+				//ObjectID targetID = (target && target->getObject()) ? target->getObject()->getID() : INVALID_ID;
+				//msg->appendObjectIDArgument( targetID );
+				msg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 			}
 		}
 		else
@@ -1620,6 +1638,7 @@ GameMessage::Type CommandTranslator::issueFireWeaponCommand( const CommandButton
 				ObjectID targetID = (target && target->getObject()) ? target->getObject()->getID() : INVALID_ID;
 				msg->appendObjectIDArgument( targetID );
 				msg->appendIntegerArgument( command->getMaxShotsToFire() );
+				msg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 
 				//play a unit specific sound?
 				PickAndPlayInfo info;
@@ -1640,9 +1659,11 @@ GameMessage::Type CommandTranslator::issueFireWeaponCommand( const CommandButton
 			msg->appendIntegerArgument( command->getWeaponSlot() );
 			msg->appendLocationArgument( *pos );
 			msg->appendIntegerArgument( command->getMaxShotsToFire() );
-			//Object in way.... some location weapons care, others don't
-			ObjectID targetID = (target && target->getObject()) ? target->getObject()->getID() : INVALID_ID;
-			msg->appendObjectIDArgument( targetID );
+			//ShigureUi 04/10/2026 comment it out cuz no one ever use it
+			////Object in way.... some location weapons care, others don't
+			//ObjectID targetID = (target && target->getObject()) ? target->getObject()->getID() : INVALID_ID;
+			//msg->appendObjectIDArgument( targetID );
+			msg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 		}
 	}
 	else
@@ -1652,9 +1673,12 @@ GameMessage::Type CommandTranslator::issueFireWeaponCommand( const CommandButton
 		if( commandType == DO_COMMAND )
 		{
 			GameMessage *msg;
-			msg = TheMessageStream->appendMessage( msgType );
-			DEBUG_ASSERTCRASH( (command->getSpecialPowerTemplate()), ("No Special Power Weapon here to 'do' with! ML"));
-			msg->appendIntegerArgument( command->getSpecialPowerTemplate()->getID() );
+			//msg = TheMessageStream->appendMessage( msgType );
+			//DEBUG_ASSERTCRASH( (command->getSpecialPowerTemplate()), ("No Special Power Weapon here to 'do' with! ML"));
+			//msg->appendIntegerArgument( command->getSpecialPowerTemplate()->getID() );
+			msg->appendIntegerArgument(command->getWeaponSlot());
+			msg->appendIntegerArgument(command->getMaxShotsToFire());
+			msg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 		}
 	}
 
@@ -1686,7 +1710,7 @@ GameMessage::Type CommandTranslator::createEnterMessage( Drawable *enter,
 		GameMessage *enterMsg = TheMessageStream->appendMessage( msgType );
 		enterMsg->appendObjectIDArgument( INVALID_ID );		// 0 means current "selection team" of this player
 		enterMsg->appendObjectIDArgument( enter->getObject()->getID() );
-
+		enterMsg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 	}
 	else
 	{
@@ -1782,7 +1806,7 @@ GameMessage::Type CommandTranslator::evaluateForceAttack( Drawable *draw, const 
 				pickAndPlayUnitVoiceResponse( allSelected, retVal );
 				GameMessage *newMsg = TheMessageStream->appendMessage( retVal );
 				newMsg->appendObjectIDArgument( obj->getID() );
-
+				newMsg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 			}
 			else if( type == DO_HINT )
 			{
@@ -1810,6 +1834,7 @@ GameMessage::Type CommandTranslator::evaluateForceAttack( Drawable *draw, const 
 				pickAndPlayUnitVoiceResponse( allSelected, retVal );
 				GameMessage *newMsg = TheMessageStream->appendMessage( retVal );
 				newMsg->appendLocationArgument( *pos );
+				newMsg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 			}
 			else if( type == DO_HINT )
 			{
@@ -2127,6 +2152,7 @@ GameMessage::Type CommandTranslator::handleResumeConstructionCommand( Object *ob
 			GameMessage *resumeMsg = TheMessageStream->appendMessage( msgType );
 
 			resumeMsg->appendObjectIDArgument( obj->getID() );
+			resumeMsg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 
 			pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_RESUME_CONSTRUCTION );
 
@@ -2164,6 +2190,7 @@ GameMessage::Type CommandTranslator::handleDockAtCommand( Object *obj, CommandEv
 			GameMessage *dockMsg = TheMessageStream->appendMessage( msgType );
 
 			dockMsg->appendObjectIDArgument( obj->getID() );
+			dockMsg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 
 			// only make sounds if we really did the command messages
 			pickAndPlayUnitVoiceResponse(TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DOCK);
@@ -2197,6 +2224,7 @@ GameMessage::Type CommandTranslator::handleRepairObjectCommand( Object *obj, Com
 			GameMessage *healMsg = TheMessageStream->appendMessage( msgType );
 
 			healMsg->appendObjectIDArgument( obj->getID() );
+			healMsg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 
 			pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DO_REPAIR );
 
@@ -2230,6 +2258,7 @@ GameMessage::Type CommandTranslator::handleGetRepairedAtCommand( Object *obj, Co
 			GameMessage *healMsg = TheMessageStream->appendMessage( msgType );
 
 			healMsg->appendObjectIDArgument( obj->getID() );
+			healMsg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 
 
 			pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_GET_REPAIRED );
@@ -2265,6 +2294,7 @@ GameMessage::Type CommandTranslator::handleGetHealedAtCommand( Object *obj, Comm
 			GameMessage *healMsg = TheMessageStream->appendMessage( msgType );
 
 			healMsg->appendObjectIDArgument( obj->getID() );
+			healMsg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 
 			pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_GET_HEALED );
 
@@ -2701,6 +2731,8 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 		return GameMessage::MSG_INVALID;
 	}
 
+	// ShigureUi 13/10/2026 comment it out for new waypoint system
+	/*
 	// TheSuperHackers @feature Smart Garrison: holding ALT while hovering a transport the selection
 	// can enter overrides waypoint mode and distributes the units across the target plus nearby
 	// transports.
@@ -2715,12 +2747,13 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 		const GameMessage::Type msgType = GameMessage::MSG_SMART_GARRISON_HINT;
 		TheMessageStream->appendMessage( msgType );
 		return msgType;
-	}
+	}*/
 
-	if( TheInGameUI->isInWaypointMode() )
-	{
-		return handleWaypointModeCommand( pos, draw, type );
-	}
+	//ShigureUi 08/10/2026 no more handle waypoint mode
+	//if( TheInGameUI->isInWaypointMode() )
+	//{
+	//	return handleWaypointModeCommand( pos, draw, type );
+	//}
 
 	CanAttackResult result = ATTACKRESULT_NOT_POSSIBLE;
 
@@ -4949,6 +4982,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 				GameMessage *newMsg = TheMessageStream->appendMessage( GameMessage::MSG_DO_GUARD_POSITION );
 				newMsg->appendLocationArgument(pos);
 				newMsg->appendIntegerArgument(GUARDMODE_NORMAL);
+				newMsg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 
 				ThePlayerList->getLocalPlayer()->getAcademyStats()->recordDoubleClickAttackMoveOrderGiven();
 
@@ -5024,6 +5058,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 				GameMessage *newMsg = TheMessageStream->appendMessage( GameMessage::MSG_DO_GUARD_POSITION );
 				newMsg->appendLocationArgument(pos);
 				newMsg->appendIntegerArgument(GUARDMODE_NORMAL);
+				newMsg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 
 				ThePlayerList->getLocalPlayer()->getAcademyStats()->recordDoubleClickAttackMoveOrderGiven();
 

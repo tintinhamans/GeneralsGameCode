@@ -261,7 +261,9 @@ WindowMsgHandledType LeftHUDInput( GameWindow *window, UnsignedInt msg,
 				// see if the user wants to move the tactical view
 				if (	drawableList->empty()
 					||	(! TheGlobalData->m_useAlternateMouse && msg == GWM_RIGHT_DOWN)
-					||	(TheGlobalData->m_useAlternateMouse && msg == GWM_LEFT_DOWN)	)
+					||	(TheGlobalData->m_useAlternateMouse && msg == GWM_LEFT_DOWN)
+					// ShigureUi 23/09/2026 Waypoint mode disable any left HUD move
+					||   TheInGameUI->isInWaypointMode() )
 				{
 					TheTacticalView->userLookAt( &world );
 					break;
@@ -285,6 +287,7 @@ WindowMsgHandledType LeftHUDInput( GameWindow *window, UnsignedInt msg,
 
 					GameMessage *msg = TheMessageStream->appendMessage( GameMessage::MSG_DO_ATTACKMOVETO );
 					msg->appendLocationArgument( world );
+					msg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 
 					// Play the unit voice response
 					pickAndPlayUnitVoiceResponse(TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DO_ATTACKMOVETO);
@@ -293,6 +296,7 @@ WindowMsgHandledType LeftHUDInput( GameWindow *window, UnsignedInt msg,
 				{
 					GameMessage *msg = TheMessageStream->appendMessage( GameMessage::MSG_DO_REVERSE_MOVETO );
 					msg->appendLocationArgument( world );
+					msg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 
 					// Play the unit voice response (same response as a normal move order)
 					pickAndPlayUnitVoiceResponse(TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DO_MOVETO);
@@ -312,9 +316,10 @@ WindowMsgHandledType LeftHUDInput( GameWindow *window, UnsignedInt msg,
 //						pickAndPlayUnitVoiceResponse(drawableList, GameMessage::MSG_DO_ATTACKMOVETO);
 //						break;
 //					}
-
+					// SEND_MSG_DO_MOVETO
 					newMsg = TheMessageStream->appendMessage(GameMessage::MSG_DO_MOVETO);
 					newMsg->appendLocationArgument(world);
+					newMsg->appendBooleanArgument(TheInGameUI->isInWaypointMode());
 					// Play the unit voice response
 					pickAndPlayUnitVoiceResponse(drawableList, GameMessage::MSG_DO_MOVETO);
 

@@ -50,6 +50,7 @@
 #include "Common/ThingFactory.h"
 #include "Common/Xfer.h"
 
+#include "GameLogic/CommandSequence.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/WeaponSet.h"
@@ -109,8 +110,13 @@ void FireWeaponPower::doSpecialPower( UnsignedInt commandOptions )
 	AIUpdateInterface *ai = self->getAI();
 	if( ai )
 	{
+		// This attack is CMD_FROM_AI, so the OCL statuses keep a queued step current until it ends.
+		TheCommandSequence->oclPending( self );
+
 		// TheSuperHackers @bugfix Caball009 09/08/2025 Position should be irrelevant, but aiAttackPosition requires a valid position pointer to avoid a crash.
 		ai->aiAttackPosition( self->getPosition(), data->m_maxShotsToFire, CMD_FROM_AI );
+
+		TheCommandSequence->terminateOCLPending( self );
 
 		//Order any turrets to attack as well.
 		for( Int i = 0; i < MAX_TURRETS; i++ )
@@ -137,7 +143,11 @@ void FireWeaponPower::doSpecialPowerAtLocation( const Coord3D *loc, Real angle, 
 	AIUpdateInterface *ai = self->getAI();
 	if( ai )
 	{
+		TheCommandSequence->oclPending( self );
+
 		ai->aiAttackPosition( loc, data->m_maxShotsToFire, CMD_FROM_AI );
+
+		TheCommandSequence->terminateOCLPending( self );
 
 		//Order any turrets to attack as well.
 		for( Int i = 0; i < MAX_TURRETS; i++ )
@@ -165,7 +175,11 @@ void FireWeaponPower::doSpecialPowerAtObject( Object *obj, UnsignedInt commandOp
 	AIUpdateInterface *ai = self->getAI();
 	if( ai )
 	{
+		TheCommandSequence->oclPending( self );
+
 		ai->aiAttackObject( obj, data->m_maxShotsToFire, CMD_FROM_AI );
+
+		TheCommandSequence->terminateOCLPending( self );
 
 		//Order any turrets to attack as well.
 		for( Int i = 0; i < MAX_TURRETS; i++ )

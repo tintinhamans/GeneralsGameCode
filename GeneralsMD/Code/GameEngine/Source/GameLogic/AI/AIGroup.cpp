@@ -47,6 +47,7 @@
 
 #include "GameLogic/AI.h"
 #include "GameLogic/AIPathfind.h"
+#include "GameLogic/CommandSequence.h"
 #include "GameLogic/PathTuning.h"
 #include "GameLogic/PathProfile.h"
 #include "GameLogic/Locomotor.h"
@@ -55,6 +56,7 @@
 #include "GameLogic/Module/BodyModule.h"
 #include "GameLogic/Module/ContainModule.h"
 #include "GameLogic/Module/DeployStyleAIUpdate.h"
+#include "GameLogic/Module/DozerAIUpdate.h"
 #include "GameLogic/Module/OverchargeBehavior.h"
 #include "GameLogic/Module/ProductionUpdate.h"
 #include "GameLogic/Module/SpawnBehavior.h"
@@ -942,7 +944,7 @@ static void clampToMap(Coord3D *dest, PlayerType pt)
 /**
  * Move to given position(s)
  */
-Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, CommandSourceType cmdSource, std::vector<Object *> &columnUnits )
+Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, UnsignedInt cmdNode, CommandSourceType cmdSource, std::vector<Object *> &columnUnits )
 
 {
 	s_columnLeftOutCount = 0;	// path profiler
@@ -1319,9 +1321,14 @@ Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, CommandSourceType cm
 			TheAI->pathfinder()->updateGoal(theUnit, &dest, LAYER_GROUND);
 		}
 		path.push_back(dest);
+		TheCommandSequence->clearObjectCommand(theUnit);
+		TheCommandSequence->includeUnitInTypicalMovingCommand(cmdNode, theUnit, dest);
+		TheCommandSequence->prepareCommandForVerification(theUnit);
 		PathProfile::Move_Legs(theUnit, (Int)path.size());	// path profiler: before aiFollowPath, which moves the path out
 		ai->aiFollowPath( &path, nullptr, cmdSource );
 		PathProfile::Column_Move(theUnit, TRUE);	// path profiler
+		if (TheCommandSequence->isStillAwaiting(theUnit))
+			TheCommandSequence->removeCurrentCommand(theUnit, false);
 		columnUnits.push_back(theUnit);
 	}
 	Column_Left_Out_Report();
@@ -1434,6 +1441,7 @@ void AIGroup::friend_moveFormationToPos( const Coord3D *pos, CommandSourceType c
 			dest.x += offset.x;
 			dest.y += offset.y;
 			ai->aiMoveToPosition( &dest, cmdSource );
+			TheCommandSequence->clearObjectCommand(theUnit);
 		}
 
 	}
@@ -1445,7 +1453,7 @@ void AIGroup::friend_moveFormationToPos( const Coord3D *pos, CommandSourceType c
 /**
  * Move to given position(s)
  */
-Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, CommandSourceType cmdSource, std::vector<Object *> &columnUnits )
+Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, UnsignedInt cmdNode, CommandSourceType cmdSource, std::vector<Object *> &columnUnits )
 
 {
 	s_columnLeftOutCount = 0;	// path profiler
@@ -1853,9 +1861,15 @@ Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, CommandSourceType cmd
 			TheAI->pathfinder()->updateGoal(theUnit, &dest, LAYER_GROUND);
 		}
 		path.push_back(dest);
+		TheCommandSequence->clearObjectCommand(theUnit);
+		TheCommandSequence->includeUnitInTypicalMovingCommand(cmdNode, theUnit, dest);
+		TheCommandSequence->prepareCommandForVerification(theUnit);
 		PathProfile::Move_Legs(theUnit, (Int)path.size());	// path profiler: before aiFollowPath, which moves the path out
 		ai->aiFollowPath( &path, nullptr, cmdSource );
 		PathProfile::Column_Move(theUnit, TRUE);	// path profiler
+		if (TheCommandSequence->isStillAwaiting(theUnit))
+			TheCommandSequence->removeCurrentCommand(theUnit, false);
+    
 		columnUnits.push_back(theUnit);
 	}
 	Column_Left_Out_Report();
@@ -1923,6 +1937,12 @@ void AIGroup::groupMoveToPosition( const Coord3D *p_posIn, Bool addWaypoint, Com
     isFormation = false;
   }
 
+	UnsignedInt cmdNode;
+	if (reverse)
+		cmdNode = TheCommandSequence->newSinglePosCommand(CommandSequence::COMMAND_DO_REVERSE_MOVETO, pos);
+	else
+		cmdNode = TheCommandSequence->newSinglePosCommand(CommandSequence::COMMAND_DO_MOVETO, pos);
+
 
 	Group_Goal_Scope groupGoalScope;	// "groupgoals": the table is emptied however this returns
 	if (!addWaypoint && !isFormation && !reverse) {
@@ -1930,8 +1950,8 @@ void AIGroup::groupMoveToPosition( const Coord3D *p_posIn, Bool addWaypoint, Com
 			Group_Goals_Assign(m_memberList, pos, cmdSource);
 		}
 		friend_computeGroundPath(pos, cmdSource);
-		friend_moveInfantryToPos(pos, cmdSource, columnUnits);
-		friend_moveVehicleToPos(pos, cmdSource, columnUnits);
+		friend_moveInfantryToPos(pos, cmdNode, cmdSource, columnUnits);
+		friend_moveVehicleToPos(pos, cmdNode, cmdSource, columnUnits);
 	}
 	if (m_dirty)
 		recompute();
@@ -2059,6 +2079,7 @@ void AIGroup::groupMoveToPosition( const Coord3D *p_posIn, Bool addWaypoint, Com
 	// Move the ones nearest the goal first.  Reduces collision problems later.
 	Object *theUnit;
 	Bool firstUnit = true;
+
 	for (theUnit = iter->first(); theUnit; theUnit = iter->next())
 	{
 		theUnit->setFormationID(NO_FORMATION_ID);
@@ -2091,42 +2112,39 @@ void AIGroup::groupMoveToPosition( const Coord3D *p_posIn, Bool addWaypoint, Com
 			computeIndividualDestination( &dest, &goalPos, theUnit, &center, isFormation );
 		}
 
-		if( cmdSource == CMD_FROM_PLAYER && theUnit->getStatusBits().test( OBJECT_STATUS_CAN_STEALTH ) && ai->canAutoAcquire() )
-		{
-			//When ordering a combat stealth unit to move, there is a single special case we want to handle.
-			//When a stealth unit is currently not stealthed and doesn't autoacquire while stealthed,
-			//then when the player specifically orders the unit to stop, we want to not autoacquire until
-			//he is able to stealth again. Of course, if he's detected, then don't bother trying.
-			if( !theUnit->getStatusBits().test( OBJECT_STATUS_STEALTHED ) && !theUnit->getStatusBits().test( OBJECT_STATUS_DETECTED ) )
-			{
-				//Not stealthed, not detected -- so do auto-acquire while stealthed?
-				if( !ai->canAutoAcquireWhileStealthed() )
-				{
-          StealthUpdate *stealth = theUnit->getStealth();
-					if( stealth )
-					{
-						//Delay the mood check time (for autoacquire) until after the unit can stealth again.
-						UnsignedInt stealthFrames = stealth->getStealthDelay();
-						//Skew it a little due to having a large group selected.
-						UnsignedInt randomFrames = GameLogicRandomValue( 0, LOGICFRAMES_PER_SECOND );
-						ai->setNextMoodCheckTime( TheGameLogic->getFrame() + stealthFrames + randomFrames );
-					}
-				}
-			}
-		}
+		if (!addWaypoint)
+			TheCommandSequence->clearObjectCommand(theUnit);
 
-		if( !addWaypoint )
+		
+
+		if (!TheCommandSequence->hasAnyCommand(theUnit))
 		{
+			TheCommandSequence->includeUnitInTypicalMovingCommand(cmdNode, theUnit, dest);
+
+			theUnit->releaseWeaponLock(LOCKED_TEMPORARILY);
+
+			if (cmdSource == CMD_FROM_PLAYER)
+			{
+				ai->handleStealthCombatUnitMove();
+			}
+
+			TheCommandSequence->prepareCommandForVerification(theUnit);
+
 			if (reverse)
-				ai->aiReverseMoveToPosition( &dest, cmdSource );
+				ai->aiReverseMoveToPosition(&dest, cmdSource);
 			else
-				ai->aiMoveToPosition( &dest, cmdSource );
+				ai->aiMoveToPosition(&dest, cmdSource);
+
+			if (TheCommandSequence->isStillAwaiting(theUnit))
+				TheCommandSequence->removeCurrentCommand(theUnit, false);
 		}
 		else
 		{
-			ai->aiFollowPathAppend(&dest, cmdSource);
+			TheCommandSequence->includeUnitInTypicalMovingCommand(cmdNode, theUnit, dest);
 		}
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2191,6 +2209,8 @@ void AIGroup::groupScatter( CommandSourceType cmdSource )
 		dest.x += delta.x*4*theUnit->getGeometryInfo().getBoundingCircleRadius();
 		dest.y += delta.y*4*theUnit->getGeometryInfo().getBoundingCircleRadius();
 		ai->aiMoveToPosition( &dest, cmdSource );
+
+		TheCommandSequence->clearObjectCommand(theUnit);
 	}
 }
 
@@ -2289,6 +2309,8 @@ void AIGroup::groupTightenToPosition( const Coord3D *pos, Bool addWaypoint, Comm
 		AIUpdateInterface *ai = theUnit->getAIUpdateInterface();
 		if( !addWaypoint )
 		{
+			TheCommandSequence->clearObjectCommand(theUnit);
+
       if ( theUnit->isKindOf( KINDOF_PRODUCED_AT_HELIPAD ) ) //NEW
       {
         Coord3D heliOffs = *pos;
@@ -2298,10 +2320,10 @@ void AIGroup::groupTightenToPosition( const Coord3D *pos, Bool addWaypoint, Comm
       else
   			ai->aiTightenToPosition( pos, cmdSource );
 		}
-		else
-		{
-			ai->aiFollowPathAppend(pos, cmdSource);
-		}
+		//else
+		//{
+		//	ai->aiFollowPathAppend(pos, cmdSource);
+		//}
 	}
 
 	for (theUnit = iter->first(); theUnit; theUnit = iter->next())
@@ -2326,6 +2348,7 @@ void AIGroup::groupFollowWaypointPath( const Waypoint *way, CommandSourceType cm
 		if (ai)
 		{
 			ai->aiFollowWaypointPath( way, cmdSource );
+			TheCommandSequence->clearObjectCommand(*i);
 		}
 	}
 }
@@ -2439,6 +2462,7 @@ void AIGroup::groupIdle(CommandSourceType cmdSource)
 		if (ai)
 		{
 			ai->aiIdle(cmdSource);
+			TheCommandSequence->clearObjectCommand(*i);
 
 			if( cmdSource == CMD_FROM_PLAYER && obj->getStatusBits().test( OBJECT_STATUS_CAN_STEALTH ) && ai->canAutoAcquire() )
 			{
@@ -2498,7 +2522,7 @@ void AIGroup::groupFollowPath( const std::vector<Coord3D>* path, Object *ignoreO
 /**
  * Attack given object
  */
-void AIGroup::groupAttackObjectPrivate( Bool forced, Object *victim, Int maxShotsToFire, CommandSourceType cmdSource )
+void AIGroup::groupAttackObjectPrivate( Bool forced, WeaponSlotType weaponSlot, Object *victim, Int maxShotsToFire, Bool isWaypoint, CommandSourceType cmdSource )
 {
 	if (!victim) {
 		// Hard to kill em if they're already dead.  jba
@@ -2508,6 +2532,8 @@ void AIGroup::groupAttackObjectPrivate( Bool forced, Object *victim, Int maxShot
 	MemoryPoolObjectHolder iterHolder;
 	SimpleObjectIterator *iter = newInstance(SimpleObjectIterator);
 	iterHolder.hold(iter);
+
+	UnsignedInt cmdNode = TheCommandSequence->newDoWeaponAtObjCommand(forced ? CommandSequence::COMMAND_DO_FORCE_ATTACK_OBJECT : CommandSequence::COMMAND_DO_ATTACK_OBJECT, weaponSlot, victim, maxShotsToFire);
 
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )	{
@@ -2531,54 +2557,10 @@ void AIGroup::groupAttackObjectPrivate( Bool forced, Object *victim, Int maxShot
 	Object *theUnit;
 	for (theUnit = iter->first(); theUnit; theUnit = iter->next())
 	{
-		//Determine if this object is a garrisoned container capable of firing!
-		//If so, order everyone inside to attack as well!
-		ContainModuleInterface *contain = theUnit->getContain();
-		if( contain && contain->isPassengerAllowedToFire() )
-		{
-			//Loop through each member and order them to attack the same target (if possible)
-			const ContainedItemsList* items = contain->getContainedItemsList();
-			if (items)
-			{
-				for( ContainedItemsList::const_iterator it = items->begin(); it != items->end(); ++it )
-				{
-					Object* garrisonedMember = *it;
-
-					if (!contain->isPassengerAllowedToFire(garrisonedMember->getID())) continue;
-
-					CanAttackResult result = garrisonedMember->getAbleToAttackSpecificObject( forced ? ATTACK_NEW_TARGET_FORCED : ATTACK_NEW_TARGET, victim, cmdSource );
-					if( result == ATTACKRESULT_POSSIBLE || result == ATTACKRESULT_POSSIBLE_AFTER_MOVING )
-					{
-						AIUpdateInterface *memberAI = garrisonedMember->getAI();
-						if( memberAI )
-						{
-							if (forced)
-								memberAI->aiForceAttackObject( victim, maxShotsToFire, cmdSource );
-							else
-								memberAI->aiAttackObject( victim, maxShotsToFire, cmdSource );
-						}
-					}
-				}
-			}
-		}
-
-		//Do a check to see if we have a hive object that has slaved objects.
-		SpawnBehaviorInterface *spawnInterface = theUnit->getSpawnBehaviorInterface();
-		if( spawnInterface && !spawnInterface->doSlavesHaveFreedom() )
-		{
-			spawnInterface->orderSlavesToAttackTarget( victim, maxShotsToFire, cmdSource );
-		}
-
-		//Order the specific group object to attack!
-		AIUpdateInterface *ai = theUnit->getAIUpdateInterface();
-		if( ai && theUnit != victim )
-		{
-			if (forced)
-				ai->aiForceAttackObject( victim, maxShotsToFire, cmdSource );
-			else
-				ai->aiAttackObject( victim, maxShotsToFire, cmdSource );
-		}
+		TheCommandSequence->issueCommand(cmdNode, theUnit, isWaypoint, cmdSource);
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 /**
@@ -2604,72 +2586,26 @@ void AIGroup::groupAttackTeam( const Team *team, Int maxShotsToFire, CommandSour
 /**
  * Attack given spot
  */
-void AIGroup::groupAttackPosition( const Coord3D *pos, Int maxShotsToFire, CommandSourceType cmdSource )
+void AIGroup::groupAttackPosition( WeaponSlotType weaponSlot, const Coord3D *pos, Int maxShotsToFire, Bool isWaypoint, Bool releaseAfter, CommandSourceType cmdSource )
 {
-	Coord3D attackPos;
-	if( pos )
-	{
-		attackPos = *pos;
-	}
+	UnsignedInt cmdNode = TheCommandSequence->newDoWeaponAtLocCommand(pos ? CommandSequence::COMMAND_DO_WEAPON_AT_LOCATION : CommandSequence::COMMAND_DO_WEAPON, weaponSlot, pos, maxShotsToFire, releaseAfter);;
+
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
 	{
-		if( !pos )
-		{
-			//If you specify a nullptr position, it means you are attacking your own location.
-			attackPos.set( *(*i)->getPosition() );
-		}
-
-		//This code allows garrisoned buildings to force attack a ground position
-		//-----------------------------------------------------------------------
-		//Determine if this object is a garrisoned container capable of firing!
-		//If so, order everyone inside to attack as well!
-		ContainModuleInterface *contain = (*i)->getContain();
-		if( contain && contain->isPassengerAllowedToFire() )
-		{
-			//Loop through each member and order them to attack the same target (if possible)
-			const ContainedItemsList* items = contain->getContainedItemsList();
-			if (items)
-			{
-				for( ContainedItemsList::const_iterator it = items->begin(); it != items->end(); ++it )
-				{
-					Object* garrisonedMember = *it;
-
-					if (!contain->isPassengerAllowedToFire(garrisonedMember->getID())) continue;
-
-					CanAttackResult result = garrisonedMember->getAbleToUseWeaponAgainstTarget( ATTACK_NEW_TARGET, nullptr, &attackPos, cmdSource ) ;
-					if( result == ATTACKRESULT_POSSIBLE || result == ATTACKRESULT_POSSIBLE_AFTER_MOVING )
-					{
-						AIUpdateInterface *memberAI = garrisonedMember->getAI();
-						if( memberAI )
-						{
-							memberAI->aiAttackPosition( &attackPos, maxShotsToFire, cmdSource );
-						}
-					}
-				}
-			}
-		}
-
-		//Also handle slaves. If we have slaves, then order them to stop too!
-		SpawnBehaviorInterface *spawnInterface = (*i)->getSpawnBehaviorInterface();
-		if( spawnInterface && !spawnInterface->doSlavesHaveFreedom() )
-		{
-			spawnInterface->orderSlavesToAttackPosition( &attackPos, maxShotsToFire, cmdSource );
-		}
-
-		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
-		if (ai)
-		{
-			ai->aiAttackPosition( &attackPos, maxShotsToFire, cmdSource );
-		}
+		TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 /**
  * Attack move to a location
  */
-void AIGroup::groupAttackMoveToPosition( const Coord3D *pos, Int maxShotsToFire, CommandSourceType cmdSource )
+void AIGroup::groupAttackMoveToPosition( const Coord3D *pos, Int maxShotsToFire, Bool isWaypoint, CommandSourceType cmdSource )
 {
+	UnsignedInt cmdNode = TheCommandSequence->newPosNMaxShotsCommand(CommandSequence::COMMAND_DO_ATTACK_MOVETO, pos, maxShotsToFire);
+
 	Coord3D center;
 	Coord2D min;
 	Coord2D max;
@@ -2678,7 +2614,7 @@ void AIGroup::groupAttackMoveToPosition( const Coord3D *pos, Int maxShotsToFire,
 	// Ground movers each get their own arrival slot so a big group does not spiral out from one cell
 	std::vector<PathfindSlotRequest> requests;
 	std::list<Object *>::iterator i;
-	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
+	for (i = m_memberList.begin(); i != m_memberList.end(); ++i)
 	{
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai == nullptr || (*i)->isDisabledByType( DISABLED_HELD ) || (*i)->isKindOf( KINDOF_IMMOBILE ))
@@ -2686,6 +2622,11 @@ void AIGroup::groupAttackMoveToPosition( const Coord3D *pos, Int maxShotsToFire,
 			continue;
 		}
 		if (!ai->isDoingGroundMovement())
+		{
+			continue;
+		}
+		// A unit that only queues this order keeps the goal it has now.
+		if (isWaypoint && TheCommandSequence->hasAnyCommand(*i))
 		{
 			continue;
 		}
@@ -2697,7 +2638,17 @@ void AIGroup::groupAttackMoveToPosition( const Coord3D *pos, Int maxShotsToFire,
 	Group_Goal_Scope groupGoalScope;
 	if (PathTuning::GroupGoals)
 	{
-		Group_Goals_Assign(m_memberList, pos, cmdSource);
+		// Members that only queue this order stay out of the goal finder, which re-reserves every goal it is given
+		ListObjectPtr takers;
+		for (i = m_memberList.begin(); i != m_memberList.end(); ++i)
+		{
+			if (isWaypoint && TheCommandSequence->hasAnyCommand(*i))
+			{
+				continue;
+			}
+			takers.push_back(*i);
+		}
+		Group_Goals_Assign(takers, pos, cmdSource);
 	}
 	else if (!Coord3DInsideRect2D( pos, &min, &max ))
 	{
@@ -2709,25 +2660,49 @@ void AIGroup::groupAttackMoveToPosition( const Coord3D *pos, Int maxShotsToFire,
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			Coord3D dest = *pos;
-			if (PathTuning::GroupGoals)
+			if (!isWaypoint)
 			{
-				Group_Goal_For(*i, &dest);
+				TheCommandSequence->clearObjectCommand(*i);
+			}
+
+			if (!TheCommandSequence->hasAnyCommand(*i))
+			{
+				Coord3D dest = *pos;
+				if (PathTuning::GroupGoals)
+				{
+					Group_Goal_For(*i, &dest);
+				}
+				else
+				{
+					takeAssignedSlot(requests, *i, &dest);
+				}
+
+				(*i)->releaseWeaponLock(LOCKED_TEMPORARILY);
+				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+				TheCommandSequence->prepareCommandForVerification(*i);
+
+				if ((*i)->isAbleToAttack())
+				{
+					ai->aiAttackMoveToPosition( &dest, maxShotsToFire, cmdSource );
+				}
+				else
+				{
+					ai->aiMoveToPosition( &dest, cmdSource );
+				}
+
+				if (TheCommandSequence->isStillAwaiting(*i))
+				{
+					TheCommandSequence->removeCurrentCommand(*i, false);
+				}
 			}
 			else
 			{
-				takeAssignedSlot(requests, *i, &dest);
-			}
-			if ((*i)->isAbleToAttack())
-			{
-				ai->aiAttackMoveToPosition( &dest, maxShotsToFire, cmdSource );
-			}
-			else
-			{
-				ai->aiMoveToPosition( &dest, cmdSource );
+				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
 			}
 		}
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 /**
@@ -2750,81 +2725,291 @@ void AIGroup::groupHunt( CommandSourceType cmdSource )
 /**
  * Repair the given object
  */
-void AIGroup::groupRepair( Object *obj, CommandSourceType cmdSource )
+void AIGroup::groupRepair( Object *obj, Bool isWaypoint, CommandSourceType cmdSource )
 {
+	UnsignedInt cmdNode = TheCommandSequence->newSingleTargetCommand(CommandSequence::COMMAND_DO_REPAIR, obj);
+
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
 	{
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			ai->aiRepair( obj, cmdSource );
+			TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
 		}
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
+}
+
+void AIGroup::groupConstruct(const ThingTemplate *thing, const Coord3D *pos, Real angle, Bool isWaypoint, CommandSourceType cmdSource)
+{
+	Int minConstructionCount = INT_MAX, cnt;
+	Object *bestBuilder = nullptr;
+	std::list<Object*>::iterator i;
+	Real bestDist = 1e9, curDist;
+	const Coord3D *builderPos;
+
+	if (!isWaypoint)
+	{
+		Bool isRepairTask = true;
+
+		for (i = m_memberList.begin(); i != m_memberList.end(); ++i)
+		{
+			AIUpdateInterface* ai = (*i)->getAIUpdateInterface();
+			if (!ai)
+				continue;
+
+			DozerAIInterface* dozerAi = ai->getDozerAIInterface();
+			if (!dozerAi)
+				continue;
+
+			if (TheBuildAssistant->canMakeUnit(*i, thing) != CANMAKE_OK)
+				continue;
+
+			if (!thing->isKindOf(KINDOF_SHIPYARD) && !ai->isQuickPathAvailable(pos))
+			{
+				continue;
+			}
+
+			builderPos = (*i)->getPosition();
+			curDist = sqr(builderPos->x - pos->x) + sqr(builderPos->y - pos->y);
+
+			if (!dozerAi->isAnyTaskPending())
+			{
+				if (curDist < bestDist || isRepairTask)
+				{
+					bestDist = curDist;
+					bestBuilder = *i;
+					isRepairTask = false;
+				}
+			}
+			else if (dozerAi->isTaskPending(DOZER_TASK_REPAIR) && !dozerAi->isTaskPending(DOZER_TASK_BUILD))
+			{
+				if (isRepairTask && curDist < bestDist)
+				{
+					bestDist = curDist;
+					bestBuilder = *i;
+				}
+			}
+		}
+	}
+	else
+	{
+		for (i = m_memberList.begin(); i != m_memberList.end(); ++i)
+		{
+			if (TheBuildAssistant->canMakeUnit(*i, thing) != CANMAKE_OK)
+				continue;
+
+			AIUpdateInterface* ai = (*i)->getAIUpdateInterface();
+			if (!ai)
+			{
+				continue;
+			}
+
+			if (!thing->isKindOf(KINDOF_SHIPYARD) && !ai->isQuickPathAvailable(pos))
+			{
+				continue;
+			}
+
+			cnt = TheCommandSequence->getConstructionCount(*i);
+
+			builderPos = (*i)->getPosition();
+			curDist = sqr(builderPos->x - pos->x) + sqr(builderPos->y - pos->y);
+
+			if (cnt < minConstructionCount || (cnt == minConstructionCount && curDist < bestDist))
+			{
+				bestBuilder = *i;
+				minConstructionCount = cnt;
+				bestDist = curDist;
+			}
+		}
+	}
+
+	if (!bestBuilder)
+		return;
+
+	UnsignedInt cmdNode = TheCommandSequence->newDozerConstructCommand(CommandSequence::COMMAND_DOZER_CONSTRUCT, thing, pos, nullptr, angle);
+
+	if (isWaypoint && TheCommandSequence->hasAnyCommand(bestBuilder))
+	{
+		UnsignedInt cost = thing->calcCostToBuild(bestBuilder->getControllingPlayer());
+		Money* money = bestBuilder->getControllingPlayer()->getMoney();
+
+		if (money->countMoney() >= cost && TheCommandSequence->includeUnitInCommand(cmdNode, bestBuilder))
+		{
+			money->withdraw(cost);
+			TheCommandSequence->createConstructionShadow(cmdNode, bestBuilder);
+			TheCommandSequence->setConstructionCashWithdraw(cmdNode, cost);
+		}
+	}
+	else
+	{
+		TheCommandSequence->issueCommand(cmdNode, bestBuilder, isWaypoint, cmdSource);
+	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 /**
 	* Resume construction on object
 	*/
-void AIGroup::groupResumeConstruction( Object *obj, CommandSourceType cmdSource )
+void AIGroup::groupResumeConstruction( Object *obj, Bool isWaypoint, CommandSourceType cmdSource )
 {
-	std::list<Object *>::iterator i;
-	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
+	Int minConstructionCount = INT_MAX, cnt;
+	Object *bestBuilder = nullptr;
+	std::list<Object*>::iterator i;
+	Real bestDist = 1e9, curDist;
+	const Coord3D *targetPos = obj->getPosition(), *builderPos;
+
+	if (!isWaypoint)
 	{
-		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
-		if (ai)
+		Bool isRepairTask = true;
+
+		for (i = m_memberList.begin(); i != m_memberList.end(); ++i)
 		{
-			ai->aiResumeConstruction( obj, cmdSource );
+			AIUpdateInterface* ai = (*i)->getAIUpdateInterface();
+			if (!ai)
+				continue;
+
+			DozerAIInterface *dozerAi = ai->getDozerAIInterface();
+			if (!dozerAi)
+				continue;
+
+			if (!TheActionManager->canResumeConstructionOf(*i, obj, cmdSource))
+				continue;
+
+			builderPos = (*i)->getPosition();
+			curDist = sqr(builderPos->x - targetPos->x) + sqr(builderPos->y - targetPos->y);
+
+			if (!dozerAi->isAnyTaskPending())
+			{
+				if (curDist < bestDist || isRepairTask)
+				{
+					bestDist = curDist;
+					bestBuilder = *i;
+					isRepairTask = false;
+				}
+			}
+			else if (dozerAi->isTaskPending(DOZER_TASK_REPAIR) && !dozerAi->isTaskPending(DOZER_TASK_BUILD))
+			{
+				if (isRepairTask && curDist < bestDist)
+				{
+					bestDist = curDist;
+					bestBuilder = *i;
+				}
+			}
 		}
+	}
+	else
+	{
+		for (i = m_memberList.begin(); i != m_memberList.end(); ++i)
+		{
+			if (!TheActionManager->canResumeConstructionOf(*i, obj, cmdSource))
+				continue;
+
+			cnt = TheCommandSequence->getConstructionCount(*i);
+
+			builderPos = (*i)->getPosition();
+			curDist = sqr(builderPos->x - targetPos->x) + sqr(builderPos->y - targetPos->y);
+
+			if (cnt < minConstructionCount || (cnt == minConstructionCount && curDist < bestDist))
+			{
+				bestBuilder = *i;
+				minConstructionCount = cnt;
+				bestDist = curDist;
+			}
+		}
+	}
+
+	if (!bestBuilder)
+		return;
+
+	AIUpdateInterface *ai = bestBuilder->getAIUpdateInterface();
+	if (ai)
+	{
+		UnsignedInt cmdNode = TheCommandSequence->newSingleTargetCommand(CommandSequence::COMMAND_RESUME_CONSTRUCTION, obj);
+		TheCommandSequence->issueCommand(cmdNode, bestBuilder, isWaypoint, cmdSource);
+		TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 	}
 }
 
 /**
  * Get healed at the heal depot
  */
-void AIGroup::groupGetHealed( Object *healDepot, CommandSourceType cmdSource )
+void AIGroup::groupGetHealed( Object *healDepot, Bool isWaypoint, CommandSourceType cmdSource )
 {
+	UnsignedInt cmdNode = TheCommandSequence->newSingleTargetCommand(CommandSequence::COMMAND_GET_HEALED, healDepot);
+
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
 	{
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			ai->aiGetHealed( healDepot, cmdSource );
+			Bool canHeal = TheActionManager->canGetHealedAt(*i, healDepot, cmdSource);
+
+			// A unit with orders queued checks the depot again when this one comes up.
+			if (canHeal || (isWaypoint && TheCommandSequence->hasAnyCommand(*i)))
+			{
+				TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
+			}
 		}
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 /**
  * Get repaired at the repair depot
  */
-void AIGroup::groupGetRepaired( Object *repairDepot, CommandSourceType cmdSource )
+void AIGroup::groupGetRepaired( Object *repairDepot, Bool isWaypoint, CommandSourceType cmdSource )
 {
+	UnsignedInt cmdNode = TheCommandSequence->newSingleTargetCommand(CommandSequence::COMMAND_GET_REPAIRED, repairDepot);
+
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
 	{
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			ai->aiGetRepaired( repairDepot, cmdSource );
+			Bool canRepair = TheActionManager->canGetRepairedAt(*i, repairDepot, cmdSource);
+
+			// A unit with orders queued checks the depot again when this one comes up.
+			if (canRepair || (isWaypoint && TheCommandSequence->hasAnyCommand(*i)))
+			{
+				TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
+			}
 		}
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 /**
  * Enter the given object
  */
-void AIGroup::groupEnter( Object *obj, CommandSourceType cmdSource )
+void AIGroup::groupEnter( Object *obj, Bool isWaypoint, CommandSourceType cmdSource )
 {
+	UnsignedInt cmdNode = TheCommandSequence->newSingleTargetCommand(CommandSequence::COMMAND_ENTER, obj);
+
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
 	{
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			ai->aiEnter( obj, cmdSource );
+			Bool canEnter = TheActionManager->canEnterObject(*i, obj, cmdSource, DONT_CHECK_CAPACITY);
+
+			// A unit with orders queued checks the target again when this one comes up.
+			if (canEnter || (isWaypoint && TheCommandSequence->hasAnyCommand(*i)))
+			{
+				TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
+			}
 		}
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2997,7 +3182,7 @@ void AIGroup::groupSmartGarrison( Object *target, CommandSourceType cmdSource )
  * Uncontained, locally controlled infantry within SmartGarrisonRange are recruited whatever they
  * are currently doing, so a squad already moving or fighting still answers the call.
  */
-void AIGroup::groupAutoFill( CommandSourceType cmdSource )
+void AIGroup::groupAutoFill( Bool isWaypoint, CommandSourceType cmdSource )
 {
 	if( m_memberList.empty() )
 		return;
@@ -3098,17 +3283,21 @@ void AIGroup::groupAutoFill( CommandSourceType cmdSource )
 /**
  * Get near given object and wait for enter clearance
  */
-void AIGroup::groupDock( Object *obj, CommandSourceType cmdSource )
+void AIGroup::groupDock( Object *obj, Bool isWaypoint, CommandSourceType cmdSource )
 {
+	UnsignedInt cmdNode = TheCommandSequence->newSingleTargetCommand(CommandSequence::COMMAND_DOCK, obj);
+
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
 	{
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			ai->aiDock( obj, cmdSource );
+			TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
 		}
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 /**
@@ -3130,8 +3319,10 @@ void AIGroup::groupExit( Object *objectToExit,  CommandSourceType cmdSource )
 /**
  * Empty its contents
  */
-void AIGroup::groupEvacuate( CommandSourceType cmdSource )
+void AIGroup::groupEvacuate( Bool isWaypoint, CommandSourceType cmdSource )
 {
+	UnsignedInt cmdNode = TheCommandSequence->newNoArgumentCommand(CommandSequence::COMMAND_DO_EVACUATE);
+
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
 	{
@@ -3142,15 +3333,54 @@ void AIGroup::groupEvacuate( CommandSourceType cmdSource )
 			if( (*i)->isKindOf( KINDOF_AIRCRAFT ) && (*i)->isAirborneTarget() &&
 				!(jetAI && jetAI->returnsToBaseAfterUnload()) )
 			{
-				//Calculate the highest point on the ground to drop off troops (chinook or other air transports)
-				Coord3D pos = *((*i)->getPosition());
-				PathfindLayerEnum layerAtDest = TheTerrainLogic->getHighestLayerForDestination( &pos );
-				pos.z = TheTerrainLogic->getLayerHeight( pos.x, pos.y, layerAtDest );
-				ai->aiMoveToAndEvacuate( &pos, cmdSource );
+				if (!isWaypoint)
+				{
+					TheCommandSequence->clearObjectCommand(*i);
+				}
+
+				if (!TheCommandSequence->hasAnyCommand(*i))
+				{
+					TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+					TheCommandSequence->prepareCommandForVerification(*i);
+
+					//Calculate the highest point on the ground to drop off troops (chinook or other air transports)
+					Coord3D pos = *((*i)->getPosition());
+					PathfindLayerEnum layerAtDest = TheTerrainLogic->getHighestLayerForDestination(&pos);
+					pos.z = TheTerrainLogic->getLayerHeight(pos.x, pos.y, layerAtDest);
+					ai->aiMoveToAndEvacuate(&pos, cmdSource);
+
+					if (TheCommandSequence->isStillAwaiting(*i))
+						TheCommandSequence->removeCurrentCommand(*i, false);
+				}
+				else
+					TheCommandSequence->includeUnitInCommand(cmdNode, *i);
 			}
 			else
 			{
-				ai->aiEvacuate( FALSE, cmdSource );
+				if (!isWaypoint)
+				{
+					ai->aiEvacuate(FALSE, cmdSource);
+				}
+				else
+				{
+					if (!TheCommandSequence->hasAnyCommand(*i))
+					{
+						TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+						TheCommandSequence->prepareCommandForVerification(*i);
+
+						ai->aiEvacuate(FALSE, cmdSource);
+
+						if (TheCommandSequence->isStillAwaiting(*i))
+							TheCommandSequence->removeCurrentCommand(*i, false);
+						else if ((*i)->getCommandVerifyStatus() == STATUS_EXIT_VERIFIED)
+						{
+							TheCommandSequence->removeCurrentCommand(*i, false);
+							(*i)->setCommandVerifyStatus(STATUS_EXIT_VERIFIED);
+						}
+					}
+					else
+						TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+				}
 			}
 		}
 		else if( (*i)->isKindOf( KINDOF_STRUCTURE ) )
@@ -3165,6 +3395,8 @@ void AIGroup::groupEvacuate( CommandSourceType cmdSource )
 			}
 		}
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 /**
@@ -3204,7 +3436,7 @@ void AIGroup::groupEvacuateToWork( CommandSourceType cmdSource )
 		}
 	}
 
-	groupEvacuate( cmdSource );
+	groupEvacuate( false, cmdSource );
 }
 
 /**
@@ -3242,31 +3474,37 @@ void AIGroup::groupGoProne( const DamageInfo *damageInfo, CommandSourceType cmdS
 /**
  * Guard the given spot
  */
-void AIGroup::groupGuardPosition( const Coord3D *pos, GuardMode guardMode, CommandSourceType cmdSource )
+void AIGroup::groupGuardPosition( const Coord3D *pos, GuardMode guardMode, Bool isWaypoint, CommandSourceType cmdSource )
 {
 	if (!pos) {
 		return;
 	}
 
+	UnsignedInt cmdNode = TheCommandSequence->newGuardCommand(CommandSequence::COMMAND_DO_GUARD_POSITION, pos, nullptr, guardMode);
+
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
 	{
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			ai->aiGuardPosition( pos, guardMode, cmdSource );
+			TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
 		}
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 /**
  * Guard the given object
  */
-void AIGroup::groupGuardObject( Object *objToGuard, GuardMode guardMode, CommandSourceType cmdSource )
+void AIGroup::groupGuardObject( Object *objToGuard, GuardMode guardMode, Bool isWaypoint, CommandSourceType cmdSource )
 {
 	if (!objToGuard) {
 		return;
 	}
+
+	UnsignedInt cmdNode = TheCommandSequence->newGuardCommand(CommandSequence::COMMAND_DO_GUARD_OBJECT, nullptr, objToGuard, guardMode);
 
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
@@ -3274,9 +3512,11 @@ void AIGroup::groupGuardObject( Object *objToGuard, GuardMode guardMode, Command
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			ai->aiGuardObject( objToGuard, guardMode, cmdSource );
+			TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
 		}
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 /**
@@ -3319,17 +3559,21 @@ void AIGroup::groupAttackArea( const PolygonTrigger *areaToGuard, CommandSourceT
 	}
 }
 
-void AIGroup::groupHackInternet( CommandSourceType cmdSource )				///< Begin hacking the internet for free cash from the heavens.
+void AIGroup::groupHackInternet( Bool isWaypoint, CommandSourceType cmdSource )				///< Begin hacking the internet for free cash from the heavens.
 {
+	UnsignedInt cmdNode = TheCommandSequence->newNoArgumentCommand(CommandSequence::COMMAND_INTERNET_HACK);
+
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
 	{
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
-			ai->aiHackInternet( cmdSource );
+			TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
 		}
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 
@@ -3378,37 +3622,61 @@ void AIGroup::groupCreateFormation( CommandSourceType cmdSource )				///< Create
  * don't use AIUpdateInterfaces!!! No special power uses an AIUpdateInterface immediately, but special
  * abilities, which are derived from special powers do... and are unit triggered. Those do have AI.
  */
-void AIGroup::groupDoSpecialPower( UnsignedInt specialPowerID, UnsignedInt commandOptions )
+void AIGroup::groupDoSpecialPower( UnsignedInt specialPowerID, UnsignedInt commandOptions, Bool isWaypoint )
 {
+
+	UnsignedInt cmdNode = TheCommandSequence->newDoSpecialCommand(CommandSequence::COMMAND_DO_SPECIAL_POWER, specialPowerID, commandOptions);
+
+	const SpecialPowerTemplate *spTemplate = TheSpecialPowerStore->findSpecialPowerTemplateByID(specialPowerID);
+
 	//This is the no target, no position version.
 	std::list<Object *>::iterator i;
-	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
+	for (i = m_memberList.begin(); i != m_memberList.end(); ++i)
 	{
 		//Special powers do a lot of different things, but the top level stuff doesn't use
 		//ai interface code. It finds the special power module and calls it directly for each object.
-		Object *object = (*i);
-		const SpecialPowerTemplate *spTemplate = TheSpecialPowerStore->findSpecialPowerTemplateByID( specialPowerID );
-		if( spTemplate )
+		Object* object = (*i);
+
+		if (spTemplate)
 		{
 			// Have to justify the execution in case someone changed their button
-			if( spTemplate->getRequiredScience() != SCIENCE_INVALID )
+			if (spTemplate->getRequiredScience() != SCIENCE_INVALID)
 			{
-				if( !object->getControllingPlayer()->hasScience(spTemplate->getRequiredScience()) )
+				if (!object->getControllingPlayer()->hasScience(spTemplate->getRequiredScience()))
 					continue;// Nice try, smacktard.
 			}
 
-			SpecialPowerModuleInterface *mod = object->getSpecialPowerModule( spTemplate );
-			if( mod )
-			{
-				if( TheActionManager->canDoSpecialPower( object, spTemplate, CMD_FROM_PLAYER, commandOptions ) )
-				{
-					mod->doSpecialPower( commandOptions );
 
-					object->friend_setUndetectedDefector( FALSE );// My secret is out
+			SpecialPowerModuleInterface* mod = object->getSpecialPowerModule(spTemplate);
+			if (mod)
+			{
+				if (TheActionManager->canDoSpecialPower(object, spTemplate, CMD_FROM_PLAYER, commandOptions))
+				{
+					if (!isWaypoint)
+					{
+						TheCommandSequence->clearObjectCommand(object);
+					}
+
+					if (!TheCommandSequence->hasAnyCommand(object))
+					{
+						TheCommandSequence->includeUnitInCommand(cmdNode, object);
+						TheCommandSequence->prepareCommandForVerification(object);
+
+						mod->doSpecialPower(commandOptions);
+
+						object->friend_setUndetectedDefector(FALSE);// My secret is out
+
+						if (TheCommandSequence->isStillAwaiting(object))
+							TheCommandSequence->removeCurrentCommand(object, false);
+					}
+					else
+						TheCommandSequence->includeUnitInCommand(cmdNode, object);
 				}
 			}
 		}
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 /**
@@ -3416,7 +3684,7 @@ void AIGroup::groupDoSpecialPower( UnsignedInt specialPowerID, UnsignedInt comma
  * don't use AIUpdateInterfaces!!! No special power uses an AIUpdateInterface immediately, but special
  * abilities, which are derived from special powers do... and are unit triggered. Those do have AI.
  */
-void AIGroup::groupDoSpecialPowerAtLocation( UnsignedInt specialPowerID, const Coord3D *location, Real angle, const Object *objectInWay, UnsignedInt commandOptions )
+void AIGroup::groupDoSpecialPowerAtLocation( UnsignedInt specialPowerID, const Coord3D *location, Real angle, const Object *objectInWay, UnsignedInt commandOptions , Bool isWaypoint)
 {
 
 
@@ -3426,6 +3694,14 @@ void AIGroup::groupDoSpecialPowerAtLocation( UnsignedInt specialPowerID, const C
 	Coord2D fMin, fMax;
 	Coord3D fCenter;
 	Bool isFormation = getMinMaxAndCenter( &fMin, &fMax, &fCenter );
+
+	const SpecialPowerTemplate *spTemplate = TheSpecialPowerStore->findSpecialPowerTemplateByID(specialPowerID);
+	Bool isMovingSpecial = spTemplate ? spTemplate->getSpecialPowerType() == SPECIAL_JUMPJET : false;
+
+	if (isMovingSpecial)
+		commandOptions |= FORMATION_LAUNCH;
+
+	UnsignedInt cmdNode = TheCommandSequence->newDoSpecialAtLocCommand(isMovingSpecial ? CommandSequence::COMMAND_DO_MOVING_SPECIAL_POWER_AT_POSITION : CommandSequence::COMMAND_DO_SPECIAL_POWER_AT_POSITION, specialPowerID, location, angle, objectInWay, commandOptions);
 
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); )
@@ -3441,7 +3717,6 @@ void AIGroup::groupDoSpecialPowerAtLocation( UnsignedInt specialPowerID, const C
          // destroys the AIGroup list, in order to keep the selection sync'ed with the group.
          // M Lorenzen... 8/23/03
 
-    const SpecialPowerTemplate *spTemplate = TheSpecialPowerStore->findSpecialPowerTemplateByID( specialPowerID );
 		if( spTemplate )
 		{
 			// Have to justify the execution in case someone changed their button
@@ -3452,29 +3727,55 @@ void AIGroup::groupDoSpecialPowerAtLocation( UnsignedInt specialPowerID, const C
 			}
 
 			SpecialPowerModuleInterface *mod = object->getSpecialPowerModule( spTemplate );
-			if( mod )
+			if (mod)
 			{
 				// Validity/range is still checked against the shared click point.
-				if( TheActionManager->canDoSpecialPowerAtLocation( object, location, CMD_FROM_PLAYER, spTemplate, objectInWay, commandOptions ) )
+				if (TheActionManager->canDoSpecialPowerAtLocation(object, location, CMD_FROM_PLAYER, spTemplate, objectInWay, commandOptions))
 				{
-					// For jumpjet group launches, give each member its own formation-relative target
-					// so the group keeps its formation at the destination instead of stacking up.
-					Coord3D unitLoc = *location;
-					UnsignedInt opts = commandOptions;
-					if( spTemplate->getSpecialPowerType() == SPECIAL_JUMPJET )
+					if (!isWaypoint)
 					{
-						computeIndividualDestination( &unitLoc, location, object, &fCenter, isFormation );
-						opts |= FORMATION_LAUNCH;
+						TheCommandSequence->clearObjectCommand(object);
 					}
 
-					mod->doSpecialPowerAtLocation( &unitLoc, angle, opts );
+					Coord3D unitLoc = *location;
+					UnsignedInt opts = commandOptions;
 
-					object->friend_setUndetectedDefector( FALSE );// My secret is out
+					// For jumpjet group launches, give each member its own formation-relative target
+					// so the group keeps its formation at the destination instead of stacking up.
+					if (isMovingSpecial)
+					{
+						computeIndividualDestination(&unitLoc, location, object, &fCenter, isFormation);
+					}
+
+					if (!TheCommandSequence->hasAnyCommand(object))
+					{
+						if (isMovingSpecial)
+							TheCommandSequence->includeUnitInTypicalMovingCommand(cmdNode, object, unitLoc);
+						else
+							TheCommandSequence->includeUnitInCommand(cmdNode, object);
+						TheCommandSequence->prepareCommandForVerification(object);
+
+						mod->doSpecialPowerAtLocation(&unitLoc, angle, opts);
+
+						object->friend_setUndetectedDefector(FALSE);// My secret is out
+
+						if (TheCommandSequence->isStillAwaiting(object))
+							TheCommandSequence->removeCurrentCommand(object, false);
+					}
+					else
+					{
+						if (isMovingSpecial)
+							TheCommandSequence->includeUnitInTypicalMovingCommand(cmdNode, object, unitLoc);
+						else
+							TheCommandSequence->includeUnitInCommand(cmdNode, object);
+					}
 				}
 			}
 		}
 
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3488,6 +3789,8 @@ void AIGroup::groupDoSpecialPowerAtMultipleLocations( UnsignedInt specialPowerID
 
 	const Coord3D *firstLoc = &locs.front();
 
+	const SpecialPowerTemplate *spTemplate = TheSpecialPowerStore->findSpecialPowerTemplateByID(specialPowerID);
+
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); )
 	{
@@ -3495,7 +3798,6 @@ void AIGroup::groupDoSpecialPowerAtMultipleLocations( UnsignedInt specialPowerID
 
 		++i; // just in case the act of specialpowering changes this list
 
-		const SpecialPowerTemplate *spTemplate = TheSpecialPowerStore->findSpecialPowerTemplateByID( specialPowerID );
 		if( spTemplate )
 		{
 			// Have to justify the execution in case someone changed their button
@@ -3523,8 +3825,13 @@ void AIGroup::groupDoSpecialPowerAtMultipleLocations( UnsignedInt specialPowerID
  * don't use AIUpdateInterfaces!!! No special power uses an AIUpdateInterface immediately, but special
  * abilities, which are derived from special powers do... and are unit triggered. Those do have AI.
  */
-void AIGroup::groupDoSpecialPowerAtObject( UnsignedInt specialPowerID, Object *target, UnsignedInt commandOptions )
+void AIGroup::groupDoSpecialPowerAtObject( UnsignedInt specialPowerID, Object *target, UnsignedInt commandOptions, Bool isWaypoint )
 {
+
+	const SpecialPowerTemplate *spTemplate = TheSpecialPowerStore->findSpecialPowerTemplateByID(specialPowerID);
+
+	UnsignedInt cmdNode = TheCommandSequence->newDoSpecialAtObjCommand(CommandSequence::COMMAND_DO_SPECIAL_POWER_AT_OBJECT, specialPowerID, target, commandOptions);
+
 	//This one requires a target
 	std::list<Object *>::iterator i;
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
@@ -3533,7 +3840,7 @@ void AIGroup::groupDoSpecialPowerAtObject( UnsignedInt specialPowerID, Object *t
 		//ai interface code. It finds the special power module and calls it directly for each object.
 
 		Object *object = (*i);
-		const SpecialPowerTemplate *spTemplate = TheSpecialPowerStore->findSpecialPowerTemplateByID( specialPowerID );
+		
 		if( spTemplate )
 		{
 			// Have to justify the execution in case someone changed their button
@@ -3548,13 +3855,31 @@ void AIGroup::groupDoSpecialPowerAtObject( UnsignedInt specialPowerID, Object *t
 			{
 				if( TheActionManager->canDoSpecialPowerAtObject( object, target, CMD_FROM_PLAYER, spTemplate, commandOptions ) )
 				{
-					mod->doSpecialPowerAtObject( target, commandOptions );
+					if (!isWaypoint)
+					{
+						TheCommandSequence->clearObjectCommand(object);
+					}
 
-					object->friend_setUndetectedDefector( FALSE );// My secret is out
+					if (!TheCommandSequence->hasAnyCommand(object))
+					{
+						TheCommandSequence->includeUnitInCommand(cmdNode, object);
+						TheCommandSequence->prepareCommandForVerification(object);
+
+						mod->doSpecialPowerAtObject(target, commandOptions);
+
+						object->friend_setUndetectedDefector(FALSE);// My secret is out
+
+						if (TheCommandSequence->isStillAwaiting(object))
+							TheCommandSequence->removeCurrentCommand(object, false);
+					}
+					else
+						TheCommandSequence->includeUnitInCommand(cmdNode, object);
 				}
 			}
 		}
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 #ifdef ALLOW_SURRENDER
@@ -3691,6 +4016,7 @@ void AIGroup::groupMoveToPositionFacing( const Coord3D *pos, Real angle, Int row
 	for( Int k = 0; k < count; ++k )
 	{
 		Object *unit = movers[k];
+		TheCommandSequence->clearObjectCommand( unit );
 		unit->setFormationID( NO_FORMATION_ID );
 		TheAI->pathfinder()->removeGoal( unit );
 		const Real speedLimit = speeds[k] > 0.0f ? formationUnitSpeed( style, distances[k], speeds[k], slowest, arrivalTime ) : 0.0f;
@@ -3701,8 +4027,10 @@ void AIGroup::groupMoveToPositionFacing( const Coord3D *pos, Real angle, Int row
 /**
 	* Tell all things in the group to toggle overcharge ... if possible
 	*/
-void AIGroup::groupToggleOvercharge( CommandSourceType cmdSource )
+void AIGroup::groupToggleOvercharge( Bool isWaypoint, CommandSourceType cmdSource )
 {
+	UnsignedInt cmdNode = TheCommandSequence->newNoArgumentCommand(CommandSequence::COMMAND_TOGGLE_OVERCHARGE);
+
 	std::list<Object *>::iterator i;
 	Object *obj;
 
@@ -3717,12 +4045,19 @@ void AIGroup::groupToggleOvercharge( CommandSourceType cmdSource )
 		{
 
 			obi = (*bmi)->getOverchargeBehaviorInterface();
-			if( obi )
-				obi->toggle();
+			if (obi)
+			{
+				if (!isWaypoint || !TheCommandSequence->hasAnyCommand(*i))
+					obi->toggle();
+				else
+					TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+			}
 
 		}
 
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 
 }
 
@@ -3778,11 +4113,13 @@ void AIGroup::groupToggleTunnelAutoPop(CommandSourceType cmdSource)
  * This runs on the logic side on every peer, so the decision must be derived here from
  * group state rather than being computed by the client and sent over the wire.
  */
-void AIGroup::groupToggleHoldFire( CommandSourceType cmdSource )
+void AIGroup::groupToggleHoldFire(Bool isWaypoint, CommandSourceType cmdSource )
 {
 	std::list<Object *>::iterator i;
 	Object *obj;
 	Bool allHolding = TRUE;
+
+	UnsignedInt cmdNode = TheCommandSequence->newNoArgumentCommand(CommandSequence::COMMAND_TOGGLE_HOLD_FIRE);
 
 	// first pass -- are they all holding fire already?
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
@@ -3791,6 +4128,9 @@ void AIGroup::groupToggleHoldFire( CommandSourceType cmdSource )
 
 		AIUpdateInterface *ai = obj->getAI();
 		if( ai == nullptr )
+			continue;
+
+		if (isWaypoint && TheCommandSequence->hasAnyCommand(*i))
 			continue;
 
 		if( !ai->isHoldingFire() )
@@ -3806,28 +4146,42 @@ void AIGroup::groupToggleHoldFire( CommandSourceType cmdSource )
 		if( ai == nullptr )
 			continue;
 
-		ai->setHoldingFire( !allHolding );
+		if (isWaypoint && TheCommandSequence->hasAnyCommand(*i))
+		{
+			TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+		}
+		else
+		{
+			ai->setHoldingFire(!allHolding);
+		}
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 
 }
 
 // ------------------------------------------------------------------------------------------------
 /** Start the group firing a weapon, or stop it if any member is already firing that weapon. */
 // ------------------------------------------------------------------------------------------------
-void AIGroup::groupToggleFireWeapon( WeaponSlotType weaponSlot, Int maxShotsToFire, CommandSourceType cmdSource )
+void AIGroup::groupToggleFireWeapon( WeaponSlotType weaponSlot, Int maxShotsToFire, Bool isWaypoint, CommandSourceType cmdSource )
 {
 	std::list<Object *>::iterator i;
 	Object *obj;
 	Bool anyFiring = FALSE;
 
-	// first pass -- is anyone already firing this weapon?
-	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
-	{
-		obj = *i;
 
-		if( obj->isFiringWeaponSlot( weaponSlot ) )
+	if (!isWaypoint)
+	{
+
+		// first pass -- is anyone already firing this weapon?
+		for (i = m_memberList.begin(); i != m_memberList.end(); ++i)
 		{
-			anyFiring = TRUE;
+			obj = *i;
+
+			if (obj->isFiringWeaponSlot(weaponSlot))
+			{
+				anyFiring = TRUE;
+			}
 		}
 	}
 
@@ -3841,9 +4195,9 @@ void AIGroup::groupToggleFireWeapon( WeaponSlotType weaponSlot, Int maxShotsToFi
 			obj->stopFiringWeaponSlot( weaponSlot );
 		}
 	}
-	else if( setWeaponLockForGroup( weaponSlot, LOCKED_TEMPORARILY ) )
+	else if( groupHasWeaponSlot( weaponSlot ) )
 	{
-		groupAttackPosition( nullptr, maxShotsToFire, cmdSource );
+		groupAttackPosition( weaponSlot, nullptr, maxShotsToFire, isWaypoint, false, cmdSource );
 	}
 
 }
@@ -3853,11 +4207,13 @@ void AIGroup::groupToggleFireWeapon( WeaponSlotType weaponSlot, Int maxShotsToFi
 	* Deploy or pack up the group on the player's order. A mixed selection is moved to a single
 	* stance rather than each unit flipping its own, so one press does not scatter them.
 	*/
-void AIGroup::groupToggleDeploy( CommandSourceType cmdSource )
+void AIGroup::groupToggleDeploy( Bool isWaypoint, CommandSourceType cmdSource )
 {
 	std::list<Object *>::iterator i;
 	Object *obj;
 	Bool allDeployed = TRUE;
+
+	UnsignedInt cmdNode = TheCommandSequence->newNoArgumentCommand(CommandSequence::COMMAND_TOGGLE_DEPLOY);
 
 	// first pass -- are they all deployed already?
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
@@ -3883,11 +4239,28 @@ void AIGroup::groupToggleDeploy( CommandSourceType cmdSource )
 		if( deployAI == nullptr )
 			continue;
 
-		if( deployAI->isDeployedOrDeploying() == allDeployed )
+		if (!isWaypoint)
 		{
-			deployAI->toggleManualDeploy();
+			if (deployAI->isDeployedOrDeploying() == allDeployed)
+			{
+				deployAI->toggleManualDeploy();
+			}
+		}
+		else
+		{
+			if (!TheCommandSequence->hasAnyCommand(*i))
+			{
+				if (!deployAI->isDeployedOrDeploying())
+					deployAI->toggleManualDeploy();
+			}
+			else
+			{
+				TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+			}
 		}
 	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 #ifdef ALLOW_SURRENDER
@@ -3940,10 +4313,12 @@ void AIGroup::groupReturnToPrison( Object *prison, enum CommandSourceType cmdSou
 /**
 	* Combat drop
 	*/
-void AIGroup::groupCombatDrop( Object *target, const Coord3D &pos, CommandSourceType cmdSource )
+void AIGroup::groupCombatDrop( Object *target, const Coord3D &pos, Bool isWaypoint, CommandSourceType cmdSource )
 {
 	std::list<Object *>::iterator i;
 	Object *obj;
+
+	UnsignedInt cmdNode = TheCommandSequence->newTargetNPosCommand(CommandSequence::COMMAND_DO_COMBATDROP, target, &pos);
 
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
 	{
@@ -3953,11 +4328,14 @@ void AIGroup::groupCombatDrop( Object *target, const Coord3D &pos, CommandSource
 
 		// do action
 		AIUpdateInterface *ai = obj->getAIUpdateInterface();
-		if( ai )
-			ai->aiCombatDrop( target, pos, cmdSource );
+		if (ai)
+		{
+			TheCommandSequence->issueCommand(cmdNode, *i, isWaypoint, cmdSource);
+		}
 
 	}
 
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
 }
 
 //-------------------------------------------------------------------------------------
@@ -4081,6 +4459,34 @@ Bool AIGroup::setWeaponLockForGroup( WeaponSlotType weaponSlot, WeaponLockType l
 	for( i = m_memberList.begin(); i != m_memberList.end(); ++i )
 	{
 		if ((*i)->setWeaponLock( weaponSlot, lockType ))
+			any = true;
+	}
+	return any;
+}
+
+void AIGroup::setWeaponLockInWaypointModeForGroup(WeaponSlotType weaponSlot)
+{
+	UnsignedInt cmdNode = TheCommandSequence->newSwitchWeaponCommand(CommandSequence::COMMAND_SWITCH_WEAPON, weaponSlot);
+
+	std::list<Object*>::iterator i;
+	for (i = m_memberList.begin(); i != m_memberList.end(); ++i)
+	{
+		if (!TheCommandSequence->hasAnyCommand(*i))
+			(*i)->setWeaponLock(weaponSlot, LOCKED_PERMANENTLY);
+		else
+			TheCommandSequence->includeUnitInCommand(cmdNode, *i);
+	}
+
+	TheCommandSequence->cleanUpEmptyCommand(cmdNode);
+}
+
+Bool AIGroup::groupHasWeaponSlot(WeaponSlotType weaponSlot)
+{
+	Bool any = false;
+	std::list<Object*>::iterator i;
+	for (i = m_memberList.begin(); i != m_memberList.end(); ++i)
+	{
+		if ((*i)->hasWeaponSlot(weaponSlot))
 			any = true;
 	}
 	return any;

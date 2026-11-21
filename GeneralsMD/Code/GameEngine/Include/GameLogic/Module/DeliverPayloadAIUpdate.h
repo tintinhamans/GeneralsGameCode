@@ -177,7 +177,7 @@ enum
 	DELIVERING,							///< Delivering the payload to the target
 	CONSIDER_NEW_APPROACH,	///< Deciding if I should reapproach to deliver more payload or go home
 	RECOVER_FROM_OFF_MAP,		///< oops, went off the map, special recovery needed
-	HEAD_OFF_MAP,						///< We're all done here, take off into the sunset
+	D_HEAD_OFF_MAP,						///< We're all done here, take off into the sunset
 	CLEAN_UP,								///< Made it to the sunset. Delete peacefully, don't kill
 };
 

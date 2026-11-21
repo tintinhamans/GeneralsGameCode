@@ -31,6 +31,7 @@
 #include "Common/Player.h"
 #include "Common/ResourceGatheringManager.h"
 #include "Common/ThingTemplate.h"
+#include "GameLogic/CommandSequence.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/PartitionManager.h"
 #include "GameLogic/Module/SupplyTruckAIUpdate.h"
@@ -486,6 +487,11 @@ TheInGameUI->DEBUG_addFloatingText("entering wanting state", getMachineOwner()->
 	Object *owner = getMachineOwner();
 	SupplyTruckAIInterface *update = owner->getAIUpdateInterface()->getSupplyTruckAIInterface();
 	if( !update )
+	{
+		return STATE_FAILURE;
+	}
+
+	if (TheCommandSequence->hasAnyCommand(owner) && owner->getCurrentCommand() != owner->getLastCommand())
 	{
 		return STATE_FAILURE;
 	}

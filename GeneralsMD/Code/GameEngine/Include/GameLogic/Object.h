@@ -161,6 +161,25 @@ enum CrushSquishTestType CPP_11(: Int)
 	TEST_CRUSH_OR_SQUISH
 };
 
+//----------------------------------------------------
+
+enum CommandVerifyStatus
+{
+	STATUS_NONE = 0,
+	STATUS_FRESH,
+	STATUS_AWAITING,
+	STATUS_DOZER_PENDING,
+	STATUS_OCL_PENDING,
+	STATUS_OCL_VERIFIED,
+	STATUS_OCL_COMPLETE,
+	STATUS_UNIT_PENDING,
+	STATUS_EXIT_VERIFIED,
+	STATUS_ON_HELD,
+	STATUS_FOLLOW_PATH_VERIFIED,
+	STATUS_VERIFIED,
+	STATUS_COMPLETE
+};
+
 
 // ---------------------------------------------------
 /**
@@ -586,6 +605,7 @@ public:
 	inline Bool testWeaponSetFlag(WeaponSetType wst) const { return m_curWeaponSetFlags.test(wst); }
 	inline const WeaponSetFlags& getWeaponSetFlags() const { return m_curWeaponSetFlags; }
 	Bool setWeaponLock( WeaponSlotType weaponSlot, WeaponLockType lockType ){ return m_weaponSet.setWeaponLock( weaponSlot, lockType ); }
+	Bool hasWeaponSlot( WeaponSlotType weaponSlot ) { return m_weaponSet.getWeaponInWeaponSlot(weaponSlot) != nullptr; }
 	void releaseWeaponLock(WeaponLockType lockType){ m_weaponSet.releaseWeaponLock(lockType); }
 	Bool isCurWeaponLocked() const { return m_weaponSet.isCurWeaponLocked(); }
 
@@ -706,6 +726,21 @@ public:
 
 	// When moving below a bridge, how high does it need to be, simplified to 0-15, where 1 is 10.0 height
 	Short getRequiredBridgeHeight() const;
+
+	CommandVerifyStatus getCommandVerifyStatus() { return m_commandVerifyStatus; }
+	void setCommandVerifyStatus(CommandVerifyStatus status) { m_commandVerifyStatus = status; }
+
+	UnsignedInt getCurrentCommand() { return m_currentCommand; }
+	UnsignedInt getLastCommand() { return m_lastCommand; }
+	void setCurrentCommand(UnsignedInt curCmdID) { m_currentCommand = curCmdID; }
+	void setLastCommand(UnsignedInt lastCmdID) { m_lastCommand = lastCmdID; }
+	void addToPendingExitList(Object *obj) { if (obj)  m_pendingExitList.push_back(obj->getID()); }
+	void removeFromPendingExitList(Object *obj);
+	Bool isPendingExitListEmpty() { return m_pendingExitList.empty(); }
+	void clearPendingExitList() { m_pendingExitList.clear(); }
+	UnsignedInt getLastCommandInMoveStreak() { return m_lastMoveStreakCommand; }
+	void setLastCommandInMoveStreak(UnsignedInt lastMoveStreakCommand) { m_lastMoveStreakCommand = lastMoveStreakCommand; }
+
 protected:
 
 	void setOrRestoreTeam( Team* team, Bool restoring );
@@ -888,6 +923,13 @@ private:
 	AsciiString										m_commandSetStringOverride;///< To allow specific object to switch command sets
 
 	UnsignedInt										m_safeOcclusionFrame;	///<flag used by occlusion renderer so it knows when objects have exited their production building.
+
+	/// ShigureUi 16/10/2026 used by advanced waypoint system(class CommandSequence)
+	UnsignedInt										m_currentCommand;
+	UnsignedInt										m_lastCommand;
+	UnsignedInt										m_lastMoveStreakCommand;
+	CommandVerifyStatus						m_commandVerifyStatus;
+	ObjectIDVector								m_pendingExitList;
 
 	// --------- BYTE-SIZED THINGS GO HERE
 	Bool													m_isSelectable;

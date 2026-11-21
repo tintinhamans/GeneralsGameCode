@@ -578,18 +578,20 @@ public:
 		aiDoCommand(&parms);
 	}
 
-	void aiFollowPath( std::vector<Coord3D>* path, Object *ignoreObject, CommandSourceType cmdSource )
+	void aiFollowPath( std::vector<Coord3D>* path, Object *ignoreObject, CommandSourceType cmdSource, Bool isReverse = false, UnsignedInt cmdNodeID = 0)
 	{
 		AICommandParms parms(AICMD_FOLLOW_PATH, cmdSource);
 		MOVE_TO(parms.m_coords) = std::move(*path);
 		parms.m_obj = ignoreObject;
+		parms.m_intValue = (Int)cmdNodeID * (isReverse ? -1 : 1);
 		aiDoCommand(&parms);
 	}
 
-	void aiFollowPathAppend( const Coord3D* pos, CommandSourceType cmdSource )
+	void aiFollowPathAppend( const Coord3D* pos, CommandSourceType cmdSource, Bool isReverse = false, UnsignedInt cmdNodeID = 0 )
 	{
 		AICommandParms parms(AICMD_FOLLOW_PATH_APPEND, cmdSource);
 		parms.m_pos = *pos;
+		parms.m_intValue = (Int)cmdNodeID * (isReverse ? -1 : 1);
 		aiDoCommand(&parms);
 	}
 
@@ -906,7 +908,7 @@ public:
 class AIGroup : public MemoryPoolObject, public Snapshot
 {
 private:
-	void groupAttackObjectPrivate( Bool forced, Object *victim, Int maxShotsToFire, CommandSourceType cmdSource );					///< attack given object
+	void groupAttackObjectPrivate( Bool forced, WeaponSlotType weaponSlot, Object *victim, Int maxShotsToFire, Bool isWaypoint, CommandSourceType cmdSource );					///< attack given object
 
 public:
 
@@ -934,57 +936,59 @@ public:
 	void groupFollowWaypointPathExact( const Waypoint *way, CommandSourceType cmdSource );///< start following the path from the given point
 	void groupFollowWaypointPathAsTeamExact( const Waypoint *way, CommandSourceType cmdSource );///< start following the path from the given point
 	void groupFollowPath( const std::vector<Coord3D>* path, Object *ignoreObject, CommandSourceType cmdSource );///< follow the path defined by the given array of points
-	void groupAttackObject( Object *victim, Int maxShotsToFire, CommandSourceType cmdSource )
+	void groupAttackObject( WeaponSlotType weaponSlot, Object *victim, Int maxShotsToFire, Bool isWaypoint, CommandSourceType cmdSource )
 	{
-		groupAttackObjectPrivate(false, victim, maxShotsToFire, cmdSource);
+		groupAttackObjectPrivate(false, weaponSlot, victim, maxShotsToFire, isWaypoint, cmdSource);
 	}
-	void groupForceAttackObject( Object *victim, Int maxShotsToFire, CommandSourceType cmdSource )
+	void groupForceAttackObject(WeaponSlotType weaponSlot, Object *victim, Int maxShotsToFire, Bool isWaypoint, CommandSourceType cmdSource )
 	{
-		groupAttackObjectPrivate(true, victim, maxShotsToFire, cmdSource);
+		groupAttackObjectPrivate(true, weaponSlot, victim, maxShotsToFire, isWaypoint, cmdSource);
 	}
 	void groupAttackTeam( const Team *team, Int maxShotsToFire, CommandSourceType cmdSource );							///< attack the given team
-	void groupAttackPosition( const Coord3D *pos, Int maxShotsToFire, CommandSourceType cmdSource );						///< attack given spot
-	void groupAttackMoveToPosition( const Coord3D *pos, Int maxShotsToFire, CommandSourceType cmdSource );	///< Attack move to the location
+	void groupAttackPosition( WeaponSlotType weaponSlot, const Coord3D *pos, Int maxShotsToFire, Bool isWaypoint, Bool releaseAfter, CommandSourceType cmdSource );						///< attack given spot
+	void groupAttackMoveToPosition( const Coord3D *pos, Int maxShotsToFire, Bool isWaypoint, CommandSourceType cmdSource );	///< Attack move to the location
 	void groupHunt( CommandSourceType cmdSource );														///< begin "seek and destroy"
-	void groupRepair( Object *obj, CommandSourceType cmdSource );						///< repair the given object
-	void groupResumeConstruction( Object *obj, CommandSourceType cmdSource );	///< resume construction on the object
-	void groupGetHealed( Object *healDepot, CommandSourceType cmdSource );		///< go get healed at the heal depot
-	void groupGetRepaired( Object *repairDepot, CommandSourceType cmdSource );///< go get repaired at the repair depot
-	void groupEnter( Object *obj, CommandSourceType cmdSource );							///< enter the given object
+	void groupRepair( Object *obj, Bool isWaypoint, CommandSourceType cmdSource );						///< repair the given object
+	// ShigureUi 08/11/2026 smart cast dozer construct in multiselect
+	void groupConstruct(const ThingTemplate *thing, const Coord3D* pos, Real angle, Bool isWaypoint, CommandSourceType cmdSource);
+	void groupResumeConstruction( Object *obj, Bool isWaypoint, CommandSourceType cmdSource );	///< resume construction on the object
+	void groupGetHealed( Object *healDepot, Bool isWaypoint, CommandSourceType cmdSource );		///< go get healed at the heal depot
+	void groupGetRepaired( Object *repairDepot, Bool isWaypoint, CommandSourceType cmdSource );///< go get repaired at the repair depot
+	void groupEnter( Object *obj, Bool isWaypoint, CommandSourceType cmdSource );							///< enter the given object
 	void groupSmartGarrison( Object *target, CommandSourceType cmdSource );	///< distribute the group across the target and nearby transports (round-robin by priority)
 	// TheSuperHackers @feature Fill the selected containers from nearby idle infantry.
-	void groupAutoFill( CommandSourceType cmdSource );
-	void groupDock( Object *obj, CommandSourceType cmdSource );							///< get near given object and wait for enter clearance
+	void groupAutoFill( Bool isWaypoint, CommandSourceType cmdSource );
+	void groupDock( Object *obj, Bool isWaypoint, CommandSourceType cmdSource );							///< get near given object and wait for enter clearance
 	void groupExit( Object *objectToExit, CommandSourceType cmdSource );			///< get out of this Object
-	void groupEvacuate( CommandSourceType cmdSource );												///< empty its contents
+	void groupEvacuate( Bool isWaypoint, CommandSourceType cmdSource );												///< empty its contents
 	void groupEvacuateToWork( CommandSourceType cmdSource );									///< empty its contents, supply gatherers among them resume gathering
 	void groupExecuteRailedTransport( CommandSourceType cmdSource );					///< execute railed transport events
 	void groupGoProne( const DamageInfo *damageInfo, CommandSourceType cmdSource );												///< life altering state change, if this AI can do it
-	void groupGuardPosition( const Coord3D *pos, GuardMode guardMode, CommandSourceType cmdSource );						///< guard the given spot
-	void groupGuardObject( Object *objToGuard, GuardMode guardMode, CommandSourceType cmdSource );			///< guard an object
+	void groupGuardPosition( const Coord3D *pos, GuardMode guardMode, Bool isWaypoint, CommandSourceType cmdSource );						///< guard the given spot
+	void groupGuardObject( Object *objToGuard, GuardMode guardMode, Bool isWaypoint, CommandSourceType cmdSource );			///< guard an object
 	void groupGuardArea( const PolygonTrigger *areaToGuard, GuardMode guardMode, CommandSourceType cmdSource ); ///< guard an area
 	void groupAttackArea( const PolygonTrigger *areaToGuard, CommandSourceType cmdSource ); ///< guard an area
-	void groupHackInternet( CommandSourceType cmdSource );				///< Begin hacking the internet for free cash from the heavens.
-	void groupDoSpecialPower( UnsignedInt specialPowerID, UnsignedInt commandOptions );
-	void groupDoSpecialPowerAtObject( UnsignedInt specialPowerID, Object *object, UnsignedInt commandOptions );
-	void groupDoSpecialPowerAtLocation( UnsignedInt specialPowerID, const Coord3D *location, Real angle, const Object *object, UnsignedInt commandOptions );
+	void groupHackInternet( Bool isWaypoint, CommandSourceType cmdSource );				///< Begin hacking the internet for free cash from the heavens.
+	void groupDoSpecialPower( UnsignedInt specialPowerID, UnsignedInt commandOptions, Bool isWaypoint );
+	void groupDoSpecialPowerAtObject( UnsignedInt specialPowerID, Object *object, UnsignedInt commandOptions, Bool isWaypoint );
+	void groupDoSpecialPowerAtLocation( UnsignedInt specialPowerID, const Coord3D *location, Real angle, const Object *object, UnsignedInt commandOptions, Bool isWaypoint );
 	void groupDoSpecialPowerAtMultipleLocations( UnsignedInt specialPowerID, const std::vector<Coord3D>& locs, UnsignedInt commandOptions );
 #ifdef ALLOW_SURRENDER
 	void groupSurrender( const Object *objWeSurrenderedTo, Bool surrender, CommandSourceType cmdSource );
 #endif
 	void groupCheer( CommandSourceType cmdSource );
 	void groupSell( CommandSourceType cmdSource );
-	void groupToggleOvercharge( CommandSourceType cmdSource );
+	void groupToggleOvercharge( Bool isWaypoint, CommandSourceType cmdSource );
 	void groupToggleTunnelAutoPop( CommandSourceType cmdSource );
 	// TheSuperHackers @feature Toggle the Hold Fire stance for the whole group.
-	void groupToggleHoldFire( CommandSourceType cmdSource );
-	void groupToggleDeploy( CommandSourceType cmdSource );
-	void groupToggleFireWeapon( WeaponSlotType weaponSlot, Int maxShotsToFire, CommandSourceType cmdSource );
+	void groupToggleHoldFire(Bool isWaypoint, CommandSourceType cmdSource );
+	void groupToggleDeploy(Bool isWaypoint, CommandSourceType cmdSource );
+	void groupToggleFireWeapon( WeaponSlotType weaponSlot, Int maxShotsToFire, Bool isWayPoint, CommandSourceType cmdSource );
 #ifdef ALLOW_SURRENDER
 	void groupPickUpPrisoner( Object *prisoner, CommandSourceType cmdSource );	///< pick up prisoner
 	void groupReturnToPrison( Object *prison, CommandSourceType cmdSource );		///< return to prison
 #endif
-	void groupCombatDrop( Object *target, const Coord3D& pos, CommandSourceType cmdSource );
+	void groupCombatDrop( Object *target, const Coord3D& pos, Bool isWaypoint, CommandSourceType cmdSource );
 	void groupDoCommandButton( const CommandButton *commandButton, CommandSourceType cmdSource );
 	void groupDoCommandButtonAtPosition( const CommandButton *commandButton, const Coord3D *pos, CommandSourceType cmdSource );
 	void groupDoCommandButtonUsingWaypoints( const CommandButton *commandButton, const Waypoint *way, CommandSourceType cmdSource );
@@ -1045,13 +1049,16 @@ public:
 	void releaseWeaponLockForGroup(WeaponLockType lockType);///< Clear each guys weapon choice
 	void setWeaponSetFlag( WeaponSetType wst );
 
+	Bool groupHasWeaponSlot( WeaponSlotType weaponSlot );
+	void setWeaponLockInWaypointModeForGroup(WeaponSlotType weaponSlot);
+
 protected:
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( AIGroup, "AIGroupPool" );		///< @todo Set real numbers for mem alloc
 
 	ListObjectPtrIt internalRemove(ListObjectPtrIt iterToRemove);
 
-	Bool friend_moveInfantryToPos( const Coord3D *pos, CommandSourceType cmdSource, std::vector<Object *> &columnUnits );
-	Bool friend_moveVehicleToPos( const Coord3D *pos, CommandSourceType cmdSource, std::vector<Object *> &columnUnits );
+	Bool friend_moveInfantryToPos( const Coord3D *pos, UnsignedInt cmdNode, CommandSourceType cmdSource, std::vector<Object *> &columnUnits );
+	Bool friend_moveVehicleToPos( const Coord3D *pos, UnsignedInt cmdNode, CommandSourceType cmdSource, std::vector<Object *> &columnUnits );
 	void friend_moveFormationToPos( const Coord3D *pos, CommandSourceType cmdSource );
 	Bool friend_computeGroundPath( const Coord3D *pos, CommandSourceType cmdSource );
 

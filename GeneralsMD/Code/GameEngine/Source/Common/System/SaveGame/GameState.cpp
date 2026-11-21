@@ -52,6 +52,7 @@
 #include "GameClient/InGameUI.h"
 #include "GameClient/ParticleSys.h"
 #include "GameClient/TerrainVisual.h"
+#include "GameLogic/CommandSequence.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/GhostObject.h"
 #include "GameLogic/PartitionManager.h"
@@ -326,6 +327,7 @@ void GameState::init()
 	addSnapshotBlock( "CHUNK_ParticleSystem",					TheParticleSystemManager,	SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_TerrainVisual",					TheTerrainVisual,					SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_GhostObject",						TheGhostObjectManager,		SNAPSHOT_SAVELOAD );
+	addSnapshotBlock( "CHUNK_CommandSequence",				TheCommandSequence,				SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_ScriptTEOD",							TheScriptCLPState,				SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_ScriptTEODAI",						TheScriptCLPAI,					SNAPSHOT_SAVELOAD );
 
@@ -336,6 +338,7 @@ void GameState::init()
 	addSnapshotBlock( "CHUNK_ScriptEngine",						TheScriptEngine,					SNAPSHOT_DEEPCRC_LOGICONLY );
 	addSnapshotBlock( "CHUNK_SidesList",							TheSidesList,							SNAPSHOT_DEEPCRC_LOGICONLY );
 	addSnapshotBlock( "CHUNK_Partition",							ThePartitionManager,			SNAPSHOT_DEEPCRC_LOGICONLY );
+	addSnapshotBlock( "CHUNK_CommandSequence",				TheCommandSequence,				SNAPSHOT_DEEPCRC_LOGICONLY);
 
 	m_isInLoadGame = FALSE;
 

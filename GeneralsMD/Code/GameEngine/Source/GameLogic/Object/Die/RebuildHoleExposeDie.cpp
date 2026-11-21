@@ -37,6 +37,7 @@
 #include "Common/Xfer.h"
 #include "GameLogic/AI.h"
 #include "GameLogic/AIPathfind.h"
+#include "GameLogic/CommandSequence.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Module/AIUpdate.h"
 #include "GameLogic/Module/BodyModule.h"
@@ -179,6 +180,8 @@ void RebuildHoleExposeDie::onDie( const DamageInfo *damageInfo )
 
 				ai->transferAttack(us->getID(), hole->getID());
 			}
+
+			TheCommandSequence->transferAttack(us->getID(), hole->getID());
 		}
 
 	}

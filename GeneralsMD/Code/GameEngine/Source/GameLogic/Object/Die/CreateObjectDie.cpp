@@ -30,10 +30,11 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #define DEFINE_OBJECT_STATUS_NAMES
-#include "GameLogic/Module/AIUpdate.h"
 #include "Common/ThingFactory.h"
 #include "Common/Xfer.h"
+#include "GameLogic/CommandSequence.h"
 #include "GameLogic/GameLogic.h"
+#include "GameLogic/Module/AIUpdate.h"
 #include "GameLogic/Module/CreateObjectDie.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/ObjectCreationList.h"
@@ -141,6 +142,8 @@ void CreateObjectDie::onDie( const DamageInfo * damageInfo )
 
 			ai->transferAttack( oldObject->getID(), newObject->getID() );
 		}
+
+		TheCommandSequence->transferAttack(oldObject->getID(), newObject->getID());
 	}
 
 	// TheSuperHackers @bugfix Stubbjax 02/10/2025 If the old object was selected, select the new one.

@@ -34,6 +34,7 @@
 #include "Common/ThingTemplate.h"
 #include "Common/Xfer.h"
 #include "GameClient/Drawable.h"
+#include "GameLogic/CommandSequence.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/ScriptEngine.h"
@@ -269,6 +270,8 @@ UpdateSleepTime RebuildHoleBehavior::update()
 
 						ai->transferAttack(hole->getID(), reconstructing->getID());
 					}
+
+					TheCommandSequence->transferAttack(hole->getID(), reconstructing->getID());
 
 					// save the id of what we are reconstructing
 					m_reconstructingID = reconstructing->getID();

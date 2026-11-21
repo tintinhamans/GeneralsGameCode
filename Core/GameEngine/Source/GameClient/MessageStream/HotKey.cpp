@@ -112,7 +112,8 @@ GameMessageDisposition HotKeyTranslator::translateGameMessage(const GameMessage 
 		// TheSuperHackers @feature Let Shift through so shift+hotkey batches production the same
 		// way shift+clicking the cameo does. Ctrl and Alt still bail, since those carry their own
 		// bindings (control groups and so on) that must not be shadowed by command hotkeys.
-		if( (newModState & ~SHIFT) != 0 )
+		// ShigureUi 06/11/2026 Also alt for waypoint hotkey command button.
+		if( (newModState & ~(SHIFT | ALT)) )
 			return disp;
 		WideChar key = TheKeyboard->getPrintableKey((KeyDefType)msg->getArgument(0)->integer, 0);
 		UnicodeString uKey;

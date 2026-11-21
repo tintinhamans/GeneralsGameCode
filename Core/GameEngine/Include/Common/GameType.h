@@ -172,6 +172,7 @@ extern const char *const ScorchNames[];
 //-------------------------------------------------------------------------------------------------
 enum WeaponSlotType CPP_11(: Int)
 {
+	WEAPON_NONE = -1,
 	PRIMARY_WEAPON = 0,
 	SECONDARY_WEAPON,
 	TERTIARY_WEAPON,

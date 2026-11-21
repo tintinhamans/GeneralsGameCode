@@ -1257,7 +1257,7 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 				return COMMAND_RESTRICTED;
 
 			// if building anything at all right now we can't build another
-			if( dozerAI->isTaskPending( DOZER_TASK_BUILD ) == TRUE )
+			if( dozerAI->isTaskPending( DOZER_TASK_BUILD ) == TRUE && !TheInGameUI->isInWaypointMode())
 				return COMMAND_RESTRICTED;
 
 			if( dozerAI->canBuildTemplate( whatToBuild ) == FALSE )

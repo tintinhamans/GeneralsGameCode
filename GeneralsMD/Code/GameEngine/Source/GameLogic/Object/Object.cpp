@@ -65,6 +65,7 @@
 
 #include "GameLogic/AI.h"
 #include "GameLogic/AIPathfind.h"
+#include "GameLogic/CommandSequence.h"
 #include "GameLogic/ExperienceTracker.h"
 #include "GameLogic/FiringTracker.h"
 #include "GameLogic/GameLogic.h"
@@ -352,6 +353,11 @@ Object::Object( const ThingTemplate *tt, const ObjectStatusMaskType &objectStatu
 	m_shroudRange = 0.0f;
 
 	m_singleUseCommandUsed = false;
+
+	//ShigureUi 16/10/2026 for advanced waypoint system (class CommandSequence)
+	m_currentCommand = m_lastCommand = 0;
+	m_commandVerifyStatus = STATUS_NONE;
+	m_pendingExitList.clear();
 
 	// assign unique object id
 	setID( TheGameLogic->allocateObjectID() );
@@ -4906,6 +4912,15 @@ void Object::xfer( Xfer *xfer )
 	else
 		m_isReceivingDifficultyBonus = FALSE;
 
+	if (version >= 10)
+	{
+		xfer->xferUnsignedInt(&m_currentCommand);
+		xfer->xferUnsignedInt(&m_lastCommand);
+		xfer->xferInt((Int*)&m_commandVerifyStatus);
+		xfer->xferSTLObjectIDVector(&m_pendingExitList);
+		xfer->xferUnsignedInt(&m_lastMoveStreakCommand);
+	}
+
 	m_weaponBonusConditionAgainst.xfer(xfer);
 
 	if (version >= 10)
@@ -5065,7 +5080,11 @@ void Object::onCapture( Player *oldOwner, Player *newOwner )
 			TheBuildAssistant->sellObject( this );
 		}
 	}
-
+	TheCommandSequence->clearObjectCommand(this);
+	m_currentCommand = m_lastCommand = 0;
+	m_lastMoveStreakCommand = 0;
+	m_commandVerifyStatus = STATUS_NONE;
+	m_pendingExitList.clear();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -5079,6 +5098,8 @@ void Object::onDie( DamageInfo *damageInfo )
 	DEBUG_ASSERTCRASH(m_hasDiedAlready == false, ("Object::onDie has been called multiple times. This is invalid. jkmcd"));
 	m_hasDiedAlready = true;
 #endif
+
+	TheCommandSequence->clearObjectCommand(this);
 
 	Bool selfInflicted = (damageInfo->in.m_sourceID == getID());
 
@@ -5170,6 +5191,8 @@ void Object::onDie( DamageInfo *damageInfo )
 
 				ai->transferAttack( getID(), hole->getID() );
 			}
+
+			TheCommandSequence->transferAttack(getID(), hole->getID());
 		}
 	}
 
@@ -7335,5 +7358,16 @@ Short Object::getRequiredBridgeHeight() const {
 		//
 		Real geometryHeight = getGeometryInfo().getMaxHeightAbovePosition();
 		return std::clamp(static_cast<Short>(REAL_TO_INT_CEIL(geometryHeight / 10.0f)), static_cast<Short>(1), static_cast<Short>(15));
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+void Object::removeFromPendingExitList(Object* obj)
+{
+	if (obj)
+	{
+		ObjectIDVectorIterator it = std::find(m_pendingExitList.begin(), m_pendingExitList.end(), obj->getID());
+		if (it != m_pendingExitList.end())
+			m_pendingExitList.erase(it);
 	}
 }

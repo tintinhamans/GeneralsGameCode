@@ -242,6 +242,7 @@ set(GAMEENGINE_SRC
     Include/GameLogic/Armor.h
     Include/GameLogic/ArmorSet.h
 #    Include/GameLogic/CaveSystem.h
+#    Include/GameLogic/CommandSequence.h
 #    Include/GameLogic/CrateSystem.h
 #    Include/GameLogic/Damage.h
     Include/GameLogic/ExperienceTracker.h
@@ -1117,6 +1118,7 @@ set(GAMEENGINE_SRC
     Source/GameLogic/ScriptEngine/ScriptCLPTemplates.cpp
     Source/GameLogic/ScriptEngine/VictoryConditions.cpp
 #    Source/GameLogic/System/CaveSystem.cpp
+#    Source/GameLogic/System/CommandSequence.cpp
 #    Source/GameLogic/System/CrateSystem.cpp
 #    Source/GameLogic/System/Damage.cpp
     Source/GameLogic/System/GameLogic.cpp

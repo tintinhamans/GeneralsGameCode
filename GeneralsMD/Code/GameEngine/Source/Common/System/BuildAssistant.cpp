@@ -45,9 +45,10 @@
 #include "GameClient/InGameUI.h"
 #include "GameClient/TerrainVisual.h"
 #include "GameLogic/AI.h"
+#include "GameLogic/AIPathfind.h"
+#include "GameLogic/CommandSequence.h"
 #include "GameLogic/PartitionManager.h"
 #include "GameLogic/TerrainLogic.h"
-#include "GameLogic/AIPathfind.h"
 #include "GameLogic/Module/AIUpdate.h"
 #include "GameLogic/Module/BehaviorModule.h"
 #include "GameLogic/Module/ContainModule.h"
@@ -862,6 +863,12 @@ LegalBuildCode BuildAssistant::isLocationClearOfObjects( const Coord3D *worldPos
 	}
 	// Check for overlapping exit areas.
 
+	Bool isOverlapWithShadow = TheCommandSequence->isShawdowInTheWay(worldPos, build, angle, builderObject ? builderObject->getControllingPlayer() : nullptr);
+	if (isOverlapWithShadow)
+	{
+		return LBC_OBJECTS_IN_THE_WAY;
+	}
+
 	Real range = 2*(build->getTemplateGeometryInfo().getMajorRadius()+build->getTemplateGeometryInfo().getMinorRadius());
 
 	PartitionFilterAcceptByKindOf f1(MAKE_KINDOF_MASK(KINDOF_STRUCTURE), KINDOFMASK_NONE);
@@ -939,7 +946,7 @@ LegalBuildCode BuildAssistant::isLocationClearOfObjects( const Coord3D *worldPos
 		if (hisBounds.getGeomType() != GEOMETRY_BOX) {
 			hisBounds.set(GEOMETRY_BOX, false, 40, hisBounds.getMajorRadius(), hisBounds.getMajorRadius());
 		} else {
-			hisBounds.setMinorRadius(hisBounds.getMinorRadius()+myExtraWidth);
+			hisBounds.setMinorRadius(hisBounds.getMinorRadius()+hisExtraWidth);
 		}
 		GeometryInfo hisGeom = them->getGeometryInfo();
 		hisGeom.setMajorRadius(themFactoryExitWidth/2.0f);
@@ -1535,7 +1542,7 @@ static void countInProduction( Object *obj, void *userData )
 /** This method will check to make sure it is possible to build the requested unit. and
   * that the player has enough money for 'whatToBuild' */
 //-------------------------------------------------------------------------------------------------
-CanMakeType BuildAssistant::canMakeUnit( Object *builder, const ThingTemplate *whatToBuild ) const
+CanMakeType BuildAssistant::canMakeUnit( Object *builder, const ThingTemplate *whatToBuild, Bool checkCash) const
 {
 
 	// sanity
@@ -1575,9 +1582,12 @@ CanMakeType BuildAssistant::canMakeUnit( Object *builder, const ThingTemplate *w
 	}
 
 	// make sure we have enough money to build this
-	Money *money = player->getMoney();
-	if( whatToBuild->calcCostToBuild( player ) > money->countMoney() )
-		return CANMAKE_NO_MONEY;
+	if (checkCash)
+	{
+		Money *money = player->getMoney();
+		if (whatToBuild->calcCostToBuild(player) > money->countMoney())
+			return CANMAKE_NO_MONEY;
+	}
 
 #if RTS_GENERALS && RETAIL_COMPATIBLE_CRC
 	// make sure we're not maxed out for this type of unit.

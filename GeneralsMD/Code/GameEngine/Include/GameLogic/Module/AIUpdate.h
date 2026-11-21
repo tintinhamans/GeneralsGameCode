@@ -274,9 +274,9 @@ protected:
 	virtual void privateFollowWaypointPathAsTeam( const Waypoint *way, CommandSourceType cmdSource );///< start following the path from the given point
 	virtual void privateFollowWaypointPathExact( const Waypoint *way, CommandSourceType cmdSource );///< start following the path from the given point
 	virtual void privateFollowWaypointPathAsTeamExact( const Waypoint *way, CommandSourceType cmdSource );///< start following the path from the given point
-	virtual void privateFollowPath( std::vector<Coord3D>* path, Object *ignoreObject, CommandSourceType cmdSource, Bool exitProduction );///< follow the path defined by the given array of points
-	virtual void privateFollowPathAppend( const Coord3D *pos, CommandSourceType cmdSource );
-	virtual void privateAttackObject( Object *victim, Int maxShotsToFire, CommandSourceType cmdSource );					///< attack given object
+	virtual void privateFollowPath( std::vector<Coord3D>* path, Object *ignoreObject, CommandSourceType cmdSource, Bool exitProduction, Bool isReverse = false, UnsignedInt lastCmdNodeID = 0);///< follow the path defined by the given array of points
+	virtual void privateFollowPathAppend( const Coord3D *pos, CommandSourceType cmdSource, Bool isReverse = false, UnsignedInt cmdNodeID = 0);
+	virtual void privateAttackObject( Object *victim, Int maxShotsToFire, CommandSourceType cmdSource);					///< attack given object
 	virtual void privateForceAttackObject( Object *victim, Int maxShotsToFire, CommandSourceType cmdSource );					///< attack given object
 	virtual void privateGuardRetaliate( Object *victim, const Coord3D *pos, Int maxShotsToFire, CommandSourceType cmdSource );				///< retaliate and attack attacker -- but with guard restrictions
 	virtual void privateAttackTeam( const Team *team, Int maxShotsToFire, CommandSourceType cmdSource );							///< attack the given team
@@ -414,6 +414,8 @@ public:
 														 Player *owningPlayer,
 														 Bool isRebuild ) { return nullptr; }///< construct a building
 
+	virtual void proceedNextCommand();
+
 
 	void ignoreObstacle( const Object *obj );			///< tell the pathfinder to ignore the given object as an obstacle
 	void ignoreObstacleID( ObjectID id );			///< tell the pathfinder to ignore the given object as an obstacle
@@ -534,6 +536,7 @@ public:
 	Int getNumFramesBlocked(void) const {return m_blockedFrames;}
 	Bool isBlockedAndStuck(void) const {return m_isBlockedAndStuck;}
 	Bool isForcedMoveBackwards(void) const {return m_forceMoveBackwards;}	///< True while a REVERSE_MOVE order is being executed.
+	void friend_setForcedMoveBackwards(Bool forceMoveBackwards) { m_forceMoveBackwards = forceMoveBackwards; }
 	Bool canComputeQuickPath(void); ///< Returns true if we can quickly comput a path.  Usually missiles & the like that just move straight to the destination.
 	Bool computeQuickPath(const Coord3D *destination); ///< Computes a quick path to the destination.
 	Bool arePathLayersStillValid(); ///< Check if the current used layers are still passable
@@ -667,6 +670,9 @@ public:
 
 	Bool canAutoAcquireWhileStealthed() const;
 
+	//ShigureUi 01/10/2026 code reuse from groupMoveToPosition() but it's on single ai so it's here
+	void handleStealthCombatUnitMove();
+
 	/// True when this object is forbidden from firing while it is moving.
 	Bool mustHoldStillToFire() const { return BitIsSet(getAIUpdateModuleData()->m_autoAcquireEnemiesWhenIdle, AAS_Idle_Not_While_Moving); }
 
@@ -733,12 +739,15 @@ protected:
 
 public:
 
+	Bool isSameMachine(AIStateMachine* stateMachine) { return stateMachine == m_stateMachine; }
+
 	StateID getCurrentStateID() const { return getStateMachine()->getCurrentStateID(); }	///< return the id of the current state of the machine
 /// @ todo -- srj sez: JBA NUKE THIS CODE, IT IS EVIL
 	void friend_addToWaypointGoalPath( const Coord3D *pathPoint ) { getStateMachine()->addToGoalPath(pathPoint); }
 
 	// this is intended for use ONLY by W3dWaypointBuffer and AIFollowPathState.
 	const Coord3D* friend_getGoalPathPosition( Int index ) const { return getStateMachine()->getGoalPathPosition( index ); }
+	const PathPointInfo* friend_getPathPointInfo(Int index) const { return getStateMachine()->getPathPointInfo(index); }
 
 	// this is intended for use ONLY by W3dWaypointBuffer.
 	Int friend_getWaypointGoalPathSize() const;
