@@ -68,7 +68,7 @@
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/NAT.h"
 #include "GameNetwork/GUIUtil.h"
-#include "Common/StatsExporterLobby.h"
+#include "Common/LocalApiLobby.h"
 #include "GameNetwork/GameSpy/GSConfig.h"
 
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
@@ -186,6 +186,13 @@ static GameWindow *checkBoxUseStats = nullptr;
 static GameWindow *checkBoxLimitSuperweapons = nullptr;
 static GameWindow *comboBoxStartingCash = nullptr;
 static GameWindow *checkBoxLimitArmies = nullptr;
+
+// The Zero Hour string file has the use stats texts, the Generals one does not, so they fall back to English.
+static UnicodeString GenOnlineUseStatsTooltip(Bool on)
+{
+	return on ? TheGameText->FETCH_OR_SUBSTITUTE("TOOLTIP:UseStatsOn", L"Statistics from this game will be recorded")
+		: TheGameText->FETCH_OR_SUBSTITUTE("TOOLTIP:UseStatsOff", L"Statistics from this game will not be recorded");
+}
 
 static GameWindow *comboBoxPlayer[MAX_SLOTS] = {NULL,NULL,NULL,NULL,
 																									 NULL,NULL,NULL,NULL };
@@ -1440,7 +1447,7 @@ void GenOnlineDisplayGameOptions()
   if (GadgetCheckBoxIsChecked(checkBoxUseStats) != isUsingStats)
   {
   	GadgetCheckBoxSetChecked(checkBoxUseStats, isUsingStats);
-    checkBoxUseStats->winSetTooltip( TheGameText->fetch( isUsingStats ? "TOOLTIP:UseStatsOn" : "TOOLTIP:UseStatsOff" ) );
+    checkBoxUseStats->winSetTooltip( GenOnlineUseStatsTooltip( isUsingStats ) );
   }
 
   Bool oldFactionsOnly = theGame->oldFactionsOnly();
@@ -1713,7 +1720,8 @@ void GenOnlineInitGameGadgets()
 
 	
   GadgetCheckBoxSetChecked(checkBoxUseStats, isUsingStats );
-  checkBoxUseStats->winSetTooltip( TheGameText->fetch( isUsingStats ? "TOOLTIP:UseStatsOn" : "TOOLTIP:UseStatsOff" ) );
+  GadgetCheckBoxSetText(checkBoxUseStats, TheGameText->FETCH_OR_SUBSTITUTE("GUI:UseStats", L"Record Stats"));
+  checkBoxUseStats->winSetTooltip( GenOnlineUseStatsTooltip( isUsingStats ) );
 
   if (!pLobbyInterface->CanChangeLobbySettings())
   {

@@ -1,14 +1,14 @@
-# Live stats pipe
+# Live stats for readers
 
-The Generals Online client streams live match data to out-of-process readers over a Windows named pipe, and answers their queries. This document is the authoritative protocol reference for **protocol version 2** (a breaking change from version 1: new frame header, a Hello handshake, several readers, requests). The wire schema is `Core/GameEngine/Source/Common/StatsExporter.proto`; a Java library (`com.generalsonline:stats-pipe-client`, with a test client and example programs) lives in `Tools/StatsExporterClient/`.
+The Generals Online client streams live match data to out-of-process readers over a Windows named pipe, and answers their queries. This document is the authoritative protocol reference for **protocol version 2** (a breaking change from version 1: new frame header, a Hello handshake, several readers, requests). The wire schema is `Core/GameEngine/Source/Common/LocalApi.proto`; a Java library (`com.generalsonline:stats-pipe-client`, with a test client and example programs) lives in `Tools/LocalApiClient/`.
 
 ## Transport
 
 - Pipe name: `\.\pipe\generalsonline-caster-<pid>`, where `<pid>` is the game process id. List `\.\pipe\` and match the prefix to find running games.
-- The game is the pipe server (overlapped, byte mode, duplex). The readers are the clients. Up to **4 readers** can be connected at once, each with its own outbound queue, sequence numbers, resync state and feed configuration (see Multiple readers). A fifth connect attempt fails (`ERROR_PIPE_BUSY`) until a reader leaves.
+- The caster plugin in the game process is the pipe server (overlapped, byte mode, duplex). The readers are the clients. Up to **4 readers** can be connected at once, each with its own outbound queue, sequence numbers, resync state and feed configuration (see Multiple readers). A fifth connect attempt fails (`ERROR_PIPE_BUSY`) until a reader leaves.
 - Access: the pipe rejects remote clients (`PIPE_REJECT_REMOTE_CLIENTS`) and carries an explicit security descriptor whose only entry grants full access to the user the game runs as (the user SID of the process token). Other accounts cannot open it; neither can a reader at a lower integrity level than the game, as for any object created by a process at a higher one. If the descriptor cannot be built the pipe is not created.
-- The pipe comes from the `genonline_caster` plugin (repository genonline-caster-plugin), which ships with the client in `plugins\genonline_caster\` and is off by default. It loads at startup when `%LOCALAPPDATA%\GeneralsOnline\client.json` sets `"plugins": { "caster": "genonline_caster" }`. Without the plugin, and in headless runs and replay-simulation processes, no pipe exists. The game encodes and decodes every message, and the plugin only carries the frames.
-- Live recording is off by default and is switched on by `-exportStats` or `"stats": { "export": true }` in client.json. It needs no plugin. The game then records every game it writes a replay for and writes `<replay>.gamestats.json.gz` beside that replay when recording stops, and `-replay -headless -exportStats` produces the same file. With `-statsUrl` the headless run also posts it. For played matches the file is also uploaded to the service like the replay, through a presigned URL, under its own `telemetry.stats_upload` service flag (default on). That upload is independent of `-statsUrl` and of the replay upload.
+- The pipe comes from the `genonline_caster` plugin (repository genonline-caster-plugin), which ships with the client in `plugins\genonline_caster\` and is off by default. It loads at startup when `%LOCALAPPDATA%\genonline\settings.client.json` sets `"plugins": { "caster": "genonline_caster" }`. Without the plugin, and in headless runs and replay-simulation processes, no pipe exists. The game encodes and decodes every message, and the plugin only carries the frames.
+- Live recording is off by default and is switched on by `-exportStats` or `"stats": { "export": true }` in settings.client.json. It needs no plugin. The game then records every game it writes a replay for and writes `<replay>.stats.json.gz` beside that replay when recording stops, and `-replay -headless -exportStats` produces the same file. With `-statsUrl` the headless run also posts it. For played matches the file is also uploaded to the service like the replay, through a presigned URL, under its own `telemetry.stats_upload` service flag (default on). That upload is independent of `-statsUrl` and of the replay upload.
 - A reader that disconnects is simply dropped; the game keeps running and accepts the next reader. Readers should reconnect with backoff.
 
 ## Framing
@@ -83,7 +83,7 @@ Capabilities in this version: `frame.sequence`, `frame.timestamp`, `multi_reader
 Every outbound frame carries a sequence number and a timestamp in its header.
 
 - **Sequence.** Per reader and connection, starting at 0 with the Hello and counting every frame the game queues for that reader. A frame that is dropped because that reader's queue is full still uses its number, so **a gap in the sequence means dropped frames**: `received - expected` frames were lost. The counter is an unsigned 32-bit value and wraps around (about 4 billion frames); compare with unsigned arithmetic. Frames that were never meant for a reader (another reader's responses, frames produced before its Hello) do not use its numbers. A reader that sees a gap in `StatsSnapshot`s needs nothing special (the next snapshot recovers the cumulative numbers); a gap that swallowed `Events` means those events are lost, and `Resync` (below) refreshes the state.
-- **Timestamp.** Microseconds on the exporter clock, a monotonic clock (QueryPerformanceCounter) that starts when the exporter does, near process start. It is taken when the frame was produced (not when it was written), so `arrival time - timestamp` measured on the reader side, minus the smallest such difference seen (the clock offset), is the delivery latency of the frame, and timestamp differences give exact frame spacing. `Hello.epoch_unix_ms + timestamp / 1000` is the wall clock time the frame was produced at. `Camera.timestamp_us` is on the same clock.
+- **Timestamp.** Microseconds on the local API clock, a monotonic clock (QueryPerformanceCounter) that starts when the exporter does, near process start. It is taken when the frame was produced (not when it was written), so `arrival time - timestamp` measured on the reader side, minus the smallest such difference seen (the clock offset), is the delivery latency of the frame, and timestamp differences give exact frame spacing. `Hello.epoch_unix_ms + timestamp / 1000` is the wall clock time the frame was produced at. `Camera.timestamp_us` is on the same clock.
 
 ## Multiple readers
 
@@ -101,7 +101,7 @@ Frames that are the same for everyone are built once and queued for every reader
 
 A reader sends a `Request { id, query }` (inbound type 0x11) and receives a `Response { id, status, message, result }` (outbound type 0x0A) carrying the same `id`. The reader chooses the `id`; use a distinct one for every request in flight (0 is allowed but cannot be told apart from "unknown" when a request cannot be decoded).
 
-- **Threading.** The pipe thread only decodes the framing, rate limits and queues the request. The main thread answers it once per render frame (at most 4 per frame, the rest wait), reading game state and changing nothing (the camera, replay and observer commands below change client-side state only, and lobby control operates the game setup screen, see there): no random numbers are drawn, no commands are issued, no object is touched. Because of that, a query is answered also while the game is paused or in a menu, and the answer describes the state of the moment it ran.
+- **Threading.** The plugin's reader thread only decodes the framing, rate limits and queues the request. The main thread answers it once per render frame (at most 4 per frame, the rest wait), reading game state and changing nothing (the camera, replay and observer commands below change client-side state only, and lobby control operates the game setup screen, see there): no random numbers are drawn, no commands are issued, no object is touched. Because of that, a query is answered also while the game is paused or in a menu, and the answer describes the state of the moment it ran.
 - **Statuses.** `OK`; `BAD_REQUEST` (undecodable, no query set, a value out of range); `NOT_FOUND` (no such object, player or template); `RATE_LIMITED` (the reader exceeded its rate or has 16 requests waiting; nothing was done, retry later); `UNAVAILABLE` (the data does not exist right now: no match running, no map loaded); `TOO_LARGE` (the result would not fit a frame: ask for a smaller page); `NOT_ALLOWED` (the command is refused in the situation the game is in, see Camera, replay and observer control and Lobby control: nothing was changed). `message` carries a short reason for any status other than OK. A request that cannot be decoded is answered with id 0.
 - **Rate limit.** A token bucket per reader: 20 requests per second sustained, bursts up to 40. Requests are answered in arrival order per reader and in turn between readers. There is no answer to a request that arrives before the Hello was queued, and none when the reader's queue is full (the sequence shows the gap), so readers should time requests out.
 - **Paging.** Queries that can return many rows take a `PageRequest { cursor, page_size }` and answer with a `PageInfo { has_more, next_cursor, total }`. Start with cursor 0, pass `next_cursor` back while `has_more`. The cursor is opaque: a template index for the catalog, an object id for objects. `page_size` 0 means the default, anything above `Hello.max_page_size` is lowered to it.
@@ -161,7 +161,7 @@ A reader can steer the local client's view. These commands change **client-side 
 - **Replay** (`ReplayControlQuery`). `paused`; `speed_ratio` 0.1 to 16 (1 is normal speed); `fast_forward`. The engine paces a replay by one logic update per displayed frame at most, with an optional logic time scale below that rate, so a ratio above what the display frame rate limit allows is capped (the answer's `speed_capped` is true and `speed_ratio` is the effective one; in this build the limit during a replay is the logic rate, so 1.0 is the top without fast forward). `fast_forward` is the game's replay fast forward (as fast as the machine runs) and overrides `speed_ratio`; setting a `speed_ratio` without `fast_forward` turns it off. Whatever the pace, the replay computes the same game. The pace the command changed is put back when the replay is left.
 - **Observe** (`ObserveQuery`). `player_index` of a player of the match, or -1 for the all-seeing observer: whose units, shroud and radar the view shows, the call the observer panel's player buttons make. `full_view` in the answer is false when the game only remembered the choice for its panels (the player observer option is off).
 
-**Who moved the camera.** The `Camera` frame carries `change_source`: `USER` when at least one user camera action (mouse, keyboard, minimap click, selection jump, a lock toggle) was accepted since the previous Camera frame, `PIPE` for a pipe command or its transition, `OTHER` for the game itself (a lock following a unit, a script, the first frame of a connection). `user_input_count` is the running number of accepted user camera actions, so a dropped frame loses nothing; a tool that moves the camera watches it grow and steps back (this is what the library's `Director` does). Camera moves the game makes on the user's behalf (the recorded camera of a replay) are not counted. `follow_mode` and `follow_object_id` give the lock in force, whoever made it. For a lock a pipe command made, the Camera frame that follows its end has `follow_ended` (`OBJECT_GONE`: the unit died or was removed, the lock is released at once; `USER`: the user moved the camera or locked on something else; `COMMAND`: a later pipe command) and `follow_ended_object_id`; `transition_active` is true while a pipe transition runs.
+**Who moved the camera.** The `Camera` frame carries `change_source`: `USER` when at least one user camera action (mouse, keyboard, minimap click, selection jump, a lock toggle) was accepted since the previous Camera frame, `READER` for a reader command or its transition, `OTHER` for the game itself (a lock following a unit, a script, the first frame of a connection). `user_input_count` is the running number of accepted user camera actions, so a dropped frame loses nothing; a tool that moves the camera watches it grow and steps back (this is what the library's `Director` does). Camera moves the game makes on the user's behalf (the recorded camera of a replay) are not counted. `follow_mode` and `follow_object_id` give the lock in force, whoever made it. For a lock a reader command made, the Camera frame that follows its end has `follow_ended` (`OBJECT_GONE`: the unit died or was removed, the lock is released at once; `USER`: the user moved the camera or locked on something else; `COMMAND`: a later reader command) and `follow_ended_object_id`; `transition_active` is true while a pipe transition runs.
 
 ## Gating
 
@@ -476,7 +476,7 @@ The local tactical view. Per client: not part of the synchronized game state. Se
 
 | # | Field | Type | Meaning |
 |---|---|---|---|
-| 1 | `timestamp_us` | uint64 | the envelope clock (microseconds since the exporter clock started, see the frame header): monotonic |
+| 1 | `timestamp_us` | uint64 | the envelope clock (microseconds since the local API clock started, see the frame header): monotonic |
 | 2 | `logic_frame` | uint32 |  |
 | 3 | `x` | float | world position the camera looks at |
 | 4 | `y` | float |  |
@@ -497,9 +497,9 @@ The local tactical view. Per client: not part of the synchronized game state. Se
 | 19 | `user_input_count` | uint32 | user camera actions accepted since the game started (mouse, keys, minimap, selection jumps): a counter, so a dropped frame loses nothing |
 | 20 | `follow_mode` | CameraFollowMode | the camera lock in force: the unit a command or the user locked it on |
 | 21 | `follow_object_id` | uint32 | 0 when the camera is not locked on a unit |
-| 22 | `follow_ended` | CameraFollowEnd | set only on the frame that reports the end of a lock a pipe command created |
+| 22 | `follow_ended` | CameraFollowEnd | set only on the frame that reports the end of a lock a reader command created |
 | 23 | `follow_ended_object_id` | uint32 | the unit that lock was on |
-| 24 | `transition_active` | bool | a camera transition started by a pipe command is still running |
+| 24 | `transition_active` | bool | a camera transition started by a reader command is still running |
 
 #### enum `CameraChangeSource`
 
@@ -507,7 +507,7 @@ The local tactical view. Per client: not part of the synchronized game state. Se
 |---|---|---|
 | 0 | `CAMERA_CHANGE_OTHER` | the game: a lock following a unit, a script, the replay camera, or the first frame of a connection |
 | 1 | `CAMERA_CHANGE_USER` | at least one user camera action since the previous frame |
-| 2 | `CAMERA_CHANGE_PIPE` | a pipe camera command or its transition, and no user action |
+| 2 | `CAMERA_CHANGE_READER` | a reader camera command or its transition, and no user action |
 
 #### enum `CameraFollowMode`
 
@@ -519,14 +519,14 @@ The local tactical view. Per client: not part of the synchronized game state. Se
 
 #### enum `CameraFollowEnd`
 
-Why a pipe-created lock ended.
+Why a reader-created lock ended.
 
 | Value | Name | Meaning |
 |---|---|---|
 | 0 | `CAMERA_FOLLOW_END_NONE` |  |
 | 1 | `CAMERA_FOLLOW_END_OBJECT_GONE` | the unit was destroyed or removed |
 | 2 | `CAMERA_FOLLOW_END_USER` | the user moved the camera or locked on something else |
-| 3 | `CAMERA_FOLLOW_END_COMMAND` | a later pipe command (unfollow, a position, another unit) |
+| 3 | `CAMERA_FOLLOW_END_COMMAND` | a later reader command (unfollow, a position, another unit) |
 
 #### `PlayerGrid`
 
@@ -1057,7 +1057,7 @@ The game setup lobby the user sits in, before the match starts: online, LAN or s
 
 #### `Hello`
 
-The first frame of every connection (sequence 0). Everything a reader needs to know about the game and the pipe before it sends anything.
+The first frame of every connection (sequence 0). Everything a reader needs to know about the game and the feed before it sends anything.
 
 | # | Field | Type | Meaning |
 |---|---|---|---|
@@ -1066,10 +1066,10 @@ The first frame of every connection (sequence 0). Everything a reader needs to k
 | 3 | `game_build` | string | git version and build time, free-form, for logs and bug reports |
 | 4 | `process_id` | uint32 | the game process, also the pipe name suffix |
 | 5 | `logic_frames_per_second` | uint32 | the build's logic rate (30, or 60 for the high-fps server build); frame / this = game seconds |
-| 6 | `capabilities` | repeated string | feature names, see GenOnline/docs/stats-exporter.md; unknown ones can be ignored |
+| 6 | `capabilities` | repeated string | feature names, see GenOnline/docs/local-api.md; unknown ones can be ignored |
 | 7 | `max_requests_per_second` | uint32 | sustained Request rate per reader; faster requests get RATE_LIMITED |
 | 8 | `reader_slot` | uint32 | this connection's slot, 0 .. max_readers - 1 |
-| 9 | `max_readers` | uint32 | simultaneous readers the pipe serves |
+| 9 | `max_readers` | uint32 | simultaneous readers the plugin serves |
 | 10 | `epoch_unix_ms` | uint64 | wall clock (ms since the Unix epoch) at frame timestamp 0 |
 | 11 | `max_request_burst` | uint32 | requests that may arrive at once before the rate limit bites |
 | 12 | `max_page_size` | uint32 | the largest page_size a paged query honours |

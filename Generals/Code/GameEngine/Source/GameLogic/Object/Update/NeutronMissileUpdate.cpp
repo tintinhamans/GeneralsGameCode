@@ -32,7 +32,7 @@
 #include "Common/Thing.h"
 #include "Common/ThingTemplate.h"
 #include "Common/RandomValue.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 #include "Common/Xfer.h"
 
 #include "GameLogic/ExperienceTracker.h"
@@ -202,7 +202,7 @@ void NeutronMissileUpdate::projectileFireAtObjectOrPosition( const Object *victi
 			{
 				legacyFrames += d->m_targetFromDirectlyAbove / (topSpeed * STRAIGHT_DOWN_SLOW_FACTOR);
 			}
-			StatsExporterLiveMissileLaunched(getObject(), &m_targetPos, legacyFrames / (Real)BaseFps);
+			LocalApiLiveMissileLaunched(getObject(), &m_targetPos, legacyFrames / (Real)BaseFps);
 		}
 	}
 

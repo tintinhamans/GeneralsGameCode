@@ -15,11 +15,11 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// Protocol reference: GenOnline/docs/stats-exporter.md
-#include "Common/StatsExporterQuery.h"
-#include "Common/StatsExporterPipe.h"
-#include "Common/StatsExporterControl.h"
-#include "Common/StatsExporterLobby.h"
+// Protocol reference: GenOnline/docs/local-api.md
+#include "Common/LocalApiQuery.h"
+#include "Common/LocalApiReaders.h"
+#include "Common/LocalApiControl.h"
+#include "Common/LocalApiLobby.h"
 
 #include "Common/KindOf.h"
 #include "Common/Player.h"
@@ -52,7 +52,7 @@
 #include <string.h>
 #include <vector>
 
-#include "StatsExporter.pb.h"
+#include "LocalApi.pb.h"
 
 namespace
 {
@@ -68,7 +68,7 @@ namespace
 	const size_t kMaxPowers = 64;
 	const size_t kMaxWaypoints = 512;
 
-	// Response field numbers (StatsExporter.proto).
+	// Response field numbers (LocalApi.proto).
 	const UnsignedInt kResultCatalog = 10;
 	const UnsignedInt kResultObject = 11;
 	const UnsignedInt kResultObjects = 12;
@@ -82,7 +82,7 @@ namespace
 	const UnsignedInt kResultObserve = 20;
 	const UnsignedInt kResultLobbyControl = 21;
 
-	typedef statsexporter::ResponseStatus Status;
+	typedef localapi::ResponseStatus Status;
 
 	std::string toUtf8(const UnicodeString& text)
 	{
@@ -94,20 +94,20 @@ namespace
 	{
 		if (slot == NULL)
 		{
-			slot = google::protobuf::Arena::Create<T>(&StatsExporterArena());
+			slot = google::protobuf::Arena::Create<T>(&LocalApiArena());
 		}
 		slot->Clear();
 		return *slot;
 	}
 
-	UnsignedInt pageSizeOf(const statsexporter::PageRequest& page, UnsignedInt defaultSize)
+	UnsignedInt pageSizeOf(const localapi::PageRequest& page, UnsignedInt defaultSize)
 	{
 		UnsignedInt size = page.page_size();
 		if (size == 0)
 		{
 			size = defaultSize;
 		}
-		return (size > STATS_EXPORTER_MAX_PAGE_SIZE) ? STATS_EXPORTER_MAX_PAGE_SIZE : size;
+		return (size > LOCAL_API_MAX_PAGE_SIZE) ? LOCAL_API_MAX_PAGE_SIZE : size;
 	}
 
 	Bool matchesIgnoreCase(const AsciiString& a, const std::string& b)
@@ -185,7 +185,7 @@ namespace
 		return s_icons;
 	}
 
-	void fillIcon(statsexporter::ButtonIcon* icon, const Image* image)
+	void fillIcon(localapi::ButtonIcon* icon, const Image* image)
 	{
 		icon->set_image_name(image->getName().str());
 		icon->set_texture_file(image->getFilename().str());
@@ -200,14 +200,14 @@ namespace
 		icon->set_texture_height((uint32_t)image->getTextureSize()->y);
 	}
 
-	Status answerCatalog(const statsexporter::CatalogQuery& query, std::string& result, std::string& message)
+	Status answerCatalog(const localapi::CatalogQuery& query, std::string& result, std::string& message)
 	{
-		static statsexporter::CatalogResult* s_result = NULL;
+		static localapi::CatalogResult* s_result = NULL;
 
 		if (TheThingFactory == NULL)
 		{
 			message = "no template database";
-			return statsexporter::RESPONSE_STATUS_UNAVAILABLE;
+			return localapi::RESPONSE_STATUS_UNAVAILABLE;
 		}
 
 		Int kindOf = -1;
@@ -217,14 +217,14 @@ namespace
 			if (kindOf < 0)
 			{
 				message = "unknown kind_of";
-				return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+				return localapi::RESPONSE_STATUS_BAD_REQUEST;
 			}
 		}
 
 		const UnsignedInt cursor = query.page().cursor();
 		const UnsignedInt pageSize = pageSizeOf(query.page(), kCatalogDefaultPage);
 		const IconMap& icons = buttonIcons();
-		statsexporter::CatalogResult& out = arenaResult(s_result);
+		localapi::CatalogResult& out = arenaResult(s_result);
 		UnsignedInt matched = 0;
 		UnsignedInt emitted = 0;
 
@@ -250,7 +250,7 @@ namespace
 
 			if (matched >= cursor && emitted < pageSize)
 			{
-				statsexporter::CatalogEntry* entry = out.add_entries();
+				localapi::CatalogEntry* entry = out.add_entries();
 				entry->set_template_id(tmpl->getTemplateID());
 				entry->set_name(tmpl->getName().str());
 				entry->set_display_name(toUtf8(tmpl->getDisplayName()));
@@ -279,42 +279,42 @@ namespace
 		if (!query.name().empty() && matched == 0)
 		{
 			message = "no such template";
-			return statsexporter::RESPONSE_STATUS_NOT_FOUND;
+			return localapi::RESPONSE_STATUS_NOT_FOUND;
 		}
 
-		statsexporter::PageInfo* page = out.mutable_page();
+		localapi::PageInfo* page = out.mutable_page();
 		page->set_total(matched);
 		page->set_has_more(cursor + emitted < matched);
 		page->set_next_cursor(cursor + emitted);
 		out.SerializeToString(&result);
-		return statsexporter::RESPONSE_STATUS_OK;
+		return localapi::RESPONSE_STATUS_OK;
 	}
 
-	Status answerObject(const statsexporter::ObjectQuery& query, std::string& result, std::string& message)
+	Status answerObject(const localapi::ObjectQuery& query, std::string& result, std::string& message)
 	{
-		static statsexporter::ObjectDetail* s_result = NULL;
+		static localapi::ObjectDetail* s_result = NULL;
 
 		if (!gameIsRunning())
 		{
 			message = "no match is running";
-			return statsexporter::RESPONSE_STATUS_UNAVAILABLE;
+			return localapi::RESPONSE_STATUS_UNAVAILABLE;
 		}
 
 		Object* obj = TheGameLogic->findObjectByID((ObjectID)query.object_id());
-		const Int gated = StatsExporterGatedPlayerIndex();
+		const Int gated = LocalApiGatedPlayerIndex();
 		// The same answer for a missing object keeps hidden objects from being probed by id.
 		if (gated >= 0 && (obj == NULL || ownerIndex(obj) != gated))
 		{
 			message = "only an observer or a replay may read other players' objects";
-			return statsexporter::RESPONSE_STATUS_NOT_ALLOWED;
+			return localapi::RESPONSE_STATUS_NOT_ALLOWED;
 		}
 		if (obj == NULL || obj->getTemplate() == NULL)
 		{
 			message = "no such object";
-			return statsexporter::RESPONSE_STATUS_NOT_FOUND;
+			return localapi::RESPONSE_STATUS_NOT_FOUND;
 		}
 
-		statsexporter::ObjectDetail& out = arenaResult(s_result);
+		localapi::ObjectDetail& out = arenaResult(s_result);
 		const ThingTemplate* tmpl = obj->getTemplate();
 		const Coord3D* position = obj->getPosition();
 
@@ -398,7 +398,7 @@ namespace
 		}
 
 		out.SerializeToString(&result);
-		return statsexporter::RESPONSE_STATUS_OK;
+		return localapi::RESPONSE_STATUS_OK;
 	}
 
 	bool objectIdLess(const Object* a, const Object* b)
@@ -406,15 +406,15 @@ namespace
 		return a->getID() < b->getID();
 	}
 
-	Status answerObjects(const statsexporter::ObjectsQuery& query, std::string& result, std::string& message)
+	Status answerObjects(const localapi::ObjectsQuery& query, std::string& result, std::string& message)
 	{
-		static statsexporter::ObjectsResult* s_result = NULL;
+		static localapi::ObjectsResult* s_result = NULL;
 		static std::vector<Object*> s_matches;
 
 		if (!gameIsRunning())
 		{
 			message = "no match is running";
-			return statsexporter::RESPONSE_STATUS_UNAVAILABLE;
+			return localapi::RESPONSE_STATUS_UNAVAILABLE;
 		}
 
 		Int kindOf = -1;
@@ -424,16 +424,16 @@ namespace
 			if (kindOf < 0)
 			{
 				message = "unknown kind_of";
-				return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+				return localapi::RESPONSE_STATUS_BAD_REQUEST;
 			}
 		}
 		if (query.has_area() && (query.min_x() > query.max_x() || query.min_y() > query.max_y()))
 		{
 			message = "empty area";
-			return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+			return localapi::RESPONSE_STATUS_BAD_REQUEST;
 		}
 
-		const Int gated = StatsExporterGatedPlayerIndex();
+		const Int gated = LocalApiGatedPlayerIndex();
 		std::vector<Object*>& matches = s_matches;
 		matches.clear();
 		for (Object* obj = TheGameLogic->getFirstObject(); obj != NULL; obj = obj->getNextObject())
@@ -472,7 +472,7 @@ namespace
 
 		const UnsignedInt cursor = query.page().cursor();
 		const UnsignedInt pageSize = pageSizeOf(query.page(), kObjectsDefaultPage);
-		statsexporter::ObjectsResult& out = arenaResult(s_result);
+		localapi::ObjectsResult& out = arenaResult(s_result);
 
 		size_t first = 0;
 		while (first < matches.size() && matches[first]->getID() < (ObjectID)cursor)
@@ -485,7 +485,7 @@ namespace
 		{
 			const Object* obj = matches[end];
 			const ThingTemplate* tmpl = obj->getTemplate();
-			statsexporter::ObjectRow* row = out.add_rows();
+			localapi::ObjectRow* row = out.add_rows();
 			row->set_object_id(obj->getID());
 			row->set_template_id(tmpl->getTemplateID());
 			row->set_owner_player_index(ownerIndex(obj));
@@ -505,26 +505,26 @@ namespace
 			if (std::find(templateIds.begin(), templateIds.end(), (UnsignedInt)tmpl->getTemplateID()) == templateIds.end())
 			{
 				templateIds.push_back(tmpl->getTemplateID());
-				statsexporter::TemplateRef* ref = out.add_templates();
+				localapi::TemplateRef* ref = out.add_templates();
 				ref->set_template_id(tmpl->getTemplateID());
 				ref->set_name(tmpl->getName().str());
 			}
 		}
 
-		statsexporter::PageInfo* page = out.mutable_page();
+		localapi::PageInfo* page = out.mutable_page();
 		page->set_total((uint32_t)matches.size());
 		page->set_has_more(end < matches.size());
 		page->set_next_cursor((end < matches.size()) ? matches[end]->getID() : 0);
 		out.SerializeToString(&result);
 		matches.clear();
-		return statsexporter::RESPONSE_STATUS_OK;
+		return localapi::RESPONSE_STATUS_OK;
 	}
 
-	void fillScienceOptions(google::protobuf::RepeatedPtrField<statsexporter::ScienceOption>* target, const ScienceVec& sciences)
+	void fillScienceOptions(google::protobuf::RepeatedPtrField<localapi::ScienceOption>* target, const ScienceVec& sciences)
 	{
 		for (size_t i = 0; i < sciences.size(); ++i)
 		{
-			statsexporter::ScienceOption* option = target->Add();
+			localapi::ScienceOption* option = target->Add();
 			option->set_name(TheScienceStore->getInternalNameForScience(sciences[i]).str());
 			UnicodeString name;
 			UnicodeString description;
@@ -536,40 +536,40 @@ namespace
 		}
 	}
 
-	Status answerPlayer(const statsexporter::PlayerQuery& query, std::string& result, std::string& message)
+	Status answerPlayer(const localapi::PlayerQuery& query, std::string& result, std::string& message)
 	{
-		static statsexporter::PlayerDetail* s_result = NULL;
+		static localapi::PlayerDetail* s_result = NULL;
 
 		if (!gameIsRunning())
 		{
 			message = "no match is running";
-			return statsexporter::RESPONSE_STATUS_UNAVAILABLE;
+			return localapi::RESPONSE_STATUS_UNAVAILABLE;
 		}
 		if (query.player_index() < 0)
 		{
 			message = "player_index must not be negative";
-			return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+			return localapi::RESPONSE_STATUS_BAD_REQUEST;
 		}
-		const Int gated = StatsExporterGatedPlayerIndex();
+		const Int gated = LocalApiGatedPlayerIndex();
 		if (gated >= 0 && query.player_index() != gated)
 		{
 			message = "only an observer or a replay may read other players";
-			return statsexporter::RESPONSE_STATUS_NOT_ALLOWED;
+			return localapi::RESPONSE_STATUS_NOT_ALLOWED;
 		}
 		if (query.player_index() >= ThePlayerList->getPlayerCount())
 		{
 			message = "no such player";
-			return statsexporter::RESPONSE_STATUS_NOT_FOUND;
+			return localapi::RESPONSE_STATUS_NOT_FOUND;
 		}
 
 		Player* player = ThePlayerList->getNthPlayer(query.player_index());
 		if (player == NULL)
 		{
 			message = "no such player";
-			return statsexporter::RESPONSE_STATUS_NOT_FOUND;
+			return localapi::RESPONSE_STATUS_NOT_FOUND;
 		}
 
-		statsexporter::PlayerDetail& out = arenaResult(s_result);
+		localapi::PlayerDetail& out = arenaResult(s_result);
 		out.set_player_index(player->getPlayerIndex());
 		out.set_name(toUtf8(player->getPlayerDisplayName()));
 		out.set_side(player->getSide().str());
@@ -619,7 +619,7 @@ namespace
 				{
 					continue;
 				}
-				statsexporter::PowerStatus* power = out.add_powers();
+				localapi::PowerStatus* power = out.add_powers();
 				power->set_power_name(spmi->getPowerName().str());
 				power->set_object_id(obj->getID());
 				power->set_template_name(obj->getTemplate()->getName().str());
@@ -648,22 +648,22 @@ namespace
 		}
 
 		out.SerializeToString(&result);
-		return statsexporter::RESPONSE_STATUS_OK;
+		return localapi::RESPONSE_STATUS_OK;
 	}
 
-	Status answerMap(const statsexporter::MapQuery& query, std::string& result, std::string& message)
+	Status answerMap(const localapi::MapQuery& query, std::string& result, std::string& message)
 	{
-		static statsexporter::MapDetail* s_result = NULL;
+		static localapi::MapDetail* s_result = NULL;
 		static std::vector<UnsignedByte> s_pixels;
 
 		if (TheTerrainLogic == NULL || TheGameLogic == NULL || TheGameLogic->isLoadingMap() || !TheGameLogic->isInInteractiveGame())
 		{
 			message = "no map is loaded";
-			return statsexporter::RESPONSE_STATUS_UNAVAILABLE;
+			return localapi::RESPONSE_STATUS_UNAVAILABLE;
 		}
 
-		statsexporter::MapDetail& out = arenaResult(s_result);
-		out.set_map_name(StatsExporterCurrentMapName());
+		localapi::MapDetail& out = arenaResult(s_result);
+		out.set_map_name(LocalApiCurrentMapName());
 
 		Region3D extent;
 		TheTerrainLogic->getExtent(&extent);
@@ -679,7 +679,7 @@ namespace
 		size_t waypointCount = 0;
 		for (Waypoint* waypoint = TheTerrainLogic->getFirstWaypoint(); waypoint != NULL && waypointCount < kMaxWaypoints; waypoint = waypoint->getNext())
 		{
-			statsexporter::WaypointInfo* info = out.add_waypoints();
+			localapi::WaypointInfo* info = out.add_waypoints();
 			info->set_id(waypoint->getID());
 			info->set_name(waypoint->getName().str());
 			info->set_x(waypoint->getLocation()->x);
@@ -692,7 +692,7 @@ namespace
 			char suffix[16] = "";
 			if (sscanf(waypoint->getName().str(), "Player_%d_%15s", &number, suffix) == 2 && _stricmp(suffix, "Start") == 0 && number >= 1)
 			{
-				statsexporter::StartPositionInfo* start = out.add_start_positions();
+				localapi::StartPositionInfo* start = out.add_start_positions();
 				start->set_start_position(number - 1);
 				start->set_x(waypoint->getLocation()->x);
 				start->set_y(waypoint->getLocation()->y);
@@ -706,7 +706,7 @@ namespace
 			Int height = 0;
 			if (TheRadar->getTerrainImageForStats(&s_pixels[0], (UnsignedInt)s_pixels.size(), &width, &height) && width > 0 && height > 0)
 			{
-				statsexporter::Minimap* minimap = out.mutable_minimap();
+				localapi::Minimap* minimap = out.mutable_minimap();
 				minimap->set_width((uint32_t)width);
 				minimap->set_height((uint32_t)height);
 				minimap->set_rgba((const char*)&s_pixels[0], (size_t)width * (size_t)height * 4);
@@ -730,10 +730,10 @@ namespace
 		}
 
 		out.SerializeToString(&result);
-		return statsexporter::RESPONSE_STATUS_OK;
+		return localapi::RESPONSE_STATUS_OK;
 	}
 
-	void fillFeedConfig(statsexporter::FeedConfig& out, const StatsExporterFeedConfig& config)
+	void fillFeedConfig(localapi::FeedConfig& out, const LocalApiFeedConfig& config)
 	{
 		out.set_light_interval_ms(config.lightIntervalMs);
 		out.set_full_interval_ms(config.fullIntervalMs);
@@ -753,11 +753,11 @@ namespace
 		out.set_intensity_window_ms(config.intensityWindowMs);
 	}
 
-	Status answerFeedConfig(StatsExporterSink* sink, Int slot, UnsignedInt epoch, const statsexporter::FeedConfigQuery& query, std::string& result, std::string& message)
+	Status answerFeedConfig(LocalApiSink* sink, Int slot, UnsignedInt epoch, const localapi::FeedConfigQuery& query, std::string& result, std::string& message)
 	{
-		static statsexporter::FeedConfig* s_result = NULL;
+		static localapi::FeedConfig* s_result = NULL;
 
-		StatsExporterFeedConfig config;
+		LocalApiFeedConfig config;
 		sink->getFeedConfig(slot, config);
 		if (query.reset())
 		{
@@ -831,45 +831,45 @@ namespace
 		if (config.lightIntervalMs != 0 && (config.lightIntervalMs < 1 || config.lightIntervalMs > 60000))
 		{
 			message = "light_interval_ms must be 0 or 1..60000";
-			return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+			return localapi::RESPONSE_STATUS_BAD_REQUEST;
 		}
 		if (config.fullIntervalMs != 0 && (config.fullIntervalMs < 100 || config.fullIntervalMs > 60000))
 		{
 			message = "full_interval_ms must be 0 or 100..60000";
-			return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+			return localapi::RESPONSE_STATUS_BAD_REQUEST;
 		}
 		if (config.gridResolution != 8 && config.gridResolution != 16 && config.gridResolution != 32 && config.gridResolution != 64)
 		{
 			message = "grid_resolution must be 8, 16, 32 or 64";
-			return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+			return localapi::RESPONSE_STATUS_BAD_REQUEST;
 		}
 
 		if (config.viewStatsIntervalMs != 0 && (config.viewStatsIntervalMs < 100 || config.viewStatsIntervalMs > 60000))
 		{
 			message = "view_stats_interval_ms must be 0 or 100..60000";
-			return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+			return localapi::RESPONSE_STATUS_BAD_REQUEST;
 		}
 		if (config.interestIntervalMs < 250 || config.interestIntervalMs > 60000)
 		{
 			message = "interest_interval_ms must be 250..60000";
-			return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+			return localapi::RESPONSE_STATUS_BAD_REQUEST;
 		}
 		if (config.notableCost > 10000000)
 		{
 			message = "notable_cost must be 10000000 at most";
-			return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+			return localapi::RESPONSE_STATUS_BAD_REQUEST;
 		}
 		if (config.tradeWindowMs < 1000 || config.tradeWindowMs > 60000 || config.intensityWindowMs < 1000 || config.intensityWindowMs > 60000)
 		{
 			message = "trade_window_ms and intensity_window_ms must be 1000..60000";
-			return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+			return localapi::RESPONSE_STATUS_BAD_REQUEST;
 		}
 
 		sink->setFeedConfig(slot, epoch, config);
-		statsexporter::FeedConfig& out = arenaResult(s_result);
+		localapi::FeedConfig& out = arenaResult(s_result);
 		fillFeedConfig(out, config);
 		out.SerializeToString(&result);
-		return statsexporter::RESPONSE_STATUS_OK;
+		return localapi::RESPONSE_STATUS_OK;
 	}
 
 	void appendVarint(std::string& out, UnsignedInt64 value)
@@ -899,7 +899,7 @@ namespace
 			appendVarint(out, (1 << 3) | 0);
 			appendVarint(out, id);
 		}
-		if (status != statsexporter::RESPONSE_STATUS_OK)
+		if (status != localapi::RESPONSE_STATUS_OK)
 		{
 			appendVarint(out, (2 << 3) | 0);
 			appendVarint(out, (UnsignedInt64)status);
@@ -914,21 +914,21 @@ namespace
 		}
 	}
 
-	void answerRequest(StatsExporterSink* sink, const StatsExporterQueuedRequest& queued)
+	void answerRequest(LocalApiSink* sink, const LocalApiQueuedRequest& queued)
 	{
 		static std::string s_result;
 		static std::string s_response;
 
-		statsexporter::Request request;	// scalars, strings and sub-messages only: nothing here needs the arena
+		localapi::Request request;	// scalars, strings and sub-messages only: nothing here needs the arena
 		UnsignedInt id = 0;
-		Status status = statsexporter::RESPONSE_STATUS_OK;
+		Status status = localapi::RESPONSE_STATUS_OK;
 		std::string message;
 		UnsignedInt resultField = 0;
 		Bool resync = FALSE;
 		Int slot = -1;
 		UnsignedInt epoch = 0;
 
-		for (Int i = 0; i < STATS_EXPORTER_MAX_READERS; ++i)
+		for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
 		{
 			if (queued.from.has(i))
 			{
@@ -940,7 +940,7 @@ namespace
 		s_result.clear();
 		if (slot < 0 || !request.ParseFromArray(queued.body.data(), (int)queued.body.size()))
 		{
-			status = statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+			status = localapi::RESPONSE_STATUS_BAD_REQUEST;
 			message = "undecodable request";
 		}
 		else
@@ -948,77 +948,77 @@ namespace
 			id = request.id();
 			switch (request.query_case())
 			{
-				case statsexporter::Request::kCatalog:
+				case localapi::Request::kCatalog:
 					resultField = kResultCatalog;
 					status = answerCatalog(request.catalog(), s_result, message);
 					break;
-				case statsexporter::Request::kObject:
+				case localapi::Request::kObject:
 					resultField = kResultObject;
 					status = answerObject(request.object(), s_result, message);
 					break;
-				case statsexporter::Request::kObjects:
+				case localapi::Request::kObjects:
 					resultField = kResultObjects;
 					status = answerObjects(request.objects(), s_result, message);
 					break;
-				case statsexporter::Request::kPlayer:
+				case localapi::Request::kPlayer:
 					resultField = kResultPlayer;
 					status = answerPlayer(request.player(), s_result, message);
 					break;
-				case statsexporter::Request::kMap:
+				case localapi::Request::kMap:
 					resultField = kResultMap;
 					status = answerMap(request.map(), s_result, message);
 					break;
-				case statsexporter::Request::kResync:
+				case localapi::Request::kResync:
 					resultField = kResultResync;
 					resync = TRUE;
 					break;
-				case statsexporter::Request::kFeedConfig:
+				case localapi::Request::kFeedConfig:
 					resultField = kResultFeedConfig;
 					status = answerFeedConfig(sink, slot, epoch, request.feed_config(), s_result, message);
 					break;
-				case statsexporter::Request::kCameraControl:
+				case localapi::Request::kCameraControl:
 					resultField = kResultCameraControl;
-					status = (Status)StatsExporterControlCamera(request.camera_control(), s_result, message);
+					status = (Status)LocalApiControlCamera(request.camera_control(), s_result, message);
 					break;
-				case statsexporter::Request::kCameraFollow:
+				case localapi::Request::kCameraFollow:
 					resultField = kResultCameraFollow;
-					status = (Status)StatsExporterControlFollow(request.camera_follow(), s_result, message);
+					status = (Status)LocalApiControlFollow(request.camera_follow(), s_result, message);
 					break;
-				case statsexporter::Request::kReplayControl:
+				case localapi::Request::kReplayControl:
 					resultField = kResultReplayControl;
-					status = (Status)StatsExporterControlReplay(request.replay_control(), s_result, message);
+					status = (Status)LocalApiControlReplay(request.replay_control(), s_result, message);
 					break;
-				case statsexporter::Request::kObserve:
+				case localapi::Request::kObserve:
 					resultField = kResultObserve;
-					status = (Status)StatsExporterControlObserve(request.observe(), s_result, message);
+					status = (Status)LocalApiControlObserve(request.observe(), s_result, message);
 					break;
-				case statsexporter::Request::kLobbyControl:
+				case localapi::Request::kLobbyControl:
 					resultField = kResultLobbyControl;
-					status = (Status)StatsExporterLobbyControl(request.lobby_control(), s_result, message);
+					status = (Status)LocalApiLobbyControl(request.lobby_control(), s_result, message);
 					break;
 				default:
-					status = statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+					status = localapi::RESPONSE_STATUS_BAD_REQUEST;
 					message = "no query set";
 					break;
 			}
 		}
 
-		if (status == statsexporter::RESPONSE_STATUS_OK)
+		if (status == localapi::RESPONSE_STATUS_OK)
 		{
 			buildResponse(s_response, id, status, message, resultField, &s_result);
-			if (s_response.size() > STATS_EXPORTER_MAX_BODY_BYTES)
+			if (s_response.size() > LOCAL_API_MAX_BODY_BYTES)
 			{
-				status = statsexporter::RESPONSE_STATUS_TOO_LARGE;
+				status = localapi::RESPONSE_STATUS_TOO_LARGE;
 				message = "result does not fit a frame, ask for a smaller page";
 				resync = FALSE;
 			}
 		}
-		if (status != statsexporter::RESPONSE_STATUS_OK)
+		if (status != localapi::RESPONSE_STATUS_OK)
 		{
 			buildResponse(s_response, id, status, message, 0, NULL);
 		}
 
-		sink->enqueueFrame(STATS_EXPORTER_FRAME_RESPONSE, (const UnsignedByte*)s_response.data(), (UnsignedInt)s_response.size(), queued.from);
+		sink->enqueueFrame(LOCAL_API_FRAME_RESPONSE, (const UnsignedByte*)s_response.data(), (UnsignedInt)s_response.size(), queued.from);
 
 		// The answer is queued first, then the resync gives the reader a new epoch, which makes every sender repeat its state.
 		if (resync)
@@ -1028,9 +1028,9 @@ namespace
 	}
 }
 
-void StatsExporterQueryPump(StatsExporterSink* sink)
+void LocalApiQueryPump(LocalApiSink* sink)
 {
-	StatsExporterQueuedRequest queued;
+	LocalApiQueuedRequest queued;
 
 	if (!sink->isConnected())
 	{

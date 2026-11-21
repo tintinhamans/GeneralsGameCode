@@ -50,7 +50,7 @@
 #include "GameLogic/PartitionManager.h"
 #include "GameLogic/ScriptActions.h"
 #include "GameLogic/VictoryConditions.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 #include "GameNetwork/GameInfo.h"
 #include "GameNetwork/NetworkDefs.h"
 
@@ -203,7 +203,7 @@ void VictoryConditions::update()
 		if (p && !m_isDefeated[i] && hasSinglePlayerBeenDefeated(p))
 		{
 			m_isDefeated[i] = true;
-			StatsExporterLivePlayerDefeated(p->getPlayerIndex());
+			LocalApiLivePlayerDefeated(p->getPlayerIndex());
 			if (TheGameLogic->getFrame() > 1)
 			{
 				ThePartitionManager->revealMapForPlayerPermanently( p->getPlayerIndex() );

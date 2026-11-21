@@ -62,7 +62,7 @@
 #include "GameLogic/Module/StickyBombUpdate.h"
 #include "GameLogic/Module/StealthUpdate.h"
 #include "GameLogic/Module/ContainModule.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 
 
 
@@ -1330,7 +1330,7 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
 			}
 
 			// GenOnline @feature arcticdolphin 21/11/2026 Success point for building capture powers, excluded from SpecialPowerModule::triggerSpecialPower
-			StatsExporterLiveAbilityUse(
+			LocalApiLiveAbilityUse(
 				object->getControllingPlayer()->getPlayerIndex(),
 				spTemplate,
 				object->getTemplate(),

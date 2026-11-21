@@ -15,9 +15,9 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "Common/StatsExporterLive.h"
-#include "Common/StatsExporterPipe.h"
-#include "Common/StatsExporterQuery.h"
+#include "Common/LocalApiLive.h"
+#include "Common/LocalApiReaders.h"
+#include "Common/LocalApiQuery.h"
 
 #include "Common/GameCommon.h"		// LOGICFRAMES_PER_SECOND, Relationship
 #include "Common/RandomValue.h"		// GetGameLogicRandomSeed, match_id source, private-state generator functions
@@ -82,7 +82,7 @@
 #include "GameClient/InGameUI.h"
 #include "GameClient/Shell.h"
 #include "GameClient/WindowLayout.h"
-#include "Common/StatsExporterControl.h"
+#include "Common/LocalApiControl.h"
 #include "GameLogic/Module/ParticleUplinkCannonUpdate.h"
 
 #include <malloc.h>	// _aligned_malloc
@@ -94,7 +94,7 @@
 #include <string>
 #include <vector>
 
-#include "StatsExporter.pb.h"
+#include "LocalApi.pb.h"
 
 namespace
 {
@@ -180,7 +180,7 @@ namespace
 		return local_to_utf8(std::string((text != NULL) ? text : ""));
 	}
 
-	typedef StatsExporterReaders Readers;
+	typedef LocalApiReaders Readers;
 
 	// Set by the first tick. Hello is sent to new readers only on this thread.
 	DWORD s_mainThreadId = 0;
@@ -190,7 +190,7 @@ namespace
 	{
 		UnsignedInt frame;		///< logic frame at enqueue time, not drain time
 		Int playerIndex;
-		statsexporter::StatEventKind kind;
+		localapi::StatEventKind kind;
 		std::string category;
 		std::string primaryName;
 		std::string secondaryName;
@@ -208,7 +208,7 @@ namespace
 		PendingEvent()
 			: frame(0)
 			, playerIndex(-1)
-			, kind(statsexporter::STATEVENT_ABILITY_USE)
+			, kind(localapi::STATEVENT_ABILITY_USE)
 			, hasLocation(FALSE)
 			, x(0.0f), y(0.0f)
 			, intValue1(0), intValue2(0)
@@ -264,28 +264,28 @@ namespace
 		return *slot;
 	}
 
-	statsexporter::StatsSnapshot& snapshotMessage()
+	localapi::StatsSnapshot& snapshotMessage()
 	{
-		static statsexporter::StatsSnapshot* s_message = NULL;
+		static localapi::StatsSnapshot* s_message = NULL;
 		return arenaMessage(s_message);
 	}
 
-	statsexporter::Events& eventsMessage()
+	localapi::Events& eventsMessage()
 	{
-		static statsexporter::Events* s_message = NULL;
+		static localapi::Events* s_message = NULL;
 		return arenaMessage(s_message);
 	}
 
 	// The stall marker never adds repeated scalars, but it is a StatsSnapshot, so it is arena-allocated too.
-	statsexporter::StatsSnapshot& stallMessage()
+	localapi::StatsSnapshot& stallMessage()
 	{
-		static statsexporter::StatsSnapshot* s_message = NULL;
+		static localapi::StatsSnapshot* s_message = NULL;
 		return arenaMessage(s_message);
 	}
 
-	statsexporter::MatchInfo& matchInfoMessage()
+	localapi::MatchInfo& matchInfoMessage()
 	{
-		static statsexporter::MatchInfo* s_message = NULL;
+		static localapi::MatchInfo* s_message = NULL;
 		return arenaMessage(s_message);
 	}
 
@@ -300,7 +300,7 @@ namespace
 	Bool s_matchEndedSent = FALSE;
 	UnsignedInt s_matchSerial = 0;	// counts matches in this process, so per-match caches know when to start over
 	std::string s_matchId;
-	statsexporter::MatchMode s_matchMode = statsexporter::MATCH_MODE_UNKNOWN;
+	localapi::MatchMode s_matchMode = localapi::MATCH_MODE_UNKNOWN;
 	std::string s_matchMapName;
 	Bool s_matchMapIsUserMap = FALSE;
 	UnsignedInt s_matchStartUnixTime = 0;
@@ -447,7 +447,7 @@ namespace
 	struct Highlight
 	{
 		UnsignedInt id;
-		int kind;				// statsexporter::HighlightKind
+		int kind;				// localapi::HighlightKind
 		Int playerIndex;
 		std::string templateName;
 		std::string powerName;
@@ -650,7 +650,7 @@ namespace
 		for (size_t i = 0; i < list.size(); ++i)
 		{
 			Highlight& h = list[i];
-			if (h.kind == statsexporter::HIGHLIGHT_SUPERWEAPON_LAUNCH && h.playerIndex == playerIndex && h.expireFrame > now
+			if (h.kind == localapi::HIGHLIGHT_SUPERWEAPON_LAUNCH && h.playerIndex == playerIndex && h.expireFrame > now
 				&& fabsf(h.x - x) < 100.0f && fabsf(h.y - y) < 100.0f)
 			{
 				return &h;
@@ -661,7 +661,7 @@ namespace
 
 	Bool viewTrackingActive()
 	{
-		StatsExporterSink* sink = StatsExporterPipeGetSink();
+		LocalApiSink* sink = LocalApiReadersGetSink();
 		return sink != NULL && sink->isConnected() && TheGameLogic != NULL && TheGameLogic->isInInteractiveGame() && TheGameLogic->getFrame() > 0;
 	}
 
@@ -769,19 +769,19 @@ namespace
 	Int s_observerCameraStartPosition = -1;
 	Int s_observerCameraLobbySlot = -1;
 
-	void syncUiState(StatsExporterSink* sink);
+	void syncUiState(LocalApiSink* sink);
 
 	// GAME_SHELL and GAME_NONE never reach this.
-	statsexporter::MatchMode mapMatchMode()
+	localapi::MatchMode mapMatchMode()
 	{
 		switch (TheGameLogic->getGameMode())
 		{
-			case GAME_SINGLE_PLAYER: return statsexporter::MATCH_MODE_SINGLE_PLAYER;
-			case GAME_SKIRMISH:      return statsexporter::MATCH_MODE_SKIRMISH;
-			case GAME_LAN:           return statsexporter::MATCH_MODE_LAN;
-			case GAME_INTERNET:      return statsexporter::MATCH_MODE_ONLINE;
-			case GAME_REPLAY:        return statsexporter::MATCH_MODE_REPLAY;
-			default:                 return statsexporter::MATCH_MODE_UNKNOWN;
+			case GAME_SINGLE_PLAYER: return localapi::MATCH_MODE_SINGLE_PLAYER;
+			case GAME_SKIRMISH:      return localapi::MATCH_MODE_SKIRMISH;
+			case GAME_LAN:           return localapi::MATCH_MODE_LAN;
+			case GAME_INTERNET:      return localapi::MATCH_MODE_ONLINE;
+			case GAME_REPLAY:        return localapi::MATCH_MODE_REPLAY;
+			default:                 return localapi::MATCH_MODE_UNKNOWN;
 		}
 	}
 
@@ -814,16 +814,16 @@ namespace
 	// Online match data is captured at STARTED so ENDED and reconnects agree.
 	Bool s_hasOnlineMatch = FALSE;
 
-	statsexporter::OnlineMatch& onlineMatchMessage()
+	localapi::OnlineMatch& onlineMatchMessage()
 	{
-		static statsexporter::OnlineMatch* s_message = NULL;
+		static localapi::OnlineMatch* s_message = NULL;
 		return arenaMessage(s_message);
 	}
 
 	struct OnlinePlayerEntry
 	{
 		Int lobbySlot;
-		statsexporter::OnlinePlayer data;
+		localapi::OnlinePlayer data;
 	};
 
 	std::vector<OnlinePlayerEntry>& onlinePlayers()
@@ -899,14 +899,14 @@ namespace
 	}
 
 	// Only what the client already holds: the lobby entry, the lobby members and the cached stats shown in the lobby tooltip.
-	void fillOnlineMatch(statsexporter::OnlineMatch& m, const LobbyEntry& entry)
+	void fillOnlineMatch(localapi::OnlineMatch& m, const LobbyEntry& entry)
 	{
 		m.Clear();
 		m.set_match_id(currentOnlineMatchId());
 		m.set_lobby_id(entry.lobbyID);
 		m.set_lobby_name(entry.name);
-		m.set_lobby_type(entry.lobby_type == ELobbyType::QuickMatch ? statsexporter::ONLINE_LOBBY_QUICKMATCH
-			: (entry.lobby_type == ELobbyType::CustomGame ? statsexporter::ONLINE_LOBBY_CUSTOM : statsexporter::ONLINE_LOBBY_UNKNOWN));
+		m.set_lobby_type(entry.lobby_type == ELobbyType::QuickMatch ? localapi::ONLINE_LOBBY_QUICKMATCH
+			: (entry.lobby_type == ELobbyType::CustomGame ? localapi::ONLINE_LOBBY_CUSTOM : localapi::ONLINE_LOBBY_UNKNOWN));
 		m.set_map_official(entry.map_official);
 		m.set_starting_cash(entry.starting_cash);
 		m.set_limit_superweapons(entry.limit_superweapons);
@@ -918,7 +918,7 @@ namespace
 		m.set_region(entry.region);
 	}
 
-	void fillOnlinePlayer(statsexporter::OnlinePlayer& out, GenOnlineLobbyInterface* lobby, int64_t userId)
+	void fillOnlinePlayer(localapi::OnlinePlayer& out, GenOnlineLobbyInterface* lobby, int64_t userId)
 	{
 		out.set_user_id(userId);
 		out.set_display_name(lobby->GetRoomMemberFromID(userId).display_name);
@@ -971,7 +971,7 @@ namespace
 		s_hasOnlineMatch = TRUE;
 	}
 
-	void fillConnection(statsexporter::OnlineConnection* out, int64_t userId, PlayerConnection& connection)
+	void fillConnection(localapi::OnlineConnection* out, int64_t userId, PlayerConnection& connection)
 	{
 		out->set_user_id(userId);
 		out->set_latency_ms(connection.GetLatency());
@@ -999,7 +999,7 @@ namespace
 	// reported_fps and latency_ms come from the run ahead metrics of the engine. Each client measures its own display FPS and frame
 	// round-trip latency and sends them to the packet router only, so a client that is not the router knows only its own.
 	// ping_ms / relayed come from the Generals Online mesh connection between the local client and that player.
-	void fillNetworkStats(statsexporter::PlayerStats* out, Int slot, const Player* player)
+	void fillNetworkStats(localapi::PlayerStats* out, Int slot, const Player* player)
 	{
 		if (TheNetwork == NULL || TheGameInfo == NULL)
 		{
@@ -1011,7 +1011,7 @@ namespace
 			return;
 		}
 
-		statsexporter::NetworkStats* network = out->mutable_network();
+		localapi::NetworkStats* network = out->mutable_network();
 		const Bool isLocal = (player == ThePlayerList->getLocalPlayer());
 		network->set_is_local(isLocal);
 		network->set_reported_fps(-1);
@@ -1138,19 +1138,19 @@ namespace
 	}
 
 	// An oversized message is dropped, never sent partially.
-	void sendMessage(StatsExporterSink* sink, UnsignedByte frameType, const google::protobuf::MessageLite& message, const Readers& to)
+	void sendMessage(LocalApiSink* sink, UnsignedByte frameType, const google::protobuf::MessageLite& message, const Readers& to)
 	{
 		const size_t size = message.ByteSizeLong();
 		if (size == 0)
 		{
 			return;
 		}
-		if (size > STATS_EXPORTER_MAX_BODY_BYTES)
+		if (size > LOCAL_API_MAX_BODY_BYTES)
 		{
 			if (!s_loggedOversizedFrame)
 			{
 				s_loggedOversizedFrame = TRUE;
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsExporter] Dropping frame type %d, %u bytes exceeds the %u byte cap", (int)frameType, (unsigned)size, (unsigned)STATS_EXPORTER_MAX_BODY_BYTES);
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[LocalApi] Dropping frame type %d, %u bytes exceeds the %u byte cap", (int)frameType, (unsigned)size, (unsigned)LOCAL_API_MAX_BODY_BYTES);
 			}
 			return;
 		}
@@ -1164,13 +1164,13 @@ namespace
 		sink->enqueueFrame(frameType, (const UnsignedByte*)buffer.data(), (UnsignedInt)size, to);
 	}
 
-	statsexporter::Hello& helloMessage()
+	localapi::Hello& helloMessage()
 	{
-		static statsexporter::Hello* s_message = NULL;
+		static localapi::Hello* s_message = NULL;
 		return arenaMessage(s_message);
 	}
 
-	void sendHello(StatsExporterSink* sink, Int slot, const Readers& to)
+	void sendHello(LocalApiSink* sink, Int slot, const Readers& to)
 	{
 		static const char* const kCapabilities[] =
 		{
@@ -1180,9 +1180,9 @@ namespace
 			"camera.control", "camera.follow", "camera.source", "replay.control", "observe.player", "view_stats", "interest_map", "status.not_allowed", "lobby.control"
 		};
 
-		statsexporter::Hello& hello = helloMessage();
+		localapi::Hello& hello = helloMessage();
 		hello.Clear();
-		hello.set_protocol_version(STATS_EXPORTER_PROTOCOL_VERSION);
+		hello.set_protocol_version(LOCAL_API_PROTOCOL_VERSION);
 		if (TheVersion != NULL)
 		{
 			hello.set_game_version(TheVersion->getAsciiVersion().str());
@@ -1197,27 +1197,27 @@ namespace
 		{
 			hello.add_capabilities(kCapabilities[i]);
 		}
-		hello.set_max_requests_per_second(STATS_EXPORTER_MAX_REQUESTS_PER_SECOND);
+		hello.set_max_requests_per_second(LOCAL_API_MAX_REQUESTS_PER_SECOND);
 		hello.set_reader_slot((uint32_t)slot);
-		hello.set_max_readers(STATS_EXPORTER_MAX_READERS);
-		hello.set_epoch_unix_ms(StatsExporterEpochUnixMs());
-		hello.set_max_request_burst(STATS_EXPORTER_REQUEST_BURST);
-		hello.set_max_page_size(STATS_EXPORTER_MAX_PAGE_SIZE);
-		hello.set_queue_capacity_bytes(STATS_EXPORTER_QUEUE_CAPACITY_BYTES);
+		hello.set_max_readers(LOCAL_API_MAX_READERS);
+		hello.set_epoch_unix_ms(LocalApiEpochUnixMs());
+		hello.set_max_request_burst(LOCAL_API_REQUEST_BURST);
+		hello.set_max_page_size(LOCAL_API_MAX_PAGE_SIZE);
+		hello.set_queue_capacity_bytes(LOCAL_API_QUEUE_CAPACITY_BYTES);
 #if RTS_ZEROHOUR
 		hello.set_game("zerohour");
 #else
 		hello.set_game("generals");
 #endif
-		sendMessage(sink, STATS_EXPORTER_FRAME_HELLO, hello, to);
+		sendMessage(sink, LOCAL_API_FRAME_HELLO, hello, to);
 	}
 
 	// Sends the Hello to every reader that connected since the last call, and only then lets the other frames reach it.
-	void welcomeNewReaders(StatsExporterSink* sink)
+	void welcomeNewReaders(LocalApiSink* sink)
 	{
 		Readers fresh;
 		sink->getUnwelcomedReaders(fresh);
-		for (Int slot = 0; slot < STATS_EXPORTER_MAX_READERS; ++slot)
+		for (Int slot = 0; slot < LOCAL_API_MAX_READERS; ++slot)
 		{
 			if (!fresh.has(slot))
 			{
@@ -1231,7 +1231,7 @@ namespace
 	}
 
 	// The readers frames can be sent to now (their Hello is out). On the main thread this welcomes new readers first.
-	Readers readyReaders(StatsExporterSink* sink)
+	Readers readyReaders(LocalApiSink* sink)
 	{
 		Readers readers;
 		if (GetCurrentThreadId() == s_mainThreadId)
@@ -1242,16 +1242,16 @@ namespace
 		return readers;
 	}
 
-	Readers feedFilter(StatsExporterSink* sink, const Readers& readers, Bool StatsExporterFeedConfig::* flag)
+	Readers feedFilter(LocalApiSink* sink, const Readers& readers, Bool LocalApiFeedConfig::* flag)
 	{
 		Readers result;
-		for (Int slot = 0; slot < STATS_EXPORTER_MAX_READERS; ++slot)
+		for (Int slot = 0; slot < LOCAL_API_MAX_READERS; ++slot)
 		{
 			if (!readers.has(slot))
 			{
 				continue;
 			}
-			StatsExporterFeedConfig config;
+			LocalApiFeedConfig config;
 			sink->getFeedConfig(slot, config);
 			if (config.*flag)
 			{
@@ -1291,7 +1291,7 @@ namespace
 	// Per-slot MatchPlayer builder. Results are UNKNOWN (OBSERVER for observers) until `ended`. On ENDED a decisive result
 	// (`completed`) gives the victorious alliance WON and everyone else LOST, and without one a player who left is LEFT, a defeated
 	// player LOST and any other UNKNOWN.
-	void buildMatchPlayers(statsexporter::MatchInfo& info, Bool ended, Bool completed)
+	void buildMatchPlayers(localapi::MatchInfo& info, Bool ended, Bool completed)
 	{
 		for (Int slot = 0; slot < MAX_SLOTS; ++slot)
 		{
@@ -1301,7 +1301,7 @@ namespace
 				continue;
 			}
 
-			statsexporter::MatchPlayer* p = info.add_players();
+			localapi::MatchPlayer* p = info.add_players();
 			p->set_lobby_slot((uint32_t)slot);
 			p->set_player_index(player->getPlayerIndex());
 			p->set_name(toUtf8(player->getPlayerDisplayName()));
@@ -1334,7 +1334,7 @@ namespace
 							p->set_start_y(waypoint->getLocation()->y);
 						}
 					}
-					if (s_matchMode == statsexporter::MATCH_MODE_LAN && gameSlot->getIP() != 0)
+					if (s_matchMode == localapi::MATCH_MODE_LAN && gameSlot->getIP() != 0)
 					{
 						char ip[32];
 						sprintf(ip, "%u.%u.%u.%u", PRINTF_IP_AS_4_INTS(gameSlot->getIP()));
@@ -1347,32 +1347,32 @@ namespace
 
 			if (player->isPlayerObserver())
 			{
-				p->set_result(statsexporter::PLAYER_RESULT_OBSERVER);
+				p->set_result(localapi::PLAYER_RESULT_OBSERVER);
 			}
 			else if (!ended)
 			{
-				p->set_result(statsexporter::PLAYER_RESULT_UNKNOWN);
+				p->set_result(localapi::PLAYER_RESULT_UNKNOWN);
 			}
 			else if (completed && TheVictoryConditions != NULL)
 			{
-				p->set_result(TheVictoryConditions->hasAchievedVictory(player) ? statsexporter::PLAYER_RESULT_WON : statsexporter::PLAYER_RESULT_LOST);
+				p->set_result(TheVictoryConditions->hasAchievedVictory(player) ? localapi::PLAYER_RESULT_WON : localapi::PLAYER_RESULT_LOST);
 			}
 			else if (hasPlayerLeft(player))
 			{
-				p->set_result(statsexporter::PLAYER_RESULT_LEFT);
+				p->set_result(localapi::PLAYER_RESULT_LEFT);
 			}
 			else if (isPlayerDefeated(player))
 			{
-				p->set_result(statsexporter::PLAYER_RESULT_LOST);
+				p->set_result(localapi::PLAYER_RESULT_LOST);
 			}
 			else
 			{
-				p->set_result(statsexporter::PLAYER_RESULT_UNKNOWN);
+				p->set_result(localapi::PLAYER_RESULT_UNKNOWN);
 			}
 		}
 	}
 
-	void fillMatchInfo(statsexporter::MatchInfo& info, statsexporter::MatchPhase phase, UnsignedInt durationFrames,
+	void fillMatchInfo(localapi::MatchInfo& info, localapi::MatchPhase phase, UnsignedInt durationFrames,
 		const AsciiString& replayPath, Bool replayIsPlayback, Bool completed)
 	{
 		info.Clear();
@@ -1388,7 +1388,7 @@ namespace
 		info.set_replay_is_playback(replayIsPlayback);
 		info.set_completed(completed);
 		info.set_local_player_index(localPlayerIndex());
-		buildMatchPlayers(info, phase == statsexporter::MATCH_PHASE_ENDED, completed);
+		buildMatchPlayers(info, phase == localapi::MATCH_PHASE_ENDED, completed);
 
 		if (TheTerrainLogic != NULL && TheGameLogic != NULL && !TheGameLogic->isLoadingMap())
 		{
@@ -1406,7 +1406,7 @@ namespace
 
 		if (s_hasObserverCamera)
 		{
-			statsexporter::ObserverCamera* camera = info.mutable_observer_camera();
+			localapi::ObserverCamera* camera = info.mutable_observer_camera();
 			camera->set_start_position(s_observerCameraStartPosition);
 			camera->set_lobby_slot(s_observerCameraLobbySlot);
 			camera->set_player_index(-1);
@@ -1440,7 +1440,7 @@ namespace
 	void pushPendingEvent(PendingEvent& event)
 	{
 		// Single choke point for every event hook: nothing accumulates while no reader is connected.
-		StatsExporterSink* sink = StatsExporterPipeGetSink();
+		LocalApiSink* sink = LocalApiReadersGetSink();
 		if (sink == NULL || !sink->isConnected())
 		{
 			return;
@@ -1467,7 +1467,7 @@ namespace
 		events.push_back(event);
 	}
 
-	void fillSpeedFields(statsexporter::StatsSnapshot& snapshot)
+	void fillSpeedFields(localapi::StatsSnapshot& snapshot)
 	{
 		if (TheFramePacer != NULL)
 		{
@@ -1495,24 +1495,24 @@ namespace
 		{
 			return FALSE;
 		}
-		if (event.kind == statsexporter::STATEVENT_PLAYER_LEFT || event.kind == statsexporter::STATEVENT_PLAYER_DEFEATED)
+		if (event.kind == localapi::STATEVENT_PLAYER_LEFT || event.kind == localapi::STATEVENT_PLAYER_DEFEATED)
 		{
 			return FALSE;
 		}
-		return !(event.kind == statsexporter::STATEVENT_CAPTURE && event.intValue1 == gated);
+		return !(event.kind == localapi::STATEVENT_CAPTURE && event.intValue1 == gated);
 	}
 
 	// Sends the pending events to the readers that want them, one Events frame per logic frame they happened in, and empties the queue.
-	void flushPendingEvents(StatsExporterSink* sink, const Readers& started)
+	void flushPendingEvents(LocalApiSink* sink, const Readers& started)
 	{
 		std::vector<PendingEvent>& events = pendingEvents();
-		const Readers recipients = feedFilter(sink, started, &StatsExporterFeedConfig::events);
+		const Readers recipients = feedFilter(sink, started, &LocalApiFeedConfig::events);
 		if (recipients.empty())
 		{
 			events.clear();
 			return;
 		}
-		const Int gated = StatsExporterGatedPlayerIndex();
+		const Int gated = LocalApiGatedPlayerIndex();
 		if (gated >= 0)
 		{
 			events.erase(std::remove_if(events.begin(), events.end(), [gated](const PendingEvent& event) { return eventHidden(event, gated); }), events.end());
@@ -1526,13 +1526,13 @@ namespace
 				++count;
 			}
 
-			statsexporter::Events& message = eventsMessage();
+			localapi::Events& message = eventsMessage();
 			message.Clear();
 			message.set_frame(frame);
 			for (size_t i = 0; i < count; ++i)
 			{
 				const PendingEvent& src = events[i];
-				statsexporter::StatEvent* dst = message.add_events();
+				localapi::StatEvent* dst = message.add_events();
 				dst->set_frame(src.frame);
 				dst->set_player_index(src.playerIndex);
 				dst->set_kind(src.kind);
@@ -1552,7 +1552,7 @@ namespace
 				dst->set_weapon(src.weapon);
 			}
 			events.erase(events.begin(), events.begin() + count);
-			sendMessage(sink, STATS_EXPORTER_FRAME_EVENTS, message, recipients);
+			sendMessage(sink, LOCAL_API_FRAME_EVENTS, message, recipients);
 		}
 	}
 
@@ -1560,7 +1560,7 @@ namespace
 	{
 		Int playerIndex;
 		const ThingTemplate* tmpl;
-		statsexporter::TemplateCount* count;
+		localapi::TemplateCount* count;
 	};
 
 	std::vector<TemplateCountRef>& templateCountRefs()
@@ -1597,7 +1597,7 @@ namespace
 		}
 	}
 
-	statsexporter::TemplateCount* templateCount(statsexporter::PlayerStats* accumulator, Int playerIndex, const ThingTemplate* tmpl)
+	localapi::TemplateCount* templateCount(localapi::PlayerStats* accumulator, Int playerIndex, const ThingTemplate* tmpl)
 	{
 		std::vector<TemplateCountRef>& refs = templateCountRefs();
 		TemplateCountSlot* slot = NULL;
@@ -1629,7 +1629,7 @@ namespace
 			}
 		}
 
-		statsexporter::TemplateCount* found = accumulator->add_live_template_counts();
+		localapi::TemplateCount* found = accumulator->add_live_template_counts();
 		found->set_template_name(tmpl->getName().str());
 		TemplateCountRef ref;
 		ref.playerIndex = playerIndex;
@@ -1645,28 +1645,28 @@ namespace
 	}
 }
 
-google::protobuf::Arena& StatsExporterArena()
+google::protobuf::Arena& LocalApiArena()
 {
 	return exporterArena();
 }
 
-std::string StatsExporterCurrentMapName()
+std::string LocalApiCurrentMapName()
 {
 	return (TheWritableGlobalData != NULL) ? exportedMapName(TheWritableGlobalData->m_mapName.str(), NULL) : std::string();
 }
 
-void StatsExporterLiveAbilityUse(Int playerIndex, const SpecialPowerTemplate* power,
+void LocalApiLiveAbilityUse(Int playerIndex, const SpecialPowerTemplate* power,
 	const ThingTemplate* sourceTmpl, const ThingTemplate* targetTmpl,
 	const Coord3D* location, const char* variant)
 {
-	if (StatsExporterPipeGetSink() == NULL)
+	if (LocalApiReadersGetSink() == NULL)
 	{
 		return;
 	}
 
 	PendingEvent event;
 	event.playerIndex = playerIndex;
-	event.kind = statsexporter::STATEVENT_ABILITY_USE;
+	event.kind = localapi::STATEVENT_ABILITY_USE;
 	event.category = isSuperweaponPower(power) ? "SUPERWEAPON" : "ABILITY";
 	event.primaryName = (power != NULL) ? power->getName().str() : "";
 	// With a target (building capture) secondary_name is the target and the acting unit moves to the variant, otherwise it is the source.
@@ -1688,16 +1688,16 @@ void StatsExporterLiveAbilityUse(Int playerIndex, const SpecialPowerTemplate* po
 	pushPendingEvent(event);
 }
 
-void StatsExporterLiveScienceAcquired(Int playerIndex, Int rankLevel, Int sciencePurchasePoints, const char* scienceName)
+void LocalApiLiveScienceAcquired(Int playerIndex, Int rankLevel, Int sciencePurchasePoints, const char* scienceName)
 {
-	if (StatsExporterPipeGetSink() == NULL)
+	if (LocalApiReadersGetSink() == NULL)
 	{
 		return;
 	}
 
 	PendingEvent event;
 	event.playerIndex = playerIndex;
-	event.kind = statsexporter::STATEVENT_SCIENCE_PURCHASE;
+	event.kind = localapi::STATEVENT_SCIENCE_PURCHASE;
 	event.category = "SCIENCE";
 	event.primaryName = (scienceName != NULL) ? scienceName : "";
 	event.intValue1 = rankLevel;
@@ -1705,16 +1705,16 @@ void StatsExporterLiveScienceAcquired(Int playerIndex, Int rankLevel, Int scienc
 	pushPendingEvent(event);
 }
 
-void StatsExporterLiveBuild(Int playerIndex, const ThingTemplate* tmpl, ObjectID objectId, Int veterancyLevel)
+void LocalApiLiveBuild(Int playerIndex, const ThingTemplate* tmpl, ObjectID objectId, Int veterancyLevel)
 {
-	if (StatsExporterPipeGetSink() == NULL)
+	if (LocalApiReadersGetSink() == NULL)
 	{
 		return;
 	}
 
 	PendingEvent event;
 	event.playerIndex = playerIndex;
-	event.kind = statsexporter::STATEVENT_BUILD;
+	event.kind = localapi::STATEVENT_BUILD;
 	event.category = classifyThingTemplateCategory(tmpl);
 	event.primaryName = templateName(tmpl);
 	event.intValue1 = veterancyLevel;	// the level the object starts with, not a promotion
@@ -1722,9 +1722,9 @@ void StatsExporterLiveBuild(Int playerIndex, const ThingTemplate* tmpl, ObjectID
 	pushPendingEvent(event);
 }
 
-void StatsExporterLiveKill(Int playerIndex, const Object* killer, const Object* victim)
+void LocalApiLiveKill(Int playerIndex, const Object* killer, const Object* victim)
 {
-	if (StatsExporterPipeGetSink() == NULL || victim == NULL)
+	if (LocalApiReadersGetSink() == NULL || victim == NULL)
 	{
 		return;
 	}
@@ -1732,7 +1732,7 @@ void StatsExporterLiveKill(Int playerIndex, const Object* killer, const Object* 
 	const ThingTemplate* victimTmpl = victim->getTemplate();
 	PendingEvent event;
 	event.playerIndex = playerIndex;
-	event.kind = statsexporter::STATEVENT_KILL;
+	event.kind = localapi::STATEVENT_KILL;
 	event.category = classifyThingTemplateCategory(victimTmpl);
 	event.primaryName = templateName(victimTmpl);
 	event.objectId = victim->getID();
@@ -1766,9 +1766,9 @@ void StatsExporterLiveKill(Int playerIndex, const Object* killer, const Object* 
 	pushPendingEvent(event);
 }
 
-void StatsExporterLiveLoss(Int playerIndex, const Object* victim, const Object* killer)
+void LocalApiLiveLoss(Int playerIndex, const Object* victim, const Object* killer)
 {
-	if (StatsExporterPipeGetSink() == NULL || victim == NULL)
+	if (LocalApiReadersGetSink() == NULL || victim == NULL)
 	{
 		return;
 	}
@@ -1776,7 +1776,7 @@ void StatsExporterLiveLoss(Int playerIndex, const Object* victim, const Object* 
 	const ThingTemplate* victimTmpl = victim->getTemplate();
 	PendingEvent event;
 	event.playerIndex = playerIndex;
-	event.kind = statsexporter::STATEVENT_LOSS;
+	event.kind = localapi::STATEVENT_LOSS;
 	event.category = classifyThingTemplateCategory(victimTmpl);
 	event.primaryName = templateName(victimTmpl);
 	event.objectId = victim->getID();
@@ -1807,26 +1807,26 @@ void StatsExporterLiveLoss(Int playerIndex, const Object* victim, const Object* 
 		const UnsignedInt expire = now + kHighlightSeconds * LOGICFRAMES_PER_SECOND;
 		if (victimTmpl != NULL && victimTmpl->isKindOf(KINDOF_HERO))
 		{
-			addHighlight(statsexporter::HIGHLIGHT_HERO_DEATH, playerIndex, templateName(victimTmpl), "", where->x, where->y, now, 0, FALSE, expire, event.cost, victim->getID());
+			addHighlight(localapi::HIGHLIGHT_HERO_DEATH, playerIndex, templateName(victimTmpl), "", where->x, where->y, now, 0, FALSE, expire, event.cost, victim->getID());
 		}
 		else if (victimTmpl != NULL && victimTmpl->isKindOf(KINDOF_STRUCTURE) && event.cost >= kHighlightStructureCost)
 		{
-			addHighlight(statsexporter::HIGHLIGHT_STRUCTURE_LOST, playerIndex, templateName(victimTmpl), "", where->x, where->y, now, 0, FALSE, expire, event.cost, victim->getID());
+			addHighlight(localapi::HIGHLIGHT_STRUCTURE_LOST, playerIndex, templateName(victimTmpl), "", where->x, where->y, now, 0, FALSE, expire, event.cost, victim->getID());
 		}
 	}
 	pushPendingEvent(event);
 }
 
-void StatsExporterLiveEvacuate(Int playerIndex, const ThingTemplate* containerTmpl, UnsignedInt passengerCount)
+void LocalApiLiveEvacuate(Int playerIndex, const ThingTemplate* containerTmpl, UnsignedInt passengerCount)
 {
-	if (StatsExporterPipeGetSink() == NULL)
+	if (LocalApiReadersGetSink() == NULL)
 	{
 		return;
 	}
 
 	PendingEvent event;
 	event.playerIndex = playerIndex;
-	event.kind = statsexporter::STATEVENT_EVACUATE;
+	event.kind = localapi::STATEVENT_EVACUATE;
 	event.category = classifyThingTemplateCategory(containerTmpl);
 	event.primaryName = templateName(containerTmpl);
 	char count[32];
@@ -1835,9 +1835,9 @@ void StatsExporterLiveEvacuate(Int playerIndex, const ThingTemplate* containerTm
 	pushPendingEvent(event);
 }
 
-void StatsExporterLiveVeterancyChange(Int playerIndex, const ThingTemplate* tmpl, ObjectID objectId, Int oldLevel, Int newLevel)
+void LocalApiLiveVeterancyChange(Int playerIndex, const ThingTemplate* tmpl, ObjectID objectId, Int oldLevel, Int newLevel)
 {
-	if (StatsExporterPipeGetSink() == NULL)
+	if (LocalApiReadersGetSink() == NULL)
 	{
 		return;
 	}
@@ -1845,7 +1845,7 @@ void StatsExporterLiveVeterancyChange(Int playerIndex, const ThingTemplate* tmpl
 	// Only promotions earned from experience come through here, never levels assigned at creation.
 	PendingEvent event;
 	event.playerIndex = playerIndex;
-	event.kind = statsexporter::STATEVENT_VETERANCY_CHANGE;
+	event.kind = localapi::STATEVENT_VETERANCY_CHANGE;
 	event.category = classifyThingTemplateCategory(tmpl);
 	event.primaryName = templateName(tmpl);
 	event.intValue1 = oldLevel;
@@ -1854,23 +1854,23 @@ void StatsExporterLiveVeterancyChange(Int playerIndex, const ThingTemplate* tmpl
 	pushPendingEvent(event);
 }
 
-void StatsExporterLiveSalvageUpgrade(Int playerIndex, const ThingTemplate* tmpl, const char* upgradeKind, Int tier)
+void LocalApiLiveSalvageUpgrade(Int playerIndex, const ThingTemplate* tmpl, const char* upgradeKind, Int tier)
 {
-	if (StatsExporterPipeGetSink() == NULL)
+	if (LocalApiReadersGetSink() == NULL)
 	{
 		return;
 	}
 
 	PendingEvent event;
 	event.playerIndex = playerIndex;
-	event.kind = statsexporter::STATEVENT_SALVAGE_UPGRADE;
+	event.kind = localapi::STATEVENT_SALVAGE_UPGRADE;
 	event.category = (upgradeKind != NULL) ? upgradeKind : "";
 	event.primaryName = templateName(tmpl);
 	event.intValue1 = tier;
 	pushPendingEvent(event);
 }
 
-void StatsExporterLiveDamage(const Object* victim, ObjectID attackerId, Real healthRemoved)
+void LocalApiLiveDamage(const Object* victim, ObjectID attackerId, Real healthRemoved)
 {
 	if (victim == NULL || healthRemoved <= 0.0f || !viewTrackingActive() || killCategory(victim->getTemplate()) < 0)
 	{
@@ -1895,7 +1895,7 @@ void StatsExporterLiveDamage(const Object* victim, ObjectID attackerId, Real hea
 	}
 }
 
-void StatsExporterLiveSuperweaponFired(const Object* source, const SpecialPowerTemplate* power, const Coord3D* location)
+void LocalApiLiveSuperweaponFired(const Object* source, const SpecialPowerTemplate* power, const Coord3D* location)
 {
 	if (source == NULL || power == NULL || location == NULL || !isSuperweaponPower(power) || !viewTrackingActive())
 	{
@@ -1936,11 +1936,11 @@ void StatsExporterLiveSuperweaponFired(const Object* source, const SpecialPowerT
 			expire = impact + firing + grow + 2 * LOGICFRAMES_PER_SECOND;
 		}
 	}
-	addHighlight(statsexporter::HIGHLIGHT_SUPERWEAPON_LAUNCH, owner->getPlayerIndex(), templateName(source->getTemplate()), power->getName().str(),
+	addHighlight(localapi::HIGHLIGHT_SUPERWEAPON_LAUNCH, owner->getPlayerIndex(), templateName(source->getTemplate()), power->getName().str(),
 		location->x, location->y, now, impact, FALSE, expire, 0, source->getID());
 }
 
-void StatsExporterLiveMissileLaunched(const Object* missile, const Coord3D* target, Real secondsToImpact)
+void LocalApiLiveMissileLaunched(const Object* missile, const Coord3D* target, Real secondsToImpact)
 {
 	if (missile == NULL || target == NULL || secondsToImpact <= 0.0f || !viewTrackingActive())
 	{
@@ -1965,7 +1965,7 @@ void StatsExporterLiveMissileLaunched(const Object* missile, const Coord3D* targ
 		s_highlightsDirty = TRUE;
 		return;
 	}
-	addHighlight(statsexporter::HIGHLIGHT_SUPERWEAPON_LAUNCH, owner->getPlayerIndex(), templateName(missile->getTemplate()), "",
+	addHighlight(localapi::HIGHLIGHT_SUPERWEAPON_LAUNCH, owner->getPlayerIndex(), templateName(missile->getTemplate()), "",
 		target->x, target->y, now, impact, TRUE, expire, 0, missile->getID());
 }
 
@@ -1988,7 +1988,7 @@ namespace
 
 	Bool buildSnapshot(UnsignedInt now, Bool full, const SnapshotOptions& options)
 	{
-		statsexporter::StatsSnapshot& snapshot = snapshotMessage();
+		localapi::StatsSnapshot& snapshot = snapshotMessage();
 		snapshot.Clear();
 		snapshot.set_frame(now);
 		snapshot.set_full(full);
@@ -2029,7 +2029,7 @@ namespace
 		}
 
 		// While gated only the local player gets an entry, so the object walk below finds no accumulator for other players' objects.
-		const Int gated = StatsExporterGatedPlayerIndex();
+		const Int gated = LocalApiGatedPlayerIndex();
 
 		// One entry per non-observer slot player, defeated and departed ones included.
 		for (Int slot = 0; slot < MAX_SLOTS; ++slot)
@@ -2045,10 +2045,10 @@ namespace
 				continue;
 			}
 
-			statsexporter::PlayerStats* p = snapshot.add_players();
+			localapi::PlayerStats* p = snapshot.add_players();
 			p->set_player_index(player->getPlayerIndex());
-			p->set_state(hasPlayerLeft(player) ? statsexporter::PLAYER_STATE_LEFT
-				: (isPlayerDefeated(player) ? statsexporter::PLAYER_STATE_DEFEATED : statsexporter::PLAYER_STATE_ACTIVE));
+			p->set_state(hasPlayerLeft(player) ? localapi::PLAYER_STATE_LEFT
+				: (isPlayerDefeated(player) ? localapi::PLAYER_STATE_DEFEATED : localapi::PLAYER_STATE_ACTIVE));
 			p->set_money(player->getMoney()->countMoney());
 			p->set_energy_production(player->getEnergy()->getProduction());
 			p->set_energy_consumption(player->getEnergy()->getConsumption());
@@ -2085,17 +2085,17 @@ namespace
 				}
 			}
 
-			p->set_radar((statsexporter::RadarState)player->getRadarStateForStats());
+			p->set_radar((localapi::RadarState)player->getRadarStateForStats());
 #if RTS_ZEROHOUR
 			const Int battlePlan = player->getActiveBattlePlan();
 #else
 			const Int battlePlan = PLANSTATUS_NONE;
 #endif
-			p->set_battle_plan((statsexporter::BattlePlan)battlePlan);
+			p->set_battle_plan((localapi::BattlePlan)battlePlan);
 			if (full)
 			{
 				// deploying and packing are refined from the Strategy Centers in the object walk
-				p->set_battle_plan_transition(battlePlan != PLANSTATUS_NONE ? statsexporter::BATTLE_PLAN_ACTIVE : statsexporter::BATTLE_PLAN_IDLE);
+				p->set_battle_plan_transition(battlePlan != PLANSTATUS_NONE ? localapi::BATTLE_PLAN_ACTIVE : localapi::BATTLE_PLAN_IDLE);
 			}
 #if RTS_ZEROHOUR
 			const UnsignedInt sabotagedUntil = player->getEnergy()->getPowerSabotagedTillFrame();
@@ -2115,21 +2115,21 @@ namespace
 				p->set_value_destroyed(s_valueDestroyed[counterIndex]);
 				p->set_value_lost(s_valueLost[counterIndex]);
 
-				statsexporter::CategoryCounts* kills = p->mutable_kills();
+				localapi::CategoryCounts* kills = p->mutable_kills();
 				kills->set_infantry(s_kills[counterIndex][0]);
 				kills->set_vehicle(s_kills[counterIndex][1]);
 				kills->set_aircraft(s_kills[counterIndex][2]);
 				kills->set_structure(s_kills[counterIndex][3]);
-				statsexporter::CategoryCounts* losses = p->mutable_losses();
+				localapi::CategoryCounts* losses = p->mutable_losses();
 				losses->set_infantry(s_losses[counterIndex][0]);
 				losses->set_vehicle(s_losses[counterIndex][1]);
 				losses->set_aircraft(s_losses[counterIndex][2]);
 				losses->set_structure(s_losses[counterIndex][3]);
 
-				p->set_spent_units(s_spent[counterIndex][STATS_EXPORTER_SPEND_UNITS]);
-				p->set_spent_structures(s_spent[counterIndex][STATS_EXPORTER_SPEND_STRUCTURES]);
-				p->set_spent_upgrades(s_spent[counterIndex][STATS_EXPORTER_SPEND_UPGRADES]);
-				p->set_spent_sciences(s_spent[counterIndex][STATS_EXPORTER_SPEND_SCIENCES]);
+				p->set_spent_units(s_spent[counterIndex][LOCAL_API_SPEND_UNITS]);
+				p->set_spent_structures(s_spent[counterIndex][LOCAL_API_SPEND_STRUCTURES]);
+				p->set_spent_upgrades(s_spent[counterIndex][LOCAL_API_SPEND_UPGRADES]);
+				p->set_spent_sciences(s_spent[counterIndex][LOCAL_API_SPEND_SCIENCES]);
 			}
 		}
 
@@ -2185,7 +2185,7 @@ namespace
 					continue;
 				}
 
-				statsexporter::PlayerStats* accumulator = NULL;
+				localapi::PlayerStats* accumulator = NULL;
 				int accumulatorIndex = -1;
 				for (int i = 0; i < snapshot.players_size(); ++i)
 				{
@@ -2218,11 +2218,11 @@ namespace
 						const TransitionStatus transition = battlePlanUpdate->getTransitionStatus();
 						if (transition == TRANSITIONSTATUS_UNPACKING)
 						{
-							accumulator->set_battle_plan_transition(statsexporter::BATTLE_PLAN_DEPLOYING);
+							accumulator->set_battle_plan_transition(localapi::BATTLE_PLAN_DEPLOYING);
 						}
-						else if (transition == TRANSITIONSTATUS_PACKING && accumulator->battle_plan_transition() != statsexporter::BATTLE_PLAN_DEPLOYING)
+						else if (transition == TRANSITIONSTATUS_PACKING && accumulator->battle_plan_transition() != localapi::BATTLE_PLAN_DEPLOYING)
 						{
-							accumulator->set_battle_plan_transition(statsexporter::BATTLE_PLAN_PACKING);
+							accumulator->set_battle_plan_transition(localapi::BATTLE_PLAN_PACKING);
 						}
 					}
 				}
@@ -2233,8 +2233,8 @@ namespace
 				if (armyClass >= 0)
 				{
 					const UnsignedInt cost = (UnsignedInt)tmpl->friend_getBuildCost();
-					statsexporter::CategoryValue* value = accumulator->mutable_army_value_by_class();
-					statsexporter::CategoryCounts* count = accumulator->mutable_army_count_by_class();
+					localapi::CategoryValue* value = accumulator->mutable_army_value_by_class();
+					localapi::CategoryCounts* count = accumulator->mutable_army_count_by_class();
 					switch (armyClass)
 					{
 						case 0:
@@ -2322,7 +2322,7 @@ namespace
 				}
 
 				{
-					statsexporter::TemplateCount* found = templateCount(accumulator, controller->getPlayerIndex(), tmpl);
+					localapi::TemplateCount* found = templateCount(accumulator, controller->getPlayerIndex(), tmpl);
 					found->set_count(found->count() + 1);
 				}
 
@@ -2346,7 +2346,7 @@ namespace
 					{
 						continue;
 					}
-					statsexporter::ReadinessSample* rs = accumulator->add_readiness();
+					localapi::ReadinessSample* rs = accumulator->add_readiness();
 					rs->set_power_name(spmi->getPowerName().str());
 					rs->set_ready_frame(spmi->getReadyFrame());
 					rs->set_percent_ready(spmi->getPercentReady());
@@ -2354,13 +2354,13 @@ namespace
 					// One timer per superweapon structure, so two nukes are two entries.
 					if (isSuperweaponStructureTemplate(tmpl))
 					{
-						statsexporter::SuperweaponTimer* timer = accumulator->add_superweapons();
+						localapi::SuperweaponTimer* timer = accumulator->add_superweapons();
 						timer->set_object_id(obj->getID());
 						timer->set_template_name(tmpl->getName().str());
 						timer->set_power_name(spmi->getPowerName().str());
 						timer->set_ready_frame(spmi->getReadyFrame());
 						timer->set_percent_ready(spmi->getPercentReady());
-						timer->set_state(spmi->getPercentReady() >= 1.0f ? statsexporter::SUPERWEAPON_READY : statsexporter::SUPERWEAPON_CHARGING);
+						timer->set_state(spmi->getPercentReady() >= 1.0f ? localapi::SUPERWEAPON_READY : localapi::SUPERWEAPON_CHARGING);
 					}
 				}
 
@@ -2369,24 +2369,24 @@ namespace
 					ProductionUpdateInterface* production = obj->getProductionUpdateInterface();
 					if (production != NULL && production->getProductionCount() > 0)
 					{
-						statsexporter::ProductionQueue* queue = accumulator->add_production();
+						localapi::ProductionQueue* queue = accumulator->add_production();
 						queue->set_object_id(obj->getID());
 						queue->set_structure_template(tmpl->getName().str());
 
 						int entryCount = 0;
 						for (const ProductionEntry* entry = production->firstProduction(); entry != NULL && entryCount < kMaxProductionEntries; entry = production->nextProduction(entry))
 						{
-							statsexporter::ProductionItem* item = queue->add_entries();
+							localapi::ProductionItem* item = queue->add_entries();
 							if (entry->getProductionType() == PRODUCTION_UPGRADE)
 							{
 								const UpgradeTemplate* upgrade = entry->getProductionUpgrade();
-								item->set_kind(statsexporter::PRODUCTION_KIND_UPGRADE);
+								item->set_kind(localapi::PRODUCTION_KIND_UPGRADE);
 								item->set_name((upgrade != NULL) ? upgrade->getUpgradeName().str() : "");
 							}
 							else
 							{
 								const ThingTemplate* unit = entry->getProductionObject();
-								item->set_kind(statsexporter::PRODUCTION_KIND_UNIT);
+								item->set_kind(localapi::PRODUCTION_KIND_UNIT);
 								item->set_name(templateName(unit));
 							}
 							item->set_percent_complete((entryCount == 0) ? entry->getPercentComplete() : 0.0f);
@@ -2410,7 +2410,7 @@ namespace
 				{
 					if (snapshot.players(i).player_index() == record.playerIndex)
 					{
-						statsexporter::HeroStatus* hero = snapshot.mutable_players(i)->add_heroes();
+						localapi::HeroStatus* hero = snapshot.mutable_players(i)->add_heroes();
 						hero->set_template_name(templateName(record.tmpl));
 						hero->set_alive(record.alive);
 						hero->set_object_id(record.alive ? record.id : 0);
@@ -2423,7 +2423,7 @@ namespace
 			{
 				for (int i = 0; i < snapshot.players_size(); ++i)
 				{
-					statsexporter::PlayerGrid* grid = snapshot.add_grids();
+					localapi::PlayerGrid* grid = snapshot.add_grids();
 					grid->set_player_index(snapshot.players(i).player_index());
 					grid->set_width((uint32_t)gridSize);
 					grid->set_height((uint32_t)gridSize);
@@ -2438,7 +2438,7 @@ namespace
 
 			for (size_t r = 0; r < tech.size() && (size_t)snapshot.tech_size() < kMaxTechStructures; ++r)
 			{
-				statsexporter::TechStructure* structure = snapshot.add_tech();
+				localapi::TechStructure* structure = snapshot.add_tech();
 				structure->set_object_id(tech[r].id);
 				structure->set_template_name(templateName(tech[r].tmpl));
 				structure->set_x(tech[r].x);
@@ -2482,7 +2482,7 @@ namespace
 					{
 						continue;
 					}
-					statsexporter::SupplySource* source = snapshot.add_supply();
+					localapi::SupplySource* source = snapshot.add_supply();
 					source->set_object_id(supply[r].id);
 					source->set_template_name(templateName(supply[r].tmpl));
 					source->set_x(supply[r].x);
@@ -2503,18 +2503,18 @@ namespace
 	}
 }
 
-void StatsExporterLiveUpdate()
+void LocalApiLiveUpdate()
 {
-	static UnsignedInt s_lastLightFrame[STATS_EXPORTER_MAX_READERS];
-	static Bool s_hasLight[STATS_EXPORTER_MAX_READERS];
-	static UnsignedInt s_lastFullFrame[STATS_EXPORTER_MAX_READERS];
-	static Bool s_hasFull[STATS_EXPORTER_MAX_READERS];
-	static UnsignedInt s_fullEpoch[STATS_EXPORTER_MAX_READERS];
+	static UnsignedInt s_lastLightFrame[LOCAL_API_MAX_READERS];
+	static Bool s_hasLight[LOCAL_API_MAX_READERS];
+	static UnsignedInt s_lastFullFrame[LOCAL_API_MAX_READERS];
+	static Bool s_hasFull[LOCAL_API_MAX_READERS];
+	static UnsignedInt s_fullEpoch[LOCAL_API_MAX_READERS];
 	static UnsignedInt s_previousFrame = 0;
 	static ULONGLONG s_previousMs = 0;
 	static Real s_localLogicFps = 0.0f;
 
-	StatsExporterSink* sink = StatsExporterPipeGetSink();
+	LocalApiSink* sink = LocalApiReadersGetSink();
 	if (sink == NULL)
 	{
 		return;
@@ -2553,13 +2553,13 @@ void StatsExporterLiveUpdate()
 			const Readers loadingTargets = fresh.minus(s_loadingSent);
 			if (s_hasLoadingBody && !loadingTargets.empty())
 			{
-				sink->enqueueFrame(STATS_EXPORTER_FRAME_MATCH_INFO, (const UnsignedByte*)s_loadingBody.data(), (UnsignedInt)s_loadingBody.size(), loadingTargets);
+				sink->enqueueFrame(LOCAL_API_FRAME_MATCH_INFO, (const UnsignedByte*)s_loadingBody.data(), (UnsignedInt)s_loadingBody.size(), loadingTargets);
 				s_loadingSent.merge(loadingTargets);
 			}
 
-			statsexporter::MatchInfo& info = matchInfoMessage();
-			fillMatchInfo(info, statsexporter::MATCH_PHASE_STARTED, 0, AsciiString::TheEmptyString, FALSE, FALSE);
-			sendMessage(sink, STATS_EXPORTER_FRAME_MATCH_INFO, info, fresh);
+			localapi::MatchInfo& info = matchInfoMessage();
+			fillMatchInfo(info, localapi::MATCH_PHASE_STARTED, 0, AsciiString::TheEmptyString, FALSE, FALSE);
+			sendMessage(sink, LOCAL_API_FRAME_MATCH_INFO, info, fresh);
 			s_matchInfoSent.merge(fresh);
 		}
 
@@ -2578,9 +2578,9 @@ void StatsExporterLiveUpdate()
 			const Readers resend = startedReaders(readers);
 			if (!resend.empty())
 			{
-				statsexporter::MatchInfo& info = matchInfoMessage();
-				fillMatchInfo(info, statsexporter::MATCH_PHASE_STARTED, 0, AsciiString::TheEmptyString, FALSE, FALSE);
-				sendMessage(sink, STATS_EXPORTER_FRAME_MATCH_INFO, info, resend);
+				localapi::MatchInfo& info = matchInfoMessage();
+				fillMatchInfo(info, localapi::MATCH_PHASE_STARTED, 0, AsciiString::TheEmptyString, FALSE, FALSE);
+				sendMessage(sink, LOCAL_API_FRAME_MATCH_INFO, info, resend);
 			}
 		}
 	}
@@ -2594,16 +2594,16 @@ void StatsExporterLiveUpdate()
 
 	const UnsignedInt now = TheGameLogic->getFrame();
 
-	// Events leave from StatsExporterLiveFrameEnd(), in the frame they happened in. This sample is taken before the frame
+	// Events leave from LocalApiLiveFrameEnd(), in the frame they happened in. This sample is taken before the frame
 	// commands and updates run, so it shows the state at the end of the previous frame. Snapshot frame N sends Events up to N-1.
 
 	// Every reader has its own cadence (FeedConfig): light and full run on their own clocks, and a sample that is due for both is one
 	// full snapshot. Readers that share the same full-snapshot content share one build.
 	Readers lightGroup;
-	Readers fullReaders[STATS_EXPORTER_MAX_READERS];
-	StatsExporterFeedConfig fullConfigs[STATS_EXPORTER_MAX_READERS];
+	Readers fullReaders[LOCAL_API_MAX_READERS];
+	LocalApiFeedConfig fullConfigs[LOCAL_API_MAX_READERS];
 	Int fullGroups = 0;
-	for (Int slot = 0; slot < STATS_EXPORTER_MAX_READERS; ++slot)
+	for (Int slot = 0; slot < LOCAL_API_MAX_READERS; ++slot)
 	{
 		if (!started.has(slot))
 		{
@@ -2617,7 +2617,7 @@ void StatsExporterLiveUpdate()
 			s_hasFull[slot] = FALSE;
 		}
 
-		StatsExporterFeedConfig config;
+		LocalApiFeedConfig config;
 		sink->getFeedConfig(slot, config);
 		const UnsignedInt epoch = started.epoch(slot);
 		const Bool lightDue = config.lightIntervalMs > 0 && (!s_hasLight[slot] || s_lastLightFrame[slot] + intervalFrames(config.lightIntervalMs) <= now);
@@ -2682,21 +2682,21 @@ void StatsExporterLiveUpdate()
 		options.gridResolution = fullConfigs[group].gridResolution;
 		if (buildSnapshot(now, TRUE, options))
 		{
-			sendMessage(sink, STATS_EXPORTER_FRAME_STATS_SNAPSHOT, snapshotMessage(), fullReaders[group]);
+			sendMessage(sink, LOCAL_API_FRAME_STATS_SNAPSHOT, snapshotMessage(), fullReaders[group]);
 		}
 	}
 	if (!lightGroup.empty())
 	{
 		if (buildSnapshot(now, FALSE, options))
 		{
-			sendMessage(sink, STATS_EXPORTER_FRAME_STATS_SNAPSHOT, snapshotMessage(), lightGroup);
+			sendMessage(sink, LOCAL_API_FRAME_STATS_SNAPSHOT, snapshotMessage(), lightGroup);
 		}
 	}
 }
 
-void StatsExporterLiveFrameEnd()
+void LocalApiLiveFrameEnd()
 {
-	StatsExporterSink* sink = StatsExporterPipeGetSink();
+	LocalApiSink* sink = LocalApiReadersGetSink();
 	if (sink == NULL || TheGameLogic == NULL || !TheGameLogic->isInInteractiveGame())
 	{
 		return;
@@ -2709,7 +2709,7 @@ void StatsExporterLiveFrameEnd()
 	}
 }
 
-void StatsExporterLiveMatchSummary()
+void LocalApiLiveMatchSummary()
 {
 	if (TheGameLogic == NULL || ThePlayerList == NULL)
 	{
@@ -2721,14 +2721,14 @@ void StatsExporterLiveMatchSummary()
 		return;
 	}
 
-	StatsExporterSink* sink = StatsExporterPipeGetSink();
+	LocalApiSink* sink = LocalApiReadersGetSink();
 	const Readers readers = (sink != NULL) ? readyReaders(sink) : Readers();
 	if (readers.empty())
 	{
 		return;
 	}
 
-	statsexporter::MatchSummary summary;
+	localapi::MatchSummary summary;
 	summary.set_frame(TheGameLogic->getFrame());
 	if (TheWritableGlobalData != NULL)
 	{
@@ -2755,7 +2755,7 @@ void StatsExporterLiveMatchSummary()
 
 		const Bool isWinner = decisive && !player->isPlayerObserver() && TheVictoryConditions->hasAchievedVictory(player);
 
-		statsexporter::MatchSummaryPlayer* p = summary.add_players();
+		localapi::MatchSummaryPlayer* p = summary.add_players();
 		p->set_lobby_slot(slot);
 		p->set_player_index(player->getPlayerIndex());
 		p->set_player_name(toUtf8(player->getPlayerDisplayName()));
@@ -2777,12 +2777,12 @@ void StatsExporterLiveMatchSummary()
 		return;
 	}
 
-	sendMessage(sink, STATS_EXPORTER_FRAME_MATCH_SUMMARY, summary, readers);
+	sendMessage(sink, LOCAL_API_FRAME_MATCH_SUMMARY, summary, readers);
 }
 
-void StatsExporterLiveMatchStarted()
+void LocalApiLiveMatchStarted()
 {
-	if (StatsExporterPipeGetSink() == NULL)
+	if (LocalApiReadersGetSink() == NULL)
 	{
 		return;
 	}
@@ -2805,9 +2805,9 @@ void StatsExporterLiveMatchStarted()
 	s_matchInfoSent.clear();
 }
 
-void StatsExporterLiveGameDataCleared()
+void LocalApiLiveGameDataCleared()
 {
-	StatsExporterControlReset();
+	LocalApiControlReset();
 	if (!s_matchActive || s_matchEndedSent)
 	{
 		return;
@@ -2822,10 +2822,10 @@ void StatsExporterLiveGameDataCleared()
 		replayPath.concat(TheRecorder->getCurrentReplayFilename());
 		replayIsPlayback = TRUE;
 	}
-	StatsExporterLiveMatchEnded(replayPath, replayIsPlayback);
+	LocalApiLiveMatchEnded(replayPath, replayIsPlayback);
 }
 
-void StatsExporterLiveMatchEnded(const AsciiString& replayPath, Bool replayIsPlayback)
+void LocalApiLiveMatchEnded(const AsciiString& replayPath, Bool replayIsPlayback)
 {
 	if (!s_matchActive || s_matchEndedSent)
 	{
@@ -2842,7 +2842,7 @@ void StatsExporterLiveMatchEnded(const AsciiString& replayPath, Bool replayIsPla
 		&& (TheVictoryConditions->isLocalAlliedVictory() || TheVictoryConditions->isLocalAlliedDefeat());
 
 	// ENDED is a true one-shot: sent only if a reader is connected right now.
-	StatsExporterSink* sink = StatsExporterPipeGetSink();
+	LocalApiSink* sink = LocalApiReadersGetSink();
 	const Readers readers = (sink != NULL) ? readyReaders(sink) : Readers();
 	if (!readers.empty())
 	{
@@ -2853,9 +2853,9 @@ void StatsExporterLiveMatchEnded(const AsciiString& replayPath, Bool replayIsPla
 			flushPendingEvents(sink, started);
 		}
 
-		statsexporter::MatchInfo& info = matchInfoMessage();
-		fillMatchInfo(info, statsexporter::MATCH_PHASE_ENDED, TheGameLogic->getFrame() - s_matchStartFrame, replayPath, replayIsPlayback, completed);
-		sendMessage(sink, STATS_EXPORTER_FRAME_MATCH_INFO, info, readers);
+		localapi::MatchInfo& info = matchInfoMessage();
+		fillMatchInfo(info, localapi::MATCH_PHASE_ENDED, TheGameLogic->getFrame() - s_matchStartFrame, replayPath, replayIsPlayback, completed);
+		sendMessage(sink, LOCAL_API_FRAME_MATCH_INFO, info, readers);
 	}
 	pendingEvents().clear();
 
@@ -2865,18 +2865,18 @@ void StatsExporterLiveMatchEnded(const AsciiString& replayPath, Bool replayIsPla
 
 namespace
 {
-	// Largest ChatSend text taken from the pipe. The limits of the chat boxes apply on top.
+	// Largest ChatSend text taken from a reader. The limits of the chat boxes apply on top.
 	const size_t kMaxChatSendBytes = 1024;
 
-	statsexporter::ChatAudience chatAudience(const Player* sender, Int senderSlot, Int playerMask)
+	localapi::ChatAudience chatAudience(const Player* sender, Int senderSlot, Int playerMask)
 	{
 		if (sender == NULL)
 		{
-			return statsexporter::CHAT_AUDIENCE_OTHER;
+			return localapi::CHAT_AUDIENCE_OTHER;
 		}
 		if (!sender->isPlayerActive())
 		{
-			return statsexporter::CHAT_AUDIENCE_OBSERVERS;
+			return localapi::CHAT_AUDIENCE_OBSERVERS;
 		}
 
 		Int allyMask = 0;
@@ -2906,26 +2906,26 @@ namespace
 
 		if (playerMask == everyoneMask)
 		{
-			return statsexporter::CHAT_AUDIENCE_EVERYONE;
+			return localapi::CHAT_AUDIENCE_EVERYONE;
 		}
 		if (playerMask == allyMask)
 		{
-			return statsexporter::CHAT_AUDIENCE_ALLIES;
+			return localapi::CHAT_AUDIENCE_ALLIES;
 		}
 		if (playerMask == (1 << senderSlot))
 		{
-			return statsexporter::CHAT_AUDIENCE_OTHER;
+			return localapi::CHAT_AUDIENCE_OTHER;
 		}
 		if (allyMask != allMask && (playerMask & ~allyMask) == 0)
 		{
-			return statsexporter::CHAT_AUDIENCE_ALLIES;
+			return localapi::CHAT_AUDIENCE_ALLIES;
 		}
-		return statsexporter::CHAT_AUDIENCE_EVERYONE;
+		return localapi::CHAT_AUDIENCE_EVERYONE;
 	}
 
-	void sendChatMessage(StatsExporterSink* sink, const statsexporter::ChatMessage& message, const Readers& readers)
+	void sendChatMessage(LocalApiSink* sink, const localapi::ChatMessage& message, const Readers& readers)
 	{
-		const Readers recipients = feedFilter(sink, readers, &StatsExporterFeedConfig::chat);
+		const Readers recipients = feedFilter(sink, readers, &LocalApiFeedConfig::chat);
 		if (recipients.empty())
 		{
 			return;
@@ -2933,46 +2933,46 @@ namespace
 
 		// May run off the main thread, so it keeps its own buffer instead of the shared one.
 		std::string body;
-		if (message.SerializeToString(&body) && !body.empty() && body.size() <= STATS_EXPORTER_MAX_BODY_BYTES)
+		if (message.SerializeToString(&body) && !body.empty() && body.size() <= LOCAL_API_MAX_BODY_BYTES)
 		{
-			sink->enqueueFrame(STATS_EXPORTER_FRAME_CHAT_MESSAGE, (const UnsignedByte*)body.data(), (UnsignedInt)body.size(), recipients);
+			sink->enqueueFrame(LOCAL_API_FRAME_CHAT_MESSAGE, (const UnsignedByte*)body.data(), (UnsignedInt)body.size(), recipients);
 		}
 	}
 
 	struct LayoutScreen
 	{
 		const char* name;	// lowercase layout file name without directory
-		statsexporter::UiScreen screen;
+		localapi::UiScreen screen;
 	};
 
 	const LayoutScreen kLayoutScreens[] =
 	{
-		{ "mainmenu.wnd", statsexporter::UI_SCREEN_MAIN_MENU },
-		{ "singleplayermenu.wnd", statsexporter::UI_SCREEN_SINGLE_PLAYER },
-		{ "challengemenu.wnd", statsexporter::UI_SCREEN_SINGLE_PLAYER },
-		{ "difficultyselect.wnd", statsexporter::UI_SCREEN_SINGLE_PLAYER },
-		{ "mapselectmenu.wnd", statsexporter::UI_SCREEN_SINGLE_PLAYER },
-		{ "skirmishgameoptionsmenu.wnd", statsexporter::UI_SCREEN_SKIRMISH_SETUP },
-		{ "skirmishmapselectmenu.wnd", statsexporter::UI_SCREEN_SKIRMISH_SETUP },
-		{ "lanlobbymenu.wnd", statsexporter::UI_SCREEN_LAN_LOBBY },
-		{ "networkdirectconnect.wnd", statsexporter::UI_SCREEN_LAN_LOBBY },
-		{ "langameoptionsmenu.wnd", statsexporter::UI_SCREEN_LAN_GAME_SETUP },
-		{ "lanmapselectmenu.wnd", statsexporter::UI_SCREEN_LAN_GAME_SETUP },
-		{ "wolwelcomemenu.wnd", statsexporter::UI_SCREEN_ONLINE_WELCOME },
-		{ "wolcustomlobby.wnd", statsexporter::UI_SCREEN_ONLINE_LOBBY },
-		{ "gamespygameoptionsmenu.wnd", statsexporter::UI_SCREEN_ONLINE_GAME_SETUP },
-		{ "wolmapselectmenu.wnd", statsexporter::UI_SCREEN_ONLINE_GAME_SETUP },
-		{ "wolquickmatchmenu.wnd", statsexporter::UI_SCREEN_ONLINE_QUICKMATCH },
-		{ "replaymenu.wnd", statsexporter::UI_SCREEN_REPLAY_MENU },
-		{ "optionsmenu.wnd", statsexporter::UI_SCREEN_OPTIONS },
-		{ "keyboardoptionsmenu.wnd", statsexporter::UI_SCREEN_OPTIONS },
-		{ "saveload.wnd", statsexporter::UI_SCREEN_SAVE_LOAD },
-		{ "creditsmenu.wnd", statsexporter::UI_SCREEN_CREDITS },
-		{ "scorescreen.wnd", statsexporter::UI_SCREEN_SCORE_SCREEN },
-		{ "establishconnectionsscreen.wnd", statsexporter::UI_SCREEN_CONNECTING },
+		{ "mainmenu.wnd", localapi::UI_SCREEN_MAIN_MENU },
+		{ "singleplayermenu.wnd", localapi::UI_SCREEN_SINGLE_PLAYER },
+		{ "challengemenu.wnd", localapi::UI_SCREEN_SINGLE_PLAYER },
+		{ "difficultyselect.wnd", localapi::UI_SCREEN_SINGLE_PLAYER },
+		{ "mapselectmenu.wnd", localapi::UI_SCREEN_SINGLE_PLAYER },
+		{ "skirmishgameoptionsmenu.wnd", localapi::UI_SCREEN_SKIRMISH_SETUP },
+		{ "skirmishmapselectmenu.wnd", localapi::UI_SCREEN_SKIRMISH_SETUP },
+		{ "lanlobbymenu.wnd", localapi::UI_SCREEN_LAN_LOBBY },
+		{ "networkdirectconnect.wnd", localapi::UI_SCREEN_LAN_LOBBY },
+		{ "langameoptionsmenu.wnd", localapi::UI_SCREEN_LAN_GAME_SETUP },
+		{ "lanmapselectmenu.wnd", localapi::UI_SCREEN_LAN_GAME_SETUP },
+		{ "wolwelcomemenu.wnd", localapi::UI_SCREEN_ONLINE_WELCOME },
+		{ "wolcustomlobby.wnd", localapi::UI_SCREEN_ONLINE_LOBBY },
+		{ "gamespygameoptionsmenu.wnd", localapi::UI_SCREEN_ONLINE_GAME_SETUP },
+		{ "wolmapselectmenu.wnd", localapi::UI_SCREEN_ONLINE_GAME_SETUP },
+		{ "wolquickmatchmenu.wnd", localapi::UI_SCREEN_ONLINE_QUICKMATCH },
+		{ "replaymenu.wnd", localapi::UI_SCREEN_REPLAY_MENU },
+		{ "optionsmenu.wnd", localapi::UI_SCREEN_OPTIONS },
+		{ "keyboardoptionsmenu.wnd", localapi::UI_SCREEN_OPTIONS },
+		{ "saveload.wnd", localapi::UI_SCREEN_SAVE_LOAD },
+		{ "creditsmenu.wnd", localapi::UI_SCREEN_CREDITS },
+		{ "scorescreen.wnd", localapi::UI_SCREEN_SCORE_SCREEN },
+		{ "establishconnectionsscreen.wnd", localapi::UI_SCREEN_CONNECTING },
 	};
 
-	statsexporter::UiScreen screenForLayout(const std::string& layout)
+	localapi::UiScreen screenForLayout(const std::string& layout)
 	{
 		std::string name = layout;
 		const size_t slash = name.find_last_of("/\\");
@@ -2991,14 +2991,14 @@ namespace
 				return kLayoutScreens[i].screen;
 			}
 		}
-		return statsexporter::UI_SCREEN_UNKNOWN;
+		return localapi::UI_SCREEN_UNKNOWN;
 	}
 
 	struct UiSnapshot
 	{
-		statsexporter::UiScreen screen;
+		localapi::UiScreen screen;
 		std::string layout;
-		statsexporter::MatchMode gameMode;
+		localapi::MatchMode gameMode;
 		bool paused;
 	};
 
@@ -3059,18 +3059,18 @@ namespace
 	UiSnapshot buildUiState(const UiInputs& in)
 	{
 		UiSnapshot state;
-		state.screen = statsexporter::UI_SCREEN_UNKNOWN;
-		state.gameMode = statsexporter::MATCH_MODE_UNKNOWN;
+		state.screen = localapi::UI_SCREEN_UNKNOWN;
+		state.gameMode = localapi::MATCH_MODE_UNKNOWN;
 		state.paused = false;
 		state.layout = in.layout;
 
 		if (in.loading)
 		{
-			state.screen = statsexporter::UI_SCREEN_LOADING;
+			state.screen = localapi::UI_SCREEN_LOADING;
 		}
 		else if (in.interactive && !in.shellActive)
 		{
-			state.screen = in.quitMenu ? statsexporter::UI_SCREEN_IN_GAME_MENU : statsexporter::UI_SCREEN_IN_GAME;
+			state.screen = in.quitMenu ? localapi::UI_SCREEN_IN_GAME_MENU : localapi::UI_SCREEN_IN_GAME;
 			state.gameMode = mapMatchMode();
 			state.paused = in.paused;
 		}
@@ -3087,7 +3087,7 @@ namespace
 	}
 
 	// Sends the current screen to every reader when it changed, and once to every new reader (by connection epoch).
-	void syncUiState(StatsExporterSink* sink)
+	void syncUiState(LocalApiSink* sink)
 	{
 		static Bool s_hasSent = FALSE;
 		static Readers s_sentReaders;
@@ -3118,7 +3118,7 @@ namespace
 		}
 		const Readers targets = unchanged ? fresh : readers;
 
-		statsexporter::UiState message;
+		localapi::UiState message;
 		message.set_screen(state.screen);
 		message.set_layout(state.layout);
 		message.set_game_mode(state.gameMode);
@@ -3131,7 +3131,7 @@ namespace
 				body.push_back(0x08);	// field 1 (screen) = UNKNOWN written out so the frame is never empty
 				body.push_back(0x00);
 			}
-			sink->enqueueFrame(STATS_EXPORTER_FRAME_UI_STATE, (const UnsignedByte*)body.data(), (UnsignedInt)body.size(), targets);
+			sink->enqueueFrame(LOCAL_API_FRAME_UI_STATE, (const UnsignedByte*)body.data(), (UnsignedInt)body.size(), targets);
 		}
 		s_hasSent = TRUE;
 		s_sentReaders = readers;
@@ -3581,43 +3581,43 @@ namespace
 		return TRUE;
 	}
 
-	statsexporter::LobbySlotState lobbySlotState(SlotState state)
+	localapi::LobbySlotState lobbySlotState(SlotState state)
 	{
 		switch (state)
 		{
-			case SLOT_CLOSED:    return statsexporter::LOBBY_SLOT_CLOSED;
-			case SLOT_EASY_AI:   return statsexporter::LOBBY_SLOT_AI_EASY;
-			case SLOT_MED_AI:    return statsexporter::LOBBY_SLOT_AI_MEDIUM;
-			case SLOT_BRUTAL_AI: return statsexporter::LOBBY_SLOT_AI_BRUTAL;
-			case SLOT_PLAYER:    return statsexporter::LOBBY_SLOT_HUMAN;
-			default:             return statsexporter::LOBBY_SLOT_OPEN;
+			case SLOT_CLOSED:    return localapi::LOBBY_SLOT_CLOSED;
+			case SLOT_EASY_AI:   return localapi::LOBBY_SLOT_AI_EASY;
+			case SLOT_MED_AI:    return localapi::LOBBY_SLOT_AI_MEDIUM;
+			case SLOT_BRUTAL_AI: return localapi::LOBBY_SLOT_AI_BRUTAL;
+			case SLOT_PLAYER:    return localapi::LOBBY_SLOT_HUMAN;
+			default:             return localapi::LOBBY_SLOT_OPEN;
 		}
 	}
 
-	GameInfo* lobbyGameForScreen(statsexporter::UiScreen screen, statsexporter::LobbyKind& kind)
+	GameInfo* lobbyGameForScreen(localapi::UiScreen screen, localapi::LobbyKind& kind)
 	{
-		kind = statsexporter::LOBBY_KIND_UNKNOWN;
+		kind = localapi::LOBBY_KIND_UNKNOWN;
 		switch (screen)
 		{
-			case statsexporter::UI_SCREEN_ONLINE_GAME_SETUP:
-				kind = statsexporter::LOBBY_KIND_ONLINE;
+			case localapi::UI_SCREEN_ONLINE_GAME_SETUP:
+				kind = localapi::LOBBY_KIND_ONLINE;
 				return TheGenOnlineGame;
-			case statsexporter::UI_SCREEN_LAN_GAME_SETUP:
-				kind = statsexporter::LOBBY_KIND_LAN;
+			case localapi::UI_SCREEN_LAN_GAME_SETUP:
+				kind = localapi::LOBBY_KIND_LAN;
 				return (TheLAN != NULL) ? TheLAN->GetMyGame() : NULL;
-			case statsexporter::UI_SCREEN_SKIRMISH_SETUP:
-				kind = statsexporter::LOBBY_KIND_SKIRMISH;
+			case localapi::UI_SCREEN_SKIRMISH_SETUP:
+				kind = localapi::LOBBY_KIND_SKIRMISH;
 				return TheSkirmishGameInfo;
 			default:
 				return NULL;
 		}
 	}
 
-	bool buildLobbyState(statsexporter::LobbyState& out)
+	bool buildLobbyState(localapi::LobbyState& out)
 	{
 		out.Clear();
 
-		statsexporter::LobbyKind kind;
+		localapi::LobbyKind kind;
 		GameInfo* game = lobbyGameForScreen(currentUiState().screen, kind);
 		if (game == NULL || game->isGameInProgress())
 		{
@@ -3626,7 +3626,7 @@ namespace
 
 		GenOnlineLobbyInterface* lobby = NULL;
 		const LobbyEntry* entry = NULL;
-		if (kind == statsexporter::LOBBY_KIND_ONLINE)
+		if (kind == localapi::LOBBY_KIND_ONLINE)
 		{
 			lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 			if (lobby == NULL || !lobby->IsInLobby())
@@ -3695,7 +3695,7 @@ namespace
 		s_predictedCameraStartPos = s_predictedCameraSet ? prediction.cameraStartPos : -1;
 		if (s_predictedCameraSet)
 		{
-			statsexporter::ObserverCamera* camera = out.mutable_predicted_observer_camera();
+			localapi::ObserverCamera* camera = out.mutable_predicted_observer_camera();
 			camera->set_start_position(prediction.cameraStartPos);
 			camera->set_lobby_slot(-1);
 			camera->set_player_index(-1);
@@ -3717,7 +3717,7 @@ namespace
 				continue;
 			}
 
-			statsexporter::LobbySlot* ls = out.add_slots();
+			localapi::LobbySlot* ls = out.add_slots();
 			ls->set_state(lobbySlotState(slot->getState()));
 			ls->set_has_map(slot->hasMap());
 			ls->set_is_ready(slot->isAccepted());
@@ -3747,7 +3747,7 @@ namespace
 				continue;
 			}
 
-			statsexporter::MatchPlayer* p = ls->mutable_player();
+			localapi::MatchPlayer* p = ls->mutable_player();
 			p->set_lobby_slot((uint32_t)i);
 			p->set_player_index(-1);
 			p->set_name(toUtf8(slot->getName()));
@@ -3779,7 +3779,7 @@ namespace
 				p->set_side((playerTemplate != NULL) ? playerTemplate->getSide().str() : "");
 			}
 
-			if (kind == statsexporter::LOBBY_KIND_ONLINE)
+			if (kind == localapi::LOBBY_KIND_ONLINE)
 			{
 				GenOnlineGameSlot* onlineSlot = TheGenOnlineGame->getGameSpySlot(i);
 				if (onlineSlot != NULL && onlineSlot->isHuman())
@@ -3792,7 +3792,7 @@ namespace
 			{
 				// LAN and skirmish: the host is slot 0, and a LAN slot carries its address.
 				ls->set_is_host(i == 0);
-				if (kind == statsexporter::LOBBY_KIND_LAN && slot->getIP() != 0)
+				if (kind == localapi::LOBBY_KIND_LAN && slot->getIP() != 0)
 				{
 					char ip[32];
 					sprintf(ip, "%u.%u.%u.%u", PRINTF_IP_AS_4_INTS(slot->getIP()));
@@ -3801,7 +3801,7 @@ namespace
 			}
 		}
 
-		if (kind == statsexporter::LOBBY_KIND_ONLINE)
+		if (kind == localapi::LOBBY_KIND_ONLINE)
 		{
 			fillConnections(&out);
 		}
@@ -3809,7 +3809,7 @@ namespace
 	}
 
 	// Sends the lobby to every reader when its serialized bytes changed (a few checks per second), and once to every new reader.
-	void syncLobbyState(StatsExporterSink* sink)
+	void syncLobbyState(LocalApiSink* sink)
 	{
 		static Bool s_wasInLobby = FALSE;
 		static Readers s_sentReaders;
@@ -3830,7 +3830,7 @@ namespace
 		}
 		s_lastCheckMs = nowMs;
 
-		statsexporter::LobbyState state;
+		localapi::LobbyState state;
 		const bool inLobby = buildLobbyState(state);
 		if (!inLobby)
 		{
@@ -3876,11 +3876,11 @@ namespace
 			body.push_back(0x08);	// field 1 (in_lobby) = false written out so the frame is never empty
 			body.push_back(0x00);
 		}
-		sink->enqueueFrame(STATS_EXPORTER_FRAME_LOBBY_STATE, (const UnsignedByte*)body.data(), (UnsignedInt)body.size(), targets);
+		sink->enqueueFrame(LOCAL_API_FRAME_LOBBY_STATE, (const UnsignedByte*)body.data(), (UnsignedInt)body.size(), targets);
 	}
 
 	// Runs one ChatSend request through the same function the matching chat box uses when the player types a line.
-	void dispatchChatSend(const StatsExporterChatSend& request)
+	void dispatchChatSend(const LocalApiChatSend& request)
 	{
 		if (request.text.empty() || request.text.size() > kMaxChatSendBytes)
 		{
@@ -3897,7 +3897,7 @@ namespace
 
 		switch (request.channel)
 		{
-			case statsexporter::CHAT_CHANNEL_MATCH:
+			case localapi::CHAT_CHANNEL_MATCH:
 			{
 				if (TheGameLogic == NULL || !TheGameLogic->isInMultiplayerGame() || TheNetwork == NULL
 					|| ThePlayerList == NULL || ThePlayerList->getLocalPlayer() == NULL)
@@ -3909,17 +3909,17 @@ namespace
 				InGameChatType type;
 				switch (request.audience)
 				{
-					case statsexporter::CHAT_AUDIENCE_EVERYONE:
+					case localapi::CHAT_AUDIENCE_EVERYONE:
 						type = INGAME_CHAT_EVERYONE;
 						break;
-					case statsexporter::CHAT_AUDIENCE_ALLIES:
+					case localapi::CHAT_AUDIENCE_ALLIES:
 						if (localIsObserver)
 						{
 							return;
 						}
 						type = INGAME_CHAT_ALLIES;
 						break;
-					case statsexporter::CHAT_AUDIENCE_OBSERVERS:
+					case localapi::CHAT_AUDIENCE_OBSERVERS:
 						if (!localIsObserver)
 						{
 							return;
@@ -3932,16 +3932,16 @@ namespace
 				SubmitInGameChatLine(text, type);
 				break;
 			}
-			case statsexporter::CHAT_CHANNEL_GAME_LOBBY:
+			case localapi::CHAT_CHANNEL_GAME_LOBBY:
 				GenOnlineGameSetupMenuSubmitChatLine(text);
 				break;
-			case statsexporter::CHAT_CHANNEL_ROOM:
+			case localapi::CHAT_CHANNEL_ROOM:
 				GenOnlineLobbyMenuSubmitChatLine(text);
 				break;
-			case statsexporter::CHAT_CHANNEL_LAN_LOBBY:
+			case localapi::CHAT_CHANNEL_LAN_LOBBY:
 				LanLobbyMenuSubmitChatLine(text);
 				break;
-			case statsexporter::CHAT_CHANNEL_LAN_GAME:
+			case localapi::CHAT_CHANNEL_LAN_GAME:
 				LanGameOptionsMenuSubmitChatLine(text);
 				break;
 			default:
@@ -3952,15 +3952,15 @@ namespace
 
 namespace
 {
-	statsexporter::ViewStats& viewStatsMessage()
+	localapi::ViewStats& viewStatsMessage()
 	{
-		static statsexporter::ViewStats* s_message = NULL;
+		static localapi::ViewStats* s_message = NULL;
 		return arenaMessage(s_message);
 	}
 
-	statsexporter::InterestMap& interestMessage()
+	localapi::InterestMap& interestMessage()
 	{
-		static statsexporter::InterestMap* s_message = NULL;
+		static localapi::InterestMap* s_message = NULL;
 		return arenaMessage(s_message);
 	}
 
@@ -4005,23 +4005,23 @@ namespace
 	}
 
 	// Everything the local camera sees, per player. Reads only.
-	void buildViewStats(UnsignedInt now, const StatsExporterFeedConfig& config)
+	void buildViewStats(UnsignedInt now, const LocalApiFeedConfig& config)
 	{
-		statsexporter::ViewStats& message = viewStatsMessage();
+		localapi::ViewStats& message = viewStatsMessage();
 		message.Clear();
 		message.set_frame(now);
 		message.set_has_view(s_view.valid != FALSE);
 		message.set_trade_window_ms(config.tradeWindowMs);
 		message.set_intensity_window_ms(config.intensityWindowMs);
 
-		statsexporter::PlayerViewStats* players[kMaxCounterPlayers];
+		localapi::PlayerViewStats* players[kMaxCounterPlayers];
 		std::vector<NotableRecord> notable[kMaxCounterPlayers];
 		for (Int i = 0; i < kMaxCounterPlayers; ++i)
 		{
 			players[i] = NULL;
 		}
 		// The camera of an active player can look into the fog, so only the local player's own objects count while gated.
-		const Int gated = StatsExporterGatedPlayerIndex();
+		const Int gated = LocalApiGatedPlayerIndex();
 		for (Int slot = 0; slot < MAX_SLOTS; ++slot)
 		{
 			Player* player = playerFromSlot(slot);
@@ -4058,7 +4058,7 @@ namespace
 				continue;
 			}
 
-			statsexporter::PlayerViewStats* p = players[index];
+			localapi::PlayerViewStats* p = players[index];
 			const UnsignedInt cost = (UnsignedInt)tmpl->friend_getBuildCost();
 			Real health = 1.0f;
 			const BodyModuleInterface* body = obj->getBodyModule();
@@ -4070,8 +4070,8 @@ namespace
 			p->set_value_in_view(p->value_in_view() + cost);
 			p->set_effective_value(p->effective_value() + (UnsignedInt)((Real)cost * health + 0.5f));
 
-			statsexporter::CategoryValue* value = p->mutable_value_by_class();
-			statsexporter::CategoryCounts* count = p->mutable_count_by_class();
+			localapi::CategoryValue* value = p->mutable_value_by_class();
+			localapi::CategoryCounts* count = p->mutable_count_by_class();
 			switch (armyClass)
 			{
 				case 0:
@@ -4117,13 +4117,13 @@ namespace
 						{
 							continue;
 						}
-						statsexporter::ViewSuperweapon* weapon = p->add_superweapons();
+						localapi::ViewSuperweapon* weapon = p->add_superweapons();
 						weapon->set_object_id(obj->getID());
 						weapon->set_template_name(tmpl->getName().str());
 						weapon->set_power_name(spmi->getPowerName().str());
 						weapon->set_ready_frame(spmi->getReadyFrame());
 						weapon->set_percent_ready(spmi->getPercentReady());
-						weapon->set_state(spmi->getPercentReady() >= 1.0f ? statsexporter::SUPERWEAPON_READY : statsexporter::SUPERWEAPON_CHARGING);
+						weapon->set_state(spmi->getPercentReady() >= 1.0f ? localapi::SUPERWEAPON_READY : localapi::SUPERWEAPON_CHARGING);
 						weapon->set_x(position->x);
 						weapon->set_y(position->y);
 						break;
@@ -4159,7 +4159,7 @@ namespace
 		windowSums(now, config.intensityWindowMs, NULL, NULL, damage);
 		for (Int index = 0; index < kMaxCounterPlayers; ++index)
 		{
-			statsexporter::PlayerViewStats* p = players[index];
+			localapi::PlayerViewStats* p = players[index];
 			if (p == NULL)
 			{
 				continue;
@@ -4172,7 +4172,7 @@ namespace
 			for (size_t n = 0; n < notable[index].size() && n < kMaxNotablePerPlayer; ++n)
 			{
 				const NotableRecord& record = notable[index][n];
-				statsexporter::NotableUnit* unit = p->add_notable();
+				localapi::NotableUnit* unit = p->add_notable();
 				unit->set_object_id(record.id);
 				unit->set_template_name(templateName(record.tmpl));
 				unit->set_health(record.health);
@@ -4308,7 +4308,7 @@ namespace
 			}
 		}
 
-		statsexporter::InterestMap& message = interestMessage();
+		localapi::InterestMap& message = interestMessage();
 		message.Clear();
 		message.set_frame(now);
 		message.set_width(resolution);
@@ -4337,9 +4337,9 @@ namespace
 		for (size_t i = 0; i < list.size(); ++i)
 		{
 			const Highlight& source = list[i];
-			statsexporter::InterestHighlight* h = message.add_highlights();
+			localapi::InterestHighlight* h = message.add_highlights();
 			h->set_id(source.id);
-			h->set_kind((statsexporter::HighlightKind)source.kind);
+			h->set_kind((localapi::HighlightKind)source.kind);
 			h->set_player_index(source.playerIndex);
 			h->set_template_name(source.templateName);
 			h->set_power_name(source.powerName);
@@ -4356,27 +4356,27 @@ namespace
 
 	// ViewStats and InterestMap, from the render loop: they describe the local view, which moves while the game is paused.
 	// The cadence is wall-clock time. The rolling windows and the decay count game time.
-	void emitViewFrames(StatsExporterSink* sink, const Readers& started, UnsignedInt now)
+	void emitViewFrames(LocalApiSink* sink, const Readers& started, UnsignedInt now)
 	{
-		static ULONGLONG s_lastView[STATS_EXPORTER_MAX_READERS];
-		static UnsignedInt s_viewEpoch[STATS_EXPORTER_MAX_READERS];
-		static UnsignedInt s_viewSerial[STATS_EXPORTER_MAX_READERS];
-		static ULONGLONG s_lastInterest[STATS_EXPORTER_MAX_READERS];
-		static UnsignedInt s_interestEpoch[STATS_EXPORTER_MAX_READERS];
-		static UnsignedInt s_interestSerial[STATS_EXPORTER_MAX_READERS];
+		static ULONGLONG s_lastView[LOCAL_API_MAX_READERS];
+		static UnsignedInt s_viewEpoch[LOCAL_API_MAX_READERS];
+		static UnsignedInt s_viewSerial[LOCAL_API_MAX_READERS];
+		static ULONGLONG s_lastInterest[LOCAL_API_MAX_READERS];
+		static UnsignedInt s_interestEpoch[LOCAL_API_MAX_READERS];
+		static UnsignedInt s_interestSerial[LOCAL_API_MAX_READERS];
 
-		const ULONGLONG micros = StatsExporterNowMicros();
-		StatsExporterFeedConfig configs[STATS_EXPORTER_MAX_READERS];
+		const ULONGLONG micros = LocalApiNowMicros();
+		LocalApiFeedConfig configs[LOCAL_API_MAX_READERS];
 		Readers viewDue;
 		Readers interestDue;
-		for (Int slot = 0; slot < STATS_EXPORTER_MAX_READERS; ++slot)
+		for (Int slot = 0; slot < LOCAL_API_MAX_READERS; ++slot)
 		{
 			if (!started.has(slot))
 			{
 				continue;
 			}
 			sink->getFeedConfig(slot, configs[slot]);
-			const StatsExporterFeedConfig& config = configs[slot];
+			const LocalApiFeedConfig& config = configs[slot];
 			const UnsignedInt epoch = started.epoch(slot);
 
 			const Bool viewFresh = s_viewEpoch[slot] != epoch || s_viewSerial[slot] != s_matchSerial;
@@ -4408,7 +4408,7 @@ namespace
 				++first;
 			}
 			Readers group;
-			for (Int slot = first; slot < STATS_EXPORTER_MAX_READERS; ++slot)
+			for (Int slot = first; slot < LOCAL_API_MAX_READERS; ++slot)
 			{
 				if (remaining.has(slot) && configs[slot].notableCost == configs[first].notableCost
 					&& configs[slot].tradeWindowMs == configs[first].tradeWindowMs && configs[slot].intensityWindowMs == configs[first].intensityWindowMs)
@@ -4418,11 +4418,11 @@ namespace
 				}
 			}
 			buildViewStats(now, configs[first]);
-			sendMessage(sink, STATS_EXPORTER_FRAME_VIEW_STATS, viewStatsMessage(), group);
+			sendMessage(sink, LOCAL_API_FRAME_VIEW_STATS, viewStatsMessage(), group);
 		}
 
 		// The interest map weighs every army and every launch on the map, so it is not sent at all while gated.
-		if (!interestDue.empty() && StatsExporterRevealsHiddenState() && computeInterest(now))
+		if (!interestDue.empty() && LocalApiRevealsHiddenState() && computeInterest(now))
 		{
 			remaining = interestDue;
 			while (!remaining.empty())
@@ -4433,7 +4433,7 @@ namespace
 					++first;
 				}
 				Readers group;
-				for (Int slot = first; slot < STATS_EXPORTER_MAX_READERS; ++slot)
+				for (Int slot = first; slot < LOCAL_API_MAX_READERS; ++slot)
 				{
 					if (remaining.has(slot) && configs[slot].gridResolution == configs[first].gridResolution)
 					{
@@ -4442,14 +4442,14 @@ namespace
 					}
 				}
 				fillInterestMessage(now, configs[first].gridResolution);
-				sendMessage(sink, STATS_EXPORTER_FRAME_INTEREST_MAP, interestMessage(), group);
+				sendMessage(sink, LOCAL_API_FRAME_INTEREST_MAP, interestMessage(), group);
 			}
 		}
 		s_highlightsDirty = FALSE;
 	}
 }
 
-void StatsExporterLiveCamera()
+void LocalApiLiveCamera()
 {
 	// Rendered frames are rate limited to about 120 per second, and only a changed camera is sent.
 	static const ULONGLONG kMinIntervalMicros = 8333;
@@ -4461,7 +4461,7 @@ void StatsExporterLiveCamera()
 	static Real s_last[14];
 	static UnsignedInt s_lastExtra[4];
 
-	StatsExporterSink* sink = StatsExporterPipeGetSink();
+	LocalApiSink* sink = LocalApiReadersGetSink();
 	if (sink == NULL || TheTacticalView == NULL || TheGameLogic == NULL || TheRadar == NULL)
 	{
 		return;
@@ -4480,9 +4480,9 @@ void StatsExporterLiveCamera()
 		return;
 	}
 
-	// Pipe camera commands run their transitions here, ahead of the picture the frame describes.
-	StatsExporterCameraReport report;
-	StatsExporterControlCameraFrame(report);
+	// Reader camera commands run their transitions here, ahead of the picture the frame describes.
+	LocalApiCameraReport report;
+	LocalApiControlCameraFrame(report);
 
 	// The view box is built the way W3DRadar::reconstructViewBox does it for the minimap.
 	Real values[14];
@@ -4518,8 +4518,8 @@ void StatsExporterLiveCamera()
 		}
 	}
 
-	const ULONGLONG micros = StatsExporterNowMicros();
-	const Readers cameraReaders = feedFilter(sink, started, &StatsExporterFeedConfig::camera);
+	const ULONGLONG micros = LocalApiNowMicros();
+	const Readers cameraReaders = feedFilter(sink, started, &LocalApiFeedConfig::camera);
 	if (!cameraReaders.empty())
 	{
 		// A reader that has not seen the camera of this match yet gets it at once, whatever the throttle and the change test say.
@@ -4533,7 +4533,7 @@ void StatsExporterLiveCamera()
 			extra[2] = (UnsignedInt)report.followMode;
 			extra[3] = report.transitionActive ? 1u : 0u;
 
-			Bool changed = !sameMatch || report.followEnded != statsexporter::CAMERA_FOLLOW_END_NONE;
+			Bool changed = !sameMatch || report.followEnded != localapi::CAMERA_FOLLOW_END_NONE;
 			for (Int i = 0; i < 14 && !changed; ++i)
 			{
 				if (fabsf(values[i] - s_last[i]) > kEpsilon)
@@ -4551,7 +4551,7 @@ void StatsExporterLiveCamera()
 
 			if (changed || !fresh.empty())
 			{
-				statsexporter::Camera message;
+				localapi::Camera message;
 				message.set_timestamp_us(micros);
 				message.set_logic_frame(TheGameLogic->getFrame());
 				message.set_x(values[0]);
@@ -4572,15 +4572,15 @@ void StatsExporterLiveCamera()
 					message.set_view_bl_x(values[12]);
 					message.set_view_bl_y(values[13]);
 				}
-				message.set_change_source((statsexporter::CameraChangeSource)report.changeSource);
+				message.set_change_source((localapi::CameraChangeSource)report.changeSource);
 				message.set_user_input_count(report.userInputCount);
-				message.set_follow_mode((statsexporter::CameraFollowMode)report.followMode);
+				message.set_follow_mode((localapi::CameraFollowMode)report.followMode);
 				message.set_follow_object_id(report.followObjectId);
-				message.set_follow_ended((statsexporter::CameraFollowEnd)report.followEnded);
+				message.set_follow_ended((localapi::CameraFollowEnd)report.followEnded);
 				message.set_follow_ended_object_id(report.followEndedObjectId);
 				message.set_transition_active(report.transitionActive != FALSE);
-				sendMessage(sink, STATS_EXPORTER_FRAME_CAMERA, message, changed ? cameraReaders : fresh);
-				StatsExporterControlCameraSent(report);
+				sendMessage(sink, LOCAL_API_FRAME_CAMERA, message, changed ? cameraReaders : fresh);
+				LocalApiControlCameraSent(report);
 
 				memcpy(s_last, values, sizeof(s_last));
 				memcpy(s_lastExtra, extra, sizeof(s_lastExtra));
@@ -4595,19 +4595,19 @@ void StatsExporterLiveCamera()
 	emitViewFrames(sink, started, TheGameLogic->getFrame());
 }
 
-int StatsExporterLiveCurrentScreen()
+int LocalApiLiveCurrentScreen()
 {
 	return (int)currentUiState().screen;
 }
 
-void StatsExporterLiveTick()
+void LocalApiLiveTick()
 {
 	if (s_mainThreadId == 0)
 	{
 		s_mainThreadId = GetCurrentThreadId();
 	}
 
-	StatsExporterSink* sink = StatsExporterPipeGetSink();
+	LocalApiSink* sink = LocalApiReadersGetSink();
 	if (sink == NULL)
 	{
 		return;
@@ -4630,13 +4630,13 @@ void StatsExporterLiveTick()
 		{
 			// A stall marker has no players and full is false. local_logic_fps stays 0 because the logic is not advancing.
 			s_lastStallSendMs = nowMs;
-			statsexporter::StatsSnapshot& stalled = stallMessage();
+			localapi::StatsSnapshot& stalled = stallMessage();
 			stalled.Clear();
 			stalled.set_frame(TheGameLogic->getFrame());
 			stalled.set_network_stalled(true);
 			stalled.set_stalled_frames((UnsignedInt)((nowMs - s_stallStartMs) * LOGICFRAMES_PER_SECOND / 1000));
 			fillSpeedFields(stalled);
-			sendMessage(sink, STATS_EXPORTER_FRAME_STATS_SNAPSHOT, stalled, stallReaders);
+			sendMessage(sink, LOCAL_API_FRAME_STATS_SNAPSHOT, stalled, stallReaders);
 		}
 	}
 	else
@@ -4644,18 +4644,18 @@ void StatsExporterLiveTick()
 		s_stallStartMs = 0;
 	}
 
-	StatsExporterChatSend request;
+	LocalApiChatSend request;
 	while (sink->takeChatSend(request))
 	{
 		dispatchChatSend(request);
 	}
 
-	StatsExporterQueryPump(sink);
+	LocalApiQueryPump(sink);
 }
 
-void StatsExporterLiveChatInGame(Int senderSlot, const UnicodeString& senderName, const UnicodeString& text, Int playerMask, Bool isLocal)
+void LocalApiLiveChatInGame(Int senderSlot, const UnicodeString& senderName, const UnicodeString& text, Int playerMask, Bool isLocal)
 {
-	StatsExporterSink* sink = StatsExporterPipeGetSink();
+	LocalApiSink* sink = LocalApiReadersGetSink();
 	const Readers readers = (sink != NULL) ? readyReaders(sink) : Readers();
 	if (readers.empty())
 	{
@@ -4670,8 +4670,8 @@ void StatsExporterLiveChatInGame(Int senderSlot, const UnicodeString& senderName
 	playerName.format("player%d", senderSlot);
 	const Player* sender = (ThePlayerList != NULL) ? ThePlayerList->findPlayerWithNameKey(TheNameKeyGenerator->nameToKey(playerName)) : NULL;
 
-	statsexporter::ChatMessage message;
-	message.set_channel(statsexporter::CHAT_CHANNEL_MATCH);
+	localapi::ChatMessage message;
+	message.set_channel(localapi::CHAT_CHANNEL_MATCH);
 	message.set_logic_frame((TheGameLogic != NULL) ? TheGameLogic->getFrame() : 0);
 	message.set_player_index((sender != NULL) ? sender->getPlayerIndex() : -1);
 	if (TheGenOnlineGame != nullptr)
@@ -4686,9 +4686,9 @@ void StatsExporterLiveChatInGame(Int senderSlot, const UnicodeString& senderName
 	sendChatMessage(sink, message, readers);
 }
 
-void StatsExporterLiveChatOnline(Int channel, Int64 userId, const char* senderName, const char* utf8Text, Bool isAction, Bool isSystem, Bool isLocal)
+void LocalApiLiveChatOnline(Int channel, Int64 userId, const char* senderName, const char* utf8Text, Bool isAction, Bool isSystem, Bool isLocal)
 {
-	StatsExporterSink* sink = StatsExporterPipeGetSink();
+	LocalApiSink* sink = LocalApiReadersGetSink();
 	const Readers readers = (sink != NULL) ? readyReaders(sink) : Readers();
 	if (readers.empty() || utf8Text == NULL)
 	{
@@ -4699,8 +4699,8 @@ void StatsExporterLiveChatOnline(Int channel, Int64 userId, const char* senderNa
 		syncUiState(sink);
 	}
 
-	statsexporter::ChatMessage message;
-	message.set_channel((statsexporter::ChatChannel)channel);
+	localapi::ChatMessage message;
+	message.set_channel((localapi::ChatChannel)channel);
 	message.set_player_index(-1);
 	message.set_user_id(userId);
 	message.set_sender_name((senderName != NULL) ? senderName : "");
@@ -4708,7 +4708,7 @@ void StatsExporterLiveChatOnline(Int channel, Int64 userId, const char* senderNa
 	message.set_is_local(isLocal);
 	message.set_is_system(isSystem);
 	message.set_is_action(isAction);
-	if (channel == STATS_EXPORTER_CHAT_GAME_LOBBY)
+	if (channel == LOCAL_API_CHAT_GAME_LOBBY)
 	{
 		GenOnlineLobbyInterface* lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 		message.set_lobby_id((lobby != nullptr) ? lobby->GetCurrentLobby().lobbyID : 0);
@@ -4719,10 +4719,10 @@ void StatsExporterLiveChatOnline(Int channel, Int64 userId, const char* senderNa
 namespace
 {
 	// MatchInfo LOADING from the slots the engine just resolved. Nothing here draws random numbers or changes the slots.
-	void fillLoadingInfo(statsexporter::MatchInfo& info, GameInfo* game)
+	void fillLoadingInfo(localapi::MatchInfo& info, GameInfo* game)
 	{
 		info.Clear();
-		info.set_phase(statsexporter::MATCH_PHASE_LOADING);
+		info.set_phase(localapi::MATCH_PHASE_LOADING);
 		info.set_match_id(s_matchId);
 		info.set_mode(s_matchMode);
 		info.set_map_name(s_matchMapName);
@@ -4740,7 +4740,7 @@ namespace
 				continue;
 			}
 
-			statsexporter::MatchPlayer* p = info.add_players();
+			localapi::MatchPlayer* p = info.add_players();
 			p->set_lobby_slot((uint32_t)i);
 			p->set_player_index(-1);	// players do not exist yet
 			p->set_name(toUtf8(slot->getName()));
@@ -4749,7 +4749,7 @@ namespace
 			p->set_start_position(slot->getStartPos());
 			p->set_is_color_random(slot->getOriginalColor() < 0);
 			p->set_is_side_random(slot->getOriginalPlayerTemplate() == PLAYERTEMPLATE_RANDOM);
-			p->set_result(statsexporter::PLAYER_RESULT_UNKNOWN);
+			p->set_result(localapi::PLAYER_RESULT_UNKNOWN);
 
 			const Int templateIndex = slot->getPlayerTemplate();
 			p->set_is_observer(templateIndex == PLAYERTEMPLATE_OBSERVER);
@@ -4769,7 +4769,7 @@ namespace
 				p->set_color((uint32_t)TheMultiplayerSettings->getColor(colorIndex)->getColor());
 			}
 
-			if (s_matchMode == statsexporter::MATCH_MODE_LAN && slot->getIP() != 0)
+			if (s_matchMode == localapi::MATCH_MODE_LAN && slot->getIP() != 0)
 			{
 				char ip[32];
 				sprintf(ip, "%u.%u.%u.%u", PRINTF_IP_AS_4_INTS(slot->getIP()));
@@ -4789,7 +4789,7 @@ namespace
 
 		if (s_hasObserverCamera)
 		{
-			statsexporter::ObserverCamera* camera = info.mutable_observer_camera();
+			localapi::ObserverCamera* camera = info.mutable_observer_camera();
 			camera->set_start_position(s_observerCameraStartPosition);
 			camera->set_lobby_slot(s_observerCameraLobbySlot);
 			camera->set_player_index(-1);
@@ -4801,13 +4801,13 @@ namespace
 	}
 }
 
-void StatsExporterLiveMatchLoading(GameInfo* game, UnsignedInt randomCrcBeforeResolve, Bool loadingSaveGame)
+void LocalApiLiveMatchLoading(GameInfo* game, UnsignedInt randomCrcBeforeResolve, Bool loadingSaveGame)
 {
 	// Whatever happens below, a stale LOADING identity must not survive into STARTED.
 	s_loadingPrepared = FALSE;
 	s_hasLoadingBody = FALSE;
 
-	StatsExporterSink* sink = StatsExporterPipeGetSink();
+	LocalApiSink* sink = LocalApiReadersGetSink();
 	if (sink == NULL || game == NULL || TheGameLogic == NULL || ThePlayerList == NULL)
 	{
 		return;
@@ -4816,7 +4816,7 @@ void StatsExporterLiveMatchLoading(GameInfo* game, UnsignedInt randomCrcBeforeRe
 	{
 		return;
 	}
-	// A saved game being loaded is not exported: it never reaches StatsExporterLiveMatchStarted().
+	// A saved game being loaded is not exported: it never reaches LocalApiLiveMatchStarted().
 	if (loadingSaveGame)
 	{
 		return;
@@ -4825,12 +4825,12 @@ void StatsExporterLiveMatchLoading(GameInfo* game, UnsignedInt randomCrcBeforeRe
 	beginMatchState(game);
 	s_loadingPrepared = TRUE;
 
-	statsexporter::MatchInfo& info = matchInfoMessage();
+	localapi::MatchInfo& info = matchInfoMessage();
 	fillLoadingInfo(info, game);
 
 	// Whether the logic generator was untouched between the seed being applied and the resolution. Read-only.
 	const Bool randomClean = (randomCrcBeforeResolve == ComputeFreshGameLogicRandomSeedCRC((UnsignedInt)game->getSeed()));
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsExporter] Loading: logic random state before resolution %s the fresh seed state", randomClean ? "equals" : "DIFFERS from");
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[LocalApi] Loading: logic random state before resolution %s the fresh seed state", randomClean ? "equals" : "DIFFERS from");
 
 	if (s_predictionValid && s_predictionSeed == game->getSeed())
 	{
@@ -4859,7 +4859,7 @@ void StatsExporterLiveMatchLoading(GameInfo* game, UnsignedInt randomCrcBeforeRe
 		info.set_random_state_clean(randomClean);
 		if (!matched || !randomClean)
 		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsExporter] Lobby prediction check: matched=%d, random state clean=%d", matched ? 1 : 0, randomClean ? 1 : 0);
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[LocalApi] Lobby prediction check: matched=%d, random state clean=%d", matched ? 1 : 0, randomClean ? 1 : 0);
 		}
 	}
 
@@ -4871,25 +4871,25 @@ void StatsExporterLiveMatchLoading(GameInfo* game, UnsignedInt randomCrcBeforeRe
 	if (s_hasLoadingBody && !readers.empty())
 	{
 		syncUiState(sink);
-		sink->enqueueFrame(STATS_EXPORTER_FRAME_MATCH_INFO, (const UnsignedByte*)s_loadingBody.data(), (UnsignedInt)s_loadingBody.size(), readers);
+		sink->enqueueFrame(LOCAL_API_FRAME_MATCH_INFO, (const UnsignedByte*)s_loadingBody.data(), (UnsignedInt)s_loadingBody.size(), readers);
 		s_loadingSent = readers;
 	}
 }
 
-void StatsExporterLiveChatLan(Int channel, const UnicodeString& senderName, const UnicodeString& text, Bool isAction, Bool isSystem, Bool isLocal)
+void LocalApiLiveChatLan(Int channel, const UnicodeString& senderName, const UnicodeString& text, Bool isAction, Bool isSystem, Bool isLocal)
 {
 	// The LAN API tells local from remote by IP only, which two instances on one PC share, so the name has to match as well.
 	const Bool sameName = (TheLAN == NULL) || (TheLAN->GetMyName().compare(senderName) == 0);
-	StatsExporterLiveChatOnline(channel, 0, toUtf8(senderName).c_str(), toUtf8(text).c_str(), isAction, isSystem, isLocal && sameName);
+	LocalApiLiveChatOnline(channel, 0, toUtf8(senderName).c_str(), toUtf8(text).c_str(), isAction, isSystem, isLocal && sameName);
 }
 
-void StatsExporterLiveSpend(Int playerIndex, Int category, Int amount)
+void LocalApiLiveSpend(Int playerIndex, Int category, Int amount)
 {
 	if (playerIndex < 0 || playerIndex >= kMaxCounterPlayers || category < 0 || category > 3 || amount <= 0)
 	{
 		return;
 	}
-	if (StatsExporterPipeGetSink() == NULL)
+	if (LocalApiReadersGetSink() == NULL)
 	{
 		return;
 	}
@@ -4909,11 +4909,11 @@ namespace
 	Bool eventsWanted()
 	{
 		// Nothing before the first logic frame: the setup grants radar, upgrades and ownership.
-		return StatsExporterPipeGetSink() != NULL && TheGameLogic != NULL && TheGameLogic->getFrame() > 0;
+		return LocalApiReadersGetSink() != NULL && TheGameLogic != NULL && TheGameLogic->getFrame() > 0;
 	}
 }
 
-void StatsExporterLiveRadarChanged(Int playerIndex, Int oldState, Int newState)
+void LocalApiLiveRadarChanged(Int playerIndex, Int oldState, Int newState)
 {
 	if (oldState == newState || !eventsWanted())
 	{
@@ -4922,14 +4922,14 @@ void StatsExporterLiveRadarChanged(Int playerIndex, Int oldState, Int newState)
 
 	PendingEvent event;
 	event.playerIndex = playerIndex;
-	event.kind = statsexporter::STATEVENT_RADAR_CHANGED;
+	event.kind = localapi::STATEVENT_RADAR_CHANGED;
 	event.category = "PLAYER";
 	event.intValue1 = oldState;
 	event.intValue2 = newState;
 	pushPendingEvent(event);
 }
 
-void StatsExporterLiveBattlePlanChanged(Int playerIndex, Int oldPlan, Int newPlan)
+void LocalApiLiveBattlePlanChanged(Int playerIndex, Int oldPlan, Int newPlan)
 {
 	if (oldPlan == newPlan || !eventsWanted())
 	{
@@ -4938,14 +4938,14 @@ void StatsExporterLiveBattlePlanChanged(Int playerIndex, Int oldPlan, Int newPla
 
 	PendingEvent event;
 	event.playerIndex = playerIndex;
-	event.kind = statsexporter::STATEVENT_BATTLE_PLAN_CHANGED;
+	event.kind = localapi::STATEVENT_BATTLE_PLAN_CHANGED;
 	event.category = "PLAYER";
 	event.intValue1 = oldPlan;
 	event.intValue2 = newPlan;
 	pushPendingEvent(event);
 }
 
-void StatsExporterLiveUpgradeComplete(Int playerIndex, const char* upgradeName, UnsignedInt cost, Bool isObjectUpgrade)
+void LocalApiLiveUpgradeComplete(Int playerIndex, const char* upgradeName, UnsignedInt cost, Bool isObjectUpgrade)
 {
 	if (!eventsWanted())
 	{
@@ -4954,7 +4954,7 @@ void StatsExporterLiveUpgradeComplete(Int playerIndex, const char* upgradeName, 
 
 	PendingEvent event;
 	event.playerIndex = playerIndex;
-	event.kind = statsexporter::STATEVENT_UPGRADE_COMPLETE;
+	event.kind = localapi::STATEVENT_UPGRADE_COMPLETE;
 	event.category = "UPGRADE";
 	event.primaryName = (upgradeName != NULL) ? upgradeName : "";
 	event.cost = cost;
@@ -4965,13 +4965,13 @@ void StatsExporterLiveUpgradeComplete(Int playerIndex, const char* upgradeName, 
 	pushPendingEvent(event);
 }
 
-void StatsExporterLiveNoteCaptureBonus(Int amount)
+void LocalApiLiveNoteCaptureBonus(Int amount)
 {
 	s_captureBonus = (amount > 0) ? (UnsignedInt)amount : 0;
 	s_captureBonusFrame = (TheGameLogic != NULL) ? TheGameLogic->getFrame() : 0;
 }
 
-void StatsExporterLiveCapture(const Object* captured, const Player* oldOwner, const Player* newOwner)
+void LocalApiLiveCapture(const Object* captured, const Player* oldOwner, const Player* newOwner)
 {
 	// The bonus is paid just before the capture hook runs, in the same call, so it only counts on the same frame.
 	const UnsignedInt bonus = (TheGameLogic != NULL && s_captureBonusFrame == TheGameLogic->getFrame()) ? s_captureBonus : 0;
@@ -4994,7 +4994,7 @@ void StatsExporterLiveCapture(const Object* captured, const Player* oldOwner, co
 
 	PendingEvent event;
 	event.playerIndex = newOwner->getPlayerIndex();
-	event.kind = statsexporter::STATEVENT_CAPTURE;
+	event.kind = localapi::STATEVENT_CAPTURE;
 	event.category = classifyThingTemplateCategory(captured->getTemplate());
 	event.primaryName = templateName(captured->getTemplate());
 	event.hasLocation = TRUE;
@@ -5010,7 +5010,7 @@ void StatsExporterLiveCapture(const Object* captured, const Player* oldOwner, co
 	pushPendingEvent(event);
 }
 
-void StatsExporterLivePowerSabotaged(Int playerIndex, UnsignedInt durationFrames)
+void LocalApiLivePowerSabotaged(Int playerIndex, UnsignedInt durationFrames)
 {
 	if (!eventsWanted())
 	{
@@ -5019,35 +5019,35 @@ void StatsExporterLivePowerSabotaged(Int playerIndex, UnsignedInt durationFrames
 
 	PendingEvent event;
 	event.playerIndex = playerIndex;
-	event.kind = statsexporter::STATEVENT_POWER_SABOTAGED;
+	event.kind = localapi::STATEVENT_POWER_SABOTAGED;
 	event.category = "PLAYER";
 	event.intValue1 = (Int)durationFrames;
 	pushPendingEvent(event);
 }
 
-void StatsExporterLiveSell(Int playerIndex, const ThingTemplate* tmpl, UnsignedInt refund)
+void LocalApiLiveSell(Int playerIndex, const ThingTemplate* tmpl, UnsignedInt refund)
 {
-	if (StatsExporterPipeGetSink() == NULL)
+	if (LocalApiReadersGetSink() == NULL)
 	{
 		return;
 	}
 
 	PendingEvent event;
 	event.playerIndex = playerIndex;
-	event.kind = statsexporter::STATEVENT_SELL;
+	event.kind = localapi::STATEVENT_SELL;
 	event.category = classifyThingTemplateCategory(tmpl);
 	event.primaryName = templateName(tmpl);
 	event.cost = refund;
 	pushPendingEvent(event);
 }
 
-void StatsExporterLiveCommand(Int playerIndex, Int messageType)
+void LocalApiLiveCommand(Int playerIndex, Int messageType)
 {
 	if (playerIndex < 0 || playerIndex >= kMaxCounterPlayers || !isActionMessage(messageType))
 	{
 		return;
 	}
-	if (StatsExporterPipeGetSink() == NULL)
+	if (LocalApiReadersGetSink() == NULL)
 	{
 		return;
 	}
@@ -5063,16 +5063,16 @@ void StatsExporterLiveCommand(Int playerIndex, Int messageType)
 	++s_actionsTotal[playerIndex];
 }
 
-void StatsExporterLiveBeacon(Int playerIndex, const Coord3D* location)
+void LocalApiLiveBeacon(Int playerIndex, const Coord3D* location)
 {
-	if (StatsExporterPipeGetSink() == NULL)
+	if (LocalApiReadersGetSink() == NULL)
 	{
 		return;
 	}
 
 	PendingEvent event;
 	event.playerIndex = playerIndex;
-	event.kind = statsexporter::STATEVENT_BEACON;
+	event.kind = localapi::STATEVENT_BEACON;
 	event.category = "BEACON";
 	if (location != NULL)
 	{
@@ -5083,9 +5083,9 @@ void StatsExporterLiveBeacon(Int playerIndex, const Coord3D* location)
 	pushPendingEvent(event);
 }
 
-void StatsExporterLivePlayerLeft(Int playerIndex, const char* variant)
+void LocalApiLivePlayerLeft(Int playerIndex, const char* variant)
 {
-	if (StatsExporterPipeGetSink() == NULL)
+	if (LocalApiReadersGetSink() == NULL)
 	{
 		return;
 	}
@@ -5102,13 +5102,13 @@ void StatsExporterLivePlayerLeft(Int playerIndex, const char* variant)
 
 	PendingEvent event;
 	event.playerIndex = playerIndex;
-	event.kind = statsexporter::STATEVENT_PLAYER_LEFT;
+	event.kind = localapi::STATEVENT_PLAYER_LEFT;
 	event.category = "PLAYER";
 	event.variant = (variant != NULL) ? variant : "";
 	pushPendingEvent(event);
 }
 
-void StatsExporterLivePlayerLeftSlot(Int slot, const char* variant)
+void LocalApiLivePlayerLeftSlot(Int slot, const char* variant)
 {
 	if (ThePlayerList == NULL)
 	{
@@ -5118,19 +5118,19 @@ void StatsExporterLivePlayerLeftSlot(Int slot, const char* variant)
 	AsciiString playerName;
 	playerName.format("player%d", slot);
 	const Player* player = ThePlayerList->findPlayerWithNameKey(TheNameKeyGenerator->nameToKey(playerName));
-	StatsExporterLivePlayerLeft((player != NULL) ? player->getPlayerIndex() : -1, variant);
+	LocalApiLivePlayerLeft((player != NULL) ? player->getPlayerIndex() : -1, variant);
 }
 
-void StatsExporterLivePlayerDefeated(Int playerIndex)
+void LocalApiLivePlayerDefeated(Int playerIndex)
 {
-	if (StatsExporterPipeGetSink() == NULL)
+	if (LocalApiReadersGetSink() == NULL)
 	{
 		return;
 	}
 
 	PendingEvent event;
 	event.playerIndex = playerIndex;
-	event.kind = statsexporter::STATEVENT_PLAYER_DEFEATED;
+	event.kind = localapi::STATEVENT_PLAYER_DEFEATED;
 	event.category = "PLAYER";
 	pushPendingEvent(event);
 }

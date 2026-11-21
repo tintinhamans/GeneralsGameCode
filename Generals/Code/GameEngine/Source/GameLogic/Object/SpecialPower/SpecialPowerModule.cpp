@@ -52,7 +52,7 @@
 #include "GameClient/Eva.h"
 #include "GameClient/InGameUI.h"
 #include "GameClient/ControlBar.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 
 
 
@@ -468,11 +468,11 @@ void SpecialPowerModule::triggerSpecialPower( const Coord3D *location )
 		  spTemplateForStats->getSpecialPowerType() == SPECIAL_INFANTRY_CAPTURE_BUILDING );
 	if( !isBuildingCapturePower )
 	{
-		StatsExporterLiveSuperweaponFired( getObject(), spTemplateForStats, location );
+		LocalApiLiveSuperweaponFired( getObject(), spTemplateForStats, location );
 		Player *statsPlayer = getObject()->getControllingPlayer();
 		if( statsPlayer != nullptr )
 		{
-			StatsExporterLiveAbilityUse(
+			LocalApiLiveAbilityUse(
 				statsPlayer->getPlayerIndex(),
 				spTemplateForStats,
 				getObject()->getTemplate(),

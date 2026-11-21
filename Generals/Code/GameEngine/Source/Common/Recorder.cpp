@@ -49,7 +49,7 @@
 #include "Common/RandomValue.h"
 #include "Common/CRCDebug.h"
 #include "Common/OptionPreferences.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 #include "Common/StatsExporter.h"
 #include "Common/version.h"
 #include <Utility/bit_adapter.h>
@@ -482,7 +482,7 @@ void RecorderClass::stopPlayback() {
 	m_fileName.clear();
 
 	// GenOnline @feature arcticdolphin 21/11/2026 Report the end of a watched replay to the live stats pipe
-	StatsExporterLiveMatchEnded(finishedReplayPath, TRUE);
+	LocalApiLiveMatchEnded(finishedReplayPath, TRUE);
 
 	if (!m_doingAnalysis)
 	{
@@ -525,7 +525,7 @@ void RecorderClass::updateRecord()
 				needFlush = FALSE;
 			}
 			// GenOnline @feature arcticdolphin 21/11/2026 Single player is never recorded, and this is a no-op if stopRecording already sent ENDED
-			StatsExporterLiveMatchEnded(AsciiString::TheEmptyString, FALSE);
+			LocalApiLiveMatchEnded(AsciiString::TheEmptyString, FALSE);
 			m_fileName.clear();
 		} else {
 			if (m_file != nullptr) {
@@ -767,7 +767,7 @@ void RecorderClass::stopRecording() {
 		GetOnlineGameHooks()->onReplayWritten(absoluteReplayPath);
 
 		// GenOnline @feature arcticdolphin 21/11/2026 Report the end of a recorded match to the live stats pipe
-		StatsExporterLiveMatchEnded(absoluteReplayPath, FALSE);
+		LocalApiLiveMatchEnded(absoluteReplayPath, FALSE);
 	}
 	m_fileName.clear();
 }

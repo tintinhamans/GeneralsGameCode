@@ -18,7 +18,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/StatsExporter.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
 #include "Common/PlayerTemplate.h"
@@ -438,10 +438,10 @@ void StatsExporterBeginRecording()
 
 void StatsExporterRecordKill(const Object *killer, const Object *victim, const DamageInfo *damageInfo)
 {
-	// Live pipe feed with a cheap early-out while no reader is connected
+	// Live reader feed with a cheap early-out while no reader is connected
 	if (killer != nullptr && victim != nullptr && killer->getControllingPlayer() != nullptr)
 	{
-		StatsExporterLiveKill(killer->getControllingPlayer()->getPlayerIndex(), killer, victim);
+		LocalApiLiveKill(killer->getControllingPlayer()->getPlayerIndex(), killer, victim);
 	}
 
 	if (!s_state.exportingActive)
@@ -769,13 +769,12 @@ void StatsExporterGetStatsPath(AsciiString& statsPath, const AsciiString& replay
 	if (lastSlash != nullptr)
 		replayBase = lastSlash + 1;
 
-	// Build stats file path: replace .rep extension with .gamestats.json.gz
 	char baseName[_MAX_PATH + 1];
 	strlcpy(baseName, replayBase, ARRAY_SIZE(baseName));
 	char *dot = strrchr(baseName, '.');
 	if (dot != nullptr) *dot = '\0';
 
-	statsPath.format("%s%s.gamestats.json.gz", replayDir.str(), baseName);
+	statsPath.format("%s%s.stats.json.gz", replayDir.str(), baseName);
 }
 
 void StatsExporterGetStatsPathForReplay(AsciiString& statsPath, const AsciiString& replayPath)
@@ -787,7 +786,7 @@ void StatsExporterGetStatsPathForReplay(AsciiString& statsPath, const AsciiStrin
 		lastSeparator = lastBackslash;
 	const char *dot = strrchr(path, '.');
 	const int length = (dot != nullptr && (lastSeparator == nullptr || dot > lastSeparator)) ? static_cast<int>(dot - path) : static_cast<int>(strlen(path));
-	statsPath.format("%.*s.gamestats.json.gz", length, path);
+	statsPath.format("%.*s.stats.json.gz", length, path);
 }
 
 // The temp file sits in the same folder so the replace is atomic and a half file never exists.

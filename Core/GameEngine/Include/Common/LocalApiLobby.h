@@ -15,8 +15,8 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// Protocol reference: GenOnline/docs/stats-exporter.md
-// Lobby control for the live stats pipe. The setup screens (skirmish, LAN, Generals Online) describe their own controls in a
+// Protocol reference: GenOnline/docs/local-api.md
+// Lobby control for the live stats readers. The setup screens (skirmish, LAN, Generals Online) describe their own controls in a
 // StatsLobbyScreen. The driver operates those controls the way a click would, so every change goes through the handlers of the screen.
 // Main thread only, and it never touches a running match.
 #pragma once
@@ -28,12 +28,12 @@
 class GameInfo;
 class GameWindow;
 
-namespace statsexporter
+namespace localapi
 {
 	class LobbyControlQuery;
 }
 
-/// What a game setup screen hands the pipe: its windows and the handlers behind the ones that are not plain gadget messages.
+/// What a game setup screen hands the readers: its windows and the handlers behind the ones that are not plain gadget messages.
 struct StatsLobbyScreen
 {
 	GameInfo* game;
@@ -72,5 +72,5 @@ void SkirmishMapSelectMenuApplyMap(const AsciiString& map);
 void LanMapSelectMenuApplyMap(const AsciiString& map);
 void GenOnlineMapSelectMenuApplyMap(const AsciiString& map);
 
-/// Returns the statsexporter::ResponseStatus value, fills `result` with the serialized LobbyControlResult and `message` with the reason of a refusal.
-int StatsExporterLobbyControl(const statsexporter::LobbyControlQuery& query, std::string& result, std::string& message);
+/// Returns the localapi::ResponseStatus value, fills `result` with the serialized LobbyControlResult and `message` with the reason of a refusal.
+int LocalApiLobbyControl(const localapi::LobbyControlQuery& query, std::string& result, std::string& message);

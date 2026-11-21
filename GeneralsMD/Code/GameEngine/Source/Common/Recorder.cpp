@@ -48,7 +48,7 @@
 #include "Common/RandomValue.h"
 #include "Common/CRCDebug.h"
 #include "Common/OptionPreferences.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 #include "Common/StatsExporter.h"
 #include "Common/version.h"
 #include "GameNetwork/Online/IOnlineGameHooks.h"
@@ -482,7 +482,7 @@ void RecorderClass::stopPlayback() {
 	}
 	m_fileName.clear();
 
-	StatsExporterLiveMatchEnded(finishedReplayPath, TRUE);
+	LocalApiLiveMatchEnded(finishedReplayPath, TRUE);
 
 	if (!m_doingAnalysis)
 	{
@@ -527,7 +527,7 @@ void RecorderClass::updateRecord()
 				needFlush = FALSE;
 			}
 			// Single player is never recorded, and this is a no-op if stopRecording() already sent ENDED
-			StatsExporterLiveMatchEnded(AsciiString::TheEmptyString, FALSE);
+			LocalApiLiveMatchEnded(AsciiString::TheEmptyString, FALSE);
 			m_fileName.clear();
 		}
 		else {
@@ -769,7 +769,7 @@ void RecorderClass::stopRecording() {
 		// upload
 		GetOnlineGameHooks()->onReplayWritten(finishedReplayPath);
 
-		StatsExporterLiveMatchEnded(finishedReplayPath, FALSE);
+		LocalApiLiveMatchEnded(finishedReplayPath, FALSE);
 	}
 	m_fileName.clear();
 }

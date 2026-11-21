@@ -28,13 +28,13 @@ class DamageInfo;
 /// @return false when the file could not be written. Uploads only when -statsUrl is set.
 bool ExportGameStatsJSON(const AsciiString& replayDir, const AsciiString& replayFileName);
 
-/// Build the path of the stats file of a replay: <replayDir><replay name without extension>.gamestats.json.gz
+/// Build the path of the stats file of a replay: <replayDir><replay name without extension>.stats.json.gz
 void StatsExporterGetStatsPath(AsciiString& statsPath, const AsciiString& replayDir, const AsciiString& replayFileName);
 
-/// Build the path of the stats file that belongs to a replay file path, same folder and base name: C:/x/Replays/Foo.rep -> C:/x/Replays/Foo.gamestats.json.gz
+/// Build the path of the stats file that belongs to a replay file path, same folder and base name: C:/x/Replays/Foo.rep -> C:/x/Replays/Foo.stats.json.gz
 void StatsExporterGetStatsPathForReplay(AsciiString& statsPath, const AsciiString& replayPath);
 
-/// True when live games are recorded: -exportStats or the client.json setting stats.export. Off by default.
+/// True when live games are recorded: -exportStats or the settings.client.json setting stats.export. Off by default.
 bool StatsExporterLiveRecordingEnabled();
 
 /// True between StatsExporterBeginRecording and the export of the match.
@@ -48,7 +48,7 @@ void StatsExporterCollectSnapshot();
 void StatsExporterBeginRecording();
 
 /// Record a kill event with full context (called from Object::scoreTheKill).
-/// Feeds the live stats pipe (StatsExporterLive.h) and, when -exportStats is on, the JSON export.
+/// Feeds the live stats readers (LocalApiLive.h) and, when -exportStats is on, the JSON export.
 void StatsExporterRecordKill(const Object *killer, const Object *victim, const DamageInfo *damageInfo);
 
 /// Record a build event (called from Player::onUnitCreated / onStructureConstructionComplete).

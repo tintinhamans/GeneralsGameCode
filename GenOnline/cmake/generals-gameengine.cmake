@@ -1,8 +1,8 @@
 # Generals Online is built into both games, like Zero Hour
-include(${CMAKE_SOURCE_DIR}/GenOnline/cmake/statsexporter.cmake)
+include(${CMAKE_SOURCE_DIR}/GenOnline/cmake/localapi.cmake)
 
 macro(genonline_generals_gameengine_targets)
-    genonline_statsexporter_proto(g_statsexporter_proto g_gameengine)
+    genonline_localapi_proto(g_localapi_proto g_gameengine)
 endmacro()
 
 cmake_language(DEFER CALL genonline_generals_gameengine_targets)

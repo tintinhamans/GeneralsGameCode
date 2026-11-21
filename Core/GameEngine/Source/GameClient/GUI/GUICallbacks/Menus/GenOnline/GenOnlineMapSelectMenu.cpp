@@ -303,7 +303,7 @@ static void applySelectedMap( AsciiString asciiMap )
 	pLobbyInterface->UpdateCurrentLobby_Map(strMapName, TheGenOnlineGame->getMap(), bOfficialMap, newMaxPlayers);
 }
 
-// The same without the selector window, for the stats pipe.
+// The same without the selector window, for the stats readers.
 void GenOnlineMapSelectMenuApplyMap( const AsciiString& map )
 {
 	applySelectedMap( map );

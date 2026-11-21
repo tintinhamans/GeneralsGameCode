@@ -17,11 +17,11 @@ list(APPEND GAMEENGINE_SRC
     Include/Common/AdaptiveQualityPower.h
     Include/Common/GOUIColors.h
     Include/Common/StatsExporter.h
-    Include/Common/StatsExporterControl.h
-    Include/Common/StatsExporterLive.h
-    Include/Common/StatsExporterLobby.h
-    Include/Common/StatsExporterPipe.h
-    Include/Common/StatsExporterQuery.h
+    Include/Common/LocalApiControl.h
+    Include/Common/LocalApiLive.h
+    Include/Common/LocalApiLobby.h
+    Include/Common/LocalApiReaders.h
+    Include/Common/LocalApiQuery.h
     Include/Common/StatsUploader.h
     Include/GameClient/GenOnlineMenus.h
     Include/GameClient/GUI/ChatCompletion.h
@@ -53,11 +53,11 @@ list(APPEND GAMEENGINE_SRC
     Source/Common/AdaptiveQuality.cpp
     Source/Common/GOUIColors.cpp
     Source/Common/StatsExporter.cpp
-    Source/Common/StatsExporterControl.cpp
-    Source/Common/StatsExporterLive.cpp
-    Source/Common/StatsExporterLobby.cpp
-    Source/Common/StatsExporterPipe.cpp
-    Source/Common/StatsExporterQuery.cpp
+    Source/Common/LocalApiControl.cpp
+    Source/Common/LocalApiLive.cpp
+    Source/Common/LocalApiLobby.cpp
+    Source/Common/LocalApiReaders.cpp
+    Source/Common/LocalApiQuery.cpp
     Source/Common/StatsUploader.cpp
     Source/GameClient/GUI/ChatCompletion.cpp
     Source/GameClient/GUI/ChatCompletionSets.cpp
@@ -132,7 +132,6 @@ list(APPEND GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/GenOnlineClientDescription.h
     Include/GameNetwork/GenOnline/GenOnlineClientFile.h
     Include/GameNetwork/GenOnline/GenOnlineCrashReport.h
-    Include/GameNetwork/GenOnline/GenOnlinePackList.h
     Include/GameNetwork/GenOnline/GenOnlinePluginRoles.h
     Include/GameNetwork/GenOnline/GenOnlineSettings.h
     Include/GameNetwork/GenOnline/HTTP/HTTPManager.h
@@ -163,7 +162,6 @@ list(APPEND GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/ServiceEndpointPolicy.cpp
     Source/GameNetwork/GenOnline/GenOnlineClientDescription.cpp
     Source/GameNetwork/GenOnline/GenOnlineClientFile.cpp
-    Source/GameNetwork/GenOnline/GenOnlinePackList.cpp
     Source/GameNetwork/GenOnline/GenOnlinePluginRoles.cpp
     Source/GameNetwork/GenOnline/GenOnlineSettings.cpp
     Source/GameNetwork/GenOnline/HTTP/HTTPManager.cpp

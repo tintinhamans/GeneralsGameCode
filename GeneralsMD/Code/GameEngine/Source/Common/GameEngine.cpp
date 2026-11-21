@@ -118,8 +118,8 @@
 
 #include "../GenOnlineDefines.h"
 
-#include "Common/StatsExporterPipe.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiReaders.h"
+#include "Common/LocalApiLive.h"
 #include <chrono>
 #include "WW3D2/ww3d.h"
 
@@ -270,8 +270,8 @@ GameEngine::GameEngine()
 //-------------------------------------------------------------------------------------------------
 GameEngine::~GameEngine()
 {
-	// stop the stats pipe thread before the state it samples is torn down
-	StatsExporterPipeShutdown();
+	// stop the stats readers feed before the state it samples is torn down
+	LocalApiReadersShutdown();
 #if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 The caster plugin unloads after the sink stopped using it
 	GenOnlinePluginHost::UnloadToolPlugin();
@@ -459,7 +459,7 @@ void GameEngine::init()
 	#endif/////////////////////////////////////////////////////////////////////////////////////////////
 
 
-		// GENONLINE_CHANGE: Init settings before the archives are mounted because they read the -packs list. Needs TheGlobalData for the user data path.
+		// GenOnline @feature arcticdolphin 21/11/2026 Settings load before the archives are mounted because they read data.include and data.exclude, and they need TheGlobalData for the user data path.
 		GetOnlineGameHooks()->loadSettings();
 
 		initSubsystem(TheArchiveFileSystem, "TheArchiveFileSystem", createArchiveFileSystem(), nullptr); // this MUST come after TheLocalFileSystem creation
@@ -979,13 +979,13 @@ void GameEngine::update()
 {
 	USE_PERF_TIMER(GameEngine_update)
 	{
-		// keeps the stats pipe listener up so a client can connect from the shell
-		StatsExporterPipeStart();
+		// keeps the stats readers feed up so a reader can connect from the shell
+		LocalApiReadersStart();
 #if defined(GENONLINE)
 		// GenOnline @feature arcticdolphin 21/11/2026 Runs the caster plugin once per frame
 		GenOnlinePluginHost::TickToolPlugin();
 #endif
-		StatsExporterLiveTick();
+		LocalApiLiveTick();
 
 		{
 			// VERIFY CRC needs to be in this code block.  Please to not pull TheGameLogic->update() inside this block.
@@ -1015,7 +1015,7 @@ void GameEngine::update()
 				TheGameClient->UPDATE();
 				AdaptiveQuality::get().addOwn(AdaptiveQuality::now() - aqClientStart);
 			}
-			StatsExporterLiveCamera();
+			LocalApiLiveCamera();
 			TheMessageStream->propagateMessages();
 
             if (TheNetwork != nullptr)
