@@ -19,7 +19,6 @@
 
 #include "Common/StatsExporter.h"
 #include "Common/StatsExporterLive.h"
-#include "Common/StatsUploader.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
 #include "Common/PlayerTemplate.h"
@@ -37,6 +36,10 @@
 // Keep zconf.h from redefining 'Byte' (BaseTypeCore.h) when using unprefixed zlib (vcpkg).
 #define __MACTYPES__
 #include <zlib.h>
+
+#include <GenOnlinePluginApi.h>
+#include "GameNetwork/GenOnline/GenOnlineInclude.h"	// NetworkLog
+#include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
 
 #include "GameNetwork/GenOnline/json.hpp"
 
@@ -719,10 +722,46 @@ static ordered_json buildTimeSeriesJson()
 
 //-----------------------------------------------------------------------------
 
-void ExportGameStatsJSON(const AsciiString& replayDir, const AsciiString& replayFileName)
+// Window bits 15 + 16 make zlib write a gzip header and trailer, the same format the file had when gzwrite wrote it.
+static bool gzipInMemory(const std::string& input, std::string& output)
+{
+	z_stream stream = {};
+	if (deflateInit2(&stream, 9, Z_DEFLATED, 15 + 16, 8, Z_DEFAULT_STRATEGY) != Z_OK)
+		return false;
+
+	output.resize(deflateBound(&stream, static_cast<uLong>(input.size())));
+	stream.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(input.data()));
+	stream.avail_in = static_cast<uInt>(input.size());
+	stream.next_out = reinterpret_cast<Bytef*>(&output[0]);
+	stream.avail_out = static_cast<uInt>(output.size());
+
+	const int result = deflate(&stream, Z_FINISH);
+	const uLong written = stream.total_out;
+	deflateEnd(&stream);
+	if (result != Z_STREAM_END)
+		return false;
+
+	output.resize(written);
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+
+bool ExportGameStatsJSON(const AsciiString& replayDir, const AsciiString& replayFileName)
 {
 	if (ThePlayerList == nullptr || TheGameLogic == nullptr || TheGlobalData == nullptr)
-		return;
+		return false;
+
+	const GenOnlinePluginToolApi* stats = GenOnlinePluginHost::GetToolApi();
+	if (stats == nullptr)
+	{
+		printf("[stats] ERROR: -exportStats needs the tool plugin, set plugins.tool in client.json\n");
+		fflush(stdout);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Stats] ERROR: -exportStats needs the tool plugin, set plugins.tool in client.json");
+		s_state.resetData();
+		s_state.exportingActive = FALSE;
+		return false;
+	}
 
 	// Strip any directory components from the replay filename
 	const char *replayBase = replayFileName.str();
@@ -830,53 +869,31 @@ void ExportGameStatsJSON(const AsciiString& replayDir, const AsciiString& replay
 
 	std::string jsonStr = root.dump(2);
 
-	// Write gzip-compressed output to file
-	printf("[stats] Writing %u bytes JSON to %s\n", static_cast<unsigned int>(jsonStr.size()), statsPath.str());
-	fflush(stdout);
-	gzFile gz = gzopen(statsPath.str(), "wb9");
-	if (gz != nullptr)
+	// The plugin writes the file and uploads it, so the game only compresses the document.
+	std::string gzipped;
+	if (!gzipInMemory(jsonStr, gzipped))
 	{
-		gzwrite(gz, jsonStr.data(), static_cast<unsigned int>(jsonStr.size()));
-		gzclose(gz);
-	}
-	else
-	{
-		printf("[stats] ERROR: Failed to open %s for writing\n", statsPath.str());
+		printf("[stats] ERROR: Failed to compress the stats of %s\n", statsPath.str());
 		fflush(stdout);
+		s_state.resetData();
+		s_state.exportingActive = FALSE;
+		return false;
 	}
 
-	// Upload gzip file to server if URL configured
+	printf("[stats] Writing %u bytes JSON (%u bytes compressed) to %s\n", static_cast<unsigned int>(jsonStr.size()), static_cast<unsigned int>(gzipped.size()), statsPath.str());
 	if (!TheGlobalData->m_statsUrl.isEmpty())
 	{
-		FILE *f = fopen(statsPath.str(), "rb");
-		if (f != nullptr)
-		{
-			fseek(f, 0, SEEK_END);
-			long fileSize = ftell(f);
-			fseek(f, 0, SEEK_SET);
-			if (fileSize > 0)
-			{
-				void *fileData = malloc(static_cast<size_t>(fileSize));
-				if (fileData != nullptr)
-				{
-					if (fread(fileData, 1, static_cast<size_t>(fileSize), f) == static_cast<size_t>(fileSize))
-					{
-						printf("[stats] Uploading %ld bytes to %s\n", fileSize, TheGlobalData->m_statsUrl.str());
-						fflush(stdout);
-						UploadStatsToServer(TheGlobalData->m_statsUrl, fileData, static_cast<unsigned int>(fileSize), GetGameLogicRandomSeed());
-					}
-					free(fileData);
-				}
-			}
-			fclose(f);
-		}
-		else
-		{
-			printf("[stats] ERROR: Failed to read %s for upload\n", statsPath.str());
-			fflush(stdout);
-		}
+		printf("[stats] Uploading %u bytes to %s\n", static_cast<unsigned int>(gzipped.size()), TheGlobalData->m_statsUrl.str());
+	}
+	fflush(stdout);
+	const bool written = stats->ExportMatch(statsPath.str(), gzipped.data(), static_cast<uint32_t>(gzipped.size()), TheGlobalData->m_statsUrl.str(), GetGameLogicRandomSeed()) != GENONLINE_PLUGIN_FALSE;
+	if (!written)
+	{
+		printf("[stats] ERROR: The tool plugin failed to write %s\n", statsPath.str());
+		fflush(stdout);
 	}
 
 	s_state.resetData();
 	s_state.exportingActive = FALSE;
+	return written;
 }

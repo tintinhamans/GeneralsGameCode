@@ -25,7 +25,8 @@ class DamageInfo;
 /// Export game statistics as a JSON file alongside the replay file.
 /// @param replayDir Directory containing replays (e.g. "[UserDataPath]/Replays/")
 /// @param replayFileName Replay filename with extension (e.g. "LastReplay.rep")
-void ExportGameStatsJSON(const AsciiString& replayDir, const AsciiString& replayFileName);
+/// @return false when the tool plugin is not loaded or did not write the file
+bool ExportGameStatsJSON(const AsciiString& replayDir, const AsciiString& replayFileName);
 
 /// Collect a time-series snapshot of all players' stats (called every game logic frame).
 /// Snapshots are taken every 30 frames (~1 second) and stored in memory.

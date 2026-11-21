@@ -16,17 +16,15 @@
 */
 
 // Protocol reference: GenOnline/docs/stats-exporter.md
-// Client-owned, byte-mode Win32 named pipe (\\.\pipe\generalsonline-stats-<pid>) that streams live match
-// stats to out-of-process readers. Always on, except in headless runs and replay-simulation processes, where no thread and no pipe are created.
+// Live match stats for out-of-process readers. The caster plugin (client.json plugins.caster) owns the named pipe
+// (\\.\pipe\generalsonline-stats-<pid>), its framing and its per reader queues, and the game encodes and decodes every frame body.
+// Without the plugin, in headless runs and in replay-simulation processes there is no sink.
 //
-// The game is the pipe SERVER on one worker thread, and up to STATS_EXPORTER_MAX_READERS readers connect as clients.
-// Every reader has its own outbound queue, so a slow reader loses its own frames and never stalls the game or another reader.
-// Enqueue calls never block the caller and drop the NEW frame when the queue of that reader is full.
+// Up to STATS_EXPORTER_MAX_READERS readers connect. A slow reader loses its own frames and never stalls the game or another reader.
 // Outbound frame envelope: u32 little-endian body length + u8 type + u32 sequence + u64 timestamp in microseconds (see StatsExporter.proto).
 // The sequence counts the frames queued for that reader and a dropped frame still uses its number, so readers see gaps.
-// Inbound frame envelope: u32 little-endian body length + u8 type. Inbound types: 0x10 ChatSend (parsed on the worker thread into a
-// per-reader mailbox), 0x11 Request (rate limited, queued per reader and answered on the main thread), other types are skipped,
-// and a bad length drops the reader.
+// Inbound frame envelope: u32 little-endian body length + u8 type. Inbound types: 0x10 ChatSend, 0x11 Request (rate limited by
+// the plugin and answered on the main thread), other types are skipped, and a bad length drops the reader.
 #pragma once
 
 #include "Lib/BaseType.h"
@@ -276,153 +274,11 @@ public:
 	virtual Bool takeRequest(StatsExporterQueuedRequest& out) = 0;
 };
 
-/// The sink, or NULL in headless runs or when the listener could not be created. Starts the listener on first use.
+/// The sink over the caster plugin, or NULL in headless runs, without the plugin or when its listener could not start. Starts the listener on first use.
 StatsExporterSink* StatsExporterPipeGetSink();
 
 /// Starts the listener. Cheap and idempotent, and lets a reader connect from the shell.
 void StatsExporterPipeStart();
 
-/// Stops the listener thread, a no-op if it never started.
+/// Detaches the sink from the plugin before the plugin unloads, a no-op if it never started.
 void StatsExporterPipeShutdown();
-
-class StatsExporterPipeServer : public StatsExporterSink
-{
-public:
-	static StatsExporterPipeServer& TheInstance();
-
-	/// Starts the pipe listener thread on first call, a cheap no-op after that.
-	void ensureStarted();
-	Bool isRunning() const { return m_thread != NULL; }
-	Bool isStopped() const { return m_stopped != 0; }
-
-	virtual Bool isConnected() const;
-	virtual void getReaders(StatsExporterReaders& out) const;
-	virtual void getUnwelcomedReaders(StatsExporterReaders& out) const;
-	virtual void markWelcomed(const StatsExporterReaders& readers);
-	virtual Bool enqueueFrame(UnsignedByte frameType, const UnsignedByte* body, UnsignedInt bodyLength, const StatsExporterReaders& to);
-	virtual void takeResyncRequests();
-	virtual void bumpEpoch(Int slot, UnsignedInt epoch);
-	virtual void getFeedConfig(Int slot, StatsExporterFeedConfig& out) const;
-	virtual void setFeedConfig(Int slot, UnsignedInt epoch, const StatsExporterFeedConfig& config);
-	virtual Bool takeChatSend(StatsExporterChatSend& out);
-	virtual Bool takeRequest(StatsExporterQueuedRequest& out);
-
-	/// Stops the worker thread and closes the pipe. Safe to call more than once and when never started.
-	void shutdown();
-
-	virtual ~StatsExporterPipeServer();
-
-private:
-	StatsExporterPipeServer();
-	StatsExporterPipeServer(const StatsExporterPipeServer&);
-	StatsExporterPipeServer& operator=(const StatsExporterPipeServer&);
-
-	/// A bounded ring buffer of whole frames: a frame that does not fit is dropped, never split.
-	class FrameQueue
-	{
-	public:
-		FrameQueue();
-		~FrameQueue();
-
-		/// `reserve` bytes of the capacity stay free for the priority class of the caller, so the frame is dropped if it would eat into them.
-		Bool push(const UnsignedByte* header, UnsignedInt headerLength, const UnsignedByte* body, UnsignedInt bodyLength, UnsignedInt reserve);
-		UnsignedInt freeBytes() const;
-		UnsignedInt peek(UnsignedByte* dest, UnsignedInt capacity) const;
-		void consume(UnsignedInt length);
-		void clear();
-
-	private:
-		Bool ensureBuffer();
-		void write(UnsignedInt offset, const UnsignedByte* data, UnsignedInt length);
-
-		UnsignedByte* m_buffer;
-		UnsignedInt m_head;
-		UnsignedInt m_count;
-
-		FrameQueue(const FrameQueue&);
-		FrameQueue& operator=(const FrameQueue&);
-	};
-
-	enum { CHAT_MAILBOX_SLOTS = 8, SEND_CHUNK_BYTES = 8192 };
-
-	enum SlotState
-	{
-		SLOT_CLOSED,		///< no pipe instance
-		SLOT_LISTENING,		///< instance created, waiting for a reader
-		SLOT_CONNECTED
-	};
-
-	/// One pipe instance of a reader. The I/O members belong to the worker thread and the rest is guarded by m_lock.
-	struct ReaderSlot
-	{
-		ReaderSlot();
-
-		// Worker thread only.
-		SlotState state;
-		HANDLE pipe;
-		HANDLE connectEvent;
-		HANDLE readEvent;
-		HANDLE writeEvent;
-		OVERLAPPED connectOverlapped;
-		OVERLAPPED readOverlapped;
-		OVERLAPPED writeOverlapped;
-		Bool readPending;
-		Bool writePending;
-		UnsignedInt inboundLen;
-		UnsignedByte inbound[5 + STATS_EXPORTER_MAX_INBOUND_BODY_BYTES];
-		UnsignedByte sendBuffer[SEND_CHUNK_BYTES];
-		ULONGLONG retryAtMs;
-
-		// Guarded by m_lock.
-		Bool connected;
-		Bool welcomed;
-		Bool resyncNeeded;		///< a lifecycle frame was dropped on the current connection
-		UnsignedInt epoch;		///< 0 while not connected
-		UnsignedInt nextSequence;
-		FrameQueue queue;
-		StatsExporterFeedConfig feed;
-		std::string requests[STATS_EXPORTER_REQUEST_QUEUE_SLOTS];
-		UnsignedInt requestHead;
-		UnsignedInt requestCount;
-		double requestTokens;
-		ULONGLONG requestRefillMs;
-		StatsExporterChatSend chats[CHAT_MAILBOX_SLOTS];
-		UnsignedInt chatHead;
-		UnsignedInt chatCount;
-	};
-
-	static unsigned __stdcall workerProcThunk(void* param);
-	void workerProc();
-
-	// Worker thread only.
-	/// 0 = could not create the instance, 1 = waiting for a reader, 2 = a reader is already connected.
-	Int startListening(ReaderSlot& slot, DWORD* createError);
-	void onConnected(Int index);
-	void closeSlot(Int index);
-
-	// Worker thread only.
-	Bool beginRead(ReaderSlot& slot);
-	Bool beginWrite(Int index);
-	void pumpWrites();
-	Bool processInboundBytes(Int index, UnsignedInt bytesTransferred);
-	void handleInboundFrame(Int index, UnsignedByte frameType, const UnsignedByte* body, UnsignedInt bodyLength);
-	void handleRequestFrame(Int index, const UnsignedByte* body, UnsignedInt bodyLength);
-
-	/// Queues a frame on one reader. The caller holds m_lock.
-	Bool pushLocked(ReaderSlot& slot, UnsignedByte frameType, const UnsignedByte* body, UnsignedInt bodyLength, UnsignedInt64 timestampMicros);
-	/// Queues a Response without a result (a refusal) from the worker thread.
-	void queueRefusal(Int index, UnsignedInt requestId, int status, const char* message);
-
-	HANDLE m_thread;
-	HANDLE m_wakeEvent;			///< signalled on enqueue and on shutdown
-	HANDLE m_shutdownEvent;
-	volatile LONG m_started;
-	volatile LONG m_stopped;	///< set by shutdown(), never cleared: no restart during engine teardown
-	volatile LONG m_shuttingDown;
-	volatile LONG m_connectedCount;
-	UnsignedInt m_epochCounter;	///< guarded by m_lock
-	UnsignedInt m_chatNext;		///< round robin cursors, main thread
-	UnsignedInt m_requestNext;
-	mutable CRITICAL_SECTION m_lock;
-	ReaderSlot m_slots[STATS_EXPORTER_MAX_READERS];
-};
