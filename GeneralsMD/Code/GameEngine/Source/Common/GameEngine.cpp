@@ -1140,34 +1140,32 @@ void GameEngine::execute()
 
 			{
 				AdaptiveQuality::get().frameBegin();
-				update();
-// 				try
-// 				{
-// 					// compute a frame
-// 					update();
-// 				}
-// 				catch (INIException e)
-// 				{
-// 					// Release CRASH doesn't return, so don't worry about executing additional code.
-// 					if (e.mFailureMessage)
-// 						RELEASE_CRASH((e.mFailureMessage));
-// 					else
-// 						RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
-// 				}
-// 				catch (...)
-// 				{
-// 					// try to save info off
-// 					try
-// 					{
-// 						if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD && TheRecorder->isMultiplayer())
-// 							TheRecorder->cleanUpReplayFile();
-// 					}
-// 					catch (...)
-// 					{
-// 					}
-// 					RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
-// 				}
-// #endif
+				try
+				{
+					// compute a frame
+					update();
+				}
+				catch (INIException e)
+				{
+					// Release CRASH doesn't return, so don't worry about executing additional code.
+					if (e.mFailureMessage)
+						RELEASE_CRASH((e.mFailureMessage));
+					else
+						RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
+				}
+				catch (...)
+				{
+					// try to save info off
+					try
+					{
+						if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD && TheRecorder->isMultiplayer())
+							TheRecorder->cleanUpReplayFile();
+					}
+					catch (...)
+					{
+					}
+					RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
+				}
 			}
 
 			TheFramePacer->update();
