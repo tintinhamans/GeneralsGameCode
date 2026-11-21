@@ -10,22 +10,25 @@ UVs from Coords / TextureWidth, so every piece keeps the size of the retail imag
 and only gets sharper. Each piece is padded and its edge texels are extruded so stretched and
 tiled pieces do not sample their neighbours.
 
-A third atlas redraws the retail load screen progress bar (LoadingBar_*) as a kit field: the kit line, the field back and
-a launcher bronze fill; the Retail interface style leaves its files out
-and keeps the retail bar.
-
 A fourth atlas holds the radar van that drives on the GO bar art (LoadScreen.cpp drawGoLoadBarVan), from the logo
 session's layered art in GenOnline/tools/art/van-side: the body, the dish, four wheel frames and a dust puff. The Retail style
 leaves it out.
 
 Usage:
-    python GenOnline/tools/go_ui_kit.py          write the atlases and the INIs into GenOnline/data/core
+    python GenOnline/tools/go_ui_kit.py          write the INIs and the theme independent atlases into GenOnline/data/core and the theme
+                                                 atlases (the UI kit, the map icons and the load road) into the folder of each theme
     python GenOnline/tools/go_ui_kit.py --check  exit 1 when the committed files differ from a fresh run
+    python GenOnline/tools/go_ui_kit.py --theme generals          write only the theme atlases of one theme
+    python GenOnline/tools/go_ui_kit.py --theme generals --check  exit 1 when those files are out of date
+
+The themes are zerohour, the blue of the Zero Hour interface, and generals, the orange of the Generals interface. A game folder of
+GenOnline/data holds the atlases and the Data/INI/GOUIColors.ini of its theme, core holds what both share.
 """
 
 import argparse
 import math
 import struct
+import subprocess
 import sys
 from pathlib import Path
 
@@ -55,7 +58,37 @@ ARROW_LINE = LINE_LAYOUT  # combo arrows carry the kit line like every bordered 
 BOX_LINE = (1.25 * 1.2, 1.45 * 1.2)  # slider blocks: 11x13 art drawn as squares, so the line differs per axis; small, so a thinner line
 
 
+# --theme recolours the blues of the kit, and the colour table of the theme (Data/INI/GOUIColors.ini) carries the same colours to the engine
+THEME = sys.argv[sys.argv.index("--theme") + 1] if "--theme" in sys.argv else ""
+THEMES = {
+    "zerohour": {},  # the colours of the kit as drawn
+    "generals": {
+        "#2F4BFF": "#E8931A",  # kit line
+        "#6A7BFF": "#FFB54A",  # hilite line
+        "#8C9BFF": "#FFD08A",  # pushed line
+        "#3446FF": "#D9841A",  # selected and slider fill
+        "#C9CEFF": "#FFE6BF",  # glyph
+        "#5D6080": "#806A4E",  # disabled glyph
+        "#2B34B8": "#A85E0C",  # pushed fill
+        "#152078": "#6B3A06",  # hilite fill
+        "#05070F": "#0F0A05",  # field
+        "#4A4E6E": "#6E5A44",  # disabled line
+        "#404159": "#5A4A38",  # disabled scroll thumb
+        "#3A4FE0": "#C97A14",  # scroll thumb
+        "#3A3C55": "#4D3F30",  # disabled scroll pill
+        "#283489": "#6A410E",  # slider track
+        "#24308C": "#7A4A10",  # slider off line
+        "#0B1030": "#1A1005",  # slider off fill
+        "#070A18": "#140C04",  # button fill
+        "#0A0A10": "#100C08",  # disabled fill
+    },
+}
+if THEME and THEME not in THEMES:
+    sys.exit("unknown theme " + THEME)
+
+
 def rgba(hex_color, alpha=1.0):
+    hex_color = THEMES.get(THEME, {}).get(hex_color.upper(), hex_color)
     h = hex_color.lstrip("#")
     return (int(h[0:2], 16) / 255.0, int(h[2:4], 16) / 255.0, int(h[4:6], 16) / 255.0, alpha)
 
@@ -861,41 +894,6 @@ def pieces2():
 
 
 # =================================================================================================
-# Load screen progress bar: the retail LoadingBar_* images as a kit field, one kit line on the field back, with a launcher
-# bronze fill. Its own atlas. The Retail interface style leaves the files out (ArchiveFileSystem.cpp
-# isNotGenOnlineInterfaceFile).
-# W3DGadgetProgressBarImageDraw draws the frame as a three-piece bar over the whole window and tiles the fill (Progress)
-# and the unfilled track (DePowered) inside it, 10 pixels in from the sides and 5 from the top and bottom at any size;
-# the shell load screen draws the road instead (load_road_pieces).
-# =================================================================================================
-
-LOAD_BAR_TEXTURE_NAME = "GeneralsOnline_LoadingBar.tga"
-LOAD_BAR_TEXTURE_PATH = DATA / "Art" / "Textures" / LOAD_BAR_TEXTURE_NAME
-LOAD_BAR_INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_LoadingBar.INI"
-LOAD_BAR_ATLAS_WIDTH = 64  # in retail pixels
-LOAD_BAR_TITLE = "the load screen progress bar"
-LOAD_BAR_LINE = BUTTON_STATES[""][0]  # the kit line
-LOAD_BAR_GROUND = FIELD  # the framed back, an entry field
-LOAD_BAR_TRACK = FIELD   # the unfilled track is the back
-LOAD_BAR_FILL = rgba(go_themes.PALETTE["bronze"])
-
-
-def load_bar_pieces():
-    """The load screen bar at the retail Coords sizes: a square kit framed field back, a flat bronze fill and a track that
-    is the back."""
-    return [
-        ("LoadingBar_L", 20, 20, button_piece(20, 20, "left", LOAD_BAR_LINE, LOAD_BAR_GROUND, LINE_LAYOUT)),
-        ("LoadingBar_C", 10, 20, button_piece(10, 20, "middle", LOAD_BAR_LINE, LOAD_BAR_GROUND, LINE_LAYOUT)),
-        ("LoadingBar_R", 20, 20, button_piece(20, 20, "right", LOAD_BAR_LINE, LOAD_BAR_GROUND, LINE_LAYOUT)),
-        ("LoadingBar_Progress", 3, 11, flat_piece(3, 11, LOAD_BAR_FILL)),
-        ("LoadingBar_DePowered", 3, 11, flat_piece(3, 11, LOAD_BAR_TRACK)),
-    ]
-
-
-# ============================== end of the load screen bar section ==============================
-
-
-# =================================================================================================
 # Load road: the GO shell load bar drawn as a road seen from the side, the ground the radar van drives on. Asphalt between
 # two kit lines (the three pieces carry Border = LINE_LAYOUT, so the lines keep the kit weight), a dashed centre line, and
 # a bronze tint with lit dashes behind the van. Its own atlas. The Retail style leaves the files out and keeps the retail bar. LoadScreen.cpp drawGoShellLoadBar draws it over the
@@ -1547,23 +1545,13 @@ def ini_text(items, placements, height, texture_name=TEXTURE_NAME, atlas_width=A
     return "\r\n".join(lines)
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--check", action="store_true", help="fail when the committed files are out of date")
-    args = parser.parse_args()
-    texture, ini = build()
-    texture2, ini2 = build(pieces2(), TEXTURE2_NAME, ATLAS2_WIDTH, TITLE2)
-    texture3, ini3 = build(load_bar_pieces(), LOAD_BAR_TEXTURE_NAME, LOAD_BAR_ATLAS_WIDTH, LOAD_BAR_TITLE)
-    van_texture, van_ini, _ = build_van()
-    road_texture, road_ini = build(load_road_pieces(), LOAD_ROAD_TEXTURE_NAME, LOAD_ROAD_ATLAS_WIDTH, LOAD_ROAD_TITLE)
-    bubble_texture, bubble_ini = build(bubble_pieces(), BUBBLE_TEXTURE_NAME, BUBBLE_ATLAS_WIDTH, BUBBLE_TITLE)
-    outputs = ((TEXTURE_PATH, texture), (INI_PATH, ini.encode("ascii")), (TEXTURE2_PATH, texture2), (INI2_PATH, ini2.encode("ascii")),
-               (LOAD_BAR_TEXTURE_PATH, texture3), (LOAD_BAR_INI_PATH, ini3.encode("ascii")),
-               (VAN_TEXTURE_PATH, van_texture), (VAN_INI_PATH, van_ini.encode("ascii")),
-               (LOAD_ROAD_TEXTURE_PATH, road_texture), (LOAD_ROAD_INI_PATH, road_ini.encode("ascii")),
-               (BUBBLE_TEXTURE_PATH, bubble_texture), (BUBBLE_INI_PATH, bubble_ini.encode("ascii")))
-    if args.check:
-        stale = [p for p, data in outputs if not p.exists() or p.read_bytes() != data]
+# the atlases that take the colours of a theme, they go into the folder of the theme
+THEME_TEXTURES = (TEXTURE_PATH, TEXTURE2_PATH, LOAD_ROAD_TEXTURE_PATH)
+
+
+def write_outputs(outputs, check):
+    stale = [p for p, data in outputs if not p.exists() or p.read_bytes() != data]
+    if check:
         for p in stale:
             print(f"out of date: {p.relative_to(ROOT)}")
         return 1 if stale else 0
@@ -1572,6 +1560,35 @@ def main():
         p.write_bytes(data)
     print("wrote " + ", ".join(str(p.relative_to(ROOT)) for p, _ in outputs))
     return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--check", action="store_true", help="fail when the committed files are out of date")
+    parser.add_argument("--theme", default="", help="write only the theme atlases of this theme into GenOnline/data/<theme>")
+    args = parser.parse_args()
+    if THEME:
+        texture, _ = build()
+        texture2, _ = build(pieces2(), TEXTURE2_NAME, ATLAS2_WIDTH, TITLE2)
+        road_texture, _ = build(load_road_pieces(), LOAD_ROAD_TEXTURE_NAME, LOAD_ROAD_ATLAS_WIDTH, LOAD_ROAD_TITLE)
+        themed = ROOT / "GenOnline" / "data" / THEME
+        textures = (texture, texture2, road_texture)
+        return write_outputs([(themed / path.relative_to(DATA), data) for path, data in zip(THEME_TEXTURES, textures)], args.check)
+
+    _, ini = build()
+    _, ini2 = build(pieces2(), TEXTURE2_NAME, ATLAS2_WIDTH, TITLE2)
+    van_texture, van_ini, _ = build_van()
+    _, road_ini = build(load_road_pieces(), LOAD_ROAD_TEXTURE_NAME, LOAD_ROAD_ATLAS_WIDTH, LOAD_ROAD_TITLE)
+    bubble_texture, bubble_ini = build(bubble_pieces(), BUBBLE_TEXTURE_NAME, BUBBLE_ATLAS_WIDTH, BUBBLE_TITLE)
+    outputs = [(INI_PATH, ini.encode("ascii")), (INI2_PATH, ini2.encode("ascii")),
+               (VAN_TEXTURE_PATH, van_texture), (VAN_INI_PATH, van_ini.encode("ascii")),
+               (LOAD_ROAD_INI_PATH, road_ini.encode("ascii")),
+               (BUBBLE_TEXTURE_PATH, bubble_texture), (BUBBLE_INI_PATH, bubble_ini.encode("ascii"))]
+    result = write_outputs(outputs, args.check)
+    # the colours are read when the module loads, so each theme runs in its own process
+    for theme in THEMES:
+        result |= subprocess.call([sys.executable, __file__, "--theme", theme] + (["--check"] if args.check else []))
+    return result
 
 
 if __name__ == "__main__":

@@ -2746,9 +2746,16 @@ Bool GadgetListBoxGetKitFrameColor( Color layoutBorder, Color *frameColor )
 	if( alpha == 0 )
 		return FALSE;
 
-	// the kit line and hilite colours keep their own colour
+	// the kit line and hilite colours keep their own colour, unless the colour table of a theme sets them
 	if( (red == 47 && green == 75 && blue == 255) || (red == 106 && green == 123 && blue == 255) )
 	{
+		Color themed;
+		const Bool isLine = (red == 47);
+		if( GOUIColorFind( isLine ? GOUICOLOR_LINE : GOUICOLOR_LINE_HILITE, &themed ) )
+		{
+			*frameColor = (themed & 0x00FFFFFF) | (layoutBorder & 0xFF000000);
+			return TRUE;
+		}
 		*frameColor = layoutBorder;
 		return TRUE;
 	}
@@ -2756,6 +2763,12 @@ Bool GadgetListBoxGetKitFrameColor( Color layoutBorder, Color *frameColor )
 	// older retail blues left in the layouts take the kit line colour
 	if( red < 64 && green < 64 && blue >= 150 )
 	{
+		Color themed;
+		if( GOUIColorFind( GOUICOLOR_LINE, &themed ) )
+		{
+			*frameColor = (themed & 0x00FFFFFF) | (layoutBorder & 0xFF000000);
+			return TRUE;
+		}
 		*frameColor = GameMakeColor( 47, 75, 255, alpha );
 		return TRUE;
 	}

@@ -51,6 +51,7 @@ enum GOUIColorRole CPP_11(: Int)
 	GOUICOLOR_LOBBY_ROW,			///< OnlineChatColors Game
 	GOUICOLOR_BUDDY,					///< OnlineChatColors PlayerBuddy
 	GOUICOLOR_MENTION,				///< chat lines that mention the local player
+	GOUICOLOR_LINE_HILITE,		///< kit line of a hovered or selected frame, the hilite blue of the layouts
 
 	GOUICOLOR_COUNT
 };
