@@ -214,7 +214,7 @@
             "name": "win32-vcpkg-generalsmd-openal",
             "inherits": "win32-vcpkg",
             "displayName": "Windows 32bit VCPKG Zero Hour OpenAL Release",
-            "description": "Zero Hour game only, with OpenAL Soft audio and the trimmed FFmpeg linked statically from the vcpkg overlay ports in GenOnline/cmake/ports, plus Miles and Bink for media.legacy in client.json",
+            "description": "Zero Hour game only, with OpenAL Soft audio and the trimmed FFmpeg linked statically from the vcpkg overlay ports in GenOnline/cmake/ports, plus Miles and Bink for media.legacy in settings.client.json",
             "cacheVariables": {
                 "RTS_BUILD_ZEROHOUR": "ON",
                 "RTS_BUILD_GENERALS": "OFF",

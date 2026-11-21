@@ -4,7 +4,7 @@ option(RTS_BUILD_OPTION_OPTIMIZED "Enable aggressive MSVC Release optimizations.
 set(RTS_BUILD_OPTION_PGO "OFF" CACHE STRING "MSVC profile-guided optimization mode.")
 set_property(CACHE RTS_BUILD_OPTION_PGO PROPERTY STRINGS OFF GENERATE USE)
 set(RTS_PGO_FILE "${CMAKE_BINARY_DIR}/genzh.pgd" CACHE FILEPATH "MSVC PGO database path.")
-# RTS_BUILD_OPTION_MODERN_MEDIA and RTS_BUILD_OPTION_LEGACY_MEDIA live in config-vcpkg.cmake. With both, media.legacy set to true in client.json picks Miles and Bink at startup
+# RTS_BUILD_OPTION_MODERN_MEDIA and RTS_BUILD_OPTION_LEGACY_MEDIA live in config-vcpkg.cmake. With both, media.legacy set to true in settings.client.json picks Miles and Bink at startup
 if(RTS_BUILD_OPTION_MODERN_MEDIA AND (IS_VS6_BUILD OR NOT MSVC OR MSVC_VERSION LESS 1930))
     message(STATUS "Modern media needs Visual Studio 2022 or newer, building legacy media only")
     set(RTS_BUILD_OPTION_MODERN_MEDIA OFF)

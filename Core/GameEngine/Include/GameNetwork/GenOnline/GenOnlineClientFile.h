@@ -3,7 +3,7 @@
 #include <vector>
 #include "GameNetwork/GenOnline/json.hpp"
 
-// The file rules of client.json, shared with the launcher. The client reads the file, never creates it, writes it only when it holds a
+// The file rules of settings.client.json, shared with the launcher. The client reads the file, never creates it, writes it only when it holds a
 // schema_version this client knows and the content changed, and keeps keys it does not know.
 namespace GenOnlineClientFile
 {
@@ -48,8 +48,18 @@ namespace GenOnlineClientFile
 	// Returns TRUE when the file may be written and the document to write differs from the one read from it.
 	bool ShouldSave(ReadStatus status, const nlohmann::json& onDisk, const nlohmann::json& toWrite);
 
-	// %LOCALAPPDATA%\GeneralsOnline\client.json, empty when the folder cannot be resolved.
+	// %LOCALAPPDATA%\genonline without a trailing separator, empty when the folder cannot be resolved.
+	std::wstring RootFolder();
+
+	// RootFolder()\settings.client.json, empty when the folder cannot be resolved.
 	std::wstring DefaultPath();
+
+	// Objects merge key by key with the overlay winning, any other value, an array included, replaces the base value.
+	nlohmann::json MergeOverlay(const nlohmann::json& base, const nlohmann::json& overlay);
+
+	// Reads one -settings value, inline JSON when it starts with an opening brace and a file path otherwise.
+	// Returns FALSE with a reason and leaves overlay untouched when the value is not a JSON object.
+	bool ParseOverlay(const std::string& value, nlohmann::json& overlay, std::string& reason);
 
 	ReadResult Read(const std::wstring& path, const std::vector<KnownKey>& knownKeys);
 
@@ -67,7 +77,7 @@ namespace GenOnlineClientFile
 	// gives "test". Every other tag, a development build past a tag and a build without a tag give "live".
 	std::string EnvironmentOfTag(const std::string& tag);
 
-	// The network.environment of client.json: "live" or "test". Empty when the file cannot be used, the key is missing, has another
+	// The network.environment of settings.client.json: "live" or "test". Empty when the file cannot be used, the key is missing, has another
 	// type or holds another value. The client never writes this key, it only keeps it.
 	std::string EnvironmentOverride(const ReadResult& file);
 

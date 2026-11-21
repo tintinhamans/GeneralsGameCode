@@ -4,7 +4,7 @@
 #include <string>
 #include "GameNetwork/GenOnline/json.hpp"
 
-// The defaults and ranges of the client.json settings of the camera and the observer overlay and of the legacy media setting.
+// The defaults and ranges of the settings.client.json settings of the camera and the observer overlay and of the legacy media setting.
 namespace GenOnlineClientOptions
 {
 	// The camera rotate, pitch and zoom factors work like the ScrollFactor of the Options menu. The camera reads the whole number as

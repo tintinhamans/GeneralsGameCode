@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
-#include "GameNetwork/GenOnline/GenOnlinePackList.h"
 #include "GameNetwork/GenOnline/GenOnlineClientOptions.h"
 
 class GenOnlineSettings
@@ -31,7 +30,7 @@ public:
 	bool Observer_NotificationSpecialPowerUsage() const { return m_Observer_NotificationSpecialPowerUsage; }
 	bool Observer_NotificationSpecialPowerPurchase() const { return m_Observer_NotificationSpecialPowerPurchase; }
 	bool Observer_NotificationMilestone() const { return m_Observer_NotificationMilestone; }
-	// The font sizes are clamped to 0 to 15 and saved to client.json.
+	// The font sizes are clamped to 0 to 15 and saved to settings.client.json.
 	void Observer_SetStatsFontSize(int fontSize);
 	void Observer_SetNotificationFontSize(int fontSize);
 
@@ -69,7 +68,7 @@ public:
 	std::string GetAnticheatPlugin() const;
 	// The plugin transports tried in order after a direct connection fails and before Cloudflare TURN.
 	std::vector<std::string> GetTransportPlugins() const;
-	// The caster plugin, empty when the live stats pipe and the stats export are off.
+	// The caster plugin, empty when the live stats readers and the stats export are off.
 	const std::string& GetCasterPlugin() const { return m_Plugin_Caster; }
 	bool Social_Notifications_FriendComesOnline_Menus() { return m_Social_Notification_FriendComesOnline_Menus; }
 	bool Social_Notifications_FriendComesOnline_Gameplay() { return m_Social_Notification_FriendComesOnline_Gameplay; }
@@ -90,19 +89,20 @@ public:
 	{
 		m_bInitialized = true;
 		Load();
-		LoadPackList();
 	}
 
 	// GenOnline @feature arcticdolphin 08/11/2026 Map select favourites, keyed by the lowercased portable map path.
 	bool Maps_IsFavourite(const std::string& portableMapPath) const;
 	void Maps_SetFavourite(const std::string& portableMapPath, bool bFavourite);
 
-	// TRUE when the packs come from the -packs file, FALSE when the game uses its built-in packs
-	bool DataPacks_FromPackList() const { return m_bPackList; }
-	// The enabled packs of the -packs file, lowest first
-	const std::vector<GenOnlinePackList::Pack>& DataPacks_Stack() const { return m_PackStack; }
-	// The game folder excludes in effect before loadMods, always empty because the -packs stack excludes take effect in loadMods with the packs
-	const std::vector<std::string>& DataPacks_UserExcludePaths() const { return m_DataPacks_UserExcludePaths; }
+	// data.include of settings.client.json, the data pack paths with the first one winning. The game only reads it, the launcher writes it.
+	bool Data_HasInclude() const { return m_bDataInclude; }
+	const std::vector<std::string>& Data_Include() const { return m_Data_Include; }
+	// data.exclude of settings.client.json, the patterns of the loose files and game folder archives that count as not existing.
+	const std::vector<std::string>& Data_Exclude() const { return m_Data_Exclude; }
+
+	// data.exclude as patterns for the file system, an entry that is neither absolute nor prefixed with game: or user: counts as relative to the game folder.
+	std::vector<std::string> Data_ExcludePaths() const;
 
 	ServiceConnectionSettings Network_GetConnectionSettings() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_ConnectionSettings; }
 	std::string Network_GetLastRoute() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_LastRoute; }
@@ -112,7 +112,6 @@ public:
 
 private:
 	void Load(void);
-	void LoadPackList();
 	bool Save();
 
 private:
@@ -154,10 +153,9 @@ private:
 
 	std::set<std::string> m_Maps_Favourites;
 
-	// The pack list of -packs, read once at startup. A missing, unusable, newer or other game file leaves the built-in packs.
-	bool m_bPackList = false;
-	std::vector<GenOnlinePackList::Pack> m_PackStack;
-	std::vector<std::string> m_DataPacks_UserExcludePaths;	// always empty, see DataPacks_UserExcludePaths
+	bool m_bDataInclude = false;
+	std::vector<std::string> m_Data_Include;
+	std::vector<std::string> m_Data_Exclude;
 
 	// The default names GenOnline Anti-Cheat, GENONLINE_ANTICHEAT_PLUGIN_NAME.
 	std::vector<std::string> m_Plugins_Anticheat = { "genonline_anticheat" };
@@ -169,7 +167,7 @@ private:
 	std::string m_LastRoute;
 	// keeps keys this build does not know when a setting is saved mid-session
 	std::string m_PreservedJSON = "{}";
-	// %LOCALAPPDATA%\GeneralsOnline\client.json, written only when it exists with a schema_version this client knows
+	// %LOCALAPPDATA%\genonline\settings.client.json, written only when it exists with a schema_version this client knows
 	std::wstring m_ClientFilePath;
 	bool m_bClientFileWritable = false;
 };

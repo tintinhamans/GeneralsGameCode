@@ -30,7 +30,7 @@ Upstream is merged regularly, so every line changed in an upstream-owned file is
 
 ## Settings
 
-- GenOnline-only settings live in `client.json` (`%LOCALAPPDATA%\GeneralsOnline\client.json`).
+- GenOnline-only settings live in `settings.client.json` (`%LOCALAPPDATA%\genonline\settings.client.json`).
 - `Options.ini` keeps only the keys the upstream game reads.
 - There is no migration code between the two. Only new clients are supported.
 

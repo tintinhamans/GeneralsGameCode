@@ -271,7 +271,7 @@ GenOnlineServicesManager::EEnvironment GenOnlineServicesManager::GetEnvironment(
 		const std::string requested = GenOnlineClientFile::ReadEnvironmentOverride(GenOnlineClientFile::DefaultPath());
 		if (!requested.empty())
 		{
-			s_environmentReason = "network.environment of client.json";
+			s_environmentReason = "network.environment of settings.client.json";
 		}
 		else
 		{
@@ -517,6 +517,13 @@ void GenOnlineServicesManager::CommitReplay(AsciiString absoluteReplayPath)
 					fseek(pStatsFile, 0, SEEK_END);
 					long statsSize = ftell(pStatsFile);
 					fseek(pStatsFile, 0, SEEK_SET);
+					// The presigned upload URL has no size limit of its own, so the client enforces one.
+					constexpr long statsUploadMaxBytes = 8 * 1024 * 1024;
+					if (statsSize > statsUploadMaxBytes)
+					{
+						NetworkLog(ELogVerbosity::LOG_RELEASE, "[MediaUpload] The stats file is %ld bytes, over the %ld byte upload limit, so it is not uploaded", statsSize, statsUploadMaxBytes);
+						statsSize = 0;
+					}
 					if (statsSize > 0)
 					{
 						statsData.resize(statsSize);
@@ -1417,23 +1424,20 @@ void GenOnlineServicesManager::InitSentry()
 		return;
 	}
 
-	// The launcher writes the choice of the user into client.json and the client only reads it.
+	// The launcher writes the choice of the user into settings.client.json and the client only reads it.
 	if (!GenOnlineClientFile::ReadSendCrashReports(GenOnlineClientFile::DefaultPath()))
 	{
-		s_sentryOffReason = "send_crash_reports is off in client.json";
+		s_sentryOffReason = "send_crash_reports is off in settings.client.json";
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Sentry] Off, %s", s_sentryOffReason);
 		return;
 	}
 
 	// game paths are in the process code page, sentry's char* API wants UTF-8, so hand it the wide path
 	std::wstring strDumpPath;
-	const AsciiString& strUserDataPath = TheGlobalData->getPath_UserData();
-	const int wideLen = MultiByteToWideChar(CP_ACP, 0, strUserDataPath.str(), -1, nullptr, 0);
-	if (!strUserDataPath.isEmpty() && wideLen > 1)
+	const std::wstring strRootPath = GenOnlineClientFile::RootFolder();
+	if (!strRootPath.empty())
 	{
-		std::wstring strUserDataPathW(wideLen - 1, L'\0');
-		MultiByteToWideChar(CP_ACP, 0, strUserDataPath.str(), -1, strUserDataPathW.data(), wideLen);
-		strDumpPath = strUserDataPathW + L"GeneralsOnlineCrashData\\";
+		strDumpPath = strRootPath + L"\\crashes\\";
 
 		std::error_code ec;
 		std::filesystem::create_directories(strDumpPath, ec);

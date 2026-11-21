@@ -28,6 +28,9 @@
 
 #pragma once
 
+#include <string>
+#include <vector>
+
 class CommandLine
 {
 public:
@@ -40,7 +43,6 @@ public:
 	// The index excludes the executable name.
 	static bool wasCommandLineArgumentParsed(int argIndex);
 
-	// -packs <path>: the pack list file, absolute against the final working directory.
-	static bool hasPackList();
-	static const char* getPackListPath();
+	// -settings <file or JSON>, repeatable: overlays on settings.client.json in the order given, later ones win.
+	static const std::vector<std::string>& getSettingsOverlays();
 };

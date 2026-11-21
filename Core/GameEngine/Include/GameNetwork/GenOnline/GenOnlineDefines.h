@@ -6,11 +6,6 @@
 
 //#define WORLD_SERIES_CLIENT 1
 
-// Community patch gameplay changes are Zero Hour balance
-#if RTS_ZEROHOUR
-#define GENONLINE_COMMUNITY_PATCH_CHANGES 1
-#endif
-
 //#define USE_MAULLER_ONEDRIVE_FIX 1
 //#define USE_STUBBJAX_TRANSPORT_CONTAIN_FIX 1
 

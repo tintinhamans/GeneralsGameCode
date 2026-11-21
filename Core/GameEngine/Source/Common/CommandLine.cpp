@@ -506,15 +506,13 @@ Int parseSetCwd(char *args[], int num)
 	return 1;
 }
 
-static Bool s_hasPackList = FALSE;
-static std::string s_packListPath;
+static std::vector<std::string> s_settingsOverlays;
 
-Int parsePacks(char *args[], int num)
+Int parseSettings(char *args[], int num)
 {
 	if (num > 1)
 	{
-		s_hasPackList = TRUE;
-		s_packListPath = args[1];
+		s_settingsOverlays.push_back(args[1]);
 		return 2;
 	}
 	return 1;
@@ -1175,16 +1173,6 @@ Int parseMod(char *args[], Int num)
 	return 1;
 }
 
-#if RTS_ZEROHOUR
-// The community data patch is Zero Hour data
-Int parseDisableCommunityDataPatch(char *args[], Int num)
-{
-	TheWritableGlobalData->m_commandLineData.disableCommunityDataPatch();
-
-	return 1;
-}
-#endif
-
 #ifdef DEBUG_LOGGING
 Int parseSetDebugLevel(char *args[], int num)
 {
@@ -1259,8 +1247,8 @@ static CommandLineParam paramsForStartup[] =
 	// GenOnline @feature arcticdolphin 11/11/2026 Select the online service provider by name. The default is GenOnline in GenOnline builds and GameSpy otherwise.
 	{ "-onlineProvider", parseOnlineProvider },
 
-	// GenOnline @feature arcticdolphin 14/11/2026 The pack list file of the launcher, relative to the final working directory. The game only reads it.
-	{ "-packs", parsePacks },
+	// GenOnline @feature arcticdolphin 21/11/2026 A settings overlay on settings.client.json, a file path or inline JSON, repeatable. A launch with an overlay never saves settings.client.json.
+	{ "-settings", parseSettings },
 };
 
 // These Params are parsed during Engine Init before INI data is loaded
@@ -1276,9 +1264,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-scriptDebug", parseScriptDebug },
 	{ "-playStats", parsePlayStats },
 	{ "-mod", parseMod },
-#if RTS_ZEROHOUR
-	{ "-disableCommunityDataPatch", parseDisableCommunityDataPatch },
-#endif
 	{ "-noshaders", parseNoShaders },
 	{ "-quickstart", parseQuickStart },
 	{ "-useWaveEditor", parseUseWaveEditor },
@@ -1534,25 +1519,11 @@ void CommandLine::parseCommandLineForStartup()
 
 	if (!rts::WorkingDirectory::hasSetWorkingDirectory())
 		rts::WorkingDirectory::setExecutableWorkingDirectory();
-
-	if (s_hasPackList && !s_packListPath.empty())
-	{
-		char fullPath[_MAX_PATH];
-		if (_fullpath(fullPath, s_packListPath.c_str(), ARRAY_SIZE(fullPath)) != nullptr)
-		{
-			s_packListPath = fullPath;
-		}
-	}
 }
 
-bool CommandLine::hasPackList()
+const std::vector<std::string>& CommandLine::getSettingsOverlays()
 {
-	return s_hasPackList != FALSE;
-}
-
-const char* CommandLine::getPackListPath()
-{
-	return s_packListPath.c_str();
+	return s_settingsOverlays;
 }
 
 void CommandLine::parseCommandLineForEngineInit()
