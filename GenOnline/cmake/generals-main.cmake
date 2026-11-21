@@ -5,6 +5,8 @@ rts_add_license_files(g_generals)
 
 include(${CMAKE_CURRENT_LIST_DIR}/vcruntime-check.cmake)
 genonline_vcruntime_check_sources(g_generals)
+include(${CMAKE_CURRENT_LIST_DIR}/version-info.cmake)
+genonline_version_info(g_generals generals "Generals Online client for Generals")
 
 macro(genonline_generals_main_targets)
     set_target_properties(g_generals PROPERTIES OUTPUT_NAME "genonline_generals${RTS_BUILD_OUTPUT_SUFFIX}")
