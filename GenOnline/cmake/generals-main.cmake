@@ -3,8 +3,13 @@
 rts_copy_modern_media_files(g_generals)
 rts_add_license_files(g_generals)
 
+include(${CMAKE_CURRENT_LIST_DIR}/vcruntime-check.cmake)
+genonline_vcruntime_check_sources(g_generals)
+
 macro(genonline_generals_main_targets)
     set_target_properties(g_generals PROPERTIES OUTPUT_NAME "genonline_generals${RTS_BUILD_OUTPUT_SUFFIX}")
+
+    genonline_vcruntime_check_link(g_generals)
 
     if(WIN32)
         add_custom_command(TARGET g_generals POST_BUILD
@@ -34,6 +39,12 @@ macro(genonline_generals_install)
             # sentry's native backend needs its crash daemon next to the game, see the post build step above.
             install(PROGRAMS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/sentry-crash.exe"
                 DESTINATION "${RTS_INSTALL_PREFIX_GENERALS}" RENAME CrashReportHandler.exe)
+        endif()
+        if(WIN32)
+            # discord-rpc.dll is copied next to the build output by the post build step above.
+            set(DISCORD_RPC_DIR "${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/GenOnline/Vendor/DiscordRPC")
+            install(FILES "${DISCORD_RPC_DIR}/discord-rpc.dll" DESTINATION "${RTS_INSTALL_PREFIX_GENERALS}")
+            install(FILES "${DISCORD_RPC_DIR}/LICENSE.txt" DESTINATION "${RTS_INSTALL_PREFIX_GENERALS}" RENAME discord-rpc-LICENSE.txt)
         endif()
     endif()
 endmacro()
