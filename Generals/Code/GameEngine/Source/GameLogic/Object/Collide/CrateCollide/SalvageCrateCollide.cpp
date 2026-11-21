@@ -43,6 +43,7 @@
 #include "GameClient/InGameUI.h"
 #include "GameLogic/ExperienceTracker.h"
 #include "GameLogic/Object.h"
+#include "Common/StatsExporterLive.h"
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -170,14 +171,25 @@ Bool SalvageCrateCollide::testLevelChance()
 
 void SalvageCrateCollide::doWeaponSet( Object *other )
 {
+	Int reachedTier;
 	if( other->testWeaponSetFlag( WEAPONSET_CRATEUPGRADE_ONE ) )
 	{
 		other->clearWeaponSetFlag( WEAPONSET_CRATEUPGRADE_ONE );
 		other->setWeaponSetFlag( WEAPONSET_CRATEUPGRADE_TWO );
+		reachedTier = 2;
 	}
 	else
 	{
 		other->setWeaponSetFlag( WEAPONSET_CRATEUPGRADE_ONE );
+		reachedTier = 1;
+	}
+
+	// GenOnline @feature arcticdolphin 21/11/2026 Report the salvage upgrade to the live stats pipe
+	Player* statsController = other->getControllingPlayer();
+	if( statsController != nullptr )
+	{
+		StatsExporterLiveSalvageUpgrade(
+			statsController->getPlayerIndex(), other->getTemplate(), "WEAPON", reachedTier );
 	}
 }
 

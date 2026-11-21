@@ -1204,6 +1204,11 @@ namespace
 		hello.set_max_request_burst(STATS_EXPORTER_REQUEST_BURST);
 		hello.set_max_page_size(STATS_EXPORTER_MAX_PAGE_SIZE);
 		hello.set_queue_capacity_bytes(STATS_EXPORTER_QUEUE_CAPACITY_BYTES);
+#if RTS_ZEROHOUR
+		hello.set_game("zerohour");
+#else
+		hello.set_game("generals");
+#endif
 		sendMessage(sink, STATS_EXPORTER_FRAME_HELLO, hello, to);
 	}
 
@@ -1483,6 +1488,20 @@ namespace
 		return s_matchActive ? readers.both(s_matchInfoSent) : Readers();
 	}
 
+	// While gated, an event goes out only when the local player acted or lost something, or when the game announces it to every player.
+	Bool eventHidden(const PendingEvent& event, Int gated)
+	{
+		if (gated < 0 || event.playerIndex == gated)
+		{
+			return FALSE;
+		}
+		if (event.kind == statsexporter::STATEVENT_PLAYER_LEFT || event.kind == statsexporter::STATEVENT_PLAYER_DEFEATED)
+		{
+			return FALSE;
+		}
+		return !(event.kind == statsexporter::STATEVENT_CAPTURE && event.intValue1 == gated);
+	}
+
 	// Sends the pending events to the readers that want them, one Events frame per logic frame they happened in, and empties the queue.
 	void flushPendingEvents(StatsExporterSink* sink, const Readers& started)
 	{
@@ -1492,6 +1511,11 @@ namespace
 		{
 			events.clear();
 			return;
+		}
+		const Int gated = StatsExporterGatedPlayerIndex();
+		if (gated >= 0)
+		{
+			events.erase(std::remove_if(events.begin(), events.end(), [gated](const PendingEvent& event) { return eventHidden(event, gated); }), events.end());
 		}
 		while (!events.empty())
 		{
@@ -1893,7 +1917,11 @@ void StatsExporterLiveSuperweaponFired(const Object* source, const SpecialPowerT
 	UnsignedInt impact = 0;
 	UnsignedInt expire = now + kHighlightUnknownImpactSeconds * LOGICFRAMES_PER_SECOND;
 	const SpecialPowerType type = power->getSpecialPowerType();
+#if RTS_ZEROHOUR
 	if (type == SPECIAL_PARTICLE_UPLINK_CANNON || type == SUPW_SPECIAL_PARTICLE_UPLINK_CANNON || type == LAZR_SPECIAL_PARTICLE_UPLINK_CANNON)
+#else
+	if (type == SPECIAL_PARTICLE_UPLINK_CANNON)
+#endif
 	{
 		// The cannon keeps a schedule: the beam is born beam_travel frames after the launch, and fires for the total firing time.
 		static const NameKeyType cannonKey = TheNameKeyGenerator->nameToKey("ParticleUplinkCannonUpdate");
@@ -2000,11 +2028,14 @@ namespace
 			heroes[h].seen = FALSE;
 		}
 
+		// While gated only the local player gets an entry, so the object walk below finds no accumulator for other players' objects.
+		const Int gated = StatsExporterGatedPlayerIndex();
+
 		// One entry per non-observer slot player, defeated and departed ones included.
 		for (Int slot = 0; slot < MAX_SLOTS; ++slot)
 		{
 			Player* player = playerFromSlot(slot);
-			if (player == NULL || player->isPlayerObserver())
+			if (player == NULL || player->isPlayerObserver() || (gated >= 0 && player->getPlayerIndex() != gated))
 			{
 				continue;
 			}
@@ -2055,19 +2086,25 @@ namespace
 			}
 
 			p->set_radar((statsexporter::RadarState)player->getRadarStateForStats());
+#if RTS_ZEROHOUR
 			const Int battlePlan = player->getActiveBattlePlan();
+#else
+			const Int battlePlan = PLANSTATUS_NONE;
+#endif
 			p->set_battle_plan((statsexporter::BattlePlan)battlePlan);
 			if (full)
 			{
 				// deploying and packing are refined from the Strategy Centers in the object walk
 				p->set_battle_plan_transition(battlePlan != PLANSTATUS_NONE ? statsexporter::BATTLE_PLAN_ACTIVE : statsexporter::BATTLE_PLAN_IDLE);
 			}
+#if RTS_ZEROHOUR
 			const UnsignedInt sabotagedUntil = player->getEnergy()->getPowerSabotagedTillFrame();
 			if (sabotagedUntil > now)
 			{
 				p->set_power_sabotaged(true);
 				p->set_power_sabotage_frames_left(sabotagedUntil - now);
 			}
+#endif
 			fillNetworkStats(p, slot, player);
 
 			const Int counterIndex = player->getPlayerIndex();
@@ -2107,7 +2144,8 @@ namespace
 			for (Object* obj = TheGameLogic->getFirstObject(); obj != NULL; obj = obj->getNextObject())
 			{
 				// Supply sources are neutral, so they are read before the per-player filtering. Boxes are read the way the HUD and the AI read them.
-				if (options.supply && obj->isKindOf(KINDOF_SUPPLY_SOURCE) && obj->getTemplate() != NULL)
+				// Supply left and tech owners change under the fog, so both stay hidden while gated.
+				if (gated < 0 && options.supply && obj->isKindOf(KINDOF_SUPPLY_SOURCE) && obj->getTemplate() != NULL)
 				{
 					static const NameKeyType warehouseKey = TheNameKeyGenerator->nameToKey("SupplyWarehouseDockUpdate");
 					SupplyWarehouseDockUpdate* warehouse = (SupplyWarehouseDockUpdate*)obj->findUpdateModule(warehouseKey);
@@ -2124,7 +2162,7 @@ namespace
 				}
 
 				// Tech structures are mostly neutral until captured, so they are read before the per-player filtering too.
-				if (options.tech && obj->getTemplate() != NULL && isTechStructure(obj))
+				if (gated < 0 && options.tech && obj->getTemplate() != NULL && isTechStructure(obj))
 				{
 					TechRecord record;
 					record.id = obj->getID();
@@ -2170,6 +2208,7 @@ namespace
 					continue;
 				}
 
+#if RTS_ZEROHOUR
 				if (obj->isKindOf(KINDOF_FS_STRATEGY_CENTER))
 				{
 					static const NameKeyType battlePlanKey = TheNameKeyGenerator->nameToKey("BattlePlanUpdate");
@@ -2187,6 +2226,7 @@ namespace
 						}
 					}
 				}
+#endif
 
 				// Uses the same classification and cost source as kills and army_value.
 				const Int armyClass = killCategory(tmpl);
@@ -3156,7 +3196,11 @@ namespace
 		out.cameraSet = FALSE;
 		out.cameraStartPos = -1;
 
+#if RTS_ZEROHOUR
 		if (game == NULL || TheMultiplayerSettings == NULL || ThePlayerTemplateStore == NULL || TheChallengeGenerals == NULL || TheMapCache == NULL)
+#else
+		if (game == NULL || TheMultiplayerSettings == NULL || ThePlayerTemplateStore == NULL || TheMapCache == NULL)
+#endif
 		{
 			return FALSE;
 		}
@@ -3212,6 +3256,7 @@ namespace
 			{
 				continue;
 			}
+#if RTS_ZEROHOUR
 			if (game->oldFactionsOnly() && !ptTest->isOldFaction())
 			{
 				continue;
@@ -3223,6 +3268,7 @@ namespace
 			{
 				continue;
 			}
+#endif
 			startSlots.push_back(i);
 		}
 
@@ -3401,7 +3447,10 @@ namespace
 					teamPosIdx[team] = posIdx;
 				}
 			}
-			else if (team < 0 || teamPosIdx[team] == -1)
+			else
+#if RTS_ZEROHOUR
+			if (team < 0 || teamPosIdx[team] == -1)
+#endif
 			{
 				Real farthestDistance = 0.0f;
 				Int farthestIndex = -1;
@@ -3452,6 +3501,7 @@ namespace
 					teamPosIdx[team] = farthestIndex;
 				}
 			}
+#if RTS_ZEROHOUR
 			else
 			{
 				Real closestDist = FLT_MAX;
@@ -3468,6 +3518,7 @@ namespace
 				slots[i].startPos = closestIdx;
 				taken[closestIdx] = TRUE;
 			}
+#endif
 		}
 
 		// observers take a spot a player holds
@@ -3969,10 +4020,12 @@ namespace
 		{
 			players[i] = NULL;
 		}
+		// The camera of an active player can look into the fog, so only the local player's own objects count while gated.
+		const Int gated = StatsExporterGatedPlayerIndex();
 		for (Int slot = 0; slot < MAX_SLOTS; ++slot)
 		{
 			Player* player = playerFromSlot(slot);
-			if (player == NULL || player->isPlayerObserver() || player->getScoreKeeper() == NULL)
+			if (player == NULL || player->isPlayerObserver() || player->getScoreKeeper() == NULL || (gated >= 0 && player->getPlayerIndex() != gated))
 			{
 				continue;
 			}
@@ -4368,7 +4421,8 @@ namespace
 			sendMessage(sink, STATS_EXPORTER_FRAME_VIEW_STATS, viewStatsMessage(), group);
 		}
 
-		if (!interestDue.empty() && computeInterest(now))
+		// The interest map weighs every army and every launch on the map, so it is not sent at all while gated.
+		if (!interestDue.empty() && StatsExporterRevealsHiddenState() && computeInterest(now))
 		{
 			remaining = interestDue;
 			while (!remaining.empty())

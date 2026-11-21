@@ -135,6 +135,12 @@ public:
 	// Run game without graphics, input or audio.
 	Bool m_headless;
 
+#if defined(GENONLINE)
+	// GenOnline @feature arcticdolphin 21/11/2026 Export game stats as JSON alongside the replay file, and the URL that receives them.
+	Bool m_exportStats;
+	AsciiString m_statsUrl;
+#endif
+
 	Bool m_windowed;
 	Int m_xResolution;
 	Int m_yResolution;

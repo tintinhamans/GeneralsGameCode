@@ -32,6 +32,7 @@
 #include "Common/BitFlagsIO.h"
 #include "Common/CRCDebug.h"
 #include "Common/DamageFX.h"
+#include "Common/StatsExporterLive.h"
 #include "Common/Player.h"
 #include "Common/GameState.h"
 #include "Common/GlobalData.h"
@@ -422,6 +423,12 @@ void ActiveBody::attemptDamage( DamageInfo *damageInfo )
 		// record the actual damage done from this, and when it happened
 		damageInfo->out.m_actualDamageDealt = amount;
 		damageInfo->out.m_actualDamageClipped = m_prevHealth - m_currentHealth;
+
+		// GenOnline @feature arcticdolphin 21/11/2026 Read only tap for the stats pipe that reports the health this hit actually took, not subdual or status damage
+		if (!alreadyHandled)
+		{
+			StatsExporterLiveDamage(obj, damageInfo->in.m_sourceID, damageInfo->out.m_actualDamageClipped);
+		}
 
 		// then copy the whole DamageInfo struct for easy lookup
 		// (object pointer loses scope as soon as atteptdamage's caller ends)

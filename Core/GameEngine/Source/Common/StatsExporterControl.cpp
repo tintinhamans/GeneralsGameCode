@@ -31,6 +31,7 @@
 #include "GameClient/View.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Object.h"
+#include "GameLogic/VictoryConditions.h"
 #include "GameNetwork/NetworkInterface.h"
 
 #include <float.h>
@@ -247,6 +248,35 @@ namespace
 		const Int limit = TheFramePacer->getActualFramesPerSecondLimit();
 		return (limit >= (Int)RenderFpsPreset::UncappedFpsValue) ? 0.0f : (Real)limit / (Real)LOGICFRAMES_PER_SECOND;
 	}
+}
+
+Int StatsExporterGatedPlayerIndex()
+{
+	if (TheGameLogic == NULL || ThePlayerList == NULL || !TheGameLogic->isInMultiplayerGame() || inReplayPlayback())
+	{
+		return -1;
+	}
+	const Player* local = ThePlayerList->getLocalPlayer();
+	if (local == NULL)
+	{
+		// An index that matches no player keeps everything hidden.
+		return MAX_PLAYER_COUNT;
+	}
+	if (local->isPlayerObserver())
+	{
+		return -1;
+	}
+	// A defeated local player already sees the whole map, and a decided match has nothing left to hide.
+	if (TheVictoryConditions != NULL && (TheVictoryConditions->isLocalDefeat() || TheVictoryConditions->isLocalAlliedVictory()))
+	{
+		return -1;
+	}
+	return local->getPlayerIndex();
+}
+
+Bool StatsExporterRevealsHiddenState()
+{
+	return StatsExporterGatedPlayerIndex() < 0;
 }
 
 void StatsExporterControlCameraFrame(StatsExporterCameraReport& report)
@@ -472,6 +502,13 @@ int StatsExporterControlFollow(const statsexporter::CameraFollowQuery& query, st
 		}
 		const ObjectID id = (ObjectID)query.object_id();
 		const Object* target = TheGameLogic->findObjectByID(id);
+		const Int gated = StatsExporterGatedPlayerIndex();
+		// The same answer for a missing object keeps hidden objects from being probed by id.
+		if (gated >= 0 && (target == NULL || target->getControllingPlayer() == NULL || target->getControllingPlayer()->getPlayerIndex() != gated))
+		{
+			message = "only an observer or a replay may follow other players' objects";
+			return statsexporter::RESPONSE_STATUS_NOT_ALLOWED;
+		}
 		if (target == NULL || target->isEffectivelyDead())
 		{
 			message = "no such object";

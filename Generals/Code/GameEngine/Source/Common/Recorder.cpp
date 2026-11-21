@@ -49,6 +49,7 @@
 #include "Common/RandomValue.h"
 #include "Common/CRCDebug.h"
 #include "Common/OptionPreferences.h"
+#include "Common/StatsExporterLive.h"
 #include "Common/version.h"
 #include <Utility/bit_adapter.h>
 
@@ -469,11 +470,18 @@ void RecorderClass::updatePlayback() {
  * reaching the end of the playback file.
  */
 void RecorderClass::stopPlayback() {
+	// GenOnline @feature arcticdolphin 21/11/2026 Playback files live in the replay dir and m_currentReplayFilename is a bare name
+	AsciiString finishedReplayPath = getReplayDir();
+	finishedReplayPath.concat(m_currentReplayFilename);
+
 	if (m_file != nullptr) {
 		m_file->close();
 		m_file = nullptr;
 	}
 	m_fileName.clear();
+
+	// GenOnline @feature arcticdolphin 21/11/2026 Report the end of a watched replay to the live stats pipe
+	StatsExporterLiveMatchEnded(finishedReplayPath, TRUE);
 
 	if (!m_doingAnalysis)
 	{
@@ -515,6 +523,8 @@ void RecorderClass::updateRecord()
 				stopRecording();
 				needFlush = FALSE;
 			}
+			// GenOnline @feature arcticdolphin 21/11/2026 Single player is never recorded, and this is a no-op if stopRecording already sent ENDED
+			StatsExporterLiveMatchEnded(AsciiString::TheEmptyString, FALSE);
 			m_fileName.clear();
 		} else {
 			if (m_file != nullptr) {
@@ -737,6 +747,9 @@ void RecorderClass::stopRecording() {
 		absoluteReplayPath.concat(m_fileName);
 
 		GetOnlineGameHooks()->onReplayWritten(absoluteReplayPath);
+
+		// GenOnline @feature arcticdolphin 21/11/2026 Report the end of a recorded match to the live stats pipe
+		StatsExporterLiveMatchEnded(absoluteReplayPath, FALSE);
 	}
 	m_fileName.clear();
 }

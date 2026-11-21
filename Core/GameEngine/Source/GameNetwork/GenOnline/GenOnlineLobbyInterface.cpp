@@ -8,9 +8,7 @@
 #include "GameNetwork/GenOnline/LobbyConnectionPolicy.h"
 #include "Lib/PathUtil.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMatchmaking.h"
-#if RTS_ZEROHOUR
 #include "Common/StatsExporterLive.h"
-#endif
 
 #include <algorithm>
 
@@ -2212,7 +2210,6 @@ void GenOnlineLobbyInterface::ShowLobbyChatLine(const GenOnlineRealtime::Channel
 		color = DetermineMentionColor();
 	}
 
-#if RTS_ZEROHOUR
 	// Only live chat goes to the stats exporter, so a replayed history line is not exported again.
 	if (line.live)
 	{
@@ -2220,7 +2217,6 @@ void GenOnlineLobbyInterface::ShowLobbyChatLine(const GenOnlineRealtime::Channel
 		const bool bIsLocal = pAuthInterface != nullptr && pAuthInterface->GetUserID() == message.author.id;
 		StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_GAME_LOBBY, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, bAnnouncement, bIsLocal);
 	}
-#endif
 	if (m_OnChatMessageCallback != nullptr)
 	{
 		m_OnChatMessageCallback(unicodeStr, color, line.key);

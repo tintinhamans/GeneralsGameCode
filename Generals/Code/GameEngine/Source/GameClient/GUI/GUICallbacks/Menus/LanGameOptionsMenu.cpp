@@ -56,6 +56,7 @@
 #include "Common/MultiplayerSettings.h"
 #include "GameClient/GameText.h"
 #include "GameNetwork/GUIUtil.h"
+#include "Common/StatsExporterLobby.h"
 
 
 extern char *LANnextScreen;
@@ -750,8 +751,24 @@ void DeinitLanGameGadgets()
 //-------------------------------------------------------------------------------------------------
 /** Initialize the Lan Game Options Menu */
 //-------------------------------------------------------------------------------------------------
+// GenOnline @feature arcticdolphin 21/11/2026 The stats pipe sends chat lines through the open menu.
+static Bool s_lanGameOptionsMenuOpen = FALSE;
+
+// The LAN game setup has no commands, so a trimmed non-empty line is sent.
+Bool LanGameOptionsMenuSubmitChatLine( UnicodeString text )
+{
+	text.trim();
+	if (!s_lanGameOptionsMenuOpen || TheLAN == nullptr || text.isEmpty())
+		return FALSE;
+
+	TheLAN->RequestChat(text, LANAPIInterface::LANCHAT_NORMAL);
+	return TRUE;
+}
+
 void LanGameOptionsMenuInit( WindowLayout *layout, void *userData )
 {
+	// GenOnline @feature arcticdolphin 21/11/2026 The stats pipe needs to know the menu is open.
+	s_lanGameOptionsMenuOpen = TRUE;
 	if (TheLAN->GetMyGame() && TheLAN->GetMyGame()->isGameInProgress())
 	{
 		// If we init while the game is in progress, we are really returning to the menu
@@ -940,6 +957,8 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void LanGameOptionsMenuShutdown( WindowLayout *layout, void *userData )
 {
+	// GenOnline @feature arcticdolphin 21/11/2026 The stats pipe needs to know the menu is closed.
+	s_lanGameOptionsMenuOpen = FALSE;
 	TheMouse->setCursor(Mouse::ARROW);
 	TheMouse->setMouseText(UnicodeString::TheEmptyString,nullptr,nullptr);
 	EnableSlotListUpdates(FALSE);
@@ -1327,4 +1346,36 @@ void PostToLanGameOptions( PostToLanGameType post )
 		default:
 			return;
 	}
+}
+
+// GenOnline @feature arcticdolphin 21/11/2026 The stats pipe moves start positions and describes the screen controls.
+static void statsMoveStartPosition(Int slot, Int position)
+{
+	handleStartPositionSelection(slot, position);
+}
+
+Bool LanGameOptionsMenuStatsLobby( StatsLobbyScreen& out )
+{
+	if (!parentLanGameOptions || !TheLAN || !TheLAN->GetMyGame() || !buttonStart)
+		return FALSE;
+
+	out.game = TheLAN->GetMyGame();
+	out.isHost = TheLAN->AmIHost();
+	out.localSlot = out.game->getLocalSlotNum();
+	if (LANbuttonPushed)
+		out.blocked = "the screen is leaving or starting the game";
+	else if (mapSelectLayout)
+		out.blocked = "the map selector is open";
+	else if (!AreSlotListUpdatesEnabled() || s_isIniting)
+		out.blocked = "the screen is still opening";
+	out.comboPlayer = comboBoxPlayer;
+	out.comboColor = comboBoxColor;
+	out.comboTemplate = comboBoxPlayerTemplate;
+	out.comboTeam = comboBoxTeam;
+	out.buttonStartPosition = buttonMapStartPosition;
+	out.buttonSelectMap = buttonSelectMap;
+	out.buttonStart = buttonStart;
+	out.moveStartPosition = statsMoveStartPosition;
+	out.applyMap = LanMapSelectMenuApplyMap;
+	return TRUE;
 }
