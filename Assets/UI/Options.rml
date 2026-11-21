@@ -381,21 +381,24 @@
 
 				<!-- Network: IP choices filled in C++ like the detail preset. -->
 				<div class="opt-page scroll-container" data-if="tab == 'network'">
+					<!-- Ronin @feature 21/11/2026 DX9: Generals Online's build puts its connection rows (OptionsOnline.rml) here and
+					     hides the rows with ids, which its own layout drops. -->
+					<div id="online_rows"></div>
 					<div class="opt-head"><gametext key="GUI:Network"/></div>
 					<div class="opt-row" data-class-disabled="restricted">
 						<div class="opt-text"><div class="opt-label"><gametext key="GUI:IPAddresses"/></div><div class="opt-desc"><gametext key="TOOLTIP:LanIP"/></div></div>
 						<div class="opt-control"><select id="select_lan_ip" data-value="lan_ip_index" data-attrif-disabled="restricted" data-tooltip="TOOLTIP:LanIP"></select></div>
 					</div>
-					<div class="opt-row" data-class-disabled="restricted">
+					<div id="row_online_ip" class="opt-row" data-class-disabled="restricted">
 						<div class="opt-text"><div class="opt-label"><gametext key="GUI:OnlineIPAddresses"/></div><div class="opt-desc"><gametext key="TOOLTIP:OnlineIP"/></div></div>
 						<div class="opt-control"><select id="select_online_ip" data-value="online_ip_index" data-attrif-disabled="restricted" data-tooltip="TOOLTIP:OnlineIP"></select></div>
 					</div>
-					<div class="opt-row" data-class-disabled="restricted">
+					<div id="row_firewall_port" class="opt-row" data-class-disabled="restricted">
 						<div class="opt-text"><div class="opt-label"><gametext key="GUI:FireWallPort"/></div><div class="opt-desc"><gametext key="TOOLTIP:FireWallPort"/></div></div>
 						<div class="opt-control"><input class="text-input" type="text" maxlength="5" data-value="firewall_port_override" data-attrif-disabled="restricted" data-tooltip="TOOLTIP:FireWallPort"/></div>
 					</div>
 					<!-- Ronin @feature 29/10/2026 DX9: no HTTP proxy or send delay - obsolete, the SuperHackers' .wnd hides them too -->
-					<div class="opt-row" data-class-disabled="restricted">
+					<div id="row_firewall_refresh" class="opt-row" data-class-disabled="restricted">
 						<div class="opt-text"><div class="opt-label"><gametext key="GUI:FirewallRefresh"/></div><div class="opt-desc"><gametext key="TOOLTIP:RefreshNat"/></div></div>
 						<div class="opt-control"><button class="btn-small" data-event-click="firewall_refresh" data-attrif-disabled="restricted" data-tooltip="TOOLTIP:RefreshNat"><gametext key="GUI:FirewallRefresh"/></button></div>
 					</div>
