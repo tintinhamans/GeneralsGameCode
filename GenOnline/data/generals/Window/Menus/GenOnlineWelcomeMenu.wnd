@@ -191,8 +191,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = SCROLLLISTBOX;
-        SCREENRECT = UPPERLEFT: 68 117,
-                     BOTTOMRIGHT: 540 328,
+        SCREENRECT = UPPERLEFT: 47 89,
+                     BOTTOMRIGHT: 575 349,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:InfoListbox";
         STATUS = ENABLED;
@@ -354,8 +354,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 548 117,
-                     BOTTOMRIGHT: 720 153,
+        SCREENRECT = UPPERLEFT: 581 89,
+                     BOTTOMRIGHT: 753 124,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:ButtonQuickMatch";
         STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -402,8 +402,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 548 161,
-                     BOTTOMRIGHT: 720 197,
+        SCREENRECT = UPPERLEFT: 581 132,
+                     BOTTOMRIGHT: 753 167,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:ButtonCustomMatch";
         STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -450,8 +450,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 548 293,
-                     BOTTOMRIGHT: 720 329,
+        SCREENRECT = UPPERLEFT: 581 218,
+                     BOTTOMRIGHT: 753 253,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:ButtonOptions";
         STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -498,8 +498,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 548 205,
-                     BOTTOMRIGHT: 720 241,
+        SCREENRECT = UPPERLEFT: 581 175,
+                     BOTTOMRIGHT: 753 210,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:ButtonMyInfo";
         STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -546,11 +546,11 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 548 249,
-                     BOTTOMRIGHT: 720 285,
+        SCREENRECT = UPPERLEFT: 581 261,
+                     BOTTOMRIGHT: 753 296,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:ButtonBuddies";
-        STATUS = ENABLED+IMAGE+NOFOCUS;
+        STATUS = ENABLED+HIDDEN+IMAGE+NOFOCUS;
         STYLE = PUSHBUTTON+MOUSETRACK;
         SYSTEMCALLBACK = "[None]";
         INPUTCALLBACK = "[None]";
@@ -594,8 +594,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 548 518,
-                     BOTTOMRIGHT: 720 554,
+        SCREENRECT = UPPERLEFT: 581 517,
+                     BOTTOMRIGHT: 753 553,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:ButtonBack";
         STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -644,8 +644,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 68 329,
-                   BOTTOMRIGHT: 700 521,
+      SCREENRECT = UPPERLEFT: 47 355,
+                   BOTTOMRIGHT: 753 511,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLWelcomeMenu.wnd:PlayerInfoParent";
       STATUS = ENABLED+SEE_THRU;
@@ -690,8 +690,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = USER;
-        SCREENRECT = UPPERLEFT: 245 363,
-                     BOTTOMRIGHT: 683 507,
+        SCREENRECT = UPPERLEFT: 181 383,
+                     BOTTOMRIGHT: 753 511,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:";
         STATUS = ENABLED;
@@ -736,8 +736,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = CHECKBOX;
-          SCREENRECT = UPPERLEFT: 276 415,
-                       BOTTOMRIGHT: 380 455,
+          SCREENRECT = UPPERLEFT: 187 429,
+                       BOTTOMRIGHT: 373 465,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:PercentUSA";
           STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -746,8 +746,8 @@ WINDOW
           INPUTCALLBACK = "[None]";
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
-          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
-          HEADERTEMPLATE = "[NONE]";
+          FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPTEXT = "SIDE:America";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:WinPercent";
@@ -785,8 +785,8 @@ WINDOW
 CHILD
         WINDOW
           WINDOWTYPE = CHECKBOX;
-          SCREENRECT = UPPERLEFT: 412 415,
-                       BOTTOMRIGHT: 516 455,
+          SCREENRECT = UPPERLEFT: 373 429,
+                       BOTTOMRIGHT: 559 465,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:PercentChina";
           STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -795,8 +795,8 @@ CHILD
           INPUTCALLBACK = "[None]";
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
-          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
-          HEADERTEMPLATE = "[NONE]";
+          FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPTEXT = "SIDE:China";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:WinPercent";
@@ -834,8 +834,8 @@ CHILD
 CHILD
         WINDOW
           WINDOWTYPE = CHECKBOX;
-          SCREENRECT = UPPERLEFT: 548 415,
-                       BOTTOMRIGHT: 652 455,
+          SCREENRECT = UPPERLEFT: 559 429,
+                       BOTTOMRIGHT: 745 465,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:PercentGLA";
           STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -844,8 +844,8 @@ CHILD
           INPUTCALLBACK = "[None]";
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
-          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
-          HEADERTEMPLATE = "[NONE]";
+          FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPTEXT = "SIDE:GLA";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:WinPercent";
@@ -885,8 +885,8 @@ CHILD
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 245 333,
-                     BOTTOMRIGHT: 683 361,
+        SCREENRECT = UPPERLEFT: 181 355,
+                     BOTTOMRIGHT: 753 379,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:StaticTextCommunity";
         STATUS = ENABLED;
@@ -935,8 +935,8 @@ CHILD
       CHILD
       WINDOW
         WINDOWTYPE = USER;
-        SCREENRECT = UPPERLEFT: 74 360,
-                     BOTTOMRIGHT: 204 506,
+        SCREENRECT = UPPERLEFT: 47 383,
+                     BOTTOMRIGHT: 175 511,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:RankBorder";
         STATUS = ENABLED;
@@ -981,11 +981,11 @@ CHILD
         CHILD
         WINDOW
           WINDOWTYPE = USER;
-          SCREENRECT = UPPERLEFT: 74 489,
-                       BOTTOMRIGHT: 204 490,
+          SCREENRECT = UPPERLEFT: 47 509,
+                       BOTTOMRIGHT: 175 510,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:RankLine";
-          STATUS = ENABLED;
+          STATUS = ENABLED+HIDDEN;
           STYLE = USER;
           SYSTEMCALLBACK = "[None]";
           INPUTCALLBACK = "[None]";
@@ -1030,11 +1030,11 @@ CHILD
       CHILD
       WINDOW
         WINDOWTYPE = PROGRESSBAR;
-        SCREENRECT = UPPERLEFT: 76 491,
-                     BOTTOMRIGHT: 200 505,
+        SCREENRECT = UPPERLEFT: 47 487,
+                     BOTTOMRIGHT: 175 511,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:ProgressBarRank";
-        STATUS = ENABLED;
+        STATUS = ENABLED+HIDDEN;
         STYLE = PROGRESSBAR+MOUSETRACK;
         SYSTEMCALLBACK = "[None]";
         INPUTCALLBACK = "[None]";
@@ -1077,8 +1077,8 @@ CHILD
       CHILD
       WINDOW
         WINDOWTYPE = USER;
-        SCREENRECT = UPPERLEFT: 76 362,
-                     BOTTOMRIGHT: 202 488,
+        SCREENRECT = UPPERLEFT: 47 383,
+                     BOTTOMRIGHT: 175 511,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:WinRank";
         STATUS = ENABLED+IMAGE;
@@ -1124,8 +1124,8 @@ CHILD
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 74 333,
-                     BOTTOMRIGHT: 245 361,
+        SCREENRECT = UPPERLEFT: 47 355,
+                     BOTTOMRIGHT: 175 379,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:StaticTextRank";
         STATUS = ENABLED;

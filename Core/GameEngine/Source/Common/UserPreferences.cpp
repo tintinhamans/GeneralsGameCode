@@ -640,7 +640,8 @@ Int CustomMatchPreferences::getPreferredFaction()
 			// This is also enforced at GUI setup (GUIUtil.cpp and GameLogic.cpp).
 			// @todo: unlock these when something rad happens
 			Bool disallowLockedGenerals = TRUE;
-			const GeneralPersona *general = TheChallengeGenerals->getGeneralByTemplateName(fac->getName());
+			// GenOnline @bugfix arcticdolphin 21/11/2026 Generals has no challenge generals.
+			const GeneralPersona *general = TheChallengeGenerals ? TheChallengeGenerals->getGeneralByTemplateName(fac->getName()) : nullptr;
 			Bool startsLocked = general ? !general->isStartingEnabled() : FALSE;
 			if (disallowLockedGenerals && startsLocked)
 				ret = PLAYERTEMPLATE_RANDOM;

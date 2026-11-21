@@ -1351,7 +1351,9 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 		if (comboBoxOnlineIP)
 			comboBoxOnlineIP->winEnable(FALSE);
 
-		buttonFirewallRefresh->winEnable(FALSE);
+		// GenOnline @bugfix arcticdolphin 21/11/2026 The GenOnline options layout has no firewall refresh button.
+		if (buttonFirewallRefresh)
+			buttonFirewallRefresh->winEnable(FALSE);
 
 		if (comboBoxDetail)
 			comboBoxDetail->winEnable(FALSE);

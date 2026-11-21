@@ -30,6 +30,12 @@
 
 #include "Common/Registry.h"
 
+#if defined(GENONLINE)
+#include <filesystem>
+#include <map>
+#include <string>
+#endif
+
 
 Bool  getStringFromRegistry(HKEY root, AsciiString path, AsciiString key, AsciiString& val)
 {
@@ -176,7 +182,40 @@ AsciiString GetRegistryLanguage()
 		cached = TRUE;
 	}
 
+#if defined(GENONLINE)
+	// GenOnline @bugfix arcticdolphin 21/11/2026 Steam changes the language after install without updating the registry, so the archives on disk decide when the value is missing.
+	if (!GetStringFromRegistry("", "Language", val))
+	{
+		// the working directory is the retail folder, also when the client runs from another folder with -setCwd
+		char szProcessDir[MAX_PATH] = { 0 };
+		DWORD length = GetCurrentDirectoryA(MAX_PATH, szProcessDir);
+		if (length > 0 && length < MAX_PATH)
+		{
+			std::map<std::string, AsciiString> languageFiles;
+			languageFiles["German"] = AsciiString("german");
+			languageFiles["French"] = AsciiString("french");
+			languageFiles["Korean"] = AsciiString("korean");
+			languageFiles["Italian"] = AsciiString("italian");
+			languageFiles["Spanish"] = AsciiString("spanish");
+			languageFiles["Chinese"] = AsciiString("chinese");
+			languageFiles["Polish"] = AsciiString("polish");
+			languageFiles["Brazilian"] = AsciiString("brazilian");
+			languageFiles["English"] = AsciiString("english");
+
+			for (std::map<std::string, AsciiString>::const_iterator it = languageFiles.begin(); it != languageFiles.end(); ++it)
+			{
+				const std::string filePath = std::string(szProcessDir) + "/" + it->first + ".big";
+				if (std::filesystem::exists(filePath))
+				{
+					val = it->second;
+					break;
+				}
+			}
+		}
+	}
+#else
 	GetStringFromRegistry("", "Language", val);
+#endif
 	return val;
 }
 

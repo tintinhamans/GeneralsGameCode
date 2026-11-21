@@ -198,7 +198,7 @@ WINDOW
                    BOTTOMRIGHT: 461 547,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ButtonBuddies";
-      STATUS = ENABLED+IMAGE+NOFOCUS;
+      STATUS = ENABLED+HIDDEN+IMAGE+NOFOCUS;
       STYLE = PUSHBUTTON+MOUSETRACK;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";

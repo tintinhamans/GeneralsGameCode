@@ -1230,7 +1230,10 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 	if (bAllowSpectators)
 	{
 		const Image* img = TheMappedImageCollection->findImageByName("Observer");
-		GadgetListBoxAddEntryImage(win, img, index, COLUMN_OBSERVER, img->getImageHeight()/2, img->getImageWidth()/2);
+		if (img)
+		{
+			GadgetListBoxAddEntryImage(win, img, index, COLUMN_OBSERVER, img->getImageHeight()/2, img->getImageWidth()/2);
+		}
 	}
 	else
 	{
@@ -1239,8 +1242,12 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 
 	if (bTrackStats)
 	{
+		// GenOnline @bugfix arcticdolphin 21/11/2026 The Generals retail images have no GoodStatsIcon and a missing image crashed the lobby list.
 		const Image* img = TheMappedImageCollection->findImageByName("GoodStatsIcon");
-		GadgetListBoxAddEntryImage(win, img, index, COLUMN_USE_STATS, img->getImageHeight(), img->getImageWidth());
+		if (img)
+		{
+			GadgetListBoxAddEntryImage(win, img, index, COLUMN_USE_STATS, img->getImageHeight(), img->getImageWidth());
+		}
 	}
 
 	s.format(L"%d", latency);

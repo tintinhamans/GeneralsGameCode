@@ -535,6 +535,19 @@ void SpecialPowerModule::aboutToDoSpecialPower( const Coord3D *location )
 			TheEva->setShouldPlay(EVA_SuperweaponLaunched_ScudStorm);
 	//}
 
+#if defined(GENONLINE)
+	// GenOnline @feature arcticdolphin 21/11/2026 observers see special powers being used
+	const Object* obj = getObject();
+	const SpecialPowerTemplate* tpl = getSpecialPowerTemplate();
+	if (obj && tpl && TheInGameUI)
+	{
+		Player* p = obj->getControllingPlayer();
+		// Aircraft are spawned by the command center, which already fires its notification.
+		if (p && !obj->isKindOf(KINDOF_AIRCRAFT))
+			TheInGameUI->notifySpecialPowerUsed(p, tpl);
+	}
+#endif
+
 	// get module data
 	const SpecialPowerModuleData *modData = getSpecialPowerModuleData();
 

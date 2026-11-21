@@ -217,11 +217,8 @@ static bool changeObserverNotificationFontSize(ObserverFontSizeChange change)
 
 	TheWritableGlobalData->m_observerNotificationFontSize = fontSize;
 
-#if RTS_ZEROHOUR
-	// The observer overlay is only implemented in the Zero Hour InGameUI
 	if (TheInGameUI)
 		TheInGameUI->refreshObserverNotificationResources();
-#endif
 
 #if defined(GENONLINE)
 	GenOnlineServicesManager::Settings.Observer_SetNotificationFontSize(fontSize);
@@ -239,11 +236,8 @@ static bool changeObserverStatsFontSize(ObserverFontSizeChange change)
 
 	TheWritableGlobalData->m_observerStatsFontSize = fontSize;
 
-#if RTS_ZEROHOUR
-	// The observer overlay is only implemented in the Zero Hour InGameUI
 	if (TheInGameUI)
 		TheInGameUI->initObserverOverlay();
-#endif
 
 #if defined(GENONLINE)
 	GenOnlineServicesManager::Settings.Observer_SetStatsFontSize(fontSize);
@@ -3574,9 +3568,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 				}
 
 				ToggleControlBar();
-#if RTS_ZEROHOUR
 				TheInGameUI->toggleObserverStats();
-#endif
 			}
 			disp = DESTROY_MESSAGE;
 			break;

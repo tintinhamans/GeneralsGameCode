@@ -239,6 +239,9 @@ void GenOnlinePopupHostGameInit( WindowLayout *layout, void *userData )
   checkBoxUseStats = TheWindowManager->winGetWindowFromId(parentPopup, checkBoxUseStatsID);
 	Bool usingStats = customPref.getUseStats();
   GadgetCheckBoxSetChecked( checkBoxUseStats, usingStats );
+  // The Zero Hour string file has the use stats texts, the Generals one does not, so they fall back to English.
+  GadgetCheckBoxSetText( checkBoxUseStats, TheGameText->FETCH_OR_SUBSTITUTE("GUI:UseStats", L"Record Stats") );
+  checkBoxUseStats->winSetTooltip( TheGameText->FETCH_OR_SUBSTITUTE("TOOLTIP:UseStats", L"Select whether the statistics of this game will be recorded") );
 
   checkBoxLimitArmiesID = TheNameKeyGenerator->nameToKey("PopupHostGame.wnd:CheckBoxLimitArmies");
   checkBoxLimitArmies = TheWindowManager->winGetWindowFromId(parentPopup, checkBoxLimitArmiesID);

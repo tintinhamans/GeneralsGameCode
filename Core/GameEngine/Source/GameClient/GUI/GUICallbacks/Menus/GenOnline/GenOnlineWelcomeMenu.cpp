@@ -31,6 +31,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "GameClient/GenOnlineMenus.h"
+#include "GameClient/GenOnlineUserSection.h"
 
 #include "gamespy/peer/peer.h"
 
@@ -246,7 +247,8 @@ static void updateNumPlayersOnline()
 		//Kris: Patch 1.01 - November 12, 2003
 		//Removed number of players from string, and removed the argument. The number is incorrect anyways...
 		//This was a Harvard initiated fix.
-		headingStr.format(TheGameText->fetch("MOTD:NumPlayersHeading"));
+		// The Generals string still holds a %d and the Zero Hour string does not, so the count is always passed.
+		headingStr.format(TheGameText->fetch("MOTD:NumPlayersHeading"), lastNumPlayersOnline);
 
 		//<hexcol>%hs for colors
 		while (headingStr.nextToken(&line, L"\n"))
@@ -623,6 +625,8 @@ void GenOnlineWelcomeMenuInit( WindowLayout *layout, void *userData )
 	raiseMessageBoxes = TRUE;
 	TheTransitionHandler->setGroup("WOLWelcomeMenuFade");
 
+	GenOnlineUserSectionShow(parentWOLWelcome);
+
     // Update the communicator button anytime we get notifications
     GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
     if (pSocialInterface != nullptr)
@@ -661,6 +665,7 @@ void GenOnlineWelcomeMenuInit( WindowLayout *layout, void *userData )
 //-------------------------------------------------------------------------------------------------
 void GenOnlineWelcomeMenuShutdown( WindowLayout *layout, void *userData )
 {
+	GenOnlineUserSectionHide();
 	listboxInfo = nullptr;
 
 	delete TheFirewallHelper;
