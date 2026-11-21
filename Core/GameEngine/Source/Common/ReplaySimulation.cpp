@@ -115,8 +115,9 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 			printf("Elapsed Time: %02d:%02d Game Time: %02d:%02d/%02d:%02d\n",
 					realTimeSec/60, realTimeSec%60, gameTimeSec/60, gameTimeSec%60, totalTimeSec/60, totalTimeSec%60);
 			fflush(stdout);
-			if (TheGlobalData->m_exportStats)
-				ExportGameStatsJSON(TheRecorder->getReplayDir(), filename);
+			// GenOnline @feature arcticdolphin 21/11/2026 A replay whose stats could not be exported fails the run so a replay server notices
+			if (TheGlobalData->m_exportStats && !ExportGameStatsJSON(TheRecorder->getReplayDir(), filename))
+				numErrors++;
 		}
 		else
 		{

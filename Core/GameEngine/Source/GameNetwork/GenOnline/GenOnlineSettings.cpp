@@ -69,6 +69,7 @@
 #define SETTINGS_KEY_PLUGINS "plugins"
 #define SETTINGS_KEY_PLUGINS_ANTICHEAT "anticheat"
 #define SETTINGS_KEY_PLUGINS_TRANSPORT "transport"
+#define SETTINGS_KEY_PLUGINS_CASTER "caster"
 #define SETTINGS_KEY_PLUGINS_SETTINGS "settings"
 
 #define SETTINGS_KEY_MAPS "maps"
@@ -198,6 +199,7 @@ static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 		{ SETTINGS_KEY_PLUGINS, ValueType::Object },
 		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_ANTICHEAT, ValueType::Array },
 		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_TRANSPORT, ValueType::Array },
+		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_CASTER, ValueType::String },
 		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_SETTINGS, ValueType::Object },
 		{ SETTINGS_KEY_MAPS, ValueType::Object },
 		{ SETTINGS_KEY_MAPS "." SETTINGS_KEY_MAPS_FAVOURITES, ValueType::Array },
@@ -543,6 +545,7 @@ void GenOnlineSettings::Load(void)
             }
 
 			m_Plugins_Transport.clear();
+			m_Plugin_Caster.clear();
 			if (jsonSettings.contains(SETTINGS_KEY_PLUGINS))
 			{
 				auto pluginSettings = jsonSettings[SETTINGS_KEY_PLUGINS];
@@ -554,6 +557,10 @@ void GenOnlineSettings::Load(void)
 				if (pluginSettings.contains(SETTINGS_KEY_PLUGINS_TRANSPORT))
 				{
 					m_Plugins_Transport = ReadPluginList(pluginSettings[SETTINGS_KEY_PLUGINS_TRANSPORT], SETTINGS_KEY_PLUGINS_TRANSPORT);
+				}
+				if (pluginSettings.contains(SETTINGS_KEY_PLUGINS_CASTER) && pluginSettings[SETTINGS_KEY_PLUGINS_CASTER].is_string())
+				{
+					m_Plugin_Caster = pluginSettings[SETTINGS_KEY_PLUGINS_CASTER].get<std::string>();
 				}
 			}
 
@@ -820,7 +827,8 @@ bool GenOnlineSettings::Save()
 			SETTINGS_KEY_PLUGINS,
                 {
                     {SETTINGS_KEY_PLUGINS_ANTICHEAT, m_Plugins_Anticheat},
-                    {SETTINGS_KEY_PLUGINS_TRANSPORT, m_Plugins_Transport}
+                    {SETTINGS_KEY_PLUGINS_TRANSPORT, m_Plugins_Transport},
+                    {SETTINGS_KEY_PLUGINS_CASTER, m_Plugin_Caster}
                 }
         },
 
