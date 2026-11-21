@@ -51,6 +51,8 @@
 #define SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_GAMEPLAY "notification_player_sends_request_gameplay"
 
 #define SETTINGS_KEY_DEBUG "debug"
+#define SETTINGS_KEY_STATS "stats"
+#define SETTINGS_KEY_STATS_EXPORT "export"
 #define SETTINGS_KEY_DEBUG_VERBOSE_LOGGING "verbose_logging"
 
 #define SETTINGS_KEY_NETWORK "network"
@@ -479,6 +481,16 @@ void GenOnlineSettings::Load(void)
                 }
             }
 
+			if (jsonSettings.contains(SETTINGS_KEY_STATS))
+			{
+				const auto& statsSettings = jsonSettings[SETTINGS_KEY_STATS];
+
+				if (statsSettings.is_object() && statsSettings.contains(SETTINGS_KEY_STATS_EXPORT) && statsSettings[SETTINGS_KEY_STATS_EXPORT].is_boolean())
+				{
+					m_bStatsExport = statsSettings[SETTINGS_KEY_STATS_EXPORT];
+				}
+			}
+
 			if (jsonSettings.contains(SETTINGS_KEY_DEBUG))
 			{
 				auto debugSettings = jsonSettings[SETTINGS_KEY_DEBUG];
@@ -596,6 +608,7 @@ void GenOnlineSettings::Load(void)
 		m_Camera_MinHeight = m_Camera_MinHeight_default;
 		m_Camera_MaxHeight_LobbyHost = GENONLINE_DEFAULT_LOBBY_CAMERA_ZOOM;
 		m_bVerbose = false;
+		m_bStatsExport = false;
 		m_Render_LimitFramerate = true;
 		m_Render_FramerateLimit_FPSVal = 60;
 		m_Render_AdaptiveQuality = true;
@@ -799,6 +812,13 @@ bool GenOnlineSettings::Save()
 			SETTINGS_KEY_CHAT,
 				{
 					{SETTINGS_KEY_CHAT_LIFE_SECONDS, m_Chat_LifeSeconds}
+				}
+		},
+
+		{
+			SETTINGS_KEY_STATS,
+				{
+					{SETTINGS_KEY_STATS_EXPORT, m_bStatsExport},
 				}
 		},
 

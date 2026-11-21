@@ -50,6 +50,7 @@
 #include "Common/LocalFileSystem.h"
 #include "Common/MessageStream.h"
 #include "Common/Recorder.h"
+#include "Common/StatsExporter.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetTextEntry.h"
 #include "GameClient/GameText.h"
@@ -305,6 +306,11 @@ void reallySaveReplay()
 			PopulateReplayFileListbox(listboxGames);
 			return;
 		}
+
+		// GenOnline @feature arcticdolphin 21/11/2026 The overwritten replay takes its stats file with it
+		AsciiString oldStatsPath;
+		StatsExporterGetStatsPathForReplay(oldStatsPath, filename);
+		DeleteFile(oldStatsPath.str());
 	}
 
 	// copy the replay to the right place
@@ -322,6 +328,15 @@ void reallySaveReplay()
 		}
 		MessageBoxOk(TheGameText->fetch("GUI:Error"),errorStr, nullptr);
 		return;
+	}
+
+	// GenOnline @feature arcticdolphin 21/11/2026 The saved replay keeps the stats file of the game it recorded
+	{
+		AsciiString sourceStatsPath;
+		AsciiString destStatsPath;
+		StatsExporterGetStatsPathForReplay(sourceStatsPath, oldFilename);
+		StatsExporterGetStatsPathForReplay(destStatsPath, filename);
+		CopyFile(sourceStatsPath.str(), destStatsPath.str(), FALSE);
 	}
 
 	// get the listbox that will have the save games in it

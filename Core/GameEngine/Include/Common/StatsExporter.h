@@ -25,10 +25,22 @@ class DamageInfo;
 /// Export game statistics as a JSON file alongside the replay file.
 /// @param replayDir Directory containing replays (e.g. "[UserDataPath]/Replays/")
 /// @param replayFileName Replay filename with extension (e.g. "LastReplay.rep")
-/// @return false when the tool plugin is not loaded or did not write the file
+/// @return false when the file could not be written. Uploads only when -statsUrl is set.
 bool ExportGameStatsJSON(const AsciiString& replayDir, const AsciiString& replayFileName);
 
-/// Collect a time-series snapshot of all players' stats (called every game logic frame).
+/// Build the path of the stats file of a replay: <replayDir><replay name without extension>.gamestats.json.gz
+void StatsExporterGetStatsPath(AsciiString& statsPath, const AsciiString& replayDir, const AsciiString& replayFileName);
+
+/// Build the path of the stats file that belongs to a replay file path, same folder and base name: C:/x/Replays/Foo.rep -> C:/x/Replays/Foo.gamestats.json.gz
+void StatsExporterGetStatsPathForReplay(AsciiString& statsPath, const AsciiString& replayPath);
+
+/// True when live games are recorded: -exportStats or the client.json setting stats.export. Off by default.
+bool StatsExporterLiveRecordingEnabled();
+
+/// True between StatsExporterBeginRecording and the export of the match.
+bool StatsExporterIsActive();
+
+/// Collect a time-series snapshot of all players' stats (called every game logic frame). Does nothing while no recording is active.
 /// Snapshots are taken every 30 frames (~1 second) and stored in memory.
 void StatsExporterCollectSnapshot();
 

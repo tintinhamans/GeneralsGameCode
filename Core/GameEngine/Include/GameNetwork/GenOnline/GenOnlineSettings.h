@@ -82,6 +82,7 @@ public:
 
 
 	bool Debug_VerboseLogging() const { return m_bVerbose; }
+	bool GetStatsExport() const { return m_bStatsExport; }
 
 	int GetChatLifeSeconds() const { return std::max<int>(m_Chat_LifeSeconds, 10); }
 
@@ -134,6 +135,7 @@ private:
 	bool m_bInitialized = false;
 
 	bool m_bVerbose = false;
+	bool m_bStatsExport = false;
 
 	bool m_Render_LimitFramerate = true;
 	bool m_Render_AdaptiveQuality = true;

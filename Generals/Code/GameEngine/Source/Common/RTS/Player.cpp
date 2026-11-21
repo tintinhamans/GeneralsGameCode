@@ -1544,8 +1544,8 @@ void Player::onUnitCreated( Object *factory, Object *unit )
 	m_scoreKeeper.addMoneySpent(unitCost);
 	StatsExporterLiveSpend(getPlayerIndex(), STATS_EXPORTER_SPEND_UNITS, unitCost);
 
-	if (TheGlobalData->m_exportStats)
-		StatsExporterRecordBuild(factory, unit);
+	// GenOnline @feature arcticdolphin 21/11/2026 The exporter gates itself on an active recording
+	StatsExporterRecordBuild(factory, unit);
 
 	// ai notification callback
 	if( m_ai )
@@ -1638,8 +1638,8 @@ void Player::onStructureConstructionComplete( Object *builder, Object *structure
 		const Int structureCost = structure->getTemplate()->calcCostToBuild(this);
 		m_scoreKeeper.addMoneySpent(structureCost);
 		StatsExporterLiveSpend(getPlayerIndex(), STATS_EXPORTER_SPEND_STRUCTURES, structureCost);
-		if (TheGlobalData->m_exportStats)
-			StatsExporterRecordBuild(builder, structure);
+		// GenOnline @feature arcticdolphin 21/11/2026 The exporter gates itself on an active recording
+		StatsExporterRecordBuild(builder, structure);
 	}
 
 	structure->friend_adjustPowerForPlayer(TRUE);
