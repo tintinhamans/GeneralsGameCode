@@ -223,11 +223,6 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 		TheW3DSoftParticles->beginPass(rinfo);
 	}
 
-	if (TheW3DParticleAtlas)
-	{
-		TheW3DParticleAtlas->beginFrame();
-	}
-
 	//reset each frame
 	/// @todo lorenzen sez: this should be debug only:
 	m_onScreenParticleCount = 0;

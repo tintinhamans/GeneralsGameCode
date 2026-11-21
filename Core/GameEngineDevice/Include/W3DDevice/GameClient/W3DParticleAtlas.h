@@ -23,9 +23,9 @@
 #include "Lib/BaseType.h"
 #include "WW3D2/texture.h"
 #include "WWLib/ref_ptr.h"
+#include "WWLib/wwstring.h"
 #include "WWMath/vector4.h"
 #include <map>
-#include <utility>
 #include <vector>
 
 // Alpha and additive textures share premultiplied blending; other modes keep their original texels.
@@ -35,20 +35,17 @@ public:
 	W3DParticleAtlas();
 	~W3DParticleAtlas();
 
-	enum TextureMode { UNMODIFIED, ALPHA, ADDITIVE };
+	enum TextureMode { UNMODIFIED, ALPHA, ADDITIVE, MODE_COUNT };
 
-	/// the page holding the texture's converted art and its rectangle in uv, or null when it has no place
+	/// the page holding the texture's converted art and its rectangle in uv, or null when it has no place; valid only for the frame that asked
 	TextureClass *find(TextureClass *source, TextureMode mode, Vector4 &rect);
 
 	/// drops every page, so the next map packs only its own textures
 	void reset();
 
-	/// lets the frame pack a few more textures; the rest wait for later frames
-	void beginFrame() { m_packBudget = PACKS_PER_FRAME; }
-
 private:
-	// Each entry keeps LEVELS mips. Its gutter shrinks to one texel at the last, so filtering never reads a neighbour.
-	enum { PAGE_SIZE = 2048, LEVELS = 5, GUTTER = 1 << (LEVELS - 1), MAX_PAGES = 4, PACKS_PER_FRAME = 4 };
+	// Each cell keeps LEVELS mips. Its gutter shrinks to one texel at the last, so filtering never reads a neighbour.
+	enum { LEVELS = 5, GUTTER = 1 << (LEVELS - 1), PAGE_SIZE = 2048 + (2048 / 256) * 2 * GUTTER, MAX_PAGES = 4, PACKS_PER_FRAME = 2 };
 
 	struct Shelf
 	{
@@ -64,27 +61,28 @@ private:
 		Int bottom;
 	};
 
-	struct Entry
+	struct Location
 	{
-		RefCountPtr<TextureClass> source;	///< keeps the key's texture alive
-		Int page;							///< -1 when the texture has no place
-		Int width;							///< the source's size when packed, so a reload at another size packs again
-		Int height;
+		TextureClass *page;	///< null when the texture was refused
 		Vector4 rect;
 	};
 
-	typedef std::vector<UnsignedInt> Pixels;
-	typedef std::map<std::pair<TextureClass *, TextureMode>, Entry> EntryMap;
+	typedef std::map<StringClass, Location> LocationMap;
 
-	Bool place(Int width, Int height, Int &page, Int &shelf, Int &x, Int &y);
-	void unplace(Int width, Int page, Int shelf);
+	void evictOldestPage();
+	Bool hasPackBudget();
+	Location pack(const TextureClass &source, TextureMode mode);
+	Bool place(Int width, Int height, Int &page, Int &x, Int &y);
 	Bool addPage();
-	Bool readLevels(TextureClass *source, TextureMode mode, std::vector<Pixels> &levels);
-	Bool writeEntry(const Page &page, const std::vector<Pixels> &levels, Int x, Int y, Int width, Int height, Bool wrapU, Bool wrapV);
+	static Bool copyToCell(const TextureClass &source, const TextureClass *page, TextureMode mode, Int left, Int top);
 
 	std::vector<Page> m_pages;
-	EntryMap m_entries;
-	Int m_packBudget;
+	LocationMap m_locations[MODE_COUNT];
+	Int m_packsThisFrame;
+	UnsignedInt m_packFrame;
+	UnsignedInt m_outOfSpaceFrame;
+	Bool m_outOfSpace;
+	Bool m_disabled;
 };
 
 extern W3DParticleAtlas *TheW3DParticleAtlas;	///< owned by W3DDisplay, so its textures go before the device; null when headless
