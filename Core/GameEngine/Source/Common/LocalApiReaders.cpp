@@ -21,6 +21,9 @@
 #include "LocalApi.pb.h"
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"	// NetworkLog
 #include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
+#include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
+#include "GameNetwork/GenOnline/GenOnlineLobbyInterface.h"
+#include "GameLogic/GameLogic.h"
 
 #include <GenOnlinePluginApi.h>
 
@@ -198,7 +201,7 @@ namespace
 
 		virtual Bool isConnected() const
 		{
-			return m_listening && m_api->IsConnected() != GENONLINE_PLUGIN_FALSE;
+			return m_listening && m_allowed && m_api->IsConnected() != GENONLINE_PLUGIN_FALSE;
 		}
 
 		virtual void getReaders(LocalApiReaders& out) const
@@ -208,6 +211,7 @@ namespace
 
 		virtual void getUnwelcomedReaders(LocalApiReaders& out) const
 		{
+			m_allowed = onlineUseAllowed();
 			pumpReaderEvents();
 			collectReaders(FALSE, out);
 		}
@@ -232,7 +236,7 @@ namespace
 
 		virtual Bool enqueueFrame(UnsignedByte frameType, const UnsignedByte* body, UnsignedInt bodyLength, const LocalApiReaders& to)
 		{
-			if (!m_listening || body == NULL || bodyLength == 0 || bodyLength > LOCAL_API_MAX_BODY_BYTES)
+			if (!m_listening || !m_allowed || body == NULL || bodyLength == 0 || bodyLength > LOCAL_API_MAX_BODY_BYTES)
 			{
 				return FALSE;
 			}
@@ -382,7 +386,7 @@ namespace
 			Bool welcomed;
 		};
 
-		PluginLocalApiSink() : m_api(NULL), m_listening(FALSE), m_stopped(FALSE), m_nextEpoch(1)
+		PluginLocalApiSink() : m_api(NULL), m_listening(FALSE), m_allowed(TRUE), m_stopped(FALSE), m_nextEpoch(1)
 		{
 			InitializeCriticalSection(&m_lock);
 			for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
@@ -403,9 +407,25 @@ namespace
 		}
 
 		/// Welcomed readers when welcomed is TRUE, the others otherwise. Any thread.
+		/// Online games and online lobbies need the local_api client feature, LAN, skirmish and replays stay open. Main thread only, the result is cached in m_allowed.
+		static Bool onlineUseAllowed()
+		{
+			Bool online = TheGameLogic != NULL && TheGameLogic->getGameMode() == GAME_INTERNET;
+			if (!online)
+			{
+				GenOnlineLobbyInterface* lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+				online = lobby != NULL && lobby->IsInLobby();
+			}
+			return !online || GenOnlineRealtimeBridge::HasClientFeature("local_api");
+		}
+
 		void collectReaders(Bool welcomed, LocalApiReaders& out) const
 		{
 			out.clear();
+			if (!m_allowed)
+			{
+				return;
+			}
 			EnterCriticalSection(&m_lock);
 			for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
 			{
@@ -568,6 +588,7 @@ namespace
 
 		const GenOnlinePluginLocalApi* m_api;
 		Bool m_listening;
+		mutable volatile Bool m_allowed;	///< FALSE while an online game or lobby lacks the local_api client feature
 		Bool m_stopped;	///< set by shutdown() and never cleared, so the sink does not restart during engine teardown
 		mutable CRITICAL_SECTION m_lock;	///< guards m_slots, m_feed, m_feedEpoch and m_nextEpoch
 		mutable Slot m_slots[LOCAL_API_MAX_READERS];
