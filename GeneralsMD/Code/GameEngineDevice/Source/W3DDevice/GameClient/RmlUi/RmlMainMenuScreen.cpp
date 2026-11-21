@@ -47,6 +47,7 @@
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/PeerThread.h"
 #include "GameNetwork/GameSpyOverlay.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 #include "W3DDevice/GameClient/RmlUi/RmlTransitionSounds.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiText.h"
@@ -55,8 +56,6 @@
 #include <RmlUi/Core/DataModelHandle.h>
 #include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementDocument.h>
-
-void DownloadMenuUpdate(WindowLayout *layout, void *userData);	// DownloadMenu.cpp; MainMenu.cpp's update calls it too
 
 namespace
 {
@@ -177,7 +176,7 @@ void RmlMainMenuScreen::open()
 // MainMenuShutdown(): a pending patch check stops reporting here.
 void RmlMainMenuScreen::close()
 {
-	CancelPatchCheckCallback();
+	GetOnlineGameHooks()->cancelPatchCheck();	// Ronin @feature 21/11/2026 DX9: the provider's, as MainMenuShutdown()
 	setShellHook("");
 	if (m_document)
 		m_document->Hide();
@@ -398,7 +397,7 @@ void RmlMainMenuScreen::act(const Rml::String &what, const Rml::String &arg)
 	else if (what == "online")
 	{
 		TransitionSounds::play("MainMenuMultiPlayerMenuTransitionToNext", TRUE);
-		StartPatchCheck();
+		GetOnlineGameHooks()->startOnline();	// Ronin @feature 21/11/2026 DX9: the provider's Online path (GO's sign-in, GameSpy's patch check)
 	}
 	else if (what == "network")
 	{
@@ -443,7 +442,7 @@ void RmlMainMenuScreen::destroyed()
 {
 	ghttpCleanup();
 	TearDownGameSpy();
-	StopAsyncDNSCheck();
+	GetOnlineGameHooks()->stopOnlineChecks();	// Ronin @feature 21/11/2026 DX9: the provider's DNS check, as MainMenuSystem()
 }
 
 // MainMenuUpdate()'s pumps, for as long as the menu's layout is on the shell's stack (the online screens open over it).
@@ -454,7 +453,7 @@ void RmlMainMenuScreen::shellUpdate()
 	if (TheDownloadManager && !TheDownloadManager->isDone())
 	{
 		TheDownloadManager->update();
-		DownloadMenuUpdate(nullptr, nullptr);
+		GetOnlineGameHooks()->updateDownloadMenu(nullptr, nullptr);	// Ronin @feature 21/11/2026 DX9: the provider's, as MainMenuUpdate()
 	}
 	RmlMainMenuScreen &screen = instance();
 	if (screen.m_raiseMessageBoxes)
@@ -462,6 +461,6 @@ void RmlMainMenuScreen::shellUpdate()
 		RaiseGSMessageBox();
 		screen.m_raiseMessageBoxes = false;
 	}
-	HTTPThinkWrapper();
+	GetOnlineGameHooks()->updateMainMenu();	// Ronin @feature 21/11/2026 DX9: GO's sign-in dialog ticks here
 	GameSpyUpdateOverlays();
 }
