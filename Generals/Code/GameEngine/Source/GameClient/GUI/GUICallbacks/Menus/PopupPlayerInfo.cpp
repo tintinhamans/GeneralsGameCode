@@ -58,6 +58,8 @@
 #include "GameNetwork/GameSpy/GSConfig.h"
 #include "GameNetwork/GameSpy/LobbyUtils.h"
 
+#include "GameNetwork/GenOnline/GenOnlineDefines.h"
+
 #include "WWDownload/Registry.h"
 
 
@@ -475,8 +477,14 @@ void ResetBattleHonorInsertion()
 }
 void InsertBattleHonor(GameWindow *list, const Image *image, Bool enabled, Int itemData, Int& row, Int& column, UnicodeString text = UnicodeString::TheEmptyString)
 {
+#if !defined(GENONLINE_WIDESCREEN)
 	Int width = MAX_BATTLE_HONOR_IMAGE_WIDTH * (TheDisplay->getWidth() / (Real)DEFAULT_DISPLAY_WIDTH);
 	Int height = MAX_BATTLE_HONOR_IMAGE_HEIGHT * (TheDisplay->getHeight() / (Real)DEFAULT_DISPLAY_HEIGHT);
+#else
+	// GenOnline @tweak arcticdolphin 21/11/2026 Scale the honor images against the widescreen layout size.
+	Int width = MAX_BATTLE_HONOR_IMAGE_WIDTH * (TheDisplay->getWidth() / GENONLINE_WIDESCREEN_X_SCALE);
+	Int height = MAX_BATTLE_HONOR_IMAGE_HEIGHT * (TheDisplay->getHeight() / GENONLINE_WIDESCREEN_Y_SCALE);
+#endif
 
 	static Int enabledColor = 0xFFFFFFFF;
 	static Int disabledColor = GameMakeColor(80, 80, 80, 255);

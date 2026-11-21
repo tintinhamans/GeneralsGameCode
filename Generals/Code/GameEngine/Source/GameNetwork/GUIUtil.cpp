@@ -219,7 +219,11 @@ void PopulateColorComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myG
 		if (!def || availableColors[c] == false)
 			continue;
 
-		colorName = TheGameText->fetch(def->getTooltipName().str());
+		// GenOnline @tweak arcticdolphin 21/11/2026 Show the raw name for colours that have no localized text.
+		Bool foundColorName = FALSE;
+		colorName = TheGameText->fetch(def->getTooltipName().str(), &foundColorName);
+		if (!foundColorName)
+			colorName.format(L"%hs", def->getTooltipName().str());
 		newIndex = GadgetComboBoxAddEntry(comboArray[comboBox], colorName, def->getColor());
 		GadgetComboBoxSetItemData(comboArray[comboBox], newIndex, (void *)c);
 	}
@@ -276,6 +280,24 @@ void PopulatePlayerTemplateComboBox(Int comboBox, GameWindow *comboArray[], Game
 
 // -----------------------------------------------------------------------------
 
+// GenOnline @feature arcticdolphin 21/11/2026 Team colours for the team combo box and the start position buttons.
+UnsignedInt GetTeamUiColor(Int teamNumber)
+{
+	switch (teamNumber)
+	{
+		case 0:
+			return GameMakeColor(255, 60, 60, 255);
+		case 1:
+			return GameMakeColor(60, 255, 60, 255);
+		case 2:
+			return GameMakeColor(60, 120, 255, 255);
+		case 3:
+			return GameMakeColor(255, 220, 60, 255);
+	}
+
+	return GameMakeColor(255, 255, 255, 255);
+}
+
 void PopulateTeamComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGame, Bool isObserver)
 {
 	Int numTeams = MAX_SLOTS/2;
@@ -298,10 +320,10 @@ void PopulateTeamComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGa
 		AsciiString teamStr;
 		teamStr.format("Team:%d", c + 1);
 		teamName = TheGameText->fetch(teamStr.str());
-		newIndex = GadgetComboBoxAddEntry(comboArray[comboBox], teamName, def->getColor());
+		// GenOnline @feature arcticdolphin 21/11/2026 Colour each team entry.
+		newIndex = GadgetComboBoxAddEntry(comboArray[comboBox], teamName, GetTeamUiColor(c));
 		GadgetComboBoxSetItemData(comboArray[comboBox], newIndex, (void *)c);
 	}
-	GadgetComboBoxSetSelectedPos(comboArray[comboBox], 0);
 }
 
 // -----------------------------------------------------------------------------
@@ -400,6 +422,9 @@ void UpdateSlotList( GameInfo *myGame, GameWindow *comboPlayer[],
 				GadgetComboBoxSetSelectedPos(comboPlayer[i], slot->getState(), TRUE);
         if( buttonAccept &&  buttonAccept[i] )
 				  buttonAccept[i]->winHide(TRUE);
+
+				// GenOnline @feature arcticdolphin 21/11/2026 Host migration can rename slots that no human occupies.
+				GadgetComboBoxSetText(comboPlayer[i], slot->getName());
 			}
 /*
 			if (myGame->getLocalSlotNum() == i && i!=0)

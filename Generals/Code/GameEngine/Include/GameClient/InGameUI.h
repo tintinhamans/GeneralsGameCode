@@ -43,6 +43,7 @@
 #include "GameClient/Mouse.h"
 #include "GameClient/RadiusDecal.h"
 #include "GameClient/View.h"
+#include "GameNetwork/NetworkDefs.h"
 
 // FORWARD DECLARATIONS ///////////////////////////////////////////////////////////////////////////
 class Drawable;
@@ -53,6 +54,8 @@ class VideoBuffer;
 class VideoStreamInterface;
 class CommandButton;
 class SpecialPowerTemplate;
+class Player;
+enum ScienceType CPP_11(: Int);
 class WindowLayout;
 class Anim2DTemplate;
 class Anim2D;
@@ -350,6 +353,12 @@ public:  // ********************************************************************
 	InGameUI();
 	virtual ~InGameUI() override;
 
+	// GenOnline @feature arcticdolphin 21/11/2026 the observer overlay is shown and hidden together with the control bar
+	void toggleObserverStats() {
+		m_observerStatsHidden = !m_observerStatsHidden;
+		m_observerNotificationsHidden = !m_observerNotificationsHidden;
+	}
+
 	// Inherited from subsystem interface -----------------------------------------------------------
 	virtual	void init() override;															///< Initialize the in-game user interface
 	virtual void update() override;														///< Update the UI by calling preDraw(), draw(), and postDraw()
@@ -556,6 +565,10 @@ public:  // ********************************************************************
   Bool isCameraTrackingDrawable() const { return m_cameraTrackingDrawable; }
 	void resetCamera();
 
+	// GenOnline @feature arcticdolphin 21/11/2026 the observer stats overlay replaces the player info list
+	void initObserverOverlay();
+	void cleanupObserverOverlay();
+
 	virtual void addIdleWorker( Object *obj );
 	virtual void removeIdleWorker( Object *obj, Int playerNumber );
 	virtual void selectNextIdleWorker();
@@ -597,12 +610,23 @@ private:
 	void drawSystemTime(Int &x, Int &y);
 	void drawGameTime();
 	void drawPlayerInfoList();
+	void drawObserverStats(Int &x, Int &y);
+	Bool m_observerStatsHidden = false;
 
 public:
 	void registerWindowLayout(WindowLayout *layout); // register a layout for updates
 	void unregisterWindowLayout(WindowLayout *layout); // stop updates for this layout
 
   void triggerDoubleClickAttackMoveGuardHint();
+
+	void drawObserverNotifications(Int& x, Int& y);
+	void checkObserverMilestones(UnsignedInt currentFrame);
+	void addObserverNotification(const UnicodeString& playerName, const wchar_t* message, Color playerColor);
+	void addObserverNotificationRaw(const UnicodeString& message, Color color);
+	void notifyGeneralPromotion(Player* player, ScienceType science);
+	void notifySpecialPowerUsed(Player* player, const SpecialPowerTemplate* powerTemplate);
+	void refreshObserverNotificationResources(void);
+	Bool m_observerNotificationsHidden;
 
 
 public:
@@ -647,6 +671,38 @@ protected:
 	};
 
 	enum { MAX_MOVE_HINTS = 256 };
+
+	struct ObserverNotification {
+		UnicodeString message;
+		Color color;
+		UnsignedInt createdRenderMs;
+		Bool active;
+	};
+
+	struct ObserverMilestone {
+		Bool reachedLevel3;
+		Bool reachedLevel5;
+		Bool reached10kCPM;
+		Bool stolenPower;
+		Bool gotHunted;
+	};
+
+	struct PlayerData {
+		UnicodeString name;
+		UnicodeString faction;
+		Int team;
+		UnsignedInt money;
+		UnsignedInt cpm;
+		Int xp;
+		Int rank;
+		Real kd;
+		Int sp;
+		Int powerValue;
+		Bool showPower;
+		Bool lowPower;
+		Color color;
+	};
+
 	struct MoveHintStruct
 	{
 		Coord3D pos;						///< World coords of destination point
@@ -660,6 +716,9 @@ protected:
 		DisplayString *displayString;						///< display string used to render the message
 		UnsignedInt timestamp;									///< logic frame message was created on
 		Color color;														///< color to render this in
+#if defined(GENONLINE)
+		bool isChat;
+#endif
 	};
 	enum { MAX_UI_MESSAGES = 6 };
 
@@ -702,7 +761,11 @@ protected:
 	void setMouseCursor(Mouse::MouseCursor c);
 
 
+#if defined(GENONLINE)
+	void addMessageText( const UnicodeString& formattedMessage, const RGBColor *rgbColor = nullptr, bool bIsChatMsg = false );  ///< internal workhorse for adding plain text for messages
+#else
 	void addMessageText( const UnicodeString& formattedMessage, const RGBColor *rgbColor = nullptr );  ///< internal workhorse for adding plain text for messages
+#endif
 	void removeMessageAtIndex( Int i );				///< remove the message at index i
 
 	void updateFloatingText();						///< Update function to move our floating text
@@ -767,6 +830,7 @@ protected:
 	Color												m_networkLatencyColor;
 	Color												m_networkLatencyDropColor;
 	UnsignedInt									m_lastNetworkLatencyFrames;
+	UnsignedInt									m_lastNetworkLogicRate;
 
 	// Render FPS Counter
 	DisplayString *							m_renderFpsString;
@@ -804,6 +868,21 @@ protected:
 	Coord2D												m_gameTimePosition;
 	Color												m_gameTimeColor;
 	Color												m_gameTimeDropColor;
+
+	DisplayString* m_observerStatsString;
+	AsciiString m_observerStatsFont;
+	Int m_observerStatsPointSize;
+	Bool m_observerStatsBold;
+	Coord2D m_observerStatsPosition;
+	Int m_observerStatsLineStep;
+
+	std::vector<ObserverNotification> m_observerNotifications;
+	std::vector<ObserverMilestone> m_observerMilestones;
+	DisplayString* m_observerNotificationString;
+	Int m_observerNotificationPointSize;
+
+	Color												m_colorGood;
+	Color												m_colorBad;
 
 	struct PlayerInfoList
 	{
@@ -967,6 +1046,30 @@ protected:
 	Bool												m_moveRMBScrollAnchor;
 	Bool												m_clientQuiet;         ///< When the user clicks exit,restart, etc. this is set true
 																												///< to skip some client sounds/fx during shutdown
+
+	static const Int numCols = 8;
+	const wchar_t* headers[numCols] = {
+		L"(T) Player", L"Army", L"Cash", L"Cash/m", L"(R) XP", L"SP", L"K/D", L"Power"
+	};
+
+	struct ObsOverlayPlayerData
+	{
+		bool isPresent = false;
+		PlayerData playerData;
+		DisplayString* playerCellStrings[numCols];
+	};
+
+	ObsOverlayPlayerData m_mapOverlayPlayerData[MAX_SLOTS];
+
+	UnsignedInt lastUpdateFrame = 0;
+	Int lastFontSize = -1;
+
+	std::vector<DisplayString*> m_headerStrings;
+
+	Int colWidths[numCols] = { 0 };
+	Int totalWidth = 0;
+	Int totalHeight = 0;
+	bool isUpdating = false;
 
 	GameWindow *m_controlBarWindow;
 	GameWindow *m_replayWindow;

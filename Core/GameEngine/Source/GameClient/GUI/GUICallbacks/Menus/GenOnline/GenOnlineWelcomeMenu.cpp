@@ -246,7 +246,8 @@ static void updateNumPlayersOnline()
 		//Kris: Patch 1.01 - November 12, 2003
 		//Removed number of players from string, and removed the argument. The number is incorrect anyways...
 		//This was a Harvard initiated fix.
-		headingStr.format(TheGameText->fetch("MOTD:NumPlayersHeading"));
+		// The Generals string still holds a %d and the Zero Hour string does not, so the count is always passed.
+		headingStr.format(TheGameText->fetch("MOTD:NumPlayersHeading"), lastNumPlayersOnline);
 
 		//<hexcol>%hs for colors
 		while (headingStr.nextToken(&line, L"\n"))

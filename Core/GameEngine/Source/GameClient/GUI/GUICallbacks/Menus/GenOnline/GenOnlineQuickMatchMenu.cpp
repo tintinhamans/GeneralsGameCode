@@ -392,7 +392,8 @@ static void populateQMSideComboBox(Int favSide, const LadderInfo *li = nullptr)
 		// This is also enforced at GUI setup (GUIUtil.cpp and UserPreferences.cpp).
 		// @todo: unlock these when something rad happens
 		Bool disallowLockedGenerals = TRUE;
-		const GeneralPersona *general = TheChallengeGenerals->getGeneralByTemplateName(fac->getName());
+		// Generals has no challenge generals.
+		const GeneralPersona *general = TheChallengeGenerals ? TheChallengeGenerals->getGeneralByTemplateName(fac->getName()) : nullptr;
 		Bool startsLocked = general ? !general->isStartingEnabled() : FALSE;
 		if (disallowLockedGenerals && startsLocked)
 			continue;

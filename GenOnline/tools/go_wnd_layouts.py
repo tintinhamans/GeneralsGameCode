@@ -120,7 +120,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from wnd_fixes import BLANK_LAYOUTS, FIXES, HEADINGS, LIST_HEADERS  # noqa: E402
+from wnd_fixes import BLANK_LAYOUTS, FIXES, GENERALS_FIXES, HEADINGS, LIST_HEADERS  # noqa: E402
 import wnd_yaml  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -156,6 +156,10 @@ GENERALS_LAYOUTS = {
     "GenOnlineWelcomeMenu.wnd",
     "GOSignInDialog.wnd",
     "OptionsMenu.wnd",
+    "SkirmishMapSelectMenu.wnd",
+    "LanMapSelectMenu.wnd",
+    "MapSelectMenu.wnd",
+    "ScoreScreen.wnd",
 }
 SOURCES = Path(__file__).resolve().parent / "wnd_sources"
 REVIEW = Path(__file__).resolve().parent / "wnd_review.md"
@@ -1879,6 +1883,7 @@ def build(retail, game="zerohour"):
     compiled = {}
     if game == "generals":
         wanted = {k.lower() for k in GENONLINE_LAYOUTS} | {v.lower() for v in SHELL_COPIES.values()}
+        wanted |= {f"window/menus/{k.lower()}" for k in GENERALS_LAYOUTS}
         inputs = {name: raw for name, raw in inputs.items() if name.lower() in wanted}
         for rel in GENERALS_SOURCES:
             inputs[rel] = (SOURCES / rel).read_bytes().replace(b"IMAGE: Alpha,", b"IMAGE: NoImage,")
@@ -2149,6 +2154,7 @@ def main():
     if args.game == "generals":
         # these tables are tuned to the Zero Hour layouts
         FIXES.clear()
+        FIXES.update(GENERALS_FIXES)
         HEADINGS.clear()
         LIST_HEADERS.clear()
         SETUP_LAYOUTS.clear()

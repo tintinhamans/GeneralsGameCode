@@ -2567,6 +2567,15 @@ Bool Player::attemptToPurchaseScience(ScienceType science)
 	Int cost = TheScienceStore->getSciencePurchaseCost(science);
 	addSciencePurchasePoints(-cost);
 	addScience(science);
+
+#if defined(GENONLINE)
+	// GenOnline @feature arcticdolphin 21/11/2026 observers see the general promotion purchases
+	if (TheInGameUI)
+	{
+		TheInGameUI->notifyGeneralPromotion(this, science);
+	}
+#endif
+
 	return true;
 }
 

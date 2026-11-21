@@ -71,6 +71,9 @@
 #include "GameNetwork/IPEnumeration.h"
 #include "WWDownload/Registry.h"
 
+#if defined(GENONLINE)
+UnsignedInt GetTeamUiColor(Int teamNumber);
+#endif
 
 SkirmishGameInfo *TheSkirmishGameInfo = nullptr;
 
@@ -843,6 +846,10 @@ void updateMapStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[
 				AsciiString displayNumber;
 				displayNumber.format("NUMBER:%d",i + 1);
 				GadgetButtonSetText(buttonMapStartPositions[gs->getApparentStartPos()], TheGameText->fetch(displayNumber));
+#if defined(GENONLINE)
+				// GenOnline @feature arcticdolphin 21/11/2026 Colour the start position number by team.
+				GadgetTextEntrySetTextColor(buttonMapStartPositions[gs->getApparentStartPos()], (gs->getTeamNumber() >= 0) ? GetTeamUiColor(gs->getTeamNumber()) : GameMakeColor(255, 255, 255, 255));
+#endif
 			}
 		}
 		else
@@ -857,6 +864,10 @@ void updateMapStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[
 				UnicodeString temp;
 				temp.format(TheGameText->fetch("TOOLTIP:StartPositionN"), i + 1);
 				buttonMapStartPositions[gs->getStartPos()]->winSetTooltip(temp);
+#if defined(GENONLINE)
+				// GenOnline @feature arcticdolphin 21/11/2026 Colour the start position number by team.
+				GadgetTextEntrySetTextColor(buttonMapStartPositions[gs->getStartPos()], (gs->getTeamNumber() >= 0) ? GetTeamUiColor(gs->getTeamNumber()) : GameMakeColor(255, 255, 255, 255));
+#endif
 			}
 		}
 	}

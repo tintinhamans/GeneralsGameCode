@@ -20,6 +20,20 @@ FIXES = {
     },
 }
 
+# the same overrides for the Generals layouts, which start from the Generals retail layouts: its score screen runs 30 units past the ruler,
+# so the chat list shortens and the chat entry and the button row move up inside the frame
+GENERALS_FIXES = {
+    "Window/Menus/ScoreScreen.wnd": {
+        "ScoreScreen.wnd:ListboxChatWindowScoreScreen": (69, 387, 735, 480),
+        "ScoreScreen.wnd:TextEntryChat": (68, 488, 696, 513),
+        "ScoreScreen.wnd:ButtonEmote": (700, 488, 736, 512),
+        "ScoreScreen.wnd:ButtonSaveReplay": (68, 518, 241, 554),
+        "ScoreScreen.wnd:ButtonBuddy": (252, 518, 425, 554),
+        "ScoreScreen.wnd:ButtonContinue": (436, 518, 609, 554),
+        "ScoreScreen.wnd:ButtonOk": (620, 518, 748, 554),
+    },
+}
+
 # column headings of the game setup screens, left aligned over their player list column or map preview
 HEADINGS = {
     "Window/Menus/GameSpyGameOptionsMenu.wnd": {
