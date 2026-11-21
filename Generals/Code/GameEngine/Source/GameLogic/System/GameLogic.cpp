@@ -206,6 +206,12 @@ void setFPMode()
 	newVal = (newVal & ~_MCW_PC) | (_PC_24   & _MCW_PC);
 
 	_controlfp(newVal, _MCW_PC | _MCW_RC);
+
+#if defined(GENONLINE)
+	// GenOnline @bugfix arcticdolphin 21/11/2026 Mask all floating point exceptions so a stray NaN cannot crash the game.
+	unsigned int cw;
+	_controlfp_s(&cw, _MCW_EM, _MCW_EM);
+#endif
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -229,6 +235,9 @@ GameLogic::GameLogic()
 	{
 		m_progressComplete[i] = FALSE;
 		m_progressCompleteTimeout[i] = 0;
+#if defined(GENONLINE)
+		m_progressMade[i] = 0;
+#endif
 	}
 
 	m_shouldValidateCRCs = FALSE;
@@ -305,6 +314,15 @@ void GameLogic::destroyAllObjectsImmediate()
 		nextObj = obj->getNextObject();
 		destroyObject( obj );
 	}
+
+#if defined(GENONLINE)
+	// GenOnline @bugfix arcticdolphin 21/11/2026 Clearing the heap first stops destructor chains from rebalancing it mid destruction.
+	for (std::vector<UpdateModulePtr>::iterator it = m_sleepyUpdates.begin(); it != m_sleepyUpdates.end(); ++it)
+	{
+		(*it)->friend_setIndexInLogic(-1);
+	}
+	m_sleepyUpdates.clear();
+#endif
 
 	// process the destroy list immediately
 	processDestroyList();
@@ -442,6 +460,9 @@ void GameLogic::reset()
 	{
 		m_progressComplete[i] = FALSE;
 		m_progressCompleteTimeout[i] = 0;
+#if defined(GENONLINE)
+		m_progressMade[i] = 0;
+#endif
 	}
 	m_forceGameStartByTimeOut = FALSE;
 
@@ -826,12 +847,29 @@ static void populateRandomStartPosition( GameInfo *game )
 		if (!slot || !slot->isOccupied() || slot->getPlayerTemplate() == PLAYERTEMPLATE_OBSERVER)
 			continue;
 
+#if defined(GENONLINE_IBRA_STARTING_POS_LOGIC)
+		// GenOnline @bugfix arcticdolphin 21/11/2026 A duplicate or out of range explicit start position is reassigned as random.
+		Int posIdx = slot->getStartPos();
+		if (posIdx >= 0 && posIdx < numPlayers)
+		{
+			if (taken[posIdx])
+			{
+				slot->setStartPos(-1);
+			}
+			else
+			{
+				hasStartSpotBeenPicked = TRUE;
+				taken[posIdx] = TRUE;
+			}
+		}
+#else
 		Int posIdx = slot->getStartPos();
 		if (posIdx >= 0 || posIdx >= numPlayers)
 		{
 			hasStartSpotBeenPicked = TRUE;
 			taken[posIdx] = TRUE;
 		}
+#endif
 	}
 
 	// now pick non-observer spots
@@ -948,6 +986,46 @@ void GameLogic::updateLoadProgress( Int progress )
 	if (TheGameEngine->getQuitting() || m_quitToDesktopAfterMatch)
 	{
 		throw QuitGameException();
+	}
+}
+
+// ------------------------------------------------------------------------------------------------
+/** Fades the load screen out and deletes it */
+// ------------------------------------------------------------------------------------------------
+void GameLogic::revealFromLoadScreen(Bool loadingSaveGame)
+{
+	// if we're in a load game, don't fade yet
+	if(loadingSaveGame == FALSE && TheTransitionHandler != nullptr && m_loadScreen)
+	{
+		TheFramePacer->reset();
+		TheTransitionHandler->setGroup("FadeWholeScreen");
+		while(!TheTransitionHandler->isFinished())
+		{
+			TheWindowManager->update();
+			if(!TheTransitionHandler->isFinished())
+			{
+				TheDisplay->draw();
+				setFPMode();
+				TheFramePacer->update();
+			}
+
+		}
+	}
+
+	if(m_loadScreen)
+	{
+		TheMouse->setVisibility(TRUE);
+
+/*
+		//
+		// delete load screen only when not loading a save game, for save games we still
+		// have more work to do and the load screen will be deleted elsewhere after
+		// we're all done with the load game progress
+		//
+		if( loadingSaveGame == FALSE )
+*/
+			deleteLoadScreen();
+
 	}
 }
 
@@ -1219,6 +1297,9 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 			if (!slot || !slot->isHuman())
 			{
 				m_progressComplete[i] = TRUE;
+#if defined(GENONLINE)
+				m_progressMade[i] = 100;
+#endif
 				lastHeardFrom(i);
 			}
 
@@ -1923,6 +2004,41 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 		TheNetwork->liteupdate();
 	}
 
+#if defined(GENONLINE)
+	// GenOnline @feature arcticdolphin 21/11/2026 Internet games keep the load screen up for a minimum time and start the first frames together.
+	const UnsignedInt minLoadScreenDisplayTime = 2000;
+	UnsignedInt minLoadScreenEndTime = isInInternetGame() ? (timeGetTime() + minLoadScreenDisplayTime) : 0;
+	Bool loadScreenHolds = m_loadScreen != nullptr && m_loadScreen->holdsAfterLoad();
+
+	while (!isProgressComplete() || (minLoadScreenEndTime != 0 && timeGetTime() < minLoadScreenEndTime) || loadScreenHolds)
+	{
+		updateLoadProgress(101); // keep greater then 100
+		testTimeOut();
+		// short sleeps while the credit holds keep its bar and Esc check smooth
+		Sleep(loadScreenHolds ? 15 : 100);
+		loadScreenHolds = m_loadScreen != nullptr && m_loadScreen->holdsAfterLoad();
+	}
+
+	Bool syncedStart = FALSE;
+	// stay on the load screen until every player is ready to run frames, so nobody runs ahead into a stall
+	if (isInInternetGame() && !m_forceGameStartByTimeOut)
+	{
+		if (GetOnlineGameHooks()->beginSyncedStart(0))
+		{
+			syncedStart = TRUE;
+			while (!GetOnlineGameHooks()->isSyncedStartDone(0))
+			{
+				updateLoadProgress(101);
+				Sleep(5);
+			}
+		}
+	}
+
+	if (!syncedStart)
+	{
+		revealFromLoadScreen(loadingSaveGame);
+	}
+#else
 	while(!isProgressComplete())
 	{
 		updateLoadProgress(101); // keep greater then 100
@@ -1930,39 +2046,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 		Sleep(100);
 	}
 
-	// if we're in a load game, don't fade yet
-	if(loadingSaveGame == FALSE && TheTransitionHandler != nullptr && m_loadScreen)
-	{
-		TheFramePacer->reset();
-		TheTransitionHandler->setGroup("FadeWholeScreen");
-		while(!TheTransitionHandler->isFinished())
-		{
-			TheWindowManager->update();
-			if(!TheTransitionHandler->isFinished())
-			{
-				TheDisplay->draw();
-				setFPMode();
-				TheFramePacer->update();
-			}
-
-		}
-	}
-
-	if(m_loadScreen)
-	{
-		TheMouse->setVisibility(TRUE);
-
-/*
-		//
-		// delete load screen only when not loading a save game, for save games we still
-		// have more work to do and the load screen will be deleted elsewhere after
-		// we're all done with the load game progress
-		//
-		if( loadingSaveGame == FALSE )
-*/
-			deleteLoadScreen();
-
-	}
+	revealFromLoadScreen(loadingSaveGame);
+#endif
 
 	#ifdef DUMP_PERF_STATS
 	GetPrecisionTimer(&endTime64);
@@ -2066,7 +2151,11 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	{
 		HideControlBar();
 	}
+#if defined(GENONLINE)
+	else if (!syncedStart)
+#else
 	else
+#endif
 	{
 		ShowControlBar(FALSE);
 	}
@@ -2075,7 +2164,12 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	// Turn off the UI
 	HideControlBar();
 #endif
-	TheWritableGlobalData->m_loadScreenRender = FALSE;	///< mark to resume rendering as normal
+#if defined(GENONLINE)
+	if (!syncedStart)
+#endif
+	{
+		TheWritableGlobalData->m_loadScreenRender = FALSE;	///< mark to resume rendering as normal
+	}
 
 	// if we're in a gamespy game, mark us as playing
 	if (TheGameSpyBuddyMessageQueue && TheGameSpyGame && isInInternetGame())
@@ -2100,6 +2194,25 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
       drawable = drawable->getNextDrawable();
     }
   }
+
+#if defined(GENONLINE)
+	// the local setup took a different time on every machine, start the first frames together while the load screen is still up
+	if (syncedStart)
+	{
+		if (GetOnlineGameHooks()->beginSyncedStart(1))
+		{
+			while (!GetOnlineGameHooks()->isSyncedStartDone(1))
+			{
+				updateLoadProgress(101);
+				Sleep(2);
+			}
+		}
+
+		revealFromLoadScreen(loadingSaveGame);
+		ShowControlBar(FALSE);
+		TheWritableGlobalData->m_loadScreenRender = FALSE;	///< mark to resume rendering as normal
+	}
+#endif
 
 	//ReAllows quit menu to work during loading scene
 	//setGameLoading(FALSE);
@@ -2374,7 +2487,44 @@ void GameLogic::processCommandList( CommandList *list )
 			}
 #endif // DEBUG_LOGGING
 #if defined(GENONLINE)
+			// GenOnline @feature arcticdolphin 21/11/2026 The mismatch details name the players whose CRC differs from the most common one.
 			UnicodeString strMismatchDetails;
+			strMismatchDetails.format(L"GameLogic frame %d, latest frame %d, GetGameLogicRandomSeedCRC was %d\nHad %d CRCs from %d players\nMismatched Players:\n",
+				TheGameLogic->getFrame(),
+				TheGameLogic->getFrame() - TheNetwork->getRunAhead() - 1,
+				GetGameLogicRandomSeedCRC(),
+				m_cachedCRCs.size(),
+				numPlayers);
+
+			std::map<UnsignedInt, Int> mapCRCOccurences;
+			for (CachedCRCMap::const_iterator crcIt = m_cachedCRCs.begin(); crcIt != m_cachedCRCs.end(); ++crcIt)
+			{
+				++mapCRCOccurences[crcIt->second];
+			}
+
+			// the most frequent CRC counts as the correct one
+			Int biggestCRCCount = -1;
+			UnsignedInt biggestCRC = 0;
+			for (std::map<UnsignedInt, Int>::const_iterator crcIter = mapCRCOccurences.begin(); crcIter != mapCRCOccurences.end(); ++crcIter)
+			{
+				if (crcIter->second > biggestCRCCount)
+				{
+					biggestCRC = crcIter->first;
+					biggestCRCCount = crcIter->second;
+				}
+			}
+
+			for (CachedCRCMap::const_iterator crcIt = m_cachedCRCs.begin(); crcIt != m_cachedCRCs.end(); ++crcIt)
+			{
+				if (crcIt->second != biggestCRC)
+				{
+					Player *player = ThePlayerList->getNthPlayer(crcIt->first);
+					UnicodeString strPlayerInfo;
+					strPlayerInfo.format(L"player %d (%s) = %X [MISMATCH]\n", crcIt->first, player ? player->getPlayerDisplayName().str() : L"<NONE>", crcIt->second);
+					strMismatchDetails.concat(strPlayerInfo);
+				}
+			}
+
 			TheNetwork->setSawCRCMismatch(strMismatchDetails);
 			GetOnlineGameHooks()->onCRCMismatch(strMismatchDetails);
 #else
@@ -4115,8 +4265,15 @@ void GameLogic::testTimeOut()
 		// If they've completed their progress, ignore them
 		if(m_progressComplete[i])
 			continue;
+#if defined(GENONLINE)
+		// GenOnline @tweak arcticdolphin 21/11/2026 Players that made no load progress get a much shorter grace period.
+		const Int timeoutValToUse = m_progressMade[i] > 0 ? PROGRESS_COMPLETE_TIMEOUT_PROGRESS_MADE : PROGRESS_COMPLETE_TIMEOUT_ZERO_PROGRESS_MADE;
+		if(	m_progressCompleteTimeout[i] + timeoutValToUse > curTime )
+			return;
+#else
 		if(	m_progressCompleteTimeout[i] + PROGRESS_COMPLETE_TIMEOUT > curTime )
 			return;
+#endif
 	}
 	// if we made it this far, that means everyone has timed out.
 	m_forceGameStartByTimeOut = TRUE;

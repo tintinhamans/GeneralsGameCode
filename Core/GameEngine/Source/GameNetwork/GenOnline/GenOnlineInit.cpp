@@ -429,8 +429,11 @@ void GenOnlineServicesManager::ProbeServiceRoute()
 
 void GenOnlineServicesManager::AttemptLoadSteam()
 {
-    // app id for ZH
+#if defined(RTS_ZEROHOUR)
     SetEnvironmentVariableA("SteamAppId", "2732960");
+#else
+    SetEnvironmentVariableA("SteamAppId", "2229870");
+#endif
 
     // load steam 32bit dll from local dir if present
     HMODULE steamDll = LoadLibraryA("steam_api.dll");	
