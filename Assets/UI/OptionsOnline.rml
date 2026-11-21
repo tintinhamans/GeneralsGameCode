@@ -1,0 +1,36 @@
+<!-- Ronin @feature 21/11/2026 DX9: Generals Online's connection rows, a fragment its build puts in Options.rml's Network page
+     (RmlOptionsScreen::loadOnlineRows); the labels and texts of GenOnlineOptionsMenu.cpp. -->
+<div class="opt-head">Generals Online</div>
+<div class="opt-row" data-class-disabled="restricted">
+	<div class="opt-text"><div class="opt-label">Proxy</div><div class="opt-desc">Automatic follows the Windows proxy settings. Disabled connects directly. Custom uses the proxy address.</div></div>
+	<div class="opt-control">
+		<select data-value="proxy_mode" data-attrif-disabled="restricted">
+			<option value="0">Automatic</option>
+			<option value="1">Disabled</option>
+			<option value="2">Custom</option>
+		</select>
+	</div>
+</div>
+<div class="opt-row" data-class-disabled="restricted || proxy_mode != 2">
+	<div class="opt-text"><div class="opt-label">Proxy address</div><div class="opt-desc">Proxy as host:port, or a full http://, https:// or socks5h:// address. Used with Custom.</div></div>
+	<div class="opt-control">
+		<input class="text-input" type="text" data-if="proxy_mode == 2" data-value="proxy_address" data-attrif-disabled="restricted"/>
+		<input class="text-input" type="text" disabled="disabled" data-if="proxy_mode != 2" data-attr-value="proxy_mode == 1 ? 'Direct' : proxy_system"/>
+	</div>
+</div>
+<div class="opt-row" data-class-disabled="restricted">
+	<div class="opt-text"><div class="opt-label">Server</div><div class="opt-desc">Automatic uses the Generals Online servers. Custom uses your own server. Applies at the next login.</div></div>
+	<div class="opt-control">
+		<select data-value="server_mode" data-attrif-disabled="restricted">
+			<option value="0">Automatic</option>
+			<option value="1">Custom</option>
+		</select>
+	</div>
+</div>
+<div class="opt-row" data-class-disabled="restricted || server_mode != 1">
+	<div class="opt-text"><div class="opt-label">Server address</div><div class="opt-desc">Your own server as host:port. Only https is allowed, except http://localhost, http://127.0.0.1 or http://[::1] for local development. Used with Custom.</div></div>
+	<div class="opt-control">
+		<input class="text-input" type="text" data-if="server_mode == 1" data-value="server_address" data-attrif-disabled="restricted"/>
+		<input class="text-input" type="text" disabled="disabled" data-if="server_mode != 1" data-attr-value="server_host"/>
+	</div>
+</div>

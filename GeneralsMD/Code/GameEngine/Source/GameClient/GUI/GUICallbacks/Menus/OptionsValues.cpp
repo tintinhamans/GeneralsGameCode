@@ -42,6 +42,7 @@
 #include "GameNetwork/FirewallHelper.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/IPEnumeration.h"
+#include "GameNetwork/Online/IOnlineGameHooks.h"
 
 #include "WW3D2/ww3d.h"
 
@@ -296,9 +297,10 @@ void RefreshFirewallBehavior(OptionPreferences &pref)
 	setInt(pref, "FirewallBehavior", TheGlobalData->m_firewallBehavior);
 }
 
+// Ronin @feature 21/11/2026 DX9: logged in through the online provider, as OptionsMenu.cpp; GameSpy's hook is TheGameSpyInfo
 Bool IsOptionsRestrictedContext()
 {
-	return (TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || TheGameSpyInfo != nullptr;
+	return (TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || GetOnlineGameHooks()->isLoggedIn();
 }
 
 //-------------------------------------------------------------------------------------------------

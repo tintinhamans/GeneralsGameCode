@@ -24,6 +24,7 @@
 #include "Common/OptionPreferences.h"
 #include "GameClient/Display.h"
 #include "GameClient/GUICallbacks.h"
+#include "GameClient/MessageBox.h"
 #include "GameClient/Shell.h"
 #include "GameClient/ShellHooks.h"
 #include "GameLogic/GameLogic.h"
@@ -36,11 +37,18 @@
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 #include "WW3D2/dx8wrapper.h"
 
+// Ronin @feature 21/11/2026 DX9: Generals Online's connection settings and its Accept test
+#include "GameNetwork/GenOnline/GenOnlineInit.h"
+#include "GameNetwork/GenOnline/ProxyLogin.h"
+#include "GameNetwork/Online/OnlineProviderFactory.h"
+
 #include <RmlUi/Core/Context.h>
+#include <RmlUi/Core/Core.h>
 #include <RmlUi/Core/DataModelHandle.h>
 #include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementDocument.h>
 #include <RmlUi/Core/Elements/ElementFormControlSelect.h>
+#include <RmlUi/Core/FileInterface.h>
 
 #include <stdio.h>
 
@@ -69,6 +77,49 @@ namespace
 	int overlaySize(bool shown, int loaded)
 	{
 		return shown ? (loaded > 0 ? loaded : 8) : 0;
+	}
+
+	// Ronin @feature 21/11/2026 DX9: Generals Online's connection rows, a fragment its build loads into the Network page.
+	const char *const kOnlineRows = "Data/UI/OptionsOnline.rml";
+
+	// Ronin @feature 21/11/2026 DX9: GenOnlineOptionsMenu.cpp's networkTrimmed() and networkWide().
+	std::string trimmed(std::string text)
+	{
+		text.erase(0, text.find_first_not_of(" \t"));
+		text.erase(text.find_last_not_of(" \t") + 1);
+		return text;
+	}
+
+	UnicodeString wideText(const std::string &text)
+	{
+		UnicodeString result;
+		result.translate(text.c_str());
+		return result;
+	}
+
+	// Ronin @feature 21/11/2026 DX9: networkChanged(): the proxy or the server differs from the saved one; an address counts
+	// only for its Custom choice.
+	bool onlineChanged(const ServiceConnectionSettings &saved, const ServiceConnectionSettings &edited)
+	{
+		if (saved.proxyMode != edited.proxyMode || saved.serverMode != edited.serverMode)
+			return true;
+		if (edited.proxyMode == "custom" && ServiceConnection::CanonicalProxyKey(saved.proxyURL) != ServiceConnection::CanonicalProxyKey(edited.proxyURL))
+			return true;
+		return edited.serverMode == "custom" && saved.serverAddress != edited.serverAddress;
+	}
+
+	// Ronin @feature 21/11/2026 DX9: networkServerHost(): the host Automatic's server uses, the route that worked last first.
+	std::string automaticServerHost()
+	{
+		const std::vector<std::string> routes = ServiceConnection::BootstrapRoutes(GenOnlineServicesManager::EnvironmentName(),
+			ServiceConnectionSettings(), GenOnlineServicesManager::Settings.Network_GetLastRoute());
+		if (routes.empty())
+			return std::string();
+		std::string host = routes.front();
+		const size_t scheme = host.find("://");
+		if (scheme != std::string::npos)
+			host.erase(0, scheme + 3);
+		return host.substr(0, host.find('/'));
 	}
 }
 
@@ -155,6 +206,12 @@ void RmlOptionsScreen::load()
 		c.Bind("lan_ip_index", &m.lanIP);
 		c.Bind("online_ip_index", &m.onlineIP);
 		c.Bind("firewall_port_override", &m.firewallPort);
+		c.Bind("proxy_mode", &m.proxyMode);			// Ronin @feature 21/11/2026 DX9: Generals Online's rows (OptionsOnline.rml)
+		c.Bind("proxy_address", &m.proxyAddress);
+		c.Bind("proxy_system", &m.proxySystem);
+		c.Bind("server_mode", &m.serverMode);
+		c.Bind("server_address", &m.serverAddress);
+		c.Bind("server_host", &m.serverHost);
 		struct Event { const char *name, *what, *arg; };
 		static const Event events[] =
 		{
@@ -174,6 +231,7 @@ void RmlOptionsScreen::load()
 		m_model = c.GetModelHandle();
 	}
 	m_document = TheRmlUiManager->loadScreen(kDocument);
+	loadOnlineRows();	// Ronin @feature 21/11/2026 DX9: Generals Online's rows, in its build
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -285,6 +343,16 @@ void RmlOptionsScreen::readCurrent()
 	if (port != 0)
 		_snprintf_s(portText, sizeof(portText), _TRUNCATE, "%d", port);
 	m.firewallPort = portText;
+
+	// Ronin @feature 21/11/2026 DX9: networkInit(): GO's connection as saved; Automatic's proxy is looked up on a worker
+	m_onlineTesting = m_onlineTested = m_onlineDiscard = false;
+	if (m_onlineRows)
+	{
+		showOnline(GenOnlineServicesManager::Settings.Network_GetConnectionSettings());
+		m.serverHost = automaticServerHost();
+		m.proxySystem = "Checking...";
+		startOnlineLookup();
+	}
 }
 
 // The lists the game knows only now: the display's modes (the running size added when it is not one, as the .wnd does) and
@@ -397,6 +465,8 @@ bool RmlOptionsScreen::isVisible() const
 
 void RmlOptionsScreen::back()
 {
+	if (m_onlineTesting)	// Ronin @feature 21/11/2026 DX9: GO's test dialog answers first (modal in the .wnd)
+		return;
 	close();
 	finish();
 }
@@ -446,6 +516,14 @@ void RmlOptionsScreen::update()
 	if (!isVisible() || !m_model)
 		return;
 	m_hq.refresh(m_model);	// the header's clock
+	// Ronin @feature 21/11/2026 DX9: networkPoll(): the Windows proxy Automatic shows, once the worker has it
+	if (m_systemProxy && m_systemProxy->ready.load(std::memory_order_acquire))
+	{
+		const ServiceConnection::ResolvedProxyPolicy &policy = m_systemProxy->result;
+		m.proxySystem = policy.error.empty() && !policy.source.empty() ? policy.source : std::string("Unavailable");
+		m_systemProxy.reset();
+		m_model.DirtyVariable("proxy_system");
+	}
 	const int custom = GetDetailCustomLevel();
 	// The new lighting keeps cloud shadows and ground lighting on (R3DLocalLights): shown on, and not an edit of the preset.
 	if (m.lighting && (!m.cloudShadows || !m.groundLighting))
@@ -483,9 +561,122 @@ void RmlOptionsScreen::update()
 }
 
 //-------------------------------------------------------------------------------------------------
+// Ronin @feature 21/11/2026 DX9: Generals Online's connection rows (Data/UI/OptionsOnline.rml) in the Network page, and the
+// rows its own layout drops hidden. Options.rml stays one file: both builds read the game's Data/UI.
+void RmlOptionsScreen::loadOnlineRows()
+{
+	m_onlineRows = false;
+	if (!m_document || ResolveConfiguredProvider() != ONLINE_PROVIDER_GENONLINE)
+		return;
+	Rml::Element *rows = m_document->GetElementById("online_rows");
+	Rml::String rml;
+	if (!rows || !Rml::GetFileInterface()->LoadFile(kOnlineRows, rml))
+		return;
+	rows->SetInnerRML(rml);
+	static const char *const gameSpyRows[] = { "row_online_ip", "row_firewall_port", "row_firewall_refresh" };
+	for (const char *id : gameSpyRows)
+		if (Rml::Element *row = m_document->GetElementById(id))
+			row->SetProperty("display", "none");
+	m_onlineRows = true;
+}
+
+// Ronin @feature 21/11/2026 DX9: networkShow(): the combos' positions; the Custom addresses without the scheme GO puts back.
+void RmlOptionsScreen::showOnline(const ServiceConnectionSettings &s)
+{
+	m.proxyMode = s.proxyMode == "disabled" ? 1 : (s.proxyMode == "custom" ? 2 : 0);
+	m.proxyAddress = s.proxyURL.compare(0, 7, "http://") == 0 ? s.proxyURL.substr(7) : s.proxyURL;
+	m.serverMode = s.serverMode == "custom" ? 1 : 0;
+	m.serverAddress = s.serverAddress.compare(0, 8, "https://") == 0 ? s.serverAddress.substr(8) : s.serverAddress;
+}
+
+// Ronin @feature 21/11/2026 DX9: networkStartSystemLookup(): Automatic's proxy, looked up on a worker; update() picks it up.
+void RmlOptionsScreen::startOnlineLookup()
+{
+	ServiceConnectionSettings system;
+	system.proxyMode = "automatic";
+	const std::vector<std::string> routes = ServiceConnection::BootstrapRoutes(GenOnlineServicesManager::EnvironmentName(),
+		GenOnlineServicesManager::Settings.Network_GetConnectionSettings(), GenOnlineServicesManager::Settings.Network_GetLastRoute());
+	m_systemProxy = ServiceConnection::StartProxyResolution(system, routes.empty() ? std::string("https://api.generals.online/") : routes.front());
+}
+
+// Ronin @feature 21/11/2026 DX9: networkRead(): the rows as settings; false with the reason when a Custom address is not valid.
+bool RmlOptionsScreen::readOnline(ServiceConnectionSettings &settings, std::string &error) const
+{
+	settings.proxyMode = m.proxyMode == 1 ? "disabled" : (m.proxyMode == 2 ? "custom" : "automatic");
+	std::string proxy = trimmed(m.proxyAddress);
+	if (!proxy.empty() && proxy.find("://") == std::string::npos)
+		proxy = "http://" + proxy;
+	settings.proxyURL = proxy;
+	if (!ServiceConnection::ValidateProxyURL(proxy, error))
+	{
+		if (settings.proxyMode == "custom")
+			return false;
+		settings.proxyURL.clear();	// an address not in use is dropped, not refused
+		error.clear();
+	}
+	settings.serverMode = m.serverMode == 1 ? "custom" : "automatic";
+	settings.serverAddress = trimmed(m.serverAddress);
+	if (settings.serverMode == "custom")
+		return ServiceConnection::NormalizeCustomEndpoint(settings.serverAddress, settings.serverAddress, error);
+	settings.serverAddress.clear();
+	return true;
+}
+
+// Ronin @feature 21/11/2026 DX9: networkAccept(): changed settings are tested first, in GO's dialog over this screen; false
+// keeps Options open. The dialog's answer comes back through accept().
+bool RmlOptionsScreen::acceptOnline()
+{
+	if (!m_onlineRows || m.restricted)
+		return true;
+	if (m_onlineDiscard)	// the test's Discard: the connection stays as saved
+	{
+		m_onlineDiscard = false;
+		return true;
+	}
+	const ServiceConnectionSettings saved = GenOnlineServicesManager::Settings.Network_GetConnectionSettings();
+	ServiceConnectionSettings edited = saved;
+	std::string error;
+	if (!readOnline(edited, error))
+	{
+		MessageBoxOk(UnicodeString(L"Connection settings"), wideText(error), nullptr);
+		return false;
+	}
+	if (onlineChanged(saved, edited) && !m_onlineTested)
+	{
+		Rml::Context *context = TheRmlUiManager ? TheRmlUiManager->getContext() : nullptr;
+		if (Rml::Element *focus = context ? context->GetFocusElement() : nullptr)
+			focus->Blur();	// the dialog's login fields take the keys
+		m_onlineTesting = true;
+		ServiceConnection::ShowAcceptTest(edited, [](ServiceConnection::AcceptChoice choice)
+		{
+			RmlOptionsScreen &screen = instance();
+			screen.m_onlineTesting = false;
+			if (!screen.isVisible() || !screen.m_pref)
+				return;
+			if (choice == ServiceConnection::AcceptChoice::Save)
+				screen.m_onlineTested = true;
+			else if (choice == ServiceConnection::AcceptChoice::Discard)
+				screen.m_onlineDiscard = true;
+			if (choice != ServiceConnection::AcceptChoice::KeepEditing)
+				screen.accept();
+		});
+		return false;
+	}
+	m_onlineTested = false;
+	if (!GenOnlineServicesManager::Settings.Network_SaveConnectionSettings(edited, error))
+	{
+		MessageBoxOk(UnicodeString(L"Connection settings"), wideText(error), nullptr);
+		return false;
+	}
+	return true;
+}
+
+//-------------------------------------------------------------------------------------------------
 // saveOptions(): every setting, then the renderer's, then the resolution - it rebuilds the shell - and the MSAA reset.
 void RmlOptionsScreen::accept()
 {
+	if (!acceptOnline())	// Ronin @feature 21/11/2026 DX9: GO's connection first, as OptionsMenu.cpp's Accept
+		return;
 	OptionPreferences &pref = *m_pref;
 
 	InterfaceValues iv = m_interfaceLoaded;
@@ -623,7 +814,7 @@ void RmlOptionsScreen::act(const Rml::String &what, const Rml::String &arg)
 		m.graphicsView = arg;
 		m_model.DirtyVariable("graphics_view");
 	}
-	else if (what == "accept" && m_pref)
+	else if (what == "accept" && m_pref && !m_onlineTesting)	// Ronin @feature 21/11/2026 DX9: not while GO's test dialog is up
 		accept();
 	else if (what == "cancel")
 		back();
@@ -641,6 +832,11 @@ void RmlOptionsScreen::act(const Rml::String &what, const Rml::String &arg)
 		m.sfx = GetDefaultSFXVolumePercent();
 		m.voice = GetDefaultVoiceVolumePercent();
 		m.brightness = 50;
+		if (m_onlineRows)	// Ronin @feature 21/11/2026 DX9: GenOnlineOptionsMenuDefaults(): Automatic, the first LAN IP
+		{
+			showOnline(ServiceConnectionSettings());
+			m.lanIP = 0;
+		}
 		m_model.DirtyAllVariables();
 	}
 	else if (what == "firewall" && m_pref && !m.restricted)

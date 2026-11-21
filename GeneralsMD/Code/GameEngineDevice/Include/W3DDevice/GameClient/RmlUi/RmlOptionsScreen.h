@@ -27,8 +27,13 @@
 #include <RmlUi/Core/DataModelHandle.h>
 #include <RmlUi/Core/Types.h>
 
+#include <memory>
+#include <string>
+
 class OptionPreferences;
 namespace Rml { class Event; }
+struct ServiceConnectionSettings;						// Ronin @feature 21/11/2026 DX9: Generals Online's
+namespace ServiceConnection { struct ProxyResolution; }
 
 class RmlOptionsScreen : public RmlScreen
 {
@@ -56,6 +61,13 @@ private:
 	OptionsValues::DetailPresetValues shownDetail() const;
 	void act(const Rml::String &what, const Rml::String &arg);	// what his document's events ask for
 
+	// Ronin @feature 21/11/2026 DX9: Generals Online's connection rows, in its build (GenOnlineOptionsMenu.cpp's steps)
+	void loadOnlineRows();
+	void showOnline(const ServiceConnectionSettings &settings);
+	void startOnlineLookup();
+	bool readOnline(ServiceConnectionSettings &settings, std::string &error) const;
+	bool acceptOnline();					// false keeps Options open: an address to fix, or GO's test dialog is up
+
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_model;
 	OptionPreferences *m_pref = nullptr;		// Options.ini as it was on opening; written on Accept
@@ -64,6 +76,10 @@ private:
 	int m_scrollLoaded = 0;
 
 	RmlHqStatus m_hq;	// the header's pill and clock
+
+	bool m_onlineRows = false;			// Ronin @feature 21/11/2026 DX9: the GO build put its rows in
+	bool m_onlineTesting = false, m_onlineTested = false, m_onlineDiscard = false;	// GO's Accept test: up, passed, discarded
+	std::shared_ptr<ServiceConnection::ProxyResolution> m_systemProxy;	// the Windows proxy lookup Automatic shows
 
 	struct Model
 	{
@@ -105,6 +121,11 @@ private:
 
 		int lanIP = 0, onlineIP = 0;
 		Rml::String firewallPort;
+
+		// Ronin @feature 21/11/2026 DX9: Generals Online's connection (OptionsOnline.rml), its combos' positions
+		int proxyMode = 0, serverMode = 0;			// Automatic, Disabled, Custom / Automatic, Custom
+		Rml::String proxyAddress, serverAddress;	// what is typed for Custom
+		Rml::String proxySystem, serverHost;		// what Automatic resolves to
 	} m;
 
 	OptionsValues::InterfaceValues m_interfaceLoaded;	// the overlays' font sizes, kept when they stay shown
