@@ -222,6 +222,18 @@ macro(genonline_core_gameengine_targets)
             target_compile_definitions(corei_gameengine_public INTERFACE GENONLINE_ALLOW_UNSIGNED_PLUGINS)
         endif()
 
+        # The services a build uses when settings.client.json names none, live, test or dev. Empty leaves it to the release
+        # tag (a release candidate uses test, anything else live) and a debug build uses dev.
+        set(GENONLINE_ENVIRONMENT "" CACHE STRING "Default services of the build: live, test or dev. Empty follows the release tag.")
+        set_property(CACHE GENONLINE_ENVIRONMENT PROPERTY STRINGS "" live test dev)
+        if(NOT GENONLINE_ENVIRONMENT STREQUAL "")
+            if(NOT GENONLINE_ENVIRONMENT MATCHES "^(live|test|dev)$")
+                message(FATAL_ERROR "GENONLINE_ENVIRONMENT must be empty, live, test or dev")
+            endif()
+            string(TOUPPER "${GENONLINE_ENVIRONMENT}" _genonline_environment_upper)
+            target_compile_definitions(corei_gameengine_public INTERFACE GENONLINE_BUILD_ENVIRONMENT_${_genonline_environment_upper})
+        endif()
+
         # Release builds send crash reports to the GlitchTip project genonline-client by default. Debug builds never send them.
         # An empty DSN turns crash reports off. The key in the DSN is public by design.
         set(GENONLINE_SENTRY_DSN "https://54558e0eda1648a3994a73de9118c2e2@errors.generals.online/1" CACHE STRING "Crash report DSN of release builds, empty turns crash reports off")

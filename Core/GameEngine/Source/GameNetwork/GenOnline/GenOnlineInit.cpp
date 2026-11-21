@@ -394,13 +394,7 @@ static const char* s_environmentReason = "";
 
 GenOnlineServicesManager::EEnvironment GenOnlineServicesManager::GetEnvironment()
 {
-#if defined(USE_TEST_ENV)
-	s_environmentReason = "this build is fixed to the test services";
-	return EEnvironment::TEST;
-#elif defined(USE_DEBUG_ON_LIVE_SERVER)
-	s_environmentReason = "this debug build is fixed to the live services";
-	return EEnvironment::LIVE;
-#elif defined(_DEBUG)
+#if defined(_DEBUG) && !defined(GENONLINE_BUILD_ENVIRONMENT)
 	s_environmentReason = "this debug build is fixed to the dev services";
 	return EEnvironment::DEV;
 #else
@@ -408,15 +402,24 @@ GenOnlineServicesManager::EEnvironment GenOnlineServicesManager::GetEnvironment(
 	{
 		const std::string tag = GitTag;
 		const std::string requested = GenOnlineClientFile::ReadEnvironmentOverride(GenOnlineClientFile::DefaultPath());
+		std::string chosen = GenOnlineClientFile::ChooseEnvironment(tag, requested);
 		if (!requested.empty())
 		{
 			s_environmentReason = "network.environment of settings.client.json";
 		}
+#if defined(GENONLINE_BUILD_ENVIRONMENT)
+		else
+		{
+			chosen = GENONLINE_BUILD_ENVIRONMENT;
+			s_environmentReason = "the GENONLINE_ENVIRONMENT option of this build";
+		}
+#else
 		else
 		{
 			s_environmentReason = GenOnlineClientFile::EnvironmentOfTag(tag) == "test" ? "the release candidate tag of this build" : "this build is not a release candidate";
 		}
-		return GenOnlineClientFile::ChooseEnvironment(tag, requested) == "test" ? EEnvironment::TEST : EEnvironment::LIVE;
+#endif
+		return chosen == "test" ? EEnvironment::TEST : chosen == "dev" ? EEnvironment::DEV : EEnvironment::LIVE;
 	}();
 	return environment;
 #endif

@@ -935,7 +935,7 @@ void GenOnlineStartPatchCheck()
 				return;
 			}
 
-#if defined(USE_TEST_ENV) || defined(USE_DEBUG_ON_LIVE_SERVER)
+#if defined(GENONLINE_BUILD_ENVIRONMENT)
 			bNeedsUpdate = false;
 #endif
 			cantConnectBeforeOnline = !bSuccess;
