@@ -486,6 +486,13 @@ static Bool isPowerHotkeyButton( const CommandButton *button )
 }
 
 //-------------------------------------------------------------------------------------------------
+// Buttons of one card that share a text label are levels of one power.
+static Bool isSamePower( const CommandButton *a, const CommandButton *b )
+{
+	return a == b || ( a->getTextLabel().isNotEmpty() && a->getTextLabel() == b->getTextLabel() );
+}
+
+//-------------------------------------------------------------------------------------------------
 const CommandButton *ControlBar::getPowerHotkeyButton( const CommandSet *set, Int number, Int *slot ) const
 {
 	if( set == nullptr || number < 1 )
@@ -497,6 +504,18 @@ const CommandButton *ControlBar::getPowerHotkeyButton( const CommandSet *set, In
 	{
 		const CommandButton *button = set->getCommandButton( i );
 		if( !isPowerHotkeyButton( button ) )
+		{
+			continue;
+		}
+
+		// a later level counts under the first
+		Bool counted = FALSE;
+		for( Int j = 0; j < i && !counted; ++j )
+		{
+			const CommandButton *earlier = set->getCommandButton( j );
+			counted = isPowerHotkeyButton( earlier ) && isSamePower( earlier, button );
+		}
+		if( counted )
 		{
 			continue;
 		}
@@ -566,25 +585,36 @@ void ControlBar::firePowerHotkey( Int number )
 	{
 		return;
 	}
-	const CommandButton *button = getPowerHotkeyButton( findPowerHotkeySet( player->getPlayerTemplate(), player ), number );
-	if( button == nullptr )
+	const CommandSet *set = findPowerHotkeySet( player->getPlayerTemplate(), player );
+	Int slot = 0;
+	const CommandButton *first = getPowerHotkeyButton( set, number, &slot );
+	if( first == nullptr )
 	{
 		return;
 	}
 
-	Bool usable = TRUE;
-	const SpecialPowerTemplate *power = button->getSpecialPowerTemplate();
-	if( BitIsSet( button->getOptions(), NEED_SPECIAL_POWER_SCIENCE ) &&
-			power->getRequiredScience() != SCIENCE_INVALID && !player->hasScience( power->getRequiredScience() ) )
+	// the first level the player can fire now
+	const CommandButton *button = nullptr;
+	for( Int i = slot; i < MAX_COMMANDS_PER_SET && button == nullptr; ++i )
 	{
-		usable = FALSE;
-	}
-	if( usable )
-	{
-		usable = getCommandAvailability( button, nullptr, nullptr ) == COMMAND_AVAILABLE;
+		const CommandButton *level = set->getCommandButton( i );
+		if( !isPowerHotkeyButton( level ) || !isSamePower( first, level ) )
+		{
+			continue;
+		}
+		const SpecialPowerTemplate *power = level->getSpecialPowerTemplate();
+		if( BitIsSet( level->getOptions(), NEED_SPECIAL_POWER_SCIENCE ) &&
+				power->getRequiredScience() != SCIENCE_INVALID && !player->hasScience( power->getRequiredScience() ) )
+		{
+			continue;
+		}
+		if( getCommandAvailability( level, nullptr, nullptr ) == COMMAND_AVAILABLE )
+		{
+			button = level;
+		}
 	}
 
-	if( !usable )
+	if( button == nullptr )
 	{
 		AudioEventRTS disabledClick( "GUIClickDisabled" );
 		if( TheAudio )
@@ -623,7 +653,7 @@ Int ControlBar::getPowerHotkeyCorner( const CommandButton *button )
 		{
 			return 0;
 		}
-		if( numbered != button )
+		if( !isSamePower( numbered, button ) )
 		{
 			continue;
 		}

@@ -819,7 +819,7 @@ public:
 
 #if RTS_ZEROHOUR
 	const CommandSet *findPowerHotkeySet( const PlayerTemplate *side, Player *player );	///< the army's Powers Menu card, read off a live player's holder object when one is given
-	const CommandButton *getPowerHotkeyButton( const CommandSet *set, Int number, Int *slot = nullptr ) const;	///< power 1 and up in slot order, null past the last
+	const CommandButton *getPowerHotkeyButton( const CommandSet *set, Int number, Int *slot = nullptr ) const;	///< power 1 and up in slot order, levels of one power counted once, null past the last
 	void firePowerHotkey( Int number );	///< what a SPECIAL_POWER key does
 	Int getPowerHotkeyCorner( const CommandButton *button );	///< the corner code of the SPECIAL_POWER key that fires this button for the local player, 0 for none
 #endif
