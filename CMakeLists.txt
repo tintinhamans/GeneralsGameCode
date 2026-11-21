@@ -21,7 +21,6 @@ endif()
 #endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/GenOnline/cmake/")
 
 include(FeatureSummary)
 include(CMakeDependentOption)
@@ -73,7 +72,6 @@ else()
 endif()
 include(cmake/lzhl.cmake)
 include(cmake/stb.cmake)
-include(GenOnline/cmake/third-party-notices.cmake)
 
 if(RTS_BUILD_OPTION_PROFILE_TRACY)
     include(cmake/tracy.cmake)
@@ -95,8 +93,7 @@ add_subdirectory(Dependencies)
 
 add_subdirectory(resources)
 
-# Generals Online code in Core and its libraries checks this, so every target needs it.
-add_compile_definitions(GENONLINE)
+include(GenOnline/cmake/genonline.cmake)
 
 add_subdirectory(Core)
 
