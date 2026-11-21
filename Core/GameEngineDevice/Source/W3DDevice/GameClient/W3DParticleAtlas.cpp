@@ -126,7 +126,7 @@ TextureClass *W3DParticleAtlas::find(TextureClass *source, TextureMode mode, Vec
 			TextureLoader::Request_Foreground_Loading(source);
 		}
 
-		// A refused texture keeps its refusal until the next eviction.
+		// A texture refused for space keeps its refusal until the next eviction.
 		found = locations.insert(std::make_pair(source->Get_Texture_Name(), pack(*source, mode))).first;
 		++m_packsThisFrame;
 	}
@@ -139,7 +139,7 @@ TextureClass *W3DParticleAtlas::find(TextureClass *source, TextureMode mode, Vec
 	return found->second.page;
 }
 
-// Refused textures are forgotten with the oldest page's, so both pack again when drawn.
+// Textures refused for space are forgotten with the oldest page's, so both pack again when drawn.
 void W3DParticleAtlas::evictOldestPage()
 {
 	TextureClass *evicted = m_pages.front().texture.Peek();
@@ -148,7 +148,7 @@ void W3DParticleAtlas::evictOldestPage()
 		LocationMap::iterator it = m_locations[i].begin();
 		while (it != m_locations[i].end())
 		{
-			if (it->second.page == evicted || it->second.page == nullptr)
+			if (it->second.page == evicted || (it->second.page == nullptr && !it->second.neverFits))
 			{
 				m_locations[i].erase(it++);
 			}
@@ -171,6 +171,7 @@ W3DParticleAtlas::Location W3DParticleAtlas::pack(const TextureClass &source, Te
 	Location refused;
 	refused.page = nullptr;
 	refused.rect.Set(0.0f, 0.0f, 1.0f, 1.0f);
+	refused.neverFits = FALSE;
 
 	// A texture can be initialised without a D3D texture, for example with texturing disabled.
 	if (source.Peek_D3D_Texture() == nullptr)
@@ -185,6 +186,7 @@ W3DParticleAtlas::Location W3DParticleAtlas::pack(const TextureClass &source, Te
 	if (!WWMath::Is_Power_Of_2(width) || !WWMath::Is_Power_Of_2(height) || width < GUTTER || height < GUTTER ||
 		cellWidth > PAGE_SIZE || cellHeight > PAGE_SIZE)
 	{
+		refused.neverFits = TRUE;
 		return refused;
 	}
 
@@ -200,6 +202,7 @@ W3DParticleAtlas::Location W3DParticleAtlas::pack(const TextureClass &source, Te
 	const Real scale = 1.0f / (Real)PAGE_SIZE;
 	location.page = m_pages[page].texture.Peek();
 	location.rect.Set((x + GUTTER) * scale, (y + GUTTER) * scale, (x + GUTTER + width) * scale, (y + GUTTER + height) * scale);
+	location.neverFits = FALSE;
 	return location;
 }
 

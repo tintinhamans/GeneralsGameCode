@@ -65,6 +65,7 @@ private:
 	{
 		TextureClass *page;	///< null when the texture was refused
 		Vector4 rect;
+		Bool neverFits;		///< refused for its size, so an eviction keeps the refusal
 	};
 
 	typedef std::map<StringClass, Location> LocationMap;
