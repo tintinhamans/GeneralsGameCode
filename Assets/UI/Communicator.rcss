@@ -270,7 +270,7 @@ body.screen.cm-window
 
 .cm-dot.off
 {
-	border: 2dp #5A6390;
+	border: 2dp #5A6B90;
 }
 
 .cm-buddy-text

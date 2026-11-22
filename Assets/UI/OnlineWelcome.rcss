@@ -294,7 +294,7 @@ body.wc-hub
 	width: 33.33%;
 }
 
-/* The Ice edge for these dropdowns; ShellCommon's select still has the old #2F37A8 one. */
+/* The setup's dropdowns: full width, 40dp, the Ice plate with a line-blue edge (the shared .screen select is steel-edged). */
 .wc-qm-field select, .wc-qm-field select:hover
 {
 	display: block;
