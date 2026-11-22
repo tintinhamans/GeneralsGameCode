@@ -217,8 +217,8 @@ SETUP_LAYOUTS = {
 ENGINE_SLOTS = 8           # MAX_SLOTS in Core GameNetwork/NetworkDefs.h; the menus only look up rows below it
 SLOT_ROWS = ENGINE_SLOTS    # player rows the setup screens lay out, 12 once the engine has 12 slots (arctic/go/feat/12-players)
 SHOW_EXTRA_ROWS = False    # rows past ENGINE_SLOTS ship hidden until the engine has more slots; their space stays
-# GenOnline @tweak arcticdolphin 09/11/2026 Compact player rows: 16 unit combos with an 8 pt font keep the 10 pt fit of COMBO_HEIGHT.
-SETUP_COMBO_HEIGHT = 16
+# Player rows keep the retail 24 unit pitch, with 22 unit combos and a 2 unit gap between rows.
+SETUP_COMBO_HEIGHT = 22
 ROW_PITCH = SETUP_COMBO_HEIGHT + 2  # top to top distance of the player rows: the SETUP_COMBO_HEIGHT combos and a 2 unit gap
 SETUP_ROW_KINDS = ("COMBOBOX", "ENTRYFIELD", "STATICTEXT")  # row windows that take the row height and font
 SETUP_TEMPLATE = "GOComboBoxEntrySmall"  # GO-only header template of the row text, in Data/GeneralsOnline/HeaderTemplate.ini

@@ -10224,8 +10224,8 @@ WINDOW
 CHILD
     WINDOW
       WINDOWTYPE = CHECKBOX;
-      SCREENRECT = UPPERLEFT: 475 307,
-                   BOTTOMRIGHT: 604 327,
+      SCREENRECT = UPPERLEFT: 475 308,
+                   BOTTOMRIGHT: 604 328,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:CheckBoxUseStats";
       STATUS = ENABLED+IMAGE+BORDER;
@@ -10273,8 +10273,8 @@ CHILD
 CHILD
     WINDOW
       WINDOWTYPE = CHECKBOX;
-      SCREENRECT = UPPERLEFT: 79 307,
-                   BOTTOMRIGHT: 231 327,
+      SCREENRECT = UPPERLEFT: 79 308,
+                   BOTTOMRIGHT: 231 328,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:CheckboxLimitSuperweapons";
       STATUS = ENABLED+IMAGE;
@@ -10322,8 +10322,8 @@ CHILD
 CHILD
     WINDOW
       WINDOWTYPE = CHECKBOX;
-      SCREENRECT = UPPERLEFT: 606 307,
-                   BOTTOMRIGHT: 734 327,
+      SCREENRECT = UPPERLEFT: 606 308,
+                   BOTTOMRIGHT: 734 328,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:CheckBoxLimitArmies";
       STATUS = ENABLED+IMAGE;
@@ -10371,8 +10371,8 @@ CHILD
 CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 333 307,
-                   BOTTOMRIGHT: 437 327,
+      SCREENRECT = UPPERLEFT: 333 308,
+                   BOTTOMRIGHT: 437 328,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxStartingCash";
       STATUS = ENABLED+IMAGE;
