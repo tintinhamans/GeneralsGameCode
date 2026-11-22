@@ -539,31 +539,32 @@ scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc
 }
 
 /* ---- Text input -------------------------------------------------------------------------- */
+/* Ronin @feature 22/11/2026 DX9: the Ice Console's edges: line blue at rest, steel on hover, ice while typing. */
 .text-input, .chat-input
 {
 	box-sizing: border-box;
 	height: 32dp;
 	line-height: 30dp;
 	background-color: rgba(2, 2, 2, 220);
-	border: 1dp #2F37A8;
+	border: 1dp #4F86FF73;
 	color: #FFFFFF;
 	padding: 0 8dp;
 }
 
 .text-input:hover, .chat-input:hover
 {
-	border-color: #5A5FD0;
+	border-color: #8FA9D6;
 }
 
 .text-input[disabled]
 {
 	color: #7C7E99;
-	border-color: rgba(47, 55, 168, 110);
+	border-color: #4F86FF26;
 }
 
 .text-input:focus, .chat-input:focus
 {
-	border-color: #8080FF;
+	border-color: #D8EAFF;
 }
 
 /* ---- Small layout helpers -------------------------------------------------------------- */
@@ -1238,7 +1239,7 @@ body.screen
 
 .crumb-sep
 {
-	color: #8080FF;
+	color: #4F86FF;
 	margin: 0 8dp;
 }
 
@@ -1388,27 +1389,29 @@ body.screen
 	font-size: 19dp;
 	font-weight: bold;
 	letter-spacing: 1dp;
-	color: #D7DCF0;
-	background-color: #141A3ED7;
-	border: 1dp #8080FF46;
+	color: #EEF3FF;
+	background-color: #040A1CB8;
+	border: 1dp #4F86FF73;
 	transition: background-color color border-color 0.12s cubic-out;
 }
 
-/* Ronin @feature 11/11/2026 DX9: hover is ice text over a navy-blue wash, a steel edge; pressed, an ice edge. */
+/* Ronin @feature 22/11/2026 DX9: the Ice Console's button for every screen: a deep navy plate, a line-blue edge; on hover a blue
+   wash, an ice edge and ice text with a blue glow; pressed, a steel-blue edge. */
 .screen button:hover, .screen .button:hover
 {
-	decorator: none;
 	color: #D8EAFF;
-	background-color: #1A2C66E0;
-	border-color: #8FA9D6;
+	background-color: #0B1D45CC;
+	border-color: #D8EAFF;
+	decorator: horizontal-gradient(#4F86FF38 #4F86FF10);
+	font-effect: glow(2dp 10dp 0dp 0dp #4F86FFB0);
 }
 
 .screen button:active, .screen .button:active
 {
 	decorator: none;
 	color: #D8EAFF;
-	background-color: #0F1C48E6;
-	border-color: #D8EAFF;
+	background-color: #0B1D45E6;
+	border-color: #8FB4FF;
 }
 
 .screen button:focus-visible
@@ -1422,14 +1425,13 @@ body.screen
 {
 	decorator: none;
 	font-effect: none;
-	color: #4A5070;
-	background-color: #0C0F24AA;
-	border-color: #8080FF1E;
+	color: #56627F;
+	background-color: #040A1C80;
+	border-color: #4F86FF26;
 }
 
-/* Primary action: the retail push button made bold. A lit blue plate with a bright blue edge; on
-   hover and focus the edge and the text turn the .wnd hilite green. One per screen, always at the right
-   end of the action bar. */
+/* Primary action: the retail push button made bold. Ronin @feature 22/11/2026 DX9: a lit line-blue plate with a 1dp steel-blue
+   edge; on hover and focus an ice edge and glowing ice text. One per screen, always at the right end of the action bar. */
 .screen button.btn-cta
 {
 	height: 65dp;
@@ -1439,30 +1441,31 @@ body.screen
 	font-size: 24dp;
 	letter-spacing: 2dp;
 	color: #FFFFFF;
-	border: 2dp #6170FA;
-	decorator: vertical-gradient(#3F4CD8 #252E96);
+	border: 1dp #8FB4FF;
+	decorator: vertical-gradient(#2F6BE0E0 #173E96E0);
 }
 
 .screen button.btn-cta:hover, .screen button.btn-cta:focus-visible
 {
 	color: #D8EAFF;
 	border-color: #D8EAFF;
-	decorator: vertical-gradient(#4A58EA #2F37A8);
+	decorator: vertical-gradient(#3B7AF0F0 #1E4AA8F0);
+	font-effect: glow(2dp 10dp 0dp 0dp #4F86FFB0);
 }
 
 .screen button.btn-cta:active
 {
 	color: #D8EAFF;
 	border-color: #8FB4FF;
-	decorator: vertical-gradient(#1E246E #2A3290);
+	decorator: vertical-gradient(#163A8C #1F4FB0);
 }
 
 .screen button.btn-cta[disabled], .screen button.btn-cta[disabled]:hover, .screen button.btn-cta[disabled]:active
 {
 	decorator: none;
-	color: #4A5070;
-	background-color: #1A2040C8;
-	border-color: #8080FF1E;
+	color: #56627F;
+	background-color: #0B1D4580;
+	border-color: #4F86FF26;
 }
 
 /* Back/cancel: quiet text button with a chevron, always at the left end of the action bar. */
@@ -1879,19 +1882,20 @@ label.check:hover
 	line-height: 48dp;
 	padding: 0 15dp;
 	background-color: #05070FD2;
-	border: 1dp #8080FF3C;
+	border: 1dp #4F86FF73;
 	transition: border-color 0.12s cubic-out;
 }
 
 .screen .text-input:hover, .screen .chat-input:hover
 {
-	border-color: #8080FF8C;
+	border-color: #8FA9D6;
 }
 
+/* Ronin @feature 22/11/2026 DX9: typing: an ice edge over the deep navy, not the old purple plate. */
 .screen .text-input:focus, .screen .chat-input:focus
 {
-	border-color: #8080FF;
-	background-color: #0B1030E6;
+	border-color: #D8EAFF;
+	background-color: #040A1CE6;
 }
 
 /* ---- Chat entry: the input with its send button flush to its right -------------------------
@@ -1919,20 +1923,23 @@ label.check:hover
 	padding: 0;
 	margin-left: 0;
 	line-height: 1;
-	background-color: #0B1030E6;
-	border: 1dp #8080FF3C;
+	background-color: #040A1CB8;
+	border: 1dp #4F86FF73;
 }
 
+/* Ronin @feature 22/11/2026 DX9: the Ice button's hover and press. */
 .screen .send-row button.chat-send:hover
 {
-	background-color: #2F37A8D2;
+	background-color: #0B1D45CC;
 	border-color: #D8EAFF;
+	decorator: horizontal-gradient(#4F86FF38 #4F86FF10);
 }
 
 .screen .send-row button.chat-send:active
 {
-	background-color: #1E246EE6;
-	border-color: #D8EAFF;
+	background-color: #0B1D45E6;
+	border-color: #8FB4FF;
+	decorator: none;
 }
 
 .chat-send .send-arrow
@@ -2789,8 +2796,8 @@ mappreview .mp-art
 	height: 18dp;
 	padding: 3dp;
 	background-color: #05070FE6;
-	border: 1dp #3A46D0;
-	border-top-color: #1E246E;
+	border: 1dp #4F86FF80;
+	border-top-color: #4F86FF40;
 }
 
 .progress-fill
