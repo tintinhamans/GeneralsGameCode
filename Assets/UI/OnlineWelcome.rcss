@@ -1,0 +1,1039 @@
+/* Ronin @feature 22/11/2026 DX9: the Generals Online hub (the "Generals Online Hub" concept) in the Ice Console's rules.
+	OnlineWelcome.rcss -- GenOnlineWelcomeMenu.wnd on the screen template (ShellCommon.rcss):
+
+	  header     the way back (signs out) beside the Multiplayer crumb, in its font; the text lights on hover, no brackets.
+	             The pill keeps the count; the card has the name. No Options here.
+	  tabs       Home, Quick Match, Custom Match across the frame's top: the main menu's Exo 2 Light label over a mono
+	             line, brackets and the streak on the open one and on hover.
+	  main       Home: the message of the day, its opening lines, then the server's ===== sections in two columns.
+	             Quick Match (22/11): the playlist and maps beside the progress log, Start/Cancel and Widen under it.
+	  side       the player card: name, rank, record, today's army win rates (a row per side), My Persona and Social.
+	  bottom     the band stays empty: the frame never moves for a screen.
+
+	Ice rules: deep navy plates, 1dp line-blue edges, ice text with a blue glow when lit; no #8080FF, no #141A3E. */
+
+/* Ronin @bugfix 22/11/2026 DX9: RmlUi pulls a focused document to the front only while its z-index is auto; a set one keeps a
+   click on the hub (a tab, a field) from lifting the whole screen over the Communicator window. */
+body.wc-hub
+{
+	z-index: 0;
+}
+
+/* ---- Header: the way back beside the trail ------------------------------------------------------ */
+.screen button.wc-back, .screen button.wc-back:hover, .screen button.wc-back:active, .screen button.wc-back:focus-visible
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 44dp;
+	line-height: 44dp;
+	min-width: 0;
+	padding: 0 14dp 0 2dp;
+	margin-right: 22dp;
+	background-color: transparent;
+	border-width: 0;
+	decorator: none;
+}
+
+.wc-back .hq-crumb
+{
+	margin-right: 0;
+	transition: color 0.12s cubic-out;
+}
+
+/* Ronin @bugfix 22/11/2026 DX9: the chevron on its own line, lifted onto the label's (as .btn-back .chevron). */
+.wc-back .wc-back-chev
+{
+	font-size: 28dp;
+	line-height: 28dp;
+	margin-top: -4dp;
+	margin-right: 10dp;
+}
+
+.wc-key
+{
+	display: block;
+	height: 18dp;
+	line-height: 18dp;
+	margin-left: 12dp;
+	padding: 0 5dp;
+	font-family: "Share Tech Mono";
+	font-size: 12dp;
+	font-weight: normal;
+	letter-spacing: 1dp;
+	color: #8FA9D6;
+	border: 1dp #8FA9D673;
+}
+
+.wc-back:hover .hq-crumb, .wc-back:focus-visible .hq-crumb
+{
+	color: #D8EAFF;
+	font-effect: glow(1dp 8dp 0dp 1dp #000000F0), glow(2dp 10dp 0dp 0dp #4F86FFB0);
+}
+
+.wc-back:hover .wc-key, .wc-back:focus-visible .wc-key
+{
+	color: #D8EAFF;
+	border-color: #D8EAFFB0;
+}
+
+.wc-trail
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 1 auto;
+	min-width: 0;
+	height: 44dp;
+	padding-left: 22dp;
+	border-left: 1dp #4F86FF50;
+}
+
+/* 5:4 and 4:3 drop the pill's count for the name elsewhere; here the count is all the pill holds. */
+@media (max-aspect-ratio: 3/2)
+{
+	body.wc-hub .hq-count { display: inline; }
+}
+
+/* ---- Tabs -------------------------------------------------------------------------------------- */
+.wc-tabs
+{
+	display: flex;
+	flex-direction: row;
+	flex: 0 0 auto;
+	height: 92dp;
+	margin-bottom: 20dp;
+	border-bottom: 1dp #4F86FF48;
+}
+
+.screen button.wc-tab
+{
+	display: block;
+	position: relative;
+	box-sizing: border-box;
+	height: 92dp;
+	line-height: 1.2;
+	min-width: 0;
+	padding: 14dp 56dp 0 22dp;
+	text-align: left;
+	text-transform: none;
+	white-space: nowrap;
+	color: #EEF1FA;
+	background-color: transparent;
+	border-width: 0;
+	decorator: none;
+	transition: none;
+}
+
+.screen button.wc-tab + button.wc-tab
+{
+	border-left: 1dp #4F86FF40;
+}
+
+.screen button.wc-tab:hover
+{
+	background-color: transparent;
+	decorator: vertical-gradient(#4F86FF00 #4F86FF26);
+}
+
+.screen button.wc-tab:active
+{
+	background-color: transparent;
+	decorator: vertical-gradient(#0B1D4500 #0B1D45E0);
+}
+
+.screen button.wc-tab.current, .screen button.wc-tab.current:hover
+{
+	decorator: vertical-gradient(#4F86FF00 #4F86FF1E);
+}
+
+.wc-tab-label
+{
+	display: block;
+	font-family: "Exo 2";
+	font-size: 34dp;
+	line-height: 42dp;
+	font-weight: 300;
+	letter-spacing: 5dp;
+	text-transform: uppercase;
+	color: #EEF3FF;
+	font-effect: glow(1dp 10dp 0dp 1dp #000000E6);
+	transition: color 0.12s cubic-out;
+}
+
+.wc-tab-desc
+{
+	display: block;
+	margin-top: 4dp;
+	font-family: "Share Tech Mono";
+	font-size: 14dp;
+	line-height: 18dp;
+	font-weight: normal;
+	letter-spacing: 3dp;
+	text-transform: uppercase;
+	color: #8FA9D6;
+	font-effect: glow(1dp 6dp 0dp 1dp #000000E0);
+}
+
+.wc-tab:hover .wc-tab-label, .wc-tab.current .wc-tab-label
+{
+	color: #D8EAFF;
+	font-effect: glow(1dp 10dp 0dp 1dp #000000E6), glow(2dp 10dp 0dp 0dp #4F86FFB0);
+}
+
+.wc-tab:hover .wc-tab-desc
+{
+	color: #C9DAF5;
+}
+
+.wc-tab .hq-scan
+{
+	left: 22dp;
+	bottom: 2dp;
+}
+
+/* Ronin @feature 22/11/2026 DX9: while a match is being set up there is no way out: the tabs and the back link dim. */
+.screen button.wc-tab[disabled], .screen button.wc-tab[disabled]:hover
+{
+	decorator: none;
+	background-color: transparent;
+	border-width: 0;
+	border-left-color: #4F86FF40;
+}
+
+.wc-tab[disabled] .wc-tab-label, .wc-tab[disabled] .wc-tab-desc
+{
+	color: #56627F;
+	font-effect: none;
+}
+
+.wc-tab[disabled] .hq-br, .wc-tab[disabled] .hq-scan
+{
+	opacity: 0;
+	width: 0%;
+}
+
+.wc-back[disabled] .hq-crumb, .wc-back[disabled] .wc-key
+{
+	color: #56627F;
+	border-color: #56627F;
+	font-effect: none;
+}
+
+/* The search runs on under any tab: a lit dot on Quick Match's label. */
+.wc-tab-live
+{
+	display: inline-block;
+	width: 10dp;
+	height: 10dp;
+	border-radius: 5dp;
+	margin-left: 14dp;
+	vertical-align: middle;
+	background-color: #36D8B2;
+}
+
+/* ---- Quick Match: setup beside the progress log ------------------------------------------------ */
+/* Ronin @bugfix 22/11/2026 DX9: the closed tab's panel goes out of the layout (data-visible only hid it, and both shared the
+   column's height). */
+.wc-news.wc-off, .wc-qm.wc-off, .wc-persona.wc-off
+{
+	display: none;
+}
+
+/* Ronin @bugfix 22/11/2026 DX9: the three panels share the column one at a time; ShellCommon's .surface + .surface gap would
+   push the second and third down by 20dp, a hidden sibling counting too. */
+.wc-hub .col-main > .surface
+{
+	margin-top: 0;
+}
+
+.wc-qm
+{
+	display: flex;
+	flex-direction: row;
+	flex: 1 1 0%;
+	min-height: 0;
+	padding: 24dp 32dp;
+}
+
+.wc-qm-setup
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 46%;
+	min-width: 0;
+	min-height: 0;
+}
+
+/* GO's setup lists: the playlist across, army and colour in a row, ladder, ping and disconnects in a row of three. */
+.wc-qm-fields
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	flex: 0 0 auto;
+	margin: 0 -8dp;
+}
+
+.wc-qm-field
+{
+	display: block;
+	box-sizing: border-box;
+	width: 50%;
+	padding: 0 8dp;
+	margin-bottom: 14dp;
+}
+
+.wc-qm-field.wc-qm-wide
+{
+	width: 100%;
+}
+
+.wc-qm-field.wc-qm-third
+{
+	width: 33.33%;
+}
+
+/* The Ice edge for these dropdowns; ShellCommon's select still has the old #2F37A8 one. */
+.wc-qm-field select, .wc-qm-field select:hover
+{
+	display: block;
+	width: 100%;
+	height: 40dp;
+	margin-top: 8dp;
+	font-size: 18dp;
+	background-color: #040A1CB8;
+	border: 1dp #4F86FF73;
+}
+
+.wc-qm-field select[disabled], .wc-qm-field select[disabled]:hover
+{
+	color: #56627F;
+	background-color: #040A1C80;
+	border-color: #4F86FF26;
+}
+
+.wc-qm-field.wc-qm-third .overline
+{
+	font-size: 13dp;
+	letter-spacing: 2dp;
+	white-space: nowrap;
+}
+
+.wc-qm-maps-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-top: 6dp;
+}
+
+.wc-qm-count
+{
+	flex: 1 1 auto;
+	margin-left: 16dp;
+	font-family: "Share Tech Mono";
+	font-size: 13dp;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: #8FA9D6;
+}
+
+/* All / None: quiet text buttons; the text lights on hover. */
+.screen button.wc-link, .screen button.wc-link:hover, .screen button.wc-link:active
+{
+	height: 30dp;
+	line-height: 30dp;
+	min-width: 0;
+	padding: 0 10dp;
+	font-family: "Share Tech Mono";
+	font-size: 14dp;
+	font-weight: normal;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	color: #8FA9D6;
+	background-color: transparent;
+	border-width: 0;
+	decorator: none;
+}
+
+.screen button.wc-link:hover
+{
+	color: #D8EAFF;
+	font-effect: glow(2dp 10dp 0dp 0dp #4F86FFB0);
+}
+
+.screen button.wc-link[disabled]
+{
+	color: #56627F;
+	font-effect: none;
+}
+
+.wc-qm-maps
+{
+	flex: 1 1 0%;
+	min-height: 0;
+	margin-top: 8dp;
+	background-color: #040A1C80;
+	border: 1dp #4F86FF30;
+}
+
+.wc-qm-map
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 54dp;
+	padding: 0 12dp;
+	border-bottom: 1dp #FFFFFF0A;
+	cursor: pointer;
+}
+
+.wc-qm-map:hover
+{
+	decorator: horizontal-gradient(#4F86FF30 #4F86FF08);
+}
+
+.wc-qm-tick
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 14dp;
+	height: 14dp;
+	border: 1dp #8FA9D6;
+}
+
+.wc-qm-map.on .wc-qm-tick
+{
+	background-color: #D8EAFF;
+	border-color: #D8EAFF;
+}
+
+/* <mappreview> sizes itself in percent of its parent: this frame holds it at 42dp. */
+.wc-qm-thumb
+{
+	display: block;
+	position: relative;
+	flex: 0 0 auto;
+	width: 42dp;
+	height: 42dp;
+	margin-left: 14dp;
+	opacity: 0.6;
+}
+
+.wc-qm-art
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.wc-qm-map.on .wc-qm-thumb
+{
+	opacity: 1;
+}
+
+.wc-qm-name
+{
+	flex: 1 1 auto;
+	min-width: 0;
+	margin-left: 14dp;
+	font-size: 18dp;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: #A9B1CF;
+}
+
+.wc-qm-map.on .wc-qm-name
+{
+	color: #EEF3FF;
+}
+
+.wc-qm-players
+{
+	flex: 0 0 auto;
+	margin-left: 12dp;
+	font-family: "Share Tech Mono";
+	font-size: 13dp;
+	letter-spacing: 1dp;
+	color: #8FA9D6;
+}
+
+/* While searching, the setup is read-only. */
+.wc-qm-setup.locked .wc-qm-maps
+{
+	opacity: 0.5;
+}
+
+.wc-qm-setup.locked .wc-qm-map
+{
+	cursor: auto;
+}
+
+.wc-qm-progress
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-width: 0;
+	min-height: 0;
+	margin-left: 32dp;
+}
+
+.wc-qm-log
+{
+	flex: 1 1 0%;
+	min-height: 0;
+	margin-top: 10dp;
+	padding: 10dp 14dp;
+	background-color: #040A1C80;
+	border: 1dp #4F86FF30;
+}
+
+.wc-qm-line
+{
+	display: block;
+	padding: 2dp 0;
+	font-size: 18dp;
+	line-height: 25dp;
+	white-space: pre-line;
+}
+
+.wc-qm-actions
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	margin-top: 16dp;
+}
+
+.screen button.wc-qm-widen
+{
+	margin-left: 16dp;
+	height: 50dp;
+	line-height: 48dp;
+}
+
+/* ---- Message of the day ------------------------------------------------------------------------- */
+.wc-news
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-height: 0;
+	padding: 24dp 32dp;
+}
+
+.wc-motd
+{
+	flex: 1 1 0%;
+	min-height: 0;
+	margin-top: 14dp;
+}
+
+.wc-motd-intro
+{
+	display: block;
+	max-width: 960dp;
+}
+
+.wc-motd-line
+{
+	display: block;
+	padding: 2dp 0;
+	font-size: 19dp;
+	line-height: 27dp;
+	white-space: pre-line;
+	/* colour from line.color_hex: the .wnd's MOTD colours or the line's own */
+}
+
+.wc-motd-line.heading
+{
+	font-size: 23dp;
+	line-height: 32dp;
+}
+
+.wc-motd-cols
+{
+	display: flex;
+	flex-direction: row;
+	margin-top: 6dp;
+}
+
+.wc-motd-col
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.wc-motd-col + .wc-motd-col
+{
+	margin-left: 44dp;
+}
+
+/* A server section heading: its own colour, tracked caps over a line-blue hairline. */
+.wc-motd-line.section
+{
+	margin-top: 20dp;
+	margin-bottom: 4dp;
+	padding: 0 0 6dp 0;
+	font-family: "Exo 2";
+	font-size: 15dp;
+	line-height: 20dp;
+	letter-spacing: 3dp;
+	text-transform: uppercase;
+	border-bottom: 1dp #4F86FF40;
+}
+
+/* ---- Player card ------------------------------------------------------------------------------- */
+.wc-hub .col-side
+{
+	width: 540dp;
+}
+
+.wc-player
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-height: 0;
+	padding: 24dp 30dp;
+}
+
+.wc-greeting
+{
+	display: block;
+	font-size: 17dp;
+	line-height: 22dp;
+	color: #8FA9D6;
+}
+
+/* Noto Sans: a player's name can be in any script. */
+.wc-name
+{
+	display: block;
+	font-family: "Noto Sans";
+	font-size: 30dp;
+	line-height: 38dp;
+	color: #F2F6FF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.wc-rank
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-top: 16dp;
+	padding-bottom: 18dp;
+	border-bottom: 1dp #4F86FF30;
+}
+
+/* Rank art on the dark plate the .wnd's RankBorder draws, the general's badge in its corner. */
+.wc-portrait
+{
+	position: relative;
+	flex: 0 0 auto;
+	width: 120dp;
+	height: 120dp;
+	background-color: #05070FDC;
+	border: 1dp #4F86FF50;
+}
+
+.wc-rank-image
+{
+	display: block;
+	width: 112dp;
+	height: 112dp;
+	margin: 4dp;
+}
+
+.wc-badge
+{
+	display: block;
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	width: 50dp;
+	height: 50dp;
+	background-color: #040A1CF0;
+	border-top: 1dp #D8EAFF;
+	border-left: 1dp #D8EAFF;
+}
+
+.wc-badge mappedimage
+{
+	display: block;
+	width: 42dp;
+	height: 42dp;
+	margin: 3dp;
+}
+
+.wc-rank-info
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+	margin-left: 22dp;
+}
+
+.wc-rank-name
+{
+	display: block;
+	margin-top: 2dp;
+	font-family: "Exo 2";
+	font-size: 30dp;
+	line-height: 36dp;
+	font-weight: bold;
+	color: #FFFFFF;
+}
+
+.wc-progress
+{
+	height: 12dp;
+	margin-top: 10dp;
+	padding: 2dp;
+}
+
+.wc-next
+{
+	display: block;
+	margin-top: 8dp;
+	font-family: "Share Tech Mono";
+	font-size: 13dp;
+	line-height: 16dp;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	color: #8FA9D6;
+}
+
+/* The record: three to a row, a mono caption over the value. */
+.wc-stats
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	padding: 12dp 0 14dp 0;
+	border-bottom: 1dp #4F86FF30;
+}
+
+.wc-stat
+{
+	display: block;
+	box-sizing: border-box;
+	width: 33.33%;
+	padding: 4dp 8dp 4dp 0;
+}
+
+.wc-stat-label
+{
+	display: block;
+	font-family: "Share Tech Mono";
+	font-size: 12dp;
+	line-height: 16dp;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: #8FA9D6;
+}
+
+.wc-stat-value
+{
+	display: block;
+	font-family: "Exo 2";
+	font-size: 24dp;
+	line-height: 30dp;
+	font-weight: bold;
+	white-space: nowrap;
+	color: #EEF1FA;
+}
+
+/* Today's army win rates: a row per side (the side, its three generals), the medallion and its rate. */
+.wc-armies
+{
+	display: block;
+	padding-top: 14dp;
+}
+
+.wc-army-block
+{
+	display: flex;
+	flex-direction: row;
+	margin-top: 8dp;
+}
+
+.wc-army-sides
+{
+	display: block;
+	flex: 0 0 70dp;
+}
+
+.wc-army-side
+{
+	display: block;
+	height: 46dp;
+	line-height: 46dp;
+	font-family: "Share Tech Mono";
+	font-size: 13dp;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	color: #8FA9D6;
+}
+
+.wc-army-grid
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.wc-army-cell
+{
+	display: block;
+	width: 25%;
+	height: 46dp;
+}
+
+.wc-army
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 46dp;
+}
+
+.wc-army-icon
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 40dp;
+	height: 40dp;
+}
+
+.wc-army-pct
+{
+	display: block;
+	margin-left: 8dp;
+	font-family: "Exo 2";
+	font-size: 17dp;
+	font-weight: bold;
+	white-space: nowrap;
+	color: #EEF1FA;
+}
+
+/* ---- My Persona and Social: the shared Ice button (ShellCommon), in Exo 2 ------------------------- */
+.wc-spacer
+{
+	display: block;
+	flex: 1 1 0%;
+	min-height: 14dp;
+}
+
+.wc-actions
+{
+	display: flex;
+	flex-direction: row;
+	flex: 0 0 auto;
+}
+
+.screen button.wc-btn
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	flex: 1 1 0%;
+	height: 50dp;
+	line-height: 48dp;
+	min-width: 0;
+	padding: 0 16dp;
+	font-family: "Exo 2";
+	font-size: 18dp;
+	font-weight: normal;
+	letter-spacing: 3dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.screen button.wc-btn + button.wc-btn
+{
+	margin-left: 12dp;
+}
+
+/* Art/Social.png is white: image-color tints it steel, ice when lit. */
+.wc-social-icon
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 28dp;
+	height: 28dp;
+	margin-right: 10dp;
+	decorator: image(Art/Social.png);
+	image-color: #8FA9D6;
+}
+
+.wc-btn:hover .wc-social-icon, .wc-btn:focus-visible .wc-social-icon
+{
+	image-color: #D8EAFF;
+}
+
+/* The buddy count: ice, navy figures. */
+.wc-count
+{
+	display: block;
+	flex: 0 0 auto;
+	min-width: 22dp;
+	height: 22dp;
+	line-height: 22dp;
+	margin-left: 10dp;
+	padding: 0 6dp;
+	box-sizing: border-box;
+	border-radius: 11dp;
+	font-family: "Share Tech Mono";
+	font-size: 14dp;
+	letter-spacing: 0;
+	text-align: center;
+	color: #040A1C;
+	background-color: #D8EAFF;
+	font-effect: none;
+}
+
+/* ---- My Persona: the battle honors and Log Out ------------------------------------------------- */
+.wc-persona
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-height: 0;
+	padding: 24dp 32dp;
+}
+
+.wc-persona-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+}
+
+.screen button.wc-logout
+{
+	margin-left: 16dp;
+	height: 44dp;
+	line-height: 42dp;
+	font-family: "Exo 2";
+	font-size: 17dp;
+	font-weight: normal;
+	letter-spacing: 3dp;
+	text-transform: uppercase;
+}
+
+/* Three medals to a row: the medal, its title, the line under it; one not yet earned is dimmed. */
+.wc-honors
+{
+	flex: 1 1 0%;
+	min-height: 0;
+	margin-top: 18dp;
+}
+
+.wc-honor-grid
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+}
+
+/* Ronin @bugfix 22/11/2026 DX9: every box one size: it fills its cell, and the cell is tall enough for a three-line text. */
+.wc-honor-cell
+{
+	display: flex;
+	flex-direction: row;
+	box-sizing: border-box;
+	width: 33.33%;
+	padding: 0 18dp 22dp 0;
+}
+
+.wc-honor
+{
+	display: flex;
+	flex-direction: row;
+	align-items: flex-start;
+	flex: 1 1 auto;
+	box-sizing: border-box;
+	min-height: 128dp;
+	padding: 14dp;
+	background-color: #040A1C80;
+	border: 1dp #4F86FF30;
+}
+
+.wc-honor.earned
+{
+	border-color: #4F86FF73;
+}
+
+.wc-honor-image
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 72dp;
+	height: 72dp;
+	opacity: 0.3;
+}
+
+.wc-honor.earned .wc-honor-image
+{
+	opacity: 1;
+}
+
+.wc-honor-text
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+	margin-left: 16dp;
+}
+
+.wc-honor-title
+{
+	display: block;
+	font-family: "Exo 2";
+	font-size: 18dp;
+	line-height: 24dp;
+	font-weight: bold;
+	color: #6E7A9A;
+}
+
+.wc-honor.earned .wc-honor-title
+{
+	color: #EEF3FF;
+}
+
+.wc-honor-line
+{
+	display: block;
+	margin-top: 6dp;
+	font-size: 15dp;
+	line-height: 21dp;
+	color: #6E7A9A;
+}
+
+.wc-honor.earned .wc-honor-line
+{
+	color: #A9B1CF;
+}
+
+/* My Persona while its panel is open: the ice edge of a lit button. */
+.screen button.wc-btn.current
+{
+	color: #D8EAFF;
+	border-color: #D8EAFF;
+	decorator: horizontal-gradient(#4F86FF30 #4F86FF08);
+}

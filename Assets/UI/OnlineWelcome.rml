@@ -1,0 +1,199 @@
+<rml>
+<!-- Ronin @feature 22/11/2026 DX9: the Generals Online hub, the "Generals Online Hub" concept over tintinhamans' page:
+     tabs for the two ways into a game, the way back beside the trail, the army win rates and Social in the player card. -->
+<head>
+	<title>OnlineWelcome</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<link type="text/rcss" href="OnlineWelcome.rcss"/>
+</head>
+<body class="screen hq wc-hub" data-model="onlinewelcome">
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
+
+	<!-- The strip: the way back (it signs out) beside the trail; the pill keeps the count, the card has the name. -->
+	<div class="hq-band hq-header"><div class="hq-band-in">
+		<mappedimage name="GeneralsLogo" class="hq-logo"/>
+		<div class="hq-heading">
+			<button class="wc-back" data-event-click="back" data-attrif-disabled="qm_locked"><span class="hq-crumb wc-back-chev">&#8249;</span><span class="hq-crumb"><gametext key="GUI:GotoMainMenu"/></span><span class="wc-key">ESC</span></button>
+			<div class="wc-trail">
+				<div class="hq-crumb"><gametext key="GUI:Multiplayer"/><span class="crumb-sep">&#8250;</span></div>
+				<div class="hq-title">Generals Online</div>
+			</div>
+		</div>
+		<div class="hq-status">
+			<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span></div>
+			<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span>Offline</div>
+			<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
+		</div>
+	</div></div>
+
+	<div class="screen-frame">
+		<!-- The tabs: Home and Quick Match are this screen (a search runs on while either is open); Custom Match is GO's lobby. -->
+		<div class="wc-tabs">
+			<button class="wc-tab hq-brackets" data-class-current="tab == 'home'" data-event-click="home" data-attrif-disabled="qm_locked"><div class="wc-tab-label">Home</div><div class="wc-tab-desc">News, rank and record</div><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span></button>
+			<button class="wc-tab hq-brackets" data-class-current="tab == 'qm'" data-event-click="quick_match" data-tooltip="TOOLTIP:Quickmatch"><div class="wc-tab-label"><gametext key="GUI:QuickMatch"/><span class="wc-tab-live" data-if="qm_searching"></span></div><div class="wc-tab-desc">{{qm_searching ? 'Searching' : 'Find an opponent automatically'}}</div><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span></button>
+			<button class="wc-tab hq-brackets" data-event-click="custom_match" data-attrif-disabled="qm_locked" data-tooltip="TOOLTIP:CustomMatch"><div class="wc-tab-label"><gametext key="GUI:CustomMatch"/></div><div class="wc-tab-desc">Lobbies, chat and hosted games</div><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span></button>
+		</div>
+
+		<div class="screen-body">
+			<div class="col col-main">
+				<!-- Quick Match: the setup (playlist, maps) beside the progress log; Start, or Cancel while searching, and Widen. -->
+				<!-- data-class-wc-off, not data-visible: data-visible only hides (visibility), and the panel would keep its space. -->
+				<div class="surface wc-qm" data-class-wc-off="tab != 'qm'">
+					<div class="wc-qm-setup" data-class-locked="!qm_setup_enabled">
+						<!-- GO's setup panel as GO sets it: ladder, max ping, max disconnects and colour stay off ("not supported in
+						     GO"); the army opens for a playlist that lets players choose it. -->
+						<div class="wc-qm-fields">
+							<div class="wc-qm-field wc-qm-wide">
+								<div class="overline">Playlist</div>
+								<select data-attr-value="qm_playlist" data-attrif-disabled="!qm_setup_enabled" data-event-change="qm_playlist_changed" data-tooltip="TOOLTIP:PlayerSetting">
+									<option data-for="pl : qm_playlists" data-attr-value="pl.value">{{pl.label}}</option>
+								</select>
+							</div>
+							<div class="wc-qm-field">
+								<div class="overline"><gametext key="GUI:Side"/></div>
+								<select data-attr-value="qm_side" data-attrif-disabled="!qm_army_enabled" data-event-change="qm_side_changed">
+									<option data-for="o : qm_sides" data-attr-value="o.value">{{o.label}}</option>
+								</select>
+							</div>
+							<div class="wc-qm-field">
+								<div class="overline"><gametext key="GUI:Color"/></div>
+								<select data-attr-value="qm_color" disabled="disabled">
+									<option data-for="o : qm_colors" data-attr-value="o.value" data-style-color="o.color_hex">{{o.label}}</option>
+								</select>
+							</div>
+							<div class="wc-qm-field wc-qm-third">
+								<div class="overline">Ladder</div>
+								<select value="0" disabled="disabled" data-tooltip="TOOLTIP:Ladder"><option value="0">Automatic Ladder</option></select>
+							</div>
+							<div class="wc-qm-field wc-qm-third">
+								<div class="overline">Max ping</div>
+								<select value="0" disabled="disabled" data-tooltip="TOOLTIP:Ping"><option value="0">Any</option></select>
+							</div>
+							<div class="wc-qm-field wc-qm-third">
+								<div class="overline">Max disconnects</div>
+								<select data-attr-value="qm_max_disconnects" disabled="disabled" data-tooltip="TOOLTIP:Disconnect">
+									<option data-for="o : qm_disconnects" data-attr-value="o.value">{{o.label}}</option>
+								</select>
+							</div>
+						</div>
+						<div class="wc-qm-maps-head">
+							<div class="overline"><gametext key="GUI:AllowableMaps"/></div>
+							<div class="wc-qm-count">{{qm_maps_text}}</div>
+							<button class="wc-link" data-event-click="qm_all_maps" data-attrif-disabled="!qm_setup_enabled">All</button>
+							<button class="wc-link" data-event-click="qm_no_maps" data-attrif-disabled="!qm_setup_enabled">None</button>
+						</div>
+						<div class="scroll-container wc-qm-maps">
+							<div data-for="map : qm_maps"><div class="wc-qm-map" data-if="map.used" data-class-on="map.selected" data-event-click="qm_map_toggle(map.index)">
+								<span class="wc-qm-tick"></span><div class="wc-qm-thumb"><mappreview class="wc-qm-art" data-attr-map="map.file"/></div><span class="wc-qm-name">{{map.name}}</span><span class="wc-qm-players">{{map.players}}</span>
+							</div></div>
+						</div>
+					</div>
+					<div class="wc-qm-progress">
+						<div class="overline"><gametext key="GUI:MatchingProgress"/></div>
+						<div class="scroll-container wc-qm-log" id="qm_log">
+							<div data-for="line : qm_log"><div class="wc-qm-line" data-if="line.used" data-style-color="line.color_hex">{{line.text}}</div></div>
+						</div>
+						<div class="wc-qm-actions">
+							<button class="btn-cta wc-qm-go" data-if="!qm_searching" data-event-click="qm_start" data-attrif-disabled="!qm_start_enabled">Start Matchmaking</button>
+							<button class="btn-cta wc-qm-go" data-if="qm_searching" data-event-click="qm_stop" data-attrif-disabled="!qm_stop_enabled">Cancel Matchmaking</button>
+							<button class="wc-qm-widen" data-event-click="qm_widen" data-attrif-disabled="!qm_widen_enabled"><gametext key="GUI:WidenSearch"/></button>
+						</div>
+					</div>
+				</div>
+
+				<!-- My Persona: what GO's player popup shows beyond the card - the battle honors, each with its tooltip as its
+				     title and line, and Log Out (the popup's Delete Account button, relabelled for the player's own persona). -->
+				<div class="surface wc-persona" data-class-wc-off="tab != 'persona'">
+					<div class="wc-persona-head">
+						<div class="overline" data-tooltip="TOOLTIP:BattleHonors"><gametext key="GUI:BattleHonors"/></div>
+						<div class="wc-qm-count">{{honors_text}}</div>
+						<button class="wc-logout" data-event-click="log_out" data-attrif-disabled="qm_locked">Log Out</button>
+					</div>
+					<div class="scroll-container wc-honors"><div class="wc-honor-grid">
+						<div class="wc-honor-cell" data-for="h : honors"><div class="wc-honor" data-if="h.used" data-class-earned="h.gained">
+							<mappedimage class="wc-honor-image" data-attr-name="h.image"/>
+							<div class="wc-honor-text">
+								<div class="wc-honor-title">{{h.title}}</div>
+								<div class="wc-honor-line">{{h.text}}</div>
+							</div>
+						</div></div>
+					</div></div>
+				</div>
+
+				<!-- The message of the day: the opening lines, then the server's ===== sections in two columns. -->
+				<div class="surface wc-news" data-class-wc-off="tab != 'home'">
+					<div class="overline"><gametext key="GUI:MOTD"/></div>
+					<div class="scroll-container wc-motd">
+						<div class="wc-motd-intro">
+							<div data-for="line : motd_intro"><div class="wc-motd-line" data-if="line.used" data-class-heading="line.is_heading" data-style-color="line.color_hex">{{line.text}}</div></div>
+						</div>
+						<div class="wc-motd-cols">
+							<div class="wc-motd-col">
+								<div data-for="line : motd_left"><div class="wc-motd-line" data-if="line.used" data-class-section="line.is_section" data-style-color="line.color_hex">{{line.text}}</div></div>
+							</div>
+							<div class="wc-motd-col">
+								<div data-for="line : motd_right"><div class="wc-motd-line" data-if="line.used" data-class-section="line.is_section" data-style-color="line.color_hex">{{line.text}}</div></div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- The player card: who, the rank, the record, today's army win rates, and the two ways to people. -->
+			<div class="col col-side">
+				<div class="surface wc-player">
+					<div class="wc-greeting">Welcome to Generals Online,</div>
+					<div class="wc-name">{{player_name}}</div>
+
+					<div class="wc-rank">
+						<div class="wc-portrait">
+							<mappedimage class="wc-rank-image" data-attr-name="rank_image_name"/>
+							<div class="wc-badge" data-if="show_faction_image"><mappedimage data-attr-name="faction_image_name"/></div>
+						</div>
+						<div class="wc-rank-info">
+							<div class="overline"><gametext key="GUI:Rank"/></div>
+							<div class="wc-rank-name">{{rank_text}}</div>
+							<div class="progress wc-progress" data-if="!rank_at_max" data-tooltip="TOOLTIP:ProgressToNextRank"><div class="progress-fill" data-style-width="rank_progress_width_style"></div></div>
+							<div class="wc-next" data-if="next_rank_text != ''">{{next_rank_text}}</div>
+						</div>
+					</div>
+
+					<!-- The record, the ratings (Quick Match games beside the two Elos), the streaks. -->
+					<div class="wc-stats">
+						<div class="wc-stat"><div class="wc-stat-label">Games</div><div class="wc-stat-value">{{has_stats ? games_text : '-'}}</div></div>
+						<div class="wc-stat"><div class="wc-stat-label">Wins</div><div class="wc-stat-value">{{has_stats ? wins_text : '-'}}</div></div>
+						<div class="wc-stat"><div class="wc-stat-label">Losses</div><div class="wc-stat-value">{{has_stats ? losses_text : '-'}}</div></div>
+						<div class="wc-stat"><div class="wc-stat-label">Elo</div><div class="wc-stat-value">{{has_stats ? elo_text : '-'}}</div></div>
+						<div class="wc-stat"><div class="wc-stat-label">Monthly Elo</div><div class="wc-stat-value">{{has_stats ? monthly_elo_text : '-'}}</div></div>
+						<div class="wc-stat"><div class="wc-stat-label">Quick Match</div><div class="wc-stat-value">{{has_stats ? quick_match_text : '-'}}</div></div>
+						<div class="wc-stat"><div class="wc-stat-label">Win %</div><div class="wc-stat-value">{{has_stats ? win_percent_text : '-'}}</div></div>
+						<div class="wc-stat"><div class="wc-stat-label">Best streak</div><div class="wc-stat-value">{{has_stats ? best_streak_text : '-'}}</div></div>
+						<div class="wc-stat"><div class="wc-stat-label">{{has_stats ? streak_label_text : 'Streak'}}</div><div class="wc-stat-value">{{has_stats ? streak_value_text : '-'}}</div></div>
+					</div>
+
+					<div class="wc-armies">
+						<div class="overline" data-tooltip="TOOLTIP:Community"><gametext key="GUI:Community"/></div>
+						<div class="wc-army-block">
+							<div class="wc-army-sides">
+								<div class="wc-army-side"><gametext key="SIDE:America"/></div>
+								<div class="wc-army-side"><gametext key="SIDE:China"/></div>
+								<div class="wc-army-side"><gametext key="SIDE:GLA"/></div>
+							</div>
+							<div class="wc-army-grid">
+								<div class="wc-army-cell" data-for="stat : faction_stats"><div class="wc-army" data-if="stat.used" data-attr-data-tooltip-text="stat.tooltip_text"><mappedimage class="wc-army-icon" data-attr-name="stat.icon"/><span class="wc-army-pct">{{stat.percent_text}}</span></div></div>
+							</div>
+						</div>
+					</div>
+
+					<div class="wc-spacer"></div>
+					<div class="wc-actions">
+						<button class="wc-btn" data-class-current="tab == 'persona'" data-event-click="my_info" data-tooltip="TOOLTIP:MyInfo"><gametext key="GUI:MyInfo"/></button>
+						<button class="wc-btn" data-event-click="buddies"><span class="wc-social-icon"></span><span>Social</span><span class="wc-count" data-if="buddies_count > 0">{{buddies_count}}</span></button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+</rml>

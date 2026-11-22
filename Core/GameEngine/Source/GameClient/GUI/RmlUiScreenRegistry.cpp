@@ -116,13 +116,31 @@ namespace
 			e->hooks.update();
 	}
 
+	const char *s_popTo = nullptr;	// Ronin @feature 21/11/2026 DX9: popTo()'s screen, pushed once the pop is done
+
 	// No closing animation to wait for: the shell's push or pop completes now.
 	void layoutShutdown(WindowLayout *layout, void *userData)
 	{
 		layout->hide(TRUE);
 		if (TheShell && TheShell->top() == layout)
-			TheShell->shutdownComplete(layout);
+		{
+			const char *next = s_popTo;
+			s_popTo = nullptr;
+			TheShell->shutdownComplete(layout, next != nullptr);
+			if (next)
+				TheShell->push(next);
+		}
 	}
+}
+
+// Ronin @feature 21/11/2026 DX9: the online menus' nextScreen + pop: the screen below is not reopened on the way.
+void RmlUiScreenRegistry::popTo(const char *wndPath)
+{
+	if (!TheShell)
+		return;
+	s_popTo = wndPath;
+	TheShell->pop();
+	s_popTo = nullptr;	// the top was not a routed layout: nothing was pushed
 }
 
 //-------------------------------------------------------------------------------------------------

@@ -56,6 +56,7 @@ public:
 	static bool close(const AsciiString &wndPath);
 	static bool isOpen(const AsciiString &wndPath);
 	static bool back(const AsciiString &wndPath);
+	static void popTo(const char *wndPath);	// Ronin @feature 21/11/2026 DX9: pop the top, push wndPath (a literal)
 
 	static bool anyOpen();		// any screen is up, overlays included
 	static bool escape();		// the newest open capturing screen's Escape; false when none is open (a message box swallows it)

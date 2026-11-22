@@ -52,6 +52,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlMessageBox.h"
 #include "W3DDevice/GameClient/RmlUi/RmlNetworkDirectConnectScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlOnlineWelcomeScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlPopupReplayScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.h"
@@ -489,6 +490,15 @@ void RmlUiManager::registerScreens()
 	lanMapSelect.isVisible = [] { return RmlLanMapSelectScreen::instance().isVisible(); };
 	lanMapSelect.back = [] { RmlLanMapSelectScreen::instance().back(); };
 	RmlUiScreenRegistry::registerScreen("Menus/LanMapSelectMenu.wnd", lanMapSelect);
+
+	// Ronin @feature 21/11/2026 DX9: the Generals Online hub, the first screen after sign-in.
+	RmlUiScreenHooks onlineWelcome;
+	onlineWelcome.open = &OpenRmlOnlineWelcomeScreen;
+	onlineWelcome.close = &CloseRmlOnlineWelcomeScreen;
+	onlineWelcome.isVisible = [] { return RmlOnlineWelcomeScreen::instance().isVisible(); };
+	onlineWelcome.back = [] { RmlOnlineWelcomeScreen::instance().onBack(); };
+	onlineWelcome.update = [] { RmlOnlineWelcomeScreen::instance().update(); };
+	RmlUiScreenRegistry::registerScreen("Menus/GenOnlineWelcomeMenu.wnd", onlineWelcome);
 }
 
 Rml::ElementDocument *RmlUiManager::loadScreen(const char *path)
@@ -558,6 +568,7 @@ void RmlUiManager::shutdown()
 	RmlNetworkDirectConnectScreen::instance().releaseRml();
 	RmlLanGameSetupScreen::instance().releaseRml();
 	RmlLanMapSelectScreen::instance().releaseRml();
+	RmlOnlineWelcomeScreen::instance().releaseRml();	// Ronin @feature 21/11/2026 DX9: the Generals Online screens, likewise
 	for (int i = 0; i < RmlLoadScreen::KIND_COUNT; ++i)
 		RmlLoadScreen::instance((RmlLoadScreen::Kind)i).releaseRml();
 	RmlDropChatClears();

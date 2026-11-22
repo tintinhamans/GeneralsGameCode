@@ -17,7 +17,7 @@
 */
 
 // Ronin @feature 29/10/2026 DX9: tintinhamans' header status (GeneralsGameCode, arctic/go/feat/rmlui): the online pill and the
-// clock. The pill is Generals Online's: kept, off until that merge (RML_HQ_ONLINE), so it shows Offline.
+// clock. The pill is Generals Online's: off without GENONLINE, so it shows Offline.
 // FILE: RmlHqStatus.h ///////////////////////////////////////////////////////
 // The .hq-header strip's status (common.rcss): the online pill and the clock. A screen binds it into
 // its own data model once, refreshes it on show, and ticks it from update().
@@ -28,13 +28,17 @@
 #include "GameClient/GameText.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiText.h"
 
-#ifdef RML_HQ_ONLINE
-#include "GameClient/GUI/GUICallbacks/Menus/OnlineWelcomeData.h"
-#endif
-
 #include <RmlUi/Core/DataModelHandle.h>
 
+#include <cstdio>
 #include <ctime>
+
+#ifdef GENONLINE
+// Ronin @feature 21/11/2026 DX9: the pill goes live with the Generals Online merge; RmlOnlineWelcomeScreen.cpp reads them.
+bool RmlOnlineLoggedIn();
+Rml::String RmlOnlineDisplayName();
+Int RmlOnlinePlayersOnline();
+#endif
 
 class RmlHqStatus
 {
@@ -59,17 +63,17 @@ public:
 
 		bool loggedIn = false;
 		Rml::String name, count;
-#ifdef RML_HQ_ONLINE
-		loggedIn = OnlineWelcomeData::isLoggedIn();
+#ifdef GENONLINE
+		loggedIn = RmlOnlineLoggedIn();
 		if (loggedIn)
 		{
-			name = unicodeToUtf8(OnlineWelcomeData::localDisplayName());
-			const Int playersOnline = OnlineWelcomeData::currentNumPlayersOnline();
-			if (playersOnline > 0 && TheGameText)
+			name = RmlOnlineDisplayName();
+			const Int playersOnline = RmlOnlinePlayersOnline();
+			if (playersOnline > 0)
 			{
-				UnicodeString text;
-				text.format(TheGameText->fetch("GO:GUI:MenuPlayersOnline"), playersOnline);
-				count = unicodeToUtf8(text);
+				char text[32];
+				_snprintf_s(text, sizeof(text), _TRUNCATE, "%d online", playersOnline);
+				count = text;
 			}
 		}
 #endif
