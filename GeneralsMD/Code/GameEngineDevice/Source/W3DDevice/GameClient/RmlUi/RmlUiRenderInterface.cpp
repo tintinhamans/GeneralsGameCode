@@ -22,6 +22,7 @@
 
 #include "Common/FileSystem.h"
 #include "Common/file.h"
+#include "GameClient/Display.h"
 #include "GameClient/Image.h"
 #include "WW3D2/dx8wrapper.h"
 #include "WW3D2/texture.h"
@@ -334,6 +335,10 @@ void RmlUiRenderInterface::drawEngine(void (*draw)(void *), void *context)
 
 	endFrame();
 	draw(context);
+	// Ronin @bugfix 22/11/2026 DX9: RmlUi renders inside the display's 2D batch; the draw's last lines (the radar's camera box)
+	// stayed queued and painted over every later document. Flush them here, in the document's order.
+	if (TheDisplay)
+		TheDisplay->flush();
 	beginFrame(m_width, m_height);
 
 	m_scissorEmpty = scissorEmpty;
