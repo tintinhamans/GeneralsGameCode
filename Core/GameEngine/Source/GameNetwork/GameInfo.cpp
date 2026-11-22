@@ -901,6 +901,66 @@ Bool GameInfo::isSandbox()
 
 static const char slotListID		= 'S';
 
+#if defined(GENONLINE)
+// GenOnline @bugfix arcticdolphin 22/11/2026 A player name with a field delimiter broke the slot list and the replay left the replay list, so names are percent escaped in the options string.
+static Bool isEscapedNameChar(const unsigned char c)
+{
+	return c < ' ' || c == 0x7F || c == '%' || c == ',' || c == ':' || c == ';';
+}
+
+static AsciiString escapePlayerName(const AsciiString& name)
+{
+	AsciiString escaped;
+	for (const char* c = name.str(); *c != '\0'; ++c)
+	{
+		if (isEscapedNameChar(static_cast<unsigned char>(*c)))
+		{
+			AsciiString piece;
+			piece.format("%%%02X", static_cast<unsigned char>(*c));
+			escaped.concat(piece);
+		}
+		else
+		{
+			escaped.concat(*c);
+		}
+	}
+	return escaped;
+}
+
+static Int hexDigitValue(const char c)
+{
+	if (c >= '0' && c <= '9')
+		return c - '0';
+	if (c >= 'A' && c <= 'F')
+		return c - 'A' + 10;
+	if (c >= 'a' && c <= 'f')
+		return c - 'a' + 10;
+	return -1;
+}
+
+// Only the sequences that escapePlayerName writes are decoded, so any other percent sign stays as typed.
+static AsciiString unescapePlayerName(const char* escaped)
+{
+	AsciiString name;
+	while (*escaped != '\0')
+	{
+		if (escaped[0] == '%')
+		{
+			const Int high = hexDigitValue(escaped[1]);
+			const Int low = high >= 0 ? hexDigitValue(escaped[2]) : -1;
+			if (low >= 0 && isEscapedNameChar(static_cast<unsigned char>(high * 16 + low)))
+			{
+				name.concat(static_cast<char>(high * 16 + low));
+				escaped += 3;
+				continue;
+			}
+		}
+		name.concat(*escaped++);
+	}
+	return name;
+}
+#endif
+
 // Shorten player names without cutting a UTF-8 character in half.
 static void truncatePlayerNameToByteCount(AsciiString& name, Int maxByteCount)
 {
@@ -1071,7 +1131,11 @@ AsciiString GameInfoToAsciiString( const GameInfo *game )
 		const GameSlot *slot = game->getConstSlot(i);
 		if (slot && slot->isHuman())
 		{
+#if defined(GENONLINE)
+			playerNames[i] = escapePlayerName(AsciiString(WideCharStringToMultiByte(slot->getName().str()).c_str()));
+#else
 			playerNames[i] = WideCharStringToMultiByte(slot->getName().str()).c_str();
+#endif
 			playerNamesLength += playerNames[i].getLength();
 		}
 	}
@@ -1277,7 +1341,11 @@ Bool ParseAsciiStringToGameInfo(GameInfo *game, AsciiString options)
 								break;
 							}
 							UnicodeString name;
+#if defined(GENONLINE)
+              				name.set(MultiByteToWideCharSingleLine(unescapePlayerName(slotValue.str() +1).str()).c_str());
+#else
               				name.set(MultiByteToWideCharSingleLine(slotValue.str() +1).c_str());
+#endif
 
 							//DEBUG_LOG(("ParseAsciiStringToGameInfo - name is %s", slotValue.str()+1));
 
