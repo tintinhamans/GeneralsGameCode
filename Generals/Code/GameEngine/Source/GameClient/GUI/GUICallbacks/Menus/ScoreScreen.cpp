@@ -101,6 +101,7 @@
 
 #if defined(GENONLINE)
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
+#include "GameClient/GenOnlineUserSection.h"
 #endif
 
 
@@ -386,6 +387,7 @@ void ScoreScreenShutdown( WindowLayout *layout, void *userData )
 	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 	if (pSocialInterface != nullptr)
 		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged(nullptr);
+	GenOnlineUserSectionHide();
 	buttonBuddies = nullptr;
 #endif
 
@@ -992,7 +994,8 @@ void initInternetMultiPlayer()
 		}
 	}
 
-	buttonBuddies->winHide(FALSE);
+	// GenOnline @feature arcticdolphin 22/11/2026 The user section in the ruler strip replaces the communicator button.
+	GenOnlineUserSectionShow(parent);
 
 	g_bNeedToTakeDoneEOGScreenshot = TRUE;
 	g_TimeEnterState = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();

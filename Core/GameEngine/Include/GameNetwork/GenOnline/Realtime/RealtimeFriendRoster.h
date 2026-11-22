@@ -32,6 +32,8 @@ struct FriendsEntry
 	std::string display_name;
 	bool online = false;
 	std::string presence;
+	// "online", "idle" or "do_not_disturb"
+	std::string status = "online";
 };
 
 namespace GenOnlineRealtime
@@ -60,15 +62,17 @@ inline FriendPresenceChange ApplyFriendPresence(FriendsMap& friends, FriendsMap&
 		{
 			request->second.online = event.online;
 			request->second.presence = presenceText;
+			request->second.status = event.status.value_or("online");
 		}
 		return change;
 	}
 
 	change.onlineChanged = it->second.online != event.online;
-	change.friendChanged = change.onlineChanged || it->second.presence != presenceText;
+	change.friendChanged = change.onlineChanged || it->second.presence != presenceText || it->second.status != event.status.value_or("online");
 	change.displayName = it->second.display_name;
 	it->second.online = event.online;
 	it->second.presence = presenceText;
+	it->second.status = event.status.value_or("online");
 	return change;
 }
 
