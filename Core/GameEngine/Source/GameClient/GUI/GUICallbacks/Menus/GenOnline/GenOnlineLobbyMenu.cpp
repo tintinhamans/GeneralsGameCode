@@ -132,6 +132,11 @@ static GameWindow *buttonJoin = nullptr;
 static GameWindow *buttonBuddy = nullptr;
 static GameWindow *buttonChat = nullptr;
 static GameWindow *textEntryChat = nullptr;
+static NameKeyType textEntrySearchID = NAMEKEY_INVALID;
+static GameWindow *textEntrySearch = nullptr;
+
+// Read by the lobby list population in LobbyUtils.cpp.
+UnicodeString theLobbySearchText;
 static GameWindow *listboxLobbyPlayers = nullptr;
 static GameWindow *listboxLobbyChat = nullptr;
 static GameWindow *comboLobbyGroupRooms = nullptr;
@@ -1597,6 +1602,9 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
 	textEntryChatID = TheNameKeyGenerator->nameToKey("WOLCustomLobby.wnd:TextEntryChat");
 	textEntryChat = TheWindowManager->winGetWindowFromId(parent, textEntryChatID);
 
+	textEntrySearchID = TheNameKeyGenerator->nameToKey("WOLCustomLobby.wnd:TextEntrySearch");
+	textEntrySearch = TheWindowManager->winGetWindowFromId(parent, textEntrySearchID);
+
 	listboxLobbyPlayersID = TheNameKeyGenerator->nameToKey("WOLCustomLobby.wnd:ListboxPlayers");
 	listboxLobbyPlayers = TheWindowManager->winGetWindowFromId(parent, listboxLobbyPlayersID);
 	GadgetListBoxRemoveMultiSelect(listboxLobbyPlayers);
@@ -1614,6 +1622,8 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
 
 	GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
 	GadgetTextEntrySetCompletionEnabled(textEntryChat, TRUE);
+	GadgetTextEntrySetText(textEntrySearch, UnicodeString::TheEmptyString);
+	theLobbySearchText.clear();
 	s_lobbyChatCycler.Reset();
 
 	PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
@@ -2715,6 +2725,13 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 		//---------------------------------------------------------------------------------------------
 		case GEM_UPDATE_TEXT:
 			{
+				if ((GameWindow *)mData1 == textEntrySearch)
+				{
+					theLobbySearchText = GadgetTextEntryGetText(textEntrySearch);
+					GenOnlineRefreshGameList(TRUE);
+					break;
+				}
+
 				if ((GameWindow *)mData1 != textEntryChat)
 					return MSG_IGNORED;
 
@@ -2735,7 +2752,7 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 		//---------------------------------------------------------------------------------------------
 		case GEM_EDIT_DONE:
 			{
-				if (buttonPushed)
+				if (buttonPushed || (GameWindow *)mData1 == textEntrySearch)
 					break;
 
 				s_lobbyChatCycler.Reset();

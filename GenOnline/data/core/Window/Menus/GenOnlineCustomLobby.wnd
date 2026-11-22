@@ -682,7 +682,7 @@ WINDOW
                    BOTTOMRIGHT: 753 480,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLCustomLobby.wnd:ListboxChat";
-      STATUS = ENABLED+NOFOCUS;
+      STATUS = ENABLED;
       STYLE = SCROLLLISTBOX+MOUSETRACK;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -698,7 +698,7 @@ WINDOW
                         IMAGE: ListBoxHiliteItemLeftEnd, COLOR: 255 255 0 255, BORDERCOLOR: 254 254 254 255,
                         IMAGE: ListBoxHiliteItemRightEnd, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                         IMAGE: ListBoxHiliteItemRepeatingCenter, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: ListBoxHiliteItemSmallRepeatingCenter, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -716,7 +716,7 @@ WINDOW
                        IMAGE: ListBoxHiliteSelectedItemLeftEnd, COLOR: 254 254 254 255, BORDERCOLOR: 0 128 0 255,
                        IMAGE: ListBoxHiliteSelectedItemRightEnd, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: ListBoxHiliteSelectedItemRepeatingCenter, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: ListBoxHiliteSelectedItemSmallRepeatingCenter, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1074,7 +1074,7 @@ WINDOW
         TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
                     DISABLED: 138 143 176 255, DISABLEDBORDER: 31 32 47 255,
                     HILITE:   186 255 12 255, HILITEBORDER:   0 2 0 255;
-        ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+        ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1083,7 +1083,7 @@ WINDOW
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-        DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+        DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1092,7 +1092,103 @@ WINDOW
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-        HILITEDRAWDATA = IMAGE: NoImage, COLOR: 21 32 120 0, BORDERCOLOR: 106 123 255 0,
+        HILITEDRAWDATA = IMAGE: NoImage, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+        STATICTEXTDATA = CENTERED: 0;
+      END
+      CHILD
+      WINDOW
+        WINDOWTYPE = STATICTEXT;
+        SCREENRECT = UPPERLEFT: 415 77,
+                     BOTTOMRIGHT: 461 97,
+                     CREATIONRESOLUTION: 800 600;
+        NAME = "WOLCustomLobby.wnd:StaticTextHeaderLock";
+        STATUS = ENABLED+NOINPUT;
+        STYLE = STATICTEXT;
+        SYSTEMCALLBACK = "[None]";
+        INPUTCALLBACK = "[None]";
+        TOOLTIPCALLBACK = "[None]";
+        DRAWCALLBACK = "[None]";
+        FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+        HEADERTEMPLATE = "GOLabelRegular";
+        TOOLTIPDELAY = -1;
+        TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
+                    DISABLED: 138 143 176 255, DISABLEDBORDER: 31 32 47 255,
+                    HILITE:   186 255 12 255, HILITEBORDER:   0 2 0 255;
+        ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+        DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+        HILITEDRAWDATA = IMAGE: NoImage, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+        STATICTEXTDATA = CENTERED: 0;
+      END
+      CHILD
+      WINDOW
+        WINDOWTYPE = STATICTEXT;
+        SCREENRECT = UPPERLEFT: 512 77,
+                     BOTTOMRIGHT: 531 97,
+                     CREATIONRESOLUTION: 800 600;
+        NAME = "WOLCustomLobby.wnd:StaticTextHeaderCorner";
+        STATUS = ENABLED+NOINPUT;
+        STYLE = STATICTEXT;
+        SYSTEMCALLBACK = "[None]";
+        INPUTCALLBACK = "[None]";
+        TOOLTIPCALLBACK = "[None]";
+        DRAWCALLBACK = "[None]";
+        FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+        HEADERTEMPLATE = "GOLabelRegular";
+        TOOLTIPDELAY = -1;
+        TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
+                    DISABLED: 138 143 176 255, DISABLEDBORDER: 31 32 47 255,
+                    HILITE:   186 255 12 255, HILITEBORDER:   0 2 0 255;
+        ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+        DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+        HILITEDRAWDATA = IMAGE: NoImage, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1122,8 +1218,8 @@ WINDOW
         TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
                     DISABLED: 138 143 176 255, DISABLEDBORDER: 31 32 47 255,
                     HILITE:   186 255 12 255, HILITEBORDER:   0 2 0 255;
-        ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+        ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                          IMAGE: NoImage, COLOR: 43 52 184 0, BORDERCOLOR: 140 155 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1131,8 +1227,8 @@ WINDOW
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-        DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+        DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                           IMAGE: NoImage, COLOR: 10 10 16 0, BORDERCOLOR: 74 78 110 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1140,8 +1236,8 @@ WINDOW
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-        HILITEDRAWDATA = IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+        HILITEDRAWDATA = IMAGE: NoImage, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                         IMAGE: NoImage, COLOR: 43 52 184 0, BORDERCOLOR: 140 155 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1169,8 +1265,8 @@ WINDOW
         TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
                     DISABLED: 138 143 176 255, DISABLEDBORDER: 31 32 47 255,
                     HILITE:   186 255 12 255, HILITEBORDER:   0 2 0 255;
-        ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+        ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                          IMAGE: NoImage, COLOR: 43 52 184 0, BORDERCOLOR: 140 155 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1178,8 +1274,8 @@ WINDOW
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-        DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+        DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                           IMAGE: NoImage, COLOR: 10 10 16 0, BORDERCOLOR: 74 78 110 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1187,8 +1283,8 @@ WINDOW
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-        HILITEDRAWDATA = IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+        HILITEDRAWDATA = IMAGE: NoImage, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                         IMAGE: NoImage, COLOR: 43 52 184 0, BORDERCOLOR: 140 155 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1216,8 +1312,8 @@ WINDOW
         TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
                     DISABLED: 138 143 176 255, DISABLEDBORDER: 31 32 47 255,
                     HILITE:   186 255 12 255, HILITEBORDER:   0 2 0 255;
-        ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+        ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                          IMAGE: NoImage, COLOR: 43 52 184 0, BORDERCOLOR: 140 155 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1225,8 +1321,8 @@ WINDOW
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-        DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                           IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+        DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                           IMAGE: NoImage, COLOR: 10 10 16 0, BORDERCOLOR: 74 78 110 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1234,8 +1330,8 @@ WINDOW
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                            IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-        HILITEDRAWDATA = IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
-                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+        HILITEDRAWDATA = IMAGE: NoImage, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                         IMAGE: NoImage, COLOR: 43 52 184 0, BORDERCOLOR: 140 155 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1627,6 +1723,58 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = ENTRYFIELD;
+      SCREENRECT = UPPERLEFT: 199 49,
+                   BOTTOMRIGHT: 531 69,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "WOLCustomLobby.wnd:TextEntrySearch";
+      STATUS = ENABLED+IMAGE;
+      STYLE = ENTRYFIELD+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOTextEntry";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   168 255 12 255, HILITEBORDER:   1 1 1 255;
+      ENABLEDDRAWDATA = IMAGE: TextEntryEnabledLeftEnd, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
+                        IMAGE: TextEntryEnabledRightEnd, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                        IMAGE: TextEntryEnabledRepeatingCenter, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                        IMAGE: TextEntryEnabledSmallRepeatingCenter, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
+      DISABLEDDRAWDATA = IMAGE: TextEntryDisabledLeftEnd, COLOR: 128 128 128 255, BORDERCOLOR: 0 0 0 255,
+                         IMAGE: TextEntryDisabledRightEnd, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                         IMAGE: TextEntryDisabledRepeatingCenter, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                         IMAGE: TextEntryDisabledSmallRepeatingCenter, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
+      HILITEDRAWDATA = IMAGE: TextEntryHiliteLeftEnd, COLOR: 0 255 0 255, BORDERCOLOR: 0 128 0 255,
+                       IMAGE: TextEntryHiliteRightEnd, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                       IMAGE: TextEntryHiliteRepeatingCenter, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                       IMAGE: TextEntryHiliteSmallRepeatingCenter, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
+      TEXTENTRYDATA = MAXLEN: 64,
+                      SECRETTEXT: 0,
+                      NUMERICALONLY: 0,
+                      ALPHANUMERICALONLY: 0,
+                      ASCIIONLY: 0;
     END
     ENDALLCHILDREN
   END

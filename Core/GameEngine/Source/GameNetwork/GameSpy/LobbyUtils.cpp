@@ -133,6 +133,7 @@ static const GameListHeader gameListHeaders[] =
 	{ "WOLCustomLobby.wnd:StaticTextHeaderGame", COLUMN_NAME, FALSE, GAMESORT_AGE_ASCENDING, GAMESORT_AGE_ASCENDING, "GUI:GOHeaderGame", L"Game" },
 	{ "WOLCustomLobby.wnd:ButtonHeaderMap", COLUMN_MAP, TRUE, GAMESORT_MAP_ASCENDING, GAMESORT_MAP_DESCENDING, "GUI:GOHeaderMap", L"Map" },
 	{ "WOLCustomLobby.wnd:ButtonHeaderPlayers", COLUMN_NUMPLAYERS, TRUE, GAMESORT_PLAYERS_ASCENDING, GAMESORT_PLAYERS_DESCENDING, "GUI:GOHeaderPlayers", L"Players" },
+	{ "WOLCustomLobby.wnd:StaticTextHeaderLock", COLUMN_PASSWORD, FALSE, GAMESORT_AGE_ASCENDING, GAMESORT_AGE_ASCENDING, nullptr, nullptr },
 	{ "WOLCustomLobby.wnd:ButtonHeaderPing", COLUMN_PING, TRUE, GAMESORT_PING_ASCENDING, GAMESORT_PING_DESCENDING, "GUI:GOHeaderPing", L"Ping" },
 };
 static const Int GAME_LIST_HEADER_COUNT = ARRAY_SIZE(gameListHeaders);
@@ -180,9 +181,25 @@ static DisplayString *getHeaderButtonLabel(GameWindow *window)
 	return text;
 }
 
-// GenOnline @tweak arcticdolphin 08/11/2026 Draw a sorting header button as its label alone at the list text inset, in the hilite colour under the mouse.
+// GenOnline @tweak arcticdolphin 08/11/2026 Draw a sorting header button as a header cell with its label at the list text inset, in the hilite colour under the mouse.
 static void drawGameListHeaderButton(GameWindow *window, WinInstanceData *instData)
 {
+	Int x, y, width, height, textWidth, textHeight;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&width, &height);
+
+	// The cell fills and frames like the static header cells so the header reads as one bar.
+	const Color backColor = window->winGetEnabledColor(0);
+	const Color backBorder = window->winGetEnabledBorderColor(0);
+	Color kitFrameColor;
+	const Bool kitFrame = GadgetListBoxGetKitFrameColor(backBorder, &kitFrameColor);
+	if (backBorder != WIN_COLOR_UNDEFINED && !kitFrame)
+		TheWindowManager->winOpenRect(backBorder, 1.0f, x, y, x + width, y + height);
+	if (backColor != WIN_COLOR_UNDEFINED)
+		TheWindowManager->winFillRect(backColor, 1.0f, x + 1, y + 1, x + width - 1, y + height - 1);
+	if (kitFrame)
+		GadgetListBoxDrawKitFrame(kitFrameColor, x, y, width, height);
+
 	DisplayString *text = getHeaderButtonLabel(window);
 	if (text == nullptr)
 		return;
@@ -200,9 +217,6 @@ static void drawGameListHeaderButton(GameWindow *window, WinInstanceData *instDa
 		dropColor = window->winGetHiliteTextBorderColor();
 	}
 
-	Int x, y, width, height, textWidth, textHeight;
-	window->winGetScreenPosition(&x, &y);
-	window->winGetSize(&width, &height);
 	text->getSize(&textWidth, &textHeight);
 	IRegion2D clipRegion;
 	clipRegion.lo.x = x;
@@ -228,8 +242,12 @@ static void alignGameListHeaders(GameWindow *list)
 		if (cell == nullptr)
 			continue;
 
+		// A cell spans the columns up to the next cell, so the header bar has no gaps over unlabelled columns.
 		const Int column = gameListHeaders[i].column;
-		const Int width = (column < columns) ? GadgetListBoxGetColumnWidth(list, column) : 0;
+		const Int nextColumn = (i + 1 < GAME_LIST_HEADER_COUNT) ? gameListHeaders[i + 1].column : columns;
+		Int width = 0;
+		for (Int c = column; c < nextColumn && c < columns; ++c)
+			width += GadgetListBoxGetColumnWidth(list, c);
 		if (width <= 0)
 		{
 			cell->winHide(TRUE);
@@ -246,7 +264,7 @@ static void alignGameListHeaders(GameWindow *list)
 		setScreenPosition(cell, listX + left, cellY);
 		cell->winSetSize(width, cellHeight);
 
-		// GenOnline @tweak arcticdolphin 08/11/2026 Labels start at the list text inset, sorting buttons draw no box.
+		// GenOnline @tweak arcticdolphin 08/11/2026 Labels start at the list text inset, sorting buttons draw their own cell.
 		if (BitIsSet(cell->winGetStyle(), GWS_STATIC_TEXT))
 		{
 			TextData *textData = (TextData *)cell->winGetUserData();
@@ -256,6 +274,24 @@ static void alignGameListHeaders(GameWindow *list)
 		else if (BitIsSet(cell->winGetStyle(), GWS_PUSH_BUTTON) && gameListHeaders[i].sorts)
 		{
 			cell->winSetDrawFunc(drawGameListHeaderButton);
+		}
+	}
+
+	// The corner cell covers the scroll bar column from the last list column to the list edge.
+	GameWindow *corner = TheWindowManager->winGetWindowFromId(nullptr, NAMEKEY("WOLCustomLobby.wnd:StaticTextHeaderCorner"));
+	if (corner != nullptr)
+	{
+		Int columnsWidth = 0;
+		for (Int c = 0; c < columns; ++c)
+			columnsWidth += GadgetListBoxGetColumnWidth(list, c);
+		Int listWidth, listHeight, cornerX, cornerY, cornerWidth, cornerHeight;
+		list->winGetSize(&listWidth, &listHeight);
+		corner->winGetScreenPosition(&cornerX, &cornerY);
+		corner->winGetSize(&cornerWidth, &cornerHeight);
+		if (listWidth > columnsWidth)
+		{
+			setScreenPosition(corner, listX + columnsWidth, cornerY);
+			corner->winSetSize(listWidth - columnsWidth, cornerHeight);
 		}
 	}
 }
@@ -342,6 +378,42 @@ static void showSortIcons()
 }
 
 LobbyGameModeFilter theLobbyFilter = LOBBY_FILTER_ALL;
+// GenOnline @feature arcticdolphin 22/11/2026 The lobby menu search text filters the list by lobby and map name.
+extern UnicodeString theLobbySearchText;
+
+static UnicodeString lobbyMapDisplayName(const LobbyEntry& lobby)
+{
+	const MapMetaData* md = TheMapCache->findMap(AsciiString(lobby.map_name.c_str()));
+	if (md)
+	{
+		return md->m_displayName;
+	}
+
+	const char* start = lobby.map_name.c_str();
+	const char* slashPos = strrchr(start, '\\');
+	if (slashPos)
+	{
+		start = slashPos + 1;
+	}
+
+	UnicodeString mapName;
+	mapName.format(L"%s", from_utf8(start).c_str());
+	return mapName;
+}
+
+static std::wstring toLowerWide(const WideChar* text)
+{
+	std::wstring lower(text);
+	std::transform(lower.begin(), lower.end(), lower.begin(), [](wchar_t c) { return static_cast<wchar_t>(towlower(c)); });
+	return lower;
+}
+
+static Bool lobbyMatchesSearch(const LobbyEntry& lobby, const std::wstring& lowerSearch)
+{
+	return toLowerWide(from_utf8(lobby.name).c_str()).find(lowerSearch) != std::wstring::npos
+		|| toLowerWide(lobbyMapDisplayName(lobby).str()).find(lowerSearch) != std::wstring::npos;
+}
+
 static LobbyGameModeFilter detectGameMode(const std::string& name)
 {
 	std::string modeName = name;
@@ -1098,7 +1170,6 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 	int numPlayers = lobbyInfo.current_players;
 	int maxPlayers = lobbyInfo.max_players;
 
-	AsciiString lobbyMapName = AsciiString(lobbyInfo.map_name.c_str());
 	AsciiString ladder = AsciiString("TODO_GENONLINE");
 	USHORT ladderPort = 1;
 
@@ -1158,22 +1229,7 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 
 	if (showMap)
 	{
-		UnicodeString mapName;
-		const MapMetaData* md = TheMapCache->findMap(lobbyMapName);
-		if (md)
-		{
-			mapName = md->m_displayName;
-		}
-		else
-		{
-			const char* start = lobbyInfo.map_name.c_str();
-			const char* slashPos = strrchr(start, '\\');
-			if (slashPos)
-				start = slashPos + 1;
-
-			mapName.format(L"%s", from_utf8(start).c_str());
-		}
-		GadgetListBoxAddEntryText(win, mapName, gameColor, index, COLUMN_MAP);
+		GadgetListBoxAddEntryText(win, lobbyMapDisplayName(lobbyInfo), gameColor, index, COLUMN_MAP);
 
 		// TODO_GENONLINE: Support ladder again
 		if (TheLadderList != nullptr)
@@ -1495,6 +1551,26 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 					if (vecLobbies.empty())
 					{
 						GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies currently match this filter"), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
+						GadgetListBoxSetSelected(win, -1);
+						clearBuddyGames();
+						return;
+					}
+				}
+
+				if (!theLobbySearchText.isEmpty())
+				{
+					const std::wstring lowerSearch = toLowerWide(theLobbySearchText.str());
+					std::vector<LobbyEntry> matching;
+					matching.reserve(vecLobbies.size());
+					for (const LobbyEntry& lobby : vecLobbies)
+					{
+						if (lobbyMatchesSearch(lobby, lowerSearch))
+							matching.push_back(lobby);
+					}
+					vecLobbies = matching;
+					if (vecLobbies.empty())
+					{
+						GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies match your search"), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 						GadgetListBoxSetSelected(win, -1);
 						clearBuddyGames();
 						return;

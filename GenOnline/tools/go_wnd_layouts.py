@@ -44,7 +44,7 @@ GenOnline/tools/wnd_sources copy, if any, is only kept for reference. All rects 
 - Headings: GenOnline/tools/wnd_fixes.py HEADINGS names column headings that then take their column window's left
   edge, keeping their width, after the overrides; nothing else moves.
 - List headers: GenOnline/tools/wnd_fixes.py LIST_HEADERS names the header cells of a multi column list, one per column or
-  None for a column without a header (a 0% column never has one). Like the overrides they are placed every pass and no
+  None for a column without a header (a 0% column never has one), which widens the cell before it. Like the overrides they are placed every pass and no
   rule moves them: COMBO_HEIGHT tall on the list top, each over its column as the engine sizes it (COLUMNSWIDTH percent
   of the list width less LIST_SCROLL_COLUMN, rounded down), an optional corner cell over the scroll bar to the list's
   right edge and the sort arrow, keeping its size, HEADER_ARROW_INSET inside the right end of the first sorting cell
@@ -1293,6 +1293,10 @@ def place_list_headers(ctx, root, headers):
                 raise ValueError(f"{list_name}: column {index} is hidden but has header cell {cell}")
             if cell:
                 placed.append((by_name[cell], (x0, top, x1, bottom)))
+            elif placed and x1 > x0:
+                # a column without its own header widens the cell before it, so the bar has no gaps
+                win, (c0, c_top, _, c_bottom) = placed[-1]
+                placed[-1] = (win, (c0, c_top, x1, c_bottom))
         if spec.get("corner"):
             end = columns[-1][1] if columns else lst.rect[0]
             placed.append((by_name[spec["corner"]], (end, top, lst.rect[2], bottom)))
