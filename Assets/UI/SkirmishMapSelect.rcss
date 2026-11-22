@@ -33,12 +33,12 @@
 	height: 42dp;
 	padding-left: 12dp;
 	background-color: #05070FD2;
-	border: 1dp #8080FF3C;
+	border: 1dp #4F86FF3C;
 }
 
 .ms-search-box:hover
 {
-	border-color: #8080FF8C;
+	border-color: #4F86FF8C;
 }
 
 .ms-search-mark
@@ -48,7 +48,7 @@
 	width: 14dp;
 	height: 14dp;
 	margin-right: 4dp;
-	border: 2dp #8080FF;
+	border: 2dp #4F86FF;
 	border-radius: 8dp;
 }
 
@@ -131,13 +131,13 @@
 
 .map-tile:hover
 {
-	background-color: #2F37A860;
-	border-color: #8080FF8C;
+	background-color: #2F55A860;
+	border-color: #4F86FF8C;
 }
 
 .map-tile.selected, .map-tile.selected:hover
 {
-	background-color: #2F37A8B4;
+	background-color: #2F55A8B4;
 	border-color: #D8EAFF;
 }
 
@@ -229,7 +229,7 @@
 
 .detail
 {
-	border-top: 2dp #6170FA;
+	border-top: 2dp #6191FA;
 }
 
 .detail .map-frame

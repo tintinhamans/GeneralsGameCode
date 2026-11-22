@@ -48,14 +48,14 @@
 {
 	flex: 0 0 90dp;
 	height: 100%;
-	border-left: 1dp #8080FF14;
+	border-left: 1dp #4F86FF14;
 }
 
 .cm-grid-h > div
 {
 	flex: 0 0 90dp;
 	width: 100%;
-	border-top: 1dp #8080FF14;
+	border-top: 1dp #4F86FF14;
 }
 
 /* ---- The map theatre ------------------------------------------------------------------------ */

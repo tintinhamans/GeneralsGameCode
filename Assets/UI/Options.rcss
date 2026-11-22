@@ -114,7 +114,7 @@ body.screen
 
 .opt-row.disabled .opt-desc, .opt-toggles.disabled .opt-desc
 {
-	color: #4A5070;
+	color: #56627F;
 }
 
 /* A slider with its value after it. */
@@ -145,7 +145,7 @@ body.screen
 
 .opt-row.disabled .opt-value
 {
-	color: #4A5070;
+	color: #56627F;
 }
 
 /* A whole row that toggles its checkbox: the box sits at the start of the control column. */
@@ -256,5 +256,5 @@ label.opt-toggle:hover .opt-label
 
 .opt-toggle.disabled .opt-desc
 {
-	color: #4A5070;
+	color: #56627F;
 }

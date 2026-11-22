@@ -90,7 +90,7 @@ body.ss
 	min-width: 0;
 	padding: 0 24dp;
 	max-width: 480dp;
-	border-left: 1dp #8080FF28;
+	border-left: 1dp #4F86FF28;
 }
 
 .ss-fact:first-child
@@ -230,20 +230,20 @@ body.ss
 	height: 56dp;
 	margin-top: 5dp;
 	padding: 0 16dp 0 16dp;
-	background-color: #0B1030B4;
+	background-color: #040A1CB4;
 	border-left: 6dp #7079A0;
 }
 
 .ss-row.local
 {
-	background-color: #141A3EE6;
+	background-color: #0B1D45E6;
 }
 
 .ss-row.observer
 {
 	height: 46dp;
 	background-color: #05070F8C;
-	border-left-color: #8080FF28;
+	border-left-color: #4F86FF28;
 }
 
 .ss-who
@@ -354,7 +354,7 @@ body.ss
 {
 	font-size: 19dp;
 	font-weight: normal;
-	color: #4A5070;
+	color: #56627F;
 }
 
 /* The game's best in this stat. */
@@ -381,7 +381,7 @@ body.ss
 	width: 330dp;
 	height: 327dp;
 	background-color: #05070F;
-	border: 1dp #8080FF46;
+	border: 1dp #4F86FF46;
 }
 
 .ss-challenge-portrait mappedimage

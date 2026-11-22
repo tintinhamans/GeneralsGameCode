@@ -44,7 +44,7 @@
 
 .ch-wire
 {
-	background-color: #8080FF;
+	background-color: #4F86FF;
 }
 
 .ch-stage .ch-wire
@@ -104,7 +104,7 @@
 	padding: 0;
 	font-size: 0;
 	border-radius: 21dp;
-	border: 2dp #8080FF50;
+	border: 2dp #4F86FF50;
 }
 
 .ch-pin.lit .ch-pin-ring
@@ -136,25 +136,25 @@
 	text-align: center;
 	letter-spacing: 0;
 	background-color: #070A1AE6;
-	border: 1dp #8080FF28;
+	border: 1dp #4F86FF28;
 }
 
 .ch-stage button.ch-tile.lit
 {
-	background-color: #141A3EF0;
-	border-color: #8080FF;
+	background-color: #0B1D45F0;
+	border-color: #4F86FF;
 }
 
 .ch-stage button.ch-tile.selected
 {
-	background-color: #2F37A8C8;
-	border-color: #8080FF;
+	background-color: #2F55A8C8;
+	border-color: #4F86FF;
 }
 
 /* Where the wire comes in: dim, blue under the cursor, the accent once chosen. */
 .ch-tile-bar
 {
-	background-color: #8080FF46;
+	background-color: #4F86FF46;
 }
 
 .ch-tile .ch-tile-bar
@@ -171,7 +171,7 @@
 
 .ch-tile.lit .ch-tile-bar
 {
-	background-color: #8080FF;
+	background-color: #4F86FF;
 }
 
 .ch-portrait
@@ -224,7 +224,7 @@
 	top: 44%;
 	width: 30%;
 	padding: 18dp 22dp 22dp 22dp;
-	border-top: 2dp #8080FF46;
+	border-top: 2dp #4F86FF46;
 }
 
 .ch-dossier-head
@@ -242,7 +242,7 @@
 	height: 150dp;
 	margin-right: 18dp;
 	background-color: #05070F;
-	border: 1dp #8080FF46;
+	border: 1dp #4F86FF46;
 }
 
 .ch-bio-portrait mappedimage
@@ -259,7 +259,7 @@
 	text-align: center;
 	font-size: 80dp;
 	font-weight: bold;
-	color: #8080FF28;
+	color: #4F86FF28;
 }
 
 .ch-dossier-id
@@ -299,7 +299,7 @@
 	display: block;
 	margin-top: 16dp;
 	padding-top: 14dp;
-	border-top: 1dp #8080FF28;
+	border-top: 1dp #4F86FF28;
 }
 
 .ch-dossier-facts .fact + .fact

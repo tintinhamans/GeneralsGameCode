@@ -56,7 +56,7 @@
 	height: 60dp;
 	margin-right: 16dp;
 	background-color: #05070F;
-	border: 1dp #8080FF28;
+	border: 1dp #4F86FF28;
 }
 
 .thumb-missing
@@ -158,7 +158,7 @@
 /* Another game version: it will not play back, so the row steps back (the .wnd's grey). */
 .replay-row.incompatible .replay-name, .replay-row.incompatible .replay-date, .replay-row.incompatible .replay-version-text
 {
-	color: #6A6F88;
+	color: #6A7488;
 }
 
 .replay-row.incompatible .replay-thumb
@@ -289,7 +289,7 @@
 	flex-direction: row;
 	flex: 0 0 auto;
 	margin-top: 20dp;
-	border-top: 1dp #8080FF28;
+	border-top: 1dp #4F86FF28;
 	padding-top: 14dp;
 }
 

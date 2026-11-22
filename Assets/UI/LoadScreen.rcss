@@ -249,7 +249,7 @@ body.ld
 .ld-map-card
 {
 	padding: 12dp;
-	border-top: 2dp #8080FF46;
+	border-top: 2dp #4F86FF46;
 }
 
 .ld-map-frame
@@ -425,7 +425,7 @@ body.ld
 
 /* The campaign's colour: LoadingBar_ProgressCenter1 (China), 2 (USA) and 3 (GLA). */
 .ld-bar.center1 .progress-fill { decorator: vertical-gradient(#FF7070 #C00000); border-right-color: #FFD0D0; }
-.ld-bar.center2 .progress-fill { decorator: vertical-gradient(#8FA5FF #2F4AD8); border-right-color: #D8E0FF; }
+.ld-bar.center2 .progress-fill { decorator: vertical-gradient(#8FB2FF #2F65D8); border-right-color: #D8E0FF; }
 .ld-bar.center3 .progress-fill { decorator: vertical-gradient(#8CF57E #2A9A1E); border-right-color: #D6FFD0; }
 
 .ld-legal
@@ -496,5 +496,5 @@ body.ld
 	padding-right: 18dp;
 	font-size: 17dp;
 	letter-spacing: 3dp;
-	border-right: 1dp #8080FF46;
+	border-right: 1dp #4F86FF46;
 }

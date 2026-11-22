@@ -118,7 +118,7 @@
 	padding-left: 28dp;
 	border-left-color: #D8EAFF;
 	background-color: transparent;
-	decorator: horizontal-gradient(#2F37A8DC #2F37A800);
+	decorator: horizontal-gradient(#2F55A8DC #2F55A800);
 }
 
 .screen button.mm-item:active
@@ -126,7 +126,7 @@
 	color: #D8EAFF;
 	border-left-color: #8FB4FF;
 	background-color: transparent;
-	decorator: horizontal-gradient(#1E246EE6 #1E246E00);
+	decorator: horizontal-gradient(#1E376EE6 #1E376E00);
 }
 
 .screen button.mm-item:focus-visible
@@ -139,7 +139,7 @@
 {
 	color: #FFFFFF;
 	border-left-color: #D8EAFF;
-	decorator: horizontal-gradient(#2F37A8F0 #2F37A840);
+	decorator: horizontal-gradient(#2F55A8F0 #2F55A840);
 }
 
 .mm-item gametext
@@ -152,7 +152,7 @@
 {
 	flex: 0 0 auto;
 	font-size: 34dp;
-	color: #8080FF;
+	color: #4F86FF;
 	opacity: 0.6;
 }
 
@@ -181,7 +181,7 @@
 	display: block;
 	height: 1dp;
 	margin: 10dp 0 10dp 20dp;
-	background-color: #8080FF30;
+	background-color: #4F86FF30;
 }
 
 /* ---- Generals Online card --------------------------------------------------------------------- */
@@ -193,7 +193,7 @@
 	box-sizing: border-box;
 	padding: 16dp 20dp 18dp 20dp;
 	background-color: #070A1AD8;
-	border-top: 2dp #2F37A8;
+	border-top: 2dp #2F55A8;
 }
 
 .mm-news-head
@@ -233,7 +233,7 @@
 	display: block;
 	margin-top: 12dp;
 	padding-top: 12dp;
-	border-top: 1dp #8080FF28;
+	border-top: 1dp #4F86FF28;
 	max-height: 280dp;
 	overflow: hidden;
 }
@@ -315,7 +315,7 @@
 	width: 420dp;
 	padding: 16dp 0 14dp 0;
 	background-color: #070A1AC8;
-	border-left: 1dp #8080FF3C;
+	border-left: 1dp #4F86FF3C;
 }
 
 .mm-a .mm-heading
@@ -342,7 +342,7 @@
 	box-sizing: border-box;
 	padding: 26dp 0 44dp 0;
 	background-color: #070A1AE0;
-	border-right: 1dp #8080FF3C;
+	border-right: 1dp #4F86FF3C;
 }
 
 .mm-b .mm-logo
@@ -380,8 +380,8 @@
 	top: 186dp;
 	width: 400dp;
 	padding: 16dp 0 14dp 0;
-	background-color: #0B1030E6;
-	border-top: 2dp #2F37A8;
+	background-color: #040A1CE6;
+	border-top: 2dp #2F55A8;
 }
 
 .mm-b .mm-heading
@@ -430,7 +430,7 @@
 	height: 76dp;
 	padding: 0 12dp;
 	background-color: #070A1AE0;
-	border-top: 2dp #2F37A8;
+	border-top: 2dp #2F55A8;
 }
 
 .mm-c .mm-sub .panel.active
@@ -458,13 +458,13 @@
 {
 	padding-left: 30dp;
 	border-bottom-color: #D8EAFF;
-	decorator: vertical-gradient(#2F37A800 #2F37A8DC);
+	decorator: vertical-gradient(#2F55A800 #2F55A8DC);
 }
 
 .screen.mm-c button.mm-item.current, .screen.mm-c button.mm-item.current:hover
 {
 	border-bottom-color: #D8EAFF;
-	decorator: vertical-gradient(#2F37A840 #2F37A8F0);
+	decorator: vertical-gradient(#2F55A840 #2F55A8F0);
 }
 
 .screen.mm-c button.mm-item:focus-visible
@@ -499,8 +499,8 @@
 {
 	left: 0;
 	bottom: 124dp;
-	background-color: #0B1030E6;
-	border-top: 2dp #2F37A8;
+	background-color: #040A1CE6;
+	border-top: 2dp #2F55A8;
 }
 
 .screen.mm-c .mm-sub button.mm-item
@@ -626,13 +626,13 @@
 .screen button.d-item:hover
 {
 	background-color: transparent;
-	decorator: horizontal-gradient(#2F37A850 #2F37A800);
+	decorator: horizontal-gradient(#2F55A850 #2F55A800);
 }
 
 .screen button.d-item:active
 {
 	background-color: transparent;
-	decorator: horizontal-gradient(#1E246E90 #1E246E00);
+	decorator: horizontal-gradient(#1E376E90 #1E376E00);
 }
 
 .d-text
@@ -703,7 +703,7 @@
 	width: 22dp;
 	height: 2dp;
 	margin-right: 14dp;
-	background-color: #8080FF80;
+	background-color: #4F86FF80;
 	transition: width background-color 0.16s cubic-out;
 }
 
@@ -794,7 +794,7 @@
 	padding-left: 12dp;
 	background-color: #070A1AC0;
 	margin-bottom: 12dp;
-	border-bottom: 1dp #8080FF50;
+	border-bottom: 1dp #4F86FF50;
 	font-size: 14dp;
 	font-weight: bold;
 	letter-spacing: 3dp;
@@ -858,8 +858,8 @@
 
 /* 10% more see-through than the other cards (EC, F0 -> D2, D6). */
 .screen .d-list button.hq-card.d-line { background-color: #070A1AD2; }
-.screen .d-list button.hq-card.d-line:hover { background-color: #0B1030D6; }
-.screen .d-list button.hq-card.d-line:active { background-color: #141A3ED6; }
+.screen .d-list button.hq-card.d-line:hover { background-color: #040A1CD6; }
+.screen .d-list button.hq-card.d-line:active { background-color: #0B1D45D6; }
 
 .d-art
 {
@@ -927,12 +927,12 @@
 	right: 0;
 	top: 0;
 	bottom: 0;
-	decorator: vertical-gradient(#0A0E2640 #070A1AD0);
+	decorator: vertical-gradient(#0A132640 #070A1AD0);
 }
 
 .d-tint-soft
 {
-	decorator: vertical-gradient(#0A0E2600 #070A1A90);
+	decorator: vertical-gradient(#0A132600 #070A1A90);
 }
 
 .d-shine
@@ -988,7 +988,7 @@
 /* The chosen side on the difficulty row: not a button, drawn quieter. */
 .d-pick
 {
-	border-color: #8080FF26;
+	border-color: #4F86FF26;
 }
 
 /* ---- Card glyphs (no suitable game art): drawn from boxes ---------------------------------- */
@@ -1016,7 +1016,7 @@
 
 .g-net .l
 {
-	background-color: #8080FFB0;
+	background-color: #4F86FFB0;
 }
 
 .g-net .l1 { left: 20dp; right: 20dp; top: 69dp; height: 2dp; }
@@ -1029,7 +1029,7 @@
 	height: 20dp;
 	border-radius: 10dp;
 	border: 2dp #C4CAE4;
-	background-color: #0A0E26;
+	background-color: #0A1326;
 }
 
 .g-net .n0 { left: 86dp; top: 56dp; width: 28dp; height: 28dp; border-radius: 14dp; border-color: #D8EAFF; background-color: #D8EAFF; }
@@ -1040,7 +1040,7 @@
 /* Difficulty: a three-step level meter. */
 .d-diff .d-art
 {
-	decorator: vertical-gradient(#141A3E #070A1A);
+	decorator: vertical-gradient(#0B1D45 #070A1A);
 }
 
 .d-level
@@ -1063,8 +1063,8 @@
 	box-sizing: border-box;
 	width: 28dp;
 	margin-right: 12dp;
-	background-color: #8080FF30;
-	border: 1dp #8080FF50;
+	background-color: #4F86FF30;
+	border: 1dp #4F86FF50;
 }
 
 .d-level .bar:nth-child(1) { height: 40dp; }

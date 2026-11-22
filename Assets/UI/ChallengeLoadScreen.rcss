@@ -92,7 +92,7 @@
 	width: 540dp;
 	height: 450dp;
 	background-color: #05070FD9;
-	border: 1dp #8080FF46;
+	border: 1dp #4F86FF46;
 	overflow: hidden;
 	clip: always;
 }
@@ -103,7 +103,7 @@
 @keyframes cl-frame-lit
 {
 	from { border-color: #D8EAFF; }
-	to { border-color: #8080FF46; }
+	to { border-color: #4F86FF46; }
 }
 
 .cl-portrait-movie
@@ -296,7 +296,7 @@
 	flex-direction: row;
 	margin-top: 10dp;
 	padding-top: 10dp;
-	border-top: 1dp #8080FF28;
+	border-top: 1dp #4F86FF28;
 }
 
 .cl-opponent .cl-facts
@@ -364,7 +364,7 @@
 	top: 8dp;
 	width: 284dp;
 	height: 284dp;
-	border: 1dp #8080FF5A;
+	border: 1dp #4F86FF5A;
 	border-radius: 142dp;
 	opacity: 0;
 }
@@ -373,7 +373,7 @@
 {
 	display: block;
 	position: absolute;
-	background-color: #8080FF;
+	background-color: #4F86FF;
 	opacity: 0;
 }
 
@@ -436,7 +436,7 @@
 	width: 204dp;
 	height: 204dp;
 	border-width: 2dp;
-	border-color: #8080FF00 #8080FFC8 #8080FF00 #8080FFC8;
+	border-color: #4F86FF00 #4F86FFC8 #4F86FF00 #4F86FFC8;
 	border-radius: 102dp;
 }
 
@@ -463,7 +463,7 @@
 	width: 168dp;
 	height: 168dp;
 	background-color: #05070FF2;
-	border: 2dp #8080FF46;
+	border: 2dp #4F86FF46;
 	border-radius: 84dp;
 	opacity: 0;
 }

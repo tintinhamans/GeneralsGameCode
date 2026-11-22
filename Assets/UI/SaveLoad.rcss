@@ -169,7 +169,7 @@ body.popup
 	flex: 0 1 auto;
 	min-height: 0;
 	padding: 20dp 28dp 30dp 28dp;
-	border-top: 4dp #3A46D0;
+	border-top: 4dp #3A69D0;
 }
 
 .detail-body
@@ -194,7 +194,7 @@ body.popup
 {
 	display: block;
 	margin-top: 22dp;
-	border-top: 1dp #8080FF28;
+	border-top: 1dp #4F86FF28;
 	padding-top: 6dp;
 }
 

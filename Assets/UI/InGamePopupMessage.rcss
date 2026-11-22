@@ -21,8 +21,8 @@ body.pm
 	display: block;
 	box-sizing: border-box;
 	background-color: #070A1AEB;
-	border: 1dp #8080FF3A; /* the .hq-card edge */
-	border-top: 3dp #6170FA;
+	border: 1dp #4F86FF3A; /* the .hq-card edge */
+	border-top: 3dp #6191FA;
 }
 
 /* The message, its colour coming from the script. */

@@ -20,8 +20,8 @@ body.dc
 {
 	display: block;
 	background-color: #070A1AEB;
-	border: 1dp #8080FF3A; /* the .hq-card edge */
-	border-top: 3dp #6170FA;
+	border: 1dp #4F86FF3A; /* the .hq-card edge */
+	border-top: 3dp #6191FA;
 }
 
 /* ---- Header ---------------------------------------------------------------------------------- */
@@ -32,7 +32,7 @@ body.dc
 	align-items: center;
 	min-height: 64dp;
 	padding: 10dp 24dp;
-	border-bottom: 1dp #8080FF28;
+	border-bottom: 1dp #4F86FF28;
 }
 
 /* The modal title's look: tracked caps behind the accent tick. */
@@ -91,7 +91,7 @@ body.dc
 	height: 42dp;
 	margin-top: 4dp;
 	padding-left: 12dp;
-	background-color: #0B1030B4;
+	background-color: #040A1CB4;
 	border-left: 3dp #FF5050;
 }
 
@@ -190,8 +190,8 @@ body.dc
 
 .screen button.dc-quit[disabled], .screen button.dc-quit[disabled]:hover
 {
-	background-color: #0C0F24AA;
-	border-color: #8080FF1E;
+	background-color: #0C1424AA;
+	border-color: #4F86FF1E;
 }
 
 /* Translated labels run longer than the English ones: the router timeout label wraps beside the

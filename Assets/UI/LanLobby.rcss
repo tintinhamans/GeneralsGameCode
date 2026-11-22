@@ -118,7 +118,7 @@
 /* Under way: no joining, so it steps back (the .wnd's grey row). */
 .game-row.in-progress .game-name, .game-row.in-progress .game-map, .game-row.in-progress .game-players
 {
-	color: #6A6F88;
+	color: #6A7488;
 }
 
 .game-row.selected.in-progress .game-name, .game-row.selected.in-progress .game-map, .game-row.selected.in-progress .game-players
@@ -262,7 +262,7 @@
 	min-height: 0;
 	overflow-y: auto;
 	margin-top: 18dp;
-	border-top: 1dp #8080FF28;
+	border-top: 1dp #4F86FF28;
 	padding-top: 10dp;
 }
 
@@ -322,7 +322,7 @@
 	min-height: 0;
 	margin-left: 20dp;
 	padding-left: 20dp;
-	border-left: 1dp #8080FF28;
+	border-left: 1dp #4F86FF28;
 }
 
 .roster-head

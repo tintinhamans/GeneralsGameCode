@@ -21,7 +21,7 @@
 	width: 760dp;
 	min-height: 0;
 	padding: 30dp 40dp 34dp 40dp;
-	border-top: 4dp #6170FA;
+	border-top: 4dp #6191FA;
 }
 
 .dc-field
@@ -51,7 +51,7 @@
 	margin-top: 26dp;
 	padding: 18dp 22dp;
 	background-color: #05070FB4;
-	border-left: 4dp #3A46D0;
+	border-left: 4dp #3A69D0;
 }
 
 .dc-local .dc-label

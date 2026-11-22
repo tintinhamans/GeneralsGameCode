@@ -13,7 +13,7 @@
 			max-width: 440dp;
 			padding: 8dp 12dp;
 			background-color: #06061AF2;
-			border: 1dp #8080FF90;
+			border: 1dp #4F86FF90;
 			font-family: "Noto Sans";
 			font-size: 16dp;
 			line-height: 21dp;

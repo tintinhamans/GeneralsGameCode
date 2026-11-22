@@ -1,15 +1,15 @@
 /*
 	common.rcss -- shared look for every RmlUi shell screen.
 
-	Palette, taken from the original .wnd menus (Data/Window/Menus/*.wnd) so RmlUi screens
-	keep the native Generals look:
+	Palette, taken from the original .wnd menus (Data/Window/Menus/*.wnd); Ronin @feature 22/11/2026 DX9:
+	their purple turned to the Ice Console's blue (the hilite was #8080FF, the border #2F37A8):
 		panel background   rgba(2, 2, 2, 191)     -- ~75% alpha dark panel
-		panel border       #2F37A8                -- thin blue border (47 55 168)
+		panel border       #2F55A8                -- thin blue border (47 85 168)
 		text               #FFFFFF                -- white
-		hilite / focus     #8080FF                -- hilite blue (128 128 255)
+		hilite / focus     #4F86FF                -- line blue (79 134 255)
 		button hilite      #D8EAFF                -- ice; the .wnd PUSHBUTTON hilite was green (186 255 12)
 		muted text         #C0C0C0                -- disabled grey (192 192 192)
-		disabled text      #7C7E99                -- text of a disabled control
+		disabled text      #7C8599                -- text of a disabled control
 
 	Sizing uses RmlUi's dp unit throughout; RmlUiManager sets the context's
 	density-independent-pixel ratio to screen height / 1080 so 1dp keeps the same apparent
@@ -31,7 +31,7 @@
 	                 icon      32dp square                                 .icon-btn
 	                 button text is always upper case
 	  Spacing        4 / 8 / 12 / 16 / 24dp   (xs / s / m / l / xl)
-	  Panels         frame padding 16dp, sub-panel padding 12dp, 1dp #2F37A8 separators
+	  Panels         frame padding 16dp, sub-panel padding 12dp, 1dp #2F55A8 separators
 
 	Shared components. Every screen links this sheet, so mods restyle a component here once
 	instead of per screen (screen sheets only hold what is unique to that screen; GameSetup.rcss
@@ -99,7 +99,7 @@ body
 .frame
 {
 	background-color: rgba(2, 2, 2, 191);
-	border: 2dp #2F37A8;
+	border: 2dp #2F55A8;
 	padding: 16dp;
 }
 
@@ -110,14 +110,14 @@ body
 	color: #FFFFFF;
 	text-align: center;
 	padding-bottom: 8dp;
-	border-bottom: 1dp #2F37A8;
+	border-bottom: 1dp #2F55A8;
 	margin-bottom: 12dp;
 }
 
 /* Bordered sub-panel inside a frame (option groups, honors, stats). */
 .panel-box
 {
-	border: 1dp #2F37A8;
+	border: 1dp #2F55A8;
 	background-color: rgba(2, 2, 2, 140);
 	padding: 12dp;
 }
@@ -141,7 +141,7 @@ body
 	font-weight: bold;
 	color: #C0C0C0;
 	background-color: rgba(2, 2, 2, 140);
-	border: 1dp #2F37A8;
+	border: 1dp #2F55A8;
 	margin-right: 4dp;
 }
 
@@ -153,14 +153,14 @@ body
 .tab:hover
 {
 	color: #FFFFFF;
-	border-color: #8080FF;
+	border-color: #4F86FF;
 }
 
 .tab.selected
 {
 	color: #FFFFFF;
-	background-color: rgba(47, 55, 168, 140);
-	border: 1dp #8080FF;
+	background-color: rgba(47, 85, 168, 140);
+	border: 1dp #4F86FF;
 }
 
 /* ---- Rows: label/control grid ------------------------------------------------------------
@@ -267,7 +267,7 @@ button[disabled]:hover, button.disabled:hover, .button.disabled:hover,
 button[disabled]:active, button.disabled:active, .button.disabled:active
 {
 	decorator: tiled-horizontal(Buttons-Disabled-Left, Buttons-Disabled-Middle, Buttons-Disabled-Right);
-	color: #3E405C;
+	color: #3E475C;
 	font-effect: shadow(1dp 1dp #1F202F);
 }
 
@@ -279,13 +279,13 @@ button[disabled]:active, button.disabled:active, .button.disabled:active
 	decorator: none;
 	font-effect: none;
 	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
+	border: 1dp #2F55A8;
 }
 
 .icon-btn:hover, .joingame-close:hover
 {
-	border-color: #8080FF;
-	color: #8080FF;
+	border-color: #4F86FF;
+	color: #4F86FF;
 }
 
 /* Fixed 32dp square (the control height) holding a <mappedimage> glyph (chat send/emote, list
@@ -320,7 +320,7 @@ select
 	box-sizing: border-box;
 	height: 32dp;
 	background-color: rgba(2, 2, 2, 220);
-	border: 1dp #2F37A8;
+	border: 1dp #2F55A8;
 	color: #FFFFFF;
 	font-size: 16dp;
 	vertical-align: middle;
@@ -345,7 +345,7 @@ select selectarrow
 
 select:hover, select:focus
 {
-	border-color: #8080FF;
+	border-color: #4F86FF;
 }
 
 select:hover selectarrow
@@ -360,9 +360,9 @@ select:checked selectarrow
 
 select[disabled], select[disabled]:hover
 {
-	border-color: rgba(47, 55, 168, 110);
+	border-color: rgba(47, 85, 168, 110);
 	background-color: rgba(2, 2, 2, 120);
-	color: #7C7E99;
+	color: #7C8599;
 }
 
 select[disabled] selectarrow, select[disabled]:hover selectarrow
@@ -380,7 +380,7 @@ select selectbox
 	flex-direction: column;
 	box-sizing: border-box;
 	background-color: #06061A;
-	border: 1dp #8080FF;
+	border: 1dp #4F86FF;
 	padding: 2dp 0;
 	max-height: 320dp;
 	overflow-y: auto;
@@ -401,7 +401,7 @@ select selectbox option
 
 select selectbox option:hover
 {
-	background-color: rgba(47, 55, 168, 220);
+	background-color: rgba(47, 85, 168, 220);
 }
 
 select selectbox option:checked
@@ -431,15 +431,15 @@ input.range slidertrack
 	margin-top: 7dp;
 	height: 6dp;
 	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
+	border: 1dp #2F55A8;
 }
 
 input.range sliderbar
 {
 	width: 12dp;
 	height: 20dp;
-	background-color: #8080FF;
-	border: 1dp #2F37A8;
+	background-color: #4F86FF;
+	border: 1dp #2F55A8;
 }
 
 input.range sliderbar:hover
@@ -449,7 +449,7 @@ input.range sliderbar:hover
 
 input.range[disabled] sliderbar
 {
-	background-color: #3E405C;
+	background-color: #3E475C;
 }
 
 /* ---- Checkbox -------------------------------------------------------------------------
@@ -503,8 +503,8 @@ scrollbarvertical slidertrack
 {
 	width: 12dp;
 	background-color: rgba(2, 2, 2, 191);
-	border-left: 1dp rgba(47, 55, 168, 110);
-	border-right: 1dp rgba(47, 55, 168, 60);
+	border-left: 1dp rgba(47, 85, 168, 110);
+	border-right: 1dp rgba(47, 85, 168, 60);
 }
 
 /* Bevelled like the .wnd's slider thumb art: lit top and left edge, dark bottom and right. */
@@ -513,23 +513,23 @@ scrollbarvertical sliderbar
 	box-sizing: border-box;
 	width: 12dp;
 	min-height: 32dp;
-	border-top: 1dp #8080FF;
-	border-left: 1dp #4A55D8;
-	border-bottom: 1dp #0B1030;
-	border-right: 1dp #1E246E;
-	decorator: horizontal-gradient(#3A46D0 #2A33A0);
+	border-top: 1dp #4F86FF;
+	border-left: 1dp #4A77D8;
+	border-bottom: 1dp #040A1C;
+	border-right: 1dp #1E376E;
+	decorator: horizontal-gradient(#3A69D0 #2A4FA0);
 }
 
 scrollbarvertical sliderbar:hover
 {
-	border-top-color: #C0C4FF;
-	decorator: horizontal-gradient(#5560E8 #3A46D0);
+	border-top-color: #C0D4FF;
+	decorator: horizontal-gradient(#5584E8 #3A69D0);
 }
 
 scrollbarvertical sliderbar:active
 {
 	border-top-color: #FFFFFF;
-	decorator: horizontal-gradient(#8080FF #5560E8);
+	decorator: horizontal-gradient(#4F86FF #5584E8);
 }
 
 scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc
@@ -558,7 +558,7 @@ scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc
 
 .text-input[disabled]
 {
-	color: #7C7E99;
+	color: #7C8599;
 	border-color: #4F86FF26;
 }
 
@@ -581,7 +581,7 @@ scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc
 	font-weight: bold;
 	color: #FFFFFF;
 	padding-bottom: 4dp;
-	border-bottom: 1dp #2F37A8;
+	border-bottom: 1dp #2F55A8;
 	margin-bottom: 8dp;
 	flex: 0 0 auto;
 }
@@ -599,7 +599,7 @@ scrolllog
    .chat-log the darker, tail-following variant a .chat uses. */
 .list-box, .text-list, .chat-log
 {
-	border: 1dp #2F37A8;
+	border: 1dp #2F55A8;
 	background-color: rgba(2, 2, 2, 140);
 }
 
@@ -637,7 +637,7 @@ scrolllog
 	box-sizing: border-box;
 	min-height: 30dp;
 	padding: 5dp 8dp;
-	border-bottom: 1dp rgba(47, 55, 168, 80);
+	border-bottom: 1dp rgba(47, 85, 168, 80);
 }
 
 .list-row.flex
@@ -655,13 +655,13 @@ scrolllog
 
 .list-row:hover
 {
-	background-color: rgba(47, 55, 168, 60);
+	background-color: rgba(47, 85, 168, 60);
 }
 
 .list-row.selected
 {
-	background-color: rgba(47, 55, 168, 120);
-	border: 1dp #8080FF;
+	background-color: rgba(47, 85, 168, 120);
+	border: 1dp #4F86FF;
 }
 
 /* ---- Chat ---------------------------------------------------------------------------------
@@ -727,8 +727,8 @@ scrolllog
 		(audit: OVERFLOW div.rank-border / div.rank-progress) */
 	width: 128dp;
 	height: 156dp;
-	background-color: #020280;
-	border: 1dp #2F37A8;
+	background-color: #022A80;
+	border: 1dp #2F55A8;
 }
 
 .rank-image-wrap
@@ -739,7 +739,7 @@ scrolllog
 	width: 100%; /* fill rank-border's content box exactly, instead of duplicating its 128dp and
 		overflowing once rank-border switched to box-sizing:border-box */
 	height: 128dp;
-	border-bottom: 1dp #2E37A8;
+	border-bottom: 1dp #2E55A8;
 }
 
 .rank-image
@@ -773,8 +773,8 @@ scrolllog
 	height: 24dp;
 	padding: 3dp;
 	background-color: #05070FE6;
-	border: 1dp #3A46D0;
-	border-top-color: #1E246E;
+	border: 1dp #3A69D0;
+	border-top-color: #1E376E;
 }
 
 .rank-progress-fill
@@ -803,7 +803,7 @@ scrolllog
 	justify-content: flex-end;
 	flex: 0 0 auto;
 	margin-top: 12dp;
-	border-top: 1dp #2F37A8;
+	border-top: 1dp #2F55A8;
 	padding-top: 12dp;
 }
 
@@ -855,7 +855,7 @@ body.shell
 	width: 88.8%;
 	height: 85.4%;
 	background-color: rgba(2, 2, 2, 190);
-	border: 2dp #2F37A8;
+	border: 2dp #2F55A8;
 	padding: 16dp;
 	display: flex;
 	flex-direction: column;
@@ -868,7 +868,7 @@ body.shell
 	color: #FFFFFF;
 	text-align: left;
 	padding-bottom: 8dp;
-	border-bottom: 1dp #2F37A8;
+	border-bottom: 1dp #2F55A8;
 	margin-bottom: 12dp;
 	flex: 0 0 auto;
 }
@@ -901,7 +901,7 @@ body.shell
 	position: fixed;
 	z-index: 101;
 	background-color: rgba(2, 2, 2, 235);
-	border: 1dp #2F37A8;
+	border: 1dp #2F55A8;
 	min-width: 110dp;
 }
 
@@ -913,7 +913,7 @@ body.shell
 	padding: 0 12dp;
 	color: #FFFFFF;
 	text-align: center;
-	border-bottom: 1dp rgba(47, 55, 168, 80);
+	border-bottom: 1dp rgba(47, 85, 168, 80);
 }
 
 .context-menu-item:last-child
@@ -923,7 +923,7 @@ body.shell
 
 .context-menu-item:hover
 {
-	background-color: rgba(47, 55, 168, 160);
+	background-color: rgba(47, 85, 168, 160);
 }
 
 
@@ -942,17 +942,17 @@ body.shell
 	            surface   #070A1AE0          panels (.surface), the only filled boxes; 88% so text
 	                                         reads over any terrain. Text on the map itself gets
 	                                         a #070A1AC8-D9 plate (heading, back) or .map-glow
-	            raised    #141A3ED7          controls, hovered rows
-	            line      #8080FF28          hairline separators; borders only where needed
-	            blue      #2F37A8 / #3A46D0 / #8080FF   brand, selected, hover/focus; the retail
-	                                         push buttons' blues (47 55 168 pushed, 0 0 255 lit)
+	            raised    #0B1D45D7          controls, hovered rows
+	            line      #4F86FF28          hairline separators; borders only where needed
+	            blue      #2F55A8 / #3A69D0 / #4F86FF   brand, selected, hover/focus; the retail
+	                                         push buttons' blues turned to the Ice hue (22/11/2026)
 	            text      #EEF1FA  text-2 #A9B1CF  text-3 #7079A0 (labels, overlines)
 	            accent    #D8EAFF            ice, the logo's blue-white (11/11/2026; was the .wnd HILITE green), the one
 	                                         "act here" colour: hover and pressed text, title tick,
 	                                         focus ring, selected-row bar, checks, badges
 	                      #E8F2FF / #8FB4FF / #4F86FF   light / pressed / line blue, for fills
 	                                         (progress, rank); #040A1C text on an ice fill
-	            primary   blue plate #3F4CD8-#252E96, 2dp #6170FA edge, white text; on hover and
+	            primary   line-blue plate #2F6BE0-#173E96, 1dp #8FB4FF edge, white text; on hover and
 	                                         focus the edge and text go ice (.btn-cta)
 	                                         Selection fills and "on" segments stay blue.
 	            status    good #36D8B2 (teal, clear of the ice accent)  warn #E8D440  bad #FF5050
@@ -1487,7 +1487,7 @@ body.screen
 .screen button.btn-back:hover
 {
 	color: #FFFFFF;
-	background-color: #1E246EE6;
+	background-color: #1E376EE6;
 	border-color: transparent;
 }
 
@@ -1498,21 +1498,21 @@ body.screen
 
 .screen button.btn-back[disabled], .screen button.btn-back[disabled]:hover, .screen button.btn-back[disabled]:active
 {
-	color: #4A5070;
+	color: #56627F;
 	background-color: #070A1A8C;
 	border-color: transparent;
 }
 
 .btn-back[disabled] .chevron
 {
-	color: #4A5070;
+	color: #56627F;
 }
 
 .chevron
 {
 	font-size: 33dp;
 	margin-right: 10dp;
-	color: #8080FF;
+	color: #4F86FF;
 }
 
 /* In a back button the chevron is its own flex item, centred on the label's line. */
@@ -1542,7 +1542,7 @@ body.screen
 	flex-direction: row;
 	flex: 0 0 auto;
 	background-color: #05070FC8;
-	border: 1dp #8080FF28;
+	border: 1dp #4F86FF28;
 	padding: 2dp;
 }
 
@@ -1570,7 +1570,7 @@ body.screen
 .screen .seg button.seg-item:hover
 {
 	color: #FFFFFF;
-	background-color: #2F37A878;
+	background-color: #2F55A878;
 }
 
 /* Ronin @feature 11/11/2026 DX9: on - a blue fill, ice text over a 1dp ice underline. */
@@ -1583,14 +1583,14 @@ body.screen
 
 .screen .seg button.seg-item[disabled], .screen .seg button.seg-item[disabled]:hover
 {
-	color: #4A5070;
+	color: #56627F;
 	background-color: transparent;
 }
 
 .screen .seg button.seg-item.on[disabled]
 {
 	color: #A9B1CF;
-	background-color: #2F37A850;
+	background-color: #2F55A850;
 }
 
 .screen select.seg-overflow
@@ -1648,7 +1648,7 @@ body.screen
 {
 	box-sizing: border-box;
 	line-height: 18dp;
-	border: 1dp #8080FF6E;
+	border: 1dp #4F86FF6E;
 }
 
 .screen .swatches button.swatch:hover
@@ -1812,7 +1812,7 @@ label.check:hover
 
 .screen select:hover, .screen select:focus
 {
-	background-color: #141A3EE6;
+	background-color: #0B1D45E6;
 	border-color: #8FA9D6;
 }
 
@@ -1825,7 +1825,7 @@ label.check:hover
 {
 	opacity: 0.45;
 	background-color: #05070FA0;
-	border-color: #8080FF28;
+	border-color: #4F86FF28;
 	color: #A9B1CF;
 }
 
@@ -1854,7 +1854,7 @@ label.check:hover
 
 .screen select selectbox option:hover
 {
-	background-color: #2F37A8DC;
+	background-color: #2F55A8DC;
 	color: #FFFFFF;
 }
 
@@ -1986,8 +1986,8 @@ label.check:hover
 {
 	width: 12dp;
 	background-color: #05070FB4;
-	border-left: 1dp #8080FF1F;
-	border-right: 1dp #8080FF1F;
+	border-left: 1dp #4F86FF1F;
+	border-right: 1dp #4F86FF1F;
 }
 
 .screen scrollbarvertical sliderbar
@@ -1995,18 +1995,18 @@ label.check:hover
 	box-sizing: border-box;
 	width: 12dp;
 	min-height: 48dp;
-	border-top: 1dp #A0A8FF;
-	border-bottom: 1dp #141A3E;
-	border-left: 1dp #5560E8;
-	border-right: 1dp #1E246E;
-	decorator: horizontal-gradient(#3A46D0 #2A33A0);
+	border-top: 1dp #A0BEFF;
+	border-bottom: 1dp #0B1D45;
+	border-left: 1dp #5584E8;
+	border-right: 1dp #1E376E;
+	decorator: horizontal-gradient(#3A69D0 #2A4FA0);
 	transition: border-color 0.12s cubic-out;
 }
 
 .screen scrollbarvertical sliderbar:hover
 {
-	border-top-color: #D0D4FF;
-	decorator: horizontal-gradient(#5560E8 #3A46D0);
+	border-top-color: #D0DFFF;
+	decorator: horizontal-gradient(#5584E8 #3A69D0);
 }
 
 .screen scrollbarvertical sliderbar:active
@@ -2036,12 +2036,12 @@ label.check:hover
 
 .row-item:hover
 {
-	background-color: #2F37A84B;
+	background-color: #2F55A84B;
 }
 
 .row-item.selected, .row-item.selected:hover
 {
-	background-color: #2F37A8A0;
+	background-color: #2F55A8A0;
 	border-left-color: #D8EAFF;
 }
 
@@ -2054,7 +2054,7 @@ label.check:hover
 	flex: 0 0 auto;
 	height: 38dp;
 	padding: 0 15dp 0 16dp;
-	border-bottom: 1dp #8080FF28;
+	border-bottom: 1dp #4F86FF28;
 }
 
 /* ---- Empty and loading states --------------------------------------------------------------- */
@@ -2353,13 +2353,13 @@ mappreview .mp-art
 	padding: 12dp 14dp;
 	background-color: #070A1AE6;
 	border-left: 6dp #7079A0;
-	border-top: 1dp #8080FF1E;
+	border-top: 1dp #4F86FF1E;
 }
 
 .player-card.human
 {
-	background-color: #0B1030EB;
-	border-top-color: #8080FF46;
+	background-color: #040A1CEB;
+	border-top-color: #4F86FF46;
 }
 
 .pc-top, .pc-line
@@ -2384,7 +2384,7 @@ mappreview .mp-art
 	height: 56dp;
 	margin-right: 14dp;
 	background-color: #05070FDC;
-	border: 1dp #8080FF28;
+	border: 1dp #4F86FF28;
 	text-align: center;
 	line-height: 54dp;
 	font-size: 28dp;
@@ -2502,8 +2502,8 @@ mappreview .mp-art
 	font-size: 16dp;
 	font-weight: bold;
 	color: #A9B1CF;
-	border: 1dp #8080FF46;
-	background-color: #141A3E;
+	border: 1dp #4F86FF46;
+	background-color: #0B1D45;
 }
 
 .army-select selectbox
@@ -2549,7 +2549,7 @@ mappreview .mp-art
 	height: 45dp;
 	padding: 0 13dp;
 	background-color: #05070F8C;
-	border: 1dp #8080FF1E;
+	border: 1dp #4F86FF1E;
 	color: #D7DCF0;
 	font-size: 19dp;
 }
@@ -2589,7 +2589,7 @@ mappreview .mp-art
 	padding-top: 9dp;
 	padding-bottom: 9dp;
 	background-color: #05070FB4;
-	border-left-color: #8080FF28;
+	border-left-color: #4F86FF28;
 	border-top-color: transparent;
 }
 
@@ -2626,26 +2626,26 @@ mappreview .mp-art
 	font-size: 15dp;
 	color: #A9B1CF;
 	background-color: transparent;
-	border: 1dp #8080FF3C;
+	border: 1dp #4F86FF3C;
 }
 
 .screen .pc-add button:hover
 {
 	color: #FFFFFF;
 	border-color: #D8EAFF;
-	background-color: #2F37A878;
+	background-color: #2F55A878;
 }
 
 .screen .pc-add button[disabled], .screen .pc-add button[disabled]:hover, .screen .pc-add button[disabled]:active
 {
-	color: #4A5070;
+	color: #56627F;
 	background-color: transparent;
-	border-color: #8080FF1E;
+	border-color: #4F86FF1E;
 }
 
 .pc-add button[disabled] .pc-plus
 {
-	color: #4A5070;
+	color: #56627F;
 }
 
 .pc-add-label
@@ -2679,7 +2679,7 @@ mappreview .mp-art
 {
 	margin-left: 16dp;
 	padding-left: 16dp;
-	border-left: 1dp #8080FF28;
+	border-left: 1dp #4F86FF28;
 }
 
 /* ---- Tile: a big clickable choice ------------------------------------------------------------ */
@@ -2694,21 +2694,21 @@ mappreview .mp-art
 	text-align: left;
 	letter-spacing: 0;
 	background-color: #070A1AE6;
-	border: 1dp #8080FF28;
-	border-bottom: 4dp #2F37A8;
+	border: 1dp #4F86FF28;
+	border-bottom: 4dp #2F55A8;
 	transition: background-color border-color 0.12s cubic-out;
 }
 
 .screen button.tile:hover
 {
-	background-color: #141A3EF0;
-	border-color: #8080FF;
+	background-color: #0B1D45F0;
+	border-color: #4F86FF;
 	border-bottom-color: #D8EAFF;
 }
 
 .screen button.tile:active
 {
-	background-color: #1E246EF0;
+	background-color: #1E376EF0;
 }
 
 .tile-title
@@ -2819,7 +2819,7 @@ mappreview .mp-art
 	letter-spacing: 1dp;
 	text-transform: uppercase;
 	color: #D7DCF0;
-	background-color: #2F37A878;
+	background-color: #2F55A878;
 	flex: 0 0 auto;
 	white-space: nowrap;
 }
@@ -2846,7 +2846,7 @@ mappreview .mp-art
 	white-space: nowrap;
 	color: #8089B0;
 	background-color: #070A1AC8;
-	border: 1dp #8080FF28;
+	border: 1dp #4F86FF28;
 }
 
 .chip-status gametext
@@ -2901,7 +2901,7 @@ mappreview .mp-art
 	flex-direction: row;
 	align-items: center;
 	padding-bottom: 22dp;
-	border-bottom: 1dp #8080FF28;
+	border-bottom: 1dp #4F86FF28;
 }
 
 .persona-portrait
@@ -2911,7 +2911,7 @@ mappreview .mp-art
 	width: 150dp;
 	height: 150dp;
 	background-color: #05070FDC;
-	border: 1dp #8080FF3C;
+	border: 1dp #4F86FF3C;
 }
 
 .persona-rank-image
@@ -3049,7 +3049,7 @@ mappreview .mp-art
 .screen .context-menu
 {
 	background-color: #090C1EF5;
-	border: 1dp #3A46D0;
+	border: 1dp #3A69D0;
 	min-width: 110dp;
 	padding: 4dp 0;
 }
@@ -3066,7 +3066,7 @@ mappreview .mp-art
 
 .screen .context-menu-item:hover
 {
-	background-color: #2F37A8DC;
+	background-color: #2F55A8DC;
 	color: #FFFFFF;
 }
 
@@ -3125,8 +3125,8 @@ body.modal.over-game
 	width: 640dp;
 	max-height: 90%;
 	background-color: #070A1AF2;
-	border: 1dp #8080FF3A; /* the .hq-card edge */
-	border-top: 3dp #6170FA;
+	border: 1dp #4F86FF3A; /* the .hq-card edge */
+	border-top: 3dp #6191FA;
 	animation: 0.18s cubic-out modal-in;
 }
 
@@ -3193,7 +3193,7 @@ body.modal.over-game
 .screen button.modal-close:hover
 {
 	color: #FFFFFF;
-	background-color: #2F37A878;
+	background-color: #2F55A878;
 	border-color: transparent;
 }
 
@@ -3215,7 +3215,7 @@ body.modal.over-game
 	flex: 0 0 auto;
 	padding: 18dp 28dp;
 	background-color: #04060FC8;
-	border-top: 1dp #8080FF1E;
+	border-top: 1dp #4F86FF1E;
 }
 
 .modal-actions button
@@ -3247,7 +3247,7 @@ body.modal.over-game
 
 .screen .modal-actions button.btn-back:hover
 {
-	background-color: #1E246EE6;
+	background-color: #1E376EE6;
 }
 
 /* Danger: a destructive confirmation (delete). Red edge, red tick, red primary. */
@@ -3494,14 +3494,14 @@ body.modal.over-game
 	font-size: 16dp;
 	letter-spacing: 2dp;
 	color: #B8C0DE;
-	background-color: #0E1433;
-	border: 1dp #8080FF40;
+	background-color: #0E1A33;
+	border: 1dp #4F86FF40;
 }
 
 .screen .hq-aside > button:hover
 {
 	color: #D8EAFF;
-	background-color: #141A3EE6;
+	background-color: #0B1D45E6;
 	border-color: #D8EAFF;
 }
 
@@ -3559,7 +3559,7 @@ body.modal.over-game
 .hq-off .hq-dot
 {
 	background-color: transparent;
-	border: 2dp #5A6390;
+	border: 2dp #5A6B90;
 }
 
 /* Ronin @feature 11/11/2026 DX9: a 1dp border, not a 1dp fill, which can miss every pixel column. */
@@ -3800,19 +3800,19 @@ body.modal.over-game
 	white-space: normal;
 	color: #EEF1FA;
 	background-color: #070A1AEC;
-	border: 1dp #8080FF3A;
+	border: 1dp #4F86FF3A;
 	transition: border-color 0.12s cubic-out;
 }
 
 .screen button.hq-card:hover, .screen button.hq-card:focus-visible
 {
-	background-color: #0B1030F0;
+	background-color: #040A1CF0;
 	border-color: #D8EAFF;
 }
 
 .screen button.hq-card:active
 {
-	background-color: #141A3EF0;
+	background-color: #0B1D45F0;
 	border-color: #8FB4FF;
 }
 
@@ -3839,7 +3839,7 @@ button.hq-card:hover .hq-edge, button.hq-card:focus-visible .hq-edge
 	position: relative;
 	overflow: hidden;
 	clip: always;
-	background-color: #0A0E26;
+	background-color: #0A1326;
 }
 
 .hq-card-text
@@ -3981,7 +3981,7 @@ button.hq-card:hover .hq-card-title
 	text-transform: uppercase;
 	white-space: nowrap;
 	color: #D7DCF0;
-	background-color: #2F37A878;
+	background-color: #2F55A878;
 }
 
 .su-cap span
@@ -4041,27 +4041,27 @@ button.hq-card:hover .hq-card-title
 	font-size: 15dp;
 	color: #A9B1CF;
 	background-color: transparent;
-	border: 1dp #8080FF3C;
+	border: 1dp #4F86FF3C;
 }
 
 .screen .su-fill button:hover, .screen .prow-add button:hover
 {
 	color: #FFFFFF;
 	border-color: #D8EAFF;
-	background-color: #2F37A878;
+	background-color: #2F55A878;
 }
 
 .screen .su-fill button[disabled], .screen .su-fill button[disabled]:hover,
 .screen .prow-add button[disabled], .screen .prow-add button[disabled]:hover
 {
-	color: #4A5070;
+	color: #56627F;
 	background-color: transparent;
-	border-color: #8080FF1E;
+	border-color: #4F86FF1E;
 }
 
 .su-fill button[disabled] .pc-plus, .prow-add button[disabled] .pc-plus
 {
-	color: #4A5070;
+	color: #56627F;
 }
 
 .su-list
@@ -4088,7 +4088,7 @@ button.hq-card:hover .hq-card-title
 	letter-spacing: 2dp;
 	text-transform: uppercase;
 	color: #B8C0DE;
-	border-bottom: 1dp #8080FF30;
+	border-bottom: 1dp #4F86FF30;
 }
 
 .su-item:first-child .su-group
@@ -4117,14 +4117,14 @@ button.hq-card:hover .hq-card-title
 	text-transform: uppercase;
 	color: #7C86B4;
 	background-color: #05070F8C;
-	border: 1dp #8080FF1E;
+	border: 1dp #4F86FF1E;
 	transition: color border-color 0.12s cubic-out;
 }
 
 .su-fold:hover
 {
 	color: #FFFFFF;
-	border-color: #8080FF60;
+	border-color: #4F86FF60;
 }
 
 .su-fold-mark
@@ -4132,7 +4132,7 @@ button.hq-card:hover .hq-card-title
 	width: 18dp;
 	margin-right: 6dp;
 	font-size: 22dp;
-	color: #8080FF;
+	color: #4F86FF;
 }
 
 .su-fold:hover .su-fold-mark
@@ -4156,20 +4156,20 @@ button.hq-card:hover .hq-card-title
 	height: 58dp;
 	margin-top: 6dp;
 	padding: 0 10dp 0 10dp;
-	background-color: #0B1030C8;
+	background-color: #040A1CC8;
 	border-left: 5dp #7079A0;
 }
 
 .prow.human
 {
-	background-color: #11184AD2;
+	background-color: #11234AD2;
 }
 
 .prow.empty
 {
 	height: 50dp;
 	background-color: #05070F8C;
-	border-left-color: #8080FF28;
+	border-left-color: #4F86FF28;
 }
 
 .prow.unused
@@ -4231,7 +4231,7 @@ button.hq-card:hover .hq-card-title
 	font-weight: bold;
 	color: #7079A0;
 	background-color: #05070FDC;
-	border: 1dp #8080FF28;
+	border: 1dp #4F86FF28;
 }
 
 .prow-badge mappedimage
@@ -4311,7 +4311,7 @@ button.hq-card:hover .hq-card-title
 .prow-spot.random
 {
 	color: #7079A0;
-	border-color: #8080FF46;
+	border-color: #4F86FF46;
 }
 
 /* An open or closed slot: its occupant, then quick ways to add an AI. */
@@ -4366,7 +4366,7 @@ button.hq-card:hover .hq-card-title
 	margin: 2dp 0 4dp 15dp;
 	padding: 8dp 10dp;
 	background-color: #090C1EF5;
-	border: 1dp #3A46D0;
+	border: 1dp #3A69D0;
 	border-top: 2dp #D8EAFF;
 	animation: 0.14s cubic-out pop-in;
 }
