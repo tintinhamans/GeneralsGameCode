@@ -32,6 +32,7 @@
 #include "GameClient/DisplayStringManager.h"
 #include "GameClient/Gadget.h"
 #include "GameClient/GadgetComboBox.h"
+#include "GameClient/GadgetPushButton.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetRadioButton.h"
 #include "GameClient/GadgetStaticText.h"
@@ -55,8 +56,27 @@ static const char *const s_sourceWindowNames[MAP_SOURCE_COUNT] =
 	"RadioButtonMapsAll",
 	"RadioButtonMapsOfficial",
 	"RadioButtonMapsUser",
-	"RadioButtonMapsFavourites"
+	"RadioButtonMapsFavourites",
+	"RadioButtonMapsQuickMatch"
 };
+
+// GenOnline @feature arcticdolphin 22/11/2026 Sorting header buttons over the name, players and size columns, in MapSelectSortColumn order.
+struct MapSelectHeader
+{
+	const char *m_window;
+	const char *m_label;
+	const WideChar *m_text;
+};
+static const MapSelectHeader s_headers[MAP_SORT_COUNT] =
+{
+	{ "ButtonHeaderPlayers", "GUI:GOHeaderPlayers", L"Players" },
+	{ "ButtonHeaderMap", "GUI:GOHeaderMap", L"Map" },
+	{ "ButtonHeaderSize", "GUI:GOHeaderSize", L"Size" },
+};
+static const Int HEADER_ARROW_GAP = 3;
+
+// A playlist answer that arrives after its list closed or reopened is dropped.
+static UnsignedInt s_listGeneration = 0;
 
 // GenOnline @feature arcticdolphin 09/11/2026 Map names and details take the text and muted colours of the GO UI colour table.
 static Color nameColor()
@@ -84,6 +104,8 @@ MapSelectFilter::MapSelectFilter()
 	: m_numPlayers(0)
 	, m_size(MAP_SIZE_ANY)
 	, m_source(MAP_SOURCE_ALL)
+	, m_sortColumn(MAP_SORT_PLAYERS)
+	, m_sortDescending(FALSE)
 {
 }
 
@@ -251,21 +273,102 @@ struct MapSelectRowSort
 		AsciiString m_path;
 		UnicodeString m_name;
 		Int m_numPlayers;
+		Real m_extent;
 		Bool m_favourite;
 	};
 
+	MapSelectRowSort( MapSelectSortColumn column, Bool descending ) : m_column(column), m_descending(descending) {}
+
+	// The chosen column decides in the chosen direction, ties fall back to the name ascending and then the path so the order never depends on the cache.
 	bool operator()( const Entry &a, const Entry &b ) const
 	{
-		if (a.m_favourite != b.m_favourite)
-			return a.m_favourite != FALSE;
+		Int order = 0;
+		switch (m_column)
+		{
+			case MAP_SORT_PLAYERS:
+				order = a.m_numPlayers - b.m_numPlayers;
+				break;
+			case MAP_SORT_SIZE:
+				order = (a.m_extent < b.m_extent) ? -1 : (a.m_extent > b.m_extent ? 1 : 0);
+				break;
+			default:
+				order = a.m_name.compareNoCase(b.m_name);
+				break;
+		}
+		if (order != 0)
+			return m_descending ? order > 0 : order < 0;
 		const Int byName = a.m_name.compareNoCase(b.m_name);
 		if (byName != 0)
 			return byName < 0;
-		if (a.m_numPlayers != b.m_numPlayers)
-			return a.m_numPlayers < b.m_numPlayers;
 		return a.m_path.compare(b.m_path) < 0;
 	}
+
+	MapSelectSortColumn m_column;
+	Bool m_descending;
 };
+
+// The label of a header button, in its window font without wrapping.
+static DisplayString *headerLabel( GameWindow *window )
+{
+	DisplayString *text = window->winGetInstanceData()->getTextDisplayString();
+	if (text == nullptr || text->getTextLength() == 0)
+		return nullptr;
+	if (text->getFont() != window->winGetFont())
+		text->setFont(window->winGetFont());
+	text->setWordWrap(0);
+	return text;
+}
+
+// A header button draws its label at the list text inset, in the hilite colour under the mouse, with the arrow of the active sort after it.
+static void drawMapSelectHeader( GameWindow *window, WinInstanceData *instData )
+{
+	DisplayString *text = headerLabel(window);
+	if (text == nullptr)
+		return;
+
+	Color textColor = window->winGetEnabledTextColor();
+	Color dropColor = window->winGetEnabledTextBorderColor();
+	if (BitIsSet(instData->getState(), WIN_STATE_HILITED))
+	{
+		textColor = window->winGetHiliteTextColor();
+		dropColor = window->winGetHiliteTextBorderColor();
+	}
+
+	Int x, y, width, height, textWidth, textHeight;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&width, &height);
+	text->getSize(&textWidth, &textHeight);
+	IRegion2D clipRegion;
+	clipRegion.lo.x = x;
+	clipRegion.lo.y = y;
+	clipRegion.hi.x = x + width;
+	clipRegion.hi.y = y + height;
+	text->setClipRegion(&clipRegion);
+	const Int textX = x + GameWindowManager::winScaleLayoutSize(TEXT_X_OFFSET);
+	text->draw(textX, y + (height - textHeight) / 2, textColor, dropColor);
+
+	// The push button owns its user data, so the sort state comes from the list.
+	const Int arrow = s_activeList != nullptr ? s_activeList->getHeaderArrow(window) : 0;
+	const Image *image = arrow == 1 ? TheMappedImageCollection->findImageByName("ArrowUp") : (arrow == 2 ? TheMappedImageCollection->findImageByName("ArrowDown") : nullptr);
+	if (image != nullptr)
+	{
+		const Int size = min(textHeight, height);
+		const Int arrowX = textX + textWidth + GameWindowManager::winScaleLayoutSize(HEADER_ARROW_GAP);
+		if (arrowX + size <= x + width)
+			TheDisplay->drawImage(image, arrowX, y + (height - size) / 2, arrowX + size, y + (height - size) / 2 + size);
+	}
+}
+
+// Moves a window to a screen position inside its parent.
+static void setScreenPosition( GameWindow *window, Int x, Int y )
+{
+	Int parentX = 0;
+	Int parentY = 0;
+	GameWindow *parentWindow = window->winGetParent();
+	if (parentWindow != nullptr)
+		parentWindow->winGetScreenPosition(&parentX, &parentY);
+	window->winSetPosition(x - parentX, y - parentY);
+}
 
 static Int computeMedal( const SkirmishBattleHonors *honors, const AsciiString &path, const MapMetaData &mapData )
 {
@@ -348,6 +451,10 @@ MapSelectList::MapSelectList()
 	{
 		m_sources[i] = nullptr;
 	}
+	for (Int i = 0; i < MAP_SORT_COUNT; ++i)
+	{
+		m_headers[i] = nullptr;
+	}
 }
 
 MapSelectList::~MapSelectList()
@@ -383,6 +490,16 @@ void MapSelectList::init( GameWindow *parent, const char *layoutName, const MapS
 	{
 		m_sources[i] = findChild(s_sourceWindowNames[i]);
 	}
+	for (Int i = 0; i < MAP_SORT_COUNT; ++i)
+	{
+		m_headers[i] = findChild(s_headers[i].m_window);
+		if (m_headers[i])
+		{
+			GadgetButtonSetText(m_headers[i], TheGameText->FETCH_OR_SUBSTITUTE(s_headers[i].m_label, s_headers[i].m_text));
+			m_headers[i]->winSetDrawFunc(drawMapSelectHeader);
+		}
+	}
+	++s_listGeneration;
 
 	if (m_officialOnly && m_filter->m_source == MAP_SOURCE_USER)
 		m_filter->m_source = MAP_SOURCE_OFFICIAL;
@@ -426,6 +543,9 @@ void MapSelectList::init( GameWindow *parent, const char *layoutName, const MapS
 	}
 	if (m_sources[MAP_SOURCE_FAVOURITES])
 		GadgetRadioSetText(m_sources[MAP_SOURCE_FAVOURITES], TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOMapsFavourites", L"Favourites"));
+	if (m_sources[MAP_SOURCE_QUICKMATCH])
+		GadgetRadioSetText(m_sources[MAP_SOURCE_QUICKMATCH], TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOMapsQuickMatch", L"1v1 pool"));
+	refreshQuickMatchPool();
 
 	// GenOnline @feature arcticdolphin 08/11/2026 The map select is a dialog with its own title.
 	GameWindow *title = findChild("StaticTextTitle");
@@ -461,6 +581,7 @@ void MapSelectList::init( GameWindow *parent, const char *layoutName, const MapS
 
 	m_ignoreEvents = FALSE;
 
+	alignHeaders();
 	repopulate(mapToSelect);
 
 	// typing searches at once, and Esc still reaches the input callback of the dialog through the parents
@@ -486,8 +607,96 @@ void MapSelectList::shutdown()
 	{
 		m_sources[i] = nullptr;
 	}
+	for (Int i = 0; i < MAP_SORT_COUNT; ++i)
+	{
+		m_headers[i] = nullptr;
+	}
+	++s_listGeneration;
 	m_filter = nullptr;
 	m_rows.clear();
+	m_quickMatchPool.clear();
+}
+
+Int MapSelectList::getHeaderArrow(const GameWindow *header) const
+{
+	if (m_filter == nullptr || header == nullptr || header != m_headers[m_filter->m_sortColumn])
+		return 0;
+	return m_filter->m_sortDescending ? 2 : 1;
+}
+
+// Snaps the header buttons onto the list columns as the engine sized them, a column the list lacks hides its header.
+void MapSelectList::alignHeaders()
+{
+	if (!m_listbox)
+		return;
+
+	Int listX, listY;
+	m_listbox->winGetScreenPosition(&listX, &listY);
+	const Int nameColumn = m_showMedals ? 2 : 1;
+	const Int numColumns = GadgetListBoxGetNumColumns(m_listbox);
+	static const Int columnOffset[MAP_SORT_COUNT] = { 1, 0, 2 };
+	for (Int i = 0; i < MAP_SORT_COUNT; ++i)
+	{
+		GameWindow *header = m_headers[i];
+		if (header == nullptr)
+			continue;
+		const Int column = nameColumn + columnOffset[i];
+		const Int width = column < numColumns ? GadgetListBoxGetColumnWidth(m_listbox, column) : 0;
+		if (width <= 0)
+		{
+			header->winHide(TRUE);
+			continue;
+		}
+		Int left = 0;
+		for (Int c = 0; c < column; ++c)
+			left += GadgetListBoxGetColumnWidth(m_listbox, c);
+		Int headerX, headerY, headerWidth, headerHeight;
+		header->winGetScreenPosition(&headerX, &headerY);
+		header->winGetSize(&headerWidth, &headerHeight);
+		setScreenPosition(header, listX + left, headerY);
+		header->winSetSize(width, headerHeight);
+	}
+}
+
+// The 1v1 pool is the map list of the quickmatch playlist for two players, a map with Custom set lives in the user map folder.
+void MapSelectList::refreshQuickMatchPool()
+{
+	m_quickMatchPool.clear();
+	GenOnlineMatchmakingInterface *pMatchmaking = GenOnlineServicesManager::GetInterface<GenOnlineMatchmakingInterface>();
+	if (pMatchmaking != nullptr)
+	{
+		for (const PlaylistEntry &playlist : pMatchmaking->GetCachedPlaylists())
+		{
+			if (playlist.DesiredPlayers != 2)
+				continue;
+			for (const PlaylistMapEntry &map : playlist.Maps)
+			{
+				std::string path = map.Custom
+					? std::format("{}maps\\{}\\{}.map", TheGlobalData->getPath_UserData().str(), map.Path, map.Path)
+					: std::format("maps\\{}\\{}.map", map.Path, map.Path);
+				std::transform(path.begin(), path.end(), path.begin(), [](unsigned char c) { return (char)tolower(c); });
+				m_quickMatchPool.insert(path);
+			}
+		}
+	}
+
+	if (m_sources[MAP_SOURCE_QUICKMATCH])
+		m_sources[MAP_SOURCE_QUICKMATCH]->winEnable(!m_quickMatchPool.empty());
+
+	// the playlists come from the service once per session, a list opened before that asks for them and fills in when they arrive
+	if (m_quickMatchPool.empty() && pMatchmaking != nullptr && m_sources[MAP_SOURCE_QUICKMATCH] != nullptr)
+	{
+		const UnsignedInt generation = s_listGeneration;
+		MapSelectList *list = this;
+		pMatchmaking->RetrievePlaylists([generation, list](std::vector<PlaylistEntry>)
+			{
+				if (generation != s_listGeneration || s_activeList != list)
+					return;
+				list->refreshQuickMatchPool();
+				if (!list->m_quickMatchPool.empty() && list->m_filter != nullptr && list->m_filter->m_source == MAP_SOURCE_QUICKMATCH)
+					list->repopulate(list->getSelectedMap());
+			});
+	}
 }
 
 void MapSelectList::syncControls()
@@ -545,6 +754,10 @@ Bool MapSelectList::passesFilter( const AsciiString &path, const MapMetaData &ma
 			break;
 		case MAP_SOURCE_FAVOURITES:
 			if (!isFavourite)
+				return FALSE;
+			break;
+		case MAP_SOURCE_QUICKMATCH:
+			if (m_quickMatchPool.find(std::string(path.str())) == m_quickMatchPool.end())
 				return FALSE;
 			break;
 		default:
@@ -640,10 +853,11 @@ void MapSelectList::repopulate( const AsciiString &mapToSelect )
 		entry.m_path = path;
 		entry.m_name = mapData.m_displayName;
 		entry.m_numPlayers = mapData.m_numPlayers;
+		entry.m_extent = max(mapData.m_extent.hi.x - mapData.m_extent.lo.x, mapData.m_extent.hi.y - mapData.m_extent.lo.y);
 		entry.m_favourite = favourite;
 		entries.push_back(entry);
 	}
-	std::sort(entries.begin(), entries.end(), MapSelectRowSort());
+	std::sort(entries.begin(), entries.end(), MapSelectRowSort(m_filter->m_sortColumn, m_filter->m_sortDescending));
 
 	SkirmishBattleHonors *honors = m_showMedals ? new SkirmishBattleHonors : nullptr;
 
@@ -767,6 +981,22 @@ MapSelectMsgResult MapSelectList::handleSystemMessage( UnsignedInt msg, WindowMs
 
 		case GBM_SELECTED:
 		{
+			// the active column flips its direction, another column starts ascending
+			for (Int i = 0; i < MAP_SORT_COUNT; ++i)
+			{
+				if (control == m_headers[i] && m_headers[i] != nullptr)
+				{
+					if (m_filter->m_sortColumn == (MapSelectSortColumn)i)
+						m_filter->m_sortDescending = !m_filter->m_sortDescending;
+					else
+					{
+						m_filter->m_sortColumn = (MapSelectSortColumn)i;
+						m_filter->m_sortDescending = FALSE;
+					}
+					repopulate(getSelectedMap());
+					return MAP_SELECT_MSG_HANDLED;
+				}
+			}
 			for (Int i = 0; i < MAP_SOURCE_COUNT; ++i)
 			{
 				if (control == m_sources[i] && m_sources[i] != nullptr)
