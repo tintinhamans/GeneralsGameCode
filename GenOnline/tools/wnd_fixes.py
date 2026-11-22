@@ -13,16 +13,129 @@ without a header (always for a 0% column), which widens the cell before it, the 
 cell; the rules never move them.
 """
 
+def _setup_rects():
+    """Layout G2 of the online game setup screen: the player rows and the chat on the left, the Game panel on the right, the
+    buttons at the retail width. The icon cell is the ping window, the accept markers stay hidden, the kick and ban buttons sit right of the team."""
+    p = "GameSpyGameOptionsMenu.wnd:"
+    rects = {
+        p + "StaticTextPlayers": (85, 85, 225, 109),
+        p + "StaticTextColor": (229, 85, 317, 109),
+        p + "StaticTextFaction": (321, 85, 417, 109),
+        p + "StaticTextTeam": (421, 85, 483, 109),
+        p + "ListboxChatWindowGameSpyGameSetup": (47, 309, 531, 480),
+        p + "TextEntryChat": (47, 486, 497, 511),
+        p + "ButtonEmote": (501, 486, 531, 511),
+        p + "ButtonStart": (47, 517, 219, 553),
+        p + "ButtonBack": (581, 517, 753, 553),
+        p + "PanelGame": (537, 85, 753, 511),
+        p + "StaticTextMapPreview": (545, 89, 745, 109),
+        p + "MapWindow": (570, 113, 720, 263),
+        p + "TextEntryMapDisplay": (545, 269, 745, 297),
+        p + "ButtonSelectMap": (545, 303, 745, 327),
+        p + "StartingCashLabel": (545, 335, 645, 355),
+        p + "ComboBoxStartingCash": (649, 335, 745, 355),
+        p + "CheckboxLimitSuperweapons": (545, 361, 745, 381),
+        p + "CheckBoxUseStats": (545, 383, 745, 403),
+        p + "CheckBoxLimitArmies": (545, 405, 745, 425),
+        p + "ListboxInfo": (545, 431, 745, 503),
+    }
+    for i in range(8):
+        top = 111 + i * 24
+        rects[p + f"GenericPing{i}"] = (47, top, 81, top + 20)
+        rects[p + f"StaticTextPlayer{i}"] = (85, top, 225, top + 20)
+        rects[p + f"ComboBoxPlayer{i}"] = (85, top, 225, top + 20)
+        rects[p + f"ComboBoxColor{i}"] = (229, top, 317, top + 20)
+        rects[p + f"ComboBoxPlayerTemplate{i}"] = (321, top, 417, top + 20)
+        rects[p + f"ComboBoxTeam{i}"] = (421, top, 483, top + 20)
+        rects[p + f"ButtonKick{i}"] = (487, top, 507, top + 20)
+        rects[p + f"ButtonBan{i}"] = (511, top, 531, top + 20)
+    return rects
+
+
+# the Generals retail layout has none of the Zero Hour only controls, which the generator adds after the overrides
+_GENERALS_ADDED = {"CheckBoxUseStats", "CheckboxLimitSuperweapons", "CheckBoxLimitArmies", "ComboBoxStartingCash", "StartingCashLabel"}
+
+
+def _welcome_rects(zero_hour):
+    """Layout of the welcome screen: the message box left of the four buttons, the rank card and the army stats grid in a row under
+    both, Main Menu at the Back button position. The Generals stats boxes are not in its retail layout, the generator places them."""
+    p = "WOLWelcomeMenu.wnd:"
+    rects = {
+        p + "InfoListbox": (47, 89, 575, 349),
+        p + "ButtonQuickMatch": (581, 89, 753, 124),
+        p + "ButtonCustomMatch": (581, 132, 753, 167),
+        p + "ButtonMyInfo": (581, 175, 753, 210),
+        p + "ButtonOptions": (581, 218, 753, 253),
+        p + "ButtonBuddies": (581, 261, 753, 296),
+        p + "ButtonBack": (581, 517, 753, 553),
+        p + "PlayerInfoParent": (47, 355, 753, 511),
+        p + "StaticTextRank": (47, 355, 175, 379),
+        p + "RankBorder": (47, 383, 175, 511),
+        p + "RankLine": (47, 509, 175, 510),
+        p + "ProgressBarRank": (47, 487, 175, 511),
+        p + "WinRank": (47, 383, 175, 511),
+    }
+    if not zero_hour:
+        return rects
+    rects.update({
+        p + "FactionImage": (127, 463, 175, 511),
+        p + "StaticTextCommunity": (181, 355, 753, 379),
+        p + "CommunityInfoParent": (181, 383, 753, 511),
+    })
+    armies = (("USA", "AmericaSuperWeaponGeneral", "AmericaLaserGeneral", "AmericaAirForceGeneral"),
+              ("China", "ChinaTankGeneral", "ChinaInfantryGeneral", "ChinaNukeGeneral"),
+              ("GLA", "GLAToxinGeneral", "GLADemolitionGeneral", "GLAStealthGeneral"))
+    for row, names in enumerate(armies):
+        for column, name in enumerate(names):
+            left, top = 187 + 140 * column, 387 + 42 * row
+            rects[p + "Percent" + name] = (left, top, left + 140, top + 36)
+    return rects
+
+
 FIXES = {
     # the game speed slider rect reached 10 units below its row; centred on the row, its label and value box follow it
     "Window/Menus/SkirmishGameOptionsMenu.wnd": {
         "SkirmishGameOptionsMenu.wnd:SliderGameSpeed": (175, 335, 265, 362),
+    },
+    "Window/Menus/GameSpyGameOptionsMenu.wnd": _setup_rects(),
+    "Window/Menus/WOLWelcomeMenu.wnd": _welcome_rects(True),
+    # layout E: the games list runs the full height, the sidebar holds the players or game details panel under their header over the chat under its header, the chat entry and emote sit under the chat
+    "Window/Menus/WOLCustomLobby.wnd": {
+        "WOLCustomLobby.wnd:ParentGameListLarge": (47, 77, 531, 511),
+        "WOLCustomLobby.wnd:ListboxGamesLarge": (47, 97, 531, 511),
+        "WOLCustomLobby.wnd:ListboxPlayers": (537, 91, 753, 315),
+        "WOLCustomLobby.wnd:ListboxChat": (537, 335, 753, 480),
+        "WOLCustomLobby.wnd:TextEntryChat": (537, 486, 717, 511),
+        "WOLCustomLobby.wnd:ButtonEmote": (723, 486, 753, 511),
+        "WOLCustomLobby.wnd:ButtonRefresh": (47, 49, 67, 69),
+        "WOLCustomLobby.wnd:TextEntrySearch": (73, 49, 391, 69),
+        "WOLCustomLobby.wnd:ComboBoxLobbyFilter": (395, 49, 531, 69),
+        "WOLCustomLobby.wnd:ParentGameDetails": (537, 77, 753, 315),
+        "WOLCustomLobby.wnd:StaticTextDetailsName": (545, 93, 749, 109),
+        "WOLCustomLobby.wnd:StaticTextDetailsHost": (545, 111, 749, 125),
+        "WOLCustomLobby.wnd:WindowDetailsMap": (545, 129, 749, 185),
+        "WOLCustomLobby.wnd:StaticTextDetailsMapName": (545, 187, 749, 201),
+        "WOLCustomLobby.wnd:StaticTextDetailsLabelPlayers": (545, 207, 637, 221),
+        "WOLCustomLobby.wnd:StaticTextDetailsValuePlayers": (641, 207, 749, 221),
+        "WOLCustomLobby.wnd:StaticTextDetailsLabelAnticheat": (545, 221, 637, 235),
+        "WOLCustomLobby.wnd:StaticTextDetailsValueAnticheat": (655, 221, 749, 249),
+        "WOLCustomLobby.wnd:StaticTextDetailsLabelCash": (545, 249, 637, 263),
+        "WOLCustomLobby.wnd:StaticTextDetailsValueCash": (641, 249, 749, 263),
+        "WOLCustomLobby.wnd:StaticTextDetailsLabelSuperweapons": (545, 263, 637, 277),
+        "WOLCustomLobby.wnd:StaticTextDetailsValueSuperweapons": (641, 263, 749, 277),
+        "WOLCustomLobby.wnd:StaticTextDetailsLabelStats": (545, 277, 637, 291),
+        "WOLCustomLobby.wnd:StaticTextDetailsValueStats": (641, 277, 749, 291),
+        "WOLCustomLobby.wnd:StaticTextDetailsLabelObservers": (545, 291, 637, 305),
+        "WOLCustomLobby.wnd:StaticTextDetailsValueObservers": (641, 291, 749, 305),
+        "WOLCustomLobby.wnd:WindowDetailsShield": (641, 221, 653, 233),
     },
 }
 
 # the same overrides for the Generals layouts, which start from the Generals retail layouts: its score screen runs 30 units past the ruler,
 # so the chat list shortens and the chat entry and the button row move up inside the frame
 GENERALS_FIXES = {
+    "Window/Menus/WOLWelcomeMenu.wnd": _welcome_rects(False),
+    "Window/Menus/GameSpyGameOptionsMenu.wnd": {k: v for k, v in _setup_rects().items() if k.split(":")[-1] not in _GENERALS_ADDED},
     "Window/Menus/ScoreScreen.wnd": {
         "ScoreScreen.wnd:ListboxChatWindowScoreScreen": (69, 387, 735, 480),
         "ScoreScreen.wnd:TextEntryChat": (68, 488, 696, 513),
@@ -34,11 +147,17 @@ GENERALS_FIXES = {
     },
 }
 
+# the communicator buttons the user section in the ruler strip replaces; they stay in the layouts for the code's lookups but never show
+HIDDEN_WINDOWS = {
+    "Window/Menus/WOLWelcomeMenu.wnd": ("WOLWelcomeMenu.wnd:ButtonBuddies", "WOLWelcomeMenu.wnd:RankLine", "WOLWelcomeMenu.wnd:ProgressBarRank"),
+    "Window/Menus/WOLQuickMatchMenu.wnd": ("WOLQuickMatchMenu.wnd:ButtonBuddies",),
+    "Window/Menus/GameSpyGameOptionsMenu.wnd": ("GameSpyGameOptionsMenu.wnd:ButtonCommunicator",
+                                                *(f"GameSpyGameOptionsMenu.wnd:ButtonAccept{i}" for i in range(8))),
+    "Window/Menus/ScoreScreen.wnd": ("ScoreScreen.wnd:ButtonBuddy",),
+}
+
 # column headings of the game setup screens, left aligned over their player list column or map preview
 HEADINGS = {
-    "Window/Menus/GameSpyGameOptionsMenu.wnd": {
-        "GameSpyGameOptionsMenu.wnd:StaticTextMapPreview": "GameSpyGameOptionsMenu.wnd:MapWindow",
-    },
     "Window/Menus/LanGameOptionsMenu.wnd": {
         "LanGameOptionsMenu.wnd:StaticTextFaction": "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate0",
     },
@@ -65,15 +184,16 @@ BLANK_LAYOUTS = {
 LIST_HEADERS = {
     "Window/Menus/WOLCustomLobby.wnd": {
         "WOLCustomLobby.wnd:ListboxGamesLarge": {
-            # one kit header bar on the list top: filled cells with line colour dividers, empty ones over the icon columns and the scroll bar
+            # one continuous kit header strip on the list top: every cell draws the same fill and bottom line, labelled cells after the first add a faint divider
             "cells": (
                 "WOLCustomLobby.wnd:StaticTextHeaderGame",
                 "WOLCustomLobby.wnd:ButtonHeaderMap",
                 None,  # ladder
                 "WOLCustomLobby.wnd:ButtonHeaderPlayers",
-                "WOLCustomLobby.wnd:StaticTextHeaderLock",  # one empty cell over the lock, observer and ranked icons
+                "WOLCustomLobby.wnd:StaticTextHeaderLock",  # one empty cell over the lock, observer, ranked and anti-cheat icons
                 None,  # observers
                 None,  # ranked
+                None,  # anti-cheat
                 "WOLCustomLobby.wnd:ButtonHeaderPing",
             ),
             "corner": "WOLCustomLobby.wnd:StaticTextHeaderCorner",

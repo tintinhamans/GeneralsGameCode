@@ -73,4 +73,5 @@ enum LobbyGameModeFilter CPP_11(: Int)
     LOBBY_FILTER_FFA,
     LOBBY_FILTER_AOD,
     LOBBY_FILTER_BUDDIES,
+    LOBBY_FILTER_JOINABLE,
 };

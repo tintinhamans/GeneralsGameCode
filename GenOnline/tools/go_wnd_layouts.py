@@ -74,10 +74,15 @@ GenOnline/tools/wnd_sources copy, if any, is only kept for reference. All rects 
   moves to SECTION_GAP under the last row and the panels under it (chat or info and stats) take the space down to
   the next band; rows inside a panel spread evenly over it.
 - Setup row size: the player rows are SETUP_COMBO_HEIGHT tall, ROW_PITCH apart: their combos, entry fields and labels
-  shrink to that height and draw the smaller SETUP_TEMPLATE font (a GO-only header template, its drop-down list too),
+  shrink to that height and draw the SETUP_TEMPLATE font (its drop-down list too),
   smaller controls centre on the row. Every combo box of these screens shows up to SETUP_MAX_DISPLAY rows open (more
   than retail's 5, so the army list opens whole), fewer when the list would pass the screen bottom at
   SETUP_LIST_ROW_UNITS per font point a row; a combo keeps a larger retail value.
+- Online setup (G2): the online game setup screen takes the row, chat and sidebar rects of its wnd_fixes.py entry instead of the setup row
+  layout, keeping only the row fonts and drop-down rows. SETUP_ADDED_WINDOWS copies a few windows of the layout (the Game panel frame, the
+  info block texts and shield) before the overrides so those get rects too.
+- Hidden windows: GenOnline/tools/wnd_fixes.py HIDDEN_WINDOWS names the communicator buttons the ruler user section replaces. They get HIDDEN and stay in
+  the layout for the code's lookups, in both games.
 - Blank layouts: a layout in GenOnline/tools/wnd_fixes.py BLANK_LAYOUTS (the GameSpy login forms GO replaces with its sign-in
   screen) hides every window but the named ones, their ancestors and the visible screen titles: each other window under a
   shown one gets HIDDEN, so the backdrop, frame and title stay. Every window stays in the file for the code's lookups.
@@ -120,7 +125,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from wnd_fixes import BLANK_LAYOUTS, FIXES, GENERALS_FIXES, HEADINGS, LIST_HEADERS  # noqa: E402
+from wnd_fixes import BLANK_LAYOUTS, FIXES, GENERALS_FIXES, HEADINGS, HIDDEN_WINDOWS, LIST_HEADERS  # noqa: E402
 import wnd_yaml  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -214,6 +219,8 @@ SETUP_LAYOUTS = {
     "Window/Menus/LanGameOptionsMenu.wnd",
     "Window/Menus/GameSpyGameOptionsMenu.wnd",
 }
+# layouts whose player rows, chat and sidebar take their rects from wnd_fixes.py FIXES, so setup_rows only applies the row fonts
+SETUP_FIXED_LAYOUTS = {"Window/Menus/GameSpyGameOptionsMenu.wnd"}
 ENGINE_SLOTS = 8           # MAX_SLOTS in Core GameNetwork/NetworkDefs.h; the menus only look up rows below it
 SLOT_ROWS = ENGINE_SLOTS    # player rows the setup screens lay out, 12 once the engine has 12 slots (arctic/go/feat/12-players)
 SHOW_EXTRA_ROWS = False    # rows past ENGINE_SLOTS ship hidden until the engine has more slots; their space stays
@@ -221,8 +228,8 @@ SHOW_EXTRA_ROWS = False    # rows past ENGINE_SLOTS ship hidden until the engine
 SETUP_COMBO_HEIGHT = 22
 ROW_PITCH = SETUP_COMBO_HEIGHT + 2  # top to top distance of the player rows: the SETUP_COMBO_HEIGHT combos and a 2 unit gap
 SETUP_ROW_KINDS = ("COMBOBOX", "ENTRYFIELD", "STATICTEXT")  # row windows that take the row height and font
-SETUP_TEMPLATE = "GOComboBoxEntrySmall"  # GO-only header template of the row text, in Data/GeneralsOnline/HeaderTemplate.ini
-SETUP_FONT = 8             # its point size, also written as the FONT size the template replaces
+SETUP_TEMPLATE = "GOComboBoxEntry"  # header template of the row text, the same as every other menu combo box
+SETUP_FONT = 10            # its point size, also written as the FONT size the template replaces
 SETUP_MAX_DISPLAY = 14     # drop-down rows: Random, the 12 armies and Observer open without scrolling
 SETUP_LIST_ROW_UNITS = 2   # a kit drop-down row is at most this many units tall per font point, 800x600 to 1080p
 SECTION_GAP = 6            # gap between the player rows, the settings row and the panels under them
@@ -306,7 +313,7 @@ GENONLINE_CALLBACK_RE = re.compile(
 # retail header templates; the menu layouts use the GO copies in Data/GeneralsOnline/HeaderTemplate.ini instead,
 # so a mod that replaces Data/<language>/HeaderTemplate.ini cannot resize the GO menus
 GO_TEMPLATE_PREFIX = "GO"
-GO_ONLY_TEMPLATES = {SETUP_TEMPLATE}  # GO header templates without a retail original
+GO_ONLY_TEMPLATES = set()  # GO header templates without a retail original
 RETAIL_TEMPLATES = {
     "Title", "MainButton", "Button", "ButtonSmall", "TextEntry", "ComboBoxEntry", "MinorTitle", "LabelRegular",
     "LabelSmall", "LoadScreenCameos", "LoadScreenMissionLocation", "Arial10BoldTemplate", "Arial12BoldTemplate",
@@ -332,6 +339,27 @@ COLOR_REMAP = {
     (128, 128, 255): (106, 123, 255),
 }
 KIT_LINE = (47, 75, 255)
+# windows the online setup screen adds as copies of its own windows: (new name, template, STATUS flags, [(pattern, replacement)]);
+# the rects come from FIXES. The info list gets its rows from the menu code
+# added windows that load before every sibling, because the engine hit tests the last loaded child first and a frame on top takes the clicks of the controls inside it
+SETUP_BACK_WINDOWS = {"PanelGame"}
+
+SETUP_ADDED_WINDOWS = {
+    "Window/Menus/GameSpyGameOptionsMenu.wnd": (
+        *(("Button" + kind + str(i), "ButtonEmote", "ENABLED+HIDDEN+NOFOCUS", [])
+          for i in range(8) for kind in ("Kick", "Ban")),
+        ("PanelGame", "LINE", "ENABLED+NOINPUT+NOFOCUS",
+         [(r'(^[ \t]*ENABLEDDRAWDATA[ \t]*=[ \t]*IMAGE: NoImage, COLOR: 0 0 0 0, BORDERCOLOR: )\d+ \d+ \d+', r"\g<1>%d %d %d" % KIT_LINE)]),
+        ("ListboxInfo", "ListboxChatWindowGameSpyGameSetup", "ENABLED+NOFOCUS",
+         [(rf"(^[ \t]*{state}DRAWDATA[ \t]*=[ \t]*)IMAGE: BlackSquare, COLOR: 0 0 0 126, BORDERCOLOR: \d+ \d+ \d+ 255",
+           r"\g<1>IMAGE: NoImage, COLOR: 0 0 0 0, BORDERCOLOR: 0 0 0 0") for state in ("ENABLED", "DISABLED", "HILITE")] +
+         [(r"IMAGE: ListBoxHiliteItemLeftEnd,", "IMAGE: NoImage,"),
+          (r"IMAGE: ListBoxHiliteSelectedItemLeftEnd,", "IMAGE: NoImage,"),
+          (r"SCROLLIFATEND: 1", "SCROLLIFATEND: 0"),
+          (r"AUTOPURGE: 1", "AUTOPURGE: 0"),
+          (r"COLUMNS: 1,", "COLUMNS: 3,\n                    COLUMNSWIDTH: 38,\n                    COLUMNSWIDTH: 9,\n                    COLUMNSWIDTH: 53,")]),
+    ),
+}
 
 # kit colours of the menu colour fixes (kit_colors), the colours of the kit art (GenOnline/tools/go_ui_kit.py BUTTON_STATES)
 KIT_HILITE = (106, 123, 255)
@@ -1665,6 +1693,32 @@ def _clone_slot(text, win, index, rect, hidden):
     return block + indent + "CHILD" + newline
 
 
+def add_setup_windows(text, name):
+    """The layout with the windows of SETUP_ADDED_WINDOWS added as copies of their template windows."""
+    for new, template, status, subs in SETUP_ADDED_WINDOWS.get(name, ()):
+        root = parse_windows(text)
+        win = next(w for w in root.walk() if w.name.split(":")[-1] == template)
+        start, end = win.block
+        block = text[start:end].replace(f'"{win.name}"', f'"{win.name.rsplit(":", 1)[0]}:{new}"', 1)
+        for pattern, replacement in subs:
+            block, count = re.subn(pattern, replacement, block, count=1, flags=re.M)
+            if count != 1:
+                raise ValueError(f"{name}: {new}: {pattern} does not match the {template} block")
+        flags = STATUS_LINE_RE.search(block)
+        block = block[:flags.start("flags")] + status + block[flags.end("flags"):]
+        indent = re.match(r"[ \t]*", block).group(0)
+        newline = "\r\n" if block.endswith("\r\n") else "\n"
+        child = text.rfind("\n", 0, start - 1) + 1
+        if text[child:start].strip() != "CHILD":
+            raise ValueError(f"{name}: {template} is not a CHILD of its parent")
+        at = start
+        if new in SETUP_BACK_WINDOWS:
+            parent = next(w for w in root.walk() if win in w.children)
+            at = parent.children[0].block[0]
+        text = text[:at] + block + indent + "CHILD" + newline + text[at:]
+    return text
+
+
 def setup_rows(text, name):
     """Lay out SLOT_ROWS player rows on a game setup screen and move the sections below them under the last row.
 
@@ -1674,6 +1728,8 @@ def setup_rows(text, name):
     """
     if name not in SETUP_LAYOUTS:
         return text
+    if name in SETUP_FIXED_LAYOUTS:
+        return _setup_fonts(text, name)
     root = parse_windows(text)
     slots = {}
     for win in root.walk():
@@ -1823,16 +1879,63 @@ def blank_layout(text, name):
     return text
 
 
+def hide_windows(text, name):
+    """The layout with the windows of HIDDEN_WINDOWS marked HIDDEN, for every game."""
+    names = HIDDEN_WINDOWS.get(name) if name else None
+    if not names:
+        return text
+    by_name = _named(parse_windows(text), dict.fromkeys(names))
+    edits = []
+    for window_name in names:
+        win = by_name[window_name]
+        if "HIDDEN" in win.status:
+            continue
+        start, end = win.block
+        first_child = min((c.block[0] for c in win.children), default=end)
+        m = STATUS_LINE_RE.search(text, start, first_child)
+        if m is None:
+            raise ValueError(f"{name}: {window_name} has no STATUS to hide")
+        flags = [f.strip() for f in m["flags"].split("+") if f.strip()]
+        flags.insert(1 if flags[:1] == ["ENABLED"] else 0, "HIDDEN")
+        edits.append((m.span("flags"), "+".join(flags)))
+    for (start, end), value in sorted(edits, reverse=True):
+        text = text[:start] + value + text[end:]
+    return text
+
+
+STAT_LABEL_RE = re.compile(r"WOLWelcomeMenu\.wnd:Percent\w+")
+STAT_FONT_RE = re.compile(r'(?m)^([ 	]*FONT[ 	]*=[ 	]*NAME:[ 	]*"Arial",[ 	]*SIZE:[ 	]*)\d+(,[ 	]*BOLD:[ 	]*)\d+')
+STAT_TEMPLATE = "GOLabelRegular"
+LABEL_FONT = 10            # point size of the GOLabelRegular template
+
+
+def welcome_stat_labels(text, name):
+    """The welcome menu with the army win percentages in the regular 10 point label type instead of 12 point bold."""
+    if name is None or name.lower() != "window/menus/wolwelcomemenu.wnd":
+        return text
+    edits = []
+    for win in parse_windows(text).walk():
+        if not STAT_LABEL_RE.fullmatch(win.name):
+            continue
+        start, end = win.block
+        block = STAT_FONT_RE.sub(lambda m: f"{m.group(1)}{LABEL_FONT}{m.group(2)}0", text[start:end], count=1)
+        block = HEADER_RE.sub(lambda m: m.group("lead") + STAT_TEMPLATE, block, count=1)
+        edits.append((start, end, block))
+    for start, end, block in sorted(edits, reverse=True):
+        text = text[:start] + block + text[end:]
+    return text
+
+
 def finish(text, name):
     """The fixes after alignment: combo heights, GO header templates, hover images, map preview frames, button groups,
-    the game setup rows, the kit colours and the blank layouts."""
+    the game setup rows, the kit colours, the blank layouts and the hidden windows."""
     text = button_group_borders(map_preview_borders(hilite_images(go_templates(compact_combos(text, name), name))))
-    return blank_layout(kit_colors(setup_rows(text, name), name), name)
+    return hide_windows(blank_layout(kit_colors(setup_rows(welcome_stat_labels(text, name), name), name), name), name)
 
 
 def transform(text, notes=None, name=None):
     """Apply the kit colours, the alignment rules and the GO header templates for the layout at archive path name."""
-    out, info = align(remap_colors(text), name)
+    out, info = align(add_setup_windows(remap_colors(text), name), name)
     out = finish(out, name)
     if notes is not None:
         notes.extend(info["notes"])
@@ -1918,7 +2021,7 @@ def build(retail, game="zerohour"):
             continue
         if game == "generals":
             try:
-                out, info = align(remap_colors(text), name)
+                out, info = align(add_setup_windows(remap_colors(text), name), name)
                 out = finish(out, name)
                 if name.lower() == "window/menus/wolwelcomemenu.wnd":
                     out = generals_community_panel(out)
@@ -1928,7 +2031,7 @@ def build(retail, game="zerohour"):
             except (ValueError, KeyError, IndexError) as error:
                 GENERALS_FAILURES.append((name, str(error)))
             continue
-        out, info = align(remap_colors(text), name)
+        out, info = align(add_setup_windows(remap_colors(text), name), name)
         results.append((name, text, finish(out, name), info))
     return [genonline_copy(r) for r in results]
 
@@ -2037,8 +2140,9 @@ def write_review(results, path=REVIEW):
 # into the Percent<Side> check boxes from the global stats. The Generals retail layout only has inert winner texts there, so the build
 # takes the check boxes and the heading from the Zero Hour GenOnline layout and swaps the Zero Hour faction images for the Generals logos.
 COMMUNITY_LOGOS = {"USA_Logo": "SAFactionLogo96_US", "China_Logo": "SNFactionLogo96_China", "GLA_Logo": "SUFactionLogo96_GLA"}
-COMMUNITY_BOX_LEFT = {"PercentUSA": 276, "PercentChina": 412, "PercentGLA": 548}  # 104 wide boxes spread over the panel
-COMMUNITY_BOX_TOP, COMMUNITY_BOX_SIZE = 415, (104, 40)
+COMMUNITY_BOX_LEFT = {"PercentUSA": 187, "PercentChina": 373, "PercentGLA": 559}  # one row of three boxes centred in the panel
+COMMUNITY_BOX_TOP, COMMUNITY_BOX_SIZE = 429, (186, 36)
+COMMUNITY_HEADING_RECT, COMMUNITY_PANEL_RECT = (181, 355, 753, 379), (181, 383, 753, 511)  # as the Zero Hour layout of wnd_fixes.py
 COMMUNITY_INERT_RE = re.compile(r"StaticText(USA|China|GLA|Winners)(Today|LastWeek)")
 SCREENRECT_RE = re.compile(r"(SCREENRECT[ 	]*=[ 	]*UPPERLEFT:[ 	]*)-?\d+([ 	]+)-?\d+([ 	]*,\s*BOTTOMRIGHT:[ 	]*)-?\d+([ 	]+)-?\d+")
 
@@ -2053,7 +2157,7 @@ def generals_community_panel(text):
     zero_windows = {w.name.split(":")[-1]: w for w in parse_windows(zero_hour).walk()}
     root = parse_windows(text)
     inert = sorted((w for w in root.walk() if COMMUNITY_INERT_RE.fullmatch(w.name.split(":")[-1])), key=lambda w: w.block[0])
-    heading = next((w for w in root.walk() if w.kind == "STATICTEXT" and not w.name.split(":")[-1] and w.rect[:2] == (245, 333)), None)
+    heading = next((w for w in root.walk() if w.kind == "STATICTEXT" and not w.name.split(":")[-1]), None)
     if not inert or heading is None:
         raise ValueError("the Generals welcome menu has no winner texts to replace")
 
@@ -2075,7 +2179,10 @@ def generals_community_panel(text):
     title = zero_hour[zero_windows["StaticTextCommunity"].block[0]:zero_windows["StaticTextCommunity"].block[1]]
     edits = [(child_line_start(w), w.block[1], "") for w in inert]
     edits[0] = (edits[0][0], inert[0].block[1], "".join(boxes))
-    edits.append((heading.block[0], heading.block[1], with_rect(title, (245, 333, 683, 361))))
+    edits.append((heading.block[0], heading.block[1], with_rect(title, COMMUNITY_HEADING_RECT)))
+    panel = inert[0].parent
+    panel_rect = SCREENRECT_RE.search(text, panel.block[0])
+    edits.append((panel_rect.start(), panel_rect.end(), with_rect(panel_rect.group(0), COMMUNITY_PANEL_RECT)))
     for start, end, replacement in sorted(edits, reverse=True):
         text = text[:start] + replacement + text[end:]
     return text
@@ -2086,10 +2193,10 @@ def generals_community_panel(text):
 # the windows from the Zero Hour GenOnline layout: retail layout -> (that layout file, the parent window, {control: rect or None to keep}).
 GENERALS_CONTROLS = {
     "window/menus/gamespygameoptionsmenu.wnd": ("GenOnlineGameOptionsMenu.wnd", "FadeParent", {
-        "CheckBoxUseStats": None, "CheckboxLimitSuperweapons": None, "CheckBoxLimitArmies": None,
-        "ComboBoxStartingCash": None, "StartingCashLabel": (237, 305, 333, 327)}),
+        "CheckBoxUseStats": (545, 335, 745, 355), "CheckboxLimitSuperweapons": None, "CheckBoxLimitArmies": None,
+        "ComboBoxStartingCash": None, "StartingCashLabel": (545, 335, 645, 355)}),
     "window/menus/popuphostgame.wnd": ("GenOnlinePopupHostGame.wnd", "ParentHostPopUp", {
-        "CheckBoxUseStats": (238, 272, 398, 296), "CheckBoxLimitArmies": None}),
+        "CheckBoxUseStats": (238, 272, 398, 296), "CheckBoxLimitArmies": None, "CheckBoxRequireEac": (404, 272, 560, 296)}),
 }
 
 
