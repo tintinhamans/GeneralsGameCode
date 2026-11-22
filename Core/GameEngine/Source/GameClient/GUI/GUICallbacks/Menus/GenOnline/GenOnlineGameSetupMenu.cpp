@@ -29,7 +29,9 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include "GameClient/GenOnlineChatWrap.h"
 #include "GameClient/GenOnlineMenus.h"
+#include "GameClient/GenOnlineUserSection.h"
 
 #include "Common/GameEngine.h"
 #include "Common/GOUIColors.h"
@@ -56,6 +58,7 @@
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/GadgetCheckBox.h"
 #include "GameClient/MapUtil.h"
+#include "GameClient/MessageBox.h"
 #include "GameClient/EstablishConnectionsMenu.h"
 #include "GameClient/GameWindowTransitions.h"
 #include "GameNetwork/GameSpy/LobbyUtils.h"
@@ -76,6 +79,8 @@
 #include <format>
 #include <cmath>
 #include "GameNetwork/GenOnline/GenOnlineInit.h"
+#include "GameNetwork/GenOnline/GenOnlineAnticheatKind.h"
+#include "GameClient/Image.h"
 #include "GameLogic/GameLogic.h"
 GenOnlineGame* TheGenOnlineGame = NULL;
 
@@ -219,13 +224,43 @@ static GameWindow *buttonMapStartPosition[MAX_SLOTS] = {NULL,NULL,NULL,NULL,
 static GameWindow *genericPingWindow[MAX_SLOTS] = {NULL,NULL,NULL,NULL,
 																								NULL,NULL,NULL,NULL };
 
+static NameKeyType kickButtonID[MAX_SLOTS];
+static NameKeyType banButtonID[MAX_SLOTS];
+static GameWindow *kickButton[MAX_SLOTS] = {NULL,NULL,NULL,NULL,
+																								NULL,NULL,NULL,NULL };
+static GameWindow *banButton[MAX_SLOTS] = {NULL,NULL,NULL,NULL,
+																								NULL,NULL,NULL,NULL };
+static int64_t pendingBanUserID = 0;
+
 // Connection indicator per slot: 0..4 is the signal level (1..5 bars), negative values are special states.
 enum
 {
 	CONNECTION_INDICATOR_CONNECTING = -1,
 	CONNECTION_INDICATOR_WARNING = -2,
+	CONNECTION_INDICATOR_NONE = -3,
 };
 static Int connectionIndicatorState[MAX_SLOTS];
+
+// GenOnline @feature arcticdolphin 22/11/2026 The ping window of a row is its icon cell, framed green when the player is ready.
+struct IconCellState
+{
+	Bool human;
+	Bool ready;
+};
+static IconCellState iconCellState[MAX_SLOTS];
+static const Image *iconCellShield = nullptr;
+static GameWindow *listboxInfo = nullptr;
+static const Int INFO_ROW_READY = 1;
+static const Int INFO_COLUMN_LABEL = 0;
+static const Int INFO_COLUMN_ICON = 1;
+static const Int INFO_COLUMN_VALUE = 2;
+static const Int INFO_ICON_EXTENT = 14;
+
+// GenOnline @feature arcticdolphin 22/11/2026 The Game panel info rows are a scrollable list that is rewritten in place.
+static void setInfoCell(Int row, Int column, const UnicodeString &text, Color color)
+{
+	GadgetListBoxAddEntryText(listboxInfo, text, color, row, column);
+}
 
 WindowLayout *GenOnlineMapSelectLayout = NULL;
 
@@ -576,7 +611,7 @@ static void playerTooltip(GameWindow *window,
 				//if (TheGameSpyInfo->getBuddyMap()->find(profileID) != TheGameSpyInfo->getBuddyMap()->end())
 				{
 					// buddy
-					tooltip.format(TheGameText->fetch("TOOLTIP:BuddyPlayer"), uName.str());
+					tooltip.format(TheGameText->FETCH_OR_SUBSTITUTE("TOOLTIP:GOFriendPlayer", L"Your friend %s"), uName.str());
 				}
 				else
 				{
@@ -642,6 +677,15 @@ void GenOnlinePingTooltip(GameWindow *window, WinInstanceData *instData, Unsigne
 	window->winGetScreenPosition(&winPosX, &winPosY);
 
 	window->winGetSize(&winWidth, &winHeight);
+
+	// GenOnline @feature arcticdolphin 22/11/2026 Cells without a connection to show give no tooltip.
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		if (genericPingWindow[i] == window && connectionIndicatorState[i] == CONNECTION_INDICATOR_NONE)
+		{
+			return;
+		}
+	}
 
 	if ((x > winPosX && x < (winPosX + winWidth)) && (y > winPosY && y < (winPosY + winHeight)))
 	{
@@ -1502,18 +1546,17 @@ static void WOLRefreshConnectionIndicators(void)
     for (Int i = 0; i < MAX_SLOTS; ++i)
     {
         GenOnlineGameSlot* slot = game->getGameSpySlot(i);
-        if (slot == nullptr || !slot->isHuman() || i == game->getLocalSlotNum())
+        const Bool human = slot != nullptr && slot->isHuman();
+        iconCellState[i].human = human;
+        iconCellState[i].ready = human && slot->isAccepted();
+        if (!human || i == game->getLocalSlotNum())
         {
-            if (genericPingWindow[i])
-                genericPingWindow[i]->winHide(TRUE);
-            connectionIndicatorState[i] = CONNECTION_INDICATOR_CONNECTING;
+            connectionIndicatorState[i] = CONNECTION_INDICATOR_NONE;
             continue;
         }
 
         if (genericPingWindow[i] == nullptr)
             continue;
-
-        genericPingWindow[i]->winHide(FALSE);
 
         EConnectionState connectionState = EConnectionState::NOT_CONNECTED;
         int connectionBars = -1;
@@ -1561,11 +1604,35 @@ static void WOLConnectionIndicatorDraw(GameWindow *window, WinInstanceData *inst
     window->winGetScreenPosition(&x, &y);
     window->winGetSize(&width, &height);
 
-    const Int size = (Int)(min(width, height) * 0.7f);
-    const Int left = x + (width - size) / 2;
+    // GenOnline @feature arcticdolphin 22/11/2026 The cell frame is green and thicker when the player is ready.
+    const IconCellState &cell = iconCellState[slot];
+    const Int frameWidth = cell.ready ? (std::max)(2, GameWindowManager::winScaleLayoutSize(2)) : (std::max)(1, GameWindowManager::winScaleLayoutSize(1));
+    Color frameColor = GameMakeColor(74, 78, 110, 255);
+    if (cell.ready)
+        frameColor = GOUIColor(GOUICOLOR_SUCCESS, GameMakeColor(56, 224, 122, 255));
+    else if (cell.human)
+        frameColor = GOUIColor(GOUICOLOR_LINE, GameMakeColor(47, 75, 255, 255));
+    TheWindowManager->winFillRect(frameColor, 1.0f, x, y, x + width, y + frameWidth);
+    TheWindowManager->winFillRect(frameColor, 1.0f, x, y + height - frameWidth, x + width, y + height);
+    TheWindowManager->winFillRect(frameColor, 1.0f, x, y + frameWidth, x + frameWidth, y + height - frameWidth);
+    TheWindowManager->winFillRect(frameColor, 1.0f, x + width - frameWidth, y + frameWidth, x + width, y + height - frameWidth);
+
+    if (!cell.human)
+        return;
+
+    // The shield and the bars sit at fixed spots, so nothing moves when the state of a player changes.
+    const Int size = (Int)(height * 0.6f);
+    const Int gap = (width - 2 * size) / 3;
+    const Int left = x + 2 * gap + size;
     const Int top = y + (height - size) / 2;
     const Real centerX = left + size * 0.5f;
     const Int state = connectionIndicatorState[slot];
+
+    if (iconCellShield != nullptr)
+        TheDisplay->drawImage(iconCellShield, x + gap, top, x + gap + size, top + size);
+
+    if (state == CONNECTION_INDICATOR_NONE)
+        return;
 
     if (state == CONNECTION_INDICATOR_CONNECTING)
     {
@@ -1590,6 +1657,172 @@ static void WOLConnectionIndicatorDraw(GameWindow *window, WinInstanceData *inst
     }
 }
 
+static void RowButtonTooltip(GameWindow *window, WinInstanceData *instData, UnsignedInt mouse)
+{
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		if (kickButton[i] == window)
+		{
+			TheMouse->setCursorTooltip(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSetupKickTooltip", L"Kick: opens the slot"), -1, NULL);
+			return;
+		}
+		if (banButton[i] == window)
+		{
+			TheMouse->setCursorTooltip(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSetupBanTooltip", L"Ban: removes the player and blocks them from rejoining this game"), -1, NULL);
+			return;
+		}
+	}
+}
+
+static void RowButtonDraw(GameWindow *window, WinInstanceData *instData)
+{
+	Bool isBan = FALSE;
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		if (banButton[i] == window)
+			isBan = TRUE;
+	}
+
+	ScopedDisplayBatch batch;
+
+	Int x, y, width, height;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&width, &height);
+
+	const Bool hovered = BitIsSet(instData->getState(), WIN_STATE_HILITED);
+	const Color color = hovered ? GameMakeColor(255, 255, 255, 255) : GOUIColor(GOUICOLOR_LINE, GameMakeColor(47, 75, 255, 255));
+	const Int frameWidth = (std::max)(1, GameWindowManager::winScaleLayoutSize(1));
+	TheWindowManager->winFillRect(color, 1.0f, x, y, x + width, y + frameWidth);
+	TheWindowManager->winFillRect(color, 1.0f, x, y + height - frameWidth, x + width, y + height);
+	TheWindowManager->winFillRect(color, 1.0f, x, y + frameWidth, x + frameWidth, y + height - frameWidth);
+	TheWindowManager->winFillRect(color, 1.0f, x + width - frameWidth, y + frameWidth, x + width, y + height - frameWidth);
+
+	const Real centerX = x + width * 0.5f;
+	const Real centerY = y + height * 0.5f;
+	const Real radius = (std::min)(width, height) * 0.28f;
+	const Real thickness = 1.5f;
+	if (!isBan)
+	{
+		TheDisplay->drawLine((Int)(centerX - radius), (Int)(centerY - radius), (Int)(centerX + radius), (Int)(centerY + radius), thickness, color);
+		TheDisplay->drawLine((Int)(centerX - radius), (Int)(centerY + radius), (Int)(centerX + radius), (Int)(centerY - radius), thickness, color);
+		return;
+	}
+
+	const Int segments = 16;
+	for (Int s = 0; s < segments; ++s)
+	{
+		const Real a0 = 6.2831853f * s / segments;
+		const Real a1 = 6.2831853f * (s + 1) / segments;
+		TheDisplay->drawLine((Int)(centerX + radius * cosf(a0)), (Int)(centerY + radius * sinf(a0)),
+			(Int)(centerX + radius * cosf(a1)), (Int)(centerY + radius * sinf(a1)), thickness, color);
+	}
+	const Real slash = radius * 0.7071f;
+	TheDisplay->drawLine((Int)(centerX - slash), (Int)(centerY + slash), (Int)(centerX + slash), (Int)(centerY - slash), thickness, color);
+}
+
+static void updateRowButtons(GenOnlineGame *game, Bool isHost)
+{
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		GenOnlineGameSlot *slot = game->getGameSpySlot(i);
+		const Bool show = isHost && i != game->getLocalSlotNum() && slot != nullptr && slot->isHuman();
+		if (kickButton[i] != nullptr)
+			kickButton[i]->winHide(!show);
+		if (banButton[i] != nullptr)
+			banButton[i]->winHide(!show);
+	}
+}
+
+static void removeSlotPlayer(Int slotIndex, Bool ban)
+{
+	GenOnlineLobbyInterface *pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	GenOnlineGame *game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+	if (game == nullptr || !pLobbyInterface->IsHost() || slotIndex == game->getLocalSlotNum())
+		return;
+
+	GenOnlineGameSlot *slot = game->getGameSpySlot(slotIndex);
+	if (slot == nullptr || !slot->isHuman())
+		return;
+
+	if (ban)
+		pLobbyInterface->UpdateCurrentLobby_BanUser(slot->m_userID, slot->getName());
+	else
+		pLobbyInterface->UpdateCurrentLobby_KickUser(slot->m_userID, slot->getName());
+	pLobbyInterface->UpdateCurrentLobby_SetSlotState(slotIndex, SLOT_OPEN);
+	slot->setState(SLOT_OPEN);
+	game->resetAccepted();
+	GenOnlineDisplaySlotList();
+}
+
+static void banConfirmed()
+{
+	GenOnlineLobbyInterface *pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	GenOnlineGame *game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+	if (game == nullptr)
+		return;
+
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		GenOnlineGameSlot *slot = game->getGameSpySlot(i);
+		if (slot != nullptr && slot->isHuman() && slot->m_userID == pendingBanUserID)
+		{
+			removeSlotPlayer(i, TRUE);
+			return;
+		}
+	}
+}
+
+static Bool handleRowButton(Int controlID)
+{
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		if (controlID == kickButtonID[i])
+		{
+			removeSlotPlayer(i, FALSE);
+			return TRUE;
+		}
+		if (controlID == banButtonID[i])
+		{
+			GenOnlineLobbyInterface *pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+			GenOnlineGame *game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+			GenOnlineGameSlot *slot = game == nullptr ? nullptr : game->getGameSpySlot(i);
+			if (slot == nullptr || !slot->isHuman())
+				return TRUE;
+
+			pendingBanUserID = slot->m_userID;
+			UnicodeString body = TheGameText->FETCH_OR_SUBSTITUTE_FORMAT("GUI:GOSetupBanConfirm", L"Ban %ls from this game?", slot->getName().str());
+			MessageBoxYesNo(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSetupBanTitle", L"Ban Player"), body, banConfirmed, nullptr);
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+static void updateReadyInfo(GenOnlineGame *game)
+{
+	Int humans = 0;
+	Int ready = 0;
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		GenOnlineGameSlot *slot = game->getGameSpySlot(i);
+		if (slot != nullptr && slot->isHuman())
+		{
+			++humans;
+			if (slot->isAccepted())
+			{
+				++ready;
+			}
+		}
+	}
+
+	if (listboxInfo != nullptr && GadgetListBoxGetNumEntries(listboxInfo) > INFO_ROW_READY)
+	{
+		UnicodeString text;
+		text.format(L"%d / %d", ready, humans);
+		setInfoCell(INFO_ROW_READY, INFO_COLUMN_VALUE, text, GameMakeColor(254, 254, 254, 255));
+	}
+}
+
 void GenOnlineDisplaySlotList(void)
 {
     // TODO_GENONLINE
@@ -1605,6 +1838,17 @@ void GenOnlineDisplaySlotList(void)
 
     UpdateSlotList(game, comboBoxPlayer, comboBoxColor,
         comboBoxPlayerTemplate, comboBoxTeam, buttonAccept, buttonStart, buttonMapStartPosition);
+
+    // GenOnline @feature arcticdolphin 22/11/2026 The frame of the icon cell shows who is ready, so the accept markers stay hidden.
+    for (Int i = 0; i < MAX_SLOTS; ++i)
+    {
+        if (buttonAccept[i] != nullptr)
+        {
+            buttonAccept[i]->winHide(TRUE);
+        }
+    }
+    updateReadyInfo(game);
+    updateRowButtons(game, pLobbyInterface->IsHost());
 
     GenOnlineDisplayGameOptions();
 
@@ -1758,6 +2002,41 @@ void GenOnlineInitGameGadgets()
 		GadgetStaticTextSetText(staticTextTitle, theGameInfo->getGameName());
 	}
 
+	// GenOnline @feature arcticdolphin 22/11/2026 The Game panel header and its info block replace the title shield.
+	{
+		const EAnticheatKind kind = ParseAnticheatKind(pLobbyInterface->GetCurrentLobby().anticheat);
+		const Image *shieldImage = kind == EAnticheatKind::Eac ? TheMappedImageCollection->findImageByName(AnticheatKindImageName(kind, false)) : nullptr;
+		iconCellShield = shieldImage;
+		auto findInfo = [](const char *name)
+		{
+			AsciiString full;
+			full.format("GameSpyGameOptionsMenu.wnd:%s", name);
+			return TheWindowManager->winGetWindowFromId(parentWOLGameSetup, TheNameKeyGenerator->nameToKey(full));
+		};
+		auto setInfo = [](GameWindow *window, const UnicodeString &text)
+		{
+			if (window != nullptr)
+			{
+				GadgetStaticTextSetText(window, text);
+			}
+		};
+		setInfo(findInfo("StaticTextMapPreview"), TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineSetupGame", L"Game"));
+		listboxInfo = findInfo("ListboxInfo");
+		if (listboxInfo != nullptr && GadgetListBoxGetNumEntries(listboxInfo) == 0)
+		{
+			const Color labelColor = GameMakeColor(170, 178, 205, 255);
+			const Color valueColor = GameMakeColor(254, 254, 254, 255);
+			const Int anticheatRow = GadgetListBoxAddEntryText(listboxInfo, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineSetupAnticheat", L"Anti-cheat"), labelColor, -1, INFO_COLUMN_LABEL);
+			if (shieldImage != nullptr)
+			{
+				GadgetListBoxAddEntryImage(listboxInfo, shieldImage, anticheatRow, INFO_COLUMN_ICON, INFO_ICON_EXTENT, INFO_ICON_EXTENT);
+			}
+			setInfoCell(anticheatRow, INFO_COLUMN_VALUE, kind == EAnticheatKind::Eac ? AnticheatKindText(kind) : UnicodeString(L"Not required"), valueColor);
+			const Int readyRow = GadgetListBoxAddEntryText(listboxInfo, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineSetupReady", L"Ready"), labelColor, -1, INFO_COLUMN_LABEL);
+			setInfoCell(readyRow, INFO_COLUMN_VALUE, UnicodeString(L" "), valueColor);
+		}
+	}
+
 	if (!theGameInfo)
 	{
 		DEBUG_CRASH(("No staging room!"));
@@ -1839,6 +2118,22 @@ void GenOnlineInitGameGadgets()
 		genericPingWindow[i]->winSetTooltipFunc(GenOnlinePingTooltip);
 		genericPingWindow[i]->winSetDrawFunc(WOLConnectionIndicatorDraw);
 
+		tmpString.format("GameSpyGameOptionsMenu.wnd:ButtonKick%d", i);
+		kickButtonID[i] = TheNameKeyGenerator->nameToKey( tmpString );
+		kickButton[i] = TheWindowManager->winGetWindowFromId( parentWOLGameSetup, kickButtonID[i] );
+		DEBUG_ASSERTCRASH(kickButton[i], ("Could not find the kickButton[%d]",i ));
+		kickButton[i]->winSetTooltipFunc(RowButtonTooltip);
+		kickButton[i]->winSetDrawFunc(RowButtonDraw);
+		kickButton[i]->winHide(TRUE);
+
+		tmpString.format("GameSpyGameOptionsMenu.wnd:ButtonBan%d", i);
+		banButtonID[i] = TheNameKeyGenerator->nameToKey( tmpString );
+		banButton[i] = TheWindowManager->winGetWindowFromId( parentWOLGameSetup, banButtonID[i] );
+		DEBUG_ASSERTCRASH(banButton[i], ("Could not find the banButton[%d]",i ));
+		banButton[i]->winSetTooltipFunc(RowButtonTooltip);
+		banButton[i]->winSetDrawFunc(RowButtonDraw);
+		banButton[i]->winHide(TRUE);
+
 //		tmpString.format("GameSpyGameOptionsMenu.wnd:ButtonStartPosition%d", i);
 //		buttonStartPositionID[i] = TheNameKeyGenerator->nameToKey( tmpString );
 //		buttonStartPosition[i] = TheWindowManager->winGetWindowFromId( parentWOLGameSetup, buttonStartPositionID[i] );
@@ -1877,6 +2172,9 @@ void GenOnlineInitGameGadgets()
 
 void GenOnlineDeinitGameGadgets()
 {
+	// The layout destroys these windows.
+	listboxInfo = nullptr;
+	iconCellShield = nullptr;
 	parentWOLGameSetup = nullptr;
 	buttonChat = nullptr;
 	buttonSelectMap = nullptr;
@@ -1906,6 +2204,8 @@ void GenOnlineDeinitGameGadgets()
 //		buttonStartPosition[i] = NULL;
 		buttonMapStartPosition[i] = NULL;
 		genericPingWindow[i] = NULL;
+		kickButton[i] = NULL;
+		banButton[i] = NULL;
 	}
 }
 
@@ -1917,7 +2217,8 @@ Bool GenOnlineInitialAcceptEnable = FALSE;
 // A lobby chat line keeps its key as item data, so a MessageDelete can find and remove it.
 static void AddLobbyChatMessageLine(UnicodeString strMessage, Color color, uint32_t key)
 {
-	const Int row = GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, strMessage, color, -1, -1);
+	// GenOnline @bugfix arcticdolphin 22/11/2026 A word wider than the chat list is broken so the line wraps fully.
+	const Int row = GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, GenOnlineBreakLongWords(GenOnlineListboxGameSetupChat, strMessage), color, -1, -1);
 	if (row >= 0)
 	{
 		GadgetListBoxSetItemData(GenOnlineListboxGameSetupChat, reinterpret_cast<void*>(static_cast<uintptr_t>(key)), row, 0);
@@ -2390,6 +2691,17 @@ void GenOnlineGameSetupMenuInit( WindowLayout *layout, void *userData )
 		}
 	}
 
+	// A player running Easy Anti-Cheat learns when the joined game lets in players without it.
+	if (pLobbyInterface != nullptr && !pLobbyInterface->IsHost() && LocalAnticheatKind() == EAnticheatKind::Eac
+		&& ParseAnticheatKind(pLobbyInterface->GetCurrentLobby().anticheat) != EAnticheatKind::Eac)
+	{
+		GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat,
+			TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOEacNotRequired", L"Easy Anti-Cheat is not required in this game. Other players may not be running it."),
+			GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
+	}
+
+	GenOnlineUserSectionShow(parentWOLGameSetup);
+
     // Update the communicator button anytime we get notifications
     GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
     if (pSocialInterface != nullptr)
@@ -2470,6 +2782,7 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void GenOnlineGameSetupMenuShutdown( WindowLayout *layout, void *userData )
 {
+	GenOnlineUserSectionHide();
 	s_gameSetupMenuOpen = FALSE;
 	GenOnlineCloseRightClickMenus();
 	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
@@ -3412,6 +3725,9 @@ WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, UnsignedI
 				GameWindow *control = (GameWindow *)mData1;
 				Int controlID = control->winGetWindowId();
 				static int buttonCommunicatorID = NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator");
+
+				if (handleRowButton(controlID))
+					break;
 
 				if ( controlID == buttonBackID )
 				{

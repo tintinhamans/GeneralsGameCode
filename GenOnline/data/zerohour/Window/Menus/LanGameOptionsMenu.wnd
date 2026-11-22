@@ -1427,8 +1427,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -1668,8 +1668,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -1909,8 +1909,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -2150,8 +2150,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -2391,8 +2391,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -2632,8 +2632,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -2873,8 +2873,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -3114,8 +3114,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -3404,8 +3404,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -3645,8 +3645,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -3886,8 +3886,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -4127,8 +4127,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -4368,8 +4368,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -4609,8 +4609,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -4850,8 +4850,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -5091,8 +5091,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -5381,8 +5381,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -5622,8 +5622,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -5863,8 +5863,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -6104,8 +6104,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -6345,8 +6345,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -6586,8 +6586,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -6827,8 +6827,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -7068,8 +7068,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -7358,8 +7358,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 191 190 189 255, DISABLEDBORDER: 64 64 64 255,
@@ -7599,8 +7599,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 191 190 189 255, DISABLEDBORDER: 64 64 64 255,
@@ -7840,8 +7840,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 191 190 189 255, DISABLEDBORDER: 64 64 64 255,
@@ -8081,8 +8081,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 191 190 189 255, DISABLEDBORDER: 64 64 64 255,
@@ -8322,8 +8322,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 191 190 189 255, DISABLEDBORDER: 64 64 64 255,
@@ -8563,8 +8563,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 191 190 189 255, DISABLEDBORDER: 64 64 64 255,
@@ -8804,8 +8804,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 191 190 189 255, DISABLEDBORDER: 64 64 64 255,
@@ -9045,8 +9045,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 191 190 189 255, DISABLEDBORDER: 64 64 64 255,
