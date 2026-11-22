@@ -77,6 +77,7 @@
 #include "GameNetwork/GenOnline/GenOnlineDefines.h"
 #include "GameNetwork/GenOnline/GenOnlineInit.h"
 #include "GameNetwork/GenOnline/GenOnlineLobbyInterface.h"
+#include "GameNetwork/GenOnline/GenOnlineAnticheatKind.h"
 #include "GameNetwork/GenOnline/GenOnlineAuth.h"
 #include "GameClient/MapUtil.h"
 #include "GameClient/GameWindow.h"
@@ -97,6 +98,7 @@ static NameKeyType comboBoxLadderNameID = NAMEKEY_INVALID;
 static NameKeyType textEntryGamePasswordID = NAMEKEY_INVALID;
 static NameKeyType checkBoxLimitArmiesID = NAMEKEY_INVALID;
 static NameKeyType checkBoxUseStatsID = NAMEKEY_INVALID;
+static NameKeyType checkBoxRequireEacID = NAMEKEY_INVALID;
 
 static GameWindow *parentPopup = nullptr;
 static GameWindow *textEntryGameName = nullptr;
@@ -109,6 +111,7 @@ static GameWindow *textEntryLadderPassword = nullptr;
 static GameWindow *textEntryGamePassword = nullptr;
 static GameWindow *checkBoxLimitArmies = nullptr;
 static GameWindow *checkBoxUseStats = nullptr;
+static GameWindow *checkBoxRequireEac = nullptr;
 
 
 void GenOnlineCreateGame();
@@ -259,6 +262,17 @@ void GenOnlinePopupHostGameInit( WindowLayout *layout, void *userData )
 	GadgetCheckBoxSetChecked( checkBoxLimitArmies, FALSE );
 	checkBoxLimitArmies->winHide( TRUE );
 #endif
+
+	// GenOnline @feature arcticdolphin 22/11/2026 Requiring Easy Anti-Cheat needs the host to run it.
+	checkBoxRequireEacID = TheNameKeyGenerator->nameToKey("PopupHostGame.wnd:CheckBoxRequireEac");
+	checkBoxRequireEac = TheWindowManager->winGetWindowFromId(parentPopup, checkBoxRequireEacID);
+	const Bool hasEac = LocalAnticheatKind() == EAnticheatKind::Eac;
+	GadgetCheckBoxSetChecked( checkBoxRequireEac, FALSE );
+	GadgetCheckBoxSetText( checkBoxRequireEac, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GORequireEac", L"Require Easy Anti-Cheat") );
+	checkBoxRequireEac->winEnable( hasEac );
+	checkBoxRequireEac->winSetTooltip( hasEac
+		? TheGameText->FETCH_OR_SUBSTITUTE("TOOLTIP:GORequireEac", L"Only players running Easy Anti-Cheat can join this lobby")
+		: TheGameText->FETCH_OR_SUBSTITUTE("TOOLTIP:GORequireEacOff", L"Easy Anti-Cheat must be running to require it") );
 
 	TheWindowManager->winSetFocus(textEntryGameName);
 	TheWindowManager->winSetModal( parentPopup );
@@ -502,6 +516,7 @@ void GenOnlineCreateGame()
 	Bool limitArmies = GadgetCheckBoxIsChecked(checkBoxLimitArmies);
 	Bool useStats = GadgetCheckBoxIsChecked(checkBoxUseStats);
 	Bool bAllowObservers = GadgetCheckBoxIsChecked(checkBoxAllowObservers);
+	Bool bRequireEac = GadgetCheckBoxIsChecked(checkBoxRequireEac);
 
 	{
 		CustomMatchPreferences pref;
@@ -528,7 +543,7 @@ void GenOnlineCreateGame()
 		return;
 	}
 
-	pLobbyInterface->CreateLobby(gameName, md->m_displayName, md->m_fileName, md->m_isOfficial, md->m_numPlayers, limitArmies, useStats, TheGlobalData->m_defaultStartingCash.countMoney(), passwd.isNotEmpty(), std::string(passwd.str()), bAllowObservers);
+	pLobbyInterface->CreateLobby(gameName, md->m_displayName, md->m_fileName, md->m_isOfficial, md->m_numPlayers, limitArmies, useStats, TheGlobalData->m_defaultStartingCash.countMoney(), passwd.isNotEmpty(), std::string(passwd.str()), bAllowObservers, bRequireEac);
 
 	GSMessageBoxCancel(UnicodeString(L"Creating Lobby"), UnicodeString(L"Lobby Creation is in progress..."), nullptr);
 

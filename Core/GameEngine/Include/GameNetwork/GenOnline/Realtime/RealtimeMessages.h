@@ -742,6 +742,7 @@ struct CreateLobbyRequest : WireObject
 	Nullable<std::string> password;
 	int preferred_port = 0;
 	LobbySettings settings;
+	bool require_anticheat = false;
 
 	template <class V> void Fields(V& v)
 	{
@@ -752,6 +753,7 @@ struct CreateLobbyRequest : WireObject
 		v("password", password);
 		v("preferred_port", preferred_port);
 		v("settings", settings);
+		v("require_anticheat", require_anticheat);
 	}
 };
 
@@ -969,6 +971,12 @@ struct UserIdArgument : WireObject
 struct KickFromLobbyRequest : UserIdArgument
 {
 	static constexpr const char* METHOD = "KickFromLobby";
+	static constexpr bool EXPECTS_RESULT = true;
+};
+
+struct BanFromLobbyRequest : UserIdArgument
+{
+	static constexpr const char* METHOD = "BanFromLobby";
 	static constexpr bool EXPECTS_RESULT = true;
 };
 
@@ -1754,6 +1762,8 @@ struct FriendEntry : Member
 	bool online = false;
 	std::string activity;
 	Nullable<int64_t> channel_id;
+	// "online", "idle" or "do_not_disturb" for an online friend. An older service leaves it out, which reads as online.
+	std::optional<std::string> status;
 
 	template <class V> void Fields(V& v)
 	{
@@ -1761,6 +1771,7 @@ struct FriendEntry : Member
 		v("online", online);
 		v("activity", activity);
 		v("channel_id", channel_id);
+		v("status", status);
 	}
 };
 
@@ -1821,6 +1832,7 @@ struct FriendPresenceEvent : WireObject
 	std::vector<std::string> clients;
 	std::string activity;
 	Nullable<int64_t> channel_id;
+	std::optional<std::string> status;
 
 	template <class V> void Fields(V& v)
 	{
@@ -1829,6 +1841,21 @@ struct FriendPresenceEvent : WireObject
 		v("clients", clients);
 		v("activity", activity);
 		v("channel_id", channel_id);
+		v("status", status);
+	}
+};
+
+// status is "online", "idle", "do_not_disturb" or "invisible". The service keeps it in memory per user.
+struct SetPresenceStatusRequest : WireObject
+{
+	static constexpr const char* METHOD = "SetPresenceStatus";
+	static constexpr bool EXPECTS_RESULT = true;
+
+	std::string status;
+
+	template <class V> void Fields(V& v)
+	{
+		v("status", status);
 	}
 };
 
