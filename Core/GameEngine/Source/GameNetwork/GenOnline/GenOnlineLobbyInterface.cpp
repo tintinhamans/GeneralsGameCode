@@ -101,6 +101,14 @@ static void JoinResponseFromOutcome(const GenOnlineRealtime::InvokeOutcome& outc
 	{
 		statusCode = 417;
 	}
+	else if (code == "lobby.build_mismatch")
+	{
+		statusCode = 409;
+	}
+	else if (code == "lobby.banned")
+	{
+		statusCode = 403;
+	}
 	else if (code == "not_found")
 	{
 		statusCode = 404;
@@ -111,8 +119,17 @@ static void JoinResponseFromOutcome(const GenOnlineRealtime::InvokeOutcome& outc
 	}
 }
 
+// The refusal code of the last failed lobby create, empty after a transport failure or a success.
+static std::string s_lastCreateLobbyError;
+
+std::string GenOnlineLastCreateLobbyError()
+{
+	return s_lastCreateLobbyError;
+}
+
 static std::string CreateResponseFromOutcome(const GenOnlineRealtime::InvokeOutcome& outcome)
 {
+	s_lastCreateLobbyError.clear();
 	nlohmann::json j;
 	j["result"] = 0;
 	j["lobby_id"] = -1;
@@ -130,6 +147,10 @@ static std::string CreateResponseFromOutcome(const GenOnlineRealtime::InvokeOutc
 	else
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] CreateLobby failed: %s", outcome.delivered ? outcome.Code().c_str() : outcome.transportError.c_str());
+		if (outcome.delivered)
+		{
+			s_lastCreateLobbyError = outcome.Code();
+		}
 	}
 	return j.dump();
 }
@@ -260,6 +281,7 @@ static LobbyEntry LobbyEntryFromSummary(const GenOnlineRealtime::LobbySummary& s
 	lobbyEntry.limit_superweapons = summary.settings.limit_superweapons;
 	lobbyEntry.track_stats = summary.settings.track_stats;
 	lobbyEntry.allow_observers = summary.settings.allow_observers;
+	lobbyEntry.anticheat = summary.anticheat;
 	lobbyEntry.exe_crc = summary.build.exe_crc;
 	lobbyEntry.ini_crc = summary.build.ini_crc;
 	// The list only contains custom lobbies.
@@ -296,6 +318,7 @@ static void LobbyEntryFromState(const GenOnlineRealtime::LobbyState& lobby, Lobb
 	lobbyEntry.limit_superweapons = lobby.settings.limit_superweapons;
 	lobbyEntry.track_stats = lobby.settings.track_stats;
 	lobbyEntry.allow_observers = lobby.settings.allow_observers;
+	lobbyEntry.anticheat = lobby.anticheat;
 	lobbyEntry.max_cam_height = (uint16_t)(std::clamp)(lobby.settings.max_camera_height, 0, 65535);
 	// The service only lets sessions of the same build into a lobby.
 	lobbyEntry.exe_crc = TheGlobalData->m_exeCRC;
@@ -503,6 +526,13 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_SetSlotState(uint16_t slotIndex
 void GenOnlineLobbyInterface::UpdateCurrentLobby_KickUser(int64_t userID, UnicodeString name)
 {
 	GenOnlineRealtime::KickFromLobbyRequest request;
+	request.user_id = userID;
+	InvokeLobbyUpdate(request);
+}
+
+void GenOnlineLobbyInterface::UpdateCurrentLobby_BanUser(int64_t userID, UnicodeString name)
+{
+	GenOnlineRealtime::BanFromLobbyRequest request;
 	request.user_id = userID;
 	InvokeLobbyUpdate(request);
 }
@@ -1084,6 +1114,14 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
                     {
                         JoinResult = EJoinLobbyResult::JoinLobbyResult_AnticheatMismatch;
                     }
+					else if (statusCode == 409)
+					{
+						JoinResult = EJoinLobbyResult::JoinLobbyResult_BuildMismatch;
+					}
+					else if (statusCode == 403)
+					{
+						JoinResult = EJoinLobbyResult::JoinLobbyResult_Banned;
+					}
 					// TODO_GENONLINE: Handle the room full error JoinLobbyResult_FullRoom, if the service can send it.
 
 					// no response body from this, just http codes
@@ -1423,7 +1461,7 @@ struct CreateLobbyResponse
 	NLOHMANN_DEFINE_TYPE_INTRUSIVE(CreateLobbyResponse, result, lobby_id, turn_username, turn_token)
 };
 
-void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeString strInitialMapName, AsciiString strInitialMapPath, bool bIsOfficial, int initialMaxSize, bool bVanillaTeamsOnly, bool bTrackStats, uint32_t startingCash, bool bPassworded, std::string strPassword, bool bAllowObservers)
+void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeString strInitialMapName, AsciiString strInitialMapPath, bool bIsOfficial, int initialMaxSize, bool bVanillaTeamsOnly, bool bTrackStats, uint32_t startingCash, bool bPassworded, std::string strPassword, bool bAllowObservers, bool bRequireEac)
 {
 	GenOnlinePluginHost::Anticheat::EndSession();
 
@@ -1590,6 +1628,7 @@ void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeStr
 			request.settings.track_stats = bTrackStats;
 			request.settings.allow_observers = bAllowObservers;
 			request.settings.max_camera_height = GenOnlineServicesManager::Settings.Camera_GetMaxHeight_WhenLobbyHost();
+			request.require_anticheat = bRequireEac;
 			InvokeLobbyHub(request, [onCreateResponse](const GenOnlineRealtime::InvokeOutcome& outcome)
 				{
 					onCreateResponse(outcome.delivered, outcome.Succeeded() ? 200 : 400, CreateResponseFromOutcome(outcome), nullptr);

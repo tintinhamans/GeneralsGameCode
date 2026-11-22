@@ -70,6 +70,7 @@ struct LobbyEntry
 	bool limit_superweapons = false;
 	bool track_stats = false;
 	bool allow_observers = false;
+	std::string anticheat;
 	uint16_t max_cam_height = 0;
 
 	uint32_t exe_crc = 0;
@@ -96,8 +97,12 @@ enum class EJoinLobbyResult
 	JoinLobbyResult_FullRoom,       // The room is full.
 	JoinLobbyResult_BadPassword,    // An incorrect password (or none) was given for a passworded room.
 	JoinLobbyResult_JoinFailed, // Generic failure.
-	JoinLobbyResult_AnticheatMismatch // Anticheat mismatch
+	JoinLobbyResult_AnticheatMismatch, // Anticheat mismatch
+	JoinLobbyResult_BuildMismatch, // The lobby runs another game version
+	JoinLobbyResult_Banned // The host banned the local user from the lobby
 };
+
+std::string GenOnlineLastCreateLobbyError();
 
 enum class ELobbyJoinability
 {
@@ -273,6 +278,7 @@ public:
 	void SetJoinability(ELobbyJoinability joinabilityFlag);
 
 	void UpdateCurrentLobby_KickUser(int64_t userID, UnicodeString name);
+	void UpdateCurrentLobby_BanUser(int64_t userID, UnicodeString name);
 	void UpdateCurrentLobby_SetSlotState(uint16_t slotIndex, uint16_t slotState);
 
 	void SetLobbyListDirty()
@@ -293,7 +299,7 @@ public:
 	UnicodeString m_PendingCreation_LobbyName;
 	UnicodeString m_PendingCreation_InitialMapDisplayName;
 	AsciiString m_PendingCreation_InitialMapPath;
-	void CreateLobby(UnicodeString strLobbyName, UnicodeString strInitialMapName, AsciiString strInitialMapPath, bool bIsOfficial, int initialMaxSize, bool bVanillaTeamsOnly, bool bTrackStats, uint32_t startingCash, bool bPassworded, std::string strPassword, bool bAllowObservers);
+	void CreateLobby(UnicodeString strLobbyName, UnicodeString strInitialMapName, AsciiString strInitialMapPath, bool bIsOfficial, int initialMaxSize, bool bVanillaTeamsOnly, bool bTrackStats, uint32_t startingCash, bool bPassworded, std::string strPassword, bool bAllowObservers, bool bRequireEac);
 
 	void OnJoinedOrCreatedLobby(bool bAlreadyUpdatedDetails, std::function<void(bool)> fnCallback);
 
