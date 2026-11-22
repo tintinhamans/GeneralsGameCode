@@ -23,7 +23,10 @@ list(APPEND GAMEENGINE_SRC
     Include/Common/LocalApiReaders.h
     Include/Common/LocalApiQuery.h
     Include/Common/StatsUploader.h
+    Include/GameClient/GenOnlineChatWrap.h
+    Include/GameClient/GenOnlineLobbyGameDetails.h
     Include/GameClient/GenOnlineMenus.h
+    Include/GameClient/GenOnlineUserSection.h
     Include/GameClient/GUI/ChatCompletion.h
     Include/GameClient/GUI/ChatCompletionSets.h
     Include/GameClient/GUI/ChatMentions.h
@@ -63,10 +66,13 @@ list(APPEND GAMEENGINE_SRC
     Source/GameClient/GUI/ChatCompletionSets.cpp
     Source/GameClient/GUI/ChatMentions.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineBuddyOverlay.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineChatWrap.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineDownloadMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineGameSetupMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineLobbyGameDetails.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineLobbyMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineLoginMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineUserSection.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineMapSelectMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineOptionsMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlinePlayerInfoOverlay.cpp
@@ -120,6 +126,7 @@ list(APPEND GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/GenOnlineInclude.h
     Include/GameNetwork/GenOnline/GenOnlineInterfaces.h
     Include/GameNetwork/GenOnline/GenOnlineTypes.h
+    Include/GameNetwork/GenOnline/GenOnlineAnticheatKind.h
     Include/GameNetwork/GenOnline/GenOnlineAuth.h
     Include/GameNetwork/GenOnline/GenOnlineInit.h
     Include/GameNetwork/GenOnline/GenOnlineLobbyInterface.h
@@ -171,6 +178,7 @@ list(APPEND GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/NetworkMesh.cpp
     Source/GameNetwork/GenOnline/PacketFeedback.cpp
     Source/GameNetwork/GenOnline/GenOnlineInit.cpp
+    Source/GameNetwork/GenOnline/GenOnlineAnticheatKind.cpp
     Source/GameNetwork/GenOnline/GenOnlineAuth.cpp
     Source/GameNetwork/GenOnline/GenOnlineSignIn.cpp
     Source/GameNetwork/GenOnline/GenOnlineRealtimeBridge.cpp

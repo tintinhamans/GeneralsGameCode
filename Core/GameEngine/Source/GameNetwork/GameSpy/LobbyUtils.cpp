@@ -32,6 +32,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/GameEngine.h"
+#include "Common/GlobalData.h"
 #include "Common/GOUIColors.h"
 #include "Common/MultiplayerSettings.h"
 #include "Common/PlayerTemplate.h"
@@ -47,7 +48,11 @@
 #include "GameClient/GadgetComboBox.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetStaticText.h"
+#include "GameClient/GadgetTextEntry.h"
+#include "GameClient/Display.h"
 #include "GameClient/DisplayString.h"
+#include "GameClient/DisplayStringManager.h"
+#include "GameClient/HeaderTemplate.h"
 #include "GameClient/GameText.h"
 #include "GameClient/MapUtil.h"
 #include "GameClient/MessageBox.h"
@@ -66,6 +71,8 @@
 #include "Common/STLTypedefs.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/GenOnlineLobbyInterface.h"
+#include "GameNetwork/GenOnline/GenOnlineAnticheatKind.h"
+#include "GameClient/GenOnlineLobbyGameDetails.h"
 
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
@@ -81,6 +88,8 @@ enum {
 	COLUMN_PASSWORD,
 	COLUMN_OBSERVER,
   COLUMN_USE_STATS,
+  // GenOnline @feature arcticdolphin 22/11/2026 A shield column shows the anti-cheat the lobby requires.
+  COLUMN_ANTICHEAT,
   COLUMN_PING
 };
 #else
@@ -133,18 +142,17 @@ static const GameListHeader gameListHeaders[] =
 	{ "WOLCustomLobby.wnd:StaticTextHeaderGame", COLUMN_NAME, FALSE, GAMESORT_AGE_ASCENDING, GAMESORT_AGE_ASCENDING, "GUI:GOHeaderGame", L"Game" },
 	{ "WOLCustomLobby.wnd:ButtonHeaderMap", COLUMN_MAP, TRUE, GAMESORT_MAP_ASCENDING, GAMESORT_MAP_DESCENDING, "GUI:GOHeaderMap", L"Map" },
 	{ "WOLCustomLobby.wnd:ButtonHeaderPlayers", COLUMN_NUMPLAYERS, TRUE, GAMESORT_PLAYERS_ASCENDING, GAMESORT_PLAYERS_DESCENDING, "GUI:GOHeaderPlayers", L"Players" },
+	{ "WOLCustomLobby.wnd:StaticTextHeaderLock", COLUMN_PASSWORD, FALSE, GAMESORT_AGE_ASCENDING, GAMESORT_AGE_ASCENDING, nullptr, nullptr },
 	{ "WOLCustomLobby.wnd:ButtonHeaderPing", COLUMN_PING, TRUE, GAMESORT_PING_ASCENDING, GAMESORT_PING_DESCENDING, "GUI:GOHeaderPing", L"Ping" },
 };
 static const Int GAME_LIST_HEADER_COUNT = ARRAY_SIZE(gameListHeaders);
-static const Int HEADER_ARROW_INSET = 3; // GenOnline/tools/go_wnd_layouts.py places the arrow the same way
-// GenOnline @tweak arcticdolphin 08/11/2026 Space between a header label and its sort arrow.
+// GenOnline @tweak arcticdolphin 08/11/2026 Space between a header label and its sort triangle.
 static const Int HEADER_ARROW_GAP = 3;
 
 static NameKeyType gameListHeaderIDs[ARRAY_SIZE(gameListHeaders)];
 static GameWindow *gameListHeaderWindows[ARRAY_SIZE(gameListHeaders)];
 static GameWindow *windowHeaderArrow = nullptr;
-static NameKeyType checkBoxBuddiesFirstID = NAMEKEY_INVALID;
-static GameWindow *checkBoxBuddiesFirst = nullptr;
+static GameWindow *windowHeaderCorner = nullptr;
 
 // The .wnd supplies the ascending arrow as the enabled image and the descending arrow as the disabled image.
 static void showSortArrow(GameWindow *window, Bool ascending)
@@ -174,35 +182,60 @@ static DisplayString *getHeaderButtonLabel(GameWindow *window)
 	if (text == nullptr || text->getTextLength() == 0)
 		return nullptr;
 
-	if (text->getFont() != window->winGetFont())
-		text->setFont(window->winGetFont());
+	GameFont *font = TheHeaderTemplateManager->getFontFromTemplate("GOLabelSmall");
+	if (font == nullptr)
+		font = window->winGetFont();
+	if (text->getFont() != font)
+		text->setFont(font);
 	text->setWordWrap(0);
 	return text;
 }
 
-// GenOnline @tweak arcticdolphin 08/11/2026 Draw a sorting header button as its label alone at the list text inset, in the hilite colour under the mouse.
-static void drawGameListHeaderButton(GameWindow *window, WinInstanceData *instData)
+// GenOnline @tweak arcticdolphin 22/11/2026 A small down or up triangle that marks the active sort column.
+static void drawSortTriangle(Int left, Int centerY, Bool pointsDown, Color color)
 {
+	const Int size = GameWindowManager::winScaleLayoutSize(4);
+	for (Int row = 0; row < size; ++row)
+	{
+		const Int half = pointsDown ? (size - 1 - row) : row;
+		const Int top = centerY - size / 2 + row;
+		TheWindowManager->winFillRect(color, 1.0f, left + size - 1 - half, top, left + size + half, top + 1);
+	}
+}
+
+// GenOnline @tweak arcticdolphin 22/11/2026 The game list header cell that currently sorts the list, or null.
+static const GameListHeader *activeSortHeader(GameWindow *window)
+{
+	for (Int i = 0; i < GAME_LIST_HEADER_COUNT; ++i)
+	{
+		const GameListHeader &header = gameListHeaders[i];
+		if (window == gameListHeaderWindows[i] && header.sorts && (theGameSortType == header.ascending || theGameSortType == header.descending))
+			return &header;
+	}
+	return nullptr;
+}
+
+// GenOnline @tweak arcticdolphin 22/11/2026 Every header cell fills the same dark strip with one thin bottom line and a muted label, the active sort label is white with a triangle.
+static void drawGameListHeaderCell(GameWindow *window, WinInstanceData *instData)
+{
+	Int x, y, width, height, textWidth, textHeight;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&width, &height);
+
+	const Int lineWidth = (std::min)(2, (std::max)(1, GadgetListBoxGetKitScrollLineWidth()));
+	TheWindowManager->winFillRect(GOUIColor(GOUICOLOR_FIELD_FILL, GameMakeColor(5, 7, 15, 255)), 1.0f, x, y, x + width, y + height);
+	// The list frame below draws the line that separates the header, so the strip only adds the top and the outer sides.
+	GadgetListBoxDrawKitLines(x, y, width, height, window == gameListHeaderWindows[0], TRUE, window == windowHeaderCorner, FALSE);
+
 	DisplayString *text = getHeaderButtonLabel(window);
 	if (text == nullptr)
 		return;
 
-	Color textColor = window->winGetEnabledTextColor();
-	Color dropColor = window->winGetEnabledTextBorderColor();
-	if (!window->winGetEnabled())
-	{
-		textColor = window->winGetDisabledTextColor();
-		dropColor = window->winGetDisabledTextBorderColor();
-	}
-	else if (BitIsSet(instData->getState(), WIN_STATE_HILITED))
-	{
-		textColor = window->winGetHiliteTextColor();
-		dropColor = window->winGetHiliteTextBorderColor();
-	}
+	const GameListHeader *active = activeSortHeader(window);
+	Color textColor = GOUIColor(GOUICOLOR_MUTED, GameMakeColor(154, 163, 199, 255));
+	if (active != nullptr || BitIsSet(instData->getState(), WIN_STATE_HILITED))
+		textColor = GameMakeColor(255, 255, 255, 255);
 
-	Int x, y, width, height, textWidth, textHeight;
-	window->winGetScreenPosition(&x, &y);
-	window->winGetSize(&width, &height);
 	text->getSize(&textWidth, &textHeight);
 	IRegion2D clipRegion;
 	clipRegion.lo.x = x;
@@ -210,7 +243,37 @@ static void drawGameListHeaderButton(GameWindow *window, WinInstanceData *instDa
 	clipRegion.hi.x = x + width;
 	clipRegion.hi.y = y + height;
 	text->setClipRegion(&clipRegion);
-	text->draw(x + GameWindowManager::winScaleLayoutSize(TEXT_X_OFFSET), y + (height - textHeight) / 2, textColor, dropColor);
+	const Int textX = x + GameWindowManager::winScaleLayoutSize(TEXT_X_OFFSET);
+	text->draw(textX, y + (height - textHeight) / 2, textColor, GameMakeColor(0, 0, 0, 255));
+	if (active != nullptr)
+		drawSortTriangle(textX + textWidth + GameWindowManager::winScaleLayoutSize(HEADER_ARROW_GAP), y + (height - lineWidth) / 2, theGameSortType == active->descending, textColor);
+}
+
+// GenOnline @feature arcticdolphin 22/11/2026 The empty search field shows its hint, kept as the window text that the entry field itself never draws.
+static GameWinDrawFunc s_searchDraw = nullptr;
+static void drawSearchWithHint(GameWindow *window, WinInstanceData *instData)
+{
+	if (s_searchDraw != nullptr)
+		s_searchDraw(window, instData);
+
+	DisplayString *hint = instData->getTextDisplayString();
+	if (hint == nullptr || hint->getTextLength() == 0 || GadgetTextEntryGetText(window).getLength() > 0)
+		return;
+
+	Int x, y, width, height;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&width, &height);
+	if (hint->getFont() != window->winGetFont())
+		hint->setFont(window->winGetFont());
+	hint->setWordWrap(0);
+	IRegion2D clipRegion;
+	clipRegion.lo.x = x;
+	clipRegion.lo.y = y;
+	clipRegion.hi.x = x + width;
+	clipRegion.hi.y = y + height;
+	hint->setClipRegion(&clipRegion);
+	const Int textY = y + (height - TheWindowManager->winFontHeight(instData->getFont())) / 2;
+	hint->draw(x + GameWindowManager::winScaleLayoutSize(7), textY, GOUIColor(GOUICOLOR_MUTED, GameMakeColor(154, 163, 199, 255)), GameMakeColor(0, 0, 0, 255));
 }
 
 // GenOnline @feature arcticdolphin 08/11/2026 Snap the header cells onto the list columns as the engine sized them.
@@ -228,8 +291,12 @@ static void alignGameListHeaders(GameWindow *list)
 		if (cell == nullptr)
 			continue;
 
+		// A cell spans the columns up to the next cell, so the header bar has no gaps over unlabelled columns.
 		const Int column = gameListHeaders[i].column;
-		const Int width = (column < columns) ? GadgetListBoxGetColumnWidth(list, column) : 0;
+		const Int nextColumn = (i + 1 < GAME_LIST_HEADER_COUNT) ? gameListHeaders[i + 1].column : columns;
+		Int width = 0;
+		for (Int c = column; c < nextColumn && c < columns; ++c)
+			width += GadgetListBoxGetColumnWidth(list, c);
 		if (width <= 0)
 		{
 			cell->winHide(TRUE);
@@ -246,53 +313,35 @@ static void alignGameListHeaders(GameWindow *list)
 		setScreenPosition(cell, listX + left, cellY);
 		cell->winSetSize(width, cellHeight);
 
-		// GenOnline @tweak arcticdolphin 08/11/2026 Labels start at the list text inset, sorting buttons draw no box.
-		if (BitIsSet(cell->winGetStyle(), GWS_STATIC_TEXT))
+		cell->winSetDrawFunc(drawGameListHeaderCell);
+	}
+
+	// The corner cell covers the scroll bar column from the last list column to the list edge.
+	GameWindow *corner = TheWindowManager->winGetWindowFromId(nullptr, NAMEKEY("WOLCustomLobby.wnd:StaticTextHeaderCorner"));
+	windowHeaderCorner = corner;
+	if (corner != nullptr)
+	{
+		Int columnsWidth = 0;
+		for (Int c = 0; c < columns; ++c)
+			columnsWidth += GadgetListBoxGetColumnWidth(list, c);
+		Int listWidth, listHeight, cornerX, cornerY, cornerWidth, cornerHeight;
+		list->winGetSize(&listWidth, &listHeight);
+		corner->winGetScreenPosition(&cornerX, &cornerY);
+		corner->winGetSize(&cornerWidth, &cornerHeight);
+		corner->winSetDrawFunc(drawGameListHeaderCell);
+		if (listWidth > columnsWidth)
 		{
-			TextData *textData = (TextData *)cell->winGetUserData();
-			if (textData != nullptr)
-				textData->leftMargin = GameWindowManager::winScaleLayoutSize(TEXT_X_OFFSET);
-		}
-		else if (BitIsSet(cell->winGetStyle(), GWS_PUSH_BUTTON) && gameListHeaders[i].sorts)
-		{
-			cell->winSetDrawFunc(drawGameListHeaderButton);
+			setScreenPosition(corner, listX + columnsWidth, cornerY);
+			corner->winSetSize(listWidth - columnsWidth, cornerHeight);
 		}
 	}
 }
 
-// GenOnline @feature arcticdolphin 08/11/2026 Show the sort arrow next to the label of the active sort, hide it for newest first.
+// GenOnline @tweak arcticdolphin 22/11/2026 The header cells draw their own sort triangle, so the arrow window stays hidden.
 static void showHeaderArrow()
 {
-	if (windowHeaderArrow == nullptr)
-		return;
-
-	for (Int i = 0; i < GAME_LIST_HEADER_COUNT; ++i)
-	{
-		const GameListHeader &header = gameListHeaders[i];
-		GameWindow *cell = gameListHeaderWindows[i];
-		if (cell == nullptr || !header.sorts || (theGameSortType != header.ascending && theGameSortType != header.descending))
-			continue;
-
-		Int cellX, cellY, cellWidth, cellHeight, arrowWidth, arrowHeight;
-		cell->winGetScreenPosition(&cellX, &cellY);
-		cell->winGetSize(&cellWidth, &cellHeight);
-		windowHeaderArrow->winGetSize(&arrowWidth, &arrowHeight);
-		const Int inset = GameWindowManager::winScaleLayoutSize(HEADER_ARROW_INSET);
-		Int arrowX = cellX + cellWidth - inset - arrowWidth;
-		DisplayString *label = (cell->winGetDrawFunc() == drawGameListHeaderButton) ? getHeaderButtonLabel(cell) : nullptr;
-		if (label != nullptr)
-		{
-			Int labelWidth, labelHeight;
-			label->getSize(&labelWidth, &labelHeight);
-			const Int afterLabel = cellX + GameWindowManager::winScaleLayoutSize(TEXT_X_OFFSET) + labelWidth + GameWindowManager::winScaleLayoutSize(HEADER_ARROW_GAP);
-			if (afterLabel < arrowX)
-				arrowX = afterLabel;
-		}
-		setScreenPosition(windowHeaderArrow, arrowX, cellY + (cellHeight - arrowHeight) / 2);
-		showSortArrow(windowHeaderArrow, theGameSortType == header.ascending);
-		return;
-	}
-	windowHeaderArrow->winHide(TRUE);
+	if (windowHeaderArrow != nullptr)
+		windowHeaderArrow->winHide(TRUE);
 }
 
 static void showSortIcons()
@@ -342,6 +391,42 @@ static void showSortIcons()
 }
 
 LobbyGameModeFilter theLobbyFilter = LOBBY_FILTER_ALL;
+// GenOnline @feature arcticdolphin 22/11/2026 The lobby menu search text filters the list by lobby and map name.
+extern UnicodeString theLobbySearchText;
+
+static UnicodeString lobbyMapDisplayName(const LobbyEntry& lobby)
+{
+	const MapMetaData* md = TheMapCache->findMap(AsciiString(lobby.map_name.c_str()));
+	if (md)
+	{
+		return md->m_displayName;
+	}
+
+	const char* start = lobby.map_name.c_str();
+	const char* slashPos = strrchr(start, '\\');
+	if (slashPos)
+	{
+		start = slashPos + 1;
+	}
+
+	UnicodeString mapName;
+	mapName.format(L"%s", from_utf8(start).c_str());
+	return mapName;
+}
+
+static std::wstring toLowerWide(const WideChar* text)
+{
+	std::wstring lower(text);
+	std::transform(lower.begin(), lower.end(), lower.begin(), [](wchar_t c) { return static_cast<wchar_t>(towlower(c)); });
+	return lower;
+}
+
+static Bool lobbyMatchesSearch(const LobbyEntry& lobby, const std::wstring& lowerSearch)
+{
+	return toLowerWide(from_utf8(lobby.name).c_str()).find(lowerSearch) != std::wstring::npos
+		|| toLowerWide(lobbyMapDisplayName(lobby).str()).find(lowerSearch) != std::wstring::npos;
+}
+
 static LobbyGameModeFilter detectGameMode(const std::string& name)
 {
 	std::string modeName = name;
@@ -410,14 +495,7 @@ Bool HandleSortButton(NameKeyType sortButton)
 		return TRUE;
 	}
 
-	// GenOnline @feature arcticdolphin 08/11/2026 The buddies first check box and the sorting header cells of the game list.
-	if (checkBoxBuddiesFirst != nullptr && sortButton == checkBoxBuddiesFirstID)
-	{
-		const Bool checked = GadgetCheckBoxIsChecked(checkBoxBuddiesFirst) ? TRUE : FALSE;
-		if (checked != sortBuddies)
-			sortByBuddies(checked);
-		return TRUE;
-	}
+	// GenOnline @feature arcticdolphin 08/11/2026 The sorting header cells of the game list.
 	for (Int i = 0; i < GAME_LIST_HEADER_COUNT; ++i)
 	{
 		const GameListHeader &header = gameListHeaders[i];
@@ -452,6 +530,63 @@ static GameWindow *parentGameListLarge = nullptr;
        //GameWindow *listboxLobbyGameInfo = nullptr;
 
 static const Image *pingImages[3] = { nullptr, nullptr, nullptr };
+
+// GenOnline @tweak arcticdolphin 22/11/2026 Every list icon is scaled to the same box and the list centres it in its column.
+static void addListIcon(GameWindow *win, const Image *img, Int index, Int column)
+{
+	const Int box = GameWindowManager::winScaleLayoutSize(10);
+	const Int side = (std::max)(1, (std::max)(img->getImageWidth(), img->getImageHeight()));
+	GadgetListBoxAddEntryImage(win, img, index, column, (std::max)(1, img->getImageWidth() * box / side), (std::max)(1, img->getImageHeight() * box / side));
+}
+
+// GenOnline @feature arcticdolphin 22/11/2026 The ping column draws five signal bars over the list, the latency per row index is kept here.
+static std::vector<Int> s_lobbyRowPings;
+static GameWinDrawFunc s_gameListDraw = nullptr;
+
+static void drawGameListPing(GameWindow *window, WinInstanceData *instData)
+{
+	if (s_gameListDraw != nullptr)
+		s_gameListDraw(window, instData);
+
+	ListboxData *list = (ListboxData *)window->winGetUserData();
+	if (list == nullptr || list->columns <= COLUMN_PING || list->columnWidth[COLUMN_PING] <= 0)
+		return;
+
+	Int x, y, width, height;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&width, &height);
+	Int columnX = x + GadgetListBoxGetKitScrollLineWidth();
+	for (Int j = 0; j < COLUMN_PING; ++j)
+		columnX += list->columnWidth[j];
+
+	const Int top = y + 4;
+	const Int bottom = y + height - 1;
+	Int rowY = top - list->displayPos;
+	const Color unlit = GameMakeColor(52, 57, 88, 255);
+	for (Int i = 0; i < list->endPos; ++i)
+	{
+		const Int rowHeight = list->listData[i].height + 1;
+		const Int rowTop = rowY;
+		rowY += rowHeight;
+		if (rowTop < top || rowTop + rowHeight > bottom || (size_t)i >= s_lobbyRowPings.size() || s_lobbyRowPings[i] < 0)
+			continue;
+
+		const Int ms = s_lobbyRowPings[i];
+		const Int lit = ms < 50 ? 5 : ms < 90 ? 4 : ms < 130 ? 3 : ms < 200 ? 2 : 1;
+		const Color lamp = lit >= 4 ? GameMakeColor(56, 224, 122, 255) : lit == 3 ? GameMakeColor(255, 194, 15, 255) : GameMakeColor(255, 106, 74, 255);
+		const Int unit = rowHeight >= 36 ? rowHeight / 18 : 1;
+		const Int barWidth = unit * 3;
+		const Int pitch = barWidth + unit;
+		const Int baseline = rowTop + (rowHeight + unit * 12) / 2;
+		const Int left = columnX - GadgetListBoxGetKitScrollLineWidth() + GameWindowManager::winScaleLayoutSize(TEXT_X_OFFSET);
+		for (Int bar = 0; bar < 5; ++bar)
+		{
+			const Int barHeight = unit * (3 + bar * 2);
+			const Int barLeft = left + bar * pitch;
+			TheWindowManager->winFillRect(bar < lit ? lamp : unlit, 1.0f, barLeft, baseline - barHeight, barLeft + barWidth, baseline);
+		}
+	}
+}
 
 static void gameTooltip(GameWindow* window,
 	WinInstanceData* instData,
@@ -527,6 +662,15 @@ static void gameTooltip(GameWindow* window,
 			TheMouse->setCursorTooltip( UnicodeString::TheEmptyString );
 		return;
 	}
+#if defined(GENONLINE)
+	// GenOnline @feature arcticdolphin 22/11/2026 The shield column names the anti-cheat the lobby requires.
+	if (col == COLUMN_ANTICHEAT)
+	{
+		const EAnticheatKind kind = ParseAnticheatKind(lobbyEntry.anticheat);
+		TheMouse->setCursorTooltip( kind == EAnticheatKind::Eac ? AnticheatKindText(kind) : UnicodeString::TheEmptyString, 10, nullptr, 2.0f );
+		return;
+	}
+#endif
 #if !RTS_GENERALS
   if (col == COLUMN_USE_STATS)
   {
@@ -734,6 +878,10 @@ void GrabWindowInfo()
 	listboxLobbyGamesLarge = TheWindowManager->winGetWindowFromId(nullptr, listboxLobbyGamesLargeID);
 	listboxLobbyGamesLarge->winSetTooltipFunc(gameTooltip);
 	SetListBoxRowAnimMode(listboxLobbyGamesLarge, LIST_ROW_ANIM_ID);
+
+	// GenOnline @feature arcticdolphin 22/11/2026 The game list draws its ping bars after the list itself.
+	s_gameListDraw = listboxLobbyGamesLarge->winGetDrawFunc();
+	listboxLobbyGamesLarge->winSetDrawFunc(drawGameListPing);
 //
 //	listboxLobbyGameInfoID = NAMEKEY( "WOLCustomLobby.wnd:ListboxGameInfo" );
 //	listboxLobbyGameInfo = TheWindowManager->winGetWindowFromId(nullptr, listboxLobbyGameInfoID);
@@ -760,7 +908,7 @@ void GrabWindowInfo()
 	buttonSortBuddies = TheWindowManager->winGetWindowFromId(parent, buttonSortBuddiesID);
 	if (buttonSortBuddies)
 	{
-		buttonSortBuddies->winSetText(UnicodeString(L"Sort by Buddies"));
+		buttonSortBuddies->winSetText(UnicodeString(L"Sort by Friends"));
 		buttonSortBuddies->winSetTooltip(UnicodeString::TheEmptyString);
 	}
 
@@ -777,22 +925,18 @@ void GrabWindowInfo()
 		if (gameListHeaderWindows[i] == nullptr || header.label == nullptr)
 			continue;
 
-		// GenOnline @tweak arcticdolphin 08/11/2026 A static text label draws its own text, a button its window text.
-		const UnicodeString label = TheGameText->FETCH_OR_SUBSTITUTE(header.label, header.text);
-		if (BitIsSet(gameListHeaderWindows[i]->winGetStyle(), GWS_STATIC_TEXT))
-			GadgetStaticTextSetText(gameListHeaderWindows[i], label);
-		else
-			gameListHeaderWindows[i]->winSetText(label);
+		// GenOnline @tweak arcticdolphin 22/11/2026 Every header cell keeps its label as window text, drawGameListHeaderCell draws it.
+		gameListHeaderWindows[i]->winSetText(TheGameText->FETCH_OR_SUBSTITUTE(header.label, header.text));
 	}
 	alignGameListHeaders(listboxLobbyGamesLarge);
 	windowHeaderArrow = TheWindowManager->winGetWindowFromId(parent, NAMEKEY("WOLCustomLobby.wnd:WindowHeaderArrow"));
 
-	checkBoxBuddiesFirstID = NAMEKEY("WOLCustomLobby.wnd:CheckBoxBuddiesFirst");
-	checkBoxBuddiesFirst = TheWindowManager->winGetWindowFromId(parent, checkBoxBuddiesFirstID);
-	if (checkBoxBuddiesFirst)
+	GameWindow *searchEntry = TheWindowManager->winGetWindowFromId(parent, NAMEKEY("WOLCustomLobby.wnd:TextEntrySearch"));
+	if (searchEntry != nullptr)
 	{
-		checkBoxBuddiesFirst->winSetText(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOBuddiesFirst", L"Buddies first"));
-		GadgetCheckBoxSetChecked(checkBoxBuddiesFirst, sortBuddies);
+		s_searchDraw = searchEntry->winGetDrawFunc();
+		searchEntry->winSetText(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSearchGamesHint", L"Search games..."));
+		searchEntry->winSetDrawFunc(drawSearchWithHint);
 	}
 
 	showSortIcons();
@@ -808,6 +952,8 @@ void ReleaseWindowInfo()
 	listboxLobbyGamesLarge = nullptr;
 //	listboxLobbyGameInfo = nullptr;
 
+	s_gameListDraw = nullptr;
+
 	buttonSortAlpha = nullptr;
 	buttonSortPing = nullptr;
 	buttonSortBuddies = nullptr;
@@ -818,7 +964,8 @@ void ReleaseWindowInfo()
 	for (Int i = 0; i < GAME_LIST_HEADER_COUNT; ++i)
 		gameListHeaderWindows[i] = nullptr;
 	windowHeaderArrow = nullptr;
-	checkBoxBuddiesFirst = nullptr;
+	windowHeaderCorner = nullptr;
+	s_searchDraw = nullptr;
 }
 
 #if defined(GENONLINE)
@@ -1098,7 +1245,6 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 	int numPlayers = lobbyInfo.current_players;
 	int maxPlayers = lobbyInfo.max_players;
 
-	AsciiString lobbyMapName = AsciiString(lobbyInfo.map_name.c_str());
 	AsciiString ladder = AsciiString("TODO_GENONLINE");
 	USHORT ladderPort = 1;
 
@@ -1158,22 +1304,7 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 
 	if (showMap)
 	{
-		UnicodeString mapName;
-		const MapMetaData* md = TheMapCache->findMap(lobbyMapName);
-		if (md)
-		{
-			mapName = md->m_displayName;
-		}
-		else
-		{
-			const char* start = lobbyInfo.map_name.c_str();
-			const char* slashPos = strrchr(start, '\\');
-			if (slashPos)
-				start = slashPos + 1;
-
-			mapName.format(L"%s", from_utf8(start).c_str());
-		}
-		GadgetListBoxAddEntryText(win, mapName, gameColor, index, COLUMN_MAP);
+		GadgetListBoxAddEntryText(win, lobbyMapDisplayName(lobbyInfo), gameColor, index, COLUMN_MAP);
 
 		// TODO_GENONLINE: Support ladder again
 		if (TheLadderList != nullptr)
@@ -1214,13 +1345,8 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 	if (bHasPassword)
 	{
 		const Image* img = TheMappedImageCollection->findImageByName("Password");
-		Int width = 10, height = 10;
 		if (img)
-		{
-			width = img->getImageWidth();
-			height = img->getImageHeight();
-		}
-		GadgetListBoxAddEntryImage(win, img, index, COLUMN_PASSWORD, width, height);
+			addListIcon(win, img, index, COLUMN_PASSWORD);
 	}
 	else
 	{
@@ -1232,7 +1358,7 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 		const Image* img = TheMappedImageCollection->findImageByName("Observer");
 		if (img)
 		{
-			GadgetListBoxAddEntryImage(win, img, index, COLUMN_OBSERVER, img->getImageHeight()/2, img->getImageWidth()/2);
+			addListIcon(win, img, index, COLUMN_OBSERVER);
 		}
 	}
 	else
@@ -1246,33 +1372,25 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 		const Image* img = TheMappedImageCollection->findImageByName("GoodStatsIcon");
 		if (img)
 		{
-			GadgetListBoxAddEntryImage(win, img, index, COLUMN_USE_STATS, img->getImageHeight(), img->getImageWidth());
+			addListIcon(win, img, index, COLUMN_USE_STATS);
 		}
 	}
 
-	s.format(L"%d", latency);
-	GadgetListBoxAddEntryText(win, s, gameColor, index, COLUMN_PING);
-	Int ping = latency;
-	Int width = 10, height = 10;
-	if (pingImages[0])
+	// GenOnline @feature arcticdolphin 22/11/2026 Only an Easy Anti-Cheat lobby shows a shield, dimmed when this client does not run it.
+	const EAnticheatKind lobbyAnticheat = ParseAnticheatKind(lobbyInfo.anticheat);
+	const Image* shield = lobbyAnticheat == EAnticheatKind::Eac ? TheMappedImageCollection->findImageByName(AnticheatKindImageName(lobbyAnticheat, LocalAnticheatKind() != EAnticheatKind::Eac)) : nullptr;
+	if (shield)
 	{
-		width = pingImages[0]->getImageWidth();
-		height = pingImages[0]->getImageHeight();
+		addListIcon(win, shield, index, COLUMN_ANTICHEAT);
 	}
-	// CLH picking an arbitrary number for our ping display
-	// TODO_GENONLINE: Better values for this
-	if (ping < 250)
+
+	// GenOnline @feature arcticdolphin 22/11/2026 The ping cell stays blank, drawGameListPing draws the bars and the latency.
+	GadgetListBoxAddEntryText(win, UnicodeString(L" "), gameColor, index, COLUMN_PING);
+	if ((size_t)index >= s_lobbyRowPings.size())
 	{
-		GadgetListBoxAddEntryImage(win, pingImages[0], index, COLUMN_PING, width, height);
+		s_lobbyRowPings.resize(index + 1, -1);
 	}
-	else if (ping < 500)
-	{
-		GadgetListBoxAddEntryImage(win, pingImages[1], index, COLUMN_PING, width, height);
-	}
-	else
-	{
-		GadgetListBoxAddEntryImage(win, pingImages[2], index, COLUMN_PING, width, height);
-	}
+	s_lobbyRowPings[index] = latency;
 
 	return index;
 
@@ -1459,9 +1577,16 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 		},
 		[=](std::vector<LobbyEntry> vecLobbies)
 		{
+			// GenOnline @feature arcticdolphin 22/11/2026 The details panel follows the selection every way this refresh ends.
+			struct DetailsUpdateOnExit
+			{
+				~DetailsUpdateOnExit() { GenOnlineLobbyGameDetailsUpdate(); }
+			} detailsUpdateOnExit;
+
 			// empty listbox
 			GadgetListBoxReset(win);
 			s_lobbyRowIDs.clear();
+			s_lobbyRowPings.clear();
 
 			size_t numResults = vecLobbies.size();
 
@@ -1480,13 +1605,19 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 				// filter lobbies by game mode
 				if (theLobbyFilter != LOBBY_FILTER_ALL)
 				{
+					const EAnticheatKind localAnticheat = LocalAnticheatKind();
 					std::vector<LobbyEntry> filtered;
 					filtered.reserve(vecLobbies.size());
 					for (Int i = 0; i < (Int)vecLobbies.size(); ++i)
 					{
-						const Bool matchesFilter = (theLobbyFilter == LOBBY_FILTER_BUDDIES)
-							? lobbyHasBuddy(vecLobbies[i].lobbyID)
-							: (detectGameMode(vecLobbies[i].name) == theLobbyFilter);
+						const LobbyEntry &entry = vecLobbies[i];
+						Bool matchesFilter = FALSE;
+						if (theLobbyFilter == LOBBY_FILTER_BUDDIES)
+							matchesFilter = lobbyHasBuddy(entry.lobbyID);
+						else if (theLobbyFilter == LOBBY_FILTER_JOINABLE)
+							matchesFilter = entry.exe_crc == TheGlobalData->m_exeCRC && entry.ini_crc == TheGlobalData->m_iniCRC && (ParseAnticheatKind(entry.anticheat) != EAnticheatKind::Eac || localAnticheat == EAnticheatKind::Eac);
+						else
+							matchesFilter = detectGameMode(entry.name) == theLobbyFilter;
 
 						if (matchesFilter)
 							filtered.push_back(vecLobbies[i]);
@@ -1495,6 +1626,26 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 					if (vecLobbies.empty())
 					{
 						GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies currently match this filter"), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
+						GadgetListBoxSetSelected(win, -1);
+						clearBuddyGames();
+						return;
+					}
+				}
+
+				if (!theLobbySearchText.isEmpty())
+				{
+					const std::wstring lowerSearch = toLowerWide(theLobbySearchText.str());
+					std::vector<LobbyEntry> matching;
+					matching.reserve(vecLobbies.size());
+					for (const LobbyEntry& lobby : vecLobbies)
+					{
+						if (lobbyMatchesSearch(lobby, lowerSearch))
+							matching.push_back(lobby);
+					}
+					vecLobbies = matching;
+					if (vecLobbies.empty())
+					{
+						GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies match your search"), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1, -1);
 						GadgetListBoxSetSelected(win, -1);
 						clearBuddyGames();
 						return;
