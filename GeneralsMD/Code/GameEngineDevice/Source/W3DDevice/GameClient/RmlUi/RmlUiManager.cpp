@@ -44,6 +44,10 @@
 #include "W3DDevice/GameClient/RmlUi/RmlDisconnectScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlDownloadScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlGOCommunicator.h"
+#include "W3DDevice/GameClient/RmlUi/RmlGOContextMenu.h"
+#include "W3DDevice/GameClient/RmlUi/RmlGOSignInBox.h"
+#include "W3DDevice/GameClient/RmlUi/RmlGOToast.h"
 #include "W3DDevice/GameClient/RmlUi/RmlInGamePopupScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlLanGameSetupScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlLanLobbyScreen.h"
@@ -499,6 +503,31 @@ void RmlUiManager::registerScreens()
 	onlineWelcome.back = [] { RmlOnlineWelcomeScreen::instance().onBack(); };
 	onlineWelcome.update = [] { RmlOnlineWelcomeScreen::instance().update(); };
 	RmlUiScreenRegistry::registerScreen("Menus/GenOnlineWelcomeMenu.wnd", onlineWelcome);
+
+	// Ronin @feature 22/11/2026 DX9: GO's sign-in dialog, opened by RmlGOSignInBox::tick() when the dialog's window appears. Its key is no
+	// .wnd path, so GOSignInDialogOpen() still builds the .wnd it drives; the box captures input while up.
+	RmlUiScreenHooks signInBox;
+	signInBox.open = [] { RmlGOSignInBox::instance().open(); };
+	signInBox.close = [] { RmlGOSignInBox::instance().close(); };
+	signInBox.isVisible = [] { return RmlGOSignInBox::instance().isVisible(); };
+	signInBox.back = [] { RmlGOSignInBox::instance().back(); };
+	RmlUiScreenRegistry::registerScreen("RmlUi/GOSignInBox", signInBox);
+
+	// Ronin @feature 22/11/2026 DX9: GO's Communicator over the hub, opened by RmlGOCommunicator::tick() while GO's buddy overlay is.
+	RmlUiScreenHooks communicator;
+	communicator.open = [] { RmlGOCommunicator::instance().open(); };
+	communicator.close = [] { RmlGOCommunicator::instance().close(); };
+	communicator.isVisible = [] { return RmlGOCommunicator::instance().isVisible(); };
+	communicator.back = [] { RmlGOCommunicator::instance().back(); };
+	RmlUiScreenRegistry::registerScreen("RmlUi/GOCommunicator", communicator);
+
+	// Ronin @feature 22/11/2026 DX9: GO's right-click menus over that Communicator (RmlGOContextMenu::tick() follows the lone window).
+	RmlUiScreenHooks contextMenu;
+	contextMenu.open = [] { RmlGOContextMenu::instance().open(); };
+	contextMenu.close = [] { RmlGOContextMenu::instance().close(); };
+	contextMenu.isVisible = [] { return RmlGOContextMenu::instance().isVisible(); };
+	contextMenu.back = [] { RmlGOContextMenu::instance().back(); };
+	RmlUiScreenRegistry::registerScreen("RmlUi/GOContextMenu", contextMenu);
 }
 
 Rml::ElementDocument *RmlUiManager::loadScreen(const char *path)
@@ -569,6 +598,10 @@ void RmlUiManager::shutdown()
 	RmlLanGameSetupScreen::instance().releaseRml();
 	RmlLanMapSelectScreen::instance().releaseRml();
 	RmlOnlineWelcomeScreen::instance().releaseRml();	// Ronin @feature 21/11/2026 DX9: the Generals Online screens, likewise
+	RmlGOSignInBox::instance().releaseRml();
+	RmlGOCommunicator::instance().releaseRml();
+	RmlGOContextMenu::instance().releaseRml();
+	RmlGOToast::instance().releaseRml();
 	for (int i = 0; i < RmlLoadScreen::KIND_COUNT; ++i)
 		RmlLoadScreen::instance((RmlLoadScreen::Kind)i).releaseRml();
 	RmlDropChatClears();
@@ -623,6 +656,10 @@ void RmlUiManager::update()
 	RmlPopupReplayScreen::tick();
 	RmlDisconnectScreen::tick();
 	RmlDownloadScreen::tick();
+	RmlGOSignInBox::tick();			// Ronin @feature 22/11/2026 DX9: follows GO's sign-in dialog window
+	RmlGOCommunicator::tick();		// and GO's Communicator over the hub
+	RmlGOContextMenu::tick();		// and its right-click menus
+	RmlGOToast::tick();				// and GO's buddy notification card
 	RmlUiMessageBoxHook::raise();	// a box stays above screens shown after it
 	if (!hasVisibleDocument() && !m_debuggerVisible)
 		return;

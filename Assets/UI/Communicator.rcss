@@ -1,0 +1,342 @@
+/* Ronin @feature 22/11/2026 DX9: the Communicator window (Communicator.rml), in the Ice Console's rules.
+
+	  bar     the title (Exo 2 Light, ice tick), Buddies / Blocked, close; dragging it moves the window
+	  chat    the left, most of the window: who, the conversation, the line to send
+	  side    the right: the buddies (dot, name, status, unread) or the blocked players; right-click opens GO's menu
+*/
+
+/* A window, not a screen: it floats over the hub where it was last left. */
+body.screen.cm-window
+{
+	position: absolute;
+	left: 360dp;
+	top: 200dp;
+	width: 1180dp;
+	height: 660dp;
+	display: flex;
+	flex-direction: column;
+	background-color: #070A1AF2;
+	border: 1dp #4F86FF73;
+}
+
+/* ---- Bar ---------------------------------------------------------------------------------------- */
+.cm-bar
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	height: 64dp;
+	padding: 0 12dp 0 24dp;
+	background-color: #040A1CF0;
+	border-bottom: 1dp #4F86FF48;
+	cursor: move;
+}
+
+.cm-title
+{
+	flex: 0 0 auto;
+	font-family: "Exo 2";
+	font-size: 28dp;
+	line-height: 34dp;
+	font-weight: 300;
+	letter-spacing: 4dp;
+	text-transform: uppercase;
+	color: #EEF3FF;
+	border-left: 2dp #D8EAFF;
+	padding-left: 14dp;
+}
+
+.cm-tabs
+{
+	display: flex;
+	flex-direction: row;
+	flex: 1 1 auto;
+	margin-left: 34dp;
+}
+
+.screen button.cm-tab, .screen button.cm-tab:hover, .screen button.cm-tab:active
+{
+	height: 40dp;
+	line-height: 38dp;
+	min-width: 0;
+	padding: 0 18dp;
+	margin-right: 8dp;
+	font-family: "Exo 2";
+	font-size: 17dp;
+	font-weight: normal;
+	letter-spacing: 3dp;
+	text-transform: uppercase;
+	color: #8FA9D6;
+	background-color: transparent;
+	border-width: 0;
+	border-bottom: 1dp transparent;
+	decorator: none;
+}
+
+.screen button.cm-tab:hover
+{
+	color: #D8EAFF;
+	font-effect: glow(2dp 10dp 0dp 0dp #4F86FFB0);
+}
+
+.screen button.cm-tab.current
+{
+	color: #D8EAFF;
+	border-bottom-color: #D8EAFF;
+	decorator: vertical-gradient(#4F86FF00 #4F86FF26);
+}
+
+.screen button.cm-close, .screen button.cm-close:active
+{
+	width: 44dp;
+	height: 44dp;
+	line-height: 40dp;
+	min-width: 0;
+	padding: 0;
+	font-size: 30dp;
+	font-weight: normal;
+	text-align: center;
+	color: #8FA9D6;
+	background-color: transparent;
+	border-width: 0;
+	decorator: none;
+}
+
+.screen button.cm-close:hover
+{
+	color: #D8EAFF;
+	background-color: #0B1D45CC;
+	border-width: 0;
+	decorator: none;
+	font-effect: glow(2dp 10dp 0dp 0dp #4F86FFB0);
+}
+
+/* ---- Body --------------------------------------------------------------------------------------- */
+.cm-body
+{
+	display: flex;
+	flex-direction: row;
+	flex: 1 1 0%;
+	min-height: 0;
+}
+
+.cm-chat
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-width: 0;
+	min-height: 0;
+	padding: 18dp 22dp 20dp 24dp;
+}
+
+.cm-chat-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: baseline;
+	flex: 0 0 auto;
+	padding-bottom: 10dp;
+	border-bottom: 1dp #4F86FF30;
+}
+
+.cm-chat-label
+{
+	flex: 0 0 auto;
+	font-family: "Exo 2";
+	font-size: 15dp;
+	line-height: 30dp;
+	letter-spacing: 3dp;
+	text-transform: uppercase;
+	color: #8FA9D6;
+}
+
+.cm-chat-name
+{
+	flex: 0 1 auto;
+	min-width: 0;
+	font-family: "Noto Sans";
+	font-size: 22dp;
+	line-height: 30dp;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: #EEF3FF;
+}
+
+.cm-chat-status
+{
+	flex: 0 0 auto;
+	margin-left: 14dp;
+	font-family: "Share Tech Mono";
+	font-size: 13dp;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #8FA9D6;
+}
+
+.cm-lines
+{
+	display: block;
+	flex: 1 1 0%;
+	min-height: 0;
+	margin-top: 10dp;
+	overflow-y: auto;
+}
+
+.cm-line
+{
+	display: block;
+	padding: 3dp 0;
+	font-size: 18dp;
+	line-height: 25dp;
+	white-space: pre-wrap;
+}
+
+.cm-entry
+{
+	margin-top: 12dp;
+}
+
+/* ---- Side: buddies or blocked players ------------------------------------------------------------ */
+.cm-side
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 340dp;
+	min-height: 0;
+	padding: 18dp 16dp 14dp 16dp;
+	background-color: #040A1C80;
+	border-left: 1dp #4F86FF30;
+}
+
+.cm-side-head
+{
+	display: block;
+	flex: 0 0 auto;
+	padding: 0 8dp 10dp 8dp;
+	font-family: "Exo 2";
+	font-size: 15dp;
+	letter-spacing: 3dp;
+	text-transform: uppercase;
+	color: #8FA9D6;
+	border-bottom: 1dp #4F86FF30;
+}
+
+.cm-list
+{
+	flex: 1 1 0%;
+	min-height: 0;
+	margin-top: 8dp;
+}
+
+.cm-buddy
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding: 8dp 8dp;
+	border-left: 2dp transparent;
+	cursor: pointer;
+}
+
+.cm-buddy:hover
+{
+	decorator: horizontal-gradient(#4F86FF30 #4F86FF08);
+}
+
+.cm-buddy.selected
+{
+	border-left-color: #D8EAFF;
+	decorator: horizontal-gradient(#4F86FF40 #4F86FF10);
+}
+
+/* The friend's online state: a lit dot, an empty ring, or nothing for non-friends. */
+.cm-dot
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 10dp;
+	height: 10dp;
+	border-radius: 5dp;
+	margin-right: 12dp;
+}
+
+.cm-dot.on
+{
+	background-color: #36D8B2;
+}
+
+.cm-dot.off
+{
+	border: 2dp #5A6390;
+}
+
+.cm-buddy-text
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.cm-buddy-name
+{
+	display: block;
+	font-family: "Noto Sans";
+	font-size: 18dp;
+	line-height: 24dp;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: #EEF3FF;
+}
+
+.cm-buddy-status
+{
+	display: block;
+	font-family: "Share Tech Mono";
+	font-size: 12dp;
+	line-height: 16dp;
+	letter-spacing: 1dp;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: #8FA9D6;
+}
+
+.cm-unread
+{
+	display: block;
+	flex: 0 0 auto;
+	min-width: 22dp;
+	height: 22dp;
+	line-height: 22dp;
+	margin-left: 8dp;
+	padding: 0 6dp;
+	box-sizing: border-box;
+	border-radius: 11dp;
+	font-family: "Share Tech Mono";
+	font-size: 14dp;
+	text-align: center;
+	color: #040A1C;
+	background-color: #D8EAFF;
+}
+
+.cm-empty, .cm-hint
+{
+	display: block;
+	padding: 10dp 8dp;
+	font-family: "Share Tech Mono";
+	font-size: 12dp;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #56627F;
+}
+
+.cm-hint
+{
+	flex: 0 0 auto;
+	padding-bottom: 0;
+	border-top: 1dp #4F86FF20;
+}

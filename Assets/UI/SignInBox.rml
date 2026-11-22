@@ -1,0 +1,49 @@
+<rml>
+<head>
+	<title>SignInBox</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<style>
+		/* Ronin @feature 22/11/2026 DX9: Generals Online's sign-in dialog in the message box's card (RmlGOSignInBox): the update
+		   check, the update prompt and download, errors, and the sign-in. */
+		.sb-logo { display: flex; flex: 0 0 auto; width: 280dp; height: 84dp; margin: 24dp auto 0 auto; }
+		.sb-logo mappedimage { display: block; width: 100%; height: 100%; }
+		.sb-status { display: block; font-family: "Exo 2"; font-size: 24dp; line-height: 32dp; color: #EEF3FF; }
+		.sb-message { display: block; margin-top: 12dp; font-size: 19dp; line-height: 27dp; white-space: pre-wrap; color: #A9B1CF; }
+		.sb-download { display: block; margin-top: 16dp; }
+		.sb-size { display: block; margin-top: 8dp; font-family: "Share Tech Mono"; font-size: 14dp; letter-spacing: 1dp; color: #8FA9D6; }
+		/* While it checks or signs in: a streak runs along a hairline. */
+		/* clip: always - an absolutely placed child is not cut by overflow alone, and the streak ran past the card. */
+		.sb-sweep { display: block; position: relative; height: 15dp; margin-top: 18dp; overflow: hidden; clip: always; border-bottom: 1dp #4F86FF40; }
+		.sb-streak { display: block; position: absolute; left: -40%; bottom: -7dp; width: 40%; height: 15dp; decorator: image(Art/Streak.png);
+			animation: 1.6s sine-in-out infinite sb-run; }
+		@keyframes sb-run { from { left: -40%; } to { left: 100%; } }
+	</style>
+</head>
+<body class="screen modal" data-model="signinbox">
+	<div class="modal-card">
+		<div class="sb-logo"><mappedimage name="GeneralsLogo"/></div>
+		<div class="modal-head">
+			<div class="modal-heading">
+				<div class="modal-title">{{title}}</div>
+			</div>
+		</div>
+		<div class="modal-body">
+			<div class="sb-status" data-if="status != ''">{{status}}</div>
+			<div class="sb-message" data-if="show_message &amp;&amp; message != ''">{{message}}</div>
+			<div class="sb-download" data-if="show_progress">
+				<div class="progress"><div class="progress-fill" data-style-width="progress_style"></div></div>
+				<div class="sb-size">{{size_text}}</div>
+			</div>
+			<div class="sb-sweep" data-if="busy"><div class="sb-streak"></div></div>
+		</div>
+		<div class="modal-actions">
+			<button class="btn-back" data-if="show_cancel &amp;&amp; !cancel_is_ok" data-event-click="cancel"><span class="chevron">&#8249;</span><span>{{cancel_label}}</span></button>
+			<div class="spacer"></div>
+			<button data-if="show_another" data-event-click="another">{{another_label}}</button>
+			<button class="btn-cta" data-if="show_update" data-event-click="update">{{update_label}}</button>
+			<button class="btn-cta" data-if="show_cancel &amp;&amp; cancel_is_ok" data-event-click="cancel">{{cancel_label}}</button>
+		</div>
+	</div>
+</body>
+</rml>

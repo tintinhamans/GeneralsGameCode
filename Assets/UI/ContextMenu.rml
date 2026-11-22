@@ -1,0 +1,24 @@
+<rml>
+<head>
+	<title>ContextMenu</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<style>
+		/* Ronin @feature 22/11/2026 DX9: GO's right-click menus (GenOnlineRC*.wnd) over the Communicator (RmlGOContextMenu): the menu where
+		   GO put it, its buttons as rows; a press outside it closes it, as GO's lone window does. */
+		body.screen.ctx-layer { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background-color: transparent; }
+		.ctx-menu { display: block; position: absolute; min-width: 220dp; padding: 6dp 0;
+			background-color: #070A1AF5; border: 1dp #4F86FF73; }
+		.ctx-item { display: block; padding: 0 22dp; height: 42dp; line-height: 42dp; white-space: nowrap; cursor: pointer;
+			font-family: "Exo 2"; font-size: 17dp; letter-spacing: 3dp; text-transform: uppercase; color: #EEF3FF;
+			border-left: 2dp transparent; }
+		.ctx-item:hover { color: #D8EAFF; border-left-color: #D8EAFF; decorator: horizontal-gradient(#4F86FF40 #4F86FF10);
+			font-effect: glow(2dp 10dp 0dp 0dp #4F86FFB0); }
+	</style>
+</head>
+<body class="screen ctx-layer" data-model="contextmenu" data-event-mousedown="outside">
+	<div class="ctx-menu" id="ctx_menu" data-event-mousedown="inside">
+		<div data-for="item : items"><div class="ctx-item" data-if="item.used" data-event-click="pick(item.index)">{{item.label}}</div></div>
+	</div>
+</body>
+</rml>

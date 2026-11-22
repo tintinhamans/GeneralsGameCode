@@ -110,6 +110,10 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/RmlUi/RmlNetworkDirectConnectScreen.h
     # Ronin @feature 21/11/2026 DX9: the Generals Online screens on RmlUi
     Include/W3DDevice/GameClient/RmlUi/RmlOnlineWelcomeScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlGOSignInBox.h
+    Include/W3DDevice/GameClient/RmlUi/RmlGOCommunicator.h
+    Include/W3DDevice/GameClient/RmlUi/RmlGOContextMenu.h
+    Include/W3DDevice/GameClient/RmlUi/RmlGOToast.h
 #    Include/W3DDevice/GameClient/W3DSmudge.h
 #    Include/W3DDevice/GameClient/W3DSnow.h
     Include/W3DDevice/GameClient/W3DStatusCircle.h
@@ -251,6 +255,10 @@ set(GAMEENGINEDEVICE_SRC
     Source/W3DDevice/GameClient/RmlUi/RmlNetworkDirectConnectScreen.cpp
     # Ronin @feature 21/11/2026 DX9: the Generals Online screens on RmlUi
     Source/W3DDevice/GameClient/RmlUi/RmlOnlineWelcomeScreen.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlGOSignInBox.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlGOCommunicator.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlGOContextMenu.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlGOToast.cpp
 #    Source/W3DDevice/GameClient/W3DSmudge.cpp
 #    Source/W3DDevice/GameClient/W3DSnow.cpp
     Source/W3DDevice/GameClient/W3DStatusCircle.cpp

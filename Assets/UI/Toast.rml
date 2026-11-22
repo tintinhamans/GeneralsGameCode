@@ -1,0 +1,26 @@
+<rml>
+<head>
+	<title>Toast</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<style>
+		/* Ronin @feature 22/11/2026 DX9: GO's buddy notification (GenOnlinePopupBuddyListNotification.wnd) as an Ice card under the
+		   header's right end (RmlGOToast); GO sets its text and its time, and a click does what GO's does. */
+		body.screen.toast-card
+		{
+			position: absolute; right: 60dp; top: 124dp; left: auto; width: 560dp; height: auto;
+			display: flex; flex-direction: row; align-items: center; padding: 16dp 20dp;
+			background-color: #070A1AF2; border: 1dp #4F86FF73; border-left: 2dp #D8EAFF; cursor: pointer;
+			animation: 0.25s cubic-out 1 toast-in;
+		}
+		body.screen.toast-card:hover { border-color: #D8EAFF; decorator: horizontal-gradient(#4F86FF30 #4F86FF08); }
+		@keyframes toast-in { from { opacity: 0; } to { opacity: 1; } }
+		.toast-icon { display: block; flex: 0 0 auto; width: 34dp; height: 34dp; margin-right: 16dp; decorator: image(Art/Social.png); image-color: #D8EAFF; }
+		.toast-text { display: block; flex: 1 1 0%; min-width: 0; font-size: 19dp; line-height: 26dp; color: #EEF3FF; white-space: pre-wrap; }
+	</style>
+</head>
+<body class="screen toast-card" data-model="toast" data-event-click="pressed">
+	<span class="toast-icon"></span>
+	<div class="toast-text">{{text}}</div>
+</body>
+</rml>

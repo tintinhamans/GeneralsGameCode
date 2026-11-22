@@ -1,0 +1,64 @@
+<rml>
+<!-- Ronin @feature 22/11/2026 DX9: Generals Online's Communicator (GenOnlineBuddyOverlay.wnd) as a movable window over the RmlUi hub
+     (RmlGOCommunicator): the chat on the left, the buddies (or the blocked players) on the right. GO's code fills its .wnd lists;
+     this shows them, and its clicks reach GO as the .wnd's own (right-click opens GO's menus). -->
+<head>
+	<title>Communicator</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<link type="text/rcss" href="Communicator.rcss"/>
+</head>
+<body class="screen cm-window" data-model="communicator">
+	<!-- The title bar moves the window. -->
+	<handle class="cm-bar" move_target="#document">
+		<div class="cm-title">Communicator</div>
+		<div class="cm-tabs">
+			<button class="cm-tab" data-class-current="tab == 'buddies'" data-event-click="tab_buddies"><gametext key="GUI:BuddiesTab"/></button>
+			<button class="cm-tab" data-class-current="tab == 'blocked'" data-event-click="tab_blocked">Blocked</button>
+		</div>
+		<button class="cm-close" data-event-click="close" data-tooltip-text="Close (Esc)">&#215;</button>
+	</handle>
+
+	<div class="cm-body">
+		<!-- The conversation with the selected buddy. -->
+		<div class="cm-chat">
+			<div class="cm-chat-head">
+				<!-- GO's own chat line already says to pick a friend: with nobody picked the head is only its label. -->
+				<div class="cm-chat-label" data-if="chat_with == ''">Conversation</div>
+				<div class="cm-chat-name" data-if="chat_with != ''">{{chat_with}}</div>
+				<div class="cm-chat-status" data-if="chat_status != ''">{{chat_status}}</div>
+			</div>
+			<scrolllog class="cm-lines">
+				<div data-for="line : chat"><div class="cm-line" data-if="line.used" data-style-color="line.color == '' ? '#D7DCF0' : line.color" data-event-mousedown="chat_press(line.index)">{{line.text}}</div></div>
+			</scrolllog>
+			<div class="chat-entry send-row cm-entry">
+				<input type="text" class="chat-input" data-value="chat_text" data-event-change="chat_committed"/>
+				<button class="chat-send" data-event-click="send"><span class="send-arrow"></span></button>
+			</div>
+		</div>
+
+		<!-- The buddies: online first, a dot for online and offline, the unread count, the status under the name. -->
+		<div class="cm-side">
+			<div class="cm-side-head">{{tab == 'blocked' ? 'Blocked players' : 'Buddies'}}</div>
+			<div class="scroll-container cm-list" data-if="tab == 'buddies'">
+				<div data-for="b : buddies"><div class="cm-buddy" data-if="b.used" data-class-selected="b.selected" data-event-mousedown="buddy_press(b.index)">
+					<span class="cm-dot" data-class-on="b.dot == 'on'" data-class-off="b.dot == 'off'"></span>
+					<div class="cm-buddy-text">
+						<div class="cm-buddy-name" data-style-color="b.name_color">{{b.name}}</div>
+						<div class="cm-buddy-status" data-if="b.status != ''">{{b.status}}</div>
+					</div>
+					<span class="cm-unread" data-if="b.unread > 0">{{b.unread}}</span>
+				</div></div>
+			</div>
+			<div class="scroll-container cm-list" data-if="tab == 'blocked'">
+				<div data-for="p : blocked"><div class="cm-buddy" data-if="p.used" data-class-selected="p.selected" data-event-mousedown="blocked_press(p.index)">
+					<span class="cm-dot"></span>
+					<div class="cm-buddy-text"><div class="cm-buddy-name">{{p.name}}</div></div>
+				</div></div>
+				<div class="cm-empty" data-if="blocked_count == 0">Nobody is blocked.</div>
+			</div>
+			<div class="cm-hint">Right-click a name for more</div>
+		</div>
+	</div>
+</body>
+</rml>
