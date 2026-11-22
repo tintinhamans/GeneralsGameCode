@@ -97,9 +97,808 @@ WINDOW
                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
     CHILD
     WINDOW
+      WINDOWTYPE = USER;
+      SCREENRECT = UPPERLEFT: 537 85,
+                   BOTTOMRIGHT: 753 511,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:PanelGame";
+      STATUS = ENABLED+NOINPUT+NOFOCUS;
+      STYLE = USER;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Times New Roman", SIZE: 14, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  255 255 255 0, ENABLEDBORDER:  255 255 255 0,
+                  DISABLED: 255 255 255 0, DISABLEDBORDER: 255 255 255 0,
+                  HILITE:   255 255 255 0, HILITEBORDER:   255 255 255 0;
+      ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 0 0 0 0, BORDERCOLOR: 47 75 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 0 0 64 255, BORDERCOLOR: 0 0 0 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 679 476,
-                   BOTTOMRIGHT: 715 500,
+      SCREENRECT = UPPERLEFT: 487 111,
+                   BOTTOMRIGHT: 507 131,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ButtonKick0";
+      STATUS = ENABLED+HIDDEN+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: ReturnButton, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                        IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: ReturnButtonDisabled, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: ReturnButtonHilite, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                       IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 511 111,
+                   BOTTOMRIGHT: 531 131,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ButtonBan0";
+      STATUS = ENABLED+HIDDEN+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: ReturnButton, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                        IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: ReturnButtonDisabled, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: ReturnButtonHilite, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                       IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 487 135,
+                   BOTTOMRIGHT: 507 155,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ButtonKick1";
+      STATUS = ENABLED+HIDDEN+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: ReturnButton, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                        IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: ReturnButtonDisabled, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: ReturnButtonHilite, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                       IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 511 135,
+                   BOTTOMRIGHT: 531 155,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ButtonBan1";
+      STATUS = ENABLED+HIDDEN+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: ReturnButton, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                        IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: ReturnButtonDisabled, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: ReturnButtonHilite, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                       IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 487 159,
+                   BOTTOMRIGHT: 507 179,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ButtonKick2";
+      STATUS = ENABLED+HIDDEN+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: ReturnButton, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                        IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: ReturnButtonDisabled, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: ReturnButtonHilite, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                       IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 511 159,
+                   BOTTOMRIGHT: 531 179,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ButtonBan2";
+      STATUS = ENABLED+HIDDEN+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: ReturnButton, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                        IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: ReturnButtonDisabled, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: ReturnButtonHilite, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                       IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 487 183,
+                   BOTTOMRIGHT: 507 203,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ButtonKick3";
+      STATUS = ENABLED+HIDDEN+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: ReturnButton, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                        IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: ReturnButtonDisabled, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: ReturnButtonHilite, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                       IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 511 183,
+                   BOTTOMRIGHT: 531 203,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ButtonBan3";
+      STATUS = ENABLED+HIDDEN+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: ReturnButton, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                        IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: ReturnButtonDisabled, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: ReturnButtonHilite, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                       IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 487 207,
+                   BOTTOMRIGHT: 507 227,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ButtonKick4";
+      STATUS = ENABLED+HIDDEN+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: ReturnButton, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                        IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: ReturnButtonDisabled, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: ReturnButtonHilite, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                       IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 511 207,
+                   BOTTOMRIGHT: 531 227,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ButtonBan4";
+      STATUS = ENABLED+HIDDEN+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: ReturnButton, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                        IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: ReturnButtonDisabled, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: ReturnButtonHilite, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                       IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 487 231,
+                   BOTTOMRIGHT: 507 251,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ButtonKick5";
+      STATUS = ENABLED+HIDDEN+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: ReturnButton, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                        IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: ReturnButtonDisabled, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: ReturnButtonHilite, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                       IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 511 231,
+                   BOTTOMRIGHT: 531 251,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ButtonBan5";
+      STATUS = ENABLED+HIDDEN+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: ReturnButton, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                        IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: ReturnButtonDisabled, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: ReturnButtonHilite, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                       IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 487 255,
+                   BOTTOMRIGHT: 507 275,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ButtonKick6";
+      STATUS = ENABLED+HIDDEN+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: ReturnButton, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                        IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: ReturnButtonDisabled, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: ReturnButtonHilite, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                       IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 511 255,
+                   BOTTOMRIGHT: 531 275,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ButtonBan6";
+      STATUS = ENABLED+HIDDEN+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: ReturnButton, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                        IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: ReturnButtonDisabled, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: ReturnButtonHilite, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                       IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 487 279,
+                   BOTTOMRIGHT: 507 299,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ButtonKick7";
+      STATUS = ENABLED+HIDDEN+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: ReturnButton, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                        IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: ReturnButtonDisabled, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: ReturnButtonHilite, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                       IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 511 279,
+                   BOTTOMRIGHT: 531 299,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ButtonBan7";
+      STATUS = ENABLED+HIDDEN+NOFOCUS;
+      STYLE = PUSHBUTTON+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "[NONE]";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: ReturnButton, COLOR: 7 10 24 255, BORDERCOLOR: 47 75 255 255,
+                        IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: ReturnButtonDisabled, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 10 10 16 255, BORDERCOLOR: 74 78 110 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: ReturnButtonHilite, COLOR: 21 32 120 255, BORDERCOLOR: 106 123 255 255,
+                       IMAGE: ReturnButtonHilitePushed, COLOR: 43 52 184 255, BORDERCOLOR: 140 155 255 255,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = PUSHBUTTON;
+      SCREENRECT = UPPERLEFT: 501 486,
+                   BOTTOMRIGHT: 531 511,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonEmote";
       STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -145,8 +944,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = CHECKBOX;
-      SCREENRECT = UPPERLEFT: 606 307,
-                   BOTTOMRIGHT: 734 327,
+      SCREENRECT = UPPERLEFT: 545 405,
+                   BOTTOMRIGHT: 745 425,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:CheckBoxLimitArmies";
       STATUS = ENABLED+IMAGE;
@@ -194,8 +993,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = CHECKBOX;
-      SCREENRECT = UPPERLEFT: 475 307,
-                   BOTTOMRIGHT: 604 327,
+      SCREENRECT = UPPERLEFT: 545 383,
+                   BOTTOMRIGHT: 745 403,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:CheckBoxUseStats";
       STATUS = ENABLED+IMAGE+BORDER;
@@ -243,8 +1042,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 237 305,
-                   BOTTOMRIGHT: 333 329,
+      SCREENRECT = UPPERLEFT: 545 335,
+                   BOTTOMRIGHT: 645 355,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StartingCashLabel";
       STATUS = ENABLED+IMAGE;
@@ -293,8 +1092,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = CHECKBOX;
-      SCREENRECT = UPPERLEFT: 79 307,
-                   BOTTOMRIGHT: 231 327,
+      SCREENRECT = UPPERLEFT: 545 361,
+                   BOTTOMRIGHT: 745 381,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:CheckboxLimitSuperweapons";
       STATUS = ENABLED+IMAGE;
@@ -342,8 +1141,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 93 508,
-                   BOTTOMRIGHT: 267 544,
+      SCREENRECT = UPPERLEFT: 47 517,
+                   BOTTOMRIGHT: 219 553,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonStart";
       STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -390,8 +1189,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = ENTRYFIELD;
-      SCREENRECT = UPPERLEFT: 79 476,
-                   BOTTOMRIGHT: 677 500,
+      SCREENRECT = UPPERLEFT: 47 486,
+                   BOTTOMRIGHT: 497 511,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:TextEntryChat";
       STATUS = ENABLED+IMAGE;
@@ -443,8 +1242,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 529 508,
-                   BOTTOMRIGHT: 703 544,
+      SCREENRECT = UPPERLEFT: 581 517,
+                   BOTTOMRIGHT: 753 553,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonBack";
       STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -492,10 +1291,10 @@ WINDOW
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
       SCREENRECT = UPPERLEFT: 311 508,
-                   BOTTOMRIGHT: 485 544,
+                   BOTTOMRIGHT: 484 544,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonCommunicator";
-      STATUS = ENABLED+IMAGE+NOFOCUS;
+      STATUS = ENABLED+HIDDEN+IMAGE+NOFOCUS;
       STYLE = PUSHBUTTON+MOUSETRACK;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -539,8 +1338,174 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = SCROLLLISTBOX;
-      SCREENRECT = UPPERLEFT: 79 335,
-                   BOTTOMRIGHT: 715 470,
+      SCREENRECT = UPPERLEFT: 545 431,
+                   BOTTOMRIGHT: 745 503,
+                   CREATIONRESOLUTION: 800 600;
+      NAME = "GameSpyGameOptionsMenu.wnd:ListboxInfo";
+      STATUS = ENABLED+NOFOCUS;
+      STYLE = SCROLLLISTBOX+MOUSETRACK;
+      SYSTEMCALLBACK = "[None]";
+      INPUTCALLBACK = "[None]";
+      TOOLTIPCALLBACK = "[None]";
+      DRAWCALLBACK = "[None]";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOLabelRegular";
+      TOOLTIPDELAY = -1;
+      TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+                  DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+                  HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+      ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 0 0 0 0, BORDERCOLOR: 0 0 0 0,
+                        IMAGE: NoImage, COLOR: 255 255 0 255, BORDERCOLOR: 254 254 254 255,
+                        IMAGE: ListBoxHiliteItemRightEnd, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: ListBoxHiliteItemRepeatingCenter, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: ListBoxHiliteItemSmallRepeatingCenter, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 0 0 0 0, BORDERCOLOR: 0 0 0 0,
+                         IMAGE: NoImage, COLOR: 192 192 192 255, BORDERCOLOR: 254 254 254 255,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 0 0 0 0, BORDERCOLOR: 0 0 0 0,
+                       IMAGE: NoImage, COLOR: 254 254 254 255, BORDERCOLOR: 0 128 0 255,
+                       IMAGE: ListBoxHiliteSelectedItemRightEnd, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: ListBoxHiliteSelectedItemRepeatingCenter, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: ListBoxHiliteSelectedItemSmallRepeatingCenter, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      LISTBOXDATA = LENGTH: 100,
+                    AUTOSCROLL: 0,
+                    SCROLLIFATEND: 0,
+                    AUTOPURGE: 0,
+                    SCROLLBAR: 1,
+                    MULTISELECT: 0,
+                    COLUMNS: 3,
+                    COLUMNSWIDTH: 38,
+                    COLUMNSWIDTH: 9,
+                    COLUMNSWIDTH: 53,
+                    FORCESELECT: 0;
+      LISTBOXENABLEDUPBUTTONDRAWDATA = IMAGE: VSliderUpButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
+                                       IMAGE: VSliderUpButtonHiliteSelected, COLOR: 255 255 0 255, BORDERCOLOR: 254 254 254 255,
+                                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      LISTBOXDISABLEDUPBUTTONDRAWDATA = IMAGE: VSliderUpButtonDisabled, COLOR: 128 128 128 255, BORDERCOLOR: 192 192 192 255,
+                                        IMAGE: NoImage, COLOR: 192 192 192 255, BORDERCOLOR: 254 254 254 255,
+                                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      LISTBOXHILITEUPBUTTONDRAWDATA = IMAGE: VSliderUpButtonHilite, COLOR: 0 255 0 255, BORDERCOLOR: 0 128 0 255,
+                                      IMAGE: VSliderUpButtonHiliteSelected, COLOR: 254 254 254 255, BORDERCOLOR: 0 128 0 255,
+                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      LISTBOXENABLEDDOWNBUTTONDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
+                                         IMAGE: VSliderDownButtonHiliteSelected, COLOR: 255 255 0 255, BORDERCOLOR: 254 254 254 255,
+                                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      LISTBOXDISABLEDDOWNBUTTONDRAWDATA = IMAGE: VSliderDownButtonDisabled, COLOR: 128 128 128 255, BORDERCOLOR: 192 192 192 255,
+                                          IMAGE: NoImage, COLOR: 192 192 192 255, BORDERCOLOR: 254 254 254 255,
+                                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      LISTBOXHILITEDOWNBUTTONDRAWDATA = IMAGE: VSliderDownButtonHilite, COLOR: 0 255 0 255, BORDERCOLOR: 0 128 0 255,
+                                        IMAGE: VSliderDownButtonHiliteSelected, COLOR: 254 254 254 255, BORDERCOLOR: 0 128 0 255,
+                                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      LISTBOXENABLEDSLIDERDRAWDATA = IMAGE: NoImage, COLOR: 255 190 0 0, BORDERCOLOR: 47 75 255 255,
+                                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      LISTBOXDISABLEDSLIDERDRAWDATA = IMAGE: NoImage, COLOR: 128 128 128 0, BORDERCOLOR: 148 112 0 255,
+                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      LISTBOXHILITESLIDERDRAWDATA = IMAGE: NoImage, COLOR: 0 255 0 0, BORDERCOLOR: 47 75 255 255,
+                                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      SLIDERTHUMBENABLEDDRAWDATA = IMAGE: ScrollBarThumbEnabled, COLOR: 255 4 0 0, BORDERCOLOR: 255 243 28 255,
+                                   IMAGE: ScrollBarThumbHiliteSelected, COLOR: 255 255 0 255, BORDERCOLOR: 254 254 254 255,
+                                   IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                   IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                   IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                   IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                   IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                   IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                   IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      SLIDERTHUMBDISABLEDDRAWDATA = IMAGE: ScrollBarThumbDisabled, COLOR: 128 128 128 255, BORDERCOLOR: 192 192 192 255,
+                                    IMAGE: NoImage, COLOR: 192 192 192 255, BORDERCOLOR: 254 254 254 255,
+                                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+      SLIDERTHUMBHILITEDRAWDATA = IMAGE: ScrollBarThumbHilite, COLOR: 0 255 0 255, BORDERCOLOR: 0 128 0 255,
+                                  IMAGE: ScrollBarThumbHiliteSelected, COLOR: 254 254 254 255, BORDERCOLOR: 0 128 0 255,
+                                  IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                  IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                  IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                  IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                  IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                  IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                                  IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+    END
+    CHILD
+    WINDOW
+      WINDOWTYPE = SCROLLLISTBOX;
+      SCREENRECT = UPPERLEFT: 47 309,
+                   BOTTOMRIGHT: 531 480,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ListboxChatWindowGameSpyGameSetup";
       STATUS = ENABLED+NOFOCUS;
@@ -702,8 +1667,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 333 307,
-                   BOTTOMRIGHT: 437 327,
+      SCREENRECT = UPPERLEFT: 649 335,
+                   BOTTOMRIGHT: 745 355,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxStartingCash";
       STATUS = ENABLED+IMAGE;
@@ -748,7 +1713,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 13,
+                    MAXDISPLAY: 12,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -944,8 +1909,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 110,
-                   BOTTOMRIGHT: 60 126,
+      SCREENRECT = UPPERLEFT: 47 111,
+                   BOTTOMRIGHT: 81 131,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing0";
       STATUS = ENABLED+IMAGE;
@@ -991,8 +1956,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 128,
-                   BOTTOMRIGHT: 60 144,
+      SCREENRECT = UPPERLEFT: 47 135,
+                   BOTTOMRIGHT: 81 155,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing1";
       STATUS = ENABLED+IMAGE;
@@ -1038,8 +2003,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 146,
-                   BOTTOMRIGHT: 60 162,
+      SCREENRECT = UPPERLEFT: 47 159,
+                   BOTTOMRIGHT: 81 179,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing2";
       STATUS = ENABLED+IMAGE;
@@ -1085,8 +2050,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 164,
-                   BOTTOMRIGHT: 60 180,
+      SCREENRECT = UPPERLEFT: 47 183,
+                   BOTTOMRIGHT: 81 203,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing3";
       STATUS = ENABLED+IMAGE;
@@ -1132,8 +2097,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 182,
-                   BOTTOMRIGHT: 60 198,
+      SCREENRECT = UPPERLEFT: 47 207,
+                   BOTTOMRIGHT: 81 227,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing4";
       STATUS = ENABLED+IMAGE;
@@ -1179,8 +2144,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 200,
-                   BOTTOMRIGHT: 60 216,
+      SCREENRECT = UPPERLEFT: 47 231,
+                   BOTTOMRIGHT: 81 251,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing5";
       STATUS = ENABLED+IMAGE;
@@ -1226,8 +2191,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 218,
-                   BOTTOMRIGHT: 60 234,
+      SCREENRECT = UPPERLEFT: 47 255,
+                   BOTTOMRIGHT: 81 275,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing6";
       STATUS = ENABLED+IMAGE;
@@ -1273,8 +2238,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 44 236,
-                   BOTTOMRIGHT: 60 252,
+      SCREENRECT = UPPERLEFT: 47 279,
+                   BOTTOMRIGHT: 81 299,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:GenericPing7";
       STATUS = ENABLED+IMAGE;
@@ -1320,11 +2285,11 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 110,
-                   BOTTOMRIGHT: 77 126,
+      SCREENRECT = UPPERLEFT: 61 109,
+                   BOTTOMRIGHT: 77 125,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept0";
-      STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+      STATUS = ENABLED+HIDDEN+IMAGE+NOINPUT+NOFOCUS;
       STYLE = PUSHBUTTON+MOUSETRACK;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -1367,11 +2332,11 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 128,
-                   BOTTOMRIGHT: 77 144,
+      SCREENRECT = UPPERLEFT: 61 133,
+                   BOTTOMRIGHT: 77 149,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept1";
-      STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+      STATUS = ENABLED+HIDDEN+IMAGE+NOINPUT+NOFOCUS;
       STYLE = PUSHBUTTON+MOUSETRACK;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -1414,11 +2379,11 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 146,
-                   BOTTOMRIGHT: 77 162,
+      SCREENRECT = UPPERLEFT: 61 157,
+                   BOTTOMRIGHT: 77 173,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept2";
-      STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+      STATUS = ENABLED+HIDDEN+IMAGE+NOINPUT+NOFOCUS;
       STYLE = PUSHBUTTON+MOUSETRACK;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -1461,11 +2426,11 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 164,
-                   BOTTOMRIGHT: 77 180,
+      SCREENRECT = UPPERLEFT: 61 181,
+                   BOTTOMRIGHT: 77 197,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept3";
-      STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+      STATUS = ENABLED+HIDDEN+IMAGE+NOINPUT+NOFOCUS;
       STYLE = PUSHBUTTON+MOUSETRACK;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -1508,11 +2473,11 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 182,
-                   BOTTOMRIGHT: 77 198,
+      SCREENRECT = UPPERLEFT: 61 205,
+                   BOTTOMRIGHT: 77 221,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept4";
-      STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+      STATUS = ENABLED+HIDDEN+IMAGE+NOINPUT+NOFOCUS;
       STYLE = PUSHBUTTON+MOUSETRACK;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -1555,11 +2520,11 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 200,
-                   BOTTOMRIGHT: 77 216,
+      SCREENRECT = UPPERLEFT: 61 229,
+                   BOTTOMRIGHT: 77 245,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept5";
-      STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+      STATUS = ENABLED+HIDDEN+IMAGE+NOINPUT+NOFOCUS;
       STYLE = PUSHBUTTON+MOUSETRACK;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -1602,11 +2567,11 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 218,
-                   BOTTOMRIGHT: 77 234,
+      SCREENRECT = UPPERLEFT: 61 253,
+                   BOTTOMRIGHT: 77 269,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept6";
-      STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+      STATUS = ENABLED+HIDDEN+IMAGE+NOINPUT+NOFOCUS;
       STYLE = PUSHBUTTON+MOUSETRACK;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -1649,11 +2614,11 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 61 236,
-                   BOTTOMRIGHT: 77 252,
+      SCREENRECT = UPPERLEFT: 61 277,
+                   BOTTOMRIGHT: 77 293,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonAccept7";
-      STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
+      STATUS = ENABLED+HIDDEN+IMAGE+NOINPUT+NOFOCUS;
       STYLE = PUSHBUTTON+MOUSETRACK;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -1696,8 +2661,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 585 277,
-                   BOTTOMRIGHT: 750 299,
+      SCREENRECT = UPPERLEFT: 545 303,
+                   BOTTOMRIGHT: 745 327,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonSelectMap";
       STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -1745,8 +2710,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 573 247,
-                   BOTTOMRIGHT: 757 275,
+      SCREENRECT = UPPERLEFT: 545 269,
+                   BOTTOMRIGHT: 745 297,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:TextEntryMapDisplay";
       STATUS = ENABLED;
@@ -1794,8 +2759,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 585 109,
-                   BOTTOMRIGHT: 750 240,
+      SCREENRECT = UPPERLEFT: 570 113,
+                   BOTTOMRIGHT: 720 263,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:MapWindow";
       STATUS = ENABLED;
@@ -1840,8 +2805,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 586 113,
-                     BOTTOMRIGHT: 602 130,
+        SCREENRECT = UPPERLEFT: 571 117,
+                     BOTTOMRIGHT: 587 134,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition0";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -1887,8 +2852,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 585 132,
-                     BOTTOMRIGHT: 601 149,
+        SCREENRECT = UPPERLEFT: 570 136,
+                     BOTTOMRIGHT: 586 153,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition1";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -1934,8 +2899,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 593 140,
-                     BOTTOMRIGHT: 609 157,
+        SCREENRECT = UPPERLEFT: 578 144,
+                     BOTTOMRIGHT: 594 161,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition2";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -1981,8 +2946,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 601 148,
-                     BOTTOMRIGHT: 617 165,
+        SCREENRECT = UPPERLEFT: 586 152,
+                     BOTTOMRIGHT: 602 169,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition3";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2028,8 +2993,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 609 156,
-                     BOTTOMRIGHT: 625 173,
+        SCREENRECT = UPPERLEFT: 594 160,
+                     BOTTOMRIGHT: 610 177,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition4";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2075,8 +3040,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 617 164,
-                     BOTTOMRIGHT: 633 181,
+        SCREENRECT = UPPERLEFT: 602 168,
+                     BOTTOMRIGHT: 618 185,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition5";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2122,8 +3087,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 625 172,
-                     BOTTOMRIGHT: 641 189,
+        SCREENRECT = UPPERLEFT: 610 176,
+                     BOTTOMRIGHT: 626 193,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition6";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2169,8 +3134,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 633 180,
-                     BOTTOMRIGHT: 649 197,
+        SCREENRECT = UPPERLEFT: 618 184,
+                     BOTTOMRIGHT: 634 201,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition7";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2218,8 +3183,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 585 85,
-                   BOTTOMRIGHT: 749 109,
+      SCREENRECT = UPPERLEFT: 545 89,
+                   BOTTOMRIGHT: 745 109,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextMapPreview";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2267,8 +3232,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 515 85,
-                   BOTTOMRIGHT: 578 109,
+      SCREENRECT = UPPERLEFT: 421 85,
+                   BOTTOMRIGHT: 483 109,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextTeam";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2316,8 +3281,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 236,
-                   BOTTOMRIGHT: 578 252,
+      SCREENRECT = UPPERLEFT: 421 279,
+                   BOTTOMRIGHT: 483 299,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam7";
       STATUS = ENABLED+IMAGE;
@@ -2326,8 +3291,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -2557,8 +3522,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 218,
-                   BOTTOMRIGHT: 578 234,
+      SCREENRECT = UPPERLEFT: 421 255,
+                   BOTTOMRIGHT: 483 275,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam6";
       STATUS = ENABLED+IMAGE;
@@ -2567,8 +3532,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -2798,8 +3763,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 200,
-                   BOTTOMRIGHT: 578 216,
+      SCREENRECT = UPPERLEFT: 421 231,
+                   BOTTOMRIGHT: 483 251,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam5";
       STATUS = ENABLED+IMAGE;
@@ -2808,8 +3773,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -3039,8 +4004,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 182,
-                   BOTTOMRIGHT: 578 198,
+      SCREENRECT = UPPERLEFT: 421 207,
+                   BOTTOMRIGHT: 483 227,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam4";
       STATUS = ENABLED+IMAGE;
@@ -3049,8 +4014,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -3280,8 +4245,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 164,
-                   BOTTOMRIGHT: 578 180,
+      SCREENRECT = UPPERLEFT: 421 183,
+                   BOTTOMRIGHT: 483 203,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam3";
       STATUS = ENABLED+IMAGE;
@@ -3290,8 +4255,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -3521,8 +4486,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 146,
-                   BOTTOMRIGHT: 578 162,
+      SCREENRECT = UPPERLEFT: 421 159,
+                   BOTTOMRIGHT: 483 179,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam2";
       STATUS = ENABLED+IMAGE;
@@ -3531,8 +4496,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -3762,8 +4727,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 128,
-                   BOTTOMRIGHT: 578 144,
+      SCREENRECT = UPPERLEFT: 421 135,
+                   BOTTOMRIGHT: 483 155,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam1";
       STATUS = ENABLED+IMAGE;
@@ -3772,8 +4737,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -4003,8 +4968,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 515 110,
-                   BOTTOMRIGHT: 578 126,
+      SCREENRECT = UPPERLEFT: 421 111,
+                   BOTTOMRIGHT: 483 131,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam0";
       STATUS = ENABLED+IMAGE;
@@ -4013,8 +4978,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -4244,8 +5209,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 311 85,
-                   BOTTOMRIGHT: 419 109,
+      SCREENRECT = UPPERLEFT: 321 85,
+                   BOTTOMRIGHT: 417 109,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextFaction";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -4293,8 +5258,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 236,
-                   BOTTOMRIGHT: 513 252,
+      SCREENRECT = UPPERLEFT: 321 279,
+                   BOTTOMRIGHT: 417 299,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate7";
       STATUS = ENABLED+IMAGE;
@@ -4303,8 +5268,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -4534,8 +5499,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 218,
-                   BOTTOMRIGHT: 513 234,
+      SCREENRECT = UPPERLEFT: 321 255,
+                   BOTTOMRIGHT: 417 275,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate6";
       STATUS = ENABLED+IMAGE;
@@ -4544,8 +5509,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -4775,8 +5740,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 200,
-                   BOTTOMRIGHT: 513 216,
+      SCREENRECT = UPPERLEFT: 321 231,
+                   BOTTOMRIGHT: 417 251,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate5";
       STATUS = ENABLED+IMAGE;
@@ -4785,8 +5750,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -5016,8 +5981,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 182,
-                   BOTTOMRIGHT: 513 198,
+      SCREENRECT = UPPERLEFT: 321 207,
+                   BOTTOMRIGHT: 417 227,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate4";
       STATUS = ENABLED+IMAGE;
@@ -5026,8 +5991,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -5257,8 +6222,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 164,
-                   BOTTOMRIGHT: 513 180,
+      SCREENRECT = UPPERLEFT: 321 183,
+                   BOTTOMRIGHT: 417 203,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate3";
       STATUS = ENABLED+IMAGE;
@@ -5267,8 +6232,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -5498,8 +6463,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 146,
-                   BOTTOMRIGHT: 513 162,
+      SCREENRECT = UPPERLEFT: 321 159,
+                   BOTTOMRIGHT: 417 179,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate2";
       STATUS = ENABLED+IMAGE;
@@ -5508,8 +6473,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -5739,8 +6704,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 128,
-                   BOTTOMRIGHT: 513 144,
+      SCREENRECT = UPPERLEFT: 321 135,
+                   BOTTOMRIGHT: 417 155,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate1";
       STATUS = ENABLED+IMAGE;
@@ -5749,8 +6714,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -5980,8 +6945,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 311 110,
-                   BOTTOMRIGHT: 513 126,
+      SCREENRECT = UPPERLEFT: 321 111,
+                   BOTTOMRIGHT: 417 131,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate0";
       STATUS = ENABLED+IMAGE;
@@ -5990,8 +6955,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -6221,8 +7186,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 225 85,
-                   BOTTOMRIGHT: 305 109,
+      SCREENRECT = UPPERLEFT: 229 85,
+                   BOTTOMRIGHT: 317 109,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextColor";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -6270,8 +7235,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 236,
-                   BOTTOMRIGHT: 309 252,
+      SCREENRECT = UPPERLEFT: 229 279,
+                   BOTTOMRIGHT: 317 299,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor7";
       STATUS = ENABLED+IMAGE;
@@ -6280,8 +7245,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -6511,8 +7476,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 218,
-                   BOTTOMRIGHT: 309 234,
+      SCREENRECT = UPPERLEFT: 229 255,
+                   BOTTOMRIGHT: 317 275,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor6";
       STATUS = ENABLED+IMAGE;
@@ -6521,8 +7486,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -6752,8 +7717,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 200,
-                   BOTTOMRIGHT: 309 216,
+      SCREENRECT = UPPERLEFT: 229 231,
+                   BOTTOMRIGHT: 317 251,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor5";
       STATUS = ENABLED+IMAGE;
@@ -6762,8 +7727,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -6993,8 +7958,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 182,
-                   BOTTOMRIGHT: 309 198,
+      SCREENRECT = UPPERLEFT: 229 207,
+                   BOTTOMRIGHT: 317 227,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor4";
       STATUS = ENABLED+IMAGE;
@@ -7003,8 +7968,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -7234,8 +8199,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 164,
-                   BOTTOMRIGHT: 309 180,
+      SCREENRECT = UPPERLEFT: 229 183,
+                   BOTTOMRIGHT: 317 203,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor3";
       STATUS = ENABLED+IMAGE;
@@ -7244,8 +8209,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -7475,8 +8440,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 146,
-                   BOTTOMRIGHT: 309 162,
+      SCREENRECT = UPPERLEFT: 229 159,
+                   BOTTOMRIGHT: 317 179,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor2";
       STATUS = ENABLED+IMAGE;
@@ -7485,8 +8450,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -7716,8 +8681,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 128,
-                   BOTTOMRIGHT: 309 144,
+      SCREENRECT = UPPERLEFT: 229 135,
+                   BOTTOMRIGHT: 317 155,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor1";
       STATUS = ENABLED+IMAGE;
@@ -7726,8 +8691,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -7957,8 +8922,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 225 110,
-                   BOTTOMRIGHT: 309 126,
+      SCREENRECT = UPPERLEFT: 229 111,
+                   BOTTOMRIGHT: 317 131,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor0";
       STATUS = ENABLED+IMAGE;
@@ -7967,8 +8932,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -8198,8 +9163,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 85,
-                   BOTTOMRIGHT: 199 109,
+      SCREENRECT = UPPERLEFT: 85 85,
+                   BOTTOMRIGHT: 225 109,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayers";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -8247,8 +9212,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 236,
-                   BOTTOMRIGHT: 223 252,
+      SCREENRECT = UPPERLEFT: 85 279,
+                   BOTTOMRIGHT: 225 299,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer7";
       STATUS = ENABLED+IMAGE;
@@ -8257,8 +9222,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -8488,8 +9453,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 218,
-                   BOTTOMRIGHT: 223 234,
+      SCREENRECT = UPPERLEFT: 85 255,
+                   BOTTOMRIGHT: 225 275,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer6";
       STATUS = ENABLED+IMAGE;
@@ -8498,8 +9463,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -8729,8 +9694,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 200,
-                   BOTTOMRIGHT: 223 216,
+      SCREENRECT = UPPERLEFT: 85 231,
+                   BOTTOMRIGHT: 225 251,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer5";
       STATUS = ENABLED+IMAGE;
@@ -8739,8 +9704,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -8970,8 +9935,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 182,
-                   BOTTOMRIGHT: 223 198,
+      SCREENRECT = UPPERLEFT: 85 207,
+                   BOTTOMRIGHT: 225 227,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer4";
       STATUS = ENABLED+IMAGE;
@@ -8980,8 +9945,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -9211,8 +10176,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 164,
-                   BOTTOMRIGHT: 223 180,
+      SCREENRECT = UPPERLEFT: 85 183,
+                   BOTTOMRIGHT: 225 203,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer3";
       STATUS = ENABLED+IMAGE;
@@ -9221,8 +10186,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -9452,8 +10417,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 146,
-                   BOTTOMRIGHT: 223 162,
+      SCREENRECT = UPPERLEFT: 85 159,
+                   BOTTOMRIGHT: 225 179,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer2";
       STATUS = ENABLED+IMAGE;
@@ -9462,8 +10427,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -9693,8 +10658,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 128,
-                   BOTTOMRIGHT: 223 144,
+      SCREENRECT = UPPERLEFT: 85 135,
+                   BOTTOMRIGHT: 225 155,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer1";
       STATUS = ENABLED+IMAGE;
@@ -9703,8 +10668,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -9934,8 +10899,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 79 110,
-                   BOTTOMRIGHT: 223 126,
+      SCREENRECT = UPPERLEFT: 85 111,
+                   BOTTOMRIGHT: 225 131,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer0";
       STATUS = ENABLED+IMAGE;
@@ -9944,8 +10909,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -10175,8 +11140,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 236,
-                   BOTTOMRIGHT: 223 252,
+      SCREENRECT = UPPERLEFT: 85 279,
+                   BOTTOMRIGHT: 225 299,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer7";
       STATUS = ENABLED+IMAGE;
@@ -10185,8 +11150,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -10223,8 +11188,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 218,
-                   BOTTOMRIGHT: 223 234,
+      SCREENRECT = UPPERLEFT: 85 255,
+                   BOTTOMRIGHT: 225 275,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer6";
       STATUS = ENABLED+IMAGE;
@@ -10233,8 +11198,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -10271,8 +11236,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 200,
-                   BOTTOMRIGHT: 223 216,
+      SCREENRECT = UPPERLEFT: 85 231,
+                   BOTTOMRIGHT: 225 251,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer5";
       STATUS = ENABLED+IMAGE;
@@ -10281,8 +11246,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -10319,8 +11284,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 182,
-                   BOTTOMRIGHT: 223 198,
+      SCREENRECT = UPPERLEFT: 85 207,
+                   BOTTOMRIGHT: 225 227,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer4";
       STATUS = ENABLED+IMAGE;
@@ -10329,8 +11294,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -10367,8 +11332,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 164,
-                   BOTTOMRIGHT: 223 180,
+      SCREENRECT = UPPERLEFT: 85 183,
+                   BOTTOMRIGHT: 225 203,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer3";
       STATUS = ENABLED+IMAGE;
@@ -10377,8 +11342,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -10415,8 +11380,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 146,
-                   BOTTOMRIGHT: 223 162,
+      SCREENRECT = UPPERLEFT: 85 159,
+                   BOTTOMRIGHT: 225 179,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer2";
       STATUS = ENABLED+IMAGE;
@@ -10425,8 +11390,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -10463,8 +11428,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 128,
-                   BOTTOMRIGHT: 223 144,
+      SCREENRECT = UPPERLEFT: 85 135,
+                   BOTTOMRIGHT: 225 155,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer1";
       STATUS = ENABLED+IMAGE;
@@ -10473,8 +11438,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,
@@ -10511,8 +11476,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 79 110,
-                   BOTTOMRIGHT: 223 126,
+      SCREENRECT = UPPERLEFT: 85 111,
+                   BOTTOMRIGHT: 225 131,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer0";
       STATUS = ENABLED+IMAGE;
@@ -10521,8 +11486,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  0 0 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 0 0 192 255, DISABLEDBORDER: 0 0 64 255,

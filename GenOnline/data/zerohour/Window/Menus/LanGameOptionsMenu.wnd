@@ -1417,8 +1417,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 497 252,
-                   BOTTOMRIGHT: 573 268,
+      SCREENRECT = UPPERLEFT: 497 295,
+                   BOTTOMRIGHT: 573 315,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam7";
       STATUS = ENABLED+IMAGE;
@@ -1427,8 +1427,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -1658,8 +1658,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 497 234,
-                   BOTTOMRIGHT: 573 250,
+      SCREENRECT = UPPERLEFT: 497 271,
+                   BOTTOMRIGHT: 573 291,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam6";
       STATUS = ENABLED+IMAGE;
@@ -1668,8 +1668,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -1899,8 +1899,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 497 216,
-                   BOTTOMRIGHT: 573 232,
+      SCREENRECT = UPPERLEFT: 497 247,
+                   BOTTOMRIGHT: 573 267,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam5";
       STATUS = ENABLED+IMAGE;
@@ -1909,8 +1909,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -2140,8 +2140,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 497 198,
-                   BOTTOMRIGHT: 573 214,
+      SCREENRECT = UPPERLEFT: 497 223,
+                   BOTTOMRIGHT: 573 243,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam4";
       STATUS = ENABLED+IMAGE;
@@ -2150,8 +2150,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -2381,8 +2381,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 497 180,
-                   BOTTOMRIGHT: 573 196,
+      SCREENRECT = UPPERLEFT: 497 199,
+                   BOTTOMRIGHT: 573 219,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam3";
       STATUS = ENABLED+IMAGE;
@@ -2391,8 +2391,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -2622,8 +2622,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 497 162,
-                   BOTTOMRIGHT: 573 178,
+      SCREENRECT = UPPERLEFT: 497 175,
+                   BOTTOMRIGHT: 573 195,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam2";
       STATUS = ENABLED+IMAGE;
@@ -2632,8 +2632,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -2863,8 +2863,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 497 144,
-                   BOTTOMRIGHT: 573 160,
+      SCREENRECT = UPPERLEFT: 497 151,
+                   BOTTOMRIGHT: 573 171,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam1";
       STATUS = ENABLED+IMAGE;
@@ -2873,8 +2873,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -3104,8 +3104,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 497 126,
-                   BOTTOMRIGHT: 573 142,
+      SCREENRECT = UPPERLEFT: 497 127,
+                   BOTTOMRIGHT: 573 147,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxTeam0";
       STATUS = ENABLED+IMAGE;
@@ -3114,8 +3114,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -3394,8 +3394,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 295 252,
-                   BOTTOMRIGHT: 495 268,
+      SCREENRECT = UPPERLEFT: 295 295,
+                   BOTTOMRIGHT: 495 315,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate7";
       STATUS = ENABLED+IMAGE;
@@ -3404,8 +3404,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -3635,8 +3635,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 295 234,
-                   BOTTOMRIGHT: 495 250,
+      SCREENRECT = UPPERLEFT: 295 271,
+                   BOTTOMRIGHT: 495 291,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate6";
       STATUS = ENABLED+IMAGE;
@@ -3645,8 +3645,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -3876,8 +3876,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 295 216,
-                   BOTTOMRIGHT: 495 232,
+      SCREENRECT = UPPERLEFT: 295 247,
+                   BOTTOMRIGHT: 495 267,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate5";
       STATUS = ENABLED+IMAGE;
@@ -3886,8 +3886,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -4117,8 +4117,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 295 198,
-                   BOTTOMRIGHT: 495 214,
+      SCREENRECT = UPPERLEFT: 295 223,
+                   BOTTOMRIGHT: 495 243,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate4";
       STATUS = ENABLED+IMAGE;
@@ -4127,8 +4127,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -4358,8 +4358,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 295 180,
-                   BOTTOMRIGHT: 495 196,
+      SCREENRECT = UPPERLEFT: 295 199,
+                   BOTTOMRIGHT: 495 219,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate3";
       STATUS = ENABLED+IMAGE;
@@ -4368,8 +4368,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -4599,8 +4599,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 295 162,
-                   BOTTOMRIGHT: 495 178,
+      SCREENRECT = UPPERLEFT: 295 175,
+                   BOTTOMRIGHT: 495 195,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate2";
       STATUS = ENABLED+IMAGE;
@@ -4609,8 +4609,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -4840,8 +4840,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 295 144,
-                   BOTTOMRIGHT: 495 160,
+      SCREENRECT = UPPERLEFT: 295 151,
+                   BOTTOMRIGHT: 495 171,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate1";
       STATUS = ENABLED+IMAGE;
@@ -4850,8 +4850,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -5081,8 +5081,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 295 126,
-                   BOTTOMRIGHT: 495 142,
+      SCREENRECT = UPPERLEFT: 295 127,
+                   BOTTOMRIGHT: 495 147,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate0";
       STATUS = ENABLED+IMAGE;
@@ -5091,8 +5091,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -5371,8 +5371,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 209 252,
-                   BOTTOMRIGHT: 293 268,
+      SCREENRECT = UPPERLEFT: 209 295,
+                   BOTTOMRIGHT: 293 315,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor7";
       STATUS = ENABLED+IMAGE;
@@ -5381,8 +5381,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -5612,8 +5612,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 209 234,
-                   BOTTOMRIGHT: 293 250,
+      SCREENRECT = UPPERLEFT: 209 271,
+                   BOTTOMRIGHT: 293 291,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor6";
       STATUS = ENABLED+IMAGE;
@@ -5622,8 +5622,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -5853,8 +5853,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 209 216,
-                   BOTTOMRIGHT: 293 232,
+      SCREENRECT = UPPERLEFT: 209 247,
+                   BOTTOMRIGHT: 293 267,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor5";
       STATUS = ENABLED+IMAGE;
@@ -5863,8 +5863,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -6094,8 +6094,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 209 198,
-                   BOTTOMRIGHT: 293 214,
+      SCREENRECT = UPPERLEFT: 209 223,
+                   BOTTOMRIGHT: 293 243,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor4";
       STATUS = ENABLED+IMAGE;
@@ -6104,8 +6104,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -6335,8 +6335,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 209 180,
-                   BOTTOMRIGHT: 293 196,
+      SCREENRECT = UPPERLEFT: 209 199,
+                   BOTTOMRIGHT: 293 219,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor3";
       STATUS = ENABLED+IMAGE;
@@ -6345,8 +6345,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -6576,8 +6576,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 209 162,
-                   BOTTOMRIGHT: 293 178,
+      SCREENRECT = UPPERLEFT: 209 175,
+                   BOTTOMRIGHT: 293 195,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor2";
       STATUS = ENABLED+IMAGE;
@@ -6586,8 +6586,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -6817,8 +6817,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 209 144,
-                   BOTTOMRIGHT: 293 160,
+      SCREENRECT = UPPERLEFT: 209 151,
+                   BOTTOMRIGHT: 293 171,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor1";
       STATUS = ENABLED+IMAGE;
@@ -6827,8 +6827,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -7058,8 +7058,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 209 126,
-                   BOTTOMRIGHT: 293 142,
+      SCREENRECT = UPPERLEFT: 209 127,
+                   BOTTOMRIGHT: 293 147,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxColor0";
       STATUS = ENABLED+IMAGE;
@@ -7068,8 +7068,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 138 143 176 255, DISABLEDBORDER: 64 64 64 255,
@@ -7348,8 +7348,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 63 252,
-                   BOTTOMRIGHT: 207 268,
+      SCREENRECT = UPPERLEFT: 63 295,
+                   BOTTOMRIGHT: 207 315,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer7";
       STATUS = ENABLED+IMAGE;
@@ -7358,8 +7358,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 191 190 189 255, DISABLEDBORDER: 64 64 64 255,
@@ -7589,8 +7589,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 63 234,
-                   BOTTOMRIGHT: 207 250,
+      SCREENRECT = UPPERLEFT: 63 271,
+                   BOTTOMRIGHT: 207 291,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer6";
       STATUS = ENABLED+IMAGE;
@@ -7599,8 +7599,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 191 190 189 255, DISABLEDBORDER: 64 64 64 255,
@@ -7830,8 +7830,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 63 216,
-                   BOTTOMRIGHT: 207 232,
+      SCREENRECT = UPPERLEFT: 63 247,
+                   BOTTOMRIGHT: 207 267,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer5";
       STATUS = ENABLED+IMAGE;
@@ -7840,8 +7840,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 191 190 189 255, DISABLEDBORDER: 64 64 64 255,
@@ -8071,8 +8071,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 63 198,
-                   BOTTOMRIGHT: 207 214,
+      SCREENRECT = UPPERLEFT: 63 223,
+                   BOTTOMRIGHT: 207 243,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer4";
       STATUS = ENABLED+IMAGE;
@@ -8081,8 +8081,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 191 190 189 255, DISABLEDBORDER: 64 64 64 255,
@@ -8312,8 +8312,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 63 180,
-                   BOTTOMRIGHT: 207 196,
+      SCREENRECT = UPPERLEFT: 63 199,
+                   BOTTOMRIGHT: 207 219,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer3";
       STATUS = ENABLED+IMAGE;
@@ -8322,8 +8322,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 191 190 189 255, DISABLEDBORDER: 64 64 64 255,
@@ -8553,8 +8553,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 63 162,
-                   BOTTOMRIGHT: 207 178,
+      SCREENRECT = UPPERLEFT: 63 175,
+                   BOTTOMRIGHT: 207 195,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer2";
       STATUS = ENABLED+IMAGE;
@@ -8563,8 +8563,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 191 190 189 255, DISABLEDBORDER: 64 64 64 255,
@@ -8794,8 +8794,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 63 144,
-                   BOTTOMRIGHT: 207 160,
+      SCREENRECT = UPPERLEFT: 63 151,
+                   BOTTOMRIGHT: 207 171,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer1";
       STATUS = ENABLED+IMAGE;
@@ -8804,8 +8804,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 191 190 189 255, DISABLEDBORDER: 64 64 64 255,
@@ -9035,8 +9035,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 63 126,
-                   BOTTOMRIGHT: 207 142,
+      SCREENRECT = UPPERLEFT: 63 127,
+                   BOTTOMRIGHT: 207 147,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ComboBoxPlayer0";
       STATUS = ENABLED+IMAGE;
@@ -9045,8 +9045,8 @@ WINDOW
       INPUTCALLBACK = "[None]";
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
-      FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-      HEADERTEMPLATE = "GOComboBoxEntrySmall";
+      FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 191 190 189 255, DISABLEDBORDER: 64 64 64 255,
@@ -9276,8 +9276,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 45 126,
-                   BOTTOMRIGHT: 61 142,
+      SCREENRECT = UPPERLEFT: 45 129,
+                   BOTTOMRIGHT: 61 145,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ButtonAccept0";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -9323,8 +9323,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 45 144,
-                   BOTTOMRIGHT: 61 160,
+      SCREENRECT = UPPERLEFT: 45 153,
+                   BOTTOMRIGHT: 61 169,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ButtonAccept1";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -9370,8 +9370,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 45 162,
-                   BOTTOMRIGHT: 61 178,
+      SCREENRECT = UPPERLEFT: 45 177,
+                   BOTTOMRIGHT: 61 193,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ButtonAccept2";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -9417,8 +9417,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 45 180,
-                   BOTTOMRIGHT: 61 196,
+      SCREENRECT = UPPERLEFT: 45 201,
+                   BOTTOMRIGHT: 61 217,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ButtonAccept3";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -9464,8 +9464,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 45 198,
-                   BOTTOMRIGHT: 61 214,
+      SCREENRECT = UPPERLEFT: 45 225,
+                   BOTTOMRIGHT: 61 241,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ButtonAccept4";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -9511,8 +9511,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 45 216,
-                   BOTTOMRIGHT: 61 232,
+      SCREENRECT = UPPERLEFT: 45 249,
+                   BOTTOMRIGHT: 61 265,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ButtonAccept5";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -9558,8 +9558,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 45 234,
-                   BOTTOMRIGHT: 61 250,
+      SCREENRECT = UPPERLEFT: 45 273,
+                   BOTTOMRIGHT: 61 289,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ButtonAccept6";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -9605,8 +9605,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 45 252,
-                   BOTTOMRIGHT: 61 268,
+      SCREENRECT = UPPERLEFT: 45 297,
+                   BOTTOMRIGHT: 61 313,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:ButtonAccept7";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;

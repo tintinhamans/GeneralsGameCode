@@ -542,7 +542,7 @@ void WebSocket::OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, co
 static bool IsInLobbyHubMethod(const std::string& method)
 {
 	static const char* const METHODS[] = { "UpdateLobby", "SetLobbyPassword", "UpdateMySlot", "SetHasMap", "SetReady", "SetSlotState",
-		"UpdateSlots", "KickFromLobby", "ForceReady", "StartGame", "BeginMeshCheck" };
+		"UpdateSlots", "KickFromLobby", "BanFromLobby", "ForceReady", "StartGame", "BeginMeshCheck" };
 	for (const char* lobbyMethod : METHODS)
 	{
 		if (method == lobbyMethod)
