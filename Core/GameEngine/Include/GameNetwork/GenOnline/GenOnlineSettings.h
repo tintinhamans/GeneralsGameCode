@@ -78,6 +78,9 @@ public:
 	bool Social_Notifications_PlayerAcceptsRequest_Gameplay() { return m_Social_Notification_PlayerAcceptsRequest_Gameplay; }
     bool Social_Notifications_PlayerSendsRequest_Menus() { return m_Social_Notification_PlayerSendsRequest_Menus; }
     bool Social_Notifications_PlayerSendsRequest_Gameplay() { return m_Social_Notification_PlayerSendsRequest_Gameplay; }
+	// "online", "idle", "do_not_disturb" or "invisible", saved to settings.client.json. An unknown value is ignored.
+	const std::string& Social_PresenceStatus() const { return m_Social_PresenceStatus; }
+	void Social_SetPresenceStatus(const std::string& status);
 
 
 	bool Debug_VerboseLogging() const { return m_bVerbose; }
@@ -150,6 +153,7 @@ private:
 	bool m_Social_Notification_PlayerAcceptsRequest_Gameplay = true;
 	bool m_Social_Notification_PlayerSendsRequest_Menus = true;
 	bool m_Social_Notification_PlayerSendsRequest_Gameplay = true;
+	std::string m_Social_PresenceStatus = "online";
 
 	std::set<std::string> m_Maps_Favourites;
 

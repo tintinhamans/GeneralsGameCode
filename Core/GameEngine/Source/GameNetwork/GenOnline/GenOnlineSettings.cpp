@@ -49,6 +49,7 @@
 #define SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_ACCEPTS_REQUEST_GAMEPLAY "notification_player_accepts_request_gameplay"
 #define SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_MENUS "notification_player_sends_request_menus"
 #define SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_GAMEPLAY "notification_player_sends_request_gameplay"
+#define SETTINGS_KEY_SOCIAL_PRESENCE_STATUS "presence_status"
 
 #define SETTINGS_KEY_DEBUG "debug"
 #define SETTINGS_KEY_STATS "stats"
@@ -173,6 +174,11 @@ static std::vector<std::string> ReadStringList(const nlohmann::json& list, const
 	return values;
 }
 
+static bool IsPresenceStatus(const std::string& status)
+{
+	return status == "online" || status == "idle" || status == "do_not_disturb" || status == "invisible";
+}
+
 // The keys settings.client.json holds and the type each one must have. A key of another type makes the whole file unusable.
 static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 {
@@ -209,6 +215,7 @@ static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_ACCEPTS_REQUEST_GAMEPLAY, ValueType::Boolean },
 		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_MENUS, ValueType::Boolean },
 		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_GAMEPLAY, ValueType::Boolean },
+		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_PRESENCE_STATUS, ValueType::String },
 		{ SETTINGS_KEY_DEBUG, ValueType::Object },
 		{ SETTINGS_KEY_DEBUG "." SETTINGS_KEY_DEBUG_VERBOSE_LOGGING, ValueType::Boolean },
 		{ SETTINGS_KEY_NETWORK, ValueType::Object },
@@ -598,6 +605,15 @@ void GenOnlineSettings::Load(void)
                 {
                     m_Social_Notification_PlayerSendsRequest_Gameplay = socialSettings[SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_GAMEPLAY];
                 }
+
+				if (socialSettings.contains(SETTINGS_KEY_SOCIAL_PRESENCE_STATUS))
+				{
+					const std::string status = socialSettings[SETTINGS_KEY_SOCIAL_PRESENCE_STATUS];
+					if (IsPresenceStatus(status))
+					{
+						m_Social_PresenceStatus = status;
+					}
+				}
             }
 
 			m_Plugins_Transport.clear();
@@ -680,6 +696,7 @@ void GenOnlineSettings::Load(void)
         m_Social_Notification_FriendComesOnline_Gameplay = true;
         m_Social_Notification_FriendGoesOffline_Menus = true;
         m_Social_Notification_FriendGoesOffline_Gameplay = true;
+        m_Social_PresenceStatus = "online";
 
 		m_Camera_RotateFactor = GenOnlineClientOptions::CameraFactorDefault;
 		m_Camera_PitchFactor = GenOnlineClientOptions::CameraFactorDefault;
@@ -700,6 +717,16 @@ void GenOnlineSettings::Load(void)
 	m_bClientFileWritable = bWritable;
 
 	// The save writes keys that are new or missing and skips a file that already holds every value.
+	Save();
+}
+
+void GenOnlineSettings::Social_SetPresenceStatus(const std::string& status)
+{
+	if (!IsPresenceStatus(status) || status == m_Social_PresenceStatus)
+	{
+		return;
+	}
+	m_Social_PresenceStatus = status;
 	Save();
 }
 
@@ -884,6 +911,7 @@ bool GenOnlineSettings::Save()
 					{SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_ACCEPTS_REQUEST_GAMEPLAY, m_Social_Notification_PlayerAcceptsRequest_Gameplay},
                     {SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_MENUS, m_Social_Notification_PlayerSendsRequest_Menus},
                     {SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_GAMEPLAY, m_Social_Notification_PlayerSendsRequest_Gameplay},
+                    {SETTINGS_KEY_SOCIAL_PRESENCE_STATUS, m_Social_PresenceStatus},
                 }
         },
 

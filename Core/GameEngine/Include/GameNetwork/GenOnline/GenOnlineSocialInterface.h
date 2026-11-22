@@ -47,6 +47,13 @@ public:
 	void OnChatMessage(int64_t source_user_id, int64_t target_user_id, UnicodeString unicodeStr);
 	void OnOnlineStatusChanged(std::string strDisplayName, bool bOnline);
 
+	// Saves the local presence status, "online", "idle", "do_not_disturb" or "invisible", and sends it to the service.
+	void SetLocalPresenceStatus(const std::string& status);
+	// The service keeps the status in memory per user, so it is sent again after every connect.
+	void SendLocalPresenceStatus();
+	// No notification popup shows while the local status is do not disturb. The pill still counts them.
+	static bool NotificationsMuted();
+
 	void OnFriendRequestAccepted(std::string strDisplayName);
 
 	bool IsUserIgnored(int64_t target_user_id);

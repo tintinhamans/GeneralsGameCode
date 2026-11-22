@@ -1334,7 +1334,7 @@ WINDOW
                  BOTTOMRIGHT: 423 550,
                  CREATIONRESOLUTION: 800 600;
     NAME = "ScoreScreen.wnd:ButtonBuddy";
-    STATUS = ENABLED+IMAGE;
+    STATUS = ENABLED+HIDDEN+IMAGE;
     STYLE = PUSHBUTTON+MOUSETRACK;
     SYSTEMCALLBACK = "[None]";
     INPUTCALLBACK = "[None]";

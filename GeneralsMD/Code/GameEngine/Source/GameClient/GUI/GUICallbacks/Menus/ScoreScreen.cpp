@@ -105,6 +105,7 @@
 #include "../GenOnlineInterfaces.h"
 #include "../GenOnlineInit.h"
 #include "../GenOnlineStatsInterface.h"
+#include "GameClient/GenOnlineUserSection.h"
 #include "Common/LocalApiLive.h"
 
 
@@ -444,6 +445,7 @@ void ScoreScreenShutdown( WindowLayout *layout, void *userData )
 	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 	if (pSocialInterface != nullptr)
 		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged(nullptr);
+	GenOnlineUserSectionHide();
 #endif
 	buttonBuddies = nullptr;
 
@@ -1258,7 +1260,8 @@ void initInternetMultiPlayer(void)
 	else
 		buttonBuddies->winHide(FALSE);
 #else
-	buttonBuddies->winHide(FALSE);
+	// GenOnline @feature arcticdolphin 22/11/2026 The user section in the ruler strip replaces the communicator button.
+	GenOnlineUserSectionShow(parent);
 #endif
 
 	g_bNeedToTakeDoneEOGScreenshot = true;

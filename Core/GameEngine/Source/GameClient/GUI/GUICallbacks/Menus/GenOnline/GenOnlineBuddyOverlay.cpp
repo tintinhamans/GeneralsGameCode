@@ -394,7 +394,7 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 							{
 								if (buddyControls.listboxChat)
 								{
-									GadgetListBoxAddEntryText( buddyControls.listboxChat, UnicodeString(L"You cannot send messages to a buddy who is currently in your game."),
+									GadgetListBoxAddEntryText( buddyControls.listboxChat, UnicodeString(L"You cannot send messages to a friend who is currently in your game."),
 									GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
 								}
 								return MSG_HANDLED;
@@ -421,7 +421,7 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 					// nobody selected.  Prompt the user.
 					if (buddyControls.listboxChat)
 					{
-						GadgetListBoxAddEntryText( buddyControls.listboxChat, TheGameText->fetch("Buddy:SelectBuddyToChat"),
+						GadgetListBoxAddEntryText( buddyControls.listboxChat, TheGameText->FETCH_OR_SUBSTITUTE("Buddy:GOSelectFriendToChat", L"Select a friend to chat"),
 							GameSpyColor[GSCOLOR_DEFAULT], -1, -1 );
 					}
 				}
@@ -623,7 +623,7 @@ void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh, bool bUseCache)
 				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
 
 				// insert status into box
-				formatStr = TheGameText->fetch("GUI:BuddyAddReq");
+				formatStr = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOFriendAddReq", L"User wants to add you as a friend");
 				GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
 				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_REQUEST), index, 1);
 
@@ -750,7 +750,7 @@ void GenOnlineShowNotificationBox(AsciiString nick, UnicodeString message, bool 
 
 	if (lastNotificationWasStatus && numOnlineInNotification > 1)
 	{
-		message = TheGameText->fetch("Buddy:MultipleOnlineNotification");
+		message = TheGameText->FETCH_OR_SUBSTITUTE("Buddy:GOMultipleOnlineNotification", L"You have friends online");
 	}
 
 	if (nick.isNotEmpty())
@@ -982,6 +982,8 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 		GadgetButtonSetText(buttonFind, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOFind", L"Find"));
 	}
 
+	if (radioButtonBuddies)
+		GadgetRadioSetText(radioButtonBuddies, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOFriendsTab", L"Friends"));
 	if (radioButtonIgnore)
 		GadgetRadioSetText(radioButtonIgnore, UnicodeString(L"Blocked"));
 
