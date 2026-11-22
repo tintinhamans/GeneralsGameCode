@@ -191,8 +191,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 560 519,
-                     BOTTOMRIGHT: 732 555,
+        SCREENRECT = UPPERLEFT: 581 517,
+                     BOTTOMRIGHT: 753 553,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:ButtonBack";
         STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -239,8 +239,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 560 256,
-                     BOTTOMRIGHT: 736 292,
+        SCREENRECT = UPPERLEFT: 581 218,
+                     BOTTOMRIGHT: 753 253,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:ButtonOptions";
         STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -287,11 +287,11 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 560 216,
-                     BOTTOMRIGHT: 736 252,
+        SCREENRECT = UPPERLEFT: 581 261,
+                     BOTTOMRIGHT: 753 296,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:ButtonBuddies";
-        STATUS = ENABLED+IMAGE+NOFOCUS;
+        STATUS = ENABLED+HIDDEN+IMAGE+NOFOCUS;
         STYLE = PUSHBUTTON+MOUSETRACK;
         SYSTEMCALLBACK = "[None]";
         INPUTCALLBACK = "[None]";
@@ -335,8 +335,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 560 176,
-                     BOTTOMRIGHT: 736 212,
+        SCREENRECT = UPPERLEFT: 581 175,
+                     BOTTOMRIGHT: 753 210,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:ButtonMyInfo";
         STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -383,8 +383,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 560 136,
-                     BOTTOMRIGHT: 736 172,
+        SCREENRECT = UPPERLEFT: 581 132,
+                     BOTTOMRIGHT: 753 167,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:ButtonCustomMatch";
         STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -431,8 +431,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 560 96,
-                     BOTTOMRIGHT: 736 132,
+        SCREENRECT = UPPERLEFT: 581 89,
+                     BOTTOMRIGHT: 753 124,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:ButtonQuickMatch";
         STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -481,8 +481,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 56 311,
-                   BOTTOMRIGHT: 736 511,
+      SCREENRECT = UPPERLEFT: 47 355,
+                   BOTTOMRIGHT: 753 511,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLWelcomeMenu.wnd:PlayerInfoParent";
       STATUS = ENABLED+SEE_THRU;
@@ -527,8 +527,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = USER;
-        SCREENRECT = UPPERLEFT: 199 339,
-                     BOTTOMRIGHT: 727 495,
+        SCREENRECT = UPPERLEFT: 181 383,
+                     BOTTOMRIGHT: 753 511,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:CommunityInfoParent";
         STATUS = ENABLED;
@@ -574,8 +574,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = CHECKBOX;
-          SCREENRECT = UPPERLEFT: 220 349,
-                       BOTTOMRIGHT: 324 389,
+          SCREENRECT = UPPERLEFT: 187 387,
+                       BOTTOMRIGHT: 327 423,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:PercentUSA";
           STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -584,8 +584,8 @@ WINDOW
           INPUTCALLBACK = "[None]";
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
-          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
-          HEADERTEMPLATE = "[NONE]";
+          FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPTEXT = "SIDE:America";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:WinPercent";
@@ -623,8 +623,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = CHECKBOX;
-          SCREENRECT = UPPERLEFT: 353 349,
-                       BOTTOMRIGHT: 457 389,
+          SCREENRECT = UPPERLEFT: 327 387,
+                       BOTTOMRIGHT: 467 423,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:PercentAmericaSuperWeaponGeneral";
           STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -633,8 +633,8 @@ WINDOW
           INPUTCALLBACK = "[None]";
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
-          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
-          HEADERTEMPLATE = "[NONE]";
+          FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPTEXT = "SIDE:AmericaSuperWeaponGeneral";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:WinPercent";
@@ -672,8 +672,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = CHECKBOX;
-          SCREENRECT = UPPERLEFT: 486 349,
-                       BOTTOMRIGHT: 590 389,
+          SCREENRECT = UPPERLEFT: 467 387,
+                       BOTTOMRIGHT: 607 423,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:PercentAmericaLaserGeneral";
           STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -682,8 +682,8 @@ WINDOW
           INPUTCALLBACK = "[None]";
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
-          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
-          HEADERTEMPLATE = "[NONE]";
+          FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPTEXT = "SIDE:AmericaLaserGeneral";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:WinPercent";
@@ -721,8 +721,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = CHECKBOX;
-          SCREENRECT = UPPERLEFT: 619 349,
-                       BOTTOMRIGHT: 723 389,
+          SCREENRECT = UPPERLEFT: 607 387,
+                       BOTTOMRIGHT: 747 423,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:PercentAmericaAirForceGeneral";
           STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -731,8 +731,8 @@ WINDOW
           INPUTCALLBACK = "[None]";
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
-          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
-          HEADERTEMPLATE = "[NONE]";
+          FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPTEXT = "SIDE:AmericaAirForceGeneral";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:WinPercent";
@@ -770,8 +770,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = CHECKBOX;
-          SCREENRECT = UPPERLEFT: 220 397,
-                       BOTTOMRIGHT: 324 437,
+          SCREENRECT = UPPERLEFT: 187 429,
+                       BOTTOMRIGHT: 327 465,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:PercentChina";
           STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -780,8 +780,8 @@ WINDOW
           INPUTCALLBACK = "[None]";
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
-          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
-          HEADERTEMPLATE = "[NONE]";
+          FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPTEXT = "SIDE:China";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:WinPercent";
@@ -819,8 +819,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = CHECKBOX;
-          SCREENRECT = UPPERLEFT: 353 397,
-                       BOTTOMRIGHT: 457 437,
+          SCREENRECT = UPPERLEFT: 327 429,
+                       BOTTOMRIGHT: 467 465,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:PercentChinaTankGeneral";
           STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -829,8 +829,8 @@ WINDOW
           INPUTCALLBACK = "[None]";
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
-          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
-          HEADERTEMPLATE = "[NONE]";
+          FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPTEXT = "SIDE:ChinaTankGeneral";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:WinPercent";
@@ -868,8 +868,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = CHECKBOX;
-          SCREENRECT = UPPERLEFT: 486 397,
-                       BOTTOMRIGHT: 590 437,
+          SCREENRECT = UPPERLEFT: 467 429,
+                       BOTTOMRIGHT: 607 465,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:PercentChinaInfantryGeneral";
           STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -878,8 +878,8 @@ WINDOW
           INPUTCALLBACK = "[None]";
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
-          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
-          HEADERTEMPLATE = "[NONE]";
+          FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPTEXT = "SIDE:ChinaInfantryGeneral";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:WinPercent";
@@ -917,8 +917,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = CHECKBOX;
-          SCREENRECT = UPPERLEFT: 619 397,
-                       BOTTOMRIGHT: 723 437,
+          SCREENRECT = UPPERLEFT: 607 429,
+                       BOTTOMRIGHT: 747 465,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:PercentChinaNukeGeneral";
           STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -927,8 +927,8 @@ WINDOW
           INPUTCALLBACK = "[None]";
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
-          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
-          HEADERTEMPLATE = "[NONE]";
+          FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPTEXT = "SIDE:ChinaNukeGeneral";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:WinPercent";
@@ -966,8 +966,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = CHECKBOX;
-          SCREENRECT = UPPERLEFT: 220 445,
-                       BOTTOMRIGHT: 324 485,
+          SCREENRECT = UPPERLEFT: 187 471,
+                       BOTTOMRIGHT: 327 507,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:PercentGLA";
           STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -976,8 +976,8 @@ WINDOW
           INPUTCALLBACK = "[None]";
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
-          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
-          HEADERTEMPLATE = "[NONE]";
+          FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPTEXT = "SIDE:GLA";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:WinPercent";
@@ -1015,8 +1015,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = CHECKBOX;
-          SCREENRECT = UPPERLEFT: 353 445,
-                       BOTTOMRIGHT: 457 485,
+          SCREENRECT = UPPERLEFT: 327 471,
+                       BOTTOMRIGHT: 467 507,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:PercentGLAToxinGeneral";
           STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -1025,8 +1025,8 @@ WINDOW
           INPUTCALLBACK = "[None]";
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
-          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
-          HEADERTEMPLATE = "[NONE]";
+          FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPTEXT = "SIDE:GLAToxinGeneral";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:WinPercent";
@@ -1064,8 +1064,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = CHECKBOX;
-          SCREENRECT = UPPERLEFT: 486 445,
-                       BOTTOMRIGHT: 590 485,
+          SCREENRECT = UPPERLEFT: 467 471,
+                       BOTTOMRIGHT: 607 507,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:PercentGLADemolitionGeneral";
           STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -1074,8 +1074,8 @@ WINDOW
           INPUTCALLBACK = "[None]";
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
-          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
-          HEADERTEMPLATE = "[NONE]";
+          FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPTEXT = "SIDE:GLADemolitionGeneral";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:WinPercent";
@@ -1113,8 +1113,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = CHECKBOX;
-          SCREENRECT = UPPERLEFT: 619 445,
-                       BOTTOMRIGHT: 723 485,
+          SCREENRECT = UPPERLEFT: 607 471,
+                       BOTTOMRIGHT: 747 507,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:PercentGLAStealthGeneral";
           STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -1123,8 +1123,8 @@ WINDOW
           INPUTCALLBACK = "[None]";
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
-          FONT = NAME: "Arial", SIZE: 12, BOLD: 1;
-          HEADERTEMPLATE = "[NONE]";
+          FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPTEXT = "SIDE:GLAStealthGeneral";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:WinPercent";
@@ -1164,8 +1164,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 199 313,
-                     BOTTOMRIGHT: 635 337,
+        SCREENRECT = UPPERLEFT: 181 355,
+                     BOTTOMRIGHT: 753 379,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:StaticTextCommunity";
         STATUS = ENABLED;
@@ -1214,8 +1214,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = USER;
-        SCREENRECT = UPPERLEFT: 64 339,
-                     BOTTOMRIGHT: 192 495,
+        SCREENRECT = UPPERLEFT: 47 383,
+                     BOTTOMRIGHT: 175 511,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:RankBorder";
         STATUS = ENABLED;
@@ -1260,11 +1260,11 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = USER;
-          SCREENRECT = UPPERLEFT: 64 467,
-                       BOTTOMRIGHT: 192 467,
+          SCREENRECT = UPPERLEFT: 47 509,
+                       BOTTOMRIGHT: 175 510,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:RankLine";
-          STATUS = ENABLED;
+          STATUS = ENABLED+HIDDEN;
           STYLE = USER;
           SYSTEMCALLBACK = "[None]";
           INPUTCALLBACK = "[None]";
@@ -1307,11 +1307,11 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = PROGRESSBAR;
-          SCREENRECT = UPPERLEFT: 64 471,
-                       BOTTOMRIGHT: 192 495,
+          SCREENRECT = UPPERLEFT: 47 487,
+                       BOTTOMRIGHT: 175 511,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:ProgressBarRank";
-          STATUS = ENABLED;
+          STATUS = ENABLED+HIDDEN;
           STYLE = PROGRESSBAR+MOUSETRACK;
           SYSTEMCALLBACK = "[None]";
           INPUTCALLBACK = "[None]";
@@ -1354,8 +1354,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = USER;
-          SCREENRECT = UPPERLEFT: 64 339,
-                       BOTTOMRIGHT: 192 467,
+          SCREENRECT = UPPERLEFT: 47 383,
+                       BOTTOMRIGHT: 175 511,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLWelcomeMenu.wnd:WinRank";
           STATUS = ENABLED+IMAGE;
@@ -1400,8 +1400,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = USER;
-            SCREENRECT = UPPERLEFT: 144 419,
-                         BOTTOMRIGHT: 192 467,
+            SCREENRECT = UPPERLEFT: 127 463,
+                         BOTTOMRIGHT: 175 511,
                          CREATIONRESOLUTION: 800 600;
             NAME = "WOLWelcomeMenu.wnd:FactionImage";
             STATUS = ENABLED+IMAGE;
@@ -1451,8 +1451,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 60 313,
-                     BOTTOMRIGHT: 188 337,
+        SCREENRECT = UPPERLEFT: 47 355,
+                     BOTTOMRIGHT: 175 379,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLWelcomeMenu.wnd:StaticTextRank";
         STATUS = ENABLED;
@@ -1502,8 +1502,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = SCROLLLISTBOX;
-      SCREENRECT = UPPERLEFT: 56 96,
-                   BOTTOMRIGHT: 544 303,
+      SCREENRECT = UPPERLEFT: 47 89,
+                   BOTTOMRIGHT: 575 349,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLWelcomeMenu.wnd:InfoListbox";
       STATUS = ENABLED;

@@ -31,6 +31,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "GameClient/GenOnlineMenus.h"
+#include "GameClient/GenOnlineUserSection.h"
 
 #include "Common/GameEngine.h"
 #include "Common/GOUIColors.h"
@@ -1002,7 +1003,6 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 
 	// welcome msg + instructions
 	GadgetListBoxAddEntryText(GenOnlineQuickMatchTextWindow, UnicodeString(L"Welcome to QuickMatch. Choose Setup to select playlists and maps."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 25, 255)), -1, -1);
-	GadgetListBoxAddEntryText(GenOnlineQuickMatchTextWindow, UnicodeString(L"Special thanks to map makers Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy & Bamovich for making quickmatch possible."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 25, 255)), -1, -1);
 
 
 	// refresh out stats, needed for ELO data
@@ -1294,6 +1294,8 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 			});
 	}
 
+	GenOnlineUserSectionShow(parentWOLQuickMatch);
+
     // Update the communicator button anytime we get notifications
     GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
     if (pSocialInterface != nullptr)
@@ -1357,6 +1359,7 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void GenOnlineQuickMatchMenuShutdown( WindowLayout *layout, void *userData )
 {
+	GenOnlineUserSectionHide();
 	++s_quickMatchMenuGeneration;
 
 
