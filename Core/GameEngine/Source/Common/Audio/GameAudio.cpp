@@ -189,11 +189,9 @@ AudioManager::~AudioManager()
 	AudioEventInfoHashIt it;
 	for (it = m_allAudioEventInfo.begin(); it != m_allAudioEventInfo.end(); ++it) {
 		AudioEventInfo *eventInfo = (*it).second;
-		if (eventInfo) {
-			deleteInstance(eventInfo);
-			eventInfo = NULL;
-		}
+		deleteInstance(eventInfo);
 	}
+	m_allAudioEventInfo.clear();
 
 	delete m_silentAudioEvent;
 	m_silentAudioEvent = nullptr;
