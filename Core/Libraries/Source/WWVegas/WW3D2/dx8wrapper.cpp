@@ -36,9 +36,6 @@
  * 06/27/02 KM Render to shadow buffer texture support														*
  * 06/27/02 KM Shader system updates																				*
  * 08/05/02 KM Texture class redesign
- *---------------------------------------------------------------------------------------------*
- * Functions:                                                                                  *
- *   DX8Wrapper::_Update_Texture -- Copies a texture from system memory to video memory        *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
  //#define CREATE_DX8_MULTI_THREADED
@@ -51,7 +48,6 @@
 #endif
 
 #include "dx8wrapper.h"
-#include "dx8webbrowser.h"
 #include "dx8fvf.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
@@ -76,10 +72,10 @@
 #include "missingtexture.h"
 #include "WWLib/thread.h"
 #include <d3dx8core.h>
-#include "WWMath/pot.h"
 #include "WWDebug/wwprofile.h"
 #include "WWLib/ffactory.h"
 #include "dx8caps.h"
+#include "dx8convert.h"
 #include "formconv.h"
 #include "dx8texman.h"
 #include "WWLib/bound.h"
@@ -1753,21 +1749,13 @@ void DX8Wrapper::Begin_Scene()
 {
 	DX8_THREAD_ASSERT();
 
-#if ENABLE_EMBEDDED_BROWSER
-	DX8WebBrowser::Update();
-#endif
-
 	DX8CALL(BeginScene());
-
-	DX8WebBrowser::Update();
 }
 
 void DX8Wrapper::End_Scene(bool flip_frames)
 {
 	DX8_THREAD_ASSERT();
 	DX8CALL(EndScene());
-
-	DX8WebBrowser::Render(0);
 
 	if (flip_frames) {
 		DX8_Assert();
@@ -2971,22 +2959,8 @@ IDirect3DSurface8* DX8Wrapper::_Create_DX8_Surface(const char* filename_)
 }
 
 
-/***********************************************************************************************
- * DX8Wrapper::_Update_Texture -- Copies a texture from system memory to video memory          *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   4/26/2001  hy : Created.                                                                  *
- *=============================================================================================*/
-void DX8Wrapper::_Update_Texture(TextureClass* system, TextureClass* video)
+// Copies a texture from system memory to video memory.
+void DX8Wrapper::_Update_Texture(TextureClass *system, TextureClass *video)
 {
 	WWASSERT(system);
 	WWASSERT(video);
@@ -3062,11 +3036,11 @@ void DX8Wrapper::Set_Light(unsigned index, const LightClass& light)
 	dlight.Ambient.b = temp.Z;
 	dlight.Ambient.a = 1.0f;
 
-	temp = light.Get_Position();
-	dlight.Position = *(D3DVECTOR*)&temp;
+	temp=light.Get_Position();
+	dlight.Position=To_D3DVECTOR(temp);
 
 	light.Get_Spot_Direction(temp);
-	dlight.Direction = *(D3DVECTOR*)&temp;
+	dlight.Direction=To_D3DVECTOR(temp);
 
 	dlight.Range = light.Get_Attenuation_Range();
 	dlight.Falloff = light.Get_Spot_Exponent();
@@ -3117,10 +3091,9 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 
 			::ZeroMemory(&light, sizeof(D3DLIGHT8));
 
-			light.Type = D3DLIGHT_DIRECTIONAL;
-			(Vector3&)light.Diffuse = light_env->Get_Light_Diffuse(l);
-			Vector3 dir = -light_env->Get_Light_Direction(l);
-			light.Direction = (const D3DVECTOR&)(dir);
+			light.Type=D3DLIGHT_DIRECTIONAL;
+			light.Diffuse=To_D3DCOLORVALUE(light_env->Get_Light_Diffuse(l),0.0f);
+			light.Direction=To_D3DVECTOR(-light_env->Get_Light_Direction(l));
 
 			// (gth) TODO: put specular into LightEnvironment?  Much work to be done on lights :-)'
 			if (l == 0) {
@@ -3129,9 +3102,9 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 
 			if (light_env->isPointLight(l)) {
 				light.Type = D3DLIGHT_POINT;
-				(Vector3&)light.Diffuse = light_env->getPointDiffuse(l);
-				(Vector3&)light.Ambient = light_env->getPointAmbient(l);
-				light.Position = (const D3DVECTOR&)light_env->getPointCenter(l);
+				light.Diffuse=To_D3DCOLORVALUE(light_env->getPointDiffuse(l),0.0f);
+				light.Ambient=To_D3DCOLORVALUE(light_env->getPointAmbient(l),0.0f);
+				light.Position=To_D3DVECTOR(light_env->getPointCenter(l));
 				light.Range = light_env->getPointOrad(l);
 
 				// Inverse linear light 1/(1+D)
@@ -3231,7 +3204,7 @@ DX8Wrapper::Create_Render_Target(int width, int height, WW3DFormat format)
 	if (height > 0 && height < width) {
 		poweroftwosize = height;
 	}
-	poweroftwosize = ::Find_POT(poweroftwosize);
+	poweroftwosize = std::bit_ceil(static_cast<unsigned int>(poweroftwosize));
 
 	if (poweroftwosize > dx8caps.MaxTextureWidth) {
 		poweroftwosize = dx8caps.MaxTextureWidth;
@@ -3302,7 +3275,7 @@ void DX8Wrapper::Create_Render_Target
 	{
 		poweroftwosize = height;
 	}
-	poweroftwosize = ::Find_POT(poweroftwosize);
+	poweroftwosize = std::bit_ceil(static_cast<unsigned int>(poweroftwosize));
 
 	if (poweroftwosize > dx8caps.MaxTextureWidth)
 	{

@@ -32,19 +32,6 @@
  *                                                                                             *
  *                    $Revision:: 25                                                          $*
  *                                                                                             *
- *---------------------------------------------------------------------------------------------*
- * Functions:                                                                                  *
- *   SurfaceClass::Clear -- Clears a surface to 0                                              *
- *   SurfaceClass::Copy -- Copies a region from one surface to another of the same format      *
- *   SurfaceClass::FindBBAlpha -- Finds the bounding box of non zero pixels in the region (x0, *
- *   SurfaceClass::Is_Transparent_Column -- Tests to see if the column is transparent or not   *
- *   SurfaceClass::Copy -- Copies from a byte array to the surface                             *
- *   SurfaceClass::CreateCopy -- Creates a byte array copy of the surface                      *
- *   SurfaceClass::DrawHLine -- draws a horizontal line                                        *
- *   SurfaceClass::DrawPixel -- draws a pixel                                                  *
- *   SurfaceClass::Copy -- Copies a block of system ram to the surface                         *
- *   SurfaceClass::Hue_Shift -- changes the hue of the surface                                 *
- *   SurfaceClass::Is_Monochrome -- Checks if surface is monochrome or not                     *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "surfaceclass.h"
@@ -254,21 +241,6 @@ void SurfaceClass::Unlock()
 	DX8_ErrorCode(D3DSurface->UnlockRect());
 }
 
-/***********************************************************************************************
- * SurfaceClass::Clear -- Clears a surface to 0                                                *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   2/13/2001  hy : Created.                                                                  *
- *=============================================================================================*/
 void SurfaceClass::Clear()
 {
 	// Check if the D3D surface is valid
@@ -298,21 +270,6 @@ void SurfaceClass::Clear()
 }
 
 
-/***********************************************************************************************
- * SurfaceClass::Copy -- Copies from a byte array to the surface                               *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   3/15/2001  hy : Created.                                                                  *
- *=============================================================================================*/
 void SurfaceClass::Copy(const unsigned char *other)
 {
 	// Check if the D3D surface is valid
@@ -342,21 +299,6 @@ void SurfaceClass::Copy(const unsigned char *other)
 }
 
 
-/***********************************************************************************************
- * SurfaceClass::Copy -- Copies a block of system ram to the surface                           *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   5/2/2001   hy : Created.                                                                  *
- *=============================================================================================*/
 void SurfaceClass::Copy(const Vector2i &min, const Vector2i &max, const unsigned char *other)
 {
 	// Check if the D3D surface is valid
@@ -392,21 +334,6 @@ void SurfaceClass::Copy(const Vector2i &min, const Vector2i &max, const unsigned
 }
 
 
-/***********************************************************************************************
- * SurfaceClass::CreateCopy -- Creates a byte array copy of the surface                        *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   3/16/2001  hy : Created.                                                                  *
- *=============================================================================================*/
 unsigned char *SurfaceClass::CreateCopy(int *width,int *height,int*size,bool flip)
 {
 	// Check if the D3D surface is valid
@@ -453,21 +380,6 @@ unsigned char *SurfaceClass::CreateCopy(int *width,int *height,int*size,bool fli
 }
 
 
-/***********************************************************************************************
- * SurfaceClass::Copy -- Copies a region from one surface to another                           *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   2/13/2001  hy : Created.                                                                  *
- *=============================================================================================*/
 void SurfaceClass::Copy(
 	unsigned int dstx, unsigned int dsty,
 	unsigned int srcx, unsigned int srcy,
@@ -518,21 +430,6 @@ void SurfaceClass::Copy(
 	}
 }
 
-/***********************************************************************************************
- * SurfaceClass::Copy -- Copies a region from one surface to another                           *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   2/13/2001  hy : Created.                                                                  *
- *=============================================================================================*/
 void SurfaceClass::Stretch_Copy(
 	unsigned int dstx, unsigned int dsty, unsigned int dstwidth, unsigned int dstheight,
 	unsigned int srcx, unsigned int srcy, unsigned int srcwidth, unsigned int srcheight,
@@ -564,21 +461,7 @@ void SurfaceClass::Stretch_Copy(
 	DX8_ErrorCode(D3DXLoadSurfaceFromSurface(D3DSurface,nullptr,&dest,other->D3DSurface,nullptr,&src,D3DX_FILTER_TRIANGLE ,0));
 }
 
-/***********************************************************************************************
- * SurfaceClass::FindBB -- Finds the bounding box of non zero pixels in the region             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   2/13/2001  hy : Created.                                                                  *
- *=============================================================================================*/
+// Finds the bounding box of non zero pixels in the region.
 void SurfaceClass::FindBB(Vector2i *min,Vector2i*max)
 {
 	// Check if the D3D surface is valid
@@ -644,21 +527,6 @@ void SurfaceClass::FindBB(Vector2i *min,Vector2i*max)
 }
 
 
-/***********************************************************************************************
- * SurfaceClass::Is_Transparent_Column -- Tests to see if the column is transparent or not     *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   2/13/2001  hy : Created.                                                                  *
- *=============================================================================================*/
 bool SurfaceClass::Is_Transparent_Column(unsigned int column)
 {
 	// Check if the D3D surface is valid
@@ -717,22 +585,7 @@ bool SurfaceClass::Is_Transparent_Column(unsigned int column)
 	return true;
 }
 
-/***********************************************************************************************
- * SurfaceClass::Get_Pixel -- Returns the pixel's RGB valus to the caller                      *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   2/13/2001  hy : Created.                                                                  *
- *   1/10/2025  TheSuperHackers : Added bits and pitch to argument list for better performance *
- *=============================================================================================*/
+// TheSuperHackers @performance Added bits and pitch to the argument list.
 void SurfaceClass::Get_Pixel(Vector3 &rgb, int x, int y, LockedSurfacePtr pBits, int pitch)
 {
 	// Check if the D3D surface is valid
@@ -749,21 +602,6 @@ void SurfaceClass::Get_Pixel(Vector3 &rgb, int x, int y, LockedSurfacePtr pBits,
 	Convert_Pixel(rgb,sd,dst);
 }
 
-/***********************************************************************************************
- * SurfaceClass::Attach -- Attaches a surface pointer to the object, releasing the current ptr.*
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   3/27/2001  pds : Created.                                                                 *
- *=============================================================================================*/
 void SurfaceClass::Attach (IDirect3DSurface8 *surface)
 {
 	Detach ();
@@ -778,21 +616,7 @@ void SurfaceClass::Attach (IDirect3DSurface8 *surface)
 }
 
 
-/***********************************************************************************************
- * SurfaceClass::Detach -- Releases the reference on the internal surface ptr, and NULLs it.	 .*
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   3/27/2001  pds : Created.                                                                 *
- *=============================================================================================*/
+// Releases the reference on the internal surface ptr, and NULLs it.
 void SurfaceClass::Detach ()
 {
 	//
@@ -806,21 +630,7 @@ void SurfaceClass::Detach ()
 }
 
 
-/***********************************************************************************************
- * SurfaceClass::DrawPixel -- draws a pixel                                                    *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   1/10/2025  TheSuperHackers : Added bits and pitch to argument list for better performance *
- *=============================================================================================*/
+// TheSuperHackers @performance Added bits and pitch to the argument list.
 void SurfaceClass::Draw_Pixel(const unsigned int x, const unsigned int y, unsigned int color,
 	unsigned int bytesPerPixel, LockedSurfacePtr pBits, int pitch)
 {
@@ -830,22 +640,7 @@ void SurfaceClass::Draw_Pixel(const unsigned int x, const unsigned int y, unsign
 
 
 
-/***********************************************************************************************
- * SurfaceClass::DrawHLine -- draws a horizontal line                                          *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   4/9/2001   hy : Created.                                                                  *
- *   1/10/2025  TheSuperHackers : Added bits and pitch to argument list for better performance *
- *=============================================================================================*/
+// TheSuperHackers @performance Added bits and pitch to the argument list.
 void SurfaceClass::Draw_H_Line(const unsigned int y, const unsigned int x1, const unsigned int x2,
 	unsigned int color, unsigned int bytesPerPixel, LockedSurfacePtr pBits, int pitch)
 {
@@ -859,21 +654,6 @@ void SurfaceClass::Draw_H_Line(const unsigned int y, const unsigned int x1, cons
 }
 
 
-/***********************************************************************************************
- * SurfaceClass::Is_Monochrome -- Checks if surface is monochrome or not                       *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   7/5/2001   hy : Created.                                                                  *
- *=============================================================================================*/
 bool SurfaceClass::Is_Monochrome()
 {
 	// Check if the D3D surface is valid
@@ -954,21 +734,6 @@ bool SurfaceClass::Is_Monochrome()
 	return true;
 }
 
-/***********************************************************************************************
- * SurfaceClass::Hue_Shift -- changes the hue of the surface                                   *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   7/3/2001   hy : Created.                                                                  *
- *=============================================================================================*/
 void SurfaceClass::Hue_Shift(const Vector3 &hsv_shift)
 {
 	// Check if the D3D surface is valid

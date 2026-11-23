@@ -33,8 +33,6 @@
  *                    $Revision:: 16                                                          $*
  *                                                                                             *
  * 06/27/02 KM Render to shadow buffer texture support														*
- *---------------------------------------------------------------------------------------------*
- * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #pragma once
@@ -43,7 +41,7 @@
 #include "WWLib/bittype.h"
 #include "WW3D2/ww3d.h"
 #include "WWDebug/wwdebug.h"
-#include "shader.h"
+#include "WW3D2/shader.h"
 #include "WWLib/Vector.h"
 #include "WWMath/matrix3d.h"
 #include "WWMath/matrix4.h"
@@ -52,7 +50,6 @@
 class MaterialPassClass;
 class LightEnvironmentClass;
 class VisRasterizerClass;
-class BWRenderClass;
 class TexProjectClass;
 
 const unsigned MAX_ADDITIONAL_MATERIAL_PASSES=32;
@@ -144,10 +141,6 @@ public:
 
 	// RENDER_VIS variables and methods:
 	VisRasterizerClass *			VisRasterizer;
-
-	// RENDER_SHADOW variables and methods:
-	// NOTE: this is somewhat obsolete now that we have hardware render-to-texture.
-	BWRenderClass *				BWRenderer;					// Black & white non-textured renderer
 
 private:
 

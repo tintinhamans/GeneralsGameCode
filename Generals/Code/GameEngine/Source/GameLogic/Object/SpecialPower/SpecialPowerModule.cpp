@@ -99,11 +99,7 @@ SpecialPowerModule::SpecialPowerModule( Thing *thing, const ModuleData *moduleDa
 									: BehaviorModule( thing, moduleData )
 {
 
-#if RETAIL_COMPATIBLE_CRC
 	m_availableOnFrame = 0;
-#else
-	m_availableOnFrame = 0xFFFFFFFF;
-#endif
 	m_pausedCount = 0;
 	m_pausedOnFrame = 0;
 	m_pausedPercent = 0.0f;
@@ -279,6 +275,11 @@ Bool SpecialPowerModule::isModuleForPower( const SpecialPowerTemplate *specialPo
 //-------------------------------------------------------------------------------------------------
 Bool SpecialPowerModule::isReady() const
 {
+#if !RETAIL_COMPATIBLE_CRC
+	if (!canDoSpecialPower())
+		return FALSE;
+#endif
+
 #if defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)
 	// this is a cheat ... remove this for release!
 	if( TheGlobalData->m_specialPowerUsesDelay == FALSE )
@@ -311,6 +312,7 @@ Bool SpecialPowerModule::isReady() const
 //-------------------------------------------------------------------------------------------------
 Real SpecialPowerModule::getPercentReady() const
 {
+#if RETAIL_COMPATIBLE_CRC
 #if defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)
 	if( TheGlobalData->m_specialPowerUsesDelay == FALSE )
 		return 1.0f;
@@ -351,6 +353,23 @@ Real SpecialPowerModule::getPercentReady() const
 												 (Real)modData->m_specialPowerTemplate->getReloadTime());
 
 	return percent;
+#else
+	if( getObject()->testStatus( OBJECT_STATUS_UNDER_CONSTRUCTION ) )
+		return 0.0f;
+
+	if( isReady() )
+		return 1.0f;
+
+	Real percent = m_pausedPercent;
+	if( m_pausedCount == 0 )
+	{
+		const UnsignedInt readyFrame = getReadyFrame();
+		const UnsignedInt now = TheGameLogic->getFrame();
+		percent = (readyFrame > now) ? 1.0f - (readyFrame - now) / (Real)getSpecialPowerTemplate()->getReloadTime() : 1.0f;
+	}
+
+	return clamp(0.0f, percent, 0.99999f);
+#endif
 }
 
 Bool SpecialPowerModule::startsReady() const
@@ -592,6 +611,23 @@ void SpecialPowerModule::aboutToDoSpecialPower( const Coord3D *location )
 }
 
 //-------------------------------------------------------------------------------------------------
+Bool SpecialPowerModule::canDoSpecialPower() const
+{
+	if (getObject()->isDisabled())
+		return false;
+
+#if !RETAIL_COMPATIBLE_CRC
+	if (m_pausedCount > 0)
+		return false;
+
+	if (getObject()->testStatus(OBJECT_STATUS_UNDER_CONSTRUCTION))
+		return false;
+#endif
+
+	return true;
+}
+
+//-------------------------------------------------------------------------------------------------
 //By default, special powers are not triggered by it's update module -- in which case
 //it triggers it and resets its timer immediately. When the update module triggers it,
 //then all we do is initiate the special power, and trust that the update module will
@@ -599,7 +635,13 @@ void SpecialPowerModule::aboutToDoSpecialPower( const Coord3D *location )
 //-------------------------------------------------------------------------------------------------
 void SpecialPowerModule::doSpecialPower( UnsignedInt commandOptions )
 {
-	if (m_pausedCount > 0 || getObject()->isDisabled()) {
+#if RETAIL_COMPATIBLE_CRC
+	if (m_pausedCount > 0) {
+		return;
+	}
+#endif
+
+	if (!canDoSpecialPower()) {
 		return;
 	}
 
@@ -621,7 +663,13 @@ void SpecialPowerModule::doSpecialPower( UnsignedInt commandOptions )
 //-------------------------------------------------------------------------------------------------
 void SpecialPowerModule::doSpecialPowerAtObject( Object *obj, UnsignedInt commandOptions )
 {
-	if (m_pausedCount > 0 || getObject()->isDisabled()) {
+#if RETAIL_COMPATIBLE_CRC
+	if (m_pausedCount > 0) {
+		return;
+	}
+#endif
+
+	if (!canDoSpecialPower()) {
 		return;
 	}
 
@@ -643,7 +691,13 @@ void SpecialPowerModule::doSpecialPowerAtObject( Object *obj, UnsignedInt comman
 //-------------------------------------------------------------------------------------------------
 void SpecialPowerModule::doSpecialPowerAtLocation( const Coord3D *loc, Real angle, UnsignedInt commandOptions )
 {
-	if (m_pausedCount > 0 || getObject()->isDisabled()) {
+#if RETAIL_COMPATIBLE_CRC
+	if (m_pausedCount > 0) {
+		return;
+	}
+#endif
+
+	if (!canDoSpecialPower()) {
 		return;
 	}
 
@@ -665,7 +719,13 @@ void SpecialPowerModule::doSpecialPowerAtLocation( const Coord3D *loc, Real angl
 //-------------------------------------------------------------------------------------------------
 void SpecialPowerModule::doSpecialPowerUsingWaypoints( const Waypoint *way, UnsignedInt commandOptions )
 {
-	if (m_pausedCount > 0 || getObject()->isDisabled()) {
+#if RETAIL_COMPATIBLE_CRC
+	if (m_pausedCount > 0) {
+		return;
+	}
+#endif
+
+	if (!canDoSpecialPower()) {
 		return;
 	}
 

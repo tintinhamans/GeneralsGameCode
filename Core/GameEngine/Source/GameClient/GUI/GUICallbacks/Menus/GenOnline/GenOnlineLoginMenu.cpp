@@ -78,7 +78,6 @@ void GenOnlineLoginMenuLoginCallback(ELoginResult loginResult);
 
 #include "GameNetwork/GameSpyOverlay.h"
 
-#include "GameNetwork/WOLBrowser/WebBrowser.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/DownloadManager.h"
 #include "GameClient/GadgetProgressBar.h"
@@ -88,8 +87,6 @@ void GenOnlineLoginMenuLoginCallback(ELoginResult loginResult);
 Bool GenOnlineUseProfiles = false;
 #endif // ALLOW_NON_PROFILED_LOGIN
 
-static Bool webBrowserActive = FALSE;
-static Bool useWebBrowserForTOS = FALSE;
 
 static Bool isShuttingDown = false;
 static Bool buttonPushed = false;
@@ -1021,14 +1018,6 @@ void GenOnlineLoginMenuShutdown( WindowLayout *layout, void *userData )
 	isShuttingDown = true;
 	loggedInOK = false;
 	TheWindowManager->clearTabList();
-	if (webBrowserActive)
-	{
-		if (TheWebBrowser != NULL)
-		{
-			TheWebBrowser->closeBrowserWindow(listboxTOS);
-		}
-		webBrowserActive = FALSE;
-	}
 
 	// if we are shutting down for an immediate pop, skip the animations
 	Bool popImmediate = *(Bool *)userData;
@@ -1600,49 +1589,39 @@ WindowMsgHandledType GenOnlineLoginMenuSystem( GameWindow *window, UnsignedInt m
 				else if ( controlID == buttonTOSID )
 				{
 					parentTOS->winHide(FALSE);
-					useWebBrowserForTOS = FALSE;//loginPref->getBool("UseTOSBrowser", TRUE);
-					if (useWebBrowserForTOS && (TheWebBrowser != NULL))
+					GadgetListBoxReset(listboxTOS);
+					AsciiString fileName;
+					fileName.format("Data\\%s\\TOS.txt", GetRegistryLanguage().str());
+					File *theFile = TheFileSystem->openFile(fileName.str(), File::READ);
+					if (theFile)
 					{
-						TheWebBrowser->createBrowserWindow("TermsOfService", listboxTOS);
-						webBrowserActive = TRUE;
-					}
-					else
-					{
-						// Okay, no web browser.  This means we're looking at a UTF-8 text file.
-						GadgetListBoxReset(listboxTOS);
-						AsciiString fileName;
-						fileName.format("Data\\%s\\TOS.txt", GetRegistryLanguage().str());
-						File *theFile = TheFileSystem->openFile(fileName.str(), File::READ);
-						if (theFile)
+						Int size = theFile->size();
+
+						char *fileBuf = new char[size];
+						Color tosColor = GOUIColor(GOUICOLOR_TEXT, GameMakeColor(255, 255, 255, 255));
+
+						Int bytesRead = theFile->read(fileBuf, size);
+						if (bytesRead == size && size > 2)
 						{
-							Int size = theFile->size();
-
-							char *fileBuf = new char[size];
-							Color tosColor = GOUIColor(GOUICOLOR_TEXT, GameMakeColor(255, 255, 255, 255));
-
-							Int bytesRead = theFile->read(fileBuf, size);
-							if (bytesRead == size && size > 2)
+							fileBuf[size-1] = 0; // just to be safe
+							AsciiString asciiBuf = fileBuf+2;
+							AsciiString asciiLine;
+							while (asciiBuf.nextToken(&asciiLine, "\r\n"))
 							{
-								fileBuf[size-1] = 0; // just to be safe
-								AsciiString asciiBuf = fileBuf+2;
-								AsciiString asciiLine;
-								while (asciiBuf.nextToken(&asciiLine, "\r\n"))
-								{
-									UnicodeString uniLine;
-									uniLine = UnicodeString(MultiByteToWideCharSingleLine(asciiLine.str()).c_str());
-									uniLine.trimEnd();
-									DEBUG_LOG(("adding TOS line: [%ls]", uniLine.str()));
-									GadgetListBoxAddEntryText(listboxTOS, uniLine, tosColor, -1);
-								}
-
+								UnicodeString uniLine;
+								uniLine = UnicodeString(MultiByteToWideCharSingleLine(asciiLine.str()).c_str());
+								uniLine.trimEnd();
+								DEBUG_LOG(("adding TOS line: [%ls]", uniLine.str()));
+								GadgetListBoxAddEntryText(listboxTOS, uniLine, tosColor, -1);
 							}
 
-							delete[] fileBuf;
-							fileBuf = NULL;
-
-							theFile->close();
-							theFile = NULL;
 						}
+
+						delete[] fileBuf;
+						fileBuf = NULL;
+
+						theFile->close();
+						theFile = NULL;
 					}
 					GenOnlineEnableLoginControls( FALSE );
 					buttonBack->winEnable(FALSE);
@@ -1653,18 +1632,9 @@ WindowMsgHandledType GenOnlineLoginMenuSystem( GameWindow *window, UnsignedInt m
 					GenOnlineEnableLoginControls( TRUE );
 
 					parentTOS->winHide(TRUE);
-					if (useWebBrowserForTOS && (TheWebBrowser != NULL))
-					{
-						if (listboxTOS != NULL)
-						{
-							TheWebBrowser->closeBrowserWindow(listboxTOS);
-						}
-					}
-
 					OptionPreferences optionPref;
 					optionPref["SawTOS"] = "yes";
 					optionPref.write();
-					webBrowserActive = FALSE;
 					buttonBack->winEnable(TRUE);
 				}
 				break;

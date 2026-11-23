@@ -41,7 +41,6 @@
 #include "W3DDevice/Common/W3DModuleFactory.h"
 #include "W3DDevice/GameLogic/W3DGameLogic.h"
 #include "W3DDevice/GameClient/W3DGameClient.h"
-#include "W3DDevice/GameClient/W3DWebBrowser.h"
 #include "W3DDevice/Common/W3DFunctionLexicon.h"
 #include "W3DDevice/Common/W3DRadar.h"
 #include "W3DDevice/Common/W3DThingFactory.h"
@@ -64,6 +63,8 @@ public:
 	virtual void reset() override;															///< reset engine
 	virtual void update() override;														///< update the game engine
 	virtual void serviceWindowsOS() override;									///< allow windows maintenance in background
+	virtual void setBusyState(Bool busyDisplay, Bool busySystem) override;	///< tell the OS to keep the display and/or system awake
+	virtual OSDisplayButtonType displayWarningBox(AsciiString p, AsciiString m, UnsignedInt buttonFlags, UnsignedInt otherFlags) override;
 
 	static Bool shouldKeepRunningInBackground();								///< network games and online sessions never stop for the window state
 	Bool stepFrameFromModalLoop();														///< runs one frame from a Windows modal loop, FALSE if it must not
@@ -81,7 +82,6 @@ protected:
 	virtual ArchiveFileSystem *createArchiveFileSystem() override;	///< factory for archive file system
 	virtual NetworkInterface *createNetwork();				///< Factory for the network
 	virtual Radar *createRadar(Bool dummy) override;						///< Factory for radar
-	virtual WebBrowser *createWebBrowser() override;						///< Factory for embedded browser
 	virtual AudioManager *createAudioManager(Bool dummy) override;				///< Factory for audio device
 	virtual ParticleSystemManager* createParticleSystemManager(Bool dummy) override;
 
@@ -114,4 +114,3 @@ inline Radar *Win32GameEngine::createRadar(Bool dummy)
 		return NEW RadarDummy;
 	return NEW W3DRadar;
 }
-inline WebBrowser *Win32GameEngine::createWebBrowser() { return NEW CComObject<W3DWebBrowser>; }

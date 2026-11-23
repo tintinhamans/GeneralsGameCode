@@ -364,14 +364,19 @@ AsciiString MapCache::getMapExtension() const
 	return "map";
 }
 
+AsciiString MapCache::getCachePath( const AsciiString &mapDir )
+{
+	AsciiString path = mapDir;
+	FileSystem::ensureTrailingPathSeparatorInPath(path);
+	path.concat(m_mapCacheName);
+	return path;
+}
+
 void MapCache::writeCacheINI( const AsciiString &mapDir )
 {
-	AsciiString filepath = mapDir;
-	filepath.concat('\\');
+	AsciiString filepath = getCachePath(mapDir);
 
 	TheFileSystem->createDirectory(mapDir);
-
-	filepath.concat(m_mapCacheName);
 
 	// write to a temp file and swap it in so a failed write never leaves a truncated MapCache.ini
 	AsciiString tempFilepath = filepath;
@@ -558,8 +563,7 @@ Bool MapCache::clearUnseenMaps( const AsciiString &mapDir )
 Bool MapCache::loadMapsFromMapCacheINI( const AsciiString &mapDir )
 {
 	INI ini;
-	AsciiString fname;
-	fname.format("%s\\%s", mapDir.str(), m_mapCacheName);
+	AsciiString fname = getCachePath(mapDir);
 
 	if (TheFileSystem->doesFileExist(fname.str()))
 	{

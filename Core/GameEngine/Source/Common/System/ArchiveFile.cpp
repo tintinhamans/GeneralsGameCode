@@ -29,6 +29,7 @@
 #include "PreRTS.h"
 
 #include "Common/ArchiveFile.h"
+#include "Common/FileSystem.h"
 #include "Common/ArchiveFileSystem.h"
 #include "Common/LocalFileSystem.h"
 #include "Common/file.h"
@@ -169,9 +170,7 @@ void ArchiveFile::getFileListInDirectory(const DetailedArchivedDirectoryInfo *di
 		if (SearchStringMatches(fileInfo.m_filename, searchName)) {
 			AsciiString tempfilename;
 			tempfilename = currentDirectory;
-			if (!tempfilename.isEmpty() && !tempfilename.endsWith("\\")) {
-				tempfilename.concat('\\');
-			}
+			FileSystem::ensureTrailingPathSeparatorInPath(tempfilename);
 			tempfilename.concat(fileInfo.m_filename);
 			if (filenameList.find(tempfilename) == filenameList.end()) {
 				// only insert into the list if its not already in there.

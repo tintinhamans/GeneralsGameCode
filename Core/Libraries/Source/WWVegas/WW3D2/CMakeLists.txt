@@ -1,8 +1,8 @@
 set(WW3D2_SRC
     aabtree.cpp
     aabtree.h
-    #aabtreebuilder.cpp
-    #aabtreebuilder.h
+    aabtreebuilder.cpp
+    aabtreebuilder.h
     agg_def.cpp
     agg_def.h
     animatedsoundmgr.cpp
@@ -18,10 +18,8 @@ set(WW3D2_SRC
     bitmaphandler.h
     bmp2d.cpp
     bmp2d.h
-    #boxrobj.cpp
-    #boxrobj.h
-    bwrender.cpp
-    bwrender.h
+    boxrobj.cpp
+    boxrobj.h
     #camera.cpp
     #camera.h
     #classid.h # unused
@@ -46,6 +44,7 @@ set(WW3D2_SRC
     dllist.h
     dx8caps.cpp
     dx8caps.h
+    dx8convert.h
     dx8fvf.cpp
     dx8fvf.h
     dx8indexbuffer.cpp
@@ -61,8 +60,6 @@ set(WW3D2_SRC
     dx8texman.h
     dx8vertexbuffer.cpp
     dx8vertexbuffer.h
-    dx8webbrowser.cpp
-    dx8webbrowser.h
     dx8wrapper.cpp
     dx8wrapper.h
     dynamesh.cpp
@@ -83,10 +80,10 @@ set(WW3D2_SRC
     #hlod.h
     hmdldef.cpp
     hmdldef.h
-    #hmorphanim.cpp
-    #hmorphanim.h
-    #hrawanim.cpp
-    #hrawanim.h
+    hmorphanim.cpp
+    hmorphanim.h
+    hrawanim.cpp
+    hrawanim.h
     htree.cpp
     htree.h
     #htreemgr.cpp
@@ -97,49 +94,49 @@ set(WW3D2_SRC
     inttest.h
     layer.cpp
     layer.h
-    #light.cpp
-    #light.h
+    light.cpp
+    light.h
     #lightenvironment.cpp
     #lightenvironment.h
     line3d.cpp
     line3d.h
     #linegrp.cpp
     #linegrp.h
-    #mapper.cpp
-    #mapper.h
+    mapper.cpp
+    mapper.h
     matinfo.cpp
     matinfo.h
     matpass.cpp
     matpass.h
-    #matrixmapper.cpp
-    #matrixmapper.h
-    #mesh.cpp
-    #mesh.h
+    matrixmapper.cpp
+    matrixmapper.h
+    mesh.cpp
+    mesh.h
     #meshbuild.cpp
     #meshbuild.h
     meshdam.cpp
     meshdam.h
-    #meshgeometry.cpp
-    #meshgeometry.h
+    meshgeometry.cpp
+    meshgeometry.h
     #meshmatdesc.cpp
     #meshmatdesc.h
-    #meshmdl.cpp
-    #meshmdl.h
-    #meshmdlio.cpp
+    meshmdl.cpp
+    meshmdl.h
+    meshmdlio.cpp
     metalmap.cpp
     metalmap.h
     missingtexture.cpp
     missingtexture.h
-    #motchan.cpp
-    #motchan.h
+    motchan.cpp
+    motchan.h
     #nullrobj.cpp
     #nullrobj.h
     #part_buf.cpp
     #part_buf.h
-    #part_emt.cpp
-    #part_emt.h
-    #part_ldr.cpp
-    #part_ldr.h
+    part_emt.cpp
+    part_emt.h
+    part_ldr.cpp
+    part_ldr.h
     pivot.cpp
     pivot.h
     pointgr.cpp
@@ -176,8 +173,8 @@ set(WW3D2_SRC
     segline.h
     seglinerenderer.cpp
     seglinerenderer.h
-    #shader.cpp
-    #shader.h
+    shader.cpp
+    shader.h
     shattersystem.cpp
     shattersystem.h
     shdlib.h
@@ -208,19 +205,21 @@ set(WW3D2_SRC
     textdraw.h
     texture.cpp
     texture.h
+    textureatlas.cpp
+    textureatlas.h
     texturefilter.cpp
     texturefilter.h
     textureloader.cpp
     textureloader.h
     texturethumbnail.cpp
     texturethumbnail.h
-    #vertmaterial.cpp
-    #vertmaterial.h
+    vertmaterial.cpp
+    vertmaterial.h
     visrasterizer.cpp
     visrasterizer.h
     w3d_dep.cpp
     w3d_dep.h
-    #w3d_file.h
+    w3d_file.h
     w3d_obsolete.h
     w3d_util.cpp
     w3d_util.h
@@ -243,14 +242,7 @@ target_include_directories(corei_ww3d2 INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
-if (MSVC AND NOT IS_VS6_BUILD)
-    target_link_libraries(corei_ww3d2 INTERFACE
-        comsuppw
-    )
-endif()
-
 target_link_libraries(corei_ww3d2 INTERFACE
-    core_browserengine
     core_wwlib
     core_wwmath
 )

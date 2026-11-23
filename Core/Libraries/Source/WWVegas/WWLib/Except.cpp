@@ -37,14 +37,6 @@
  *                                                                                             *
  *                                                                                             *
  *                                                                                             *
- *---------------------------------------------------------------------------------------------*
- * Functions:                                                                                  *
- *                                                                                             *
- * Exception_Proc -- Windows dialog callback for the exception dialog                          *
- * Exception_Dialog -- Brings up the exception options dialog.                                 *
- * Add_Txt -- Add the given text to the machine state dump buffer.                             *
- * Dump_Exception_Info -- Dump machine state information into a buffer                         *
- * Exception_Handler -- Exception handler filter function                                      *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
  #if defined(_WIN32)
@@ -240,20 +232,7 @@ static char const *const ImagehelpFunctionNames[] =
 
 
 
-/***********************************************************************************************
- * _purecall -- This function overrides the C library Pure Virtual Function Call error         *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Nothing                                                                           *
- *                                                                                             *
- * OUTPUT:   0 = no error                                                                      *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   8/22/00 11:42AM ST : Created                                                              *
- *=============================================================================================*/
+// This function overrides the C library Pure Virtual Function Call error.
 int __cdecl _purecall()
 {
 	int return_code = 0;
@@ -271,20 +250,7 @@ int __cdecl _purecall()
 
 
 
-/***********************************************************************************************
- * Last_Error_Text -- Get the system error text for GetLastError                                *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Nothing                                                                           *
- *                                                                                             *
- * OUTPUT:   Ptr to error string                                                               *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   8/14/98 11:11AM ST : Created                                                              *
- *=============================================================================================*/
+// Get the system error text for GetLastError.
 char const * Last_Error_Text()
 {
 	static char message_buffer[256];
@@ -294,20 +260,7 @@ char const * Last_Error_Text()
 
 
 
-/***********************************************************************************************
- * Add_Txt -- Add the given text to the machine state dump buffer.                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Text                                                                              *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *    7/22/97 12:21PM ST : Created                                                             *
- *=============================================================================================*/
+// Add the given text to the machine state dump buffer.
 static void Add_Txt (char const *txt)
 {
 	if (strlen(ExceptionText) + strlen(txt) < ARRAY_SIZE(ExceptionText) - 1) {
@@ -351,20 +304,7 @@ static void Add_Txt (char const *txt)
 
 
 
-/***********************************************************************************************
- * Dump_Exception_Info -- Dump machine state information into a buffer                         *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    ptr to exception information                                                      *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *    7/22/97 12:21PM ST : Created                                                             *
- *=============================================================================================*/
+// Dump machine state information into a buffer.
 void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 {
 	/*
@@ -821,23 +761,7 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 
 
 
-/***********************************************************************************************
- * Exception_Handler -- Exception handler filter function                                      *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    exception code                                                                    *
- *           pointer to exception information pointers                                         *
- *                                                                                             *
- * OUTPUT:   EXCEPTION_EXECUTE_HANDLER -- Excecute the body of the __except construct          *
- *        or EXCEPTION_CONTINUE_SEARCH -- Pass this exception down to the debugger             *
- *        or EXCEPTION_CONTINUE_EXECUTION -- Continue to execute at the fault address          *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *    7/22/97 12:29PM ST : Created                                                              *
- *=============================================================================================*/
+// Exception handler filter function.
 int Exception_Handler(int exception_code, EXCEPTION_POINTERS *e_info)
 {
 	DebugString("Exception!\n");
@@ -957,21 +881,7 @@ int Exception_Handler(int exception_code, EXCEPTION_POINTERS *e_info)
 
 
 
-/***********************************************************************************************
- * Register_Thread_ID -- Let the exception handler know about a thread                         *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Thread ID                                                                         *
- *           Thread name                                                                       *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   8/30/2001 3:04PM ST : Created                                                             *
- *=============================================================================================*/
+// Let the exception handler know about a thread.
 void Register_Thread_ID(unsigned long thread_id, char *thread_name, bool main_thread)
 {
 	WWMEMLOG(MEM_GAMEDATA);
@@ -1002,21 +912,6 @@ void Register_Thread_ID(unsigned long thread_id, char *thread_name, bool main_th
 
 
 #if (0)
-/***********************************************************************************************
- * Register_Thread_Handle -- Keep a copy of the thread handle that matches this thread ID      *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Thread ID                                                                         *
- *           Thread handle                                                                     *
- *                                                                                             *
- * OUTPUT:   True if thread ID was matched                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   2/6/2002 9:40PM ST : Created                                                              *
- *=============================================================================================*/
 bool Register_Thread_Handle(unsigned long thread_id, HANDLE thread_handle)
 {
 	for (int i=0 ; i<ThreadList.Count() ; i++) {
@@ -1031,40 +926,12 @@ bool Register_Thread_Handle(unsigned long thread_id, HANDLE thread_handle)
 
 
 
-/***********************************************************************************************
- * Get_Num_Threads -- Get the number of threads being tracked.                                 *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Nothing                                                                           *
- *                                                                                             *
- * OUTPUT:   Number of threads we know about                                                   *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   2/6/2002 9:43PM ST : Created                                                              *
- *=============================================================================================*/
 int Get_Num_Threads()
 {
 	return(ThreadList.Count());
 }
 
 
-/***********************************************************************************************
- * Get_Thread_Handle -- Get the handle for the given thread index                              *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Thread index                                                                      *
- *                                                                                             *
- * OUTPUT:   Thread handle                                                                     *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   2/6/2002 9:46PM ST : Created                                                              *
- *=============================================================================================*/
 HANDLE Get_Thread_Handle(int thread_index)
 {
 	if (thread_index < ThreadList.Count()) {
@@ -1073,21 +940,6 @@ HANDLE Get_Thread_Handle(int thread_index)
 }
 #endif //(0)
 
-/***********************************************************************************************
- * Unregister_Thread_ID -- Remove a thread entry from the thread list                          *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Thread ID                                                                         *
- *           Thread name                                                                       *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   8/30/2001 3:10PM ST : Created                                                             *
- *=============================================================================================*/
 void Unregister_Thread_ID(unsigned long thread_id, char *thread_name)
 {
 	ScopedThreadListLock lock(GetThreadListCS());
@@ -1107,20 +959,6 @@ void Unregister_Thread_ID(unsigned long thread_id, char *thread_name)
 
 
 
-/***********************************************************************************************
- * Get_Main_Thread_ID -- Get the ID of the processes main thread                               *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Nothing                                                                           *
- *                                                                                             *
- * OUTPUT:   Thread ID                                                                         *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   12/6/2001 12:20PM ST : Created                                                            *
- *=============================================================================================*/
 unsigned long Get_Main_Thread_ID()
 {
 	ScopedThreadListLock lock(GetThreadListCS());
@@ -1141,20 +979,7 @@ unsigned long Get_Main_Thread_ID()
 
 
 
-/***********************************************************************************************
- * Load_Image_Helper -- Load imagehlp.dll and retrieve the programs symbols                    *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Nothing                                                                           *
- *                                                                                             *
- * OUTPUT:   Nothing                                                                           *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   6/12/2001 4:27PM ST : Created                                                             *
- *=============================================================================================*/
+// Load imagehlp.dll and retrieve the programs symbols.
 void Load_Image_Helper()
 {
 	/*
@@ -1218,22 +1043,6 @@ void Load_Image_Helper()
 
 
 
-/***********************************************************************************************
- * Lookup_Symbol -- Get the symbol for a given code address                                    *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Address of code to get symbol for                                                 *
- *           Ptr to buffer to return symbol in                                                 *
- *           Reference to int to return displacement                                           *
- *                                                                                             *
- * OUTPUT:   True if symbol found                                                              *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   6/12/2001 4:47PM ST : Created                                                             *
- *=============================================================================================*/
 bool Lookup_Symbol(void *code_ptr, char *symbol, int &displacement)
 {
 	/*
@@ -1289,22 +1098,7 @@ bool Lookup_Symbol(void *code_ptr, char *symbol, int &displacement)
 
 
 
-/***********************************************************************************************
- * Stack_Walk -- Walk the stack and get the last n return addresses                            *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Ptr to return address list                                                        *
- *           Number of return addresses to fetch                                               *
- *           Ptr to optional context. null means use current                                   *
- *                                                                                             *
- * OUTPUT:   Number of return addresses found                                                  *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   6/12/2001 11:57AM ST : Created                                                            *
- *=============================================================================================*/
+// A null context means the current context is used.
 int Stack_Walk(unsigned long *return_addresses, int num_addresses, CONTEXT *context)
 {
 	static HINSTANCE _imagehelp = (HINSTANCE) -1;

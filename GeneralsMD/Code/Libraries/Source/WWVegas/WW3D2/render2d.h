@@ -30,8 +30,6 @@
  *                                                                                             *
  *                    $Revision:: 26                                                          $*
  *                                                                                             *
- *---------------------------------------------------------------------------------------------*
- * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #pragma once
@@ -41,7 +39,7 @@
 #include "WWLib/Vector.h"
 #include "WWMath/vector2.h"
 
-#include "shader.h"
+#include "WW3D2/shader.h"
 #include "WWLib/widestring.h"
 #include "WWMath/rect.h"
 #include "WWLib/bittype.h"
