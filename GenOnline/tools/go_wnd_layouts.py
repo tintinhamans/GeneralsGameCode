@@ -5,8 +5,8 @@ Every retail layout in WindowZH.big is copied to GenOnline/data/zerohour at its 
 deterministic fixes. A layout GO already edited by hand (GenOnline/tools/wnd_sources) replaces the retail
 file as input, and the GO-only layouts there get the same fixes. A layout with a YAML source
 (GenOnline/tools/wnd_yaml, compiled by GenOnline/tools/wnd_yaml.py) is written as compiled: the source already holds the
-kit colours, GO header templates and hover images, so only the combo heights below apply to it, and its
-GenOnline/tools/wnd_sources copy, if any, is only kept for reference. All rects are in 800x600 units.
+kit colours, GO header templates and hover images, so only the combo heights below apply to it. All rects are
+in 800x600 units.
 
 - Kit colours: the retail blue line colours in draw data and TEXTCOLOR border entries become the
   UI kit line and hilite colours; each value keeps its alpha.
