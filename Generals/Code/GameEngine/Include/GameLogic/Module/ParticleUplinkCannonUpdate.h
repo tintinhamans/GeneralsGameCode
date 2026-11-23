@@ -151,6 +151,7 @@ class ParticleUplinkCannonUpdate : public UpdateModule, public SpecialPowerUpdat
 public:
 
 	ParticleUplinkCannonUpdate( Thing *thing, const ModuleData* moduleData );
+#if defined(GENONLINE)
 
 	// GenOnline @feature arcticdolphin 21/11/2026 The stats exporter reads the beam schedule without touching the module data.
 	void getBeamScheduleForStats( UnsignedInt &beamTravelFrames, UnsignedInt &totalFiringFrames, UnsignedInt &widthGrowFrames ) const
@@ -160,6 +161,7 @@ public:
 		totalFiringFrames = data->m_totalFiringFrames;
 		widthGrowFrames = data->m_widthGrowFrames;
 	}
+#endif
 	// virtual destructor prototype provided by memory pool declaration
 
 	// SpecialPowerUpdateInterface

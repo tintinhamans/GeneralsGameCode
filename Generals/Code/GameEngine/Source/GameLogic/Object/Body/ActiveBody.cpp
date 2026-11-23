@@ -32,7 +32,9 @@
 #include "Common/BitFlagsIO.h"
 #include "Common/CRCDebug.h"
 #include "Common/DamageFX.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
+#endif
 #include "Common/Player.h"
 #include "Common/GameState.h"
 #include "Common/GlobalData.h"
@@ -424,12 +426,14 @@ void ActiveBody::attemptDamage( DamageInfo *damageInfo )
 		damageInfo->out.m_actualDamageDealt = amount;
 		damageInfo->out.m_actualDamageClipped = m_prevHealth - m_currentHealth;
 
+#if defined(GENONLINE)
 		// GenOnline @feature arcticdolphin 21/11/2026 Read only tap for the stats pipe that reports the health this hit actually took, not subdual or status damage
 		if (!alreadyHandled)
 		{
 			LocalApiLiveDamage(obj, damageInfo->in.m_sourceID, damageInfo->out.m_actualDamageClipped);
 		}
 
+#endif
 		// then copy the whole DamageInfo struct for easy lookup
 		// (object pointer loses scope as soon as atteptdamage's caller ends)
 		// m_lastDamageTimestamp is initialized to FFFFFFFFFF, so doing a < compare is problematic.

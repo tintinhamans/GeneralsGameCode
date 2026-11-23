@@ -72,7 +72,9 @@
 #include "GameNetwork/GUIUtil.h"
 #include "GameNetwork/IPEnumeration.h"
 #include "WWDownload/Registry.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLobby.h"
+#endif
 
 UnsignedInt GetTeamUiColor(Int teamNumber);
 
@@ -2192,6 +2194,7 @@ void populateSkirmishBattleHonors()
 			BATTLE_HONOR_OFFICERSCLUB, row, column);
 	}
 }
+#if defined(GENONLINE)
 
 // Stats pipe lobby control: the start position buttons' own handler, then the refresh the click path does.
 static void statsMoveStartPosition(Int slot, Int position)
@@ -2238,3 +2241,4 @@ Bool SkirmishGameOptionsMenuStatsLobby( StatsLobbyScreen& out )
 	out.setGameSpeed = statsSetGameSpeed;
 	return TRUE;
 }
+#endif

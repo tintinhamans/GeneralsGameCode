@@ -32,7 +32,9 @@
 #include "Common/Thing.h"
 #include "Common/ThingTemplate.h"
 #include "Common/RandomValue.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
+#endif
 #include "Common/Xfer.h"
 
 #include "GameLogic/ExperienceTracker.h"
@@ -188,6 +190,7 @@ void NeutronMissileUpdate::projectileFireAtObjectOrPosition( const Object *victi
 		m_intermedPos.z += getNeutronMissileUpdateModuleData()->m_targetFromDirectlyAbove;
 	}
 
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 Read only tap for the stats pipe that reports the flight time the missile data predicts
 	{
 		const NeutronMissileUpdateModuleData* d = getNeutronMissileUpdateModuleData();
@@ -206,6 +209,7 @@ void NeutronMissileUpdate::projectileFireAtObjectOrPosition( const Object *victi
 		}
 	}
 
+#endif
 	m_deliveryDecal.clear();
 	getNeutronMissileUpdateModuleData()->m_deliveryDecalTemplate.createRadiusDecal(m_targetPos,
 		getNeutronMissileUpdateModuleData()->m_deliveryDecalRadius, getObject()->getControllingPlayer(), m_deliveryDecal);

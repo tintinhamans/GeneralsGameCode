@@ -1517,6 +1517,7 @@ void W3DRadar::draw( Int pixelX, Int pixelY, Int width, Int height )
 
 }
 
+#if defined(GENONLINE)
 // ------------------------------------------------------------------------------------------------
 /** Copy the terrain texture out as RGBA for the stats exporter. Reads the surface, changes nothing. */
 // ------------------------------------------------------------------------------------------------
@@ -1605,6 +1606,7 @@ Bool W3DRadar::getTerrainImageForStats( UnsignedByte *rgba, UnsignedInt capacity
 
 }
 
+#endif
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 void W3DRadar::refreshTerrain( TerrainLogic *terrain )

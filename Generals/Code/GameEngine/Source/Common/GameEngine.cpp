@@ -117,8 +117,10 @@
 
 #include "Common/version.h"
 
+#if defined(GENONLINE)
 #include "Common/LocalApiReaders.h"
 #include "Common/LocalApiLive.h"
+#endif
 
 //-------------------------------------------------------------------------------------------------
 
@@ -850,6 +852,7 @@ void GameEngine::update()
 			/// @todo Move audio init, update, etc, into GameClient update
 
 			TheAudio->UPDATE();
+#if defined(GENONLINE)
 			{
 				// GenOnline @feature arcticdolphin 21/11/2026 Count the client update as own cost for adaptive quality
 				const long long aqClientStart = AdaptiveQuality::now();
@@ -858,6 +861,9 @@ void GameEngine::update()
 			}
 			// GenOnline @feature arcticdolphin 21/11/2026 Sends the camera frame after the client update has moved the views
 			LocalApiLiveCamera();
+#else
+			TheGameClient->UPDATE();
+#endif
 			TheMessageStream->propagateMessages();
 
 			if (TheNetwork != nullptr)

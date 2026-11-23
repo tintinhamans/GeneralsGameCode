@@ -298,8 +298,10 @@ public:
 
 	/// return t if the player has the given science, either intrinsically, via specialization, or via capture.
 	Bool hasScience(ScienceType t) const;
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 The stats exporter reads the sciences without a copy.
 	const ScienceVec& getSciences() const { return m_sciences; }
+#endif
 	Bool isScienceDisabled( ScienceType t ) const;	///< Can't purchase this science because of script reasons.
 	Bool isScienceHidden( ScienceType t ) const;		///< This science is effectively hidden due to  script reasons.
 
@@ -365,8 +367,10 @@ public:
 	void disableRadar();	///< No matter how many radar producers I have, I do not have radar
 	void enableRadar();	///< remove the restriction imposed by disableRadar
 	Bool hasRadar() const;///< A positive number of radar producers, plus my radar is not disabled
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 The stats exporter reads the radar state without side effects.
 	Int getRadarStateForStats() const;
+#endif
 	Bool okToPlayRadarEdgeSound();///< just like it "sounds"
 	//Battle plans effect the players abilities... so may as well add it here. Also
 	//it's possible for multiple strategy centers to have the same plan, so we need

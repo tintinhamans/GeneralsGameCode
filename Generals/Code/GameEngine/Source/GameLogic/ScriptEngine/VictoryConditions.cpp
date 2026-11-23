@@ -49,7 +49,9 @@
 #include "GameLogic/PartitionManager.h"
 #include "GameLogic/ScriptActions.h"
 #include "GameLogic/VictoryConditions.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
+#endif
 #include "GameNetwork/GameInfo.h"
 #include "GameNetwork/NetworkDefs.h"
 
@@ -202,8 +204,10 @@ void VictoryConditions::update()
 		if (p && !m_isDefeated[i] && hasSinglePlayerBeenDefeated(p))
 		{
 			m_isDefeated[i] = true;
+#if defined(GENONLINE)
 			// GenOnline @feature arcticdolphin 21/11/2026 Report the elimination to the live stats pipe
 			LocalApiLivePlayerDefeated(p->getPlayerIndex());
+#endif
 			if (TheGameLogic->getFrame() > 1)
 			{
 				ThePartitionManager->revealMapForPlayerPermanently( p->getPlayerIndex() );

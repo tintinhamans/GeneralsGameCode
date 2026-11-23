@@ -59,7 +59,9 @@
 #include "Common/MultiplayerSettings.h"
 #include "GameClient/GameText.h"
 #include "GameNetwork/GUIUtil.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLobby.h"
+#endif
 
 
 extern char *LANnextScreen;
@@ -1451,6 +1453,7 @@ void PostToLanGameOptions( PostToLanGameType post )
 			return;
 	}
 }
+#if defined(GENONLINE)
 
 static void statsMoveStartPosition(Int slot, Int position)
 {
@@ -1484,3 +1487,4 @@ Bool LanGameOptionsMenuStatsLobby( StatsLobbyScreen& out )
 	out.applyMap = LanMapSelectMenuApplyMap;
 	return TRUE;
 }
+#endif

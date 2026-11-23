@@ -107,9 +107,11 @@
 #include "GameNetwork/GameSpy/ThreadUtils.h"
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/NetworkInterface.h"
+#if defined(GENONLINE)
 #include "GameNetwork/Online/IOnlineGameHooks.h"
 #include "Common/LocalApiLive.h"
 #include "Common/StatsExporter.h"
+#endif
 
 struct QuitGameException {};
 
@@ -1240,9 +1242,11 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	populateRandomSideAndColor( TheGameInfo );
 	populateRandomStartPosition( TheGameInfo );
 
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 The resolved sides, colors and start positions are in the slots now and the exporter only reads them
 	LocalApiLiveMatchLoading( TheGameInfo, randomCrcBeforeResolve, loadingSaveGame );
 
+#endif
 	//****************************//
 	// Start the LoadScreen Now!	//
 	//****************************//
@@ -3378,9 +3382,11 @@ void GameLogic::update()
 		startNewGame( FALSE );
 		m_startNewGame = FALSE;
 
+#if defined(GENONLINE)
 		// GenOnline @feature arcticdolphin 21/11/2026 Players are fully set up now and nothing happens for the shell map
 		LocalApiLiveMatchStarted();
 
+#endif
 	#ifdef DUMP_PERF_STATS
 		__int64 freq64;
 		GetPrecisionTimerTicksPerSec(&freq64);
@@ -3462,6 +3468,7 @@ void GameLogic::update()
 		TheStatsCollector->update();
 	}
 
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 Live stats pipe sample of the state at the end of the previous frame, an early out while no reader is connected
 	LocalApiLiveUpdate();
 
@@ -3469,6 +3476,7 @@ void GameLogic::update()
 	if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD)
 		StatsExporterCollectSnapshot();
 
+#endif
 	// Update the Recorder
 	{
 		TheRecorder->UPDATE();
@@ -3605,6 +3613,7 @@ void GameLogic::update()
 		}
 	}
 
+#if defined(GENONLINE)
 	if (GetOnlineGameHooks()->shouldLeaveGame())
 	{
 		TheGameLogic->exitGame();
@@ -3613,6 +3622,7 @@ void GameLogic::update()
 	// GenOnline @feature arcticdolphin 21/11/2026 Send the events of this logic frame to the live stats pipe
 	LocalApiLiveFrameEnd();
 
+#endif
 	// increment world time
 	if (!m_startNewGame)
 	{

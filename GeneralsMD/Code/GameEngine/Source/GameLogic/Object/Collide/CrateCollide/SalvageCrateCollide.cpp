@@ -43,7 +43,9 @@
 #include "GameClient/InGameUI.h"
 #include "GameLogic/ExperienceTracker.h"
 #include "GameLogic/Object.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
+#endif
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -208,6 +210,7 @@ void SalvageCrateCollide::doWeaponSet( Object *other )
 	else
 	{
 		other->setWeaponSetFlag( WEAPONSET_CRATEUPGRADE_ONE );
+#if defined(GENONLINE)
 		reachedTier = 1;
 	}
 
@@ -216,6 +219,7 @@ void SalvageCrateCollide::doWeaponSet( Object *other )
 	{
 		LocalApiLiveSalvageUpgrade(
 			statsController->getPlayerIndex(), other->getTemplate(), "WEAPON", reachedTier );
+#endif
 	}
 }
 
@@ -236,6 +240,7 @@ void SalvageCrateCollide::doArmorSet( Object *other )
 		other->setArmorSetFlag( ARMORSET_CRATE_UPGRADE_ONE );
 
 		other->setModelConditionState(MODELCONDITION_ARMORSET_CRATEUPGRADE_ONE);
+#if defined(GENONLINE)
 		reachedTier = 1;
 	}
 
@@ -244,6 +249,7 @@ void SalvageCrateCollide::doArmorSet( Object *other )
 	{
 		LocalApiLiveSalvageUpgrade(
 			statsController->getPlayerIndex(), other->getTemplate(), "ARMOR", reachedTier );
+#endif
 	}
 }
 

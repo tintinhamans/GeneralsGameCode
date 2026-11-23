@@ -299,7 +299,9 @@ public:
 
 	/// return t if the player has the given science, either intrinsically, via specialization, or via capture.
 	Bool hasScience(ScienceType t) const;
+#if defined(GENONLINE)
 	const ScienceVec& getSciences() const { return m_sciences; }	///< read-only view of the purchased and intrinsic sciences
+#endif
 	Bool isScienceDisabled( ScienceType t ) const;	///< Can't purchase this science because of script reasons.
 	Bool isScienceHidden( ScienceType t ) const;		///< This science is effectively hidden due to  script reasons.
 
@@ -365,9 +367,11 @@ public:
 	void disableRadar();	///< No matter how many radar producers I have, I do not have radar
 	void enableRadar();	///< remove the restriction imposed by disableRadar
 	Bool hasRadar() const;///< A positive number of radar producers, plus my radar is not disabled
+#if defined(GENONLINE)
 	Int getRadarCount() const { return m_radarCount; }///< radar producers owned, whether or not the radar is powered
 	Int getRadarStateForStats() const;///< 0 none, 1 producers exist but the radar is off, 2 active; read-only
 	Int getActiveBattlePlan() const;///< the BattlePlanStatus affecting my troops: first of bombardment, hold the line, search and destroy with a non-zero count
+#endif
 	Bool okToPlayRadarEdgeSound();///< just like it "sounds"
 	//Battle plans effect the players abilities... so may as well add it here. Also
 	//it's possible for multiple strategy centers to have the same plan, so we need

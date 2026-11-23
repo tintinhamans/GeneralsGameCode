@@ -102,12 +102,14 @@
 #include "GameClient/InGameUI.h"
 #include "GameClient/ChallengeGenerals.h"
 
+#if defined(GENONLINE)
 #include "../GenOnlineInterfaces.h"
 #include "../GenOnlineInit.h"
 #include "../GenOnlineStatsInterface.h"
 #include "GameClient/GenOnlineUserSection.h"
 #include "Common/LocalApiLive.h"
 
+#endif
 
 //-----------------------------------------------------------------------------
 // DEFINES ////////////////////////////////////////////////////////////////////
@@ -2305,9 +2307,11 @@ void grabMultiPlayerInfo( void )
 	
 	DEBUG_ASSERTCRASH(count == playerCount, ("For some reason we added %d players to the scores map, but only read %d", playerCount, count));
 
+#if defined(GENONLINE)
 	// last point where every Player/ScoreKeeper is still populated
 	LocalApiLiveMatchSummary();
 	
+#endif
 }
 
 enum

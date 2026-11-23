@@ -64,7 +64,9 @@
 #include "GameLogic/Module/StealthUpdate.h"
 #include "GameLogic/Module/ContainModule.h"
 #include "Common/LocalApiLive.h"
+#if defined(GENONLINE)
 
+#endif
 
 
 //-------------------------------------------------------------------------------------------------
@@ -1577,6 +1579,7 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
               //in case either the enemy player cleans one up, or after it's gone.
             }
           }
+#if defined(GENONLINE)
         }
       }
       else
@@ -1586,6 +1589,7 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
         if( !target )
         {
           return;
+#endif
         }
 
         Object *charge = createSpecialObject();

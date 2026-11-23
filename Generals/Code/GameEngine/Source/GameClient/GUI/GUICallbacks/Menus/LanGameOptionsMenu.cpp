@@ -56,7 +56,9 @@
 #include "Common/MultiplayerSettings.h"
 #include "GameClient/GameText.h"
 #include "GameNetwork/GUIUtil.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLobby.h"
+#endif
 
 
 extern char *LANnextScreen;
@@ -1347,6 +1349,7 @@ void PostToLanGameOptions( PostToLanGameType post )
 			return;
 	}
 }
+#if defined(GENONLINE)
 
 // GenOnline @feature arcticdolphin 21/11/2026 The stats pipe moves start positions and describes the screen controls.
 static void statsMoveStartPosition(Int slot, Int position)
@@ -1379,3 +1382,4 @@ Bool LanGameOptionsMenuStatsLobby( StatsLobbyScreen& out )
 	out.applyMap = LanMapSelectMenuApplyMap;
 	return TRUE;
 }
+#endif

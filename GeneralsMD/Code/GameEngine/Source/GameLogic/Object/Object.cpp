@@ -52,8 +52,10 @@
 #include "Common/Xfer.h"
 #include "Common/XferCRC.h"
 #include "Common/PerfTimer.h"
+#if defined(GENONLINE)
 #include "Common/StatsExporter.h"
 #include "Common/LocalApiLive.h"
+#endif
 
 #include "GameClient/Anim2D.h"
 #include "GameClient/ControlBar.h"
@@ -3025,7 +3027,9 @@ void Object::scoreTheKill( const Object *victim )
 	if (victimController)
 	{
 		victimController->getScoreKeeper()->addObjectLost(victim);
+#if defined(GENONLINE)
 		LocalApiLiveLoss(victimController->getPlayerIndex(), victim, this);
+#endif
 	}
 
 	Relationship r = getRelationship(victim);
@@ -3043,10 +3047,12 @@ void Object::scoreTheKill( const Object *victim )
 		controller->getScoreKeeper()->addObjectDestroyed(victim);
 		controller->addSkillPointsForKill(this, victim);
 		controller->doBountyForKill(this, victim);
+#if defined(GENONLINE)
 
 		// one entry point feeds the live pipe and the JSON export, each under its own gate
 		const DamageInfo *damageInfo = (StatsExporterIsActive() && victim->getBodyModule()) ? victim->getBodyModule()->getLastDamageInfo() : nullptr;
 		StatsExporterRecordKill(this, victim, damageInfo);
+#endif
 	}
 
 	// Now handle experience, if we can gain any
@@ -4700,9 +4706,11 @@ void Object::onCapture( Player *oldOwner, Player *newOwner )
 	// this gets the new owner some points
 	newOwner->getScoreKeeper()->addObjectCaptured(this);
 
+#if defined(GENONLINE)
 	StatsExporterRecordCapture(this, oldOwner, newOwner);
 	LocalApiLiveCapture(this, oldOwner, newOwner);
 
+#endif
 	// rip through the behavior modules and call the onCapture for any modules that care
 	for( BehaviorModule **module = m_behaviors; *module; ++module )
 		(*module)->onCapture( oldOwner, newOwner );

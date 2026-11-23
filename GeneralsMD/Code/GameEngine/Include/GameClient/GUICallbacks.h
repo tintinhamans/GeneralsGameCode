@@ -342,6 +342,7 @@ extern void ShowInGameChat( Bool immediate = TRUE );
 void ResetInGameChat();
 void SetInGameChatType( InGameChatType chatType );
 Bool IsInGameChatActive();
+#if defined(GENONLINE)
 Bool SubmitInGameChatLine( const UnicodeString& text, InGameChatType chatType );
 /// Handles a line as if it was typed into the chat box of that menu. Returns FALSE if the menu is not open.
 Bool LanLobbyMenuSubmitChatLine( UnicodeString text );
@@ -351,6 +352,7 @@ Bool LanGameOptionsMenuSubmitChatLine( UnicodeString text );
 struct StatsLobbyScreen;
 Bool SkirmishGameOptionsMenuStatsLobby( StatsLobbyScreen& out );
 Bool LanGameOptionsMenuStatsLobby( StatsLobbyScreen& out );
+#endif
 
 
 // Diplomacy Controls --------------------------------------------------------------------------------

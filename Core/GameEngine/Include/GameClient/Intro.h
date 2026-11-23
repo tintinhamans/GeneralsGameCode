@@ -31,8 +31,10 @@ class Intro
 		IntroState_EALogoMovie,
 		IntroState_TheSuperHackersWait,
 		IntroState_TheSuperHackers,
+#if defined(GENONLINE)
         IntroState_GOWait,
         IntroState_GO,
+#endif
 		IntroState_SizzleMovieWait,
 		IntroState_SizzleMovie,
 		IntroState_Done,
@@ -76,8 +78,10 @@ private:
 	void doPostIntro();
 	void doAsyncWait(UnsignedInt milliseconds);
 
+#if defined(GENONLINE)
 	void doGeneralsOnlineLogo();
 
+#endif
 	void drawDisplayEntities();
 
 private:

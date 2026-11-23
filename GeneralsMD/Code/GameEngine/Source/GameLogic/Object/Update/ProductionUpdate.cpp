@@ -52,7 +52,9 @@
 #include "GameLogic/Module/CreateModule.h"
 #include "GameLogic/Module/ParkingPlaceBehavior.h"
 #include "GameLogic/Module/ProductionUpdate.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
+#endif
 #include "GameLogic/Object.h"
 #include "GameLogic/ScriptEngine.h"
 
@@ -858,7 +860,9 @@ UpdateSleepTime ProductionUpdate::update()
 
 			// we finished an upgrade, lets add that money spent on it to the scorekeeper
 			player->getScoreKeeper()->addMoneySpent(upgrade->calcCostToBuild(player));
+#if defined(GENONLINE)
 			LocalApiLiveSpend(player->getPlayerIndex(), LOCAL_API_SPEND_UPGRADES, upgrade->calcCostToBuild(player));
+#endif
 
 			// notify the script engine
 			TheScriptEngine->notifyOfCompletedUpgrade(
@@ -908,7 +912,9 @@ UpdateSleepTime ProductionUpdate::update()
 			else
 			{
 				us->giveUpgrade( upgrade );
+#if defined(GENONLINE)
 				LocalApiLiveUpgradeComplete( player->getPlayerIndex(), upgrade->getUpgradeName().str(), upgrade->calcCostToBuild( player ), TRUE );
+#endif
 			}
 
 			player->getAcademyStats()->recordUpgrade( upgrade, FALSE );

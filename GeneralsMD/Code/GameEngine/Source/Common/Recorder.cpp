@@ -48,8 +48,10 @@
 #include "Common/RandomValue.h"
 #include "Common/CRCDebug.h"
 #include "Common/OptionPreferences.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
 #include "Common/StatsExporter.h"
+#endif
 #include "Common/version.h"
 #include "GameNetwork/Online/IOnlineGameHooks.h"
 #include <Utility/bit_adapter.h>
@@ -482,8 +484,10 @@ void RecorderClass::stopPlayback() {
 	}
 	m_fileName.clear();
 
+#if defined(GENONLINE)
 	LocalApiLiveMatchEnded(finishedReplayPath, TRUE);
 
+#endif
 	if (!m_doingAnalysis)
 	{
 		TheGameLogic->exitGame();
@@ -526,8 +530,10 @@ void RecorderClass::updateRecord()
 				stopRecording();
 				needFlush = FALSE;
 			}
+#if defined(GENONLINE)
 			// Single player is never recorded, and this is a no-op if stopRecording() already sent ENDED
 			LocalApiLiveMatchEnded(AsciiString::TheEmptyString, FALSE);
+#endif
 			m_fileName.clear();
 		}
 		else {
@@ -577,6 +583,7 @@ void RecorderClass::startRecording(GameDifficulty diff, GameMode originalGameMod
 		DEBUG_LOG(("RecorderClass::startRecording: Cannot open %s, this game is not recorded", filepath.str()));
 		return;
 	}
+#if defined(GENONLINE)
 
 	// GenOnline @feature arcticdolphin 21/11/2026 The replay file belongs to this game now, so a stats file of the previous game is stale, and this game records its stats
 	{
@@ -587,6 +594,7 @@ void RecorderClass::startRecording(GameDifficulty diff, GameMode originalGameMod
 			StatsExporterBeginRecording();
 	}
 
+#endif
 	// TheSuperHackers @info the null terminator needs to be ignored to maintain retail replay file layout
 	m_file->writeFormat("%s", s_genrep);
 
@@ -760,16 +768,20 @@ void RecorderClass::stopRecording() {
 		m_file->close();
 		m_file = nullptr;
 
+#if defined(GENONLINE)
 		// GenOnline @feature arcticdolphin 21/11/2026 Write the stats file next to the finished replay before it is archived and before the replay upload hook
 		if (StatsExporterIsActive())
 			ExportGameStatsJSON(getReplayDir(), m_fileName);
 
+#endif
 		if (m_archiveReplays)
 			archiveReplay(m_fileName);
+#if defined(GENONLINE)
 		// upload
 		GetOnlineGameHooks()->onReplayWritten(finishedReplayPath);
 
 		LocalApiLiveMatchEnded(finishedReplayPath, FALSE);
+#endif
 	}
 	m_fileName.clear();
 }
@@ -801,6 +813,7 @@ void RecorderClass::archiveReplay(AsciiString fileName)
 
 	if (!CopyFile(sourcePath.str(), destPath.str(), FALSE))
 		DEBUG_LOG(("RecorderClass::archiveReplay: Failed to copy %s to %s", sourcePath.str(), destPath.str()));
+#if defined(GENONLINE)
 
 	// GenOnline @feature arcticdolphin 21/11/2026 The stats file travels with its replay, a missing one is fine
 	{
@@ -810,6 +823,7 @@ void RecorderClass::archiveReplay(AsciiString fileName)
 		StatsExporterGetStatsPathForReplay(destStatsPath, destPath);
 		CopyFile(sourceStatsPath.str(), destStatsPath.str(), FALSE);
 	}
+#endif
 }
 
 /**

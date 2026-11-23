@@ -52,7 +52,9 @@
 #include "GameClient/Eva.h"
 #include "GameClient/InGameUI.h"
 #include "GameClient/ControlBar.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
+#endif
 
 
 
@@ -479,6 +481,7 @@ void SpecialPowerModule::triggerSpecialPower( const Coord3D *location )
 
 	// we won't be able to use the power for X number of frames now
 	startPowerRecharge();
+#if defined(GENONLINE)
 
 	// GenOnline @feature arcticdolphin 21/11/2026 Building capture powers report from SpecialAbilityUpdate on success instead
 	const SpecialPowerTemplate *spTemplateForStats = getSpecialPowerTemplate();
@@ -500,6 +503,7 @@ void SpecialPowerModule::triggerSpecialPower( const Coord3D *location )
 				nullptr );
 		}
 	}
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------

@@ -1947,9 +1947,11 @@ void grabMultiPlayerInfo()
 
 	DEBUG_ASSERTCRASH(count == playerCount, ("For some reason we added %d players to the scores map, but only read %d", playerCount, count));
 
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 This is the last point where every Player and ScoreKeeper is still populated
 	LocalApiLiveMatchSummary();
 
+#endif
 }
 
 enum

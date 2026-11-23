@@ -32,7 +32,9 @@
 #include "Common/Thing.h"
 #include "Common/ThingTemplate.h"
 #include "Common/RandomValue.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
+#endif
 #include "Common/Xfer.h"
 
 #include "GameLogic/ExperienceTracker.h"
@@ -188,6 +190,7 @@ void NeutronMissileUpdate::projectileFireAtObjectOrPosition( const Object *victi
 		m_intermedPos.z += getNeutronMissileUpdateModuleData()->m_targetFromDirectlyAbove;
 	}
 
+#if defined(GENONLINE)
 	// Read-only tap for the stats pipe: the flight time that the data of the missile predicts. It flies at the speed where the acceleration balances
 	// the damping, a legacy (30 per second) frame at a time: first the climb, then to the point above the target, then straight down at half speed.
 	{
@@ -207,6 +210,7 @@ void NeutronMissileUpdate::projectileFireAtObjectOrPosition( const Object *victi
 		}
 	}
 
+#endif
 	m_deliveryDecal.clear();
 	getNeutronMissileUpdateModuleData()->m_deliveryDecalTemplate.createRadiusDecal(m_targetPos,
 		getNeutronMissileUpdateModuleData()->m_deliveryDecalRadius, getObject()->getControllingPlayer(), m_deliveryDecal);

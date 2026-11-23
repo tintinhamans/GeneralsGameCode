@@ -115,12 +115,14 @@
 
 #include "Common/version.h"
 
+#if defined(GENONLINE)
 #include "../GenOnlineDefines.h"
 
 #include "Common/LocalApiReaders.h"
 #include "Common/LocalApiLive.h"
 #include <chrono>
 #include "WW3D2/ww3d.h"
+#endif
 
 //-------------------------------------------------------------------------------------------------
 
@@ -1005,6 +1007,7 @@ void GameEngine::update()
 				TheGameClient->UPDATE();
 				AdaptiveQuality::get().addOwn(AdaptiveQuality::now() - aqClientStart);
 			}
+#if defined(GENONLINE)
 			LocalApiLiveCamera();
 			TheMessageStream->propagateMessages();
 
@@ -1014,6 +1017,7 @@ void GameEngine::update()
             }
 
 			GetOnlineGameHooks()->onEngineUpdate();
+#endif
 		}
 
 #if defined(GENONLINE)

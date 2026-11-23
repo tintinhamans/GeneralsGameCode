@@ -45,7 +45,11 @@ public:
 	virtual void closeAllArchiveFiles() override;											///< Close all Archivefiles currently open
 
 	// File operations
+#if defined(GENONLINE)
 	virtual ArchiveFile * openArchiveFile(const Char *filename, ArchivePathFilter includePath = nullptr) override;
+#else
+	virtual ArchiveFile * openArchiveFile(const Char *filename) override;
+#endif
 	virtual void closeArchiveFile(const Char *filename) override;
 	virtual void closeAllFiles() override;															///< Close all files associated with ArchiveFiles
 

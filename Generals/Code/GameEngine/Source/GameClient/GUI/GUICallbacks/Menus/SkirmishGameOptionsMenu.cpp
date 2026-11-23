@@ -70,7 +70,9 @@
 #include "GameNetwork/GUIUtil.h"
 #include "GameNetwork/IPEnumeration.h"
 #include "WWDownload/Registry.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLobby.h"
+#endif
 
 #if defined(GENONLINE)
 UnsignedInt GetTeamUiColor(Int teamNumber);
@@ -1903,6 +1905,7 @@ void populateSkirmishBattleHonors()
 			BATTLE_HONOR_OFFICERSCLUB, row, column);
 	}
 }
+#if defined(GENONLINE)
 
 // GenOnline @feature arcticdolphin 21/11/2026 The stats pipe moves start positions, sets the speed and describes the screen controls.
 static void statsMoveStartPosition(Int slot, Int position)
@@ -1946,3 +1949,4 @@ Bool SkirmishGameOptionsMenuStatsLobby( StatsLobbyScreen& out )
 	out.setGameSpeed = statsSetGameSpeed;
 	return TRUE;
 }
+#endif

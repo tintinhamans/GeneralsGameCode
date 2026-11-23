@@ -40,7 +40,9 @@
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
 #include "Common/Radar.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
+#endif
 #include "Common/ThingTemplate.h"
 #include "Common/Xfer.h"
 
@@ -143,7 +145,9 @@ Bool SabotagePowerPlantCrateCollide::executeCrateBehavior( Object *other )
 		//Set the duration inside the player's energy class to record the length of the power outage.
 		UnsignedInt frame = TheGameLogic->getFrame() + getSabotagePowerPlantCrateCollideModuleData()->m_powerSabotageFrames;
 		player->getEnergy()->setPowerSabotagedTillFrame( frame );
+#if defined(GENONLINE)
 		LocalApiLivePowerSabotaged( player->getPlayerIndex(), frame - TheGameLogic->getFrame() );
+#endif
 
 		//Trigger the callback function that will turn everything off.
 		player->onPowerBrownOutChange( TRUE );

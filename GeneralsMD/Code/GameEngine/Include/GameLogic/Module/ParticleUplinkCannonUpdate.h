@@ -152,6 +152,7 @@ class ParticleUplinkCannonUpdate : public SpecialPowerUpdateModule
 public:
 
 	ParticleUplinkCannonUpdate( Thing *thing, const ModuleData* moduleData );
+#if defined(GENONLINE)
 
 	/// The beam schedule from the launch on, for read-only tools: frames until the beam is born, frames it fires, frames it takes to grow or fade.
 	void getBeamScheduleForStats( UnsignedInt &beamTravelFrames, UnsignedInt &totalFiringFrames, UnsignedInt &widthGrowFrames ) const
@@ -161,6 +162,7 @@ public:
 		totalFiringFrames = data->m_totalFiringFrames;
 		widthGrowFrames = data->m_widthGrowFrames;
 	}
+#endif
 	// virtual destructor prototype provided by memory pool declaration
 
 	// SpecialPowerUpdateInterface

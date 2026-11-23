@@ -25,7 +25,9 @@
 #include "Common/GlobalData.h"
 #include "Common/LocalFileSystem.h"
 #include "Common/Recorder.h"
+#if defined(GENONLINE)
 #include "Common/StatsExporter.h"
+#endif
 #include "Common/WorkerProcess.h"
 #include "GameLogic/GameLogic.h"
 #include "GameClient/GameClient.h"
@@ -84,8 +86,10 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 		printf("Simulating Replay \"%s\"\n", filename.str());
 		fflush(stdout);
 		DWORD startTimeMillis = GetTickCount();
+#if defined(GENONLINE)
 		if (TheGlobalData->m_exportStats)
 			StatsExporterBeginRecording();
+#endif
 		if (TheRecorder->simulateReplay(filename))
 		{
 			UnsignedInt totalTimeSec = TheRecorder->getPlaybackFrameCount() / LOGICFRAMES_PER_SECOND;
@@ -102,8 +106,10 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 					fflush(stdout);
 				}
 				TheGameLogic->UPDATE();
+#if defined(GENONLINE)
 				if (TheGlobalData->m_exportStats)
 					StatsExporterCollectSnapshot();
+#endif
 				if (TheRecorder->sawCRCMismatch())
 				{
 					numErrors++;

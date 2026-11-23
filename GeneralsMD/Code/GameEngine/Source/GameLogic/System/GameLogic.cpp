@@ -118,6 +118,7 @@
 
 struct QuitGameException {};
 
+#if defined(GENONLINE)
 #include "../GenOnlineInclude.h"
 #include "../GenOnlineInterfaces.h"
 
@@ -125,6 +126,7 @@ struct QuitGameException {};
 #include "Common/LocalApiLive.h"
 #include "Common/StatsExporter.h"
 
+#endif
 DECLARE_PERF_TIMER(SleepyMaintenance)
 
 #include "Common/UnitTimings.h" //Contains the DO_UNIT_TIMINGS define jba.
@@ -751,8 +753,12 @@ void handleNameChange(MapObject* mapObj)
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
+#if defined(GENONLINE)
 // Mirrored by predictLobby() in LocalApiLive.cpp for the lobby prediction, keep them in sync.
 static void checkForDuplicateColors(GameInfo* game)
+#else
+static void checkForDuplicateColors( GameInfo *game )
+#endif
 {
 	if (!game)
 		return;
@@ -788,8 +794,12 @@ static void checkForDuplicateColors(GameInfo* game)
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
+#if defined(GENONLINE)
 // Mirrored line by line by predictLobby() in LocalApiLive.cpp for the lobby prediction, keep them in sync.
 static void populateRandomSideAndColor(GameInfo* game)
+#else
+static void populateRandomSideAndColor( GameInfo *game )
+#endif
 {
 	if (!game)
 		return;
@@ -885,8 +895,12 @@ static void populateRandomSideAndColor(GameInfo* game)
 // ------------------------------------------------------------------------------------------------
 static const WaypointMap s_emptyWaypoints = WaypointMap();
 
+#if defined(GENONLINE)
 // Mirrored line by line by predictLobby() in LocalApiLive.cpp for the lobby prediction, keep them in sync.
 static void populateRandomStartPosition(GameInfo* game)
+#else
+static void populateRandomStartPosition( GameInfo *game )
+#endif
 {
 	if (!game)
 		return;
@@ -1460,6 +1474,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 		}
 	}
 
+#if defined(GENONLINE)
 	// Read-only: the state of the logic generator going into the resolution, for the lobby prediction check of the exporter.
 	const UnsignedInt randomCrcBeforeResolve = GetGameLogicRandomSeedCRC();
 
@@ -1468,6 +1483,10 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 
 	// The resolved sides, colors and start positions are in the slots now, the exporter only reads them.
 	LocalApiLiveMatchLoading(game, randomCrcBeforeResolve, loadingSaveGame);
+#else
+	populateRandomSideAndColor( TheGameInfo );
+	populateRandomStartPosition( TheGameInfo );
+#endif
 
 	//****************************//
 	// Start the LoadScreen Now!	//
@@ -3984,9 +4003,11 @@ void GameLogic::update()
 #endif
 		m_startNewGame = FALSE;
 
+#if defined(GENONLINE)
 		// players are fully set up now, nothing happens for the shell map
 		LocalApiLiveMatchStarted();
 
+#endif
 	#ifdef DUMP_PERF_STATS
 		char Buf[1024];
 		__int64 freq64;
@@ -4069,6 +4090,7 @@ void GameLogic::update()
 		TheStatsCollector->update();
 	}
 
+#if defined(GENONLINE)
 	// live stats pipe sample (state at the end of the previous frame), an early-out while no reader is connected
 	LocalApiLiveUpdate();
 
@@ -4076,6 +4098,7 @@ void GameLogic::update()
 	if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD)
 		StatsExporterCollectSnapshot();
 
+#endif
 	// Update the Recorder
 	{
 		TheRecorder->UPDATE();
@@ -4217,7 +4240,12 @@ void GameLogic::update()
 		TheGameLogic->exitGame();
 	}
 
+#if defined(GENONLINE)
 	LocalApiLiveFrameEnd();
+#else
+
+
+#endif
 
 	// increment world time
 	if (!m_startNewGame)

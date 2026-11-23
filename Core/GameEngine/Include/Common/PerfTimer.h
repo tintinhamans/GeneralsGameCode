@@ -55,7 +55,11 @@ class DebugDisplayInterface;
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 
+#if defined(GENONLINE)
 #define USE_QPF	// QPF is safer on multi-core systems with CPU frequency scaling.
+#else
+#define NO_USE_QPF	// non-QPF is much faster.
+#endif
 
 #if defined(PERF_TIMERS) || defined(DUMP_PERF_STATS)
 //-------------------------------------------------------------------------------------------------

@@ -1417,6 +1417,7 @@ GameWindow *GameWindow::winPointInChild( Int x, Int y, Bool ignoreEnableCheck, B
 	GameWindow *child;
 	ICoord2D origin;
 
+#if defined(GENONLINE)
 	// The open list of a combo box is hit tested before the rects of its parents.
 	GameWindow *open = TheWindowManager ? TheWindowManager->winGetLoneWindow() : nullptr;
 	if( open && open != this && BitIsSet( open->winGetStyle(), GWS_COMBO_BOX ) && winIsChild( open ) )
@@ -1434,6 +1435,7 @@ GameWindow *GameWindow::winPointInChild( Int x, Int y, Bool ignoreEnableCheck, B
 		}
 	}
 
+#endif
 	for( child = m_child; child; child = child->m_next )
 	{
 
