@@ -39,7 +39,9 @@
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/GameClient.h"
 #include "GameClient/GameText.h"
+#if defined(GENONLINE)
 #include "GameClient/GUI/ChatCompletionSets.h"
+#endif
 #include "GameClient/GUICallbacks.h"
 #include "GameClient/InGameUI.h"
 #include "GameClient/LanguageFilter.h"
@@ -53,11 +55,13 @@ static GameWindow *chatTypeStaticText = nullptr;
 static UnicodeString s_savedChat;
 static InGameChatType inGameChatType;
 
+#if defined(GENONLINE)
 static ChatTabCycler s_inGameChatCycler;
 
 #include "../GenOnlineGame.h"
 extern GenOnlineGame* TheGenOnlineGame;
 
+#endif
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 void ShowInGameChat( Bool immediate )
@@ -87,12 +91,16 @@ void ShowInGameChat( Bool immediate )
 		static NameKeyType textEntryChatID = TheNameKeyGenerator->nameToKey( "InGameChat.wnd:TextEntryChat" );
 		chatTextEntry = TheWindowManager->winGetWindowFromId( nullptr, textEntryChatID );
 		GadgetTextEntrySetText( chatTextEntry, UnicodeString::TheEmptyString );
+#if defined(GENONLINE)
 		GadgetTextEntrySetCompletionEnabled( chatTextEntry, TRUE );
+#endif
 
 		static NameKeyType chatTypeStaticTextID = TheNameKeyGenerator->nameToKey( "InGameChat.wnd:StaticTextChatType" );
 		chatTypeStaticText = TheWindowManager->winGetWindowFromId( nullptr, chatTypeStaticTextID );
 	}
+#if defined(GENONLINE)
 	s_inGameChatCycler.Reset();
+#endif
 	TheWindowManager->winSetFocus( chatTextEntry );
 	SetInGameChatType( INGAME_CHAT_EVERYONE );
 }
@@ -193,6 +201,7 @@ Bool handleInGameSlashCommands(UnicodeString uText)
 	return FALSE; // not a slash command
 }
 
+#if defined(GENONLINE)
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 static void SendInGameChatLine( UnicodeString msg, InGameChatType chatType )
@@ -249,6 +258,7 @@ Bool SubmitInGameChatLine( const UnicodeString& text, InGameChatType chatType )
 	return TRUE;
 }
 
+#endif
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 void ToggleInGameChat( Bool immediate )
@@ -284,7 +294,38 @@ void ToggleInGameChat( Bool immediate )
 				msg.trim();
 				if (!msg.isEmpty() && !handleInGameSlashCommands(msg))
 				{
+#if defined(GENONLINE)
 					SendInGameChatLine( msg, inGameChatType );
+#else
+					const Player *localPlayer = ThePlayerList->getLocalPlayer();
+					Int playerMask = 0;
+
+					for (Int i=0; i<MAX_SLOTS; ++i)
+					{
+						const Player *player = ThePlayerList->getPlayerFromSlotIndex(i);
+						if (player && localPlayer)
+						{
+							switch (inGameChatType)
+							{
+							case INGAME_CHAT_EVERYONE:
+								if (!TheGameInfo->getConstSlot(i)->isMuted())
+									playerMask |= (1<<i);
+								break;
+							case INGAME_CHAT_ALLIES:
+								if ( (player->getRelationship(localPlayer->getDefaultTeam()) == ALLIES &&
+									localPlayer->getRelationship(player->getDefaultTeam()) == ALLIES) || player==localPlayer )
+									playerMask |= (1<<i);
+								break;
+							case INGAME_CHAT_PLAYERS:
+								if ( player == localPlayer )
+									playerMask |= (1<<i);
+								break;
+							}
+						}
+					}
+					TheLanguageFilter->filterLine(msg);
+					TheNetwork->sendChat(msg, playerMask);
+#endif
 				}
 				GadgetTextEntrySetText( chatTextEntry, UnicodeString::TheEmptyString );
 				HideInGameChat( immediate );
@@ -337,6 +378,7 @@ WindowMsgHandledType InGameChatInput( GameWindow *window, UnsignedInt msg,
 
 }
 
+#if defined(GENONLINE)
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 static void BuildInGameChatCompletionContext( ChatCompletionContext& context )
@@ -385,6 +427,7 @@ static void CompleteInGameChat( Bool reverse )
 	GadgetTextEntrySetCompletionHint( chatTextEntry, UnicodeString(ChatCompletionHint(text, context).c_str()) );
 }
 
+#endif
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType InGameChatSystem( GameWindow *window, UnsignedInt msg,
@@ -411,6 +454,7 @@ WindowMsgHandledType InGameChatSystem( GameWindow *window, UnsignedInt msg,
 			return MSG_HANDLED;
 		}
 
+#if defined(GENONLINE)
 		//---------------------------------------------------------------------------------------------
 		case GEM_UPDATE_TEXT:
 		{
@@ -431,10 +475,13 @@ WindowMsgHandledType InGameChatSystem( GameWindow *window, UnsignedInt msg,
 			break;
 		}
 
+#endif
 		//---------------------------------------------------------------------------------------------
 		case GEM_EDIT_DONE:
 		{
+#if defined(GENONLINE)
 			s_inGameChatCycler.Reset();
+#endif
 			ToggleInGameChat();
 			//HideInGameChat();
 

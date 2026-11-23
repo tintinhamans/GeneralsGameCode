@@ -32,6 +32,7 @@
 #include <windows.h>
 
 #include "Win32Device/Common/Win32GameEngine.h"
+#if defined(GENONLINE)
 #if defined(RTS_HAS_MODERN_MEDIA)
 #include "OpenALAudioDevice/MediaBackend.h"
 #include "OpenALAudioDevice/OpenALAudioManager.h"
@@ -39,7 +40,9 @@
 #if defined(RTS_HAS_LEGACY_MEDIA)
 #include "MilesAudioDevice/MilesAudioManager.h"
 #endif
+#endif
 #include "Common/PerfTimer.h"
+#if defined(GENONLINE)
 #include "Common/FramePacer.h"
 #include "Common/MessageStream.h"
 #include "GameClient/InGameUI.h"
@@ -47,9 +50,11 @@
 #include "GameClient/Mouse.h"
 #include "GameClient/SelectionXlat.h"
 #include "GameClient/View.h"
+#endif
 #include "GameClient/GameText.h"
 
 #include "GameNetwork/LANAPICallbacks.h"
+#if defined(GENONLINE)
 #include "../GenOnlineInit.h"
 
 AudioManager *Win32GameEngine::createAudioManager(Bool dummy)
@@ -66,6 +71,7 @@ AudioManager *Win32GameEngine::createAudioManager(Bool dummy)
 	return NEW OpenALAudioManager(dummy);
 #endif
 }
+#endif
 
 extern DWORD TheMessageTime;
 
@@ -74,9 +80,11 @@ extern DWORD TheMessageTime;
 //-------------------------------------------------------------------------------------------------
 Win32GameEngine::Win32GameEngine()
 {
+#if defined(GENONLINE)
 	m_isAtFrameBoundary = FALSE;
 	m_isInModalStep = FALSE;
 
+#endif
 	// Stop blue screen
 	m_previousErrorMode = SetErrorMode( SEM_FAILCRITICALERRORS );
 }
@@ -113,6 +121,7 @@ void Win32GameEngine::reset()
 
 }
 
+#if defined(GENONLINE)
 //-------------------------------------------------------------------------------------------------
 Bool Win32GameEngine::shouldKeepRunningInBackground()
 {
@@ -196,6 +205,7 @@ void Win32GameEngine::releaseInputForModalLoop()
 	}
 }
 
+#endif
 //-------------------------------------------------------------------------------------------------
 /** Update the game engine by updating the GameClient and
 	* GameLogic singletons. */
@@ -207,11 +217,13 @@ void Win32GameEngine::update()
 	// call the engine normal update
 	GameEngine::update();
 
+#if defined(GENONLINE)
 	if (m_isInModalStep)
 	{
 		return;
 	}
 
+#endif
 	extern HWND ApplicationHWnd;
 	if (ApplicationHWnd && ::IsIconic(ApplicationHWnd)) {
 		while (ApplicationHWnd && ::IsIconic(ApplicationHWnd)) {
@@ -227,17 +239,23 @@ void Win32GameEngine::update()
 				TheLAN->update();
 			}
 
+#if defined(GENONLINE)
 			if (GenOnlineServicesManager::GetInstance() != nullptr)
 			{
 				GenOnlineServicesManager::GetInstance()->Tick();
 			}
 
+#endif
 			// If we are running a multiplayer game, keep running the logic.
 			// There is code in the client to skip client redraw if we are
 			// iconic.  jba.
+#if defined(GENONLINE)
 			// GO_CHANGE: If we have an active network session, keep running to prevent disconnecting us from
 			// other players during lobby and loading screen where isInMultiplayerGame() returns false
 			if (TheGameEngine->getQuitting() || shouldKeepRunningInBackground()) {
+#else
+			if (TheGameEngine->getQuitting() || TheGameLogic->isInInternetGame() || TheGameLogic->isInLanGame()) {
+#endif
 				break; // keep running.
 			}
 		}
@@ -250,9 +268,13 @@ void Win32GameEngine::update()
 	}
 
 	// allow windows to perform regular windows maintenance stuff like msgs
+#if defined(GENONLINE)
 	m_isAtFrameBoundary = TRUE;
+#endif
 	serviceWindowsOS();
+#if defined(GENONLINE)
 	m_isAtFrameBoundary = FALSE;
+#endif
 
 }
 
@@ -267,22 +289,32 @@ void Win32GameEngine::serviceWindowsOS()
 	MSG msg;
   Int returnValue;
 
+#if defined(GENONLINE)
 	// The modal loop that runs the frame pumps the messages itself.
 	if (m_isInModalStep)
 	{
 		return;
 	}
 
+#endif
 	//
 	// see if we have any messages to process, a nullptr window handle tells the
 	// OS to look at the main window associated with the calling thread, us!
 	//
+#if defined(GENONLINE)
 	// W variants: an A pump would convert the Unicode window's WM_CHAR back to the code page
 	while( PeekMessageW( &msg, nullptr, 0, 0, PM_NOREMOVE ) )
+#else
+	while( PeekMessage( &msg, nullptr, 0, 0, PM_NOREMOVE ) )
+#endif
 	{
 
 		// get the message
+#if defined(GENONLINE)
 		returnValue = GetMessageW( &msg, nullptr, 0, 0 );
+#else
+		returnValue = GetMessage( &msg, nullptr, 0, 0 );
+#endif
 
 		// this is one possible way to check for quitting conditions as a message
 		// of WM_QUIT will cause GetMessage() to return 0
@@ -299,7 +331,11 @@ void Win32GameEngine::serviceWindowsOS()
 		TheMessageTime = msg.time;
 		// translate and dispatch the message
 		TranslateMessage( &msg );
+#if defined(GENONLINE)
 		DispatchMessageW( &msg );
+#else
+		DispatchMessage( &msg );
+#endif
 		TheMessageTime = 0;
 
 	}

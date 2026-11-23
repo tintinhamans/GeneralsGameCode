@@ -2185,8 +2185,12 @@ void Player::transferAssetsFromThat(Player *that)
 	std::list<Object *> objsToTransfer;
 
 	// let's not transfer beacons
+#if defined(GENONLINE)
 	const PlayerTemplate *thatPlayerTemplate = that->getPlayerTemplate();
 	const ThingTemplate *beaconTemplate = thatPlayerTemplate ? TheThingFactory->findTemplate( thatPlayerTemplate->getBeaconTemplate() ) : nullptr;
+#else
+	const ThingTemplate *beaconTemplate = TheThingFactory->findTemplate( that->getPlayerTemplate()->getBeaconTemplate() );
+#endif
 
 	// transfer all his units.
 	for (PlayerTeamList::iterator it = that->m_playerTeamPrototypes.begin();
@@ -2680,10 +2684,12 @@ Bool Player::attemptToPurchaseScience(ScienceType science)
 		TheControlBar->markUIDirty();
 	}
 
+#if defined(GENONLINE)
 	if (TheInGameUI) {
 		TheInGameUI->notifyGeneralPromotion(this, science);
 	}
 
+#endif
 	return true;
 }
 
@@ -3104,7 +3110,9 @@ Bool Player::hasUpgradeInProduction( const UpgradeTemplate *upgradeTemplate )
 Upgrade *Player::addUpgrade( const UpgradeTemplate *upgradeTemplate, UpgradeStatusType status )
 {
 	Upgrade *u = findUpgrade( upgradeTemplate );
+#if defined(GENONLINE)
 	const Bool wasComplete = ( u != nullptr && u->getStatus() == UPGRADE_STATUS_COMPLETE );
+#endif
 
 	// if no upgrade instance found, make a new one
 	if( u == nullptr )
@@ -3553,7 +3561,9 @@ Bool Player::doesObjectQualifyForBattlePlan( Object *obj ) const
 //-------------------------------------------------------------------------------------------------
 void Player::changeBattlePlan( BattlePlanStatus plan, Int delta, const BattlePlanBonusesData *bonus )
 {
+#if defined(GENONLINE)
 	const Int battlePlanBefore = getActiveBattlePlan();
+#endif
 	DUMPBATTLEPLANBONUSES(bonus, this, nullptr);
 	Bool addBonus = false;
 	Bool removeBonus = false;

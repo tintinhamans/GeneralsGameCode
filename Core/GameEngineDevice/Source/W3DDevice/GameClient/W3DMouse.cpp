@@ -70,8 +70,9 @@ public:
 void MouseThreadClass::Thread_Function()
 {
 
-    //poll mouse and update position
+	//poll mouse and update position
 
+#if defined(GENONLINE)
     while (running)
     {
         isThread = TRUE;
@@ -87,6 +88,16 @@ void MouseThreadClass::Thread_Function()
         isThread = FALSE;
         Switch_Thread();
     }
+#else
+	while (running)
+	{
+		isThread=TRUE;
+		if (TheMouse)
+			TheMouse->draw();
+		isThread=FALSE;
+		Switch_Thread();
+	}
+#endif
 }
 
 W3DMouse::W3DMouse()
@@ -115,22 +126,43 @@ W3DMouse::W3DMouse()
 
 W3DMouse::~W3DMouse()
 {
+#if defined(GENONLINE)
     // Stop the mouse update thread FIRST, before freeing any assets it may be
     // actively using. If the thread is mid-draw(), Stop() will wait for it to
     // finish before returning, preventing a use-after-free when we release
     // D3D/W3D resources below.
     thread.Stop();
+#else
+	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
+#endif
 
+#if defined(GENONLINE)
     LPDIRECT3DDEVICE8 m_pDev = DX8Wrapper::_Get_D3D_Device8();
+#else
+	if (m_pDev)
+	{
+		m_pDev->ShowCursor(FALSE);	//kill DX8 cursor
+		Win32Mouse::setCursor(ARROW); //enable default windows cursor
+	}
+#endif
 
+#if defined(GENONLINE)
     if (m_pDev)
     {
         m_pDev->ShowCursor(FALSE);	//kill DX8 cursor
         Win32Mouse::setCursor(ARROW); //enable default windows cursor
     }
+#else
+	freeD3DAssets();
+	freeW3DAssets();
+#endif
 
+#if defined(GENONLINE)
     freeD3DAssets();
     freeW3DAssets();
+#else
+	thread.Stop();
+#endif
 
 }
 

@@ -50,7 +50,9 @@
 #include "GameClient/GameWindowGlobal.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GadgetSlider.h"
+#if defined(GENONLINE)
 #include "GameClient/Mouse.h"
+#endif
 #include "W3DDevice/GameClient/W3DGadget.h"
 #include "W3DDevice/GameClient/W3DDisplay.h"
 
@@ -58,6 +60,7 @@
 
 // PRIVATE TYPES //////////////////////////////////////////////////////////////
 
+#if defined(GENONLINE)
 enum KitSliderImage
 {
 	KIT_SLIDER_TRACK_LEFT,
@@ -73,8 +76,10 @@ enum KitSliderImage
 	KIT_SLIDER_IMAGE_COUNT
 };
 
+#endif
 // PRIVATE DATA ///////////////////////////////////////////////////////////////
 
+#if defined(GENONLINE)
 static const char *const s_kitSliderImageNames[KIT_SLIDER_IMAGE_COUNT] =
 {
 	"GOSliderTrackLeft",
@@ -90,12 +95,14 @@ static const char *const s_kitSliderImageNames[KIT_SLIDER_IMAGE_COUNT] =
 
 static const Image *s_kitSliderImages[KIT_SLIDER_IMAGE_COUNT];
 
+#endif
 // PUBLIC DATA ////////////////////////////////////////////////////////////////
 
 // PRIVATE PROTOTYPES /////////////////////////////////////////////////////////
 
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 
+#if defined(GENONLINE)
 static Bool findKitSliderImages()
 {
 	Int i;
@@ -241,6 +248,7 @@ static Bool drawKitSliderTrack( GameWindow *window, WinInstanceData *instData,
 	return TRUE;
 }
 
+#endif
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -257,10 +265,12 @@ void W3DGadgetHorizontalSliderDraw( GameWindow *window, WinInstanceData *instDat
 	window->winGetScreenPosition( &origin.x, &origin.y );
 	window->winGetSize( &size.x, &size.y );
 
+#if defined(GENONLINE)
 	// GenOnline @bugfix arcticdolphin 08/11/2026 Sliders without image status get the kit track too.
 	if( drawKitSliderTrack( window, instData, origin, size ) )
 		return;
 
+#endif
 	// get the right colors
 	if( BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) == FALSE )
 	{
@@ -324,12 +334,15 @@ void W3DGadgetHorizontalSliderImageDraw( GameWindow *window,
 	window->winGetScreenPosition( &origin.x, &origin.y );
 	window->winGetSize( &size.x, &size.y );
 
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 08/11/2026 Draw a track and thumb with a value tooltip when the GO kit slider images exist.
 	if( drawKitSliderTrack( window, instData, origin, size ) )
 		return;
 
+#endif
 	highlightSquare = GadgetSliderGetHiliteImageLeft( window );
 	blankSquare	= GadgetSliderGetDisabledImageRight( window );
+#if defined(GENONLINE)
 	fillSquare = GadgetSliderGetDisabledImageLeft( window );
 
 	SliderData *s = (SliderData *)window->winGetUserData();
@@ -340,6 +353,14 @@ void W3DGadgetHorizontalSliderImageDraw( GameWindow *window,
 	Real xMulti = INT_TO_REAL(TheDisplay->getWidth()) / GENONLINE_WIDESCREEN_X_SCALE;
 #endif
 
+#else
+	fillSquare = GadgetSliderGetDisabledImageLeft( window );
+
+	SliderData *s = (SliderData *)window->winGetUserData();
+
+	Real xMulti = INT_TO_REAL(TheDisplay->getWidth()) / DEFAULT_DISPLAY_WIDTH;
+
+#endif
 	// figure out how many boxes we draw for this slider
 	Int numBoxes = 0;
 	Int numSelectedBoxes = 0;

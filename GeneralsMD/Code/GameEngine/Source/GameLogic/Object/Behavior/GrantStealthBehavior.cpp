@@ -134,7 +134,11 @@ UpdateSleepTime GrantStealthBehavior::update()
 	PartitionFilter *filters[] = { &relationship, &filterAlive, &filterMapStatus, nullptr };
 
 
+#if defined(GENONLINE)
   m_currentScanRadius += d->m_radiusGrowRate / (Real)LOGICFRAMES_PER_BASEFRAME;
+#else
+  m_currentScanRadius += d->m_radiusGrowRate;
+#endif
 
   Bool thisIsFinalScan = FALSE;
   if ( m_currentScanRadius >=  d->m_finalRadius )

@@ -209,7 +209,9 @@ void setFPMode()
 	newVal = (newVal & ~_MCW_PC) | (_PC_24   & _MCW_PC);
 
 	_controlfp(newVal, _MCW_PC | _MCW_RC);
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	// GenOnline @bugfix arcticdolphin 21/11/2026 Mask all floating point exceptions so a stray NaN cannot crash the game.
 	unsigned int cw;
@@ -317,7 +319,9 @@ void GameLogic::destroyAllObjectsImmediate()
 		nextObj = obj->getNextObject();
 		destroyObject( obj );
 	}
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	// GenOnline @bugfix arcticdolphin 21/11/2026 Clearing the heap first stops destructor chains from rebalancing it mid destruction.
 	for (std::vector<UpdateModulePtr>::iterator it = m_sleepyUpdates.begin(); it != m_sleepyUpdates.end(); ++it)
@@ -548,6 +552,7 @@ static Object * placeObjectAtPosition(Int slotNum, AsciiString objectTemplateNam
 	return obj;
 }
 
+#if defined(GENONLINE)
 // GenOnline @feature arcticdolphin 21/11/2026 The stats exporter needs the same local slot test as Zero Hour.
 Bool GameLogicIsLocalSlot(GameInfo* game, GameSlot* slot)
 {
@@ -556,6 +561,7 @@ Bool GameLogicIsLocalSlot(GameInfo* game, GameSlot* slot)
 	return slot->isHuman() && game->getSlotNum(slotNameAscii) == game->getLocalSlotNum();
 }
 
+#endif
 static void placeNetworkBuildingsForPlayer(Int slotNum, const GameSlot *pSlot, Player *pPlayer, const PlayerTemplate *pTemplate)
 {
 	Int startPos = pSlot->getStartPos();
@@ -851,6 +857,7 @@ static void populateRandomStartPosition( GameInfo *game )
 	{
 		taken[i] = (i<numPlayers)?FALSE:TRUE;
 	}
+#if defined(GENONLINE)
 	for (i=0; i<MAX_SLOTS; ++i)
 	{
 		GameSlot *slot = game->getSlot(i);
@@ -902,6 +909,42 @@ static void populateRandomStartPosition( GameInfo *game )
 				Real farthestDistance = 0.0f;
 				Int farthestIndex = -1;
 				for (posIdx = 0; posIdx < numPlayers; ++posIdx)
+#else
+	for (i=0; i<MAX_SLOTS; ++i)
+	{
+		GameSlot *slot = game->getSlot(i);
+
+		if (!slot || !slot->isOccupied() || slot->getPlayerTemplate() == PLAYERTEMPLATE_OBSERVER)
+			continue;
+
+		Int posIdx = slot->getStartPos();
+		if (posIdx >= 0 || posIdx >= numPlayers)
+		{
+			hasStartSpotBeenPicked = TRUE;
+			taken[posIdx] = TRUE;
+		}
+	}
+
+	// now pick non-observer spots
+	for (i=0; i<MAX_SLOTS; ++i)
+	{
+		GameSlot *slot = game->getSlot(i);
+
+		if (!slot || !slot->isOccupied() || slot->getPlayerTemplate() == PLAYERTEMPLATE_OBSERVER)
+			continue;
+
+		// clean up random start spots
+		Int posIdx = slot->getStartPos();
+		if (posIdx < 0 || posIdx >= numPlayers)
+		{
+			DEBUG_ASSERTCRASH(posIdx == -1, ("Non-random bad start position %d in slot %d", posIdx, i));
+			if (hasStartSpotBeenPicked)
+			{
+				// pick the farthest spot away
+				Real farthestDistance = 0.0f;
+				Int farthestIndex = -1;
+				for (posIdx = 0; posIdx < numPlayers; ++posIdx)
+#endif
 				{
 					if (!taken[posIdx])
 					{
@@ -1000,6 +1043,7 @@ void GameLogic::updateLoadProgress( Int progress )
 	}
 }
 
+#if defined(GENONLINE)
 // ------------------------------------------------------------------------------------------------
 /** Fades the load screen out and deletes it */
 // ------------------------------------------------------------------------------------------------
@@ -1040,6 +1084,7 @@ void GameLogic::revealFromLoadScreen(Bool loadingSaveGame)
 	}
 }
 
+#endif
 // ------------------------------------------------------------------------------------------------
 /** Delete the load screen */
 // ------------------------------------------------------------------------------------------------
@@ -1185,7 +1230,11 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 		else
 		{
 			DEBUG_LOG(("Starting gamespy game"));
+#if defined(GENONLINE)
 			TheGameInfo = GetOnlineGameHooks()->getGameInfo();	/// @todo: MDC add back in after demo
+#else
+			TheGameInfo = TheGameSpyGame;	/// @todo: MDC add back in after demo
+#endif
 		}
 	}
 	else
@@ -1236,9 +1285,11 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 		}
 	}
 
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 Read only state of the logic generator going into the resolution, for the lobby prediction check of the exporter
 	const UnsignedInt randomCrcBeforeResolve = GetGameLogicRandomSeedCRC();
 
+#endif
 	populateRandomSideAndColor( TheGameInfo );
 	populateRandomStartPosition( TheGameInfo );
 
@@ -2050,6 +2101,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 				updateLoadProgress(101);
 				Sleep(5);
 			}
+
 		}
 	}
 
@@ -2065,7 +2117,39 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 		Sleep(100);
 	}
 
-	revealFromLoadScreen(loadingSaveGame);
+	// if we're in a load game, don't fade yet
+	if(loadingSaveGame == FALSE && TheTransitionHandler != nullptr && m_loadScreen)
+	{
+		TheFramePacer->reset();
+		TheTransitionHandler->setGroup("FadeWholeScreen");
+		while(!TheTransitionHandler->isFinished())
+		{
+			TheWindowManager->update();
+			if(!TheTransitionHandler->isFinished())
+			{
+				TheDisplay->draw();
+				setFPMode();
+				TheFramePacer->update();
+			}
+
+		}
+	}
+
+	if(m_loadScreen)
+	{
+		TheMouse->setVisibility(TRUE);
+
+/*
+		//
+		// delete load screen only when not loading a save game, for save games we still
+		// have more work to do and the load screen will be deleted elsewhere after
+		// we're all done with the load game progress
+		//
+		if( loadingSaveGame == FALSE )
+*/
+			deleteLoadScreen();
+
+	}
 #endif
 
 	#ifdef DUMP_PERF_STATS
@@ -2186,9 +2270,13 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 #if defined(GENONLINE)
 	if (!syncedStart)
 #endif
+#if defined(GENONLINE)
 	{
 		TheWritableGlobalData->m_loadScreenRender = FALSE;	///< mark to resume rendering as normal
 	}
+#else
+	TheWritableGlobalData->m_loadScreenRender = FALSE;	///< mark to resume rendering as normal
+#endif
 
 	// if we're in a gamespy game, mark us as playing
 	if (TheGameSpyBuddyMessageQueue && TheGameSpyGame && isInInternetGame())
@@ -2213,7 +2301,9 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
       drawable = drawable->getNextDrawable();
     }
   }
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	// the local setup took a different time on every machine, start the first frames together while the load screen is still up
 	if (syncedStart)
@@ -3425,7 +3515,11 @@ void GameLogic::update()
 	// would be getting the CRC anyway, so replays can get the CRCs from the exact instant in time as the original.
 	Bool isMPGameOrReplay = (TheRecorder && TheRecorder->isMultiplayer() && getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE);
 	Bool isSoloGameOrReplay = (TheRecorder && !TheRecorder->isMultiplayer() && getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE);
+#if defined(GENONLINE)
 	Bool generateForMP = (isMPGameOrReplay && TheGameInfo->getCRCInterval() > 0 && (m_frame % TheGameInfo->getCRCInterval()) == 0);
+#else
+	Bool generateForMP = (isMPGameOrReplay && (m_frame % TheGameInfo->getCRCInterval()) == 0);
+#endif
 #if RETAIL_COMPATIBLE_CRC
 	// TheSuperHackers @info The local player of a network game only goes in game on logic frame 1.
 	// Retail clients therefore never sent the CRC of logic frame 0, and their replays do not contain it.
@@ -3433,10 +3527,19 @@ void GameLogic::update()
 		generateForMP = FALSE;
 #endif
 #ifdef DEBUG_CRC
+#if defined(GENONLINE)
 	Bool generateForSolo = isSoloGameOrReplay && ((m_frame && (m_frame%100 == 0)) ||
 		(getFrame() >= TheCRCFirstFrameToLog && getFrame() < TheCRCLastFrameToLog && (REPLAY_CRC_INTERVAL > 0 && (m_frame % REPLAY_CRC_INTERVAL) == 0)));
 #else
+	Bool generateForSolo = isSoloGameOrReplay && ((m_frame && (m_frame%100 == 0)) ||
+		(getFrame() >= TheCRCFirstFrameToLog && getFrame() < TheCRCLastFrameToLog && ((m_frame % REPLAY_CRC_INTERVAL) == 0)));
+#endif
+#else
+#if defined(GENONLINE)
 	Bool generateForSolo = isSoloGameOrReplay && (REPLAY_CRC_INTERVAL > 0 && (m_frame % REPLAY_CRC_INTERVAL) == 0);
+#else
+	Bool generateForSolo = isSoloGameOrReplay && ((m_frame % REPLAY_CRC_INTERVAL) == 0);
+#endif
 #endif // DEBUG_CRC
 
 	if (generateForSolo || generateForMP)

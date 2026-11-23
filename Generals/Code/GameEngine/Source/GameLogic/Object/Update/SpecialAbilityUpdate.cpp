@@ -1106,7 +1106,11 @@ Bool SpecialAbilityUpdate::continuePreparation()
 
 					Real denominator = MAX(1, data->m_preparationFrames);
 					Real increment = 1.0f - ((Real)m_prepFrames / denominator );
+#if defined(GENONLINE)
 					m_captureFlashPhase += increment / (3.0f * LOGICFRAMES_PER_BASEFRAME);
+#else
+					m_captureFlashPhase += increment / 3.0f;
+#endif
 
 					Bool thisPhase = ( ((Int)m_captureFlashPhase) & 1 );// are we in a flashy phase this frame?
 

@@ -67,16 +67,22 @@
 #include "Common/PlayerTemplate.h"
 #include "GameClient/CampaignManager.h"
 #include "GameClient/Display.h"
+#if defined(GENONLINE)
 #include "GameClient/DisplayStringManager.h"
+#endif
 #include "GameClient/GadgetProgressBar.h"
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/GameClient.h"
+#if defined(GENONLINE)
 #include "GameClient/GameFont.h"
+#endif
 #include "GameClient/GameText.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GameWindowTransitions.h"
+#if defined(GENONLINE)
 #include "GameClient/GlobalLanguage.h"
 #include "GameClient/Image.h"
+#endif
 #include "GameClient/Keyboard.h"
 #include "GameClient/LoadScreen.h"
 #include "GameClient/MapUtil.h"
@@ -92,8 +98,10 @@
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/RankPointValue.h"
+#if defined(GENONLINE)
 #include "../GenOnlineInit.h"
 #include "../GenOnlineStatsInterface.h"
+#endif
 
 //-----------------------------------------------------------------------------
 // DEFINES ////////////////////////////////////////////////////////////////////
@@ -107,6 +115,7 @@
 //-----------------------------------------------------------------------------
 // PRIVATE DATA ///////////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
+#if defined(GENONLINE)
 extern HWND ApplicationHWnd;
 
 // GenOnline @feature arcticdolphin 09/11/2026 The Generals Online credit stays at least this long unless Esc is pressed.
@@ -148,11 +157,14 @@ static void freeGoSplashRows()
 	}
 	s_goSplashRowCount = 0;
 }
+#endif
 
 //-----------------------------------------------------------------------------
 // PUBLIC DATA ////////////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
+#if defined(GENONLINE)
 bool g_bHasDoneSOGScreenshot = false;
+#endif
 
 //-----------------------------------------------------------------------------
 // PRIVATE PROTOTYPES /////////////////////////////////////////////////////////
@@ -162,6 +174,7 @@ bool g_bHasDoneSOGScreenshot = false;
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
 
+#if defined(GENONLINE)
 // GenOnline @tweak arcticdolphin 09/11/2026 The bronze bar fill of the GO bar art, null in the Retail style or without it.
 static const Image *findGoLoadBarImage()
 {
@@ -742,6 +755,7 @@ static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )
 	drawGoLoadBarVan(window, progress, place);
 }
 
+#endif
 //-----------------------------------------------------------------------------
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
@@ -1158,11 +1172,13 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 		}
 	}
 	// else leave the default background screen
+#if defined(GENONLINE)
 	// GenOnline @tweak arcticdolphin 09/11/2026 With the GO bar art the campaign bar stays bronze instead of taking the faction colour.
 	if (const Image *goBarImage = findGoLoadBarImage())
 	{
 		m_progressBar->winSetEnabledImage( 6, goBarImage );
 	}
+#endif
 
 
 	if(TheGameLODManager && TheGameLODManager->didMemPass())
@@ -1172,7 +1188,11 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 
 		Int progressUpdateCount = m_videoStream->frameCount() / FRAME_FUDGE_ADD;
 		Int shiftedPercent = -FRAME_FUDGE_ADD + 1;
+#if defined(GENONLINE)
 		while (!m_videoStream->isPlaybackComplete())
+#else
+		while (m_videoStream->frameIndex() < m_videoStream->frameCount() - 1 )
+#endif
 		{
 			if (GameClient::isMovieAbortRequested())
 			{
@@ -1683,7 +1703,11 @@ void ChallengeLoadScreen::init( GameInfo *game )
 
 		Int progressUpdateCount = m_videoStream->frameCount() / FRAME_FUDGE_ADD;
 		Int shiftedPercent = -FRAME_FUDGE_ADD + 1;
+#if defined(GENONLINE)
 		while (!m_videoStream->isPlaybackComplete())
+#else
+		while (m_videoStream->frameIndex() < m_videoStream->frameCount() - 1 )
+#endif
 		{
 			if (GameClient::isMovieAbortRequested())
 			{
@@ -1807,16 +1831,19 @@ void ChallengeLoadScreen::setProgressRange( Int min, Int max )
 ShellGameLoadScreen::ShellGameLoadScreen()
 {
 	m_progressBar = nullptr;
+#if defined(GENONLINE)
 	m_creditWindow = nullptr;
 	m_creditUrl = nullptr;
 	m_creditLogo = nullptr;
 	m_creditStartMs = 0;
 	m_creditEscArmed = FALSE;
 	m_creditSkipped = FALSE;
+#endif
 }
 
 ShellGameLoadScreen::~ShellGameLoadScreen()
 {
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 09/11/2026 The credit window goes with the load screen window and must not reach this object.
 	if (m_creditWindow != nullptr)
 	{
@@ -1832,6 +1859,7 @@ ShellGameLoadScreen::~ShellGameLoadScreen()
 	{
 		freeGoSplashRows();
 	}
+#endif
 }
 
 void ShellGameLoadScreen::init( GameInfo *game )
@@ -1862,6 +1890,7 @@ void ShellGameLoadScreen::init( GameInfo *game )
 		firstLoad = FALSE;
 	}
 	m_progressBar->winHide(FALSE);
+#if defined(GENONLINE)
 
 	// GenOnline @tweak arcticdolphin 21/11/2026 The Generals Online credit is on the intro again, so the load screen stays the retail one.
 	// GenOnline @tweak arcticdolphin 09/11/2026 On the GO credit screen the bar is the road the radar van drives, and later shell loads keep the plain bar.
@@ -2043,6 +2072,7 @@ void ShellGameLoadScreen::drawCredit()
 	Int height = 0;
 	m_creditUrl->getSize(&width, &height);
 	m_creditUrl->draw(centerX - width / 2, REAL_TO_INT(CREDIT_URL_TOP * unit), tanColor, dropColor);
+#endif
 }
 
 void ShellGameLoadScreen::reset()
@@ -2054,6 +2084,7 @@ void ShellGameLoadScreen::reset()
 void ShellGameLoadScreen::update( Int percent )
 {
 	TheMouse->setCursorTooltip(UnicodeString::TheEmptyString);
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 09/11/2026 With the credit up the bar fills by time, so it reaches 100% when the credit ends.
 	if (m_creditWindow != nullptr)
 	{
@@ -2064,6 +2095,7 @@ void ShellGameLoadScreen::update( Int percent )
 			percent = creditProgress;
 		}
 	}
+#endif
 	GadgetProgressBarSetProgress(m_progressBar, percent);
 
 	// Do this last!
@@ -2228,6 +2260,7 @@ void MultiPlayerLoadScreen::init( GameInfo *game )
 		GadgetStaticTextSetText(m_playerNames[netSlot], name );
 		m_playerNames[netSlot]->winSetEnabledTextColors(houseColor, m_playerNames[netSlot]->winGetEnabledTextBorderColor());
 
+#if defined(GENONLINE)
 #if defined(GENONLINE_REVEAL_TEAMS)
         const PlayerTemplate* pt = ThePlayerTemplateStore->getNthPlayerTemplate(slot->getPlayerTemplate());
         GadgetStaticTextSetText(m_playerSide[netSlot], pt ? pt->getDisplayName() : slot->getApparentPlayerTemplateDisplayName());
@@ -2235,6 +2268,9 @@ void MultiPlayerLoadScreen::init( GameInfo *game )
         GadgetStaticTextSetText(m_playerSide[netSlot], slot->getApparentPlayerTemplateDisplayName());
 #endif
 		
+#else
+		GadgetStaticTextSetText(m_playerSide[netSlot], slot->getApparentPlayerTemplateDisplayName() );
+#endif
 		m_playerSide[netSlot]->winSetEnabledTextColors(houseColor, m_playerSide[netSlot]->winGetEnabledTextBorderColor());
 
 		if (slot->isAI() && m_progressBars[netSlot])
@@ -2373,8 +2409,10 @@ extern Int GetAdditionalDisconnectsFromUserFile(Int playerID);
 
 void GameSpyLoadScreen::init( GameInfo *game )
 {
+#if defined(GENONLINE)
 	g_bHasDoneSOGScreenshot = FALSE;
 
+#endif
 	// create the layout of the load screen
 	m_loadScreen = TheWindowManager->winCreateFromScript( "Menus/GameSpyLoadScreen.wnd" );
 	DEBUG_ASSERTCRASH(m_loadScreen, ("Can't initialize the Multiplayer loadscreen"));
@@ -2514,6 +2552,7 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 		m_progressBars[netSlot]->winSetEnabledImage( 6, houseImage );
 #endif
 
+#if defined(GENONLINE)
         // Get the stats for the player
 #if defined(GENONLINE)
         PSPlayerStats stats = PSPlayerStats();
@@ -2527,7 +2566,9 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
         PSPlayerStats stats = TheGameSpyPSMessageQueue->findPlayerStatsByID(slot->getProfileID());
 #endif
 
+#endif
 		UnicodeString name = slot->getName();
+#if defined(GENONLINE)
 
 #if defined(GENONLINE)
 		// if QM, show ELO
@@ -2538,9 +2579,14 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 		}
 #endif
 
+#endif
 		GadgetStaticTextSetText(m_playerNames[netSlot], name );
 		m_playerNames[netSlot]->winSetEnabledTextColors(houseColor, m_playerNames[netSlot]->winGetEnabledTextBorderColor());
 
+#if !defined(GENONLINE)
+		// Get the stats for the player
+		PSPlayerStats stats = TheGameSpyPSMessageQueue->findPlayerStatsByID(slot->getProfileID());
+#endif
 		DEBUG_LOG(("LoadScreen - populating info for %ls(%d) - stats returned id %d",
 			slot->getName().str(), slot->getProfileID(), stats.id));
 
@@ -2551,7 +2597,6 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 #endif
 		Int rankPoints = CalculateRank(stats);
 		Int favSide = GetFavoriteSide(stats);
-
 		const Image *preorderImg = TheMappedImageCollection->findImageByName("OfficersClubsmall");
 		if (!isPreorder)
 			preorderImg = nullptr;
@@ -2563,7 +2608,6 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 
 		// pop wins and losses
 		Int numLosses = 0;
-
 		PerGeneralMap::iterator it;
 		for(it = stats.losses.begin(); it != stats.losses.end(); ++it)
 		{
@@ -2578,9 +2622,8 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 		GadgetStaticTextSetText(m_playerWinLosses[netSlot], formatString);
 		m_playerWinLosses[netSlot]->winSetEnabledTextColors(houseColor, m_playerWinLosses[netSlot]->winGetEnabledTextBorderColor());
 		// favoriteFaction
-		Int numGames = 0;
+			Int numGames = 0;
 		Int favorite = 0;
-
 		for(it =stats.games.begin(); it != stats.games.end(); ++it)
 		{
 			if(it->second >= numGames)
@@ -2589,7 +2632,6 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 				favorite = it->first;
 			}
 		}
-
 //		if(numGames == 0)
 //			GadgetStaticTextSetText(m_playerFavoriteFactions[netSlot], TheGameText->fetch("GUI:None"));
 //		else if( stats.gamesAsRandom > numGames )
@@ -2608,8 +2650,6 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 //		m_playerFavoriteFactions[netSlot]->winSetEnabledTextColors(houseColor, m_playerFavoriteFactions[netSlot]->winGetEnabledTextBorderColor());
 		// disconnects
 		numGames = 0;
-
-
 		for(it =stats.discons.begin(); it != stats.discons.end(); ++it)
 		{
 			numGames += it->second;
@@ -2625,12 +2665,16 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 		formatString.format(L"%d", numGames);
 		GadgetStaticTextSetText(m_playerTotalDisconnects[netSlot], formatString);
 		m_playerTotalDisconnects[netSlot]->winSetEnabledTextColors(houseColor, m_playerTotalDisconnects[netSlot]->winGetEnabledTextBorderColor());
+#if defined(GENONLINE)
 
 #if defined(GENONLINE_REVEAL_TEAMS)
 		const PlayerTemplate* pt = ThePlayerTemplateStore->getNthPlayerTemplate(slot->getPlayerTemplate());
         GadgetStaticTextSetText(m_playerSide[netSlot], pt ? pt->getDisplayName() : slot->getApparentPlayerTemplateDisplayName());
 #else
 		GadgetStaticTextSetText(m_playerSide[netSlot], slot->getApparentPlayerTemplateDisplayName());
+#endif
+#else
+		GadgetStaticTextSetText(m_playerSide[netSlot], slot->getApparentPlayerTemplateDisplayName() );
 #endif
 		m_playerSide[netSlot]->winSetEnabledTextColors(houseColor, m_playerSide[netSlot]->winGetEnabledTextBorderColor());
 
@@ -2712,6 +2756,7 @@ void GameSpyLoadScreen::update( Int percent )
 		TheNetwork->updateLoadProgress( percent );
 	TheNetwork->liteupdate();
 
+#if defined(GENONLINE)
 	if (TheNetwork != nullptr)
 	{
 		if (percent >= 50)
@@ -2725,13 +2770,16 @@ void GameSpyLoadScreen::update( Int percent )
 		}
 	}
 
+#endif
 	//GadgetProgressBarSetProgress(m_progressBars[TheNetwork->getLocalPlayerID()], percent );
 
+#if defined(GENONLINE)
 	// GENERALS ONLINE: this is ticked in game engine, but game engine doesnt tick for MP loads when the host is complete and remotes arent... do a liteupdate like TheNetwork does
 	if (GenOnlineServicesManager::GetInstance() != nullptr)
 	{
 		GenOnlineServicesManager::GetInstance()->Tick();
 	}
+#endif
 	TheMouse->setCursorTooltip(UnicodeString::TheEmptyString);
 
 	// Do this last!
@@ -2832,8 +2880,12 @@ void MapTransferLoadScreen::init( GameInfo *game )
 		GadgetStaticTextSetText(m_progressText[netSlot], UnicodeString::TheEmptyString );
 		m_progressText[netSlot]->winSetEnabledTextColors(houseColor, m_progressText[netSlot]->winGetEnabledTextBorderColor());
 
+#if defined(GENONLINE)
 		const GameSlot *gameInfoSlot = TheGameInfo->getConstSlot(i);
 		if ((i == 0 || (gameInfoSlot && gameInfoSlot->isHuman() && gameInfoSlot->hasMap())) && m_progressBars[netSlot])
+#else
+		if ((i == 0 || (TheGameInfo->getConstSlot(i)->isHuman() && TheGameInfo->getConstSlot(i)->hasMap())) && m_progressBars[netSlot])
+#endif
 			m_progressBars[netSlot]->winHide(TRUE);
 
 		m_playerLookup[i] = netSlot; // save our mapping so we can update progress correctly
@@ -2871,12 +2923,14 @@ void MapTransferLoadScreen::update( Int percent )
 		TheNetwork->liteupdate();
 	}
 
+#if defined(GENONLINE)
 	// GENERALS ONLINE: this is ticked in game engine, but game engine doesnt tick for MP loads and map transfers are while(true)... when the host is complete and remotes arent... do a liteupdate like TheNetwork does
 	if (GenOnlineServicesManager::GetInstance() != nullptr)
 	{
 		GenOnlineServicesManager::GetInstance()->Tick();
 	}
 
+#endif
 	TheMouse->setCursorTooltip(UnicodeString::TheEmptyString);
 
 	// Do this last!

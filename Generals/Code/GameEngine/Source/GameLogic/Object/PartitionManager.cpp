@@ -1878,12 +1878,15 @@ void PartitionData::doCircleFillPrecise(Real centerX, Real centerY, Real radius)
 	ThePartitionManager->worldToCell(centerX + radius, centerY + radius, &maxCellX, &maxCellY);
 
 	Real cellSize = ThePartitionManager->getCellSize();
+#if defined(GENONLINE)
 	Real halfCellSize = cellSize * 0.5f;
+#endif
 
 	for (Int x = minCellX; x <= maxCellX; ++x)
 	{
 		for (Int y = minCellY; y <= maxCellY; ++y)
 		{
+#if defined(GENONLINE)
 			// getCellCenterPos returns the world-space center of the cell, accounting for
 			// m_worldExtents.lo offset. Subtracting halfCellSize gives the lower-left corner,
 			// which is what doesCircleOverlapCell expects.
@@ -1891,6 +1894,10 @@ void PartitionData::doCircleFillPrecise(Real centerX, Real centerY, Real radius)
 			ThePartitionManager->getCellCenterPos(x, y, cellWorldX, cellWorldY);
 			cellWorldX -= halfCellSize;
 			cellWorldY -= halfCellSize;
+#else
+			Real cellWorldX = x * cellSize;
+			Real cellWorldY = y * cellSize;
+#endif
 
 			if (doesCircleOverlapCell(centerX, centerY, radius, cellWorldX, cellWorldY, cellSize))
 			{

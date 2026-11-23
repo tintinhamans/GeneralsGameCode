@@ -39,6 +39,7 @@
 #include "Common/Registry.h"
 #include "Common/FileSystem.h"
 
+#if defined(GENONLINE)
 #include "VideoDevice/FFmpeg/FFmpegFile.h"
 
 extern "C" {
@@ -49,9 +50,28 @@ extern "C" {
 #include "VideoDevice/FFmpeg/FFmpegPcmConverter.h"
 #ifdef RTS_HAS_MODERN_MEDIA
 #include "OpenALAudioDevice/OpenALAudioManager.h"
+#if defined(GENONLINE)
 #include "OpenALAudioDevice/OpenALMovieVoice.h"
+#else
+#include "OpenALAudioDevice/OpenALAudioStream.h"
 #endif
+#endif
+#else
+#include "VideoDevice/FFmpeg/FFmpegFile.h"
+
+extern "C" {
+	#include <libavcodec/avcodec.h>
+	#include <libswscale/swscale.h>
+}
+
+#ifdef RTS_HAS_OPENAL
+#include "OpenALAudioDevice/OpenALAudioManager.h"
+#include "OpenALAudioDevice/OpenALAudioStream.h"
+#endif
+#endif
+
 #include <chrono>
+#if defined(GENONLINE)
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -61,6 +81,7 @@ extern "C" {
 extern "C" {
 #include <libavutil/buffer.h>
 }
+#endif
 
 //----------------------------------------------------------------------------
 //         Externals
@@ -105,6 +126,7 @@ extern "C" {
 //         Private Functions
 //----------------------------------------------------------------------------
 
+#if defined(GENONLINE)
 #ifdef RTS_HAS_MODERN_MEDIA
 // Bink steps the speech volume to 1 to 81 percent of 32768, and a volume of zero mutes.
 static float movieAudioGain(Real volume)
@@ -115,6 +137,7 @@ static float movieAudioGain(Real volume)
     const Int binkVolume = (32768 * percent) / 100;
     return OpenALAudioManager::directSoundGain(binkVolume / 32768.0f);
 }
+#endif
 #endif
 
 
@@ -150,8 +173,12 @@ void	FFmpegVideoPlayer::init()
 	// Need to load the stuff from the ini file.
 	VideoPlayer::init();
 
+#if defined(GENONLINE)
 	if (TheAudio != nullptr)
         m_volume = TheAudio->getVolume(AudioAffect_Speech);
+#else
+	initializeBinkWithMiles();
+#endif
 }
 
 //============================================================================
@@ -160,7 +187,11 @@ void	FFmpegVideoPlayer::init()
 
 void FFmpegVideoPlayer::deinit()
 {
+#if defined(GENONLINE)
 	closeAllStreams();
+#else
+	TheAudio->releaseHandleForBink();
+#endif
 	VideoPlayer::deinit();
 }
 
@@ -184,23 +215,43 @@ void	FFmpegVideoPlayer::update()
 }
 
 //============================================================================
+#if !defined(GENONLINE)
+// FFmpegVideoPlayer::loseFocus
+#endif
 //============================================================================
 
+#if defined(GENONLINE)
 std::shared_ptr<OpenALMovieVoice> FFmpegVideoPlayer::createAudioVoice()
+#else
+void	FFmpegVideoPlayer::loseFocus()
+#endif
 {
+#if defined(GENONLINE)
 #if defined(RTS_HAS_MODERN_MEDIA)
     if (TheAudio != nullptr)
         return static_cast<OpenALAudioManager *>(TheAudio)->createMovieVoice();
 #endif
     return nullptr;
+#else
+	VideoPlayer::loseFocus();
+#endif
 }
 
 //============================================================================
+#if defined(GENONLINE)
 // FFmpegVideoPlayer::createStream
+#else
+// FFmpegVideoPlayer::regainFocus
+#endif
 //============================================================================
 
+#if defined(GENONLINE)
 VideoStreamInterface* FFmpegVideoPlayer::createStream(File *file)
+#else
+void	FFmpegVideoPlayer::regainFocus()
+#endif
 {
+#if defined(GENONLINE)
     if (file == nullptr)
         return nullptr;
     auto *decoder = NEW FFmpegFile();
@@ -220,15 +271,61 @@ VideoStreamInterface* FFmpegVideoPlayer::createStream(File *file)
     stream->m_player = this;
     m_firstStream = stream;
     return stream;
+#else
+	VideoPlayer::regainFocus();
+#endif
 }
 
+#if defined(GENONLINE)
 void FFmpegVideoPlayer::setVolume(Real volume)
+#else
+//============================================================================
+// FFmpegVideoPlayer::createStream
+//============================================================================
+
+VideoStreamInterface* FFmpegVideoPlayer::createStream( File* file )
+#endif
 {
+#if defined(GENONLINE)
     if (!std::isfinite(volume) || volume < 0)
         volume = 0;
     m_volume = volume;
     for (auto *stream = m_firstStream; stream != nullptr; stream = static_cast<VideoStream *>(stream->next()))
         static_cast<FFmpegVideoStream *>(stream)->setVolume(volume);
+#else
+
+	if ( file == nullptr )
+	{
+		return nullptr;
+	}
+
+	FFmpegFile* ffmpegHandle = NEW FFmpegFile();
+	if(!ffmpegHandle->open(file))
+	{
+		delete ffmpegHandle;
+		return nullptr;
+	}
+
+	FFmpegVideoStream *stream = NEW FFmpegVideoStream(ffmpegHandle);
+
+	if ( stream )
+	{
+
+		stream->m_next = m_firstStream;
+		stream->m_player = this;
+		m_firstStream = stream;
+
+		// never let volume go to 0, as Bink will interpret that as "play at full volume".
+		Int mod = (Int) ((TheAudio->getVolume(AudioAffect_Speech) * 0.8f) * 100) + 1;
+		[[maybe_unused]]  Int volume = (32768 * mod) / 100;
+		DEBUG_LOG(("FFmpegVideoPlayer::createStream() - About to set volume (%g -> %d -> %d",
+			TheAudio->getVolume(AudioAffect_Speech), mod, volume));
+		//BinkSetVolume( stream->m_handle,0, volume);
+		DEBUG_LOG(("FFmpegVideoPlayer::createStream() - set volume"));
+	}
+
+	return stream;
+#endif
 }
 
 //============================================================================
@@ -265,6 +362,7 @@ VideoStreamInterface*	FFmpegVideoPlayer::open( AsciiString movieTitle )
 			snprintf( filePath, ARRAY_SIZE(filePath), "%s\\%s.%s", VIDEO_PATH, pVideo->m_filename.str(), VIDEO_EXT );
 			file = TheFileSystem->openFile(filePath);
 			DEBUG_ASSERTLOG(!file, ("opened bink file %s", filePath));
+#if defined(GENONLINE)
 		}
 
 		DEBUG_LOG(("FFmpegVideoPlayer::createStream() - About to create stream"));
@@ -285,10 +383,29 @@ VideoStreamInterface*	FFmpegVideoPlayer::load( AsciiString movieTitle )
 
 //============================================================================
 //============================================================================
+#if defined(GENONLINE)
 void FFmpegVideoPlayer::notifyVideoPlayerOfNewProvider(Bool) {}
-
-struct FFmpegVideoStream::State
+#else
+void FFmpegVideoPlayer::notifyVideoPlayerOfNewProvider( Bool nowHasValid )
 {
+	if (!nowHasValid) {
+		TheAudio->releaseHandleForBink();
+		//BinkSetSoundTrack(0, 0);
+	} else {
+		initializeBinkWithMiles();
+	}
+}
+#endif
+
+#if defined(GENONLINE)
+struct FFmpegVideoStream::State
+#else
+//============================================================================
+//============================================================================
+void FFmpegVideoPlayer::initializeBinkWithMiles()
+#endif
+{
+#if defined(GENONLINE)
     using Clock = std::chrono::steady_clock;
     struct Frame { AVFrame *frame; Int64 timeUS; size_t bytes; };
     std::deque<Frame> frames;
@@ -475,13 +592,34 @@ struct FFmpegVideoStream::State
     }
 #endif
 };
+#else
+	Int retVal = 0;
+	void *driver = TheAudio->getHandleForBink();
+
+	if ( driver )
+	{
+		//retVal = BinkSoundUseDirectSound(driver);
+	}
+	if( !driver || retVal == 0)
+	{
+		//BinkSetSoundTrack ( 0,0 );
+	}
+}
+#endif
 
 //============================================================================
 // FFmpegVideoStream::FFmpegVideoStream
 //============================================================================
 
+#if defined(GENONLINE)
 FFmpegVideoStream::FFmpegVideoStream(FFmpegFile *file, std::shared_ptr<OpenALMovieVoice> audio, Real volume, size_t queueByteLimit)
     : m_state(new State), m_ffmpegFile(file)
+#else
+FFmpegVideoStream::FFmpegVideoStream(FFmpegFile* file)
+: m_ffmpegFile(file)
+#if defined(GENONLINE)
+#endif
+#endif
 {
     m_state->queueByteLimit = queueByteLimit;
     m_state->totalFrames = file->getNumFrames();
@@ -495,6 +633,7 @@ FFmpegVideoStream::FFmpegVideoStream(FFmpegFile *file, std::shared_ptr<OpenALMov
             m_state->disableAudio();
     }
 #endif
+#if defined(GENONLINE)
     if (file->hasAudio() && m_state->audio == nullptr)
         m_state->disableAudio();
     m_state->pending.reserve(65536 * 2);
@@ -520,13 +659,19 @@ FFmpegVideoStream::FFmpegVideoStream(FFmpegFile *file, std::shared_ptr<OpenALMov
     selectFrame();
     m_state->start = State::Clock::now();
     m_state->pauseStart = m_state->start;
+#else
+
+	m_startTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+#endif
 }
 
 //============================================================================
 // FFmpegVideoStream::~FFmpegVideoStream
 //============================================================================
+
 FFmpegVideoStream::~FFmpegVideoStream()
 {
+#if defined(GENONLINE)
 #ifdef RTS_HAS_MODERN_MEDIA
     if (m_state->audio != nullptr)
         m_state->audio->close();
@@ -534,11 +679,21 @@ FFmpegVideoStream::~FFmpegVideoStream()
     av_frame_free(&m_frame);
     sws_freeContext(m_swsContext);
     delete m_ffmpegFile;
+#else
+	av_freep(&m_audioBuffer);
+	av_frame_free(&m_frame);
+	sws_freeContext(m_swsContext);
+	delete m_ffmpegFile;
+#endif
 }
 
+#if defined(GENONLINE)
 bool FFmpegVideoStream::valid() const { return !m_state->failed && m_state->totalFrames > 0; }
 
 void FFmpegVideoStream::onFrame(AVFrame *frame, int stream, int type, void *user)
+#else
+void FFmpegVideoStream::onFrame(AVFrame *frame, int stream_idx, int stream_type, void *user_data)
+#endif
 {
     auto &video = *static_cast<FFmpegVideoStream *>(user);
     auto &state = *video.m_state;
@@ -608,6 +763,7 @@ void FFmpegVideoStream::onFrame(AVFrame *frame, int stream, int type, void *user
     }
 }
 
+#if defined(GENONLINE)
 void FFmpegVideoStream::selectFrame()
 {
     if (m_frame != nullptr || m_state->frames.empty())
@@ -624,6 +780,21 @@ void FFmpegVideoStream::selectFrame()
         m_state->pauseStart = m_state->start;
     }
 }
+#else
+			// Write the samples into our audio buffer
+			for (int sample_idx = 0; sample_idx < frame->nb_samples; sample_idx++)
+			{
+				int byte_offset = sample_idx * bytesPerSample;
+				for (int channel_idx = 0; channel_idx < frame->ch_layout.nb_channels; channel_idx++)
+				{
+					uint8_t* dst = &videoStream->m_audioBuffer[byte_offset * frame->ch_layout.nb_channels + channel_idx * bytesPerSample];
+					uint8_t* src = &frame->data[channel_idx][byte_offset];
+					memcpy(dst, src, bytesPerSample);
+				}
+			}
+			frameData = videoStream->m_audioBuffer;
+		}
+#endif
 
 void FFmpegVideoStream::pump()
 {
@@ -694,6 +865,140 @@ void FFmpegVideoStream::pump()
             }
         }
 #endif
+#else
+		}
+
+		DEBUG_LOG(("FFmpegVideoPlayer::createStream() - About to create stream"));
+		stream = createStream( file );
+	}
+
+	return stream;
+}
+
+//============================================================================
+// FFmpegVideoPlayer::load
+//============================================================================
+
+VideoStreamInterface*	FFmpegVideoPlayer::load( AsciiString movieTitle )
+{
+	return open(movieTitle); // load() used to have the same body as open(), so I'm combining them.  Munkee.
+}
+
+//============================================================================
+//============================================================================
+void FFmpegVideoPlayer::notifyVideoPlayerOfNewProvider( Bool nowHasValid )
+{
+	if (!nowHasValid) {
+		TheAudio->releaseHandleForBink();
+		//BinkSetSoundTrack(0, 0);
+	} else {
+		initializeBinkWithMiles();
+	}
+}
+
+//============================================================================
+//============================================================================
+void FFmpegVideoPlayer::initializeBinkWithMiles()
+{
+	Int retVal = 0;
+	void *driver = TheAudio->getHandleForBink();
+
+	if ( driver )
+	{
+		//retVal = BinkSoundUseDirectSound(driver);
+	}
+	if( !driver || retVal == 0)
+	{
+		//BinkSetSoundTrack ( 0,0 );
+	}
+}
+
+//============================================================================
+// FFmpegVideoStream::FFmpegVideoStream
+//============================================================================
+
+FFmpegVideoStream::FFmpegVideoStream(FFmpegFile* file)
+: m_ffmpegFile(file)
+{
+	m_ffmpegFile->setFrameCallback(onFrame);
+	m_ffmpegFile->setUserData(this);
+
+#ifdef RTS_USE_OPENAL
+	// Release the audio handle if it's already in use
+	OpenALAudioStream* audioStream = (OpenALAudioStream*)TheAudio->getHandleForBink();
+	audioStream->reset();
+#endif
+
+	// Decode until we have our first video frame
+	while (m_good && m_gotFrame == false)
+		m_good = m_ffmpegFile->decodePacket();
+
+ #ifdef RTS_USE_OPENAL
+	// Start audio playback
+	audioStream->play();
+#endif
+
+	m_startTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
+//============================================================================
+// FFmpegVideoStream::~FFmpegVideoStream
+//============================================================================
+
+FFmpegVideoStream::~FFmpegVideoStream()
+{
+	av_freep(&m_audioBuffer);
+	av_frame_free(&m_frame);
+	sws_freeContext(m_swsContext);
+	delete m_ffmpegFile;
+}
+
+void FFmpegVideoStream::onFrame(AVFrame *frame, int stream_idx, int stream_type, void *user_data)
+{
+	FFmpegVideoStream *videoStream = static_cast<FFmpegVideoStream *>(user_data);
+	if (stream_type == AVMEDIA_TYPE_VIDEO) {
+		av_frame_free(&videoStream->m_frame);
+		videoStream->m_frame = av_frame_clone(frame);
+		videoStream->m_gotFrame = true;
+	}
+#ifdef RTS_USE_OPENAL
+	else if (stream_type == AVMEDIA_TYPE_AUDIO) {
+		OpenALAudioStream* audioStream = (OpenALAudioStream*)TheAudio->getHandleForBink();
+		audioStream->update();
+		AVSampleFormat sampleFmt = static_cast<AVSampleFormat>(frame->format);
+		const int bytesPerSample = av_get_bytes_per_sample(sampleFmt);
+		const int frameSize = av_samples_get_buffer_size(nullptr, frame->ch_layout.nb_channels, frame->nb_samples, sampleFmt, 1);
+		uint8_t* frameData = frame->data[0];
+		// The format is planar - convert it to interleaved
+		if (av_sample_fmt_is_planar(sampleFmt))
+		{
+			videoStream->m_audioBuffer = static_cast<uint8_t*>(av_realloc(videoStream->m_audioBuffer, frameSize));
+			if (videoStream->m_audioBuffer == nullptr)
+			{
+				DEBUG_LOG(("Failed to allocate audio buffer"));
+				return;
+			}
+
+			// Write the samples into our audio buffer
+			for (int sample_idx = 0; sample_idx < frame->nb_samples; sample_idx++)
+			{
+				int byte_offset = sample_idx * bytesPerSample;
+				for (int channel_idx = 0; channel_idx < frame->ch_layout.nb_channels; channel_idx++)
+				{
+					uint8_t* dst = &videoStream->m_audioBuffer[byte_offset * frame->ch_layout.nb_channels + channel_idx * bytesPerSample];
+					uint8_t* src = &frame->data[channel_idx][byte_offset];
+					memcpy(dst, src, bytesPerSample);
+				}
+			}
+			frameData = videoStream->m_audioBuffer;
+		}
+
+		ALenum format = OpenALAudioManager::getALFormat(frame->ch_layout.nb_channels, bytesPerSample * 8);
+		audioStream->bufferData(frameData, frameSize, format, frame->sample_rate);
+	}
+#endif
+#endif
+#if defined(GENONLINE)
         if (m_state->eof || m_state->frames.size() >= 8 ||
             m_state->largestFrameBytes > m_state->queueByteLimit - m_state->queuedBytes - m_state->currentBytes)
             return;
@@ -712,12 +1017,16 @@ void FFmpegVideoStream::pump()
             }
         }
     }
+#endif
 }
+
 
 //============================================================================
 // FFmpegVideoStream::update
 //============================================================================
+
 void FFmpegVideoStream::update()
+#if defined(GENONLINE)
 {
 #ifdef RTS_HAS_MODERN_MEDIA
     if (m_state->audio != nullptr) {
@@ -725,16 +1034,30 @@ void FFmpegVideoStream::update()
         m_state->followDevice();
     }
 #endif
+#else
+{
+#ifdef RTS_USE_OPENAL
+	// Start audio playback
+	OpenALAudioStream* audioStream = (OpenALAudioStream*)TheAudio->getHandleForBink();
+	audioStream->play();
+#endif
+#endif
+#if defined(GENONLINE)
     pump();
     selectFrame();
     m_state->playbackUS();
+#else
+	//BinkWait( m_handle );
+#endif
 }
 
 //============================================================================
 // FFmpegVideoStream::isFrameReady
 //============================================================================
+
 Bool FFmpegVideoStream::isFrameReady()
 {
+#if defined(GENONLINE)
     update();
     return !m_state->failed && !m_state->paused && m_frame != nullptr &&
         m_state->seekUS + m_state->playbackUS() >= m_state->currentUS;
@@ -777,7 +1100,13 @@ Int64 FFmpegVideoStream::audioOffsetUS()
 #endif
     return 0;
 }
+#else
+	uint64_t time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	bool ready = (time - m_startTime) >= m_ffmpegFile->getFrameTime() * frameIndex();
+	return ready;
+#endif
 
+#if defined(GENONLINE)
 void FFmpegVideoStream::setPaused(Bool paused)
 {
     if (m_state->paused == paused)
@@ -798,8 +1127,10 @@ void FFmpegVideoStream::setPaused(Bool paused)
         }
     }
 #endif
+#else
+	//return !BinkWait( m_handle );
+#endif
 }
-
 
 //============================================================================
 // FFmpegVideoStream::frameDecompress
@@ -807,7 +1138,11 @@ void FFmpegVideoStream::setPaused(Bool paused)
 
 void FFmpegVideoStream::frameDecompress()
 {
+#if defined(GENONLINE)
 
+#else
+	//BinkDoFrame( m_handle );
+#endif
 }
 
 //============================================================================
@@ -824,6 +1159,7 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 		return;
 	}
 
+#if defined(GENONLINE)
 	if (m_frame->data == nullptr || m_frame->data[0] == nullptr) {
 		return;
 	}
@@ -839,6 +1175,9 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 	AVPixelFormat src_pix_fmt = static_cast<AVPixelFormat>(m_frame->format);
 	if (src_pix_fmt == AV_PIX_FMT_NONE) {
 		DEBUG_LOG(("Invalid source pixel format"));
+#else
+	if (m_frame->data == nullptr) {
+#endif
 		return;
 	}
 
@@ -861,6 +1200,7 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 			return;
 	}
 
+#if defined(GENONLINE)
 	m_swsContext = sws_getCachedContext(m_swsContext,
 		frame_width,
 		frame_height,
@@ -872,13 +1212,28 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 		nullptr,
 		nullptr,
 		nullptr);
+#else
+	m_swsContext = sws_getCachedContext(m_swsContext,
+		width(),
+		height(),
+		static_cast<AVPixelFormat>(m_frame->format),
+		buffer->width(),
+		buffer->height(),
+		dst_pix_fmt,
+		SWS_BICUBIC,
+		nullptr,
+		nullptr,
+		nullptr);
+#endif
 
+#if defined(GENONLINE)
 	if (m_swsContext == nullptr) {
 		DEBUG_LOG(("Failed to create SwsContext for frame conversion (%dx%d %s -> %s)",
 			frame_width, frame_height, av_get_pix_fmt_name(src_pix_fmt), av_get_pix_fmt_name(dst_pix_fmt)));
 		return;
 	}
 
+#endif
 	uint8_t *buffer_data = static_cast<uint8_t *>(buffer->lock());
 	if (buffer_data == nullptr) {
 		DEBUG_LOG(("Failed to lock videobuffer"));
@@ -887,10 +1242,16 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 
 	int dst_strides[] = { (int)buffer->pitch() };
 	uint8_t *dst_data[] = { buffer_data };
+#if defined(GENONLINE)
 	int result = sws_scale(m_swsContext, m_frame->data, m_frame->linesize, 0, frame_height, dst_data, dst_strides);
 	if (result < 0) {
 		DEBUG_LOG(("Failed to scale frame: sws_scale returned %d", result));
 	}
+#else
+	[[maybe_unused]] int result =
+		sws_scale(m_swsContext, m_frame->data, m_frame->linesize, 0, height(), dst_data, dst_strides);
+	DEBUG_ASSERTLOG(result >= 0, ("Failed to scale frame"));
+#endif
 	buffer->unlock();
 }
 
@@ -900,6 +1261,7 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 
 void FFmpegVideoStream::frameNext()
 {
+#if defined(GENONLINE)
     if (m_state->failed || m_frame == nullptr)
         return;
     m_state->videoEndUS = m_state->currentUS + m_ffmpegFile->getVideoFrameTimeUS(1);
@@ -908,22 +1270,46 @@ void FFmpegVideoStream::frameNext()
     ++m_state->index;
     pump();
     selectFrame();
+#else
+	m_gotFrame = false;
+	// Decode until we have our next video frame
+	while (m_good && m_gotFrame == false)
+		m_good = m_ffmpegFile->decodePacket();
+#endif
 }
 
 //============================================================================
 // FFmpegVideoStream::frameIndex
 //============================================================================
+
 Int FFmpegVideoStream::frameIndex()
 {
+#if defined(GENONLINE)
     return std::min(m_state->index, std::max(0, frameCount() - 1));
+#else
+	return m_ffmpegFile->getCurrentFrame();
 }
+
+//============================================================================
+// FFmpegVideoStream::totalFrames
+//============================================================================
+
+Int	FFmpegVideoStream::frameCount()
+{
+	return m_ffmpegFile->getNumFrames();
+#endif
+}
+#if defined(GENONLINE)
 Int FFmpegVideoStream::frameCount() { return m_state->totalFrames; }
+#endif
 
 //============================================================================
 // FFmpegVideoStream::frameGoto
 //============================================================================
-void FFmpegVideoStream::frameGoto(Int index)
+
+void FFmpegVideoStream::frameGoto( Int index )
 {
+#if defined(GENONLINE)
     index = std::max(0, std::min(index, frameCount() - 1));
     m_state->clearFrames();
     av_frame_free(&m_frame);
@@ -963,6 +1349,9 @@ void FFmpegVideoStream::frameGoto(Int index)
     m_state->pauseStart = m_state->start;
     pump();
     selectFrame();
+#else
+	m_ffmpegFile->seekFrame(index);
+#endif
 }
 
 //============================================================================

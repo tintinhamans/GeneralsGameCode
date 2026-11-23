@@ -592,7 +592,9 @@ void SpecialPowerModule::aboutToDoSpecialPower( const Coord3D *location )
 			TheInGameUI->notifySpecialPowerUsed(p, tpl);
 	}
 #endif
+#if defined(GENONLINE)
 
+#endif
 	// get module data
 	const SpecialPowerModuleData *modData = getSpecialPowerModuleData();
 

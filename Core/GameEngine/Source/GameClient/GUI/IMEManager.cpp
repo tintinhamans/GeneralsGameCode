@@ -673,15 +673,23 @@ Bool IMEManager::serviceIMEMessage(	void *windowsHandle, UnsignedInt message,	In
 			// --------------------------------------------------------------------
 			case WM_IME_CHAR:
 			{
+#if defined(GENONLINE)
 				// Unicode windows get UTF-16, ANSI windows get the character in the ANSI code page
 				WideChar wchar = IsWindowUnicode( (HWND)windowsHandle ) ? (WideChar) (wParam & 0xffff) : convertCharToWide(wParam);
+#else
+				WideChar wchar = convertCharToWide(wParam);
+#endif
 				#ifdef DEBUG_IME
 				DEBUG_LOG(("IMM: WM_IME_CHAR - '%hc'0x%04x", wchar, wchar ));
 				#endif
 
 				if ( m_window && (wchar > 32 || wchar == VK_RETURN ))
 				{
+#if defined(GENONLINE)
 					TheWindowManager->winSendInputMsg( m_window, GWM_IME_CHAR, wchar, lParam );
+#else
+					TheWindowManager->winSendInputMsg( m_window, GWM_IME_CHAR, (wParam & 0xffff), lParam );
+#endif
 					m_result = 0;
 					return TRUE;
 				}

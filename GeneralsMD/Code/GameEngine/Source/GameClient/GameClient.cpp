@@ -86,10 +86,12 @@
 #include "GameLogic/Object.h"
 #include "GameLogic/ScriptEngine.h"		// For TheScriptEngine - jkmcd
 
+#if defined(GENONLINE)
 #include "../GenOnlineDefines.h"
 #include <chrono>
 
 
+#endif
 #define DRAWABLE_HASH_SIZE	8192
 
 /// The GameClient singleton instance
@@ -109,7 +111,9 @@ GameClient::GameClient()
 	m_textBearingDrawableList.clear();
 
 	m_frame = 0;
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	m_legacyFrameMSAccured = 0;
 	m_frameLegacy = 0;
@@ -556,9 +560,13 @@ void GameClient::update()
 	TheAnim2DCollection->UPDATE();
 
 	// update the keyboard
+#if defined(GENONLINE)
 	const Bool inputSuspended = TheGameEngine != nullptr && TheGameEngine->isInputSuspended();
 
 	if( TheKeyboard && !inputSuspended )
+#else
+	if( TheKeyboard )
+#endif
 	{
 		TheKeyboard->UPDATE();
 		TheKeyboard->createStreamMessages();
@@ -569,7 +577,11 @@ void GameClient::update()
 	TheEva->UPDATE();
 
 	// update the mouse
+#if defined(GENONLINE)
 	if( TheMouse && !inputSuspended )
+#else
+	if( TheMouse )
+#endif
 	{
 		TheMouse->UPDATE();
 		TheMouse->createStreamMessages();
@@ -737,7 +749,6 @@ void GameClient::update()
 		TheDisplayStringManager->update();
 	}
 
-
 	{
 		// update the shell
 		TheShell->UPDATE();
@@ -747,7 +758,9 @@ void GameClient::update()
 		// update the in game UI
 		TheInGameUI->UPDATE();
 	}
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 
@@ -924,7 +937,6 @@ void GameClient::destroyDrawable( Drawable *draw )
 	deleteInstance(draw);
 
 }
-
 
 // ------------------------------------------------------------------------------------------------
 /** Add drawable to lookup table for fast id searching */

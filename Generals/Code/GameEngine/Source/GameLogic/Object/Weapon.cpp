@@ -316,13 +316,21 @@ WeaponTemplate::WeaponTemplate() : m_nextTemplate(nullptr)
 //-------------------------------------------------------------------------------------------------
 WeaponTemplate::~WeaponTemplate()
 {
+#if defined(GENONLINE)
 	if (m_nextTemplate) {
 		deleteInstance(m_nextTemplate);
 	}
+#else
+	deleteInstance(m_nextTemplate);
+#endif
 
 	// delete any extra-bonus that's present
+#if defined(GENONLINE)
 	if (m_extraBonus)
 		deleteInstance(m_extraBonus);
+#else
+	deleteInstance(m_extraBonus);
+#endif
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -387,8 +395,13 @@ void WeaponTemplate::reset()
 
 	// No matter what we have now, we want to convert it to frames from msec.
 	// ShotDelay used to use parseDurationUnsignedInt, and we are expanding on that.
+#if defined(GENONLINE)
 	self->m_minDelayBetweenShots = ConvertDurationFromMsecsToFramesRoundedUp((Real)self->m_minDelayBetweenShots);
 	self->m_maxDelayBetweenShots = ConvertDurationFromMsecsToFramesRoundedUp((Real)self->m_maxDelayBetweenShots);
+#else
+	self->m_minDelayBetweenShots = WWMath::Ceilf(ConvertDurationFromMsecsToFrames((Real)self->m_minDelayBetweenShots));
+	self->m_maxDelayBetweenShots = WWMath::Ceilf(ConvertDurationFromMsecsToFrames((Real)self->m_maxDelayBetweenShots));
+#endif
 
 }
 
@@ -496,13 +509,21 @@ Int WeaponTemplate::getDelayBetweenShots(const WeaponBonus& bonus) const
 	if( m_minDelayBetweenShots == m_maxDelayBetweenShots )
 		delayToUse = m_minDelayBetweenShots; // Random number thing doesn't like this case
 	else
+#if defined(GENONLINE)
 		delayToUse = GameLogicRandomFramesInBaseFrames( m_minDelayBetweenShots, m_maxDelayBetweenShots );
+#else
+		delayToUse = GameLogicRandomValue( m_minDelayBetweenShots, m_maxDelayBetweenShots );
+#endif
 
 	Real bonusROF = bonus.getField(WeaponBonus::RATE_OF_FIRE);
 	//CRCDEBUG_LOG(("WeaponTemplate::getDelayBetweenShots() - min:%d max:%d val:%d, bonusROF=%g/%8.8X",
 		//m_minDelayBetweenShots, m_maxDelayBetweenShots, delayToUse, bonusROF, AS_INT(bonusROF)));
 
+#if defined(GENONLINE)
 	return DivideFramesInBaseFrames(delayToUse, bonusROF);
+#else
+	return REAL_TO_INT_FLOOR(delayToUse / bonusROF);
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -510,13 +531,21 @@ Int WeaponTemplate::getClipReloadTime(const WeaponBonus& bonus) const
 {
 	// yes, divide, not multiply; the larger the rate-of-fire bonus, the shorter
 	// we want the reload time to be.
+#if defined(GENONLINE)
 	return DivideFramesInBaseFrames(m_clipReloadTime, bonus.getField(WeaponBonus::RATE_OF_FIRE));
+#else
+	return REAL_TO_INT_FLOOR(m_clipReloadTime / bonus.getField(WeaponBonus::RATE_OF_FIRE));
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
 Int WeaponTemplate::getPreAttackDelay( const WeaponBonus& bonus ) const
 {
+#if defined(GENONLINE)
 	return MultiplyFramesInBaseFrames(m_preAttackDelay, bonus.getField( WeaponBonus::PRE_ATTACK ));
+#else
+	return m_preAttackDelay * bonus.getField( WeaponBonus::PRE_ATTACK );
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -994,7 +1023,11 @@ UnsignedInt WeaponTemplate::fireWeaponTemplate
 			UnsignedInt when = 0;
 			if (TheWeaponStore)
 			{
+#if defined(GENONLINE)
 				UnsignedInt delayInWholeFrames = ConvertBaseFramesToFrames(REAL_TO_INT_CEIL(ConvertFramesToBaseFramesReal(delayInFrames)));
+#else
+				UnsignedInt delayInWholeFrames = REAL_TO_INT_CEIL(delayInFrames);
+#endif
 				when = TheGameLogic->getFrame() + delayInWholeFrames;
 				//DEBUG_LOG(("WeaponTemplate::fireWeaponTemplate: firing weapon in %d frames (= %d)!", delayInWholeFrames,when));
 				TheWeaponStore->setDelayedDamage(this, damagePos, when, sourceID, damageID, bonus);
@@ -1467,8 +1500,12 @@ WeaponStore::~WeaponStore()
 	for (size_t i = 0; i < m_weaponTemplateVector.size(); i++)
 	{
 		WeaponTemplate* wt = m_weaponTemplateVector[i];
+#if defined(GENONLINE)
 		if (wt)
 			deleteInstance(wt);
+#else
+		deleteInstance(wt);
+#endif
 	}
 	m_weaponTemplateVector.clear();
 	m_weaponTemplateHashMap.clear();

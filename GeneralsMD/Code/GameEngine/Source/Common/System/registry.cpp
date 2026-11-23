@@ -30,10 +30,12 @@
 
 #include "Common/Registry.h"
 
+#if defined(GENONLINE)
 #include "../GenOnlineInclude.h"
 #include <format>
 #include <filesystem>
 
+#endif
 
 Bool  getStringFromRegistry(HKEY root, AsciiString path, AsciiString key, AsciiString& val)
 {

@@ -465,7 +465,11 @@ Bool DumbProjectileBehavior::projectileHandleCollision( Object *other )
 		Object *projectileLauncher = TheGameLogic->findObjectByID( projectileGetLauncherID() );
 
 			// if it's not the specific thing we were targeting, see if we should incidentally collide...
+#if defined(GENONLINE)
 		if (m_detonationWeaponTmpl && !m_detonationWeaponTmpl->shouldProjectileCollideWith(projectileLauncher, getObject(), other, m_victimID))
+#else
+		if (!m_detonationWeaponTmpl->shouldProjectileCollideWith(projectileLauncher, getObject(), other, m_victimID))
+#endif
 		{
 			//DEBUG_LOG(("ignoring projectile collision with %s at frame %d",other->getTemplate()->getName().str(),TheGameLogic->getFrame()));
 			return true;

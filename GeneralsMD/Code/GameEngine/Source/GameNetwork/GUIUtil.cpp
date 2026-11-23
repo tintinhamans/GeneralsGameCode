@@ -184,7 +184,6 @@ void ShowUnderlyingGUIElements( Bool show, const char *layoutFilename, const cha
 void PopulateColorComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGame, Bool isObserver)
 {
 	Int numColors = TheMultiplayerSettings->getNumColors();
-
 	UnicodeString colorName;
 	std::vector<bool> availableColors;
 
@@ -222,6 +221,7 @@ void PopulateColorComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myG
 		if (!def || availableColors[c] == false)
 			continue;
 
+#if defined(GENONLINE)
 		bool bFoundColorName = false;
 		colorName = TheGameText->fetch(def->getTooltipName().str(), &bFoundColorName);
 
@@ -229,6 +229,9 @@ void PopulateColorComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myG
 		{
 			colorName.format(L"%hs", def->getTooltipName().str());
 		}
+#else
+		colorName = TheGameText->fetch(def->getTooltipName().str());
+#endif
 		newIndex = GadgetComboBoxAddEntry(comboArray[comboBox], colorName, def->getColor());
 		GadgetComboBoxSetItemData(comboArray[comboBox], newIndex, (void *)c);
 	}
@@ -298,6 +301,7 @@ void PopulatePlayerTemplateComboBox(Int comboBox, GameWindow *comboArray[], Game
 
 // -----------------------------------------------------------------------------
 
+#if defined(GENONLINE)
 // team colors for UI (team combo + minimap start positions).
 UnsignedInt GetTeamUiColor(Int teamNumber)
 {
@@ -320,6 +324,7 @@ UnsignedInt GetTeamUiColor(Int teamNumber)
     return GameMakeColor(255, 255, 255, 255);
 }
 
+#endif
 void PopulateTeamComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGame, Bool isObserver)
 {
 	Int numTeams = MAX_SLOTS/2;
@@ -342,10 +347,17 @@ void PopulateTeamComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGa
 		AsciiString teamStr;
 		teamStr.format("Team:%d", c + 1);
 		teamName = TheGameText->fetch(teamStr.str());
+#if defined(GENONLINE)
         UnsignedInt teamColor = GetTeamUiColor(c);
         newIndex = GadgetComboBoxAddEntry(comboArray[comboBox],teamName,teamColor);
         GadgetComboBoxSetItemData(comboArray[comboBox], newIndex, (void *)c);
     }
+#else
+		newIndex = GadgetComboBoxAddEntry(comboArray[comboBox], teamName, def->getColor());
+		GadgetComboBoxSetItemData(comboArray[comboBox], newIndex, (void *)c);
+	}
+	GadgetComboBoxSetSelectedPos(comboArray[comboBox], 0);
+#endif
 }
 
 // -----------------------------------------------------------------------------
@@ -375,12 +387,14 @@ void PopulateStartingCashComboBox(GameWindow *comboBox, GameInfo *myGame)
     }
   }
 
+#if defined(GENONLINE)
   // TODO_GENONLINE: Find why lobby creation can get here with no data, maybe async.
   if (myGame->getStartingCash().countMoney() == 0)
   {
 	  currentSelectionIndex = 0;
   }
 
+#endif
   if ( currentSelectionIndex == -1 )
   {
     DEBUG_CRASH( ("Current selection for starting cash not found in list") );
@@ -486,11 +500,16 @@ void UpdateSlotList( GameInfo *myGame, GameWindow *comboPlayer[],
 			else
 			{
 				GadgetComboBoxSetSelectedPos(comboPlayer[i], slot->getState(), TRUE);
+#if defined(GENONLINE)
 				if (buttonAccept && buttonAccept[i])
 					buttonAccept[i]->winHide(TRUE);
 
 				// GenOnline: Support host migration, names can change for non-human occupied slots during migration
 				GadgetComboBoxSetText(comboPlayer[i], slot->getName());
+#else
+        if( buttonAccept &&  buttonAccept[i] )
+				  buttonAccept[i]->winHide(TRUE);
+#endif
 			}
 /*
 			if (myGame->getLocalSlotNum() == i && i!=0)
@@ -550,4 +569,3 @@ void UpdateSlotList( GameInfo *myGame, GameWindow *comboPlayer[],
 }
 
 // -----------------------------------------------------------------------------
-

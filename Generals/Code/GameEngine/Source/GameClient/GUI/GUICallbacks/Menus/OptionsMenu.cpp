@@ -68,7 +68,9 @@
 #include "GameNetwork/FirewallHelper.h"
 #include "GameNetwork/IPEnumeration.h"
 #include "GameNetwork/GameSpyOverlay.h"
+#if defined(GENONLINE)
 #include "GameNetwork/Online/IOnlineGameHooks.h"
+#endif
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/ScriptEngine.h"
@@ -1364,7 +1366,11 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	GameWindow *parent = TheWindowManager->winGetWindowFromId( nullptr, parentID );
 	TheWindowManager->winSetFocus( parent );
 
+#if defined(GENONLINE)
 	if( (TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || GetOnlineGameHooks()->isLoggedIn() )
+#else
+	if( (TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || TheGameSpyInfo )
+#endif
 	{
 		// disable controls that you can't change the options for in game
 		comboBoxLANIP->winEnable(FALSE);
@@ -1372,9 +1378,13 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 		if (comboBoxOnlineIP)
 			comboBoxOnlineIP->winEnable(FALSE);
 
+#if defined(GENONLINE)
 		// GenOnline @bugfix arcticdolphin 21/11/2026 The GenOnline options layout has no firewall refresh button.
 		if (buttonFirewallRefresh)
 			buttonFirewallRefresh->winEnable(FALSE);
+#else
+		buttonFirewallRefresh->winEnable(FALSE);
+#endif
 
 		if (comboBoxDetail)
 			comboBoxDetail->winEnable(FALSE);
@@ -1393,7 +1403,9 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	}
 
 
+#if defined(GENONLINE)
 	GetOnlineGameHooks()->onOptionsMenuInit((TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || GetOnlineGameHooks()->isLoggedIn());
+#endif
 	TheWindowManager->winSetModal(parent);
 	ignoreSelected = FALSE;
 }
@@ -1548,10 +1560,12 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 
 					showAdvancedOptions();
 				}
+#if defined(GENONLINE)
 				else
 				{
 					GetOnlineGameHooks()->onOptionsMenuComboSelected(control);
 				}
+#endif
 			break;
 		}
 
@@ -1584,9 +1598,11 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 			else if (controlID == buttonAccept )
 			{
+#if defined(GENONLINE)
 				// Changed connection settings are tested first so a rejected address keeps the menu open.
 				if (!GetOnlineGameHooks()->onOptionsMenuAccept())
 					break;
+#endif
 				saveOptions();
 
 				if (pref)
@@ -1618,10 +1634,12 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 			else if (controlID == buttonDefaults )
 			{
 				setDefaults();
+#if defined(GENONLINE)
 				GetOnlineGameHooks()->onOptionsMenuDefaults();
 			}
 			else if (GetOnlineGameHooks()->onOptionsMenuButtonSelected(control))
 			{
+#endif
 			}
 			else if (controlID == ButtonAdvancedAcceptID )
 			{

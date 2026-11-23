@@ -59,7 +59,9 @@ void dumpBufferToLog(const void *vBuf, Int len, const char *fname, Int line)
 		{
 			char c = buf[offset + dumpindex2];
 			DEBUG_LOG_RAW(("%c", (isprint(c)?c:'.')));
+#if defined(GENONLINE)
 			DEBUG_LOG_RAW(("%c", (isprint((unsigned char)c)?c:'.')));
+#endif
 		}
 		DEBUG_LOG_RAW(("\n"));
 	}
@@ -84,7 +86,11 @@ UnsignedInt ResolveIP(AsciiString host)
   }
 
   // String such as "127.0.0.1"
+#if defined(GENONLINE)
   if (isdigit((unsigned char)host.getCharAt(0)))
+#else
+  if (isdigit(host.getCharAt(0)))
+#endif
   {
     return ( ntohl(inet_addr(host.str())) );
   }
@@ -133,8 +139,10 @@ Bool DoesCommandRequireACommandID(NetCommandType type)
 	case NETCOMMANDTYPE_DISCONNECTVOTE:
 	case NETCOMMANDTYPE_DISCONNECTFRAME:
 	case NETCOMMANDTYPE_DISCONNECTSCREENOFF:
+#if defined(GENONLINE)
 	case NETCOMMANDTYPE_SIGNEDFRAMEINFO:
 	case NETCOMMANDTYPE_SIGNATURES:
+#endif
 		return TRUE;
 	default:
 		return FALSE;
@@ -224,8 +232,10 @@ const char* GetNetCommandTypeAsString(NetCommandType type)
 	CASE_LABEL(NETCOMMANDTYPE_DISCONNECTFRAME)
 	CASE_LABEL(NETCOMMANDTYPE_DISCONNECTSCREENOFF)
 	CASE_LABEL(NETCOMMANDTYPE_DISCONNECTEND)
+#if defined(GENONLINE)
 	CASE_LABEL(NETCOMMANDTYPE_SIGNEDFRAMEINFO)
 	CASE_LABEL(NETCOMMANDTYPE_SIGNATURES)
+#endif
 	default:
 		DEBUG_CRASH(("Unhandled NetCommandType in GetNetCommandTypeAsString"));
 		return "<NETCOMMANDTYPE_INVALID>";

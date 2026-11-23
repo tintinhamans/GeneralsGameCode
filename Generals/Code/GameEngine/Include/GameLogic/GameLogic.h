@@ -129,9 +129,11 @@ public:
 	void setObjectIDCounter( ObjectID nextObjID ) { m_nextObjID = nextObjID; }
 	ObjectID getObjectIDCounter() { return m_nextObjID; }
 
+#if defined(GENONLINE)
 	UnsignedInt getFrameLegacy(void);
 	bool HasLegacyFrameAdvanced(void);
 
+#endif
 	//-----------------------------------------------------------------------------------------------
 	void setBuildableStatusOverride(const ThingTemplate* tt, BuildableStatus bs);
 	Bool findBuildableStatusOverride(const ThingTemplate* tt, BuildableStatus& bs) const;
@@ -153,7 +155,9 @@ public:
 
 	void updateLoadProgress( Int progress );
 	void deleteLoadScreen();
+#if defined(GENONLINE)
 	void revealFromLoadScreen(Bool loadingSaveGame);	///< Fades the load screen out and deletes it.
+#endif
 
 	//Kris: Cut setGameLoading() and replaced with setLoadingMap() and setLoadingSave() -- reason: nomenclature
 	//void setGameLoading( Bool loading ) { m_loadingScene = loading; }
@@ -512,10 +516,12 @@ inline Bool GameLogic::isInShellGame() const { return rts::isShellGame(m_gameMod
 inline Bool GameLogic::isInMultiplayerGame() const { return rts::isMultiplayerGame(m_gameMode); }
 inline Bool GameLogic::isInInteractiveGame() const { return rts::isInteractiveGame(m_gameMode); }
 
+#if defined(GENONLINE)
 // The base frame derives from the saved logic frame, so it stays correct after loading a save game.
 inline UnsignedInt GameLogic::getFrameLegacy(void) { return m_frame / LOGICFRAMES_PER_BASEFRAME; }
 inline bool GameLogic::HasLegacyFrameAdvanced(void) { return (m_frame % LOGICFRAMES_PER_BASEFRAME) == 0; }
 
+#endif
 inline Object* GameLogic::findObjectByID( ObjectID id )
 {
 	if( id == INVALID_ID )
@@ -530,11 +536,13 @@ inline Object* GameLogic::findObjectByID( ObjectID id )
 
 
 
+#if defined(GENONLINE)
 class GameInfo;
 class GameSlot;
 
 // GenOnline @feature arcticdolphin 21/11/2026 The stats exporter needs the same local slot test as Zero Hour.
 extern Bool GameLogicIsLocalSlot(GameInfo* game, GameSlot* slot);
 
+#endif
 // the singleton
 extern GameLogic *TheGameLogic;

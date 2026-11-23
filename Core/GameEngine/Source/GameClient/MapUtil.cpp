@@ -61,6 +61,7 @@
 #include "GameNetwork/GameInfo.h"
 #include "GameNetwork/NetworkDefs.h"
 
+#if defined(GENONLINE)
 #include "../GenOnlineDefines.h"
 #include "../GenOnlineInterfaces.h"
 
@@ -69,6 +70,7 @@
 #include "GameClient/MapPreviewIcons.h"
 #endif
 
+#endif
 
 //-------------------------------------------------------------------------------
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
@@ -116,7 +118,9 @@ static UnsignedInt calcCRC( AsciiString fname )
 
 	return theCRC.get();
 }
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 // GenOnline @feature arcticdolphin 08/11/2026 Records a supply or tech object with its icon category for mapcache.json.
 static void addTypedObject(const ThingTemplate *thingTemplate, const Coord3D &loc, Bool isTech)
@@ -345,17 +349,29 @@ void WaypointMap::update()
 
 const char *const MapCache::m_mapCacheName = "MapCache.ini";
 
+#if defined(GENONLINE)
 AsciiString MapCache::getMapDir(bool bCustomMapDebug) const
+#else
+AsciiString MapCache::getMapDir() const
+#endif
 {
 	return "Maps";
 }
 
+#if defined(GENONLINE)
 
 AsciiString MapCache::getUserMapDir(bool bCustomMapDebug) const
+#else
+AsciiString MapCache::getUserMapDir() const
+#endif
 {
 	AsciiString tmp = TheGlobalData->getPath_UserData();
+#if defined(GENONLINE)
 
 	tmp.concat(getMapDir(bCustomMapDebug));
+#else
+	tmp.concat(getMapDir());
+#endif
 	return tmp;
 }
 
@@ -378,11 +394,16 @@ void MapCache::writeCacheINI( const AsciiString &mapDir )
 
 	TheFileSystem->createDirectory(mapDir);
 
+#if defined(GENONLINE)
 	// write to a temp file and swap it in so a failed write never leaves a truncated MapCache.ini
 	AsciiString tempFilepath = filepath;
 	tempFilepath.concat(".tmp");
 	FILE *fp = fopen(tempFilepath.str(), "w");
 	DEBUG_ASSERTCRASH(fp != nullptr, ("Failed to create %s", tempFilepath.str()));
+#else
+	FILE *fp = fopen(filepath.str(), "w");
+	DEBUG_ASSERTCRASH(fp != nullptr, ("Failed to create %s", filepath.str()));
+#endif
 	if (fp == nullptr) {
 		return;
 	}
@@ -445,6 +466,7 @@ void MapCache::writeCacheINI( const AsciiString &mapDir )
 		}
 	}
 
+#if defined(GENONLINE)
 	Bool ok = fflush(fp) == 0 && !ferror(fp);
 	if (fclose(fp) != 0)
 		ok = FALSE;
@@ -461,6 +483,9 @@ void MapCache::writeCacheINI( const AsciiString &mapDir )
 		DEBUG_LOG(("MapCache::writeCacheINI - failed to write '%s'", filepath.str()));
 		remove(tempFilepath.str());
 	}
+#else
+	fclose(fp);
+#endif
 }
 
 void MapCache::updateCache()
@@ -514,7 +539,9 @@ void MapCache::updateCache()
 		loadMapsFromMapCacheINI(mapDir);
 		m_doLoadStandardMapCacheINI = FALSE;
 	}
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 08/11/2026 Restore typed objects the INI loads dropped and save new ones to mapcache.json.
 	syncMapCacheJson(*this);
@@ -560,13 +587,18 @@ Bool MapCache::clearUnseenMaps( const AsciiString &mapDir )
 	return erasedSomething;
 }
 
+#if defined(GENONLINE)
 Bool MapCache::loadMapsFromMapCacheINI( const AsciiString &mapDir )
+#else
+void MapCache::loadMapsFromMapCacheINI( const AsciiString &mapDir )
+#endif
 {
 	INI ini;
 	AsciiString fname = getCachePath(mapDir);
 
 	if (TheFileSystem->doesFileExist(fname.str()))
 	{
+#if defined(GENONLINE)
 		// a partial or unreadable cache must not abort startup, the disk scan re-caches the maps and rewrites it
 		try
 		{
@@ -577,8 +609,13 @@ Bool MapCache::loadMapsFromMapCacheINI( const AsciiString &mapDir )
 			DEBUG_LOG(("MapCache::loadMapsFromMapCacheINI - ignoring unreadable '%s'", fname.str()));
 			return FALSE;
 		}
+#else
+		ini.load( fname, INI_LOAD_OVERWRITE, nullptr );
+#endif
 	}
+#if defined(GENONLINE)
 	return TRUE;
+#endif
 }
 
 Bool MapCache::loadMapsFromDisk( const AsciiString &mapDir, Bool isOfficial, Bool filterByAllowedMaps )
@@ -665,8 +702,14 @@ Bool MapCache::addMap(
 			if (md.m_nameLookupTag.isEmpty())
 			{
 				// unofficial maps or maps without names
+#if defined(GENONLINE)
 				// GenOnline @tweak arcticdolphin 09/11/2026 Without the .map extension.
 				(*this)[lowerFname].m_displayName = getMapNameFromPath(fname);
+#else
+				AsciiString tempdisplayname;
+				tempdisplayname = getFileName(fname.str());
+				(*this)[lowerFname].m_displayName.translate(tempdisplayname);
+#endif
 				if (md.m_numPlayers >= 2)
 				{
 					UnicodeString extension;
@@ -699,6 +742,7 @@ Bool MapCache::addMap(
 
 	DEBUG_LOG(("MapCache::addMap(): caching '%s' because '%s' was not found", fname.str(), lowerFname.str()));
 
+#if defined(GENONLINE)
 	// Just load for querying the data, since we aren't playing this map.
 	Bool loaded = FALSE;
 	try
@@ -718,6 +762,9 @@ Bool MapCache::addMap(
 		resetMap();
 		return erase(lowerFname) > 0;
 	}
+#else
+	loadMap(fname); // Just load for querying the data, since we aren't playing this map.
+#endif
 
 	// The map is now loaded.  Pick out what we need.
 	MapMetaData md;
@@ -736,7 +783,11 @@ Bool MapCache::addMap(
 	md.m_typedObjects.m_objects = m_parsedTypedObjects;
 	md.m_typedObjects.m_isKnown = TRUE;
 #endif
+#if defined(GENONLINE)
 	md.m_CRC = mapCRC;
+#else
+	md.m_CRC = calcCRC(fname);
+#endif
 
 	Bool exists = false;
 	AsciiString nameLookupTag = worldDict.getAsciiString(TheKey_mapName, &exists);
@@ -745,8 +796,14 @@ Bool MapCache::addMap(
 	if (!exists || nameLookupTag.isEmpty())
 	{
 		DEBUG_LOG(("Missing TheKey_mapName!"));
+#if defined(GENONLINE)
 		// GenOnline @tweak arcticdolphin 09/11/2026 Without the .map extension.
 		md.m_displayName = getMapNameFromPath(fname);
+#else
+		AsciiString tempdisplayname;
+		tempdisplayname = getFileName(fname.str());
+		md.m_displayName.translate(tempdisplayname);
+#endif
 		if (md.m_numPlayers >= 2)
 		{
 			UnicodeString extension;
@@ -806,6 +863,7 @@ Bool MapCache::addMap(
 MapCache *TheMapCache = nullptr;
 
 // PUBLIC FUNCTIONS //////////////////////////////////////////////////////////////////////////////
+#if defined(GENONLINE)
 
 // GenOnline @bugfix arcticdolphin 09/11/2026 The map name is the file name without folders or the .map extension.
 UnicodeString getMapNameFromPath( const AsciiString& mapPath )
@@ -819,6 +877,7 @@ UnicodeString getMapNameFromPath( const AsciiString& mapPath )
 	result.translate(name);
 	return result;
 }
+#endif
 #if defined(GENONLINE)
 // GenOnline @feature arcticdolphin 08/11/2026 Parses a map for its typed objects only, for maps cached before mapcache.json had them.
 Bool loadMapTypedObjects( const AsciiString &mapPath, MapTypedObjectVector &outObjects )
@@ -848,10 +907,19 @@ Bool WouldMapTransfer( const AsciiString& mapName )
 }
 
 //-------------------------------------------------------------------------------------------------
+#if defined(GENONLINE)
 // Maps that share a display name each keep their own row.
 typedef std::multimap<UnicodeString, AsciiString, rts::less_than_nocase<UnicodeString> > MapDisplayToFileNameList;
+#else
+typedef std::set<UnicodeString, rts::less_than_nocase<UnicodeString>/**/> MapNameList;
+typedef std::map<UnicodeString, AsciiString> MapDisplayToFileNameList;
+#endif
 
+#if defined(GENONLINE)
 static void buildMapListForNumPlayers(MapDisplayToFileNameList &outFileNames, Int numPlayers)
+#else
+static void buildMapListForNumPlayers(MapNameList &outMapNames, MapDisplayToFileNameList &outFileNames, Int numPlayers)
+#endif
 {
 	MapCache::iterator it = TheMapCache->begin();
 
@@ -860,7 +928,12 @@ static void buildMapListForNumPlayers(MapDisplayToFileNameList &outFileNames, In
 		const MapMetaData &mapData = it->second;
 		if (mapData.m_numPlayers == numPlayers)
 		{
+#if defined(GENONLINE)
 			outFileNames.insert(MapDisplayToFileNameList::value_type(it->second.m_displayName, it->first));
+#else
+			outMapNames.insert(it->second.m_displayName);
+			outFileNames[it->second.m_displayName] = it->first;
+#endif
 		}
 	}
 }
@@ -983,15 +1056,36 @@ static Bool addMapToMapListbox(
 }
 
 //-------------------------------------------------------------------------------------------------
+#if !defined(GENONLINE)
+static Bool addMapCollectionToMapListbox(
+	MapListBoxData& lbData,
+	const AsciiString& mapDir,
+	const MapNameList& mapNames,
+	const MapDisplayToFileNameList& fileNames)
+#else
 static Bool addMapCollectionToMapListbox(
 	MapListBoxData& lbData,
 	const AsciiString& mapDir,
 	const MapDisplayToFileNameList& fileNames)
+#endif
 {
+#if defined(GENONLINE)
 	MapDisplayToFileNameList::const_iterator fileNameIt = fileNames.begin();
+#else
+	MapNameList::const_iterator mapNameIt = mapNames.begin();
+#endif
 
+#if defined(GENONLINE)
 	for (; fileNameIt != fileNames.end(); ++fileNameIt)
+#else
+	for (; mapNameIt != mapNames.end(); ++mapNameIt)
+#endif
 	{
+#if !defined(GENONLINE)
+		MapDisplayToFileNameList::const_iterator fileNameIt = fileNames.find(*mapNameIt);
+		DEBUG_ASSERTCRASH(fileNameIt != fileNames.end(), ("Map '%s' not found in file names map", mapNameIt->str()));
+
+#endif
 		const AsciiString& asciiMapName = fileNameIt->second;
 
 #if RTS_ZEROHOUR
@@ -1004,7 +1098,11 @@ static Bool addMapCollectionToMapListbox(
 #endif
 
 		MapCache::iterator mapCacheIt = TheMapCache->find(asciiMapName);
+#if defined(GENONLINE)
 		DEBUG_ASSERTCRASH(mapCacheIt != TheMapCache->end(), ("Map '%s' not found in map cache.", asciiMapName.str()));
+#else
+		DEBUG_ASSERTCRASH(mapCacheIt != TheMapCache->end(), ("Map '%s' not found in map cache.", mapNameIt->str()));
+#endif
 		/*
 		if (it != TheMapCache->end())
 		{
@@ -1066,15 +1164,29 @@ Int populateMapListboxNoReset( GameWindow *listbox, Bool useSystemMaps, Bool isM
 	}
 	mapDir.toLower();
 
+#if !defined(GENONLINE)
+	MapNameList mapNames;
+#endif
 	MapDisplayToFileNameList fileNames;
 	Int curNumPlayersInMap = 1;
 
 	for (; curNumPlayersInMap <= MAX_SLOTS; ++curNumPlayersInMap)
 	{
+#if defined(GENONLINE)
 		buildMapListForNumPlayers(fileNames, curNumPlayersInMap);
+#else
+		buildMapListForNumPlayers(mapNames, fileNames, curNumPlayersInMap);
+#endif
 
+#if defined(GENONLINE)
 		const Bool ok = addMapCollectionToMapListbox(lbData, mapDir, fileNames);
+#else
+		const Bool ok = addMapCollectionToMapListbox(lbData, mapDir, mapNames, fileNames);
+#endif
 
+#if !defined(GENONLINE)
+		mapNames.clear();
+#endif
 		fileNames.clear();
 
 		if (!ok)

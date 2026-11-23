@@ -50,7 +50,9 @@
 #include "GameClient/MapUtil.h"
 #include "GameClient/ChallengeGenerals.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #endif
@@ -110,7 +112,11 @@ static AsciiString realAsStr(Real val)
 // UserPreferences Class
 //-----------------------------------------------------------------------------
 
+#if defined(GENONLINE)
 UserPreferences::UserPreferences() : m_loadFailed(FALSE)
+#else
+UserPreferences::UserPreferences()
+#endif
 {
 }
 
@@ -126,14 +132,18 @@ Bool UserPreferences::load(AsciiString fname)
 
 	m_filename = TheGlobalData->getPath_UserData();
 	m_filename.concat(fname);
+#if defined(GENONLINE)
 	m_loadFailed = FALSE;
+#endif
 
 	FILE *fp = fopen(m_filename.str(), "r");
+#if defined(GENONLINE)
 	if (fp == nullptr && errno != ENOENT)
 	{
 		DEBUG_LOG(("UserPreferences::load - could not open '%s', errno %d", m_filename.str(), errno));
 		m_loadFailed = TRUE;
 	}
+#endif
 	if (fp)
 	{
 		char buf[LINE_LEN];
@@ -144,8 +154,10 @@ Bool UserPreferences::load(AsciiString fname)
 
 			AsciiString key, val;
 			line.nextToken(&key, "=");
+#if defined(GENONLINE)
 			if (line.isEmpty())	// no '=' in the line, nothing follows the key
 				continue;
+#endif
 			val = line.str() + 1;
 
 			key.trim();
@@ -156,14 +168,18 @@ Bool UserPreferences::load(AsciiString fname)
 
 			(*this)[key] = val;
 		}
+#if defined(GENONLINE)
 		const Bool readFailed = ferror(fp) != 0;
+#endif
 		fclose(fp);
+#if defined(GENONLINE)
 		if (readFailed)
 		{
 			DEBUG_LOG(("UserPreferences::load - read error in '%s'", m_filename.str()));
 			m_loadFailed = TRUE;
 			return false;
 		}
+#endif
 		return true;
 	}
 	return false;
@@ -174,6 +190,7 @@ Bool UserPreferences::write()
 	if (m_filename.isEmpty())
 		return false;
 
+#if defined(GENONLINE)
 	// the existing file is unreadable, replacing it with what we hold would lose the user's settings
 	if (m_loadFailed)
 		return false;
@@ -183,16 +200,26 @@ Bool UserPreferences::write()
 	tempFilename.concat(".tmp");
 
 	FILE *fp = fopen(tempFilename.str(), "w");
+#else
+	FILE *fp = fopen(m_filename.str(), "w");
+#endif
 	if (fp)
 	{
+#if defined(GENONLINE)
 		Bool ok = TRUE;
+#endif
 		PreferenceMap::const_iterator it = begin();
 		while (it != end())
 		{
+#if defined(GENONLINE)
 			if (fprintf(fp, "%s = %s\n", it->first.str(), it->second.str()) < 0)
 				ok = FALSE;
+#else
+			fprintf(fp, "%s = %s\n", it->first.str(), it->second.str());
+#endif
 			++it;
 		}
+#if defined(GENONLINE)
 		if (fflush(fp) != 0 || ferror(fp))
 			ok = FALSE;
 		if (fclose(fp) != 0)
@@ -211,6 +238,10 @@ Bool UserPreferences::write()
 			remove(tempFilename.str());
 		}
 		return ok;
+#else
+		fclose(fp);
+		return true;
+#endif
 	}
 	return false;
 }
@@ -260,6 +291,7 @@ AsciiString UserPreferences::getAsciiString(AsciiString key, AsciiString default
 	return it->second;
 }
 
+#if defined(GENONLINE)
 UnicodeString UserPreferences::getUnicodeString(AsciiString key, UnicodeString defaultValue) const
 {
 	UserPreferences::const_iterator it = find(key);
@@ -273,6 +305,7 @@ UnicodeString UserPreferences::getUnicodeString(AsciiString key, UnicodeString d
 	return ret;
 }
 
+#endif
 void UserPreferences::setBool(AsciiString key, Bool val)
 {
 	(*this)[key] = boolAsStr(val);
@@ -293,6 +326,7 @@ void UserPreferences::setAsciiString(AsciiString key, AsciiString val)
 	(*this)[key] = val;
 }
 
+#if defined(GENONLINE)
 void UserPreferences::setUnicodeString(AsciiString key, UnicodeString val)
 {
 	AsciiString str;
@@ -300,6 +334,7 @@ void UserPreferences::setUnicodeString(AsciiString key, UnicodeString val)
 	(*this)[key] = str;
 }
 
+#endif
 //-----------------------------------------------------------------------------
 // QuickMatchPreferences base class
 //-----------------------------------------------------------------------------
@@ -307,7 +342,9 @@ void UserPreferences::setUnicodeString(AsciiString key, UnicodeString val)
 QuickMatchPreferences::QuickMatchPreferences()
 {
 	AsciiString userPrefFilename;
+#if defined(GENONLINE)
 	
+#endif
 #if defined(GENONLINE)
 	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 
@@ -315,7 +352,7 @@ QuickMatchPreferences::QuickMatchPreferences()
 	userPrefFilename.format("GeneralsOnlineData\\QMPref%lld.ini", localProfile);
 #else
 	Int localProfile = TheGameSpyInfo->getLocalProfileID();
-	userPrefFilename.format("GeneralsOnline\\QMPref%d.ini", profileID);
+	userPrefFilename.format("GeneralsOnline\\QMPref%d.ini", localProfile);
 #endif
 	load(userPrefFilename);
 }
@@ -497,11 +534,15 @@ Int QuickMatchPreferences::getSide()
 // CustomMatchPreferences base class
 //-----------------------------------------------------------------------------
 
+#if defined(GENONLINE)
 #include <filesystem>
+#endif
 CustomMatchPreferences::CustomMatchPreferences()
 {
 	AsciiString userPrefFilename;
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	// NOTE: We need to use a different folder to avoid conflict with GS/Revora
 	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
@@ -518,7 +559,7 @@ CustomMatchPreferences::CustomMatchPreferences()
 	}
 #else
 	Int localProfile = TheGameSpyInfo->getLocalProfileID();
-	userPrefFilename.format("GeneralsOnline\\CustomPref%.ini", localProfile);
+	userPrefFilename.format("GeneralsOnline\\CustomPref%d.ini", localProfile);
 #endif
 	load(userPrefFilename);
 }
@@ -535,6 +576,7 @@ void CustomMatchPreferences::setLastLadder(const AsciiString& addr, UnsignedShor
 	(*this)["LastLadderPort"] = strVal;
 }
 
+#if defined(GENONLINE)
 UnicodeString CustomMatchPreferences::getLastLobbyName() const
 {
 	UnicodeString ret = getUnicodeString("LastLobbyName", UnicodeString::TheEmptyString);
@@ -548,6 +590,9 @@ void CustomMatchPreferences::setLastLobbyName(const UnicodeString& name)
 }
 
 AsciiString CustomMatchPreferences::getLastLadderAddr( void )
+#else
+AsciiString CustomMatchPreferences::getLastLadderAddr()
+#endif
 {
 	QuickMatchPreferences::const_iterator it = find("LastLadderAddr");
 	if (it == end())
@@ -640,8 +685,12 @@ Int CustomMatchPreferences::getPreferredFaction()
 			// This is also enforced at GUI setup (GUIUtil.cpp and GameLogic.cpp).
 			// @todo: unlock these when something rad happens
 			Bool disallowLockedGenerals = TRUE;
+#if defined(GENONLINE)
 			// GenOnline @bugfix arcticdolphin 21/11/2026 Generals has no challenge generals.
 			const GeneralPersona *general = TheChallengeGenerals ? TheChallengeGenerals->getGeneralByTemplateName(fac->getName()) : nullptr;
+#else
+			const GeneralPersona *general = TheChallengeGenerals->getGeneralByTemplateName(fac->getName());
+#endif
 			Bool startsLocked = general ? !general->isStartingEnabled() : FALSE;
 			if (disallowLockedGenerals && startsLocked)
 				ret = PLAYERTEMPLATE_RANDOM;
@@ -882,7 +931,9 @@ void CustomMatchPreferences::setUseStats( Bool useStats )
 GameSpyMiscPreferences::GameSpyMiscPreferences()
 {
 	AsciiString userPrefFilename;
+#if defined(GENONLINE)
 	
+#endif
 #if defined(GENONLINE)
 	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	int64_t localProfile = pAuthInterface == nullptr ? -1 : pAuthInterface->GetUserID();
@@ -936,7 +987,9 @@ IgnorePreferences::IgnorePreferences()
 {
 	AsciiString userPrefFilename;
 //	if(!TheGameSpyInfo)
+#if defined(GENONLINE)
 	
+#endif
 #if defined(GENONLINE)
 	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	int64_t localProfile = pAuthInterface == nullptr ? -1 : pAuthInterface->GetUserID();
@@ -1000,13 +1053,17 @@ Bool LadderPreferences::loadProfile( Int profileID )
 	clear();
 	m_ladders.clear();
 	AsciiString userPrefFilename;
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	userPrefFilename.format("GeneralsOnlineData\\Ladders%d.ini", profileID);
 #else
 	userPrefFilename.format("GeneralsOnline\\Ladders%d.ini", profileID);
 #endif
+#if defined(GENONLINE)
 
+#endif
 	Bool success = load(userPrefFilename);
 	if (!success)
 		return success;
@@ -1082,4 +1139,3 @@ void LadderPreferences::addRecentLadder( LadderPref ladder )
 
 	m_ladders[ladder.lastPlayDate] = ladder;
 }
-

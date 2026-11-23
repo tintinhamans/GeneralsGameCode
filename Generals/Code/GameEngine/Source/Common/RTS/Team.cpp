@@ -744,9 +744,13 @@ TeamTemplateInfo::TeamTemplateInfo(Dict *d) :
 	// Which scripts to attempt during run?
 	for (int i = 0; i < MAX_GENERIC_SCRIPTS; ++i) {
 		AsciiString keyName;
+#if defined(GENONLINE)
 		// Store the result of keyToName in a local variable to avoid dangling pointer
 		AsciiString hookName = TheNameKeyGenerator->keyToName(TheKey_teamGenericScriptHook);
 		keyName.format("%s%d", hookName.str(), i);
+#else
+		keyName.format("%s%d", TheNameKeyGenerator->keyToName(TheKey_teamGenericScriptHook).str(), i);
+#endif
 		m_teamGenericScripts[i] = d->getAsciiString(NAMEKEY(keyName), &exists);
 		if (!exists) {
 			m_teamGenericScripts[i].clear();

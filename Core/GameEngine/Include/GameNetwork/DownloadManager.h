@@ -64,8 +64,10 @@ public:
 	virtual HRESULT OnProgressUpdate( Int bytesread, Int totalsize, Int timetaken, Int timeleft ) override;
 	virtual HRESULT OnStatusUpdate( Int status ) override;
 
+#if defined(GENONLINE)
 	virtual HRESULT SetFileName(AsciiString file) { return S_OK; };
 
+#endif
 	virtual HRESULT downloadFile( AsciiString server, AsciiString username, AsciiString password, AsciiString file, AsciiString localfile, AsciiString regkey, Bool tryResume );
 	AsciiString getLastLocalFile();
 

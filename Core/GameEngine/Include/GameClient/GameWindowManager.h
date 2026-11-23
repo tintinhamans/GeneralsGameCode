@@ -253,7 +253,9 @@ public:
 	virtual void winSetGrabWindow( GameWindow *window );  ///< set the grab window
 	virtual GameWindow *winGetGrabWindow();  ///< who is currently 'held' by mouse
 	virtual void winSetLoneWindow( GameWindow *window );  ///< set the open window
+#if defined(GENONLINE)
 	GameWindow *winGetLoneWindow() const { return m_loneWindow; }  ///< the combo box whose list is open, if any
+#endif
 
 	// Finds the top-level window at the mouse position that matches the required and forbidden status masks.
 	virtual GameWindow* findWindowUnderMouse(GameWindow*& toolTipWindow, const ICoord2D* mousePos, unsigned int requiredStatusMask, unsigned int forbiddenStatusMask);
@@ -298,8 +300,10 @@ public:
 
 	/// draw image, coord are in screen and should be kepth within that box specified
 	virtual void winDrawImage( const Image *image, Int startX, Int startY, Int endX, Int endY, Color color = 0xFFFFFFFF );
+#if defined(GENONLINE)
 	/// Draws a left end, tiled center and right end bar, each piece at its own aspect for the bar height. smallCenter may be null.
 	void winDrawThreePieceImage(const Image* left, const Image* center, const Image* smallCenter, const Image* right, Int x, Int y, Int width, Int height, Color color = 0xFFFFFFFF);
+#endif
 	/// draw filled rect, coords are absolute screen coords
 	virtual void winFillRect( Color color, Real width, Int startX, Int startY, Int endX, Int endY );
 	/// draw rect outline, coords are absolute screen coords
@@ -312,11 +316,13 @@ public:
 	recreate all Image structs to suit your project */
 	virtual const Image *winFindImage( const char *name );
 	virtual Int winFontHeight( GameFont *font );  ///< get height of font in pixels
+#if defined(GENONLINE)
 	static Int winScaleRounded(Int value, Int numerator, Int denominator);  ///< value * numerator / denominator, rounded half away from zero
 	static Int winLayoutScreenHeight();  ///< screen height the 600 px layout height scales to
 	static Int winScaleLayoutSize(Int size);  ///< 800x600 layout pixels scaled with the screen height, rounded
 	static Int winScaleLayoutFontSize(Int pointSize);  ///< 800x600 layout font size scaled with the screen height by the resolution font adjustment, within the font library limits
 	static Bool winUseLegacyLayoutFonts();  ///< Classic font scaling keeps the unscaled layout fonts of legacy addons
+#endif
 	virtual Int winIsDigit( Int c );  ///< is character a digit
 	virtual Int winIsAscii( Int c );  ///< is character a digit
 	virtual Int winIsAlNum( Int c );  ///< is character alpha-numeric
@@ -349,10 +355,12 @@ protected:
 
 	void dumpWindow( GameWindow *window );  ///< for debugging
 
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 08/11/2026 Show the Hand cursor over clickable controls in the shell menus.
 	void updateHandCursor();  ///< set or restore the Hand cursor when the window under the mouse changes
 	Bool isHandCursorWindow(GameWindow* window, Int mouseX, Int mouseY);  ///< is this window a clickable shell control under the mouse
 
+#endif
 	GameWindow *m_windowList;			// list of all top level windows
 	GameWindow *m_windowTail;			// last in windowList
 
@@ -367,8 +375,10 @@ protected:
 	GameWindowList m_tabList;			// we have to register a tab list to make a tab list.
 	const Image *m_cursorBitmap;
 	UnsignedInt m_captureFlags;
+#if defined(GENONLINE)
 	Bool m_handCursorShown;  ///< updateHandCursor set the Hand cursor
 	Int m_cursorBeforeHand;  ///< Mouse::MouseCursor to restore when the Hand cursor goes
+#endif
 
 };
 

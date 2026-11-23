@@ -46,7 +46,9 @@
 #include "GameNetwork/FileTransfer.h"
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/networkutil.h"
+#if defined(GENONLINE)
 #include "GameNetwork/TransportFactory.h"
+#endif
 #if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
 #endif
@@ -171,8 +173,12 @@ void LANAPI::OnHasMap( UnsignedInt playerIP, Bool status )
 			}
 			else
 			{
+#if defined(GENONLINE)
 				// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
 				mapDisplayName = getMapNameFromPath(m_currentGame->getMap());
+#else
+				mapDisplayName.format(L"%hs", m_currentGame->getMap().str());
+#endif
 				willTransfer = WouldMapTransfer(m_currentGame->getMap());
 			}
 			if (!status)
@@ -234,7 +240,11 @@ void LANAPI::OnGameStart()
 		TheNetwork = NetworkInterface::createNetwork();
 		TheNetwork->init();
 		TheNetwork->setLocalAddress(m_localIP, 8088);
+#if defined(GENONLINE)
 		TheNetwork->initTransport(UDP_TRANSPORT_NAME);
+#else
+		TheNetwork->initTransport();
+#endif
 
 		TheNetwork->parseUserList(m_currentGame);
 

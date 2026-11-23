@@ -67,7 +67,9 @@ public:
 											float power = 1.0f	);
 	void		Timestep(float dt);
 	bool		IsCameraShaking();
+#if defined(GENONLINE)
 	void		Reset();		///< remove all active camera shakes
+#endif
 	void		Update_Camera_Shaker(Vector3 camera_position, Vector3 * shaker_angles);
 
 	/**

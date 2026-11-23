@@ -180,6 +180,7 @@ void ControlBarResizer::sizeWindowsAlt()
 {
 	ResizerWindowList::iterator it = m_resizerWindowsList.begin();
 	GameWindow *win = nullptr;
+#if defined(GENONLINE)
 
 #if !defined(GENONLINE_WIDESCREEN)
 	Real x = (Real)TheDisplay->getWidth() / 800;
@@ -190,6 +191,10 @@ void ControlBarResizer::sizeWindowsAlt()
 #endif
 
 	
+#else
+	Real x = (Real)TheDisplay->getWidth() / DEFAULT_DISPLAY_WIDTH;
+	Real y = (Real)TheDisplay->getHeight() / DEFAULT_DISPLAY_HEIGHT;
+#endif
 	while (it != m_resizerWindowsList.end())
 	{
 		ResizerWindow *rWin = *it;

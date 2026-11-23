@@ -46,7 +46,9 @@
 #include "WWLib/RANDOM.h"
 #include "WWMath/v3_rnd.h"
 #include "meshgeometry.h"
+#if defined(GENONLINE)
 #include <algorithm>
+#endif
 
 
 /* We have chunking logic which handles N segments at a time. To simplify the subdivision logic,
@@ -227,6 +229,7 @@ void SegLineRendererClass::Render
 	/*
 	** Handle texture UV offset animation (done once for entire line).
 	*/
+#if defined(GENONLINE)
 // TODO_MERGE: Check this, old code was:
 /*
 #if defined(GENONLINE)
@@ -235,6 +238,7 @@ void SegLineRendererClass::Render
 	unsigned int delta = WW3D::Get_Sync_Time() - LastUsedSyncTime;
 #endif
 */
+#endif
 	// TheSuperHackers @tweak The render update is now decoupled from the logic step.
 	const unsigned int delta = WW3D::Get_Logic_Time_Milliseconds() - LastUsedSyncTime;
 	Vector2 uv_offset = CurrentUVOffset + UVOffsetDeltaPerMS * (float)delta;

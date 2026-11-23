@@ -264,7 +264,9 @@ void GameLogic::clearGameData( Bool showScoreScreen )
 	// Every way a match ends (quit, replay left early, disconnect) passes here. A no-op if ENDED already went out.
 	LocalApiLiveGameDataCleared();
 #endif
+#if defined(GENONLINE)
 
+#endif
 	setClearingGameData( TRUE );
 
 //	m_background = TheWindowManager->winCreateLayout("Menus/BlankWindow.wnd");
@@ -291,7 +293,9 @@ void GameLogic::clearGameData( Bool showScoreScreen )
 
 		destroyQuitMenu();
 	}
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	// The menus and the next game start from the logic time scale of the player.
 	TheFramePacer->endGameSpeed();
@@ -414,7 +418,9 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 
 				if(TheStatsCollector)
 					TheStatsCollector->collectMsgStats(msg);
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 				LocalApiLiveCommand(msgPlayer->getPlayerIndex(), msg->getType());
 #endif
@@ -920,7 +926,9 @@ bool GameLogic::onNewGame(MAYBE_UNUSED GameMessage *msg)
 	}
 	TheFramePacer->beginGameSpeed();
 #endif
+#if defined(GENONLINE)
 
+#endif
 	// prepare for new game
 	prepareNewGame( gameMode, diff, rankPoints );
 
@@ -929,7 +937,9 @@ bool GameLogic::onNewGame(MAYBE_UNUSED GameMessage *msg)
 
 	return true;
 }
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 void GameLogic::processPendingGameExit()
 {
@@ -2378,7 +2388,9 @@ bool GameLogic::onSetReplayCamera(MAYBE_UNUSED GameMessage *msg)
 			const Real zoom = msg->getArgument( 3 )->real;
 			const Mouse::MouseCursor mouseCursor = static_cast<Mouse::MouseCursor>(msg->getArgument( 4 )->integer);
 			const ICoord2D mousePos = msg->getArgument( 5 )->pixel;
+#if defined(GENONLINE)
 			const UnsignedInt userActionCount = TheTacticalView->getUserActionCount();
+#endif
 
 			// TheSuperHackers @info Definitely call in user mode to ensure the camera operates with auto-zoom
 			// over terrain elevations, because the Replay Camera does not store the absolute camera location,
@@ -2406,9 +2418,11 @@ bool GameLogic::onSetReplayCamera(MAYBE_UNUSED GameMessage *msg)
 				TheTacticalView->set3DCameraLookAt(camPos, camDir, 0.0f);
 			}
 
+#if defined(GENONLINE)
 			// The recorded camera is not the user at this PC: tools that watch for user camera input do not count it.
 			TheTacticalView->restoreUserActionCount( userActionCount );
 
+#endif
 			// TheSuperHackers @fix Lock the new location to avoid user input from changing the camera in this frame.
 			TheTacticalView->lockUserControlUntilFrame( getFrame() + 1 );
 

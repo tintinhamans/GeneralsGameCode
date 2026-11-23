@@ -53,9 +53,11 @@
 
 #include <Utility/hash_map_adapter.h>
 
+#if defined(GENONLINE)
 #include <string>
 #include <vector>
 
+#endif
 #include "WWLib/mutex.h"
 
 //----------------------------------------------------------------------------
@@ -105,12 +107,12 @@ typedef UnsignedByte FileInstance;
 #endif
 
 #ifdef LOAD_TEST_ASSETS
-#define ROAD_DIRECTORY		"../TestArt/TestRoad/"
-#define TEST_STRING				"***TESTING"
-// the following directories will be used to look for test art
-#define LOOK_FOR_TEST_ART
-#define TEST_W3D_DIR_PATH "../TestArt/"					///< .w3d files live here
-#define TEST_TGA_DIR_PATH "../TestArt/"		///< .tga texture files live here
+	#define ROAD_DIRECTORY		"../TestArt/TestRoad/"
+	#define TEST_STRING				"***TESTING"
+	// the following directories will be used to look for test art
+	#define LOOK_FOR_TEST_ART
+	#define TEST_W3D_DIR_PATH "../TestArt/"					///< .w3d files live here
+	#define TEST_TGA_DIR_PATH "../TestArt/"		///< .tga texture files live here
 #endif
 
 #ifndef ENABLE_FILESYSTEM_LOGGING
@@ -137,6 +139,7 @@ struct FileInfo {
 	Int timestampLow;
 };
 
+#if defined(GENONLINE)
 //===============================
 //===============================
 /**
@@ -160,6 +163,7 @@ private:
 	std::vector<std::string> m_patterns;
 };
 
+#endif
 //===============================
 // FileSystem
 //===============================
@@ -181,8 +185,8 @@ private:
 //===============================
 class FileSystem : public SubsystemInterface
 {
-	FileSystem(const FileSystem&);
-	FileSystem& operator=(const FileSystem&);
+  FileSystem(const FileSystem&);
+  FileSystem& operator=(const FileSystem&);
 
 public:
 	FileSystem();
@@ -199,10 +203,12 @@ public:
 
 	Bool createDirectory(AsciiString directory); ///< create a directory of the given name.
 
+#if defined(GENONLINE)
 	/// Loose files of the game folder that match are treated as if they did not exist: not opened, not found, not listed. Files that are written and files outside the game folder are not affected.
 	void setExcludedPaths(const std::vector<std::string>& entries) { m_excludedPaths.set(entries); }
 	const PathExcludeList& getExcludedPaths() const { return m_excludedPaths; }
 
+#endif
 	static AsciiString normalizePath(const AsciiString& path);	///< normalizes a file path. The path can refer to a directory. File path must be absolute, but does not need to exist. Returns an empty string on failure.
 	static Bool isPathInDirectory(const AsciiString& testPath, const AsciiString& basePath);	///< determines if a file path is within a base path. Both paths must be absolute, but do not need to exist.
 
@@ -223,10 +229,12 @@ public:
 	static Int comparePath(const Char* a, const Char* b);
 
 protected:
+#if defined(GENONLINE)
 	Bool isLooseFileExcluded(const Char *filename) const;
 
 	PathExcludeList m_excludedPaths;
 
+#endif
 #if ENABLE_FILESYSTEM_EXISTENCE_CACHE
 	struct FileExistData
 	{
@@ -244,7 +252,7 @@ protected:
 #endif
 };
 
-extern FileSystem* TheFileSystem;
+extern FileSystem*	TheFileSystem;
 
 
 

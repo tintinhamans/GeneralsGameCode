@@ -41,6 +41,9 @@
 #include "GameLogic/Object.h"
 
 #include "GameClient/Color.h"
+#if !defined(GENONLINE)
+#include "GameClient/ControlBar.h"
+#endif
 #include "GameClient/Display.h"
 #include "GameClient/GameClient.h"
 #include "GameClient/GameWindow.h"
@@ -54,7 +57,9 @@
 #include "WW3D2/texture.h"
 #include "WW3D2/dx8caps.h"
 #include "WWMath/vector2i.h"
+#if defined(GENONLINE)
 #include "GameClient/ControlBar.h"
+#endif
 
 
 
@@ -144,8 +149,13 @@ void W3DRadar::deleteResources()
 	if( m_terrainTexture )
 		m_terrainTexture->Release_Ref();
 	m_terrainTexture = nullptr;
+#if defined(GENONLINE)
 	if( m_terrainImage )
 		deleteInstance(m_terrainImage);
+#else
+
+	deleteInstance(m_terrainImage);
+#endif
 	m_terrainImage = nullptr;
 
 	//
@@ -154,8 +164,13 @@ void W3DRadar::deleteResources()
 	if( m_overlayTexture )
 		m_overlayTexture->Release_Ref();
 	m_overlayTexture = nullptr;
+#if defined(GENONLINE)
 	if( m_overlayImage )
 		deleteInstance(m_overlayImage);
+#else
+
+	deleteInstance(m_overlayImage);
+#endif
 	m_overlayImage = nullptr;
 
 	//
@@ -164,8 +179,13 @@ void W3DRadar::deleteResources()
 	if( m_shroudTexture )
 		m_shroudTexture->Release_Ref();
 	m_shroudTexture = nullptr;
+#if defined(GENONLINE)
 	if( m_shroudImage )
 		deleteInstance(m_shroudImage);
+#else
+
+	deleteInstance(m_shroudImage);
+#endif
 	m_shroudImage = nullptr;
 
 	DEBUG_ASSERTCRASH(m_shroudSurface == nullptr, ("W3DRadar::deleteResources: m_shroudSurface is expected null"));

@@ -183,17 +183,22 @@ CameraShakeSystemClass::CameraShakeSystemClass()
 }
 
 CameraShakeSystemClass::~CameraShakeSystemClass()
+#if defined(GENONLINE)
 {
 	Reset();
 }
 
 void CameraShakeSystemClass::Reset()
+#endif
 {
 	/*
 	** delete all of the objects out of the list
 	*/
 	while (!CameraShakerList.Is_Empty()) {
 		CameraShakerClass * obj = CameraShakerList.Remove_Head();
+#if !defined(GENONLINE)
+		CameraShakerList.Remove(obj);
+#endif
 		delete obj;
 	}
 }

@@ -27,8 +27,10 @@
 #include <Utility/stdio_adapter.h>
 #include <Utility/utility_adapter.h>
 
+#if defined(GENONLINE)
 #include "../../../../GameEngine/Include/GameNetwork/GenOnline/GenOnlineDefines.h"
 
+#endif
 #ifndef SAFE_RELEASE
 #define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=nullptr; } }
 #endif
@@ -37,7 +39,9 @@ enum
 {
 	// TheSuperHackers @info The original WWSync was 33 ms, ~30 fps, integer.
 	// Changing this will require tweaking all Drawable code that concerns the ww3d time step, including locomotion physics.
+#if defined(GENONLINE)
 	// GenOnline runs the logic at 60 Hz. Other builds keep the retail 30 Hz.
+#endif
 #if defined(GENONLINE)
 	WWSyncPerSecond = 60,
 #else

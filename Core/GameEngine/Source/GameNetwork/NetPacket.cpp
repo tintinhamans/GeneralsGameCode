@@ -315,9 +315,11 @@ Bool NetPacket::isFrameRepeat(NetCommandRef *msg) {
 	}
 	NetFrameCommandMsg *framemsg = (NetFrameCommandMsg *)(msg->getCommand());
 	NetFrameCommandMsg *lastmsg = (NetFrameCommandMsg *)(m_lastCommand->getCommand());
+#if defined(GENONLINE)
 	if (framemsg->getPlayerID() != lastmsg->getPlayerID()) {
 		return FALSE;
 	}
+#endif
 	if (framemsg->getCommandCount() != 0) {
 		return FALSE;
 	}

@@ -36,8 +36,10 @@
 #include "Common/GameAudio.h"
 #include "Common/GameMemory.h"
 #include "Common/LocalFileSystem.h"
+#if defined(GENONLINE)
 #include "../GenOnlineInclude.h"
 #include "../GenOnlineInit.h"
+#endif
 
 #if RTS_ZEROHOUR
 #include "Common/Registry.h"
@@ -92,20 +94,28 @@ void BIGFileSystem::init() {
 
 #if RTS_ZEROHOUR
     // load original Generals assets
+#if defined(GENONLINE)
     // The Steam install ships them in ZH_Generals, which the scan above already mounted. Mounting the Generals install as well would only add its mods.
     if (TheLocalFileSystem->doesFileExist("ZH_Generals\\INI.big")) {
       m_generalsBaseSource = "ZH_Generals folder";
       return;
     }
 
+#endif
     AsciiString installPath;
     GetStringFromGeneralsRegistry("", "InstallPath", installPath );
     //@todo this will need to be ramped up to a crash for release
     DEBUG_ASSERTCRASH(!installPath.isEmpty(), ("Be 1337! Go install Generals!"));
+#if defined(GENONLINE)
     if (!installPath.isEmpty()) {
       m_generalsBaseSource.format("Generals install folder %s", installPath.str());
+#else
+    if (!installPath.isEmpty())
+#endif
       loadArchiveFilesFromDirectory(installPath, "*.big");
+#if defined(GENONLINE)
     }
+#endif
 #endif
 }
 
@@ -118,7 +128,11 @@ void BIGFileSystem::update() {
 void BIGFileSystem::postProcessLoad() {
 }
 
+#if defined(GENONLINE)
 ArchiveFile * BIGFileSystem::openArchiveFile(const Char *filename, ArchivePathFilter includePath) {
+#else
+ArchiveFile * BIGFileSystem::openArchiveFile(const Char *filename) {
+#endif
 	File *fp = TheLocalFileSystem->openFile(filename, File::READ | File::BINARY);
 	AsciiString archiveFileName;
 	archiveFileName = filename;
@@ -180,10 +194,12 @@ ArchiveFile * BIGFileSystem::openArchiveFile(const Char *filename, ArchivePathFi
 			break;
 		}
 
+#if defined(GENONLINE)
 		if (includePath != nullptr && !includePath(buffer)) {
 			continue;
 		}
 
+#endif
 		char *leafName = getFileName(buffer);
 
 		fileInfo.m_filename = leafName;
@@ -261,6 +277,7 @@ Bool BIGFileSystem::loadArchiveFilesFromDirectory(AsciiString dir, AsciiString f
 		}
 #endif
 
+#if defined(GENONLINE)
 #if RTS_ZEROHOUR
 		const Bool zeroHour = TRUE;
 #else
@@ -273,11 +290,16 @@ Bool BIGFileSystem::loadArchiveFilesFromDirectory(AsciiString dir, AsciiString f
 			continue;
 		}
 
+#endif
 		ArchiveFile *archiveFile = openArchiveFile((*it).str());
 
 		if (archiveFile != nullptr) {
 			DEBUG_LOG(("BIGFileSystem::loadArchiveFilesFromDirectory - loading %s into the directory tree.", (*it).str()));
+#if defined(GENONLINE)
 			loadIntoDirectoryTree(archiveFile, priority);
+#else
+			loadIntoDirectoryTree(archiveFile, overwrite);
+#endif
 			m_archiveFileMap[(*it)] = archiveFile;
 			DEBUG_LOG(("BIGFileSystem::loadArchiveFilesFromDirectory - %s inserted into the archive file map.", (*it).str()));
 			actuallyAdded = TRUE;
@@ -306,14 +328,20 @@ void BIGFileSystem::loadMods()
 	setInterfaceStyle(AsciiString(settings.UI_Style().c_str()));
 	mountDataPacks(settings.Data_HasInclude() ? &settings.Data_Include() : nullptr);
 #endif
+#if defined(GENONLINE)
 
+#endif
 	if (TheGlobalData->m_modBIG.isNotEmpty())
 	{
 		ArchiveFile *archiveFile = openArchiveFile(TheGlobalData->m_modBIG.str());
 
 		if (archiveFile != nullptr) {
 			DEBUG_LOG(("BIGFileSystem::loadMods - loading %s into the directory tree.", TheGlobalData->m_modBIG.str()));
+#if defined(GENONLINE)
 			loadIntoDirectoryTree(archiveFile, getNextModPriority());
+#else
+			loadIntoDirectoryTree(archiveFile, TRUE);
+#endif
 			m_archiveFileMap[TheGlobalData->m_modBIG] = archiveFile;
 			DEBUG_LOG(("BIGFileSystem::loadMods - %s inserted into the archive file map.", TheGlobalData->m_modBIG.str()));
 		}

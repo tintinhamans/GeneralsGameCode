@@ -158,11 +158,15 @@ class VideoStreamInterface
 
 		virtual	VideoStreamInterface* next() = 0;		///< Returns next open stream
 		virtual void update() = 0;									///< Update stream
+#if defined(GENONLINE)
 		virtual void setPaused(Bool paused) {}
+#endif
 		virtual void close() = 0;										///< Close and free stream
 
 		virtual Bool	isFrameReady() = 0;						///< Is the frame ready to be displayed
+#if defined(GENONLINE)
 		virtual Bool isPlaybackComplete() { return frameIndex() >= frameCount() - 1 && isFrameReady(); }
+#endif
 		virtual void	frameDecompress() = 0;				///< Render current frame in to buffer
 		virtual void	frameRender( VideoBuffer *buffer ) = 0; ///< Render current frame in to buffer
 		virtual void	frameNext() = 0;							///< Advance to next frame

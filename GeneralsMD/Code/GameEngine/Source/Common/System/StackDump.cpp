@@ -472,7 +472,9 @@ void WriteStackLine(void*address, void (*callback)(const char*))
 			g_LastErrorDump.concat("\n");
 		}
 	callback(line);
+#if defined(GENONLINE)
 	callback("\n");
+#endif
 }
 
 
@@ -608,7 +610,11 @@ void DumpExceptionInfo( unsigned int u, EXCEPTION_POINTERS* e_info )
 	/*
 	** Dump the bytes at EIP. This will make it easier to match the crash address with later versions of the game.
 	*/
+#if defined(GENONLINE)
 	char scrap[512] = {};
+#else
+	char scrap[512];
+#endif
 	DOUBLE_DEBUG ( ("EIP bytes dump..."));
 	wsprintf (scrap, "\nBytes at CS:EIP (%08X)  : ", context->Eip);
 
@@ -619,7 +625,11 @@ void DumpExceptionInfo( unsigned int u, EXCEPTION_POINTERS* e_info )
 	{
 		if (IsBadReadPtr(eip_ptr, 1))
 		{
+#if defined(GENONLINE)
 			strlcat(scrap, "?? ", ARRAY_SIZE(scrap));
+#else
+			lstrcat (scrap, "?? ");
+#endif
 		}
 		else
 		{

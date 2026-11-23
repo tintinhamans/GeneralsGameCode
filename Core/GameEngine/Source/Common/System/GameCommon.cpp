@@ -30,8 +30,10 @@
 
 #include "Common/GameCommon.h"
 
+#if defined(GENONLINE)
 #include "WWMath/wwmath.h"
 
+#endif
 const char *const TheVeterancyNames[] =
 {
 	"REGULAR",
@@ -52,6 +54,9 @@ const char *const TheRelationshipNames[] =
 static_assert(ARRAY_SIZE(TheRelationshipNames) == RELATIONSHIP_COUNT + 1, "Incorrect array size");
 
 //-------------------------------------------------------------------------------------------------
+#if !defined(GENONLINE)
+// TheSuperHackers @todo DO NOT USE THIS FUNCTION! Use WWMath::Normalize_Angle instead. Delete this.
+#endif
 Real normalizeAngle(Real angle)
 {
 	DEBUG_ASSERTCRASH(!std::isnan(angle), ("Angle is NAN in normalizeAngle!"));
@@ -68,6 +73,7 @@ Real normalizeAngle(Real angle)
 	return angle;
 }
 
+#if defined(GENONLINE)
 //-------------------------------------------------------------------------------------------------
 Real ConvertDurationFromMsecsToFramesRoundedUp(Real msec)
 {
@@ -99,3 +105,4 @@ Real ConvertBaseFrameFactorToFrameFactor(Real factorPerBaseFrame)
 	return WWMath::Powf(factorPerBaseFrame, 1.0f / (Real)LOGICFRAMES_PER_BASEFRAME);
 }
 
+#endif

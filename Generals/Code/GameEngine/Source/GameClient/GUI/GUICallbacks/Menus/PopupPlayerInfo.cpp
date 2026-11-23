@@ -58,8 +58,10 @@
 #include "GameNetwork/GameSpy/GSConfig.h"
 #include "GameNetwork/GameSpy/LobbyUtils.h"
 
+#if defined(GENONLINE)
 #include "GameNetwork/GenOnline/GenOnlineDefines.h"
 
+#endif
 #include "WWDownload/Registry.h"
 
 
@@ -247,6 +249,7 @@ void GetAdditionalDisconnectsFromUserFile(PSPlayerStats *stats)
 // default values
 RankPoints::RankPoints()
 {
+#if defined(GENONLINE)
 	m_ranks[RANK_PRIVATE] = 0;
 	// Use default values if TheGameSpyConfig is NULL (can happen if called during teardown)
 	if (TheGameSpyConfig != NULL)
@@ -274,6 +277,18 @@ RankPoints::RankPoints()
 		m_ranks[RANK_GENERAL]							= 1000;
 		m_ranks[RANK_COMMANDER_IN_CHIEF]	= 2000;
 	}
+#else
+	m_ranks[RANK_PRIVATE]							= 0;
+	m_ranks[RANK_CORPORAL]						= TheGameSpyConfig->getPointsForRank(RANK_CORPORAL); // 5
+	m_ranks[RANK_SERGEANT]						= TheGameSpyConfig->getPointsForRank(RANK_SERGEANT); // 10
+	m_ranks[RANK_LIEUTENANT]					= TheGameSpyConfig->getPointsForRank(RANK_LIEUTENANT); // 20
+	m_ranks[RANK_CAPTAIN]							= TheGameSpyConfig->getPointsForRank(RANK_CAPTAIN); // 50
+	m_ranks[RANK_MAJOR]								= TheGameSpyConfig->getPointsForRank(RANK_MAJOR); // 100
+	m_ranks[RANK_COLONEL]							= TheGameSpyConfig->getPointsForRank(RANK_COLONEL); // 200
+	m_ranks[RANK_BRIGADIER_GENERAL]		= TheGameSpyConfig->getPointsForRank(RANK_BRIGADIER_GENERAL); // 500
+	m_ranks[RANK_GENERAL]							= TheGameSpyConfig->getPointsForRank(RANK_GENERAL); // 1000
+	m_ranks[RANK_COMMANDER_IN_CHIEF]	= TheGameSpyConfig->getPointsForRank(RANK_COMMANDER_IN_CHIEF); // 2000
+#endif
 
 	m_winMultiplier = 3.0f;
 	m_lostMultiplier = 0.0f;
@@ -470,6 +485,7 @@ void BattleHonorTooltip(GameWindow *window,
 
 }
 
+#if defined(GENONLINE)
 static Int rowsToSkip = 0;
 void ResetBattleHonorInsertion()
 {
@@ -487,6 +503,19 @@ void InsertBattleHonor(GameWindow *list, const Image *image, Bool enabled, Int i
 #endif
 
 	static Int enabledColor = 0xFFFFFFFF;
+#else
+static Int rowsToSkip = 0;
+void ResetBattleHonorInsertion()
+{
+	rowsToSkip = 0;
+}
+void InsertBattleHonor(GameWindow *list, const Image *image, Bool enabled, Int itemData, Int& row, Int& column, UnicodeString text = UnicodeString::TheEmptyString)
+{
+	Int width = MAX_BATTLE_HONOR_IMAGE_WIDTH * (TheDisplay->getWidth() / (Real)DEFAULT_DISPLAY_WIDTH);
+	Int height = MAX_BATTLE_HONOR_IMAGE_HEIGHT * (TheDisplay->getHeight() / (Real)DEFAULT_DISPLAY_HEIGHT);
+
+	static Int enabledColor = 0xFFFFFFFF;
+#endif
 	static Int disabledColor = GameMakeColor(80, 80, 80, 255);
 	Int color;
 	if (enabled)
@@ -764,13 +793,16 @@ static GameWindow* findWindow(GameWindow *parent, AsciiString baseWindow, AsciiS
 void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 {
 	Int lookupID = TheGameSpyInfo->getLocalProfileID();
+#if defined(GENONLINE)
 	GameWindow *parentWindow = nullptr;
 
+#endif
 	if(parentWindowName == "PopupPlayerInfo.wnd")
 	{
 		lookupID = lookAtPlayerID;
 		if (lookAtPlayerID <= 0 || !parent)
 			return;
+#if defined(GENONLINE)
 		parentWindow = parent;
 	}
 	else if(parentWindowName == "WOLWelcomeMenu.wnd")
@@ -784,6 +816,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		parentWindow = TheWindowManager->winGetWindowFromId(nullptr, NAMEKEY("WOLQuickMatchMenu.wnd:WOLQuickMatchMenuParent"));
 		if (!parentWindow)
 			return;
+#endif
 	}
 
 	PSPlayerStats stats = TheGameSpyPSMessageQueue->findPlayerStatsByID(lookupID);
@@ -833,7 +866,11 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 
 	GameWindow *win = nullptr;
 	UnicodeString uStr;
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextPlayerStatisticsLabel");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextPlayerStatisticsLabel");
+#endif
 	if(win)
 	{
 		AsciiString localeID = "WOL:Locale00";
@@ -842,39 +879,63 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		uStr.format(TheGameText->fetch("GUI:PlayerStatistics"), lookAtPlayerName.c_str(), TheGameText->fetch(localeID).str());
 		GadgetStaticTextSetText(win, uStr);
 	}
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextGamesPlayedValue");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextGamesPlayedValue");
+#endif
 	if(win)
 	{
 		uStr.format(L"%d", numGames);
 		GadgetStaticTextSetText(win, uStr);
 	}
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextWinsValue");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextWinsValue");
+#endif
 	if(win)
 	{
 		uStr.format(L"%d", numWins);
 		GadgetStaticTextSetText(win, uStr);
 	}
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextLossesValue");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextLossesValue");
+#endif
 	if(win)
 	{
 		uStr.format(L"%d", numLosses);
 		GadgetStaticTextSetText(win, uStr);
 	}
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextDisconnectsValue");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextDisconnectsValue");
+#endif
 	if(win)
 	{
 		uStr.format(L"%d", numDiscons);
 		GadgetStaticTextSetText(win, uStr);
 	}
 
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextBestStreakValue");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextBestStreakValue");
+#endif
 	if (win)
 	{
 		uStr.format(L"%d", stats.maxWinsInARow);
 		GadgetStaticTextSetText(win, uStr);
 	}
 
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextStreak");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextStreak");
+#endif
 	if (win)
 	{
 		if (stats.lossesInARow > 0)
@@ -886,7 +947,11 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 			GadgetStaticTextSetText(win, TheGameText->fetch("GUI:CurrentWinStreak"));
 		}
 	}
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextStreakValue");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextStreakValue");
+#endif
 	if(win)
 	{
 		Int streak = max(stats.lossesInARow, stats.winsInARow);
@@ -895,7 +960,11 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 	}
 
 	AsciiString favoriteSide = "Random";
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextFavoriteSideValue");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextFavoriteSideValue");
+#endif
 	{
 		Int numGames = 0;
 		Int favorite = 0;
@@ -926,7 +995,11 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		}
 	}
 
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextTotalKillsValue");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextTotalKillsValue");
+#endif
 	if(win)
 	{
 		Int numGames = 0;
@@ -937,7 +1010,11 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		uStr.format(L"%d", numGames);
 		GadgetStaticTextSetText(win, uStr);
 	}
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextTotalDeathsValue");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextTotalDeathsValue");
+#endif
 	if(win)
 	{
 		Int numGames = 0;
@@ -948,7 +1025,11 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		uStr.format(L"%d", numGames);
 		GadgetStaticTextSetText(win, uStr);
 	}
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextTotalBuiltValue");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextTotalBuiltValue");
+#endif
 	if(win)
 	{
 		Int numGames = 0;
@@ -959,7 +1040,11 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		uStr.format(L"%d", numGames);
 		GadgetStaticTextSetText(win, uStr);
 	}
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextBuildingsKilledValue");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextBuildingsKilledValue");
+#endif
 	if(win)
 	{
 		Int numGames = 0;
@@ -970,7 +1055,11 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		uStr.format(L"%d", numGames);
 		GadgetStaticTextSetText(win, uStr);
 	}
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextBuildingsLostValue");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextBuildingsLostValue");
+#endif
 	if(win)
 	{
 		Int numGames = 0;
@@ -981,7 +1070,11 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		uStr.format(L"%d", numGames);
 		GadgetStaticTextSetText(win, uStr);
 	}
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextBuildingsBuiltValue");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextBuildingsBuiltValue");
+#endif
 	if(win)
 	{
 		Int numGames = 0;
@@ -993,14 +1086,22 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		GadgetStaticTextSetText(win, uStr);
 	}
 
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextWinPercentValue");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextWinPercentValue");
+#endif
 	if(win)
 	{
 		uStr.format(TheGameText->fetch("GUI:WinPercent"), REAL_TO_INT(numWins/(Real)numGames*100.0f));
 		GadgetStaticTextSetText(win, uStr);
 	}
 
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "ProgressBarRank");
+#else
+	win = findWindow(nullptr, parentWindowName, "ProgressBarRank");
+#endif
 	if(win && TheRankPointValues)
 	{
 		if( currentRank == MAX_RANKS - 1)
@@ -1013,7 +1114,11 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 			GadgetProgressBarSetProgress(win, 100 * INT_TO_REAL(rankPoints - TheRankPointValues->m_ranks[currentRank])/( TheRankPointValues->m_ranks[currentRank + 1] - TheRankPointValues->m_ranks[currentRank]));
 		}
 	}
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "WinRank");
+#else
+	win = findWindow(nullptr, parentWindowName, "WinRank");
+#endif
 	if(win && TheRankPointValues)
 	{
 		if (rankPoints == 0)
@@ -1021,7 +1126,11 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		else
 			win->winSetEnabledImage(0, lookupRankImage(favoriteSide, currentRank));
 	}
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextRank");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextRank");
+#endif
 	if(win)
 	{
 		AsciiString rankStr;
@@ -1029,7 +1138,11 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		GadgetStaticTextSetText(win, TheGameText->fetch(rankStr));
 	}
 
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "StaticTextInProgress");
+#else
+	win = findWindow(nullptr, parentWindowName, "StaticTextInProgress");
+#endif
 	if (win)
 	{
 		if (weHaveStats)
@@ -1043,7 +1156,11 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		}
 	}
 
+#if defined(GENONLINE)
 	win = findWindow(parentWindow, parentWindowName, "ListboxInfo");
+#else
+	win = findWindow(nullptr, parentWindowName, "ListboxInfo");
+#endif
 	if(win)
 	{
 		populateBattleHonors(stats, stats.battleHonors,stats.gamesInRowWithLastGeneral,stats.lastGeneral,stats.challengeMedals, win);

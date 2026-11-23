@@ -141,7 +141,9 @@ public:
 	UnsignedInt getFrameLegacyLast(void) { return m_frameLegacyLast; }
 	bool HasLegacyFrameAdvanced(void) { return m_frameLegacy != m_frameLegacyLast; }
 #endif
+#if defined(GENONLINE)
 
+#endif
 	//---------------------------------------------------------------------------
 	virtual void setTeamColor( Int red, Int green, Int blue ) = 0;  ///< @todo superhack for demo, remove!!!
 
@@ -172,7 +174,9 @@ protected:
 
 	// @todo Should there be a separate GameClient frame counter?
 	UnsignedInt m_frame;																				///< Simulation frame number from server
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	int64_t m_LegacyFrameEndLastFrame = 0;
 	int64_t m_legacyFrameMSAccured = 0;

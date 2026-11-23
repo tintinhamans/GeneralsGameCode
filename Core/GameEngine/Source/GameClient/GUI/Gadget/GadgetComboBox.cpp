@@ -62,7 +62,9 @@
 #include "GameClient/GadgetPushButton.h"
 #include "GameClient/GadgetSlider.h"
 #include "GameClient/GameWindowGlobal.h"
+#if defined(GENONLINE)
 #include "GameClient/Mouse.h"
+#endif
 
 // DEFINES ////////////////////////////////////////////////////////////////////
 
@@ -83,6 +85,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 void HideListBox(GameWindow * window);
 
+#if defined(GENONLINE)
 // GenOnline @tweak arcticdolphin 08/11/2026 A kit drop-down fits its compact rows and its frame instead of the retail row padding.
 static Int getDropDownHeight( GameWindow *listBox, Int rows )
 {
@@ -105,6 +108,7 @@ static void bringComboBoxToTop(GameWindow *comboBox)
 }
 
 
+#endif
 // GadgetComboBoxInput =========================================================
 /** Handle input for Combo box */
 //=============================================================================
@@ -190,9 +194,14 @@ WindowMsgHandledType GadgetComboBoxInput( GameWindow *window, UnsignedInt msg,
 					// If the Listbox isn't showing, Show it.
 					if(listBox->winIsHidden())
 					{
+#if defined(GENONLINE)
 						bringComboBoxToTop(window);
+#endif
 						listBox->winHide(FALSE);
 						window->winGetSize(&winSize.x, &winSize.y);
+#if !defined(GENONLINE)
+						WinInstanceData *listInstData = listBox->winGetInstanceData();
+#endif
 						ListboxData *listData = (ListboxData *)listBox->winGetUserData();
 						// If we have less entries then our max display is set to, only show
 						// those entries and not additional blank lines.  Also, just so it looks
@@ -222,11 +231,17 @@ WindowMsgHandledType GadgetComboBoxInput( GameWindow *window, UnsignedInt msg,
 
 						}
 
+#if defined(GENONLINE)
 						newSize.y = getDropDownHeight( listBox, multiplier );
 						// GenOnline @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the bottom line of the field.
 						const Int frameOverlap = GadgetListBoxGetKitComboFrame( listBox );
 						window->winSetSize(winSize.x , winSize.y + newSize.y - frameOverlap );
 						listBox->winSetPosition(0, winSize.y - frameOverlap);
+#else
+						newSize.y = ((TheWindowManager->winFontHeight( listInstData->getFont() ) ) * multiplier) + multiplier * 2 + 4;
+						window->winSetSize(winSize.x , winSize.y + newSize.y );
+						listBox->winSetPosition(0, winSize.y);
+#endif
 
 						listBox->winSetSize(listX , newSize.y);
 					}
@@ -541,6 +556,9 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 				ICoord2D editBoxSize;
 				Int listX;
 				Int multiplier;
+#if !defined(GENONLINE)
+				WinInstanceData *listInstData = listBox->winGetInstanceData();
+#endif
 				GameWindow *editBox = GadgetComboBoxGetEditBox(window);
 				window->winGetSize(&winSize.x, &winSize.y);
 				editBox->winGetSize(&editBoxSize.x, &editBoxSize.y);
@@ -568,9 +586,14 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 					if(listData->slider)
 						listData->slider->winHide(FALSE);
 				}
+#if defined(GENONLINE)
 				newSize.y = getDropDownHeight( listBox, multiplier );
 				// GenOnline @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the bottom line of the field.
 				listBox->winSetPosition(0, editBoxSize.y - GadgetListBoxGetKitComboFrame( listBox ));
+#else
+				newSize.y = ((TheWindowManager->winFontHeight( listInstData->getFont() ) ) * multiplier) + multiplier * 2 + 4;
+				listBox->winSetPosition(0, editBoxSize.y);
+#endif
 				listBox->winSetSize(listX , newSize.y);
 			}
 
@@ -674,9 +697,14 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 					// If the Listbox isn't showing, Show it.
 					if(listBox->winIsHidden())
 					{
+#if defined(GENONLINE)
 						bringComboBoxToTop(window);
+#endif
 						listBox->winHide(FALSE);
 						window->winGetSize(&winSize.x, &winSize.y);
+#if !defined(GENONLINE)
+						WinInstanceData *listInstData = listBox->winGetInstanceData();
+#endif
 						ListboxData *listData = (ListboxData *)listBox->winGetUserData();
 						// If we have less entries then our max display is set to, only show
 						// those entries and not additional blank lines.  Also, just so it looks
@@ -706,11 +734,17 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 
 						}
 
+#if defined(GENONLINE)
 						newSize.y = getDropDownHeight( listBox, multiplier );
 						// GenOnline @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the bottom line of the field.
 						const Int frameOverlap = GadgetListBoxGetKitComboFrame( listBox );
 						window->winSetSize(winSize.x , winSize.y + newSize.y - frameOverlap );
 						listBox->winSetPosition(0, winSize.y - frameOverlap);
+#else
+						newSize.y = ((TheWindowManager->winFontHeight( listInstData->getFont() ) ) * multiplier) + multiplier * 2 + 4;
+						window->winSetSize(winSize.x , winSize.y + newSize.y );
+						listBox->winSetPosition(0, winSize.y);
+#endif
 
 						listBox->winSetSize(listX , newSize.y);
 					}
@@ -1132,6 +1166,7 @@ Int GadgetComboBoxGetLength( GameWindow *combobox )
 	return 0;
 }
 
+#if defined(GENONLINE)
 //=============================================================================
 // GenOnline @tweak arcticdolphin 08/11/2026 A kit combo draws its edit box and arrow as one field box.
 Bool GadgetComboBoxIsKitField( GameWindow *comboBox )
@@ -1182,3 +1217,4 @@ Bool GadgetComboBoxIsKitFieldLit( GameWindow *comboBox )
 	bottom += buttonHeight;
 	return mouse->pos.x >= left && mouse->pos.x < right && mouse->pos.y >= top && mouse->pos.y < bottom;
 }
+#endif

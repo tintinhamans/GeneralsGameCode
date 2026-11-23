@@ -124,8 +124,12 @@ DeliverPayloadAIUpdate::DeliverPayloadAIUpdate( Thing *thing, const ModuleData* 
 DeliverPayloadAIUpdate::~DeliverPayloadAIUpdate()
 {
 	m_deliveryDecal.clear();
+#if defined(GENONLINE)
 	if (m_deliverPayloadStateMachine)
 		deleteInstance(m_deliverPayloadStateMachine);
+#else
+	deleteInstance(m_deliverPayloadStateMachine);
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -247,8 +251,12 @@ void DeliverPayloadAIUpdate::deliverPayload(
 	//THIS GETS CALLED VIA OBJECT CREATION LISTS ONLY!!!
 	//****************************************************
 
+#if defined(GENONLINE)
 	if (m_deliverPayloadStateMachine)
 		deleteInstance(m_deliverPayloadStateMachine);
+#else
+	deleteInstance(m_deliverPayloadStateMachine);
+#endif
 	m_deliverPayloadStateMachine = nullptr;
 
 	m_moveToPos = *moveToPos;
@@ -1048,7 +1056,11 @@ StateReturnType RecoverFromOffMapState::onEnter() // Increment local counter o' 
   // maneuvering.
   Real timeToTravelThatDist;
 	/*Real minTurnRadius =*/ ai->calcMinTurnRadius(&timeToTravelThatDist);
+#if defined(GENONLINE)
   m_reEntryFrame = TheGameLogic->getFrame() + ConvertBaseFramesToFrames(REAL_TO_INT_CEIL(ConvertFramesToBaseFramesReal(timeToTravelThatDist)));
+#else
+  m_reEntryFrame = TheGameLogic->getFrame() + REAL_TO_INT_CEIL(timeToTravelThatDist);
+#endif
 
 	// kill its momentum
 	PhysicsBehavior* physics = owner->getPhysics();

@@ -29,9 +29,17 @@
 #pragma once
 
 #include "GameNetwork/udp.h"
+#if defined(GENONLINE)
 // GenOnline NOTE: Transport is now a base class, and UDPTransport is the legacy direct connection transport the original game used.
+#endif
 #include "GameNetwork/NetworkDefs.h"
 
+#if !defined(GENONLINE)
+/**
+ * The transport layer handles the UDP socket for the game, and will packetize and
+ * de-packetize multiple ACK/CommandPacket/etc packets into larger aggregates.
+ */
+#endif
 // we only ever allocate one of there, and it is quite large, so we really DON'T want
 // it to be a MemoryPoolObject (srj)
 class Transport //: public MemoryPoolObject
@@ -40,20 +48,45 @@ class Transport //: public MemoryPoolObject
 public:
 
 	Transport();
+#if defined(GENONLINE)
 	virtual ~Transport();
+#else
+	~Transport();
+#endif
 
+#if defined(GENONLINE)
 	virtual Bool init( AsciiString ip, UnsignedShort port ) = 0;
 	virtual Bool init( UnsignedInt ip, UnsignedShort port ) = 0;
 	virtual void reset() = 0;
 	virtual Bool update() = 0;									///< Call this once a GameEngine tick, regardless of whether the frame advances.
+#else
+	Bool init( AsciiString ip, UnsignedShort port );
+	Bool init( UnsignedInt ip, UnsignedShort port );
+	void reset();
+	Bool update();									///< Call this once a GameEngine tick, regardless of whether the frame advances.
+#endif
 
+#if defined(GENONLINE)
 	virtual Bool doRecv() = 0;		///< call this to service the receive packets
 	virtual Bool doSend() = 0;		///< call this to service the send queue.
+#else
+	Bool doRecv();		///< call this to service the receive packets
+	Bool doSend();		///< call this to service the send queue.
+#endif
 
+#if defined(GENONLINE)
 	virtual Bool queueSend(UnsignedInt addr, UnsignedShort port, const UnsignedByte *buf, Int len /*,
 		NetMessageFlags flags, Int id */) = 0;				///< Queue a packet for sending to the specified address and port.  This will be sent on the next update() call.
+#else
+	Bool queueSend(UnsignedInt addr, UnsignedShort port, const UnsignedByte *buf, Int len /*,
+		NetMessageFlags flags, Int id */);				///< Queue a packet for sending to the specified address and port.  This will be sent on the next update() call.
+#endif
 
+#if defined(GENONLINE)
 	virtual Bool allowBroadcasts(Bool val) = 0;
+#else
+	Bool allowBroadcasts(Bool val) { if (!m_udpsock) return false; return (m_udpsock->AllowBroadcasts(val))?true:false; }
+#endif
 
 	// Latency insertion and packet loss
 	void setLatency( Bool val ) { m_useLatency = val; }
@@ -74,7 +107,15 @@ public:
 	DelayedTransportMessage m_delayedInBuffer[MAX_MESSAGES];
 #endif
 
+#if defined(GENONLINE)
 protected:
+#else
+	UnsignedShort m_port;
+private:
+	Bool m_winsockInit;
+	UDP *m_udpsock;
+
+#endif
 	// Latency insertion and packet loss
 	Bool m_useLatency;
 	Bool m_usePacketLoss;

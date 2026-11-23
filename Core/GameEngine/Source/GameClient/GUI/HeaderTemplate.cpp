@@ -59,7 +59,9 @@
 #include "Common/Registry.h"
 #include "GameClient/HeaderTemplate.h"
 #include "GameClient/GameFont.h"
+#if defined(GENONLINE)
 #include "GameClient/GameWindowManager.h"
+#endif
 #include "GameClient/GlobalLanguage.h"
 //-----------------------------------------------------------------------------
 // DEFINES ////////////////////////////////////////////////////////////////////
@@ -229,12 +231,16 @@ void HeaderTemplateManager::populateGameFonts()
 	while(it != m_headerTemplateList.end())
 	{
 		HeaderTemplate *hTemplate = *it;
+#if defined(GENONLINE)
 		// GenOnline @tweak arcticdolphin 08/11/2026 Window header fonts scale with the screen height like the layout rows.
 		Int pointSize;
 		if (GameWindowManager::winUseLegacyLayoutFonts())
 			pointSize = TheGlobalLanguageData->adjustFontSize(hTemplate->m_point);
 		else
 			pointSize = GameWindowManager::winScaleLayoutFontSize(hTemplate->m_point);
+#else
+		Real pointSize = TheGlobalLanguageData->adjustFontSize(hTemplate->m_point);
+#endif
 		GameFont *font = TheFontLibrary->getFont(hTemplate->m_fontName, pointSize,hTemplate->m_bold);
 		DEBUG_ASSERTCRASH(font,("HeaderTemplateManager::populateGameFonts - Could not find font %s %d",hTemplate->m_fontName.str(), hTemplate->m_point));
 

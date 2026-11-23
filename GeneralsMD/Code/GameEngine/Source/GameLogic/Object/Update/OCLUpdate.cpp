@@ -249,8 +249,13 @@ Bool OCLUpdate::shouldCreate()
 // ------------------------------------------------------------------------------------------------
 void OCLUpdate::setNextCreationFrame()
 {
+#if defined(GENONLINE)
 	UnsignedInt delay = GameLogicRandomFramesInBaseFrames( getOCLUpdateModuleData()->m_minDelay,
 																						getOCLUpdateModuleData()->m_maxDelay );
+#else
+	UnsignedInt delay = GameLogicRandomValue( getOCLUpdateModuleData()->m_minDelay,
+																						getOCLUpdateModuleData()->m_maxDelay );
+#endif
 	m_timerStartedFrame = TheGameLogic->getFrame();
 	m_nextCreationFrame = m_timerStartedFrame + delay;
 

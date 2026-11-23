@@ -383,12 +383,20 @@ static_assert(ARRAY_SIZE(rankNames) == MAX_RANKS, "Incorrect array size");
 
 const Image* LookupSmallRankImage(Int side, Int rankPoints)
 {
+#if defined(GENONLINE)
 	if (rankPoints == 0 || !TheRankPointValues)
+#else
+	if (rankPoints == 0)
+#endif
 		return nullptr;
 
 	Int rank = 0;
 	Int i = 0;
+#if defined(GENONLINE)
 	while (i + 1 < MAX_RANKS && rankPoints >= TheRankPointValues->m_ranks[i + 1])
+#else
+	while( rankPoints >= TheRankPointValues->m_ranks[i + 1])
+#endif
 		++i;
 	rank = i;
 

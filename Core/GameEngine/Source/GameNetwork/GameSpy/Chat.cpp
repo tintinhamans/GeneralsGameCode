@@ -29,7 +29,9 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/AudioEventRTS.h"
+#if defined(GENONLINE)
 #include "Common/GOUIColors.h"
+#endif
 #include "Common/INI.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GadgetListBox.h"
@@ -76,6 +78,7 @@ static const FieldParse GameSpyColorFieldParse[] =
 };
 static_assert(ARRAY_SIZE(GameSpyColorFieldParse) == GSCOLOR_MAX + 1, "Incorrect array size");
 
+#if defined(GENONLINE)
 // GenOnline @feature arcticdolphin 09/11/2026 The GO UI colour table can replace a few OnlineChatColors, as a palette sets them.
 static void applyUIColor( GOUIColorRole role, GameSpyColors which )
 {
@@ -84,15 +87,18 @@ static void applyUIColor( GOUIColorRole role, GameSpyColors which )
 		GameSpyColor[ which ] = color;
 }
 
+#endif
 void INI::parseOnlineChatColorDefinition( INI* ini )
 {
 	// parse the ini definition
 	ini->initFromINI( GameSpyColor, GameSpyColorFieldParse );
+#if defined(GENONLINE)
 
 	applyUIColor( GOUICOLOR_CHAT_DEFAULT, GSCOLOR_DEFAULT );
 	applyUIColor( GOUICOLOR_LOBBY_ROW, GSCOLOR_GAME );
 	applyUIColor( GOUICOLOR_PLAYER_NORMAL, GSCOLOR_PLAYER_NORMAL );
 	applyUIColor( GOUICOLOR_BUDDY, GSCOLOR_PLAYER_BUDDY );
+#endif
 }
 
 

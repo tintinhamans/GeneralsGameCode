@@ -29,7 +29,9 @@
 
 #pragma once
 
+#if defined(GENONLINE)
 #include "AdaptiveQualityLevels.h"
+#endif
 #include "Common/GameCommon.h"	// ensure we get DUMP_PERF_STATS, or not
 #include "Common/AsciiString.h"
 #include "Common/GameType.h"
@@ -94,12 +96,14 @@ public:
 	Bool setTimeOfDay( TimeOfDay tod );		///< Use this function to set the Time of day;
 
 	static void parseGameDataDefinition( INI* ini );
+#if defined(GENONLINE)
 
 	// the options with the adaptive quality reduction applied, for the renderers
 	Bool drawsHeatEffects() const { return m_useHeatEffects && !AdaptiveQualityLevels::heatEffectsOff(m_adaptiveQualityLevel); }
 	Bool drawsShadowVolumes() const { return m_useShadowVolumes && !AdaptiveQualityLevels::shadowVolumesOff(m_adaptiveQualityLevel); }
 	Bool drawsShadowDecals() const { return m_useShadowDecals && !AdaptiveQualityLevels::shadowDecalsOff(m_adaptiveQualityLevel); }
 	Int getEffectiveMaxParticleCount() const { return AdaptiveQualityLevels::particleCap(m_maxParticleCount, m_adaptiveQualityLevel); }
+#endif
 	void parseCustomDefinition();
 #if defined(GENONLINE)
 	void applyGenOnlineClientSettings();
@@ -125,7 +129,9 @@ public:
 	Bool m_useTreeSway;
 	Bool m_useDrawModuleLOD;
 	Bool m_useHeatEffects;
+#if defined(GENONLINE)
 	Int m_adaptiveQualityLevel;	///< client only reduction on top of the options below, set by the adaptive quality and never saved.
+#endif
 	Bool m_useFpsLimit;
 	Bool m_dumpAssetUsage;
 	Int m_framesPerSecondLimit;
@@ -135,12 +141,14 @@ public:
 	// Run game without graphics, input or audio.
 	Bool m_headless;
 
+#if defined(GENONLINE)
 	// Export game stats as JSON alongside replay file.
 	Bool m_exportStats;
 
 	// URL to POST compressed stats JSON after export.
 	AsciiString m_statsUrl;
 
+#endif
 	Bool m_windowed;
 	Int m_xResolution;
 	Int m_yResolution;
@@ -413,6 +421,7 @@ public:
 	Bool m_selectionFlashHouseColor ;  /// skip the house color and just use white.
 
 	Real m_cameraAudibleRadius;				///< If the camera is being used as the position of audio, then how far can we hear?
+#if defined(GENONLINE)
 	Real m_groupMoveClickToGatherFactor; /** if you take all the selected units and calculate the smallest possible rectangle
 																			 that contains them all, and click within that, all the selected units will break
 																			 formation and gather at the point the user clicked (if the value is 1.0). If it's 0.0,
@@ -427,6 +436,19 @@ public:
 #endif
 
 	Bool m_languageFilterPref;        ///< Bool if user wants to filter language
+#else
+	Real m_groupMoveClickToGatherFactor; /** if you take all the selected units and calculate the smallest possible rectangle
+																			 that contains them all, and click within that, all the selected units will break
+																			 formation and gather at the point the user clicked (if the value is 1.0). If it's 0.0,
+																			 units will always keep their formation. If it's <1.0, then the user must click a
+																			 smaller area within the rectangle to order the gather. */
+
+	UnsignedInt m_antiAliasLevel;          ///< value of selected antialias level in the game options
+	UnsignedInt m_textureFilteringMode;       ///< value related to TextureFilterClass::TextureFilterModeEnum
+	UnsignedInt m_textureAnisotropyLevel;     ///< value related to TextureFilterClass::AnisotropicFilterMode
+
+	Bool m_languageFilterPref;        ///< Bool if user wants to filter language
+#endif
 	Bool m_loadScreenDemo;						///< Bool if true, run the loadscreen demo movie
 	Bool m_disableRender;							///< if true, no rendering!
 
@@ -453,6 +475,7 @@ public:
 	// TheSuperHackers @feature bobtista 28/06/2026 user-configurable speed multiplier for game window transitions
 	Real m_gameWindowTransitionSpeedMultiplier;
 
+#if defined(GENONLINE)
 	// Generals Online @feature 11/01/2026 allow the observer stats font size to be set, a size of zero disables it
 	Int m_observerStatsFontSize;
 
@@ -461,6 +484,7 @@ public:
 	Bool m_observerNotificationSpecialPowerUsage;
 	Bool m_observerNotificationSpecialPowerPurchase;
 	Bool m_observerNotificationMilestone;
+#endif
 	Real m_shakeSubtleIntensity;			///< Intensity for shaking a camera with SHAKE_SUBTLE
 	Real m_shakeNormalIntensity;			///< Intensity for shaking a camera with SHAKE_NORMAL
 	Real m_shakeStrongIntensity;			///< Intensity for shaking a camera with SHAKE_STRONG
@@ -529,9 +553,11 @@ public:
 	UnsignedInt	m_networkDisconnectScreenNotifyTime;  ///< The number of milliseconds between when the disconnect screen comes up and when the other players are notified that we are on the disconnect screen.
 
 	Real				m_keyboardCameraRotateSpeed;    ///< How fast the camera rotates when rotated via keyboard controls.
+#if defined(GENONLINE)
 	Real				m_cameraRotateFactor;           ///< User scale for keyboard camera rotate speed, camera.rotate_factor of settings.client.json / 100.
 	Real				m_cameraPitchFactor;            ///< User scale for keyboard camera pitch speed, camera.pitch_factor of settings.client.json / 100.
 	Real				m_cameraZoomFactor;             ///< User scale for keyboard and mouse wheel zoom speed, camera.zoom_factor of settings.client.json / 100.
+#endif
   Int					m_playStats;									///< Int whether we want to log play stats or not, if <= 0 then we don't log
 
 #if defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)

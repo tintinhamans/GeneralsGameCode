@@ -244,9 +244,13 @@ GroveTool::GroveTool() :
 /// Destructor
 GroveTool::~GroveTool()
 {
+#if defined(GENONLINE)
 	if (m_headMapObj) {
 		deleteInstance(m_headMapObj);
 	}
+#else
+	deleteInstance(m_headMapObj);
+#endif
 }
 
 /** Execute the tool on mouse down - Place an object. */

@@ -44,7 +44,9 @@
 #include "GameNetwork/GameMessageParser.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/networkutil.h"
+#if defined(GENONLINE)
 #include "GameNetwork/Online/IOnlineGameHooks.h"
+#endif
 #include "GameLogic/GameLogic.h"
 #include "Common/RandomValue.h"
 #include "Common/CRCDebug.h"
@@ -59,6 +61,7 @@
 constexpr const char s_genrep[] = "GENREP";
 constexpr const UnsignedInt replayBufferBytes = 8192;
 
+#if defined(GENONLINE)
 // The exe CRC written to replays, RTS_REPLAY_EXE_CRC if set.
 static UnsignedInt getReplayExeCRC()
 {
@@ -93,6 +96,7 @@ static Bool isReplayExeCRCCompatible(UnsignedInt crc, Bool* viaCompatibleList = 
 	return FALSE;
 }
 
+#endif
 Int REPLAY_CRC_INTERVAL = 100;
 
 const char *replayExtention = ".rep";
@@ -473,10 +477,12 @@ void RecorderClass::updatePlayback() {
  * reaching the end of the playback file.
  */
 void RecorderClass::stopPlayback() {
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 Playback files live in the replay dir and m_currentReplayFilename is a bare name
 	AsciiString finishedReplayPath = getReplayDir();
 	finishedReplayPath.concat(m_currentReplayFilename);
 
+#endif
 	if (m_file != nullptr) {
 		m_file->close();
 		m_file = nullptr;
@@ -572,12 +578,18 @@ void RecorderClass::startRecording(GameDifficulty diff, GameMode originalGameMod
 	m_fileName = getLastReplayFileName();
 	m_fileName.concat(getReplayExtention());
 	filepath.concat(m_fileName);
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 Lock the replay while it is written, a second instance on the same profile then records nothing
 	m_file = TheFileSystem->openFile(filepath.str(), File::WRITE | File::BINARY | File::EXCLUSIVE);
+#else
+	m_file = TheFileSystem->openFile(filepath.str(), File::WRITE | File::BINARY);
+#endif
 	if (m_file == nullptr) {
 		DEBUG_ASSERTCRASH(m_file != nullptr, ("Failed to create replay file"));
+#if defined(GENONLINE)
 		// GenOnline @feature arcticdolphin 21/11/2026 The game carries on without recording when the replay file is locked or cannot be created
 		DEBUG_LOG(("RecorderClass::startRecording: Cannot open %s, this game is not recorded", filepath.str()));
+#endif
 		return;
 	}
 #if defined(GENONLINE)
@@ -635,8 +647,12 @@ void RecorderClass::startRecording(GameDifficulty diff, GameMode originalGameMod
 	m_file->writeFormat(L"%s", versionTimeString.str());
 	m_file->writeChar(L"\0");
 	m_file->write(&versionNumber, sizeof(versionNumber));
+#if defined(GENONLINE)
 	UnsignedInt replayExeCRC = getReplayExeCRC();
 	m_file->write(&replayExeCRC, sizeof(replayExeCRC));
+#else
+	m_file->write(&(TheGlobalData->m_exeCRC), sizeof(TheGlobalData->m_exeCRC));
+#endif
 	m_file->write(&(TheGlobalData->m_iniCRC), sizeof(TheGlobalData->m_iniCRC));
 
 	// Number of players
@@ -667,9 +683,14 @@ void RecorderClass::startRecording(GameDifficulty diff, GameMode originalGameMod
 		}
 		else
 		{
+#if defined(GENONLINE)
 			GameInfo *onlineGame = GetOnlineGameHooks()->getGameInfo();
 			theSlotList = GameInfoToAsciiString(onlineGame);
 			localIndex = onlineGame->getLocalSlotNum();
+#else
+			theSlotList = GameInfoToAsciiString(TheGameSpyGame);
+			localIndex = TheGameSpyGame->getLocalSlotNum();
+#endif
 		}
 	}
 	else
@@ -1157,7 +1178,11 @@ Bool RecorderClass::replayMatchesGameVersion(const ReplayHeader& header)
 		return false;
 	if (header.versionNumber != TheVersion->getVersionNumber())
 		return false;
+#if defined(GENONLINE)
 	if (!isReplayExeCRCCompatible(header.exeCRC))
+#else
+	if (header.exeCRC != TheGlobalData->m_exeCRC)
+#endif
 		return false;
 	if (header.iniCRC != TheGlobalData->m_iniCRC)
 		return false;
@@ -1240,6 +1265,7 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 		return FALSE;
 	}
 
+#if defined(GENONLINE)
 #ifdef DEBUG_LOGGING
 	Bool viaCompatibleList = FALSE;
 	if (isReplayExeCRCCompatible(header.exeCRC, &viaCompatibleList) && viaCompatibleList)
@@ -1248,11 +1274,16 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 	}
 #endif
 
+#endif
 #ifdef DEBUG_CRASHING
 	Bool versionStringDiff = header.versionString != TheVersion->getUnicodeVersion();
 	Bool versionTimeStringDiff = header.versionTimeString != TheVersion->getUnicodeBuildTime();
 	Bool versionNumberDiff = header.versionNumber != TheVersion->getVersionNumber();
+#if defined(GENONLINE)
 	Bool exeCRCDiff = !isReplayExeCRCCompatible(header.exeCRC);
+#else
+	Bool exeCRCDiff = header.exeCRC != TheGlobalData->m_exeCRC;
+#endif
 	Bool exeDifferent = versionStringDiff || versionTimeStringDiff || versionNumberDiff || exeCRCDiff;
 	Bool iniDifferent = header.iniCRC != TheGlobalData->m_iniCRC;
 
@@ -1283,7 +1314,11 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 		}
 		if (exeCRCDiff)
 		{
+#if defined(GENONLINE)
 			tempStr.format("   CRC %8.8X vs %8.8X\n", getReplayExeCRC(), header.exeCRC);
+#else
+			tempStr.format("   CRC %8.8X vs %8.8X\n", TheGlobalData->m_exeCRC, header.exeCRC);
+#endif
 			debugString.concat(tempStr);
 		}
 	}
@@ -1776,8 +1811,13 @@ AsciiString RecorderClass::getLastReplayFileName()
 		GameInfo *game = nullptr;
 		if (TheLAN)
 			game = TheLAN->GetMyGame();
+#if defined(GENONLINE)
 		else if (GetOnlineGameHooks()->isLoggedIn())
 			game = GetOnlineGameHooks()->getGameInfo();
+#else
+		else if (TheGameSpyInfo)
+			game = TheGameSpyGame;
+#endif
 		if (game)
 		{
 			AsciiString players;

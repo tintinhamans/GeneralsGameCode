@@ -47,7 +47,9 @@
 #include "GameNetwork/NAT.h"
 #include "GameNetwork/NetCommandWrapperList.h"
 #include "GameNetwork/networkutil.h"
+#if defined(GENONLINE)
 #include "GameNetwork/TransportFactory.h"
+#endif
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/ScriptActions.h"
 #include "GameLogic/ScriptEngine.h"
@@ -55,6 +57,7 @@
 #include "GameClient/DisconnectMenu.h"
 #include "GameClient/InGameUI.h"
 #include "WWLib/TARGA.h"
+#if defined(GENONLINE)
 
 #include "../GenOnlineTransport.h"
 #include "../NetworkMesh.h"
@@ -70,6 +73,7 @@
 Int MIN_RUNAHEAD = 4;
 #endif
 
+#endif
 #if defined(GENONLINE)
 static const Int FAST_DROP_DEAD_MS = 1000;	// dead time between steps of a fast drop
 static const Int SLOW_PRODUCER_FPS = LOGICFRAMES_PER_SECOND * 3 / 4;	// a player that renders slower than this cannot keep the others fed
@@ -233,7 +237,9 @@ ConnectionManager::~ConnectionManager()
 #if defined(GENONLINE)
 	clearSignatureState(TRUE);
 #endif
+#if defined(GENONLINE)
 
+#endif
 	deleteInstance(m_localUser);
 	m_localUser = nullptr;
 
@@ -282,8 +288,10 @@ ConnectionManager::ConnectionManager()
 {
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
 		m_frameData[i] = nullptr;
+#if defined(GENONLINE)
 		m_lastSeenCommandID[i] = 0;
 		m_haveLastSeenCommandID[i] = FALSE;
+#endif
 	}
 	m_transport = nullptr;
 	m_disconnectManager = nullptr;
@@ -324,7 +332,9 @@ void ConnectionManager::init()
 	TheWritableGlobalData->m_networkDisconnectTime = m_networkSettings.disconnect.freeze_before_screen_ms;
 	TheWritableGlobalData->m_networkPlayerTimeoutTime = m_networkSettings.disconnect.remove_after_ms;
 #endif
+#if defined(GENONLINE)
 
+#endif
 //	if (m_transport == nullptr) {
 //		m_transport = new Transport;
 //	}
@@ -354,10 +364,14 @@ void ConnectionManager::init()
 	m_packetRouterSlot = 0; /// @todo The LAN/WOL interface should be telling us who the packet router is based on machine specs passed around through game options.
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		m_packetRouterFallback[i] = -1;
+#if defined(GENONLINE)
 		m_lastSeenCommandID[i] = 0;
 		m_haveLastSeenCommandID[i] = FALSE;
+#endif
 	}
+#if defined(GENONLINE)
 	m_currentSenderSlot = -1;
+#endif
 
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		deleteInstance(m_frameData[i]);
@@ -372,9 +386,12 @@ void ConnectionManager::init()
 	}
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		m_latencyAverages[i] = 0.0; // using zero since all floating point standards should be able to specify 0.0 accurately.
+#if defined(GENONLINE)
 		m_runAheadMetricsReceived[i] = FALSE;
+#endif
 	}
 	m_smallestPacketArrivalCushion = -1;
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 	m_currentSenderSlot = -1;
 	m_outFrameAskedSlot = -1;
@@ -382,6 +399,7 @@ void ConnectionManager::init()
 	m_outFrameAskedTime = 0;
 #endif
 	m_lastRunAheadDecisionTime = 0;
+#endif
 #if defined(GENONLINE)
 	m_fastDropStep = FALSE;
 	m_stallActive = FALSE;
@@ -523,15 +541,25 @@ void ConnectionManager::reset()
 #endif
 	m_packetRouterSlot = -1;
 
+#if defined(GENONLINE)
 	for (i = 0; i < (UnsignedInt)MAX_SLOTS; ++i) {
+#else
+	for (i = 0; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
+#endif
 		m_fpsAverages[i] = -1;
 	}
+#if defined(GENONLINE)
 	for (i = 0; i < (UnsignedInt)MAX_SLOTS; ++i) {
+#else
+	for (i = 0; i < TheGlobalData->m_networkLatencyHistoryLength; ++i) {
+#endif
 		m_latencyAverages[i] = 0.0;
 	}
+#if defined(GENONLINE)
 	for (i = 0; i < (UnsignedInt)MAX_SLOTS; ++i) {
 		m_runAheadMetricsReceived[i] = FALSE;
 	}
+#endif
 
 	for (i = 0; i < (UnsignedInt)MAX_SLOTS; ++i) {
 		m_packetRouterFallback[i] = -1;
@@ -1363,7 +1391,9 @@ void ConnectionManager::expireHeldChats(time_t now) {
 	}
 }
 #endif
+#if defined(GENONLINE)
 
+#endif
 /**
  * ConnectionManager::doRelay()
  * Queries the transport for commands that need to be relayed to another client.
@@ -1400,6 +1430,7 @@ void ConnectionManager::doRelay() {
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[SECURITY] the transport does not say who sent a packet (anticheat plugin path), commands are not checked against their sender");
 			}
 #endif
+#if defined(GENONLINE)
 
 #if !RETAIL_COMPATIBLE_NETWORKING
 #if defined(GENONLINE)
@@ -1409,11 +1440,14 @@ void ConnectionManager::doRelay() {
 #endif
 #endif
 
+#endif
 			// Iterate through the commands in this packet and send them to the proper connections.
 			for (NetCommandRef* cmd = cmdList->getFirstMessage(); cmd; cmd = cmd->getNext()) {
 				//DEBUG_LOG(("ConnectionManager::doRelay() - Looking at a command of type %s",
 					//GetNetCommandTypeAsString(cmd->getCommand()->getNetCommandType())));
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 				if (senderSlot == -1 || (senderSlot >= 0 && !isCommandFromSender(cmd->getCommand(), senderSlot))) {
 					continue; // not acked and not processed
@@ -1449,10 +1483,12 @@ void ConnectionManager::doRelay() {
 		}
 	}
 
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 	m_currentSenderSlot = -1;
 #endif
 
+#endif
 	NetCommandList *cmdList = m_netCommandWrapperList->getReadyCommands();
 	for (NetCommandRef* cmd = cmdList->getFirstMessage(); cmd; cmd = cmd->getNext()) {
 #if defined(GENONLINE)
@@ -1491,6 +1527,7 @@ Bool ConnectionManager::processNetCommand(NetCommandRef *ref) {
 	NetCommandMsg *msg = ref->getCommand();
 	NetCommandType cmdType = msg->getNetCommandType();
 
+#if defined(GENONLINE)
 	// Track the command ids of each player, the ids far away from them are free for passed on frame infos.
 	if (DoesCommandRequireACommandID(cmdType) && msg->getPlayerID() < MAX_SLOTS && msg->getPlayerID() != m_localSlot) {
 		const UnsignedInt from = msg->getPlayerID();
@@ -1501,6 +1538,7 @@ Bool ConnectionManager::processNetCommand(NetCommandRef *ref) {
 		}
 	}
 
+#endif
 	// Handle ACK commands first (before connection validation)
 	if ((cmdType == NETCOMMANDTYPE_ACKSTAGE1) ||
 			(cmdType == NETCOMMANDTYPE_ACKSTAGE2) ||
@@ -1606,7 +1644,9 @@ Bool ConnectionManager::processNetCommand(NetCommandRef *ref) {
 			processSignatures((NetSignaturesCommandMsg *)msg);
 			return FALSE;
 #endif
+#if defined(GENONLINE)
 
+#endif
 		case NETCOMMANDTYPE_FILE:
 			processFile((NetFileCommandMsg *)msg);
 			return FALSE;
@@ -1702,7 +1742,9 @@ void ConnectionManager::processRunAheadMetrics(NetRunAheadMetricsCommandMsg *msg
 	if (isPlayerConnected(playerID)) {
 		m_latencyAverages[playerID] = msg->getAverageLatency();
 		m_fpsAverages[playerID] = msg->getAverageFps();
+#if defined(GENONLINE)
 		m_runAheadMetricsReceived[playerID] = TRUE;
+#endif
 #if defined(GENONLINE)
 		if (timeGetTime() >= m_ctlIgnoreUntil) {
 			for (Int sender = 0; sender < MAX_SLOTS; ++sender) {
@@ -1718,8 +1760,10 @@ void ConnectionManager::processRunAheadMetrics(NetRunAheadMetricsCommandMsg *msg
 		}
 #endif
 		//DEBUG_LOG(("ConnectionManager::processRunAheadMetrics - player %d, fps = %d, latency = %f", playerID, msg->getAverageFps(), msg->getAverageLatency()));
+#if defined(GENONLINE)
 
 		// GENONLINE_CHANGE: Modern machines render well above 100 fps even in the foreground.
+#endif
 #if defined(GENONLINE)
 		if (m_fpsAverages[playerID] > 1000) {
 			m_fpsAverages[playerID] = 1000;
@@ -1811,10 +1855,15 @@ void ConnectionManager::processChat(NetChatCommandMsg *msg)
 		}
 		else
 #endif
+#if defined(GENONLINE)
 		{
 			AudioEventRTS audioEvent("GUICommunicatorIncoming");
 			TheAudio->addAudioEvent(&audioEvent);
 		}
+#else
+		AudioEventRTS audioEvent("GUICommunicatorIncoming");
+		TheAudio->addAudioEvent(&audioEvent);
+#endif
 	}
 }
 
@@ -1822,9 +1871,13 @@ void ConnectionManager::processFile(NetFileCommandMsg *msg)
 {
 #ifdef DEBUG_LOGGING
 	UnicodeString log;
+#if defined(GENONLINE)
 	UnicodeString uFilename;
 	uFilename.translate(msg->getPortableFilename());
 	log.format(L"Saw file transfer: '%s' of %d bytes from %d", uFilename.str(), msg->getFileLength(), msg->getPlayerID());
+#else
+	log.format(L"Saw file transfer: '%hs' of %d bytes from %d", msg->getPortableFilename().str(), msg->getFileLength(), msg->getPlayerID());
+#endif
 	DEBUG_LOG(("%ls", log.str()));
 #endif
 
@@ -2065,6 +2118,7 @@ void ConnectionManager::processAckStage1(NetCommandMsg *msg) {
 	}
 
 	if (ref != nullptr) {
+#if defined(GENONLINE)
 		if (ref->getCommand()->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO || ref->getCommand()->getNetCommandType() == NETCOMMANDTYPE_SIGNEDFRAMEINFO) {
 			const UnsignedInt ackedFrame = ref->getCommand()->getExecutionFrame();
 #if defined(GENONLINE)
@@ -2075,6 +2129,10 @@ void ConnectionManager::processAckStage1(NetCommandMsg *msg) {
 			{
 				m_frameMetrics.processLatencyResponse(ackedFrame);
 			}
+#else
+		if (ref->getCommand()->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO) {
+			m_frameMetrics.processLatencyResponse(((NetFrameCommandMsg *)(ref->getCommand()))->getExecutionFrame());
+#endif
 		}
 
 		deleteInstance(ref);
@@ -2291,6 +2349,7 @@ void ConnectionManager::ackCommand(NetCommandRef *ref, UnsignedInt localSlot) {
 
 	ackmsg->setPlayerID(localSlot); // Tell the player who this ack is coming from.
 
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 	// a peer other than the router that passed on a command of another player waits for the ack itself
 	if ((m_currentSenderSlot >= 0) && (m_currentSenderSlot != (Int)msg->getPlayerID()) && (m_currentSenderSlot != (Int)m_packetRouterSlot) && (m_connections[m_currentSenderSlot] != nullptr)) {
@@ -2309,6 +2368,9 @@ void ConnectionManager::ackCommand(NetCommandRef *ref, UnsignedInt localSlot) {
 	}
 #endif
 	if (ackDirectly) {
+#else
+	if (CommandRequiresDirectSend(msg) && CommandRequiresAck(msg)) {
+#endif
 		// Send this ack directly back to the sending player, don't go through the packet router.
 		if (msg->getPlayerID() < MAX_SLOTS) {
 			if (m_connections[msg->getPlayerID()] != nullptr) {
@@ -2360,11 +2422,17 @@ void ConnectionManager::sendRemoteCommand(NetCommandRef *msg) {
 	const UnsignedByte relay = msg->getRelay();
 	const UnsignedInt playerID = msg->getCommand()->getPlayerID();
 	FrameDataManager *frameDataMgr = playerID < MAX_SLOTS ? m_frameData[playerID] : nullptr;
+#if defined(GENONLINE)
 	Bool isNew = TRUE;
+#endif
 	if ((relay & (1 << m_localSlot)) && (frameDataMgr != nullptr)) {
 		if (IsCommandSynchronized(msg->getCommand()->getNetCommandType())) {
 			DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::sendRemoteCommand - adding net command of type %s to player %d for frame %d", GetNetCommandTypeAsString(msg->getCommand()->getNetCommandType()), msg->getCommand()->getPlayerID(), msg->getCommand()->getExecutionFrame()));
+#if defined(GENONLINE)
 			isNew = frameDataMgr->addNetCommandMsg(msg->getCommand());
+#else
+			frameDataMgr->addNetCommandMsg(msg->getCommand());
+#endif
 #if defined(GENONLINE)
 			if (isNew && m_currentSenderSlot >= 0 && (Int)playerID != m_currentSenderSlot) {
 				noteFramePassedOn((Int)playerID, msg->getCommand()->getExecutionFrame(), m_currentSenderSlot, TRUE);
@@ -2372,7 +2440,9 @@ void ConnectionManager::sendRemoteCommand(NetCommandRef *msg) {
 #endif
 		}
 	}
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	if (!isNew) {
 		return; // a redundant copy, it was already relayed and counted
@@ -2396,7 +2466,11 @@ void ConnectionManager::sendRemoteCommand(NetCommandRef *msg) {
 	}
 
 	// Do some metrics to find the minimum packet arrival cushion.
+#if defined(GENONLINE)
 	if (isNew && IsCommandSynchronized(msg->getCommand()->getNetCommandType())) {
+#else
+	if (IsCommandSynchronized(msg->getCommand()->getNetCommandType())) {
+#endif
 //		DEBUG_LOG(("ConnectionManager::sendRemoteCommand - about to call allCommandsReady"));
 		if (allCommandsReady(msg->getCommand()->getExecutionFrame(), TRUE)) {
 			UnsignedInt cushion = msg->getCommand()->getExecutionFrame() - TheGameLogic->getFrame();
@@ -2475,6 +2549,9 @@ void ConnectionManager::update(Bool isInGame) {
 }
 
 void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didSelfSlug, Int nextExecutionFrame) {
+#if !defined(GENONLINE)
+	static time_t lasttimesent = 0;
+#endif
 	time_t curTime = timeGetTime();
 
 #if defined(GENONLINE)
@@ -2485,6 +2562,7 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 		m_fastDropStep = FALSE;
 	}
 #endif
+#if defined(GENONLINE)
 
 #if defined(GENONLINE)
 	const time_t decisionInterval = getEffectiveDecisionIntervalMs(oldRunAhead);
@@ -2497,6 +2575,9 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 	const time_t gateInterval = decisionInterval;
 #endif
 	if ((m_lastRunAheadDecisionTime == 0) || ((curTime - m_lastRunAheadDecisionTime) > gateInterval)) {
+#else
+	if ((lasttimesent == 0) || ((curTime - lasttimesent) > TheGlobalData->m_networkRunAheadMetricsTime)) {
+#endif
 #if defined(GENONLINE)
 		if (m_networkSettings.input_delay.formula.latency_window_ms <= 0) {
 			// the in-band latency is averaged over the samples since the previous decision
@@ -2513,12 +2594,11 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 //			if (didSelfSlug) {
 //				m_fpsAverages[m_localSlot] = frameRate;
 //			} else {
-			m_fpsAverages[m_localSlot] = m_frameMetrics.getAverageFPS();
-			//			}
+				m_fpsAverages[m_localSlot] = m_frameMetrics.getAverageFPS();
+//			}
 			if (didSelfSlug) {
 				//DEBUG_LOG(("ConnectionManager::updateRunAhead - local player run ahead metrics, fps = %d, actual fps = %d, latency = %f, didSelfSlug = true", m_fpsAverages[m_localSlot], m_frameMetrics.getAverageFPS(), m_latencyAverages[m_localSlot]));
-			}
-			else {
+			} else {
 				//DEBUG_LOG(("ConnectionManager::updateRunAhead - local player run ahead metrics, fps = %d, latency = %f, didSelfSlug = false", m_fpsAverages[m_localSlot], m_latencyAverages[m_localSlot]));
 			}
 			Int minFps;
@@ -2531,20 +2611,33 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 			}
 
 			// TheSuperHackers @info this clamps the logic time scale fps in network games
+#if defined(GENONLINE)
 			minFps = clamp<Int>(MIN_LOGIC_FRAMES, minFps, TheNetwork->getFrameRate());
+#else
+			minFps = clamp<Int>(MIN_LOGIC_FRAMES, minFps, TheGlobalData->m_framesPerSecondLimit);
+#endif
 			DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::updateRunAhead - minFps after adjustment is %d", minFps));
 
 			// TheSuperHackers @bugfix Mauller 21/08/2025 calculate the runahead so it always follows the latency
 			// The runahead should always be rounded up to the next integer value to prevent variations in latency from causing stutter
 			// The network slack pushes the runahead up to the next value when the latency is within the slack percentage of the current runahead
+#if defined(GENONLINE)
 
 			const Real runAheadSlackScale = 1.0f + (Real)TheGlobalData->m_networkRunAheadSlack / 100.0f;
 
 			Int newRunAhead = ceilf(getMaximumLatency() * runAheadSlackScale * (Real)minFps);
+#else
+			const Real runAheadSlackScale = 1.0f + ( (Real)TheGlobalData->m_networkRunAheadSlack / 100.0f );
+			Int newRunAhead = ceilf( getMaximumLatency() * runAheadSlackScale * (Real)minFps );
+#endif
 
 			// TheSuperHackers @info if the runahead goes below 3 logic frames it can start to introduce stutter
 			// We also limit the upper range of the runahead to prevent it getting out of hand
+#if defined(GENONLINE)
 			Int minRunAheadForClamp = MIN_RUNAHEAD;
+#else
+			newRunAhead = clamp<Int>(MIN_RUNAHEAD, newRunAhead, MAX_FRAMES_AHEAD / 2);
+#endif
 #if defined(GENONLINE)
 			minRunAheadForClamp = getRunAheadFloor();
 #endif
@@ -2563,6 +2656,7 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 			}
 			newRunAhead += repairFrames;
 #endif
+#if defined(GENONLINE)
 #if defined(GENONLINE)
 			newRunAhead = clamp<Int>(minRunAheadForClamp, newRunAhead, runAheadCap(m_networkSettings));
 #else
@@ -2587,6 +2681,11 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 			NetRunAheadCommandMsg* msg = newInstance(NetRunAheadCommandMsg);
 			msg->setPlayerID(m_localSlot);
 			if (DoesCommandRequireACommandID(msg->getNetCommandType())) {
+#else
+			NetRunAheadCommandMsg *msg = newInstance(NetRunAheadCommandMsg);
+			msg->setPlayerID(m_localSlot);
+			if (DoesCommandRequireACommandID(msg->getNetCommandType())) {
+#endif
 				msg->setID(GenerateNextCommandID());
 			}
 
@@ -2602,8 +2701,7 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 			// out in the NetFrameCommandMsg.  sheesh.
 			if (nextExecutionFrame > (TheGameLogic->getFrame() + oldRunAhead)) {
 				msg->setExecutionFrame(nextExecutionFrame);
-			}
-			else {
+			} else {
 				msg->setExecutionFrame(TheGameLogic->getFrame() + oldRunAhead);
 			}
 
@@ -2620,18 +2718,22 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 				}
 			}
 #endif
+#if defined(GENONLINE)
 
+#endif
 			msg->setRunAhead(newRunAhead);
 			msg->setFrameRate(minFps);
 #if defined(GENONLINE)
 			m_pendingRunAhead = newRunAhead;
 			m_pendingExecFrame = msg->getExecutionFrame();
 #endif
+#if defined(GENONLINE)
 
+#endif
 			//DEBUG_LOG(("ConnectionManager::updateRunAhead - new run ahead = %d, new frame rate = %d, execution frame %d", newRunAhead, minFps, msg->getExecutionFrame()));
 			sendLocalCommand(msg, 0xff ^ (1 << minFpsPlayer)); // Send the packet to everyone but the lowest FPS player.
 
-			NetRunAheadCommandMsg* msg2 = newInstance(NetRunAheadCommandMsg);
+			NetRunAheadCommandMsg *msg2 = newInstance(NetRunAheadCommandMsg);
 			msg2->setPlayerID(m_localSlot);
 			if (DoesCommandRequireACommandID(msg2->getNetCommandType())) {
 				/*
@@ -2649,13 +2751,12 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 				 * when the commands are copied places for the disconnect screen they will be seen as the
 				 * same command, and all will be good.
 				 */
-				 //				msg2->setID(GenerateNextCommandID());
+//				msg2->setID(GenerateNextCommandID());
 				msg2->setID(msg->getID());
 			}
 			if (nextExecutionFrame > (TheGameLogic->getFrame() + oldRunAhead)) {
 				msg2->setExecutionFrame(nextExecutionFrame);
-			}
-			else {
+			} else {
 				msg2->setExecutionFrame(TheGameLogic->getFrame() + oldRunAhead);
 			}
 
@@ -2665,10 +2766,15 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 			if (newMinFps == minFps) {
 				newMinFps = minFps + 1;
 			}
+#if defined(GENONLINE)
 
 
 			if (newMinFps > TheNetwork->getFrameRate()) {
 				newMinFps = TheNetwork->getFrameRate(); // Cap FPS to network frame rate.
+#else
+			if (newMinFps > 30) {
+				newMinFps = 30; // Cap FPS to 30.
+#endif
 			}
 			msg2->setRunAhead(newRunAhead);
 			msg2->setFrameRate(newMinFps);
@@ -2677,10 +2783,14 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 
 			msg->detach();
 			msg2->detach();
+#if defined(GENONLINE)
 		}
 		else if (m_packetRouterSlot != -1) {
+#else
+		} else {
+#endif
 			// We are not the packet router, send our metrics info to the packet router.
-			NetRunAheadMetricsCommandMsg* msg = newInstance(NetRunAheadMetricsCommandMsg);
+			NetRunAheadMetricsCommandMsg *msg = newInstance(NetRunAheadMetricsCommandMsg);
 			msg->setPlayerID(m_localSlot);
 			if (DoesCommandRequireACommandID(msg->getNetCommandType())) {
 				msg->setID(GenerateNextCommandID());
@@ -2706,14 +2816,14 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 //			if (didSelfSlug) {
 //				msg->setAverageFps(frameRate);
 //			} else {
-			msg->setAverageFps(m_frameMetrics.getAverageFPS());
-			//			}
+				msg->setAverageFps(m_frameMetrics.getAverageFPS());
+//			}
 			if (didSelfSlug) {
 				//DEBUG_LOG(("ConnectionManager::updateRunAhead - average latency = %f, average fps = %d, actual fps = %d, didSelfSlug = true", m_frameMetrics.getAverageLatency(), m_frameMetrics.getAverageFPS(), m_frameMetrics.getAverageFPS()));
-			}
-			else {
+			} else {
 				//DEBUG_LOG(("ConnectionManager::updateRunAhead - average latency = %f, average fps = %d, didSelfSlug = false", m_frameMetrics.getAverageLatency(), m_frameMetrics.getAverageFPS()));
 			}
+#if defined(GENONLINE)
 
 			if (m_packetRouterSlot != -1)
 			{
@@ -2723,12 +2833,22 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 					connection->sendNetCommandMsg(msg, 1 << m_packetRouterSlot);
 				}
 			}
+#else
+			m_connections[m_packetRouterSlot]->sendNetCommandMsg(msg, 1 << m_packetRouterSlot);
+#endif
 			msg->detach();
 		}
+#if defined(GENONLINE)
 		m_lastRunAheadDecisionTime = curTime;
+#else
+		lasttimesent = curTime;
+#endif
 	}
 }
 
+#if !defined(GENONLINE)
+Real ConnectionManager::getMaximumLatency() {
+#endif
 #if defined(GENONLINE)
 static Int framesToMs(Int frames) {
 	return (frames * 1000 + LOGICFRAMES_PER_SECOND - 1) / LOGICFRAMES_PER_SECOND;
@@ -3098,6 +3218,7 @@ Int ConnectionManager::decideControllerRunAhead(Int oldRunAhead, Int formulaRunA
 }
 #endif
 
+#if defined(GENONLINE)
 Real ConnectionManager::getLiveProbeLatency()
 {
 	NetworkMesh *pMesh = GenOnlineServicesManager::GetNetworkMesh();
@@ -3109,12 +3230,33 @@ Real ConnectionManager::getLiveProbeLatency()
 		const Int slot = slotForUserID(kvPair.first);
 		if (slot < 0 || slot == m_localSlot || !isPlayerConnected(slot)) {
 			continue;
+#else
+	Real lat1 = 0.0f;
+	Real lat2 = 0.0f;
+
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		if (isPlayerConnected(i)) {
+			if (m_latencyAverages[i] != 0.0f) {
+				if (m_latencyAverages[i] > lat1) {
+					lat2 = lat1;
+					lat1 = m_latencyAverages[i];
+				}
+				else if (m_latencyAverages[i] > lat2) {
+					lat2 = m_latencyAverages[i];
+				}
+			}
+#endif
 		}
+#if defined(GENONLINE)
 		highestMs = max(highestMs, kvPair.second.GetSeedLatency());
+#endif
 	}
+#if defined(GENONLINE)
 	return (Real)highestMs / 1000.0f;
 }
+#endif
 
+#if defined(GENONLINE)
 // The average of the two highest in-band round trips, the own slot carries the one to the slowest peer.
 Real ConnectionManager::getMaximumLatency()
 {
@@ -3136,6 +3278,7 @@ Real ConnectionManager::getMaximumLatency()
 			lat2 = m_latencyAverages[i];
 		}
 	}
+#endif
 	return (lat1 + lat2) / 2.0f;
 }
 
@@ -3181,7 +3324,9 @@ void ConnectionManager::processFrameTick(UnsignedInt frame) {
 	m_frameMetrics.doPerFrameMetrics(frame);
 
 	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::processFrameTick - sending frame info for frame %d, ID %d, command count %d", frame, msg->getID(), commandCount));
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	signLocalFrame(msg);
 #endif
@@ -3206,12 +3351,20 @@ void ConnectionManager::setLocalAddress(UnsignedInt ip, UnsignedInt port) {
 /**
  * Initialize the transport object
  */
+#if defined(GENONLINE)
 void ConnectionManager::initTransport(const char *transportName) {
+#else
+void ConnectionManager::initTransport() {
+#endif
 	DEBUG_ASSERTCRASH((m_transport == nullptr), ("m_transport already exists when trying to init it."));
 	DEBUG_LOG(("ConnectionManager::initTransport - Initializing Transport"));
 
 	delete m_transport;
+#if defined(GENONLINE)
 	m_transport = TransportFactory::createTransport(transportName);
+#else
+	m_transport = new Transport;
+#endif
 	m_transport->reset();
 	m_transport->init(m_localAddr, m_localPort);
 }
@@ -3258,6 +3411,7 @@ void ConnectionManager::sendLocalCommand(NetCommandMsg *msg, UnsignedByte relay 
 
 	// Send the packet to everyone else
 #if defined(GENONLINE)
+#if defined(GENONLINE)
 	const Bool sendToAll = isDirectSendActive() || (m_localSlot == m_packetRouterSlot);
 #else
 	const Bool sendToAll = (m_localSlot == m_packetRouterSlot);
@@ -3265,6 +3419,12 @@ void ConnectionManager::sendLocalCommand(NetCommandMsg *msg, UnsignedByte relay 
 	if (sendToAll) {
 		for (Int i = 0; i < MAX_SLOTS; ++i) {
 			// Send it to all open connections.
+#else
+	if (m_localSlot == m_packetRouterSlot) {
+		// I am the packet router, I need to send this packet to everyone individually.
+		for (Int i = 0; i < MAX_SLOTS; ++i) {
+			// Send it to all open connections.
+#endif
 			if (((m_connections[i] != nullptr) && (m_connections[i]->isQuitting() == FALSE)) && (relay & (1 << i))) {
 				// Set the relay mask to only go to this player so he knows not to relay it to anyone else.
 				UnsignedByte temprelay = 1 << i;
@@ -3345,10 +3505,12 @@ Bool ConnectionManager::allCommandsReady(UnsignedInt frame, Bool justTesting /* 
 			frameRetVal = m_frameData[i]->allCommandsReady(frame, (frame != commandsReadyDebugSpewage) && (justTesting == FALSE));
 			if (frameRetVal == FRAMEDATA_NOTREADY) {
 				retval = FALSE;
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 				if ((justTesting == FALSE) && (i != (Int)m_localSlot)) {
 					askForOutPlayerFrame(i, frame);
 				}
+#endif
 #endif
 			} else if (frameRetVal == FRAMEDATA_RESEND) {
 				requestFrameDataResend(i, frame);
@@ -3429,9 +3591,11 @@ void ConnectionManager::setFrameGrouping(time_t frameGrouping) {
 	// may become the latency bottleneck for sending packets from one player to the next.
 	// This is probably ok since the packet router should have the fastest connection of all
 	// the players in the game.
+#if defined(GENONLINE)
 
 	NetworkLog(ELogVerbosity::LOG_DEBUG, "ConnectionManager::setFrameGrouping Frame grouping is %I64d, is packet router %d", (Int64)frameGrouping, m_localSlot == m_packetRouterSlot);
 
+#endif
 	if (m_localSlot == m_packetRouterSlot) {
 		frameGrouping = frameGrouping / 2;
 	}
@@ -3544,13 +3708,23 @@ PlayerLeaveCode ConnectionManager::disconnectPlayer(Int slot) {
 #if defined(GENONLINE)
 		m_formerRouterMask |= (1u << m_packetRouterSlot);
 #endif
+#if defined(GENONLINE)
 		const UnsignedInt nextRouter = getNextPacketRouterSlot(m_packetRouterSlot);
 		if (nextRouter < (UnsignedInt)MAX_SLOTS) {
 			m_packetRouterSlot = nextRouter;
 		} else {
 			DEBUG_LOG(("ConnectionManager::disconnectPlayer - packet router had no valid fallback, defaulting to local slot %d", m_localSlot));
 			m_packetRouterSlot = m_localSlot;
+#else
+		Int index = 0;
+		while ((index < (MAX_SLOTS-1)) && (m_packetRouterFallback[index] != m_packetRouterSlot)) {
+			++index;
+#endif
 		}
+#if !defined(GENONLINE)
+		++index;
+		m_packetRouterSlot = m_packetRouterFallback[index];
+#endif
 		DEBUG_LOG(("Packet router left.  New packet router is slot %d", m_packetRouterSlot));
 		retval = PLAYERLEAVECODE_PACKETROUTER;
 	}
@@ -3572,7 +3746,9 @@ PlayerLeaveCode ConnectionManager::disconnectPlayer(Int slot) {
 
 	return retval;
 }
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 void ConnectionManager::playerClosedGracefully(Int64 userID)
 {
@@ -3728,7 +3904,9 @@ void ConnectionManager::parseUserList(const GameInfo *game)
 #if defined(GENONLINE)
 				m_connections[i]->setNetworkSettings(m_networkSettings, TheLAN != nullptr || m_networkSettings.send.IsDatagram());
 #endif
+#if defined(GENONLINE)
 				m_connections[i]->setSlot(i);
+#endif
 				m_connections[i]->attachTransport(m_transport);
 //				UnsignedShort port = (TheNAT)?TheNAT->getSlotPort(i):8088;
 				UnsignedShort port = slot->getPort();
@@ -3754,6 +3932,7 @@ void ConnectionManager::parseUserList(const GameInfo *game)
 	TheMemoryPoolFactory->debugSetInitFillerIndex(m_localSlot);
 #endif
 
+#if defined(GENONLINE)
 	// Set the packet router slot to the first player (packet router fallback[0])
 	// This fixes the issue where m_packetRouterSlot was hardcoded to 0 and never updated
 	if (numUsers > 0) {
@@ -3761,6 +3940,7 @@ void ConnectionManager::parseUserList(const GameInfo *game)
 		DEBUG_LOG(("Packet router slot set to %d", m_packetRouterSlot));
 	}
 
+#endif
 	/*
 	if ( numUsers < 2 || m_localSlot == -1 )
 	{
@@ -3968,9 +4148,13 @@ UnsignedShort ConnectionManager::sendFileAnnounce(AsciiString path, UnsignedByte
 	if (!theFile || !theFile->size())
 	{
 		UnicodeString log;
+#if defined(GENONLINE)
 		UnicodeString uPath;
 		uPath.translate(path);
 		log.format(L"Not sending file '%s' to %X", uPath.str(), playerMask);
+#else
+		log.format(L"Not sending file '%hs' to %X", path.str(), playerMask);
+#endif
 		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("%ls", log.str()));
 		if (TheLAN)
 			TheLAN->OnChat(L"sendFile", 0, log, LANAPI::LANCHAT_SYSTEM);
@@ -4008,9 +4192,13 @@ void ConnectionManager::sendFile(AsciiString path, UnsignedByte playerMask, Unsi
 	if (!theFile || !theFile->size())
 	{
 		UnicodeString log;
+#if defined(GENONLINE)
 		UnicodeString uPath;
 		uPath.translate(path);
 		log.format(L"Not sending file '%s' to %X", uPath.str(), playerMask);
+#else
+		log.format(L"Not sending file '%hs' to %X", path.str(), playerMask);
+#endif
 		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("%ls", log.str()));
 		if (TheLAN)
 			TheLAN->OnChat(L"sendFile", 0, log, LANAPI::LANCHAT_SYSTEM);
@@ -4019,11 +4207,13 @@ void ConnectionManager::sendFile(AsciiString path, UnsignedByte playerMask, Unsi
 
 	Int len = theFile->size();
 	char *buf = theFile->readEntireAndClose();
+#if defined(GENONLINE)
 	if (buf == nullptr)
 	{
 		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("Not sending file '%s' to %X, it could not be read", path.str(), playerMask));
 		return;
 	}
+#endif
 	NetCommandDataChunk rawDataChunk(buf, len);
 
 	// compress Targas
@@ -4160,6 +4350,7 @@ Int ConnectionManager::getAverageFPS()
 	return m_frameMetrics.getAverageFPS();
 }
 
+#if defined(GENONLINE)
 Real ConnectionManager::getSlotAverageLatency(Int slot) {
 	if ((slot < 0) || (slot >= MAX_SLOTS)) {
 		return -1.0f;
@@ -4182,6 +4373,7 @@ Bool ConnectionManager::hasRunAheadMetrics(Int slot) const {
 	return (slot >= 0) && (slot < MAX_SLOTS) && m_runAheadMetricsReceived[slot];
 }
 
+#endif
 Int ConnectionManager::getSlotAverageFPS(Int slot) {
 	if ((slot < 0) || (slot >= MAX_SLOTS)) {
 		return -1;
@@ -4194,6 +4386,7 @@ Int ConnectionManager::getSlotAverageFPS(Int slot) {
 	return m_fpsAverages[slot];
 }
 
+#if defined(GENONLINE)
 const ConnectionStats* ConnectionManager::getConnectionStats(Int slot) const {
 	if ((slot < 0) || (slot >= MAX_SLOTS) || (m_connections[slot] == nullptr)) {
 		return nullptr;
@@ -4201,6 +4394,7 @@ const ConnectionStats* ConnectionManager::getConnectionStats(Int slot) const {
 	return &m_connections[slot]->getStats();
 }
 
+#endif
 #if defined(RTS_DEBUG)
 void ConnectionManager::debugPrintConnectionCommands() {
 	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::debugPrintConnectionCommands - begin commands"));
@@ -4256,11 +4450,13 @@ void ConnectionManager::notifyOthersOfNewFrame(UnsignedInt frame) {
 	msg->detach();
 }
 
+#if defined(GENONLINE)
 // An id half the counter away from the id of the player, so a passed on frame info never collides with its commands.
 UnsignedShort ConnectionManager::generateImpersonatedCommandID(Int playerID, UnsignedInt frame) {
 	return (UnsignedShort)(((m_lastSeenCommandID[playerID] + 0x8000) & 0xF000) | (frame & 0x0FFF));
 }
 
+#endif
 void ConnectionManager::sendFrameDataToPlayer(UnsignedInt playerID, UnsignedInt startingFrame) {
 	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::sendFrameDataToPlayer - sending frame data to player %d starting with frame %d", playerID, startingFrame));
 	for (UnsignedInt frame = startingFrame; frame < TheGameLogic->getFrame(); ++frame) {
@@ -4275,20 +4471,28 @@ void ConnectionManager::sendFrameDataToPlayer(UnsignedInt playerID, UnsignedInt 
 	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::sendFrameDataToPlayer - done sending commands to player %d", playerID));
 }
 
+#if defined(GENONLINE)
 void ConnectionManager::sendSingleFrameToPlayer(UnsignedInt playerID, UnsignedInt frame, Bool ownOnly) {
 	if (frame + FRAMES_TO_KEEP < TheGameLogic->getFrame()) {
+#else
+void ConnectionManager::sendSingleFrameToPlayer(UnsignedInt playerID, UnsignedInt frame) {
+	if ((TheGameLogic->getFrame() - FRAMES_TO_KEEP) > frame) {
+#endif
 		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::sendSingleFrameToPlayer - player %d requested frame %d when we are on frame %d, this is too far in the past.", playerID, frame, TheGameLogic->getFrame()));
 		return;
 	}
 
 	UnsignedByte relay = 1 << playerID;
 
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 	const Bool isActingRouter = m_disconnectManager->isLocalPlayerNextPacketRouter(this);
 #endif
 
+#endif
 	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::sendFrameDataToPlayer - sending data for frame %d", frame));
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 		// Own data and that of a player that is out go from everyone, the rest only from the acting packet router.
 		if ((isActingRouter == FALSE) && (i != (Int)m_localSlot) && (m_disconnectManager->isPlayerOutOfGame(i, this) == FALSE)) {
@@ -4309,6 +4513,9 @@ void ConnectionManager::sendSingleFrameToPlayer(UnsignedInt playerID, UnsignedIn
 		}
 #endif
 		if ((m_frameData[i] != nullptr) && (i != playerID)) { // no need to send his own commands to him.
+#else
+		if ((m_frameData[i] != nullptr) && (i != playerID)) {
+#endif
 			// no need to send his own commands to him.
 			NetCommandList *list = m_frameData[i]->getFrameCommandList(frame);
 			if (list != nullptr) {
@@ -4324,7 +4531,11 @@ void ConnectionManager::sendSingleFrameToPlayer(UnsignedInt playerID, UnsignedIn
 			msg->setExecutionFrame(frame);
 			msg->setCommandCount(frameCommandCount);
 			if (DoesCommandRequireACommandID(msg->getNetCommandType())) {
+#if defined(GENONLINE)
 				msg->setID(i == (Int)m_localSlot ? GenerateNextCommandID() : generateImpersonatedCommandID(i, frame));
+#else
+				msg->setID(GenerateNextCommandID());
+#endif
 			}
 			msg->setPlayerID(i);
 			DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::sendFrameDataToPlayer - sending frame info from player %d to player %d for frame %d with command count %d and ID %d and relay %d", i, playerID, msg->getExecutionFrame(), msg->getCommandCount(), msg->getID(), relay));
@@ -4341,14 +4552,22 @@ void ConnectionManager::sendSingleFrameToPlayer(UnsignedInt playerID, UnsignedIn
 
 UnsignedInt ConnectionManager::getNextPacketRouterSlot(UnsignedInt playerID) {
 	Int index = 0;
+#if defined(GENONLINE)
 	while ((index < MAX_SLOTS) && (m_packetRouterFallback[index] != playerID)) {
+#else
+	while ((index < (MAX_SLOTS-1)) && (m_packetRouterFallback[index] != playerID)) {
+#endif
 		++index;
 	}
 	++index;
+#if defined(GENONLINE)
 	if (index < MAX_SLOTS) {
 		return m_packetRouterFallback[index];
 	}
 	return MAX_SLOTS; // No valid next packet router; caller checks for >= MAX_SLOTS
+#else
+	return m_packetRouterFallback[index];
+#endif
 }
 
 void ConnectionManager::requestFrameDataResend(Int playerID, UnsignedInt frame) {
@@ -4359,6 +4578,7 @@ void ConnectionManager::requestFrameDataResend(Int playerID, UnsignedInt frame) 
 		msg->setID(GenerateNextCommandID());
 	}
 
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 	// A player that is out answers no more, so the others that may hold its frames are asked instead.
 	if (m_disconnectManager->isPlayerOutOfGame(playerID, this) == TRUE) {
@@ -4368,6 +4588,7 @@ void ConnectionManager::requestFrameDataResend(Int playerID, UnsignedInt frame) 
 	}
 #endif
 
+#endif
 	if (isPlayerConnected(playerID) == FALSE) {
 		playerID = 0;
 		while ((playerID < MAX_SLOTS) && (isPlayerConnected(playerID) == FALSE)) {
@@ -4382,6 +4603,7 @@ void ConnectionManager::requestFrameDataResend(Int playerID, UnsignedInt frame) 
 	msg->detach();
 }
 
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 void ConnectionManager::askForOutPlayerFrame(Int slot, UnsignedInt frame) {
 	if (m_disconnectManager->isPlayerOutOfGame(slot, this) == FALSE) {
@@ -4514,3 +4736,5 @@ Int ConnectionManager::getSlotOfAddress(UnsignedInt addr, UnsignedShort port) {
 	}
 	return -1;
 }
+
+#endif

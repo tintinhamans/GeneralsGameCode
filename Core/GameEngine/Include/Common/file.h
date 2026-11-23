@@ -105,9 +105,11 @@ class File : public MemoryPoolObject
 			// NOTE: accesses file with full buffering if neither LINEBUF and FULLBUF are set
 			LINEBUF   = 0x00000200,				///< Access file with line buffering
 			FULLBUF   = 0x00000400,				///< Access file with full buffering
+#if defined(GENONLINE)
 
 			// GenOnline @feature arcticdolphin 21/11/2026 Other processes cannot open the file while it is open, only honoured by LocalFile
 			EXCLUSIVE = 0x00000800,				///< Deny all sharing while the file is open
+#endif
 		};
 
 		enum seekMode

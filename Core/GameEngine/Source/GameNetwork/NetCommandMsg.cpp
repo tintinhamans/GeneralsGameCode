@@ -27,7 +27,9 @@
 
 #include "GameNetwork/NetCommandMsg.h"
 #include "GameNetwork/NetPacketStructs.h"
+#if defined(GENONLINE)
 #include "GameNetwork/NetCommandRef.h"
+#endif
 #include "GameNetwork/GameMessageParser.h"
 #include "Common/GameState.h"
 #include "Common/PlayerList.h"
@@ -155,7 +157,9 @@ GameMessage *NetGameCommandMsg::constructGameMessage() const
 	GameMessage *retval = newInstance(GameMessage)(m_type);
 
 	retval->friend_setPlayerIndex(ThePlayerList->getPlayerFromSlotIndex(getPlayerID())->getPlayerIndex());
+#if defined(GENONLINE)
 //	retval->friend_setPlayerIndex(indexFromMask(ThePlayerList->findPlayerWithNameKey(TheNameKeyGenerator->nameToKey(name))->getPlayerMask()));
+#endif
 
 	for (size_t i = 0; i < m_argList.size(); ++i) {
 		const GameMessageArgument* arg = m_argList[i];
@@ -195,7 +199,11 @@ GameMessage *NetGameCommandMsg::constructGameMessage() const
 			retval->appendWideCharArgument(arg->m_data.wChar);
 			break;
 
+#if defined(GENONLINE)
 		} // switch (arg->m_type)
+#else
+		}
+#endif
 	}
 	return retval;
 }
@@ -345,6 +353,7 @@ NetAckStage2CommandMsg::~NetAckStage2CommandMsg() {
 NetFrameCommandMsg::NetFrameCommandMsg() {
 	m_commandCount = 0;
 	m_commandType = NETCOMMANDTYPE_FRAMEINFO;
+#if defined(GENONLINE)
 	m_hasSignature = FALSE;
 	memset(m_signature, 0, sizeof(m_signature));
 }
@@ -363,6 +372,7 @@ size_t NetFrameCommandMsg::readMessageData(NetCommandRef& ref, NetPacketBuf buf)
 		return size;
 	}
 	return SmallNetPacketFrameCommand::CommandData::readMessage(ref, buf);
+#endif
 }
 
 /**
@@ -638,9 +648,11 @@ NetCommandMsg::Select NetDisconnectKeepAliveCommandMsg::getSmallNetPacketSelect(
 NetDisconnectPlayerCommandMsg::NetDisconnectPlayerCommandMsg() {
 	m_commandType = NETCOMMANDTYPE_DISCONNECTPLAYER;
 	m_disconnectSlot = 0;
+#if defined(GENONLINE)
 	m_disconnectFrame = 0;
 	m_hasSignature = FALSE;
 	memset(m_signature, 0, sizeof(m_signature));
+#endif
 }
 
 /**
@@ -663,11 +675,13 @@ void NetDisconnectPlayerCommandMsg::setDisconnectSlot(UnsignedByte slot) {
 	m_disconnectSlot = slot;
 }
 
+#if defined(GENONLINE)
 void NetDisconnectPlayerCommandMsg::setSignature(const UnsignedByte *signature) {
 	memcpy(m_signature, signature, sizeof(m_signature));
 	m_hasSignature = TRUE;
 }
 
+#endif
 /**
  * Sets the disconnect frame
  */
@@ -1286,6 +1300,7 @@ NetCommandMsg::Select NetTimeOutGameStartCommandMsg::getSmallNetPacketSelect() c
 	select.useCommandId = 1;
 	return select;
 }
+#if defined(GENONLINE)
 
 NetSignedFrameCommandMsg::NetSignedFrameCommandMsg() {
 	m_commandType = NETCOMMANDTYPE_SIGNEDFRAMEINFO;
@@ -1348,3 +1363,4 @@ NetCommandMsg::Select NetSignaturesCommandMsg::getSmallNetPacketSelect() const {
 	select.useCommandId = 1;
 	return select;
 }
+#endif

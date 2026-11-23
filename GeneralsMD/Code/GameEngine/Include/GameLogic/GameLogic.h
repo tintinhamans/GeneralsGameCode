@@ -39,8 +39,10 @@
 #include "GameLogic/GameMode.h"
 #include "GameLogic/Module/UpdateModule.h"	// needed for DIRECT_UPDATEMODULE_ACCESS
 
+#if defined(GENONLINE)
 #include "../GenOnlineDefines.h"
 
+#endif
 /*
 	At one time, we distinguished between sleepy and nonsleepy
 	update modules, and kept a separate list for each. however,
@@ -105,19 +107,19 @@ public:
 	void preUpdate();
 
 #if defined(RTS_DEBUG)
-	Int getNumberSleepyUpdates() const { return m_sleepyUpdates.size(); } //For profiling, so not in Release.
+	Int getNumberSleepyUpdates() const {return m_sleepyUpdates.size();} //For profiling, so not in Release.
 #endif
-	void processCommandList(CommandList* list);		///< process the command list
+	void processCommandList( CommandList *list );		///< process the command list
 
-	void prepareNewGame(GameMode gameMode, GameDifficulty diff, Int rankPoints);						///< prepare for new game
+	void prepareNewGame( GameMode gameMode, GameDifficulty diff, Int rankPoints );						///< prepare for new game
 
-	void logicMessageDispatcher(GameMessage* msg,
-		void* userData);	///< Logic command list processing
+	void logicMessageDispatcher( GameMessage *msg,
+																			 void *userData );	///< Logic command list processing
 
-	void registerObject(Object* obj);							///< Given an object, register it with the GameLogic and give it a unique ID
+	void registerObject( Object *obj );							///< Given an object, register it with the GameLogic and give it a unique ID
 
-	void addObjectToLookupTable(Object* obj);			///< add object ID to hash lookup table
-	void removeObjectFromLookupTable(Object* obj);///< remove object ID from hash lookup table
+	void addObjectToLookupTable( Object *obj );			///< add object ID to hash lookup table
+	void removeObjectFromLookupTable( Object *obj );///< remove object ID from hash lookup table
 
 	/// @todo Change this to refer to a Region3D as an extent of the world
 	void setWidth( Real width );										///< Sets the width of the world
@@ -133,10 +135,12 @@ public:
 	void setObjectIDCounter( ObjectID nextObjID ) { m_nextObjID = nextObjID; }
 	ObjectID getObjectIDCounter() { return m_nextObjID; }
 
+#if defined(GENONLINE)
 	UnsignedInt getFrameLegacy(void);
 	bool HasLegacyFrameAdvanced(void);
 
 
+#endif
 	//-----------------------------------------------------------------------------------------------
 	void setBuildableStatusOverride(const ThingTemplate* tt, BuildableStatus bs);
 	Bool findBuildableStatusOverride(const ThingTemplate* tt, BuildableStatus& bs) const;
@@ -153,18 +157,20 @@ public:
 	ObjectID allocateObjectID();							///< Returns a new unique object id
 
 	// super hack
-	void startNewGame(Bool loadSaveGame);
-	void loadMapINI(AsciiString mapName);
+	void startNewGame( Bool loadSaveGame );
+	void loadMapINI( AsciiString mapName );
 
 	void updateLoadProgress( Int progress );
 	void deleteLoadScreen();
+#if defined(GENONLINE)
 	void revealFromLoadScreen(Bool loadingSaveGame);	///< Fades the load screen out and deletes it.
+#endif
 
 	//Kris: Cut setGameLoading() and replaced with setLoadingMap() and setLoadingSave() -- reason: nomenclature
 	//void setGameLoading( Bool loading ) { m_loadingScene = loading; }
-	void setLoadingMap(Bool loading) { m_loadingMap = loading; }
-	void setLoadingSave(Bool loading) { m_loadingSave = loading; }
-	void setClearingGameData(Bool clearing) { m_clearingGameData = clearing; }
+	void setLoadingMap( Bool loading ) { m_loadingMap = loading; }
+	void setLoadingSave( Bool loading ) { m_loadingSave = loading; }
+	void setClearingGameData( Bool clearing ) { m_clearingGameData = clearing; }
 
 	void setGameMode( GameMode mode );
 	GameMode getGameMode();
@@ -213,12 +219,12 @@ public:
 	void clearGameData(Bool showScoreScreen = TRUE);														///< Clear the game data
 	void closeWindows();
 
-	void sendObjectCreated(Object* obj);
-	void sendObjectDestroyed(Object* obj);
+	void sendObjectCreated( Object *obj );
+	void sendObjectDestroyed( Object *obj );
 
 	void bindObjectAndDrawable(Object* obj, Drawable* draw);
 
-	void setGamePausedInFrame(UnsignedInt frame, Bool disableLogicTimeScale);
+	void setGamePausedInFrame( UnsignedInt frame, Bool disableLogicTimeScale );
 	UnsignedInt getGamePauseFrame() const { return m_pauseFrame; }
 	void setGamePaused( Bool paused, Bool pauseMusic = TRUE, Bool pauseInput = TRUE );
 	Bool isGamePaused();
@@ -248,7 +254,7 @@ public:
   void setSuperweaponRestriction();
 
 #ifdef DUMP_PERF_STATS
-	void getAIMetricsStatistics(UnsignedInt* numAI, UnsignedInt* numMoving, UnsignedInt* numAttacking, UnsignedInt* numWaitingForPath, UnsignedInt* overallFailedPathfinds);
+	void getAIMetricsStatistics( UnsignedInt *numAI, UnsignedInt *numMoving, UnsignedInt *numAttacking, UnsignedInt *numWaitingForPath, UnsignedInt *overallFailedPathfinds );
 	void resetOverallFailedPathfinds() { m_overallFailedPathfinds = 0; }
 	void incrementOverallFailedPathfinds() { m_overallFailedPathfinds++; }
 	UnsignedInt getOverallFailedPathfinds() const { return m_overallFailedPathfinds; }
@@ -257,8 +263,8 @@ public:
 	// NOTE: selectObject and deselectObject should be called *only* by logical things, NEVER by the
 	// client. These will cause the client to select or deselect the object, if affectClient is true.
 	// If createToSelection is TRUE, this object causes a new group to be selected.
-	void selectObject(Object* obj, Bool createNewSelection, PlayerMaskType playerMask, Bool affectClient = FALSE);
-	void deselectObject(Object* obj, PlayerMaskType playerMask, Bool affectClient = FALSE);
+	void selectObject(Object *obj, Bool createNewSelection, PlayerMaskType playerMask, Bool affectClient = FALSE);
+	void deselectObject(Object *obj, PlayerMaskType playerMask, Bool affectClient = FALSE);
 
 	// this should be called only by UpdateModule, thanks.
 	void friend_awakenUpdateModule(Object* obj, UpdateModulePtr update, UnsignedInt whenToWakeUp);
@@ -416,7 +422,7 @@ private:
 
 	/// @todo remove this hack
 	Bool m_startNewGame;
-	WindowLayout* m_background;
+	WindowLayout *m_background;
 
 	Object* m_objList;																			///< All of the objects in the world.
 	ObjectPtrHash m_objHash;																///< Used for ObjectID lookups
@@ -438,8 +444,12 @@ private:
 
 	ObjectID m_nextObjID;																		///< For allocating object id's
 
+#if defined(GENONLINE)
 	void setDefaults(Bool loadSaveGame);									///< Set default values of class object
 	void processDestroyList(void);												///< Destroy all pending objects on the destroy list
+#else
+	void processDestroyList();												///< Destroy all pending objects on the destroy list
+#endif
 
 	void destroyAllObjectsImmediate();											///< destroy, and process destroy list immediately
 
@@ -449,10 +459,10 @@ private:
 
 	GameMode m_gameMode;
 	Int m_rankLevelLimit;
-	UnsignedShort m_superweaponRestriction;
+  UnsignedShort m_superweaponRestriction;
 
-	LoadScreen* getLoadScreen(Bool loadSaveGame);
-	LoadScreen* m_loadScreen;
+	LoadScreen *getLoadScreen( Bool loadSaveGame );
+	LoadScreen *m_loadScreen;
 
 	UnsignedInt m_pauseFrame;
 	Bool m_gamePaused;
@@ -467,7 +477,9 @@ private:
 #if defined(GENONLINE)
 	Int m_progressMade[MAX_SLOTS];
 #endif
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	enum { PROGRESS_COMPLETE_TIMEOUT_PROGRESS_MADE = 30000 };							///< Timeout we wait for when we've completed our Load, if they made SOME progress
 	enum { PROGRESS_COMPLETE_TIMEOUT_ZERO_PROGRESS_MADE = 5000 };							///< Timeout we wait for when we've completed our Load, when they made zero progress
@@ -523,10 +535,12 @@ inline Bool GameLogic::isInInternetGame() const { return rts::isInternetGame(m_g
 inline Bool GameLogic::isInShellGame() const { return rts::isShellGame(m_gameMode); }
 inline Bool GameLogic::isInMultiplayerGame() const { return rts::isMultiplayerGame(m_gameMode); }
 inline Bool GameLogic::isInInteractiveGame() const { return rts::isInteractiveGame(m_gameMode); }
+#if defined(GENONLINE)
 
 // The base frame derives from the saved logic frame, so it stays correct after loading a save game.
 inline UnsignedInt GameLogic::getFrameLegacy(void) { return m_frame / LOGICFRAMES_PER_BASEFRAME; }
 inline bool GameLogic::HasLegacyFrameAdvanced(void) { return (m_frame % LOGICFRAMES_PER_BASEFRAME) == 0; }
+#endif
 inline UnsignedShort GameLogic::getSuperweaponRestriction() const { return m_superweaponRestriction; }
 
 inline Object* GameLogic::findObjectByID( ObjectID id )
@@ -543,11 +557,13 @@ inline Object* GameLogic::findObjectByID( ObjectID id )
 
 
 
+#if defined(GENONLINE)
 class GameInfo;
 class GameSlot;
 
 // Whether this slot is the local player. The initial camera and the stats exporter use the same test.
 extern Bool GameLogicIsLocalSlot(GameInfo* game, GameSlot* slot);
 
+#endif
 // the singleton
-extern GameLogic* TheGameLogic;
+extern GameLogic *TheGameLogic;

@@ -21,8 +21,10 @@
 
 #include "GameClient/View.h"
 
+#if defined(GENONLINE)
 #include "Common/GameEngine.h"
 
+#endif
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/ScriptEngine.h"
 
@@ -93,12 +95,14 @@ void FramePacer::reset()
 void FramePacer::setFramesPerSecondLimit( Int fps )
 {
 	DEBUG_LOG(("FramePacer::setFramesPerSecondLimit() - setting max fps to %d (TheGlobalData->m_useFpsLimit == %d)", fps, TheGlobalData->m_useFpsLimit));
+#if defined(GENONLINE)
 
 	// clamp FPS to at least render at same as logic
 #if defined(GENONLINE)
 	fps = std::max<int>(fps, LOGICFRAMES_PER_SECOND);
 #endif
 
+#endif
 	m_maxFPS = fps;
 }
 
@@ -142,6 +146,7 @@ Bool FramePacer::isActualFramesPerSecondLimitEnabled() const
 }
 
 Int FramePacer::getActualFramesPerSecondLimit() const
+#if defined(GENONLINE)
 {
 	const Int fps = isActualFramesPerSecondLimitEnabled() ? getFramesPerSecondLimit() : RenderFpsPreset::UncappedFpsValue;
 #if defined(GENONLINE)
@@ -149,8 +154,14 @@ Int FramePacer::getActualFramesPerSecondLimit() const
 #else
 	return fps;
 #endif
+#else
+{
+	return isActualFramesPerSecondLimitEnabled() ? getFramesPerSecondLimit() : RenderFpsPreset::UncappedFpsValue;
+#endif
 }
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 // the most the menus and the shell map render at
 static const Int MENU_FPS_LIMIT = 60;
@@ -278,7 +289,9 @@ void FramePacer::endGameSpeed()
 	m_isGameSpeedActive = FALSE;
 }
 #endif
+#if defined(GENONLINE)
 
+#endif
 Int FramePacer::getActualLogicTimeScaleFps(LogicTimeQueryFlags flags) const
 {
 	if (m_isTimeFrozen && (flags & IgnoreFrozenTime) == 0)

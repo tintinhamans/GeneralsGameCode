@@ -813,9 +813,13 @@ AudioRequest *AudioManager::allocateAudioRequest()
 //-------------------------------------------------------------------------------------------------
 void AudioManager::releaseAudioRequest( AudioRequest *requestToRelease )
 {
+#if defined(GENONLINE)
 	if (requestToRelease) {
 		deleteInstance(requestToRelease);
 	}
+#else
+	deleteInstance(requestToRelease);
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------

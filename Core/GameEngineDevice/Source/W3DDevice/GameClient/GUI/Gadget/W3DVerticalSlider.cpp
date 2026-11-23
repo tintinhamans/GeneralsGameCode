@@ -47,7 +47,9 @@
 #include <stdlib.h>
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
+#if defined(GENONLINE)
 #include "GameClient/GadgetListBox.h"
+#endif
 #include "GameClient/GadgetSlider.h"
 #include "GameClient/GameWindowGlobal.h"
 #include "GameClient/GameWindowManager.h"
@@ -66,6 +68,7 @@
 
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 
+#if defined(GENONLINE)
 static void drawVerticalThreePieceImage( const Image *top, const Image *center, const Image *bottom,
 																				 Int x, Int y, Int width, Int height )
 {
@@ -97,6 +100,7 @@ static void getKitChannel( Int columnX, Int columnWidth, Int &channelX, Int &cha
 	GadgetListBoxGetKitScrollSpan( KIT_SCROLL_SPAN_PILL, columnX, columnWidth, &channelX, &channelWidth );
 }
 
+#endif
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -227,6 +231,7 @@ void W3DGadgetVerticalSliderImageDraw( GameWindow *window,
 
 	if(topSize.y + bottomSize.y >= size.y)
 	{
+#if defined(GENONLINE)
 		Int halfHeight = size.y / 2;
 		ICoord2D topDraw, bottomDraw;
 		topDraw = topSize;
@@ -252,16 +257,27 @@ void W3DGadgetVerticalSliderImageDraw( GameWindow *window,
 			}
 		}
 
+#endif
 		// draw top end
 		start.x = origin.x + xOffset;
 		start.y = origin.y + yOffset;
+#if defined(GENONLINE)
 		end.x = start.x + topDraw.x;
 		end.y = start.y + topDraw.y;
+#else
+		end.x = origin.x + xOffset + topSize.x;
+		end.y = origin.y + size.y /2;
+#endif
 		TheWindowManager->winDrawImage(topImage, start.x, start.y, end.x, end.y);
 
 		// draw bottom end
+#if defined(GENONLINE)
 		start.y = origin.y + yOffset + size.y - bottomDraw.y;
 		end.x = start.x + bottomDraw.x;
+#else
+		start.y = origin.y + size.y /2;
+		end.x = origin.x + xOffset + bottomSize.x;
+#endif
 		end.y = origin.y + yOffset + size.y;
 		TheWindowManager->winDrawImage(bottomImage, start.x, start.y, end.x, end.y);
 	}
@@ -335,6 +351,7 @@ void W3DGadgetVerticalSliderImageDraw( GameWindow *window,
 
 }
 
+#if defined(GENONLINE)
 //=============================================================================
 // GenOnline @feature arcticdolphin 08/11/2026 Draw the list scroll track as a rounded channel when the GO kit scroll images exist.
 void W3DGadgetVerticalSliderKitTrackDraw( GameWindow *window, WinInstanceData *instData )
@@ -375,4 +392,5 @@ void W3DGadgetVerticalSliderKitThumbDraw( GameWindow *window, WinInstanceData *i
 															 channelX, origin.y, channelWidth, size.y );
 }
 
+#endif
 

@@ -75,8 +75,10 @@
 #include "static_sort_list.h"
 #include "shdlib.h"
 #include "framgrab.h"
+#if defined(GENONLINE)
 
 #include "../../../GameEngine/Include/GameNetwork/GenOnline/GenOnlineDefines.h"
+#endif
 #include "Lib/BaseType.h"
 
 

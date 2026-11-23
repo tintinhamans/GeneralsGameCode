@@ -1506,6 +1506,9 @@ static Bool warnSegments = true;
 //=============================================================================
 void W3DRoadBuffer::addMapObject(RoadSegment *pRoad, Bool updateTheCounts)
 {
+#if !defined(GENONLINE)
+
+#endif
 #if defined(GENONLINE)
 	if (m_roads == nullptr)
 	{

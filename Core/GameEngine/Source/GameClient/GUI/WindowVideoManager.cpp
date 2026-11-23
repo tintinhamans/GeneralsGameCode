@@ -124,8 +124,10 @@ void WindowVideo::init( GameWindow *win, AsciiString movieName,
 void WindowVideo::setWindowState( WindowVideoStates state )
 {
 	m_state = state;
+#if defined(GENONLINE)
 	if (m_videoStream)
 		m_videoStream->setPaused(state != WINDOW_VIDEO_STATE_PLAY);
+#endif
 
 	if(m_state == WINDOW_VIDEO_STATE_STOP && m_win)
 		m_win->winGetInstanceData()->setVideoBuffer( nullptr );
@@ -232,9 +234,10 @@ void WindowVideoManager::update()
 
 		if ( videoStream && videoBuffer )
 		{
-			if (videoStream->isFrameReady())
+			if ( videoStream->isFrameReady())
 			{
 				videoStream->frameDecompress();
+#if defined(GENONLINE)
 				videoStream->frameRender(videoBuffer);
 				if (!videoStream->isPlaybackComplete())
 					videoStream->frameNext();
@@ -247,6 +250,19 @@ void WindowVideoManager::update()
 					pauseMovie(win);
 				else
 					videoStream->frameGoto(0);
+#else
+				videoStream->frameRender( videoBuffer );
+				videoStream->frameNext();
+
+				// If we reach frame Index of 0, we might have to pause, or loop.
+				if ( videoStream->frameIndex() == 0 )
+				{
+					if(winVid->getPlayType() == WINDOW_PLAY_MOVIE_ONCE)
+						stopMovie(win);
+					else if (winVid->getPlayType() == WINDOW_PLAY_MOVIE_SHOW_LAST_FRAME)
+						pauseMovie(win);
+				}
+#endif
 			}
 		}
 

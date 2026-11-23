@@ -53,12 +53,15 @@
 #include "Common/StatsExporter.h"
 #endif
 #include "Common/version.h"
+#if defined(GENONLINE)
 #include "GameNetwork/Online/IOnlineGameHooks.h"
+#endif
 #include <Utility/bit_adapter.h>
 
 constexpr const char s_genrep[] = "GENREP";
 constexpr const UnsignedInt replayBufferBytes = 8192;
 
+#if defined(GENONLINE)
 // The exe CRC written to replays, RTS_REPLAY_EXE_CRC if set.
 static UnsignedInt getReplayExeCRC()
 {
@@ -93,10 +96,11 @@ static Bool isReplayExeCRCCompatible(UnsignedInt crc, Bool* viaCompatibleList = 
 	return FALSE;
 }
 
+#endif
 Int REPLAY_CRC_INTERVAL = 100;
 
-const char* replayExtention = ".rep";
-const char* lastReplayFileName = "00000000";	// a name the user is unlikely to ever type, but won't cause panic & confusion
+const char *replayExtention = ".rep";
+const char *lastReplayFileName = "00000000";	// a name the user is unlikely to ever type, but won't cause panic & confusion
 
 // TheSuperHackers @tweak helmutbuhler 25/04/2025
 // The replay header contains two time fields; startTime and endTime of type time_t.
@@ -291,7 +295,7 @@ void RecorderClass::cleanUpReplayFile()
 #if defined(RTS_DEBUG)
 	if (TheGlobalData->m_saveStats)
 	{
-		char fname[_MAX_PATH + 1];
+		char fname[_MAX_PATH+1];
 		strlcpy(fname, TheGlobalData->m_baseStatsDir.str(), ARRAY_SIZE(fname));
 		strlcat(fname, m_fileName.str(), ARRAY_SIZE(fname));
 		DEBUG_LOG(("Saving replay to %s", fname));
@@ -308,7 +312,7 @@ void RecorderClass::cleanUpReplayFile()
 		debugFname.truncateBy(3);
 		debugFname.concat("txt");
 		UnsignedInt fileSize = 0;
-		FILE* fp = fopen(logFileName, "rb");
+		FILE *fp = fopen(logFileName, "rb");
 		if (fp)
 		{
 			fseek(fp, 0, SEEK_END);
@@ -327,14 +331,14 @@ void RecorderClass::cleanUpReplayFile()
 		else
 		{
 			DEBUG_LOG(("manual copy of %s", logFileName));
-			FILE* ifp = fopen(logFileName, "rb");
-			FILE* ofp = fopen(debugFname.str(), "wb");
+			FILE *ifp = fopen(logFileName, "rb");
+			FILE *ofp = fopen(debugFname.str(), "wb");
 			if (ifp && ofp)
 			{
-				fseek(ifp, fileSize - MAX_DEBUG_SIZE, SEEK_SET);
+				fseek(ifp, fileSize-MAX_DEBUG_SIZE, SEEK_SET);
 				char buf[4096];
 				Int len;
-				while ((len = fread(buf, 1, 4096, ifp)) > 0)
+				while ( (len=fread(buf, 1, 4096, ifp)) > 0 )
 				{
 					fwrite(buf, 1, len, ofp);
 				}
@@ -432,8 +436,7 @@ void RecorderClass::reset() {
 void RecorderClass::update() {
 	if (m_mode == RECORDERMODETYPE_RECORD || m_mode == RECORDERMODETYPE_NONE) {
 		updateRecord();
-	}
-	else if (isPlaybackMode()) {
+	} else if (isPlaybackMode()) {
 		updatePlayback();
 	}
 }
@@ -474,10 +477,12 @@ void RecorderClass::updatePlayback() {
  * reaching the end of the playback file.
  */
 void RecorderClass::stopPlayback() {
+#if defined(GENONLINE)
 	// playback files live in the replay dir and m_currentReplayFilename is a bare name
 	AsciiString finishedReplayPath = getReplayDir();
 	finishedReplayPath.concat(m_currentReplayFilename);
 
+#endif
 	if (m_file != nullptr) {
 		m_file->close();
 		m_file = nullptr;
@@ -502,12 +507,12 @@ void RecorderClass::updateRecord()
 {
 	Bool needFlush = FALSE;
 	static Int lastFrame = -1;
-	GameMessage* msg = TheCommandList->getFirstMessage();
+	GameMessage *msg = TheCommandList->getFirstMessage();
 	while (msg != nullptr) {
 		if (msg->getType() == GameMessage::MSG_NEW_GAME &&
-			msg->getArgument(0)->integer != GAME_SHELL &&
-			msg->getArgument(0)->integer != GAME_SINGLE_PLAYER && // Due to the massive amount of scripts that use <local player> in GC and single player, replays have been cut for them.
-			msg->getArgument(0)->integer != GAME_NONE)
+			 msg->getArgument(0)->integer != GAME_SHELL &&
+			 msg->getArgument(0)->integer != GAME_SINGLE_PLAYER && // Due to the massive amount of scripts that use <local player> in GC and single player, replays have been cut for them.
+			 msg->getArgument(0)->integer != GAME_NONE)
 		{
 			const GameMode originalGameMode = (GameMode)msg->getArgument(0)->integer;
 			DEBUG_LOG(("RecorderClass::updateRecord() - original game is mode %d", originalGameMode));
@@ -535,11 +540,10 @@ void RecorderClass::updateRecord()
 			LocalApiLiveMatchEnded(AsciiString::TheEmptyString, FALSE);
 #endif
 			m_fileName.clear();
-		}
-		else {
+		} else {
 			if (m_file != nullptr) {
 				if ((msg->getType() > GameMessage::MSG_BEGIN_NETWORK_MESSAGES) &&
-					(msg->getType() < GameMessage::MSG_END_NETWORK_MESSAGES)) {
+						(msg->getType() < GameMessage::MSG_END_NETWORK_MESSAGES)) {
 					// Only write the important messages to the file.
 					writeToFile(msg);
 					needFlush = TRUE;
@@ -575,12 +579,18 @@ void RecorderClass::startRecording(GameDifficulty diff, GameMode originalGameMod
 	m_fileName = getLastReplayFileName();
 	m_fileName.concat(getReplayExtention());
 	filepath.concat(m_fileName);
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 Lock the replay while it is written, a second instance on the same profile then records nothing
 	m_file = TheFileSystem->openFile(filepath.str(), File::WRITE | File::BINARY | File::EXCLUSIVE);
+#else
+	m_file = TheFileSystem->openFile(filepath.str(), File::WRITE | File::BINARY);
+#endif
 	if (m_file == nullptr) {
 		DEBUG_ASSERTCRASH(m_file != nullptr, ("Failed to create replay file"));
+#if defined(GENONLINE)
 		// GenOnline @feature arcticdolphin 21/11/2026 The game carries on without recording when the replay file is locked or cannot be created
 		DEBUG_LOG(("RecorderClass::startRecording: Cannot open %s, this game is not recorded", filepath.str()));
+#endif
 		return;
 	}
 #if defined(GENONLINE)
@@ -613,7 +623,7 @@ void RecorderClass::startRecording(GameDifficulty diff, GameMode originalGameMod
 	Bool flag = FALSE;
 	m_file->write(&flag, sizeof(flag));	// reserve space for flag (true if we desync)
 	m_file->write(&flag, sizeof(flag));	// reserve space for flag (true if we quit early)
-	for (Int i = 0; i < MAX_SLOTS; ++i)
+	for (Int i=0; i<MAX_SLOTS; ++i)
 	{
 		m_file->write(&flag, sizeof(flag));	// reserve space for flag (true if player i disconnects)
 	}
@@ -626,7 +636,7 @@ void RecorderClass::startRecording(GameDifficulty diff, GameMode originalGameMod
 
 	// Date and Time
 	SYSTEMTIME systemTime;
-	GetLocalTime(&systemTime);
+	GetLocalTime( &systemTime );
 	m_file->write(&systemTime, sizeof(systemTime));
 
 	// write out version info
@@ -638,8 +648,12 @@ void RecorderClass::startRecording(GameDifficulty diff, GameMode originalGameMod
 	m_file->writeFormat(L"%s", versionTimeString.str());
 	m_file->writeChar(L"\0");
 	m_file->write(&versionNumber, sizeof(versionNumber));
+#if defined(GENONLINE)
 	UnsignedInt replayExeCRC = getReplayExeCRC();
 	m_file->write(&replayExeCRC, sizeof(replayExeCRC));
+#else
+	m_file->write(&(TheGlobalData->m_exeCRC), sizeof(TheGlobalData->m_exeCRC));
+#endif
 	m_file->write(&(TheGlobalData->m_iniCRC), sizeof(TheGlobalData->m_iniCRC));
 
 	// Number of players
@@ -655,11 +669,11 @@ void RecorderClass::startRecording(GameDifficulty diff, GameMode originalGameMod
 	{
 		if (TheLAN)
 		{
-			GameInfo* game = TheLAN->GetMyGame();
+			GameInfo *game = TheLAN->GetMyGame();
 			DEBUG_ASSERTCRASH(game, ("Starting a LAN game with no LANGameInfo object!"));
 			theSlotList = GameInfoToAsciiString(game);
 
-			for (Int i = 0; i < MAX_SLOTS; ++i)
+			for (Int i=0; i<MAX_SLOTS; ++i)
 			{
 				if (game->getLocalIP() == game->getSlot(i)->getIP())
 				{
@@ -670,26 +684,31 @@ void RecorderClass::startRecording(GameDifficulty diff, GameMode originalGameMod
 		}
 		else
 		{
+#if defined(GENONLINE)
 			GameInfo *onlineGame = GetOnlineGameHooks()->getGameInfo();
 			theSlotList = GameInfoToAsciiString(onlineGame);
 			localIndex = onlineGame->getLocalSlotNum();
+#else
+			theSlotList = GameInfoToAsciiString(TheGameSpyGame);
+			localIndex = TheGameSpyGame->getLocalSlotNum();
+#endif
 		}
 	}
 	else
 	{
-		if (TheSkirmishGameInfo)
-		{
+    if(TheSkirmishGameInfo)
+    {
 			TheSkirmishGameInfo->setCRCInterval(REPLAY_CRC_INTERVAL);
-			theSlotList = GameInfoToAsciiString(TheSkirmishGameInfo);
-			DEBUG_LOG(("GameInfo String: %s", theSlotList.str()));
+      theSlotList = GameInfoToAsciiString(TheSkirmishGameInfo);
+      DEBUG_LOG(("GameInfo String: %s",theSlotList.str()));
 			localIndex = 0;
-		}
-		else
-		{
-			// single player.  format the generic (empty) slotlist
+    }
+    else
+    {
+		  // single player.  format the generic (empty) slotlist
 			m_gameInfo.setCRCInterval(REPLAY_CRC_INTERVAL);
-			theSlotList = GameInfoToAsciiString(&m_gameInfo);
-		}
+		  theSlotList = GameInfoToAsciiString(&m_gameInfo);
+    }
 	}
 	logGameStart(theSlotList);
 	DEBUG_LOG(("RecorderClass::startRecording - theSlotList = %s", theSlotList.str()));
@@ -762,9 +781,11 @@ void RecorderClass::stopRecording() {
 		}
 	}
 	if (m_file != nullptr) {
+#if defined(GENONLINE)
 		AsciiString finishedReplayPath = getReplayDir();
 		finishedReplayPath.concat(m_fileName);
 
+#endif
 		m_file->close();
 		m_file = nullptr;
 
@@ -829,7 +850,7 @@ void RecorderClass::archiveReplay(AsciiString fileName)
 /**
  * Write this game message to the record file. This also writes the game message's execution frame.
  */
-void RecorderClass::writeToFile(GameMessage* msg) {
+void RecorderClass::writeToFile(GameMessage * msg) {
 	// Write the frame number for this command.
 	UnsignedInt frame = TheGameLogic->getFrame();
 	m_file->write(&frame, sizeof(frame));
@@ -859,11 +880,11 @@ void RecorderClass::writeToFile(GameMessage* msg) {
 		//commandName.str(), msg->getPlayerIndex(), TheGameLogic->getFrame()));
 #endif // DEBUG_LOGGING
 
-	GameMessageParser* parser = newInstance(GameMessageParser)(msg);
+	GameMessageParser *parser = newInstance(GameMessageParser)(msg);
 	UnsignedByte numTypes = parser->getNumTypes();
 	m_file->write(&numTypes, sizeof(numTypes));
 
-	GameMessageParserArgumentType* argType = parser->getFirstArgumentType();
+	GameMessageParserArgumentType *argType = parser->getFirstArgumentType();
 	while (argType != nullptr) {
 		UnsignedByte type = (UnsignedByte)(argType->getType());
 		m_file->write(&type, sizeof(type));
@@ -891,42 +912,42 @@ void RecorderClass::writeArgument(GameMessageArgumentDataType type, const GameMe
 
 	switch (type) {
 
-	case ARGUMENTDATATYPE_INTEGER:
-		m_file->write(&(arg.integer), sizeof(arg.integer));
-		break;
-	case ARGUMENTDATATYPE_REAL:
-		m_file->write(&(arg.real), sizeof(arg.real));
-		break;
-	case ARGUMENTDATATYPE_BOOLEAN:
-		m_file->write(&(arg.boolean), sizeof(arg.boolean));
-		break;
-	case ARGUMENTDATATYPE_OBJECTID:
-		m_file->write(&(arg.objectID), sizeof(arg.objectID));
-		break;
-	case ARGUMENTDATATYPE_DRAWABLEID:
-		m_file->write(&(arg.drawableID), sizeof(arg.drawableID));
-		break;
-	case ARGUMENTDATATYPE_TEAMID:
-		m_file->write(&(arg.teamID), sizeof(arg.teamID));
-		break;
-	case ARGUMENTDATATYPE_LOCATION:
-		m_file->write(&(arg.location), sizeof(arg.location));
-		break;
-	case ARGUMENTDATATYPE_PIXEL:
-		m_file->write(&(arg.pixel), sizeof(arg.pixel));
-		break;
-	case ARGUMENTDATATYPE_PIXELREGION:
-		m_file->write(&(arg.pixelRegion), sizeof(arg.pixelRegion));
-		break;
-	case ARGUMENTDATATYPE_TIMESTAMP:
-		m_file->write(&(arg.timestamp), sizeof(arg.timestamp));
-		break;
-	case ARGUMENTDATATYPE_WIDECHAR:
-		m_file->write(&(arg.wChar), sizeof(arg.wChar));
-		break;
-	default:
-		DEBUG_LOG(("Unknown GameMessageArgumentDataType in RecorderClass::writeArgument"));
-		break;
+		case ARGUMENTDATATYPE_INTEGER:
+			m_file->write( &(arg.integer), sizeof(arg.integer) );
+			break;
+		case ARGUMENTDATATYPE_REAL:
+			m_file->write( &(arg.real), sizeof(arg.real) );
+			break;
+		case ARGUMENTDATATYPE_BOOLEAN:
+			m_file->write( &(arg.boolean), sizeof(arg.boolean) );
+			break;
+		case ARGUMENTDATATYPE_OBJECTID:
+			m_file->write( &(arg.objectID), sizeof(arg.objectID) );
+			break;
+		case ARGUMENTDATATYPE_DRAWABLEID:
+			m_file->write( &(arg.drawableID), sizeof(arg.drawableID) );
+			break;
+		case ARGUMENTDATATYPE_TEAMID:
+			m_file->write( &(arg.teamID), sizeof(arg.teamID) );
+			break;
+		case ARGUMENTDATATYPE_LOCATION:
+			m_file->write( &(arg.location), sizeof(arg.location) );
+			break;
+		case ARGUMENTDATATYPE_PIXEL:
+			m_file->write( &(arg.pixel), sizeof(arg.pixel) );
+			break;
+		case ARGUMENTDATATYPE_PIXELREGION:
+			m_file->write( &(arg.pixelRegion), sizeof(arg.pixelRegion) );
+			break;
+		case ARGUMENTDATATYPE_TIMESTAMP:
+			m_file->write( &(arg.timestamp), sizeof(arg.timestamp) );
+			break;
+		case ARGUMENTDATATYPE_WIDECHAR:
+			m_file->write( &(arg.wChar), sizeof(arg.wChar) );
+			break;
+		default:
+			DEBUG_LOG(("Unknown GameMessageArgumentDataType in RecorderClass::writeArgument"));
+			break;
 	}
 }
 
@@ -969,7 +990,7 @@ Bool RecorderClass::readReplayHeader(ReplayHeader& header, const AsciiString& fi
 
 	m_file->read(&header.desyncGame, sizeof(header.desyncGame));
 	m_file->read(&header.quitEarly, sizeof(header.quitEarly));
-	for (Int i = 0; i < MAX_SLOTS; ++i)
+	for (Int i=0; i<MAX_SLOTS; ++i)
 	{
 		m_file->read(&(header.playerDiscons[i]), sizeof(Bool));
 	}
@@ -1040,7 +1061,7 @@ Bool RecorderClass::simulateReplay(AsciiString filename)
 }
 
 #if defined(RTS_DEBUG)
-Bool RecorderClass::analyzeReplay(AsciiString filename)
+Bool RecorderClass::analyzeReplay( AsciiString filename )
 {
 	m_doingAnalysis = TRUE;
 	return playbackFile(filename);
@@ -1148,7 +1169,7 @@ Bool RecorderClass::replayMatchesGameVersion(AsciiString filename)
 	ReplayHeader header;
 	if ( readReplayHeader( header, filename, TRUE ) )
 	{
-		return replayMatchesGameVersion(header);
+		return replayMatchesGameVersion( header );
 	}
 	return FALSE;
 }
@@ -1160,7 +1181,11 @@ Bool RecorderClass::replayMatchesGameVersion(const ReplayHeader& header)
 		return false;
 	if (header.versionNumber != TheVersion->getVersionNumber())
 		return false;
+#if defined(GENONLINE)
 	if (!isReplayExeCRCCompatible(header.exeCRC))
+#else
+	if (header.exeCRC != TheGlobalData->m_exeCRC)
+#endif
 		return false;
 	if (header.iniCRC != TheGlobalData->m_iniCRC)
 		return false;
@@ -1243,6 +1268,7 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 		return FALSE;
 	}
 
+#if defined(GENONLINE)
 #ifdef DEBUG_LOGGING
 	Bool viaCompatibleList = FALSE;
 	if (isReplayExeCRCCompatible(header.exeCRC, &viaCompatibleList) && viaCompatibleList)
@@ -1251,11 +1277,16 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 	}
 #endif
 
+#endif
 #ifdef DEBUG_CRASHING
 	Bool versionStringDiff = header.versionString != TheVersion->getUnicodeVersion();
 	Bool versionTimeStringDiff = header.versionTimeString != TheVersion->getUnicodeBuildTime();
 	Bool versionNumberDiff = header.versionNumber != TheVersion->getVersionNumber();
+#if defined(GENONLINE)
 	Bool exeCRCDiff = !isReplayExeCRCCompatible(header.exeCRC);
+#else
+	Bool exeCRCDiff = header.exeCRC != TheGlobalData->m_exeCRC;
+#endif
 	Bool exeDifferent = versionStringDiff || versionTimeStringDiff || versionNumberDiff || exeCRCDiff;
 	Bool iniDifferent = header.iniCRC != TheGlobalData->m_iniCRC;
 
@@ -1286,7 +1317,11 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 		}
 		if (exeCRCDiff)
 		{
+#if defined(GENONLINE)
 			tempStr.format("   CRC %8.8X vs %8.8X\n", getReplayExeCRC(), header.exeCRC);
+#else
+			tempStr.format("   CRC %8.8X vs %8.8X\n", TheGlobalData->m_exeCRC, header.exeCRC);
+#endif
 			debugString.concat(tempStr);
 		}
 	}
@@ -1347,14 +1382,14 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 		// We send the New Game message here directly to the command list and bypass the TheMessageStream.
 		// That's ok because Multiplayer is disabled during replay playback and is actually required
 		// during replay simulation because we don't update TheMessageStream during simulation.
-		GameMessage* msg = newInstance(GameMessage)(GameMessage::MSG_NEW_GAME);
+		GameMessage *msg = newInstance(GameMessage)(GameMessage::MSG_NEW_GAME);
 		msg->appendIntegerArgument(GAME_REPLAY);
 		msg->appendIntegerArgument(difficulty);
 		msg->appendIntegerArgument(rankPoints);
-		if (maxFPS != 0)
+		if( maxFPS != 0 )
 			msg->appendIntegerArgument(maxFPS);
-		TheCommandList->appendMessage(msg);
-		InitRandom(m_gameInfo.getSeed());
+		TheCommandList->appendMessage( msg );
+		InitRandom( m_gameInfo.getSeed() );
 	}
 
 	// TheSuperHackers @bugfix bobtista 25/07/2026 Enter playback mode only once the playback is ready.
@@ -1402,7 +1437,7 @@ AsciiString RecorderClass::readAsciiString() {
 	char str[1024] = "";
 	Int index = 0;
 
-	Int c = m_file->readChar();
+	Int c =	m_file->readChar();
 	if (c == EOF) {
 		str[index] = 0;
 	}
@@ -1467,7 +1502,7 @@ void RecorderClass::appendNextCommand() {
 		return;
 	}
 
-	GameMessage* msg = newInstance(GameMessage)(type);
+	GameMessage *msg = newInstance(GameMessage)(type);
 
 #ifdef DEBUG_LOGGING
 	AsciiString commandName = msg->getCommandAsString();
@@ -1495,7 +1530,7 @@ void RecorderClass::appendNextCommand() {
 	if (logCommand)
 	{
 		DEBUG_LOG(("RecorderClass::appendNextCommand - Adding %s command from player %d to TheCommandList on frame %d",
-			commandName.str(), (type == GameMessage::MSG_BEGIN_NETWORK_MESSAGES) ? 0 : msg->getPlayerIndex(), m_nextFrame/*TheGameLogic->getFrame()*/));
+			commandName.str(), (type == GameMessage::MSG_BEGIN_NETWORK_MESSAGES)?0:msg->getPlayerIndex(), m_nextFrame/*TheGameLogic->getFrame()*/));
 	}
 #endif
 
@@ -1503,7 +1538,7 @@ void RecorderClass::appendNextCommand() {
 	Int totalArgs = 0;
 	m_file->read(&numTypes, sizeof(numTypes));
 
-	GameMessageParser* parser = newInstance(GameMessageParser)();
+	GameMessageParser *parser = newInstance(GameMessageParser)();
 	for (UnsignedByte i = 0; i < numTypes; ++i) {
 		UnsignedByte type = (UnsignedByte)ARGUMENTDATATYPE_UNKNOWN;
 		m_file->read(&type, sizeof(type));
@@ -1513,7 +1548,7 @@ void RecorderClass::appendNextCommand() {
 		totalArgs += numArgs;
 	}
 
-	GameMessageParserArgumentType* parserArgType = parser->getFirstArgumentType();
+	GameMessageParserArgumentType *parserArgType = parser->getFirstArgumentType();
 	GameMessageArgumentDataType lasttype = ARGUMENTDATATYPE_UNKNOWN;
 	Int argsLeftForType = 0;
 	if (parserArgType != nullptr) {
@@ -1779,8 +1814,13 @@ AsciiString RecorderClass::getLastReplayFileName()
 		GameInfo *game = nullptr;
 		if (TheLAN)
 			game = TheLAN->GetMyGame();
+#if defined(GENONLINE)
 		else if (GetOnlineGameHooks()->isLoggedIn())
 			game = GetOnlineGameHooks()->getGameInfo();
+#else
+		else if (TheGameSpyInfo)
+			game = TheGameSpyGame;
+#endif
 		if (game)
 		{
 			AsciiString players;
@@ -1790,7 +1830,7 @@ AsciiString RecorderClass::getLastReplayFileName()
 			const char* mapName = getFileName(mapPath.str());
 			for (Int i=0; i<MAX_SLOTS; ++i)
 			{
-				GameSlot* slot = game->getSlot(i);
+				GameSlot *slot = game->getSlot(i);
 				if (slot && slot->isHuman())
 				{
 					AsciiString player;
@@ -1802,7 +1842,7 @@ AsciiString RecorderClass::getLastReplayFileName()
 			AsciiString testString;
 			testString.format("%s%s%s", getReplayDir().str(), full.str(), replayExtention);
 
-			FILE* fp;
+			FILE *fp;
 			fp = fopen(testString.str(), "rb");
 			if (fp)
 			{
@@ -1871,18 +1911,18 @@ Bool RecorderClass::isMultiplayer()
 
 	if (isPlaybackMode())
 	{
-		GameSlot* slot;
-		for (int i = 0; i < MAX_SLOTS; ++i)
+		GameSlot *slot;
+		for (int i=0; i<MAX_SLOTS; ++i)
 		{
 			slot = m_gameInfo.getSlot(i);
 			if (slot && slot->isOccupied())	///< slots default to closed for non-networked games
 				return true;
 		}
 	}
-	if (TheGameLogic->getGameMode() == GAME_SINGLE_PLAYER) {
+	if (TheGameLogic->getGameMode()==GAME_SINGLE_PLAYER) {
 		return false; // single player isn't multiplayer.
 	}
-	if (TheGameLogic->getGameMode() == GAME_SHELL) {
+	if (TheGameLogic->getGameMode()==GAME_SHELL) {
 		return false; // shell isn't multiplayer.
 	}
 	if (TheNetwork || TheSkirmishGameInfo)
@@ -1894,6 +1934,6 @@ Bool RecorderClass::isMultiplayer()
 /**
  * Create a new recorder object.
  */
-RecorderClass* createRecorder() {
+RecorderClass * createRecorder() {
 	return NEW RecorderClass;
 }

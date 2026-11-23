@@ -1931,8 +1931,12 @@ void ControlBar::evaluateContextUI()
 				switchToContext( CB_CONTEXT_COMMAND, drawToEvaluateFor );
 
 			}
+#if defined(GENONLINE)
 			else if (obj->getControllingPlayer()->getPlayerTemplate()
 				&& obj->getControllingPlayer()->getPlayerTemplate()->getBeaconTemplate().compare(obj->getTemplate()->getName()) == 0)
+#else
+			else if (obj->getControllingPlayer()->getPlayerTemplate()->getBeaconTemplate().compare(obj->getTemplate()->getName()) == 0)
+#endif
 			{
 				switchToContext( CB_CONTEXT_BEACON, drawToEvaluateFor );
 			}

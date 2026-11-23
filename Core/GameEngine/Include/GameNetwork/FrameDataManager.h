@@ -38,7 +38,11 @@ public:
 	void reset();
 	void update();
 
+#if defined(GENONLINE)
 	Bool addNetCommandMsg(NetCommandMsg *msg);	///< Returns FALSE when the command was already in its frame.
+#else
+	void addNetCommandMsg(NetCommandMsg *msg);
+#endif
 	void setIsLocal(Bool isLocal);
 	FrameDataReturnType allCommandsReady(UnsignedInt frame, Bool debugSpewage);
 	NetCommandList * getFrameCommandList(UnsignedInt frame);

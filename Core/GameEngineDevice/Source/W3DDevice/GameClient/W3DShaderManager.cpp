@@ -2029,7 +2029,9 @@ Int TerrainShaderPixelShader::set(Int pass)
 		return FALSE;
 	}
 #endif
+#if defined(GENONLINE)
 
+#endif
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	DX8Wrapper::Apply_Render_State_Changes();
 

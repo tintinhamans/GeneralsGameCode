@@ -574,7 +574,9 @@ protected:
 
 	static bool	Create_Device();
 	static void Release_Device();
+#if defined(GENONLINE)
 	static void Unbind_Device_Buffers();
+#endif
 
 	static void Reset_Statistics();
 	static void Enumerate_Devices();
@@ -637,7 +639,9 @@ protected:
 
 	static bool								IsInitted;
 	static bool								IsDeviceLost;
+#if defined(GENONLINE)
 	static bool								DeviceResetFailed;	///< Until a Reset() succeeds the device only takes TestCooperativeLevel, Reset and Release
+#endif
 	static void *							Hwnd;
 	static unsigned						_MainThreadID;
 

@@ -707,6 +707,7 @@ void SpecialPowerModule::aboutToDoSpecialPower( const Coord3D *location )
     }
 	}
 
+#if defined(GENONLINE)
   // Notify the UI that this special power was activated (for observer notifications)
   const Object* obj = getObject();
   const SpecialPowerTemplate* tpl = getSpecialPowerTemplate();
@@ -716,6 +717,7 @@ void SpecialPowerModule::aboutToDoSpecialPower( const Coord3D *location )
 		  TheInGameUI->notifySpecialPowerUsed(p, tpl);
   }
 
+#endif
 	// get module data
 	const SpecialPowerModuleData *modData = getSpecialPowerModuleData();
 

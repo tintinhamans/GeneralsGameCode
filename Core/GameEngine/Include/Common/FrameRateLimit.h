@@ -32,8 +32,10 @@ public:
 private:
 	Int64 m_freq;
 	Int64 m_start;
+#if defined(GENONLINE)
 	Int64 m_lastActual;
 	UnsignedInt m_previousFps;
+#endif
 };
 
 

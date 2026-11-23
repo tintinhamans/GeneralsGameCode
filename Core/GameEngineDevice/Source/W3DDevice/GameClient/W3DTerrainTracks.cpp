@@ -834,6 +834,7 @@ Try improving the fit to vertical surfaces like cliffs.
 	//check if there is anything to draw and fill vertex buffer
 	if (m_edgesToFlush >= 2)
 	{
+#if defined(GENONLINE)
 		// Guard against a null vertex buffer (e.g. if ReleaseResources() was called
 		// without a matching ReAcquireResources() during a device reset).
 		if (!m_vertexBuffer)
@@ -842,8 +843,10 @@ Try improving the fit to vertical surfaces like cliffs.
 			return;
 		}
 
+#endif
 		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBuffer);
 		VertexFormatXYZDUV1 *verts = (VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
+#if defined(GENONLINE)
 
 		// Guard against a failed buffer lock returning a null pointer.
 		if (!verts)
@@ -852,6 +855,7 @@ Try improving the fit to vertical surfaces like cliffs.
 			return;
 		}
 
+#endif
 		trackStartIndex=0;
 
 		mod=m_usedModules;
@@ -862,6 +866,7 @@ Try improving the fit to vertical surfaces like cliffs.
 			Vector3 *endPoint;
 			Vector2 *endPointUV;
 
+#if defined(GENONLINE)
 			// Clamp activeEdgeCount to m_maxTankTrackEdges to prevent writing past the
 			// end of the vertex buffer when m_maxTankTrackEdges was reduced (e.g. by a
 			// graphics-detail change) while tracks still hold edges from the old, larger
@@ -871,8 +876,15 @@ Try improving the fit to vertical surfaces like cliffs.
 				activeEdgeCount = m_maxTankTrackEdges;
 
 			if (activeEdgeCount >= 2 && mod->Is_Really_Visible())
+#else
+			if (mod->m_activeEdgeCount >= 2 && mod->Is_Really_Visible())
+#endif
 			{
+#if defined(GENONLINE)
 				for (i=0,index=mod->m_bottomIndex; i<activeEdgeCount; i++,index++)
+#else
+				for (i=0,index=mod->m_bottomIndex; i<mod->m_activeEdgeCount; i++,index++)
+#endif
 				{
 					if (index >= m_maxTankTrackEdges)
 						index=0;
@@ -882,10 +894,20 @@ Try improving the fit to vertical surfaces like cliffs.
 
 					distanceFade=1.0f;
 
+#if defined(GENONLINE)
 					if ((activeEdgeCount -1 -i) >= m_maxTankTrackOpaqueEdges)// && i < (MAX_PER_TRACK_EDGE_COUNT-FORCE_FADE_AT_EDGE))
 					{	//we're getting close to the limit on the number of track pieces allowed
+#else
+					if ((mod->m_activeEdgeCount -1 -i) >= m_maxTankTrackOpaqueEdges)// && i < (MAX_PER_TRACK_EDGE_COUNT-FORCE_FADE_AT_EDGE))
+					{
+						//we're getting close to the limit on the number of track pieces allowed
+#endif
 						//so force it to fade out.
+#if defined(GENONLINE)
 						distanceFade=1.0f-(float)((activeEdgeCount -i)-m_maxTankTrackOpaqueEdges)/numFadedEdges;
+#else
+						distanceFade=1.0f-(float)((mod->m_activeEdgeCount -i)-m_maxTankTrackOpaqueEdges)/numFadedEdges;
+#endif
 					}
 
 					distanceFade *= mod->m_edges[index].alpha;	//adjust fade with distance from start of track
@@ -933,6 +955,7 @@ Try improving the fit to vertical surfaces like cliffs.
 		Renderer::Set_Transform(RenderTransform_World,mod->Transform);
 		while (mod)
 		{
+#if defined(GENONLINE)
 			// Use the same clamped edge count as the vertex-fill pass above so that
 			// trackStartIndex stays consistent and we don't read past the index buffer
 			// (which is only allocated for m_maxTankTrackEdges-1 segments).
@@ -941,12 +964,23 @@ Try improving the fit to vertical surfaces like cliffs.
 				activeEdgeCount = m_maxTankTrackEdges;
 
 			if (activeEdgeCount >= 2 && mod->Is_Really_Visible())
+#else
+			if (mod->m_activeEdgeCount >= 2 && mod->Is_Really_Visible())
+#endif
 			{
 				DX8Wrapper::Set_Texture(0,mod->m_stageZeroTexture);
 				DX8Wrapper::Set_Index_Buffer_Index_Offset(trackStartIndex);
+#if defined(GENONLINE)
 				DX8Wrapper::Draw_Triangles(	0,(activeEdgeCount-1)*2, 0, activeEdgeCount*2);
+#else
+				DX8Wrapper::Draw_Triangles(	0,(mod->m_activeEdgeCount-1)*2, 0, mod->m_activeEdgeCount*2);
+#endif
 
+#if defined(GENONLINE)
 				trackStartIndex += activeEdgeCount*2;
+#else
+				trackStartIndex += mod->m_activeEdgeCount*2;
+#endif
 			}
 			mod=mod->m_nextSystem;
 		}

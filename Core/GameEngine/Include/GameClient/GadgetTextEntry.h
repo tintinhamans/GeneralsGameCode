@@ -71,9 +71,11 @@ inline void GadgetTextEntrySetText( GameWindow *g, UnicodeString text )
 extern UnicodeString GadgetTextEntryGetText( GameWindow *textentry ); ///< Get the text from the text entry field
 extern void GadgetTextEntrySetMaxLen( GameWindow *g, Short length );
 extern void GadgetTextEntrySetFont( GameWindow *g, GameFont *font );  ///< set font for window and edit text display strings
+#if defined(GENONLINE)
 extern void GadgetTextEntrySetCompletionEnabled( GameWindow *g, Bool enabled );  ///< Tab sends GEM_TAB_COMPLETE to the owner instead of moving focus
 extern Bool GadgetTextEntryIsCompletionEnabled( GameWindow *g );
 extern void GadgetTextEntrySetCompletionHint( GameWindow *g, const UnicodeString &hint );  ///< Grey suffix drawn after the text. An empty string clears it.
+#endif
 inline void GadgetTextEntrySetTextColor( GameWindow *g, Color color )
 {
 	Color back = g->winGetEnabledTextBorderColor();
@@ -125,4 +127,3 @@ inline Color GadgetTextEntryGetHiliteColor( GameWindow *g )								{ return g->w
 inline Color GadgetTextEntryGetHiliteBorderColor( GameWindow *g )					{ return g->winGetHiliteBorderColor( 0 ); }
 
 // EXTERNALS //////////////////////////////////////////////////////////////////
-

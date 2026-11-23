@@ -62,6 +62,7 @@ public:
 	time_t getTimeLastSent() const;
 	void setTimeLastSent(time_t timeLastSent);
 
+#if defined(GENONLINE)
 	time_t getTimeFirstSent() const;
 	void setTimeFirstSent(time_t timeFirstSent);
 
@@ -72,16 +73,19 @@ public:
 	Bool isRetried() const;
 	void setRetried(Bool retried);
 
+#endif
 protected:
 	NetCommandMsg *m_msg;
 	NetCommandRef *m_next;
 	NetCommandRef *m_prev;
 	UnsignedByte m_relay; ///< Need this in the command reference since the relay value will be different depending on where this particular reference is being sent.
 	time_t m_timeLastSent;
+#if defined(GENONLINE)
 	Int m_redundantCopies;
 	time_t m_timeFirstRedundant;
 	time_t m_timeFirstSent; ///< Stays put on resends, round trips are measured from it
 	Bool m_retried; ///< Sent again after the redundancy window: no round trip sample
+#endif
 
 #ifdef DEBUG_NETCOMMANDREF
 	UnsignedInt m_id;
@@ -152,6 +156,7 @@ inline void NetCommandRef::setTimeLastSent(time_t timeLastSent)
 	m_timeLastSent = timeLastSent;
 }
 
+#if defined(GENONLINE)
 inline time_t NetCommandRef::getTimeFirstSent() const
 {
 	return m_timeFirstSent;
@@ -191,6 +196,7 @@ inline void NetCommandRef::setRetried(Bool retried)
 	m_retried = retried;
 }
 
+#endif
 /**
  * Set the send relay for this reference of the command.
  */

@@ -135,7 +135,11 @@ void StructureCollapseUpdate::beginStructureCollapse(const DamageInfo *damageInf
 	Object *building = getObject();
 	UnsignedInt now = TheGameLogic->getFrame();
 	// This has to use a game logic random value since the bursts can spawn debris, and debris is sync'd.
+#if defined(GENONLINE)
 	m_collapseFrame = now + GameLogicRandomFramesInBaseFrames(d->m_minCollapseDelay, d->m_maxCollapseDelay);
+#else
+	m_collapseFrame = now + GameLogicRandomValue(d->m_minCollapseDelay, d->m_maxCollapseDelay);
+#endif
 
 	doPhaseStuff(SCPHASE_INITIAL, building->getPosition());
 
@@ -199,7 +203,11 @@ UpdateSleepTime StructureCollapseUpdate::update()
 			m_collapseState = COLLAPSESTATE_COLLAPSING;
 			doPhaseStuff(SCPHASE_BURST, currentPosition);
 			// This has to use a game logic random value since the bursts can spawn debris, and debris is sync'd.
+#if defined(GENONLINE)
 			m_burstFrame = now + GameLogicRandomFramesInBaseFrames(d->m_minBurstDelay, d->m_maxBurstDelay);
+#else
+			m_burstFrame = now + GameLogicRandomValue(d->m_minBurstDelay, d->m_maxBurstDelay);
+#endif
 		}
 	}
 
@@ -232,7 +240,11 @@ UpdateSleepTime StructureCollapseUpdate::update()
 				doPhaseStuff(SCPHASE_DELAY, currentPosition);
 			}
 			// This has to use a game logic random value since the bursts can spawn debris, and debris is sync'd.
+#if defined(GENONLINE)
 			m_burstFrame += GameLogicRandomFramesInBaseFrames(d->m_minBurstDelay, d->m_maxBurstDelay);
+#else
+			m_burstFrame += GameLogicRandomValue(d->m_minBurstDelay, d->m_maxBurstDelay);
+#endif
 		}
 
 //		if ((m_currentHeight + building->getGeometryInfo().getMaxHeightAbovePosition()) <= 0)

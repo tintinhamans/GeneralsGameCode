@@ -29,7 +29,9 @@
 
 #include "GameNetwork/NetCommandWrapperList.h"
 #include "GameNetwork/NetPacket.h"
+#if defined(GENONLINE)
 #include "../GenOnlineInclude.h"
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////// NetCommandWrapperListNode ///////////////////////////////////////////////////////////////////
@@ -50,7 +52,9 @@ NetCommandWrapperListNode::NetCommandWrapperListNode(NetWrapperCommandMsg *msg)
 	m_data = NEW UnsignedByte[m_totalDataLength];	// pool[]ify
 
 	m_commandID = msg->getWrappedCommandID();
+#if defined(GENONLINE)
 	m_playerID = msg->getPlayerID();
+#endif
 }
 
 NetCommandWrapperListNode::~NetCommandWrapperListNode() {
@@ -76,10 +80,12 @@ UnsignedShort NetCommandWrapperListNode::getCommandID() {
 	return m_commandID;
 }
 
+#if defined(GENONLINE)
 UnsignedByte NetCommandWrapperListNode::getPlayerID() {
 	return m_playerID;
 }
 
+#endif
 UnsignedInt NetCommandWrapperListNode::getRawDataLength() {
 	return m_totalDataLength;
 }
@@ -139,8 +145,10 @@ UnsignedByte * NetCommandWrapperListNode::getRawData() {
 
 NetCommandWrapperList::NetCommandWrapperList() {
 	m_list = nullptr;
+#if defined(GENONLINE)
 	m_recentCompletedCount = 0;
 	m_recentCompletedNext = 0;
+#endif
 }
 
 NetCommandWrapperList::~NetCommandWrapperList() {
@@ -154,8 +162,10 @@ NetCommandWrapperList::~NetCommandWrapperList() {
 
 void NetCommandWrapperList::init() {
 	m_list = nullptr;
+#if defined(GENONLINE)
 	m_recentCompletedCount = 0;
 	m_recentCompletedNext = 0;
+#endif
 }
 
 void NetCommandWrapperList::reset() {
@@ -165,6 +175,7 @@ void NetCommandWrapperList::reset() {
 		deleteInstance(m_list);
 		m_list = temp;
 	}
+#if defined(GENONLINE)
 	m_recentCompletedCount = 0;
 	m_recentCompletedNext = 0;
 }
@@ -185,6 +196,7 @@ void NetCommandWrapperList::noteCompleted(UnsignedByte playerID, UnsignedShort w
 	if (m_recentCompletedCount < RECENT_COMPLETED_COUNT) {
 		++m_recentCompletedCount;
 	}
+#endif
 }
 
 Int NetCommandWrapperList::getPercentComplete(UnsignedShort wrappedCommandID)
@@ -205,10 +217,12 @@ void NetCommandWrapperList::processWrapper(NetCommandRef *ref) {
 	NetCommandWrapperListNode *temp = m_list;
 	NetWrapperCommandMsg *msg = (NetWrapperCommandMsg *)(ref->getCommand());
 
+#if defined(GENONLINE)
 	if (wasRecentlyCompleted(msg->getPlayerID(), msg->getWrappedCommandID())) {
 		return; // a duplicate or late chunk of a command that was already delivered
 	}
 
+#endif
 	while ((temp != nullptr) && (temp->getCommandID() != msg->getWrappedCommandID())) {
 		temp = temp->m_next;
 	}
@@ -234,6 +248,7 @@ NetCommandList * NetCommandWrapperList::getReadyCommands()
 		next = temp->m_next;
 		if (temp->isComplete()) {
 			NetCommandRef *msg = NetPacket::ConstructNetCommandMsgFromRawData(temp->getRawData(), temp->getRawDataLength());
+#if defined(GENONLINE)
 
 #if defined(GENONLINE)
 			// the wrapper was checked against its sender, the command inside has to name the same player
@@ -247,13 +262,16 @@ NetCommandList * NetCommandWrapperList::getReadyCommands()
 			}
 #endif
 
+#endif
 			NetCommandRef *ret = retlist->addMessage(msg->getCommand());
 			ret->setRelay(msg->getRelay());
 
 			deleteInstance(msg);
 			msg = nullptr;
 
+#if defined(GENONLINE)
 			noteCompleted(temp->getPlayerID(), temp->getCommandID());
+#endif
 			removeFromList(temp);
 			temp = nullptr;
 		}

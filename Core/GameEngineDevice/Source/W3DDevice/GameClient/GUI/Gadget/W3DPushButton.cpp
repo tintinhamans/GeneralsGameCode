@@ -51,8 +51,10 @@
 #include "GameClient/Gadget.h"
 #include "GameClient/GameWindowGlobal.h"
 #include "GameClient/GameWindowManager.h"
+#if defined(GENONLINE)
 #include "GameClient/GadgetComboBox.h"
 #include "GameClient/GadgetListBox.h"
+#endif
 #include "GameClient/GadgetPushButton.h"
 #include "GameClient/Display.h"
 #include "W3DDevice/GameClient/W3DGameWindow.h"
@@ -126,8 +128,12 @@ static void drawButtonText( GameWindow *window, WinInstanceData *instData )
 	if( BitIsSet( window->winGetStatus(), WIN_STATUS_SHORTCUT_BUTTON ) )
 	{
 		// Oh god... this is a total hack for shortcut buttons to handle rendering text top left corner...
+#if defined(GENONLINE)
 		// GenOnline @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
 		textPos.x = origin.x + GameWindowManager::winScaleLayoutSize( 2 );
+#else
+		textPos.x = origin.x + 2;
+#endif
 		textPos.y = origin.y + 0;
 	}
 	else
@@ -313,6 +319,7 @@ void W3DGadgetPushButtonImageDraw( GameWindow *window,
 	}
 }
 
+#if defined(GENONLINE)
 //=============================================================================
 // GenOnline @feature arcticdolphin 08/11/2026 Draw list scroll arrows as kit chevrons when the GO kit scroll images exist.
 void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window,
@@ -355,6 +362,7 @@ void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window,
 	TheWindowManager->winDrawImage( image, chevronX, chevronY, chevronX + chevronWidth, chevronY + chevronHeight );
 }
 
+#endif
 void W3DGadgetPushButtonImageDrawOne( GameWindow *window,
 																	 WinInstanceData *instData )
 {
@@ -395,6 +403,7 @@ void W3DGadgetPushButtonImageDrawOne( GameWindow *window,
 			if( BitIsSet( instData->getState(), WIN_STATE_SELECTED ) )
 				image			= GadgetButtonGetHiliteSelectedImage( window );
 		}
+#if defined(GENONLINE)
 
 		// GenOnline @tweak arcticdolphin 08/11/2026 A kit combo arrow lights with its whole field, never on its own.
 		GameWindow *combo = window->winGetParent();
@@ -406,6 +415,7 @@ void W3DGadgetPushButtonImageDrawOne( GameWindow *window,
 			else
 				image = GadgetButtonGetEnabledImage( window );
 		}
+#endif
 	}
 
 
@@ -449,11 +459,15 @@ void W3DGadgetPushButtonImageDrawOne( GameWindow *window,
 				}
 			}
 		}
+#if defined(GENONLINE)
 		// GenOnline @tweak arcticdolphin 08/11/2026 Kit symbol and arrow images keep their border at the kit line weight.
 		if( image->getBorder() > 0.0f && drawMode == Display::DRAW_IMAGE_ALPHA && colorMultiplier == (Int)0xffffffff )
 			TheWindowManager->winDrawImage( image, start.x, start.y, end.x, end.y );
 		else
 			TheDisplay->drawImage( image, start.x, start.y, end.x, end.y, colorMultiplier, drawMode );
+#else
+		TheDisplay->drawImage( image, start.x, start.y, end.x, end.y, colorMultiplier, drawMode );
+#endif
 	}
 
 	// draw the button text
@@ -548,8 +562,15 @@ void W3DGadgetPushButtonImageDrawThree(GameWindow *window, WinInstanceData *inst
 {
 
 	const Image *leftImage, *rightImage, *centerImage;
+#if defined(GENONLINE)
 	ICoord2D origin, size, start;
+#else
+	ICoord2D origin, size, start, end;
+#endif
 	Int xOffset, yOffset;
+#if !defined(GENONLINE)
+	Int i;
+#endif
 
 	// get screen position and size
 	window->winGetScreenPosition( &origin.x, &origin.y );
@@ -627,8 +648,97 @@ void W3DGadgetPushButtonImageDrawThree(GameWindow *window, WinInstanceData *inst
 			centerImage == nullptr )
 		return;
 
+#if defined(GENONLINE)
 	TheWindowManager->winDrawThreePieceImage( leftImage, centerImage, nullptr, rightImage,
 																						 origin.x + xOffset, origin.y + yOffset, size.x, size.y );
+#else
+	// get image sizes for the ends
+	ICoord2D leftSize, rightSize;
+	leftSize.x = leftImage->getImageWidth();
+	leftSize.y = leftImage->getImageHeight();
+	rightSize.x = rightImage->getImageWidth();
+	rightSize.y = rightImage->getImageHeight();
+
+	// get two key points used in the end drawing
+	ICoord2D leftEnd, rightStart;
+	leftEnd.x = origin.x + leftSize.x + xOffset;
+	leftEnd.y = origin.y + size.y + yOffset;
+	rightStart.x = origin.x + size.x - rightSize.x + xOffset;
+	rightStart.y = origin.y + yOffset;
+
+	// draw the center repeating bar
+	Int centerWidth, pieces;
+
+	// get width we have to draw our repeating center in
+	centerWidth = rightStart.x - leftEnd.x;
+
+	if( centerWidth <= 0)
+	{
+		// draw left end
+		start.x = origin.x + xOffset;
+		start.y = origin.y + yOffset;
+		end.y = leftEnd.y;
+		end.x = origin.x + xOffset + size.x/2;
+		TheWindowManager->winDrawImage(leftImage, start.x, start.y, end.x, end.y);
+
+		// draw right end
+		start.y = rightStart.y;
+		start.x = end.x;
+		end.x = origin.x + size.x;
+		end.y = start.y + size.y;
+		TheWindowManager->winDrawImage(rightImage, start.x, start.y, end.x, end.y);
+	}
+	else
+	{
+
+		// how many whole repeating pieces will fit in that width
+		pieces = centerWidth / centerImage->getImageWidth();
+
+		// draw the pieces
+		start.x = leftEnd.x;
+		start.y = origin.y + yOffset;
+		end.y = start.y + size.y + yOffset; //centerImage->getImageHeight() + yOffset;
+		for( i = 0; i < pieces; i++ )
+		{
+
+			end.x = start.x + centerImage->getImageWidth();
+			TheWindowManager->winDrawImage( centerImage,
+																			start.x, start.y,
+																			end.x, end.y );
+			start.x += centerImage->getImageWidth();
+
+		}
+
+		// we will draw the image but clip the parts we don't want to show
+		IRegion2D reg;
+		reg.lo.x = start.x;
+		reg.lo.y = start.y;
+		reg.hi.x = rightStart.x;
+		reg.hi.y = end.y;
+		centerWidth = rightStart.x - start.x;
+		if( centerWidth > 0)
+		{
+			TheDisplay->setClipRegion(&reg);
+			end.x = start.x + centerImage->getImageWidth();
+			TheWindowManager->winDrawImage( centerImage,
+																			start.x, start.y,
+																			end.x, end.y );
+			TheDisplay->enableClipping(FALSE);
+		}
+
+		// draw left end
+		start.x = origin.x + xOffset;
+		start.y = origin.y + yOffset;
+		end = leftEnd;
+		TheWindowManager->winDrawImage(leftImage, start.x, start.y, end.x, end.y);
+
+		// draw right end
+		start = rightStart;
+		end.x = start.x + rightSize.x;
+		end.y = start.y + size.y;
+		TheWindowManager->winDrawImage(rightImage, start.x, start.y, end.x, end.y);
+	}
+#endif
 
 	// draw the button text
 	if( instData->getTextLength() )

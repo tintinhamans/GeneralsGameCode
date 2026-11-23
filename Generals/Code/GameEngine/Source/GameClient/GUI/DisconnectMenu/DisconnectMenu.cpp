@@ -92,10 +92,12 @@ DisconnectMenu::DisconnectMenu() {
 }
 
 DisconnectMenu::~DisconnectMenu() {
+#if defined(GENONLINE)
 	// The network game ends with the menu. Its window must not stay up over the shell.
 	if (TheWindowManager != nullptr) {
 		hideScreen();
 	}
+#endif
 }
 
 void DisconnectMenu::init() {

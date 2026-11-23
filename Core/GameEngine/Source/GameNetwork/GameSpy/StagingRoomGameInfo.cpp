@@ -47,7 +47,9 @@
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/NAT.h"
 #include "GameNetwork/NetworkInterface.h"
+#if defined(GENONLINE)
 #include "GameNetwork/Online/OnlineProviderFactory.h"
+#endif
 
 
 // GameSpyGameSlot -------------------------------------------
@@ -792,7 +794,11 @@ void GameSpyStagingRoom::launchGame()
 	if (TheNAT)
 		TheNetwork->attachTransport(TheNAT->getTransport());
 	else
+#if defined(GENONLINE)
 		TheNetwork->initTransport(GetOnlineGameTransport());
+#else
+		TheNetwork->initTransport();
+#endif
 
 	TheNetwork->parseUserList(this);
 

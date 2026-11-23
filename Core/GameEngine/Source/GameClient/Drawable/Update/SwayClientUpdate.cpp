@@ -44,9 +44,11 @@
 #include "GameLogic/ScriptEngine.h"
 #include "GameLogic/GameLogic.h"
 
+#if defined(GENONLINE)
 #include "../GenOnlineDefines.h"
 #include "WW3D2/ww3d.h"
 
+#endif
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------

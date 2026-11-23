@@ -322,7 +322,9 @@ WeaponTemplate::WeaponTemplate() : m_nextTemplate(nullptr)
 	m_infantryInaccuracyDist				= 0.0f;
 	m_damageStatusType							= OBJECT_STATUS_NONE;
 	m_suspendFXDelay								= 0;
+#if defined(GENONLINE)
 	// GenOnline @bugfix arcticdolphin 23/11/2026 The flag is read by the weapon logic before any INI field sets it.
+#endif
 	m_dieOnDetonate						= FALSE;
 
 	m_historicDamageTriggerId = 0;
@@ -399,8 +401,13 @@ void WeaponTemplate::reset()
 
 	// No matter what we have now, we want to convert it to frames from msec.
 	// ShotDelay used to use parseDurationUnsignedInt, and we are expanding on that.
+#if defined(GENONLINE)
 	self->m_minDelayBetweenShots = ConvertDurationFromMsecsToFramesRoundedUp((Real)self->m_minDelayBetweenShots);
 	self->m_maxDelayBetweenShots = ConvertDurationFromMsecsToFramesRoundedUp((Real)self->m_maxDelayBetweenShots);
+#else
+	self->m_minDelayBetweenShots = WWMath::Ceilf(ConvertDurationFromMsecsToFrames((Real)self->m_minDelayBetweenShots));
+	self->m_maxDelayBetweenShots = WWMath::Ceilf(ConvertDurationFromMsecsToFrames((Real)self->m_maxDelayBetweenShots));
+#endif
 
 }
 
@@ -508,13 +515,21 @@ Int WeaponTemplate::getDelayBetweenShots(const WeaponBonus& bonus) const
 	if( m_minDelayBetweenShots == m_maxDelayBetweenShots )
 		delayToUse = m_minDelayBetweenShots; // Random number thing doesn't like this case
 	else
+#if defined(GENONLINE)
 		delayToUse = GameLogicRandomFramesInBaseFrames( m_minDelayBetweenShots, m_maxDelayBetweenShots );
+#else
+		delayToUse = GameLogicRandomValue( m_minDelayBetweenShots, m_maxDelayBetweenShots );
+#endif
 
 	Real bonusROF = bonus.getField(WeaponBonus::RATE_OF_FIRE);
 	//CRCDEBUG_LOG(("WeaponTemplate::getDelayBetweenShots() - min:%d max:%d val:%d, bonusROF=%g/%8.8X",
 		//m_minDelayBetweenShots, m_maxDelayBetweenShots, delayToUse, bonusROF, AS_INT(bonusROF)));
 
+#if defined(GENONLINE)
 	return DivideFramesInBaseFrames(delayToUse, bonusROF);
+#else
+	return REAL_TO_INT_FLOOR(delayToUse / bonusROF);
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -522,13 +537,21 @@ Int WeaponTemplate::getClipReloadTime(const WeaponBonus& bonus) const
 {
 	// yes, divide, not multiply; the larger the rate-of-fire bonus, the shorter
 	// we want the reload time to be.
+#if defined(GENONLINE)
 	return DivideFramesInBaseFrames(m_clipReloadTime, bonus.getField(WeaponBonus::RATE_OF_FIRE));
+#else
+	return REAL_TO_INT_FLOOR(m_clipReloadTime / bonus.getField(WeaponBonus::RATE_OF_FIRE));
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
 Int WeaponTemplate::getPreAttackDelay( const WeaponBonus& bonus ) const
 {
+#if defined(GENONLINE)
 	return MultiplyFramesInBaseFrames(m_preAttackDelay, bonus.getField( WeaponBonus::PRE_ATTACK ));
+#else
+	return m_preAttackDelay * bonus.getField( WeaponBonus::PRE_ATTACK );
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1083,7 +1106,11 @@ UnsignedInt WeaponTemplate::fireWeaponTemplate
 			UnsignedInt when = 0;
 			if( TheWeaponStore && inflictDamage )
 			{
+#if defined(GENONLINE)
 				UnsignedInt delayInWholeFrames = ConvertBaseFramesToFrames(REAL_TO_INT_CEIL(ConvertFramesToBaseFramesReal(delayInFrames)));
+#else
+				UnsignedInt delayInWholeFrames = REAL_TO_INT_CEIL(delayInFrames);
+#endif
 				when = TheGameLogic->getFrame() + delayInWholeFrames;
 				//DEBUG_LOG(("WeaponTemplate::fireWeaponTemplate: firing weapon in %d frames (= %d)!", delayInWholeFrames,when));
 				TheWeaponStore->setDelayedDamage(this, damagePos, when, sourceID, damageID, bonus);
@@ -1682,6 +1709,7 @@ WeaponTemplate *WeaponStore::newWeaponTemplate(AsciiString name)
 	WeaponTemplate *wt = newInstance(WeaponTemplate);
 	wt->m_name = name;
 	wt->m_nameKey = TheNameKeyGenerator->nameToKey( name );
+#if defined(GENONLINE)
 
 	if (strcmp(name.str(), "SupW_AuroraFuelBombWeapon") == 0)
 	{
@@ -1693,6 +1721,7 @@ WeaponTemplate *WeaponStore::newWeaponTemplate(AsciiString name)
         wt->m_dieOnDetonate = TRUE;
 	}
 
+#endif
 	m_weaponTemplateVector.push_back(wt);
 	m_weaponTemplateHashMap[wt->m_nameKey] = wt;
 
@@ -2773,7 +2802,6 @@ Bool Weapon::privateFireWeapon(
 			m_status = BETWEEN_FIRING_SHOTS;
 			//CRCDEBUG_LOG(("Weapon::privateFireWeapon() just set m_status to BETWEEN_FIRING_SHOTS"));
 			Int delay = m_template->getDelayBetweenShots(bonus);
-
 			m_whenLastReloadStarted = now;
 			m_whenWeCanFireAgain = now + delay;
 			//CRCDEBUG_LOG(("Just set m_whenWeCanFireAgain to %d (delay is %d) in Weapon::privateFireWeapon", m_whenWeCanFireAgain, delay));
@@ -3635,6 +3663,4 @@ void WeaponBonusSet::appendBonuses(WeaponBonusConditionFlags flags, WeaponBonus&
 		this->m_bonus[i].appendBonuses(bonus);
 	}
 }
-
-
 

@@ -40,6 +40,10 @@
 #include "WWLib/inisup.h"
 #include "WWLib/ffactory.h"
 #include "WWLib/WWFILE.h"
+#if !defined(GENONLINE)
+#include "WWAudio/WWAudio.h"
+#include "WWAudio/AudibleSound.h"
+#endif
 #include "htree.h"
 #include "hanim.h"
 #include "soundlibrarybridge.h"

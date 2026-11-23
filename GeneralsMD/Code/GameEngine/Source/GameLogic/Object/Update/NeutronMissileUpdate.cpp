@@ -118,7 +118,11 @@ NeutronMissileUpdate::NeutronMissileUpdate( Thing *thing, const ModuleData* modu
 	m_vel.zero();
 
 	m_state = PRELAUNCH;
+#if defined(GENONLINE)
 	m_stateTimestamp = TheGameLogic->getFrameLegacy();
+#else
+	m_stateTimestamp = TheGameLogic->getFrame();
+#endif
 	m_isArmed = false;
 	m_isLaunched = false;
 	m_launcherID = INVALID_ID;
@@ -172,7 +176,11 @@ void NeutronMissileUpdate::projectileFireAtObjectOrPosition( const Object *victi
 	m_exhaustSysTmpl = exhaustSysOverride;
 
 	m_state = LAUNCH;
+#if defined(GENONLINE)
 	m_stateTimestamp = TheGameLogic->getFrameLegacy();
+#else
+	m_stateTimestamp = TheGameLogic->getFrame();
+#endif
 
 	if( victim )
 	{
@@ -273,7 +281,6 @@ void NeutronMissileUpdate::doLaunch()
 
 		FXList::doFXObj(getNeutronMissileUpdateModuleData()->m_launchFX, getObject());
 		m_heightAtLaunch = getObject()->getPosition()->z;
-
 		m_frameAtLaunch = TheGameLogic->getFrame();
 
 	}
@@ -293,7 +300,11 @@ void NeutronMissileUpdate::doLaunch()
 		TheParticleSystemManager->createAttachedParticleSystemID(m_exhaustSysTmpl, getObject());
 
 	m_state = ATTACK;
+#if defined(GENONLINE)
 	m_stateTimestamp = TheGameLogic->getFrameLegacy();
+#else
+	m_stateTimestamp = TheGameLogic->getFrame();
+#endif
 
 	// arm the missile's "warhead"
 	m_isArmed = true;
@@ -405,7 +416,6 @@ void NeutronMissileUpdate::doAttack()
 	Coord3D pos = *getObject()->getPosition();
 
 	const NeutronMissileUpdateModuleData* d = getNeutronMissileUpdateModuleData();
-
 	UnsignedInt now = TheGameLogic->getFrame();
 	if (d->m_specialSpeedTime > 0 && now <= m_frameAtLaunch + d->m_specialSpeedTime)
 	{
@@ -497,11 +507,13 @@ void NeutronMissileUpdate::detonate()
  */
 UpdateSleepTime NeutronMissileUpdate::update()
 {
+#if defined(GENONLINE)
 	if (!TheGameLogic->HasLegacyFrameAdvanced())
 	{
 		return UPDATE_SLEEP_NONE;
 	}
 
+#endif
 	m_deliveryDecal.update();
 
 	if (!m_reachedIntermediatePos)

@@ -53,9 +53,11 @@
 #include "Common/AsciiString.h"
 #include "Common/FileSystem.h" // for typedefs, etc.
 #include "Common/STLTypedefs.h"
+#if defined(GENONLINE)
 #include <map>
 #include <string>
 #include <vector>
+#endif
 
 //----------------------------------------------------------------------------
 //           Forward References
@@ -68,9 +70,11 @@ class ArchiveFile;
 //           Type Defines
 //----------------------------------------------------------------------------
 
+#if defined(GENONLINE)
 // Picks the files of a BIG to mount by their path inside it, TRUE keeps the file
 typedef Bool (*ArchivePathFilter)(const char* path);
 
+#endif
 
 //===============================
 // ArchiveFileSystem
@@ -126,6 +130,7 @@ public:
 };
 
 
+#if defined(GENONLINE)
 // Lookup priority of an archive, lower wins. The archive mounted first wins on equal priority.
 enum ArchivePriority
 {
@@ -157,6 +162,7 @@ struct ArchiveMountEntry
 	AsciiString m_path;	///< with backslashes, relative to the base, the BASE_ABSOLUTE path is complete
 };
 
+#endif
 class ArchiveFileSystem : public SubsystemInterface
 {
 public:
@@ -166,7 +172,11 @@ public:
 	virtual void postProcessLoad() override = 0;
 
 	// ArchiveFile operations
+#if defined(GENONLINE)
 	virtual ArchiveFile*	openArchiveFile( const Char *filename, ArchivePathFilter includePath = nullptr ) = 0;		///< Create new or return existing Archive file from file name
+#else
+	virtual ArchiveFile*	openArchiveFile( const Char *filename ) = 0;		///< Create new or return existing Archive file from file name
+#endif
 	virtual void					closeArchiveFile( const Char *filename ) = 0;		///< Close the one specified big file.
 	virtual void					closeAllArchiveFiles() = 0;								///< Close all Archive files currently open
 
@@ -182,6 +192,7 @@ public:
 
 	virtual void loadMods() = 0;
 
+#if defined(GENONLINE)
 	/// Parses a data pack path: "game:<path>", "user:<path>" or an absolute path. The data.include entries reach it as absolute paths, so the prefixes do not apply to them.
 	/// A path ending in .big or .gpk is one archive, a name with * or ? ending in .big or .gpk is a set, a path ending in a slash is every .big in that folder.
 	/// Returns FALSE and a reason for an entry that is not valid.
@@ -195,8 +206,10 @@ public:
 	/// BIGs of the game folders that are not retail and not excluded by data.exclude, which are mounted above the data packs
 	const std::vector<AsciiString>& getGameFolderArchives() const { return m_gameFolderArchives; }
 
+#endif
 	ArchivedDirectoryInfo* friend_getArchivedDirectoryInfo(const Char* directory);
 
+#if defined(GENONLINE)
 	Bool usesRetailInterface() const { return m_retailInterface; }	///< the Retail style: retail layouts, art and fonts, none of the GO interface files
 
 	/// Makes the patterns of data.exclude the excluded paths of the file system. They unmount matching game folder BIGs and hide their files.
@@ -205,6 +218,7 @@ public:
 	/// Mounts the data packs in list order, the first one wins. nullptr mounts the baseline pack of the game next to the executable.
 	void mountDataPacks(const std::vector<std::string>* include);
 
+#endif
 protected:
 	struct ArchivedDirectoryInfoResult
 	{
@@ -218,6 +232,7 @@ protected:
 	ArchiveFile* getArchiveFile(const AsciiString& filename, FileInstance instance = 0) const;
 	ArchivedDirectoryInfoResult getArchivedDirectoryInfo(const Char* directory);
 
+#if defined(GENONLINE)
 	virtual void loadIntoDirectoryTree(ArchiveFile *archiveFile, Int priority = ARCHIVE_PRIORITY_RETAIL);	///< load the archive file's header information and apply it to the global archive directory tree. The lowest priority number wins, the first mounted wins on equal priority.
 
 	Int getNextModPriority() { return m_nextModPriority > ARCHIVE_PRIORITY_MOD ? m_nextModPriority-- : ARCHIVE_PRIORITY_MOD; }	///< -mod and -modDir: a later one wins
@@ -228,14 +243,19 @@ protected:
 	void mountGenOnlineMenus(const std::vector<AsciiString>& genOnlineArchives);	///< mounts the menu layouts of the genonline_ archives again at ARCHIVE_PRIORITY_GENONLINE_GUI
 	void mountPackFolderFiles(const std::string& folder, Int priority);	///< mounts the loose files of a pack folder, every file that is not a BIG or GPK, at their paths in the folder
 	void removeUnmountedFiles(ArchivedDirectoryInfo& dirInfo, const std::vector<ArchiveFile*>& unmounted);	///< removes the files of unmounted archives from the lookup
+#else
+	virtual void loadIntoDirectoryTree(ArchiveFile *archiveFile, Bool overwrite = FALSE);	///< load the archive file's header information and apply it to the global archive directory tree.
+#endif
 
 	ArchiveFileMap m_archiveFileMap;
+#if defined(GENONLINE)
 	std::vector<AsciiString> m_gameFolderArchives;
 	AsciiString m_generalsBaseSource;	///< where the Generals data came from, for the log
 	Int m_nextModPriority = ARCHIVE_PRIORITY_MOD + 999;
 	Bool m_retailInterface = FALSE;
 	std::map<ArchiveFile*, AsciiString> m_packFolderArchives;	///< the loose files of a pack folder and that folder, opened from the folder
 	std::vector<ArchiveFile*> m_unmountedArchives;	///< game folder BIGs that data.exclude excludes after init mounted them, kept until shutdown
+#endif
 	ArchivedDirectoryInfo m_rootDirectory;
 };
 

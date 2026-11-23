@@ -199,9 +199,11 @@ enum GadgetGameMessage CPP_11(: Int)
 	// Slider messages
 	GPM_SET_PROGRESS,
 
+#if defined(GENONLINE)
 	// Entry field completion request. mData1 is the window. mData2 is TRUE when Shift is held.
 	GEM_TAB_COMPLETE,
 
+#endif
 };
 
 // border types
@@ -302,9 +304,11 @@ typedef struct _EntryData
 	UnsignedShort charPos;			// Position of current character
 	UnsignedShort conCharPos;		// Position of current construct character
 
+#if defined(GENONLINE)
 	Bool completionEnabled;					// If TRUE Tab sends GEM_TAB_COMPLETE to the owner
 	DisplayString *completionHint;	// Grey suffix drawn after the text
 
+#endif
 } EntryData;
 
 // TextData -------------------------------------------------------------------

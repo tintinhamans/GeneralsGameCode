@@ -55,8 +55,10 @@ class NetDisconnectScreenOffCommandMsg;
 class NetFrameResendRequestCommandMsg;
 class NetLoadCompleteCommandMsg;
 class NetTimeOutGameStartCommandMsg;
+#if defined(GENONLINE)
 class NetSignedFrameCommandMsg;
 class NetSignaturesCommandMsg;
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 // Helper class to pass buffer pointer and size
@@ -651,8 +653,10 @@ struct NetPacketDisconnectKeepAliveCommandBase
 // NetPacketDisconnectPlayerCommand
 ////////////////////////////////////////////////////////////////////////////////
 
+#if defined(GENONLINE)
 enum { NET_SIGNATURE_SIZE = 64 };
 
+#endif
 struct NetPacketDisconnectPlayerCommandData
 {
 	typedef NetDisconnectPlayerCommandMsg CommandMsg;
@@ -661,9 +665,11 @@ struct NetPacketDisconnectPlayerCommandData
 	{
 		UnsignedByte disconnectSlot;
 		UnsignedInt disconnectFrame;
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 		UnsignedByte hasSignature;	// the leaving player's signature of its leave, so peers can pass the notice on
 		UnsignedByte signature[NET_SIGNATURE_SIZE];
+#endif
 #endif
 	};
 
@@ -1190,6 +1196,7 @@ struct NetPacketFrameResendRequestCommandBase
 	static size_t copyBytes(UnsignedByte *buffer, const NetCommandRef &ref);
 };
 
+#if defined(GENONLINE)
 // A frame info followed by the signature of its author. It is read back into a NetFrameCommandMsg.
 struct NetPacketSignedFrameCommandData
 {
@@ -1258,6 +1265,7 @@ struct NetPacketSignaturesCommandBase
 	static size_t copyBytes(UnsignedByte *buffer, const NetCommandRef &ref);
 };
 
+#endif
 ////////////////////////////////////////////////////////////////////////////////
 
 struct NetPacketAckCommand                      : public NetPacketCommandTemplate<NetPacketAckCommandBase, NetPacketAckCommandData> {};
@@ -1285,8 +1293,10 @@ struct NetPacketTimeOutGameStartCommand         : public NetPacketCommandTemplat
 struct NetPacketDisconnectFrameCommand          : public NetPacketCommandTemplate<NetPacketDisconnectFrameCommandBase, NetPacketDisconnectFrameCommandData> {};
 struct NetPacketDisconnectScreenOffCommand      : public NetPacketCommandTemplate<NetPacketDisconnectScreenOffCommandBase, NetPacketDisconnectScreenOffCommandData> {};
 struct NetPacketFrameResendRequestCommand       : public NetPacketCommandTemplate<NetPacketFrameResendRequestCommandBase, NetPacketFrameResendRequestCommandData> {};
+#if defined(GENONLINE)
 struct NetPacketSignedFrameCommand              : public NetPacketCommandTemplate<NetPacketSignedFrameCommandBase, NetPacketSignedFrameCommandData> {};
 struct NetPacketSignaturesCommand               : public NetPacketCommandTemplate<NetPacketSignaturesCommandBase, NetPacketSignaturesCommandData> {};
+#endif
 
 struct SmallNetPacketAckCommand                 : public SmallNetPacketCommandTemplate<SmallNetPacketCommandBase, NetPacketAckCommandData> {};
 struct SmallNetPacketFrameCommand               : public SmallNetPacketCommandTemplate<SmallNetPacketCommandBase, NetPacketFrameCommandData> {};
@@ -1313,8 +1323,10 @@ struct SmallNetPacketTimeOutGameStartCommand    : public SmallNetPacketCommandTe
 struct SmallNetPacketDisconnectFrameCommand     : public SmallNetPacketCommandTemplate<SmallNetPacketCommandBase, NetPacketDisconnectFrameCommandData> {};
 struct SmallNetPacketDisconnectScreenOffCommand : public SmallNetPacketCommandTemplate<SmallNetPacketCommandBase, NetPacketDisconnectScreenOffCommandData> {};
 struct SmallNetPacketFrameResendRequestCommand  : public SmallNetPacketCommandTemplate<SmallNetPacketCommandBase, NetPacketFrameResendRequestCommandData> {};
+#if defined(GENONLINE)
 struct SmallNetPacketSignedFrameCommand         : public SmallNetPacketCommandTemplate<SmallNetPacketCommandBase, NetPacketSignedFrameCommandData> {};
 struct SmallNetPacketSignaturesCommand          : public SmallNetPacketCommandTemplate<SmallNetPacketCommandBase, NetPacketSignaturesCommandData> {};
+#endif
 
 // Restore normal struct packing
 #pragma pack(pop)

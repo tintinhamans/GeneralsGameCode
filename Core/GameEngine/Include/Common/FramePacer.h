@@ -82,7 +82,9 @@ protected:
 #if defined(GENONLINE)
 	Int getSituationCappedFramesPerSecondLimit(Int fps) const; ///< Cap rendering in the menus and on the shell map at 60 fps and without focus at the logic rate.
 #endif
+#if defined(GENONLINE)
 
+#endif
 	Int m_maxFPS; ///< Maximum frames per second for rendering
 	Int m_logicTimeScaleFPS; ///< Maximum frames per second for logic time scale
 
@@ -93,7 +95,9 @@ protected:
 	Bool m_enableLogicTimeScale;
 	Bool m_isTimeFrozen;
 	Bool m_isGameHalted;
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	Int m_gameSpeedFps; ///< Game speed of the next skirmish in logic frames per second
 	Int m_savedLogicTimeScaleFPS; ///< The player's own logic time scale fps while the game speed runs

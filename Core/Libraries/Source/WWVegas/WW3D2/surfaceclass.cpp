@@ -184,6 +184,7 @@ SurfaceClass::~SurfaceClass()
 
 void SurfaceClass::Get_Description(SurfaceDescription &surface_desc)
 {
+#if defined(GENONLINE)
 	// Check if the D3D surface is valid before attempting to get description
 	if (D3DSurface == NULL) {
 		surface_desc.Format = WW3D_FORMAT_UNKNOWN;
@@ -192,6 +193,7 @@ void SurfaceClass::Get_Description(SurfaceDescription &surface_desc)
 		return;
 	}
 
+#endif
 	D3DSURFACE_DESC d3d_desc;
 	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
 	DX8_ErrorCode(D3DSurface->GetDesc(&d3d_desc));
@@ -234,20 +236,24 @@ SurfaceClass::LockedSurfacePtr SurfaceClass::Lock(int *pitch, const Vector2i &mi
 
 void SurfaceClass::Unlock()
 {
+#if defined(GENONLINE)
 	// Check if the D3D surface is valid before attempting to unlock
 	if (D3DSurface == NULL) {
 		return;
 	}
+#endif
 	DX8_ErrorCode(D3DSurface->UnlockRect());
 }
 
 void SurfaceClass::Clear()
 {
+#if defined(GENONLINE)
 	// Check if the D3D surface is valid
 	if (D3DSurface == NULL) {
 		return;
 	}
 
+#endif
 	SurfaceDescription sd;
 	Get_Description(sd);
 
@@ -272,11 +278,13 @@ void SurfaceClass::Clear()
 
 void SurfaceClass::Copy(const unsigned char *other)
 {
+#if defined(GENONLINE)
 	// Check if the D3D surface is valid
 	if (D3DSurface == NULL) {
 		return;
 	}
 
+#endif
 	SurfaceDescription sd;
 	Get_Description(sd);
 
@@ -301,11 +309,13 @@ void SurfaceClass::Copy(const unsigned char *other)
 
 void SurfaceClass::Copy(const Vector2i &min, const Vector2i &max, const unsigned char *other)
 {
+#if defined(GENONLINE)
 	// Check if the D3D surface is valid
 	if (D3DSurface == NULL) {
 		return;
 	}
 
+#endif
 	SurfaceDescription sd;
 	Get_Description(sd);
 
@@ -336,6 +346,7 @@ void SurfaceClass::Copy(const Vector2i &min, const Vector2i &max, const unsigned
 
 unsigned char *SurfaceClass::CreateCopy(int *width,int *height,int*size,bool flip)
 {
+#if defined(GENONLINE)
 	// Check if the D3D surface is valid
 	if (D3DSurface == NULL) {
 		*width = 0;
@@ -344,6 +355,7 @@ unsigned char *SurfaceClass::CreateCopy(int *width,int *height,int*size,bool fli
 		return NULL;
 	}
 
+#endif
 	SurfaceDescription sd;
 	Get_Description(sd);
 
@@ -390,11 +402,13 @@ void SurfaceClass::Copy(
 	WWASSERT(width);
 	WWASSERT(height);
 
+#if defined(GENONLINE)
 	// Check if either D3D surface is invalid
 	if (D3DSurface == NULL || other->D3DSurface == NULL) {
 		return;
 	}
 
+#endif
 	SurfaceDescription sd,osd;
 	Get_Description(sd);
 	const_cast <SurfaceClass*>(other)->Get_Description(osd);
@@ -437,11 +451,13 @@ void SurfaceClass::Stretch_Copy(
 {
 	WWASSERT(other);
 
+#if defined(GENONLINE)
 	// Check if either D3D surface is invalid
 	if (D3DSurface == NULL || other->D3DSurface == NULL) {
 		return;
 	}
 
+#endif
 	SurfaceDescription sd,osd;
 	Get_Description(sd);
 	const_cast <SurfaceClass*>(other)->Get_Description(osd);
@@ -464,11 +480,13 @@ void SurfaceClass::Stretch_Copy(
 // Finds the bounding box of non zero pixels in the region.
 void SurfaceClass::FindBB(Vector2i *min,Vector2i*max)
 {
+#if defined(GENONLINE)
 	// Check if the D3D surface is valid
 	if (D3DSurface == NULL) {
 		return;
 	}
 
+#endif
 	SurfaceDescription sd;
 	Get_Description(sd);
 
@@ -529,11 +547,13 @@ void SurfaceClass::FindBB(Vector2i *min,Vector2i*max)
 
 bool SurfaceClass::Is_Transparent_Column(unsigned int column)
 {
+#if defined(GENONLINE)
 	// Check if the D3D surface is valid
 	if (D3DSurface == NULL) {
 		return true;
 	}
 
+#endif
 	SurfaceDescription sd;
 	Get_Description(sd);
 
@@ -588,12 +608,14 @@ bool SurfaceClass::Is_Transparent_Column(unsigned int column)
 // TheSuperHackers @performance Added bits and pitch to the argument list.
 void SurfaceClass::Get_Pixel(Vector3 &rgb, int x, int y, LockedSurfacePtr pBits, int pitch)
 {
+#if defined(GENONLINE)
 	// Check if the D3D surface is valid
 	if (D3DSurface == NULL) {
 		rgb.Set(0, 0, 0);
 		return;
 	}
 
+#endif
 	SurfaceDescription sd;
 	Get_Description(sd);
 
@@ -656,11 +678,13 @@ void SurfaceClass::Draw_H_Line(const unsigned int y, const unsigned int x1, cons
 
 bool SurfaceClass::Is_Monochrome()
 {
+#if defined(GENONLINE)
 	// Check if the D3D surface is valid
 	if (D3DSurface == NULL) {
 		return false;
 	}
 
+#endif
 	unsigned int x,y;
 	SurfaceDescription sd;
 	Get_Description(sd);
@@ -736,11 +760,13 @@ bool SurfaceClass::Is_Monochrome()
 
 void SurfaceClass::Hue_Shift(const Vector3 &hsv_shift)
 {
+#if defined(GENONLINE)
 	// Check if the D3D surface is valid
 	if (D3DSurface == NULL) {
 		return;
 	}
 
+#endif
 	unsigned int x,y;
 	SurfaceDescription sd;
 	Get_Description(sd);

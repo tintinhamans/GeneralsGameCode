@@ -205,7 +205,11 @@ void JetSlowDeathBehavior::beginSlowDeath( const DamageInfo *damageInfo )
 	}
 
 	// initialize our roll rate to that defined as the initial value in the module data
+#if defined(GENONLINE)
 	m_rollRate = modData->m_rollRate / (Real)LOGICFRAMES_PER_BASEFRAME;
+#else
+	m_rollRate = modData->m_rollRate;
+#endif
 
 	// set the locomotor so that the plane starts falling
 	Locomotor *locomotor = us->getAIUpdateInterface()->getCurLocomotor();
@@ -240,7 +244,11 @@ UpdateSleepTime JetSlowDeathBehavior::update()
 		physics->setRollRate( m_rollRate );
 
 	// adjust the roll rate over time
+#if defined(GENONLINE)
 	m_rollRate *= ConvertBaseFrameFactorToFrameFactor(modData->m_rollRateDelta);
+#else
+	m_rollRate *= modData->m_rollRateDelta;
+#endif
 
 	// do effects for death while in the air
 	if( m_timerOnGroundFrame == 0 )
@@ -298,7 +306,11 @@ UpdateSleepTime JetSlowDeathBehavior::update()
 
 			// start us rolling on another axis too
 			if( physics )
+#if defined(GENONLINE)
 				physics->setPitchRate( modData->m_pitchRate / (Real)LOGICFRAMES_PER_BASEFRAME );
+#else
+				physics->setPitchRate( modData->m_pitchRate );
+#endif
 
 		}
 

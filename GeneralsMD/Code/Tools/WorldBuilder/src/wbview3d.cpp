@@ -1326,11 +1326,15 @@ AsciiString WbView3d::getModelNameAndScale(MapObject *pMapObj, Real *scale, Body
 
 #ifdef LOAD_TEST_ASSETS
 	char buffer[ _MAX_PATH ];
+
 	if (strncmp(TEST_STRING, pMapObj->getName().str(), strlen(TEST_STRING)) == 0)
 	{
 		/* Handle test art models here */
 		strlcpy(buffer, pMapObj->getName().str(), ARRAY_SIZE(buffer));
 
+#if !defined(GENONLINE)
+		Int i;
+#endif
 		for (i=0; buffer[i]; i++) {
 			if (buffer[i] == '/') {
 				i++;
@@ -1354,8 +1358,13 @@ AsciiString WbView3d::getModelNameAndScale(MapObject *pMapObj, Real *scale, Body
 			modelName = getBestModelName(tTemplate, state);
 			*scale = tTemplate->getAssetScale();
 
+#if defined(GENONLINE)
 		}  // end if
 	}  // end else
+#else
+		}
+	}
+#endif
 	return modelName;
 }
 

@@ -294,11 +294,19 @@ static void memset32(void* ptr, Int value, Int bytesToFill)
 	bytesToFill -= (wordsToFill<<2);
 
 	Int *p = (Int*)ptr;
+#if defined(GENONLINE)
 	while (wordsToFill-- > 0)
+#else
+	for (++wordsToFill; --wordsToFill; )
+#endif
 		*p++ = value;
 
 	Byte *b = (Byte *)p;
+#if defined(GENONLINE)
 	while (bytesToFill-- > 0)
+#else
+	for (++bytesToFill; --bytesToFill; )
+#endif
 		*b++ = (Byte)value;
 }
 
@@ -1444,7 +1452,11 @@ BlockCheckpointInfo *Checkpointable::debugAddCheckpointInfo(
 	{
 #ifdef MEMORYPOOL_STACKTRACE
 		void **stacktrace = bi->getStacktraceInfo();
+#if defined(GENONLINE)
 		if (theStackTraceDepth > 0 && (!TheGlobalData || TheGlobalData->m_checkForLeaks))
+#else
+		if (theStackTraceDepth > 0 && !TheGlobalData || TheGlobalData->m_checkForLeaks)
+#endif
 		{
 			memset(stacktrace, 0, MEMORYPOOL_STACKTRACE_SIZE_BYTES);
 			::FillStackAddresses(stacktrace, min(MEMORYPOOL_STACKTRACE_SIZE, theStackTraceDepth), MEMORYPOOL_STACKTRACE_SKIP_SIZE);
@@ -1577,8 +1589,12 @@ MemoryPoolBlob* MemoryPool::createBlob(Int allocationCount)
 	blob->addBlobToList(&m_firstBlob, &m_lastBlob);
 
 	DEBUG_ASSERTCRASH(m_firstBlobWithFreeBlocks == nullptr, ("DO NOT IGNORE. Please call John McD - x36872 (m_firstBlobWithFreeBlocks != nullptr)"));
+#if defined(GENONLINE)
 	if (m_firstBlobWithFreeBlocks == nullptr)
 		m_firstBlobWithFreeBlocks = blob;
+#else
+	m_firstBlobWithFreeBlocks = blob;
+#endif
 
 	// bookkeeping
 	m_totalBlocksInPool += allocationCount;

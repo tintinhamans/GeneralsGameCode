@@ -350,7 +350,11 @@ Bool StealthUpdate::allowedToStealth( Object *stealthOwner ) const
 
 		//Now do weapon specific checks.
 		Weapon *weapon;
+#if defined(GENONLINE)
         UnsignedInt lastFrame = TheGameLogic->getFrame() - LOGICFRAMES_PER_BASEFRAME;
+#else
+		UnsignedInt lastFrame = TheGameLogic->getFrame() - 1;
+#endif
 
 		if( flags & STEALTH_NOT_WHILE_FIRING_PRIMARY )
 		{
@@ -586,6 +590,7 @@ UpdateSleepTime StealthUpdate::calcSleepTime() const
 //-------------------------------------------------------------------------------------------------
 UpdateSleepTime StealthUpdate::update()
 {
+
 	// restore disguise if we need to from a game load
 	if( m_xferRestoreDisguise == TRUE )
 	{
@@ -689,7 +694,11 @@ UpdateSleepTime StealthUpdate::update()
 		{
 			draw->setEffectiveOpacity( 0.5f + ( Sin( m_pulsePhase ) * 0.5f ) );
 			// between one half and full opacity
+#if defined(GENONLINE)
 			m_pulsePhase += (m_pulsePhaseRate / LOGICFRAMES_PER_BASEFRAME);
+#else
+			m_pulsePhase += m_pulsePhaseRate;
+#endif
 		}
 	}
 

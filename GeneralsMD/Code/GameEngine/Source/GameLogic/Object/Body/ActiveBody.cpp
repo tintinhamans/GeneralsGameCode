@@ -490,7 +490,11 @@ void ActiveBody::attemptDamage( DamageInfo *damageInfo )
 		{
 			// Damage amount is msec time we set the status given in damageStatusType
 			Real realFramesToStatusFor = ConvertDurationFromMsecsToFrames(amount);
+#if defined(GENONLINE)
 			obj->doStatusDamage( damageInfo->in.m_damageStatusType , ConvertBaseFramesToFrames(REAL_TO_INT_CEIL(ConvertFramesToBaseFramesReal(realFramesToStatusFor))) );
+#else
+			obj->doStatusDamage( damageInfo->in.m_damageStatusType , REAL_TO_INT_CEIL(realFramesToStatusFor) );
+#endif
 			alreadyHandled = TRUE;
 			allowModifier = FALSE;
 			break;

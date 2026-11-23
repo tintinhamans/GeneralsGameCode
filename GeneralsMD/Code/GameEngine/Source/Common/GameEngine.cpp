@@ -68,7 +68,9 @@
 #include "Common/Xfer.h"
 #include "Common/XferCRC.h"
 #include "Common/GameLOD.h"
+#if defined(GENONLINE)
 #include "Common/AdaptiveQuality.h"
+#endif
 #include "Common/Registry.h"
 #include "Common/GameCommon.h"	// FOR THE ALLOW_DEBUG_CHEATS_IN_RELEASE #define
 
@@ -103,11 +105,15 @@
 #include "GameClient/GUICallbacks.h"
 
 #include "GameNetwork/NetworkInterface.h"
+#if defined(GENONLINE)
 #include "GameNetwork/ConnectionManager.h"
+#endif
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/GameSpy/GameResultsThread.h"
+#if defined(GENONLINE)
 #include "GameNetwork/Online/OnlineProviderFactory.h"
 #include "GameNetwork/Online/IOnlineGameHooks.h"
+#endif
 #if defined(GENONLINE)
 #include "GameNetwork/GenOnline/GenOnlineInit.h"
 #include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
@@ -140,7 +146,7 @@ public:
 protected:
 };
 
-DeepCRCSanityCheck* TheDeepCRCSanityCheck = nullptr;
+DeepCRCSanityCheck *TheDeepCRCSanityCheck = nullptr;
 
 void DeepCRCSanityCheck::reset()
 {
@@ -149,12 +155,12 @@ void DeepCRCSanityCheck::reset()
 
 	AsciiString fname;
 	fname.format("%sCRCAfter%dMaps.dat", TheGlobalData->getPath_UserData().str(), timesThrough);
-	UnsignedInt thisCRC = TheGameLogic->getCRC(CRC_RECALC, fname);
+	UnsignedInt thisCRC = TheGameLogic->getCRC( CRC_RECALC, fname );
 
 	DEBUG_LOG(("DeepCRCSanityCheck: CRC is %X", thisCRC));
 	DEBUG_ASSERTCRASH(timesThrough == 0 || thisCRC == lastCRC,
 		("CRC after reset did not match beginning CRC!\nNetwork games won't work after this.\nOld: 0x%8.8X, New: 0x%8.8X",
-			lastCRC, thisCRC));
+		lastCRC, thisCRC));
 	lastCRC = thisCRC;
 
 	timesThrough++;
@@ -163,7 +169,7 @@ void DeepCRCSanityCheck::reset()
 
 //-------------------------------------------------------------------------------------------------
 /// The GameEngine singleton instance
-GameEngine* TheGameEngine = nullptr;
+GameEngine *TheGameEngine = nullptr;
 
 //-------------------------------------------------------------------------------------------------
 SubsystemInterfaceList* TheSubsystemList = nullptr;
@@ -174,7 +180,7 @@ void initSubsystem(
 	SUBSYSTEM*& sysref,
 	AsciiString name,
 	SUBSYSTEM* sys,
-	Xfer* pXfer,
+	Xfer *pXfer,
 	const char* path1 = nullptr,
 	const char* path2 = nullptr)
 {
@@ -265,6 +271,7 @@ GameEngine::GameEngine()
 //-------------------------------------------------------------------------------------------------
 GameEngine::~GameEngine()
 {
+#if defined(GENONLINE)
 	// stop the stats readers feed before the state it samples is torn down
 	LocalApiReadersShutdown();
 #if defined(GENONLINE)
@@ -272,14 +279,15 @@ GameEngine::~GameEngine()
 	GenOnlinePluginHost::UnloadToolPlugin();
 #endif
 
+#endif
 	//extern std::vector<std::string>	preloadTextureNamesGlobalHack;
 	//preloadTextureNamesGlobalHack.clear();
 
 	delete TheMapCache;
 	TheMapCache = nullptr;
 
-	//	delete TheShell;
-	//	TheShell = nullptr;
+//	delete TheShell;
+//	TheShell = nullptr;
 
 	TheGameResultsQueue->endThreads();
 
@@ -311,18 +319,25 @@ GameEngine::~GameEngine()
 
 	delete TheGameLODManager;
 	TheGameLODManager = nullptr;
+#if defined(GENONLINE)
 	// GENERALS ONLINE
 	GetOnlineGameHooks()->onEngineShutdown();
+#else
+
+#endif
 	Drawable::killStaticImages();
 
 #ifdef PERF_TIMERS
 	PerfGather::termPerfDump();
 #endif
+#if defined(GENONLINE)
 	// Kill sentry
 	GetOnlineGameHooks()->onEngineExit();}
+#else
+}
+#endif
 
 //-------------------------------------------------------------------------------------------------
-
 Bool GameEngine::isTimeFrozen()
 {
 	// TheSuperHackers @fix The time can no longer be frozen in Network games. It would disconnect the player.
@@ -386,13 +401,13 @@ void GameEngine::init()
 		}
 #endif
 
-#if defined(PERF_TIMERS) || defined(DUMP_PERF_STATS)
+	#if defined(PERF_TIMERS) || defined(DUMP_PERF_STATS)
 		DEBUG_LOG(("Calculating CPU frequency for performance timers."));
 		InitPrecisionTimer();
-#endif
-#ifdef PERF_TIMERS
+	#endif
+	#ifdef PERF_TIMERS
 		PerfGather::initPerfDump("AAAPerfStats", PerfGather::PERF_NETTIME);
-#endif
+	#endif
 
 
 
@@ -452,9 +467,11 @@ void GameEngine::init()
 	#endif/////////////////////////////////////////////////////////////////////////////////////////////
 
 
+#if defined(GENONLINE)
 		// GenOnline @feature arcticdolphin 21/11/2026 Settings load before the archives are mounted because they read data.include and data.exclude, and they need TheGlobalData for the user data path.
 		GetOnlineGameHooks()->loadSettings();
 
+#endif
 		initSubsystem(TheArchiveFileSystem, "TheArchiveFileSystem", createArchiveFileSystem(), nullptr); // this MUST come after TheLocalFileSystem creation
 
     	#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
@@ -464,7 +481,7 @@ void GameEngine::init()
 	#endif/////////////////////////////////////////////////////////////////////////////////////////////
 
 
-		DEBUG_ASSERTCRASH(TheWritableGlobalData, ("TheWritableGlobalData expected to be created"));
+		DEBUG_ASSERTCRASH(TheWritableGlobalData,("TheWritableGlobalData expected to be created"));
 		initSubsystem(TheWritableGlobalData, "TheWritableGlobalData", TheWritableGlobalData, &xferCRC, "Data\\INI\\Default\\GameData", "Data\\INI\\GameData");
 		TheWritableGlobalData->parseCustomDefinition();
 
@@ -473,9 +490,11 @@ void GameEngine::init()
 		// GenOnline @feature arcticdolphin 21/11/2026 The caster plugin loads before the first stats call and also in headless runs for -exportStats
 		GenOnlinePluginHost::LoadToolPlugin();
 #endif
+#if defined(GENONLINE)
 
 		// Init sentry ASAP to catch early crashes
 		GetOnlineGameHooks()->onGlobalDataLoaded();
+#endif
 
 	#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
 	GetPrecisionTimer(&endTime64);//////////////////////////////////////////////////////////////////
@@ -485,10 +504,10 @@ void GameEngine::init()
 
 
 
-#if defined(RTS_DEBUG)
+	#if defined(RTS_DEBUG)
 		// If we're in Debug, load the Debug settings as well.
-		ini.loadFileDirectory("Data\\INI\\GameDataDebug", INI_LOAD_OVERWRITE, nullptr);
-#endif
+		ini.loadFileDirectory( "Data\\INI\\GameDataDebug", INI_LOAD_OVERWRITE, nullptr );
+	#endif
 
 		// special-case: parse command-line parameters after loading global data
 		CommandLine::parseCommandLineForEngineInit();
@@ -506,10 +525,10 @@ void GameEngine::init()
 		}
 
 		// read the water settings from INI (must do prior to initing GameClient, apparently)
-		ini.loadFileDirectory("Data\\INI\\Default\\Water", INI_LOAD_OVERWRITE, &xferCRC);
-		ini.loadFileDirectory("Data\\INI\\Water", INI_LOAD_OVERWRITE, &xferCRC);
-		ini.loadFileDirectory("Data\\INI\\Default\\Weather", INI_LOAD_OVERWRITE, &xferCRC);
-		ini.loadFileDirectory("Data\\INI\\Weather", INI_LOAD_OVERWRITE, &xferCRC);
+		ini.loadFileDirectory( "Data\\INI\\Default\\Water", INI_LOAD_OVERWRITE, &xferCRC );
+		ini.loadFileDirectory( "Data\\INI\\Water", INI_LOAD_OVERWRITE, &xferCRC );
+		ini.loadFileDirectory( "Data\\INI\\Default\\Weather", INI_LOAD_OVERWRITE, &xferCRC );
+		ini.loadFileDirectory( "Data\\INI\\Weather", INI_LOAD_OVERWRITE, &xferCRC );
 
 
 
@@ -578,14 +597,14 @@ void GameEngine::init()
 	#endif/////////////////////////////////////////////////////////////////////////////////////////////
 
 
-		initSubsystem(TheFXListStore, "TheFXListStore", MSGNEW("GameEngineSubsystem") FXListStore(), &xferCRC, "Data\\INI\\Default\\FXList", "Data\\INI\\FXList");
-		initSubsystem(TheWeaponStore, "TheWeaponStore", MSGNEW("GameEngineSubsystem") WeaponStore(), &xferCRC, nullptr, "Data\\INI\\Weapon");
-		initSubsystem(TheObjectCreationListStore, "TheObjectCreationListStore", MSGNEW("GameEngineSubsystem") ObjectCreationListStore(), &xferCRC, "Data\\INI\\Default\\ObjectCreationList", "Data\\INI\\ObjectCreationList");
-		initSubsystem(TheLocomotorStore, "TheLocomotorStore", MSGNEW("GameEngineSubsystem") LocomotorStore(), &xferCRC, nullptr, "Data\\INI\\Locomotor");
-		initSubsystem(TheSpecialPowerStore, "TheSpecialPowerStore", MSGNEW("GameEngineSubsystem") SpecialPowerStore(), &xferCRC, "Data\\INI\\Default\\SpecialPower", "Data\\INI\\SpecialPower");
-		initSubsystem(TheDamageFXStore, "TheDamageFXStore", MSGNEW("GameEngineSubsystem") DamageFXStore(), &xferCRC, nullptr, "Data\\INI\\DamageFX");
-		initSubsystem(TheArmorStore, "TheArmorStore", MSGNEW("GameEngineSubsystem") ArmorStore(), &xferCRC, nullptr, "Data\\INI\\Armor");
-		initSubsystem(TheBuildAssistant, "TheBuildAssistant", MSGNEW("GameEngineSubsystem") BuildAssistant, nullptr);
+		initSubsystem(TheFXListStore,"TheFXListStore", MSGNEW("GameEngineSubsystem") FXListStore(), &xferCRC, "Data\\INI\\Default\\FXList", "Data\\INI\\FXList");
+		initSubsystem(TheWeaponStore,"TheWeaponStore", MSGNEW("GameEngineSubsystem") WeaponStore(), &xferCRC, nullptr, "Data\\INI\\Weapon");
+		initSubsystem(TheObjectCreationListStore,"TheObjectCreationListStore", MSGNEW("GameEngineSubsystem") ObjectCreationListStore(), &xferCRC, "Data\\INI\\Default\\ObjectCreationList", "Data\\INI\\ObjectCreationList");
+		initSubsystem(TheLocomotorStore,"TheLocomotorStore", MSGNEW("GameEngineSubsystem") LocomotorStore(), &xferCRC, nullptr, "Data\\INI\\Locomotor");
+		initSubsystem(TheSpecialPowerStore,"TheSpecialPowerStore", MSGNEW("GameEngineSubsystem") SpecialPowerStore(), &xferCRC, "Data\\INI\\Default\\SpecialPower", "Data\\INI\\SpecialPower");
+		initSubsystem(TheDamageFXStore,"TheDamageFXStore", MSGNEW("GameEngineSubsystem") DamageFXStore(), &xferCRC, nullptr, "Data\\INI\\DamageFX");
+		initSubsystem(TheArmorStore,"TheArmorStore", MSGNEW("GameEngineSubsystem") ArmorStore(), &xferCRC, nullptr, "Data\\INI\\Armor");
+		initSubsystem(TheBuildAssistant,"TheBuildAssistant", MSGNEW("GameEngineSubsystem") BuildAssistant, nullptr);
 
 
 	#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
@@ -596,7 +615,7 @@ void GameEngine::init()
 
 
 
-		initSubsystem(TheThingFactory, "TheThingFactory", createThingFactory(), &xferCRC, "Data\\INI\\Default\\Object", "Data\\INI\\Object");
+		initSubsystem(TheThingFactory,"TheThingFactory", createThingFactory(), &xferCRC, "Data\\INI\\Default\\Object", "Data\\INI\\Object");
 
 	#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
 	GetPrecisionTimer(&endTime64);//////////////////////////////////////////////////////////////////
@@ -613,8 +632,10 @@ void GameEngine::init()
 		initSubsystem(TheUpgradeCenter,"TheUpgradeCenter", MSGNEW("GameEngineSubsystem") UpgradeCenter, &xferCRC, "Data\\INI\\Default\\Upgrade", "Data\\INI\\Upgrade");
 		initSubsystem(TheGameClient,"TheGameClient", createGameClient(), nullptr);
 
+#if defined(GENONLINE)
 		GetOnlineGameHooks()->onDisplayCreated();
 
+#endif
 
 	#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
 	GetPrecisionTimer(&endTime64);//////////////////////////////////////////////////////////////////
@@ -643,7 +664,7 @@ void GameEngine::init()
 
 		AsciiString fname;
 		fname.format("Data\\%s\\CommandMap", GetRegistryLanguage().str());
-		initSubsystem(TheMetaMap, "TheMetaMap", MSGNEW("GameEngineSubsystem") MetaMap(), nullptr, fname.str(), "Data\\INI\\CommandMap");
+		initSubsystem(TheMetaMap,"TheMetaMap", MSGNEW("GameEngineSubsystem") MetaMap(), nullptr, fname.str(), "Data\\INI\\CommandMap");
 
 #if defined(RTS_DEBUG)
 		ini.loadFileDirectory("Data\\INI\\CommandMapDebug", INI_LOAD_MULTIFILE, nullptr);
@@ -661,6 +682,7 @@ void GameEngine::init()
 		initSubsystem(TheGameStateMap,"TheGameStateMap", MSGNEW("GameEngineSubsystem") GameStateMap, nullptr );
 		initSubsystem(TheGameState,"TheGameState", MSGNEW("GameEngineSubsystem") GameState, nullptr );
 
+#if defined(GENONLINE)
 		// The subsystem list owns this instance for the engine lifetime and Online never replaces it.
 		OnlineProviderFactory *resultsFactory = nullptr;
 		IOnlineResults *results = CreateOnlineResults(&resultsFactory);
@@ -669,6 +691,10 @@ void GameEngine::init()
 		initSubsystem(TheGameResultsQueue,"TheGameResultsQueue", results, nullptr);
 		if (!BindOnlineResultsProvider(resultsFactory))
 			RELEASE_CRASH(("Unable to bind the selected online results provider."));
+#else
+		// Create the interface for sending game results
+		initSubsystem(TheGameResultsQueue,"TheGameResultsQueue", GameResultsInterface::createNewGameResultsInterface(), nullptr);
+#endif
 
 
 	#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
@@ -741,7 +767,7 @@ void GameEngine::init()
 	//			TheShell->hideShell();
 
 				// send a message to the logic for a new game
-				GameMessage* msg = TheMessageStream->appendMessage(GameMessage::MSG_NEW_GAME);
+				GameMessage *msg = TheMessageStream->appendMessage( GameMessage::MSG_NEW_GAME );
 				msg->appendIntegerArgument(GAME_SINGLE_PLAYER);
 				msg->appendIntegerArgument(DIFFICULTY_NORMAL);
 				msg->appendIntegerArgument(0);
@@ -786,8 +812,10 @@ void GameEngine::init()
 	resetSubsystems();
 
 	HideControlBar();
+#if defined(GENONLINE)
 
 	GetOnlineGameHooks()->onEngineInitialized();
+#endif
 }
 
 /** -----------------------------------------------------------------------------------------------
@@ -796,8 +824,8 @@ void GameEngine::init()
 void GameEngine::reset()
 {
 
-	WindowLayout* background = TheWindowManager->winCreateLayout("Menus/BlankWindow.wnd");
-	DEBUG_ASSERTCRASH(background, ("We Couldn't Load Menus/BlankWindow.wnd"));
+	WindowLayout *background = TheWindowManager->winCreateLayout("Menus/BlankWindow.wnd");
+	DEBUG_ASSERTCRASH(background,("We Couldn't Load Menus/BlankWindow.wnd"));
 	background->hide(FALSE);
 	background->bringForward();
 	background->getFirstWindow()->winClearStatus(WIN_STATUS_IMAGE);
@@ -813,7 +841,7 @@ void GameEngine::reset()
 		delete TheNetwork;
 		TheNetwork = nullptr;
 	}
-	if (background)
+	if(background)
 	{
 		background->destroyWindows();
 		deleteInstance(background);
@@ -884,17 +912,21 @@ Bool GameEngine::canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags)
 	const Bool useFastMode = TheGlobalData->m_TiVOFastMode && TheGameLogic->isInReplayGame();
 #endif
 
+#if defined(GENONLINE)
 	// GenOnline @bugfix arcticdolphin 21/11/2026 A logic rate at or above the render limit stays in lock step, so every drawn frame steps the logic once and
 	// the draw modules and particles keep an even rhythm. Only a drawn frame that took longer than a logic frame hands the missed frames to the catch-up loop.
 	const Int catchUpFrames = getCatchUpFrames();
+#endif
 	if (useFastMode || logicTimeScaleFps >= maxRenderFps)
 	{
+#if defined(GENONLINE)
 		if (catchUpFrames > 1 && logicTimeScaleFps < (Int)RenderFpsPreset::UncappedFpsValue)
 		{
 			const Real targetFrameTime = 1.0f / logicTimeScaleFps;
 			const Real owed = TheFramePacer->getUpdateTime() - targetFrameTime;
 			m_logicTimeAccumulator = owed >= targetFrameTime ? min(owed, targetFrameTime * (catchUpFrames - 1)) : 0.0f;
 		}
+#endif
 		// Logic time scale is uncapped or larger equal Render FPS. Update straight away.
 		return true;
 	}
@@ -903,10 +935,14 @@ Bool GameEngine::canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags)
 		// TheSuperHackers @tweak xezon 06/08/2025
 		// The logic time step is now decoupled from the render update.
 		const Real targetFrameTime = 1.0f / logicTimeScaleFps;
+#if defined(GENONLINE)
 		// one drawn frame credits up to the catch-up frames of the quality level and the catch-up loop spends the rest
 		// the bound only holds a backlog the loop could not spend and never applies at 1
 		const Real maxCredit = targetFrameTime * catchUpFrames;
 		m_logicTimeAccumulator = min(m_logicTimeAccumulator + min(TheFramePacer->getUpdateTime(), maxCredit), maxCredit + targetFrameTime);
+#else
+		m_logicTimeAccumulator += min(TheFramePacer->getUpdateTime(), targetFrameTime);
+#endif
 
 		if (m_logicTimeAccumulator >= targetFrameTime)
 		{
@@ -918,6 +954,7 @@ Bool GameEngine::canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags)
 	return false;
 }
 
+#if defined(GENONLINE)
 /// -----------------------------------------------------------------------------------------------
 Bool GameEngine::canUpdateGameLogicFromBacklog()
 {
@@ -961,6 +998,7 @@ Int GameEngine::getCatchUpFrames() const
 	return AdaptiveQuality::get().catchUpFrames();
 }
 
+#endif
 /// -----------------------------------------------------------------------------------------------
 DECLARE_PERF_TIMER(GameEngine_update)
 
@@ -971,6 +1009,7 @@ void GameEngine::update()
 {
 	USE_PERF_TIMER(GameEngine_update)
 	{
+#if defined(GENONLINE)
 		// keeps the stats readers feed up so a reader can connect from the shell
 		LocalApiReadersStart();
 #if defined(GENONLINE)
@@ -979,6 +1018,7 @@ void GameEngine::update()
 #endif
 		LocalApiLiveTick();
 
+#endif
 		{
 			// VERIFY CRC needs to be in this code block.  Please to not pull TheGameLogic->update() inside this block.
 			VERIFY_CRC
@@ -996,16 +1036,30 @@ void GameEngine::update()
 				TheFramePacer->setFramesPerSecondLimit(LOGICFRAMES_PER_SECOND);
 			}
 #endif
+#if defined(GENONLINE)
 			
 				TheRadar->UPDATE();
+#else
+			TheRadar->UPDATE();
+#endif
 
 			/// @todo Move audio init, update, etc, into GameClient update
 
 			TheAudio->UPDATE();
+#if !defined(GENONLINE)
+			TheGameClient->UPDATE();
+			TheMessageStream->propagateMessages();
+
+			if (TheNetwork != nullptr)
+#endif
 			{
+#if defined(GENONLINE)
 				const long long aqClientStart = AdaptiveQuality::now();
 				TheGameClient->UPDATE();
 				AdaptiveQuality::get().addOwn(AdaptiveQuality::now() - aqClientStart);
+#else
+				TheNetwork->UPDATE();
+#endif
 			}
 #if defined(GENONLINE)
 			LocalApiLiveCamera();
@@ -1019,7 +1073,9 @@ void GameEngine::update()
 			GetOnlineGameHooks()->onEngineUpdate();
 #endif
 		}
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 		if (TheNetwork != nullptr && TheNetwork->isGameExitPending()) {
 			// Teardown can delete Network and must not run another gameplay update.
@@ -1031,13 +1087,16 @@ void GameEngine::update()
 		// TheSuperHackers @info Ignores frozen time because the script engine needs updating in the logic update regardless.
 		if (canUpdateGameLogic(FramePacer::IgnoreFrozenTime))
 		{
+#if defined(GENONLINE)
 			const long long aqLogicStart = AdaptiveQuality::now();
+#endif
 			TheGameLogic->UPDATE();
 
 			if (!TheFramePacer->isTimeFrozen())
 			{
 				TheGameClient->step();
 			}
+#if defined(GENONLINE)
 
 			const long long aqCatchUpStart = AdaptiveQuality::now();
 			Int caughtUp = 0;
@@ -1091,6 +1150,7 @@ void GameEngine::update()
 		else if (TheNetwork != nullptr && TheNetwork->isStalling())
 		{
 			AdaptiveQuality::get().noteNetworkWait();
+#endif
 		}
 	}
 }
@@ -1109,7 +1169,7 @@ void GameEngine::execute()
 #endif
 
 	// pretty basic for now
-	while (!m_quitting)
+	while( !m_quitting )
 	{
 
 		//if (TheGlobalData->m_vTune)
@@ -1144,7 +1204,9 @@ void GameEngine::execute()
 #endif
 
 			{
+#if defined(GENONLINE)
 				AdaptiveQuality::get().frameBegin();
+#endif
 				try
 				{
 					// compute a frame
@@ -1174,7 +1236,9 @@ void GameEngine::execute()
 			}
 
 			TheFramePacer->update();
+#if defined(GENONLINE)
 			AdaptiveQuality::get().frameEnd();
+#endif
 		}
 
 #ifdef PERF_TIMERS
@@ -1222,7 +1286,7 @@ void updateTGAtoDDS()
 	// and determine if there are any .tga files that are newer than associated .dds files. If there
 	// are, then we will re-run the compression tool on them.
 
-	File* fp = TheLocalFileSystem->openFile("buildDDS.txt", File::WRITE | File::CREATE | File::TRUNCATE | File::TEXT);
+	File *fp = TheLocalFileSystem->openFile("buildDDS.txt", File::WRITE | File::CREATE | File::TRUNCATE | File::TEXT);
 	if (!fp) {
 		return;
 	}
@@ -1257,12 +1321,11 @@ void updateTGAtoDDS()
 		if (TheFileSystem->doesFileExist(filenameDDS.str())) {
 			TheFileSystem->getFileInfo(filenameDDS, &infoDDS);
 			if (infoTGA.timestampHigh > infoDDS.timestampHigh ||
-				(infoTGA.timestampHigh == infoDDS.timestampHigh &&
-					infoTGA.timestampLow > infoDDS.timestampLow)) {
+					(infoTGA.timestampHigh == infoDDS.timestampHigh &&
+					 infoTGA.timestampLow > infoDDS.timestampLow)) {
 				needsToBeUpdated = TRUE;
 			}
-		}
-		else {
+		} else {
 			needsToBeUpdated = TRUE;
 		}
 

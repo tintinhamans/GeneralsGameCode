@@ -99,11 +99,18 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 			{
 				BitSet( instData->m_state, WIN_STATE_HILITED );
 
+#if defined(GENONLINE)
 				if( instData->getOwner() != nullptr )
 					TheWindowManager->winSendSystemMsg( instData->getOwner(),
 																							GBM_MOUSE_ENTERING,
 																							(WindowMsgData)window,
 																							mData1 );
+#else
+				TheWindowManager->winSendSystemMsg( instData->getOwner(),
+																						GBM_MOUSE_ENTERING,
+																						(WindowMsgData)window,
+																						mData1 );
+#endif
 
 				//TheWindowManager->winSetFocus( window );
 			}
@@ -123,11 +130,18 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 			if(BitIsSet( instData->getStyle(), GWS_MOUSE_TRACK ) )
 			{
 				BitClear( instData->m_state, WIN_STATE_HILITED );
+#if defined(GENONLINE)
 				if( instData->getOwner() != nullptr )
 					TheWindowManager->winSendSystemMsg( instData->getOwner(),
 																							GBM_MOUSE_LEAVING,
 																							(WindowMsgData)window,
 																							mData1 );
+#else
+				TheWindowManager->winSendSystemMsg( instData->getOwner(),
+																						GBM_MOUSE_LEAVING,
+																						(WindowMsgData)window,
+																						mData1 );
+#endif
 			}
 
 			//
@@ -151,9 +165,14 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 		case GWM_LEFT_DRAG:
 		{
 
+#if defined(GENONLINE)
 			if( instData->getOwner() != nullptr )
 				TheWindowManager->winSendSystemMsg( instData->getOwner(), GGM_LEFT_DRAG,
 																						(WindowMsgData)window, mData1 );
+#else
+			TheWindowManager->winSendSystemMsg( instData->getOwner(), GGM_LEFT_DRAG,
+																					(WindowMsgData)window, mData1 );
+#endif
 			break;
 
 		}
@@ -197,9 +216,14 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 			}
 
 			if (buttonTriggersOnMouseDown(window)) {
+#if defined(GENONLINE)
 				if( instData->getOwner() != nullptr )
 					TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED,
 																							(WindowMsgData)window, mData1 );
+#else
+				TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED,
+																						(WindowMsgData)window, mData1 );
+#endif
 			}
 
 			break;
@@ -217,15 +241,26 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 					BitIsSet( window->winGetStatus(), WIN_STATUS_CHECK_LIKE ) == FALSE )
 			{
 
+#if defined(GENONLINE)
 				BitClear( instData->m_state, WIN_STATE_SELECTED );
 
+#endif
 				if (!buttonTriggersOnMouseDown(window)) {
 					// If it didn't trigger on mouse down, trigger on the mouse up. jba  [8/6/2003]
+#if defined(GENONLINE)
 					if( instData->getOwner() != nullptr )
 						TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED,
 																								(WindowMsgData)window, mData1 );
+#else
+					TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED,
+																							(WindowMsgData)window, mData1 );
+#endif
 				}
 
+#if !defined(GENONLINE)
+				BitClear( instData->m_state, WIN_STATE_SELECTED );
+
+#endif
 			}
 			else
 			{
@@ -271,9 +306,14 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 					else
 						BitSet( instData->m_state, WIN_STATE_SELECTED );
 
+#if defined(GENONLINE)
 					if( instData->getOwner() != nullptr )
 						TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED_RIGHT,
 																								(WindowMsgData)window, mData1 );
+#else
+					TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED_RIGHT,
+																							(WindowMsgData)window, mData1 );
+#endif
 
 				}
 				else
@@ -308,9 +348,14 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 						BitIsSet( window->winGetStatus(), WIN_STATUS_CHECK_LIKE ) == FALSE )
 				{
 
+#if defined(GENONLINE)
 					if( instData->getOwner() != nullptr )
 						TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED_RIGHT,
 																								(WindowMsgData)window, mData1 );
+#else
+					TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED_RIGHT,
+																							(WindowMsgData)window, mData1 );
+#endif
 
 					BitClear( instData->m_state, WIN_STATE_SELECTED );
 
@@ -355,9 +400,14 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 								BitIsSet( window->winGetStatus(), WIN_STATUS_CHECK_LIKE ) == FALSE )
 						{
 
+#if defined(GENONLINE)
 							if( instData->getOwner() != nullptr )
 								TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED,
 																										(WindowMsgData)window, 0 );
+#else
+							TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED,
+																									(WindowMsgData)window, 0 );
+#endif
 
 							BitClear( instData->m_state, WIN_STATE_SELECTED );
 
@@ -380,9 +430,14 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 							else
 								BitSet( instData->m_state, WIN_STATE_SELECTED );
 
+#if defined(GENONLINE)
 							if( instData->getOwner() != nullptr )
 								TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED,
 																										(WindowMsgData)window, mData1 );
+#else
+							TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED,
+																									(WindowMsgData)window, mData1 );
+#endif
 
 						}
 						else

@@ -39,7 +39,12 @@
 #include "GameNetwork/User.h"
 #include "GameNetwork/Transport.h"
 #include "GameNetwork/NetPacket.h"
+#if defined(GENONLINE)
 #include "GameNetwork/ConnectionStats.h"
+#else
+
+#define CONNECTION_LATENCY_HISTORY_LENGTH 200
+#endif
 #if defined(GENONLINE)
 #include "GameNetwork/NetworkSettings.h"
 #endif
@@ -67,10 +72,12 @@ public:
 #if defined(GENONLINE)
 	void setNetworkSettings(const NetworkSettings &settings, Bool unreliableTransport) { m_networkSettings = settings; m_unreliableTransport = unreliableTransport; }
 #endif
+#if defined(GENONLINE)
 	void setSlot(Int slot) { m_slot = slot; }
 	void setShortGrouping(Bool shortGrouping);	///< Send at one frame while the run ahead is close to its floor.
 	Int getRedundancyDepth() const { return m_redundancyDepth; }
 	time_t getFrameGrouping() const { return m_frameGrouping; }	///< The send interval in use, shorter than the configured one while redundancy is on.
+#endif
 
 	void sendNetCommandMsg(NetCommandMsg *msg, UnsignedByte relay);
 
@@ -85,8 +92,10 @@ public:
 	void setQuitting();
 	Bool isQuitting() { return m_isQuitting; }
 
+#if defined(GENONLINE)
 	const ConnectionStats& getStats() const { return m_stats; }
 
+#endif
 #if defined(RTS_DEBUG)
 	void debugPrintCommands();
 #endif
@@ -96,6 +105,7 @@ protected:
 	NetworkSettings m_networkSettings;
 	Bool m_unreliableTransport;
 #endif
+#if defined(GENONLINE)
 
 	void resetRedundancy();
 	void updateRedundancy(time_t curtime, Bool &active, time_t &window, Int &depth);
@@ -106,6 +116,9 @@ protected:
 	Bool isQueueBuilding(time_t now);	///< Round trip at 2x its low while packets are lost: a full queue
 	void applyFrameGrouping();
 	void addRedundantCommands(NetPacket *packet, time_t curtime, time_t window, Int depth);
+#else
+	void doRetryMetrics();
+#endif
 
 	Bool m_isQuitting;
 	UnsignedInt m_quitTime;
@@ -115,6 +128,7 @@ protected:
 
 	NetCommandList *m_netCommandList;
 	time_t m_retryTime;						///< The time between sending retry packets for this connection.  Time is in milliseconds.
+#if defined(GENONLINE)
 	ConnectionStats m_stats;			///< Latency, jitter and loss of this connection.
 
 	Int m_redundancyDepth;					///< How many later packets each un-acked command is repeated in, 0 on a clean connection.
@@ -123,9 +137,19 @@ protected:
 	time_t m_lastDepthChangeTime;		///< A burst needs a round trip to show whether the new depth helped.
 	Bool m_queueSuspected;				///< A full queue on the path, redundancy steps down instead of up.
 	Int m_slot;
+#else
+	Real m_averageLatency;			///< The average time between sending a command and receiving an ACK.
+	Real m_latencies[CONNECTION_LATENCY_HISTORY_LENGTH];	///< List of the last 100 latencies.
+#endif
 
+#if defined(GENONLINE)
 	Bool m_shortGrouping;
 	time_t m_configuredFrameGrouping;
+#endif
 	time_t m_frameGrouping;				///< The minimum time between packet sends.
 	time_t m_lastTimeSent;				///< The time of the last packet send.
+#if !defined(GENONLINE)
+	Int m_numRetries;							///< The number of retries for the last second.
+	time_t m_retryMetricsTime;		///< The start time of the current retry metrics thing.
+#endif
 };

@@ -57,7 +57,9 @@
 #include "GameLogic/GameLogic.h"  ///< @todo for demo, remove
 #include "GameClient/Mouse.h"
 #include "GameClient/IMEManager.h"
+#if defined(GENONLINE)
 #include "GameNetwork/NetworkInterface.h"
+#endif
 #include "Win32Device/GameClient/Win32Mouse.h"
 #include "Win32Device/Common/Win32GameEngine.h"
 #include "Common/version.h"
@@ -306,6 +308,7 @@ static void setWinMainActive(Bool active)
 	}
 }
 #endif
+#if defined(GENONLINE)
 
 // GenOnline @bugfix arcticdolphin 07/11/2026 A windowed game is a normal window, so the taskbar, which is topmost, covered
 // the part of a window as large as the monitor that lies over it. While the game has focus, such a window is topmost.
@@ -381,12 +384,15 @@ static void updateWindowedTopmost(HWND hWnd, Bool active)
 	}
 }
 
+#endif
 // WndProc ====================================================================
 /** Window Procedure */
 //=============================================================================
+#if defined(GENONLINE)
 static const UINT_PTR NETWORK_TIMER_ID = 1;
 static const UINT NETWORK_TIMER_INTERVAL = USER_TIMER_MINIMUM;
 
+#endif
 LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 													WPARAM wParam, LPARAM lParam )
 {
@@ -448,6 +454,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 				}
 				break;
 			//-------------------------------------------------------------------------
+#if defined(GENONLINE)
 			// Online sessions step frames from a timer during the Windows move, size and menu loops.
 			case WM_ENTERSIZEMOVE:
 				if( TheMouse != nullptr )
@@ -483,6 +490,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 				}
 				break;
 
+#endif
 			case WM_SYSCOMMAND:
 				// Prevent moving/sizing and power loss in fullscreen mode
 				switch( wParam & 0xFFF0 )
@@ -534,6 +542,9 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 				}
 				return 0;
 
+#if !defined(GENONLINE)
+			//-------------------------------------------------------------------------
+#endif
 			case WM_MOVE:
 			{
 				if (TheMouse)
@@ -618,10 +629,13 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 					}
 #endif
 				}
+#if defined(GENONLINE)
 				updateWindowedTopmost(hWnd, (Bool)wParam);
+#endif
 				return 0;
 			}
 
+#if defined(GENONLINE)
 			//-------------------------------------------------------------------------
 			case WM_WINDOWPOSCHANGED:
 			{
@@ -633,6 +647,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 				break;
 			}
 
+#endif
 			//-------------------------------------------------------------------------
 			case WM_ACTIVATE:
 			{
@@ -653,7 +668,9 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 					if (!isWinMainActive)
 						setWinMainActive(TRUE);
 #endif
+#if defined(GENONLINE)
 
+#endif
 					// Cursor can only be captured after one of the activation events.
 					if (TheMouse)
 						TheMouse->refreshCursorCapture();
@@ -752,10 +769,12 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 			//-------------------------------------------------------------------------
 			case WM_SETCURSOR:
 			{
+#if defined(GENONLINE)
 				// the title bar and borders keep the system cursor, also while the window is moved
 				if (LOWORD(lParam) != HTCLIENT)
 					break;
 
+#endif
 				if (TheWin32Mouse && (HWND)wParam == ApplicationHWnd)
 					TheWin32Mouse->setCursor(TheWin32Mouse->getMouseCursor());
 				return TRUE;	//tell Windows not to reset mouse cursor image to default.
@@ -853,6 +872,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 
 }
 
+#if defined(GENONLINE)
 // SplashWndProc ==============================================================
 /** Paints the load screen bitmap; the bitmap lives exactly as long as this window. */
 //=============================================================================
@@ -919,6 +939,7 @@ static HWND createSplashWindow(HINSTANCE hInstance, HICON icon)
 	const Int x = (monitorInfo.rcWork.left + monitorInfo.rcWork.right - bitmap.bmWidth) / 2;
 	const Int y = (monitorInfo.rcWork.top + monitorInfo.rcWork.bottom - bitmap.bmHeight) / 2;
 
+#if defined(GENONLINE)
 	HWND hWnd = CreateWindow(TEXT("Game Splash"), TEXT("Command and Conquer Generals"), WS_POPUP | WS_VISIBLE,
 		x, y, bitmap.bmWidth, bitmap.bmHeight, nullptr, nullptr, hInstance, nullptr);
 	if (hWnd != nullptr)
@@ -927,8 +948,10 @@ static HWND createSplashWindow(HINSTANCE hInstance, HICON icon)
 		UpdateWindow(hWnd);
 	}
 	return hWnd;
+#endif
 }
 
+#endif
 // initializeAppWindows =======================================================
 /** Register windows class and create application windows. */
 //=============================================================================
@@ -956,15 +979,21 @@ static Bool initializeAppWindows( HINSTANCE hInstance, Int nCmdShow, Bool runWin
 	                     TEXT("Game Window") };
   RegisterClass( &wndClass );
 #endif
+#if defined(GENONLINE)
 
 	// The splash gets its own frameless window; the game window stays hidden until W3DDisplay hands over,
 	// so it never shows stale splash pixels while its frame, size and render device are set up
 	ApplicationSplashHWnd = createSplashWindow(hInstance, wndClass.hIcon);
+#endif
 
    // Create our main window
+#if defined(GENONLINE)
 	windowStyle =  WS_POPUP;
 	if (ApplicationSplashHWnd == nullptr)
 		windowStyle |= WS_VISIBLE;
+#else
+	windowStyle =  WS_POPUP|WS_VISIBLE;
+#endif
 	if (runWindowed)
 		windowStyle |= WS_MINIMIZEBOX | WS_SYSMENU | WS_DLGFRAME | WS_CAPTION;
 	else
@@ -984,6 +1013,7 @@ static Bool initializeAppWindows( HINSTANCE hInstance, Int nCmdShow, Bool runWin
 
 	gInitializing = true;
 
+#if defined(GENONLINE)
 	// A preprocessor directive inside the arguments of the CreateWindow macro does not compile, so the choice is made before the call.
 #if defined(GENONLINE)
 #define GAME_WINDOW_CREATE CreateWindowW
@@ -1010,12 +1040,33 @@ static Bool initializeAppWindows( HINSTANCE hInstance, Int nCmdShow, Bool runWin
 														nullptr,
 														hInstance,
 														nullptr );
+#else
+  HWND hWnd = CreateWindow( TEXT("Game Window"),
+                            TEXT("Command and Conquer Generals"),
+                            windowStyle,
+														(GetSystemMetrics( SM_CXSCREEN ) / 2) - (startWidth / 2), // original position X
+														(GetSystemMetrics( SM_CYSCREEN ) / 2) - (startHeight / 2),// original position Y
+														// Lorenzen nudged the window higher
+														// so the constantdebug report would
+														// not get obliterated by assert windows, thank you.
+														//(GetSystemMetrics( SM_CXSCREEN ) / 2) - (startWidth / 2),   //this works with any screen res
+														//(GetSystemMetrics( SM_CYSCREEN ) / 25) - (startHeight / 25),//this works with any screen res
+														rect.right-rect.left,
+														rect.bottom-rect.top,
+														nullptr,
+														nullptr,
+														hInstance,
+														nullptr );
+#endif
+#if defined(GENONLINE)
 #undef GAME_WINDOW_CREATE
 #undef GAME_WINDOW_CLASS
 #undef GAME_WINDOW_TITLE
+#endif
 
 
 	if (!runWindowed)
+#if defined(GENONLINE)
 	{
 #if defined(GENONLINE_WINDOWED_FULLSCREEN)
 		// GenOnline @feature arcticdolphin 21/11/2026 A borderless window stays a normal window so the taskbar and other windows work.
@@ -1023,23 +1074,40 @@ static Bool initializeAppWindows( HINSTANCE hInstance, Int nCmdShow, Bool runWin
 #else
 		SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0,SWP_NOSIZE |SWP_NOMOVE);
 #endif
+#else
+	{	SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0,SWP_NOSIZE |SWP_NOMOVE);
+#endif
 	}
 	else
 		SetWindowPos(hWnd, HWND_TOP, 0, 0, 0, 0,SWP_NOSIZE |SWP_NOMOVE);
 
+#if defined(GENONLINE)
 	if (ApplicationSplashHWnd == nullptr)
 	{
 		SetFocus(hWnd);
+#else
+	SetFocus(hWnd);
+#endif
 
+#if defined(GENONLINE)
 		SetForegroundWindow(hWnd);
 		ShowWindow( hWnd, nCmdShow );
 		UpdateWindow( hWnd );
 	}
+#else
+	SetForegroundWindow(hWnd);
+	ShowWindow( hWnd, nCmdShow );
+	UpdateWindow( hWnd );
+#endif
 
 	// save our application window handle for future use
 	ApplicationHWnd = hWnd;
 	gInitializing = false;
+#if defined(GENONLINE)
 	if (!runWindowed || ApplicationSplashHWnd != nullptr) {
+#else
+	if (!runWindowed) {
+#endif
 		gDoPaint = false;
 	}
 
@@ -1157,12 +1225,18 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		// GenOnline @feature arcticdolphin 21/11/2026 Initialise Steam for the Generals app id when steam_api.dll is present.
 		GenOnlineServicesManager::AttemptLoadSteam();
 #endif
+#if defined(GENONLINE)
 
+#endif
 		// save our application instance for future use
 		ApplicationHInstance = hInstance;
 
+#if defined(GENONLINE)
 		// the splash window owns the bitmap while it exists
 		if (gLoadScreenBitmap!=nullptr && ApplicationSplashHWnd == nullptr) {
+#else
+		if (gLoadScreenBitmap!=nullptr) {
+#endif
 			::DeleteObject(gLoadScreenBitmap);
 			gLoadScreenBitmap = nullptr;
 		}
@@ -1202,12 +1276,14 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		// run the game main loop
 		exitcode = GameMain();
 
+#if defined(GENONLINE)
 		// startup ended before the first frame was drawn
 		if (ApplicationSplashHWnd != nullptr) {
 			::DestroyWindow(ApplicationSplashHWnd);
 			ApplicationSplashHWnd = nullptr;
 		}
 
+#endif
 		delete TheVersion;
 		TheVersion = nullptr;
 

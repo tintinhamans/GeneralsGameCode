@@ -147,7 +147,11 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 
 	m_fieldParticleCount = 0;
 
+#if defined(GENONLINE)
 	const Bool drawSmudge = TheSmudgeManager && TheSmudgeManager->getHardwareSupport() && TheGlobalData->drawsHeatEffects();
+#else
+	const Bool drawSmudge = TheSmudgeManager && TheSmudgeManager->getHardwareSupport() && TheGlobalData->m_useHeatEffects;
+#endif
 
 	if (drawSmudge)
 	{

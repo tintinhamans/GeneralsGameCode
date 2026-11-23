@@ -44,9 +44,11 @@ public:
 	CustomMatchPreferences();
 	virtual ~CustomMatchPreferences() override;
 
+#if defined(GENONLINE)
 	UnicodeString getLastLobbyName() const;
 	void setLastLobbyName(const UnicodeString& name);
 
+#endif
 	void setLastLadder(const AsciiString& addr, UnsignedShort port);
 	AsciiString getLastLadderAddr();
 	UnsignedShort getLastLadderPort();

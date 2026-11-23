@@ -52,7 +52,9 @@
 #include "thread.h"
 #include "WWDebug/wwdebug.h"
 #include "WWDebug/wwmemlog.h"
+#if defined(GENONLINE)
 #include "mutex.h"
+#endif
 
 #include	<conio.h>
 #include	<imagehlp.h>
@@ -105,6 +107,7 @@ int ExceptionRecursions = -1;
 */
 DynamicVectorClass<ThreadInfoType*> ThreadList;
 
+#if defined(GENONLINE)
 /*
 ** Returns the CRITICAL_SECTION used to protect ThreadList.
 **
@@ -191,6 +194,7 @@ static struct ThreadListShutdownGuard
 	}
 } ThreadListShutdownGuardInstance;
 
+#endif
 /*
 ** Definitions to allow run-time linking to the Imagehlp.dll functions.
 **
@@ -366,7 +370,11 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 	/*
 	** Scrap buffer for constructing dump strings
 	*/
+#if defined(GENONLINE)
 	char scrap [256] = {};
+#else
+	char scrap [256];
+#endif
 
 	/*
 	** Clear out the dump buffer
@@ -671,7 +679,11 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 	** Dump the bytes at EIP. This will make it easier to match the crash address with later versions of the game.
 	*/
 	DebugString("EIP bytes dump...\n");
+#if defined(GENONLINE)
 	snprintf(scrap, ARRAY_SIZE(scrap), "\r\nBytes at CS:EIP (%08X)  : ", context->Eip);
+#else
+	sprintf(scrap, "\r\nBytes at CS:EIP (%08X)  : ", context->Eip);
+#endif
 
 	unsigned char *eip_ptr = (unsigned char *) (context->Eip);
 	char bytestr[32];
@@ -886,10 +898,12 @@ void Register_Thread_ID(unsigned long thread_id, char *thread_name, bool main_th
 {
 	WWMEMLOG(MEM_GAMEDATA);
 	if (thread_name) {
+#if defined(GENONLINE)
 		ScopedThreadListLock lock(GetThreadListCS());
 		if (ThreadListDestroyed) {
 			return;
 		}
+#endif
 
 		/*
 		** See if we already know about this thread. Maybe just the thread_id changed.
@@ -942,11 +956,13 @@ HANDLE Get_Thread_Handle(int thread_index)
 
 void Unregister_Thread_ID(unsigned long thread_id, char *thread_name)
 {
+#if defined(GENONLINE)
 	ScopedThreadListLock lock(GetThreadListCS());
 	if (ThreadListDestroyed) {
 		return;
 	}
 	
+#endif
 	for (int i=0 ; i<ThreadList.Count() ; i++) {
 		if (strcmp(thread_name, ThreadList[i]->ThreadName) == 0) {
 			assert(ThreadList[i]->ThreadID == thread_id);
@@ -961,11 +977,13 @@ void Unregister_Thread_ID(unsigned long thread_id, char *thread_name)
 
 unsigned long Get_Main_Thread_ID()
 {
+#if defined(GENONLINE)
 	ScopedThreadListLock lock(GetThreadListCS());
 	if (ThreadListDestroyed) {
 		return(0);
 	}
 	
+#endif
 	for (int i=0 ; i<ThreadList.Count() ; i++) {
 		if (ThreadList[i]->Main) {
 			return(ThreadList[i]->ThreadID);

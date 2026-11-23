@@ -180,10 +180,14 @@ void PopupReplayUpdate( WindowLayout *layout, void *userData )
 			ShowReplaySavedPopup(FALSE);
 
 			// close the save/load menu
+#if defined(GENONLINE)
 			if (parent != NULL)
 			{
 				closeSaveMenu( parent );
 			}
+#else
+			closeSaveMenu( parent );
+#endif
 			ScoreScreenEnableControls(TRUE);
 
 			// reset the timer to 0 cause we have to.

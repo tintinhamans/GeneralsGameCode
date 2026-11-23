@@ -5725,7 +5725,11 @@ void ScriptActions::doOverrideHulkLifetime( Real seconds )
 	else
 	{
 		// Convert real seconds into frames.
+#if defined(GENONLINE)
 		Int frames = ConvertBaseFramesToFrames((Int)ConvertFramesToBaseFramesReal(ConvertDurationFromSecsToFrames(seconds)));
+#else
+		Int frames = (Int)(seconds * LOGICFRAMES_PER_SECOND);
+#endif
 		TheGameLogic->setHulkMaxLifetimeOverride(frames);
 	}
 }

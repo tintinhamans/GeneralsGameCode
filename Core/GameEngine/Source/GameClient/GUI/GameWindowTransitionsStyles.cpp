@@ -710,52 +710,90 @@ void FadeTransition::draw()
 	if(m_drawState <= FADETRANSITION_START || m_drawState >= FADETRANSITION_END)
 		return;
 	const Image *image = m_win->winGetEnabledImage(0);
+#if defined(GENONLINE)
 	// GenOnline @bugfix arcticdolphin 08/11/2026 Fade the image through the window draw, so it keeps the aspect and look the window draws it with.
+#endif
 	switch (m_drawState)
 	{
 		case FADETRANSITION_FADE_IN_1:
 		{
+#if defined(GENONLINE)
 			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 25));
+#else
+			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 25));
+#endif
 		}
 		break;
 		case FADETRANSITION_FADE_IN_2:
 		{
+#if defined(GENONLINE)
 			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 50));
+#else
+			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 50));
+#endif
 		}
 		break;
 		case FADETRANSITION_FADE_IN_3:
 		{
+#if defined(GENONLINE)
 			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 75));
+#else
+			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 75));
+#endif
 		}
 		break;
 		case FADETRANSITION_FADE_IN_4:
 		{
+#if defined(GENONLINE)
 			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 100));
+#else
+			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 100));
+#endif
 		}
 		break;
 		case FADETRANSITION_FADE_IN_5:
 		{
+#if defined(GENONLINE)
 			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 125));
+#else
+			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 125));
+#endif
 		}
 		break;
 		case FADETRANSITION_FADE_IN_6:
 		{
+#if defined(GENONLINE)
 			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 150));
+#else
+			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 150));
+#endif
 		}
 		break;
 		case FADETRANSITION_FADE_IN_7:
 		{
+#if defined(GENONLINE)
 			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 175));
+#else
+			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 175));
+#endif
 		}
 		break;
 		case FADETRANSITION_FADE_IN_8:
 		{
+#if defined(GENONLINE)
 			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 200));
+#else
+			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 200));
+#endif
 		}
 		break;
 		case FADETRANSITION_FADE_IN_9:
 		{
+#if defined(GENONLINE)
 			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 225));
+#else
+			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 225));
+#endif
 		}
 	}
 }
@@ -2082,8 +2120,15 @@ void PushButtonImageDrawThree(GameWindow *window, Int alpha )
 {
 	WinInstanceData *instData = window->winGetInstanceData();
 	const Image *leftImage, *rightImage, *centerImage;
+#if defined(GENONLINE)
 	ICoord2D origin, size;
+#else
+	ICoord2D origin, size, start, end;
+#endif
 	Int xOffset, yOffset;
+#if !defined(GENONLINE)
+	Int i;
+#endif
 	Int color = GameMakeColor(255,255,255,alpha);
 	// get screen position and size
 	window->winGetScreenPosition( &origin.x, &origin.y );
@@ -2102,8 +2147,98 @@ void PushButtonImageDrawThree(GameWindow *window, Int alpha )
 			centerImage == nullptr )
 		return;
 
+#if defined(GENONLINE)
 	TheWindowManager->winDrawThreePieceImage( leftImage, centerImage, nullptr, rightImage,
 																						 origin.x + xOffset, origin.y + yOffset, size.x, size.y, color );
+#else
+	// get image sizes for the ends
+	ICoord2D leftSize, rightSize;
+	leftSize.x = leftImage->getImageWidth();
+	leftSize.y = leftImage->getImageHeight();
+	rightSize.x = rightImage->getImageWidth();
+	rightSize.y = rightImage->getImageHeight();
+
+	// get two key points used in the end drawing
+	ICoord2D leftEnd, rightStart;
+	leftEnd.x = origin.x + leftSize.x + xOffset;
+	leftEnd.y = origin.y + size.y + yOffset;
+	rightStart.x = origin.x + size.x - rightSize.x + xOffset;
+	rightStart.y = origin.y + yOffset;
+
+	// draw the center repeating bar
+	Int centerWidth, pieces;
+
+	// get width we have to draw our repeating center in
+	centerWidth = rightStart.x - leftEnd.x;
+
+	if( centerWidth <= 0)
+	{
+		// draw left end
+		start.x = origin.x + xOffset;
+		start.y = origin.y + yOffset;
+		end.y = leftEnd.y;
+		end.x = origin.x + xOffset + size.x/2;
+		TheDisplay->drawImage(leftImage, start.x, start.y, end.x, end.y,color);
+
+		// draw right end
+		start.y = rightStart.y;
+		start.x = end.x;
+		end.x = origin.x + size.x;
+		end.y = start.y + size.y;
+		TheDisplay->drawImage(rightImage, start.x, start.y, end.x, end.y,color);
+	}
+	else
+	{
+
+		// how many whole repeating pieces will fit in that width
+		pieces = centerWidth / centerImage->getImageWidth();
+
+		// draw the pieces
+		start.x = leftEnd.x;
+		start.y = origin.y + yOffset;
+		end.y = start.y + size.y + yOffset; //centerImage->getImageHeight() + yOffset;
+		for( i = 0; i < pieces; i++ )
+		{
+
+			end.x = start.x + centerImage->getImageWidth();
+
+			TheDisplay->drawImage( centerImage,
+																			start.x, start.y,
+																			end.x, end.y,color );
+			start.x += centerImage->getImageWidth();
+
+		}
+
+		// we will draw the image but clip the parts we don't want to show
+		IRegion2D reg;
+		reg.lo.x = start.x;
+		reg.lo.y = start.y;
+		reg.hi.x = rightStart.x;
+		reg.hi.y = end.y;
+		centerWidth = rightStart.x - start.x;
+		if( centerWidth > 0)
+		{
+			TheDisplay->setClipRegion(&reg);
+			end.x = start.x + centerImage->getImageWidth();
+			TheDisplay->drawImage( centerImage,
+																			start.x, start.y,
+																			end.x, end.y,color );
+			TheDisplay->enableClipping(FALSE);
+		}
+
+		// draw left end
+		start.x = origin.x + xOffset;
+		start.y = origin.y + yOffset;
+		end = leftEnd;
+		TheDisplay->drawImage(leftImage, start.x, start.y, end.x, end.y,color);
+
+		// draw right end
+		start = rightStart;
+		end.x = start.x + rightSize.x;
+		end.y = start.y + size.y;
+		TheDisplay->drawImage(rightImage, start.x, start.y, end.x, end.y,color);
+	}
+#endif
 
 }
 

@@ -136,8 +136,12 @@ protected:
 protected:
 	void deletePasteObjList()
 	{
+#if defined(GENONLINE)
 		if (m_pasteMapObjList)
 			deleteInstance(m_pasteMapObjList);
+#else
+		deleteInstance(m_pasteMapObjList);
+#endif
 		m_pasteMapObjList = nullptr;
 	};
 

@@ -706,6 +706,7 @@ Render2DSentenceClass::Allocate_New_Surface (const WCHAR *text, bool justCalcExt
 		//
 		CurSurface = NEW_REF (SurfaceClass, (CurrTextureSize, CurrTextureSize, WW3D_FORMAT_A4R4G4B4));
 		WWASSERT (CurSurface != nullptr);
+#if defined(GENONLINE)
 		
 		//
 		//	Validate that the underlying D3D surface was successfully created
@@ -717,6 +718,7 @@ Render2DSentenceClass::Allocate_New_Surface (const WCHAR *text, bool justCalcExt
 			return;
 		}
 		
+#endif
 		CurSurface->Add_Ref ();
 
 		//
@@ -1038,7 +1040,9 @@ Vector2	Render2DSentenceClass::Build_Sentence_Not_Centered (const WCHAR *text, i
 		const WCHAR *remaining_text = text;
 		WCHAR ch = *text++;
 		dontBlit = false;
+#if defined(GENONLINE)
 		bool wrappedOnSpace = false;
+#endif
 		//
 		//	Determine how much horizontal space this character requires
 		//
@@ -1106,8 +1110,10 @@ Vector2	Render2DSentenceClass::Build_Sentence_Not_Centered (const WCHAR *text, i
 						Cursor.X = 0;
 						Cursor.Y += char_height;
 						calcHotKeyX = true;
+#if defined(GENONLINE)
 						// GenOnline @bugfix arcticdolphin 08/11/2026 The space a line wraps at is not drawn at the start of the next line
 						wrappedOnSpace = true;
+#endif
 					}
 				}
 
@@ -1140,7 +1146,11 @@ Vector2	Render2DSentenceClass::Build_Sentence_Not_Centered (const WCHAR *text, i
 			}
 		}
 
+#if defined(GENONLINE)
 		if (ch != L'\n' && !wrappedOnSpace) {
+#else
+		if (ch != L'\n' ) {
+#endif
 
 			//
 			//	Ensure the surface is locked
@@ -1242,8 +1252,12 @@ FontCharsClass::FontCharsClass () :
 	UnicodeCharArray( nullptr ),
 	FirstUnicodeChar( 0xFFFF ),
 	LastUnicodeChar( 0 ),
+#if defined(GENONLINE)
 	IsBold (false),
 	IsUIFont (false)
+#else
+	IsBold (false)
+#endif
 {
 	AlternateUnicodeFont = nullptr;
 	::memset( ASCIICharArray, 0, sizeof (ASCIICharArray) );
@@ -1373,7 +1387,11 @@ FontCharsClass::Get_Char_Spacing (WCHAR ch)
 	const FontCharsClassCharDataStruct	* data = Get_Char_Data( ch );
 	if ( data != nullptr ) {
 		if ( data->Width != 0 ) {
+#if defined(GENONLINE)
 			return data->Width - data->LeftOffset - PixelOverlap - CharOverhang;
+#else
+			return data->Width - PixelOverlap - CharOverhang;
+#endif
 		}
 	}
 
@@ -1396,6 +1414,7 @@ FontCharsClass::Blit_Char (WCHAR ch, uint16 *dest_ptr, int dest_stride, int x, i
 		//	Setup the src and destination pointers
 		//
 		int dest_inc		= (dest_stride >> 1);
+#if defined(GENONLINE)
 
 		// GenOnline @bugfix arcticdolphin 08/11/2026 The left overhang lands on the previous glyph and blends with it, but never left of the surface.
 		const int left_offset = data->LeftOffset;
@@ -1405,6 +1424,10 @@ FontCharsClass::Blit_Char (WCHAR ch, uint16 *dest_ptr, int dest_stride, int x, i
 
 		// GenOnline @bugfix arcticdolphin 08/11/2026 A glyph from the alternate Unicode font holds the rows of that font, so copy only those on the baseline of the font in use and clear the rest.
 		const int src_shift = CharAscent - Get_Char_Font( ch )->CharAscent;
+#else
+		const uint8 *src_ptr = data->Buffer;
+		dest_ptr				+= (dest_inc * y) + x;
+#endif
 
 		//
 		//	TheSuperHackers @bugfix The glyph holds as many rows as the font that stored it, which is the
@@ -1414,24 +1437,54 @@ FontCharsClass::Blit_Char (WCHAR ch, uint16 *dest_ptr, int dest_stride, int x, i
 		//
 		const int glyph_rows = min( Get_Char_Font( ch )->CharHeight, CharHeight );
 
+#if !defined(GENONLINE)
+		int row;
+
+#endif
 		//
 		//	Copy the data from the src buffer to the destination, rebuilding the A4R4G4B4 texel
 		//	from the stored coverage value the same way Store_GDI_Char used to compose it.
 		//
+#if defined(GENONLINE)
 		for ( int row = 0; row < CharHeight; row ++ ) {
 			const int src_row = row - src_shift;
 			const bool has_src = (src_row >= 0 && src_row < glyph_rows);
 			const uint8 *src_line = data->Buffer + (has_src ? src_row * data->Width : 0);
 			for ( int col = first_col; col < data->Width; col ++ ) {
 				const uint8 coverage = has_src ? src_line[col] : 0;
+#else
+		for ( row = 0; row < glyph_rows; row ++ ) {
+			for ( int col = 0; col < data->Width; col ++ ) {
+				const uint8 coverage = *src_ptr;
+#endif
 				uint16 curData = (coverage != 0 ? 0x0FFF : 0) | ((uint16)(coverage >> 4) << 12);
+#if defined(GENONLINE)
 				if (col<blend_cols) {
 					curData |= dest_ptr[col - first_col];
+#else
+				if (col<PixelOverlap) {
+					curData |= dest_ptr[col];
+#endif
 				}
+#if defined(GENONLINE)
 				dest_ptr[col - first_col] = curData;
+#else
+				dest_ptr[col] = curData;
+				src_ptr++;
+#endif
 			}
 			dest_ptr	+= dest_inc;
 		}
+#if !defined(GENONLINE)
+
+		//
+		//	The remaining rows are empty.
+		//
+		for ( ; row < CharHeight; row ++ ) {
+			::memset( dest_ptr, 0, data->Width * sizeof( uint16 ) );
+			dest_ptr	+= dest_inc;
+		}
+#endif
 	}
 }
 
@@ -1451,6 +1504,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	//	Draw the character into the memory DC
 	//
 	RECT rect = { 0, 0, width, height };
+#if defined(GENONLINE)
 
 	// GenOnline @bugfix arcticdolphin 08/11/2026 Draw a glyph with a negative A width that far in so its left overhang is kept, its advance is unchanged.
 	int left_offset = 0;
@@ -1459,19 +1513,32 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 		left_offset = min ((int)-abc_width.abcA, PixelOverlap);
 	}
 
+#endif
 	int xOrigin = 0;
+#if defined(GENONLINE)
 	// GenOnline @bugfix arcticdolphin 08/11/2026 The GO UI font needs no retail W shift, the left overhang above covers it.
 	if (ch == 'W' && !IsUIFont) {
+#else
+	if (ch == 'W') {
+#endif
 		xOrigin = 1;
 	}
+#if defined(GENONLINE)
 	::ExtTextOutW( MemDC, left_offset + xOrigin, 0, ETO_OPAQUE, &rect, &ch, 1, nullptr);
+#else
+	::ExtTextOutW( MemDC, xOrigin, 0, ETO_OPAQUE, &rect, &ch, 1, nullptr);
+#endif
 
 	//
 	//	Get the size of the character we just drew
 	//
 	SIZE char_size = { 0 };
 	::GetTextExtentPoint32W( MemDC, &ch, 1, &char_size );
+#if defined(GENONLINE)
 	char_size.cx += PixelOverlap + xOrigin + left_offset;
+#else
+	char_size.cx += PixelOverlap + xOrigin;
+#endif
 
 	//
 	//	TheSuperHackers @fix ExtTextOutW clipped the glyph to the scratch bitmap, so the copy
@@ -1563,7 +1630,9 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	FontCharsClassCharDataStruct *char_data	= W3DNEW FontCharsClassCharDataStruct;
 	char_data->Value				= ch;
 	char_data->Width				= char_size.cx;
+#if defined(GENONLINE)
 	char_data->LeftOffset		= (short)min (left_offset, (int)char_size.cx);
+#endif
 	char_data->Buffer				= glyph_buffer_p;
 
 	//
@@ -1634,6 +1703,7 @@ FontCharsClass::Update_Current_Buffer (int char_width)
 }
 
 
+#if defined(GENONLINE)
 // GenOnline @feature arcticdolphin 08/11/2026 Retail UI faces and the GO UI faces they resolve to, GlobalLanguage.cpp registers the same faces.
 struct UIFontSubstituteStruct
 {
@@ -1676,6 +1746,7 @@ Find_UI_Font_Substitute (const char *font_name)
 }
 
 
+#endif
 ////////////////////////////////////////////////////////////////////////////////////
 //
 //	Create_GDI_Font
@@ -1686,6 +1757,7 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 {
 	HDC screen_dc = ::GetDC ((HWND)WW3D::Get_Window());
 
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 08/11/2026 Retail UI faces draw with the GO UI font, bold with its Bold face, and skip the narrow Generals width.
 	const UIFontSubstituteStruct *ui_font = Find_UI_Font_Substitute (font_name);
 	if (ui_font != nullptr) {
@@ -1693,6 +1765,7 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 	}
 	IsUIFont = (ui_font != nullptr);
 
+#endif
 	const char *fontToUseForGenerals = "Arial";
 	bool doingGenerals = false;
 	if (strcmp(font_name, "Generals")==0) {
@@ -1720,9 +1793,11 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 	//	Create the Windows font
 	//
 	DWORD bold		= IsBold ? FW_BOLD : FW_NORMAL;
+#if defined(GENONLINE)
 	if (ui_font != nullptr && !IsBold) {
 		bold = ui_font->Weight;
 	}
+#endif
 	DWORD italic	= 0;
 	GDIFont			= ::CreateFont (font_height, fontWidth, 0, 0, bold, italic,
 								FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
@@ -1742,6 +1817,7 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 	//
 	OldGDIFont = (HFONT)::SelectObject (MemDC, GDIFont);
 
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 08/11/2026 GDI silently substitutes a missing face, so report once when the GO UI face was not selected.
 	if (ui_font != nullptr && !UIFontMismatchReported) {
 		char selected_face[LF_FACESIZE] = { 0 };
@@ -1752,6 +1828,7 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 		}
 	}
 
+#endif
 	//
 	//	Lookup the pixel height of the font
 	//
@@ -1769,8 +1846,10 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 	//	appends to it and the one pixel it shifts 'W' by.
 	//
 	GlyphBitmapWidth = (int)text_metric.tmMaxCharWidth + max ((int)text_metric.tmOverhang, 0) + PixelOverlap + 1;
+#if defined(GENONLINE)
 	// GenOnline @bugfix arcticdolphin 08/11/2026 Room for the left overhang Store_GDI_Char keeps, at most PixelOverlap.
 	GlyphBitmapWidth += PixelOverlap;
+#endif
 
 	// Sanity check. A font reporting absurd metrics renders clipped
 	// rather than allocating an absurd bitmap and absurd glyph buffers.

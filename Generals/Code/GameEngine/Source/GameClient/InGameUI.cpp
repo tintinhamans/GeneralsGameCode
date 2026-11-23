@@ -88,7 +88,9 @@
 
 #include "GameNetwork/GameInfo.h"
 #include "GameNetwork/NetworkInterface.h"
+#if defined(GENONLINE)
 #include "GameNetwork/Online/IOnlineGameHooks.h"
+#endif
 
 
 
@@ -1120,7 +1122,9 @@ InGameUI::InGameUI()
 	m_networkLatencyColor = GameMakeColor( 173, 216, 255, 255 );
 	m_networkLatencyDropColor = GameMakeColor( 0, 0, 0, 255 );
 	m_lastNetworkLatencyFrames = ~0u;
+#if defined(GENONLINE)
 	m_lastNetworkLogicRate = ~0u;
+#endif
 
 	m_renderFpsString = nullptr;
 	m_renderFpsLowString = nullptr;
@@ -1169,6 +1173,7 @@ InGameUI::InGameUI()
 	m_playerInfoListDropColor = GameMakeColor(0, 0, 0, 255);
 	m_playerInfoListBackgroundAlpha = 170;
 
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 the observer overlay and notifications replace the player info list
 	m_observerStatsString = nullptr;
 	m_observerStatsFont = "Tahoma";
@@ -1190,6 +1195,7 @@ InGameUI::InGameUI()
 	m_colorGood = GameMakeColor(0, 255, 0, 150);
 	m_colorBad = GameMakeColor(255, 0, 0, 150);
 
+#endif
 	m_superweaponPosition.x = 0.7f;
 	m_superweaponPosition.y = 0.7f;
 	m_superweaponFlashDuration = 1.0f;
@@ -1285,11 +1291,13 @@ InGameUI::~InGameUI()
 	clearWorldAnimations();
 	resetIdleWorker();
 
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 the observer overlay strings need freeing
 	TheDisplayStringManager->freeDisplayString(m_observerNotificationString);
 	m_observerNotificationString = nullptr;
 	cleanupObserverOverlay();
 
+#endif
 	destroyReplayControl();
 	destroyControlBar();
 }
@@ -1838,11 +1846,21 @@ void InGameUI::update()
 		{
 			m_videoStream->frameDecompress();
 			m_videoStream->frameRender( m_videoBuffer );
+#if defined(GENONLINE)
 			if ( !m_videoStream->isPlaybackComplete() )
 				m_videoStream->frameNext();
+#else
+			m_videoStream->frameNext();
+			if ( m_videoStream->frameIndex() == 0 )
+			{
+				stopMovie();
+			}
+#endif
 		}
+#if defined(GENONLINE)
 		if ( m_videoStream->isPlaybackComplete() )
 			stopMovie();
+#endif
 	}
 
 	if ( m_cameoVideoStream && m_cameoVideoBuffer )
@@ -1851,15 +1869,21 @@ void InGameUI::update()
 		{
 			m_cameoVideoStream->frameDecompress();
 			m_cameoVideoStream->frameRender( m_cameoVideoBuffer );
+#if defined(GENONLINE)
 			if ( !m_cameoVideoStream->isPlaybackComplete() )
 				m_cameoVideoStream->frameNext();
+#else
+			m_cameoVideoStream->frameNext();
+#endif
 //			if ( m_cameoVideoStream->frameIndex() == 0 )
 //			{
 //				stopMovie();
 //			}
 		}
+#if defined(GENONLINE)
 		if ( m_cameoVideoStream->isPlaybackComplete() )
 			m_cameoVideoStream->frameGoto( 0 );
+#endif
 	}
 
 	//
@@ -2099,16 +2123,25 @@ void InGameUI::update()
 		layout->runUpdate();
 	}
 
+#if defined(GENONLINE)
 	if (m_cameraRotatingLeft || m_cameraRotatingRight || m_cameraZoomingIn || m_cameraZoomingOut
 		|| m_cameraPitchingUp || m_cameraPitchingDown)
+#else
+	if (m_cameraRotatingLeft || m_cameraRotatingRight || m_cameraZoomingIn || m_cameraZoomingOut)
+#endif
 	{
 		// TheSuperHackers @tweak The camera rotation and zoom are now decoupled from the render update.
 		const Real fpsRatio = TheFramePacer->getBaseOverUpdateFpsRatio();
+#if defined(GENONLINE)
 		const Real turnAngle = TheGlobalData->m_keyboardCameraRotateSpeed * fpsRatio;
 		const Real rotateAngle = turnAngle * SCROLL_MULTIPLIER * TheGlobalData->m_cameraRotateFactor;
 		const Real zoomHeight = (Real)View::ZoomHeightPerSecond * fpsRatio * SCROLL_MULTIPLIER * TheGlobalData->m_cameraZoomFactor;
 		// Slower than rotate to feel alike: shorter range, larger view change per degree.
 		const Real pitchAngle = turnAngle * 0.3f * SCROLL_MULTIPLIER * TheGlobalData->m_cameraPitchFactor;
+#else
+		const Real rotateAngle = TheGlobalData->m_keyboardCameraRotateSpeed * fpsRatio;
+		const Real zoomHeight = (Real)View::ZoomHeightPerSecond * fpsRatio;
+#endif
 
 		if( m_cameraRotatingLeft && !m_cameraRotatingRight )
 		{
@@ -2127,6 +2160,7 @@ void InGameUI::update()
 		{
 			TheTacticalView->userZoom( +zoomHeight );
 		}
+#if defined(GENONLINE)
 
 		if( m_cameraPitchingUp && !m_cameraPitchingDown )
 		{
@@ -2136,6 +2170,7 @@ void InGameUI::update()
 		{
 			TheTacticalView->userSetPitch( TheTacticalView->getPitch() - pitchAngle );
 		}
+#endif
 	}
 
 
@@ -2252,16 +2287,20 @@ void InGameUI::reset()
 	setCameraRotateRight(false);
 	setCameraZoomIn(false);
 	setCameraZoomOut(false);
+#if defined(GENONLINE)
 	setCameraPitchUp(false);
 	setCameraPitchDown(false);
+#endif
 
 	m_windowLayouts.clear();
 
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 the observer overlay state belongs to one match
 	m_observerStatsHidden = false;
 	m_observerNotifications.clear();
 	m_observerMilestones.clear();
 
+#endif
 	m_tooltipsDisabledUntil = 0;
 
 	UpdateDiplomacyBriefingText(AsciiString::TheEmptyString, TRUE);
@@ -2295,7 +2334,9 @@ void InGameUI::freeMessageResources()
 
 void InGameUI::freeCustomUiResources()
 {
+#if defined(GENONLINE)
 	GetOnlineGameHooks()->releaseNetworkOverlay();
+#endif
 	TheDisplayStringManager->freeDisplayString(m_networkLatencyString);
 	m_networkLatencyString = nullptr;
 	TheDisplayStringManager->freeDisplayString(m_renderFpsString);
@@ -2312,9 +2353,11 @@ void InGameUI::freeCustomUiResources()
 	m_gameTimeFrameString = nullptr;
 
 	m_playerInfoList.clear();
+#if defined(GENONLINE)
 
 	TheDisplayStringManager->freeDisplayString(m_observerStatsString);
 	m_observerStatsString = nullptr;
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3767,8 +3810,10 @@ void InGameUI::setInputEnabled( Bool enable )
 		setCameraRotateRight( false );		// KP6
 		setCameraZoomIn( false );					// KP8
 		setCameraZoomOut( false );				// KP2
+#if defined(GENONLINE)
 		setCameraPitchUp( false );				// KP9
 		setCameraPitchDown( false );			// KP3
+#endif
 	}
 }
 
@@ -3815,6 +3860,7 @@ void InGameUI::postWindowDraw()
 	{
 		drawPlayerInfoList();
 	}
+#if defined(GENONLINE)
 
 	// GenOnline @feature arcticdolphin 21/11/2026 the observer overlay draws below the HUD counters
 	hudOffsetX = 0;
@@ -3825,6 +3871,7 @@ void InGameUI::postWindowDraw()
 
 	if (m_observerNotificationPointSize > 0)
 		drawObserverNotifications(hudOffsetX, hudOffsetY);
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -4067,7 +4114,11 @@ void InGameUI::postDraw()
 				UnsignedInt readyFrame = TheGameLogic->getFrame();
 				if (framesLeft > 0)
 					readyFrame += framesLeft;
+#if defined(GENONLINE)
 				Int readySecs = (Int)(SECONDS_PER_LOGICFRAME_REAL * LOGICFRAMES_PER_BASEFRAME * (readyFrame - TheGameLogic->getFrame()));
+#else
+				Int readySecs = (Int)(SECONDS_PER_LOGICFRAME_REAL * (readyFrame - TheGameLogic->getFrame()));
+#endif
 				if ( (info->isCountdown && readySecs != info->timestamp) || (!info->isCountdown && framesLeft != info->timestamp) )
 				{
 					if (!readySecs && info->isCountdown)
@@ -4449,6 +4500,7 @@ void InGameUI::militarySubtitle( const AsciiString& label, Int duration )
 
 	// we need some frame info to set our timings
 	UnsignedInt currLogicFrame = TheGameLogic->getFrame();
+#if defined(GENONLINE)
 	const int messageTimeout = currLogicFrame + (Int)(((Real)LOGICFRAMES_PER_SECOND * duration)/1000.0f);
 
 	// disable tooltips until this frame, cause we don't want to collide with the military subtitles.
@@ -4466,6 +4518,19 @@ void InGameUI::militarySubtitle( const AsciiString& label, Int duration )
 #endif
 
 	// lets bring out the data structure!
+#else
+	const int messageTimeout = currLogicFrame + (Int)(((Real)LOGICFRAMES_PER_SECOND * duration)/1000.0f);
+
+	// disable tooltips until this frame, cause we don't want to collide with the military subtitles.
+	disableTooltipsUntil(messageTimeout);
+
+	// calculate where this screen position should be since the position being passed in is based off 8x6
+	Coord2D multiplier;
+	multiplier.x = TheDisplay->getWidth() / (Real)DEFAULT_DISPLAY_WIDTH;
+	multiplier.y = TheDisplay->getHeight() / (Real)DEFAULT_DISPLAY_HEIGHT;
+
+	// lets bring out the data structure!
+#endif
 	m_militarySubtitle = NEW MilitarySubtitleData;
 
 	m_militarySubtitle->subtitle.set(title);
@@ -4544,6 +4609,7 @@ void InGameUI::resetCamera()
 	TheTacticalView->userSetZoomToDefault();
 }
 
+#if defined(GENONLINE)
 // GenOnline @feature arcticdolphin 21/11/2026 observer stats overlay display strings
 void InGameUI::initObserverOverlay()
 {
@@ -4630,6 +4696,7 @@ void InGameUI::cleanupObserverOverlay()
 	}
 }
 
+#endif
 //------------------------------------------------------------------------------
 //Checks to see if an object can interact with an object in a non-hostile manner. This is currently used by the selection
 //translator to determine whether to do something to an object or select it instead based on the context of what is currently
@@ -6101,6 +6168,7 @@ void InGameUI::recreateControlBar()
 	TheControlBar->init();
 }
 
+#if defined(GENONLINE)
 // GenOnline @feature arcticdolphin 21/11/2026 observer notifications and the observer stats overlay
 // ======================================================================================
 // Observer Notification
@@ -6740,6 +6808,7 @@ void InGameUI::refreshObserverNotificationResources(void)
 	m_observerNotificationString->setFont(TheWindowManager->winFindFont("Tahoma", adjustedFontSize, true));
 }
 
+#endif
 void InGameUI::refreshCustomUiResources()
 {
 	refreshNetworkLatencyResources();
@@ -6760,7 +6829,9 @@ void InGameUI::refreshNetworkLatencyResources()
 	{
 		m_networkLatencyString = TheDisplayStringManager->newDisplayString();
 		m_lastNetworkLatencyFrames = ~0u;
+#if defined(GENONLINE)
 		m_lastNetworkLogicRate = ~0u;
+#endif
 	}
 
 	m_networkLatencyPointSize = TheGlobalData->m_networkLatencyFontSize;
@@ -7041,9 +7112,11 @@ void InGameUI::drawSystemTime(Int &x, Int &y)
 
 void InGameUI::drawGameTime()
 {
+#if defined(GENONLINE)
 	// draw connections
 	GetOnlineGameHooks()->drawNetworkOverlay(m_gameTimeString, m_gameTimeDropColor);
 
+#endif
 	Int currentFrame = TheGameLogic->getFrame();
 	Int gameSeconds = (Int) (SECONDS_PER_LOGICFRAME_REAL * currentFrame );
 	Int hours = gameSeconds / 60 / 60;

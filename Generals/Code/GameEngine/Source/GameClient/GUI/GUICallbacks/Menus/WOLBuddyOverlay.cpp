@@ -680,6 +680,7 @@ void showNotificationBox( AsciiString nick, UnicodeString message)
 
 }
 
+#if defined(GENONLINE)
 // GenOnline @bugfix arcticdolphin 07/11/2026 The shell raises the notification again after every screen change so the next screen does not draw over it.
 void raiseNotificationBox()
 {
@@ -689,6 +690,7 @@ void raiseNotificationBox()
 	}
 }
 
+#endif
 void deleteNotificationBox()
 {
 	lastNotificationWasStatus = FALSE;

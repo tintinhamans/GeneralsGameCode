@@ -35,8 +35,10 @@
 #include "GameClient/TerrainVisual.h" // for TERRAIN_LOD_MIN definition
 #include "GameClient/GameText.h"
 #include "GameNetwork/NetworkDefs.h"
+#if defined(GENONLINE)
 #include "GameNetwork/GenOnline/GenOnlineClientDescription.h"
 #include "GameNetwork/Online/OnlineProviderFactory.h"
+#endif
 
 
 
@@ -173,6 +175,7 @@ Int parseFullViewport(char *args[], int num)
 	return 1;
 }
 
+#if defined(GENONLINE)
 //=============================================================================
 //=============================================================================
 Int parseOnlineProvider(char *args[], int num)
@@ -185,6 +188,7 @@ Int parseOnlineProvider(char *args[], int num)
 	return 1;
 }
 
+#endif
 #if defined(RTS_DEBUG)
 
 //=============================================================================
@@ -438,6 +442,7 @@ Int parseHeadless(char *args[], int num)
 	return 1;
 }
 
+#if defined(GENONLINE)
 Int parseExportStats(char *args[], int num)
 {
 	TheWritableGlobalData->m_exportStats = TRUE;
@@ -454,6 +459,7 @@ Int parseStatsUrl(char *args[], int num)
 	return 1;
 }
 
+#endif
 Int parseReplay(char *args[], int num)
 {
 	if (num > 1)
@@ -506,6 +512,7 @@ Int parseSetCwd(char *args[], int num)
 	return 1;
 }
 
+#if defined(GENONLINE)
 static std::vector<std::string> s_settingsOverlays;
 
 Int parseSettings(char *args[], int num)
@@ -518,6 +525,7 @@ Int parseSettings(char *args[], int num)
 	return 1;
 }
 
+#endif
 Int parseXRes(char *args[], int num)
 {
 	if (num > 1)
@@ -1232,23 +1240,27 @@ static CommandLineParam paramsForStartup[] =
 	// If you do not call this, all replays will be simulated in sequence in the same process.
 	{ "-jobs", parseJobs },
 
+#if defined(GENONLINE)
 	// Export game stats as JSON alongside replay file.
 	{ "-exportStats", parseExportStats },
 
 	// URL to POST compressed stats JSON after export.
 	{ "-statsUrl", parseStatsUrl },
 
+#endif
 	// TheSuperHackers @feature CryoTheRenegade 14/08/2026
 	// Use the current working directory as provided by the OS, or an explicit path.
 	// The last successful selection wins; otherwise use the executable directory.
 	{ "-setCwd", parseSetCwd },
 	{ "-useCwd", parseUseCwd },
+#if defined(GENONLINE)
 
 	// GenOnline @feature arcticdolphin 11/11/2026 Select the online service provider by name. The default is GenOnline in GenOnline builds and GameSpy otherwise.
 	{ "-onlineProvider", parseOnlineProvider },
 
 	// GenOnline @feature arcticdolphin 21/11/2026 A settings overlay on settings.client.json, a file path or inline JSON, repeatable. A launch with an overlay never saves settings.client.json.
 	{ "-settings", parseSettings },
+#endif
 };
 
 // These Params are parsed during Engine Init before INI data is loaded
@@ -1489,6 +1501,7 @@ void createGlobalData()
 		TheWritableGlobalData = NEW GlobalData;
 }
 
+#if defined(GENONLINE)
 static bool hasCommandLineArgument(const char *name)
 {
 	for (int arg = 1; arg < __argc; ++arg)
@@ -1499,13 +1512,16 @@ static bool hasCommandLineArgument(const char *name)
 	return false;
 }
 
+#endif
 void CommandLine::parseCommandLineForStartup()
 {
+#if defined(GENONLINE)
 	// -describe exits before GlobalData creates the user data folders.
 	// _exit skips the static destructors because the engine is not initialized yet.
 	if (hasCommandLineArgument("-describe"))
 		_exit(GenOnlineWriteClientDescription() ? 0 : 1);
 
+#endif
 	// We need the GlobalData initialized before parsing the command line.
 	// Note that this function is potentially called multiple times and only initializes the first time.
 	createGlobalData();
@@ -1521,11 +1537,13 @@ void CommandLine::parseCommandLineForStartup()
 		rts::WorkingDirectory::setExecutableWorkingDirectory();
 }
 
+#if defined(GENONLINE)
 const std::vector<std::string>& CommandLine::getSettingsOverlays()
 {
 	return s_settingsOverlays;
 }
 
+#endif
 void CommandLine::parseCommandLineForEngineInit()
 {
 	createGlobalData();

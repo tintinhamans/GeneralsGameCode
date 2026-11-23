@@ -516,6 +516,7 @@ void PopulateInGameDiplomacyPopup()
 			if (staticTextSide[rowNum])
 			{
 				staticTextSide[rowNum]->winSetEnabledTextColors( playerColor, backColor );
+#if defined(GENONLINE)
 
 #if defined(GENONLINE_REVEAL_TEAMS)
                 const PlayerTemplate* pt = ThePlayerTemplateStore->getNthPlayerTemplate(slot->getPlayerTemplate());
@@ -525,6 +526,9 @@ void PopulateInGameDiplomacyPopup()
 #endif
 
 				
+#else
+				GadgetStaticTextSetText(staticTextSide[rowNum], slot->getApparentPlayerTemplateDisplayName() );
+#endif
 			}
 			if (staticTextTeam[rowNum])
 			{

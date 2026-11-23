@@ -564,7 +564,9 @@ WindowMsgHandledType PopupHostGameSystem( GameWindow *window, UnsignedInt msg, W
 
 void createGame()
 {
+#if defined(GENONLINE)
 	// TODO_GENONLINE: Everything using TheGameSpy%
+#endif
 	TheGameSpyInfo->setCurrentGroupRoom(0);
 	PeerRequest req;
 	UnicodeString gameName = GadgetTextEntryGetText(textEntryGameName);

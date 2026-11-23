@@ -154,7 +154,11 @@ public:
 		return SmallNetPacketType::copyBytes(buffer, ref, select);
 	}
 
+#if defined(GENONLINE)
 	virtual size_t readMessageData(NetCommandRef& ref, NetPacketBuf buf) const override
+#else
+	virtual size_t readMessageData(NetCommandRef& ref, NetPacketBuf buf) const final
+#endif
 	{
 		return SmallNetPacketType::CommandData::readMessage(ref, buf);
 	}
@@ -269,17 +273,23 @@ public:
 	void setCommandCount(UnsignedShort commandCount);
 	UnsignedShort getCommandCount() const;
 
+#if defined(GENONLINE)
 	Bool hasSignature() const { return m_hasSignature; }
 	const UnsignedByte *getSignature() const { return m_signature; }
 	void setSignature(const UnsignedByte *signature);
 
+#endif
 	virtual Select getSmallNetPacketSelect() const override;
+#if defined(GENONLINE)
 	virtual size_t readMessageData(NetCommandRef& ref, NetPacketBuf buf) const override;
+#endif
 
 protected:
 	UnsignedShort m_commandCount;
+#if defined(GENONLINE)
 	Bool m_hasSignature;
 	UnsignedByte m_signature[NET_SIGNATURE_SIZE];
+#endif
 };
 
 //-----------------------------------------------------------------------------
@@ -311,7 +321,9 @@ public:
 	void setAverageLatency(Real avgLat);
 	Int  getAverageFps() const;
 	void setAverageFps(Int fps);
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	enum { NO_CUSHION = 32767 };	///< cushion value when the player has no sample of a sender
 
@@ -412,17 +424,21 @@ public:
 	UnsignedInt getDisconnectFrame() const;
 	void setDisconnectFrame(UnsignedInt frame);
 
+#if defined(GENONLINE)
 	Bool hasSignature() const { return m_hasSignature; }
 	const UnsignedByte *getSignature() const { return m_signature; }
 	void setSignature(const UnsignedByte *signature);
 
+#endif
 	virtual Select getSmallNetPacketSelect() const override;
 
 protected:
 	UnsignedByte m_disconnectSlot;
 	UnsignedInt m_disconnectFrame;
+#if defined(GENONLINE)
 	Bool m_hasSignature;
 	UnsignedByte m_signature[NET_SIGNATURE_SIZE];
+#endif
 };
 
 //-----------------------------------------------------------------------------
@@ -710,6 +726,7 @@ public:
 
 	virtual Select getSmallNetPacketSelect() const override;
 };
+#if defined(GENONLINE)
 
 //-----------------------------------------------------------------------------
 // The wire form of a frame info with the signature of its author, read back into a NetFrameCommandMsg.
@@ -753,3 +770,4 @@ protected:
 	Int m_entryCount;
 	Entry m_entries[MAX_ENTRIES];
 };
+#endif

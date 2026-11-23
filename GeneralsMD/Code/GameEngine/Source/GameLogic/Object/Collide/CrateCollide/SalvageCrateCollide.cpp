@@ -200,12 +200,16 @@ Bool SalvageCrateCollide::testLevelChance()
 // ------------------------------------------------------------------------------------------------
 void SalvageCrateCollide::doWeaponSet( Object *other )
 {
+#if defined(GENONLINE)
 	Int reachedTier;
+#endif
 	if( other->testWeaponSetFlag( WEAPONSET_CRATEUPGRADE_ONE ) )
 	{
 		other->clearWeaponSetFlag( WEAPONSET_CRATEUPGRADE_ONE );
 		other->setWeaponSetFlag( WEAPONSET_CRATEUPGRADE_TWO );
+#if defined(GENONLINE)
 		reachedTier = 2;
+#endif
 	}
 	else
 	{
@@ -226,14 +230,18 @@ void SalvageCrateCollide::doWeaponSet( Object *other )
 // ------------------------------------------------------------------------------------------------
 void SalvageCrateCollide::doArmorSet( Object *other )
 {
+#if defined(GENONLINE)
 	Int reachedTier;
+#endif
 	if( other->testArmorSetFlag( ARMORSET_CRATE_UPGRADE_ONE ) )
 	{
 		other->clearArmorSetFlag( ARMORSET_CRATE_UPGRADE_ONE );
 		other->setArmorSetFlag( ARMORSET_CRATE_UPGRADE_TWO );
 
 		other->clearAndSetModelConditionState(MODELCONDITION_ARMORSET_CRATEUPGRADE_ONE, MODELCONDITION_ARMORSET_CRATEUPGRADE_TWO);
+#if defined(GENONLINE)
 		reachedTier = 2;
+#endif
 	}
 	else
 	{

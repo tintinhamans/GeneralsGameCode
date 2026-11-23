@@ -112,7 +112,11 @@ Bool DecompressFile		(char *infile, char *outfile)
 		DbgFree(inBlock);
 		DbgFree(outBlock);
 		return success;
+#if defined(GENONLINE)
 	} // End of if fileptr
+#else
+	}
+#endif
 
 	return FALSE;
 }
