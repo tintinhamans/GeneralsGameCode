@@ -1502,6 +1502,91 @@ void GenOnlineLobbyMenuCreateLobbyCallback(bool bSuccess)
 	//TheGameSpyInfo->setGameOptions();
 }
 
+// The game a friend invited the local player to, joined once the game list holds it. -1 for none.
+static int64_t s_inviteLobbyID = -1;
+static UnsignedInt s_inviteRequestedAt = 0;
+enum { INVITE_LIST_WAIT_MS = 10000 };
+
+// Joins a game of the list after the CRC check, asking for its password unless a friend invited the local player.
+static void JoinListedLobby(const LobbyEntry& Lobby, Bool bInvited)
+{
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pLobbyInterface == nullptr)
+	{
+		return;
+	}
+
+	// CRC Check
+	if (Lobby.exe_crc != TheGlobalData->m_exeCRC || Lobby.ini_crc != TheGlobalData->m_iniCRC)
+	{
+		// Only Zero Hour knows the CRC of its unmodified INI files, so Generals shows the plain mismatch.
+#if defined(VANILLA_INI_CRC)
+		if (TheGlobalData->m_iniCRC != VANILLA_INI_CRC)
+		{
+			GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), UnicodeString(L"You have modified INI files or a modification."));
+		}
+		else if (Lobby.ini_crc != VANILLA_INI_CRC)
+		{
+			GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), UnicodeString(L"The host has modified INI files or a modification."));
+		}
+		else
+#endif
+		{
+			GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), TheGameText->fetch("GUI:JoinFailedCRCMismatch"));
+		}
+		return;
+	}
+
+	// TODO_GENONLINE: Enforce this on the host too, vanilla game did not...
+
+	pLobbyInterface->SetLobbyTryingToJoin(Lobby);
+
+	// The service lets an invited friend in without the password.
+	if (Lobby.passworded && !bInvited)
+	{
+		GameSpyOpenOverlay(GSOVERLAY_GAMEPASSWORD);
+	}
+	else
+	{
+		pLobbyInterface->JoinLobby(Lobby, std::string());
+
+		GenOnlineSetLobbyAttemptHostJoin(TRUE);
+	}
+}
+
+Bool GenOnlineLobbyMenuIsActive()
+{
+	return s_lobbyMenuOpen;
+}
+
+void GenOnlineLobbyMenuJoinInvite(int64_t lobbyID)
+{
+	s_inviteLobbyID = lobbyID;
+	s_inviteRequestedAt = timeGetTime();
+}
+
+// The game list loads after the screen opens, so an invite waits a few seconds for its game to show up.
+static void JoinPendingInvite()
+{
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (s_inviteLobbyID < 0 || pLobbyInterface == nullptr || isShuttingDown || buttonPushed || s_tryingToHostOrJoin
+		|| pLobbyInterface->IsInLobby() || pLobbyInterface->GetLobbyTryingToJoin().lobbyID != -1)
+	{
+		return;
+	}
+	const LobbyEntry lobby = pLobbyInterface->GetLobbyFromID(s_inviteLobbyID);
+	if (lobby.lobbyID != -1)
+	{
+		s_inviteLobbyID = -1;
+		JoinListedLobby(lobby, TRUE);
+	}
+	else if (timeGetTime() - s_inviteRequestedAt > INVITE_LIST_WAIT_MS)
+	{
+		s_inviteLobbyID = -1;
+		GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOInviteGameGone", L"This game is no longer open."));
+	}
+}
+
 void GenOnlineLobbyMenuJoinLobbyCallback(EJoinLobbyResult result)
 {
 	// TODO_GENONLINE: Show accurate errors again
@@ -2132,6 +2217,7 @@ void GenOnlineLobbyMenuUpdate( WindowLayout * layout, void *userData)
 	}
 
 	GenOnlineHandleBuddyResponses();
+	JoinPendingInvite();
 
 }
 
@@ -2417,42 +2503,7 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 								break;
 							}
 
-							// CRC Check
-							if (Lobby.exe_crc != TheGlobalData->m_exeCRC || Lobby.ini_crc != TheGlobalData->m_iniCRC)
-							{
-								// Only Zero Hour knows the CRC of its unmodified INI files, so Generals shows the plain mismatch.
-#if defined(VANILLA_INI_CRC)
-								if (TheGlobalData->m_iniCRC != VANILLA_INI_CRC)
-								{
-									GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), UnicodeString(L"You have modified INI files or a modification."));
-								}
-								else if (Lobby.ini_crc != VANILLA_INI_CRC)
-								{
-									GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), UnicodeString(L"The host has modified INI files or a modification."));
-								}
-								else
-#endif
-								{
-									GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), TheGameText->fetch("GUI:JoinFailedCRCMismatch"));
-								}
-								break;
-							}
-
-							// TODO_GENONLINE: Enforce this on the host too, vanilla game did not...
-
-							
-							pLobbyInterface->SetLobbyTryingToJoin(Lobby);
-
-							if (Lobby.passworded)
-							{
-								GameSpyOpenOverlay(GSOVERLAY_GAMEPASSWORD);
-							}
-							else
-							{
-								pLobbyInterface->JoinLobby(Lobby, std::string());
-
-								GenOnlineSetLobbyAttemptHostJoin(TRUE);
-							}
+							JoinListedLobby(Lobby, FALSE);
 						}
 					}
 					else

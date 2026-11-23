@@ -96,6 +96,7 @@ static GameWindow *buttonLadder = nullptr;
 static GameWindow *buttonMyInfo = nullptr;
 static GameWindow *buttonbuttonOptions = nullptr;
 static WindowLayout *welcomeLayout = nullptr;
+static Bool s_welcomeOpen = FALSE;
 static GameWindow *listboxInfo = nullptr;
 
 static GameWindow *staticTextServerName = nullptr;
@@ -490,6 +491,7 @@ void GenOnlineWelcomeMenuInit( WindowLayout *layout, void *userData )
 	nextScreen = nullptr;
 	buttonPushed = FALSE;
 	isShuttingDown = FALSE;
+	s_welcomeOpen = TRUE;
 
 	welcomeLayout = layout;
 
@@ -662,8 +664,22 @@ void GenOnlineWelcomeMenuInit( WindowLayout *layout, void *userData )
 //-------------------------------------------------------------------------------------------------
 /** WOL Welcome Menu shutdown method */
 //-------------------------------------------------------------------------------------------------
+// A lobby invite opens the game list from the welcome screen as its Custom Match button does.
+Bool GenOnlineWelcomeMenuOpenLobby()
+{
+	if (!s_welcomeOpen || isShuttingDown || buttonPushed)
+	{
+		return FALSE;
+	}
+	buttonPushed = TRUE;
+	nextScreen = "Menus/GenOnlineCustomLobby.wnd";
+	TheShell->pop();
+	return TRUE;
+}
+
 void GenOnlineWelcomeMenuShutdown( WindowLayout *layout, void *userData )
 {
+	s_welcomeOpen = FALSE;
 	GenOnlineUserSectionHide();
 	listboxInfo = nullptr;
 

@@ -11,6 +11,7 @@
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GenOnlineMenus.h"
 #include "GameClient/HeaderTemplate.h"
+#include "GameClient/Image.h"
 #include "GameClient/MessageBox.h"
 #include "GameClient/Mouse.h"
 #include "GameNetwork/GameSpyOverlay.h"
@@ -34,8 +35,8 @@ constexpr Int SECTION_MAX_WIDTH = 190;
 constexpr Int SECTION_HEIGHT = 20;
 constexpr Int SECTION_PADDING = 8;
 constexpr Int SECTION_GAP = 6;
-constexpr Int MARKER_PADDING = 5;
-constexpr Int CHEVRON_WIDTH = 8;
+constexpr Int MARKER_PADDING = 3;
+constexpr Int COMMUNICATOR_GAP = 4;
 constexpr Int FRIENDS_REFRESH_MS = 500;
 
 constexpr Int PANEL_WIDTH = 200;
@@ -49,8 +50,6 @@ enum PanelAction
 {
 	ACTION_ACCEPT,
 	ACTION_IGNORE,
-	ACTION_MESSAGES,
-	ACTION_FRIENDS,
 	ACTION_PROFILE,
 	ACTION_SIGN_OUT,
 	ACTION_STATUS
@@ -87,6 +86,7 @@ struct FriendRow
 };
 
 GameWindow *s_window = nullptr;
+GameWindow *s_communicator = nullptr;
 GameWindow *s_catcher = nullptr;
 GameWindow *s_panel = nullptr;
 DisplayString *s_name = nullptr;
@@ -94,9 +94,13 @@ DisplayString *s_marker = nullptr;
 DisplayString *s_textRegular = nullptr;
 DisplayString *s_textSmall = nullptr;
 Bool s_hovered = FALSE;
+Bool s_communicatorHovered = FALSE;
 Int s_friendsOnline = -1;
 Int s_friendsTotal = 0;
 Int s_notifications = -1;
+Int s_unreadConversations = 0;
+Int s_pendingRequests = 0;
+Int s_sectionLeft = 0;
 Int s_sectionRight = 0;
 Int s_sectionBottom = 0;
 std::wstring s_displayName;
@@ -185,7 +189,10 @@ void refresh()
 	GenOnlineAuthInterface *auth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	GenOnlineSocialInterface *social = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 	const std::wstring name = (auth != nullptr && auth->HasDisplayName()) ? auth->GetDisplayNameW() : std::wstring();
-	const Int notifications = (social != nullptr) ? social->GetNumTotalNotifications() : 0;
+	// The badge counts what still waits for the player, so it clears once the requests are answered and the conversations read.
+	s_unreadConversations = (social != nullptr) ? social->GetNumUnreadConversations() : 0;
+	s_pendingRequests = (social != nullptr) ? (Int)social->GetCachedRequestsList().size() : 0;
+	const Int notifications = s_unreadConversations + s_pendingRequests;
 
 	const auto now = std::chrono::steady_clock::now();
 	if (social != nullptr && (s_friendsOnline < 0 || now - s_lastRefresh >= std::chrono::milliseconds(FRIENDS_REFRESH_MS)))
@@ -207,7 +214,7 @@ void refresh()
 	s_localStatus = localStatus;
 	s_name->setText(UnicodeString(name.c_str()));
 	UnicodeString marker;
-	marker.format(L"%d", notifications);
+	marker.format(notifications > 9 ? L"9+" : L"%d", notifications);
 	s_marker->setText(marker);
 }
 
@@ -264,11 +271,6 @@ void runAction(const PanelHit &hit)
 		{
 			social->RejectPendingRequest(hit.userID);
 		}
-		return;
-	case ACTION_MESSAGES:
-	case ACTION_FRIENDS:
-		closeDropdown();
-		GameSpyOpenOverlay(GSOVERLAY_BUDDY);
 		return;
 	case ACTION_PROFILE:
 	{
@@ -336,23 +338,41 @@ Color statusColor(const std::string &status)
 	{
 		return GameMakeColor(140, 148, 170, 255);
 	}
+	if (status == "offline")
+	{
+		return GameMakeColor(93, 99, 130, 255);
+	}
 	return GameMakeColor(56, 224, 122, 255);
 }
 
-// Corners are cut by one pixel to look round, the invisible status is a hollow ring.
+// Corners are cut by one pixel to look round, the invisible and offline statuses are a hollow ring.
 void drawStatusDot(const std::string &status, Int x, Int y, Int size)
 {
+	// The dot is a disc drawn row by row, and an invisible or offline status leaves a ring so the dot never reads as a checkbox.
 	const Color color = statusColor(status);
-	if (status != "invisible")
+	const Bool ring = status == "invisible" || status == "offline";
+	const Real radius = size * 0.5f;
+	const Real inner = radius - (std::max)(1.5f, size * 0.2f);
+	for (Int row = 0; row < size; ++row)
 	{
-		TheWindowManager->winFillRect(color, 1.0f, x + 1, y, x + size - 1, y + size);
-		TheWindowManager->winFillRect(color, 1.0f, x, y + 1, x + size, y + size - 1);
-		return;
+		const Real dy = row + 0.5f - radius;
+		const Int outerHalf = static_cast<Int>(sqrtf((std::max)(0.0f, radius * radius - dy * dy)) + 0.5f);
+		if (outerHalf <= 0)
+		{
+			continue;
+		}
+		const Int center = x + size / 2;
+		const Int left = x + (size - 2 * outerHalf) / 2;
+		const Int right = left + 2 * outerHalf;
+		const Int innerHalf = ring && inner > 0.0f && fabsf(dy) < inner ? static_cast<Int>(sqrtf(inner * inner - dy * dy) + 0.5f) : 0;
+		if (innerHalf <= 0)
+		{
+			TheWindowManager->winFillRect(color, 1.0f, left, y + row, right, y + row + 1);
+			continue;
+		}
+		TheWindowManager->winFillRect(color, 1.0f, left, y + row, center - innerHalf, y + row + 1);
+		TheWindowManager->winFillRect(color, 1.0f, center + innerHalf, y + row, right, y + row + 1);
 	}
-	TheWindowManager->winFillRect(color, 1.0f, x + 1, y, x + size - 1, y + 1);
-	TheWindowManager->winFillRect(color, 1.0f, x + 1, y + size - 1, x + size - 1, y + size);
-	TheWindowManager->winFillRect(color, 1.0f, x, y + 1, x + 1, y + size - 1);
-	TheWindowManager->winFillRect(color, 1.0f, x + size - 1, y + 1, x + size, y + size - 1);
 }
 
 void drawButton(const PanelHit &hit, const UnicodeString &label, Int mouseX, Int mouseY)
@@ -392,7 +412,7 @@ void drawPanel(GameWindow *window, WinInstanceData *)
 	{
 		height += row + requestCount * row + gap;
 	}
-	height += 2 * buttonHeight + padding;
+	height += buttonHeight + padding;
 	window->winSetPosition(left, top);
 	window->winSetSize(width, height);
 
@@ -491,13 +511,11 @@ void drawPanel(GameWindow *window, WinInstanceData *)
 		const WideChar *text;
 	};
 	const ButtonSpec specs[] = {
-		{ ACTION_MESSAGES, "GUI:GOUserMessages", L"Messages" },
-		{ ACTION_FRIENDS, "GUI:GOUserAllFriends", L"All friends" },
 		{ ACTION_PROFILE, "GUI:GOUserMyProfile", L"My profile" },
 		{ ACTION_SIGN_OUT, "GUI:GOUserSignOut", L"Sign out" },
 	};
 	const Int cell = (textRight - textLeft - buttonGap) / 2;
-	for (Int i = 0; i < 4; ++i)
+	for (Int i = 0; i < 2; ++i)
 	{
 		PanelHit hit;
 		hit.left = textLeft + (i % 2) * (cell + buttonGap);
@@ -572,11 +590,19 @@ void openDropdown()
 	}
 }
 
-void drawChevron(Int centerX, Int centerY, Int halfWidth, Color color)
+// The arrow is the drop-down button art of the kit combo boxes, at their 21 by 22 proportion over the full height.
+Int arrowWidth(Int height)
 {
-	const Int halfHeight = halfWidth / 2;
-	TheWindowManager->winDrawLine(color, 1.0f, centerX - halfWidth, centerY - halfHeight, centerX, centerY + halfHeight);
-	TheWindowManager->winDrawLine(color, 1.0f, centerX, centerY + halfHeight, centerX + halfWidth, centerY - halfHeight);
+	return (height * 21 + 11) / 22;
+}
+
+void drawArrow(Int left, Int top, Int height, Bool lit)
+{
+	const Image *image = TheMappedImageCollection->findImageByName(lit ? "VSliderDownButtonHilite" : "VSliderDownButtonEnabled");
+	if (image != nullptr)
+	{
+		TheWindowManager->winDrawImage(image, left, top, left + arrowWidth(height), top + height);
+	}
 }
 
 void drawUserSection(GameWindow *window, WinInstanceData *instData)
@@ -594,18 +620,20 @@ void drawUserSection(GameWindow *window, WinInstanceData *instData)
 
 	const Int padding = scaleX(SECTION_PADDING);
 	const Int gap = scaleX(SECTION_GAP);
-	const Int chevron = scaleX(CHEVRON_WIDTH);
-	Int nameWidth, nameHeight, markerTextWidth, markerTextHeight;
+	const Int height = scaleY(SECTION_HEIGHT);
+	const Int arrow = arrowWidth(height);
+	Int nameWidth, nameHeight;
 	s_name->getSize(&nameWidth, &nameHeight);
 	const Int dot = scaleY(7);
-	s_marker->getSize(&markerTextWidth, &markerTextHeight);
-	const Int markerPadding = scaleX(MARKER_PADDING);
-	const Int markerWidth = markerTextWidth + 2 * markerPadding;
-	const Int fixed = 2 * padding + dot + gap + gap + chevron + (s_notifications > 0 ? gap + markerWidth : 0);
+	const Int fixed = padding + dot + gap + gap + arrow;
 	const Int width = (std::min)(scaleX(SECTION_MAX_WIDTH), fixed + nameWidth);
-	const Int height = scaleY(SECTION_HEIGHT);
 	window->winSetSize(width, height);
 	window->winSetPosition(s_sectionRight - width, s_sectionBottom - height);
+	s_sectionLeft = s_sectionRight - width;
+	if (s_communicator != nullptr)
+	{
+		s_communicator->winSetPosition(s_sectionLeft - scaleX(COMMUNICATOR_GAP) - height, s_sectionBottom - height);
+	}
 
 	Int x, y;
 	window->winGetScreenPosition(&x, &y);
@@ -614,21 +642,8 @@ void drawUserSection(GameWindow *window, WinInstanceData *instData)
 	GadgetListBoxDrawKitFrame(line, x, y, width, height);
 
 	const Color shadow = GameMakeColor(0, 0, 0, 255);
-	const Color muted = GOUIColor(GOUICOLOR_MUTED, GameMakeColor(154, 163, 199, 255));
-	Int right = x + width - padding;
-
-	drawChevron(right - chevron / 2, y + height / 2, chevron / 2, muted);
-	right -= chevron + gap;
-
-	if (s_notifications > 0)
-	{
-		const Int markerHeight = markerTextHeight + scaleY(2);
-		const Int markerX = right - markerWidth;
-		const Int markerY = y + (height - markerHeight) / 2;
-		TheWindowManager->winFillRect(GameMakeColor(255, 74, 74, 255), 1.0f, markerX, markerY, markerX + markerWidth, markerY + markerHeight);
-		s_marker->draw(markerX + markerPadding, markerY + (markerHeight - markerTextHeight) / 2, GameMakeColor(255, 255, 255, 255), shadow);
-		right = markerX - gap;
-	}
+	drawArrow(x + width - arrow, y, height, s_hovered || s_panel != nullptr);
+	Int right = x + width - arrow - gap;
 
 	drawStatusDot(s_localStatus, x + padding, y + (height - dot) / 2, dot);
 	const Int nameX = x + padding + dot + gap;
@@ -639,6 +654,105 @@ void drawUserSection(GameWindow *window, WinInstanceData *instData)
 	clip.hi.y = y + height;
 	s_name->setClipRegion(&clip);
 	s_name->draw(nameX, y + (height - nameHeight) / 2, GameMakeColor(255, 194, 15, 255), shadow);
+}
+
+// A speech bubble with the count of unread conversations and friend requests in a red badge on its top right corner.
+void drawCommunicatorButton(GameWindow *window, WinInstanceData *)
+{
+	if (s_marker == nullptr || s_displayName.empty() || s_sectionLeft == 0)
+	{
+		return;
+	}
+	Int x, y, size, height;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&size, &height);
+	const Color line = GOUIColor((s_communicatorHovered || GameSpyIsOverlayOpen(GSOVERLAY_BUDDY)) ? GOUICOLOR_LINE_HILITE : GOUICOLOR_LINE, GameMakeColor(47, 75, 255, 255));
+	TheWindowManager->winFillRect(GameMakeColor(5, 7, 15, 209), 1.0f, x, y, x + size, y + height);
+	GadgetListBoxDrawKitFrame(line, x, y, size, height);
+
+	const Color icon = s_notifications > 0 ? GameMakeColor(255, 255, 255, 255) : GOUIColor(GOUICOLOR_MUTED, GameMakeColor(154, 163, 199, 255));
+	const Int left = x + size / 4;
+	const Int right = x + size - size / 4;
+	const Int top = y + height / 4;
+	const Int bottom = y + height - height / 3;
+	TheWindowManager->winOpenRect(icon, 1.0f, left, top, right, bottom);
+	TheWindowManager->winDrawLine(icon, 1.0f, left + size / 8, bottom, left + size / 8, bottom + height / 6);
+	TheWindowManager->winDrawLine(icon, 1.0f, left + size / 8, bottom + height / 6, left + size / 4, bottom);
+
+	if (s_notifications <= 0)
+	{
+		return;
+	}
+	Int textWidth, textHeight;
+	s_marker->getSize(&textWidth, &textHeight);
+	const Int badgeHeight = textHeight + scaleY(1);
+	const Int badgeWidth = (std::max)(badgeHeight, textWidth + 2 * scaleX(MARKER_PADDING));
+	const Int badgeX = x + size - badgeWidth / 2 - scaleX(1);
+	const Int badgeY = y - badgeHeight / 3;
+	const Color red = GameMakeColor(255, 74, 74, 255);
+	TheWindowManager->winFillRect(red, 1.0f, badgeX + 1, badgeY, badgeX + badgeWidth - 1, badgeY + badgeHeight);
+	TheWindowManager->winFillRect(red, 1.0f, badgeX, badgeY + 1, badgeX + badgeWidth, badgeY + badgeHeight - 1);
+	s_marker->draw(badgeX + (badgeWidth - textWidth) / 2, badgeY + (badgeHeight - textHeight) / 2, GameMakeColor(255, 255, 255, 255), GameMakeColor(0, 0, 0, 255));
+}
+
+void communicatorTooltip(GameWindow *, WinInstanceData *, UnsignedInt)
+{
+	std::wstring text = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOCommunicator", L"Communicator").str();
+	if (s_unreadConversations > 0)
+	{
+		text += L"\n" + std::to_wstring(s_unreadConversations) + (s_unreadConversations == 1 ? L" unread conversation" : L" unread conversations");
+	}
+	if (s_pendingRequests > 0)
+	{
+		text += L"\n" + std::to_wstring(s_pendingRequests) + (s_pendingRequests == 1 ? L" friend request" : L" friend requests");
+	}
+	TheMouse->setCursorTooltip(UnicodeString(text.c_str()));
+}
+
+// Unread messages open the latest conversation, else waiting requests open their tab, else the friends list opens.
+void openCommunicator()
+{
+	GenOnlineSocialInterface *social = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	if (GameSpyIsOverlayOpen(GSOVERLAY_BUDDY))
+	{
+		GameSpyCloseOverlay(GSOVERLAY_BUDDY);
+		return;
+	}
+	if (social != nullptr && s_unreadConversations > 0)
+	{
+		GenOnlineOpenCommunicator(GENONLINE_COMMUNICATOR_FRIENDS, social->GetLastConversationPeer());
+	}
+	else if (s_pendingRequests > 0)
+	{
+		GenOnlineOpenCommunicator(GENONLINE_COMMUNICATOR_REQUESTS, -1);
+	}
+	else
+	{
+		GenOnlineOpenCommunicator(GENONLINE_COMMUNICATOR_FRIENDS, -1);
+	}
+}
+
+WindowMsgHandledType inputCommunicatorButton(GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2)
+{
+	switch (msg)
+	{
+	case GWM_MOUSE_ENTERING:
+		s_communicatorHovered = TRUE;
+		return MSG_HANDLED;
+	case GWM_MOUSE_LEAVING:
+		s_communicatorHovered = FALSE;
+		return MSG_HANDLED;
+	case GWM_LEFT_DOWN:
+		return MSG_HANDLED;
+	case GWM_LEFT_UP:
+		if (!s_displayName.empty())
+		{
+			closeDropdown();
+			openCommunicator();
+		}
+		return MSG_HANDLED;
+	}
+	return MSG_IGNORED;
 }
 
 WindowMsgHandledType inputUserSection(GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2)
@@ -665,6 +779,11 @@ WindowMsgHandledType inputUserSection(GameWindow *window, UnsignedInt msg, Windo
 
 } // namespace
 
+void GenOnlineDrawPresenceDot(const char *status, Int x, Int y, Int size)
+{
+	drawStatusDot(status != nullptr ? status : "offline", x, y, size);
+}
+
 void GenOnlineUserSectionShow(GameWindow *parent)
 {
 	if (parent == nullptr)
@@ -674,6 +793,7 @@ void GenOnlineUserSectionShow(GameWindow *parent)
 
 	// Windows left from an earlier screen went down with its layout, so only the strings are reused.
 	s_window = nullptr;
+	s_communicator = nullptr;
 	s_panel = nullptr;
 	s_catcher = nullptr;
 	s_hits.clear();
@@ -703,6 +823,16 @@ void GenOnlineUserSectionShow(GameWindow *parent)
 	s_localStatus.clear();
 	s_window->winSetInputFunc(inputUserSection);
 	s_window->winSetDrawFunc(drawUserSection);
+
+	s_sectionLeft = 0;
+	s_communicatorHovered = FALSE;
+	s_communicator = TheWindowManager->winCreate(parent, WIN_STATUS_ENABLED | WIN_STATUS_NO_FOCUS, s_sectionRight - width - scaleX(COMMUNICATOR_GAP) - height, s_sectionBottom - height, height, height, nullptr, nullptr);
+	if (s_communicator != nullptr)
+	{
+		s_communicator->winSetInputFunc(inputCommunicatorButton);
+		s_communicator->winSetDrawFunc(drawCommunicatorButton);
+		s_communicator->winSetTooltipFunc(communicatorTooltip);
+	}
 }
 
 void GenOnlineUserSectionHide()
@@ -712,6 +842,11 @@ void GenOnlineUserSectionHide()
 	{
 		TheWindowManager->winDestroy(s_window);
 		s_window = nullptr;
+	}
+	if (s_communicator != nullptr)
+	{
+		TheWindowManager->winDestroy(s_communicator);
+		s_communicator = nullptr;
 	}
 	freeString(s_name);
 	freeString(s_marker);

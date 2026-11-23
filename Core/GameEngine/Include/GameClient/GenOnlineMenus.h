@@ -128,6 +128,15 @@ extern Int GenOnlineGetFavoriteSide( const PSPlayerStats& stats );
 extern void GenOnlineHandleBuddyResponses();
 extern void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh = false, bool bUseCache = false );
 extern void GenOnlineRefreshIgnoreList();
+// The tabs of the communicator. The peer is the friend whose conversation opens, -1 opens none.
+enum GenOnlineCommunicatorTab { GENONLINE_COMMUNICATOR_FRIENDS, GENONLINE_COMMUNICATOR_REQUESTS, GENONLINE_COMMUNICATOR_BLOCKED };
+extern void GenOnlineOpenCommunicator( Int tab, int64_t peerUserID );
+// Draws the presence dot of the user section: online, idle, do_not_disturb, invisible or offline.
+extern void GenOnlineDrawPresenceDot( const char *status, Int x, Int y, Int size );
+extern Bool GenOnlineLobbyMenuIsActive();
+// Joins the game of a lobby invite once the game list shows it, without its password.
+extern void GenOnlineLobbyMenuJoinInvite( int64_t lobbyID );
+extern Bool GenOnlineWelcomeMenuOpenLobby();
 extern void GenOnlineRaiseNotificationBox();
 extern void GenOnlineDeleteNotificationBox();
 extern void GenOnlineInitBuddyControls( Int type );

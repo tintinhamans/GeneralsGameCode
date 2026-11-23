@@ -1047,6 +1047,11 @@ static Bool parseTooltipText( const char *token, WinInstanceData *instData,
 	if(strlen( ptr ) == 1 )
 		return TRUE;
 	c = strtok( ptr, stringSeps );  // value
+#if defined(GENONLINE)
+	// GenOnline @bugfix arcticdolphin 24/11/2026 An empty string leaves no token and crashed the layout parser.
+	if( c == nullptr )
+		return TRUE;
+#endif
 	if( strlen( c ) >= MAX_TEXT_LABEL )
 	{
 
@@ -1097,6 +1102,11 @@ static Bool parseText( const char *token, WinInstanceData *instData,
 		ptr++;
 	ptr++;  // skip the "
 	c = strtok( ptr, stringSeps );  // value
+#if defined(GENONLINE)
+	// GenOnline @bugfix arcticdolphin 24/11/2026 An empty string leaves no token and crashed the layout parser.
+	if( c == nullptr )
+		return TRUE;
+#endif
 	if( strlen( c ) >= MAX_TEXT_LABEL )
 	{
 

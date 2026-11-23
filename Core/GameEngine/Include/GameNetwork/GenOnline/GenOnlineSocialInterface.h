@@ -43,6 +43,15 @@ public:
 
 	void AcceptPendingRequest(int64_t target_user_id);
 	void RejectPendingRequest(int64_t target_user_id);
+	// Withdraws a friend request the local player sent.
+	void CancelSentRequest(int64_t target_user_id);
+
+	// Invites a friend to the lobby the local player is in. The text is empty on success, else the reason to show.
+	void InviteToLobby(int64_t target_user_id, std::function<void(std::wstring strFailure)> cb);
+	void OnRealtimeLobbyInvite(const GenOnlineRealtime::LobbyInviteEvent& event);
+
+	// The user of the conversation that changed last, -1 when there is none.
+	int64_t GetLastConversationPeer() const { return m_lastConversationPeer; }
 
 	void OnChatMessage(int64_t source_user_id, int64_t target_user_id, UnicodeString unicodeStr);
 	void OnOnlineStatusChanged(std::string strDisplayName, bool bOnline);
@@ -87,6 +96,17 @@ public:
 	int GetNumberUnreadChatMessagesForUser(int64_t target_user_id)
 	{
 		return m_unreadConversations.Unread(target_user_id);
+	}
+
+	// The conversations with unread lines, each counted once.
+	int GetNumUnreadConversations() const
+	{
+		int numUnread = 0;
+		for (int64_t peer : m_unreadConversations.Peers())
+		{
+			numUnread += m_unreadConversations.Unread(peer) > 0 ? 1 : 0;
+		}
+		return numUnread;
 	}
 
 	// True when the communicator may open a chat with the user: a friend, anyone for staff holding
@@ -163,6 +183,19 @@ public:
         std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
         return m_mapPendingRequests;
     }
+
+	// The friend requests the local player sent that wait for an answer.
+	std::unordered_map<int64_t, FriendsEntry> GetCachedSentRequestsList()
+	{
+		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
+		return m_mapSentRequests;
+	}
+
+	std::unordered_map<int64_t, FriendsEntry> GetCachedBlockedList()
+	{
+		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
+		return m_mapBlocked;
+	}
 
 	void RegisterForCallback_OnNumberGlobalNotificationsChanged(std::function<void(int newNumNotifications)> cb)
 	{
@@ -249,7 +282,9 @@ private:
 	mutable std::mutex m_friendsMapMutex;
 	std::unordered_map<int64_t, FriendsEntry> m_mapFriends;
 	std::unordered_map<int64_t, FriendsEntry> m_mapPendingRequests;
+	std::unordered_map<int64_t, FriendsEntry> m_mapSentRequests;
 	std::unordered_map<int64_t, FriendsEntry> m_mapBlocked;
+	int64_t m_lastConversationPeer = -1;
 
 	// managed on client / locally
 	std::unordered_map<int64_t, FriendsEntry> m_mapRecentlyPlayedWith;

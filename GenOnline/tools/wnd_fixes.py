@@ -92,6 +92,42 @@ def _welcome_rects(zero_hour):
     return rects
 
 
+def _communicator_rects():
+    """The communicator: a compact window under the ruler user section, on the lobby grid of 20 unit rows, 4 unit gaps and a
+    6 unit padding. A header holds the title and the Friends, Requests and Blocked tabs. The search field and the friends
+    list sit left of the conversation, the requests and blocked lists span the whole body. The conversation header holds
+    the dot, name, status and buttons of the open player, where Add friend and Invite share one place."""
+    p = "WOLBuddyOverlay.wnd:"
+    body = (331, 68, 759, 356)
+    return {
+        p + "BuddyMenuParent": (331, 36, 759, 356),
+        p + "StaticTextTitle": (337, 42, 421, 62),
+        p + "RadioButtonBuddies": (425, 42, 485, 62),
+        p + "RadioButtonRequests": (489, 42, 569, 62),
+        p + "RadioButtonIgnore": (573, 42, 633, 62),
+        p + "ButtonHide": (733, 42, 753, 62),
+        p + "Line": (331, 67, 759, 68),
+        p + "BuddiesParent": body,
+        p + "TextEntryFind": (337, 74, 497, 94),
+        p + "ListboxBuddies": (337, 98, 497, 350),
+        p + "LineSide": (503, 68, 504, 356),
+        p + "WindowPeerDot": (510, 84, 518, 92),
+        p + "StaticTextPeerName": (522, 74, 605, 88),
+        p + "StaticTextPeerStatus": (522, 88, 605, 102),
+        p + "ButtonAdd": (609, 78, 673, 98),
+        p + "ButtonInvite": (609, 78, 673, 98),
+        p + "ButtonProfile": (677, 78, 729, 98),
+        p + "ButtonMore": (733, 78, 753, 98),
+        p + "LinePeer": (504, 107, 759, 108),
+        p + "ListboxBuddyChat": (510, 114, 753, 326),
+        p + "TextEntryChat": (510, 330, 753, 350),
+        p + "IgnoreParent": body,
+        p + "ListboxIgnore": (337, 74, 753, 350),
+        p + "RequestsParent": body,
+        p + "ListboxRequests": (337, 74, 753, 350),
+    }
+
+
 FIXES = {
     # the game speed slider rect reached 10 units below its row; centred on the row, its label and value box follow it
     "Window/Menus/SkirmishGameOptionsMenu.wnd": {
@@ -99,6 +135,7 @@ FIXES = {
     },
     "Window/Menus/GameSpyGameOptionsMenu.wnd": _setup_rects(),
     "Window/Menus/WOLWelcomeMenu.wnd": _welcome_rects(True),
+    "Window/Menus/WOLBuddyOverlay.wnd": _communicator_rects(),
     # layout E: the games list runs the full height, the sidebar holds the players or game details panel under their header over the chat under its header, the chat entry and emote sit under the chat
     "Window/Menus/WOLCustomLobby.wnd": {
         "WOLCustomLobby.wnd:ParentGameListLarge": (47, 77, 531, 511),
