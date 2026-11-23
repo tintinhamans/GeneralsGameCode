@@ -738,11 +738,7 @@ void SpecialAbilityUpdate::startPacking(Bool success)
   const SpecialAbilityUpdateModuleData* data = getSpecialAbilityUpdateModuleData();
   m_packingState = STATE_PACKING;
   Real variation = GameLogicRandomValueReal( 1.0f - data->m_packUnpackVariationFactor, 1.0f + data->m_packUnpackVariationFactor );
-#if defined(GENONLINE)
-  m_animFrames = data->m_unpackTime * variation;
-#else
   m_animFrames = data->m_packTime * variation;
-#endif
 
   //Set the animation state
   getObject()->clearAndSetModelConditionFlags(
