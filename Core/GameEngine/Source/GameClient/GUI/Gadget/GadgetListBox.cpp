@@ -1555,7 +1555,8 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 
 			ListEntryCell *cells = list->listData[mData1].cell;
 			if(cells)
-				for( i = 0; i <= list->columns; i ++ )
+				// GenOnline @bugfix arcticdolphin 23/11/2026 The cell array holds columns entries, so the last column is columns - 1.
+				for( i = 0; i < list->columns; i ++ )
 				{
 					if( cells[i].cellType == LISTBOX_TEXT && cells[i].data )
 						TheDisplayStringManager->freeDisplayString((DisplayString *) cells[i].data );
@@ -1566,8 +1567,10 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			delete[](list->listData[mData1].cell);
 			list->listData[mData1].cell = nullptr;
 
-			memcpy( &list->listData[mData1], &list->listData[(mData1+1)],
+			// GenOnline @bugfix arcticdolphin 23/11/2026 The rows overlap, and the vacated last row is cleared so that no two rows share a cell array that the destroy and reset paths delete.
+			memmove( &list->listData[mData1], &list->listData[(mData1+1)],
 							(list->endPos - mData1 - 1) * sizeof(ListEntryRow) );
+			memset( &list->listData[(list->endPos - 1)], 0, sizeof(ListEntryRow) );
 
 			list->endPos--;
 			list->insertPos = list->endPos;
