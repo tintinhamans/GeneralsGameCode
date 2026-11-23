@@ -86,7 +86,7 @@ void GenOnlineSocialInterface::AcceptPendingRequest(int64_t target_user_id)
 {
 	CallSocialRest(GenOnlineRealtimeBridge::RestMethod::Post, GenOnlineRealtime::RestFriendRequestAcceptPath(target_user_id), std::string(), [target_user_id](GenOnlineSocialInterface* pThis)
 		{
-			// The new friend's FriendPresence usually arrived before this answer and is kept on the request.
+			// The FriendPresence of the new friend usually arrived before this answer and is kept on the request.
 			std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
 			GenOnlineRealtime::MoveAcceptedRequest(pThis->m_mapFriends, pThis->m_mapPendingRequests, target_user_id);
 		});
@@ -140,7 +140,6 @@ GenOnlineRealtime::DirectConversation& GenOnlineSocialInterface::GetConversation
 	return it->second;
 }
 
-// True when the settings show the notification box for a conversation line in the current game state.
 static bool ConversationNotificationsEnabled()
 {
 	if (TheGenOnlineGame != nullptr && TheGenOnlineGame->isGameInProgress())
@@ -161,7 +160,7 @@ void GenOnlineSocialInterface::OnConversationLine(int64_t user_id_to_store, bool
 			TriggerCallback_OnNumberGlobalNotificationsChanged();
 		}
 		// show popup for incoming message
-		if (ConversationNotificationsEnabled())
+		if (ConversationNotificationsEnabled() && !NotificationsMuted())
 		{
 #if defined(GENONLINE)
 			GenOnlineShowNotificationBox(AsciiString::TheEmptyString, unicodeStr, true /*bPlaySound*/);
@@ -203,10 +202,28 @@ void GenOnlineSocialInterface::OnOnlineStatusChanged(std::string strDisplayName,
 	}
 
 	// TODO_SOCIAL: Update communicator if its active
-	if (bShowNotification)
+	if (bShowNotification && !NotificationsMuted())
 	{
 		GenOnlineShowNotificationBox(AsciiString(strDisplayName.c_str()), bOnline ? TheGameText->fetch("Buddy:OnlineNotification") : UnicodeString(L"%hs went offline"));
 	}
+}
+
+bool GenOnlineSocialInterface::NotificationsMuted()
+{
+	return GenOnlineServicesManager::Settings.Social_PresenceStatus() == "do_not_disturb";
+}
+
+void GenOnlineSocialInterface::SendLocalPresenceStatus()
+{
+	GenOnlineRealtime::SetPresenceStatusRequest request;
+	request.status = GenOnlineServicesManager::Settings.Social_PresenceStatus();
+	InvokeRealtimeHub(request, nullptr);
+}
+
+void GenOnlineSocialInterface::SetLocalPresenceStatus(const std::string& status)
+{
+	GenOnlineServicesManager::Settings.Social_SetPresenceStatus(status);
+	SendLocalPresenceStatus();
 }
 
 void GenOnlineSocialInterface::OnFriendRequestAccepted(std::string strDisplayName)
@@ -221,7 +238,7 @@ void GenOnlineSocialInterface::OnFriendRequestAccepted(std::string strDisplayNam
         bShowNotification = GenOnlineServicesManager::Settings.Social_Notifications_PlayerAcceptsRequest_Menus();
     }
 
-	if (bShowNotification)
+	if (bShowNotification && !NotificationsMuted())
 	{
 		GenOnlineShowNotificationBox(AsciiString(strDisplayName.c_str()), UnicodeString(L"%hs accepted your friend request."));
 	}
@@ -277,9 +294,9 @@ void GenOnlineSocialInterface::InvokeCallback_NewFriendRequest(std::string strDi
         bShowNotification = GenOnlineServicesManager::Settings.Social_Notifications_PlayerSendsRequest_Menus();
     }
 
-	if (bShowNotification)
+	if (bShowNotification && !NotificationsMuted())
 	{
-		GenOnlineShowNotificationBox(AsciiString(strDisplayName.c_str()), TheGameText->fetch("Buddy:AddNotification"));
+		GenOnlineShowNotificationBox(AsciiString(strDisplayName.c_str()), TheGameText->FETCH_OR_SUBSTITUTE("Buddy:GOAddNotification", L"Friend request from %hs"));
 	}
 }
 
@@ -318,7 +335,6 @@ void GenOnlineSocialInterface::CommitLobbyPlayerListToRecentlyPlayedWithList()
 	m_RecentlyPlayedWithTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 }
 
-// Realtime protocol v1 social ////////////////////////////////////////////////////
 
 // The communicator read the cache before the service answered, so its lists are drawn again.
 static void RefreshCommunicator()
@@ -390,6 +406,7 @@ void GenOnlineSocialInterface::OnRealtimeFriends(const GenOnlineRealtime::Friend
 		{
 			FriendsEntry friendEntry = ToFriendsEntry(entry, entry.online);
 			friendEntry.presence = GenOnlineRealtimeBridge::ActivityText(entry.activity);
+			friendEntry.status = entry.status.value_or("online");
 			m_mapFriends.insert_or_assign(entry.id, friendEntry);
 			numOnline += entry.online ? 1 : 0;
 		}
@@ -402,6 +419,9 @@ void GenOnlineSocialInterface::OnRealtimeFriends(const GenOnlineRealtime::Friend
 			m_mapBlocked.insert_or_assign(member.id, ToFriendsEntry(member, false));
 		}
 	}
+
+	// The Friends snapshot follows Ready on every connect, and the service forgets the status with the connection.
+	SendLocalPresenceStatus();
 
 	// The first snapshot after a login greets the player, as the legacy status update did.
 	if (m_bRealtimeWelcomePending)
@@ -522,7 +542,7 @@ void GenOnlineSocialInterface::OnRealtimeDirectMessage(const GenOnlineRealtime::
 	{
 		return;
 	}
-	// a staff member who is no friend can write, the communicator then lists the conversation
+	// a staff member who is no friend can write, and the communicator then lists the conversation
 	m_unreadConversations.NoteConversation(peerID);
 	if (message.author.id == peerID && !message.author.name.empty())
 	{
@@ -617,7 +637,12 @@ void GenOnlineSocialInterface::OnRealtimeConversations(const GenOnlineRealtime::
 	for (const GenOnlineRealtime::Conversation& conversation : event.conversations)
 	{
 		const int64_t peer = GenOnlineRealtime::DirectMessagePeer(conversation.channel_id);
-		if (peer >= 0 && !conversation.last.isNull && conversation.last.value.author.id == peer && !conversation.last.value.author.name.empty())
+		// The peer of the snapshot names the other user even when the last message is the local player's own.
+		if (peer >= 0 && conversation.peer.has_value() && conversation.peer->id == peer && !conversation.peer->name.empty())
+		{
+			m_mapConversationNames[peer] = conversation.peer->name;
+		}
+		else if (peer >= 0 && !conversation.last.isNull && conversation.last.value.author.id == peer && !conversation.last.value.author.name.empty())
 		{
 			m_mapConversationNames[peer] = conversation.last.value.author.name;
 		}

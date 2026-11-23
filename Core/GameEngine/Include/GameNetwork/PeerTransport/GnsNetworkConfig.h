@@ -14,19 +14,16 @@ constexpr int k_gnsIceEnableDirectOnly = k_gnsIceEnablePrivate | k_gnsIceEnableP
 constexpr int k_gnsIceImplementationDefault = 0;
 constexpr int k_gnsIceImplementationWebRtc = 2;
 
-// The connection timeouts of one connection attempt.
 struct GnsTimeouts
 {
 	int initialMs = 10000;
 	int connectedMs = 30000;
 };
 
-// The settings of the GameNetworkingSockets transport. The online provider fills it.
 struct GnsNetworkConfig
 {
 	/// Comma separated. Every entry must resolve to a distinct address, or the native ICE client retries duplicates forever.
 	std::string stunServers;
-	/// True for the debug output of the library, false for its messages only.
 	bool verboseLogging = false;
 
 	/// Comma separated, without a "?transport=udp" suffix. The native ICE client takes everything after the host as the port.

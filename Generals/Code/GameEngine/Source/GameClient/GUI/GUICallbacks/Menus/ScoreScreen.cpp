@@ -97,6 +97,12 @@
 #include "GameNetwork/GameSpy/BuddyThread.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameClient/InGameUI.h"
+#include "Common/LocalApiLive.h"
+
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
+#include "GameClient/GenOnlineUserSection.h"
+#endif
 
 
 //-----------------------------------------------------------------------------
@@ -213,6 +219,12 @@ void ScoreScreenEnableControls(Bool enable)
 
 extern Bool DontShowMainMenu; //KRIS
 Bool ReplayWasPressed = FALSE;
+#if defined(GENONLINE)
+// GenOnline @feature arcticdolphin 21/11/2026 The end of game probe screenshot and the lobby leave each run once from the update.
+Bool g_bNeedToTakeDoneEOGScreenshot = FALSE;
+int64_t g_TimeEnterState = -1;
+static Bool s_needToLeaveLobby = FALSE;
+#endif
 /** Initialize the ScoreScreen */
 //-------------------------------------------------------------------------------------------------
 void ScoreScreenInit( WindowLayout *layout, void *userData )
@@ -223,6 +235,11 @@ void ScoreScreenInit( WindowLayout *layout, void *userData )
 	}
 
 	DontShowMainMenu = TRUE; //KRIS
+#if defined(GENONLINE)
+	// GenOnline @feature arcticdolphin 21/11/2026 Reset the one shot end of game work for each score screen.
+	g_bNeedToTakeDoneEOGScreenshot = FALSE;
+	s_needToLeaveLobby = TRUE;
+#endif
 	buttonIsFinishCampaign = FALSE;
 
 	//Store the keys so we have them later
@@ -315,6 +332,39 @@ void ScoreScreenInit( WindowLayout *layout, void *userData )
 		s_blankLayout->hide(FALSE);
 		s_blankLayout->bringForward();
 	}
+
+#if defined(GENONLINE)
+	// GenOnline @feature arcticdolphin 21/11/2026 The buddies button shows the number of pending notifications.
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	if (pSocialInterface != nullptr)
+	{
+		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged([](int numNotifications)
+			{
+				GameWindow *currentButtonBuddies = TheWindowManager->winGetWindowFromId(nullptr, buttonBuddiesID);
+				if (currentButtonBuddies != nullptr)
+				{
+					UnicodeString buttonText;
+
+					if (numNotifications > 0)
+					{
+						buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), numNotifications);
+					}
+					else
+					{
+						buttonText.format(L"%s", TheGameText->fetch("GUI:Buddies").str());
+					}
+					currentButtonBuddies->winSetText(buttonText);
+				}
+			});
+
+		if (buttonBuddies != nullptr && pSocialInterface->GetNumTotalNotifications() > 0)
+		{
+			UnicodeString buttonText;
+			buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), pSocialInterface->GetNumTotalNotifications());
+			buttonBuddies->winSetText(buttonText);
+		}
+	}
+#endif
 }
 
 void FixupScoreScreenMovieWindow()
@@ -331,6 +381,15 @@ void FixupScoreScreenMovieWindow()
 void ScoreScreenShutdown( WindowLayout *layout, void *userData )
 {
 	DontShowMainMenu = FALSE; //KRIS
+
+#if defined(GENONLINE)
+	// GenOnline @feature arcticdolphin 21/11/2026 The notification callback must not outlive the window it updates.
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	if (pSocialInterface != nullptr)
+		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged(nullptr);
+	GenOnlineUserSectionHide();
+	buttonBuddies = nullptr;
+#endif
 
 	// hide the layout
 	layout->hide( TRUE );
@@ -350,11 +409,44 @@ void ScoreScreenUpdate( WindowLayout * layout, void *userData)
 		}
 	}
 
+#if defined(GENONLINE)
+	// GenOnline @feature arcticdolphin 21/11/2026 The probe screenshot waits a second after entry and the lobby is left after the game data is cleared.
+	if (GenOnlineServicesManager::GetInstance() != nullptr && g_bNeedToTakeDoneEOGScreenshot)
+	{
+		int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+		if (currTime - g_TimeEnterState >= 1000)
+		{
+			g_bNeedToTakeDoneEOGScreenshot = FALSE;
+
+			GenOnlineServicesManager::GetInstance()->CaptureScreenshotForProbe(EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN, std::string());
+		}
+	}
+#endif
+
 	if (s_needToFinishSinglePlayerInit)
 	{
 		finishSinglePlayerInit();
 		s_needToFinishSinglePlayerInit = FALSE;
 	}
+
+#if defined(GENONLINE)
+	if (TheGameInfo && s_needToLeaveLobby)
+	{
+		s_needToLeaveLobby = FALSE;
+
+		GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+		if (pLobbyInterface != nullptr && pLobbyInterface->IsInLobby())
+		{
+			GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+			if (pSocialInterface != nullptr)
+			{
+				pSocialInterface->CommitLobbyPlayerListToRecentlyPlayedWithList();
+			}
+
+			pLobbyInterface->LeaveCurrentLobby();
+		}
+	}
+#endif
 }
 
 /** Input function for the ScoreScreen */
@@ -450,6 +542,10 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 			Int controlID = control->winGetWindowId();
 			if( controlID == buttonOkID )
 			{
+#if defined(GENONLINE)
+				// GenOnline @feature arcticdolphin 21/11/2026 Close the buddies overlay with the score screen.
+				GameSpyCloseOverlay(GSOVERLAY_BUDDY);
+#endif
 				TheShell->pop();
 				TheCampaignManager->setCampaign(AsciiString::TheEmptyString);
 
@@ -881,10 +977,34 @@ void initInternetMultiPlayer()
 	if (chatBoxBorder)
 		chatBoxBorder->winHide(FALSE);
 
+#if defined(GENONLINE)
+	// GenOnline @feature arcticdolphin 21/11/2026 Register the local outcome once, show the buddies button and schedule the probe screenshot.
+	GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
+	if (pStatsInterface != nullptr && TheGenOnlineGame != nullptr)
+	{
+		Player* localPlayer = ThePlayerList->getLocalPlayer();
+
+		if (localPlayer != nullptr)
+		{
+			if (!TheGenOnlineGame->HasCommittedOutcome())
+			{
+				TheGenOnlineGame->SetHasCommittedOutcome();
+				pStatsInterface->CommitMyOutcome(localPlayer->getScoreKeeper(), TheVictoryConditions->isLocalAlliedVictory());
+			}
+		}
+	}
+
+	// GenOnline @feature arcticdolphin 22/11/2026 The user section in the ruler strip replaces the communicator button.
+	GenOnlineUserSectionShow(parent);
+
+	g_bNeedToTakeDoneEOGScreenshot = TRUE;
+	g_TimeEnterState = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+#else
 	if(TheGameSpyInfo && TheGameSpyInfo->getLocalProfileID() ==0)
 		buttonBuddies->winHide(TRUE);
 	else
 		buttonBuddies->winHide(FALSE);
+#endif
 
 	if (!TheGameSpyBuddyMessageQueue)
 		return;
@@ -1392,6 +1512,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 		stats.write();
 	}
 
+#if !defined(GENONLINE)
 	if ( screenType == SCORESCREEN_INTERNET )
 	{
 		Int localID = TheGameSpyInfo->getLocalProfileID();
@@ -1764,6 +1885,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 			}
 		}
 	}
+#endif
 }
 
 /** We Grab information about the players differently in Multiplayer.  We only want the players
@@ -1781,6 +1903,8 @@ void grabMultiPlayerInfo()
 	scores.clear();
 	Int adder = 1; // Varible used to add on an offset to the score to make sure we don't add people to the same map
 
+	// GenOnline @bugfix arcticdolphin 21/11/2026 The layout keeps its ruler art and its backdrop sits on the ruler frame
+#if !defined(GENONLINE)
 	Player *localPlayer = ThePlayerList->getLocalPlayer();
 	if (localPlayer && parent)
 	{
@@ -1791,6 +1915,7 @@ void grabMultiPlayerInfo()
 			parent->winSetStatus(parent->winGetStatus() | WIN_STATUS_IMAGE );
 		}
 	}
+#endif
 
 	// Add each player and score to the map. THis allows us to sort the players based on score.
 	for( Int i = 0; i < MAX_SLOTS; ++i)
@@ -1821,6 +1946,9 @@ void grabMultiPlayerInfo()
 	}
 
 	DEBUG_ASSERTCRASH(count == playerCount, ("For some reason we added %d players to the scores map, but only read %d", playerCount, count));
+
+	// GenOnline @feature arcticdolphin 21/11/2026 This is the last point where every Player and ScoreKeeper is still populated
+	LocalApiLiveMatchSummary();
 
 }
 

@@ -23,7 +23,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// FILE: GenOnlineBuddyOverlay.cpp
 // Author: Chris Huybregts, November 2001
 // Description: Lan Lobby Menu
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -121,7 +120,6 @@ static NameKeyType textEntryFindID = NAMEKEY_INVALID;
 static NameKeyType buttonFindID = NAMEKEY_INVALID;
 static GameWindow *textEntryFind = nullptr;
 
-// Searches the players whose name starts with the text of the find box, an empty box clears the results
 static void RunPlayerFind()
 {
 	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
@@ -154,7 +152,6 @@ public:
 
 static GenOnlineBuddyControls buddyControls;
 
-// Tab completion state of the direct message box.
 static ChatTabCycler s_buddyChatCycler;
 GenOnlineBuddyControls::GenOnlineBuddyControls(	)
 {
@@ -298,7 +295,7 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 
 					GPProfile profileID = (GPProfile)(intptr_t)GadgetListBoxGetItemData(control, rc->pos, 0);
 					RCItemType itemType = (RCItemType)(intptr_t)GadgetListBoxGetItemData(control, rc->pos, 1);
-					// only friend rows start with the online/offline indicator, and a row with unread messages ends with " [n]"
+					// Only friend rows start with the online/offline indicator and a row with unread messages ends with " [n]"
 					std::wstring rowText = GadgetListBoxGetText(control, rc->pos).str();
 					if (itemType == ITEM_BUDDY && rowText.size() >= 2)
 						rowText.erase(0, 2);
@@ -341,14 +338,13 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 				}
 				else if( controlID == buddyControls.listboxChatID )
 				{
-					// a line keeps the key of its message, the shown conversation is the selected buddy's
 					RightClickStruct *rc = (RightClickStruct *)mData2;
 					GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 					if (rc->pos < 0 || pSocialInterface == nullptr)
 						break;
 					const uint32_t key = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(GadgetListBoxGetItemData(control, rc->pos, 0)));
 					const GenOnlineRealtime::ChatMessage* message = pSocialInterface->FindConversationMessage(GetSelectedBuddyID(), key);
-					GenOnlineOpenMessageMenu(control, rc->pos, rc->mouseX, rc->mouseY, message != nullptr ? message->id.c_str() : "", message != nullptr ? message->author.id : 0);
+					GenOnlineOpenMessageMenu(control, rc->pos, rc->mouseX, rc->mouseY, message != nullptr ? message->id.c_str() : "", message != nullptr ? message->author.id : 0, message != nullptr ? message->author.name.c_str() : "");
 				}
 				else
 					return MSG_IGNORED;
@@ -398,7 +394,7 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 							{
 								if (buddyControls.listboxChat)
 								{
-									GadgetListBoxAddEntryText( buddyControls.listboxChat, UnicodeString(L"You cannot send messages to a buddy who is currently in your game."),
+									GadgetListBoxAddEntryText( buddyControls.listboxChat, UnicodeString(L"You cannot send messages to a friend who is currently in your game."),
 									GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
 								}
 								return MSG_HANDLED;
@@ -425,7 +421,7 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 					// nobody selected.  Prompt the user.
 					if (buddyControls.listboxChat)
 					{
-						GadgetListBoxAddEntryText( buddyControls.listboxChat, TheGameText->fetch("Buddy:SelectBuddyToChat"),
+						GadgetListBoxAddEntryText( buddyControls.listboxChat, TheGameText->FETCH_OR_SUBSTITUTE("Buddy:GOSelectFriendToChat", L"Select a friend to chat"),
 							GameSpyColor[GSCOLOR_DEFAULT], -1, -1 );
 					}
 				}
@@ -573,7 +569,6 @@ void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh, bool bUseCache)
 				}
 			}
 
-			// CONVERSATIONS with non-friends, which the service lists when a staff member wrote or the local user is staff
 			for (const std::pair<int64_t, std::string>& conversation : pSocialInterface->GetNonFriendConversations())
 			{
 				const int64_t profileID = conversation.first;
@@ -599,7 +594,6 @@ void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh, bool bUseCache)
 					selected = index;
 			}
 
-			// FOUND by the find box, without self, friends, requests and players listed above
 			for (const GenOnlineRealtime::Member& member : pSocialInterface->GetFoundPlayers())
 			{
 				const int64_t profileID = member.id;
@@ -629,7 +623,7 @@ void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh, bool bUseCache)
 				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
 
 				// insert status into box
-				formatStr = TheGameText->fetch("GUI:BuddyAddReq");
+				formatStr = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOFriendAddReq", L"User wants to add you as a friend");
 				GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
 				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_REQUEST), index, 1);
 
@@ -756,7 +750,7 @@ void GenOnlineShowNotificationBox(AsciiString nick, UnicodeString message, bool 
 
 	if (lastNotificationWasStatus && numOnlineInNotification > 1)
 	{
-		message = TheGameText->fetch("Buddy:MultipleOnlineNotification");
+		message = TheGameText->FETCH_OR_SUBSTITUTE("Buddy:GOMultipleOnlineNotification", L"You have friends online");
 	}
 
 	if (nick.isNotEmpty())
@@ -778,7 +772,7 @@ void GenOnlineShowNotificationBox(AsciiString nick, UnicodeString message, bool 
 
 }
 
-// TheSuperHackers @bugfix arcticdolphin 07/11/2026 A notification was raised only when it appeared, so the next shell screen
+// GenOnline @bugfix arcticdolphin 07/11/2026 A notification was raised only when it appeared, so the next shell screen
 // and its ruler were drawn over it. The shell raises it again after every screen change.
 void GenOnlineRaiseNotificationBox()
 {
@@ -801,7 +795,6 @@ void GenOnlineDeleteNotificationBox()
 }
 
 // A chat line keeps the key of its message as item data, so a MessageDelete finds the row again.
-// A message that mentions the local player takes the mention colour.
 static void AddBuddyChatLine(int64_t peerID, const UnicodeString& text, uint32_t key)
 {
 	Color color = GameSpyColor[GSCOLOR_PLAYER_BUDDY];
@@ -836,7 +829,6 @@ static void RemoveBuddyChatLine(uint32_t key)
 	}
 }
 
-// The user id of the selected buddy, or -1.
 static int64_t GetSelectedBuddyID()
 {
 	if (buddyControls.listboxBuddies == nullptr)
@@ -852,7 +844,6 @@ static int64_t GetSelectedBuddyID()
 	return (GPProfile)GadgetListBoxGetItemData(buddyControls.listboxBuddies, selected);
 }
 
-// Shows the cached conversation with a friend in the chat box.
 static void ShowBuddyConversation(GenOnlineSocialInterface* pSocialInterface, int64_t profileID)
 {
 	GadgetListBoxReset(buddyControls.listboxChat);
@@ -937,7 +928,6 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
                 GenOnlineUpdateBuddyInfo(true, true);
 			});
 
-		// The open chat shows the conversation again after its history loaded or after a reconnect.
 		pSocialInterface->RegisterForCallback_OnConversationReloaded([](int64_t peer_user_id)
 			{
 				GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
@@ -979,7 +969,6 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 	parentIgnore = TheWindowManager->winGetWindowFromId( parent,  parentIgnoreID);
 	listboxIgnore = TheWindowManager->winGetWindowFromId( parent,  listboxIgnoreID);
 
-	// find a player by name: the results show as rows of the list
 	textEntryFindID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:TextEntryFind" );
 	buttonFindID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonFind" );
 	textEntryFind = TheWindowManager->winGetWindowFromId( parent, textEntryFindID );
@@ -993,6 +982,8 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 		GadgetButtonSetText(buttonFind, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOFind", L"Find"));
 	}
 
+	if (radioButtonBuddies)
+		GadgetRadioSetText(radioButtonBuddies, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOFriendsTab", L"Friends"));
 	if (radioButtonIgnore)
 		GadgetRadioSetText(radioButtonIgnore, UnicodeString(L"Blocked"));
 
@@ -1031,7 +1022,6 @@ void GenOnlineBuddyOverlayShutdown( WindowLayout *layout, void *userData )
 	listboxIgnore = NULL;
 	textEntryFind = nullptr;
 
-	// a right-click menu of the Communicator closes with it
 	GenOnlineCloseRightClickMenus();
 
 	// hide menu
@@ -1163,7 +1153,6 @@ WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, UnsignedIn
 					GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 					if (pSocialInterface != nullptr)
 					{
-						// friends, a staff conversation, and anyone for staff holding chat.message_anyone
 						if (!pSocialInterface->CanChatWith(profileID) && pSocialInterface->IsUserPendingRequest(profileID))
 						{
                             Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This is a pending friend request. You cannot chat with the player until you accept it."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
@@ -1516,11 +1505,17 @@ static void closeRightClickMenu(GameWindow *win)
 	}
 }
 
-// The context menu of a chat message --------------------------------------------------------------------
+void GenOnlineRequestBuddyAdd(Int profileID, AsciiString nick);
+
 static GameWindow *messageMenu = nullptr;
 static std::string messageMenuID;
+static int64_t messageMenuAuthorID = 0;
+static AsciiString messageMenuAuthorName;
 static NameKeyType buttonReportMessageID = NAMEKEY_INVALID;
 static NameKeyType buttonDeleteMessageID = NAMEKEY_INVALID;
+static NameKeyType buttonProfileMessageID = NAMEKEY_INVALID;
+static NameKeyType buttonFriendMessageID = NAMEKEY_INVALID;
+static NameKeyType buttonBlockMessageID = NAMEKEY_INVALID;
 
 static void ReportChatMessage(const std::string& messageID)
 {
@@ -1560,7 +1555,7 @@ void GenOnlineCloseRightClickMenus()
 		messageMenu = nullptr;
 		messageMenuID.clear();
 	}
-	// the lobby's player menu is held by the lobby screen alone, it shares the system callback
+	// the player menu of the lobby is held by the lobby screen alone and shares the system callback
 	GameWindow *lone = TheWindowManager->winGetLoneWindow();
 	if (lone != nullptr && lone->winGetSystemFunc() == GenOnlineBuddyOverlayRCMenuSystem)
 	{
@@ -1572,19 +1567,25 @@ void GenOnlineMessageRCMenuInit( WindowLayout *layout, void *userData )
 {
 	buttonReportMessageID = TheNameKeyGenerator->nameToKey("RCMessageMenu.wnd:ButtonReport");
 	buttonDeleteMessageID = TheNameKeyGenerator->nameToKey("RCMessageMenu.wnd:ButtonDelete");
+	buttonProfileMessageID = TheNameKeyGenerator->nameToKey("RCMessageMenu.wnd:ButtonProfile");
+	buttonFriendMessageID = TheNameKeyGenerator->nameToKey("RCMessageMenu.wnd:ButtonFriend");
+	buttonBlockMessageID = TheNameKeyGenerator->nameToKey("RCMessageMenu.wnd:ButtonBlock");
 }
 
-void GenOnlineOpenMessageMenu( GameWindow *listbox, Int row, Int mouseX, Int mouseY, const char *messageID, int64_t authorID )
+void GenOnlineOpenMessageMenu( GameWindow *listbox, Int row, Int mouseX, Int mouseY, const char *messageID, int64_t authorID, const char *authorName )
 {
 	GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 	const int64_t localUserID = pAuth != nullptr ? pAuth->GetUserID() : -1;
 	const std::string id = messageID != nullptr ? messageID : "";
 	const GenOnlineRealtime::MessageMenu menu = GenOnlineRealtime::MessageMenuFor(id, authorID, localUserID, GenOnlineRealtimeBridge::HasPermission(GenOnlineRealtime::PERMISSION_DELETE_ANY));
+	// The author entries need a real other player, a system line or the local player only gets the message entries.
+	const Bool authorEntries = authorID > 0 && authorID != localUserID && pSocial != nullptr;
 	if (listbox != nullptr && row >= 0)
 	{
 		GadgetListBoxSetSelected(listbox, row);
 	}
-	if (!menu.Any())
+	if (!menu.Any() && !authorEntries)
 	{
 		return;
 	}
@@ -1597,30 +1598,68 @@ void GenOnlineOpenMessageMenu( GameWindow *listbox, Int row, Int mouseX, Int mou
 	GameWindow *menuWindow = layout->getFirstWindow();
 	layout->runInit();
 
+	struct MenuEntry
+	{
+		NameKeyType id;
+		Bool shown;
+	};
+	const MenuEntry entries[] =
+	{
+		{ buttonProfileMessageID, authorEntries },
+		{ buttonFriendMessageID, authorEntries },
+		{ buttonBlockMessageID, authorEntries },
+		{ buttonReportMessageID, menu.report },
+		{ buttonDeleteMessageID, menu.remove },
+	};
+
+	GameWindow *buttonProfile = TheWindowManager->winGetWindowFromId(menuWindow, buttonProfileMessageID);
+	GameWindow *buttonFriend = TheWindowManager->winGetWindowFromId(menuWindow, buttonFriendMessageID);
+	GameWindow *buttonBlock = TheWindowManager->winGetWindowFromId(menuWindow, buttonBlockMessageID);
 	GameWindow *buttonReport = TheWindowManager->winGetWindowFromId(menuWindow, buttonReportMessageID);
-	GameWindow *buttonDelete = TheWindowManager->winGetWindowFromId(menuWindow, buttonDeleteMessageID);
+	if (buttonProfile != nullptr)
+		GadgetButtonSetText(buttonProfile, UnicodeString(L"Profile"));
+	if (buttonFriend != nullptr && authorEntries)
+		GadgetButtonSetText(buttonFriend, UnicodeString(pSocial->IsUserFriend(authorID) ? L"Remove friend" : L"Add friend"));
+	if (buttonBlock != nullptr && authorEntries)
+		GadgetButtonSetText(buttonBlock, UnicodeString(pSocial->IsUserIgnored(authorID) ? L"Unblock" : L"Block"));
 	if (buttonReport != nullptr)
-	{
 		GadgetButtonSetText(buttonReport, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOReportMessage", L"Report"));
-	}
-	// one entry: it takes the first row and the menu loses the second
-	if (buttonReport != nullptr && buttonDelete != nullptr && menu.report != menu.remove)
+
+	// The shown entries stack from the first row in layout order, and the menu shrinks by the rows left over.
+	Int firstX = 0, firstY = 0, rowStep = 0, shownCount = 0, entryCount = 0;
+	for (const MenuEntry& entry : entries)
 	{
-		Int reportX, reportY, deleteX, deleteY, width, height;
-		buttonReport->winGetPosition(&reportX, &reportY);
-		buttonDelete->winGetPosition(&deleteX, &deleteY);
-		if (!menu.report)
+		GameWindow *button = TheWindowManager->winGetWindowFromId(menuWindow, entry.id);
+		if (button == nullptr)
+			continue;
+		Int x, y;
+		button->winGetPosition(&x, &y);
+		if (entryCount == 0)
 		{
-			buttonReport->winHide(TRUE);
-			buttonDelete->winSetPosition(reportX, reportY);
+			firstX = x;
+			firstY = y;
 		}
-		else
+		else if (entryCount == 1)
 		{
-			buttonDelete->winHide(TRUE);
+			rowStep = y - firstY;
 		}
-		menuWindow->winGetSize(&width, &height);
-		menuWindow->winSetSize(width, height - (deleteY - reportY));
+		++entryCount;
 	}
+	for (const MenuEntry& entry : entries)
+	{
+		GameWindow *button = TheWindowManager->winGetWindowFromId(menuWindow, entry.id);
+		if (button == nullptr)
+			continue;
+		button->winHide(!entry.shown);
+		if (entry.shown)
+		{
+			button->winSetPosition(firstX, firstY + shownCount * rowStep);
+			++shownCount;
+		}
+	}
+	Int width, height;
+	menuWindow->winGetSize(&width, &height);
+	menuWindow->winSetSize(width, height - (entryCount - shownCount) * rowStep);
 
 	ICoord2D size, pos;
 	menuWindow->winGetSize(&size.x, &size.y);
@@ -1638,6 +1677,8 @@ void GenOnlineOpenMessageMenu( GameWindow *listbox, Int row, Int mouseX, Int mou
 
 	messageMenu = menuWindow;
 	messageMenuID = id;
+	messageMenuAuthorID = authorEntries ? authorID : 0;
+	messageMenuAuthorName = authorName != nullptr ? authorName : "";
 	TheWindowManager->winSetLoneWindow(menuWindow);
 }
 
@@ -1664,7 +1705,38 @@ WindowMsgHandledType GenOnlineMessageRCMenuSystem( GameWindow *window, UnsignedI
 		{
 			const Int controlID = ((GameWindow *)mData1)->winGetWindowId();
 			const std::string id = messageMenuID;
+			const int64_t authorID = messageMenuAuthorID;
+			const AsciiString authorName = messageMenuAuthorName;
 			closeRightClickMenu(window);
+			GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+			if (authorID > 0 && pSocial != nullptr)
+			{
+				if (controlID == buttonProfileMessageID)
+				{
+					GenOnlineSetLookAtPlayer(authorID, UnicodeString(from_utf8(authorName.str()).c_str()));
+					GameSpyOpenOverlay(GSOVERLAY_PLAYERINFO);
+					break;
+				}
+				if (controlID == buttonFriendMessageID)
+				{
+					if (pSocial->IsUserFriend(authorID))
+						pSocial->RemoveFriend(authorID);
+					else
+						GenOnlineRequestBuddyAdd((Int)authorID, authorName);
+					break;
+				}
+				if (controlID == buttonBlockMessageID)
+				{
+					if (pSocial->IsUserIgnored(authorID))
+						pSocial->UnignoreUser(authorID);
+					else
+						pSocial->IgnoreUser(authorID);
+					GenOnlineUpdateBuddyInfo();
+					GenOnlineRefreshIgnoreList();
+					GenOnlinePopulateLobbyPlayerListbox();
+					break;
+				}
+			}
 			if (id.empty())
 			{
 				break;
@@ -1698,7 +1770,7 @@ void GenOnlineRequestBuddyAdd(Int profileID, AsciiString nick)
 	pSocialInterface->AddFriend(profileID);
 
 	// NOTE: The original Buddy:InviteSent string didn't make its way into the final game...
-	// TODO_NGMP: Use the SH localization system for strings instead
+	// TODO_GENONLINE: Use the SH localization system for strings instead
 	//UnicodeString s;
 	//s.format(L, nick.str());
 
@@ -1722,7 +1794,6 @@ void GenOnlineRequestBuddyAdd(Int profileID, AsciiString nick)
 
 	// TODO_SOCIAL
 	// put message on screen
-	//GenOnlineInsertBuddyChat(message);
 
 	// play audio notification
 	AudioEventRTS buddyMsgAudio("GUIMessageReceived");

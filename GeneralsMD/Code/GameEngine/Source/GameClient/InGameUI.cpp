@@ -6734,7 +6734,7 @@ void InGameUI::drawObserverStats(Int & x, Int & y)
 
 
 		// render by team
-		// TODO_NGMP: Using a sort would be quicker, this has poor time complexity
+		// TODO_GENONLINE: Using a sort would be quicker, this has poor time complexity
 		for (int team : setTeams)
 		{
             for (Int slotIndex = 0; slotIndex < MAX_SLOTS; ++slotIndex)

@@ -404,7 +404,7 @@ WindowMsgHandledType GadgetVerticalSliderSystem( GameWindow *window, UnsignedInt
 
 			s->minVal = (Int)mData1;
 			s->maxVal = (Int)mData2;
-			// TheSuperHackers @tweak arcticdolphin 08/11/2026 The thumb size scales with the screen height.
+			// GenOnline @tweak arcticdolphin 08/11/2026 The thumb size scales with the screen height.
 			s->numTicks = (Real)( size.y - GameWindowManager::winScaleLayoutSize( GADGET_SIZE ))/(Real)(s->maxVal - s->minVal);
 			s->position = s->minVal;
 

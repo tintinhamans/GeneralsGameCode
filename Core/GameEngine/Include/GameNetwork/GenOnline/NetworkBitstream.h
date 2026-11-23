@@ -101,7 +101,7 @@ public:
 	// reading over network, enet allocated and owns the memory
 	CBitStream(uint8_t* pExistingBuffer, size_t size, EPacketID packetID)
 	{
-		// TODO_NGMP: Mark that we dont own this buffer and should not free it, or free it via Enet functions
+		// TODO_GENONLINE: Mark the buffer as not owned so it is not freed, or free it via Enet functions
 		m_memBuffer = MemoryBuffer(pExistingBuffer, size);
 
 		m_packetID = packetID;
@@ -116,7 +116,7 @@ public:
 		// bounds check
 		if (m_Offset + sizeof(val) > m_memBuffer.GetAllocatedSize())
 		{
-			NetworkLog(ELogVerbosity::LOG_DEBUG, "[NGMP] Size after writing will be %d, but buffer is only %d", m_Offset + sizeof(val), m_memBuffer.GetAllocatedSize());
+			NetworkLog(ELogVerbosity::LOG_DEBUG, "[GenOnline] Size after writing will be %d, but buffer is only %d", m_Offset + sizeof(val), m_memBuffer.GetAllocatedSize());
 			__debugbreak();
 			return;
 		}
@@ -134,7 +134,7 @@ public:
 		// safety
 		if (m_Offset >= m_memBuffer.GetAllocatedSize())
 		{
-			NetworkLog(ELogVerbosity::LOG_DEBUG, "[NGMP] Trying to read starting from %d, but buffer is only %d", m_Offset, m_memBuffer.GetAllocatedSize());
+			NetworkLog(ELogVerbosity::LOG_DEBUG, "[GenOnline] Trying to read starting from %d, but buffer is only %d", m_Offset, m_memBuffer.GetAllocatedSize());
 			__debugbreak();
 			return outVar;
 		}
@@ -155,7 +155,7 @@ public:
 		// bounds check
 		if (m_Offset + valSize > m_memBuffer.GetAllocatedSize())
 		{
-			NetworkLog(ELogVerbosity::LOG_DEBUG, "[NGMP] Size after writing will be %d, but buffer is only %d", m_Offset + valSize, m_memBuffer.GetAllocatedSize());
+			NetworkLog(ELogVerbosity::LOG_DEBUG, "[GenOnline] Size after writing will be %d, but buffer is only %d", m_Offset + valSize, m_memBuffer.GetAllocatedSize());
 			__debugbreak();
 			return;
 		}
@@ -178,7 +178,7 @@ public:
 
 		if (m_Offset + valSize > m_memBuffer.GetAllocatedSize())
 		{
-			NetworkLog(ELogVerbosity::LOG_DEBUG, "[NGMP] ReadString overrun: need %d bytes, only %d remain", valSize, m_memBuffer.GetAllocatedSize() - m_Offset);
+			NetworkLog(ELogVerbosity::LOG_DEBUG, "[GenOnline] ReadString overrun: need %d bytes, only %d remain", valSize, m_memBuffer.GetAllocatedSize() - m_Offset);
 			__debugbreak();
 			return {};
 		}

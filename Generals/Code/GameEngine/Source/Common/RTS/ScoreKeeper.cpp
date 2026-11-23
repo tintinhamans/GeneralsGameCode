@@ -65,6 +65,7 @@
 
 #include "GameLogic/Object.h"
 #include "GameLogic/GameLogic.h"
+#include "Common/LocalApiLive.h"
 
 //-----------------------------------------------------------------------------
 // DEFINES ////////////////////////////////////////////////////////////////////
@@ -149,6 +150,12 @@ void ScoreKeeper::addObjectBuilt( const Object *o)
 		if (it != m_objectsBuilt.end())
 			existingCount = it->second;
 		m_objectsBuilt[o->getTemplate()] = existingCount + 1;
+
+		// GenOnline @feature arcticdolphin 21/11/2026 Authoritative build outcome for both units and structures
+		if (o->getControllingPlayer() != nullptr)
+		{
+			LocalApiLiveBuild(o->getControllingPlayer()->getPlayerIndex(), o->getTemplate(), o->getID(), static_cast<Int>(o->getVeterancyLevel()));
+		}
 	}
 }
 

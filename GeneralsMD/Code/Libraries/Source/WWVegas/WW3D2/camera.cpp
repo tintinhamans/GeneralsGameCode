@@ -660,8 +660,7 @@ void CameraClass::Update_Frustum() const
 															vpmin.Y*znear_dist, vpmax.Y*znear_dist,
 															znear_dist, zfar_dist );
 
-	}
-	else {
+	} else {
 
 		ProjectionTransform.Init_Ortho( vpmin.X,vpmax.X,vpmin.Y,vpmax.Y,znear_dist,zfar_dist);
 

@@ -16,12 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: RealtimeChannelChat.h ///////////////////////////////////////////////
-// Description: Chat log of the channel a session is in, GenOnline realtime
-//              protocol v1. It decides which messages of MessageCreate and
-//              ChannelHistory the chat shows, deduplicated by message id, and
-//              which shown line a MessageDelete removes, and which messages
-//              and MentionCreate events mention the local user.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -49,9 +43,7 @@ struct ChannelChatLine
 
 struct ChannelChatUpdate
 {
-	// The lines to add, in order.
 	std::vector<ChannelChatLine> shown;
-	// The keys of shown lines to remove.
 	std::vector<uint32_t> removed;
 };
 
@@ -298,9 +290,7 @@ private:
 	std::optional<ChannelHistoryEvent> m_history;
 };
 
-// Mentions //////////////////////////////////////////////////////////////////////
 
-// The most characters of the message content a mention notice shows.
 static constexpr size_t MENTION_NOTICE_CONTENT_MAX = 80;
 
 // True when the message mentions the user and another user wrote it.
@@ -375,7 +365,6 @@ inline std::string MentionNoticeText(const MentionCreateEvent& mention, const st
 class MentionNoticeLog
 {
 public:
-	// The number of message ids remembered.
 	static constexpr size_t MAX_REMEMBERED = 64;
 
 	// True the first time a mention by another user arrives.

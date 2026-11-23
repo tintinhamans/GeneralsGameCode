@@ -243,14 +243,14 @@ void GameWindowManager::update()
 }
 
 //-------------------------------------------------------------------------------------------------
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Show the Hand cursor over clickable controls while no match is in progress.
+// GenOnline @feature arcticdolphin 08/11/2026 Show the Hand cursor over clickable controls while no match is in progress.
 //-------------------------------------------------------------------------------------------------
 void GameWindowManager::updateHandCursor()
 {
 	if (TheMouse == NULL)
 		return;
 
-	// the shell map runs as a shell game; a match, its replays and its in-game menus keep their cursors, tools without game logic too
+	// The shell map runs as a shell game. A match, its replays and its in-game menus keep their cursors, tools without game logic too.
 	const Bool inShell = TheGameLogic != NULL && (!TheGameLogic->isInGame() || TheGameLogic->isInShellGame());
 	Bool wantHand = FALSE;
 	if (inShell)
@@ -264,7 +264,7 @@ void GameWindowManager::updateHandCursor()
 		if (!m_handCursorShown)
 			m_cursorBeforeHand = TheMouse->getMouseCursor();
 
-		// set only on a change; a menu that set its own cursor under the hand gets the hand back
+		// Set only on a change, so a menu that set its own cursor under the hand gets the hand back.
 		if (TheMouse->getMouseCursor() != Mouse::HAND)
 			TheMouse->setCursor(Mouse::HAND);
 	}
@@ -276,7 +276,7 @@ void GameWindowManager::updateHandCursor()
 }
 
 //-------------------------------------------------------------------------------------------------
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Enabled visible buttons, check boxes, radio buttons, dropdowns, tabs and list rows.
+// GenOnline @feature arcticdolphin 08/11/2026 Enabled visible buttons, check boxes, radio buttons, dropdowns, tabs and list rows.
 //-------------------------------------------------------------------------------------------------
 Bool GameWindowManager::isHandCursorWindow(GameWindow* window, Int mouseX, Int mouseY)
 {
@@ -317,7 +317,7 @@ Bool GameWindowManager::isHandCursorWindow(GameWindow* window, Int mouseX, Int m
 
 	if (BitIsSet(style, GWS_TAB_CONTROL))
 	{
-		// mirrors the tab hit test of GadgetTabControlInput; the open tab and disabled tabs take no click
+		// Mirrors the tab hit test of GadgetTabControlInput, the open tab and disabled tabs take no click.
 		const TabControlData* tabData = (const TabControlData*)window->winGetUserData();
 		if (tabData == NULL)
 			return FALSE;
@@ -1088,7 +1088,7 @@ WinInputReturnCode GameWindowManager::winProcessMouseEvent( GameWindowMessage ms
 
 			}
 
-			// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Keep a held slider's value tooltip up while dragging.
+			// GenOnline @bugfix arcticdolphin 08/11/2026 Keep a held slider value tooltip up while dragging.
 			// the grab window is gone when the release closed its layout
 			GameWindow *tipWindow = m_grabWindow;
 			if (tipWindow != nullptr && !BitIsSet(tipWindow->winGetStyle(), GWS_HORZ_SLIDER) && tipWindow->winGetParent() != nullptr
@@ -1164,7 +1164,7 @@ WinInputReturnCode GameWindowManager::winProcessMouseEvent( GameWindowMessage ms
 					if( m_loneWindow && m_loneWindow == oldLoneWindow &&
 					( msg == GWM_LEFT_UP || msg == GWM_MIDDLE_UP || msg == GWM_RIGHT_UP || tempWin))
 					{
-						// TheSuperHackers @bugfix arcticdolphin 08/11/2026 A combo that toggled its own list on this click stays open, winIsChild is false for itself.
+						// GenOnline @bugfix arcticdolphin 08/11/2026 A combo that toggled its own list on this click stays open, winIsChild is false for itself.
 						const Bool comboToggled = msg == GWM_LEFT_UP && tempWin == m_loneWindow && BitIsSet(tempWin->winGetStyle(), GWS_COMBO_BOX);
 						if (!comboToggled && !m_loneWindow->winIsChild(tempWin))
 							winSetLoneWindow( nullptr );
@@ -1288,7 +1288,7 @@ WinInputReturnCode GameWindowManager::winProcessMouseEvent( GameWindowMessage ms
 
 }
 
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 Layout scaling helpers shared by the window scripts and the gadgets.
+// GenOnline @tweak arcticdolphin 08/11/2026 Layout scaling helpers shared by the window scripts and the gadgets.
 Int GameWindowManager::winScaleRounded(Int value, Int numerator, Int denominator)
 {
 	if (denominator <= 0)
@@ -1319,7 +1319,7 @@ Int GameWindowManager::winScaleLayoutFontSize(Int pointSize)
 	if (pointSize <= 0)
 		return pointSize;
 
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Text grows by the ResolutionFontAdjustment share of the screen height scale.
+	// GenOnline @tweak arcticdolphin 08/11/2026 Text grows by the ResolutionFontAdjustment share of the screen height scale.
 	Real adjustment = 1.0f;
 	if (TheGlobalLanguageData != nullptr)
 		adjustment = TheGlobalLanguageData->getResolutionFontSizeAdjustment();
@@ -1595,7 +1595,7 @@ Int GameWindowManager::winDestroy( GameWindow *window )
 	if( m_currMouseRgn == window )
 		m_currMouseRgn = nullptr;
 
-	// TheSuperHackers @bugfix arcticdolphin 17/11/2026 A lone window destroyed by its own button, such as a right-click menu, no longer stays the lone window the next one sends GGM_CLOSE to.
+	// GenOnline @bugfix arcticdolphin 17/11/2026 A lone window destroyed by its own button, such as a right-click menu, no longer stays the lone window the next one sends GGM_CLOSE to.
 	if( m_loneWindow == window )
 		m_loneWindow = nullptr;
 
@@ -1819,7 +1819,7 @@ GameWindow *GameWindowManager::gogoMessageBox(Int x, Int y, Int width, Int heigh
 	//Changed by Chris
 	if(useLogo)
 	{
-		// TheSuperHackers @feature arcticdolphin 09/11/2026 The shell opens the GO copy of the quit box; the match, the Retail style and a missing copy open the retail one.
+		// GenOnline @feature arcticdolphin 09/11/2026 The shell opens the GO copy of the quit box, and the match, the Retail style and a missing copy open the retail one.
 		if (TheShell && TheShell->isShellActive())
 			trueParent = winCreateFromScript("Menus/GOShellQuitMessageBox.wnd");
 		if (trueParent == nullptr)
@@ -2335,6 +2335,11 @@ GameWindow *GameWindowManager::gogoGadgetListBox( GameWindow *parent,
 	if( title )
 		listboxData->displayHeight -= winFontHeight( instData->getFont() );
 
+#if defined(GENONLINE)
+	// GenOnline @bugfix arcticdolphin 22/11/2026 The last row stays inside the area the list text is drawn in.
+	listboxData->displayHeight -= GadgetListBoxGetTextInset( listbox );
+#endif
+
   // Set display position to the top of the list
   listboxData->displayPos = 0;
   listboxData->selectPos = -1;
@@ -2486,7 +2491,7 @@ GameWindow *GameWindowManager::gogoGadgetSlider( GameWindow *parent,
 	if( BitIsSet( instData->getStyle(), GWS_MOUSE_TRACK ) )
 		BitSet( buttonInstData.m_style, GWS_MOUSE_TRACK );
 
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The horizontal thumb scales with the screen height and keeps its shape.
+	// GenOnline @tweak arcticdolphin 08/11/2026 The horizontal thumb scales with the screen height and keeps its shape.
 	if( BitIsSet( instData->getStyle(), GWS_HORZ_SLIDER ) )
 		button = gogoGadgetPushButton(slider, statusFlags, 0, GadgetHorizontalSliderThumbTop(height, winScaleLayoutSize(HORIZONTAL_SLIDER_THUMB_HEIGHT)),
 			winScaleLayoutSize(HORIZONTAL_SLIDER_THUMB_WIDTH), winScaleLayoutSize(HORIZONTAL_SLIDER_THUMB_HEIGHT), &buttonInstData, nullptr, TRUE);
@@ -2622,11 +2627,10 @@ GameWindow *GameWindowManager::gogoGadgetComboBox( GameWindow *parent,
 	// size of button
 	buttonWidth = 21;
 	buttonHeight = 22;
-	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 The drop down button keeps the proportions of its art
+	// GenOnline @bugfix arcticdolphin 08/11/2026 The drop down button keeps the proportions of its art
 	// when the layout scales the combo box taller, instead of stretching it to the scaled height at a fixed width.
 	if (height > buttonHeight)
 	{
-		// size from the layout height, so rows that round a pixel apart still get the same button
 		const Int screenHeight = winLayoutScreenHeight();
 		const Int layoutHeight = winScaleRounded(height, DEFAULT_DISPLAY_HEIGHT, screenHeight);
 		buttonWidth = winScaleRounded(buttonWidth * layoutHeight, screenHeight, buttonHeight * DEFAULT_DISPLAY_HEIGHT);
@@ -2742,7 +2746,7 @@ GameWindow *GameWindowManager::gogoGadgetComboBox( GameWindow *parent,
 	// assign the default images/colors
 	assignDefaultGadgetLook( comboBox, defaultFont, defaultVisual );
 
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 A combo a layout creates disabled also disables its button and edit box and shows no placeholder text, like winEnable( FALSE ).
+	// GenOnline @tweak arcticdolphin 08/11/2026 A combo a layout creates disabled also disables its button and edit box and shows no placeholder text, like winEnable( FALSE ).
 	if( !comboBox->winGetEnabled() )
 	{
 		comboBox->winEnable( FALSE );

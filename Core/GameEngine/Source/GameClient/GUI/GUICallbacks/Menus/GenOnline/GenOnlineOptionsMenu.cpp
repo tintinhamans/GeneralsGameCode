@@ -16,9 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlineOptionsMenu.cpp /////////////////////////////////////////////
-// Description: The Network section of the options menu for the GenOnline
-//              provider. The options menu calls it through the game hooks.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
@@ -39,7 +36,6 @@
 #include "GameNetwork/GenOnline/ProxyLogin.h"
 #include <memory>
 
-// Network section: the Online and LAN tabs and their controls come from OptionsMenu.wnd. A control that is missing is skipped.
 struct NetworkControls
 {
 	GameWindow *tabOnline = nullptr;
@@ -158,7 +154,7 @@ static void networkShowTab(bool online)
 	}
 }
 
-// The address entries show what the choice resolves to while they can't be edited; what was typed for Custom is kept meanwhile.
+// The address entries show what the choice resolves to while they cannot be edited, what was typed for Custom is kept meanwhile.
 static std::string networkProxyCustomText;
 static std::string networkServerCustomText;
 static bool networkProxyEntryCustom = false;
@@ -196,7 +192,6 @@ static void networkStartSystemLookup()
 	networkSystemProxy = ServiceConnection::StartProxyResolution(system, routes.empty() ? std::string("https://api.generals.online/") : routes.front());
 }
 
-// the address entries only matter for the Custom choice
 static void networkRefresh()
 {
 	const NetworkControls c = getNetworkControls();
@@ -244,7 +239,7 @@ static void networkPoll()
 	networkRefresh();
 }
 
-// the options layout is not on the shell stack and has no update of its own, so the poll runs from the main thread tasks until the lookup is in
+// The options layout is not on the shell stack and has no update of its own, so the poll runs from the main thread tasks until the lookup is in
 static void networkPollLater()
 {
 	ServiceConnection::RunOnMainThread([]()
@@ -310,7 +305,7 @@ static void networkInit()
 	networkShowTab(true);
 }
 
-// the connection settings can't change while a session is open or in a game
+// The connection settings cannot change while a session is open or in a game
 static void networkLock()
 {
 	networkLocked = true;
@@ -335,7 +330,6 @@ static void networkDefaults()
 	}
 }
 
-// the controls as settings; false with the reason when an address is not valid
 static bool networkRead(ServiceConnectionSettings &settings, std::string &error)
 {
 	const NetworkControls c = getNetworkControls();
@@ -381,7 +375,6 @@ static bool networkRead(ServiceConnectionSettings &settings, std::string &error)
 	return true;
 }
 
-// the proxy or the server differs from the saved one; an address only counts for its Custom choice
 static bool networkChanged(const ServiceConnectionSettings &saved, const ServiceConnectionSettings &edited)
 {
 	if (saved.proxyMode != edited.proxyMode || saved.serverMode != edited.serverMode)
@@ -404,7 +397,6 @@ static void pressAccept()
 	}
 }
 
-// Accept with changed connection settings tests them first; true when Accept goes on to save the other options and close
 static bool networkAccept()
 {
 	if (networkDiscard)

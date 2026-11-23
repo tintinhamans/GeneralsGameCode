@@ -16,9 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlineRealtimeBridge.cpp //////////////////////////////////////////
-// Description: Connects the events of the GenOnline realtime hub to the rooms,
-//              social and moderation interfaces.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
@@ -618,7 +615,6 @@ void RegisterHandlers(HubSession& session)
 namespace
 {
 
-// A call that is safe to repeat and waits for its next send.
 struct PendingRestRetry
 {
 	RestMethod method = RestMethod::Get;
@@ -636,7 +632,6 @@ struct PendingRestRetry
 // Touched on the main thread only, where the HTTP callbacks and the services tick run.
 std::vector<PendingRestRetry> s_restRetries;
 
-// A request outside CallRest that waits for its next try after a standby answer.
 struct PendingStandbyRetry
 {
 	std::string label;

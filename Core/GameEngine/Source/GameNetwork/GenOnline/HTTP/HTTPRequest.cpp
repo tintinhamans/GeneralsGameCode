@@ -247,7 +247,6 @@ void HTTPRequest::Threaded_SetComplete(CURLcode result)
 
 	long protocol = 0;
 	curl_easy_getinfo(m_pCURL, CURLINFO_HTTP_VERSION, &protocol);
-	// successful requests are only logged in verbose mode
 	const bool success = m_setupFailurePhase.empty() && result == CURLE_OK && m_responseCode >= 200 && m_responseCode < 300;
 	if (!success || g_LogVerbosity == ELogVerbosity::LOG_DEBUG || GenOnlineServicesManager::Settings.Debug_VerboseLogging())
 	{

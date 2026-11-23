@@ -16,8 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlineGameHooks.cpp ///////////////////////////////////////////////
-// Description: GenOnline game hooks.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
@@ -110,7 +108,6 @@ void GenOnlineGameHooks::loadSettings()
 {
 	GenOnlineServicesManager::Settings.Initialize();
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Services: %s, chosen by %s", GenOnlineServicesManager::EnvironmentName(), GenOnlineServicesManager::EnvironmentReason());
-	TheFileSystem->setExcludedPaths(GenOnlineServicesManager::Settings.DataPacks_UserExcludePaths());
 }
 
 void GenOnlineGameHooks::onDisplayCreated()
@@ -162,7 +159,6 @@ void GenOnlineGameHooks::onEngineExit()
 	GenOnlineServicesManager::ShutdownSentry();
 }
 
-// A GenOnline match runs at the frame rate limit from the GenOnline settings.
 Bool GenOnlineGameHooks::getMatchFrameRateLimit( Int &outLimit )
 {
 	if (TheGenOnlineGame == nullptr)
@@ -300,7 +296,7 @@ void GenOnlineGameHooks::updateDownloadMenu( WindowLayout *layout, void *userDat
 	GenOnlineDownloadMenuUpdate(layout, userData);
 }
 
-// TheSuperHackers @bugfix arcticdolphin 09/11/2026 An Online attempt can end before the online services exist or after their teardown.
+// GenOnline @bugfix arcticdolphin 09/11/2026 An Online attempt can end before the online services exist or after their teardown.
 void GenOnlineGameHooks::onDownloadCanceled()
 {
 	if (GenOnlineServicesManager::GetInstance() != nullptr)

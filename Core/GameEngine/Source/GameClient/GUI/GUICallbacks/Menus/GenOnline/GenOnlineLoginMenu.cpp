@@ -23,7 +23,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// FILE: GenOnlineLoginMenu.cpp
 // Author: Chris Huybregts, November 2001
 // Description: Lan Lobby Menu
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -406,7 +405,7 @@ static GameWindow *textEntryMonth =				NULL;
 static GameWindow *textEntryDay =				NULL;
 static GameWindow *textEntryYear =				NULL;
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 GO sign-in screen; a layout without these windows falls back to the message box login.
+// GenOnline @feature arcticdolphin 08/11/2026 GO sign-in screen, and a layout without these windows falls back to the message box login.
 static Bool signInScreen = FALSE;
 static GameWindow *staticTextSignInStatus =		NULL;
 static GameWindow *buttonUseAnotherAccount =	NULL;
@@ -429,12 +428,12 @@ static void showSignInState( ELoginStage stage )
 		status = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInSigningIn", L"Signing in...");
 	GadgetStaticTextSetText(staticTextSignInStatus, status);
 
-	// TheSuperHackers @bugfix arcticdolphin 09/11/2026 Cancel stays up while the login finishes, so a websocket that never connects is no dead end.
+	// GenOnline @bugfix arcticdolphin 09/11/2026 Cancel stays up while the login finishes, so a websocket that never connects is no dead end.
 	buttonSignInCancel->winHide(stage == ELoginStage::Failed);
 }
 
-// TheSuperHackers @bugfix arcticdolphin 17/11/2026 A saved login usually refreshes in a moment and moves on, so Use another account
-// waits this long into the refresh before it shows; a quick refresh no longer flashes it up and away.
+// GenOnline @bugfix arcticdolphin 17/11/2026 A saved login usually refreshes in a moment and moves on, so Use another account
+// waits this long into the refresh before it shows, so a quick refresh no longer flashes it up and away.
 static const UnsignedInt USE_ANOTHER_ACCOUNT_DELAY_MS = 1000;
 static UnsignedInt shownSignInStageSince = 0;
 
@@ -467,7 +466,7 @@ static void updateSignInScreen( Bool force )
 	refreshSignInState(pAuthInterface->GetLoginStage(), force);
 }
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 The sign-in screen and the sign-in dialog share these windows; only one of them is up at a time.
+// GenOnline @feature arcticdolphin 09/11/2026 The sign-in screen and the sign-in dialog share these windows, and only one of them is up at a time.
 static Bool findSignInWindows( GameWindow *parent, const char *statusName, const char *useAnotherAccountName, const char *cancelName )
 {
 	staticTextSignInStatus = TheWindowManager->winGetWindowFromId( parent, NAMEKEY(statusName) );
@@ -490,7 +489,7 @@ static Bool findSignInScreen()
 		"GameSpyLoginProfile.wnd:ButtonCancel" );
 }
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 GO sign-in dialog: one modal card over the main menu for the update check, the update prompt, errors and the sign-in.
+// GenOnline @feature arcticdolphin 09/11/2026 GO sign-in dialog: one modal card over the main menu for the update check, the update prompt, errors and the sign-in.
 enum SignInDialogStep
 {
 	SIGN_IN_DIALOG_CHECKING,
@@ -511,7 +510,7 @@ static SignInDialogStep signInDialogStep = SIGN_IN_DIALOG_CHECKING;
 static GameWinMsgBoxFunc signInDialogCancelFunc = NULL;
 static GameWinMsgBoxFunc signInDialogUpdateFunc = NULL;
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 The download step's bar and size line follow the GO update download, which reports to TheDownloadManager like for the download menu.
+// GenOnline @feature arcticdolphin 09/11/2026 The download step bar and size line follow the GO update download, which reports to TheDownloadManager like the download menu.
 static void setSignInDialogDownloadProgress( Int bytesRead, Int totalSize )
 {
 	if (signInDialogLayout == NULL || signInDialogStep != SIGN_IN_DIALOG_DOWNLOADING || totalSize <= 0)
@@ -540,7 +539,6 @@ public:
 };
 static SignInDialogDownloadManager *signInDialogDownloadManager = NULL;
 
-// show one step's texts or download progress; only Cancel and Update (Restart when ready) stay, sign-in uses showSignInState
 static void showSignInDialogStep( SignInDialogStep step, const UnicodeString &status, const UnicodeString &message )
 {
 	signInDialogStep = step;
@@ -574,7 +572,7 @@ static void updateSignInDialog( Bool force )
 	refreshSignInState(pAuthInterface->GetLoginStage(), force);
 }
 
-// the auth keeps this callback after the dialog closes, until the next login registers its own, so it only acts while the dialog is up
+// The auth keeps this callback after the dialog closes until the next login registers its own, so it only acts while the dialog is up
 static void signInDialogLoginCallback( ELoginResult loginResult )
 {
 	if (signInDialogLayout == NULL || signInDialogStep != SIGN_IN_DIALOG_SIGN_IN)
@@ -600,7 +598,6 @@ static void signInDialogLoginCallback( ELoginResult loginResult )
 		ClearGSMessageBoxes();
 		GOSignInDialogShowError(title, text, GenOnlineCancelPatchCheckCallbackAndReopenDropdown);
 	}
-	// UserCancelled: the Cancel button that cancelled closes the dialog
 }
 
 static void signInDialogPressed( GameWindow *control )
@@ -623,7 +620,7 @@ static void signInDialogPressed( GameWindow *control )
 		return;
 	}
 
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 The update and restart functions move the dialog on or close it themselves; a second press does nothing.
+	// GenOnline @feature arcticdolphin 09/11/2026 The update and restart functions move the dialog on or close it themselves, so a second press does nothing.
 	if (control == signInDialogUpdate)
 	{
 		GameWinMsgBoxFunc updateFunc = signInDialogUpdateFunc;
@@ -667,7 +664,6 @@ static WindowMsgHandledType signInDialogSystem( GameWindow *window, UnsignedInt 
 	return MSG_IGNORED;
 }
 
-// Escape does what the Cancel button does (OK on an error) whenever it is shown
 static WindowMsgHandledType signInDialogInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 )
 {
 	if (msg != GWM_CHAR || (UnsignedByte)mData1 != KEY_ESC)
@@ -769,7 +765,7 @@ void GOSignInDialogShowDownloading( GameWinMsgBoxFunc cancelFunc )
 	if (signInDialogLayout == NULL)
 		return;
 
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 The dialog owns the download manager while it downloads, as GenOnlineDownloadMenuInit does for the download menu.
+	// GenOnline @feature arcticdolphin 09/11/2026 The dialog owns the download manager while it downloads, as GenOnlineDownloadMenuInit does for the download menu.
 	if (signInDialogDownloadManager == NULL)
 	{
 		DEBUG_ASSERTCRASH(!TheDownloadManager, ("Download manager already exists"));
@@ -835,7 +831,7 @@ void GOSignInDialogDestroy( void )
 		pAuthInterface->SetSignInDialog(false);
 	}
 
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 Closing drops the dialog's download manager like GenOnlineDownloadMenuShutdown; one that replaced it belongs to its owner.
+	// GenOnline @feature arcticdolphin 09/11/2026 Closing drops the download manager of the dialog like GenOnlineDownloadMenuShutdown, and one that replaced it belongs to its owner.
 	if (signInDialogDownloadManager != NULL)
 	{
 		if (TheDownloadManager == signInDialogDownloadManager)
@@ -912,14 +908,12 @@ void GenOnlineLoginMenuInit( WindowLayout *layout, void *userData )
 	signInScreen = findSignInScreen();
 	shownSignInStage = ELoginStage::None;
 
-	// NGMP
 	ClearGSMessageBoxes();
 	if (!signInScreen)
 	{
 		GSMessageBoxNoButtons(UnicodeString(L"Logging In"), UnicodeString(L"Please wait..."), true);
 	}
 
-	// NGMP: Register for login callback
 	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	if (pAuthInterface == nullptr)
 	{
@@ -1102,7 +1096,7 @@ void GenOnlineLoginMenuLoginCallback(ELoginResult loginResult)
 {
 	if (!buttonPushed)
 	{
-		// TODO_NGMP: Handle failure properly
+		// TODO_GENONLINE: Handle failure properly
 		if (loginResult == ELoginResult::Success)
 		{
 			ClearGSMessageBoxes();
@@ -1235,7 +1229,7 @@ void GenOnlineLoginMenuUpdate( WindowLayout * layout, void *userData)
 		SetUpGameSpy( motd.str(), config.str() );
 	}
 	*/
-	// TODO_NGMP: Add login timeout again
+	// TODO_GENONLINE: Add login timeout again
 
 }
 
@@ -1269,7 +1263,7 @@ WindowMsgHandledType GenOnlineLoginMenuInput( GameWindow *window, UnsignedInt ms
 					//
 					if( BitIsSet( state, KEY_STATE_UP ) )
 					{
-						// TheSuperHackers @feature arcticdolphin 08/11/2026 Escape cancels the GO sign-in like its Cancel button.
+						// GenOnline @feature arcticdolphin 08/11/2026 Escape cancels the GO sign-in like its Cancel button.
 						if (signInScreen)
 						{
 							if (!buttonSignInCancel->winIsHidden())
@@ -1556,7 +1550,6 @@ WindowMsgHandledType GenOnlineLoginMenuSystem( GameWindow *window, UnsignedInt m
 				GameWindow *control = (GameWindow *)mData1;
 				Int controlID = control->winGetWindowId();
 
-				// TheSuperHackers @feature arcticdolphin 08/11/2026 GO sign-in screen buttons.
 				if (signInScreen)
 				{
 					GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
@@ -1589,14 +1582,12 @@ WindowMsgHandledType GenOnlineLoginMenuSystem( GameWindow *window, UnsignedInt m
 					buttonPushed = true;
 					nextScreen = "Menus/GenOnlineLoginProfile.wnd";
 					TheShell->pop();
-					//TheShell->push( "Menus/GenOnlineLoginProfile.wnd" );
 				}
 				else if ( controlID == buttonDontUseAccountID )
 				{
 					buttonPushed = true;
 					nextScreen = "Menus/GenOnlineLoginQuick.wnd";
 					TheShell->pop();
-					//TheShell->push( "Menus/GenOnlineLoginQuick.wnd" );
 				}
 #endif // ALLOW_NON_PROFILED_LOGIN
 				else if ( controlID == buttonTOSID )

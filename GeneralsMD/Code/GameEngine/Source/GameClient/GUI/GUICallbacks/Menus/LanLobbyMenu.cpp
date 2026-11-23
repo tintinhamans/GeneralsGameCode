@@ -362,7 +362,7 @@ static void playerTooltip(GameWindow *window,
 //-------------------------------------------------------------------------------------------------
 static Bool s_lanLobbyMenuOpen = FALSE;
 
-// Handles a line as the LAN lobby's typed-line path does (it has no commands: a trimmed, non-empty line is sent).
+// The LAN lobby has no commands, so a trimmed non-empty line is sent.
 Bool LanLobbyMenuSubmitChatLine( UnicodeString text )
 {
 	text.trim();

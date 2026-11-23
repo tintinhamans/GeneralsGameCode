@@ -38,22 +38,18 @@ struct TransportInfo
 };
 
 /**
- * The transport factory creates the transport that carries game connection packets.
- * The owner of a game session picks the transport by name. The UDP transport is always
- * registered. LAN discovery and NAT negotiation create their own UDP transport.
+ * The UDP transport is always registered and used by LAN discovery and NAT negotiation.
  */
 class TransportFactory
 {
 public:
-	/// Registers a transport under a name. A registration with an existing name replaces it.
+	/// An existing name is replaced.
 	static void registerTransport( const char *name, UnsignedInt capabilities, TransportCreateFunc func );
 
-	/// Returns the number of registered transports.
 	static Int getTransportCount();
 
-	/// Returns the name and capabilities of the registered transport at the index.
 	static TransportInfo getTransportInfo( Int index );
 
-	/// Creates the named transport. An unknown name creates the UDP transport.
+	/// An unknown name creates the UDP transport.
 	static Transport *createTransport( const char *name );
 };

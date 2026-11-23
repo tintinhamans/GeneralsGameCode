@@ -1190,11 +1190,7 @@ struct NetPacketFrameResendRequestCommandBase
 	static size_t copyBytes(UnsignedByte *buffer, const NetCommandRef &ref);
 };
 
-////////////////////////////////////////////////////////////////////////////////
-// NetPacketSignedFrameCommand
-////////////////////////////////////////////////////////////////////////////////
-
-// A frame info followed by its author's signature. It is read back into a NetFrameCommandMsg.
+// A frame info followed by the signature of its author. It is read back into a NetFrameCommandMsg.
 struct NetPacketSignedFrameCommandData
 {
 	typedef NetSignedFrameCommandMsg CommandMsg;
@@ -1228,10 +1224,6 @@ struct NetPacketSignedFrameCommandBase
 	static size_t getSize() { return sizeof(CommandBase); }
 	static size_t copyBytes(UnsignedByte *buffer, const NetCommandRef &ref);
 };
-
-////////////////////////////////////////////////////////////////////////////////
-// NetPacketSignaturesCommand
-////////////////////////////////////////////////////////////////////////////////
 
 struct NetPacketSignaturesCommandData
 {

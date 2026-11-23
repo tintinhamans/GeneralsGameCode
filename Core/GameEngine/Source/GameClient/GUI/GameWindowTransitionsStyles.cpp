@@ -710,7 +710,7 @@ void FadeTransition::draw()
 	if(m_drawState <= FADETRANSITION_START || m_drawState >= FADETRANSITION_END)
 		return;
 	const Image *image = m_win->winGetEnabledImage(0);
-	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Fade the image through the window draw, so it keeps the aspect and look the window draws it with.
+	// GenOnline @bugfix arcticdolphin 08/11/2026 Fade the image through the window draw, so it keeps the aspect and look the window draws it with.
 	switch (m_drawState)
 	{
 		case FADETRANSITION_FADE_IN_1:

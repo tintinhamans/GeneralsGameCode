@@ -121,7 +121,7 @@ static UnsignedInt calcCRC( AsciiString fname )
 }
 
 #if defined(GENONLINE)
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Records a supply or tech object with its icon category for mapcache.json.
+// GenOnline @feature arcticdolphin 08/11/2026 Records a supply or tech object with its icon category for mapcache.json.
 static void addTypedObject(const ThingTemplate *thingTemplate, const Coord3D &loc, Bool isTech)
 {
 	MapTypedObject obj;
@@ -519,7 +519,7 @@ void MapCache::updateCache()
 	}
 
 #if defined(GENONLINE)
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Restore typed objects the INI loads dropped and save new ones to mapcache.json.
+	// GenOnline @feature arcticdolphin 08/11/2026 Restore typed objects the INI loads dropped and save new ones to mapcache.json.
 	syncMapCacheJson(*this);
 #endif
 }
@@ -668,7 +668,7 @@ Bool MapCache::addMap(
 			if (md.m_nameLookupTag.isEmpty())
 			{
 				// unofficial maps or maps without names
-				// TheSuperHackers @tweak arcticdolphin 09/11/2026 Without the .map extension.
+				// GenOnline @tweak arcticdolphin 09/11/2026 Without the .map extension.
 				(*this)[lowerFname].m_displayName = getMapNameFromPath(fname);
 				if (md.m_numPlayers >= 2)
 				{
@@ -748,7 +748,7 @@ Bool MapCache::addMap(
 	if (!exists || nameLookupTag.isEmpty())
 	{
 		DEBUG_LOG(("Missing TheKey_mapName!"));
-		// TheSuperHackers @tweak arcticdolphin 09/11/2026 Without the .map extension.
+		// GenOnline @tweak arcticdolphin 09/11/2026 Without the .map extension.
 		md.m_displayName = getMapNameFromPath(fname);
 		if (md.m_numPlayers >= 2)
 		{
@@ -810,7 +810,7 @@ MapCache *TheMapCache = nullptr;
 
 // PUBLIC FUNCTIONS //////////////////////////////////////////////////////////////////////////////
 
-// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name is the file name without folders or the .map extension.
+// GenOnline @bugfix arcticdolphin 09/11/2026 The map name is the file name without folders or the .map extension.
 UnicodeString getMapNameFromPath( const AsciiString& mapPath )
 {
 	AsciiString name = getFileName(mapPath.str());
@@ -823,7 +823,7 @@ UnicodeString getMapNameFromPath( const AsciiString& mapPath )
 	return result;
 }
 #if defined(GENONLINE)
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Parses a map for its typed objects only, for maps cached before mapcache.json had them.
+// GenOnline @feature arcticdolphin 08/11/2026 Parses a map for its typed objects only, for maps cached before mapcache.json had them.
 Bool loadMapTypedObjects( const AsciiString &mapPath, MapTypedObjectVector &outObjects )
 {
 	Bool loaded = FALSE;

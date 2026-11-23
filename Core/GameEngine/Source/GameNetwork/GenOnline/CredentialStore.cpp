@@ -21,7 +21,7 @@ std::mutex storeMutex;
 std::string (*pathProvider)() = nullptr;
 void (*logSink)(const std::string&) = nullptr;
 std::atomic<unsigned long> forcedCryptError{0};
-// entries that could not be written; they win over the file and use the same layout
+// entries that could not be written, they win over the file and use the same layout
 Json overlay = Json::object();
 bool fileUnreadable = false;
 
@@ -91,7 +91,7 @@ void Normalize(Json& doc)
 	doc.erase("refresh_token");
 }
 
-// the stored document; a file that cannot be read counts as empty and is never overwritten
+// the stored document, a file that cannot be read counts as empty and is never overwritten
 Json ReadFile()
 {
 	fileUnreadable = false;
@@ -192,7 +192,7 @@ bool WriteFile(const Json& doc)
 	return saved;
 }
 
-// changes one entry and rewrites the whole file; when that fails the entry stays in the overlay for this session
+// changes one entry and rewrites the whole file, when that fails the entry stays in the overlay for this session
 bool Change(const char* section, const std::string& key, const Json* value)
 {
 	std::lock_guard<std::mutex> lock(storeMutex);

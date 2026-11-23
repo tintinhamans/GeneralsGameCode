@@ -35,6 +35,7 @@
 #include "Common/GameEngine.h"
 #include "Common/GameState.h"
 #include "Common/Recorder.h"
+#include "Common/StatsExporter.h"
 #include "Common/version.h"
 #include "GameClient/WindowLayout.h"
 #include "GameClient/Gadget.h"
@@ -826,6 +827,13 @@ void deleteReplay()
 		translate.set(buffer);
 		errorStr.translate(translate);
 		MessageBoxOk(TheGameText->fetch("GUI:Error"),errorStr, nullptr);
+	}
+	else
+	{
+		// GenOnline @feature arcticdolphin 21/11/2026 A deleted replay takes its stats file with it
+		AsciiString statsPath;
+		StatsExporterGetStatsPathForReplay(statsPath, filename);
+		DeleteFile(statsPath.str());
 	}
 	//Load the listbox shiznit
 	GadgetListBoxReset(listboxReplayFiles);

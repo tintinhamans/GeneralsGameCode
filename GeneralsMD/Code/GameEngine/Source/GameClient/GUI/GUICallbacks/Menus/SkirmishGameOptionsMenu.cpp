@@ -75,7 +75,7 @@
 #include "GameNetwork/GUIUtil.h"
 #include "GameNetwork/IPEnumeration.h"
 #include "WWDownload/Registry.h"
-#include "Common/StatsExporterLobby.h"
+#include "Common/LocalApiLobby.h"
 
 UnsignedInt GetTeamUiColor(Int teamNumber);
 
@@ -532,7 +532,7 @@ void MapSelectorTooltip(GameWindow *window,
 	window->winGetScreenPosition(&pixelX, &pixelY);
 
 #if defined(GENONLINE)
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Name the type of the typed marker under the mouse.
+	// GenOnline @feature arcticdolphin 08/11/2026 Name the type of the typed marker under the mouse.
 	UnicodeString typedTooltip;
 	if (getMapPreviewMarkerTooltip(x - pixelX, y - pixelY, typedTooltip))
 	{
@@ -661,7 +661,7 @@ void positionAdditionalImages( MapMetaData *mmd, GameWindow *mapWindow, Bool for
 	Int smallHeight= lr.y - ul.y;
 
 #if defined(GENONLINE)
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Use the typed objects so each marker carries its icon category.
+	// GenOnline @feature arcticdolphin 08/11/2026 Use the typed objects so each marker carries its icon category.
 	if (positionTypedPreviewImages(mmd, ul, smallWidth, smallHeight))
 		return;
 #endif
@@ -2204,7 +2204,7 @@ static void statsMoveStartPosition(Int slot, Int position)
 	sandboxOk = FALSE;
 }
 
-// ... and the speed slider's own update.
+// Stats pipe lobby control: the update of the speed slider.
 static void statsSetGameSpeed(Int fps)
 {
 	GameWindow *sliderGameSpeed = TheWindowManager->winGetWindowFromId( parentSkirmishGameOptions, sliderGameSpeedID );

@@ -70,6 +70,7 @@ struct LobbyEntry
 	bool limit_superweapons = false;
 	bool track_stats = false;
 	bool allow_observers = false;
+	std::string anticheat;
 	uint16_t max_cam_height = 0;
 
 	uint32_t exe_crc = 0;
@@ -96,8 +97,12 @@ enum class EJoinLobbyResult
 	JoinLobbyResult_FullRoom,       // The room is full.
 	JoinLobbyResult_BadPassword,    // An incorrect password (or none) was given for a passworded room.
 	JoinLobbyResult_JoinFailed, // Generic failure.
-	JoinLobbyResult_AnticheatMismatch // Anticheat mismatch
+	JoinLobbyResult_AnticheatMismatch, // Anticheat mismatch
+	JoinLobbyResult_BuildMismatch, // The lobby runs another game version
+	JoinLobbyResult_Banned // The host banned the local user from the lobby
 };
+
+std::string GenOnlineLastCreateLobbyError();
 
 enum class ELobbyJoinability
 {
@@ -108,7 +113,6 @@ enum class ELobbyJoinability
 struct LobbyMemberEntry;
 struct LobbyEntry;
 
-// A service lobby event code with the parameters that the code uses.
 struct LobbyEvent
 {
 	std::string event;
@@ -274,6 +278,7 @@ public:
 	void SetJoinability(ELobbyJoinability joinabilityFlag);
 
 	void UpdateCurrentLobby_KickUser(int64_t userID, UnicodeString name);
+	void UpdateCurrentLobby_BanUser(int64_t userID, UnicodeString name);
 	void UpdateCurrentLobby_SetSlotState(uint16_t slotIndex, uint16_t slotState);
 
 	void SetLobbyListDirty()
@@ -294,7 +299,7 @@ public:
 	UnicodeString m_PendingCreation_LobbyName;
 	UnicodeString m_PendingCreation_InitialMapDisplayName;
 	AsciiString m_PendingCreation_InitialMapPath;
-	void CreateLobby(UnicodeString strLobbyName, UnicodeString strInitialMapName, AsciiString strInitialMapPath, bool bIsOfficial, int initialMaxSize, bool bVanillaTeamsOnly, bool bTrackStats, uint32_t startingCash, bool bPassworded, std::string strPassword, bool bAllowObservers);
+	void CreateLobby(UnicodeString strLobbyName, UnicodeString strInitialMapName, AsciiString strInitialMapPath, bool bIsOfficial, int initialMaxSize, bool bVanillaTeamsOnly, bool bTrackStats, uint32_t startingCash, bool bPassworded, std::string strPassword, bool bAllowObservers, bool bRequireEac);
 
 	void OnJoinedOrCreatedLobby(bool bAlreadyUpdatedDetails, std::function<void(bool)> fnCallback);
 
@@ -353,7 +358,7 @@ public:
 		m_RosterNeedsRefreshCallback = nullptr;
 	}
 
-	// TODO_NGMP: Better support for packet callbacks
+	// TODO_GENONLINE: Better support for packet callbacks
 	std::function<void()> m_callbackStartGamePacket = nullptr;
 	void RegisterForGameStartPacket(std::function<void()> cb)
 	{
@@ -400,7 +405,7 @@ public:
 
 	LobbyMemberEntry GetRoomMemberFromIndex(int index)
 	{
-		// TODO_NGMP: Optimize data structure
+		// TODO_GENONLINE: Optimize data structure
 		if (index < m_CurrentLobby.members.size())
 		{
 			return m_CurrentLobby.members.at(index);
@@ -424,7 +429,7 @@ public:
 
 	std::vector<LobbyMemberEntry>& GetMembersListForCurrentRoom()
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Refreshing network room roster");
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Refreshing network room roster");
 		return m_CurrentLobby.members;
 	}
 
@@ -621,7 +626,6 @@ public:
 		return m_CurrentMatchID;
 	}
 
-	// Realtime hub events.
 	void OnRealtimeReady();
 	void OnRealtimeLobbyListUpsert(const GenOnlineRealtime::LobbySummary& lobby);
 	void OnRealtimeLobbyListRemove(int64_t lobbyID);
@@ -634,10 +638,8 @@ public:
 	void OnRealtimeLobbyHistory(const GenOnlineRealtime::ChannelHistoryEvent& event);
 	void OnRealtimeLobbyMessageDelete(const GenOnlineRealtime::MessageDeleteEvent& event);
 	void OnRealtimeStartGameOutcome(const GenOnlineRealtime::InvokeOutcome& outcome);
-	// Shows a refused lobby method of the realtime hub in the lobby chat.
 	void ShowRealtimeLobbyFailure(const GenOnlineRealtime::InvokeOutcome& outcome);
 
-	// Matchmaking events of the realtime hub.
 	void HandleMatchFound(int64_t lobbyID, const std::string& mapPath);
 	void HandleMatchSetupProgress(int64_t timeoutMs, int64_t countdownMs);
 	void OnRealtimeMatchmakingStatus(const GenOnlineRealtime::MatchmakingStatusEvent& event);
@@ -654,7 +656,7 @@ private:
 	std::string m_strTURNUsername = "";
 	std::string m_strTURNToken = "";
 
-	// TODO_NGMP: cleanup
+	// TODO_GENONLINE: cleanup
 	NetworkMesh* m_pLobbyMesh = nullptr;
 
 	std::atomic_bool m_bLobbyListDirty = false;
@@ -698,7 +700,6 @@ private:
 	int64_t m_hubMatchStartLobbyID = -1;
 	int64_t m_hubGameStartLobbyID = -1;
 	void StartQuickMatchWhenReady();
-	// Starts the match of the current lobby from GameStart or LobbyState.start.
 	// In a quick match the start of a LobbyState also stands for MatchStart, which the service does not resend.
 	void StartMatchFromService(const GenOnlineRealtime::GameStartEvent& event, const char* szSource, bool bStandsForMatchStart);
 	GenOnlineRealtime::MatchStartOnce m_MatchStart;

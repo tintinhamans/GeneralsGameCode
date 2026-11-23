@@ -2286,7 +2286,7 @@ void W3DView::setDefaultView(Real pitch, Real angle, Real maxHeight)
 	//	m_defaultAngle = angle * WWMATH_PI/180.0f;
 	setDefaultPitch(pitch);
 
-    // TODO_NGMP: Better way of doing this
+    // TODO_GENONLINE: Better way of doing this
 #if defined(GENONLINE)
     if (bForceDefaultCam)
     {

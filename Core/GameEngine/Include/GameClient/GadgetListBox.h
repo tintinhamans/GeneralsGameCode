@@ -67,7 +67,7 @@ enum ListRowAnimMode
     LIST_ROW_ANIM_SLOT = 2     // key by slot index, for append-only lists that don't change order
 };
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Kit list scroll bar images, used instead of the retail scroll bar when all exist.
+// GenOnline @feature arcticdolphin 08/11/2026 Kit list scroll bar images, used instead of the retail scroll bar when all exist.
 enum KitScrollImage
 {
 	KIT_SCROLL_TRACK_TOP,
@@ -95,7 +95,7 @@ enum KitScrollImage
 	KIT_SCROLL_IMAGE_COUNT
 };
 
-// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Spans across a kit scroll column that all centre on one line.
+// GenOnline @bugfix arcticdolphin 08/11/2026 Spans across a kit scroll column that all centre on one line.
 enum KitScrollSpan
 {
 	KIT_SCROLL_SPAN_CONTENT, ///< the column left of the list frame line
@@ -115,6 +115,8 @@ extern const Image *GadgetListBoxGetKitScrollImage( KitScrollImage which ); ///<
 extern Int GadgetListBoxGetKitComboFrame( GameWindow *listbox ); ///< kit combo drop-down frame thickness, 0 for other lists
 extern Int GadgetListBoxGetKitComboRowTrim( GameWindow *listbox ); ///< blank font rows a kit combo drop-down trims off each text row's top, 0 for other lists
 extern Int GadgetListBoxGetKitComboHeight( GameWindow *listbox, Int rows ); ///< kit combo drop-down height for rows, 0 for other lists
+extern Int GadgetListBoxGetKitListFrame( GameWindow *listbox ); ///< kit frame of a colour drawn list: the combo field border for drop-downs, the kit line for bordered lists, else 0
+extern Int GadgetListBoxGetTextInset( GameWindow *listbox ); ///< height the list text drawing loses to its top inset and frame, 0 for kit combo drop-downs
 extern Int GadgetListBoxGetKitScrollLineWidth( void ); ///< kit scroll column separator thickness, 0 without the kit
 extern void GadgetListBoxGetKitScrollSpan( KitScrollSpan which, Int columnX, Int columnWidth, Int *spanX, Int *spanWidth ); ///< a kit scroll column span, centred on the column line
 extern void GadgetListBoxDrawKitLines( Int x, Int y, Int width, Int height,

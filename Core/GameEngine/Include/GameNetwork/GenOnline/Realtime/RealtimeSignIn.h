@@ -16,13 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: RealtimeSignIn.h /////////////////////////////////////////////////////
-// Description: Sign-in of the game client to a GenOnline environment as a
-//              native app (RFC 8252): the authorization code flow with PKCE in
-//              the system browser and a loopback redirect, the token requests,
-//              and the session registration that comes before the realtime
-//              hub. The file has no engine dependencies. The caller supplies
-//              random bytes and SHA-256.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -169,7 +162,6 @@ inline std::string EncodeForm(const FormFields& fields)
 	return out;
 }
 
-// Decodes a query string. Returns false for a broken escape.
 inline bool DecodeForm(const std::string& text, std::map<std::string, std::string>& fields)
 {
 	fields.clear();
@@ -252,7 +244,6 @@ inline FormFields RevokeTokenForm(const std::string& clientId, const std::string
 	return form;
 }
 
-// What one request on the loopback listener means for the sign-in.
 struct LoopbackCallback
 {
 	enum class Kind
@@ -261,7 +252,6 @@ struct LoopbackCallback
 		Ignore,
 		// The browser brought an authorization code with the expected state.
 		Code,
-		// The server reported an error, for example access_denied.
 		Error,
 		// The callback does not belong to this sign-in. The sign-in fails.
 		Rejected,
@@ -272,7 +262,6 @@ struct LoopbackCallback
 	std::string error;
 };
 
-// Reads the request line of an HTTP request on the loopback listener.
 inline LoopbackCallback ParseLoopbackRequest(const std::string& request, const std::string& expectedState)
 {
 	LoopbackCallback result;
@@ -399,7 +388,6 @@ inline std::string AcceptRealtimeUrl(const std::string& wsUrl, const std::string
 	std::string origin = OriginOfBase(serviceBase);
 	if (origin.empty())
 		return std::string();
-	// The scheme follows the route: wss for an https route and ws for a loopback http route.
 	std::string expectedPrefix = WebSocketPrefixOfOrigin(origin) + origin.substr(origin.find("://") + 3) + "/";
 	if (wsUrl.compare(0, expectedPrefix.size(), expectedPrefix) != 0)
 		return std::string();
@@ -485,7 +473,6 @@ inline bool ParseOpenIdConfiguration(const std::string& body, const std::string&
 	return true;
 }
 
-// Messages ///////////////////////////////////////////////////////////////////
 
 struct TokenResponse : WireObject
 {

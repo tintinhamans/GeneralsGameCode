@@ -16,10 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlineAntiCheat.h /////////////////////////////////////////////////
-// Description: GenOnline Anti-Cheat, the built in plugin that provides the
-//              anticheat sub interface when no plugin DLL provides one. It is
-//              linked into the game and uses the same tables as a plugin DLL.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once

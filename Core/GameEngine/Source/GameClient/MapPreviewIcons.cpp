@@ -16,8 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: MapPreviewIcons.cpp //////////////////////////////////////////////////////////////////////
-// Desc: Typed map preview icons
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
@@ -39,7 +37,7 @@
 #include <string>
 #include <wchar.h>
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Icon table loaded from Data\GeneralsOnline\MapPreviewIcons*.ini.
+// GenOnline @feature arcticdolphin 08/11/2026 Icon table loaded from Data\GeneralsOnline\MapPreviewIcons*.ini.
 
 struct MapPreviewIconCategory
 {
@@ -118,7 +116,6 @@ static MapPreviewIconCategory *findCategory( const AsciiString &name )
 }
 
 //-------------------------------------------------------------------------------------------------
-// Case insensitive match with * and ? wildcards.
 static Bool wildcardMatch( const char *pattern, const char *text )
 {
 	const char *star = nullptr;
@@ -425,7 +422,6 @@ static void addTypedMarkers( const MapMetaData *mmd, const MapTypedObjectVector 
 		marker.m_templateName = it->m_templateName;
 		marker.m_isTech = it->m_isTech;
 
-		// the positionAdditionalImages placement, centred with the scaled marker size
 		Real position;
 		position = (it->m_pos.x - mmd->m_extent.lo.x) / (mmd->m_extent.hi.x - mmd->m_extent.lo.x);
 		marker.m_pos.x = (position * smallWidth) - markerSize /2 + ul.x;
@@ -499,7 +495,6 @@ Bool getMapPreviewLegend( const AsciiString &mapName, MapPreviewLegend &outLegen
 	loadTable();
 	const MapTypedObjectVector &objects = md->m_typedObjects.m_objects;
 
-	// table categories in table order
 	for (size_t c = 0; c < s_categories.size(); ++c)
 	{
 		Int count = 0;
@@ -517,7 +512,6 @@ Bool getMapPreviewLegend( const AsciiString &mapName, MapPreviewLegend &outLegen
 			addLegendEntry(outLegend, s_categories[c].m_name, isTech, count);
 	}
 
-	// objects no table category covers, grouped by category name and kind
 	MapTypedObjectVector::const_iterator objIt = objects.begin();
 	for (; objIt != objects.end(); ++objIt)
 	{

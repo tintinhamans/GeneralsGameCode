@@ -16,9 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlineMainMenuUtils.h /////////////////////////////////////////////
-// Description: The Online path of the main menu for the GenOnline provider:
-//              the update check, the patch download and the sign-in.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -27,7 +24,7 @@ void GenOnlineHTTPThinkWrapper();
 void GenOnlineStopAsyncDNSCheck();
 void GenOnlineStartPatchCheck();
 void GenOnlineCancelPatchCheckCallback();
-// TheSuperHackers @feature arcticdolphin 09/11/2026 Ends an Online attempt: closes the sign-in dialog, tears the online services down and shows the main menu again.
+// GenOnline @feature arcticdolphin 09/11/2026 Ends an Online attempt: closes the sign-in dialog, tears the online services down and shows the main menu again.
 void GenOnlineCancelPatchCheckCallbackAndReopenDropdown();
 void GenOnlineStartDownloadingPatches();
 void GenOnlineCheckOverallStats();

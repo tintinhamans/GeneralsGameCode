@@ -18,22 +18,21 @@ struct ServiceConnectionSettings
 
 namespace ServiceConnection
 {
-// host[:port] or https://host[:port] to its origin (https, lower case host, default port dropped), or http://host[:port] for a loopback host only; false with a reason for anything else
+// host[:port] or https://host[:port] to its origin (https, lower case host, default port dropped), or http://host[:port] for a loopback host only, false with a reason for anything else
 bool NormalizeCustomEndpoint(const std::string& typed, std::string& origin, std::string& error);
 // The key the login token is stored under: one for every GO route, one per custom origin, empty when a custom server has no valid address
 std::string CredentialServerKey(const ServiceConnectionSettings& settings);
 // remembered is the host of the route that worked last, ignored unless it is one of the automatic routes
 std::vector<std::string> BootstrapRoutes(const std::string& environment,
     const ServiceConnectionSettings& settings, const std::string& remembered);
-// host name of a route url
 std::string RouteHost(const std::string& route);
-// https and wss on the base host and port; http and ws instead when the base is http on a loopback host
+// https and wss on the base host and port, http and ws instead when the base is http on a loopback host
 bool IsTrustedServiceURL(const std::string& url, const std::string& base, bool websocket);
-// wss address of the realtime hub on the host of a service base, ws for a loopback http base; empty for any other base
+// wss address of the realtime hub on the host of a service base, ws for a loopback http base, empty for any other base
 std::string RealtimeHubURLForBase(const std::string& base);
 std::string RequestURLForLog(const std::string& url, const std::string& serviceBase);
 // The anonymous compatibility GET of this build, which every route check sends
 std::string CompatibilityProbePath();
-// Verified TLS (not in _DEBUG builds), no redirects, no embedded credentials, direct connection; HTTPS or WSS only, or HTTP or WS on a loopback host.
+// Verified TLS (not in _DEBUG builds), no redirects, no embedded credentials, direct connection, HTTPS or WSS only, or HTTP or WS on a loopback host.
 bool ConfigureServiceTransport(CURL* curl, const std::string& url, std::string& error);
 }

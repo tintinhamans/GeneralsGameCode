@@ -53,7 +53,7 @@ enum GameSortType CPP_11(: Int)
     GAMESORT_AGE_DESCENDING,	// was alpha
 	GAMESORT_MAP_ASCENDING,		// was ping
 	GAMESORT_MAP_DESCENDING,	// was ping
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Sort the game list by player count or ping from its column headers; the GameSpy sort keeps the alpha values.
+	// GenOnline @feature arcticdolphin 08/11/2026 Sort the game list by player count or ping from its column headers, and the GameSpy sort keeps the alpha values.
 	GAMESORT_ALPHA_ASCENDING,
 	GAMESORT_ALPHA_DESCENDING,
 	GAMESORT_PLAYERS_ASCENDING,
@@ -73,4 +73,5 @@ enum LobbyGameModeFilter CPP_11(: Int)
     LOBBY_FILTER_FFA,
     LOBBY_FILTER_AOD,
     LOBBY_FILTER_BUDDIES,
+    LOBBY_FILTER_JOINABLE,
 };

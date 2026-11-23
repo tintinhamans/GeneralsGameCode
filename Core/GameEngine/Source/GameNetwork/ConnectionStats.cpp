@@ -370,7 +370,6 @@ static const Int SAFE_HISTORY_MS = 120000;			// a fast drop needs the current sp
 static const Int SPIKE_DOWN_STEP_FRAMES = 2;		// per decision going down, at least: the engine drains the queued frames without a stall, the step keeps the delay change gradual
 static const Int SPIKE_MAX_RAISE_FRAMES = 24;		// most a single decision raises while a slow producer is suspected, loss stalls raise without a bound
 
-// Adds value to an ascending array of count entries.
 static void insertSorted(Int *array, Int &count, Int value)
 {
 	Int pos = count;
@@ -465,7 +464,6 @@ Int RunAheadSpikeController::baseline(Int runAhead, Int marginFrames) const
 	{
 		return runAhead - marginFrames;
 	}
-	// q = 1 - W / lambda
 	const Real q = 1.0f - m_timeMs / (m_mass * (Real)SPIKE_LAMBDA_MS);
 	return quantile(m_hist, m_mass, q);
 }
@@ -651,7 +649,7 @@ RunAheadSpikeController::Decision RunAheadSpikeController::onWindow(time_t now, 
 	// fast drop: target the recent median need
 	Int goal = target;
 	Bool fastDrop = FALSE;
-	// the gate stays open through our own steps down: they do not touch the clean counter and the reseeded baseline only moves the target
+	// the gate stays open through the own steps down: they do not touch the clean counter and the reseeded baseline only moves the target
 	const Bool gateOpen = safeFastDrop && gateClean && gateIsolated && !m_inSpike && !undone && warm;
 	if (gateOpen)
 	{
@@ -686,7 +684,7 @@ RunAheadSpikeController::Decision RunAheadSpikeController::onWindow(time_t now, 
 		}
 		else if (goal < runAhead)
 		{
-			// fast recovery: a third of the excess per step, never below the goal; with the safe gate open the goal is the recent need,
+			// fast recovery: a third of the excess per step, never below the goal. With the safe gate open the goal is the recent need,
 			// the baseline is reseeded from it and the next step does not wait the long dead time
 			const Int step = safeFastDrop ? max(SPIKE_DOWN_STEP_FRAMES, (runAhead - goal + 2) / 3) : SPIKE_DOWN_STEP_FRAMES;
 			if (gateOpen)

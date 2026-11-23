@@ -16,10 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: MapCacheJson.h ///////////////////////////////////////////////////////////////////////////
-// Desc: Generals Online mapcache.json next to the user MapCache.ini. It keeps the typed supply and
-//       tech objects per map, which MapCache.ini cannot hold, keyed by the portable map path and
-//       reused while the file size, CRC and format version match.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -31,14 +27,11 @@
 
 class MapCache;
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Expanded GO map cache with typed objects.
-
 enum { MAP_CACHE_JSON_VERSION = 1 };
 
-/// Fills maps without typed objects from mapcache.json, records freshly parsed maps and rewrites the file when it changed.
 void syncMapCacheJson( MapCache &cache );
 
-/// Makes sure the cached map has typed objects, parsing it once when mapcache.json has none; returns TRUE when it has them.
+/// Parses the cached map once when mapcache.json has no typed objects for it. Returns TRUE when it has them.
 Bool ensureMapTypedObjects( const AsciiString &mapName );
 
 #endif

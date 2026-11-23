@@ -5,10 +5,10 @@
 
 // One overall rating of a connection, shared by the lobby slot indicator and the in-game overlay.
 // It is the worse of two axes: delay (the input delay the link forces, in ms) and stability (stalls per minute).
-// 5 bars: delay <= 150 ms and no stall in the last minute; 1 bar: delay above 500 ms or 6 or more stalls per minute.
+// 5 bars: delay <= 150 ms and no stall in the last minute, 1 bar: delay above 500 ms or 6 or more stalls per minute.
 // Colors: 4-5 green, 2-3 amber, 1 red. Red needs one of (RedReason): blackout, loss, delay or stalls, see RedReason in the .cpp.
-// The delay is ConnectionManager::estimateRunAheadMs of the link's p75 probe round trip, the command round trip in a match without enough probes.
-// Stalls a healthy link does not explain wait on the peer's frame rate: slow PC, at most 3 bars and never red for it.
+// The delay is ConnectionManager::estimateRunAheadMs of the p75 probe round trip of the link, the command round trip in a match without enough probes.
+// Stalls a healthy link does not explain wait on the frame rate of the peer: slow PC, at most 3 bars and never red for it.
 // Too few samples (10 probes, 20 command acks) give no rating.
 class ConnectionRating
 {
@@ -56,7 +56,7 @@ public:
 
 	static const char *RedReason(const Inputs &inputs);
 
-	/// Draws the signal bars, level is bars - 1.
+	/// Draws the signal bars, level is bars minus 1.
 	static void DrawBars(Int left, Int top, Int size, Int level);
 
 	/// The spinner shown while a connection is not rated yet.

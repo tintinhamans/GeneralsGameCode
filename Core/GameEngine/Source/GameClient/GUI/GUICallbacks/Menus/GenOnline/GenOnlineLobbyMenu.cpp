@@ -23,7 +23,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// FILE: GenOnlineLobbyMenu.cpp
 // Author: Chris Huybregts, November 2001
 // Description: WOL Lobby Menu
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -31,7 +30,9 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include "GameClient/GenOnlineChatWrap.h"
 #include "GameClient/GenOnlineMenus.h"
+#include "GameClient/GenOnlineUserSection.h"
 
 #include "Common/GameEngine.h"
 #include "Common/GOUIColors.h"
@@ -60,6 +61,7 @@
 #include "GameClient/Display.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameClient/GameWindowTransitions.h"
+#include "GameClient/GenOnlineLobbyGameDetails.h"
 
 #include "GameLogic/GameLogic.h"
 
@@ -133,12 +135,19 @@ static GameWindow *buttonJoin = nullptr;
 static GameWindow *buttonBuddy = nullptr;
 static GameWindow *buttonChat = nullptr;
 static GameWindow *textEntryChat = nullptr;
+static NameKeyType textEntrySearchID = NAMEKEY_INVALID;
+static GameWindow *textEntrySearch = nullptr;
+
+// Read by the lobby list population in LobbyUtils.cpp.
+UnicodeString theLobbySearchText;
 static GameWindow *listboxLobbyPlayers = nullptr;
 static GameWindow *listboxLobbyChat = nullptr;
 static GameWindow *comboLobbyGroupRooms = nullptr;
+// GenOnline @tweak arcticdolphin 22/11/2026 The game list filter has its own combo box next to the search field.
+static NameKeyType comboLobbyFilterID = NAMEKEY_INVALID;
+static GameWindow *comboLobbyFilter = nullptr;
 static GameWindow *parent = nullptr;
 
-// Tab completion state of the chat box and the last authors of the channel chat, most recent first.
 static ChatTabCycler s_lobbyChatCycler;
 static std::vector<std::wstring> s_lobbyRecentChatters;
 
@@ -187,7 +196,6 @@ int getQR2HostingStatus();
 }
 extern int isThreadHosting;
 
-// /net: the transport, relay and GNS ICE settings for the next lobby mesh, and the transport and route to each player of the current one
 static const wchar_t* netRelaySetting()
 {
 	extern int g_relayOverride;
@@ -246,7 +254,6 @@ static UnicodeString netTransportSetting()
 	return setting;
 }
 
-// The transports /net transport can choose from, gns and each available plugin transport.
 static UnicodeString netTransportChoices()
 {
 	const std::string pluginTransport = GenOnlinePluginHost::Transport::GetName();
@@ -259,7 +266,6 @@ static UnicodeString netTransportChoices()
 	return choices;
 }
 
-// Applies the relay setting of the next lobby. Every transport takes it from here.
 // GNS and the plugin transport both take it through g_relayOverride when the next lobby mesh starts.
 static void applyNetRelaySetting(int wanted)
 {
@@ -385,7 +391,6 @@ void GenOnlineHandleNetSlashCommand(AsciiString subcommand, AsciiString value, G
 
 Bool GenOnlineHandleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited);
 
-// Handles a line as the chat room's typed-line path does: slash commands first, else the rate limit and a plain send.
 Bool GenOnlineLobbyMenuSubmitChatLine( UnicodeString text )
 {
 	text.trim();
@@ -427,7 +432,7 @@ Bool GenOnlineHandleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited
 
 	if (token == "host")
 	{
-		// TODO_NGMP
+		// TODO_GENONLINE
 		/*
 		UnicodeString s;
 		s.format(L"Hosting qr2:%d thread:%d", getQR2HostingStatus(), isThreadHosting);
@@ -492,7 +497,7 @@ Bool GenOnlineHandleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited
 		AsciiString subcommand;
 		AsciiString value;
 		remainder.nextToken(&subcommand);
-		// The value is the rest of the line, /net gns ice takes two words.
+		// The value is the rest of the line because /net gns ice takes two words.
 		value = remainder;
 		value.trim();
 		subcommand.toLower();
@@ -564,7 +569,7 @@ static void playerTooltip(GameWindow *window,
 													WinInstanceData *instData,
 													UnsignedInt mouse)
 {
-	// TODO_NGMP: Support all of this again
+	// TODO_GENONLINE: Support all of this again
 
 	Int x, y, row, col;
 	x = LOLONGTOSHORT(mouse);
@@ -580,7 +585,7 @@ static void playerTooltip(GameWindow *window,
 
 	UnicodeString uName = GadgetListBoxGetText(window, row, COLUMN_PLAYERNAME);
 
-	// TODO_NGMP: This causes issues with duplicate names. We should have better ways of looking this up + perhaps only allow unique names
+	// TODO_GENONLINE: Duplicate names break this lookup, look players up by id or only allow unique names.
 	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
@@ -590,7 +595,7 @@ static void playerTooltip(GameWindow *window,
 		int profileID = (int)GadgetListBoxGetItemData(listboxLobbyPlayers, row, 0);
 		NetworkRoomMember* roomMember = pRoomsInterface->GetRoomMemberFromID(profileID);
 
-		// TODO_NGMP: This is an async call, we should block future popups until it returns to avoid weirdness
+		// TODO_GENONLINE: This call is async, so further popups should wait until it returns.
 		if (col > 0)
 		{
 			if (roomMember != nullptr)
@@ -616,7 +621,7 @@ static void playerTooltip(GameWindow *window,
 								if (bIsFriend)
 								{
 									// buddy
-									tooltip.format(TheGameText->fetch("TOOLTIP:BuddyPlayer"), uName.str());
+									tooltip.format(TheGameText->FETCH_OR_SUBSTITUTE("TOOLTIP:GOFriendPlayer", L"Your friend %s"), uName.str());
 								}
 								else
 								{
@@ -746,7 +751,7 @@ static void playerTooltip(GameWindow *window,
 
 	return;
 
-	// TODO_NGMP:
+	// TODO_GENONLINE:
 	/*
 	PlayerInfoMap::iterator it = TheGameSpyInfo->getPlayerInfoMap()->find(aName);
 	PlayerInfo *info = &(it->second);
@@ -784,7 +789,7 @@ static void playerTooltip(GameWindow *window,
 		if (TheGameSpyInfo->getBuddyMap()->find(info->m_profileID) != TheGameSpyInfo->getBuddyMap()->end())
 		{
 			// buddy
-			tooltip.format(TheGameText->fetch("TOOLTIP:BuddyPlayer"), uName.str());
+			tooltip.format(TheGameText->FETCH_OR_SUBSTITUTE("TOOLTIP:GOFriendPlayer", L"Your friend %s"), uName.str());
 		}
 		else
 		{
@@ -840,7 +845,6 @@ static void playerTooltip(GameWindow *window,
 
 // Set while repopulating the combo box, because setting the selection re-sends GCM_SELECTED as if the user had picked it.
 static Bool s_populatingLobbyCombo = FALSE;
-static const Int LOBBY_COMBO_SEPARATOR_ITEM_DATA = -1;
 
 static Int FindRoomIndexByID(const std::vector<NetworkRoom>& rooms, Int roomID)
 {
@@ -907,23 +911,8 @@ static void PopulateLobbyFilterComboBox(GameWindow* comboBox)
 	if (comboBox == nullptr)
 		return;
 
-	extern LobbyGameModeFilter theLobbyFilter;
 	s_populatingLobbyCombo = TRUE;
 	GadgetComboBoxReset(comboBox);
-
-	static const struct
-	{
-		const wchar_t* label;
-		LobbyGameModeFilter filter;
-	} filterEntries[] =
-	{
-		{ L"Filter: All",			LOBBY_FILTER_ALL },
-		{ L"Filter: 1v1",			LOBBY_FILTER_1V1 },
-		{ L"Filter: Team Games",	LOBBY_FILTER_TEAM },
-		{ L"Filter: FFA",			LOBBY_FILTER_FFA },
-		{ L"Filter: AOD",			LOBBY_FILTER_AOD },
-		{ L"Filter: Buddies",		LOBBY_FILTER_BUDDIES },
-	};
 
 	Int idx;
 	Int selectedRoomIdx = -1;
@@ -950,22 +939,8 @@ static void PopulateLobbyFilterComboBox(GameWindow* comboBox)
 			}
 		}
 
-		if (numRooms > 0)
-		{
-			idx = GadgetComboBoxAddEntry(comboBox, UnicodeString(L" "), GameSpyColor[GSCOLOR_ROOM]);
-			GadgetComboBoxSetItemData(comboBox, idx, (void*)(intptr_t)LOBBY_COMBO_SEPARATOR_ITEM_DATA);
-		}
 	}
 
-	for (const auto& filterEntry : filterEntries)
-	{
-		const Bool isActiveFilter = (filterEntry.filter == theLobbyFilter);
-		idx = GadgetComboBoxAddEntry(comboBox, UnicodeString(filterEntry.label),
-			GameSpyColor[isActiveFilter ? GSCOLOR_CURRENTROOM : GSCOLOR_DEFAULT]);
-		GadgetComboBoxSetItemData(comboBox, idx, (void*)filterEntry.filter);
-	}
-
-	// The collapsed combo always identifies the room. The active filter is indicated by its color only when expanded.
 	GadgetComboBoxSetSelectedPos(comboBox, selectedRoomIdx);
 	if (selectedRoomIdx >= 0)
 	{
@@ -974,7 +949,44 @@ static void PopulateLobbyFilterComboBox(GameWindow* comboBox)
 	s_populatingLobbyCombo = FALSE;
 }
 
-// The author of a channel chat line becomes the first recent chatter for name completion.
+// GenOnline @tweak arcticdolphin 22/11/2026 The game list filter combo, one entry per filter with the active one selected.
+static void PopulateGameFilterComboBox(GameWindow* comboBox)
+{
+	if (comboBox == nullptr)
+		return;
+
+	extern LobbyGameModeFilter theLobbyFilter;
+	static const struct
+	{
+		const char* key;
+		const wchar_t* label;
+		LobbyGameModeFilter filter;
+	} filterEntries[] =
+	{
+		{ "GUI:GOFilterAll",		L"All games",		LOBBY_FILTER_ALL },
+		{ "GUI:GOFilterJoinable",	L"Joinable",		LOBBY_FILTER_JOINABLE },
+		{ "GUI:GOFilter1v1",		L"1v1",				LOBBY_FILTER_1V1 },
+		{ "GUI:GOFilterTeam",		L"Team games",		LOBBY_FILTER_TEAM },
+		{ "GUI:GOFilterFFA",		L"FFA",				LOBBY_FILTER_FFA },
+		{ "GUI:GOFilterAOD",		L"AOD",				LOBBY_FILTER_AOD },
+		{ "GUI:GOFilterFriends",	L"Friends' games",	LOBBY_FILTER_BUDDIES },
+	};
+
+	s_populatingLobbyCombo = TRUE;
+	GadgetComboBoxReset(comboBox);
+	Int selected = 0;
+	for (const auto& filterEntry : filterEntries)
+	{
+		const UnicodeString label = TheGameText->FETCH_OR_SUBSTITUTE(filterEntry.key, filterEntry.label);
+		const Int idx = GadgetComboBoxAddEntry(comboBox, label, GameSpyColor[GSCOLOR_DEFAULT]);
+		GadgetComboBoxSetItemData(comboBox, idx, (void*)(intptr_t)filterEntry.filter);
+		if (filterEntry.filter == theLobbyFilter)
+			selected = idx;
+	}
+	GadgetComboBoxSetSelectedPos(comboBox, selected);
+	s_populatingLobbyCombo = FALSE;
+}
+
 static void RememberRoomChatAuthor(uint32_t key)
 {
 	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
@@ -998,7 +1010,8 @@ static void RememberRoomChatAuthor(uint32_t key)
 static void AddRoomChatMessageLine(UnicodeString strMessage, Color color, uint32_t key)
 {
 	RememberRoomChatAuthor(key);
-	const Int row = GadgetListBoxAddEntryText(listboxLobbyChat, strMessage, color, -1, -1);
+	// GenOnline @bugfix arcticdolphin 22/11/2026 A word wider than the chat list is broken so the line wraps fully.
+	const Int row = GadgetListBoxAddEntryText(listboxLobbyChat, GenOnlineBreakLongWords(listboxLobbyChat, strMessage), color, -1, -1);
 	if (row >= 0)
 	{
 		GadgetListBoxSetItemData(listboxLobbyChat, reinterpret_cast<void*>(static_cast<uintptr_t>(key)), row, 0);
@@ -1045,6 +1058,7 @@ static void HandleNetworkRoomChanged(int roomIndex, bool effectiveRoomChanged)
 
 	GenOnlineRefreshGameList(TRUE);
 	PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
+	PopulateGameFilterComboBox(comboLobbyFilter);
 }
 
 static const char *const rankNames[] = {
@@ -1467,7 +1481,19 @@ void GenOnlinePopulateLobbyPlayerListbox()
 
 void GenOnlineLobbyMenuCreateLobbyCallback(bool bSuccess)
 {
-	// TODO_NGMP: Handle error case
+	if (!bSuccess)
+	{
+		const std::string code = GenOnlineLastCreateLobbyError();
+		UnicodeString s;
+		if (code == "lobby.anticheat_required")
+			s = TheGameText->fetchOrSubstitute("GUI:GOCreateFailedAnticheatRequired", L"Anti-cheat is not running. Start the game through the Generals Online launcher.");
+		else if (code == "lobby.easy_anticheat_unavailable")
+			s = TheGameText->fetchOrSubstitute("GUI:GOCreateFailedEacUnavailable", L"Easy Anti-Cheat must be running to require it.");
+		else
+			s = TheGameText->fetchOrSubstitute("GUI:GOCreateFailedDefault", L"The game could not be created. Try again.");
+		GSMessageBoxOk(TheGameText->fetch("GUI:GSErrorTitle"), s);
+		return;
+	}
 
 	buttonPushed = true;
 	nextScreen = "Menus/GenOnlineGameOptionsMenu.wnd";
@@ -1478,7 +1504,7 @@ void GenOnlineLobbyMenuCreateLobbyCallback(bool bSuccess)
 
 void GenOnlineLobbyMenuJoinLobbyCallback(EJoinLobbyResult result)
 {
-	// TODO_NGMP: Show accurate errors again
+	// TODO_GENONLINE: Show accurate errors again
 
 	GenOnlineSetLobbyAttemptHostJoin(FALSE);
 	if (result == EJoinLobbyResult::JoinLobbyResult_Success)
@@ -1499,8 +1525,16 @@ void GenOnlineLobbyMenuJoinLobbyCallback(EJoinLobbyResult result)
 			break;
 
         case EJoinLobbyResult::JoinLobbyResult_AnticheatMismatch:
-            s = TheGameText->fetchOrSubstitute("GUI:JoinFailedAnticheatMismatch", L"You are running a different anticheat from this lobby host.");
+            s = TheGameText->fetchOrSubstitute("GUI:GOJoinFailedEacRequired", L"This game requires Easy Anti-Cheat.");
             break;
+
+		case EJoinLobbyResult::JoinLobbyResult_BuildMismatch:
+			s = TheGameText->fetchOrSubstitute("GUI:GOJoinFailedBuildMismatch", L"This game runs a different game version.");
+			break;
+
+		case EJoinLobbyResult::JoinLobbyResult_Banned:
+			s = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOJoinFailedBanned", L"The host has banned you from this game.");
+			break;
 
 		// NOTE: Commented out ones are no longer supported. Seems like these we GS concepts but not part of the game
 		/*
@@ -1529,7 +1563,7 @@ void GenOnlineLobbyMenuJoinLobbyCallback(EJoinLobbyResult result)
 
 		GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), s);
 
-		// NGMP: We don't need to do this anymore, the service does it for us
+		// GenOnline: The service does this now.
 		/*
 		if (groupRoomToJoin)
 		{
@@ -1604,11 +1638,15 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
 	textEntryChatID = TheNameKeyGenerator->nameToKey("WOLCustomLobby.wnd:TextEntryChat");
 	textEntryChat = TheWindowManager->winGetWindowFromId(parent, textEntryChatID);
 
+	textEntrySearchID = TheNameKeyGenerator->nameToKey("WOLCustomLobby.wnd:TextEntrySearch");
+	textEntrySearch = TheWindowManager->winGetWindowFromId(parent, textEntrySearchID);
+
 	listboxLobbyPlayersID = TheNameKeyGenerator->nameToKey("WOLCustomLobby.wnd:ListboxPlayers");
 	listboxLobbyPlayers = TheWindowManager->winGetWindowFromId(parent, listboxLobbyPlayersID);
 	GadgetListBoxRemoveMultiSelect(listboxLobbyPlayers);
 	listboxLobbyPlayers->winSetTooltipFunc(playerTooltip);
 	SetListBoxRowAnimMode(listboxLobbyPlayers, LIST_ROW_ANIM_ID);
+	GenOnlineLobbyGameDetailsInit(parent);
 
 	listboxLobbyChatID = TheNameKeyGenerator->nameToKey("WOLCustomLobby.wnd:ListboxChat");
 	listboxLobbyChat = TheWindowManager->winGetWindowFromId(parent, listboxLobbyChatID);
@@ -1616,20 +1654,27 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
 
 	comboLobbyGroupRoomsID = TheNameKeyGenerator->nameToKey("WOLCustomLobby.wnd:ComboBoxGroupRooms");
 	comboLobbyGroupRooms = TheWindowManager->winGetWindowFromId(parent, comboLobbyGroupRoomsID);
+	comboLobbyFilterID = TheNameKeyGenerator->nameToKey("WOLCustomLobby.wnd:ComboBoxLobbyFilter");
+	comboLobbyFilter = TheWindowManager->winGetWindowFromId(parent, comboLobbyFilterID);
 
 	//GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Welcome to Generals Online for Zero Hour!"), GameMakeColor(255, 194, 15, 255), -1, -1);
 
 	GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
 	GadgetTextEntrySetCompletionEnabled(textEntryChat, TRUE);
+	GadgetTextEntrySetText(textEntrySearch, UnicodeString::TheEmptyString);
+	theLobbySearchText.clear();
 	s_lobbyChatCycler.Reset();
 
 	PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
+	extern LobbyGameModeFilter theLobbyFilter;
+	theLobbyFilter = LOBBY_FILTER_ALL;
+	PopulateGameFilterComboBox(comboLobbyFilter);
 
 	// Show Menu
 	layout->hide( FALSE );
 
 	// if we're not in a room, this will join the best available one
-	// TODO_NGMP
+	// TODO_GENONLINE
 	/*
 	if (!TheGameSpyInfo->getCurrentGroupRoom())
 	{
@@ -1651,25 +1696,21 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
 	}
 	*/
 
-	// NGMP: Register for create lobby callback
 	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 	if (pLobbyInterface != nullptr && pRoomsInterface != nullptr)
 	{
 		pLobbyInterface->RegisterForCreateLobbyCallback(GenOnlineLobbyMenuCreateLobbyCallback);
 
-		// NGMP: Join lobby callback
 		pLobbyInterface->RegisterForJoinLobbyCallback(GenOnlineLobbyMenuJoinLobbyCallback);
-
-		// NGMP: Request lobbies
 
 		//GadgetListBoxSetItemData(listboxLobbyChat, (void*)-1, index);
 
-		// TODO_NGMP: player list change callbacks
+		// TODO_GENONLINE: player list change callbacks
 
 		// register for chat events
 		pRoomsInterface->RegisterForChatCallback([](UnicodeString strMessage, Color color)
 			{
-				GadgetListBoxAddEntryText(listboxLobbyChat, strMessage, color, -1, -1);
+				GadgetListBoxAddEntryText(listboxLobbyChat, GenOnlineBreakLongWords(listboxLobbyChat, strMessage), color, -1, -1);
 			});
 		pRoomsInterface->RegisterForChatMessageCallbacks(AddRoomChatMessageLine, RemoveRoomChatMessageLine);
 
@@ -1684,10 +1725,10 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
 
 	GrabWindowInfo();
 
-	// TODO_NGMP
+	// TODO_GENONLINE
 	//TheGameSpyInfo->clearStagingRoomList();
 
-	// TODO_NGMP
+	// TODO_GENONLINE
 	/*
 	PeerRequest req;
 	req.peerRequestType = PeerRequest::PEERREQUEST_STARTGAMELIST;
@@ -1703,7 +1744,7 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
 		TheGenOnlineGame->reset();
 	}
 
-	// TODO_NGMP
+	// TODO_GENONLINE
 	//CustomMatchPreferences pref;
 //	GameWindow *slider = TheWindowManager->winGetWindowFromId(parent, sliderChatAdjustID);
 //	if (slider)
@@ -1713,7 +1754,7 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
 //	}
 //
 
-	// TODO_NGMP
+	// TODO_GENONLINE
 	/*
 	if (pref.usesLongGameList())
 	{
@@ -1754,6 +1795,8 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
 				pRoomsInterfaceOuter->JoinRoom(0);
 			});
 	}
+
+	GenOnlineUserSectionShow(parent);
 
 	// Update the communicator button anytime we get notifications
     GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
@@ -1816,6 +1859,7 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void GenOnlineLobbyMenuShutdown( WindowLayout *layout, void *userData )
 {
+	GenOnlineUserSectionHide();
 	s_lobbyMenuOpen = FALSE;
 	++s_lobbyMenuGeneration;
 	GenOnlineCloseRightClickMenus();
@@ -1854,15 +1898,16 @@ void GenOnlineLobbyMenuShutdown( WindowLayout *layout, void *userData )
 
 	ReleaseWindowInfo();
 
-	// TODO_NGMP
+	// TODO_GENONLINE
 	//TheGameSpyInfo->unregisterTextWindow(listboxLobbyChat);
 
 	//TheGameSpyChat->stopListingGames();
-	// TODO_NGMP
+	// TODO_GENONLINE
 	//PeerRequest req;
 	//req.peerRequestType = PeerRequest::PEERREQUEST_STOPGAMELIST;
 	//TheGameSpyPeerMessageQueue->addRequest(req);
 
+	GenOnlineLobbyGameDetailsShutdown();
 	listboxLobbyChat = nullptr;
 	listboxLobbyPlayers = nullptr;
 
@@ -1953,7 +1998,7 @@ static const char* getMessageString(Int t)
 //-------------------------------------------------------------------------------------------------
 void GenOnlineRefreshGameList( Bool forceRefresh )
 {
-	// TODO_NGMP: rate limit this like before
+	// TODO_GENONLINE: rate limit this like before
 	//RefreshGameListBoxes();
 
 	Int refreshInterval = gameListRefreshInterval;
@@ -2188,7 +2233,6 @@ WindowMsgHandledType GenOnlineLobbyMenuInput( GameWindow *window, UnsignedInt ms
 ////	listboxLobbyGameInfo->winSetSize(gwiW, newH);
 
 
-// The chat box completes the recent chatters, then the channel members, and the lobby slash commands.
 static void BuildLobbyChatCompletionContext(ChatCompletionContext& context)
 {
 	static ChatCommandRegistry s_commands;
@@ -2205,7 +2249,6 @@ static void BuildLobbyChatCompletionContext(ChatCompletionContext& context)
 
 	// Recent chatters come first, so the completion limit never drops them in a large channel.
 	AppendChatNames(context.names, s_lobbyRecentChatters, self);
-	// The player list rows hold the current channel members, friends first.
 	for (const LobbyPlayerRow& row : s_lobbyPlayerRows)
 	{
 		AppendChatName(context.names, from_utf8(row.displayName), self);
@@ -2293,7 +2336,7 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 
 						if (lastID != req.stagingRoom.id || now > lastFrame + 60)
 						{
-							// TODO_NGMP: Impl this again
+							// TODO_GENONLINE: Impl this again
 							/*
 							TheGameSpyPeerMessageQueue->addRequest(req);
 							*/
@@ -2310,6 +2353,7 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 					{
 						RefreshGameInfoListBox(GetGameListBox(), GetGameInfoListBox());
 					}
+					GenOnlineLobbyGameDetailsUpdate();
 				}
 
 				break;
@@ -2346,7 +2390,7 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 
 					GenOnlineSetLobbyAttemptHostJoin( TRUE );
 					TheGenOnlineLobbyQueuedUTMs.clear();
-					// TODO_NGMP
+					// TODO_GENONLINE
 					//groupRoomToJoin = TheGameSpyInfo->getCurrentGroupRoom();
 					GameSpyOpenOverlay(GSOVERLAY_GAMEOPTIONS);
 				}
@@ -2358,7 +2402,7 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 						break;
 					}
 
-					// TODO_NGMP: Support re-ordering again
+					// TODO_GENONLINE: Support re-ordering again
 					Int selected;
 					GadgetListBoxGetSelected(GetGameListBox(), &selected);
 					if (selected >= 0)
@@ -2394,7 +2438,7 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 								break;
 							}
 
-							// TODO_NGMP: Enforce this on the host too, vanilla game did not...
+							// TODO_GENONLINE: Enforce this on the host too, vanilla game did not...
 
 							
 							pLobbyInterface->SetLobbyTryingToJoin(Lobby);
@@ -2415,7 +2459,7 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 					{
 						GSMessageBoxOk(TheGameText->fetch("GUI:Error"), TheGameText->fetch("GUI:NoGameSelected"), NULL);
 					}
-					// TODO_NGMP: Start using StagingRoomInfo again, it'll make this easier and cleaner
+					// TODO_GENONLINE: Use StagingRoomInfo again, which makes this easier and cleaner.
 					/*
 					if (s_tryingToHostOrJoin)
 						break;
@@ -2553,11 +2597,7 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 					if (pos >= 0)
 					{
 						Int itemData = (Int)(intptr_t)GadgetComboBoxGetItemData(comboLobbyGroupRooms, pos);
-						if (itemData == LOBBY_COMBO_SEPARATOR_ITEM_DATA)
-						{
-							PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
-						}
-						else if (itemData < 0)
+						if (itemData < 0)
 						{
 							if (pRoomsInterface != nullptr)
 							{
@@ -2568,16 +2608,21 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 								{
 									theLobbyFilter = LOBBY_FILTER_ALL;
 									pRoomsInterface->JoinRoom(roomIndex);
+									PopulateGameFilterComboBox(comboLobbyFilter);
 								}
 							}
 							PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
 						}
-						else
-						{
-							theLobbyFilter = (LobbyGameModeFilter)itemData;
-							GenOnlineRefreshGameList(TRUE);
-							PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
-						}
+					}
+				}
+				else if( controlID == comboLobbyFilterID )
+				{
+					Int pos = -1;
+					GadgetComboBoxGetSelectedPos(comboLobbyFilter, &pos);
+					if (pos >= 0)
+					{
+						theLobbyFilter = (LobbyGameModeFilter)(Int)(intptr_t)GadgetComboBoxGetItemData(comboLobbyFilter, pos);
+						GenOnlineRefreshGameList(TRUE);
 					}
 				}
 			}
@@ -2624,7 +2669,7 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 						break;
 					}
 
-					// TODO_NGMP: This causes issues with duplicate names. We should have better ways of looking this up + perhaps only allow unique names
+					// TODO_GENONLINE: Duplicate names break this lookup, look players up by id or only allow unique names.
 					GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 					GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 					GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
@@ -2687,7 +2732,7 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 							}
 							else if (controlID == GetGameListBoxID())
 							{
-								// TODO_NGMP: enable right click for ladders again
+								// TODO_GENONLINE: enable right click for ladders again
 								break;
 							}
 						}
@@ -2695,7 +2740,6 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 				}
 				else if (controlID == listboxLobbyChatID)
 				{
-					// a channel chat line keeps the key of its message
 					RightClickStruct* rc = (RightClickStruct*)mData2;
 					GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 					if (rc->pos < 0 || pRoomsInterface == nullptr)
@@ -2704,7 +2748,8 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 					std::string messageID;
 					int64_t authorID = 0;
 					pRoomsInterface->FindChatMessage(key, messageID, authorID);
-					GenOnlineOpenMessageMenu(control, rc->pos, rc->mouseX, rc->mouseY, messageID.c_str(), authorID);
+					const NetworkRoomMember* author = pRoomsInterface->GetRoomMemberFromID(authorID);
+					GenOnlineOpenMessageMenu(control, rc->pos, rc->mouseX, rc->mouseY, messageID.c_str(), authorID, author != nullptr ? author->display_name.c_str() : "");
 				}
 				break;
 		}
@@ -2728,6 +2773,13 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 		//---------------------------------------------------------------------------------------------
 		case GEM_UPDATE_TEXT:
 			{
+				if ((GameWindow *)mData1 == textEntrySearch)
+				{
+					theLobbySearchText = GadgetTextEntryGetText(textEntrySearch);
+					GenOnlineRefreshGameList(TRUE);
+					break;
+				}
+
 				if ((GameWindow *)mData1 != textEntryChat)
 					return MSG_IGNORED;
 
@@ -2748,7 +2800,7 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 		//---------------------------------------------------------------------------------------------
 		case GEM_EDIT_DONE:
 			{
-				if (buttonPushed)
+				if (buttonPushed || (GameWindow *)mData1 == textEntrySearch)
 					break;
 
 				s_lobbyChatCycler.Reset();
@@ -2782,7 +2834,7 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 					{
 						pWS->SendData_RoomChatMessage(txtInput, false);
 					}
-					// TODO_NGMP: Support private message again
+					// TODO_GENONLINE: Support private message again
 					//TheGameSpyInfo->sendChat( txtInput, false, listboxLobbyPlayers );
 				}
 				break;

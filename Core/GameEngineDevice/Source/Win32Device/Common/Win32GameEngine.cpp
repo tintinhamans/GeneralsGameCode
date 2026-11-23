@@ -185,14 +185,12 @@ void Win32GameEngine::releaseInputForModalLoop()
 
 	if (TheMouse != nullptr)
 	{
-		// reads and drops the mouse events buffered by the device meanwhile
 		TheMouse->UPDATE();
 		TheMouse->resetButtons();
 	}
 
 	if (TheKeyboard != nullptr && TheMessageStream != nullptr)
 	{
-		// reads and drops the keys buffered by the device meanwhile
 		TheKeyboard->UPDATE();
 		TheKeyboard->resetKeys();
 	}

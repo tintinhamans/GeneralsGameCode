@@ -46,7 +46,7 @@ typedef enum
 	IMAGE_STATUS_NONE									= 0x00000000,
 	IMAGE_STATUS_ROTATED_90_CLOCKWISE	= 0x00000001,  // image should be treated as rotated
 	IMAGE_STATUS_RAW_TEXTURE					= 0x00000002,  // image struct contains raw texture data
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Window images can fit their window without stretching.
+	// GenOnline @feature arcticdolphin 08/11/2026 Window images can fit their window without stretching.
 	IMAGE_STATUS_KEEP_ASPECT					= 0x00000004,  // window draws fit the image inside the window at its own aspect
 
 	IMAGE_STATUS_END // keep after the last named flag
@@ -93,7 +93,7 @@ public:
 	UnsignedInt setStatus( UnsignedInt bit );			///< set status bit
 	UnsignedInt clearStatus( UnsignedInt bit );		///< clear status bit
 	UnsignedInt getStatus() const;								///< get status bits
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Optional border thickness for three-piece bars that keep fixed outlines.
+	// GenOnline @feature arcticdolphin 08/11/2026 Optional border thickness for three-piece bars that keep fixed outlines.
 	Real getBorder() const;												///< border rows in image pixels, 0 for none
 
 

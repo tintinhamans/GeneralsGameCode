@@ -171,7 +171,7 @@
             "inherits": "win32-vcpkg",
             "displayName": "Windows 32bit VCPKG Release for publishing (MSVC 14.44)",
             "cacheVariables": {
-                "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/cmake/require-msvc-toolset.cmake",
+                "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/GenOnline/cmake/require-msvc-toolset.cmake",
                 "GENONLINE_REQUIRED_MSVC_TOOLSET": "14.44"
             }
         },
@@ -222,7 +222,7 @@
             "name": "win32-vcpkg-generalsmd-openal",
             "inherits": "win32-vcpkg",
             "displayName": "Windows 32bit VCPKG Zero Hour OpenAL Release",
-            "description": "Zero Hour game only, with OpenAL Soft audio and the trimmed FFmpeg linked statically from the vcpkg overlay ports in cmake/ports, plus Miles and Bink for media.legacy in client.json",
+            "description": "Zero Hour game only, with OpenAL Soft audio and the trimmed FFmpeg linked statically from the vcpkg overlay ports in GenOnline/cmake/ports, plus Miles and Bink for media.legacy in settings.client.json",
             "cacheVariables": {
                 "RTS_BUILD_ZEROHOUR": "ON",
                 "RTS_BUILD_GENERALS": "OFF",

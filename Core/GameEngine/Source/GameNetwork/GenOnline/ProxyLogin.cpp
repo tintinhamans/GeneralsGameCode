@@ -22,7 +22,7 @@
 #include <thread>
 #include <vector>
 
-// One dialog for the login of a proxy and the connection test, laid out in Menus/ProxyLogin.wnd in the frame of the game's message box.
+// One dialog for the login of a proxy and the connection test, laid out in Menus/ProxyLogin.wnd in the frame of the message box of the game.
 // States: testing, form, checking, result. The form offers the Windows login where the proxy can use it (ticked when the silent one was not accepted) or typed credentials.
 namespace ServiceConnection
 {
@@ -132,7 +132,6 @@ void updateFormEnabled()
 	dialog.cancel->winEnable(dialog.state != State::Result || (dialog.acceptMode && dialog.failed));
 }
 
-// a label that fits the button, otherwise the short one
 std::string fittingLabel(GameWindow *button, const std::string &label, const std::string &shortLabel)
 {
 	Int width = 0;
@@ -186,7 +185,6 @@ void showMessageBoxes(const std::vector<GameWindow *> &boxes)
 	}
 }
 
-// ---- results ---------------------------------------------------------------------------------------------------------------------
 
 void finishDialog(bool loggedIn, AcceptChoice choice = AcceptChoice::KeepEditing)
 {
@@ -217,7 +215,6 @@ void finishDialog(bool loggedIn, AcceptChoice choice = AcceptChoice::KeepEditing
 	}
 }
 
-// the proxy accepted the login: keep it as the player chose
 void commitLogin()
 {
 	std::string error;
@@ -291,7 +288,6 @@ void startProbe(ServiceConnectionSettings settings)
 				}
 				return;
 			}
-			// checking a login
 			if (result.outcome == Outcome::ProxyAuthRequired)
 			{
 				ClearSessionProxyCredentials(dialog.proxyURL);
@@ -326,11 +322,11 @@ void startProbe(ServiceConnectionSettings settings)
 	}).detach();
 }
 
-// switches to the checking state; stays on the form when the input is incomplete
+// switches to the checking state, stays on the form when the input is incomplete
 void acceptForm()
 {
 	const bool windowsLogin = GadgetCheckBoxIsChecked(dialog.windows) != FALSE;
-	// the choice is kept, and the check below uses it; a proxy that cannot use the Windows login leaves it as it was
+	// the choice is kept, and the check below uses it, a proxy that cannot use the Windows login leaves it as it was
 	if (dialog.windowsLoginPossible)
 	{
 		GenOnlineServicesManager::Settings.Network_SaveWindowsLogin(windowsLogin);
@@ -360,7 +356,7 @@ void acceptForm()
 	wipeString(password);
 	GadgetTextEntrySetText(dialog.password, UnicodeString::TheEmptyString);
 
-	// the login is used for the check first; it is kept once the proxy accepted it
+	// the login is used for the check first, it is kept once the proxy accepted it
 	SetSessionProxyCredentials(dialog.proxyURL, dialog.pendingUser, dialog.pendingPassword);
 	setState(State::Checking, "Proxy login", TheGameText->fetch("WOL:Connecting"));
 	startProbe(dialog.testPath ? dialog.settings : GenOnlineServicesManager::Settings.Network_GetConnectionSettings());
@@ -462,7 +458,6 @@ WindowMsgHandledType dialogInput(GameWindow *window, UnsignedInt msg, WindowMsgD
 	return MSG_IGNORED;
 }
 
-// builds the dialog; returns false when the layout could not be built
 bool openDialog(bool testPath)
 {
 	if (dialog.layout != nullptr || TheWindowManager == nullptr)

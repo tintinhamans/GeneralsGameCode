@@ -67,7 +67,7 @@
 // TYPE DEFINES ///////////////////////////////////////////////////////////////
 // INLINING ///////////////////////////////////////////////////////////////////
 
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 The horizontal slider thumb sits vertically centred in its slider, where the kit track draws.
+// GenOnline @tweak arcticdolphin 08/11/2026 The horizontal slider thumb sits vertically centred in its slider, where the kit track draws.
 inline Int GadgetHorizontalSliderThumbTop( Int sliderHeight, Int thumbHeight )
 {
 	return (sliderHeight - thumbHeight) / 2;

@@ -20,14 +20,13 @@
 #include "../GenOnlineLobbyInterface.h"
 #include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
 
-// set by the /net relay, /net gns ice and /net transport chat commands, -1 follows the service config
+// Set by the /net relay, /net gns ice and /net transport chat commands.
 int g_relayOverride = -1;             // 1 = relay only, -1 = service policy
 int g_iceImplementationOverride = -1; // 1 = native, 2 = WebRTC
 int g_transportOverride = -1;         // 1 = GNS only, -1 = offer every available plugin transport
 
 // The plugin packets the lobby takes per tick, 255 for each of up to 8 peers like the per connection GNS receive.
 static constexpr int k_pluginLitePacketsPerTick = 255 * 8;
-// The packets the lobby takes per tick from each connection that receives on its own.
 static constexpr int k_maxFramesPerReceive = 255;
 
 static int64_t NowSteadyMs()
@@ -38,13 +37,11 @@ static int64_t NowSteadyMs()
 // The reason a pair that restarts gives for closing its connection. The peer looks for it to tell a restart from a leave.
 static const char* const k_szRestartCloseReason = "Client Disconnecting Gracefully (new connection being negotiated)";
 
-// The per-peer transports write to the Generals Online network log.
 static void WritePeerTransportLog(PeerLogLevel level, const char* szLine)
 {
 	NetworkLog(level == PeerLogLevel::Debug ? ELogVerbosity::LOG_DEBUG : ELogVerbosity::LOG_RELEASE, "%s", szLine);
 }
 
-// Carries the GameNetworkingSockets signals over the realtime connection of the services.
 class GenOnlineSignalChannel : public IPeerSignalChannel
 {
 public:
@@ -81,8 +78,7 @@ public:
 
 static GenOnlineSignalChannel s_signalChannel;
 
-// Takes the GameNetworkingSockets connection changes into the mesh of the current lobby. The library calls it on the
-// main thread through RunCallbacks().
+// The library calls it on the main thread through RunCallbacks().
 class GenOnlineGnsListener : public IGnsPeerListener
 {
 public:
@@ -175,7 +171,7 @@ void GenOnlineGnsListener::OnConnectionEnded(const GnsPeerRef& peer, const GnsPe
 	{
 		TheNetwork->GetConnectionManager()->disconnectPlayer(userID);
 
-		// a peer that closed on purpose during the match has left; closing to negotiate a new connection is not a leave
+		// a peer that closed on purpose during the match has left, closing to negotiate a new connection is not a leave
 		if (end.closedOnPurpose && bInMatch)
 		{
 			TheNetwork->GetConnectionManager()->playerClosedGracefully(userID);
@@ -209,7 +205,7 @@ void GenOnlineGnsListener::OnConnectionEnded(const GnsPeerRef& peer, const GnsPe
 	// plrConnection may be dangling past this point; use the captured locals.
 
 	// the highest slot player, should leave. In most cases, this is the most recently joined player, but this may not be 100% accurate due to backfills.
-	// TODO_NGMP: In the future, we should pick the most recently joined by timestamp
+	// TODO_GENONLINE: In the future, we should pick the most recently joined by timestamp
 	if (bWasError) // only if it wasn't a clean disconnect (e.g. lobby leave)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Determined we didn't connect due to an error, Retrying: %d (currently at %d/%d attempts)", bShouldRetry, signallingAttemptsBeforeDisconnect, numSignallingAttempts);
@@ -286,7 +282,6 @@ void GenOnlineGnsListener::OnConnectionEnded(const GnsPeerRef& peer, const GnsPe
 	}
 
 
-	// A peer that left the lobby is removed from the mesh.
 	if (bPeerLeft)
 	{
 		pMesh->RemoveConnection(userID);
@@ -417,7 +412,6 @@ NetworkMesh::NetworkMesh()
 	gnsConfig.firstAttemptTimeouts = { firstTimeouts.initialMs, firstTimeouts.connectedMs };
 	gnsConfig.retryTimeouts = { retryTimeouts.initialMs, retryTimeouts.connectedMs };
 	gnsConfig.relayOnly = GnsNetworkConfig::ResolveRelayOnly(serviceConf.connection.relay_only, g_relayOverride);
-	// The plugin transport follows the same relay rule as GNS for the connections of this lobby.
 	GenOnlinePluginHost::Transport::SetRelayPolicy(gnsConfig.relayOnly);
 
 	// 0 = library default, 1 = native, 2 = WebRTC
@@ -431,7 +425,6 @@ NetworkMesh::NetworkMesh()
 
 	m_bInitialized = true;
 
-	// the key of this client for the lobby, peers get it as they connect
 	BeginLobbyKeys();
 }
 
@@ -461,7 +454,6 @@ void NetworkMesh::UpdateConnectivity(PlayerConnection* connection)
 		return;
 	}
 
-	// A report belongs to the lobby of the pair, outside a lobby there is nothing to report.
 	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface == nullptr || !pLobbyInterface->IsInLobby())
 	{
@@ -477,7 +469,6 @@ void NetworkMesh::UpdateConnectivity(PlayerConnection* connection)
 	GenOnlineRealtime::ConnectionReportBody body;
 	body.target_user_id = connection->m_userID;
 	body.outcome = GenOnlineRealtime::ConnectionReportOutcome(bConnected, !connection->IsDirect(), bDisconnected);
-	// The StartSignalling of the attempt names its transport and its number.
 	body.transport = connection->m_step.transport;
 	body.ip_version = connection->IsIPV4() ? 4 : 6;
 	body.attempt = connection->m_step.attempt;
@@ -605,14 +596,12 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 	if (step.IsPlugin())
 	{
 		// A repeated StartSignalling restarts the pair. The old connection closes first, because a single-direction connection breaks signalling.
-		// A pair that moves from GameNetworkingSockets to the plugin closes its old connection like a restart does.
 		auto existing = m_mapConnections.find(remoteUserID);
 		if (existing != m_mapConnections.end())
 		{
 			CloseForRestart(remoteUserID, existing->second, true);
 		}
 
-		// The plugin step fails at once when this client has no plugin transport of that name.
 		const std::string ownTransport = GenOnlinePluginHost::Transport::GetName();
 		const bool bTransportReady = !ownTransport.empty() && ownTransport == step.transport;
 		DropParkedSignalling(remoteUserID);
@@ -675,7 +664,6 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             previousAttempts = it->second.m_SignallingAttempts;
             retryTimeout = true;
 
-            // A pair that moves from the plugin to GameNetworkingSockets ends its plugin connection first.
             CloseForRestart(remoteUserID, it->second, false);
 
             NetworkLog(ELogVerbosity::LOG_RELEASE, "[ERASE 3] Removing user %lld", it->second.m_userID);
@@ -975,10 +963,6 @@ void NetworkMesh::OnKeyAnnouncement(int64_t connectionUserID, const uint8_t* dat
 }
 
 // Start run ahead payload after the channel byte, little endian:
-//   report   u8 1, u64 match id, u8 count, u8 flags (bit 0: sends directly to every peer), count x (i64 user id, u16 p75 round trip ms)
-//   decision u8 2, u64 match id, u8 run ahead, u16 highest pair round trip ms, u8 pairs
-//   ready    u8 3, u64 match id, u8 stage, u8 flags (bit 0: the sender sends directly to every peer, or waited long enough for that)
-//   go       u8 4, u64 match id, u8 stage, u16 ms the receiver waits before it starts
 static constexpr uint8_t START_MSG_REPORT = 1;
 static constexpr uint8_t START_MSG_DECISION = 2;
 static constexpr int64_t START_REPORT_WAIT_MS = 3000;	// the router decides without the reports still missing after this
@@ -1053,7 +1037,6 @@ void NetworkMesh::BeginStartRunAhead(int routerSlot)
 		}
 	}
 
-	// reports of another match are stale, reports from a user who is no start player are dropped
 	for (auto it = m_startReports.begin(); it != m_startReports.end(); )
 	{
 		if (it->second.matchID != m_startMatchID || !IsStartPlayer(it->first))
@@ -1077,7 +1060,6 @@ void NetworkMesh::BeginStartRunAhead(int routerSlot)
 		st.active = false;
 	}
 
-	// no remote player: retail start
 	if (m_startPlayers.empty() || m_startRouterUserID < 0)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[RUNAHEAD] start R=%d, no start run ahead exchange (players=%d, router=%lld)", (int)TheNetwork->getRunAhead(), (int)m_startPlayers.size(), static_cast<long long>(m_startRouterUserID));
@@ -1090,7 +1072,6 @@ void NetworkMesh::BeginStartRunAhead(int routerSlot)
 	m_startActive = true;
 	m_startBeginMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 
-	// our round trip to every other player, the router keeps its own as a report
 	StartRunAheadReport own;
 	own.matchID = m_startMatchID;
 	own.directSend = TheNetwork->GetConnectionManager() != nullptr && TheNetwork->GetConnectionManager()->isDirectSendActive(true);
@@ -1263,7 +1244,7 @@ void NetworkMesh::ApplyStartDecision()
 	{
 		return;
 	}
-	// decisions of other users are kept until the router is known, only the router's counts
+	// Decisions of other users are kept until the router is known, and only the one of the router counts
 	auto it = m_startDecisions.find(m_startRouterUserID);
 	if (it == m_startDecisions.end())
 	{
@@ -1400,7 +1381,6 @@ void NetworkMesh::DecideStartRunAhead()
 	bool oneWay = pConnectionManager != nullptr && pConnectionManager->usesOneWayRunAhead(true);
 	for (auto& kvReport : m_startReports)
 	{
-		// a player that left after it reported does not count
 		const bool reporterStays = kvReport.first == m_startLocalUserID || IsStartPlayer(kvReport.first);
 		if (!allReported || kvReport.second.matchID != m_startMatchID || !reporterStays)
 		{
@@ -1560,7 +1540,7 @@ bool NetworkMesh::SyncedStartDone(int stage)
 		return true;
 	}
 
-	// the router's go decides, even if a ready of ours is still on the way
+	// The go of the router decides, even if a ready of this client is still on the way
 	if (!m_startIsRouter && st.hasGo && st.goMatchID == m_startMatchID)
 	{
 		st.leaveAtMs = st.goReceivedMs + st.goDelayMs;
@@ -1769,7 +1749,6 @@ void NetworkMesh::DisconnectUser(int64_t remoteUserID)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 	
-	// A user that leaves the mesh gets none of the anti-cheat messages still held for it.
 	m_heldACMessages.Clear(remoteUserID);
 
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Dumping all Steam connections");
@@ -1868,13 +1847,11 @@ void NetworkMesh::Tick()
 		{
 			PlayerConnection& connection = it->second;
 
-			// A plugin state only describes a pair on the plugin transport.
 			if (!connection.UsesPluginTransport())
 			{
 				continue;
 			}
 
-			// The attempt of a timed step that this side already ended takes no more states.
 			if (connection.m_stepWatch.IsReported())
 			{
 				continue;
@@ -1895,7 +1872,6 @@ void NetworkMesh::Tick()
 
 	const int64_t nowMs = NowSteadyMs();
 
-	// A timed step that runs out of time before it connects asks the hub for the next step.
 	{
 		std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 		for (auto& kvPair : m_mapConnections)
@@ -1908,7 +1884,6 @@ void NetworkMesh::Tick()
 		}
 	}
 
-	// probe every connection
 	for (auto& kvPair : m_mapConnections)
 	{
 		PlayerConnection& conn = kvPair.second;
@@ -2230,7 +2205,7 @@ int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
 
 	ServiceConfig& serviceConf = GenOnlineServicesManager::GetInstance()->GetServiceConfig();
 
-	// datagram mode leaves loss repair to the game layer; the restart flag only applies to ISteamNetworkingMessages
+	// datagram mode leaves loss repair to the game layer, the restart flag only applies to ISteamNetworkingMessages
 	int sendFlags = k_nSteamNetworkingSend_Reliable | k_nSteamNetworkingSend_AutoRestartBrokenSession; // default from last patch
 	if (serviceConf.send.IsDatagram())
 	{
@@ -2319,7 +2294,6 @@ bool PlayerConnection::IsIPV4()
 
 std::string PlayerConnection::GetStats()
 {
-	// lead with the probe numbers, or just the reported ping while there are no samples yet
 	char szSummary[64] = { 0 };
 	if (m_probeStats.getSampleCount() > 0)
 	{
@@ -2349,7 +2323,6 @@ std::string PlayerConnection::GetConnectionType()
 	return PeerRouteText(m_transport->GetRoute(m_State == EConnectionState::CONNECTED_DIRECT));
 }
 
-// The connection state as the route labels tell it apart.
 static PeerLinkState PeerLinkStateOf(EConnectionState state)
 {
 	if (state == EConnectionState::CONNECTED_DIRECT)
@@ -2402,7 +2375,6 @@ void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwni
 
 	m_State = newState;
 
-	// A connected state asks the transport for the route, the other states need no route.
 	const bool bRelayed = newState == EConnectionState::CONNECTED_DIRECT && !IsDirect();
 	m_timeline.Add(newState, bRelayed, NowSteadyMs() - m_connectStartedMs);
 
@@ -2414,7 +2386,6 @@ void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwni
 
 		m_SignallingAttempts = 0;
 
-		// The anti-cheat messages held while the pair was not connected leave first.
 		pOwningMesh->SendHeldACMessages(*this);
 	}
 	pOwningMesh->UpdateConnectivity(this);

@@ -16,11 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: RealtimeLobbyStart.h ////////////////////////////////////////////////
-// Description: Match start of a lobby, GenOnline realtime protocol v1. A
-//              client starts a match from GameStart or, after a reconnect
-//              that missed GameStart, from LobbyState.start, and starts each
-//              match once.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -62,7 +57,6 @@ public:
 		return true;
 	}
 
-	// Forgets the started match.
 	void Reset()
 	{
 		m_started = false;

@@ -10,7 +10,6 @@
 #include "GameNetwork/GenOnline/AntiCheat/GenOnlineAntiCheat.h"
 #include "GameNetwork/GenOnline/GenOnlineAuth.h"
 #include "Common/GlobalData.h"
-#include "Common/OptionPreferences.h"
 
 #define SETTINGS_KEY_CAMERA "camera"
 #define SETTINGS_KEY_CAMERA_MIN_HEIGHT "min_height"
@@ -37,7 +36,6 @@
 #define SETTINGS_KEY_RENDER_ADAPTIVE_QUALITY "adaptive_quality"
 #define SETTINGS_KEY_UI "ui"
 #define SETTINGS_KEY_UI_STYLE "style"
-#define SETTINGS_KEY_UI_PALETTE "palette"
 
 #define SETTINGS_KEY_CHAT "chat"
 #define SETTINGS_KEY_CHAT_LIFE_SECONDS "duration_seconds_until_fade_out"
@@ -51,8 +49,11 @@
 #define SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_ACCEPTS_REQUEST_GAMEPLAY "notification_player_accepts_request_gameplay"
 #define SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_MENUS "notification_player_sends_request_menus"
 #define SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_GAMEPLAY "notification_player_sends_request_gameplay"
+#define SETTINGS_KEY_SOCIAL_PRESENCE_STATUS "presence_status"
 
 #define SETTINGS_KEY_DEBUG "debug"
+#define SETTINGS_KEY_STATS "stats"
+#define SETTINGS_KEY_STATS_EXPORT "export"
 #define SETTINGS_KEY_DEBUG_VERBOSE_LOGGING "verbose_logging"
 
 #define SETTINGS_KEY_NETWORK "network"
@@ -71,10 +72,15 @@
 #define SETTINGS_KEY_PLUGINS "plugins"
 #define SETTINGS_KEY_PLUGINS_ANTICHEAT "anticheat"
 #define SETTINGS_KEY_PLUGINS_TRANSPORT "transport"
+#define SETTINGS_KEY_PLUGINS_CASTER "caster"
 #define SETTINGS_KEY_PLUGINS_SETTINGS "settings"
 
 #define SETTINGS_KEY_MAPS "maps"
 #define SETTINGS_KEY_MAPS_FAVOURITES "favourites"
+
+#define SETTINGS_KEY_DATA "data"
+#define SETTINGS_KEY_DATA_INCLUDE "include"
+#define SETTINGS_KEY_DATA_EXCLUDE "exclude"
 
 GenOnlineSettings::GenOnlineSettings()
 {
@@ -150,7 +156,30 @@ static std::vector<std::string> ReadPluginList(const nlohmann::json& list, const
     return names;
 }
 
-// The keys client.json holds and the type each one must have. A key of another type makes the whole file unusable.
+// Reads a list of strings, entries that are not non-empty strings are dropped with one log line.
+static std::vector<std::string> ReadStringList(const nlohmann::json& list, const char* key)
+{
+	std::vector<std::string> values;
+	for (const nlohmann::json& entry : list)
+	{
+		if (entry.is_string() && !entry.get<std::string>().empty())
+		{
+			values.push_back(entry.get<std::string>());
+		}
+		else
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Ignoring an entry of data.%s that is not a path", key);
+		}
+	}
+	return values;
+}
+
+static bool IsPresenceStatus(const std::string& status)
+{
+	return status == "online" || status == "idle" || status == "do_not_disturb" || status == "invisible";
+}
+
+// The keys settings.client.json holds and the type each one must have. A key of another type makes the whole file unusable.
 static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 {
 	using GenOnlineClientFile::ValueType;
@@ -175,7 +204,6 @@ static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 		{ SETTINGS_KEY_RENDER "." SETTINGS_KEY_RENDER_ADAPTIVE_QUALITY, ValueType::Boolean },
 		{ SETTINGS_KEY_UI, ValueType::Object },
 		{ SETTINGS_KEY_UI "." SETTINGS_KEY_UI_STYLE, ValueType::String },
-		{ SETTINGS_KEY_UI "." SETTINGS_KEY_UI_PALETTE, ValueType::String },
 		{ SETTINGS_KEY_CHAT, ValueType::Object },
 		{ SETTINGS_KEY_CHAT "." SETTINGS_KEY_CHAT_LIFE_SECONDS, ValueType::Number },
 		{ SETTINGS_KEY_SOCIAL, ValueType::Object },
@@ -187,6 +215,7 @@ static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_ACCEPTS_REQUEST_GAMEPLAY, ValueType::Boolean },
 		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_MENUS, ValueType::Boolean },
 		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_GAMEPLAY, ValueType::Boolean },
+		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_PRESENCE_STATUS, ValueType::String },
 		{ SETTINGS_KEY_DEBUG, ValueType::Object },
 		{ SETTINGS_KEY_DEBUG "." SETTINGS_KEY_DEBUG_VERBOSE_LOGGING, ValueType::Boolean },
 		{ SETTINGS_KEY_NETWORK, ValueType::Object },
@@ -201,40 +230,15 @@ static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 		{ SETTINGS_KEY_PLUGINS, ValueType::Object },
 		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_ANTICHEAT, ValueType::Array },
 		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_TRANSPORT, ValueType::Array },
+		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_CASTER, ValueType::String },
 		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_SETTINGS, ValueType::Object },
+		{ SETTINGS_KEY_DATA, ValueType::Object },
+		{ SETTINGS_KEY_DATA "." SETTINGS_KEY_DATA_INCLUDE, ValueType::Array },
+		{ SETTINGS_KEY_DATA "." SETTINGS_KEY_DATA_EXCLUDE, ValueType::Array },
 		{ SETTINGS_KEY_MAPS, ValueType::Object },
 		{ SETTINGS_KEY_MAPS "." SETTINGS_KEY_MAPS_FAVOURITES, ValueType::Array },
 	};
 	return keys;
-}
-
-// The Options.ini key of each setting that moved to client.json, by the dotted path of the setting.
-struct OptionsIniSetting
-{
-	const char* path;
-	const char* optionsIniKey;
-};
-
-static const OptionsIniSetting s_OptionsIniSettings[] = {
-	{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_ROTATE_FACTOR, GenOnlineClientOptions::OptionsIniCameraRotate },
-	{ SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_PITCH_FACTOR, GenOnlineClientOptions::OptionsIniCameraPitch },
-	{ SETTINGS_KEY_MEDIA "." SETTINGS_KEY_MEDIA_LEGACY, GenOnlineClientOptions::OptionsIniLegacyMedia },
-	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE, GenOnlineClientOptions::OptionsIniObserverStatsFontSize },
-	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE, GenOnlineClientOptions::OptionsIniObserverNotificationFontSize },
-	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE, GenOnlineClientOptions::OptionsIniObserverNotificationSpecialPowerUsage },
-	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE, GenOnlineClientOptions::OptionsIniObserverNotificationSpecialPowerPurchase },
-	{ SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE, GenOnlineClientOptions::OptionsIniObserverNotificationMilestone },
-};
-
-// The dotted paths of all settings that moved from Options.ini to client.json.
-static std::set<std::string> AllOptionsIniSettingPaths()
-{
-	std::set<std::string> paths;
-	for (const OptionsIniSetting& setting : s_OptionsIniSettings)
-	{
-		paths.insert(setting.path);
-	}
-	return paths;
 }
 
 void GenOnlineSettings::Load(void)
@@ -245,9 +249,6 @@ void GenOnlineSettings::Load(void)
 	m_ClientFilePath = GenOnlineClientFile::DefaultPath();
 	m_bClientFileWritable = false;
 	m_PreservedJSON = "{}";
-	m_bOptionsIniMoved = false;
-	// Until MoveOptionsIniSettings reads Options.ini, every moved setting waits for its Options.ini value.
-	m_PendingOptionsIni = AllOptionsIniSettingPaths();
 
 	GenOnlineClientFile::ReadResult clientFile;
 	if (m_ClientFilePath.empty())
@@ -260,42 +261,58 @@ void GenOnlineSettings::Load(void)
 		clientFile = GenOnlineClientFile::Read(m_ClientFilePath, ClientFileKeys());
 	}
 
-	// A missing client.json is created with the built-in defaults, which the first save below writes into it.
+	// A missing settings.client.json is created with the built-in defaults, which the first save below writes into it.
 	if (clientFile.status == GenOnlineClientFile::ReadStatus::Missing)
 	{
 		nlohmann::json created = nlohmann::json::object();
 		created[GenOnlineClientFile::SchemaVersionKey] = GenOnlineClientFile::SchemaVersion;
 		if (GenOnlineClientFile::CreateNew(m_ClientFilePath, created.dump(2)))
 		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Created client.json with the built-in defaults");
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Created settings.client.json with the built-in defaults");
 			clientFile.status = GenOnlineClientFile::ReadStatus::Ok;
 			clientFile.document = created;
 			clientFile.schemaVersion = GenOnlineClientFile::SchemaVersion;
 		}
 	}
 
-	// The client never writes a client.json it cannot use, the settings then only last for this session.
+	// The client never writes a settings.client.json it cannot use, the settings then only last for this session.
 	switch (clientFile.status)
 	{
 	case GenOnlineClientFile::ReadStatus::Missing:
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json cannot be created, using the built-in defaults without saving");
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] settings.client.json cannot be created, using the built-in defaults without saving");
 		return;
 	case GenOnlineClientFile::ReadStatus::Unusable:
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json is not usable (%s), using the defaults this session and leaving the file untouched", clientFile.reason.c_str());
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] settings.client.json is not usable (%s), using the defaults this session and leaving the file untouched", clientFile.reason.c_str());
 		return;
 	case GenOnlineClientFile::ReadStatus::Newer:
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json has schema_version %d, newer than %d, reading it without saving", clientFile.schemaVersion, GenOnlineClientFile::SchemaVersion);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] settings.client.json has schema_version %d, newer than %d, reading it without saving", clientFile.schemaVersion, GenOnlineClientFile::SchemaVersion);
 		break;
 	case GenOnlineClientFile::ReadStatus::Ok:
 		break;
 	}
 
-	const bool bWritable = clientFile.status == GenOnlineClientFile::ReadStatus::Ok;
-	bool bApplyDefaults = false;
-	// The dotted paths of the settings that Options.ini held before and that the file holds now.
-	std::set<std::string> presentSettings;
+	bool bWritable = clientFile.status == GenOnlineClientFile::ReadStatus::Ok;
 
-	// The values of the file go over the built-in defaults.
+	// A launch with a settings overlay never saves settings.client.json, so the overlay values cannot reach the file.
+	for (const std::string& overlayValue : CommandLine::getSettingsOverlays())
+	{
+		bWritable = false;
+
+		nlohmann::json overlay;
+		std::string reason;
+		if (GenOnlineClientFile::ParseOverlay(overlayValue, overlay, reason))
+		{
+			clientFile.document = GenOnlineClientFile::MergeOverlay(clientFile.document, overlay);
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Applied a settings overlay, settings.client.json is not saved this session");
+		}
+		else
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Ignored a settings overlay (%s), settings.client.json is not saved this session", reason.c_str());
+		}
+	}
+
+	bool bApplyDefaults = false;
+
 	{
 		const nlohmann::json& jsonSettings = clientFile.document;
 		try
@@ -317,13 +334,11 @@ void GenOnlineSettings::Load(void)
 				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_ROTATE_FACTOR))
 				{
 					m_Camera_RotateFactor = GenOnlineClientOptions::ClampCameraFactor(cameraSettings[SETTINGS_KEY_CAMERA_ROTATE_FACTOR].get<double>());
-					presentSettings.insert(SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_ROTATE_FACTOR);
 				}
 
 				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_PITCH_FACTOR))
 				{
 					m_Camera_PitchFactor = GenOnlineClientOptions::ClampCameraFactor(cameraSettings[SETTINGS_KEY_CAMERA_PITCH_FACTOR].get<double>());
-					presentSettings.insert(SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_PITCH_FACTOR);
 				}
 
 				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_ZOOM_FACTOR))
@@ -339,7 +354,6 @@ void GenOnlineSettings::Load(void)
 				if (mediaSettings.contains(SETTINGS_KEY_MEDIA_LEGACY))
 				{
 					m_Media_Legacy = mediaSettings[SETTINGS_KEY_MEDIA_LEGACY].get<bool>();
-					presentSettings.insert(SETTINGS_KEY_MEDIA "." SETTINGS_KEY_MEDIA_LEGACY);
 				}
 			}
 
@@ -350,31 +364,26 @@ void GenOnlineSettings::Load(void)
 				if (observerSettings.contains(SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE))
 				{
 					m_Observer_StatsFontSize = GenOnlineClientOptions::ClampObserverFontSize(observerSettings[SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE].get<double>());
-					presentSettings.insert(SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE);
 				}
 
 				if (observerSettings.contains(SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE))
 				{
 					m_Observer_NotificationFontSize = GenOnlineClientOptions::ClampObserverFontSize(observerSettings[SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE].get<double>());
-					presentSettings.insert(SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE);
 				}
 
 				if (observerSettings.contains(SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE))
 				{
 					m_Observer_NotificationSpecialPowerUsage = observerSettings[SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE].get<bool>();
-					presentSettings.insert(SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE);
 				}
 
 				if (observerSettings.contains(SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE))
 				{
 					m_Observer_NotificationSpecialPowerPurchase = observerSettings[SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE].get<bool>();
-					presentSettings.insert(SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE);
 				}
 
 				if (observerSettings.contains(SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE))
 				{
 					m_Observer_NotificationMilestone = observerSettings[SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE].get<bool>();
-					presentSettings.insert(SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE);
 				}
 			}
 
@@ -398,7 +407,7 @@ void GenOnlineSettings::Load(void)
 				}
 			}
 
-			// an unknown style or palette falls back to refit and signal, the save then writes those
+			// an unknown style falls back to refit, the save then writes it
 			if (jsonSettings.contains(SETTINGS_KEY_UI) && jsonSettings[SETTINGS_KEY_UI].is_object())
 			{
 				const auto uiSettings = jsonSettings[SETTINGS_KEY_UI];
@@ -406,11 +415,6 @@ void GenOnlineSettings::Load(void)
 				{
 					const std::string style = uiSettings[SETTINGS_KEY_UI_STYLE].get<std::string>();
 					m_UI_Style = (style == "retail" || style == "overhaul") ? style : std::string("refit");
-				}
-				if (uiSettings.contains(SETTINGS_KEY_UI_PALETTE) && uiSettings[SETTINGS_KEY_UI_PALETTE].is_string())
-				{
-					const std::string palette = uiSettings[SETTINGS_KEY_UI_PALETTE].get<std::string>();
-					m_UI_Palette = (palette == "radar" || palette == "night") ? palette : std::string("signal");
 				}
 			}
 
@@ -528,6 +532,16 @@ void GenOnlineSettings::Load(void)
                 }
             }
 
+			if (jsonSettings.contains(SETTINGS_KEY_STATS))
+			{
+				const auto& statsSettings = jsonSettings[SETTINGS_KEY_STATS];
+
+				if (statsSettings.is_object() && statsSettings.contains(SETTINGS_KEY_STATS_EXPORT) && statsSettings[SETTINGS_KEY_STATS_EXPORT].is_boolean())
+				{
+					m_bStatsExport = statsSettings[SETTINGS_KEY_STATS_EXPORT];
+				}
+			}
+
 			if (jsonSettings.contains(SETTINGS_KEY_DEBUG))
 			{
 				auto debugSettings = jsonSettings[SETTINGS_KEY_DEBUG];
@@ -591,10 +605,19 @@ void GenOnlineSettings::Load(void)
                 {
                     m_Social_Notification_PlayerSendsRequest_Gameplay = socialSettings[SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_GAMEPLAY];
                 }
+
+				if (socialSettings.contains(SETTINGS_KEY_SOCIAL_PRESENCE_STATUS))
+				{
+					const std::string status = socialSettings[SETTINGS_KEY_SOCIAL_PRESENCE_STATUS];
+					if (IsPresenceStatus(status))
+					{
+						m_Social_PresenceStatus = status;
+					}
+				}
             }
 
-			// Without plugins.transport the transport list is empty.
 			m_Plugins_Transport.clear();
+			m_Plugin_Caster.clear();
 			if (jsonSettings.contains(SETTINGS_KEY_PLUGINS))
 			{
 				auto pluginSettings = jsonSettings[SETTINGS_KEY_PLUGINS];
@@ -607,13 +630,35 @@ void GenOnlineSettings::Load(void)
 				{
 					m_Plugins_Transport = ReadPluginList(pluginSettings[SETTINGS_KEY_PLUGINS_TRANSPORT], SETTINGS_KEY_PLUGINS_TRANSPORT);
 				}
+				if (pluginSettings.contains(SETTINGS_KEY_PLUGINS_CASTER) && pluginSettings[SETTINGS_KEY_PLUGINS_CASTER].is_string())
+				{
+					m_Plugin_Caster = pluginSettings[SETTINGS_KEY_PLUGINS_CASTER].get<std::string>();
+				}
+			}
+
+			// The launcher owns the data lists. The game reads them and never writes them.
+			m_bDataInclude = false;
+			m_Data_Include.clear();
+			m_Data_Exclude.clear();
+			if (jsonSettings.contains(SETTINGS_KEY_DATA) && jsonSettings[SETTINGS_KEY_DATA].is_object())
+			{
+				const nlohmann::json& dataSettings = jsonSettings[SETTINGS_KEY_DATA];
+				if (dataSettings.contains(SETTINGS_KEY_DATA_INCLUDE) && dataSettings[SETTINGS_KEY_DATA_INCLUDE].is_array())
+				{
+					m_bDataInclude = true;
+					m_Data_Include = ReadStringList(dataSettings[SETTINGS_KEY_DATA_INCLUDE], SETTINGS_KEY_DATA_INCLUDE);
+				}
+				if (dataSettings.contains(SETTINGS_KEY_DATA_EXCLUDE) && dataSettings[SETTINGS_KEY_DATA_EXCLUDE].is_array())
+				{
+					m_Data_Exclude = ReadStringList(dataSettings[SETTINGS_KEY_DATA_EXCLUDE], SETTINGS_KEY_DATA_EXCLUDE);
+				}
 			}
 
             if (jsonSettings.contains(SETTINGS_KEY_MAPS))
             {
                 auto mapSettings = jsonSettings[SETTINGS_KEY_MAPS];
 
-                // TheSuperHackers @feature arcticdolphin 08/11/2026 Map select favourites; entries that are not strings are dropped.
+                // GenOnline @feature arcticdolphin 08/11/2026 Map select favourites, entries that are not strings are dropped.
                 if (mapSettings.contains(SETTINGS_KEY_MAPS_FAVOURITES) && mapSettings[SETTINGS_KEY_MAPS_FAVOURITES].is_array())
                 {
                     m_Maps_Favourites.clear();
@@ -641,6 +686,7 @@ void GenOnlineSettings::Load(void)
 		m_Camera_MinHeight = m_Camera_MinHeight_default;
 		m_Camera_MaxHeight_LobbyHost = GENONLINE_DEFAULT_LOBBY_CAMERA_ZOOM;
 		m_bVerbose = false;
+		m_bStatsExport = false;
 		m_Render_LimitFramerate = true;
 		m_Render_FramerateLimit_FPSVal = 60;
 		m_Render_AdaptiveQuality = true;
@@ -650,6 +696,7 @@ void GenOnlineSettings::Load(void)
         m_Social_Notification_FriendComesOnline_Gameplay = true;
         m_Social_Notification_FriendGoesOffline_Menus = true;
         m_Social_Notification_FriendGoesOffline_Gameplay = true;
+        m_Social_PresenceStatus = "online";
 
 		m_Camera_RotateFactor = GenOnlineClientOptions::CameraFactorDefault;
 		m_Camera_PitchFactor = GenOnlineClientOptions::CameraFactorDefault;
@@ -661,14 +708,8 @@ void GenOnlineSettings::Load(void)
 		m_Observer_NotificationSpecialPowerPurchase = GenOnlineClientOptions::ObserverNotificationDefault;
 		m_Observer_NotificationMilestone = GenOnlineClientOptions::ObserverNotificationDefault;
 
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json is not usable (a value cannot be read), using the defaults this session and leaving the file untouched");
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] settings.client.json is not usable (a value cannot be read), using the defaults this session and leaving the file untouched");
 		return;
-	}
-
-	// The moved settings that the file holds do not wait for Options.ini.
-	for (const std::string& path : presentSettings)
-	{
-		m_PendingOptionsIni.erase(path);
 	}
 
 	// The first save writes every setting, which fills the keys the file does not have yet.
@@ -676,133 +717,17 @@ void GenOnlineSettings::Load(void)
 	m_bClientFileWritable = bWritable;
 
 	// The save writes keys that are new or missing and skips a file that already holds every value.
-	// It leaves out the moved settings that still wait for their Options.ini value.
 	Save();
 }
 
-void GenOnlineSettings::MoveOptionsIniSettings()
+void GenOnlineSettings::Social_SetPresenceStatus(const std::string& status)
 {
-	// Options.ini lives in the user data folder. Generals knows that folder only once GameData.ini is parsed.
-	if (m_bOptionsIniMoved || TheGlobalData == nullptr || TheGlobalData->getPath_UserData().isEmpty())
+	if (!IsPresenceStatus(status) || status == m_Social_PresenceStatus)
 	{
 		return;
 	}
-	m_bOptionsIniMoved = true;
-
-	TakeOptionsIniValues();
-	m_PendingOptionsIni.clear();
-
-	// Without a client.json this client may write, the values last for this session and Options.ini keeps them.
-	if (!m_bClientFileWritable)
-	{
-		return;
-	}
-
-	// Options.ini loses the old keys only after client.json holds the values.
-	if (Save() && m_bClientFileWritable)
-	{
-		RemoveOptionsIniKeys();
-	}
-}
-
-void GenOnlineSettings::TakeOptionsIniValues()
-{
-	if (m_PendingOptionsIni.empty())
-	{
-		return;
-	}
-
-	OptionPreferences optionsIni;
-	for (const OptionsIniSetting& setting : s_OptionsIniSettings)
-	{
-		if (m_PendingOptionsIni.count(setting.path) == 0)
-		{
-			continue;
-		}
-		OptionPreferences::const_iterator it = optionsIni.find(setting.optionsIniKey);
-		if (it == optionsIni.end())
-		{
-			continue;
-		}
-
-		// Each value is read the way the old Options.ini reader read it, so the move keeps what the player had.
-		const char* text = it->second.str();
-		const std::string path = setting.path;
-		bool bTaken = true;
-		if (path == SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_ROTATE_FACTOR)
-		{
-			m_Camera_RotateFactor = GenOnlineClientOptions::ReadOptionsIniCameraMultiplier(text);
-		}
-		else if (path == SETTINGS_KEY_CAMERA "." SETTINGS_KEY_CAMERA_PITCH_FACTOR)
-		{
-			m_Camera_PitchFactor = GenOnlineClientOptions::ReadOptionsIniCameraMultiplier(text);
-		}
-		else if (path == SETTINGS_KEY_MEDIA "." SETTINGS_KEY_MEDIA_LEGACY)
-		{
-			bTaken = GenOnlineClientOptions::ParseOptionsIniYesNo(text, m_Media_Legacy);
-		}
-		else if (path == SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_STATS_FONT_SIZE)
-		{
-			m_Observer_StatsFontSize = GenOnlineClientOptions::ReadOptionsIniFontSize(text);
-		}
-		else if (path == SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_FONT_SIZE)
-		{
-			m_Observer_NotificationFontSize = GenOnlineClientOptions::ReadOptionsIniFontSize(text);
-		}
-		else if (path == SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_USAGE)
-		{
-			m_Observer_NotificationSpecialPowerUsage = GenOnlineClientOptions::ReadOptionsIniObserverFlag(text);
-		}
-		else if (path == SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_SPECIAL_POWER_PURCHASE)
-		{
-			m_Observer_NotificationSpecialPowerPurchase = GenOnlineClientOptions::ReadOptionsIniObserverFlag(text);
-		}
-		else if (path == SETTINGS_KEY_OBSERVER "." SETTINGS_KEY_OBSERVER_NOTIFICATION_MILESTONE)
-		{
-			m_Observer_NotificationMilestone = GenOnlineClientOptions::ReadOptionsIniObserverFlag(text);
-		}
-
-		if (bTaken)
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Took %s of Options.ini for %s", setting.optionsIniKey, setting.path);
-		}
-		else
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Ignoring %s of Options.ini, its value is not valid", setting.optionsIniKey);
-		}
-	}
-}
-
-void GenOnlineSettings::RemoveOptionsIniKeys()
-{
-	if (TheGlobalData == nullptr)
-	{
-		return;
-	}
-
-	OptionPreferences optionsIni;
-	bool bErased = false;
-	for (const OptionsIniSetting& setting : s_OptionsIniSettings)
-	{
-		if (optionsIni.erase(setting.optionsIniKey) != 0)
-		{
-			bErased = true;
-		}
-	}
-	if (!bErased)
-	{
-		return;
-	}
-
-	// A failed write keeps the keys. client.json already holds the values and the next start tries again.
-	if (optionsIni.write())
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Removed the settings that moved to client.json from Options.ini");
-	}
-	else
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Cannot remove the settings that moved to client.json from Options.ini");
-	}
+	m_Social_PresenceStatus = status;
+	Save();
 }
 
 void GenOnlineSettings::Observer_SetStatsFontSize(int fontSize)
@@ -859,7 +784,6 @@ static void ApplyChangedSettings(const nlohmann::json& before, const nlohmann::j
 	}
 }
 
-// Removes a key of a section when both exist.
 static void EraseSettingKey(nlohmann::json& document, const char* section, const char* key)
 {
 	if (document.contains(section) && document[section].is_object())
@@ -868,36 +792,18 @@ static void EraseSettingKey(nlohmann::json& document, const char* section, const
 	}
 }
 
-void GenOnlineSettings::LoadPackList()
+std::vector<std::string> GenOnlineSettings::Data_ExcludePaths() const
 {
-	m_bPackList = false;
-	m_PackStack.clear();
-	m_DataPacks_UserExcludePaths.clear();
-	if (!CommandLine::hasPackList())
+	std::vector<std::string> paths;
+	for (const std::string& entry : m_Data_Exclude)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Pack list: no -packs, using the built-in packs");
-		return;
+		const std::string prefix = entry.substr(0, 5);
+		const bool hasBase = _strnicmp(prefix.c_str(), "game:", 5) == 0 || _strnicmp(prefix.c_str(), "user:", 5) == 0;
+		const bool isAbsolute = (entry.size() > 2 && isalpha(static_cast<unsigned char>(entry[0])) && entry[1] == ':' && (entry[2] == '\\' || entry[2] == '/'))
+			|| (entry.size() > 1 && (entry[0] == '\\' || entry[0] == '/') && (entry[1] == '\\' || entry[1] == '/'));
+		paths.push_back(hasBase || isAbsolute ? entry : "game:" + entry);
 	}
-
-#if RTS_GENERALS
-	const char* game = "generals";
-#else
-	const char* game = "generalsmd";
-#endif
-	const GenOnlinePackList::Result result = GenOnlinePackList::ReadFile(CommandLine::getPackListPath(), game);
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "Pack list: %s", CommandLine::getPackListPath());
-	for (const std::string& line : result.log)
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "%s", line.c_str());
-	}
-	if (result.status != GenOnlinePackList::Status::Ok)
-	{
-		return;
-	}
-
-	m_bPackList = true;
-	m_PackStack = result.stack;
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "Pack list: %d packs above retail", static_cast<int>(m_PackStack.size()));
+	return paths;
 }
 
 bool GenOnlineSettings::Save()
@@ -907,7 +813,7 @@ bool GenOnlineSettings::Save()
 		Initialize();
 	}
 
-	// Without a client.json this client may write, a change only lasts for this session.
+	// Without a settings.client.json this client may write, a change only lasts for this session.
 	if (!m_bClientFileWritable)
 	{
 		return true;
@@ -956,7 +862,6 @@ bool GenOnlineSettings::Save()
 			SETTINGS_KEY_UI,
 				{
 					{SETTINGS_KEY_UI_STYLE, m_UI_Style},
-					{SETTINGS_KEY_UI_PALETTE, m_UI_Palette},
 				}
 		},
 
@@ -982,6 +887,13 @@ bool GenOnlineSettings::Save()
 		},
 
 		{
+			SETTINGS_KEY_STATS,
+				{
+					{SETTINGS_KEY_STATS_EXPORT, m_bStatsExport},
+				}
+		},
+
+		{
 			SETTINGS_KEY_DEBUG,
 				{
 					{SETTINGS_KEY_DEBUG_VERBOSE_LOGGING, m_bVerbose},
@@ -999,6 +911,7 @@ bool GenOnlineSettings::Save()
 					{SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_ACCEPTS_REQUEST_GAMEPLAY, m_Social_Notification_PlayerAcceptsRequest_Gameplay},
                     {SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_MENUS, m_Social_Notification_PlayerSendsRequest_Menus},
                     {SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_GAMEPLAY, m_Social_Notification_PlayerSendsRequest_Gameplay},
+                    {SETTINGS_KEY_SOCIAL_PRESENCE_STATUS, m_Social_PresenceStatus},
                 }
         },
 
@@ -1006,7 +919,8 @@ bool GenOnlineSettings::Save()
 			SETTINGS_KEY_PLUGINS,
                 {
                     {SETTINGS_KEY_PLUGINS_ANTICHEAT, m_Plugins_Anticheat},
-                    {SETTINGS_KEY_PLUGINS_TRANSPORT, m_Plugins_Transport}
+                    {SETTINGS_KEY_PLUGINS_TRANSPORT, m_Plugins_Transport},
+                    {SETTINGS_KEY_PLUGINS_CASTER, m_Plugin_Caster}
                 }
         },
 
@@ -1018,23 +932,19 @@ bool GenOnlineSettings::Save()
         }
     };
 	
-	// The launcher and other game instances also write client.json, so the save reads the file again and only writes the
+	// The launcher and other game instances also write settings.client.json, so the save reads the file again and only writes the
 	// settings this client changed since its last save.
 	const GenOnlineClientFile::ReadResult current = GenOnlineClientFile::Read(m_ClientFilePath, ClientFileKeys());
 	if (current.status != GenOnlineClientFile::ReadStatus::Ok)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] client.json is no longer writable (%s), the change lasts for this session", current.reason.c_str());
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] settings.client.json is no longer writable (%s), the change lasts for this session", current.reason.c_str());
 		m_bClientFileWritable = false;
 		return true;
 	}
 
-	// A moved setting is not written before its Options.ini value was read, so its default never hides that value.
-	GenOnlineClientOptions::DropPendingSettings(root, m_PendingOptionsIni);
-
 	const nlohmann::json lastWritten = nlohmann::json::parse(m_PreservedJSON);
 	nlohmann::json updated = current.document;
 	ApplyChangedSettings(lastWritten, root, updated);
-	// settings this build no longer has are dropped from the file
 	EraseSettingKey(updated, SETTINGS_KEY_RENDER, SETTINGS_KEY_RENDER_LEGACY_DRAW_STATS_OVERLAY);
 	EraseSettingKey(updated, SETTINGS_KEY_CAMERA, SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO);
 	EraseSettingKey(updated, SETTINGS_KEY_NETWORK, SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT);
@@ -1054,7 +964,7 @@ bool GenOnlineSettings::Save()
 	const std::string strData = updated.dump(2);
 	if (!GenOnlineClientFile::WriteExisting(m_ClientFilePath, strData))
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Failed to save client.json");
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Failed to save settings.client.json");
 		return false;
 	}
 
@@ -1105,7 +1015,7 @@ bool GenOnlineSettings::Network_SaveConnectionSettings(const ServiceConnectionSe
 		return true;
 	}
 	m_ConnectionSettings = previous;
-	error = "Could not save connection settings. Check the permissions of client.json.";
+	error = "Could not save connection settings. Check the permissions of settings.client.json.";
 	return false;
 }
 

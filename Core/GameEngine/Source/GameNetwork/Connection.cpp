@@ -152,7 +152,6 @@ void Connection::sendNetCommandMsg(NetCommandMsg *msg, UnsignedByte relay) {
 		return;
 
 #if defined(GENONLINE)
-	// a signed frame info goes out in its signed form
 	if (msg->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO && ((NetFrameCommandMsg *)msg)->hasSignature()) {
 		NetSignedFrameCommandMsg *signedMsg = newInstance(NetSignedFrameCommandMsg)((NetFrameCommandMsg *)msg);
 		sendNetCommandMsg(signedMsg, relay);
@@ -259,7 +258,6 @@ void Connection::resetRedundancy() {
 }
 
 #if defined(GENONLINE)
-// The mesh connection to the peer in a slot, nullptr when there is none.
 static PlayerConnection *GetMeshConnection(Int slot) {
 	if (TheGenOnlineGame == nullptr || slot < 0) {
 		return nullptr;
@@ -307,7 +305,7 @@ void Connection::setRedundancyDepth(Int depth, Int cap, time_t now) {
 #endif
 }
 
-// How our packets fared on their way to the peer, from the peer's own reports; FALSE when there are none, then nothing is gated on them.
+// How the packets to the peer fared according to the reports of the peer. FALSE when there are none, so nothing is gated on them.
 Bool Connection::getOutgoingLoss(float &lossPercent, Int &longestRun) {
 #if defined(GENONLINE)
 	PlayerConnection *connection = GetMeshConnection(m_slot);
@@ -679,7 +677,7 @@ NetCommandRef * Connection::processAck(UnsignedShort commandID, UnsignedByte ori
 #endif
 
 	// A retried command was last sent after its first send, so its round trip time would be too short.
-	// Redundant copies are not retries: any copy's ack counts as an ack of the first send.
+	// Redundant copies are not retries. Any ack of a copy counts as an ack of the first send.
 	const time_t now = timeGetTime();
 	if (temp->isRetried()) {
 		// an ack faster than any round trip so far answers the earlier send: the retry was for a late ack
@@ -695,7 +693,7 @@ NetCommandRef * Connection::processAck(UnsignedShort commandID, UnsignedByte ori
 				m_stats.noteAcked((Real)(now - temp->getTimeFirstSent()), now);
 			}
 		} else if (fastResend) {
-			// Karn: no sample from an ambiguous ack; the burst event moves here from the resend, a slow ack is no loss
+			// Karn: no sample from an ambiguous ack, so the burst event moves here from the resend because a slow ack is no loss
 			noteLossEvent(now, TRUE);
 		}
 	} else {

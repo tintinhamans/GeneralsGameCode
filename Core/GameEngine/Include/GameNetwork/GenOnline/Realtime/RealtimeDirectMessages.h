@@ -16,12 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: RealtimeDirectMessages.h ////////////////////////////////////////////
-// Description: Direct message conversations of the GenOnline realtime
-//              protocol v1. Each side of a direct message sees the channel
-//              dm:<the other user>. It keeps the unread counts of Conversations,
-//              MessageCreate and ReadMarker, and merges GetHistory with the live
-//              messages of a conversation once per message id.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -40,7 +34,6 @@
 namespace GenOnlineRealtime
 {
 
-// The number of messages GetHistory loads when a conversation opens.
 inline constexpr int DIRECT_HISTORY_LIMIT = 50;
 
 // The user id of the other user of a "dm:<user id>" channel, or -1 for any other channel.
@@ -74,7 +67,6 @@ inline std::string DirectMessageChannel(int64_t peer)
 	return "dm:" + std::to_string(peer);
 }
 
-// The unread state of the direct conversations of the user, keyed by the other user.
 class DirectMessageUnread
 {
 public:
@@ -103,7 +95,7 @@ public:
 		return becameUnread;
 	}
 
-	// Counts a new message of the other user. Returns true when the conversation was read before.
+	// Returns true when the conversation was read before.
 	bool AddUnread(int64_t peer)
 	{
 		State& state = m_states[peer];
@@ -138,7 +130,6 @@ public:
 		m_states[peer];
 	}
 
-	// The users of every known conversation.
 	std::vector<int64_t> Peers() const
 	{
 		std::vector<int64_t> peers;
@@ -194,7 +185,7 @@ public:
 	const std::string& ChannelID() const { return m_channelID; }
 	const std::vector<DirectChatLine>& Lines() const { return m_lines; }
 
-	// The message of a shown line, for its context menu. Null for a note or an unknown key.
+	// Null for a note or an unknown key.
 	const ChatMessage* MessageOf(uint32_t key) const
 	{
 		if (key == 0)
@@ -217,7 +208,7 @@ public:
 	void HistoryFailed() { m_historyPending = false; }
 	void ForgetHistory() { m_historyLoaded = false; }
 
-	// Adds a MessageCreate. Returns false for a duplicate, a tombstone or another channel.
+	// Returns false for a duplicate, a tombstone or another channel.
 	bool AddLive(const ChatMessage& message, DirectChatLine& added)
 	{
 		bool bAdded = false;
@@ -302,7 +293,6 @@ public:
 		return key;
 	}
 
-	// The newest shown message, or nullptr when the conversation shows none.
 	const ChatMessage* NewestMessage() const
 	{
 		for (std::vector<DirectChatLine>::const_reverse_iterator it = m_lines.rbegin(); it != m_lines.rend(); ++it)

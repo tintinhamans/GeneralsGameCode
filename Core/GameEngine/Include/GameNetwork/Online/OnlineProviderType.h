@@ -26,8 +26,7 @@
 
 #include "Lib/BaseType.h"
 
-// Provider identifiers. Values are stable; append new providers before
-// ONLINE_PROVIDER_COUNT so existing configuration files keep resolving.
+// Append new providers before ONLINE_PROVIDER_COUNT to keep configured values stable.
 enum OnlineProviderType CPP_11(: Int)
 {
 	ONLINE_PROVIDER_GAMESPY = 0,

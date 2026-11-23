@@ -4,7 +4,6 @@
 #include "Common/AdaptiveQualityModel.h"
 #include "Common/AdaptiveQualityPower.h"
 
-// Read-only snapshot for the network overlay
 struct AdaptiveQualityOverlay
 {
 	enum { LEVELS = AdaptiveQualityLevels::MAX_LEVELS };
@@ -28,6 +27,9 @@ struct AdaptiveQualityOverlay
 	Bool savingLearned[LEVELS];
 	float downInSec;			// seconds until a step down is allowed, -1 when no level is left to lower
 	float upInSec;				// seconds until a step up is allowed, -1 at level 0
+	Int catchUpFrames;			// logic frames the current level lets the game fall behind and make up in one drawn frame
+	Int catchUpPerSec;			// extra logic frames run in the last second
+	float catchUpMs;			// logic time those frames took in the last second
 };
 
 class AdaptiveQuality
@@ -35,16 +37,22 @@ class AdaptiveQuality
 public:
 	static AdaptiveQuality& get();
 
-	// the main loop, once per iteration
 	void frameBegin();
 	void frameEnd();
 	// own cost: game logic, client update and client step in QPC ticks
 	void addOwn(long long ticks) { m_ownTicks += ticks; }
-	// time blocked in Present: counts only when the frame missed its deadline, a met frame was waiting on vsync
+	// extra logic frames the catch-up loop ran, kept out of the frame cost so catching up never lowers the quality by itself
+	void addCatchUp(long long ticks, Int frames) { m_catchUpTicks += ticks; m_catchUpFrames += frames; }
+	// logic frames the game may fall behind before the lost time is dropped, and the most one drawn frame runs to make them up
+	// it is the full quality value with dynamic details off
+	Int catchUpFrames() const;
+	// logic time after which no further catch-up frame starts in this drawn frame
+	double catchUpBudgetMs() const;
+	// time blocked in Present: counts only when the frame missed its deadline, since a met frame was waiting on vsync
 	void addPresentWait(long long ticks) { m_presentTicks += ticks; }
 	// W3DDisplay::draw: whether the device is windowed and whether fullscreen Present waits for the display
 	void notePresentMode(Bool windowed, Bool intervalSynced) { m_windowed = windowed; m_intervalSynced = intervalSynced; }
-	// this iteration waited on the other players, its cost is not this machine's
+	// this iteration waited on the other players, so it says nothing about the cost on this machine
 	void noteNetworkWait() { m_networkWait = TRUE; }
 	static long long now();
 
@@ -81,6 +89,10 @@ private:
 	long long m_freq;
 	long long m_ownTicks;
 	long long m_presentTicks;
+	long long m_catchUpTicks;
+	Int m_catchUpFrames;
+	Int m_lastCatchUpFrames;
+	double m_lastCatchUpMs;
 	long long m_secondStart;
 	long long m_matchStart;
 	Bool m_networkWait;

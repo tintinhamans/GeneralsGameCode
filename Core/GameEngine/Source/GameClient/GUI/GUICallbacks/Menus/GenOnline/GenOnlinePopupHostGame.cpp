@@ -22,7 +22,6 @@
 //																																						//
 ////////////////////////////////////////////////////////////////////////////////
 
-// FILE: GenOnlinePopupHostGame.cpp /////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
 //
 //                       Electronic Arts Pacific.
@@ -78,6 +77,7 @@
 #include "GameNetwork/GenOnline/GenOnlineDefines.h"
 #include "GameNetwork/GenOnline/GenOnlineInit.h"
 #include "GameNetwork/GenOnline/GenOnlineLobbyInterface.h"
+#include "GameNetwork/GenOnline/GenOnlineAnticheatKind.h"
 #include "GameNetwork/GenOnline/GenOnlineAuth.h"
 #include "GameClient/MapUtil.h"
 #include "GameClient/GameWindow.h"
@@ -98,6 +98,7 @@ static NameKeyType comboBoxLadderNameID = NAMEKEY_INVALID;
 static NameKeyType textEntryGamePasswordID = NAMEKEY_INVALID;
 static NameKeyType checkBoxLimitArmiesID = NAMEKEY_INVALID;
 static NameKeyType checkBoxUseStatsID = NAMEKEY_INVALID;
+static NameKeyType checkBoxRequireEacID = NAMEKEY_INVALID;
 
 static GameWindow *parentPopup = nullptr;
 static GameWindow *textEntryGameName = nullptr;
@@ -110,6 +111,7 @@ static GameWindow *textEntryLadderPassword = nullptr;
 static GameWindow *textEntryGamePassword = nullptr;
 static GameWindow *checkBoxLimitArmies = nullptr;
 static GameWindow *checkBoxUseStats = nullptr;
+static GameWindow *checkBoxRequireEac = nullptr;
 
 
 void GenOnlineCreateGame();
@@ -186,7 +188,6 @@ void GenOnlinePopulateCustomLadderComboBox()
 // Window Functions -----------------------------------------------------------------------
 
 //-------------------------------------------------------------------------------------------------
-/** Initialize the GenOnlinePopupHostGameInit menu */
 //-------------------------------------------------------------------------------------------------
 void GenOnlinePopupHostGameInit( WindowLayout *layout, void *userData )
 {
@@ -241,6 +242,9 @@ void GenOnlinePopupHostGameInit( WindowLayout *layout, void *userData )
   checkBoxUseStats = TheWindowManager->winGetWindowFromId(parentPopup, checkBoxUseStatsID);
 	Bool usingStats = customPref.getUseStats();
   GadgetCheckBoxSetChecked( checkBoxUseStats, usingStats );
+  // The Zero Hour string file has the use stats texts, the Generals one does not, so they fall back to English.
+  GadgetCheckBoxSetText( checkBoxUseStats, TheGameText->FETCH_OR_SUBSTITUTE("GUI:UseStats", L"Record Stats") );
+  checkBoxUseStats->winSetTooltip( TheGameText->FETCH_OR_SUBSTITUTE("TOOLTIP:UseStats", L"Select whether the statistics of this game will be recorded") );
 
   checkBoxLimitArmiesID = TheNameKeyGenerator->nameToKey("PopupHostGame.wnd:CheckBoxLimitArmies");
   checkBoxLimitArmies = TheWindowManager->winGetWindowFromId(parentPopup, checkBoxLimitArmiesID);
@@ -259,10 +263,21 @@ void GenOnlinePopupHostGameInit( WindowLayout *layout, void *userData )
 	checkBoxLimitArmies->winHide( TRUE );
 #endif
 
+	// GenOnline @feature arcticdolphin 22/11/2026 Requiring Easy Anti-Cheat needs the host to run it.
+	checkBoxRequireEacID = TheNameKeyGenerator->nameToKey("PopupHostGame.wnd:CheckBoxRequireEac");
+	checkBoxRequireEac = TheWindowManager->winGetWindowFromId(parentPopup, checkBoxRequireEacID);
+	const Bool hasEac = LocalAnticheatKind() == EAnticheatKind::Eac;
+	GadgetCheckBoxSetChecked( checkBoxRequireEac, FALSE );
+	GadgetCheckBoxSetText( checkBoxRequireEac, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GORequireEac", L"Require Easy Anti-Cheat") );
+	checkBoxRequireEac->winEnable( hasEac );
+	checkBoxRequireEac->winSetTooltip( hasEac
+		? TheGameText->FETCH_OR_SUBSTITUTE("TOOLTIP:GORequireEac", L"Only players running Easy Anti-Cheat can join this lobby")
+		: TheGameText->FETCH_OR_SUBSTITUTE("TOOLTIP:GORequireEacOff", L"Easy Anti-Cheat must be running to require it") );
+
 	TheWindowManager->winSetFocus(textEntryGameName);
 	TheWindowManager->winSetModal( parentPopup );
 
-	// GO's Menus/PopupHostGame.wnd places the observers box; retail ships it hidden
+	// GO Menus/PopupHostGame.wnd places the observers box. Retail ships it hidden
 	checkBoxAllowObservers->winHide(false);
 
 	// hide password for streams
@@ -274,7 +289,6 @@ void GenOnlinePopupHostGameInit( WindowLayout *layout, void *userData )
 
 
 //-------------------------------------------------------------------------------------------------
-/** GenOnlinePopupHostGameUpdate callback */
 //-------------------------------------------------------------------------------------------------
 void GenOnlinePopupHostGameUpdate( WindowLayout * layout, void *userData)
 {
@@ -293,7 +307,6 @@ void GenOnlinePopupHostGameUpdate( WindowLayout * layout, void *userData)
 
 
 //-------------------------------------------------------------------------------------------------
-/** GenOnlinePopupHostGameInput callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType GenOnlinePopupHostGameInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 )
 {
@@ -342,7 +355,6 @@ WindowMsgHandledType GenOnlinePopupHostGameInput( GameWindow *window, UnsignedIn
 }
 
 //-------------------------------------------------------------------------------------------------
-/** GenOnlinePopupHostGameSystem callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType GenOnlinePopupHostGameSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 )
 {
@@ -483,10 +495,10 @@ WindowMsgHandledType GenOnlinePopupHostGameSystem( GameWindow *window, UnsignedI
 extern GlobalData* TheWritableGlobalData;
 void GenOnlineCreateGame()
 {
-	// TODO_NGMP: exe and ini crc, verison etc
-	// TODO_NGMP: passworded lobbies
+	// TODO_GENONLINE: exe and ini crc, verison etc
+	// TODO_GENONLINE: passworded lobbies
 
-	// TODO_NGMP: Support 'favorite map' again
+	// TODO_GENONLINE: Support 'favorite map' again
 	AsciiString defaultMap = getDefaultMap(true);
     CustomMatchPreferences pref;
 	AsciiString storedMap = pref.getAsciiString("Map", AsciiString::TheEmptyString);
@@ -504,6 +516,7 @@ void GenOnlineCreateGame()
 	Bool limitArmies = GadgetCheckBoxIsChecked(checkBoxLimitArmies);
 	Bool useStats = GadgetCheckBoxIsChecked(checkBoxUseStats);
 	Bool bAllowObservers = GadgetCheckBoxIsChecked(checkBoxAllowObservers);
+	Bool bRequireEac = GadgetCheckBoxIsChecked(checkBoxRequireEac);
 
 	{
 		CustomMatchPreferences pref;
@@ -519,7 +532,7 @@ void GenOnlineCreateGame()
 	passwd.translate(GadgetTextEntryGetText(textEntryGamePassword));
 
 
-	// NGMP:NOTE: We count money here because mods etc sometimes change the starting money, so we dont want to hard code it, just create with whatever the client is telling us is a sensible amount
+	// GenOnline:NOTE: Mods can change the starting money, so the lobby takes the amount this client reports instead of a fixed value.
 	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (!pLobbyInterface)
 	{
@@ -530,7 +543,7 @@ void GenOnlineCreateGame()
 		return;
 	}
 
-	pLobbyInterface->CreateLobby(gameName, md->m_displayName, md->m_fileName, md->m_isOfficial, md->m_numPlayers, limitArmies, useStats, TheGlobalData->m_defaultStartingCash.countMoney(), passwd.isNotEmpty(), std::string(passwd.str()), bAllowObservers);
+	pLobbyInterface->CreateLobby(gameName, md->m_displayName, md->m_fileName, md->m_isOfficial, md->m_numPlayers, limitArmies, useStats, TheGlobalData->m_defaultStartingCash.countMoney(), passwd.isNotEmpty(), std::string(passwd.str()), bAllowObservers, bRequireEac);
 
 	GSMessageBoxCancel(UnicodeString(L"Creating Lobby"), UnicodeString(L"Lobby Creation is in progress..."), nullptr);
 

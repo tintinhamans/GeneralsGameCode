@@ -140,7 +140,7 @@ void HeaderTemplateManager::init()
 	}
 #if defined(GENONLINE)
 	{
-		// TheSuperHackers @tweak arcticdolphin 08/11/2026 GO copies of the templates for the GO menu layouts, which a mod
+		// GenOnline @tweak arcticdolphin 08/11/2026 GO copies of the templates for the GO menu layouts, which a mod
 		// replacing the language HeaderTemplate.ini does not resize
 		INI ini;
 		ini.loadFileDirectory( AsciiString("Data\\GeneralsOnline\\HeaderTemplate"), INI_LOAD_OVERWRITE, nullptr );
@@ -229,7 +229,7 @@ void HeaderTemplateManager::populateGameFonts()
 	while(it != m_headerTemplateList.end())
 	{
 		HeaderTemplate *hTemplate = *it;
-		// TheSuperHackers @tweak arcticdolphin 08/11/2026 Window header fonts scale with the screen height like the layout rows.
+		// GenOnline @tweak arcticdolphin 08/11/2026 Window header fonts scale with the screen height like the layout rows.
 		Int pointSize;
 		if (GameWindowManager::winUseLegacyLayoutFonts())
 			pointSize = TheGlobalLanguageData->adjustFontSize(hTemplate->m_point);

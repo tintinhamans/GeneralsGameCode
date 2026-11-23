@@ -153,7 +153,6 @@ static const Char* getFileExistKey(Char* keyBuffer, size_t keyBufferSize, const 
 
 
 //============================================================================
-// PathExcludeList
 //============================================================================
 
 static std::string normalizeExcludeText(const std::string& text)
@@ -233,7 +232,6 @@ Bool PathExcludeList::parse(const std::string& text, std::string* pattern, Ascii
 		return FALSE;
 	}
 
-	// no parent folders
 	size_t pos = 0;
 	while (pos <= rest.size())
 	{
@@ -249,7 +247,6 @@ Bool PathExcludeList::parse(const std::string& text, std::string* pattern, Ascii
 		pos = next + 1;
 	}
 
-	// a folder: everything in it
 	if (rest[rest.size() - 1] == '\\')
 		rest += "*";
 
@@ -288,7 +285,6 @@ void PathExcludeList::set(const std::vector<std::string>& entries)
 	}
 }
 
-// * matches any text, ? one character
 static Bool matchesExcludePattern(const char* pattern, const char* text)
 {
 	const char* starPattern = nullptr;
@@ -331,18 +327,11 @@ Bool PathExcludeList::matches(const std::string& key) const
 }
 
 //============================================================================
-// FileSystem::isLooseFileExcluded
 //============================================================================
 
 Bool FileSystem::isLooseFileExcluded(const Char *filename) const
 {
-	if (m_excludedPaths.matchesPath(filename))
-	{
-		return TRUE;
-	}
-
-	// the game folder is retail, so a pack of the -packs stack wins over its loose files
-	return TheArchiveFileSystem != nullptr && TheArchiveFileSystem->isLooseFileShadowedByPack(filename);
+	return m_excludedPaths.matchesPath(filename);
 }
 
 //============================================================================

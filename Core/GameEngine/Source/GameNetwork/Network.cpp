@@ -55,6 +55,7 @@
 #include "../GenOnlineInterfaces.h"
 #if defined(GENONLINE)
 #include "GameNetwork/GenOnline/WifiLowLatency.h"
+#include "Common/AdaptiveQuality.h"
 #endif
 
 
@@ -341,7 +342,6 @@ Network::~Network()
 {
 	deinit();
 #if defined(GENONLINE)
-	// the match is over, release the Wi-Fi tuning
 	WifiLowLatency::End();
 #endif
 }
@@ -467,7 +467,7 @@ void Network::applyStartRunAhead(Int runAhead, Int maxRttMs, Int pairs)
 	runAhead = clamp<Int>(m_conMgr->getRunAheadFloor(), runAhead, m_conMgr->getRunAheadCap());
 	const Int previousRunAhead = m_runAhead;
 
-	// no frame of the match has run and no peer sent commands for one, every peer waits for our load complete first
+	// no frame of the match has run and no peer sent commands for one, every peer waits for the local load complete first
 	m_conMgr->applyStartRunAhead(previousRunAhead, runAhead);
 	m_runAhead = runAhead;
 	m_lastExecutionFrame = m_runAhead - 1;
@@ -646,7 +646,7 @@ void Network::updateLogicFrame()
 			if (TheGameLogic->getFrame() == 1) {
 #endif
 #if defined(GENONLINE)
-				// Pregame updates drive loading; only entering gameplay requires completed setup.
+				// Pregame updates drive loading and only entering gameplay requires completed setup.
 				// A load that was forced on because the router went silent has no start run ahead, every player that got here starts at the retail one.
 				if (m_startRunAheadRequired && !m_startRunAheadApplied) {
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "[RUNAHEAD] the load was forced on without the router's decision, start R=%d as in retail", (Int)m_runAhead);
@@ -1024,7 +1024,6 @@ Bool Network::timeForNewFrame() {
 	 * running too far behind us, so we need to slow down to let them catch up.
 	 */
 #if defined(GENONLINE)
-	// stretch the next frame while a remote player's commands are short
 	if (m_conMgr != NULL && curTime >= m_nextFrameTime) {
 		updatePace();
 		frameDelay = (__int64)((double)frameDelay / (double)m_paceSpeed);
@@ -1050,9 +1049,7 @@ Bool Network::timeForNewFrame() {
 
 		__int64 catchUpFrames = 1;
 #if defined(GENONLINE)
-		if (m_conMgr != nullptr) {
-			catchUpFrames = m_conMgr->getNetworkSettings().input_delay.catch_up_frames;
-		}
+		catchUpFrames = AdaptiveQuality::get().catchUpFrames();
 #endif
 		if (m_nextFrameTime + catchUpFrames * frameDelay < curTime) {
 			// If we get too far behind on our framerate we need to reset the nextFrameTime thing.
@@ -1060,6 +1057,8 @@ Bool Network::timeForNewFrame() {
 			// after a stall the lost time is not caught up
 			m_nextFrameTime = curTime + frameDelay;
 #else
+		//if ((m_nextFrameTime + ((GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER * 2) * frameDelay)) < curTime) {
+			// If we get too far behind on our framerate we need to reset the nextFrameTime thing.
 			m_nextFrameTime = curTime;
 #endif
 			NetworkLog(ELogVerbosity::LOG_DEBUG, "Initializing m_nextFrameTime to %I64d", m_nextFrameTime);
@@ -1076,7 +1075,7 @@ Bool Network::timeForNewFrame() {
 }
 
 #if defined(GENONLINE)
-/** Slows the next frame while a remote player's commands run short; 90% floor, ramps down over 4 frames and up over 10. */
+/** Slows the next frame while the commands of a remote player run short, with a 90% floor, ramping down over 4 frames and up over 10. */
 void Network::updatePace() {
 	static const Real PACE_FLOOR_SPEED = 0.9f;
 	enum { PACE_SLOW_FRAMES = 4, PACE_RECOVER_FRAMES = 10 };

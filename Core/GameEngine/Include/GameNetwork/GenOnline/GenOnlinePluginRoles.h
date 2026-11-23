@@ -4,18 +4,17 @@
 #include <string>
 #include <vector>
 
-// Decides which external plugin DLL the plugin host loads and for which role, from plugins.anticheat and plugins.transport of client.json.
+// Decides which external plugin DLL the plugin host loads and for which role, from plugins.anticheat and plugins.transport of settings.client.json.
 namespace GenOnlinePluginRoles
 {
 	struct Selection
 	{
-		// The plugin DLL to load. Empty when no external plugin loads.
+		// Empty when no external plugin loads.
 		std::string pluginName;
 
 		// True when the plugin is the anticheat provider. GenOnline Anti-Cheat is the anticheat otherwise.
 		bool bAnticheat = false;
 
-		// True when the host uses the plugin transport.
 		bool bTransport = false;
 
 		// Transport plugins that do not load because the host loads one external plugin.

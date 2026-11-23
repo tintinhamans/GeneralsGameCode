@@ -172,7 +172,7 @@ bool IsTrustedServiceURL(const std::string& value, const std::string& base, bool
 	std::string rawPath;
 	if (authorityEnd != std::string::npos && value[authorityEnd] == '/')
 		rawPath = value.substr(authorityEnd, value.find('?', authorityEnd) - authorityEnd);
-	// query escaping is legitimate; path separators and dot segments must not change after validation
+	// query escaping is legitimate, path separators and dot segments must not change after validation
 	const auto lowerPath = Lower(rawPath);
 	if ((websocket && rawPath.find('%') != std::string::npos) || lowerPath.find("%2e") != std::string::npos ||
 		lowerPath.find("%2f") != std::string::npos || lowerPath.find("%5c") != std::string::npos ||
@@ -233,7 +233,7 @@ std::string RequestURLForLog(const std::string& value, const std::string& servic
 	const auto port = Part(url.get(), CURLUPART_PORT);
 	const std::string origin = scheme + "://" + host + (port.empty() || port == (scheme == "http" ? "80" : "443") ? "" : ":" + port);
 	const auto path = Part(url.get(), CURLUPART_PATH);
-	// only known service routes are logged; other paths may carry private identifiers
+	// only known service routes are logged, other paths may carry private identifiers
 	if (path.find('%') != std::string::npos || !IsTrustedServiceURL(origin + path, serviceBase, false))
 		return origin + "/[redacted]";
 	return origin + GenOnlineRealtime::RestPathForLog(path);

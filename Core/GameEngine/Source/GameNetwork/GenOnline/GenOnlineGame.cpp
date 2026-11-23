@@ -31,7 +31,6 @@ GenOnlineGameSlot::GenOnlineGameSlot()
 	m_pingStr.clear();
 }
 
-// GenOnlineGame ----------------------------------------
 
 GenOnlineGame::GenOnlineGame()
 {
@@ -52,13 +51,11 @@ GenOnlineGame::GenOnlineGame()
 
 	enterGame(); // this is done on join in the GS impl, and must be called before setMap
 
-	// NGMP: Store map
 	setMap(pLobbyInterface->GetCurrentLobbyMapPath());
 
 	// init
 	//init();
 
-	// NGMP: Populate slots
 	UpdateSlotsFromCurrentLobby();
 }
 
@@ -142,7 +139,7 @@ void GenOnlineGame::UpdateSlotsFromCurrentLobby()
 	{
 		if (lobbyMember.user_id != -1 && !lobbyMember.HasValidSlot())
 		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] UpdateSlotsFromCurrentLobby: user %lld has no valid slot index (%u), keeping the previous roster", lobbyMember.user_id, lobbyMember.m_SlotIndex);
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] UpdateSlotsFromCurrentLobby: user %lld has no valid slot index (%u), keeping the previous roster", lobbyMember.user_id, lobbyMember.m_SlotIndex);
 			pLobbyInterface->RequestRosterRefresh();
 			return;
 		}
@@ -152,7 +149,6 @@ void GenOnlineGame::UpdateSlotsFromCurrentLobby()
 
 	for (const LobbyMemberEntry& pLobbyMember : members)
 	{
-		// An empty placeholder has no slot to place.
 		if (!pLobbyMember.HasValidSlot())
 		{
 			continue;
@@ -162,13 +158,13 @@ void GenOnlineGame::UpdateSlotsFromCurrentLobby()
 
 		if (slot == nullptr)
 		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] UpdateSlotsFromCurrentLobby: getSlot(%u) returned null, skipping", pLobbyMember.m_SlotIndex);
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] UpdateSlotsFromCurrentLobby: getSlot(%u) returned null, skipping", pLobbyMember.m_SlotIndex);
 			continue;
 		}
 
 		claimedSlots[pLobbyMember.m_SlotIndex] = true;
 
-		// TODO_NGMP: Support spectators
+		// TODO_GENONLINE: Support spectators
 		int playerTemplate = -1;
 		if (pLobbyMember.side == -1)
 		{
@@ -223,7 +219,6 @@ void GenOnlineGame::UpdateSlotsFromCurrentLobby()
 		}
 	}
 
-	// slots no member claims are open
 	for (Int i = 0; i < MAX_SLOTS; ++i)
 	{
 		if (!claimedSlots[i])
@@ -307,7 +302,7 @@ Int GenOnlineGame::getLocalSlotNum(void) const
 void GenOnlineGame::startGame(Int gameID)
 {
 	DEBUG_ASSERTCRASH(m_inGame, ("Starting a game while not in game"));
-	DEBUG_LOG(("NGMPGame::startGame - game id = %d\n", gameID));
+	DEBUG_LOG(("GenOnlineGame::startGame - game id = %d\n", gameID));
 	//DEBUG_ASSERTCRASH(m_transport == NULL, ("m_transport is not NULL when it should be"));
 	//DEBUG_ASSERTCRASH(TheNAT == NULL, ("TheNAT is not NULL when it should be"));
 
@@ -326,7 +321,7 @@ void GenOnlineGame::startGame(Int gameID)
 
 			if (m_isQM)
 			{
-				// TODO_NGMP: Does this matter anymore?
+				// TODO_GENONLINE: Does this matter anymore?
 				if (getLocalSlotNum() == i)
 					m_Slots[i].setProfileID(0);  // hehe - we know our own.  the rest, they'll tell us.
 			}
@@ -347,7 +342,7 @@ void GenOnlineGame::startGame(Int gameID)
 		//#endif defined(_DEBUG) || defined(_INTERNAL)
 	{
 		launchGame();
-		// TODO_NGMP: We dont care about this anymore? we're already connected
+		// TODO_GENONLINE: Check whether this still matters, the peers are already connected.
 		//TheNAT = NEW NAT();
 		//TheNAT->attachSlotList(m_slot, getLocalSlotNum(), m_localIP);
 		//TheNAT->establishConnectionPaths();
@@ -361,14 +356,14 @@ AsciiString GenOnlineGame::generateGameSpyGameResultsPacket(void)
 
 AsciiString GenOnlineGame::generateLadderGameResultsPacket(void)
 {
-	// TODO_NGMP
+	// TODO_GENONLINE
 	AsciiString results;
 	return results;
 }
 
 void GenOnlineGame::launchGame(void)
 {
-	// TODO_NGMP: Better way of doing this, plus maybe load from file?
+	// TODO_GENONLINE: Better way of doing this, plus maybe load from file?
 #if defined(RTS_DEBUG)
 	TheWritableGlobalData->m_benchmarkTimer = 999999999;
 	TheWritableGlobalData->m_debugShowGraphicalFramerate = true;
@@ -385,7 +380,7 @@ void GenOnlineGame::launchGame(void)
 		const GenOnlineGameSlot* slot = getGameSpySlot(i);
 		if (slot->isHuman())
 		{
-			// TODO_NGMP:
+			// TODO_GENONLINE:
 			bool bPreordered = false;
 			if (bPreordered)
 				markPlayerAsPreorder(i);
@@ -402,7 +397,7 @@ void GenOnlineGame::launchGame(void)
 		TheNetwork = NULL;
 	}
 
-	// TODO_NGMP: do we care? we are already connected
+	// TODO_GENONLINE: Check whether this still matters, the peers are already connected.
 	
 	// Time to initialize TheNetwork for this game.
 	TheNetwork = NetworkInterface::createNetwork();
@@ -431,10 +426,9 @@ void GenOnlineGame::launchGame(void)
 	// One spike or lossy spell must not start the match at a huge run ahead.
 	TheNetwork->SeedLatencyData(pMesh->getSeedProbeLatency());
 
-	// TODO_NGMP: Do we really care about these values anymore
+	// TODO_GENONLINE: Check whether these values still matter.
 	TheNetwork->setLocalAddress(getLocalIP(), 8888);
 
-	// The provider picks the game transport from the registered transports.
 	RegisterGenOnlineTransport();
 	TheNetwork->initTransport(GenOnlineProviderFactory::getGameTransport());
 
@@ -536,7 +530,7 @@ void GenOnlineGame::SetStartPhase(EStartPhase phase)
 {
 	if (phase != m_startPhase)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Start phase %d -> %d", (int)m_startPhase, (int)phase);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Start phase %d -> %d", (int)m_startPhase, (int)phase);
 	}
 
 	m_startPhase = phase;

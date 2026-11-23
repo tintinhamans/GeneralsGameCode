@@ -18,7 +18,6 @@ static_assert(k_gnsIceEnablePrivate == k_nSteamNetworkingConfig_P2P_Transport_IC
 static_assert(k_gnsIceEnablePublic == k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_Public, "The ICE values must match GameNetworkingSockets");
 static_assert(k_gnsIceEnableAll == k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_All, "The ICE values must match GameNetworkingSockets");
 
-// The listener of the library, set while it is initialized.
 static IGnsPeerListener* s_pListener = nullptr;
 
 // Pool for deferred deletion of ConnectionSignaling objects; avoids "delete this" races during
@@ -110,7 +109,7 @@ static void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCal
 		{
 			GnsPeerEnd end;
 			end.endReason = pInfo->m_info.m_eEndReason;
-			// a peer that closed on purpose during the match has left; closing to negotiate a new connection is not a leave
+			// A peer that closed on purpose during the match has left, but closing to negotiate a new connection is not a leave.
 			end.closedOnPurpose = pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ClosedByPeer
 				&& pInfo->m_info.m_eEndReason == k_ESteamNetConnectionEnd_App_Generic
 				&& strstr(pInfo->m_info.m_szEndDebug, "new connection being negotiated") == nullptr
@@ -416,7 +415,7 @@ public:
 							// our envelope that we know how to parse, and we should save it off in this
 							// context object.
 							// The identity in the handshake is whatever the peer wrote. The service stamped the signal with
-							// the user it came from, a request claiming to be somebody else is not answered.
+							// the user it came from, so a request claiming to be somebody else is not answered.
 							int64_t claimedUserID = 0;
 							if (ParseUserIdentity(identityPeer, claimedUserID) && claimedUserID != m_serverSender)
 							{

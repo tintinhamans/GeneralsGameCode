@@ -378,6 +378,30 @@ static void initLabelVersion()
 {
 	NameKeyType versionID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:LabelVersion" );
 	GameWindow *labelVersion = TheWindowManager->winGetWindowFromId( nullptr, versionID );
+#if defined(GENONLINE)
+	// GenOnline @feature arcticdolphin 21/11/2026 The shell puts the version label on the ruler, which the main menu hides, so it moves to the main menu itself.
+	if (labelVersion == nullptr && parentMainMenu != nullptr)
+	{
+		labelVersion = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( "MainMenuVersion.wnd:LabelVersion" ) );
+		if (labelVersion == nullptr)
+		{
+			labelVersion = TheWindowManager->winCreateFromScript( AsciiString("Menus/MainMenuVersion.wnd") );
+		}
+		if (labelVersion != nullptr && labelVersion->winGetParent() != parentMainMenu)
+		{
+			ICoord2D labelPos;
+			ICoord2D parentPos;
+			labelVersion->winGetScreenPosition( &labelPos.x, &labelPos.y );
+			parentMainMenu->winGetScreenPosition( &parentPos.x, &parentPos.y );
+			labelVersion->winSetParent( parentMainMenu );
+			labelVersion->winSetPosition( labelPos.x - parentPos.x, labelPos.y - parentPos.y );
+		}
+		if (labelVersion != nullptr)
+		{
+			labelVersion->winHide( FALSE );
+		}
+	}
+#endif
 
 	if (labelVersion)
 	{
@@ -744,7 +768,7 @@ void ResolutionDialogUpdate()
 }
 */
 
-// TheSuperHackers @tweak arcticdolphin 09/11/2026 Show the main menu and the mouse the first time, the way the first mouse move does.
+// GenOnline @tweak arcticdolphin 09/11/2026 Show the main menu and the mouse the first time, the way the first mouse move does.
 static void showInitialMainMenu()
 {
 	initialGadgetDelay = 1;
@@ -795,7 +819,7 @@ void MainMenuUpdate( WindowLayout *layout, void *userData )
 			initialGadgetDelay--;
 	}
 
-	// TheSuperHackers @tweak arcticdolphin 09/11/2026 The main menu shows after the load screen without waiting for the mouse to move.
+	// GenOnline @tweak arcticdolphin 09/11/2026 The main menu shows after the load screen without waiting for the mouse to move.
 	if(notShown && TheTransitionHandler->isFinished())
 	{
 		showInitialMainMenu();

@@ -64,7 +64,7 @@
 
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 
-// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Refresh the slider tooltip after a drag, the window manager clears it on every mouse event.
+// GenOnline @bugfix arcticdolphin 08/11/2026 Refresh the slider tooltip after a drag because the window manager clears it on every mouse event.
 static void refreshDragTooltip( GameWindow *window, WindowMsgData mouse )
 {
 	GameWinTooltipFunc tooltip = window->winGetTooltipFunc();
@@ -328,7 +328,7 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 			// ignore drag attempts when the mouse is right or left of slider totally
 			// and put the dragging thumb back at the slider pos
 			//
-			// TheSuperHackers @tweak arcticdolphin 08/11/2026 Use the thumb's own width, which scales with the screen height.
+			// GenOnline @tweak arcticdolphin 08/11/2026 Use the width of the thumb, which scales with the screen height.
 			if( mousex > x + size.x - childSize.x/2 )
 			{
 
@@ -432,7 +432,7 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 
 			s->minVal = (Int)mData1;
 			s->maxVal = (Int)mData2;
-			// TheSuperHackers @tweak arcticdolphin 08/11/2026 Use the thumb's own width, which scales with the screen height.
+			// GenOnline @tweak arcticdolphin 08/11/2026 Use the width of the thumb, which scales with the screen height.
 			s->numTicks = (Real)(size.x - thumbSize.x)/(Real)(s->maxVal - s->minVal);
 			s->position = s->minVal;
 

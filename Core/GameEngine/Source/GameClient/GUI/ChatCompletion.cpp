@@ -147,7 +147,6 @@ void ChatCommandRegistry::GetNextWords(int parent, std::vector<std::wstring>& wo
 	}
 }
 
-// Walks the words typed after the slash and matches the last word against the words that may follow.
 static std::vector<std::wstring> CommandMatches(const std::wstring& text, const ChatCommandRegistry& commands, size_t& replaceFrom)
 {
 	std::vector<std::wstring> matches;
@@ -189,7 +188,6 @@ static std::vector<std::wstring> CommandMatches(const std::wstring& text, const 
 	return matches;
 }
 
-// Finds the longest tail of the text, at the start or after a space, that begins at least one name.
 static std::vector<std::wstring> NameMatches(const std::wstring& text, const std::vector<std::wstring>& names, size_t& replaceFrom)
 {
 	std::vector<std::wstring> matches;

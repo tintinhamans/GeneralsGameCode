@@ -17,8 +17,6 @@
 */
 
 // FILE: IOnlineSession.h /////////////////////////////////////////////////////
-// GenMP online provider abstraction.
-// Description: Provider-neutral login, logout, and local identity contract.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -26,7 +24,6 @@
 #include "Lib/BaseType.h"
 #include "GameNetwork/GameSpy/PeerThread.h"
 
-// POD login request which maps directly to the existing PeerRequest fields.
 struct OnlineLoginParams
 {
 	const char *m_nick;

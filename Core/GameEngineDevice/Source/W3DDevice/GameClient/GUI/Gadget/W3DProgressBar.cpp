@@ -298,7 +298,6 @@ void W3DGadgetProgressBarImageDraw( GameWindow *window, WinInstanceData *instDat
 	barWindowSize.x = ((size.x - 20) * progress) / 100;
 	barWindowSize.y = size.y;
 
-	// keep the bar tiles at their own aspect for the fill height
 	Int pieces;
 	Int fillHeight = size.y - 10;
 	Int barCenterWidth = barCenter->getImageWidth();

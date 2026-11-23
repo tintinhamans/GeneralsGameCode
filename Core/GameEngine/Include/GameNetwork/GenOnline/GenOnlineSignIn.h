@@ -16,13 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlineSignIn.h ////////////////////////////////////////////////////
-// Description: Sign-in of the game client to a GenOnline environment that
-//              runs the realtime protocol v1. The player signs in in the system
-//              browser, which returns to a listener on 127.0.0.1. The class
-//              reads the discovery document of the environment, exchanges the
-//              code and refreshes and revokes tokens. Everything runs on the
-//              main thread from Tick and the HTTP callbacks.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once

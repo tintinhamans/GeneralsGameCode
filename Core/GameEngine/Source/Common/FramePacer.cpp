@@ -157,7 +157,7 @@ static const Int MENU_FPS_LIMIT = 60;
 
 Int FramePacer::getSituationCappedFramesPerSecondLimit(Int fps) const
 {
-	// A match renders at the chosen limit, uncapped included; the menus and the shell map gain nothing from more than 60.
+	// A match renders at the chosen limit, uncapped included, the menus and the shell map gain nothing from more than 60.
 	const Bool inMatch = TheGameLogic != nullptr && TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL;
 	if (!inMatch)
 	{
@@ -251,7 +251,7 @@ void FramePacer::beginGameSpeed()
 {
 	endGameSpeed();
 
-	// The normal game speed leaves the player's own logic time scale alone.
+	// The normal game speed leaves the logic time scale of the player alone.
 	if (m_gameSpeedFps == LOGICFRAMES_PER_SECOND)
 	{
 		return;

@@ -65,7 +65,6 @@
 
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 
-// Width of an image drawn at the given height without changing its aspect.
 static Int scaledImageWidth( const Image *image, Int height )
 {
 	Int imageHeight = image->getImageHeight();
@@ -80,7 +79,6 @@ static Int scaledImageWidth( const Image *image, Int height )
 	return width;
 }
 
-// Shrink a draw rect to the largest one of the image's own aspect inside it, centred.
 static void fitImageAspect( const Image *image, Int *startX, Int *startY, Int *endX, Int *endY )
 {
 	Int imageWidth = image->getImageWidth();
@@ -90,7 +88,6 @@ static void fitImageAspect( const Image *image, Int *startX, Int *startY, Int *e
 	if( imageWidth <= 0 || imageHeight <= 0 || width <= 0 || height <= 0 )
 		return;
 
-	// the rect is wider than the image: full height, margins left and right
 	if( width * imageHeight > height * imageWidth )
 	{
 		Int fitWidth = (height * imageWidth + imageHeight / 2) / imageHeight;
@@ -105,11 +102,10 @@ static void fitImageAspect( const Image *image, Int *startX, Int *startY, Int *e
 	}
 }
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Kit images keep their border rows at a fixed thickness at any bar height.
+// GenOnline @feature arcticdolphin 08/11/2026 Kit images keep their border rows at a fixed thickness at any bar height.
 // Image pixels the interior band starts inside the border, so it never samples the line.
 static const Real BORDER_INTERIOR_INSET = 0.5f;
 
-// Vertical layout shared by every piece of one bar.
 struct BarBands
 {
 	Int y;
@@ -120,7 +116,6 @@ struct BarBands
 	IRegion2D *outer;
 };
 
-// True when an image has border rows and an interior left between them.
 static Bool hasBorderRows( const Image *image )
 {
 	Real border = image->getBorder();
@@ -128,7 +123,6 @@ static Bool hasBorderRows( const Image *image )
 	return border > 0.0f && image->getImageHeight() > 2.0f * (border + BORDER_INTERIOR_INSET);
 }
 
-// Width of an image drawn at the layout scale.
 static Int layoutImageWidth( const Image *image, Real layoutScale )
 {
 	Int width = REAL_TO_INT_FLOOR( image->getImageWidth() * layoutScale + 0.5f );
@@ -139,7 +133,6 @@ static Int layoutImageWidth( const Image *image, Real layoutScale )
 	return width;
 }
 
-// Intersect a region with an optional outer one, FALSE when nothing is left.
 static Bool intersectRegion( IRegion2D *out, const IRegion2D *region, const IRegion2D *outer )
 {
 	*out = *region;
@@ -159,7 +152,6 @@ static Bool intersectRegion( IRegion2D *out, const IRegion2D *region, const IReg
 	return out->lo.x < out->hi.x && out->lo.y < out->hi.y;
 }
 
-// Draw an image clipped to a region inside the outer clip.
 static void drawImageInRegion( const Image *image, Int startX, Int startY, Int endX, Int endY,
 															 const IRegion2D *region, const IRegion2D *outer, Color color )
 {
@@ -172,7 +164,6 @@ static void drawImageInRegion( const Image *image, Int startX, Int startY, Int e
 	TheDisplay->drawImage( image, startX, startY, endX, endY, color );
 }
 
-// Put back the clip the caller had, or none.
 static void restoreClip( IRegion2D *outer )
 {
 	if( outer != nullptr )
@@ -181,7 +172,6 @@ static void restoreClip( IRegion2D *outer )
 		TheDisplay->enableClipping( FALSE );
 }
 
-// Draw one piece across startX..endX, clipped to region when given, in bands when the bar has border rows.
 static void drawBarPiece( const Image *image, Int startX, Int endX, const IRegion2D *region,
 													const BarBands &bands, Color color )
 {
@@ -197,7 +187,7 @@ static void drawBarPiece( const Image *image, Int startX, Int endX, const IRegio
 	}
 
 	Int imageHeight = image->getImageHeight();
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Border rows fill their band exactly, so every kit outline is the same whole pixel width.
+	// GenOnline @tweak arcticdolphin 08/11/2026 Border rows fill their band exactly, so every kit outline is the same whole pixel width.
 	Int scaledHeight = REAL_TO_INT_FLOOR( imageHeight * bands.borderHeight / image->getBorder() + 0.5f );
 	Real inner = image->getBorder() + BORDER_INTERIOR_INSET;
 	Real interiorScale = (Real)(bands.height - 2 * bands.borderHeight) / (imageHeight - 2.0f * inner);
@@ -207,24 +197,21 @@ static void drawBarPiece( const Image *image, Int startX, Int endX, const IRegio
 	band.lo.x = region != nullptr ? region->lo.x : startX;
 	band.hi.x = region != nullptr ? region->hi.x : endX;
 
-	// top border rows at the layout scale
 	band.lo.y = bands.y;
 	band.hi.y = bands.y + bands.borderHeight;
 	drawImageInRegion( image, startX, bands.y, endX, bands.y + scaledHeight, &band, bands.outer, color );
 
-	// interior rows stretched between the borders
 	band.lo.y = bands.y + bands.borderHeight;
 	band.hi.y = endY - bands.borderHeight;
 	drawImageInRegion( image, startX, REAL_TO_INT_FLOOR( interiorTop + 0.5f ), endX,
 										 REAL_TO_INT_FLOOR( interiorTop + imageHeight * interiorScale + 0.5f ), &band, bands.outer, color );
 
-	// bottom border rows at the layout scale
 	band.lo.y = endY - bands.borderHeight;
 	band.hi.y = endY;
 	drawImageInRegion( image, startX, endY - scaledHeight, endX, endY, &band, bands.outer, color );
 }
 
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 Single kit images with a border keep it at the kit line weight on every side.
+// GenOnline @tweak arcticdolphin 08/11/2026 Single kit images with a border keep it at the kit line weight on every side.
 // One axis of a nine-slice: where the image is drawn and the screen span it is clipped to, per slice.
 static void nineSliceAxis( Int start, Int end, Int imageSize, Real border, Int lineSize,
 													 Int drawStart[3], Int drawEnd[3], Int spanStart[3], Int spanEnd[3] )
@@ -235,26 +222,22 @@ static void nineSliceAxis( Int start, Int end, Int imageSize, Real border, Int l
 	Real interiorScale = (Real)(end - start - 2 * lineSize) / (imageSize - 2.0f * inner);
 	Real interiorStart = start + lineSize - inner * interiorScale;
 
-	// leading edge at the line scale
 	drawStart[0] = start;
 	drawEnd[0] = start + edgeSize;
 	spanStart[0] = start;
 	spanEnd[0] = start + lineSize;
 
-	// interior stretched between the edges
 	drawStart[1] = REAL_TO_INT_FLOOR( interiorStart + 0.5f );
 	drawEnd[1] = REAL_TO_INT_FLOOR( interiorStart + imageSize * interiorScale + 0.5f );
 	spanStart[1] = start + lineSize;
 	spanEnd[1] = end - lineSize;
 
-	// trailing edge at the line scale
 	drawStart[2] = end - edgeSize;
 	drawEnd[2] = end;
 	spanStart[2] = end - lineSize;
 	spanEnd[2] = end;
 }
 
-// Draw an image with border rows and columns as a nine-slice; FALSE when it has no border or no room for one
 static Bool drawBorderedImage( const Image *image, Int startX, Int startY, Int endX, Int endY, Color color )
 {
 	Real border = image->getBorder();
@@ -266,14 +249,12 @@ static Bool drawBorderedImage( const Image *image, Int startX, Int startY, Int e
 	if( imageWidth <= 2.0f * (border + BORDER_INTERIOR_INSET) || imageHeight <= 2.0f * (border + BORDER_INTERIOR_INSET) )
 		return FALSE;
 
-	// same thickness as the bordered three piece bars
 	Int lineSize = REAL_TO_INT_CEIL( border * TheDisplay->getHeight() / 600.0f - 0.01f );
 	if( lineSize < 1 )
 		lineSize = 1;
 	if( endX - startX < 2 * lineSize + 1 || endY - startY < 2 * lineSize + 1 )
 		return FALSE;
 
-	// keep the caller clip so the slices stay inside it and it comes back afterwards
 	IRegion2D callerClip;
 	IRegion2D *outer = nullptr;
 	if( TheDisplay->isClippingEnabled() )
@@ -318,7 +299,7 @@ void GameWindowManager::winDrawImage( const Image *image, Int startX, Int startY
 																			Int endX, Int endY, Color color )
 {
 
-	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Stop KEEP_ASPECT images such as the logo stretching on wide screens.
+	// GenOnline @bugfix arcticdolphin 08/11/2026 Stop KEEP_ASPECT images such as the logo stretching on wide screens.
 	if( image != nullptr && BitIsSet( image->getStatus(), IMAGE_STATUS_KEEP_ASPECT ) )
 		fitImageAspect( image, &startX, &startY, &endX, &endY );
 
@@ -329,10 +310,8 @@ void GameWindowManager::winDrawImage( const Image *image, Int startX, Int startY
 
 }
 
-// GameWindowManager::winDrawThreePieceImage ==================================
-/** draw a three piece bar, every piece at its own aspect for the bar height */
 //=============================================================================
-// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Stop end caps and tiles stretching when 800x600 layouts scale to wider screens.
+// GenOnline @bugfix arcticdolphin 08/11/2026 Stop end caps and tiles stretching when 800x600 layouts scale to wider screens.
 void GameWindowManager::winDrawThreePieceImage( const Image *left, const Image *center,
 																								const Image *smallCenter, const Image *right,
 																								Int x, Int y, Int width, Int height,
@@ -342,7 +321,7 @@ void GameWindowManager::winDrawThreePieceImage( const Image *left, const Image *
 	if( left == nullptr || center == nullptr || right == nullptr )
 		return;
 
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Bars whose pieces all have border rows keep them at a fixed thickness.
+	// GenOnline @feature arcticdolphin 08/11/2026 Bars whose pieces all have border rows keep them at a fixed thickness.
 	IRegion2D callerClip;
 	BarBands bands;
 	bands.y = y;
@@ -352,7 +331,6 @@ void GameWindowManager::winDrawThreePieceImage( const Image *left, const Image *
 	bands.borderScale = bands.layoutScale;
 	bands.outer = nullptr;
 
-	// keep the caller clip so clipped pieces stay inside it and it comes back afterwards
 	Bool canRestoreClip = TRUE;
 	if( TheDisplay->isClippingEnabled() )
 	{
@@ -369,11 +347,9 @@ void GameWindowManager::winDrawThreePieceImage( const Image *left, const Image *
 		if( borderHeight < 1 )
 			borderHeight = 1;
 
-		// too short for both borders and an interior row, draw it stretched
 		if( height >= 2 * borderHeight + 1 )
 		{
 			bands.borderHeight = borderHeight;
-			// caps scale like the border rows, so their side lines match the rows
 			bands.borderScale = (Real)borderHeight / left->getBorder();
 		}
 	}
@@ -384,13 +360,11 @@ void GameWindowManager::winDrawThreePieceImage( const Image *left, const Image *
 	Int endX = x + width;
 	Int endY = y + height;
 
-	// too narrow for both ends, split the bar between them
 	if( leftWidth + rightWidth >= width )
 	{
 		Int midX = x + width / 2;
 		if( bordered )
 		{
-			// caps keep their width and are cut where they meet
 			IRegion2D half;
 			half.lo.y = y;
 			half.hi.y = endY;
@@ -421,7 +395,6 @@ void GameWindowManager::winDrawThreePieceImage( const Image *left, const Image *
 		tileX += tileWidth;
 	}
 
-	// fill the remainder with clipped tiles
 	if( tileX < gapEnd )
 	{
 		IRegion2D clip;

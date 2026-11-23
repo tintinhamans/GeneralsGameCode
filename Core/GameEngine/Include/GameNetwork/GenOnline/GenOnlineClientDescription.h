@@ -6,7 +6,6 @@
 // Version of the -describe JSON object.
 #define GENONLINE_CLIENT_DESCRIPTION_SCHEMA_VERSION 1
 
-// Anti-cheat plugin interface version this client implements.
 #define GENONLINE_ANTICHEAT_INTERFACE_VERSION GENONLINE_PLUGIN_ANTICHEAT_API_VERSION
 
 // Oldest launcher version that can start this client.

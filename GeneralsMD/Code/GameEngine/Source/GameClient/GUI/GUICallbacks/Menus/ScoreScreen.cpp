@@ -105,7 +105,8 @@
 #include "../GenOnlineInterfaces.h"
 #include "../GenOnlineInit.h"
 #include "../GenOnlineStatsInterface.h"
-#include "Common/StatsExporterLive.h"
+#include "GameClient/GenOnlineUserSection.h"
+#include "Common/LocalApiLive.h"
 
 
 //-----------------------------------------------------------------------------
@@ -444,6 +445,7 @@ void ScoreScreenShutdown( WindowLayout *layout, void *userData )
 	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
 	if (pSocialInterface != nullptr)
 		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged(nullptr);
+	GenOnlineUserSectionHide();
 #endif
 	buttonBuddies = nullptr;
 
@@ -468,7 +470,7 @@ void ScoreScreenUpdate( WindowLayout * layout, void *userData)
 		}
 	}
 
-	// TODO_NGMP: Find a better way of doing this... before the user exists
+	// TODO_GENONLINE: Find a better way of doing this... before the user exists
 	if (GenOnlineServicesManager::GetInstance() != nullptr && g_bNeedToTakeDoneEOGScreenshot)
 	{
 		int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
@@ -1251,14 +1253,15 @@ void initInternetMultiPlayer(void)
 	if (chatBoxBorder)
 		chatBoxBorder->winHide(FALSE);
 
-	// TODO_NGMP: Enable this once friends works
+	// TODO_GENONLINE: Enable this once friends works
 #if !defined(GENONLINE)
 	if(TheGameSpyInfo && TheGameSpyInfo->getLocalProfileID() ==0)
 		buttonBuddies->winHide(TRUE);
 	else
 		buttonBuddies->winHide(FALSE);
 #else
-	buttonBuddies->winHide(FALSE);
+	// GenOnline @feature arcticdolphin 22/11/2026 The user section in the ruler strip replaces the communicator button.
+	GenOnlineUserSectionShow(parent);
 #endif
 
 	g_bNeedToTakeDoneEOGScreenshot = true;
@@ -1961,7 +1964,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 						//Remove the extra disconnection we add to all games when they start.
 						DEBUG_LOG(("populatePlayerInfo() - removing extra disconnect\n"));
 
-						// TODO_NGMP_STATS
+						// TODO_GENONLINE_STATS
 						//if (TheGameSpyInfo)
 							//TheGameSpyInfo->updateAdditionalGameSpyDisconnections(-1);
 
@@ -1987,7 +1990,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 							return;
 						}
 
-						// TODO_NGMP_STATS: Impl ladders again, how did these work in the base game?
+						// TODO_GENONLINE_STATS: Impl ladders again, how did these work in the base game?
 						// send ladder results (even if we end the game in the first N seconds)
 
 						if (TheGameSpyGame->getLadderPort() && TheGameSpyGame->getLadderIP().isNotEmpty())
@@ -2003,7 +2006,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 							}
 						}
 
-						// TODO_NGMP: Why did they do this? dont register short games?
+						// TODO_GENONLINE: Find out why short games are not registered.
 						if (TheVictoryConditions->getEndFrame() < LOGICFRAMES_PER_SECOND * 25 && TheVictoryConditions->getEndFrame())
 						{
 							return;
@@ -2204,7 +2207,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 						stats.builtNuke += CheckForApocalypse(s, "Tank_ChinaNuclearMissileLauncher");
 						DEBUG_LOG(("After game built scud:%d, cannon:%d, nuke:%d\n", stats.builtSCUD, stats.builtParticleCannon, stats.builtNuke));
 
-						// TODO_NGMP_STATS: ladders
+						// TODO_GENONLINE_STATS: ladders
 						if (TheGameSpyGame->getLadderPort() && TheGameSpyGame->getLadderIP().isNotEmpty())
 						{
 							stats.lastLadderPort = TheGameSpyGame->getLadderPort();
@@ -2217,7 +2220,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 							updateChallengeMedals(stats.challengeMedals);
 						}
 
-						DEBUG_LOG(("populatePlayerInfo() - tracking stats for %s/%s/%s\n", TheGameSpyGame->getLocalBaseName().str(), TheGameSpyGame->getLocalEmail().str(), TheNGMPGameTheGameSpyGamegetLocalPassword().str()));
+						DEBUG_LOG(("populatePlayerInfo() - tracking stats for %s/%s/%s\n", TheGameSpyGame->getLocalBaseName().str(), TheGameSpyGame->getLocalEmail().str(), TheGenOnlineGameTheGameSpyGamegetLocalPassword().str()));
 
 						PSRequest req;
 						req.requestType = PSRequest::PSREQUEST_UPDATEPLAYERSTATS;
@@ -2261,7 +2264,7 @@ void grabMultiPlayerInfo( void )
 	ScoreMap scores;
 	scores.clear();
 
-	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 GO keeps the layout's ruler art, its backdrop sits on the ruler frame
+	// GenOnline @bugfix arcticdolphin 22/11/2026 The retail score art has the ruler lines painted in, so the GO kit ruler panel draws alone.
 #if !defined(GENONLINE)
 	Player *localPlayer = ThePlayerList->getLocalPlayer();
 	if (localPlayer && parent)
@@ -2303,7 +2306,7 @@ void grabMultiPlayerInfo( void )
 	DEBUG_ASSERTCRASH(count == playerCount, ("For some reason we added %d players to the scores map, but only read %d", playerCount, count));
 
 	// last point where every Player/ScoreKeeper is still populated
-	StatsExporterLiveMatchSummary();
+	LocalApiLiveMatchSummary();
 	
 }
 
@@ -2350,12 +2353,15 @@ void grabSinglePlayerInfo( void )
 		PlayerTemplate const *fact = ThePlayerList->getLocalPlayer()->getPlayerTemplate();
 		if(fact != nullptr)
 		{
+			// GenOnline @bugfix arcticdolphin 22/11/2026 The side art has the retail ruler lines painted in, so the GO kit ruler panel draws alone.
+#if !defined(GENONLINE)
 			const Image *image = TheMappedImageCollection->findImageByName(ThePlayerList->getLocalPlayer()->getPlayerTemplate()->getScoreScreen());
 			if(image)
 			{
 				parent->winSetEnabledImage(0, image);
 				parent->winSetStatus(parent->winGetStatus() | WIN_STATUS_IMAGE );
 			}
+#endif
 		}
 	}
 	if(!localPlayer)

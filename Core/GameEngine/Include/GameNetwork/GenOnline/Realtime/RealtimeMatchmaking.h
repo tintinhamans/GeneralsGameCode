@@ -16,10 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: RealtimeMatchmaking.h ////////////////////////////////////////////////
-// Description: Matchmaking helpers of the GenOnline realtime protocol v1. The
-//              status and requeue texts of the quick match menu, and the map
-//              indexes the hub expects for the maps a player selected.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -142,7 +138,6 @@ inline std::string MatchmakingFailureText(const std::string& code, const nlohman
 	return "Matchmaking failed (" + code + ").";
 }
 
-// The quick match menu line of a MatchRequeue reason.
 inline std::string MatchRequeueText(const std::string& reason)
 {
 	if (reason == "player_left")

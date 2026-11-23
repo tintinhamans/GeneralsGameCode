@@ -94,7 +94,7 @@ public:
 
 	void parseCustomDefinition();
 
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 TRUE when the GO UI font is registered and the retail UI faces draw with it.
+	// GenOnline @feature arcticdolphin 08/11/2026 TRUE when the GO UI font is registered and the retail UI faces draw with it.
 	Bool isUIFontRegistered() const { return m_uiFontRegistered; }
 
 	// Get current resolution font size scale for the given method and scaler, based on the base game resolution of 800 x 600.

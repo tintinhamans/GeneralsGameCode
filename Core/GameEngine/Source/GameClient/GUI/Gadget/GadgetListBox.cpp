@@ -105,7 +105,7 @@ static inline Bool listboxLayoutDeferred( GameWindow *window )
 	return s_batchAddListbox != nullptr && s_batchAddListbox == window;
 }
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Kit list scroll bar: one flush column with a rounded track, a pill thumb and arrow cells.
+// GenOnline @feature arcticdolphin 08/11/2026 Kit list scroll bar art: a flush column with a rounded track, a pill thumb and arrow cells.
 static const char *const s_kitScrollImageNames[KIT_SCROLL_IMAGE_COUNT] =
 {
 	"GOScrollTrackTop",
@@ -133,25 +133,25 @@ static const char *const s_kitScrollImageNames[KIT_SCROLL_IMAGE_COUNT] =
 
 static const Image *s_kitScrollImages[KIT_SCROLL_IMAGE_COUNT];
 
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 A slim kit scroll column: square arrow boxes as wide as the column.
+// GenOnline @tweak arcticdolphin 08/11/2026 A slim kit scroll column with square arrow boxes.
 static const Int KIT_SCROLL_COLUMN_WIDTH = 14;
 // shortest kit thumb, the retail GADGET_SIZE thumb scaled from the 21 unit column to the kit column
 static const Int KIT_SCROLL_THUMB_MIN_HEIGHT = 11;
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 The kit pill fills its channel, like the kit slider fill fills its track, at 6 of the 14 column units.
+// GenOnline @tweak arcticdolphin 08/11/2026 The kit pill fills its channel, like the kit slider fill.
 static const Int KIT_SCROLL_CHANNEL_WIDTH = 6;
-// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Kit scroll chevrons take the combo arrow chevron's share of its square, at least the pill width.
+// GenOnline @bugfix arcticdolphin 08/11/2026 Kit scroll chevrons take the same share of their square as the combo arrow chevron.
 static const Real KIT_SCROLL_CHEVRON_SHARE = 0.526f;
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 Compact kit combo drop-down rows: each text row loses an eighth of the font height off its blank top.
+// GenOnline @tweak arcticdolphin 08/11/2026 Compact kit combo drop-down rows trim an eighth of the font height off their blank top.
 static const Int KIT_COMBO_ROW_TRIM_DIVISOR = 8;
 // rows of a colour drawn list start this far into it (W3DGadgetListBoxDraw)
 static const Int KIT_COMBO_TEXT_TOP = 4;
-// TheSuperHackers @bugfix arcticdolphin 09/11/2026 Two colours with the same red, green and blue, whatever their alpha.
+// GenOnline @bugfix arcticdolphin 09/11/2026 Kit frame colours compare without alpha.
 static Bool sameKitFrameRGB( Color a, Color b )
 {
 	return (a & 0x00FFFFFF) == (b & 0x00FFFFFF);
 }
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 A kit combo drop-down scroll column is as wide as the combo arrow button above it.
+// GenOnline @feature arcticdolphin 08/11/2026 A kit combo drop-down scroll column is as wide as the combo arrow button above it.
 static void fitKitComboScrollColumn( GameWindow *listbox, ListboxData *list )
 {
 	GameWindow *button = GadgetComboBoxGetDropDownButton( listbox->winGetParent() );
@@ -167,7 +167,6 @@ static void fitKitComboScrollColumn( GameWindow *listbox, ListboxData *list )
 	if( width < 1 )
 		return;
 
-	// square arrow cells, like the slim column
 	if( upSize.x != width || upSize.y != width )
 		list->upButton->winSetSize( width, width );
 	if( downSize.x != width || downSize.y != width )
@@ -176,7 +175,6 @@ static void fitKitComboScrollColumn( GameWindow *listbox, ListboxData *list )
 		list->slider->winSetSize( width, sliderSize.y );
 }
 
-// Scroll bar gaps: the kit arrow boxes share the list frame line, with a small inset around the track
 static void getScrollbarGaps( Int &edgeGap, Int &sliderGap )
 {
 	if( GadgetListBoxHasKitScrollBar() )
@@ -191,7 +189,6 @@ static void getScrollbarGaps( Int &edgeGap, Int &sliderGap )
 	}
 }
 
-// Kit thumb length: the visible share of the list, at least the kit minimum and at most the track
 static Int getKitThumbHeight( const ListboxData *list, Int trackHeight )
 {
 	Int visible = list->displayHeight - TOTAL_OUTLINE_HEIGHT;
@@ -405,7 +402,7 @@ static void adjustDisplay( GameWindow *window, Int adjustment,
 			return;
 		}
 		child->winGetSize( &sliderChildSize.x, &sliderChildSize.y );
-		// TheSuperHackers @feature arcticdolphin 08/11/2026 The kit thumb length follows the visible part of the list.
+		// GenOnline @feature arcticdolphin 08/11/2026 The kit thumb length follows the visible part of the list.
 		Bool kitScrollBar = GadgetListBoxHasKitScrollBar();
 		if( kitScrollBar )
 		{
@@ -615,7 +612,7 @@ static Int addEntry( UnicodeString *string, Int color, Int row, Int column, Game
 	if( column == -1 )
 		column = 0;
 
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
+	// GenOnline @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
 	width = list->columnWidth[column] - GameWindowManager::winScaleLayoutSize( TEXT_WIDTH_OFFSET );
 
 	Int rowsAdded = 0;
@@ -1987,7 +1984,6 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			ICoord2D sliderSize = {0, 0};
 			GameWindow *child = nullptr;
 			ICoord2D sliderChildSize = {0, 0};
-			// gaps match GadgetListboxCreateScrollbar
 			Int edgeGap, sliderGap;
 			getScrollbarGaps( edgeGap, sliderGap );
 			const Int comboFrame = GadgetListBoxGetKitComboFrame( window );
@@ -2036,9 +2032,13 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			{
 				list->displayHeight -= TheWindowManager->winFontHeight( instData->getFont() );
 			}
-			// TheSuperHackers @bugfix arcticdolphin 08/11/2026 A kit combo drop-down scrolls its last row fully above the bottom frame line.
+			// GenOnline @bugfix arcticdolphin 08/11/2026 A kit combo drop-down scrolls its last row fully above the bottom frame line.
 			if( comboFrame > 0 )
 				list->displayHeight -= KIT_COMBO_TEXT_TOP + comboFrame - TOTAL_OUTLINE_HEIGHT;
+#if defined(GENONLINE)
+			// GenOnline @bugfix arcticdolphin 22/11/2026 The last row stays inside the area the list text is drawn in.
+			list->displayHeight -= GadgetListBoxGetTextInset( window );
+#endif
 
 			//
 			// Setup listbox Columns
@@ -2510,11 +2510,10 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 	// size of button
 	buttonWidth = 21;//GADGET_SIZE;
 	buttonHeight = 22;//GADGET_SIZE;
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The scroll bar parts scale with the screen height and keep their shape.
+	// GenOnline @tweak arcticdolphin 08/11/2026 The scroll bar parts scale with the screen height and keep their shape.
 	buttonWidth = GameWindowManager::winScaleLayoutSize( buttonWidth );
 	buttonHeight = GameWindowManager::winScaleLayoutSize( buttonHeight );
 	getScrollbarGaps( edgeGap, sliderGap );
-	// kit arrow boxes are square and the column slim
 	if( GadgetListBoxHasKitScrollBar() )
 	{
 		buttonWidth = GameWindowManager::winScaleLayoutSize( KIT_SCROLL_COLUMN_WIDTH );
@@ -2594,8 +2593,6 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 
 }
 
-// GadgetListBoxHasKitScrollBar ===============================================
-/** TRUE when every kit scroll bar image exists, caching each one once found */
 //=============================================================================
 Bool GadgetListBoxHasKitScrollBar( void )
 {
@@ -2614,8 +2611,6 @@ Bool GadgetListBoxHasKitScrollBar( void )
 	return TRUE;
 }
 
-// GadgetListBoxGetKitScrollImage =============================================
-/** One kit scroll bar image, nullptr unless the whole kit scroll bar exists */
 //=============================================================================
 const Image *GadgetListBoxGetKitScrollImage( KitScrollImage which )
 {
@@ -2625,17 +2620,47 @@ const Image *GadgetListBoxGetKitScrollImage( KitScrollImage which )
 	return s_kitScrollImages[which];
 }
 
-// GadgetListBoxGetKitScrollLineWidth =========================================
-/** Kit scroll column separator thickness, the kit line Border at the layout scale; 0 without the kit */
 //=============================================================================
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 The kit scroll column has one separator line like the combo arrow join.
+// GenOnline @tweak arcticdolphin 08/11/2026 Kit lists with a layout border draw it at the kit line weight.
+// Kit frame of a colour drawn list: the combo field border for drop-downs, the kit line for bordered lists, else 0
+Int GadgetListBoxGetKitListFrame( GameWindow *window )
+{
+	if( BitIsSet( window->winGetStatus(), WIN_STATUS_IMAGE ) )
+		return 0;
+
+	Int comboFrame = GadgetListBoxGetKitComboFrame( window );
+	if( comboFrame > 0 )
+		return comboFrame;
+
+	Color border = GadgetListBoxGetEnabledBorderColor( window );
+	if( border == WIN_COLOR_UNDEFINED )
+		return 0;
+
+	UnsignedByte red, green, blue, alpha;
+	GameGetColorComponents( border, &red, &green, &blue, &alpha );
+	if( alpha == 0 )
+		return 0;
+
+	return GadgetListBoxGetKitScrollLineWidth();
+}
+
+// GenOnline @bugfix arcticdolphin 22/11/2026 The list text draws below a 4 unit top inset and above the kit frame, so the display height loses both.
+Int GadgetListBoxGetTextInset( GameWindow *listbox )
+{
+	if( GadgetListBoxGetKitComboFrame( listbox ) > 0 )
+		return 0;
+
+	return 4 + GadgetListBoxGetKitListFrame( listbox );
+}
+
+//=============================================================================
+// GenOnline @tweak arcticdolphin 08/11/2026 The kit scroll column has one separator line like the combo arrow join.
 Int GadgetListBoxGetKitScrollLineWidth( void )
 {
 	const Image *line = GadgetListBoxGetKitScrollImage( KIT_SCROLL_LINE );
 	if( line == nullptr || TheDisplay == nullptr )
 		return 0;
 
-	// same thickness as the bordered kit pieces
 	Real layoutScale = (Real)TheDisplay->getHeight() / 600.0f;
 	Int width = REAL_TO_INT_CEIL( line->getBorder() * layoutScale - 0.01f );
 	if( width < 1 )
@@ -2643,10 +2668,8 @@ Int GadgetListBoxGetKitScrollLineWidth( void )
 	return width;
 }
 
-// GadgetListBoxGetKitScrollSpan ==============================================
-/** A span across a kit scroll column: the column left of the list frame line, or the pill or chevron centred in it */
 //=============================================================================
-// TheSuperHackers @bugfix arcticdolphin 08/11/2026 The kit scroll chevrons, track and thumb share one centre line at every scale.
+// GenOnline @bugfix arcticdolphin 08/11/2026 The kit scroll chevrons, track and thumb share one centre line at every scale.
 void GadgetListBoxGetKitScrollSpan( KitScrollSpan which, Int columnX, Int columnWidth, Int *spanX, Int *spanWidth )
 {
 	Int separator = GadgetListBoxGetKitScrollLineWidth();
@@ -2667,7 +2690,6 @@ void GadgetListBoxGetKitScrollSpan( KitScrollSpan which, Int columnX, Int column
 				width = chevronWidth;
 		}
 
-		// a line clear of each side when the column has room for it
 		Int widest = contentWidth - 2 * separator;
 		if( widest < 1 )
 			widest = contentWidth;
@@ -2680,15 +2702,13 @@ void GadgetListBoxGetKitScrollSpan( KitScrollSpan which, Int columnX, Int column
 			width += 1;
 	}
 
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Centred left of the list frame on the right, as thick as the separator, like the arrow chevrons.
+	// GenOnline @tweak arcticdolphin 08/11/2026 Centred left of the list frame on the right, as thick as the separator, like the arrow chevrons.
 	*spanX = columnX + (contentWidth - width) / 2;
 	*spanWidth = width;
 }
 
-// GadgetListBoxDrawKitLines ==================================================
-/** Draw the chosen edges of a rect, inside it, with the kit line image and thickness */
 //=============================================================================
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 Kit list frames, scroll cells and the separator share one line weight.
+// GenOnline @tweak arcticdolphin 08/11/2026 Kit list frames, scroll cells and the separator share one line weight.
 void GadgetListBoxDrawKitLines( Int x, Int y, Int width, Int height,
 																Bool left, Bool top, Bool right, Bool bottom )
 {
@@ -2714,10 +2734,8 @@ void GadgetListBoxDrawKitLines( Int x, Int y, Int width, Int height,
 		TheWindowManager->winDrawImage( line, x + width - across, y, x + width, y + height );
 }
 
-// GadgetListBoxGetKitFrameColor ==============================================
-/** TRUE when the kit is loaded and a layout border colour is drawn as a kit frame; frameColor gets the colour to draw */
 //=============================================================================
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 Window frames drawn from the layout border colour use the kit line weight.
+// GenOnline @tweak arcticdolphin 08/11/2026 Window frames drawn from the layout border colour use the kit line weight.
 Bool GadgetListBoxGetKitFrameColor( Color layoutBorder, Color *frameColor )
 {
 	if( layoutBorder == WIN_COLOR_UNDEFINED || GadgetListBoxGetKitScrollLineWidth() <= 0 )
@@ -2728,9 +2746,16 @@ Bool GadgetListBoxGetKitFrameColor( Color layoutBorder, Color *frameColor )
 	if( alpha == 0 )
 		return FALSE;
 
-	// the kit line and hilite colours keep their own colour
+	// the kit line and hilite colours keep their own colour, unless the colour table of a theme sets them
 	if( (red == 47 && green == 75 && blue == 255) || (red == 106 && green == 123 && blue == 255) )
 	{
+		Color themed;
+		const Bool isLine = (red == 47);
+		if( GOUIColorFind( isLine ? GOUICOLOR_LINE : GOUICOLOR_LINE_HILITE, &themed ) )
+		{
+			*frameColor = (themed & 0x00FFFFFF) | (layoutBorder & 0xFF000000);
+			return TRUE;
+		}
 		*frameColor = layoutBorder;
 		return TRUE;
 	}
@@ -2738,11 +2763,17 @@ Bool GadgetListBoxGetKitFrameColor( Color layoutBorder, Color *frameColor )
 	// older retail blues left in the layouts take the kit line colour
 	if( red < 64 && green < 64 && blue >= 150 )
 	{
+		Color themed;
+		if( GOUIColorFind( GOUICOLOR_LINE, &themed ) )
+		{
+			*frameColor = (themed & 0x00FFFFFF) | (layoutBorder & 0xFF000000);
+			return TRUE;
+		}
 		*frameColor = GameMakeColor( 47, 75, 255, alpha );
 		return TRUE;
 	}
 
-	// TheSuperHackers @bugfix arcticdolphin 09/11/2026 A border in the palette line or hilite colour, such as the Radar bronze, keeps its colour at the kit line weight.
+	// GenOnline @bugfix arcticdolphin 09/11/2026 A border in the palette line or hilite colour keeps its colour at the kit line weight.
 	Color paletteLine;
 	Color paletteHilite;
 	if( (GOUIColorFind( GOUICOLOR_LINE, &paletteLine ) && sameKitFrameRGB( layoutBorder, paletteLine ))
@@ -2755,8 +2786,6 @@ Bool GadgetListBoxGetKitFrameColor( Color layoutBorder, Color *frameColor )
 	return FALSE;
 }
 
-// GadgetListBoxDrawKitFrame ==================================================
-/** Draw a frame of kit weight lines inside a rect, or one centred rule when the rect is too thin for a frame */
 //=============================================================================
 void GadgetListBoxDrawKitFrame( Color color, Int x, Int y, Int width, Int height )
 {
@@ -2764,7 +2793,6 @@ void GadgetListBoxDrawKitFrame( Color color, Int x, Int y, Int width, Int height
 	if( thickness <= 0 )
 		return;
 
-	// a horizontal rule window
 	if( height < 2 * thickness + 1 && width >= height )
 	{
 		Int top = y + height / 2 - thickness / 2;
@@ -2772,7 +2800,6 @@ void GadgetListBoxDrawKitFrame( Color color, Int x, Int y, Int width, Int height
 		return;
 	}
 
-	// a vertical rule window
 	if( width < 2 * thickness + 1 )
 	{
 		Int left = x + width / 2 - thickness / 2;
@@ -2786,8 +2813,6 @@ void GadgetListBoxDrawKitFrame( Color color, Int x, Int y, Int width, Int height
 	TheWindowManager->winFillRect( color, 1.0f, x + width - thickness, y + thickness, x + width, y + height - thickness );
 }
 
-// GadgetListBoxGetKitComboFrame ==============================================
-/** Frame thickness of a kit combo drop-down list, the combo field border; 0 for other lists */
 //=============================================================================
 Int GadgetListBoxGetKitComboFrame( GameWindow *listbox )
 {
@@ -2811,7 +2836,6 @@ Int GadgetListBoxGetKitComboFrame( GameWindow *listbox )
 			left->getBorder() <= 0.0f || center->getBorder() <= 0.0f || right->getBorder() <= 0.0f )
 		return 0;
 
-	// same thickness as GameWindowManager::winDrawThreePieceImage gives the field border
 	Real layoutScale = (Real)TheDisplay->getHeight() / 600.0f;
 	Int frame = REAL_TO_INT_CEIL( left->getBorder() * layoutScale - 0.01f );
 	if( frame < 1 )
@@ -2819,8 +2843,6 @@ Int GadgetListBoxGetKitComboFrame( GameWindow *listbox )
 	return frame;
 }
 
-// GadgetListBoxGetKitComboRowTrim ============================================
-/** Blank font rows a kit combo drop-down trims off the top of each text row; 0 for other lists */
 //=============================================================================
 Int GadgetListBoxGetKitComboRowTrim( GameWindow *listbox )
 {
@@ -2831,8 +2853,6 @@ Int GadgetListBoxGetKitComboRowTrim( GameWindow *listbox )
 	return TheWindowManager->winFontHeight( listbox->winGetFont() ) / KIT_COMBO_ROW_TRIM_DIVISOR;
 }
 
-// GadgetListBoxGetKitComboHeight =============================================
-/** Height of a kit combo drop-down showing rows text rows; 0 for other lists */
 //=============================================================================
 Int GadgetListBoxGetKitComboHeight( GameWindow *listbox, Int rows )
 {
@@ -2840,7 +2860,6 @@ Int GadgetListBoxGetKitComboHeight( GameWindow *listbox, Int rows )
 	if( frame <= 0 )
 		return 0;
 
-	// the rows below the text inset, then the bottom frame line
 	Int pitch = TheWindowManager->winFontHeight( listbox->winGetFont() ) + 1 - GadgetListBoxGetKitComboRowTrim( listbox );
 	return KIT_COMBO_TEXT_TOP + rows * pitch + frame;
 }
@@ -2948,7 +2967,7 @@ void GadgetListBoxSetListLength( GameWindow *listbox, Int newLength )
     if(listboxData->insertPos > newLength)
 			listboxData->insertPos = newLength;
 
-    // TheSuperHackers @bugfix arcticdolphin 08/11/2026 Keep the end of a shorter or empty list where it is, appends past it read beyond the rows.
+    // GenOnline @bugfix arcticdolphin 08/11/2026 Keep the end of a shorter or empty list in place because appends past it read beyond the rows.
     if( listboxData->endPos > newLength )
     	listboxData->endPos = newLength;
 		//copy only the data that we'll be needing.
@@ -3205,6 +3224,19 @@ void GadgetListBoxSetBottomVisibleEntry( GameWindow *window, Int newPos )
 	ListboxData *listData = (ListboxData *)window->winGetUserData();
 	if (!listData)
 		return;
+
+#if defined(GENONLINE)
+	// GenOnline @bugfix arcticdolphin 22/11/2026 Scrolling to the last entry moves the top by the height of that entry, so a wrapped last entry is not clipped.
+	if( newPos == listData->endPos - 1 && newPos > 0 )
+	{
+		Int top = 0;
+		while( top < newPos && listData->listData[newPos].listHeight > ( top > 0 ? listData->listData[top - 1].listHeight + 1 : 0 ) + listData->displayHeight )
+			++top;
+
+		adjustDisplay( window, top - getListboxTopEntry( listData ), true );
+		return;
+	}
+#endif
 
 	int prevPos = GadgetListBoxGetBottomVisibleEntry( window );
 

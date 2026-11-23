@@ -58,8 +58,8 @@
 
 #include "../GenOnlineTransport.h"
 #include "../NetworkMesh.h"
-#if defined(GENONLINE) && RTS_ZEROHOUR
-#include "Common/StatsExporterLive.h"
+#if defined(GENONLINE)
+#include "Common/LocalApiLive.h"
 #endif
 #include "../GenOnlineInterfaces.h"
 #include "GameClient/GUI/ChatMentions.h"
@@ -594,7 +594,7 @@ void ConnectionManager::destroyGameMessages() {
 }
 
 #if defined(GENONLINE)
-// TRUE if (sender, id) was seen in the last 256 ids, remembers it otherwise. Synchronized commands are deduplicated by the frame data.
+// Returns TRUE if (sender, id) was among the last 256 ids. Synchronized commands are deduplicated by the frame data.
 Bool ConnectionManager::isDuplicateCommand(NetCommandMsg *msg) {
 	if (IsCommandSynchronized(msg->getNetCommandType())) {
 		return FALSE;
@@ -646,7 +646,7 @@ Bool ConnectionManager::isPeerActive(Int slot) const {
 	return m_connections[slot] != nullptr && !m_connections[slot]->isQuitting();
 }
 
-// Frame infos sent directly are acked by every peer, the latency of a frame is the slowest peer's round trip.
+// Frame infos sent directly are acked by every peer, the latency of a frame is the round trip of the slowest peer.
 void ConnectionManager::onDirectFrameAck(UnsignedInt frame, Int peerSlot) {
 	if (peerSlot < 0 || peerSlot >= MAX_SLOTS || !m_frameMetrics.isPending(frame)) {
 		return;
@@ -667,7 +667,7 @@ void ConnectionManager::onDirectFrameAck(UnsignedInt frame, Int peerSlot) {
 		m_frameAckedMasks.erase(frame);
 	}
 
-	// frames that never completed, a peer's ack was lost for good
+	// frames that never completed because an ack of a peer was lost for good
 	while (!m_frameAckedMasks.empty() && m_frameAckedMasks.begin()->first + ACK_PRUNE_FRAMES < frame) {
 		m_frameAckedMasks.erase(m_frameAckedMasks.begin());
 	}
@@ -682,7 +682,7 @@ Bool ConnectionManager::usesOneWayRunAheadForUser(Int64 userID) {
 	return TheLAN == nullptr && TheGenOnlineGame != nullptr && m_networkSettings.input_delay.controller && m_networkSettings.send.direct && slot >= 0 && isLinkUp(slot);
 }
 
-// Input delay for a round trip: through the router round trip x (1 + slack); sent directly with the controller one way x (1 + slack) + send interval + margin.
+// Through the router the delay is round trip x (1 + slack). Sent directly it is one way x (1 + slack) + send interval + margin.
 Real ConnectionManager::estimateRunAheadMs(Real roundTripMs, const NetworkSettings::Send &sendSettings, const NetworkSettings::InputDelay &inputDelay, Bool oneWay) {
 	const Real slackScale = 1.0f + (Real)inputDelay.slack_percent / 100.0f;
 	if (!oneWay) {
@@ -713,7 +713,6 @@ Bool ConnectionManager::acceptsRunAhead(Int runAhead) const {
 }
 
 Int ConnectionManager::computeStartRunAhead(Real roundTripMs, Bool oneWay) const {
-	// no repair budget at the start
 	const Int runAhead = (Int)ceilf(estimateRunAheadMs(roundTripMs, m_networkSettings.send, m_networkSettings.input_delay, oneWay) * (Real)LOGICFRAMES_PER_SECOND / 1000.0f);
 	return clamp<Int>(getRunAheadFloor(), runAhead, getRunAheadCap());
 }
@@ -776,14 +775,13 @@ Int ConnectionManager::slotForUserID(Int64 userID) const {
 	return (TheGenOnlineGame != nullptr) ? TheGenOnlineGame->getSlotOfUser(userID) : -1;
 }
 
-// Counts a dropped command; TRUE for the drops that are logged (the first 20, then every 100th).
+// Counts a dropped command and returns TRUE for the drops that are logged (the first 20, then every 100th).
 Bool ConnectionManager::noteSecurityDrop() {
 	++m_securityDrops;
 	return m_securityDrops <= 20 || (m_securityDrops % 100) == 0;
 }
 
-// How a command may reach us with another player's name on it: 0 only straight from its author, 1 authenticated by the
-// author's signature (frames, chat), also from a former router, 2 only from the current packet router.
+// Sender trust of a command: 0 only from its author, 1 with the signature of the author, 2 only from the current packet router.
 static Int relayClass(NetCommandType type) {
 	switch (type) {
 	case NETCOMMANDTYPE_FRAMEINFO:
@@ -807,7 +805,6 @@ static Int relayClass(NetCommandType type) {
 	}
 }
 
-// The mesh connection to a slot is up.
 Bool ConnectionManager::isLinkUp(Int slot) {
 	if (TheGenOnlineGame == nullptr || slot < 0 || slot >= MAX_SLOTS) {
 		return FALSE;
@@ -818,7 +815,6 @@ Bool ConnectionManager::isLinkUp(Int slot) {
 	return connection != nullptr && connection->GetState() == EConnectionState::CONNECTED_DIRECT;
 }
 
-// send.direct is on and every peer has a direct connection; commands then bypass the packet router.
 Bool ConnectionManager::isDirectSendActive(Bool atStart) {
 	if (TheGenOnlineGame == nullptr || !m_networkSettings.send.direct) {
 		return FALSE;
@@ -853,7 +849,7 @@ Bool ConnectionManager::isDirectSendActive(Bool atStart) {
 	return m_directSendActive;
 }
 
-// Checks that a command names its sender, or that a router, a former router or a peer holding a removed player's frames passes it on.
+// Checks that a command names its sender, or that a router, a former router or a peer holding the frames of a removed player passes it on.
 Bool ConnectionManager::isCommandFromSender(NetCommandMsg *msg, Int senderSlot) {
 	const Int claimedSlot = (Int)msg->getPlayerID();
 	if (claimedSlot == senderSlot && claimedSlot >= 0 && claimedSlot < MAX_SLOTS) {
@@ -1047,7 +1043,7 @@ Int ConnectionManager::wrapperPassedOnBy(NetCommandMsg *msg) {
 	return author;
 }
 
-/// Signed bytes: header (match, user id, slot), frame, command count, then the frame's commands in full packet form (relay 0) sorted by type and id.
+/// Signed bytes: header (match, user id, slot), frame, command count, then the commands of the frame in full packet form (relay 0) sorted by type and id.
 /// The frame info id is not signed, a peer that passes it on renumbers it.
 Bool ConnectionManager::buildSignedFrame(Int slot, UnsignedInt frame, std::vector<UnsignedByte> &out) {
 	MatchKeys *keys = activeMatchKeys();
@@ -1086,7 +1082,6 @@ Bool ConnectionManager::buildSignedCommand(Int slot, NetCommandMsg *msg, std::ve
 	return TRUE;
 }
 
-/// Signs a local frame that has commands; the signature rides in the frame info. Empty frames are not signed.
 void ConnectionManager::signLocalFrame(NetFrameCommandMsg *frameInfo) {
 	MatchKeys *keys = activeMatchKeys();
 	if (keys == nullptr || frameInfo->getCommandCount() == 0) {
@@ -1134,7 +1129,7 @@ Bool ConnectionManager::buildSignedLeave(Int slot, std::vector<UnsignedByte> &ou
 	return TRUE;
 }
 
-// The leaving player signs its own leave; without a key yet the notice goes out unsigned.
+// The leaving player signs its own leave, and the notice goes out unsigned without a key yet.
 Bool ConnectionManager::signLeaveNotice(NetDisconnectPlayerCommandMsg *msg) {
 	MatchKeys *keys = activeMatchKeys();
 	if (keys == nullptr || (Int)msg->getDisconnectSlot() != (Int)m_localSlot) {
@@ -1149,7 +1144,6 @@ Bool ConnectionManager::signLeaveNotice(NetDisconnectPlayerCommandMsg *msg) {
 	return TRUE;
 }
 
-// TRUE if the notice carries the signature of the player it says left.
 Bool ConnectionManager::verifyLeaveNotice(NetDisconnectPlayerCommandMsg *msg) {
 	const Int slot = (Int)msg->getDisconnectSlot();
 	MatchKeys *keys = activeMatchKeys();
@@ -1167,7 +1161,7 @@ void ConnectionManager::attachStoredSignature(Int author, NetFrameCommandMsg *fr
 	}
 }
 
-// the author's signature replaces a passed on one, never the reverse
+// the signature of the author replaces a passed on one, never the reverse
 void ConnectionManager::storeFrameSignature(Int author, UnsignedInt frame, const UnsignedByte *signature, Bool fromAuthor) {
 	if (author < 0 || author >= MAX_SLOTS || author == (Int)m_localSlot) {
 		return;
@@ -1186,7 +1180,7 @@ void ConnectionManager::storeFrameSignature(Int author, UnsignedInt frame, const
 	}
 }
 
-// Asks the author for the frame again when we reach it, and the peer that passed it on, which holds it in any case.
+// Asks the author for the frame again when it is reached, and the peer that passed it on, which holds it in any case.
 void ConnectionManager::requestPassedOnFrameAgain(Int slot, UnsignedInt frame, Int passedOnBy) {
 	UnsignedByte targets = 0;
 	if (isPlayerConnected(slot)) {
@@ -1208,13 +1202,12 @@ void ConnectionManager::requestPassedOnFrameAgain(Int slot, UnsignedInt frame, I
 	msg->detach();
 }
 
-/// A frame that a peer other than its author passed on runs only with the author's valid signature, else it is cleared and asked for again.
+/// A frame that a peer other than its author passed on runs only with a valid signature of the author, else it is cleared and asked for again.
 Bool ConnectionManager::isPassedOnFrameAuthentic(Int slot, UnsignedInt frame) {
 	FrameSignature *entry = findFrameSignature(slot, frame);
 	if (entry == nullptr || !entry->relayed || entry->verified || !TheNetwork->matchKeysRequired()) {
 		return TRUE;
 	}
-	// empty frames are not signed
 	if (m_frameData[slot]->getFrameCommandCount(frame) == 0) {
 		return TRUE;
 	}
@@ -1295,7 +1288,7 @@ void ConnectionManager::processSignatures(NetSignaturesCommandMsg *msg) {
 	}
 }
 
-// Chat the packet router relays is held until its author's signature checks out.
+// Chat the packet router relays is held until the signature of its author checks out.
 Bool ConnectionManager::holdPassedOnChat(NetChatCommandMsg *msg) {
 	const Int author = (Int)msg->getPlayerID();
 	const Int relayedBy = m_currentSenderSlot;
@@ -1726,7 +1719,7 @@ void ConnectionManager::processRunAheadMetrics(NetRunAheadMetricsCommandMsg *msg
 #endif
 		//DEBUG_LOG(("ConnectionManager::processRunAheadMetrics - player %d, fps = %d, latency = %f", playerID, msg->getAverageFps(), msg->getAverageLatency()));
 
-		// NGMP_CHANGE: Modern machines render games at much higher framerates, 100 is no longer only achievable when a game is in the background...
+		// GENONLINE_CHANGE: Modern machines render well above 100 fps even in the foreground.
 #if defined(GENONLINE)
 		if (m_fpsAverages[playerID] > 1000) {
 			m_fpsAverages[playerID] = 1000;
@@ -1783,8 +1776,8 @@ void ConnectionManager::processChat(NetChatCommandMsg *msg)
 	if (!player)
 	{
 		TheInGameUI->message(L"%ls", unitext.str());
-#if defined(GENONLINE) && RTS_ZEROHOUR
-		StatsExporterLiveChatInGame((Int)playerID, name, msg->getText(), msg->getPlayerMask(), playerID == m_localSlot);
+#if defined(GENONLINE)
+		LocalApiLiveChatInGame((Int)playerID, name, msg->getText(), msg->getPlayerMask(), playerID == m_localSlot);
 #endif
 		return;
 	}
@@ -1805,9 +1798,7 @@ void ConnectionManager::processChat(NetChatCommandMsg *msg)
 			rgb.setFromInt(DetermineMentionColor());
 		}
 		TheInGameUI->messageColor(true, &rgb, UnicodeString(L"%ls"), unitext.str());
-#if RTS_ZEROHOUR
-		StatsExporterLiveChatInGame((Int)playerID, name, msg->getText(), msg->getPlayerMask(), playerID == m_localSlot);
-#endif
+		LocalApiLiveChatInGame((Int)playerID, name, msg->getText(), msg->getPlayerMask(), playerID == m_localSlot);
 #else
 		TheInGameUI->messageColor(&rgb, L"%ls", unitext.str());
 #endif
@@ -2165,9 +2156,9 @@ void ConnectionManager::processAck(NetCommandMsg *msg) {
  */
 PlayerLeaveCode ConnectionManager::processPlayerLeave(NetPlayerLeaveCommandMsg *msg) {
 	UnsignedByte playerID = msg->getLeavingPlayerID();
-#if defined(GENONLINE) && RTS_ZEROHOUR
+#if defined(GENONLINE)
 	// the network layer carries quit and disconnect as the same synchronized leave command
-	StatsExporterLivePlayerLeftSlot(playerID, "left");
+	LocalApiLivePlayerLeftSlot(playerID, "left");
 #endif
 	if ((playerID != m_localSlot) && (m_connections[playerID] != nullptr)) {
 		DEBUG_LOG(("ConnectionManager::processPlayerLeave() - setQuitting() on player %d on frame %d", playerID, TheGameLogic->getFrame()));
@@ -2301,7 +2292,7 @@ void ConnectionManager::ackCommand(NetCommandRef *ref, UnsignedInt localSlot) {
 	ackmsg->setPlayerID(localSlot); // Tell the player who this ack is coming from.
 
 #if !RETAIL_COMPATIBLE_NETWORKING
-	// a peer other than the router that passed on another player's command waits for the ack itself
+	// a peer other than the router that passed on a command of another player waits for the ack itself
 	if ((m_currentSenderSlot >= 0) && (m_currentSenderSlot != (Int)msg->getPlayerID()) && (m_currentSenderSlot != (Int)m_packetRouterSlot) && (m_connections[m_currentSenderSlot] != nullptr)) {
 		m_connections[m_currentSenderSlot]->sendNetCommandMsg(ackmsg, 1 << m_currentSenderSlot);
 		ackmsg->detach();
@@ -2309,12 +2300,11 @@ void ConnectionManager::ackCommand(NetCommandRef *ref, UnsignedInt localSlot) {
 	}
 #endif
 
-	// A command that came straight from its author and needs no relaying is acked straight back to it, one the router
-	// passed on is acked to the router. The arrival decides, not our own direct send mode: peers can be in different modes.
+	// A command straight from its author is acked to it and a passed on one to the router. The arrival decides, not the own send mode, since peers can differ.
 	Bool ackDirectly = CommandRequiresDirectSend(msg) && CommandRequiresAck(msg);
 #if defined(GENONLINE) && !RETAIL_COMPATIBLE_NETWORKING
 	if (!ackDirectly && sendRelay == 0 && msg->getPlayerID() < MAX_SLOTS && m_connections[msg->getPlayerID()] != nullptr) {
-		// an unknown sender (anticheat transport) falls back to our own mode
+		// an unknown sender (anticheat transport) falls back to the own send mode
 		ackDirectly = (m_currentSenderSlot >= 0) ? (m_currentSenderSlot == (Int)msg->getPlayerID()) : isDirectSendActive();
 	}
 #endif
@@ -2502,7 +2492,6 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 	const time_t decisionInterval = TheGlobalData->m_networkRunAheadMetricsTime;
 #endif
 #if defined(GENONLINE)
-	// after a fast drop step the next decision only waits the short dead time
 	const time_t gateInterval = (m_fastDropStep && FAST_DROP_DEAD_MS < decisionInterval) ? (time_t)FAST_DROP_DEAD_MS : decisionInterval;
 #else
 	const time_t gateInterval = decisionInterval;
@@ -2782,7 +2771,7 @@ void ConnectionManager::noteRunAheadApplied(Int oldRunAhead, Int newRunAhead) {
 	if (oldRunAhead == newRunAhead) {
 		return;
 	}
-	// what the overlay says about this change: the router knows the controller's reason, the others infer it from the direction and their own stalls
+	// what the overlay says about this change: the router knows the reason of the controller, the others infer it from the direction and their own stalls
 	{
 		const time_t appliedNow = timeGetTime();
 		Int changeReason = NetworkOverlayInfo::CHANGE_CLEAN;
@@ -2935,7 +2924,7 @@ Int ConnectionManager::decideControllerRunAhead(Int oldRunAhead, Int formulaRunA
 		return oldRunAhead;
 	}
 
-	// an outage is no reason to raise, the waits it causes are not the network's trend
+	// an outage is no reason to raise, the waits it causes are not the trend of the network
 	if (m_ctlOutageSince != 0) {
 		const Int stallMs = discardControllerReport();
 		resetControllerWindow(FALSE);
@@ -2946,7 +2935,6 @@ Int ConnectionManager::decideControllerRunAhead(Int oldRunAhead, Int formulaRunA
 		return oldRunAhead;
 	}
 
-	// the router's own row
 	{
 		Int ownLowest[MAX_SLOTS];
 		Int ownLate[MAX_SLOTS];
@@ -2963,7 +2951,7 @@ Int ConnectionManager::decideControllerRunAhead(Int oldRunAhead, Int formulaRunA
 		m_ctlReportStall[m_localSlot] += ownStallMs;
 	}
 
-	// wait for every player's first report since the change, 2 D at most
+	// wait for the first report of every player since the change, 2 D at most
 	{
 		Bool allReported = TRUE;
 		for (Int a = 0; a < MAX_SLOTS; ++a) {
@@ -3047,7 +3035,7 @@ Int ConnectionManager::decideControllerRunAhead(Int oldRunAhead, Int formulaRunA
 	const Bool havePair = pairCount > 0;
 	const Int stallGateMs = framesToMs(3);	// a wait of less than 3 F is not seen and one more frame of run ahead would not fix it
 	const Bool stalled = !screenshotInterval && stallMs >= stallGateMs;
-	// 2 R - sum frames are missing over the pair, half of it per direction, plus the margin each direction keeps
+	// 2 R minus the sum of frames are missing over the pair, half of it per direction, plus the margin each direction keeps
 	const Int twiceShort = 2 * oldRunAhead - minSum;
 	Int need = havePair ? (((twiceShort >= 0) ? ((twiceShort + 1) / 2) : -((-twiceShort) / 2)) + margin) : 0;
 	if (stalled) {
@@ -3102,7 +3090,6 @@ Int ConnectionManager::decideControllerRunAhead(Int oldRunAhead, Int formulaRunA
 	if (newRunAhead != oldRunAhead) {
 		resetControllerWindow(TRUE);
 		m_ctlChangeTime = now;
-		// a fast drop waits the shortest dead time before the next step down
 		m_fastDropStep = fastDrop && newRunAhead < oldRunAhead;
 		m_ctlIgnoreUntil = now + (m_fastDropStep ? FAST_DROP_DEAD_MS : getEffectiveDecisionIntervalMs(newRunAhead));
 		m_ctlLastWindowTime = m_ctlIgnoreUntil;
@@ -3128,7 +3115,7 @@ Real ConnectionManager::getLiveProbeLatency()
 	return (Real)highestMs / 1000.0f;
 }
 
-// The average of the two highest in-band round trips, our own slot carries the one to our slowest peer.
+// The average of the two highest in-band round trips, the own slot carries the one to the slowest peer.
 Real ConnectionManager::getMaximumLatency()
 {
 	Real lat1 = 0.0f;
@@ -3276,7 +3263,6 @@ void ConnectionManager::sendLocalCommand(NetCommandMsg *msg, UnsignedByte relay 
 	const Bool sendToAll = (m_localSlot == m_packetRouterSlot);
 #endif
 	if (sendToAll) {
-		// I am the packet router or sending directly, I need to send this packet to everyone individually.
 		for (Int i = 0; i < MAX_SLOTS; ++i) {
 			// Send it to all open connections.
 			if (((m_connections[i] != nullptr) && (m_connections[i]->isQuitting() == FALSE)) && (relay & (1 << i))) {
@@ -3606,22 +3592,6 @@ PlayerLeaveCode ConnectionManager::disconnectPlayer(int64_t userID)
 		TheGameLogic->processProgressComplete(slot);
 	}
 	return PLAYERLEAVECODE_UNKNOWN;
-// 	if (TheGenOnlineGame != nullptr)
-// 	{
-// 		for (int slot = 0; slot < MAX_SLOTS; ++slot)
-// 		{
-// 			GenOnlineGameSlot* pSlot = (GenOnlineGameSlot*)TheGenOnlineGame->getSlot(slot);
-// 			if (pSlot)
-// 			{
-// 				if (pSlot->m_userID == userID)
-// 				{
-// 					return disconnectPlayer(slot);
-// 				}
-// 			}
-// 		}
-// 	}
-// 
-// 	return PLAYERLEAVECODE_UNKNOWN;
 }
 #endif
 
@@ -4286,7 +4256,7 @@ void ConnectionManager::notifyOthersOfNewFrame(UnsignedInt frame) {
 	msg->detach();
 }
 
-// An id half the counter away from the player's own, so a passed on frame info never collides with its commands.
+// An id half the counter away from the id of the player, so a passed on frame info never collides with its commands.
 UnsignedShort ConnectionManager::generateImpersonatedCommandID(Int playerID, UnsignedInt frame) {
 	return (UnsignedShort)(((m_lastSeenCommandID[playerID] + 0x8000) & 0xF000) | (frame & 0x0FFF));
 }
@@ -4297,7 +4267,7 @@ void ConnectionManager::sendFrameDataToPlayer(UnsignedInt playerID, UnsignedInt 
 		sendSingleFrameToPlayer(playerID, frame);
 	}
 #if defined(GENONLINE)
-	// a peer that dropped a passed on frame asks for it while we have not run it yet: our own data for it is final
+	// a peer that dropped a passed on frame asks for it before the frame has run here, so the own data for it is final
 	if (startingFrame >= TheGameLogic->getFrame() && startingFrame <= m_lastFrameInfoSent) {
 		sendSingleFrameToPlayer(playerID, startingFrame, TRUE);
 	}
@@ -4326,7 +4296,7 @@ void ConnectionManager::sendSingleFrameToPlayer(UnsignedInt playerID, UnsignedIn
 		}
 #endif
 #if defined(GENONLINE)
-		// For a frame we have not run yet only our own data is final, and that of a player that is out once we hold all of it.
+		// For a frame not run yet only the own data is final, and that of a player that is out once all of it is held.
 		if (ownOnly && (i != (Int)m_localSlot)) {
 			Bool finalOfOutPlayer = FALSE;
 #if !RETAIL_COMPATIBLE_NETWORKING
@@ -4339,6 +4309,7 @@ void ConnectionManager::sendSingleFrameToPlayer(UnsignedInt playerID, UnsignedIn
 		}
 #endif
 		if ((m_frameData[i] != nullptr) && (i != playerID)) { // no need to send his own commands to him.
+			// no need to send his own commands to him.
 			NetCommandList *list = m_frameData[i]->getFrameCommandList(frame);
 			if (list != nullptr) {
 				NetCommandRef *ref = list->getFirstMessage();
@@ -4432,7 +4403,6 @@ void ConnectionManager::noteStalling(Bool stalling, UnsignedInt frame) {
 	time_t now = timeGetTime();
 
 	if (stalling && !m_stallActive) {
-		// list the senders whose commands for this frame are missing
 		m_stallMissingMask = 0;
 		for (Int i = 0; i < MAX_SLOTS; ++i) {
 			if ((m_frameData[i] != nullptr) && (m_frameData[i]->getIsQuitting() == FALSE)
@@ -4445,7 +4415,7 @@ void ConnectionManager::noteStalling(Bool stalling, UnsignedInt frame) {
 		m_stallWaitedOnRemote = FALSE;
 	}
 	if (stalling) {
-		// only a remote player's missing commands are a network stall, a missing local slot or the disconnect manager holding the frame is not
+		// only missing commands of a remote player are a network stall, a missing local slot or the disconnect manager holding the frame is not
 		for (Int i = 0; i < MAX_SLOTS && !m_stallWaitedOnRemote; ++i) {
 			if ((i != m_localSlot) && (m_frameData[i] != nullptr) && (m_frameData[i]->getIsQuitting() == FALSE)
 				&& (m_frameData[i]->getFrameCommandCount(frame) != m_frameData[i]->getCommandCount(frame))) {
@@ -4459,7 +4429,7 @@ void ConnectionManager::noteStalling(Bool stalling, UnsignedInt frame) {
 			m_ctlStallMs += (Int)(now - ((m_stallStartTime > m_ctlStallMark) ? m_stallStartTime : m_ctlStallMark));
 		}
 		// the overlay, the rating and the logs count the stalls the controller counts: a wait of a frame or more for a
-		// remote player's commands, not one a local screenshot capture caused
+		// commands of a remote player, not one a local screenshot capture caused
 		const Bool screenshotStall = (m_screenshotStallUntil != 0 && m_stallStartTime < m_screenshotStallUntil);
 		if (m_stallWaitedOnRemote && (now - m_stallStartTime) >= framesToMs(1) && !screenshotStall) {
 			m_stallStats.note((Int)(now - m_stallStartTime), m_stallMissingMask, now);
@@ -4467,7 +4437,7 @@ void ConnectionManager::noteStalling(Bool stalling, UnsignedInt frame) {
 	}
 }
 
-/** Frames after this one that every remote player's commands are complete for (lowest, up to maxFrames); overdue = its next frame info is later than its usual gap. */
+/** Frames after this one that the commands of every remote player are complete for (lowest, up to maxFrames), where overdue means its next frame info is later than its usual gap. */
 Int ConnectionManager::getRemoteLookAhead(UnsignedInt frame, Int maxFrames, Bool &overdue) {
 	const time_t now = timeGetTime();
 	Int lowest = -1;

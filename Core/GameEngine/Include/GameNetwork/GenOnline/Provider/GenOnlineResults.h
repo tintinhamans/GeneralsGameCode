@@ -16,10 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlineResults.h ///////////////////////////////////////////////////
-// Description: Game results queue of the GenOnline provider.
-//              GenOnline reports match results through its own services, so
-//              this queue starts no threads and sends nothing.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once

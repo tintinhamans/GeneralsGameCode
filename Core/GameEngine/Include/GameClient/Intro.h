@@ -31,6 +31,8 @@ class Intro
 		IntroState_EALogoMovie,
 		IntroState_TheSuperHackersWait,
 		IntroState_TheSuperHackers,
+        IntroState_GOWait,
+        IntroState_GO,
 		IntroState_SizzleMovieWait,
 		IntroState_SizzleMovie,
 		IntroState_Done,
@@ -73,6 +75,8 @@ private:
 	void doSizzleMovie();
 	void doPostIntro();
 	void doAsyncWait(UnsignedInt milliseconds);
+
+	void doGeneralsOnlineLogo();
 
 	void drawDisplayEntities();
 

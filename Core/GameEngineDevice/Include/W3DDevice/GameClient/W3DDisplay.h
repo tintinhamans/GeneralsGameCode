@@ -115,7 +115,7 @@ public:
 	virtual void setClipRegion( IRegion2D *region ) override;	///< Set clip rectangle for 2D draw operations.
 	virtual Bool	isClippingEnabled() override { return m_isClippedEnabled; }
 	virtual void	enableClipping( Bool onoff ) override { m_isClippedEnabled = onoff; }
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Read back the clip rectangle so a draw can restore it.
+	// GenOnline @feature arcticdolphin 08/11/2026 Read back the clip rectangle so a draw can restore it.
 	virtual Bool	getClipRegion(IRegion2D* region) override { *region = m_clipRegion; return TRUE; }	///< Fill the clip rectangle.
 
 	virtual void update() override; ///< Update the client state of the display

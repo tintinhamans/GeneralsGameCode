@@ -22,7 +22,6 @@
 //																																						//
 ////////////////////////////////////////////////////////////////////////////////
 
-// FILE: GenOnlineMapSelectMenu.cpp ////////////////////////////////////////////////////////////////////////
 // Author: Matt Campbell, December 2001
 // Description: MapSelect menu window callbacks
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -57,7 +56,7 @@ static Bool raiseMessageBoxes = FALSE;
 static GameWindow *winMapPreview = nullptr;
 static NameKeyType winMapPreviewID = NAMEKEY_INVALID;
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Search, filters and favourites replace the system and user map tabs.
+// GenOnline @feature arcticdolphin 08/11/2026 Search, filters and favourites replace the system and user map tabs.
 static MapSelectList mapSelectList;
 static MapSelectFilter mapSelectFilter;
 
@@ -94,7 +93,7 @@ static void NullifyControls(void)
 
 static const char *layoutFilename = "GameSpyGameOptionsMenu.wnd";
 static const char *parentName = "GameSpyGameOptionsMenuParent";
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 Rows stay visible behind the dialog; only the preview hides, it shares the marker list.
+// GenOnline @tweak arcticdolphin 08/11/2026 Rows stay visible behind the dialog. Only the preview hides, because it shares the marker list.
 static const char *gadgetsToHide[] =
 {
 	"MapWindow",
@@ -166,8 +165,8 @@ void GenOnlineMapSelectMenuInit( WindowLayout *layout, void *userData )
 	NameKeyType mapListID = TheNameKeyGenerator->nameToKey( "WOLMapSelectMenu.wnd:ListboxMap" );
 	mapList = TheWindowManager->winGetWindowFromId( parent, mapListID );
 
-	// NGMP_CHANGE: Show all the maps in the folder, not just the first 1200. This change could be made in the .WND instead, but code is cleaner.
-	// NGMP_BACKPORT: Port this to SH once verified
+	// GENONLINE_CHANGE: Show all the maps in the folder, not just the first 1200. This change could be made in the .WND instead, but code is cleaner.
+	// GENONLINE_BACKPORT: Port this to SH once verified
 	GadgetListBoxSetListLength(mapList, TheMapCache->size());
 	
 	if( mapList )
@@ -263,7 +262,6 @@ WindowMsgHandledType GenOnlineMapSelectMenuInput( GameWindow *window, UnsignedIn
 }
 void GenOnlinePositionStartSpots();
 
-// The OK path's effect on the lobby: the map and its data, the slots adjusting to it, and the lobby service told.
 static void applySelectedMap( AsciiString asciiMap )
 {
 	// Only the host of a custom game changes the map. The selector closes without a change for anyone else.
@@ -296,17 +294,16 @@ static void applySelectedMap( AsciiString asciiMap )
 	TheGenOnlineGame->resetAccepted();
 	TheGenOnlineGame->resetStartSpots();
 
-	// TODO_NGMP:
+	// TODO_GENONLINE:
 	//TheGameSpyInfo->setGameOptions();
 
 	GenOnlineDisplaySlotList();
 	GenOnlineDisplayGameOptions();
 
-	// NGMP: Update lobby
 	pLobbyInterface->UpdateCurrentLobby_Map(strMapName, TheGenOnlineGame->getMap(), bOfficialMap, newMaxPlayers);
 }
 
-// The same without the selector window, for the stats pipe.
+// The same without the selector window, for the stats readers.
 void GenOnlineMapSelectMenuApplyMap( const AsciiString& map )
 {
 	applySelectedMap( map );

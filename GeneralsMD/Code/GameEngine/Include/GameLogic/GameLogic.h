@@ -550,7 +550,7 @@ inline Object* GameLogic::findObjectByID( ObjectID id )
 class GameInfo;
 class GameSlot;
 
-// Whether this slot is the local player's; the initial camera and the stats exporter use the same test.
+// Whether this slot is the local player. The initial camera and the stats exporter use the same test.
 extern Bool GameLogicIsLocalSlot(GameInfo* game, GameSlot* slot);
 
 // the singleton

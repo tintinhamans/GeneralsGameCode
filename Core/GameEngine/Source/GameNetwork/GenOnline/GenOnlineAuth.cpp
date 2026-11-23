@@ -22,11 +22,10 @@
 
 void GenOnlineAuthInterface::GoToDetermineNetworkCaps()
 {
-	// GET the service config and its MOTD
 	const int loginAttempt = m_loginAttempt;
 	GenOnlineRealtimeBridge::CallRest(GenOnlineRealtimeBridge::RestMethod::Get, GenOnlineRealtime::RestConfigPath(), std::string(), [=](const GenOnlineRealtime::RestOutcome& outcome)
 		{
-			// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The player cancelled the sign-in while it was finishing.
+			// GenOnline @bugfix arcticdolphin 09/11/2026 The player cancelled the sign-in while it was finishing.
 			if (loginAttempt != m_loginAttempt)
 			{
 				return;
@@ -50,7 +49,7 @@ void GenOnlineAuthInterface::GoToDetermineNetworkCaps()
 				if (!bWSConnected)
 				{
 					loginResult = ELoginResult::Failed;
-					// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The stage shows the failure, so Cancel is gone while the error box or dialog step is up.
+					// GenOnline @bugfix arcticdolphin 09/11/2026 The stage shows the failure, so Cancel is gone while the error box or dialog step is up.
 					m_loginStage = ELoginStage::Failed;
 				}
 
@@ -82,7 +81,7 @@ void GenOnlineAuthInterface::GoToDetermineNetworkCaps()
 				if (!bWSConnected)
 				{
 					loginResult = ELoginResult::Failed;
-					// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The stage shows the failure, so Cancel is gone while the error box or dialog step is up.
+					// GenOnline @bugfix arcticdolphin 09/11/2026 The stage shows the failure, so Cancel is gone while the error box or dialog step is up.
 					m_loginStage = ELoginStage::Failed;
 				}
 
@@ -219,7 +218,7 @@ void GenOnlineAuthInterface::UseAnotherAccount()
 
 void GenOnlineAuthInterface::CancelLogin()
 {
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Drop the replies still on their way and stop polling, so a cancelled login never completes later.
+	// GenOnline @feature arcticdolphin 08/11/2026 Drop the replies still on their way and stop polling, so a cancelled login never completes later.
 	++m_loginAttempt;
 	m_pSignIn->Cancel();
 	AbandonRefreshV1();
@@ -228,7 +227,7 @@ void GenOnlineAuthInterface::CancelLogin()
 	{
 		GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
 
-		// TheSuperHackers @bugfix arcticdolphin 09/11/2026 Nothing on the main menu acts on the pending teardown, so tear down now; this also closes a websocket a finishing login opened.
+		// GenOnline @bugfix arcticdolphin 09/11/2026 Nothing on the main menu acts on the pending teardown, so tear down now. This also closes a websocket a finishing login opened.
 		GenOnlineServicesManager::GetInstance()->ConsumePendingFullTeardown();
 		TearDownGeneralsOnline();
 	}
@@ -252,7 +251,7 @@ void GenOnlineAuthInterface::OnLoginComplete(ELoginResult loginResult, const cha
 		const int loginAttempt = m_loginAttempt;
 		GenOnlineServicesManager::GetInstance()->OnLogin(loginResult, szWSAddr, [=]() // wait for WS to connect
 			{
-				// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The player cancelled the sign-in before the websocket connected.
+				// GenOnline @bugfix arcticdolphin 09/11/2026 The player cancelled the sign-in before the websocket connected.
 				if (loginAttempt != m_loginAttempt)
 				{
 					return;
@@ -270,8 +269,8 @@ void GenOnlineAuthInterface::OnLoginComplete(ELoginResult loginResult, const cha
 			m_cb_LoginPendingCallback(loginResult);
 		}
 
-		// TheSuperHackers @bugfix arcticdolphin 09/11/2026 A failed login leaves the screen through the OK of the login callback's message box, so only a cancel pops here.
-		// TheSuperHackers @feature arcticdolphin 09/11/2026 The sign-in dialog closes itself on cancel; there is no screen to pop.
+		// GenOnline @bugfix arcticdolphin 09/11/2026 A failed login leaves the screen through the OK of the message box of the login callback, so only a cancel pops here.
+		// GenOnline @feature arcticdolphin 09/11/2026 The sign-in dialog closes itself on cancel, so there is no screen to pop.
 		if (loginResult == ELoginResult::UserCancelled && !m_bSignInDialog)
 		{
 			TheShell->pop();
@@ -281,7 +280,6 @@ void GenOnlineAuthInterface::OnLoginComplete(ELoginResult loginResult, const cha
 
 static int64_t NowMsV1();
 
-// The longest wait for an answer to one logout send.
 static const int64_t LOGOUT_TIMEOUT_MS = 3000;
 
 void GenOnlineAuthInterface::LogoutOfMyAccount(std::function<void()> fnDone)
@@ -366,7 +364,7 @@ void GenOnlineAuthInterface::LoginAsSecondaryDevAccount()
 
 bool GenOnlineAuthInterface::GetCredentials()
 {
-#if defined(_DEBUG) && !defined(USE_TEST_ENV) && !defined(USE_DEBUG_ON_LIVE_SERVER)
+#if defined(_DEBUG) && !defined(GENONLINE_BUILD_ENVIRONMENT)
 	return false;
 #endif
 	std::string strToken;
@@ -392,7 +390,7 @@ static const char* CredentialsFileName()
 std::string GenOnlineAuthInterface::GetCredentialsFilePath()
 {
 	// debug supports multi inst, so needs seperate tokens
-#if defined(_DEBUG) && !defined(USE_TEST_ENV) && !defined(USE_DEBUG_ON_LIVE_SERVER)
+#if defined(_DEBUG) && !defined(GENONLINE_BUILD_ENVIRONMENT)
 	std::string strCredsPath = std::format("{}/GeneralsOnlineData/credentials_dev_env_{}.json", TheGlobalData->getPath_UserData().str(), rts::ClientInstance::getInstanceIndex());
 #else
 	std::string strCredsPath = std::format("{}/GeneralsOnlineData/{}", TheGlobalData->getPath_UserData().str(), CredentialsFileName());
@@ -400,7 +398,6 @@ std::string GenOnlineAuthInterface::GetCredentialsFilePath()
 	return strCredsPath;
 }
 
-// Realtime protocol v1 sign-in /////////////////////////////////////////////////
 
 static int64_t NowMsV1()
 {

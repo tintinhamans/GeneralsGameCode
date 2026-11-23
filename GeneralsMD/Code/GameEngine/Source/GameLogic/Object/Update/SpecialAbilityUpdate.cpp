@@ -63,7 +63,7 @@
 #include "GameLogic/Module/StickyBombUpdate.h"
 #include "GameLogic/Module/StealthUpdate.h"
 #include "GameLogic/Module/ContainModule.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 
 
 
@@ -1478,7 +1478,7 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
       object->getControllingPlayer()->getAcademyStats()->recordBuildingCapture();
 
       // success point for building-capture powers, excluded from SpecialPowerModule::triggerSpecialPower()
-      StatsExporterLiveAbilityUse(
+      LocalApiLiveAbilityUse(
         object->getControllingPlayer()->getPlayerIndex(),
         spTemplate,
         object->getTemplate(),

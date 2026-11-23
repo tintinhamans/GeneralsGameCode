@@ -1,8 +1,0 @@
-{
-  "name": "genonline-plugin-sdk",
-  "version": "2026.11.0",
-  "description": "The Generals Online plugin API header, from the private community-outpost/genonline-plugin-sdk repository.",
-  "homepage": "https://github.com/community-outpost/genonline-plugin-sdk",
-  "license": "MIT",
-  "supports": "windows & x86"
-}

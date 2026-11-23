@@ -111,7 +111,7 @@ namespace
 
 void ShowLoginBanDialog(const OnlineBanDetails& ban)
 {
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 The ban notice ends a sign-in in the dialog, which closes first; its buttons then have no screen to leave.
+	// GenOnline @feature arcticdolphin 09/11/2026 The ban notice ends a sign-in in the dialog, which closes first, so its buttons then have no screen to leave.
 	if (GOSignInDialogIsOpen())
 	{
 		GenOnlineCancelPatchCheckCallbackAndReopenDropdown();

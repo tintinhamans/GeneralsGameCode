@@ -789,6 +789,7 @@ void MilesAudioManager::playAudioEvent( AudioRequest* req )
 						CriticalSectionClass::LockClass lock(m_playing3DSoundsCS);
 						m_playing3DSounds.push_back(newPlaying);
 					}
+			// Start playback
 					AIL_start_3D_sample(sample3D);
 					newPlaying = nullptr;
 					#ifdef INTENSIVE_AUDIO_DEBUG
@@ -855,6 +856,7 @@ void MilesAudioManager::playAudioEvent( AudioRequest* req )
 						CriticalSectionClass::LockClass lock(m_playingSoundsCS);
 						m_playingSounds.push_back(newPlaying);
 					}
+		// Start playback
 					AIL_start_sample(sample);
 					newPlaying = nullptr;
 					#ifdef INTENSIVE_AUDIO_DEBUG
@@ -3339,7 +3341,6 @@ void AudioFileCache::releaseEvictedFiles()
 		}
 	}
 
-	// These things need to be terminated IMMEDIATELY.
 	stopSamplesUsingFiles(filesToStop);
 
 	OpenAudioFileList filesToFree;

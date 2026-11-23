@@ -31,7 +31,7 @@ public:
     FFmpegAudioFile(const FFmpegAudioFile &) = delete;
     FFmpegAudioFile &operator=(const FFmpegAudioFile &) = delete;
 
-    // A sampleRate or channels of 0 keeps the file's own rate or channel count (at most 2).
+    // A sampleRate or channels of 0 keeps the rate or channel count of the file (at most 2).
     Bool open(File *file, Int sampleRate, Int channels, float normalizedCutoff = 1.0f);
     void close();
     void setErrorLogging(Bool enabled);
@@ -40,7 +40,7 @@ public:
     void setPcmCallback(FFmpegPcmCallback callback);
     Int getSampleRate() const;
     Int getNumChannels() const;
-    // The file's own rate and channel count (at most 2), whatever was requested.
+    // The rate and channel count of the file (at most 2), whatever was requested.
     Int getSourceSampleRate() const;
     Int getSourceNumChannels() const;
 

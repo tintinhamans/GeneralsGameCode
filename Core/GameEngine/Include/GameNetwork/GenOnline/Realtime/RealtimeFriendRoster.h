@@ -16,12 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: RealtimeFriendRoster.h //////////////////////////////////////////////
-// Description: The friends and pending friend requests the communicator
-//              lists, and how FriendPresence and an accepted request change
-//              them. The service sends the accepting user the new friend's
-//              FriendPresence before the accept call answers, so presence for
-//              a pending request is kept and moves with it to the friends.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -38,6 +32,8 @@ struct FriendsEntry
 	std::string display_name;
 	bool online = false;
 	std::string presence;
+	// "online", "idle" or "do_not_disturb"
+	std::string status = "online";
 };
 
 namespace GenOnlineRealtime
@@ -45,7 +41,7 @@ namespace GenOnlineRealtime
 
 typedef std::unordered_map<int64_t, FriendsEntry> FriendsMap;
 
-// What a FriendPresence changed. Only a friend's change is shown; a pending request only keeps it.
+// What a FriendPresence changed. Only a change of a friend is shown, a pending request only keeps it.
 struct FriendPresenceChange
 {
 	bool friendChanged = false;
@@ -66,15 +62,17 @@ inline FriendPresenceChange ApplyFriendPresence(FriendsMap& friends, FriendsMap&
 		{
 			request->second.online = event.online;
 			request->second.presence = presenceText;
+			request->second.status = event.status.value_or("online");
 		}
 		return change;
 	}
 
 	change.onlineChanged = it->second.online != event.online;
-	change.friendChanged = change.onlineChanged || it->second.presence != presenceText;
+	change.friendChanged = change.onlineChanged || it->second.presence != presenceText || it->second.status != event.status.value_or("online");
 	change.displayName = it->second.display_name;
 	it->second.online = event.online;
 	it->second.presence = presenceText;
+	it->second.status = event.status.value_or("online");
 	return change;
 }
 

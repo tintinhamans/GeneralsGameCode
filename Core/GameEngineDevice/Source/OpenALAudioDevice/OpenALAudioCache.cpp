@@ -143,7 +143,7 @@ std::shared_ptr<const OpenALAudioClip> OpenALAudioCache::load(const AsciiString 
     if (normalizedCutoff <= 0.0f || normalizedCutoff >= 0.999f)
         normalizedCutoff = 1.0f;
     const std::string name(filename.str());
-    // The file's own rate and channel count, 0 until any request has opened it.
+    // The own rate and channel count of the file, 0 until any request has opened it.
     auto &format = m_formats[name];
     if (rate <= 0)
         rate = format.first;

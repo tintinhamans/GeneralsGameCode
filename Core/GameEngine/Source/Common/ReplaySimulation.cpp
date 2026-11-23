@@ -25,10 +25,7 @@
 #include "Common/GlobalData.h"
 #include "Common/LocalFileSystem.h"
 #include "Common/Recorder.h"
-#if RTS_ZEROHOUR
-// Match stats export is only implemented in Zero Hour
 #include "Common/StatsExporter.h"
-#endif
 #include "Common/WorkerProcess.h"
 #include "GameLogic/GameLogic.h"
 #include "GameClient/GameClient.h"
@@ -87,10 +84,8 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 		printf("Simulating Replay \"%s\"\n", filename.str());
 		fflush(stdout);
 		DWORD startTimeMillis = GetTickCount();
-#if RTS_ZEROHOUR
 		if (TheGlobalData->m_exportStats)
 			StatsExporterBeginRecording();
-#endif
 		if (TheRecorder->simulateReplay(filename))
 		{
 			UnsignedInt totalTimeSec = TheRecorder->getPlaybackFrameCount() / LOGICFRAMES_PER_SECOND;
@@ -107,10 +102,8 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 					fflush(stdout);
 				}
 				TheGameLogic->UPDATE();
-#if RTS_ZEROHOUR
 				if (TheGlobalData->m_exportStats)
 					StatsExporterCollectSnapshot();
-#endif
 				if (TheRecorder->sawCRCMismatch())
 				{
 					numErrors++;
@@ -122,10 +115,9 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 			printf("Elapsed Time: %02d:%02d Game Time: %02d:%02d/%02d:%02d\n",
 					realTimeSec/60, realTimeSec%60, gameTimeSec/60, gameTimeSec%60, totalTimeSec/60, totalTimeSec%60);
 			fflush(stdout);
-#if RTS_ZEROHOUR
-			if (TheGlobalData->m_exportStats)
-				ExportGameStatsJSON(TheRecorder->getReplayDir(), filename);
-#endif
+			// GenOnline @feature arcticdolphin 21/11/2026 A replay whose stats could not be exported fails the run so a replay server notices
+			if (TheGlobalData->m_exportStats && !ExportGameStatsJSON(TheRecorder->getReplayDir(), filename))
+				numErrors++;
 		}
 		else
 		{
@@ -192,14 +184,9 @@ int ReplaySimulation::simulateReplaysInWorkerProcesses(const std::vector<AsciiSt
 				exePath,
 				TheGlobalData->m_windowed ? L" -win" : L"",
 				TheGlobalData->m_headless ? L" -headless" : L"",
-#if RTS_ZEROHOUR
 				TheGlobalData->m_exportStats ? L" -exportStats" : L"",
-#else
-				L"",
-#endif
 				TheDebugIgnoreReplaySyncErrors ? L" -ignoreReplaySyncErrors" : L"",
 				filenameWide.str());
-#if RTS_ZEROHOUR
 			if (!TheGlobalData->m_statsUrl.isEmpty())
 			{
 				UnicodeString statsUrlWide;
@@ -208,7 +195,6 @@ int ReplaySimulation::simulateReplaysInWorkerProcesses(const std::vector<AsciiSt
 				command.concat(statsUrlWide);
 				command.concat(L"\"");
 			}
-#endif
 
 			processes.push_back(WorkerProcess());
 			processes.back().startProcess(command);

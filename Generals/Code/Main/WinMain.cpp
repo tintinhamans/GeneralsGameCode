@@ -70,6 +70,9 @@
 #ifdef RTS_ENABLE_CRASHDUMP
 #include "MiniDumper/MiniDumper.h"
 #endif
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/GenOnlineInit.h"
+#endif
 
 
 // GLOBALS ////////////////////////////////////////////////////////////////////
@@ -290,7 +293,24 @@ static const char *messageToString(unsigned int message)
 }
 #endif
 
-// TheSuperHackers @bugfix arcticdolphin 07/11/2026 A windowed game is a normal window, so the taskbar, which is topmost, covered
+#if defined(GENONLINE)
+static void setWinMainActive(Bool active)
+{
+	isWinMainActive = active;
+
+	if (TheGameEngine)
+		TheGameEngine->setIsActive(isWinMainActive);
+
+	if (isWinMainActive)
+	{
+		//restore mouse cursor to our custom version.
+		if (TheWin32Mouse)
+			TheWin32Mouse->setCursor(TheWin32Mouse->getMouseCursor());
+	}
+}
+#endif
+
+// GenOnline @bugfix arcticdolphin 07/11/2026 A windowed game is a normal window, so the taskbar, which is topmost, covered
 // the part of a window as large as the monitor that lies over it. While the game has focus, such a window is topmost.
 static const UINT_PTR WINDOWED_TOPMOST_TIMER_ID = 0x5450;
 static void updateWindowedTopmost(HWND hWnd, Bool active);
@@ -353,8 +373,8 @@ static void updateWindowedTopmost(HWND hWnd, Bool active)
 		if (isTopmost)
 		{
 			SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-			// leaving topmost puts the window above all normal windows; it goes back behind a normal window that took focus
-			// (going behind a topmost one, such as the taskbar, would make it topmost again)
+			// leaving topmost puts the window above all normal windows, so it goes back behind a normal window that took focus
+			// going behind a topmost window such as the taskbar would make it topmost again
 			HWND foreground = GetForegroundWindow();
 			if (foreground != nullptr && foreground != hWnd && (GetWindowLong(foreground, GWL_EXSTYLE) & WS_EX_TOPMOST) == 0)
 			{
@@ -389,7 +409,11 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 #ifdef	DEBUG_WINDOWS_MESSAGES
 		static msgCount=0;
 		char testString[256];
+#if defined(GENONLINE)
+		snprintf(testString, sizeof(testString), "\n%d: %s (%X,%X)", msgCount++, messageToString(message), wParam, lParam);
+#else
 		sprintf(testString,"\n%d: %s (%X,%X)", msgCount++,messageToString(message), wParam, lParam);
+#endif
 		OutputDebugString(testString);
 #endif
 
@@ -581,6 +605,9 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 					// of TestCooperativeLevel() == D3DERR_DEVICENOTRESET is not a requirement. There are other code
 					// paths that take care of that.
 
+#if defined(GENONLINE)
+					setWinMainActive((BOOL)wParam);
+#else
 					isWinMainActive = (BOOL) wParam;
 
 					if (TheGameEngine)
@@ -592,6 +619,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 						if (TheWin32Mouse)
 							TheWin32Mouse->setCursor(TheWin32Mouse->getMouseCursor());
 					}
+#endif
 				}
 				updateWindowedTopmost(hWnd, (Bool)wParam);
 				return 0;
@@ -622,6 +650,12 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 				{
 					if (TheAudio)
 						TheAudio->unmuteAudio(AudioManager::MuteAudioReason_WindowFocus);
+
+#if defined(GENONLINE)
+					// GenOnline @bugfix arcticdolphin 21/11/2026 Taking over from the splash stays within the app, so no WM_ACTIVATEAPP arrives.
+					if (!isWinMainActive)
+						setWinMainActive(TRUE);
+#endif
 
 					// Cursor can only be captured after one of the activation events.
 					if (TheMouse)
@@ -813,7 +847,12 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 	}
 	return 0;*/
 
+#if defined(GENONLINE)
+	// GenOnline @bugfix arcticdolphin 21/11/2026 The window class is Unicode, so the default procedure must be too.
+	return DefWindowProcW( hWnd, message, wParam, lParam );
+#else
 	return DefWindowProc( hWnd, message, wParam, lParam );
+#endif
 
 }
 
@@ -904,12 +943,22 @@ static Bool initializeAppWindows( HINSTANCE hInstance, Int nCmdShow, Bool runWin
 
 	// register the window class
 
+#if defined(GENONLINE)
+	// GenOnline @bugfix arcticdolphin 21/11/2026 Unicode class so WM_CHAR and WM_IME_CHAR carry UTF-16 regardless of the code page.
+	WNDCLASSW wndClass = { CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS, WndProc, 0, 0, hInstance,
+                       LoadIconW (hInstance, MAKEINTRESOURCEW(IDI_ApplicationIcon)),
+                       nullptr/*LoadCursor(nullptr, IDC_ARROW)*/,
+                       (HBRUSH)GetStockObject(BLACK_BRUSH), nullptr,
+	                     L"Game Window" };
+  RegisterClassW( &wndClass );
+#else
   WNDCLASS wndClass = { CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS, WndProc, 0, 0, hInstance,
                        LoadIcon (hInstance, MAKEINTRESOURCE(IDI_ApplicationIcon)),
                        nullptr/*LoadCursor(nullptr, IDC_ARROW)*/,
                        (HBRUSH)GetStockObject(BLACK_BRUSH), nullptr,
 	                     TEXT("Game Window") };
   RegisterClass( &wndClass );
+#endif
 
 	// The splash gets its own frameless window; the game window stays hidden until W3DDisplay hands over,
 	// so it never shows stale splash pixels while its frame, size and render device are set up
@@ -938,8 +987,18 @@ static Bool initializeAppWindows( HINSTANCE hInstance, Int nCmdShow, Bool runWin
 
 	gInitializing = true;
 
-  HWND hWnd = CreateWindow( TEXT("Game Window"),
-                            TEXT("Command and Conquer Generals"),
+	// A preprocessor directive inside the arguments of the CreateWindow macro does not compile, so the choice is made before the call.
+#if defined(GENONLINE)
+#define GAME_WINDOW_CREATE CreateWindowW
+#define GAME_WINDOW_CLASS L"Game Window"
+#define GAME_WINDOW_TITLE L"Command and Conquer Generals"
+#else
+#define GAME_WINDOW_CREATE CreateWindow
+#define GAME_WINDOW_CLASS TEXT("Game Window")
+#define GAME_WINDOW_TITLE TEXT("Command and Conquer Generals")
+#endif
+  HWND hWnd = GAME_WINDOW_CREATE( GAME_WINDOW_CLASS,
+                            GAME_WINDOW_TITLE,
                             windowStyle,
 														(GetSystemMetrics( SM_CXSCREEN ) / 2) - (startWidth / 2), // original position X
 														(GetSystemMetrics( SM_CYSCREEN ) / 2) - (startHeight / 2),// original position Y
@@ -954,10 +1013,19 @@ static Bool initializeAppWindows( HINSTANCE hInstance, Int nCmdShow, Bool runWin
 														nullptr,
 														hInstance,
 														nullptr );
+#undef GAME_WINDOW_CREATE
+#undef GAME_WINDOW_CLASS
+#undef GAME_WINDOW_TITLE
 
 
 	if (!runWindowed)
-	{	SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0,SWP_NOSIZE |SWP_NOMOVE);
+	{
+#if defined(GENONLINE_WINDOWED_FULLSCREEN)
+		// GenOnline @feature arcticdolphin 21/11/2026 A borderless window stays a normal window so the taskbar and other windows work.
+		SetWindowPos(hWnd, HWND_TOP, 0, 0, 0, 0,SWP_NOSIZE |SWP_NOMOVE);
+#else
+		SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0,SWP_NOSIZE |SWP_NOMOVE);
+#endif
 	}
 	else
 		SetWindowPos(hWnd, HWND_TOP, 0, 0, 0, 0,SWP_NOSIZE |SWP_NOMOVE);
@@ -988,7 +1056,11 @@ static CriticalSection critSec1, critSec2, critSec3, critSec4;
 // UnHandledExceptionFilter ===================================================
 /** Handler for unhandled win32 exceptions. */
 //=============================================================================
+#if defined(GENONLINE)
+static void WriteGameCrashData( struct _EXCEPTION_POINTERS* e_info )
+#else
 static LONG WINAPI UnHandledExceptionFilter( struct _EXCEPTION_POINTERS* e_info )
+#endif
 {
 	DumpExceptionInfo( e_info->ExceptionRecord->ExceptionCode, e_info );
 #ifdef RTS_ENABLE_CRASHDUMP
@@ -1000,6 +1072,29 @@ static LONG WINAPI UnHandledExceptionFilter( struct _EXCEPTION_POINTERS* e_info 
 	}
 
 	MiniDumper::shutdownMiniDumper();
+#endif
+#if defined(GENONLINE)
+}
+
+// GenOnline @bugfix arcticdolphin 21/11/2026 A fault while writing the crash data of the game must not stop the Sentry report.
+static void WriteGameCrashDataGuarded( struct _EXCEPTION_POINTERS* e_info )
+{
+	__try
+	{
+		WriteGameCrashData(e_info);
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+	}
+}
+
+static LONG WINAPI UnHandledExceptionFilter( struct _EXCEPTION_POINTERS* e_info )
+{
+	// The game dumps come first, then the Sentry filter waits while its crash daemon uploads the report.
+	// The game ends the process itself because the Sentry filter asks Windows to keep searching, which opens the crash dialog.
+	WriteGameCrashDataGuarded(e_info);
+	LONG sentryResult = EXCEPTION_EXECUTE_HANDLER;
+	GenOnlineServicesManager::ForwardCrashToSentry(e_info, &sentryResult);
 #endif
 	return EXCEPTION_EXECUTE_HANDLER;
 }
@@ -1060,6 +1155,11 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		{
 			return exitcode;
 		}
+
+#if defined(GENONLINE)
+		// GenOnline @feature arcticdolphin 21/11/2026 Initialise Steam for the Generals app id when steam_api.dll is present.
+		GenOnlineServicesManager::AttemptLoadSteam();
+#endif
 
 		// save our application instance for future use
 		ApplicationHInstance = hInstance;

@@ -83,7 +83,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 void HideListBox(GameWindow * window);
 
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 A kit drop-down fits its compact rows and its frame instead of the retail row padding.
+// GenOnline @tweak arcticdolphin 08/11/2026 A kit drop-down fits its compact rows and its frame instead of the retail row padding.
 static Int getDropDownHeight( GameWindow *listBox, Int rows )
 {
 	Int kitHeight = GadgetListBoxGetKitComboHeight( listBox, rows );
@@ -94,7 +94,7 @@ static Int getDropDownHeight( GameWindow *listBox, Int rows )
 	return ((TheWindowManager->winFontHeight( listInstData->getFont() ) ) * rows) + rows * 2 + 4;
 }
 
-// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Raise an opening combo box and the windows holding it above their siblings,
+// GenOnline @bugfix arcticdolphin 08/11/2026 Raise an opening combo box and the windows holding it above their siblings,
 // so its drop down list draws over the panels laid out below it
 static void bringComboBoxToTop(GameWindow *comboBox)
 {
@@ -223,7 +223,7 @@ WindowMsgHandledType GadgetComboBoxInput( GameWindow *window, UnsignedInt msg,
 						}
 
 						newSize.y = getDropDownHeight( listBox, multiplier );
-						// TheSuperHackers @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the field's bottom line.
+						// GenOnline @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the bottom line of the field.
 						const Int frameOverlap = GadgetListBoxGetKitComboFrame( listBox );
 						window->winSetSize(winSize.x , winSize.y + newSize.y - frameOverlap );
 						listBox->winSetPosition(0, winSize.y - frameOverlap);
@@ -569,7 +569,7 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 						listData->slider->winHide(FALSE);
 				}
 				newSize.y = getDropDownHeight( listBox, multiplier );
-				// TheSuperHackers @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the field's bottom line.
+				// GenOnline @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the bottom line of the field.
 				listBox->winSetPosition(0, editBoxSize.y - GadgetListBoxGetKitComboFrame( listBox ));
 				listBox->winSetSize(listX , newSize.y);
 			}
@@ -707,7 +707,7 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 						}
 
 						newSize.y = getDropDownHeight( listBox, multiplier );
-						// TheSuperHackers @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the field's bottom line.
+						// GenOnline @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the bottom line of the field.
 						const Int frameOverlap = GadgetListBoxGetKitComboFrame( listBox );
 						window->winSetSize(winSize.x , winSize.y + newSize.y - frameOverlap );
 						listBox->winSetPosition(0, winSize.y - frameOverlap);
@@ -1132,10 +1132,8 @@ Int GadgetComboBoxGetLength( GameWindow *combobox )
 	return 0;
 }
 
-// GadgetComboBoxIsKitField ===================================================
-/** TRUE when the combo draws as one GO kit field box: kit field and arrow art, no divider between them */
 //=============================================================================
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 A kit combo draws its edit box and arrow as one field box.
+// GenOnline @tweak arcticdolphin 08/11/2026 A kit combo draws its edit box and arrow as one field box.
 Bool GadgetComboBoxIsKitField( GameWindow *comboBox )
 {
 	if( comboBox == nullptr || BitIsSet( comboBox->winGetStyle(), GWS_COMBO_BOX ) == FALSE )
@@ -1153,8 +1151,6 @@ Bool GadgetComboBoxIsKitField( GameWindow *comboBox )
 	return GadgetListBoxGetKitComboFrame( GadgetComboBoxGetListBox( comboBox ) ) > 0;
 }
 
-// GadgetComboBoxIsKitFieldLit ================================================
-/** TRUE when a kit combo field shows its hover look: the mouse is over the edit box or the arrow, or the combo has focus */
 //=============================================================================
 Bool GadgetComboBoxIsKitFieldLit( GameWindow *comboBox )
 {
@@ -1173,7 +1169,7 @@ Bool GadgetComboBoxIsKitFieldLit( GameWindow *comboBox )
 			return TRUE;
 	}
 
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 A read-only edit box takes no mouse input, so also light the field when the mouse is inside the edit box and arrow.
+	// GenOnline @tweak arcticdolphin 08/11/2026 A read-only edit box takes no mouse input, so also light the field when the mouse is inside the edit box and arrow.
 	if( TheMouse == nullptr || comboBox->winIsHidden() )
 		return FALSE;
 	const MouseIO *mouse = TheMouse->getMouseStatus();

@@ -181,7 +181,7 @@ void GlobalLanguage::init()
 	}
 
 #if defined(GENONLINE)
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Register the GO UI font process private from the file system.
+	// GenOnline @feature arcticdolphin 08/11/2026 Register the GO UI font process private from the file system.
 	// The Retail interface style keeps the retail fonts.
 	if (TheArchiveFileSystem == nullptr || !TheArchiveFileSystem->usesRetailInterface())
 	{
@@ -199,7 +199,7 @@ void GlobalLanguage::reset()
 }
 
 #if defined(GENONLINE)
-// TheSuperHackers @feature arcticdolphin 08/11/2026 GO UI font files and the GDI faces they register; render2dsentence.cpp substitutes the same faces.
+// GenOnline @feature arcticdolphin 08/11/2026 GO UI font files and the GDI faces they register, and render2dsentence.cpp substitutes the same faces.
 struct UIFontFile
 {
 	const char *path;

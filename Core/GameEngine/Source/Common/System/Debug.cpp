@@ -300,7 +300,7 @@ void ReleaseCrash(const char *reason)
 #endif
 
 #if defined(GENONLINE)
-	// TheSuperHackers @bugfix arcticdolphin 17/11/2026 A release crash, like a failed start, reaches Sentry and not only the local dumps.
+	// GenOnline @bugfix arcticdolphin 17/11/2026 A release crash, like a failed start, reaches Sentry and not only the local dumps.
 	GenOnlineServicesManager::ReportReleaseCrashToSentry(reason);
 #endif
 
@@ -379,7 +379,7 @@ void ReleaseCrashLocalized(const AsciiString& p, const AsciiString& m)
 	}
 
 #if defined(GENONLINE)
-	// TheSuperHackers @bugfix arcticdolphin 17/11/2026 A release crash, like a failed start, reaches Sentry and not only the local dumps.
+	// GenOnline @bugfix arcticdolphin 17/11/2026 A release crash, like a failed start, reaches Sentry and not only the local dumps.
 	GenOnlineServicesManager::ReportReleaseCrashToSentry(m.str());
 #endif
 

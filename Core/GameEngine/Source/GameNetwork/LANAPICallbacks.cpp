@@ -47,8 +47,8 @@
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/networkutil.h"
 #include "GameNetwork/TransportFactory.h"
-#if defined(GENONLINE) && RTS_ZEROHOUR
-#include "Common/StatsExporterLive.h"
+#if defined(GENONLINE)
+#include "Common/LocalApiLive.h"
 #endif
 
 LANAPI *TheLAN = nullptr;
@@ -171,7 +171,7 @@ void LANAPI::OnHasMap( UnsignedInt playerIP, Bool status )
 			}
 			else
 			{
-				// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name hides the user's folders.
+				// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
 				mapDisplayName = getMapNameFromPath(m_currentGame->getMap());
 				willTransfer = WouldMapTransfer(m_currentGame->getMap());
 			}
@@ -733,8 +733,8 @@ void LANAPI::OnChat( UnicodeString player, UnsignedInt ip, UnicodeString message
 	}
 	if (chatWindow == nullptr && !((isScoreScreenChat && ScoreScreenSignals::chatLine().hasListeners()) || (isLobbyChat && LanLobbySignals::chatLine().hasListeners()) || (isGameSetupChat && LanGameSetupSignals::chatLine().hasListeners())))
 		return;
-#if defined(GENONLINE) && RTS_ZEROHOUR
-	StatsExporterLiveChatLan(m_inLobby ? STATS_EXPORTER_CHAT_LAN_LOBBY : STATS_EXPORTER_CHAT_LAN_GAME, player, message, format == LANAPIInterface::LANCHAT_EMOTE, format == LANAPIInterface::LANCHAT_SYSTEM, ip == m_localIP);
+#if defined(GENONLINE)
+	LocalApiLiveChatLan(m_inLobby ? LOCAL_API_CHAT_LAN_LOBBY : LOCAL_API_CHAT_LAN_GAME, player, message, format == LANAPIInterface::LANCHAT_EMOTE, format == LANAPIInterface::LANCHAT_SYSTEM, ip == m_localIP);
 #endif
 	Int index = -1;
 	UnicodeString unicodeChat;

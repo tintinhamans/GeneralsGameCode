@@ -58,7 +58,7 @@
 #include "GameLogic/Module/StealthUpdate.h"
 #include "GameLogic/Module/SpecialPowerUpdateModule.h"
 #include "GameLogic/ObjectIter.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 
 
 /**
@@ -2489,7 +2489,7 @@ void AIGroup::groupEvacuate( CommandSourceType cmdSource )
 			if( statsContain != nullptr && statsContain->getContainCount() > 0
 				&& (*i)->getControllingPlayer() != nullptr )
 			{
-				StatsExporterLiveEvacuate(
+				LocalApiLiveEvacuate(
 					(*i)->getControllingPlayer()->getPlayerIndex(),
 					(*i)->getTemplate(),
 					statsContain->getContainCount() );
@@ -2518,7 +2518,7 @@ void AIGroup::groupEvacuate( CommandSourceType cmdSource )
 				// capture the passenger count before the evacuation clears it
 				if( contain->getContainCount() > 0 && (*i)->getControllingPlayer() != nullptr )
 				{
-					StatsExporterLiveEvacuate(
+					LocalApiLiveEvacuate(
 						(*i)->getControllingPlayer()->getPlayerIndex(),
 						(*i)->getTemplate(),
 						contain->getContainCount() );

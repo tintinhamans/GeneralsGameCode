@@ -216,14 +216,12 @@ public:
 		m_cbOnConnected = nullptr;
 	}
 
-	// The signing keys, see MatchKeys.h
 	bool BeginLobbyKeys();	///< Makes this client's key, call when it joins or creates a lobby.
 	void TickLobbyKeys(int64_t nowMs);	///< Announces the key to the peers that lack it and tells them which keys we hold.
 	bool BeginMatchKeys();	///< Binds the keys to the match that is starting, false when a key of the roster is missing.
 	void EndMatchKeys();	///< Unbinds from the match, the lobby keys stay.
 	void OnKeyAnnouncement(int64_t connectionUserID, const uint8_t* data, size_t len);
 
-	/// A lobby member the host has to wait for before it starts.
 	struct LobbyStartBlocker
 	{
 		int64_t userID;
@@ -250,7 +248,7 @@ public:
 		return highestLatency;
 	}
 
-	// Start run ahead: players send lobby round trips to the router, which sends frame 1's run ahead to all.
+	// Start run ahead: players send lobby round trips to the router, which sends the run ahead of frame 1 to all.
 	void BeginStartRunAhead(int routerSlot);	///< Call after the network parsed the user list.
 	void OnStartRunAheadMessage(int64_t connectionUserID, const uint8_t* data, size_t len);
 	bool BeginSyncedStart(int stage);	///< Call when the local part of the stage is done; false if there is nobody to start with.

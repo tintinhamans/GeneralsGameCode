@@ -128,7 +128,7 @@ size_t PacketFeedback::ReadEnvelope(const uint8_t* in, size_t len, int64_t nowMs
 		return ENVELOPE_MAX_SIZE; // implausible, the packet is still consumed
 	}
 
-	// the peer cannot have expected more of our packets than we sent
+	// the peer cannot have expected more packets than were sent
 	report.expected = static_cast<uint8_t>((std::min<uint32_t>)(report.expected, m_sentCount));
 	report.received = (std::min)(report.received, report.expected);
 	Push(m_outgoing, report, nowMs);

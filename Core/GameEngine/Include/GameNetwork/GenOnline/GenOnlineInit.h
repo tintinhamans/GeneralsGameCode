@@ -38,12 +38,18 @@ enum class EScreenshotType : int
     SCREENSHOT_TYPE_SCORESCREEN = 2
 };
 
+// The fields of a signed multipart upload form, empty for a plain PUT.
+typedef std::map<std::string, std::string> UploadFormFields;
+
 struct S3ScreenshotEntry
 {
     std::vector<uint8_t> vecBytes;
     std::string strSignedURI;
 	EScreenshotType screenshotType;
 	std::chrono::steady_clock::time_point notBefore; // upload is held back until this time
+	std::chrono::system_clock::time_point expiresAt; // when the signed URL stops working, the epoch when unknown
+	UploadFormFields formFields;
+	uint64_t matchID = 0;
 
     bool operator==(const S3ScreenshotEntry& other) const
 	{
@@ -105,7 +111,6 @@ public:
 	WebSocket();
 	~WebSocket();
 
-	// The hub session of this socket.
 	GenOnlineRealtime::HubSession* GetHubSession()
 	{
 		return m_pHubSession.get();
@@ -169,19 +174,17 @@ public:
 	void SendData_RemoveLobbyPassword();
 
 
-	// Asks the service to tell the players that the host wants to start.
 	void SendData_HostStartIntent();
 
 	void Tick();
 
-	// Continues the initial connect after the proxy login prompt closed.
 	void ResumeAfterProxyLogin(bool loggedIn);
 
 	// An inbound P2P signal and the user the service says it came from. The service sets the sender itself
 	// from the authenticated websocket session, the payload is whatever the peer wrote.
 	using PendingSignal = PeerSignal;
 
-	// Thread-safe queue of inbound P2P signal payloads; drained by the signal channel of the network mesh.
+	// Thread-safe queue of inbound P2P signal payloads, drained by the signal channel of the network mesh.
 	void PushPendingSignal(int64_t senderUserID, std::vector<uint8_t> payload)
 	{
 		m_pendingSignals.Push(senderUserID, std::move(payload));
@@ -206,7 +209,6 @@ private:
 	void OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, const std::string& reason);
 	void RecoverHubSession(const GenOnlineRealtime::SessionRecovery& recovery);
 
-	// Peer networking steps of the hub events.
 	void StartPeerSignalling(int64_t lobbyID, int64_t userID, uint16_t preferredPort, const std::string& middlewareID, const GenOnlineRealtime::ConnectionStep& step);
 	// Tells the hub which plugin transports this client can use for peers, after every Ready and whenever the answer changes.
 	void SendPeerTransports(bool bForce);
@@ -286,7 +288,6 @@ private:
 	size_t m_outboundOffset = 0;
 	bool m_heartbeatQueued = false;
 	bool m_acceptOutbound = true;
-	// Returns false when the message was rejected.
 	bool QueueOutbound(std::string payload, bool heartbeat);
 	void ClearOutbound();
 	CURLcode FlushOutbound();
@@ -337,7 +338,6 @@ struct RegionResponse
 
 struct ServiceConfig
 {
-	// Peer connections: signalling, NAT traversal and latency probes
 	struct Connection
 	{
 		bool relay_only = false;
@@ -366,6 +366,7 @@ struct ServiceConfig
 	{
 		bool screenshot_probes = true;
 		bool replay_upload = true;
+		bool stats_upload = true;
 		int screenshot_width = 960;
 		int screenshot_height = 600;
 		int screenshot_upload_bytes_per_sec = 131072; // 128 KB/s
@@ -373,7 +374,6 @@ struct ServiceConfig
 	} telemetry;
 };
 
-// Reads a present key into value and keeps the default otherwise
 template <typename T>
 inline void ReadServiceConfigValue(const nlohmann::json& j, const char* key, T& value)
 {
@@ -388,7 +388,6 @@ inline void ReadServiceConfigValue(const nlohmann::json& j, const char* key, T& 
 	}
 }
 
-// The ICE library by name or by number
 inline void ReadIceEngine(const nlohmann::json& j, int& value)
 {
 	if (!j.is_object())
@@ -458,7 +457,6 @@ inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 		ReadServiceConfigValue(s, "fast_recovery", c.input_delay.fast_recovery);
 		ReadServiceConfigValue(s, "decision_interval_ms", c.input_delay.decision_interval_ms);
 		ReadServiceConfigValue(s, "fps_history_samples", c.input_delay.fps_history_samples);
-		ReadServiceConfigValue(s, "catch_up_frames", c.input_delay.catch_up_frames);
 		ReadServiceConfigValue(s, "slack_percent", c.input_delay.slack_percent);
 		if (s.contains("formula"))
 		{
@@ -483,6 +481,7 @@ inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 		const nlohmann::json& s = j["telemetry"];
 		ReadServiceConfigValue(s, "screenshot_probes", c.telemetry.screenshot_probes);
 		ReadServiceConfigValue(s, "replay_upload", c.telemetry.replay_upload);
+		ReadServiceConfigValue(s, "stats_upload", c.telemetry.stats_upload);
 		ReadServiceConfigValue(s, "screenshot_width", c.telemetry.screenshot_width);
 		ReadServiceConfigValue(s, "screenshot_height", c.telemetry.screenshot_height);
 		ReadServiceConfigValue(s, "screenshot_upload_bytes_per_sec", c.telemetry.screenshot_upload_bytes_per_sec);
@@ -490,7 +489,6 @@ inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 	}
 }
 
-// Keeps values from the service inside the ranges the game can run with
 inline void ClampServiceConfig(ServiceConfig& c)
 {
 	c.connection.reconnect_timeout_ms = MeshConnectionTimeoutPolicy::ClampReconnectTimeout(c.connection.reconnect_timeout_ms);
@@ -501,7 +499,6 @@ inline void ClampServiceConfig(ServiceConfig& c)
 	c.send.frames_per_packet_lossy = std::clamp(c.send.frames_per_packet_lossy, 0, 8);
 
 	c.input_delay.formula.decrease_after_decisions = std::clamp(c.input_delay.formula.decrease_after_decisions, 0, 20);
-	c.input_delay.catch_up_frames = std::clamp(c.input_delay.catch_up_frames, 1, 4);
 	c.input_delay.min_frames = std::clamp(c.input_delay.min_frames, 0, 30); // the start run ahead is at least 30, a higher floor would make configs disagree
 	c.input_delay.max_frames = std::clamp(c.input_delay.max_frames, (std::max)(30, c.input_delay.min_frames), 128);
 	c.input_delay.slack_percent = std::clamp(c.input_delay.slack_percent, 0, 200);
@@ -551,13 +548,11 @@ public:
 		LIVE
 	};
 
-	// The services this client talks to. Debug builds and builds with USE_TEST_ENV or USE_DEBUG_ON_LIVE_SERVER have a fixed environment.
-	// Any other build follows network.environment of client.json when it holds live or test, and otherwise its release tag:
-	// a release candidate (vYYYY.M.PATCH-rc.N) uses the test services, every other build the live ones. Resolved once.
+	// The services this client talks to. A debug build without the GENONLINE_ENVIRONMENT option has a fixed environment, the dev services.
+	// Any other build follows network.environment of settings.client.json when it holds live or test, then the GENONLINE_ENVIRONMENT option,
+	// and otherwise its release tag: a release candidate (vYYYY.M.PATCH-rc.N) uses the test services, every other build the live ones. Resolved once.
 	static EEnvironment GetEnvironment();
-	// The name of GetEnvironment(): live, test or dev.
 	static const char* EnvironmentName();
-	// Why GetEnvironment() chose its value, for the log.
 	static const char* EnvironmentReason();
 	static std::string GetAPIEndpoint(const char* szEndpoint);
 
@@ -662,7 +657,7 @@ public:
 	HTTPManager* GetHTTPManager() const { return m_pHTTPManager; }
 
 	void CancelUpdate();
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 A failure callback replaces the Update Failed message box, so the sign-in dialog can show it.
+	// GenOnline @feature arcticdolphin 09/11/2026 A failure callback replaces the Update Failed message box, so the sign-in dialog can show it.
 	void LaunchPatcher(std::function<void(void)> cbFailed = nullptr);
 	void StartDownloadUpdate(std::function<void(void)> cb, std::function<void(void)> cbFailed = nullptr);
 	void ContinueUpdate();
@@ -708,7 +703,7 @@ public:
 	EGOTearDownReason GetTeardownReason() const { return m_teardownReason; }
 	void ConsumePendingFullTeardown() { m_bPendingFullTeardown = false; }
 
-	// TheSuperHackers @bugfix arcticdolphin 09/11/2026 Called when a new online attempt starts, so it never inherits the teardown of an attempt that was abandoned before reaching the online screens.
+	// GenOnline @bugfix arcticdolphin 09/11/2026 Called when a new online attempt starts, so it never inherits the teardown of an attempt that was abandoned before reaching the online screens.
 	void ClearPendingFullTeardown()
 	{
 		m_bPendingFullTeardown = false;
@@ -722,10 +717,10 @@ public:
 	static void ShutdownSentry();
 	// Returns TRUE between a successful InitSentry and ShutdownSentry. Every Sentry call outside InitSentry checks it first.
 	static Bool IsSentryActive();
-	// The game's unhandled exception filter hands a crash on to Sentry's filter after writing its own dumps.
+	// The unhandled exception filter of the game hands a crash on to the Sentry filter after writing its own dumps.
 	// Returns FALSE when there is no Sentry filter to hand it to, before InitSentry or after ShutdownSentry.
 	static Bool ForwardCrashToSentry(struct _EXCEPTION_POINTERS* exceptionInfo, LONG* result);
-	// A release crash ends the game without an unhandled exception. This hands it to Sentry's filter with its reason
+	// A release crash ends the game without an unhandled exception. This hands it to the Sentry filter with its reason
 	// and returns once the crash daemon sent the report, or at once when there is no Sentry filter.
 	static void ReportReleaseCrashToSentry(const char* reason);
 	static std::string GetSentryRelease();
@@ -756,6 +751,7 @@ public:
 
 	void CacheScreenshotBytes_EndMatch(uint64_t matchID, std::vector<uint8_t> data);
 	void CacheReplayBytes(uint64_t matchID, std::vector<uint8_t> data);
+	void CacheStatsBytes(uint64_t matchID, std::vector<uint8_t> data);
     void SetScreenshotS3URI_StartMatch(const char* szURI)
     {
         std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
@@ -764,6 +760,13 @@ public:
 
 	void SetScreenshotS3URI_EndMatch(uint64_t matchID, std::string uri);
 	void SetScreenshotS3URI_Replay(uint64_t matchID, std::string uri);
+	void SetStatsS3URI(uint64_t matchID, std::string uri);
+	void SetResultUploadExpiry(uint64_t matchID, std::chrono::system_clock::time_point expiresAt);
+	void SetResultUploadForms(uint64_t matchID, UploadFormFields screenshot, UploadFormFields replay, UploadFormFields stats);
+
+	/// An upload timed out or was refused, so the result is asked for again to get fresh URLs. FALSE when it already tried enough.
+	bool RequestFreshUploadURLs(uint64_t matchID);
+	void NoteUploadURLsAnswered() { m_uploadRetryInFlight = false; }
 
 private:
 	// NOTE: Accessed from multiple threads, dont access directly, use helpers above to lock
@@ -778,7 +781,14 @@ private:
 		uint64_t uriMatchID = 0;
 		std::vector<uint8_t> bytes;
 		std::string signedURI;
+		std::chrono::system_clock::time_point expiresAt;	// when the signed URL stops working, the epoch when unknown
+		UploadFormFields formFields;
 	};
+
+	void StartResultUpload(CachedMatchUpload& upload, const char* label, const char* contentType);
+	uint64_t m_uploadRetryMatchID = 0;
+	int m_uploadRetries = 0;
+	bool m_uploadRetryInFlight = false;
 
 	void CacheMatchUploadBytes(CachedMatchUpload& upload, uint64_t matchID, std::vector<uint8_t> data);
 	void CacheMatchUploadURI(CachedMatchUpload& upload, uint64_t matchID, std::string uri);
@@ -787,6 +797,7 @@ private:
 	// prevents a late response from being paired with media from another match.
 	CachedMatchUpload m_cachedMatchEndUpload;
 	CachedMatchUpload m_cachedReplayUpload;
+	CachedMatchUpload m_cachedStatsUpload;
 
 	// main thread SS Upload
 	static std::mutex m_ScreenshotMutex;
@@ -828,7 +839,7 @@ private:
 	std::vector<std::string> m_vecFilesDownloaded;
 	std::function<void(void)> m_updateCompleteCallback = nullptr;
 	std::function<void(void)> m_updateFailedCallback = nullptr;
-	// TheSuperHackers @bugfix arcticdolphin 09/11/2026 Bumped by every start and cancel, so replies of a cancelled download are ignored.
+	// GenOnline @bugfix arcticdolphin 09/11/2026 Bumped by every start and cancel, so replies of a cancelled download are ignored.
 	int m_updateAttempt = 0;
 	mutable std::recursive_mutex m_updateCallbackMutex;
 

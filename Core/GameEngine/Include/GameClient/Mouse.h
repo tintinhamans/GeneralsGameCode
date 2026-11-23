@@ -243,7 +243,7 @@ public:
 		PLACE_CHARGE_INVALID,
 		HACK,
 		PARTICLE_UPLINK_CANNON,
-		// TheSuperHackers @feature arcticdolphin 08/11/2026 Pointing hand the shell menus show over clickable controls.
+		// GenOnline @feature arcticdolphin 08/11/2026 Pointing hand the shell menus show over clickable controls.
 		HAND,
 
 

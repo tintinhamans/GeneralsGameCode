@@ -1473,10 +1473,6 @@ size_t NetPacketFrameResendRequestCommandBase::copyBytes(UnsignedByte *buffer, c
 	return network::writeObject(buffer, base);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// NetPacketSignedFrameCommand
-////////////////////////////////////////////////////////////////////////////////
-
 size_t NetPacketSignedFrameCommandData::copyBytes(UnsignedByte *buffer, const NetCommandRef &ref)
 {
 	const CommandMsg *cmdMsg = static_cast<const CommandMsg *>(ref.getCommand());
@@ -1524,10 +1520,6 @@ size_t NetPacketSignedFrameCommandBase::copyBytes(UnsignedByte *buffer, const Ne
 
 	return network::writeObject(buffer, base);
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// NetPacketSignaturesCommand
-////////////////////////////////////////////////////////////////////////////////
 
 size_t NetPacketSignaturesCommandData::getSize(const NetCommandMsg &msg)
 {

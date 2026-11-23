@@ -16,11 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: RealtimeMessageActions.h ////////////////////////////////////////////
-// Description: Who the communicator chats with, and what the context menu of a
-//              chat message offers. The service decides in the end: it checks
-//              friendship, staff permissions, the staff rank rule and who may
-//              report a message, so these rules only choose what to show.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -43,7 +38,6 @@ inline bool CanChatWith(bool isFriend, bool canMessageAnyone, bool hasConversati
 	return isFriend || canMessageAnyone || hasConversation;
 }
 
-// What the context menu of a chat message offers.
 struct MessageMenu
 {
 	bool report = false;

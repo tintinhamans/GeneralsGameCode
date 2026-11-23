@@ -126,7 +126,7 @@ static void drawButtonText( GameWindow *window, WinInstanceData *instData )
 	if( BitIsSet( window->winGetStatus(), WIN_STATUS_SHORTCUT_BUTTON ) )
 	{
 		// Oh god... this is a total hack for shortcut buttons to handle rendering text top left corner...
-		// TheSuperHackers @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
+		// GenOnline @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
 		textPos.x = origin.x + GameWindowManager::winScaleLayoutSize( 2 );
 		textPos.y = origin.y + 0;
 	}
@@ -313,10 +313,8 @@ void W3DGadgetPushButtonImageDraw( GameWindow *window,
 	}
 }
 
-// W3DGadgetPushButtonKitScrollArrowDraw ======================================
-/** Draw a list box scroll arrow as a kit chevron in the scroll column */
 //=============================================================================
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Draw list scroll arrows as kit chevrons when the GO kit scroll images exist.
+// GenOnline @feature arcticdolphin 08/11/2026 Draw list scroll arrows as kit chevrons when the GO kit scroll images exist.
 void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window,
 																						WinInstanceData *instData )
 {
@@ -326,7 +324,7 @@ void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window,
 	if( listbox && GadgetListBoxGetDownButton( listbox ) == window )
 		arrow = KIT_SCROLL_DOWN;
 
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Hover and pushed light only the chevron, with no cell behind it.
+	// GenOnline @tweak arcticdolphin 08/11/2026 Hover and pushed light only the chevron, with no cell behind it.
 	if( BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) == FALSE )
 		arrow = (KitScrollImage)(arrow + 3);
 	else if( BitIsSet( instData->getState(), WIN_STATE_SELECTED ) )
@@ -345,8 +343,7 @@ void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window,
 	window->winGetScreenPosition( &start.x, &start.y );
 	window->winGetSize( &size.x, &size.y );
 
-	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 The chevron centres on the column line the scroll thumb shares.
-	// the chevron at its own aspect, centred down the cell
+	// GenOnline @bugfix arcticdolphin 08/11/2026 The chevron centres on the column line the scroll thumb shares.
 	Int chevronX, chevronWidth;
 	GadgetListBoxGetKitScrollSpan( KIT_SCROLL_SPAN_CHEVRON, start.x, size.x, &chevronX, &chevronWidth );
 	Int chevronHeight = chevronWidth;
@@ -399,7 +396,7 @@ void W3DGadgetPushButtonImageDrawOne( GameWindow *window,
 				image			= GadgetButtonGetHiliteSelectedImage( window );
 		}
 
-		// TheSuperHackers @tweak arcticdolphin 08/11/2026 A kit combo arrow lights with its whole field, never on its own.
+		// GenOnline @tweak arcticdolphin 08/11/2026 A kit combo arrow lights with its whole field, never on its own.
 		GameWindow *combo = window->winGetParent();
 		if( BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) && GadgetComboBoxIsKitField( combo ) &&
 				GadgetComboBoxGetDropDownButton( combo ) == window )
@@ -452,7 +449,7 @@ void W3DGadgetPushButtonImageDrawOne( GameWindow *window,
 				}
 			}
 		}
-		// TheSuperHackers @tweak arcticdolphin 08/11/2026 Kit symbol and arrow images keep their border at the kit line weight.
+		// GenOnline @tweak arcticdolphin 08/11/2026 Kit symbol and arrow images keep their border at the kit line weight.
 		if( image->getBorder() > 0.0f && drawMode == Display::DRAW_IMAGE_ALPHA && colorMultiplier == (Int)0xffffffff )
 			TheWindowManager->winDrawImage( image, start.x, start.y, end.x, end.y );
 		else

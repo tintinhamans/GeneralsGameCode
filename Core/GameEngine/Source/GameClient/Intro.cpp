@@ -48,6 +48,9 @@ Intro::Intro()
 		// Please be kind and do not remove the custom logo screen when building on top of the work of The Super Hackers.
 		m_allowedStateFlags |= 1u << IntroState_TheSuperHackersWait;
 		m_allowedStateFlags |= 1u << IntroState_TheSuperHackers;
+        // Please be kind and do not remove the custom logo screen when building a client that includes GeneralsOnline.
+        m_allowedStateFlags |= 1u << IntroState_GOWait;
+        m_allowedStateFlags |= 1u << IntroState_GO;
 	}
 
 	if (TheGlobalData->m_playSizzle)
@@ -83,6 +86,8 @@ void Intro::update()
 		case IntroState_EALogoMovie: doEALogoMovie(); break;
 		case IntroState_TheSuperHackersWait: doAsyncWait(800); break;
 		case IntroState_TheSuperHackers: doTheSuperHackers(); break;
+        case IntroState_GOWait: doAsyncWait(1200); break;
+        case IntroState_GO: doGeneralsOnlineLogo(); break;
 		case IntroState_SizzleMovieWait: doAsyncWait(1000); break;
 		case IntroState_SizzleMovie: doSizzleMovie(); break;
 		case IntroState_Done: doPostIntro(); break;
@@ -95,6 +100,7 @@ void Intro::draw()
 	switch (m_currentState)
 	{
 		case IntroState_TheSuperHackers: drawDisplayEntities(); break;
+		case IntroState_GO: drawDisplayEntities(); break;
 	}
 }
 
@@ -115,6 +121,10 @@ Bool Intro::skipCurrentIntroStage()
 		break;
 
 	case IntroState_TheSuperHackers:
+		enterNextState();
+		break;
+
+	case IntroState_GO:
 		enterNextState();
 		break;
 	}
@@ -152,6 +162,89 @@ struct DisplaySetting
 	Bool bold;
 	Bool centered;
 };
+
+void Intro::doGeneralsOnlineLogo()
+{
+	m_displayEntities.clear();
+
+	std::vector<DisplaySetting> settings;
+
+	const Real resolutionScale = GlobalLanguage::getResolutionFontSizeScale(GlobalLanguage::ResolutionFontSizeMethod_Strict);
+	const Int screenWidth = TheDisplay->getWidth();
+
+	// GenOnline @feature arcticdolphin 21/11/2026 The page is one centred column: the credit line, the Generals Online logo with its radar van and the website.
+	// The sizes are in units of the 1x font scale and the logo keeps the 1282x494 texel shape of its image.
+	const Int creditHeight = 16;
+	const Int logoWidth = 360;
+	const Int logoHeight = 139;
+	const Int websiteHeight = 16;
+	const Int gap = 24;
+	const Int pageHeight = creditHeight + gap + logoHeight + gap + websiteHeight;
+	Int centerOffsetY = -(Int)(pageHeight * resolutionScale) / 2;
+
+	// "Consolas" is Windows Vista native, can be installed in 2000, XP
+	{
+		// Pretext
+		m_unicodeStrings[0] = TheGameText->FETCH_OR_SUBSTITUTE("CREDITS:CustomIntroPretext", L"Modernized Multiplayer Experience by");
+		DisplaySetting setting;
+		setting.font = "Consolas";
+		setting.text = m_unicodeStrings[0].str();
+		setting.sizeY = creditHeight;
+		setting.centerOffsetY = centerOffsetY;
+		setting.bold = false;
+		setting.centered = true;
+		settings.push_back(setting);
+		centerOffsetY += (Int)((creditHeight + gap) * resolutionScale);
+	}
+	{
+		DisplaySetting setting;
+		setting.imageName = "GOLoadLogo";
+		setting.sizeX = logoWidth;
+		setting.sizeY = logoHeight;
+		setting.centerOffsetY = centerOffsetY;
+		settings.push_back(setting);
+		centerOffsetY += (Int)((logoHeight + gap) * resolutionScale);
+	}
+	{
+		// Website
+		DisplaySetting setting;
+		setting.font = "Consolas";
+		setting.text = L"www.generals.online";
+		setting.sizeY = websiteHeight;
+		setting.centerOffsetY = centerOffsetY;
+		setting.bold = false;
+		setting.centered = true;
+		settings.push_back(setting);
+	}
+
+	m_displayEntities.resize(settings.size());
+
+	for (size_t i = 0; i < m_displayEntities.size(); ++i)
+	{
+		const DisplaySetting& s = settings[i];
+		DisplayEntity& e = m_displayEntities[i];
+		e.sizeX = Int(s.sizeX * resolutionScale);
+		e.sizeY = Int(s.sizeY * resolutionScale);
+
+		if (s.text != nullptr)
+		{
+			e.displayString = TheDisplayStringManager->newDisplayString();
+			e.displayString->setText(s.text);
+			e.displayString->setFont(TheFontLibrary->getFont(s.font, e.sizeY, s.bold));
+			e.displayString->setWordWrap(screenWidth);
+		}
+
+		if (s.imageName != nullptr)
+		{
+			e.image = TheMappedImageCollection->findImageByName(s.imageName);
+		}
+
+		e.centerOffsetY = s.centerOffsetY;
+	}
+
+	doAsyncWait(3000);
+	m_fadeValue = 0.0f;
+}
 
 void Intro::doTheSuperHackers()
 {

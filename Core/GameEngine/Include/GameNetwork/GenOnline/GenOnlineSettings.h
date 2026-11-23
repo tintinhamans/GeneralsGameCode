@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
-#include "GameNetwork/GenOnline/GenOnlinePackList.h"
 #include "GameNetwork/GenOnline/GenOnlineClientOptions.h"
 
 class GenOnlineSettings
@@ -31,13 +30,9 @@ public:
 	bool Observer_NotificationSpecialPowerUsage() const { return m_Observer_NotificationSpecialPowerUsage; }
 	bool Observer_NotificationSpecialPowerPurchase() const { return m_Observer_NotificationSpecialPowerPurchase; }
 	bool Observer_NotificationMilestone() const { return m_Observer_NotificationMilestone; }
-	// The font sizes are clamped to 0 to 15 and saved to client.json.
+	// The font sizes are clamped to 0 to 15 and saved to settings.client.json.
 	void Observer_SetStatsFontSize(int fontSize);
 	void Observer_SetNotificationFontSize(int fontSize);
-
-	// Takes the Options.ini values of the moved settings that client.json does not hold, saves them to client.json and then removes
-	// the old keys from Options.ini. Runs once, as soon as the user data folder is known.
-	void MoveOptionsIniSettings();
 
 	void Graphics_SetFPS(int fpsLimit, bool bLimitFramerate)
 	{
@@ -67,13 +62,14 @@ public:
 		return m_Render_FramerateLimit_FPSVal;
 	}
 
-	// the interface style (retail, refit, overhaul) and palette (signal, radar, night), read once at startup
+	// the interface style (retail, refit, overhaul), read once at startup
 	const std::string& UI_Style() const { return m_UI_Style; }
-	const std::string& UI_Palette() const { return m_UI_Palette; }
 	// The external plugin that provides the anticheat, empty for the built-in GenOnline Anti-Cheat.
 	std::string GetAnticheatPlugin() const;
 	// The plugin transports tried in order after a direct connection fails and before Cloudflare TURN.
 	std::vector<std::string> GetTransportPlugins() const;
+	// The caster plugin, empty when the live stats readers and the stats export are off.
+	const std::string& GetCasterPlugin() const { return m_Plugin_Caster; }
 	bool Social_Notifications_FriendComesOnline_Menus() { return m_Social_Notification_FriendComesOnline_Menus; }
 	bool Social_Notifications_FriendComesOnline_Gameplay() { return m_Social_Notification_FriendComesOnline_Gameplay; }
 	bool Social_Notifications_FriendGoesOffline_Menus() { return m_Social_Notification_FriendGoesOffline_Menus; }
@@ -82,9 +78,13 @@ public:
 	bool Social_Notifications_PlayerAcceptsRequest_Gameplay() { return m_Social_Notification_PlayerAcceptsRequest_Gameplay; }
     bool Social_Notifications_PlayerSendsRequest_Menus() { return m_Social_Notification_PlayerSendsRequest_Menus; }
     bool Social_Notifications_PlayerSendsRequest_Gameplay() { return m_Social_Notification_PlayerSendsRequest_Gameplay; }
+	// "online", "idle", "do_not_disturb" or "invisible", saved to settings.client.json. An unknown value is ignored.
+	const std::string& Social_PresenceStatus() const { return m_Social_PresenceStatus; }
+	void Social_SetPresenceStatus(const std::string& status);
 
 
 	bool Debug_VerboseLogging() const { return m_bVerbose; }
+	bool GetStatsExport() const { return m_bStatsExport; }
 
 	int GetChatLifeSeconds() const { return std::max<int>(m_Chat_LifeSeconds, 10); }
 
@@ -92,19 +92,20 @@ public:
 	{
 		m_bInitialized = true;
 		Load();
-		LoadPackList();
 	}
 
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Map select favourites, keyed by the lowercased portable map path.
+	// GenOnline @feature arcticdolphin 08/11/2026 Map select favourites, keyed by the lowercased portable map path.
 	bool Maps_IsFavourite(const std::string& portableMapPath) const;
 	void Maps_SetFavourite(const std::string& portableMapPath, bool bFavourite);
 
-	// TRUE when the packs come from the -packs file, FALSE when the game uses its built-in packs
-	bool DataPacks_FromPackList() const { return m_bPackList; }
-	// The enabled packs of the -packs file, lowest first
-	const std::vector<GenOnlinePackList::Pack>& DataPacks_Stack() const { return m_PackStack; }
-	// The game folder excludes in effect before loadMods, always empty: the excludes of the -packs stack take effect in loadMods together with the packs
-	const std::vector<std::string>& DataPacks_UserExcludePaths() const { return m_DataPacks_UserExcludePaths; }
+	// data.include of settings.client.json, the data pack paths with the first one winning. The game only reads it, the launcher writes it.
+	bool Data_HasInclude() const { return m_bDataInclude; }
+	const std::vector<std::string>& Data_Include() const { return m_Data_Include; }
+	// data.exclude of settings.client.json, the patterns of the loose files and game folder archives that count as not existing.
+	const std::vector<std::string>& Data_Exclude() const { return m_Data_Exclude; }
+
+	// data.exclude as patterns for the file system, an entry that is neither absolute nor prefixed with game: or user: counts as relative to the game folder.
+	std::vector<std::string> Data_ExcludePaths() const;
 
 	ServiceConnectionSettings Network_GetConnectionSettings() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_ConnectionSettings; }
 	std::string Network_GetLastRoute() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_LastRoute; }
@@ -114,12 +115,7 @@ public:
 
 private:
 	void Load(void);
-	void LoadPackList();
 	bool Save();
-	// Takes the Options.ini values of the moved settings that still wait for them.
-	void TakeOptionsIniValues();
-	// Removes the old keys of these settings from Options.ini once client.json holds every one of them.
-	void RemoveOptionsIniKeys();
 
 private:
 	const float m_Camera_MinHeight_default = 100.f;
@@ -138,19 +134,15 @@ private:
 	bool m_Observer_NotificationSpecialPowerPurchase = GenOnlineClientOptions::ObserverNotificationDefault;
 	bool m_Observer_NotificationMilestone = GenOnlineClientOptions::ObserverNotificationDefault;
 
-	// The dotted paths of the moved settings that wait for their Options.ini value. Save leaves them out of client.json.
-	std::set<std::string> m_PendingOptionsIni;
-	bool m_bOptionsIniMoved = false;
-
 	bool m_bInitialized = false;
 
 	bool m_bVerbose = false;
+	bool m_bStatsExport = false;
 
 	bool m_Render_LimitFramerate = true;
 	bool m_Render_AdaptiveQuality = true;
 	int m_Render_FramerateLimit_FPSVal = 60;
 	std::string m_UI_Style = "refit";
-	std::string m_UI_Palette = "signal";
 	int m_Chat_LifeSeconds = 30;
 
 	bool m_Social_Notification_FriendComesOnline_Menus = true;
@@ -161,25 +153,25 @@ private:
 	bool m_Social_Notification_PlayerAcceptsRequest_Gameplay = true;
 	bool m_Social_Notification_PlayerSendsRequest_Menus = true;
 	bool m_Social_Notification_PlayerSendsRequest_Gameplay = true;
+	std::string m_Social_PresenceStatus = "online";
 
 	std::set<std::string> m_Maps_Favourites;
 
-	// The pack list of -packs, read once at startup. A missing, unusable, newer or other game file leaves the built-in packs.
-	bool m_bPackList = false;
-	std::vector<GenOnlinePackList::Pack> m_PackStack;
-	std::vector<std::string> m_DataPacks_UserExcludePaths;	// always empty, see DataPacks_UserExcludePaths
+	bool m_bDataInclude = false;
+	std::vector<std::string> m_Data_Include;
+	std::vector<std::string> m_Data_Exclude;
 
 	// The default names GenOnline Anti-Cheat, GENONLINE_ANTICHEAT_PLUGIN_NAME.
 	std::vector<std::string> m_Plugins_Anticheat = { "genonline_anticheat" };
 	std::vector<std::string> m_Plugins_Transport;
+	std::string m_Plugin_Caster;
 
 	mutable std::mutex m_NetworkMutex;
 	ServiceConnectionSettings m_ConnectionSettings;
-	// host of the service route that worked last
 	std::string m_LastRoute;
 	// keeps keys this build does not know when a setting is saved mid-session
 	std::string m_PreservedJSON = "{}";
-	// %LOCALAPPDATA%\GeneralsOnline\client.json, written only when it exists with a schema_version this client knows
+	// %LOCALAPPDATA%\genonline\settings.client.json, written only when it exists with a schema_version this client knows
 	std::wstring m_ClientFilePath;
 	bool m_bClientFileWritable = false;
 };

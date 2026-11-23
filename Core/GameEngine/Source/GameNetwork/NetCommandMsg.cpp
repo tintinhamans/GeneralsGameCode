@@ -1287,9 +1287,6 @@ NetCommandMsg::Select NetTimeOutGameStartCommandMsg::getSmallNetPacketSelect() c
 	return select;
 }
 
-//-------------------------
-// NetSignedFrameCommandMsg
-//-------------------------
 NetSignedFrameCommandMsg::NetSignedFrameCommandMsg() {
 	m_commandType = NETCOMMANDTYPE_SIGNEDFRAMEINFO;
 	m_commandCount = 0;
@@ -1322,9 +1319,6 @@ NetCommandMsg::Select NetSignedFrameCommandMsg::getSmallNetPacketSelect() const 
 	return select;
 }
 
-//-------------------------
-// NetSignaturesCommandMsg
-//-------------------------
 NetSignaturesCommandMsg::NetSignaturesCommandMsg() {
 	m_commandType = NETCOMMANDTYPE_SIGNATURES;
 	m_entryCount = 0;

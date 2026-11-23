@@ -1,13 +1,11 @@
 add_executable(g_generals WIN32)
-
-rts_copy_modern_media_files(g_generals)
-rts_add_license_files(g_generals)
+include(${CMAKE_SOURCE_DIR}/GenOnline/cmake/generals-main.cmake)
 
 # Use a binary name that doesn't conflict with original game.
 if("${CMAKE_SYSTEM}" MATCHES "Windows")
-    set_target_properties(g_generals PROPERTIES OUTPUT_NAME "genonline_generals${RTS_BUILD_OUTPUT_SUFFIX}")
+    set_target_properties(g_generals PROPERTIES OUTPUT_NAME "generalsv${RTS_BUILD_OUTPUT_SUFFIX}")
 else()
-    set_target_properties(g_generals PROPERTIES OUTPUT_NAME "genonline_generals${RTS_BUILD_OUTPUT_SUFFIX}")
+    set_target_properties(g_generals PROPERTIES OUTPUT_NAME "generalsv${RTS_BUILD_OUTPUT_SUFFIX}")
 endif()
 
 target_link_libraries(g_generals PRIVATE
@@ -85,27 +83,7 @@ if(MSVC)
 endif()
 
 # Strip debug symbols to separate file for MinGW Release builds
-# This creates genonline_generals${RTS_BUILD_OUTPUT_SUFFIX}.exe.debug (similar to MSVC .pdb files)
+# This creates generalsv${RTS_BUILD_OUTPUT_SUFFIX}.exe.debug (similar to MSVC .pdb files)
 if(MINGW AND COMMAND add_debug_strip_target)
     add_debug_strip_target(g_generals)
-endif()
-
-if(WIN32)
-	add_custom_command(TARGET g_generals POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-			"${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/GenOnline/Vendor/DiscordRPC/discord-rpc.dll"
-			"$<TARGET_FILE_DIR:g_generals>/discord-rpc.dll"
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-			"${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/GenOnline/Vendor/DiscordRPC/LICENSE.txt"
-			"$<TARGET_FILE_DIR:g_generals>/discord-rpc-LICENSE.txt"
-	)
-
-	if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/sentry-crash.exe")
-		# Sentry's crash daemon runs beside the game as CrashReportHandler.exe, the name InitSentry passes to sentry.
-		add_custom_command(TARGET g_generals POST_BUILD
-			COMMAND ${CMAKE_COMMAND} -E copy_if_different
-				"${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/sentry-crash.exe"
-				"$<TARGET_FILE_DIR:g_generals>/CrashReportHandler.exe"
-		)
-	endif()
 endif()

@@ -8,7 +8,6 @@ namespace AdaptiveQualityTuning
 {
 	static const int kLearnSeconds = 3;				// seconds averaged before and after a step to learn its saving
 
-	// the catch-up tuning
 	struct Values
 	{
 		double budgetMs = 1000.0 / 60.0;		// frame budget: 60 fps
@@ -30,8 +29,8 @@ namespace AdaptiveQualityTuning
 		double warmupSeconds = 10.0;			// seconds at the start of a match that do not count
 		double networkWaitIgnoreFraction = 0.5;	// a second with more frames than this waiting on the network does not count
 		double syncedMissRefreshes = 1.5;	// presented in sync with the display, a real miss takes two refreshes
-		int catchUpFrames = 3;				// logic frames run per drawn frame at most when the game is behind, 1 = no catch-up; network games and skirmish
-		double catchUpBudgetMs = 8.0;		// logic frames past the second one start only while this drawn frame's logic took less than this
+		int catchUpFrames = 3;				// the most logic frames any level lets a drawn frame run when the game is behind, 1 = no catch-up
+		double catchUpBudgetFraction = 0.5;	// logic frames past the second one start only while this drawn frame's logic took less than this share of the frame deadline
 	};
 
 	inline Values& values()
@@ -40,7 +39,7 @@ namespace AdaptiveQualityTuning
 		return v;
 	}
 
-	// the target period of a frame: the fps cap but never chasing more than 60 fps, and never faster than a synced display; fpsCap 0 is uncapped
+	// the target period of a frame: the fps cap but never chasing more than 60 fps, and never faster than a synced display, fpsCap 0 is uncapped
 	inline double frameDeadlineMs(int fpsCap, double refreshMs, bool presentSynced)
 	{
 		const double period = fpsCap > 0 ? 1000.0 / fpsCap : 0.0;
@@ -54,7 +53,6 @@ namespace AdaptiveQualityTuning
 
 	enum DeadlineKind { DEADLINE_FLOOR, DEADLINE_CAP, DEADLINE_VSYNC };
 
-	// which of the three limits frameDeadlineMs picked
 	inline DeadlineKind frameDeadlineKind(int fpsCap, double refreshMs, bool presentSynced)
 	{
 		const double period = fpsCap > 0 ? 1000.0 / fpsCap : 0.0;
@@ -125,7 +123,7 @@ public:
 			if (--m_learnLeft == 0)
 			{
 				const double after = m_learnSum / kLearnSeconds;
-				m_delta[m_learnLevel] = std::min(std::max(m_learnBefore - after, 0.0), values().maxSavingMs);
+				m_delta[m_learnLevel] = (std::min)((std::max)(m_learnBefore - after, 0.0), values().maxSavingMs);
 				m_deltaLearned[m_learnLevel] = true;
 			}
 		}
@@ -137,8 +135,8 @@ public:
 		const double over = s.frames ? (double)s.over / (double)s.frames : 0.0;
 		m_overStreak = over >= values().stepDownOverFraction ? m_overStreak + 1 : 0;
 		m_p50Streak = s.p50Ms > values().stepDownP50Ms ? m_p50Streak + 1 : 0;
-		// a step waits until the saving of the last one was measured, a median far above the budget does not wait;
-		// it goes to the next level not learned to be useless, a useless current level never blocks it
+		// a step waits until the saving of the last one was measured, unless the median is far above the budget
+		// it goes to the next level not learned to be useless, and a useless current level never blocks it
 		const bool savingKnown = m_learnLeft == 0;
 		const int target = nextUsefulLevel();
 		const bool wantDown = target > m_level && ((m_overStreak >= values().stepDownOverSeconds && savingKnown) || (m_p50Streak >= values().stepDownP50Seconds && (savingKnown || s.p50Ms > values().budgetMs)));
@@ -163,14 +161,14 @@ public:
 			m_learnSum = 0.0;
 			if (now - m_lastStepUpAt <= values().bounceSeconds)
 			{
-				m_stepUpWait = std::min(m_stepUpWait * 2.0, values().stepUpMaxSeconds);
+				m_stepUpWait = (std::min)(m_stepUpWait * 2.0, values().stepUpMaxSeconds);
 			}
 			m_lastStepWasUp = false;
 			afterStep(now);
 			return DECISION_DOWN;
 		}
 
-		const double required = m_lastStepWasUp ? std::max(m_stepUpWait, values().stepUpAfterUpSeconds) : m_stepUpWait;
+		const double required = m_lastStepWasUp ? (std::max)(m_stepUpWait, values().stepUpAfterUpSeconds) : m_stepUpWait;
 		if (m_level > 0 && m_calmSeconds >= required)
 		{
 			m_reason = REASON_CALM;
@@ -195,8 +193,7 @@ public:
 	// match seconds before the next step down or up is allowed by the cooldown
 	double cooldownLeft(double now) const { return m_cooldownUntil > now ? m_cooldownUntil - now : 0.0; }
 	// counted calm seconds a step up needs, and how many it has
-	double stepUpRequired() const { return m_lastStepWasUp ? std::max(m_stepUpWait, AdaptiveQualityTuning::values().stepUpAfterUpSeconds) : m_stepUpWait; }
-	// whether a step down still has a level that is not learned to be useless
+	double stepUpRequired() const { return m_lastStepWasUp ? (std::max)(m_stepUpWait, AdaptiveQualityTuning::values().stepUpAfterUpSeconds) : m_stepUpWait; }
 	bool canStepDown() const { return nextUsefulLevel() > m_level; }
 
 private:

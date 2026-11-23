@@ -17,7 +17,6 @@
 */
 
 // FILE: GameSpyProviderFactory.h /////////////////////////////////////////////
-// GenMP online provider abstraction.
 // Description: GameSpy implementation of OnlineProviderFactory. createServices()
 //              and destroyServices() carry the SetUpGameSpy and TearDownGameSpy
 //              sequence.
@@ -44,7 +43,6 @@ public:
 	virtual IOnlinePresence *createPresence() override;
 	virtual IOnlineStats *createStats() override;
 	virtual IOnlineLadder *createLadder() override;
-	// Future seam; the engine retains ownership and its existing creation path.
 	virtual IOnlineResults *createResults() override;
 	virtual IOnlineMatchmaking *createMatchmaking() override;
 

@@ -8,9 +8,7 @@
 #include "GameNetwork/GenOnline/LobbyConnectionPolicy.h"
 #include "Lib/PathUtil.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMatchmaking.h"
-#if RTS_ZEROHOUR
-#include "Common/StatsExporterLive.h"
-#endif
+#include "Common/LocalApiLive.h"
 
 #include <algorithm>
 
@@ -63,14 +61,12 @@ AsciiString GenOnlineLobbyInterface::GetCurrentLobbyMapPath()
 	return strPath;
 }
 
-// Calls a lobby method of the realtime hub.
 template <class R>
 static void InvokeLobbyHub(const R& request, std::function<void(const GenOnlineRealtime::InvokeOutcome&)> callback)
 {
 	InvokeRealtimeHub(request, callback);
 }
 
-// The status code and body of the legacy join response for a JoinLobby result.
 static void JoinResponseFromOutcome(const GenOnlineRealtime::InvokeOutcome& outcome, int& statusCode, std::string& strBody)
 {
 	strBody.clear();
@@ -105,6 +101,14 @@ static void JoinResponseFromOutcome(const GenOnlineRealtime::InvokeOutcome& outc
 	{
 		statusCode = 417;
 	}
+	else if (code == "lobby.build_mismatch")
+	{
+		statusCode = 409;
+	}
+	else if (code == "lobby.banned")
+	{
+		statusCode = 403;
+	}
 	else if (code == "not_found")
 	{
 		statusCode = 404;
@@ -115,9 +119,17 @@ static void JoinResponseFromOutcome(const GenOnlineRealtime::InvokeOutcome& outc
 	}
 }
 
-// The body of the legacy create response for a CreateLobby result.
+// The refusal code of the last failed lobby create, empty after a transport failure or a success.
+static std::string s_lastCreateLobbyError;
+
+std::string GenOnlineLastCreateLobbyError()
+{
+	return s_lastCreateLobbyError;
+}
+
 static std::string CreateResponseFromOutcome(const GenOnlineRealtime::InvokeOutcome& outcome)
 {
+	s_lastCreateLobbyError.clear();
 	nlohmann::json j;
 	j["result"] = 0;
 	j["lobby_id"] = -1;
@@ -135,6 +147,10 @@ static std::string CreateResponseFromOutcome(const GenOnlineRealtime::InvokeOutc
 	else
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Realtime] CreateLobby failed: %s", outcome.delivered ? outcome.Code().c_str() : outcome.transportError.c_str());
+		if (outcome.delivered)
+		{
+			s_lastCreateLobbyError = outcome.Code();
+		}
 	}
 	return j.dump();
 }
@@ -163,7 +179,6 @@ static void InvokeLobbyUpdate(const R& request, bool bRestoreOnFailure = false)
 		});
 }
 
-// The hub team of a game team, where -1 is no team.
 static GenOnlineRealtime::Nullable<int> HubTeam(int team)
 {
 	return team < 0 ? GenOnlineRealtime::Nullable<int>() : GenOnlineRealtime::Nullable<int>(team);
@@ -237,7 +252,7 @@ static std::string GameMapPath(std::string mapPath, bool bOfficial)
 		return std::format("maps\\{}", mapPath.c_str());
 	}
 
-	// TODO_NGMP: This needs to match identically, but why did it change from the base game?
+	// TODO_GENONLINE: This needs to match identically, but why did it change from the base game?
 	AsciiString strUserMapDIr = TheMapCache->getUserMapDir(true);
 	strUserMapDIr.toLower();
 
@@ -266,6 +281,7 @@ static LobbyEntry LobbyEntryFromSummary(const GenOnlineRealtime::LobbySummary& s
 	lobbyEntry.limit_superweapons = summary.settings.limit_superweapons;
 	lobbyEntry.track_stats = summary.settings.track_stats;
 	lobbyEntry.allow_observers = summary.settings.allow_observers;
+	lobbyEntry.anticheat = summary.anticheat;
 	lobbyEntry.exe_crc = summary.build.exe_crc;
 	lobbyEntry.ini_crc = summary.build.ini_crc;
 	// The list only contains custom lobbies.
@@ -302,6 +318,7 @@ static void LobbyEntryFromState(const GenOnlineRealtime::LobbyState& lobby, Lobb
 	lobbyEntry.limit_superweapons = lobby.settings.limit_superweapons;
 	lobbyEntry.track_stats = lobby.settings.track_stats;
 	lobbyEntry.allow_observers = lobby.settings.allow_observers;
+	lobbyEntry.anticheat = lobby.anticheat;
 	lobbyEntry.max_cam_height = (uint16_t)(std::clamp)(lobby.settings.max_camera_height, 0, 65535);
 	// The service only lets sessions of the same build into a lobby.
 	lobbyEntry.exe_crc = TheGlobalData->m_exeCRC;
@@ -513,6 +530,13 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_KickUser(int64_t userID, Unicod
 	InvokeLobbyUpdate(request);
 }
 
+void GenOnlineLobbyInterface::UpdateCurrentLobby_BanUser(int64_t userID, UnicodeString name)
+{
+	GenOnlineRealtime::BanFromLobbyRequest request;
+	request.user_id = userID;
+	InvokeLobbyUpdate(request);
+}
+
 void GenOnlineLobbyInterface::SendChatMessageToCurrentLobby(UnicodeString& strChatMsgUnicode, bool bIsAction)
 {
 	std::shared_ptr<WebSocket>  pWS = GenOnlineServicesManager::GetWebSocket();;
@@ -573,7 +597,7 @@ void GenOnlineLobbyInterface::RequestRosterRefresh()
 	m_lastRosterRefreshRequestMs = nowMs;
 	if (++m_rosterRefreshCount == MAX_ROSTER_REFRESHES_PER_LOBBY)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Roster refresh limit reached for lobby %lld", m_CurrentLobby.lobbyID);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Roster refresh limit reached for lobby %lld", m_CurrentLobby.lobbyID);
 	}
 	UpdateRoomDataCache();
 }
@@ -756,7 +780,7 @@ void GenOnlineLobbyInterface::Tick()
 		}
 	}
 
-	// TODO_NGMP: Do we still need this safety measure?
+	// TODO_GENONLINE: Check whether this safety measure is still needed.
 	if (IsInLobby())
 	{
 		int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
@@ -797,7 +821,7 @@ void GenOnlineLobbyInterface::Tick()
 
 void GenOnlineLobbyInterface::ApplyLocalUserPropertiesToCurrentNetworkRoom()
 {
-	// TODO_NGMP: Better detection of this, dont update always
+	// TODO_GENONLINE: Detect this better instead of updating every time.
 	// are we ready?
 
 	std::shared_ptr<WebSocket>  pWS = GenOnlineServicesManager::GetWebSocket();;
@@ -822,20 +846,19 @@ void GenOnlineLobbyInterface::ApplyLocalUserPropertiesToCurrentNetworkRoom()
 	}
 }
 
-// The service no longer has the current lobby.
 void GenOnlineLobbyInterface::HandleCurrentLobbyGone()
 {
 	// the match runs on this lobby's mesh
 	if (TheGenOnlineGame != nullptr && TheGenOnlineGame->isGameInProgress())
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Lobby lookup returned 404 during a match, keeping the match running");
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Lobby lookup returned 404 during a match, keeping the match running");
 		return;
 	}
 
 	// the server requeues quick match players itself, a DELETE would cancel that
 	if (TheGenOnlineGame->isQMGame() || m_CurrentLobby.lobby_type == ELobbyType::QuickMatch)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Quick match lobby lookup returned 404, tearing down locally only");
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Quick match lobby lookup returned 404, tearing down locally only");
 		ResetForMatchmakingRequeue();
 		return;
 	}
@@ -846,7 +869,6 @@ void GenOnlineLobbyInterface::HandleCurrentLobbyGone()
 	m_bPendingHostHasLeft = true;
 }
 
-// Applies a lobby from the service: kick and host change detection, map ownership and the game slots.
 void GenOnlineLobbyInterface::ApplyLobbyUpdate(LobbyEntry lobbyEntry, const std::vector<LobbyMemberEntry>& parsedMembers, uint64_t requestSeq)
 {
 	if (lobbyEntry.lobby_type == ELobbyType::QuickMatch)
@@ -909,9 +931,9 @@ void GenOnlineLobbyInterface::ApplyLobbyUpdate(LobbyEntry lobbyEntry, const std:
 				bServiceSaysSelfHasMap = memberEntry.has_map;
 			}
 
-			// TODO_NGMP: Much more robust system here
-			// TODO_NGMP: If we lose connection to someone in the mesh, who is STILL in otehrs mesh, we need to disconnect or retry
-			// TODO_NGMP: handle failure to connect to some users
+			// TODO_GENONLINE: Much more robust system here
+			// TODO_GENONLINE: A lost connection to a mesh peer that others still reach needs a disconnect or a retry.
+			// TODO_GENONLINE: handle failure to connect to some users
 
 			bool bMapOwnershipStateChanged = true;
 			for (LobbyMemberEntry& currentMember : m_CurrentLobby.members)
@@ -1028,7 +1050,7 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 				return;
 			}
 
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Joining lobby with id %d", lobbyInfo.lobbyID);
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Joining lobby with id %d", lobbyInfo.lobbyID);
 
 			// A custom lobby from the list carries the path the host sent, a quick match carries its playlist path as is.
 			const bool bListedPath = lobbyInfo.lobby_type != ELobbyType::QuickMatch && !lobbyInfo.map_path.empty();
@@ -1041,7 +1063,7 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 				NetworkMesh* pNewMesh = new NetworkMesh();
 				if (!pNewMesh->IsInitialized())
 				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to initialize network mesh, aborting lobby join");
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Failed to initialize network mesh, aborting lobby join");
 					delete pNewMesh;
 					ResetLobbyTryingToJoin();
 					m_bAttemptingToJoinLobby = false;
@@ -1073,7 +1095,7 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 					// reset trying to join
 					ResetLobbyTryingToJoin();
 
-					// TODO_NGMP: Dont do extra get here, just return it in the put...
+					// TODO_GENONLINE: Return the lobby in the put response instead of an extra get.
 					EJoinLobbyResult JoinResult = EJoinLobbyResult::JoinLobbyResult_JoinFailed;
 
 					if (statusCode == 200 && bSuccess)
@@ -1092,12 +1114,20 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
                     {
                         JoinResult = EJoinLobbyResult::JoinLobbyResult_AnticheatMismatch;
                     }
-					// TODO_NGMP: Handle room full error (JoinLobbyResult_FullRoom, can we even get that?
+					else if (statusCode == 409)
+					{
+						JoinResult = EJoinLobbyResult::JoinLobbyResult_BuildMismatch;
+					}
+					else if (statusCode == 403)
+					{
+						JoinResult = EJoinLobbyResult::JoinLobbyResult_Banned;
+					}
+					// TODO_GENONLINE: Handle the room full error JoinLobbyResult_FullRoom, if the service can send it.
 
 					// no response body from this, just http codes
 					if (JoinResult == EJoinLobbyResult::JoinLobbyResult_Success)
 					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Joined lobby");
+						NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Joined lobby");
 
 						m_CurrentLobby = lobbyInfo;
 						StartJoinedLobbyChat();
@@ -1125,12 +1155,12 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 						// for safety
 						if (TheGenOnlineGame != nullptr)
 						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "NGMP_OnlineServices_LobbyInterface::JoinLobby - Safety check - Expected NGMPGame to be null by now, it wasn't so forcefully destroying");
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "GenOnlineLobbyInterface::JoinLobby - Safety check - Expected GenOnlineGame to be null by now, it wasn't so forcefully destroying");
 							delete TheGenOnlineGame;
 							TheGenOnlineGame = nullptr;
 						}
 
-						// TODO_NGMP: Cleanup game + dont store 2 ptrs
+						// TODO_GENONLINE: Clean up the game and stop storing two pointers.
 						if (TheGenOnlineGame == nullptr)
 						{
 							TheGenOnlineGame = new GenOnlineGame();
@@ -1147,10 +1177,8 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 							TheGenOnlineGame->setStartingCash(TheGlobalData->m_defaultStartingCash);
 
 							// dont need to do these here, updateroomdatacache does it for us
-							//TheGenOnlineGame->SyncWithLobby(m_CurrentLobby);
-							//TheGenOnlineGame->UpdateSlotsFromCurrentLobby();
 
-							// TODO_NGMP: Rest of these
+							// TODO_GENONLINE: Rest of these
 							/*
 							TheGenOnlineGame.setExeCRC(info->getExeCRC());
 							TheGenOnlineGame.setIniCRC(info->getIniCRC());
@@ -1183,19 +1211,19 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 					}
 					else if (statusCode == 401)
 					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Couldn't join lobby, unauthorized, probably the wrong password");
+						NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Couldn't join lobby, unauthorized, probably the wrong password");
 					}
 					else if (statusCode == 404)
 					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to join lobby: Lobby not found");
+						NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Failed to join lobby: Lobby not found");
 					}
 					else if (statusCode == 406)
 					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to join lobby: Lobby is full");
+						NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Failed to join lobby: Lobby is full");
 					}
                     else if (statusCode == 417)
                     {
-                        NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to join lobby: Anticheat mismatch");
+                        NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Failed to join lobby: Anticheat mismatch");
                     }
 
 
@@ -1287,7 +1315,6 @@ bool GenOnlineLobbyInterface::HasFailedLobbyPeers()
 			return true;
 		}
 
-		// A peer still not connecting after the reconnect timeout counts as failed.
 		if (state == EConnectionState::NOT_CONNECTED && now - connection->m_connectStartedMs > MeshConnectionTimeoutPolicy::ReconnectTimeoutMs)
 		{
 			return true;
@@ -1404,7 +1431,7 @@ void GenOnlineLobbyInterface::ResetForMatchmakingRequeue()
 
 LobbyEntry GenOnlineLobbyInterface::GetLobbyFromID(int64_t lobbyID)
 {
-	// TODO_NGMP: Optimize for lookup
+	// TODO_GENONLINE: Optimize for lookup
 	for (LobbyEntry& lobbyEntry : m_vecLobbies)
 	{
 		if (lobbyEntry.lobbyID == lobbyID)
@@ -1434,7 +1461,7 @@ struct CreateLobbyResponse
 	NLOHMANN_DEFINE_TYPE_INTRUSIVE(CreateLobbyResponse, result, lobby_id, turn_username, turn_token)
 };
 
-void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeString strInitialMapName, AsciiString strInitialMapPath, bool bIsOfficial, int initialMaxSize, bool bVanillaTeamsOnly, bool bTrackStats, uint32_t startingCash, bool bPassworded, std::string strPassword, bool bAllowObservers)
+void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeString strInitialMapName, AsciiString strInitialMapPath, bool bIsOfficial, int initialMaxSize, bool bVanillaTeamsOnly, bool bTrackStats, uint32_t startingCash, bool bPassworded, std::string strPassword, bool bAllowObservers, bool bRequireEac)
 {
 	GenOnlinePluginHost::Anticheat::EndSession();
 
@@ -1465,7 +1492,7 @@ void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeStr
 
 						if (pAuthInterface == nullptr || pLobbyInterface == nullptr)
 						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] CreateLobby callback: required interface is null, aborting");
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] CreateLobby callback: required interface is null, aborting");
 							return;
 						}
 
@@ -1475,7 +1502,7 @@ void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeStr
 						if (pLobbyInterface != this || pLobbyInterface->m_LobbyJoinGeneration.load() != lobbyCreateGeneration)
 						{
 							// stale response; delete the orphaned lobby if the server created one
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Ignoring stale CreateLobby response (generation changed)");
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Ignoring stale CreateLobby response (generation changed)");
 							if (resp.result == ECreateLobbyResponseResult::SUCCEEDED)
 							{
 								LeaveLobbyOnService(resp.lobby_id);
@@ -1498,13 +1525,13 @@ void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeStr
 							// for safety
 							if (TheGenOnlineGame != nullptr)
 							{
-								NetworkLog(ELogVerbosity::LOG_RELEASE, "NGMP_OnlineServices_LobbyInterface::JoinLobby - Safety check - Expected NGMPGame to be null by now, it wasn't so forcefully destroying");
+								NetworkLog(ELogVerbosity::LOG_RELEASE, "GenOnlineLobbyInterface::JoinLobby - Safety check - Expected GenOnlineGame to be null by now, it wasn't so forcefully destroying");
 								delete TheGenOnlineGame;
 								TheGenOnlineGame = nullptr;
 							}
 
 
-							// TODO_NGMP: Cleanup game + dont store 2 ptrs
+							// TODO_GENONLINE: Clean up the game and stop storing two pointers.
 							if (TheGenOnlineGame == nullptr)
 							{
 								TheGenOnlineGame = new GenOnlineGame();
@@ -1537,11 +1564,10 @@ void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeStr
 							me.display_name = pAuthInterface->GetDisplayName();
 							me.m_bIsReady = true; // host is always ready
 
-							// the host always takes the first slot
 							me.m_SlotIndex = 0;
 							me.m_SlotState = SlotState::SLOT_PLAYER;
 
-							// TODO_NGMP: Remove this and just hardcode it or provide from service
+							// TODO_GENONLINE: Remove this and just hardcode it or provide from service
 							me.preferredPort = 0;
 
 							m_CurrentLobby.members.push_back(me);
@@ -1570,7 +1596,7 @@ void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeStr
 						}
 						else
 						{
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to create lobby!\n");
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Failed to create lobby!\n");
 
 							pLobbyInterface->InvokeCreateLobbyCallback(resp.result == ECreateLobbyResponseResult::SUCCEEDED);
 						}
@@ -1602,6 +1628,7 @@ void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeStr
 			request.settings.track_stats = bTrackStats;
 			request.settings.allow_observers = bAllowObservers;
 			request.settings.max_camera_height = GenOnlineServicesManager::Settings.Camera_GetMaxHeight_WhenLobbyHost();
+			request.require_anticheat = bRequireEac;
 			InvokeLobbyHub(request, [onCreateResponse](const GenOnlineRealtime::InvokeOutcome& outcome)
 				{
 					onCreateResponse(outcome.delivered, outcome.Succeeded() ? 200 : 400, CreateResponseFromOutcome(outcome), nullptr);
@@ -1623,7 +1650,7 @@ void GenOnlineLobbyInterface::OnJoinedOrCreatedLobby(bool bAlreadyUpdatedDetails
 		NetworkMesh* pNewMesh = new NetworkMesh();
 		if (!pNewMesh->IsInitialized())
 		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to initialize network mesh for lobby");
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Failed to initialize network mesh for lobby");
 			delete pNewMesh;
 			m_bAttemptingToJoinLobby = false;
 
@@ -1640,7 +1667,7 @@ void GenOnlineLobbyInterface::OnJoinedOrCreatedLobby(bool bAlreadyUpdatedDetails
 
 	m_bMarkedGameAsFinished = false;
 
-	// TODO_NGMP: We need this on create, but this is a double call on join because we already got this info
+	// TODO_GENONLINE: Create needs this, but a join already has this info and calls it twice.
 	// must be done in a callback, this is an async function
 	if (!bAlreadyUpdatedDetails)
 	{
@@ -2212,7 +2239,6 @@ void GenOnlineLobbyInterface::ShowLobbyChatLine(const GenOnlineRealtime::Channel
 		unicodeStr.format(bAction ? L"%s %s" : L"%s: %s", from_utf8(message.author.name).c_str(), from_utf8(message.content).c_str());
 	}
 
-	// Announcements keep the neutral notice colour, player chat keeps the slot colour.
 	Color color = bAnnouncement
 		? DetermineSystemNoticeColor(false, false)
 		: DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_LOBBY, true, bAction, false, false, lobbySlot);
@@ -2223,15 +2249,13 @@ void GenOnlineLobbyInterface::ShowLobbyChatLine(const GenOnlineRealtime::Channel
 		color = DetermineMentionColor();
 	}
 
-#if RTS_ZEROHOUR
 	// Only live chat goes to the stats exporter, so a replayed history line is not exported again.
 	if (line.live)
 	{
 		GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 		const bool bIsLocal = pAuthInterface != nullptr && pAuthInterface->GetUserID() == message.author.id;
-		StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_GAME_LOBBY, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, bAnnouncement, bIsLocal);
+		LocalApiLiveChatOnline(LOCAL_API_CHAT_GAME_LOBBY, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, bAnnouncement, bIsLocal);
 	}
-#endif
 	if (m_OnChatMessageCallback != nullptr)
 	{
 		m_OnChatMessageCallback(unicodeStr, color, line.key);

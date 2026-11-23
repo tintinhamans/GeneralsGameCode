@@ -695,7 +695,7 @@ void W3DNoDraw( GameWindow *window, WinInstanceData *instData )
 
 void drawSkinnyBorder( Int x, Int y, Int width, Int height);
 
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 The map preview frame follows its layout border colour at the kit line weight.
+// GenOnline @tweak arcticdolphin 08/11/2026 The map preview frame follows its layout border colour at the kit line weight.
 // TRUE when the kit is loaded and the window has a visible, non black enabled border colour.
 static Bool getMapPreviewKitBorder( GameWindow *window, Color *border )
 {
@@ -716,7 +716,6 @@ static Bool getMapPreviewKitBorder( GameWindow *window, Color *border )
 	return TRUE;
 }
 
-// Frame the preview rect just outside its edges, in the kit colour or with the retail frame art.
 static void drawMapPreviewBorder( GameWindow *window, Int x, Int y, Int width, Int height )
 {
 	Color border;
@@ -742,7 +741,7 @@ void W3DDrawMapPreview( GameWindow *window, WinInstanceData *instData)
 		Color border;
 		if( BitIsSet( window->winGetStatus(), WIN_STATUS_IMAGE ) == FALSE && getMapPreviewKitBorder( window, &border ) )
 		{
-			// only the fill: the kit frame below replaces the window's own border
+			// Only the fill because the kit frame below replaces the border of the window
 			Color fill = window->winGetEnabledColor( 0 );
 			if( fill != WIN_COLOR_UNDEFINED )
 				TheWindowManager->winFillRect( fill, 1.0f, pixelX, pixelY, pixelX + width, pixelY + height );
@@ -818,7 +817,7 @@ void W3DDrawMapPreview( GameWindow *window, WinInstanceData *instData)
 		}
 
 #if defined(GENONLINE)
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Draw the typed markers with their category icons, else the retail image.
+	// GenOnline @feature arcticdolphin 08/11/2026 Draw the typed markers with their category icons, else the retail image.
 	const Int typedSize = getMapPreviewMarkerSize();
 	MapPreviewMarkerList::const_iterator typedIt = TheSupplyAndTechImageLocations.m_typedMarkers.begin();
 	for (; typedIt != TheSupplyAndTechImageLocations.m_typedMarkers.end(); ++typedIt)

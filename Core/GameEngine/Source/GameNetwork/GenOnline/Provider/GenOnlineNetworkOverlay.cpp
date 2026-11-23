@@ -16,9 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlineNetworkOverlay.cpp //////////////////////////////////////////
-// Description: The GenOnline network overlay with the connection rating of
-//              every player in the match.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
@@ -419,7 +416,7 @@ void GenOnlineDrawNetworkOverlay(Int mode, DisplayString *fontSource, Color game
 			cell[COL_STALLS].format(L"%d", row.info.stallsWindow);
 			sev[COL_STALLS] = (row.info.stallsWindow >= 3 && !row.slowPc) ? ConnectionRating::SEVERITY_BAD : ((row.info.stallsWindow > 0) ? ConnectionRating::SEVERITY_WARN : ConnectionRating::SEVERITY_OK);
 
-			// out is how our packets fare to the peer, in is the peer's to us
+			// out is how packets to the peer fare, in is how packets from the peer fare
 			PacketFeedback::Summary feedbackOut;
 			PacketFeedback::Summary feedbackIn;
 			if (conn.GetOutgoingLoss(NETWORK_STATS_WINDOW_MS, feedbackOut))
@@ -709,7 +706,7 @@ void GenOnlineDrawNetworkOverlay(Int mode, DisplayString *fontSource, Color game
 		const AdaptiveQualityOverlay &aq = cache.aq;
 		UnicodeString text;
 		const Color costColor = overlayColor((aq.p50Ms > aq.stepDownP50Ms) ? ConnectionRating::SEVERITY_BAD : ((aq.p95Ms > aq.stepUpP95Ms) ? ConnectionRating::SEVERITY_WARN : ConnectionRating::SEVERITY_OK));
-		text.format(L"Quality L%d  fps %u (1%% low %u)  own p50 %.1f / p95 %.1f ms (cpu %.1f, present %.1f)  budget p50 %.1f / p95 %.1f  deadline %.1f ms (%ls, %.0f Hz)", aq.level, cache.fpsAverage, cache.fpsLow, aq.p50Ms, aq.p95Ms, aq.cpuMs, aq.presentMs, aq.stepDownP50Ms, aq.stepUpP95Ms, aq.deadlineMs, overlayAqDeadlineName(aq.deadlineKind), aq.refreshHz);
+		text.format(L"Quality L%d  fps %u (1%% low %u)  own p50 %.1f / p95 %.1f ms (cpu %.1f, present %.1f)  budget p50 %.1f / p95 %.1f  deadline %.1f ms (%ls, %.0f Hz)  catch-up x%d %d/s %.1f ms", aq.level, cache.fpsAverage, cache.fpsLow, aq.p50Ms, aq.p95Ms, aq.cpuMs, aq.presentMs, aq.stepDownP50Ms, aq.stepUpP95Ms, aq.deadlineMs, overlayAqDeadlineName(aq.deadlineKind), aq.refreshHz, aq.catchUpFrames, aq.catchUpPerSec, aq.catchUpMs);
 		overlayDrawText(k_strAqBase + 2, left, y, text, costColor, dropColor);
 		y += lineH;
 

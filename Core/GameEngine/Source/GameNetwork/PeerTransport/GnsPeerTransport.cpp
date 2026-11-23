@@ -11,7 +11,6 @@ static_assert(k_peerSendReliable == k_nSteamNetworkingSend_Reliable, "The reliab
 static_assert(k_peerSendOK == k_EResultOK, "The send results must match EResult");
 static_assert(k_peerSendNoConnection == k_EResultNoConnection, "The send results must match EResult");
 
-// The messages one receive takes from GameNetworkingSockets at most.
 static constexpr int k_maxReceiveBatch = 255;
 
 static int64_t NowSteadyMs()
@@ -183,7 +182,6 @@ int64_t GnsPeerTransport::GetArrivalMs(const SteamNetworkingMessage_t* msg)
 		return nowMs;
 	}
 
-	// how long the message waited in the transport's queue for the main loop
 	const int64_t queuedMs = (SteamNetworkingUtils()->GetLocalTimestamp() - msg->m_usecTimeReceived) / 1000;
 	return nowMs - (std::max)(static_cast<int64_t>(0), queuedMs);
 }

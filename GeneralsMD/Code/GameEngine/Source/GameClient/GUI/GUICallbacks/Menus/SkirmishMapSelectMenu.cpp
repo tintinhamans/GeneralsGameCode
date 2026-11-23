@@ -53,7 +53,7 @@ static NameKeyType listboxMap = NAMEKEY_INVALID;
 static GameWindow *parent = nullptr;
 static GameWindow *mapList = nullptr;
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Search, filters and favourites replace the system and user map tabs.
+// GenOnline @feature arcticdolphin 08/11/2026 Search, filters and favourites replace the system and user map tabs.
 static MapSelectList mapSelectList;
 static MapSelectFilter mapSelectFilter;
 
@@ -140,7 +140,7 @@ void showSkirmishGameOptionsUnderlyingGUIElements( Bool show )
 	// hide some GUI elements of the screen underneath
 	GameWindow *win;
 
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Rows stay visible behind the dialog; only the preview hides, it shares the marker list.
+	// GenOnline @tweak arcticdolphin 08/11/2026 Rows stay visible behind the dialog. Only the preview hides, because it shares the marker list.
 	win	= TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey("SkirmishGameOptionsMenu.wnd:MapWindow") );
 	if (win)
 		win->winHide( !show );
@@ -165,7 +165,7 @@ void SkirmishMapSelectMenuInit( WindowLayout *layout, void *userData )
 {
 
 	// set keyboard focus to main parent
-	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Find the parent by its layout name so the dialog takes keyboard focus.
+	// GenOnline @bugfix arcticdolphin 08/11/2026 Find the parent by its layout name so the dialog takes keyboard focus.
 	NameKeyType parentID = TheNameKeyGenerator->nameToKey( "SkirmishMapSelectMenu.wnd:SkirmishMapSelectMenuParent" );
 	parent = TheWindowManager->winGetWindowFromId( nullptr, parentID );
 
@@ -284,7 +284,7 @@ WindowMsgHandledType SkirmishMapSelectMenuInput( GameWindow *window, UnsignedInt
 
 }
 
-// The OK path's effect on the lobby: the map, its checksum and size, and the start positions starting over.
+// The effect of the OK path on the lobby: the map, its checksum and size, and the start positions starting over.
 static void applySelectedMap( const AsciiString& asciiMap )
 {
 	TheSkirmishGameInfo->setMap( asciiMap );

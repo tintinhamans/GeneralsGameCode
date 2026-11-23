@@ -91,7 +91,7 @@ void FrameMetrics::init() {
 	m_averageFps = LOGICFRAMES_PER_SECOND;
 
 #if defined(GENONLINE)
-	// NGMP_NOTE: Don't start with the assumption that we have latency. Connections are now formed earlier, so we have latency data earlier too.
+	// GENONLINE_NOTE: Connections now form earlier, so latency data is available from the start.
 
 	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
 	if (TheGenOnlineGame != nullptr && pMesh != nullptr)

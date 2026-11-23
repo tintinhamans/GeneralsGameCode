@@ -65,6 +65,18 @@ void HTTPManager::SendS3PUTRequest(const char* szURI, EIPProtocolVersion protove
     m_vecRequestsPendingStart.push_back(pRequest);
 }
 
+void HTTPManager::SendS3POSTRequest(const char* szURI, EIPProtocolVersion protover, std::map<std::string, std::string>& inHeaders, std::vector<uint8_t> vecBuffer, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback /*= nullptr*/, int timeoutMS /*= -1*/, int maxSendBytesPerSec /*= 0*/)
+{
+	CHECK_MAIN_THREAD;
+
+	HTTPRequest* pRequest = PlatformCreateRequest(EHTTPVerb::HTTP_VERB_POST, protover, szURI, inHeaders, completionCallback, progressCallback, timeoutMS);
+	pRequest->DisableServiceAuth();
+	pRequest->SetMaxSendSpeed(maxSendBytesPerSec);
+	pRequest->SetPostDataBuffer(std::move(vecBuffer));
+
+	m_vecRequestsPendingStart.push_back(pRequest);
+}
+
 void HTTPManager::SendDELETERequest(const char* szURI, EIPProtocolVersion protover, std::map<std::string, std::string>& inHeaders, const char* szData, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback /*= nullptr*/, int timeoutMS)
 {
 	CHECK_MAIN_THREAD;
@@ -96,7 +108,7 @@ void HTTPManager::Shutdown()
 
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTPManager] Canceling %d in-flight requests...", (int)m_vecRequestsInFlight.size());
 
-	// removing handles cancels transfers; resolver workers hold value snapshots, so abandoned results never block shutdown
+	// removing handles cancels transfers, resolver workers hold value snapshots, so abandoned results never block shutdown
 	for (HTTPRequest* request : m_vecRequestsInFlight)
 		delete request;
 	m_vecRequestsInFlight.clear();
@@ -138,7 +150,7 @@ void HTTPManager::Tick()
 
 	std::vector<HTTPRequest*> vecItemsToRemove = std::vector<HTTPRequest*>();
 
-	// Callbacks may enqueue new requests; do not iterate the live pending vector.
+	// Callbacks may enqueue new requests, do not iterate the live pending vector.
 	auto pending = std::move(m_vecRequestsPendingStart);
 	m_vecRequestsPendingStart.clear();
 	for (HTTPRequest* request : pending)

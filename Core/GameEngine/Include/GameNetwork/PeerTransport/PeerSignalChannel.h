@@ -22,7 +22,6 @@ public:
 
 	/// False while the channel can neither send nor receive. The signals to send wait then.
 	virtual bool IsOpen() const = 0;
-	/// Sends a signal to the user.
 	virtual void SendSignal(int64_t targetUserID, const std::vector<uint8_t>& payload) = 0;
 	/// Appends the received signals to out in arrival order. The sender is the user the provider stamped on the signal.
 	virtual void DrainSignals(std::deque<PeerSignal>& out) = 0;
@@ -66,7 +65,7 @@ private:
 		std::vector<uint8_t> vecPayload;
 	};
 
-	// Guards m_queueSend; Push() may run on any thread, FlushTo() drains on the main thread.
+	// Guards m_queueSend, Push() may run on any thread, FlushTo() drains on the main thread.
 	std::mutex m_sendQueueMutex;
 	std::deque<QueuedSend> m_queueSend;
 };

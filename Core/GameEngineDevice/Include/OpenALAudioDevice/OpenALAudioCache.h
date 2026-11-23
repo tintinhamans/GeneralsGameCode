@@ -44,7 +44,7 @@ public:
     static size_t budgetForFootprint(size_t footprint);
     void setBudget(size_t budget);
     void clear();
-    // A rate or channels of 0 keeps the file's own rate or channel count. Clips are 16-bit and low-passed clips saturate.
+    // A rate or channels of 0 keeps the own rate or channel count of the file. Clips are 16-bit and low-passed clips saturate.
     std::shared_ptr<const OpenALAudioClip> load(const AsciiString &filename, int rate, int channels, float normalizedCutoff = 1.0f);
     static std::shared_ptr<const OpenALAudioClip> loadUncached(const AsciiString &filename, int rate, int channels, size_t budget, float normalizedCutoff = 1.0f);
     size_t usedBytes() const { return m_bytes; }

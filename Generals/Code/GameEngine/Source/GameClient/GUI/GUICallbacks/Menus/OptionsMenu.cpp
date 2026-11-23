@@ -856,6 +856,10 @@ static void DestroyOptionsLayout() {
 static void showAdvancedOptions()
 {
 	WinAdvancedDisplay->winHide(FALSE);
+#if defined(GENONLINE)
+	// GenOnline @bugfix arcticdolphin 22/11/2026 An opened combo box raises its panel, so the dialog raises itself to draw above it.
+	WinAdvancedDisplay->winBringToTop();
+#endif
 }
 
 static void acceptAdvancedOptions()
@@ -1350,7 +1354,9 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 		if (comboBoxOnlineIP)
 			comboBoxOnlineIP->winEnable(FALSE);
 
-		buttonFirewallRefresh->winEnable(FALSE);
+		// GenOnline @bugfix arcticdolphin 21/11/2026 The GenOnline options layout has no firewall refresh button.
+		if (buttonFirewallRefresh)
+			buttonFirewallRefresh->winEnable(FALSE);
 
 		if (comboBoxDetail)
 			comboBoxDetail->winEnable(FALSE);
@@ -1560,7 +1566,7 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 			else if (controlID == buttonAccept )
 			{
-				// changed connection settings are tested first; a rejected address keeps the menu open
+				// Changed connection settings are tested first so a rejected address keeps the menu open.
 				if (!GetOnlineGameHooks()->onOptionsMenuAccept())
 					break;
 				saveOptions();
@@ -1598,7 +1604,6 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 			else if (GetOnlineGameHooks()->onOptionsMenuButtonSelected(control))
 			{
-				// The provider handled a button of its own section.
 			}
 			else if (controlID == ButtonAdvancedAcceptID )
 			{

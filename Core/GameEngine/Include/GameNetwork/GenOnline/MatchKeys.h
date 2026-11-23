@@ -8,13 +8,10 @@
 
 typedef struct evp_pkey_st EVP_PKEY;
 
-// Ed25519 keys: each client makes a key pair when it joins or creates a lobby and announces the public key over each peer's own connection,
+// Ed25519 keys: each client makes a key pair when it joins or creates a lobby and announces the public key over each connection to a peer,
 // a key counts for the user whose connection it came on. A match binds to the keys when it starts: the match id and the roster go into everything
 // that is signed, so a signature is good for that match only. See ConnectionManager for what is signed.
 //
-// Channel messages, reliable:
-//   announcement: u8 kind (2), i64 user id, 32 bytes public key
-//   status:       u8 kind (3), u8 count, count x i64 user id of the peers whose key the sender holds
 class MatchKeys
 {
 public:
@@ -40,7 +37,6 @@ public:
 
 	/// Takes an announcement that arrived on the connection of connectionUserID. False and a reason when rejected, changed when a key was added or replaced.
 	bool OnAnnouncement(int64_t connectionUserID, const uint8_t* data, size_t len, const char*& reason, bool& changed);
-	/// Takes a status that arrived on the connection of connectionUserID.
 	bool OnStatus(int64_t connectionUserID, const uint8_t* data, size_t len, const char*& reason, bool& changed);
 
 	/// Drops the key of a peer that left the lobby, never one of a bound match roster.

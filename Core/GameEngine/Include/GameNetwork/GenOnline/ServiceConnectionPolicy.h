@@ -14,7 +14,7 @@ struct ProxyRoute
 	std::string url;
 	bool direct = true;
 	bool allowIntegratedAuth = false;
-	// the Windows login can be used here when the player wants it; never for SOCKS
+	// the Windows login can be used here when the player wants it, never for SOCKS
 	bool integratedAuthPossible = false;
 };
 
@@ -34,7 +34,7 @@ struct ProxyResolution
 	std::atomic<bool> ready{false};
 	ResolvedProxyPolicy result;
 };
-// Successful system policies expire after 60 seconds; settings saves invalidate immediately.
+// Successful system policies expire after 60 seconds, settings saves invalidate immediately.
 void InvalidateProxyPolicyCache();
 bool ShouldLogProxyPolicy(bool websocket, const ResolvedProxyPolicy& result);
 std::shared_ptr<ProxyResolution> StartProxyResolution(ServiceConnectionSettings settings, std::string destinationURL);
@@ -48,16 +48,14 @@ bool SaveProxyCredentials(const std::string& proxyURL, const std::string& userna
 	const std::string& password, std::string& error);
 bool DeleteProxyCredentials(const std::string& proxyURL, std::string& error);
 bool HasProxyCredentials(const std::string& proxyURL);
-// Login kept in memory for this session only; never written to disk
+// Login kept in memory for this session only, never written to disk
 void SetSessionProxyCredentials(const std::string& proxyURL, const std::string& username, const std::string& password);
 void ClearSessionProxyCredentials(const std::string& proxyURL);
 // Logins are bound to one proxy: nothing typed for another proxy is ever offered to this one
 void ClearSessionProxyCredentialsExcept(const std::string& keepProxyURL);
-// The key a proxy's login is stored under: scheme://host:port in lower case with the default port filled in, empty for an invalid address
+// The key a proxy login is stored under: scheme://host:port in lower case with the default port filled in, empty for an invalid address
 std::string CanonicalProxyKey(const std::string& proxyURL);
-// User name of the session or saved login, empty when there is none
 std::string ProxyUsername(const std::string& proxyURL);
-// host:port of a proxy address for display
 std::string ProxyDisplayName(const std::string& proxyURL);
 
 struct ConnectionTestResult

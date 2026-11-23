@@ -570,7 +570,7 @@ Mouse::~Mouse()
 
 }
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 In the shell menus a tooltip colour the GO UI colour table sets replaces the Mouse INI one.
+// GenOnline @feature arcticdolphin 09/11/2026 In the shell menus a tooltip colour the GO UI colour table sets replaces the Mouse INI one.
 static Color shellTooltipColor( GOUIColorRole role, Color iniColor )
 {
 	Color value;
@@ -587,7 +587,7 @@ void Mouse::parseIni()
 	INI ini;
 	ini.loadFileDirectory( "Data\\INI\\Mouse", INI_LOAD_OVERWRITE, nullptr );
 
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Hand shows the Normal cursor when no INI defines it, and Normal's model in W3D mode.
+	// GenOnline @feature arcticdolphin 08/11/2026 Hand shows the Normal cursor when no INI defines it, and the model of Normal in W3D mode.
 	CursorInfo *hand = &m_cursorInfo[ HAND ];
 	if( hand->cursorName.isEmpty() )
 	{
@@ -1079,7 +1079,7 @@ void Mouse::regainFocus()
 // ------------------------------------------------------------------------------------------------
 void Mouse::onWindowMoveSizeBegin()
 {
-	// TheSuperHackers @bugfix arcticdolphin 23/10/2026 Do not capture the cursor while the window is dragged because the clip drags the window along.
+	// GenOnline @bugfix arcticdolphin 23/10/2026 Do not capture the cursor while the window is dragged because the clip drags the window along.
 	blockCapture(CursorCaptureBlockReason_MovingWindow);
 }
 
@@ -1226,7 +1226,7 @@ void Mouse::drawTooltip()
 		Int width, xPos;
 		Int height, yPos;
 		m_tooltipDisplayString->getSize(&width,&height);
-		// TheSuperHackers @tweak arcticdolphin 08/11/2026 Keep the text clear of the box edges, scaled with the display height
+		// GenOnline @tweak arcticdolphin 08/11/2026 Keep the text clear of the box edges, scaled with the display height
 		const Int padX = max(2, (Int)REAL_TO_INT_CEIL(3.0f * TheDisplay->getHeight() / 600.0f));
 		const Int padY = max(1, (Int)REAL_TO_INT_CEIL(2.0f * TheDisplay->getHeight() / 600.0f));
 		xPos = m_currMouse.pos.x + 20;
