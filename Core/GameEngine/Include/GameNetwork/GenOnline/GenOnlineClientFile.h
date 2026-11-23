@@ -54,6 +54,9 @@ namespace GenOnlineClientFile
 	// RootFolder()\settings.client.json, empty when the folder cannot be resolved.
 	std::wstring DefaultPath();
 
+	// RootFolder()\crashes\ in the code page of the char file APIs, empty when the folder cannot be resolved or represented.
+	std::string CrashDumpParentFolder();
+
 	// Objects merge key by key with the overlay winning, any other value, an array included, replaces the base value.
 	nlohmann::json MergeOverlay(const nlohmann::json& base, const nlohmann::json& overlay);
 

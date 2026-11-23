@@ -71,6 +71,7 @@
 #endif
 #if defined(GENONLINE)
 #include "GameNetwork/GenOnline/GenOnlineInit.h"
+#include "GameNetwork/GenOnline/GenOnlineClientFile.h"
 #endif
 
 
@@ -1213,7 +1214,15 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 #ifdef RTS_ENABLE_CRASHDUMP
 		// Initialize minidump facilities - requires TheGlobalData so performed after parseCommandLineForStartup
+#if defined(GENONLINE)
+		{
+			// GenOnline @tweak arcticdolphin 24/11/2026 Dumps go to the GenOnline root, Documents is often synced to the cloud.
+			const std::string dumpParent = GenOnlineClientFile::CrashDumpParentFolder();
+			MiniDumper::initMiniDumper(dumpParent.empty() ? TheGlobalData->getPath_UserData().str() : dumpParent.c_str(), 'G');
+		}
+#else
 		MiniDumper::initMiniDumper(TheGlobalData->getPath_UserData().str(), 'G');
+#endif
 #endif
 		// register windows class and create application window
 		if(!TheGlobalData->m_headless && initializeAppWindows(hInstance, nCmdShow, TheGlobalData->m_windowed) == false)
