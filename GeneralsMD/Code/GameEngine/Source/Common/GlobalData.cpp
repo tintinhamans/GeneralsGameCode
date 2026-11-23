@@ -1116,42 +1116,10 @@ GlobalData::GlobalData()
 	m_cameraPitchFactor = 0.5f;
 	m_cameraZoomFactor = 0.5f;
 
-#if defined(USE_MAULLER_ONEDRIVE_FIX)
 	// Set user data directory based on registry settings instead of INI parameters.
 	// This allows us to localize the leaf name.
 	m_userDataDir = BuildUserDataPathFromRegistry();
 	CreateDirectory(m_userDataDir.str(), nullptr);
-#else
-    // Set user data directory based on registry settings instead of INI parameters. This allows us to
-// localize the leaf name.
-    wchar_t temp[_MAX_PATH + 1];
-    AsciiString myDocumentsDirectory;
-    if (::SHGetSpecialFolderPathW(nullptr, temp, CSIDL_PERSONAL, true))
-        myDocumentsDirectory = widePathToFileApiPath(temp);
-
-    if (!myDocumentsDirectory.isEmpty())
-    {
-
-        if (myDocumentsDirectory.getCharAt(myDocumentsDirectory.getLength() - 1) != '\\')
-            myDocumentsDirectory.concat('\\');
-
-        AsciiString leafName;
-
-        if (!GetStringFromRegistry("", "UserDataLeafName", leafName))
-        {
-            // Use something, anything
-            // [MH] had to remove this, otherwise mapcache build step won't run... DEBUG_CRASH( ( "Could not find registry key UserDataLeafName; defaulting to \"Command and Conquer Generals Zero Hour Data\" " ) );
-            leafName = "Command and Conquer Generals Zero Hour Data";
-        }
-
-        myDocumentsDirectory.concat(leafName);
-        if (myDocumentsDirectory.getCharAt(myDocumentsDirectory.getLength() - 1) != '\\')
-            myDocumentsDirectory.concat('\\');
-
-        CreateDirectory(myDocumentsDirectory.str(), nullptr);
-        m_userDataDir = myDocumentsDirectory;
-    }
-#endif
 
 	//-allAdvice feature
 	//m_allAdvice = FALSE;
