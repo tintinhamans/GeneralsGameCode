@@ -126,7 +126,7 @@ static const Real CREDIT_LOGO_TOP = 222.0f;
 static const Real CREDIT_LOGO_HEIGHT = 125.0f;
 static const Real CREDIT_URL_TOP = 362.0f;
 
-// GenOnline @feature arcticdolphin 09/11/2026 Splash lines the radar van says, translatable by label. GenOnline/tools/go_ui_kit.py LOAD_SPLASHES mirrors them.
+// GenOnline @feature arcticdolphin 09/11/2026 Splash lines the radar van says, translatable by label. GenOnline/tools/genonline_ui_kit.py LOAD_SPLASHES mirrors them.
 struct GoLoadSplash
 {
 	const char *label;
@@ -186,7 +186,7 @@ static const Image *findGoLoadBarImage()
 	return image;
 }
 
-// GenOnline @feature arcticdolphin 09/11/2026 The radar van rules in texels of its 256x156 canvas and milliseconds, mirrored by GenOnline/tools/go_ui_kit.py VAN_CONSTANTS.
+// GenOnline @feature arcticdolphin 09/11/2026 The radar van rules in texels of its 256x156 canvas and milliseconds, mirrored by GenOnline/tools/genonline_ui_kit.py VAN_CONSTANTS.
 static const Int GO_VAN_FRAME_WIDTH = 256;
 static const Int GO_VAN_FRAME_HEIGHT = 156;
 static const Int GO_VAN_OUTLINE_TOP = 5;
@@ -226,7 +226,7 @@ static const Real GO_VAN_BOB_WEIGHT_A = 0.6f;
 static const Int GO_VAN_SPAN = GO_VAN_OUTLINE_BOTTOM - GO_VAN_OUTLINE_TOP;
 static const char *const GO_VAN_WHEEL_IMAGES[GO_VAN_WHEEL_FRAMES] = { "GOVanWheels0", "GOVanWheels1", "GOVanWheels2", "GOVanWheels3" };
 
-// GenOnline @feature arcticdolphin 09/11/2026 The shell load road in 800x600 units and half its dash period, mirrored by GenOnline/tools/go_ui_kit.py LOAD_ROAD_RECT.
+// GenOnline @feature arcticdolphin 09/11/2026 The shell load road in 800x600 units and half its dash period, mirrored by GenOnline/tools/genonline_ui_kit.py LOAD_ROAD_RECT.
 static const Int GO_ROAD_LEFT = 267;
 static const Int GO_ROAD_TOP = 574;
 static const Int GO_ROAD_RIGHT = 533;
@@ -398,7 +398,7 @@ static GoVanPlace placeGoVan(GameWindow *window, const IRegion2D &road, Int prog
 	return place;
 }
 
-// GenOnline @feature arcticdolphin 09/11/2026 The splash line as a speech bubble from the logo van, with its constants mirrored by GenOnline/tools/go_ui_kit.py BUBBLE_CONSTANTS.
+// GenOnline @feature arcticdolphin 09/11/2026 The splash line as a speech bubble from the logo van, with its constants mirrored by GenOnline/tools/genonline_ui_kit.py BUBBLE_CONSTANTS.
 static const Int GO_LOGO_DISH_X = 306;
 static const Int GO_LOGO_DISH_Y = 0;
 static const UnsignedInt GO_BUBBLE_SHOW_MS = 600;

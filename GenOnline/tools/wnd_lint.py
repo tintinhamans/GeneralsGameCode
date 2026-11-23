@@ -20,7 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import go_wnd_layouts as wl  # noqa: E402
+import genonline_wnd_layouts as wl  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 LAYOUT_FOLDERS = [ROOT / "GenOnline" / "data" / "core" / "Window", ROOT / "GenOnline" / "data" / "zerohour" / "Window"]

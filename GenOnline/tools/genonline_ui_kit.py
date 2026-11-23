@@ -15,11 +15,11 @@ session's layered art in GenOnline/tools/art/van-side: the body, the dish, four 
 leaves it out.
 
 Usage:
-    python GenOnline/tools/go_ui_kit.py          write the INIs and the theme independent atlases into GenOnline/data/core and the theme
+    python GenOnline/tools/genonline_ui_kit.py          write the INIs and the theme independent atlases into GenOnline/data/core and the theme
                                                  atlases (the UI kit, the map icons and the load road) into the folder of each theme
-    python GenOnline/tools/go_ui_kit.py --check  exit 1 when the committed files differ from a fresh run
-    python GenOnline/tools/go_ui_kit.py --theme generals          write only the theme atlases of one theme
-    python GenOnline/tools/go_ui_kit.py --theme generals --check  exit 1 when those files are out of date
+    python GenOnline/tools/genonline_ui_kit.py --check  exit 1 when the committed files differ from a fresh run
+    python GenOnline/tools/genonline_ui_kit.py --theme generals          write only the theme atlases of one theme
+    python GenOnline/tools/genonline_ui_kit.py --theme generals --check  exit 1 when those files are out of date
 
 The themes are zerohour, the blue of the Zero Hour interface, and generals, the orange of the Generals interface. A game folder of
 GenOnline/data holds the atlases and the Data/INI/GOUIColors.ini of its theme, core holds what both share.
@@ -34,7 +34,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import go_themes  # noqa: E402
+import genonline_themes  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "GenOnline" / "data" / "core"
@@ -915,10 +915,10 @@ def mix(a, b, t):
 
 
 LOAD_ROAD_LINE = BUTTON_STATES[""][0]  # the kit line
-LOAD_ROAD_ASPHALT = mix(go_themes.PALETTE["ground"], go_themes.PALETTE["pushed"], 0.4)  # a warm near-black grey
-LOAD_ROAD_DASH = rgba(go_themes.PALETTE["empty"], 0.55)  # the road ahead
-LOAD_ROAD_DASH_LIT = rgba(go_themes.PALETTE["tan"])      # the road behind the van
-LOAD_ROAD_TINT = rgba(go_themes.PALETTE["bronze"], 0.18)
+LOAD_ROAD_ASPHALT = mix(genonline_themes.PALETTE["ground"], genonline_themes.PALETTE["pushed"], 0.4)  # a warm near-black grey
+LOAD_ROAD_DASH = rgba(genonline_themes.PALETTE["empty"], 0.55)  # the road ahead
+LOAD_ROAD_DASH_LIT = rgba(genonline_themes.PALETTE["tan"])      # the road behind the van
+LOAD_ROAD_TINT = rgba(genonline_themes.PALETTE["bronze"], 0.18)
 LOAD_ROAD_DASH_UNITS = 6.0  # half a dash period, in 800x600 units
 
 
@@ -1012,9 +1012,9 @@ BUBBLE_TEXTURE_PATH = DATA / "Art" / "Textures" / BUBBLE_TEXTURE_NAME
 BUBBLE_INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_LoadBubble.INI"
 BUBBLE_ATLAS_WIDTH = 64  # in retail pixels
 BUBBLE_TITLE = "the load screen speech bubble"
-BUBBLE_FILL = rgba(go_themes.PALETTE["text"])  # cream
-BUBBLE_LINE = rgba(go_themes.PALETTE["ink"])   # the van's outline colour
-BUBBLE_TEXT = go_themes.PALETTE["ink"]
+BUBBLE_FILL = rgba(genonline_themes.PALETTE["text"])  # cream
+BUBBLE_LINE = rgba(genonline_themes.PALETTE["ink"])   # the van's outline colour
+BUBBLE_TEXT = genonline_themes.PALETTE["ink"]
 BUBBLE_CORNER = 8          # art units of a corner piece; a 9-slice, so corners keep their size at any line count
 BUBBLE_EDGE = 4            # art units of the stretched edges and the centre
 BUBBLE_RADIUS = 7.0
@@ -1113,7 +1113,7 @@ def splash_text_block(text, screen_width, screen_height):
 
 def logo_rect(screen_width, screen_height):
     unit = screen_height / 600.0
-    top, height = int(go_themes.LOAD_LOGO_TOP * unit), int(go_themes.LOAD_LOGO_HEIGHT * unit)
+    top, height = int(genonline_themes.LOAD_LOGO_TOP * unit), int(genonline_themes.LOAD_LOGO_HEIGHT * unit)
     width = height * LOGO_ASPECT[0] // LOGO_ASPECT[1]
     left = screen_width // 2 - width // 2
     return left, top, left + width, top + height
@@ -1129,7 +1129,7 @@ def logo_dish(rows=None):
     """The logo van's radar dish rim in GOLoadLogo texels, measured from the art: the topmost opaque row of the logo is
     the rim of the dish pair on the mast, and the rim point is the middle of that row's opaque run."""
     if rows is None:
-        rows = go_themes.read_tga(LOGO_TEXTURE_PATH.read_bytes())[2]
+        rows = genonline_themes.read_tga(LOGO_TEXTURE_PATH.read_bytes())[2]
     left, top, right, bottom = LOGO_COORDS
     for y in range(top, bottom):
         xs = [x for x in range(left, right) if rows[y][x][3] > 128]
@@ -1222,7 +1222,7 @@ VAN_SPAN = VAN["GO_VAN_OUTLINE_BOTTOM"] - VAN["GO_VAN_OUTLINE_TOP"]  # the van h
 
 def van_strip_frames(path, frames=VAN_WHEEL_FRAMES):
     """Split a strip of frames side by side into frames of (width, height, rows of byte tuples)."""
-    width, height, rows = go_themes.read_png(path.read_bytes())
+    width, height, rows = genonline_themes.read_png(path.read_bytes())
     cell = width // frames
     if cell * frames != width:
         raise SystemExit(f"{path.name} is not {frames} frames wide")
@@ -1232,9 +1232,9 @@ def van_strip_frames(path, frames=VAN_WHEEL_FRAMES):
 def van_images(sources=VAN_SOURCES):
     """The van images as (name, width, height, rows of (r, g, b, a) bytes): body, dish and wheel frames on the 256x156
     canvas, and the puff."""
-    body = go_themes.read_png((sources / VAN_LAYER_FILES["body"]).read_bytes())
-    dish = go_themes.read_png((sources / VAN_LAYER_FILES["dish"]).read_bytes())
-    puff = go_themes.read_png((sources / VAN_LAYER_FILES["puff"]).read_bytes())
+    body = genonline_themes.read_png((sources / VAN_LAYER_FILES["body"]).read_bytes())
+    dish = genonline_themes.read_png((sources / VAN_LAYER_FILES["dish"]).read_bytes())
+    puff = genonline_themes.read_png((sources / VAN_LAYER_FILES["puff"]).read_bytes())
     wheels = van_strip_frames(sources / VAN_LAYER_FILES["wheels"])
     out = [("GOVanBody",) + body, ("GOVanDish",) + dish]
     out += [(f"GOVanWheels{k}",) + frame for k, frame in enumerate(wheels)]
@@ -1297,7 +1297,7 @@ def build_van(sources=VAN_SOURCES):
             atlas[top + y][left:left + w] = [tuple(c / 255.0 for c in t) for t in row]
     lines = [
         f"; Generals Online load bar van: points the van images at {VAN_TEXTURE_NAME}.",
-        "; Generated by GenOnline/tools/go_ui_kit.py from GenOnline/tools/art/van-side; edit the script, not this file. Coords are texels.",
+        "; Generated by GenOnline/tools/genonline_ui_kit.py from GenOnline/tools/art/van-side; edit the script, not this file. Coords are texels.",
         "",
     ]
     for name in sorted(rects, key=str.lower):
@@ -1526,7 +1526,7 @@ def tga_bytes(atlas):
 def ini_text(items, placements, height, texture_name=TEXTURE_NAME, atlas_width=ATLAS_WIDTH, title="the shell gadget images"):
     lines = [
         f"; Generals Online UI kit: points {title} at {texture_name}.",
-        f"; Generated by GenOnline/tools/go_ui_kit.py; edit the script, not this file. The texture holds {SCALE} texels per pixel.",
+        f"; Generated by GenOnline/tools/genonline_ui_kit.py; edit the script, not this file. The texture holds {SCALE} texels per pixel.",
         "",
     ]
     for name, w, h, _ in sorted(items, key=lambda it: it[0].lower()):

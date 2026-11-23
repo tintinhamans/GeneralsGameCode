@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 r"""Pack GenOnline/data/core and the data folder of a game into the baseline data pack of that game.
 
-Usage: pack_go_data.py <zerohour|generals> <build> [output folder]
+Usage: pack_genonline_data.py <zerohour|generals> <build> [output folder]
 
 The result is <output folder>\genonline_<game>@<build>.gpk. A .gpk is a plain BIG under another extension.
 The folder layout inside core and the game folder is the layout inside the pack (Window\..., Data\INI\..., Art\Textures\...).

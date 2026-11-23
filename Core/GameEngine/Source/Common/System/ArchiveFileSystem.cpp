@@ -506,7 +506,7 @@ void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int p
 #endif
 
 #if defined(GENONLINE)
-// A GO menu layout: Window/Menus without the screens shown during a match (the list of GenOnline/tools/go_wnd_layouts.py IN_MATCH_MENUS),
+// A GO menu layout: Window/Menus without the screens shown during a match (the list of GenOnline/tools/genonline_wnd_layouts.py IN_MATCH_MENUS),
 // or the GO header templates those layouts use
 static Bool isGenOnlineShellLayout(const char* path)
 {
