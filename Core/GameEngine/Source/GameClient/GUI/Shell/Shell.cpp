@@ -682,8 +682,7 @@ void Shell::unlinkScreen( WindowLayout *screen )
 }
 
 //-------------------------------------------------------------------------------------------------
-// Generals Online: a screen with a ruler gets the version label (Menus/MainMenuVersion.wnd) as a child of it. It is drawn right on top of the
-// ruler, so whatever covers the ruler covers it too, and it is shown and hidden with the ruler.
+// Generals Online: a screen with a ruler gets the version label as a child of it, so it is drawn on top and shown and hidden with the ruler.
 //-------------------------------------------------------------------------------------------------
 static GameWindow *findRuler(GameWindow *window)
 {
@@ -729,7 +728,6 @@ static void addVersionLabel(WindowLayout *screen)
 		return;
 	}
 
-	// the child position is relative to the ruler
 	ICoord2D labelPos;
 	ICoord2D rulerPos;
 	label->winGetScreenPosition(&labelPos.x, &labelPos.y);

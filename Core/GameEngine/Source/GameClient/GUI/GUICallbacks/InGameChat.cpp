@@ -53,7 +53,6 @@ static GameWindow *chatTypeStaticText = nullptr;
 static UnicodeString s_savedChat;
 static InGameChatType inGameChatType;
 
-// Tab completion state of the chat box.
 static ChatTabCycler s_inGameChatCycler;
 
 #include "../GenOnlineGame.h"
@@ -195,7 +194,6 @@ Bool handleInGameSlashCommands(UnicodeString uText)
 }
 
 // ------------------------------------------------------------------------------------------------
-// Builds the recipient mask for the chat type, filters the line and sends it to the other players.
 // ------------------------------------------------------------------------------------------------
 static void SendInGameChatLine( UnicodeString msg, InGameChatType chatType )
 {
@@ -230,7 +228,6 @@ static void SendInGameChatLine( UnicodeString msg, InGameChatType chatType )
 }
 
 // ------------------------------------------------------------------------------------------------
-// Entry point for handling a line from outside the chat window; the same path as a typed line.
 // ------------------------------------------------------------------------------------------------
 Bool SubmitInGameChatLine( const UnicodeString& text, InGameChatType chatType )
 {
@@ -341,7 +338,6 @@ WindowMsgHandledType InGameChatInput( GameWindow *window, UnsignedInt msg,
 }
 
 // ------------------------------------------------------------------------------------------------
-// The chat box completes the other human players of the match and the in-game slash commands.
 // ------------------------------------------------------------------------------------------------
 static void BuildInGameChatCompletionContext( ChatCompletionContext& context )
 {

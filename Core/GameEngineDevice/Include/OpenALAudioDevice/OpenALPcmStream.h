@@ -54,7 +54,7 @@ public:
     void releaseProducer();
     QueueResult queue(const short *interleaved, uint32_t frames);
     // Cached storage is immutable and its references are released only on the owner thread.
-    // A stereo stream also takes mono spans (sourceChannels 1) and plays them on both channels. A sourceChannels of 0 means the stream's channels.
+    // A stereo stream also takes mono spans (sourceChannels 1) and plays them on both channels. A sourceChannels of 0 means the channels of the stream.
     QueueResult queueCached(std::shared_ptr<const std::vector<short>> pcm, uint32_t offsetFrames, uint32_t frames, int sourceChannels = 0);
     void reclaimConsumed();
     // Free capacity of the copied ring, independent of queued cached spans.

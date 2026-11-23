@@ -16,10 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlineGameHooks.h /////////////////////////////////////////////////
-// Description: GenOnline game hooks. They own the GenOnline services manager
-//              updates and teardown, crash reporting, Discord presence, replay
-//              upload and the network overlay for both games.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once

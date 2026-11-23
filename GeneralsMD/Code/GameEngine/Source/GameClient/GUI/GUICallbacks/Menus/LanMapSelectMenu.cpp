@@ -54,7 +54,7 @@ static NameKeyType winMapPreviewID = NAMEKEY_INVALID;
 static GameWindow *parent = nullptr;
 static GameWindow *mapList = nullptr;
 static GameWindow *winMapPreview = nullptr;
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Search, filters and favourites replace the system and user map tabs.
+// GenOnline @feature arcticdolphin 08/11/2026 Search, filters and favourites replace the system and user map tabs.
 static MapSelectList mapSelectList;
 static MapSelectFilter mapSelectFilter;
 
@@ -69,7 +69,7 @@ static NameKeyType buttonMapStartPositionID[MAX_SLOTS] = { NAMEKEY_INVALID,NAMEK
 void positionStartSpots( AsciiString mapName, GameWindow *buttonMapStartPositions[], GameWindow *mapWindow);
 static const char *layoutFilename = "LanGameOptionsMenu.wnd";
 static const char *parentName = "LanGameOptionsMenuParent";
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 Rows stay visible behind the dialog; only the preview hides, it shares the marker list.
+// GenOnline @tweak arcticdolphin 08/11/2026 Rows stay visible behind the dialog and only the preview hides, as it shares the marker list.
 static const char *gadgetsToHide[] =
 {
 	"MapWindow",
@@ -225,7 +225,7 @@ WindowMsgHandledType LanMapSelectMenuInput( GameWindow *window, UnsignedInt msg,
 
 }
 
-// The OK path's effect on the lobby: the map, its checksum and size, and the start spots and slots adjusting to it.
+// The effect of the OK path on the lobby: the map, its checksum and size, and the start spots and slots adjusting to it.
 static void applySelectedMap( AsciiString asciiMap )
 {
 	TheLAN->GetMyGame()->setMap( asciiMap );

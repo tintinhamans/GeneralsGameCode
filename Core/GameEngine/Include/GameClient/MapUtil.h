@@ -46,7 +46,7 @@ enum { SUPPLY_TECH_SIZE = 15};
 typedef std::list <ICoord2D> ICoord2DList;
 
 #if defined(GENONLINE)
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Preview marker that carries its icon category.
+// GenOnline @feature arcticdolphin 08/11/2026 Preview marker that carries its icon category.
 struct MapPreviewMarker
 {
 	ICoord2D m_pos; ///< top left of the getMapPreviewMarkerSize() marker, relative to the preview window
@@ -63,7 +63,7 @@ public:
 	ICoord2DList m_techPosList;
 	ICoord2DList m_supplyPosList;
 #if defined(GENONLINE)
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Typed markers; when set, the two position lists above stay empty.
+	// GenOnline @feature arcticdolphin 08/11/2026 Typed markers. When set, the two position lists above stay empty.
 	MapPreviewMarkerList m_typedMarkers;
 #endif
 };
@@ -85,7 +85,7 @@ public:
 typedef std::list <Coord3D> Coord3DList;
 
 #if defined(GENONLINE)
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Typed supply and tech objects of a map for the preview icons and mapcache.json.
+// GenOnline @feature arcticdolphin 08/11/2026 Typed supply and tech objects of a map for the preview icons and mapcache.json.
 struct MapTypedObject
 {
 	AsciiString m_templateName;
@@ -104,7 +104,6 @@ public:
 	Bool m_isKnown; ///< TRUE once read from the map or mapcache.json; an empty list then means the map has none
 };
 
-// Parses the map file for its typed objects only; returns FALSE when the map cannot be read.
 Bool loadMapTypedObjects( const AsciiString &mapPath, MapTypedObjectVector &outObjects );
 #endif
 
@@ -129,7 +128,7 @@ public:
 	Coord3DList m_techPositions;
 	AsciiString m_fileName;
 #if defined(GENONLINE)
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Typed objects for the preview icons; not written to MapCache.ini.
+	// GenOnline @feature arcticdolphin 08/11/2026 Typed objects for the preview icons, not written to MapCache.ini.
 	MapTypedObjects m_typedObjects;
 #endif
 };

@@ -22,14 +22,9 @@
 //																																						//
 ////////////////////////////////////////////////////////////////////////////////
 
-// FILE: IOnlineConfig.h //////////////////////////////////////////////////////
 // Author: Matthew D. Campbell, Sept 2002
 // Description: Provider-neutral online config interface.
 //
-// TheSuperHackers @refactor GenMP Phase 1 - Renamed from GameSpyConfigInterface
-// and relocated from GameNetwork/GameSpy/GSConfig.h. The old type name stays
-// valid through a forwarding typedef in that header; every method signature and
-// semantic is unchanged (rename, not redesign).
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -76,7 +71,6 @@ public:
 	// Custom match
 	virtual Bool restrictGamesToLobby() = 0;
 
-	// Per-game code reaches this factory through the forwarding typedef.
 	static IOnlineConfig* create(AsciiString config);
 };
 

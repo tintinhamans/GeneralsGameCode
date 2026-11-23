@@ -16,14 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: RealtimeMessages.h ///////////////////////////////////////////////////
-// Description: Typed arguments, results and events of the GenOnline realtime
-//              hub, protocol version 1. Field names are the snake_case wire
-//              names. Enum values stay lowercase strings, so values added by a
-//              newer service still parse. Each request names its hub method in
-//              METHOD and says in EXPECTS_RESULT whether it waits for a Result.
-//              Each event names itself in EVENT. The contract fixtures of the
-//              service pin every shape here.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -45,7 +37,7 @@ namespace GenOnlineRealtime
 
 constexpr int PROTOCOL_VERSION = 1;
 
-// Converts a wire duration in whole seconds to milliseconds, saturating instead of overflowing.
+// Saturates instead of overflowing.
 inline int64_t SecondsToMilliseconds(int64_t seconds)
 {
 	constexpr int64_t LIMIT = INT64_MAX / 1000;
@@ -234,7 +226,6 @@ void from_json(const nlohmann::json& j, T& object)
 	object.Fields(reader);
 }
 
-// Shared objects ///////////////////////////////////////////////////////////////
 
 struct EmptyObject : WireObject
 {
@@ -607,7 +598,6 @@ struct TurnCredentials : WireObject
 	}
 };
 
-// Requests: channels and chat ///////////////////////////////////////////////////
 
 // A parent channel resolves to its default child.
 struct JoinChannelRequest : WireObject
@@ -717,7 +707,6 @@ struct MarkReadRequest : ConversationArgument
 	static constexpr bool EXPECTS_RESULT = true;
 };
 
-// Requests: lobbies /////////////////////////////////////////////////////////////
 
 struct WatchLobbyListRequest : EmptyObject
 {
@@ -753,6 +742,7 @@ struct CreateLobbyRequest : WireObject
 	Nullable<std::string> password;
 	int preferred_port = 0;
 	LobbySettings settings;
+	bool require_anticheat = false;
 
 	template <class V> void Fields(V& v)
 	{
@@ -763,6 +753,7 @@ struct CreateLobbyRequest : WireObject
 		v("password", password);
 		v("preferred_port", preferred_port);
 		v("settings", settings);
+		v("require_anticheat", require_anticheat);
 	}
 };
 
@@ -983,6 +974,12 @@ struct KickFromLobbyRequest : UserIdArgument
 	static constexpr bool EXPECTS_RESULT = true;
 };
 
+struct BanFromLobbyRequest : UserIdArgument
+{
+	static constexpr const char* METHOD = "BanFromLobby";
+	static constexpr bool EXPECTS_RESULT = true;
+};
+
 struct ForceReadyRequest : EmptyObject
 {
 	static constexpr const char* METHOD = "ForceReady";
@@ -1017,7 +1014,6 @@ struct MatchStats : WireObject
 	}
 };
 
-// Requests: matchmaking /////////////////////////////////////////////////////////
 
 struct JoinQueueRequest : WireObject
 {
@@ -1046,7 +1042,6 @@ struct WidenSearchRequest : EmptyObject
 	static constexpr bool EXPECTS_RESULT = true;
 };
 
-// Requests: peer networking /////////////////////////////////////////////////////
 
 struct RequestSignallingRequest : WireObject
 {
@@ -1272,7 +1267,6 @@ struct ModuleScanResponseRequest : WireObject
 	}
 };
 
-// Events: session ///////////////////////////////////////////////////////////////
 
 struct ChannelInfo : WireObject
 {
@@ -1412,7 +1406,6 @@ struct ServerSwitchingEvent : WireObject
 	}
 };
 
-// Events: channels and chat /////////////////////////////////////////////////////
 
 // The full member list, on join and after every reconnect. channel_id is the channel actually joined.
 struct ChannelMembersEvent : WireObject
@@ -1491,7 +1484,7 @@ struct MessageCreateEvent : ChatMessage
 	static constexpr const char* EVENT = "MessageCreate";
 };
 
-// A channel message mentioned the user while none of the user's connections was in that channel.
+// A channel message mentioned the user while none of the connections of the user was in that channel.
 struct MentionCreateEvent : WireObject
 {
 	static constexpr const char* EVENT = "MentionCreate";
@@ -1519,12 +1512,15 @@ struct Conversation : WireObject
 	int unread = 0;
 	// Null for a group with no messages yet.
 	Nullable<ChatMessage> last;
+	// The other user of a dm: conversation, left out for a group.
+	std::optional<Member> peer;
 
 	template <class V> void Fields(V& v)
 	{
 		v("channel_id", channel_id);
 		v("unread", unread);
 		v("last", last);
+		v("peer", peer);
 	}
 };
 
@@ -1584,7 +1580,6 @@ struct GroupRemovedEvent : WireObject
 	}
 };
 
-// Events: lobbies ///////////////////////////////////////////////////////////////
 
 struct LobbyListUpsertEvent : WireObject
 {
@@ -1687,7 +1682,6 @@ struct GameStartEvent : WireObject
 	}
 };
 
-// Events: matchmaking ///////////////////////////////////////////////////////////
 
 struct MatchmakingStatusEvent : WireObject
 {
@@ -1760,7 +1754,6 @@ struct MatchRequeueEvent : WireObject
 	}
 };
 
-// Events: social ////////////////////////////////////////////////////////////////
 
 // "offline", "menu", "channel", "lobby", "matchmaking" or "in_game", in this environment only.
 // channel_id is the channel the user is in, null when in none.
@@ -1769,6 +1762,8 @@ struct FriendEntry : Member
 	bool online = false;
 	std::string activity;
 	Nullable<int64_t> channel_id;
+	// "online", "idle" or "do_not_disturb" for an online friend. An older service leaves it out, which reads as online.
+	std::optional<std::string> status;
 
 	template <class V> void Fields(V& v)
 	{
@@ -1776,6 +1771,7 @@ struct FriendEntry : Member
 		v("online", online);
 		v("activity", activity);
 		v("channel_id", channel_id);
+		v("status", status);
 	}
 };
 
@@ -1836,6 +1832,7 @@ struct FriendPresenceEvent : WireObject
 	std::vector<std::string> clients;
 	std::string activity;
 	Nullable<int64_t> channel_id;
+	std::optional<std::string> status;
 
 	template <class V> void Fields(V& v)
 	{
@@ -1844,10 +1841,24 @@ struct FriendPresenceEvent : WireObject
 		v("clients", clients);
 		v("activity", activity);
 		v("channel_id", channel_id);
+		v("status", status);
 	}
 };
 
-// Events: peer networking ///////////////////////////////////////////////////////
+// status is "online", "idle", "do_not_disturb" or "invisible". The service keeps it in memory per user.
+struct SetPresenceStatusRequest : WireObject
+{
+	static constexpr const char* METHOD = "SetPresenceStatus";
+	static constexpr bool EXPECTS_RESULT = true;
+
+	std::string status;
+
+	template <class V> void Fields(V& v)
+	{
+		v("status", status);
+	}
+};
+
 
 struct StartSignallingEvent : WireObject
 {
@@ -1894,7 +1905,6 @@ struct ConnectionStep
 		return attempt > 0;
 	}
 
-	// True when the step hands the pair to the plugin transport that reported this provider name.
 	bool IsPlugin() const
 	{
 		return IsValid() && transport != GNS_TRANSPORT;

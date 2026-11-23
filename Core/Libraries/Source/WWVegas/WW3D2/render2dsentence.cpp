@@ -1108,7 +1108,7 @@ Vector2	Render2DSentenceClass::Build_Sentence_Not_Centered (const WCHAR *text, i
 						Cursor.X = 0;
 						Cursor.Y += char_height;
 						calcHotKeyX = true;
-						// TheSuperHackers @bugfix arcticdolphin 08/11/2026 The space a line wraps at is not drawn at the start of the next line
+						// GenOnline @bugfix arcticdolphin 08/11/2026 The space a line wraps at is not drawn at the start of the next line
 						wrappedOnSpace = true;
 					}
 				}
@@ -1399,13 +1399,13 @@ FontCharsClass::Blit_Char (WCHAR ch, uint16 *dest_ptr, int dest_stride, int x, i
 		//
 		int dest_inc		= (dest_stride >> 1);
 
-		// TheSuperHackers @bugfix arcticdolphin 08/11/2026 The left overhang lands on the previous glyph and blends with it, but never left of the surface.
+		// GenOnline @bugfix arcticdolphin 08/11/2026 The left overhang lands on the previous glyph and blends with it, but never left of the surface.
 		const int left_offset = data->LeftOffset;
 		const int first_col = max (left_offset - x, 0);
 		const int blend_cols = left_offset + PixelOverlap;
 		dest_ptr				+= (dest_inc * y) + x - left_offset + first_col;
 
-		// TheSuperHackers @bugfix arcticdolphin 08/11/2026 A glyph from the alternate Unicode font holds that font's rows, not ours; copy only those, on our baseline, and clear the rest.
+		// GenOnline @bugfix arcticdolphin 08/11/2026 A glyph from the alternate Unicode font holds the rows of that font, so copy only those on the baseline of the font in use and clear the rest.
 		const int src_shift = CharAscent - Get_Char_Font( ch )->CharAscent;
 
 		//
@@ -1454,7 +1454,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	//
 	RECT rect = { 0, 0, width, height };
 
-	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Draw a glyph with a negative A width that far in so its left overhang is kept; its advance is unchanged.
+	// GenOnline @bugfix arcticdolphin 08/11/2026 Draw a glyph with a negative A width that far in so its left overhang is kept, its advance is unchanged.
 	int left_offset = 0;
 	ABC abc_width = { 0 };
 	if (::GetCharABCWidthsW( MemDC, ch, ch, &abc_width ) && abc_width.abcA < 0) {
@@ -1462,7 +1462,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	}
 
 	int xOrigin = 0;
-	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 The GO UI font needs no retail W shift, the left overhang above covers it.
+	// GenOnline @bugfix arcticdolphin 08/11/2026 The GO UI font needs no retail W shift, the left overhang above covers it.
 	if (ch == 'W' && !IsUIFont) {
 		xOrigin = 1;
 	}
@@ -1636,7 +1636,7 @@ FontCharsClass::Update_Current_Buffer (int char_width)
 }
 
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Retail UI faces and the GO UI faces they resolve to; GlobalLanguage.cpp registers the same faces.
+// GenOnline @feature arcticdolphin 08/11/2026 Retail UI faces and the GO UI faces they resolve to, GlobalLanguage.cpp registers the same faces.
 struct UIFontSubstituteStruct
 {
 	const char *	RetailFace;
@@ -1688,7 +1688,7 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 {
 	HDC screen_dc = ::GetDC ((HWND)WW3D::Get_Window());
 
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Retail UI faces draw with the GO UI font, bold with its Bold face, and skip the narrow Generals width.
+	// GenOnline @feature arcticdolphin 08/11/2026 Retail UI faces draw with the GO UI font, bold with its Bold face, and skip the narrow Generals width.
 	const UIFontSubstituteStruct *ui_font = Find_UI_Font_Substitute (font_name);
 	if (ui_font != nullptr) {
 		font_name = IsBold ? UIFontBoldFace : ui_font->Face;
@@ -1744,7 +1744,7 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 	//
 	OldGDIFont = (HFONT)::SelectObject (MemDC, GDIFont);
 
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 GDI silently substitutes a missing face, so report once when the GO UI face was not selected.
+	// GenOnline @feature arcticdolphin 08/11/2026 GDI silently substitutes a missing face, so report once when the GO UI face was not selected.
 	if (ui_font != nullptr && !UIFontMismatchReported) {
 		char selected_face[LF_FACESIZE] = { 0 };
 		::GetTextFaceA (MemDC, LF_FACESIZE, selected_face);
@@ -1771,7 +1771,7 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 	//	appends to it and the one pixel it shifts 'W' by.
 	//
 	GlyphBitmapWidth = (int)text_metric.tmMaxCharWidth + max ((int)text_metric.tmOverhang, 0) + PixelOverlap + 1;
-	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Room for the left overhang Store_GDI_Char keeps, at most PixelOverlap.
+	// GenOnline @bugfix arcticdolphin 08/11/2026 Room for the left overhang Store_GDI_Char keeps, at most PixelOverlap.
 	GlyphBitmapWidth += PixelOverlap;
 
 	// Sanity check. A font reporting absurd metrics renders clipped

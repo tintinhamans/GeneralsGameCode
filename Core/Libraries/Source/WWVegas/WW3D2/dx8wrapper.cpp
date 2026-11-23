@@ -666,12 +666,14 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 		return false;	//device is lost and can't be reset.
 	}
 
-	// TheSuperHackers @bugfix arcticdolphin 09/10/2026 Bound resources make Reset() fail.
+	// GenOnline @bugfix arcticdolphin 09/10/2026 Bound resources make Reset() fail.
 	// A device whose Reset() failed only accepts TestCooperativeLevel, Reset and Release.
 	if (!DeviceResetFailed) {
 		Unbind_Device_Buffers();
 	}
 	Invalidate_Cached_Render_States();
+	// Rebind the back buffer and release all surface
+	// references before Reset(), otherwise it crashes in DestroyResource.
 	Set_Render_Target((IDirect3DSurface8*)nullptr);
 
 	{

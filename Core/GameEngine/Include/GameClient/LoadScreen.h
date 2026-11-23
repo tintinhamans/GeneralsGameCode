@@ -64,7 +64,7 @@ public:
 	virtual void update( Int percent ); ///< Update the state of the slider bars
 	virtual void processProgress(Int playerId, Int percentage) = 0;
 	virtual void setProgressRange( Int min, Int max ) = 0;
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 The load screen stays up after the load while this returns TRUE.
+	// GenOnline @feature arcticdolphin 09/11/2026 The load screen stays up after the load while this returns TRUE.
 	virtual Bool holdsAfterLoad() { return FALSE; }
 protected:
 	void setLoadScreen( GameWindow *g ) { m_loadScreen = g; }
@@ -228,7 +228,7 @@ private:
 
 	GameWindow *m_progressBar	;				///< Pointer to the Progress Bar on the window
 
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 The Generals Online credit on the first shell load screen.
+	// GenOnline @feature arcticdolphin 09/11/2026 The Generals Online credit on the first shell load screen.
 	GameWindow *m_creditWindow;
 	DisplayString *m_creditUrl;
 	const Image *m_creditLogo;

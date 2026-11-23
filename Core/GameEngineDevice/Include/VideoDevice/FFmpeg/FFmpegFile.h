@@ -46,6 +46,7 @@ class FFmpegFile
 public:
 	FFmpegFile();
 	// open and the constructor take ownership, including on failure.
+	// The constructur takes ownership of the file
 	explicit FFmpegFile(File *file);
 	~FFmpegFile();
 	FFmpegFile(const FFmpegFile &) = delete;

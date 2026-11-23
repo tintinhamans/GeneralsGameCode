@@ -564,7 +564,7 @@ static Bool parseScreenRect( const char *token, char *buffer,
 	const Bool remapLastPixel = (Int)TheDisplay->getWidth() != createRes.x || (Int)TheDisplay->getHeight() != createRes.y;
 	const Int hiX = (remapLastPixel && screenRegion.hi.x == createRes.x - 1) ? createRes.x : screenRegion.hi.x;
 	const Int hiY = (remapLastPixel && screenRegion.hi.y == createRes.y - 1) ? createRes.y : screenRegion.hi.y;
-	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Round the origin and scale the size as a whole, so equal layout sizes give equal pixel sizes.
+	// GenOnline @bugfix arcticdolphin 08/11/2026 Round the origin and scale the size as a whole, so equal layout sizes give equal pixel sizes.
 	const Int layoutWidth = hiX - screenRegion.lo.x;
 	const Int layoutHeight = hiY - screenRegion.lo.y;
 	screenRegion.lo.x = GameWindowManager::winScaleRounded( screenRegion.lo.x, TheDisplay->getWidth(), createRes.x );
@@ -657,7 +657,7 @@ static Bool parseFont( const char *token, WinInstanceData *instData,
 	c = strtok( nullptr, seps );  // value
 	scanInt( c, fontBold );
 
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Layout text scales with the screen height like the layout rows.
+	// GenOnline @tweak arcticdolphin 08/11/2026 Layout text scales with the screen height like the layout rows.
 	if( GameWindowManager::winUseLegacyLayoutFonts() == FALSE )
 		fontSize = GameWindowManager::winScaleLayoutFontSize( fontSize );
 
@@ -1183,7 +1183,7 @@ static Bool parseStaticTextData( const char *token, WinInstanceData *instData,
 	// These are initialized here because any TextData constructor would never get called.
 	// The behavior with these defaults is the same as it was before these members were added.
 	textData->centeredVertically = TRUE;
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Text margins scale with the screen height.
+	// GenOnline @tweak arcticdolphin 08/11/2026 Text margins scale with the screen height.
 	textData->leftMargin = GameWindowManager::winScaleLayoutSize( 7 );
 	textData->topMargin = GameWindowManager::winScaleLayoutSize( 7 );
 

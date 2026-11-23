@@ -59,6 +59,9 @@
 #include "Common/Registry.h"
 #include "../GenOnlineInclude.h"
 #include "../GenOnlineInit.h"
+#if defined(GENONLINE)
+#include "gitinfo.h"
+#endif
 
 
 //----------------------------------------------------------------------------
@@ -149,13 +152,6 @@ void ArchiveFileSystem::loadIntoDirectoryTree(ArchiveFile *archiveFile, Int prio
 
 	while (it != filenameList.end())
 	{
-		// a file that a pack above this archive excludes is not part of the lookup
-		if (isHiddenByPack(*it, priority))
-		{
-			++it;
-			continue;
-		}
-
 		ArchivedDirectoryInfo *dirInfo = &m_rootDirectory;
 
 		AsciiString path;
@@ -291,7 +287,7 @@ Int ArchiveFileSystem::getGameFolderArchivePriority(const AsciiString& path, Boo
 
 	if (TheFileSystem != nullptr && TheFileSystem->getExcludedPaths().matchesPath(path.str()))
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s is excluded by the -packs stack", path.str());
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s is excluded by data.exclude", path.str());
 		return ARCHIVE_PRIORITY_EXCLUDED;
 	}
 
@@ -362,7 +358,6 @@ Bool ArchiveFileSystem::parseMountEntry(const AsciiString& text, ArchiveMountEnt
 			return fail("invalid path");
 	}
 
-	// no parent folders
 	size_t pos = 0;
 	while (pos <= path.size())
 	{
@@ -387,15 +382,14 @@ Bool ArchiveFileSystem::parseMountEntry(const AsciiString& text, ArchiveMountEnt
 	ArchiveMountEntry::Kind kind;
 	if (lastComponent.empty())
 	{
-		// a folder: every BIG in it
 		if (directory.empty() || directory == "\\\\")
 			return fail("invalid path");
 		kind = ArchiveMountEntry::KIND_BIG_GLOB;
 		path += "*.big";
 	}
-	else if (lowerLast.size() < 5 || lowerLast.compare(lowerLast.size() - 4, 4, ".big") != 0)
+	else if (lowerLast.size() < 5 || (lowerLast.compare(lowerLast.size() - 4, 4, ".big") != 0 && lowerLast.compare(lowerLast.size() - 4, 4, ".gpk") != 0))
 	{
-		return fail("not a BIG file, a BIG folder or a *.big pattern");
+		return fail("not a BIG or GPK file, a folder or a pattern for them");
 	}
 	else if (lastComponent.find_first_of("*?") != std::string::npos)
 	{
@@ -415,13 +409,14 @@ Bool ArchiveFileSystem::parseMountEntry(const AsciiString& text, ArchiveMountEnt
 	return TRUE;
 }
 
-void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int priority, const PathExcludeList* excludes, std::vector<AsciiString>* mounted, ArchivePathFilter includePath)
+static Bool isNotGenOnlineInterfaceFile(const char* path);
+
+void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int priority, std::vector<AsciiString>* genOnlineArchives)
 {
 	std::string fullPath = entry.m_path.str();
 	if (entry.m_base == ArchiveMountEntry::BASE_USER)
 		fullPath = std::string(TheGlobalData->getPath_UserData().str()) + fullPath;
 
-	// the files to mount, in name order
 	std::vector<std::string> bigPaths;
 	if (entry.m_kind == ArchiveMountEntry::KIND_BIG)
 	{
@@ -443,17 +438,13 @@ void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int p
 	{
 		if (!TheLocalFileSystem->doesFileExist(bigPath.c_str()))
 			continue;
-		if (excludes != nullptr && !excludes->isEmpty() && excludes->matches(PathExcludeList::makeKey(bigPath.c_str(), TheGlobalData->getPath_UserData().str())))
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s is excluded", bigPath.c_str());
-			continue;
-		}
 		if (m_archiveFileMap.find(AsciiString(bigPath.c_str())) != m_archiveFileMap.end())
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s is already mounted", bigPath.c_str());
 			continue;
 		}
-		ArchiveFile* archiveFile = openArchiveFile(bigPath.c_str(), includePath);
+		const Bool genOnline = getBaseFilename(AsciiString(bigPath.c_str())).startsWithNoCase("genonline_");
+		ArchiveFile* archiveFile = openArchiveFile(bigPath.c_str(), genOnline && m_retailInterface ? isNotGenOnlineInterfaceFile : nullptr);
 		if (archiveFile == nullptr)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s could not be opened", bigPath.c_str());
@@ -461,14 +452,14 @@ void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int p
 		}
 		loadIntoDirectoryTree(archiveFile, priority);
 		m_archiveFileMap[AsciiString(bigPath.c_str())] = archiveFile;
-		if (mounted != nullptr)
-			mounted->push_back(AsciiString(bigPath.c_str()));
+		if (genOnline && genOnlineArchives != nullptr)
+			genOnlineArchives->push_back(AsciiString(bigPath.c_str()));
 		++mountedCount;
 	}
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s at priority %d: %d archives", fullPath.c_str(), priority, mountedCount);
 }
 
-// A GO menu layout: Window/Menus without the screens shown during a match (the list of scripts/go_wnd_layouts.py IN_MATCH_MENUS),
+// A GO menu layout: Window/Menus without the screens shown during a match (the list of GenOnline/tools/go_wnd_layouts.py IN_MATCH_MENUS),
 // or the GO header templates those layouts use
 static Bool isGenOnlineShellLayout(const char* path)
 {
@@ -511,7 +502,7 @@ static Bool isGenOnlineShellLayout(const char* path)
 
 void ArchiveFileSystem::mountGenOnlineMenus(const std::vector<AsciiString>& genOnlineArchives)
 {
-	// the GO menu layouts also rank above -mod and every BIG, so a mod cannot replace them; loose files still win
+	// the GO menu layouts also rank above -mod and every BIG so a mod cannot replace them, loose files still win
 	for (const AsciiString& archivePath : genOnlineArchives)
 	{
 		ArchiveFile* guiArchive = openArchiveFile(archivePath.str(), isGenOnlineShellLayout);
@@ -530,8 +521,8 @@ void ArchiveFileSystem::mountGenOnlineMenus(const std::vector<AsciiString>& genO
 	}
 }
 
-// The GO interface files of the generals_online archives that the Retail style leaves out: their copies of retail layouts, kit art,
-// fonts and header templates; layouts retail never had (GO popups) stay so their features keep a window
+// The GO interface files of the genonline_ archives that the Retail style leaves out: their copies of retail layouts, kit art,
+// fonts and header templates. Layouts retail never had (GO popups) stay so their features keep a window
 static Bool isNotGenOnlineInterfaceFile(const char* path)
 {
 	static const char* const prefixes[] = { "fonts/" };
@@ -562,7 +553,7 @@ static Bool isNotGenOnlineInterfaceFile(const char* path)
 	const char* name = lower.str();
 	if (strncmp(name, "window/", 7) == 0)
 	{
-		// TheSuperHackers @feature arcticdolphin 09/11/2026 The GO shell copy of the quit box goes too, so Retail opens the retail one.
+		// GenOnline @feature arcticdolphin 09/11/2026 The GO shell copy of the quit box goes too, so Retail opens the retail one.
 		if (strcmp(name, "window/menus/goshellquitmessagebox.wnd") == 0)
 		{
 			return FALSE;
@@ -586,10 +577,9 @@ static Bool isNotGenOnlineInterfaceFile(const char* path)
 	return TRUE;
 }
 
-void ArchiveFileSystem::setInterfaceStyle(const AsciiString& style, const AsciiString& palette)
+void ArchiveFileSystem::setInterfaceStyle(const AsciiString& style)
 {
 	m_retailInterface = style.compareNoCase("retail") == 0;
-	m_interfacePalette.clear();
 	if (style.compareNoCase("overhaul") == 0)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface: Overhaul needs RmlUi, which this build does not have, using Refit");
@@ -599,148 +589,120 @@ void ArchiveFileSystem::setInterfaceStyle(const AsciiString& style, const AsciiS
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface: Retail, the GO layouts, kit art and fonts are left out");
 		return;
 	}
-
-	if (palette.compareNoCase("radar") == 0)
-	{
-		m_interfacePalette = "Radar";
-	}
-	else if (palette.compareNoCase("night") == 0)
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface: the Night palette is Overhaul only, using Signal");
-	}
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface: Refit, palette %s", m_interfacePalette.isEmpty() ? "Signal" : m_interfacePalette.str());
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface: Refit");
 }
 
-void ArchiveFileSystem::mountGenOnlineLayer(Bool enabled, const std::vector<std::string>& includePaths)
+#if defined(GENONLINE)
+// The build id is the client version the services see, so the baseline pack of a build names that build.
+static std::string getBaselineDataPackPath()
 {
+#if RTS_ZEROHOUR
+	const char* game = "zerohour";
+#else
+	const char* game = "generals";
+#endif
+	return std::string("data\\genonline_") + game + "@" + GenOnlineRealtime::CompatibilityVersion(GitReleaseTag, GitCommitDate) + ".gpk";
+}
+
+// A relative data pack path starts at the folder of the executable because the launcher may set the working directory to the retail folder.
+static std::string getExecutableFolder()
+{
+	char path[MAX_PATH];
+	const DWORD length = GetModuleFileNameA(nullptr, path, MAX_PATH);
+	if (length == 0 || length >= MAX_PATH)
+		return std::string();
+	const std::string folder(path, length);
+	return folder.substr(0, folder.find_last_of('\\') + 1);
+}
+
+static Bool isAbsoluteWindowsPath(const std::string& path)
+{
+	return (path.size() > 2 && isalpha(static_cast<unsigned char>(path[0])) && path[1] == ':' && path[2] == '\\') || (path.size() > 1 && path[0] == '\\' && path[1] == '\\');
+}
+
+static Bool hasArchiveExtension(const std::string& path)
+{
+	return path.size() > 4 && (_stricmp(path.c_str() + path.size() - 4, ".big") == 0 || _stricmp(path.c_str() + path.size() - 4, ".gpk") == 0);
+}
+
+void ArchiveFileSystem::mountDataPacks(const std::vector<std::string>* include)
+{
+	const std::vector<std::string> baseline(1, getBaselineDataPackPath());
+	const std::vector<std::string>& entries = include != nullptr ? *include : baseline;
+	const std::string executableFolder = getExecutableFolder();
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Data packs: %d entries%s", static_cast<int>(entries.size()), include != nullptr ? "" : ", the baseline");
+
 	std::vector<AsciiString> genOnlineArchives;
-	mountDataPackLayer("generals_online", enabled, includePaths, nullptr, ARCHIVE_PRIORITY_GENONLINE, &genOnlineArchives, m_retailInterface ? isNotGenOnlineInterfaceFile : nullptr);
+	for (size_t i = 0; i < entries.size(); ++i)
+	{
+		std::string path = entries[i];
+		for (char& c : path)
+		{
+			if (c == '/')
+				c = '\\';
+		}
+		while (!path.empty() && isspace(static_cast<unsigned char>(path.back())))
+			path.pop_back();
+		size_t start = 0;
+		while (start < path.size() && isspace(static_cast<unsigned char>(path[start])))
+			++start;
+		path = path.substr(start);
+		if (path.empty())
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack %d is ignored (empty)", static_cast<int>(i));
+			continue;
+		}
+		if (!isAbsoluteWindowsPath(path))
+			path = executableFolder + path;
+
+		const Bool archive = hasArchiveExtension(path);
+		if (!archive && path.back() != '\\')
+			path += '\\';
+
+		ArchiveMountEntry entry;
+		AsciiString reason;
+		if (!parseMountEntry(AsciiString(path.c_str()), &entry, &reason))
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack ignored (%s): %s", reason.str(), path.c_str());
+			continue;
+		}
+
+		const Int priority = ARCHIVE_PRIORITY_DATA + static_cast<Int>(i) * ARCHIVE_PRIORITY_PACK_STRIDE;
+		if (archive)
+		{
+			if (entry.m_kind == ArchiveMountEntry::KIND_BIG && !TheLocalFileSystem->doesFileExist(path.c_str()))
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack is missing: %s", path.c_str());
+				continue;
+			}
+			mountListedArchive(entry, priority, &genOnlineArchives);
+			continue;
+		}
+
+		mountPackFolderFiles(path, priority + ARCHIVE_PRIORITY_PACK_FILES);
+		mountListedArchive(entry, priority + ARCHIVE_PRIORITY_PACK_TOP_BIGS, &genOnlineArchives);
+		entry.m_path = (path + "*.gpk").c_str();
+		mountListedArchive(entry, priority + ARCHIVE_PRIORITY_PACK_TOP_BIGS, &genOnlineArchives);
+	}
+
 	if (m_retailInterface)
 	{
 		return;
 	}
 	mountGenOnlineMenus(genOnlineArchives);
-	mountGenOnlineTheme(genOnlineArchives);
 }
+#endif
 
-void ArchiveFileSystem::mountGenOnlineTheme(const std::vector<AsciiString>& genOnlineArchives)
+void ArchiveFileSystem::applyDataExcludes(const std::vector<std::string>& excludes)
 {
-	if (m_interfacePalette.isEmpty())
+	if (TheFileSystem == nullptr)
 	{
 		return;
 	}
 
-	// a palette's files replace the same paths: Themes\GeneralsOnline_Theme_<palette>.big over the generals_online archives
-	// the theme archive is in a Themes folder next to a generals_online archive, the first one found wins
-	for (const AsciiString& archivePath : genOnlineArchives)
-	{
-		const std::string corePath = archivePath.str();
-		const size_t lastSeparator = corePath.find_last_of("\\/");
-		const std::string themePath = (lastSeparator == std::string::npos ? std::string() : corePath.substr(0, lastSeparator + 1))
-			+ "Themes\\GeneralsOnline_Theme_" + m_interfacePalette.str() + ".big";
-		if (!TheLocalFileSystem->doesFileExist(themePath.c_str()))
-		{
-			continue;
-		}
-		if (m_archiveFileMap.find(AsciiString(themePath.c_str())) != m_archiveFileMap.end())
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface palette archive %s is already mounted", themePath.c_str());
-			return;
-		}
-		ArchiveFile* themeArchive = openArchiveFile(themePath.c_str());
-		if (themeArchive == nullptr)
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface palette archive %s could not be opened", themePath.c_str());
-			continue;
-		}
-		loadIntoDirectoryTree(themeArchive, ARCHIVE_PRIORITY_GENONLINE_THEME);
-		m_archiveFileMap[AsciiString(themePath.c_str())] = themeArchive;
-		FilenameList themeFiles;
-		themeArchive->getFileListInDirectory("", "", "*", themeFiles, TRUE);
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface palette %s from %s at priority %d: %d files", m_interfacePalette.str(), themePath.c_str(), (Int)ARCHIVE_PRIORITY_GENONLINE_THEME, (Int)themeFiles.size());
-		return;
-	}
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface palette %s has no archive next to the generals_online archives, using Signal", m_interfacePalette.str());
-}
-
-void ArchiveFileSystem::mountDataPackLayer(const char* layer, Bool enabled, const std::vector<std::string>& includePaths, const PathExcludeList* excludes, Int priority, std::vector<AsciiString>* mounted, ArchivePathFilter includePath)
-{
-	if (!enabled)
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s is disabled", layer);
-		return;
-	}
-
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s: %d include_paths", layer, static_cast<int>(includePaths.size()));
-	for (size_t i = 0; i < includePaths.size(); ++i)
-	{
-		ArchiveMountEntry entry;
-		AsciiString reason;
-		if (!parseMountEntry(AsciiString(includePaths[i].c_str()), &entry, &reason))
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s: path ignored (%s): %s", layer, reason.str(), includePaths[i].c_str());
-			continue;
-		}
-		mountListedArchive(entry, priority + static_cast<Int>(i), excludes, mounted, includePath);
-	}
-}
-
-static Int getPackTierPriority(GenOnlinePackList::Tier tier)
-{
-	switch (tier)
-	{
-	case GenOnlinePackList::Tier::CommunityPatch:
-		return ARCHIVE_PRIORITY_COMMUNITY_PATCH;
-	case GenOnlinePackList::Tier::GeneralsOnline:
-		return ARCHIVE_PRIORITY_GENONLINE;
-	default:
-		return ARCHIVE_PRIORITY_USER;
-	}
-}
-
-static const char* getPackTierName(GenOnlinePackList::Tier tier)
-{
-	switch (tier)
-	{
-	case GenOnlinePackList::Tier::CommunityPatch:
-		return "community_patch";
-	case GenOnlinePackList::Tier::GeneralsOnline:
-		return "generals_online";
-	default:
-		return "user";
-	}
-}
-
-void ArchiveFileSystem::activatePackStack(const std::vector<GenOnlinePackList::Pack>& stack)
-{
-	m_packStack = stack;
-	m_packPriorities.clear();
-	m_hasPackExcludes = FALSE;
-
-	// the highest pack of a tier has the base priority of the tier, each pack below it one stride more
-	for (size_t i = 0; i < m_packStack.size(); ++i)
-	{
-		Int above = 0;
-		for (size_t j = i + 1; j < m_packStack.size(); ++j)
-		{
-			if (m_packStack[j].tier == m_packStack[i].tier)
-			{
-				++above;
-			}
-		}
-		m_packPriorities.push_back(getPackTierPriority(m_packStack[i].tier) + above * ARCHIVE_PRIORITY_PACK_STRIDE);
-		if (!m_packStack[i].excludes.empty())
-		{
-			m_hasPackExcludes = TRUE;
-		}
-	}
-
-	// The loose files and BIGs of the game folder are retail, every exclude of the stack applies to them from here on
-	if (TheFileSystem != nullptr)
-	{
-		TheFileSystem->setExcludedPaths(GenOnlinePackList::GameFolderExcludes(m_packStack));
-	}
-	if (!m_hasPackExcludes || TheFileSystem == nullptr)
+	// The loose files and BIGs of the game folder are retail, so the excludes apply to them from here on
+	TheFileSystem->setExcludedPaths(excludes);
+	if (TheFileSystem->getExcludedPaths().isEmpty())
 	{
 		return;
 	}
@@ -755,25 +717,23 @@ void ArchiveFileSystem::activatePackStack(const std::vector<GenOnlinePackList::P
 			++gameFolderArchive;
 			continue;
 		}
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s is excluded by the -packs stack", gameFolderArchive->str());
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s is excluded by data.exclude", gameFolderArchive->str());
 		unmounted.push_back(mounted->second);
 		m_unmountedArchives.push_back(mounted->second);
 		m_archiveFileMap.erase(mounted);
 		gameFolderArchive = m_gameFolderArchives.erase(gameFolderArchive);
 	}
 
-	// The archives mounted before were loaded into the lookup in full, the files the stack hides from them leave it now
-	removeHiddenFiles(m_rootDirectory, unmounted);
+	// The archives mounted before were loaded into the lookup in full, so the files of the unmounted ones leave it now
+	removeUnmountedFiles(m_rootDirectory, unmounted);
 }
 
-void ArchiveFileSystem::removeHiddenFiles(ArchivedDirectoryInfo& dirInfo, const std::vector<ArchiveFile*>& unmounted)
+void ArchiveFileSystem::removeUnmountedFiles(ArchivedDirectoryInfo& dirInfo, const std::vector<ArchiveFile*>& unmounted)
 {
 	ArchivedFileLocationMap::iterator file = dirInfo.m_files.begin();
 	while (file != dirInfo.m_files.end())
 	{
-		AsciiString path = dirInfo.m_path;
-		path.concat(file->first);
-		if (std::find(unmounted.begin(), unmounted.end(), file->second) != unmounted.end() || isHiddenByPack(path, file->second->getPriority()))
+		if (std::find(unmounted.begin(), unmounted.end(), file->second) != unmounted.end())
 		{
 			dirInfo.m_files.erase(file++);
 		}
@@ -785,52 +745,18 @@ void ArchiveFileSystem::removeHiddenFiles(ArchivedDirectoryInfo& dirInfo, const 
 
 	for (ArchivedDirectoryInfoMap::iterator directory = dirInfo.m_directories.begin(); directory != dirInfo.m_directories.end(); ++directory)
 	{
-		removeHiddenFiles(directory->second, unmounted);
+		removeUnmountedFiles(directory->second, unmounted);
 	}
 }
 
-Bool ArchiveFileSystem::isHiddenByPack(const AsciiString& path, Int priority) const
+void ArchiveFileSystem::mountPackFolderFiles(const std::string& folder, Int priority)
 {
-	if (!m_hasPackExcludes)
+	AsciiString root(folder.c_str());
+	if (m_archiveFileMap.find(root) != m_archiveFileMap.end())
 	{
-		return FALSE;
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack folder %s is listed twice, the first one stays", folder.c_str());
+		return;
 	}
-
-	// the packs above an archive are the ones whose priorities are all lower than its priority, they end the stack
-	return GenOnlinePackList::IsHidden(m_packStack, GenOnlinePackList::FirstPackAbove(m_packPriorities, ARCHIVE_PRIORITY_PACK_STRIDE, priority), path.str());
-}
-
-Bool ArchiveFileSystem::isLooseFileShadowedByPack(const Char* filename) const
-{
-	if (m_packStack.empty() || filename == nullptr || filename[0] == '\\' || filename[0] == '/' || strchr(filename, ':') != nullptr)
-	{
-		return FALSE;
-	}
-
-	ArchivedDirectoryInfoResult result = const_cast<ArchiveFileSystem*>(this)->getArchivedDirectoryInfo(filename);
-	if (!result.valid())
-	{
-		return FALSE;
-	}
-
-	const Int highest = m_packPriorities.back();
-	const Int lowest = m_packPriorities.front() + ARCHIVE_PRIORITY_PACK_STRIDE;
-	std::pair<ArchivedFileLocationMap::const_iterator, ArchivedFileLocationMap::const_iterator> range = result.dirInfo->m_files.equal_range(result.lastToken);
-	for (ArchivedFileLocationMap::const_iterator it = range.first; it != range.second; ++it)
-	{
-		const Int priority = it->second->getPriority();
-		if (priority >= highest && priority < lowest)
-		{
-			return TRUE;
-		}
-	}
-	return FALSE;
-}
-
-void ArchiveFileSystem::mountPackFolderFiles(const GenOnlinePackList::Pack& pack, Int priority)
-{
-	AsciiString root(pack.folder.c_str());
-	root.concat('\\');
 
 	FilenameList files;
 	TheLocalFileSystem->getFileListInDirectory(AsciiString::TheEmptyString, root, "*", files, TRUE);
@@ -840,7 +766,7 @@ void ArchiveFileSystem::mountPackFolderFiles(const GenOnlinePackList::Pack& pack
 	for (FilenameListIter it = files.begin(); it != files.end(); ++it)
 	{
 		const std::string fullPath = it->str();
-		if (fullPath.size() <= static_cast<size_t>(root.getLength()) || it->endsWithNoCase(".big"))
+		if (fullPath.size() <= static_cast<size_t>(root.getLength()) || it->endsWithNoCase(".big") || it->endsWithNoCase(".gpk"))
 		{
 			continue;
 		}
@@ -851,7 +777,6 @@ void ArchiveFileSystem::mountPackFolderFiles(const GenOnlinePackList::Pack& pack
 			continue;
 		}
 
-		// the path inside the folder is the game path, its folder part goes to addFile and the file name to the file info
 		const std::string relative = fullPath.substr(root.getLength());
 		const size_t lastSeparator = relative.find_last_of("\\/");
 		ArchivedFileInfo fileInfo;
@@ -875,48 +800,7 @@ void ArchiveFileSystem::mountPackFolderFiles(const GenOnlinePackList::Pack& pack
 		m_archiveFileMap[root] = folderArchive;
 		m_packFolderArchives[folderArchive] = root;
 	}
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "Pack %s: %d loose files at priority %d", pack.id.c_str(), count, priority);
-}
-
-void ArchiveFileSystem::mountPackStack(Bool communityPatchEnabled)
-{
-	// the highest pack goes first, so its menu layouts and palette archive win over the ones of lower generals_online packs
-	std::vector<AsciiString> genOnlineArchives;
-	for (size_t i = m_packStack.size(); i-- > 0;)
-	{
-		const GenOnlinePackList::Pack& pack = m_packStack[i];
-		const Int priority = m_packPriorities[i];
-		const Bool genOnline = pack.tier == GenOnlinePackList::Tier::GeneralsOnline;
-		if (pack.tier == GenOnlinePackList::Tier::CommunityPatch && !communityPatchEnabled)
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "Pack %s is skipped for -disableCommunityDataPatch", pack.id.c_str());
-			continue;
-		}
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Pack %s, tier %s, order %d, %d excludes: %s", pack.id.c_str(), getPackTierName(pack.tier), pack.order, static_cast<int>(pack.excludes.size()), pack.folder.c_str());
-
-		mountPackFolderFiles(pack, priority + ARCHIVE_PRIORITY_PACK_FILES);
-
-		const std::string folders[] = { pack.folder + "\\", pack.folder + "\\GeneralsOnlineGameData\\" };
-		const Int priorities[] = { priority + ARCHIVE_PRIORITY_PACK_TOP_BIGS, priority + ARCHIVE_PRIORITY_PACK_DATA_BIGS };
-		for (size_t f = 0; f < ARRAY_SIZE(folders); ++f)
-		{
-			ArchiveMountEntry entry;
-			AsciiString reason;
-			if (!parseMountEntry(AsciiString(folders[f].c_str()), &entry, &reason))
-			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "Pack %s: folder ignored (%s): %s", pack.id.c_str(), reason.str(), folders[f].c_str());
-				continue;
-			}
-			mountListedArchive(entry, priorities[f], nullptr, genOnline ? &genOnlineArchives : nullptr, genOnline && m_retailInterface ? isNotGenOnlineInterfaceFile : nullptr);
-		}
-	}
-
-	if (m_retailInterface)
-	{
-		return;
-	}
-	mountGenOnlineMenus(genOnlineArchives);
-	mountGenOnlineTheme(genOnlineArchives);
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack folder %s: %d loose files at priority %d", folder.c_str(), count, priority);
 }
 
 Bool ArchiveFileSystem::doesFileExist(const Char *filename, FileInstance instance) const
@@ -1038,20 +922,7 @@ void ArchiveFileSystem::getFileListInDirectory(const AsciiString& currentDirecto
 {
 	ArchiveFileMap::const_iterator it = m_archiveFileMap.begin();
 	while (it != m_archiveFileMap.end()) {
-		if (!m_hasPackExcludes) {
-			it->second->getFileListInDirectory(currentDirectory, originalDirectory, searchName, filenameList, searchSubdirectories);
-		}
-		else {
-			// the files that a pack above the archive excludes are not listed
-			FilenameList archiveFiles;
-			it->second->getFileListInDirectory(currentDirectory, originalDirectory, searchName, archiveFiles, searchSubdirectories);
-			for (FilenameListIter file = archiveFiles.begin(); file != archiveFiles.end(); ++file) {
-				if (!isHiddenByPack(*file, it->second->getPriority()))
-				{
-					filenameList.insert(*file);
-				}
-			}
-		}
+		it->second->getFileListInDirectory(currentDirectory, originalDirectory, searchName, filenameList, searchSubdirectories);
 		it++;
 	}
 }

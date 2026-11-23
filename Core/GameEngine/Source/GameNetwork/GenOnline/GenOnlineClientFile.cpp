@@ -2,6 +2,9 @@
 #include <windows.h>
 #include <shlobj.h>
 #include <knownfolders.h>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 
 namespace GenOnlineClientFile
 {
@@ -140,16 +143,72 @@ bool ShouldSave(ReadStatus status, const nlohmann::json& onDisk, const nlohmann:
 	return status == ReadStatus::Ok && onDisk != toWrite;
 }
 
-std::wstring DefaultPath()
+std::wstring RootFolder()
 {
 	PWSTR folder = nullptr;
 	std::wstring path;
 	if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_DEFAULT, nullptr, &folder)) && folder != nullptr && folder[0] != L'\0')
 	{
-		path = std::wstring(folder) + L"\\GeneralsOnline\\client.json";
+		path = std::wstring(folder) + L"\\genonline";
 	}
 	CoTaskMemFree(folder);
 	return path;
+}
+
+std::wstring DefaultPath()
+{
+	const std::wstring root = RootFolder();
+	return root.empty() ? root : root + L"\\settings.client.json";
+}
+
+nlohmann::json MergeOverlay(const nlohmann::json& base, const nlohmann::json& overlay)
+{
+	if (!base.is_object() || !overlay.is_object())
+		return overlay;
+
+	nlohmann::json merged = base;
+	for (auto it = overlay.begin(); it != overlay.end(); ++it)
+	{
+		const auto found = base.find(it.key());
+		merged[it.key()] = found == base.end() ? it.value() : MergeOverlay(*found, it.value());
+	}
+	return merged;
+}
+
+bool ParseOverlay(const std::string& value, nlohmann::json& overlay, std::string& reason)
+{
+	std::string text;
+	const size_t first = value.find_first_not_of(" \t\r\n");
+	if (first != std::string::npos && value[first] == '{')
+	{
+		text = value;
+	}
+	else
+	{
+		std::error_code ec;
+		const std::uintmax_t size = std::filesystem::file_size(value, ec);
+		if (ec || size > static_cast<std::uintmax_t>(kMaxFileBytes))
+		{
+			reason = "the file cannot be read";
+			return false;
+		}
+		std::ifstream file(value, std::ios::binary);
+		if (!file)
+		{
+			reason = "the file cannot be opened";
+			return false;
+		}
+		text.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+	}
+
+	nlohmann::json parsed = nlohmann::json::parse(text, nullptr, false);
+	if (parsed.is_discarded() || !parsed.is_object())
+	{
+		reason = "it is not a JSON object";
+		return false;
+	}
+	overlay = std::move(parsed);
+	return true;
 }
 
 ReadResult Read(const std::wstring& path, const std::vector<KnownKey>& knownKeys)
@@ -208,7 +267,6 @@ bool ReadSendCrashReports(const std::wstring& path)
 	return SendCrashReports(Read(path, {}));
 }
 
-// Reads a run of digits at pos and moves pos behind it. A run of digits needs at least minDigits and at most maxDigits.
 static bool SkipDigits(const std::string& text, size_t& pos, size_t minDigits, size_t maxDigits)
 {
 	size_t count = 0;

@@ -68,7 +68,6 @@
 
 // PRIVATE PROTOTYPES /////////////////////////////////////////////////////////
 
-// kit scroll bar draws, defined with the vertical slider and push button draws
 extern void W3DGadgetVerticalSliderKitTrackDraw( GameWindow *window, WinInstanceData *instData );
 extern void W3DGadgetVerticalSliderKitThumbDraw( GameWindow *window, WinInstanceData *instData );
 extern void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window, WinInstanceData *instData );
@@ -77,7 +76,7 @@ extern void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window, WinInstan
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Give the list scroll bar the kit draws when the GO kit scroll images exist.
+// GenOnline @feature arcticdolphin 08/11/2026 Give the list scroll bar the kit draws when the GO kit scroll images exist.
 static void assignKitScrollBarDraws( ListboxData *list )
 {
 	// only scroll bars still on their default draws, so custom draws stay
@@ -97,40 +96,16 @@ static void assignKitScrollBarDraws( ListboxData *list )
 		list->downButton->winSetDrawFunc( W3DGadgetPushButtonKitScrollArrowDraw );
 }
 
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 Kit lists with a layout border draw it at the kit line weight.
-// Kit frame of a colour drawn list: the combo field border for drop-downs, the kit line for bordered lists, else 0
-static Int getKitListFrame( GameWindow *window )
-{
-	if( BitIsSet( window->winGetStatus(), WIN_STATUS_IMAGE ) )
-		return 0;
-
-	Int comboFrame = GadgetListBoxGetKitComboFrame( window );
-	if( comboFrame > 0 )
-		return comboFrame;
-
-	Color border = GadgetListBoxGetEnabledBorderColor( window );
-	if( border == WIN_COLOR_UNDEFINED )
-		return 0;
-
-	UnsignedByte red, green, blue, alpha;
-	GameGetColorComponents( border, &red, &green, &blue, &alpha );
-	if( alpha == 0 )
-		return 0;
-
-	return GadgetListBoxGetKitScrollLineWidth();
-}
-
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Kit combo drop-down lists line up with and frame like their combo field.
-// Kit combo drop-down rows start where the combo field text starts, other rows keep their margin; x is already inside the frame
+// GenOnline @feature arcticdolphin 08/11/2026 Kit combo drop-down lists line up with and frame like their combo field.
+// Kit combo drop-down rows start where the combo field text starts, other rows keep their margin, x is already inside the frame
 static Int getListTextOffsetX( GameWindow *window )
 {
-	Int frame = getKitListFrame( window );
+	Int frame = GadgetListBoxGetKitListFrame( window );
 	if( frame <= 0 )
 		return GameWindowManager::winScaleLayoutSize( TEXT_X_OFFSET );
 	if( GadgetListBoxGetKitComboFrame( window ) <= 0 )
 		return GameWindowManager::winScaleLayoutSize( TEXT_X_OFFSET ) - frame;
 
-	// the W3DTextEntry margin, then its start for text drawn from the start or edited text
 	GameWindow *editBox = GadgetComboBoxGetEditBox( window->winGetParent() );
 	EntryData *e = editBox ? (EntryData *)editBox->winGetUserData() : nullptr;
 	Int offset = GameWindowManager::winScaleLayoutSize( 5 );
@@ -141,7 +116,6 @@ static Int getListTextOffsetX( GameWindow *window )
 	return offset - frame;
 }
 
-// Draw the combo field art over a kit combo drop-down list as its frame and background
 static void drawKitComboFrame( GameWindow *window, Int x, Int y, Int width, Int height )
 {
 	GameWindow *editBox = GadgetComboBoxGetEditBox( window->winGetParent() );
@@ -162,7 +136,7 @@ static void drawKitComboFrame( GameWindow *window, Int x, Int y, Int width, Int 
 		right = GadgetTextEntryGetDisabledImageRight( editBox );
 	}
 
-	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 An open drop-down hides the controls under it; the kit field fill is translucent.
+	// GenOnline @bugfix arcticdolphin 08/11/2026 An open drop-down hides the controls under it, the kit field fill is translucent.
 	TheDisplay->drawFillRect( x, y, width, height, GOUIColor( GOUICOLOR_FIELD_FILL, GameMakeColor( 5, 7, 15, 255 ) ) );
 	TheWindowManager->winDrawThreePieceImage( left, center, smallCenter, right, x, y, width, height );
 }
@@ -228,10 +202,10 @@ static void drawListBoxText( GameWindow *window, WinInstanceData *instData,
 	clipRegion.hi.y = y + height - 1;
 
 	drawY = y - list->displayPos;
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Compact kit combo drop-down rows draw their text from above the row by the trimmed blank top.
+	// GenOnline @tweak arcticdolphin 08/11/2026 Compact kit combo drop-down rows draw their text from above the row by the trimmed blank top.
 	const Int textTrim = GadgetListBoxGetKitComboRowTrim( window );
 
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 An open kit combo drop-down highlights the row a click would pick, else its selection.
+	// GenOnline @feature arcticdolphin 08/11/2026 An open kit combo drop-down highlights the row a click would pick, else its selection.
 	Int hoverRow = -1;
 	if( TheMouse != nullptr && GadgetListBoxGetKitComboFrame( window ) > 0 )
 	{
@@ -423,7 +397,7 @@ static void drawListBoxText( GameWindow *window, WinInstanceData *instData,
 
 		Color dropColor = TheWindowManager->winMakeColor( 0, 0, 0, 255 );
 		DisplayString *string;
-		// TheSuperHackers @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
+		// GenOnline @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
 		const Int textOffsetX = getListTextOffsetX( window );
 
 		ListEntryCell *cells = list->listData[i].cell;
@@ -548,7 +522,6 @@ void W3DGadgetListBoxDraw( GameWindow *window, WinInstanceData *instData )
 	window->winGetScreenPosition( &x, &y );
 	window->winGetSize( &size.x, &size.y );
 
-	// scroll bar parts draw after the list box
 	assignKitScrollBarDraws( list );
 
 	// get font height
@@ -597,7 +570,7 @@ void W3DGadgetListBoxDraw( GameWindow *window, WinInstanceData *instData )
 
 	}
 
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Kit combo drop-down lists wear the combo field frame, joined to the field.
+	// GenOnline @feature arcticdolphin 08/11/2026 Kit combo drop-down lists wear the combo field frame, joined to the field.
 	const Int comboFrame = GadgetListBoxGetKitComboFrame( window );
 	if( comboFrame > 0 )
 	{
@@ -606,8 +579,8 @@ void W3DGadgetListBoxDraw( GameWindow *window, WinInstanceData *instData )
 		background = WIN_COLOR_UNDEFINED;
 	}
 
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Other kit lists keep their background and draw their border at the kit line weight.
-	const Int listFrame = getKitListFrame( window );
+	// GenOnline @tweak arcticdolphin 08/11/2026 Other kit lists keep their background and draw their border at the kit line weight.
+	const Int listFrame = GadgetListBoxGetKitListFrame( window );
 	const Bool kitBorder = comboFrame <= 0 && listFrame > 0;
 	if( kitBorder )
 		border = WIN_COLOR_UNDEFINED;
@@ -632,12 +605,11 @@ void W3DGadgetListBoxDraw( GameWindow *window, WinInstanceData *instData )
 		ICoord2D sliderSize;
 
 		list->slider->winGetSize( &sliderSize.x, &sliderSize.y );
-		// TheSuperHackers @tweak arcticdolphin 08/11/2026 Keep the text clear of the scaled scroll bar.
+		// GenOnline @tweak arcticdolphin 08/11/2026 Keep the text clear of the scaled scroll bar.
 		width -= (sliderSize.x + GameWindowManager::winScaleLayoutSize( 3 ));
 
 	}
 
-	// rows and selection bars stay inside the kit frame
 	if( listFrame > 0 )
 	{
 		x += listFrame;
@@ -673,7 +645,6 @@ void W3DGadgetListBoxImageDraw( GameWindow *window, WinInstanceData *instData )
 	width = size.x;
 	height = size.y;
 
-	// scroll bar parts draw after the list box
 	assignKitScrollBarDraws( list );
 
 	// If ScrollBar was requested ... adjust width.

@@ -136,7 +136,7 @@ UpdateSleepTime EMPUpdate::update()
 	Drawable *dr = obj->getDrawable();
 	UnsignedInt now = TheGameLogic->getFrame();
 
-	// TODO_NGMP: We should actually use a frame time delta here, not assume we're hitting 60
+	// TODO_GENONLINE: Use a frame time delta here instead of assuming 60 fps
 	m_currentScale += ( m_targetScale - m_currentScale ) * (0.05f / LOGICFRAMES_PER_BASEFRAME);
 	dr->setInstanceScale( m_currentScale );
 

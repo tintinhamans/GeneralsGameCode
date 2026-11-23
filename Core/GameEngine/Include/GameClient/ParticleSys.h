@@ -928,6 +928,10 @@ protected:
 	Int m_onScreenParticleCount;                ///< number of particles displayed on screen per frame
 	Int m_localPlayerIndex;	///<used to tell particle systems which particles can be skipped due to player shroud status
 	Real m_drawnLogicFramePhase; ///< How far the render updates have integrated the current logic frame, ranging 0 to 1.
+#if defined(GENONLINE)
+	UnsignedInt m_particleBaseFrame; ///< logic base frame of the last particle step
+	Bool m_hasParticleBaseFrame;
+#endif
 
 private:
 	TemplateMap m_templateMap;		///< a hash map of all particle system templates

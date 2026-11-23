@@ -66,6 +66,7 @@ Bool FFmpegFile::open(File *file)
 	if (m_file == nullptr)
 		return false;
 
+	// FFmpeg setup
 	m_fmtCtx = avformat_alloc_context();
 	if (m_fmtCtx == nullptr) {
 		close();
@@ -179,6 +180,9 @@ Int64 FFmpegFile::seekPacket(void *opaque, Int64 offset, Int whence)
 	return position;
 }
 
+/**
+ * close all the open FFmpeg handles for an open file.
+ */
 void FFmpegFile::close()
 {
 	avformat_close_input(&m_fmtCtx);
@@ -206,6 +210,7 @@ Bool FFmpegFile::receiveFrames(FFmpegStream &stream, Bool &produced)
 		const Int result = avcodec_receive_frame(stream.codec_ctx, stream.frame);
 		if (result == AVERROR(EAGAIN) || result == AVERROR_EOF)
 			return true;
+		// Handle any other errors
 		if (result < 0) {
 			logError("receive frame", result);
 			return false;

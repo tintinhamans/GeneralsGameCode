@@ -16,11 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: IOnlineGameHooks.h ///////////////////////////////////////////////////
-// Description: The calls the engine, game logic, recorder and in game UI make
-//              into the selected online provider. Each call site calls one
-//              hook and the provider decides what happens there.
-///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
@@ -38,7 +33,6 @@ class IOnlineGameHooks
 public:
 	virtual ~IOnlineGameHooks() {}
 
-	// Engine lifecycle
 	virtual void onGlobalDataLoaded() = 0;		///< Runs right after the global data loads, before the mods and the command line.
 	virtual void loadSettings() = 0;			///< Loads the provider settings that the engine reads during init.
 	virtual void onDisplayCreated() = 0;		///< Runs once the game client created the display device.
@@ -50,7 +44,6 @@ public:
 	// Returns TRUE and the frame rate limit when the provider sets the limit for the running match.
 	virtual Bool getMatchFrameRateLimit( Int &outLimit ) = 0;
 
-	// Match
 	virtual GameInfo *getGameInfo() = 0;		///< The game info of the internet match.
 	virtual Bool isLoggedIn() = 0;				///< True while the provider has a signed in session.
 	virtual void onCRCMismatch( const UnicodeString &details ) = 0;
@@ -61,17 +54,14 @@ public:
 	virtual Bool beginSyncedStart( Int phase ) = 0;	///< Returns TRUE when the provider runs this phase.
 	virtual Bool isSyncedStartDone( Int phase ) = 0;
 
-	// In game UI
 	virtual Int getChatMessageLifeSeconds() = 0;	///< Seconds a chat line stays up, or -1 for the standard message time.
 	virtual void drawNetworkOverlay( DisplayString *text, Int dropColor ) = 0;
 	virtual void releaseNetworkOverlay() = 0;	///< Frees what the overlay keeps between frames.
 
-	// Shell menus
 	virtual const char *getOverlayLayout( Int overlay, const char *gameSpyLayout ) = 0;	///< The layout file an online overlay opens.
 	virtual void onShellScreenChanged() = 0;	///< Runs after every shell screen change.
 	virtual void onCloseAllOverlays() = 0;		///< Runs when every online overlay closes.
 
-	// The Online path of the main menu
 	virtual void startOnline() = 0;				///< Runs when the player picks Online in the main menu.
 	virtual void updateMainMenu() = 0;			///< Runs every main menu update.
 	virtual void updateDownloadMenu( WindowLayout *layout, void *userData ) = 0;	///< Runs while a patch downloads.
@@ -80,7 +70,6 @@ public:
 	virtual void cancelPatchCheck() = 0;		///< Ends a patch check that is still running.
 	virtual void startDownloadingPatches() = 0;	///< Downloads the patches the player accepted.
 
-	// Options menu
 	virtual void onOptionsMenuInit( Bool locked ) = 0;	///< Fills the provider section of the options menu, locked while a game or a session runs.
 	virtual Bool onOptionsMenuComboSelected( GameWindow *control ) = 0;	///< TRUE when the combo box belongs to the provider section.
 	virtual Bool onOptionsMenuButtonSelected( GameWindow *control ) = 0;	///< TRUE when the button belongs to the provider section.

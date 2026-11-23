@@ -361,7 +361,7 @@ void W3DGameWinDefaultDraw( GameWindow *window, WinInstanceData *instData )
 
 		}
 
-		// TheSuperHackers @tweak arcticdolphin 08/11/2026 With the GO kit, a layout border in a kit or palette line colour draws at the kit line weight.
+		// GenOnline @tweak arcticdolphin 08/11/2026 With the GO kit, a layout border in a kit or palette line colour draws at the kit line weight.
 		Color kitFrameColor;
 		Bool kitFrame = GadgetListBoxGetKitFrameColor( borderColor, &kitFrameColor );
 
@@ -373,7 +373,6 @@ void W3DGameWinDefaultDraw( GameWindow *window, WinInstanceData *instData )
 																		 origin.x, origin.y,
 																		 origin.x + size.x, origin.y + size.y );
 
-		// Away from the creation resolution a window without a visible border fills to its own edges.
 		Real fillInset = borderWidth;
 		if( TheDisplay != nullptr && ( TheDisplay->getWidth() != DEFAULT_DISPLAY_WIDTH || TheDisplay->getHeight() != DEFAULT_DISPLAY_HEIGHT ) )
 		{

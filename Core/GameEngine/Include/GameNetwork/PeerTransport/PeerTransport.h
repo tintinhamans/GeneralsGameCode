@@ -7,14 +7,12 @@
 #include <string>
 #include <utility>
 
-// The transport kinds a peer connection can run on.
 enum class PeerTransportKind
 {
 	Gns,	///< GameNetworkingSockets, built into the game.
 	Plugin	///< A transport of the loaded plugin.
 };
 
-// How the packets of a peer connection travel.
 enum class PeerRoute
 {
 	Disconnected,
@@ -35,19 +33,16 @@ constexpr int k_peerSendReliable = 8;
 constexpr int k_peerSendOK = 1;
 constexpr int k_peerSendNoConnection = 3;
 
-// Takes one formatted line of the peer transports. The online provider sets it.
 using PeerTransportLogSink = void (*)(PeerLogLevel level, const char* szLine);
 
 // Sets the sink of the peer transport log lines. Without a sink the lines are dropped.
 void SetPeerTransportLogSink(PeerTransportLogSink sink);
 
-// Writes a line to the sink of the online provider.
 void PeerTransportLog(PeerLogLevel level, const char* fmt, ...);
 
 // Takes one received packet that starts with its channel byte, with its arrival time in steady_clock ms.
 using PeerFrameHandler = std::function<void(const uint8_t* data, uint32_t len, int64_t arrivalMs)>;
 
-// The transport of one peer connection.
 class IPeerTransport
 {
 public:
@@ -56,7 +51,6 @@ public:
 	virtual PeerTransportKind GetKind() const = 0;
 	virtual std::string GetLabel() const = 0;	///< The name of the transport for logs and the user interface.
 
-	/// True when the transport can take a packet. A closed transport says no.
 	virtual bool CanSend() const = 0;
 	virtual void Close(const char* szReason) = 0;
 	/// Drops the connection without closing it, the transport can no longer send then.
@@ -73,11 +67,9 @@ public:
 	virtual int GetLatency() const = 0;	///< The round trip in ms, -1 when unknown.
 	virtual PeerRoute GetRoute(bool bPeerConnected) const = 0;
 	virtual bool IsIPv4() const = 0;
-	/// The detailed status of the transport, false without a connection.
 	virtual bool GetDetailedStats(std::string& text) const = 0;
 };
 
-// The text a route shows in logs and the user interface.
 inline const char* PeerRouteText(PeerRoute route)
 {
 	switch (route)

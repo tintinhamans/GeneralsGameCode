@@ -21,7 +21,7 @@ namespace ServiceConnection
 {
 namespace
 {
-// WinHTTP's proxy schemes; the precompiled header includes wininet.h, whose INTERNET_SCHEME_* values differ
+// The precompiled header includes wininet.h, whose INTERNET_SCHEME_* values differ from the WinHTTP proxy schemes.
 constexpr INTERNET_SCHEME WinHttpSchemeHttp = (INTERNET_SCHEME)1;
 constexpr INTERNET_SCHEME WinHttpSchemeHttps = (INTERNET_SCHEME)2;
 
@@ -300,7 +300,6 @@ std::string ProxyDestination(std::string destination)
 	return destination;
 }
 
-// a destination on localhost, 127.0.0.1 or [::1] is reached directly
 bool IsLoopbackDestination(const std::string& destination)
 {
 	const std::string lookup = ProxyDestination(destination);
@@ -387,7 +386,7 @@ ResolvedProxyPolicy AutoProxy(const std::wstring& destination, WINHTTP_AUTOPROXY
 	}
 	if (resolver)
 		WinHttpCloseHandle(resolver);
-	// the resolver's final callback must run while its session is still open
+	// The final callback of the resolver must run while its session is still open
 	if (callbackOwnsReference)
 		WaitForSingleObject(context->closing, 5000);
 	WinHttpCloseHandle(session);
@@ -407,7 +406,6 @@ ResolvedProxyPolicy AutoProxy(const std::wstring& destination, WINHTTP_AUTOPROXY
 	return result;
 }
 
-// the first route for display
 std::string SourceOfRoutes(const ResolvedProxyPolicy& result)
 {
 	return result.routes.empty() || result.routes.front().direct ? std::string("Direct") : ProxyDisplayName(result.routes.front().url);
@@ -605,7 +603,6 @@ ResolvedProxyPolicy ResolveProxyPolicy(const ServiceConnectionSettings& settings
 	for (auto& route : result.routes)
 	{
 		route.integratedAuthPossible = route.allowIntegratedAuth;
-		// the Windows login is only tried when the player wants it
 		if (!settings.windowsLogin)
 			route.allowIntegratedAuth = false;
 	}
@@ -626,7 +623,7 @@ void KeyPart(std::string& key, const std::string& value)
 	key += std::to_string(value.size()) + ":" + value;
 }
 
-// Failures are shared per PAC server, not per URL; empty when no script is fetched
+// Failures are shared per PAC server, not per URL, empty when no script is fetched
 std::string PolicySource(const std::string& pacURL, bool autoDetect)
 {
 	if (pacURL.empty())
@@ -1100,7 +1097,6 @@ bool ConfigureCurl(CURL* curl, const std::string& destinationURL, const ProxyRou
 		!set(CURLOPT_PROXY_SSL_OPTIONS, (long)CURLSSLOPT_NATIVE_CA) || !set(CURLOPT_SOCKS5_AUTH, (long)CURLAUTH_BASIC) ||
 		!set(CURLOPT_HEADEROPT, (long)CURLHEADER_SEPARATE) || !set(CURLOPT_NOPROXY, "") || !set(CURLOPT_PROXYAUTH, (long)CURLAUTH_NONE))
 		return false;
-	// a loopback destination is on this computer and never goes through a proxy
 	if (route.direct || IsLoopbackDestination(destinationURL))
 		return true;
 	std::string canonical;

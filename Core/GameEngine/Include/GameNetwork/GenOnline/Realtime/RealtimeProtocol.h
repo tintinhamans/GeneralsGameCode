@@ -16,11 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: RealtimeProtocol.h ///////////////////////////////////////////////////
-// Description: SignalR JSON hub protocol version 1 framing for the GenOnline
-//              realtime hub. Records are JSON objects that end with the record
-//              separator byte 0x1E. The file has no engine dependencies, so the
-//              standalone contract test compiles it as is.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -225,7 +220,6 @@ private:
 	std::string m_buffer;
 };
 
-// Hands out invocation ids and keeps the callbacks of invocations that wait for a completion.
 class InvocationTracker
 {
 public:
@@ -258,7 +252,6 @@ public:
 		return true;
 	}
 
-	// Fails every pending invocation, for example when the connection drops.
 	void FailAll(const std::string& error)
 	{
 		std::map<std::string, CompletionFn> pending;

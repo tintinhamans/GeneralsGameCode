@@ -29,12 +29,9 @@
 #pragma once
 
 #include "GameNetwork/udp.h"
+// GenOnline NOTE: Transport is now a base class, and UDPTransport is the legacy direct connection transport the original game used.
 #include "GameNetwork/NetworkDefs.h"
 
-/**
- * The transport interface sends and receives game packets through the shared message queues.
- * Subclasses own the connection that carries the packets.
- */
 // we only ever allocate one of there, and it is quite large, so we really DON'T want
 // it to be a MemoryPoolObject (srj)
 class Transport //: public MemoryPoolObject

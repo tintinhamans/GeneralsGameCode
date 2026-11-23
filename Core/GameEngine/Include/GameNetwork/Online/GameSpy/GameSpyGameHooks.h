@@ -16,10 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GameSpyGameHooks.h ///////////////////////////////////////////////////
-// Description: GameSpy game hooks. GameSpy plays its matches from the staging
-//              room and adds nothing to the engine, logic, recorder or UI.
-///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 

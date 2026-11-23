@@ -16,8 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlinePluginKeys.h ////////////////////////////////////////////////
-// Description: Minisign public keys that sign the GenOnline plugin manifests.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once

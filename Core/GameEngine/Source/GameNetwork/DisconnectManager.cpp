@@ -436,7 +436,7 @@ void DisconnectManager::playerClosedGracefully(Int slot, ConnectionManager *conM
 	if (transSlot == -1 || conMgr->isPlayerConnected(slot) == FALSE) {
 		return;
 	}
-	// not the player's own leave, so the quiet time and the keepalive undo still apply
+	// not the own leave of the player, so the quiet time and the keepalive undo still apply
 	m_playerLeft[transSlot] = TRUE;
 }
 #endif
@@ -460,14 +460,14 @@ void DisconnectManager::processDisconnectPlayer(NetCommandMsg *msg, ConnectionMa
 	}
 
 #if !RETAIL_COMPATIBLE_NETWORKING
-	// TheSuperHackers @bugfix arcticdolphin 27/10/2026 A player that leaves is removed by the acting packet router on one frame for everyone instead of on the frame each player got the leave on.
+	// GenOnline @bugfix arcticdolphin 27/10/2026 A player that leaves is removed by the acting packet router on one frame for everyone instead of on the frame each player got the leave on.
 	if ((slot < MAX_SLOTS) && ((msg->getPlayerID() == (UnsignedInt)slot) || (cmdMsg->getDisconnectFrame() == LEAVE_NOTICE_FRAME))) {
 		Int transSlot = translatedSlotPosition(slot, conMgr->getLocalPlayerID());
 		if (transSlot != -1) {
 			m_playerLeft[transSlot] = TRUE;
 			Bool leaveTrusted = (msg->getPlayerID() == (UnsignedInt)slot);
 #if defined(GENONLINE)
-			// a notice that carries the leaver's signature counts at once, an unsigned one only after the quiet time
+			// a notice that carries the signature of the leaver counts at once, an unsigned one only after the quiet time
 			if (!leaveTrusted && conMgr->verifyLeaveNotice(cmdMsg)) {
 				leaveTrusted = TRUE;
 			}
@@ -511,7 +511,7 @@ void DisconnectManager::processDisconnectPlayer(NetCommandMsg *msg, ConnectionMa
 	disconnectPlayer(slot, conMgr);
 
 #if RETAIL_COMPATIBLE_NETWORKING
-	// TheSuperHackers @bugfix arcticdolphin 12/10/2026 A player that quits from the disconnect screen sends no destroy command, so every player that stays sends it.
+	// GenOnline @bugfix arcticdolphin 12/10/2026 A player that quits from the disconnect screen sends no destroy command, so every player that stays sends it.
 	if (msg->getPlayerID() == (UnsignedInt)slot) {
 		sendPlayerDestruct(slot, conMgr);
 	}
@@ -992,7 +992,7 @@ Bool DisconnectManager::hasPlayerLeft(Int slot) {
 	if (m_ownLeaveReceived[slot] == TRUE) {
 		return TRUE;
 	}
-	// a false notice can't remove a player that is still around, it keeps sending keepalives
+	// a false notice cannot remove a player that is still around, it keeps sending keepalives
 	return (m_playerLeft[slot] == TRUE) && ((timeGetTime() - m_playerTimeouts[slot]) > LEAVE_NOTICE_QUIET_TIME);
 }
 

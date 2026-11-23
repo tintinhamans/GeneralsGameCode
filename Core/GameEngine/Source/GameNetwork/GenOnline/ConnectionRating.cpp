@@ -17,7 +17,7 @@ static const Real k_redStallsPerMinute = k_stallLimitsPerMinute[ConnectionRating
 static const Real k_redLossPercent = 20.0f;	// sustained packet loss, more than the redundancy repairs
 static const Int k_redSilentMs = 1000;		// no packet at all for this long, a blackout
 
-// Measured stalls of a link whose loss and tail predict almost none are the peer's slow frame rate
+// Measured stalls of a link whose loss and tail predict almost none are the slow frame rate of the peer
 static const Real k_slowPcMinStalls = k_redStallsPerMinute;
 static const Real k_slowPcMaxLinkStalls = 1.0f;
 static const Int k_slowPcMaxBars = 3;
@@ -26,7 +26,7 @@ static const Real k_hysteresis = 0.1f;	// a band is left only when the value is 
 
 static const UnsignedInt k_raiseHoldMs = 3000;	// more bars are shown only after the rating asked for them this long
 
-// predicted stalls/min = 2.1 x loss% x 110 / (rtt + 60) + 0.1 x max(0, tail - max(100 ms, 0.2 x rtt)), tail = p90 round trip - smoothed round trip, up to 500 ms
+// Predicted stalls per minute from the loss and the tail of the round trip (p90 minus smoothed, up to 500 ms).
 static Real PredictStallsPerMinute(const ConnectionStats &stats, Real lossPercent)
 {
 	const Real tail = std::clamp(stats.getLatencyPercentile(90) - stats.getLatency(), 0.0f, 500.0f);
@@ -195,7 +195,6 @@ Int ConnectionRating::Severity(Int bars)
 
 void ConnectionRating::DrawSpinner(Int left, Int top, Int size)
 {
-	// a faint full ring with a solid arc rotating around it, drawn as short segments
 	const Real twoPi = 6.28318531f;
 	const Int segmentCount = 24;
 	const Int arcSegments = 7;
@@ -203,7 +202,7 @@ void ConnectionRating::DrawSpinner(Int left, Int top, Int size)
 	const Real centerX = left + size * 0.5f;
 	const Real centerY = top + size * 0.5f;
 	const Real rotation = (timeGetTime() % 900) * twoPi / 900.0f;
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 The spinner takes the GO UI colour table's spinner colour, the ring at a faint alpha.
+	// GenOnline @feature arcticdolphin 09/11/2026 The spinner takes the spinner colour of the GO UI colour table, with the ring at a faint alpha.
 	const Color arcColor = GOUIColor(GOUICOLOR_CONNECTION_SPINNER, GameMakeColor(47, 55, 168, 255));
 	UnsignedByte red, green, blue, alpha;
 	GameGetColorComponents(arcColor, &red, &green, &blue, &alpha);

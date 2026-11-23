@@ -33,7 +33,6 @@ std::deque<PeerSignal> PeerSignalInbox::Drain()
 	return drained;
 }
 
-// May be called from any thread; always queues, FlushTo() sends on the main thread.
 void PeerSignalOutbox::Push(int64_t targetUserID, std::vector<uint8_t> payload)
 {
 	std::scoped_lock<std::mutex> lock(m_sendQueueMutex);

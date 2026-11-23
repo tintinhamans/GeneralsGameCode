@@ -17,9 +17,6 @@
 */
 
 // FILE: OnlineProviderFactory.cpp ////////////////////////////////////////////
-// GenMP online provider abstraction.
-// Description: Function-local-static provider registry, TheOnline runtime, and
-//              the SetUpOnline / TearDownOnline lifecycle seam.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
@@ -36,34 +33,22 @@
 // PUBLIC DATA
 //-----------------------------------------------------------------------------
 
-// POD, statically zero-initialized. No namespace-scope constructor runs.
 OnlineRuntime TheOnline = { ONLINE_PROVIDER_GAMESPY, nullptr };
 
 //-----------------------------------------------------------------------------
 // PRIVATE DATA
 //-----------------------------------------------------------------------------
 
-// Stash for the CLI '-onlineProvider <name>' override. POD, zero-initialized.
 static char s_commandLineProvider[64] = { 0 };
 
-// Results are owned by the engine subsystem list rather than by the Online
-// session. The binding is intentionally process-lifetime state: changing the
-// provider after registration would mix an old results implementation with new
-// online services.
+// The results binding lasts for the process lifetime so a late provider change cannot mix old results with new services.
 
 static OnlineProviderFactory *s_resultsProvider = nullptr;
 static Bool s_resultsProviderBound = FALSE;
 
-// The hooks of the selected provider, resolved on first use.
 static IOnlineGameHooks *s_gameHooks = nullptr;
 
-//-----------------------------------------------------------------------------
-// Registry
-//
-// A fixed-size array wrapped in a function-local static (Meyers singleton).
-// This deliberately avoids any namespace-scope STLport container so there is no
-// static-initialization-order hazard under VC6.
-//-----------------------------------------------------------------------------
+// The registry is a function-local static so no namespace-scope STLport container exists under VC6.
 struct OnlineProviderRegistry
 {
 	OnlineProviderFactory *m_factories[MAX_ONLINE_PROVIDERS];
@@ -87,8 +72,7 @@ void RegisterOnlineProvider( OnlineProviderFactory *factory )
 
 	OnlineProviderRegistry& reg = getRegistry();
 
-	// Replace an existing entry for the same type instead of duplicating it,
-	// which keeps RegisterBuiltInProviders() idempotent.
+	// Replace an existing entry for the same type so RegisterBuiltInProviders() stays idempotent.
 	for (Int i = 0; i < reg.m_count; ++i)
 	{
 		if (reg.m_factories[i] != nullptr && reg.m_factories[i]->getType() == factory->getType())
@@ -121,9 +105,7 @@ OnlineProviderFactory *GetOnlineProvider( OnlineProviderType type )
 
 void RegisterBuiltInProviders()
 {
-	// Function-local static: constructed on first call, never destroyed, so there
-	// is no destruction-ordering hazard and no reliance on static-init order.
-	// RegisterOnlineProvider() is idempotent, so repeat calls are harmless.
+	// Function-local statics avoid destruction and static-init ordering problems.
 	static GameSpyProviderFactory theGameSpyFactory;
 	RegisterOnlineProvider( &theGameSpyFactory );
 
@@ -133,7 +115,6 @@ void RegisterBuiltInProviders()
 #endif
 }
 
-// GenOnline builds talk to GenOnline unless the command line picks another provider.
 static OnlineProviderType getDefaultProvider()
 {
 #if defined(GENONLINE)
@@ -157,12 +138,7 @@ const char *GetCommandLineOnlineProvider()
 	return s_commandLineProvider;
 }
 
-//-----------------------------------------------------------------------------
-// Provider resolution
-//-----------------------------------------------------------------------------
 
-// Case-insensitive lookup of a registered provider by name. Returns true and
-// fills 'outType' on a match.
 static Bool matchProviderName( const char *name, OnlineProviderType& outType )
 {
 	if (name == nullptr || name[0] == 0)
@@ -183,13 +159,11 @@ static Bool matchProviderName( const char *name, OnlineProviderType& outType )
 
 OnlineProviderType ResolveConfiguredProvider()
 {
-	// Safe to call before the online subsystem is set up: make sure the built-in
-	// providers are registered so name matching has something to match against.
+	// Built-in providers must be registered so name matching has something to match.
 	RegisterBuiltInProviders();
 
 	OnlineProviderType resolved = getDefaultProvider();
 
-	// 1) CLI: -onlineProvider <name>
 	const char *cli = GetCommandLineOnlineProvider();
 	if (cli != nullptr && cli[0] != 0)
 	{
@@ -200,7 +174,6 @@ OnlineProviderType ResolveConfiguredProvider()
 		return getDefaultProvider();
 	}
 
-	// 2) Built-in default
 	return getDefaultProvider();
 }
 

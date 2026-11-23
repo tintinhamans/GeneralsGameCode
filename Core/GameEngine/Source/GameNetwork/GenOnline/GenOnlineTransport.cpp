@@ -467,7 +467,7 @@ Bool GenOnlineTransport::sendQueued()
         if (TheGenOnlineGame == nullptr)
         {
             NetworkLog(ELogVerbosity::LOG_RELEASE,
-                "Game Packet Send: TheNGMPGame is null");
+                "Game Packet Send: TheGenOnlineGame is null");
             return FALSE;
         }
 

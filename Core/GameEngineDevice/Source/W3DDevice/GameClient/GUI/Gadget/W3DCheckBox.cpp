@@ -320,7 +320,7 @@ void W3DGadgetCheckBoxImageDraw( GameWindow *window, WinInstanceData *instData )
 	if( boxImage )
 	{
 
-		// TheSuperHackers @tweak arcticdolphin 08/11/2026 The box inset scales with the screen height.
+		// GenOnline @tweak arcticdolphin 08/11/2026 The box inset scales with the screen height.
 		const Int boxInset = GameWindowManager::winScaleLayoutSize( 3 );
 		start.x = origin.x + instData->m_imageOffset.x + checkOffsetFromLeft;
 		start.y = origin.y +  boxInset;

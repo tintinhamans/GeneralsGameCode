@@ -74,7 +74,7 @@ struct WifiApi
 	WifiFreeMemoryFn freeMemory;
 };
 
-// Shared by End and the worker, freed by whoever lets go last; the worker owns the WLAN handle, the library and its log
+// Shared by End and the worker, freed by whoever lets go last, the worker owns the WLAN handle, the library and its log
 struct WifiState
 {
 	HANDLE stop;
@@ -204,7 +204,7 @@ static int WifiGameAdapters(GUID* targets)
 	return count;
 }
 
-// Turns media streaming mode on where it is not on yet; returns an error that needs the handle reopened, else success
+// Turns media streaming mode on where it is not on yet, returns an error that needs the handle reopened, else success
 static DWORD WifiTune(const WifiApi& api, HANDLE client, const GUID* targets, int targetCount, WifiLog& log)
 {
 	WifiInterfaceList* list = NULL;
@@ -399,7 +399,7 @@ static DWORD WINAPI WifiWorker(LPVOID param)
 		}
 	}
 
-	// closing the handle withdraws our request, other clients keep theirs
+	// Closing the handle withdraws the request of this client and leaves the requests of other clients
 	if (client != NULL)
 	{
 		WifiCloseClient(api, client, registered);

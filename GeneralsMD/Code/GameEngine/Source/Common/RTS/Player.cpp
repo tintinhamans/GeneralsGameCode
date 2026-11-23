@@ -49,7 +49,7 @@
 #include "Common/ActionManager.h"
 #include "Common/BuildAssistant.h"
 #include "Common/StatsExporter.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 #include "Common/CRCDebug.h"
 #include "Common/DisabledTypes.h"
 #include "Common/GameState.h"
@@ -1559,10 +1559,10 @@ void Player::onUnitCreated( Object *factory, Object *unit )
 	m_scoreKeeper.addObjectBuilt(unit);
 	const Int unitCost = unit->getTemplate()->calcCostToBuild(this);
 	m_scoreKeeper.addMoneySpent(unitCost);
-	StatsExporterLiveSpend(getPlayerIndex(), STATS_EXPORTER_SPEND_UNITS, unitCost);
+	LocalApiLiveSpend(getPlayerIndex(), LOCAL_API_SPEND_UNITS, unitCost);
 
-	if (TheGlobalData->m_exportStats)
-		StatsExporterRecordBuild(factory, unit);
+	// GenOnline @feature arcticdolphin 21/11/2026 The exporter gates itself on an active recording
+	StatsExporterRecordBuild(factory, unit);
 
 	// ai notification callback
 	if( m_ai )
@@ -1653,9 +1653,9 @@ void Player::onStructureConstructionComplete( Object *builder, Object *structure
 		m_scoreKeeper.addObjectBuilt(structure);
 		const Int structureCost = structure->getTemplate()->calcCostToBuild(this);
 		m_scoreKeeper.addMoneySpent(structureCost);
-		StatsExporterLiveSpend(getPlayerIndex(), STATS_EXPORTER_SPEND_STRUCTURES, structureCost);
-		if (TheGlobalData->m_exportStats)
-			StatsExporterRecordBuild(builder, structure);
+		LocalApiLiveSpend(getPlayerIndex(), LOCAL_API_SPEND_STRUCTURES, structureCost);
+		// GenOnline @feature arcticdolphin 21/11/2026 The exporter gates itself on an active recording
+		StatsExporterRecordBuild(builder, structure);
 	}
 
 	structure->friend_adjustPowerForPlayer(TRUE);
@@ -2652,11 +2652,11 @@ Bool Player::attemptToPurchaseScience(ScienceType science)
 
 	Int cost = TheScienceStore->getSciencePurchaseCost(science);
 	addSciencePurchasePoints(-cost);
-	StatsExporterLiveSpend(getPlayerIndex(), STATS_EXPORTER_SPEND_SCIENCES, cost);
+	LocalApiLiveSpend(getPlayerIndex(), LOCAL_API_SPEND_SCIENCES, cost);
 	if (addScience(science))
 	{
-		// only purchases are events; rank grants and setup grants go through addScience too
-		StatsExporterLiveScienceAcquired(
+		// only purchases are events, rank grants and setup grants go through addScience too
+		LocalApiLiveScienceAcquired(
 			getPlayerIndex(), getRankLevel(), getSciencePurchasePoints(),
 			TheScienceStore->getInternalNameForScience(science).str());
 	}
@@ -3126,7 +3126,7 @@ Upgrade *Player::addUpgrade( const UpgradeTemplate *upgradeTemplate, UpgradeStat
 		onUpgradeCompleted( upgradeTemplate );
 		if( !wasComplete )
 		{
-			StatsExporterLiveUpgradeComplete( getPlayerIndex(), upgradeTemplate->getUpgradeName().str(), upgradeTemplate->calcCostToBuild( this ), FALSE );
+			LocalApiLiveUpgradeComplete( getPlayerIndex(), upgradeTemplate->getUpgradeName().str(), upgradeTemplate->calcCostToBuild( this ), FALSE );
 		}
 	}
 
@@ -3240,7 +3240,7 @@ void Player::addRadar( Bool disableProof )
 		TheAudio->addAudioEvent(&soundToPlay);
 	}
 
-	StatsExporterLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
+	LocalApiLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3266,7 +3266,7 @@ void Player::removeRadar( Bool disableProof )
 		TheAudio->addAudioEvent(&soundToPlay);
 	}
 
-	StatsExporterLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
+	LocalApiLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3285,7 +3285,7 @@ void Player::disableRadar()
 		TheAudio->addAudioEvent(&soundToPlay);
 	}
 
-	StatsExporterLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
+	LocalApiLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3303,7 +3303,7 @@ void Player::enableRadar()
 		TheAudio->addAudioEvent(&soundToPlay);
 	}
 
-	StatsExporterLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
+	LocalApiLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3594,7 +3594,7 @@ void Player::changeBattlePlan( BattlePlanStatus plan, Int delta, const BattlePla
 		applyBattlePlanBonusesForPlayerObjects(&invertedBonus);
 	}
 
-	StatsExporterLiveBattlePlanChanged(getPlayerIndex(), battlePlanBefore, getActiveBattlePlan());
+	LocalApiLiveBattlePlanChanged(getPlayerIndex(), battlePlanBefore, getActiveBattlePlan());
 }
 
 //-------------------------------------------------------------------------------------------------

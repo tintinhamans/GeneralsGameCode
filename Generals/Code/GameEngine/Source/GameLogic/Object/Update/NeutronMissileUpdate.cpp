@@ -32,6 +32,7 @@
 #include "Common/Thing.h"
 #include "Common/ThingTemplate.h"
 #include "Common/RandomValue.h"
+#include "Common/LocalApiLive.h"
 #include "Common/Xfer.h"
 
 #include "GameLogic/ExperienceTracker.h"
@@ -185,6 +186,24 @@ void NeutronMissileUpdate::projectileFireAtObjectOrPosition( const Object *victi
 		m_targetPos = *victimPos;
 		m_intermedPos = m_targetPos;
 		m_intermedPos.z += getNeutronMissileUpdateModuleData()->m_targetFromDirectlyAbove;
+	}
+
+	// GenOnline @feature arcticdolphin 21/11/2026 Read only tap for the stats pipe that reports the flight time the missile data predicts
+	{
+		const NeutronMissileUpdateModuleData* d = getNeutronMissileUpdateModuleData();
+		const Real topSpeed = (d->m_forwardDamping > 0.001f) ? d->m_relativeSpeed / d->m_forwardDamping : 0.0f;
+		if (topSpeed > 0.001f)
+		{
+			const Coord3D* from = getObject()->getPosition();
+			const Coord3D* approach = (d->m_targetFromDirectlyAbove != 0.0f) ? &m_intermedPos : &m_targetPos;
+			const Real toApproach = sqrtf(sqr(approach->x - from->x) + sqr(approach->y - from->y) + sqr(approach->z - from->z));
+			Real legacyFrames = (Real)d->m_specialSpeedTime + toApproach / topSpeed;
+			if (d->m_targetFromDirectlyAbove != 0.0f)
+			{
+				legacyFrames += d->m_targetFromDirectlyAbove / (topSpeed * STRAIGHT_DOWN_SLOW_FACTOR);
+			}
+			LocalApiLiveMissileLaunched(getObject(), &m_targetPos, legacyFrames / (Real)BaseFps);
+		}
 	}
 
 	m_deliveryDecal.clear();

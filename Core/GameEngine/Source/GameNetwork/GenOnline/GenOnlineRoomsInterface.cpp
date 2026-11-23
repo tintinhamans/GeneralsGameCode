@@ -4,9 +4,7 @@
 #include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"
-#if RTS_ZEROHOUR
-#include "Common/StatsExporterLive.h"
-#endif
+#include "Common/LocalApiLive.h"
 #include "GameNetwork/GenOnline/NetworkPacket.h"
 #include "GameNetwork/GenOnline/NetworkBitstream.h"
 #include "GameNetwork/GenOnline/GenOnlineModeration.h"
@@ -168,7 +166,7 @@ void WebSocket::StartPeerSignalling(int64_t lobbyID, int64_t userID, uint16_t pr
 		return;
 	}
 
-	// TODO_NGMP: Better location for this
+	// TODO_GENONLINE: Better location for this
 	// When we find a new player, get their latest stats. Tooltip and loading screen need it, so we'll grab it now and then use cached data later since it cannot possibly change while in a lobby
 	GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
 	if (pStatsInterface != nullptr)
@@ -248,7 +246,6 @@ void WebSocket::CollectMeshConnectivity(std::vector<int64_t>& connected, std::ve
 	}
 }
 
-// The peer networking events of the hub.
 void WebSocket::RegisterPeerHandlers()
 {
 	using namespace GenOnlineRealtime;
@@ -299,7 +296,6 @@ void WebSocket::RegisterPeerHandlers()
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] GenOnlinePluginHost::Anticheat::DeregisterPeer failed");
 			}
 
-			// A deregistered peer gets none of the anti-cheat messages still held for it.
 			NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
 			if (pMesh != nullptr)
 			{
@@ -361,7 +357,7 @@ int64_t WebSocket::HubNowMs()
 	return NowMs();
 }
 
-// Drops the socket without reconnecting. The caller decides what happens next.
+// Drops the socket without reconnecting.
 void WebSocket::ReleaseConnection()
 {
 	m_proxyResolution.reset();
@@ -546,7 +542,7 @@ void WebSocket::OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, co
 static bool IsInLobbyHubMethod(const std::string& method)
 {
 	static const char* const METHODS[] = { "UpdateLobby", "SetLobbyPassword", "UpdateMySlot", "SetHasMap", "SetReady", "SetSlotState",
-		"UpdateSlots", "KickFromLobby", "ForceReady", "StartGame", "BeginMeshCheck" };
+		"UpdateSlots", "KickFromLobby", "BanFromLobby", "ForceReady", "StartGame", "BeginMeshCheck" };
 	for (const char* lobbyMethod : METHODS)
 	{
 		if (method == lobbyMethod)
@@ -621,7 +617,6 @@ std::function<bool()> WebSocket::HubCallWanted(const std::string& method, const 
 		case Scope::InLobby:
 			return lobbyID != -1 && lobbyNow == lobbyID;
 		case Scope::JoinOrCreate:
-			// The attempt is still the current one and the client is in no lobby or in the target.
 			return pLobbyNow->GetLobbyJoinGeneration() == joinGeneration && (lobbyNow == -1 || (targetLobbyID != -1 && lobbyNow == targetLobbyID));
 		case Scope::Leave:
 			// LeaveLobby leaves the lobby the session is in, so any later join or teardown makes it stale.
@@ -1142,7 +1137,7 @@ void WebSocket::Tick()
 	{
 		return;
 	}
-	// Main thread only; m_pCurlWS/m_bConnected are unlocked here.
+	// Main thread only, m_pCurlWS/m_bConnected are unlocked here.
 	UpdateReconnect();
 	PollConnectionSetup();
 	SendPeerTransports(false);
@@ -1297,7 +1292,7 @@ void WebSocket::Tick()
 		return;
 	}
 
-	// drain what the server queued, a signalling burst shouldn't take one frame per tick
+	// drain what the server queued, a signalling burst should not take one frame per tick
 	static constexpr int MAX_WS_FRAMES_PER_TICK = 64;
 	CURLcode ret = CURL_LAST;
 	for (int numFrames = 0; numFrames < MAX_WS_FRAMES_PER_TICK; ++numFrames)
@@ -1358,7 +1353,7 @@ CURLcode WebSocket::ReceiveOneFrame()
 			}
 			else if (meta->flags & CURLWS_CLOSE)
 			{
-				// TODO_NGMP: Dont do this during gameplay, they can play without the WS, just 'queue' it for when they get back to the front end
+				// TODO_GENONLINE: Dont do this during gameplay, they can play without the WS, just 'queue' it for when they get back to the front end
 
 				NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket close");
 				HubTransportLost("websocket closed");
@@ -1366,7 +1361,7 @@ CURLcode WebSocket::ReceiveOneFrame()
 			}
 			else if (meta->flags & CURLWS_PING)
 			{
-				// TODO_NGMP: Handle this
+				// TODO_GENONLINE: Handle this
 			}
 			else if (meta->flags & CURLWS_OFFSET)
 			{
@@ -1461,7 +1456,7 @@ void GenOnlineRoomsInterface::JoinRoom(int roomIndex)
 
 std::unordered_map<uint64_t, NetworkRoomMember>& GenOnlineRoomsInterface::GetMembersListForCurrentRoom()
 {
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Repopulating network room roster using local data");
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Repopulating network room roster using local data");
 	return m_mapMembers;
 }
 
@@ -1494,7 +1489,7 @@ void GenOnlineRoomsInterface::Tick()
 
 void GenOnlineRoomsInterface::ReportRoomJoinFailure(const std::string& error)
 {
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Room change failed: %s", error.c_str());
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Room change failed: %s", error.c_str());
 	if (m_OnChatCallback != nullptr)
 	{
 		UnicodeString message;
@@ -1503,7 +1498,6 @@ void GenOnlineRoomsInterface::ReportRoomJoinFailure(const std::string& error)
 	}
 }
 
-// Realtime protocol v1 rooms /////////////////////////////////////////////////////
 
 static NetworkRoomMember ToRoomMember(const GenOnlineRealtime::Member& member)
 {
@@ -1582,11 +1576,20 @@ void GenOnlineRoomsInterface::OnRealtimeChannelMembers(const GenOnlineRealtime::
 	m_ChannelChat.Start("channel:" + std::to_string(event.channel_id));
 	m_ChannelHistoryDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
 	// Joining a parent room lands in its default child room, which completes the change too.
+	// A parent room stays the selected room while its chat runs in the default child room.
+	int selectedRoomIndex = roomIndex;
 	if (m_PendingRoomChange.has_value() && (m_PendingRoomChange->roomID == event.channel_id
 		|| (roomIndex >= 0 && m_vecRooms[roomIndex].GetParentRoomID() == m_PendingRoomChange->roomID)))
 	{
+		selectedRoomIndex = m_PendingRoomChange->roomIndex;
 		m_PendingRoomChange.reset();
 	}
+	else if (roomIndex >= 0 && m_CurrentRoomIndex >= 0 && m_CurrentRoomIndex < (int)m_vecRooms.size()
+		&& m_vecRooms[roomIndex].GetParentRoomID() == m_vecRooms[m_CurrentRoomIndex].GetRoomID())
+	{
+		selectedRoomIndex = m_CurrentRoomIndex;
+	}
+	roomIndex = selectedRoomIndex;
 	if (roomIndex >= 0 && (effectiveRoomChanged || roomIndex != m_CurrentRoomIndex))
 	{
 		m_CurrentRoomIndex = roomIndex;
@@ -1665,7 +1668,6 @@ void GenOnlineRoomsInterface::OnRealtimeMessageDelete(const GenOnlineRealtime::M
 	}
 }
 
-// The shell chat lists show while the shell is up and no match runs.
 static bool ShellChatShown()
 {
 	return TheShell != nullptr && TheShell->isShellActive() && (TheGenOnlineGame == nullptr || !TheGenOnlineGame->isGameInProgress());
@@ -1762,15 +1764,13 @@ void GenOnlineRoomsInterface::ShowRoomChatLine(const GenOnlineRealtime::ChannelC
 	{
 		color = DetermineMentionColor();
 	}
-#if RTS_ZEROHOUR
 	// Only live chat goes to the stats exporter, so a replayed history line is not exported again.
 	if (line.live)
 	{
 		GenOnlineAuthInterface* pAuth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 		const bool bLocal = pAuth != nullptr && pAuth->GetUserID() == message.author.id;
-		StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_ROOM, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, FALSE, bLocal);
+		LocalApiLiveChatOnline(LOCAL_API_CHAT_ROOM, message.author.id, message.author.name.c_str(), message.content.c_str(), bAction, FALSE, bLocal);
 	}
-#endif
 	if (m_OnChatMessageCallback != nullptr)
 	{
 		m_OnChatMessageCallback(unicodeStr, color, line.key);

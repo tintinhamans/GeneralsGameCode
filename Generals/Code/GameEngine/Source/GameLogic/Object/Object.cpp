@@ -52,6 +52,8 @@
 #include "Common/Xfer.h"
 #include "Common/XferCRC.h"
 #include "Common/PerfTimer.h"
+#include "Common/StatsExporter.h"
+#include "Common/LocalApiLive.h"
 
 #include "GameClient/Anim2D.h"
 #include "GameClient/ControlBar.h"
@@ -2018,7 +2020,7 @@ void Object::setDisabledUntil( DisabledType type, UnsignedInt frame )
 		if ( contain )
 		{
 			Object *rider = (Object*)contain->friend_getRider();
-			if ( rider )
+			if ( rider && !rider->isEffectivelyDead() && rider->m_behaviors )
 			{
 				rider->setDisabledUntil(type, frame);
 			}
@@ -2117,7 +2119,7 @@ Bool Object::clearDisabled( DisabledType type )
 	{
 		// We explicitly pass stuff in up in the set, so we need to turn it off if it is a forever type
 		Object *rider = (Object*)contain->friend_getRider();
-		if( rider  &&  (m_disabledTillFrame[ type ] == FOREVER) )
+		if( rider  &&  !rider->isEffectivelyDead()  &&  rider->m_behaviors  &&  (m_disabledTillFrame[ type ] == FOREVER) )
 		{
 			rider->clearDisabled(type);
 		}
@@ -2171,6 +2173,9 @@ void Object::checkDisabledStatus()
 //-------------------------------------------------------------------------------------------------
 void Object::pauseAllSpecialPowers( const Bool disabling ) const
 {
+	if (!m_behaviors)
+		return;
+
 	for (BehaviorModule** m = m_behaviors; *m; ++m)
 	{
 		SpecialPowerModuleInterface* sp = (*m)->getSpecialPower();
@@ -2731,6 +2736,8 @@ void Object::scoreTheKill( const Object *victim )
 	if (victimController)
 	{
 		victimController->getScoreKeeper()->addObjectLost(victim);
+		// GenOnline @feature arcticdolphin 21/11/2026 Report the loss to the live stats pipe
+		LocalApiLiveLoss(victimController->getPlayerIndex(), victim, this);
 	}
 
 	Relationship r = getRelationship(victim);
@@ -2748,6 +2755,10 @@ void Object::scoreTheKill( const Object *victim )
 		controller->getScoreKeeper()->addObjectDestroyed(victim);
 		controller->addSkillPointsForKill(this, victim);
 		controller->doBountyForKill(this, victim);
+
+		// GenOnline @feature arcticdolphin 21/11/2026 One entry point feeds the live pipe and the JSON export, each under its own gate
+		const DamageInfo *damageInfo = (StatsExporterIsActive() && victim->getBodyModule()) ? victim->getBodyModule()->getLastDamageInfo() : nullptr;
+		StatsExporterRecordKill(this, victim, damageInfo);
 	}
 
 	// Now handle experience, if we can gain any
@@ -4194,6 +4205,10 @@ void Object::onCapture( Player *oldOwner, Player *newOwner )
 
 	// this gets the new owner some points
 	newOwner->getScoreKeeper()->addObjectCaptured(this);
+
+	// GenOnline @feature arcticdolphin 21/11/2026 Report the capture to the JSON export and the live stats pipe
+	StatsExporterRecordCapture(this, oldOwner, newOwner);
+	LocalApiLiveCapture(this, oldOwner, newOwner);
 
 	// rip through the behavior modules and call the onCapture for any modules that care
 	for( BehaviorModule **module = m_behaviors; *module; ++module )

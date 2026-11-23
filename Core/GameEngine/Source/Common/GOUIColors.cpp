@@ -27,12 +27,11 @@
 //     Text = R:255 G:255 B:255 A:255
 //   End
 // It is read with its own small reader rather than the INI class: the first query can come from inside another INI load
-// (OnlineChatColors of multiplayer.ini), and a nested INI load would reset and feed that load's INI CRC.
+// (OnlineChatColors of multiplayer.ini), and a nested INI load would reset and feed the INI CRC of that load.
 
 static const char *const s_tablePath = "Data\\INI\\GOUIColors.ini";
 static const char *const s_separators = " \t\r\n=:";
 
-// the key of each role, in GOUIColorRole order
 static const char *const s_roleNames[] =
 {
 	"Text",
@@ -61,6 +60,7 @@ static const char *const s_roleNames[] =
 	"LobbyRow",
 	"Buddy",
 	"Mention",
+	"LineHilite",
 };
 static_assert( ARRAY_SIZE( s_roleNames ) == GOUICOLOR_COUNT, "s_roleNames needs a key for every GOUIColorRole" );
 
@@ -68,7 +68,7 @@ static Color s_colors[ GOUICOLOR_COUNT ];
 static Bool s_present[ GOUICOLOR_COUNT ];
 static Bool s_loaded = FALSE;
 
-// The next token of a line, split at spaces, '=' and ':'; FALSE at the end of the line
+// The next token of a line, split at spaces, '=' and ':'
 static Bool nextToken( const char **cursor, char *token, Int size )
 {
 	const char *p = *cursor;
@@ -127,7 +127,7 @@ static Int findRole( const char *name )
 	return -1;
 }
 
-// Read the table once, on the first query after the file system is up; without the file every role stays unset
+// Read the table once, on the first query after the file system is up. Without the file every role stays unset.
 static void loadTable( void )
 {
 	if( s_loaded || TheFileSystem == nullptr )

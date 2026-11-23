@@ -1,6 +1,6 @@
 #pragma once
 
-// Turns on Wi-Fi media streaming mode for the adapter that carries the game traffic while a match runs; best effort, a no-op without Wi-Fi.
+// Turns on Wi-Fi media streaming mode for the adapter that carries the game traffic while a match runs, best effort, a no-op without Wi-Fi.
 class WifiLowLatency
 {
 public:

@@ -298,7 +298,7 @@ public:
 
 	/// draw image, coord are in screen and should be kepth within that box specified
 	virtual void winDrawImage( const Image *image, Int startX, Int startY, Int endX, Int endY, Color color = 0xFFFFFFFF );
-	/// draw a left end, tiled center and right end bar, each piece at its own aspect for the bar height; smallCenter may be null
+	/// Draws a left end, tiled center and right end bar, each piece at its own aspect for the bar height. smallCenter may be null.
 	void winDrawThreePieceImage(const Image* left, const Image* center, const Image* smallCenter, const Image* right, Int x, Int y, Int width, Int height, Color color = 0xFFFFFFFF);
 	/// draw filled rect, coords are absolute screen coords
 	virtual void winFillRect( Color color, Real width, Int startX, Int startY, Int endX, Int endY );
@@ -349,7 +349,7 @@ protected:
 
 	void dumpWindow( GameWindow *window );  ///< for debugging
 
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Show the Hand cursor over clickable controls in the shell menus.
+	// GenOnline @feature arcticdolphin 08/11/2026 Show the Hand cursor over clickable controls in the shell menus.
 	void updateHandCursor();  ///< set or restore the Hand cursor when the window under the mouse changes
 	Bool isHandCursorWindow(GameWindow* window, Int mouseX, Int mouseY);  ///< is this window a clickable shell control under the mouse
 

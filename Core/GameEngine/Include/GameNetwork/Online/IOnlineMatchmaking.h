@@ -16,13 +16,11 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// Command-only compatibility facade. Response ownership remains with existing consumers.
 #pragma once
 
 class PeerRequest;
 
-// Reuses the existing queue vocabulary; start copies the complete request and
-// sets its command type. No borrowed buffers or response ownership are added.
+// Start copies the complete request and sets its command type.
 class IOnlineMatchmaking
 {
 public:

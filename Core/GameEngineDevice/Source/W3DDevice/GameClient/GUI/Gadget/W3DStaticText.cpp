@@ -92,7 +92,7 @@ static void drawStaticTextText( GameWindow *window, WinInstanceData *instData,
 	window->winGetSize( &size.x, &size.y );
 
 	// Set the text Wrap width
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The wrap margin scales with the screen height.
+	// GenOnline @tweak arcticdolphin 08/11/2026 The wrap margin scales with the screen height.
 	wordWrap = size.x - GameWindowManager::winScaleLayoutSize( 10 );
 	//if(wordWrap == 89)
 	//	wordWrap = 95;
@@ -179,7 +179,7 @@ void W3DGadgetStaticTextDraw( GameWindow *window, WinInstanceData *instData )
 
 	}
 
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 With the GO kit, a layout border in a kit or palette line colour draws at the kit line weight.
+	// GenOnline @tweak arcticdolphin 08/11/2026 With the GO kit, a layout border in a kit or palette line colour draws at the kit line weight.
 	Color kitFrameColor;
 	Bool kitFrame = GadgetListBoxGetKitFrameColor( backBorder, &kitFrameColor );
 

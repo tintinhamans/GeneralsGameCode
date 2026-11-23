@@ -96,6 +96,7 @@ void slotListDebugLog(const char *fmt, ...)
 #define SLOTLIST_DEBUG_LOG(x) DEBUG_LOG(x)
 #endif
 
+// TODO_GENONLINE: Remove this, make others get it from the service
 void SendStatsToOtherPlayers(const GameInfo *game)
 {
 	PeerRequest req;
@@ -821,7 +822,7 @@ static void StartPressed()
 	}
 	else
 	{
-		// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name hides the user's folders.
+		// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
 		mapDisplayName = getMapNameFromPath(myGame->getMap());
 		willTransfer = WouldMapTransfer(myGame->getMap());
 	}
@@ -1256,6 +1257,9 @@ void InitWOLGameGadgets()
 	if( buttonAccept[0] )
 		buttonAccept[0]->winEnable(TRUE);
 
+						// re-enable critical buttons for everyone
+						// restore state
+				// Re-enable Back and Start buttons when countdown stops
 	if (buttonBack != nullptr)
 	{
 		buttonBack->winEnable(TRUE);
@@ -1355,6 +1359,8 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 	TheGameSpyInfo->registerTextWindow(listboxGameSetupChat);
 
 	//The dialog needs to react differently depending on whether it's the host or not.
+	// TODO_GENONLINE
+	//TheGameSpyInfo->registerTextWindow(listboxGameSetupChat);
 	TheMapCache->updateCache();
 	GameSpyStagingRoom *game = TheGameSpyInfo->getCurrentStagingRoom();
 	GameSpyGameSlot *hostSlot = game->getGameSpySlot(0);
@@ -2082,7 +2088,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 										}
 										else
 										{
-											// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name hides the user's folders.
+											// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
 											mapDisplayName = getMapNameFromPath(game->getMap());
 											willTransfer = WouldMapTransfer(game->getMap());
 										}
@@ -2231,7 +2237,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 									}
 									else
 									{
-										// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name hides the user's folders.
+										// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
 										mapDisplayName = getMapNameFromPath(game->getMap());
 										willTransfer = WouldMapTransfer(game->getMap());
 									}

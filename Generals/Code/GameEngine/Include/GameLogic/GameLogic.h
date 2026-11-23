@@ -153,6 +153,7 @@ public:
 
 	void updateLoadProgress( Int progress );
 	void deleteLoadScreen();
+	void revealFromLoadScreen(Bool loadingSaveGame);	///< Fades the load screen out and deletes it.
 
 	//Kris: Cut setGameLoading() and replaced with setLoadingMap() and setLoadingSave() -- reason: nomenclature
 	//void setGameLoading( Bool loading ) { m_loadingScene = loading; }
@@ -453,7 +454,14 @@ private:
 	Bool m_logicTimeScaleEnabledMemory;
 
 	Bool m_progressComplete[MAX_SLOTS];
+#if defined(GENONLINE)
+	Int m_progressMade[MAX_SLOTS];
+	// GenOnline @tweak arcticdolphin 21/11/2026 Players that made some load progress get a longer grace period than players that made none.
+	enum { PROGRESS_COMPLETE_TIMEOUT_PROGRESS_MADE = 30000 };
+	enum { PROGRESS_COMPLETE_TIMEOUT_ZERO_PROGRESS_MADE = 5000 };
+#else
 	enum { PROGRESS_COMPLETE_TIMEOUT = 60000 };							///< Timeout we wait for when we've completed our Load
+#endif
 	Int m_progressCompleteTimeout[MAX_SLOTS];
 	void testTimeOut();
 	void lastHeardFrom( Int playerId );
@@ -521,6 +529,12 @@ inline Object* GameLogic::findObjectByID( ObjectID id )
 }
 
 
+
+class GameInfo;
+class GameSlot;
+
+// GenOnline @feature arcticdolphin 21/11/2026 The stats exporter needs the same local slot test as Zero Hour.
+extern Bool GameLogicIsLocalSlot(GameInfo* game, GameSlot* slot);
 
 // the singleton
 extern GameLogic *TheGameLogic;

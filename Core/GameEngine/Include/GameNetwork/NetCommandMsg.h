@@ -712,7 +712,7 @@ public:
 };
 
 //-----------------------------------------------------------------------------
-// The wire form of a frame info with its author's signature, read back into a NetFrameCommandMsg.
+// The wire form of a frame info with the signature of its author, read back into a NetFrameCommandMsg.
 class NetSignedFrameCommandMsg : public NetCommandMsgT<NetPacketSignedFrameCommand, SmallNetPacketSignedFrameCommand>
 {
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(NetSignedFrameCommandMsg, "NetSignedFrameCommandMsg")

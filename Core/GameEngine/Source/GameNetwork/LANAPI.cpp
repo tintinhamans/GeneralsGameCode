@@ -774,7 +774,7 @@ void LANAPI::RequestHasMap()
 		}
 		else
 		{
-			// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name hides the user's folders.
+			// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
 			mapDisplayName = getMapNameFromPath(m_currentGame->getMap());
 			willTransfer = WouldMapTransfer(m_currentGame->getMap());
 		}

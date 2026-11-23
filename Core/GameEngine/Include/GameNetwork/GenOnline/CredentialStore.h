@@ -14,7 +14,7 @@ void SetCredentialLogSink(void (*sink)(const std::string&));
 // test hook: encryption and decryption fail with this error code, 0 turns it off
 void SetCredentialCryptFailureForTest(unsigned long errorCode);
 
-// returns false when the value could not be saved to the file; it is then kept for this session
+// returns false when the value could not be saved to the file, it is then kept for this session
 bool SaveProxyLogin(const std::string& proxyKey, const std::string& user, const std::string& password);
 bool LoadProxyLogin(const std::string& proxyKey, std::string& user, std::string& password);
 bool DeleteProxyLogin(const std::string& proxyKey);

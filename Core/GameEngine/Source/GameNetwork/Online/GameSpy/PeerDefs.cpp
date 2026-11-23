@@ -598,7 +598,6 @@ const AsciiString& GameSpyInfo::getConfig()
 // --------------------------------------------------------------
 void SetUpGameSpy( const char *motdBuffer, const char *configBuffer )
 {
-	// Only the GameSpy Online path calls this, so it sets up the GameSpy services.
 	SetUpOnline(ONLINE_PROVIDER_GAMESPY, motdBuffer, configBuffer);
 }
 

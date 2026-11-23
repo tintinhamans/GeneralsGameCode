@@ -719,10 +719,9 @@ void GameClient::update()
 	}
 	m_LegacyFrameEndLastFrame = currTime;
 
-	// TODO_NGMP: This should really use partial frame intervals instead of a fixed 60hz update
+	// TODO_GENONLINE: This should really use partial frame intervals instead of a fixed 60hz update
 	if (m_legacyFrameMSAccured >= MSEC_PER_SECOND)
 	{
-		// The remainder carries over so the base frame rate does not depend on the render rate.
 		m_legacyFrameMSAccured -= MSEC_PER_SECOND;
 		// A stall advances one base frame only and does not queue a burst of catch up frames.
 		if (m_legacyFrameMSAccured >= MSEC_PER_SECOND)

@@ -57,7 +57,6 @@ private:
 	Int m_count;
 };
 
-// Tracks latency, jitter and loss of one connection over a sliding time window.
 class ConnectionStats
 {
 public:
@@ -168,7 +167,7 @@ private:
 	TimedRing<Event, MAX_EVENTS> m_events;
 };
 
-// Run ahead from the per window need: a forgetting quantile of normal windows is the baseline; spike episodes are bought only
+// Run ahead from the per window need, with a forgetting quantile of normal windows as the baseline and spike episodes bought only
 // when they recur faster than one per lambda. Rules use window time, so the decision interval does not matter.
 class RunAheadSpikeController
 {
@@ -247,7 +246,6 @@ private:
 	void recordEpisode(const Episode &episode);
 };
 
-// What the network overlay and the connection rating need to know about one slot beyond its ConnectionStats.
 struct NetworkOverlayInfo
 {
 	NetworkOverlayInfo()

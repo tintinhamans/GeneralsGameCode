@@ -106,7 +106,7 @@ std::vector<ALCint> outputAttributes(int sampleRate)
 {
     // Basic stereo with HRTF off keeps a headphone endpoint from switching HRTF on behind the measured Miles mix.
     std::vector<ALCint> attributes = {ALC_OUTPUT_MODE_SOFT, ALC_STEREO_BASIC_SOFT, ALC_HRTF_SOFT, ALC_FALSE};
-    // Without a requested rate the device mixes at the endpoint's rate and skips a whole-mix resample.
+    // Without a requested rate the device mixes at the rate of the endpoint and skips a whole-mix resample.
     if (sampleRate > 0)
         attributes.insert(attributes.end(), {ALC_FREQUENCY, sampleRate});
     attributes.push_back(0);

@@ -17,16 +17,12 @@
 */
 
 // FILE: GSConfig.h ///////////////////////////////////////////////////////////
-// TheSuperHackers @refactor GenMP Phase 1 - The online config interface moved
-// to GameNetwork/Online/IOnlineConfig.h. This forwarding header keeps the old
-// include path valid for existing consumers with no source edits.
+// TheSuperHackers @refactor GenMP Phase 1: This forwarding header keeps the old include path of IOnlineConfig.h valid.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
 #include "GameNetwork/Online/IOnlineConfig.h"
 
-// TheSuperHackers @refactor GenMP Phase 1 - Compatibility alias. Existing code
-// that names GameSpyConfigInterface (including qualified static calls such as
-// GameSpyConfigInterface::create) keeps compiling unchanged.
+// TheSuperHackers @refactor GenMP Phase 1: The alias keeps code that names GameSpyConfigInterface compiling.
 typedef IOnlineConfig GameSpyConfigInterface;

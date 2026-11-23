@@ -76,7 +76,7 @@ static const FieldParse GameSpyColorFieldParse[] =
 };
 static_assert(ARRAY_SIZE(GameSpyColorFieldParse) == GSCOLOR_MAX + 1, "Incorrect array size");
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 The GO UI colour table can replace a few OnlineChatColors, as a palette sets them.
+// GenOnline @feature arcticdolphin 09/11/2026 The GO UI colour table can replace a few OnlineChatColors, as a palette sets them.
 static void applyUIColor( GOUIColorRole role, GameSpyColors which )
 {
 	Color color;

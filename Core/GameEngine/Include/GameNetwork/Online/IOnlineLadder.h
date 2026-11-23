@@ -67,8 +67,7 @@ class IOnlineLadder
 public:
 	virtual ~IOnlineLadder() {}
 
-	// Returned entries and lists are provider-owned borrows.  They remain valid
-	// only until the owning online service is destroyed.
+	// Returned entries and lists are borrowed and valid until the owning service is destroyed.
 	virtual const LadderInfo* findLadder( const AsciiString& addr, UnsignedShort port ) = 0;
 	virtual const LadderInfo* findLadderByIndex( Int index ) = 0;	// index zero returns no entry
 	virtual const LadderInfoList* getLocalLadders() = 0;

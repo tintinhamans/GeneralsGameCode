@@ -342,13 +342,12 @@ extern void ShowInGameChat( Bool immediate = TRUE );
 void ResetInGameChat();
 void SetInGameChatType( InGameChatType chatType );
 Bool IsInGameChatActive();
-/// Handles a line of in-match chat as if it was typed into the chat box (slash command, else recipient mask, mute, language filter).
 Bool SubmitInGameChatLine( const UnicodeString& text, InGameChatType chatType );
-/// Handles a line as if it was typed into that menu's chat box (slash commands included); FALSE if the menu is not open.
+/// Handles a line as if it was typed into the chat box of that menu. Returns FALSE if the menu is not open.
 Bool LanLobbyMenuSubmitChatLine( UnicodeString text );
 Bool LanGameOptionsMenuSubmitChatLine( UnicodeString text );
 
-/// Stats pipe lobby control: each game setup screen describes its controls (FALSE when it is not open), and the map selector's OK path runs without the selector.
+/// Stats pipe lobby control: each game setup screen describes its controls (FALSE when it is not open), and the OK path of the map selector runs without the selector.
 struct StatsLobbyScreen;
 Bool SkirmishGameOptionsMenuStatsLobby( StatsLobbyScreen& out );
 Bool LanGameOptionsMenuStatsLobby( StatsLobbyScreen& out );

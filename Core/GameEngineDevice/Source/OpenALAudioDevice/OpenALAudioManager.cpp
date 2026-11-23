@@ -99,7 +99,7 @@ struct OpenALAudioManager::Voice
     bool portionRefreshPending = true;
     unsigned completedRounds = 0;
 
-    // Channels to request from the cache. 3D voices mix mono and 2D voices keep the file's own channels, with mono files on both sides.
+    // 3D voices mix mono, and 2D voices keep the channels of the file.
     int clipChannels() const
     {
         if (channels == 1 || forced)
@@ -192,7 +192,7 @@ void OpenALAudioManager::openDevice()
         setOn(false, AudioAffect_All);
         return;
     }
-    // OutputRate stays the decode rate of streams and movies, while the device mixes at the endpoint's rate.
+    // OutputRate stays the decode rate of streams and movies, while the device mixes at the rate of the endpoint.
     if (!m_device.open(0)) {
         DEBUG_LOG(("OpenAL audio device initialization failed: 0x%x", m_device.getLastError()));
         setOn(false, AudioAffect_All);
@@ -448,7 +448,7 @@ void OpenALAudioManager::stopVoice(Voice &voice, bool immediate)
     }
     unsigned frames = 0;
     if (decay != nullptr) {
-        // The stream holds the tail as it plays it, float mono for 3D and S16 at the voice's channels otherwise.
+        // The stream holds the tail as it plays it, float mono for 3D and S16 at the channels of the voice otherwise.
         size_t frameBytes = sizeof(short) * voice.channels;
         if (voice.channels == 1)
             frameBytes = sizeof(float);

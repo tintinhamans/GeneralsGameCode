@@ -71,6 +71,52 @@ GlobalData* TheWritableGlobalData = nullptr;				///< The global data singleton
 //-------------------------------------------------------------------------------------------------
 GlobalData* GlobalData::m_theOriginal = nullptr;
 
+#if defined(GENONLINE)
+// GenOnline @bugfix arcticdolphin 21/11/2026 Keep non ASCII characters of the documents folder path working with the char file APIs.
+#ifndef WC_NO_BEST_FIT_CHARS
+#define WC_NO_BEST_FIT_CHARS 0x00000400
+#endif
+
+//-------------------------------------------------------------------------------------------------
+// Converts to the process code page that every char* file API uses and fails instead of mangling characters it cannot represent.
+static Bool wideToProcessCodePage(const wchar_t* widePath, AsciiString& out)
+{
+	const Bool isUtf8 = GetACP() == CP_UTF8;
+	const UINT codePage = isUtf8 ? CP_UTF8 : CP_ACP;
+	const DWORD flags = isUtf8 ? 0 : WC_NO_BEST_FIT_CHARS;
+	BOOL usedDefaultChar = FALSE;
+	BOOL* pUsedDefaultChar = isUtf8 ? nullptr : &usedDefaultChar;
+
+	const int len = WideCharToMultiByte(codePage, flags, widePath, -1, nullptr, 0, nullptr, pUsedDefaultChar);
+	if (len <= 0 || usedDefaultChar)
+		return FALSE;
+
+	char* buffer = new char[len];
+	const int written = WideCharToMultiByte(codePage, flags, widePath, -1, buffer, len, nullptr, pUsedDefaultChar);
+	if (written > 0 && !usedDefaultChar)
+		out = buffer;
+	delete[] buffer;
+	return written > 0 && !usedDefaultChar;
+}
+
+//-------------------------------------------------------------------------------------------------
+// Falls back to the ASCII 8.3 short path when the code page cannot hold the path, as on Windows versions before UTF-8 support.
+static AsciiString widePathToFileApiPath(const wchar_t* widePath)
+{
+	AsciiString path;
+	if (wideToProcessCodePage(widePath, path))
+		return path;
+
+	wchar_t shortPath[_MAX_PATH + 1];
+	const DWORD shortLen = GetShortPathNameW(widePath, shortPath, _MAX_PATH + 1);
+	if (shortLen > 0 && shortLen <= _MAX_PATH && wideToProcessCodePage(shortPath, path))
+		return path;
+
+	DEBUG_LOG(("Documents path can't be represented in code page %u and has no short name", GetACP()));
+	return AsciiString::TheEmptyString;
+}
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -639,6 +685,9 @@ GlobalData::GlobalData()
 	m_framesPerSecondLimit = 0;
 	m_chipSetType = 0;
 	m_headless = FALSE;
+#if defined(GENONLINE)
+	m_exportStats = FALSE;
+#endif
 	m_windowed = 0;
 	m_xResolution = 800;
 	m_yResolution = 600;
@@ -1240,7 +1289,7 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_showMoneyPerMinute = optionPref.getShowMoneyPerMinute();
 	TheWritableGlobalData->m_gameWindowTransitionSpeedMultiplier = optionPref.getGameWindowTransitionSpeedMultiplier();
 #if defined(GENONLINE)
-	// The camera factors and the observer overlay settings come from client.json.
+	// The camera factors and the observer overlay settings come from settings.client.json.
 	TheWritableGlobalData->applyGenOnlineClientSettings();
 #endif
 
@@ -1402,15 +1451,27 @@ AsciiString GlobalData::BuildUserDataPathFromIni()
 		HRESULT hr = pSHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_DEFAULT, nullptr, &pszPath);
 
 		if (SUCCEEDED(hr) && pszPath) {
+#if defined(GENONLINE)
+			// GenOnline @bugfix arcticdolphin 21/11/2026 Convert through the process code page instead of narrowing each character.
+			myDocumentsDirectory = widePathToFileApiPath(pszPath);
+#else
 			myDocumentsDirectory.translate(pszPath);
+#endif
 			CoTaskMemFree(pszPath);
 		}
 	}
 	else {
+#if defined(GENONLINE)
+		wchar_t temp[_MAX_PATH + 1];
+		if (SHGetSpecialFolderPathW(nullptr, temp, CSIDL_PERSONAL, true)) {
+			myDocumentsDirectory = widePathToFileApiPath(temp);
+		}
+#else
 		char temp[_MAX_PATH + 1];
 		if (SHGetSpecialFolderPath(nullptr, temp, CSIDL_PERSONAL, true)) {
 			myDocumentsDirectory = temp;
 		}
+#endif
 	}
 
 	if (!myDocumentsDirectory.isEmpty()) {

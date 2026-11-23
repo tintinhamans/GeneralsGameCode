@@ -22,7 +22,6 @@ std::string PeerRouteLabel(const std::string& transportLabel, PeerRoute route, P
 /// The route label with the IP version of a GNS peer, such as "GNS direct IPv4". A plugin does not tell its IP version.
 std::string PeerPathLabel(const std::string& transportLabel, PeerTransportKind kind, bool bIPv4, PeerRoute route, PeerLinkState linkState);
 
-// What a /net command asks for.
 enum class PeerNetAction
 {
 	Status,	///< /net shows the settings of the next lobby and the route to each player.
@@ -55,5 +54,4 @@ std::vector<std::string> FilterOfferedTransports(const std::vector<std::string>&
 /// 1 forces the relay of the plugin and 0 allows direct connections, the values of GENONLINE_PLUGIN_RELAY_FORCE and GENONLINE_PLUGIN_RELAY_ALLOW.
 int PluginRelayPolicy(bool bRelayOnly);
 
-/// True when a plugin table that reports structSize bytes holds the whole field at fieldOffset of fieldSize bytes.
 bool PluginTableCoversField(uint32_t structSize, size_t fieldOffset, size_t fieldSize);

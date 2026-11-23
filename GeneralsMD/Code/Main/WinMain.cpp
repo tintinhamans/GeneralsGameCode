@@ -305,7 +305,7 @@ static void setWinMainActive(Bool active)
 	}
 }
 
-// TheSuperHackers @bugfix arcticdolphin 07/11/2026 A windowed game is a normal window, so the taskbar, which is topmost, covered
+// GenOnline @bugfix arcticdolphin 07/11/2026 A windowed game is a normal window, so the taskbar, which is topmost, covered
 // the part of a window as large as the monitor that lies over it. While the game has focus, such a window is topmost.
 static const UINT_PTR WINDOWED_TOPMOST_TIMER_ID = 0x5450;
 static void updateWindowedTopmost(HWND hWnd, Bool active);
@@ -368,8 +368,8 @@ static void updateWindowedTopmost(HWND hWnd, Bool active)
 		if (isTopmost)
 		{
 			SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-			// leaving topmost puts the window above all normal windows; it goes back behind a normal window that took focus
-			// (going behind a topmost one, such as the taskbar, would make it topmost again)
+			// leaving topmost puts the window above all normal windows, so it goes back behind a normal window that took focus
+			// going behind a topmost window such as the taskbar would make it topmost again
 			HWND foreground = GetForegroundWindow();
 			if (foreground != nullptr && foreground != hWnd && (GetWindowLong(foreground, GWL_EXSTYLE) & WS_EX_TOPMOST) == 0)
 			{
@@ -1018,7 +1018,7 @@ static void WriteGameCrashData(struct _EXCEPTION_POINTERS* e_info)
 }
 
 #if defined(GENONLINE)
-// TheSuperHackers @bugfix arcticdolphin 08/11/2026 A fault while writing the game's crash data must not stop the Sentry report
+// GenOnline @bugfix arcticdolphin 08/11/2026 A fault while writing the crash data of the game must not stop the Sentry report
 static void WriteGameCrashDataGuarded(struct _EXCEPTION_POINTERS* e_info)
 {
 	__try
@@ -1034,7 +1034,7 @@ static void WriteGameCrashDataGuarded(struct _EXCEPTION_POINTERS* e_info)
 static LONG WINAPI UnHandledExceptionFilter(struct _EXCEPTION_POINTERS* e_info)
 {
 #if defined(GENONLINE)
-	// The game's dumps and crash info come first, then the Sentry filter waits while its crash daemon uploads the report.
+	// The dumps and crash info of the game come first, then the Sentry filter waits while its crash daemon uploads the report.
 	// The game ends the process itself because the Sentry filter asks Windows to keep searching, which opens the Windows crash dialog.
 	WriteGameCrashDataGuarded(e_info);
 	LONG sentryResult = EXCEPTION_EXECUTE_HANDLER;

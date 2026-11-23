@@ -22,7 +22,7 @@ enum class EChatMessageType
 	CHAT_MESSAGE_TYPE_NETWORK_ROOM,
 	CHAT_MESSAGE_TYPE_LOBBY
 };
-// TheSuperHackers @feature arcticdolphin 09/11/2026 System and chat line colours come from the GO UI colour table, these colours without it.
+// GenOnline @feature arcticdolphin 09/11/2026 System and chat line colours come from the GO UI colour table, these colours without it.
 static Color DetermineSystemNoticeColor(bool bWarning = false, bool bError = false)
 {
 	if (bError)
@@ -45,14 +45,13 @@ static Color DetermineMentionColor()
 // True when the realtime message mentions the signed in user and another user wrote it.
 bool GenOnlineMentionsLocalUser(const GenOnlineRealtime::ChatMessage& message);
 
-// Plays the sound of a chat message that mentions the local player.
 void GenOnlinePlayMentionSound();
 
 static Color DetermineColorForChatMessage(EChatMessageType chatMessageType, Bool isPublic, bool bAction, bool bAdmin, bool bIsNameChange, int lobbySlot = -1)
 {
 	Color style = GOUIColor(GOUICOLOR_TEXT, GameMakeColor(255, 255, 255, 255));
 
-	// TODO_NGMP: Support owner chat again
+	// TODO_GENONLINE: Support owner chat again
 	Bool isOwner = false;
 
 	if (isPublic && bAction)

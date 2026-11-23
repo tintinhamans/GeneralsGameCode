@@ -1,9 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "builtin-baseline": "b61d33065508ba0d5e393206abb3cb2366299699",
-  "vcpkg-configuration": {
-    "overlay-ports": [ "cmake/ports" ]
-  },
   "dependencies": [
     "zlib",
     "stb",
@@ -29,7 +26,7 @@
   ],
   "features": {
     "ffmpeg": {
-      "description": "Use FFmpeg instead of Bink for video rendering (trimmed overlay port in cmake/ports/ffmpeg)",
+      "description": "Use FFmpeg instead of Bink for video rendering",
       "dependencies": [ "ffmpeg" ]
     },
     "openal-audio": {

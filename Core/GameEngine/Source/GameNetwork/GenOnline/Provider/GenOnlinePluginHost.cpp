@@ -16,8 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlinePluginHost.cpp //////////////////////////////////////////////
-// Description: Host of the GenOnline plugins.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
@@ -58,8 +56,10 @@ constexpr uint32_t kPluginApiMinSize = static_cast<uint32_t>(offsetof(GenOnlineP
 constexpr uint32_t kLinkedAccountApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginLinkedAccountApi, provider) + sizeof(void*));
 constexpr uint32_t kAnticheatApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginAnticheatApi, MessageArrived) + sizeof(void*));
 constexpr uint32_t kTransportApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginTransportApi, DisconnectAll) + sizeof(void*));
+constexpr uint32_t kLocalApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginLocalApi, FreeInbound) + sizeof(void*));
+// A plugin table that ends before the tool field comes from a plugin built before the tool table existed.
+constexpr uint32_t kPluginApiLocalApiEnd = static_cast<uint32_t>(offsetof(GenOnlinePluginApi, localApi) + sizeof(void*));
 
-// Minisign public keys that sign the plugin manifests, see GenOnlinePluginKeys.h.
 constexpr const char* s_pluginPublicKeys[] = { GenOnlinePluginKeys::kPluginsCurrent, GenOnlinePluginKeys::kPluginsNext };
 
 // The plugin names that this build loads, each with the lowest manifest version that it accepts, so an older
@@ -68,6 +68,12 @@ constexpr const char* s_pluginPublicKeys[] = { GenOnlinePluginKeys::kPluginsCurr
 constexpr GenOnlinePluginTrust::AllowedPlugin s_allowedPlugins[] =
 {
 	{ "genonline_eos", { 2026, 11, 0 } },
+};
+
+// The caster slot has its own list, so neither slot loads the plugin of the other.
+constexpr GenOnlinePluginTrust::AllowedPlugin s_allowedToolPlugins[] =
+{
+	{ "genonline_caster", { 2026, 11, 0 } },
 };
 
 // GENONLINE_ALLOW_UNSIGNED_PLUGINS comes from the CMake option of the same name, which is off by default and
@@ -109,6 +115,13 @@ bool s_bBuiltInLoaded = false;
 
 bool s_bSessionStarted = false;
 int64_t s_tokenCreationTime = -1;
+
+// The caster plugin slot, independent of the online plugin above.
+GenOnlinePluginTrust::PluginFiles s_toolPluginFiles;
+GenOnlinePluginPlatform::Module s_hToolPluginModule = nullptr;
+GenOnlinePluginApi s_toolPluginApi = {};
+GenOnlinePluginHostApi s_localApiHostApi = {};
+const GenOnlinePluginLocalApi* s_pLocalApi = nullptr;
 
 int64_t UtcNowMs()
 {
@@ -225,6 +238,19 @@ bool ValidateTransportApi(const GenOnlinePluginTransportApi* pApi)
 		&& pApi->IsRelayed != nullptr
 		&& pApi->DisconnectPeer != nullptr
 		&& pApi->DisconnectAll != nullptr;
+}
+
+bool ValidateLocalApi(const GenOnlinePluginLocalApi* pApi)
+{
+	return pApi != nullptr
+		&& pApi->structSize >= kLocalApiMinSize
+		&& pApi->version == GENONLINE_PLUGIN_LOCAL_API_VERSION
+		&& pApi->StartListener != nullptr
+		&& pApi->IsConnected != nullptr
+		&& pApi->EnqueueFrame != nullptr
+		&& pApi->TakeReaderEvent != nullptr
+		&& pApi->TakeInbound != nullptr
+		&& pApi->FreeInbound != nullptr;
 }
 
 // Checks one sub interface against its capability bit. A set bit with an invalid table refuses the plugin.
@@ -600,7 +626,6 @@ void GenOnlinePluginHost::LoadPlugin(const std::string& anticheatPlugin, const s
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] The host loads one plugin DLL, so %s loads and the transport plugins %s do not load", pluginName.c_str(), skipped.c_str());
 	}
 
-	// No plugin is the normal default.
 	if (pluginName.empty())
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] No plugin configured");
@@ -770,7 +795,7 @@ void GenOnlinePluginHost::LoadPlugin(const std::string& anticheatPlugin, const s
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] FATAL: Plugin Initialize returned %d - %s", initResult, DescribeResult(initResult));
 
 		// Initialize() is responsible for cleaning up after itself on failure, but call
-		// Shutdown() anyway - it is documented as idempotent.
+		// Shutdown() anyway, it is documented as idempotent.
 		api.Shutdown();
 		FailPluginLoad(hModule);
 		return;
@@ -786,7 +811,6 @@ void GenOnlinePluginHost::LoadPlugin(const std::string& anticheatPlugin, const s
 	s_bPluginLoaded = true;
 	s_bPluginIsAnticheat = selection.bAnticheat;
 
-	// An accepted transport may carry pairs from now on.
 	if (s_pTransport != nullptr && s_pTransport->SetEnabled != nullptr)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Telling the transport of %s that it may carry pairs", api.name);
@@ -922,6 +946,197 @@ int GenOnlinePluginHost::GetAnticheatIdentifier()
 	return 0;
 }
 
+void GenOnlinePluginHost::LoadToolPlugin()
+{
+	if (s_hToolPluginModule != nullptr)
+	{
+		return;
+	}
+
+	const std::string pluginName = GenOnlineServicesManager::Settings.GetCasterPlugin();
+	if (pluginName.empty())
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] No caster plugin configured");
+		return;
+	}
+
+	if (!IsValidPluginName(pluginName))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: Refusing caster plugin name '%s', only letters, digits and underscores are allowed", pluginName.c_str());
+		return;
+	}
+
+	const std::wstring exeDirectory = GetExecutableDirectory();
+	if (exeDirectory.empty())
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: Cannot determine the game executable directory");
+		return;
+	}
+
+	const std::string pluginsFolder = to_utf8(exeDirectory + L"plugins");
+	const std::string pluginPathUtf8 = GenOnlinePluginPlatform::JoinPath(pluginsFolder, pluginName + "\\" + pluginName + ".dll");
+
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Attempting to load caster plugin from %s", pluginPathUtf8.c_str());
+
+	std::string trustError;
+	bool bTrusted = false;
+	if (!GenOnlinePluginTrust::HasPublicKeys(s_pluginPublicKeys))
+	{
+		trustError = "this build has no plugin signing keys";
+	}
+	else
+	{
+		bTrusted = GenOnlinePluginTrust::VerifyPluginFolder(pluginsFolder, pluginName, GENONLINE_PLUGIN_API_VERSION, s_pluginPublicKeys, s_allowedToolPlugins, s_toolPluginFiles, trustError);
+	}
+
+	if (bTrusted)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Caster plugin %s %s has a valid signed manifest", pluginName.c_str(), s_toolPluginFiles.GetVersion().c_str());
+	}
+	else if (!GenOnlinePluginTrust::MayLoadUnverifiedPlugin(s_pluginPublicKeys, kAllowUnsignedPlugins))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: Refusing caster plugin %s, %s", pluginName.c_str(), trustError.c_str());
+		s_toolPluginFiles.Close();
+		return;
+	}
+	else
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] WARNING: Caster plugin %s is not verified, %s. Loading it because this build defines GENONLINE_ALLOW_UNSIGNED_PLUGINS", pluginName.c_str(), trustError.c_str());
+		std::string openError;
+		if (!s_toolPluginFiles.OpenUnverifiedMainFile(pluginsFolder, pluginName, openError))
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: Refusing caster plugin %s, %s", pluginName.c_str(), openError.c_str());
+			s_toolPluginFiles.Close();
+			return;
+		}
+	}
+
+	std::string loadError;
+	GenOnlinePluginPlatform::Module hModule = GenOnlinePluginPlatform::LoadModule(s_toolPluginFiles.GetMainFile(), loadError);
+	if (hModule == nullptr)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: Failed to load %s, %s", s_toolPluginFiles.GetMainFilePath().c_str(), loadError.c_str());
+		s_toolPluginFiles.Close();
+		return;
+	}
+
+	// Every failure below unloads the module and releases the locked files.
+	auto failLoad = [hModule]()
+	{
+		GenOnlinePluginPlatform::UnloadModule(hModule);
+		s_toolPluginFiles.Close();
+	};
+
+	if (!GenOnlinePluginPlatform::IsModuleBackedByFile(hModule, s_toolPluginFiles.GetMainFile()))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: The loaded module is not the hashed file %s", pluginPathUtf8.c_str());
+		failLoad();
+		return;
+	}
+
+	GenOnlinePluginGetApiFn fnGetApi = reinterpret_cast<GenOnlinePluginGetApiFn>(GenOnlinePluginPlatform::GetSymbol(hModule, GENONLINE_PLUGIN_GET_API_EXPORT_NAME));
+	if (fnGetApi == nullptr)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: %s does not export %s, it is not a GenOnline plugin API %u plugin", pluginPathUtf8.c_str(), GENONLINE_PLUGIN_GET_API_EXPORT_NAME, GENONLINE_PLUGIN_API_VERSION);
+		failLoad();
+		return;
+	}
+
+	// FillHostApi resets the tables that a loaded online plugin holds, so it runs only while none is loaded.
+	if (!s_bPluginLoaded && s_hPluginModule == nullptr)
+	{
+		FillHostApi();
+	}
+	s_localApiHostApi = s_transportOnlyHostApi;
+	s_localApiHostApi.enabledCapabilities = GENONLINE_PLUGIN_CAP_LOCAL_API;
+
+	GenOnlinePluginApi api = {};
+	api.structSize = sizeof(GenOnlinePluginApi);
+	const int32_t getApiResult = fnGetApi(GENONLINE_PLUGIN_API_VERSION, &s_localApiHostApi, &api);
+	if (getApiResult != GENONLINE_PLUGIN_RESULT_OK)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: %s of the caster plugin returned %d - %s", GENONLINE_PLUGIN_GET_API_EXPORT_NAME, getApiResult, DescribeResult(getApiResult));
+		failLoad();
+		return;
+	}
+
+	if (api.structSize < kPluginApiMinSize || api.structSize > sizeof(GenOnlinePluginApi) || api.apiVersion != GENONLINE_PLUGIN_API_VERSION)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: Caster plugin table has size %u and version %u, this build needs size %u and version %u",
+			api.structSize, api.apiVersion, kPluginApiMinSize, GENONLINE_PLUGIN_API_VERSION);
+		failLoad();
+		return;
+	}
+
+	if (api.name == nullptr || api.Initialize == nullptr || api.Tick == nullptr || api.Shutdown == nullptr)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: Caster plugin table lacks its name, Initialize, Tick or Shutdown");
+		failLoad();
+		return;
+	}
+
+	if ((api.capabilities & GENONLINE_PLUGIN_CAP_LOCAL_API) == 0)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: Refusing caster plugin %s, it does not offer the tool capability", api.name);
+		failLoad();
+		return;
+	}
+
+	const GenOnlinePluginLocalApi* pLocalApiField = api.structSize >= kPluginApiLocalApiEnd ? api.localApi : nullptr;
+	const GenOnlinePluginLocalApi* pLocalApi = nullptr;
+	if (!AcceptSubInterface(api, GENONLINE_PLUGIN_CAP_LOCAL_API, pLocalApiField, ValidateLocalApi, "caster", pLocalApi))
+	{
+		failLoad();
+		return;
+	}
+
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Loaded caster plugin %s %s", api.name, api.version != nullptr ? api.version : "(no version)");
+
+	const int32_t initResult = api.Initialize();
+	if (initResult != GENONLINE_PLUGIN_RESULT_OK)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] ERROR: Caster plugin Initialize returned %d - %s", initResult, DescribeResult(initResult));
+		api.Shutdown();
+		failLoad();
+		return;
+	}
+
+	s_hToolPluginModule = hModule;
+	s_toolPluginApi = api;
+	s_pLocalApi = pLocalApi;
+}
+
+void GenOnlinePluginHost::UnloadToolPlugin()
+{
+	if (s_hToolPluginModule == nullptr)
+	{
+		return;
+	}
+
+	s_toolPluginApi.Shutdown();
+	GenOnlinePluginPlatform::UnloadModule(s_hToolPluginModule);
+
+	// all function pointers reference the unloaded module now
+	s_hToolPluginModule = nullptr;
+	s_toolPluginApi = GenOnlinePluginApi();
+	s_pLocalApi = nullptr;
+	s_toolPluginFiles.Close();
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Unloaded the caster plugin");
+}
+
+void GenOnlinePluginHost::TickToolPlugin()
+{
+	if (s_hToolPluginModule != nullptr)
+	{
+		s_toolPluginApi.Tick();
+	}
+}
+
+const GenOnlinePluginLocalApi* GenOnlinePluginHost::GetLocalApi()
+{
+	return s_pLocalApi;
+}
+
 void GenOnlinePluginHost::LinkedAccount::SignIn()
 {
 	if (s_pLinkedAccount == nullptr)
@@ -1016,7 +1231,6 @@ void GenOnlinePluginHost::Anticheat::EndSession()
 		s_bSessionStarted = false;
 	}
 
-	// The transport only plugin closes the connections of the session here.
 	if (s_pPeerTracking != nullptr)
 	{
 		s_pPeerTracking->EndSession();

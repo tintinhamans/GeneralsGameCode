@@ -28,7 +28,7 @@ enum class GnsPeerState
 	Connected
 };
 
-// How a connection ended. The library already closed our end.
+// How a connection ended. The library already closed the local end.
 struct GnsPeerEnd
 {
 	int endReason = 0;	///< The ESteamNetConnectionEnd of the connection.
@@ -36,7 +36,6 @@ struct GnsPeerEnd
 	bool wasError = false;	///< The connection failed, it did not close cleanly.
 };
 
-// The settings of an incoming connection of a pair before it is accepted.
 struct GnsIncomingSetup
 {
 	bool retryTimeouts = false;	///< The connection takes the timeouts of a retry.
@@ -53,9 +52,7 @@ public:
 
 	/// The network that takes the status changes, nullptr while there is none. The change is ignored then.
 	virtual GnsPeerNetwork* GetActiveNetwork() = 0;
-	/// Finds the connection that holds the handle, false when none does.
 	virtual bool FindConnection(HSteamNetConnection hConnection, GnsPeerRef& peer) = 0;
-	/// The connection closed or failed.
 	virtual void OnConnectionEnded(const GnsPeerRef& peer, const GnsPeerEnd& end) = 0;
 	/// An incoming connection of the peer passed the identity check. Returns false when the listener rejected it,
 	/// it closed the connection then.
@@ -112,11 +109,9 @@ public:
 
 	/// Keeps an incoming connection of a user that has no connection on this side yet, a newer one replaces it.
 	void HoldIncoming(int64_t userID, HSteamNetConnection hConnection);
-	/// Removes a held incoming connection that closed.
 	void ForgetHeldIncoming(HSteamNetConnection hConnection);
 	/// Hands over the held incoming connection of the user, invalid when there is none.
 	HSteamNetConnection TakeHeldIncoming(int64_t userID);
-	/// Accepts a held incoming connection with the setup of the pair.
 	void AcceptHeldIncoming(HSteamNetConnection hConnection, int64_t userID, const GnsIncomingSetup& setup);
 
 	/// Sends the queued signals and dispatches the received ones. Call it on the main thread.

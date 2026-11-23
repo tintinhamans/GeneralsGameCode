@@ -38,6 +38,7 @@
 #include "Common/GameAudio.h"
 #include "Common/ThingFactory.h"
 #include "Common/Team.h"
+#include "Common/LocalApiLive.h"
 #include "Common/TerrainTypes.h"
 #include "Common/MapObject.h"
 #include "GameClient/ControlBar.h"
@@ -250,6 +251,8 @@ void BuildAssistant::update()
 																										 TheGlobalData->m_sellPercentage );
 
 				player->getMoney()->deposit( sellValue, TRUE, FALSE );
+				// GenOnline @feature arcticdolphin 21/11/2026 Report the sale refund to the live stats pipe
+				LocalApiLiveSell(player->getPlayerIndex(), obj->getTemplate(), sellValue);
 				// this money shouldn't be scored since it wasn't really "earned."
 //				player->getScoreKeeper()->addMoneyEarned( sellValue );
 

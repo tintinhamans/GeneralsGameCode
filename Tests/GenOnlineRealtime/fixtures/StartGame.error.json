@@ -1,9 +1,0 @@
-{
-  "ok": false,
-  "code": "lobby.not_ready",
-  "params": {
-    "missing": [
-      7
-    ]
-  }
-}

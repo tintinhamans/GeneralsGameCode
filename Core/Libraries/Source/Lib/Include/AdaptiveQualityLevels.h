@@ -1,6 +1,6 @@
 #pragma once
-// What each adaptive quality level takes away. Client only: the user's options keep their values.
-// the levels are a list; level 0 is always full quality.
+// What each adaptive quality level takes away. Client only, so user options keep their values.
+// the levels are a list and level 0 is always full quality.
 
 namespace AdaptiveQualityLevels
 {
@@ -15,7 +15,7 @@ namespace AdaptiveQualityLevels
 
 	static const int kMinParticleCap = 500;
 
-	// everything a level can take away; a level states its whole state, levels do not add up
+	// everything a level can take away, a level states its whole state and levels do not add up
 	struct Level
 	{
 		bool heatEffects = true;
@@ -25,6 +25,7 @@ namespace AdaptiveQualityLevels
 		bool renderSkip = false;		// every 2nd frame is not rendered
 		int particleLod = PARTICLE_LOD_FULL;
 		int particleCapPercent = 100;
+		int catchUpFrames = 2;		// logic frames the game may fall behind and one drawn frame may run to make them up, 1 = no catch-up
 		double defaultSavingMs = 0.0;	// frame cost the level is assumed to save until it is measured on this machine
 		char name[32] = "";
 	};
@@ -34,13 +35,14 @@ namespace AdaptiveQualityLevels
 		int count;		// levels including level 0
 		Level levels[MAX_LEVELS];
 
-		// the catch-up levels: the old render skip level is left out, logic catch-up replaces it
+		// logic catch-up takes the place of the old render skip level and grows at the first level below full quality
 		Config() : count(4)
 		{
 			Level& particles = levels[1];
 			particles.heatEffects = false;
 			particles.particleLod = PARTICLE_LOD_MEDIUM;
 			particles.particleCapPercent = 75;
+			particles.catchUpFrames = 3;
 			particles.defaultSavingMs = 1.0;
 			copyName(particles, "particles");
 
@@ -90,8 +92,9 @@ namespace AdaptiveQualityLevels
 	inline bool rendersSkipped(int l) { return level(l).renderSkip; }
 	inline bool shadowDecalsOff(int l) { return !level(l).shadowDecals; }
 	inline bool lightPulsesOff(int l) { return !level(l).lightPulses; }
+	inline int catchUpFrames(int l) { return level(l).catchUpFrames; }
 
-	// never above the user's own cap, never below kMinParticleCap unless the user's cap is lower
+	// Never above the user cap, never below kMinParticleCap unless the user cap is lower
 	inline int particleCap(int userCap, int l)
 	{
 		const int scaled = userCap * level(l).particleCapPercent / 100;

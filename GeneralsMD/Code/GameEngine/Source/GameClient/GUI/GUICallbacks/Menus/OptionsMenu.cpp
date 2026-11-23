@@ -840,7 +840,7 @@ static void saveOptions()
 		TheWritableGlobalData->m_jpegQuality = quality;
 	}
 
-	// The observer stats font size lives in client.json. The overlay is set up again with it.
+	// The observer stats font size lives in settings.client.json so the overlay is set up again with it.
 	TheInGameUI->initObserverOverlay();
 
 	//-------------------------------------------------------------------------------------------------
@@ -906,6 +906,10 @@ static void DestroyOptionsLayout() {
 static void showAdvancedOptions()
 {
 	WinAdvancedDisplay->winHide(FALSE);
+#if defined(GENONLINE)
+	// GenOnline @bugfix arcticdolphin 22/11/2026 An opened combo box raises its panel, so the dialog raises itself to draw above it.
+	WinAdvancedDisplay->winBringToTop();
+#endif
 }
 
 static void acceptAdvancedOptions()
@@ -1630,7 +1634,7 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 			else if (controlID == buttonAccept )
 			{
-				// changed connection settings are tested first; a rejected address keeps the menu open
+				// Changed connection settings are tested first so a rejected address keeps the menu open.
 				if (!GetOnlineGameHooks()->onOptionsMenuAccept())
 					break;
 				saveOptions();
@@ -1668,7 +1672,6 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 			else if (GetOnlineGameHooks()->onOptionsMenuButtonSelected(control))
 			{
-				// The provider handled a button of its own section.
 			}
 			else if (controlID == ButtonAdvancedAcceptID )
 			{

@@ -17,7 +17,6 @@
 */
 
 // FILE: GameSpyProviderFactory.cpp ///////////////////////////////////////////
-// GenMP online provider abstraction.
 // Description: GameSpy implementation of OnlineProviderFactory.
 //
 // createServices() and destroyServices() follow the SetUpGameSpy and TearDownGameSpy
@@ -48,7 +47,6 @@
 #include "GameNetwork/RankPointValue.h"
 #include "GameNetwork/TransportFactory.h"
 
-// Defined in GameSpyOverlay.cpp; forward-declared here exactly as PeerDefs.cpp does.
 void deleteNotificationBox();
 
 // --------------------------------------------------------------

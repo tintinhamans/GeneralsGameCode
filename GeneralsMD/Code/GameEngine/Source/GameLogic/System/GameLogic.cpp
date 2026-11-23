@@ -123,7 +123,8 @@ struct QuitGameException {};
 #include "../GenOnlineInterfaces.h"
 
 #include "../GenOnlineDefines.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
+#include "Common/StatsExporter.h"
 
 DECLARE_PERF_TIMER(SleepyMaintenance)
 
@@ -609,7 +610,7 @@ static Object* placeObjectAtPosition(Int slotNum, AsciiString objectTemplateName
 	return obj;
 }
 
-// Whether this slot is the local player's; the initial camera and the stats exporter use the same test.
+// Whether this slot is the local player. The initial camera and the stats exporter use the same test.
 Bool GameLogicIsLocalSlot(GameInfo* game, GameSlot* slot)
 {
 	AsciiString slotNameAscii;
@@ -751,7 +752,7 @@ void handleNameChange(MapObject* mapObj)
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-// Mirrored by predictLobby() in StatsExporterLive.cpp for the lobby prediction; keep them in sync.
+// Mirrored by predictLobby() in LocalApiLive.cpp for the lobby prediction, keep them in sync.
 static void checkForDuplicateColors(GameInfo* game)
 {
 	if (!game)
@@ -788,7 +789,7 @@ static void checkForDuplicateColors(GameInfo* game)
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-// Mirrored line by line by predictLobby() in StatsExporterLive.cpp for the lobby prediction; keep them in sync.
+// Mirrored line by line by predictLobby() in LocalApiLive.cpp for the lobby prediction, keep them in sync.
 static void populateRandomSideAndColor(GameInfo* game)
 {
 	if (!game)
@@ -885,7 +886,7 @@ static void populateRandomSideAndColor(GameInfo* game)
 // ------------------------------------------------------------------------------------------------
 static const WaypointMap s_emptyWaypoints = WaypointMap();
 
-// Mirrored line by line by predictLobby() in StatsExporterLive.cpp for the lobby prediction; keep them in sync.
+// Mirrored line by line by predictLobby() in LocalApiLive.cpp for the lobby prediction, keep them in sync.
 static void populateRandomStartPosition(GameInfo* game)
 {
 	if (!game)
@@ -1460,14 +1461,14 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 		}
 	}
 
-	// Read-only: the logic generator's state going into the resolution, for the exporter's lobby prediction check.
+	// Read-only: the state of the logic generator going into the resolution, for the lobby prediction check of the exporter.
 	const UnsignedInt randomCrcBeforeResolve = GetGameLogicRandomSeedCRC();
 
 	populateRandomSideAndColor(game);
 	populateRandomStartPosition(game);
 
-	// The resolved sides, colors and start positions are in the slots now; the exporter only reads them.
-	StatsExporterLiveMatchLoading(game, randomCrcBeforeResolve, loadingSaveGame);
+	// The resolved sides, colors and start positions are in the slots now, the exporter only reads them.
+	LocalApiLiveMatchLoading(game, randomCrcBeforeResolve, loadingSaveGame);
 
 	//****************************//
 	// Start the LoadScreen Now!	//
@@ -2383,7 +2384,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	// set a minimum display time for the load screen on GO to allow players to read ELO, army, stats, etc.
 	const UnsignedInt minLoadScreenDisplayTime = 2000;
 	UnsignedInt minLoadScreenEndTime = isInInternetGame() ? (timeGetTime() + minLoadScreenDisplayTime) : 0;
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 The first shell load screen stays up for the GO credit until its time passes or Esc is pressed.
+	// GenOnline @feature arcticdolphin 09/11/2026 The first shell load screen stays up for the GO credit until its time passes or Esc is pressed.
 	Bool loadScreenHolds = m_loadScreen != NULL && m_loadScreen->holdsAfterLoad();
 
 	while (!isProgressComplete() || (minLoadScreenEndTime != 0 && timeGetTime() < minLoadScreenEndTime) || loadScreenHolds)
@@ -2420,7 +2421,6 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	}
 #endif
 
-	// with a synced start the load screen stays up until the other players are ready
 	if (!syncedStart)
 	{
 		revealFromLoadScreen(loadingSaveGame);
@@ -2937,7 +2937,7 @@ void GameLogic::processCommandList(CommandList* list)
 				}
 			}
 
-			// TODO_NGMP: Handle missing CRCs, although that doesnt seem common
+			// TODO_GENONLINE: Handle missing CRCs, although that does not seem common
 
 			TheNetwork->setSawCRCMismatch(strMismatchDetails);
 
@@ -3985,8 +3985,8 @@ void GameLogic::update()
 #endif
 		m_startNewGame = FALSE;
 
-		// players are fully set up now; no-op for the shell map
-		StatsExporterLiveMatchStarted();
+		// players are fully set up now, nothing happens for the shell map
+		LocalApiLiveMatchStarted();
 
 	#ifdef DUMP_PERF_STATS
 		char Buf[1024];
@@ -4070,8 +4070,12 @@ void GameLogic::update()
 		TheStatsCollector->update();
 	}
 
-	// live stats pipe sample (state at the end of the previous frame); an early-out while no reader is connected
-	StatsExporterLiveUpdate();
+	// live stats pipe sample (state at the end of the previous frame), an early-out while no reader is connected
+	LocalApiLiveUpdate();
+
+	// GenOnline @feature arcticdolphin 21/11/2026 Snapshot of the game being recorded, the headless replay simulation collects its own
+	if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD)
+		StatsExporterCollectSnapshot();
 
 	// Update the Recorder
 	{
@@ -4214,8 +4218,7 @@ void GameLogic::update()
 		TheGameLogic->exitGame();
 	}
 
-	// live stats pipe: the discrete events of this logic frame
-	StatsExporterLiveFrameEnd();
+	LocalApiLiveFrameEnd();
 
 	// increment world time
 	if (!m_startNewGame)

@@ -134,7 +134,6 @@ Bool UDPTransport::init( UnsignedInt ip, UnsignedShort port )
 		m_delayedInBuffer[i].message.length = 0;
 #endif
 #if defined(GENONLINE)
-		// this transport does not know the sending user
 		m_inBuffer[i].senderKnown = FALSE;
 #if defined(RTS_DEBUG)
 		m_delayedInBuffer[i].message.senderKnown = FALSE;
@@ -223,10 +222,7 @@ Bool UDPTransport::doSend() {
 		if (m_outBuffer[i].length > 0)
 		{
 			int bytesSent = 0;
-			// TheSuperHackers @info The handling of data sizing of the payload within a UDP packet is confusing due to the current networking implementation
-			// The max game packet size needs to be smaller than max udp payload by sizeof(TransportMessageHeader)
-			// But the max network message size needs to include the bytes of the transport message header and equal the max udp payload
-			// Therefore, transmitted data needs to add the extra bytes of the network header to the payloads length
+			// TheSuperHackers @info Game packets are smaller than the max UDP payload by sizeof(TransportMessageHeader), so the sent length adds the header bytes.
 			int bytesToSend = m_outBuffer[i].length + sizeof(TransportMessageHeader);
 			// Send this message
 			if ((bytesSent = m_udpsock->Write((unsigned char *)(&m_outBuffer[i]), bytesToSend, m_outBuffer[i].addr, m_outBuffer[i].port)) > 0)
@@ -246,7 +242,6 @@ Bool UDPTransport::doSend() {
 			{
 				//DEBUG_LOG(("Could not write to socket!!!  Not discarding message!"));
 				retval = FALSE;
-				//DEBUG_LOG(("Transport::doSend returning FALSE"));
 			}
 		}
 	}
@@ -294,15 +289,11 @@ Bool UDPTransport::doRecv()
 #if defined(RTS_DEBUG)
 	UnsignedInt now = timeGetTime();
 #endif
-	// TheSuperHackers @info The handling of data sizing of the payload within a UDP packet is confusing due to the current networking implementation
-	// The max game packet size needs to be smaller than max udp payload by sizeof(TransportMessageHeader)
-	// But the max network message size needs to include the bytes of the transport message header and equal the max udp payload
-	// Therefore, when receiving data we use the max udp payload size to receive the game packet payload and network header
+	// TheSuperHackers @info The receive size is the max UDP payload because it holds the game packet and the transport header.
 	TransportMessage incomingMessage;
 	unsigned char *buf = (unsigned char *)&incomingMessage;
 	int len = MAX_MESSAGE_LEN;
 	size_t bufferIndex = 0;
-//	DEBUG_LOG(("Transport::doRecv - checking"));
 	while ( (len=m_udpsock->Read(buf, MAX_MESSAGE_LEN, &from)) > 0 )
 	{
 #if defined(RTS_DEBUG)
@@ -316,7 +307,6 @@ Bool UDPTransport::doRecv()
 		}
 #endif
 
-//		DEBUG_LOG(("Transport::doRecv - Got something! len = %d", len));
 		// Decrypt the packet
 //		DEBUG_LOG_RAW(("buffer = "));
 //		for (Int munkee = 0; munkee < len; ++munkee) {
@@ -385,7 +375,6 @@ Bool UDPTransport::doRecv()
 
 	if (len == -1) {
 		// there was a socket error trying to perform a read.
-		//DEBUG_LOG(("Transport::doRecv returning FALSE"));
 		retval = FALSE;
 	}
 

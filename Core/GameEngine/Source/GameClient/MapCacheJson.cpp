@@ -16,8 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: MapCacheJson.cpp /////////////////////////////////////////////////////////////////////////
-// Desc: Generals Online mapcache.json with the typed supply and tech objects per map
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
@@ -37,8 +35,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <string>
-
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Reads and writes mapcache.json in the user Maps folder.
 
 typedef nlohmann::ordered_json MapCacheJsonDoc;
 
@@ -67,7 +63,7 @@ static AsciiString getMapCacheJsonPath( const MapCache &cache )
 }
 
 //-------------------------------------------------------------------------------------------------
-// Map paths are ANSI bytes; store bytes above 127 as the matching Latin-1 code points so the JSON stays valid UTF-8.
+// Map paths are ANSI bytes. Store bytes above 127 as the matching Latin-1 code points so the JSON stays valid UTF-8.
 static std::string toJsonString( const AsciiString &text )
 {
 	std::string out;
@@ -108,7 +104,6 @@ static AsciiString fromJsonString( const std::string &text )
 		}
 		else
 		{
-			// code points outside Latin-1 have no ANSI byte
 			out += '?';
 			++i;
 			while (i < text.size() && ((unsigned char)text[i] & 0xC0) == 0x80)
@@ -205,7 +200,6 @@ static void loadMapCacheJson( const MapCache &cache )
 			const MapCacheJsonDoc root = MapCacheJsonDoc::parse(text);
 			if (root.at("version").get<Int>() != MAP_CACHE_JSON_VERSION)
 			{
-				// another format version: start over and replace the file
 				DEBUG_LOG(("MapCacheJson - '%s' has another version, rebuilding it", path.str()));
 				s_isDirty = TRUE;
 				return;
@@ -333,7 +327,7 @@ static void writeMapCacheJson( MapCache &cache )
 
 	TheFileSystem->createDirectory(userMapDir);
 
-	// write to a temp file and swap it in so a failed write never leaves a truncated mapcache.json
+	// Write to a temp file and swap it in so a failed write never leaves a truncated mapcache.json
 	const AsciiString path = getMapCacheJsonPath(cache);
 	AsciiString tempPath = path;
 	tempPath.concat(".tmp");
@@ -365,7 +359,7 @@ static void writeMapCacheJson( MapCache &cache )
 }
 
 //-------------------------------------------------------------------------------------------------
-// Reuse rule: same map path, file size and nonzero CRC; the version was checked on load.
+// Reuse rule: same map path, file size and nonzero CRC. The version was checked on load.
 static Bool applyStoredObjects( const AsciiString &mapKey, MapMetaData &md )
 {
 	MapCacheJsonEntryMap::const_iterator it = s_entries.find(mapKey);

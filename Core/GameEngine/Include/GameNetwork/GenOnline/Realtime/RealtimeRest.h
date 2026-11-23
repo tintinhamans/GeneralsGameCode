@@ -16,12 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: RealtimeRest.h ///////////////////////////////////////////////////////
-// Description: Bodies, paths and error parsing of the GenOnline REST endpoints
-//              that replace earlier hub methods, section 10 of the realtime
-//              protocol. Field names match the hub. The REST fixtures of the
-//              service pin every body here. Failures carry the section 7 codes
-//              as {"error": code, "params": {...}} with an HTTP status.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -39,9 +33,7 @@
 namespace GenOnlineRealtime
 {
 
-// Error bodies //////////////////////////////////////////////////////////////////
 
-// A failed REST call, a refused realtime upgrade or a refused session registration.
 struct ApiErrorInfo
 {
 	// Empty when the body names no code.
@@ -105,14 +97,11 @@ inline ApiErrorInfo ParseApiError(const std::string& body)
 	return info;
 }
 
-// The answer of a REST call.
 struct RestOutcome
 {
-	// False when no HTTP answer arrived.
 	bool delivered = false;
 	int status = 0;
 	std::string body;
-	// Set for a delivered failure.
 	ApiErrorInfo error;
 
 	bool Succeeded() const
@@ -145,7 +134,6 @@ struct RestOutcome
 	}
 };
 
-// Builds the outcome of an HTTP answer. delivered is false when the transport failed.
 inline RestOutcome MakeRestOutcome(bool delivered, int status, const std::string& body)
 {
 	RestOutcome outcome;
@@ -164,7 +152,6 @@ inline RestOutcome MakeRestOutcome(bool delivered, int status, const std::string
 	return outcome;
 }
 
-// Retries of calls that are safe to repeat ////////////////////////////////////////
 
 // Sends of a call that is safe to repeat, the first one included.
 constexpr int REST_RETRY_MAX_SENDS = 4;
@@ -195,9 +182,7 @@ inline int64_t RestRetryDelayMs(const RestOutcome& outcome, int sendsSoFar)
 	return DELAYS_MS[index];
 }
 
-// Standby answers ////////////////////////////////////////////////////////////////
 
-// The wait before the next try after a standby answer.
 constexpr int64_t STANDBY_RETRY_DELAY_MS = 1000;
 // Standby answers in a row for this long count as a normal failure.
 constexpr int64_t STANDBY_RETRY_WINDOW_MS = 10000;
@@ -251,7 +236,6 @@ struct StandbyRetry
 	}
 };
 
-// Paths ///////////////////////////////////////////////////////////////////////////
 
 inline std::string RestFriendRequestsPath()
 {
@@ -341,12 +325,17 @@ inline std::string RestMatchResultPath(int64_t matchID)
 	return "/api/v1/matches/" + std::to_string(matchID) + "/results/me";
 }
 
+// POST tells the service how the upload of one file of the caller ended. Safe to repeat, the first failure reason is kept.
+inline std::string RestMatchFileReportPath(int64_t matchID)
+{
+	return "/api/v1/matches/" + std::to_string(matchID) + "/files/me/report";
+}
+
 inline std::string RestPlaylistsPath()
 {
 	return "/api/v1/matchmaking/playlists";
 }
 
-// Bodies: social and profile //////////////////////////////////////////////////////
 
 // POST /api/v1/me/friend_requests
 struct FriendRequestBody : UserIdArgument
@@ -364,7 +353,6 @@ struct ProfileUpdateBody : WireObject
 	}
 };
 
-// Bodies: matches and playlists ///////////////////////////////////////////////////
 
 // PUT /api/v1/matches/:id/results/me
 struct MatchResultBody : WireObject
@@ -385,7 +373,6 @@ struct MatchResultBody : WireObject
 	}
 };
 
-// One state change of a connection attempt.
 struct ConnectionReportEvent : WireObject
 {
 	// connecting, finding_route, connected_direct, connected_relay, failed or disconnected
@@ -405,7 +392,7 @@ struct ConnectionReportBody : WireObject
 {
 	int64_t target_user_id = 0;
 	std::string outcome;
-	// The transport of the attempt's StartSignalling: gns or a plugin transport name.
+	// The transport of the StartSignalling attempt: gns or a plugin transport name.
 	std::string transport;
 	int ip_version = 4;
 	// The attempt of the StartSignalling of this pair in this lobby, 1 or more.
@@ -424,16 +411,46 @@ struct ConnectionReportBody : WireObject
 	}
 };
 
+// POST /api/v1/matches/:id/files/me/report
+struct FileReportBody : WireObject
+{
+	std::string key; // the key form field of the file, or the path of its URL after the bucket
+	std::string result; // uploaded or failed
+	std::optional<std::string> reason; // size_limit, expired, http_error, network, timeout, read_failed or cancelled, only with failed
+	std::optional<int> http_status;
+	std::optional<std::string> detail;
+
+	template <class V> void Fields(V& v)
+	{
+		v("key", key);
+		v("result", result);
+		v("reason", reason);
+		v("http_status", http_status);
+		v("detail", detail);
+	}
+};
+
 // The URLs are presigned upload targets.
 struct MatchResultResponse : WireObject
 {
 	std::string screenshot_url;
 	std::string replay_url;
+	std::optional<std::string> stats_url;
+	std::optional<std::string> expires_at; // UTC ISO 8601, when the three URLs stop working
+	// With a fields object the matching URL is the target of a multipart POST form that holds these fields, else the upload is a PUT.
+	std::optional<std::map<std::string, std::string> > screenshot_fields;
+	std::optional<std::map<std::string, std::string> > replay_fields;
+	std::optional<std::map<std::string, std::string> > stats_fields;
 
 	template <class V> void Fields(V& v)
 	{
 		v("screenshot_url", screenshot_url);
 		v("replay_url", replay_url);
+		v("stats_url", stats_url);
+		v("expires_at", expires_at);
+		v("screenshot_fields", screenshot_fields);
+		v("replay_fields", replay_fields);
+		v("stats_fields", stats_fields);
 	}
 };
 
@@ -448,7 +465,6 @@ struct PlaylistsResponse : WireObject
 	}
 };
 
-// Bodies: groups //////////////////////////////////////////////////////////////////
 
 // POST /api/v1/groups
 struct GroupCreateBody : WireObject
@@ -495,7 +511,6 @@ struct GroupRenameBody : WireObject
 	}
 };
 
-// Bodies: moderation and reports //////////////////////////////////////////////////
 
 // The optional reason of DELETE /api/v1/sanctions/:id and DELETE /api/v1/messages/:id.
 struct ReasonBody : WireObject
@@ -679,7 +694,6 @@ struct ReportCreateResponse : WireObject
 	}
 };
 
-// Meta: compatibility and config ////////////////////////////////////////////////////
 
 // GET is anonymous and answers 200 for every known client, also an outdated one.
 inline std::string RestCompatibilityPath(const std::string& clientID, const std::string& version)
@@ -689,7 +703,6 @@ inline std::string RestCompatibilityPath(const std::string& clientID, const std:
 
 namespace Detail
 {
-// Reads the decimal number at pos and moves pos past it. False when no digit is there.
 inline bool ReadVersionNumber(const std::string& text, size_t& pos, int& number)
 {
 	const size_t start = pos;
@@ -725,6 +738,16 @@ inline std::string CompatibilityVersion(const std::string& releaseTag, const std
 		return std::to_string(year) + "." + std::to_string(month) + ".0";
 	}
 	return "1970.1.0";
+}
+
+// The version a build shows: the release tag it sits on (2026.11.0 or 2026.11.0-rc.1), else the release it follows with the commit.
+inline std::string ClientVersionText(const std::string& exactTag, const std::string& releaseTag, const std::string& commitDate, const std::string& shortCommit)
+{
+	if (exactTag.size() > 1 && exactTag[0] == 'v')
+	{
+		return exactTag.substr(1);
+	}
+	return CompatibilityVersion(releaseTag, commitDate) + "-dev" + (shortCommit.empty() ? std::string() : "+" + shortCommit);
 }
 
 struct CompatibilityUpdate : WireObject
@@ -828,7 +851,6 @@ inline std::string RestConfigPath()
 // GET /api/v1/config
 struct ConfigResponse : WireObject
 {
-	// The settings the service config reader takes.
 	nlohmann::json service_config = nlohmann::json::object();
 	// The client does not read it.
 	std::optional<int64_t> anticheat_level;
@@ -842,7 +864,6 @@ struct ConfigResponse : WireObject
 	}
 };
 
-// Linked accounts /////////////////////////////////////////////////////////////////
 
 // PUT links the caller to their account at the provider that the plugin reports and answers 204.
 inline std::string RestLinkedAccountPath(const std::string& provider)
@@ -853,7 +874,6 @@ inline std::string RestLinkedAccountPath(const std::string& provider)
 // PUT /api/v1/me/linked_accounts/:provider
 struct LinkAccountBody : WireObject
 {
-	// The provider's own proof of the account.
 	std::string proof;
 
 	template <class V> void Fields(V& v)
@@ -881,7 +901,6 @@ struct SignInTokenResponse : WireObject
 	}
 };
 
-// Stats ///////////////////////////////////////////////////////////////////////////
 
 // GET is anonymous.
 inline std::string RestGlobalStatsPath()
@@ -930,7 +949,6 @@ inline std::string RestPlayerStatsPath(int64_t userID)
 	return "/api/v1/players/" + std::to_string(userID) + "/stats";
 }
 
-// The most ids one batch request takes.
 constexpr size_t REST_PLAYER_STATS_BATCH_MAX = 100;
 
 // One GET path per batch of at most 100 ids, in the order of the ids.
@@ -1077,7 +1095,6 @@ struct PlayerStatsBatchResponse : WireObject
 	}
 };
 
-// Log redaction ///////////////////////////////////////////////////////////////////
 
 // A service path as it may be logged. Route names stay, and so does a provider name right after linked_accounts.
 // Every other segment and the whole query become [redacted].

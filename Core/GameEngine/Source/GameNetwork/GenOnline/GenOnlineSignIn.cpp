@@ -16,9 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlineSignIn.cpp //////////////////////////////////////////////////
-// Description: Sign-in of the game client to a GenOnline environment that
-//              runs the realtime protocol v1.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
@@ -66,9 +63,7 @@ void BringGameWindowToFront()
 	FlashWindowEx(&flash);
 }
 
-// The player has this long to finish the sign-in in the browser.
 constexpr int64_t BROWSER_TIMEOUT_MS = 10 * 60 * 1000;
-// A connection to the listener has this long to send its request line.
 constexpr int64_t LOOPBACK_REQUEST_TIMEOUT_MS = 3000;
 constexpr size_t LOOPBACK_MAX_REQUEST_BYTES = 8192;
 

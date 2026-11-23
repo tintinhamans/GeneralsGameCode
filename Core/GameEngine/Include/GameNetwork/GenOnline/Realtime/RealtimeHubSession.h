@@ -16,14 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: RealtimeHubSession.h /////////////////////////////////////////////////
-// Description: One connection to the GenOnline realtime hub on top of an open
-//              websocket. The session sends the handshake, waits for Ready,
-//              keeps the connection alive, tracks invocations, dispatches typed
-//              events and turns close records and lost connections into the
-//              action the client takes next. The websocket itself stays with
-//              the caller, which feeds received text in and sends what the
-//              session hands out. The file has no engine dependencies.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -43,12 +35,9 @@
 namespace GenOnlineRealtime
 {
 
-// What the client does after the connection ended.
 enum class DisconnectAction
 {
-	// Reconnect after ReconnectPolicy::NextDelayMs.
 	Reconnect,
-	// Reconnect after KICK_RECONNECT_DELAY_MS.
 	ReconnectAfterKick,
 	// Reconnect once after SwitchReconnectDelayMs, without backoff and without a reconnect screen.
 	ReconnectAfterSwitch,
@@ -60,9 +49,7 @@ enum class DisconnectAction
 	RefreshTokenAndReconnect,
 	// Register the session once and reconnect, otherwise return to login.
 	RegisterAndReconnect,
-	// Stop and tell the user that the account signed in elsewhere.
 	StopSignedInElsewhere,
-	// Return to the login screen.
 	ReturnToLogin,
 };
 
@@ -97,7 +84,6 @@ inline DisconnectAction ActionForCloseCode(const std::string& code, bool allowRe
 	return allowReconnect ? DisconnectAction::Reconnect : DisconnectAction::ReturnToLogin;
 }
 
-// The steps that renew the session before the reconnect of an action.
 struct SessionRecovery
 {
 	bool refreshToken = false;
@@ -226,13 +212,11 @@ struct InvokeOutcome
 		return delivered && result.ok;
 	}
 
-	// The error code of a failed Result, or an empty string.
 	std::string Code() const
 	{
 		return result.code.has_value() ? *result.code : std::string();
 	}
 
-	// Parses data of a successful Result. Returns false when it does not match T.
 	template <class T>
 	bool Data(T& out) const
 	{
@@ -265,7 +249,6 @@ public:
 
 	struct Callbacks
 	{
-		// Sends one websocket text frame. Returns false when the transport cannot take it.
 		std::function<bool(const std::string& text)> sendText;
 		// Closes the websocket. The session already decided what happens next.
 		std::function<void()> closeTransport;
@@ -298,7 +281,6 @@ public:
 		};
 	}
 
-	// The websocket upgrade succeeded.
 	void OnTransportOpen(int64_t nowMs)
 	{
 		m_splitter.Reset();
@@ -310,7 +292,6 @@ public:
 		SendRaw(BuildHandshakeRequest(), nowMs);
 	}
 
-	// Feeds received websocket text.
 	void OnTransportText(const char* data, size_t length, int64_t nowMs)
 	{
 		if (m_state == State::Idle || m_state == State::Closed)
@@ -596,7 +577,6 @@ inline bool IsStandbyResult(const InvokeOutcome& outcome)
 	return what != params.end() && what->is_string() && what->get<std::string>() == "standby";
 }
 
-// A hub call that got a standby Result and waits for its next send.
 struct ParkedHubCall
 {
 	std::string method;
@@ -660,7 +640,6 @@ public:
 			}
 			else if (!bReady && nowMs - call.parkedAtMs >= STANDBY_RETRY_WINDOW_MS)
 			{
-				// A session that stays away for the whole window turns the call into a normal failure.
 				if (call.callback)
 				{
 					call.callback(call.lastOutcome);

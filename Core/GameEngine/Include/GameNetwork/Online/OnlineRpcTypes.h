@@ -16,9 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: OnlineRpcTypes.h //////////////////////////////////////////////////
-// Provider-neutral GameSpy peer request/response vocabulary.
-///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 

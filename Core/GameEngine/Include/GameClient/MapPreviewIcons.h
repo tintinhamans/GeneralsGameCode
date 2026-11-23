@@ -16,9 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: MapPreviewIcons.h ////////////////////////////////////////////////////////////////////////
-// Desc: Typed map preview icons. The data table in
-//       Data\GeneralsOnline\MapPreviewIcons*.ini maps object templates to icon categories.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -33,28 +30,22 @@ class Image;
 class MapMetaData;
 class ThingTemplate;
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Icon categories and typed preview markers for the map preview.
-
-/// Category name of the last table rule that matches the object, or empty when none matches.
 AsciiString resolveMapPreviewCategory( const AsciiString &templateName, const ThingTemplate *thingTemplate );
 
-/// Category image, else the retail "TecBuilding" or "Cash" image; may return nullptr.
+/// Category image, else the retail TecBuilding or Cash image. May return nullptr.
 const Image *getMapPreviewCategoryImage( const AsciiString &category, Bool isTech );
 
-/// Localized category label, else the retail tech building or supply dock tooltip.
 UnicodeString getMapPreviewCategoryLabel( const AsciiString &category, Bool isTech );
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Typed markers scale with the layout instead of the fixed SUPPLY_TECH_SIZE.
+// GenOnline @feature arcticdolphin 08/11/2026 Typed markers scale with the layout instead of the fixed SUPPLY_TECH_SIZE.
 enum { MAP_PREVIEW_MARKER_LAYOUT_SIZE = 11 };
 
-/// Typed marker size in screen pixels: 11 layout px scaled with the screen height (20 px at 1080p, 40 px at 4K).
+/// Typed marker size in screen pixels, 11 layout px scaled with the screen height.
 Int getMapPreviewMarkerSize();
 
-/// Fills TheSupplyAndTechImageLocations.m_typedMarkers from the typed objects of the cached map, parsing the map
-/// once when it has none yet. Returns FALSE to keep the retail position lists.
+/// Fills m_typedMarkers from the typed objects of the cached map. Returns FALSE to keep the retail position lists.
 Bool positionTypedPreviewImages( const MapMetaData *mmd, const ICoord2D &ul, Int smallWidth, Int smallHeight );
 
-/// Tooltip of the typed marker at x, y relative to the preview window; returns FALSE when no typed marker is there.
 Bool getMapPreviewMarkerTooltip( Int x, Int y, UnicodeString &outTooltip );
 
 struct MapPreviewLegendEntry
@@ -67,8 +58,6 @@ struct MapPreviewLegendEntry
 };
 typedef std::vector<MapPreviewLegendEntry> MapPreviewLegend;
 
-/// Fills outLegend with the distinct icon categories on the map, in icon table order, one entry each with its count.
-/// mapName is a MapCache path in any case. Parses the map once when it has no typed objects yet.
 /// Returns FALSE and leaves outLegend empty when the map is unknown or its typed objects cannot be read.
 Bool getMapPreviewLegend( const AsciiString &mapName, MapPreviewLegend &outLegend );
 

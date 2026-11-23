@@ -241,6 +241,8 @@ void GetAdditionalDisconnectsFromUserFile(PSPlayerStats *stats)
 // default values
 RankPoints::RankPoints()
 {
+	// In GeneralsMD, rank values are set in GenOnlineStatsInterface constructor
+	// Initialize with default values (these will be overwritten if properly initialized)
 	m_ranks[RANK_PRIVATE] = 0;
 	// Use default values if TheGameSpyConfig is NULL (can happen if called during teardown)
 	if (TheGameSpyConfig != NULL)
@@ -1079,7 +1081,6 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 
 //		//favorite side  (ex: Toxin, Tank, Stealth, etc.)
 //		AsciiString side;
-//		if( mostGames > 0  &&  pPlayerTemplate != nullptr )
 //		{
 //			if( stats.gamesAsRandom >= mostGames )
 //				side = "GUI:Random";

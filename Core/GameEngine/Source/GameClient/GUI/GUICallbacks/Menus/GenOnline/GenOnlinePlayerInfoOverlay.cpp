@@ -23,7 +23,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// FILE: GenOnlinePlayerInfoOverlay.cpp
 // Author: Matthew D. Campbell, July 2002
 // Description: Player info right-click popup screen
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -185,7 +184,7 @@ Int GenOnlineGetAdditionalDisconnectsFromUserFile(Int playerID)
 		return 0;
 	}
 
-	// TODO_NGMP_STATS:
+	// TODO_GENONLINE_STATS:
 	/*
 	if (TheGameSpyInfo->getAdditionalDisconnects() > 0 && !retval)
 	{
@@ -673,7 +672,7 @@ static void populateBattleHonors(const PSPlayerStats& stats, Int battleHonors, I
 	}
 	*/
 
-	// TODO_NGMP_STATS
+	// TODO_GENONLINE_STATS
 	bool bPreordered = true;
 	//if (TheGameSpyInfo->didPlayerPreorder(stats.id))
 	if (bPreordered)
@@ -705,7 +704,7 @@ Int GenOnlineGetFavoriteSide( const PSPlayerStats& stats )
 	return favorite;
 }
 
-// TODO_NGMP: We should calculate this and store it on server side too so we can display on website
+// TODO_GENONLINE: Calculate and store this on the server too, so the website can show it.
 Int GenOnlineCalculateRank( const PSPlayerStats& stats )
 {
 	if(stats.id == 0 || !TheRankPointValues)	
@@ -854,7 +853,7 @@ void GenOnlinePopulatePlayerInfoWindows( AsciiString parentWindowName )
 				if (stats.locale >= LOC_MIN && stats.locale <= LOC_MAX)
 					localeID.format("WOL:Locale%2.2d", stats.locale);
 
-				// NGMP: Dont show the "from <locale> anymore...
+				// GenOnline: The name shows without its locale.
 				uStr.format(L"%s", from_utf8(lookAtPlayerName).c_str());
 				GadgetStaticTextSetText(win, uStr);
 			}
@@ -1164,7 +1163,7 @@ void GenOnlinePlayerInfoOverlayInit( WindowLayout *layout, void *userData )
 		checkBoxNonAsianFont->winHide(TRUE);
 	}
 
-	// TODO_NGMP: re-enable social
+	// TODO_GENONLINE: re-enable social
 	buttonBuddies->winHide(true);
 
 	// set the asian check boxes

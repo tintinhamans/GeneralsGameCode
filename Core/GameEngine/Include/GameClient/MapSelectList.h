@@ -17,7 +17,7 @@
 */
 
 // FILE: MapSelectList.h //////////////////////////////////////////////////////////////////////////
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Search, filters and favourites for the map select popups.
+// GenOnline @feature arcticdolphin 08/11/2026 Search, filters and favourites for the map select popups.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -27,6 +27,9 @@
 #include "Common/STLTypedefs.h"
 #include "GameClient/GameWindow.h"
 
+#include <set>
+#include <string>
+
 class MapMetaData;
 
 enum MapSelectSource
@@ -35,8 +38,19 @@ enum MapSelectSource
 	MAP_SOURCE_OFFICIAL,
 	MAP_SOURCE_USER,
 	MAP_SOURCE_FAVOURITES,
+	MAP_SOURCE_QUICKMATCH,  ///< the maps of the 1v1 quickmatch playlist
 
 	MAP_SOURCE_COUNT
+};
+
+/// The column the list sorts by. Players comes first, as the retail list groups the maps by player count.
+enum MapSelectSortColumn
+{
+	MAP_SORT_PLAYERS,
+	MAP_SORT_NAME,
+	MAP_SORT_SIZE,
+
+	MAP_SORT_COUNT
 };
 
 enum MapSelectSize
@@ -72,9 +86,10 @@ struct MapSelectFilter
 	Int m_numPlayers;          ///< 0 for any
 	MapSelectSize m_size;
 	MapSelectSource m_source;
+	MapSelectSortColumn m_sortColumn;
+	Bool m_sortDescending;
 };
 
-/// What a screen lists besides the filter.
 struct MapSelectOptions
 {
 	MapSelectOptions();
@@ -89,7 +104,7 @@ AsciiString getMapFavouriteKey( const AsciiString &mapPath ); ///< lowercased po
 Bool isMapFavourite( const AsciiString &mapPath );
 void setMapFavourite( const AsciiString &mapPath, Bool favourite );
 
-/// Fills a map select list box from TheMapCache through the popup's search, filter and source windows.
+/// Fills a map select list box from TheMapCache through the search, filter and source windows of the popup.
 /// List columns: star, [medal,] name, players, size. Column 0 item data is the map path of the row.
 class MapSelectList
 {
@@ -108,6 +123,7 @@ public:
 	void refreshLegend( const AsciiString &mapPath );
 
 	GameWindow *getListbox() const { return m_listbox; }
+	Int getHeaderArrow( const GameWindow *header ) const; ///< 0 none, 1 ascending, 2 descending
 	AsciiString getMapAtRow( Int row ) const;
 	AsciiString getSelectedMap() const;
 	Int getMedalAtRow( Int row ) const;
@@ -123,6 +139,8 @@ private:
 	};
 	typedef std::vector<Row> RowList;
 
+	void alignHeaders();
+	void refreshQuickMatchPool();
 	Bool passesScreen( const AsciiString &path, const MapMetaData &mapData, Bool isOfficial ) const;
 	Bool passesFilter( const AsciiString &path, const MapMetaData &mapData, Bool isOfficial, Bool isFavourite, const UnicodeString &needle ) const;
 	Int setStarCell( Int row, Bool isFavourite ); ///< row -1 adds a row; returns the row index
@@ -136,6 +154,7 @@ private:
 	GameWindow *m_players;
 	GameWindow *m_size;
 	GameWindow *m_sources[MAP_SOURCE_COUNT];
+	GameWindow *m_headers[MAP_SORT_COUNT];
 	GameWindow *m_count;
 	GameWindow *m_legend;
 	AsciiString m_layoutName;
@@ -145,4 +164,5 @@ private:
 	Bool m_officialOnly;
 	Bool m_ignoreEvents;
 	RowList m_rows;
+	std::set<std::string> m_quickMatchPool; ///< lowercased map cache paths of the 1v1 quickmatch maps
 };

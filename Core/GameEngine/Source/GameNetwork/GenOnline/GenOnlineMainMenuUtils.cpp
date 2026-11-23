@@ -23,7 +23,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// FILE: GenOnlineMainMenuUtils.cpp
 // Author: Matthew D. Campbell, Sept 2002
 // Description: GameSpy version check, patch download, etc utils
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -90,7 +89,7 @@ enum {
 static void startOnline();
 static void reallyStartPatchCheck();
 
-// TheSuperHackers @bugfix arcticdolphin 09/11/2026 Tear down now like CancelLogin does; nothing on the main menu acts on a pending teardown, and the next attempt must not reuse this manager.
+// GenOnline @bugfix arcticdolphin 09/11/2026 Tear down now like CancelLogin does, nothing on the main menu acts on a pending teardown, and the next attempt must not reuse this manager.
 static void tearDownOnlineAttempt()
 {
 	GenOnlineServicesManager *manager = GenOnlineServicesManager::GetInstance();
@@ -104,7 +103,7 @@ static void tearDownOnlineAttempt()
 	TearDownGeneralsOnline();
 }
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 An error of the Online path shows inside the sign-in dialog when it is open, else in a message box.
+// GenOnline @feature arcticdolphin 09/11/2026 An error of the Online path shows inside the sign-in dialog when it is open, else in a message box.
 static void showOnlineError(UnicodeString title, UnicodeString message, GameWinMsgBoxFunc closeFunc)
 {
 	if (GOSignInDialogIsOpen())
@@ -117,7 +116,7 @@ static void showOnlineError(UnicodeString title, UnicodeString message, GameWinM
 	}
 }
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 A failed update inside the sign-in dialog ends the game like the Update Failed message box does.
+// GenOnline @feature arcticdolphin 09/11/2026 A failed update inside the sign-in dialog ends the game like the Update Failed message box does.
 static void quitAfterFailedUpdate()
 {
 	TheGameEngine->setQuitting(TRUE);
@@ -128,7 +127,7 @@ static void showUpdateFailedInSignInDialog(const UnicodeString &message)
 	GOSignInDialogShowError(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInUpdateFailed", L"Update Failed"), message, quitAfterFailedUpdate);
 }
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 Restart in the sign-in dialog launches the downloaded patcher, which quits the game.
+// GenOnline @feature arcticdolphin 09/11/2026 Restart in the sign-in dialog launches the downloaded patcher, which quits the game.
 static void launchPatcherFromSignInDialog()
 {
 	const UnicodeString failed = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInUpdateRunFailed", L"Could not run the updater. Press below to exit.");
@@ -145,7 +144,7 @@ static void launchPatcherFromSignInDialog()
 		});
 }
 
-// TheSuperHackers @feature arcticdolphin 09/11/2026 The update downloads inside the sign-in dialog; its Cancel stops it through the close owner, which tears the online services down.
+// GenOnline @feature arcticdolphin 09/11/2026 The update downloads inside the sign-in dialog, its Cancel stops it through the close owner, which tears the online services down.
 static void downloadUpdateInSignInDialog()
 {
 	const UnicodeString failed = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInUpdateDownloadFailed", L"Could not download the updater. Press below to exit.");
@@ -211,7 +210,7 @@ void GenOnlineStartDownloadingPatches()
 // user agrees to patch before going online
 static void patchBeforeOnlineCallback()
 {
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 These patches download in the download menu, so the sign-in dialog closes first.
+	// GenOnline @feature arcticdolphin 09/11/2026 These patches download in the download menu, so the sign-in dialog closes first.
 	GOSignInDialogDestroy();
 	GenOnlineStartDownloadingPatches();
 }
@@ -222,7 +221,7 @@ static void noPatchBeforeOnlineCallback()
 	queuedDownloads.clear();
 	if (mustDownloadPatch || cantConnectBeforeOnline)
 	{
-		// Patch was cancelled and critical, tear us down; the close owner also returns the menu to normal
+		// A cancelled critical patch tears the services down, the close owner also returns the menu to normal
 		GenOnlineCancelPatchCheckCallbackAndReopenDropdown();
 	}
 	else
@@ -249,7 +248,7 @@ static Bool hasWriteAccess(bool bFileAccessOnly = false)
 	_close(handle);
 	remove(filename);
 
-	// NGMP: We don't care about registry anymore... just disk access
+	// GenOnline: Only disk access is checked, the registry is no longer used.
 	if (!bFileAccessOnly)
 	{
 		unsigned int val;
@@ -295,7 +294,7 @@ static void startOnline()
 				TheGameText->fetch("GUI:MustHaveAdminRights"),
 				noPatchBeforeOnlineCallback);
 		}
-		// TheSuperHackers @feature arcticdolphin 09/11/2026 The patch prompt shows inside the sign-in dialog when it is open.
+		// GenOnline @feature arcticdolphin 09/11/2026 The patch prompt shows inside the sign-in dialog when it is open.
 		else if (GOSignInDialogIsOpen())
 		{
 			GOSignInDialogShowUpdate(TheGameText->fetch(mustDownloadPatch ? "GUI:MustPatchForOnline" : "GUI:CanPatchForOnline"),
@@ -318,7 +317,7 @@ static void startOnline()
 
 	TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_ONLINE_SELECTED]);
 
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 The sign-in runs inside the dialog when it is open; data without the dialog keeps the sign-in screen.
+	// GenOnline @feature arcticdolphin 09/11/2026 The sign-in runs inside the dialog when it is open, data without the dialog keeps the sign-in screen.
 	if (GOSignInDialogIsOpen())
 	{
 		GOSignInDialogBeginSignIn();
@@ -646,7 +645,7 @@ void GenOnlineCancelPatchCheckCallbackAndReopenDropdown()
 
 void GenOnlineCancelPatchCheckCallback()
 {
-	// TheSuperHackers @bugfix arcticdolphin 09/11/2026 End this attempt so its late replies never start online.
+	// GenOnline @bugfix arcticdolphin 09/11/2026 End this attempt so its late replies never start online.
 	timeThroughOnline++;
 	s_asyncDNSLookupInProgress = FALSE;
 	HandleCanceledDownload(FALSE); // don't dropdown
@@ -657,7 +656,7 @@ void GenOnlineCancelPatchCheckCallback()
 		TheWindowManager->winDestroy(genOnlineCancelWindow);
 		genOnlineCancelWindow = nullptr;
 	}
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 The sign-in dialog replaces the checking box, so it closes with it.
+	// GenOnline @feature arcticdolphin 09/11/2026 The sign-in dialog replaces the checking box, so it closes with it.
 	GOSignInDialogDestroy();
 	queuedDownloads.clear();
 
@@ -854,7 +853,7 @@ void GenOnlineStartPatchCheck()
     timeThroughOnline++;
     checksLeftBeforeOnline = 0;
 
-    // TheSuperHackers @feature arcticdolphin 09/11/2026 One sign-in dialog shows every step of the Online path; without its layout the message boxes and the sign-in screen stay.
+    // GenOnline @feature arcticdolphin 09/11/2026 One sign-in dialog shows every step of the Online path, without its layout the message boxes and the sign-in screen stay.
     GOSignInDialogOpen();
 
     SYSTEM_INFO SystemInfo;
@@ -874,16 +873,15 @@ void GenOnlineStartPatchCheck()
 	GenOnlineServicesManager::CreateInstance();
 
 	// online services must be initialized
-	// TODO_NGMP: Uninit this when leaving MP, waste of resources and cycles
+	// TODO_GENONLINE: Uninit this when leaving MP, waste of resources and cycles
 	GenOnlineServicesManager::GetInstance()->Init();
 
-	// TheSuperHackers @bugfix arcticdolphin 09/11/2026 A teardown left by an earlier cancelled or failed attempt must not pop the next login off the welcome screen.
+	// GenOnline @bugfix arcticdolphin 09/11/2026 A teardown left by an earlier cancelled or failed attempt must not pop the next login off the welcome screen.
 	GenOnlineServicesManager::GetInstance()->ClearPendingFullTeardown();
 
     // A loaded plugin that is the anticheat needs its external process, else an error message shows.
     if (GenOnlinePluginHost::IsPluginLoaded())
     {
-        // Only a plugin that is the anticheat needs its external process.
         if (GenOnlinePluginHost::IsPluginAnticheat() && !GenOnlinePluginHost::IsExternalProcessRunning())
         {
             showOnlineError(TheGameText->fetchOrSubstitute("GUI:ACErrorHeader", L"AntiCheat Error"),
@@ -931,13 +929,13 @@ void GenOnlineStartPatchCheck()
 	const Int patchCheckAttempt = timeThroughOnline;
 	GenOnlineServicesManager::GetInstance()->StartVersionCheck([patchCheckAttempt](bool bSuccess, bool bNeedsUpdate)
 		{
-			// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The player cancelled this check or started another one before the reply came.
+			// GenOnline @bugfix arcticdolphin 09/11/2026 The player cancelled this check or started another one before the reply came.
 			if (patchCheckAttempt != timeThroughOnline)
 			{
 				return;
 			}
 
-#if defined(USE_TEST_ENV) || defined(USE_DEBUG_ON_LIVE_SERVER)
+#if defined(GENONLINE_BUILD_ENVIRONMENT)
 			bNeedsUpdate = false;
 #endif
 			cantConnectBeforeOnline = !bSuccess;
@@ -951,7 +949,7 @@ void GenOnlineStartPatchCheck()
 					genOnlineCancelWindow = NULL;
 				}
 
-				// TODO_NGMP: do this everywhere teardowngamespy was called
+				// TODO_GENONLINE: do this everywhere teardowngamespy was called
 				GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
 
 				showOnlineError(TheGameText->fetch("GUI:CannotConnectToServservTitle"),
@@ -966,14 +964,14 @@ void GenOnlineStartPatchCheck()
 				}
 				else
 				{
-					// TODO_NGMP: Later we should allow in-game updates
+					// TODO_GENONLINE: Allow in-game updates later.
 					if (genOnlineCancelWindow)
 					{
 						TheWindowManager->winDestroy(genOnlineCancelWindow);
 						genOnlineCancelWindow = NULL;
 					}
 
-					// NGMP_NOTE: This checks you can write to the local dir, we actually write to my docs data dir now, because it's safer, so we don't really need this chekc
+					// GENONLINE_NOTE: The data goes to the documents folder, so write access to the local folder is not checked.
 					/*
 					if (!hasWriteAccess(true))
 					{
@@ -984,7 +982,7 @@ void GenOnlineStartPatchCheck()
 					else*/ if (mustDownloadPatch)
 					{
 						// NOTE: we treat all patches as mandatory currently
-						// TheSuperHackers @feature arcticdolphin 09/11/2026 The update prompt and the download show inside the sign-in dialog when it is open; without it the download menu opens.
+						// GenOnline @feature arcticdolphin 09/11/2026 The update prompt and the download show inside the sign-in dialog when it is open, without it the download menu opens.
 						const GameWinMsgBoxFunc startUpdate = []()
 							{
 								if (GOSignInDialogIsOpen())
@@ -1024,7 +1022,7 @@ void GenOnlineStartPatchCheck()
 		});
 	
 
-	// TODO_NGMP: Impl patch checks again
+	// TODO_GENONLINE: Impl patch checks again
 
 	/*
 	s_asyncDNSLookupInProgress = TRUE;

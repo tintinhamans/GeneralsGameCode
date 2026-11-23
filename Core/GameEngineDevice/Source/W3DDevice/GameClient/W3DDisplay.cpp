@@ -413,8 +413,7 @@ static void updateStartupSplash()
 
 	if (!::IsWindowVisible(ApplicationHWnd))
 	{
-		// the game window can still have its creation size when the first frames are drawn; it is shown once it has the
-		// requested resolution, so the splash is not followed by a small window with a title bar (after about 10 seconds it is shown anyway)
+		// The game window can still have its creation size at the first frames, so it is shown once it has the requested resolution or after about 10 seconds.
 		static Int s_sizeWaitFrames = 0;
 		RECT client;
 		::GetClientRect(ApplicationHWnd, &client);
@@ -1650,7 +1649,6 @@ void W3DDisplay::gatherDebugStats()
 			unibuffer.format(L"Run Ahead: %d, Net FPS: %d, Packet arrival cushion: %d",
 				TheNetwork->getRunAhead(), TheNetwork->getFrameRate(), TheNetwork->getPacketArrivalCushion());
 
-			// per-connection latency, jitter and loss
 			for (Int slot = 0; slot < MAX_SLOTS; ++slot) {
 				const ConnectionStats* stats = TheNetwork->getConnectionStats(slot);
 				if (stats != nullptr && stats->getSampleCount() > 0) {
@@ -2153,10 +2151,10 @@ AGAIN:
 		// limit the framerate, because while fast time is on, the game logic is running as fast as it can.
 	}
 
-	// never skipped while time is frozen: scripted cameras render in the loop below
+	// Never skipped while time is frozen because scripted cameras render in the loop below.
 	const Bool skipRender = !freezeTime && AdaptiveQuality::get().shouldSkipRender();
 
-	// only rendered frames enter the fps history, so skipped frames do not inflate the shown fps
+	// Only rendered frames enter the fps history so skipped frames do not inflate the shown fps.
 	if (!skipRender)
 	{
 		updatePerformanceMetrics();
@@ -2239,6 +2237,8 @@ AGAIN:
 				{
 					// TheSuperHackers @bugfix Mauller 20/07/2025 scale videos based on screen size so they are shown in their original aspect
 					drawScaledVideoBuffer( m_videoBuffer, m_videoStream );
+					// GenOnline @bugfix arcticdolphin 21/11/2026 The frame rate, latency and clock are drawn again because the video covers them.
+					TheInGameUI->postWindowDraw();
 				}
 
 				// render letter box before debug display so debug info isn't hidden
@@ -2306,7 +2306,7 @@ AGAIN:
 					m_profilerFrameCapture->Capture(getWidth(), getHeight());
 				}
 #endif
-				// sorted geometry is drawn here so that only the Present below is timed as a wait
+				// Sorted geometry is drawn here so that only the Present below is timed as a wait.
 				SortingRendererClass::Flush();
 				AdaptiveQuality::get().notePresentMode(WW3D::Is_Windowed(), WW3D::Get_Ext_Swap_Interval() != (long)D3DPRESENT_INTERVAL_IMMEDIATE);
 				const long long presentStart = AdaptiveQuality::now();

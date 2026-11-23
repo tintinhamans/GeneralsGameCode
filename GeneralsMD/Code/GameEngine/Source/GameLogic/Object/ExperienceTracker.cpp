@@ -31,7 +31,7 @@
 
 #include "Common/Xfer.h"
 #include "Common/Player.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 #include "Common/ThingTemplate.h"
 #include "GameLogic/ExperienceTracker.h"
 #include "GameLogic/GameLogic.h"
@@ -103,7 +103,7 @@ ObjectID ExperienceTracker::getExperienceSink() const
 
 //-------------------------------------------------------------------------------------------------
 // Set Level to AT LEAST this... if we are already >= this level, do nothing.
-void ExperienceTracker::setMinVeterancyLevel( VeterancyLevel newLevel )
+void ExperienceTracker::setMinVeterancyLevel( VeterancyLevel newLevel, Bool provideFeedback )
 {
 	// This does not check for IsTrainable, because this function is for explicit setting,
 	// so the setter is assumed to know what they are doing.  The game function
@@ -114,7 +114,7 @@ void ExperienceTracker::setMinVeterancyLevel( VeterancyLevel newLevel )
 		m_currentLevel = newLevel;
 		m_currentExperience = m_parent->getTemplate()->getExperienceRequired(m_currentLevel); //Minimum for this level
 		if (m_parent)
-			m_parent->onVeterancyLevelChanged( oldLevel, newLevel );
+			m_parent->onVeterancyLevelChanged( oldLevel, newLevel, provideFeedback );
 	}
 }
 
@@ -207,7 +207,7 @@ void ExperienceTracker::addExperiencePoints( Int experienceGain, Bool canScaleFo
 		const Player* statsController = m_parent->getControllingPlayer();
 		if (statsController != nullptr && m_currentLevel > oldLevel)
 		{
-			StatsExporterLiveVeterancyChange(statsController->getPlayerIndex(), m_parent->getTemplate(), m_parent->getID(),
+			LocalApiLiveVeterancyChange(statsController->getPlayerIndex(), m_parent->getTemplate(), m_parent->getID(),
 				static_cast<Int>(oldLevel), static_cast<Int>(m_currentLevel));
 		}
 	}

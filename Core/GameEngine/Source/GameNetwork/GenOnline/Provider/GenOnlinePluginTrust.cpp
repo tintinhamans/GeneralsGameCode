@@ -16,8 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlinePluginTrust.cpp /////////////////////////////////////////////
-// Description: Trust check of a GenOnline plugin folder.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
@@ -365,7 +363,6 @@ std::string FormatVersion(const PluginVersion& version)
 	return buffer;
 }
 
-// Opens and reads a small file and closes it again.
 bool ReadSmallFile(const std::string& path, uint64_t maxSize, std::string& outData, std::string& outError)
 {
 	Platform::Handle file = Platform::OpenLockedFile(path, outError);
@@ -383,7 +380,6 @@ bool ReadSmallFile(const std::string& path, uint64_t maxSize, std::string& outDa
 	return bSuccess;
 }
 
-// Locks pluginsFolder and the plugin folder inside it.
 bool LockPluginFolderChain(const std::string& pluginsFolder, const std::string& pluginName, std::vector<void*>& handles, std::string& outPluginFolder, std::string& outError)
 {
 	outPluginFolder = Platform::JoinPath(pluginsFolder, pluginName);
@@ -773,7 +769,6 @@ bool ParsePluginVersion(const std::string& text, PluginVersion& outVersion)
 		parts[part] = parts[part] * 10 + static_cast<uint32_t>(c - '0');
 	}
 
-	// The year has exactly four digits and the month lies between 1 and 12.
 	if (part != 3 || text.find('.') != 4 || parts[1] < 1 || parts[1] > 12)
 	{
 		return false;

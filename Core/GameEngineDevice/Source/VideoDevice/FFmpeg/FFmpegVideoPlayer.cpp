@@ -184,7 +184,6 @@ void	FFmpegVideoPlayer::update()
 }
 
 //============================================================================
-// FFmpegVideoPlayer::createAudioVoice
 //============================================================================
 
 std::shared_ptr<OpenALMovieVoice> FFmpegVideoPlayer::createAudioVoice()
@@ -523,6 +522,9 @@ FFmpegVideoStream::FFmpegVideoStream(FFmpegFile *file, std::shared_ptr<OpenALMov
     m_state->pauseStart = m_state->start;
 }
 
+//============================================================================
+// FFmpegVideoStream::~FFmpegVideoStream
+//============================================================================
 FFmpegVideoStream::~FFmpegVideoStream()
 {
 #ifdef RTS_HAS_MODERN_MEDIA
@@ -712,6 +714,9 @@ void FFmpegVideoStream::pump()
     }
 }
 
+//============================================================================
+// FFmpegVideoStream::update
+//============================================================================
 void FFmpegVideoStream::update()
 {
 #ifdef RTS_HAS_MODERN_MEDIA
@@ -725,6 +730,9 @@ void FFmpegVideoStream::update()
     m_state->playbackUS();
 }
 
+//============================================================================
+// FFmpegVideoStream::isFrameReady
+//============================================================================
 Bool FFmpegVideoStream::isFrameReady()
 {
     update();
@@ -902,12 +910,18 @@ void FFmpegVideoStream::frameNext()
     selectFrame();
 }
 
+//============================================================================
+// FFmpegVideoStream::frameIndex
+//============================================================================
 Int FFmpegVideoStream::frameIndex()
 {
     return std::min(m_state->index, std::max(0, frameCount() - 1));
 }
 Int FFmpegVideoStream::frameCount() { return m_state->totalFrames; }
 
+//============================================================================
+// FFmpegVideoStream::frameGoto
+//============================================================================
 void FFmpegVideoStream::frameGoto(Int index)
 {
     index = std::max(0, std::min(index, frameCount() - 1));

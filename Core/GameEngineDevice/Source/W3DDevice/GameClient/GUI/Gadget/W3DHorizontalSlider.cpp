@@ -96,7 +96,6 @@ static const Image *s_kitSliderImages[KIT_SLIDER_IMAGE_COUNT];
 
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 
-// Look up the kit slider images, caching each one once found; FALSE if any is missing
 static Bool findKitSliderImages()
 {
 	Int i;
@@ -111,19 +110,18 @@ static Bool findKitSliderImages()
 	return TRUE;
 }
 
-// TheSuperHackers @bugfix arcticdolphin 08/11/2026 TRUE while the mouse holds the slider or its thumb.
+// GenOnline @bugfix arcticdolphin 08/11/2026 TRUE while the mouse holds the slider or its thumb.
 static Bool isKitSliderGrabbed( GameWindow *slider )
 {
 	GameWindow *grab = TheWindowManager->winGetGrabWindow();
 	return grab != nullptr && ( grab == slider || grab->winGetParent() == slider );
 }
 
-// TheSuperHackers @bugfix arcticdolphin 08/11/2026 The kit thumb is drawn by the slider, so skip the layout's retail thumb hilite image.
+// GenOnline @bugfix arcticdolphin 08/11/2026 The kit thumb is drawn by the slider, so skip the retail thumb hilite image of the layout.
 static void kitSliderThumbDraw( GameWindow *window, WinInstanceData *instData )
 {
 }
 
-// Show "<label>: <value>" for the slider under the mouse, or for the slider owning the thumb
 static void kitSliderTooltip( GameWindow *window, WinInstanceData *instData, UnsignedInt mouse )
 {
 	GameWindow *slider = window;
@@ -138,7 +136,7 @@ static void kitSliderTooltip( GameWindow *window, WinInstanceData *instData, Uns
 		return;
 	}
 
-	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Only the value while dragging, the label and value on hover, shown at once while dragging.
+	// GenOnline @bugfix arcticdolphin 08/11/2026 Only the value while dragging, the label and value on hover, shown at once while dragging.
 	WinInstanceData *sliderData = slider->winGetInstanceData();
 	const Bool grabbed = isKitSliderGrabbed( slider );
 	UnicodeString label = sliderData->getTooltipText();
@@ -161,7 +159,6 @@ static void kitSliderTooltip( GameWindow *window, WinInstanceData *instData, Uns
 	TheMouse->setCursorTooltip( text, delay );
 }
 
-// Draw a track, a fill up to the thumb and the thumb from the kit images; FALSE if the kit is absent
 static Bool drawKitSliderTrack( GameWindow *window, WinInstanceData *instData,
 																const ICoord2D &origin, const ICoord2D &size )
 {
@@ -169,7 +166,7 @@ static Bool drawKitSliderTrack( GameWindow *window, WinInstanceData *instData,
 	if( thumb == nullptr || findKitSliderImages() == FALSE )
 		return FALSE;
 
-	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Stop the thumb child drawing the retail hover arrow over the kit marker.
+	// GenOnline @bugfix arcticdolphin 08/11/2026 Stop the thumb child drawing the retail hover arrow over the kit marker.
 	if( thumb->winGetDrawFunc() != kitSliderThumbDraw )
 		thumb->winSetDrawFunc( kitSliderThumbDraw );
 
@@ -179,13 +176,12 @@ static Bool drawKitSliderTrack( GameWindow *window, WinInstanceData *instData,
 	thumb->winGetScreenPosition( &thumbPos.x, &thumbPos.y );
 	thumb->winGetSize( &thumbSize.x, &thumbSize.y );
 	Int thumbCX = thumbPos.x + thumbSize.x / 2;
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Track, fill and marker are centred vertically in the slider rect, in line with its label.
+	// GenOnline @tweak arcticdolphin 08/11/2026 Track, fill and marker are centred vertically in the slider rect, in line with its label.
 	Int sliderCY = origin.y + size.y / 2;
 
 	Real yScale = INT_TO_REAL( TheDisplay->getHeight() ) / 600.0f;
 	Bool enabled = BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED );
 
-	// track spans the travel of the thumb centre
 	Int trackHeight = REAL_TO_INT( 8.0f * yScale + 0.5f );
 	if( trackHeight < 6 )
 		trackHeight = 6;
@@ -202,7 +198,6 @@ static Bool drawKitSliderTrack( GameWindow *window, WinInstanceData *instData,
 																							trackStart, trackY, trackEnd - trackStart, trackHeight );
 	}
 
-	// fill from the track start to the thumb centre
 	Int fillEnd = thumbCX;
 	if( fillEnd > trackEnd )
 		fillEnd = trackEnd;
@@ -215,7 +210,7 @@ static Bool drawKitSliderTrack( GameWindow *window, WinInstanceData *instData,
 																							trackStart, trackY, fillEnd - trackStart, trackHeight );
 	}
 
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The marker is a rounded pill 4 units wide and 1.75 track heights tall, centred on the value.
+	// GenOnline @tweak arcticdolphin 08/11/2026 The marker is a rounded pill 4 units wide and 1.75 track heights tall, centred on the value.
 	Int thumbWidth = REAL_TO_INT( 4.0f * yScale + 0.5f );
 	if( thumbWidth < 3 )
 		thumbWidth = 3;
@@ -234,13 +229,12 @@ static Bool drawKitSliderTrack( GameWindow *window, WinInstanceData *instData,
 	TheWindowManager->winDrawImage( thumbImage, thumbX, thumbY,
 																	thumbX + thumbWidth, thumbY + thumbHeight );
 
-	// value tooltip, unless a menu already set a tooltip callback
 	if( window->winGetTooltipFunc() == nullptr )
 		window->winSetTooltipFunc( kitSliderTooltip );
 	if( thumb->winGetTooltipFunc() == nullptr )
 		thumb->winSetTooltipFunc( kitSliderTooltip );
 
-	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 The window manager sets no tooltip while a window is held, so keep the value up while dragging.
+	// GenOnline @bugfix arcticdolphin 08/11/2026 The window manager sets no tooltip while a window is held, so keep the value up while dragging.
 	if( grabbed && window->winGetTooltipFunc() == kitSliderTooltip )
 		kitSliderTooltip( window, instData, 0 );
 
@@ -263,7 +257,7 @@ void W3DGadgetHorizontalSliderDraw( GameWindow *window, WinInstanceData *instDat
 	window->winGetScreenPosition( &origin.x, &origin.y );
 	window->winGetSize( &size.x, &size.y );
 
-	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Sliders without image status get the kit track too.
+	// GenOnline @bugfix arcticdolphin 08/11/2026 Sliders without image status get the kit track too.
 	if( drawKitSliderTrack( window, instData, origin, size ) )
 		return;
 
@@ -330,7 +324,7 @@ void W3DGadgetHorizontalSliderImageDraw( GameWindow *window,
 	window->winGetScreenPosition( &origin.x, &origin.y );
 	window->winGetSize( &size.x, &size.y );
 
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Draw a track and thumb with a value tooltip when the GO kit slider images exist.
+	// GenOnline @feature arcticdolphin 08/11/2026 Draw a track and thumb with a value tooltip when the GO kit slider images exist.
 	if( drawKitSliderTrack( window, instData, origin, size ) )
 		return;
 

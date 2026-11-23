@@ -48,6 +48,8 @@
 
 #include "Common/ActionManager.h"
 #include "Common/BuildAssistant.h"
+#include "Common/StatsExporter.h"
+#include "Common/LocalApiLive.h"
 #include "Common/CRCDebug.h"
 #include "Common/DisabledTypes.h"
 #include "Common/GameState.h"
@@ -1537,6 +1539,13 @@ void Player::onUnitCreated( Object *factory, Object *unit )
 
 	// increment our scorekeeper
 	m_scoreKeeper.addObjectBuilt(unit);
+	// GenOnline @feature arcticdolphin 21/11/2026 The live stats pipe and the JSON export need the unit cost
+	const Int unitCost = unit->getTemplate()->calcCostToBuild(this);
+	m_scoreKeeper.addMoneySpent(unitCost);
+	LocalApiLiveSpend(getPlayerIndex(), LOCAL_API_SPEND_UNITS, unitCost);
+
+	// GenOnline @feature arcticdolphin 21/11/2026 The exporter gates itself on an active recording
+	StatsExporterRecordBuild(factory, unit);
 
 	// ai notification callback
 	if( m_ai )
@@ -1625,7 +1634,12 @@ void Player::onStructureConstructionComplete( Object *builder, Object *structure
 	// increment our scorekeeper
 	if (isRebuild == FALSE) {
 		m_scoreKeeper.addObjectBuilt(structure);
-		m_scoreKeeper.addMoneySpent(structure->getTemplate()->calcCostToBuild(this));
+		// GenOnline @feature arcticdolphin 21/11/2026 The live stats pipe and the JSON export need the structure cost
+		const Int structureCost = structure->getTemplate()->calcCostToBuild(this);
+		m_scoreKeeper.addMoneySpent(structureCost);
+		LocalApiLiveSpend(getPlayerIndex(), LOCAL_API_SPEND_STRUCTURES, structureCost);
+		// GenOnline @feature arcticdolphin 21/11/2026 The exporter gates itself on an active recording
+		StatsExporterRecordBuild(builder, structure);
 	}
 
 	structure->friend_adjustPowerForPlayer(TRUE);
@@ -2566,7 +2580,23 @@ Bool Player::attemptToPurchaseScience(ScienceType science)
 
 	Int cost = TheScienceStore->getSciencePurchaseCost(science);
 	addSciencePurchasePoints(-cost);
-	addScience(science);
+	// GenOnline @feature arcticdolphin 21/11/2026 Only purchases are events, rank grants and setup grants go through addScience too
+	LocalApiLiveSpend(getPlayerIndex(), LOCAL_API_SPEND_SCIENCES, cost);
+	if (addScience(science))
+	{
+		LocalApiLiveScienceAcquired(
+			getPlayerIndex(), getRankLevel(), getSciencePurchasePoints(),
+			TheScienceStore->getInternalNameForScience(science).str());
+	}
+
+#if defined(GENONLINE)
+	// GenOnline @feature arcticdolphin 21/11/2026 observers see the general promotion purchases
+	if (TheInGameUI)
+	{
+		TheInGameUI->notifyGeneralPromotion(this, science);
+	}
+#endif
+
 	return true;
 }
 
@@ -2983,6 +3013,8 @@ Bool Player::hasUpgradeInProduction( const UpgradeTemplate *upgradeTemplate )
 Upgrade *Player::addUpgrade( const UpgradeTemplate *upgradeTemplate, UpgradeStatusType status )
 {
 	Upgrade *u = findUpgrade( upgradeTemplate );
+	// GenOnline @feature arcticdolphin 21/11/2026 An upgrade that is already complete must not be reported twice
+	const Bool wasComplete = ( u != nullptr && u->getStatus() == UPGRADE_STATUS_COMPLETE );
 
 	// if no upgrade instance found, make a new one
 	if( u == nullptr )
@@ -3014,6 +3046,11 @@ Upgrade *Player::addUpgrade( const UpgradeTemplate *upgradeTemplate, UpgradeStat
 		m_upgradesInProgress.clear( newMask );
 		m_upgradesCompleted.set( newMask );
 		onUpgradeCompleted( upgradeTemplate );
+		// GenOnline @feature arcticdolphin 21/11/2026 Report each upgrade completion once
+		if( !wasComplete )
+		{
+			LocalApiLiveUpgradeComplete( getPlayerIndex(), upgradeTemplate->getUpgradeName().str(), upgradeTemplate->calcCostToBuild( this ), FALSE );
+		}
 	}
 
 	return u;
@@ -3100,6 +3137,8 @@ Bool Player::okToPlayRadarEdgeSound()
 void Player::addRadar( Bool disableProof )
 {
 	Bool hadRadar = hasRadar();
+	// GenOnline @feature arcticdolphin 21/11/2026 Radar state before the change feeds the stats pipe
+	const Int radarStateBefore = getRadarStateForStats();
 
 	// increment count
 	++m_radarCount;
@@ -3114,6 +3153,9 @@ void Player::addRadar( Bool disableProof )
 		soundToPlay.setPlayerIndex(getPlayerIndex());
 		TheAudio->addAudioEvent(&soundToPlay);
 	}
+
+	// GenOnline @feature arcticdolphin 21/11/2026 Report the radar change to the stats pipe
+	LocalApiLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3122,6 +3164,8 @@ void Player::addRadar( Bool disableProof )
 void Player::removeRadar( Bool disableProof )
 {
 	Bool hadRadar = hasRadar();
+	// GenOnline @feature arcticdolphin 21/11/2026 Radar state before the change feeds the stats pipe
+	const Int radarStateBefore = getRadarStateForStats();
 
 	// decrement count
 	DEBUG_ASSERTCRASH( m_radarCount > 0, ("removeRadar: An Object is taking its radar away, but the player radar count says they don't have radar!") );
@@ -3137,12 +3181,17 @@ void Player::removeRadar( Bool disableProof )
 		soundToPlay.setPlayerIndex(getPlayerIndex());
 		TheAudio->addAudioEvent(&soundToPlay);
 	}
+
+	// GenOnline @feature arcticdolphin 21/11/2026 Report the radar change to the stats pipe
+	LocalApiLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
 }
 
 //-------------------------------------------------------------------------------------------------
 void Player::disableRadar()
 {
 	Bool hadRadar = hasRadar();
+	// GenOnline @feature arcticdolphin 21/11/2026 Radar state before the change feeds the stats pipe
+	const Int radarStateBefore = getRadarStateForStats();
 	m_radarDisabled = TRUE;
 
 	if( hadRadar &&
@@ -3153,12 +3202,17 @@ void Player::disableRadar()
 		soundToPlay.setPlayerIndex(getPlayerIndex());
 		TheAudio->addAudioEvent(&soundToPlay);
 	}
+
+	// GenOnline @feature arcticdolphin 21/11/2026 Report the radar change to the stats pipe
+	LocalApiLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
 }
 
 //-------------------------------------------------------------------------------------------------
 void Player::enableRadar()
 {
 	Bool hadRadar = hasRadar();
+	// GenOnline @feature arcticdolphin 21/11/2026 Radar state before the change feeds the stats pipe
+	const Int radarStateBefore = getRadarStateForStats();
 	m_radarDisabled = FALSE;
 
 	if( !hadRadar && hasRadar() && okToPlayRadarEdgeSound() )
@@ -3168,6 +3222,9 @@ void Player::enableRadar()
 		soundToPlay.setPlayerIndex(getPlayerIndex());
 		TheAudio->addAudioEvent(&soundToPlay);
 	}
+
+	// GenOnline @feature arcticdolphin 21/11/2026 Report the radar change to the stats pipe
+	LocalApiLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3179,6 +3236,17 @@ Bool Player::hasRadar() const
 
 	// Otherwise, check if I actually do have it.
 	return m_radarCount > 0;
+}
+
+//-------------------------------------------------------------------------------------------------
+// GenOnline @feature arcticdolphin 21/11/2026 The stats exporter reports radar as none, producers exist but off, or active.
+Int Player::getRadarStateForStats() const
+{
+	if( m_radarCount <= 0 )
+	{
+		return 0;
+	}
+	return hasRadar() ? 2 : 1;
 }
 
 //-------------------------------------------------------------------------------------------------

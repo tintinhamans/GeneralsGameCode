@@ -290,7 +290,7 @@ private:
 	Int m_securityDrops;
 	void resetRecentCommandIds();
 
-	// Frames with commands and chat that a peer passes on for another player need that player's signature.
+	// Frames with commands and chat that a peer passes on for another player need the signature of that player.
 	// Every peer keeps the signatures it gets as long as the frames, so whoever holds a frame holds its proof.
 	enum { SIGNATURE_BYTES = 64, SIGNATURE_WAIT_MS = 3000, HELD_CHAT_COUNT = 8 };
 	struct FrameSignature

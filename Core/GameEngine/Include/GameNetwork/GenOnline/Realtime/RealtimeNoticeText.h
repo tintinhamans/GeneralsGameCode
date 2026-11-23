@@ -16,11 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: RealtimeNoticeText.h /////////////////////////////////////////////////
-// Description: Texts of the GenOnline realtime moderation notices and of the
-//              rule failures that need more than a fixed line. A time is shown
-//              through a formatter the caller passes, so the texts stay free of
-//              engine and system dependencies.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -39,7 +34,6 @@ namespace GenOnlineRealtime
 // Turns an ISO 8601 UTC time of the service into the text shown to the player.
 using TimeTextFormatter = std::function<std::string(const std::string& utcText)>;
 
-// A missing or empty optional text counts as absent.
 inline bool HasNoticeText(const std::optional<std::string>& text)
 {
 	return text.has_value() && !text->empty();

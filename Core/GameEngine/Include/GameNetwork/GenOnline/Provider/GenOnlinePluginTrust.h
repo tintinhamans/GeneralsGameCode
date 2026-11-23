@@ -16,20 +16,7 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlinePluginTrust.h ///////////////////////////////////////////////
-// Description: Trust check of a GenOnline plugin folder. The folder carries
-//              plugin.manifest and plugin.manifest.minisig. The minisign
-//              signature of the manifest must verify against a compiled-in
-//              public key, and the manifest lists the size in bytes and the
-//              SHA256 of every file in the folder tree. The check is platform
-//              independent and reaches the file system only through
-//              GenOnlinePluginPlatform.h.
 //
-//              plugin.manifest format 1:
-//              {"format":1,"name":"<name>","version":"YYYY.MM.PATCH",
-//               "api_version":<n>,"files":[{"path":"<name>.dll",
-//               "sha256":"<64 hex digits>","size":<bytes>}]}
-//              Every key is required and no other key is allowed.
 ///////////////////////////////////////////////////////////////////////////////
 
 // Threat model. The check protects against plugin folders that are distributed or tampered with, so only
@@ -86,7 +73,6 @@ public:
 	// The locked main DLL, which GenOnlinePluginPlatform::LoadModule loads.
 	void* GetMainFile() const { return m_mainFile; }
 
-	// The final path of the locked main DLL.
 	const std::string& GetMainFilePath() const { return m_mainFilePath; }
 
 	const std::string& GetVersion() const { return m_version; }
@@ -100,7 +86,6 @@ private:
 	std::string m_version;
 };
 
-// True when at least one of the keys is not empty.
 bool HasPublicKeys(std::span<const char* const> publicKeys);
 
 // True when a plugin that fails the check or carries no signature may still load. That needs a build without

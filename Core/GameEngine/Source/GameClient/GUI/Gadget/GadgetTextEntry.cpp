@@ -196,7 +196,6 @@ WindowMsgHandledType GadgetTextEntryInput( GameWindow *window, UnsignedInt msg,
 				// --------------------------------------------------------------------
 				case KEY_TAB:
 
-					// Tab asks the owner to complete the text instead of moving focus.
 					if( e->completionEnabled )
 					{
 						if( BitIsSet( mData2, KEY_STATE_DOWN ) )

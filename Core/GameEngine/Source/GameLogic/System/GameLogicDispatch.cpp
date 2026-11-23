@@ -52,8 +52,8 @@
 
 #include "GameLogic/AIPathfind.h"
 #include "GameLogic/GameLogic.h"
-#if defined(GENONLINE) && RTS_ZEROHOUR
-#include "Common/StatsExporterLive.h"
+#if defined(GENONLINE)
+#include "Common/LocalApiLive.h"
 #endif
 #include "GameLogic/Locomotor.h"
 #include "GameLogic/Object.h"
@@ -260,9 +260,9 @@ void GameLogic::clearGameData( Bool showScoreScreen )
 		return;
 	}
 
-#if defined(GENONLINE) && RTS_ZEROHOUR
-	// the live stats feed: every way a match ends (quit, replay left early, disconnect) passes here; a no-op if ENDED went out already
-	StatsExporterLiveGameDataCleared();
+#if defined(GENONLINE)
+	// Every way a match ends (quit, replay left early, disconnect) passes here. A no-op if ENDED already went out.
+	LocalApiLiveGameDataCleared();
 #endif
 
 	setClearingGameData( TRUE );
@@ -293,7 +293,7 @@ void GameLogic::clearGameData( Bool showScoreScreen )
 	}
 
 #if defined(GENONLINE)
-	// The menus and the next game start from the player's own logic time scale.
+	// The menus and the next game start from the logic time scale of the player.
 	TheFramePacer->endGameSpeed();
 #endif
 
@@ -415,9 +415,8 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 				if(TheStatsCollector)
 					TheStatsCollector->collectMsgStats(msg);
 
-#if defined(GENONLINE) && RTS_ZEROHOUR
-				// counts executed commands per player for the live feed's APM; read-only
-				StatsExporterLiveCommand(msgPlayer->getPlayerIndex(), msg->getType());
+#if defined(GENONLINE)
+				LocalApiLiveCommand(msgPlayer->getPlayerIndex(), msg->getType());
 #endif
 			}
 		}
@@ -2159,8 +2158,8 @@ bool GameLogic::onPlaceBeacon(MAYBE_UNUSED GameMessage *msg)
 		Object *object = TheThingFactory->newObject( thing, msgPlayer->getDefaultTeam() );
 		object->setPosition( &pos );
 		object->setProducer(nullptr);
-#if defined(GENONLINE) && RTS_ZEROHOUR
-		StatsExporterLiveBeacon(msgPlayer->getPlayerIndex(), &pos);
+#if defined(GENONLINE)
+		LocalApiLiveBeacon(msgPlayer->getPlayerIndex(), &pos);
 #endif
 
 		if (msgPlayer->getRelationship( ThePlayerList->getLocalPlayer()->getDefaultTeam() ) == ALLIES || ThePlayerList->getLocalPlayer()->isPlayerObserver())
@@ -2322,8 +2321,8 @@ bool GameLogic::onSetBeaconText(MAYBE_UNUSED GameMessage *msg, AIGroupPtr &curre
 bool GameLogic::onSelfDestruct(MAYBE_UNUSED GameMessage *msg)
 {
 	Player *msgPlayer = getMessagePlayer(msg);
-#if defined(GENONLINE) && RTS_ZEROHOUR
-	StatsExporterLivePlayerLeft(msgPlayer->getPlayerIndex(), "self_destruct");
+#if defined(GENONLINE)
+	LocalApiLivePlayerLeft(msgPlayer->getPlayerIndex(), "self_destruct");
 #endif
 
 	if (msg->getArgument(0)->boolean)

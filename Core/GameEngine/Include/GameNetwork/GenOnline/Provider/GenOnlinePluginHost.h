@@ -16,13 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlinePluginHost.h ////////////////////////////////////////////////
-// Description: Host of the GenOnline plugins. It loads at most one plugin DLL
-//              through the GenOnline plugin API, checks its signed manifest,
-//              version and table sizes, and routes the game calls to the
-//              linked account, anticheat and transport sub interfaces.
-//              GenOnline Anti-Cheat serves the anticheat calls when the plugin
-//              provides no anticheat or loads for its transport only.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -33,6 +26,7 @@
 #include <vector>
 
 struct PluginPeerTransportApi;
+struct GenOnlinePluginLocalApi;
 
 enum class EConnectionState : uint8_t
 {
@@ -96,7 +90,6 @@ public:
 	static void UnloadPlugin();
 	static void Tick();
 
-	// True while a plugin DLL is loaded and initialized.
 	static bool IsPluginLoaded();
 
 	// True when the anticheat plugin was configured but could not be loaded. Online play stays blocked then.
@@ -114,6 +107,15 @@ public:
 
 	static bool IsExternalProcessRunning();
 	static int GetAnticheatIdentifier();
+
+	// Loads the caster plugin that settings.client.json plugins.caster names. It has its own slot next to the online plugin and also
+	// loads offline and in headless runs, with the same folder, allowlist and manifest checks.
+	static void LoadToolPlugin();
+	static void UnloadToolPlugin();
+	static void TickToolPlugin();
+
+	// The tool table of the loaded caster plugin, nullptr when none is loaded.
+	static const GenOnlinePluginLocalApi* GetLocalApi();
 
 	class LinkedAccount
 	{

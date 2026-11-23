@@ -180,7 +180,6 @@ ArchiveFile * BIGFileSystem::openArchiveFile(const Char *filename, ArchivePathFi
 			break;
 		}
 
-		// a file the filter leaves out is not part of this archive
 		if (includePath != nullptr && !includePath(buffer)) {
 			continue;
 		}
@@ -294,48 +293,18 @@ void BIGFileSystem::loadMods()
 {
 #if defined(GENONLINE)
 	const GenOnlineSettings& settings = GenOnlineServicesManager::Settings;
-	// The excludes of the -packs stack take effect together with the packs that replace the files they hide, so the reads before loadMods,
-	// like GameData.ini, see the game folder and the retail archives in full.
-	if (settings.DataPacks_FromPackList())
-	{
-		activatePackStack(settings.DataPacks_Stack());
-	}
+	// The excludes take effect here and not at settings load, so the reads before loadMods, like GameData.ini, see the game folder and the retail archives in full.
+	applyDataExcludes(settings.Data_ExcludePaths());
 
-	// Order, highest first: loose files of the game folder, the GO menu layouts of the generals_online archives, -mod and -modDir, the BIGs of the game folders that are not retail (the -packs stack excludes some),
-	// the data pack layers (user, generals_online, community_patch) of the -packs file or the built-in packs, the retail archives. The BIGs of the game folders were mounted by init().
-	// With -packs the files of a pack also win over the loose files of the game folder, which are retail.
+	// Order, highest first: loose files of the game folder, the GO menu layouts of the genonline_ data packs, -mod and -modDir, the BIGs of the game folders that are not retail (data.exclude removes some),
+	// the data packs of data.include or the baseline pack, the retail archives. The BIGs of the game folders were mounted by init().
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "Generals data: %s", m_generalsBaseSource.isEmpty() ? "none" : m_generalsBaseSource.str());
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "Game folder archives above the data pack layers: %d", static_cast<int>(m_gameFolderArchives.size()));
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Game folder archives above the data packs: %d", static_cast<int>(m_gameFolderArchives.size()));
 	for (const AsciiString& gameFolderArchive : m_gameFolderArchives)
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "  %s", gameFolderArchive.str());
 
-	setInterfaceStyle(AsciiString(settings.UI_Style().c_str()), AsciiString(settings.UI_Palette().c_str()));
-
-#if defined(GENONLINE_COMMUNITY_PATCH_CHANGES)
-	// -disableCommunityDataPatch skips the community_patch layer for this launch only
-	const Bool communityPatchEnabled = !TheGlobalData->m_commandLineData.isCommunityDataPatchDisabled();
-#else
-	const Bool communityPatchEnabled = TRUE;
-#endif
-
-	if (settings.DataPacks_FromPackList())
-	{
-		mountPackStack(communityPatchEnabled);
-	}
-	else
-	{
-		// The built-in packs. The Generals Online and community patch archives hold Zero Hour data, so Generals loads nothing above retail.
-		const std::vector<std::string> noPaths;
-		mountDataPackLayer("user", TRUE, noPaths, &TheFileSystem->getExcludedPaths(), ARCHIVE_PRIORITY_USER);
-#if RTS_GENERALS
-		mountGenOnlineLayer(TRUE, noPaths);
-#else
-		mountGenOnlineLayer(TRUE, std::vector<std::string>(1, "user:GeneralsOnlineGameData/GeneralsOnline_Core.big"));
-#endif
-#if defined(GENONLINE_COMMUNITY_PATCH_CHANGES)
-		mountDataPackLayer("community_patch", communityPatchEnabled, std::vector<std::string>(1, "user:GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big"), nullptr, ARCHIVE_PRIORITY_COMMUNITY_PATCH);
-#endif
-	}
+	setInterfaceStyle(AsciiString(settings.UI_Style().c_str()));
+	mountDataPacks(settings.Data_HasInclude() ? &settings.Data_Include() : nullptr);
 #endif
 
 	if (TheGlobalData->m_modBIG.isNotEmpty())

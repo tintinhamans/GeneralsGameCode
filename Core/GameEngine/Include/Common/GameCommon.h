@@ -91,14 +91,12 @@ inline Real ConvertDurationFromSecsToFrames(Real seconds)
 }
 
 // ----------------------------------------------------------------------------------------------
-// Converts an amount per second to the amount per logic frame.
 inline Real ConvertRatePerSecToPerFrame(Real amountPerSec)
 {
 	return (amountPerSec * SECONDS_PER_LOGICFRAME_REAL);
 }
 
 // ----------------------------------------------------------------------------------------------
-// Converts a frame count authored at the base frame rate to logic frames.
 inline Int ConvertBaseFramesToFrames(Int baseFrames)
 {
 	return (baseFrames * LOGICFRAMES_PER_BASEFRAME);
@@ -119,8 +117,7 @@ inline Real ConvertFramesToBaseFramesReal(Real frames)
 }
 
 // ----------------------------------------------------------------------------------------------
-// Converts a duration in msec to whole logic frames. The duration rounds up to whole base frames
-// so that every logic frame rate gives the duration of the base frame rate.
+// Rounds up to whole base frames so every logic frame rate gives the duration of the base frame rate.
 Real ConvertDurationFromMsecsToFramesRoundedUp(Real msec);
 
 // ----------------------------------------------------------------------------------------------
@@ -132,7 +129,6 @@ Int DivideFramesInBaseFrames(Int frames, Real divisor);
 Int MultiplyFramesInBaseFrames(Int frames, Real factor);
 
 // ----------------------------------------------------------------------------------------------
-// Converts a factor applied once per base frame to the factor applied once per logic frame.
 Real ConvertBaseFrameFactorToFrameFactor(Real factorPerBaseFrame);
 
 // ----------------------------------------------------------------------------------------------

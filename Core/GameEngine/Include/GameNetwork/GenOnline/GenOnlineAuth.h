@@ -5,7 +5,6 @@
 #include <memory>
 #include <vector>
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Where the login is, for the GO sign-in screen.
 enum class ELoginStage
 {
 	None,
@@ -19,12 +18,12 @@ class GenOnlineAuthInterface
 {
 public:
 
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 With the sign-in screen up, the login reports its stage instead of showing message boxes.
+	// GenOnline @feature arcticdolphin 08/11/2026 With the sign-in screen up, the login reports its stage instead of showing message boxes.
 	void SetSignInScreen(bool bSignInScreen) { m_bSignInScreen = bSignInScreen; }
 	ELoginStage GetLoginStage() const { return m_loginStage; }
 	bool HasDisplayName() const { return !m_strDisplayName.empty() && m_strDisplayName != "NO_USER"; }
 
-	// TheSuperHackers @feature arcticdolphin 09/11/2026 The sign-in dialog shows a failed login in place and closes itself, so failures are reported to its callback instead of popping a screen.
+	// GenOnline @feature arcticdolphin 09/11/2026 The sign-in dialog shows a failed login in place and closes itself, so failures are reported to its callback instead of popping a screen.
 	void SetSignInDialog(bool bSignInDialog) { m_bSignInDialog = bSignInDialog; }
 	bool ReportLoginFailure(const wchar_t* szTitle, const wchar_t* szText);
 	const std::wstring& GetLoginFailureTitle() const { return m_strLoginFailureTitle; }
@@ -56,7 +55,7 @@ public:
 
 	void GoToDetermineNetworkCaps();
 
-	// Links the account at the provider that the plugin reports, with the provider's own proof of that account.
+	// Links the account at the provider that the plugin reports, with the proof of that account issued by the provider.
 	void SendMiddlewareToken(const std::string& strProvider, const std::string& strProof);
 
 	// Mints the short-lived token the plugin of the provider signs in to its platform with. The callback gets an empty token on failure, and does not run once the services tear down.
@@ -128,7 +127,7 @@ private:
 	std::wstring m_strLoginFailureTitle;
 	std::wstring m_strLoginFailureText;
 	ELoginStage m_loginStage = ELoginStage::None;
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Bumped by each login start so replies to an abandoned attempt are dropped.
+	// GenOnline @feature arcticdolphin 08/11/2026 Bumped by each login start so replies to an abandoned attempt are dropped.
 	int m_loginAttempt = 0;
 
 	std::string m_strToken = std::string();

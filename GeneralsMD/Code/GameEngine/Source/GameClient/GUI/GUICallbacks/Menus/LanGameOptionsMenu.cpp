@@ -59,7 +59,7 @@
 #include "Common/MultiplayerSettings.h"
 #include "GameClient/GameText.h"
 #include "GameNetwork/GUIUtil.h"
-#include "Common/StatsExporterLobby.h"
+#include "Common/LocalApiLobby.h"
 
 
 extern char *LANnextScreen;
@@ -335,7 +335,7 @@ void StartPressed()
 	}
 	else
 	{
-		// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name hides the user's folders.
+		// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
 		mapDisplayName = getMapNameFromPath(myGame->getMap());
 		willTransfer = WouldMapTransfer(myGame->getMap());
 	}
@@ -829,7 +829,7 @@ void DeinitLanGameGadgets()
 //-------------------------------------------------------------------------------------------------
 static Bool s_lanGameOptionsMenuOpen = FALSE;
 
-// Handles a line as the LAN game setup's typed-line path does (it has no commands: a trimmed, non-empty line is sent).
+// The LAN game setup has no commands, so a trimmed non-empty line is sent.
 Bool LanGameOptionsMenuSubmitChatLine( UnicodeString text )
 {
 	text.trim();
@@ -971,7 +971,7 @@ void updateGameOptions()
 		}
 		else
 		{
-			// TheSuperHackers @tweak arcticdolphin 09/11/2026 The map name without the .map extension.
+			// GenOnline @tweak arcticdolphin 09/11/2026 The map name without the .map extension.
 			mapDisplayName = getMapNameFromPath(TheLAN->GetMyGame()->getMap());
 		}
 		UnicodeString old = GadgetStaticTextGetText(textEntryMapDisplay);
@@ -1452,7 +1452,6 @@ void PostToLanGameOptions( PostToLanGameType post )
 	}
 }
 
-// Stats pipe lobby control: the start position buttons' own handler.
 static void statsMoveStartPosition(Int slot, Int position)
 {
 	handleStartPositionSelection(slot, position);

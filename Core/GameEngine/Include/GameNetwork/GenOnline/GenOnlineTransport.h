@@ -13,7 +13,6 @@ class PlayerConnection;
 
 #define GENONLINE_TRANSPORT_NAME "nextgen"
 
-/// Registers the GameNetworkingSockets transport with the transport factory under GENONLINE_TRANSPORT_NAME.
 void RegisterGenOnlineTransport();
 
 // Struct to track retry state for outgoing packets

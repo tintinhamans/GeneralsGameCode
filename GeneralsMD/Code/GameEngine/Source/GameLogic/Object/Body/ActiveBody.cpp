@@ -33,7 +33,7 @@
 #include "Common/CRCDebug.h"
 #include "Common/DamageFX.h"
 #include "Common/Player.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 #include "Common/GameState.h"
 #include "Common/GlobalData.h"
 #include "Common/PlayerList.h"
@@ -572,7 +572,7 @@ void ActiveBody::attemptDamage( DamageInfo *damageInfo )
 		// read-only tap for the stats pipe: the health this hit actually took, not subdual or status damage
 		if (!alreadyHandled)
 		{
-			StatsExporterLiveDamage(obj, damageInfo->in.m_sourceID, damageInfo->out.m_actualDamageClipped);
+			LocalApiLiveDamage(obj, damageInfo->in.m_sourceID, damageInfo->out.m_actualDamageClipped);
 		}
 
 		// then copy the whole DamageInfo struct for easy lookup

@@ -47,13 +47,13 @@ HCURSOR cursorResources[Mouse::NUM_MOUSE_CURSORS][MAX_2D_CURSOR_DIRECTIONS];
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Little endian 32 bit read for the cursor file parser.
+// GenOnline @feature arcticdolphin 08/11/2026 Little endian 32 bit read for the cursor file parser.
 static UnsignedInt readCursorUInt32( const UnsignedByte *p )
 {
 	return (UnsignedInt)p[0] | ((UnsignedInt)p[1] << 8) | ((UnsignedInt)p[2] << 16) | ((UnsignedInt)p[3] << 24);
 }
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Create a cursor from the first image of a .cur file held in memory.
+// GenOnline @feature arcticdolphin 08/11/2026 Create a cursor from the first image of a .cur file held in memory.
 static HCURSOR createCursorFromCurData( const UnsignedByte *data, UnsignedInt size )
 {
 	if (size < 22)
@@ -91,7 +91,7 @@ static HCURSOR createCursorFromCurData( const UnsignedByte *data, UnsignedInt si
 	return cursor;
 }
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Load an .ani through TheFileSystem so archived cursors work; only its first frame is used.
+// GenOnline @feature arcticdolphin 08/11/2026 Load an .ani through TheFileSystem so archived cursors work, and only its first frame is used.
 static HCURSOR loadArchiveCursor( const char *path )
 {
 	if (TheFileSystem == nullptr)
@@ -110,7 +110,6 @@ static HCURSOR loadArchiveCursor( const char *path )
 	const UnsignedInt size = fileSize > 0 ? (UnsignedInt)fileSize : 0;
 	HCURSOR cursor = nullptr;
 
-	// walk the RIFF ACON chunks to the LIST fram chunk and take its first icon chunk
 	if (size >= 12 && memcmp(data, "RIFF", 4) == 0 && memcmp(data + 8, "ACON", 4) == 0)
 	{
 		UnsignedInt pos = 12;
@@ -501,11 +500,11 @@ void Win32Mouse::initCursorResources()
 				if (!loaded)
 					cursorResources[cursor][direction]=LoadCursorFromFile(resourcePath);
 
-				// TheSuperHackers @feature arcticdolphin 08/11/2026 A cursor missing on disk may ship inside an archive, such as the GO Hand.
+				// GenOnline @feature arcticdolphin 08/11/2026 A cursor missing on disk may ship inside an archive, such as the GO Hand.
 				if (!cursorResources[cursor][direction])
 					cursorResources[cursor][direction]=loadArchiveCursor(resourcePath);
 
-				// TheSuperHackers @feature arcticdolphin 08/11/2026 Hand shows the Normal cursor when its art is missing.
+				// GenOnline @feature arcticdolphin 08/11/2026 Hand shows the Normal cursor when its art is missing.
 				if (!cursorResources[cursor][direction] && cursor == HAND)
 					cursorResources[cursor][direction]=cursorResources[NORMAL][0];
 

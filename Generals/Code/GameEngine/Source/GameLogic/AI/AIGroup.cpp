@@ -55,6 +55,7 @@
 #include "GameLogic/Module/StealthUpdate.h"
 #include "GameLogic/Module/SpecialPowerUpdateModule.h"
 #include "GameLogic/ObjectIter.h"
+#include "Common/LocalApiLive.h"
 
 
 /**
@@ -2417,6 +2418,16 @@ void AIGroup::groupEvacuate( CommandSourceType cmdSource )
 		AIUpdateInterface *ai = (*i)->getAIUpdateInterface();
 		if (ai)
 		{
+			// GenOnline @feature arcticdolphin 21/11/2026 The passenger count must be captured before the evacuation clears it
+			ContainModuleInterface *statsContain = (*i)->getContain();
+			if( statsContain != nullptr && statsContain->getContainCount() > 0
+				&& (*i)->getControllingPlayer() != nullptr )
+			{
+				LocalApiLiveEvacuate(
+					(*i)->getControllingPlayer()->getPlayerIndex(),
+					(*i)->getTemplate(),
+					statsContain->getContainCount() );
+			}
 			if( (*i)->isKindOf( KINDOF_AIRCRAFT ) && (*i)->isAirborneTarget() )
 			{
 				//Calculate the highest point on the ground to drop off troops (chinook or other air transports)
@@ -2438,6 +2449,14 @@ void AIGroup::groupEvacuate( CommandSourceType cmdSource )
 			ContainModuleInterface *contain = (*i)->getContain();
 			if( contain )
 			{
+				// GenOnline @feature arcticdolphin 21/11/2026 The passenger count must be captured before the evacuation clears it
+				if( contain->getContainCount() > 0 && (*i)->getControllingPlayer() != nullptr )
+				{
+					LocalApiLiveEvacuate(
+						(*i)->getControllingPlayer()->getPlayerIndex(),
+						(*i)->getTemplate(),
+						contain->getContainCount() );
+				}
 				contain->orderAllPassengersToExit( cmdSource );
 			}
 		}

@@ -138,10 +138,9 @@ struct FileInfo {
 };
 
 //===============================
-// PathExcludeList
 //===============================
 /**
-  * The excludes of the -packs stack for the game folder. An entry is game:<pattern>, user:<pattern> or an absolute pattern, where * matches any text
+  * The data.exclude patterns for the game folder. An entry is game:<pattern>, user:<pattern> or an absolute pattern, where * matches any text
   * including folders and ? one character. A pattern ending in a slash is a folder and everything in it. Matching ignores case and slash direction.
   * A path is tested as a key: game:<path relative to the game folder>, user:<path relative to the user data folder> or the absolute path.
   */
@@ -201,7 +200,6 @@ public:
 	Bool createDirectory(AsciiString directory); ///< create a directory of the given name.
 
 	/// Loose files of the game folder that match are treated as if they did not exist: not opened, not found, not listed. Files that are written and files outside the game folder are not affected.
-	/// A loose file of the game folder that a pack of the -packs stack also has is not opened or found either, the file of the pack wins.
 	void setExcludedPaths(const std::vector<std::string>& entries) { m_excludedPaths.set(entries); }
 	const PathExcludeList& getExcludedPaths() const { return m_excludedPaths; }
 

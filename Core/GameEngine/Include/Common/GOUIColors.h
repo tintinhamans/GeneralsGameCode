@@ -20,8 +20,8 @@
 
 #include "GameClient/Color.h"
 
-// The GO UI colour table: one colour per interface role, read from Data\INI\GOUIColors.ini. A palette replaces that file
-// by path and the Retail style leaves it out, so a role the table does not set keeps each site's own colour.
+// The GO UI colour table: one colour per interface role, read from Data\INI\GOUIColors.ini. The Retail style leaves that
+// file out, so a role the table does not set keeps the own colour of each site.
 
 enum GOUIColorRole CPP_11(: Int)
 {
@@ -51,6 +51,7 @@ enum GOUIColorRole CPP_11(: Int)
 	GOUICOLOR_LOBBY_ROW,			///< OnlineChatColors Game
 	GOUICOLOR_BUDDY,					///< OnlineChatColors PlayerBuddy
 	GOUICOLOR_MENTION,				///< chat lines that mention the local player
+	GOUICOLOR_LINE_HILITE,		///< kit line of a hovered or selected frame, the hilite blue of the layouts
 
 	GOUICOLOR_COUNT
 };

@@ -70,7 +70,11 @@
 #include "GameNetwork/GUIUtil.h"
 #include "GameNetwork/IPEnumeration.h"
 #include "WWDownload/Registry.h"
+#include "Common/LocalApiLobby.h"
 
+#if defined(GENONLINE)
+UnsignedInt GetTeamUiColor(Int teamNumber);
+#endif
 
 SkirmishGameInfo *TheSkirmishGameInfo = nullptr;
 
@@ -516,7 +520,7 @@ void MapSelectorTooltip(GameWindow *window,
 	window->winGetScreenPosition(&pixelX, &pixelY);
 
 #if defined(GENONLINE)
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Name the type of the typed marker under the mouse.
+	// GenOnline @feature arcticdolphin 08/11/2026 Name the type of the typed marker under the mouse.
 	UnicodeString typedTooltip;
 	if (getMapPreviewMarkerTooltip(x - pixelX, y - pixelY, typedTooltip))
 	{
@@ -644,7 +648,7 @@ void positionAdditionalImages( MapMetaData *mmd, GameWindow *mapWindow, Bool for
 	Int smallHeight= lr.y - ul.y;
 
 #if defined(GENONLINE)
-	// TheSuperHackers @feature arcticdolphin 08/11/2026 Use the typed objects so each marker carries its icon category.
+	// GenOnline @feature arcticdolphin 08/11/2026 Use the typed objects so each marker carries its icon category.
 	if (positionTypedPreviewImages(mmd, ul, smallWidth, smallHeight))
 		return;
 #endif
@@ -843,6 +847,10 @@ void updateMapStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[
 				AsciiString displayNumber;
 				displayNumber.format("NUMBER:%d",i + 1);
 				GadgetButtonSetText(buttonMapStartPositions[gs->getApparentStartPos()], TheGameText->fetch(displayNumber));
+#if defined(GENONLINE)
+				// GenOnline @feature arcticdolphin 21/11/2026 Colour the start position number by team.
+				GadgetTextEntrySetTextColor(buttonMapStartPositions[gs->getApparentStartPos()], (gs->getTeamNumber() >= 0) ? GetTeamUiColor(gs->getTeamNumber()) : GameMakeColor(255, 255, 255, 255));
+#endif
 			}
 		}
 		else
@@ -857,6 +865,10 @@ void updateMapStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[
 				UnicodeString temp;
 				temp.format(TheGameText->fetch("TOOLTIP:StartPositionN"), i + 1);
 				buttonMapStartPositions[gs->getStartPos()]->winSetTooltip(temp);
+#if defined(GENONLINE)
+				// GenOnline @feature arcticdolphin 21/11/2026 Colour the start position number by team.
+				GadgetTextEntrySetTextColor(buttonMapStartPositions[gs->getStartPos()], (gs->getTeamNumber() >= 0) ? GetTeamUiColor(gs->getTeamNumber()) : GameMakeColor(255, 255, 255, 255));
+#endif
 			}
 		}
 	}
@@ -1890,4 +1902,47 @@ void populateSkirmishBattleHonors()
 		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("OfficersClub"), TRUE,
 			BATTLE_HONOR_OFFICERSCLUB, row, column);
 	}
+}
+
+// GenOnline @feature arcticdolphin 21/11/2026 The stats pipe moves start positions, sets the speed and describes the screen controls.
+static void statsMoveStartPosition(Int slot, Int position)
+{
+	handleStartPositionSelection(slot, position);
+	skirmishUpdateSlotList();
+	sandboxOk = FALSE;
+}
+
+static void statsSetGameSpeed(Int fps)
+{
+	GameWindow *sliderGameSpeed = TheWindowManager->winGetWindowFromId( parentSkirmishGameOptions, sliderGameSpeedID );
+	GadgetSliderSetPosition( sliderGameSpeed, fps );
+	setFPSTextBox( fps );
+}
+
+Bool SkirmishGameOptionsMenuStatsLobby( StatsLobbyScreen& out )
+{
+	if (!parentSkirmishGameOptions || !TheSkirmishGameInfo || !buttonStart)
+		return FALSE;
+
+	out.game = TheSkirmishGameInfo;
+	out.isHost = TRUE;
+	out.localSlot = TheSkirmishGameInfo->getLocalSlotNum();
+	if (buttonPushed)
+		out.blocked = "the Start button was pressed: the screen is leaving";
+	else if (skirmishMapSelectLayout)
+		out.blocked = "the map selector is open";
+	else if (!doUpdateSlotList)
+		out.blocked = "the screen is still opening";
+	out.comboPlayer = comboBoxPlayer;
+	out.comboColor = comboBoxColor;
+	out.comboTemplate = comboBoxPlayerTemplate;
+	out.comboTeam = comboBoxTeam;
+	out.buttonStartPosition = buttonMapStartPosition;
+	out.buttonSelectMap = buttonSelectMap;
+	out.buttonStart = buttonStart;
+	out.sliderGameSpeed = TheWindowManager->winGetWindowFromId( parentSkirmishGameOptions, sliderGameSpeedID );
+	out.moveStartPosition = statsMoveStartPosition;
+	out.applyMap = SkirmishMapSelectMenuApplyMap;
+	out.setGameSpeed = statsSetGameSpeed;
+	return TRUE;
 }

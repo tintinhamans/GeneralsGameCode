@@ -16,9 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlineNetworkOverlay.h ////////////////////////////////////////////
-// Description: The GenOnline network overlay with the connection rating of
-//              every player in the match.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once

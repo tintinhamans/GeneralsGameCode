@@ -22,7 +22,6 @@
 //																																						//
 ////////////////////////////////////////////////////////////////////////////////
 
-// FILE: GenOnlinePopupJoinGame.cpp /////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
 //
 //                       Electronic Arts Pacific.
@@ -86,7 +85,6 @@ static void joinGame( AsciiString password );
 //-----------------------------------------------------------------------------
 
 //-------------------------------------------------------------------------------------------------
-/** Initialize the GenOnlinePopupHostGameInit menu */
 //-------------------------------------------------------------------------------------------------
 void GenOnlinePopupJoinGameInit( WindowLayout *layout, void *userData )
 {
@@ -106,7 +104,7 @@ void GenOnlinePopupJoinGameInit( WindowLayout *layout, void *userData )
 	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface == nullptr)
 	{
-		DEBUG_LOG(("NGMP_OnlineServices_LobbyInterface is not initialized!"));
+		DEBUG_LOG(("GenOnlineLobbyInterface is not initialized!"));
 		return;
 	}
 
@@ -120,7 +118,6 @@ void GenOnlinePopupJoinGameInit( WindowLayout *layout, void *userData )
 }
 
 //-------------------------------------------------------------------------------------------------
-/** GenOnlinePopupHostGameInput callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType GenOnlinePopupJoinGameInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 )
 {
@@ -169,7 +166,6 @@ WindowMsgHandledType GenOnlinePopupJoinGameInput( GameWindow *window, UnsignedIn
 }
 
 //-------------------------------------------------------------------------------------------------
-/** GenOnlinePopupHostGameSystem callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType GenOnlinePopupJoinGameSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 )
 {
@@ -257,7 +253,7 @@ static void joinGame( AsciiString password )
 	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface == nullptr)
 	{
-		DEBUG_LOG(("NGMP_OnlineServices_LobbyInterface is not initialized!"));
+		DEBUG_LOG(("GenOnlineLobbyInterface is not initialized!"));
 		GameSpyCloseOverlay(GSOVERLAY_GAMEPASSWORD);
 		GenOnlineSetLobbyAttemptHostJoin(FALSE);
 		parentPopup = nullptr;

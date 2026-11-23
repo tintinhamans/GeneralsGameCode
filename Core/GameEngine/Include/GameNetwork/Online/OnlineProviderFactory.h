@@ -40,12 +40,6 @@ class IOnlineMatchmaking;
 class IOnlineGameHooks;
 struct TransportInfo;
 
-//-----------------------------------------------------------------------------
-// OnlineProviderFactory
-//
-// One provider contributes one factory. createServices() and destroyServices()
-// carry the ordered lifecycle of its services.
-//-----------------------------------------------------------------------------
 class OnlineProviderFactory
 {
 public:
@@ -61,32 +55,23 @@ public:
 	virtual IOnlineLobbyState *createLobbyState() = 0;
 	virtual IOnlinePresence *createPresence() = 0;
 	virtual IOnlineStats *createStats() = 0;
-	// Transfers one provider-owned ladder service to TheLadderList.  Its
-	// returned entries/lists remain borrowed by existing consumers until
-	// online-service teardown; consumers never delete them.
+	// Returned ladder entries stay borrowed until online service teardown.
 	virtual IOnlineLadder *createLadder() = 0;
-	// Transfers one results subsystem to the engine. The engine registers,
-	// updates, resets, Xfers, and deletes exactly this instance for its lifetime.
+	// The engine owns the returned results for its lifetime.
 	virtual IOnlineResults *createResults() = 0;
 	virtual IOnlineMatchmaking *createMatchmaking() = 0;
 
-	// Picks the game connection transport from the registered transports.
-	// Returns an index into the transports, or -1 when none of them fits.
+	// Returns an index into the transports, or -1 when none fits.
 	virtual Int chooseGameTransport( const TransportInfo *transports, Int count ) const = 0;
 
-	// The calls the engine, game logic, recorder and in game UI make into this provider.
 	// The factory owns the hooks for the process lifetime.
 	virtual IOnlineGameHooks *getGameHooks() = 0;
 
-	// Ordered lifecycle.
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) = 0;
 	virtual void destroyServices() = 0;
 };
 
-//-----------------------------------------------------------------------------
-// The currently active online provider. POD, statically zero-initialized so it
-// is safe under VC6 without namespace-scope constructors.
-//-----------------------------------------------------------------------------
+// POD and zero-initialized so VC6 needs no namespace-scope constructor.
 struct OnlineRuntime
 {
 	OnlineProviderType m_provider;
@@ -97,41 +82,28 @@ extern OnlineRuntime TheOnline;
 
 enum { MAX_ONLINE_PROVIDERS = 8 };
 
-//-----------------------------------------------------------------------------
-// Registry + resolution. The registry is a function-local static (no
-// namespace-scope STLport container). Providers are entered by an explicit
-// RegisterBuiltInProviders() call, never by self-registering global ctors.
-//-----------------------------------------------------------------------------
+// Providers register through an explicit call, never through global constructors.
 void RegisterOnlineProvider( OnlineProviderFactory *factory );
 OnlineProviderFactory *GetOnlineProvider( OnlineProviderType type );		// null if unregistered
 void RegisterBuiltInProviders();
 
-// CLI '-onlineProvider <name>' override, stashed by CommandLine.cpp and read by
-// ResolveConfiguredProvider(). Empty string means "not supplied".
+// Set from -onlineProvider by CommandLine.cpp. Empty means not supplied.
 void SetCommandLineOnlineProvider( const char *name );
 const char *GetCommandLineOnlineProvider();
 
-// Precedence: CLI '-onlineProvider' > GenOnline in GenOnline builds > GameSpy.
-// Unrecognised names degrade to the default provider with one log line. Safe to call before
-// the online subsystem is set up.
+// Precedence is -onlineProvider, then GenOnline in GenOnline builds, then GameSpy.
+// Unrecognised names use the default provider.
 OnlineProviderType ResolveConfiguredProvider();
 
-// Resolve and construct the engine-owned results subsystem before Online entry.
-// A known but unavailable provider or a failed construction returns null, so the
-// engine follows its existing fatal startup path rather than registering null.
+// Returns null when the provider is unavailable or construction fails.
 IOnlineResults *CreateOnlineResults( OnlineProviderFactory **outFactory );
 
-// Latch the provider after successful engine subsystem admission. Later Online
-// setup may reuse this factory, but may not select a different one until restart.
+// The bound provider cannot change until restart.
 Bool BindOnlineResultsProvider( OnlineProviderFactory *factory );
 OnlineProviderFactory *GetBoundOnlineResultsProvider();
 
-//-----------------------------------------------------------------------------
-// Lifecycle seam of the online provider services.
-//-----------------------------------------------------------------------------
 void SetUpOnline( OnlineProviderType type, const char *motdBuffer, const char *configBuffer );
 
-// Returns the name of the game connection transport that the active provider picks.
-// Without an active provider, or when it picks none, this returns the UDP transport.
+// Falls back to the UDP transport when no provider is active or none fits.
 const char *GetOnlineGameTransport();
 void TearDownOnline();

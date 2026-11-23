@@ -759,7 +759,7 @@ static void StartPressed()
 	}
 	else
 	{
-		// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name hides the user's folders.
+		// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
 		mapDisplayName = getMapNameFromPath(myGame->getMap());
 		willTransfer = WouldMapTransfer(myGame->getMap());
 	}
@@ -1904,7 +1904,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 										}
 										else
 										{
-											// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name hides the user's folders.
+											// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
 											mapDisplayName = getMapNameFromPath(game->getMap());
 											willTransfer = WouldMapTransfer(game->getMap());
 										}
@@ -2053,7 +2053,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 									}
 									else
 									{
-										// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The map name hides the user's folders.
+										// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
 										mapDisplayName = getMapNameFromPath(game->getMap());
 										willTransfer = WouldMapTransfer(game->getMap());
 									}

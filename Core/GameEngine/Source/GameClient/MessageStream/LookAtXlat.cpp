@@ -67,9 +67,6 @@ static Bool scrollDir[4] = { false, false, false, false };
 
 constexpr const Real SCROLL_AMT = 100.0f * SCROLL_MULTIPLIER;
 
-// TheSuperHackers @info The screen width of the retail game, which the Edge and Key scroll speeds are tuned for.
-constexpr const Real SCROLL_BASE_SCREEN_WIDTH = 800.0f;
-
 static const Int edgeScrollSize = 3;
 
 static Mouse::MouseCursor prevCursor = Mouse::ARROW;
@@ -445,14 +442,9 @@ GameMessageDisposition LookAtTranslator::translateGameMessage(const GameMessage 
 				// TheSuperHackers @bugfix Mauller 07/06/2025 The camera scrolling is now decoupled from the render update.
 				const Real fpsRatio = TheFramePacer->getBaseOverUpdateFpsRatio();
 
-				// TheSuperHackers @bugfix tintinhamans 18/11/2026 One speed factor now serves both axes, so the camera scrolls
+				// GenOnline @bugfix arcticdolphin 18/11/2026 One speed factor now serves both axes, so the camera scrolls
 				// equally fast in X and Y. The faster retail vertical factor only made up for the smaller vertical room of 4:3 screens.
 				const Real speedFactor = TheGlobalData->m_horizontalScrollSpeedFactor;
-
-				// TheSuperHackers @bugfix tintinhamans 18/11/2026 The view divides a scroll amount by the screen width. Edge and Key
-				// scrolling now grow with the screen width, so their retail speed range holds at any resolution. RMB scrolling
-				// needs no scale because its amount already grows with the drag distance in pixels.
-				const Real screenScale = (Real)TheDisplay->getWidth() / SCROLL_BASE_SCREEN_WIDTH;
 
 				switch (m_scrollType)
 				{
@@ -489,19 +481,19 @@ GameMessageDisposition LookAtTranslator::translateGameMessage(const GameMessage 
 					{
 						if (scrollDir[DIR_UP])
 						{
-							offset.y -= speedFactor * fpsRatio * SCROLL_AMT * screenScale * TheGlobalData->m_keyboardScrollFactor;
+							offset.y -= speedFactor * fpsRatio * SCROLL_AMT * TheGlobalData->m_keyboardScrollFactor;
 						}
 						if (scrollDir[DIR_DOWN])
 						{
-							offset.y += speedFactor * fpsRatio * SCROLL_AMT * screenScale * TheGlobalData->m_keyboardScrollFactor;
+							offset.y += speedFactor * fpsRatio * SCROLL_AMT * TheGlobalData->m_keyboardScrollFactor;
 						}
 						if (scrollDir[DIR_LEFT])
 						{
-							offset.x -= speedFactor * fpsRatio * SCROLL_AMT * screenScale * TheGlobalData->m_keyboardScrollFactor;
+							offset.x -= speedFactor * fpsRatio * SCROLL_AMT * TheGlobalData->m_keyboardScrollFactor;
 						}
 						if (scrollDir[DIR_RIGHT])
 						{
-							offset.x += speedFactor * fpsRatio * SCROLL_AMT * screenScale * TheGlobalData->m_keyboardScrollFactor;
+							offset.x += speedFactor * fpsRatio * SCROLL_AMT * TheGlobalData->m_keyboardScrollFactor;
 						}
 					}
 					break;
@@ -511,31 +503,33 @@ GameMessageDisposition LookAtTranslator::translateGameMessage(const GameMessage 
 						UnsignedInt width  = TheDisplay->getWidth();
 						if (m_currentPos.y < edgeScrollSize)
 						{
-							offset.y -= speedFactor * fpsRatio * SCROLL_AMT * screenScale * TheGlobalData->m_keyboardScrollFactor;
+							offset.y -= speedFactor * fpsRatio * SCROLL_AMT * TheGlobalData->m_keyboardScrollFactor;
 						}
 						if (m_currentPos.y >= height-edgeScrollSize)
 						{
-							offset.y += speedFactor * fpsRatio * SCROLL_AMT * screenScale * TheGlobalData->m_keyboardScrollFactor;
+							offset.y += speedFactor * fpsRatio * SCROLL_AMT * TheGlobalData->m_keyboardScrollFactor;
 						}
 						if (m_currentPos.x < edgeScrollSize)
 						{
-							offset.x -= speedFactor * fpsRatio * SCROLL_AMT * screenScale * TheGlobalData->m_keyboardScrollFactor;
+							offset.x -= speedFactor * fpsRatio * SCROLL_AMT * TheGlobalData->m_keyboardScrollFactor;
 						}
 						if (m_currentPos.x >= width-edgeScrollSize)
 						{
-							offset.x += speedFactor * fpsRatio * SCROLL_AMT * screenScale * TheGlobalData->m_keyboardScrollFactor;
+							offset.x += speedFactor * fpsRatio * SCROLL_AMT * TheGlobalData->m_keyboardScrollFactor;
 						}
 					}
 					break;
 				}
 
-				// TheSuperHackers @tweak tintinhamans 18/11/2026 Scrolling now moves the same share of the view at any zoom.
+				// GenOnline @tweak arcticdolphin 18/11/2026 Scrolling now moves the same share of the view at any zoom.
 				// The speed scales with the camera height over the default camera height of GameData.ini, so the retail speed
 				// holds at the default height, a higher camera scrolls faster and a lower camera scrolls slower. This also
 				// covers the higher camera that wide screens allow.
+				// GenOnline @bugfix arcticdolphin 22/11/2026 The scale uses the zoom height the player chose, because the measured
+				// height above the terrain changes every frame over hills and at the map border and made the speed uneven.
 				if (TheGlobalData->m_cameraHeight > 0.0f)
 				{
-					Real height = TheTacticalView->getCurrentHeightAboveGround();
+					Real height = TheTacticalView->getHeightAboveGround();
 					if (height < 1.0f)
 					{
 						height = 1.0f;

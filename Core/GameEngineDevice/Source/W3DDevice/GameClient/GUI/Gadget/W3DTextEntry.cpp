@@ -152,7 +152,7 @@ static void drawTextEntryText( GameWindow *window, WinInstanceData *instData,
 		//if( e->constructList && e->constructText->getTextLength() )
 		//	e->constructList->winSetPosition( (x + textWidth1), (y + fontHeight) );
 
-		// TheSuperHackers @tweak arcticdolphin 08/11/2026 The text margins scale with the screen height.
+		// GenOnline @tweak arcticdolphin 08/11/2026 The text margins scale with the screen height.
 		x+= GameWindowManager::winScaleLayoutSize( 2 );
 		// draw the text
 		if(textWidth < width)
@@ -202,7 +202,6 @@ static void drawTextEntryText( GameWindow *window, WinInstanceData *instData,
 	if(parent && !BitIsSet(parent->winGetStyle(), GWS_COMBO_BOX))
 		parent = nullptr;
 
-	// The completion hint draws in grey at the caret while the box has focus and no composition is active.
 	const Bool hasFocus = window == TheWindowManager->winGetFocus() || (parent && parent == TheWindowManager->winGetFocus());
 	if( e->completionEnabled && !e->secretText && hasFocus &&
 			e->constructText->getTextLength() == 0 && e->completionHint->getTextLength() > 0 )
@@ -279,7 +278,7 @@ void W3DGadgetTextEntryDraw( GameWindow *window, WinInstanceData *instData )
 
 	}
 
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 With the GO kit, a visible border draws at the kit line weight like the kit list frames.
+	// GenOnline @tweak arcticdolphin 08/11/2026 With the GO kit, a visible border draws at the kit line weight like the kit list frames.
 	Bool kitBorder = FALSE;
 	if( backBorder != WIN_COLOR_UNDEFINED && GadgetListBoxGetKitScrollLineWidth() > 0 )
 	{
@@ -319,13 +318,13 @@ void W3DGadgetTextEntryDraw( GameWindow *window, WinInstanceData *instData )
 
 	// draw the text
 	Int fontHeight = TheWindowManager->winFontHeight( instData->getFont() );
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
+	// GenOnline @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
 	Int startOffset = GameWindowManager::winScaleLayoutSize( 5 );
 	Int width;
 
 	width = size.x - (2 * startOffset);
 	start.x = origin.x + startOffset;  // offset a little bit into the entry
-	// TheSuperHackers @bugfix arcticdolphin 23/10/2026 The text is centered vertically in the entry.
+	// GenOnline @bugfix arcticdolphin 23/10/2026 The text is centered vertically in the entry.
 	start.y = origin.y + (size.y - fontHeight) / 2;
 
 	// draw the edit text
@@ -359,7 +358,7 @@ void W3DGadgetTextEntryImageDraw( GameWindow *window, WinInstanceData *instData 
 	xOffset = instData->m_imageOffset.x;
 	yOffset = instData->m_imageOffset.y;
 
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The edit box of a kit combo lights with its whole field and draws no line before the arrow.
+	// GenOnline @tweak arcticdolphin 08/11/2026 The edit box of a kit combo lights with its whole field and draws no line before the arrow.
 	GameWindow *combo = window->winGetParent();
 	const Bool kitField = GadgetComboBoxIsKitField( combo ) && GadgetComboBoxGetEditBox( combo ) == window;
 
@@ -389,7 +388,7 @@ void W3DGadgetTextEntryImageDraw( GameWindow *window, WinInstanceData *instData 
 		centerImage				= GadgetTextEntryGetHiliteImageCenter( window );
 		smallCenterImage	= GadgetTextEntryGetHiliteImageSmallCenter( window );
 
-		// TheSuperHackers @tweak arcticdolphin 08/11/2026 A lit kit combo field keeps its enabled text colours, only its outline lights.
+		// GenOnline @tweak arcticdolphin 08/11/2026 A lit kit combo field keeps its enabled text colours, only its outline lights.
 		if( kitField )
 		{
 			textColor				= window->winGetEnabledTextColor();
@@ -411,7 +410,6 @@ void W3DGadgetTextEntryImageDraw( GameWindow *window, WinInstanceData *instData 
 
 	}
 
-	// the arrow square closes the field on the right, so the edit box ends in a middle piece
 	if( kitField )
 		rightImage = smallCenterImage != nullptr ? smallCenterImage : centerImage;
 
@@ -420,13 +418,13 @@ void W3DGadgetTextEntryImageDraw( GameWindow *window, WinInstanceData *instData 
 
 	// draw the text
 	Int fontHeight = TheWindowManager->winFontHeight( instData->getFont() );
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
+	// GenOnline @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
 	Int startOffset = GameWindowManager::winScaleLayoutSize( 5 );
 	Int width;
 
 	width = size.x - (2 * startOffset);
 	start.x = origin.x + startOffset;  // offset a little bit into the entry
-	// TheSuperHackers @bugfix arcticdolphin 23/10/2026 The text is centered vertically in the entry.
+	// GenOnline @bugfix arcticdolphin 23/10/2026 The text is centered vertically in the entry.
 	start.y = origin.y + (size.y - fontHeight) / 2;
 
 	// draw the edit text

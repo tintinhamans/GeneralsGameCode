@@ -32,7 +32,7 @@
 #include "Common/Thing.h"
 #include "Common/ThingTemplate.h"
 #include "Common/RandomValue.h"
-#include "Common/StatsExporterLive.h"
+#include "Common/LocalApiLive.h"
 #include "Common/Xfer.h"
 
 #include "GameLogic/ExperienceTracker.h"
@@ -188,7 +188,7 @@ void NeutronMissileUpdate::projectileFireAtObjectOrPosition( const Object *victi
 		m_intermedPos.z += getNeutronMissileUpdateModuleData()->m_targetFromDirectlyAbove;
 	}
 
-	// Read-only tap for the stats pipe: the flight time the missile's own data predicts. It flies at the speed where the acceleration balances
+	// Read-only tap for the stats pipe: the flight time that the data of the missile predicts. It flies at the speed where the acceleration balances
 	// the damping, a legacy (30 per second) frame at a time: first the climb, then to the point above the target, then straight down at half speed.
 	{
 		const NeutronMissileUpdateModuleData* d = getNeutronMissileUpdateModuleData();
@@ -203,7 +203,7 @@ void NeutronMissileUpdate::projectileFireAtObjectOrPosition( const Object *victi
 			{
 				legacyFrames += d->m_targetFromDirectlyAbove / (topSpeed * STRAIGHT_DOWN_SLOW_FACTOR);
 			}
-			StatsExporterLiveMissileLaunched(getObject(), &m_targetPos, legacyFrames / (Real)BaseFps);
+			LocalApiLiveMissileLaunched(getObject(), &m_targetPos, legacyFrames / (Real)BaseFps);
 		}
 	}
 

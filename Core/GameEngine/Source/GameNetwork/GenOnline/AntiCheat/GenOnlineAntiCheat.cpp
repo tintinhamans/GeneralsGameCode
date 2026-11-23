@@ -16,8 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlineAntiCheat.cpp ///////////////////////////////////////////////
-// Description: GenOnline Anti-Cheat, the built in anticheat plugin.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine

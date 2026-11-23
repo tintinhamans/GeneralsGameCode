@@ -16,34 +16,8 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlinePluginPlatform.h ////////////////////////////////////////////
-// Description: Operating system layer of the GenOnline plugin trust check and
-//              plugin loader. The trust check and the manifest and signature
-//              code call only these functions, so another platform implements
-//              this file and nothing else.
 //
-//              GenOnlinePluginPlatformWin32.cpp implements it with CreateFileW
-//              share modes, FILE_ID_INFO, BCrypt, GetFinalPathNameByHandleW
-//              and LoadLibraryExW.
 //
-//              A Linux implementation opens every file and folder with open
-//              and O_NOFOLLOW, O_CLOEXEC and O_DIRECTORY for folders, and walks
-//              a folder with openat and fdopendir on the locked folder fd. The
-//              identity of a file is st_dev plus st_ino from fstat. Linux has
-//              no share modes, so the Linux layer hashes the bytes it reads
-//              into memory with the OpenSSL SHA256 that curl already links,
-//              writes those bytes into a memfd_create file and seals it with
-//              F_SEAL_WRITE, F_SEAL_GROW and F_SEAL_SHRINK. LoadModule calls
-//              dlopen on /proc/self/fd/N of that memfd, so the loaded bytes are
-//              the verified bytes. GetSymbol calls dlsym, UnloadModule calls
-//              dlclose, and IsModuleBackedByFile compares the fstat identity of
-//              the memfd with the file that dl_iterate_phdr reports for the
-//              module. The plugin libraries carry an RPATH of $ORIGIN, which
-//              the plugin build sets, so they find their dependencies next to
-//              them. The layer loads every listed dependency through its own
-//              memfd before the main library, so the dynamic loader finds the
-//              verified copies by their sonames. Names compare case
-//              sensitively, so FoldName returns the name as is.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -55,10 +29,8 @@
 
 namespace GenOnlinePluginPlatform
 {
-// An open file or folder. nullptr is no handle.
 using Handle = void*;
 
-// A loaded plugin module. nullptr is no module.
 using Module = void*;
 
 // The volume and file id of a file, which stay the same under every name of the file.
@@ -101,13 +73,10 @@ void CloseHandle(Handle handle);
 // Reads the whole file from its start. A file that is empty or larger than maxSize fails.
 bool ReadWholeFile(Handle file, uint64_t maxSize, std::string& outData, std::string& outError);
 
-// Hashes the whole file from its start.
 bool ComputeSha256(Handle file, std::array<uint8_t, 32>& outHash);
 
-// Hashes size bytes at data.
 bool ComputeSha256OfData(const void* data, size_t size, std::array<uint8_t, 32>& outHash);
 
-// The size in bytes of an open file.
 bool GetFileSize(Handle file, uint64_t& outSize);
 
 bool GetFileIdentity(Handle handle, FileIdentity& outIdentity);

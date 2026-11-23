@@ -23,7 +23,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// FILE: GenOnlineWelcomeMenu.cpp
 // Author: Chris Huybregts, November 2001
 // Description: Lan Lobby Menu
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -32,6 +31,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "GameClient/GenOnlineMenus.h"
+#include "GameClient/GenOnlineUserSection.h"
 
 #include "gamespy/peer/peer.h"
 
@@ -234,7 +234,7 @@ static void updateNumPlayersOnline()
 		GadgetStaticTextSetText(playersOnlineWindow, valStr);
 	}
 
-	// TODO_NGMP
+	// TODO_GENONLINE
 	//if (listboxInfo && TheGameSpyInfo)
 	if (listboxInfo)
 	{
@@ -247,7 +247,8 @@ static void updateNumPlayersOnline()
 		//Kris: Patch 1.01 - November 12, 2003
 		//Removed number of players from string, and removed the argument. The number is incorrect anyways...
 		//This was a Harvard initiated fix.
-		headingStr.format(TheGameText->fetch("MOTD:NumPlayersHeading"));
+		// The Generals string still holds a %d and the Zero Hour string does not, so the count is always passed.
+		headingStr.format(TheGameText->fetch("MOTD:NumPlayersHeading"), lastNumPlayersOnline);
 
 		//<hexcol>%hs for colors
 		while (headingStr.nextToken(&line, L"\n"))
@@ -378,7 +379,6 @@ void GenOnlineHandleOverallStats( const char* szHTTPStats, unsigned len )
 }
 
 
-//called only from GenOnlineWelcomeMenuInit to set %win stats
 static void updateOverallStats()
 {
 	GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
@@ -622,10 +622,10 @@ void GenOnlineWelcomeMenuInit( WindowLayout *layout, void *userData )
 	updateOverallStats();
 	GenOnlineUpdateLocalPlayerStats();
 
-	// NGMP: We removed locales, it was pointless
-
 	raiseMessageBoxes = TRUE;
 	TheTransitionHandler->setGroup("WOLWelcomeMenuFade");
+
+	GenOnlineUserSectionShow(parentWOLWelcome);
 
     // Update the communicator button anytime we get notifications
     GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
@@ -665,6 +665,7 @@ void GenOnlineWelcomeMenuInit( WindowLayout *layout, void *userData )
 //-------------------------------------------------------------------------------------------------
 void GenOnlineWelcomeMenuShutdown( WindowLayout *layout, void *userData )
 {
+	GenOnlineUserSectionHide();
 	listboxInfo = nullptr;
 
 	delete TheFirewallHelper;
@@ -705,7 +706,7 @@ void GenOnlineWelcomeMenuUpdate( WindowLayout * layout, void *userData)
 		raiseMessageBoxes = FALSE;
 	}
 
-	// TODO_NGMP: We do this in multiple UIs, we should actually just do it in one place and send an event to every other screen
+	// TODO_GENONLINE: We do this in multiple UIs, we should actually just do it in one place and send an event to every other screen
 	if (GenOnlineServicesManager::GetInstance() != nullptr && GenOnlineServicesManager::GetInstance()->IsPendingFullTeardown())
 	{
 		GenOnlineServicesManager::GetInstance()->ConsumePendingFullTeardown();
@@ -714,11 +715,11 @@ void GenOnlineWelcomeMenuUpdate( WindowLayout * layout, void *userData)
 
 		TheShell->pop();
 
-		// NGMP: Don't need to logout here, just kill the WS connection, that triggers a log out
+		// Killing the websocket connection logs out, so no logout call is needed.
 		TearDownGeneralsOnline();
 	}
 
-	// TODO_NGMP: do we still care about FW helper?
+	// TODO_GENONLINE: do we still care about FW helper?
 
 	GenOnlineHandleBuddyResponses();
 
@@ -808,7 +809,7 @@ WindowMsgHandledType GenOnlineWelcomeMenuSystem( GameWindow *window, UnsignedInt
 
 		case GBM_SELECTED:
 			{
-			// TODO_NGMP: Support exiting online again
+			// TODO_GENONLINE: Support exiting online again
 				if (buttonPushed)
 					break;
 
@@ -820,7 +821,7 @@ WindowMsgHandledType GenOnlineWelcomeMenuSystem( GameWindow *window, UnsignedInt
 					//DEBUG_ASSERTCRASH(TheGameSpyChat->getPeer(), ("No GameSpy Peer object!"));
 					//TheGameSpyChat->disconnectFromChat();
 
-					// NGMP: Don't need to logout here, just kill the WS connection, that triggers a log out
+					// Killing the websocket connection logs out, so no logout call is needed.
 					GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
 
 					DEBUG_LOG(("Tearing down GeneralsOnline from WOLWelcomeMenuSystem(GBM_SELECTED)\n"));
@@ -867,7 +868,7 @@ WindowMsgHandledType GenOnlineWelcomeMenuSystem( GameWindow *window, UnsignedInt
 				}
 				else if (controlID == buttonMyInfoID )
 				{
-					// TODO_NGMP: This needs work for unicode once we support this
+					// TODO_GENONLINE: This needs work for unicode once we support this
 					GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 					if (pAuthInterface != nullptr)
 					{
@@ -880,7 +881,7 @@ WindowMsgHandledType GenOnlineWelcomeMenuSystem( GameWindow *window, UnsignedInt
 					//TheGameSpyChat->clearGroupRoomList();
 					//peerListGroupRooms(TheGameSpyChat->getPeer(), ListGroupRoomsCallback, nullptr, PEERTrue);
 
-					// TODO_NGMP
+					// TODO_GENONLINE
 					//TheGameSpyInfo->joinBestGroupRoom();
 					//enableControls( FALSE );
 					buttonPushed = TRUE;

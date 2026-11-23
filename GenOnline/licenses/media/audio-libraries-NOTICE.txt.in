@@ -1,0 +1,28 @@
+This game uses the following libraries, linked into the executable.
+
+FFmpeg 9.0.2
+  License: GNU Lesser General Public License version 2.1 or later (ffmpeg-LICENSE.txt).
+  Built without GPL or nonfree components, with only the bink, wav and mp3
+  demuxers and the bink, binkaudio_dct, pcm_s16le, adpcm_ima_wav and mp3float
+  decoders enabled (see GenOnline/cmake/ports/ffmpeg in the game's source).
+  Source: https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz
+
+OpenAL Soft 1.25.2
+  License: GNU Library General Public License version 2 (openal-soft-LICENSE.txt),
+  with the bundled PFFFT under its own license (openal-soft-pffft-LICENSE.txt).
+  Built with the float sample loading change in
+  GenOnline/cmake/ports/openal-soft/0001-float-loader.patch in the game's source.
+  Source: https://github.com/kcat/openal-soft/releases/tag/1.25.2
+
+The game's own source code, including the build scripts above, is available
+under the GNU General Public License version 3.
+
+This executable was built from @NOTICE_SOURCE_REVISION@
+of @NOTICE_SOURCE_URL@
+The build uses the vcpkg ports in GenOnline/cmake/ports and the vcpkg baseline in
+vcpkg.json of that revision. Building that revision with a modified FFmpeg or
+OpenAL Soft port produces the game linked against the modified library.
+
+The release that ships this executable also publishes a source archive next to
+the game download, with the same name followed by -sources. It holds the exact
+FFmpeg and OpenAL Soft source archives used for the build and the ports above.

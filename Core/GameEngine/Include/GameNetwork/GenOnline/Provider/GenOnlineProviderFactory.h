@@ -16,11 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: GenOnlineProviderFactory.h ///////////////////////////////////////////
-// Description: GenOnline implementation of OnlineProviderFactory.
-//              The GenOnline menus talk to GenOnlineServicesManager, so the
-//              provider creates no GameSpy shaped lobby, chat, presence,
-//              stats, ladder, config, session or matchmaking objects.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once

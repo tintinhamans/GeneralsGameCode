@@ -27,9 +27,7 @@ inline bool aqGuidEqual(const AqGuid& a, const AqGuid& b)
 
 namespace AdaptiveQualityPower
 {
-	// power plan "Power saver"
 	static const AqGuid kPowerSaverPlan = { 0xA1841308, 0x3541, 0x4FAB, { 0xBC, 0x81, 0xF7, 0x15, 0x56, 0xF2, 0x0B, 0x4A } };
-	// power mode overlay "Best power efficiency"
 	static const AqGuid kBestEfficiencyOverlay = { 0x961CC777, 0x2547, 0x4F9D, { 0x81, 0x74, 0x7D, 0x86, 0x18, 0x1B, 0x8A, 0x7A } };
 	static const AqGuid kBalancedPlan = { 0x381B4222, 0xF694, 0x41F0, { 0x96, 0x85, 0xFF, 0x5B, 0xB2, 0x60, 0xDF, 0x2E } };
 	static const AqGuid kHighPerformancePlan = { 0x8C5E7FDA, 0xE8BF, 0x4A96, { 0x9A, 0x85, 0xA6, 0xE2, 0x3A, 0x8C, 0x63, 0x5C } };
@@ -48,7 +46,7 @@ namespace AdaptiveQualityPower
 	inline State classify(unsigned char acLineStatus, unsigned char batteryFlag, unsigned char systemStatusFlag, const AqGuid* plan, const AqGuid* overlay)
 	{
 		State s;
-		// AC line 0 is offline; battery flag 128 is no battery and 255 is unknown, a desktop is never on battery
+		// AC line 0 is offline, battery flag 128 is no battery and 255 is unknown, a desktop is never on battery
 		s.onBattery = acLineStatus == 0 && batteryFlag != 128 && batteryFlag != 255;
 		s.batterySaver = (systemStatusFlag & 1) != 0;
 		s.powerSaverPlan = plan != nullptr && aqGuidEqual(*plan, kPowerSaverPlan);

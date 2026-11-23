@@ -23,7 +23,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// FILE: GenOnlineQuickMatchMenu.cpp
 // Author: Chris Huybregts, November 2001
 // Description: Lan Lobby Menu
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -32,6 +31,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "GameClient/GenOnlineMenus.h"
+#include "GameClient/GenOnlineUserSection.h"
 
 #include "Common/GameEngine.h"
 #include "Common/GOUIColors.h"
@@ -393,7 +393,8 @@ static void populateQMSideComboBox(Int favSide, const LadderInfo *li = nullptr)
 		// This is also enforced at GUI setup (GUIUtil.cpp and UserPreferences.cpp).
 		// @todo: unlock these when something rad happens
 		Bool disallowLockedGenerals = TRUE;
-		const GeneralPersona *general = TheChallengeGenerals->getGeneralByTemplateName(fac->getName());
+		// Generals has no challenge generals.
+		const GeneralPersona *general = TheChallengeGenerals ? TheChallengeGenerals->getGeneralByTemplateName(fac->getName()) : nullptr;
 		Bool startsLocked = general ? !general->isStartingEnabled() : FALSE;
 		if (disallowLockedGenerals && startsLocked)
 			continue;
@@ -447,7 +448,6 @@ static inline Bool isValidLadder( const LadderInfo *lad )
 {
 	if (lad && lad->index > 0 && lad->validQM)
 	{
-		// The local wins come from the GenOnline stats cache.
 		PSPlayerStats stats;
 		GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 		GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
@@ -764,7 +764,7 @@ static void saveQuickMatchOptions()
 	pref.setMaxPing(selected);
 
 	Int item;
-	// A locked army list shows Random only, which is not the player's choice to keep.
+	// A locked army list shows Random only, which is not a choice of the player to keep.
 	if (BitIsSet(comboBoxSide->winGetStatus(), WIN_STATUS_ENABLED))
 	{
 		GadgetComboBoxGetSelectedPos(comboBoxSide, &selected);
@@ -1003,7 +1003,6 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 
 	// welcome msg + instructions
 	GadgetListBoxAddEntryText(GenOnlineQuickMatchTextWindow, UnicodeString(L"Welcome to QuickMatch. Choose Setup to select playlists and maps."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 25, 255)), -1, -1);
-	GadgetListBoxAddEntryText(GenOnlineQuickMatchTextWindow, UnicodeString(L"Special thanks to map makers Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy & Bamovich for making quickmatch possible."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 25, 255)), -1, -1);
 
 
 	// refresh out stats, needed for ELO data
@@ -1120,7 +1119,6 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				buttonWiden->winEnable(TRUE);
 			});
 
-		// The service took the player out of the queue, so the menu returns to its start state like Stop.
 		pLobbyInterface->RegisterForMatchmakingLeftCallback([]()
 			{
 				matchFoundTimeoutStart = 0;
@@ -1157,10 +1155,9 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				matchStartCountdownLastSecond = 0;
 				NetworkLog(ELogVerbosity::LOG_DEBUG, "[QUICKMATCH] GOT START GAME EVENT");
 
-				// Check if TheGenOnlineGame is initialized before dereferencing it
 				if (!TheGenOnlineGame)
 				{
-					NetworkLog(ELogVerbosity::LOG_DEBUG, "[QUICKMATCH] NO NGMP GAME INSTANCE");
+					NetworkLog(ELogVerbosity::LOG_DEBUG, "[QUICKMATCH] NO GenOnline GAME INSTANCE");
 					return;
 				}
 
@@ -1186,8 +1183,7 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				}
 
 
-				// TODO_NGMP
-				//GenOnlineSendStatsToOtherPlayers(TheGenOnlineGame);
+				// TODO_GENONLINE
 
 				GameWindow* buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
 				if (buttonBuddy)
@@ -1298,6 +1294,8 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 			});
 	}
 
+	GenOnlineUserSectionShow(parentWOLQuickMatch);
+
     // Update the communicator button anytime we get notifications
     GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
     if (pSocialInterface != nullptr)
@@ -1361,6 +1359,7 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void GenOnlineQuickMatchMenuShutdown( WindowLayout *layout, void *userData )
 {
+	GenOnlineUserSectionHide();
 	++s_quickMatchMenuGeneration;
 
 
@@ -1681,7 +1680,6 @@ WindowMsgHandledType GenOnlineQuickMatchMenuSystem( GameWindow *window, Unsigned
 				if (!isInInit)
 				{
 					QuickMatchPreferences pref;
-					// Each playlist says whether players pick their army.
 					if (controlID == comboBoxNumPlayersID)
 						populateQMSideComboBox(pref.getSide(), getLadderInfo());
 					populateQuickMatchMapSelectListbox(pref);

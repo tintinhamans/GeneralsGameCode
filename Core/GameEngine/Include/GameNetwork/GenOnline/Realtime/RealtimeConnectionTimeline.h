@@ -16,9 +16,6 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FILE: RealtimeConnectionTimeline.h /////////////////////////////////////////
-// Description: The state changes of one connection attempt to one peer, sent
-//              as the events of the lobby connection report.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once

@@ -16,7 +16,7 @@ extern HWND ApplicationHWnd;
 
 static const double BIN_MS = 0.05;
 
-// from system32 only; without KB2533623 the search flag is rejected, so retry by the full system path
+// from system32 only, and without KB2533623 the search flag is rejected so retry by the full system path
 static HMODULE loadSystemLibrary(const char* name)
 {
 	HMODULE module = ::LoadLibraryExA(name, nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
@@ -34,7 +34,7 @@ static HMODULE loadSystemLibrary(const char* name)
 	return module;
 }
 
-// windowed Present goes through DWM composition, which waits for the display; always on since Windows 8
+// windowed Present goes through DWM composition, which waits for the display and is always on since Windows 8
 static Bool dwmComposing()
 {
 	typedef HRESULT (WINAPI *DwmIsCompositionEnabledFn)(BOOL*);
@@ -69,6 +69,10 @@ AdaptiveQuality::AdaptiveQuality()
 	m_splitFrames = 0;
 	m_lastCpuMs = m_lastPresentMs = 0.0;
 	m_lastDeadlineMs = AdaptiveQualityTuning::values().overFrameMs;
+	m_catchUpTicks = 0;
+	m_catchUpFrames = 0;
+	m_lastCatchUpFrames = 0;
+	m_lastCatchUpMs = 0.0;
 	m_refreshMs = 1000.0 / 60.0;
 	m_windowed = FALSE;
 	m_intervalSynced = TRUE;
@@ -96,6 +100,19 @@ long long AdaptiveQuality::now()
 	LARGE_INTEGER t;
 	QueryPerformanceCounter(&t);
 	return t.QuadPart;
+}
+
+Int AdaptiveQuality::catchUpFrames() const
+{
+	const Int levelFrames = AdaptiveQualityLevels::catchUpFrames(m_inMatch ? m_model.level() : 0);
+	const Int maxFrames = AdaptiveQualityTuning::values().catchUpFrames;
+	return std::max<Int>(1, std::min<Int>(levelFrames, maxFrames));
+}
+
+double AdaptiveQuality::catchUpBudgetMs() const
+{
+	const double deadlineMs = m_lastDeadlineMs > 0.0 ? m_lastDeadlineMs : AdaptiveQualityTuning::values().budgetMs;
+	return deadlineMs * AdaptiveQualityTuning::values().catchUpBudgetFraction;
 }
 
 void AdaptiveQuality::frameBegin()
@@ -152,7 +169,7 @@ void AdaptiveQuality::frameEnd()
 		++m_waitFrames;
 	}
 
-	// own ticks include the Present wait, split it off; the split is logged but only the deadline decides
+	// own ticks include the Present wait so it is split off, the split is logged and only the deadline decides
 	const long long cpuTicks = m_ownTicks > m_presentTicks ? m_ownTicks - m_presentTicks : 0;
 	const double cpuMs = (double)cpuTicks * 1000.0 / (double)m_freq;
 	const double presentMs = (double)(m_ownTicks - cpuTicks) * 1000.0 / (double)m_freq;
@@ -169,7 +186,7 @@ void AdaptiveQuality::frameEnd()
 	}
 	if (m_networkWait)
 	{
-		// held for another player's commands: waiting is no cost, and a frame cut short by it says nothing about the pair
+		// held for the commands of another player, so waiting is no cost and a frame cut short by it says nothing about the pair
 		m_pairPending = FALSE;
 	}
 	else if (AdaptiveQualityLevels::rendersSkipped(m_model.level()))
@@ -269,7 +286,7 @@ void AdaptiveQuality::recordFrame(double ms, double deadlineMs)
 	m_sumMs += ms;
 }
 
-// the refresh period of the window's monitor, 60 Hz when unknown, and whether Present waits for it
+// the refresh period of the monitor of the window, 60 Hz when unknown, and whether Present waits for it
 void AdaptiveQuality::checkDisplay()
 {
 	double refreshMs = 1000.0 / 60.0;
@@ -314,6 +331,9 @@ void AdaptiveQuality::startMatch()
 	m_lastReason = AdaptiveQualityModel::REASON_NONE;
 	m_lastStepAt = 0.0;
 	m_powerChecked = FALSE;
+	m_catchUpTicks = 0;
+	m_catchUpFrames = m_lastCatchUpFrames = 0;
+	m_lastCatchUpMs = 0.0;
 	checkDisplay();
 }
 
@@ -387,6 +407,11 @@ void AdaptiveQuality::closeSecond(long long t)
 		}
 	}
 
+	m_lastCatchUpFrames = m_catchUpFrames;
+	m_lastCatchUpMs = (double)m_catchUpTicks * 1000.0 / (double)m_freq;
+	m_catchUpFrames = 0;
+	m_catchUpTicks = 0;
+
 	memset(m_hist, 0, sizeof(m_hist));
 	m_frames = m_over = m_waitFrames = m_iterations = 0;
 	m_sumMs = 0.0;
@@ -415,8 +440,8 @@ void AdaptiveQuality::setLevel(Int from, Int level, const AdaptiveSecond& s)
 
 	static const char* const reasons[] = { "none", "over", "p50", "calm" };
 	const Int changed = level > from ? level : from;
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[ADAPTIVE] level %d -> %d reason=%s cost p50=%.2f p95=%.2f missed=%.1f%% deadline=%.2f cpu=%.2f present=%.2f refresh=%.0fHz synced=%d delta(L%d)=%.2f%s upwait=%.0fs", (int)from, (int)level, reasons[m_model.reason()],
-		s.p50Ms, s.p95Ms, s.frames ? 100.0 * s.over / s.frames : 0.0, m_lastDeadlineMs, m_lastCpuMs, m_lastPresentMs, 1000.0 / m_refreshMs, (int)m_presentSynced, (int)changed, m_model.delta(changed), m_model.deltaLearned(changed) ? "" : " (default)", m_model.stepUpWait());
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[ADAPTIVE] level %d -> %d reason=%s cost p50=%.2f p95=%.2f missed=%.1f%% deadline=%.2f cpu=%.2f present=%.2f refresh=%.0fHz synced=%d delta(L%d)=%.2f%s upwait=%.0fs catchup=%d frames=%d/s", (int)from, (int)level, reasons[m_model.reason()],
+		s.p50Ms, s.p95Ms, s.frames ? 100.0 * s.over / s.frames : 0.0, m_lastDeadlineMs, m_lastCpuMs, m_lastPresentMs, 1000.0 / m_refreshMs, (int)m_presentSynced, (int)changed, m_model.delta(changed), m_model.deltaLearned(changed) ? "" : " (default)", m_model.stepUpWait(), (int)AdaptiveQualityLevels::catchUpFrames(level), (int)m_lastCatchUpFrames);
 
 	if (level > from)
 	{
@@ -460,5 +485,8 @@ Bool AdaptiveQuality::getOverlay(AdaptiveQualityOverlay& out) const
 	out.downInSec = m_model.canStepDown() ? (float)cooldown : -1.0f;
 	const double calmLeft = m_model.stepUpRequired() - (double)m_model.calmSeconds();
 	out.upInSec = m_model.level() > 0 ? (float)(std::max)(cooldown, calmLeft > 0.0 ? calmLeft : 0.0) : -1.0f;
+	out.catchUpFrames = catchUpFrames();
+	out.catchUpPerSec = m_lastCatchUpFrames;
+	out.catchUpMs = (float)m_lastCatchUpMs;
 	return TRUE;
 }

@@ -1,6 +1,0 @@
-// Three projects: the library (what other people depend on), the test client that uses it, and the example programs.
-rootProject.name = 'stats-exporter-client'
-
-include 'lib'
-include 'app'
-include 'examples'

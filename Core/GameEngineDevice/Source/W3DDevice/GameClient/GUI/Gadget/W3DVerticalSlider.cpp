@@ -66,7 +66,6 @@
 
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 
-// Draw top, center and bottom pieces down a column, the ends at the column width and their own aspect
 static void drawVerticalThreePieceImage( const Image *top, const Image *center, const Image *bottom,
 																				 Int x, Int y, Int width, Int height )
 {
@@ -80,7 +79,6 @@ static void drawVerticalThreePieceImage( const Image *top, const Image *center, 
 	if( bottom->getImageWidth() > 0 )
 		bottomHeight = (bottom->getImageHeight() * width + bottom->getImageWidth() / 2) / bottom->getImageWidth();
 
-	// too short for both ends, split the height between them
 	if( topHeight + bottomHeight > height )
 	{
 		topHeight = height / 2;
@@ -93,10 +91,9 @@ static void drawVerticalThreePieceImage( const Image *top, const Image *center, 
 	TheWindowManager->winDrawImage( bottom, x, y + height - bottomHeight, x + width, y + height );
 }
 
-// The kit channel, centred between the column separator and the list frame
 static void getKitChannel( Int columnX, Int columnWidth, Int &channelX, Int &channelWidth )
 {
-	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 The channel takes the column line the arrow chevrons share.
+	// GenOnline @bugfix arcticdolphin 08/11/2026 The channel takes the column line the arrow chevrons share.
 	GadgetListBoxGetKitScrollSpan( KIT_SCROLL_SPAN_PILL, columnX, columnWidth, &channelX, &channelWidth );
 }
 
@@ -230,7 +227,6 @@ void W3DGadgetVerticalSliderImageDraw( GameWindow *window,
 
 	if(topSize.y + bottomSize.y >= size.y)
 	{
-		// scale each end to the slider width, at most half the slider height
 		Int halfHeight = size.y / 2;
 		ICoord2D topDraw, bottomDraw;
 		topDraw = topSize;
@@ -339,10 +335,8 @@ void W3DGadgetVerticalSliderImageDraw( GameWindow *window,
 
 }
 
-// W3DGadgetVerticalSliderKitTrackDraw ========================================
-/** Draw a list box scroll track as a rounded kit channel */
 //=============================================================================
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Draw the list scroll track as a rounded channel when the GO kit scroll images exist.
+// GenOnline @feature arcticdolphin 08/11/2026 Draw the list scroll track as a rounded channel when the GO kit scroll images exist.
 void W3DGadgetVerticalSliderKitTrackDraw( GameWindow *window, WinInstanceData *instData )
 {
 	ICoord2D origin, size;
@@ -357,8 +351,6 @@ void W3DGadgetVerticalSliderKitTrackDraw( GameWindow *window, WinInstanceData *i
 															 channelX, origin.y, channelWidth, size.y );
 }
 
-// W3DGadgetVerticalSliderKitThumbDraw ========================================
-/** Draw a list box scroll thumb as a kit pill filling the channel */
 //=============================================================================
 void W3DGadgetVerticalSliderKitThumbDraw( GameWindow *window, WinInstanceData *instData )
 {
@@ -366,7 +358,6 @@ void W3DGadgetVerticalSliderKitThumbDraw( GameWindow *window, WinInstanceData *i
 	window->winGetScreenPosition( &origin.x, &origin.y );
 	window->winGetSize( &size.x, &size.y );
 
-	// disabled with its slider, brighter while hovered or pressed
 	GameWindow *slider = window->winGetParent();
 	Bool enabled = BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) &&
 								 ( slider == nullptr || BitIsSet( slider->winGetStatus(), WIN_STATUS_ENABLED ) );
