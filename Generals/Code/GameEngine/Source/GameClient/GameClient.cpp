@@ -566,10 +566,7 @@ void GameClient::update()
 		TheVideoPlayer->UPDATE();
 	}
 
-	Bool freezeTime = TheTacticalView->isTimeFrozen() && !TheTacticalView->isCameraMovementFinished();
-	freezeTime = freezeTime || TheScriptEngine->isTimeFrozenDebug();
-	freezeTime = freezeTime || TheScriptEngine->isTimeFrozenScript();
-	freezeTime = freezeTime || TheGameLogic->isGamePaused();
+	const Bool freezeTime = TheGameEngine->isTimeFrozen() || TheGameEngine->isGameHalted();
 
 	const Int localPlayerIndex = rts::getObservedOrLocalPlayer()->getPlayerIndex();
 
