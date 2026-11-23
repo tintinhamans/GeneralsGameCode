@@ -202,7 +202,13 @@ static void TriggerMiniDump()
 	{
 		// Create both minimal and full memory dumps
 		TheMiniDumper->TriggerMiniDump(DumpType_Minimal);
+#if defined(GENONLINE)
+		// GenOnline @tweak arcticdolphin 24/11/2026 A full dump holds the whole process memory and is only wanted in debug mode.
+		if (GenOnlineServicesManager::Settings.Debug_Enabled())
+			TheMiniDumper->TriggerMiniDump(DumpType_Full);
+#else
 		TheMiniDumper->TriggerMiniDump(DumpType_Full);
+#endif
 	}
 
 	MiniDumper::shutdownMiniDumper();
@@ -303,9 +309,6 @@ void ReleaseCrash(const char *reason)
 	// GenOnline @bugfix arcticdolphin 17/11/2026 A release crash, like a failed start, reaches Sentry and not only the local dumps.
 	GenOnlineServicesManager::ReportReleaseCrashToSentry(reason);
 #endif
-#if defined(GENONLINE)
-
-#endif
 	_exit(1);
 }
 
@@ -383,9 +386,6 @@ void ReleaseCrashLocalized(const AsciiString& p, const AsciiString& m)
 #if defined(GENONLINE)
 	// GenOnline @bugfix arcticdolphin 17/11/2026 A release crash, like a failed start, reaches Sentry and not only the local dumps.
 	GenOnlineServicesManager::ReportReleaseCrashToSentry(m.str());
-#endif
-#if defined(GENONLINE)
-
 #endif
 	_exit(1);
 }

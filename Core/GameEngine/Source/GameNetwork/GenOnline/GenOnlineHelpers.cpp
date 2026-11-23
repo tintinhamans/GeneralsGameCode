@@ -200,7 +200,7 @@ std::wstring NormalizeSingleLineText(const std::wstring& text)
 
 void NetworkLog(ELogVerbosity logVerbosity, const char* fmt, ...)
 {
-	if (!GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+	if (!GenOnlineServicesManager::Settings.Debug_Enabled())
 	{
 		if (logVerbosity < g_LogVerbosity)
 		{

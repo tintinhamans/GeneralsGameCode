@@ -316,7 +316,7 @@ void WebSocket::RegisterPeerHandlers()
 		});
 	m_pHubSession->On<ProbeRequestEvent>([this](const ProbeRequestEvent& event)
 		{
-			if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+			if (GenOnlineServicesManager::Settings.Debug_Enabled())
 			{
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[PROBE] GOT PROBE REQUEST: %s!", event.url.c_str());
 			}
@@ -1324,7 +1324,7 @@ CURLcode WebSocket::ReceiveOneFrame()
 
 	if (ret == CURLE_OK)
 	{
-		if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+		if (GenOnlineServicesManager::Settings.Debug_Enabled())
 		{
 			NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket msg: %s", bufferThisRecv);
 		}

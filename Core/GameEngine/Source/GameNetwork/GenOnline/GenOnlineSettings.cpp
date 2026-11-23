@@ -54,7 +54,7 @@
 #define SETTINGS_KEY_DEBUG "debug"
 #define SETTINGS_KEY_STATS "stats"
 #define SETTINGS_KEY_STATS_EXPORT "export"
-#define SETTINGS_KEY_DEBUG_VERBOSE_LOGGING "verbose_logging"
+#define SETTINGS_KEY_DEBUG_ENABLED "enabled"
 
 #define SETTINGS_KEY_NETWORK "network"
 #define SETTINGS_KEY_NETWORK_LEGACY_HTTP_VERSION "http_version"
@@ -217,7 +217,7 @@ static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_GAMEPLAY, ValueType::Boolean },
 		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_PRESENCE_STATUS, ValueType::String },
 		{ SETTINGS_KEY_DEBUG, ValueType::Object },
-		{ SETTINGS_KEY_DEBUG "." SETTINGS_KEY_DEBUG_VERBOSE_LOGGING, ValueType::Boolean },
+		{ SETTINGS_KEY_DEBUG "." SETTINGS_KEY_DEBUG_ENABLED, ValueType::Boolean },
 		{ SETTINGS_KEY_NETWORK, ValueType::Object },
 		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_SERVER, ValueType::Object },
 		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_SERVER "." SETTINGS_KEY_NETWORK_SERVER_MODE, ValueType::String },
@@ -546,9 +546,9 @@ void GenOnlineSettings::Load(void)
 			{
 				auto debugSettings = jsonSettings[SETTINGS_KEY_DEBUG];
 
-				if (debugSettings.contains(SETTINGS_KEY_DEBUG_VERBOSE_LOGGING))
+				if (debugSettings.contains(SETTINGS_KEY_DEBUG_ENABLED))
 				{
-					m_bVerbose = debugSettings[SETTINGS_KEY_DEBUG_VERBOSE_LOGGING];
+					m_bDebugMode = debugSettings[SETTINGS_KEY_DEBUG_ENABLED];
 				}
 			}
 
@@ -685,7 +685,7 @@ void GenOnlineSettings::Load(void)
 	{
 		m_Camera_MinHeight = m_Camera_MinHeight_default;
 		m_Camera_MaxHeight_LobbyHost = GENONLINE_DEFAULT_LOBBY_CAMERA_ZOOM;
-		m_bVerbose = false;
+		m_bDebugMode = false;
 		m_bStatsExport = false;
 		m_Render_LimitFramerate = true;
 		m_Render_FramerateLimit_FPSVal = 60;
@@ -896,7 +896,7 @@ bool GenOnlineSettings::Save()
 		{
 			SETTINGS_KEY_DEBUG,
 				{
-					{SETTINGS_KEY_DEBUG_VERBOSE_LOGGING, m_bVerbose},
+					{SETTINGS_KEY_DEBUG_ENABLED, m_bDebugMode},
 				}
 		},
 

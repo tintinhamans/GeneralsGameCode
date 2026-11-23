@@ -83,7 +83,8 @@ public:
 	void Social_SetPresenceStatus(const std::string& status);
 
 
-	bool Debug_VerboseLogging() const { return m_bVerbose; }
+	// Debug mode turns on verbose logs and full crash dumps.
+	bool Debug_Enabled() const { return m_bDebugMode; }
 	bool GetStatsExport() const { return m_bStatsExport; }
 
 	int GetChatLifeSeconds() const { return std::max<int>(m_Chat_LifeSeconds, 10); }
@@ -136,7 +137,7 @@ private:
 
 	bool m_bInitialized = false;
 
-	bool m_bVerbose = false;
+	bool m_bDebugMode = false;
 	bool m_bStatsExport = false;
 
 	bool m_Render_LimitFramerate = true;

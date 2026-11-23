@@ -1505,7 +1505,9 @@ static LONG WINAPI UnHandledExceptionFilter( struct _EXCEPTION_POINTERS* e_info 
 	{
 		// Create both minimal and full memory dumps
 		TheMiniDumper->TriggerMiniDumpForException(e_info, DumpType_Minimal);
-		TheMiniDumper->TriggerMiniDumpForException(e_info, DumpType_Full);
+		// GenOnline @tweak arcticdolphin 24/11/2026 A full dump holds the whole process memory and is only wanted in debug mode.
+		if (GenOnlineServicesManager::Settings.Debug_Enabled())
+			TheMiniDumper->TriggerMiniDumpForException(e_info, DumpType_Full);
 	}
 
 	MiniDumper::shutdownMiniDumper();
