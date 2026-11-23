@@ -69,7 +69,7 @@ class UnicodeString;
 class IMEManagerInterface : public SubsystemInterface
 {
 
-public:
+	public:
 
 		virtual ~IMEManagerInterface() override {};
 
@@ -86,11 +86,11 @@ public:
 		virtual Int						getIndexBase() = 0;						///< Get index base for candidate list
 
 
-    virtual Int						getCandidateCount() = 0;						///< Returns the total number of candidates
-    virtual const UnicodeString* getCandidate(Int index) = 0;	///< Returns the candidate string
-    virtual Int						getSelectedCandidateIndex() = 0;		///< Returns the indexed of the currently selected candidate
-    virtual Int						getCandidatePageSize() = 0;					///< Returns the page size for the candidates list
-    virtual Int						getCandidatePageStart() = 0;				///< Returns the index of the first visibel candidate
+		virtual Int						getCandidateCount() = 0;						///< Returns the total number of candidates
+		virtual const UnicodeString* getCandidate( Int index ) = 0;	///< Returns the candidate string
+		virtual Int						getSelectedCandidateIndex() = 0;		///< Returns the indexed of the currently selected candidate
+		virtual Int						getCandidatePageSize() = 0;					///< Returns the page size for the candidates list
+		virtual Int						getCandidatePageStart() = 0;				///< Returns the index of the first visibel candidate
 
 
 

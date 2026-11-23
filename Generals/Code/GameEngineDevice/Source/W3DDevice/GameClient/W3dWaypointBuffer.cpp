@@ -63,6 +63,7 @@
 #include "Common/ThingFactory.h"
 #include "Common/ThingTemplate.h"
 
+#include "GameClient/ControlBar.h"
 #include "GameClient/Drawable.h"
 #include "GameClient/GameClient.h"
 #include "GameClient/InGameUI.h"

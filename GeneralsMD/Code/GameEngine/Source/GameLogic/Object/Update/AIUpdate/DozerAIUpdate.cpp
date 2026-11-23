@@ -1491,8 +1491,7 @@ DozerAIUpdate::~DozerAIUpdate()
 {
 
 	// delete our behavior state machine
-	if( m_dozerMachine )
-		deleteInstance(m_dozerMachine);
+	deleteInstance(m_dozerMachine);
 
 	// no orders
 	for( Int i = 0; i < DOZER_NUM_TASKS; i++ )

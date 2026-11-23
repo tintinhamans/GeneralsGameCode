@@ -87,10 +87,12 @@ void SidesInfo::init(const Dict* d)
 {
 	deleteInstance(m_pBuildList);
 	m_pBuildList = nullptr;
+
 	m_dict.clear();
-	if (m_scripts)
-		deleteInstance(m_scripts);
+
+	deleteInstance(m_scripts);
 	m_scripts = nullptr;
+
 	if (d)
 		m_dict = *d;
 }
@@ -302,8 +304,7 @@ Bool SidesList::ParseSidesDataChunk(DataChunkInput &file, DataChunkInfo *info, v
 	count = ScriptList::getReadScripts(scripts);
 	for (i=0; i<count; i++) {
 		if (i<TheSidesList->getNumSides()) {
-			ScriptList *pSL = TheSidesList->getSideInfo(i)->getScriptList();
-			deleteInstance(pSL);
+			deleteInstance(TheSidesList->getSideInfo(i)->getScriptList());
 			TheSidesList->getSideInfo(i)->setScriptList(scripts[i]);
 			scripts[i] = nullptr;
 		} else {
@@ -550,12 +551,9 @@ void SidesList::prepareForMP_or_Skirmish()
 						continue;
 					}
 
-					ScriptList *pSL = getSkirmishSideInfo(curSide)->getScriptList();
+					deleteInstance(getSkirmishSideInfo(curSide)->getScriptList());
 					getSkirmishSideInfo(curSide)->setScriptList(scripts[i]);
 					scripts[i] = nullptr;
-					if (pSL)
-						deleteInstance(pSL);
-					scripts[i] = NULL;
 				}
 				for (i=0; i<MAX_PLAYER_COUNT; i++) {
 					static_readPlayerNames[i].clear();

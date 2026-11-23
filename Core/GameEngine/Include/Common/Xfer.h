@@ -61,11 +61,11 @@ enum XferMode CPP_11(: Int)
 {
 	XFER_INVALID = 0,
 
-		XFER_SAVE,
-		XFER_LOAD,
-		XFER_CRC,
+	XFER_SAVE,
+	XFER_LOAD,
+	XFER_CRC,
 
-		NUM_XFER_TYPES
+	NUM_XFER_TYPES
 };
 
 //-------------------------------------------------------------------------------------------------
@@ -74,36 +74,36 @@ enum XferStatus CPP_11(: Int)
 {
 	XFER_STATUS_INVALID = 0,
 
-		XFER_OK,														///< all is green and good
-		XFER_EOF,														///< end of file encountered
-		XFER_FILE_NOT_FOUND,								///< requested file does not exist
-		XFER_FILE_NOT_OPEN,									///< file was not open
-		XFER_FILE_ALREADY_OPEN,							///< this xfer is already open
-		XFER_READ_ERROR,										///< error reading from file
-		XFER_WRITE_ERROR,										///< error writing to file
-		XFER_MODE_UNKNOWN,									///< unknown xfer mode
-		XFER_SKIP_ERROR,										///< error skipping file
-		XFER_BEGIN_END_MISMATCH,						///< mismatched pair calls of begin/end block
-		XFER_OUT_OF_MEMORY,									///< out of memory
-		XFER_STRING_ERROR,									///< error with strings
-		XFER_INVALID_VERSION,								///< invalid version encountered
-		XFER_INVALID_PARAMETERS,						///< invalid parameters
-		XFER_LIST_NOT_EMPTY,								///< trying to xfer into a list that should be empty, but isn't
-		XFER_UNKNOWN_STRING,								///< unrecognized string value
+	XFER_OK,														///< all is green and good
+	XFER_EOF,														///< end of file encountered
+	XFER_FILE_NOT_FOUND,								///< requested file does not exist
+	XFER_FILE_NOT_OPEN,									///< file was not open
+	XFER_FILE_ALREADY_OPEN,							///< this xfer is already open
+	XFER_READ_ERROR,										///< error reading from file
+	XFER_WRITE_ERROR,										///< error writing to file
+	XFER_MODE_UNKNOWN,									///< unknown xfer mode
+	XFER_SKIP_ERROR,										///< error skipping file
+	XFER_BEGIN_END_MISMATCH,						///< mismatched pair calls of begin/end block
+	XFER_OUT_OF_MEMORY,									///< out of memory
+	XFER_STRING_ERROR,									///< error with strings
+	XFER_INVALID_VERSION,								///< invalid version encountered
+	XFER_INVALID_PARAMETERS,						///< invalid parameters
+	XFER_LIST_NOT_EMPTY,								///< trying to xfer into a list that should be empty, but isn't
+	XFER_UNKNOWN_STRING,								///< unrecognized string value
 
-		XFER_ERROR_UNKNOWN,									///< unknown error (isn't that useful!)
+	XFER_ERROR_UNKNOWN,									///< unknown error (isn't that useful!)
 
-		NUM_XFER_STATUS
+	NUM_XFER_STATUS
 };
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 enum XferOptions CPP_11(: UnsignedInt)
 {
-	XO_NONE = 0x00000000,
-		XO_NO_POST_PROCESSING = 0x00000001,
+	XO_NONE										= 0x00000000,
+	XO_NO_POST_PROCESSING			= 0x00000001,
 
-		XO_ALL = 0xFFFFFFFF
+	XO_ALL										= 0xFFFFFFFF
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -132,7 +132,7 @@ public:
 	virtual void endBlock() = 0;									///< xfer end block event
 	virtual void skip( Int dataSize ) = 0;							///< xfer skip data
 
-	virtual void xferSnapshot(Snapshot* snapshot) = 0;		///< entry point for xfering a snapshot
+	virtual void xferSnapshot( Snapshot *snapshot ) = 0;		///< entry point for xfering a snapshot
 
 	//
 	// default transfer methods, these call the implementation method with the data
@@ -182,7 +182,7 @@ public:
 protected:
 
 	// this is the actual xfer implementation that each derived class should implement
-	virtual void xferImplementation(void* data, Int dataSize) = 0;
+	virtual void xferImplementation( void *data, Int dataSize ) = 0;
 
 	UnsignedInt m_options;					///< xfer options
 	XferMode m_xferMode;						///< the current xfer mode
