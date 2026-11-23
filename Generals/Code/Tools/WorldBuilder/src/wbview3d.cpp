@@ -1253,9 +1253,10 @@ AsciiString WbView3d::getModelNameAndScale(MapObject *pMapObj, Real *scale, Body
 			break;
 	}
 
-	AsciiString modelName("No Model Name");
+	AsciiString modelName;
 	*scale = 1.0f;
-	Int i;
+
+#ifdef LOAD_TEST_ASSETS
 	char buffer[ _MAX_PATH ];
 	if (strncmp(TEST_STRING, pMapObj->getName().str(), strlen(TEST_STRING)) == 0)
 	{
@@ -1270,7 +1271,9 @@ AsciiString WbView3d::getModelNameAndScale(MapObject *pMapObj, Real *scale, Body
 		}
 		modelName = buffer+i;
 	}
-	else
+#endif
+
+	if (modelName.isEmpty())
 	{
 		modelName = "No Model Name"; // must be this while GDF exists (it's the default)
 		const ThingTemplate *tTemplate;
