@@ -322,6 +322,8 @@ WeaponTemplate::WeaponTemplate() : m_nextTemplate(nullptr)
 	m_infantryInaccuracyDist				= 0.0f;
 	m_damageStatusType							= OBJECT_STATUS_NONE;
 	m_suspendFXDelay								= 0;
+	// GenOnline @bugfix arcticdolphin 23/11/2026 The flag is read by the weapon logic before any INI field sets it.
+	m_dieOnDetonate						= FALSE;
 
 	m_historicDamageTriggerId = 0;
 }
