@@ -601,6 +601,24 @@ static void saveOptions()
 	}
 
 	//-------------------------------------------------------------------------------------------------
+	// draw scroll anchor
+	{
+		if( TheInGameUI->getDrawRMBScrollAnchor() )
+				(*pref)["DrawScrollAnchor"] = "yes";
+		else
+				(*pref)["DrawScrollAnchor"] = "no";
+	}
+
+	//-------------------------------------------------------------------------------------------------
+	// move scroll anchor
+	{
+		if( TheInGameUI->getMoveRMBScrollAnchor() )
+				(*pref)["MoveScrollAnchor"] = "yes";
+		else
+				(*pref)["MoveScrollAnchor"] = "no";
+	}
+
+	//-------------------------------------------------------------------------------------------------
 	// slider music volume
 	val = GadgetSliderGetPosition(sliderMusicVolume);
 	if(val != -1)
@@ -1277,7 +1295,7 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	//set scroll options
 	AsciiString test = (*pref)["DrawScrollAnchor"];
 	DEBUG_LOG(("DrawScrollAnchor == [%s]", test.str()));
-	if (test == "Yes" || (test.isEmpty() && TheInGameUI->getDrawRMBScrollAnchor()))
+	if (test == "yes" || (test.isEmpty() && TheInGameUI->getDrawRMBScrollAnchor()))
 	{
 		GadgetCheckBoxSetChecked( checkDrawAnchor, true);
 		TheInGameUI->setDrawRMBScrollAnchor(true);
@@ -1289,7 +1307,7 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	}
 	test = (*pref)["MoveScrollAnchor"];
 	DEBUG_LOG(("MoveScrollAnchor == [%s]", test.str()));
-	if (test == "Yes" || (test.isEmpty() && TheInGameUI->getMoveRMBScrollAnchor()))
+	if (test == "yes" || (test.isEmpty() && TheInGameUI->getMoveRMBScrollAnchor()))
 	{
 		GadgetCheckBoxSetChecked( checkMoveAnchor, true);
 		TheInGameUI->setMoveRMBScrollAnchor(true);
@@ -1620,12 +1638,12 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
         if( GadgetCheckBoxIsChecked( control ) )
         {
           	TheInGameUI->setDrawRMBScrollAnchor(true);
-          	(*pref)["DrawScrollAnchor"] = "Yes";
+          	(*pref)["DrawScrollAnchor"] = "yes";
         }
 				else
         {
           	TheInGameUI->setDrawRMBScrollAnchor(false);
-          	(*pref)["DrawScrollAnchor"] = "No";
+          	(*pref)["DrawScrollAnchor"] = "no";
         }
       }
 			else if(controlID == checkMoveAnchorID )
@@ -1633,12 +1651,12 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
         if( GadgetCheckBoxIsChecked( control ) )
         {
           	TheInGameUI->setMoveRMBScrollAnchor(true);
-          	(*pref)["MoveScrollAnchor"] = "Yes";
+          	(*pref)["MoveScrollAnchor"] = "yes";
         }
 				else
         {
           	TheInGameUI->setMoveRMBScrollAnchor(false);
-          	(*pref)["MoveScrollAnchor"] = "No";
+          	(*pref)["MoveScrollAnchor"] = "no";
         }
       }
 			else if(controlID == checkSaveCameraID )
