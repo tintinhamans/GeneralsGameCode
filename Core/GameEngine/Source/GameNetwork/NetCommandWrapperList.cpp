@@ -33,6 +33,9 @@
 #include "../GenOnlineInclude.h"
 #endif
 
+// GenOnline @bugfix arcticdolphin 24/11/2026 Map file transfers stay far below these caps.
+static constexpr const UnsignedInt MAX_WRAPPED_COMMAND_SIZE = 16 * 1024 * 1024;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////// NetCommandWrapperListNode ///////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -228,6 +231,15 @@ void NetCommandWrapperList::processWrapper(NetCommandRef *ref) {
 	}
 
 	if (temp == nullptr) {
+		// GenOnline @bugfix arcticdolphin 24/11/2026 The chunk count and data length come from the packet and size the node allocations.
+		const UnsignedInt numChunks = msg->getNumChunks();
+		const UnsignedInt totalDataLength = msg->getTotalDataLength();
+		if (numChunks == 0 || totalDataLength == 0 || totalDataLength > MAX_WRAPPED_COMMAND_SIZE
+			|| numChunks > totalDataLength || numChunks < (totalDataLength + MAX_PACKET_SIZE - 1) / MAX_PACKET_SIZE) {
+			DEBUG_LOG(("NetCommandWrapperList::processWrapper - Ignoring a wrapper with %u chunks and %u bytes", numChunks, totalDataLength));
+			return;
+		}
+
 		temp = newInstance(NetCommandWrapperListNode)(msg);
 		temp->m_next = m_list;
 		m_list = temp;
@@ -248,6 +260,15 @@ NetCommandList * NetCommandWrapperList::getReadyCommands()
 		next = temp->m_next;
 		if (temp->isComplete()) {
 			NetCommandRef *msg = NetPacket::ConstructNetCommandMsgFromRawData(temp->getRawData(), temp->getRawDataLength());
+			// GenOnline @bugfix arcticdolphin 24/11/2026 Reassembled data with an unknown command type gives no command.
+			if (msg == nullptr) {
+#if defined(GENONLINE)
+				noteCompleted(temp->getPlayerID(), temp->getCommandID());
+#endif
+				removeFromList(temp);
+				temp = next;
+				continue;
+			}
 #if defined(GENONLINE)
 
 #if defined(GENONLINE)
