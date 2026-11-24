@@ -1,5 +1,5 @@
 // Protocol reference: GenOnline/docs/local-api.md
-// Wire schema for the live stats frames that the caster plugin serves to readers over its named pipe (\\.\pipe\generalsonline-caster-<pid>), protocol version 2.
+// Wire schema for the live stats frames that the caster plugin serves to readers over its named pipe (\\.\pipe\genonline-caster-<pid>), protocol version 2.
 // Up to 4 readers can be connected at once; each has its own queue, sequence numbers, resync and feed config.
 // Outbound frames (game -> reader) carry a 17 byte little-endian header, then the protobuf body:
 //     u32 body length | u8 type | u32 sequence | u64 timestamp_us
