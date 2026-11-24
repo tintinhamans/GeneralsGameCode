@@ -79,8 +79,8 @@ Glowing effects (fire, flames, explosions) light their surroundings in their own
 
 ## 2. Model lamps
 
-For lamps you place yourself. A model lamp needs two meshes in the model and a few lines in
-`Data/INI/DX9ModelLamps.ini`. We tested them internally on converted Generals 2 buildings (the end of this section).
+For lamps you place yourself. A model lamp needs two meshes in the model and a lamp file of its own in
+`Data/INI/DX9ModelLamps/`. We tested them internally on converted Generals 2 buildings (the end of this section).
 
 ### In the model (W3D)
 
@@ -95,7 +95,12 @@ For lamps you place yourself. A model lamp needs two meshes in the model and a f
   - It is drawn only while its lamp is on, and the glow on screen is made from it.
   - On a moving part, rig it to that part's bone like any other mesh.
 
-### `Data/INI/DX9ModelLamps.ini`
+### The lamp file: `Data/INI/DX9ModelLamps/<model>.ini`
+
+One file per model, under any name ending in `.ini`, loose or inside your mod's `.big`. The game reads every file in that
+folder once, in name order. If two sets name the same model, the first one read wins. Since each model has its own file,
+two mods that add lamp-lit buildings do not overwrite each other's lamps. The older single file
+`Data/INI/DX9ModelLamps.ini` is still read, after the folder.
 
 ```
 ; a comment

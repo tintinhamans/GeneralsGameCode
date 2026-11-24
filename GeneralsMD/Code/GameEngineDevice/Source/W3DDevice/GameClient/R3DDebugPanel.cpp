@@ -1060,7 +1060,7 @@ namespace
 			printAscii(AsciiString("  spill: the dim light around a beam's cone, its strength beside the cone's, 0 = a hard cone; spillwide: how wide it reaches, in cone widths"), FALSE);
 			printAscii(AsciiString("  glows: the lamp glows (street lamps, warning and runway lights) as point lights, their strength, 0 = none; glowreach: their reach; glowjoin: lamps this near each other (art units) light as one - a string of bulbs - each keeping its corona, 0 = each its own"), FALSE);
 			// Ronin @feature 30/10/2026 DX9: the converted models' lamps
-			printAscii(AsciiString("  modellamps: converted models' lamps (Data/INI/DX9ModelLamps.ini: idle, producing, research, after a unit), their strength, 0 = none; modelcore: where their light halves, in their reach - on the fixture as in Generals 2; 0 = the plateau the other lights have"), FALSE);
+			printAscii(AsciiString("  modellamps: converted models' lamps (Data/INI/DX9ModelLamps/*.ini: idle, producing, research, after a unit), their strength, 0 = none; modelcore: where their light halves, in their reach - on the fixture as in Generals 2; 0 = the plateau the other lights have"), FALSE);
 			// Ronin @feature 19/11/2026 DX9: the glow round a model lamp's art (R3DTaa), not the `glows` above (the 2003 glow textures)
 			printAscii(AsciiString("  modelglow: the glow round a lit model lamp's art (final pass, screen blend), 0 = none; modelglowgain: the art's light before the blur; modelglowsize: its width (1 = sigma 8 px at 900 rows); modelglowview: 1 = the glow alone, 2 = its unblurred source (not saved)"), FALSE);
 			printAscii(AsciiString("  coronas: the lamp's own glow drawn by the shader, its strength, 0 = the art's glow textures; coronasize: its radius, in the art glow's own"), FALSE);

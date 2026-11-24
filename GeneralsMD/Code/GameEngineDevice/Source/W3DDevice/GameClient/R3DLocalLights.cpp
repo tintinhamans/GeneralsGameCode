@@ -1136,7 +1136,7 @@ static Bool firstNoteThisFrame(const MeshClass *mesh)
 	return TRUE;
 }
 
-// Ronin @feature 30/10/2026 DX9: THE MODEL LAMPS. A converted model's lamps (Data/INI/DX9ModelLamps.ini, docs/tools/fbx2w3d.py): a
+// Ronin @feature 30/10/2026 DX9: THE MODEL LAMPS. A converted model's lamps (Data/INI/DX9ModelLamps/*.ini, docs/tools/fbx2w3d.py): a
 // light each, no corona, switched by timelines per building state. Its marker mesh <model>.G2LAMPS says where the model stands.
 enum { LAMP_IDLE, LAMP_PRODUCING, LAMP_RESEARCH, LAMP_PRODUCED, LAMP_STATES };
 static const Int MAX_LAMP_SETS          = 64;
@@ -1173,12 +1173,10 @@ static float			s_modelLampStrength = 1.0f;			// `lights modellamps`
 static float			s_modelLampCore = 0.8f;			// `lights modelcore`: where a lamp's light halves, in its reach; 0 = the plateau
 static Bool				s_modelLampsOn = FALSE;			// this frame they are lights (decided in beginFrame)
 
-// Ronin @feature 30/10/2026 DX9: the file, once, through the game's file system (a mod's .big can carry it). `;` comments.
-static void readModelLamps(void)
+// Ronin @feature 30/10/2026 DX9: one lamp file, through the game's file system (a mod's .big can carry it). `;` comments.
+static void readModelLampFile(const char *path)
 {
-	s_lampFileRead = TRUE;
-	s_lampNameCount = s_lampSetCount = s_modelLampCount = s_lampTrackCount = s_lampKeyCount = 0;
-	File *file = (TheFileSystem != NULL) ? TheFileSystem->openFile("Data\\INI\\DX9ModelLamps.ini", File::READ | File::BINARY) : NULL;
+	File *file = TheFileSystem->openFile(path, File::READ | File::BINARY);
 	if (file == NULL)
 		return;
 	const Int size = file->size();
@@ -1278,6 +1276,21 @@ static void readModelLamps(void)
 		}
 	}
 	delete [] text;
+}
+
+// Ronin @feature 23/11/2026 DX9: every Data/INI/DX9ModelLamps/*.ini (one per model, so each model's pack carries its own), in name
+// order, then the older single DX9ModelLamps.ini, once. A model keeps the first set that names it.
+static void readModelLamps(void)
+{
+	s_lampFileRead = TRUE;
+	s_lampNameCount = s_lampSetCount = s_modelLampCount = s_lampTrackCount = s_lampKeyCount = 0;
+	if (TheFileSystem == NULL)
+		return;
+	FilenameList files;
+	TheFileSystem->getFileListInDirectory("Data\\INI\\DX9ModelLamps\\", "*.ini", files, FALSE);
+	for (FilenameListIter it = files.begin(); it != files.end(); ++it)
+		readModelLampFile(it->str());
+	readModelLampFile("Data\\INI\\DX9ModelLamps.ini");
 }
 
 // Ronin @feature 30/10/2026 DX9: a timeline's strength t ms after its state began. A timeline that does not loop is over at its end.
@@ -2442,7 +2455,7 @@ static const R3DLocalLights::Knob s_knobs[] =
 	LIGHT_REAL("glows", setGlows, getGlows),
 	LIGHT_REAL("glowreach", setGlowReach, getGlowReach),
 	LIGHT_REAL("glowjoin", setGlowJoin, getGlowJoin),
-	LIGHT_REAL("modellamps", setModelLamps, getModelLamps),		// Ronin @feature 30/10/2026 DX9: DX9ModelLamps.ini's lamps
+	LIGHT_REAL("modellamps", setModelLamps, getModelLamps),		// Ronin @feature 30/10/2026 DX9: the DX9ModelLamps files' lamps
 	LIGHT_REAL("modelcore", setModelCore, getModelCore),
 	// Ronin @feature 19/11/2026 DX9: the glow round a lit model lamp's art (R3DTaa, final pass) - not `glows` (the 2003 glow textures).
 	// modelglowview (1 = the glow alone, 2 = its unblurred source) is the panel's only, never in DX9Lights.ini.
