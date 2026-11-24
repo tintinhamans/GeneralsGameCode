@@ -250,7 +250,8 @@ struct IconCellState
 static IconCellState iconCellState[MAX_SLOTS];
 static const Image *iconCellShield = nullptr;
 static GameWindow *listboxInfo = nullptr;
-static const Int INFO_ROW_READY = 1;
+static const Int INFO_ROW_STATS = 0;
+static const Int INFO_ROW_READY = 2;
 static const Int INFO_COLUMN_LABEL = 0;
 static const Int INFO_COLUMN_ICON = 1;
 static const Int INFO_COLUMN_VALUE = 2;
@@ -260,6 +261,14 @@ static const Int INFO_ICON_EXTENT = 14;
 static void setInfoCell(Int row, Int column, const UnicodeString &text, Color color)
 {
 	GadgetListBoxAddEntryText(listboxInfo, text, color, row, column);
+}
+
+static void setStatsInfo(Bool recorded)
+{
+	if (listboxInfo != nullptr && GadgetListBoxGetNumEntries(listboxInfo) > INFO_ROW_STATS)
+	{
+		setInfoCell(INFO_ROW_STATS, INFO_COLUMN_VALUE, recorded ? TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineSetupStatsRecorded", L"Recorded") : TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineSetupStatsNotRecorded", L"Not recorded"), GameMakeColor(254, 254, 254, 255));
+	}
 }
 
 WindowLayout *GenOnlineMapSelectLayout = NULL;
@@ -1451,32 +1460,12 @@ static void StartPressed()
 }
 
 
-// The Game panel options under the map scroll as whole rows. The engine does not clip child windows, so the rows outside the viewport are hidden.
-struct OptionRow
-{
-	GameWindow *windows[2];
-	GameWinInputFunc inputs[2];
-	Int x[2];
-	Int y;
-	Int count;
-	Int span;
-};
-
-static const Int OPTION_ROWS_VISIBLE = 5;
-static const Int OPTION_ROWS_MAX = 8;
-static OptionRow optionRows[OPTION_ROWS_MAX];
-static Int optionRowCount = 0;
-static Int optionScroll = 0;
-static Int optionTop = 0;
-static Int optionPitch = 0;
 static Bool syncingOptions = FALSE;
 static const Int CAMERA_HEIGHT_PRESETS[] = { GENONLINE_DEFAULT_LOBBY_CAMERA_ZOOM, 400, 500, 600, 800, 1000 };
 
 static GameWindow *buttonEditLobby = nullptr;
 static GameWindow *cameraHeightLabel = nullptr;
 static GameWindow *comboBoxCameraHeight = nullptr;
-static GameWindow *buttonOptionsUp = nullptr;
-static GameWindow *buttonOptionsDown = nullptr;
 
 // The slash commands and the edit popup change the lobby through the same functions. A null value keeps that setting.
 Bool GenOnlineApplyLobbyDetails(const UnicodeString *newName, const Bool *friendsOnly)
@@ -1550,119 +1539,6 @@ LobbyPasswordResult GenOnlineChangeLobbyPassword(const UnicodeString *newPasswor
 	return LOBBY_PASSWORD_APPLIED;
 }
 
-static Int optionSlotCount()
-{
-	Int slots = 0;
-	for (Int i = 0; i < optionRowCount; ++i)
-	{
-		slots += optionRows[i].span;
-	}
-	return slots;
-}
-
-static void layoutOptionRows()
-{
-	Int slot = 0;
-	for (Int i = 0; i < optionRowCount; ++i)
-	{
-		OptionRow &row = optionRows[i];
-		const Bool shown = slot >= optionScroll && slot + row.span <= optionScroll + OPTION_ROWS_VISIBLE;
-		for (Int w = 0; w < row.count; ++w)
-		{
-			row.windows[w]->winSetPosition(row.x[w], optionTop + (slot - optionScroll) * optionPitch);
-			row.windows[w]->winHide(!shown);
-		}
-		slot += row.span;
-	}
-
-	if (buttonOptionsUp != nullptr)
-	{
-		buttonOptionsUp->winEnable(optionScroll > 0);
-	}
-	if (buttonOptionsDown != nullptr)
-	{
-		buttonOptionsDown->winEnable(optionScroll < optionSlotCount() - OPTION_ROWS_VISIBLE);
-	}
-}
-
-// The viewport always ends on a row boundary, so a row that spans two slots is never cut off and no slot stays empty.
-static Bool optionScrollFits(Int scroll)
-{
-	if (scroll == 0)
-	{
-		return TRUE;
-	}
-	Int slot = 0;
-	for (Int i = 0; i < optionRowCount; ++i)
-	{
-		slot += optionRows[i].span;
-		if (slot == scroll + OPTION_ROWS_VISIBLE)
-		{
-			return TRUE;
-		}
-	}
-	return FALSE;
-}
-
-static void scrollOptionRows(Int rows)
-{
-	const Int last = (std::max)(0, optionSlotCount() - OPTION_ROWS_VISIBLE);
-	const Int step = rows < 0 ? -1 : 1;
-	Int scroll = optionScroll;
-	for (Int moved = 0; moved < (rows < 0 ? -rows : rows); ++moved)
-	{
-		Int next = scroll + step;
-		while (next > 0 && next < last && !optionScrollFits(next))
-		{
-			next += step;
-		}
-		scroll = (std::clamp)(next, 0, last);
-	}
-	if (scroll != optionScroll)
-	{
-		optionScroll = scroll;
-		layoutOptionRows();
-	}
-}
-
-static Bool mouseInOptionViewport(Int mouseX, Int mouseY)
-{
-	if (optionRowCount == 0 || buttonOptionsUp == nullptr)
-	{
-		return FALSE;
-	}
-
-	Int left, top, arrowLeft, arrowTop, arrowWidth, arrowHeight;
-	optionRows[0].windows[0]->winGetScreenPosition(&left, &top);
-	buttonOptionsUp->winGetScreenPosition(&arrowLeft, &arrowTop);
-	buttonOptionsUp->winGetSize(&arrowWidth, &arrowHeight);
-	top -= optionScroll * optionPitch;
-	return mouseX >= left && mouseX < arrowLeft + arrowWidth && mouseY >= top && mouseY < top + OPTION_ROWS_VISIBLE * optionPitch;
-}
-
-// A combo box and a list box keep the wheel for themselves, so each row window passes it on to the scroll first.
-static WindowMsgHandledType optionRowInput(GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2)
-{
-	for (Int i = 0; i < optionRowCount; ++i)
-	{
-		for (Int w = 0; w < optionRows[i].count; ++w)
-		{
-			if (optionRows[i].windows[w] != window)
-			{
-				continue;
-			}
-
-			if (msg == GWM_WHEEL_UP || msg == GWM_WHEEL_DOWN)
-			{
-				scrollOptionRows(msg == GWM_WHEEL_UP ? -1 : 1);
-				return MSG_HANDLED;
-			}
-			return optionRows[i].inputs[w] != nullptr ? optionRows[i].inputs[w](window, msg, mData1, mData2) : MSG_IGNORED;
-		}
-	}
-	return MSG_IGNORED;
-}
-
 // The edit button in the screen header is a framed pencil, drawn in the line style of the kick and keep out buttons.
 static void editLobbyButtonDraw(GameWindow *window, WinInstanceData *instData)
 {
@@ -1702,58 +1578,6 @@ static void editLobbyButtonDraw(GameWindow *window, WinInstanceData *instData)
 	line(endX - half, endY - half, endX + half, endY + half);
 }
 
-// A disabled control does not take the mouse, so the wheel over it reaches the panel frame behind the rows.
-static WindowMsgHandledType optionPanelInput(GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2)
-{
-	if ((msg == GWM_WHEEL_UP || msg == GWM_WHEEL_DOWN) && mouseInOptionViewport((Int)LOLONGTOSHORT(mData1), (Int)HILONGTOSHORT(mData1)))
-	{
-		scrollOptionRows(msg == GWM_WHEEL_UP ? -1 : 1);
-		return MSG_HANDLED;
-	}
-	return MSG_IGNORED;
-}
-
-// The scroll arrows use the kit scroll bar art, so they match every list on the screen.
-static void optionArrowDraw(GameWindow *window, WinInstanceData *instData)
-{
-	Int x, y, width, height;
-	window->winGetScreenPosition(&x, &y);
-	window->winGetSize(&width, &height);
-
-	const Bool enabled = BitIsSet(window->winGetStatus(), WIN_STATUS_ENABLED);
-	const Bool hovered = enabled && BitIsSet(instData->getState(), WIN_STATE_HILITED);
-	AsciiString name;
-	name.format("VSlider%sButton%s", window == buttonOptionsUp ? "Up" : "Down", !enabled ? "Disabled" : hovered ? "Hilite" : "Enabled");
-	const Image *image = TheMappedImageCollection->findImageByName(name);
-	if (image != nullptr)
-	{
-		TheWindowManager->winDrawImage(image, x, y, x + width, y + height);
-	}
-}
-
-static void addOptionRow(Int span, GameWindow *first, GameWindow *second = nullptr)
-{
-	if (first == nullptr || optionRowCount >= OPTION_ROWS_MAX)
-	{
-		return;
-	}
-
-	OptionRow &row = optionRows[optionRowCount++];
-	row.count = 0;
-	row.span = span;
-	for (GameWindow *window : { first, second })
-	{
-		if (window != nullptr)
-		{
-			window->winGetPosition(&row.x[row.count], &row.y);
-			row.windows[row.count] = window;
-			row.inputs[row.count] = window->winGetInputFunc();
-			window->winSetInputFunc(optionRowInput);
-			++row.count;
-		}
-	}
-}
-
 static void populateCameraHeightCombo(Int current)
 {
 	GadgetComboBoxReset(comboBoxCameraHeight);
@@ -1786,8 +1610,8 @@ static void populateCameraHeightCombo(Int current)
 	GadgetComboBoxSetSelectedPos(comboBoxCameraHeight, selected, TRUE);
 }
 
-// Shows the lobby values in the options, for the host and for everyone else.
-static void syncOptionRows()
+// Shows the lobby camera height in the combo, for the host and for everyone else.
+static void syncCameraHeight()
 {
 	GenOnlineLobbyInterface *lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (lobby == nullptr || comboBoxCameraHeight == nullptr)
@@ -1809,7 +1633,7 @@ static void syncOptionRows()
 	syncingOptions = FALSE;
 }
 
-static void updateOptionRowEnables(Bool canEdit)
+static void updateCameraHeightEnables(Bool canEdit)
 {
 	for (GameWindow *window : { cameraHeightLabel, comboBoxCameraHeight })
 	{
@@ -1830,7 +1654,7 @@ static void handleCameraHeightSelection()
 	}
 }
 
-static void initOptionRows()
+static void initCameraHeight()
 {
 	auto find = [](const char *name)
 	{
@@ -1841,13 +1665,6 @@ static void initOptionRows()
 	buttonEditLobby = find("ButtonEditLobby");
 	cameraHeightLabel = find("MaxCameraHeightLabel");
 	comboBoxCameraHeight = find("ComboBoxMaxCameraHeight");
-	buttonOptionsUp = find("ButtonOptionsUp");
-	buttonOptionsDown = find("ButtonOptionsDown");
-	if (GameWindow *panel = find("PanelGame"))
-	{
-		panel->winClearStatus(WIN_STATUS_NO_INPUT);
-		panel->winSetInputFunc(optionPanelInput);
-	}
 
 	// Layout text is a text label key, so plain label text is set here.
 	if (buttonEditLobby != nullptr)
@@ -1865,35 +1682,7 @@ static void initOptionRows()
 	{
 		populateCameraHeightCombo(GENONLINE_DEFAULT_LOBBY_CAMERA_ZOOM);
 	}
-	for (GameWindow *arrow : { buttonOptionsUp, buttonOptionsDown })
-	{
-		if (arrow != nullptr)
-		{
-			arrow->winSetDrawFunc(optionArrowDraw);
-		}
-	}
-
-	optionRowCount = 0;
-	optionScroll = 0;
-#if RTS_ZEROHOUR
-	addOptionRow(1, find("StartingCashLabel"), comboBoxStartingCash);
-#endif
-	addOptionRow(1, cameraHeightLabel, comboBoxCameraHeight);
-#if RTS_ZEROHOUR
-	addOptionRow(1, checkBoxLimitSuperweapons);
-#endif
-	addOptionRow(1, checkBoxUseStats);
-#if RTS_ZEROHOUR
-	addOptionRow(1, checkBoxLimitArmies);
-#endif
-	addOptionRow(2, listboxInfo);
-	if (optionRowCount >= 2)
-	{
-		optionTop = optionRows[0].y;
-		optionPitch = optionRows[1].y - optionRows[0].y;
-	}
-	layoutOptionRows();
-	syncOptionRows();
+	syncCameraHeight();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1937,6 +1726,7 @@ void GenOnlineDisplayGameOptions()
   {
   	GadgetCheckBoxSetChecked(checkBoxUseStats, isUsingStats);
     checkBoxUseStats->winSetTooltip( GenOnlineUseStatsTooltip( isUsingStats ) );
+    setStatsInfo(isUsingStats);
   }
 
   Bool oldFactionsOnly = theGame->oldFactionsOnly();
@@ -1977,7 +1767,7 @@ void GenOnlineDisplayGameOptions()
 
   DEBUG_ASSERTCRASH( index < itemCount, ("Could not find new starting cash amount %d in list", theGame->getStartingCash().countMoney() ) );
 
-  syncOptionRows();
+  syncCameraHeight();
 }
 
 
@@ -2406,6 +2196,7 @@ void GenOnlineInitGameGadgets()
   checkBoxLimitArmies->winEnable( false );
   // Ditto use stats
   checkBoxUseStats->winEnable( false );
+  checkBoxUseStats->winHide( TRUE );
 
   Int isUsingStats = theGameInfo->getUseStats();
 
@@ -2473,6 +2264,8 @@ void GenOnlineInitGameGadgets()
 		{
 			const Color labelColor = GameMakeColor(170, 178, 205, 255);
 			const Color valueColor = GameMakeColor(254, 254, 254, 255);
+			GadgetListBoxAddEntryText(listboxInfo, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineSetupStats", L"Stats"), labelColor, -1, INFO_COLUMN_LABEL);
+			setStatsInfo(theGameInfo->getUseStats());
 			const Int anticheatRow = GadgetListBoxAddEntryText(listboxInfo, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineSetupAnticheat", L"Anti-cheat"), labelColor, -1, INFO_COLUMN_LABEL);
 			if (shieldImage != nullptr)
 			{
@@ -2484,7 +2277,7 @@ void GenOnlineInitGameGadgets()
 		}
 	}
 
-	initOptionRows();
+	initCameraHeight();
 
 	if (!theGameInfo)
 	{
@@ -2624,13 +2417,9 @@ void GenOnlineDeinitGameGadgets()
 	// The layout destroys these windows.
 	listboxInfo = nullptr;
 	iconCellShield = nullptr;
-	optionRowCount = 0;
-	optionScroll = 0;
 	buttonEditLobby = nullptr;
 	cameraHeightLabel = nullptr;
 	comboBoxCameraHeight = nullptr;
-	buttonOptionsUp = nullptr;
-	buttonOptionsDown = nullptr;
 	parentWOLGameSetup = nullptr;
 	buttonChat = nullptr;
 	buttonSelectMap = nullptr;
@@ -3403,7 +3192,7 @@ static void UpdateStartControls()
 	buttonSelectMap->winEnable(canChangeSettings && phase == EStartPhase::Idle);
 	comboBoxStartingCash->winEnable(canChangeSettings && settingsOpen);
 	checkBoxLimitSuperweapons->winEnable(canChangeSettings && settingsOpen);
-	updateOptionRowEnables(canChangeSettings && settingsOpen);
+	updateCameraHeightEnables(canChangeSettings && settingsOpen);
 	if (buttonEditLobby != nullptr)
 	{
 		buttonEditLobby->winHide(!isHost);
@@ -3618,11 +3407,6 @@ WindowMsgHandledType GenOnlineGameSetupMenuInput( GameWindow *window, UnsignedIn
 		}
 	}
 	*/
-	if ((msg == GWM_WHEEL_UP || msg == GWM_WHEEL_DOWN) && mouseInOptionViewport((Int)LOLONGTOSHORT(mData1), (Int)HILONGTOSHORT(mData1)))
-	{
-		scrollOptionRows(msg == GWM_WHEEL_UP ? -1 : 1);
-		return MSG_HANDLED;
-	}
 	return MSG_IGNORED;
 }
 
@@ -4116,12 +3900,6 @@ WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, UnsignedI
 				GameWindow *control = (GameWindow *)mData1;
 				Int controlID = control->winGetWindowId();
 				static int buttonCommunicatorID = NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator");
-
-				if (control == buttonOptionsUp || control == buttonOptionsDown)
-				{
-					scrollOptionRows(control == buttonOptionsUp ? -1 : 1);
-					break;
-				}
 
 				if (control == buttonEditLobby)
 				{

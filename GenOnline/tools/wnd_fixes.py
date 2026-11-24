@@ -16,8 +16,7 @@ cell; the rules never move them.
 def _setup_rects(zero_hour=True):
     """Layout G2 of the online game setup screen: the player rows and the chat on the left, the Game panel on the right, the
     buttons at the retail width. The icon cell is the ping window, the accept markers stay hidden, the kick and ban buttons sit right of the team.
-    The Game panel lists its option rows from the viewport top down at the row pitch, the code scrolls them by whole rows and hides
-    the ones outside the viewport. Generals has no starting cash, superweapon or army rows."""
+    The Game panel holds a fixed grid of options and the status list under the map. Generals has no starting cash, superweapon or army controls."""
     p = "GameSpyGameOptionsMenu.wnd:"
     rects = {
         p + "StaticTextPlayers": (85, 85, 225, 109),
@@ -35,24 +34,19 @@ def _setup_rects(zero_hour=True):
         p + "MapWindow": (545, 113, 745, 313),
         p + "TextEntryMapDisplay": (545, 319, 745, 347),
         p + "ButtonSelectMap": (545, 353, 745, 377),
-        p + "ButtonOptionsUp": (729, 385, 745, 405),
-        p + "ButtonOptionsDown": (729, 481, 745, 501),
     }
-    # the windows of each row as (name, left, right); they share the row top, and the info list takes two rows
-    cash = [[("StartingCashLabel", 545, 635), ("ComboBoxStartingCash", 639, 725)]]
-    zero_hour_checks = [[("CheckboxLimitSuperweapons", 545, 725)]]
-    armies = [[("CheckBoxLimitArmies", 545, 725)]]
-    rows = (cash if zero_hour else []) + [
-        [("MaxCameraHeightLabel", 545, 635), ("ComboBoxMaxCameraHeight", 639, 725)],
-    ] + (zero_hour_checks if zero_hour else []) + [[("CheckBoxUseStats", 545, 725)]] + (armies if zero_hour else []) + [
-        [("ListboxInfo", 545, 725)],
-    ]
-    top = 385
-    for row in rows:
-        info = row[0][0] == "ListboxInfo"
-        for name, left, right in row:
-            rects[p + name] = (left, top, right, top + (44 if info else 20))
-        top += 48 if info else 24
+    # the options under SELECT MAP are a fixed grid of two columns, Generals keeps the camera height in the left one
+    left, right = (545, 643), (647, 745)
+    camera = left if not zero_hour else right
+    rects[p + "MaxCameraHeightLabel"] = (camera[0], 383, camera[1], 399)
+    rects[p + "ComboBoxMaxCameraHeight"] = (camera[0], 401, camera[1], 421)
+    if zero_hour:
+        rects[p + "StartingCashLabel"] = (left[0], 383, left[1], 399)
+        rects[p + "ComboBoxStartingCash"] = (left[0], 401, left[1], 421)
+        rects[p + "CheckboxLimitSuperweapons"] = (left[0], 427, left[1], 447)
+        rects[p + "CheckBoxLimitArmies"] = (right[0], 427, right[1], 447)
+    rects[p + "CheckBoxUseStats"] = (left[0], 427, left[1], 447)
+    rects[p + "ListboxInfo"] = (545, 453, 745, 503)
     for i in range(8):
         top = 111 + i * 24
         rects[p + f"GenericPing{i}"] = (47, top, 81, top + 20)

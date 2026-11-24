@@ -17,5 +17,5 @@ missing-name OptionsMenu.wnd:ComboBoxOnlineIP  # replaced by the GO network opti
 missing-name OptionsMenu.wnd:CheckSendDelay  # replaced by the GO network options
 missing-name OptionsMenu.wnd:ButtonFirewallRefresh  # replaced by the GO network options
 
-# the game setup option rows scroll in code, rows below the viewport keep their stacked layout rects
-overlap GameSpyGameOptionsMenu.wnd:ButtonBack  # positioned by the option row scroll
+# the Record Stats checkbox stays in the layout for the code and is hidden, its state shows in the Stats row
+overlap GameSpyGameOptionsMenu.wnd:CheckBoxUseStats  # hidden by code, shares the checkbox row with the others

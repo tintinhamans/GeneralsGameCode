@@ -352,8 +352,6 @@ SETUP_ADDED_WINDOWS = {
           for i in range(8) for kind in ("Kick", "Ban")),
         ("PanelGame", "LINE", "ENABLED+NOINPUT+NOFOCUS",
          [(r'(^[ \t]*ENABLEDDRAWDATA[ \t]*=[ \t]*IMAGE: NoImage, COLOR: 0 0 0 0, BORDERCOLOR: )\d+ \d+ \d+', r"\g<1>%d %d %d" % KIT_LINE)]),
-        ("ButtonOptionsUp", "ButtonEmote", "ENABLED+NOFOCUS", []),
-        ("ButtonOptionsDown", "ButtonEmote", "ENABLED+NOFOCUS", []),
         # the Edit button of the Game panel header, its text is set by the menu code
         ("ButtonEditLobby", "ButtonSelectMap", "ENABLED+IMAGE",
          [(TOOLTIP_LINE_RE, ""), (r'^[ \t]*TEXT[ \t]*=[ \t]*"[^"]*";\r?\n', ""),
