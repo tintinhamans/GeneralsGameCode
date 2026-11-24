@@ -765,6 +765,21 @@ static GameWindow* findWindow(GameWindow *parent, AsciiString baseWindow, AsciiS
 	return res;
 }
 
+static GameWindow *findPlayerInfoParent(const AsciiString &parentWindowName, int64_t lookupID)
+{
+	if(parentWindowName == "PopupPlayerInfo.wnd")
+	{
+		if (lookAtPlayerID != lookupID)
+			return NULL;
+		return parent;
+	}
+	if(parentWindowName == "WOLWelcomeMenu.wnd")
+		return TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("WOLWelcomeMenu.wnd:WOLWelcomeMenuParent"));
+	if(parentWindowName == "WOLQuickMatchMenu.wnd")
+		return TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("WOLQuickMatchMenu.wnd:WOLQuickMatchMenuParent"));
+	return NULL;
+}
+
 void GenOnlinePopulatePlayerInfoWindows( AsciiString parentWindowName )
 {
 	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
@@ -776,30 +791,22 @@ void GenOnlinePopulatePlayerInfoWindows( AsciiString parentWindowName )
 
 	int64_t localID = pAuthInterface->GetUserID();
 	int64_t lookupID = localID;
-	GameWindow *parentWindow = NULL;
-	
 	if(parentWindowName == "PopupPlayerInfo.wnd")
 	{
 		lookupID = lookAtPlayerID;
-		if (lookAtPlayerID == -1 || !parent)
-			return;
-		parentWindow = parent;
-	}
-	else if(parentWindowName == "WOLWelcomeMenu.wnd")
-	{
-		parentWindow = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("WOLWelcomeMenu.wnd:WOLWelcomeMenuParent"));
-		if (!parentWindow)
+		if (lookAtPlayerID == -1)
 			return;
 	}
-	else if(parentWindowName == "WOLQuickMatchMenu.wnd")
-	{
-		parentWindow = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("WOLQuickMatchMenu.wnd:WOLQuickMatchMenuParent"));
-		if (!parentWindow)
-			return;
-	}
+	if (findPlayerInfoParent(parentWindowName, lookupID) == NULL)
+		return;
 
 	pStatsInterface->findPlayerStatsByID(lookupID, [=](bool bSuccess, PSPlayerStats stats)
 		{
+			// The screen can close while the request runs, so the window is looked up again when the answer arrives.
+			GameWindow *parentWindow = findPlayerInfoParent(parentWindowName, lookupID);
+			if (parentWindow == NULL)
+				return;
+
 			Bool weHaveStats = bSuccess;
 
 			// if we don't have the stats from the server, see if we have cached stats
