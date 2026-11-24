@@ -30,6 +30,7 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include "GameClient/GenOnlineDockChat.h"
 #include "GameClient/GenOnlineMenus.h"
 
 #include "Common/AudioEventRTS.h"
@@ -288,6 +289,64 @@ static std::wstring CommunicatorPeerName(GenOnlineSocialInterface* pSocial, int6
 	return it != recent.end() ? from_utf8(it->second.display_name) : std::wstring();
 }
 
+// The name, presence dot and status line the communicator shows for the other player of a conversation, also used by the dock tabs.
+void GenOnlineGetConversationPeer(int64_t userID, UnicodeString& name, std::string& dot, UnicodeString& status)
+{
+	GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	name.clear();
+	status.clear();
+	dot = "offline";
+	if (pSocial == nullptr)
+	{
+		return;
+	}
+	name = UnicodeString(CommunicatorPeerName(pSocial, userID).c_str());
+	const std::unordered_map<int64_t, FriendsEntry> friends = pSocial->GetCachedFriendsList();
+	auto it = friends.find(userID);
+	if (it != friends.end())
+	{
+		dot = FriendDot(it->second);
+		status = UnicodeString(FriendStatusText(it->second).c_str());
+	}
+	else
+	{
+		status = UnicodeString(pSocial->IsUserPendingRequest(userID) ? L"Wants to be your friend" : L"Not a friend");
+	}
+}
+
+// Sends one line to the other player of a conversation, shared by the communicator and the dock. FALSE keeps the line in the entry, the failure text is set when there is a reason to show.
+Bool GenOnlineSendConversationLine(int64_t peerID, UnicodeString text, UnicodeString* failure)
+{
+	// Block chatting with a buddy who is currently in the same game as us
+	if (TheGenOnlineGame && TheGenOnlineGame->isGameInProgress())
+	{
+		for (Int i = 0; i < MAX_SLOTS; ++i)
+		{
+			GenOnlineGameSlot* slot = TheGenOnlineGame->getGameSpySlot(i);
+			if (slot && slot->isHuman() && slot->m_userID == (int64_t)peerID)
+			{
+				if (failure != nullptr)
+				{
+					*failure = UnicodeString(L"You cannot send messages to a friend who is currently in your game.");
+				}
+				return FALSE;
+			}
+		}
+	}
+
+	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
+	if (pWS == nullptr)
+	{
+		return FALSE;
+	}
+	text.trim();
+	if (!text.isEmpty())
+	{
+		pWS->SendData_FriendMessage(text, peerID);
+	}
+	return TRUE;
+}
+
 // A local line of the open conversation that the conversation cache does not keep.
 static void AddCommunicatorNote(const std::wstring& text)
 {
@@ -322,18 +381,10 @@ static void UpdatePeerHeader()
 	s_peerDot = "offline";
 	if (bShown)
 	{
-		name = CommunicatorPeerName(pSocial, s_peerID);
-		const std::unordered_map<int64_t, FriendsEntry> friends = pSocial->GetCachedFriendsList();
-		auto it = friends.find(s_peerID);
-		if (it != friends.end())
-		{
-			s_peerDot = FriendDot(it->second);
-			status = FriendStatusText(it->second);
-		}
-		else
-		{
-			status = pSocial->IsUserPendingRequest(s_peerID) ? L"Wants to be your friend" : L"Not a friend";
-		}
+		UnicodeString peerName, peerStatus;
+		GenOnlineGetConversationPeer(s_peerID, peerName, s_peerDot, peerStatus);
+		name = peerName.str();
+		status = peerStatus.str();
 	}
 	else
 	{
@@ -504,6 +555,7 @@ static void ShowPeer(int64_t userID)
 	{
 		ShowBuddyConversation(pSocial, userID);
 		pSocial->ViewConversation(userID);
+		GenOnlineDockOpenConversation(userID, false);
 		GenOnlineUpdateBuddyInfo(true, true);
 		if (buddyControls.textEntryEdit != nullptr)
 		{
@@ -1132,35 +1184,17 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 				{
 					const int64_t profileID = s_peerID;
 
-					// Block chatting with a buddy who is currently in the same game as us
-					if (TheGenOnlineGame && TheGenOnlineGame->isGameInProgress())
+					UnicodeString txtInput;
+					txtInput.set(GadgetTextEntryGetText(buddyControls.textEntryEdit));
+					UnicodeString failure;
+					if (GenOnlineSendConversationLine(profileID, txtInput, &failure))
 					{
-						for (Int i = 0; i < MAX_SLOTS; ++i)
-						{
-							GenOnlineGameSlot* slot = TheGenOnlineGame->getGameSpySlot(i);
-							if (slot && slot->isHuman() && slot->m_userID == (int64_t)profileID)
-							{
-								if (buddyControls.listboxChat)
-								{
-									GadgetListBoxAddEntryText( buddyControls.listboxChat, UnicodeString(L"You cannot send messages to a friend who is currently in your game."),
-									GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-								}
-								return MSG_HANDLED;
-							}
-						}
-					}
-
-					std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
-					if (pWS != nullptr)
-					{
-						UnicodeString txtInput;
-						txtInput.set(GadgetTextEntryGetText(buddyControls.textEntryEdit));
 						GadgetTextEntrySetText(buddyControls.textEntryEdit, UnicodeString::TheEmptyString);
-						txtInput.trim();
-						if (!txtInput.isEmpty())
-						{
-							pWS->SendData_FriendMessage(txtInput, profileID);
-						}
+					}
+					else if (!failure.isEmpty() && buddyControls.listboxChat)
+					{
+						GadgetListBoxAddEntryText( buddyControls.listboxChat, failure, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+						return MSG_HANDLED;
 					}
 						
 				}

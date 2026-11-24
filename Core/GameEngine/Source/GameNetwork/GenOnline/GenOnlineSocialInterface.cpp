@@ -195,6 +195,10 @@ void GenOnlineSocialInterface::OnConversationLine(int64_t user_id_to_store, bool
 	{
 		m_cbOnChatMessage(user_id_to_store, key, unicodeStr);
 	}
+	if (m_cbDockChatMessage != nullptr)
+	{
+		m_cbDockChatMessage(user_id_to_store, key, unicodeStr);
+	}
 }
 
 void GenOnlineSocialInterface::OnOnlineStatusChanged(std::string strDisplayName, bool bOnline)
@@ -713,6 +717,10 @@ void GenOnlineSocialInterface::OnRealtimeConversations(const GenOnlineRealtime::
 	{
 		m_cbOnConversationReloaded(-1);
 	}
+	if (m_cbDockReloaded != nullptr)
+	{
+		m_cbDockReloaded(-1);
+	}
 	RefreshCommunicator();
 }
 
@@ -736,6 +744,10 @@ void GenOnlineSocialInterface::OnRealtimeDirectMessageDelete(const GenOnlineReal
 	if (key != 0 && m_cbOnChatLineRemoved != nullptr)
 	{
 		m_cbOnChatLineRemoved(peerID, key);
+	}
+	if (key != 0 && m_cbDockLineRemoved != nullptr)
+	{
+		m_cbDockLineRemoved(peerID, key);
 	}
 }
 
@@ -773,6 +785,10 @@ void GenOnlineSocialInterface::ViewConversation(int64_t target_user_id)
 				if (pThis->m_cbOnConversationReloaded != nullptr)
 				{
 					pThis->m_cbOnConversationReloaded(target_user_id);
+				}
+				if (pThis->m_cbDockReloaded != nullptr)
+				{
+					pThis->m_cbDockReloaded(target_user_id);
 				}
 			});
 	}
@@ -836,6 +852,10 @@ void GenOnlineSocialInterface::OnRealtimeLobbyInvite(const GenOnlineRealtime::Lo
 	if (m_cbOnChatMessage != nullptr)
 	{
 		m_cbOnChatMessage(event.from_user_id, 0, UnicodeString(text.c_str()));
+	}
+	if (m_cbDockChatMessage != nullptr)
+	{
+		m_cbDockChatMessage(event.from_user_id, 0, UnicodeString(text.c_str()));
 	}
 	// An invite pops up like a friend request, also while the communicator is open.
 	const bool bInGame = TheGenOnlineGame != nullptr && TheGenOnlineGame->isGameInProgress();

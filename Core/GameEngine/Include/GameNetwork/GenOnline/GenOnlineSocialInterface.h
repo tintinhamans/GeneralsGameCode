@@ -154,6 +154,14 @@ public:
 		m_cbOnConversationReloaded = cb;
 	}
 
+	// The dock keeps its own set of the three callbacks, so its conversation tabs follow the lines whether or not the communicator is open.
+	void RegisterForDockCallbacks(std::function<void(int64_t peer_user_id, uint32_t key, UnicodeString unicodeStr)> onChatMessage, std::function<void(int64_t peer_user_id)> onReloaded, std::function<void(int64_t peer_user_id, uint32_t key)> onLineRemoved)
+	{
+		m_cbDockChatMessage = onChatMessage;
+		m_cbDockReloaded = onReloaded;
+		m_cbDockLineRemoved = onLineRemoved;
+	}
+
 	void RegisterForCallback_OnChatLineRemoved(std::function<void(int64_t peer_user_id, uint32_t key)> cb)
 	{
 		m_cbOnChatLineRemoved = cb;
@@ -276,6 +284,9 @@ private:
 	std::function<void(int64_t peer_user_id, uint32_t key, UnicodeString unicodeStr)> m_cbOnChatMessage = nullptr;
 	std::function<void(int64_t peer_user_id)> m_cbOnConversationReloaded = nullptr;
 	std::function<void(int64_t peer_user_id, uint32_t key)> m_cbOnChatLineRemoved = nullptr;
+	std::function<void(int64_t peer_user_id, uint32_t key, UnicodeString unicodeStr)> m_cbDockChatMessage = nullptr;
+	std::function<void(int64_t peer_user_id)> m_cbDockReloaded = nullptr;
+	std::function<void(int64_t peer_user_id, uint32_t key)> m_cbDockLineRemoved = nullptr;
 
 	// Cached, may be out of date if friends UI isnt active, optimized for lookup
 	// Rebuilt on the HTTP thread and read from the main thread, so all access goes through m_friendsMapMutex.

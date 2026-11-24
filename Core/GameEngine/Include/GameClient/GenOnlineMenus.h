@@ -147,6 +147,8 @@ extern void GenOnlineRefreshIgnoreList();
 // The tabs of the communicator. The peer is the friend whose conversation opens, -1 opens none.
 enum GenOnlineCommunicatorTab { GENONLINE_COMMUNICATOR_FRIENDS, GENONLINE_COMMUNICATOR_REQUESTS, GENONLINE_COMMUNICATOR_BLOCKED };
 extern void GenOnlineOpenCommunicator( Int tab, int64_t peerUserID );
+extern void GenOnlineGetConversationPeer( int64_t userID, UnicodeString &name, std::string &dot, UnicodeString &status );
+extern Bool GenOnlineSendConversationLine( int64_t peerID, UnicodeString text, UnicodeString *failure );
 // Draws the presence dot of the user section: online, idle, do_not_disturb, invisible or offline.
 extern void GenOnlineDrawPresenceDot( const char *status, Int x, Int y, Int size );
 extern Bool GenOnlineLobbyMenuIsActive();
