@@ -1141,7 +1141,7 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = SCROLLLISTBOX;
-      SCREENRECT = UPPERLEFT: 545 453,
+      SCREENRECT = UPPERLEFT: 545 431,
                    BOTTOMRIGHT: 745 503,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ListboxInfo";
@@ -1188,7 +1188,7 @@ WINDOW
                     AUTOSCROLL: 0,
                     SCROLLIFATEND: 0,
                     AUTOPURGE: 0,
-                    SCROLLBAR: 1,
+                    SCROLLBAR: 0,
                     MULTISELECT: 0,
                     COLUMNS: 3,
                     COLUMNSWIDTH: 38,
@@ -2269,8 +2269,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 545 353,
-                   BOTTOMRIGHT: 745 377,
+      SCREENRECT = UPPERLEFT: 545 313,
+                   BOTTOMRIGHT: 745 337,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonSelectMap";
       STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -2318,8 +2318,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 545 319,
-                   BOTTOMRIGHT: 745 347,
+      SCREENRECT = UPPERLEFT: 545 286,
+                   BOTTOMRIGHT: 745 310,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:TextEntryMapDisplay";
       STATUS = ENABLED;
@@ -2367,8 +2367,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 545 113,
-                   BOTTOMRIGHT: 745 313,
+      SCREENRECT = UPPERLEFT: 560 113,
+                   BOTTOMRIGHT: 730 283,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:MapWindow";
       STATUS = ENABLED;
@@ -2413,8 +2413,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 546 117,
-                     BOTTOMRIGHT: 562 134,
+        SCREENRECT = UPPERLEFT: 561 117,
+                     BOTTOMRIGHT: 577 134,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition0";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2460,8 +2460,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 545 136,
-                     BOTTOMRIGHT: 561 153,
+        SCREENRECT = UPPERLEFT: 560 136,
+                     BOTTOMRIGHT: 576 153,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition1";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2507,8 +2507,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 553 144,
-                     BOTTOMRIGHT: 569 161,
+        SCREENRECT = UPPERLEFT: 568 144,
+                     BOTTOMRIGHT: 584 161,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition2";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2554,8 +2554,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 561 152,
-                     BOTTOMRIGHT: 577 169,
+        SCREENRECT = UPPERLEFT: 576 152,
+                     BOTTOMRIGHT: 592 169,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition3";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2601,8 +2601,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 569 160,
-                     BOTTOMRIGHT: 585 177,
+        SCREENRECT = UPPERLEFT: 584 160,
+                     BOTTOMRIGHT: 600 177,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition4";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2648,8 +2648,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 577 168,
-                     BOTTOMRIGHT: 593 185,
+        SCREENRECT = UPPERLEFT: 592 168,
+                     BOTTOMRIGHT: 608 185,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition5";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2695,8 +2695,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 585 176,
-                     BOTTOMRIGHT: 601 193,
+        SCREENRECT = UPPERLEFT: 600 176,
+                     BOTTOMRIGHT: 616 193,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition6";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2742,8 +2742,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 593 184,
-                     BOTTOMRIGHT: 609 201,
+        SCREENRECT = UPPERLEFT: 608 184,
+                     BOTTOMRIGHT: 624 201,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition7";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -11236,8 +11236,8 @@ WINDOW
 CHILD
     WINDOW
       WINDOWTYPE = CHECKBOX;
-      SCREENRECT = UPPERLEFT: 545 427,
-                   BOTTOMRIGHT: 643 447,
+      SCREENRECT = UPPERLEFT: 545 387,
+                   BOTTOMRIGHT: 745 405,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:CheckBoxUseStats";
       STATUS = ENABLED+IMAGE+BORDER;
@@ -11285,8 +11285,8 @@ CHILD
 CHILD
     WINDOW
       WINDOWTYPE = CHECKBOX;
-      SCREENRECT = UPPERLEFT: 545 427,
-                   BOTTOMRIGHT: 643 447,
+      SCREENRECT = UPPERLEFT: 545 387,
+                   BOTTOMRIGHT: 745 405,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:CheckboxLimitSuperweapons";
       STATUS = ENABLED+IMAGE;
@@ -11334,8 +11334,8 @@ CHILD
 CHILD
     WINDOW
       WINDOWTYPE = CHECKBOX;
-      SCREENRECT = UPPERLEFT: 647 427,
-                   BOTTOMRIGHT: 745 447,
+      SCREENRECT = UPPERLEFT: 545 407,
+                   BOTTOMRIGHT: 745 425,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:CheckBoxLimitArmies";
       STATUS = ENABLED+IMAGE;
@@ -11383,8 +11383,8 @@ CHILD
 CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 545 401,
-                   BOTTOMRIGHT: 643 421,
+      SCREENRECT = UPPERLEFT: 545 361,
+                   BOTTOMRIGHT: 643 381,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxStartingCash";
       STATUS = ENABLED+IMAGE;
@@ -11429,7 +11429,7 @@ CHILD
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 8,
+                    MAXDISPLAY: 10,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
@@ -11625,8 +11625,8 @@ CHILD
 CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 545 383,
-                   BOTTOMRIGHT: 643 399,
+      SCREENRECT = UPPERLEFT: 545 343,
+                   BOTTOMRIGHT: 643 359,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StartingCashLabel";
       STATUS = ENABLED+IMAGE;
@@ -11675,8 +11675,8 @@ CHILD
 CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 545 383,
-                   BOTTOMRIGHT: 643 399,
+      SCREENRECT = UPPERLEFT: 545 343,
+                   BOTTOMRIGHT: 643 359,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:MaxCameraHeightLabel";
       STATUS = ENABLED+IMAGE;
@@ -11723,8 +11723,8 @@ CHILD
 CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 545 401,
-                   BOTTOMRIGHT: 643 421,
+      SCREENRECT = UPPERLEFT: 545 361,
+                   BOTTOMRIGHT: 643 381,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxMaxCameraHeight";
       STATUS = ENABLED+IMAGE;
@@ -11768,7 +11768,7 @@ CHILD
                        IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255;
       COMBOBOXDATA = ISEDITABLE: 0,
                     MAXCHARS: 16,
-                    MAXDISPLAY: 8,
+                    MAXDISPLAY: 10,
                     ASCIIONLY: 0,
                     LETTERSANDNUMBERS: 0;
       COMBOBOXDROPDOWNBUTTONENABLEDDRAWDATA = IMAGE: VSliderDownButtonEnabled, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,

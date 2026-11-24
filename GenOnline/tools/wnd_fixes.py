@@ -31,22 +31,22 @@ def _setup_rects(zero_hour=True):
         p + "PanelGame": (537, 85, 753, 511),
         p + "StaticTextMapPreview": (545, 89, 745, 109),
         p + "ButtonEditLobby": (727, 48, 751, 72),
-        p + "MapWindow": (545, 113, 745, 313),
-        p + "TextEntryMapDisplay": (545, 319, 745, 347),
-        p + "ButtonSelectMap": (545, 353, 745, 377),
+        p + "MapWindow": (560, 113, 730, 283),
+        p + "TextEntryMapDisplay": (545, 286, 745, 310),
+        p + "ButtonSelectMap": (545, 313, 745, 337),
     }
     # the options under SELECT MAP are a fixed grid of two columns, Generals keeps the camera height in the left one
     left, right = (545, 643), (647, 745)
     camera = left if not zero_hour else right
-    rects[p + "MaxCameraHeightLabel"] = (camera[0], 383, camera[1], 399)
-    rects[p + "ComboBoxMaxCameraHeight"] = (camera[0], 401, camera[1], 421)
+    rects[p + "MaxCameraHeightLabel"] = (camera[0], 343, camera[1], 359)
+    rects[p + "ComboBoxMaxCameraHeight"] = (camera[0], 361, camera[1], 381)
     if zero_hour:
-        rects[p + "StartingCashLabel"] = (left[0], 383, left[1], 399)
-        rects[p + "ComboBoxStartingCash"] = (left[0], 401, left[1], 421)
-        rects[p + "CheckboxLimitSuperweapons"] = (left[0], 427, left[1], 447)
-        rects[p + "CheckBoxLimitArmies"] = (right[0], 427, right[1], 447)
-    rects[p + "CheckBoxUseStats"] = (left[0], 427, left[1], 447)
-    rects[p + "ListboxInfo"] = (545, 453, 745, 503)
+        rects[p + "StartingCashLabel"] = (left[0], 343, left[1], 359)
+        rects[p + "ComboBoxStartingCash"] = (left[0], 361, left[1], 381)
+        rects[p + "CheckboxLimitSuperweapons"] = (545, 387, 745, 405)
+        rects[p + "CheckBoxLimitArmies"] = (545, 407, 745, 425)
+    rects[p + "CheckBoxUseStats"] = (545, 387, 745, 405)
+    rects[p + "ListboxInfo"] = (545, 431, 745, 503)
     for i in range(8):
         top = 111 + i * 24
         rects[p + f"GenericPing{i}"] = (47, top, 81, top + 20)

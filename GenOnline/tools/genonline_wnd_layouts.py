@@ -368,6 +368,7 @@ SETUP_ADDED_WINDOWS = {
           (r"IMAGE: ListBoxHiliteSelectedItemLeftEnd,", "IMAGE: NoImage,"),
           (r"SCROLLIFATEND: 1", "SCROLLIFATEND: 0"),
           (r"AUTOPURGE: 1", "AUTOPURGE: 0"),
+          (r"SCROLLBAR: 1", "SCROLLBAR: 0"),
           (r"COLUMNS: 1,", "COLUMNS: 3,\n                    COLUMNSWIDTH: 38,\n                    COLUMNSWIDTH: 9,\n                    COLUMNSWIDTH: 53,")]),
     ),
 }
