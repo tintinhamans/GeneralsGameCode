@@ -1149,6 +1149,15 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				matchStartCountdownLastSecond = countdownMs > 0 ? (countdownMs + 999) / 1000 : 0;
 			});
 
+		// A match that cannot start leaves the player in the queue screen with Back and Stop usable again.
+		static auto failedMatchStart = []()
+			{
+				Int index = GadgetListBoxAddEntryText(GenOnlineQuickMatchTextWindow, UnicodeString(L"The match could not start. Stop and search again."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 25, 255)), -1, -1);
+				GadgetListBoxSetItemData(GenOnlineQuickMatchTextWindow, (void*)-1, index);
+				buttonBack->winEnable(TRUE);
+				buttonStop->winEnable(TRUE);
+			};
+
 		pLobbyInterface->RegisterForMatchmakingStartGameCallback([]()
 			{
 				matchFoundTimeoutStart = 0;
@@ -1158,6 +1167,7 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				if (!TheGenOnlineGame)
 				{
 					NetworkLog(ELogVerbosity::LOG_DEBUG, "[QUICKMATCH] NO GenOnline GAME INSTANCE");
+					failedMatchStart();
 					return;
 				}
 
@@ -1178,7 +1188,8 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 
 				if (pLobbyInterface == nullptr || !myGame || !myGame->isInGame())
 				{
-					NetworkLog(ELogVerbosity::LOG_DEBUG, "[QUICKMATCH] Checks failed, %d, %d, %d", pLobbyInterface == nullptr, !myGame, !myGame->isInGame());
+					NetworkLog(ELogVerbosity::LOG_DEBUG, "[QUICKMATCH] Checks failed, %d, %d, %d", pLobbyInterface == nullptr, myGame == nullptr, myGame != nullptr && !myGame->isInGame());
+					failedMatchStart();
 					return;
 				}
 
