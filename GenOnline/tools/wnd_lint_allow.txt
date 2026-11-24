@@ -16,3 +16,7 @@ missing-name OptionsMenu.wnd:LabelVersion  # the version moved below the ruler, 
 missing-name OptionsMenu.wnd:ComboBoxOnlineIP  # replaced by the GO network options
 missing-name OptionsMenu.wnd:CheckSendDelay  # replaced by the GO network options
 missing-name OptionsMenu.wnd:ButtonFirewallRefresh  # replaced by the GO network options
+
+# the game setup option rows scroll in code, rows below the viewport keep their stacked layout rects
+overlap GameSpyGameOptionsMenu.wnd:ButtonBack  # positioned by the option row scroll
+outside-parent GameSpyGameOptionsMenu.wnd:ListboxInfo  # positioned by the option row scroll

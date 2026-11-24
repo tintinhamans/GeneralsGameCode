@@ -83,6 +83,7 @@ struct LobbyEntry
 	int rng_seed = -1;
 
 	bool passworded = false;
+	bool friends_only = false;
 	std::string password;
 
 	std::vector<LobbyMemberEntry> members;

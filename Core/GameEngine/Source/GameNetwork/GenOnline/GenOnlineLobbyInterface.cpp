@@ -326,6 +326,7 @@ static void LobbyEntryFromState(const GenOnlineRealtime::LobbyState& lobby, Lobb
 	lobbyEntry.match_id = lobby.match_id.isNull ? 0 : (uint64_t)lobby.match_id.value;
 	lobbyEntry.lobby_type = lobby.type == "quick_match" ? ELobbyType::QuickMatch : ELobbyType::CustomGame;
 	lobbyEntry.passworded = lobby.has_password;
+	lobbyEntry.friends_only = lobby.visibility == "friends";
 	lobbyEntry.region = lobby.region;
 
 	members.clear();

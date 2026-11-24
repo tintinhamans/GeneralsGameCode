@@ -13,9 +13,11 @@ without a header (always for a 0% column), which widens the cell before it, the 
 cell; the rules never move them.
 """
 
-def _setup_rects():
+def _setup_rects(zero_hour=True):
     """Layout G2 of the online game setup screen: the player rows and the chat on the left, the Game panel on the right, the
-    buttons at the retail width. The icon cell is the ping window, the accept markers stay hidden, the kick and ban buttons sit right of the team."""
+    buttons at the retail width. The icon cell is the ping window, the accept markers stay hidden, the kick and ban buttons sit right of the team.
+    The Game panel lists its option rows from the viewport top down at the row pitch, the code scrolls them by whole rows and hides
+    the ones outside the viewport. Generals has no starting cash, superweapon or army rows."""
     p = "GameSpyGameOptionsMenu.wnd:"
     rects = {
         p + "StaticTextPlayers": (85, 85, 225, 109),
@@ -29,16 +31,29 @@ def _setup_rects():
         p + "ButtonBack": (581, 517, 753, 553),
         p + "PanelGame": (537, 85, 753, 511),
         p + "StaticTextMapPreview": (545, 89, 745, 109),
-        p + "MapWindow": (570, 113, 720, 263),
-        p + "TextEntryMapDisplay": (545, 269, 745, 297),
-        p + "ButtonSelectMap": (545, 303, 745, 327),
-        p + "StartingCashLabel": (545, 335, 645, 355),
-        p + "ComboBoxStartingCash": (649, 335, 745, 355),
-        p + "CheckboxLimitSuperweapons": (545, 361, 745, 381),
-        p + "CheckBoxUseStats": (545, 383, 745, 403),
-        p + "CheckBoxLimitArmies": (545, 405, 745, 425),
-        p + "ListboxInfo": (545, 431, 745, 503),
+        p + "MapWindow": (545, 113, 745, 313),
+        p + "TextEntryMapDisplay": (545, 319, 745, 347),
+        p + "ButtonSelectMap": (545, 353, 745, 377),
+        p + "ButtonOptionsUp": (729, 385, 745, 405),
+        p + "ButtonOptionsDown": (729, 481, 745, 501),
     }
+    # the windows of each row as (name, left, right); they share the row top, and the info list takes two rows
+    cash = [[("StartingCashLabel", 545, 635), ("ComboBoxStartingCash", 639, 725)]]
+    zero_hour_checks = [[("CheckboxLimitSuperweapons", 545, 725)]]
+    armies = [[("CheckBoxLimitArmies", 545, 725)]]
+    rows = (cash if zero_hour else []) + [
+        [("LobbyAccessLabel", 545, 635), ("ComboBoxLobbyAccess", 639, 725)],
+        [("PasswordLabel", 545, 635), ("TextEntryPassword", 639, 725)],
+        [("MaxCameraHeightLabel", 545, 635), ("ComboBoxMaxCameraHeight", 639, 725)],
+    ] + (zero_hour_checks if zero_hour else []) + [[("CheckBoxUseStats", 545, 725)]] + (armies if zero_hour else []) + [
+        [("ListboxInfo", 545, 725)],
+    ]
+    top = 385
+    for row in rows:
+        info = row[0][0] == "ListboxInfo"
+        for name, left, right in row:
+            rects[p + name] = (left, top, right, top + (44 if info else 20))
+        top += 48 if info else 24
     for i in range(8):
         top = 111 + i * 24
         rects[p + f"GenericPing{i}"] = (47, top, 81, top + 20)
@@ -53,7 +68,8 @@ def _setup_rects():
 
 
 # the Generals retail layout has none of the Zero Hour only controls, which the generator adds after the overrides
-_GENERALS_ADDED = {"CheckBoxUseStats", "CheckboxLimitSuperweapons", "CheckBoxLimitArmies", "ComboBoxStartingCash", "StartingCashLabel"}
+_GENERALS_ADDED = {"CheckBoxUseStats", "CheckboxLimitSuperweapons", "CheckBoxLimitArmies", "ComboBoxStartingCash", "StartingCashLabel",
+                   "LobbyAccessLabel", "ComboBoxLobbyAccess", "PasswordLabel", "MaxCameraHeightLabel", "ComboBoxMaxCameraHeight"}
 
 
 def _welcome_rects(zero_hour):
@@ -172,7 +188,7 @@ FIXES = {
 # so the chat list shortens and the chat entry and the button row move up inside the frame
 GENERALS_FIXES = {
     "Window/Menus/WOLWelcomeMenu.wnd": _welcome_rects(False),
-    "Window/Menus/GameSpyGameOptionsMenu.wnd": {k: v for k, v in _setup_rects().items() if k.split(":")[-1] not in _GENERALS_ADDED},
+    "Window/Menus/GameSpyGameOptionsMenu.wnd": {k: v for k, v in _setup_rects(False).items() if k.split(":")[-1] not in _GENERALS_ADDED},
     "Window/Menus/ScoreScreen.wnd": {
         "ScoreScreen.wnd:ListboxChatWindowScoreScreen": (69, 387, 735, 480),
         "ScoreScreen.wnd:TextEntryChat": (68, 488, 696, 513),

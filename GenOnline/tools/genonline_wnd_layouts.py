@@ -80,7 +80,8 @@ in 800x600 units.
   SETUP_LIST_ROW_UNITS per font point a row; a combo keeps a larger retail value.
 - Online setup (G2): the online game setup screen takes the row, chat and sidebar rects of its wnd_fixes.py entry instead of the setup row
   layout, keeping only the row fonts and drop-down rows. SETUP_ADDED_WINDOWS copies a few windows of the layout (the Game panel frame, the
-  info block texts and shield) before the overrides so those get rects too.
+  info block texts and shield, the option row labels, combos and password entry, the scroll arrows) before the overrides so those get rects too.
+  Templates the Generals retail layout lacks are skipped there; generals_missing_controls adds those windows from the Zero Hour layout.
 - Hidden windows: GenOnline/tools/wnd_fixes.py HIDDEN_WINDOWS names the communicator buttons the ruler user section replaces. They get HIDDEN and stay in
   the layout for the code's lookups, in both games.
 - Blank layouts: a layout in GenOnline/tools/wnd_fixes.py BLANK_LAYOUTS (the GameSpy login forms GO replaces with its sign-in
@@ -125,7 +126,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from wnd_fixes import BLANK_LAYOUTS, FIXES, GENERALS_FIXES, HEADINGS, HIDDEN_WINDOWS, LIST_HEADERS  # noqa: E402
+from wnd_fixes import BLANK_LAYOUTS, FIXES, GENERALS_FIXES, HEADINGS, HIDDEN_WINDOWS, LIST_HEADERS, _GENERALS_ADDED, _setup_rects  # noqa: E402
 import wnd_yaml  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -343,6 +344,7 @@ KIT_LINE = (47, 75, 255)
 # the rects come from FIXES. The info list gets its rows from the menu code
 # added windows that load before every sibling, because the engine hit tests the last loaded child first and a frame on top takes the clicks of the controls inside it
 SETUP_BACK_WINDOWS = {"PanelGame"}
+TOOLTIP_LINE_RE = r'^[ \t]*TOOLTIPTEXT[ \t]*=[ \t]*"[^"]*";\r?\n'
 
 SETUP_ADDED_WINDOWS = {
     "Window/Menus/GameSpyGameOptionsMenu.wnd": (
@@ -350,6 +352,13 @@ SETUP_ADDED_WINDOWS = {
           for i in range(8) for kind in ("Kick", "Ban")),
         ("PanelGame", "LINE", "ENABLED+NOINPUT+NOFOCUS",
          [(r'(^[ \t]*ENABLEDDRAWDATA[ \t]*=[ \t]*IMAGE: NoImage, COLOR: 0 0 0 0, BORDERCOLOR: )\d+ \d+ \d+', r"\g<1>%d %d %d" % KIT_LINE)]),
+        ("ButtonOptionsUp", "ButtonEmote", "ENABLED+NOFOCUS", []),
+        ("ButtonOptionsDown", "ButtonEmote", "ENABLED+NOFOCUS", []),
+        ("TextEntryPassword", "TextEntryChat", "ENABLED+IMAGE", [(r'^[ \t]*TEXT[ \t]*=[ \t]*"Entry";\r?\n', "")]),
+        # the menu code sets the text of these labels, because layout text is a text label key
+        *((label, "StartingCashLabel", "ENABLED+IMAGE", [(TOOLTIP_LINE_RE, ""), (r'^[ \t]*TEXT[ \t]*=[ \t]*"GUI:StartingMoney";\r?\n', "")])
+          for label in ("LobbyAccessLabel", "PasswordLabel", "MaxCameraHeightLabel")),
+        *((combo, "ComboBoxStartingCash", "ENABLED+IMAGE", [(TOOLTIP_LINE_RE, "")]) for combo in ("ComboBoxLobbyAccess", "ComboBoxMaxCameraHeight")),
         ("ListboxInfo", "ListboxChatWindowGameSpyGameSetup", "ENABLED+NOFOCUS",
          [(rf"(^[ \t]*{state}DRAWDATA[ \t]*=[ \t]*)IMAGE: BlackSquare, COLOR: 0 0 0 126, BORDERCOLOR: \d+ \d+ \d+ 255",
            r"\g<1>IMAGE: NoImage, COLOR: 0 0 0 0, BORDERCOLOR: 0 0 0 0") for state in ("ENABLED", "DISABLED", "HILITE")] +
@@ -1697,7 +1706,9 @@ def add_setup_windows(text, name):
     """The layout with the windows of SETUP_ADDED_WINDOWS added as copies of their template windows."""
     for new, template, status, subs in SETUP_ADDED_WINDOWS.get(name, ()):
         root = parse_windows(text)
-        win = next(w for w in root.walk() if w.name.split(":")[-1] == template)
+        win = next((w for w in root.walk() if w.name.split(":")[-1] == template), None)
+        if win is None and template in _GENERALS_ADDED:
+            continue  # the Generals retail layout has no template for it, generals_missing_controls adds it from the Zero Hour layout
         start, end = win.block
         block = text[start:end].replace(f'"{win.name}"', f'"{win.name.rsplit(":", 1)[0]}:{new}"', 1)
         for pattern, replacement in subs:
@@ -2193,8 +2204,10 @@ def generals_community_panel(text):
 # the windows from the Zero Hour GenOnline layout: retail layout -> (that layout file, the parent window, {control: rect or None to keep}).
 GENERALS_CONTROLS = {
     "window/menus/gamespygameoptionsmenu.wnd": ("GenOnlineGameOptionsMenu.wnd", "FadeParent", {
-        "CheckBoxUseStats": (545, 335, 745, 355), "CheckboxLimitSuperweapons": None, "CheckBoxLimitArmies": None,
-        "ComboBoxStartingCash": None, "StartingCashLabel": (545, 335, 645, 355)}),
+        "CheckBoxUseStats": _setup_rects(False)["GameSpyGameOptionsMenu.wnd:CheckBoxUseStats"], "CheckboxLimitSuperweapons": None,
+        "CheckBoxLimitArmies": None, "ComboBoxStartingCash": None, "StartingCashLabel": None,
+        **{name: _setup_rects(False)["GameSpyGameOptionsMenu.wnd:" + name]
+           for name in ("LobbyAccessLabel", "ComboBoxLobbyAccess", "PasswordLabel", "MaxCameraHeightLabel", "ComboBoxMaxCameraHeight")}}),
     "window/menus/popuphostgame.wnd": ("GenOnlinePopupHostGame.wnd", "ParentHostPopUp", {
         "CheckBoxUseStats": (238, 272, 398, 296), "CheckBoxLimitArmies": None, "CheckBoxRequireEac": (404, 272, 560, 296)}),
 }
