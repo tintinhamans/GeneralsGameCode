@@ -1640,6 +1640,17 @@ static WindowMsgHandledType optionRowInput(GameWindow *window, UnsignedInt msg, 
 	return MSG_IGNORED;
 }
 
+// A disabled control does not take the mouse, so the wheel over it reaches the panel frame behind the rows.
+static WindowMsgHandledType optionPanelInput(GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2)
+{
+	if ((msg == GWM_WHEEL_UP || msg == GWM_WHEEL_DOWN) && mouseInOptionViewport((Int)LOLONGTOSHORT(mData1), (Int)HILONGTOSHORT(mData1)))
+	{
+		scrollOptionRows(msg == GWM_WHEEL_UP ? -1 : 1);
+		return MSG_HANDLED;
+	}
+	return MSG_IGNORED;
+}
+
 // The scroll arrows use the kit scroll bar art, so they match every list on the screen.
 static void optionArrowDraw(GameWindow *window, WinInstanceData *instData)
 {
@@ -1824,6 +1835,11 @@ static void initOptionRows()
 	comboBoxCameraHeight = find("ComboBoxMaxCameraHeight");
 	buttonOptionsUp = find("ButtonOptionsUp");
 	buttonOptionsDown = find("ButtonOptionsDown");
+	if (GameWindow *panel = find("PanelGame"))
+	{
+		panel->winClearStatus(WIN_STATUS_NO_INPUT);
+		panel->winSetInputFunc(optionPanelInput);
+	}
 
 	// Layout text is a text label key, so plain label text is set here.
 	if (lobbyAccessLabel != nullptr)
