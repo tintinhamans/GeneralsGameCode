@@ -2316,8 +2316,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 683 89,
-                   BOTTOMRIGHT: 745 109,
+      SCREENRECT = UPPERLEFT: 727 48,
+                   BOTTOMRIGHT: 751 72,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonEditLobby";
       STATUS = ENABLED+IMAGE;
@@ -2886,7 +2886,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 545 89,
-                   BOTTOMRIGHT: 679 109,
+                   BOTTOMRIGHT: 745 109,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextMapPreview";
       STATUS = ENABLED+NOINPUT+NOFOCUS;

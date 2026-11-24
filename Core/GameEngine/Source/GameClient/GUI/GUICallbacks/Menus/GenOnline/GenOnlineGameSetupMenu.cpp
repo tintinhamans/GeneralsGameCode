@@ -1663,6 +1663,45 @@ static WindowMsgHandledType optionRowInput(GameWindow *window, UnsignedInt msg, 
 	return MSG_IGNORED;
 }
 
+// The edit button in the screen header is a framed pencil, drawn in the line style of the kick and keep out buttons.
+static void editLobbyButtonDraw(GameWindow *window, WinInstanceData *instData)
+{
+	ScopedDisplayBatch batch;
+
+	Int x, y, width, height;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&width, &height);
+
+	const Bool enabled = BitIsSet(window->winGetStatus(), WIN_STATUS_ENABLED);
+	const Bool hovered = enabled && BitIsSet(instData->getState(), WIN_STATE_HILITED);
+	const Color color = !enabled ? GameMakeColor(74, 78, 110, 255) : hovered ? GameMakeColor(255, 255, 255, 255) : GOUIColor(GOUICOLOR_LINE, GameMakeColor(47, 75, 255, 255));
+	const Int frameWidth = (std::max)(1, GameWindowManager::winScaleLayoutSize(1));
+	TheWindowManager->winFillRect(color, 1.0f, x, y, x + width, y + frameWidth);
+	TheWindowManager->winFillRect(color, 1.0f, x, y + height - frameWidth, x + width, y + height);
+	TheWindowManager->winFillRect(color, 1.0f, x, y + frameWidth, x + frameWidth, y + height - frameWidth);
+	TheWindowManager->winFillRect(color, 1.0f, x + width - frameWidth, y + frameWidth, x + width, y + height - frameWidth);
+
+	// the pencil points to the bottom left: a tip, a shaft of two parallel lines and a flat end
+	const Real centerX = x + width * 0.5f;
+	const Real centerY = y + height * 0.5f;
+	const Real reach = (std::min)(width, height) * 0.3f;
+	const Real half = reach * 0.3f * 0.7071f;
+	const Real tipX = centerX - reach, tipY = centerY + reach;
+	const Real neckX = tipX + reach * 0.55f, neckY = tipY - reach * 0.55f;
+	const Real endX = centerX + reach, endY = centerY - reach;
+	const Real thickness = 1.5f;
+	const auto line = [&](Real ax, Real ay, Real bx, Real by)
+	{
+		TheDisplay->drawLine((Int)(ax + 0.5f), (Int)(ay + 0.5f), (Int)(bx + 0.5f), (Int)(by + 0.5f), thickness, color);
+	};
+	line(tipX, tipY, neckX - half, neckY - half);
+	line(tipX, tipY, neckX + half, neckY + half);
+	line(neckX - half, neckY - half, neckX + half, neckY + half);
+	line(neckX - half, neckY - half, endX - half, endY - half);
+	line(neckX + half, neckY + half, endX + half, endY + half);
+	line(endX - half, endY - half, endX + half, endY + half);
+}
+
 // A disabled control does not take the mouse, so the wheel over it reaches the panel frame behind the rows.
 static WindowMsgHandledType optionPanelInput(GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2)
 {
@@ -1813,7 +1852,9 @@ static void initOptionRows()
 	// Layout text is a text label key, so plain label text is set here.
 	if (buttonEditLobby != nullptr)
 	{
-		buttonEditLobby->winSetText(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineEditLobby", L"Edit"));
+		buttonEditLobby->winSetText(UnicodeString::TheEmptyString);
+		buttonEditLobby->winSetDrawFunc(editLobbyButtonDraw);
+		buttonEditLobby->winSetTooltip(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineEditLobbyTooltip", L"Edit the lobby name, access and password"));
 	}
 	if (cameraHeightLabel != nullptr)
 	{
