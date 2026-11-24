@@ -1221,11 +1221,19 @@ InGameUI::InGameUI()
 	m_observerStatsBold = TRUE;
 	m_observerStatsPosition.x = kHudAnchorX;
 	m_observerStatsPosition.y = kHudAnchorY;
+	m_observerStatsLineStep = 0;
 
 	// Observer notification overlay
 	m_observerNotificationString = nullptr;
 	m_observerNotificationPointSize = TheGlobalData->m_observerNotificationFontSize;
 	m_observerNotificationsHidden = false;
+	for (Int slotIndex = 0; slotIndex < MAX_SLOTS; ++slotIndex)
+	{
+		for (Int col = 0; col < numCols; ++col)
+		{
+			m_mapOverlayPlayerData[slotIndex].playerCellStrings[col] = nullptr;
+		}
+	}
 
 #endif
 #if defined(GENONLINE)
