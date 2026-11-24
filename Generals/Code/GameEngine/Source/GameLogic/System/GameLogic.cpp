@@ -787,6 +787,10 @@ static void populateRandomSideAndColor( GameInfo *game )
 		if (colorIdx < 0 || colorIdx >= TheMultiplayerSettings->getNumColors())
 		{
 			DEBUG_ASSERTCRASH(colorIdx == -1, ("Non-random bad color %d in slot %d", colorIdx, i));
+#if defined(GENONLINE)
+			// GenOnline @bugfix arcticdolphin 24/11/2026 A color outside the palette is drawn at random like an unset color so a bad lobby value cannot crash the match start.
+			colorIdx = -1;
+#endif
 			while (colorIdx == -1)
 			{
 				colorIdx = GameLogicRandomValue(0, TheMultiplayerSettings->getNumColors()-1);

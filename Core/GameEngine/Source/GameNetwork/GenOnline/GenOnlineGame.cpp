@@ -7,7 +7,9 @@
 #include "GameClient/GameText.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "Common/RandomValue.h"
+#include "Common/MultiplayerSettings.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
+#include "GameNetwork/GenOnline/GenOnlineSlotValidation.h"
 #include "GameNetwork/GenOnline/WifiLowLatency.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/GenOnline/GenOnlineTransport.h"
@@ -183,9 +185,9 @@ void GenOnlineGame::UpdateSlotsFromCurrentLobby()
 			// NOTE: Internally generals uses 'local ip' to detect which user is local... we dont have an IP, so just use player index for ip
 			slot->setState((SlotState)pLobbyMember.m_SlotState, UnicodeString(from_utf8(pLobbyMember.display_name).c_str()), pLobbyMember.m_SlotIndex);
 
-			slot->setColor(pLobbyMember.color);
-			slot->setTeamNumber(pLobbyMember.team);
-			slot->setStartPos(pLobbyMember.startpos);
+			slot->setColor(GenOnlineSlotValueOrUnset(pLobbyMember.color, TheMultiplayerSettings->getNumColors()));
+			slot->setTeamNumber(GenOnlineSlotValueOrUnset(pLobbyMember.team, MAX_SLOTS / 2));
+			slot->setStartPos(GenOnlineSlotValueOrUnset(pLobbyMember.startpos, MAX_SLOTS));
 			slot->setPlayerTemplate(playerTemplate);
 
 			if (!bIsAI)

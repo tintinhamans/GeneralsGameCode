@@ -1008,6 +1008,8 @@ static void populateRandomSideAndColor( GameInfo *game )
 		if (colorIdx < 0 || colorIdx >= TheMultiplayerSettings->getNumColors())
 		{
 			DEBUG_ASSERTCRASH(colorIdx == -1, ("Non-random bad color %d in slot %d", colorIdx, i));
+			// GenOnline @bugfix arcticdolphin 24/11/2026 A color outside the palette is drawn at random like an unset color so a bad lobby value cannot crash the match start.
+			colorIdx = -1;
 			while (colorIdx == -1)
 			{
 				colorIdx = GameLogicRandomValue(0, TheMultiplayerSettings->getNumColors()-1);
@@ -1212,6 +1214,9 @@ static void populateRandomStartPosition( GameInfo *game )
 
 		//choose a starting position
 		Int team = slot->getTeamNumber();
+		// GenOnline @bugfix arcticdolphin 24/11/2026 A team outside the team table counts as no team so a bad lobby value cannot write past teamPosIdx.
+		if (team < 0 || team >= MAX_SLOTS)
+			team = -1;
 		if( !hasStartSpotBeenPicked )
 		{
 			// We're the first real spot.  Pick randomly.

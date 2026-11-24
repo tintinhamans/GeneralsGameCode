@@ -870,29 +870,16 @@ void updateMapStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[
 		GameSlot *gs =myGame->getSlot(i);
 		if(onLoadScreen)
 		{
-#if defined(GENONLINE)
-			Int startPos = gs->getApparentStartPos();
-			GameWindow* btn = buttonMapStartPositions[startPos];
-			if (!btn)
-				continue;
-
-			AsciiString displayNumber;
-			displayNumber.format("NUMBER:%d", i + 1);
-			GadgetButtonSetText(btn, TheGameText->fetch(displayNumber));
-
-			UnsignedInt col = (gs->getTeamNumber() >= 0)
-				? GetTeamUiColor(gs->getTeamNumber())
-				: GameMakeColor(255, 255, 255, 255);
-
-			GadgetTextEntrySetTextColor(btn, col);
-#else
 			if(gs->getApparentStartPos() >=0 && gs->getApparentStartPos() < mmd.m_numPlayers && gs->getPlayerTemplate() > PLAYERTEMPLATE_MIN )
 			{
 				AsciiString displayNumber;
 				displayNumber.format("NUMBER:%d",i + 1);
 				GadgetButtonSetText(buttonMapStartPositions[gs->getApparentStartPos()], TheGameText->fetch(displayNumber));
-			}
+#if defined(GENONLINE)
+				// GenOnline @feature arcticdolphin 21/11/2026 Colour the start position number by team.
+				GadgetTextEntrySetTextColor(buttonMapStartPositions[gs->getApparentStartPos()], (gs->getTeamNumber() >= 0) ? GetTeamUiColor(gs->getTeamNumber()) : GameMakeColor(255, 255, 255, 255));
 #endif
+			}
 		}
 		else
 		{
