@@ -1585,9 +1585,39 @@ static void layoutOptionRows()
 	}
 }
 
+// The viewport always ends on a row boundary, so a row that spans two slots is never cut off and no slot stays empty.
+static Bool optionScrollFits(Int scroll)
+{
+	if (scroll == 0)
+	{
+		return TRUE;
+	}
+	Int slot = 0;
+	for (Int i = 0; i < optionRowCount; ++i)
+	{
+		slot += optionRows[i].span;
+		if (slot == scroll + OPTION_ROWS_VISIBLE)
+		{
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
 static void scrollOptionRows(Int rows)
 {
-	const Int scroll = (std::clamp)(optionScroll + rows, 0, (std::max)(0, optionSlotCount() - OPTION_ROWS_VISIBLE));
+	const Int last = (std::max)(0, optionSlotCount() - OPTION_ROWS_VISIBLE);
+	const Int step = rows < 0 ? -1 : 1;
+	Int scroll = optionScroll;
+	for (Int moved = 0; moved < (rows < 0 ? -rows : rows); ++moved)
+	{
+		Int next = scroll + step;
+		while (next > 0 && next < last && !optionScrollFits(next))
+		{
+			next += step;
+		}
+		scroll = (std::clamp)(next, 0, last);
+	}
 	if (scroll != optionScroll)
 	{
 		optionScroll = scroll;
