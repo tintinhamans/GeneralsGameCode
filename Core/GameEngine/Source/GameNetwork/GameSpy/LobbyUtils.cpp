@@ -647,6 +647,13 @@ static void addListIcon(GameWindow *win, const Image *img, Int index, Int column
 	GadgetListBoxAddEntryImage(win, img, index, column, (std::max)(1, img->getImageWidth() * box / side), (std::max)(1, img->getImageHeight() * box / side));
 }
 
+// GenOnline @feature arcticdolphin 24/11/2026 The lobby symbols come from the GenOnline UI kit and the retail image is the fallback when the kit is left out.
+static const Image *findLobbySymbol(const char *genOnlineName, const char *retailName)
+{
+	const Image *img = TheMappedImageCollection->findImageByName(genOnlineName);
+	return img != nullptr ? img : TheMappedImageCollection->findImageByName(retailName);
+}
+
 // GenOnline @feature arcticdolphin 22/11/2026 The ping column draws five signal bars over the list, the latency per row index is kept here.
 static std::vector<Int> s_lobbyRowPings;
 static GameWinDrawFunc s_gameListDraw = nullptr;
@@ -1483,7 +1490,7 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 
 	if (bHasPassword)
 	{
-		const Image* img = TheMappedImageCollection->findImageByName("Password");
+		const Image* img = findLobbySymbol("GOLobbyIconPassword", "Password");
 		if (img)
 			addListIcon(win, img, index, COLUMN_PASSWORD);
 	}
@@ -1494,7 +1501,7 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 
 	if (bAllowSpectators)
 	{
-		const Image* img = TheMappedImageCollection->findImageByName("Observer");
+		const Image* img = findLobbySymbol("GOLobbyIconObserver", "Observer");
 		if (img)
 		{
 			addListIcon(win, img, index, COLUMN_OBSERVER);
@@ -1508,7 +1515,7 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 	if (bTrackStats)
 	{
 		// GenOnline @bugfix arcticdolphin 21/11/2026 The Generals retail images have no GoodStatsIcon and a missing image crashed the lobby list.
-		const Image* img = TheMappedImageCollection->findImageByName("GoodStatsIcon");
+		const Image* img = findLobbySymbol("GOLobbyIconStats", "GoodStatsIcon");
 		if (img)
 		{
 			addListIcon(win, img, index, COLUMN_USE_STATS);
@@ -1619,7 +1626,7 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 
 	if (game->getHasPassword())
 	{
-		const Image *img = TheMappedImageCollection->findImageByName("Password");
+		const Image *img = findLobbySymbol("GOLobbyIconPassword", "Password");
 		Int width = 10, height = 10;
 		if (img)
 		{
@@ -1635,7 +1642,7 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 
 	if (game->getAllowObservers())
 	{
-		const Image *img = TheMappedImageCollection->findImageByName("Observer");
+		const Image *img = findLobbySymbol("GOLobbyIconObserver", "Observer");
 		GadgetListBoxAddEntryImage(win, img, index, COLUMN_OBSERVER);
 	}
 	else
@@ -1647,7 +1654,7 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
   {
     if (game->getUseStats())
     {
-      if (const Image *img = TheMappedImageCollection->findImageByName("GoodStatsIcon"))
+      if (const Image *img = findLobbySymbol("GOLobbyIconStats", "GoodStatsIcon"))
       {
         GadgetListBoxAddEntryImage(win, img, index, COLUMN_USE_STATS, img->getImageHeight(), img->getImageWidth());
       }

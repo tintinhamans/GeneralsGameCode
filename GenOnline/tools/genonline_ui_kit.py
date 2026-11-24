@@ -34,6 +34,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import genonline_map_icons  # noqa: E402
 import genonline_themes  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -542,57 +543,23 @@ def pieces():
 
 
 # =================================================================================================
-# GO map select: map preview icons and the map list favourite stars.
+# GO map select and lobby: map preview icons, lobby symbols and the map list favourite stars.
 # They live in their own atlas, GeneralsOnline_UIKit2.tga, because the first atlas is full.
-# Self-contained: from the kit above this section uses only rgba, TRANSPARENT, SCALE and paint.
-# Kit icon style: angular C&C symbols on a 16 unit design grid scaled to the piece, one 2 unit stroke
-# with butt caps and mitred joins, sharp corners, even padding and points snapped to whole texels.
-# Map icons are lit glyphs: a rounded edge shaded from the top left, a gloss, a thin edge in a dark shade of the icon colour and a soft shadow.
+# The icons and symbols are the PNG art in GenOnline/tools/art/map-icons that genonline_map_icons.py renders.
+# The favourite stars are drawn here on a 16 unit design grid with points snapped to whole texels.
 # =================================================================================================
 
 TEXTURE2_NAME = "GeneralsOnline_UIKit2.tga"
 TEXTURE2_PATH = DATA / "Art" / "Textures" / TEXTURE2_NAME
 INI2_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_UIKit2.INI"
 ATLAS2_WIDTH = 128  # in retail pixels
-TITLE2 = "the map preview icons and the favourite stars"
+TITLE2 = "the map preview icons, the lobby symbols and the favourite stars"
 
 MAP_GRID = 16.0      # design grid units across a piece
-MAP_STROKE = 2.0     # stroke weight in grid units
-MAP_OUTLINE = 0.6    # thin dark edge around each glyph, in grid units
-MAP_GLYPH_SCALE = 1.25  # glyphs are drawn about the grid centre at this scale to fill the icon with even padding
 MAP_ICON_SIZE = 15   # retail px of the art; the engine draws the preview markers at a scaled layout size
 STAR_SIZE = 12
 
 MAP_GOLD = rgba("#FFD34D")
-MAP_BEVEL = 1.5      # grid units over which a glyph rounds off towards its edge
-MAP_BEVEL_STRENGTH = 1.8  # how steep the rounded edge reads in the lighting
-MAP_SHADOW = (0.45, 0.65)  # drop shadow offset in grid units, the light comes from the top left
-MAP_SHADOW_ALPHA = 0.32
-MAP_LIGHT = (-0.45, -0.65, 0.62)  # towards the light, z points at the viewer
-MAP_SPECULAR = 0.6
-
-
-def map_ramp(light, mid, dark, edge):
-    """A glyph colour ramp: the light and dark ends of the vertical gradient, the base colour and the thin edge colour."""
-    return (rgba(light), rgba(mid), rgba(dark), rgba(edge, 0.95))
-
-
-# the ramps follow the retail map icons: the glossy green Cash dollar and the bevelled gold TecBuilding star
-MAP_GREEN = map_ramp("#D9F26B", "#5FBF2A", "#0B6E1C", "#052F0F")
-MAP_GOLD_RAMP = map_ramp("#FFF2A8", "#E5BE3A", "#8A6410", "#463105")
-MAP_STEEL = map_ramp("#F6F8FB", "#B2BDCB", "#586677", "#1E252E")
-MAP_AMBER = map_ramp("#FFD978", "#EE8E16", "#823F05", "#3D1E08")
-MAP_WOOD = map_ramp("#EDBE72", "#B97A31", "#5F3611", "#2E1806")
-MAP_WOOD_LIGHT = map_ramp("#F7D69A", "#D4994A", "#7A4A1A", "#2E1806")
-# image name -> the parts drawn over each other from the bottom, each a (glyph pieces, colour ramp)
-MAP_ICONS = {
-    "GOMapIconSupplyDock": (("dollar", MAP_GREEN),),
-    "GOMapIconSupplyCrates": (("crate", MAP_WOOD), ("brace", MAP_WOOD_LIGHT)),
-    "GOMapIconRepairBay": (("wrench", MAP_STEEL),),
-    "GOMapIconArtillery": (("cannon", MAP_STEEL),),
-    "GOMapIconOilDerrick": (("droplet", MAP_AMBER),),
-    "GOMapIconTech": (("star", MAP_GOLD_RAMP),),
-}
 STAR_ON = (MAP_GOLD, rgba("#B8901A"))  # fill, edge
 STAR_OFF = rgba("#5D6080")
 
@@ -608,11 +575,6 @@ def map_point(size, gx, gy):
     return (map_snap(gx * unit), map_snap(gy * unit))
 
 
-def map_gp(size, gx, gy):
-    """A glyph grid point scaled about the grid centre by MAP_GLYPH_SCALE, snapped to a whole texel."""
-    return map_point(size, 8.0 + (gx - 8.0) * MAP_GLYPH_SCALE, 8.0 + (gy - 8.0) * MAP_GLYPH_SCALE)
-
-
 def map_inside(x, y, pts):
     """Nonzero winding point in polygon test, so mitred offsets with small self loops still fill."""
     winding = 0
@@ -623,131 +585,6 @@ def map_inside(x, y, pts):
         elif by <= y < ay and cross < 0.0:
             winding -= 1
     return winding != 0
-
-
-def map_normal(a, b):
-    """Unit normal on the right of a -> b in y down coordinates."""
-    dx, dy = b[0] - a[0], b[1] - a[1]
-    length = math.hypot(dx, dy)
-    return (-dy / length, dx / length)
-
-
-def map_mitre(p, n1, n2, d, limit):
-    """The corner at p of two edges offset by d along their normals, joined with a mitre clamped to limit * d."""
-    mx, my = n1[0] + n2[0], n1[1] + n2[1]
-    length = math.hypot(mx, my)
-    if length < 1e-9:
-        return (p[0] + n1[0] * d, p[1] + n1[1] * d)
-    mx, my = mx / length, my / length
-    reach = d / max(mx * n1[0] + my * n1[1], 1e-9)
-    if abs(reach) > limit * abs(d):
-        reach = math.copysign(limit * abs(d), reach)
-    return (p[0] + mx * reach, p[1] + my * reach)
-
-
-def map_offset(pts, d, limit=2.0):
-    """A closed polygon grown by d (shrunk when d < 0) with mitred corners."""
-    area = sum(ax * by - bx * ay for (ax, ay), (bx, by) in zip(pts, pts[1:] + pts[:1]))
-    sign = -1.0 if area > 0.0 else 1.0  # in y down coordinates the right hand normal points inward on a positive area polygon
-    n = len(pts)
-    normals = [map_normal(pts[i], pts[(i + 1) % n]) for i in range(n)]
-    return [map_mitre(pts[i], normals[i - 1], normals[i], sign * d, limit) for i in range(n)]
-
-
-def map_stroke_poly(points, width, limit=2.0):
-    """An open polyline stroked as one polygon with butt caps and mitred joins."""
-    half = width / 2.0
-    normals = [map_normal(a, b) for a, b in zip(points, points[1:])]
-    left, right = [], []
-    for i, p in enumerate(points):
-        n1 = normals[max(i - 1, 0)]
-        n2 = normals[min(i, len(normals) - 1)]
-        left.append(map_mitre(p, n1, n2, half, limit))
-        right.append(map_mitre(p, n1, n2, -half, limit))
-    return left + right[::-1]
-
-
-def map_frame(size, centre, angle, local):
-    """Grid polygon given in a frame rotated by angle degrees about a grid centre, as glyph points."""
-    c, s = math.cos(math.radians(angle)), math.sin(math.radians(angle))
-    return [map_gp(size, centre[0] + u * c - v * s, centre[1] + u * s + v * c) for u, v in local]
-
-
-def map_regular(size, centre, radius, sides, angle=0.0):
-    """A regular polygon in glyph grid units."""
-    return [map_gp(size, centre[0] + radius * math.cos(math.radians(angle + 360.0 * i / sides)),
-                   centre[1] + radius * math.sin(math.radians(angle + 360.0 * i / sides))) for i in range(sides)]
-
-
-# A glyph is a list of shapes: (outer polygon, hole polygons, cut polygons). Holes are part of the
-# shape and get the outline; cuts only knock the glyph colour out, so the outline shows through them.
-
-def map_wrench(size):
-    """A straight handle and a squared head with a square jaw facing the top right."""
-    unit = size / MAP_GRID
-    handle = map_stroke_poly([map_gp(size, 4.6, 11.4), map_gp(size, 9.2, 6.8)], MAP_STROKE * unit)  # runs into the head, no seam
-    head = map_frame(size, (9.9, 6.1), -45.0, [(-1.6, -1.9), (1.9, -1.9), (1.9, -0.8), (0.3, -0.8),
-                                               (0.3, 0.8), (1.9, 0.8), (1.9, 1.9), (-1.6, 1.9)])
-    return [(handle, [], []), (head, [], [])]
-
-
-def map_cannon(size):
-    """A rectangular barrel raised to the top right over an octagonal wheel, kept apart by a knockout gap."""
-    unit = size / MAP_GRID
-    wheel = map_regular(size, (6.6, 10.4), 2.3, 8, 22.5)
-    hub = map_regular(size, (6.6, 10.4), 0.9, 8, 22.5)
-    barrel = map_stroke_poly([map_gp(size, 5.0, 8.6), map_gp(size, 11.8, 5.0)], MAP_STROKE * unit)
-    return [(barrel, [], [map_offset(wheel, 0.6 * unit)]), (wheel, [hub], [])]
-
-
-def map_bezier(size, p0, c1, c2, p1, steps=14):
-    """Points of a cubic Bezier curve given in grid units, in retail pixels and not snapped, so a curve stays smooth."""
-    unit = size / MAP_GRID
-    pts = []
-    for i in range(steps + 1):
-        t = i / steps
-        u = 1.0 - t
-        x = u * u * u * p0[0] + 3.0 * u * u * t * c1[0] + 3.0 * u * t * t * c2[0] + t * t * t * p1[0]
-        y = u * u * u * p0[1] + 3.0 * u * u * t * c1[1] + 3.0 * u * t * t * c2[1] + t * t * t * p1[1]
-        pts.append((x * unit, y * unit))
-    return pts
-
-
-def map_dollar(size):
-    """A curved S stroked over a vertical bar that shows above and below it, like the retail Cash dollar."""
-    unit = size / MAP_GRID
-    curve = map_bezier(size, (11.2, 5.0), (10.6, 2.2), (5.0, 2.2), (4.8, 5.4))
-    curve += map_bezier(size, (4.8, 5.4), (4.6, 8.2), (11.4, 7.8), (11.2, 10.6))[1:]
-    curve += map_bezier(size, (11.2, 10.6), (11.0, 13.8), (5.4, 13.8), (4.6, 11.0))[1:]
-    bar = [(8.0 * unit, 1.4 * unit), (8.0 * unit, 14.6 * unit)]
-    return [(map_stroke_poly(curve, 2.4 * unit), [], []), (map_stroke_poly(bar, 1.5 * unit), [], [])]
-
-
-def map_crate(size):
-    """A wooden crate face with two plank gaps cut across it."""
-    unit = size / MAP_GRID
-
-    def p(x, y):
-        return (x * unit, y * unit)
-
-    body = [p(3.4, 4.0), p(12.6, 4.0), p(13.4, 4.8), p(13.4, 13.2), p(12.6, 14.0), p(3.4, 14.0), p(2.6, 13.2), p(2.6, 4.8)]
-    gaps = [[p(2.9, 7.4), p(13.1, 7.4), p(13.1, 7.9), p(2.9, 7.9)], [p(2.9, 10.3), p(13.1, 10.3), p(13.1, 10.8), p(2.9, 10.8)]]
-    return [(body, [], gaps)]
-
-
-def map_brace(size):
-    """The diagonal plank across the crate."""
-    unit = size / MAP_GRID
-    return [(map_stroke_poly([(3.8 * unit, 13.0 * unit), (12.2 * unit, 5.0 * unit)], 1.6 * unit), [], [])]
-
-
-def map_droplet(size):
-    """A smooth teardrop with a pointed top."""
-    unit = size / MAP_GRID
-    right = map_bezier(size, (8.0, 1.8), (9.4, 4.6), (12.8, 6.8), (12.8, 10.0))
-    right += map_bezier(size, (12.8, 10.0), (12.8, 12.8), (10.6, 14.4), (8.0, 14.4))[1:]
-    left = [(16.0 * unit - x, y) for x, y in reversed(right[1:-1])]
-    return [(right + left, [], [])]
 
 
 def map_star_points(size):
@@ -774,93 +611,13 @@ def map_edge_distance(x, y, pts):
     return best
 
 
-MAP_PIECES = {
-    "dollar": map_dollar, "crate": map_crate, "brace": map_brace, "wrench": map_wrench, "cannon": map_cannon,
-    "droplet": map_droplet, "star": lambda size: [(map_star_points(size), [], [])],
-}
-
-
-def map_mix(a, b, k):
-    """A colour k of the way from a to b, k clamped to 0 .. 1."""
-    k = max(0.0, min(1.0, k))
-    return tuple(a[i] + (b[i] - a[i]) * k for i in range(4))
-
-
-def map_ramp_color(ramp, t):
-    """The ramp colour at t, 0 at the top of the glyph and 1 at the bottom."""
-    light, mid, dark, _ = ramp
-    return map_mix(light, mid, t * 2.0) if t < 0.5 else map_mix(mid, dark, (t - 0.5) * 2.0)
-
-
-def map_depth(x, y, pieces):
-    """How far inside a part a point is: the distance to its nearest edge, the deepest piece where pieces overlap, None outside."""
-    best = None
-    for outer, holes, cuts in pieces:
-        if not map_inside(x, y, outer) or any(map_inside(x, y, h) for h in holes) or any(map_inside(x, y, c) for c in cuts):
-            continue
-        d = min([map_edge_distance(x, y, outer)] + [map_edge_distance(x, y, h) for h in holes + cuts])
-        best = d if best is None else max(best, d)
-    return best
-
-
-def map_height(x, y, pieces, bevel):
-    """The height of a part at a point: 0 outside, rising smoothly to 1 over the bevel width inside its edge."""
-    d = map_depth(x, y, pieces)
-    if d is None:
-        return 0.0
-    t = min(1.0, d / bevel)
-    return t * t * (3.0 - 2.0 * t)
-
-
-def map_lit(x, y, pieces, ramp, v, unit):
-    """The colour of a point of a part: the ramp at v, shaded by the surface normal of the rounded edge and glossed where it faces the light."""
-    bevel = MAP_BEVEL * unit
-    e = 0.15
-    hx = (map_height(x + e, y, pieces, bevel) - map_height(x - e, y, pieces, bevel)) / (2.0 * e)
-    hy = (map_height(x, y + e, pieces, bevel) - map_height(x, y - e, pieces, bevel)) / (2.0 * e)
-    nx, ny, nz = -hx * MAP_BEVEL_STRENGTH, -hy * MAP_BEVEL_STRENGTH, 1.0
-    length = math.sqrt(nx * nx + ny * ny + nz * nz)
-    nx, ny, nz = nx / length, ny / length, nz / length
-    lx, ly, lz = MAP_LIGHT
-    length = math.sqrt(lx * lx + ly * ly + lz * lz)
-    lx, ly, lz = lx / length, ly / length, lz / length
-    shade = max(0.4, min(1.7, 1.0 + 1.3 * (nx * lx + ny * ly + nz * lz - lz)))
-    gx, gy, gz = lx, ly, lz + 1.0
-    length = math.sqrt(gx * gx + gy * gy + gz * gz)
-    gloss = max(0.0, (nx * gx + ny * gy + nz * gz) / length) ** 24 * MAP_SPECULAR
-    base = map_ramp_color(ramp, v)
-    return (min(1.0, base[0] * shade + gloss), min(1.0, base[1] * shade + gloss), min(1.0, base[2] * shade + gloss), 1.0)
-
-
-def map_icon_piece(size, name):
-    """A map icon lit like the retail map icons: rounded and shaded from the top left with a gloss, a thin edge in a dark shade
-    of its own colour and a soft drop shadow, which keep it readable on snow, sand and grass."""
-    unit = size / MAP_GRID
-    parts = [(MAP_PIECES[glyph](size), ramp) for glyph, ramp in MAP_ICONS[name]]
-    ys = [y for pieces, _ in parts for outer, _, _ in pieces for _, y in outer]
-    top, bottom = min(ys), max(ys)
-    grown = [(map_offset(outer, MAP_OUTLINE * unit), [map_offset(h, -MAP_OUTLINE * unit) for h in holes], ramp)
-             for pieces, ramp in parts for outer, holes, _ in pieces]
-    shadow = (MAP_SHADOW[0] * unit, MAP_SHADOW[1] * unit)
-
-    def surface(x, y):
-        for pieces, ramp in reversed(parts):
-            if map_depth(x, y, pieces) is not None:
-                return pieces, ramp
-        return None
-
-    def sample(x, y):
-        hit = surface(x, y)
-        if hit is not None:
-            return map_lit(x, y, hit[0], hit[1], (y - top) / (bottom - top), unit)
-        for outer, holes, ramp in reversed(grown):
-            if map_inside(x, y, outer) and not any(map_inside(x, y, h) for h in holes):
-                return ramp[3]
-        if surface(x - shadow[0], y - shadow[1]) is not None:
-            return (0.0, 0.0, 0.0, MAP_SHADOW_ALPHA)
-        return TRANSPARENT
-
-    return paint(size, size, sample)
+def map_icon_art(name):
+    """A map icon or lobby symbol from the PNG art that genonline_map_icons.py renders."""
+    path = genonline_map_icons.ART / f"{name}.png"
+    width, height, rows = genonline_themes.read_png(path.read_bytes())
+    if (width, height) != (MAP_ICON_SIZE * SCALE, MAP_ICON_SIZE * SCALE):
+        raise SystemExit(f"{path.name} is {width}x{height}, expected {MAP_ICON_SIZE * SCALE} square")
+    return [[TRANSPARENT if p[3] == 0 else (p[0] / 255.0, p[1] / 255.0, p[2] / 255.0, p[3] / 255.0) for p in row] for row in rows]
 
 
 def map_star_piece(size, fill, edge, edge_width):
@@ -883,8 +640,8 @@ def map_star_piece(size, fill, edge, edge_width):
 def pieces2():
     """The second atlas: map preview icons and the favourite stars."""
     out = []
-    for name in MAP_ICONS:
-        out.append((name, MAP_ICON_SIZE, MAP_ICON_SIZE, map_icon_piece(MAP_ICON_SIZE, name)))
+    for name in genonline_map_icons.ICONS:
+        out.append((name, MAP_ICON_SIZE, MAP_ICON_SIZE, map_icon_art(name)))
     out.append(("GOMapFavouriteOn", STAR_SIZE, STAR_SIZE, map_star_piece(STAR_SIZE, STAR_ON[0], STAR_ON[1], 1.0)))
     # the inside band shows the inner half of a centred 2 unit stroke plus a little, so the outline star stays open
     out.append(("GOMapFavouriteOff", STAR_SIZE, STAR_SIZE, map_star_piece(STAR_SIZE, None, STAR_OFF, 1.25)))
