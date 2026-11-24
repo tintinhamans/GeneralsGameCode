@@ -552,6 +552,12 @@ void GenOnlineStatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeeper, bool bW
 	{
 
 		uint64_t currentMatchID = pLobbyInterface->GetCurrentMatchID();
+		// The service creates a match only for two or more humans and no AI, and it refuses a result without one.
+		if (currentMatchID == 0)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] No match result is sent, this game has no match");
+			return;
+		}
 
 		int resolvedSide = -1;
 		GenOnlineGame* myGame = pLobbyInterface->GetCurrentGame();
