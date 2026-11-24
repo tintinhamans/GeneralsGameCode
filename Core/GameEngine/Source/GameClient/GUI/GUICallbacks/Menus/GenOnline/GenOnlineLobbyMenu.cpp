@@ -601,8 +601,13 @@ static void playerTooltip(GameWindow *window,
 			if (roomMember != nullptr)
 			{
 				// new
-				pStatsInterface->findPlayerStatsByID(roomMember->user_id, [=](bool bSuccess, PSPlayerStats stats)
+				const int64_t userID = roomMember->user_id;
+				const UnsignedInt generation = s_lobbyMenuGeneration;
+				pStatsInterface->findPlayerStatsByID(userID, [=](bool bSuccess, PSPlayerStats stats)
 					{
+						if (generation != s_lobbyMenuGeneration)
+							return;
+
 						if (!bSuccess)
 						{
 							TheMouse->setCursorTooltip(UnicodeString(L"Error: 1"), -1, NULL, 1.5f);
@@ -610,14 +615,14 @@ static void playerTooltip(GameWindow *window,
 						else
 						{
 							UnicodeString tooltip = UnicodeString::TheEmptyString;
-							if (roomMember->user_id == pAuthInterface->GetUserID())
+							if (userID == pAuthInterface->GetUserID())
 							{
 								tooltip.format(TheGameText->fetch("TOOLTIP:LocalPlayer"), uName.str());
 							}
 							else
 							{
 								// not us
-								bool bIsFriend = pSocialInterface->IsUserFriend(roomMember->user_id);
+								bool bIsFriend = pSocialInterface->IsUserFriend(userID);
 								if (bIsFriend)
 								{
 									// buddy
@@ -632,7 +637,7 @@ static void playerTooltip(GameWindow *window,
 								}
 							}
 
-							bool bIgnored = pSocialInterface->IsUserIgnored(roomMember->user_id);
+							bool bIgnored = pSocialInterface->IsUserIgnored(userID);
 							if (bIgnored)
 							{
 								tooltip.concat(TheGameText->fetch("TOOLTIP:IgnoredModifier"));
@@ -729,7 +734,7 @@ static void playerTooltip(GameWindow *window,
 								if (localMember != nullptr && localMember->m_bIsAdmin)
 								{
 									UnicodeString idLine;
-									idLine.format(L"\n\nUser ID: %lld", roomMember->user_id);
+									idLine.format(L"\n\nUser ID: %lld", userID);
 									tooltip.concat(idLine);
 								}
 							}
@@ -1948,11 +1953,6 @@ void GenOnlineLobbyMenuShutdown( WindowLayout *layout, void *userData )
 	s_lobbyMenuOpen = FALSE;
 	++s_lobbyMenuGeneration;
 	GenOnlineCloseRightClickMenus();
-
-	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
-	if (pRoomsInterface != nullptr)
-	{
-		pRoomsInterface->DeregisterForChatCallback();
 	buttonBuddy = nullptr;
 
 	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
@@ -1960,6 +1960,11 @@ void GenOnlineLobbyMenuShutdown( WindowLayout *layout, void *userData )
 	{
 		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged(nullptr);
 	}
+
+	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+	if (pRoomsInterface != nullptr)
+	{
+		pRoomsInterface->DeregisterForChatCallback();
 		pRoomsInterface->DeregisterForRosterNeedsRefreshCallback();
 		pRoomsInterface->DeregisterForRoomChangedCallback();
 	}
