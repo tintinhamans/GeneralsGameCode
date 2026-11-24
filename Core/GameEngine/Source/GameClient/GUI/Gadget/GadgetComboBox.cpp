@@ -52,6 +52,7 @@
 #include "Common/AudioEventRTS.h"
 #include "Common/GameAudio.h"
 #include "Common/Debug.h"
+#include "GameClient/Display.h"
 #include "GameClient/DisplayStringManager.h"
 #include "GameClient/GameWindow.h"
 #include "GameClient/Gadget.h"
@@ -87,6 +88,39 @@ void HideListBox(GameWindow * window);
 
 #if defined(GENONLINE)
 // GenOnline @tweak arcticdolphin 08/11/2026 A kit drop-down fits its compact rows and its frame instead of the retail row padding.
+// GenOnline @tweak arcticdolphin 24/11/2026 The open list is as wide as its longest entry, so no entry is cut off by a narrow field.
+static Int getDropDownWidth( GameWindow *window, GameWindow *listBox, Int fieldWidth, Bool scrolls )
+{
+	ListboxData *listData = (ListboxData *)listBox->winGetUserData();
+	Int textWidth = 0;
+	for( Int i = 0; i < listData->endPos; ++i )
+	{
+		const ListEntryCell *cells = listData->listData[i].cell;
+		if( cells && cells[0].cellType == LISTBOX_TEXT && cells[0].data )
+		{
+			DisplayString *text = (DisplayString *)cells[0].data;
+			if( text->getFont() != listBox->winGetFont() )
+				text->setFont( listBox->winGetFont() );
+			textWidth = (std::max)( textWidth, text->getWidth() );
+		}
+	}
+
+	// the same space sits right of the longest entry as left of every entry, inside the list frame
+	Int width = textWidth + GameWindowManager::winScaleLayoutSize( 2 * TEXT_X_OFFSET + TEXT_WIDTH_OFFSET + 4 );
+	if( scrolls && listData->slider )
+	{
+		ICoord2D sliderSize;
+		listData->slider->winGetSize( &sliderSize.x, &sliderSize.y );
+		width += sliderSize.x;
+	}
+
+	// the list never leaves the screen to the right
+	Int screenX, screenY;
+	window->winGetScreenPosition( &screenX, &screenY );
+	width = (std::min)( width, (Int)TheDisplay->getWidth() - screenX );
+	return (std::max)( fieldWidth, width );
+}
+
 static Int getDropDownHeight( GameWindow *listBox, Int rows )
 {
 	Int kitHeight = GadgetListBoxGetKitComboHeight( listBox, rows );
@@ -235,7 +269,8 @@ WindowMsgHandledType GadgetComboBoxInput( GameWindow *window, UnsignedInt msg,
 						newSize.y = getDropDownHeight( listBox, multiplier );
 						// GenOnline @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the bottom line of the field.
 						const Int frameOverlap = GadgetListBoxGetKitComboFrame( listBox );
-						window->winSetSize(winSize.x , winSize.y + newSize.y - frameOverlap );
+						listX = getDropDownWidth( window, listBox, winSize.x, comboData->entryCount > comboData->maxDisplay );
+						window->winSetSize(listX , winSize.y + newSize.y - frameOverlap );
 						listBox->winSetPosition(0, winSize.y - frameOverlap);
 #else
 						newSize.y = ((TheWindowManager->winFontHeight( listInstData->getFont() ) ) * multiplier) + multiplier * 2 + 4;
@@ -344,6 +379,16 @@ void HideListBox(GameWindow * window)
 		GameWindow *editBox = GadgetComboBoxGetEditBox(window);
 		editBox->winGetSize(&winSize.x, &winSize.y);
 		window->winGetSize(&newSize.x, &newSize.y);
+#if defined(GENONLINE)
+		// The open list can be wider than the field, so the closed size comes from the field and its button.
+		ComboBoxData *comboData = (ComboBoxData *)window->winGetUserData();
+		if( comboData && comboData->dropDownButton )
+		{
+			ICoord2D buttonSize;
+			comboData->dropDownButton->winGetSize( &buttonSize.x, &buttonSize.y );
+			newSize.x = winSize.x + buttonSize.x;
+		}
+#endif
 		window->winSetSize(newSize.x, winSize.y );
 	}
 }
@@ -738,7 +783,8 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 						newSize.y = getDropDownHeight( listBox, multiplier );
 						// GenOnline @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the bottom line of the field.
 						const Int frameOverlap = GadgetListBoxGetKitComboFrame( listBox );
-						window->winSetSize(winSize.x , winSize.y + newSize.y - frameOverlap );
+						listX = getDropDownWidth( window, listBox, winSize.x, comboData->entryCount > comboData->maxDisplay );
+						window->winSetSize(listX , winSize.y + newSize.y - frameOverlap );
 						listBox->winSetPosition(0, winSize.y - frameOverlap);
 #else
 						newSize.y = ((TheWindowManager->winFontHeight( listInstData->getFont() ) ) * multiplier) + multiplier * 2 + 4;
