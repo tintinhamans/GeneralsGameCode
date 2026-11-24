@@ -635,8 +635,8 @@ void GenOnlineWelcomeMenuInit( WindowLayout *layout, void *userData )
         // notifiactions callback
         pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged([](int numNotifications)
             {
-                // update communicator button
-                if (buttonBuddies != nullptr)
+                GameWindow* button = TheWindowManager->winGetWindowFromId(nullptr, buttonBuddiesID);
+                if (button != nullptr)
                 {
                     UnicodeString buttonText;
                     if (numNotifications > 0)
@@ -647,7 +647,7 @@ void GenOnlineWelcomeMenuInit( WindowLayout *layout, void *userData )
                     {
                         buttonText.format(L"%s", TheGameText->fetch("GUI:Buddies").str());
                     }
-					buttonBuddies->winSetText(buttonText);
+					button->winSetText(buttonText);
                 }
             });
 
@@ -682,6 +682,13 @@ void GenOnlineWelcomeMenuShutdown( WindowLayout *layout, void *userData )
 	s_welcomeOpen = FALSE;
 	GenOnlineUserSectionHide();
 	listboxInfo = nullptr;
+	buttonBuddies = nullptr;
+
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	if (pSocialInterface != nullptr)
+	{
+		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged(nullptr);
+	}
 
 	delete TheFirewallHelper;
 	TheFirewallHelper = nullptr;

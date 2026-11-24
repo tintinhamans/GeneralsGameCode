@@ -3030,6 +3030,12 @@ void GenOnlineGameSetupMenuShutdown( WindowLayout *layout, void *userData )
 	GenOnlineUserSectionHide();
 	s_gameSetupMenuOpen = FALSE;
 	GenOnlineCloseRightClickMenus();
+
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	if (pSocialInterface != nullptr)
+	{
+		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged(nullptr);
+	}
 	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
 	if (pLobbyInterface != nullptr)

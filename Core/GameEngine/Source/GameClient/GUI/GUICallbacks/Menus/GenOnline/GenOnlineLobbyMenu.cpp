@@ -1890,8 +1890,8 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
 		// notifiactions callback
 		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged([](int numNotifications)
 			{
-				// update communicator button
-				if (buttonBuddy != nullptr)
+				GameWindow* button = TheWindowManager->winGetWindowFromId(nullptr, buttonBuddyID);
+				if (button != nullptr)
 				{
 					UnicodeString buttonText;
                     if (numNotifications > 0)
@@ -1902,7 +1902,7 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
                     {
                         buttonText.format(L"%s", TheGameText->fetch("GUI:Buddies").str());
                     }
-					buttonBuddy->winSetText(buttonText);
+					button->winSetText(buttonText);
 				}
 			});
 	}
@@ -1953,6 +1953,13 @@ void GenOnlineLobbyMenuShutdown( WindowLayout *layout, void *userData )
 	if (pRoomsInterface != nullptr)
 	{
 		pRoomsInterface->DeregisterForChatCallback();
+	buttonBuddy = nullptr;
+
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	if (pSocialInterface != nullptr)
+	{
+		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged(nullptr);
+	}
 		pRoomsInterface->DeregisterForRosterNeedsRefreshCallback();
 		pRoomsInterface->DeregisterForRoomChangedCallback();
 	}

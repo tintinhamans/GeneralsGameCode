@@ -1312,10 +1312,10 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
     if (pSocialInterface != nullptr)
     {
         // notifiactions callback
-        pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged([=](int numNotifications)
+        pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged([](int numNotifications)
             {
-                // update communicator button
-                if (buttonBuddies != nullptr)
+                GameWindow* button = TheWindowManager->winGetWindowFromId(nullptr, buttonBuddiesID);
+                if (button != nullptr)
                 {
                     UnicodeString buttonText;
                     if (numNotifications > 0)
@@ -1326,9 +1326,7 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
                     {
                         buttonText.format(L"%s", TheGameText->fetch("GUI:Buddies").str());
                     }
-					buttonBuddies->winSetText(buttonText);
-
-
+					button->winSetText(buttonText);
                 }
             });
     }
@@ -1372,6 +1370,12 @@ void GenOnlineQuickMatchMenuShutdown( WindowLayout *layout, void *userData )
 {
 	GenOnlineUserSectionHide();
 	++s_quickMatchMenuGeneration;
+
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	if (pSocialInterface != nullptr)
+	{
+		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged(nullptr);
+	}
 
 
 	GenOnlineMatchmakingInterface* pMatchmakingInterface = GenOnlineServicesManager::GetInterface<GenOnlineMatchmakingInterface>();
