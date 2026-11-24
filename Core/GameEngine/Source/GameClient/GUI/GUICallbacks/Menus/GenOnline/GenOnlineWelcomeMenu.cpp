@@ -837,7 +837,9 @@ WindowMsgHandledType GenOnlineWelcomeMenuSystem( GameWindow *window, UnsignedInt
 					//TheGameSpyChat->disconnectFromChat();
 
 					// Killing the websocket connection logs out, so no logout call is needed.
+					// The teardown runs here once, because a pending one makes the update callback pop this screen again and restart its exit animation.
 					GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
+					GenOnlineServicesManager::GetInstance()->ConsumePendingFullTeardown();
 
 					DEBUG_LOG(("Tearing down GeneralsOnline from WOLWelcomeMenuSystem(GBM_SELECTED)\n"));
 
@@ -850,6 +852,7 @@ WindowMsgHandledType GenOnlineWelcomeMenuSystem( GameWindow *window, UnsignedInt
 					buttonPushed = TRUE;
 
 					TheShell->pop();
+					TearDownGeneralsOnline();
 
 					/// @todo: log out instead of disconnecting
 					//TheWOL->addCommand( WOL::WOLCOMMAND_LOGOUT );
