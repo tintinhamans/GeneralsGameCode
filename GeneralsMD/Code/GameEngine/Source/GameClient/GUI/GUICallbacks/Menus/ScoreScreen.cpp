@@ -733,10 +733,10 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 						}
 						else
 						{
-#if defined(GENONLINE)
-
+							startNextCampaignGame();
 						}
 					}
+#if defined(GENONLINE)
 					else if (screenType == SCORESCREEN_INTERNET)
 					{
 						GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
@@ -750,11 +750,9 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 								strMatchURL.format("%s%" PRIu64, matchPageAddress(), currentMatchID);
 								ShellExecuteA(NULL, "open", strMatchURL.str(), NULL, NULL, SW_SHOWNORMAL);
 							}
-#else
-							startNextCampaignGame();
-#endif
 						}
 					}
+#endif
 				}
 			}
 			else if ( controlID == buttonBuddiesID )
