@@ -959,6 +959,11 @@ void Network::processRunAheadCommand(NetRunAheadCommandMsg* msg) {
 #else
 void Network::processRunAheadCommand(NetRunAheadCommandMsg *msg) {
 #endif
+	// GenOnline @bugfix arcticdolphin 24/11/2026 The frame rate comes from the packet and divides the frame timings.
+	if (msg->getFrameRate() < MIN_LOGIC_FRAMES) {
+		return;
+	}
+
 #if defined(GENONLINE)
 	if (!m_conMgr->acceptsRunAhead(msg->getRunAhead())) {
 		if (!m_loggedRejectedRunAhead) {
