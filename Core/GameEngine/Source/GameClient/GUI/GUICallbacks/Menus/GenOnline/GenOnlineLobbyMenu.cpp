@@ -1618,7 +1618,7 @@ void GenOnlineLobbyMenuJoinLobbyCallback(EJoinLobbyResult result)
 			break;
 
 		case EJoinLobbyResult::JoinLobbyResult_Banned:
-			s = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOJoinFailedBanned", L"The host has banned you from this game.");
+			s = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOJoinFailedKeptOut", L"The host has kept you out of this game.");
 			break;
 
 		// NOTE: Commented out ones are no longer supported. Seems like these we GS concepts but not part of the game

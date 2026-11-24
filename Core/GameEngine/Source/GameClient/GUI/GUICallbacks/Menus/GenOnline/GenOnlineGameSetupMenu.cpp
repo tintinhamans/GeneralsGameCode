@@ -2106,7 +2106,7 @@ static void RowButtonTooltip(GameWindow *window, WinInstanceData *instData, Unsi
 		}
 		if (banButton[i] == window)
 		{
-			TheMouse->setCursorTooltip(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSetupBanTooltip", L"Ban: removes the player and blocks them from rejoining this game"), -1, NULL);
+			TheMouse->setCursorTooltip(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSetupKeepOutTooltip", L"Keep out: removes the player and stops them rejoining this game"), -1, NULL);
 			return;
 		}
 	}
@@ -2228,8 +2228,8 @@ static Bool handleRowButton(Int controlID)
 				return TRUE;
 
 			pendingBanUserID = slot->m_userID;
-			UnicodeString body = TheGameText->FETCH_OR_SUBSTITUTE_FORMAT("GUI:GOSetupBanConfirm", L"Ban %ls from this game?", slot->getName().str());
-			MessageBoxYesNo(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSetupBanTitle", L"Ban Player"), body, banConfirmed, nullptr);
+			UnicodeString body = TheGameText->FETCH_OR_SUBSTITUTE_FORMAT("GUI:GOSetupKeepOutConfirm", L"Keep %ls out of this game?", slot->getName().str());
+			MessageBoxYesNo(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSetupKeepOutTitle", L"Keep Player Out"), body, banConfirmed, nullptr);
 			return TRUE;
 		}
 	}
