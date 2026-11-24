@@ -1654,6 +1654,14 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			}
 
 			computeTotalHeight( window );
+#if defined(GENONLINE)
+			// GenOnline @bugfix arcticdolphin 24/11/2026 A list scrolled to its end follows the shorter list, so no empty space shows below the last row.
+			if( list->displayPos > 0 && list->displayPos + list->displayHeight > list->totalHeight + 1 )
+			{
+				list->displayPos = (std::max)( 0, list->totalHeight - list->displayHeight + 1 );
+				adjustDisplay( window, 0, TRUE );
+			}
+#endif
 			break;
 
 		}
