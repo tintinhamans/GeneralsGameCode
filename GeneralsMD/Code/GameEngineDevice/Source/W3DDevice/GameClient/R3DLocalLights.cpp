@@ -131,66 +131,34 @@ struct ViewMap
 	float vx0, vy0, vx1, vy1;					// the 3D viewport in target pixels
 };
 
-// Ronin @feature 09/10/2026 DX9: same reader as R3DSsao.cpp's, which is file-static there. Caller frees with HeapFree.
-static DWORD *readShaderBlob(const char *path)
-{
-	HANDLE hFile = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (hFile == INVALID_HANDLE_VALUE)
-		return NULL;
-
-	const DWORD fileSize = GetFileSize(hFile, NULL);
-	if (fileSize == 0 || fileSize == INVALID_FILE_SIZE || fileSize < sizeof(DWORD))
-	{
-		CloseHandle(hFile);
-		return NULL;
-	}
-
-	DWORD *blob = (DWORD *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, fileSize);
-	if (blob == NULL)
-	{
-		CloseHandle(hFile);
-		return NULL;
-	}
-
-	DWORD bytesRead = 0;
-	const BOOL ok = ReadFile(hFile, blob, fileSize, &bytesRead, NULL);
-	CloseHandle(hFile);
-	if (!ok || bytesRead != fileSize)
-	{
-		HeapFree(GetProcessHeap(), 0, blob);
-		return NULL;
-	}
-	return blob;
-}
-
 static void ensureShaders(IDirect3DDevice9 *dev)
 {
 	if (s_shadersTried)
 		return;
 	s_shadersTried = TRUE;
 
-	DWORD *blob = readShaderBlob("shaders\\ScreenQuad.vso");
+	DWORD *blob = W3DShaderManager::readShaderFile("shaders\\ScreenQuad.vso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreateVertexShader(blob, &s_quadVS)))
 			s_quadVS = NULL;
 		HeapFree(GetProcessHeap(), 0, blob);
 	}
-	blob = readShaderBlob("shaders\\LocalLight.pso");
+	blob = W3DShaderManager::readShaderFile("shaders\\LocalLight.pso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreatePixelShader(blob, &s_lightPS)))
 			s_lightPS = NULL;
 		HeapFree(GetProcessHeap(), 0, blob);
 	}
-	blob = readShaderBlob("shaders\\TaaVelMesh.vso");
+	blob = W3DShaderManager::readShaderFile("shaders\\TaaVelMesh.vso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreateVertexShader(blob, &s_lampVS)))
 			s_lampVS = NULL;
 		HeapFree(GetProcessHeap(), 0, blob);
 	}
-	blob = readShaderBlob("shaders\\TaaMoverLight.pso");
+	blob = W3DShaderManager::readShaderFile("shaders\\TaaMoverLight.pso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreatePixelShader(blob, &s_lampPS)))

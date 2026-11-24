@@ -48,37 +48,19 @@ enum { RELIEF_SAMPLER_COUNT = sizeof(RELIEF_SAMPLER_STATES) / sizeof(RELIEF_SAMP
 static DWORD s_savedSamplers[4][RELIEF_SAMPLER_COUNT];	// s0 the relief map; s1, s2 the sun's map; s3 the clouds (Ronin @feature 10/11/2026 DX9)
 static TextureClass *s_cloudTex = NULL;					// Ronin @feature 10/11/2026 DX9: the ground's cloud shadow texture (TerrainTex.cpp)
 
-static DWORD *readShaderBlob(const char *path)
-{
-	HANDLE file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (file == INVALID_HANDLE_VALUE)
-		return NULL;
-	const DWORD size = GetFileSize(file, NULL);
-	DWORD *blob = (size != 0 && size != INVALID_FILE_SIZE && size >= sizeof(DWORD))
-				  ? (DWORD *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size) : NULL;
-	DWORD read = 0;
-	if (blob != NULL && (!ReadFile(file, blob, size, &read, NULL) || read != size))
-	{
-		HeapFree(GetProcessHeap(), 0, blob);
-		blob = NULL;
-	}
-	CloseHandle(file);
-	return blob;
-}
-
 static void ensureShaders(IDirect3DDevice9 *dev)
 {
 	if (s_triedShaders)
 		return;
 	s_triedShaders = TRUE;
-	DWORD *blob = readShaderBlob("shaders\\TreadRelief.vso");
+	DWORD *blob = W3DShaderManager::readShaderFile("shaders\\TreadRelief.vso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreateVertexShader(blob, &s_vs)))
 			s_vs = NULL;
 		HeapFree(GetProcessHeap(), 0, blob);
 	}
-	blob = readShaderBlob("shaders\\TreadRelief.pso");
+	blob = W3DShaderManager::readShaderFile("shaders\\TreadRelief.pso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreatePixelShader(blob, &s_ps)))

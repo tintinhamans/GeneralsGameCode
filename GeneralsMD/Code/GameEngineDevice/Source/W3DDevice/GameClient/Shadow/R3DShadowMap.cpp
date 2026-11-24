@@ -43,6 +43,7 @@
 #include "GameClient/Drawable.h"
 #include "Common/KindOf.h"
 #include "GameClient/GameClient.h"		// Ronin @bugfix 13/09/2026 DX9: §29j.7 — TheGameClient->findDrawableByID
+#include "W3DDevice/GameClient/W3DShaderManager.h"	// Ronin @feature 24/11/2026 DX9: readShaderFile
 
 Bool TheUseShadowMaps = TRUE;
 Bool TheShowShadowMapDebug = FALSE;
@@ -182,51 +183,6 @@ Real			R3DShadowMap::m_heldNearHeadroom = 400.0f;
 CameraClass		*R3DShadowMap::m_lightCamera	= NULL;
 IDirect3DVertexShader9	*R3DShadowMap::m_terrainShadowVS = NULL;
 IDirect3DPixelShader9	*R3DShadowMap::m_terrainShadowPS = NULL;
-
-// Ronin @feature 14/08/2026 §29 DX9: read a compiled shader blob. Mirrors
-// DX8InstanceManagerClass::Load_Pixel_Shader_From_File; duplicated because that one is private and
-// WW3D2 is a lower layer than this file.
-static DWORD *loadShaderBlob(const char *path, DWORD *outSize)
-{
-	*outSize = 0;
-
-	HANDLE hFile = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL,
-		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (hFile == INVALID_HANDLE_VALUE)
-	{
-#ifdef DEBUG_LOGGING
-		WWDEBUG_SAY(("[SHADOWMAP] could not open %s (error %d)", path, GetLastError()));
-#endif
-		return NULL;
-	}
-
-	const DWORD fileSize = GetFileSize(hFile, NULL);
-	if (fileSize == 0 || fileSize == INVALID_FILE_SIZE || fileSize < sizeof(DWORD))
-	{
-		CloseHandle(hFile);
-		return NULL;
-	}
-
-	DWORD *blob = (DWORD *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, fileSize);
-	if (blob == NULL)
-	{
-		CloseHandle(hFile);
-		return NULL;
-	}
-
-	DWORD bytesRead = 0;
-	const BOOL ok = ReadFile(hFile, blob, fileSize, &bytesRead, NULL);
-	CloseHandle(hFile);
-
-	if (!ok || bytesRead != fileSize)
-	{
-		HeapFree(GetProcessHeap(), 0, blob);
-		return NULL;
-	}
-
-	*outSize = fileSize;
-	return blob;
-}
 
 // ATI Fetch4-capable depth-texture formats. Not in the D3DFORMAT enum; they are FOURCC probes.
 #define FOURCC_DF16 ((D3DFORMAT)MAKEFOURCC('D','F','1','6'))
@@ -398,7 +354,7 @@ Bool R3DShadowMap::init(Int resolution)
 	{
 		IDirect3DDevice9 *shDev = DX8Wrapper::_Get_D3D_Device8();
 		DWORD blobSize = 0;
-		DWORD *blob = loadShaderBlob("shaders\\TerrainShadow.vso", &blobSize);
+		DWORD *blob = W3DShaderManager::readShaderFile("shaders\\TerrainShadow.vso", &blobSize);
 		if (blob != NULL)
 		{
 			if (FAILED(shDev->CreateVertexShader(blob, &m_terrainShadowVS)))
@@ -406,7 +362,7 @@ Bool R3DShadowMap::init(Int resolution)
 			HeapFree(GetProcessHeap(), 0, blob);
 		}
 
-		blob = loadShaderBlob("shaders\\TerrainShadow.pso", &blobSize);
+		blob = W3DShaderManager::readShaderFile("shaders\\TerrainShadow.pso", &blobSize);
 		if (blob != NULL)
 		{
 			if (FAILED(shDev->CreatePixelShader(blob, &m_terrainShadowPS)))

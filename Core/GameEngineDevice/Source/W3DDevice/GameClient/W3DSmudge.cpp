@@ -221,57 +221,12 @@ static TextureClass* generateProceduralNoiseTexture()
 // Returns heap-allocated bytecode on success (caller must HeapFree), nullptr on failure.
 static DWORD* loadShaderBytecodeFromFile(const char* baseName, DWORD& outFileSize)
 {
-	const char* prefixes[] = { "shaders\\", "Data\\shaders\\", "..\\Data\\shaders\\", nullptr };
-
-	HANDLE hFile = INVALID_HANDLE_VALUE;
-	const char* foundPath = nullptr;
-	char pathBuf[MAX_PATH];
-
-	for (Int i = 0; prefixes[i] != nullptr; i++)
-	{
-		sprintf(pathBuf, "%s%s", prefixes[i], baseName);
-		hFile = CreateFileA(pathBuf, GENERIC_READ, FILE_SHARE_READ, nullptr,
-			OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-		if (hFile != INVALID_HANDLE_VALUE) {
-			foundPath = pathBuf;
-			DEBUG_LOG(("W3DSmudge: Found shader at '%s'", foundPath));
-			break;
-		}
-	}
-
-	if (hFile == INVALID_HANDLE_VALUE) {
-		char cwdBuf[MAX_PATH] = {};
-		GetCurrentDirectoryA(MAX_PATH, cwdBuf);
-		DEBUG_LOG(("W3DSmudge: Could not open %s from any search path (CWD='%s', error %d)",
-			baseName, cwdBuf, GetLastError()));
-		return nullptr;
-	}
-
-	DWORD fileSize = GetFileSize(hFile, nullptr);
-	if (fileSize == 0 || fileSize == INVALID_FILE_SIZE || fileSize < sizeof(DWORD)) {
-		DEBUG_LOG(("W3DSmudge: Invalid shader file size for %s", baseName));
-		CloseHandle(hFile);
-		return nullptr;
-	}
-
-	DWORD* bytecode = (DWORD*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, fileSize);
-	if (!bytecode) {
-		CloseHandle(hFile);
-		return nullptr;
-	}
-
-	DWORD bytesRead = 0;
-	BOOL readOk = ReadFile(hFile, bytecode, fileSize, &bytesRead, nullptr);
-	CloseHandle(hFile);
-
-	if (!readOk || bytesRead != fileSize) {
-		DEBUG_LOG(("W3DSmudge: ReadFile failed for %s", baseName));
-		HeapFree(GetProcessHeap(), 0, bytecode);
-		return nullptr;
-	}
-
-	DEBUG_LOG(("W3DSmudge: Loaded %s (%lu bytes, magic=0x%08X)", foundPath, fileSize, bytecode[0]));
-	outFileSize = fileSize;
+	// Ronin @feature 24/11/2026 DX9: read through W3DShaderManager, so the shaders folder and a .big both serve it.
+	char path[MAX_PATH];
+	snprintf(path, sizeof(path), "shaders\\%s", baseName);
+	DWORD* bytecode = W3DShaderManager::readShaderFile(path, &outFileSize);
+	if (bytecode == nullptr)
+		DEBUG_LOG(("W3DSmudge: Could not read %s", path));
 	return bytecode;
 }
 

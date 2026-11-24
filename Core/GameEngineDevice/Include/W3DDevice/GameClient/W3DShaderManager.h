@@ -124,6 +124,9 @@ public:
 	static ShaderTypes getCurrentShader() {return m_currentShader;}
 	/// Loads a .vso file and creates a vertex shader for it
 	static HRESULT LoadAndCreateD3DShader(const char* strFilePath, const D3DVERTEXELEMENT9* pDeclaration, DWORD Usage, Bool ShaderType, void** pHandle);
+	// Ronin @feature 24/11/2026 DX9: a compiled shader's bytes through the game's file system (the shaders folder or a .big),
+	// as EA's own come from ShadersZH.big. nullptr when missing or empty; the caller frees it with HeapFree.
+	static DWORD *readShaderFile(const char *path, DWORD *outSize = nullptr);
 
 	static Bool testMinimumRequirements(ChipsetType *videoChipType, CpuType *cpuType, Int *cpuFreq, MemValueType *numRAM, Real *intBenchIndex, Real *floatBenchIndex, Real *memBenchIndex);
 	static StaticGameLODLevel getGPUPerformanceIndex();

@@ -1891,70 +1891,41 @@ static Bool ensureHistory(UnsignedInt width, UnsignedInt height)
 	return TRUE;
 }
 
-// Same blob reader R3DSsao and R3DShadowMap use; file-static in each so no header has to carry it.
-static DWORD *readShaderBlob(const char *path)
-{
-	HANDLE hFile = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (hFile == INVALID_HANDLE_VALUE)
-		return NULL;
-	const DWORD fileSize = GetFileSize(hFile, NULL);
-	if (fileSize == 0 || fileSize == INVALID_FILE_SIZE || fileSize < sizeof(DWORD))
-	{
-		CloseHandle(hFile);
-		return NULL;
-	}
-	DWORD *blob = (DWORD *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, fileSize);
-	if (blob == NULL)
-	{
-		CloseHandle(hFile);
-		return NULL;
-	}
-	DWORD bytesRead = 0;
-	const BOOL ok = ReadFile(hFile, blob, fileSize, &bytesRead, NULL);
-	CloseHandle(hFile);
-	if (!ok || bytesRead != fileSize)
-	{
-		HeapFree(GetProcessHeap(), 0, blob);
-		return NULL;
-	}
-	return blob;
-}
-
 static void ensureShaders(IDirect3DDevice9 *dev)
 {
 	if (s_shadersTried)
 		return;
 	s_shadersTried = TRUE;
 
-	DWORD *blob = readShaderBlob("shaders\\ScreenQuad.vso");
+	DWORD *blob = W3DShaderManager::readShaderFile("shaders\\ScreenQuad.vso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreateVertexShader(blob, &s_quadVS)))
 			s_quadVS = NULL;
 		HeapFree(GetProcessHeap(), 0, blob);
 	}
-	blob = readShaderBlob("shaders\\TaaResolve.pso");
+	blob = W3DShaderManager::readShaderFile("shaders\\TaaResolve.pso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreatePixelShader(blob, &s_resolvePS)))
 			s_resolvePS = NULL;
 		HeapFree(GetProcessHeap(), 0, blob);
 	}
-	blob = readShaderBlob("shaders\\TaaVelMesh.vso");
+	blob = W3DShaderManager::readShaderFile("shaders\\TaaVelMesh.vso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreateVertexShader(blob, &s_velMeshVS)))
 			s_velMeshVS = NULL;
 		HeapFree(GetProcessHeap(), 0, blob);
 	}
-	blob = readShaderBlob("shaders\\TaaVelSkin.vso");
+	blob = W3DShaderManager::readShaderFile("shaders\\TaaVelSkin.vso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreateVertexShader(blob, &s_velSkinVS)))
 			s_velSkinVS = NULL;
 		HeapFree(GetProcessHeap(), 0, blob);
 	}
-	blob = readShaderBlob("shaders\\TaaVelMesh.pso");
+	blob = W3DShaderManager::readShaderFile("shaders\\TaaVelMesh.pso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreatePixelShader(blob, &s_velMeshPS)))
@@ -1962,21 +1933,21 @@ static void ensureShaders(IDirect3DDevice9 *dev)
 		HeapFree(GetProcessHeap(), 0, blob);
 	}
 	// Ronin @bugfix 27/10/2026 DX9: the moving decals' marks. Missing = no marks (the old trail), never the whole square.
-	blob = readShaderBlob("shaders\\TaaDecalMark.vso");
+	blob = W3DShaderManager::readShaderFile("shaders\\TaaDecalMark.vso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreateVertexShader(blob, &s_decalMarkVS)))
 			s_decalMarkVS = NULL;
 		HeapFree(GetProcessHeap(), 0, blob);
 	}
-	blob = readShaderBlob("shaders\\TaaDecalMark.pso");
+	blob = W3DShaderManager::readShaderFile("shaders\\TaaDecalMark.pso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreatePixelShader(blob, &s_decalMarkPS)))
 			s_decalMarkPS = NULL;
 		HeapFree(GetProcessHeap(), 0, blob);
 	}
-	blob = readShaderBlob("shaders\\TaaDepthStore.pso");
+	blob = W3DShaderManager::readShaderFile("shaders\\TaaDepthStore.pso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreatePixelShader(blob, &s_depthStorePS)))
@@ -1984,7 +1955,7 @@ static void ensureShaders(IDirect3DDevice9 *dev)
 		HeapFree(GetProcessHeap(), 0, blob);
 	}
 	// Ronin @bugfix 27/09/2026 DX9: the moving-shadow mask's pixel shader, and the GPU timer's queries.
-	blob = readShaderBlob("shaders\\TaaMoverLight.pso");
+	blob = W3DShaderManager::readShaderFile("shaders\\TaaMoverLight.pso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreatePixelShader(blob, &s_moverPS)))
@@ -1992,7 +1963,7 @@ static void ensureShaders(IDirect3DDevice9 *dev)
 		HeapFree(GetProcessHeap(), 0, blob);
 	}
 	// Ronin @bugfix 03/10/2026 DX9: the water's own mask, copied into the velocity target. Missing = the flat polygons.
-	blob = readShaderBlob("shaders\\TaaWaterMask.pso");
+	blob = W3DShaderManager::readShaderFile("shaders\\TaaWaterMask.pso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreatePixelShader(blob, &s_waterMaskPS)))
@@ -2000,14 +1971,14 @@ static void ensureShaders(IDirect3DDevice9 *dev)
 		HeapFree(GetProcessHeap(), 0, blob);
 	}
 	// Ronin @feature 18/11/2026 DX9: the glow round a lamp - its art drawn again, and its blur. Missing = no glow.
-	blob = readShaderBlob("shaders\\GlowArt.pso");
+	blob = W3DShaderManager::readShaderFile("shaders\\GlowArt.pso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreatePixelShader(blob, &s_glowArtPS)))
 			s_glowArtPS = NULL;
 		HeapFree(GetProcessHeap(), 0, blob);
 	}
-	blob = readShaderBlob("shaders\\GlowBlur.pso");
+	blob = W3DShaderManager::readShaderFile("shaders\\GlowBlur.pso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreatePixelShader(blob, &s_glowBlurPS)))

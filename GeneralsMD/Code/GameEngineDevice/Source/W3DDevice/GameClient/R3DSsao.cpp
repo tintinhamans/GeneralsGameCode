@@ -20,6 +20,7 @@
 #include "W3DDevice/GameClient/R3DShadowMapState.h"
 #include "W3DDevice/GameClient/R3DLocalLights.h"	// Ronin @feature 12/10/2026 DX9: the sun's shade, for the AO's multiply
 #include "WW3D2/formconv.h"					// Ronin @feature 24/10/2026 DX9: the frame copy's format
+#include "W3DDevice/GameClient/W3DShaderManager.h"	// Ronin @feature 24/11/2026 DX9: readShaderFile
 
 // Ronin @feature 13/09/2026 DX9: SSAO step 2. The two tuning knobs, in world units and as a multiplier.
 static const float AO_RADIUS    = 20.0f;
@@ -120,42 +121,10 @@ static Bool copyFrame(IDirect3DDevice9 *dev, IDirect3DSurface9 *rt, const D3DSUR
 	return ok;
 }
 
-// Same reader as R3DShadowMap.cpp's loadShaderBlob, which is file-static there. Caller frees with HeapFree.
-static DWORD *readShaderBlob(const char *path)
-{
-	HANDLE hFile = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (hFile == INVALID_HANDLE_VALUE)
-		return NULL;
-
-	const DWORD fileSize = GetFileSize(hFile, NULL);
-	if (fileSize == 0 || fileSize == INVALID_FILE_SIZE || fileSize < sizeof(DWORD))
-	{
-		CloseHandle(hFile);
-		return NULL;
-	}
-
-	DWORD *blob = (DWORD *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, fileSize);
-	if (blob == NULL)
-	{
-		CloseHandle(hFile);
-		return NULL;
-	}
-
-	DWORD bytesRead = 0;
-	const BOOL ok = ReadFile(hFile, blob, fileSize, &bytesRead, NULL);
-	CloseHandle(hFile);
-	if (!ok || bytesRead != fileSize)
-	{
-		HeapFree(GetProcessHeap(), 0, blob);
-		return NULL;
-	}
-	return blob;
-}
-
 static IDirect3DPixelShader9 *loadPixelShader(IDirect3DDevice9 *dev, const char *path)
 {
 	IDirect3DPixelShader9 *ps = NULL;
-	DWORD *blob = readShaderBlob(path);
+	DWORD *blob = W3DShaderManager::readShaderFile(path);
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreatePixelShader(blob, &ps)))
@@ -168,7 +137,7 @@ static IDirect3DPixelShader9 *loadPixelShader(IDirect3DDevice9 *dev, const char 
 static IDirect3DVertexShader9 *loadVertexShader(IDirect3DDevice9 *dev, const char *path)
 {
 	IDirect3DVertexShader9 *vs = NULL;
-	DWORD *blob = readShaderBlob(path);
+	DWORD *blob = W3DShaderManager::readShaderFile(path);
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreateVertexShader(blob, &vs)))

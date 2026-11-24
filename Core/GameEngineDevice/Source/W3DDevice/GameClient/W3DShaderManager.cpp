@@ -3602,6 +3602,27 @@ ChipsetType W3DShaderManager::getChipset()
 	return chip;
 }
 
+// Ronin @feature 24/11/2026 DX9: every shader reader shares this; LoadAndCreateD3DShader read the same way since 2003.
+DWORD *W3DShaderManager::readShaderFile(const char *path, DWORD *outSize)
+{
+	if (outSize != nullptr)
+		*outSize = 0;
+	File *file = (TheFileSystem != nullptr && path != nullptr) ? TheFileSystem->openFile(path, File::READ | File::BINARY) : nullptr;
+	if (file == nullptr)
+		return nullptr;
+	const Int size = file->size();
+	DWORD *blob = (size >= (Int)sizeof(DWORD)) ? (DWORD *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size) : nullptr;
+	if (blob != nullptr && file->read(blob, size) != size)
+	{
+		HeapFree(GetProcessHeap(), 0, blob);
+		blob = nullptr;
+	}
+	file->close();
+	if (blob != nullptr && outSize != nullptr)
+		*outSize = (DWORD)size;
+	return blob;
+}
+
 //=============================================================================
 // WaterRenderObjClass::LoadAndCreateShader
 //=============================================================================
@@ -3630,33 +3651,17 @@ HRESULT W3DShaderManager::LoadAndCreateD3DShader(const char* strFilePath, const 
 
 	try
 	{
-		File *file = nullptr;
 		HRESULT hr;
 
-		file = TheFileSystem->openFile(strFilePath, File::READ | File::BINARY);
-		if (file == nullptr)
+		// Ronin @feature 24/11/2026 DX9: read through readShaderFile, which every shader reader shares.
+		const DWORD* pShader = readShaderFile(strFilePath);
+		if (!pShader)
 		{
 			OutputDebugString("Could not find file \n" );
 			return E_FAIL;
 		}
 
-		FileInfo fileInfo;
-		TheFileSystem->getFileInfo(AsciiString(strFilePath), &fileInfo);
-		DWORD dwFileSize = fileInfo.sizeLow;
-
-		const DWORD* pShader = (DWORD*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwFileSize);
-		if (!pShader)
-		{
-			OutputDebugString( "Failed to allocate memory to load shader\n " );
-			return E_FAIL;
-		}
-
-		file->read((void *)pShader, dwFileSize);
-
-		file->close();
-		file = nullptr;
-
-		//Ronin @Build 1/11/2025 DX9: Changed to use IDirect3DDevice9
+	  //Ronin @Build 1/11/2025 DX9: Changed to use IDirect3DDevice9
 	  //Ronin @bugfix 16/11/2025 DX9: Store vertex declarations for later use
 		if (ShaderType) // SHADERTYPE_VERTEX
 		{

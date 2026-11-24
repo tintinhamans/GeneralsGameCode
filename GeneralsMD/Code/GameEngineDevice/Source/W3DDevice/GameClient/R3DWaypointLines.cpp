@@ -15,6 +15,7 @@
 #include "W3DDevice/GameClient/R3DWaypointLines.h"
 #include <d3dx9.h>
 #include <math.h>
+#include "W3DDevice/GameClient/W3DShaderManager.h"	// Ronin @feature 24/11/2026 DX9: readShaderFile
 
 static IDirect3DVertexShader9	*s_vs = NULL;
 static IDirect3DPixelShader9	*s_ps = NULL;
@@ -56,37 +57,19 @@ static const D3DRENDERSTATETYPE RIBBON_STATES[] = {
 	D3DRS_COLORWRITEENABLE, D3DRS_STENCILENABLE, D3DRS_DEPTHBIAS, D3DRS_SLOPESCALEDEPTHBIAS };
 enum { RIBBON_STATE_COUNT = sizeof(RIBBON_STATES) / sizeof(RIBBON_STATES[0]) };
 
-static DWORD *readShaderBlob(const char *path)
-{
-	HANDLE file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (file == INVALID_HANDLE_VALUE)
-		return NULL;
-	const DWORD size = GetFileSize(file, NULL);
-	DWORD *blob = (size != 0 && size != INVALID_FILE_SIZE && size >= sizeof(DWORD))
-				  ? (DWORD *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size) : NULL;
-	DWORD read = 0;
-	if (blob != NULL && (!ReadFile(file, blob, size, &read, NULL) || read != size))
-	{
-		HeapFree(GetProcessHeap(), 0, blob);
-		blob = NULL;
-	}
-	CloseHandle(file);
-	return blob;
-}
-
 static void ensureShaders(IDirect3DDevice9 *dev)
 {
 	if (s_triedShaders)
 		return;
 	s_triedShaders = TRUE;
-	DWORD *blob = readShaderBlob("shaders\\WaypointRibbon.vso");
+	DWORD *blob = W3DShaderManager::readShaderFile("shaders\\WaypointRibbon.vso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreateVertexShader(blob, &s_vs)))
 			s_vs = NULL;
 		HeapFree(GetProcessHeap(), 0, blob);
 	}
-	blob = readShaderBlob("shaders\\WaypointRibbon.pso");
+	blob = W3DShaderManager::readShaderFile("shaders\\WaypointRibbon.pso");
 	if (blob != NULL)
 	{
 		if (FAILED(dev->CreatePixelShader(blob, &s_ps)))

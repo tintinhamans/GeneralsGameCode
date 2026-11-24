@@ -2481,31 +2481,11 @@ bool DX8InstanceManagerClass::Load_Vertex_Shader_From_File(const char* shaderPat
 		return false;
 	}
 
-	HANDLE hFile = CreateFileA(shaderPath, GENERIC_READ, FILE_SHARE_READ, nullptr,
-		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-	if (hFile == INVALID_HANDLE_VALUE) {
-		WWDEBUG_SAY(("DX8InstanceManager: Could not open %s (error %d)", shaderPath, GetLastError()));
-		return false;
-	}
-
-	DWORD fileSize = GetFileSize(hFile, nullptr);
-	if (fileSize == 0 || fileSize == INVALID_FILE_SIZE || fileSize < sizeof(DWORD)) {
-		CloseHandle(hFile);
-		return false;
-	}
-
-	DWORD* shaderBytecode = (DWORD*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, fileSize);
+	// Ronin @feature 24/11/2026 DX9: read through W3DShaderManager, so the shaders folder and a .big both serve it.
+	DWORD fileSize = 0;
+	DWORD* shaderBytecode = W3DShaderManager::readShaderFile(shaderPath, &fileSize);
 	if (!shaderBytecode) {
-		CloseHandle(hFile);
-		return false;
-	}
-
-	DWORD bytesRead = 0;
-	BOOL readOk = ReadFile(hFile, shaderBytecode, fileSize, &bytesRead, nullptr);
-	CloseHandle(hFile);
-
-	if (!readOk || bytesRead != fileSize) {
-		HeapFree(GetProcessHeap(), 0, shaderBytecode);
+		WWDEBUG_SAY(("DX8InstanceManager: Could not read %s", shaderPath));
 		return false;
 	}
 
@@ -2541,31 +2521,11 @@ bool DX8InstanceManagerClass::Load_Pixel_Shader_From_File(const char* shaderPath
 		return false;
 	}
 
-	HANDLE hFile = CreateFileA(shaderPath, GENERIC_READ, FILE_SHARE_READ, nullptr,
-		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-	if (hFile == INVALID_HANDLE_VALUE) {
-		WWDEBUG_SAY(("DX8InstanceManager: Could not open %s (error %d)", shaderPath, GetLastError()));
-		return false;
-	}
-
-	DWORD fileSize = GetFileSize(hFile, nullptr);
-	if (fileSize == 0 || fileSize == INVALID_FILE_SIZE || fileSize < sizeof(DWORD)) {
-		CloseHandle(hFile);
-		return false;
-	}
-
-	DWORD* shaderBytecode = (DWORD*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, fileSize);
+	// Ronin @feature 24/11/2026 DX9: read through W3DShaderManager, so the shaders folder and a .big both serve it.
+	DWORD fileSize = 0;
+	DWORD* shaderBytecode = W3DShaderManager::readShaderFile(shaderPath, &fileSize);
 	if (!shaderBytecode) {
-		CloseHandle(hFile);
-		return false;
-	}
-
-	DWORD bytesRead = 0;
-	BOOL readOk = ReadFile(hFile, shaderBytecode, fileSize, &bytesRead, nullptr);
-	CloseHandle(hFile);
-
-	if (!readOk || bytesRead != fileSize) {
-		HeapFree(GetProcessHeap(), 0, shaderBytecode);
+		WWDEBUG_SAY(("DX8InstanceManager: Could not read %s", shaderPath));
 		return false;
 	}
 
