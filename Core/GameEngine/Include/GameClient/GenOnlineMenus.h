@@ -35,6 +35,22 @@ extern void GenOnlinePopupHostGameInit( WindowLayout *layout, void *userData );
 extern void GenOnlinePopupHostGameUpdate( WindowLayout *layout, void *userData );
 extern WindowMsgHandledType GenOnlinePopupHostGameInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GenOnlinePopupHostGameSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+/// Opens the host game popup filled with the current lobby, for the host to change what can change after creation.
+extern void GenOnlineOpenEditLobbyPopup();
+
+enum LobbyPasswordResult
+{
+	LOBBY_PASSWORD_APPLIED,
+	LOBBY_PASSWORD_OFFLINE,
+	LOBBY_PASSWORD_NOT_HOST,
+	LOBBY_PASSWORD_BAD_LENGTH,
+	LOBBY_PASSWORD_NONE_SET,
+};
+
+/// Change the lobby of the game setup screen, shared by the slash commands and the edit popup. A null value keeps that setting.
+extern Bool GenOnlineApplyLobbyDetails( const UnicodeString *newName, const Bool *friendsOnly );
+/// A null password removes it.
+extern LobbyPasswordResult GenOnlineChangeLobbyPassword( const UnicodeString *newPassword );
 
 extern void GenOnlineMapSelectMenuInit( WindowLayout *layout, void *userData );
 extern void GenOnlineMapSelectMenuShutdown( WindowLayout *layout, void *userData );

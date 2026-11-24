@@ -1470,20 +1470,16 @@ static Int optionScroll = 0;
 static Int optionTop = 0;
 static Int optionPitch = 0;
 static Bool syncingOptions = FALSE;
-static Bool passwordEdited = FALSE;
 static const Int CAMERA_HEIGHT_PRESETS[] = { GENONLINE_DEFAULT_LOBBY_CAMERA_ZOOM, 400, 500, 600, 800, 1000 };
 
-static GameWindow *lobbyAccessLabel = nullptr;
-static GameWindow *comboBoxLobbyAccess = nullptr;
-static GameWindow *passwordLabel = nullptr;
-static GameWindow *textEntryPassword = nullptr;
+static GameWindow *buttonEditLobby = nullptr;
 static GameWindow *cameraHeightLabel = nullptr;
 static GameWindow *comboBoxCameraHeight = nullptr;
 static GameWindow *buttonOptionsUp = nullptr;
 static GameWindow *buttonOptionsDown = nullptr;
 
-// The slash commands and the options change a lobby setting through the same function.
-static Bool applyLobbyAccess(Bool friendsOnly)
+// The slash commands and the edit popup change the lobby through the same functions. A null value keeps that setting.
+Bool GenOnlineApplyLobbyDetails(const UnicodeString *newName, const Bool *friendsOnly)
 {
 	GenOnlineLobbyInterface *lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (lobby == nullptr || !lobby->IsInLobby() || !lobby->IsHost())
@@ -1491,8 +1487,14 @@ static Bool applyLobbyAccess(Bool friendsOnly)
 		return FALSE;
 	}
 
-	lobby->SetJoinability(friendsOnly ? ELobbyJoinability::LobbyJoinability_FriendsOnly : ELobbyJoinability::LobbyJoinability_Public);
+	const bool friends = friendsOnly != nullptr && *friendsOnly;
+	lobby->UpdateCurrentLobbyNameAndAccess(newName, friendsOnly != nullptr ? &friends : nullptr);
 	return TRUE;
+}
+
+static Bool applyLobbyAccess(Bool friendsOnly)
+{
+	return GenOnlineApplyLobbyDetails(nullptr, &friendsOnly);
 }
 
 static Bool applyMaxCameraHeight(Int height)
@@ -1508,17 +1510,8 @@ static Bool applyMaxCameraHeight(Int height)
 	return TRUE;
 }
 
-enum LobbyPasswordResult
-{
-	LOBBY_PASSWORD_APPLIED,
-	LOBBY_PASSWORD_OFFLINE,
-	LOBBY_PASSWORD_NOT_HOST,
-	LOBBY_PASSWORD_BAD_LENGTH,
-	LOBBY_PASSWORD_NONE_SET,
-};
-
 // A null password removes it. The service validates the owner too, so the client check only picks the message.
-static LobbyPasswordResult changeLobbyPassword(const UnicodeString *newPassword)
+LobbyPasswordResult GenOnlineChangeLobbyPassword(const UnicodeString *newPassword)
 {
 	GenOnlineLobbyInterface *lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	GenOnlineAuthInterface *auth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
@@ -1728,7 +1721,7 @@ static void populateCameraHeightCombo(Int current)
 static void syncOptionRows()
 {
 	GenOnlineLobbyInterface *lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-	if (lobby == nullptr || comboBoxLobbyAccess == nullptr || textEntryPassword == nullptr || comboBoxCameraHeight == nullptr)
+	if (lobby == nullptr || comboBoxCameraHeight == nullptr)
 	{
 		return;
 	}
@@ -1737,13 +1730,6 @@ static void syncOptionRows()
 	syncingOptions = TRUE;
 
 	Int selected = -1;
-	const Int access = entry.friends_only ? 1 : 0;
-	GadgetComboBoxGetSelectedPos(comboBoxLobbyAccess, &selected);
-	if (selected != access)
-	{
-		GadgetComboBoxSetSelectedPos(comboBoxLobbyAccess, access, TRUE);
-	}
-
 	const Int height = entry.max_cam_height == 0 ? GENONLINE_DEFAULT_LOBBY_CAMERA_ZOOM : entry.max_cam_height;
 	GadgetComboBoxGetSelectedPos(comboBoxCameraHeight, &selected);
 	if (selected < 0 || (Int)(intptr_t)GadgetComboBoxGetItemData(comboBoxCameraHeight, selected) != height)
@@ -1751,41 +1737,18 @@ static void syncOptionRows()
 		populateCameraHeightCombo(height);
 	}
 
-	// The host sees the password and edits it, everyone else only sees whether one is set.
-	UnicodeString password = GadgetTextEntryGetText(textEntryPassword);
-	if (!lobby->IsHost())
-	{
-		password = UnicodeString(entry.passworded ? L"Set" : L"None");
-	}
-	else if (TheWindowManager->winGetFocus() != textEntryPassword)
-	{
-		password = UnicodeString(from_utf8(entry.password).c_str());
-	}
-	if (password.compare(GadgetTextEntryGetText(textEntryPassword)) != 0)
-	{
-		GadgetTextEntrySetText(textEntryPassword, password);
-		passwordEdited = FALSE;
-	}
-
 	syncingOptions = FALSE;
 }
 
 static void updateOptionRowEnables(Bool canEdit)
 {
-	for (GameWindow *window : { lobbyAccessLabel, comboBoxLobbyAccess, passwordLabel, textEntryPassword, cameraHeightLabel, comboBoxCameraHeight })
+	for (GameWindow *window : { cameraHeightLabel, comboBoxCameraHeight })
 	{
 		if (window != nullptr)
 		{
 			window->winEnable(canEdit);
 		}
 	}
-}
-
-static void handleLobbyAccessSelection()
-{
-	Int selected = 0;
-	GadgetComboBoxGetSelectedPos(comboBoxLobbyAccess, &selected);
-	applyLobbyAccess(selected == 1);
 }
 
 static void handleCameraHeightSelection()
@@ -1798,27 +1761,6 @@ static void handleCameraHeightSelection()
 	}
 }
 
-// Enter or a lost focus applies what the host typed, an empty entry removes the password.
-static void applyPasswordEntry()
-{
-	GenOnlineLobbyInterface *lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-	if (!passwordEdited || lobby == nullptr || textEntryPassword == nullptr || !lobby->IsHost())
-	{
-		return;
-	}
-
-	passwordEdited = FALSE;
-	const UnicodeString text = GadgetTextEntryGetText(textEntryPassword);
-	if (text.isEmpty())
-	{
-		changeLobbyPassword(nullptr);
-	}
-	else if (text.compare(UnicodeString(from_utf8(lobby->GetCurrentLobby().password).c_str())) != 0)
-	{
-		changeLobbyPassword(&text);
-	}
-}
-
 static void initOptionRows()
 {
 	auto find = [](const char *name)
@@ -1827,10 +1769,7 @@ static void initOptionRows()
 		full.format("GameSpyGameOptionsMenu.wnd:%s", name);
 		return TheWindowManager->winGetWindowFromId(parentWOLGameSetup, TheNameKeyGenerator->nameToKey(full));
 	};
-	lobbyAccessLabel = find("LobbyAccessLabel");
-	comboBoxLobbyAccess = find("ComboBoxLobbyAccess");
-	passwordLabel = find("PasswordLabel");
-	textEntryPassword = find("TextEntryPassword");
+	buttonEditLobby = find("ButtonEditLobby");
 	cameraHeightLabel = find("MaxCameraHeightLabel");
 	comboBoxCameraHeight = find("ComboBoxMaxCameraHeight");
 	buttonOptionsUp = find("ButtonOptionsUp");
@@ -1842,33 +1781,18 @@ static void initOptionRows()
 	}
 
 	// Layout text is a text label key, so plain label text is set here.
-	if (lobbyAccessLabel != nullptr)
+	if (buttonEditLobby != nullptr)
 	{
-		GadgetStaticTextSetText(lobbyAccessLabel, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineLobbyAccess", L"Lobby access"));
-	}
-	if (passwordLabel != nullptr)
-	{
-		GadgetStaticTextSetText(passwordLabel, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlinePassword", L"Password"));
+		buttonEditLobby->winSetText(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineEditLobby", L"Edit"));
 	}
 	if (cameraHeightLabel != nullptr)
 	{
 		GadgetStaticTextSetText(cameraHeightLabel, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineCameraHeight", L"Camera height"));
 	}
 
-	if (comboBoxLobbyAccess != nullptr)
-	{
-		GadgetComboBoxReset(comboBoxLobbyAccess);
-		GadgetComboBoxAddEntry(comboBoxLobbyAccess, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineLobbyAccessAnyone", L"Anyone"), GameSpyColor[GSCOLOR_DEFAULT]);
-		GadgetComboBoxAddEntry(comboBoxLobbyAccess, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineLobbyAccessFriends", L"Friends only"), GameSpyColor[GSCOLOR_DEFAULT]);
-	}
 	if (comboBoxCameraHeight != nullptr)
 	{
 		populateCameraHeightCombo(GENONLINE_DEFAULT_LOBBY_CAMERA_ZOOM);
-	}
-	if (textEntryPassword != nullptr)
-	{
-		GadgetTextEntrySetMaxLen(textEntryPassword, GENONLINE_LOBBY_MAX_PASSWORD_LENGTH);
-		GadgetTextEntrySetText(textEntryPassword, UnicodeString::TheEmptyString);
 	}
 	for (GameWindow *arrow : { buttonOptionsUp, buttonOptionsDown })
 	{
@@ -1883,8 +1807,6 @@ static void initOptionRows()
 #if RTS_ZEROHOUR
 	addOptionRow(1, find("StartingCashLabel"), comboBoxStartingCash);
 #endif
-	addOptionRow(1, lobbyAccessLabel, comboBoxLobbyAccess);
-	addOptionRow(1, passwordLabel, textEntryPassword);
 	addOptionRow(1, cameraHeightLabel, comboBoxCameraHeight);
 #if RTS_ZEROHOUR
 	addOptionRow(1, checkBoxLimitSuperweapons);
@@ -2633,10 +2555,7 @@ void GenOnlineDeinitGameGadgets()
 	iconCellShield = nullptr;
 	optionRowCount = 0;
 	optionScroll = 0;
-	lobbyAccessLabel = nullptr;
-	comboBoxLobbyAccess = nullptr;
-	passwordLabel = nullptr;
-	textEntryPassword = nullptr;
+	buttonEditLobby = nullptr;
 	cameraHeightLabel = nullptr;
 	comboBoxCameraHeight = nullptr;
 	buttonOptionsUp = nullptr;
@@ -3414,6 +3333,11 @@ static void UpdateStartControls()
 	comboBoxStartingCash->winEnable(canChangeSettings && settingsOpen);
 	checkBoxLimitSuperweapons->winEnable(canChangeSettings && settingsOpen);
 	updateOptionRowEnables(canChangeSettings && settingsOpen);
+	if (buttonEditLobby != nullptr)
+	{
+		buttonEditLobby->winHide(!isHost);
+		buttonEditLobby->winEnable(isHost && settingsOpen && phase == EStartPhase::Idle);
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3809,7 +3733,7 @@ Bool GenOnlineHandleGameSetupSlashCommands(UnicodeString uText)
 	else if (token == "setpassword" && uText.getLength() > 13)
 	{
 		UnicodeString newPassword(uText.str() + 13); // skip the /setpassword and space
-		const LobbyPasswordResult result = changeLobbyPassword(&newPassword);
+		const LobbyPasswordResult result = GenOnlineChangeLobbyPassword(&newPassword);
 		if (result == LOBBY_PASSWORD_BAD_LENGTH)
 		{
 			UnicodeString errorMsg;
@@ -3829,7 +3753,7 @@ Bool GenOnlineHandleGameSetupSlashCommands(UnicodeString uText)
 	}
 	else if (token == "removepassword" || token == "clearpassword" || token == "resetpassword")
 	{
-		const LobbyPasswordResult result = changeLobbyPassword(nullptr);
+		const LobbyPasswordResult result = GenOnlineChangeLobbyPassword(nullptr);
 		if (result == LOBBY_PASSWORD_NOT_HOST)
 		{
 			GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"Lobby password: Only the host can change it."), GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255)), -1, -1);
@@ -4027,10 +3951,6 @@ WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, UnsignedI
 			{
 				handleStartingCashSelection();
 			}
-			else if (control == comboBoxLobbyAccess)
-			{
-				handleLobbyAccessSelection();
-			}
 			else if (control == comboBoxCameraHeight)
 			{
 				handleCameraHeightSelection();
@@ -4129,6 +4049,12 @@ WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, UnsignedI
 				if (control == buttonOptionsUp || control == buttonOptionsDown)
 				{
 					scrollOptionRows(control == buttonOptionsUp ? -1 : 1);
+					break;
+				}
+
+				if (control == buttonEditLobby)
+				{
+					GenOnlineOpenEditLobbyPopup();
 					break;
 				}
 
@@ -4350,22 +4276,8 @@ WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, UnsignedI
 			}
 
 		//-------------------------------------------------------------------------------------------------
-		case GGM_FOCUS_CHANGE:
-			{
-				if (initDone && mData1 == FALSE && textEntryPassword != nullptr && (Int)mData2 == textEntryPassword->winGetWindowId())
-				{
-					applyPasswordEntry();
-				}
-				return MSG_IGNORED;
-			}
-		//-------------------------------------------------------------------------------------------------
 		case GEM_UPDATE_TEXT:
 			{
-				if ((GameWindow *)mData1 == textEntryPassword)
-				{
-					passwordEdited = passwordEdited || !syncingOptions;
-					break;
-				}
 				if ((GameWindow *)mData1 != textEntryChat)
 					return MSG_IGNORED;
 
@@ -4386,11 +4298,6 @@ WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, UnsignedI
 			{
 				GameWindow *control = (GameWindow *)mData1;
 				Int controlID = control->winGetWindowId();
-				if (control == textEntryPassword)
-				{
-					applyPasswordEntry();
-					break;
-				}
 				// Take the user's input and echo it into the chat window as well as
 				// send it to the other clients on the lan
 				if ( controlID == textEntryChatID )

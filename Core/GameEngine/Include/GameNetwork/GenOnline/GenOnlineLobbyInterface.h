@@ -278,6 +278,9 @@ public:
 
 	void SetJoinability(ELobbyJoinability joinabilityFlag);
 
+	// A null value keeps that setting, both go in one lobby update.
+	void UpdateCurrentLobbyNameAndAccess(const UnicodeString *newName, const bool *friendsOnly);
+
 	void UpdateCurrentLobby_KickUser(int64_t userID, UnicodeString name);
 	void UpdateCurrentLobby_BanUser(int64_t userID, UnicodeString name);
 	void UpdateCurrentLobby_SetSlotState(uint16_t slotIndex, uint16_t slotState);
@@ -300,7 +303,7 @@ public:
 	UnicodeString m_PendingCreation_LobbyName;
 	UnicodeString m_PendingCreation_InitialMapDisplayName;
 	AsciiString m_PendingCreation_InitialMapPath;
-	void CreateLobby(UnicodeString strLobbyName, UnicodeString strInitialMapName, AsciiString strInitialMapPath, bool bIsOfficial, int initialMaxSize, bool bVanillaTeamsOnly, bool bTrackStats, uint32_t startingCash, bool bPassworded, std::string strPassword, bool bAllowObservers, bool bRequireEac);
+	void CreateLobby(UnicodeString strLobbyName, UnicodeString strInitialMapName, AsciiString strInitialMapPath, bool bIsOfficial, int initialMaxSize, bool bVanillaTeamsOnly, bool bTrackStats, uint32_t startingCash, bool bPassworded, std::string strPassword, bool bAllowObservers, bool bRequireEac, bool bFriendsOnly = false);
 
 	void OnJoinedOrCreatedLobby(bool bAlreadyUpdatedDetails, std::function<void(bool)> fnCallback);
 

@@ -478,6 +478,25 @@ void GenOnlineLobbyInterface::SetJoinability(ELobbyJoinability joinabilityFlag)
     }
 }
 
+void GenOnlineLobbyInterface::UpdateCurrentLobbyNameAndAccess(const UnicodeString *newName, const bool *friendsOnly)
+{
+	if (!IsHost() || (newName == nullptr && friendsOnly == nullptr))
+	{
+		return;
+	}
+
+	GenOnlineRealtime::UpdateLobbyRequest request;
+	if (newName != nullptr)
+	{
+		request.name = to_utf8(newName->str());
+	}
+	if (friendsOnly != nullptr)
+	{
+		request.visibility = std::string(*friendsOnly ? "friends" : "public");
+	}
+	InvokeLobbyUpdate(request, true);
+}
+
 void GenOnlineLobbyInterface::UpdateCurrentLobby_AIColor(int slot, int color)
 {
 	GenOnlineRealtime::SlotUpdate update;
@@ -1462,7 +1481,7 @@ struct CreateLobbyResponse
 	NLOHMANN_DEFINE_TYPE_INTRUSIVE(CreateLobbyResponse, result, lobby_id, turn_username, turn_token)
 };
 
-void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeString strInitialMapName, AsciiString strInitialMapPath, bool bIsOfficial, int initialMaxSize, bool bVanillaTeamsOnly, bool bTrackStats, uint32_t startingCash, bool bPassworded, std::string strPassword, bool bAllowObservers, bool bRequireEac)
+void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeString strInitialMapName, AsciiString strInitialMapPath, bool bIsOfficial, int initialMaxSize, bool bVanillaTeamsOnly, bool bTrackStats, uint32_t startingCash, bool bPassworded, std::string strPassword, bool bAllowObservers, bool bRequireEac, bool bFriendsOnly)
 {
 	GenOnlinePluginHost::Anticheat::EndSession();
 
@@ -1618,7 +1637,7 @@ void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeStr
 			request.map.path = local_to_utf8(sanitizedMapPath.str());
 			request.map.official = bIsOfficial;
 			request.max_players = initialMaxSize;
-			request.visibility = "public";
+			request.visibility = bFriendsOnly ? "friends" : "public";
 			if (bPassworded)
 			{
 				request.password = local_to_utf8(strPassword);

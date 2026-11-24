@@ -30,7 +30,8 @@ def _setup_rects(zero_hour=True):
         p + "ButtonStart": (47, 517, 219, 553),
         p + "ButtonBack": (581, 517, 753, 553),
         p + "PanelGame": (537, 85, 753, 511),
-        p + "StaticTextMapPreview": (545, 89, 745, 109),
+        p + "StaticTextMapPreview": (545, 89, 679, 109),
+        p + "ButtonEditLobby": (683, 89, 745, 109),
         p + "MapWindow": (545, 113, 745, 313),
         p + "TextEntryMapDisplay": (545, 319, 745, 347),
         p + "ButtonSelectMap": (545, 353, 745, 377),
@@ -42,8 +43,6 @@ def _setup_rects(zero_hour=True):
     zero_hour_checks = [[("CheckboxLimitSuperweapons", 545, 725)]]
     armies = [[("CheckBoxLimitArmies", 545, 725)]]
     rows = (cash if zero_hour else []) + [
-        [("LobbyAccessLabel", 545, 635), ("ComboBoxLobbyAccess", 639, 725)],
-        [("PasswordLabel", 545, 635), ("TextEntryPassword", 639, 725)],
         [("MaxCameraHeightLabel", 545, 635), ("ComboBoxMaxCameraHeight", 639, 725)],
     ] + (zero_hour_checks if zero_hour else []) + [[("CheckBoxUseStats", 545, 725)]] + (armies if zero_hour else []) + [
         [("ListboxInfo", 545, 725)],
@@ -69,7 +68,7 @@ def _setup_rects(zero_hour=True):
 
 # the Generals retail layout has none of the Zero Hour only controls, which the generator adds after the overrides
 _GENERALS_ADDED = {"CheckBoxUseStats", "CheckboxLimitSuperweapons", "CheckBoxLimitArmies", "ComboBoxStartingCash", "StartingCashLabel",
-                   "LobbyAccessLabel", "ComboBoxLobbyAccess", "PasswordLabel", "MaxCameraHeightLabel", "ComboBoxMaxCameraHeight"}
+                   "MaxCameraHeightLabel", "ComboBoxMaxCameraHeight"}
 
 
 def _welcome_rects(zero_hour):

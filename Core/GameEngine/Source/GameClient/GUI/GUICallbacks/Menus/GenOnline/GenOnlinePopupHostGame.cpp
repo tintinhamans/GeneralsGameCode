@@ -54,6 +54,7 @@
 #include "GameClient/GenOnlineMenus.h"
 
 #include "Common/GlobalData.h"
+#include "Common/GOUIColors.h"
 #include "Common/NameKeyGenerator.h"
 #include "Common/version.h"
 #include "GameClient/WindowLayout.h"
@@ -63,6 +64,8 @@
 #include "GameClient/GadgetTextEntry.h"
 #include "GameClient/GadgetCheckBox.h"
 #include "GameClient/GadgetComboBox.h"
+#include "GameClient/GadgetPushButton.h"
+#include "GameClient/GadgetStaticText.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameNetwork/GameSpy/GSConfig.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
@@ -99,6 +102,7 @@ static NameKeyType textEntryGamePasswordID = NAMEKEY_INVALID;
 static NameKeyType checkBoxLimitArmiesID = NAMEKEY_INVALID;
 static NameKeyType checkBoxUseStatsID = NAMEKEY_INVALID;
 static NameKeyType checkBoxRequireEacID = NAMEKEY_INVALID;
+static NameKeyType comboBoxLobbyAccessID = NAMEKEY_INVALID;
 
 static GameWindow *parentPopup = nullptr;
 static GameWindow *textEntryGameName = nullptr;
@@ -112,9 +116,21 @@ static GameWindow *textEntryGamePassword = nullptr;
 static GameWindow *checkBoxLimitArmies = nullptr;
 static GameWindow *checkBoxUseStats = nullptr;
 static GameWindow *checkBoxRequireEac = nullptr;
+static GameWindow *comboBoxLobbyAccess = nullptr;
+
+// The edit popup is the create popup filled with the current lobby, so the host can change what the lobby allows after creation.
+static Bool openForEdit = FALSE;
+static Bool editMode = FALSE;
 
 
 void GenOnlineCreateGame();
+static void GenOnlineSaveLobbyEdit(const UnicodeString &name);
+
+void GenOnlineOpenEditLobbyPopup()
+{
+	openForEdit = TRUE;
+	GameSpyOpenOverlay( GSOVERLAY_GAMEOPTIONS );
+}
 
 //-----------------------------------------------------------------------------
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
@@ -193,6 +209,14 @@ void GenOnlinePopupHostGameInit( WindowLayout *layout, void *userData )
 {
 	parentPopupID = TheNameKeyGenerator->nameToKey("PopupHostGame.wnd:ParentHostPopUp");
 	parentPopup = TheWindowManager->winGetWindowFromId(nullptr, parentPopupID);
+
+	editMode = openForEdit;
+	openForEdit = FALSE;
+	GenOnlineLobbyInterface* pEditLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (editMode && (pEditLobby == nullptr || !pEditLobby->IsInLobby() || !pEditLobby->IsHost()))
+	{
+		editMode = FALSE;
+	}
 
 	textEntryGameNameID = TheNameKeyGenerator->nameToKey("PopupHostGame.wnd:TextEntryGameName");
 	textEntryGameName = TheWindowManager->winGetWindowFromId(parentPopup, textEntryGameNameID);
@@ -274,6 +298,53 @@ void GenOnlinePopupHostGameInit( WindowLayout *layout, void *userData )
 		? TheGameText->FETCH_OR_SUBSTITUTE("TOOLTIP:GORequireEac", L"Only players running Easy Anti-Cheat can join this lobby")
 		: TheGameText->FETCH_OR_SUBSTITUTE("TOOLTIP:GORequireEacOff", L"Easy Anti-Cheat must be running to require it") );
 
+	comboBoxLobbyAccessID = TheNameKeyGenerator->nameToKey("PopupHostGame.wnd:ComboBoxLobbyAccess");
+	comboBoxLobbyAccess = TheWindowManager->winGetWindowFromId(parentPopup, comboBoxLobbyAccessID);
+	if (comboBoxLobbyAccess)
+	{
+		GadgetComboBoxReset(comboBoxLobbyAccess);
+		GadgetComboBoxAddEntry(comboBoxLobbyAccess, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineLobbyAccessAnyone", L"Anyone"), GameSpyColor[GSCOLOR_DEFAULT]);
+		GadgetComboBoxAddEntry(comboBoxLobbyAccess, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineLobbyAccessFriends", L"Friends only"), GameSpyColor[GSCOLOR_DEFAULT]);
+		GadgetComboBoxSetSelectedPos(comboBoxLobbyAccess, 0);
+	}
+
+	// Layout text is a text label key, so the plain texts are set here.
+	if (GameWindow *accessLabel = TheWindowManager->winGetWindowFromId(parentPopup, TheNameKeyGenerator->nameToKey("PopupHostGame.wnd:LobbyAccessLabel")))
+	{
+		GadgetStaticTextSetText(accessLabel, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineLobbyAccess", L"Lobby access"));
+	}
+	if (GameWindow *titleLabel = TheWindowManager->winGetWindowFromId(parentPopup, TheNameKeyGenerator->nameToKey("PopupHostGame.wnd:TitleLabel")))
+	{
+		GadgetStaticTextSetText(titleLabel, editMode
+			? TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineEditGame", L"Edit Game")
+			: TheGameText->FETCH_OR_SUBSTITUTE("GUI:CreateGame", L"Create Game"));
+	}
+
+	if (editMode)
+	{
+		const LobbyEntry &entry = pEditLobby->GetCurrentLobby();
+		GadgetButtonSetText(buttonCreateGame, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GenOnlineSaveGame", L"Save"));
+		GadgetTextEntrySetText(textEntryGameName, UnicodeString(from_utf8(entry.name).c_str()));
+		GadgetTextEntrySetText(textEntryGamePassword, UnicodeString(from_utf8(entry.password).c_str()));
+		if (comboBoxLobbyAccess)
+		{
+			GadgetComboBoxSetSelectedPos(comboBoxLobbyAccess, entry.friends_only ? 1 : 0);
+		}
+		GadgetCheckBoxSetChecked(checkBoxAllowObservers, entry.allow_observers);
+		GadgetCheckBoxSetChecked(checkBoxUseStats, entry.track_stats);
+		GadgetCheckBoxSetChecked(checkBoxLimitArmies, entry.vanilla_teams);
+		GadgetCheckBoxSetChecked(checkBoxRequireEac, ParseAnticheatKind(entry.anticheat) == EAnticheatKind::Eac);
+
+		// The lobby was created with these, so only the name, the access and the password can change.
+		for (GameWindow *window : { checkBoxAllowObservers, checkBoxUseStats, checkBoxLimitArmies, checkBoxRequireEac, comboBoxLadderName, textEntryLadderPassword })
+		{
+			if (window)
+			{
+				window->winEnable(FALSE);
+			}
+		}
+	}
+
 	TheWindowManager->winSetFocus(textEntryGameName);
 	TheWindowManager->winSetModal( parentPopup );
 
@@ -292,6 +363,11 @@ void GenOnlinePopupHostGameInit( WindowLayout *layout, void *userData )
 //-------------------------------------------------------------------------------------------------
 void GenOnlinePopupHostGameUpdate( WindowLayout * layout, void *userData)
 {
+	if (editMode)
+	{
+		return;
+	}
+
 #if !defined(GENONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES)
 	if (GadgetCheckBoxIsChecked( checkBoxUseStats ))
 	{
@@ -452,7 +528,10 @@ WindowMsgHandledType GenOnlinePopupHostGameSystem( GameWindow *window, UnsignedI
 			{
 				parentPopup = nullptr;
 				GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
-				GenOnlineSetLobbyAttemptHostJoin( FALSE );
+				if (!editMode)
+				{
+					GenOnlineSetLobbyAttemptHostJoin( FALSE );
+				}
 			}
 			else if( controlID == buttonCreateGameID)
 			{
@@ -461,9 +540,19 @@ WindowMsgHandledType GenOnlinePopupHostGameSystem( GameWindow *window, UnsignedI
 				name.trim();
 				if(name.isEmpty())
 				{
-					GenOnlineSetLobbyAttemptHostJoin(FALSE);
+					if (!editMode)
+					{
+						GenOnlineSetLobbyAttemptHostJoin(FALSE);
+					}
 					GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
 					GSMessageBoxOk(TheGameText->fetch("GUI:Error"), UnicodeString(L"Please enter a lobby name."), nullptr);
+					break;
+				}
+				if (editMode)
+				{
+					GenOnlineSaveLobbyEdit(name);
+					parentPopup = nullptr;
+					GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
 					break;
 				}
 				// save last used lobby name to CustomPref.ini
@@ -543,7 +632,13 @@ void GenOnlineCreateGame()
 		return;
 	}
 
-	pLobbyInterface->CreateLobby(gameName, md->m_displayName, md->m_fileName, md->m_isOfficial, md->m_numPlayers, limitArmies, useStats, TheGlobalData->m_defaultStartingCash.countMoney(), passwd.isNotEmpty(), std::string(passwd.str()), bAllowObservers, bRequireEac);
+	Int access = 0;
+	if (comboBoxLobbyAccess)
+	{
+		GadgetComboBoxGetSelectedPos(comboBoxLobbyAccess, &access);
+	}
+
+	pLobbyInterface->CreateLobby(gameName, md->m_displayName, md->m_fileName, md->m_isOfficial, md->m_numPlayers, limitArmies, useStats, TheGlobalData->m_defaultStartingCash.countMoney(), passwd.isNotEmpty(), std::string(passwd.str()), bAllowObservers, bRequireEac, access == 1);
 
 	GSMessageBoxCancel(UnicodeString(L"Creating Lobby"), UnicodeString(L"Lobby Creation is in progress..."), nullptr);
 
@@ -551,3 +646,51 @@ void GenOnlineCreateGame()
 }
 
 
+
+
+// Sends only what differs from the lobby. The name and the access go in one update, the password uses its own call.
+static void GenOnlineSaveLobbyEdit(const UnicodeString &name)
+{
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (!pLobbyInterface || !pLobbyInterface->IsInLobby() || !pLobbyInterface->IsHost())
+	{
+		return;
+	}
+
+	const LobbyEntry &entry = pLobbyInterface->GetCurrentLobby();
+	const UnicodeString currentName(from_utf8(entry.name).c_str());
+	const UnicodeString currentPassword(from_utf8(entry.password).c_str());
+	const UnicodeString newPassword = GadgetTextEntryGetText(textEntryGamePassword);
+
+	Int access = entry.friends_only ? 1 : 0;
+	if (comboBoxLobbyAccess)
+	{
+		GadgetComboBoxGetSelectedPos(comboBoxLobbyAccess, &access);
+	}
+	const Bool friendsOnly = access == 1;
+
+	const Bool nameChanged = name.compare(currentName) != 0;
+	const Bool accessChanged = friendsOnly != entry.friends_only;
+	if (nameChanged || accessChanged)
+	{
+		GenOnlineApplyLobbyDetails(nameChanged ? &name : nullptr, accessChanged ? &friendsOnly : nullptr);
+	}
+
+	if (newPassword.compare(currentPassword) != 0)
+	{
+		const LobbyPasswordResult result = GenOnlineChangeLobbyPassword(newPassword.isEmpty() ? nullptr : &newPassword);
+		if (result != LOBBY_PASSWORD_APPLIED && result != LOBBY_PASSWORD_NONE_SET && GenOnlineListboxGameSetupChat)
+		{
+			UnicodeString message;
+			if (result == LOBBY_PASSWORD_BAD_LENGTH)
+			{
+				message.format(L"Lobby password: Use 1 to %d characters.", GENONLINE_LOBBY_MAX_PASSWORD_LENGTH);
+			}
+			else
+			{
+				message = UnicodeString(result == LOBBY_PASSWORD_NOT_HOST ? L"Lobby password: Only the host can change it." : L"Lobby password: The lobby could not be reached.");
+			}
+			GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, message, GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 0, 0, 255)), -1, -1);
+		}
+	}
+}

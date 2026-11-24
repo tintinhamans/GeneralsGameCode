@@ -843,12 +843,14 @@ struct UpdateLobbyRequest : WireObject
 	std::optional<UpdateLobbyMap> map;
 	std::optional<UpdateLobbySettings> settings;
 	std::optional<std::string> visibility;
+	std::optional<std::string> name;
 
 	template <class V> void Fields(V& v)
 	{
 		v("map", map);
 		v("settings", settings);
 		v("visibility", visibility);
+		v("name", name);
 	}
 };
 

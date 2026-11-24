@@ -354,11 +354,15 @@ SETUP_ADDED_WINDOWS = {
          [(r'(^[ \t]*ENABLEDDRAWDATA[ \t]*=[ \t]*IMAGE: NoImage, COLOR: 0 0 0 0, BORDERCOLOR: )\d+ \d+ \d+', r"\g<1>%d %d %d" % KIT_LINE)]),
         ("ButtonOptionsUp", "ButtonEmote", "ENABLED+NOFOCUS", []),
         ("ButtonOptionsDown", "ButtonEmote", "ENABLED+NOFOCUS", []),
-        ("TextEntryPassword", "TextEntryChat", "ENABLED+IMAGE", [(r'^[ \t]*TEXT[ \t]*=[ \t]*"Entry";\r?\n', "")]),
+        # the Edit button of the Game panel header, its text is set by the menu code
+        ("ButtonEditLobby", "ButtonSelectMap", "ENABLED+IMAGE",
+         [(TOOLTIP_LINE_RE, ""), (r'^[ \t]*TEXT[ \t]*=[ \t]*"[^"]*";\r?\n', ""),
+          (r'HEADERTEMPLATE[ \t]*=[ \t]*"MainButton"', 'HEADERTEMPLATE = "ButtonSmall"'),
+          (r'FONT[ \t]*=[ \t]*NAME:[ \t]*"[^"]*",[ \t]*SIZE:[ \t]*\d+','FONT = NAME: "Arial", SIZE: 10')]),
         # the menu code sets the text of these labels, because layout text is a text label key
         *((label, "StartingCashLabel", "ENABLED+IMAGE", [(TOOLTIP_LINE_RE, ""), (r'^[ \t]*TEXT[ \t]*=[ \t]*"GUI:StartingMoney";\r?\n', "")])
-          for label in ("LobbyAccessLabel", "PasswordLabel", "MaxCameraHeightLabel")),
-        *((combo, "ComboBoxStartingCash", "ENABLED+IMAGE", [(TOOLTIP_LINE_RE, "")]) for combo in ("ComboBoxLobbyAccess", "ComboBoxMaxCameraHeight")),
+          for label in ("MaxCameraHeightLabel",)),
+        *((combo, "ComboBoxStartingCash", "ENABLED+IMAGE", [(TOOLTIP_LINE_RE, "")]) for combo in ("ComboBoxMaxCameraHeight",)),
         ("ListboxInfo", "ListboxChatWindowGameSpyGameSetup", "ENABLED+NOFOCUS",
          [(rf"(^[ \t]*{state}DRAWDATA[ \t]*=[ \t]*)IMAGE: BlackSquare, COLOR: 0 0 0 126, BORDERCOLOR: \d+ \d+ \d+ 255",
            r"\g<1>IMAGE: NoImage, COLOR: 0 0 0 0, BORDERCOLOR: 0 0 0 0") for state in ("ENABLED", "DISABLED", "HILITE")] +
@@ -2036,6 +2040,8 @@ def build(retail, game="zerohour"):
                 out = finish(out, name)
                 if name.lower() == "window/menus/wolwelcomemenu.wnd":
                     out = generals_community_panel(out)
+                if name.lower() in GENERALS_RECTS:
+                    out = generals_moved_windows(out, name)
                 if name.lower() in GENERALS_CONTROLS:
                     out = generals_missing_controls(out, name)
                 results.append((name, text, out, info))
@@ -2207,10 +2213,34 @@ GENERALS_CONTROLS = {
         "CheckBoxUseStats": _setup_rects(False)["GameSpyGameOptionsMenu.wnd:CheckBoxUseStats"], "CheckboxLimitSuperweapons": None,
         "CheckBoxLimitArmies": None, "ComboBoxStartingCash": None, "StartingCashLabel": None,
         **{name: _setup_rects(False)["GameSpyGameOptionsMenu.wnd:" + name]
-           for name in ("LobbyAccessLabel", "ComboBoxLobbyAccess", "PasswordLabel", "MaxCameraHeightLabel", "ComboBoxMaxCameraHeight")}}),
+           for name in ("MaxCameraHeightLabel", "ComboBoxMaxCameraHeight")}}),
     "window/menus/popuphostgame.wnd": ("GenOnlinePopupHostGame.wnd", "ParentHostPopUp", {
-        "CheckBoxUseStats": (238, 272, 398, 296), "CheckBoxLimitArmies": None, "CheckBoxRequireEac": (404, 272, 560, 296)}),
+        "CheckBoxUseStats": (238, 272, 398, 296), "CheckBoxLimitArmies": None, "CheckBoxRequireEac": (404, 272, 560, 296),
+        "TitleLabel": (259, 134, 538, 160), "LobbyAccessLabel": (398, 216, 537, 240), "ComboBoxLobbyAccess": (398, 241, 537, 261)}),
 }
+
+
+# Retail Generals windows the host game popup moves to make room for the title and the lobby access, per layout by window NAME suffix or
+# TEXT key. Children stay where they are.
+GENERALS_RECTS = {
+    "window/menus/popuphostgame.wnd": {
+        "ParentHostPopUp": (225, 124, 575, 348), "TextEntryGamePassword": (259, 240, 393, 264), "GUI:Password": (259, 216, 393, 240)},
+}
+TEXT_KEY_RE = re.compile(r'^[ \t]*TEXT[ \t]*=[ \t]*"(?P<key>[^"]*)"', re.M)
+
+
+def generals_moved_windows(text, retail_name):
+    """The Generals layout with the windows of GENERALS_RECTS moved."""
+    rects = GENERALS_RECTS[retail_name.lower()]
+    for win in sorted(parse_windows(text).walk(), key=lambda w: w.block[0], reverse=True):
+        key = win.name.split(":")[-1]
+        if key not in rects:
+            own = text[win.block[0]:win.block[1]]
+            match = TEXT_KEY_RE.search(own)
+            key = match.group("key") if match and not win.children else key
+        if key in rects:
+            text = text[:win.block[0]] + with_rect(text[win.block[0]:], rects[key])
+    return text
 
 
 def generals_missing_controls(text, retail_name):

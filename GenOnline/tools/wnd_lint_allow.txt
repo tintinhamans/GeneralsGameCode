@@ -19,4 +19,3 @@ missing-name OptionsMenu.wnd:ButtonFirewallRefresh  # replaced by the GO network
 
 # the game setup option rows scroll in code, rows below the viewport keep their stacked layout rects
 overlap GameSpyGameOptionsMenu.wnd:ButtonBack  # positioned by the option row scroll
-outside-parent GameSpyGameOptionsMenu.wnd:ListboxInfo  # positioned by the option row scroll
