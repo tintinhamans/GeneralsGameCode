@@ -2214,6 +2214,11 @@ void ConnectionManager::processAck(NetCommandMsg *msg) {
  */
 PlayerLeaveCode ConnectionManager::processPlayerLeave(NetPlayerLeaveCommandMsg *msg) {
 	UnsignedByte playerID = msg->getLeavingPlayerID();
+	// GenOnline @bugfix arcticdolphin 24/11/2026 The leaving id comes from the packet and a player only ever sends its own leave.
+	if (playerID >= MAX_SLOTS || playerID != msg->getPlayerID()) {
+		return PLAYERLEAVECODE_UNKNOWN;
+	}
+
 #if defined(GENONLINE)
 	// the network layer carries quit and disconnect as the same synchronized leave command
 	LocalApiLivePlayerLeftSlot(playerID, "left");

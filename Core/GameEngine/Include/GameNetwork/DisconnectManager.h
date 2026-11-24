@@ -92,6 +92,7 @@ protected:
 	Bool hasPlayerLeft(Int slot);
 	Bool isLeftPlayerConnected(ConnectionManager *conMgr);
 	void processHeldRemovals(ConnectionManager *conMgr); ///< removes the players whose held removal now comes from the acting packet router.
+	void processPendingLeaveNotices(ConnectionManager *conMgr); ///< marks the players of unsigned leave notices as left once they went silent.
 #endif
 #else
 	Bool isLocalPlayerNextPacketRouter(ConnectionManager *conMgr); ///< returns true if the local player is next in line to be the packet router with all the players that have timed out being taken out of the picture.
@@ -146,6 +147,7 @@ protected:
 #if !RETAIL_COMPATIBLE_NETWORKING
 	Bool m_playerLeft[MAX_SLOTS - 1];	///< The player of the translated slot has left and waits for its removal.
 	Bool m_ownLeaveReceived[MAX_SLOTS - 1];	///< The leave came from the player itself, not from a notice of another player.
+	Bool m_leaveNoticePending[MAX_SLOTS - 1];	///< An unsigned leave notice of another player waits for the player of the translated slot to go silent.
 	Bool m_leftPlayerHold;
 	Bool m_screenDeferred;	///< The removal of a player that has left runs without the window until the normal stall wait has passed.
 	Bool m_removedInRound;

@@ -88,6 +88,7 @@ DisconnectManager::DisconnectManager()
 #if !RETAIL_COMPATIBLE_NETWORKING
 		m_playerLeft[i] = FALSE;
 		m_ownLeaveReceived[i] = FALSE;
+		m_leaveNoticePending[i] = FALSE;
 #endif
 #endif
 	}
@@ -147,6 +148,7 @@ void DisconnectManager::init() {
 	for (i = 0; i < MAX_SLOTS - 1; ++i) {
 		m_playerLeft[i] = FALSE;
 		m_ownLeaveReceived[i] = FALSE;
+		m_leaveNoticePending[i] = FALSE;
 	}
 	m_leftPlayerHold = FALSE;
 	m_screenDeferred = FALSE;
@@ -209,6 +211,7 @@ void DisconnectManager::update(ConnectionManager *conMgr) {
 	sendPendingRelays(conMgr);
 #else
 	processHeldRemovals(conMgr);
+	processPendingLeaveNotices(conMgr);
 #endif
 
 #endif
@@ -470,6 +473,7 @@ void DisconnectManager::processDisconnectKeepAlive(NetCommandMsg *msg, Connectio
 		// a player that is still around undoes a leave notice of another player, its own leave is final
 		if (m_ownLeaveReceived[slot] == FALSE) {
 			m_playerLeft[slot] = FALSE;
+			m_leaveNoticePending[slot] = FALSE;
 		}
 #endif
 #endif
@@ -518,16 +522,18 @@ void DisconnectManager::processDisconnectPlayer(NetCommandMsg *msg, ConnectionMa
 	if ((slot < MAX_SLOTS) && ((msg->getPlayerID() == (UnsignedInt)slot) || (cmdMsg->getDisconnectFrame() == LEAVE_NOTICE_FRAME))) {
 		Int transSlot = translatedSlotPosition(slot, conMgr->getLocalPlayerID());
 		if (transSlot != -1) {
-			m_playerLeft[transSlot] = TRUE;
 			Bool leaveTrusted = (msg->getPlayerID() == (UnsignedInt)slot);
 #if defined(GENONLINE)
-			// a notice that carries the signature of the leaver counts at once, an unsigned one only after the quiet time
+			// A notice signed by the leaver counts at once and an unsigned one only after its player goes silent.
 			if (!leaveTrusted && conMgr->verifyLeaveNotice(cmdMsg)) {
 				leaveTrusted = TRUE;
 			}
 #endif
 			if (leaveTrusted) {
+				m_playerLeft[transSlot] = TRUE;
 				m_ownLeaveReceived[transSlot] = TRUE;
+			} else {
+				m_leaveNoticePending[transSlot] = TRUE;
 			}
 		}
 
@@ -675,6 +681,11 @@ void DisconnectManager::processPacketRouterAck(NetCommandMsg *msg, ConnectionMan
 void DisconnectManager::processDisconnectVote(NetCommandMsg *msg, ConnectionManager *conMgr) {
 	NetDisconnectVoteCommandMsg *cmdMsg = (NetDisconnectVoteCommandMsg *)msg;
 	DEBUG_LOG(("DisconnectManager::processDisconnectVote - Got a disconnect vote for player %d command from player %d", cmdMsg->getSlot(), cmdMsg->getPlayerID()));
+	// GenOnline @bugfix arcticdolphin 24/11/2026 The voted slot comes from the packet and indexes m_playerVotes.
+	if (cmdMsg->getSlot() >= MAX_SLOTS || cmdMsg->getPlayerID() >= MAX_SLOTS) {
+		return;
+	}
+
 	Int transSlot = translatedSlotPosition(msg->getPlayerID(), conMgr->getLocalPlayerID());
 
 	if (isPlayerInGame(transSlot, conMgr) == FALSE) {
@@ -1095,6 +1106,23 @@ Bool DisconnectManager::isLeftPlayerConnected(ConnectionManager *conMgr) {
 		}
 	}
 	return FALSE;
+}
+
+// A stalled player sends keepalives once its own disconnect screen is up, so a forged notice never outlasts that wait.
+void DisconnectManager::processPendingLeaveNotices(ConnectionManager *conMgr) {
+	const time_t curTime = timeGetTime();
+	const time_t silentTime = TheGlobalData->m_networkDisconnectTime + LEAVE_NOTICE_QUIET_TIME;
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		const Int transSlot = translatedSlotPosition(i, conMgr->getLocalPlayerID());
+		if ((transSlot == -1) || (m_leaveNoticePending[transSlot] == FALSE)) {
+			continue;
+		}
+		const time_t lastHeard = conMgr->getLastHeardTime(i);
+		if ((lastHeard == 0) || ((curTime - lastHeard) > silentTime)) {
+			m_leaveNoticePending[transSlot] = FALSE;
+			m_playerLeft[transSlot] = TRUE;
+		}
+	}
 }
 
 void DisconnectManager::processHeldRemovals(ConnectionManager *conMgr) {

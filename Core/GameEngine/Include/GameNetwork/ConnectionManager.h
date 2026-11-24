@@ -170,6 +170,7 @@ public:
 	UnsignedInt getNextPacketRouterSlot(UnsignedInt playerID); ///< returns the packet router player that comes after the given player.
 #if defined(GENONLINE)
 	Int getCurrentSenderSlot() const { return m_currentSenderSlot; }
+	time_t getLastHeardTime(Int slot) const { return m_lastHeardMs[slot]; }	///< When the last packet of the player arrived, or 0 before the first one.
 #endif
 
 	Int getAverageFPS();
