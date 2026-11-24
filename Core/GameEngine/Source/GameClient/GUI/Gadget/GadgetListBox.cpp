@@ -3443,31 +3443,42 @@ Int GadgetListBoxGetColumnWidth( GameWindow *listbox, Int column )
 //=============================================================================
 // ListBox row entry animation
 // each listbox must opt in by calling SetListBoxRowAnimMode.
+// Only a row that is new, or that moves to another position, is animated. A row that scrolls into view and a list
+// that opens again are drawn in place.
 //=============================================================================
 struct RowAnimState
 {
-	Real        currentIndex;   // where the row is drawn right now, catches up to targetIndex over time
-	Real        targetIndex;    // where the row actually belongs in the list
+	Real        offset;         // rows between where the row is drawn and where it belongs, eases to zero
+	Real        lastIndex;      // the row position at the last draw
 	UnsignedInt lastUpdateTime; // last time this row was drawn
-	Bool        initialized;    // false until this row is seen for the first time
-
-	RowAnimState()
-	{
-		currentIndex = 0.f;
-		targetIndex = 0.f;
-		lastUpdateTime = 0;
-		initialized = FALSE;
-	}
 };
 
-static std::map<GameWindow*, ListRowAnimMode> theListAnimMode;
-static std::map<Int, RowAnimState> theRowAnimState;
+struct ListAnimState
+{
+	ListRowAnimMode mode;
+	UnsignedInt frameTime;      // the time of the draw pass in progress
+	Int count;                  // entries in the list in this draw pass
+	Int previousCount;          // entries in the list in the draw pass before
+	Bool reopened;              // this draw pass follows a pause, so nothing in it counts as new
+	std::map<Int, RowAnimState> rows;
+};
+
+static std::map<GameWindow*, ListAnimState> theListAnimState;
+
+static const UnsignedInt ROW_ANIM_PAUSE_MS = 100;  // a longer gap between draws means the row or the list was out of sight
+static const Real ROW_ANIM_ENTRY_OFFSET = 0.5f;    // a new row starts this many rows below its place
+static const Real ROW_ANIM_RATE = 18.0f;           // the share of the remaining offset that is closed per second, as an exponent
+static const Real ROW_ANIM_SNAP = 0.02f;           // an offset below this many rows is drawn in place
 
 void SetListBoxRowAnimMode(GameWindow *window, ListRowAnimMode mode)
 {
 	if (!window)
 		return;
-	theListAnimMode[window] = mode;
+
+	// A new window can reuse the address of a destroyed one, so its state starts empty.
+	ListAnimState &list = theListAnimState[window];
+	list = ListAnimState();
+	list.mode = mode;
 }
 
 void ApplyListBoxRowAnimation(GameWindow *window, Int rowIndex, Int rowHeight, Int &drawY)
@@ -3476,54 +3487,61 @@ void ApplyListBoxRowAnimation(GameWindow *window, Int rowIndex, Int rowHeight, I
 		return;
 
 	// only animate listboxes that have explicitly opted in
-	std::map<GameWindow*, ListRowAnimMode>::iterator it = theListAnimMode.find(window);
-	if (it == theListAnimMode.end())
+	std::map<GameWindow*, ListAnimState>::iterator it = theListAnimState.find(window);
+	if (it == theListAnimState.end())
 		return;
 
-	Int animKey;
-	if (it->second == LIST_ROW_ANIM_ID)
+	ListAnimState &list = it->second;
+	const UnsignedInt now = timeGetTime();
+	if (now != list.frameTime)
 	{
-		Int itemID = (Int)GadgetListBoxGetItemData(window, rowIndex);
-		if (itemID <= 0)
+		const Int count = GadgetListBoxGetNumEntries(window);
+		list.reopened = list.frameTime == 0 || now - list.frameTime > ROW_ANIM_PAUSE_MS;
+		list.previousCount = (list.reopened || count < list.count) ? count : list.count;
+		list.count = count;
+		list.frameTime = now;
+	}
+
+	Int key = rowIndex;
+	if (list.mode == LIST_ROW_ANIM_ID)
+	{
+		key = (Int)GadgetListBoxGetItemData(window, rowIndex);
+		if (key <= 0)
 			return;
-
-		animKey = (window->winGetWindowId() << 16) + itemID;
-	}
-	else // LIST_ROW_ANIM_SLOT
-	{
-		animKey = (window->winGetWindowId() << 16) + rowIndex;
 	}
 
-	RowAnimState	&anim = theRowAnimState[animKey];
-	Real		   rowPos = (Real)rowIndex;
-	UnsignedInt		  now = timeGetTime();
-	Real		deltaTime = 0.f;
-
-	if (anim.lastUpdateTime != 0)
+	const Real rowPos = (Real)rowIndex;
+	std::map<Int, RowAnimState>::iterator rowIt = list.rows.find(key);
+	if (rowIt == list.rows.end())
 	{
-		UnsignedInt elapsedMs = now - anim.lastUpdateTime;
-		if (elapsedMs < 100)
-			deltaTime = elapsedMs / (Real)MSEC_PER_SECOND;
-		else
-			anim.initialized = FALSE; // listbox was closed, re-animate on next open
+		// An append only list knows a new row by its index. A keyed list knows it by an unseen key while the list grows,
+		// which leaves out a row that only scrolls into view.
+		const Bool isNew = !list.reopened && (list.mode == LIST_ROW_ANIM_ID ? list.count > list.previousCount : rowIndex >= list.previousCount);
+		RowAnimState state;
+		state.offset = isNew ? ROW_ANIM_ENTRY_OFFSET : 0.0f;
+		state.lastIndex = rowPos;
+		state.lastUpdateTime = now;
+		rowIt = list.rows.insert(std::make_pair(key, state)).first;
 	}
-	anim.lastUpdateTime = now;
 
-	if (!anim.initialized)
+	RowAnimState &row = rowIt->second;
+	const UnsignedInt elapsedMs = now - row.lastUpdateTime;
+	row.lastUpdateTime = now;
+	if (list.reopened || elapsedMs > ROW_ANIM_PAUSE_MS)
 	{
-		// first time this row is drawn, start one row below and slides up into place
-		anim.currentIndex = rowPos + 1.f;
-		anim.targetIndex = rowPos;
-		anim.initialized = TRUE;
+		row.offset = 0.0f;
 	}
 	else
 	{
-		anim.targetIndex = rowPos;
+		// A keyed row that changed position keeps its place on screen and glides to the new one.
+		if (list.mode == LIST_ROW_ANIM_ID)
+			row.offset += row.lastIndex - rowPos;
+		row.offset *= (Real)exp(-ROW_ANIM_RATE * (elapsedMs / (Real)MSEC_PER_SECOND));
+		if (fabs(row.offset) < ROW_ANIM_SNAP)
+			row.offset = 0.0f;
 	}
+	row.lastIndex = rowPos;
 
-	const Real animSpeed = 15.f;
-	anim.currentIndex += (anim.targetIndex - anim.currentIndex) * animSpeed * deltaTime;
-
-	drawY += (Int)((anim.currentIndex - rowPos) * (Real)rowHeight);
+	drawY += (Int)floor(row.offset * (Real)rowHeight + 0.5f);
 }
 #endif
