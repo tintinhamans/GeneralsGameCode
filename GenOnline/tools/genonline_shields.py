@@ -6,8 +6,8 @@ outline with a dash), the built in GenOnline anti-cheat (kit blue with a check m
 mark) and a dimmed copy of each for a lobby this client cannot join.
 
 Outputs (GenOnline/data/core):
-    Art/Textures/GeneralsOnline_Shields.tga                              the atlas, 32 bit RGBA, uncompressed
-    Data/INI/MappedImages/TextureSize_512/ZZ_GeneralsOnline_Shields.INI  the six MappedImages
+    Art/Textures/GenOnline_Shields.tga                              the atlas, 32 bit RGBA, uncompressed
+    Data/INI/MappedImages/TextureSize_512/ZZ_GenOnline_Shields.INI  the six MappedImages
 
 Usage:
     python GenOnline/tools/genonline_shields.py           write the files
@@ -23,9 +23,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "GenOnline" / "data" / "core"
 
-TEXTURE = "GeneralsOnline_Shields"
+TEXTURE = "GenOnline_Shields"
 TGA = f"Art/Textures/{TEXTURE}.tga"
-IMAGE_INI = "Data/INI/MappedImages/TextureSize_512/ZZ_GeneralsOnline_Shields.INI"
+IMAGE_INI = "Data/INI/MappedImages/TextureSize_512/ZZ_GenOnline_Shields.INI"
 
 CELL = 32
 SAMPLES = 4  # per axis

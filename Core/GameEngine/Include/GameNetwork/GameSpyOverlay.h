@@ -52,7 +52,7 @@ void RaiseGSMessageBox();		///< Bring GS message box to the foreground (if we tr
 
 #if defined(GENONLINE)
 
-// GeneralsOnline
+// GenOnline
 void GSMessageBoxCancel(UnicodeString title, UnicodeString message, GameWinMsgBoxFunc cancelFunc);	///< Display a Message box with Ok/Cancel buttons and track it
 void GSMessageBoxNoButtons(UnicodeString title, UnicodeString message, bool bShowLogo);
 

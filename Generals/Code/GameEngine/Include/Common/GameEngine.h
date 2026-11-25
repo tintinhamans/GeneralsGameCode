@@ -51,7 +51,7 @@ class Radar;
 class ParticleSystemManager;
 
 #if defined(GENONLINE)
-void TearDownGeneralsOnline();
+void TearDownGenOnline();
 
 #endif
 class GameEngine : public SubsystemInterface

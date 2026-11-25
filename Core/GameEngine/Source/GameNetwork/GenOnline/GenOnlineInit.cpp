@@ -8,7 +8,6 @@
 #include "Common/FileSystem.h"
 #include "Common/file.h"
 #include "Common/StatsExporter.h"
-#include "GameNetwork/DownloadManager.h"
 #include <ws2tcpip.h>
 #include "GameClient/DisplayStringManager.h"
 #include "GameNetwork/NetworkInterface.h"
@@ -47,6 +46,100 @@ extern "C"
 
 GenOnlineServicesManager* GenOnlineServicesManager::m_pOnlineServicesManager = nullptr;
 std::recursive_mutex GenOnlineServicesManager::m_singletonMutex;
+
+// The instance a logout detached, shut down by s_destroyThread and deleted on the main thread once s_destroyDone is set.
+static GenOnlineServicesManager* s_pDestroying = nullptr;
+static std::thread s_destroyThread;
+static std::atomic<bool> s_destroyDone{ false };
+// The exit waits this long for a hanging teardown, then leaves it to the process exit.
+static constexpr int DESTROY_EXIT_WAIT_MS = 10000;
+
+// Only the main thread changes s_pDestroying and s_destroyThread, so the wait reads them without the singleton mutex.
+static void WaitForDetachedDestroy()
+{
+	if (s_pDestroying == nullptr)
+		return;
+	const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(DESTROY_EXIT_WAIT_MS);
+	while (!s_destroyDone && std::chrono::steady_clock::now() < deadline)
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+}
+
+static bool FinishDetachedDestroy(bool bGiveUp)
+{
+	if (s_pDestroying == nullptr)
+		return false;
+	if (bGiveUp)
+	{
+		if (!s_destroyDone)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] The online teardown did not finish before exit");
+			s_destroyThread.detach();
+			s_pDestroying = nullptr;
+			GenOnlinePluginHost::UnloadPlugin();
+			return false;
+		}
+	}
+	else if (!s_destroyDone)
+	{
+		return false;
+	}
+	if (s_destroyThread.joinable())
+		s_destroyThread.join();
+	// The anticheat middleware is driven from the main thread, so its plugin unloads here.
+	GenOnlinePluginHost::UnloadPlugin();
+	delete s_pDestroying;
+	s_pDestroying = nullptr;
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] OnlineServicesManager shutdown complete");
+	return true;
+}
+
+void GenOnlineServicesManager::DestroyInstance()
+{
+	WaitForDetachedDestroy();
+	std::scoped_lock<std::recursive_mutex> lock(m_singletonMutex);
+	FinishDetachedDestroy(true);
+	if (m_pOnlineServicesManager != nullptr)
+	{
+		m_pOnlineServicesManager->Shutdown();
+
+		delete m_pOnlineServicesManager;
+		m_pOnlineServicesManager = nullptr;
+	}
+}
+
+void GenOnlineServicesManager::BeginDestroyInstance()
+{
+	WaitForDetachedDestroy();
+	std::scoped_lock<std::recursive_mutex> lock(m_singletonMutex);
+	FinishDetachedDestroy(true);
+	if (m_pOnlineServicesManager == nullptr)
+		return;
+
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] OnlineServicesManager shutdown initiated on a worker thread");
+	s_pDestroying = m_pOnlineServicesManager;
+	m_pOnlineServicesManager = nullptr;
+	// Queued retries capture the interfaces of this instance and are ticked on the main thread.
+	GenOnlineRealtimeBridge::ShutdownRest();
+	s_destroyDone = false;
+	GenOnlineServicesManager* manager = s_pDestroying;
+	s_destroyThread = std::thread([manager]()
+	{
+		manager->ShutdownBlocking();
+		s_destroyDone = true;
+	});
+}
+
+bool GenOnlineServicesManager::PollDestroyInstance()
+{
+	std::scoped_lock<std::recursive_mutex> lock(m_singletonMutex);
+	return FinishDetachedDestroy(false);
+}
+
+bool GenOnlineServicesManager::IsDestroyPending()
+{
+	std::scoped_lock<std::recursive_mutex> lock(m_singletonMutex);
+	return s_pDestroying != nullptr;
+}
 
 std::thread::id GenOnlineServicesManager::g_MainThreadID;
 std::mutex GenOnlineServicesManager::m_ScreenshotMutex;
@@ -309,13 +402,19 @@ void GenOnlineServicesManager::CaptureScreenshotForProbe(EScreenshotType screens
 						}
 
                         // certain screenshots require caching for later upload when we have a valid match id, so we store them
+						// A logout detaches the instance before it joins this thread.
+						GenOnlineServicesManager* manager = GenOnlineServicesManager::GetInstance();
+						if (manager == nullptr)
+						{
+							return;
+						}
 						if (screenshotType == EScreenshotType::SCREENSHOT_TYPE_LOADSCREEN)
 						{
-							GenOnlineServicesManager::GetInstance()->CacheScreenshotBytes_StartMatch(std::move(vecData));
+							manager->CacheScreenshotBytes_StartMatch(std::move(vecData));
 						}
                         else if (screenshotType == EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN)
                         {
-							GenOnlineServicesManager::GetInstance()->CacheScreenshotBytes_EndMatch(matchID, std::move(vecData));
+							manager->CacheScreenshotBytes_EndMatch(matchID, std::move(vecData));
                         }
 						else
 						{
@@ -448,7 +547,7 @@ std::string GenOnlineServicesManager::GetAPIEndpoint(const char* szEndpoint)
 	{
 		return manager->m_serviceBase + szEndpoint;
 	}
-	const auto routes = ServiceConnection::BootstrapRoutes(EnvironmentName(), Settings.Network_GetConnectionSettings(), Settings.Network_GetLastRoute());
+	const auto routes = ServiceConnection::BootstrapRoutes(EnvironmentName(), Settings.Network_GetConnectionSettings());
 	return routes.empty() ? std::string() : routes.front() + szEndpoint;
 }
 
@@ -480,7 +579,7 @@ void GenOnlineServicesManager::EnsureServiceRoute(std::function<void(bool)> call
 	m_routeSettingsKey = key;
 	m_routeProxyPrompted = false;
 	m_routeProxyAuthFailed = false;
-	m_bootstrapRoutes = ServiceConnection::BootstrapRoutes(EnvironmentName(), settings, Settings.Network_GetLastRoute());
+	m_bootstrapRoutes = ServiceConnection::BootstrapRoutes(EnvironmentName(), settings);
 	m_bootstrapIndex = 0;
 	ProbeServiceRoute();
 }
@@ -555,10 +654,6 @@ void GenOnlineServicesManager::ProbeServiceRoute()
 			{
 				manager->m_routeProxyAuthFailed = false;
 				manager->m_routeValidatedAt = std::chrono::steady_clock::now();
-				if (GetEnvironment() == EEnvironment::LIVE && Settings.Network_GetConnectionSettings().serverMode != "custom")
-				{
-					Settings.Network_SaveLastRoute(ServiceConnection::RouteHost(manager->m_serviceBase));
-				}
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] Trusted service route validated: %s", manager->m_serviceBase.c_str());
 				manager->FinishServiceRoute(true);
 				return;
@@ -853,14 +948,23 @@ void GenOnlineServicesManager::Shutdown()
 {
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] OnlineServicesManager shutdown initiated");
 
+	// Queued retries capture the interfaces of this instance, so none of them may run on the next one.
+	GenOnlineRealtimeBridge::ShutdownRest();
+
+	ShutdownBlocking();
+
+	GenOnlinePluginHost::UnloadPlugin();
+
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] OnlineServicesManager shutdown complete");
+}
+
+void GenOnlineServicesManager::ShutdownBlocking()
+{
 	// First, wait for all screenshot threads to complete
 	// This prevents race conditions where threads might still be using resources
 	WaitForScreenshotThreads();
 
 	WifiLowLatency::End();
-
-	// Queued retries capture the interfaces of this instance, so none of them may run on the next one.
-	GenOnlineRealtimeBridge::ShutdownRest();
 
 	NetworkMeshLibrary::Shutdown();
 
@@ -883,10 +987,6 @@ void GenOnlineServicesManager::Shutdown()
 		m_pHTTPManager->Shutdown();
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] HTTPManager shutdown complete");
 	}
-
-	GenOnlinePluginHost::UnloadPlugin();
-
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] OnlineServicesManager shutdown complete");
 }
 
 void GenOnlineServicesManager::StartVersionCheck(std::function<void(bool bSuccess, bool bNeedsUpdate)> fnCallback)
@@ -933,12 +1033,6 @@ void GenOnlineServicesManager::StartVersionCheckOnSelectedRoute(std::function<vo
 				break;
 			case GenOnlineRealtime::CompatibilityVerdict::NeedsUpdate:
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "VERSION CHECK: Needs Update");
-
-				// cache the data
-				m_patcher_name = answer.update.value.patcher_name;
-				m_patcher_path = answer.update.value.patcher_path;
-				m_patcher_size = answer.update.value.patcher_size.value;
-
 				fnCallback(true, true);
 				break;
 			default:
@@ -952,145 +1046,6 @@ void GenOnlineServicesManager::StartVersionCheckOnSelectedRoute(std::function<vo
 			return GetInstance() == this;
 		});
 }
-
-void GenOnlineServicesManager::ContinueUpdate()
-{
-	if (m_vecFilesToDownload.size() > 0 && m_pHTTPManager != nullptr) // download next
-	{
-		std::string strDownloadPath = m_vecFilesToDownload.front();
-		m_vecFilesToDownload.pop();
-
-		uint32_t downloadSize = m_vecFilesSizes.front();
-		m_vecFilesSizes.pop();
-
-		if (TheDownloadManager != nullptr)
-		{
-			TheDownloadManager->SetFileName(AsciiString(strDownloadPath.c_str()));
-			TheDownloadManager->OnStatusUpdate(DOWNLOADSTATUS_DOWNLOADING);
-		}
-
-		// GenOnline @bugfix arcticdolphin 09/11/2026 The replies of a download cancelled or restarted since are ignored.
-		const int updateAttempt = m_updateAttempt;
-
-		// this isnt a super nice way of doing this, lets make a download manager
-		std::map<std::string, std::string> mapHeaders;
-		m_pHTTPManager->SendGETRequest(strDownloadPath.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-			{
-				if (updateAttempt != m_updateAttempt)
-				{
-					return;
-				}
-
-				auto fnShowUpdateFailed = [this]()
-					{
-						// GenOnline @feature arcticdolphin 09/11/2026 The sign-in dialog shows the failure itself when it started the download.
-						std::function<void(void)> fnFailed;
-						{
-							std::scoped_lock<std::recursive_mutex> lock(m_updateCallbackMutex);
-							fnFailed = m_updateFailedCallback;
-						}
-						if (fnFailed != nullptr)
-						{
-							fnFailed();
-						}
-						else
-						{
-							// show msg
-							ClearGSMessageBoxes();
-							MessageBoxOk(UnicodeString(L"Update Failed"), UnicodeString(L"Could not download the updater. Press below to exit."), []()
-								{
-									TheGameEngine->setQuitting(TRUE);
-								});
-						}
-						ShellExecuteA(NULL, "open", "https://www.generals.online/updatefailed", NULL, NULL, SW_SHOWNORMAL);
-					};
-
-				if (statusCode != 200)
-				{
-					fnShowUpdateFailed();
-				}
-				else
-				{
-					// set done
-					if (TheDownloadManager != nullptr)
-					{
-						TheDownloadManager->OnProgressUpdate(downloadSize, downloadSize, 0, 0);
-					}
-
-					m_vecFilesDownloaded.push_back(strDownloadPath);
-
-					std::string strPatchDir = GetPatcherDirectoryPath();
-					if (strPatchDir.empty())
-						return;
-
-					// save under the validated patcher name so LaunchPatcher runs this exact file
-					std::string strOutPath = std::format("{}/{}", strPatchDir, m_patcher_name);
-
-					std::vector<uint8_t> vecBuffer = pReq->GetBuffer();
-					size_t bufSize = pReq->GetBufferSize();
-
-					std::error_code ec;
-					if (!std::filesystem::exists(strPatchDir, ec))
-					{
-						std::filesystem::create_directory(strPatchDir, ec);
-					}
-
-					// a partially written updater must not be treated as downloaded
-					bool bSaved = false;
-					FILE* pFile = fopen(strOutPath.c_str(), "wb");
-					if (pFile != nullptr) {
-						bSaved = fwrite(vecBuffer.data(), sizeof(uint8_t), bufSize, pFile) == bufSize;
-						if (fclose(pFile) != 0)
-							bSaved = false;
-					}
-
-					if (!bSaved)
-					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "Failed to save downloaded file: %s", strOutPath.c_str());
-						fnShowUpdateFailed();
-						return;
-					}
-
-					// call continue update again, thisll check if we're done or have more work to do
-					ContinueUpdate();
-
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "GOT FILE: %s", strDownloadPath.c_str());
-				}
-			},
-			[=](size_t bytesReceived)
-			{
-				if (updateAttempt != m_updateAttempt)
-				{
-					return;
-				}
-
-				//m_bytesReceivedSoFar += bytesReceived;
-
-				if (TheDownloadManager != nullptr)
-				{
-					TheDownloadManager->OnProgressUpdate(bytesReceived, downloadSize, -1, -1);
-				}
-			},
-			30 * 60 * 1000 // the 5s default aborts any real download
-			);
-	}
-	else if (m_vecFilesToDownload.size() == 0 && m_vecFilesDownloaded.size() > 0) // nothing left but we did download something
-	{
-		if (TheDownloadManager != nullptr)
-		{
-			TheDownloadManager->SetFileName("Update is complete!");
-			TheDownloadManager->OnStatusUpdate(DOWNLOADSTATUS_FINISHING);
-		}
-
-		std::scoped_lock<std::recursive_mutex> lock(m_updateCallbackMutex);
-		if (m_updateCompleteCallback != nullptr)
-		{
-			m_updateCompleteCallback();
-		}
-	}
-	
-}
-
 
 void GenOnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std::function<void(std::vector<unsigned char>)> cbOnDataAvailable)
 {
@@ -1166,7 +1121,13 @@ void GenOnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std::f
 							std::vector<uint8_t> resized;
 							if (bResizeForTransmit)
 							{
-								ServiceConfig& serviceConf = GenOnlineServicesManager::GetInstance()->GetServiceConfig();
+								// A logout detaches the instance before it joins this thread.
+								GenOnlineServicesManager* manager = GenOnlineServicesManager::GetInstance();
+								if (manager == nullptr)
+								{
+									return;
+								}
+								ServiceConfig& serviceConf = manager->GetServiceConfig();
 								finalWidth = serviceConf.telemetry.screenshot_width;
 								finalHeight = serviceConf.telemetry.screenshot_height;
 								resized.resize(finalWidth * finalHeight * channels);
@@ -1248,109 +1209,6 @@ void GenOnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std::f
 	}
 }
 
-void GenOnlineServicesManager::CancelUpdate()
-{
-	// GenOnline @bugfix arcticdolphin 09/11/2026 A cancelled download stops here: its files and callbacks go and its in-flight replies are ignored.
-	std::scoped_lock<std::recursive_mutex> lock(m_updateCallbackMutex);
-	++m_updateAttempt;
-	m_vecFilesToDownload = std::queue<std::string>();
-	m_vecFilesSizes = std::queue<int64_t>();
-	m_vecFilesDownloaded.clear();
-	m_updateCompleteCallback = nullptr;
-	m_updateFailedCallback = nullptr;
-}
-
-void GenOnlineServicesManager::LaunchPatcher(std::function<void(void)> cbFailed)
-{
-	char GameDir[MAX_PATH + 1] = {};
-	::GetCurrentDirectoryA(MAX_PATH + 1u, GameDir);
-
-	// Extract the filename with extension from strDownloadPath
-	std::string strPatcherDir = GetPatcherDirectoryPath();
-	std::string strPatcherPath = std::format("{}/{}", strPatcherDir, m_patcher_name);
-
-	SHELLEXECUTEINFOA shellexInfo = { sizeof(shellexInfo) };
-	shellexInfo.lpVerb = "runas"; // admin
-	shellexInfo.lpFile = strPatcherPath.c_str();
-	shellexInfo.nShow = SW_SHOWNORMAL;
-	shellexInfo.lpDirectory = GameDir;
-	//shellexInfo.lpParameters = "/VERYSILENT";
-
-	bool bPatcherExeExists = std::filesystem::exists(strPatcherPath) && std::filesystem::is_regular_file(strPatcherPath);
-	bool bPatcherDirExists = std::filesystem::exists(strPatcherDir) && std::filesystem::is_directory(strPatcherDir);
-	bool bInvalidSize = true;
-
-	// TODO_GENONLINE: Replace with CRC ASAP
-
-	// does the file size match?
-	if (bPatcherExeExists && bPatcherDirExists)
-	{
-		std::uintmax_t file_size = std::filesystem::file_size(strPatcherPath);
-		if (file_size == m_patcher_size)
-		{
-			bInvalidSize = false;
-		}
-	}
-
-	if (!bInvalidSize && bPatcherExeExists && bPatcherDirExists && ShellExecuteExA(&shellexInfo))
-	{
-		// Exit the application  
-		TheGameEngine->setQuitting(TRUE);
-	}
-	else
-	{
-		if (cbFailed != nullptr)
-		{
-			cbFailed();
-		}
-		else
-		{
-			// show msg
-			ClearGSMessageBoxes();
-			MessageBoxOk(UnicodeString(L"Update Failed"), UnicodeString(L"Could not run the updater. Press below to exit."), []()
-				{
-					TheGameEngine->setQuitting(TRUE);
-				});
-		}
-		ShellExecuteA(NULL, "open", "https://www.generals.online/updatefailed", NULL, NULL, SW_SHOWNORMAL);
-	}
-}
-
-void GenOnlineServicesManager::StartDownloadUpdate(std::function<void(void)> cb, std::function<void(void)> cbFailed)
-{
-	TheDownloadManager->SetFileName("Connecting to update service...");
-	TheDownloadManager->OnStatusUpdate(DOWNLOADSTATUS_CONNECTING);
-
-	m_vecFilesToDownload = std::queue<std::string>();
-	m_vecFilesDownloaded.clear();
-
-	// patcher
-	m_vecFilesToDownload.emplace(m_patcher_path);
-	m_vecFilesSizes.emplace(m_patcher_size);
-	
-	{
-		std::scoped_lock<std::recursive_mutex> lock(m_updateCallbackMutex);
-		++m_updateAttempt;
-		m_updateCompleteCallback = cb;
-		m_updateFailedCallback = cbFailed;
-	}
-
-	// cleanup current folder
-	std::string strPatchDir = GetPatcherDirectoryPath();
-	if (std::filesystem::exists(strPatchDir) && std::filesystem::is_directory(strPatchDir))
-	{
-		for (const auto& entry : std::filesystem::directory_iterator(strPatchDir))
-		{
-			std::filesystem::remove_all(entry.path());
-		}
-	}
-
-	// start for real
-	ContinueUpdate();
-
-
-}
-
 void GenOnlineServicesManager::OnLogin(ELoginResult loginResult, const char* szWSAddr, std::function<void(void)> fnWebsocketConnectedCallback)
 {
 	if (loginResult == ELoginResult::Success)
@@ -1426,7 +1284,6 @@ void GenOnlineServicesManager::Init()
 	// Empty name means no anticheat plugin configured. The first transport plugin then loads for its transport only.
 	GenOnlinePluginHost::LoadPlugin(strPlugin, GenOnlineServicesManager::Settings.GetTransportPlugins());
 
-	// TODO_GENONLINE: Better location
 	// TODO_GENONLINE: Get all of this from the service
 	int moneyVal = 100000;
 	int maxMoneyVal = 1000000;
@@ -1441,19 +1298,6 @@ void GenOnlineServicesManager::Init()
 		moneyVal += 50000;
 	}
 
-#if 0
-	std::map<AsciiString, RGBColor> mapColors;
-	mapColors["Dark Red"] = RGBColor{ 0.53f, 0.f, 0.08f };
-	mapColors["Brown"] = RGBColor{ 0.46f, 0.26f, 0.26f };
-	mapColors["Dark Green"] = RGBColor{ 0.09f, 0.24f, 0.04f };
-
-	for (const auto& [colorName, rgbColor] : mapColors)
-	{
-		MultiplayerColorDefinition* newDef = TheMultiplayerSettings->newMultiplayerColorDefinition(colorName.str());
-		newDef->setColor(rgbColor);
-		newDef->setNightColor(rgbColor);
-	}
-#endif
 }
 
 
@@ -1873,14 +1717,6 @@ void GenOnlineServicesManager::LogDisplayAdapter()
 		static_cast<unsigned int>(HIWORD(driverHigh)), static_cast<unsigned int>(LOWORD(driverHigh)), static_cast<unsigned int>(HIWORD(driverLow)), static_cast<unsigned int>(LOWORD(driverLow)));
 }
 
-
-std::string GenOnlineServicesManager::GetPatcherDirectoryPath()
-{
-	if (!TheGlobalData)
-		return {};
-	std::string strPatcherDirPath = std::format("{}/GeneralsOnlineData/Update/", TheGlobalData->getPath_UserData().str());
-	return strPatcherDirPath;
-}
 
 void WebSocket::Shutdown()
 {

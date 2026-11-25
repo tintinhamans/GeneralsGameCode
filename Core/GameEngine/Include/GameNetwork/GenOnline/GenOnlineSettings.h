@@ -109,8 +109,6 @@ public:
 	std::vector<std::string> Data_ExcludePaths() const;
 
 	ServiceConnectionSettings Network_GetConnectionSettings() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_ConnectionSettings; }
-	std::string Network_GetLastRoute() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_LastRoute; }
-	bool Network_SaveLastRoute(const std::string& host);
 	bool Network_SaveWindowsLogin(bool windowsLogin);
 	bool Network_SaveConnectionSettings(const ServiceConnectionSettings& settings, std::string& error);
 
@@ -169,7 +167,6 @@ private:
 
 	mutable std::mutex m_NetworkMutex;
 	ServiceConnectionSettings m_ConnectionSettings;
-	std::string m_LastRoute;
 	// keeps keys this build does not know when a setting is saved mid-session
 	std::string m_PreservedJSON = "{}";
 	// %LOCALAPPDATA%\genonline\settings.client.json, written only when it exists with a schema_version this client knows

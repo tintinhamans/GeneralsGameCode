@@ -524,7 +524,7 @@ static Bool isGenOnlineShellLayout(const char* path)
 	AsciiString lower(path);
 	lower.toLower();
 	const char* name = lower.str();
-	if (strcmp(name, "data/generalsonline/headertemplate.ini") == 0 || strcmp(name, "data\\generalsonline\\headertemplate.ini") == 0)
+	if (strcmp(name, "data/genonline/headertemplate.ini") == 0 || strcmp(name, "data\\genonline\\headertemplate.ini") == 0)
 	{
 		return TRUE;
 	}
@@ -595,22 +595,19 @@ static Bool isNotGenOnlineInterfaceFile(const char* path)
 {
 	static const char* const prefixes[] = { "fonts/" };
 	static const char* const files[] = {
-		"art/textures/generalsonline_uikit.tga",
-		"art/textures/generalsonline_loadingbar.tga",
-		"art/textures/generalsonline_loadlogo.tga",
-		"art/textures/generalsonline_van.tga",
-		"art/textures/generalsonline_loadroad.tga",
-		"art/textures/generalsonline_loadbubble.tga",
-		"data/ini/mappedimages/texturesize_512/zz_generalsonline_uikit.ini",
-		"data/ini/mappedimages/texturesize_512/zz_generalsonline_loadingbar.ini",
-		"data/ini/mappedimages/texturesize_512/zz_generalsonline_loadlogo.ini",
-		"data/ini/mappedimages/texturesize_512/zz_generalsonline_van.ini",
-		"data/ini/mappedimages/texturesize_512/zz_generalsonline_loadroad.ini",
-		"data/ini/mappedimages/texturesize_512/zz_generalsonline_loadbubble.ini",
-		"data/ini/mappedimages/texturesize_512/zz_generalsonline_checkboxsliderart.ini",
-		"data/ini/mappedimages/texturesize_512/zz_generalsonline_logo.ini",
+		"art/textures/genonline_uikit.tga",
+		"art/textures/genonline_loadlogo.tga",
+		"art/textures/genonline_van.tga",
+		"art/textures/genonline_loadroad.tga",
+		"art/textures/genonline_loadbubble.tga",
+		"data/ini/mappedimages/texturesize_512/zz_genonline_uikit.ini",
+		"data/ini/mappedimages/texturesize_512/zz_genonline_loadlogo.ini",
+		"data/ini/mappedimages/texturesize_512/zz_genonline_van.ini",
+		"data/ini/mappedimages/texturesize_512/zz_genonline_loadroad.ini",
+		"data/ini/mappedimages/texturesize_512/zz_genonline_loadbubble.ini",
+		"data/ini/mappedimages/texturesize_512/zz_genonline_logo.ini",
 		"data/ini/gouicolors.ini",
-		"data/generalsonline/headertemplate.ini" };
+		"data/genonline/headertemplate.ini" };
 
 	// paths in a BIG use backslashes, the lists above use slashes
 	AsciiString lower;

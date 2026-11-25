@@ -8,7 +8,6 @@ namespace ServiceConnection
 {
 struct ProxyRoute;
 
-bool IsProxyLoginOpen();
 // Worker threads hand work back to the main thread here, it runs once per frame from the game engine update
 void RunOnMainThread(std::function<void()> task);
 void PumpMainThreadTasks();

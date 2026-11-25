@@ -60,7 +60,7 @@ SHADES = ((.17, .72, -.12), (.31, .66, 0.0), (.50, .58, .35), (.72, .78, .8), (.
 LIGHT = (-.55, -.62, .56)  # towards the light, z points at the viewer
 STEEPNESS = .75            # how steep the soft edge reads in the lighting
 
-# image name -> (glyph, colour). The names are the MappedImage names in ZZ_GeneralsOnline_UIKit2.INI.
+# image name -> (glyph, colour). The names are the MappedImage names in ZZ_GenOnline_UIKit2.INI.
 ICONS = {
     "GOMapIconSupplyDock": ("dollar", "green"),
     "GOMapIconSupplyPile": ("dollar", "blue"),

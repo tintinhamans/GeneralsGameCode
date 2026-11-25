@@ -61,42 +61,6 @@
 constexpr const char s_genrep[] = "GENREP";
 constexpr const UnsignedInt replayBufferBytes = 8192;
 
-#if defined(GENONLINE)
-// The exe CRC written to replays, RTS_REPLAY_EXE_CRC if set.
-static UnsignedInt getReplayExeCRC()
-{
-	return RTS_REPLAY_EXE_CRC != 0 ? (UnsignedInt)RTS_REPLAY_EXE_CRC : TheGlobalData->m_exeCRC;
-}
-
-// True for the real and written exe CRC of this build and for RTS_REPLAY_COMPATIBLE_EXE_CRCS.
-static Bool isReplayExeCRCCompatible(UnsignedInt crc, Bool* viaCompatibleList = NULL)
-{
-	if (viaCompatibleList)
-	{
-		*viaCompatibleList = FALSE;
-	}
-	if (crc == TheGlobalData->m_exeCRC || crc == getReplayExeCRC())
-	{
-		return TRUE;
-	}
-	// The trailing 0 keeps the initializer valid when the list is empty and is not compared.
-	static const UnsignedInt compatibleCRCs[] = { RTS_REPLAY_COMPATIBLE_EXE_CRCS 0 };
-	const Int count = sizeof(compatibleCRCs) / sizeof(compatibleCRCs[0]) - 1;
-	for (Int i = 0; i < count; ++i)
-	{
-		if (crc == compatibleCRCs[i])
-		{
-			if (viaCompatibleList)
-			{
-				*viaCompatibleList = TRUE;
-			}
-			return TRUE;
-		}
-	}
-	return FALSE;
-}
-
-#endif
 Int REPLAY_CRC_INTERVAL = 100;
 
 const char *replayExtention = ".rep";
@@ -648,12 +612,7 @@ void RecorderClass::startRecording(GameDifficulty diff, GameMode originalGameMod
 	m_file->writeFormat(L"%s", versionTimeString.str());
 	m_file->writeChar(L"\0");
 	m_file->write(&versionNumber, sizeof(versionNumber));
-#if defined(GENONLINE)
-	UnsignedInt replayExeCRC = getReplayExeCRC();
-	m_file->write(&replayExeCRC, sizeof(replayExeCRC));
-#else
 	m_file->write(&(TheGlobalData->m_exeCRC), sizeof(TheGlobalData->m_exeCRC));
-#endif
 	m_file->write(&(TheGlobalData->m_iniCRC), sizeof(TheGlobalData->m_iniCRC));
 
 	// Number of players
@@ -1181,11 +1140,7 @@ Bool RecorderClass::replayMatchesGameVersion(const ReplayHeader& header)
 		return false;
 	if (header.versionNumber != TheVersion->getVersionNumber())
 		return false;
-#if defined(GENONLINE)
-	if (!isReplayExeCRCCompatible(header.exeCRC))
-#else
 	if (header.exeCRC != TheGlobalData->m_exeCRC)
-#endif
 		return false;
 	if (header.iniCRC != TheGlobalData->m_iniCRC)
 		return false;
@@ -1268,25 +1223,11 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 		return FALSE;
 	}
 
-#if defined(GENONLINE)
-#ifdef DEBUG_LOGGING
-	Bool viaCompatibleList = FALSE;
-	if (isReplayExeCRCCompatible(header.exeCRC, &viaCompatibleList) && viaCompatibleList)
-	{
-		DEBUG_LOG(("Replay exe CRC %8.8X matched via RTS_REPLAY_COMPATIBLE_EXE_CRCS", header.exeCRC));
-	}
-#endif
-
-#endif
 #ifdef DEBUG_CRASHING
 	Bool versionStringDiff = header.versionString != TheVersion->getUnicodeVersion();
 	Bool versionTimeStringDiff = header.versionTimeString != TheVersion->getUnicodeBuildTime();
 	Bool versionNumberDiff = header.versionNumber != TheVersion->getVersionNumber();
-#if defined(GENONLINE)
-	Bool exeCRCDiff = !isReplayExeCRCCompatible(header.exeCRC);
-#else
 	Bool exeCRCDiff = header.exeCRC != TheGlobalData->m_exeCRC;
-#endif
 	Bool exeDifferent = versionStringDiff || versionTimeStringDiff || versionNumberDiff || exeCRCDiff;
 	Bool iniDifferent = header.iniCRC != TheGlobalData->m_iniCRC;
 
@@ -1317,11 +1258,7 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 		}
 		if (exeCRCDiff)
 		{
-#if defined(GENONLINE)
-			tempStr.format("   CRC %8.8X vs %8.8X\n", getReplayExeCRC(), header.exeCRC);
-#else
 			tempStr.format("   CRC %8.8X vs %8.8X\n", TheGlobalData->m_exeCRC, header.exeCRC);
-#endif
 			debugString.concat(tempStr);
 		}
 	}

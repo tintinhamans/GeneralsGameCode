@@ -429,16 +429,6 @@ static void playerTooltip(GameWindow *window,
 	// in that order.  got it?  good.
 
 	UnicodeString uName = slot->getName();
-// 
-// 	AsciiString aName;
-// 	aName.translate(uName);
-// 	PlayerInfoMap::iterator pmIt = TheGameSpyInfo->getPlayerInfoMap()->find(aName);
-// 	if (pmIt == TheGameSpyInfo->getPlayerInfoMap()->end())
-// 	{
-// 		TheMouse->setCursorTooltip( uName, -1, NULL, 1.5f );
-// 		return;
-// 	}
-	//Int profileID = pmIt->second.m_profileID;
 
 	int64_t profileID = slot->m_userID;
 
@@ -1044,8 +1034,6 @@ static void StartMatchWhenRosterMatches(Int refreshesDone)
 		}
 	}
 
-	// TODO_GENONLINE
-
 	GameWindow* buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
 	if (buttonBuddy)
 		buttonBuddy->winEnable(FALSE);
@@ -1066,11 +1054,12 @@ struct ReasonText
 
 static const ReasonText START_REJECTED_TEXTS[] =
 {
-	{ "not_owner", "GO:StartRefusedNotOwner", L"The start was refused because you are no longer the host." },
-	{ "no_lobby", "GO:StartRefusedNoLobby", L"The start was refused because the lobby no longer exists." },
-	{ "already_started", "GO:StartRefusedAlreadyStarted", L"The match has already started." },
-	{ "not_ready", "GO:StartRefusedNotReady", L"The start was refused because not every player is ready." },
-	{ "mesh_incomplete", "GO:StartRefusedMeshIncomplete", L"The start was refused because not every player is connected." },
+	{ "lobby.not_host", "GO:StartRefusedNotOwner", L"The start was refused because you are no longer the host." },
+	{ "not_found", "GO:StartRefusedNoLobby", L"The start was refused because the lobby no longer exists." },
+	{ "lobby.not_member", "GO:StartRefusedNoLobby", L"The start was refused because the lobby no longer exists." },
+	{ "lobby.already_started", "GO:StartRefusedAlreadyStarted", L"The match has already started." },
+	{ "lobby.not_ready", "GO:StartRefusedNotReady", L"The start was refused because not every player is ready." },
+	{ "lobby.mesh_incomplete", "GO:StartRefusedMeshIncomplete", L"The start was refused because not every player is connected." },
 	{ nullptr, "GO:StartRefused", L"The start was refused by the service." }
 };
 
@@ -2062,9 +2051,6 @@ static void updateReadyInfo(GenOnlineGame *game)
 
 void GenOnlineDisplaySlotList(void)
 {
-    // TODO_GENONLINE
-    //if (!parentWOLGameSetup || !TheGameSpyInfo->getCurrentStagingRoom())
-    //	return;
 
     GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
     GenOnlineGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
@@ -2376,11 +2362,6 @@ void GenOnlineInitGameGadgets()
 		banButton[i]->winSetDrawFunc(RowButtonDraw);
 		banButton[i]->winHide(TRUE);
 
-//		tmpString.format("GameSpyGameOptionsMenu.wnd:ButtonStartPosition%d", i);
-//		buttonStartPositionID[i] = TheNameKeyGenerator->nameToKey( tmpString );
-//		buttonStartPosition[i] = TheWindowManager->winGetWindowFromId( parentWOLGameSetup, buttonStartPositionID[i] );
-//		DEBUG_ASSERTCRASH(buttonStartPosition[i], ("Could not find the ButtonStartPosition[%d]",i ));
-
 		tmpString.format("GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition%d", i);
 		buttonMapStartPositionID[i] = TheNameKeyGenerator->nameToKey( tmpString );
 		buttonMapStartPosition[i] = TheWindowManager->winGetWindowFromId( parentWOLGameSetup, buttonMapStartPositionID[i] );
@@ -2402,7 +2383,6 @@ void GenOnlineInitGameGadgets()
 	}
 		//GadgetButtonSetEnabledColor(buttonAccept[0], GameSpyColor[GSCOLOR_ACCEPT_TRUE]);
 
-		// TODO_GENONLINE: Where does this happen in the normal game?
 	for (Int i = 0; i < MAX_SLOTS; i++)
 	{
 		PopulatePlayerTemplateComboBox(i, comboBoxPlayerTemplate, theGameInfo, TRUE);
@@ -2674,32 +2654,11 @@ void GenOnlineGameSetupMenuInit( WindowLayout *layout, void *userData )
 
 		// check if we were disconnected
 
-		// TODO_GENONLINE: Handle disconnected
-		/*
-		Int disconReason;
-		if (TheGameSpyInfo->isDisconnectedAfterGameStart(&disconReason))
-		{
-			AsciiString disconMunkee;
-			disconMunkee.format("GUI:GSDisconReason%d", disconReason);
-			UnicodeString title, body;
-			title = TheGameText->fetch( "GUI:GSErrorTitle" );
-			body = TheGameText->fetch( disconMunkee );
-			GameSpyCloseAllOverlays();
-			GSMessageBoxOk( title, body );
-			TheGameSpyInfo->reset();
-			DEBUG_LOG(("WOLGameSetupMenuInit() - game was in progress, and we were disconnected, so pop immediate back to main menu"));
-			TheShell->popImmediate();
-			return;
-		}
-		*/
-
 		// If we init while the game is in progress, we are really returning to the menu
 		// after the game.  So, we pop the menu and go back to the lobby.  Whee!
 		DEBUG_LOG(("WOLGameSetupMenuInit() - game was in progress, so pop immediate back to lobby"));
 		TheShell->popImmediate();
 
-		// TODO_GENONLINE: Only do this if still connected to service
-		//if (TheGameSpyPeerMessageQueue && TheGameSpyPeerMessageQueue->isConnected())
 		{
 			DEBUG_LOG(("We're still connected, so pushing back on the lobby"));
 			TheShell->push("Menus/GenOnlineCustomLobby.wnd", TRUE);
@@ -2721,12 +2680,9 @@ void GenOnlineGameSetupMenuInit( WindowLayout *layout, void *userData )
 	EnableSlotListUpdates(FALSE);
 	GenOnlineInitGameGadgets();
 	EnableSlotListUpdates(TRUE);
-	// TODO_GENONLINE
-
 	//The dialog needs to react differently depending on whether it's the host or not.
 	TheMapCache->updateCache();
 
-	// TODO_GENONLINE
 	GenOnlineGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 	if (game == nullptr)
 	{
@@ -2740,12 +2696,6 @@ void GenOnlineGameSetupMenuInit( WindowLayout *layout, void *userData )
 
 	if (bIsHost)
 	{
-		// TODO_GENONLINE
-		/*
-		OptionPreferences natPref;
-		CustomMatchPreferences customPref;
-		game->setMap(customPref.getPreferredMap());
-		*/
 
 		// TODO_GENONLINE: Preferred color & factionsupport
 		hostSlot->setColor(0);
@@ -2791,8 +2741,6 @@ void GenOnlineGameSetupMenuInit( WindowLayout *layout, void *userData )
 			slot->setState( SLOT_OPEN );
 		}
 
-		// TODO_GENONLINE: preferred map support
-		//AsciiString lowerMap = getDefaultOfficialMap();
 		AsciiString lowerMap = game->getMap();
 		//AsciiString lowerMap = customPref.getPreferredMap();
 		lowerMap.toLower();
@@ -2830,24 +2778,6 @@ void GenOnlineGameSetupMenuInit( WindowLayout *layout, void *userData )
 		AsciiString asciiMap = game->getMap();
 		asciiMap.toLower();
 
-		/*
-		req.peerRequestType = PeerRequest::PEERREQUEST_UTMPLAYER;
-		req.UTM.isStagingRoom = TRUE;
-		req.id = "REQ/";
-		req.nick = aName.str();
-		options.format("PlayerTemplate=%d", customPref.getPreferredFaction());
-		req.options = options.str();
-		TheGameSpyPeerMessageQueue->addRequest(req);
-		options.format("Color=%d", customPref.getPreferredColor());
-		req.options = options.str();
-		TheGameSpyPeerMessageQueue->addRequest(req);
-		options.format("NAT=%d", natPref.getFirewallBehavior());
-		req.options = options.str();
-		TheGameSpyPeerMessageQueue->addRequest(req);
-		options.format("Ping=%s", TheGameSpyInfo->getPingString().str());
-		req.options = options.str();
-		TheGameSpyPeerMessageQueue->addRequest(req);
-		*/
 		game->setMapCRC( game->getMapCRC() );		// force a recheck
 		game->setMapSize( game->getMapSize() ); // of if we have the map
 
@@ -2883,9 +2813,6 @@ void GenOnlineGameSetupMenuInit( WindowLayout *layout, void *userData )
 
 	initDone = true;
 
-	// TODO_GENONLINE
-	//TheGameSpyInfo->setGameOptions();
-	//TheShell->registerWithAnimateManager(parentWOLGameSetup, WIN_ANIMATION_SLIDE_TOP, TRUE);
 	GenOnlinePositionStartSpots();
 
 	GenOnlineLastSlotlistTime = 0;
@@ -2998,25 +2925,8 @@ static void shutdownComplete( WindowLayout *layout )
 
 	if (nextScreen != NULL)
 	{
-		// TODO_GENONLINE: Handle disconnect again
-		if (false)
-		//if (!TheGameSpyPeerMessageQueue || !TheGameSpyPeerMessageQueue->isConnected())
-		{
-			DEBUG_LOG(("GameSetup shutdownComplete() - skipping push because we're disconnected"));
-		}
-		else
-		{
-			TheShell->push(nextScreen);
-		}
+		TheShell->push(nextScreen);
 	}
-
-	/*
-	if (launchGameNext)
-	{
-		TheGenOnlineGame->launchGame();
-		TheGameSpyInfo->leaveStagingRoom();
-	}
-	*/
 
 	nextScreen = NULL;
 
@@ -3222,7 +3132,7 @@ void GenOnlineGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 		{
 			bool bForceShutdown = true;
 			GenOnlineGameSetupMenuShutdown(layout, (void*)&bForceShutdown); // userdata is 'force shutdown'
-			TearDownGeneralsOnline();
+			TearDownGenOnline();
 
 			TheShell->pop();
 			return;
@@ -3368,51 +3278,6 @@ void GenOnlineGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 WindowMsgHandledType GenOnlineGameSetupMenuInput( GameWindow *window, UnsignedInt msg,
 																			 WindowMsgData mData1, WindowMsgData mData2 )
 {
-	/*
-	switch( msg )
-	{
-
-		//-------------------------------------------------------------------------------------------------
-		case GWM_RIGHT_UP:
-		{
-			if (buttonPushed)
-				break;
-
-			GameWindow *control = (GameWindow *)mData1;
-			NameKeyType controlID = (NameKeyType)control->winGetWindowId();
-			DEBUG_LOG(("GWM_RIGHT_UP for control %d(%s)", controlID, TheNameKeyGenerator->keyToName(controlID).str()));
-			break;
-		}
-
-		// --------------------------------------------------------------------------------------------
-		case GWM_CHAR:
-		{
-			UnsignedByte key = mData1;
-			UnsignedByte state = mData2;
-			if (buttonPushed)
-				break;
-
-			switch( key )
-			{
-				// ----------------------------------------------------------------------------------------
-				case KEY_ESC:
-				{
-					//
-					// send a simulated selected event to the parent window of the
-					// back/exit button
-					//
-					if( BitIsSet( state, KEY_STATE_UP ) )
-					{
-						TheWindowManager->winSendSystemMsg( window, GBM_SELECTED,
-																							(WindowMsgData)buttonBack, buttonBackID );
-					}
-					// don't let key fall through anywhere else
-					return MSG_HANDLED;
-				}
-			}
-		}
-	}
-	*/
 	return MSG_IGNORED;
 }
 
@@ -3486,7 +3351,7 @@ Bool GenOnlineHandleGameSetupSlashCommands(UnicodeString uText)
 		GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/removepassword - Remove the lobby password (host only)."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/maxcameraheight <value> - Set the camera height limit (host only)."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/net - Show how you reach each player. /net transport, /net relay, /net gns ice and /net reset change your settings."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/support - Open the GeneralsOnline Discord."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/support - Open the Generals Online Discord."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(GenOnlineListboxGameSetupChat, UnicodeString(L"/help - Show these commands. You can also use /commands."), helpColor, -1, -1);
 		return TRUE; // was a slash command
 	}
@@ -3566,15 +3431,6 @@ Bool GenOnlineHandleGameSetupSlashCommands(UnicodeString uText)
 
 		return TRUE; // was a slash command
 	}
-	// else if (token == "leave")
-	// {
-	// 	return TRUE;
-	// }
-	// else if (token == "quit")
-	// {
-	// 	TheGameEngine->setQuitting(TRUE);
-	// 	return TRUE;
-	// }
 	else if (token == "steam" || token == "advnet")
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[ADV NET STATS] Writing advanced networking stats:");
@@ -3844,18 +3700,6 @@ WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, UnsignedI
 						{
 							if (myGame->getSlot(i)->getState() == SLOT_PLAYER)
 							{
-								// TODO_GENONLINE: Support kick again
-								/*
-								PeerRequest req;
-								req.peerRequestType = PeerRequest::PEERREQUEST_UTMPLAYER;
-								req.UTM.isStagingRoom = TRUE;
-								AsciiString aName;
-								aName.translate(myGame->getSlot(i)->getName());
-								req.nick = aName.str();
-								req.id = "KICK/";
-								req.options = "true";
-								TheGameSpyPeerMessageQueue->addRequest(req);
-								*/
 
 								UnicodeString name = myGame->getSlot(i)->getName();
 
@@ -3868,8 +3712,6 @@ WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, UnsignedI
 								myGame->getSlot(i)->setState(SlotState(pos));
 								myGame->resetAccepted();
 
-								// // TODO_GENONLINE
-								//TheGameSpyInfo->setGameOptions();
 								GenOnlineDisplaySlotList();
 								//TheLAN->OnPlayerLeave(name);
 							}
@@ -4004,20 +3846,6 @@ WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, UnsignedI
 						// force a refresh of our local lobby properties to sync to remote players
 						pLobbyInterface->ApplyLocalUserPropertiesToCurrentNetworkRoom();
 
-						/*
-						UnicodeString hostName = game->getSlot(0)->getName();
-						AsciiString asciiName;
-						asciiName.translate(hostName);
-						PeerRequest req;
-						req.peerRequestType = PeerRequest::PEERREQUEST_UTMPLAYER;
-						req.UTM.isStagingRoom = TRUE;
-						req.id = "accept";
-						req.nick = asciiName.str();
-						req.options = "true";
-						TheGameSpyPeerMessageQueue->addRequest(req);
-						//peerSetReady( PEER, PEERTrue );
-						GenOnlineDisplaySlotList();
-						*/
 					}
 				}
         else if ( controlID == checkBoxLimitSuperweaponsID )

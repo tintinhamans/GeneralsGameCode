@@ -40,24 +40,48 @@
 #include "GameClient/GenOnlineMenus.h"
 #include <steam/isteamnetworkingsockets.h>
 
-static bool g_bTearDownGeneralsOnlineRequested = false;
-void TearDownGeneralsOnline()
-{
-	g_bTearDownGeneralsOnlineRequested = true;
+static bool g_bTearDownGenOnlineRequested = false;
+// The Logging Out box shows until the teardown is done or this time has passed.
+static constexpr int LOGOUT_BOX_MAX_MS = 15000;
+static bool g_bLogoutBoxShown = false;
+static int64_t g_logoutBoxDeadline = 0;
+static UnicodeString g_logoutResultTitle;
+static UnicodeString g_logoutResultBody;
 
+static void CloseLogoutBox()
+{
+	if (!g_bLogoutBoxShown)
+		return;
+	g_bLogoutBoxShown = false;
+	ClearGSMessageBoxes();
+	if (!g_logoutResultTitle.isEmpty())
+		GSMessageBoxOk(g_logoutResultTitle, g_logoutResultBody);
+	g_logoutResultTitle.clear();
+	g_logoutResultBody.clear();
+}
+
+void TearDownGenOnline()
+{
 	if (GenOnlineServicesManager::GetInstance() == nullptr)
 		return;
 
+	g_bTearDownGenOnlineRequested = true;
+
 	EGOTearDownReason teardownReason = GenOnlineServicesManager::GetInstance()->GetTeardownReason();
 
-	if (teardownReason != EGOTearDownReason::USER_REQUESTED_SILENT && !IsModerationTeardownReason(teardownReason))
+	if (IsModerationTeardownReason(teardownReason))
+		return;
+
+	g_logoutResultTitle.clear();
+	g_logoutResultBody.clear();
+	if (teardownReason != EGOTearDownReason::USER_REQUESTED_SILENT)
 	{
 		UnicodeString title, body;
 
 		if (teardownReason == EGOTearDownReason::USER_LOGOUT)
 		{
 			title = L"Logged Out";
-			body = L"You are now logged out of GeneralsOnline.";
+			body = L"You are now logged out of Generals Online.";
 		}
 		else if (teardownReason == EGOTearDownReason::LOST_CONNECTION)
 		{
@@ -82,9 +106,14 @@ void TearDownGeneralsOnline()
 
 		GenOnlineServicesManager::GetInstance()->ResetPendingFullTeardownReason();
 
-		GameSpyCloseAllOverlays();
-		GSMessageBoxOk(title, body);
+		g_logoutResultTitle = title;
+		g_logoutResultBody = body;
 	}
+
+	GameSpyCloseAllOverlays();
+	GSMessageBoxNoButtons(UnicodeString(L"Logging Out"), UnicodeString(L"Logging out of Generals Online..."), false);
+	g_bLogoutBoxShown = true;
+	g_logoutBoxDeadline = NowMs() + LOGOUT_BOX_MAX_MS;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -123,12 +152,22 @@ void GenOnlineGameHooks::onEngineInitialized()
 
 void GenOnlineGameHooks::onEngineUpdate()
 {
-	if (g_bTearDownGeneralsOnlineRequested) // delayed tear down
+	if (g_bTearDownGenOnlineRequested) // delayed tear down
 	{
-		g_bTearDownGeneralsOnlineRequested = false;
+		g_bTearDownGenOnlineRequested = false;
 
-		GenOnlineServicesManager::DestroyInstance();
+		// The sockets and threads close on a worker thread so the game keeps drawing.
+		GenOnlineServicesManager::BeginDestroyInstance();
+	}
 
+	if (GenOnlineServicesManager::PollDestroyInstance() || (g_bLogoutBoxShown && !GenOnlineServicesManager::IsDestroyPending()))
+	{
+		CloseLogoutBox();
+	}
+	else if (g_bLogoutBoxShown && NowMs() >= g_logoutBoxDeadline)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] The logout is still running, the Logging Out box closes");
+		CloseLogoutBox();
 	}
 
 	// work handed back by worker threads, also while no online services instance exists
@@ -281,6 +320,12 @@ void GenOnlineGameHooks::onCloseAllOverlays()
 
 void GenOnlineGameHooks::startOnline()
 {
+	// Two instances must never share the mesh and the plugin.
+	if (GenOnlineServicesManager::IsDestroyPending())
+	{
+		GSMessageBoxOk(UnicodeString(L"Logging Out"), UnicodeString(L"Generals Online is still logging out. Try again in a moment."));
+		return;
+	}
 	GenOnlineStartPatchCheck();
 }
 
@@ -291,33 +336,25 @@ void GenOnlineGameHooks::updateMainMenu()
 	GOSignInDialogUpdate();
 }
 
+// The launcher updates the game, so the Online path has no patch download.
 void GenOnlineGameHooks::updateDownloadMenu( WindowLayout *layout, void *userData )
 {
-	GenOnlineDownloadMenuUpdate(layout, userData);
 }
 
-// GenOnline @bugfix arcticdolphin 09/11/2026 An Online attempt can end before the online services exist or after their teardown.
 void GenOnlineGameHooks::onDownloadCanceled()
 {
-	if (GenOnlineServicesManager::GetInstance() != nullptr)
-	{
-		GenOnlineServicesManager::GetInstance()->CancelUpdate();
-	}
 }
 
 void GenOnlineGameHooks::stopOnlineChecks()
 {
-	GenOnlineStopAsyncDNSCheck();
 }
 
 void GenOnlineGameHooks::cancelPatchCheck()
 {
-	GenOnlineCancelPatchCheckCallback();
 }
 
 void GenOnlineGameHooks::startDownloadingPatches()
 {
-	GenOnlineStartDownloadingPatches();
 }
 
 void GenOnlineGameHooks::onOptionsMenuInit( Bool locked )

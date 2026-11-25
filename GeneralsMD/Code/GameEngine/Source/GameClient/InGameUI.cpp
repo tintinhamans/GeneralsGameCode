@@ -1952,7 +1952,7 @@ void InGameUI::update()
 	UnsignedInt currLogicFrame = TheGameLogic->getFrame();
 #if defined(GENONLINE)
 
-	// GeneralsOnline NOTE: Increasing this, it's short + we increased framerate which is tied into the calc elsewhere
+	// GenOnline: Increasing this, it's short + we increased framerate which is tied into the calc elsewhere
 #endif
 #if defined(GENONLINE)
 	const int messageTimeoutChat = GetOnlineGameHooks()->getChatMessageLifeSeconds() * LOGICFRAMES_PER_SECOND;

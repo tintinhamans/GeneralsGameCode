@@ -58,11 +58,6 @@ extern void GenOnlineMapSelectMenuUpdate( WindowLayout *layout, void *userData )
 extern WindowMsgHandledType GenOnlineMapSelectMenuInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GenOnlineMapSelectMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 
-extern void GenOnlineDownloadMenuInit( WindowLayout *layout, void *userData );
-extern void GenOnlineDownloadMenuShutdown( WindowLayout *layout, void *userData );
-extern void GenOnlineDownloadMenuUpdate( WindowLayout *layout, void *userData );
-extern WindowMsgHandledType GenOnlineDownloadMenuInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
-extern WindowMsgHandledType GenOnlineDownloadMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 
 extern void GenOnlineWelcomeMenuInit( WindowLayout *layout, void *userData );
 extern void GenOnlineWelcomeMenuShutdown( WindowLayout *layout, void *userData );
@@ -118,10 +113,7 @@ extern WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, Un
 extern Bool GOSignInDialogOpen( void );
 extern Bool GOSignInDialogIsOpen( void );
 extern void GOSignInDialogShowChecking( GameWinMsgBoxFunc cancelFunc );
-extern void GOSignInDialogShowUpdate( UnicodeString message, GameWinMsgBoxFunc updateFunc, GameWinMsgBoxFunc cancelFunc );
 extern void GOSignInDialogShowError( UnicodeString title, UnicodeString message, GameWinMsgBoxFunc closeFunc );
-extern void GOSignInDialogShowDownloading( GameWinMsgBoxFunc cancelFunc );
-extern void GOSignInDialogShowReady( UnicodeString message, GameWinMsgBoxFunc restartFunc, GameWinMsgBoxFunc cancelFunc );
 extern void GOSignInDialogBeginSignIn( void );
 extern void GOSignInDialogUpdate( void );
 extern void GOSignInDialogDestroy( void );
@@ -133,12 +125,9 @@ extern Bool GenOnlineOptionsMenuAccept();
 extern void GenOnlineOptionsMenuDefaults();
 
 extern void GenOnlineMapSelectMenuApplyMap( const AsciiString& map );
-extern void GenOnlineHandleNumPlayersOnline( Int numPlayersOnline );
-extern void GenOnlineHandleOverallStats( const char *szHTTPStats, unsigned len );
 extern void GenOnlineUpdateLocalPlayerStats();
 extern void GenOnlineSetLookAtPlayer( int64_t id, UnicodeString nick );
 extern void GenOnlinePopulatePlayerInfoWindows( AsciiString parentWindowName );
-extern Int GenOnlineGetAdditionalDisconnectsFromUserFile( Int playerID );
 extern Int GenOnlineCalculateRank( const PSPlayerStats& stats );
 extern Int GenOnlineGetFavoriteSide( const PSPlayerStats& stats );
 extern void GenOnlineHandleBuddyResponses();
@@ -158,7 +147,6 @@ extern Bool GenOnlineWelcomeMenuOpenLobby();
 extern void GenOnlineRaiseNotificationBox();
 extern void GenOnlineDeleteNotificationBox();
 extern void GenOnlineInitBuddyControls( Int type );
-extern void GenOnlinePopulateOldBuddyMessages();
 extern WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 extern void GenOnlinePopBackToLobby();
 extern void GenOnlinePositionStartSpots();

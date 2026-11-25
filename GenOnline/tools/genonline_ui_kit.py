@@ -39,9 +39,9 @@ import genonline_themes  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "GenOnline" / "data" / "core"
-TEXTURE_NAME = "GeneralsOnline_UIKit.tga"
+TEXTURE_NAME = "GenOnline_UIKit.tga"
 TEXTURE_PATH = DATA / "Art" / "Textures" / TEXTURE_NAME
-INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_UIKit.INI"
+INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GenOnline_UIKit.INI"
 
 ATLAS_WIDTH = 256  # in retail pixels
 SCALE = 4          # texels per retail pixel
@@ -544,14 +544,14 @@ def pieces():
 
 # =================================================================================================
 # GO map select and lobby: map preview icons, lobby symbols and the map list favourite stars.
-# They live in their own atlas, GeneralsOnline_UIKit2.tga, because the first atlas is full.
+# They live in their own atlas, GenOnline_UIKit2.tga, because the first atlas is full.
 # The icons and symbols are the PNG art in GenOnline/tools/art/map-icons that genonline_map_icons.py renders.
 # The favourite stars are drawn here on a 16 unit design grid with points snapped to whole texels.
 # =================================================================================================
 
-TEXTURE2_NAME = "GeneralsOnline_UIKit2.tga"
+TEXTURE2_NAME = "GenOnline_UIKit2.tga"
 TEXTURE2_PATH = DATA / "Art" / "Textures" / TEXTURE2_NAME
-INI2_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_UIKit2.INI"
+INI2_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GenOnline_UIKit2.INI"
 ATLAS2_WIDTH = 128  # in retail pixels
 TITLE2 = "the map preview icons, the lobby symbols and the favourite stars"
 
@@ -657,9 +657,9 @@ def pieces2():
 # window ShellGameLoadScreen::init sets to LOAD_ROAD_RECT; load_road_dashes mirrors where the dashes go.
 # =================================================================================================
 
-LOAD_ROAD_TEXTURE_NAME = "GeneralsOnline_LoadRoad.tga"
+LOAD_ROAD_TEXTURE_NAME = "GenOnline_LoadRoad.tga"
 LOAD_ROAD_TEXTURE_PATH = DATA / "Art" / "Textures" / LOAD_ROAD_TEXTURE_NAME
-LOAD_ROAD_INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_LoadRoad.INI"
+LOAD_ROAD_INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GenOnline_LoadRoad.INI"
 LOAD_ROAD_ATLAS_WIDTH = 32  # in retail pixels
 LOAD_ROAD_TITLE = "the load screen road"
 LOAD_ROAD_RECT = (267, 574, 533, 592)  # 800x600 units: a third of the width, centred, near the bottom
@@ -741,7 +741,7 @@ def load_road_dashes(x, y, width, height, screen_height):
 
 # =================================================================================================
 # Load splash: a Minecraft style line, one per launch, picked from the wall clock (never a game random stream), said by
-# the radar van of the GO logo in a speech bubble whose tail points at its dish. LoadScreen.cpp GO_LOAD_SPLASHES holds the
+# the radar van of the GO logo in a speech bubble whose tail points at its dish. LoadScreen.cpp GENONLINE_LOAD_SPLASHES holds the
 # same lines as FETCH_OR_SUBSTITUTE labels; drawGoLogoBubble draws the bubble from ShellGameLoadScreen::drawCredit and
 # bubble_layout mirrors it with an estimated text size. The bubble art is its own atlas, as it pairs
 # with the van art; the Retail style leaves it out.
@@ -764,9 +764,9 @@ URL_FONT_SIZE = 14
 CREDIT_URL_TOP = 362       # LoadScreen.cpp CREDIT_URL_TOP
 LOGO_ASPECT = (1282, 494)  # GOLoadLogo Coords
 
-BUBBLE_TEXTURE_NAME = "GeneralsOnline_LoadBubble.tga"
+BUBBLE_TEXTURE_NAME = "GenOnline_LoadBubble.tga"
 BUBBLE_TEXTURE_PATH = DATA / "Art" / "Textures" / BUBBLE_TEXTURE_NAME
-BUBBLE_INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_LoadBubble.INI"
+BUBBLE_INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GenOnline_LoadBubble.INI"
 BUBBLE_ATLAS_WIDTH = 64  # in retail pixels
 BUBBLE_TITLE = "the load screen speech bubble"
 BUBBLE_FILL = rgba(genonline_themes.PALETTE["text"])  # cream
@@ -780,10 +780,10 @@ BUBBLE_TAIL = (12, 10)     # width and height, the tip at the bottom centre
 BUBBLE_TAIL_OVER = 1.5     # the tail's top rows cover the bubble's bottom line, so the two read as one shape
 # the rules by their LoadScreen.cpp names: the logo van's dish rim in GOLoadLogo texels (logo_dish measures it) and the
 # fade in, from the credit's start
-BUBBLE_CONSTANTS = {"GO_LOGO_DISH_X": 306, "GO_LOGO_DISH_Y": 0, "GO_BUBBLE_SHOW_MS": 600}
+BUBBLE_CONSTANTS = {"GENONLINE_LOGO_DISH_X": 306, "GENONLINE_LOGO_DISH_Y": 0, "GENONLINE_BUBBLE_SHOW_MS": 600}
 BUBBLE_MARGIN_UNITS = 8.0
 BUBBLE_TIP_GAP_UNITS = 2.0  # the tip stops this far over the dish rim, in 800x600 units
-LOGO_TEXTURE_PATH = DATA / "Art" / "Textures" / "GeneralsOnline_LoadLogo.tga"
+LOGO_TEXTURE_PATH = DATA / "Art" / "Textures" / "GenOnline_LoadLogo.tga"
 LOGO_COORDS = (383, 9, 1665, 503)  # GOLoadLogo Coords
 
 
@@ -898,8 +898,8 @@ def logo_dish(rows=None):
 def logo_dish_screen(screen_width, screen_height):
     """drawCredit: the dish rim on screen, through the logo's own placement."""
     left, top, right, bottom = logo_rect(screen_width, screen_height)
-    return (left + BUBBLE_CONSTANTS["GO_LOGO_DISH_X"] * (right - left) // LOGO_ASPECT[0],
-            top + BUBBLE_CONSTANTS["GO_LOGO_DISH_Y"] * (bottom - top) // LOGO_ASPECT[1])
+    return (left + BUBBLE_CONSTANTS["GENONLINE_LOGO_DISH_X"] * (right - left) // LOGO_ASPECT[0],
+            top + BUBBLE_CONSTANTS["GENONLINE_LOGO_DISH_Y"] * (bottom - top) // LOGO_ASPECT[1])
 
 
 def bubble_tip(screen_width, screen_height):
@@ -931,8 +931,8 @@ def bubble_layout(tip, text_width, text_height, line_height, screen_width, scree
 
 
 def bubble_alpha(shown_ms):
-    """Hidden until GO_BUBBLE_SHOW_MS after the credit's start, when the logo has faded in, then whole; it stays."""
-    return 255 if shown_ms >= BUBBLE_CONSTANTS["GO_BUBBLE_SHOW_MS"] else 0
+    """Hidden until GENONLINE_BUBBLE_SHOW_MS after the credit's start, when the logo has faded in, then whole; it stays."""
+    return 255 if shown_ms >= BUBBLE_CONSTANTS["GENONLINE_BUBBLE_SHOW_MS"] else 0
 
 
 def splash_pick(now):
@@ -954,27 +954,27 @@ VAN_SOURCES = Path(__file__).resolve().parent / "art" / "van-side"
 VAN_LAYER_FILES = {"body": "van-layer-body-nodish.png", "dish": "van-layer-dish.png",
                    "wheels": "van-layer-wheels-frames.png", "puff": "van-dust-puff.png"}
 VAN_FRAMES_PNG = VAN_SOURCES / "van-side-frames-256.png"  # four full frames, wheels at 0/22.5/45/67.5 degrees
-VAN_TEXTURE_NAME = "GeneralsOnline_Van.tga"
+VAN_TEXTURE_NAME = "GenOnline_Van.tga"
 VAN_TEXTURE_PATH = DATA / "Art" / "Textures" / VAN_TEXTURE_NAME
-VAN_INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_Van.INI"
+VAN_INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GenOnline_Van.INI"
 VAN_GAP = 2  # clear texels between images
 VAN_WHEEL_FRAMES = 4
 
 # the draw rules, by their LoadScreen.cpp names; art values are canvas texels, times milliseconds
 VAN_CONSTANTS = {
-    "GO_VAN_FRAME_WIDTH": 256, "GO_VAN_FRAME_HEIGHT": 156,
-    "GO_VAN_OUTLINE_TOP": 5, "GO_VAN_OUTLINE_BOTTOM": 152, "GO_VAN_OUTLINE_LEFT": 14, "GO_VAN_OUTLINE_RIGHT": 247,
-    "GO_VAN_TYRE_BOTTOM": 145, "GO_VAN_REAR_TYRE": 46, "GO_VAN_BUMPER": 240,
-    "GO_VAN_MIN_HEIGHT": 20, "GO_VAN_WHEEL_FRAMES": VAN_WHEEL_FRAMES, "GO_VAN_FRAME_MS": 83, "GO_VAN_STALL_MS": 500,
-    "GO_VAN_SETTLE_MS": 300, "GO_VAN_FORGET_MS": 1000, "GO_VAN_BOB": 2, "GO_VAN_DISH_LAG_MS": 90, "GO_VAN_WAVE_MS": 10000,
-    "GO_VAN_PUFFS": 12, "GO_VAN_PUFF_SPAWN_X": 44, "GO_VAN_PUFF_SPAWN_Y": 138, "GO_VAN_PUFF_JITTER": 4,
-    "GO_VAN_PUFF_DRIFT_X": 24, "GO_VAN_PUFF_DRIFT_Y": 40, "GO_VAN_PUFF_START": 16, "GO_VAN_PUFF_END": 40,
-    "GO_VAN_PUFF_LIFE_MS": 500, "GO_VAN_PUFF_LIFE_SPREAD_MS": 300, "GO_VAN_PUFF_GAP_MS": 40, "GO_VAN_PUFF_TRAVEL": 50,
-    "GO_VAN_PUFF_CREDIT": 3, "GO_VAN_PUFF_ALPHA": 255,
+    "GENONLINE_VAN_FRAME_WIDTH": 256, "GENONLINE_VAN_FRAME_HEIGHT": 156,
+    "GENONLINE_VAN_OUTLINE_TOP": 5, "GENONLINE_VAN_OUTLINE_BOTTOM": 152, "GENONLINE_VAN_OUTLINE_LEFT": 14, "GENONLINE_VAN_OUTLINE_RIGHT": 247,
+    "GENONLINE_VAN_TYRE_BOTTOM": 145, "GENONLINE_VAN_REAR_TYRE": 46, "GENONLINE_VAN_BUMPER": 240,
+    "GENONLINE_VAN_MIN_HEIGHT": 20, "GENONLINE_VAN_WHEEL_FRAMES": VAN_WHEEL_FRAMES, "GENONLINE_VAN_FRAME_MS": 83, "GENONLINE_VAN_STALL_MS": 500,
+    "GENONLINE_VAN_SETTLE_MS": 300, "GENONLINE_VAN_FORGET_MS": 1000, "GENONLINE_VAN_BOB": 2, "GENONLINE_VAN_DISH_LAG_MS": 90, "GENONLINE_VAN_WAVE_MS": 10000,
+    "GENONLINE_VAN_PUFFS": 12, "GENONLINE_VAN_PUFF_SPAWN_X": 44, "GENONLINE_VAN_PUFF_SPAWN_Y": 138, "GENONLINE_VAN_PUFF_JITTER": 4,
+    "GENONLINE_VAN_PUFF_DRIFT_X": 24, "GENONLINE_VAN_PUFF_DRIFT_Y": 40, "GENONLINE_VAN_PUFF_START": 16, "GENONLINE_VAN_PUFF_END": 40,
+    "GENONLINE_VAN_PUFF_LIFE_MS": 500, "GENONLINE_VAN_PUFF_LIFE_SPREAD_MS": 300, "GENONLINE_VAN_PUFF_GAP_MS": 40, "GENONLINE_VAN_PUFF_TRAVEL": 50,
+    "GENONLINE_VAN_PUFF_CREDIT": 3, "GENONLINE_VAN_PUFF_ALPHA": 255,
 }
-VAN_REAL_CONSTANTS = {"GO_VAN_BOB_HZ_A": 3.3, "GO_VAN_BOB_HZ_B": 5.1, "GO_VAN_BOB_PHASE_B": 1.3, "GO_VAN_BOB_WEIGHT_A": 0.6}
+VAN_REAL_CONSTANTS = {"GENONLINE_VAN_BOB_HZ_A": 3.3, "GENONLINE_VAN_BOB_HZ_B": 5.1, "GENONLINE_VAN_BOB_PHASE_B": 1.3, "GENONLINE_VAN_BOB_WEIGHT_A": 0.6}
 VAN = VAN_CONSTANTS
-VAN_SPAN = VAN["GO_VAN_OUTLINE_BOTTOM"] - VAN["GO_VAN_OUTLINE_TOP"]  # the van height covers the outline rows
+VAN_SPAN = VAN["GENONLINE_VAN_OUTLINE_BOTTOM"] - VAN["GENONLINE_VAN_OUTLINE_TOP"]  # the van height covers the outline rows
 
 
 def van_strip_frames(path, frames=VAN_WHEEL_FRAMES):
@@ -1078,13 +1078,13 @@ def van_scale(value, height):
 
 
 def van_above(road):
-    """The van height over a bar (about 1.8 times the road height, at least GO_VAN_MIN_HEIGHT) and the strip above the
+    """The van height over a bar (about 1.8 times the road height, at least GENONLINE_VAN_MIN_HEIGHT) and the strip above the
     road it can reach at any progress, bob and puffs included: (left, top, right, bottom)."""
     left, top, right, bottom = road
-    height = max(VAN["GO_VAN_MIN_HEIGHT"], (bottom - top) * 9 // 5)
+    height = max(VAN["GENONLINE_VAN_MIN_HEIGHT"], (bottom - top) * 9 // 5)
     s = lambda v: van_scale(v, height)  # noqa: E731
-    lowest = left + s(VAN["GO_VAN_BUMPER"] - VAN["GO_VAN_REAR_TYRE"]) - s(VAN["GO_VAN_BUMPER"])
-    return height, (lowest, top - s(VAN["GO_VAN_TYRE_BOTTOM"] - VAN["GO_VAN_OUTLINE_TOP"] + VAN["GO_VAN_BOB"]), right, top)
+    lowest = left + s(VAN["GENONLINE_VAN_BUMPER"] - VAN["GENONLINE_VAN_REAR_TYRE"]) - s(VAN["GENONLINE_VAN_BUMPER"])
+    return height, (lowest, top - s(VAN["GENONLINE_VAN_TYRE_BOTTOM"] - VAN["GENONLINE_VAN_OUTLINE_TOP"] + VAN["GENONLINE_VAN_BOB"]), right, top)
 
 
 def van_layout(road, progress, above_clear):
@@ -1095,11 +1095,11 @@ def van_layout(road, progress, above_clear):
     if not above_clear(strip):
         return None
     s = lambda v: van_scale(v, height)  # noqa: E731
-    first = road[0] + s(VAN["GO_VAN_BUMPER"] - VAN["GO_VAN_REAR_TYRE"])
-    last = road[2] - s(VAN["GO_VAN_OUTLINE_RIGHT"] - VAN["GO_VAN_BUMPER"])
+    first = road[0] + s(VAN["GENONLINE_VAN_BUMPER"] - VAN["GENONLINE_VAN_REAR_TYRE"])
+    last = road[2] - s(VAN["GENONLINE_VAN_OUTLINE_RIGHT"] - VAN["GENONLINE_VAN_BUMPER"])
     bumper = first + (last - first) * max(0, min(100, progress)) // 100
-    x0, y0 = bumper - s(VAN["GO_VAN_BUMPER"]), road[1] - s(VAN["GO_VAN_TYRE_BOTTOM"])
-    return height, (x0, y0, x0 + s(VAN["GO_VAN_FRAME_WIDTH"]), y0 + s(VAN["GO_VAN_FRAME_HEIGHT"]))
+    x0, y0 = bumper - s(VAN["GENONLINE_VAN_BUMPER"]), road[1] - s(VAN["GENONLINE_VAN_TYRE_BOTTOM"])
+    return height, (x0, y0, x0 + s(VAN["GENONLINE_VAN_FRAME_WIDTH"]), y0 + s(VAN["GENONLINE_VAN_FRAME_HEIGHT"]))
 
 
 def load_road_lit_end(road, progress):
@@ -1109,33 +1109,33 @@ def load_road_lit_end(road, progress):
 
 
 def van_settle(now, changed_at):
-    """(moving, envelope): moving until progress has stood still GO_VAN_STALL_MS, then the wiggle fades out over
-    GO_VAN_SETTLE_MS."""
+    """(moving, envelope): moving until progress has stood still GENONLINE_VAN_STALL_MS, then the wiggle fades out over
+    GENONLINE_VAN_SETTLE_MS."""
     still = now - changed_at
-    if still < VAN["GO_VAN_STALL_MS"]:
+    if still < VAN["GENONLINE_VAN_STALL_MS"]:
         return True, 1.0
-    return False, max(0.0, 1.0 - (still - VAN["GO_VAN_STALL_MS"]) / VAN["GO_VAN_SETTLE_MS"])
+    return False, max(0.0, 1.0 - (still - VAN["GENONLINE_VAN_STALL_MS"]) / VAN["GENONLINE_VAN_SETTLE_MS"])
 
 
 def van_wheel_frame(now, moving, frame):
     """The wheel frame: from the clock at about 12 per second while moving, the last one while parked."""
-    return (now // VAN["GO_VAN_FRAME_MS"]) % VAN["GO_VAN_WHEEL_FRAMES"] if moving else frame
+    return (now // VAN["GENONLINE_VAN_FRAME_MS"]) % VAN["GENONLINE_VAN_WHEEL_FRAMES"] if moving else frame
 
 
 def van_wave(now):
     """The suspension rhythm in -1..1: two sines at unrelated rates, so the bounce never repeats a beat. The clock wraps
-    first, on GO_VAN_WAVE_MS that holds whole beats of both, so the phase keeps its precision at any uptime."""
+    first, on GENONLINE_VAN_WAVE_MS that holds whole beats of both, so the phase keeps its precision at any uptime."""
     r = VAN_REAL_CONSTANTS
-    t = (now % VAN["GO_VAN_WAVE_MS"]) / 1000.0
-    return (r["GO_VAN_BOB_WEIGHT_A"] * math.sin(2 * math.pi * r["GO_VAN_BOB_HZ_A"] * t)
-            + (1 - r["GO_VAN_BOB_WEIGHT_A"]) * math.sin(2 * math.pi * r["GO_VAN_BOB_HZ_B"] * t + r["GO_VAN_BOB_PHASE_B"]))
+    t = (now % VAN["GENONLINE_VAN_WAVE_MS"]) / 1000.0
+    return (r["GENONLINE_VAN_BOB_WEIGHT_A"] * math.sin(2 * math.pi * r["GENONLINE_VAN_BOB_HZ_A"] * t)
+            + (1 - r["GENONLINE_VAN_BOB_WEIGHT_A"]) * math.sin(2 * math.pi * r["GENONLINE_VAN_BOB_HZ_B"] * t + r["GENONLINE_VAN_BOB_PHASE_B"]))
 
 
 def van_wiggle(now, height, envelope):
-    """(body bob, dish sway) in whole pixels: the body bobs GO_VAN_BOB canvas texels at most, the dish follows the same
-    rhythm GO_VAN_DISH_LAG_MS later, one pixel sideways; both settle with the envelope."""
-    bob = math.floor(VAN["GO_VAN_BOB"] * height / VAN_SPAN * envelope * van_wave(now) + 0.5)
-    sway = math.floor(envelope * van_wave(now - VAN["GO_VAN_DISH_LAG_MS"]) + 0.5)
+    """(body bob, dish sway) in whole pixels: the body bobs GENONLINE_VAN_BOB canvas texels at most, the dish follows the same
+    rhythm GENONLINE_VAN_DISH_LAG_MS later, one pixel sideways; both settle with the envelope."""
+    bob = math.floor(VAN["GENONLINE_VAN_BOB"] * height / VAN_SPAN * envelope * van_wave(now) + 0.5)
+    sway = math.floor(envelope * van_wave(now - VAN["GENONLINE_VAN_DISH_LAG_MS"]) + 0.5)
     return bob, sway
 
 
@@ -1144,17 +1144,17 @@ def van_hash(value):
 
 
 def van_puff_life(h):
-    """A puff's life from its hash: GO_VAN_PUFF_LIFE_MS plus a slice of the hash wide enough for the whole spread."""
-    return VAN["GO_VAN_PUFF_LIFE_MS"] + (h >> 20) % VAN["GO_VAN_PUFF_LIFE_SPREAD_MS"]
+    """A puff's life from its hash: GENONLINE_VAN_PUFF_LIFE_MS plus a slice of the hash wide enough for the whole spread."""
+    return VAN["GENONLINE_VAN_PUFF_LIFE_MS"] + (h >> 20) % VAN["GENONLINE_VAN_PUFF_LIFE_SPREAD_MS"]
 
 
 class VanBar:
     """One bar's van state as drawGoLoadBarVan keeps it: the progress clock, the wheel frame and a fixed ring of puffs."""
 
     def __init__(self, now, progress, position):
-        self.progress, self.position, self.changed_at = progress, position, now - VAN["GO_VAN_STALL_MS"] - VAN["GO_VAN_SETTLE_MS"]
+        self.progress, self.position, self.changed_at = progress, position, now - VAN["GENONLINE_VAN_STALL_MS"] - VAN["GENONLINE_VAN_SETTLE_MS"]
         self.spawned_at, self.frame, self.credit, self.next = now, 0, 0.0, 0
-        self.puffs = [None] * VAN["GO_VAN_PUFFS"]  # (born, life, x, y, height)
+        self.puffs = [None] * VAN["GENONLINE_VAN_PUFFS"]  # (born, life, x, y, height)
 
     def step(self, now, progress, position, layout):
         """Advance to now and return (moving, envelope); spawns a puff behind the rear wheel of the layout rect as the van
@@ -1169,18 +1169,18 @@ class VanBar:
             self.credit = 0.0
             return moving, envelope
         height, (x0, y0, _, _) = layout
-        self.credit = min(float(VAN["GO_VAN_PUFF_CREDIT"]),
-                          self.credit + travel / max(1, van_scale(VAN["GO_VAN_PUFF_TRAVEL"], height)))
-        if self.credit >= 1.0 and now - self.spawned_at >= VAN["GO_VAN_PUFF_GAP_MS"]:
+        self.credit = min(float(VAN["GENONLINE_VAN_PUFF_CREDIT"]),
+                          self.credit + travel / max(1, van_scale(VAN["GENONLINE_VAN_PUFF_TRAVEL"], height)))
+        if self.credit >= 1.0 and now - self.spawned_at >= VAN["GENONLINE_VAN_PUFF_GAP_MS"]:
             self.credit -= 1.0
             self.spawned_at = now
             h = van_hash(now + self.next)
-            jitter = VAN["GO_VAN_PUFF_JITTER"]
-            x = x0 + van_scale(VAN["GO_VAN_PUFF_SPAWN_X"] + (h >> 8) % (2 * jitter + 1) - jitter, height)
-            y = y0 + van_scale(VAN["GO_VAN_PUFF_SPAWN_Y"] + (h >> 16) % (2 * jitter + 1) - jitter, height)
+            jitter = VAN["GENONLINE_VAN_PUFF_JITTER"]
+            x = x0 + van_scale(VAN["GENONLINE_VAN_PUFF_SPAWN_X"] + (h >> 8) % (2 * jitter + 1) - jitter, height)
+            y = y0 + van_scale(VAN["GENONLINE_VAN_PUFF_SPAWN_Y"] + (h >> 16) % (2 * jitter + 1) - jitter, height)
             life = van_puff_life(h)
             self.puffs[self.next] = (now, life, x, y, height)
-            self.next = (self.next + 1) % VAN["GO_VAN_PUFFS"]
+            self.next = (self.next + 1) % VAN["GENONLINE_VAN_PUFFS"]
         return moving, envelope
 
     def puff_rects(self, now, aspect):
@@ -1191,13 +1191,13 @@ class VanBar:
                 continue
             born, life, x, y, height = puff
             t = (now - born) / life
-            size = van_scale(VAN["GO_VAN_PUFF_START"], height) + (van_scale(VAN["GO_VAN_PUFF_END"], height)
-                                                                  - van_scale(VAN["GO_VAN_PUFF_START"], height)) * t
-            cx = x - van_scale(VAN["GO_VAN_PUFF_DRIFT_X"], height) * t
-            cy = y - van_scale(VAN["GO_VAN_PUFF_DRIFT_Y"], height) * t
+            size = van_scale(VAN["GENONLINE_VAN_PUFF_START"], height) + (van_scale(VAN["GENONLINE_VAN_PUFF_END"], height)
+                                                                  - van_scale(VAN["GENONLINE_VAN_PUFF_START"], height)) * t
+            cx = x - van_scale(VAN["GENONLINE_VAN_PUFF_DRIFT_X"], height) * t
+            cy = y - van_scale(VAN["GENONLINE_VAN_PUFF_DRIFT_Y"], height) * t
             w, h = int(size), int(size * aspect)
             out.append((int(cx) - w // 2, int(cy) - h // 2, int(cx) - w // 2 + w, int(cy) - h // 2 + h,
-                        int(VAN["GO_VAN_PUFF_ALPHA"] * (1 - t))))
+                        int(VAN["GENONLINE_VAN_PUFF_ALPHA"] * (1 - t))))
         return out
 
 # ============================== end of the load bar van section ==============================

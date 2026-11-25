@@ -104,9 +104,6 @@ public:
 };
 #endif
 
-#if defined(GENONLINE)
-// TheSuperHackers @refactor GenMP Phase 1: The alias keeps code that names GameSpyConfigInterface compiling.
-typedef IOnlineConfig GameSpyConfigInterface;
-#else
+#if !defined(GENONLINE)
 extern GameSpyConfigInterface *TheGameSpyConfig;
 #endif

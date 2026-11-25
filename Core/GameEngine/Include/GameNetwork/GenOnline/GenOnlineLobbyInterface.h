@@ -105,12 +105,6 @@ enum class EJoinLobbyResult
 
 std::string GenOnlineLastCreateLobbyError();
 
-enum class ELobbyJoinability
-{
-	LobbyJoinability_Public,
-	LobbyJoinability_FriendsOnly,
-};
-
 struct LobbyMemberEntry;
 struct LobbyEntry;
 
@@ -130,7 +124,6 @@ class GenOnlineLobbyInterface
 {
 public:
 	GenOnlineLobbyInterface();
-	void StopMatchStartCountdownIfRunning();
 	void SearchForLobbies(std::function<void()> onStartCallback, std::function<void(std::vector<LobbyEntry>)> onCompleteCallback);
 	void DeregisterForSearchForLobbiesCallback()
 	{
@@ -276,8 +269,6 @@ public:
 
 	void UpdateCurrentLobbyMaxCameraHeight(uint16_t maxCameraHeight);
 
-	void SetJoinability(ELobbyJoinability joinabilityFlag);
-
 	// A null value keeps that setting, both go in one lobby update.
 	void UpdateCurrentLobbyNameAndAccess(const UnicodeString *newName, const bool *friendsOnly);
 
@@ -307,8 +298,6 @@ public:
 
 	void OnJoinedOrCreatedLobby(bool bAlreadyUpdatedDetails, std::function<void(bool)> fnCallback);
 
-	UnicodeString GetCurrentLobbyDisplayName();
-	UnicodeString GetCurrentLobbyMapDisplayName();
 	AsciiString GetCurrentLobbyMapPath();
 
 	void SendChatMessageToCurrentLobby(UnicodeString& strChatMsgUnicode, bool bIsAction);
@@ -402,22 +391,6 @@ public:
 
 	void Tick();
 
-	int64_t GetCurrentLobbyOwnerID()
-	{
-		return m_CurrentLobby.owner;
-	}
-
-	LobbyMemberEntry GetRoomMemberFromIndex(int index)
-	{
-		// TODO_GENONLINE: Optimize data structure
-		if (index < m_CurrentLobby.members.size())
-		{
-			return m_CurrentLobby.members.at(index);
-		}
-
-		return LobbyMemberEntry();
-	}
-
 	LobbyMemberEntry GetRoomMemberFromID(int64_t userid)
 	{
 		for (const LobbyMemberEntry& lobbyMember : m_CurrentLobby.members)
@@ -448,11 +421,6 @@ public:
 	}
 
 	void ApplyLocalUserPropertiesToCurrentNetworkRoom();
-
-	void SetCurrentLobby_AcceptState(bool bAccepted)
-	{
-
-	}
 
 	bool IsHost();
 

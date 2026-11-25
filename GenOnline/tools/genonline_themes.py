@@ -62,13 +62,13 @@ INKSCAPE = Path("C:/Program Files/Inkscape/bin/inkscape.exe")
 LOGO_IMAGE = "GeneralsLogo"
 LOGO_RETAIL_INI = "Data/INI/MappedImages/TextureSize_512/SCSmShellUserInterface512.INI"
 # base GO copy of the retail logo with KEEP_ASPECT, which sorts after the retail file
-BASE_LOGO_INI = "Data/INI/MappedImages/TextureSize_512/ZZ_GeneralsOnline_Logo.INI"
+BASE_LOGO_INI = "Data/INI/MappedImages/TextureSize_512/ZZ_GenOnline_Logo.INI"
 KEEP_ASPECT = "KEEP_ASPECT"  # image status (Core Image.h): window images fit their window at the image's own aspect
 # load screen logo (ShellGameLoadScreen): the Retail style leaves it out (ArchiveFileSystem.cpp
 # isNotGenOnlineInterfaceFile) and keeps the retail title art
-LOAD_LOGO_TEXTURE = "GeneralsOnline_LoadLogo.tga"
+LOAD_LOGO_TEXTURE = "GenOnline_LoadLogo.tga"
 LOAD_LOGO_TGA = f"Art/Textures/{LOAD_LOGO_TEXTURE}"
-LOAD_LOGO_INI = "Data/INI/MappedImages/TextureSize_512/ZZ_GeneralsOnline_LoadLogo.INI"
+LOAD_LOGO_INI = "Data/INI/MappedImages/TextureSize_512/ZZ_GenOnline_LoadLogo.INI"
 LOAD_LOGO_IMAGE = "GOLoadLogo"
 # where the retail TitleScreen draws the Zero Hour logo, in 800x600 layout units: rows 222 to 346
 LOAD_LOGO_TOP = 222

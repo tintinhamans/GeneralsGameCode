@@ -49,7 +49,7 @@ Intro::Intro()
 		m_allowedStateFlags |= 1u << IntroState_TheSuperHackersWait;
 		m_allowedStateFlags |= 1u << IntroState_TheSuperHackers;
 #if defined(GENONLINE)
-        // Please be kind and do not remove the custom logo screen when building a client that includes GeneralsOnline.
+        // Please be kind and do not remove the custom logo screen when building a client that includes Generals Online.
         m_allowedStateFlags |= 1u << IntroState_GOWait;
         m_allowedStateFlags |= 1u << IntroState_GO;
 #endif
@@ -90,7 +90,7 @@ void Intro::update()
 		case IntroState_TheSuperHackers: doTheSuperHackers(); break;
 #if defined(GENONLINE)
         case IntroState_GOWait: doAsyncWait(1200); break;
-        case IntroState_GO: doGeneralsOnlineLogo(); break;
+        case IntroState_GO: doGenOnlineLogo(); break;
 #endif
 		case IntroState_SizzleMovieWait: doAsyncWait(1000); break;
 		case IntroState_SizzleMovie: doSizzleMovie(); break;
@@ -172,7 +172,7 @@ struct DisplaySetting
 };
 
 #if defined(GENONLINE)
-void Intro::doGeneralsOnlineLogo()
+void Intro::doGenOnlineLogo()
 {
 	m_displayEntities.clear();
 

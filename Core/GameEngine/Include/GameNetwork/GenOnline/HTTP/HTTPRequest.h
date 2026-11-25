@@ -46,10 +46,8 @@ public:
 
 	void OnResponsePartialWrite(std::uint8_t* pBuffer, size_t numBytes);
 
-	bool HasStarted() const { return m_bIsStarted; }
 	bool IsComplete() const { return m_bIsComplete; }
 
-	bool NeedsProgressUpdate() const { return m_bNeedsProgressUpdate; }
 	void InvokeProgressUpdateCallback()
 	{
 		if (m_progressCallback != nullptr)
@@ -70,8 +68,6 @@ public:
 	// mainly used for downloads
 	std::vector<uint8_t> GetBuffer() { return m_vecBuffer; }
 	size_t GetBufferSize() { return m_vecBuffer.size(); }
-
-	std::string GetURI() { return m_strURI; }
 
 	ServiceConnection::ProxyRoute GetProxyRoute() const { return m_proxyRoute < m_proxyPolicy.routes.size() ? m_proxyPolicy.routes[m_proxyRoute] : ServiceConnection::ProxyRoute(); }
 
@@ -116,7 +112,6 @@ private:
 
 	const size_t g_initialBufSize = (1024 * 32); // 32KB
 
-	bool m_bNeedsProgressUpdate = false;
 	bool m_bIsStarted = false;
 	bool m_bIsComplete = false;
 

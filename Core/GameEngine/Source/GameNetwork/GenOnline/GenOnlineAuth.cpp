@@ -11,6 +11,8 @@
 #include <random>
 #include <windows.h>
 #include "GameNetwork/GenOnline/CredentialStore.h"
+#include "GameNetwork/GenOnline/GenOnlineClientFile.h"
+#include <filesystem>
 #include "GameNetwork/GameSpyOverlay.h"
 #include "Common/GameEngine.h"
 #include "../json.hpp"
@@ -192,16 +194,6 @@ void GenOnlineAuthInterface::BeginLogin()
 	});
 }
 
-void GenOnlineAuthInterface::BeginLoginOnSelectedRoute()
-{
-	BeginLoginV1();
-}
-
-void GenOnlineAuthInterface::Tick()
-{
-	TickV1();
-}
-
 void GenOnlineAuthInterface::UseAnotherAccount()
 {
 	if (m_loginStage != ELoginStage::SavedLogin)
@@ -213,7 +205,7 @@ void GenOnlineAuthInterface::UseAnotherAccount()
 	++m_loginAttempt;
 	DeleteSavedCredentials();
 	m_strRefreshToken = std::string();
-	StartBrowserSignInV1(m_loginAttempt, true);
+	StartBrowserSignIn(m_loginAttempt, true);
 }
 
 void GenOnlineAuthInterface::CancelLogin()
@@ -221,7 +213,7 @@ void GenOnlineAuthInterface::CancelLogin()
 	// GenOnline @feature arcticdolphin 08/11/2026 Drop the replies still on their way and stop polling, so a cancelled login never completes later.
 	++m_loginAttempt;
 	m_pSignIn->Cancel();
-	AbandonRefreshV1();
+	AbandonRefresh();
 
 	if (GenOnlineServicesManager::GetInstance() != nullptr)
 	{
@@ -229,7 +221,7 @@ void GenOnlineAuthInterface::CancelLogin()
 
 		// GenOnline @bugfix arcticdolphin 09/11/2026 Nothing on the main menu acts on the pending teardown, so tear down now. This also closes a websocket a finishing login opened.
 		GenOnlineServicesManager::GetInstance()->ConsumePendingFullTeardown();
-		TearDownGeneralsOnline();
+		TearDownGenOnline();
 	}
 
 	OnLoginComplete(ELoginResult::UserCancelled, "");
@@ -278,35 +270,35 @@ void GenOnlineAuthInterface::OnLoginComplete(ELoginResult loginResult, const cha
 	}
 }
 
-static int64_t NowMsV1();
+static int64_t UtcNowMs();
 
 static const int64_t LOGOUT_TIMEOUT_MS = 3000;
 
 void GenOnlineAuthInterface::LogoutOfMyAccount(std::function<void()> fnDone)
 {
 	// A second logout while one runs only waits for the first.
-	if (m_logoutDoneV1 != nullptr)
+	if (m_logoutDone != nullptr)
 	{
 		return;
 	}
-	m_logoutDoneV1 = fnDone != nullptr ? fnDone : []() {};
-	m_logoutDeadlineV1 = NowMsV1() + LOGOUT_TIMEOUT_MS;
+	m_logoutDone = fnDone != nullptr ? fnDone : []() {};
+	m_logoutDeadline = UtcNowMs() + LOGOUT_TIMEOUT_MS;
 
 	// A refresh that finishes after the logout would save a new refresh token, so it is dropped.
 	m_pSignIn->Cancel();
-	AbandonRefreshV1();
+	AbandonRefresh();
 
 	// The session ends first, then the refresh token is revoked. The token is attached here because the session is cleared before the request starts.
-	const std::string strOrigin = ServiceOriginV1();
+	const std::string strOrigin = ServiceOrigin();
 	const std::string strRefreshToken = m_strRefreshToken;
 	const std::string strURI = strOrigin + "/api/v1/auth/session";
 	const std::string strAuthorization = "Bearer " + m_strToken;
 	// Each send gets the full wait for its answer, so standby retries during a service switch finish before the teardown.
 	auto fnRestartWait = [this]()
 	{
-		if (m_logoutDoneV1 != nullptr)
+		if (m_logoutDone != nullptr)
 		{
-			m_logoutDeadlineV1 = NowMsV1() + LOGOUT_TIMEOUT_MS;
+			m_logoutDeadline = UtcNowMs() + LOGOUT_TIMEOUT_MS;
 		}
 	};
 	// A standby retry ends with the logout, so a late answer never revokes during a new sign-in.
@@ -329,32 +321,32 @@ void GenOnlineAuthInterface::LogoutOfMyAccount(std::function<void()> fnDone)
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Session ended with status %d", statusCode);
 			m_pSignIn->Revoke(strOrigin, strRefreshToken, [this]()
 				{
-					FinishLogoutV1();
+					FinishLogout();
 				}, fnRestartWait);
 		},
 		[this]()
 		{
-			return GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>() == this && m_logoutDoneV1 != nullptr;
+			return GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>() == this && m_logoutDone != nullptr;
 		});
 	DeleteSavedCredentials();
-	ClearSessionV1();
+	ClearSession();
 }
 
-void GenOnlineAuthInterface::FinishLogoutV1()
+void GenOnlineAuthInterface::FinishLogout()
 {
-	if (m_logoutDoneV1 == nullptr)
+	if (m_logoutDone == nullptr)
 	{
 		return;
 	}
 	std::function<void()> fnDone;
-	fnDone.swap(m_logoutDoneV1);
-	m_logoutDeadlineV1 = -1;
+	fnDone.swap(m_logoutDone);
+	m_logoutDeadline = -1;
 	fnDone();
 }
 
 void GenOnlineAuthInterface::DeleteSavedCredentials()
 {
-	ServiceConnection::DeleteRefreshToken(CredentialServerKeyV1());
+	ServiceConnection::DeleteRefreshToken(CredentialServerKey());
 }
 
 void GenOnlineAuthInterface::LoginAsSecondaryDevAccount()
@@ -368,7 +360,7 @@ bool GenOnlineAuthInterface::GetCredentials()
 	return false;
 #endif
 	std::string strToken;
-	if (!ServiceConnection::LoadRefreshToken(CredentialServerKeyV1(), strToken))
+	if (!ServiceConnection::LoadRefreshToken(CredentialServerKey(), strToken))
 	{
 		return false;
 	}
@@ -389,51 +381,52 @@ static const char* CredentialsFileName()
 
 std::string GenOnlineAuthInterface::GetCredentialsFilePath()
 {
+	// Empty when the GenOnline root cannot be resolved, the store then keeps the login for this session only.
+	const std::wstring root = GenOnlineClientFile::RootFolder();
+	if (root.empty())
+	{
+		return std::string();
+	}
+	std::error_code ec;
+	std::filesystem::create_directories(root, ec);
 	// debug supports multi inst, so needs seperate tokens
 #if defined(_DEBUG) && !defined(GENONLINE_BUILD_ENVIRONMENT)
-	std::string strCredsPath = std::format("{}/GeneralsOnlineData/credentials_dev_env_{}.json", TheGlobalData->getPath_UserData().str(), rts::ClientInstance::getInstanceIndex());
+	const std::wstring file = std::format(L"credentials_dev_env_{}.json", rts::ClientInstance::getInstanceIndex());
 #else
-	std::string strCredsPath = std::format("{}/GeneralsOnlineData/{}", TheGlobalData->getPath_UserData().str(), CredentialsFileName());
+	const std::wstring file = std::filesystem::path(CredentialsFileName()).wstring();
 #endif
-	return strCredsPath;
+	return std::filesystem::path(root + L"\\" + file).string();
 }
 
 
-static int64_t NowMsV1()
+static int64_t UtcNowMs()
 {
 	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 }
 
-// The OAuth refresh token has its own key, so it never mixes with a legacy login token of the same server.
-std::string GenOnlineAuthInterface::CredentialServerKeyV1()
-{
-	const std::string key = CredentialServerKey();
-	return key.empty() ? std::string() : "oauth:" + key;
-}
-
-std::string GenOnlineAuthInterface::ServiceOriginV1()
+std::string GenOnlineAuthInterface::ServiceOrigin()
 {
 	return GenOnlineRealtime::OriginOfBase(GenOnlineServicesManager::GetAPIEndpoint(""));
 }
 
-void GenOnlineAuthInterface::BeginLoginV1()
+void GenOnlineAuthInterface::BeginLoginOnSelectedRoute()
 {
 	const int loginAttempt = ++m_loginAttempt;
-	AbandonRefreshV1();
-	if (ServiceOriginV1().empty())
+	AbandonRefresh();
+	if (ServiceOrigin().empty())
 	{
-		FailLoginV1(L"No trusted service route could be reached. Check Connection settings in Options, then try again.");
+		FailLogin(L"No trusted service route could be reached. Check Connection settings in Options, then try again.");
 		return;
 	}
 
 	if (!GetCredentials() || m_strRefreshToken.empty())
 	{
-		StartBrowserSignInV1(loginAttempt, true);
+		StartBrowserSignIn(loginAttempt, true);
 		return;
 	}
 
 	m_loginStage = ELoginStage::SavedLogin;
-	m_pSignIn->Refresh(ServiceOriginV1(), m_strRefreshToken, [this, loginAttempt](const GenOnlineSignIn::Result& result)
+	m_pSignIn->Refresh(ServiceOrigin(), m_strRefreshToken, [this, loginAttempt](const GenOnlineSignIn::Result& result)
 		{
 			if (loginAttempt != m_loginAttempt)
 			{
@@ -441,7 +434,7 @@ void GenOnlineAuthInterface::BeginLoginV1()
 			}
 			if (result.outcome == GenOnlineSignIn::Outcome::Succeeded)
 			{
-				CompleteSignInV1(result.tokens, loginAttempt);
+				CompleteSignIn(result.tokens, loginAttempt);
 				return;
 			}
 			if (result.outcome == GenOnlineSignIn::Outcome::InvalidGrant)
@@ -449,16 +442,16 @@ void GenOnlineAuthInterface::BeginLoginV1()
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: The saved login is no longer valid, signing in again");
 				DeleteSavedCredentials();
 				m_strRefreshToken = std::string();
-				StartBrowserSignInV1(loginAttempt, false);
+				StartBrowserSignIn(loginAttempt, false);
 				return;
 			}
-			FailLoginV1(L"The sign-in service could not be reached. Try again later.");
+			FailLogin(L"The sign-in service could not be reached. Try again later.");
 		});
 }
 
-void GenOnlineAuthInterface::StartBrowserSignInV1(int loginAttempt, bool promptLogin)
+void GenOnlineAuthInterface::StartBrowserSignIn(int loginAttempt, bool promptLogin)
 {
-	AbandonRefreshV1();
+	AbandonRefresh();
 	// The accounts page offers every sign-in provider, so the client opens it directly.
 	m_loginStage = ELoginStage::WaitingForBrowser;
 	if (!m_bSignInScreen)
@@ -474,7 +467,7 @@ void GenOnlineAuthInterface::StartBrowserSignInV1(int loginAttempt, bool promptL
 			});
 	}
 
-	m_pSignIn->Start(ServiceOriginV1(), [this, loginAttempt](const GenOnlineSignIn::Result& result)
+	m_pSignIn->Start(ServiceOrigin(), [this, loginAttempt](const GenOnlineSignIn::Result& result)
 		{
 			if (loginAttempt != m_loginAttempt)
 			{
@@ -482,7 +475,7 @@ void GenOnlineAuthInterface::StartBrowserSignInV1(int loginAttempt, bool promptL
 			}
 			if (result.outcome == GenOnlineSignIn::Outcome::Succeeded)
 			{
-				CompleteSignInV1(result.tokens, loginAttempt);
+				CompleteSignIn(result.tokens, loginAttempt);
 				return;
 			}
 			if (result.outcome == GenOnlineSignIn::Outcome::Cancelled)
@@ -490,7 +483,7 @@ void GenOnlineAuthInterface::StartBrowserSignInV1(int loginAttempt, bool promptL
 				CancelLogin();
 				return;
 			}
-			FailLoginV1(L"The sign-in did not complete. Try again.");
+			FailLogin(L"The sign-in did not complete. Try again.");
 		}, promptLogin);
 }
 
@@ -504,11 +497,11 @@ static OnlineBanDetails BanDetailsFromError(const GenOnlineRealtime::ApiErrorInf
 	return ban;
 }
 
-void GenOnlineAuthInterface::CompleteSignInV1(const GenOnlineRealtime::TokenResponse& tokens, int loginAttempt)
+void GenOnlineAuthInterface::CompleteSignIn(const GenOnlineRealtime::TokenResponse& tokens, int loginAttempt)
 {
-	ApplyTokensV1(tokens);
+	ApplyTokens(tokens);
 	m_loginStage = ELoginStage::Finishing;
-	RegisterSessionV1([this, loginAttempt](int statusCode, const std::string& strBody)
+	RegisterSession([this, loginAttempt](int statusCode, const std::string& strBody)
 		{
 			if (loginAttempt != m_loginAttempt)
 			{
@@ -532,12 +525,12 @@ void GenOnlineAuthInterface::CompleteSignInV1(const GenOnlineRealtime::TokenResp
 			else if (statusCode == 403)
 			{
 				const GenOnlineRealtime::ApiErrorInfo error = GenOnlineRealtime::ParseApiError(strBody);
-				ClearSessionV1();
+				ClearSession();
 				// A build the service does not accept is no ban.
 				if (error.code == "session.build_not_accepted")
 				{
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: The service does not accept this build");
-					FailLoginV1(GenOnlineRealtimeBridge::FailureText(error.code, error.params).c_str());
+					FailLogin(GenOnlineRealtimeBridge::FailureText(error.code, error.params).c_str());
 					return;
 				}
 				m_loginStage = ELoginStage::Failed;
@@ -552,33 +545,31 @@ void GenOnlineAuthInterface::CompleteSignInV1(const GenOnlineRealtime::TokenResp
 			if (statusCode == 401)
 			{
 				DeleteSavedCredentials();
-				ClearSessionV1();
-				FailLoginV1(GenOnlineRealtimeBridge::FailureText("unauthorized", nlohmann::json::object()).c_str());
+				ClearSession();
+				FailLogin(GenOnlineRealtimeBridge::FailureText("unauthorized", nlohmann::json::object()).c_str());
 				return;
 			}
-			ClearSessionV1();
-			FailLoginV1(L"The game session could not be registered. Try again.");
+			ClearSession();
+			FailLogin(L"The game session could not be registered. Try again.");
 		});
 }
 
-void GenOnlineAuthInterface::ApplyTokensV1(const GenOnlineRealtime::TokenResponse& tokens)
+void GenOnlineAuthInterface::ApplyTokens(const GenOnlineRealtime::TokenResponse& tokens)
 {
 	m_strToken = tokens.access_token;
 	m_strRefreshToken = tokens.refresh_token;
 	// A failed save keeps the token for this session.
-	ServiceConnection::SaveRefreshToken(CredentialServerKeyV1(), m_strRefreshToken);
-	// The login token of the legacy service is no longer used, so a sign-in deletes it.
-	ServiceConnection::DeleteRefreshToken(CredentialServerKey());
+	ServiceConnection::SaveRefreshToken(CredentialServerKey(), m_strRefreshToken);
 	// The refresh runs 2 minutes before the expiry, or halfway through a token that lasts 4 minutes or less.
 	const int64_t lifetimeMs = std::max<int64_t>(tokens.expires_in, 60) * 1000;
-	const int64_t now = NowMsV1();
+	const int64_t now = UtcNowMs();
 	m_accessTokenExpiry = now + lifetimeMs;
 	m_accessTokenRefreshAt = now + std::max<int64_t>(lifetimeMs / 2, lifetimeMs - 120 * 1000);
-	m_nextRefreshRetryV1 = -1;
+	m_nextRefreshRetry = -1;
 }
 
 // The session carries the build identity, so the lobby and queue calls of this session do not.
-void GenOnlineAuthInterface::RegisterSessionV1(std::function<void(int statusCode, const std::string& strBody)> fnDone)
+void GenOnlineAuthInterface::RegisterSession(std::function<void(int statusCode, const std::string& strBody)> fnDone)
 {
 	GenOnlineRealtime::AuthSessionRequest request;
 	request.machine_guid = GetMachineGuid();
@@ -600,7 +591,7 @@ void GenOnlineAuthInterface::RegisterSessionV1(std::function<void(int statusCode
 				fnAnswer(false, 0, std::string(), nullptr);
 				return;
 			}
-			const std::string strURI = ServiceOriginV1() + "/api/v1/auth/session";
+			const std::string strURI = ServiceOrigin() + "/api/v1/auth/session";
 			std::map<std::string, std::string> mapHeaders;
 			mapHeaders["Content-Type"] = "application/json";
 			mapHeaders["Authorization"] = "Bearer " + m_strToken;
@@ -617,24 +608,24 @@ void GenOnlineAuthInterface::RegisterSessionV1(std::function<void(int statusCode
 }
 
 // Callers that arrive while a refresh runs wait for it, since a second refresh would spend the rotated token twice.
-void GenOnlineAuthInterface::RefreshTokensV1(std::function<void(bool bRefreshed)> fnDone)
+void GenOnlineAuthInterface::RefreshTokens(std::function<void(bool bRefreshed)> fnDone)
 {
 	if (fnDone)
 	{
-		m_refreshWaitersV1.push_back(fnDone);
+		m_refreshWaiters.push_back(fnDone);
 	}
-	if (m_bRefreshInFlightV1)
+	if (m_bRefreshInFlight)
 	{
 		return;
 	}
-	m_bRefreshInFlightV1 = true;
-	m_pSignIn->Refresh(ServiceOriginV1(), m_strRefreshToken, [this](const GenOnlineSignIn::Result& result)
+	m_bRefreshInFlight = true;
+	m_pSignIn->Refresh(ServiceOrigin(), m_strRefreshToken, [this](const GenOnlineSignIn::Result& result)
 		{
-			m_bRefreshInFlightV1 = false;
+			m_bRefreshInFlight = false;
 			bool bRefreshed = false;
 			if (result.outcome == GenOnlineSignIn::Outcome::Succeeded)
 			{
-				ApplyTokensV1(result.tokens);
+				ApplyTokens(result.tokens);
 				bRefreshed = true;
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Token refreshed");
 			}
@@ -644,9 +635,9 @@ void GenOnlineAuthInterface::RefreshTokensV1(std::function<void(bool bRefreshed)
 				DeleteSavedCredentials();
 				GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::AUTH_FAILED);
 			}
-			else if (NowMsV1() + m_secondsUntilRefreshRetry * 1000 < m_accessTokenExpiry)
+			else if (UtcNowMs() + m_secondsUntilRefreshRetry * 1000 < m_accessTokenExpiry)
 			{
-				m_nextRefreshRetryV1 = NowMsV1() + m_secondsUntilRefreshRetry * 1000;
+				m_nextRefreshRetry = UtcNowMs() + m_secondsUntilRefreshRetry * 1000;
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Token refresh failed, retrying in %ds", m_secondsUntilRefreshRetry);
 			}
 			else
@@ -656,7 +647,7 @@ void GenOnlineAuthInterface::RefreshTokensV1(std::function<void(bool bRefreshed)
 			}
 
 			std::vector<std::function<void(bool)>> waiters;
-			waiters.swap(m_refreshWaitersV1);
+			waiters.swap(m_refreshWaiters);
 			for (auto& waiter : waiters)
 			{
 				waiter(bRefreshed);
@@ -678,7 +669,7 @@ void GenOnlineAuthInterface::RecoverRealtimeSession(bool bRefreshToken, bool bRe
 				fnDone(true);
 				return;
 			}
-			RegisterSessionV1([fnDone](int statusCode, const std::string& strBody)
+			RegisterSession([fnDone](int statusCode, const std::string& strBody)
 				{
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Session registered again with status %d", statusCode);
 					// A ban ends the session with its dialog, which a later teardown reason does not replace.
@@ -695,7 +686,7 @@ void GenOnlineAuthInterface::RecoverRealtimeSession(bool bRefreshToken, bool bRe
 		fnRegister();
 		return;
 	}
-	RefreshTokensV1([fnRegister, fnDone](bool bRefreshed)
+	RefreshTokens([fnRegister, fnDone](bool bRefreshed)
 		{
 			if (!bRefreshed)
 			{
@@ -706,7 +697,7 @@ void GenOnlineAuthInterface::RecoverRealtimeSession(bool bRefreshToken, bool bRe
 		});
 }
 
-void GenOnlineAuthInterface::FailLoginV1(const wchar_t* szText)
+void GenOnlineAuthInterface::FailLogin(const wchar_t* szText)
 {
 	m_loginStage = ELoginStage::Failed;
 	ClearGSMessageBoxes();
@@ -720,53 +711,53 @@ void GenOnlineAuthInterface::FailLoginV1(const wchar_t* szText)
 		});
 }
 
-void GenOnlineAuthInterface::ClearSessionV1()
+void GenOnlineAuthInterface::ClearSession()
 {
 	m_strToken = std::string();
 	m_strRefreshToken = std::string();
 	m_userID = -1;
 	m_accessTokenExpiry = -1;
 	m_accessTokenRefreshAt = -1;
-	m_nextRefreshRetryV1 = -1;
+	m_nextRefreshRetry = -1;
 }
 
 // The sign-in object runs one request at a time. Starting another one drops a running refresh, whose waiters fail.
-void GenOnlineAuthInterface::AbandonRefreshV1()
+void GenOnlineAuthInterface::AbandonRefresh()
 {
-	if (!m_bRefreshInFlightV1)
+	if (!m_bRefreshInFlight)
 	{
 		return;
 	}
-	m_bRefreshInFlightV1 = false;
+	m_bRefreshInFlight = false;
 	std::vector<std::function<void(bool)>> waiters;
-	waiters.swap(m_refreshWaitersV1);
+	waiters.swap(m_refreshWaiters);
 	for (auto& waiter : waiters)
 	{
 		waiter(false);
 	}
 }
 
-void GenOnlineAuthInterface::TickV1()
+void GenOnlineAuthInterface::Tick()
 {
 	m_pSignIn->Tick();
 
-	if (m_logoutDeadlineV1 != -1 && NowMsV1() >= m_logoutDeadlineV1)
+	if (m_logoutDeadline != -1 && UtcNowMs() >= m_logoutDeadline)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: The service did not answer the logout in time");
-		FinishLogoutV1();
+		FinishLogout();
 	}
 
-	if (!IsLoggedIn() || m_accessTokenExpiry == -1 || m_bRefreshInFlightV1)
+	if (!IsLoggedIn() || m_accessTokenExpiry == -1 || m_bRefreshInFlight)
 	{
 		return;
 	}
 	// Refreshing before the expiry leaves room for a retry.
-	const int64_t now = NowMsV1();
-	const bool bRetryDue = m_nextRefreshRetryV1 != -1 && now >= m_nextRefreshRetryV1;
-	const bool bRefreshDue = m_nextRefreshRetryV1 == -1 && now >= m_accessTokenRefreshAt;
+	const int64_t now = UtcNowMs();
+	const bool bRetryDue = m_nextRefreshRetry != -1 && now >= m_nextRefreshRetry;
+	const bool bRefreshDue = m_nextRefreshRetry == -1 && now >= m_accessTokenRefreshAt;
 	if (bRetryDue || bRefreshDue)
 	{
-		m_nextRefreshRetryV1 = -1;
-		RefreshTokensV1(nullptr);
+		m_nextRefreshRetry = -1;
+		RefreshTokens(nullptr);
 	}
 }

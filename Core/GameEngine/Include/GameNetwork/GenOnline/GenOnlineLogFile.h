@@ -1,6 +1,6 @@
 #pragma once
 
-// Self-contained helpers for GeneralsOnline.log: size rotation, UTC timestamps and the session header system info
+// Self-contained helpers for genonline.log: size rotation, UTC timestamps and the session header system info
 
 #include <windows.h>
 #include <intrin.h>
@@ -20,7 +20,7 @@ inline uint64_t GetLogFileSize(const std::string& strPath)
 	return (static_cast<uint64_t>(attributes.nFileSizeHigh) << 32) | attributes.nFileSizeLow;
 }
 
-// GeneralsOnline.log -> GeneralsOnline.1.log
+// genonline.log -> genonline.1.log
 inline std::string GetRotatedLogFileName(const std::string& strPath)
 {
 	const size_t dotPos = strPath.find_last_of('.');

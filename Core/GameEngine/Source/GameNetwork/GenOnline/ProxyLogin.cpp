@@ -551,11 +551,6 @@ void PumpMainThreadTasks()
 	}
 }
 
-bool IsProxyLoginOpen()
-{
-	return dialog.layout != nullptr;
-}
-
 void RequestProxyLogin(const ProxyRoute &route, std::function<void(bool)> done)
 {
 	if (!openDialog(false))

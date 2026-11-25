@@ -1482,11 +1482,6 @@ static void ShowBuddyConversation(GenOnlineSocialInterface* pSocialInterface, in
 	}
 }
 
-void GenOnlinePopulateOldBuddyMessages()
-{
-	// TODO_SOCIAL
-}
-
 //-------------------------------------------------------------------------------------------------
 /** Initialize the WOL Buddy Overlay */
 //-------------------------------------------------------------------------------------------------
@@ -1496,9 +1491,6 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 	buttonHideID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonHide" );
 	buttonAddBuddyID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonAdd" );
 	buttonDeleteBuddyID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonDelete" );
-	//textEntryID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:TextEntryChat" );
-	//listboxBuddyID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ListboxBuddies" );
-	//listboxChatID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ListboxBuddyChat" );
 	buttonAcceptBuddyID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonYes" );
 	buttonDenyBuddyID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonNo" );
 	radioButtonBuddiesID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:RadioButtonBuddies" );
@@ -1514,7 +1506,6 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 	buttonMoreID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonMore" );
 	s_peerID = -1;
 
-// TODO_SOCIAL: Lobby sort list by member
 	//
 	// NOTE Init is only called when the UI is visible, so don't register for callbacks that you want to occur anytime
 	// GO: register for callbacks
@@ -1523,7 +1514,6 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 	{
 		pSocialInterface->RegisterForRealtimeServiceUpdates();
 
-		// TODO_SOCIAL: Maybe later dont clear chat messaages until they open the chat?
 		// we opened things, clear it
 		pSocialInterface->ClearGlobalNotificatations();
 
@@ -1595,9 +1585,6 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 	buttonHide = TheWindowManager->winGetWindowFromId( parent,  buttonHideID);
 	buttonAddBuddy = TheWindowManager->winGetWindowFromId( parent,  buttonAddBuddyID);
 	buttonDeleteBuddy = TheWindowManager->winGetWindowFromId( parent,  buttonDeleteBuddyID);
-	//	textEntry = TheWindowManager->winGetWindowFromId( parent,  textEntryID);
-	//listboxBuddy = TheWindowManager->winGetWindowFromId( parent,  listboxBuddyID);
-	//listboxChat = TheWindowManager->winGetWindowFromId( parent,  listboxChatID);
 	buttonAcceptBuddy = TheWindowManager->winGetWindowFromId( parent,  buttonAcceptBuddyID);
 	buttonDenyBuddy = TheWindowManager->winGetWindowFromId( parent,  buttonDenyBuddyID);
 	radioButtonBuddies = TheWindowManager->winGetWindowFromId( parent,  radioButtonBuddiesID);
@@ -1655,7 +1642,6 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 
 	//GadgetTextEntrySetText(textEntry, UnicodeString::TheEmptyString);
 
-	GenOnlinePopulateOldBuddyMessages();
 
 	// Show Menu
 	layout->hide( FALSE );
@@ -2016,136 +2002,14 @@ WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, UnsignedIn
 					{
 						GenOnlineRequestBuddyAdd((Int)s_peerID, AsciiString(to_utf8(CommunicatorPeerName(pSocial, s_peerID)).c_str()));
 					}
-					/*
-					UnicodeString uName = GadgetTextEntryGetText(textEntry);
-					AsciiString aName;
-					aName.translate(uName);
-					if (!aName.isEmpty())
-					{
-						TheWOLBuddyList->requestBuddyAdd(aName);
-					}
-					GadgetTextEntrySetText(textEntry, UnicodeString::TheEmptyString);
-					*/
 				}
 				else if (controlID == buttonDeleteBuddyID)
 				{
-					/*
-					int selected;
-					AsciiString selectedName = AsciiString::TheEmptyString;
-
-					GadgetListBoxGetSelected(listbox, &selected);
-					if (selected >= 0)
-						selectedName = TheNameKeyGenerator->keyToName((NameKeyType)(int)GadgetListBoxGetItemData(listbox, selected));
-
-					if (!selectedName.isEmpty())
-					{
-						TheWOLBuddyList->requestBuddyDelete(selectedName);
-					}
-					*/
 				}
 				break;
 			}
 		case GLM_DOUBLE_CLICKED:
 			{
-				/*
-				GameWindow *control = (GameWindow *)mData1;
-				Int controlID = control->winGetWindowId();
-				if( controlID == listboxBuddyID )
-				{
-					int rowSelected = mData2;
-
-					if (rowSelected >= 0)
-					{
-						UnicodeString buddyName;
-						GameWindow *listboxWindow = TheWindowManager->winGetWindowFromId( parent, listboxBuddyID );
-
-							// get text of buddy name
-						buddyName = GadgetListBoxGetText( listboxWindow, rowSelected,0 );
-						GPProfile buddyID = (GPProfile)GadgetListBoxGetItemData( listboxWindow, rowSelected, 0 );
-
-						Int index = -1;
-						gpGetBuddyIndex(TheGPConnection, buddyID, &index);
-						if (index >= 0)
-						{
-							GPBuddyStatus status;
-							gpGetBuddyStatus(TheGPConnection, rowSelected, &status);
-
-							UnicodeString string;
-							string.format(L"To join %s in %hs:", buddyName.str(), status.locationString);
-							GameSpyAddText(string, GSCOLOR_DEFAULT);
-
-							if (status.status == GP_CHATTING)
-							{
-								AsciiString location = status.locationString;
-								AsciiString val;
-								location.nextToken(&val, "/");
-								location.nextToken(&val, "/");
-								location.nextToken(&val, "/");
-
-								string.format(L"  ???");
-								if (!val.isEmpty())
-								{
-									Int groupRoom = atoi(val.str());
-									if (TheGameSpyChat->getCurrentGroupRoomID() == groupRoom)
-									{
-										// already there
-										string.format(L"  nothing");
-										GameSpyAddText(string, GSCOLOR_DEFAULT);
-									}
-									else
-									{
-										GroupRoomMap *rooms = TheGameSpyChat->getGroupRooms();
-										if (rooms)
-										{
-											Bool needToJoin = true;
-											GroupRoomMap::iterator it = rooms->find(groupRoom);
-											if (it != rooms->end())
-											{
-												// he's in a different room
-												if (TheGameSpyChat->getCurrentGroupRoomID())
-												{
-													string.format(L"  leave group room");
-													GameSpyAddText(string, GSCOLOR_DEFAULT);
-
-													TheGameSpyChat->leaveRoom(GroupRoom);
-												}
-												else if (TheGameSpyGame->isInGame())
-												{
-													if (TheGameSpyGame->isGameInProgress())
-													{
-														string.format(L"  can't leave game in progress");
-														GameSpyAddText(string, GSCOLOR_DEFAULT);
-														needToJoin = false;
-													}
-													else
-													{
-														string.format(L"  leave game setup");
-														GameSpyAddText(string, GSCOLOR_DEFAULT);
-
-														TheGameSpyChat->leaveRoom(StagingRoom);
-														TheGameSpyGame->leaveGame();
-													}
-												}
-												if (needToJoin)
-												{
-													string.format(L"  join lobby %d", groupRoom);
-													TheGameSpyChat->joinGroupRoom(groupRoom);
-													GameSpyAddText(string, GSCOLOR_DEFAULT);
-												}
-											}
-										}
-									}
-								}
-							}
-						}
-						else
-						{
-							DEBUG_CRASH(("No buddy associated with that ProfileID"));
-							GameSpyUpdateBuddyOverlay();
-						}
-					}
-				}
-				*/
 				break;
 			}
 
@@ -2192,10 +2056,6 @@ WindowMsgHandledType GenOnlinePopupBuddyNotificationSystem( GameWindow *window, 
 	return MSG_HANDLED;
 }
 
-/*
-static NameKeyType buttonAcceptBuddyID = NAMEKEY_INVALID;
-static NameKeyType buttonDenyBuddyID = NAMEKEY_INVALID;
-*/
 static NameKeyType buttonAddID = NAMEKEY_INVALID;
 static NameKeyType buttonDeleteID = NAMEKEY_INVALID;
 static NameKeyType buttonPlayID = NAMEKEY_INVALID;
@@ -2512,30 +2372,10 @@ void GenOnlineRequestBuddyAdd(Int profileID, AsciiString nick)
 	}
 	pSocialInterface->AddFriend(profileID);
 
-	// NOTE: The original Buddy:InviteSent string didn't make its way into the final game...
 	// TODO_GENONLINE: Use the SH localization system for strings instead
-	//UnicodeString s;
-	//s.format(L, nick.str());
-
-
-// TODO_SOCIAL
-// 	// save message for future incarnations of the buddy window
-// 	BuddyMessageList* messages = TheGameSpyInfo->getBuddyMessages();
-// 	BuddyMessage message;
-// 	message.m_timestamp = time(NULL);
-// 	message.m_senderID = 0;
-// 	message.m_senderNick = "";
-// 	message.m_recipientID = TheGameSpyInfo->getLocalProfileID();
-// 	message.m_recipientNick = TheGameSpyInfo->getLocalBaseName();
-// 	message.m_message.format(TheGameText->fetch("Buddy:InviteSentToPlayer"), nick.str());
-
-	// TODO_SOCIAL
-	// insert status into box
-	//messages->push_back(message);
 
 	DEBUG_LOG(("Inserting buddy add request"));
 
-	// TODO_SOCIAL
 	// put message on screen
 
 	// play audio notification
@@ -2644,7 +2484,6 @@ WindowMsgHandledType GenOnlineBuddyOverlayRCMenuSystem( GameWindow *window, Unsi
 						}
 					}
 
-					// TODO_SOCIAL
 				}
 				else if( controlID == buttonPlayID )
 				{
@@ -2739,11 +2578,5 @@ void GenOnlineRefreshIgnoreList()
 				GadgetListBoxSetItemData(listboxIgnore, (void*)(blockedEntry.user_id), index, 0);
 			}
 		});
-
-//
-//	GPProfile profileID = 0;
-//	PlayerInfoMap::iterator it = TheGameSpyInfo->getPlayerInfoMap()->find(aName);
-//	if (it != TheGameSpyInfo->getPlayerInfoMap()->end())
-//		profileID = it->second.m_profileID;
 
 }

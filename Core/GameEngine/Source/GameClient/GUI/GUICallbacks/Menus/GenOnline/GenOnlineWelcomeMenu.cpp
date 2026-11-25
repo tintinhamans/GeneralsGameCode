@@ -123,58 +123,6 @@ void GenOnlineUpdateServerDisplay(UnicodeString serverName)
 	gServerName = serverName;
 }
 
-/*
-void GenOnlineUpdateLocalPlayerScores(AsciiString name, const WOL::Ladder *ladder, const WOL::Highscore *highscore)
-{
-	if (ladder)
-	{
-		AsciiString a;
-		UnicodeString u;
-
-		a.format("%d", ladder->wins);
-		u.translate(a);
-		GadgetStaticTextSetText(staticTextLadderWins, u);
-
-		a.format("%d", ladder->losses);
-		u.translate(a);
-		GadgetStaticTextSetText(staticTextLadderLosses, u);
-
-		a.format("%d", ladder->rank);
-		u.translate(a);
-		GadgetStaticTextSetText(staticTextLadderRank, u);
-
-		a.format("%d", ladder->points);
-		u.translate(a);
-		GadgetStaticTextSetText(staticTextLadderPoints, u);
-
-		a.format("%d", ladder->disconnects);
-		u.translate(a);
-		GadgetStaticTextSetText(staticTextLadderDisconnects, u);
-	}
-	if (highscore)
-	{
-		AsciiString a;
-		UnicodeString u;
-
-		a.format("%d", highscore->wins);
-		u.translate(a);
-		GadgetStaticTextSetText(staticTextHighscoreWins, u);
-
-		a.format("%d", highscore->losses);
-		u.translate(a);
-		GadgetStaticTextSetText(staticTextHighscoreLosses, u);
-
-		a.format("%d", highscore->rank);
-		u.translate(a);
-		GadgetStaticTextSetText(staticTextHighscoreRank, u);
-
-		a.format("%d", highscore->points);
-		u.translate(a);
-		GadgetStaticTextSetText(staticTextHighscorePoints, u);
-	}
-}
-*/
-
 
 static void enableControls( Bool state )
 {
@@ -234,8 +182,6 @@ static void updateNumPlayersOnline()
 		GadgetStaticTextSetText(playersOnlineWindow, valStr);
 	}
 
-	// TODO_GENONLINE
-	//if (listboxInfo && TheGameSpyInfo)
 	if (listboxInfo)
 	{
 		GadgetListBoxReset(listboxInfo);
@@ -304,79 +250,13 @@ static void updateNumPlayersOnline()
 	}
 }
 
-void GenOnlineHandleNumPlayersOnline( Int numPlayersOnline )
-{
-	lastNumPlayersOnline = numPlayersOnline;
-	if (lastNumPlayersOnline < 1)
-		lastNumPlayersOnline = 1;
-	updateNumPlayersOnline();
-}
-
 //-------------------------------------------------------------------------------------------------
 /** Handle Overall Stats data */
 //-------------------------------------------------------------------------------------------------
 static std::map<AsciiString,float> s_winStats;
 static float s_totalWinPercent = 0;
 
-static const char* FindNextNumber( const char* pStart )
-{
-	const char* pNum = strchr( pStart, '\n' );  //go to next line
-	if( !pNum )
-		return pStart;  //error
 
-	while( !isdigit((unsigned char)*pNum) )
-		++pNum;  //go to next number
-	return pNum;
-}
-
-
-//parse win/loss stats received from GameSpy
-void GenOnlineHandleOverallStats( const char* szHTTPStats, unsigned len )
-{
-//x	DEBUG_LOG(("Parsing win percent stats:\n%s", szHTTPStats));
-	//find today's stats
-	const char* pToday = strstr( szHTTPStats, "Today" );
-	if( !pToday )
-	{
-		//error
-		DEBUG_LOG(( "Unable to parse win/loss stats.  Could not find 'Today' in:\n%s", szHTTPStats ));
-		return;
-	}
-	s_winStats.clear();
-	s_totalWinPercent = 0;
-
-	//find win/loss for each side
-	for( int i = 0; i < ThePlayerTemplateStore->getPlayerTemplateCount(); i++)
-	{
-		//get current side (USA, GLA, etc.)
-		const PlayerTemplate* pTemplate = ThePlayerTemplateStore->getNthPlayerTemplate(i);
-		if( !pTemplate->isPlayableSide()  ||  pTemplate->getSide().compare("Boss") == 0 )
-			continue;  //skip non-players
-
-		AsciiString side = pTemplate->getSide();
-		if( side == "America" )
-			side = "USA";  //conform to GameSpy name
-
-		//find this side
-		const char* pSide = strstr( pToday, side.str() );
-		if( pSide == nullptr )
-		{
-			//error, skip this side
-			DEBUG_LOG(( "Unable to parse win/loss stats for %s in:\n%s", side.str(), szHTTPStats ));
-			continue;
-		}
-
-		//Note: win% reported by GameSpy = team's wins / #games played by team
-		//      we want win% = team's wins / total # games played by all teams
-		const char* pTotal = FindNextNumber(pSide);
-		const char* pWins = FindNextNumber(pTotal);
-		float percent = atof(pWins) / max(1,atof(pTotal));  //max prevents divide by zero
-		s_totalWinPercent += percent;
-
-		s_winStats.insert(std::make_pair( side, percent ));
-//x		DEBUG_LOG(("Added win percent: %s, %d", side.str(), percent));
-	}
-}
 
 
 static void updateOverallStats()
@@ -552,19 +432,6 @@ void GenOnlineWelcomeMenuInit( WindowLayout *layout, void *userData )
 	}
 
 	// Clear some defaults
-	/*
-	UnicodeString questionMark = L"?";
-	GadgetStaticTextSetText(staticTextLastUpdated, questionMark);
-	GadgetStaticTextSetText(staticTextLadderWins, questionMark);
-	GadgetStaticTextSetText(staticTextLadderLosses, questionMark);
-	GadgetStaticTextSetText(staticTextLadderPoints, questionMark);
-	GadgetStaticTextSetText(staticTextLadderRank, questionMark);
-	GadgetStaticTextSetText(staticTextLadderDisconnects, questionMark);
-	GadgetStaticTextSetText(staticTextHighscoreWins, questionMark);
-	GadgetStaticTextSetText(staticTextHighscoreLosses, questionMark);
-	GadgetStaticTextSetText(staticTextHighscorePoints, questionMark);
-	GadgetStaticTextSetText(staticTextHighscoreRank, questionMark);
-	*/
 
 
 	//DEBUG_ASSERTCRASH(listboxInfo, ("No control found!"));
@@ -583,30 +450,6 @@ void GenOnlineWelcomeMenuInit( WindowLayout *layout, void *userData )
 
 	buttonLadderID = TheNameKeyGenerator->nameToKey( "WOLWelcomeMenu.wnd:ButtonLadder" );
 	buttonLadder = TheWindowManager->winGetWindowFromId( parentWOLWelcome, buttonLadderID );
-
-	/*
-
-	if (TheGameSpyChat && TheGameSpyChat->isConnected())
-	{
-		const char *keys[3] = { "locale", "wins", "losses" };
-		char valueStrings[3][20];
-		char *values[3] = { valueStrings[0], valueStrings[1], valueStrings[2] };
-		snprintf(values[0], 20, "%s", TheGameSpyPlayerInfo->getLocale().str());
-		snprintf(values[1], 20, "%d", TheGameSpyPlayerInfo->getWins());
-		snprintf(values[2], 20, "%d", TheGameSpyPlayerInfo->getLosses());
-		peerSetGlobalKeys(TheGameSpyChat->getPeer(), 3, (const char **)keys, (const char **)values);
-		peerSetGlobalWatchKeys(TheGameSpyChat->getPeer(), GroupRoom,   3, keys, PEERFalse);
-		peerSetGlobalWatchKeys(TheGameSpyChat->getPeer(), StagingRoom, 3, keys, PEERFalse);
-	}
-	*/
-
-//	// animate controls
-//	TheShell->registerWithAnimateManager(buttonQuickMatch, WIN_ANIMATION_SLIDE_LEFT, TRUE, 800);
-//	TheShell->registerWithAnimateManager(buttonLobby, WIN_ANIMATION_SLIDE_LEFT, TRUE, 600);
-//	//TheShell->registerWithAnimateManager(nullptr, WIN_ANIMATION_SLIDE_LEFT, TRUE, 400);
-//	TheShell->registerWithAnimateManager(buttonBuddies, WIN_ANIMATION_SLIDE_LEFT, TRUE, 200);
-//	//TheShell->registerWithAnimateManager(nullptr, WIN_ANIMATION_SLIDE_LEFT, TRUE, 1);
-//	TheShell->registerWithAnimateManager(buttonBack, WIN_ANIMATION_SLIDE_BOTTOM, TRUE, 1);
 
 	// Show Menu
 	layout->hide( FALSE );
@@ -738,10 +581,8 @@ void GenOnlineWelcomeMenuUpdate( WindowLayout * layout, void *userData)
 		TheShell->pop();
 
 		// Killing the websocket connection logs out, so no logout call is needed.
-		TearDownGeneralsOnline();
+		TearDownGenOnline();
 	}
-
-	// TODO_GENONLINE: do we still care about FW helper?
 
 	GenOnlineHandleBuddyResponses();
 
@@ -831,7 +672,6 @@ WindowMsgHandledType GenOnlineWelcomeMenuSystem( GameWindow *window, UnsignedInt
 
 		case GBM_SELECTED:
 			{
-			// TODO_GENONLINE: Support exiting online again
 				if (buttonPushed)
 					break;
 
@@ -848,18 +688,12 @@ WindowMsgHandledType GenOnlineWelcomeMenuSystem( GameWindow *window, UnsignedInt
 					GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
 					GenOnlineServicesManager::GetInstance()->ConsumePendingFullTeardown();
 
-					DEBUG_LOG(("Tearing down GeneralsOnline from WOLWelcomeMenuSystem(GBM_SELECTED)\n"));
+					DEBUG_LOG(("Tearing down GenOnline from WOLWelcomeMenuSystem(GBM_SELECTED)\n"));
 
-					/*
-					if (TheGameSpyChat->getPeer())
-					{
-						peerDisconnect(TheGameSpyChat->getPeer());
-					}
-					*/
 					buttonPushed = TRUE;
 
 					TheShell->pop();
-					TearDownGeneralsOnline();
+					TearDownGenOnline();
 
 					/// @todo: log out instead of disconnecting
 					//TheWOL->addCommand( WOL::WOLCOMMAND_LOGOUT );
@@ -906,41 +740,15 @@ WindowMsgHandledType GenOnlineWelcomeMenuSystem( GameWindow *window, UnsignedInt
 					//TheGameSpyChat->clearGroupRoomList();
 					//peerListGroupRooms(TheGameSpyChat->getPeer(), ListGroupRoomsCallback, nullptr, PEERTrue);
 
-					// TODO_GENONLINE
-					//TheGameSpyInfo->joinBestGroupRoom();
-					//enableControls( FALSE );
 					buttonPushed = TRUE;
 					nextScreen = "Menus/GenOnlineCustomLobby.wnd";
 					TheShell->pop();
 
 
-					/*
-					TheWOL->setScreen(WOL::WOLAPI_MENU_CUSTOMLOBBY);
-					TheWOL->setGameMode(WOL::WOLTYPE_CUSTOM);
-					TheWOL->setState( WOL::WOLAPI_LOBBY );
-					TheWOL->addCommand( WOL::WOLCOMMAND_REFRESH_CHANNELS );
-					*/
 				}
 				else if (controlID == buttonBuddiesID)
 				{
 					GameSpyToggleOverlay( GSOVERLAY_BUDDY );
-					/*
-					Bool joinedRoom = FALSE;
-					ClearGroupRoomList();
-					peerJoinTitleRoom(TheGameSpyChat->getPeer(), JoinRoomCallback, &joinedRoom, PEERTrue);
-					if (joinedRoom)
-					{
-						GameSpyUsingGroupRooms = FALSE;
-						GameSpyCurrentGroupRoomID = 0;
-						TheShell->pop();
-						TheShell->push("Menus/GenOnlineCustomLobby.wnd");
-					}
-					else
-					{
-						GameSpyCurrentGroupRoomID = 0;
-						GSMessageBoxOk(L"Oops", L"Unable to join title room", nullptr);
-					}
-					*/
 				}
 				else if (controlID == buttonLadderID)
 				{

@@ -701,7 +701,7 @@ int64_t SignedInUserID()
 void SendRest(RestMethod method, const std::string& path, const std::string& body, bool bRetry, int sendsBefore, const StandbyRetry& standby, RestCallback callback)
 {
 	GenOnlineServicesManager* pManager = GenOnlineServicesManager::GetInstance();
-	const std::string origin = GenOnlineAuthInterface::ServiceOriginV1();
+	const std::string origin = GenOnlineAuthInterface::ServiceOrigin();
 	if (pManager == nullptr || pManager->GetHTTPManager() == nullptr || origin.empty() || SignedInUserID() < 0)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s not sent, no session or service route", RestMethodName(method), RestPathForLog(path).c_str());

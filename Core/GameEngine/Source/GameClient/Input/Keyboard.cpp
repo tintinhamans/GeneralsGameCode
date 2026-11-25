@@ -148,7 +148,7 @@ void Keyboard::updateKeys()
 		here so that we don't process anything */
 
 #if defined(GENONLINE)
-		// GO_CHANGE:
+		// GenOnline:
 		// Suppress OS-level key repeat events: DirectInput buffers every OS repeat as a
 		// fresh DOWN, which would fire multiple deletions per physical keypress. Discard
 		// any DOWN event for a key already tracked as down and let checkKeyRepeat() handle

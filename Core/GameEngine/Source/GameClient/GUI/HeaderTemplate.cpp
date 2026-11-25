@@ -145,7 +145,7 @@ void HeaderTemplateManager::init()
 		// GenOnline @tweak arcticdolphin 08/11/2026 GO copies of the templates for the GO menu layouts, which a mod
 		// replacing the language HeaderTemplate.ini does not resize
 		INI ini;
-		ini.loadFileDirectory( AsciiString("Data\\GeneralsOnline\\HeaderTemplate"), INI_LOAD_OVERWRITE, nullptr );
+		ini.loadFileDirectory( AsciiString("Data\\GenOnline\\HeaderTemplate"), INI_LOAD_OVERWRITE, nullptr );
 	}
 #endif
 

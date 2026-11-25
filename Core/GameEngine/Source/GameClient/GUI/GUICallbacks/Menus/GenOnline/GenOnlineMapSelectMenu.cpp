@@ -294,9 +294,6 @@ static void applySelectedMap( AsciiString asciiMap )
 	TheGenOnlineGame->resetAccepted();
 	TheGenOnlineGame->resetStartSpots();
 
-	// TODO_GENONLINE:
-	//TheGameSpyInfo->setGameOptions();
-
 	GenOnlineDisplaySlotList();
 	GenOnlineDisplayGameOptions();
 

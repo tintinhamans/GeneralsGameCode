@@ -79,7 +79,7 @@ private:
 	void doAsyncWait(UnsignedInt milliseconds);
 
 #if defined(GENONLINE)
-	void doGeneralsOnlineLogo();
+	void doGenOnlineLogo();
 
 #endif
 	void drawDisplayEntities();

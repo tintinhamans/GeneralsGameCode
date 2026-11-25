@@ -309,7 +309,7 @@ bool IsLoopbackDestination(const std::string& destination)
 ResolvedProxyPolicy AutoProxy(const std::wstring& destination, WINHTTP_AUTOPROXY_OPTIONS& options)
 {
 	ResolvedProxyPolicy result;
-	HINTERNET session = WinHttpOpen(L"GeneralsOnline", WINHTTP_ACCESS_TYPE_NO_PROXY, nullptr, nullptr, WINHTTP_FLAG_ASYNC);
+	HINTERNET session = WinHttpOpen(L"GenOnline", WINHTTP_ACCESS_TYPE_NO_PROXY, nullptr, nullptr, WINHTTP_FLAG_ASYNC);
 	if (!session)
 	{
 		result.nativeError = GetLastError();
@@ -1066,17 +1066,6 @@ bool HasProxyCredentials(const std::string& proxyURL)
 	return found;
 }
 
-bool DeleteProxyCredentials(const std::string& proxyURL, std::string& error)
-{
-	std::string canonical;
-	if (!CanonicalProxy(proxyURL, canonical, error))
-		return false;
-	if (DeleteProxyLogin(canonical))
-		return true;
-	error = "Unable to remove proxy credentials.";
-	return false;
-}
-
 bool ConfigureCurl(CURL* curl, const std::string& destinationURL, const ProxyRoute& route, std::string& error)
 {
 	if (!ConfigureServiceTransport(curl, destinationURL, error))
@@ -1191,7 +1180,7 @@ ConnectionTestResult TestServiceConnection(const ServiceConnectionSettings& sett
 	ConnectionTestResult result;
 	result.outcome = Outcome::Unreachable;
 	const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(maxSeconds);
-	for (const auto& base : BootstrapRoutes(environment, settings, ""))
+	for (const auto& base : BootstrapRoutes(environment, settings))
 	{
 		const std::string url = base + CompatibilityProbePath();
 		const std::string routeName = RouteHost(base);

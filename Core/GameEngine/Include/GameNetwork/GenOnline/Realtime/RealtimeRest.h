@@ -38,16 +38,15 @@ struct ApiErrorInfo
 {
 	// Empty when the body names no code.
 	std::string code;
-	// Always an object. A reason or expiry of the top level is copied in when params lacks it.
+	// Always an object.
 	nlohmann::json params = nlohmann::json::object();
 	std::optional<std::string> reason;
 	// Absent for a ban without an end.
 	std::optional<std::string> expires_at;
 };
 
-// Reads an error body. The spec form is {"error": code, "params": {...}}. Older services name the
-// code in a top level "code" or add a "message" next to "error", and put reason and expires_at at the
-// top level. A body that is not a JSON object gives an empty code.
+// Reads an error body. The form is {"error": code, "params": {...}}. A body that is not a JSON object
+// gives an empty code.
 inline ApiErrorInfo ParseApiError(const std::string& body)
 {
 	ApiErrorInfo info;
@@ -57,32 +56,14 @@ inline ApiErrorInfo ParseApiError(const std::string& body)
 		return info;
 	}
 	auto error = root.find("error");
-	auto code = root.find("code");
 	if (error != root.end() && error->is_string())
 	{
 		info.code = error->get<std::string>();
-	}
-	else if (code != root.end() && code->is_string())
-	{
-		info.code = code->get<std::string>();
 	}
 	auto params = root.find("params");
 	if (params != root.end() && params->is_object())
 	{
 		info.params = *params;
-	}
-	for (const char* key : { "reason", "expires_at" })
-	{
-		auto inParams = info.params.find(key);
-		if (inParams != info.params.end() && inParams->is_string())
-		{
-			continue;
-		}
-		auto top = root.find(key);
-		if (top != root.end() && top->is_string())
-		{
-			info.params[key] = *top;
-		}
 	}
 	auto reason = info.params.find("reason");
 	if (reason != info.params.end() && reason->is_string())
@@ -750,35 +731,18 @@ inline std::string ClientVersionText(const std::string& exactTag, const std::str
 	return CompatibilityVersion(releaseTag, commitDate) + "-dev" + (shortCommit.empty() ? std::string() : "+" + shortCommit);
 }
 
-struct CompatibilityUpdate : WireObject
-{
-	std::string patcher_name;
-	std::string patcher_path;
-	// Null when the service has no copy of the patcher.
-	Nullable<int64_t> patcher_size;
-
-	template <class V> void Fields(V& v)
-	{
-		v("patcher_name", patcher_name);
-		v("patcher_path", patcher_path);
-		v("patcher_size", patcher_size);
-	}
-};
-
 // GET /api/v1/compatibility
 struct CompatibilityResponse : WireObject
 {
 	bool compatible = false;
 	Nullable<std::string> min_version;
 	std::string service_version;
-	Nullable<CompatibilityUpdate> update;
 
 	template <class V> void Fields(V& v)
 	{
 		v("compatible", compatible);
 		v("min_version", min_version);
 		v("service_version", service_version);
-		v("update", update);
 	}
 };
 
@@ -817,9 +781,7 @@ enum class CompatibilityVerdict
 	Failed
 };
 
-// The verdict of a compatibility answer. An outdated build needs an update with a patcher size, which the
-// downloaded patcher is checked against, and a bare file name, because the name becomes a local path.
-// An outdated build without such an update fails.
+// The verdict of a compatibility answer. An outdated build needs an update.
 inline CompatibilityVerdict CompatibilityVerdictOf(const RestOutcome& outcome, CompatibilityResponse& answer)
 {
 	if (!outcome.Data(answer))
@@ -829,15 +791,6 @@ inline CompatibilityVerdict CompatibilityVerdictOf(const RestOutcome& outcome, C
 	if (answer.compatible)
 	{
 		return CompatibilityVerdict::UpToDate;
-	}
-	if (answer.update.isNull || answer.update.value.patcher_size.isNull)
-	{
-		return CompatibilityVerdict::Failed;
-	}
-	const std::string& name = answer.update.value.patcher_name;
-	if (name.empty() || name.find_first_of("/\\:") != std::string::npos || name.find("..") != std::string::npos)
-	{
-		return CompatibilityVerdict::Failed;
 	}
 	return CompatibilityVerdict::NeedsUpdate;
 }

@@ -318,18 +318,6 @@ void GenOnlineGame::startGame(Int gameID)
 		if (m_Slots[i].isHuman())
 		{
 			++numHumans;
-			AsciiString gsName;
-			gsName.translate(m_Slots[i].getName());
-
-			if (m_isQM)
-			{
-				// TODO_GENONLINE: Does this matter anymore?
-				if (getLocalSlotNum() == i)
-					m_Slots[i].setProfileID(0);  // hehe - we know our own.  the rest, they'll tell us.
-			}
-			else
-			{
-			}
 		}
 	}
 
@@ -344,10 +332,6 @@ void GenOnlineGame::startGame(Int gameID)
 		//#endif defined(_DEBUG) || defined(_INTERNAL)
 	{
 		launchGame();
-		// TODO_GENONLINE: Check whether this still matters, the peers are already connected.
-		//TheNAT = NEW NAT();
-		//TheNAT->attachSlotList(m_slot, getLocalSlotNum(), m_localIP);
-		//TheNAT->establishConnectionPaths();
 	}
 }
 
@@ -358,14 +342,12 @@ AsciiString GenOnlineGame::generateGameSpyGameResultsPacket(void)
 
 AsciiString GenOnlineGame::generateLadderGameResultsPacket(void)
 {
-	// TODO_GENONLINE
 	AsciiString results;
 	return results;
 }
 
 void GenOnlineGame::launchGame(void)
 {
-	// TODO_GENONLINE: Better way of doing this, plus maybe load from file?
 #if defined(RTS_DEBUG)
 	TheWritableGlobalData->m_benchmarkTimer = 999999999;
 	TheWritableGlobalData->m_debugShowGraphicalFramerate = true;
@@ -377,18 +359,6 @@ void GenOnlineGame::launchGame(void)
 
 	setGameInProgress(TRUE);
 
-	for (Int i = 0; i < MAX_SLOTS; ++i)
-	{
-		const GenOnlineGameSlot* slot = getGameSpySlot(i);
-		if (slot->isHuman())
-		{
-			// TODO_GENONLINE:
-			bool bPreordered = false;
-			if (bPreordered)
-				markPlayerAsPreorder(i);
-		}
-	}
-
 	// Set up the game network
 	AsciiString user;
 	AsciiString userList;
@@ -399,8 +369,6 @@ void GenOnlineGame::launchGame(void)
 		TheNetwork = NULL;
 	}
 
-	// TODO_GENONLINE: Check whether this still matters, the peers are already connected.
-	
 	// Time to initialize TheNetwork for this game.
 	TheNetwork = NetworkInterface::createNetwork();
 	TheNetwork->init();
@@ -428,7 +396,7 @@ void GenOnlineGame::launchGame(void)
 	// One spike or lossy spell must not start the match at a huge run ahead.
 	TheNetwork->SeedLatencyData(pMesh->getSeedProbeLatency());
 
-	// TODO_GENONLINE: Check whether these values still matter.
+	// The connection manager needs a nonzero local address and port.
 	TheNetwork->setLocalAddress(getLocalIP(), 8888);
 
 	RegisterGenOnlineTransport();

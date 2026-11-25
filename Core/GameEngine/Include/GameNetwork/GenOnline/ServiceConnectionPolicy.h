@@ -46,7 +46,6 @@ bool ValidateProxyURL(const std::string& proxyURL, std::string& error);
 bool ConfigureCurl(CURL* curl, const std::string& destinationURL, const ProxyRoute& route, std::string& error);
 bool SaveProxyCredentials(const std::string& proxyURL, const std::string& username,
 	const std::string& password, std::string& error);
-bool DeleteProxyCredentials(const std::string& proxyURL, std::string& error);
 bool HasProxyCredentials(const std::string& proxyURL);
 // Login kept in memory for this session only, never written to disk
 void SetSessionProxyCredentials(const std::string& proxyURL, const std::string& username, const std::string& password);

@@ -48,20 +48,6 @@
 #define PRESERVE_NO_XP_FROM_OCL_KILLS (1)
 #endif
 
-#if defined(GENONLINE)
-#ifndef RTS_EXE_CRC
-#define RTS_EXE_CRC (0) // Exe CRC this build reports in lobbies and network games, 0 uses the real one. Set by the cmake option of the same name.
-#endif
-
-#ifndef RTS_REPLAY_EXE_CRC
-#define RTS_REPLAY_EXE_CRC (0) // Exe CRC written to replays, 0 writes the real exe CRC. Set by the cmake option of the same name.
-#endif
-
-#ifndef RTS_REPLAY_COMPATIBLE_EXE_CRCS
-#define RTS_REPLAY_COMPATIBLE_EXE_CRCS // Exe CRCs replays treat as this build, each followed by a comma: 0x1u,0x2u,
-#endif
-
-#endif
 #ifndef PRESERVE_NO_XP_FROM_POISON_KILLS
 #define PRESERVE_NO_XP_FROM_POISON_KILLS (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
 #endif
@@ -163,32 +149,18 @@
 #endif
 #endif
 
-#if !defined(GENONLINE)
 #ifndef RETAIL_COMPATIBLE_CIRCLE_FILL_ALGORITHM
 #define RETAIL_COMPATIBLE_CIRCLE_FILL_ALGORITHM (1) // Use the original circle fill algorithm, which is more efficient but less accurate
 #endif
 
-#endif
 // Disable non retail fixes in the networking, such as putting more data per UDP packet
-#if defined(GENONLINE)
-#ifndef RETAIL_COMPATIBLE_NETWORKING
-#if !defined(GENONLINE)
-#define RETAIL_COMPATIBLE_NETWORKING (1)
-#endif
-#endif
-
-#ifndef RETAIL_COMPATIBLE_CIRCLE_FILL_ALGORITHM
-#define RETAIL_COMPATIBLE_CIRCLE_FILL_ALGORITHM (1) // Use the original circle fill algorithm, which is more efficient but less accurate
-#endif
-
-// This is essentially synonymous for RETAIL_COMPATIBLE_CRC. There is a lot wrong with AIGroup, such as use-after-free, double-free, leaks,
-#else
+#if !defined(GENONLINE) // GENONLINE builds use the non retail networking
 #ifndef RETAIL_COMPATIBLE_NETWORKING
 #define RETAIL_COMPATIBLE_NETWORKING (1)
 #endif
+#endif
 
 // This is essentially synonymous for RETAIL_COMPATIBLE_CRC. There is a lot wrong with AIGroup, such as use-after-free, double-free, leaks,
-#endif
 // but we cannot touch it much without breaking retail compatibility. Do not shy away from using massive hacks when fixing issues with AIGroup,
 // but put them behind this macro.
 

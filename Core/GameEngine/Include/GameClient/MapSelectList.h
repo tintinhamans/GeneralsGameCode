@@ -126,8 +126,6 @@ public:
 	Int getHeaderArrow( const GameWindow *header ) const; ///< 0 none, 1 ascending, 2 descending
 	AsciiString getMapAtRow( Int row ) const;
 	AsciiString getSelectedMap() const;
-	Int getMedalAtRow( Int row ) const;
-	Int getMedalColumn() const { return m_showMedals ? 1 : -1; }
 
 	enum { STAR_COLUMN = 0 };
 

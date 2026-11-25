@@ -3,12 +3,6 @@
 #include <optional>
 #include <string>
 
-enum class EOnlineModerationAction
-{
-	BAN,
-	KICK
-};
-
 // The ban of a ModerationNotice, a refused session registration or a refused realtime upgrade.
 struct OnlineBanDetails
 {
@@ -21,6 +15,5 @@ struct OnlineBanDetails
 
 void ShowLoginBanDialog(const OnlineBanDetails& ban);
 void ShowChatRateLimitNotice(const std::string& reason, const std::string& scopeType);
-void HandleModerationDisconnect(EOnlineModerationAction action, const std::string& reason);
 // Ends the online session for a ban and shows the ban dialog.
 void HandleModerationBan(const OnlineBanDetails& ban);

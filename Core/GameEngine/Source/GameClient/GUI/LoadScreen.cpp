@@ -132,7 +132,7 @@ struct GoLoadSplash
 	const char *label;
 	const WideChar *text;
 };
-static const GoLoadSplash GO_LOAD_SPLASHES[] = {
+static const GoLoadSplash GENONLINE_LOAD_SPLASHES[] = {
 	{ "GUI:GOLoadSplash1", L"Working eyes at your disposal." },
 	{ "GUI:GOLoadSplash2", L"Let us see what they are up to." },
 	{ "GUI:GOLoadSplash3", L"Nothing is private." },
@@ -142,10 +142,10 @@ static const GoLoadSplash GO_LOAD_SPLASHES[] = {
 	{ "GUI:GOLoadSplash7", L"Keep me out of sight." },
 	{ "GUI:GOLoadSplash8", L"Let's go where it is safe." },
 	{ "GUI:GOLoadSplash9", L"We get signal everywhere." } };
-static const Int GO_SPLASH_FONT_SIZE = 16;
-static const Int GO_SPLASH_MAX_ROWS = 4;
+static const Int GENONLINE_SPLASH_FONT_SIZE = 16;
+static const Int GENONLINE_SPLASH_MAX_ROWS = 4;
 static Int s_goSplashLine = -1;
-static DisplayString *s_goSplashRows[GO_SPLASH_MAX_ROWS] = { nullptr };
+static DisplayString *s_goSplashRows[GENONLINE_SPLASH_MAX_ROWS] = { nullptr };
 static Int s_goSplashRowCount = 0;
 
 static void freeGoSplashRows()
@@ -179,7 +179,7 @@ bool g_bHasDoneSOGScreenshot = false;
 static const Image *findGoLoadBarImage()
 {
 	const Image *image = TheMappedImageCollection->findImageByName("LoadingBar_Progress");
-	if (image == nullptr || image->getFilename().compareNoCase("GeneralsOnline_LoadingBar.tga") != 0)
+	if (image == nullptr || image->getFilename().compareNoCase("GenOnline_LoadingBar.tga") != 0)
 	{
 		return nullptr;
 	}
@@ -187,51 +187,51 @@ static const Image *findGoLoadBarImage()
 }
 
 // GenOnline @feature arcticdolphin 09/11/2026 The radar van rules in texels of its 256x156 canvas and milliseconds, mirrored by GenOnline/tools/genonline_ui_kit.py VAN_CONSTANTS.
-static const Int GO_VAN_FRAME_WIDTH = 256;
-static const Int GO_VAN_FRAME_HEIGHT = 156;
-static const Int GO_VAN_OUTLINE_TOP = 5;
-static const Int GO_VAN_OUTLINE_BOTTOM = 152;
-static const Int GO_VAN_OUTLINE_LEFT = 14;
-static const Int GO_VAN_OUTLINE_RIGHT = 247;
-static const Int GO_VAN_TYRE_BOTTOM = 145;
-static const Int GO_VAN_REAR_TYRE = 46;
-static const Int GO_VAN_BUMPER = 240;
-static const Int GO_VAN_MIN_HEIGHT = 20;
-static const Int GO_VAN_WHEEL_FRAMES = 4;
-static const UnsignedInt GO_VAN_FRAME_MS = 83;
-static const UnsignedInt GO_VAN_STALL_MS = 500;
-static const UnsignedInt GO_VAN_SETTLE_MS = 300;
-static const UnsignedInt GO_VAN_FORGET_MS = 1000;
-static const Int GO_VAN_BOB = 2;
-static const UnsignedInt GO_VAN_DISH_LAG_MS = 90;
-static const UnsignedInt GO_VAN_WAVE_MS = 10000;
-static const Int GO_VAN_PUFFS = 12;
-static const Int GO_VAN_PUFF_SPAWN_X = 44;
-static const Int GO_VAN_PUFF_SPAWN_Y = 138;
-static const Int GO_VAN_PUFF_JITTER = 4;
-static const Int GO_VAN_PUFF_DRIFT_X = 24;
-static const Int GO_VAN_PUFF_DRIFT_Y = 40;
-static const Int GO_VAN_PUFF_START = 16;
-static const Int GO_VAN_PUFF_END = 40;
-static const UnsignedInt GO_VAN_PUFF_LIFE_MS = 500;
-static const UnsignedInt GO_VAN_PUFF_LIFE_SPREAD_MS = 300;
-static const UnsignedInt GO_VAN_PUFF_GAP_MS = 40;
-static const Int GO_VAN_PUFF_TRAVEL = 50;
-static const Int GO_VAN_PUFF_CREDIT = 3;
-static const Int GO_VAN_PUFF_ALPHA = 255;
-static const Real GO_VAN_BOB_HZ_A = 3.3f;
-static const Real GO_VAN_BOB_HZ_B = 5.1f;
-static const Real GO_VAN_BOB_PHASE_B = 1.3f;
-static const Real GO_VAN_BOB_WEIGHT_A = 0.6f;
-static const Int GO_VAN_SPAN = GO_VAN_OUTLINE_BOTTOM - GO_VAN_OUTLINE_TOP;
-static const char *const GO_VAN_WHEEL_IMAGES[GO_VAN_WHEEL_FRAMES] = { "GOVanWheels0", "GOVanWheels1", "GOVanWheels2", "GOVanWheels3" };
+static const Int GENONLINE_VAN_FRAME_WIDTH = 256;
+static const Int GENONLINE_VAN_FRAME_HEIGHT = 156;
+static const Int GENONLINE_VAN_OUTLINE_TOP = 5;
+static const Int GENONLINE_VAN_OUTLINE_BOTTOM = 152;
+static const Int GENONLINE_VAN_OUTLINE_LEFT = 14;
+static const Int GENONLINE_VAN_OUTLINE_RIGHT = 247;
+static const Int GENONLINE_VAN_TYRE_BOTTOM = 145;
+static const Int GENONLINE_VAN_REAR_TYRE = 46;
+static const Int GENONLINE_VAN_BUMPER = 240;
+static const Int GENONLINE_VAN_MIN_HEIGHT = 20;
+static const Int GENONLINE_VAN_WHEEL_FRAMES = 4;
+static const UnsignedInt GENONLINE_VAN_FRAME_MS = 83;
+static const UnsignedInt GENONLINE_VAN_STALL_MS = 500;
+static const UnsignedInt GENONLINE_VAN_SETTLE_MS = 300;
+static const UnsignedInt GENONLINE_VAN_FORGET_MS = 1000;
+static const Int GENONLINE_VAN_BOB = 2;
+static const UnsignedInt GENONLINE_VAN_DISH_LAG_MS = 90;
+static const UnsignedInt GENONLINE_VAN_WAVE_MS = 10000;
+static const Int GENONLINE_VAN_PUFFS = 12;
+static const Int GENONLINE_VAN_PUFF_SPAWN_X = 44;
+static const Int GENONLINE_VAN_PUFF_SPAWN_Y = 138;
+static const Int GENONLINE_VAN_PUFF_JITTER = 4;
+static const Int GENONLINE_VAN_PUFF_DRIFT_X = 24;
+static const Int GENONLINE_VAN_PUFF_DRIFT_Y = 40;
+static const Int GENONLINE_VAN_PUFF_START = 16;
+static const Int GENONLINE_VAN_PUFF_END = 40;
+static const UnsignedInt GENONLINE_VAN_PUFF_LIFE_MS = 500;
+static const UnsignedInt GENONLINE_VAN_PUFF_LIFE_SPREAD_MS = 300;
+static const UnsignedInt GENONLINE_VAN_PUFF_GAP_MS = 40;
+static const Int GENONLINE_VAN_PUFF_TRAVEL = 50;
+static const Int GENONLINE_VAN_PUFF_CREDIT = 3;
+static const Int GENONLINE_VAN_PUFF_ALPHA = 255;
+static const Real GENONLINE_VAN_BOB_HZ_A = 3.3f;
+static const Real GENONLINE_VAN_BOB_HZ_B = 5.1f;
+static const Real GENONLINE_VAN_BOB_PHASE_B = 1.3f;
+static const Real GENONLINE_VAN_BOB_WEIGHT_A = 0.6f;
+static const Int GENONLINE_VAN_SPAN = GENONLINE_VAN_OUTLINE_BOTTOM - GENONLINE_VAN_OUTLINE_TOP;
+static const char *const GENONLINE_VAN_WHEEL_IMAGES[GENONLINE_VAN_WHEEL_FRAMES] = { "GOVanWheels0", "GOVanWheels1", "GOVanWheels2", "GOVanWheels3" };
 
 // GenOnline @feature arcticdolphin 09/11/2026 The shell load road in 800x600 units and half its dash period, mirrored by GenOnline/tools/genonline_ui_kit.py LOAD_ROAD_RECT.
-static const Int GO_ROAD_LEFT = 267;
-static const Int GO_ROAD_TOP = 574;
-static const Int GO_ROAD_RIGHT = 533;
-static const Int GO_ROAD_BOTTOM = 592;
-static const Real GO_ROAD_DASH_UNITS = 6.0f;
+static const Int GENONLINE_ROAD_LEFT = 267;
+static const Int GENONLINE_ROAD_TOP = 574;
+static const Int GENONLINE_ROAD_RIGHT = 533;
+static const Int GENONLINE_ROAD_BOTTOM = 592;
+static const Real GENONLINE_ROAD_DASH_UNITS = 6.0f;
 
 struct GoVanPuff
 {
@@ -253,7 +253,7 @@ struct GoVanState
 	Int frame;
 	Real credit;
 	Int nextPuff;
-	GoVanPuff puffs[GO_VAN_PUFFS];
+	GoVanPuff puffs[GENONLINE_VAN_PUFFS];
 };
 
 // GenOnline @feature arcticdolphin 09/11/2026 The van clock and a fixed ring of puffs, so it never allocates while it draws.
@@ -261,7 +261,7 @@ static GoVanState s_goVan;
 
 static Int goVanScale(Int value, Int height)
 {
-	return (value * height + GO_VAN_SPAN / 2) / GO_VAN_SPAN;
+	return (value * height + GENONLINE_VAN_SPAN / 2) / GENONLINE_VAN_SPAN;
 }
 
 static Int goLayoutScale(Int value, Int numerator, Int denominator)
@@ -278,9 +278,9 @@ static UnsignedInt goVanHash(UnsignedInt value)
 static Real goVanWave(UnsignedInt now)
 {
 	// Wrapped on whole beats of both sines first so the phase keeps its precision under the 24 bit FPU mode at any uptime
-	const double t = (now % GO_VAN_WAVE_MS) / 1000.0;
-	const double a = GO_VAN_BOB_WEIGHT_A * sin(TWO_PI * GO_VAN_BOB_HZ_A * t);
-	const double b = (1.0 - GO_VAN_BOB_WEIGHT_A) * sin(TWO_PI * GO_VAN_BOB_HZ_B * t + GO_VAN_BOB_PHASE_B);
+	const double t = (now % GENONLINE_VAN_WAVE_MS) / 1000.0;
+	const double a = GENONLINE_VAN_BOB_WEIGHT_A * sin(TWO_PI * GENONLINE_VAN_BOB_HZ_A * t);
+	const double b = (1.0 - GENONLINE_VAN_BOB_WEIGHT_A) * sin(TWO_PI * GENONLINE_VAN_BOB_HZ_B * t + GENONLINE_VAN_BOB_PHASE_B);
 	return (Real)(a + b);
 }
 
@@ -288,13 +288,13 @@ static Real goVanWave(UnsignedInt now)
 static GoVanState *findGoVanState(GameWindow *window, Int progress, Int position, UnsignedInt now)
 {
 	GoVanState *state = &s_goVan;
-	if (state->window != window || now - state->drawnAt >= GO_VAN_FORGET_MS)
+	if (state->window != window || now - state->drawnAt >= GENONLINE_VAN_FORGET_MS)
 	{
 		memset(state, 0, sizeof(*state));
 		state->window = window;
 		state->progress = progress;
 		state->position = position;
-		state->changedAt = now - GO_VAN_STALL_MS - GO_VAN_SETTLE_MS;
+		state->changedAt = now - GENONLINE_VAN_STALL_MS - GENONLINE_VAN_SETTLE_MS;
 		state->spawnedAt = now;
 	}
 	return state;
@@ -366,22 +366,22 @@ static GoVanPlace placeGoVan(GameWindow *window, const IRegion2D &road, Int prog
 {
 	GoVanPlace place;
 	place.placed = TheMappedImageCollection->findImageByName("GOVanBody") != nullptr && TheMappedImageCollection->findImageByName("GOVanDish") != nullptr;
-	for (Int wheel = 0; wheel < GO_VAN_WHEEL_FRAMES; ++wheel)
+	for (Int wheel = 0; wheel < GENONLINE_VAN_WHEEL_FRAMES; ++wheel)
 	{
-		if (TheMappedImageCollection->findImageByName(GO_VAN_WHEEL_IMAGES[wheel]) == nullptr)
+		if (TheMappedImageCollection->findImageByName(GENONLINE_VAN_WHEEL_IMAGES[wheel]) == nullptr)
 		{
 			place.placed = FALSE;
 		}
 	}
 
 	Int height = (road.hi.y - road.lo.y) * 9 / 5;
-	if (height < GO_VAN_MIN_HEIGHT)
+	if (height < GENONLINE_VAN_MIN_HEIGHT)
 	{
-		height = GO_VAN_MIN_HEIGHT;
+		height = GENONLINE_VAN_MIN_HEIGHT;
 	}
 	IRegion2D strip;
-	strip.lo.x = road.lo.x + goVanScale(GO_VAN_BUMPER - GO_VAN_REAR_TYRE, height) - goVanScale(GO_VAN_BUMPER, height);
-	strip.lo.y = road.lo.y - goVanScale(GO_VAN_TYRE_BOTTOM - GO_VAN_OUTLINE_TOP + GO_VAN_BOB, height);
+	strip.lo.x = road.lo.x + goVanScale(GENONLINE_VAN_BUMPER - GENONLINE_VAN_REAR_TYRE, height) - goVanScale(GENONLINE_VAN_BUMPER, height);
+	strip.lo.y = road.lo.y - goVanScale(GENONLINE_VAN_TYRE_BOTTOM - GENONLINE_VAN_OUTLINE_TOP + GENONLINE_VAN_BOB, height);
 	strip.hi.x = road.hi.x;
 	strip.hi.y = road.lo.y;
 	if (!goVanStripIsClear(window, strip))
@@ -389,23 +389,23 @@ static GoVanPlace placeGoVan(GameWindow *window, const IRegion2D &road, Int prog
 		place.placed = FALSE;
 	}
 
-	const Int first = road.lo.x + goVanScale(GO_VAN_BUMPER - GO_VAN_REAR_TYRE, height);
-	const Int last = road.hi.x - goVanScale(GO_VAN_OUTLINE_RIGHT - GO_VAN_BUMPER, height);
+	const Int first = road.lo.x + goVanScale(GENONLINE_VAN_BUMPER - GENONLINE_VAN_REAR_TYRE, height);
+	const Int last = road.hi.x - goVanScale(GENONLINE_VAN_OUTLINE_RIGHT - GENONLINE_VAN_BUMPER, height);
 	const Int bumper = first + (last - first) * progress / 100;
 	place.height = height;
-	place.x0 = bumper - goVanScale(GO_VAN_BUMPER, height);
-	place.y0 = road.lo.y - goVanScale(GO_VAN_TYRE_BOTTOM, height);
+	place.x0 = bumper - goVanScale(GENONLINE_VAN_BUMPER, height);
+	place.y0 = road.lo.y - goVanScale(GENONLINE_VAN_TYRE_BOTTOM, height);
 	return place;
 }
 
 // GenOnline @feature arcticdolphin 09/11/2026 The splash line as a speech bubble from the logo van, with its constants mirrored by GenOnline/tools/genonline_ui_kit.py BUBBLE_CONSTANTS.
-static const Int GO_LOGO_DISH_X = 306;
-static const Int GO_LOGO_DISH_Y = 0;
-static const UnsignedInt GO_BUBBLE_SHOW_MS = 600;
-static const Real GO_BUBBLE_MARGIN = 8.0f;
-static const Real GO_BUBBLE_TIP_GAP = 2.0f;
+static const Int GENONLINE_LOGO_DISH_X = 306;
+static const Int GENONLINE_LOGO_DISH_Y = 0;
+static const UnsignedInt GENONLINE_BUBBLE_SHOW_MS = 600;
+static const Real GENONLINE_BUBBLE_MARGIN = 8.0f;
+static const Real GENONLINE_BUBBLE_TIP_GAP = 2.0f;
 // GenOnline @feature arcticdolphin 09/11/2026 The splash line wraps at this width, scaled like its font, so long lines take two lines and short ones one.
-static const Real GO_BUBBLE_WRAP = 260.0f;
+static const Real GENONLINE_BUBBLE_WRAP = 260.0f;
 
 // GenOnline @feature arcticdolphin 09/11/2026 The 9-slice bubble grows upward from a bottom fixed over the tip and stays on screen, and its tail keeps pointing at the dish.
 static void drawGoLogoBubble(Int tipX, Int tipY, UnsignedInt shownMs)
@@ -456,7 +456,7 @@ static void drawGoLogoBubble(Int tipX, Int tipY, UnsignedInt shownMs)
 		width = 2 * corner + tailWidth;
 	}
 	const Int screenWidth = TheDisplay->getWidth();
-	const Int margin = REAL_TO_INT(GO_BUBBLE_MARGIN * TheDisplay->getHeight() / 600.0f);
+	const Int margin = REAL_TO_INT(GENONLINE_BUBBLE_MARGIN * TheDisplay->getHeight() / 600.0f);
 	Int left = tipX - width * 3 / 4;
 	if (left > screenWidth - margin - width)
 	{
@@ -479,7 +479,7 @@ static void drawGoLogoBubble(Int tipX, Int tipY, UnsignedInt shownMs)
 	}
 
 	// Pops in whole once the logo has faded in because a fade would show the seams where its pieces overlap
-	if (shownMs < GO_BUBBLE_SHOW_MS)
+	if (shownMs < GENONLINE_BUBBLE_SHOW_MS)
 	{
 		return;
 	}
@@ -518,8 +518,8 @@ static void drawGoLoadBarVan(GameWindow *window, Int progress, const GoVanPlace 
 	const Int height = place.height;
 	const Int x0 = place.x0;
 	const Int y0 = place.y0;
-	const Int frameWidth = goVanScale(GO_VAN_FRAME_WIDTH, height);
-	const Int frameHeight = goVanScale(GO_VAN_FRAME_HEIGHT, height);
+	const Int frameWidth = goVanScale(GENONLINE_VAN_FRAME_WIDTH, height);
+	const Int frameHeight = goVanScale(GENONLINE_VAN_FRAME_HEIGHT, height);
 
 	const UnsignedInt now = timeGetTime();
 	GoVanState *state = findGoVanState(window, progress, x0, now);
@@ -530,15 +530,15 @@ static void drawGoLoadBarVan(GameWindow *window, Int progress, const GoVanPlace 
 		state->changedAt = now;
 	}
 	const UnsignedInt still = now - state->changedAt;
-	const Bool moving = still < GO_VAN_STALL_MS;
+	const Bool moving = still < GENONLINE_VAN_STALL_MS;
 	Real envelope = 1.0f;
 	if (moving)
 	{
-		state->frame = (Int)((now / GO_VAN_FRAME_MS) % GO_VAN_WHEEL_FRAMES);
+		state->frame = (Int)((now / GENONLINE_VAN_FRAME_MS) % GENONLINE_VAN_WHEEL_FRAMES);
 	}
 	else
 	{
-		envelope = 1.0f - (Real)(still - GO_VAN_STALL_MS) / GO_VAN_SETTLE_MS;
+		envelope = 1.0f - (Real)(still - GENONLINE_VAN_STALL_MS) / GENONLINE_VAN_SETTLE_MS;
 		if (envelope < 0.0f)
 		{
 			envelope = 0.0f;
@@ -553,36 +553,36 @@ static void drawGoLoadBarVan(GameWindow *window, Int progress, const GoVanPlace 
 	}
 	else
 	{
-		Int stretch = goVanScale(GO_VAN_PUFF_TRAVEL, height);
+		Int stretch = goVanScale(GENONLINE_VAN_PUFF_TRAVEL, height);
 		if (stretch < 1)
 		{
 			stretch = 1;
 		}
 		state->credit += (Real)travel / stretch;
-		if (state->credit > GO_VAN_PUFF_CREDIT)
+		if (state->credit > GENONLINE_VAN_PUFF_CREDIT)
 		{
-			state->credit = (Real)GO_VAN_PUFF_CREDIT;
+			state->credit = (Real)GENONLINE_VAN_PUFF_CREDIT;
 		}
-		if (state->credit >= 1.0f && now - state->spawnedAt >= GO_VAN_PUFF_GAP_MS)
+		if (state->credit >= 1.0f && now - state->spawnedAt >= GENONLINE_VAN_PUFF_GAP_MS)
 		{
 			state->credit -= 1.0f;
 			state->spawnedAt = now;
 			const UnsignedInt hash = goVanHash(now + state->nextPuff);
-			const Int spread = 2 * GO_VAN_PUFF_JITTER + 1;
+			const Int spread = 2 * GENONLINE_VAN_PUFF_JITTER + 1;
 			GoVanPuff &puff = state->puffs[state->nextPuff];
 			puff.born = now;
-			puff.life = GO_VAN_PUFF_LIFE_MS + (hash >> 20) % GO_VAN_PUFF_LIFE_SPREAD_MS;
-			puff.x = x0 + goVanScale(GO_VAN_PUFF_SPAWN_X + (Int)((hash >> 8) % spread) - GO_VAN_PUFF_JITTER, height);
-			puff.y = y0 + goVanScale(GO_VAN_PUFF_SPAWN_Y + (Int)((hash >> 16) % spread) - GO_VAN_PUFF_JITTER, height);
+			puff.life = GENONLINE_VAN_PUFF_LIFE_MS + (hash >> 20) % GENONLINE_VAN_PUFF_LIFE_SPREAD_MS;
+			puff.x = x0 + goVanScale(GENONLINE_VAN_PUFF_SPAWN_X + (Int)((hash >> 8) % spread) - GENONLINE_VAN_PUFF_JITTER, height);
+			puff.y = y0 + goVanScale(GENONLINE_VAN_PUFF_SPAWN_Y + (Int)((hash >> 16) % spread) - GENONLINE_VAN_PUFF_JITTER, height);
 			puff.height = height;
-			state->nextPuff = (state->nextPuff + 1) % GO_VAN_PUFFS;
+			state->nextPuff = (state->nextPuff + 1) % GENONLINE_VAN_PUFFS;
 		}
 	}
 
 	if (puffImage != nullptr && puffImage->getImageWidth() > 0)
 	{
 		const Real aspect = (Real)puffImage->getImageHeight() / puffImage->getImageWidth();
-		for (Int p = 0; p < GO_VAN_PUFFS; ++p)
+		for (Int p = 0; p < GENONLINE_VAN_PUFFS; ++p)
 		{
 			const GoVanPuff &puff = state->puffs[p];
 			if (puff.life == 0 || now - puff.born >= puff.life)
@@ -590,25 +590,25 @@ static void drawGoLoadBarVan(GameWindow *window, Int progress, const GoVanPlace 
 				continue;
 			}
 			const Real t = (Real)(now - puff.born) / puff.life;
-			const Int start = goVanScale(GO_VAN_PUFF_START, puff.height);
-			const Real size = start + (goVanScale(GO_VAN_PUFF_END, puff.height) - start) * t;
-			const Int cx = (Int)(puff.x - goVanScale(GO_VAN_PUFF_DRIFT_X, puff.height) * t);
-			const Int cy = (Int)(puff.y - goVanScale(GO_VAN_PUFF_DRIFT_Y, puff.height) * t);
+			const Int start = goVanScale(GENONLINE_VAN_PUFF_START, puff.height);
+			const Real size = start + (goVanScale(GENONLINE_VAN_PUFF_END, puff.height) - start) * t;
+			const Int cx = (Int)(puff.x - goVanScale(GENONLINE_VAN_PUFF_DRIFT_X, puff.height) * t);
+			const Int cy = (Int)(puff.y - goVanScale(GENONLINE_VAN_PUFF_DRIFT_Y, puff.height) * t);
 			const Int w = (Int)size;
 			const Int h = (Int)(size * aspect);
-			const Int alpha = (Int)(GO_VAN_PUFF_ALPHA * (1.0f - t));
+			const Int alpha = (Int)(GENONLINE_VAN_PUFF_ALPHA * (1.0f - t));
 			TheDisplay->drawImage(puffImage, cx - w / 2, cy - h / 2, cx - w / 2 + w, cy - h / 2 + h, GameMakeColor(255, 255, 255, alpha));
 		}
 	}
 
-	const Image *wheels = TheMappedImageCollection->findImageByName(GO_VAN_WHEEL_IMAGES[state->frame]);
+	const Image *wheels = TheMappedImageCollection->findImageByName(GENONLINE_VAN_WHEEL_IMAGES[state->frame]);
 	if (wheels == nullptr)
 	{
 		return;
 	}
 
-	const Int bob = REAL_TO_INT_FLOOR(GO_VAN_BOB * height / (Real)GO_VAN_SPAN * envelope * goVanWave(now) + 0.5f);
-	const Int sway = REAL_TO_INT_FLOOR(envelope * goVanWave(now - GO_VAN_DISH_LAG_MS) + 0.5f);
+	const Int bob = REAL_TO_INT_FLOOR(GENONLINE_VAN_BOB * height / (Real)GENONLINE_VAN_SPAN * envelope * goVanWave(now) + 0.5f);
+	const Int sway = REAL_TO_INT_FLOOR(envelope * goVanWave(now - GENONLINE_VAN_DISH_LAG_MS) + 0.5f);
 	TheDisplay->drawImage(body, x0, y0 + bob, x0 + frameWidth, y0 + bob + frameHeight);
 	TheDisplay->drawImage(dish, x0 + sway, y0 + bob, x0 + sway + frameWidth, y0 + bob + frameHeight);
 	TheDisplay->drawImage(wheels, x0, y0, x0 + frameWidth, y0 + frameHeight);
@@ -716,7 +716,7 @@ static void drawGoShellLoadBar( GameWindow *window, WinInstanceData *instData )
 	}
 
 	const Int thickness = line + ((height - line) & 1);
-	Int half = REAL_TO_INT_FLOOR(GO_ROAD_DASH_UNITS * TheDisplay->getHeight() / 600.0f + 0.5f);
+	Int half = REAL_TO_INT_FLOOR(GENONLINE_ROAD_DASH_UNITS * TheDisplay->getHeight() / 600.0f + 0.5f);
 	if (half < 2)
 	{
 		half = 2;
@@ -1899,8 +1899,8 @@ void ShellGameLoadScreen::init( GameInfo *game )
 		m_progressBar->winSetDrawFunc(drawGoShellLoadBar);
 		const Int screenWidth = TheDisplay->getWidth();
 		const Int screenHeight = TheDisplay->getHeight();
-		m_progressBar->winSetPosition(goLayoutScale(GO_ROAD_LEFT, screenWidth, 800), goLayoutScale(GO_ROAD_TOP, screenHeight, 600));
-		m_progressBar->winSetSize(goLayoutScale(GO_ROAD_RIGHT - GO_ROAD_LEFT, screenWidth, 800), goLayoutScale(GO_ROAD_BOTTOM - GO_ROAD_TOP, screenHeight, 600));
+		m_progressBar->winSetPosition(goLayoutScale(GENONLINE_ROAD_LEFT, screenWidth, 800), goLayoutScale(GENONLINE_ROAD_TOP, screenHeight, 600));
+		m_progressBar->winSetSize(goLayoutScale(GENONLINE_ROAD_RIGHT - GENONLINE_ROAD_LEFT, screenWidth, 800), goLayoutScale(GENONLINE_ROAD_BOTTOM - GENONLINE_ROAD_TOP, screenHeight, 600));
 	}
 	else if (findGoLoadBarImage() != nullptr)
 	{
@@ -1910,7 +1910,7 @@ void ShellGameLoadScreen::init( GameInfo *game )
 
 void ShellGameLoadScreen::initCredit()
 {
-	// Please be kind and do not remove the custom logo screen when building a client that includes GeneralsOnline.
+	// Please be kind and do not remove the custom logo screen when building a client that includes Generals Online.
 	const Real fontScale = GlobalLanguage::getResolutionFontSizeScale(GlobalLanguage::ResolutionFontSizeMethod_Strict);
 	const Int screenWidth = TheDisplay->getWidth();
 	const Int screenHeight = TheDisplay->getHeight();
@@ -1940,13 +1940,13 @@ void ShellGameLoadScreen::initCredit()
 	{
 		if (s_goSplashLine < 0)
 		{
-			s_goSplashLine = (Int)(timeGetTime() % (sizeof(GO_LOAD_SPLASHES) / sizeof(GO_LOAD_SPLASHES[0])));
+			s_goSplashLine = (Int)(timeGetTime() % (sizeof(GENONLINE_LOAD_SPLASHES) / sizeof(GENONLINE_LOAD_SPLASHES[0])));
 		}
 		// GenOnline @bugfix arcticdolphin 09/11/2026 Break the line into rows here, each measured as it is drawn, so the bubble fits its text. The centred wrap of the engine counts every space twice.
 		freeGoSplashRows();
-		GameFont *font = TheFontLibrary->getFont("Consolas", Int(GO_SPLASH_FONT_SIZE * fontScale), TRUE);
-		const Int wrap = REAL_TO_INT(GO_BUBBLE_WRAP * fontScale);
-		UnicodeString rest = TheGameText->FETCH_OR_SUBSTITUTE(GO_LOAD_SPLASHES[s_goSplashLine].label, GO_LOAD_SPLASHES[s_goSplashLine].text);
+		GameFont *font = TheFontLibrary->getFont("Consolas", Int(GENONLINE_SPLASH_FONT_SIZE * fontScale), TRUE);
+		const Int wrap = REAL_TO_INT(GENONLINE_BUBBLE_WRAP * fontScale);
+		UnicodeString rest = TheGameText->FETCH_OR_SUBSTITUTE(GENONLINE_LOAD_SPLASHES[s_goSplashLine].label, GENONLINE_LOAD_SPLASHES[s_goSplashLine].text);
 		UnicodeString word;
 		while (rest.nextToken(&word, L" "))
 		{
@@ -1960,7 +1960,7 @@ void ShellGameLoadScreen::initCredit()
 				last->setText(candidate);
 				Int width = 0;
 				last->getSize(&width, nullptr);
-				if (width < wrap || s_goSplashRowCount == GO_SPLASH_MAX_ROWS)
+				if (width < wrap || s_goSplashRowCount == GENONLINE_SPLASH_MAX_ROWS)
 				{
 					continue;
 				}
@@ -2062,9 +2062,9 @@ void ShellGameLoadScreen::drawCredit()
 		// GenOnline @feature arcticdolphin 09/11/2026 The logo van says the splash line of the launch, with the tail of the bubble on its radar dish.
 		if (m_creditLogo->getImageWidth() > 0)
 		{
-			const Int dishX = logoLeft + GO_LOGO_DISH_X * logoWidth / m_creditLogo->getImageWidth();
-			const Int dishY = logoTop + GO_LOGO_DISH_Y * logoHeight / m_creditLogo->getImageHeight();
-			drawGoLogoBubble(dishX, dishY - REAL_TO_INT(GO_BUBBLE_TIP_GAP * unit), timeGetTime() - m_creditStartMs);
+			const Int dishX = logoLeft + GENONLINE_LOGO_DISH_X * logoWidth / m_creditLogo->getImageWidth();
+			const Int dishY = logoTop + GENONLINE_LOGO_DISH_Y * logoHeight / m_creditLogo->getImageHeight();
+			drawGoLogoBubble(dishX, dishY - REAL_TO_INT(GENONLINE_BUBBLE_TIP_GAP * unit), timeGetTime() - m_creditStartMs);
 		}
 	}
 

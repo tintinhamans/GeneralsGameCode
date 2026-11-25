@@ -78,7 +78,6 @@ public:
 
 	const std::string& ChannelID() const { return m_channelID; }
 	bool IsAwaitingHistory() const { return m_awaitingHistory; }
-	size_t ShownCount() const { return m_shown.size(); }
 
 	// The lines a MessageCreate adds. A message waits while the history is awaited.
 	std::vector<ChannelChatLine> AddLive(const ChatMessage& message)

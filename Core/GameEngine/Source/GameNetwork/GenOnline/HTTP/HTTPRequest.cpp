@@ -367,7 +367,7 @@ void HTTPRequest::PlatformStartRequest()
 	option(CURLOPT_URL, m_strURI.c_str());
 	option(CURLOPT_WRITEDATA, static_cast<void*>(this));
 	option(CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-	option(CURLOPT_USERAGENT, "GeneralsOnline Client");
+	option(CURLOPT_USERAGENT, "GenOnline Client");
 	// proxy lookup and earlier routes share the request deadline
 	const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - m_setupStarted).count();
 	const long remaining = static_cast<long>(std::max<int64_t>(1, m_timeoutMS - elapsed));

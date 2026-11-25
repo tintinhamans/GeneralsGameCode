@@ -88,11 +88,6 @@ public:
 
 	static UnicodeString GetChatLineText(const GenOnlineRealtime::DirectChatLine& line);
 
-	void ClearUnreadChatMessagesForUser(int64_t target_user_id)
-	{
-		m_unreadConversations.Clear(target_user_id);
-	}
-
 	int GetNumberUnreadChatMessagesForUser(int64_t target_user_id)
 	{
 		return m_unreadConversations.Unread(target_user_id);
@@ -234,7 +229,7 @@ public:
 
 	void CommitLobbyPlayerListToRecentlyPlayedWithList();
 
-	// Realtime protocol v1: the hub sends a snapshot after every connect and the changes as events.
+	// The realtime hub sends a snapshot after every connect and the changes as events.
 	void ExpectRealtimeWelcome() { m_bRealtimeWelcomePending = true; }
 	void OnRealtimeFriends(const GenOnlineRealtime::FriendsEvent& event);
 	void OnRealtimeFriendRequestReceived(const GenOnlineRealtime::Member& from);

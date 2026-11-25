@@ -37,7 +37,7 @@
 #include <string>
 #include <wchar.h>
 
-// GenOnline @feature arcticdolphin 08/11/2026 Icon table loaded from Data\GeneralsOnline\MapPreviewIcons*.ini.
+// GenOnline @feature arcticdolphin 08/11/2026 Icon table loaded from Data\GenOnline\MapPreviewIcons*.ini.
 
 struct MapPreviewIconCategory
 {
@@ -65,7 +65,7 @@ static std::vector<MapPreviewIconCategory> s_categories;
 static std::vector<MapPreviewIconRule> s_rules;
 static Bool s_isTableLoaded = FALSE;
 
-static const char *const s_tableDirectory = "Data\\GeneralsOnline\\";
+static const char *const s_tableDirectory = "Data\\GenOnline\\";
 static const char *const s_tablePattern = "mappreviewicons*.ini"; // archive names are lowercase and matched case sensitively
 
 //-------------------------------------------------------------------------------------------------

@@ -6,10 +6,10 @@ image in the 16 colour VGA palette, a black outline, a white body shaded towards
 and the art hanging right and down from the hotspot at 13,13, here the tip of the index finger.
 
 Outputs (GenOnline/data/core):
-    Data/Cursors/GeneralsOnline_CursorHand.ani      the Windows cursor (the default CursorMode)
-    Art/Textures/GeneralsOnline_CursorHand.tga      the same image for the DX8 and polygon cursor modes
-    Data/INI/Mouse/GeneralsOnline_Cursor.ini        the MouseCursor Hand definition, loaded after Data/INI/Mouse.ini
-    Data/INI/MappedImages/TextureSize_512/ZZ_GeneralsOnline_Cursor.INI   the polygon mode image
+    Data/Cursors/GenOnline_CursorHand.ani      the Windows cursor (the default CursorMode)
+    Art/Textures/GenOnline_CursorHand.tga      the same image for the DX8 and polygon cursor modes
+    Data/INI/Mouse/GenOnline_Cursor.ini        the MouseCursor Hand definition, loaded after Data/INI/Mouse.ini
+    Data/INI/MappedImages/TextureSize_512/ZZ_GenOnline_Cursor.INI   the polygon mode image
 
 Usage:
     python GenOnline/tools/genonline_cursor.py           write the files
@@ -24,11 +24,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "GenOnline" / "data" / "core"
 
-TEXTURE = "GeneralsOnline_CursorHand"
+TEXTURE = "GenOnline_CursorHand"
 ANI = f"Data/Cursors/{TEXTURE}.ani"
 TGA = f"Art/Textures/{TEXTURE}.tga"
-MOUSE_INI = "Data/INI/Mouse/GeneralsOnline_Cursor.ini"
-IMAGE_INI = "Data/INI/MappedImages/TextureSize_512/ZZ_GeneralsOnline_Cursor.INI"
+MOUSE_INI = "Data/INI/Mouse/GenOnline_Cursor.ini"
+IMAGE_INI = "Data/INI/MappedImages/TextureSize_512/ZZ_GenOnline_Cursor.INI"
 
 SIZE = 32
 HOTSPOT = (13, 13)  # the retail pointer's hotspot, here the fingertip

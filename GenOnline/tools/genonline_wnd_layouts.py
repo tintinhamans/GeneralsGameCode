@@ -140,7 +140,6 @@ CORE_LAYOUTS = {
     "GenOnlineRCMessageMenu.wnd", "MainMenuVersion.wnd", "ProxyLogin.wnd",
     "GenOnlineMapSelectMenu.wnd",
     "GenOnlineCustomLobby.wnd",
-    "GenOnlineDownloadMenu.wnd",
     "GenOnlineLoginProfile.wnd",
     "GenOnlineLoginQuick.wnd",
     "GenOnlinePopupBuddyListNotification.wnd",
@@ -272,7 +271,6 @@ SHELL_COPIES = {
 }
 # the online layouts the GenOnline menus open under their own names, with the GenOnline window callbacks
 GENONLINE_LAYOUTS = {
-    "Window/Menus/DownloadMenu.wnd": "Window/Menus/GenOnlineDownloadMenu.wnd",
     "Window/Menus/GameSpyGameOptionsMenu.wnd": "Window/Menus/GenOnlineGameOptionsMenu.wnd",
     "Window/Menus/GameSpyLoginProfile.wnd": "Window/Menus/GenOnlineLoginProfile.wnd",
     "Window/Menus/GameSpyLoginQuick.wnd": "Window/Menus/GenOnlineLoginQuick.wnd",
@@ -293,7 +291,6 @@ GENONLINE_LAYOUTS = {
 }
 # retail callback name prefix -> GenOnline prefix, applied to the window callbacks of the GENONLINE_LAYOUTS
 GENONLINE_CALLBACKS = {
-    "DownloadMenu": "GenOnlineDownloadMenu",
     "GameSpyPlayerInfoOverlay": "GenOnlinePlayerInfoOverlay",
     "PopupBuddyNotification": "GenOnlinePopupBuddyNotification",
     "PopupHostGame": "GenOnlinePopupHostGame",
@@ -311,10 +308,10 @@ GENONLINE_CALLBACK_RE = re.compile(
     r"(?P<name>[A-Za-z_]\w*)",
     re.M,
 )
-# retail header templates; the menu layouts use the GO copies in Data/GeneralsOnline/HeaderTemplate.ini instead,
+# retail header templates; the menu layouts use the GO copies in Data/GenOnline/HeaderTemplate.ini instead,
 # so a mod that replaces Data/<language>/HeaderTemplate.ini cannot resize the GO menus
-GO_TEMPLATE_PREFIX = "GO"
-GO_ONLY_TEMPLATES = set()  # GO header templates without a retail original
+GENONLINE_TEMPLATE_PREFIX = "GO"
+GENONLINE_ONLY_TEMPLATES = set()  # GO header templates without a retail original
 RETAIL_TEMPLATES = {
     "Title", "MainButton", "Button", "ButtonSmall", "TextEntry", "ComboBoxEntry", "MinorTitle", "LabelRegular",
     "LabelSmall", "LoadScreenCameos", "LoadScreenMissionLocation", "Arial10BoldTemplate", "Arial12BoldTemplate",
@@ -1498,7 +1495,7 @@ def go_templates(text, name):
 
     def swap(m):
         header = m.group("header")
-        return m.group("lead") + (GO_TEMPLATE_PREFIX + header if header in RETAIL_TEMPLATES else header)
+        return m.group("lead") + (GENONLINE_TEMPLATE_PREFIX + header if header in RETAIL_TEMPLATES else header)
 
     return HEADER_RE.sub(swap, text)
 

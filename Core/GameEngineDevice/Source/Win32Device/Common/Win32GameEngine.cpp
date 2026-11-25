@@ -250,7 +250,7 @@ void Win32GameEngine::update()
 			// There is code in the client to skip client redraw if we are
 			// iconic.  jba.
 #if defined(GENONLINE)
-			// GO_CHANGE: If we have an active network session, keep running to prevent disconnecting us from
+			// GenOnline: If we have an active network session, keep running to prevent disconnecting us from
 			// other players during lobby and loading screen where isInMultiplayerGame() returns false
 			if (TheGameEngine->getQuitting() || shouldKeepRunningInBackground()) {
 #else

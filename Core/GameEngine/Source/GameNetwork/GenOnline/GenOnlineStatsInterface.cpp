@@ -121,7 +121,7 @@ static PSPlayerStats PlayerStatsFromBody(const GenOnlineRealtime::PlayerStatsBod
 void GenOnlineStatsInterface::GetGlobalStats(std::function<void(GlobalStats)> cb)
 {
 	// The global stats are anonymous, so they need no session.
-	const std::string strOrigin = GenOnlineAuthInterface::ServiceOriginV1();
+	const std::string strOrigin = GenOnlineAuthInterface::ServiceOrigin();
 	GenOnlineServicesManager* pManager = GenOnlineServicesManager::GetInstance();
 	if (strOrigin.empty() || pManager == nullptr || pManager->GetHTTPManager() == nullptr)
 	{

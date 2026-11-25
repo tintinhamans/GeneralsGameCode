@@ -466,7 +466,7 @@ void GenOnlineSocialInterface::OnRealtimeFriends(const GenOnlineRealtime::Friend
 	// The Friends snapshot follows Ready on every connect, and the service forgets the status with the connection.
 	SendLocalPresenceStatus();
 
-	// The first snapshot after a login greets the player, as the legacy status update did.
+	// The first snapshot after a login greets the player.
 	if (m_bRealtimeWelcomePending)
 	{
 		m_bRealtimeWelcomePending = false;
@@ -568,7 +568,7 @@ void GenOnlineSocialInterface::OnRealtimeMemberUpdate(const GenOnlineRealtime::M
 	}
 }
 
-// A direct message is cached under the other player of the conversation, as the legacy friend chat was.
+// A direct message is cached under the other player of the conversation.
 // The channel dm:<id> names the other player, also for an own message sent from another connection.
 void GenOnlineSocialInterface::OnRealtimeDirectMessage(const GenOnlineRealtime::ChatMessage& message)
 {

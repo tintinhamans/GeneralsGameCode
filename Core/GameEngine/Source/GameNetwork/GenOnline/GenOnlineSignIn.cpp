@@ -330,11 +330,6 @@ void GenOnlineSignIn::Cancel()
 	m_codeVerifier.clear();
 }
 
-bool GenOnlineSignIn::IsWaitingForBrowser() const
-{
-	return m_listener != nullptr;
-}
-
 void GenOnlineSignIn::Tick()
 {
 	if (m_listener == nullptr)

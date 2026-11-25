@@ -1,6 +1,5 @@
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/json.hpp"
-#include "GameNetwork/GenOnline/JsonHelpers.h"
 #include "GameNetwork/GenOnline/HTTP/HTTPManager.h"
 #include "GameNetwork/GenOnline/GenOnlineInit.h"
 #include "GameClient/MapUtil.h"
@@ -24,30 +23,6 @@ struct JoinLobbyResponse
 
 	NLOHMANN_DEFINE_TYPE_INTRUSIVE(JoinLobbyResponse, success, turn_username, turn_token)
 };
-
-UnicodeString GenOnlineLobbyInterface::GetCurrentLobbyDisplayName()
-{
-	UnicodeString strDisplayName;
-
-	if (IsInLobby())
-	{
-		strDisplayName = UnicodeString(from_utf8(m_CurrentLobby.name).c_str());
-	}
-
-	return strDisplayName;
-}
-
-UnicodeString GenOnlineLobbyInterface::GetCurrentLobbyMapDisplayName()
-{
-	UnicodeString strDisplayName;
-
-	if (IsInLobby())
-	{
-		strDisplayName = UnicodeString(from_utf8(m_CurrentLobby.map_name).c_str());
-	}
-
-	return strDisplayName;
-}
 
 AsciiString GenOnlineLobbyInterface::GetCurrentLobbyMapPath()
 {
@@ -237,15 +212,8 @@ static uint16_t SlotStateFromWire(const std::string& state)
 }
 
 // The map path the map cache knows, from the path a lobby carries.
-static std::string GameMapPath(std::string mapPath, bool bOfficial)
+static std::string GameMapPath(const std::string& mapPath, bool bOfficial)
 {
-	// The realtime lobby has the map file name the host sent. A map sits in a folder of the same name, which the legacy service added.
-	if (!mapPath.empty() && mapPath.find_first_of("\\/") == std::string::npos)
-	{
-		const size_t dot = mapPath.find_last_of('.');
-		mapPath = std::format("{}\\{}", mapPath.substr(0, dot), mapPath);
-	}
-
 	// correct map path
 	if (bOfficial)
 	{
@@ -304,7 +272,7 @@ static LobbyEntry LobbyEntryFromSummary(const GenOnlineRealtime::LobbySummary& s
 	return lobbyEntry;
 }
 
-// The current lobby of the hub. Every slot becomes a member, as in the legacy lobby response.
+// The current lobby of the hub. Every slot becomes a member.
 static void LobbyEntryFromState(const GenOnlineRealtime::LobbyState& lobby, LobbyEntry& lobbyEntry, std::vector<LobbyMemberEntry>& members)
 {
 	lobbyEntry.lobbyID = lobby.id;
@@ -467,16 +435,6 @@ void GenOnlineLobbyInterface::UpdateCurrentLobbyMaxCameraHeight(uint16_t maxCame
 	}
 }
 
-
-void GenOnlineLobbyInterface::SetJoinability(ELobbyJoinability joinabilityFlag)
-{
-    if (IsHost())
-    {
-        GenOnlineRealtime::UpdateLobbyRequest request;
-        request.visibility = std::string(joinabilityFlag == ELobbyJoinability::LobbyJoinability_FriendsOnly ? "friends" : "public");
-        InvokeLobbyUpdate(request);
-    }
-}
 
 void GenOnlineLobbyInterface::UpdateCurrentLobbyNameAndAccess(const UnicodeString *newName, const bool *friendsOnly)
 {
@@ -1198,14 +1156,6 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 
 							// dont need to do these here, updateroomdatacache does it for us
 
-							// TODO_GENONLINE: Rest of these
-							/*
-							TheGenOnlineGame.setExeCRC(info->getExeCRC());
-							TheGenOnlineGame.setIniCRC(info->getIniCRC());
-
-							TheGenOnlineGame.setHasPassword(info->getHasPassword());
-							TheGenOnlineGame.setGameName(info->getGameName());
-							*/
 						}
 
 						OnJoinedOrCreatedLobby(false, [=](bool bSuccess)
@@ -1932,37 +1882,6 @@ void GenOnlineLobbyInterface::OnRealtimeLobbyLeft(const GenOnlineRealtime::Lobby
 	// "left" answers a LeaveLobby of this client, which already tore the lobby down.
 }
 
-// The legacy reason code of a refused StartGame, which picks the text of the setup menu.
-static std::string StartRefusedReason(const GenOnlineRealtime::InvokeOutcome& outcome)
-{
-	if (!outcome.delivered)
-	{
-		return std::string();
-	}
-	const std::string code = outcome.Code();
-	if (code == "lobby.not_ready")
-	{
-		return "not_ready";
-	}
-	if (code == "lobby.mesh_incomplete")
-	{
-		return "mesh_incomplete";
-	}
-	if (code == "lobby.not_host")
-	{
-		return "not_owner";
-	}
-	if (code == "lobby.already_started")
-	{
-		return "already_started";
-	}
-	if (code == "not_found" || code == "lobby.not_member")
-	{
-		return "no_lobby";
-	}
-	return code;
-}
-
 void GenOnlineLobbyInterface::OnRealtimeStartGameOutcome(const GenOnlineRealtime::InvokeOutcome& outcome)
 {
 	// A started countdown arrives as CountdownStarted.
@@ -1970,7 +1889,8 @@ void GenOnlineLobbyInterface::OnRealtimeStartGameOutcome(const GenOnlineRealtime
 	{
 		return;
 	}
-	const std::string strReason = StartRefusedReason(outcome);
+	// The code of the refused invocation picks the text of the setup menu.
+	const std::string strReason = outcome.delivered ? outcome.Code() : std::string();
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] The service refused the match start (%s)", outcome.delivered ? outcome.Code().c_str() : outcome.transportError.c_str());
 	if (m_callbackStartGameRejected != nullptr)
 	{

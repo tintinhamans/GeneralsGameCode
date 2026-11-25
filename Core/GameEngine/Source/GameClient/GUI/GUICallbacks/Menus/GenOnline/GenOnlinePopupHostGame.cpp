@@ -147,13 +147,11 @@ void GenOnlinePopulateCustomLadderComboBox()
 
 	isPopulatingLadderBox = true;
 
+	// The constructor loads the preference file of the signed in player.
 	CustomMatchPreferences pref;
-	AsciiString userPrefFilename;
 
 	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	int64_t localProfile = pAuthInterface == nullptr ? -1 : pAuthInterface->GetUserID();
-	userPrefFilename.format("GeneralsOnline\\CustomPref%lld.ini", localProfile);
-	pref.load(userPrefFilename);
 
 	std::set<const LadderInfo *> usedLadders;
 
@@ -584,10 +582,6 @@ WindowMsgHandledType GenOnlinePopupHostGameSystem( GameWindow *window, UnsignedI
 extern GlobalData* TheWritableGlobalData;
 void GenOnlineCreateGame()
 {
-	// TODO_GENONLINE: exe and ini crc, verison etc
-	// TODO_GENONLINE: passworded lobbies
-
-	// TODO_GENONLINE: Support 'favorite map' again
 	AsciiString defaultMap = getDefaultMap(true);
     CustomMatchPreferences pref;
 	AsciiString storedMap = pref.getAsciiString("Map", AsciiString::TheEmptyString);
