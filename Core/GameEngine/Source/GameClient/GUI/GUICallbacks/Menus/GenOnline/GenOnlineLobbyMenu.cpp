@@ -107,7 +107,7 @@ static const time_t gameListRefreshInterval = 4000;
 static time_t playerListRefreshTime = 0;
 static const time_t playerListRefreshInterval = 4000;
 
-void GenOnlineSetUnignoreText( WindowLayout *layout, AsciiString nick, GPProfile id);
+void GenOnlineSetPlayerMenuText( WindowLayout *layout, AsciiString nick, GPProfile id);
 static void doSliderTrack(GameWindow *control, Int val);
 extern Bool DontShowMainMenu;
 enum { COLUMN_PLAYERNAME = 1 };
@@ -2401,7 +2401,7 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 								rcMenu->winGetLayout()->runInit();
 								rcMenu->winBringToTop();
 								rcMenu->winHide(FALSE);
-								GenOnlineSetUnignoreText(rcLayout, aName, profileID);
+								GenOnlineSetPlayerMenuText(rcLayout, aName, profileID);
 								ICoord2D rcSize, rcPos;
 								rcMenu->winGetSize(&rcSize.x, &rcSize.y);
 								rcPos.x = rc->mouseX;

@@ -118,7 +118,7 @@ static UnsignedInt noticeExpires = 0;
 
 	enum { NOTIFICATION_EXPIRES = 5000 };
 
-void GenOnlineSetUnignoreText( WindowLayout *layout, AsciiString nick, GPProfile id);
+void GenOnlineSetPlayerMenuText( WindowLayout *layout, AsciiString nick, GPProfile id);
 void GenOnlineRefreshIgnoreList();
 static void closeRightClickMenu(GameWindow *win);
 static int64_t GetSelectedBuddyID();
@@ -717,7 +717,6 @@ static void OpenPeerMenu()
 		Int width, height;
 		rcMenu->winGetSize(&width, &height);
 		rcMenu->winSetSize(width, height - step);
-		GadgetButtonSetText(buttonDelete, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GORemoveFriend", L"Remove"));
 	}
 
 	Int buttonX, buttonY, buttonWidth, buttonHeight, menuWidth, menuHeight;
@@ -732,7 +731,7 @@ static void OpenPeerMenu()
 	rcData->m_id = (GPProfile)s_peerID;
 	rcData->m_nick = AsciiString(to_utf8(CommunicatorPeerName(pSocial, s_peerID)).c_str());
 	rcData->m_itemType = bFriend ? ITEM_BUDDY : ITEM_NONBUDDY;
-	GenOnlineSetUnignoreText(rcLayout, rcData->m_nick, rcData->m_id);
+	GenOnlineSetPlayerMenuText(rcLayout, rcData->m_nick, rcData->m_id);
 	rcMenu->winSetUserData((void *)rcData);
 	TheWindowManager->winSetLoneWindow(rcMenu);
 }
@@ -1133,7 +1132,7 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 					rcData->m_id = profileID;
 					rcData->m_nick.translate(nick);
 					rcData->m_itemType = itemType;
-					GenOnlineSetUnignoreText(rcLayout, rcData->m_nick, rcData->m_id);
+					GenOnlineSetPlayerMenuText(rcLayout, rcData->m_nick, rcData->m_id);
 					rcMenu->winSetUserData((void *)rcData);
 					TheWindowManager->winSetLoneWindow(rcMenu);
 				}
@@ -1930,7 +1929,7 @@ WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, UnsignedIn
 					rcData->m_id = profileID;
 					rcData->m_nick.translate(nick);
 					rcData->m_itemType = (isBuddy) ? ITEM_BUDDY : ((isRequest) ? ITEM_REQUEST : ITEM_NONBUDDY);
-					GenOnlineSetUnignoreText(rcLayout, rcData->m_nick, rcData->m_id);
+					GenOnlineSetPlayerMenuText(rcLayout, rcData->m_nick, rcData->m_id);
 					rcMenu->winSetUserData((void*)rcData);
 					TheWindowManager->winSetLoneWindow(rcMenu);
 				}
@@ -2528,21 +2527,35 @@ WindowMsgHandledType GenOnlineBuddyOverlayRCMenuSystem( GameWindow *window, Unsi
 }
 
 
-void GenOnlineSetUnignoreText( WindowLayout *layout, AsciiString nick, GPProfile id)
+// Every player menu uses the same labels, whatever the retail layout says.
+static void GenOnlinePlayerMenuSetText( WindowLayout *layout, const char *button, const UnicodeString& text)
 {
 	AsciiString controlName;
-	controlName.format("%s:ButtonIgnore",rcWindowFile(layout).str());
-	NameKeyType ID =  TheNameKeyGenerator->nameToKey( controlName );
-	GameWindow *win = TheWindowManager->winGetWindowFromId(layout->getFirstWindow(), ID);
-	if(win)
+	controlName.format("%s:%s", rcWindowFile(layout).str(), button);
+	GameWindow *win = TheWindowManager->winGetWindowFromId(layout->getFirstWindow(), TheNameKeyGenerator->nameToKey(controlName));
+	if (win != nullptr)
 	{
-		GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-		if (pSocialInterface == nullptr)
-		{
-			return;
-		}
+		GadgetButtonSetText(win, text);
+	}
+}
 
-		GadgetButtonSetText(win, UnicodeString(pSocialInterface->IsUserIgnored(id) ? L"Unblock" : L"Block"));
+void GenOnlineSetPlayerMenuText( WindowLayout *layout, AsciiString nick, GPProfile id)
+{
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	if (pSocialInterface == nullptr)
+	{
+		return;
+	}
+
+	GenOnlinePlayerMenuSetText(layout, "ButtonStats", TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOProfile", L"Profile"));
+	if (rcWindowFile(layout).compareNoCase("RCNonBuddiesMenu.wnd") == 0)
+	{
+		GenOnlinePlayerMenuSetText(layout, "ButtonAdd", TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOAddFriend", L"Add friend"));
+	}
+	GenOnlinePlayerMenuSetText(layout, "ButtonIgnore", UnicodeString(pSocialInterface->IsUserIgnored(id) ? L"Unblock" : L"Block"));
+	if (pSocialInterface->IsUserFriend(id))
+	{
+		GenOnlinePlayerMenuSetText(layout, "ButtonDelete", UnicodeString(L"Remove friend"));
 	}
 }
 
