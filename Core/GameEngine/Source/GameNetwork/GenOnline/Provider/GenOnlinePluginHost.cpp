@@ -53,7 +53,7 @@ namespace
 {
 // The end of the last field that the current version of a table defines is the smallest structSize the host accepts.
 constexpr uint32_t kPluginApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginApi, transport) + sizeof(void*));
-constexpr uint32_t kLinkedAccountApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginLinkedAccountApi, provider) + sizeof(void*));
+constexpr uint32_t kLinkedAccountApiMinSize = static_cast<uint32_t>(sizeof(GenOnlinePluginLinkedAccountApi));
 constexpr uint32_t kAnticheatApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginAnticheatApi, MessageArrived) + sizeof(void*));
 constexpr uint32_t kTransportApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginTransportApi, DisconnectAll) + sizeof(void*));
 constexpr uint32_t kLocalApiMinSize = static_cast<uint32_t>(offsetof(GenOnlinePluginLocalApi, FreeInbound) + sizeof(void*));
@@ -205,6 +205,7 @@ bool ValidateLinkedAccountApi(const GenOnlinePluginLinkedAccountApi* pApi)
 		&& pApi->version == GENONLINE_PLUGIN_LINKED_ACCOUNT_API_VERSION
 		&& pApi->SignIn != nullptr
 		&& pApi->Refresh != nullptr
+		&& pApi->SignOut != nullptr
 		&& pApi->IsSignedIn != nullptr
 		&& pApi->GetPlatformUserId != nullptr
 		&& pApi->GetIdentityProof != nullptr
@@ -863,6 +864,30 @@ void GenOnlinePluginHost::UnloadPlugin()
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Unloaded plugin");
 
 	UnloadBuiltInAnticheat();
+}
+
+void GenOnlinePluginHost::SignOut()
+{
+	if (s_bSessionStarted)
+	{
+		Anticheat::EndSession();
+	}
+
+	if (!s_bPluginLoaded)
+	{
+		return;
+	}
+
+	if (s_pTransport != nullptr)
+	{
+		s_pTransport->DisconnectAll();
+	}
+	if (s_pLinkedAccount != nullptr)
+	{
+		s_pLinkedAccount->SignOut();
+	}
+	s_tokenCreationTime = -1;
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Plugin] Signed out of %s, the platform and the anticheat keep running", s_pluginName.c_str());
 }
 
 void GenOnlinePluginHost::Tick()

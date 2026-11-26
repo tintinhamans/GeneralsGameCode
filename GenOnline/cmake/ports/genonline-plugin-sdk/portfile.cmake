@@ -1,7 +1,7 @@
 vcpkg_from_git(
     OUT_SOURCE_PATH SOURCE_PATH
     URL https://github.com/community-outpost/genonline-plugin-sdk.git
-    REF 56518cd8751c0b5269490f68ff3602afea0f1838
+    REF 326c60341fae24b43340e3f4c36bd133ea770980
 )
 
 set(VCPKG_BUILD_TYPE release)

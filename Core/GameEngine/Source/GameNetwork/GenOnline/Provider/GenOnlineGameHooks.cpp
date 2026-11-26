@@ -22,6 +22,7 @@
 
 #include "GameNetwork/GenOnline/Provider/GenOnlineGameHooks.h"
 #include "GameNetwork/GenOnline/Provider/GenOnlineNetworkOverlay.h"
+#include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
 #include "GameNetwork/GenOnline/GenOnlineCrashReport.h"
 
 #include "Common/FileSystem.h"
@@ -146,6 +147,9 @@ void GenOnlineGameHooks::onDisplayCreated()
 
 void GenOnlineGameHooks::onEngineInitialized()
 {
+	// The anticheat protects the whole session from game start, so the plugin loads here and not at the first sign in.
+	GenOnlinePluginHost::LoadPlugin(GenOnlineServicesManager::Settings.GetAnticheatPlugin(), GenOnlineServicesManager::Settings.GetTransportPlugins());
+
 	m_discordRichPresence = new GenOnlineDiscordRPC();
 	m_discordRichPresence->Initialize();
 }
@@ -173,6 +177,8 @@ void GenOnlineGameHooks::onEngineUpdate()
 	// work handed back by worker threads, also while no online services instance exists
 	ServiceConnection::PumpMainThreadTasks();
 
+	GenOnlinePluginHost::Tick();
+
 	if (GenOnlineServicesManager::GetInstance() != nullptr)
 	{
 		GenOnlineServicesManager::GetInstance()->Tick();
@@ -191,6 +197,7 @@ void GenOnlineGameHooks::onEngineShutdown()
 	m_discordRichPresence = nullptr;
 
 	GenOnlineServicesManager::DestroyInstance();
+	GenOnlinePluginHost::UnloadPlugin();
 }
 
 void GenOnlineGameHooks::onEngineExit()

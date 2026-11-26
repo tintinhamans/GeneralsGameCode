@@ -75,7 +75,6 @@ static bool FinishDetachedDestroy(bool bGiveUp)
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] The online teardown did not finish before exit");
 			s_destroyThread.detach();
 			s_pDestroying = nullptr;
-			GenOnlinePluginHost::UnloadPlugin();
 			return false;
 		}
 	}
@@ -85,8 +84,6 @@ static bool FinishDetachedDestroy(bool bGiveUp)
 	}
 	if (s_destroyThread.joinable())
 		s_destroyThread.join();
-	// The anticheat middleware is driven from the main thread, so its plugin unloads here.
-	GenOnlinePluginHost::UnloadPlugin();
 	delete s_pDestroying;
 	s_pDestroying = nullptr;
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] OnlineServicesManager shutdown complete");
@@ -122,6 +119,8 @@ void GenOnlineServicesManager::BeginDestroyInstance()
 	GenOnlineRealtimeBridge::ShutdownRest();
 	s_destroyDone = false;
 	GenOnlineServicesManager* manager = s_pDestroying;
+	// The plugin runs on the main thread only, so the user signs out of it here and it keeps running for the next sign in.
+	GenOnlinePluginHost::SignOut();
 	s_destroyThread = std::thread([manager]()
 	{
 		manager->ShutdownBlocking();
@@ -951,9 +950,9 @@ void GenOnlineServicesManager::Shutdown()
 	// Queued retries capture the interfaces of this instance, so none of them may run on the next one.
 	GenOnlineRealtimeBridge::ShutdownRest();
 
-	ShutdownBlocking();
+	GenOnlinePluginHost::SignOut();
 
-	GenOnlinePluginHost::UnloadPlugin();
+	ShutdownBlocking();
 
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] OnlineServicesManager shutdown complete");
 }
@@ -1304,8 +1303,6 @@ void GenOnlineServicesManager::Init()
 
 void GenOnlineServicesManager::Tick()
 {
-	GenOnlinePluginHost::Tick();
-
 	// screenshots
 	{
 		// send screenshot

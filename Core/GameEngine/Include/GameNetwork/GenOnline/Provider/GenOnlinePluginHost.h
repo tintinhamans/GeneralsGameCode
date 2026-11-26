@@ -88,6 +88,9 @@ public:
 	// An empty anticheat plugin and an empty transport list load no plugin DLL.
 	static void LoadPlugin(const std::string& anticheatPlugin, const std::vector<std::string>& transportPlugins);
 	static void UnloadPlugin();
+	// Ends the anticheat session, the transport peers and the linked account of the user that signs out, while the
+	// plugin with its platform and anticheat stays loaded until the game exits.
+	static void SignOut();
 	static void Tick();
 
 	static bool IsPluginLoaded();
