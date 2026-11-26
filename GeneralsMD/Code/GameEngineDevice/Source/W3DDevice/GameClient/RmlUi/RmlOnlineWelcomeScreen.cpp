@@ -725,7 +725,6 @@ void RmlOnlineWelcomeScreen::requestPlayerCard()
 				numDiscons += it->second;
 			for (it = stats.desyncs.begin(); it != stats.desyncs.end(); ++it)
 				numDiscons += it->second;
-			numDiscons += GenOnlineGetAdditionalDisconnectsFromUserFile((Int)localID);
 			const Int numGames = numWins + numLosses + numDiscons;
 
 			// The favourite army: the most games; none before the first.

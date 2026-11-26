@@ -108,11 +108,11 @@ namespace
 		return edited.serverMode == "custom" && saved.serverAddress != edited.serverAddress;
 	}
 
-	// Ronin @feature 21/11/2026 DX9: networkServerHost(): the host Automatic's server uses, the route that worked last first.
+	// Ronin @feature 21/11/2026 DX9: networkServerHost(): the host Automatic's server uses.
 	std::string automaticServerHost()
 	{
 		const std::vector<std::string> routes = ServiceConnection::BootstrapRoutes(GenOnlineServicesManager::EnvironmentName(),
-			ServiceConnectionSettings(), GenOnlineServicesManager::Settings.Network_GetLastRoute());
+			ServiceConnectionSettings());
 		if (routes.empty())
 			return std::string();
 		std::string host = routes.front();
@@ -595,7 +595,7 @@ void RmlOptionsScreen::startOnlineLookup()
 	ServiceConnectionSettings system;
 	system.proxyMode = "automatic";
 	const std::vector<std::string> routes = ServiceConnection::BootstrapRoutes(GenOnlineServicesManager::EnvironmentName(),
-		GenOnlineServicesManager::Settings.Network_GetConnectionSettings(), GenOnlineServicesManager::Settings.Network_GetLastRoute());
+		GenOnlineServicesManager::Settings.Network_GetConnectionSettings());
 	m_systemProxy = ServiceConnection::StartProxyResolution(system, routes.empty() ? std::string("https://api.generals.online/") : routes.front());
 }
 
