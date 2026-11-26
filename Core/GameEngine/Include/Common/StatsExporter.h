@@ -18,9 +18,6 @@
 #pragma once
 
 class AsciiString;
-class Object;
-class Player;
-class DamageInfo;
 
 /// Export game statistics as a JSON file alongside the replay file.
 /// @param replayDir Directory containing replays (e.g. "[UserDataPath]/Replays/")
@@ -47,12 +44,4 @@ void StatsExporterCollectSnapshot();
 /// Begin recording stats for a new replay. Activates recording and resets all stored data.
 void StatsExporterBeginRecording();
 
-/// Record a kill event with full context (called from Object::scoreTheKill).
-/// Feeds the live stats readers (LocalApiLive.h) and, when -exportStats is on, the JSON export.
-void StatsExporterRecordKill(const Object *killer, const Object *victim, const DamageInfo *damageInfo);
-
-/// Record a build event (called from Player::onUnitCreated / onStructureConstructionComplete).
-void StatsExporterRecordBuild(const Object *producer, const Object *built);
-
-/// Record a capture event (called from Object::onCapture).
-void StatsExporterRecordCapture(const Object *captured, const Player *oldOwner, const Player *newOwner);
+/// Kills, builds, captures and the per frame snapshot reach the export through StatsExporterMatchSink (MatchEvents.h).

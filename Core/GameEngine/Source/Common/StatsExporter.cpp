@@ -18,7 +18,8 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/StatsExporter.h"
-#include "Common/LocalApiLive.h"
+#include "Common/MatchEvents.h"
+#include "Common/Recorder.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
 #include "Common/PlayerTemplate.h"
@@ -436,14 +437,8 @@ void StatsExporterBeginRecording()
 
 //-----------------------------------------------------------------------------
 
-void StatsExporterRecordKill(const Object *killer, const Object *victim, const DamageInfo *damageInfo)
+static void StatsExporterRecordKill(const Object *killer, const Object *victim, const DamageInfo *damageInfo)
 {
-	// Live reader feed with a cheap early-out while no reader is connected
-	if (killer != nullptr && victim != nullptr && killer->getControllingPlayer() != nullptr)
-	{
-		LocalApiLiveKill(killer->getControllingPlayer()->getPlayerIndex(), killer, victim);
-	}
-
 	if (!s_state.exportingActive)
 		return;
 	if (killer == nullptr || victim == nullptr || TheGameLogic == nullptr)
@@ -484,7 +479,7 @@ void StatsExporterRecordKill(const Object *killer, const Object *victim, const D
 
 //-----------------------------------------------------------------------------
 
-void StatsExporterRecordBuild(const Object *producer, const Object *built)
+static void StatsExporterRecordBuild(const Object *producer, const Object *built)
 {
 	if (!s_state.exportingActive)
 		return;
@@ -521,7 +516,7 @@ void StatsExporterRecordBuild(const Object *producer, const Object *built)
 
 //-----------------------------------------------------------------------------
 
-void StatsExporterRecordCapture(const Object *captured, const Player *oldOwner, const Player *newOwner)
+static void StatsExporterRecordCapture(const Object *captured, const Player *oldOwner, const Player *newOwner)
 {
 	if (!s_state.exportingActive)
 		return;
@@ -548,6 +543,45 @@ void StatsExporterRecordCapture(const Object *captured, const Player *oldOwner, 
 	strlcpy(ev.templateName, captured->getTemplate()->getName().str(), ARRAY_SIZE(ev.templateName));
 
 	s_state.captureEvents.push_back(ev);
+}
+
+//-----------------------------------------------------------------------------
+
+namespace
+{
+	/// The stats export side of the match event bus. Every handler gates itself on an active recording.
+	class ExporterMatchSink : public MatchEventSink
+	{
+	public:
+		virtual void onObjectKilled(const MatchObjectKilled& event) override
+		{
+			const DamageInfo *damageInfo = (s_state.exportingActive && event.victim != nullptr && event.victim->getBodyModule()) ? event.victim->getBodyModule()->getLastDamageInfo() : nullptr;
+			StatsExporterRecordKill(event.killer, event.victim, damageInfo);
+		}
+
+		virtual void onObjectCaptured(const MatchObjectCaptured& event) override
+		{
+			StatsExporterRecordCapture(event.captured, event.oldOwner, event.newOwner);
+		}
+
+		virtual void onObjectBuilt(const MatchObjectBuilt& event) override
+		{
+			StatsExporterRecordBuild(event.producer, event.built);
+		}
+
+		virtual void onFrameSample() override
+		{
+			// The headless replay simulation collects its own snapshots.
+			if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD)
+				StatsExporterCollectSnapshot();
+		}
+	};
+}
+
+MatchEventSink& StatsExporterMatchSink()
+{
+	static ExporterMatchSink s_sink;
+	return s_sink;
 }
 
 //-----------------------------------------------------------------------------

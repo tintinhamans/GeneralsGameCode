@@ -110,7 +110,7 @@
 #if defined(GENONLINE)
 #include "GameNetwork/Online/IOnlineGameHooks.h"
 #include "Common/LocalApiLive.h"
-#include "Common/StatsExporter.h"
+#include "Common/MatchEvents.h"
 #endif
 
 struct QuitGameException {};
@@ -3576,12 +3576,8 @@ void GameLogic::update()
 	}
 
 #if defined(GENONLINE)
-	// GenOnline @feature arcticdolphin 21/11/2026 Live stats pipe sample of the state at the end of the previous frame, an early out while no reader is connected
-	LocalApiLiveUpdate();
-
-	// GenOnline @feature arcticdolphin 21/11/2026 Snapshot of the game being recorded, the headless replay simulation collects its own
-	if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD)
-		StatsExporterCollectSnapshot();
+	// GenOnline @feature arcticdolphin 26/11/2026 Live stats pipe sample and stats export snapshot of the state at the end of the previous frame
+	MatchEvents::frameSample();
 
 #endif
 	// Update the Recorder

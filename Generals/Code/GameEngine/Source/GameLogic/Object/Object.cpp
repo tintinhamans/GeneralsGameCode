@@ -53,7 +53,7 @@
 #include "Common/XferCRC.h"
 #include "Common/PerfTimer.h"
 #if defined(GENONLINE)
-#include "Common/StatsExporter.h"
+#include "Common/MatchEvents.h"
 #include "Common/LocalApiLive.h"
 #endif
 
@@ -2751,7 +2751,7 @@ void Object::scoreTheKill( const Object *victim )
 		victimController->getScoreKeeper()->addObjectLost(victim);
 #if defined(GENONLINE)
 		// GenOnline @feature arcticdolphin 21/11/2026 Report the loss to the live stats pipe
-		LocalApiLiveLoss(victimController->getPlayerIndex(), victim, this);
+		MatchEvents::objectLost(victimController->getPlayerIndex(), victim, this);
 #endif
 	}
 
@@ -2772,9 +2772,8 @@ void Object::scoreTheKill( const Object *victim )
 		controller->doBountyForKill(this, victim);
 #if defined(GENONLINE)
 
-		// GenOnline @feature arcticdolphin 21/11/2026 One entry point feeds the live pipe and the JSON export, each under its own gate
-		const DamageInfo *damageInfo = (StatsExporterIsActive() && victim->getBodyModule()) ? victim->getBodyModule()->getLastDamageInfo() : nullptr;
-		StatsExporterRecordKill(this, victim, damageInfo);
+		// GenOnline @feature arcticdolphin 26/11/2026 One event feeds the live pipe and the JSON export, each under its own gate
+		MatchEvents::objectKilled(this, victim);
 #endif
 	}
 
@@ -4225,8 +4224,7 @@ void Object::onCapture( Player *oldOwner, Player *newOwner )
 
 #if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 Report the capture to the JSON export and the live stats pipe
-	StatsExporterRecordCapture(this, oldOwner, newOwner);
-	LocalApiLiveCapture(this, oldOwner, newOwner);
+	MatchEvents::objectCaptured(this, oldOwner, newOwner);
 
 #endif
 	// rip through the behavior modules and call the onCapture for any modules that care

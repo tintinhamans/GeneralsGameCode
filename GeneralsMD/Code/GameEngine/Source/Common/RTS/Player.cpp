@@ -49,7 +49,7 @@
 #include "Common/ActionManager.h"
 #include "Common/BuildAssistant.h"
 #if defined(GENONLINE)
-#include "Common/StatsExporter.h"
+#include "Common/MatchEvents.h"
 #include "Common/LocalApiLive.h"
 #endif
 #include "Common/CRCDebug.h"
@@ -1565,7 +1565,7 @@ void Player::onUnitCreated( Object *factory, Object *unit )
 	LocalApiLiveSpend(getPlayerIndex(), LOCAL_API_SPEND_UNITS, unitCost);
 
 	// GenOnline @feature arcticdolphin 21/11/2026 The exporter gates itself on an active recording
-	StatsExporterRecordBuild(factory, unit);
+	MatchEvents::objectBuilt(factory, unit);
 #endif
 
 	// ai notification callback
@@ -1660,7 +1660,7 @@ void Player::onStructureConstructionComplete( Object *builder, Object *structure
 		m_scoreKeeper.addMoneySpent(structureCost);
 		LocalApiLiveSpend(getPlayerIndex(), LOCAL_API_SPEND_STRUCTURES, structureCost);
 		// GenOnline @feature arcticdolphin 21/11/2026 The exporter gates itself on an active recording
-		StatsExporterRecordBuild(builder, structure);
+		MatchEvents::objectBuilt(builder, structure);
 #else
 		m_scoreKeeper.addMoneySpent(structure->getTemplate()->calcCostToBuild(this));
 #endif

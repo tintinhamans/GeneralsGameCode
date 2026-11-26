@@ -17,6 +17,7 @@ list(APPEND GAMEENGINE_SRC
     Include/Common/AdaptiveQualityPower.h
     Include/Common/GOUIColors.h
     Include/Common/StatsExporter.h
+    Include/Common/MatchEvents.h
     Include/Common/LocalApiControl.h
     Include/Common/LocalApiLive.h
     Include/Common/LocalApiLobby.h
@@ -56,6 +57,7 @@ list(APPEND GAMEENGINE_SRC
     Source/Common/AdaptiveQuality.cpp
     Source/Common/GOUIColors.cpp
     Source/Common/StatsExporter.cpp
+    Source/Common/MatchEvents.cpp
     Source/Common/LocalApiControl.cpp
     Source/Common/LocalApiLive.cpp
     Source/Common/LocalApiLobby.cpp

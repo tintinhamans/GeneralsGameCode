@@ -18,6 +18,7 @@
 #include "Common/LocalApiLive.h"
 #include "Common/LocalApiReaders.h"
 #include "Common/LocalApiQuery.h"
+#include "Common/MatchEvents.h"
 
 #include "Common/GameCommon.h"		// LOGICFRAMES_PER_SECOND, Relationship
 #include "Common/RandomValue.h"		// GetGameLogicRandomSeed, match_id source, private-state generator functions
@@ -5134,4 +5135,41 @@ void LocalApiLivePlayerDefeated(Int playerIndex)
 	event.kind = localapi::STATEVENT_PLAYER_DEFEATED;
 	event.category = "PLAYER";
 	pushPendingEvent(event);
+}
+
+namespace
+{
+	/// The live feed side of the match event bus.
+	class CasterMatchSink : public MatchEventSink
+	{
+	public:
+		virtual void onObjectLost(const MatchObjectLost& event) override
+		{
+			LocalApiLiveLoss(event.playerIndex, event.victim, event.killer);
+		}
+
+		virtual void onObjectKilled(const MatchObjectKilled& event) override
+		{
+			if (event.killer != NULL && event.victim != NULL && event.killer->getControllingPlayer() != NULL)
+			{
+				LocalApiLiveKill(event.killer->getControllingPlayer()->getPlayerIndex(), event.killer, event.victim);
+			}
+		}
+
+		virtual void onObjectCaptured(const MatchObjectCaptured& event) override
+		{
+			LocalApiLiveCapture(event.captured, event.oldOwner, event.newOwner);
+		}
+
+		virtual void onFrameSample() override
+		{
+			LocalApiLiveUpdate();
+		}
+	};
+}
+
+MatchEventSink& LocalApiLiveMatchSink()
+{
+	static CasterMatchSink s_sink;
+	return s_sink;
 }
