@@ -162,7 +162,11 @@ Int UpgradeTemplate::calcTimeToBuild( Player *player ) const
 #endif
 
 	///@todo modify this by power state of player
+#if defined(GENONLINE)
 	return ConvertBaseFramesToFrames((Int)ConvertFramesToBaseFramesReal(ConvertDurationFromSecsToFrames(m_buildTime)));
+#else
+	return m_buildTime * LOGICFRAMES_PER_SECOND;
+#endif
 
 }
 

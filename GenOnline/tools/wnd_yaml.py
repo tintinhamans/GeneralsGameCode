@@ -1,7 +1,7 @@
 """Compile declarative YAML layout sources into .wnd window layouts.
 
 A source lives at GenOnline/tools/wnd_yaml/<archive path>.yaml (for example Window/Menus/OptionsMenu.yaml) and compiles
-to the .wnd at the same archive path. GenOnline/tools/go_wnd_layouts.py writes the compiled text unchanged, so a source
+to the .wnd at the same archive path. GenOnline/tools/genonline_wnd_layouts.py writes the compiled text unchanged, so a source
 carries the final kit colours, GO header templates and hover images. All rects are in 800x600 units.
 
 Source keys:

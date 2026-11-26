@@ -52,7 +52,9 @@
 // ----------------------------------------------------------------------------------------------
 #include "WWLib/WWCommon.h"
 #include "Common/GameDefines.h"
+#if defined(GENONLINE)
 #include "GameNetwork/GenOnline/GenOnlineDefines.h"
+#endif
 
 // ----------------------------------------------------------------------------------------------
 #if defined(RTS_DEBUG)
@@ -66,8 +68,10 @@ enum
 {
 	BaseFps = 30, // The historic base frame rate for this game. This value must never change.
 	LOGICFRAMES_PER_SECOND = WWSyncPerSecond,
+#if defined(GENONLINE)
 	// INI data and retail frame counts are authored at the base frame rate.
 	LOGICFRAMES_PER_BASEFRAME = LOGICFRAMES_PER_SECOND / BaseFps,
+#endif
 	MSEC_PER_SECOND = 1000
 };
 const Real LOGICFRAMES_PER_MSEC_REAL = (((Real)LOGICFRAMES_PER_SECOND) / ((Real)MSEC_PER_SECOND));
@@ -84,6 +88,7 @@ inline Real ConvertDurationFromMsecsToFrames(Real msec)
 }
 
 // ----------------------------------------------------------------------------------------------
+#if defined(GENONLINE)
 // Returns a REAL value like ConvertDurationFromMsecsToFrames.
 inline Real ConvertDurationFromSecsToFrames(Real seconds)
 {
@@ -132,6 +137,7 @@ Int MultiplyFramesInBaseFrames(Int frames, Real factor);
 Real ConvertBaseFrameFactorToFrameFactor(Real factorPerBaseFrame);
 
 // ----------------------------------------------------------------------------------------------
+#endif
 inline Real ConvertVelocityInSecsToFrames(Real distPerMsec)
 {
 	// this looks wrong, but is the correct conversion factor.

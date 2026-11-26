@@ -155,7 +155,11 @@ UnsignedInt FrameData::getCommandCount() {
 /**
  * Add a command to this frame
  */
+#if defined(GENONLINE)
 Bool FrameData::addCommand(NetCommandMsg *msg) {
+#else
+void FrameData::addCommand(NetCommandMsg *msg) {
+#endif
 	// need to add the message in order of command ID
 	if (m_commandList == nullptr) {
 		init();
@@ -164,13 +168,19 @@ Bool FrameData::addCommand(NetCommandMsg *msg) {
 	// We don't need to worry about setting the relay since its not getting sent anywhere.
 	if (m_commandList->findMessage(msg) != nullptr) {
 		// We don't want to add the same command twice.
+#if defined(GENONLINE)
 		return FALSE;
+#else
+		return;
+#endif
 	}
 	m_commandList->addMessage(msg);
 
 	++m_commandCount;
 	//DEBUG_LOG(("added command %d, type = %d(%s), command count = %d, frame command count = %d", msg->getID(), msg->getNetCommandType(), GetNetCommandTypeAsString(msg->getNetCommandType()), m_commandCount, m_frameCommandCount));
+#if defined(GENONLINE)
 	return TRUE;
+#endif
 }
 
 /**

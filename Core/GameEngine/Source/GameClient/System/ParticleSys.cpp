@@ -320,6 +320,7 @@ Particle::Particle( ParticleSystem *system, const ParticleInfo *info )
 	m_angularRateY = info->m_angularRateY;
 #endif
 	m_angularRateZ = info->m_angularRateZ;
+#if defined(GENONLINE)
 	m_angularDamping = info->m_angularDamping;
 
 	m_velDamping = info->m_velDamping;
@@ -343,6 +344,22 @@ Particle::Particle( ParticleSystem *system, const ParticleInfo *info )
 	m_sizeRateDamping = info->m_sizeRateDamping;
 
 	// set up alpha
+#else
+	m_angularDamping = info->m_angularDamping;
+
+	m_velDamping = info->m_velDamping;
+
+	m_lifetime = info->m_lifetime;
+	m_lifetimeLeft = info->m_lifetime;
+	m_createTimestamp = TheGameClient->getFrame();
+	m_personality = 0;
+
+	m_size = info->m_size;
+	m_sizeRate = info->m_sizeRate;
+	m_sizeRateDamping = info->m_sizeRateDamping;
+
+	// set up alpha
+#endif
 	int i=0;
 	for( ; i<MAX_KEYFRAMES; i++ )
 		m_alphaKey[i] = info->m_alphaKey[i];
@@ -682,6 +699,7 @@ void Particle::doWindMotion(Real timeScale)
 // ------------------------------------------------------------------------------------------------
 ParticlePriorityType Particle::getPriority()
 {
+#if defined(GENONLINE)
 	return m_system->getPriority();
 }
 
@@ -704,6 +722,22 @@ UnsignedInt Particle::getElapsedFrames() const
 // ------------------------------------------------------------------------------------------------
 Bool Particle::isInvisible()
 {
+#else
+	return m_system->getPriority();
+}
+
+// ------------------------------------------------------------------------------------------------
+UnsignedInt Particle::getElapsedFrames() const
+{
+	return TheGameClient->getFrame() - m_createTimestamp;
+}
+
+// ------------------------------------------------------------------------------------------------
+/** Return true if this particle is invisible */
+// ------------------------------------------------------------------------------------------------
+Bool Particle::isInvisible()
+{
+#endif
 	switch (m_system->getShaderType())
 	{
 		case ParticleSystemInfo::ADDITIVE:
@@ -1309,6 +1343,7 @@ ParticleSystem::ParticleSystem( const ParticleSystemTemplate *sysTemplate,
 	m_burstDelay = sysTemplate->m_burstDelay;
 	m_burstDelayLeft = 0;
 
+#if defined(GENONLINE)
 	m_burstCount = sysTemplate->m_burstCount;
 
 	m_isOneShot = sysTemplate->m_isOneShot;
@@ -1331,6 +1366,22 @@ ParticleSystem::ParticleSystem( const ParticleSystemTemplate *sysTemplate,
 		m_isForever = true;
 
 	m_accumulatedSizeBonus = 0.0f;
+#else
+	m_burstCount = sysTemplate->m_burstCount;
+
+	m_isOneShot = sysTemplate->m_isOneShot;
+
+	m_delayLeft = (UnsignedInt)sysTemplate->m_initialDelay.getValue();
+
+	m_startTimestamp = TheGameClient->getFrame();
+	m_systemLifetimeLeft = sysTemplate->m_systemLifetime;
+	if (sysTemplate->m_systemLifetime)
+		m_isForever = false;
+	else
+		m_isForever = true;
+
+	m_accumulatedSizeBonus = 0.0f;
+#endif
 
 	m_velDamping = sysTemplate->m_velDamping;
 
@@ -1586,7 +1637,9 @@ void ParticleSystem::attachToDrawable( const Drawable *draw )
 		DEBUG_ASSERTCRASH( m_attachedToObjectID == INVALID_ID, ( "ParticleSystem is already attached to an Object" ) );
 		m_attachedToDrawableID = draw->getID();
 		m_attachedToObjectID = INVALID_ID;
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 		// Info: One-frame attached systems can otherwise lose their only burst when the drawable is created and destroyed
 		// between legacy particle updates at 60Hz.
@@ -1961,14 +2014,22 @@ Particle *ParticleSystem::createParticle( const ParticleInfo *info,
 		// ALWAYS_RENDER particles are exempt from all count limits, and are always created, regardless of LOD issues.
 		if (priority != ALWAYS_RENDER)
 		{
+#if defined(GENONLINE)
 			int numInExcess = TheParticleSystemManager->getParticleCount() - (UnsignedInt)TheGlobalData->getEffectiveMaxParticleCount();
+#else
+			int numInExcess = TheParticleSystemManager->getParticleCount() - (UnsignedInt)TheGlobalData->m_maxParticleCount;
+#endif
 			if ( numInExcess > 0)
 			{
 				if( TheParticleSystemManager->removeOldestParticles((UnsignedInt) numInExcess, priority) != numInExcess )
 					return nullptr;  // could not remove enough particles, don't create new stuff
 			}
 
+#if defined(GENONLINE)
 			if (TheGlobalData->getEffectiveMaxParticleCount() == 0)
+#else
+			if (TheGlobalData->m_maxParticleCount == 0)
+#endif
 				return nullptr;
 		}
 
@@ -2113,6 +2174,7 @@ Bool ParticleSystem::update( Int localPlayerIndex  )
 
 	// do initial delay ... note, this currently delays the lifetime
 	if (m_delayLeft)
+#if defined(GENONLINE)
 	{
 		--m_delayLeft;
 
@@ -2135,6 +2197,22 @@ Bool ParticleSystem::update( Int localPlayerIndex  )
 	// update the wind motion
 	if (m_windMotion != ParticleSystemInfo::WIND_MOTION_NOT_USED )
 		updateWindMotion();
+#else
+	{
+		--m_delayLeft;
+
+		// system actually "starts" once initial delay is over
+		/// @todo reset start time when system is stopped/started
+		if (m_delayLeft == 0)
+			m_startTimestamp = TheGameClient->getFrame();
+
+		return true;
+	}
+
+	// update the wind motion
+	if (m_windMotion != ParticleSystemInfo::WIND_MOTION_NOT_USED )
+		updateWindMotion();
+#endif
 
 	//
 	// Update shrouding and drawable/object lifetime for the particle system
@@ -3322,7 +3400,9 @@ void ParticleSystemManager::update()
 	m_particleBaseFrame = baseFrame;
 	m_hasParticleBaseFrame = TRUE;
 #endif
+#if defined(GENONLINE)
 
+#endif
 	//USE_PERF_TIMER(ParticleSystemManager)
 	const double updateStart = FrameCost_Now();	// Ronin @diagnostic 07/11/2026 DX9: [CPU] the particle update
 
@@ -3342,7 +3422,11 @@ void ParticleSystemManager::update()
 		}
 	}
 
+#if defined(GENONLINE)
 	const Bool drawSmudge = TheSmudgeManager && TheSmudgeManager->getHardwareSupport() && TheGlobalData->drawsHeatEffects();
+#else
+	const Bool drawSmudge = TheSmudgeManager && TheSmudgeManager->getHardwareSupport() && TheGlobalData->m_useHeatEffects;
+#endif
 
 	if (drawSmudge)
 	{

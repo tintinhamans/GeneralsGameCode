@@ -3315,6 +3315,7 @@ namespace
 			Int colorIdx = slots[i].color;
 			if (colorIdx < 0 || colorIdx >= numColors)
 			{
+				colorIdx = -1;
 				guard = 0;
 				while (colorIdx == -1)
 				{

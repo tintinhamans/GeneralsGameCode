@@ -64,6 +64,7 @@
 
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 
+#if defined(GENONLINE)
 // GenOnline @bugfix arcticdolphin 08/11/2026 Refresh the slider tooltip after a drag because the window manager clears it on every mouse event.
 static void refreshDragTooltip( GameWindow *window, WindowMsgData mouse )
 {
@@ -72,6 +73,7 @@ static void refreshDragTooltip( GameWindow *window, WindowMsgData mouse )
 		tooltip( window, window->winGetInstanceData(), (UnsignedInt)mouse );
 }
 
+#endif
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -198,7 +200,11 @@ WindowMsgHandledType GadgetHorizontalSliderInput( GameWindow *window, UnsignedIn
 			if( clickPos < childSize.x / 2 )
 				clickPos = childSize.x / 2;
 
+#if defined(GENONLINE)
 			child->winSetPosition( clickPos - childSize.x / 2, GadgetHorizontalSliderThumbTop( window, child ));
+#else
+			child->winSetPosition( clickPos - childSize.x / 2, HORIZONTAL_SLIDER_THUMB_POSITION);
+#endif
 			TheWindowManager->winSendSystemMsg( window, GGM_LEFT_DRAG, 0, mData1 );
 			break;
 
@@ -227,7 +233,11 @@ WindowMsgHandledType GadgetHorizontalSliderInput( GameWindow *window, UnsignedIn
 																									s->position );
 
 							// Translate to window coords
+#if defined(GENONLINE)
 							child->winSetPosition( (Int)((s->position - s->minVal) * s->numTicks), GadgetHorizontalSliderThumbTop( window, child ) );
+#else
+							child->winSetPosition( (Int)((s->position - s->minVal) * s->numTicks), HORIZONTAL_SLIDER_THUMB_POSITION );
+#endif
 
 						}
 
@@ -252,7 +262,11 @@ WindowMsgHandledType GadgetHorizontalSliderInput( GameWindow *window, UnsignedIn
 																									s->position );
 
 							// Translate to window coords
+#if defined(GENONLINE)
 							child->winSetPosition( (Int)((s->position - s->minVal) * s->numTicks),GadgetHorizontalSliderThumbTop( window, child ) );
+#else
+							child->winSetPosition( (Int)((s->position - s->minVal) * s->numTicks),HORIZONTAL_SLIDER_THUMB_POSITION );
+#endif
 
 						}
 
@@ -328,8 +342,12 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 			// ignore drag attempts when the mouse is right or left of slider totally
 			// and put the dragging thumb back at the slider pos
 			//
+#if defined(GENONLINE)
 			// GenOnline @tweak arcticdolphin 08/11/2026 Use the width of the thumb, which scales with the screen height.
 			if( mousex > x + size.x - childSize.x/2 )
+#else
+			if( mousex > x + size.x -HORIZONTAL_SLIDER_THUMB_WIDTH/2 )
+#endif
 			{
 
 				TheWindowManager->winSendSystemMsg( window, GSM_SET_SLIDER,
@@ -339,11 +357,17 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 																						GSM_SLIDER_TRACK,
 																						(WindowMsgData)window,
 																						s->position );
+#if defined(GENONLINE)
 				refreshDragTooltip( window, mData2 );
+#endif
 				break;
 
 			}
+#if defined(GENONLINE)
 			else if( mousex < x + childSize.x/2)
+#else
+			else if( mousex < x + HORIZONTAL_SLIDER_THUMB_WIDTH/2)
+#endif
 			{
 
 				TheWindowManager->winSendSystemMsg( window, GSM_SET_SLIDER,
@@ -353,26 +377,40 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 																						GSM_SLIDER_TRACK,
 																						(WindowMsgData)window,
 																						s->position );
+#if defined(GENONLINE)
 				refreshDragTooltip( window, mData2 );
+#endif
 				break;
 
 			}
 
 			if( childCenter.x < x + childSize.x / 2 )
 			{
+#if defined(GENONLINE)
 				child->winSetPosition( 0,GadgetHorizontalSliderThumbTop( window, child ) );
+#else
+				child->winSetPosition( 0,HORIZONTAL_SLIDER_THUMB_POSITION );
+#endif
 				s->position = s->minVal;
 
 			}
 			else if( childCenter.x >= x + size.x - childSize.x / 2 )
 			{
+#if defined(GENONLINE)
 				child->winSetPosition( (Int)((s->maxVal - s->minVal) * s->numTicks) - childSize.x/2 , GadgetHorizontalSliderThumbTop( window, child ) );
+#else
+				child->winSetPosition( (Int)((s->maxVal - s->minVal) * s->numTicks) -HORIZONTAL_SLIDER_THUMB_WIDTH/2 , HORIZONTAL_SLIDER_THUMB_POSITION );
+#endif
 				s->position = s->maxVal;
 
 			}
 			else
 			{
+#if defined(GENONLINE)
 				delta = childCenter.x - x - childSize.x/2;
+#else
+				delta = childCenter.x - x -HORIZONTAL_SLIDER_THUMB_WIDTH/2;
+#endif
 
 				// Calc slider position
 				s->position = (Int)((delta) / s->numTicks)+ s->minVal ;
@@ -386,7 +424,11 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 				if( s->position < s->minVal)
 					s->position = s->minVal;
 
+#if defined(GENONLINE)
 				child->winSetPosition( childRelativePos.x, GadgetHorizontalSliderThumbTop( window, child ) );
+#else
+				child->winSetPosition( childRelativePos.x, HORIZONTAL_SLIDER_THUMB_POSITION );
+#endif
 			}
 
 			// tell owner i moved
@@ -395,7 +437,9 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 																					(WindowMsgData)window,
 																					s->position );
 
+#if defined(GENONLINE)
 			refreshDragTooltip( window, mData2 );
+#endif
 			break;
 
 		}
@@ -415,7 +459,11 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 			newPos = (Int)((newPos - s->minVal) * s->numTicks);
 			newPos = clamp(0, newPos, (Int)((s->maxVal - s->minVal) * s->numTicks));
 
+#if defined(GENONLINE)
 			child->winSetPosition( newPos , GadgetHorizontalSliderThumbTop( window, child ) );
+#else
+			child->winSetPosition( newPos , HORIZONTAL_SLIDER_THUMB_POSITION );
+#endif
 			break;
 
 		}
@@ -424,19 +472,31 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 		case GSM_SET_MIN_MAX:
 		{
 			ICoord2D size;
+#if defined(GENONLINE)
 			ICoord2D thumbSize;
+#endif
 			GameWindow *child = window->winGetChild();
 
 			window->winGetSize( &size.x, &size.y );
+#if defined(GENONLINE)
 			child->winGetSize( &thumbSize.x, &thumbSize.y );
+#endif
 
 			s->minVal = (Int)mData1;
 			s->maxVal = (Int)mData2;
+#if defined(GENONLINE)
 			// GenOnline @tweak arcticdolphin 08/11/2026 Use the width of the thumb, which scales with the screen height.
 			s->numTicks = (Real)(size.x - thumbSize.x)/(Real)(s->maxVal - s->minVal);
+#else
+			s->numTicks = (Real)(size.x - HORIZONTAL_SLIDER_THUMB_WIDTH)/(Real)(s->maxVal - s->minVal);
+#endif
 			s->position = s->minVal;
 
+#if defined(GENONLINE)
 			child->winSetPosition( 0, GadgetHorizontalSliderThumbTop( window, child ) );
+#else
+			child->winSetPosition( 0, HORIZONTAL_SLIDER_THUMB_POSITION );
+#endif
 			break;
 
 		}
@@ -480,7 +540,11 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 			GameWindow *thumb = window->winGetChild();
 
 			if( thumb )
+#if defined(GENONLINE)
 				thumb->winSetSize( GameWindowManager::winScaleLayoutSize( GADGET_SIZE ), height );
+#else
+				thumb->winSetSize( GADGET_SIZE, height );
+#endif
 
 			break;
 

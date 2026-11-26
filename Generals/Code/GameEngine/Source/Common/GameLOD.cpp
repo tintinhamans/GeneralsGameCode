@@ -34,7 +34,9 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/GameLOD.h"
+#if defined(GENONLINE)
 #include "AdaptiveQualityLevels.h"
+#endif
 #include "GameClient/TerrainVisual.h"
 #include "GameClient/GameClient.h"
 #include "Common/OptionPreferences.h"
@@ -251,12 +253,14 @@ GameLODManager::GameLODManager()
 	m_compositeBenchIndex=0;
 	m_numBenchProfiles=0;
 	m_reallyLowMHz = 400;
+#if defined(GENONLINE)
 	m_adaptiveParticleSkipMask = 0;
 	m_adaptiveMinParticlePriority = PARTICLE_PRIORITY_LOWEST;
 	m_adaptiveMinParticleSkipPriority = PARTICLE_PRIORITY_LOWEST;
 	m_effectiveParticleSkipMask = 0;
 	m_effectiveMinParticlePriority = PARTICLE_PRIORITY_LOWEST;
 	m_effectiveMinParticleSkipPriority = PARTICLE_PRIORITY_LOWEST;
+#endif
 
 	for (Int i=0; i<STATIC_GAME_LOD_CUSTOM; i++)
 		m_numLevelPresets[i]=0;
@@ -747,6 +751,7 @@ void GameLODManager::applyDynamicLODLevel(DynamicGameLODLevel level)
 	m_slowDeathScale=m_dynamicGameLODInfo[level].m_slowDeathScale;
 	m_minDynamicParticlePriority=m_dynamicGameLODInfo[level].m_minDynamicParticlePriority;
 	m_minDynamicParticleSkipPriority=m_dynamicGameLODInfo[level].m_minDynamicParticleSkipPriority;
+#if defined(GENONLINE)
 	applyEffectiveParticleLOD();
 }
 
@@ -786,6 +791,7 @@ void GameLODManager::setAdaptiveParticleLevel(Int adaptiveQualityLevel)
 
 	m_numParticleGenerations = 0;
 	applyEffectiveParticleLOD();
+#endif
 }
 
 Int GameLODManager::getRecommendedTextureReduction()

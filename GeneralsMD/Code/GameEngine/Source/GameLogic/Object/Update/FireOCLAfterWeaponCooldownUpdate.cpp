@@ -194,7 +194,11 @@ void FireOCLAfterWeaponCooldownUpdate::fireOCL()
 	UnsignedInt now = TheGameLogic->getFrame();
 	Real seconds = (now - m_startFrame) * SECONDS_PER_LOGICFRAME_REAL;
 	seconds *= data->m_oclLifetimePerSecond * 0.001f;
+#if defined(GENONLINE)
 	UnsignedInt oclFrames = ConvertBaseFramesToFrames((Int)ConvertFramesToBaseFramesReal(ConvertDurationFromSecsToFrames(seconds)));
+#else
+	UnsignedInt oclFrames = (UnsignedInt)(seconds * LOGICFRAMES_PER_SECOND);
+#endif
 	oclFrames = MIN( oclFrames, data->m_oclMaxFrames );
 
 	ObjectCreationList::create( data->m_ocl, obj, obj, oclFrames );

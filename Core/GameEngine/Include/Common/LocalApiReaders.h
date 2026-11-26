@@ -17,7 +17,7 @@
 
 // Protocol reference: GenOnline/docs/local-api.md
 // Live match stats for out-of-process readers. The caster plugin (settings.client.json plugins.caster) owns the named pipe
-// (\\.\pipe\generalsonline-caster-<pid>), its framing and its per reader queues, and the game encodes and decodes every frame body.
+// (\\.\pipe\genonline-caster-<pid>), its framing and its per reader queues, and the game encodes and decodes every frame body.
 // Without the plugin, in headless runs and in replay-simulation processes there is no sink.
 //
 // Up to LOCAL_API_MAX_READERS readers connect. A slow reader loses its own frames and never stalls the game or another reader.

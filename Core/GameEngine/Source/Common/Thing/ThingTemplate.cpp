@@ -1578,8 +1578,12 @@ Int ThingTemplate::calcCostToBuild( const Player* player) const
 //-------------------------------------------------------------------------------------------------
 Int ThingTemplate::calcTimeToBuild( const Player* player) const
 {
+#if defined(GENONLINE)
 	// The build time is computed in base frames, so every logic frame rate truncates it like the base frame rate.
 	Int buildTime = ConvertFramesToBaseFramesReal(ConvertDurationFromSecsToFrames(getBuildTime()));
+#else
+	Int buildTime = getBuildTime() * LOGICFRAMES_PER_SECOND;
+#endif
 	buildTime *= player->getHandicap()->getHandicap(Handicap::BUILDTIME, this);
 
 	Real factionModifier = 1 + player->getProductionTimeChangePercent( getName() );
@@ -1628,7 +1632,11 @@ Int ThingTemplate::calcTimeToBuild( const Player* player) const
 		}
 	}
 
+#if defined(GENONLINE)
 	return(ConvertBaseFramesToFrames(buildTime));
+#else
+	return(buildTime);
+#endif
 }
 
 //---------------------------------------------------------------------------------------ModuleInfo

@@ -43,7 +43,9 @@
 #include "GameClient/InGameUI.h"
 #include "GameLogic/ExperienceTracker.h"
 #include "GameLogic/Object.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
+#endif
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -171,16 +173,21 @@ Bool SalvageCrateCollide::testLevelChance()
 
 void SalvageCrateCollide::doWeaponSet( Object *other )
 {
+#if defined(GENONLINE)
 	Int reachedTier;
+#endif
 	if( other->testWeaponSetFlag( WEAPONSET_CRATEUPGRADE_ONE ) )
 	{
 		other->clearWeaponSetFlag( WEAPONSET_CRATEUPGRADE_ONE );
 		other->setWeaponSetFlag( WEAPONSET_CRATEUPGRADE_TWO );
+#if defined(GENONLINE)
 		reachedTier = 2;
+#endif
 	}
 	else
 	{
 		other->setWeaponSetFlag( WEAPONSET_CRATEUPGRADE_ONE );
+#if defined(GENONLINE)
 		reachedTier = 1;
 	}
 
@@ -190,6 +197,7 @@ void SalvageCrateCollide::doWeaponSet( Object *other )
 	{
 		LocalApiLiveSalvageUpgrade(
 			statsController->getPlayerIndex(), other->getTemplate(), "WEAPON", reachedTier );
+#endif
 	}
 }
 

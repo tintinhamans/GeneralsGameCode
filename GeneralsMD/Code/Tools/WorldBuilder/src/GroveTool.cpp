@@ -244,9 +244,7 @@ GroveTool::GroveTool() :
 /// Destructor
 GroveTool::~GroveTool()
 {
-	if (m_headMapObj) {
-		deleteInstance(m_headMapObj);
-	}
+	deleteInstance(m_headMapObj);
 }
 
 /** Execute the tool on mouse down - Place an object. */

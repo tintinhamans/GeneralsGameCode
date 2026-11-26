@@ -30,8 +30,10 @@
 #include <windows.h>
 
 #include "Common/Debug.h"
+#if defined(GENONLINE)
 #include "Common/File.h"
 #include "Common/FileSystem.h"
+#endif
 #include "Common/GlobalData.h"
 #include "Common/LocalFileSystem.h"
 #include "GameClient/GameClient.h"
@@ -47,6 +49,7 @@ HCURSOR cursorResources[Mouse::NUM_MOUSE_CURSORS][MAX_2D_CURSOR_DIRECTIONS];
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+#if defined(GENONLINE)
 // GenOnline @feature arcticdolphin 08/11/2026 Little endian 32 bit read for the cursor file parser.
 static UnsignedInt readCursorUInt32( const UnsignedByte *p )
 {
@@ -146,6 +149,7 @@ static HCURSOR loadArchiveCursor( const char *path )
 	return cursor;
 }
 
+#endif
 //-------------------------------------------------------------------------------------------------
 /** Get a mouse event from the buffer if available, we need to translate
 	* from the windows message meanings to our own internal mouse
@@ -499,6 +503,7 @@ void Win32Mouse::initCursorResources()
 
 				if (!loaded)
 					cursorResources[cursor][direction]=LoadCursorFromFile(resourcePath);
+#if defined(GENONLINE)
 
 				// GenOnline @feature arcticdolphin 08/11/2026 A cursor missing on disk may ship inside an archive, such as the GO Hand.
 				if (!cursorResources[cursor][direction])
@@ -508,6 +513,7 @@ void Win32Mouse::initCursorResources()
 				if (!cursorResources[cursor][direction] && cursor == HAND)
 					cursorResources[cursor][direction]=cursorResources[NORMAL][0];
 
+#endif
 				DEBUG_ASSERTCRASH(cursorResources[cursor][direction], ("MissingCursor %s",resourcePath));
 			}
 		}

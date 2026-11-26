@@ -57,11 +57,13 @@ Bool CachedFileInputStream::open(AsciiString path)
 		if (m_size) {
 			m_buffer = file->readEntireAndClose();
 			file = nullptr;
+#if defined(GENONLINE)
 			if (m_buffer == nullptr)
 			{
 				m_size = 0;
 				return FALSE;
 			}
+#endif
 		}
 		m_pos=0;
 	}
@@ -251,22 +253,26 @@ DataChunkOutput::~DataChunkOutput()
 	m_contents.write(*m_pOut);
 
 	// Rewind the temp m_tmp_file
+#if defined(GENONLINE)
 	if (m_tmp_file == nullptr)
 	{
 		DEBUG_CRASH(("DataChunkOutput - temp file was never opened"));
 		return;
 	}
+#endif
 	::fclose(m_tmp_file);
 
 	AsciiString tmpFileName = TheGlobalData->getPath_UserData();
 	tmpFileName.concat(TEMP_FILENAME);
 
  	m_tmp_file = ::fopen( tmpFileName.str(), "rb" );
+#if defined(GENONLINE)
 	if (m_tmp_file == nullptr)
 	{
 		DEBUG_CRASH(("DataChunkOutput - could not reopen temp file '%s'", tmpFileName.str()));
 		return;
 	}
+#endif
 	::fseek(m_tmp_file, 0, SEEK_SET);
 
 	// append the temp m_tmp_file m_contents

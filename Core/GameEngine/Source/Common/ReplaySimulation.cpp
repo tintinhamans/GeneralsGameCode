@@ -22,10 +22,14 @@
 
 #include "Common/CRCDebug.h"
 #include "Common/GameEngine.h"
+#if defined(GENONLINE)
 #include "Common/GlobalData.h"
+#endif
 #include "Common/LocalFileSystem.h"
 #include "Common/Recorder.h"
+#if defined(GENONLINE)
 #include "Common/StatsExporter.h"
+#endif
 #include "Common/WorkerProcess.h"
 #include "GameLogic/GameLogic.h"
 #include "GameClient/GameClient.h"
@@ -84,8 +88,10 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 		printf("Simulating Replay \"%s\"\n", filename.str());
 		fflush(stdout);
 		DWORD startTimeMillis = GetTickCount();
+#if defined(GENONLINE)
 		if (TheGlobalData->m_exportStats)
 			StatsExporterBeginRecording();
+#endif
 		if (TheRecorder->simulateReplay(filename))
 		{
 			UnsignedInt totalTimeSec = TheRecorder->getPlaybackFrameCount() / LOGICFRAMES_PER_SECOND;
@@ -102,8 +108,10 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 					fflush(stdout);
 				}
 				TheGameLogic->UPDATE();
+#if defined(GENONLINE)
 				if (TheGlobalData->m_exportStats)
 					StatsExporterCollectSnapshot();
+#endif
 				if (TheRecorder->sawCRCMismatch())
 				{
 					numErrors++;
@@ -115,9 +123,11 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 			printf("Elapsed Time: %02d:%02d Game Time: %02d:%02d/%02d:%02d\n",
 					realTimeSec/60, realTimeSec%60, gameTimeSec/60, gameTimeSec%60, totalTimeSec/60, totalTimeSec%60);
 			fflush(stdout);
+#if defined(GENONLINE)
 			// GenOnline @feature arcticdolphin 21/11/2026 A replay whose stats could not be exported fails the run so a replay server notices
 			if (TheGlobalData->m_exportStats && !ExportGameStatsJSON(TheRecorder->getReplayDir(), filename))
 				numErrors++;
+#endif
 		}
 		else
 		{
@@ -180,6 +190,8 @@ int ReplaySimulation::simulateReplaysInWorkerProcesses(const std::vector<AsciiSt
 			filenameWide.translate(filenames[filenamePositionStarted]);
 			UnicodeString command;
 			// Pass -useCwd, so that the worker keeps the working directory that it inherits from this process.
+#if defined(GENONLINE)
+#if defined(GENONLINE)
 			command.format(L"\"%s\"%s%s%s%s -useCwd -replay \"%s\"",
 				exePath,
 				TheGlobalData->m_windowed ? L" -win" : L"",
@@ -187,6 +199,26 @@ int ReplaySimulation::simulateReplaysInWorkerProcesses(const std::vector<AsciiSt
 				TheGlobalData->m_exportStats ? L" -exportStats" : L"",
 				TheDebugIgnoreReplaySyncErrors ? L" -ignoreReplaySyncErrors" : L"",
 				filenameWide.str());
+#else
+			command.format(L"\"%s\"%s%s%s%s -useCwd -replay \"%s\"",
+				exePath,
+				TheGlobalData->m_windowed ? L" -win" : L"",
+				TheGlobalData->m_headless ? L" -headless" : L"",
+				TheDebugIgnoreReplaySyncErrors ? L" -ignoreReplaySyncErrors" : L"",
+				filenameWide.str());
+#endif
+#else
+			command.format(L"\"%s\"%s%s%s -useCwd -replay \"%s\"",
+				exePath,
+				TheGlobalData->m_windowed ? L" -win" : L"",
+				TheGlobalData->m_headless ? L" -headless" : L"",
+#if defined(GENONLINE)
+				TheGlobalData->m_exportStats ? L" -exportStats" : L"",
+#endif
+				TheDebugIgnoreReplaySyncErrors ? L" -ignoreReplaySyncErrors" : L"",
+				filenameWide.str());
+#endif
+#if defined(GENONLINE)
 			if (!TheGlobalData->m_statsUrl.isEmpty())
 			{
 				UnicodeString statsUrlWide;
@@ -195,6 +227,7 @@ int ReplaySimulation::simulateReplaysInWorkerProcesses(const std::vector<AsciiSt
 				command.concat(statsUrlWide);
 				command.concat(L"\"");
 			}
+#endif
 
 			processes.push_back(WorkerProcess());
 			processes.back().startProcess(command);

@@ -83,17 +83,27 @@ void FrameDataManager::update() {
 /**
  * Add a network command to the appropriate frame.
  */
+#if defined(GENONLINE)
 Bool FrameDataManager::addNetCommandMsg(NetCommandMsg *msg) {
+#else
+void FrameDataManager::addNetCommandMsg(NetCommandMsg *msg) {
+#endif
 	UnsignedInt frame = msg->getExecutionFrame();
 	UnsignedInt frameindex = frame % FRAME_DATA_LENGTH;
 	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("FrameDataManager::addNetCommandMsg - about to add a command of type %s for frame %d, frame index %d", GetNetCommandTypeAsString(msg->getNetCommandType()), frame, frameindex));
+#if defined(GENONLINE)
 	const Bool added = m_frameData[frameindex].addCommand(msg);
+#else
+	m_frameData[frameindex].addCommand(msg);
+#endif
 
 	if (m_isLocal) {
 		// If this is the local connection, adjust the frame command count.
 		m_frameData[frameindex].setFrameCommandCount(m_frameData[frameindex].getCommandCount());
 	}
+#if defined(GENONLINE)
 	return added;
+#endif
 }
 
 /**

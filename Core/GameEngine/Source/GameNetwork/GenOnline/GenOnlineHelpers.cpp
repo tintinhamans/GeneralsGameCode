@@ -15,14 +15,14 @@
 std::string m_strNetworkLogFileName;
 std::mutex m_logMutex;
 
-// one log across sessions, moved to GeneralsOnline.1.log once it grows past the limit
+// one log across sessions, moved to genonline.1.log once it grows past the limit
 static constexpr uint64_t NETWORK_LOG_MAX_BYTES = 10ull * 1024ull * 1024ull;
 static constexpr const char* NETWORK_LOG_SESSION_SEPARATOR = "==================== Generals Online session start ====================";
 static constexpr const char* NETWORK_LOG_CONTINUED_SEPARATOR = "==================== Generals Online session continued after log rotation ====================";
 static uint64_t m_networkLogBytes = 0;
 static bool m_bNetworkLogRotateFailed = false;
 
-// The logs folder under the GenOnline root, created on demand. The old user data folder stays the fallback when the root cannot be resolved.
+// The logs folder under the GenOnline root, created on demand. Empty when the root cannot be resolved.
 static std::string GetNetworkLogFolder()
 {
 	const std::wstring root = GenOnlineClientFile::RootFolder();
@@ -39,7 +39,7 @@ static std::string GetNetworkLogFolder()
 			return narrow;
 		}
 	}
-	return std::format("{}\\GeneralsOnlineData", TheGlobalData->getPath_UserData().str());
+	return std::string();
 }
 
 static void AppendNetworkLogLine(std::string& strOut, const std::string& strLine)
@@ -200,7 +200,7 @@ std::wstring NormalizeSingleLineText(const std::wstring& text)
 
 void NetworkLog(ELogVerbosity logVerbosity, const char* fmt, ...)
 {
-	if (!GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+	if (!GenOnlineServicesManager::Settings.Debug_Enabled())
 	{
 		if (logVerbosity < g_LogVerbosity)
 		{
@@ -213,39 +213,25 @@ void NetworkLog(ELogVerbosity logVerbosity, const char* fmt, ...)
 	std::string strOutput;
 	if (m_strNetworkLogFileName.empty())
 	{
+		if (GetNetworkLogFolder().empty())
+		{
+			return;
+		}
 #if defined(_DEBUG)
 		// for debug, put the user ID in the log name so we can easily track it (NOte that this does mean we dont get very early logging, pre login, but that's OK normally)
 
 		GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 		if (pAuthInterface != nullptr && pAuthInterface->GetUserID() != -1)
 		{
-			m_strNetworkLogFileName = std::format("{}\\GeneralsOnline_UserID_{}.log", GetNetworkLogFolder(), pAuthInterface->GetUserID());
+			m_strNetworkLogFileName = std::format("{}\\genonline_user_{}.log", GetNetworkLogFolder(), pAuthInterface->GetUserID());
 		}
 		else
 		{
 			return;
 		}
 #else
-		m_strNetworkLogFileName = std::format("{}\\GeneralsOnline.log", GetNetworkLogFolder());
+		m_strNetworkLogFileName = std::format("{}\\genonline.log", GetNetworkLogFolder());
 #endif
-		/*
-			std::stringstream ss;
-
-#if defined(_DEBUG)
-		if (IsDebuggerPresent())
-		{
-			ss << std::put_time(std::localtime(&in_time_t),
-				"GeneralsOnline_Debugger_%Y-%m-%d-%H-%M-%S.log");
-		}
-		else
-		{
-			ss << std::put_time(std::localtime(&in_time_t),
-				"GeneralsOnline_%Y-%m-%d-%H-%M-%S.log");
-		}
-#else
-		ss << "GeneralsOnline.log";
-#endif
-*/
 		m_networkLogBytes = GetLogFileSize(m_strNetworkLogFileName);
 		RotateNetworkLogIfNeeded();
 

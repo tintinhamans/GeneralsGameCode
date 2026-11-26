@@ -86,12 +86,20 @@ void W3DOverlordTankDraw::doDrawModule(const Matrix3D* transformMtx)
 		)
 	{
 		Drawable *riderDraw = me->getContain()->friend_getRider()->getDrawable();
+#if defined(GENONLINE)
 		TintEnvelope *env = getDrawable()->getColorTintEnvelope();
 		if ( env )
 			riderDraw->setColorTintEnvelope( *env );
+#else
+		riderDraw->setColorTintEnvelope( *getDrawable()->getColorTintEnvelope() );
+#endif
 
 		riderDraw->notifyDrawableDependencyCleared();
+#if defined(GENONLINE)
 		riderDraw->draw( );// What the hell?  This param isn't used for anything
+#else
+		riderDraw->draw();
+#endif
 	}
 }
 

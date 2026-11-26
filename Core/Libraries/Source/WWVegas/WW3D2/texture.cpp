@@ -34,9 +34,6 @@
  *                                                                                             *
  * 06/27/02 KM Texture class abstraction																			*
  * 08/05/02 KM Texture class redesign (revisited)
- *---------------------------------------------------------------------------------------------*
- * Functions:                                                                                  *
- *   FileListTextureClass::Load_Frame_Surface -- Load source texture                           *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include <d3d9.h>  // Native DX9
@@ -1532,7 +1529,12 @@ void ZTextureClass::Apply_New_Surface
 	bool disable_auto_invalidation
 )
 {
-	Set_D3D_Base_Texture(d3d_texture);
+	IDirect3DBaseTexture8* d3d_tex=Peek_D3D_Base_Texture();
+
+	if (d3d_tex) d3d_tex->Release();
+
+	Poke_Texture(d3d_texture);//TextureLoadTask->Peek_D3D_Texture();
+	d3d_texture->AddRef();
 
 	if (initialized) Initialized=true;
 	if (disable_auto_invalidation) InactivationTime = 0;
@@ -1847,7 +1849,12 @@ void CubeTextureClass::Apply_New_Surface
 	bool disable_auto_invalidation
 )
 {
-	Set_D3D_Base_Texture(d3d_texture);
+	IDirect3DBaseTexture8* d3d_tex=Peek_D3D_Base_Texture();
+
+	if (d3d_tex) d3d_tex->Release();
+
+	Poke_Texture(d3d_texture);//TextureLoadTask->Peek_D3D_Texture();
+	d3d_texture->AddRef();
 
 	if (initialized) Initialized=true;
 	if (disable_auto_invalidation) InactivationTime = 0;
@@ -2130,7 +2137,12 @@ void VolumeTextureClass::Apply_New_Surface
 	bool disable_auto_invalidation
 )
 {
-	Set_D3D_Base_Texture(d3d_texture);
+	IDirect3DBaseTexture8* d3d_tex=Peek_D3D_Base_Texture();
+
+	if (d3d_tex) d3d_tex->Release();
+
+	Poke_Texture(d3d_texture);//TextureLoadTask->Peek_D3D_Texture();
+	d3d_texture->AddRef();
 
 	if (initialized) Initialized=true;
 	if (disable_auto_invalidation) InactivationTime = 0;

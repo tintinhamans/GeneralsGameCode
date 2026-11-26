@@ -5,11 +5,8 @@
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"
 #include "Common/LocalApiLive.h"
-#include "GameNetwork/GenOnline/NetworkPacket.h"
-#include "GameNetwork/GenOnline/NetworkBitstream.h"
 #include "GameNetwork/GenOnline/GenOnlineModeration.h"
 #include "GameNetwork/GenOnline/json.hpp"
-#include "GameNetwork/GenOnline/JsonHelpers.h"
 #include "GameNetwork/PeerTransport/PeerRouteLabel.h"
 #include "../GenOnlineInit.h"
 #include "../HTTP/HTTPManager.h"
@@ -316,7 +313,7 @@ void WebSocket::RegisterPeerHandlers()
 		});
 	m_pHubSession->On<ProbeRequestEvent>([this](const ProbeRequestEvent& event)
 		{
-			if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+			if (GenOnlineServicesManager::Settings.Debug_Enabled())
 			{
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[PROBE] GOT PROBE REQUEST: %s!", event.url.c_str());
 			}
@@ -542,7 +539,7 @@ void WebSocket::OnHubDisconnected(GenOnlineRealtime::DisconnectAction action, co
 static bool IsInLobbyHubMethod(const std::string& method)
 {
 	static const char* const METHODS[] = { "UpdateLobby", "SetLobbyPassword", "UpdateMySlot", "SetHasMap", "SetReady", "SetSlotState",
-		"UpdateSlots", "KickFromLobby", "BanFromLobby", "ForceReady", "StartGame", "BeginMeshCheck" };
+		"UpdateSlots", "KickFromLobby", "BanFromLobby", "InviteToLobby", "ForceReady", "StartGame", "BeginMeshCheck" };
 	for (const char* lobbyMethod : METHODS)
 	{
 		if (method == lobbyMethod)
@@ -1143,26 +1140,6 @@ void WebSocket::Tick()
 	SendPeerTransports(false);
 	TickStandbyHubCalls();
 
-	/*
-	if (strSignal.length() == 6)
-	{
-		for (int i = 0; i < 5000 - 6; ++i)
-		{
-			if (i == 5000 - 6 - 1)
-			{
-				strSignal += "+";
-			}
-			else
-			{
-				strSignal += i % 2 == 0 ? 'a' : 'b';
-			}
-		}
-	}
-
-	WebSocket* pWS = GenOnlineServicesManager::GetWebSocket();;
-	pWS->SendData_Signalling(strSignal);
-	*/
-
 	int64_t currTime = NowMs();
 
     int numReqs = 0;
@@ -1324,7 +1301,7 @@ CURLcode WebSocket::ReceiveOneFrame()
 
 	if (ret == CURLE_OK)
 	{
-		if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+		if (GenOnlineServicesManager::Settings.Debug_Enabled())
 		{
 			NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket msg: %s", bufferThisRecv);
 		}
@@ -1536,8 +1513,7 @@ void GenOnlineRoomsInterface::SetRealtimeRooms(const std::vector<GenOnlineRealti
 	{
 		// Channel ids start at 0, so a parent_id of 0 names a real parent room.
 		const int parentRoomID = room.parent_id.isNull || room.parent_id.value < 0 ? -1 : static_cast<int>(room.parent_id.value);
-		m_vecRealtimeRooms.emplace_back(static_cast<int>(room.id), room.name,
-			room.show_all_matches ? ERoomFlags::ROOM_FLAGS_SHOW_ALL_MATCHES : ERoomFlags::ROOM_FLAGS_DEFAULT, parentRoomID);
+		m_vecRealtimeRooms.emplace_back(static_cast<int>(room.id), room.name, parentRoomID);
 	}
 }
 

@@ -38,7 +38,9 @@ public:
 
 	Bool isComplete();
 	UnsignedShort getCommandID();
+#if defined(GENONLINE)
 	UnsignedByte getPlayerID();
+#endif
 	UnsignedInt getRawDataLength();
 	void copyChunkData(NetWrapperCommandMsg *msg);
 	UnsignedByte * getRawData();
@@ -49,7 +51,9 @@ public:
 
 protected:
 	UnsignedShort m_commandID;
+#if defined(GENONLINE)
 	UnsignedByte m_playerID;
+#endif
 	UnsignedByte *m_data;
 	UnsignedInt m_totalDataLength;
 	Bool *m_chunksPresent;
@@ -74,17 +78,23 @@ public:
 	Int getPercentComplete(UnsignedShort wrappedCommandID);
 
 protected:
+#if defined(GENONLINE)
 	enum { RECENT_COMPLETED_COUNT = 16 };
 
+#endif
 	void removeFromList(NetCommandWrapperListNode *node);
+#if defined(GENONLINE)
 	Bool wasRecentlyCompleted(UnsignedByte playerID, UnsignedShort wrappedCommandID) const;
 	void noteCompleted(UnsignedByte playerID, UnsignedShort wrappedCommandID);
+#endif
 
 	NetCommandWrapperListNode *m_list;
+#if defined(GENONLINE)
 
 	// A late copy of a chunk must not start a second assembly of a command that was already delivered.
 	UnsignedByte m_recentCompletedPlayers[RECENT_COMPLETED_COUNT];
 	UnsignedShort m_recentCompletedIDs[RECENT_COMPLETED_COUNT];
 	Int m_recentCompletedCount;
 	Int m_recentCompletedNext;
+#endif
 };

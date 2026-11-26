@@ -339,7 +339,7 @@ static GnsNetworkConfig MakeGnsNetworkConfig()
 #if defined(_DEBUG)
 	config.verboseLogging = true;
 #else
-	config.verboseLogging = GenOnlineServicesManager::Settings.Debug_VerboseLogging();
+	config.verboseLogging = GenOnlineServicesManager::Settings.Debug_Enabled();
 #endif
 
 	// comma-separated; no "?transport=udp" suffix, the native ICE client takes everything after

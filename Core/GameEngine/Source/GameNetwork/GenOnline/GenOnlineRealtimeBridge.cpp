@@ -194,6 +194,22 @@ std::wstring FailureText(const std::string& code, const nlohmann::json& params)
 	{
 		return std::format(L"Your message is too long. Messages can have up to {} characters.", ParamInt(params, "max", 512));
 	}
+	if (code == "lobby.invite_pending")
+	{
+		return L"This player already has an invite to your game.";
+	}
+	if (code == "lobby.invite_offline")
+	{
+		return L"This player is not in the game right now.";
+	}
+	if (code == "lobby.not_in_setup")
+	{
+		return L"Friends can only be invited while the game is in setup.";
+	}
+	if (code == "lobby.already_member")
+	{
+		return L"This player is already in your game.";
+	}
 	if (code == "chat.not_friends")
 	{
 		return L"You can only send messages to your friends.";
@@ -610,6 +626,14 @@ void RegisterHandlers(HubSession& session)
 				pSocial->OnRealtimeFriendPresence(event);
 			}
 		});
+	session.On<LobbyInviteEvent>([](const LobbyInviteEvent& event)
+		{
+			GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+			if (pSocial != nullptr)
+			{
+				pSocial->OnRealtimeLobbyInvite(event);
+			}
+		});
 }
 
 namespace
@@ -677,7 +701,7 @@ int64_t SignedInUserID()
 void SendRest(RestMethod method, const std::string& path, const std::string& body, bool bRetry, int sendsBefore, const StandbyRetry& standby, RestCallback callback)
 {
 	GenOnlineServicesManager* pManager = GenOnlineServicesManager::GetInstance();
-	const std::string origin = GenOnlineAuthInterface::ServiceOriginV1();
+	const std::string origin = GenOnlineAuthInterface::ServiceOrigin();
 	if (pManager == nullptr || pManager->GetHTTPManager() == nullptr || origin.empty() || SignedInUserID() < 0)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[REST] %s %s not sent, no session or service route", RestMethodName(method), RestPathForLog(path).c_str());

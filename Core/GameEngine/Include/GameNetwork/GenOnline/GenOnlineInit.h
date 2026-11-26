@@ -111,11 +111,6 @@ public:
 	WebSocket();
 	~WebSocket();
 
-	GenOnlineRealtime::HubSession* GetHubSession()
-	{
-		return m_pHubSession.get();
-	}
-
 	// Calls a hub method that answers with a Result. Without a hub session the callback reports a transport error.
 	// A standby Result sends the call again later without its callback, see StandbyHubCalls.
 	template <class R>
@@ -144,12 +139,6 @@ public:
 	bool IsConnected()
 	{
 		return m_bConnected;
-	}
-
-	// A reconnect the player is told about. A handover reconnect stays hidden for its first 3 seconds.
-	bool IsReconnectShown() const
-	{
-		return m_bReconnecting && !m_bSwitchReconnect && !m_bStandbyReconnect;
 	}
 
 	std::function<void(void)> m_fnWebsocketConnectedCallback = nullptr;
@@ -295,20 +284,13 @@ private:
 	PeerSignalInbox m_pendingSignals;
 };
 
-enum class ERoomFlags : int
-{
-	ROOM_FLAGS_DEFAULT = 0,
-	ROOM_FLAGS_SHOW_ALL_MATCHES = 1
-};
-
 class NetworkRoom
 {
 public:
-	NetworkRoom(int roomID, std::string strRoomName, ERoomFlags roomFlags, int parentRoomID = -1)
+	NetworkRoom(int roomID, std::string strRoomName, int parentRoomID = -1)
 	{
 		m_RoomID = roomID;
 		m_strRoomDisplayName.translate(AsciiString(strRoomName.c_str()));
-		m_RoomFlags = roomFlags;
 		m_ParentRoomID = parentRoomID;
 	}
 
@@ -319,13 +301,11 @@ public:
 
 	int GetRoomID() const { return m_RoomID; }
 	const UnicodeString& GetRoomDisplayName() const { return m_strRoomDisplayName; }
-	ERoomFlags GetRoomFlags() const { return m_RoomFlags; }
 	int GetParentRoomID() const { return m_ParentRoomID; }
 
 private:
 	int m_RoomID;
 	UnicodeString m_strRoomDisplayName;
-	ERoomFlags m_RoomFlags = ERoomFlags::ROOM_FLAGS_DEFAULT;
 	int m_ParentRoomID = -1;
 };
 
@@ -341,7 +321,7 @@ struct ServiceConfig
 	struct Connection
 	{
 		bool relay_only = false;
-		int ice_engine = 2;             // 0 library default, 1 native, 2 WebRTC, or the name
+		int ice_engine = 2;             // 0 library default, 1 native, 2 WebRTC, read from the name
 		bool use_mapped_port = true;
 		bool retry_signalling = true;
 		int reconnect_timeout_ms = MeshConnectionTimeoutPolicy::ReconnectTimeoutMs; // first negotiation keeps 10 s
@@ -399,24 +379,19 @@ inline void ReadIceEngine(const nlohmann::json& j, int& value)
 	{
 		return;
 	}
-	if (it->is_string())
+	const std::string name = it->get<std::string>();
+	if (name == "default")
 	{
-		const std::string name = it->get<std::string>();
-		if (name == "default")
-		{
-			value = 0;
-		}
-		else if (name == "native")
-		{
-			value = 1;
-		}
-		else if (name == "webrtc")
-		{
-			value = 2;
-		}
-		return;
+		value = 0;
 	}
-	value = it->get<int>();
+	else if (name == "native")
+	{
+		value = 1;
+	}
+	else if (name == "webrtc")
+	{
+		value = 2;
+	}
 }
 
 // A key the service sets replaces the compiled default, a missing key keeps it
@@ -565,17 +540,13 @@ public:
 		}
 	}
 
-	static void DestroyInstance()
-	{
-		std::scoped_lock<std::recursive_mutex> lock(m_singletonMutex);
-		if (m_pOnlineServicesManager != nullptr)
-		{
-			m_pOnlineServicesManager->Shutdown();
-
-			delete m_pOnlineServicesManager;
-			m_pOnlineServicesManager = nullptr;
-		}
-	}
+	// Tears the instance down on the calling thread, after a detached teardown that is still running.
+	static void DestroyInstance();
+	// Detaches the instance and runs the blocking part of its shutdown on a worker thread.
+	static void BeginDestroyInstance();
+	// Deletes a detached instance whose worker is done, on the main thread. True when one finished in this call.
+	static bool PollDestroyInstance();
+	static bool IsDestroyPending();
 
 	static void AttemptLoadSteam();
 
@@ -639,6 +610,8 @@ public:
 	static NetworkMesh* GetNetworkMesh();
 
 	void Shutdown();
+	// The steps of Shutdown that block on threads and sockets, safe off the main thread.
+	void ShutdownBlocking();
 
 	void WaitForScreenshotThreads();
 
@@ -655,12 +628,6 @@ public:
 
 	std::shared_ptr<WebSocket> Internal_GetWebSocket() const { return m_pWebSocket; }
 	HTTPManager* GetHTTPManager() const { return m_pHTTPManager; }
-
-	void CancelUpdate();
-	// GenOnline @feature arcticdolphin 09/11/2026 A failure callback replaces the Update Failed message box, so the sign-in dialog can show it.
-	void LaunchPatcher(std::function<void(void)> cbFailed = nullptr);
-	void StartDownloadUpdate(std::function<void(void)> cb, std::function<void(void)> cbFailed = nullptr);
-	void ContinueUpdate();
 
 	static void CaptureScreenshot(bool bResizeForTransmit, std::function<void(std::vector<unsigned char>)> cbOnDataAvailable);
 	static void CaptureScreenshotForProbe(EScreenshotType screenshotType, std::string strURI);
@@ -726,13 +693,7 @@ public:
 	static std::string GetSentryRelease();
 	static std::string GetSentryStatus();
 	static void LogDisplayAdapter();
-private:
-		
-		
 
-		std::string GetPatcherDirectoryPath();
-
-public:
 	GenOnlineAuthInterface* m_pAuthInterface = nullptr;
 	GenOnlineLobbyInterface* m_pLobbyInterface = nullptr;
 	GenOnlineRoomsInterface* m_pRoomInterface = nullptr;
@@ -833,19 +794,6 @@ private:
 
 	EGOTearDownReason m_teardownReason = EGOTearDownReason::UNKNOWN;
 	bool m_bPendingFullTeardown = false;
-
-	std::queue<std::string> m_vecFilesToDownload;
-	std::queue<int64_t> m_vecFilesSizes;
-	std::vector<std::string> m_vecFilesDownloaded;
-	std::function<void(void)> m_updateCompleteCallback = nullptr;
-	std::function<void(void)> m_updateFailedCallback = nullptr;
-	// GenOnline @bugfix arcticdolphin 09/11/2026 Bumped by every start and cancel, so replies of a cancelled download are ignored.
-	int m_updateAttempt = 0;
-	mutable std::recursive_mutex m_updateCallbackMutex;
-
-	std::string m_patcher_name;
-	std::string m_patcher_path;
-	int64_t m_patcher_size;
 };
 
 // Calls a hub method on the services websocket. Without a socket the callback reports a transport error.

@@ -574,11 +574,15 @@ void ControlBar::populateBuildTooltipLayout( const CommandButton *commandButton,
 			name = TheGameText->fetch("CONTROLBAR:Power");
 			descrip = TheGameText->fetch("CONTROLBAR:PowerDescription");
 
+#if defined(GENONLINE)
 			Player *playerToDisplay = nullptr;
 			if(TheControlBar->isObserverControlBarOn())
 				playerToDisplay = TheControlBar->getObserverLookAtPlayer();
 			else
 				playerToDisplay = ThePlayerList->getLocalPlayer();
+#else
+			Player* playerToDisplay = getCurrentlyViewedPlayer();
+#endif
 
 			if( playerToDisplay && playerToDisplay->getEnergy() )
 			{

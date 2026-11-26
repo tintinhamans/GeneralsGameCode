@@ -4,7 +4,6 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <wincrypt.h>
-#include <atomic>
 #include <cstdio>
 #include <mutex>
 #include <vector>
@@ -20,7 +19,6 @@ using Json = nlohmann::json;
 std::mutex storeMutex;
 std::string (*pathProvider)() = nullptr;
 void (*logSink)(const std::string&) = nullptr;
-std::atomic<unsigned long> forcedCryptError{0};
 // entries that could not be written, they win over the file and use the same layout
 Json overlay = Json::object();
 bool fileUnreadable = false;
@@ -42,11 +40,6 @@ std::string Describe(const char* operation, unsigned long code)
 
 bool Protect(const std::string& plain, std::string& blob, unsigned long& error)
 {
-	if (const unsigned long forced = forcedCryptError.load())
-	{
-		error = forced;
-		return false;
-	}
 	DATA_BLOB input{ (DWORD)plain.size(), (BYTE*)plain.data() };
 	DATA_BLOB output{};
 	if (!CryptProtectData(&input, L"GO Credentials", nullptr, nullptr, nullptr, 0, &output))
@@ -61,11 +54,6 @@ bool Protect(const std::string& plain, std::string& blob, unsigned long& error)
 
 bool Unprotect(const std::string& blob, std::string& plain, unsigned long& error)
 {
-	if (const unsigned long forced = forcedCryptError.load())
-	{
-		error = forced;
-		return false;
-	}
 	DATA_BLOB input{ (DWORD)blob.size(), (BYTE*)blob.data() };
 	DATA_BLOB output{};
 	if (!CryptUnprotectData(&input, nullptr, nullptr, nullptr, nullptr, 0, &output))
@@ -79,7 +67,6 @@ bool Unprotect(const std::string& blob, std::string& plain, unsigned long& error
 	return true;
 }
 
-// The top-level "refresh_token" of old builds belongs to the legacy login and is dropped, so the next write removes it.
 void Normalize(Json& doc)
 {
 	if (!doc.is_object())
@@ -88,7 +75,6 @@ void Normalize(Json& doc)
 		doc["tokens"] = Json::object();
 	if (!doc.contains("proxies") || !doc["proxies"].is_object())
 		doc["proxies"] = Json::object();
-	doc.erase("refresh_token");
 }
 
 // the stored document, a file that cannot be read counts as empty and is never overwritten
@@ -174,6 +160,8 @@ bool WriteFile(const Json& doc)
 		return false;
 	}
 	const std::string path = pathProvider();
+	if (path.empty())
+		return false;
 	const std::string temp = path + ".tmp";
 	bool saved = false;
 	if (FILE* file = fopen(temp.c_str(), "wb"))
@@ -236,11 +224,6 @@ void SetCredentialLogSink(void (*sink)(const std::string&))
 {
 	std::lock_guard<std::mutex> lock(storeMutex);
 	logSink = sink;
-}
-
-void SetCredentialCryptFailureForTest(unsigned long errorCode)
-{
-	forcedCryptError.store(errorCode);
 }
 
 bool SaveProxyLogin(const std::string& proxyKey, const std::string& user, const std::string& password)

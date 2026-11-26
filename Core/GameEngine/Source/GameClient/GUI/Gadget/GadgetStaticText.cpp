@@ -195,6 +195,7 @@ UnicodeString GadgetStaticTextGetText( GameWindow *window )
 	return tData->text->getText();
 }
 
+#if defined(GENONLINE)
 // GadgetStaticTextGetTextHeight ==============================================
 /** Pixel height needed to render the control's text wrapped to wrapWidth. */
 //=============================================================================
@@ -214,6 +215,7 @@ Int GadgetStaticTextGetTextHeight( GameWindow *window, Int wrapWidth )
 	return textHeight;
 }
 
+#endif
 // GadgetStaticTextSetFont ====================================================
 /** Set the font for a text control, we need to set the window
 	* text font, the tooltip font, and the static text display strings for

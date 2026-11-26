@@ -31,12 +31,11 @@
  *                                                                         *
  *                  Last Update : February 24, 1997 [GH]                   *
  *                                                                         *
- *-------------------------------------------------------------------------*
- * Functions:                                                              *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #pragma once
 
+#if defined(GENONLINE)
 typedef unsigned char	uint8;
 typedef unsigned short	uint16;
 #if defined(_MSC_VER)
@@ -47,6 +46,14 @@ typedef unsigned long	uint32;
 typedef unsigned int    uint;
 
 typedef signed char		sint8;
+#else
+typedef unsigned char	uint8;
+typedef unsigned short	uint16;
+typedef unsigned long	uint32;
+typedef unsigned int    uint;
+
+typedef signed char		sint8;
+#endif
 typedef signed short		sint16;
 typedef signed long		sint32;
 typedef signed int      sint;

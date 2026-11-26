@@ -13,7 +13,6 @@
 
 #define SETTINGS_KEY_CAMERA "camera"
 #define SETTINGS_KEY_CAMERA_MIN_HEIGHT "min_height"
-#define SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO "move_speed_ratio"
 #define SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST "max_height_only_when_lobby_host"
 #define SETTINGS_KEY_CAMERA_ROTATE_FACTOR "rotate_factor"
 #define SETTINGS_KEY_CAMERA_PITCH_FACTOR "pitch_factor"
@@ -32,7 +31,6 @@
 #define SETTINGS_KEY_RENDER "render"
 #define SETTINGS_KEY_RENDER_LIMIT_FRAMERATE "limit_framerate"
 #define SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL "fps_limit"
-#define SETTINGS_KEY_RENDER_LEGACY_DRAW_STATS_OVERLAY "stats_overlay"
 #define SETTINGS_KEY_RENDER_ADAPTIVE_QUALITY "adaptive_quality"
 #define SETTINGS_KEY_UI "ui"
 #define SETTINGS_KEY_UI_STYLE "style"
@@ -54,20 +52,16 @@
 #define SETTINGS_KEY_DEBUG "debug"
 #define SETTINGS_KEY_STATS "stats"
 #define SETTINGS_KEY_STATS_EXPORT "export"
-#define SETTINGS_KEY_DEBUG_VERBOSE_LOGGING "verbose_logging"
+#define SETTINGS_KEY_DEBUG_ENABLED "enabled"
 
 #define SETTINGS_KEY_NETWORK "network"
-#define SETTINGS_KEY_NETWORK_LEGACY_HTTP_VERSION "http_version"
-#define SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT "use_alternative_endpoint"
 #define SETTINGS_KEY_NETWORK_SERVER "server"
 #define SETTINGS_KEY_NETWORK_SERVER_MODE "mode"
 #define SETTINGS_KEY_NETWORK_SERVER_ADDRESS "address"
-#define SETTINGS_KEY_NETWORK_SERVER_LEGACY_REALTIME_PROTOCOL "realtime_protocol"
 #define SETTINGS_KEY_NETWORK_PROXY "proxy"
 #define SETTINGS_KEY_NETWORK_PROXY_MODE "mode"
 #define SETTINGS_KEY_NETWORK_PROXY_ADDRESS "address"
 #define SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN "windows_login"
-#define SETTINGS_KEY_NETWORK_LAST_ROUTE "last_route"
 
 #define SETTINGS_KEY_PLUGINS "plugins"
 #define SETTINGS_KEY_PLUGINS_ANTICHEAT "anticheat"
@@ -217,7 +211,7 @@ static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_GAMEPLAY, ValueType::Boolean },
 		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_PRESENCE_STATUS, ValueType::String },
 		{ SETTINGS_KEY_DEBUG, ValueType::Object },
-		{ SETTINGS_KEY_DEBUG "." SETTINGS_KEY_DEBUG_VERBOSE_LOGGING, ValueType::Boolean },
+		{ SETTINGS_KEY_DEBUG "." SETTINGS_KEY_DEBUG_ENABLED, ValueType::Boolean },
 		{ SETTINGS_KEY_NETWORK, ValueType::Object },
 		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_SERVER, ValueType::Object },
 		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_SERVER "." SETTINGS_KEY_NETWORK_SERVER_MODE, ValueType::String },
@@ -226,7 +220,6 @@ static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_PROXY "." SETTINGS_KEY_NETWORK_PROXY_MODE, ValueType::String },
 		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_PROXY "." SETTINGS_KEY_NETWORK_PROXY_ADDRESS, ValueType::String },
 		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_PROXY "." SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN, ValueType::Boolean },
-		{ SETTINGS_KEY_NETWORK "." SETTINGS_KEY_NETWORK_LAST_ROUTE, ValueType::String },
 		{ SETTINGS_KEY_PLUGINS, ValueType::Object },
 		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_ANTICHEAT, ValueType::Array },
 		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_TRANSPORT, ValueType::Array },
@@ -515,20 +508,6 @@ void GenOnlineSettings::Load(void)
                             }
                         }
                     }
-
-                    if (networkSettings.contains(SETTINGS_KEY_NETWORK_LAST_ROUTE))
-                    {
-                        const auto& found = networkSettings[SETTINGS_KEY_NETWORK_LAST_ROUTE];
-                        if (found.is_string() && found.get<std::string>().size() <= 253 &&
-                            found.get<std::string>().find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-") == std::string::npos)
-                        {
-                            m_LastRoute = found.get<std::string>();
-                        }
-                        else
-                        {
-                            resetField(std::string(SETTINGS_KEY_NETWORK) + "." + SETTINGS_KEY_NETWORK_LAST_ROUTE, found, false);
-                        }
-                    }
                 }
             }
 
@@ -546,9 +525,9 @@ void GenOnlineSettings::Load(void)
 			{
 				auto debugSettings = jsonSettings[SETTINGS_KEY_DEBUG];
 
-				if (debugSettings.contains(SETTINGS_KEY_DEBUG_VERBOSE_LOGGING))
+				if (debugSettings.contains(SETTINGS_KEY_DEBUG_ENABLED))
 				{
-					m_bVerbose = debugSettings[SETTINGS_KEY_DEBUG_VERBOSE_LOGGING];
+					m_bDebugMode = debugSettings[SETTINGS_KEY_DEBUG_ENABLED];
 				}
 			}
 
@@ -685,7 +664,7 @@ void GenOnlineSettings::Load(void)
 	{
 		m_Camera_MinHeight = m_Camera_MinHeight_default;
 		m_Camera_MaxHeight_LobbyHost = GENONLINE_DEFAULT_LOBBY_CAMERA_ZOOM;
-		m_bVerbose = false;
+		m_bDebugMode = false;
 		m_bStatsExport = false;
 		m_Render_LimitFramerate = true;
 		m_Render_FramerateLimit_FPSVal = 60;
@@ -784,14 +763,6 @@ static void ApplyChangedSettings(const nlohmann::json& before, const nlohmann::j
 	}
 }
 
-static void EraseSettingKey(nlohmann::json& document, const char* section, const char* key)
-{
-	if (document.contains(section) && document[section].is_object())
-	{
-		document[section].erase(key);
-	}
-}
-
 std::vector<std::string> GenOnlineSettings::Data_ExcludePaths() const
 {
 	std::vector<std::string> paths;
@@ -874,8 +845,7 @@ bool GenOnlineSettings::Save()
                     {SETTINGS_KEY_NETWORK_PROXY, {
                         {SETTINGS_KEY_NETWORK_PROXY_MODE, m_ConnectionSettings.proxyMode},
                         {SETTINGS_KEY_NETWORK_PROXY_ADDRESS, m_ConnectionSettings.proxyURL},
-                        {SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN, m_ConnectionSettings.windowsLogin}}},
-                    {SETTINGS_KEY_NETWORK_LAST_ROUTE, m_LastRoute}
+                        {SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN, m_ConnectionSettings.windowsLogin}}}
                 }
         },
 
@@ -896,7 +866,7 @@ bool GenOnlineSettings::Save()
 		{
 			SETTINGS_KEY_DEBUG,
 				{
-					{SETTINGS_KEY_DEBUG_VERBOSE_LOGGING, m_bVerbose},
+					{SETTINGS_KEY_DEBUG_ENABLED, m_bDebugMode},
 				}
 		},
 
@@ -945,14 +915,6 @@ bool GenOnlineSettings::Save()
 	const nlohmann::json lastWritten = nlohmann::json::parse(m_PreservedJSON);
 	nlohmann::json updated = current.document;
 	ApplyChangedSettings(lastWritten, root, updated);
-	EraseSettingKey(updated, SETTINGS_KEY_RENDER, SETTINGS_KEY_RENDER_LEGACY_DRAW_STATS_OVERLAY);
-	EraseSettingKey(updated, SETTINGS_KEY_CAMERA, SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO);
-	EraseSettingKey(updated, SETTINGS_KEY_NETWORK, SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT);
-	EraseSettingKey(updated, SETTINGS_KEY_NETWORK, SETTINGS_KEY_NETWORK_LEGACY_HTTP_VERSION);
-	if (updated.contains(SETTINGS_KEY_NETWORK) && updated[SETTINGS_KEY_NETWORK].is_object())
-	{
-		EraseSettingKey(updated[SETTINGS_KEY_NETWORK], SETTINGS_KEY_NETWORK_SERVER, SETTINGS_KEY_NETWORK_SERVER_LEGACY_REALTIME_PROTOCOL);
-	}
 	updated[GenOnlineClientFile::SchemaVersionKey] = GenOnlineClientFile::SchemaVersion;
 
 	if (!GenOnlineClientFile::ShouldSave(current.status, current.document, updated))
@@ -1038,31 +1000,6 @@ bool GenOnlineSettings::Network_SaveWindowsLogin(bool windowsLogin)
 	}
 	ServiceConnection::InvalidateProxyPolicyCache();
 	return true;
-}
-
-bool GenOnlineSettings::Network_SaveLastRoute(const std::string& host)
-{
-	if (host.empty() || host.size() > 253 || host.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-") != std::string::npos)
-	{
-		return false;
-	}
-	if (!m_bInitialized)
-	{
-		Initialize();
-	}
-	std::lock_guard<std::mutex> lock(m_NetworkMutex);
-	if (m_LastRoute == host)
-	{
-		return true;
-	}
-	const auto previous = m_LastRoute;
-	m_LastRoute = host;
-	if (Save())
-	{
-		return true;
-	}
-	m_LastRoute = previous;
-	return false;
 }
 
 bool GenOnlineSettings::Maps_IsFavourite(const std::string& portableMapPath) const

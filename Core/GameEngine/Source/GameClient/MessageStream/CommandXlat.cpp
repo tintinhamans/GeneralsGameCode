@@ -53,7 +53,9 @@
 #include "Common/GameLOD.h"
 
 #include "GameClient/InGameUI.h"
+#if defined(GENONLINE)
 #include "GameClient/Keyboard.h"
+#endif
 #include "GameClient/CommandXlat.h"
 #include "GameClient/DebugDisplay.h"
 #include "GameClient/Drawable.h"
@@ -91,7 +93,9 @@
 #include "GameNetwork/GameSpy/BuddyThread.h"
 
 #include "WW3D2/ww3d.h"
+#if defined(GENONLINE)
 #include "../GenOnlineInit.h"
+#endif
 
 #if defined(RTS_DEBUG)
 /*non-static*/ Real TheSkateDistOverride = 0.0f;
@@ -181,6 +185,7 @@ Bool hasThingsInProduction(PlayerType playerType)
 
 #endif // defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)
 
+#if defined(GENONLINE)
 enum ObserverFontSizeChange
 {
 	ObserverFontSizeChange_Increase,
@@ -245,6 +250,7 @@ static bool changeObserverStatsFontSize(ObserverFontSizeChange change)
 
 	return true;
 }
+#endif
 
 bool changeMaxRenderFps(FpsValueChange change)
 {
@@ -253,7 +259,9 @@ bool changeMaxRenderFps(FpsValueChange change)
 
 	TheFramePacer->setFramesPerSecondLimit(maxRenderFps);
 	TheWritableGlobalData->m_useFpsLimit = (maxRenderFps != RenderFpsPreset::UncappedFpsValue);
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
     // Save to GO settings, SH does not save it yet
     // TODO_GENONLINE: Remove this, SH saves it now
@@ -3437,6 +3445,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			break;
 		}
 
+#if defined(GENONLINE)
 		//-----------------------------------------------------------------------------------------
 		case GameMessage::MSG_META_INCREASE_OBSERVER_NOTIFICATION_FONT:
 		{
@@ -3477,6 +3486,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			break;
 		}
 
+#endif
 		//-----------------------------------------------------------------------------------------
 		case GameMessage::MSG_META_INCREASE_LOGIC_TIME_SCALE:
 		{
@@ -3568,7 +3578,9 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 				}
 
 				ToggleControlBar();
+#if defined(GENONLINE)
 				TheInGameUI->toggleObserverStats();
+#endif
 			}
 			disp = DESTROY_MESSAGE;
 			break;
@@ -3641,6 +3653,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			DEBUG_ASSERTCRASH(TheInGameUI->isCameraZoomingOut(), ("Clearing zoom camera out, but it's already clear!"));
 			TheInGameUI->setCameraZoomOut( false );
 			break;
+#if defined(GENONLINE)
 		case GameMessage::MSG_META_BEGIN_CAMERA_PITCH_UP:
 		case GameMessage::MSG_META_ALT_BEGIN_CAMERA_PITCH_UP:
 			TheInGameUI->setCameraPitchUp( true );
@@ -3657,13 +3670,16 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 		case GameMessage::MSG_META_ALT_END_CAMERA_PITCH_DOWN:
 			TheInGameUI->setCameraPitchDown( false );
 			break;
+#endif
 		case GameMessage::MSG_META_CAMERA_RESET:
 			TheInGameUI->resetCamera();
 			break;
+#if defined(GENONLINE)
 		case GameMessage::MSG_META_CAMERA_PITCH_RESET:
 		case GameMessage::MSG_META_ALT_CAMERA_PITCH_RESET:
 			TheTacticalView->userSetPitchToDefault();
 			break;
+#endif
 		case GameMessage::MSG_META_TOGGLE_CAMERA_TRACKING_DRAWABLE:
 			TheInGameUI->setCameraTrackingDrawable( true );
 			break;
@@ -4054,7 +4070,9 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
             break;
         }
 #endif
+#if defined(GENONLINE)
 
+#endif
 		// --------------------------------------------------------------------------------------------
 		case GameMessage::MSG_CREATE_SELECTED_GROUP_NO_SOUND:
 		case GameMessage::MSG_ADD_TEAM0:

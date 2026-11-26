@@ -86,8 +86,6 @@ static std::unordered_map<int, std::string> g_mapServiceIndexToPlayerTemplateStr
 #include <functional>
 
 #include "GameNetwork/GenOnline/GenOnlineDefines.h"
-#include "GameNetwork/GenOnline/NetworkPacket.h"
-#include "GameNetwork/GenOnline/NetworkBitstream.h"
 #include "GameNetwork/GenOnline/GenOnlineTypes.h"
 #include "GameNetwork/GenOnline/GenOnlineGame.h"
 

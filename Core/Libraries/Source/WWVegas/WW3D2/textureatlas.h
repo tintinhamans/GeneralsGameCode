@@ -56,6 +56,7 @@ public:
 	  , MaxPacksPerFrame(maxPacksPerFrame)
 	  , OutOfSpaceFrame(0)
 	  , PackFrame(0)
+	  , AtlasDisabled(false)
 	{}
 
 	struct TextureLocation
@@ -109,4 +110,5 @@ private:
 	int MaxPacksPerFrame;
 	unsigned OutOfSpaceFrame;
 	unsigned PackFrame;
+	bool AtlasDisabled;
 };

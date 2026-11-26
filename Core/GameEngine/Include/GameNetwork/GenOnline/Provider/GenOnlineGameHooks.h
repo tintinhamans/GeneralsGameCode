@@ -25,7 +25,7 @@
 class GenOnlineDiscordRPC;
 
 // Ends the GenOnline services on the next engine update and tells the player why.
-void TearDownGeneralsOnline();
+void TearDownGenOnline();
 
 class GenOnlineGameHooks : public IOnlineGameHooks
 {

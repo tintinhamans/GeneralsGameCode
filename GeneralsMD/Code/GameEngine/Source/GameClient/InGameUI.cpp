@@ -33,7 +33,9 @@
 
 #include "Common/ActionManager.h"
 #include "Common/FramePacer.h"
+#if defined(GENONLINE)
 #include "Common/AdaptiveQuality.h"
+#endif
 #include "Common/GameAudio.h"
 #include "Common/GameType.h"
 #include "Common/GameUtility.h"
@@ -92,7 +94,9 @@
 
 #include "GameNetwork/GameInfo.h"
 #include "GameNetwork/NetworkInterface.h"
+#if defined(GENONLINE)
 #include "GameNetwork/Online/IOnlineGameHooks.h"
+#endif
 
 #include "Common/UnitTimings.h" //Contains the DO_UNIT_TIMINGS define jba.
 
@@ -1159,7 +1163,9 @@ InGameUI::InGameUI()
 	m_networkLatencyColor = GameMakeColor( 173, 216, 255, 255 );
 	m_networkLatencyDropColor = GameMakeColor( 0, 0, 0, 255 );
 	m_lastNetworkLatencyFrames = ~0u;
+#if defined(GENONLINE)
 	m_lastNetworkLogicRate = ~0u;
+#endif
 
 	m_renderFpsString = nullptr;
 	m_renderFpsLowString = nullptr;
@@ -1208,6 +1214,7 @@ InGameUI::InGameUI()
 	m_playerInfoListDropColor = GameMakeColor(0, 0, 0, 255);
 	m_playerInfoListBackgroundAlpha = 170;
 
+#if defined(GENONLINE)
 	// Observer Stats Overlay
 	m_observerStatsString = nullptr;
 	m_observerStatsFont = "Tahoma";
@@ -1215,12 +1222,21 @@ InGameUI::InGameUI()
 	m_observerStatsBold = TRUE;
 	m_observerStatsPosition.x = kHudAnchorX;
 	m_observerStatsPosition.y = kHudAnchorY;
+	m_observerStatsLineStep = 0;
 
 	// Observer notification overlay
 	m_observerNotificationString = nullptr;
 	m_observerNotificationPointSize = TheGlobalData->m_observerNotificationFontSize;
 	m_observerNotificationsHidden = false;
+	for (Int slotIndex = 0; slotIndex < MAX_SLOTS; ++slotIndex)
+	{
+		for (Int col = 0; col < numCols; ++col)
+		{
+			m_mapOverlayPlayerData[slotIndex].playerCellStrings[col] = nullptr;
+		}
+	}
 
+#endif
 #if defined(GENONLINE)
 	m_colorGood = GameMakeColor(0, 255, 0, 150);
 	m_colorBad = GameMakeColor(255, 0, 0, 150);
@@ -1320,12 +1336,14 @@ InGameUI::~InGameUI()
 	clearWorldAnimations();
 	resetIdleWorker();
 
+#if defined(GENONLINE)
 	// Clean up notification resources
 	TheDisplayStringManager->freeDisplayString(m_observerNotificationString);
 	m_observerNotificationString = nullptr;
 
 	// clean up obs overlay
 	cleanupObserverOverlay();
+#endif
 	destroyReplayControl();
 	destroyControlBar();
 }
@@ -1342,57 +1360,49 @@ void InGameUI::init()
 	if (TheGlobalLanguageData)
 	{
 		if (TheGlobalLanguageData->m_drawableCaptionFont.name.isNotEmpty())
-		{
-			m_drawableCaptionFont = TheGlobalLanguageData->m_drawableCaptionFont.name;
+		{	m_drawableCaptionFont = TheGlobalLanguageData->m_drawableCaptionFont.name;
 			m_drawableCaptionPointSize = TheGlobalLanguageData->m_drawableCaptionFont.size;
 			m_drawableCaptionBold = TheGlobalLanguageData->m_drawableCaptionFont.bold;
 		}
 
 		if (TheGlobalLanguageData->m_messageFont.name.isNotEmpty())
-		{
-			m_messageFont = TheGlobalLanguageData->m_messageFont.name;
+		{	m_messageFont = TheGlobalLanguageData->m_messageFont.name;
 			m_messagePointSize = TheGlobalLanguageData->m_messageFont.size;
 			m_messageBold = TheGlobalLanguageData->m_messageFont.bold;
 		}
 
 		if (TheGlobalLanguageData->m_militaryCaptionTitleFont.name.isNotEmpty())
-		{
-			m_militaryCaptionTitleFont = TheGlobalLanguageData->m_militaryCaptionTitleFont.name;
+		{	m_militaryCaptionTitleFont = TheGlobalLanguageData->m_militaryCaptionTitleFont.name;
 			m_militaryCaptionTitlePointSize = TheGlobalLanguageData->m_militaryCaptionTitleFont.size;
 			m_militaryCaptionTitleBold = TheGlobalLanguageData->m_militaryCaptionTitleFont.bold;
 		}
 
 		if (TheGlobalLanguageData->m_militaryCaptionFont.name.isNotEmpty())
-		{
-			m_militaryCaptionFont = TheGlobalLanguageData->m_militaryCaptionFont.name;
+		{	m_militaryCaptionFont = TheGlobalLanguageData->m_militaryCaptionFont.name;
 			m_militaryCaptionPointSize = TheGlobalLanguageData->m_militaryCaptionFont.size;
 			m_militaryCaptionBold = TheGlobalLanguageData->m_militaryCaptionFont.bold;
 		}
 
 		if (TheGlobalLanguageData->m_superweaponCountdownNormalFont.name.isNotEmpty())
-		{
-			m_superweaponNormalFont = TheGlobalLanguageData->m_superweaponCountdownNormalFont.name;
+		{	m_superweaponNormalFont = TheGlobalLanguageData->m_superweaponCountdownNormalFont.name;
 			m_superweaponNormalPointSize = TheGlobalLanguageData->m_superweaponCountdownNormalFont.size;
 			m_superweaponNormalBold = TheGlobalLanguageData->m_superweaponCountdownNormalFont.bold;
 		}
 
 		if (TheGlobalLanguageData->m_superweaponCountdownReadyFont.name.isNotEmpty())
-		{
-			m_superweaponReadyFont = TheGlobalLanguageData->m_superweaponCountdownReadyFont.name;
+		{	m_superweaponReadyFont = TheGlobalLanguageData->m_superweaponCountdownReadyFont.name;
 			m_superweaponReadyPointSize = TheGlobalLanguageData->m_superweaponCountdownReadyFont.size;
 			m_superweaponReadyBold = TheGlobalLanguageData->m_superweaponCountdownReadyFont.bold;
 		}
 
 		if (TheGlobalLanguageData->m_namedTimerCountdownNormalFont.name.isNotEmpty())
-		{
-			m_namedTimerNormalFont = TheGlobalLanguageData->m_namedTimerCountdownNormalFont.name;
+		{	m_namedTimerNormalFont = TheGlobalLanguageData->m_namedTimerCountdownNormalFont.name;
 			m_namedTimerNormalPointSize = TheGlobalLanguageData->m_namedTimerCountdownNormalFont.size;
 			m_namedTimerNormalBold = TheGlobalLanguageData->m_namedTimerCountdownNormalFont.bold;
 		}
 
 		if (TheGlobalLanguageData->m_namedTimerCountdownReadyFont.name.isNotEmpty())
-		{
-			m_namedTimerReadyFont = TheGlobalLanguageData->m_namedTimerCountdownReadyFont.name;
+		{	m_namedTimerReadyFont = TheGlobalLanguageData->m_namedTimerCountdownReadyFont.name;
 			m_namedTimerReadyPointSize = TheGlobalLanguageData->m_namedTimerCountdownReadyFont.size;
 			m_namedTimerReadyBold = TheGlobalLanguageData->m_namedTimerCountdownReadyFont.bold;
 		}
@@ -1758,8 +1768,7 @@ void InGameUI::handleBuildPlacements()
 				if (lbc != LBC_OK)
 				{
 					TheTerrainVisual->addFactionBibDrawable(m_placeIcon[0], lbc != LBC_OK);
-				}
-				else {
+				} else {
 					TheTerrainVisual->removeFactionBibDrawable(m_placeIcon[0]);
 				}
 			}
@@ -1890,29 +1899,51 @@ void InGameUI::update()
 		if ( m_videoStream->isFrameReady())
 		{
 			m_videoStream->frameDecompress();
-			m_videoStream->frameRender( m_videoBuffer );
+#if defined(GENONLINE)
+			m_videoStream->frameRender(m_videoBuffer);
 			if (!m_videoStream->isPlaybackComplete())
+				m_videoStream->frameNext();
+#else
+			m_videoStream->frameRender( m_videoBuffer );
 			m_videoStream->frameNext();
-		}
-		if (m_videoStream->isPlaybackComplete())
+			if ( m_videoStream->frameIndex() == 0 )
+			{
 				stopMovie();
 			}
+#endif
+		}
+#if defined(GENONLINE)
+		if (m_videoStream->isPlaybackComplete())
+			stopMovie();
+#endif
+	}
 
 	if ( m_cameoVideoStream && m_cameoVideoBuffer )
 	{
 		if ( m_cameoVideoStream->isFrameReady())
 		{
 			m_cameoVideoStream->frameDecompress();
-			m_cameoVideoStream->frameRender( m_cameoVideoBuffer );
+#if defined(GENONLINE)
+			m_cameoVideoStream->frameRender(m_cameoVideoBuffer);
 			if (!m_cameoVideoStream->isPlaybackComplete())
+				m_cameoVideoStream->frameNext();
+			//			if ( m_cameoVideoStream->frameIndex() == 0 )
+			//			{
+			//				stopMovie();
+			//			}
+#else
+			m_cameoVideoStream->frameRender( m_cameoVideoBuffer );
 			m_cameoVideoStream->frameNext();
 //			if ( m_cameoVideoStream->frameIndex() == 0 )
 //			{
 //				stopMovie();
 //			}
+#endif
 		}
+#if defined(GENONLINE)
 		if (m_cameoVideoStream->isPlaybackComplete())
 			m_cameoVideoStream->frameGoto(0);
+#endif
 	}
 
 	//
@@ -1922,8 +1953,10 @@ void InGameUI::update()
 	// frame
 	//
 	UnsignedInt currLogicFrame = TheGameLogic->getFrame();
+#if defined(GENONLINE)
 
-	// GeneralsOnline NOTE: Increasing this, it's short + we increased framerate which is tied into the calc elsewhere
+	// GenOnline: Increasing this, it's short + we increased framerate which is tied into the calc elsewhere
+#endif
 #if defined(GENONLINE)
 	const int messageTimeoutChat = GetOnlineGameHooks()->getChatMessageLifeSeconds() * LOGICFRAMES_PER_SECOND;
 	const int messageTimeoutStandard = (m_messageDelayMS / LOGICFRAMES_PER_SECOND / MSEC_PER_SECOND) * LOGICFRAMES_PER_BASEFRAME;
@@ -1940,7 +1973,11 @@ void InGameUI::update()
 		// determine which timeout to apply
 		const int messageTimeout = (m_uiMessages[i].isChat && messageTimeoutChat >= 0) ? messageTimeoutChat : messageTimeoutStandard;
 #endif
+#if defined(GENONLINE)
+		if (currLogicFrame - m_uiMessages[i].timestamp > messageTimeout)
+#else
 		if( currLogicFrame - m_uiMessages[ i ].timestamp > messageTimeout )
+#endif
 		{
 
 			// get the current color of this text
@@ -2154,16 +2191,25 @@ void InGameUI::update()
 		layout->runUpdate();
 	}
 
+#if defined(GENONLINE)
 	if (m_cameraRotatingLeft || m_cameraRotatingRight || m_cameraZoomingIn || m_cameraZoomingOut
 		|| m_cameraPitchingUp || m_cameraPitchingDown)
+#else
+	if (m_cameraRotatingLeft || m_cameraRotatingRight || m_cameraZoomingIn || m_cameraZoomingOut)
+#endif
 	{
 		// TheSuperHackers @tweak The camera rotation and zoom are now decoupled from the render update.
 		const Real fpsRatio = TheFramePacer->getBaseOverUpdateFpsRatio();
+#if defined(GENONLINE)
 		// Pitch at half speed feels alike: shorter range, larger view change per degree.
 		const Real turnAngle = TheGlobalData->m_keyboardCameraRotateSpeed * 0.6f * fpsRatio;
 		const Real rotateAngle = turnAngle * SCROLL_MULTIPLIER * TheGlobalData->m_cameraRotateFactor;
 		const Real pitchAngle = turnAngle * 0.5f * SCROLL_MULTIPLIER * TheGlobalData->m_cameraPitchFactor;
 		const Real zoomHeight = (Real)View::ZoomHeightPerSecond * fpsRatio * SCROLL_MULTIPLIER * TheGlobalData->m_cameraZoomFactor;
+#else
+		const Real rotateAngle = TheGlobalData->m_keyboardCameraRotateSpeed * fpsRatio;
+		const Real zoomHeight = (Real)View::ZoomHeightPerSecond * fpsRatio;
+#endif
 
 		if( m_cameraRotatingLeft && !m_cameraRotatingRight )
 		{
@@ -2180,7 +2226,8 @@ void InGameUI::update()
 		}
 		else if( m_cameraZoomingOut && !m_cameraZoomingIn )
 		{
-			TheTacticalView->userZoom( +zoomHeight );
+#if defined(GENONLINE)
+			TheTacticalView->userZoom(+zoomHeight);
 		}
 
 		if (m_cameraPitchingUp && !m_cameraPitchingDown)
@@ -2190,6 +2237,9 @@ void InGameUI::update()
 		else if (m_cameraPitchingDown && !m_cameraPitchingUp)
 		{
 			TheTacticalView->userSetPitch(TheTacticalView->getPitch() - pitchAngle);
+#else
+			TheTacticalView->userZoom( +zoomHeight );
+#endif
 		}
 	}
 
@@ -2307,16 +2357,20 @@ void InGameUI::reset()
 	setCameraRotateRight(false);
 	setCameraZoomIn(false);
 	setCameraZoomOut(false);
+#if defined(GENONLINE)
 	setCameraPitchUp(false);
 	setCameraPitchDown(false);
+#endif
 	setCameraTrackingDrawable(false);
 
 	m_windowLayouts.clear();
 
+#if defined(GENONLINE)
 	m_observerStatsHidden = false;
 	m_observerNotifications.clear();
 	m_observerMilestones.clear();
 
+#endif
 	m_tooltipsDisabledUntil = 0;
 
 	UpdateDiplomacyBriefingText(AsciiString::TheEmptyString, TRUE);
@@ -2350,7 +2404,9 @@ void InGameUI::freeMessageResources()
 
 void InGameUI::freeCustomUiResources()
 {
+#if defined(GENONLINE)
 	GetOnlineGameHooks()->releaseNetworkOverlay();
+#endif
 	TheDisplayStringManager->freeDisplayString(m_networkLatencyString);
 	m_networkLatencyString = nullptr;
 	TheDisplayStringManager->freeDisplayString(m_renderFpsString);
@@ -2367,9 +2423,11 @@ void InGameUI::freeCustomUiResources()
 	m_gameTimeFrameString = nullptr;
 
 	m_playerInfoList.clear();
+#if defined(GENONLINE)
 
 	TheDisplayStringManager->freeDisplayString(m_observerStatsString);
 	m_observerStatsString = nullptr;
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2448,11 +2506,16 @@ void InGameUI::message( UnicodeString format, ... )
 //-------------------------------------------------------------------------------------------------
 /** Interface for display text messages to the user */
 //-------------------------------------------------------------------------------------------------
+#if defined(GENONLINE)
 // srj sez: passing as const-ref screws up varargs for some reason. dunno why. just pass by value.
 
 #if defined(GENONLINE)
 void InGameUI::messageColor(bool bIsChatMsg, const RGBColor * rgbColor, UnicodeString format, ...)
 #else
+void InGameUI::messageColor( const RGBColor *rgbColor, UnicodeString format, ... )
+#endif
+#else
+// srj sez: passing as const-ref screws up varargs for some reason. dunno why. just pass by value.
 void InGameUI::messageColor( const RGBColor *rgbColor, UnicodeString format, ... )
 #endif
 {
@@ -2515,15 +2578,24 @@ void InGameUI::addMessageText( const UnicodeString& formattedMessage, const RGBC
 	// we do not need to free the one that is already there because it has been moved
 	// "up" an index
 	//
-	m_uiMessages[ 0 ].fullText = formattedMessage;
+#if defined(GENONLINE)
+	m_uiMessages[0].fullText = formattedMessage;
 #if defined(GENONLINE)
 	m_uiMessages[0].isChat = bIsChatMsg;
 #endif
+	m_uiMessages[0].timestamp = TheGameLogic->getFrame();
+	m_uiMessages[0].displayString = TheDisplayStringManager->newDisplayString();
+	m_uiMessages[0].displayString->setFont(TheFontLibrary->getFont(m_messageFont,
+		TheGlobalLanguageData->adjustFontSize(m_messagePointSize), m_messageBold));
+	m_uiMessages[0].displayString->setText(m_uiMessages[0].fullText);
+#else
+	m_uiMessages[ 0 ].fullText = formattedMessage;
 	m_uiMessages[ 0 ].timestamp = TheGameLogic->getFrame();
 	m_uiMessages[ 0 ].displayString = TheDisplayStringManager->newDisplayString();
 	m_uiMessages[ 0 ].displayString->setFont( TheFontLibrary->getFont( m_messageFont,
 																						TheGlobalLanguageData->adjustFontSize(m_messagePointSize), m_messageBold ) );
 	m_uiMessages[ 0 ].displayString->setText( m_uiMessages[ 0 ].fullText );
+#endif
 
 	//
 	// assign a color for this string instance that will stay with it no matter what
@@ -3088,6 +3160,52 @@ void InGameUI::createCommandHint( const GameMessage *msg )
 						setMouseCursor( Mouse::PICK_UP_PRISONER );
 						break;
 #endif
+#if defined(GENONLINE)
+		case GameMessage::MSG_CAPTUREBUILDING_HINT:
+			setMouseCursor(Mouse::CAPTUREBUILDING);
+			break;
+		case GameMessage::MSG_HACK_HINT:
+			setMouseCursor(Mouse::HACK);
+			break;
+		case GameMessage::MSG_IMPOSSIBLE_ATTACK_HINT:
+			setMouseCursor(Mouse::GENERIC_INVALID);
+			break;
+		case GameMessage::MSG_SET_RALLY_POINT_HINT:
+			if (!drawSelectable)
+				setMouseCursor(Mouse::SET_RALLY_POINT);
+			else
+				setMouseCursor(Mouse::SELECTING);
+			break;
+		case GameMessage::MSG_DO_SPECIAL_POWER_OVERRIDE_DESTINATION_HINT:
+			setMouseCursor(Mouse::PARTICLE_UPLINK_CANNON);
+			break;
+		case GameMessage::MSG_DO_SALVAGE_HINT:
+			setMouseCursor(Mouse::MOVETO);
+			break;
+		case GameMessage::MSG_DO_INVALID_HINT:
+			setMouseCursor(Mouse::GENERIC_INVALID);
+			break;
+		}
+	}
+	break;
+	case MOUSEMODE_BUILD_PLACE:
+	{
+		if (underWindow)
+		{
+			setMouseCursor(Mouse::ARROW);
+			return;
+		}
+		switch (t)
+		{
+		case GameMessage::MSG_DO_MOVETO_HINT:
+		case GameMessage::MSG_DO_ATTACKMOVETO_HINT:
+		case GameMessage::MSG_ADD_WAYPOINT:
+			setMouseCursor(Mouse::BUILD_PLACEMENT);
+			break;
+		case GameMessage::MSG_DO_ATTACK_OBJECT_HINT:
+		case GameMessage::MSG_DO_ATTACK_OBJECT_AFTER_MOVING_HINT:
+			setMouseCursor(Mouse::INVALID_BUILD_PLACEMENT);
+#else
 					case GameMessage::MSG_CAPTUREBUILDING_HINT:
 						setMouseCursor( Mouse::CAPTUREBUILDING );
 						break;
@@ -3114,16 +3232,53 @@ void InGameUI::createCommandHint( const GameMessage *msg )
 						break;
 				}
 			}
+#endif
 			break;
+#if defined(GENONLINE)
+		}
+	}
+	break;
+	case MOUSEMODE_GUI_COMMAND:
+	{
+		if (underWindow)
+		{
+			setMouseCursor(Mouse::ARROW);
+			return;
+		}
+		// set the mouse cursor for commands that need a targeting or to normal with no command
+		if (m_pendingGUICommand)
+		{
+			if (m_pendingGUICommand->isContextCommand() ||
+				m_pendingGUICommand->getCommandType() == GUI_COMMAND_SPECIAL_POWER ||
+				m_pendingGUICommand->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT)
+#else
 		case MOUSEMODE_BUILD_PLACE:
+#endif
 			{
+#if defined(GENONLINE)
+				//Here is the hook for when we are in a context sensitive command mode. We can
+				//either do the specified command mode command or nothing! Whether or not the
+				//command is valid or not was determined in evaluateContextCommand which is
+				//called first, and posts the appropriate message.
+				AsciiString cursorName;	// empty by default
+#else
 				if (underWindow)
 				{
 					setMouseCursor(Mouse::ARROW);
 					return;
 				}
+#endif
 				switch (t)
 				{
+#if defined(GENONLINE)
+				case GameMessage::MSG_VALID_GUICOMMAND_HINT:
+					cursorName = m_pendingGUICommand->getCursorName();
+					break;
+				case GameMessage::MSG_INVALID_GUICOMMAND_HINT:
+				default:
+					cursorName = m_pendingGUICommand->getInvalidCursorName();
+					break;
+#else
 					case GameMessage::MSG_DO_MOVETO_HINT:
 					case GameMessage::MSG_DO_ATTACKMOVETO_HINT:
 					case GameMessage::MSG_ADD_WAYPOINT:
@@ -3133,19 +3288,37 @@ void InGameUI::createCommandHint( const GameMessage *msg )
 					case GameMessage::MSG_DO_ATTACK_OBJECT_AFTER_MOVING_HINT:
 						setMouseCursor(Mouse::INVALID_BUILD_PLACEMENT);
 						break;
+#endif
 				}
+#if defined(GENONLINE)
+
+				Int index = TheMouse->getCursorIndex(cursorName);
+				if (index != Mouse::INVALID_MOUSE_CURSOR)
+#else
 			}
 			break;
 		case MOUSEMODE_GUI_COMMAND:
 			{
 				if (underWindow)
+#endif
 				{
+#if defined(GENONLINE)
+					setMouseCursor((Mouse::MouseCursor)index);
+#else
 					setMouseCursor(Mouse::ARROW);
 					return;
+#endif
 				}
+#if defined(GENONLINE)
+				else
+#else
 				// set the mouse cursor for commands that need a targeting or to normal with no command
 				if( m_pendingGUICommand )
+#endif
 				{
+#if defined(GENONLINE)
+					setMouseCursor(Mouse::CROSS);
+#else
 					if( m_pendingGUICommand->isContextCommand() ||
 							m_pendingGUICommand->getCommandType() == GUI_COMMAND_SPECIAL_POWER ||
 							m_pendingGUICommand->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT )
@@ -3194,9 +3367,36 @@ void InGameUI::createCommandHint( const GameMessage *msg )
 					{
 						setRadiusCursorNone();
 					}
+#endif
 				}
+#if defined(GENONLINE)
+				setRadiusCursor(m_pendingGUICommand->getRadiusCursorType(), //*****************************************************************
+					m_pendingGUICommand->getSpecialPowerTemplate(),
+					m_pendingGUICommand->getWeaponSlot());
+#endif
 			}
+#if defined(GENONLINE)
+			else if (BitIsSet(m_pendingGUICommand->getOptions(), COMMAND_OPTION_NEED_TARGET))
+			{
+				Int index = TheMouse->getCursorIndex(m_pendingGUICommand->getCursorName());
+				if (index != Mouse::INVALID_MOUSE_CURSOR)
+					setMouseCursor((Mouse::MouseCursor)index);
+				else
+					setMouseCursor(Mouse::CROSS);
+				setRadiusCursor(m_pendingGUICommand->getRadiusCursorType(), //*****************************************************************
+					m_pendingGUICommand->getSpecialPowerTemplate(),
+					m_pendingGUICommand->getWeaponSlot());
+			}
+			else
+			{
+				setRadiusCursorNone();
+			}
+		}
+	}
+	break;
+#else
 			break;
+#endif
 	}
 }
 
@@ -3833,6 +4033,18 @@ void InGameUI::setInputEnabled( Bool enable )
 			(admittedly, this code will actually do the wrong thing if you were to hold down the ctrl
 			key thru the whole cinematic, but that's even more unlikely...)
 		*/
+#if defined(GENONLINE)
+		setForceAttackMode(false);			// CTRL
+		setForceMoveMode(false);				// apparently unmapped in current CommandMap.ini
+		setWaypointMode(false);					// ALT
+		setPreferSelectionMode(false);	// SHIFT
+		setCameraRotateLeft(false);			// KP4
+		setCameraRotateRight(false);		// KP6
+		setCameraZoomIn(false);					// KP8
+		setCameraZoomOut(false);				// KP2
+		setCameraPitchUp(false);				// KP9
+		setCameraPitchDown(false);			// KP3
+#else
 		setForceAttackMode( false );			// CTRL
 		setForceMoveMode( false );				// apparently unmapped in current CommandMap.ini
 		setWaypointMode( false );					// ALT
@@ -3841,8 +4053,7 @@ void InGameUI::setInputEnabled( Bool enable )
 		setCameraRotateRight( false );		// KP6
 		setCameraZoomIn( false );					// KP8
 		setCameraZoomOut( false );				// KP2
-		setCameraPitchUp(false);				// KP9
-		setCameraPitchDown(false);			// KP3
+#endif
 	}
 }
 
@@ -3891,6 +4102,7 @@ void InGameUI::postWindowDraw()
 	{
 		drawPlayerInfoList();
 	}
+#if defined(GENONLINE)
 
 	hudOffsetX = 0;
 	hudOffsetY += 250;
@@ -3900,6 +4112,7 @@ void InGameUI::postWindowDraw()
 
 	if (m_observerNotificationPointSize > 0)
 		drawObserverNotifications(hudOffsetX, hudOffsetY);
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -4201,9 +4414,14 @@ void InGameUI::postDraw()
 				UnsignedInt readyFrame = TheGameLogic->getFrame();
 				if (framesLeft > 0)
 					readyFrame += framesLeft;
+#if defined(GENONLINE)
 
 				Int readySecs = (Int)(SECONDS_PER_LOGICFRAME_REAL * LOGICFRAMES_PER_BASEFRAME * (readyFrame - TheGameLogic->getFrame()));
+				if ((info->isCountdown && readySecs != info->timestamp) || (!info->isCountdown && framesLeft != info->timestamp))
+#else
+				Int readySecs = (Int)(SECONDS_PER_LOGICFRAME_REAL * (readyFrame - TheGameLogic->getFrame()));
 				if ( (info->isCountdown && readySecs != info->timestamp) || (!info->isCountdown && framesLeft != info->timestamp) )
+#endif
 				{
 					if (!readySecs && info->isCountdown)
 					{
@@ -4596,6 +4814,7 @@ void InGameUI::militarySubtitle( const AsciiString& label, Int duration )
 
 	// calculate where this screen position should be since the position being passed in is based off 8x6
 	Coord2D multiplier;
+#if defined(GENONLINE)
 #if !defined(GENONLINE_WIDESCREEN)
 	multiplier.x = (float)TheDisplay->getWidth() / 800.0f;
 	multiplier.y = (float)TheDisplay->getHeight() / 600.0f;
@@ -4603,6 +4822,10 @@ void InGameUI::militarySubtitle( const AsciiString& label, Int duration )
 #else
 	multiplier.x = (float)TheDisplay->getWidth() / GENONLINE_WIDESCREEN_X_SCALE;
 	multiplier.y = (float)TheDisplay->getHeight() / GENONLINE_WIDESCREEN_Y_SCALE;
+#endif
+#else
+	multiplier.x = (Real)TheDisplay->getWidth() / (Real)DEFAULT_DISPLAY_WIDTH;
+	multiplier.y = (Real)TheDisplay->getHeight() / (Real)DEFAULT_DISPLAY_HEIGHT;
 #endif
 
 	// lets bring out the data structure!
@@ -4684,6 +4907,7 @@ void InGameUI::resetCamera()
 	TheTacticalView->userSetZoomToDefault();
 }
 
+#if defined(GENONLINE)
 void InGameUI::initObserverOverlay()
 {
 	if (TheWindowManager == nullptr)
@@ -4769,6 +4993,7 @@ void InGameUI::cleanupObserverOverlay()
 	}
 }
 
+#endif
 //------------------------------------------------------------------------------
 //Checks to see if an object can interact with an object in a non-hostile manner. This is currently used by the selection
 //translator to determine whether to do something to an object or select it instead based on the context of what is currently
@@ -4827,6 +5052,17 @@ CanAttackResult InGameUI::getCanSelectedObjectsAttack( ActionType action, const 
 				CanAttackResult result = 	TheActionManager->getCanAttackObject( other->getObject(), objectToInteractWith, CMD_FROM_PLAYER,
 									additionalChecking ? ATTACK_NEW_TARGET_FORCED : ATTACK_NEW_TARGET );
 
+#if defined(GENONLINE)
+			if (result > bestResult)
+			{
+				//Best result is used for the rule: SELECTION_ANY
+				bestResult = result;
+			}
+			if (result < worstResult)
+			{
+				//Worst result is used for the rule: SELECTION_ALL
+				worstResult = result;
+#else
 				if( result > bestResult )
 				{
 					//Best result is used for the rule: SELECTION_ANY
@@ -4838,7 +5074,12 @@ CanAttackResult InGameUI::getCanSelectedObjectsAttack( ActionType action, const 
 					worstResult = result;
 				}
 				break;
+#endif
 			}
+#if defined(GENONLINE)
+			break;
+		}
+#endif
 
 			case ACTIONTYPE_NONE:
 			case ACTIONTYPE_GET_REPAIRED_AT:
@@ -4920,6 +5161,24 @@ Bool InGameUI::canSelectedObjectsDoAction( ActionType action, const Object *obje
 
 		switch( action )
 		{
+#if defined(GENONLINE)
+		case ACTIONTYPE_NONE:
+			//However strange this might be, it is always possible to do "nothing"
+			//although I can't think of why this would be needed...
+			return TRUE;
+		case ACTIONTYPE_GET_REPAIRED_AT:
+			success = TheActionManager->canGetRepairedAt(other->getObject(), objectToInteractWith, CMD_FROM_PLAYER);
+			break;
+		case ACTIONTYPE_DOCK_AT:
+			success = TheActionManager->canDockAt(other->getObject(), objectToInteractWith, CMD_FROM_PLAYER);
+			break;
+		case ACTIONTYPE_GET_HEALED_AT:
+			success = TheActionManager->canGetHealedAt(other->getObject(), objectToInteractWith, CMD_FROM_PLAYER);
+			if (success)
+			{
+				ContainModuleInterface* contain = objectToInteractWith->getContain();
+				if (contain && contain->isHealContain())
+#else
 			case ACTIONTYPE_NONE:
 				//However strange this might be, it is always possible to do "nothing"
 				//although I can't think of why this would be needed...
@@ -4933,7 +5192,13 @@ Bool InGameUI::canSelectedObjectsDoAction( ActionType action, const Object *obje
 			case ACTIONTYPE_GET_HEALED_AT:
 				success = TheActionManager->canGetHealedAt( other->getObject(), objectToInteractWith, CMD_FROM_PLAYER );
 				if( success )
+#endif
 				{
+#if defined(GENONLINE)
+					//This container is only used for the purposes of healing and we cannot
+					//enter it normally -- this is NOT a transport!
+					success = false;
+#else
 					ContainModuleInterface *contain = objectToInteractWith->getContain();
 					if( contain && contain->isHealContain() )
 					{
@@ -4941,19 +5206,64 @@ Bool InGameUI::canSelectedObjectsDoAction( ActionType action, const Object *obje
 						//enter it normally -- this is NOT a transport!
 						success = false;
 					}
+#endif
 				}
+#if !defined(GENONLINE)
 				break;
 			case ACTIONTYPE_REPAIR_OBJECT:
 			{
 				ObjectID currentRepairer = objectToInteractWith->getSoleHealingBenefactor();
-			success = (TheActionManager->canRepairObject(other->getObject(), objectToInteractWith, CMD_FROM_PLAYER)
-				&& (currentRepairer == INVALID_ID || currentRepairer == other->getObject()->getID()));
+				success = ( TheActionManager->canRepairObject( other->getObject(), objectToInteractWith, CMD_FROM_PLAYER ) &&
+										( currentRepairer == INVALID_ID || currentRepairer == other->getObject()->getID() ) );
 											// unless someone else is already healing it...
 											// please note that this add'l test is left out of canRepairObject() since canRepairObject
 											// gets called from within the Dozer/WorkerAIUpdates' stateMachines as they continue the repair process.
 											// This remains true.
 				break;
+#endif
 			}
+#if defined(GENONLINE)
+			break;
+		case ACTIONTYPE_REPAIR_OBJECT:
+		{
+			ObjectID currentRepairer = objectToInteractWith->getSoleHealingBenefactor();
+			success = (TheActionManager->canRepairObject(other->getObject(), objectToInteractWith, CMD_FROM_PLAYER)
+				&& (currentRepairer == INVALID_ID || currentRepairer == other->getObject()->getID()));
+			// unless someone else is already healing it...
+			// please note that this add'l test is left out of canRepairObject() since canRepairObject
+			// gets called from within the Dozer/WorkerAIUpdates' stateMachines as they continue the repair process.
+			// This remains true.
+			break;
+		}
+		case ACTIONTYPE_RESUME_CONSTRUCTION:
+			success = TheActionManager->canResumeConstructionOf(other->getObject(), objectToInteractWith, CMD_FROM_PLAYER);
+			break;
+		case ACTIONTYPE_COMBATDROP_INTO:
+			success = TheActionManager->canEnterObject(other->getObject(), objectToInteractWith, CMD_FROM_PLAYER, COMBATDROP_INTO);
+			break;
+		case ACTIONTYPE_ENTER_OBJECT:
+			//additionalChecking is TRUE only if we want to check if transport is full first.
+			success = TheActionManager->canEnterObject(other->getObject(), objectToInteractWith, CMD_FROM_PLAYER, additionalChecking ? CHECK_CAPACITY : DONT_CHECK_CAPACITY);
+			break;
+		case ACTIONTYPE_ATTACK_OBJECT:
+			DEBUG_CRASH(("Called InGameUI::canSelectedObjectsDoAction() with ACTIONTYPE_ATTACK_OBJECT. You must use InGameUI::getCanSelectedObjectsAttack() instead."));
+			return FALSE;
+		case ACTIONTYPE_HIJACK_VEHICLE:
+			success = TheActionManager->canHijackVehicle(other->getObject(), objectToInteractWith, CMD_FROM_PLAYER);
+			break;
+		case ACTIONTYPE_SABOTAGE_BUILDING:
+			success = TheActionManager->canSabotageBuilding(other->getObject(), objectToInteractWith, CMD_FROM_PLAYER);
+			break;
+		case ACTIONTYPE_CONVERT_OBJECT_TO_CARBOMB:
+			success = TheActionManager->canConvertObjectToCarBomb(other->getObject(), objectToInteractWith, CMD_FROM_PLAYER);
+			break;
+		case ACTIONTYPE_CAPTURE_BUILDING:
+			success = TheActionManager->canCaptureBuilding(other->getObject(), objectToInteractWith, CMD_FROM_PLAYER);
+			break;
+		case ACTIONTYPE_DISABLE_VEHICLE_VIA_HACKING:
+			success = TheActionManager->canDisableVehicleViaHacking(other->getObject(), objectToInteractWith, CMD_FROM_PLAYER);
+			break;
+#else
 			case ACTIONTYPE_RESUME_CONSTRUCTION:
 				success = TheActionManager->canResumeConstructionOf( other->getObject(), objectToInteractWith, CMD_FROM_PLAYER );
 				break;
@@ -4982,11 +5292,28 @@ Bool InGameUI::canSelectedObjectsDoAction( ActionType action, const Object *obje
 			case ACTIONTYPE_DISABLE_VEHICLE_VIA_HACKING:
 				success = TheActionManager->canDisableVehicleViaHacking( other->getObject(), objectToInteractWith, CMD_FROM_PLAYER );
 				break;
+#endif
 #ifdef ALLOW_SURRENDER
 			case ACTIONTYPE_PICK_UP_PRISONER:
 				success = TheActionManager->canPickUpPrisoner( other->getObject(), objectToInteractWith, CMD_FROM_PLAYER );
 				break;
 #endif
+#if defined(GENONLINE)
+		case ACTIONTYPE_STEAL_CASH_VIA_HACKING:
+			success = TheActionManager->canStealCashViaHacking(other->getObject(), objectToInteractWith, CMD_FROM_PLAYER);
+			break;
+		case ACTIONTYPE_DISABLE_BUILDING_VIA_HACKING:
+			success = TheActionManager->canDisableBuildingViaHacking(other->getObject(), objectToInteractWith, CMD_FROM_PLAYER);
+			break;
+		case ACTIONTYPE_MAKE_DEFECTOR:
+			success = TheActionManager->canMakeObjectDefector(other->getObject(), objectToInteractWith, CMD_FROM_PLAYER);
+			break;
+		case ACTIONTYPE_SET_RALLY_POINT:
+		{
+			Object* obj = other->getObject();
+			if (!obj) {
+				success = false;
+#else
 			case ACTIONTYPE_STEAL_CASH_VIA_HACKING:
 				success = TheActionManager->canStealCashViaHacking( other->getObject(), objectToInteractWith, CMD_FROM_PLAYER );
 				break;
@@ -5004,8 +5331,14 @@ Bool InGameUI::canSelectedObjectsDoAction( ActionType action, const Object *obje
 					break;
 				}
 				success = (obj->isKindOf(KINDOF_AUTO_RALLYPOINT) && obj->isLocallyControlled());
+#endif
 				break;
 			}
+#if defined(GENONLINE)
+			success = (obj->isKindOf(KINDOF_AUTO_RALLYPOINT) && obj->isLocallyControlled());
+			break;
+		}
+#endif
 		}
 
 		if( success )
@@ -6258,6 +6591,7 @@ void InGameUI::recreateControlBar()
 	TheControlBar->init();
 }
 
+#if defined(GENONLINE)
 // ======================================================================================
 // Observer Notification
 // ======================================================================================
@@ -6914,13 +7248,21 @@ void InGameUI::refreshObserverNotificationResources(void)
 }
 
 void InGameUI::refreshCustomUiResources(void)
+#else
+void InGameUI::refreshCustomUiResources()
+#endif
 {
 	refreshNetworkLatencyResources();
 	refreshRenderFpsResources();
 	refreshSystemTimeResources();
-	refreshGameTimeResources();
+#if defined(GENONLINE)
+    refreshGameTimeResources();
     initObserverOverlay();
 	refreshObserverNotificationResources();
+#else
+	refreshGameTimeResources();
+	refreshPlayerInfoListResources();
+#endif
 }
 
 void InGameUI::refreshNetworkLatencyResources()
@@ -6929,8 +7271,12 @@ void InGameUI::refreshNetworkLatencyResources()
 	{
 		m_networkLatencyString = TheDisplayStringManager->newDisplayString();
 		m_lastNetworkLatencyFrames = ~0u;
+#if defined(GENONLINE)
 		m_lastNetworkLogicRate = ~0u;
+		}
+#else
 	}
+#endif
 
 	m_networkLatencyPointSize = TheGlobalData->m_networkLatencyFontSize;
 	Int adjustedNetworkLatencyFontSize = TheGlobalLanguageData->adjustFontSize(m_networkLatencyPointSize);
@@ -7041,10 +7387,23 @@ WindowMsgHandledType IdleWorkerSystem( GameWindow *window, UnsignedInt msg,
 				*(Bool *)mData2 = FALSE;
 			break;
 
+#if defined(GENONLINE)
+	}
+	//---------------------------------------------------------------------------------------------
+	case GBM_SELECTED:
+	{
+		GameWindow* control = (GameWindow*)mData1;
+		static NameKeyType buttonSelectID = NAMEKEY("IdleWorker.wnd:ButtonSelectNextIdleWorker");
+		if (control && control->winGetWindowId() == buttonSelectID)
+#else
 		}
 		//---------------------------------------------------------------------------------------------
 		case GBM_SELECTED:
+#endif
 		{
+#if defined(GENONLINE)
+			TheInGameUI->selectNextIdleWorker();
+#else
 			GameWindow *control = (GameWindow *)mData1;
 			static NameKeyType buttonSelectID = NAMEKEY( "IdleWorker.wnd:ButtonSelectNextIdleWorker" );
 			if (control && control->winGetWindowId() == buttonSelectID)
@@ -7053,11 +7412,23 @@ WindowMsgHandledType IdleWorkerSystem( GameWindow *window, UnsignedInt msg,
 			}
 			break;
 
+#endif
 		}
+#if defined(GENONLINE)
+		break;
+#endif
 
+#if defined(GENONLINE)
+	}
+
+	//---------------------------------------------------------------------------------------------
+	default:
+		return MSG_IGNORED;
+#else
 		//---------------------------------------------------------------------------------------------
 		default:
 			return MSG_IGNORED;
+#endif
 
 	}
 
@@ -7192,9 +7563,7 @@ void InGameUI::drawSystemTime(Int &x, Int &y)
 	GetLocalTime( &systemTime );
 
 	UnicodeString TimeString;
-
 	TimeString.format(L"%2.2d:%2.2d:%2.2d", systemTime.wHour, systemTime.wMinute, systemTime.wSecond);
-
 	m_systemTimeString->setText(TimeString);
 
 	// TheSuperHackers @info at the HUD anchor this draws inline and advances x otherwise uses configured position
@@ -7211,9 +7580,11 @@ void InGameUI::drawSystemTime(Int &x, Int &y)
 
 void InGameUI::drawGameTime()
 {
+#if defined(GENONLINE)
 	// draw connections
 	GetOnlineGameHooks()->drawNetworkOverlay(m_gameTimeString, m_gameTimeDropColor);
 
+#endif
 	Int currentFrame = TheGameLogic->getFrame();
 	Int gameSeconds = (Int) (SECONDS_PER_LOGICFRAME_REAL * currentFrame );
 	Int hours = gameSeconds / 60 / 60;

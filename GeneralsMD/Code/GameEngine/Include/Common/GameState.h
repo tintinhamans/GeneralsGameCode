@@ -181,7 +181,11 @@ public:
 	Bool doesSaveGameExist( AsciiString filename );							///< does the save file exist
 	void populateSaveGameListbox( GameWindow *listbox, SaveLoadLayoutType layoutType );	///< populate listbox with available save games
 	AvailableGameInfo *refreshAvailableGames();	///< Ronin @feature 30/10/2026 DX9: rescan the saves (the RmlUi list); returns the list head
+#if defined(GENONLINE)
 	Bool getSaveGameInfoFromFile( AsciiString filename, SaveGameInfo *saveGameInfo );		///< get save game info from file, false if it can't be read
+#else
+	void getSaveGameInfoFromFile( AsciiString filename, SaveGameInfo *saveGameInfo );		///< get save game info from file
+#endif
 
 	void friend_xferSaveDataForCRC( Xfer *xfer, SnapshotType which );		///< This should only be called to DeepCRC sanity checking
 

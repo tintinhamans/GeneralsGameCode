@@ -59,7 +59,6 @@ public:
 	// W3DDisplay::draw, once per frame outside frozen time: true when this frame is not rendered
 	Bool shouldSkipRender();
 
-	Int getLevel() const { return m_model.level(); }
 	// the network overlay, false when there is no match to show
 	Bool getOverlay(AdaptiveQualityOverlay& out) const;
 

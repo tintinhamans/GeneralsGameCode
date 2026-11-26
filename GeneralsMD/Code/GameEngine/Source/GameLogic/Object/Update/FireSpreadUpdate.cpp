@@ -173,7 +173,11 @@ void FireSpreadUpdate::startFireSpreading()
 UnsignedInt FireSpreadUpdate::calcNextSpreadDelay()
 {
 	const FireSpreadUpdateModuleData* d = getFireSpreadUpdateModuleData();
+#if defined(GENONLINE)
 	UnsignedInt delay = GameLogicRandomFramesInBaseFrames( d->m_minSpreadTryDelayData, d->m_maxSpreadTryDelayData );
+#else
+	UnsignedInt delay = GameLogicRandomValue( d->m_minSpreadTryDelayData, d->m_maxSpreadTryDelayData );
+#endif
 	if (delay < 1)
 		delay = 1;
 	return delay;

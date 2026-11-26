@@ -48,7 +48,9 @@
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "GameClient/Gadget.h"
+#if defined(GENONLINE)
 #include "GameClient/GadgetListBox.h"
+#endif
 #include "GameClient/GameWindowGlobal.h"
 #include "W3DDevice/GameClient/W3DGameWindow.h"
 #include "W3DDevice/GameClient/W3DGameWindowManager.h"
@@ -361,18 +363,25 @@ void W3DGameWinDefaultDraw( GameWindow *window, WinInstanceData *instData )
 
 		}
 
+#if defined(GENONLINE)
 		// GenOnline @tweak arcticdolphin 08/11/2026 With the GO kit, a layout border in a kit or palette line colour draws at the kit line weight.
 		Color kitFrameColor;
 		Bool kitFrame = GadgetListBoxGetKitFrameColor( borderColor, &kitFrameColor );
 
+#endif
 		//
 		// draw the border at the edges
 		//
+#if defined(GENONLINE)
 		if( borderColor != WIN_COLOR_UNDEFINED && kitFrame == FALSE )
+#else
+		if( borderColor != WIN_COLOR_UNDEFINED )
+#endif
 			TheWindowManager->winOpenRect( borderColor, borderWidth,
 																		 origin.x, origin.y,
 																		 origin.x + size.x, origin.y + size.y );
 
+#if defined(GENONLINE)
 		Real fillInset = borderWidth;
 		if( TheDisplay != nullptr && ( TheDisplay->getWidth() != DEFAULT_DISPLAY_WIDTH || TheDisplay->getHeight() != DEFAULT_DISPLAY_HEIGHT ) )
 		{
@@ -389,8 +398,10 @@ void W3DGameWinDefaultDraw( GameWindow *window, WinInstanceData *instData )
 			}
 		}
 
+#endif
 		// draw filled background
 		if( color != WIN_COLOR_UNDEFINED )
+#if defined(GENONLINE)
 			TheWindowManager->winFillRect( color, borderWidth,
 																		 origin.x + fillInset,
 																		 origin.y + fillInset,
@@ -399,6 +410,13 @@ void W3DGameWinDefaultDraw( GameWindow *window, WinInstanceData *instData )
 
 		if( kitFrame )
 			GadgetListBoxDrawKitFrame( kitFrameColor, origin.x, origin.y, size.x, size.y );
+#else
+			TheWindowManager->winFillRect( color, borderWidth,
+																		 origin.x + borderWidth,
+																		 origin.y + borderWidth,
+																		 origin.x + size.x - borderWidth,
+																		 origin.y + size.y - borderWidth );
+#endif
 
 	}
 

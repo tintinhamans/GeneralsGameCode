@@ -87,10 +87,9 @@ void HTTPManager::SendDELETERequest(const char* szURI, EIPProtocolVersion protov
 	m_vecRequestsPendingStart.push_back(pRequest);
 }
 
+// Runs on the logout worker thread.
 void HTTPManager::Shutdown()
 {
-	CHECK_MAIN_THREAD;
-
 	// Signal that we're shutting down
 	m_bShuttingDown = true;
 

@@ -41,9 +41,11 @@ extern Real GetGameLogicRandomValueRealUnchanged(Real lo, Real hi, const char* f
 #define GameLogicRandomValueReal( lo, hi ) GetGameLogicRandomValueReal( lo, hi, __FILE__, __LINE__ )
 #define GameLogicRandomValueRealUnchanged( lo, hi ) GetGameLogicRandomValueRealUnchanged( lo, hi, __FILE__, __LINE__ )
 
+#if defined(GENONLINE)
 // Draws a random duration in logic frames from whole base frames, so every logic frame rate gives the distribution of the base frame rate.
 #define GameLogicRandomFramesInBaseFrames( lo, hi ) ConvertBaseFramesToFrames( GetGameLogicRandomValue( ConvertFramesToBaseFrames( lo ), ConvertFramesToBaseFrames( hi ), __FILE__, __LINE__ ) )
 
+#endif
 //--------------------------------------------------------------------------------------------------------------
 class CColorAlphaDialog;
 class DebugWindowDialog;

@@ -33,7 +33,9 @@
 #include "Common/CRCDebug.h"
 #include "Common/DamageFX.h"
 #include "Common/Player.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
+#endif
 #include "Common/GameState.h"
 #include "Common/GlobalData.h"
 #include "Common/PlayerList.h"
@@ -488,7 +490,11 @@ void ActiveBody::attemptDamage( DamageInfo *damageInfo )
 		{
 			// Damage amount is msec time we set the status given in damageStatusType
 			Real realFramesToStatusFor = ConvertDurationFromMsecsToFrames(amount);
+#if defined(GENONLINE)
 			obj->doStatusDamage( damageInfo->in.m_damageStatusType , ConvertBaseFramesToFrames(REAL_TO_INT_CEIL(ConvertFramesToBaseFramesReal(realFramesToStatusFor))) );
+#else
+			obj->doStatusDamage( damageInfo->in.m_damageStatusType , REAL_TO_INT_CEIL(realFramesToStatusFor) );
+#endif
 			alreadyHandled = TRUE;
 			allowModifier = FALSE;
 			break;
@@ -569,12 +575,14 @@ void ActiveBody::attemptDamage( DamageInfo *damageInfo )
 		damageInfo->out.m_actualDamageDealt = amount;
 		damageInfo->out.m_actualDamageClipped = m_prevHealth - m_currentHealth;
 
+#if defined(GENONLINE)
 		// read-only tap for the stats pipe: the health this hit actually took, not subdual or status damage
 		if (!alreadyHandled)
 		{
 			LocalApiLiveDamage(obj, damageInfo->in.m_sourceID, damageInfo->out.m_actualDamageClipped);
 		}
 
+#endif
 		// then copy the whole DamageInfo struct for easy lookup
 		// (object pointer loses scope as soon as atteptdamage's caller ends)
 		// m_lastDamageTimestamp is initialized to FFFFFFFFFF, so doing a < compare is problematic.

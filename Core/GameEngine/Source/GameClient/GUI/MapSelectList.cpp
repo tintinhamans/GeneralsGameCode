@@ -1075,10 +1075,3 @@ AsciiString MapSelectList::getSelectedMap() const
 	GadgetListBoxGetSelected(m_listbox, &selected);
 	return getMapAtRow(selected);
 }
-
-Int MapSelectList::getMedalAtRow( Int row ) const
-{
-	if (row < 0 || row >= (Int)m_rows.size())
-		return -1;
-	return m_rows[row].m_medal;
-}

@@ -97,7 +97,7 @@ public:
 	void RecoverRealtimeSession(bool bRefreshToken, bool bRegisterSession, std::function<void(bool bRecovered)> fnDone);
 
 	// The origin of the realtime hub and the v1 REST endpoints, or empty without a trusted route.
-	static std::string ServiceOriginV1();
+	static std::string ServiceOrigin();
 
 private:
 	void LoginAsSecondaryDevAccount();
@@ -107,19 +107,16 @@ private:
 
 	static std::string CredentialServerKey();
 
-	void BeginLoginV1();
 	// promptLogin shows the sign-in form even when the browser is still signed in: no saved login, or the player chose another account.
-	void StartBrowserSignInV1(int loginAttempt, bool promptLogin);
-	void CompleteSignInV1(const GenOnlineRealtime::TokenResponse& tokens, int loginAttempt);
-	void ApplyTokensV1(const GenOnlineRealtime::TokenResponse& tokens);
-	void RegisterSessionV1(std::function<void(int statusCode, const std::string& strBody)> fnDone);
-	void RefreshTokensV1(std::function<void(bool bRefreshed)> fnDone);
-	void FailLoginV1(const wchar_t* szText);
-	void ClearSessionV1();
-	void AbandonRefreshV1();
-	void FinishLogoutV1();
-	void TickV1();
-	static std::string CredentialServerKeyV1();
+	void StartBrowserSignIn(int loginAttempt, bool promptLogin);
+	void CompleteSignIn(const GenOnlineRealtime::TokenResponse& tokens, int loginAttempt);
+	void ApplyTokens(const GenOnlineRealtime::TokenResponse& tokens);
+	void RegisterSession(std::function<void(int statusCode, const std::string& strBody)> fnDone);
+	void RefreshTokens(std::function<void(bool bRefreshed)> fnDone);
+	void FailLogin(const wchar_t* szText);
+	void ClearSession();
+	void AbandonRefresh();
+	void FinishLogout();
 
 private:
 	bool m_bSignInScreen = false;
@@ -141,13 +138,13 @@ private:
 	// if a refresh fails we still have ~5m before the token actually expires, so retry quickly rather than waiting for the next scheduled refresh
 	const int m_secondsUntilRefreshRetry = 30;
 
-	// Realtime protocol v1 sign-in. The access token lives in m_strToken and the rotating refresh token in m_strRefreshToken.
+	// The sign-in. The access token lives in m_strToken and the rotating refresh token in m_strRefreshToken.
 	std::unique_ptr<GenOnlineSignIn> m_pSignIn = std::make_unique<GenOnlineSignIn>();
 	int64_t m_accessTokenExpiry = -1;
 	int64_t m_accessTokenRefreshAt = -1;
-	int64_t m_nextRefreshRetryV1 = -1;
-	bool m_bRefreshInFlightV1 = false;
-	std::vector<std::function<void(bool)>> m_refreshWaitersV1;
-	std::function<void()> m_logoutDoneV1;
-	int64_t m_logoutDeadlineV1 = -1;
+	int64_t m_nextRefreshRetry = -1;
+	bool m_bRefreshInFlight = false;
+	std::vector<std::function<void(bool)>> m_refreshWaiters;
+	std::function<void()> m_logoutDone;
+	int64_t m_logoutDeadline = -1;
 };

@@ -404,8 +404,12 @@ WindowMsgHandledType GadgetVerticalSliderSystem( GameWindow *window, UnsignedInt
 
 			s->minVal = (Int)mData1;
 			s->maxVal = (Int)mData2;
+#if defined(GENONLINE)
 			// GenOnline @tweak arcticdolphin 08/11/2026 The thumb size scales with the screen height.
 			s->numTicks = (Real)( size.y - GameWindowManager::winScaleLayoutSize( GADGET_SIZE ))/(Real)(s->maxVal - s->minVal);
+#else
+			s->numTicks = (Real)( size.y-GADGET_SIZE)/(Real)(s->maxVal - s->minVal);
+#endif
 			s->position = s->minVal;
 
 			// Translate to window coords
@@ -454,7 +458,11 @@ WindowMsgHandledType GadgetVerticalSliderSystem( GameWindow *window, UnsignedInt
 			GameWindow *thumb = window->winGetChild();
 
 			if( thumb )
+#if defined(GENONLINE)
 				thumb->winSetSize( width, GameWindowManager::winScaleLayoutSize( GADGET_SIZE ) );
+#else
+				thumb->winSetSize( width, GADGET_SIZE );
+#endif
 
 			break;
 

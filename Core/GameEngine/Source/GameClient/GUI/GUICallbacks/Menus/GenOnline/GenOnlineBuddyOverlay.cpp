@@ -30,6 +30,7 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include "GameClient/GenOnlineDockChat.h"
 #include "GameClient/GenOnlineMenus.h"
 
 #include "Common/AudioEventRTS.h"
@@ -49,6 +50,8 @@
 #include "GameClient/GUI/ChatCompletionSets.h"
 #include "GameClient/GadgetRadioButton.h"
 #include "GameClient/Display.h"
+#include "GameClient/DisplayStringManager.h"
+#include "GameClient/Image.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/BuddyDefs.h"
@@ -64,6 +67,10 @@
 #include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeMessageActions.h"
 #include "GameNetwork/GenOnline/Realtime/RealtimeRest.h"
+#include "GameClient/DisplayString.h"
+#include "GameClient/Mouse.h"
+#include "GameNetwork/GenOnline/GenOnlineRoomsInterface.h"
+#include <algorithm>
 #include <unordered_set>
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
@@ -117,7 +124,6 @@ static void closeRightClickMenu(GameWindow *win);
 static int64_t GetSelectedBuddyID();
 
 static NameKeyType textEntryFindID = NAMEKEY_INVALID;
-static NameKeyType buttonFindID = NAMEKEY_INVALID;
 static GameWindow *textEntryFind = nullptr;
 
 static void RunPlayerFind()
@@ -172,6 +178,810 @@ enum
 	BUDDY_WINDOW_WELCOME_SCREEN,
 };
 
+static AsciiString rcWindowFile( WindowLayout *layout );
+void GenOnlineRequestBuddyAdd(Int profileID, AsciiString nick);
+
+// The communicator: the Friends, Requests and Blocked tabs, and the conversation with one friend beside the friends list.
+static NameKeyType radioButtonRequestsID = NAMEKEY_INVALID;
+static NameKeyType parentRequestsID = NAMEKEY_INVALID;
+static NameKeyType listboxRequestsID = NAMEKEY_INVALID;
+static NameKeyType buttonInviteID = NAMEKEY_INVALID;
+static NameKeyType buttonProfileID = NAMEKEY_INVALID;
+static NameKeyType buttonMoreID = NAMEKEY_INVALID;
+static GameWindow *radioButtonRequests = nullptr;
+static GameWindow *parentRequests = nullptr;
+static GameWindow *listboxRequests = nullptr;
+static GameWindow *staticTextPeerName = nullptr;
+static GameWindow *staticTextPeerStatus = nullptr;
+static GameWindow *windowPeerDot = nullptr;
+static GameWindow *buttonInvite = nullptr;
+static GameWindow *buttonProfile = nullptr;
+static GameWindow *buttonMore = nullptr;
+
+// The user of the open conversation, -1 while none is open.
+static int64_t s_peerID = -1;
+static std::string s_peerDot = "offline";
+// The tab and conversation the next opening of the communicator shows.
+static Int s_openTab = GENONLINE_COMMUNICATOR_FRIENDS;
+static int64_t s_openPeer = -1;
+// The conversation a click on the notification box opens, -1 for none.
+static int64_t s_noticePeer = -1;
+// The presence dot of each friends list row, empty for a row without one.
+static std::vector<std::string> s_friendRowDots;
+
+enum RequestRowKind { REQUEST_ROW_INCOMING = 1, REQUEST_ROW_SENT = 2 };
+enum { FRIEND_COLUMN_DOT, FRIEND_COLUMN_NAME, FRIEND_COLUMN_INFO, FRIEND_COLUMN_UNREAD };
+enum { CHAT_COLUMN_TEXT, CHAT_COLUMN_JOIN };
+enum { REQUEST_COLUMN_NAME, REQUEST_COLUMN_FIRST, REQUEST_COLUMN_SECOND };
+enum { BLOCKED_COLUMN_NAME, BLOCKED_COLUMN_UNBLOCK };
+
+static Color CommunicatorMuted()
+{
+	return GOUIColor(GOUICOLOR_MUTED, GameMakeColor(154, 163, 199, 255));
+}
+
+static Color CommunicatorGold()
+{
+	return GameMakeColor(255, 194, 15, 255);
+}
+
+static Color CommunicatorWhite()
+{
+	return GameMakeColor(255, 255, 255, 255);
+}
+
+static std::wstring LowerText(std::wstring text)
+{
+	std::transform(text.begin(), text.end(), text.begin(), [](wchar_t c) { return static_cast<wchar_t>(towlower(c)); });
+	return text;
+}
+
+// The dot of a friend: offline, or the presence status of an online friend.
+static std::string FriendDot(const FriendsEntry& entry)
+{
+	return entry.online ? (entry.status.empty() ? std::string("online") : entry.status) : std::string("offline");
+}
+
+static std::wstring FriendStatusText(const FriendsEntry& entry)
+{
+	if (!entry.online)
+	{
+		return L"Offline";
+	}
+	if (entry.status == "idle")
+	{
+		return L"Idle";
+	}
+	if (entry.status == "do_not_disturb")
+	{
+		return entry.presence.empty() ? std::wstring(L"Do not disturb") : L"Do not disturb · " + from_utf8(entry.presence);
+	}
+	return entry.presence.empty() ? std::wstring(L"Online") : from_utf8(entry.presence);
+}
+
+// The name of any user the communicator knows: friends, requests, conversations, search results and recent players.
+static std::wstring CommunicatorPeerName(GenOnlineSocialInterface* pSocial, int64_t userID)
+{
+	for (const auto& list : { pSocial->GetCachedFriendsList(), pSocial->GetCachedRequestsList(), pSocial->GetCachedSentRequestsList(), pSocial->GetCachedBlockedList() })
+	{
+		auto it = list.find(userID);
+		if (it != list.end())
+		{
+			return from_utf8(it->second.display_name);
+		}
+	}
+	for (const auto& conversation : pSocial->GetNonFriendConversations())
+	{
+		if (conversation.first == userID)
+		{
+			return from_utf8(conversation.second);
+		}
+	}
+	for (const GenOnlineRealtime::Member& member : pSocial->GetFoundPlayers())
+	{
+		if (member.id == userID)
+		{
+			return from_utf8(member.name);
+		}
+	}
+	const std::unordered_map<int64_t, FriendsEntry>& recent = pSocial->GetRecentlyPlayedWithList();
+	auto it = recent.find(userID);
+	return it != recent.end() ? from_utf8(it->second.display_name) : std::wstring();
+}
+
+// The name, presence dot and status line the communicator shows for the other player of a conversation, also used by the dock tabs.
+void GenOnlineGetConversationPeer(int64_t userID, UnicodeString& name, std::string& dot, UnicodeString& status)
+{
+	GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	name.clear();
+	status.clear();
+	dot = "offline";
+	if (pSocial == nullptr)
+	{
+		return;
+	}
+	name = UnicodeString(CommunicatorPeerName(pSocial, userID).c_str());
+	const std::unordered_map<int64_t, FriendsEntry> friends = pSocial->GetCachedFriendsList();
+	auto it = friends.find(userID);
+	if (it != friends.end())
+	{
+		dot = FriendDot(it->second);
+		status = UnicodeString(FriendStatusText(it->second).c_str());
+	}
+	else
+	{
+		status = UnicodeString(pSocial->IsUserPendingRequest(userID) ? L"Wants to be your friend" : L"Not a friend");
+	}
+}
+
+// Sends one line to the other player of a conversation, shared by the communicator and the dock. FALSE keeps the line in the entry, the failure text is set when there is a reason to show.
+Bool GenOnlineSendConversationLine(int64_t peerID, UnicodeString text, UnicodeString* failure)
+{
+	// Block chatting with a buddy who is currently in the same game as us
+	if (TheGenOnlineGame && TheGenOnlineGame->isGameInProgress())
+	{
+		for (Int i = 0; i < MAX_SLOTS; ++i)
+		{
+			GenOnlineGameSlot* slot = TheGenOnlineGame->getGameSpySlot(i);
+			if (slot && slot->isHuman() && slot->m_userID == (int64_t)peerID)
+			{
+				if (failure != nullptr)
+				{
+					*failure = UnicodeString(L"You cannot send messages to a friend who is currently in your game.");
+				}
+				return FALSE;
+			}
+		}
+	}
+
+	std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
+	if (pWS == nullptr)
+	{
+		return FALSE;
+	}
+	text.trim();
+	if (!text.isEmpty())
+	{
+		pWS->SendData_FriendMessage(text, peerID);
+	}
+	return TRUE;
+}
+
+// A local line of the open conversation that the conversation cache does not keep.
+static void AddCommunicatorNote(const std::wstring& text)
+{
+	if (buddyControls.listboxChat == nullptr)
+	{
+		return;
+	}
+	Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(text.c_str()), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+	GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
+}
+
+// Inviting needs a custom lobby in setup and a friend who is online.
+static Bool CanInvitePeer(GenOnlineSocialInterface* pSocial, int64_t userID)
+{
+	GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pSocial == nullptr || pLobby == nullptr || userID < 0 || !pLobby->IsInLobby() || TheGenOnlineGame == nullptr
+		|| TheGenOnlineGame->isGameInProgress() || TheGenOnlineGame->isQMGame())
+	{
+		return FALSE;
+	}
+	const std::unordered_map<int64_t, FriendsEntry> friends = pSocial->GetCachedFriendsList();
+	auto it = friends.find(userID);
+	return it != friends.end() && it->second.online;
+}
+
+static void UpdatePeerHeader()
+{
+	GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	const Bool bShown = pSocial != nullptr && s_peerID >= 0;
+	std::wstring name;
+	std::wstring status;
+	s_peerDot = "offline";
+	if (bShown)
+	{
+		UnicodeString peerName, peerStatus;
+		GenOnlineGetConversationPeer(s_peerID, peerName, s_peerDot, peerStatus);
+		name = peerName.str();
+		status = peerStatus.str();
+	}
+	else
+	{
+		name = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GONoConversation", L"No conversation open").str();
+		status = TheGameText->FETCH_OR_SUBSTITUTE("Buddy:GOSelectFriendToChat", L"Select a friend to chat").str();
+	}
+	if (staticTextPeerName != nullptr)
+	{
+		GadgetStaticTextSetText(staticTextPeerName, UnicodeString(name.c_str()));
+		staticTextPeerName->winSetEnabledTextColors(bShown ? CommunicatorGold() : CommunicatorWhite(), GameMakeColor(0, 0, 0, 255));
+	}
+	if (staticTextPeerStatus != nullptr)
+	{
+		GadgetStaticTextSetText(staticTextPeerStatus, UnicodeString(status.c_str()));
+	}
+	if (windowPeerDot != nullptr)
+	{
+		windowPeerDot->winHide(!bShown);
+	}
+	if (buttonProfile != nullptr)
+	{
+		buttonProfile->winHide(!bShown);
+	}
+	if (buttonMore != nullptr)
+	{
+		buttonMore->winHide(!bShown);
+	}
+	if (buttonInvite != nullptr)
+	{
+		buttonInvite->winHide(!CanInvitePeer(pSocial, s_peerID));
+	}
+	if (buttonAddBuddy != nullptr)
+	{
+		const Bool bPending = bShown && pSocial->IsUserPendingRequest(s_peerID);
+		buttonAddBuddy->winHide(!bShown || pSocial->IsUserFriend(s_peerID) || pSocial->IsUserIgnored(s_peerID));
+		GadgetButtonSetText(buttonAddBuddy, bPending ? TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOAccept", L"Accept")
+			: TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOAddFriend", L"Add friend"));
+	}
+}
+
+// The menu button draws the drop-down arrow of the combo boxes, as the user section does.
+static void DrawMoreButton(GameWindow *window, WinInstanceData *instData)
+{
+	const Bool lit = instData != nullptr && BitIsSet(instData->getState(), WIN_STATE_HILITED);
+	const Image *image = TheMappedImageCollection->findImageByName(lit ? "VSliderDownButtonHilite" : "VSliderDownButtonEnabled");
+	if (image == nullptr)
+	{
+		return;
+	}
+	Int x, y, width, height;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&width, &height);
+	TheWindowManager->winDrawImage(image, x, y, x + width, y + height);
+}
+
+struct EntryHint
+{
+	GameWindow *window;
+	GameWinDrawFunc draw;
+	DisplayString *text;
+};
+static EntryHint s_entryHints[2];
+
+// An empty search or message entry shows a grey hint after the entry drew itself.
+static void DrawHintEntry(GameWindow *window, WinInstanceData *instData)
+{
+	const EntryHint *hint = nullptr;
+	for (const EntryHint& entry : s_entryHints)
+	{
+		if (entry.window == window)
+		{
+			hint = &entry;
+		}
+	}
+	if (hint == nullptr)
+	{
+		return;
+	}
+	if (hint->draw != nullptr)
+	{
+		hint->draw(window, instData);
+	}
+	if (hint->text == nullptr || GadgetTextEntryGetText(window).getLength() > 0)
+	{
+		return;
+	}
+	if (hint->text->getFont() != window->winGetFont())
+	{
+		hint->text->setFont(window->winGetFont());
+	}
+	Int x, y, width, height, textWidth, textHeight;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&width, &height);
+	hint->text->getSize(&textWidth, &textHeight);
+	const Int offset = GameWindowManager::winScaleLayoutSize(4);
+	IRegion2D clip = { { x, y }, { x + width - offset, y + height } };
+	hint->text->setClipRegion(&clip);
+	hint->text->draw(x + offset, y + (height - textHeight) / 2, CommunicatorMuted(), GameMakeColor(0, 0, 0, 255));
+}
+
+static void HookEntryHint(Int slot, GameWindow *window, const UnicodeString& text)
+{
+	EntryHint& hint = s_entryHints[slot];
+	if (hint.text == nullptr)
+	{
+		hint.text = TheDisplayStringManager->newDisplayString();
+	}
+	hint.text->setText(text);
+	hint.window = window;
+	if (window != nullptr && window->winGetDrawFunc() != DrawHintEntry)
+	{
+		hint.draw = window->winGetDrawFunc();
+		window->winSetDrawFunc(DrawHintEntry);
+	}
+}
+
+static void DrawPeerDot(GameWindow *window, WinInstanceData *)
+{
+	Int x, y, width, height;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&width, &height);
+	const Int size = (std::min)(width, height);
+	GenOnlineDrawPresenceDot(s_peerDot.c_str(), x + (width - size) / 2, y + (height - size) / 2, size);
+}
+
+// The friends list row of the user, -1 when it shows none.
+static Int FindPeerRow(int64_t userID)
+{
+	if (buddyControls.listboxBuddies == nullptr || userID < 0)
+	{
+		return -1;
+	}
+	const Int numEntries = GadgetListBoxGetNumEntries(buddyControls.listboxBuddies);
+	for (Int row = 0; row < numEntries; ++row)
+	{
+		if ((int64_t)(intptr_t)GadgetListBoxGetItemData(buddyControls.listboxBuddies, row, FRIEND_COLUMN_DOT) == userID)
+		{
+			return row;
+		}
+	}
+	return -1;
+}
+
+static void ShowBuddyConversation(GenOnlineSocialInterface* pSocialInterface, int64_t profileID);
+
+// Opens the conversation with the user, or the empty pane for -1.
+static void ShowPeer(int64_t userID)
+{
+	s_peerID = userID;
+	if (buddyControls.listboxChat != nullptr)
+	{
+		GadgetListBoxReset(buddyControls.listboxChat);
+	}
+	GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	if (pSocial == nullptr || userID < 0)
+	{
+		// The conversation header asks to select a friend.
+	}
+	else if (!pSocial->CanChatWith(userID) && pSocial->IsUserPendingRequest(userID))
+	{
+		AddCommunicatorNote(L"This is a pending friend request. You cannot chat with the player until you accept it.");
+	}
+	else if (!pSocial->CanChatWith(userID))
+	{
+		AddCommunicatorNote(L"This player is not a friend yet. Use Add friend or the menu to add or block them.");
+	}
+	else
+	{
+		ShowBuddyConversation(pSocial, userID);
+		pSocial->ViewConversation(userID);
+		GenOnlineDockOpenConversation(userID, false);
+		GenOnlineUpdateBuddyInfo(true, true);
+		if (buddyControls.textEntryEdit != nullptr)
+		{
+			TheWindowManager->winSetFocus(buddyControls.textEntryEdit);
+		}
+	}
+	UpdatePeerHeader();
+}
+
+static void SelectPeerRow(int64_t userID)
+{
+	if (buddyControls.listboxBuddies != nullptr)
+	{
+		GadgetListBoxSetSelected(buddyControls.listboxBuddies, FindPeerRow(userID));
+	}
+}
+
+// A radio button reports its selection to the overlay before it marks itself selected, so the handler of that report
+// must not select it again or the two call each other until the stack runs out.
+static void ShowCommunicatorTab(Int tab, Bool selectRadio = TRUE)
+{
+	if (parentBuddies != nullptr)
+	{
+		parentBuddies->winHide(tab != GENONLINE_COMMUNICATOR_FRIENDS);
+	}
+	if (parentRequests != nullptr)
+	{
+		parentRequests->winHide(tab != GENONLINE_COMMUNICATOR_REQUESTS);
+	}
+	if (parentIgnore != nullptr)
+	{
+		parentIgnore->winHide(tab != GENONLINE_COMMUNICATOR_BLOCKED);
+	}
+	GameWindow *radio = tab == GENONLINE_COMMUNICATOR_REQUESTS ? radioButtonRequests : tab == GENONLINE_COMMUNICATOR_BLOCKED ? radioButtonIgnore : radioButtonBuddies;
+	if (selectRadio && radio != nullptr)
+	{
+		GadgetRadioSetSelection(radio, FALSE);
+	}
+	if (tab == GENONLINE_COMMUNICATOR_BLOCKED)
+	{
+		GenOnlineRefreshIgnoreList();
+	}
+}
+
+// The text of a conversation line, a message with the local time it was written.
+static UnicodeString TimedChatLineText(const GenOnlineRealtime::ChatMessage* pMessage, const UnicodeString& text)
+{
+	if (pMessage == nullptr)
+	{
+		return text;
+	}
+	const std::string local = GenOnlineLocalTimeText(pMessage->created_at);
+	// GenOnlineLocalTimeText gives "YYYY-MM-DD HH:MM", or the service text when it does not parse.
+	if (local.size() != 16 || local == pMessage->created_at)
+	{
+		return text;
+	}
+	UnicodeString timed;
+	timed.format(L"[%hs] %s", local.substr(11).c_str(), text.str());
+	return timed;
+}
+
+static void AddInviteChatLine(const std::wstring& text, int64_t lobbyID)
+{
+	if (buddyControls.listboxChat == nullptr)
+	{
+		return;
+	}
+	const Color gold = CommunicatorGold();
+	Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(text.c_str()), gold, -1, CHAT_COLUMN_TEXT);
+	GadgetListBoxAddEntryText(buddyControls.listboxChat, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOJoin", L"Join"), gold, index, CHAT_COLUMN_JOIN);
+	// shortcut: the lobby id rides in a pointer, which is 32 bits wide, so an id past 2^31 cannot join from the line. Widen it once ids grow that large.
+	GadgetListBoxSetItemData(buddyControls.listboxChat, reinterpret_cast<void*>(static_cast<intptr_t>(lobbyID)), index, CHAT_COLUMN_JOIN);
+}
+
+static void JoinInvite(int64_t lobbyID)
+{
+	GenOnlineLobbyInterface* pLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pLobby == nullptr || lobbyID <= 0)
+	{
+		return;
+	}
+	if (pLobby->IsInLobby() || (TheGenOnlineGame != nullptr && TheGenOnlineGame->isGameInProgress()))
+	{
+		AddCommunicatorNote(L"Leave your current game to join this one.");
+		return;
+	}
+	if (GenOnlineLobbyMenuIsActive() || GenOnlineWelcomeMenuOpenLobby())
+	{
+		GenOnlineLobbyMenuJoinInvite(lobbyID);
+		GameSpyCloseOverlay(GSOVERLAY_BUDDY);
+		return;
+	}
+	AddCommunicatorNote(L"Open the game list to join this game.");
+}
+
+static void InvitePeer()
+{
+	GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	if (pSocial == nullptr || !CanInvitePeer(pSocial, s_peerID))
+	{
+		return;
+	}
+	const int64_t peerID = s_peerID;
+	const std::wstring name = CommunicatorPeerName(pSocial, peerID);
+	pSocial->InviteToLobby(peerID, [peerID, name](std::wstring failure)
+		{
+			const std::wstring text = failure.empty() ? L"Invite sent to " + name + L"." : failure;
+			if (isOverlayActive && s_peerID == peerID)
+			{
+				AddCommunicatorNote(text);
+			}
+			else
+			{
+				GenOnlineShowNotificationBox(AsciiString::TheEmptyString, UnicodeString(text.c_str()), false);
+			}
+		});
+}
+
+static void OpenPeerMenu()
+{
+	GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	if (pSocial == nullptr || s_peerID < 0 || buttonMore == nullptr)
+	{
+		return;
+	}
+	GenOnlineCloseRightClickMenus();
+	const Bool bFriend = pSocial->IsUserFriend(s_peerID);
+	WindowLayout *rcLayout = TheWindowManager->winCreateLayout(bFriend ? "Menus/GenOnlineRCBuddiesMenu.wnd" : "Menus/GenOnlineRCNonBuddiesMenu.wnd");
+	if (rcLayout == nullptr)
+	{
+		return;
+	}
+	rcMenu = rcLayout->getFirstWindow();
+	rcLayout->runInit();
+
+	// The menu of a friend holds Remove and Block, the profile has its own button.
+	AsciiString controlName;
+	controlName.format("%s:ButtonStats", rcWindowFile(rcLayout).str());
+	GameWindow *buttonStats = TheWindowManager->winGetWindowFromId(rcMenu, TheNameKeyGenerator->nameToKey(controlName));
+	controlName.format("%s:ButtonDelete", rcWindowFile(rcLayout).str());
+	GameWindow *buttonDelete = TheWindowManager->winGetWindowFromId(rcMenu, TheNameKeyGenerator->nameToKey(controlName));
+	if (bFriend && buttonStats != nullptr && buttonDelete != nullptr)
+	{
+		Int statsX, statsY, deleteX, deleteY;
+		buttonStats->winGetPosition(&statsX, &statsY);
+		buttonDelete->winGetPosition(&deleteX, &deleteY);
+		const Int step = deleteY - statsY;
+		buttonStats->winHide(TRUE);
+		for (GameWindow *child = rcMenu->winGetChild(); child != nullptr; child = child->winGetNext())
+		{
+			Int childX, childY;
+			child->winGetPosition(&childX, &childY);
+			if (child != buttonStats && childY > statsY)
+			{
+				child->winSetPosition(childX, childY - step);
+			}
+		}
+		Int width, height;
+		rcMenu->winGetSize(&width, &height);
+		rcMenu->winSetSize(width, height - step);
+		GadgetButtonSetText(buttonDelete, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GORemoveFriend", L"Remove"));
+	}
+
+	Int buttonX, buttonY, buttonWidth, buttonHeight, menuWidth, menuHeight;
+	buttonMore->winGetScreenPosition(&buttonX, &buttonY);
+	buttonMore->winGetSize(&buttonWidth, &buttonHeight);
+	rcMenu->winGetSize(&menuWidth, &menuHeight);
+	rcMenu->winSetPosition((std::max)(0, buttonX + buttonWidth - menuWidth), buttonY + buttonHeight);
+	rcMenu->winBringToTop();
+	rcMenu->winHide(FALSE);
+
+	GameSpyRCMenuData *rcData = NEW GameSpyRCMenuData;
+	rcData->m_id = (GPProfile)s_peerID;
+	rcData->m_nick = AsciiString(to_utf8(CommunicatorPeerName(pSocial, s_peerID)).c_str());
+	rcData->m_itemType = bFriend ? ITEM_BUDDY : ITEM_NONBUDDY;
+	GenOnlineSetUnignoreText(rcLayout, rcData->m_nick, rcData->m_id);
+	rcMenu->winSetUserData((void *)rcData);
+	TheWindowManager->winSetLoneWindow(rcMenu);
+}
+
+static void AddFriendRow(GameWindow *listbox, const std::string& dot, const std::wstring& name, Color nameColor, const std::wstring& info, Int unread, int64_t userID, RCItemType itemType)
+{
+	const Int row = GadgetListBoxAddEntryText(listbox, UnicodeString::TheEmptyString, nameColor, -1, FRIEND_COLUMN_DOT);
+	if (row < 0)
+	{
+		return;
+	}
+	GadgetListBoxAddEntryText(listbox, UnicodeString(name.c_str()), nameColor, row, FRIEND_COLUMN_NAME);
+	GadgetListBoxAddEntryText(listbox, UnicodeString(info.c_str()), CommunicatorMuted(), row, FRIEND_COLUMN_INFO);
+	UnicodeString count;
+	if (unread > 0)
+	{
+		count.format(L"%d", unread);
+	}
+	GadgetListBoxAddEntryText(listbox, count, CommunicatorGold(), row, FRIEND_COLUMN_UNREAD);
+	GadgetListBoxSetItemData(listbox, reinterpret_cast<void*>(static_cast<intptr_t>(userID)), row, FRIEND_COLUMN_DOT);
+	GadgetListBoxSetItemData(listbox, reinterpret_cast<void*>(static_cast<intptr_t>(itemType)), row, FRIEND_COLUMN_NAME);
+	if ((Int)s_friendRowDots.size() <= row)
+	{
+		s_friendRowDots.resize(row + 1);
+	}
+	s_friendRowDots[row] = dot;
+}
+
+static void AddFriendHeaderRow(GameWindow *listbox, const WideChar *label, Int count)
+{
+	const Int row = GadgetListBoxAddEntryText(listbox, UnicodeString::TheEmptyString, CommunicatorMuted(), -1, FRIEND_COLUMN_DOT);
+	if (row < 0)
+	{
+		return;
+	}
+	GadgetListBoxAddEntryText(listbox, UnicodeString(label), CommunicatorMuted(), row, FRIEND_COLUMN_NAME);
+	UnicodeString text;
+	text.format(L"%d", count);
+	GadgetListBoxAddEntryText(listbox, text, CommunicatorMuted(), row, FRIEND_COLUMN_UNREAD);
+	GadgetListBoxSetItemData(listbox, reinterpret_cast<void*>(static_cast<intptr_t>(-1)), row, FRIEND_COLUMN_DOT);
+	if ((Int)s_friendRowDots.size() <= row)
+	{
+		s_friendRowDots.resize(row + 1);
+	}
+	s_friendRowDots[row].clear();
+}
+
+static void AddRequestHeaderRow(const WideChar *label, Int count)
+{
+	UnicodeString text;
+	text.format(L"%s  %d", label, count);
+	const Int row = GadgetListBoxAddEntryText(listboxRequests, text, CommunicatorMuted(), -1, REQUEST_COLUMN_NAME);
+	GadgetListBoxSetItemData(listboxRequests, reinterpret_cast<void*>(static_cast<intptr_t>(-1)), row, REQUEST_COLUMN_NAME);
+}
+
+static void AddRequestRow(const FriendsEntry& entry, RequestRowKind kind)
+{
+	const Int row = GadgetListBoxAddEntryText(listboxRequests, UnicodeString(from_utf8(entry.display_name).c_str()), CommunicatorWhite(), -1, REQUEST_COLUMN_NAME);
+	if (kind == REQUEST_ROW_INCOMING)
+	{
+		GadgetListBoxAddEntryText(listboxRequests, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOUserAccept", L"Accept"), CommunicatorGold(), row, REQUEST_COLUMN_FIRST);
+		GadgetListBoxAddEntryText(listboxRequests, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOUserIgnore", L"Ignore"), CommunicatorWhite(), row, REQUEST_COLUMN_SECOND);
+	}
+	else
+	{
+		GadgetListBoxAddEntryText(listboxRequests, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GORequestWaiting", L"Waiting"), CommunicatorMuted(), row, REQUEST_COLUMN_FIRST);
+		GadgetListBoxAddEntryText(listboxRequests, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOCancelRequest", L"Cancel"), CommunicatorWhite(), row, REQUEST_COLUMN_SECOND);
+	}
+	GadgetListBoxSetItemData(listboxRequests, reinterpret_cast<void*>(static_cast<intptr_t>(entry.user_id)), row, REQUEST_COLUMN_NAME);
+	GadgetListBoxSetItemData(listboxRequests, reinterpret_cast<void*>(static_cast<intptr_t>(kind)), row, REQUEST_COLUMN_FIRST);
+}
+
+static void RefreshRequestsList(GenOnlineSocialInterface* pSocial)
+{
+	const std::unordered_map<int64_t, FriendsEntry> incoming = pSocial->GetCachedRequestsList();
+	if (radioButtonRequests != nullptr)
+	{
+		UnicodeString label = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GORequestsTab", L"Requests");
+		if (!incoming.empty())
+		{
+			UnicodeString counted;
+			counted.format(L"%s (%d)", label.str(), (Int)incoming.size());
+			label = counted;
+		}
+		GadgetRadioSetText(radioButtonRequests, label);
+	}
+	if (listboxRequests == nullptr)
+	{
+		return;
+	}
+	const std::unordered_map<int64_t, FriendsEntry> sent = pSocial->GetCachedSentRequestsList();
+	GadgetListBoxReset(listboxRequests);
+	if (incoming.empty() && sent.empty())
+	{
+		AddRequestHeaderRow(L"NO FRIEND REQUESTS", 0);
+		return;
+	}
+	AddRequestHeaderRow(L"INCOMING", (Int)incoming.size());
+	for (const auto& entry : incoming)
+	{
+		AddRequestRow(entry.second, REQUEST_ROW_INCOMING);
+	}
+	AddRequestHeaderRow(L"SENT", (Int)sent.size());
+	for (const auto& entry : sent)
+	{
+		AddRequestRow(entry.second, REQUEST_ROW_SENT);
+	}
+}
+
+// A right click selects its row too, which must not press the button cell under the mouse.
+static Bool s_menuSelecting = FALSE;
+
+// The column of the cell under the mouse in the list, -1 when the mouse is over no cell.
+static Int ClickedColumn(GameWindow *listbox)
+{
+	if (s_menuSelecting)
+	{
+		return -1;
+	}
+	const MouseIO *mouse = TheMouse->getMouseStatus();
+	Int row = -1, column = -1;
+	GadgetListBoxGetEntryBasedOnXY(listbox, mouse->pos.x, mouse->pos.y, row, column);
+	return column;
+}
+
+// Each list draws itself first, then the friends list adds its presence dots, the button cells a frame and an invite line a gold band.
+struct CommunicatorListDraw
+{
+	GameWindow *window;
+	GameWinDrawFunc draw;
+	UnsignedInt buttonColumns;
+	Bool dots;
+	Bool invites;
+};
+static CommunicatorListDraw s_listDraws[4];
+
+static void DrawCommunicatorList(GameWindow *window, WinInstanceData *instData)
+{
+	const CommunicatorListDraw *spec = nullptr;
+	for (const CommunicatorListDraw& entry : s_listDraws)
+	{
+		if (entry.window == window)
+		{
+			spec = &entry;
+		}
+	}
+	if (spec == nullptr)
+	{
+		return;
+	}
+	if (spec->draw != nullptr)
+	{
+		spec->draw(window, instData);
+	}
+	ListboxData *list = (ListboxData *)window->winGetUserData();
+	if (list == nullptr || list->listData == nullptr)
+	{
+		return;
+	}
+
+	// The rows follow the W3DListBox geometry, as the ping bars of the game list do.
+	Int x, y, width, height;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&width, &height);
+	const Int top = y + 4;
+	const Int bottom = y + height - 1;
+	const Int textOffset = GameWindowManager::winScaleLayoutSize(TEXT_X_OFFSET);
+	const Int pad = GameWindowManager::winScaleLayoutSize(3);
+	const Color muted = CommunicatorMuted();
+	Int rowY = top - list->displayPos;
+	for (Int i = 0; i < list->endPos; ++i)
+	{
+		const Int rowHeight = list->listData[i].height + 1;
+		const Int rowTop = rowY;
+		rowY += rowHeight;
+		if (rowTop < top || rowTop + rowHeight > bottom || list->listData[i].cell == nullptr)
+		{
+			continue;
+		}
+		if (spec->dots && i < (Int)s_friendRowDots.size() && !s_friendRowDots[i].empty() && list->columns > FRIEND_COLUMN_DOT)
+		{
+			const Int size = GameWindowManager::winScaleLayoutSize(7);
+			GenOnlineDrawPresenceDot(s_friendRowDots[i].c_str(), x + (list->columnWidth[FRIEND_COLUMN_DOT] - size) / 2 + pad, rowTop + (rowHeight - size) / 2, size);
+		}
+		if (spec->invites && list->columns > CHAT_COLUMN_JOIN && list->listData[i].cell[CHAT_COLUMN_JOIN].userData != nullptr)
+		{
+			TheWindowManager->winFillRect(GameMakeColor(255, 194, 15, 20), 1.0f, x + 1, rowTop, x + width - 1, rowTop + rowHeight);
+			GadgetListBoxDrawKitFrame(GameMakeColor(107, 90, 26, 255), x + 1, rowTop, width - 2, rowHeight);
+		}
+		Int columnX = x;
+		for (Int column = 0; column < list->columns; ++column)
+		{
+			const ListEntryCell& cell = list->listData[i].cell[column];
+			if ((spec->buttonColumns & (1u << column)) != 0 && cell.cellType == LISTBOX_TEXT && cell.data != nullptr && cell.color != muted)
+			{
+				// The list stores an empty cell as a space, which must not get a button frame.
+				DisplayString *cellText = (DisplayString *)cell.data;
+				UnicodeString label = cellText->getText();
+				label.trim();
+				Int textWidth = 0, textHeight = 0;
+				cellText->getSize(&textWidth, &textHeight);
+				if (textWidth > 0 && !label.isEmpty())
+				{
+					const Int frameWidth = (std::min)(textWidth + 2 * pad, list->columnWidth[column] - textOffset + pad);
+					GadgetListBoxDrawKitFrame(cell.color, columnX + textOffset - pad, rowTop + 1, frameWidth, rowHeight - 2);
+				}
+			}
+			columnX += list->columnWidth[column];
+		}
+	}
+}
+
+static void HookCommunicatorList(Int slot, GameWindow *window, UnsignedInt buttonColumns, Bool dots, Bool invites)
+{
+	s_listDraws[slot].window = window;
+	s_listDraws[slot].draw = nullptr;
+	s_listDraws[slot].buttonColumns = buttonColumns;
+	s_listDraws[slot].dots = dots;
+	s_listDraws[slot].invites = invites;
+	if (window != nullptr && window->winGetDrawFunc() != DrawCommunicatorList)
+	{
+		s_listDraws[slot].draw = window->winGetDrawFunc();
+		window->winSetDrawFunc(DrawCommunicatorList);
+	}
+}
+
+void GenOnlineOpenCommunicator(Int tab, int64_t peerUserID)
+{
+	if (isOverlayActive)
+	{
+		ShowCommunicatorTab(tab);
+		if (tab == GENONLINE_COMMUNICATOR_FRIENDS)
+		{
+			ShowPeer(peerUserID);
+			SelectPeerRow(peerUserID);
+		}
+		return;
+	}
+	s_openTab = tab;
+	s_openPeer = peerUserID;
+	GameSpyOpenOverlay(GSOVERLAY_BUDDY);
+}
+
+void GenOnlineShowCommunicatorNotice(long long peerUserID, UnicodeString message)
+{
+	GenOnlineShowNotificationBox(AsciiString::TheEmptyString, message, true);
+	s_noticePeer = peerUserID;
+}
+
 void GenOnlineInitBuddyControls(Int type)
 {
 	switch (type) {
@@ -198,13 +1008,8 @@ void GenOnlineInitBuddyControls(Int type)
 		s_buddyChatCycler.Reset();
 		buddyControls.isInit = TRUE;
 
-		{
-			// clear current box contents
-			GadgetListBoxReset(buddyControls.listboxChat);
-
-			Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"Select a friend to start chatting"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-			GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
-		}
+		// The conversation header asks to select a friend, so the empty chat list stays blank.
+		GadgetListBoxReset(buddyControls.listboxChat);
 		break;
 	case BUDDY_WINDOW_DIPLOMACY:
 		buddyControls.textEntryEditID = TheNameKeyGenerator->nameToKey( "Diplomacy.wnd:TextEntryChat" );
@@ -293,16 +1098,12 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 					if(rc->pos < 0)
 						break;
 
-					GPProfile profileID = (GPProfile)(intptr_t)GadgetListBoxGetItemData(control, rc->pos, 0);
-					RCItemType itemType = (RCItemType)(intptr_t)GadgetListBoxGetItemData(control, rc->pos, 1);
-					// Only friend rows start with the online/offline indicator and a row with unread messages ends with " [n]"
-					std::wstring rowText = GadgetListBoxGetText(control, rc->pos).str();
-					if (itemType == ITEM_BUDDY && rowText.size() >= 2)
-						rowText.erase(0, 2);
-					const size_t unreadSuffix = rowText.rfind(L" [");
-					if (unreadSuffix != std::wstring::npos && !rowText.empty() && rowText.back() == L']')
-						rowText.erase(unreadSuffix);
-					UnicodeString nick(rowText.c_str());
+					GPProfile profileID = (GPProfile)(intptr_t)GadgetListBoxGetItemData(control, rc->pos, FRIEND_COLUMN_DOT);
+					// a group heading has no user
+					if (profileID < 0)
+						break;
+					RCItemType itemType = (RCItemType)(intptr_t)GadgetListBoxGetItemData(control, rc->pos, FRIEND_COLUMN_NAME);
+					UnicodeString nick = GadgetListBoxGetText(control, rc->pos, FRIEND_COLUMN_NAME);
 
 					GadgetListBoxSetSelected(control, rc->pos);
 					if (itemType == ITEM_BUDDY)
@@ -344,7 +1145,9 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 						break;
 					const uint32_t key = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(GadgetListBoxGetItemData(control, rc->pos, 0)));
 					const GenOnlineRealtime::ChatMessage* message = pSocialInterface->FindConversationMessage(GetSelectedBuddyID(), key);
+					s_menuSelecting = TRUE;
 					GenOnlineOpenMessageMenu(control, rc->pos, rc->mouseX, rc->mouseY, message != nullptr ? message->id.c_str() : "", message != nullptr ? message->author.id : 0, message != nullptr ? message->author.name.c_str() : "");
+					s_menuSelecting = FALSE;
 				}
 				else
 					return MSG_IGNORED;
@@ -377,42 +1180,21 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 
 				s_buddyChatCycler.Reset();
 
-				// see if someone's selected
-				Int selected = -1;
-				GadgetListBoxGetSelected(buddyControls.listboxBuddies, &selected);
-				if (selected >= 0)
+				if (s_peerID >= 0)
 				{
-					int profileID = (int)(intptr_t)GadgetListBoxGetItemData(buddyControls.listboxBuddies, selected);
+					const int64_t profileID = s_peerID;
 
-					// Block chatting with a buddy who is currently in the same game as us
-					if (TheGenOnlineGame && TheGenOnlineGame->isGameInProgress())
+					UnicodeString txtInput;
+					txtInput.set(GadgetTextEntryGetText(buddyControls.textEntryEdit));
+					UnicodeString failure;
+					if (GenOnlineSendConversationLine(profileID, txtInput, &failure))
 					{
-						for (Int i = 0; i < MAX_SLOTS; ++i)
-						{
-							GenOnlineGameSlot* slot = TheGenOnlineGame->getGameSpySlot(i);
-							if (slot && slot->isHuman() && slot->m_userID == (int64_t)profileID)
-							{
-								if (buddyControls.listboxChat)
-								{
-									GadgetListBoxAddEntryText( buddyControls.listboxChat, UnicodeString(L"You cannot send messages to a friend who is currently in your game."),
-									GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-								}
-								return MSG_HANDLED;
-							}
-						}
-					}
-
-					std::shared_ptr<WebSocket> pWS = GenOnlineServicesManager::GetWebSocket();
-					if (pWS != nullptr)
-					{
-						UnicodeString txtInput;
-						txtInput.set(GadgetTextEntryGetText(buddyControls.textEntryEdit));
 						GadgetTextEntrySetText(buddyControls.textEntryEdit, UnicodeString::TheEmptyString);
-						txtInput.trim();
-						if (!txtInput.isEmpty())
-						{
-							pWS->SendData_FriendMessage(txtInput, profileID);
-						}
+					}
+					else if (!failure.isEmpty() && buddyControls.listboxChat)
+					{
+						GadgetListBoxAddEntryText( buddyControls.listboxChat, failure, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+						return MSG_HANDLED;
 					}
 						
 				}
@@ -435,6 +1217,8 @@ WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedIn
 
 bool g_genOnlineIsProcessingRefresh = false;
 
+// The friends list: search results, the friends grouped online, idle and offline, then the other players the
+// local player met or talks to. The service keeps the cache current, so the list is drawn from it at once.
 void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh, bool bUseCache)
 {
 	if (g_genOnlineIsProcessingRefresh)
@@ -442,283 +1226,124 @@ void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh, bool bUseCache)
 		return;
 	}
 
-    GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-    if (pSocialInterface == nullptr)
-    {
-        return;
-    }
-
-	if (!buddyControls.isInit)
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	if (pSocialInterface == nullptr || !buddyControls.isInit || buddyControls.listboxBuddies == nullptr)
 	{
-		// If the UI isn't visible, still get our friends list and block list because we want to update our cache, but dont process it here
-		pSocialInterface->GetFriendsList(false, nullptr);
-		pSocialInterface->GetBlockList(nullptr); // TODO_SOCIA: Consider combining friends and block, original game didn't but we could for efficiency
 		return;
 	}
 
-	// Get friends
+	g_genOnlineIsProcessingRefresh = true;
+	GameWindow *listbox = buddyControls.listboxBuddies;
+	const Int visiblePos = GadgetListBoxGetTopVisibleEntry(listbox);
+	GadgetListBoxReset(listbox);
+	s_friendRowDots.clear();
 
-	// If it's the first time in, show loading, otherwise, on refreshes, we already have some list we can use
-	if (!bIsAutoRefresh)
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	const int64_t localUserID = pAuthInterface != nullptr ? pAuthInterface->GetUserID() : -1;
+	const std::wstring filter = textEntryFind != nullptr ? LowerText(GadgetTextEntryGetText(textEntryFind).str()) : std::wstring();
+	auto matches = [&filter](const std::wstring& name)
+		{
+			return filter.empty() || LowerText(name).find(filter) != std::wstring::npos;
+		};
+	std::unordered_set<int64_t> listed;
+	listed.insert(localUserID);
+
+	struct Row
 	{
-		GadgetListBoxReset(buddyControls.listboxBuddies);
-		GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"Loading..."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 15, 255)), -1);
+		int64_t id;
+		std::wstring name;
+		std::wstring info;
+		std::string dot;
+		Int unread;
+	};
+	auto sortRows = [](std::vector<Row>& rows)
+		{
+			std::stable_sort(rows.begin(), rows.end(), [](const Row& a, const Row& b)
+				{
+					if (a.unread != b.unread)
+						return a.unread > b.unread;
+					return LowerText(a.name) < LowerText(b.name);
+				});
+		};
+
+	std::vector<Row> found;
+	for (const GenOnlineRealtime::Member& member : pSocialInterface->GetFoundPlayers())
+	{
+		if (listed.contains(member.id) || pSocialInterface->IsUserFriend(member.id))
+			continue;
+		listed.insert(member.id);
+		found.push_back({ member.id, from_utf8(member.name), L"Player", std::string(), 0 });
+	}
+	if (!found.empty())
+	{
+		AddFriendHeaderRow(listbox, L"SEARCH RESULTS", (Int)found.size());
+		for (const Row& row : found)
+			AddFriendRow(listbox, row.dot, row.name, CommunicatorWhite(), row.info, row.unread, row.id, ITEM_NONBUDDY);
 	}
 
-	// refresh block list too (but no UI to process here)
-    if (!bUseCache)
-    {
-        pSocialInterface->GetBlockList(nullptr);
-    }
+	std::vector<Row> online, idle, offline;
+	for (const auto& kvPair : pSocialInterface->GetCachedFriendsList())
+	{
+		const FriendsEntry& entry = kvPair.second;
+		const std::wstring name = from_utf8(entry.display_name);
+		listed.insert(entry.user_id);
+		if (!matches(name))
+			continue;
+		std::wstring info = L"Offline";
+		if (entry.online)
+		{
+			info = entry.status == "idle" ? std::wstring(L"Idle") : entry.status == "do_not_disturb" ? std::wstring(L"Do not disturb")
+				: entry.presence.empty() ? std::wstring(L"Online") : from_utf8(entry.presence);
+		}
+		Row row = { entry.user_id, name, info, FriendDot(entry), pSocialInterface->GetNumberUnreadChatMessagesForUser(entry.user_id) };
+		(!entry.online ? offline : entry.status == "idle" ? idle : online).push_back(row);
+	}
+	const struct { const WideChar *label; std::vector<Row> *rows; } groups[] = {
+		{ L"ONLINE", &online }, { L"IDLE", &idle }, { L"OFFLINE", &offline } };
+	for (const auto& group : groups)
+	{
+		if (group.rows->empty())
+			continue;
+		sortRows(*group.rows);
+		AddFriendHeaderRow(listbox, group.label, (Int)group.rows->size());
+		for (const Row& row : *group.rows)
+			AddFriendRow(listbox, row.dot, row.name, group.rows == &offline ? CommunicatorMuted() : CommunicatorWhite(), row.info, row.unread, row.id, ITEM_BUDDY);
+	}
 
-    pSocialInterface->GetFriendsList(bUseCache, []()
-        {
-            GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-			if (pSocialInterface == nullptr)
-			{
+	// The other players: the current lobby outside quick match, the recent players and the conversations of staff who wrote.
+	std::vector<Row> others;
+	auto addOther = [&](int64_t id, const std::wstring& name, const WideChar *info)
+		{
+			if (listed.contains(id) || pSocialInterface->IsUserPendingRequest(id) || !matches(name))
 				return;
-			}
+			listed.insert(id);
+			others.push_back({ id, name, info, std::string(), pSocialInterface->GetNumberUnreadChatMessagesForUser(id) });
+		};
+	if (TheGenOnlineGame != nullptr && !(!TheGenOnlineGame->isGameInProgress() && TheGenOnlineGame->isQMGame()))
+	{
+		for (Int i = 0; i < MAX_SLOTS; ++i)
+		{
+			GenOnlineGameSlot* slot = TheGenOnlineGame->getGameSpySlot(i);
+			if (slot != nullptr && slot->isHuman())
+				addOther(slot->m_userID, slot->getName().str(), L"In your game");
+		}
+	}
+	for (const auto& kvPair : pSocialInterface->GetRecentlyPlayedWithList())
+		addOther(kvPair.second.user_id, from_utf8(kvPair.second.display_name), L"Recently played with");
+	for (const std::pair<int64_t, std::string>& conversation : pSocialInterface->GetNonFriendConversations())
+		addOther(conversation.first, from_utf8(conversation.second), L"Conversation");
+	if (!others.empty())
+	{
+		AddFriendHeaderRow(listbox, L"OTHER PLAYERS", (Int)others.size());
+		for (const Row& row : others)
+			AddFriendRow(listbox, row.dot, row.name, CommunicatorWhite(), row.info, row.unread, row.id, ITEM_NONBUDDY);
+	}
 
-			g_genOnlineIsProcessingRefresh = true;
-
-            int selected;
-            GPProfile selectedProfile = 0;
-            int visiblePos = GadgetListBoxGetTopVisibleEntry(buddyControls.listboxBuddies);
-
-            GadgetListBoxGetSelected(buddyControls.listboxBuddies, &selected);
-            if (selected >= 0)
-                selectedProfile = (GPProfile)GadgetListBoxGetItemData(buddyControls.listboxBuddies, selected);
-
-            selected = -1;
-            GadgetListBoxReset(buddyControls.listboxBuddies);
-
-            // TODO_SOCIAL: De-register callback when buddy list exits, otherwise half of these UI elements probably wont exist anymore
-
-            GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-
-            int64_t user_id = pAuthInterface != nullptr ? pAuthInterface->GetUserID() : -1;
-
-            // CURRENT GAME
-			std::unordered_set<int64_t> setCurrentGameMembers;
-            if (TheGenOnlineGame != nullptr)
-            {
-                for (Int i = 0; i < MAX_SLOTS; ++i)
-                {
-                    GenOnlineGameSlot* slot = TheGenOnlineGame->getGameSpySlot(i);
-                    if (slot && slot->isHuman())
-                    {
-                        int64_t profileID = slot->m_userID;
-
-						// dont allow self
-						if (profileID != user_id)
-						{
-							// dont show if already friends or if in QM lobby
-							bool bIsInQMLobby = !TheGenOnlineGame->isGameInProgress() && TheGenOnlineGame->isQMGame();
-							if (!pSocialInterface->IsUserFriend(profileID) && !bIsInQMLobby)
-							{
-								setCurrentGameMembers.insert(profileID);
-
-                                UnicodeString strName = slot->getName();
-
-                                // insert name into box
-                                int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, strName, GameSpyColor[GSCOLOR_CHAT_EMOTE], -1, -1);
-                                GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
-
-                                // insert status into box
-                                GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"In Current Lobby"), GameSpyColor[GSCOLOR_CHAT_EMOTE], index, 1);
-                                GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_NONBUDDY), index, 1);
-
-                                if (profileID == selectedProfile)
-                                    selected = index;
-							}
-						}
-                    }
-                }
-            }
-
-			// RECENTLY PLAYED WITH
-			std::unordered_set<int64_t> setListedNonFriends = setCurrentGameMembers;
-			for (auto& kvPair : pSocialInterface->GetRecentlyPlayedWithList())
-			{
-                FriendsEntry friendsEntry = kvPair.second;
-                int64_t profileID = friendsEntry.user_id;
-
-				// dont add if they are in current lobby
-				if (!setCurrentGameMembers.contains(profileID))
-				{
-					setListedNonFriends.insert(profileID);
-                    // dont need to check self here as this is checked when populating the recently played list, but do need to check friend status as it could have changed since population
-
-                // dont show if already friends, or if they sent a request: the request row below covers them
-                    if (!pSocialInterface->IsUserFriend(profileID) && !pSocialInterface->IsUserPendingRequest(profileID))
-                    {
-                        UnicodeString strName;
-                        strName.format(L"%s", from_utf8(friendsEntry.display_name).c_str());
-
-                        // insert name into box
-                        int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, strName, GameSpyColor[GSCOLOR_CHAT_EMOTE], -1, -1);
-                        GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
-
-                        // insert status into box
-                        GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"Recently Played With"), GameSpyColor[GSCOLOR_CHAT_OWNER_EMOTE], index, 1);
-                        GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_NONBUDDY), index, 1);
-
-                        if (profileID == selectedProfile)
-                            selected = index;
-                    }
-				}
-			}
-
-			for (const std::pair<int64_t, std::string>& conversation : pSocialInterface->GetNonFriendConversations())
-			{
-				const int64_t profileID = conversation.first;
-				if (profileID == user_id || setListedNonFriends.contains(profileID))
-				{
-					continue;
-				}
-				setListedNonFriends.insert(profileID);
-
-				UnicodeString strName(from_utf8(conversation.second).c_str());
-				const int numUnread = pSocialInterface->GetNumberUnreadChatMessagesForUser(profileID);
-				if (numUnread > 0)
-				{
-					strName.format(L"%s [%d]", strName.str(), numUnread);
-				}
-
-				int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, strName, GameSpyColor[GSCOLOR_CHAT_EMOTE], -1, -1);
-				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
-				GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"Conversation"), GameSpyColor[GSCOLOR_CHAT_OWNER_EMOTE], index, 1);
-				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_NONBUDDY), index, 1);
-
-				if (profileID == selectedProfile)
-					selected = index;
-			}
-
-			for (const GenOnlineRealtime::Member& member : pSocialInterface->GetFoundPlayers())
-			{
-				const int64_t profileID = member.id;
-				if (profileID == user_id || setListedNonFriends.contains(profileID) || pSocialInterface->IsUserFriend(profileID) || pSocialInterface->IsUserPendingRequest(profileID))
-				{
-					continue;
-				}
-				setListedNonFriends.insert(profileID);
-
-				int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(from_utf8(member.name).c_str()), GameSpyColor[GSCOLOR_CHAT_EMOTE], -1, -1);
-				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
-				GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"Found"), GameSpyColor[GSCOLOR_CHAT_OWNER_EMOTE], index, 1);
-				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_NONBUDDY), index, 1);
-
-				if (profileID == selectedProfile)
-					selected = index;
-			}
-
-			// REQUESTS
-			for (auto& kvPair : pSocialInterface->GetCachedRequestsList())
-			{
-				FriendsEntry friendsEntry = kvPair.second;
-				int64_t profileID = friendsEntry.user_id;
-				// insert name into box
-				UnicodeString formatStr(from_utf8(friendsEntry.display_name).c_str());
-				int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
-
-				// insert status into box
-				formatStr = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOFriendAddReq", L"User wants to add you as a friend");
-				GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
-				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_REQUEST), index, 1);
-
-				if (profileID == selectedProfile)
-					selected = index;
-			}
-
-			// FRIENDS
-			int i = 0;
-			auto friendsMap = pSocialInterface->GetCachedFriendsList();
-			std::vector<std::pair<int64_t, FriendsEntry>> sortedFriends(friendsMap.begin(), friendsMap.end());
-			std::stable_sort(sortedFriends.begin(), sortedFriends.end(),
-				[&](auto& a, auto& b) {
-					Int unreadA = pSocialInterface->GetNumberUnreadChatMessagesForUser(a.second.user_id);
-					Int unreadB = pSocialInterface->GetNumberUnreadChatMessagesForUser(b.second.user_id);
-					if (unreadA != unreadB)
-						return unreadA > unreadB;
-					return a.second.online > b.second.online;
-				});
-
-			for (auto& kvPair : sortedFriends)
-            {
-				FriendsEntry friendsEntry = kvPair.second;
-                int64_t profileID = friendsEntry.user_id;
-
-                //AsciiString strName;
-
-                int numUnreadMessages = 0;
-                if (pSocialInterface != nullptr)
-                {
-                    numUnreadMessages = pSocialInterface->GetNumberUnreadChatMessagesForUser(profileID);
-                }
-
-                UnicodeString strName;
-                if (friendsEntry.online)
-                {
-                    strName.format(L"\u25CF %s", from_utf8(friendsEntry.display_name).c_str());
-                }
-                else
-                {
-                    strName.format(L"\u25CC %s", from_utf8(friendsEntry.display_name).c_str());
-                }
-
-                if (numUnreadMessages > 0)
-                {
-                    strName.format(L"%s [%d]", strName.str(), numUnreadMessages);
-                }
-
-                ++i;
-                //AsciiString strName = AsciiString();
-                UnicodeString strStatus = UnicodeString(L"Online");
-                UnicodeString strLocation = UnicodeString(L"Location!");
-
-                // insert name into box
-                UnicodeString formatStr = strName;
-                //formatStr.translate(strName.str());
-
-                // NOTE: Gamespy let you be friends with someone AND have them ignored. We don't.
-                bool isSavedIgnored = false;
-                Color nameColor = (isSavedIgnored) ?
-                    GameSpyColor[GSCOLOR_PLAYER_IGNORED] :
-					friendsEntry.online ? GameSpyColor[GSCOLOR_PLAYER_BUDDY] : GOUIColor(GOUICOLOR_OFFLINE, GameMakeColor(100, 130, 150, 255));
-                int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, nameColor, -1, -1);
-
-                if (friendsEntry.online)
-                {
-                    UnicodeString strGameState = TheGameText->fetch("Buddy:Online");
-                    formatStr.format(L"%s - %s", strGameState.str(), from_utf8(friendsEntry.presence).c_str());
-                }
-                else
-                {
-                    // TODO_SOCIAL: Show last online
-                    UnicodeString strGameState = TheGameText->fetch("Buddy:Offline");
-                    formatStr.format(L"%s", strGameState.str());
-                }
-
-                GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
-                GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
-                GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_BUDDY), index, 1);
-
-                if (profileID == selectedProfile)
-                    selected = index;
-            }
-
-            // select the same guy
-            if (selected >= 0)
-            {
-                GadgetListBoxSetSelected(buddyControls.listboxBuddies, selected);
-            }
-
-            // view the same spot
-            GadgetListBoxSetTopVisibleEntry(buddyControls.listboxBuddies, visiblePos);
-
-			g_genOnlineIsProcessingRefresh = false;
-        });
+	SelectPeerRow(s_peerID);
+	GadgetListBoxSetTopVisibleEntry(listbox, visiblePos);
+	RefreshRequestsList(pSocialInterface);
+	UpdatePeerHeader();
+	g_genOnlineIsProcessingRefresh = false;
 }
 
 void GenOnlineHandleBuddyResponses()
@@ -734,6 +1359,7 @@ void GenOnlineShowNotificationBox(AsciiString nick, UnicodeString message, bool 
 {
 //	if(!GameSpyIsOverlayOpen(GSOVERLAY_BUDDY))
 //		return;
+	s_noticePeer = -1;
 	if( !noticeLayout )
 		noticeLayout = TheWindowManager->winCreateLayout( "Menus/GenOnlinePopupBuddyListNotification.wnd" );
 	noticeLayout->hide( FALSE );
@@ -804,7 +1430,7 @@ static void AddBuddyChatLine(int64_t peerID, const UnicodeString& text, uint32_t
 	{
 		color = DetermineMentionColor();
 	}
-	Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, text, color, -1, -1);
+	Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, TimedChatLineText(pMessage, text), color, -1, -1);
 	GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, color, index, 1);
 	if (index >= 0 && key != 0)
 	{
@@ -831,17 +1457,7 @@ static void RemoveBuddyChatLine(uint32_t key)
 
 static int64_t GetSelectedBuddyID()
 {
-	if (buddyControls.listboxBuddies == nullptr)
-	{
-		return -1;
-	}
-	Int selected = -1;
-	GadgetListBoxGetSelected(buddyControls.listboxBuddies, &selected);
-	if (selected < 0)
-	{
-		return -1;
-	}
-	return (GPProfile)GadgetListBoxGetItemData(buddyControls.listboxBuddies, selected);
+	return s_peerID;
 }
 
 static void ShowBuddyConversation(GenOnlineSocialInterface* pSocialInterface, int64_t profileID)
@@ -851,6 +1467,11 @@ static void ShowBuddyConversation(GenOnlineSocialInterface* pSocialInterface, in
 
 	for (const GenOnlineRealtime::DirectChatLine& line : vecMessages)
 	{
+		if (line.inviteLobbyID != 0)
+		{
+			AddInviteChatLine(line.note, line.inviteLobbyID);
+			continue;
+		}
 		AddBuddyChatLine(profileID, GenOnlineSocialInterface::GetChatLineText(line), line.key);
 	}
 
@@ -859,11 +1480,6 @@ static void ShowBuddyConversation(GenOnlineSocialInterface* pSocialInterface, in
 		Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This chat is empty. Send a message to start a conversation"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
 		GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
 	}
-}
-
-void GenOnlinePopulateOldBuddyMessages()
-{
-	// TODO_SOCIAL
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -875,9 +1491,6 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 	buttonHideID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonHide" );
 	buttonAddBuddyID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonAdd" );
 	buttonDeleteBuddyID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonDelete" );
-	//textEntryID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:TextEntryChat" );
-	//listboxBuddyID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ListboxBuddies" );
-	//listboxChatID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ListboxBuddyChat" );
 	buttonAcceptBuddyID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonYes" );
 	buttonDenyBuddyID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonNo" );
 	radioButtonBuddiesID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:RadioButtonBuddies" );
@@ -885,8 +1498,14 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 	parentBuddiesID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:BuddiesParent" );
 	parentIgnoreID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:IgnoreParent" );
 	listboxIgnoreID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ListboxIgnore" );
+	radioButtonRequestsID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:RadioButtonRequests" );
+	parentRequestsID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:RequestsParent" );
+	listboxRequestsID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ListboxRequests" );
+	buttonInviteID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonInvite" );
+	buttonProfileID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonProfile" );
+	buttonMoreID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonMore" );
+	s_peerID = -1;
 
-// TODO_SOCIAL: Lobby sort list by member
 	//
 	// NOTE Init is only called when the UI is visible, so don't register for callbacks that you want to occur anytime
 	// GO: register for callbacks
@@ -895,7 +1514,6 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 	{
 		pSocialInterface->RegisterForRealtimeServiceUpdates();
 
-		// TODO_SOCIAL: Maybe later dont clear chat messaages until they open the chat?
 		// we opened things, clear it
 		pSocialInterface->ClearGlobalNotificatations();
 
@@ -913,7 +1531,16 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 					// sending to them, or getting from them, is valid
 					if (profileID == peer_user_id)
 					{
-						AddBuddyChatLine(peer_user_id, unicodeStr, key);
+						// a local line such as a lobby invite is drawn from the conversation cache
+						GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+						if (key == 0 && pSocial != nullptr)
+						{
+							ShowBuddyConversation(pSocial, peer_user_id);
+						}
+						else
+						{
+							AddBuddyChatLine(peer_user_id, unicodeStr, key);
+						}
 
 						// we read the message, so clear it
                         GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
@@ -958,9 +1585,6 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 	buttonHide = TheWindowManager->winGetWindowFromId( parent,  buttonHideID);
 	buttonAddBuddy = TheWindowManager->winGetWindowFromId( parent,  buttonAddBuddyID);
 	buttonDeleteBuddy = TheWindowManager->winGetWindowFromId( parent,  buttonDeleteBuddyID);
-	//	textEntry = TheWindowManager->winGetWindowFromId( parent,  textEntryID);
-	//listboxBuddy = TheWindowManager->winGetWindowFromId( parent,  listboxBuddyID);
-	//listboxChat = TheWindowManager->winGetWindowFromId( parent,  listboxChatID);
 	buttonAcceptBuddy = TheWindowManager->winGetWindowFromId( parent,  buttonAcceptBuddyID);
 	buttonDenyBuddy = TheWindowManager->winGetWindowFromId( parent,  buttonDenyBuddyID);
 	radioButtonBuddies = TheWindowManager->winGetWindowFromId( parent,  radioButtonBuddiesID);
@@ -970,16 +1594,10 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 	listboxIgnore = TheWindowManager->winGetWindowFromId( parent,  listboxIgnoreID);
 
 	textEntryFindID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:TextEntryFind" );
-	buttonFindID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ButtonFind" );
 	textEntryFind = TheWindowManager->winGetWindowFromId( parent, textEntryFindID );
-	GameWindow *buttonFind = TheWindowManager->winGetWindowFromId( parent, buttonFindID );
 	if (textEntryFind != nullptr)
 	{
 		GadgetTextEntrySetText(textEntryFind, UnicodeString::TheEmptyString);
-	}
-	if (buttonFind != nullptr)
-	{
-		GadgetButtonSetText(buttonFind, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOFind", L"Find"));
 	}
 
 	if (radioButtonBuddies)
@@ -987,15 +1605,43 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 	if (radioButtonIgnore)
 		GadgetRadioSetText(radioButtonIgnore, UnicodeString(L"Blocked"));
 
-	GenOnlineInitBuddyControls(BUDDY_WINDOW_BUDDIES);
+	radioButtonRequests = TheWindowManager->winGetWindowFromId( parent, radioButtonRequestsID );
+	parentRequests = TheWindowManager->winGetWindowFromId( parent, parentRequestsID );
+	listboxRequests = TheWindowManager->winGetWindowFromId( parent, listboxRequestsID );
+	buttonInvite = TheWindowManager->winGetWindowFromId( parent, buttonInviteID );
+	buttonProfile = TheWindowManager->winGetWindowFromId( parent, buttonProfileID );
+	buttonMore = TheWindowManager->winGetWindowFromId( parent, buttonMoreID );
+	staticTextPeerName = TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:StaticTextPeerName" ) );
+	staticTextPeerStatus = TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:StaticTextPeerStatus" ) );
+	windowPeerDot = TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:WindowPeerDot" ) );
+	GameWindow *staticTextTitle = TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:StaticTextTitle" ) );
+	if (staticTextTitle != nullptr)
+		GadgetStaticTextSetText(staticTextTitle, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOCommunicator", L"Communicator"));
+	if (staticTextPeerName != nullptr)
+		staticTextPeerName->winSetEnabledTextColors(CommunicatorGold(), GameMakeColor(0, 0, 0, 255));
+	if (staticTextPeerStatus != nullptr)
+		staticTextPeerStatus->winSetEnabledTextColors(CommunicatorMuted(), GameMakeColor(0, 0, 0, 255));
+	if (windowPeerDot != nullptr)
+		windowPeerDot->winSetDrawFunc(DrawPeerDot);
+	if (buttonHide != nullptr)
+		GadgetButtonSetText(buttonHide, UnicodeString(L"X"));
+	if (buttonInvite != nullptr)
+		GadgetButtonSetText(buttonInvite, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOInviteToGame", L"Invite"));
+	if (buttonProfile != nullptr)
+		GadgetButtonSetText(buttonProfile, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOProfile", L"Profile"));
+	if (buttonMore != nullptr)
+		buttonMore->winSetDrawFunc(DrawMoreButton);
 
-	GadgetRadioSetSelection(radioButtonBuddies,FALSE);
-	parentBuddies->winHide(FALSE);
-	parentIgnore->winHide(TRUE);
+	GenOnlineInitBuddyControls(BUDDY_WINDOW_BUDDIES);
+	HookEntryHint(0, buddyControls.textEntryEdit, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOTypeMessage", L"Type a message..."));
+	HookEntryHint(1, textEntryFind, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSearchPlayers", L"Search players..."));
+	HookCommunicatorList(0, buddyControls.listboxBuddies, 0, TRUE, FALSE);
+	HookCommunicatorList(1, buddyControls.listboxChat, 1u << CHAT_COLUMN_JOIN, FALSE, TRUE);
+	HookCommunicatorList(2, listboxRequests, (1u << REQUEST_COLUMN_FIRST) | (1u << REQUEST_COLUMN_SECOND), FALSE, FALSE);
+	HookCommunicatorList(3, listboxIgnore, 1u << BLOCKED_COLUMN_UNBLOCK, FALSE, FALSE);
 
 	//GadgetTextEntrySetText(textEntry, UnicodeString::TheEmptyString);
 
-	GenOnlinePopulateOldBuddyMessages();
 
 	// Show Menu
 	layout->hide( FALSE );
@@ -1006,6 +1652,14 @@ void GenOnlineBuddyOverlayInit( WindowLayout *layout, void *userData )
 	isOverlayActive = true;
 	GenOnlineUpdateBuddyInfo();
 
+	// Messages opens the latest conversation, All friends and the other ways in open none.
+	const Int openTab = s_openTab;
+	const int64_t openPeer = s_openPeer;
+	s_openTab = GENONLINE_COMMUNICATOR_FRIENDS;
+	s_openPeer = -1;
+	ShowCommunicatorTab(openTab);
+	ShowPeer(openPeer);
+	SelectPeerRow(openPeer);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1021,6 +1675,28 @@ void GenOnlineBuddyOverlayShutdown( WindowLayout *layout, void *userData )
 
 	listboxIgnore = NULL;
 	textEntryFind = nullptr;
+	radioButtonRequests = nullptr;
+	parentRequests = nullptr;
+	listboxRequests = nullptr;
+	staticTextPeerName = nullptr;
+	staticTextPeerStatus = nullptr;
+	windowPeerDot = nullptr;
+	buttonInvite = nullptr;
+	buttonProfile = nullptr;
+	buttonMore = nullptr;
+	buttonAddBuddy = nullptr;
+	for (EntryHint& hint : s_entryHints)
+	{
+		if (hint.text != nullptr)
+		{
+			TheDisplayStringManager->freeDisplayString(hint.text);
+		}
+		hint = EntryHint();
+	}
+	s_peerID = -1;
+	s_friendRowDots.clear();
+	for (CommunicatorListDraw& entry : s_listDraws)
+		entry.window = nullptr;
 
 	GenOnlineCloseRightClickMenus();
 
@@ -1046,6 +1722,15 @@ void GenOnlineBuddyOverlayUpdate( WindowLayout * layout, void *userData)
 	if (pOnlineServicesManager == nullptr || pOnlineServicesManager->IsPendingFullTeardown())
 	{
 		GameSpyCloseOverlay(GSOVERLAY_BUDDY);
+		return;
+	}
+
+	// Joining or leaving a lobby shows or hides the invite button while the communicator is open.
+	static UnsignedInt nextInviteCheck = 0;
+	if (buttonInvite != nullptr && timeGetTime() >= nextInviteCheck)
+	{
+		nextInviteCheck = timeGetTime() + 500;
+		buttonInvite->winHide(!CanInvitePeer(GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>(), s_peerID));
 	}
 }
 
@@ -1134,57 +1819,67 @@ WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, UnsignedIn
 		{
 			GameWindow* control = (GameWindow*)mData1;
 			Int controlID = control->winGetWindowId();
+			GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+			Int selected = -1;
+			GadgetListBoxGetSelected(control, &selected);
 
 			if (controlID == buddyControls.listboxBuddiesID)
 			{
-				// restore any cached chat messages
-
-				// clear current box contents
-				GadgetListBoxReset(buddyControls.listboxChat);
-
-				// get selection
-				Int selected = -1;
-				GadgetListBoxGetSelected(buddyControls.listboxBuddies, &selected);
-				if (selected >= 0)
+				const int64_t profileID = selected >= 0 ? (int64_t)(intptr_t)GadgetListBoxGetItemData(control, selected, FRIEND_COLUMN_DOT) : -1;
+				// a group heading keeps the open conversation selected
+				if (profileID < 0)
 				{
-					GPProfile profileID = (GPProfile)GadgetListBoxGetItemData(control, selected);
-					UnicodeString nick = GadgetListBoxGetText(control, selected);
-
-					GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-					if (pSocialInterface != nullptr)
+					if (selected >= 0)
 					{
-						if (!pSocialInterface->CanChatWith(profileID) && pSocialInterface->IsUserPendingRequest(profileID))
-						{
-                            Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This is a pending friend request. You cannot chat with the player until you accept it."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-                            GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
-						}
-						else if (!pSocialInterface->CanChatWith(profileID))
-						{
-                            Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This player is not a friend yet and cannot be chatted with. You can right click them to add or block them."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-                            GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
-						}
-						else
-						{
-                            ShowBuddyConversation(pSocialInterface, profileID);
-
-                            // we read the message, so clear it
-                            GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
-                            if (pSocialInterface != nullptr)
-                            {
-                                pSocialInterface->ViewConversation(profileID);
-								GenOnlineUpdateBuddyInfo(true, true); // use cache
-                            }
-							TheWindowManager->winSetFocus(buddyControls.textEntryEdit);
-						}
+						SelectPeerRow(s_peerID);
 					}
 				}
-				else
+				else if (profileID != s_peerID)
 				{
-					// clear current box contents
-					GadgetListBoxReset(buddyControls.listboxChat);
-
-					Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"Select a friend to start chatting"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-					GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
+					ShowPeer(profileID);
+				}
+			}
+			// The Accept, Ignore, Cancel, Unblock and Join cells act on a click and leave nothing selected.
+			else if (controlID == listboxRequestsID && selected >= 0 && pSocialInterface != nullptr)
+			{
+				const int64_t userID = (int64_t)(intptr_t)GadgetListBoxGetItemData(control, selected, REQUEST_COLUMN_NAME);
+				const Int kind = (Int)(intptr_t)GadgetListBoxGetItemData(control, selected, REQUEST_COLUMN_FIRST);
+				const Int column = ClickedColumn(control);
+				GadgetListBoxSetSelected(control, -1);
+				if (userID < 0)
+				{
+					break;
+				}
+				if (kind == REQUEST_ROW_INCOMING && column == REQUEST_COLUMN_FIRST)
+				{
+					pSocialInterface->AcceptPendingRequest(userID);
+				}
+				else if (kind == REQUEST_ROW_INCOMING && column == REQUEST_COLUMN_SECOND)
+				{
+					pSocialInterface->RejectPendingRequest(userID);
+				}
+				else if (kind == REQUEST_ROW_SENT && column == REQUEST_COLUMN_SECOND)
+				{
+					pSocialInterface->CancelSentRequest(userID);
+				}
+			}
+			else if (controlID == listboxIgnoreID && selected >= 0 && pSocialInterface != nullptr)
+			{
+				const int64_t userID = (int64_t)(intptr_t)GadgetListBoxGetItemData(control, selected, BLOCKED_COLUMN_NAME);
+				const Int column = ClickedColumn(control);
+				GadgetListBoxSetSelected(control, -1);
+				if (userID > 0 && column == BLOCKED_COLUMN_UNBLOCK)
+				{
+					pSocialInterface->UnignoreUser(userID);
+				}
+			}
+			else if (controlID == buddyControls.listboxChatID && selected >= 0)
+			{
+				const int64_t lobbyID = (int64_t)(intptr_t)GadgetListBoxGetItemData(control, selected, CHAT_COLUMN_JOIN);
+				if (lobbyID > 0 && ClickedColumn(control) == CHAT_COLUMN_JOIN)
+				{
+					GadgetListBoxSetSelected(control, -1);
+					JoinInvite(lobbyID);
 				}
 			}
 			break;
@@ -1214,7 +1909,9 @@ WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, UnsignedIn
 					bool isBuddy = pSocialInterface->IsUserFriend(profileID);
 					bool isRequest = pSocialInterface->IsUserPendingRequest(profileID);
 
+					s_menuSelecting = TRUE;
 					GadgetListBoxSetSelected(control, rc->pos);
+					s_menuSelecting = FALSE;
 					if (isBuddy)
 						rcLayout = TheWindowManager->winCreateLayout(AsciiString("Menus/GenOnlineRCBuddiesMenu.wnd"));
 					else if (isRequest)
@@ -1247,6 +1944,15 @@ WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, UnsignedIn
 				RunPlayerFind();
 				break;
 			}
+		case GEM_UPDATE_TEXT:
+			{
+				// the search field filters the friends list as it is typed
+				GameWindow *control = (GameWindow *)mData1;
+				if (control == nullptr || control->winGetWindowId() != textEntryFindID)
+					return MSG_IGNORED;
+				GenOnlineUpdateBuddyInfo(true, true);
+				break;
+			}
 		case GBM_SELECTED:
 			{
 				GameWindow *control = (GameWindow *)mData1;
@@ -1256,153 +1962,54 @@ WindowMsgHandledType GenOnlineBuddyOverlaySystem( GameWindow *window, UnsignedIn
 				{
 					GameSpyCloseOverlay( GSOVERLAY_BUDDY );
 				}
-				else if (controlID == buttonFindID)
-				{
-					RunPlayerFind();
-				}
 				else if (controlID == radioButtonBuddiesID)
 				{
-					parentBuddies->winHide(FALSE);
-					parentIgnore->winHide(TRUE);
+					ShowCommunicatorTab(GENONLINE_COMMUNICATOR_FRIENDS, FALSE);
+				}
+				else if (controlID == radioButtonRequestsID)
+				{
+					ShowCommunicatorTab(GENONLINE_COMMUNICATOR_REQUESTS, FALSE);
 				}
 				else if (controlID == radioButtonIgnoreID)
 				{
-					parentBuddies->winHide(TRUE);
-					parentIgnore->winHide(FALSE);
-					GenOnlineRefreshIgnoreList();
+					ShowCommunicatorTab(GENONLINE_COMMUNICATOR_BLOCKED, FALSE);
+				}
+				else if (controlID == buttonInviteID)
+				{
+					InvitePeer();
+				}
+				else if (controlID == buttonProfileID)
+				{
+					GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+					if (pSocial != nullptr && s_peerID >= 0)
+					{
+						GenOnlineSetLookAtPlayer(s_peerID, UnicodeString(CommunicatorPeerName(pSocial, s_peerID).c_str()));
+						GameSpyOpenOverlay(GSOVERLAY_PLAYERINFO);
+					}
+				}
+				else if (controlID == buttonMoreID)
+				{
+					OpenPeerMenu();
 				}
 				else if (controlID == buttonAddBuddyID)
 				{
-					/*
-					UnicodeString uName = GadgetTextEntryGetText(textEntry);
-					AsciiString aName;
-					aName.translate(uName);
-					if (!aName.isEmpty())
+					GenOnlineSocialInterface* pSocial = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+					if (pSocial != nullptr && s_peerID >= 0 && pSocial->IsUserPendingRequest(s_peerID))
 					{
-						TheWOLBuddyList->requestBuddyAdd(aName);
+						pSocial->AcceptPendingRequest(s_peerID);
 					}
-					GadgetTextEntrySetText(textEntry, UnicodeString::TheEmptyString);
-					*/
+					else if (pSocial != nullptr && s_peerID >= 0 && !pSocial->IsUserFriend(s_peerID) && !pSocial->IsUserIgnored(s_peerID))
+					{
+						GenOnlineRequestBuddyAdd((Int)s_peerID, AsciiString(to_utf8(CommunicatorPeerName(pSocial, s_peerID)).c_str()));
+					}
 				}
 				else if (controlID == buttonDeleteBuddyID)
 				{
-					/*
-					int selected;
-					AsciiString selectedName = AsciiString::TheEmptyString;
-
-					GadgetListBoxGetSelected(listbox, &selected);
-					if (selected >= 0)
-						selectedName = TheNameKeyGenerator->keyToName((NameKeyType)(int)GadgetListBoxGetItemData(listbox, selected));
-
-					if (!selectedName.isEmpty())
-					{
-						TheWOLBuddyList->requestBuddyDelete(selectedName);
-					}
-					*/
 				}
 				break;
 			}
 		case GLM_DOUBLE_CLICKED:
 			{
-				/*
-				GameWindow *control = (GameWindow *)mData1;
-				Int controlID = control->winGetWindowId();
-				if( controlID == listboxBuddyID )
-				{
-					int rowSelected = mData2;
-
-					if (rowSelected >= 0)
-					{
-						UnicodeString buddyName;
-						GameWindow *listboxWindow = TheWindowManager->winGetWindowFromId( parent, listboxBuddyID );
-
-							// get text of buddy name
-						buddyName = GadgetListBoxGetText( listboxWindow, rowSelected,0 );
-						GPProfile buddyID = (GPProfile)GadgetListBoxGetItemData( listboxWindow, rowSelected, 0 );
-
-						Int index = -1;
-						gpGetBuddyIndex(TheGPConnection, buddyID, &index);
-						if (index >= 0)
-						{
-							GPBuddyStatus status;
-							gpGetBuddyStatus(TheGPConnection, rowSelected, &status);
-
-							UnicodeString string;
-							string.format(L"To join %s in %hs:", buddyName.str(), status.locationString);
-							GameSpyAddText(string, GSCOLOR_DEFAULT);
-
-							if (status.status == GP_CHATTING)
-							{
-								AsciiString location = status.locationString;
-								AsciiString val;
-								location.nextToken(&val, "/");
-								location.nextToken(&val, "/");
-								location.nextToken(&val, "/");
-
-								string.format(L"  ???");
-								if (!val.isEmpty())
-								{
-									Int groupRoom = atoi(val.str());
-									if (TheGameSpyChat->getCurrentGroupRoomID() == groupRoom)
-									{
-										// already there
-										string.format(L"  nothing");
-										GameSpyAddText(string, GSCOLOR_DEFAULT);
-									}
-									else
-									{
-										GroupRoomMap *rooms = TheGameSpyChat->getGroupRooms();
-										if (rooms)
-										{
-											Bool needToJoin = true;
-											GroupRoomMap::iterator it = rooms->find(groupRoom);
-											if (it != rooms->end())
-											{
-												// he's in a different room
-												if (TheGameSpyChat->getCurrentGroupRoomID())
-												{
-													string.format(L"  leave group room");
-													GameSpyAddText(string, GSCOLOR_DEFAULT);
-
-													TheGameSpyChat->leaveRoom(GroupRoom);
-												}
-												else if (TheGameSpyGame->isInGame())
-												{
-													if (TheGameSpyGame->isGameInProgress())
-													{
-														string.format(L"  can't leave game in progress");
-														GameSpyAddText(string, GSCOLOR_DEFAULT);
-														needToJoin = false;
-													}
-													else
-													{
-														string.format(L"  leave game setup");
-														GameSpyAddText(string, GSCOLOR_DEFAULT);
-
-														TheGameSpyChat->leaveRoom(StagingRoom);
-														TheGameSpyGame->leaveGame();
-													}
-												}
-												if (needToJoin)
-												{
-													string.format(L"  join lobby %d", groupRoom);
-													TheGameSpyChat->joinGroupRoom(groupRoom);
-													GameSpyAddText(string, GSCOLOR_DEFAULT);
-												}
-											}
-										}
-									}
-								}
-							}
-						}
-						else
-						{
-							DEBUG_CRASH(("No buddy associated with that ProfileID"));
-							GameSpyUpdateBuddyOverlay();
-						}
-					}
-				}
-				*/
 				break;
 			}
 
@@ -1436,7 +2043,7 @@ WindowMsgHandledType GenOnlinePopupBuddyNotificationSystem( GameWindow *window, 
 
 				if (controlID == buttonNotificationID)
 				{
-					GameSpyOpenOverlay( GSOVERLAY_BUDDY );
+					GenOnlineOpenCommunicator(GENONLINE_COMMUNICATOR_FRIENDS, s_noticePeer);
 				}
 				break;
 			}
@@ -1449,10 +2056,6 @@ WindowMsgHandledType GenOnlinePopupBuddyNotificationSystem( GameWindow *window, 
 	return MSG_HANDLED;
 }
 
-/*
-static NameKeyType buttonAcceptBuddyID = NAMEKEY_INVALID;
-static NameKeyType buttonDenyBuddyID = NAMEKEY_INVALID;
-*/
 static NameKeyType buttonAddID = NAMEKEY_INVALID;
 static NameKeyType buttonDeleteID = NAMEKEY_INVALID;
 static NameKeyType buttonPlayID = NAMEKEY_INVALID;
@@ -1769,30 +2372,10 @@ void GenOnlineRequestBuddyAdd(Int profileID, AsciiString nick)
 	}
 	pSocialInterface->AddFriend(profileID);
 
-	// NOTE: The original Buddy:InviteSent string didn't make its way into the final game...
 	// TODO_GENONLINE: Use the SH localization system for strings instead
-	//UnicodeString s;
-	//s.format(L, nick.str());
-
-
-// TODO_SOCIAL
-// 	// save message for future incarnations of the buddy window
-// 	BuddyMessageList* messages = TheGameSpyInfo->getBuddyMessages();
-// 	BuddyMessage message;
-// 	message.m_timestamp = time(NULL);
-// 	message.m_senderID = 0;
-// 	message.m_senderNick = "";
-// 	message.m_recipientID = TheGameSpyInfo->getLocalProfileID();
-// 	message.m_recipientNick = TheGameSpyInfo->getLocalBaseName();
-// 	message.m_message.format(TheGameText->fetch("Buddy:InviteSentToPlayer"), nick.str());
-
-	// TODO_SOCIAL
-	// insert status into box
-	//messages->push_back(message);
 
 	DEBUG_LOG(("Inserting buddy add request"));
 
-	// TODO_SOCIAL
 	// put message on screen
 
 	// play audio notification
@@ -1901,7 +2484,6 @@ WindowMsgHandledType GenOnlineBuddyOverlayRCMenuSystem( GameWindow *window, Unsi
 						}
 					}
 
-					// TODO_SOCIAL
 				}
 				else if( controlID == buttonPlayID )
 				{
@@ -1992,14 +2574,9 @@ void GenOnlineRefreshIgnoreList()
 			{
 				UnicodeString name(from_utf8(blockedEntry.display_name).c_str());
 				Int index = GadgetListBoxAddEntryText(listboxIgnore, name, GOUIColor(GOUICOLOR_ERROR, GameMakeColor(255, 100, 100, 255)), -1);
+				GadgetListBoxAddEntryText(listboxIgnore, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOUnblock", L"Unblock"), CommunicatorWhite(), index, BLOCKED_COLUMN_UNBLOCK);
 				GadgetListBoxSetItemData(listboxIgnore, (void*)(blockedEntry.user_id), index, 0);
 			}
 		});
-
-//
-//	GPProfile profileID = 0;
-//	PlayerInfoMap::iterator it = TheGameSpyInfo->getPlayerInfoMap()->find(aName);
-//	if (it != TheGameSpyInfo->getPlayerInfoMap()->end())
-//		profileID = it->second.m_profileID;
 
 }

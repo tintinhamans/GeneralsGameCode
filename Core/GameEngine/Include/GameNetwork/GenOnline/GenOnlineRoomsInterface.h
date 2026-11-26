@@ -206,18 +206,6 @@ public:
 		m_RoomChangedCallback = nullptr;
 	}
 
-	NetworkRoomMember* GetRoomMemberFromIndex(int index)
-	{
-		if (m_mapMembers.size() > index)
-		{
-			auto it = m_mapMembers.begin();
-			std::advance(it, index);
-			return &it->second;
-		}
-
-		return nullptr;
-	}
-
 	NetworkRoomMember* GetRoomMemberFromID(int64_t puid)
 	{
 		if (m_mapMembers.contains(puid))
@@ -251,7 +239,7 @@ public:
 	int GetCurrentRoomIndex() const { return m_CurrentRoomIndex; }
 	std::optional<int> GetEffectiveRoomID() const { return m_EffectiveRoomID; }
 
-	// Realtime protocol v1: the hub sends the rooms with Ready and the members as events.
+	// The realtime hub sends the rooms with Ready and the members as events.
 	void SetRealtimeRooms(const std::vector<GenOnlineRealtime::ChannelInfo>& rooms);
 	void OnRealtimeChannelMembers(const GenOnlineRealtime::ChannelMembersEvent& event);
 	void OnRealtimeMemberAdd(const GenOnlineRealtime::MemberAddEvent& event);

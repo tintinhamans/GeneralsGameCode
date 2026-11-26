@@ -53,19 +53,27 @@
 #include "Common/Language.h"
 #include "Common/Debug.h"
 #include "Common/GameAudio.h"
+#if defined(GENONLINE)
 #include "Common/GOUIColors.h"
 #include "GameClient/Display.h"
+#endif
 #include "GameClient/DisplayStringManager.h"
 #include "GameClient/GameWindow.h"
 #include "GameClient/Gadget.h"
 #include "GameClient/GameWindowManager.h"
+#if defined(GENONLINE)
 #include "GameClient/GadgetComboBox.h"
+#endif
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetPushButton.h"
 #include "GameClient/GadgetSlider.h"
+#if defined(GENONLINE)
 #include "GameClient/GadgetTextEntry.h"
+#endif
 #include "GameClient/GameWindowGlobal.h"
+#if defined(GENONLINE)
 #include "GameClient/Image.h"
+#endif
 #include "GameClient/Keyboard.h"
 
 
@@ -97,6 +105,7 @@ typedef struct _TextAndColor
 // PRIVATE DATA ///////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
+#if defined(GENONLINE)
 // Listbox inside a Begin/EndBatchAdd bracket; layout recompute is skipped until End.
 static GameWindow *s_batchAddListbox = nullptr;
 
@@ -206,6 +215,7 @@ static Int getKitThumbHeight( const ListboxData *list, Int trackHeight )
 	return thumbHeight;
 }
 
+#endif
 static void doAudioFeedback(GameWindow *window)
 {
 	if (!window)
@@ -311,6 +321,7 @@ static Int getListboxBottomEntry( ListboxData *list )
 {
 	Int entry;
 
+#if defined(GENONLINE)
 	// Safety checks to prevent access violations during screen transitions
 	if( list == NULL )
 		return 0;
@@ -319,6 +330,7 @@ static Int getListboxBottomEntry( ListboxData *list )
 	if( list->endPos <= 0 )
 		return 0;
 
+#endif
 	// determine which entry is at the top of the display area
 	for( entry=list->endPos - 1; ; entry-- )
 	{
@@ -380,11 +392,13 @@ static void adjustDisplay( GameWindow *window, Int adjustment,
 		GameWindow *child;
 
 		sData = (SliderData *)list->slider->winGetUserData();
+#if defined(GENONLINE)
 		
 		// Safety check: ensure slider data is valid before accessing it
 		if( sData == NULL )
 			return;
 		
+#endif
 		list->slider->winGetSize( &sliderSize.x, &sliderSize.y );
 		// Take into account that there is a line-drawn outline surrounding listbox
 		sData->maxVal = list->totalHeight - ( list->displayHeight - TOTAL_OUTLINE_HEIGHT ) + 1;
@@ -395,13 +409,16 @@ static void adjustDisplay( GameWindow *window, Int adjustment,
 		}
 
 		child = list->slider->winGetChild();
+#if defined(GENONLINE)
 		if( child == NULL )
 		{
 			// Slider thumb button is missing - cannot adjust display properly
 			DEBUG_LOG(( "adjustDisplay: slider child is NULL, skipping slider adjustment" ));
 			return;
 		}
+#endif
 		child->winGetSize( &sliderChildSize.x, &sliderChildSize.y );
+#if defined(GENONLINE)
 		// GenOnline @feature arcticdolphin 08/11/2026 The kit thumb length follows the visible part of the list.
 		Bool kitScrollBar = GadgetListBoxHasKitScrollBar();
 		if( kitScrollBar )
@@ -418,6 +435,9 @@ static void adjustDisplay( GameWindow *window, Int adjustment,
 			sData->numTicks = 0.0f;
 		else
 			sData->numTicks = (float)((sliderSize.y - sliderChildSize.y) / (float)sData->maxVal);
+#else
+		sData->numTicks = (float)((sliderSize.y - sliderChildSize.y) / (float)sData->maxVal);
+#endif
 
 		if( updateSlider )
 			TheWindowManager->winSendSystemMsg( list->slider,
@@ -437,7 +457,9 @@ static void computeTotalHeight( GameWindow *window )
 	Int tempHeight;
 	ListboxData *list = (ListboxData *)window->winGetUserData();
 	WinInstanceData *instData = window->winGetInstanceData();
+#if defined(GENONLINE)
 	const Int textTrim = GadgetListBoxGetKitComboRowTrim( window );
+#endif
 
 	for( i=0; i<list->endPos; i++ )
 	{
@@ -461,7 +483,9 @@ static void computeTotalHeight( GameWindow *window )
 					if(displayString)
 						displayString->getSize( nullptr, &cellHeight );
 				}
+#if defined(GENONLINE)
 				cellHeight -= textTrim;
+#endif
 			}
 			else if(list->listData[i].cell[j].cellType == LISTBOX_IMAGE)
 			{
@@ -529,8 +553,12 @@ static Int addImageEntry( const Image *image, Color color, Int row, Int column, 
 	listRow->cell[column].height = height;
 	listRow->cell[column].width = width;
 
+#if defined(GENONLINE)
 	if( !listboxLayoutDeferred( window ) )
 		computeTotalHeight( window );
+#else
+	computeTotalHeight( window );
+#endif
 
 	return (row);
 
@@ -612,8 +640,12 @@ static Int addEntry( UnicodeString *string, Int color, Int row, Int column, Game
 	if( column == -1 )
 		column = 0;
 
+#if defined(GENONLINE)
 	// GenOnline @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
 	width = list->columnWidth[column] - GameWindowManager::winScaleLayoutSize( TEXT_WIDTH_OFFSET );
+#else
+	width = list->columnWidth[column] - TEXT_WIDTH_OFFSET;
+#endif
 
 	Int rowsAdded = 0;
 
@@ -666,21 +698,31 @@ static Int addEntry( UnicodeString *string, Int color, Int row, Int column, Game
 		}
 
 		displayString->getSize( nullptr, &rowHeight );
+#if defined(GENONLINE)
 		rowHeight -= GadgetListBoxGetKitComboRowTrim( window );
+#endif
 		if (rowHeight > oldRowHeight)
 		{
 			totalHeight = oldTotalHeight + (rowHeight - oldRowHeight);
 			listRow->height = rowHeight;
 			listRow->listHeight = totalHeight + rowsAdded;
 			list->totalHeight += (rowHeight - oldRowHeight) + rowsAdded;
+#if defined(GENONLINE)
 			if( !listboxLayoutDeferred( window ) )
 				adjustDisplay( window, 0, TRUE );
+#else
+			adjustDisplay( window, 0, TRUE );
+#endif
 		}
 	}
 	else
 	{
+#if defined(GENONLINE)
 		if( !listboxLayoutDeferred( window ) )
 			computeTotalHeight( window );
+#else
+		computeTotalHeight( window );
+#endif
 	}
 
 	return (row);
@@ -1555,7 +1597,12 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 
 			ListEntryCell *cells = list->listData[mData1].cell;
 			if(cells)
+#if defined(GENONLINE)
+				// GenOnline @bugfix arcticdolphin 23/11/2026 The cell array holds columns entries, so the last column is columns - 1.
+				for( i = 0; i < list->columns; i ++ )
+#else
 				for( i = 0; i <= list->columns; i ++ )
+#endif
 				{
 					if( cells[i].cellType == LISTBOX_TEXT && cells[i].data )
 						TheDisplayStringManager->freeDisplayString((DisplayString *) cells[i].data );
@@ -1566,8 +1613,17 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			delete[](list->listData[mData1].cell);
 			list->listData[mData1].cell = nullptr;
 
+#if defined(GENONLINE)
+			// GenOnline @bugfix arcticdolphin 23/11/2026 The rows overlap, and the vacated last row is cleared so that no two rows share a cell array that the destroy and reset paths delete.
+			memmove( &list->listData[mData1], &list->listData[(mData1+1)],
+							(list->endPos - mData1 - 1) * sizeof(ListEntryRow) );
+#else
 			memcpy( &list->listData[mData1], &list->listData[(mData1+1)],
 							(list->endPos - mData1 - 1) * sizeof(ListEntryRow) );
+#endif
+#if defined(GENONLINE)
+			memset( &list->listData[(list->endPos - 1)], 0, sizeof(ListEntryRow) );
+#endif
 
 			list->endPos--;
 			list->insertPos = list->endPos;
@@ -1598,6 +1654,14 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			}
 
 			computeTotalHeight( window );
+#if defined(GENONLINE)
+			// GenOnline @bugfix arcticdolphin 24/11/2026 A list scrolled to its end follows the shorter list, so no empty space shows below the last row.
+			if( list->displayPos > 0 && list->displayPos + list->displayHeight > list->totalHeight + 1 )
+			{
+				list->displayPos = (std::max)( 0, list->totalHeight - list->displayHeight + 1 );
+				adjustDisplay( window, 0, TRUE );
+			}
+#endif
 			break;
 
 		}
@@ -1651,7 +1715,11 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			if( success )
 			{
 
+#if defined(GENONLINE)
 				if( list->autoScroll && !listboxLayoutDeferred( window ) )
+#else
+				if( list->autoScroll )
+#endif
 				{
 
 					while( TRUE )
@@ -1984,11 +2052,13 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			ICoord2D sliderSize = {0, 0};
 			GameWindow *child = nullptr;
 			ICoord2D sliderChildSize = {0, 0};
+#if defined(GENONLINE)
 			Int edgeGap, sliderGap;
 			getScrollbarGaps( edgeGap, sliderGap );
 			const Int comboFrame = GadgetListBoxGetKitComboFrame( window );
 			if( comboFrame > 0 )
 				fitKitComboScrollColumn( window, list );
+#endif
 
 			// get needed window sizes
 			if (list->downButton)
@@ -2006,23 +2076,38 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			if( list->upButton )
 			{
 
+#if defined(GENONLINE)
 				list->upButton->winSetPosition( width - upSize.x - edgeGap, edgeGap );
+#else
+				list->upButton->winSetPosition( width - upSize.x - 2, 2 );
+#endif
 
 			}
 
 			if( list->downButton )
 			{
 
+#if defined(GENONLINE)
 				list->downButton->winSetPosition( width - downSize.x - edgeGap,
 																					height - downSize.y - edgeGap );
+#else
+				list->downButton->winSetPosition( width - downSize.x - 2,
+																					height - downSize.y - 2 );
+#endif
 
 			}
 
 			if( list->slider )
 			{
+#if defined(GENONLINE)
 				list->slider->winSetSize( sliderSize.x,
 																	height - (2 * upSize.y) - (2 * sliderGap) );
 				list->slider->winSetPosition( width - sliderSize.x - edgeGap, upSize.y + sliderGap );
+#else
+				list->slider->winSetSize( sliderSize.x,
+																	height - (2 * upSize.y) -6 );
+				list->slider->winSetPosition( width - sliderSize.x -2, upSize.y + 3 );
+#endif
 
 			}
 
@@ -2032,9 +2117,11 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			{
 				list->displayHeight -= TheWindowManager->winFontHeight( instData->getFont() );
 			}
+#if defined(GENONLINE)
 			// GenOnline @bugfix arcticdolphin 08/11/2026 A kit combo drop-down scrolls its last row fully above the bottom frame line.
 			if( comboFrame > 0 )
 				list->displayHeight -= KIT_COMBO_TEXT_TOP + comboFrame - TOTAL_OUTLINE_HEIGHT;
+#endif
 #if defined(GENONLINE)
 			// GenOnline @bugfix arcticdolphin 22/11/2026 The last row stays inside the area the list text is drawn in.
 			list->displayHeight -= GadgetListBoxGetTextInset( window );
@@ -2140,11 +2227,13 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			if( list->multiSelect )
 				delete[]( list->selections );
 
+#if defined(GENONLINE)
 			// Clear child window pointers to prevent dangling pointer access
 			list->slider = NULL;
 			list->upButton = NULL;
 			list->downButton = NULL;
 
+#endif
 			delete (ListboxData *)window->winGetUserData();
 			window->winSetUserData( nullptr );
 			list = nullptr;
@@ -2482,7 +2571,9 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 	SliderData sData = { 0 };
 	Int buttonWidth, buttonHeight;
 	Int sliderButtonWidth, sliderButtonHeight;
+#if defined(GENONLINE)
 	Int edgeGap, sliderGap;
+#endif
 	Int fontHeight;
 	Int top;
 	Int bottom;
@@ -2510,6 +2601,7 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 	// size of button
 	buttonWidth = 21;//GADGET_SIZE;
 	buttonHeight = 22;//GADGET_SIZE;
+#if defined(GENONLINE)
 	// GenOnline @tweak arcticdolphin 08/11/2026 The scroll bar parts scale with the screen height and keep their shape.
 	buttonWidth = GameWindowManager::winScaleLayoutSize( buttonWidth );
 	buttonHeight = GameWindowManager::winScaleLayoutSize( buttonHeight );
@@ -2519,6 +2611,7 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 		buttonWidth = GameWindowManager::winScaleLayoutSize( KIT_SCROLL_COLUMN_WIDTH );
 		buttonHeight = buttonWidth;
 	}
+#endif
 
 	// ----------------------------------------------------------------------
 	// Create Top Button
@@ -2533,11 +2626,19 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 		BitSet( winInstData.m_style, GWS_MOUSE_TRACK );
 
 	listData->upButton =
+#if defined(GENONLINE)
 		 TheWindowManager->gogoGadgetPushButton( listbox,
 																						 status | WIN_STATUS_ACTIVE | WIN_STATUS_ENABLED,
 																						 width - buttonWidth - edgeGap, top + edgeGap,
 																						 buttonWidth, buttonHeight,
 																						 &winInstData, nullptr, TRUE );
+#else
+		 TheWindowManager->gogoGadgetPushButton( listbox,
+																						 status | WIN_STATUS_ACTIVE | WIN_STATUS_ENABLED,
+																						 width - buttonWidth -2, top+2,
+																						 buttonWidth, buttonHeight,
+																						 &winInstData, nullptr, TRUE );
+#endif
 
 	// ----------------------------------------------------------------------
 	// Create Bottom Button
@@ -2552,12 +2653,21 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 		BitSet( winInstData.m_style, GWS_MOUSE_TRACK );
 
 	listData->downButton =
+#if defined(GENONLINE)
 			 TheWindowManager->gogoGadgetPushButton( listbox,
 																							 status | WIN_STATUS_ACTIVE | WIN_STATUS_ENABLED,
 																							 width - buttonWidth - edgeGap,
 																							 (top + bottom - buttonHeight - edgeGap),
 																							 buttonWidth, buttonHeight,
 																							 &winInstData, nullptr, TRUE );
+#else
+			 TheWindowManager->gogoGadgetPushButton( listbox,
+																							 status | WIN_STATUS_ACTIVE | WIN_STATUS_ENABLED,
+																							 width - buttonWidth -2,
+																							 (top + bottom - buttonHeight -2),
+																							 buttonWidth, buttonHeight,
+																							 &winInstData, nullptr, TRUE );
+#endif
 
 	// ----------------------------------------------------------------------
 	// create the slider
@@ -2565,7 +2675,11 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 
 	// size of button
 	sliderButtonWidth = buttonWidth;//GADGET_SIZE;
+#if defined(GENONLINE)
 	sliderButtonHeight = GameWindowManager::winScaleLayoutSize( GADGET_SIZE );
+#else
+	sliderButtonHeight = GADGET_SIZE;
+#endif
 
 	// initialize instData
 	winInstData.init();
@@ -2581,18 +2695,28 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 
 	// Create Slider
 	listData->slider =
+#if defined(GENONLINE)
 			TheWindowManager->gogoGadgetSlider( listbox,
 																					status | WIN_STATUS_ACTIVE | WIN_STATUS_ENABLED,
 																					width - sliderButtonWidth - edgeGap,
 																					(top + buttonHeight + sliderGap),
 																					sliderButtonWidth, bottom - (2 * buttonHeight) - (2 * sliderGap),
 																					&winInstData, &sData, nullptr, TRUE );
+#else
+			TheWindowManager->gogoGadgetSlider( listbox,
+																					status | WIN_STATUS_ACTIVE | WIN_STATUS_ENABLED,
+																					width - sliderButtonWidth - 2,
+																					(top + buttonHeight + 3),
+																					sliderButtonWidth, bottom - (2 * buttonHeight) - 6,
+																					&winInstData, &sData, nullptr, TRUE );
+#endif
 
 	// we now have all the scrollbar parts, this better be set :)
 	listData->scrollBar = TRUE;
 
 }
 
+#if defined(GENONLINE)
 //=============================================================================
 Bool GadgetListBoxHasKitScrollBar( void )
 {
@@ -2864,6 +2988,7 @@ Int GadgetListBoxGetKitComboHeight( GameWindow *listbox, Int rows )
 	return KIT_COMBO_TEXT_TOP + rows * pitch + frame;
 }
 
+#endif
 // GadgetListBoxAddMultiSelect ================================================
 /** Enable multi selections for a listbox
 	*
@@ -2967,9 +3092,13 @@ void GadgetListBoxSetListLength( GameWindow *listbox, Int newLength )
     if(listboxData->insertPos > newLength)
 			listboxData->insertPos = newLength;
 
+#if defined(GENONLINE)
     // GenOnline @bugfix arcticdolphin 08/11/2026 Keep the end of a shorter or empty list in place because appends past it read beyond the rows.
     if( listboxData->endPos > newLength )
     	listboxData->endPos = newLength;
+#else
+    listboxData->endPos = newLength;
+#endif
 		//copy only the data that we'll be needing.
 		memcpy(newData,listboxData->listData,newLength * sizeof( ListEntryRow ) );
 	}
@@ -3129,6 +3258,7 @@ void GadgetListBoxReset( GameWindow *listbox )
 
 }
 
+#if defined(GENONLINE)
 //-------------------------------------------------------------------------------------------------
 /** Suppress per-entry height/scrollbar recompute until GadgetListBoxEndBatchAdd. */
 //-------------------------------------------------------------------------------------------------
@@ -3152,6 +3282,7 @@ void GadgetListBoxEndBatchAdd( GameWindow *listbox )
 		computeTotalHeight( listbox );
 }
 
+#endif
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 void GadgetListBoxSetItemData( GameWindow *listbox, void *data, Int row, Int column )
@@ -3237,7 +3368,9 @@ void GadgetListBoxSetBottomVisibleEntry( GameWindow *window, Int newPos )
 		return;
 	}
 #endif
+#if defined(GENONLINE)
 
+#endif
 	int prevPos = GadgetListBoxGetBottomVisibleEntry( window );
 
 	adjustDisplay(window, newPos - prevPos + 1, true);
@@ -3314,34 +3447,46 @@ Int GadgetListBoxGetColumnWidth( GameWindow *listbox, Int column )
 	return listboxData->columnWidth[column];
 }
 
+#if defined(GENONLINE)
 //=============================================================================
 // ListBox row entry animation
 // each listbox must opt in by calling SetListBoxRowAnimMode.
+// Only a row that is new, or that moves to another position, is animated. A row that scrolls into view and a list
+// that opens again are drawn in place.
 //=============================================================================
 struct RowAnimState
 {
-	Real        currentIndex;   // where the row is drawn right now, catches up to targetIndex over time
-	Real        targetIndex;    // where the row actually belongs in the list
+	Real        offset;         // rows between where the row is drawn and where it belongs, eases to zero
+	Real        lastIndex;      // the row position at the last draw
 	UnsignedInt lastUpdateTime; // last time this row was drawn
-	Bool        initialized;    // false until this row is seen for the first time
-
-	RowAnimState()
-	{
-		currentIndex = 0.f;
-		targetIndex = 0.f;
-		lastUpdateTime = 0;
-		initialized = FALSE;
-	}
 };
 
-static std::map<GameWindow*, ListRowAnimMode> theListAnimMode;
-static std::map<Int, RowAnimState> theRowAnimState;
+struct ListAnimState
+{
+	ListRowAnimMode mode;
+	UnsignedInt frameTime;      // the time of the draw pass in progress
+	Int count;                  // entries in the list in this draw pass
+	Int previousCount;          // entries in the list in the draw pass before
+	Bool reopened;              // this draw pass follows a pause, so nothing in it counts as new
+	std::map<Int, RowAnimState> rows;
+};
+
+static std::map<GameWindow*, ListAnimState> theListAnimState;
+
+static const UnsignedInt ROW_ANIM_PAUSE_MS = 100;  // a longer gap between draws means the row or the list was out of sight
+static const Real ROW_ANIM_ENTRY_OFFSET = 0.5f;    // a new row starts this many rows below its place
+static const Real ROW_ANIM_RATE = 18.0f;           // the share of the remaining offset that is closed per second, as an exponent
+static const Real ROW_ANIM_SNAP = 0.02f;           // an offset below this many rows is drawn in place
 
 void SetListBoxRowAnimMode(GameWindow *window, ListRowAnimMode mode)
 {
 	if (!window)
 		return;
-	theListAnimMode[window] = mode;
+
+	// A new window can reuse the address of a destroyed one, so its state starts empty.
+	ListAnimState &list = theListAnimState[window];
+	list = ListAnimState();
+	list.mode = mode;
 }
 
 void ApplyListBoxRowAnimation(GameWindow *window, Int rowIndex, Int rowHeight, Int &drawY)
@@ -3350,53 +3495,61 @@ void ApplyListBoxRowAnimation(GameWindow *window, Int rowIndex, Int rowHeight, I
 		return;
 
 	// only animate listboxes that have explicitly opted in
-	std::map<GameWindow*, ListRowAnimMode>::iterator it = theListAnimMode.find(window);
-	if (it == theListAnimMode.end())
+	std::map<GameWindow*, ListAnimState>::iterator it = theListAnimState.find(window);
+	if (it == theListAnimState.end())
 		return;
 
-	Int animKey;
-	if (it->second == LIST_ROW_ANIM_ID)
+	ListAnimState &list = it->second;
+	const UnsignedInt now = timeGetTime();
+	if (now != list.frameTime)
 	{
-		Int itemID = (Int)GadgetListBoxGetItemData(window, rowIndex);
-		if (itemID <= 0)
+		const Int count = GadgetListBoxGetNumEntries(window);
+		list.reopened = list.frameTime == 0 || now - list.frameTime > ROW_ANIM_PAUSE_MS;
+		list.previousCount = (list.reopened || count < list.count) ? count : list.count;
+		list.count = count;
+		list.frameTime = now;
+	}
+
+	Int key = rowIndex;
+	if (list.mode == LIST_ROW_ANIM_ID)
+	{
+		key = (Int)GadgetListBoxGetItemData(window, rowIndex);
+		if (key <= 0)
 			return;
-
-		animKey = (window->winGetWindowId() << 16) + itemID;
-	}
-	else // LIST_ROW_ANIM_SLOT
-	{
-		animKey = (window->winGetWindowId() << 16) + rowIndex;
 	}
 
-	RowAnimState	&anim = theRowAnimState[animKey];
-	Real		   rowPos = (Real)rowIndex;
-	UnsignedInt		  now = timeGetTime();
-	Real		deltaTime = 0.f;
-
-	if (anim.lastUpdateTime != 0)
+	const Real rowPos = (Real)rowIndex;
+	std::map<Int, RowAnimState>::iterator rowIt = list.rows.find(key);
+	if (rowIt == list.rows.end())
 	{
-		UnsignedInt elapsedMs = now - anim.lastUpdateTime;
-		if (elapsedMs < 100)
-			deltaTime = elapsedMs / (Real)MSEC_PER_SECOND;
-		else
-			anim.initialized = FALSE; // listbox was closed, re-animate on next open
+		// An append only list knows a new row by its index. A keyed list knows it by an unseen key while the list grows,
+		// which leaves out a row that only scrolls into view.
+		const Bool isNew = !list.reopened && (list.mode == LIST_ROW_ANIM_ID ? list.count > list.previousCount : rowIndex >= list.previousCount);
+		RowAnimState state;
+		state.offset = isNew ? ROW_ANIM_ENTRY_OFFSET : 0.0f;
+		state.lastIndex = rowPos;
+		state.lastUpdateTime = now;
+		rowIt = list.rows.insert(std::make_pair(key, state)).first;
 	}
-	anim.lastUpdateTime = now;
 
-	if (!anim.initialized)
+	RowAnimState &row = rowIt->second;
+	const UnsignedInt elapsedMs = now - row.lastUpdateTime;
+	row.lastUpdateTime = now;
+	if (list.reopened || elapsedMs > ROW_ANIM_PAUSE_MS)
 	{
-		// first time this row is drawn, start one row below and slides up into place
-		anim.currentIndex = rowPos + 1.f;
-		anim.targetIndex = rowPos;
-		anim.initialized = TRUE;
+		row.offset = 0.0f;
 	}
 	else
 	{
-		anim.targetIndex = rowPos;
+		// A keyed row that changed position keeps its place on screen and glides to the new one.
+		if (list.mode == LIST_ROW_ANIM_ID)
+			row.offset += row.lastIndex - rowPos;
+		row.offset *= (Real)exp(-ROW_ANIM_RATE * (elapsedMs / (Real)MSEC_PER_SECOND));
+		if (fabs(row.offset) < ROW_ANIM_SNAP)
+			row.offset = 0.0f;
 	}
+	row.lastIndex = rowPos;
 
-	const Real animSpeed = 15.f;
-	anim.currentIndex += (anim.targetIndex - anim.currentIndex) * animSpeed * deltaTime;
-
-	drawY += (Int)((anim.currentIndex - rowPos) * (Real)rowHeight);
+	drawY += (Int)floor(row.offset * (Real)rowHeight + 0.5f);
 }
+#endif

@@ -5947,10 +5947,10 @@ void ScriptActions::doTeamUseCommandButtonOnNearestObjectType( const AsciiString
 		theGroup->getCenter(&pos);
 
 		bestObj = ThePartitionManager->getClosestObject(&pos, REALLY_FAR, FROM_CENTER_2D, filters);
-		if( !bestObj )
-		{
+#if RETAIL_COMPATIBLE_CRC
+		if (!bestObj)
 			return;
-		}
+#endif
 	}
 	else
 	{
@@ -5994,6 +5994,11 @@ void ScriptActions::doTeamUseCommandButtonOnNearestObjectType( const AsciiString
 			}
 		}
 	}
+
+#if !RETAIL_COMPATIBLE_CRC
+	if (!bestObj)
+		return;
+#endif
 
 	// already been checked for validity
 	theGroup->groupDoCommandButtonAtObject(commandButton, bestObj, CMD_FROM_SCRIPT);
@@ -6261,7 +6266,11 @@ void ScriptActions::doOverrideHulkLifetime( Real seconds )
 	else
 	{
 		// Convert real seconds into frames.
+#if defined(GENONLINE)
 		Int frames = ConvertBaseFramesToFrames((Int)ConvertFramesToBaseFramesReal(ConvertDurationFromSecsToFrames(seconds)));
+#else
+		Int frames = (Int)(seconds * LOGICFRAMES_PER_SECOND);
+#endif
 		TheGameLogic->setHulkMaxLifetimeOverride(frames);
 	}
 }

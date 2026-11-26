@@ -864,6 +864,7 @@ Try improving the fit to vertical surfaces like cliffs.
 	//check if there is anything to draw and fill vertex buffer
 	if (m_edgesToFlush >= 2)
 	{
+#if defined(GENONLINE)
 		// Guard against a null vertex buffer (e.g. if ReleaseResources() was called
 		// without a matching ReAcquireResources() during a device reset).
 		if (!m_vertexBuffer)
@@ -872,12 +873,14 @@ Try improving the fit to vertical surfaces like cliffs.
 			return;
 		}
 
+#endif
 		// Ronin @bugfix 21/08/2026 DX9: §29j.9. flags=0 on a USAGE_DYNAMIC buffer makes the driver BLOCK
 		// until the GPU stops reading it — a full pipeline stall whose length is however much GPU work is
 		// queued. Invisible before shadow maps, ~1.5 ms after. flush() refills the whole buffer from
 		// scratch every frame, so DISCARD is exactly right.
 		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBuffer, D3DLOCK_DISCARD);
 		VertexFormatXYZDUV1 *verts = (VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
+#if defined(GENONLINE)
 
 		// Guard against a failed buffer lock returning a null pointer.
 		if (!verts)
@@ -886,6 +889,7 @@ Try improving the fit to vertical surfaces like cliffs.
 			return;
 		}
 
+#endif
 		trackStartIndex=0;
 
 		// Ronin @feature 09/11/2026 DX9: rounded tread marks - each track's stored edges go through R3DTreadMarks::writeRoundedStrip,
@@ -923,10 +927,20 @@ Try improving the fit to vertical surfaces like cliffs.
 
 					distanceFade=1.0f;
 
+#if defined(GENONLINE)
 					if ((activeEdgeCount -1 -i) >= m_maxTankTrackOpaqueEdges)// && i < (MAX_PER_TRACK_EDGE_COUNT-FORCE_FADE_AT_EDGE))
 					{	//we're getting close to the limit on the number of track pieces allowed
+#else
+					if ((mod->m_activeEdgeCount -1 -i) >= m_maxTankTrackOpaqueEdges)// && i < (MAX_PER_TRACK_EDGE_COUNT-FORCE_FADE_AT_EDGE))
+					{
+						//we're getting close to the limit on the number of track pieces allowed
+#endif
 						//so force it to fade out.
+#if defined(GENONLINE)
 						distanceFade=1.0f-(float)((activeEdgeCount -i)-m_maxTankTrackOpaqueEdges)/numFadedEdges;
+#else
+						distanceFade=1.0f-(float)((mod->m_activeEdgeCount -i)-m_maxTankTrackOpaqueEdges)/numFadedEdges;
+#endif
 					}
 
 					distanceFade *= mod->m_edges[index].alpha;	//adjust fade with distance from start of track

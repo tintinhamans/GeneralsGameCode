@@ -1,6 +1,6 @@
 # The Options menu: display, audio, control and network options, compiled by GenOnline/tools/wnd_yaml.py.
 # Window names, types, status, callbacks, text and the file order of every window match the layout GO shipped
-# before this source existed (GenOnline/tools/wnd_sources/Window/Menus/OptionsMenu.wnd plus the generator rules), so
+# before this source existed (a hand edited OptionsMenu.wnd plus the generator rules), so
 # OptionsMenu.cpp, the GO network options code and mods keep finding the same windows.
 
 layout_block: {init: OptionsMenuInit, update: OptionsMenuUpdate, shutdown: OptionsMenuShutdown}
@@ -194,7 +194,7 @@ windows:
                                   - ~
                                   - {component: retail_label, name: ScrollSpeedLabel, text: "GUI:ScrollSpeed", w: 360, span: 2}
                                   - {component: silent_slider, name: SliderScrollSpeed, tooltip: "ToolTip:ScrollSpeed",
-                                     params: {min: 10, max: 300}, span: 2}
+                                     params: {min: 10, max: 1000}, span: 2}
                       - component: panel
                         name: NetworkParent
                         status: [ENABLED, NOFOCUS]

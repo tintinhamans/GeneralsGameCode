@@ -67,7 +67,6 @@ list(APPEND GAMEENGINE_SRC
     Source/GameClient/GUI/ChatMentions.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineBuddyOverlay.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineChatWrap.cpp
-    Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineDownloadMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineGameSetupMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineLobbyGameDetails.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GenOnline/GenOnlineLobbyMenu.cpp
@@ -114,13 +113,11 @@ list(APPEND GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/json.hpp
     Include/GameNetwork/GenOnline/DiscordRichPresence.h
     Include/GameNetwork/GenOnline/Vendor/DiscordRPC/discord_rpc.h
-    Include/GameNetwork/GenOnline/NetworkBitstream.h
     Include/GameNetwork/GenOnline/ConnectionRating.h
     Include/GameNetwork/GenOnline/MatchKeys.h
     Include/GameNetwork/GenOnline/NetworkMesh.h
     Include/GameNetwork/GenOnline/NetBytes.h
     Include/GameNetwork/GenOnline/PacketFeedback.h
-    Include/GameNetwork/GenOnline/NetworkPacket.h
     Include/GameNetwork/GenOnline/GenOnlineDefines.h
     Include/GameNetwork/GenOnline/GenOnlineGame.h
     Include/GameNetwork/GenOnline/GenOnlineInclude.h
@@ -190,7 +187,6 @@ list(APPEND GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/GenOnlineSocialInterface.cpp
     Source/GameNetwork/GenOnline/GenOnlineMatchmakingInterface.cpp
     Source/GameNetwork/GenOnline/GenOnlineTransport.cpp
-    Source/GameNetwork/GenOnline/NetworkBitstream.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlineGameHooks.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlineNetworkOverlay.cpp
     Source/GameNetwork/GenOnline/AntiCheat/GenOnlineAntiCheat.cpp

@@ -169,7 +169,9 @@ class Mouse : public SubsystemInterface
 		CursorCaptureBlockReason_Paused,
 		CursorCaptureBlockReason_Unfocused,
 		CursorCaptureBlockReadon_CursorIsOutside,
+#if defined(GENONLINE)
 		CursorCaptureBlockReason_MovingWindow,
+#endif
 
 		CursorCaptureBlockReason_Count
 	};
@@ -243,8 +245,10 @@ public:
 		PLACE_CHARGE_INVALID,
 		HACK,
 		PARTICLE_UPLINK_CANNON,
+#if defined(GENONLINE)
 		// GenOnline @feature arcticdolphin 08/11/2026 Pointing hand the shell menus show over clickable controls.
 		HAND,
+#endif
 
 
 		// ***** dont forget to update CursorININames[] *****
@@ -278,7 +282,9 @@ public:
 	virtual void init() override;		///< init mouse, extend this functionality, do not replace
 	virtual void reset() override;		///< Reset the system
 	virtual void update() override;  ///< update the state of the mouse position and buttons
+#if defined(GENONLINE)
 	void resetButtons();  ///< release all buttons without an event, for input that was eaten by the OS
+#endif
 	virtual void initCursorResources()=0;	///< needed so Win32 cursors can load resources before D3D device created.
 
 	virtual void createStreamMessages();  /**< given state of device, create
@@ -293,8 +299,10 @@ public:
 	void setCursorCaptureMode(CursorCaptureMode mode); ///< set the rules for the mouse capture
 	void refreshCursorCapture(); ///< refresh the mouse capture
 	Bool isCursorCaptured(); ///< true if the mouse is captured in the game window
+#if defined(GENONLINE)
 	void onWindowMoveSizeBegin(); ///< called when the window enters its move or size loop
 	void onWindowMoveSizeEnd(); ///< called when the window leaves its move or size loop
+#endif
 
 	// access methods for the mouse data
 	const MouseIO *getMouseStatus() { return &m_currMouse; }							///< get current mouse status

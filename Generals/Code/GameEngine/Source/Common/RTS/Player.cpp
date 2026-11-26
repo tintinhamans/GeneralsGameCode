@@ -48,8 +48,10 @@
 
 #include "Common/ActionManager.h"
 #include "Common/BuildAssistant.h"
+#if defined(GENONLINE)
 #include "Common/StatsExporter.h"
 #include "Common/LocalApiLive.h"
+#endif
 #include "Common/CRCDebug.h"
 #include "Common/DisabledTypes.h"
 #include "Common/GameState.h"
@@ -489,8 +491,12 @@ void Player::init(const PlayerTemplate* pt)
 	{
 		KindOfPercentProductionChange *tof = *it;
 		it = m_kindOfPercentProductionChangeList.erase( it );
+#if defined(GENONLINE)
 		if(tof)
 			deleteInstance(tof);
+#else
+		deleteInstance(tof);
+#endif
 	}
 
 	//Always off at the beginning of a game! Only GameLogic::update has
@@ -634,10 +640,14 @@ Bool Player::removeTeamRelationship(const Team *that)
 void Player::setBuildList(BuildListInfo *pBuildList)
 {
 
+#if defined(GENONLINE)
 	if (m_pBuildList != NULL)
 	{
 		deleteInstance(m_pBuildList);
 	}
+#else
+	deleteInstance(m_pBuildList);
+#endif
 	m_pBuildList = pBuildList;
 
 }
@@ -710,10 +720,14 @@ void Player::setPlayerType(PlayerType t, Bool skirmish)
 {
 	m_playerType = t;
 
+#if defined(GENONLINE)
 	if (m_ai)
 	{
 		deleteInstance(m_ai);
 	}
+#else
+	deleteInstance(m_ai);
+#endif
 	m_ai = nullptr;
 
 	if (t == PLAYER_COMPUTER)
@@ -821,10 +835,16 @@ void Player::initFromDict(const Dict* d)
 
 				ScriptList *scripts = TheSidesList->getSkirmishSideInfo(i)->getScriptList()->duplicateAndQualify(
 							qualifier, qualTemplatePlayerName, pname);
+#if defined(GENONLINE)
 				if (TheSidesList->getSideInfo(getPlayerIndex())->getScriptList()) {
 					deleteInstance(TheSidesList->getSideInfo(getPlayerIndex())->getScriptList());
 				}
+#else
+
+				deleteInstance(TheSidesList->getSideInfo(getPlayerIndex())->getScriptList());
+#endif
 				TheSidesList->getSideInfo(getPlayerIndex())->setScriptList(scripts);
+
 				deleteInstance(TheSidesList->getSkirmishSideInfo(i)->getScriptList());
 				TheSidesList->getSkirmishSideInfo(i)->setScriptList(nullptr);
 			}
@@ -870,12 +890,18 @@ void Player::initFromDict(const Dict* d)
 			qualifier.format("%d", m_mpStartIndex);
 			ScriptList *scripts = TheSidesList->getSkirmishSideInfo(skirmishNdx)->getScriptList()->duplicateAndQualify(
 						qualifier, qualTemplatePlayerName, pname);
+#if defined(GENONLINE)
 			ScriptList* slist = TheSidesList->getSideInfo(getPlayerIndex())->getScriptList();
 			if (slist)
 			{
 				deleteInstance(slist);
 			}
+#else
+
+			deleteInstance(TheSidesList->getSideInfo(getPlayerIndex())->getScriptList());
+#endif
 			TheSidesList->getSideInfo(getPlayerIndex())->setScriptList(scripts);
+
 			for (i=0; i<TheSidesList->getNumTeams(); i++) {
 				if (TheSidesList->getTeamInfo(i)->getDict()->getAsciiString(TheKey_teamOwner) == pname)
 				{
@@ -927,9 +953,13 @@ void Player::initFromDict(const Dict* d)
 					// Now do the TheKey_teamGenericScriptHookN (where N can be from 0 to 15.)
 					for (j = 0; j < MAX_GENERIC_SCRIPTS; ++j) {
 						AsciiString keyName;
+#if defined(GENONLINE)
 						// Store the result of keyToName in a local variable to avoid dangling pointer
 						AsciiString hookName = TheNameKeyGenerator->keyToName(TheKey_teamGenericScriptHook);
 						keyName.format("%s%d", hookName.str(), j);
+#else
+						keyName.format("%s%d", TheNameKeyGenerator->keyToName(TheKey_teamGenericScriptHook).str(), j);
+#endif
 						tmpStr = teamDict.getAsciiString(NAMEKEY(keyName), &exists);
 						if (exists && !tmpStr.isEmpty())
 						{
@@ -944,18 +974,27 @@ void Player::initFromDict(const Dict* d)
 			}
 		}
 	}
+#if defined(GENONLINE)
 	if( m_resourceGatheringManager )
 	{
 		deleteInstance(m_resourceGatheringManager);
 		m_resourceGatheringManager = NULL;
 	}
+#else
+
+	deleteInstance(m_resourceGatheringManager);
+#endif
 	m_resourceGatheringManager = newInstance(ResourceGatheringManager);
 
+#if defined(GENONLINE)
 	if( m_tunnelSystem )
 	{
 		deleteInstance(m_tunnelSystem);
 		m_tunnelSystem = NULL;
 	}
+#else
+	deleteInstance(m_tunnelSystem);
+#endif
 	m_tunnelSystem = newInstance(TunnelTracker);
 
 	m_handicap.readFromDict(d);
@@ -990,18 +1029,26 @@ void Player::initFromDict(const Dict* d)
 		m_money.deposit(m);
 
 	for ( i = 0; i < NUM_HOTKEY_SQUADS; ++i ) {
+#if defined(GENONLINE)
 		if (m_squads[i] != NULL)
 		{
 			deleteInstance(m_squads[i]);
 			m_squads[i] = NULL;
 		}
+#else
+		deleteInstance(m_squads[i]);
+#endif
 		m_squads[i] = newInstance( Squad );
 	}
 
+#if defined(GENONLINE)
 	if (m_currentSelection != NULL) {
 		deleteInstance(m_currentSelection);
 		m_currentSelection = NULL;
 	}
+#else
+	deleteInstance(m_currentSelection);
+#endif
 	m_currentSelection = newInstance( Squad );
 }
 
@@ -1539,6 +1586,7 @@ void Player::onUnitCreated( Object *factory, Object *unit )
 
 	// increment our scorekeeper
 	m_scoreKeeper.addObjectBuilt(unit);
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 The live stats pipe and the JSON export need the unit cost
 	const Int unitCost = unit->getTemplate()->calcCostToBuild(this);
 	m_scoreKeeper.addMoneySpent(unitCost);
@@ -1546,6 +1594,7 @@ void Player::onUnitCreated( Object *factory, Object *unit )
 
 	// GenOnline @feature arcticdolphin 21/11/2026 The exporter gates itself on an active recording
 	StatsExporterRecordBuild(factory, unit);
+#endif
 
 	// ai notification callback
 	if( m_ai )
@@ -1634,12 +1683,16 @@ void Player::onStructureConstructionComplete( Object *builder, Object *structure
 	// increment our scorekeeper
 	if (isRebuild == FALSE) {
 		m_scoreKeeper.addObjectBuilt(structure);
+#if defined(GENONLINE)
 		// GenOnline @feature arcticdolphin 21/11/2026 The live stats pipe and the JSON export need the structure cost
 		const Int structureCost = structure->getTemplate()->calcCostToBuild(this);
 		m_scoreKeeper.addMoneySpent(structureCost);
 		LocalApiLiveSpend(getPlayerIndex(), LOCAL_API_SPEND_STRUCTURES, structureCost);
 		// GenOnline @feature arcticdolphin 21/11/2026 The exporter gates itself on an active recording
 		StatsExporterRecordBuild(builder, structure);
+#else
+		m_scoreKeeper.addMoneySpent(structure->getTemplate()->calcCostToBuild(this));
+#endif
 	}
 
 	structure->friend_adjustPowerForPlayer(TRUE);
@@ -2119,8 +2172,12 @@ void Player::transferAssetsFromThat(Player *that)
 	std::list<Object *> objsToTransfer;
 
 	// let's not transfer beacons
+#if defined(GENONLINE)
 	const PlayerTemplate *thatPlayerTemplate = that->getPlayerTemplate();
 	const ThingTemplate *beaconTemplate = thatPlayerTemplate ? TheThingFactory->findTemplate( thatPlayerTemplate->getBeaconTemplate() ) : nullptr;
+#else
+	const ThingTemplate *beaconTemplate = TheThingFactory->findTemplate( that->getPlayerTemplate()->getBeaconTemplate() );
+#endif
 
 	// transfer all his units.
 	for (PlayerTeamList::iterator it = that->m_playerTeamPrototypes.begin();
@@ -2580,6 +2637,7 @@ Bool Player::attemptToPurchaseScience(ScienceType science)
 
 	Int cost = TheScienceStore->getSciencePurchaseCost(science);
 	addSciencePurchasePoints(-cost);
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 Only purchases are events, rank grants and setup grants go through addScience too
 	LocalApiLiveSpend(getPlayerIndex(), LOCAL_API_SPEND_SCIENCES, cost);
 	if (addScience(science))
@@ -2597,6 +2655,9 @@ Bool Player::attemptToPurchaseScience(ScienceType science)
 	}
 #endif
 
+#else
+	addScience(science);
+#endif
 	return true;
 }
 
@@ -3013,8 +3074,10 @@ Bool Player::hasUpgradeInProduction( const UpgradeTemplate *upgradeTemplate )
 Upgrade *Player::addUpgrade( const UpgradeTemplate *upgradeTemplate, UpgradeStatusType status )
 {
 	Upgrade *u = findUpgrade( upgradeTemplate );
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 An upgrade that is already complete must not be reported twice
 	const Bool wasComplete = ( u != nullptr && u->getStatus() == UPGRADE_STATUS_COMPLETE );
+#endif
 
 	// if no upgrade instance found, make a new one
 	if( u == nullptr )
@@ -3046,11 +3109,13 @@ Upgrade *Player::addUpgrade( const UpgradeTemplate *upgradeTemplate, UpgradeStat
 		m_upgradesInProgress.clear( newMask );
 		m_upgradesCompleted.set( newMask );
 		onUpgradeCompleted( upgradeTemplate );
+#if defined(GENONLINE)
 		// GenOnline @feature arcticdolphin 21/11/2026 Report each upgrade completion once
 		if( !wasComplete )
 		{
 			LocalApiLiveUpgradeComplete( getPlayerIndex(), upgradeTemplate->getUpgradeName().str(), upgradeTemplate->calcCostToBuild( this ), FALSE );
 		}
+#endif
 	}
 
 	return u;
@@ -3137,8 +3202,10 @@ Bool Player::okToPlayRadarEdgeSound()
 void Player::addRadar( Bool disableProof )
 {
 	Bool hadRadar = hasRadar();
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 Radar state before the change feeds the stats pipe
 	const Int radarStateBefore = getRadarStateForStats();
+#endif
 
 	// increment count
 	++m_radarCount;
@@ -3153,9 +3220,11 @@ void Player::addRadar( Bool disableProof )
 		soundToPlay.setPlayerIndex(getPlayerIndex());
 		TheAudio->addAudioEvent(&soundToPlay);
 	}
+#if defined(GENONLINE)
 
 	// GenOnline @feature arcticdolphin 21/11/2026 Report the radar change to the stats pipe
 	LocalApiLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3164,8 +3233,10 @@ void Player::addRadar( Bool disableProof )
 void Player::removeRadar( Bool disableProof )
 {
 	Bool hadRadar = hasRadar();
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 Radar state before the change feeds the stats pipe
 	const Int radarStateBefore = getRadarStateForStats();
+#endif
 
 	// decrement count
 	DEBUG_ASSERTCRASH( m_radarCount > 0, ("removeRadar: An Object is taking its radar away, but the player radar count says they don't have radar!") );
@@ -3181,17 +3252,21 @@ void Player::removeRadar( Bool disableProof )
 		soundToPlay.setPlayerIndex(getPlayerIndex());
 		TheAudio->addAudioEvent(&soundToPlay);
 	}
+#if defined(GENONLINE)
 
 	// GenOnline @feature arcticdolphin 21/11/2026 Report the radar change to the stats pipe
 	LocalApiLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
 void Player::disableRadar()
 {
 	Bool hadRadar = hasRadar();
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 Radar state before the change feeds the stats pipe
 	const Int radarStateBefore = getRadarStateForStats();
+#endif
 	m_radarDisabled = TRUE;
 
 	if( hadRadar &&
@@ -3202,17 +3277,21 @@ void Player::disableRadar()
 		soundToPlay.setPlayerIndex(getPlayerIndex());
 		TheAudio->addAudioEvent(&soundToPlay);
 	}
+#if defined(GENONLINE)
 
 	// GenOnline @feature arcticdolphin 21/11/2026 Report the radar change to the stats pipe
 	LocalApiLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
 void Player::enableRadar()
 {
 	Bool hadRadar = hasRadar();
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 Radar state before the change feeds the stats pipe
 	const Int radarStateBefore = getRadarStateForStats();
+#endif
 	m_radarDisabled = FALSE;
 
 	if( !hadRadar && hasRadar() && okToPlayRadarEdgeSound() )
@@ -3222,9 +3301,11 @@ void Player::enableRadar()
 		soundToPlay.setPlayerIndex(getPlayerIndex());
 		TheAudio->addAudioEvent(&soundToPlay);
 	}
+#if defined(GENONLINE)
 
 	// GenOnline @feature arcticdolphin 21/11/2026 Report the radar change to the stats pipe
 	LocalApiLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3238,6 +3319,7 @@ Bool Player::hasRadar() const
 	return m_radarCount > 0;
 }
 
+#if defined(GENONLINE)
 //-------------------------------------------------------------------------------------------------
 // GenOnline @feature arcticdolphin 21/11/2026 The stats exporter reports radar as none, producers exist but off, or active.
 Int Player::getRadarStateForStats() const
@@ -3249,6 +3331,7 @@ Int Player::getRadarStateForStats() const
 	return hasRadar() ? 2 : 1;
 }
 
+#endif
 //-------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------
 static void doPowerDisable( Object *obj, void *userData )
@@ -3671,7 +3754,7 @@ void Player::applyBattlePlanBonusesForPlayerObjects( const BattlePlanBonusesData
 //-------------------------------------------------------------------------------------------------
 /** Create a hotkey team based on this GameMessage */
 //-------------------------------------------------------------------------------------------------
-void Player::processCreateTeamGameMessage(Int hotkeyNum, GameMessage *msg) {
+void Player::processCreateTeamGameMessage(Int hotkeyNum, const GameMessage *msg) {
 	// GameMessage arguments are the object ID's of the objects that are to be in this team.
 
 	if ((hotkeyNum < 0) || (hotkeyNum >= NUM_HOTKEY_SQUADS)) {
@@ -3866,8 +3949,12 @@ void Player::removeKindOfProductionCostChange(	KindOfMaskType kindOf, Real perce
 			if(tof->m_ref == 0)
 			{
 				m_kindOfPercentProductionChangeList.erase( it );
+#if defined(GENONLINE)
 				if(tof)
 					deleteInstance(tof);
+#else
+				deleteInstance(tof);
+#endif
 			}
 			return;
 		}
@@ -4204,8 +4291,12 @@ void Player::xfer( Xfer *xfer )
 		// destroy any build list that we got from loading the bare bones map, note that deleting
 		// the head of these structures automatically deletes any links attached
 		//
+#if defined(GENONLINE)
 		if( m_pBuildList)
 			deleteInstance(m_pBuildList);
+#else
+		deleteInstance(m_pBuildList);
+#endif
 		m_pBuildList = nullptr;
 
 		// read each build list info

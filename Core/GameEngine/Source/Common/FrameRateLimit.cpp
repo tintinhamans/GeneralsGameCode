@@ -28,8 +28,10 @@ FrameRateLimit::FrameRateLimit()
 	QueryPerformanceCounter(&start);
 	m_freq = freq.QuadPart;
 	m_start = start.QuadPart;
+#if defined(GENONLINE)
 	m_lastActual = m_start;
 	m_previousFps = 0;
+#endif
 }
 
 Real FrameRateLimit::wait(UnsignedInt maxFps)
@@ -37,11 +39,13 @@ Real FrameRateLimit::wait(UnsignedInt maxFps)
 	PROFILER_SECTION;
 	LARGE_INTEGER tick;
 	QueryPerformanceCounter(&tick);
+#if defined(GENONLINE)
 	if (m_previousFps != maxFps)
 	{
 		m_start = m_lastActual;
 	}
 	m_previousFps = maxFps;
+#endif
 	double elapsedSeconds = static_cast<double>(tick.QuadPart - m_start) / m_freq;
 	const double targetSeconds = 1.0 / maxFps;
 	const double sleepSeconds = targetSeconds - elapsedSeconds - 0.002; // leave ~2ms for spin wait
@@ -61,6 +65,7 @@ Real FrameRateLimit::wait(UnsignedInt maxFps)
 	}
 	while (elapsedSeconds < targetSeconds);
 
+#if defined(GENONLINE)
 	const Int64 period = static_cast<Int64>(static_cast<double>(m_freq) / maxFps + 0.5);
 	const Int64 deadline = m_start + period;
 	const double actualSeconds = static_cast<double>(tick.QuadPart - m_lastActual) / m_freq;
@@ -71,6 +76,10 @@ Real FrameRateLimit::wait(UnsignedInt maxFps)
 	else
 		m_start = tick.QuadPart;
 	return static_cast<Real>(actualSeconds);
+#else
+	m_start = tick.QuadPart;
+	return (Real)elapsedSeconds;
+#endif
 }
 
 void FrameRateLimit::reset()
@@ -78,13 +87,19 @@ void FrameRateLimit::reset()
 	LARGE_INTEGER tick;
 	QueryPerformanceCounter(&tick);
 	m_start = tick.QuadPart;
+#if defined(GENONLINE)
 	m_lastActual = m_start;
+#endif
 }
 
 
 const UnsignedInt RenderFpsPreset::s_fpsValues[] = {
 	30, 50, 56, 60, 65, 70, 72, 75, 80, 85, 90, 100, 110, 120, 144, 240, 480, UncappedFpsValue };
 
+#if !defined(GENONLINE)
+static_assert(LOGICFRAMES_PER_SECOND <= 30, "Min FPS values need to be revisited!");
+
+#endif
 UnsignedInt RenderFpsPreset::getNextFpsValue(UnsignedInt value)
 {
 	const Int first = 0;
@@ -118,13 +133,20 @@ UnsignedInt RenderFpsPreset::changeFpsValue(UnsignedInt value, FpsValueChange ch
 	switch (change)
 	{
 	default:
+#if defined(GENONLINE)
 	case FpsValueChange_Increase: value = getNextFpsValue(value); break;
 	case FpsValueChange_Decrease: value = getPrevFpsValue(value); break;
+#else
+	case FpsValueChange_Increase: return getNextFpsValue(value);
+	case FpsValueChange_Decrease: return getPrevFpsValue(value);
+#endif
 	}
+#if defined(GENONLINE)
 	// The render rate never goes below the logic rate.
 	if (value < (UnsignedInt)LOGICFRAMES_PER_SECOND)
 		value = LOGICFRAMES_PER_SECOND;
 	return value;
+#endif
 }
 
 
@@ -150,11 +172,18 @@ UnsignedInt LogicTimeScaleFpsPreset::changeFpsValue(UnsignedInt value, FpsValueC
 	switch (change)
 	{
 	default:
+#if defined(GENONLINE)
 	case FpsValueChange_Increase: value = getNextFpsValue(value); break;
 	case FpsValueChange_Decrease: value = getPrevFpsValue(value); break;
+#else
+	case FpsValueChange_Increase: return getNextFpsValue(value);
+	case FpsValueChange_Decrease: return getPrevFpsValue(value);
+#endif
 	}
+#if defined(GENONLINE)
 	// The render rate never goes below the logic rate.
 	if (value < (UnsignedInt)LOGICFRAMES_PER_SECOND)
 		value = LOGICFRAMES_PER_SECOND;
 	return value;
+#endif
 }

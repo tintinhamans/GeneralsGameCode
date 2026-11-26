@@ -69,7 +69,6 @@ public:
 	// Drops the running sign-in or refresh. Its callback never runs.
 	void Cancel();
 
-	bool IsWaitingForBrowser() const;
 
 	void Tick();
 

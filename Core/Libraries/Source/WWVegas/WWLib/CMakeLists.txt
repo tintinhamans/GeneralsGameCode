@@ -134,6 +134,7 @@ set(WWLIB_SRC
     widestring.h
     win.h
     WWCommon.h
+    WWDefines.h
     wwfile.cpp
     WWFILE.h
     wwstring.cpp

@@ -58,7 +58,9 @@
 #include "Common/INI.h"
 #include "Common/RandomValue.h"
 #include "Common/Player.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
+#endif
 #include "Common/Xfer.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Module/AutoDepositUpdate.h"
@@ -123,7 +125,9 @@ void AutoDepositUpdate::awardInitialCaptureBonus( Player *player )
 
 	player->getMoney()->deposit( getAutoDepositUpdateModuleData()->m_initialCaptureBonus );
 	player->getScoreKeeper()->addMoneyEarned( getAutoDepositUpdateModuleData()->m_initialCaptureBonus );
+#if defined(GENONLINE)
 	LocalApiLiveNoteCaptureBonus( getAutoDepositUpdateModuleData()->m_initialCaptureBonus );
+#endif
 
 	//Display cash income floating over the blacklotus
 	if(getAutoDepositUpdateModuleData()->m_initialCaptureBonus > 0)

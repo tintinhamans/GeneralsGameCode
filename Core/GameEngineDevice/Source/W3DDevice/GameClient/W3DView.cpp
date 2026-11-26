@@ -108,7 +108,9 @@ Real TheW3DFrameLengthInMsec = MSEC_PER_LOGICFRAME_REAL; // default is 33msec/fr
 static const Real DRAWABLE_OVERSCAN = 75.0f;  ///< 3D world coords of how much to overscan in the 3D screen region
 
 constexpr const Real NearZ = MAP_XY_FACTOR; ///< Set the near to MAP_XY_FACTOR. Improves z buffer resolution.
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 #include "GameNetwork/GenOnline/GenOnlineInit.h"
 class GenOnlineLobbyInterface;
@@ -167,7 +169,9 @@ W3DView::W3DView()
 
 	m_3DCamera = nullptr;
 	m_2DCamera = nullptr;
+#if defined(GENONLINE)
 	m_defaultMaxHeightAboveGround = 0.0f;
+#endif
 
 #if PRESERVE_RETAIL_SCRIPTED_CAMERA
 	m_initialGroundLevel = 10.0f;
@@ -205,9 +209,11 @@ W3DView::~W3DView()
 	REF_PTR_RELEASE( m_2DCamera );
 	REF_PTR_RELEASE( m_3DCamera );
 
+#if defined(GENONLINE)
 	// Empty the global shaker list while its pools are alive; its static destructor runs too late at exit.
 	CameraShakerSystem.Reset();
 
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -730,6 +736,7 @@ Real W3DView::getMaxZoom(Real x, Real y) const
 	return getMaxHeight(x, y) / getCameraOffsetZ();
 }
 
+#if defined(GENONLINE)
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 Real W3DView::getDefaultMaxHeight(Real x, Real y) const
@@ -751,6 +758,7 @@ Real W3DView::getDefaultMaxZoom(Real x, Real y) const
 	return getDefaultMaxHeight(x, y) / getCameraOffsetZ();
 }
 
+#endif
 //-------------------------------------------------------------------------------------------------
 /** set the transform matrix of m_3DCamera, based on m_pos & m_angle */
 //-------------------------------------------------------------------------------------------------
@@ -2285,6 +2293,7 @@ void W3DView::setDefaultView(Real pitch, Real angle, Real maxHeight)
 	// MDC - we no longer want to rotate maps (design made all of them right to begin with)
 	//	m_defaultAngle = angle * WWMATH_PI/180.0f;
 	setDefaultPitch(pitch);
+#if defined(GENONLINE)
 
     // TODO_GENONLINE: Better way of doing this
 #if defined(GENONLINE)
@@ -2313,10 +2322,15 @@ void W3DView::setDefaultView(Real pitch, Real angle, Real maxHeight)
 #endif
 
 	//m_maxHeightAboveGround = TheGlobalData->m_maxCameraHeight*maxHeight;
+#else
+	m_maxHeightAboveGround = TheGlobalData->m_maxCameraHeight*maxHeight;
+#endif
 	if (m_minHeightAboveGround > m_maxHeightAboveGround)
 		m_maxHeightAboveGround = m_minHeightAboveGround;
+#if defined(GENONLINE)
 
 	m_defaultMaxHeightAboveGround = m_maxHeightAboveGround;
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2330,7 +2344,9 @@ void W3DView::setHeightAboveGround(Real z)
 		m_maxHeightAboveGround = z > cameraHeightForReset ? (float)GENONLINE_MAX_LOBBY_CAMERA_ZOOM : cameraHeightForReset;
 	}
 #endif
+#if defined(GENONLINE)
 
+#endif
 	View::setHeightAboveGround(z);
 
 	stopDoingScriptedCamera();
@@ -2361,8 +2377,13 @@ void W3DView::setZoom(Real z)
 void W3DView::setZoomToDefault()
 {
 	// default zoom has to be max, otherwise players will just zoom to max always
+#if defined(GENONLINE)
 	m_heightAboveGround = m_defaultMaxHeightAboveGround;
 	m_zoom = getDefaultMaxZoom(m_pos.x, m_pos.y);
+#else
+	m_heightAboveGround = m_maxHeightAboveGround;
+	m_zoom = getMaxZoom(m_pos.x, m_pos.y);
+#endif
 
 	stopDoingScriptedCamera();
 	m_CameraArrivedAtWaypointOnPathFlag = false;
@@ -2938,13 +2959,21 @@ void W3DView::cameraModFinalZoom( Real finalZoom, Real easeIn, Real easeOut )
 	if (hasScriptedState(Scripted_Rotate))
 	{
 		Real time = (m_rcInfo.numFrames + m_rcInfo.numHoldFrames - m_rcInfo.curFrame)*TheW3DFrameLengthInMsec;
+#if defined(GENONLINE)
 		zoomCamera( finalZoom*getDefaultMaxZoom(m_pos.x, m_pos.y), time, time*easeIn, time*easeOut );
+#else
+		zoomCamera( finalZoom*getMaxZoom(m_pos.x, m_pos.y), time, time*easeIn, time*easeOut );
+#endif
 	}
 	if (hasScriptedState(Scripted_MoveOnWaypointPath))
 	{
 		Coord3D pos = m_mcwpInfo.waypoints[m_mcwpInfo.numWaypoints];
 		Real time = m_mcwpInfo.totalTimeMilliseconds - m_mcwpInfo.elapsedTimeMilliseconds;
+#if defined(GENONLINE)
 		zoomCamera( finalZoom*getDefaultMaxZoom(pos.x, pos.y), time, time*easeIn, time*easeOut );
+#else
+		zoomCamera( finalZoom*getMaxZoom(pos.x, pos.y), time, time*easeIn, time*easeOut );
+#endif
 	}
 }
 
@@ -3179,7 +3208,11 @@ void W3DView::resetCamera(const Coord3D *location, Int milliseconds, Real easeIn
 	// m_mcwpInfo.cameraAngle[2] = m_defaultAngle;
 	View::setAngle(m_mcwpInfo.cameraAngle[0]);
 
+#if defined(GENONLINE)
 	zoomCamera( getDefaultMaxZoom(location->x, location->y), milliseconds, easeIn, easeOut );
+#else
+	zoomCamera( getMaxZoom(location->x, location->y), milliseconds, easeIn, easeOut );
+#endif
 
 	pitchCamera( 1.0f, milliseconds, easeIn, easeOut );
 }

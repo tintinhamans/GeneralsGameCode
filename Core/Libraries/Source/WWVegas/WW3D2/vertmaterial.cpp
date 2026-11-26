@@ -30,11 +30,6 @@
  *                                                                                             *
  *                    $Revision:: 42                                                          $*
  *                                                                                             *
- *---------------------------------------------------------------------------------------------*
- * Functions:                                                                                  *
- *   Init -- init code                                                                         *
- *   Shutdown -- shutdown code                                                                 *
- *   Get_Preset -- retrieve presets                                                            *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include <d3d9.h>  // Native DX9
@@ -998,21 +993,6 @@ void VertexMaterialClass::Apply_Null()
 }
 
 
-/***********************************************************************************************
- * Init -- init code                                                                           *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   2/14/2001  hy : Created.                                                                  *
- *=============================================================================================*/
 void VertexMaterialClass::Init()
 {
 	int i;
@@ -1026,21 +1006,6 @@ void VertexMaterialClass::Init()
 }
 
 
-/***********************************************************************************************
- * Shutdown -- shutdown code                                                                   *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   2/14/2001  hy : Created.                                                                  *
- *=============================================================================================*/
 void VertexMaterialClass::Shutdown()
 {
 	int i;
@@ -1049,21 +1014,6 @@ void VertexMaterialClass::Shutdown()
 }
 
 
-/***********************************************************************************************
- * Get_Preset -- retrieve presets                                                              *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   2/14/2001  hy : Created.                                                                  *
- *=============================================================================================*/
 VertexMaterialClass * VertexMaterialClass::Get_Preset(PresetType type)
 {
 	WWASSERT(type<PRESET_COUNT);

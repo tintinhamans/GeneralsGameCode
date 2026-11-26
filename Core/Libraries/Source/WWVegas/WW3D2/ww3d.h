@@ -30,8 +30,6 @@
  *                                                                                             *
  *                    $Revision:: 42                                                          $*
  *                                                                                             *
- *---------------------------------------------------------------------------------------------*
- * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #pragma once
@@ -41,7 +39,9 @@
 #include "WW3D2/layer.h"
 #include "WW3D2/w3derr.h"
 #include "WW3D2/robjlist.h"
+#if defined(GENONLINE)
 #include "../../../GameEngine/Include/GameNetwork/GenOnline/GenOnlineDefines.h"
+#endif
 
 class		SceneClass;
 class		CameraClass;

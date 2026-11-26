@@ -551,15 +551,13 @@ void W3DTreeBuffer::updateTexture()
 				m_treeTypes[i].m_halfTile = halfTile;
 				WorldHeightMap::readTiles(pStr, m_sourceTiles+m_treeTypes[i].m_firstTile, width);
 				m_numTiles += numTiles;
-			}
-			else {
+			} else {
 				m_treeTypes[i].m_firstTile = 0;
 				m_treeTypes[i].m_tileWidth = 0;
 				m_treeTypes[i].m_numTiles = 0;
 			}
 			theFile->close();
-		}
-		else {
+		} else {
 			DEBUG_CRASH(("Could not find texture %s", m_treeTypes[i].m_data->m_textureName.str()));
 			m_treeTypes[i].m_firstTile = 0;
 			m_treeTypes[i].m_tileWidth = 0;
@@ -952,8 +950,7 @@ void W3DTreeBuffer::loadTreesInVertexAndIndexBuffers(RefRenderObjListIterator *p
 					UnsignedInt vertexDiffuse;
 					if (vecDiffuse) {
 						vertexDiffuse = vecDiffuse[i];
-					}
-					else {
+					} else {
 						vertexDiffuse = 0xffffffff;
 					}
 					curVb->diffuse = doLighting(&normal, objectLighting, &emissive,
@@ -995,6 +992,7 @@ void W3DTreeBuffer::updateVertexBuffer()
 		}
 		VertexFormatXYZNDUV1 *vb;
 		// Lock the buffers.
+#if defined(GENONLINE)
 	#ifdef USE_STATIC
 		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], 0);
 	#else
@@ -1007,6 +1005,17 @@ void W3DTreeBuffer::updateVertexBuffer()
 		if (!vb) {
 			continue;
 		}
+#else
+	#ifdef USE_STATIC
+		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], 0);
+	#else
+		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], D3DLOCK_DISCARD);
+	#endif
+		vb=(VertexFormatXYZNDUV1*)lockVtxBuffer.Get_Vertex_Array();
+		if (!vb) {
+			continue;
+		}
+#endif
 
 		VertexFormatXYZNDUV1 *curVb;
 
@@ -1178,6 +1187,21 @@ void W3DTreeBuffer::unitMoved(Object *unit)
 	Int yIndex = REAL_TO_INT_FLOOR ( (y/(m_bounds.hi.y-m_bounds.lo.y)) * (PARTITION_WIDTH_HEIGHT-0.1f) );
 	DEBUG_ASSERTCRASH(xIndex>=0 && yIndex>=0 && xIndex<PARTITION_WIDTH_HEIGHT && yIndex<PARTITION_WIDTH_HEIGHT, ("Invalid range."));
 
+#if defined(GENONLINE)
+	x = pos.x + radius;
+	y = pos.y + radius;
+	if (x < m_bounds.lo.x) x = m_bounds.lo.x;
+	if (y < m_bounds.lo.y) y = m_bounds.lo.y;
+	if (x > m_bounds.hi.x) x = m_bounds.hi.x;
+	if (y > m_bounds.hi.y) y = m_bounds.hi.y;
+	Int xMax = REAL_TO_INT_CEIL((x / (m_bounds.hi.x - m_bounds.lo.x)) * (PARTITION_WIDTH_HEIGHT - 0.1f));
+	Int yMax = REAL_TO_INT_CEIL((y / (m_bounds.hi.y - m_bounds.lo.y)) * (PARTITION_WIDTH_HEIGHT - 0.1f));
+	DEBUG_ASSERTCRASH(xMax >= 0 && yMax >= 0 && xMax <= PARTITION_WIDTH_HEIGHT && yMax <= PARTITION_WIDTH_HEIGHT, ("Invalid range."));
+	xIndex = clamp<Int>(0, xIndex, PARTITION_WIDTH_HEIGHT);
+	yIndex = clamp<Int>(0, yIndex, PARTITION_WIDTH_HEIGHT);
+	xMax = clamp<Int>(0, xMax, PARTITION_WIDTH_HEIGHT);
+	yMax = clamp<Int>(0, yMax, PARTITION_WIDTH_HEIGHT);
+#else
 	x = pos.x+radius;
 	y = pos.y+radius;
 	if (x<m_bounds.lo.x) x = m_bounds.lo.x;
@@ -1187,10 +1211,7 @@ void W3DTreeBuffer::unitMoved(Object *unit)
 	Int xMax = REAL_TO_INT_CEIL ( (x/(m_bounds.hi.x-m_bounds.lo.x)) * (PARTITION_WIDTH_HEIGHT-0.1f) );
 	Int yMax = REAL_TO_INT_CEIL ( (y/(m_bounds.hi.y-m_bounds.lo.y)) * (PARTITION_WIDTH_HEIGHT-0.1f) );
 	DEBUG_ASSERTCRASH(xMax>=0 && yMax>=0 && xMax<=PARTITION_WIDTH_HEIGHT && yMax<=PARTITION_WIDTH_HEIGHT, ("Invalid range."));
-	xIndex = clamp<Int>(0, xIndex, PARTITION_WIDTH_HEIGHT);
-	yIndex = clamp<Int>(0, yIndex, PARTITION_WIDTH_HEIGHT);
-	xMax = clamp<Int>(0, xMax, PARTITION_WIDTH_HEIGHT);
-	yMax = clamp<Int>(0, yMax, PARTITION_WIDTH_HEIGHT);
+#endif
 	Int i, j;
 	for (i=xIndex; i<xMax; i++) {
 		for (j=yIndex; j<yMax; j++) {
@@ -1432,8 +1453,7 @@ void W3DTreeBuffer::addTree(DrawableID id, Coord3D location, Real scale, Real an
 		Short bucket = getPartitionBucket(location);
 		m_trees[m_numTrees].nextInPartition = m_areaPartition[bucket];
 		m_areaPartition[bucket] = m_numTrees;
-	}
-	else {
+	} else {
 		m_trees[m_numTrees].nextInPartition = END_OF_PARTITION;
 	}
 
@@ -1529,8 +1549,7 @@ void W3DTreeBuffer::pushAsideTree(DrawableID id, const Coord3D *pusherPos,
 			if (pusherDirection->x*delta.y - pusherDirection->y*delta.x > 0.0f) {
 				m_trees[i].pushAsideCos = -pusherDirection->y;
 				m_trees[i].pushAsideSin = pusherDirection->x;
-			}
-			else {
+			} else {
 				m_trees[i].pushAsideCos = pusherDirection->y;
 				m_trees[i].pushAsideSin = -pusherDirection->x;
 			}
@@ -1658,9 +1677,15 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 	// Draw tree shadows.
 	// Ronin @feature 14/08/2026 DX9: §29h-4.2 no 2D blob when the shadow map already casts these
 	// trees — that IS the double shadow. And never queue decals from inside the depth pass.
+#if defined(GENONLINE)
 	if (m_shadow && TheW3DProjectedShadowManager && TheGlobalData->drawsShadowDecals() &&
 		!depthPass && !TheTerrainShadowPass.active) {
 		for (curTree=0; curTree<m_numTrees; curTree++) {
+#else
+	if (m_shadow && TheW3DProjectedShadowManager && TheGlobalData->m_useShadowDecals &&
+		!depthPass && !TheTerrainShadowPass.active) {
+		for (curTree=0; curTree<m_numTrees; curTree++) {
+#endif
 			Int type = m_trees[curTree].treeType;
 			if (type<0) {
 				// deleted.
@@ -1722,8 +1747,7 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 	if (m_anythingChanged) {
 		loadTreesInVertexAndIndexBuffers(pDynamicLightsIterator);
 		m_anythingChanged = false;
-	}
-	else if (m_anyPushChanged) {
+	} else if (m_anyPushChanged) {
 		m_anyPushChanged = false;
 		updateVertexBuffer();
 	}
@@ -2106,8 +2130,7 @@ void W3DTreeBuffer::updateTopplingTree(TTree *tree, Real timeScale)
 		// Don't update fogged trees. [8/11/2003]
 		tree->m_toppleState = TOPPLE_FOGGED;
 		return;
-	}
-	else if (tree->m_toppleState == TOPPLE_FOGGED) {
+	} else if (tree->m_toppleState == TOPPLE_FOGGED) {
 		// was fogged, now isn't.
 		tree->m_angularVelocity = 0;
 		tree->m_toppleState = TOPPLE_DOWN;

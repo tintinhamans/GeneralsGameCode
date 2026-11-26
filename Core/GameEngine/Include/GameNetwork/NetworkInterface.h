@@ -65,7 +65,7 @@ public:
 	virtual UnsignedInt getMeasuredLogicRate() = 0;	///< Logic frames executed per second, over about a second
 #endif
 	virtual Bool isStalling() = 0;
-	virtual void parseUserList(const GameInfo* game) = 0;						///< Parse a userlist, creating connections
+	virtual void parseUserList( const GameInfo *game ) = 0;						///< Parse a userlist, creating connections
 	virtual void startGame() = 0;																	///< Sets the network game frame counter to -1
 	virtual UnsignedInt getRunAhead() = 0;												///< Get the current RunAhead value
 	virtual UnsignedInt getFrameRate() = 0;												///< Get the current allowed frame rate.
@@ -104,8 +104,10 @@ public:
 
 	virtual Int getAverageFPS() = 0;
 	virtual Int getSlotAverageFPS(Int slot) = 0;
+#if defined(GENONLINE)
 	virtual const ConnectionStats* getConnectionStats(Int slot) const = 0;	///< Latency, jitter and loss of the connection to a slot, nullptr when there is none.
 
+#endif
 #if defined(GENONLINE)
 	virtual Bool getOverlayInfo(Int slot, NetworkOverlayInfo &info) = 0;
 	virtual void SeedLatencyData(int highestLatency) = 0;
@@ -116,16 +118,26 @@ public:
 	virtual bool IsSlugging() = 0;
 #endif
 
+#if defined(GENONLINE)
 	virtual void attachTransport(Transport* transport) = 0;
 	virtual void initTransport(const char *transportName) = 0;
+#else
+	virtual void attachTransport(Transport *transport) = 0;
+	virtual void initTransport() = 0;
+#endif
 	virtual Bool sawCRCMismatch() = 0;
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	virtual void setSawCRCMismatch(UnicodeString& strMismatchDetails) = 0;
 #else
 	virtual void setSawCRCMismatch() = 0;
 #endif
 
+#if !defined(GENONLINE)
+	virtual Bool isPlayerConnected(Int playerID) = 0;
+#endif
 #if defined(GENONLINE)
 	virtual ConnectionManager* GetConnectionManager() = 0;
 #endif	virtual Bool isPlayerConnected(Int playerID) = 0;
@@ -143,8 +155,10 @@ public:
 	virtual UnsignedInt getPingFrame() = 0;
 	virtual Int getPingsSent() = 0;
 	virtual Int getPingsReceived() = 0;
+#if defined(GENONLINE)
 
 	virtual Bool isPlayerConnected(Int playerID) = 0;
+#endif
 };
 
 

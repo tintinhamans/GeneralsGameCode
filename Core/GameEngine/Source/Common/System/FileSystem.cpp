@@ -55,8 +55,10 @@
 #include "Common/PerfTimer.h"
 
 
+#if defined(GENONLINE)
 #include <cctype>
 
+#endif
 
 DECLARE_PERF_TIMER(FileSystem)
 
@@ -152,6 +154,7 @@ static const Char* getFileExistKey(Char* keyBuffer, size_t keyBufferSize, const 
 //----------------------------------------------------------------------------
 
 
+#if defined(GENONLINE)
 //============================================================================
 //============================================================================
 
@@ -334,6 +337,7 @@ Bool FileSystem::isLooseFileExcluded(const Char *filename) const
 	return m_excludedPaths.matchesPath(filename);
 }
 
+#endif
 //============================================================================
 // FileSystem::FileSystem
 //============================================================================
@@ -400,17 +404,27 @@ File*		FileSystem::openFile( const Char *filename, Int access, size_t bufferSize
 
 	if ( TheLocalFileSystem != nullptr )
 	{
+#if defined(GENONLINE)
 		// an excluded loose file does not exist, unless the file is written
 		const Bool excluded = (access & (File::WRITE | File::APPEND | File::CREATE | File::TRUNCATE)) == 0 && isLooseFileExcluded(filename);
 
+#endif
 		if (instance != 0)
 		{
+#if defined(GENONLINE)
 			if (!excluded && TheLocalFileSystem->doesFileExist(filename))
+#else
+			if (TheLocalFileSystem->doesFileExist(filename))
+#endif
 			{
 				--instance;
 			}
 		}
+#if defined(GENONLINE)
 		else if (!excluded)
+#else
+		else
+#endif
 		{
 			file = TheLocalFileSystem->openFile( filename, access, bufferSize );
 
@@ -469,7 +483,11 @@ Bool FileSystem::doesFileExist(const Char *filename, FileInstance instance) cons
 	}
 #endif
 
+#if defined(GENONLINE)
 	if (!isLooseFileExcluded(filename) && TheLocalFileSystem->doesFileExist(filename))
+#else
+	if (TheLocalFileSystem->doesFileExist(filename))
+#endif
 	{
 		if (instance == 0)
 		{
@@ -513,6 +531,7 @@ Bool FileSystem::doesFileExist(const Char *filename, FileInstance instance) cons
 void FileSystem::getFileListInDirectory(const AsciiString& directory, const AsciiString& searchName, FilenameList &filenameList, Bool searchSubdirectories) const
 {
 	USE_PERF_TIMER(FileSystem)
+#if defined(GENONLINE)
 	if (m_excludedPaths.isEmpty())
 	{
 	TheLocalFileSystem->getFileListInDirectory(AsciiString::TheEmptyString, directory, searchName, filenameList, searchSubdirectories);
@@ -527,6 +546,9 @@ void FileSystem::getFileListInDirectory(const AsciiString& directory, const Asci
 				filenameList.insert(*it);
 		}
 	}
+#else
+	TheLocalFileSystem->getFileListInDirectory(AsciiString::TheEmptyString, directory, searchName, filenameList, searchSubdirectories);
+#endif
 	TheArchiveFileSystem->getFileListInDirectory(AsciiString::TheEmptyString, directory, searchName, filenameList, searchSubdirectories);
 }
 
@@ -544,7 +566,11 @@ Bool FileSystem::getFileInfo(const AsciiString& filename, FileInfo *fileInfo, Fi
 	}
 	memset(fileInfo, 0, sizeof(*fileInfo));
 
+#if defined(GENONLINE)
 	if (!isLooseFileExcluded(filename.str()) && TheLocalFileSystem->getFileInfo(filename, fileInfo)) {
+#else
+	if (TheLocalFileSystem->getFileInfo(filename, fileInfo)) {
+#endif
 		if (instance == 0) {
 			return TRUE;
 		}

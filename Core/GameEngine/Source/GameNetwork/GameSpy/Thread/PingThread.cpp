@@ -34,7 +34,9 @@
 #include "WWLib/mutex.h"
 #include "WWLib/thread.h"
 
+#if defined(GENONLINE)
 #include "Common/StackDump.h"
+#endif
 #include "Common/SubsystemInterface.h"
 
 //-------------------------------------------------------------------------
@@ -245,7 +247,9 @@ AsciiString Pinger::getPingString( Int timeout )
 void PingThreadClass::Thread_Function()
 {
 	try {
+#if defined(GENONLINE)
 	_set_se_translator( DumpExceptionInfo ); // Hook that allows stack trace.
+#endif
 	PingRequest req;
 
 	WSADATA wsaData;
@@ -262,7 +266,11 @@ void PingThreadClass::Thread_Function()
 			// resolve the hostname
 			const char *hostnameBuffer = req.hostname.c_str();
 			UnsignedInt IP = 0xFFFFFFFF;
+#if defined(GENONLINE)
 			if (isdigit((unsigned char)hostnameBuffer[0]))
+#else
+			if (isdigit(hostnameBuffer[0]))
+#endif
 			{
 				IP = inet_addr(hostnameBuffer);
 				in_addr hostNode;

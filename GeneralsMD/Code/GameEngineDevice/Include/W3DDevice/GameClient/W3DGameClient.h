@@ -45,14 +45,19 @@
 #include "W3DDevice/GameClient/W3DGameWindowManager.h"
 #include "W3DDevice/GameClient/W3DGameFont.h"
 #include "W3DDevice/GameClient/W3DDisplayStringManager.h"
+#if !defined(GENONLINE)
+#include "VideoDevice/Bink/BinkVideoPlayer.h"
+#endif
 #ifdef RTS_HAS_FFMPEG
 #include "VideoDevice/FFmpeg/FFmpegVideoPlayer.h"
 #endif
+#if defined(GENONLINE)
 #ifdef RTS_HAS_LEGACY_MEDIA
 #include "VideoDevice/Bink/BinkVideoPlayer.h"
 #endif
 #if defined(RTS_HAS_MODERN_MEDIA) && defined(RTS_HAS_LEGACY_MEDIA)
 #include "OpenALAudioDevice/MediaBackend.h"
+#endif
 #endif
 #include "Win32Device/GameClient/Win32DIKeyboard.h"
 #include "Win32Device/GameClient/Win32DIMouse.h"
@@ -117,6 +122,7 @@ protected:
 
   /// Manager for display strings
 	virtual DisplayStringManager *createDisplayStringManager() override { return NEW W3DDisplayStringManager; }
+#if defined(GENONLINE)
 	virtual VideoPlayerInterface *createVideoPlayer() override
 	{
 #if defined(RTS_HAS_MODERN_MEDIA) && defined(RTS_HAS_LEGACY_MEDIA)
@@ -124,12 +130,23 @@ protected:
 		if (!isOpenALMediaSelected())
 			return NEW BinkVideoPlayer;
 #endif
+#endif
 #ifdef RTS_HAS_FFMPEG
+#if defined(GENONLINE)
 		return NEW FFmpegVideoPlayer;
 #else
-		return NEW BinkVideoPlayer;
+	virtual VideoPlayerInterface *createVideoPlayer() { return NEW FFmpegVideoPlayer; }
 #endif
+#else
+#if defined(GENONLINE)
+		return NEW BinkVideoPlayer;
+#else
+	virtual VideoPlayerInterface *createVideoPlayer() override { return NEW BinkVideoPlayer; }
+#endif
+#endif
+#if defined(GENONLINE)
 	}
+#endif
 	/// factory for creating the TerrainVisual
 	virtual TerrainVisual *createTerrainVisual() override { return NEW W3DTerrainVisual; }
 

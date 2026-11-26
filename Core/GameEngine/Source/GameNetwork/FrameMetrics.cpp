@@ -26,15 +26,19 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#if defined(GENONLINE)
 #include <algorithm>
+#endif
 #include <numeric>
 
 #include "GameNetwork/FrameMetrics.h"
 #include "GameClient/Display.h"
 #include "GameNetwork/networkutil.h"
+#if defined(GENONLINE)
 #include "../GenOnlineInclude.h"
 #include "../NetworkMesh.h"
 #include "../GenOnlineInterfaces.h"
+#endif
 
 FrameMetrics::FrameMetrics()
 {
@@ -45,6 +49,7 @@ FrameMetrics::FrameMetrics()
 	m_lastFpsTimeThing = 0;
 	m_minimumCushion = 0;
 
+#if defined(GENONLINE)
 #if !defined(USE_NEW_FRAMEMETRIC_LOGIC)
     m_pendingLatencies = NEW time_t[MAX_FRAMES_AHEAD];
     for (Int i = 0; i < MAX_FRAMES_AHEAD; i++)
@@ -61,15 +66,29 @@ FrameMetrics::FrameMetrics()
 #endif
 
 
+#else
+	m_pendingLatencies = NEW time_t[MAX_FRAMES_AHEAD];
+	for(Int i = 0; i < MAX_FRAMES_AHEAD; i++)
+		m_pendingLatencies[i] = 0;
+#endif
 	m_fpsList = NEW Real[TheGlobalData->m_networkFPSHistoryLength];
+#if !defined(GENONLINE)
+	m_latencyList = NEW Real[TheGlobalData->m_networkLatencyHistoryLength];
+#endif
 #if defined(GENONLINE)
 	m_fpsListLength = TheGlobalData->m_networkFPSHistoryLength;
 #endif
 }
 
+#if defined(GENONLINE)
 FrameMetrics::~FrameMetrics() {
+#if defined(GENONLINE)
 	delete[] m_fpsList;
 	m_fpsList = NULL;
+#else
+	delete m_fpsList;
+	m_fpsList = nullptr;
+#endif
 
 #if !defined(USE_NEW_FRAMEMETRIC_LOGIC)
     delete[] m_latencyList;
@@ -88,8 +107,26 @@ FrameMetrics::~FrameMetrics() {
 }
 
 void FrameMetrics::init() {
+#else
+FrameMetrics::~FrameMetrics() {
+	delete m_fpsList;
+	m_fpsList = nullptr;
+
+	delete m_latencyList;
+	m_latencyList = nullptr;
+
+	delete[] m_pendingLatencies;
+	m_pendingLatencies = nullptr;
+}
+
+void FrameMetrics::init() {
+#endif
+#if defined(GENONLINE)
 	m_averageFps = LOGICFRAMES_PER_SECOND;
 
+#else
+	m_averageFps = 30;
+#endif
 #if defined(GENONLINE)
 	// GENONLINE_NOTE: Connections now form earlier, so latency data is available from the start.
 
@@ -120,7 +157,10 @@ void FrameMetrics::init() {
 	m_averageLatency = (Real)0.2;
 #endif
 	m_minimumCushion = -1;
+#if defined(GENONLINE)
 
+#endif
+#if defined(GENONLINE)
 #if defined(GENONLINE)
 	// the game network settings can change the history length after construction
 	if (m_fpsListLength != TheGlobalData->m_networkFPSHistoryLength) {
@@ -132,7 +172,11 @@ void FrameMetrics::init() {
 
 	UnsignedInt i = 0;
 	for (; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
+#if defined(GENONLINE)
 		m_fpsList[i] = LOGICFRAMES_PER_SECOND;
+#else
+		m_fpsList[i] = 30.0;
+#endif
 	}
 	m_fpsListIndex = 0;
 	for (i = 0; i < TheGlobalData->m_networkLatencyHistoryLength; ++i)
@@ -152,7 +196,9 @@ void FrameMetrics::reset() {
 }
 
 void FrameMetrics::doPerFrameMetrics(UnsignedInt frame) {
+#if defined(GENONLINE)
 	//NetworkLog(ELogVerbosity::LOG_DEBUG, "doPerFrameMetrics for frame %d", frame);
+#endif
 	// Do the measurement of the fps.
 	time_t curTime = timeGetTime();
 	if ((curTime - m_lastFpsTimeThing) >= 1000) {
@@ -198,6 +244,7 @@ void FrameMetrics::doPerFrameMetrics(UnsignedInt frame) {
 #endif
 }
 
+#if defined(GENONLINE)
 void FrameMetrics::processLatencyResponse(UnsignedInt frame)
 {
 #if defined(USE_NEW_FRAMEMETRIC_LOGIC)
@@ -208,8 +255,16 @@ void FrameMetrics::processLatencyResponse(UnsignedInt frame)
 	}
 #endif
 
+#else
+void FrameMetrics::processLatencyResponse(UnsignedInt frame) {
+#endif
 	time_t curTime = timeGetTime();
+#if !defined(GENONLINE)
+	Int pendingIndex = frame % MAX_FRAMES_AHEAD;
+	time_t timeDiff = curTime - m_pendingLatencies[pendingIndex];
+#endif
 
+#if defined(GENONLINE)
 #if defined(USE_NEW_FRAMEMETRIC_LOGIC)
     //NetworkLog(ELogVerbosity::LOG_DEBUG, "processLatencyResponse for frame %d, pending index is %d", frame, currentLatencyMapIndex);
     time_t timeDiff = curTime - m_mapPendingLatenciesLookup[frame];
@@ -261,6 +316,61 @@ void FrameMetrics::processLatencyResponse(UnsignedInt frame)
     NetworkLog(ELogVerbosity::LOG_DEBUG, "processLatencyResponse timediff was %lld which is %f ms latency", timeDiff, (Real)timeDiff / (Real)1000);
     m_averageLatency += m_latencyList[latencyListIndex] / TheGlobalData->m_networkLatencyHistoryLength;
 #endif
+#else
+	Int latencyListIndex = frame % TheGlobalData->m_networkLatencyHistoryLength;
+	m_latencyList[latencyListIndex] = (Real)timeDiff / (Real)1000; // convert to seconds from milliseconds.
+	const Real latencySum = std::accumulate(m_latencyList, m_latencyList + TheGlobalData->m_networkLatencyHistoryLength, 0.0f);
+	m_averageLatency = latencySum / (Real)TheGlobalData->m_networkLatencyHistoryLength;
+#endif
+#else
+
+	UnsignedInt i = 0;
+	for (; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
+		m_fpsList[i] = 30.0;
+	}
+	m_fpsListIndex = 0;
+	for (i = 0; i < TheGlobalData->m_networkLatencyHistoryLength; ++i) {
+		m_latencyList[i] = (Real)0.2;
+	}
+	m_cushionIndex = 0;
+}
+
+void FrameMetrics::reset() {
+	init();
+}
+
+void FrameMetrics::doPerFrameMetrics(UnsignedInt frame) {
+	// Do the measurement of the fps.
+	time_t curTime = timeGetTime();
+	if ((curTime - m_lastFpsTimeThing) >= 1000) {
+//		if ((m_fpsListIndex % 16) == 0) {
+//			DEBUG_LOG(("FrameMetrics::doPerFrameMetrics - adding %f to fps history. average before: %f ", m_fpsList[m_fpsListIndex], m_averageFps));
+//		}
+		m_averageFps -= ((m_fpsList[m_fpsListIndex])) / TheGlobalData->m_networkFPSHistoryLength; // subtract out the old value from the average.
+		m_fpsList[m_fpsListIndex] = TheDisplay->getAverageFPS();
+//		m_fpsList[m_fpsListIndex] = TheGameClient->getFrame() - m_fpsStartingFrame;
+		m_averageFps += ((Real)(m_fpsList[m_fpsListIndex])) / TheGlobalData->m_networkFPSHistoryLength; // add the new value to the average.
+//		DEBUG_LOG(("average after: %f", m_averageFps));
+		++m_fpsListIndex;
+		m_fpsListIndex %= TheGlobalData->m_networkFPSHistoryLength;
+		m_lastFpsTimeThing = curTime;
+	}
+
+	Int pendingLatenciesIndex = frame % MAX_FRAMES_AHEAD;
+	m_pendingLatencies[pendingLatenciesIndex] = curTime;
+
+}
+
+void FrameMetrics::processLatencyResponse(UnsignedInt frame) {
+	time_t curTime = timeGetTime();
+	Int pendingIndex = frame % MAX_FRAMES_AHEAD;
+	time_t timeDiff = curTime - m_pendingLatencies[pendingIndex];
+
+	Int latencyListIndex = frame % TheGlobalData->m_networkLatencyHistoryLength;
+	m_latencyList[latencyListIndex] = (Real)timeDiff / (Real)1000; // convert to seconds from milliseconds.
+	const Real latencySum = std::accumulate(m_latencyList, m_latencyList + TheGlobalData->m_networkLatencyHistoryLength, 0.0f);
+	m_averageLatency = latencySum / (Real)TheGlobalData->m_networkLatencyHistoryLength;
+#endif
 
 	if (frame % 16 == 0) {
 //		DEBUG_LOG(("ConnectionManager::processFrameInfoAck - average latency = %f", m_averageLatency));
@@ -304,13 +414,16 @@ Real FrameMetrics::getAverageLatency() {
 	return m_averageLatency;
 }
 
+#if defined(GENONLINE)
 Bool FrameMetrics::isPending(UnsignedInt frame) {
 	return m_mapPendingLatenciesLookup.find(frame) != m_mapPendingLatenciesLookup.end();
 }
 
+#endif
 Int FrameMetrics::getMinimumCushion() {
 	return m_minimumCushion;
 }
+#if defined(GENONLINE)
 void FrameMetrics::SeedLatencyData(int latency)
 {
 	m_averageFps = LOGICFRAMES_PER_SECOND;
@@ -328,3 +441,4 @@ void FrameMetrics::SeedLatencyData(int latency)
 	}
 #endif
 }
+#endif

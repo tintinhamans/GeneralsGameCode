@@ -90,11 +90,18 @@ MutexClass::LockClass::~LockClass()
 
 // ----------------------------------------------------------------------------
 
+#if defined(GENONLINE)
 CriticalSectionClass::CriticalSectionClass() : locked(false)
+#else
+CriticalSectionClass::CriticalSectionClass() : handle(nullptr), locked(false)
+#endif
 {
 	#ifdef _UNIX
 		//assert(0);
 	#else
+#if !defined(GENONLINE)
+		handle=W3DNEWARRAY char[sizeof(CRITICAL_SECTION)];
+#endif
 		InitializeCriticalSection((CRITICAL_SECTION*)handle);
 	#endif
 }
@@ -104,8 +111,15 @@ CriticalSectionClass::~CriticalSectionClass()
 	#ifdef _UNIX
 		//assert(0);
 	#else
+#if defined(GENONLINE)
 		WWASSERT(!locked); // Can't delete locked critical section!
+#else
+		WWASSERT(!locked); // Can't delete locked mutex!
+#endif
 		DeleteCriticalSection((CRITICAL_SECTION*)handle);
+#if !defined(GENONLINE)
+		delete[] handle;
+#endif
 	#endif
 }
 

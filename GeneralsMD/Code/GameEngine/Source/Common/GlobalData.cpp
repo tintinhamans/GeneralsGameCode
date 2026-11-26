@@ -72,6 +72,7 @@ GlobalData* TheWritableGlobalData = nullptr;				///< The global data singleton
 //-------------------------------------------------------------------------------------------------
 GlobalData* GlobalData::m_theOriginal = nullptr;
 
+#if defined(GENONLINE)
 #ifndef WC_NO_BEST_FIT_CHARS
 #define WC_NO_BEST_FIT_CHARS 0x00000400
 #endif
@@ -115,6 +116,7 @@ static AsciiString widePathToFileApiPath(const wchar_t* widePath)
 	return AsciiString::TheEmptyString;
 }
 
+#endif
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,6 +143,7 @@ static AsciiString widePathToFileApiPath(const wchar_t* widePath)
 	{ "DX9UseS20PerMaterialSplat",		INI::parseBool,				nullptr,			offsetof(GlobalData, m_useS20PerMaterialSplat) },
 	{ "StretchTerrain",						INI::parseBool,				nullptr,			offsetof( GlobalData, m_stretchTerrain ) },
 	{ "UseHalfHeightMap",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_useHalfHeightMap ) },
+
 
 	{ "DrawEntireTerrain",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_drawEntireTerrain ) },
 	{ "TerrainLOD",									INI::parseIndexList,	TerrainLODNames,	offsetof( GlobalData, m_terrainLOD ) },
@@ -681,13 +684,17 @@ GlobalData::GlobalData()
 	m_useTreeSway = TRUE;
 	m_useDrawModuleLOD = FALSE;
 	m_useHeatEffects = TRUE;
+#if defined(GENONLINE)
 	m_adaptiveQualityLevel = 0;
+#endif
 	m_useFpsLimit = FALSE;
 	m_dumpAssetUsage = FALSE;
 	m_framesPerSecondLimit = 0;
 	m_chipSetType = 0;
 	m_headless = FALSE;
+#if defined(GENONLINE)
 	m_exportStats = FALSE;
+#endif
 	m_windowed = 1;
 	m_xResolution = DEFAULT_DISPLAY_WIDTH;
 	m_yResolution = DEFAULT_DISPLAY_HEIGHT;
@@ -1016,6 +1023,7 @@ GlobalData::GlobalData()
 	m_powerBarYellowRange = 5;
 	m_displayGamma = 1.0f;	//ramp that does nothing
 
+#if defined(GENONLINE)
 	m_standardPublicBones.clear();
 
 	m_antiAliasLevel = 0;
@@ -1026,6 +1034,15 @@ GlobalData::GlobalData()
 #endif
 
 //	m_languageFilterPref = false;
+#else
+	m_standardPublicBones.clear();
+
+	m_antiAliasLevel = WW3D::MultiSampleModeEnum::MULTISAMPLE_MODE_NONE;
+	m_textureFilteringMode = TextureFilterClass::TextureFilterMode::TEXTURE_FILTER_BILINEAR;
+	m_textureAnisotropyLevel = TextureFilterClass::AnisotropicFilterMode::TEXTURE_FILTER_ANISOTROPIC_2X;
+
+//	m_languageFilterPref = false;
+#endif
 	m_languageFilterPref = true;
 	m_firewallBehavior = FirewallHelperClass::FIREWALL_TYPE_UNKNOWN;
 	m_firewallPortOverride = 0;
@@ -1043,18 +1060,24 @@ GlobalData::GlobalData()
 	m_gameTimeFontSize = 8;
 	m_playerInfoListFontSize = 8;
 
+#if defined(GENONLINE)
 	m_observerStatsFontSize = 7;
 	m_observerNotificationFontSize = 10;
 	m_observerNotificationSpecialPowerUsage = TRUE;
 	m_observerNotificationSpecialPowerPurchase = TRUE;
 	m_observerNotificationMilestone = TRUE;
 
+#endif
 	m_showMoneyPerMinute = FALSE;
 	m_allowMoneyPerMinuteForPlayer = FALSE;
 
 	m_shroudInterpolation = FALSE;
 
+#if defined(GENONLINE)
 	m_gameWindowTransitionSpeedMultiplier = 2.5f;
+#else
+	m_gameWindowTransitionSpeedMultiplier = 1.0f;
+#endif
 
 	m_debugShowGraphicalFramerate = FALSE;
 
@@ -1107,14 +1130,18 @@ GlobalData::GlobalData()
 
 	m_shellMapName.set("Maps\\ShellMap1\\ShellMap1.map");
 	m_shellMapOn =TRUE;
+#if defined(GENONLINE)
 
 
+#endif
 #if defined(GENONLINE) && defined(_DEBUG)
 	m_playIntro = FALSE;
 #else
 	m_playIntro = TRUE;
 #endif
+#if defined(GENONLINE)
 
+#endif
 	m_playSizzle = TRUE;
 	m_loadScreenRender = FALSE;
 
@@ -1146,46 +1173,16 @@ GlobalData::GlobalData()
 	m_forceBenchmark = FALSE;	///<forces running of CPU detection benchmark, even on known cpu's.
 
 	m_keyboardCameraRotateSpeed = 0.1f;
+#if defined(GENONLINE)
 	m_cameraRotateFactor = 0.5f;
 	m_cameraPitchFactor = 0.5f;
 	m_cameraZoomFactor = 0.5f;
+#endif
 
-#if defined(USE_MAULLER_ONEDRIVE_FIX)
 	// Set user data directory based on registry settings instead of INI parameters.
 	// This allows us to localize the leaf name.
 	m_userDataDir = BuildUserDataPathFromRegistry();
 	CreateDirectory(m_userDataDir.str(), nullptr);
-#else
-    // Set user data directory based on registry settings instead of INI parameters. This allows us to
-// localize the leaf name.
-    wchar_t temp[_MAX_PATH + 1];
-    AsciiString myDocumentsDirectory;
-    if (::SHGetSpecialFolderPathW(nullptr, temp, CSIDL_PERSONAL, true))
-        myDocumentsDirectory = widePathToFileApiPath(temp);
-
-    if (!myDocumentsDirectory.isEmpty())
-    {
-
-        if (myDocumentsDirectory.getCharAt(myDocumentsDirectory.getLength() - 1) != '\\')
-            myDocumentsDirectory.concat('\\');
-
-        AsciiString leafName;
-
-        if (!GetStringFromRegistry("", "UserDataLeafName", leafName))
-        {
-            // Use something, anything
-            // [MH] had to remove this, otherwise mapcache build step won't run... DEBUG_CRASH( ( "Could not find registry key UserDataLeafName; defaulting to \"Command and Conquer Generals Zero Hour Data\" " ) );
-            leafName = "Command and Conquer Generals Zero Hour Data";
-        }
-
-        myDocumentsDirectory.concat(leafName);
-        if (myDocumentsDirectory.getCharAt(myDocumentsDirectory.getLength() - 1) != '\\')
-            myDocumentsDirectory.concat('\\');
-
-        CreateDirectory(myDocumentsDirectory.str(), nullptr);
-        m_userDataDir = myDocumentsDirectory;
-    }
-#endif
 
 	//-allAdvice feature
 	//m_allAdvice = FALSE;
@@ -1209,8 +1206,12 @@ GlobalData::~GlobalData()
 {
 	DEBUG_ASSERTCRASH( TheWritableGlobalData->m_next == nullptr, ("~GlobalData: theOriginal is not original") );
 
+#if defined(GENONLINE)
 	if (m_weaponBonusSet)
+		deleteInstance(m_weaponBonusSet);
+#else
 	deleteInstance(m_weaponBonusSet);
+#endif
 
 	if( m_theOriginal == this )	{
 		m_theOriginal = nullptr;
@@ -1365,6 +1366,7 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_shroudInterpolation = optionPref.getShroudInterpolation();
 	TheWritableGlobalData->m_gameWindowTransitionSpeedMultiplier = optionPref.getGameWindowTransitionSpeedMultiplier();
 #if defined(GENONLINE)
+#if defined(GENONLINE)
 	// The camera factors and the observer overlay settings come from settings.client.json.
 	TheWritableGlobalData->applyGenOnlineClientSettings();
 #endif
@@ -1397,6 +1399,14 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 
 
 	Int val=optionPref.getGammaValue();
+#else
+
+	TheWritableGlobalData->m_antiAliasLevel = optionPref.getAntiAliasing();
+	TheWritableGlobalData->m_textureFilteringMode = optionPref.getTextureFilterMode();
+	TheWritableGlobalData->m_textureAnisotropyLevel = optionPref.getTextureAnisotropyLevel();
+
+	Int val=optionPref.getGammaValue();
+#endif
 	//generate a value between 0.6 and 2.0.
 	if (val < 50)
 	{
@@ -1416,7 +1426,9 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_xResolution = xres;
 	TheWritableGlobalData->m_yResolution = yres;
 }
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 //-------------------------------------------------------------------------------------------------
 void GlobalData::applyGenOnlineClientSettings()
@@ -1515,12 +1527,6 @@ UnsignedInt GlobalData::generateExeCRC()
 
 	DEBUG_LOG(("EXE+Version(%d.%d)+SCB CRC is 0x%8.8X", version >> 16, version & 0xffff, exeCRC.get()));
 
-	// the exe CRC this build is compatible with, set by RTS_EXE_CRC
-	if (RTS_EXE_CRC != 0)
-	{
-		DEBUG_LOG(("Exe CRC set to 0x%8.8X by RTS_EXE_CRC", (UnsignedInt)RTS_EXE_CRC));
-		return (UnsignedInt)RTS_EXE_CRC;
-	}
 	return exeCRC.get();
 }
 
@@ -1550,14 +1556,24 @@ AsciiString GlobalData::BuildUserDataPathFromRegistry()
 		HRESULT hr = pSHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_DEFAULT, nullptr, &pszPath);
 
 		if (SUCCEEDED(hr) && pszPath) {
+#if defined(GENONLINE)
 			myDocumentsDirectory = widePathToFileApiPath(pszPath);
+#else
+			myDocumentsDirectory.translate(pszPath);
+#endif
 			CoTaskMemFree(pszPath);
 		}
 	}
 	else {
+#if defined(GENONLINE)
 		wchar_t temp[_MAX_PATH + 1];
 		if (SHGetSpecialFolderPathW(nullptr, temp, CSIDL_PERSONAL, true)) {
 			myDocumentsDirectory = widePathToFileApiPath(temp);
+#else
+		char temp[_MAX_PATH + 1];
+		if (SHGetSpecialFolderPath(nullptr, temp, CSIDL_PERSONAL, true)) {
+			myDocumentsDirectory = temp;
+#endif
 		}
 	}
 

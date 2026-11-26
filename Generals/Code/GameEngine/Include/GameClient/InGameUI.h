@@ -43,7 +43,9 @@
 #include "GameClient/Mouse.h"
 #include "GameClient/RadiusDecal.h"
 #include "GameClient/View.h"
+#if defined(GENONLINE)
 #include "GameNetwork/NetworkDefs.h"
+#endif
 
 // FORWARD DECLARATIONS ///////////////////////////////////////////////////////////////////////////
 class Drawable;
@@ -54,8 +56,10 @@ class VideoBuffer;
 class VideoStreamInterface;
 class CommandButton;
 class SpecialPowerTemplate;
+#if defined(GENONLINE)
 class Player;
 enum ScienceType CPP_11(: Int);
+#endif
 class WindowLayout;
 class Anim2DTemplate;
 class Anim2D;
@@ -353,12 +357,14 @@ public:  // ********************************************************************
 	InGameUI();
 	virtual ~InGameUI() override;
 
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 the observer overlay is shown and hidden together with the control bar
 	void toggleObserverStats() {
 		m_observerStatsHidden = !m_observerStatsHidden;
 		m_observerNotificationsHidden = !m_observerNotificationsHidden;
 	}
 
+#endif
 	// Inherited from subsystem interface -----------------------------------------------------------
 	virtual	void init() override;															///< Initialize the in-game user interface
 	virtual void update() override;														///< Update the UI by calling preDraw(), draw(), and postDraw()
@@ -553,22 +559,28 @@ public:  // ********************************************************************
 	void setCameraRotateRight( Bool set )		{ m_cameraRotatingRight = set; }
 	void setCameraZoomIn( Bool set )				{ m_cameraZoomingIn = set; }
 	void setCameraZoomOut( Bool set )				{ m_cameraZoomingOut = set; }
+#if defined(GENONLINE)
 	void setCameraPitchUp( Bool set )				{ m_cameraPitchingUp = set; }
 	void setCameraPitchDown( Bool set )			{ m_cameraPitchingDown = set; }
+#endif
   void setCameraTrackingDrawable( Bool set ) { m_cameraTrackingDrawable = set; }
 	Bool isCameraRotatingLeft() const { return m_cameraRotatingLeft; }
 	Bool isCameraRotatingRight() const { return m_cameraRotatingRight; }
 	Bool isCameraZoomingIn() const { return m_cameraZoomingIn; }
 	Bool isCameraZoomingOut() const { return m_cameraZoomingOut; }
+#if defined(GENONLINE)
 	Bool isCameraPitchingUp() const { return m_cameraPitchingUp; }
 	Bool isCameraPitchingDown() const { return m_cameraPitchingDown; }
+#endif
   Bool isCameraTrackingDrawable() const { return m_cameraTrackingDrawable; }
 	void resetCamera();
 
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 the observer stats overlay replaces the player info list
 	void initObserverOverlay();
 	void cleanupObserverOverlay();
 
+#endif
 	virtual void addIdleWorker( Object *obj );
 	virtual void removeIdleWorker( Object *obj, Int playerNumber );
 	virtual void selectNextIdleWorker();
@@ -610,8 +622,10 @@ private:
 	void drawSystemTime(Int &x, Int &y);
 	void drawGameTime();
 	void drawPlayerInfoList();
+#if defined(GENONLINE)
 	void drawObserverStats(Int &x, Int &y);
 	Bool m_observerStatsHidden = false;
+#endif
 
 public:
 	void registerWindowLayout(WindowLayout *layout); // register a layout for updates
@@ -619,6 +633,7 @@ public:
 
   void triggerDoubleClickAttackMoveGuardHint();
 
+#if defined(GENONLINE)
 	void drawObserverNotifications(Int& x, Int& y);
 	void checkObserverMilestones(UnsignedInt currentFrame);
 	void addObserverNotification(const UnicodeString& playerName, const wchar_t* message, Color playerColor);
@@ -628,6 +643,7 @@ public:
 	void refreshObserverNotificationResources(void);
 	Bool m_observerNotificationsHidden;
 
+#endif
 
 public:
 	// World 2D animation methods
@@ -671,6 +687,7 @@ protected:
 	};
 
 	enum { MAX_MOVE_HINTS = 256 };
+#if defined(GENONLINE)
 
 	struct ObserverNotification {
 		UnicodeString message;
@@ -703,6 +720,7 @@ protected:
 		Color color;
 	};
 
+#endif
 	struct MoveHintStruct
 	{
 		Coord3D pos;						///< World coords of destination point
@@ -830,7 +848,9 @@ protected:
 	Color												m_networkLatencyColor;
 	Color												m_networkLatencyDropColor;
 	UnsignedInt									m_lastNetworkLatencyFrames;
+#if defined(GENONLINE)
 	UnsignedInt									m_lastNetworkLogicRate;
+#endif
 
 	// Render FPS Counter
 	DisplayString *							m_renderFpsString;
@@ -869,6 +889,7 @@ protected:
 	Color												m_gameTimeColor;
 	Color												m_gameTimeDropColor;
 
+#if defined(GENONLINE)
 	DisplayString* m_observerStatsString;
 	AsciiString m_observerStatsFont;
 	Int m_observerStatsPointSize;
@@ -884,6 +905,7 @@ protected:
 	Color												m_colorGood;
 	Color												m_colorBad;
 
+#endif
 	struct PlayerInfoList
 	{
 		PlayerInfoList();
@@ -1039,14 +1061,17 @@ protected:
 	Bool 												m_cameraZoomingIn;
 	Bool 												m_cameraTrackingDrawable;
 	Bool 												m_cameraZoomingOut;
+#if defined(GENONLINE)
 	Bool 												m_cameraPitchingUp;
 	Bool 												m_cameraPitchingDown;
+#endif
 
 	Bool												m_drawRMBScrollAnchor;
 	Bool												m_moveRMBScrollAnchor;
 	Bool												m_clientQuiet;         ///< When the user clicks exit,restart, etc. this is set true
 																												///< to skip some client sounds/fx during shutdown
 
+#if defined(GENONLINE)
 	static const Int numCols = 8;
 	const wchar_t* headers[numCols] = {
 		L"(T) Player", L"Army", L"Cash", L"Cash/m", L"(R) XP", L"SP", L"K/D", L"Power"
@@ -1071,6 +1096,7 @@ protected:
 	Int totalHeight = 0;
 	bool isUpdating = false;
 
+#endif
 	GameWindow *m_controlBarWindow;
 	GameWindow *m_replayWindow;
 

@@ -35,6 +35,7 @@
 #include "GameNetwork/GameSpy/PingThread.h"
 #include "GameNetwork/GameSpy/GSConfig.h"
 
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 static const UnsignedInt LEAVE_NOTICE_FRAME = 0xFFFFFFFF;
 
@@ -50,6 +51,7 @@ static const time_t LEAVE_NOTICE_QUIET_TIME = 3000;
 
 static const UnsignedInt SILENT_PLAYER_TIME = 2000;
 
+#endif
 
 DisconnectManager::DisconnectManager()
 {
@@ -58,14 +60,17 @@ DisconnectManager::DisconnectManager()
 	m_lastFrame = 0;
 	m_lastFrameTime = 0;
 	m_lastKeepAliveSendTime = 0;
+#if defined(GENONLINE)
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		m_destroySent[i] = FALSE;
 	}
+#endif
 	m_haveNotifiedOtherPlayersOfCurrentFrame = FALSE;
 	m_timeOfDisconnectScreenOn = 0;
 
 	for( i = 0; i < MAX_SLOTS; ++i) {
 		m_packetRouterFallback[i] = 0;
+#if defined(GENONLINE)
 #if RETAIL_COMPATIBLE_NETWORKING
 		m_relayFrame[i] = 0;
 		m_relayTo[i] = 0;
@@ -73,21 +78,27 @@ DisconnectManager::DisconnectManager()
 		m_heldRemovalFrom[i] = -1;
 		m_heldRemovalFrame[i] = 0;
 #endif
+#endif
 	}
 
 	m_packetRouterTimeout = 0;
 	for( i = 0; i < MAX_SLOTS -1; ++i) {
 		m_playerTimeouts[i] = 0;
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 		m_playerLeft[i] = FALSE;
 		m_ownLeaveReceived[i] = FALSE;
+		m_leaveNoticePending[i] = FALSE;
+#endif
 #endif
 	}
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 	m_leftPlayerHold = FALSE;
 	m_screenDeferred = FALSE;
 	m_removedInRound = FALSE;
 	m_catchUpFrame = 0;
+#endif
 #endif
 
 	for( i = 0; i < MAX_SLOTS; ++i) {
@@ -121,6 +132,7 @@ void DisconnectManager::init() {
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		m_disconnectFrames[i] = 0;
 		m_disconnectFramesReceived[i] = FALSE;
+#if defined(GENONLINE)
 #if RETAIL_COMPATIBLE_NETWORKING
 		m_relayFrame[i] = 0;
 		m_relayTo[i] = 0;
@@ -129,16 +141,20 @@ void DisconnectManager::init() {
 		m_heldRemovalFrame[i] = 0;
 #endif
 		m_destroySent[i] = FALSE;
+#endif
 	}
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 	for (i = 0; i < MAX_SLOTS - 1; ++i) {
 		m_playerLeft[i] = FALSE;
 		m_ownLeaveReceived[i] = FALSE;
+		m_leaveNoticePending[i] = FALSE;
 	}
 	m_leftPlayerHold = FALSE;
 	m_screenDeferred = FALSE;
 	m_removedInRound = FALSE;
 	m_catchUpFrame = 0;
+#endif
 #endif
 
 	m_pingFrame = 0;
@@ -156,6 +172,7 @@ void DisconnectManager::update(ConnectionManager *conMgr) {
 	// the last one we had the commands ready for.
 	if (TheGameLogic->getFrame() == m_lastFrame) {
 		time_t curTime = timeGetTime();
+#if defined(GENONLINE)
 		time_t waitTime = TheGlobalData->m_networkDisconnectTime;
 #if !RETAIL_COMPATIBLE_NETWORKING
 		// the removal of a player that has left runs from the disconnect screen, so a hold brings the screen up at once
@@ -168,9 +185,13 @@ void DisconnectManager::update(ConnectionManager *conMgr) {
 		}
 #endif
 		if ((curTime - m_lastFrameTime) > waitTime) {
+#else
+		if ((curTime - m_lastFrameTime) > TheGlobalData->m_networkDisconnectTime) {
+#endif
 			if (m_disconnectState == DISCONNECTSTATETYPE_SCREENOFF) {
 				turnOnScreen(conMgr);
 			}
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 			// A removal that takes as long as a stall shows the window like the stall would.
 			if ((m_screenDeferred == TRUE) && ((curTime - m_lastFrameTime) > TheGlobalData->m_networkDisconnectTime)) {
@@ -178,18 +199,22 @@ void DisconnectManager::update(ConnectionManager *conMgr) {
 				TheDisconnectMenu->showScreen();
 			}
 #endif
+#endif
 			sendKeepAlive(conMgr);
 		}
 	} else {
 		nextFrame(TheGameLogic->getFrame(), conMgr);
 	}
 
+#if defined(GENONLINE)
 #if RETAIL_COMPATIBLE_NETWORKING
 	sendPendingRelays(conMgr);
 #else
 	processHeldRemovals(conMgr);
+	processPendingLeaveNotices(conMgr);
 #endif
 
+#endif
 	if (m_disconnectState != DISCONNECTSTATETYPE_SCREENOFF) {
 		updateDisconnectStatus(conMgr);
 
@@ -275,13 +300,16 @@ Int DisconnectManager::getPingsReceived()
 
 
 void DisconnectManager::updateDisconnectStatus(ConnectionManager *conMgr) {
+#if defined(GENONLINE)
 	Bool removedPlayer = FALSE;
+#endif
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
 		if (conMgr->isPlayerConnected(i)) {
 			Int slot = translatedSlotPosition(i, conMgr->getLocalPlayerID());
 			if (slot != -1) {
 				time_t curTime = timeGetTime();
 				time_t newTime = TheGlobalData->m_networkPlayerTimeoutTime - (curTime - m_playerTimeouts[slot]);
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 				if (hasPlayerLeft(slot) == TRUE) {
 					newTime = -1;
@@ -294,6 +322,7 @@ void DisconnectManager::updateDisconnectStatus(ConnectionManager *conMgr) {
 					}
 				}
 #endif
+#endif
 
 // if someone is more than 2/3 timed out, lets get our frame numbers sync'd up.  Also if someone is voted out
 // lets do the same thing.
@@ -304,7 +333,12 @@ void DisconnectManager::updateDisconnectStatus(ConnectionManager *conMgr) {
 						m_haveNotifiedOtherPlayersOfCurrentFrame = TRUE;
 					}
 
+#if defined(GENONLINE)
+#if defined(GENONLINE)
 					DEBUG_LOG(("DisconnectManager::updateDisconnectStatus - curTime = %I64d, m_timeOfDisconnectScreenOn = %I64d, curTime - m_timeOfDisconnectScreenOn = %I64d", (Int64)curTime, (Int64)m_timeOfDisconnectScreenOn, (Int64)(curTime - m_timeOfDisconnectScreenOn)));
+#else
+					DEBUG_LOG(("DisconnectManager::updateDisconnectStatus - curTime = %d, m_timeOfDisconnectScreenOn = %d, curTime - m_timeOfDisconnectScreenOn = %d", curTime, m_timeOfDisconnectScreenOn, curTime - m_timeOfDisconnectScreenOn));
+#endif
 
 					if (m_timeOfDisconnectScreenOn != 0) {
 #if RETAIL_COMPATIBLE_NETWORKING
@@ -314,6 +348,14 @@ void DisconnectManager::updateDisconnectStatus(ConnectionManager *conMgr) {
 #endif
 							TheNetwork->notifyOthersOfCurrentFrame();
 							m_haveNotifiedOtherPlayersOfCurrentFrame = TRUE;
+#else
+					DEBUG_LOG(("DisconnectManager::updateDisconnectStatus - curTime = %d, m_timeOfDisconnectScreenOn = %d, curTime - m_timeOfDisconnectScreenOn = %d", curTime, m_timeOfDisconnectScreenOn, curTime - m_timeOfDisconnectScreenOn));
+
+					if (m_timeOfDisconnectScreenOn != 0) {
+						if ((curTime - m_timeOfDisconnectScreenOn) > TheGlobalData->m_networkDisconnectScreenNotifyTime) {
+							TheNetwork->notifyOthersOfCurrentFrame();
+							m_haveNotifiedOtherPlayersOfCurrentFrame = TRUE;
+#endif
 						}
 					}
 				}
@@ -326,8 +368,14 @@ void DisconnectManager::updateDisconnectStatus(ConnectionManager *conMgr) {
 						if (isLocalPlayerNextPacketRouter(conMgr) == TRUE) {
 							DEBUG_LOG(("DisconnectManager::updateDisconnectStatus - local player is next packet router"));
 							DEBUG_LOG(("DisconnectManager::updateDisconnectStatus - about to do the disconnect procedure for player %d", i));
+#if defined(GENONLINE)
 							removePlayer(i, conMgr);
 							removedPlayer = TRUE;
+#else
+							sendDisconnectCommand(i, conMgr);
+							disconnectPlayer(i, conMgr);
+							sendPlayerDestruct(i, conMgr);
+#endif
 						} else {
 							DEBUG_LOG(("DisconnectManager::updateDisconnectStatus - local player is not the next packet router"));
 						}
@@ -339,6 +387,7 @@ void DisconnectManager::updateDisconnectStatus(ConnectionManager *conMgr) {
 			}
 		}
 	}
+#if defined(GENONLINE)
 
 #if !RETAIL_COMPATIBLE_NETWORKING
 	// a removal can leave more players out of the game, which are removed on the same frame
@@ -358,6 +407,7 @@ void DisconnectManager::removePlayer(Int slot, ConnectionManager *conMgr) {
 	sendDisconnectCommand(slot, conMgr);
 	disconnectPlayer(slot, conMgr);
 	sendPlayerDestruct(slot, conMgr);
+#endif
 }
 
 void DisconnectManager::updateWaitForPacketRouter(ConnectionManager *conMgr) {
@@ -418,32 +468,40 @@ void DisconnectManager::processDisconnectKeepAlive(NetCommandMsg *msg, Connectio
 	Int slot = translatedSlotPosition(cmdMsg->getPlayerID(), conMgr->getLocalPlayerID());
 	if (slot != -1) {
 		resetPlayerTimeout(slot);
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 		// a player that is still around undoes a leave notice of another player, its own leave is final
 		if (m_ownLeaveReceived[slot] == FALSE) {
 			m_playerLeft[slot] = FALSE;
+			m_leaveNoticePending[slot] = FALSE;
 		}
+#endif
 #endif
 	}
 }
+#if defined(GENONLINE)
 
 #if !RETAIL_COMPATIBLE_NETWORKING
 void DisconnectManager::playerClosedGracefully(Int slot, ConnectionManager *conMgr) {
 	if (slot < 0 || slot >= MAX_SLOTS) {
 		return;
 	}
+#if defined(GENONLINE)
 	Int transSlot = translatedSlotPosition(slot, conMgr->getLocalPlayerID());
 	if (transSlot == -1 || conMgr->isPlayerConnected(slot) == FALSE) {
 		return;
 	}
 	// not the own leave of the player, so the quiet time and the keepalive undo still apply
 	m_playerLeft[transSlot] = TRUE;
+#endif
 }
+#endif
 #endif
 
 void DisconnectManager::processDisconnectPlayer(NetCommandMsg *msg, ConnectionManager *conMgr) {
 	NetDisconnectPlayerCommandMsg *cmdMsg = (NetDisconnectPlayerCommandMsg *)msg;
 	DEBUG_LOG(("DisconnectManager::processDisconnectPlayer - Got disconnect player command from player %d.  Disconnecting player %d on frame %d", msg->getPlayerID(), cmdMsg->getDisconnectSlot(), cmdMsg->getDisconnectFrame()));
+#if defined(GENONLINE)
 	const Int slot = cmdMsg->getDisconnectSlot();
 	if (slot < 0 || slot >= MAX_SLOTS) {
 		DEBUG_LOG(("DisconnectManager::processDisconnectPlayer - slot %d is not in the game, ignored", slot));
@@ -464,16 +522,18 @@ void DisconnectManager::processDisconnectPlayer(NetCommandMsg *msg, ConnectionMa
 	if ((slot < MAX_SLOTS) && ((msg->getPlayerID() == (UnsignedInt)slot) || (cmdMsg->getDisconnectFrame() == LEAVE_NOTICE_FRAME))) {
 		Int transSlot = translatedSlotPosition(slot, conMgr->getLocalPlayerID());
 		if (transSlot != -1) {
-			m_playerLeft[transSlot] = TRUE;
 			Bool leaveTrusted = (msg->getPlayerID() == (UnsignedInt)slot);
 #if defined(GENONLINE)
-			// a notice that carries the signature of the leaver counts at once, an unsigned one only after the quiet time
+			// A notice signed by the leaver counts at once and an unsigned one only after its player goes silent.
 			if (!leaveTrusted && conMgr->verifyLeaveNotice(cmdMsg)) {
 				leaveTrusted = TRUE;
 			}
 #endif
 			if (leaveTrusted) {
+				m_playerLeft[transSlot] = TRUE;
 				m_ownLeaveReceived[transSlot] = TRUE;
+			} else {
+				m_leaveNoticePending[transSlot] = TRUE;
 			}
 		}
 
@@ -507,7 +567,9 @@ void DisconnectManager::processDisconnectPlayer(NetCommandMsg *msg, ConnectionMa
 	}
 #endif
 
+#endif
 	DEBUG_ASSERTCRASH(TheGameLogic->getFrame() == cmdMsg->getDisconnectFrame(), ("disconnecting player on the wrong frame!!!"));
+#if defined(GENONLINE)
 	disconnectPlayer(slot, conMgr);
 
 #if RETAIL_COMPATIBLE_NETWORKING
@@ -527,8 +589,12 @@ void DisconnectManager::processDisconnectPlayer(NetCommandMsg *msg, ConnectionMa
 		}
 	}
 #endif
+#else
+	disconnectPlayer(cmdMsg->getDisconnectSlot(), conMgr);
+#endif
 }
 
+#if defined(GENONLINE)
 #if RETAIL_COMPATIBLE_NETWORKING
 void DisconnectManager::sendPendingRelays(ConnectionManager *conMgr) {
 	for (Int slot = 0; slot < MAX_SLOTS; ++slot) {
@@ -571,6 +637,7 @@ void DisconnectManager::sendPendingRelays(ConnectionManager *conMgr) {
 }
 #endif
 
+#endif
 void DisconnectManager::processPacketRouterQuery(NetCommandMsg *msg, ConnectionManager *conMgr) {
 	NetPacketRouterQueryCommandMsg *cmdMsg = (NetPacketRouterQueryCommandMsg *)msg;
 	DEBUG_LOG(("DisconnectManager::processPacketRouterQuery - got a packet router query command from player %d", msg->getPlayerID()));
@@ -614,6 +681,11 @@ void DisconnectManager::processPacketRouterAck(NetCommandMsg *msg, ConnectionMan
 void DisconnectManager::processDisconnectVote(NetCommandMsg *msg, ConnectionManager *conMgr) {
 	NetDisconnectVoteCommandMsg *cmdMsg = (NetDisconnectVoteCommandMsg *)msg;
 	DEBUG_LOG(("DisconnectManager::processDisconnectVote - Got a disconnect vote for player %d command from player %d", cmdMsg->getSlot(), cmdMsg->getPlayerID()));
+	// GenOnline @bugfix arcticdolphin 24/11/2026 The voted slot comes from the packet and indexes m_playerVotes.
+	if (cmdMsg->getSlot() >= MAX_SLOTS || cmdMsg->getPlayerID() >= MAX_SLOTS) {
+		return;
+	}
+
 	Int transSlot = translatedSlotPosition(msg->getPlayerID(), conMgr->getLocalPlayerID());
 
 	if (isPlayerInGame(transSlot, conMgr) == FALSE) {
@@ -707,6 +779,7 @@ void DisconnectManager::nextFrame(UnsignedInt frame, ConnectionManager *conMgr) 
 }
 
 void DisconnectManager::allCommandsReady(UnsignedInt frame, ConnectionManager *conMgr, Bool waitForPacketRouter) {
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 		// a player that has left is removed on the highest frame anyone reached, so nobody runs past it while that player is still connected
 		m_leftPlayerHold = (isLeftPlayerConnected(conMgr) == TRUE) && (frame >= getMaxDisconnectFrame(conMgr));
@@ -714,13 +787,16 @@ void DisconnectManager::allCommandsReady(UnsignedInt frame, ConnectionManager *c
 			return;
 		}
 #endif
+#endif
 		if (m_disconnectState != DISCONNECTSTATETYPE_SCREENOFF) {
 			DEBUG_LOG(("DisconnectManager::allCommandsReady - setting screen state to off."));
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 			// no removal: a stall on the next frame brings the screen back soon
 			m_catchUpFrame = (m_removedInRound == TRUE) ? 0 : frame + 1;
 			m_removedInRound = FALSE;
 			m_screenDeferred = FALSE;
+#endif
 #endif
 
 			TheDisconnectMenu->hideScreen();
@@ -738,10 +814,12 @@ void DisconnectManager::allCommandsReady(UnsignedInt frame, ConnectionManager *c
 }
 
 Bool DisconnectManager::allowedToContinue() {
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 	if (m_leftPlayerHold == TRUE) {
 		return FALSE;
 	}
+#endif
 #endif
 	if (m_disconnectState != DISCONNECTSTATETYPE_SCREENOFF) {
 		return FALSE;
@@ -813,6 +891,7 @@ void DisconnectManager::resetPlayerTimeouts(ConnectionManager *conMgr) {
 }
 
 void DisconnectManager::resetPlayerTimeout(Int slot) {
+#if defined(GENONLINE)
 	m_playerTimeouts[slot] = timeGetTime();
 }
 
@@ -831,9 +910,22 @@ void DisconnectManager::turnOnScreen(ConnectionManager *conMgr) {
 	}
 #endif
 	DEBUG_LOG(("DisconnectManager::turnOnScreen - turning on screen on frame %d", TheGameLogic->getFrame()));
+#else
+	m_playerTimeouts[slot] = timeGetTime();
+}
+
+void DisconnectManager::resetPacketRouterTimeout() {
+	m_packetRouterTimeout = timeGetTime();
+}
+
+void DisconnectManager::turnOnScreen(ConnectionManager *conMgr) {
+	TheDisconnectMenu->showScreen();
+	DEBUG_LOG(("DisconnectManager::turnOnScreen - turning on screen on frame %d", TheGameLogic->getFrame()));
+#endif
 	m_disconnectState = DISCONNECTSTATETYPE_SCREENON;
 	m_lastKeepAliveSendTime = -1;
 	populateDisconnectScreen(conMgr);
+#if defined(GENONLINE)
 	// the count-downs run from the stall start
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
 		Int slot = translatedSlotPosition(i, conMgr->getLocalPlayerID());
@@ -841,6 +933,9 @@ void DisconnectManager::turnOnScreen(ConnectionManager *conMgr) {
 			m_playerTimeouts[slot] = m_lastFrameTime;
 		}
 	}
+#else
+	resetPlayerTimeouts(conMgr);
+#endif
 	TheDisconnectMenu->hidePacketRouterTimeout();
 
 	m_haveNotifiedOtherPlayersOfCurrentFrame = FALSE;
@@ -850,8 +945,10 @@ void DisconnectManager::turnOnScreen(ConnectionManager *conMgr) {
 }
 
 void DisconnectManager::disconnectPlayer(Int slot, ConnectionManager *conMgr) {
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 	m_removedInRound = TRUE;
+#endif
 #endif
 	DEBUG_LOG(("DisconnectManager::disconnectPlayer - Disconnecting slot number %d on frame %d", slot, TheGameLogic->getFrame()));
 	DEBUG_ASSERTCRASH((slot >= 0) && (slot < MAX_SLOTS), ("Attempting to disconnect an invalid slot number"));
@@ -896,7 +993,11 @@ void DisconnectManager::sendDisconnectCommand(Int slot, ConnectionManager *conMg
 		return;
 	}
 
+#if defined(GENONLINE)
 	UnsignedInt disconnectFrame = getMaxDisconnectFrame(conMgr);
+#else
+	UnsignedInt disconnectFrame = getMaxDisconnectFrame();
+#endif
 
 	// Need to do the NetDisconnectPlayerCommandMsg creation and sending here.
 	NetDisconnectPlayerCommandMsg *msg = newInstance(NetDisconnectPlayerCommandMsg);
@@ -973,6 +1074,7 @@ Bool DisconnectManager::allOnSameFrame(ConnectionManager *conMgr) {
 	return retval;
 }
 
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 Int DisconnectManager::getActingPacketRouterSlot(ConnectionManager *conMgr, Int removedSlot) {
 	UnsignedInt localSlot = conMgr->getLocalPlayerID();
@@ -1006,6 +1108,23 @@ Bool DisconnectManager::isLeftPlayerConnected(ConnectionManager *conMgr) {
 	return FALSE;
 }
 
+// A stalled player sends keepalives once its own disconnect screen is up, so a forged notice never outlasts that wait.
+void DisconnectManager::processPendingLeaveNotices(ConnectionManager *conMgr) {
+	const time_t curTime = timeGetTime();
+	const time_t silentTime = TheGlobalData->m_networkDisconnectTime + LEAVE_NOTICE_QUIET_TIME;
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		const Int transSlot = translatedSlotPosition(i, conMgr->getLocalPlayerID());
+		if ((transSlot == -1) || (m_leaveNoticePending[transSlot] == FALSE)) {
+			continue;
+		}
+		const time_t lastHeard = conMgr->getLastHeardTime(i);
+		if ((lastHeard == 0) || ((curTime - lastHeard) > silentTime)) {
+			m_leaveNoticePending[transSlot] = FALSE;
+			m_playerLeft[transSlot] = TRUE;
+		}
+	}
+}
+
 void DisconnectManager::processHeldRemovals(ConnectionManager *conMgr) {
 	for (Int slot = 0; slot < MAX_SLOTS; ++slot) {
 		const Int from = m_heldRemovalFrom[slot];
@@ -1026,6 +1145,7 @@ void DisconnectManager::processHeldRemovals(ConnectionManager *conMgr) {
 
 #endif
 
+#endif
 Bool DisconnectManager::isLocalPlayerNextPacketRouter(ConnectionManager *conMgr) {
 	UnsignedInt localSlot = conMgr->getLocalPlayerID();
 	UnsignedInt packetRouterSlot = conMgr->getPacketRouterSlot();
@@ -1055,12 +1175,14 @@ Bool DisconnectManager::hasPlayerTimedOut(Int slot) {
 		return FALSE;
 	}
 
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 	if (hasPlayerLeft(slot) == TRUE) {
 		return TRUE;
 	}
 #endif
 
+#endif
 	time_t newTime = TheGlobalData->m_networkPlayerTimeoutTime - (timeGetTime() - m_playerTimeouts[slot]);
 	if (newTime <= 0) {
 		return TRUE;
@@ -1072,11 +1194,13 @@ Bool DisconnectManager::hasPlayerTimedOut(Int slot) {
 // this function assumes that we are the packet router. (or at least that
 // we will be after everyone is getting disconnected)
 void DisconnectManager::sendPlayerDestruct(Int slot, ConnectionManager *conMgr) {
+#if defined(GENONLINE)
 	if ((slot < 0) || (slot >= MAX_SLOTS) || m_destroySent[slot]) {
 		return;
 	}
 	m_destroySent[slot] = TRUE;
 
+#endif
 	UnsignedShort currentID = 0;
 	if (DoesCommandRequireACommandID(NETCOMMANDTYPE_DESTROYPLAYER))
 	{
@@ -1095,6 +1219,7 @@ void DisconnectManager::sendPlayerDestruct(Int slot, ConnectionManager *conMgr) 
 	netmsg->detach();
 }
 
+#if defined(GENONLINE)
 Bool DisconnectManager::isPlayerSilent(Int slot) {
 	if ((slot == -1) || (m_disconnectState == DISCONNECTSTATETYPE_SCREENOFF) || (m_timeOfDisconnectScreenOn == 0)) {
 		return FALSE;
@@ -1135,6 +1260,7 @@ Bool DisconnectManager::isPlayerGone(Int slot, ConnectionManager *conMgr) {
 	return TRUE;
 }
 
+#endif
 // the 'slot' variable is supposed to be a translated slot position. (translated slot meaning
 // that it is the player's position in the disconnect menu)
 Bool DisconnectManager::isPlayerVotedOut(Int slot, ConnectionManager *conMgr) {
@@ -1144,6 +1270,7 @@ Bool DisconnectManager::isPlayerVotedOut(Int slot, ConnectionManager *conMgr) {
 	}
 	Int transSlot = untranslatedSlotPosition(slot, conMgr->getLocalPlayerID());
 	Int numVotes = countVotesForPlayer(transSlot);
+#if defined(GENONLINE)
 	Int numVoters = conMgr->getNumPlayers() - 1;
 	// a player that has left or is gone is on its way out, it is not needed as a voter and its vote does not count
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
@@ -1172,20 +1299,29 @@ Bool DisconnectManager::isPlayerVotedOut(Int slot, ConnectionManager *conMgr) {
 		numVoters = 2;
 	}
 	if (numVotes >= numVoters) {
+#else
+	if (numVotes >= (conMgr->getNumPlayers() - 1)) {
+#endif
 		return TRUE;
 	}
 	return FALSE;
 }
 
+#if defined(GENONLINE)
 UnsignedInt DisconnectManager::getMaxDisconnectFrame(ConnectionManager *conMgr) {
+#else
+UnsignedInt DisconnectManager::getMaxDisconnectFrame() {
+#endif
 	UnsignedInt retval = 0;
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 		// a player that has left reports the frame it stopped on, which the others may never reach
 		Int transSlot = translatedSlotPosition(i, conMgr->getLocalPlayerID());
 		if ((transSlot != -1) && (m_playerLeft[transSlot] == TRUE)) {
 			continue;
 		}
+#endif
 #endif
 		if (m_disconnectFrames[i] > retval) {
 			retval = m_disconnectFrames[i];
@@ -1194,6 +1330,7 @@ UnsignedInt DisconnectManager::getMaxDisconnectFrame(ConnectionManager *conMgr) 
 	return retval;
 }
 
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 Bool DisconnectManager::isPlayerOutOfGame(Int slot, ConnectionManager *conMgr) {
 	if ((slot < 0) || (slot >= MAX_SLOTS) || (conMgr->isPlayerConnected(slot) == FALSE)) {
@@ -1208,6 +1345,7 @@ Bool DisconnectManager::isPlayerOutOfGame(Int slot, ConnectionManager *conMgr) {
 
 #endif
 
+#endif
 Bool DisconnectManager::isPlayerInGame(Int slot, ConnectionManager *conMgr) {
 	Int transSlot = untranslatedSlotPosition(slot, conMgr->getLocalPlayerID());
 	DEBUG_ASSERTCRASH((transSlot >= 0) && (transSlot < MAX_SLOTS), ("invalid slot number"));

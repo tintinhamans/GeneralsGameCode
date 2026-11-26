@@ -447,8 +447,10 @@ void MilesAudioManager::postProcessLoad()
 //-------------------------------------------------------------------------------------------------
 void MilesAudioManager::reset()
 {
+#if defined(GENONLINE)
 #if defined(RTS_HAS_FFMPEG)
 	m_metadata.clear();
+#endif
 #endif
 #if defined(RTS_DEBUG)
 	dumpAllAssetsUsed();
@@ -471,7 +473,9 @@ void MilesAudioManager::update()
 	processRequestList();
 	processPlayingList();
 	processFadingList();
+#if defined(GENONLINE)
 	m_audioCache->releaseEvictedFiles();
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -707,6 +711,7 @@ void MilesAudioManager::playAudioEvent( AudioRequest* req )
 					setDisallowSpeech(TRUE);
 	 			}
 				AIL_set_stream_volume_pan(stream, getEffectiveVolume(event), 0.5f);
+#if defined(GENONLINE)
 				prepareStream(event, stream);
 				// TheSuperHackers @bugfix Register the sound before starting it so the completion callback finds it.
 				{
@@ -714,6 +719,12 @@ void MilesAudioManager::playAudioEvent( AudioRequest* req )
 					m_playingStreams.push_back(newPlaying);
 				}
 				AIL_start_stream(stream);
+#else
+				playStream(event, stream);
+
+				CriticalSectionClass::LockClass lock(m_playingStreamsCS);
+				m_playingStreams.push_back(newPlaying);
+#endif
 				newPlaying = nullptr;
 			}
 			break;
@@ -774,7 +785,11 @@ void MilesAudioManager::playAudioEvent( AudioRequest* req )
 				newPlaying->m_type = PAT_3DSample;
 
 				if (sample3D) {
+#if defined(GENONLINE)
 					newPlaying->m_file = prepareSample3D(event, sample3D);
+#else
+					newPlaying->m_file = playSample3D(event, sample3D);
+#endif
 				}
 
 				if( !newPlaying->m_file )
@@ -785,12 +800,17 @@ void MilesAudioManager::playAudioEvent( AudioRequest* req )
 				}
 				else
 				{
+#if defined(GENONLINE)
 					{
 						CriticalSectionClass::LockClass lock(m_playing3DSoundsCS);
 						m_playing3DSounds.push_back(newPlaying);
 					}
 			// Start playback
 					AIL_start_3D_sample(sample3D);
+#else
+					CriticalSectionClass::LockClass lock(m_playing3DSoundsCS);
+					m_playing3DSounds.push_back(newPlaying);
+#endif
 					newPlaying = nullptr;
 					#ifdef INTENSIVE_AUDIO_DEBUG
 						DEBUG_LOG((" Playing."));
@@ -844,7 +864,11 @@ void MilesAudioManager::playAudioEvent( AudioRequest* req )
 				newPlaying->m_type = PAT_Sample;
 
 				if (sample) {
+#if defined(GENONLINE)
 					newPlaying->m_file = prepareSample(event, sample);
+#else
+					newPlaying->m_file = playSample(event, sample);
+#endif
 				}
 
 				if (!newPlaying->m_file) {
@@ -852,12 +876,17 @@ void MilesAudioManager::playAudioEvent( AudioRequest* req )
 						DEBUG_LOG((" Killed (no handles available)"));
 					#endif
 				} else {
+#if defined(GENONLINE)
 					{
 						CriticalSectionClass::LockClass lock(m_playingSoundsCS);
 						m_playingSounds.push_back(newPlaying);
 					}
 		// Start playback
 					AIL_start_sample(sample);
+#else
+					CriticalSectionClass::LockClass lock(m_playingSoundsCS);
+					m_playingSounds.push_back(newPlaying);
+#endif
 					newPlaying = nullptr;
 					#ifdef INTENSIVE_AUDIO_DEBUG
 						DEBUG_LOG((" Playing."));
@@ -1236,8 +1265,10 @@ void MilesAudioManager::stopAllAudioImmediately()
 	}
 
 	m_audioForcePlayed.clear();
+#if defined(GENONLINE)
 
 	m_audioCache->releaseEvictedFiles();
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1580,10 +1611,17 @@ void MilesAudioManager::notifyOfAudioCompletion( UnsignedInt handle, UnsignedInt
 	{
 		if (playing->m_audioEventRTS->getNextPlayPortion() != PP_Done) {
 			closeFile(playing->m_file);	// close it so as not to leak it.
+#if !defined(GENONLINE)
+			playing->m_file = playSample(playing->m_audioEventRTS.Peek(), playing->m_sample);
+#endif
 
 			// If we don't have a file now, then we should drop to the stopped status so that
 			// We correctly close this handle.
+#if defined(GENONLINE)
 			if (playSample(playing)) {
+#else
+			if (playing->m_file) {
+#endif
 				return;
 			}
 		}
@@ -1593,10 +1631,17 @@ void MilesAudioManager::notifyOfAudioCompletion( UnsignedInt handle, UnsignedInt
 	{
 		if (playing->m_audioEventRTS->getNextPlayPortion() != PP_Done) {
 			closeFile(playing->m_file);	// close it so as not to leak it.
+#if !defined(GENONLINE)
+			playing->m_file = playSample3D(playing->m_audioEventRTS.Peek(), playing->m_3DSample);
+#endif
 
 			// If we don't have a file now, then we should drop to the stopped status so that
 			// We correctly close this handle.
+#if defined(GENONLINE)
 			if (playSample3D(playing)) {
+#else
+			if (playing->m_file) {
+#endif
 				return;
 			}
 		}
@@ -2364,8 +2409,12 @@ void MilesAudioManager::processPlayingList()
 			}
 			else
 			{
+#if defined(GENONLINE)
 				const Real effectiveVolume = getEffectiveVolume(playing->m_audioEventRTS.Peek());
 				Real volForConsideration = effectiveVolume;
+#else
+				Real volForConsideration = getEffectiveVolume(playing->m_audioEventRTS.Peek());
+#endif
 				volForConsideration /= (m_sound3DVolume > 0.0f ? m_soundVolume : 1.0f);
 				Bool playAnyways = BitIsSet( playing->m_audioEventRTS->getAudioEventInfo()->m_type, ST_GLOBAL) ||
 					playing->m_audioEventRTS->getAudioEventInfo()->m_priority == AP_CRITICAL;
@@ -2380,8 +2429,10 @@ void MilesAudioManager::processPlayingList()
 					Real z = pos->z;
 					DEBUG_ASSERTCRASH(playing->m_3DSample, ("3D Sample is not expected to be null"));
 					AIL_set_3D_position( playing->m_3DSample, x, y, z );
+#if defined(GENONLINE)
 					// TheSuperHackers @bugfix arcticdolphin 13/10/2026 Reapply the range volume fade every frame as the sound moves.
 					AIL_set_3D_sample_volume(playing->m_3DSample, effectiveVolume);
+#endif
 				}
 			}
 		}
@@ -2582,6 +2633,7 @@ void MilesAudioManager::setSpeakerSurround(Bool surround)
 	Bool retEarly = (surround == m_surroundSpeakers);
 	AudioManager::setSpeakerSurround(surround);
 
+#if defined(GENONLINE)
 	if (retEarly) {
 		return;
 	}
@@ -2637,6 +2689,59 @@ void MilesAudioManager::closeAnySamplesUsingFile( const void *fileToClose )
 
 	for (it = m_playing3DSounds.begin(); it != m_playing3DSounds.end(); ++it ) {
 		playing = *it;
+#else
+	if (retEarly) {
+		return;
+	}
+
+	UnsignedInt speakerType;
+	if (m_surroundSpeakers) {
+		speakerType = TheAudio->getAudioSettings()->m_defaultSpeakerType3D;
+	} else {
+		speakerType = TheAudio->getAudioSettings()->m_defaultSpeakerType2D;
+	}
+
+	TheAudio->setSpeakerType(speakerType);
+}
+
+//-------------------------------------------------------------------------------------------------
+Real MilesAudioManager::getFileLengthMS( AsciiString strToLoad ) const
+{
+	if (strToLoad.isEmpty()) {
+		return 0.0f;
+	}
+
+	// Load it as a stream to get the file info without actually opening the file.
+	HSTREAM stream = AIL_open_stream(m_digitalHandle, strToLoad.str(), 0);
+	if (!stream) {
+		return 0.0f;
+	}
+
+	long retVal;
+	AIL_stream_ms_position(stream, &retVal, nullptr);
+	// Now close the stream
+	AIL_close_stream(stream);
+
+	return INT_TO_REAL(retVal);
+}
+
+//-------------------------------------------------------------------------------------------------
+void MilesAudioManager::closeAnySamplesUsingFile( const void *fileToClose )
+{
+	std::list<PlayingAudio *>::iterator it;
+	PlayingAudio *playing;
+
+	for (it = m_playingSounds.begin(); it != m_playingSounds.end(); ++it ) {
+		playing = *it;
+
+		if (playing->m_file == fileToClose) {
+			stopPlayingAudio(playing);
+		}
+	}
+
+	for (it = m_playing3DSounds.begin(); it != m_playing3DSounds.end(); ++it ) {
+		playing = *it;
+#endif
 
 		if (playing->m_file == fileToClose) {
 			stopPlayingAudio(playing);
@@ -2768,15 +2873,30 @@ Bool MilesAudioManager::startNextLoop( PlayingAudio *playing )
 		}
 
 		if (playing->m_type == PAT_3DSample) {
+#if defined(GENONLINE)
 			return playSample3D(playing);
+#else
+			playing->m_file = playSample3D(playing->m_audioEventRTS.Peek(), playing->m_3DSample);
+		} else {
+			playing->m_file = playSample(playing->m_audioEventRTS.Peek(), playing->m_sample);
+#endif
 		}
+#if defined(GENONLINE)
 		return playSample(playing);
+#else
+
+		return playing->m_file != nullptr;
+#endif
 	}
 	return false;
 }
 
 //-------------------------------------------------------------------------------------------------
+#if defined(GENONLINE)
 void MilesAudioManager::prepareStream( AudioEventRTS *event, HSTREAM stream )
+#else
+void MilesAudioManager::playStream( AudioEventRTS *event, HSTREAM stream )
+#endif
 {
 	// Force it to the beginning
 	if (event->getAudioEventInfo()->m_soundType == AT_Music) {
@@ -2784,12 +2904,14 @@ void MilesAudioManager::prepareStream( AudioEventRTS *event, HSTREAM stream )
 	}
 
 	AIL_register_stream_callback(stream, setStreamCompleted);
+#if defined(GENONLINE)
 }
 
 //-------------------------------------------------------------------------------------------------
 void MilesAudioManager::playStream( AudioEventRTS *event, HSTREAM stream )
 {
 	prepareStream(event, stream);
+#endif
 	AIL_start_stream(stream);
 	if (event->getAudioEventInfo()->m_soundType == AT_Music) {
 		// Need to stop/fade out the old music here.
@@ -2797,7 +2919,11 @@ void MilesAudioManager::playStream( AudioEventRTS *event, HSTREAM stream )
 }
 
 //-------------------------------------------------------------------------------------------------
+#if defined(GENONLINE)
 void *MilesAudioManager::prepareSample( AudioEventRTS *event, HSAMPLE sample )
+#else
+void *MilesAudioManager::playSample( AudioEventRTS *event, HSAMPLE sample )
+#endif
 {
 	AIL_init_sample(sample);
 
@@ -2810,13 +2936,22 @@ void *MilesAudioManager::prepareSample( AudioEventRTS *event, HSAMPLE sample )
 	fileBuffer = loadFileForRead(event);
 	if (fileBuffer) {
 		AIL_set_sample_file(sample, fileBuffer, 0);
+#if !defined(GENONLINE)
+
+		// Start playback
+		AIL_start_sample(sample);
+#endif
 	}
 
 	return fileBuffer;
 }
 
 //-------------------------------------------------------------------------------------------------
+#if defined(GENONLINE)
 void *MilesAudioManager::prepareSample3D( AudioEventRTS *event, H3DSAMPLE sample3D )
+#else
+void *MilesAudioManager::playSample3D( AudioEventRTS *event, H3DSAMPLE sample3D )
+#endif
 {
 	const Coord3D *pos = getCurrentPositionFromEvent(event);
 	if (pos) {
@@ -2841,6 +2976,11 @@ void *MilesAudioManager::prepareSample3D( AudioEventRTS *event, H3DSAMPLE sample
 			Real z = pos->z;
 			AIL_set_3D_position( sample3D, x, y, z );
 			initFilters3D(sample3D, event, pos);
+#if !defined(GENONLINE)
+
+			// Start playback
+			AIL_start_3D_sample(sample3D);
+#endif
 		}
 		return fileBuffer;
 	}
@@ -2848,6 +2988,7 @@ void *MilesAudioManager::prepareSample3D( AudioEventRTS *event, H3DSAMPLE sample
 	return nullptr;
 }
 
+#if defined(GENONLINE)
 //-------------------------------------------------------------------------------------------------
 Bool MilesAudioManager::playSample( PlayingAudio *playing )
 {
@@ -2870,6 +3011,7 @@ Bool MilesAudioManager::playSample3D( PlayingAudio *playing )
 	return true;
 }
 
+#endif
 //-------------------------------------------------------------------------------------------------
 void MilesAudioManager::buildProviderList()
 {
@@ -3118,17 +3260,25 @@ U32 AILCALLBACK streamingFileRead(void *file_handle, void *buffer, U32 bytes)
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
+#if defined(GENONLINE)
 AudioFileCache::AudioFileCache() : m_maxSize(0), m_currentlyUsedSize(0), m_evictedSize(0), m_mutexName("AudioFileCacheMutex")
+#else
+AudioFileCache::AudioFileCache() : m_maxSize(0), m_currentlyUsedSize(0), m_mutexName("AudioFileCacheMutex")
+#endif
 {
 	m_mutex = CreateMutex(nullptr, FALSE, m_mutexName);
+#if defined(GENONLINE)
 	m_readMutex = CreateMutex(nullptr, FALSE, "AudioFileReadMutex");
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
 AudioFileCache::~AudioFileCache()
 {
+#if defined(GENONLINE)
 	OpenAudioFileList filesToFree;
 	std::list<const void *> filesToStop;
+#endif
 	{
 		ScopedMutex mut(m_mutex);
 
@@ -3137,9 +3287,12 @@ AudioFileCache::~AudioFileCache()
 		for ( it = m_openFiles.begin(); it != m_openFiles.end(); ++it ) {
 			if (it->second.m_openCount > 0) {
 				DEBUG_CRASH(("Sample '%s' is still playing, and we're trying to quit.", it->second.m_eventInfo->m_audioName.str()));
+#if defined(GENONLINE)
 				filesToStop.push_back(it->second.m_file);
+#endif
 			}
 
+#if defined(GENONLINE)
 			filesToFree.push_back(it->second);
 		}
 		m_openFiles.clear();
@@ -3149,20 +3302,36 @@ AudioFileCache::~AudioFileCache()
 			if (eit->m_openCount > 0) {
 				filesToStop.push_back(eit->m_file);
 			}
+#else
+			releaseOpenAudioFile(&it->second);
+			// Don't erase it from the map, cause it makes this whole process way more complicated, and
+			// we're about to go away anyways.
+#endif
 		}
+#if defined(GENONLINE)
 		filesToFree.splice(filesToFree.end(), m_evictedFiles);
+#endif
 	}
 
+#if defined(GENONLINE)
 	stopSamplesUsingFiles(filesToStop);
 	freeOpenAudioFiles(filesToFree);
 
+#endif
 	CloseHandle(m_mutex);
+#if defined(GENONLINE)
 	CloseHandle(m_readMutex);
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
 void *AudioFileCache::openFile( AudioEventRTS *eventToOpenFrom )
 {
+#if !defined(GENONLINE)
+	// Protect the entire openFile function
+	ScopedMutex mut(m_mutex);
+
+#endif
 	AsciiString strToFind;
 	switch (eventToOpenFrom->getNextPlayPortion())
 	{
@@ -3179,19 +3348,31 @@ void *AudioFileCache::openFile( AudioEventRTS *eventToOpenFrom )
 			return nullptr;
 	}
 
+#if defined(GENONLINE)
 	{
 		ScopedMutex mut(m_mutex);
 
 		OpenFilesHash::iterator it;
 		it = m_openFiles.find(strToFind);
+#else
+	OpenFilesHash::iterator it;
+	it = m_openFiles.find(strToFind);
+#endif
 
+#if defined(GENONLINE)
 		if (it != m_openFiles.end()) {
 			++it->second.m_openCount;
 			return it->second.m_file;
 		}
+#else
+	if (it != m_openFiles.end()) {
+		++it->second.m_openCount;
+		return it->second.m_file;
+#endif
 	}
 
 	// Couldn't find the file, so actually open it.
+#if defined(GENONLINE)
 	// TheSuperHackers @bugfix arcticdolphin 28/10/2026 Read and decode outside the mutex because Miles calls closeFile under its own lock.
 	UnsignedInt fileSize;
 	char* buffer;
@@ -3209,9 +3390,19 @@ void *AudioFileCache::openFile( AudioEventRTS *eventToOpenFrom )
 		buffer = file->readEntireAndClose();
 	}
 	if (buffer == nullptr) {
+#else
+	File *file = TheFileSystem->openFile(strToFind.str());
+	if (!file) {
+		DEBUG_ASSERTLOG(strToFind.isEmpty(), ("Missing Audio File: '%s'", strToFind.str()));
+#endif
 		return nullptr;
 	}
 
+#if !defined(GENONLINE)
+	UnsignedInt fileSize = file->size();
+	char* buffer = file->readEntireAndClose();
+
+#endif
 	OpenAudioFile openedAudioFile;
 	openedAudioFile.m_eventInfo = eventToOpenFrom->getAudioEventInfo();
 
@@ -3249,6 +3440,7 @@ void *AudioFileCache::openFile( AudioEventRTS *eventToOpenFrom )
 	}
 
 	openedAudioFile.m_fileSize = fileSize;
+#if defined(GENONLINE)
 
 	void *result = openedAudioFile.m_file;
 	OpenAudioFileList filesToFree;
@@ -3279,11 +3471,25 @@ void *AudioFileCache::openFile( AudioEventRTS *eventToOpenFrom )
 			if (result) {
 				m_openFiles[strToFind] = openedAudioFile;
 			}
+#else
+	m_currentlyUsedSize += openedAudioFile.m_fileSize;
+	if (m_currentlyUsedSize > m_maxSize) {
+		// We need to free some samples, or we're not going to be able to play this sound.
+		if (!freeEnoughSpaceForSample(openedAudioFile)) {
+			m_currentlyUsedSize -= openedAudioFile.m_fileSize;
+			releaseOpenAudioFile(&openedAudioFile);
+			return nullptr;
+#endif
 		}
 	}
 
+#if defined(GENONLINE)
 	freeOpenAudioFiles(filesToFree);
 	return result;
+#else
+	m_openFiles[strToFind] = openedAudioFile;
+	return openedAudioFile.m_file;
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3303,6 +3509,7 @@ void AudioFileCache::closeFile( void *fileToClose )
 			return;
 		}
 	}
+#if defined(GENONLINE)
 
 	OpenAudioFileList::iterator eit;
 	for ( eit = m_evictedFiles.begin(); eit != m_evictedFiles.end(); ++eit ) {
@@ -3311,6 +3518,7 @@ void AudioFileCache::closeFile( void *fileToClose )
 			return;
 		}
 	}
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3323,6 +3531,7 @@ void AudioFileCache::setMaxSize( UnsignedInt size )
 }
 
 //-------------------------------------------------------------------------------------------------
+#if defined(GENONLINE)
 void AudioFileCache::releaseEvictedFiles()
 {
 	std::list<const void *> filesToStop;
@@ -3364,30 +3573,60 @@ void AudioFileCache::releaseEvictedFiles()
 
 //-------------------------------------------------------------------------------------------------
 void AudioFileCache::stopSamplesUsingFiles( const std::list<const void *>& filesToStop )
+#else
+void AudioFileCache::releaseOpenAudioFile( OpenAudioFile *fileToRelease )
+#endif
 {
+#if defined(GENONLINE)
 	std::list<const void *>::const_iterator it;
 	for ( it = filesToStop.begin(); it != filesToStop.end(); ++it ) {
 		TheAudio->closeAnySamplesUsingFile(*it);
+#else
+	if (fileToRelease->m_openCount > 0) {
+		// This thing needs to be terminated IMMEDIATELY.
+		TheAudio->closeAnySamplesUsingFile(fileToRelease->m_file);
+#endif
 	}
+#if defined(GENONLINE)
 }
+#endif
 
+#if defined(GENONLINE)
 //-------------------------------------------------------------------------------------------------
 void AudioFileCache::freeOpenAudioFile( OpenAudioFile *fileToFree )
 {
 	if (fileToFree->m_file) {
 		if (fileToFree->m_compressed) {
+#else
+	if (fileToRelease->m_file) {
+		if (fileToRelease->m_compressed) {
+#endif
 			// Files read in via AIL_decompress_ADPCM must be freed with AIL_mem_free_lock.
+#if defined(GENONLINE)
 			AIL_mem_free_lock(fileToFree->m_file);
+#else
+			AIL_mem_free_lock(fileToRelease->m_file);
+#endif
 		} else {
 			// Otherwise, we read it, we own it, blow it away.
+#if defined(GENONLINE)
 			delete [] fileToFree->m_file;
+#else
+			delete [] fileToRelease->m_file;
+#endif
 		}
+#if defined(GENONLINE)
 		fileToFree->m_file = nullptr;
 		fileToFree->m_eventInfo = nullptr;
+#else
+		fileToRelease->m_file = nullptr;
+		fileToRelease->m_eventInfo = nullptr;
+#endif
 	}
 }
 
 //-------------------------------------------------------------------------------------------------
+#if defined(GENONLINE)
 void AudioFileCache::freeOpenAudioFiles( OpenAudioFileList& filesToFree )
 {
 	OpenAudioFileList::iterator it;
@@ -3399,6 +3638,9 @@ void AudioFileCache::freeOpenAudioFiles( OpenAudioFileList& filesToFree )
 
 //-------------------------------------------------------------------------------------------------
 Bool AudioFileCache::freeEnoughSpaceForSample(const OpenAudioFile& sampleThatNeedsSpace, OpenAudioFileList& filesToFree)
+#else
+Bool AudioFileCache::freeEnoughSpaceForSample(const OpenAudioFile& sampleThatNeedsSpace)
+#endif
 {
 
 	Int spaceRequired = m_currentlyUsedSize - m_maxSize;
@@ -3449,12 +3691,16 @@ Bool AudioFileCache::freeEnoughSpaceForSample(const OpenAudioFile& sampleThatNee
 	for (ait = filesToClose.begin(); ait != filesToClose.end(); ++ait) {
 		OpenFilesHashIt itToErase = m_openFiles.find(*ait);
 		if (itToErase != m_openFiles.end()) {
+#if defined(GENONLINE)
 			if (itToErase->second.m_openCount > 0) {
 				m_evictedFiles.push_back(itToErase->second);
 				m_evictedSize += itToErase->second.m_fileSize;
 			} else {
 				filesToFree.push_back(itToErase->second);
 			}
+#else
+			releaseOpenAudioFile(&itToErase->second);
+#endif
 			m_currentlyUsedSize -= itToErase->second.m_fileSize;
 			m_openFiles.erase(itToErase);
 		}

@@ -62,7 +62,9 @@
 #include "GameLogic/Module/StickyBombUpdate.h"
 #include "GameLogic/Module/StealthUpdate.h"
 #include "GameLogic/Module/ContainModule.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
+#endif
 
 
 
@@ -1104,7 +1106,11 @@ Bool SpecialAbilityUpdate::continuePreparation()
 
 					Real denominator = MAX(1, data->m_preparationFrames);
 					Real increment = 1.0f - ((Real)m_prepFrames / denominator );
+#if defined(GENONLINE)
 					m_captureFlashPhase += increment / (3.0f * LOGICFRAMES_PER_BASEFRAME);
+#else
+					m_captureFlashPhase += increment / 3.0f;
+#endif
 
 					Bool thisPhase = ( ((Int)m_captureFlashPhase) & 1 );// are we in a flashy phase this frame?
 
@@ -1328,6 +1334,7 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
 				// only for black lotus, not infantry capture which resets in contunueprep()
 				spmInterface->startPowerRecharge();
 			}
+#if defined(GENONLINE)
 
 			// GenOnline @feature arcticdolphin 21/11/2026 Success point for building capture powers, excluded from SpecialPowerModule::triggerSpecialPower
 			LocalApiLiveAbilityUse(
@@ -1337,6 +1344,7 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
 				target->getTemplate(),
 				nullptr,
 				nullptr );
+#endif
 			break;
 
 			break;

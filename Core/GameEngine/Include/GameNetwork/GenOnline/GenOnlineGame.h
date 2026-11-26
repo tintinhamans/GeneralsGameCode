@@ -35,12 +35,6 @@ public:
 
 	int64_t m_userID = -1;
 
-	void UpdateLatencyFromConnection(UnicodeString pingStr, int ping)
-	{
-		m_pingStr = pingStr;
-		m_pingInt = ping;
-	}
-
 protected:
 	Int m_profileID;
 
@@ -77,7 +71,6 @@ private:
 	EStartPhase m_startPhase = EStartPhase::Idle;
 	int64_t m_startPhaseTime = -1;
 
-	std::chrono::system_clock::time_point matchStartTime;
 
 	std::chrono::steady_clock::time_point m_countdownEnd;
 
@@ -116,9 +109,6 @@ public:
 	// The countdown ends the given time after its event arrived, measured on the local monotonic clock.
 	void StartCountdown(int64_t durationMs);
 	int64_t GetCountdownRemainingMs() const;
-
-	void StartMatchTimer() { matchStartTime = std::chrono::system_clock::now(); }
-	std::chrono::system_clock::time_point GetStartTime() { return matchStartTime; }
 
 	void SyncWithLobby(LobbyEntry& lobby);
 	void UpdateSlotsFromCurrentLobby();

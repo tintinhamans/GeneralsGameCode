@@ -359,6 +359,7 @@ static void playerTooltip(GameWindow *window,
 //-------------------------------------------------------------------------------------------------
 /** Initialize the Lan Lobby Menu */
 //-------------------------------------------------------------------------------------------------
+#if defined(GENONLINE)
 // GenOnline @feature arcticdolphin 21/11/2026 The stats pipe sends chat lines through the open menu.
 static Bool s_lanLobbyMenuOpen = FALSE;
 
@@ -373,10 +374,13 @@ Bool LanLobbyMenuSubmitChatLine( UnicodeString text )
 	return TRUE;
 }
 
+#endif
 void LanLobbyMenuInit( WindowLayout *layout, void *userData )
 {
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 The stats pipe needs to know the menu is open.
 	s_lanLobbyMenuOpen = TRUE;
+#endif
 	LANnextScreen = nullptr;
 	LANbuttonPushed = false;
 	LANisShuttingDown = false;
@@ -561,8 +565,10 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void LanLobbyMenuShutdown( WindowLayout *layout, void *userData )
 {
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 The stats pipe needs to know the menu is closed.
 	s_lanLobbyMenuOpen = FALSE;
+#endif
 	LANPreferences prefs;
 	prefs["UserName"] = UnicodeStringToQuotedPrintable(GadgetTextEntryGetText( textEntryPlayerName ));
 	prefs.write();

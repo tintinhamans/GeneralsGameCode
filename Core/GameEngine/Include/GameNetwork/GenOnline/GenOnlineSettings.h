@@ -83,7 +83,8 @@ public:
 	void Social_SetPresenceStatus(const std::string& status);
 
 
-	bool Debug_VerboseLogging() const { return m_bVerbose; }
+	// Debug mode turns on verbose logs and full crash dumps.
+	bool Debug_Enabled() const { return m_bDebugMode; }
 	bool GetStatsExport() const { return m_bStatsExport; }
 
 	int GetChatLifeSeconds() const { return std::max<int>(m_Chat_LifeSeconds, 10); }
@@ -108,8 +109,6 @@ public:
 	std::vector<std::string> Data_ExcludePaths() const;
 
 	ServiceConnectionSettings Network_GetConnectionSettings() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_ConnectionSettings; }
-	std::string Network_GetLastRoute() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_LastRoute; }
-	bool Network_SaveLastRoute(const std::string& host);
 	bool Network_SaveWindowsLogin(bool windowsLogin);
 	bool Network_SaveConnectionSettings(const ServiceConnectionSettings& settings, std::string& error);
 
@@ -136,7 +135,7 @@ private:
 
 	bool m_bInitialized = false;
 
-	bool m_bVerbose = false;
+	bool m_bDebugMode = false;
 	bool m_bStatsExport = false;
 
 	bool m_Render_LimitFramerate = true;
@@ -168,7 +167,6 @@ private:
 
 	mutable std::mutex m_NetworkMutex;
 	ServiceConnectionSettings m_ConnectionSettings;
-	std::string m_LastRoute;
 	// keeps keys this build does not know when a setting is saved mid-session
 	std::string m_PreservedJSON = "{}";
 	// %LOCALAPPDATA%\genonline\settings.client.json, written only when it exists with a schema_version this client knows

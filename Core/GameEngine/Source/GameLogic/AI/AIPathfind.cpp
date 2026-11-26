@@ -197,10 +197,9 @@ void Pathfinder::reset()
 	debugPathPos.y = 0.0f;
 	debugPathPos.z = 0.0f;
 
-	if (debugPath)
-		deleteInstance(debugPath);
-
+	deleteInstance(debugPath);
 	debugPath = nullptr;
+
 	m_frameToShowObstacles = 0;
 
 	for (m_queuePRHead=0; m_queuePRHead<PATHFIND_QUEUE_LEN; m_queuePRHead++) {
@@ -5357,9 +5356,7 @@ void Pathfinder::setDebugPath(Path *newDebugpath)
 	if (TheGlobalData->m_debugAI)
 	{
 		// copy the path for debugging
-		if (debugPath)
-			deleteInstance(debugPath);
-
+		deleteInstance(debugPath);
 		debugPath = newInstance(Path);
 
 		for( PathNode *copyNode = newDebugpath->getFirstNode(); copyNode; copyNode = copyNode->getNextOptimized() )

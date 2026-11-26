@@ -139,69 +139,6 @@ static const Image* lookupRankImage(AsciiString side, Int rank)
 }
 
 
-static Int getTotalDisconnectsFromFile(Int playerID)
-{
-	Int retval = 0;
-	if (playerID == 0)
-	{
-		return 0;
-	}
-
-	UserPreferences pref;
-	AsciiString userPrefFilename;
-	userPrefFilename.format("GeneralsOnline\\MiscPref%d.ini", playerID);
-	DEBUG_LOG(("getTotalDisconnectsFromFile - reading stats from file %s", userPrefFilename.str()));
-	pref.load(userPrefFilename);
-
-	// if there is a file override, use that data instead.
-	if (pref.find("0") != pref.end()) {
-		retval = atoi(pref.find("0")->second.str());
-	}
-	if (pref.find("1") != pref.end()) {
-		retval += atoi(pref.find("1")->second.str());
-	}
-	if (pref.find("2") != pref.end()) {
-		retval += atoi(pref.find("2")->second.str());
-	}
-	if (pref.find("3") != pref.end()) {
-		retval += atoi(pref.find("3")->second.str());
-	}
-	if (pref.find("4") != pref.end()) {
-		retval += atoi(pref.find("4")->second.str());
-	}
-	if (pref.find("5") != pref.end()) {
-		retval += atoi(pref.find("5")->second.str());
-	}
-
-	return retval;	
-}
-
-Int GenOnlineGetAdditionalDisconnectsFromUserFile(Int playerID)
-{
-	Int retval = getTotalDisconnectsFromFile(playerID);
-
-	if (playerID == 0) {
-		return 0;
-	}
-
-	// TODO_GENONLINE_STATS:
-	/*
-	if (TheGameSpyInfo->getAdditionalDisconnects() > 0 && !retval)
-	{
-		DEBUG_LOG(("Clearing additional disconnects"));
-		TheGameSpyInfo->clearAdditionalDisconnects();
-	}
-
-	if (TheGameSpyInfo->getAdditionalDisconnects() != -1)
-	{
-		return TheGameSpyInfo->getAdditionalDisconnects();
-	}
-	*/
-
-	return retval;
-}
-
-
 void GenOnlineSetLookAtPlayer(int64_t id, UnicodeString nick)
 {
 	lookAtPlayerID = id;
@@ -440,16 +377,6 @@ void GenOnlineInsertBattleHonor(GameWindow *list, const Image *image, Bool enabl
 	GadgetListBoxSetItemData(list, (void *)itemData, row, column );
 	GadgetListBoxSetItemData(list, (void *)extra, row - 1, column );
 
-	/*
-	** removing text, since every place that adds text has alternate displays of the same thing
-	if (!text.isEmpty())
-	{
-		GadgetListBoxAddEntryText(list, text, GameSpyColor[GSCOLOR_DEFAULT], row+1, column, TRUE );
-		GadgetListBoxSetItemData(list, (void *)itemData, row+1, column );
-		rowsToSkip++;
-	}
-	*/
-
 	if(++column >= GadgetListBoxGetNumColumns(list))
 	{
 		column = 0;
@@ -603,78 +530,11 @@ static void populateBattleHonors(const PSPlayerStats& stats, Int battleHonors, I
 	GenOnlineInsertBattleHonor(list, TheMappedImageCollection->findImageByName("GlobalGen"), BitIsSet(battleHonors, BATTLE_HONOR_GLOBAL_GENERAL),
 		BATTLE_HONOR_GLOBAL_GENERAL, row, column);
 
-	/*
-	Bool isLoyal;
-	isLoyal = ThePlayerTemplateStore->getNthPlayerTemplate(lastGen)->getSide().compareNoCase( "america") == 0 && gamesInRow >= 20;
-	GenOnlineInsertBattleHonor(list, TheMappedImageCollection->findImageByName("Loyalty_USA"), isLoyal,
-		BATTLE_HONOR_LOYALTY_USA, row, column);
-	isLoyal = ThePlayerTemplateStore->getNthPlayerTemplate(lastGen)->getSide().compareNoCase( "china") == 0 && gamesInRow >= 20;
-	GenOnlineInsertBattleHonor(list, TheMappedImageCollection->findImageByName("Loyalty_China"), isLoyal,
-		BATTLE_HONOR_LOYALTY_CHINA, row, column);
-	isLoyal = ThePlayerTemplateStore->getNthPlayerTemplate(lastGen)->getSide().compareNoCase( "gla") == 0 && gamesInRow >= 20;
-	GenOnlineInsertBattleHonor(list, TheMappedImageCollection->findImageByName("Loyalty_GLA"), isLoyal,
-		BATTLE_HONOR_LOYALTY_GLA, row, column);
-		*/
-
 
 	//insertBattleHonor(list, TheMappedImageCollection->findImageByName("Endurance"), BitIsSet(battleHonors, BATTLE_HONOR_ENDURANCE),
 		//BATTLE_HONOR_ENDURANCE, row, column);
 
-	/*
-	GenOnlineInsertBattleHonor(list, TheMappedImageCollection->findImageByName("Campaign_USA"), BitIsSet(battleHonors, BATTLE_HONOR_CAMPAIGN_USA),
-		BATTLE_HONOR_CAMPAIGN_USA, row, column);
-	GenOnlineInsertBattleHonor(list, TheMappedImageCollection->findImageByName("Campaign_China"), BitIsSet(battleHonors, BATTLE_HONOR_CAMPAIGN_CHINA),
-		BATTLE_HONOR_CAMPAIGN_CHINA, row, column);
-	GenOnlineInsertBattleHonor(list, TheMappedImageCollection->findImageByName("Campaign_GLA"), BitIsSet(battleHonors, BATTLE_HONOR_CAMPAIGN_GLA),
-		BATTLE_HONOR_CAMPAIGN_GLA, row, column);
-	*/
-
-	/*
-	if(BitIsSet(challenge, BH_CHALLENGE_MASK_7))
-	{
-		GenOnlineInsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorChallenge7"), TRUE,
-			BATTLE_HONOR_CHALLENGE, row, column);
-	}
-	else if (BitIsSet(challenge, BH_CHALLENGE_MASK_6))
-	{
-		GenOnlineInsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorChallenge6"), TRUE,
-			BATTLE_HONOR_CHALLENGE, row, column);
-	}
-	else if (BitIsSet(challenge, BH_CHALLENGE_MASK_5))
-	{
-		GenOnlineInsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorChallenge5"), TRUE,
-			BATTLE_HONOR_CHALLENGE, row, column);
-	}
-	else if (BitIsSet(challenge, BH_CHALLENGE_MASK_4))
-	{
-		GenOnlineInsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorChallenge4"), TRUE,
-			BATTLE_HONOR_CHALLENGE, row, column);
-	}
-	else if (BitIsSet(challenge, BH_CHALLENGE_MASK_3))
-	{
-		GenOnlineInsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorChallenge3"), TRUE,
-			BATTLE_HONOR_CHALLENGE, row, column);
-	}
-	else if (BitIsSet(challenge, BH_CHALLENGE_MASK_2))
-	{
-		GenOnlineInsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorChallenge2"), TRUE,
-			BATTLE_HONOR_CHALLENGE, row, column);
-	}
-	else if (BitIsSet(challenge, BH_CHALLENGE_MASK_1))
-	{
-		GenOnlineInsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorChallenge1"), TRUE,
-			BATTLE_HONOR_CHALLENGE, row, column);
-	}
-	else
-	{
-		GenOnlineInsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorChallenge1"), FALSE,
-			BATTLE_HONOR_CHALLENGE, row, column);
-	}
-	*/
-
-	// TODO_GENONLINE_STATS
 	bool bPreordered = true;
-	//if (TheGameSpyInfo->didPlayerPreorder(stats.id))
 	if (bPreordered)
 	{
 		GenOnlineInsertBattleHonor(list, TheMappedImageCollection->findImageByName("OfficersClub"), TRUE,
@@ -765,6 +625,21 @@ static GameWindow* findWindow(GameWindow *parent, AsciiString baseWindow, AsciiS
 	return res;
 }
 
+static GameWindow *findPlayerInfoParent(const AsciiString &parentWindowName, int64_t lookupID)
+{
+	if(parentWindowName == "PopupPlayerInfo.wnd")
+	{
+		if (lookAtPlayerID != lookupID)
+			return NULL;
+		return parent;
+	}
+	if(parentWindowName == "WOLWelcomeMenu.wnd")
+		return TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("WOLWelcomeMenu.wnd:WOLWelcomeMenuParent"));
+	if(parentWindowName == "WOLQuickMatchMenu.wnd")
+		return TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("WOLQuickMatchMenu.wnd:WOLQuickMatchMenuParent"));
+	return NULL;
+}
+
 void GenOnlinePopulatePlayerInfoWindows( AsciiString parentWindowName )
 {
 	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
@@ -776,30 +651,22 @@ void GenOnlinePopulatePlayerInfoWindows( AsciiString parentWindowName )
 
 	int64_t localID = pAuthInterface->GetUserID();
 	int64_t lookupID = localID;
-	GameWindow *parentWindow = NULL;
-	
 	if(parentWindowName == "PopupPlayerInfo.wnd")
 	{
 		lookupID = lookAtPlayerID;
-		if (lookAtPlayerID == -1 || !parent)
-			return;
-		parentWindow = parent;
-	}
-	else if(parentWindowName == "WOLWelcomeMenu.wnd")
-	{
-		parentWindow = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("WOLWelcomeMenu.wnd:WOLWelcomeMenuParent"));
-		if (!parentWindow)
+		if (lookAtPlayerID == -1)
 			return;
 	}
-	else if(parentWindowName == "WOLQuickMatchMenu.wnd")
-	{
-		parentWindow = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("WOLQuickMatchMenu.wnd:WOLQuickMatchMenuParent"));
-		if (!parentWindow)
-			return;
-	}
+	if (findPlayerInfoParent(parentWindowName, lookupID) == NULL)
+		return;
 
 	pStatsInterface->findPlayerStatsByID(lookupID, [=](bool bSuccess, PSPlayerStats stats)
 		{
+			// The screen can close while the request runs, so the window is looked up again when the answer arrives.
+			GameWindow *parentWindow = findPlayerInfoParent(parentWindowName, lookupID);
+			if (parentWindow == NULL)
+				return;
+
 			Bool weHaveStats = bSuccess;
 
 			// if we don't have the stats from the server, see if we have cached stats
@@ -839,8 +706,6 @@ void GenOnlinePopulatePlayerInfoWindows( AsciiString parentWindowName )
 			{
 				numDiscons += it->second;
 			}
-
-			numDiscons += GenOnlineGetAdditionalDisconnectsFromUserFile(lookupID);
 
 			numGames = numWins + numLosses + numDiscons;
 
@@ -1034,19 +899,6 @@ void GenOnlinePopulatePlayerInfoWindows( AsciiString parentWindowName )
 				rank.format("GUI:GSRank%d", currentRank);
 				rankStr = TheGameText->fetch(rank);
 
-				//		//favorite side  (ex: Toxin, Tank, Stealth, etc.)
-				//		AsciiString side;
-				//		if( mostGames > 0  &&  pPlayerTemplate != NULL )
-				//		{
-				//			if( stats.gamesAsRandom >= mostGames )
-				//				side = "GUI:Random";
-				//			else
-				//				side.format("SIDE:%s", pPlayerTemplate->getSide().str());
-				//		}
-				//
-				//		//combined text (Ex: Toxin Corporal)
-				//		sideStr = TheGameText->fetch(side);
-				//		sideRankStr.format(L"%s - %s", sideStr.str(), rankStr.str() );
 			}
 
 			//rank image;  based on rank and primary faction (USA, China, GLA)
@@ -1310,12 +1162,6 @@ WindowMsgHandledType GenOnlinePlayerInfoOverlaySystem( GameWindow *window, Unsig
 					//GameSpyCloseOverlay( GSOVERLAY_PLAYERINFO );
 					GameSpyOpenOverlay( GSOVERLAY_BUDDY );
 				}
-//				else if (controlID == buttonOptionsID)
-//				{
-//					RefreshGameListBoxes();
-//					GameSpyCloseOverlay( GSOVERLAY_PLAYERINFO );
-//					GameSpyOpenOverlay( GSOVERLAY_OPTIONS );
-//				}
 				else if (controlID == buttonSetLocaleID)
 				{
 					RefreshGameListBoxes();

@@ -47,7 +47,9 @@
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/NAT.h"
 #include "GameNetwork/NetworkInterface.h"
+#if defined(GENONLINE)
 #include "GameNetwork/Online/OnlineProviderFactory.h"
+#endif
 
 
 // GameSpyGameSlot -------------------------------------------
@@ -85,20 +87,6 @@ typedef struct tConnInfoStruct {
 	unsigned short RemotePort;
 } ConnInfoStruct;
 
-/***********************************************************************************************
- * Get_Local_Chat_Connection_Address -- Which address are we using to talk to the chat server? *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:    Ptr to address to return local address                                            *                                                                                             *
- *                                                                                             *
- * OUTPUT:   True if success                                                                   *
- *                                                                                             *
- * WARNINGS: None                                                                              *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   10/27/00 3:24PM ST : Created                                                              *
- *=============================================================================================*/
 Bool GetLocalChatConnectionAddress(AsciiString serverName, UnsignedShort serverPort, UnsignedInt& localIP)
 {
 	//return false;
@@ -806,7 +794,11 @@ void GameSpyStagingRoom::launchGame()
 	if (TheNAT)
 		TheNetwork->attachTransport(TheNAT->getTransport());
 	else
+#if defined(GENONLINE)
 		TheNetwork->initTransport(GetOnlineGameTransport());
+#else
+		TheNetwork->initTransport();
+#endif
 
 	TheNetwork->parseUserList(this);
 

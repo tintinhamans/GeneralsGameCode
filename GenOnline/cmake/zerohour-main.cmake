@@ -3,15 +3,11 @@
 rts_copy_modern_media_files(z_generals)
 rts_add_license_files(z_generals)
 
-include(${CMAKE_CURRENT_LIST_DIR}/vcruntime-check.cmake)
-genonline_vcruntime_check_sources(z_generals)
 include(${CMAKE_CURRENT_LIST_DIR}/version-info.cmake)
 genonline_version_info(z_generals zerohour "Generals Online client for Zero Hour")
 
 macro(genonline_zerohour_main_targets)
     set_target_properties(z_generals PROPERTIES OUTPUT_NAME "genonline_zerohour${RTS_BUILD_OUTPUT_SUFFIX}")
-
-    genonline_vcruntime_check_link(z_generals)
 
     if(WIN32)
         add_custom_command(TARGET z_generals POST_BUILD

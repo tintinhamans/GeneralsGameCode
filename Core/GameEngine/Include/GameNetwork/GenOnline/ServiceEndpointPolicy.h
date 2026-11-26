@@ -22,9 +22,7 @@ namespace ServiceConnection
 bool NormalizeCustomEndpoint(const std::string& typed, std::string& origin, std::string& error);
 // The key the login token is stored under: one for every GO route, one per custom origin, empty when a custom server has no valid address
 std::string CredentialServerKey(const ServiceConnectionSettings& settings);
-// remembered is the host of the route that worked last, ignored unless it is one of the automatic routes
-std::vector<std::string> BootstrapRoutes(const std::string& environment,
-    const ServiceConnectionSettings& settings, const std::string& remembered);
+std::vector<std::string> BootstrapRoutes(const std::string& environment, const ServiceConnectionSettings& settings);
 std::string RouteHost(const std::string& route);
 // https and wss on the base host and port, http and ws instead when the base is http on a loopback host
 bool IsTrustedServiceURL(const std::string& url, const std::string& base, bool websocket);

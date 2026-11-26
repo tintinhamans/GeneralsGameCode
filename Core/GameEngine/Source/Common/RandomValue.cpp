@@ -128,6 +128,7 @@ void InitRandom( UnsignedInt seed )
 #endif
 }
 
+#if defined(GENONLINE)
 void SeedRandomState(UnsignedInt seed, RandomSeedState& state)
 {
 #ifdef DETERMINISTIC
@@ -148,6 +149,7 @@ UnsignedInt ComputeFreshGameLogicRandomSeedCRC(UnsignedInt seed)
 	return c.get();
 }
 
+#endif
 // Add with carry. SUM is replaced with A + B + C, C is replaced with 1 if there was a carry, 0 if there wasn't.
 // A carry occurred if the sum is less than one of the inputs. This is addition, so carry can never be more than one.
 #define ADC(SUM, A, B, C) SUM = (A) + (B) + (C); C = ((SUM < (A)) || (SUM < (B)))
@@ -284,7 +286,11 @@ Real GetGameClientRandomValueReal( Real lo, Real hi, const char *file, int line 
 //
 // Integer random value
 //
+#if defined(GENONLINE)
 static Int logicRandomValue(UnsignedInt (&seed)[6], int lo, int hi)
+#else
+Int GetGameLogicRandomValue( int lo, int hi, const char *file, int line )
+#endif
 {
 #if RETAIL_COMPATIBLE_CRC
 	const UnsignedInt delta = hi - lo + 1;
@@ -297,6 +303,7 @@ static Int logicRandomValue(UnsignedInt (&seed)[6], int lo, int hi)
 	const UnsignedInt delta = hi - lo + 1;
 #endif
 
+#if defined(GENONLINE)
 	return ((Int)(randomValue(seed) % delta)) + lo;
 }
 
@@ -308,6 +315,9 @@ Int GetLogicRandomValueFromState(RandomSeedState& state, Int lo, Int hi)
 Int GetGameLogicRandomValue( int lo, int hi, const char *file, int line )
 {
 	const Int rval = logicRandomValue(theGameLogicSeed, lo, hi);
+#else
+	const Int rval = ((Int)(randomValue(theGameLogicSeed) % delta)) + lo;
+#endif
 
 #ifdef DEBUG_RANDOM_LOGIC
 	DEBUG_LOG(( "%d: GetGameLogicRandomValue = %d (%d - %d), %s line %d",

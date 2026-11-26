@@ -73,7 +73,9 @@
 #include "GameNetwork/GUIUtil.h"
 #include "GameNetwork/IPEnumeration.h"
 #include "WWDownload/Registry.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLobby.h"
+#endif
 
 #if defined(GENONLINE)
 UnsignedInt GetTeamUiColor(Int teamNumber);
@@ -406,13 +408,21 @@ void setFPSTextBox( Int sliderPos )
 		GadgetStaticTextSetText(staticTextGameSpeed, text);
 		return;
 	}
+#if defined(GENONLINE)
 	else if( sliderPos == BaseFps )
+#else
+	else if( sliderPos == TheGlobalData->m_framesPerSecondLimit )
+#endif
 	{
 		// set different color
 		staticTextGameSpeed->winEnable(FALSE);
 	}
+#if defined(GENONLINE)
 	// The slider holds the retail frame rate, so the retail base frame rate is the normal speed.
 	text.format(L"%d%%", (sliderPos * 100 + BaseFps / 2) / BaseFps);
+#else
+	text.format(L"%2d", sliderPos);
+#endif
 	GadgetStaticTextSetText(staticTextGameSpeed, text);
 }
 
@@ -434,7 +444,9 @@ void reallyDoStart()
 	// The logic runs faster than retail, so the retail frame rate scales to logic frames per second.
 	TheFramePacer->setGameSpeedFps(maxFPS * LOGICFRAMES_PER_BASEFRAME);
 #endif
+#if defined(GENONLINE)
 
+#endif
   TheWritableGlobalData->m_mapName = TheSkirmishGameInfo->getMap();
   TheSkirmishGameInfo->startGame(0);
 
@@ -521,7 +533,9 @@ void MapSelectorTooltip(GameWindow *window,
 
 	Int pixelX, pixelY;
 	window->winGetScreenPosition(&pixelX, &pixelY);
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 08/11/2026 Name the type of the typed marker under the mouse.
 	UnicodeString typedTooltip;
@@ -649,7 +663,9 @@ void positionAdditionalImages( MapMetaData *mmd, GameWindow *mapWindow, Bool for
 	findDrawPositions(0,0, winMapSize.x, winMapSize.y,mmd->m_extent, &ul, &lr);
 	Int smallWidth = lr.x - ul.x;
 	Int smallHeight= lr.y - ul.y;
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 08/11/2026 Use the typed objects so each marker carries its icon category.
 	if (positionTypedPreviewImages(mmd, ul, smallWidth, smallHeight))
@@ -1906,6 +1922,7 @@ void populateSkirmishBattleHonors()
 			BATTLE_HONOR_OFFICERSCLUB, row, column);
 	}
 }
+#if defined(GENONLINE)
 
 // GenOnline @feature arcticdolphin 21/11/2026 The stats pipe moves start positions, sets the speed and describes the screen controls.
 static void statsMoveStartPosition(Int slot, Int position)
@@ -1949,3 +1966,4 @@ Bool SkirmishGameOptionsMenuStatsLobby( StatsLobbyScreen& out )
 	out.setGameSpeed = statsSetGameSpeed;
 	return TRUE;
 }
+#endif

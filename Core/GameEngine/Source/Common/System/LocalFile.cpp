@@ -50,7 +50,9 @@
 #include <fcntl.h>
 #include <io.h>
 #include <sys/stat.h>
+#if defined(GENONLINE)
 #include <share.h>
+#endif
 #include <stdlib.h>
 #include <ctype.h>
 
@@ -737,10 +739,15 @@ char* LocalFile::readEntireAndClose()
 	UnsignedInt fileSize = size();
 	char* buffer = NEW char[fileSize];
 
+#if defined(GENONLINE)
 	const Int bytesRead = read(buffer, fileSize);
+#else
+	read(buffer, fileSize);
+#endif
 
 	close();
 
+#if defined(GENONLINE)
 	// a short read leaves uninitialized bytes in the buffer, which callers would parse as file content
 	if (bytesRead < 0 || (UnsignedInt)bytesRead != fileSize)
 	{
@@ -748,5 +755,6 @@ char* LocalFile::readEntireAndClose()
 		return nullptr;
 	}
 
+#endif
 	return buffer;
 }

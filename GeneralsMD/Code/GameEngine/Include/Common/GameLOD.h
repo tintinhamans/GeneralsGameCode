@@ -188,7 +188,9 @@ public:
 	Bool didMemPass();
 	void setReallyLowMHz(Int mhz) { m_reallyLowMHz = mhz; }
 	Bool isReallyLowMHz() const { return m_cpuFreq < m_reallyLowMHz; }
+#if defined(GENONLINE)
 	void setAdaptiveParticleLevel(Int adaptiveQualityLevel);	///< particle LOD of the adaptive quality, the stricter of it and the dynamic LOD applies.
+#endif
 
 	StaticGameLODInfo m_staticGameLODInfo[STATIC_GAME_LOD_COUNT];
 	DynamicGameLODInfo m_dynamicGameLODInfo[DYNAMIC_GAME_LOD_COUNT];
@@ -199,7 +201,9 @@ protected:
 	void initStaticLODLevels();
 	void applyStaticLODLevel(StaticGameLODLevel level);
 	void applyDynamicLODLevel(DynamicGameLODLevel level);
+#if defined(GENONLINE)
 	void applyEffectiveParticleLOD();
+#endif
 	void refreshCustomStaticLODLevel();	///<grabs current globaldata values and makes them the custom detail setting.
 	StaticGameLODLevel getRecommendedTextureLODLevel();
 
@@ -208,9 +212,11 @@ protected:
 	DynamicGameLODLevel m_currentDynamicLOD;		///< current value of dynamic LOD.
 	Int m_numParticleGenerations;	///<number of particles that have been generated since dynamic LOD reduction started.
 	Int m_dynamicParticleSkipMask;	///<mask used to enable rendering of every Nth particle.
+#if defined(GENONLINE)
 	Int m_effectiveParticleSkipMask;	///<dynamic LOD and adaptive quality combined.
 	ParticlePriorityType m_effectiveMinParticlePriority;
 	ParticlePriorityType m_effectiveMinParticleSkipPriority;
+#endif
 	Int m_numDebrisGenerations;		///<number of debris that have been generated since dynamic LOD reduction started.
 	Int m_dynamicDebrisSkipMask;	///<mask used to enable rendering of every Nth debris.
 	Real m_slowDeathScale;			///<values < 1.0f are used to accelerate deaths
@@ -231,14 +237,20 @@ protected:
 	Real m_memBenchIndex;
 	Real m_compositeBenchIndex;
 	Int m_reallyLowMHz;
+#if defined(GENONLINE)
 	Int m_adaptiveParticleSkipMask;
 	ParticlePriorityType m_adaptiveMinParticlePriority;
 	ParticlePriorityType m_adaptiveMinParticleSkipPriority;
+#endif
 };
 
 Bool GameLODManager::isParticleSkipped()
 {
+#if defined(GENONLINE)
 	return (++m_numParticleGenerations & m_effectiveParticleSkipMask) != m_effectiveParticleSkipMask;
+#else
+	return (++m_numParticleGenerations & m_dynamicParticleSkipMask) != m_dynamicParticleSkipMask;
+#endif
 }
 
 Bool GameLODManager::isDebrisSkipped()
@@ -253,12 +265,20 @@ Real GameLODManager::getSlowDeathScale()
 
 ParticlePriorityType GameLODManager::getMinDynamicParticlePriority()
 {
+#if defined(GENONLINE)
 	return m_effectiveMinParticlePriority;
+#else
+	return m_minDynamicParticlePriority;
+#endif
 }
 
 ParticlePriorityType GameLODManager::getMinDynamicParticleSkipPriority()
 {
+#if defined(GENONLINE)
 	return m_effectiveMinParticleSkipPriority;
+#else
+	return m_minDynamicParticleSkipPriority;
+#endif
 }
 
 extern GameLODManager *TheGameLODManager;

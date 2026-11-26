@@ -41,5 +41,7 @@
 // EXTERNAL ///////////////////////////////////////////////////////////////////
 extern HINSTANCE ApplicationHInstance;  ///< our application instance
 extern HWND ApplicationHWnd;  ///< our application window handle
+#if defined(GENONLINE)
 extern HWND ApplicationSplashHWnd;  ///< startup splash window, until W3DDisplay hands over to the game window
+#endif
 extern Win32Mouse *TheWin32Mouse;  ///< global for win32 mouse only!

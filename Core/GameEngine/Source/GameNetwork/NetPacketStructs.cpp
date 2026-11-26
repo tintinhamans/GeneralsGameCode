@@ -241,6 +241,7 @@ NetCommandMsg *SmallNetPacketCommandBase::constructNetCommandMsg(const CommandBa
 	case NETCOMMANDTYPE_FRAMERESENDREQUEST:
 		msg = newInstance(NetFrameResendRequestCommandMsg);
 		break;
+#if defined(GENONLINE)
 	case NETCOMMANDTYPE_SIGNEDFRAMEINFO:
 		// read back into a plain frame info that keeps the signature, see NetFrameCommandMsg::readMessageData
 		msg = newInstance(NetFrameCommandMsg);
@@ -249,6 +250,7 @@ NetCommandMsg *SmallNetPacketCommandBase::constructNetCommandMsg(const CommandBa
 	case NETCOMMANDTYPE_SIGNATURES:
 		msg = newInstance(NetSignaturesCommandMsg);
 		break;
+#endif
 	default:
 		DEBUG_CRASH(("SmallNetPacketCommandBase::constructNetCommandMsg: Unexpected command type '%d' encountered.", commandType));
 		return nullptr;
@@ -569,9 +571,11 @@ size_t NetPacketDisconnectPlayerCommandData::copyBytes(UnsignedByte *buffer, con
 	FixedData data;
 	data.disconnectSlot = cmdMsg->getDisconnectSlot();
 	data.disconnectFrame = cmdMsg->getDisconnectFrame();
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 	data.hasSignature = cmdMsg->hasSignature() ? 1 : 0;
 	memcpy(data.signature, cmdMsg->getSignature(), sizeof(data.signature));
+#endif
 #endif
 
 	return network::writeObject(buffer, data);
@@ -583,18 +587,22 @@ size_t NetPacketDisconnectPlayerCommandData::readMessage(NetCommandRef &ref, Net
 	FixedData data;
 	data.disconnectSlot = 0;
 	data.disconnectFrame = 0;
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 	data.hasSignature = 0;
 	memset(data.signature, 0, sizeof(data.signature));
+#endif
 #endif
 
 	size_t size = network::readObject(data, buf);
 	cmdMsg->setDisconnectSlot(data.disconnectSlot);
 	cmdMsg->setDisconnectFrame(data.disconnectFrame);
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 	if (data.hasSignature != 0) {
 		cmdMsg->setSignature(data.signature);
 	}
+#endif
 #endif
 
 	return size;
@@ -1472,6 +1480,7 @@ size_t NetPacketFrameResendRequestCommandBase::copyBytes(UnsignedByte *buffer, c
 
 	return network::writeObject(buffer, base);
 }
+#if defined(GENONLINE)
 
 size_t NetPacketSignedFrameCommandData::copyBytes(UnsignedByte *buffer, const NetCommandRef &ref)
 {
@@ -1573,3 +1582,4 @@ size_t NetPacketSignaturesCommandBase::copyBytes(UnsignedByte *buffer, const Net
 
 	return network::writeObject(buffer, base);
 }
+#endif

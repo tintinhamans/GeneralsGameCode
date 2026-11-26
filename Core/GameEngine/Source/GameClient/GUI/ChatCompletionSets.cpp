@@ -73,8 +73,6 @@ void BuildLobbyChatCommands(ChatCommandRegistry& commands)
 	commands.AddCommand(L"support");
 	commands.AddAlias(commands.AddCommand(L"name"), L"nick");
 	AddNetCommand(commands);
-	commands.AddCommand(L"forcerelay");
-	commands.AddCommand(L"allowrelay");
 	commands.AddCommand(L"refresh");
 }
 

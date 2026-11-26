@@ -592,7 +592,9 @@ public:
 
 	/// Used only by Skirmish AI. Everyone else should call calcCostToBuild.
 	Int friend_getBuildCost() const { return m_buildCost; }
+#if defined(GENONLINE)
 	Real friend_getBuildTime() const { return m_buildTime; }	///< seconds, before handicaps; for the stats exporter's catalog
+#endif
 
 	const AsciiString& getDefaultOwningSide() const { return m_defaultOwningSide; }
 

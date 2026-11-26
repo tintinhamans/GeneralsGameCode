@@ -61,6 +61,7 @@ typedef struct _RightClickStruct
 	Int pos;
 } RightClickStruct;
 
+#if defined(GENONLINE)
 enum ListRowAnimMode
 {
     LIST_ROW_ANIM_ID = 1,      // key by item ID, for lists that change order or have insertions/deletions
@@ -103,13 +104,17 @@ enum KitScrollSpan
 	KIT_SCROLL_SPAN_CHEVRON ///< the arrow chevrons
 };
 
+#endif
 ///////////////////////////////////////////////////////////////////////////////
 // INLINING ///////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
+#if defined(GENONLINE)
 extern void SetListBoxRowAnimMode(GameWindow *window, ListRowAnimMode mode);
 extern void ApplyListBoxRowAnimation(GameWindow *window, Int rowIndex, Int rowHeight, Int &drawY);
+#endif
 extern Int GadgetListBoxGetEntryBasedOnXY( GameWindow *listbox, Int x, Int y, Int &row, Int &column);
 extern void GadgetListboxCreateScrollbar( GameWindow *listbox );
+#if defined(GENONLINE)
 extern Bool GadgetListBoxHasKitScrollBar( void ); ///< TRUE when every kit scroll bar image exists
 extern const Image *GadgetListBoxGetKitScrollImage( KitScrollImage which ); ///< nullptr unless GadgetListBoxHasKitScrollBar
 extern Int GadgetListBoxGetKitComboFrame( GameWindow *listbox ); ///< kit combo drop-down frame thickness, 0 for other lists
@@ -123,6 +128,7 @@ extern void GadgetListBoxDrawKitLines( Int x, Int y, Int width, Int height,
 																			 Bool left, Bool top, Bool right, Bool bottom ); ///< kit line edges inside a rect
 extern Bool GadgetListBoxGetKitFrameColor( Color layoutBorder, Color *frameColor ); ///< TRUE when a layout border draws as a kit frame
 extern void GadgetListBoxDrawKitFrame( Color color, Int x, Int y, Int width, Int height ); ///< kit weight frame, or a rule for thin windows
+#endif
 extern void GadgetListBoxAddMultiSelect( GameWindow *listbox );
 extern void GadgetListBoxRemoveMultiSelect( GameWindow *listbox );
 extern void GadgetListBoxSetListLength( GameWindow *listbox, Int newLength );
@@ -147,6 +153,7 @@ extern void GadgetListBoxSetSelected( GameWindow *listbox, Int selectIndex );
 extern void GadgetListBoxSetSelected( GameWindow *listbox, const Int *selectList, Int selectCount = 1 );
 extern void GadgetListBoxGetSelected( GameWindow *listbox, Int *selectList );
 extern void GadgetListBoxReset( GameWindow *listbox );
+#if defined(GENONLINE)
 
 // Defers per-entry height/scrollbar recompute until End. Not nestable.
 extern void GadgetListBoxBeginBatchAdd( GameWindow *listbox );
@@ -163,6 +170,7 @@ public:
 private:
 	GameWindow *m_listbox;
 };
+#endif
 extern void GadgetListBoxSetItemData( GameWindow *listbox,  void *data, Int row, Int column = 0);
 extern void *GadgetListBoxGetItemData( GameWindow *listbox, Int row, Int column = 0);
 

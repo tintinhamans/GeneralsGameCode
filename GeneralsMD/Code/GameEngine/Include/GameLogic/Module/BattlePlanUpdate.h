@@ -158,8 +158,10 @@ public:
 
 	//Returns the currently active battle plan -- unpacked and ready... returns PLANSTATUS_NONE if in transition!
 	BattlePlanStatus getActiveBattlePlan() const;
+#if defined(GENONLINE)
 	TransitionStatus getTransitionStatus() const { return m_status; }///< unpacking, active, packing or idle; read-only
 	BattlePlanStatus getDesiredBattlePlan() const { return m_desiredPlan; }
+#endif
 
 	virtual void onObjectCreated() override;
 	virtual void onDelete() override;

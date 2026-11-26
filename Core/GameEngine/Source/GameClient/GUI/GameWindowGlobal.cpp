@@ -65,6 +65,7 @@
 
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 
+#if defined(GENONLINE)
 static Int scaledImageWidth( const Image *image, Int height )
 {
 	Int imageHeight = image->getImageHeight();
@@ -287,6 +288,7 @@ static Bool drawBorderedImage( const Image *image, Int startX, Int startY, Int e
 	return TRUE;
 }
 
+#endif
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -299,6 +301,7 @@ void GameWindowManager::winDrawImage( const Image *image, Int startX, Int startY
 																			Int endX, Int endY, Color color )
 {
 
+#if defined(GENONLINE)
 	// GenOnline @bugfix arcticdolphin 08/11/2026 Stop KEEP_ASPECT images such as the logo stretching on wide screens.
 	if( image != nullptr && BitIsSet( image->getStatus(), IMAGE_STATUS_KEEP_ASPECT ) )
 		fitImageAspect( image, &startX, &startY, &endX, &endY );
@@ -306,10 +309,12 @@ void GameWindowManager::winDrawImage( const Image *image, Int startX, Int startY
 	if( image != nullptr && drawBorderedImage( image, startX, startY, endX, endY, color ) )
 		return;
 
+#endif
 	TheDisplay->drawImage( image, startX, startY, endX, endY, color );
 
 }
 
+#if defined(GENONLINE)
 //=============================================================================
 // GenOnline @bugfix arcticdolphin 08/11/2026 Stop end caps and tiles stretching when 800x600 layouts scale to wider screens.
 void GameWindowManager::winDrawThreePieceImage( const Image *left, const Image *center,
@@ -432,6 +437,7 @@ void GameWindowManager::winDrawThreePieceImage( const Image *left, const Image *
 
 }
 
+#endif
 // GameWindowManager::winFillRect =============================================
 /** draw filled rect, coords are absolute screen coords */
 //=============================================================================

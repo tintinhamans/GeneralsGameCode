@@ -16,27 +16,25 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/***********************************************************************************************
-***              C O N F I D E N T I A L  ---  W E S T W O O D  S T U D I O S               ***
-***********************************************************************************************
-*                                                                                             *
-*                 Project Name : WW3D                                                         *
-*                                                                                             *
-*                     $Archive:: /Commando/Code/ww3d2/render2d.cpp                           $*
-*                                                                                             *
-*                   $Org Author:: Byon_g                                                                                                                                                                                  $Modtime:: 1/24/01 3:54p                                               $*
-*                                                                                             *
-*                       Author : Kenny Mitchell                                               *
-*                                                                                             *
-*                     $Modtime:: 08/05/02 2:40p                                              $*
-*                                                                                             *
-*                    $Revision:: 48                                                          $*
-*                                                                                             *
-* 06/26/02 KM Matrix name change to avoid MAX conflicts                                       *
-* 08/05/02 KM Texture class redesign
-*---------------------------------------------------------------------------------------------*
-* Functions:                                                                                  *
-* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /***********************************************************************************************
+ ***              C O N F I D E N T I A L  ---  W E S T W O O D  S T U D I O S               ***
+ ***********************************************************************************************
+ *                                                                                             *
+ *                 Project Name : WW3D                                                         *
+ *                                                                                             *
+ *                     $Archive:: /Commando/Code/ww3d2/render2d.cpp                           $*
+ *                                                                                             *
+ *                   $Org Author:: Byon_g                                                                                                                                                                                  $Modtime:: 1/24/01 3:54p                                               $*
+ *                                                                                             *
+ *                       Author : Kenny Mitchell                                               *
+ *                                                                                             *
+ *                     $Modtime:: 08/05/02 2:40p                                              $*
+ *                                                                                             *
+ *                    $Revision:: 48                                                          $*
+ *                                                                                             *
+ * 06/26/02 KM Matrix name change to avoid MAX conflicts                                       *
+ * 08/05/02 KM Texture class redesign
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 
 #include <d3d9.h>  // Native DX9
@@ -376,6 +374,7 @@ void	Render2DClass::Internal_Add_Quad_HColors(unsigned long color1, unsigned lon
 }
 
 
+#if defined(GENONLINE)
 static const int QUAD_VERTEX_COUNT = 4;
 static const int QUAD_INDEX_COUNT = 6;
 static const int TRI_VERTEX_COUNT = 3;
@@ -392,12 +391,17 @@ void	Render2DClass::Internal_Flush_If_Full( int vertex_count, int index_count )
 }
 
 void	Render2DClass::Internal_Add_Quad_Indicies( bool backfaced )
+#else
+void	Render2DClass::Internal_Add_Quad_Indicies( int start_vert_index, bool backfaced )
+#endif
 {
+#if defined(GENONLINE)
 	Internal_Flush_If_Full( QUAD_VERTEX_COUNT, QUAD_INDEX_COUNT );
 
 	int start_vert_index = Vertices.Count();
 
-	unsigned short* indices;
+#endif
+	unsigned short * indices;
 
 	if (backfaced ^ (CoordinateScale.X * CoordinateScale.Y > 0)) {
 		indices = Indices.Uninitialized_Add();
@@ -435,76 +439,112 @@ void	Render2DClass::Internal_Add_Quad_Indicies( bool backfaced )
 
 void	Render2DClass::Add_Quad(const Vector2& v0, const Vector2& v1, const Vector2& v2, const Vector2& v3, const RectClass& uv, unsigned long color)
 {
+#if defined(GENONLINE)
 	Internal_Add_Quad_Indicies();
-	Internal_Add_Quad_Vertices(v0, v1, v2, v3);
-	Internal_Add_Quad_UVs(uv);
-	Internal_Add_Quad_Colors(color);
+#else
+	Internal_Add_Quad_Indicies( Vertices.Count() );
+#endif
+	Internal_Add_Quad_Vertices( v0, v1, v2, v3 );
+	Internal_Add_Quad_UVs( uv );
+	Internal_Add_Quad_Colors( color );
 }
 
 void	Render2DClass::Add_Quad_Backfaced(const Vector2& v0, const Vector2& v1, const Vector2& v2, const Vector2& v3, const RectClass& uv, unsigned long color)
 {
+#if defined(GENONLINE)
 	Internal_Add_Quad_Indicies( true );
-	Internal_Add_Quad_Vertices(v0, v1, v2, v3);
-	Internal_Add_Quad_UVs(uv);
-	Internal_Add_Quad_Colors(color);
+#else
+	Internal_Add_Quad_Indicies( Vertices.Count(), true );
+#endif
+	Internal_Add_Quad_Vertices( v0, v1, v2, v3 );
+	Internal_Add_Quad_UVs( uv );
+	Internal_Add_Quad_Colors( color );
 }
 
 void	Render2DClass::Add_Quad_VGradient(const Vector2& v0, const Vector2& v1, const Vector2& v2, const Vector2& v3, const RectClass& uv, unsigned long top_color, unsigned long bottom_color)
 {
+#if defined(GENONLINE)
 	Internal_Add_Quad_Indicies();
-	Internal_Add_Quad_Vertices(v0, v1, v2, v3);
-	Internal_Add_Quad_UVs(uv);
-	Internal_Add_Quad_VColors(top_color, bottom_color);
+#else
+	Internal_Add_Quad_Indicies( Vertices.Count() );
+#endif
+	Internal_Add_Quad_Vertices( v0, v1, v2, v3 );
+	Internal_Add_Quad_UVs( uv );
+	Internal_Add_Quad_VColors( top_color, bottom_color );
 }
 
 void	Render2DClass::Add_Quad_HGradient(const Vector2& v0, const Vector2& v1, const Vector2& v2, const Vector2& v3, const RectClass& uv, unsigned long left_color, unsigned long right_color)
 {
+#if defined(GENONLINE)
 	Internal_Add_Quad_Indicies();
-	Internal_Add_Quad_Vertices(v0, v1, v2, v3);
-	Internal_Add_Quad_UVs(uv);
-	Internal_Add_Quad_HColors(left_color, right_color);
+#else
+	Internal_Add_Quad_Indicies( Vertices.Count() );
+#endif
+	Internal_Add_Quad_Vertices( v0, v1, v2, v3 );
+	Internal_Add_Quad_UVs( uv );
+	Internal_Add_Quad_HColors( left_color, right_color );
 }
 
 
 void	Render2DClass::Add_Quad_VGradient(const RectClass& screen, unsigned long top_color, unsigned long bottom_color)
 {
+#if defined(GENONLINE)
 	Internal_Add_Quad_Indicies();
-	Internal_Add_Quad_Vertices(screen);
-	Internal_Add_Quad_UVs(RectClass(0, 0, 1, 1));
-	Internal_Add_Quad_VColors(top_color, bottom_color);
+#else
+	Internal_Add_Quad_Indicies( Vertices.Count() );
+#endif
+	Internal_Add_Quad_Vertices( screen );
+	Internal_Add_Quad_UVs( RectClass( 0,0,1,1 ) );
+	Internal_Add_Quad_VColors( top_color, bottom_color );
 }
 
 void	Render2DClass::Add_Quad_HGradient(const RectClass& screen, unsigned long left_color, unsigned long right_color)
 {
+#if defined(GENONLINE)
 	Internal_Add_Quad_Indicies();
-	Internal_Add_Quad_Vertices(screen);
-	Internal_Add_Quad_UVs(RectClass(0, 0, 1, 1));
-	Internal_Add_Quad_HColors(left_color, right_color);
+#else
+	Internal_Add_Quad_Indicies( Vertices.Count() );
+#endif
+	Internal_Add_Quad_Vertices( screen );
+	Internal_Add_Quad_UVs( RectClass( 0,0,1,1 ) );
+	Internal_Add_Quad_HColors( left_color, right_color );
 }
 
 
 void	Render2DClass::Add_Quad(const RectClass& screen, const RectClass& uv, unsigned long color)
 {
+#if defined(GENONLINE)
 	Internal_Add_Quad_Indicies();
-	Internal_Add_Quad_Vertices(screen);
-	Internal_Add_Quad_UVs(uv);
-	Internal_Add_Quad_Colors(color);
+#else
+	Internal_Add_Quad_Indicies( Vertices.Count() );
+#endif
+	Internal_Add_Quad_Vertices( screen );
+	Internal_Add_Quad_UVs( uv );
+	Internal_Add_Quad_Colors( color );
 }
 
 void	Render2DClass::Add_Quad(const Vector2& v0, const Vector2& v1, const Vector2& v2, const Vector2& v3, unsigned long color)
 {
+#if defined(GENONLINE)
 	Internal_Add_Quad_Indicies();
-	Internal_Add_Quad_Vertices(v0, v1, v2, v3);
-	Internal_Add_Quad_UVs(RectClass(0, 0, 1, 1));
-	Internal_Add_Quad_Colors(color);
+#else
+	Internal_Add_Quad_Indicies( Vertices.Count() );
+#endif
+	Internal_Add_Quad_Vertices( v0, v1, v2, v3 );
+	Internal_Add_Quad_UVs( RectClass( 0,0,1,1 ) );
+	Internal_Add_Quad_Colors( color );
 }
 
 void	Render2DClass::Add_Quad(const RectClass& screen, unsigned long color)
 {
+#if defined(GENONLINE)
 	Internal_Add_Quad_Indicies();
-	Internal_Add_Quad_Vertices(screen);
-	Internal_Add_Quad_UVs(RectClass(0, 0, 1, 1));
-	Internal_Add_Quad_Colors(color);
+#else
+	Internal_Add_Quad_Indicies( Vertices.Count() );
+#endif
+	Internal_Add_Quad_Vertices( screen );
+	Internal_Add_Quad_UVs( RectClass( 0,0,1,1 ) );
+	Internal_Add_Quad_Colors( color );
 }
 
 /*
@@ -512,8 +552,10 @@ void	Render2DClass::Add_Quad(const RectClass& screen, unsigned long color)
 */
 void	Render2DClass::Add_Tri(const Vector2& v0, const Vector2& v1, const Vector2& v2, const Vector2& uv0, const Vector2& uv1, const Vector2& uv2, unsigned long color)
 {
+#if defined(GENONLINE)
 	Internal_Flush_If_Full( TRI_VERTEX_COUNT, TRI_INDEX_COUNT );
 
+#endif
 	int old_vert_count = Vertices.Count();
 
 	// Add the vertices (translated to new coordinates)
@@ -831,10 +873,14 @@ void	Render2DTextClass::Draw_Char(WCHAR ch, unsigned long color)
 	if (ch != (WCHAR)' ' && !is_clipped) {
 		RectClass screen(Cursor.X, Cursor.Y, Cursor.X + Font->Char_Width(ch), Cursor.Y + char_height);
 
+#if defined(GENONLINE)
 		Internal_Add_Quad_Indicies();
-		Internal_Add_Quad_Vertices(screen);
-		Internal_Add_Quad_UVs(Font->Char_UV(ch));
-		Internal_Add_Quad_Colors(color);
+#else
+		Internal_Add_Quad_Indicies( Vertices.Count() );
+#endif
+		Internal_Add_Quad_Vertices( screen );
+		Internal_Add_Quad_UVs( Font->Char_UV( ch ) );
+		Internal_Add_Quad_Colors( color );
 
 		DrawExtents += screen;
 		TotalExtents += screen;
@@ -890,10 +936,14 @@ void	Render2DTextClass::Draw_Text(const WCHAR* text, unsigned long color)
 
 void	Render2DTextClass::Draw_Block(const RectClass& screen, unsigned long color)
 {
+#if defined(GENONLINE)
 	Internal_Add_Quad_Indicies();
-	Internal_Add_Quad_Vertices(screen);
-	Internal_Add_Quad_UVs(BlockUV);
-	Internal_Add_Quad_Colors(color);
+#else
+	Internal_Add_Quad_Indicies( Vertices.Count() );
+#endif
+	Internal_Add_Quad_Vertices( screen );
+	Internal_Add_Quad_UVs( BlockUV );
+	Internal_Add_Quad_Colors( color );
 
 	TotalExtents += screen;
 }

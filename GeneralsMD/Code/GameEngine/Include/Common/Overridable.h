@@ -105,6 +105,7 @@ class Overridable : public MemoryPoolObject
 		{
 			if ( m_isOverride )
 			{
+#if defined(GENONLINE)
 				// TheSuperHackers @bugfix Clean up the override chain before deleting this node.
 				// Without this, deleteInstance(this) triggers ~Overridable() which deletes m_nextOverride
 				// via the destructor, but the caller may still hold a pointer to the now-freed chain,
@@ -114,6 +115,7 @@ class Overridable : public MemoryPoolObject
 					m_nextOverride->deleteOverrides();
 					m_nextOverride = nullptr;
 				}
+#endif
 				deleteInstance(this);
 				return nullptr;
 			}

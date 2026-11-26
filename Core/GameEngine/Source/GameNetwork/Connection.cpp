@@ -28,7 +28,9 @@
 #include "GameNetwork/Connection.h"
 #include "GameNetwork/networkutil.h"
 #include "GameLogic/GameLogic.h"
+#if defined(GENONLINE)
 #include "../GenOnlineInclude.h"
+#endif
 #if defined(GENONLINE)
 #include "../GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/GenOnlineGame.h"
@@ -40,7 +42,9 @@ enum { MaxQuitFlushTime = 5000 }; // wait this many milliseconds at most to retr
 #else
 enum { MaxQuitFlushTime = 30000 }; // wait this many milliseconds at most to retry things before quitting
 #endif
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 enum { MinScaledRetryTime = 50, MinAutoRedundancyWindow = 100, MaxRedundantCandidates = 128, MinLateAckMargin = 50, MaxScaledRetryTime = 1000, MaxFastRetryTime = 400, StartDepth = 2 };
 enum { DataLossWindowMs = 3000, DataLossBurstRun = 2 }; // the peer's reports of the last 3 s, a lost run of 2 packets is a burst
@@ -56,12 +60,23 @@ Connection::Connection() {
 	m_retryTime = 2000; // set retry time to 2 seconds.
 	m_lastTimeSent = 0;
 	m_frameGrouping = 1;
+#if defined(GENONLINE)
 	m_configuredFrameGrouping = 1;
 	m_shortGrouping = FALSE;
+#endif
 	m_isQuitting = false;
 	m_quitTime = 0;
+#if defined(GENONLINE)
 	resetRedundancy();
 	m_slot = -1;
+#else
+	m_averageLatency = 0.0f;
+	Int i;
+	for(i = 0; i < CONNECTION_LATENCY_HISTORY_LENGTH; i++)
+	{
+		m_latencies[i] = 0.0f;
+	}
+#endif
 #if defined(GENONLINE)
 	m_networkSettings = NetworkSettings();
 	m_unreliableTransport = FALSE;
@@ -96,10 +111,20 @@ void Connection::init() {
 
 	m_lastTimeSent = 0;
 	m_frameGrouping = 1;
+#if defined(GENONLINE)
 	m_configuredFrameGrouping = 1;
 	m_shortGrouping = FALSE;
 	m_stats.reset();
 	resetRedundancy();
+#else
+	m_numRetries = 0;
+	m_retryMetricsTime = 0;
+
+	for (Int i = 0; i < CONNECTION_LATENCY_HISTORY_LENGTH; ++i) {
+		m_latencies[i] = 0;
+	}
+	m_averageLatency = 0;
+#endif
 	m_isQuitting = FALSE;
 	m_quitTime = 0;
 }
@@ -128,10 +153,14 @@ void Connection::attachTransport(Transport *transport) {
  * Assign this connection a user.  This is the user to whome we send all our packetized goodies.
  */
 void Connection::setUser(User *user) {
+#if defined(GENONLINE)
 	if (m_user != NULL) {
 		deleteInstance(m_user);
 	}
 
+#else
+	deleteInstance(m_user);
+#endif
 	m_user = user;
 }
 
@@ -150,7 +179,9 @@ User * Connection::getUser() {
 void Connection::sendNetCommandMsg(NetCommandMsg *msg, UnsignedByte relay) {
 	if (m_isQuitting)
 		return;
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	if (msg->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO && ((NetFrameCommandMsg *)msg)->hasSignature()) {
 		NetSignedFrameCommandMsg *signedMsg = newInstance(NetSignedFrameCommandMsg)((NetFrameCommandMsg *)msg);
@@ -169,11 +200,16 @@ void Connection::sendNetCommandMsg(NetCommandMsg *msg, UnsignedByte relay) {
 		// one wrapper command at a time.
 
 		NetCommandRef *tempref = NEW_NETCOMMANDREF(msg);
+#if defined(GENONLINE)
 		tempref->setRelay(relay); // the relay byte takes room in the packet too
+#endif
 		if (packet.addCommand(tempref)) {
 			deleteInstance(tempref);
 			tempref = nullptr;
 		} else {
+#if !defined(GENONLINE)
+			tempref->setRelay(relay);
+#endif
 
 			// the message doesn't fit in a single packet, need to split it up.
 			if (NetCommandList* list = NetPacket::ConstructBigCommandList(tempref)) {
@@ -249,6 +285,7 @@ void Connection::setQuitting()
 	DEBUG_LOG(("Connection::setQuitting() at time %d", m_quitTime));
 }
 
+#if defined(GENONLINE)
 void Connection::resetRedundancy() {
 	m_redundancyDepth = 0;
 	m_redundancyCap = 0;
@@ -522,6 +559,7 @@ void Connection::addRedundantCommands(NetPacket *packet, time_t curtime, time_t 
 #endif
 }
 
+#endif
 /**
  * This is the good part. We take all the network commands queued up for this connection,
  * packetize them and put them on the transport's send queue for actual sending.
@@ -531,8 +569,10 @@ UnsignedInt Connection::doSend() {
 	time_t curtime = timeGetTime();
 	Bool couldQueue = TRUE;
 
+#if defined(GENONLINE)
 	m_stats.update(curtime);
 
+#endif
 	// Do this check first, since it's an important fail-safe
 	if (m_isQuitting && curtime > m_quitTime + MaxQuitFlushTime)
 	{
@@ -543,8 +583,11 @@ UnsignedInt Connection::doSend() {
 
 	if ((curtime - m_lastTimeSent) < m_frameGrouping) {
 //		DEBUG_LOG(("not sending packet, time = %d, m_lastFrameSent = %d, m_frameGrouping = %d", curtime, m_lastTimeSent, m_frameGrouping));
+#if defined(GENONLINE)
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "not sending packet, time = %I64d, m_lastFrameSent = %I64d, m_frameGrouping = %I64d", (Int64)curtime, (Int64)m_lastTimeSent, (Int64)m_frameGrouping);
+#endif
 		return 0;
+#if defined(GENONLINE)
 	}
 
 	Bool redundancy = FALSE;
@@ -555,6 +598,9 @@ UnsignedInt Connection::doSend() {
 	const Bool fastResend = m_networkSettings.send.fast_resend;
 #else
 	const Bool fastResend = FALSE;
+#endif
+#else
+	}
 #endif
 
 	// iterate through all the messages and put them into a packet(s).
@@ -572,6 +618,7 @@ UnsignedInt Connection::doSend() {
 
 			time_t timeLastSent = msg->getTimeLastSent();
 
+#if defined(GENONLINE)
 			// a command inside the redundancy window is not retried, it goes out again as a redundant copy
 			// fast resend: the first resend counts from the first send, not from the last redundant copy, and the window does not hold it back
 			const time_t sentAt = (fastResend && !msg->isRetried() && (timeLastSent != -1)) ? msg->getTimeFirstSent() : timeLastSent;
@@ -582,9 +629,15 @@ UnsignedInt Connection::doSend() {
 
 			if (due) {
 				if (packet.addCommand(msg)) {
+#else
+			if (((curtime - timeLastSent) > m_retryTime) || (timeLastSent == -1)) {
+				notDone = packet.addCommand(msg);
+				if (notDone) {
+#endif
 					// the msg command was added to the packet.
 					if (CommandRequiresAck(msg->getCommand())) {
 						if (timeLastSent != -1) {
+#if defined(GENONLINE)
 							m_stats.noteRetry(curtime);
 							if (!msg->isRetried() && !fastResend) {
 								noteLossEvent(curtime, TRUE); // the command and all its copies were lost, or their acks were
@@ -592,26 +645,36 @@ UnsignedInt Connection::doSend() {
 							msg->setRetried(TRUE);
 						} else {
 							msg->setTimeFirstSent(curtime);
+#else
+							++m_numRetries;
+#endif
 						}
+#if !defined(GENONLINE)
+						doRetryMetrics();
+#endif
 						msg->setTimeLastSent(curtime);
 					} else {
 						m_netCommandList->removeMessage(msg);
 						deleteInstance(msg);
 					}
+#if defined(GENONLINE)
 				} else {
 					notDone = FALSE;
 					if (packet.getNumCommands() > 0) {
 						next = msg; // the packet is full, this one starts the next packet
 					}
+#endif
 				}
 			}
 			msg = next;
 		}
 
+#if defined(GENONLINE)
 		if (redundancy && notDone && (packet.getNumCommands() > 0)) {
 			addRedundantCommands(&packet, curtime, redundancyWindow, redundancyDepth);
 		}
 
+#endif
 		if (msg != nullptr) {
 			DEBUG_LOG(("didn't finish sending all commands in connection"));
 		}
@@ -664,8 +727,12 @@ NetCommandRef * Connection::processAck(UnsignedShort commandID, UnsignedByte ori
 		// Need to check for both the command ID and the player ID.
 		temp = temp->getNext();
 	}
+#if defined(GENONLINE)
 	// an ack for a command not sent yet belongs to another command with the same id
 	if (temp == nullptr || temp->getTimeLastSent() == -1) {
+#else
+	if (temp == nullptr) {
+#endif
 		return nullptr;
 	}
 
@@ -676,6 +743,7 @@ NetCommandRef * Connection::processAck(UnsignedShort commandID, UnsignedByte ori
 	}
 #endif
 
+#if defined(GENONLINE)
 	// A retried command was last sent after its first send, so its round trip time would be too short.
 	// Redundant copies are not retries. Any ack of a copy counts as an ack of the first send.
 	const time_t now = timeGetTime();
@@ -709,6 +777,13 @@ NetCommandRef * Connection::processAck(UnsignedShort commandID, UnsignedByte ori
 		}
 		m_stats.noteAcked((Real)(now - temp->getTimeFirstSent()), now);
 	}
+#else
+	Int index = temp->getCommand()->getID() % CONNECTION_LATENCY_HISTORY_LENGTH;
+	m_averageLatency -= ((Real)(m_latencies[index])) / CONNECTION_LATENCY_HISTORY_LENGTH;
+	Real lat = timeGetTime() - temp->getTimeLastSent();
+	m_averageLatency += lat / CONNECTION_LATENCY_HISTORY_LENGTH;
+	m_latencies[index] = lat;
+#endif
 
 #if defined(RTS_DEBUG)
 	if (doDebug == TRUE) {
@@ -719,17 +794,37 @@ NetCommandRef * Connection::processAck(UnsignedShort commandID, UnsignedByte ori
 	return temp;
 }
 
+#if defined(GENONLINE)
 void Connection::setShortGrouping(Bool shortGrouping) {
 	if (shortGrouping != m_shortGrouping) {
 		m_shortGrouping = shortGrouping;
 		applyFrameGrouping();
 	}
+#else
+void Connection::setFrameGrouping(time_t frameGrouping) {
+	m_frameGrouping = frameGrouping;
+//	m_retryTime = frameGrouping * 4;
+#endif
 }
 
+#if defined(GENONLINE)
 void Connection::setFrameGrouping(time_t frameGrouping) {
 	m_configuredFrameGrouping = frameGrouping;
 	applyFrameGrouping();
 //	m_retryTime = frameGrouping * 4;
+#else
+void Connection::doRetryMetrics() {
+	static Int numSeconds = 0;
+	time_t curTime = timeGetTime();
+
+	if ((curTime - m_retryMetricsTime) > 10000) {
+		m_retryMetricsTime = curTime;
+		++numSeconds;
+//		DEBUG_LOG(("Retries in the last 10 seconds = %d, average latency = %fms", m_numRetries, m_averageLatency));
+		m_numRetries = 0;
+//		m_retryTime = m_averageLatency * 1.5;
+	}
+#endif
 }
 
 #if defined(RTS_DEBUG)

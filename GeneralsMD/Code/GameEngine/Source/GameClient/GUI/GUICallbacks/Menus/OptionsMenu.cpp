@@ -69,7 +69,9 @@
 #include "GameClient/GUICallbacks.h"
 #include "GameClient/GlobalLanguage.h"
 #include "GameNetwork/FirewallHelper.h"
+#if defined(GENONLINE)
 #include "GameNetwork/Online/IOnlineGameHooks.h"
+#endif
 #include "GameNetwork/IPEnumeration.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
@@ -80,8 +82,10 @@
 
 #include "WW3D2/ww3d.h"
 
+#if defined(GENONLINE)
 #include "../GenOnlineInit.h"
 
+#endif
 // This is for non-RC builds only!!!
 #define VERBOSE_VERSION L"Release"
 
@@ -518,6 +522,7 @@ static void saveOptions()
 		AsciiString aStr;
 		aStr.translate(uStr);
 		Int portOverride = atoi(aStr.str());
+#if defined(GENONLINE)
 		if (portOverride < 0 || portOverride > 65535)
 			portOverride = 0;
 		if (TheGlobalData->m_firewallPortOverride != portOverride)
@@ -587,6 +592,84 @@ static void saveOptions()
 		(*pref)["CursorCaptureEnabledInWindowedGame"] = (mode & CursorCaptureMode_EnabledInWindowedGame) ? "yes" : "no";
 		(*pref)["CursorCaptureEnabledInWindowedMenu"] = (mode & CursorCaptureMode_EnabledInWindowedMenu) ? "yes" : "no";
 		(*pref)["CursorCaptureEnabledInFullscreenGame"] = (mode & CursorCaptureMode_EnabledInFullscreenGame) ? "yes" : "no";
+#else
+		if (portOverride < 0 || portOverride > 65535)
+			portOverride = 0;
+		if (TheGlobalData->m_firewallPortOverride != portOverride)
+		{	TheWritableGlobalData->m_firewallPortOverride = portOverride;
+		    aStr.format("%d", portOverride);
+			(*pref)["FirewallPortOverride"] = aStr;
+		}
+	}
+
+	//-------------------------------------------------------------------------------------------------
+	// antialiasing
+  GadgetComboBoxGetSelectedPos(comboBoxAntiAliasing, &index);
+  if( index >= 0 )
+  {
+		Int mode = WW3D::MULTISAMPLE_MODE_NONE;
+
+		// TheSuperHackers @info We are converting comboBox entry position to MultiSampleModeEnum values
+		index = clamp((int)OptionPreferences::AntiAliasingMode_OFF, index, (int)OptionPreferences::AntiAliasingMode_MSAA_8X);
+		mode = (index > 0) ? 1 << index : 0;
+
+		TheWritableGlobalData->m_antiAliasLevel = mode;
+    AsciiString prefString;
+		prefString.format("%d", mode);
+		(*pref)["AntiAliasing"] = prefString;
+  }
+
+	//-------------------------------------------------------------------------------------------------
+	// texture filter mode
+	val = pref->getTextureFilterMode();
+	if (val >= 0)
+	{
+		val = clamp((int)TextureFilterClass::TEXTURE_FILTER_NONE, val, (int)TextureFilterClass::TEXTURE_FILTER_ANISOTROPIC);
+
+		TheWritableGlobalData->m_textureFilteringMode = val;
+		AsciiString prefString;
+		prefString = TextureFilterClass::TextureFilterModeString[val];
+		(*pref)["TextureFilter"] = prefString;
+	}
+
+	//-------------------------------------------------------------------------------------------------
+	// anisotropy level
+	val = pref->getTextureAnisotropyLevel();
+	if (val >= 0)
+	{
+		val = clamp((int)TextureFilterClass::TEXTURE_FILTER_ANISOTROPIC_2X, val, (int)TextureFilterClass::TEXTURE_FILTER_ANISOTROPIC_16X);
+
+		TheWritableGlobalData->m_textureAnisotropyLevel = val;
+		AsciiString prefString;
+		prefString.format("%d", val);
+		(*pref)["AnisotropyLevel"] = prefString;
+	}
+
+	//-------------------------------------------------------------------------------------------------
+	// mouse mode
+	TheWritableGlobalData->m_useAlternateMouse = GadgetCheckBoxIsChecked(checkAlternateMouse);
+	(*pref)["UseAlternateMouse"] = TheWritableGlobalData->m_useAlternateMouse ? "yes" : "no";
+
+	// TheSuperHackers @todo Add check box ?
+	{
+		Bool useRightMouseScrollWithAlternateMouse = pref->getRightMouseScrollWithAlternateMouseEnabled();
+		(*pref)["UseRightMouseScrollWithAlternateMouse"] = useRightMouseScrollWithAlternateMouse ? "yes" : "no";
+		TheWritableGlobalData->m_useRightMouseScrollWithAlternateMouse = useRightMouseScrollWithAlternateMouse;
+	}
+
+	TheWritableGlobalData->m_clientRetaliationModeEnabled = GadgetCheckBoxIsChecked(checkRetaliation);
+	(*pref)["Retaliation"] = TheWritableGlobalData->m_clientRetaliationModeEnabled? "yes" : "no";
+
+	TheWritableGlobalData->m_doubleClickAttackMove = GadgetCheckBoxIsChecked( checkDoubleClickAttackMove );
+	(*pref)["UseDoubleClickAttackMove"] = TheWritableGlobalData->m_doubleClickAttackMove ? "yes" : "no";
+
+	// TheSuperHackers @todo Add combo box ?
+	{
+		CursorCaptureMode mode = pref->getCursorCaptureMode();
+		(*pref)["CursorCaptureEnabledInWindowedGame"] = (mode & CursorCaptureMode_EnabledInWindowedGame) ? "yes" : "no";
+		(*pref)["CursorCaptureEnabledInWindowedMenu"] = (mode & CursorCaptureMode_EnabledInWindowedMenu) ? "yes" : "no";
+		(*pref)["CursorCaptureEnabledInFullscreenGame"] = (mode & CursorCaptureMode_EnabledInFullscreenGame) ? "yes" : "no";
+#endif
 		(*pref)["CursorCaptureEnabledInFullscreenMenu"] = (mode & CursorCaptureMode_EnabledInFullscreenMenu) ? "yes" : "no";
 		TheMouse->setCursorCaptureMode(mode);
 	}
@@ -848,11 +931,13 @@ static void saveOptions()
 		TheWritableGlobalData->m_jpegQuality = quality;
 	}
 
+#if defined(GENONLINE)
 	// The observer stats font size lives in settings.client.json so the overlay is set up again with it.
 	TheInGameUI->initObserverOverlay();
 
 	//-------------------------------------------------------------------------------------------------
 
+#endif
 	//-------------------------------------------------------------------------------------------------
 	// Resolution
 	//
@@ -1171,12 +1256,14 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 		}
 	}
 
+#if defined(GENONLINE)
 	if (comboBoxLANIP)
 		GadgetComboBoxSetText(comboBoxLANIP, L"***.***.***.***");
 
 	if (comboBoxOnlineIP)
 		GadgetComboBoxSetText(comboBoxOnlineIP, L"***.***.***.***");
 
+#endif
 #if ENABLE_GUI_HACKS
 	// TheSuperHackers @tweak 26/07/2026 The http proxy feature was obsoleted because it did nothing for the UDP game traffic or match sockets.
 	// Hide the relevant obsoleted UI elements accordingly.
@@ -1423,7 +1510,11 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	GameWindow *parent = TheWindowManager->winGetWindowFromId( nullptr, parentID );
 	TheWindowManager->winSetFocus( parent );
 
+#if defined(GENONLINE)
 	if( (TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || GetOnlineGameHooks()->isLoggedIn() )
+#else
+	if( (TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || TheGameSpyInfo )
+#endif
 	{
 		// disable controls that you can't change the options for in game
 		comboBoxLANIP->winEnable(FALSE);
@@ -1431,8 +1522,12 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 		if (comboBoxOnlineIP)
 			comboBoxOnlineIP->winEnable(FALSE);
 
+#if defined(GENONLINE)
 		if (buttonFirewallRefresh)
+			buttonFirewallRefresh->winEnable(FALSE);
+#else
 		buttonFirewallRefresh->winEnable(FALSE);
+#endif
 
 		if (comboBoxDetail)
 			comboBoxDetail->winEnable(FALSE);
@@ -1451,7 +1546,9 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	}
 
 
+#if defined(GENONLINE)
 	GetOnlineGameHooks()->onOptionsMenuInit((TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || GetOnlineGameHooks()->isLoggedIn());
+#endif
 	TheWindowManager->winSetModal(parent);
 	ignoreSelected = FALSE;
 }
@@ -1485,6 +1582,7 @@ void OptionsMenuShutdown( WindowLayout *layout, void *userData )
 //-------------------------------------------------------------------------------------------------
 void OptionsMenuUpdate( WindowLayout *layout, void *userData )
 {
+
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1605,10 +1703,12 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 
 					showAdvancedOptions();
 				}
+#if defined(GENONLINE)
 				else
 				{
 					GetOnlineGameHooks()->onOptionsMenuComboSelected(control);
 				}
+#endif
 			break;
 		}
 
@@ -1641,9 +1741,11 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 			else if (controlID == buttonAccept )
 			{
+#if defined(GENONLINE)
 				// Changed connection settings are tested first so a rejected address keeps the menu open.
 				if (!GetOnlineGameHooks()->onOptionsMenuAccept())
 					break;
+#endif
 				saveOptions();
 
 				if (pref)
@@ -1675,10 +1777,12 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 			else if (controlID == buttonDefaults )
 			{
 				setDefaults();
+#if defined(GENONLINE)
 				GetOnlineGameHooks()->onOptionsMenuDefaults();
 			}
 			else if (GetOnlineGameHooks()->onOptionsMenuButtonSelected(control))
 			{
+#endif
 			}
 			else if (controlID == ButtonAdvancedAcceptID )
 			{

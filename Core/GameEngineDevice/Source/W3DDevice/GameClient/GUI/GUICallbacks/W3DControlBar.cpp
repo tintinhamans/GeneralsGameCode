@@ -39,7 +39,9 @@
 #include "GameClient/ControlBar.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/ControlBarScheme.h"
+#if defined(GENONLINE)
 #include "GameClient/GadgetListBox.h"
+#endif
 #include "GameClient/MapUtil.h"
 #if defined(GENONLINE)
 #include "GameClient/MapPreviewIcons.h"
@@ -127,6 +129,7 @@ void W3DPowerDraw( GameWindow *window, WinInstanceData *instData )
 	//const Image *beginBar = nullptr;
 	const Image *centerBar = nullptr;
 	static const Image *slider = TheMappedImageCollection->findImageByName("PowerBarSlider");
+#if defined(GENONLINE)
 	Player *player = NULL;
 	if(TheControlBar->isObserverControlBarOn())
 	{
@@ -136,6 +139,9 @@ void W3DPowerDraw( GameWindow *window, WinInstanceData *instData )
 		player = ThePlayerList->getLocalPlayer();
 
 
+#else
+	Player* player = TheControlBar->getCurrentlyViewedPlayer();
+#endif
 
 	if(!player || !TheGlobalData)
 		return;
@@ -294,6 +300,7 @@ void W3DPowerDrawA( GameWindow *window, WinInstanceData *instData )
 	const Image *beginBar = nullptr;
 	const Image *centerBar = nullptr;
 	static const Image *slider = TheMappedImageCollection->findImageByName("PowerBarSlider");
+#if defined(GENONLINE)
 	Player *player = NULL;
 	if(TheControlBar->isObserverControlBarOn())
 	{
@@ -303,6 +310,9 @@ void W3DPowerDrawA( GameWindow *window, WinInstanceData *instData )
 		player = ThePlayerList->getLocalPlayer();
 
 
+#else
+	Player* player = TheControlBar->getCurrentlyViewedPlayer();
+#endif
 
 	if(!player || !TheGlobalData)
 		return;
@@ -488,9 +498,17 @@ void W3DCommandBarGridDraw( GameWindow *window, WinInstanceData *instData )
 
 void W3DCommandBarGenExpDraw( GameWindow *window, WinInstanceData *instData )
 {
+#if defined(GENONLINE)
 	Player *player = ThePlayerList->getLocalPlayer();
 	if(!player->isPlayerActive())
+#else
+	// TheSuperHackers @bugfix Stubbjax 08/08/2025 Show the experience bar for observers
+	Player* player = TheControlBar->getCurrentlyViewedPlayer();
+
+	if (!player)
+#endif
 		return;
+
 	static const Image *endBar = TheMappedImageCollection->findImageByName("GenExpBarTop1");
 	static const Image *beginBar = TheMappedImageCollection->findImageByName("GenExpBarBottom1");
 	static const Image *centerBar = TheMappedImageCollection->findImageByName("GenExpBar1");
@@ -694,6 +712,7 @@ void W3DNoDraw( GameWindow *window, WinInstanceData *instData )
 }
 
 void drawSkinnyBorder( Int x, Int y, Int width, Int height);
+#if defined(GENONLINE)
 
 // GenOnline @tweak arcticdolphin 08/11/2026 The map preview frame follows its layout border colour at the kit line weight.
 // TRUE when the kit is loaded and the window has a visible, non black enabled border colour.
@@ -729,6 +748,7 @@ static void drawMapPreviewBorder( GameWindow *window, Int x, Int y, Int width, I
 	GadgetListBoxDrawKitFrame( border, x - thickness, y - thickness, width + 2 * thickness, height + 2 * thickness );
 }
 
+#endif
 void W3DDrawMapPreview( GameWindow *window, WinInstanceData *instData)
 {
 	MapMetaData *mmData = (MapMetaData *)window->winGetUserData();
@@ -738,6 +758,7 @@ void W3DDrawMapPreview( GameWindow *window, WinInstanceData *instData)
 	window->winGetSize(&width, &height);
 	if(!mmData)
 	{
+#if defined(GENONLINE)
 		Color border;
 		if( BitIsSet( window->winGetStatus(), WIN_STATUS_IMAGE ) == FALSE && getMapPreviewKitBorder( window, &border ) )
 		{
@@ -751,6 +772,10 @@ void W3DDrawMapPreview( GameWindow *window, WinInstanceData *instData)
 			W3DGameWinDefaultDraw( window, instData );
 		}
 		drawMapPreviewBorder( window, pixelX, pixelY, width, height );
+#else
+		W3DGameWinDefaultDraw( window, instData );
+		drawSkinnyBorder(pixelX - 1, pixelY - 1, width + 2, height + 2);
+#endif
 		return;
 	}
 
@@ -815,6 +840,7 @@ void W3DDrawMapPreview( GameWindow *window, WinInstanceData *instData)
 			TheDisplay->drawImage(image, pixelX + it->x, pixelY + it->y, pixelX + it->x + SUPPLY_TECH_SIZE, pixelY + it->y +SUPPLY_TECH_SIZE);
 			it++;
 		}
+#if defined(GENONLINE)
 
 #if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 08/11/2026 Draw the typed markers with their category icons, else the retail image.
@@ -828,6 +854,9 @@ void W3DDrawMapPreview( GameWindow *window, WinInstanceData *instData)
 	}
 #endif
 	drawMapPreviewBorder( window, pixelX, pixelY, width, height );
+#else
+	drawSkinnyBorder(pixelX - 1, pixelY - 1, width + 2, height + 2);
+#endif
 }
 
 void drawSkinnyBorder( Int x, Int y, Int width, Int height)

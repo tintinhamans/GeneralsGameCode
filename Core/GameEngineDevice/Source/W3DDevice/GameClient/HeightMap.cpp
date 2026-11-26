@@ -3512,8 +3512,7 @@ void HeightMapRenderObjClass::renderExtraBlendTiles()
 				DynamicIBAccessClass::WriteLockClass lockib(&ib_access);
 				UnsignedShort* ib = lockib.Get_Index_Array();
 
-				// GO: also refuse suspiciously low addresses (a failed allocation, a degraded device)
-				if (!vb || !ib || (size_t)vb < 0x10000 || (size_t)ib < 0x10000) {
+				if (!vb || !ib) {
 					return;
 				}
 

@@ -248,7 +248,11 @@ UpdateSleepTime MobMemberSlavedUpdate::update()
 		{
 			++ m_catchUpCrisisTimer; // I'm way too far from the nexus this frame
 
+#if defined(GENONLINE)
 			if ( m_catchUpCrisisTimer > (UnsignedInt)ConvertBaseFramesToFrames(data->m_catchUpCrisisBailTime))
+#else
+			if ( m_catchUpCrisisTimer > data->m_catchUpCrisisBailTime)
+#endif
 			{
 				me->kill();
 				return UPDATE_SLEEP_NONE;
@@ -264,7 +268,11 @@ UpdateSleepTime MobMemberSlavedUpdate::update()
 //				}
 //				m_catchUpCrisisTimer = 0;
 			}
+#if defined(GENONLINE)
 			else if ( m_catchUpCrisisTimer > (UnsignedInt)ConvertBaseFramesToFrames(data->m_catchUpCrisisBailTime)/3 )
+#else
+			else if ( m_catchUpCrisisTimer > data->m_catchUpCrisisBailTime/3 )
+#endif
 			{
 				myAI->aiMoveToPosition( master->getPosition(), CMD_FROM_AI ); // NASTY BEEHIVE EFFECT
 			}

@@ -451,7 +451,11 @@ AsciiString GameState::findNextSaveFilename( UnicodeString desc )
 	for (i = 0; i < desc.getLength(); ++i)
 	{
 		char c = (char)desc.getCharAt(i);
+#if defined(GENONLINE)
 		if (isalnum((unsigned char)c))
+#else
+		if (isalnum(c))
+#endif
 			adesc.concat(c);
 		else
 			adesc.concat('_');
@@ -663,6 +667,7 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 
 	// open the save file
 	XferLoad xferLoad;
+#if defined(GENONLINE)
 	try
 	{
 	xferLoad.open( filepath );
@@ -680,6 +685,9 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 
 		return SC_FILE_NOT_FOUND;
 	}
+#else
+	xferLoad.open( filepath );
+#endif
 
 	// clear out the game engine
 	TheGameEngine->reset();
@@ -1032,7 +1040,11 @@ Bool GameState::doesSaveGameExist( AsciiString filename )
 // ------------------------------------------------------------------------------------------------
 /** Get save game info from the filename specified */
 // ------------------------------------------------------------------------------------------------
+#if defined(GENONLINE)
 Bool GameState::getSaveGameInfoFromFile( AsciiString filename, SaveGameInfo *saveGameInfo )
+#else
+void GameState::getSaveGameInfoFromFile( AsciiString filename, SaveGameInfo *saveGameInfo )
+#endif
 {
 	AsciiString token;
 	Int blockSize;
@@ -1044,7 +1056,11 @@ Bool GameState::getSaveGameInfoFromFile( AsciiString filename, SaveGameInfo *sav
 	{
 
 		DEBUG_CRASH(( "GameState::getSaveGameInfoFromFile - Illegal parameters" ));
+#if defined(GENONLINE)
 		return FALSE;
+#else
+		return;
+#endif
 
 	}
 
@@ -1052,6 +1068,7 @@ Bool GameState::getSaveGameInfoFromFile( AsciiString filename, SaveGameInfo *sav
 
 	// open file for partial loading
 	XferLoad xferLoad;
+#if defined(GENONLINE)
 	try
 	{
 	xferLoad.open( filename );
@@ -1060,6 +1077,9 @@ Bool GameState::getSaveGameInfoFromFile( AsciiString filename, SaveGameInfo *sav
 	{
 		return FALSE;
 	}
+#else
+	xferLoad.open( filename );
+#endif
 
 	//
 	// disable post processing cause we're not really doing a load of game data that
@@ -1067,11 +1087,15 @@ Bool GameState::getSaveGameInfoFromFile( AsciiString filename, SaveGameInfo *sav
 	//
 	xferLoad.setOptions( XO_NO_POST_PROCESSING );
 
+#if defined(GENONLINE)
 	Bool found = FALSE;
 
+#endif
 	// read all data blocks in the file
+#if defined(GENONLINE)
 	try
 	{
+#endif
 	while( done == FALSE )
 	{
 
@@ -1122,7 +1146,9 @@ Bool GameState::getSaveGameInfoFromFile( AsciiString filename, SaveGameInfo *sav
 
 				// data was found, copy game state info over
 				*saveGameInfo = *tempGameState.getSaveGameInfo();
+#if defined(GENONLINE)
 				found = TRUE;
+#endif
 
 				// we're all done with this file now
 				done = TRUE;
@@ -1142,6 +1168,7 @@ Bool GameState::getSaveGameInfoFromFile( AsciiString filename, SaveGameInfo *sav
 		}
 
 	}
+#if defined(GENONLINE)
 	}
 	catch( ... )
 	{
@@ -1149,12 +1176,15 @@ Bool GameState::getSaveGameInfoFromFile( AsciiString filename, SaveGameInfo *sav
 		xferLoad.close();
 		return FALSE;
 	}
+#endif
 
 	// close the file
 	xferLoad.close();
 
+#if defined(GENONLINE)
 	return found;
 
+#endif
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1171,8 +1201,12 @@ static void addGameToAvailableList( AsciiString filename, void *userData )
 	try {
 	// get header info from this listbox
 	SaveGameInfo saveGameInfo;
+#if defined(GENONLINE)
 	if( TheGameState->getSaveGameInfoFromFile( filename, &saveGameInfo ) == FALSE )
 		return;
+#else
+	TheGameState->getSaveGameInfoFromFile( filename, &saveGameInfo );
+#endif
 
 	// allocate new info
 	AvailableGameInfo *newInfo = new AvailableGameInfo;
@@ -1385,10 +1419,14 @@ void GameState::iterateSaveFiles( IterateSaveFileCallback callback, void *userDa
 			// start search
 			hFile = FindFirstFile( "*", &item );
 			if( hFile == INVALID_HANDLE_VALUE )
+#if defined(GENONLINE)
 			{
 				SetCurrentDirectory( currentDirectory );
+#endif
 				return;
+#if defined(GENONLINE)
 			}
+#endif
 
 			// we are no longer on our first item
 			first = FALSE;

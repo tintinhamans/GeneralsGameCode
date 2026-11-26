@@ -99,8 +99,7 @@ std::string CredentialServerKey(const ServiceConnectionSettings& settings)
 	return NormalizeCustomEndpoint(settings.serverAddress, origin, error) ? "custom:" + origin : std::string();
 }
 
-std::vector<std::string> BootstrapRoutes(const std::string& environment,
-	const ServiceConnectionSettings& settings, const std::string& remembered)
+std::vector<std::string> BootstrapRoutes(const std::string& environment, const ServiceConnectionSettings& settings)
 {
 	// a custom server is the only route there is: no other server is tried for it
 	if (settings.serverMode == "custom")
@@ -118,13 +117,7 @@ std::vector<std::string> BootstrapRoutes(const std::string& environment,
 		return {};
 	if (settings.serverMode != "automatic")
 		return {};
-	std::vector<std::string> routes = {
-		"https://api.generals.online",
-	};
-	const auto remembered_route = std::find_if(routes.begin(), routes.end(), [&](const std::string& route) { return RouteHost(route) == remembered; });
-	if (remembered_route != routes.end())
-		std::rotate(routes.begin(), remembered_route, remembered_route + 1);
-	return routes;
+	return {"https://api.generals.online"};
 }
 
 std::string RouteHost(const std::string& route)

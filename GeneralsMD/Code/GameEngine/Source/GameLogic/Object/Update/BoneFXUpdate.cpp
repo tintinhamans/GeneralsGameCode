@@ -321,12 +321,20 @@ void BoneFXUpdate::initTimes() {
 
 	for (i = 0; i < BONE_FX_MAX_BONES; ++i) {
 		if (d->m_fxList[m_curBodyState][i].locInfo.boneName.compare(AsciiString::TheEmptyString) != 0) {
+#if defined(GENONLINE)
 			m_nextFXFrame[m_curBodyState][i] = now + ConvertBaseFramesToFrames(REAL_TO_INT(ConvertFramesToBaseFramesReal(d->m_fxList[m_curBodyState][i].gameLogicDelay.getValue())));
+#else
+			m_nextFXFrame[m_curBodyState][i] = now + REAL_TO_INT(d->m_fxList[m_curBodyState][i].gameLogicDelay.getValue());
+#endif
 		} else {
 			m_nextFXFrame[m_curBodyState][i] = -1;
 		}
 		if (d->m_OCL[m_curBodyState][i].locInfo.boneName.compare(AsciiString::TheEmptyString) != 0) {
+#if defined(GENONLINE)
 			m_nextOCLFrame[m_curBodyState][i] = now + ConvertBaseFramesToFrames(REAL_TO_INT(ConvertFramesToBaseFramesReal(d->m_OCL[m_curBodyState][i].gameLogicDelay.getValue())));
+#else
+			m_nextOCLFrame[m_curBodyState][i] = now + REAL_TO_INT(d->m_OCL[m_curBodyState][i].gameLogicDelay.getValue());
+#endif
 		} else {
 			m_nextOCLFrame[m_curBodyState][i] = -1;
 		}
@@ -475,7 +483,11 @@ void BoneFXUpdate::computeNextLogicFXTime(const BaseBoneListInfo *info, Int &nex
 		nextFrame = -1;
 		return;
 	}
+#if defined(GENONLINE)
 	nextFrame = TheGameLogic->getFrame() + ConvertBaseFramesToFrames(REAL_TO_INT(ConvertFramesToBaseFramesReal(info->gameLogicDelay.getValue())));
+#else
+	nextFrame = TheGameLogic->getFrame() + REAL_TO_INT(info->gameLogicDelay.getValue());
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------

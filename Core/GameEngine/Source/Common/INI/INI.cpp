@@ -55,6 +55,7 @@
 #include "GameLogic/Armor.h"
 #include "GameLogic/ExperienceTracker.h"
 #include "GameLogic/FPUControl.h"
+#if defined(GENONLINE)
 #include "GameLogic/ObjectCreationList.h"
 #include "GameLogic/ScriptEngine.h"
 #include "GameLogic/Weapon.h"
@@ -63,6 +64,17 @@
 #define USE_STD_FROM_CHARS_PARSING 1
 #else
 #define USE_STD_FROM_CHARS_PARSING 0
+#endif
+#else
+#include "GameLogic/ObjectCreationList.h"
+#include "GameLogic/ScriptEngine.h"
+#include "GameLogic/Weapon.h"
+
+#if __cplusplus >= 201611L
+#define USE_STD_FROM_CHARS_PARSING 1
+#else
+#define USE_STD_FROM_CHARS_PARSING 0
+#endif
 #endif
 
 #if USE_STD_FROM_CHARS_PARSING
@@ -306,12 +318,14 @@ void INI::prepFile( AsciiString filename, INILoadType loadType )
 	m_readBufferNext = 0;
 	m_readBufferUsed = file->size();
 	m_readBuffer = file->readEntireAndClose();
+#if defined(GENONLINE)
 	if (m_readBuffer == nullptr)
 	{
 		m_readBufferUsed = 0;
 		DEBUG_CRASH(( "INI::load, cannot read file '%s'", filename.str() ));
 		throw INI_CANT_OPEN_FILE;
 	}
+#endif
 
 	// save our filename
 	m_filename = filename;
@@ -1822,7 +1836,11 @@ void INI::parseDurationReal( INI *ini, void * /*instance*/, void *store, const v
 void INI::parseDurationUnsignedInt( INI *ini, void * /*instance*/, void *store, const void* /*userData*/ )
 {
 	UnsignedInt val = scanUnsignedInt(ini->getNextToken());
+#if defined(GENONLINE)
 	*(UnsignedInt *)store = (UnsignedInt)ConvertDurationFromMsecsToFramesRoundedUp((Real)val);
+#else
+	*(UnsignedInt *)store = (UnsignedInt)WWMath::Ceilf(ConvertDurationFromMsecsToFrames((Real)val));
+#endif
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1830,7 +1848,11 @@ void INI::parseDurationUnsignedInt( INI *ini, void * /*instance*/, void *store, 
 void INI::parseDurationUnsignedShort( INI *ini, void * /*instance*/, void *store, const void* /*userData*/ )
 {
 	UnsignedInt val = scanUnsignedInt(ini->getNextToken());
+#if defined(GENONLINE)
 	*(UnsignedShort *)store = (UnsignedShort)ConvertDurationFromMsecsToFramesRoundedUp((Real)val);
+#else
+	*(UnsignedShort *)store = (UnsignedShort)WWMath::Ceilf(ConvertDurationFromMsecsToFrames((Real)val));
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------

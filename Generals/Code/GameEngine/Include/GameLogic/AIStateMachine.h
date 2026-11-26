@@ -940,9 +940,13 @@ class AIAttackFireWeaponState : public State
 public:
 	AIAttackFireWeaponState( StateMachine *machine, NotifyWeaponFiredInterface* att ) :
 		State( machine, "AIAttackFireWeaponState" ),
+#if defined(GENONLINE)
 		m_att(att),
 		m_exitFrame(0),
 		m_actFrame(0)
+#else
+		m_att(att)
+#endif
 	{
 	}
 	virtual StateReturnType update() override;
@@ -951,12 +955,18 @@ public:
 protected:
 	// snapshot interface STUBBED.
 	virtual void crc( Xfer *xfer ) override {};
+#if defined(GENONLINE)
 	virtual void xfer( Xfer *xfer ) override;
+#else
+	virtual void xfer( Xfer *xfer ) override {XferVersion cv = 1;	XferVersion v = cv; xfer->xferVersion( &v, cv );}
+#endif
 	virtual void loadPostProcess() override {};
 private:
 	NotifyWeaponFiredInterface *const m_att;		// this is NOT owned by us and should not be freed
+#if defined(GENONLINE)
 	UnsignedInt m_exitFrame;	///< Logic frame of the last exit from this state
 	UnsignedInt m_actFrame;	///< First logic frame on which update acts after this state starts
+#endif
 };
 EMPTY_DTOR(AIAttackFireWeaponState)
 

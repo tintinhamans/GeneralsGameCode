@@ -155,6 +155,25 @@ std::wstring RootFolder()
 	return path;
 }
 
+std::string CrashDumpParentFolder()
+{
+	const std::wstring root = RootFolder();
+	if (root.empty())
+		return std::string();
+	const std::wstring folder = root + L"\\crashes\\";
+	CreateDirectoryW(root.c_str(), nullptr);
+	CreateDirectoryW(folder.c_str(), nullptr);
+
+	BOOL usedDefaultChar = FALSE;
+	const int size = WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, folder.c_str(), -1, nullptr, 0, nullptr, &usedDefaultChar);
+	if (size <= 0 || usedDefaultChar)
+		return std::string();
+	std::string path(size, '\0');
+	WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, folder.c_str(), -1, &path[0], size, nullptr, &usedDefaultChar);
+	path.resize(size - 1);
+	return usedDefaultChar ? std::string() : path;
+}
+
 std::wstring DefaultPath()
 {
 	const std::wstring root = RootFolder();

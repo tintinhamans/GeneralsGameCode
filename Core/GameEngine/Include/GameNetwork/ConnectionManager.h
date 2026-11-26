@@ -32,7 +32,9 @@
 #include "GameNetwork/Connection.h"
 #include "GameNetwork/NetCommandList.h"
 #include "GameNetwork/Transport.h"
+#if defined(GENONLINE)
 #include "GameNetwork/UDPTransport.h"
+#endif
 #include "GameNetwork/FrameDataManager.h"
 #include "GameNetwork/FrameMetrics.h"
 #include "GameNetwork/NetworkDefs.h"
@@ -57,7 +59,9 @@ public:
 	virtual void init();				///< Initialize this instance.
 	virtual void reset();				///< Take this instance back to the initial state.
 	virtual void update(Bool isInGame);			///< Service the Connections being managed by this instance.
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	const NetworkSettings &getNetworkSettings() const { return m_networkSettings; }
 	void SeedLatencyData(int highestLatency)
@@ -95,7 +99,11 @@ public:
 	void destroyGameMessages();
 //	void createConnections(UnsignedInt numberOfPlayers, UnsignedInt localSlot);
 	void setLocalAddress(UnsignedInt ip, UnsignedInt port);
+#if defined(GENONLINE)
 	void initTransport(const char *transportName);
+#else
+	void initTransport();
+#endif
 	void processFrameTick(UnsignedInt frame);
 	void handleLocalPlayerLeaving(UnsignedInt frame);
 
@@ -152,11 +160,18 @@ public:
 
 	void notifyOthersOfCurrentFrame(Int frame);
 	void sendFrameDataToPlayer(UnsignedInt playerID, UnsignedInt startingFrame);
+#if defined(GENONLINE)
 	void sendSingleFrameToPlayer(UnsignedInt playerID, UnsignedInt frame, Bool ownOnly = FALSE);
+#else
+	void sendSingleFrameToPlayer(UnsignedInt playerID, UnsignedInt frame);
+#endif
 	void notifyOthersOfNewFrame(UnsignedInt frame);
 
 	UnsignedInt getNextPacketRouterSlot(UnsignedInt playerID); ///< returns the packet router player that comes after the given player.
+#if defined(GENONLINE)
 	Int getCurrentSenderSlot() const { return m_currentSenderSlot; }
+	time_t getLastHeardTime(Int slot) const { return m_lastHeardMs[slot]; }	///< When the last packet of the player arrived, or 0 before the first one.
+#endif
 
 	Int getAverageFPS();
 	Int getSlotAverageFPS(Int slot);
@@ -166,10 +181,12 @@ public:
 	void noteScreenshotDone();	///< The upload of the screenshot ended, the stalls of the next 2 s are still not the network's.
 	Int getRemoteLookAhead(UnsignedInt frame, Int maxFrames, Bool &overdue);	///< Fewest frames after this one a remote player's commands are complete for, -1 without a remote player.
 #endif
+#if defined(GENONLINE)
 	const ConnectionStats* getConnectionStats(Int slot) const;	///< Returns nullptr when there is no connection for the slot.
 	Real getSlotAverageLatency(Int slot);///< average frame round-trip latency in seconds, or -1 when this client does not know it
 	Real getLocalAverageLatency();///< this client's own average frame round-trip latency in seconds
 	Bool hasRunAheadMetrics(Int slot) const;///< a run ahead metrics command from that slot has been received (seeded values do not count)
+#endif
 
 #if defined(RTS_DEBUG)
 	void debugPrintConnectionCommands();
@@ -184,7 +201,9 @@ private:
 #if defined(GENONLINE)
 	NetworkSettings m_networkSettings;
 #endif
+#if defined(GENONLINE)
 
+#endif
 	void doRelay();
 	void doKeepAlive();
 	void sendRemoteCommand(NetCommandRef *msg);
@@ -210,13 +229,17 @@ private:
 	//	void doPerFrameMetrics(UnsignedInt frame);
 	void getMinimumFps(Int &minFps, Int &minFpsPlayer);			///< Returns the smallest FPS in the m_fpsAverages list.
 	Real getMaximumLatency(); ///< Returns the average of the two highest average latencies between players.
+#if defined(GENONLINE)
 	Real getLiveProbeLatency(); ///< Seconds, the highest probe round trip to a player still in the game, 0 if none is known.
+#endif
 
 	void requestFrameDataResend(Int playerID, UnsignedInt frame); ///< request of this player that he send the specified frame's data.
+#if defined(GENONLINE)
 	Int getSlotOfAddress(UnsignedInt addr, UnsignedShort port);
 	UnsignedShort generateImpersonatedCommandID(Int playerID, UnsignedInt frame);
 #if !RETAIL_COMPATIBLE_NETWORKING
 	void askForOutPlayerFrame(Int slot, UnsignedInt frame);
+#endif
 #endif
 
 	// The connections are set up like the slot list. The connection corresponding to the local
@@ -238,6 +261,7 @@ private:
 
 	NetCommandList *m_pendingCommands;
 	NetCommandList *m_relayedCommands;
+#if defined(GENONLINE)
 	Int m_currentSenderSlot;	///< The slot of the peer the packet being read came from, -1 when not known.
 	UnsignedShort m_lastSeenCommandID[MAX_SLOTS];
 	Bool m_haveLastSeenCommandID[MAX_SLOTS];
@@ -245,6 +269,7 @@ private:
 	Int m_outFrameAskedSlot;
 	UnsignedInt m_outFrameAskedFrame;
 	UnsignedInt m_outFrameAskedTime;
+#endif
 #endif
 
 	FrameMetrics m_frameMetrics;
@@ -255,11 +280,15 @@ private:
 	// yup.
 	Real m_latencyAverages[MAX_SLOTS];
 	Int  m_fpsAverages[MAX_SLOTS];
+#if defined(GENONLINE)
 	Bool m_runAheadMetricsReceived[MAX_SLOTS];
+#endif
 	Int  m_minFpsPlayer;
 	Int  m_minFps;
 	UnsignedInt m_smallestPacketArrivalCushion;
+#if defined(GENONLINE)
 	time_t m_lastRunAheadDecisionTime;	///< The last run ahead decision of this match, 0 before the first.
+#endif
 	Bool m_didSelfSlug;
 
 #if defined(GENONLINE)
@@ -435,7 +464,9 @@ public:
 	Bool getOverlayInfo(Int slot, NetworkOverlayInfo &info);	///< Fills what the overlay and the connection rating need about one slot.
 protected:
 #endif
+#if defined(GENONLINE)
 
+#endif
 	// -----------------------------------------------------------------------------
 	FileCommandMap s_fileCommandMap;
 	FileMaskMap s_fileRecipientMaskMap;

@@ -59,6 +59,7 @@ void Keyboard::createStreamMessages()
 	while( key->key != KEY_NONE )
 	{
 
+#if defined(GENONLINE)
 		// Skip keys suppressed by updateKeys() (e.g. OS-level repeat duplicates)
 		if( key->status == KeyboardIO::STATUS_USED )
 		{
@@ -66,6 +67,7 @@ void Keyboard::createStreamMessages()
 			continue;
 		}
 
+#endif
 		// add message to stream
 		if( BitIsSet( key->state, KEY_STATE_DOWN ) )
 		{
@@ -145,7 +147,8 @@ void Keyboard::updateKeys()
 		/** @todo -- if we don't have focus, we could destroy all the keys retrieved
 		here so that we don't process anything */
 
-		// GO_CHANGE:
+#if defined(GENONLINE)
+		// GenOnline:
 		// Suppress OS-level key repeat events: DirectInput buffers every OS repeat as a
 		// fresh DOWN, which would fire multiple deletions per physical keypress. Discard
 		// any DOWN event for a key already tracked as down and let checkKeyRepeat() handle
@@ -156,7 +159,15 @@ void Keyboard::updateKeys()
 			m_keys[ index ].status = KeyboardIO::STATUS_USED;
 		}
 		else
+#else
+		m_keyStatus[ m_keys[ index ].key ].state = m_keys[ index ].state;
+		m_keyStatus[ m_keys[ index ].key ].status = m_keys[ index ].status;
+
+		// Update repeat time for new key presses
+		if( BitIsSet( m_keys[ index ].state, KEY_STATE_DOWN ) )
+#endif
 		{
+#if defined(GENONLINE)
 			m_keyStatus[ m_keys[ index ].key ].state = m_keys[ index ].state;
 			m_keyStatus[ m_keys[ index ].key ].status = m_keys[ index ].status;
 
@@ -165,6 +176,9 @@ void Keyboard::updateKeys()
 			{
 				m_keyRepeatTimeMsec[ m_keys[ index ].key ] = timeGetTime() + Keyboard::KEY_REPEAT_DELAY_MSEC;
 			}
+#else
+			m_keyRepeatTimeMsec[ m_keys[ index ].key ] = timeGetTime() + Keyboard::KEY_REPEAT_DELAY_MSEC;
+#endif
 		}
 
 		// prevent ALT-TAB from causing a TAB event

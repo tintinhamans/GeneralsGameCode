@@ -1,4 +1,4 @@
-"""Per-layout rect overrides for GenOnline/tools/go_wnd_layouts.py.
+"""Per-layout rect overrides for GenOnline/tools/genonline_wnd_layouts.py.
 
 FIXES maps a layout's archive path to {window NAME: (x0, y0, x1, y1)} in 800x600 units. The rects
 are absolute and applied after every rule; descendants move along, and the rules never move these
@@ -13,9 +13,10 @@ without a header (always for a 0% column), which widens the cell before it, the 
 cell; the rules never move them.
 """
 
-def _setup_rects():
+def _setup_rects(zero_hour=True):
     """Layout G2 of the online game setup screen: the player rows and the chat on the left, the Game panel on the right, the
-    buttons at the retail width. The icon cell is the ping window, the accept markers stay hidden, the kick and ban buttons sit right of the team."""
+    buttons at the retail width. The icon cell is the ping window, the accept markers stay hidden, the kick and ban buttons sit right of the team.
+    The Game panel holds a fixed grid of options and the status list under the map. Generals has no starting cash, superweapon or army controls."""
     p = "GameSpyGameOptionsMenu.wnd:"
     rects = {
         p + "StaticTextPlayers": (85, 85, 225, 109),
@@ -29,16 +30,23 @@ def _setup_rects():
         p + "ButtonBack": (581, 517, 753, 553),
         p + "PanelGame": (537, 85, 753, 511),
         p + "StaticTextMapPreview": (545, 89, 745, 109),
-        p + "MapWindow": (570, 113, 720, 263),
-        p + "TextEntryMapDisplay": (545, 269, 745, 297),
-        p + "ButtonSelectMap": (545, 303, 745, 327),
-        p + "StartingCashLabel": (545, 335, 645, 355),
-        p + "ComboBoxStartingCash": (649, 335, 745, 355),
-        p + "CheckboxLimitSuperweapons": (545, 361, 745, 381),
-        p + "CheckBoxUseStats": (545, 383, 745, 403),
-        p + "CheckBoxLimitArmies": (545, 405, 745, 425),
-        p + "ListboxInfo": (545, 431, 745, 503),
+        p + "ButtonEditLobby": (727, 48, 751, 72),
+        p + "MapWindow": (560, 113, 730, 283),
+        p + "TextEntryMapDisplay": (545, 286, 745, 310),
+        p + "ButtonSelectMap": (545, 313, 745, 337),
     }
+    # the options under SELECT MAP are a fixed grid of two columns, Generals keeps the camera height in the left one
+    left, right = (545, 643), (647, 745)
+    camera = left if not zero_hour else right
+    rects[p + "MaxCameraHeightLabel"] = (camera[0], 343, camera[1], 359)
+    rects[p + "ComboBoxMaxCameraHeight"] = (camera[0], 361, camera[1], 381)
+    if zero_hour:
+        rects[p + "StartingCashLabel"] = (left[0], 343, left[1], 359)
+        rects[p + "ComboBoxStartingCash"] = (left[0], 361, left[1], 381)
+        rects[p + "CheckboxLimitSuperweapons"] = (545, 387, 745, 405)
+        rects[p + "CheckBoxLimitArmies"] = (545, 407, 745, 425)
+    rects[p + "CheckBoxUseStats"] = (545, 387, 745, 405)
+    rects[p + "ListboxInfo"] = (545, 431, 745, 503)
     for i in range(8):
         top = 111 + i * 24
         rects[p + f"GenericPing{i}"] = (47, top, 81, top + 20)
@@ -53,7 +61,8 @@ def _setup_rects():
 
 
 # the Generals retail layout has none of the Zero Hour only controls, which the generator adds after the overrides
-_GENERALS_ADDED = {"CheckBoxUseStats", "CheckboxLimitSuperweapons", "CheckBoxLimitArmies", "ComboBoxStartingCash", "StartingCashLabel"}
+_GENERALS_ADDED = {"CheckBoxUseStats", "CheckboxLimitSuperweapons", "CheckBoxLimitArmies", "ComboBoxStartingCash", "StartingCashLabel",
+                   "MaxCameraHeightLabel", "ComboBoxMaxCameraHeight"}
 
 
 def _welcome_rects(zero_hour):
@@ -92,6 +101,42 @@ def _welcome_rects(zero_hour):
     return rects
 
 
+def _communicator_rects():
+    """The communicator: a compact window under the ruler user section, on the lobby grid of 20 unit rows, 4 unit gaps and a
+    6 unit padding. A header holds the title and the Friends, Requests and Blocked tabs. The search field and the friends
+    list sit left of the conversation, the requests and blocked lists span the whole body. The conversation header holds
+    the dot, name, status and buttons of the open player, where Add friend and Invite share one place."""
+    p = "WOLBuddyOverlay.wnd:"
+    body = (331, 68, 759, 356)
+    return {
+        p + "BuddyMenuParent": (331, 36, 759, 356),
+        p + "StaticTextTitle": (337, 42, 421, 62),
+        p + "RadioButtonBuddies": (425, 42, 485, 62),
+        p + "RadioButtonRequests": (489, 42, 569, 62),
+        p + "RadioButtonIgnore": (573, 42, 633, 62),
+        p + "ButtonHide": (733, 42, 753, 62),
+        p + "Line": (331, 67, 759, 68),
+        p + "BuddiesParent": body,
+        p + "TextEntryFind": (337, 74, 497, 94),
+        p + "ListboxBuddies": (337, 98, 497, 350),
+        p + "LineSide": (503, 68, 504, 356),
+        p + "WindowPeerDot": (510, 84, 518, 92),
+        p + "StaticTextPeerName": (522, 74, 605, 88),
+        p + "StaticTextPeerStatus": (522, 88, 605, 102),
+        p + "ButtonAdd": (609, 78, 673, 98),
+        p + "ButtonInvite": (609, 78, 673, 98),
+        p + "ButtonProfile": (677, 78, 729, 98),
+        p + "ButtonMore": (733, 78, 753, 98),
+        p + "LinePeer": (504, 107, 759, 108),
+        p + "ListboxBuddyChat": (510, 114, 753, 326),
+        p + "TextEntryChat": (510, 330, 753, 350),
+        p + "IgnoreParent": body,
+        p + "ListboxIgnore": (337, 74, 753, 350),
+        p + "RequestsParent": body,
+        p + "ListboxRequests": (337, 74, 753, 350),
+    }
+
+
 FIXES = {
     # the game speed slider rect reached 10 units below its row; centred on the row, its label and value box follow it
     "Window/Menus/SkirmishGameOptionsMenu.wnd": {
@@ -99,6 +144,7 @@ FIXES = {
     },
     "Window/Menus/GameSpyGameOptionsMenu.wnd": _setup_rects(),
     "Window/Menus/WOLWelcomeMenu.wnd": _welcome_rects(True),
+    "Window/Menus/WOLBuddyOverlay.wnd": _communicator_rects(),
     # layout E: the games list runs the full height, the sidebar holds the players or game details panel under their header over the chat under its header, the chat entry and emote sit under the chat
     "Window/Menus/WOLCustomLobby.wnd": {
         "WOLCustomLobby.wnd:ParentGameListLarge": (47, 77, 531, 511),
@@ -135,7 +181,7 @@ FIXES = {
 # so the chat list shortens and the chat entry and the button row move up inside the frame
 GENERALS_FIXES = {
     "Window/Menus/WOLWelcomeMenu.wnd": _welcome_rects(False),
-    "Window/Menus/GameSpyGameOptionsMenu.wnd": {k: v for k, v in _setup_rects().items() if k.split(":")[-1] not in _GENERALS_ADDED},
+    "Window/Menus/GameSpyGameOptionsMenu.wnd": {k: v for k, v in _setup_rects(False).items() if k.split(":")[-1] not in _GENERALS_ADDED},
     "Window/Menus/ScoreScreen.wnd": {
         "ScoreScreen.wnd:ListboxChatWindowScoreScreen": (69, 387, 735, 480),
         "ScoreScreen.wnd:TextEntryChat": (68, 488, 696, 513),

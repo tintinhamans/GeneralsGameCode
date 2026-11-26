@@ -395,11 +395,13 @@ void DoCompressTest()
 			DEBUG_LOG(("***************************\nTesting '%s'\n", it->first.str()));
 			Int origSize = f->size();
 			UnsignedByte *buf = (UnsignedByte *)f->readEntireAndClose();
+#if defined(GENONLINE)
 			if (buf == nullptr)
 			{
 				++it;
 				continue;
 			}
+#endif
 			UnsignedByte *uncompressedBuf = NEW UnsignedByte[origSize];
 
 			CompData d = s_sizes[it->first];

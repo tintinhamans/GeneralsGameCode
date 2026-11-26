@@ -960,7 +960,9 @@ static AsciiString unescapePlayerName(const char* escaped)
 	return name;
 }
 #endif
+#if defined(GENONLINE)
 
+#endif
 // Shorten player names without cutting a UTF-8 character in half.
 static void truncatePlayerNameToByteCount(AsciiString& name, Int maxByteCount)
 {
@@ -1719,8 +1721,10 @@ void SkirmishGameInfo::xfer( Xfer *xfer )
 
 	xfer->xferInt(&m_preorderMask);
 	xfer->xferInt(&m_crcInterval);
+#if defined(GENONLINE)
 	if (m_crcInterval <= 0)
 		m_crcInterval = NET_CRC_INTERVAL;
+#endif
 	xfer->xferBool(&m_inGame);
 	xfer->xferBool(&m_inProgress);
 	xfer->xferBool(&m_surrendered);

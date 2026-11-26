@@ -30,8 +30,6 @@
  *                                                                                             *
  *                    $Revision:: 7                                                           $*
  *                                                                                             *
- *---------------------------------------------------------------------------------------------*
- * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #pragma once
@@ -374,8 +372,12 @@ template <class KeyType, class ValueType> inline void HashTemplateClass<KeyType,
 
 	for (i = cnt; i < (int)new_size; i++)
 		new_table[i].Next = i+1;
+#if defined(GENONLINE)
 	if (cnt < (int)new_size)
 		new_table[new_size-1].Next = NIL;
+#else
+	new_table[new_size-1].Next = NIL;
+#endif
 
 	First	= cnt;
 	Hash	= new_hash;

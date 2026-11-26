@@ -2,6 +2,9 @@
 
 class GameWindow;
 
-// The local player section in the top ruler strip of the online screens: a presence dot, the display name and the pending notifications. Clicking it opens a dropdown with the presence statuses and the friends under it.
+// The dock in the bottom right of the ruler on the online screens: the communicator button with the unread conversations and friend requests, a presence dot and the display name that open an upward dropdown with the presence statuses, the friends online, the profile and sign out, with a tab for every open private conversation left of the communicator button.
 void GenOnlineUserSectionShow(GameWindow *parent);
 void GenOnlineUserSectionHide();
+
+// Screen rectangle left of the communicator button that is kept free for the conversation tabs, valid once the dock has drawn.
+void GenOnlineDockGetChatArea(int *left, int *top, int *right, int *bottom);

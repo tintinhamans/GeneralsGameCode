@@ -97,8 +97,10 @@
 #include "GameNetwork/GameSpy/BuddyThread.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameClient/InGameUI.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
 
+#endif
 #if defined(GENONLINE)
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameClient/GenOnlineUserSection.h"
@@ -332,7 +334,9 @@ void ScoreScreenInit( WindowLayout *layout, void *userData )
 		s_blankLayout->hide(FALSE);
 		s_blankLayout->bringForward();
 	}
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 The buddies button shows the number of pending notifications.
 	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
@@ -381,7 +385,9 @@ void FixupScoreScreenMovieWindow()
 void ScoreScreenShutdown( WindowLayout *layout, void *userData )
 {
 	DontShowMainMenu = FALSE; //KRIS
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 The notification callback must not outlive the window it updates.
 	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
@@ -422,13 +428,17 @@ void ScoreScreenUpdate( WindowLayout * layout, void *userData)
 		}
 	}
 #endif
+#if defined(GENONLINE)
 
+#endif
 	if (s_needToFinishSinglePlayerInit)
 	{
 		finishSinglePlayerInit();
 		s_needToFinishSinglePlayerInit = FALSE;
 	}
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	if (TheGameInfo && s_needToLeaveLobby)
 	{
@@ -739,7 +749,11 @@ void PlayMovieAndBlock(AsciiString movieTitle)
 
 	GameWindow *movieWindow = s_blankLayout->getFirstWindow();
 	TheWritableGlobalData->m_loadScreenRender = TRUE;
+#if defined(GENONLINE)
 	while (!videoStream->isPlaybackComplete())
+#else
+	while (videoStream->frameIndex() < videoStream->frameCount() - 1)
+#endif
 	{
 		// TheSuperHackers @feature User can now skip video by pressing ESC
 		if (TheKeyboard)
@@ -1903,10 +1917,12 @@ void grabMultiPlayerInfo()
 	scores.clear();
 	Int adder = 1; // Varible used to add on an offset to the score to make sure we don't add people to the same map
 
+#if defined(GENONLINE)
 	// GenOnline @bugfix arcticdolphin 21/11/2026 The layout keeps its ruler art and its backdrop sits on the ruler frame
+#endif
 #if !defined(GENONLINE)
 	Player *localPlayer = ThePlayerList->getLocalPlayer();
-	if (localPlayer && parent)
+	if (localPlayer)
 	{
 		const Image *image = TheMappedImageCollection->findImageByName("MutiPlayer_ScoreScreen");
 		if(image)
@@ -1947,9 +1963,11 @@ void grabMultiPlayerInfo()
 
 	DEBUG_ASSERTCRASH(count == playerCount, ("For some reason we added %d players to the scores map, but only read %d", playerCount, count));
 
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 This is the last point where every Player and ScoreKeeper is still populated
 	LocalApiLiveMatchSummary();
 
+#endif
 }
 
 enum

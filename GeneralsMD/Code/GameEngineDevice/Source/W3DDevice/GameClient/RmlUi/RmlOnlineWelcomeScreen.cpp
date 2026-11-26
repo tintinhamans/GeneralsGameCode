@@ -479,7 +479,7 @@ void RmlOnlineWelcomeScreen::leaveToMainMenu()
 	}
 	TheShell->pop();
 	if (services != nullptr)
-		TearDownGeneralsOnline();
+		TearDownGenOnline();
 }
 
 // GenOnlineWelcomeMenuUpdate(), and GenOnlineQuickMatchMenuUpdate()'s countdown and match-setup timeout.
@@ -498,7 +498,7 @@ void RmlOnlineWelcomeScreen::update()
 	{
 		services->ConsumePendingFullTeardown();
 		TheShell->pop();
-		TearDownGeneralsOnline();
+		TearDownGenOnline();
 		return;
 	}
 

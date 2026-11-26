@@ -96,7 +96,9 @@ void slotListDebugLog(const char *fmt, ...)
 #define SLOTLIST_DEBUG_LOG(x) DEBUG_LOG(x)
 #endif
 
+#if defined(GENONLINE)
 // TODO_GENONLINE: Remove this, make others get it from the service
+#endif
 void SendStatsToOtherPlayers(const GameInfo *game)
 {
 	PeerRequest req;
@@ -822,8 +824,12 @@ static void StartPressed()
 	}
 	else
 	{
+#if defined(GENONLINE)
 		// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
 		mapDisplayName = getMapNameFromPath(myGame->getMap());
+#else
+		mapDisplayName.format(L"%hs", myGame->getMap().str());
+#endif
 		willTransfer = WouldMapTransfer(myGame->getMap());
 	}
 	int i = 0;
@@ -1257,9 +1263,11 @@ void InitWOLGameGadgets()
 	if( buttonAccept[0] )
 		buttonAccept[0]->winEnable(TRUE);
 
+#if defined(GENONLINE)
 						// re-enable critical buttons for everyone
 						// restore state
 				// Re-enable Back and Start buttons when countdown stops
+#endif
 	if (buttonBack != nullptr)
 	{
 		buttonBack->winEnable(TRUE);
@@ -1359,8 +1367,10 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 	TheGameSpyInfo->registerTextWindow(listboxGameSetupChat);
 
 	//The dialog needs to react differently depending on whether it's the host or not.
+#if defined(GENONLINE)
 	// TODO_GENONLINE
 	//TheGameSpyInfo->registerTextWindow(listboxGameSetupChat);
+#endif
 	TheMapCache->updateCache();
 	GameSpyStagingRoom *game = TheGameSpyInfo->getCurrentStagingRoom();
 	GameSpyGameSlot *hostSlot = game->getGameSpySlot(0);
@@ -2088,8 +2098,12 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 										}
 										else
 										{
+#if defined(GENONLINE)
 											// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
 											mapDisplayName = getMapNameFromPath(game->getMap());
+#else
+											mapDisplayName.format(L"%hs", TheGameState->getMapLeafName(game->getMap()).str());
+#endif
 											willTransfer = WouldMapTransfer(game->getMap());
 										}
 										if (willTransfer)
@@ -2237,8 +2251,12 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 									}
 									else
 									{
+#if defined(GENONLINE)
 										// GenOnline @bugfix arcticdolphin 09/11/2026 The map name hides the folders of the user.
 										mapDisplayName = getMapNameFromPath(game->getMap());
+#else
+										mapDisplayName.format(L"%hs", game->getMap().str());
+#endif
 										willTransfer = WouldMapTransfer(game->getMap());
 									}
 									UnicodeString text;

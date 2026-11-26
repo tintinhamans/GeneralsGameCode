@@ -46,7 +46,27 @@ void GenOnlineSocialInterface::AddFriend(int64_t target_user_id)
 {
 	GenOnlineRealtime::FriendRequestBody body;
 	body.user_id = target_user_id;
-	CallSocialRest(GenOnlineRealtimeBridge::RestMethod::Post, GenOnlineRealtime::RestFriendRequestsPath(), nlohmann::json(body).dump(), nullptr);
+	CallSocialRest(GenOnlineRealtimeBridge::RestMethod::Post, GenOnlineRealtime::RestFriendRequestsPath(), nlohmann::json(body).dump(), [target_user_id](GenOnlineSocialInterface* pThis)
+		{
+			FriendsEntry entry;
+			entry.user_id = target_user_id;
+			entry.display_name = pThis->FindDisplayName(target_user_id);
+			std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
+			// A request to a player who asked first makes both friends, the hub then sends FriendRequestAccepted.
+			if (!pThis->m_mapFriends.contains(target_user_id) && !pThis->m_mapPendingRequests.contains(target_user_id))
+			{
+				pThis->m_mapSentRequests.insert_or_assign(target_user_id, entry);
+			}
+		});
+}
+
+void GenOnlineSocialInterface::CancelSentRequest(int64_t target_user_id)
+{
+	CallSocialRest(GenOnlineRealtimeBridge::RestMethod::Delete, GenOnlineRealtime::RestFriendRequestPath(target_user_id), std::string(), [target_user_id](GenOnlineSocialInterface* pThis)
+		{
+			std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
+			pThis->m_mapSentRequests.erase(target_user_id);
+		});
 }
 
 void GenOnlineSocialInterface::RemoveFriend(int64_t target_user_id)
@@ -69,6 +89,7 @@ void GenOnlineSocialInterface::IgnoreUser(int64_t target_user_id)
 			std::scoped_lock<std::mutex> lock(pThis->m_friendsMapMutex);
 			pThis->m_mapFriends.erase(target_user_id);
 			pThis->m_mapPendingRequests.erase(target_user_id);
+			pThis->m_mapSentRequests.erase(target_user_id);
 			pThis->m_mapBlocked.insert_or_assign(target_user_id, entry);
 		});
 }
@@ -151,6 +172,7 @@ static bool ConversationNotificationsEnabled()
 
 void GenOnlineSocialInterface::OnConversationLine(int64_t user_id_to_store, bool bFromMe, uint32_t key, const UnicodeString& unicodeStr)
 {
+	m_lastConversationPeer = user_id_to_store;
 	// only if I am not the sender and overlay isnt active
 	if (!bFromMe && !m_bOverlayActive)
 	{
@@ -172,6 +194,10 @@ void GenOnlineSocialInterface::OnConversationLine(int64_t user_id_to_store, bool
 	if (m_cbOnChatMessage != nullptr)
 	{
 		m_cbOnChatMessage(user_id_to_store, key, unicodeStr);
+	}
+	if (m_cbDockChatMessage != nullptr)
+	{
+		m_cbDockChatMessage(user_id_to_store, key, unicodeStr);
 	}
 }
 
@@ -380,7 +406,7 @@ std::string GenOnlineSocialInterface::FindDisplayName(int64_t user_id)
 {
 	{
 		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
-		for (const auto* pMap : { &m_mapFriends, &m_mapPendingRequests, &m_mapBlocked })
+		for (const auto* pMap : { &m_mapFriends, &m_mapPendingRequests, &m_mapSentRequests, &m_mapBlocked })
 		{
 			auto it = pMap->find(user_id);
 			if (it != pMap->end())
@@ -388,6 +414,18 @@ std::string GenOnlineSocialInterface::FindDisplayName(int64_t user_id)
 				return it->second.display_name;
 			}
 		}
+		for (const GenOnlineRealtime::Member& member : m_vecFoundPlayers)
+		{
+			if (member.id == user_id)
+			{
+				return member.name;
+			}
+		}
+	}
+	auto recent = m_mapRecentlyPlayedWith.find(user_id);
+	if (recent != m_mapRecentlyPlayedWith.end())
+	{
+		return recent->second.display_name;
 	}
 	GenOnlineRoomsInterface* pRooms = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 	NetworkRoomMember* pMember = pRooms != nullptr ? pRooms->GetRoomMemberFromID(user_id) : nullptr;
@@ -401,6 +439,7 @@ void GenOnlineSocialInterface::OnRealtimeFriends(const GenOnlineRealtime::Friend
 		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
 		m_mapFriends.clear();
 		m_mapPendingRequests.clear();
+		m_mapSentRequests.clear();
 		m_mapBlocked.clear();
 		for (const GenOnlineRealtime::FriendEntry& entry : event.friends)
 		{
@@ -414,6 +453,10 @@ void GenOnlineSocialInterface::OnRealtimeFriends(const GenOnlineRealtime::Friend
 		{
 			m_mapPendingRequests.insert_or_assign(member.id, ToFriendsEntry(member, false));
 		}
+		for (const GenOnlineRealtime::Member& member : event.outgoing)
+		{
+			m_mapSentRequests.insert_or_assign(member.id, ToFriendsEntry(member, false));
+		}
 		for (const GenOnlineRealtime::Member& member : event.blocked)
 		{
 			m_mapBlocked.insert_or_assign(member.id, ToFriendsEntry(member, false));
@@ -423,7 +466,7 @@ void GenOnlineSocialInterface::OnRealtimeFriends(const GenOnlineRealtime::Friend
 	// The Friends snapshot follows Ready on every connect, and the service forgets the status with the connection.
 	SendLocalPresenceStatus();
 
-	// The first snapshot after a login greets the player, as the legacy status update did.
+	// The first snapshot after a login greets the player.
 	if (m_bRealtimeWelcomePending)
 	{
 		m_bRealtimeWelcomePending = false;
@@ -468,6 +511,7 @@ void GenOnlineSocialInterface::OnRealtimeFriendRequestAccepted(const GenOnlineRe
 	{
 		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
 		m_mapPendingRequests.erase(by.id);
+		m_mapSentRequests.erase(by.id);
 		m_mapFriends.insert_or_assign(by.id, ToFriendsEntry(by, true));
 	}
 	OnFriendRequestAccepted(by.name);
@@ -480,6 +524,7 @@ void GenOnlineSocialInterface::OnRealtimeFriendRemoved(int64_t user_id)
 		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
 		m_mapFriends.erase(user_id);
 		m_mapPendingRequests.erase(user_id);
+		m_mapSentRequests.erase(user_id);
 	}
 	RefreshCommunicator();
 }
@@ -523,7 +568,7 @@ void GenOnlineSocialInterface::OnRealtimeMemberUpdate(const GenOnlineRealtime::M
 	}
 }
 
-// A direct message is cached under the other player of the conversation, as the legacy friend chat was.
+// A direct message is cached under the other player of the conversation.
 // The channel dm:<id> names the other player, also for an own message sent from another connection.
 void GenOnlineSocialInterface::OnRealtimeDirectMessage(const GenOnlineRealtime::ChatMessage& message)
 {
@@ -634,6 +679,8 @@ UnicodeString GenOnlineSocialInterface::GetChatLineText(const GenOnlineRealtime:
 void GenOnlineSocialInterface::OnRealtimeConversations(const GenOnlineRealtime::ConversationsEvent& event)
 {
 	const int numBecameUnread = m_unreadConversations.ApplySnapshot(event);
+	std::string newestLine;
+	int64_t newestPeer = -1;
 	for (const GenOnlineRealtime::Conversation& conversation : event.conversations)
 	{
 		const int64_t peer = GenOnlineRealtime::DirectMessagePeer(conversation.channel_id);
@@ -646,6 +693,16 @@ void GenOnlineSocialInterface::OnRealtimeConversations(const GenOnlineRealtime::
 		{
 			m_mapConversationNames[peer] = conversation.last.value.author.name;
 		}
+		// ISO 8601 UTC times of the service sort as text.
+		if (peer >= 0 && !conversation.last.isNull && conversation.last.value.created_at > newestLine)
+		{
+			newestLine = conversation.last.value.created_at;
+			newestPeer = peer;
+		}
+	}
+	if (m_lastConversationPeer < 0)
+	{
+		m_lastConversationPeer = newestPeer;
 	}
 	for (auto& kvPair : m_mapCachedMessages)
 	{
@@ -659,6 +716,10 @@ void GenOnlineSocialInterface::OnRealtimeConversations(const GenOnlineRealtime::
 	if (m_cbOnConversationReloaded != nullptr)
 	{
 		m_cbOnConversationReloaded(-1);
+	}
+	if (m_cbDockReloaded != nullptr)
+	{
+		m_cbDockReloaded(-1);
 	}
 	RefreshCommunicator();
 }
@@ -683,6 +744,10 @@ void GenOnlineSocialInterface::OnRealtimeDirectMessageDelete(const GenOnlineReal
 	if (key != 0 && m_cbOnChatLineRemoved != nullptr)
 	{
 		m_cbOnChatLineRemoved(peerID, key);
+	}
+	if (key != 0 && m_cbDockLineRemoved != nullptr)
+	{
+		m_cbDockLineRemoved(peerID, key);
 	}
 }
 
@@ -721,6 +786,10 @@ void GenOnlineSocialInterface::ViewConversation(int64_t target_user_id)
 				{
 					pThis->m_cbOnConversationReloaded(target_user_id);
 				}
+				if (pThis->m_cbDockReloaded != nullptr)
+				{
+					pThis->m_cbDockReloaded(target_user_id);
+				}
 			});
 	}
 
@@ -733,4 +802,66 @@ void GenOnlineSocialInterface::ViewConversation(int64_t target_user_id)
 	GenOnlineRealtime::MarkReadRequest request;
 	request.channel_id = conversation.ChannelID();
 	pWS->InvokeHub(request, nullptr);
+}
+
+void GenOnlineSocialInterface::InviteToLobby(int64_t target_user_id, std::function<void(std::wstring strFailure)> cb)
+{
+	GenOnlineRealtime::InviteToLobbyRequest request;
+	request.user_id = target_user_id;
+	InvokeRealtimeHub(request, [cb](const GenOnlineRealtime::InvokeOutcome& outcome)
+		{
+			if (cb == nullptr)
+			{
+				return;
+			}
+			if (outcome.Succeeded())
+			{
+				cb(std::wstring());
+			}
+			// A service without lobby invites refuses the unknown hub method without a Result.
+			else if (!outcome.delivered && outcome.transportError != "not connected")
+			{
+				cb(L"Lobby invites are not available on the online service yet.");
+			}
+			else
+			{
+				cb(GenOnlineRealtimeBridge::FailureText(outcome));
+			}
+		});
+}
+
+void GenOnlineSocialInterface::OnRealtimeLobbyInvite(const GenOnlineRealtime::LobbyInviteEvent& event)
+{
+	if (IsUserIgnored(event.from_user_id))
+	{
+		return;
+	}
+	std::wstring text = from_utf8(event.from_name) + L" invited you to " + from_utf8(event.lobby_name);
+	const std::wstring details = from_utf8(event.map_name) + L" · " + std::to_wstring(event.players) + L"/" + std::to_wstring(event.max_players);
+	if (!event.from_name.empty() && !m_mapConversationNames.contains(event.from_user_id))
+	{
+		m_mapConversationNames[event.from_user_id] = event.from_name;
+	}
+	GetConversation(event.from_user_id).AddNote(text + L"   " + details, event.lobby_id);
+	m_lastConversationPeer = event.from_user_id;
+	if (!m_bOverlayActive && m_unreadConversations.AddUnread(event.from_user_id))
+	{
+		++m_numTotalNotifications;
+		TriggerCallback_OnNumberGlobalNotificationsChanged();
+	}
+	if (m_cbOnChatMessage != nullptr)
+	{
+		m_cbOnChatMessage(event.from_user_id, 0, UnicodeString(text.c_str()));
+	}
+	if (m_cbDockChatMessage != nullptr)
+	{
+		m_cbDockChatMessage(event.from_user_id, 0, UnicodeString(text.c_str()));
+	}
+	// An invite pops up like a friend request, also while the communicator is open.
+	const bool bInGame = TheGenOnlineGame != nullptr && TheGenOnlineGame->isGameInProgress();
+	const bool bShowNotification = bInGame ? GenOnlineServicesManager::Settings.Social_Notifications_PlayerSendsRequest_Gameplay() : GenOnlineServicesManager::Settings.Social_Notifications_PlayerSendsRequest_Menus();
+	if (bShowNotification && !NotificationsMuted())
+	{
+		GenOnlineShowCommunicatorNotice(event.from_user_id, UnicodeString(text.c_str()));
+	}
 }

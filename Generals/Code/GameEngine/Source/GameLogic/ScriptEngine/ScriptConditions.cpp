@@ -73,8 +73,7 @@ public:
 
 	~ObjectTypesTemp()
 	{
-		if (m_types)
-			deleteInstance(m_types);
+		deleteInstance(m_types);
 	}
 };
 
@@ -113,8 +112,7 @@ public:
 //-------------------------------------------------------------------------------------------------
 TransportStatus::~TransportStatus()
 {
-	if (m_nextStatus)
-		deleteInstance(m_nextStatus);
+	deleteInstance(m_nextStatus);
 }
 
 //-------------------------------------------------------------------------------------------------

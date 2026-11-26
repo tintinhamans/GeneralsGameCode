@@ -59,7 +59,9 @@
 #include "Common/RandomValue.h"
 #include "Common/Player.h"
 #include "Common/Xfer.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
+#endif
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Module/AutoDepositUpdate.h"
 #include "GameLogic/Module/AIUpdate.h"
@@ -122,8 +124,10 @@ void AutoDepositUpdate::awardInitialCaptureBonus( Player *player )
 
 	player->getMoney()->deposit( getAutoDepositUpdateModuleData()->m_initialCaptureBonus );
 	player->getScoreKeeper()->addMoneyEarned( getAutoDepositUpdateModuleData()->m_initialCaptureBonus );
+#if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 Attach the capture bonus to the capture event that follows in the same call
 	LocalApiLiveNoteCaptureBonus( getAutoDepositUpdateModuleData()->m_initialCaptureBonus );
+#endif
 
 	//Display cash income floating over the blacklotus
 	if(getAutoDepositUpdateModuleData()->m_initialCaptureBonus > 0)

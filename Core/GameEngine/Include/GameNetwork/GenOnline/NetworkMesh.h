@@ -168,7 +168,6 @@ struct LobbyMemberEntry;
 
 struct QueuedGamePacket
 {
-	CBitStream* m_bs = nullptr;
 	int64_t m_userID = -1;
 };
 
@@ -287,7 +286,6 @@ public:
 	// false if construction failed; callers must not use a mesh that failed to initialize.
 	bool IsInitialized() const { return m_bInitialized; }
 
-	HSteamListenSocket GetListenSocketHandle() const { return m_gns.GetListenSocket(); }
 	GnsPeerNetwork& GetGnsNetwork() { return m_gns; }
 
 	std::map<int64_t, PlayerConnection>& GetAllConnections()

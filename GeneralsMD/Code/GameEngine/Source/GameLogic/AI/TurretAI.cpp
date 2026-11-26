@@ -328,8 +328,12 @@ TurretAI::~TurretAI()
 {
 	stopRotOrPitchSound();
 
+#if defined(GENONLINE)
 	if (m_turretStateMachine)
 		deleteInstance(m_turretStateMachine);
+#else
+	deleteInstance(m_turretStateMachine);
+#endif
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -399,9 +403,11 @@ Bool TurretAI::friend_turnTowardsAngle(Real desiredAngle, Real rateModifier, Rea
 	Real origAngle = getTurretAngle();
 	Real actualAngle = origAngle;
 	Real turnRate = getTurnRate() * rateModifier;
+#if defined(GENONLINE)
 
 	turnRate *= (Real)LOGICFRAMES_PER_BASEFRAME;
 
+#endif
 	Real angleDiff = normalizeAngle(desiredAngle - actualAngle);
 
 	// Are we close enough to the desired angle to just snap there?
@@ -692,12 +698,14 @@ void TurretAI::friend_notifyStateMachineChanged()
 DECLARE_PERF_TIMER(TurretAI)
 UpdateSleepTime TurretAI::updateTurretAI()
 {
+#if defined(GENONLINE)
 	if (!TheGameLogic->HasLegacyFrameAdvanced())
 	{
 		return UPDATE_SLEEP_NONE;
 	}
 
 
+#endif
 	USE_PERF_TIMER(TurretAI)
 
 #if defined(RTS_DEBUG)
@@ -1296,7 +1304,11 @@ void TurretAIIdleState::loadPostProcess()
 void TurretAIIdleState::resetIdleScan()
 {
 	UnsignedInt now = TheGameLogic->getFrame();
+#if defined(GENONLINE)
 	UnsignedInt delay = GameLogicRandomFramesInBaseFrames(getTurretAI()->getMinIdleScanInterval(), getTurretAI()->getMaxIdleScanInterval());
+#else
+	UnsignedInt delay = GameLogicRandomValue(getTurretAI()->getMinIdleScanInterval(), getTurretAI()->getMaxIdleScanInterval());
+#endif
 	m_nextIdleScan = now + delay;
 }
 

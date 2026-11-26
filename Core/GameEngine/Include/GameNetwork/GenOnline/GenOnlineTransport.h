@@ -11,7 +11,7 @@
 
 class PlayerConnection;
 
-#define GENONLINE_TRANSPORT_NAME "nextgen"
+#define GENONLINE_TRANSPORT_NAME "genonline"
 
 void RegisterGenOnlineTransport();
 
@@ -43,16 +43,6 @@ public:
 		NetMessageFlags flags, Int id */);				///< Queue a packet for sending to the specified address and port.  This will be sent on the next update() call.
 
 	inline Bool allowBroadcasts(Bool val) override { return false; }
-
-	// Helper to clear a packet from the receive buffer (accounts for zero-length packets)
-	void clearInBufferSlot(int slotIndex)
-	{
-		if (slotIndex >= 0 && slotIndex < MAX_MESSAGES)
-		{
-			m_inBuffer[slotIndex].length = 0;
-			m_inBufferOccupied[slotIndex] = false;
-		}
-	}
 
 private:
 	// Dispatches one packet of a peer by its channel byte, the same for every transport. TRUE when it stored a game packet.

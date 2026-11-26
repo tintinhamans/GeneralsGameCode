@@ -843,12 +843,14 @@ struct UpdateLobbyRequest : WireObject
 	std::optional<UpdateLobbyMap> map;
 	std::optional<UpdateLobbySettings> settings;
 	std::optional<std::string> visibility;
+	std::optional<std::string> name;
 
 	template <class V> void Fields(V& v)
 	{
 		v("map", map);
 		v("settings", settings);
 		v("visibility", visibility);
+		v("name", name);
 	}
 };
 
@@ -977,6 +979,13 @@ struct KickFromLobbyRequest : UserIdArgument
 struct BanFromLobbyRequest : UserIdArgument
 {
 	static constexpr const char* METHOD = "BanFromLobby";
+	static constexpr bool EXPECTS_RESULT = true;
+};
+
+// Invites a mutual friend to the lobby in setup. The friend may join it without its password for 10 minutes.
+struct InviteToLobbyRequest : UserIdArgument
+{
+	static constexpr const char* METHOD = "InviteToLobby";
 	static constexpr bool EXPECTS_RESULT = true;
 };
 
@@ -1842,6 +1851,37 @@ struct FriendPresenceEvent : WireObject
 		v("activity", activity);
 		v("channel_id", channel_id);
 		v("status", status);
+	}
+};
+
+// A friend invited the local player to their lobby. anticheat is "none", "go_integrated" or "easy_anticheat".
+struct LobbyInviteEvent : WireObject
+{
+	static constexpr const char* EVENT = "LobbyInvite";
+
+	std::string invite_id;
+	int64_t from_user_id = 0;
+	std::string from_name;
+	int64_t lobby_id = 0;
+	std::string lobby_name;
+	std::string map_name;
+	int players = 0;
+	int max_players = 0;
+	std::string anticheat;
+	std::string expires_at;
+
+	template <class V> void Fields(V& v)
+	{
+		v("invite_id", invite_id);
+		v("from_user_id", from_user_id);
+		v("from_name", from_name);
+		v("lobby_id", lobby_id);
+		v("lobby_name", lobby_name);
+		v("map_name", map_name);
+		v("players", players);
+		v("max_players", max_players);
+		v("anticheat", anticheat);
+		v("expires_at", expires_at);
 	}
 };
 

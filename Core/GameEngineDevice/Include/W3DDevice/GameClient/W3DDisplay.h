@@ -1,3 +1,4 @@
+#if defined(GENONLINE)
 /*
 **	Command & Conquer Generals(tm)
 **	Copyright 2025 Electronic Arts Inc.
@@ -15,6 +16,25 @@
 **	You should have received a copy of the GNU General Public License
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#else
+/*
+**	Command & Conquer Generals Zero Hour(tm)
+**	Copyright 2025 Electronic Arts Inc.
+**
+**	This program is free software: you can redistribute it and/or modify
+**	it under the terms of the GNU General Public License as published by
+**	the Free Software Foundation, either version 3 of the License, or
+**	(at your option) any later version.
+**
+**	This program is distributed in the hope that it will be useful,
+**	but WITHOUT ANY WARRANTY; without even the implied warranty of
+**	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**	GNU General Public License for more details.
+**
+**	You should have received a copy of the GNU General Public License
+**	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 //																																						//
@@ -25,7 +45,11 @@
 // FILE: W3DDisplay.h /////////////////////////////////////////////////////////
 //
 // W3D Implementation for the W3D Display which is responsible for creating
+#if defined(GENONLINE)
 // and maintaning the entire visual display
+#else
+// and maintaining the entire visual display
+#endif
 //
 // Author: Colin Day, April 2001
 //
@@ -96,8 +120,13 @@ public:
 	W3DDisplay();
 	virtual ~W3DDisplay() override;
 
+#if defined(GENONLINE)
 	virtual void init() override;  ///< initialize or re-initialize the sytsem
+	virtual void reset() override;																///< Reset system
+#else
+	virtual void init() override;  ///< initialize or re-initialize the system
  	virtual void reset() override;																///< Reset system
+#endif
 
 	virtual void setWidth( UnsignedInt width ) override;
 	virtual void setHeight( UnsignedInt height ) override;
@@ -114,9 +143,13 @@ public:
 	// Drawing management
 	virtual void setClipRegion( IRegion2D *region ) override;	///< Set clip rectangle for 2D draw operations.
 	virtual Bool	isClippingEnabled() override { return m_isClippedEnabled; }
-	virtual void	enableClipping( Bool onoff ) override { m_isClippedEnabled = onoff; }
+#if defined(GENONLINE)
+	virtual void	enableClipping(Bool onoff) override { m_isClippedEnabled = onoff; }
 	// GenOnline @feature arcticdolphin 08/11/2026 Read back the clip rectangle so a draw can restore it.
 	virtual Bool	getClipRegion(IRegion2D* region) override { *region = m_clipRegion; return TRUE; }	///< Fill the clip rectangle.
+#else
+	virtual void	enableClipping( Bool onoff ) override { m_isClippedEnabled = onoff; }
+#endif
 
 	virtual void update() override; ///< Update the client state of the display
 	virtual void step() override; ///< Do one fixed time step

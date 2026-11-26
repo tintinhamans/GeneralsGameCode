@@ -215,7 +215,11 @@ UpdateSleepTime SpawnBehavior::update()
 				if ( runtimeProduced && burstInitCount > 0)
 				{
 					--burstInitCount;
+#if defined(GENONLINE)
 					birthFrame += (listIndex*ConvertBaseFramesToFrames(SPAWN_DELAY_MIN_FRAMES));
+#else
+					birthFrame += (listIndex*SPAWN_DELAY_MIN_FRAMES);
+#endif
 				}
 				m_replacementTimes.push_back( runtimeProduced  );// Set all spawns to be created in rapid succession
 			}

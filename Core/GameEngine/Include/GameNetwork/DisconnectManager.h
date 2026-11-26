@@ -57,6 +57,7 @@ public:
 
 	void voteForPlayerDisconnect(Int slot, ConnectionManager *conMgr);
 
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 	void playerClosedGracefully(Int slot, ConnectionManager *conMgr);	///< The connection to the player closed, which counts like a leave notice of another player.
 	Bool isPlayerOutOfGame(Int slot, ConnectionManager *conMgr);
@@ -64,6 +65,7 @@ public:
 
 	Bool isLocalPlayerNextPacketRouter(ConnectionManager *conMgr); ///< returns true if the local player is next in line to be the packet router with all the players that have timed out being taken out of the picture.
 
+#endif
 	// For disconnect blame assignment
 	UnsignedInt getPingFrame();
 	Int getPingsSent();
@@ -84,23 +86,34 @@ protected:
 	void updateWaitForPacketRouter(ConnectionManager *conMgr);
 	void recalculatePacketRouterIndex(ConnectionManager *conMgr);
 	Bool allOnSameFrame(ConnectionManager *conMgr); ///< returns true if all players are stuck on the same frame.
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 	Int getActingPacketRouterSlot(ConnectionManager *conMgr, Int removedSlot);
 	Bool hasPlayerLeft(Int slot);
 	Bool isLeftPlayerConnected(ConnectionManager *conMgr);
 	void processHeldRemovals(ConnectionManager *conMgr); ///< removes the players whose held removal now comes from the acting packet router.
+	void processPendingLeaveNotices(ConnectionManager *conMgr); ///< marks the players of unsigned leave notices as left once they went silent.
+#endif
+#else
+	Bool isLocalPlayerNextPacketRouter(ConnectionManager *conMgr); ///< returns true if the local player is next in line to be the packet router with all the players that have timed out being taken out of the picture.
 #endif
 	Bool hasPlayerTimedOut(Int slot); ///< returns true if this player has timed out.
 	void sendPlayerDestruct(Int slot, ConnectionManager *conMgr); ///< send a destruct player network message.
+#if defined(GENONLINE)
 #if RETAIL_COMPATIBLE_NETWORKING
 	void sendPendingRelays(ConnectionManager *conMgr); ///< passes a leave on to the players that are stalled on its frame.
 #endif
 	void removePlayer(Int slot, ConnectionManager *conMgr);
 	Bool isPlayerSilent(Int slot);	///< The slot is a translated one.
 	Bool isPlayerGone(Int slot, ConnectionManager *conMgr);	///< A silent player that timed out or was voted out by all others. The slot is a translated one.
+#endif
 	Bool isPlayerVotedOut(Int slot, ConnectionManager *conMgr);	///< returns true if this player has been voted out.
 	Bool isPlayerInGame(Int slot, ConnectionManager *conMgr); ///< returns true if the player has neither timed out or been voted out.
+#if defined(GENONLINE)
 	UnsignedInt getMaxDisconnectFrame(ConnectionManager *conMgr);	///< returns the highest frame that people have got to.
+#else
+	UnsignedInt getMaxDisconnectFrame();	///< returns the highest frame that people have got to.
+#endif
 	Int countVotesForPlayer(Int slot); ///< return the number of disconnect votes a player has.
 	void resetPlayersVotes(Int playerID, UnsignedInt frame, ConnectionManager *conMgr); ///< reset the votes for this player.
 
@@ -125,18 +138,23 @@ protected:
 
 	time_t m_lastKeepAliveSendTime;
 
+#if defined(GENONLINE)
 	Bool m_destroySent[MAX_SLOTS];
 
+#endif
 	time_t m_playerTimeouts[MAX_SLOTS - 1];
+#if defined(GENONLINE)
 #if !RETAIL_COMPATIBLE_NETWORKING
 	Bool m_playerLeft[MAX_SLOTS - 1];	///< The player of the translated slot has left and waits for its removal.
 	Bool m_ownLeaveReceived[MAX_SLOTS - 1];	///< The leave came from the player itself, not from a notice of another player.
+	Bool m_leaveNoticePending[MAX_SLOTS - 1];	///< An unsigned leave notice of another player waits for the player of the translated slot to go silent.
 	Bool m_leftPlayerHold;
 	Bool m_screenDeferred;	///< The removal of a player that has left runs without the window until the normal stall wait has passed.
 	Bool m_removedInRound;
 	UnsignedInt m_catchUpFrame;
 	Int m_heldRemovalFrom[MAX_SLOTS];	///< The sender of a removal of the slot that came before it was the acting packet router here, or -1.
 	UnsignedInt m_heldRemovalFrame[MAX_SLOTS];	///< The frame of that removal.
+#endif
 #endif
 	time_t m_packetRouterTimeout;
 
@@ -146,9 +164,11 @@ protected:
 	UnsignedInt m_disconnectFrames[MAX_SLOTS];
 	Bool m_disconnectFramesReceived[MAX_SLOTS];
 	Bool m_haveNotifiedOtherPlayersOfCurrentFrame;
+#if defined(GENONLINE)
 #if RETAIL_COMPATIBLE_NETWORKING
 	UnsignedInt m_relayFrame[MAX_SLOTS];	///< The frame of the leave of the slot that is passed on.
 	UnsignedByte m_relayTo[MAX_SLOTS];	///< The players the leave of the slot still has to be passed on to.
+#endif
 #endif
 
 	time_t m_timeOfDisconnectScreenOn;

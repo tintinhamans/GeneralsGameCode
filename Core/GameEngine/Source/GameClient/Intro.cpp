@@ -48,9 +48,11 @@ Intro::Intro()
 		// Please be kind and do not remove the custom logo screen when building on top of the work of The Super Hackers.
 		m_allowedStateFlags |= 1u << IntroState_TheSuperHackersWait;
 		m_allowedStateFlags |= 1u << IntroState_TheSuperHackers;
-        // Please be kind and do not remove the custom logo screen when building a client that includes GeneralsOnline.
+#if defined(GENONLINE)
+        // Please be kind and do not remove the custom logo screen when building a client that includes Generals Online.
         m_allowedStateFlags |= 1u << IntroState_GOWait;
         m_allowedStateFlags |= 1u << IntroState_GO;
+#endif
 	}
 
 	if (TheGlobalData->m_playSizzle)
@@ -86,8 +88,10 @@ void Intro::update()
 		case IntroState_EALogoMovie: doEALogoMovie(); break;
 		case IntroState_TheSuperHackersWait: doAsyncWait(800); break;
 		case IntroState_TheSuperHackers: doTheSuperHackers(); break;
+#if defined(GENONLINE)
         case IntroState_GOWait: doAsyncWait(1200); break;
-        case IntroState_GO: doGeneralsOnlineLogo(); break;
+        case IntroState_GO: doGenOnlineLogo(); break;
+#endif
 		case IntroState_SizzleMovieWait: doAsyncWait(1000); break;
 		case IntroState_SizzleMovie: doSizzleMovie(); break;
 		case IntroState_Done: doPostIntro(); break;
@@ -100,7 +104,9 @@ void Intro::draw()
 	switch (m_currentState)
 	{
 		case IntroState_TheSuperHackers: drawDisplayEntities(); break;
+#if defined(GENONLINE)
 		case IntroState_GO: drawDisplayEntities(); break;
+#endif
 	}
 }
 
@@ -123,10 +129,12 @@ Bool Intro::skipCurrentIntroStage()
 	case IntroState_TheSuperHackers:
 		enterNextState();
 		break;
+#if defined(GENONLINE)
 
 	case IntroState_GO:
 		enterNextState();
 		break;
+#endif
 	}
 
 	return isSkipping;
@@ -163,7 +171,8 @@ struct DisplaySetting
 	Bool centered;
 };
 
-void Intro::doGeneralsOnlineLogo()
+#if defined(GENONLINE)
+void Intro::doGenOnlineLogo()
 {
 	m_displayEntities.clear();
 
@@ -246,6 +255,7 @@ void Intro::doGeneralsOnlineLogo()
 	m_fadeValue = 0.0f;
 }
 
+#endif
 void Intro::doTheSuperHackers()
 {
 	std::vector<DisplaySetting> settings;

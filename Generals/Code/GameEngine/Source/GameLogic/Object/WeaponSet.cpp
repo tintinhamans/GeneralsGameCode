@@ -183,8 +183,7 @@ WeaponSet::WeaponSet()
 WeaponSet::~WeaponSet()
 {
 	for (Int i = 0; i < WEAPONSLOT_COUNT; ++i)
-		if (m_weapons[i])
-			deleteInstance(m_weapons[i]);
+		deleteInstance(m_weapons[i]);
 }
 
 // ------------------------------------------------------------------------------------------------

@@ -104,6 +104,19 @@ long long AdaptiveQuality::now()
 
 Int AdaptiveQuality::catchUpFrames() const
 {
+	// With a render cap below 1.5 times the logic rate a drawn frame that runs no logic frame is followed by one that runs two, which the camera and the units show as a jump.
+	// shortcut: an uncapped machine that only reaches the logic rate keeps catch-up, measure its real frame rate if that shows.
+	if (!m_inMatch || m_model.level() == 0)
+	{
+		if (TheFramePacer != nullptr && TheFramePacer->isActualFramesPerSecondLimitEnabled())
+		{
+			const Int logicFps = TheFramePacer->getActualLogicTimeScaleFps(FramePacer::IgnoreFrozenTime | FramePacer::IgnoreHaltedGame);
+			if (logicFps > 0 && TheFramePacer->getActualFramesPerSecondLimit() * 2 < logicFps * 3)
+			{
+				return 1;
+			}
+		}
+	}
 	const Int levelFrames = AdaptiveQualityLevels::catchUpFrames(m_inMatch ? m_model.level() : 0);
 	const Int maxFrames = AdaptiveQualityTuning::values().catchUpFrames;
 	return std::max<Int>(1, std::min<Int>(levelFrames, maxFrames));

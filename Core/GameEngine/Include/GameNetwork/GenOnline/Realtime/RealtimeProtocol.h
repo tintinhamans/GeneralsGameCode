@@ -263,11 +263,6 @@ public:
 		}
 	}
 
-	size_t PendingCount() const
-	{
-		return m_pending.size();
-	}
-
 private:
 	uint64_t m_lastId = 0;
 	std::map<std::string, CompletionFn> m_pending;

@@ -43,6 +43,15 @@ public:
 
 	void AcceptPendingRequest(int64_t target_user_id);
 	void RejectPendingRequest(int64_t target_user_id);
+	// Withdraws a friend request the local player sent.
+	void CancelSentRequest(int64_t target_user_id);
+
+	// Invites a friend to the lobby the local player is in. The text is empty on success, else the reason to show.
+	void InviteToLobby(int64_t target_user_id, std::function<void(std::wstring strFailure)> cb);
+	void OnRealtimeLobbyInvite(const GenOnlineRealtime::LobbyInviteEvent& event);
+
+	// The user of the conversation that changed last, -1 when there is none.
+	int64_t GetLastConversationPeer() const { return m_lastConversationPeer; }
 
 	void OnChatMessage(int64_t source_user_id, int64_t target_user_id, UnicodeString unicodeStr);
 	void OnOnlineStatusChanged(std::string strDisplayName, bool bOnline);
@@ -79,14 +88,20 @@ public:
 
 	static UnicodeString GetChatLineText(const GenOnlineRealtime::DirectChatLine& line);
 
-	void ClearUnreadChatMessagesForUser(int64_t target_user_id)
-	{
-		m_unreadConversations.Clear(target_user_id);
-	}
-
 	int GetNumberUnreadChatMessagesForUser(int64_t target_user_id)
 	{
 		return m_unreadConversations.Unread(target_user_id);
+	}
+
+	// The conversations with unread lines, each counted once.
+	int GetNumUnreadConversations() const
+	{
+		int numUnread = 0;
+		for (int64_t peer : m_unreadConversations.Peers())
+		{
+			numUnread += m_unreadConversations.Unread(peer) > 0 ? 1 : 0;
+		}
+		return numUnread;
 	}
 
 	// True when the communicator may open a chat with the user: a friend, anyone for staff holding
@@ -134,6 +149,14 @@ public:
 		m_cbOnConversationReloaded = cb;
 	}
 
+	// The dock keeps its own set of the three callbacks, so its conversation tabs follow the lines whether or not the communicator is open.
+	void RegisterForDockCallbacks(std::function<void(int64_t peer_user_id, uint32_t key, UnicodeString unicodeStr)> onChatMessage, std::function<void(int64_t peer_user_id)> onReloaded, std::function<void(int64_t peer_user_id, uint32_t key)> onLineRemoved)
+	{
+		m_cbDockChatMessage = onChatMessage;
+		m_cbDockReloaded = onReloaded;
+		m_cbDockLineRemoved = onLineRemoved;
+	}
+
 	void RegisterForCallback_OnChatLineRemoved(std::function<void(int64_t peer_user_id, uint32_t key)> cb)
 	{
 		m_cbOnChatLineRemoved = cb;
@@ -164,6 +187,19 @@ public:
         return m_mapPendingRequests;
     }
 
+	// The friend requests the local player sent that wait for an answer.
+	std::unordered_map<int64_t, FriendsEntry> GetCachedSentRequestsList()
+	{
+		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
+		return m_mapSentRequests;
+	}
+
+	std::unordered_map<int64_t, FriendsEntry> GetCachedBlockedList()
+	{
+		std::scoped_lock<std::mutex> lock(m_friendsMapMutex);
+		return m_mapBlocked;
+	}
+
 	void RegisterForCallback_OnNumberGlobalNotificationsChanged(std::function<void(int newNumNotifications)> cb)
 	{
 		m_cbOnNumberGlobalNotificationsChanged = cb;
@@ -193,7 +229,7 @@ public:
 
 	void CommitLobbyPlayerListToRecentlyPlayedWithList();
 
-	// Realtime protocol v1: the hub sends a snapshot after every connect and the changes as events.
+	// The realtime hub sends a snapshot after every connect and the changes as events.
 	void ExpectRealtimeWelcome() { m_bRealtimeWelcomePending = true; }
 	void OnRealtimeFriends(const GenOnlineRealtime::FriendsEvent& event);
 	void OnRealtimeFriendRequestReceived(const GenOnlineRealtime::Member& from);
@@ -243,13 +279,18 @@ private:
 	std::function<void(int64_t peer_user_id, uint32_t key, UnicodeString unicodeStr)> m_cbOnChatMessage = nullptr;
 	std::function<void(int64_t peer_user_id)> m_cbOnConversationReloaded = nullptr;
 	std::function<void(int64_t peer_user_id, uint32_t key)> m_cbOnChatLineRemoved = nullptr;
+	std::function<void(int64_t peer_user_id, uint32_t key, UnicodeString unicodeStr)> m_cbDockChatMessage = nullptr;
+	std::function<void(int64_t peer_user_id)> m_cbDockReloaded = nullptr;
+	std::function<void(int64_t peer_user_id, uint32_t key)> m_cbDockLineRemoved = nullptr;
 
 	// Cached, may be out of date if friends UI isnt active, optimized for lookup
 	// Rebuilt on the HTTP thread and read from the main thread, so all access goes through m_friendsMapMutex.
 	mutable std::mutex m_friendsMapMutex;
 	std::unordered_map<int64_t, FriendsEntry> m_mapFriends;
 	std::unordered_map<int64_t, FriendsEntry> m_mapPendingRequests;
+	std::unordered_map<int64_t, FriendsEntry> m_mapSentRequests;
 	std::unordered_map<int64_t, FriendsEntry> m_mapBlocked;
+	int64_t m_lastConversationPeer = -1;
 
 	// managed on client / locally
 	std::unordered_map<int64_t, FriendsEntry> m_mapRecentlyPlayedWith;

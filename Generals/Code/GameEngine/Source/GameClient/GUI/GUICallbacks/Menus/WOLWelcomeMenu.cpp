@@ -729,12 +729,14 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 {
 	UnicodeString txtInput;
 
+#if defined(GENONLINE)
 	// During shutdown the window hierarchy is being torn down; ignore all
 	// messages to prevent use-after-free crashes caused by mouse-enter/leave
 	// events that are still in-flight while the parent window is being destroyed.
 	if( isShuttingDown )
 		return MSG_IGNORED;
 
+#endif
 	switch( msg )
 	{
 

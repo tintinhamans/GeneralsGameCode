@@ -75,9 +75,13 @@
 #include "GameNetwork/GUIUtil.h"
 #include "GameNetwork/IPEnumeration.h"
 #include "WWDownload/Registry.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLobby.h"
+#endif
 
+#if defined(GENONLINE)
 UnsignedInt GetTeamUiColor(Int teamNumber);
+#endif
 
 SkirmishGameInfo *TheSkirmishGameInfo = nullptr;
 
@@ -415,13 +419,21 @@ void setFPSTextBox( Int sliderPos )
 		GadgetStaticTextSetText(staticTextGameSpeed, text);
 		return;
 	}
+#if defined(GENONLINE)
 	else if( sliderPos == BaseFps )
+#else
+	else if( sliderPos == TheGlobalData->m_framesPerSecondLimit )
+#endif
 	{
 		// set different color
 		staticTextGameSpeed->winEnable(FALSE);
 	}
+#if defined(GENONLINE)
 	// The slider holds the retail frame rate, so the retail base frame rate is the normal speed.
 	text.format(L"%d%%", (sliderPos * 100 + BaseFps / 2) / BaseFps);
+#else
+	text.format(L"%2d", sliderPos);
+#endif
 	GadgetStaticTextSetText(staticTextGameSpeed, text);
 }
 
@@ -443,7 +455,9 @@ void reallyDoStart()
 	// The logic runs faster than retail, so the retail frame rate scales to logic frames per second.
 	TheFramePacer->setGameSpeedFps(maxFPS * LOGICFRAMES_PER_BASEFRAME);
 #endif
+#if defined(GENONLINE)
 
+#endif
   TheWritableGlobalData->m_mapName = TheSkirmishGameInfo->getMap();
   TheSkirmishGameInfo->startGame(0);
 
@@ -530,7 +544,9 @@ void MapSelectorTooltip(GameWindow *window,
 
 	Int pixelX, pixelY;
 	window->winGetScreenPosition(&pixelX, &pixelY);
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 08/11/2026 Name the type of the typed marker under the mouse.
 	UnicodeString typedTooltip;
@@ -659,7 +675,9 @@ void positionAdditionalImages( MapMetaData *mmd, GameWindow *mapWindow, Bool for
 	findDrawPositions(0,0, winMapSize.x, winMapSize.y,mmd->m_extent, &ul, &lr);
 	Int smallWidth = lr.x - ul.x;
 	Int smallHeight= lr.y - ul.y;
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 08/11/2026 Use the typed objects so each marker carries its icon category.
 	if (positionTypedPreviewImages(mmd, ul, smallWidth, smallHeight))
@@ -855,38 +873,42 @@ void updateMapStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[
 		GameSlot *gs =myGame->getSlot(i);
 		if(onLoadScreen)
 		{
-			Int startPos = gs->getApparentStartPos();
-			GameWindow* btn = buttonMapStartPositions[startPos];
-			if (!btn)
-				continue;
-
+			if(gs->getApparentStartPos() >=0 && gs->getApparentStartPos() < mmd.m_numPlayers && gs->getPlayerTemplate() > PLAYERTEMPLATE_MIN )
+			{
 				AsciiString displayNumber;
 				displayNumber.format("NUMBER:%d",i + 1);
-			GadgetButtonSetText(btn, TheGameText->fetch(displayNumber));
-
-			UnsignedInt col = (gs->getTeamNumber() >= 0)
-				? GetTeamUiColor(gs->getTeamNumber())
-				: GameMakeColor(255, 255, 255, 255);
-
-			GadgetTextEntrySetTextColor(btn, col);
+				GadgetButtonSetText(buttonMapStartPositions[gs->getApparentStartPos()], TheGameText->fetch(displayNumber));
+#if defined(GENONLINE)
+				// GenOnline @feature arcticdolphin 21/11/2026 Colour the start position number by team.
+				GadgetTextEntrySetTextColor(buttonMapStartPositions[gs->getApparentStartPos()], (gs->getTeamNumber() >= 0) ? GetTeamUiColor(gs->getTeamNumber()) : GameMakeColor(255, 255, 255, 255));
+#endif
+			}
 		}
 		else
 		{
-			if (gs->getStartPos() >= 0 &&
-				gs->getStartPos() < mmd.m_numPlayers &&
-				gs->getPlayerTemplate() > PLAYERTEMPLATE_MIN)
+			if(gs->getStartPos() >=0 && gs->getStartPos() < mmd.m_numPlayers && gs->getPlayerTemplate() > PLAYERTEMPLATE_MIN )
 			{
+#if defined(GENONLINE)
 				Int startPos = gs->getStartPos();
 				GameWindow* btn = buttonMapStartPositions[startPos];
 				if (!btn)
 					continue;
 
+#endif
 				AsciiString displayNumber;
-				displayNumber.format("NUMBER:%d",i + 1);
+#if defined(GENONLINE)
+				displayNumber.format("NUMBER:%d", i + 1);
 				GadgetButtonSetText(btn, TheGameText->fetch(displayNumber));
 
+#else
+				displayNumber.format("NUMBER:%d",i + 1);
+				GadgetButtonSetText(buttonMapStartPositions[gs->getStartPos()], TheGameText->fetch(displayNumber));
+				//added start position tooltip
+				//Fixed again to show the right number , ie "i + 1"
+#endif
 				UnicodeString temp;
 				temp.format(TheGameText->fetch("TOOLTIP:StartPositionN"), i + 1);
+#if defined(GENONLINE)
 				btn->winSetTooltip(temp);
 
 				Int team = gs->getTeamNumber();
@@ -902,6 +924,9 @@ void updateMapStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[
 				}
                 
 				GadgetTextEntrySetTextColor(btn, col);
+#else
+				buttonMapStartPositions[gs->getStartPos()]->winSetTooltip(temp);
+#endif
 			}
 		}
 	}
@@ -2195,6 +2220,7 @@ void populateSkirmishBattleHonors()
 			BATTLE_HONOR_OFFICERSCLUB, row, column);
 	}
 }
+#if defined(GENONLINE)
 
 // Stats pipe lobby control: the start position buttons' own handler, then the refresh the click path does.
 static void statsMoveStartPosition(Int slot, Int position)
@@ -2241,3 +2267,4 @@ Bool SkirmishGameOptionsMenuStatsLobby( StatsLobbyScreen& out )
 	out.setGameSpeed = statsSetGameSpeed;
 	return TRUE;
 }
+#endif

@@ -55,9 +55,11 @@
 #include "WW3D2/Renderer.h"
 #include "WW3D2/hanim.h"
 
+#if defined(GENONLINE)
 #include "../GenOnlineInit.h"
 
 
+#endif
 #include "Common/UnitTimings.h" //Contains the DO_UNIT_TIMINGS define jba.
 
 

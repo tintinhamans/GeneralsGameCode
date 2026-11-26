@@ -432,12 +432,6 @@ Bool GenOnlineHandleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited
 
 	if (token == "host")
 	{
-		// TODO_GENONLINE
-		/*
-		UnicodeString s;
-		s.format(L"Hosting qr2:%d thread:%d", getQR2HostingStatus(), isThreadHosting);
-		TheGameSpyInfo->addText(s, GameSpyColor[GSCOLOR_DEFAULT], nullptr);
-		*/
 		return TRUE; // was a slash command
 	}
 	else if (token == "me" && uText.getLength()>4)
@@ -464,7 +458,7 @@ Bool GenOnlineHandleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited
 		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/name <value> - Changes your display name - Example: /name General Granger. You can also use /nick."), helpColor, -1, -1);
 		// GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/refresh - Refresh the game and player lists."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/net - Show your connection settings. /net transport, /net relay, /net gns ice and /net reset change them."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/support - Open the GeneralsOnline Discord."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/support - Open the Generals Online Discord."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/help - Show these commands. You can also use /commands."), helpColor, -1, -1);
 		return TRUE; // was a slash command
 	}
@@ -505,12 +499,6 @@ Bool GenOnlineHandleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited
 		GenOnlineHandleNetSlashCommand(subcommand, value, listboxLobbyChat);
 		return TRUE; // was a slash command
 	}
-	else if (token == "forcerelay" || token == "allowrelay")
-	{
-		// the old names of /net relay force and /net relay auto
-		GenOnlineHandleNetSlashCommand("relay", (token == "forcerelay") ? "force" : "auto", listboxLobbyChat);
-		return TRUE; // was a slash command
-	}
 	else if (token == "refresh")
 	{
 		// Added 2/19/03 added the game refresh
@@ -518,28 +506,6 @@ Bool GenOnlineHandleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited
 		GenOnlineRefreshPlayerList(TRUE);
 		return TRUE; // was a slash command
 	}
-	/*
-	if (token == "togglegamelist")
-	{
-		NameKeyType buttonID = NAMEKEY("WOLCustomLobby.wnd:ButtonGameListToggle");
-		GameWindow *button = TheWindowManager->winGetWindowFromId(parent, buttonID);
-		if (button)
-		{
-			button->winHide(!button->winIsHidden());
-		}
-		return TRUE; // was a slash command
-	}
-	else if (token == "adjustchat")
-	{
-		NameKeyType sliderID = NAMEKEY("WOLCustomLobby.wnd:SliderChatAdjust");
-		GameWindow *slider = TheWindowManager->winGetWindowFromId(parent, sliderID);
-		if (slider)
-		{
-			slider->winHide(!slider->winIsHidden());
-		}
-		return TRUE; // was a slash command
-	}
-	*/
 #if defined(RTS_DEBUG)
 	else if (token == "fakecrc")
 	{
@@ -569,8 +535,6 @@ static void playerTooltip(GameWindow *window,
 													WinInstanceData *instData,
 													UnsignedInt mouse)
 {
-	// TODO_GENONLINE: Support all of this again
-
 	Int x, y, row, col;
 	x = LOLONGTOSHORT(mouse);
 	y = HILONGTOSHORT(mouse);
@@ -601,8 +565,13 @@ static void playerTooltip(GameWindow *window,
 			if (roomMember != nullptr)
 			{
 				// new
-				pStatsInterface->findPlayerStatsByID(roomMember->user_id, [=](bool bSuccess, PSPlayerStats stats)
+				const int64_t userID = roomMember->user_id;
+				const UnsignedInt generation = s_lobbyMenuGeneration;
+				pStatsInterface->findPlayerStatsByID(userID, [=](bool bSuccess, PSPlayerStats stats)
 					{
+						if (generation != s_lobbyMenuGeneration)
+							return;
+
 						if (!bSuccess)
 						{
 							TheMouse->setCursorTooltip(UnicodeString(L"Error: 1"), -1, NULL, 1.5f);
@@ -610,14 +579,14 @@ static void playerTooltip(GameWindow *window,
 						else
 						{
 							UnicodeString tooltip = UnicodeString::TheEmptyString;
-							if (roomMember->user_id == pAuthInterface->GetUserID())
+							if (userID == pAuthInterface->GetUserID())
 							{
 								tooltip.format(TheGameText->fetch("TOOLTIP:LocalPlayer"), uName.str());
 							}
 							else
 							{
 								// not us
-								bool bIsFriend = pSocialInterface->IsUserFriend(roomMember->user_id);
+								bool bIsFriend = pSocialInterface->IsUserFriend(userID);
 								if (bIsFriend)
 								{
 									// buddy
@@ -632,7 +601,7 @@ static void playerTooltip(GameWindow *window,
 								}
 							}
 
-							bool bIgnored = pSocialInterface->IsUserIgnored(roomMember->user_id);
+							bool bIgnored = pSocialInterface->IsUserIgnored(userID);
 							if (bIgnored)
 							{
 								tooltip.concat(TheGameText->fetch("TOOLTIP:IgnoredModifier"));
@@ -729,7 +698,7 @@ static void playerTooltip(GameWindow *window,
 								if (localMember != nullptr && localMember->m_bIsAdmin)
 								{
 									UnicodeString idLine;
-									idLine.format(L"\n\nUser ID: %lld", roomMember->user_id);
+									idLine.format(L"\n\nUser ID: %lld", userID);
 									tooltip.concat(idLine);
 								}
 							}
@@ -751,96 +720,6 @@ static void playerTooltip(GameWindow *window,
 
 	return;
 
-	// TODO_GENONLINE:
-	/*
-	PlayerInfoMap::iterator it = TheGameSpyInfo->getPlayerInfoMap()->find(aName);
-	PlayerInfo *info = &(it->second);
-	Bool isLocalPlayer = (TheGameSpyInfo->getLocalName().compareNoCase(info->m_name) == 0);
-
-	if (col == 0)
-	{
-		if (info->m_preorder)
-		{
-			TheMouse->setCursorTooltip( TheGameText->fetch("TOOLTIP:LobbyOfficersClub") );
-		}
-		else
-		{
-			TheMouse->setCursorTooltip( UnicodeString::TheEmptyString);
-		}
-		return;
-	}
-
-	AsciiString	playerLocale = info->m_locale;
-	AsciiString localeIdentifier;
-	localeIdentifier.format("WOL:Locale%2.2d", atoi(playerLocale.str()));
-	Int					playerWins   = info->m_wins;
-	Int					playerLosses = info->m_losses;
-	UnicodeString	playerInfo;
-	playerInfo.format(TheGameText->fetch("TOOLTIP:PlayerInfo"), TheGameText->fetch(localeIdentifier).str(), playerWins, playerLosses);
-
-	UnicodeString tooltip = UnicodeString::TheEmptyString;//TheGameText->fetch("TOOLTIP:PlayersInLobby");
-	if (isLocalPlayer)
-	{
-		tooltip.format(TheGameText->fetch("TOOLTIP:LocalPlayer"), uName.str());
-	}
-	else
-	{
-		// not us
-		if (TheGameSpyInfo->getBuddyMap()->find(info->m_profileID) != TheGameSpyInfo->getBuddyMap()->end())
-		{
-			// buddy
-			tooltip.format(TheGameText->FETCH_OR_SUBSTITUTE("TOOLTIP:GOFriendPlayer", L"Your friend %s"), uName.str());
-		}
-		else
-		{
-			if (info->m_profileID)
-			{
-				// non-buddy profiled player
-				tooltip.format(TheGameText->fetch("TOOLTIP:ProfiledPlayer"), uName.str());
-			}
-			else
-			{
-				// non-profiled player
-				tooltip.format(TheGameText->fetch("TOOLTIP:GenericPlayer"), uName.str());
-			}
-		}
-	}
-
-	if (info->isIgnored())
-	{
-		tooltip.concat(TheGameText->fetch("TOOLTIP:IgnoredModifier"));
-	}
-
-	if (info->m_profileID)
-	{
-		tooltip.concat(playerInfo);
-	}
-
-	if (!TheRankPointValues)
-		return;
-
-	Int rank = 0;
-	Int i = 0;
-	while (i + 1 < MAX_RANKS && info->m_rankPoints >= TheRankPointValues->m_ranks[i + 1])
-		++i;
-	rank = i;
-	AsciiString sideName = "GUI:RandomSide";
-	if (info->m_side > 0)
-	{
-		const PlayerTemplate *fac = ThePlayerTemplateStore->getNthPlayerTemplate(info->m_side);
-		if (fac)
-		{
-			sideName.format("SIDE:%s", fac->getSide().str());
-		}
-	}
-	AsciiString rankName;
-	rankName.format("GUI:GSRank%d", rank);
-	UnicodeString tmp;
-	tmp.format(L"\n%ls %ls", TheGameText->fetch(sideName).str(), TheGameText->fetch(rankName).str());
-	tooltip.concat(tmp);
-
-	TheMouse->setCursorTooltip( tooltip, -1, nullptr, 1.5f ); // the text and width are the only params used.  the others are the default values.
-	*/
 }
 
 // Set while repopulating the combo box, because setting the selection re-sends GCM_SELECTED as if the user had picked it.
@@ -1502,10 +1381,93 @@ void GenOnlineLobbyMenuCreateLobbyCallback(bool bSuccess)
 	//TheGameSpyInfo->setGameOptions();
 }
 
+// The game a friend invited the local player to, joined once the game list holds it. -1 for none.
+static int64_t s_inviteLobbyID = -1;
+static UnsignedInt s_inviteRequestedAt = 0;
+enum { INVITE_LIST_WAIT_MS = 10000 };
+
+// Joins a game of the list after the CRC check, asking for its password unless a friend invited the local player.
+static void JoinListedLobby(const LobbyEntry& Lobby, Bool bInvited)
+{
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pLobbyInterface == nullptr)
+	{
+		return;
+	}
+
+	// CRC Check
+	if (Lobby.exe_crc != TheGlobalData->m_exeCRC || Lobby.ini_crc != TheGlobalData->m_iniCRC)
+	{
+		// Only Zero Hour knows the CRC of its unmodified INI files, so Generals shows the plain mismatch.
+#if defined(VANILLA_INI_CRC)
+		if (TheGlobalData->m_iniCRC != VANILLA_INI_CRC)
+		{
+			GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), UnicodeString(L"You have modified INI files or a modification."));
+		}
+		else if (Lobby.ini_crc != VANILLA_INI_CRC)
+		{
+			GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), UnicodeString(L"The host has modified INI files or a modification."));
+		}
+		else
+#endif
+		{
+			GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), TheGameText->fetch("GUI:JoinFailedCRCMismatch"));
+		}
+		return;
+	}
+
+	// TODO_GENONLINE: Enforce this on the host too, vanilla game did not...
+
+	pLobbyInterface->SetLobbyTryingToJoin(Lobby);
+
+	// The service lets an invited friend in without the password.
+	if (Lobby.passworded && !bInvited)
+	{
+		GameSpyOpenOverlay(GSOVERLAY_GAMEPASSWORD);
+	}
+	else
+	{
+		pLobbyInterface->JoinLobby(Lobby, std::string());
+
+		GenOnlineSetLobbyAttemptHostJoin(TRUE);
+	}
+}
+
+Bool GenOnlineLobbyMenuIsActive()
+{
+	return s_lobbyMenuOpen;
+}
+
+void GenOnlineLobbyMenuJoinInvite(int64_t lobbyID)
+{
+	s_inviteLobbyID = lobbyID;
+	s_inviteRequestedAt = timeGetTime();
+}
+
+// The game list loads after the screen opens, so an invite waits a few seconds for its game to show up.
+static void JoinPendingInvite()
+{
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (s_inviteLobbyID < 0 || pLobbyInterface == nullptr || isShuttingDown || buttonPushed || s_tryingToHostOrJoin
+		|| pLobbyInterface->IsInLobby() || pLobbyInterface->GetLobbyTryingToJoin().lobbyID != -1)
+	{
+		return;
+	}
+	const LobbyEntry lobby = pLobbyInterface->GetLobbyFromID(s_inviteLobbyID);
+	if (lobby.lobbyID != -1)
+	{
+		s_inviteLobbyID = -1;
+		JoinListedLobby(lobby, TRUE);
+	}
+	else if (timeGetTime() - s_inviteRequestedAt > INVITE_LIST_WAIT_MS)
+	{
+		s_inviteLobbyID = -1;
+		GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOInviteGameGone", L"This game is no longer open."));
+	}
+}
+
 void GenOnlineLobbyMenuJoinLobbyCallback(EJoinLobbyResult result)
 {
-	// TODO_GENONLINE: Show accurate errors again
-
 	GenOnlineSetLobbyAttemptHostJoin(FALSE);
 	if (result == EJoinLobbyResult::JoinLobbyResult_Success)
 	{
@@ -1533,29 +1495,12 @@ void GenOnlineLobbyMenuJoinLobbyCallback(EJoinLobbyResult result)
 			break;
 
 		case EJoinLobbyResult::JoinLobbyResult_Banned:
-			s = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOJoinFailedBanned", L"The host has banned you from this game.");
+			s = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOJoinFailedKeptOut", L"The host has kept you out of this game.");
 			break;
 
-		// NOTE: Commented out ones are no longer supported. Seems like these we GS concepts but not part of the game
-		/*
-		case PEERInviteOnlyRoom:  // The room is invite only.
-			s = TheGameText->fetch("GUI:JoinFailedInviteOnly");
-			break;
-		case PEERBannedFromRoom:  // The local user is banned from the room.
-			s = TheGameText->fetch("GUI:JoinFailedBannedFromRoom");
-			break;
-			*/
 		case EJoinLobbyResult::JoinLobbyResult_BadPassword:     // An incorrect password (or none) was given for a passworded room.
 			s = TheGameText->fetch("GUI:JoinFailedBadPassword");
 			break;
-		/*
-		case PEERAlreadyInRoom:   // The local user is already in or entering a room of the same type.
-			s = TheGameText->fetch("GUI:JoinFailedAlreadyInRoom");
-			break;
-		case PEERNoConnection:    // Can't join a room if there's no chat connection.
-			s = TheGameText->fetch("GUI:JoinFailedNoConnection");
-			break;
-			*/
 		default:
 			s = TheGameText->fetch("GUI:JoinFailedDefault");
 			break;
@@ -1563,20 +1508,6 @@ void GenOnlineLobbyMenuJoinLobbyCallback(EJoinLobbyResult result)
 
 		GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), s);
 
-		// GenOnline: The service does this now.
-		/*
-		if (groupRoomToJoin)
-		{
-			DEBUG_LOG(("WOLLobbyMenuUpdate() - rejoining group room %d\n", groupRoomToJoin));
-			TheGameSpyInfo->joinGroupRoom(groupRoomToJoin);
-			groupRoomToJoin = 0;
-		}
-		else
-		{
-			DEBUG_LOG(("WOLLobbyMenuUpdate() - joining best group room\n"));
-			TheGameSpyInfo->joinBestGroupRoom();
-		}
-		*/
 	}
 }
 
@@ -1674,27 +1605,6 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
 	layout->hide( FALSE );
 
 	// if we're not in a room, this will join the best available one
-	// TODO_GENONLINE
-	/*
-	if (!TheGameSpyInfo->getCurrentGroupRoom())
-	{
-		if (groupRoomToJoin)
-		{
-			DEBUG_LOG(("WOLLobbyMenuInit() - rejoining group room %d", groupRoomToJoin));
-			TheGameSpyInfo->joinGroupRoom(groupRoomToJoin);
-			groupRoomToJoin = 0;
-		}
-		else
-		{
-			DEBUG_LOG(("WOLLobbyMenuInit() - joining best group room"));
-			TheGameSpyInfo->joinBestGroupRoom();
-		}
-	}
-	else
-	{
-		DEBUG_LOG(("WOLLobbyMenuInit() - not joining group room because we're already in one"));
-	}
-	*/
 
 	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 	if (pLobbyInterface != nullptr && pRoomsInterface != nullptr)
@@ -1725,17 +1635,6 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
 
 	GrabWindowInfo();
 
-	// TODO_GENONLINE
-	//TheGameSpyInfo->clearStagingRoomList();
-
-	// TODO_GENONLINE
-	/*
-	PeerRequest req;
-	req.peerRequestType = PeerRequest::PEERREQUEST_STARTGAMELIST;
-	req.gameList.restrictGameList = TheGameSpyConfig->restrictGamesToLobby();
-	TheGameSpyPeerMessageQueue->addRequest(req);
-	*/
-
 	// animate controls
 //	TheShell->registerWithAnimateManager(parent, WIN_ANIMATION_SLIDE_TOP, TRUE);
 	TheShell->showShellMap(TRUE);
@@ -1743,24 +1642,6 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
 	{
 		TheGenOnlineGame->reset();
 	}
-
-	// TODO_GENONLINE
-	//CustomMatchPreferences pref;
-//	GameWindow *slider = TheWindowManager->winGetWindowFromId(parent, sliderChatAdjustID);
-//	if (slider)
-//	{
-//		GadgetSliderSetPosition(slider, pref.getChatSizeSlider());
-//		doSliderTrack(slider, pref.getChatSizeSlider());
-//	}
-//
-
-	// TODO_GENONLINE
-	/*
-	if (pref.usesLongGameList())
-	{
-		ToggleGameListType();
-	}
-	*/
 
 	raiseMessageBoxes = true;
 
@@ -1805,8 +1686,8 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
 		// notifiactions callback
 		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged([](int numNotifications)
 			{
-				// update communicator button
-				if (buttonBuddy != nullptr)
+				GameWindow* button = TheWindowManager->winGetWindowFromId(nullptr, buttonBuddyID);
+				if (button != nullptr)
 				{
 					UnicodeString buttonText;
                     if (numNotifications > 0)
@@ -1817,7 +1698,7 @@ void GenOnlineLobbyMenuInit( WindowLayout *layout, void *userData )
                     {
                         buttonText.format(L"%s", TheGameText->fetch("GUI:Buddies").str());
                     }
-					buttonBuddy->winSetText(buttonText);
+					button->winSetText(buttonText);
 				}
 			});
 	}
@@ -1863,6 +1744,13 @@ void GenOnlineLobbyMenuShutdown( WindowLayout *layout, void *userData )
 	s_lobbyMenuOpen = FALSE;
 	++s_lobbyMenuGeneration;
 	GenOnlineCloseRightClickMenus();
+	buttonBuddy = nullptr;
+
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	if (pSocialInterface != nullptr)
+	{
+		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged(nullptr);
+	}
 
 	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 	if (pRoomsInterface != nullptr)
@@ -1881,11 +1769,6 @@ void GenOnlineLobbyMenuShutdown( WindowLayout *layout, void *userData )
 	}
 
 	CustomMatchPreferences pref;
-//	GameWindow *slider = TheWindowManager->winGetWindowFromId(parent, sliderChatAdjustID);
-//	if (slider)
-//	{
-//		pref.setChatSizeSlider(GadgetSliderGetPosition(slider));
-//	}
 	if (GetGameInfoListBox())
 	{
 		pref.setUsesLongGameList(FALSE);
@@ -1897,15 +1780,6 @@ void GenOnlineLobbyMenuShutdown( WindowLayout *layout, void *userData )
 	pref.write();
 
 	ReleaseWindowInfo();
-
-	// TODO_GENONLINE
-	//TheGameSpyInfo->unregisterTextWindow(listboxLobbyChat);
-
-	//TheGameSpyChat->stopListingGames();
-	// TODO_GENONLINE
-	//PeerRequest req;
-	//req.peerRequestType = PeerRequest::PEERREQUEST_STOPGAMELIST;
-	//TheGameSpyPeerMessageQueue->addRequest(req);
 
 	GenOnlineLobbyGameDetailsShutdown();
 	listboxLobbyChat = nullptr;
@@ -2079,7 +1953,7 @@ void GenOnlineLobbyMenuUpdate( WindowLayout * layout, void *userData)
 		{
 			s_tryingToHostOrJoin = false;
 			GenOnlineLobbyExitState();
-			TearDownGeneralsOnline();
+			TearDownGenOnline();
 		}		
 
 		return;
@@ -2132,6 +2006,7 @@ void GenOnlineLobbyMenuUpdate( WindowLayout * layout, void *userData)
 	}
 
 	GenOnlineHandleBuddyResponses();
+	JoinPendingInvite();
 
 }
 
@@ -2183,54 +2058,6 @@ WindowMsgHandledType GenOnlineLobbyMenuInput( GameWindow *window, UnsignedInt ms
 
 	return MSG_IGNORED;
 }
-
-//static void doSliderTrack(GameWindow *control, Int val)
-//{
-//	Int sliderW, sliderH, sliderX, sliderY;
-//	control->winGetPosition(&sliderX, &sliderY);
-//	control->winGetSize(&sliderW, &sliderH);
-//	Real cursorY = sliderY + (100-val)*0.01f*sliderH;
-//
-//	extern GameWindow *listboxLobbyGamesSmall;
-//	extern GameWindow *listboxLobbyGamesLarge;
-//	extern GameWindow *listboxLobbyGameInfo;
-//
-//	static Int gwsX = 0, gwsY = 0, gwsW = 0, gwsH = 0;
-//	static Int gwlX = 0, gwlY = 0, gwlW = 0, gwlH = 0;
-//	static Int gwiX = 0, gwiY = 0, gwiW = 0, gwiH = 0;
-//	static Int pwX = 0, pwY = 0, pwW = 0, pwH = 0;
-//	static Int chatPosX = 0, chatPosY = 0, chatW = 0, chatH = 0;
-//	static Int spacing = 0;
-//	if (chatPosX == 0)
-//	{
-//		listboxLobbyChat->winGetPosition(&chatPosX, &chatPosY);
-//		listboxLobbyChat->winGetSize(&chatW, &chatH);
-//
-////		listboxLobbyGamesSmall->winGetPosition(&gwsX, &gwsY);
-////		listboxLobbyGamesSmall->winGetSize(&gwsW, &gwsH);
-//
-//		listboxLobbyGamesLarge->winGetPosition(&gwlX, &gwlY);
-//		listboxLobbyGamesLarge->winGetSize(&gwlW, &gwlH);
-//
-////		listboxLobbyGameInfo->winGetPosition(&gwiX, &gwiY);
-////		listboxLobbyGameInfo->winGetSize(&gwiW, &gwiH);
-////
-//		listboxLobbyPlayers->winGetPosition(&pwX, &pwY);
-//		listboxLobbyPlayers->winGetSize(&pwW, &pwH);
-//
-//		spacing = chatPosY - pwY - pwH;
-//	}
-//
-//	Int newChatY = cursorY;
-//	Int newChatH = chatH + chatPosY - newChatY;
-//	listboxLobbyChat->winSetPosition(chatPosX, newChatY);
-//	listboxLobbyChat->winSetSize(chatW, newChatH);
-//
-//	Int newH = cursorY - pwY - spacing;
-//	listboxLobbyPlayers->winSetSize(pwW, newH);
-////	listboxLobbyGamesSmall->winSetSize(gwsW, newH);
-//	listboxLobbyGamesLarge->winSetSize(gwlW, newH);
-////	listboxLobbyGameInfo->winSetSize(gwiW, newH);
 
 
 static void BuildLobbyChatCompletionContext(ChatCompletionContext& context)
@@ -2326,24 +2153,6 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 					if( lobbyID >= 0 )
 					{
 						buttonJoin->winEnable(TRUE);
-						static UnsignedInt lastFrame = 0;
-						static Int lastID = -1;
-						UnsignedInt now = TheGameClient->getFrame();
-
-						PeerRequest req;
-						req.peerRequestType = PeerRequest::PEERREQUEST_GETEXTENDEDSTAGINGROOMINFO;
-						req.stagingRoom.id = lobbyID;
-
-						if (lastID != req.stagingRoom.id || now > lastFrame + 60)
-						{
-							// TODO_GENONLINE: Impl this again
-							/*
-							TheGameSpyPeerMessageQueue->addRequest(req);
-							*/
-						}
-						
-						lastID = req.stagingRoom.id;
-						lastFrame = now;
 					}
 					else
 					{
@@ -2390,8 +2199,6 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 
 					GenOnlineSetLobbyAttemptHostJoin( TRUE );
 					TheGenOnlineLobbyQueuedUTMs.clear();
-					// TODO_GENONLINE
-					//groupRoomToJoin = TheGameSpyInfo->getCurrentGroupRoom();
 					GameSpyOpenOverlay(GSOVERLAY_GAMEOPTIONS);
 				}
 				else if ( controlID == buttonJoinID )
@@ -2402,7 +2209,6 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 						break;
 					}
 
-					// TODO_GENONLINE: Support re-ordering again
 					Int selected;
 					GadgetListBoxGetSelected(GetGameListBox(), &selected);
 					if (selected >= 0)
@@ -2417,130 +2223,13 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 								break;
 							}
 
-							// CRC Check
-							if (Lobby.exe_crc != TheGlobalData->m_exeCRC || Lobby.ini_crc != TheGlobalData->m_iniCRC)
-							{
-								// Only Zero Hour knows the CRC of its unmodified INI files, so Generals shows the plain mismatch.
-#if defined(VANILLA_INI_CRC)
-								if (TheGlobalData->m_iniCRC != VANILLA_INI_CRC)
-								{
-									GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), UnicodeString(L"You have modified INI files or a modification."));
-								}
-								else if (Lobby.ini_crc != VANILLA_INI_CRC)
-								{
-									GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), UnicodeString(L"The host has modified INI files or a modification."));
-								}
-								else
-#endif
-								{
-									GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), TheGameText->fetch("GUI:JoinFailedCRCMismatch"));
-								}
-								break;
-							}
-
-							// TODO_GENONLINE: Enforce this on the host too, vanilla game did not...
-
-							
-							pLobbyInterface->SetLobbyTryingToJoin(Lobby);
-
-							if (Lobby.passworded)
-							{
-								GameSpyOpenOverlay(GSOVERLAY_GAMEPASSWORD);
-							}
-							else
-							{
-								pLobbyInterface->JoinLobby(Lobby, std::string());
-
-								GenOnlineSetLobbyAttemptHostJoin(TRUE);
-							}
+							JoinListedLobby(Lobby, FALSE);
 						}
 					}
 					else
 					{
 						GSMessageBoxOk(TheGameText->fetch("GUI:Error"), TheGameText->fetch("GUI:NoGameSelected"), NULL);
 					}
-					// TODO_GENONLINE: Use StagingRoomInfo again, which makes this easier and cleaner.
-					/*
-					if (s_tryingToHostOrJoin)
-						break;
-
-					TheGenOnlineLobbyQueuedUTMs.clear();
-					// Look for a game to join
-					groupRoomToJoin = TheGameSpyInfo->getCurrentGroupRoom();
-					Int selected;
-					GadgetListBoxGetSelected(GetGameListBox(), &selected);
-					if (selected >= 0)
-					{
-						Int selectedID = (Int)(intptr_t)GadgetListBoxGetItemData(GetGameListBox(), selected);
-						if (selectedID > 0)
-						{
-							StagingRoomMap *srm = TheGameSpyInfo->getStagingRoomList();
-							StagingRoomMap::iterator srmIt = srm->find(selectedID);
-							if (srmIt != srm->end())
-							{
-								GameSpyStagingRoom *roomToJoin = srmIt->second;
-								if (!roomToJoin || roomToJoin->getExeCRC() != TheGlobalData->m_exeCRC || roomToJoin->getIniCRC() != TheGlobalData->m_iniCRC)
-								{
-									// bad crc.  don't go.
-									DEBUG_LOG(("WOLLobbyMenuSystem - CRC mismatch with the game I'm trying to join. My CRC's - EXE:0x%08X INI:0x%08X  Their CRC's - EXE:0x%08x INI:0x%08x", TheGlobalData->m_exeCRC, TheGlobalData->m_iniCRC, roomToJoin->getExeCRC(), roomToJoin->getIniCRC()));
-#if defined(RTS_DEBUG)
-									if (TheGlobalData->m_netMinPlayers)
-									{
-										GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), TheGameText->fetch("GUI:JoinFailedCRCMismatch"));
-										break;
-									}
-									else if (g_genOnlineFakeCRC)
-									{
-										TheWritableGlobalData->m_exeCRC = roomToJoin->getExeCRC();
-										TheWritableGlobalData->m_iniCRC = roomToJoin->getIniCRC();
-									}
-#else
-									GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), TheGameText->fetch("GUI:JoinFailedCRCMismatch"));
-									break;
-#endif
-								}
-								Bool unknownLadder = (roomToJoin->getLadderPort() && TheLadderList->findLadder(roomToJoin->getLadderIP(), roomToJoin->getLadderPort()) == nullptr);
-								if (unknownLadder)
-								{
-									GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), TheGameText->fetch("GUI:JoinFailedUnknownLadder"));
-									break;
-								}
-								if (roomToJoin->getNumPlayers() == MAX_SLOTS)
-								{
-									GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), TheGameText->fetch("GUI:JoinFailedRoomFull"));
-									break;
-								}
-								TheGameSpyInfo->markAsStagingRoomJoiner(selectedID);
-								TheGameSpyGame->setGameName(roomToJoin->getGameName());
-								TheGameSpyGame->setLadderIP(roomToJoin->getLadderIP());
-								TheGameSpyGame->setLadderPort(roomToJoin->getLadderPort());
-								GenOnlineSetLobbyAttemptHostJoin( TRUE );
-								if (roomToJoin->getHasPassword())
-								{
-									GameSpyOpenOverlay(GSOVERLAY_GAMEPASSWORD);
-								}
-								else
-								{
-									// no password - just join it
-									PeerRequest req;
-									req.peerRequestType = PeerRequest::PEERREQUEST_JOINSTAGINGROOM;
-									req.text = srmIt->second->getGameName().str();
-									req.stagingRoom.id = selectedID;
-									req.password = "";
-									TheGameSpyPeerMessageQueue->addRequest(req);
-								}
-							}
-						}
-						else
-						{
-							GSMessageBoxOk(TheGameText->fetch("GUI:Error"), TheGameText->fetch("GUI:NoGameInfo"), nullptr);
-						}
-					}
-					else
-					{
-						GSMessageBoxOk(TheGameText->fetch("GUI:Error"), TheGameText->fetch("GUI:NoGameSelected"), nullptr);
-					}
-					*/
 				}
 				else if ( controlID == buttonBuddyID )
 				{
@@ -2732,7 +2421,6 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 							}
 							else if (controlID == GetGameListBoxID())
 							{
-								// TODO_GENONLINE: enable right click for ladders again
 								break;
 							}
 						}
@@ -2753,22 +2441,6 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 				}
 				break;
 		}
-
-//		//---------------------------------------------------------------------------------------------
-//		case GSM_SLIDER_TRACK:
-//		{
-//				if (buttonPushed)
-//					break;
-//
-//			GameWindow *control = (GameWindow *)mData1;
-//			Int val = (Int)mData2;
-//			Int controlID = control->winGetWindowId();
-//			if (controlID == sliderChatAdjustID)
-//			{
-//				doSliderTrack(control, val);
-//			}
-//			break;
-//		}
 
 		//---------------------------------------------------------------------------------------------
 		case GEM_UPDATE_TEXT:
@@ -2834,8 +2506,6 @@ WindowMsgHandledType GenOnlineLobbyMenuSystem( GameWindow *window, UnsignedInt m
 					{
 						pWS->SendData_RoomChatMessage(txtInput, false);
 					}
-					// TODO_GENONLINE: Support private message again
-					//TheGameSpyInfo->sendChat( txtInput, false, listboxLobbyPlayers );
 				}
 				break;
 			}

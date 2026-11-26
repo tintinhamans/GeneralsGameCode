@@ -4,7 +4,7 @@ The Generals Online client streams live match data to out-of-process readers ove
 
 ## Transport
 
-- Pipe name: `\.\pipe\generalsonline-caster-<pid>`, where `<pid>` is the game process id. List `\.\pipe\` and match the prefix to find running games.
+- Pipe name: `\.\pipe\genonline-caster-<pid>`, where `<pid>` is the game process id. List `\.\pipe\` and match the prefix to find running games.
 - The caster plugin in the game process is the pipe server (overlapped, byte mode, duplex). The readers are the clients. Up to **4 readers** can be connected at once, each with its own outbound queue, sequence numbers, resync state and feed configuration (see Multiple readers). A fifth connect attempt fails (`ERROR_PIPE_BUSY`) until a reader leaves.
 - Access: the pipe rejects remote clients (`PIPE_REJECT_REMOTE_CLIENTS`) and carries an explicit security descriptor whose only entry grants full access to the user the game runs as (the user SID of the process token). Other accounts cannot open it; neither can a reader at a lower integrity level than the game, as for any object created by a process at a higher one. If the descriptor cannot be built the pipe is not created.
 - The pipe comes from the `genonline_caster` plugin (repository genonline-caster-plugin), which ships with the client in `plugins\genonline_caster\` and is off by default. It loads at startup when `%LOCALAPPDATA%\genonline\settings.client.json` sets `"plugins": { "caster": "genonline_caster" }`. Without the plugin, and in headless runs and replay-simulation processes, no pipe exists. The game encodes and decodes every message, and the plugin only carries the frames.

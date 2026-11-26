@@ -41,7 +41,9 @@
 #include "Common/Upgrade.h"
 #include "Common/Xfer.h"
 #include "Common/XferCRC.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
+#endif
 
 #include "GameClient/ControlBar.h"
 #include "GameClient/Drawable.h"
@@ -856,8 +858,10 @@ UpdateSleepTime ProductionUpdate::update()
 
 			// we finished an upgrade, lets add that money spent on it to the scorekeeper
 			player->getScoreKeeper()->addMoneySpent(upgrade->calcCostToBuild(player));
+#if defined(GENONLINE)
 			// GenOnline @feature arcticdolphin 21/11/2026 Report the upgrade spending to the live stats pipe
 			LocalApiLiveSpend(player->getPlayerIndex(), LOCAL_API_SPEND_UPGRADES, upgrade->calcCostToBuild(player));
+#endif
 
 			// notify the script engine
 			TheScriptEngine->notifyOfCompletedUpgrade(
@@ -907,8 +911,10 @@ UpdateSleepTime ProductionUpdate::update()
 			else
 			{
 				us->giveUpgrade( upgrade );
+#if defined(GENONLINE)
 				// GenOnline @feature arcticdolphin 21/11/2026 Report the object upgrade completion to the live stats pipe
 				LocalApiLiveUpgradeComplete( player->getPlayerIndex(), upgrade->getUpgradeName().str(), upgrade->calcCostToBuild( player ), TRUE );
+#endif
 			}
 
 			//Also mark the UI dirty -- incase object with upgrade cameo is selected.

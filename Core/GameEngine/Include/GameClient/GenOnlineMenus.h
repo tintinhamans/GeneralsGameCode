@@ -35,6 +35,22 @@ extern void GenOnlinePopupHostGameInit( WindowLayout *layout, void *userData );
 extern void GenOnlinePopupHostGameUpdate( WindowLayout *layout, void *userData );
 extern WindowMsgHandledType GenOnlinePopupHostGameInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GenOnlinePopupHostGameSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+/// Opens the host game popup filled with the current lobby, for the host to change what can change after creation.
+extern void GenOnlineOpenEditLobbyPopup();
+
+enum LobbyPasswordResult
+{
+	LOBBY_PASSWORD_APPLIED,
+	LOBBY_PASSWORD_OFFLINE,
+	LOBBY_PASSWORD_NOT_HOST,
+	LOBBY_PASSWORD_BAD_LENGTH,
+	LOBBY_PASSWORD_NONE_SET,
+};
+
+/// Change the lobby of the game setup screen, shared by the slash commands and the edit popup. A null value keeps that setting.
+extern Bool GenOnlineApplyLobbyDetails( const UnicodeString *newName, const Bool *friendsOnly );
+/// A null password removes it.
+extern LobbyPasswordResult GenOnlineChangeLobbyPassword( const UnicodeString *newPassword );
 
 extern void GenOnlineMapSelectMenuInit( WindowLayout *layout, void *userData );
 extern void GenOnlineMapSelectMenuShutdown( WindowLayout *layout, void *userData );
@@ -42,11 +58,6 @@ extern void GenOnlineMapSelectMenuUpdate( WindowLayout *layout, void *userData )
 extern WindowMsgHandledType GenOnlineMapSelectMenuInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GenOnlineMapSelectMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 
-extern void GenOnlineDownloadMenuInit( WindowLayout *layout, void *userData );
-extern void GenOnlineDownloadMenuShutdown( WindowLayout *layout, void *userData );
-extern void GenOnlineDownloadMenuUpdate( WindowLayout *layout, void *userData );
-extern WindowMsgHandledType GenOnlineDownloadMenuInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
-extern WindowMsgHandledType GenOnlineDownloadMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 
 extern void GenOnlineWelcomeMenuInit( WindowLayout *layout, void *userData );
 extern void GenOnlineWelcomeMenuShutdown( WindowLayout *layout, void *userData );
@@ -102,10 +113,7 @@ extern WindowMsgHandledType GenOnlineGameSetupMenuSystem( GameWindow *window, Un
 extern Bool GOSignInDialogOpen( void );
 extern Bool GOSignInDialogIsOpen( void );
 extern void GOSignInDialogShowChecking( GameWinMsgBoxFunc cancelFunc );
-extern void GOSignInDialogShowUpdate( UnicodeString message, GameWinMsgBoxFunc updateFunc, GameWinMsgBoxFunc cancelFunc );
 extern void GOSignInDialogShowError( UnicodeString title, UnicodeString message, GameWinMsgBoxFunc closeFunc );
-extern void GOSignInDialogShowDownloading( GameWinMsgBoxFunc cancelFunc );
-extern void GOSignInDialogShowReady( UnicodeString message, GameWinMsgBoxFunc restartFunc, GameWinMsgBoxFunc cancelFunc );
 extern void GOSignInDialogBeginSignIn( void );
 extern void GOSignInDialogUpdate( void );
 extern void GOSignInDialogDestroy( void );
@@ -117,21 +125,28 @@ extern Bool GenOnlineOptionsMenuAccept();
 extern void GenOnlineOptionsMenuDefaults();
 
 extern void GenOnlineMapSelectMenuApplyMap( const AsciiString& map );
-extern void GenOnlineHandleNumPlayersOnline( Int numPlayersOnline );
-extern void GenOnlineHandleOverallStats( const char *szHTTPStats, unsigned len );
 extern void GenOnlineUpdateLocalPlayerStats();
 extern void GenOnlineSetLookAtPlayer( int64_t id, UnicodeString nick );
 extern void GenOnlinePopulatePlayerInfoWindows( AsciiString parentWindowName );
-extern Int GenOnlineGetAdditionalDisconnectsFromUserFile( Int playerID );
 extern Int GenOnlineCalculateRank( const PSPlayerStats& stats );
 extern Int GenOnlineGetFavoriteSide( const PSPlayerStats& stats );
 extern void GenOnlineHandleBuddyResponses();
 extern void GenOnlineUpdateBuddyInfo( bool bIsAutoRefresh = false, bool bUseCache = false );
 extern void GenOnlineRefreshIgnoreList();
+// The tabs of the communicator. The peer is the friend whose conversation opens, -1 opens none.
+enum GenOnlineCommunicatorTab { GENONLINE_COMMUNICATOR_FRIENDS, GENONLINE_COMMUNICATOR_REQUESTS, GENONLINE_COMMUNICATOR_BLOCKED };
+extern void GenOnlineOpenCommunicator( Int tab, int64_t peerUserID );
+extern void GenOnlineGetConversationPeer( int64_t userID, UnicodeString &name, std::string &dot, UnicodeString &status );
+extern Bool GenOnlineSendConversationLine( int64_t peerID, UnicodeString text, UnicodeString *failure );
+// Draws the presence dot of the user section: online, idle, do_not_disturb, invisible or offline.
+extern void GenOnlineDrawPresenceDot( const char *status, Int x, Int y, Int size );
+extern Bool GenOnlineLobbyMenuIsActive();
+// Joins the game of a lobby invite once the game list shows it, without its password.
+extern void GenOnlineLobbyMenuJoinInvite( int64_t lobbyID );
+extern Bool GenOnlineWelcomeMenuOpenLobby();
 extern void GenOnlineRaiseNotificationBox();
 extern void GenOnlineDeleteNotificationBox();
 extern void GenOnlineInitBuddyControls( Int type );
-extern void GenOnlinePopulateOldBuddyMessages();
 extern WindowMsgHandledType GenOnlineBuddyControlSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 extern void GenOnlinePopBackToLobby();
 extern void GenOnlinePositionStartSpots();

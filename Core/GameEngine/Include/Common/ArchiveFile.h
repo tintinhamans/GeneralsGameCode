@@ -57,8 +57,10 @@ public:
 	void					setSearchPriority( Int new_priority );	///< Set this archive file's search priority
 	void					close();													///< Close this archive file
 	void									attachFile(File *file);
+#if defined(GENONLINE)
 	void									setPriority(Int priority) { m_priority = priority; }
 	Int										getPriority() const { return m_priority; }
+#endif
 
 	void									getFileListInDirectory(const AsciiString& currentDirectory, const AsciiString& originalDirectory, const AsciiString& searchName, FilenameList &filenameList, Bool searchSubdirectories) const;
 
@@ -69,7 +71,9 @@ protected:
 	const ArchivedFileInfo *		getArchivedFileInfo(const AsciiString& filename) const;	///< return the ArchivedFileInfo from the directory tree.
 
 protected:
+#if defined(GENONLINE)
 	Int m_priority = ARCHIVE_PRIORITY_RETAIL;	///< lookup priority in the archive file system, lower wins
+#endif
 	File *m_file; ///< file pointer to the archive file on disk.  Kept open so we don't have to continuously open and close the file all the time.
 	FileInfo m_fileInfo; ///< file info of the archive file on disk.
 	AsciiString m_name; ///< archive file name

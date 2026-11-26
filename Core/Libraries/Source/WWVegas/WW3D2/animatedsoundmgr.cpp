@@ -30,8 +30,6 @@
  *                                                                                             *
  *                    $Revision:: 2                                                           $*
  *                                                                                             *
- *---------------------------------------------------------------------------------------------*
- * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 //
 // MBL Update for CNC3 INCURSION - 10.23.2002 - Expanded param handling, Added STOP command
@@ -42,6 +40,10 @@
 #include "WWLib/inisup.h"
 #include "WWLib/ffactory.h"
 #include "WWLib/WWFILE.h"
+#if !defined(GENONLINE)
+#include "WWAudio/WWAudio.h"
+#include "WWAudio/AudibleSound.h"
+#endif
 #include "htree.h"
 #include "hanim.h"
 #include "soundlibrarybridge.h"

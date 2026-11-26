@@ -45,6 +45,8 @@
 class AsciiString;
 class UnicodeString;
 void GenOnlineShowNotificationBox(AsciiString nick, UnicodeString message, bool bPlaySound = true);
+// A notification that opens the communicator on the conversation with the user when it is clicked.
+void GenOnlineShowCommunicatorNotice(long long peerUserID, UnicodeString message);
 
 #define ALLOW_NON_PROFILED_LOGIN 1
 

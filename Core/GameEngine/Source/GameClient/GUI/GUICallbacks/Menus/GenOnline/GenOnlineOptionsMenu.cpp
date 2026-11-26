@@ -167,11 +167,11 @@ static const char *networkEnvironment()
 	return GenOnlineServicesManager::EnvironmentName();
 }
 
-// the host the Automatic server choice uses, the route that worked last first
+// the host the Automatic server choice uses
 static std::string networkServerHost()
 {
 	ServiceConnectionSettings settings;
-	const auto routes = ServiceConnection::BootstrapRoutes(networkEnvironment(), settings, GenOnlineServicesManager::Settings.Network_GetLastRoute());
+	const auto routes = ServiceConnection::BootstrapRoutes(networkEnvironment(), settings);
 	if (routes.empty())
 	{
 		return std::string();
@@ -187,7 +187,7 @@ static void networkStartSystemLookup()
 	ServiceConnectionSettings system;
 	system.proxyMode = "automatic";
 	ServiceConnectionSettings selected = GenOnlineServicesManager::Settings.Network_GetConnectionSettings();
-	const auto routes = ServiceConnection::BootstrapRoutes(networkEnvironment(), selected, GenOnlineServicesManager::Settings.Network_GetLastRoute());
+	const auto routes = ServiceConnection::BootstrapRoutes(networkEnvironment(), selected);
 	networkSystemProxyText.clear();
 	networkSystemProxy = ServiceConnection::StartProxyResolution(system, routes.empty() ? std::string("https://api.generals.online/") : routes.front());
 }

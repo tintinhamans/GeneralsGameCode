@@ -103,9 +103,6 @@ static NameKeyType listboxQuickMatchID = NAMEKEY_INVALID;
 static NameKeyType listboxMapSelectID = NAMEKEY_INVALID;
 static NameKeyType buttonSelectAllMapsID = NAMEKEY_INVALID;
 static NameKeyType buttonSelectNoMapsID = NAMEKEY_INVALID;
-//static NameKeyType textEntryMaxDisconnectsID = NAMEKEY_INVALID;
-//static NameKeyType textEntryMaxPointsID = NAMEKEY_INVALID;
-//static NameKeyType textEntryMinPointsID = NAMEKEY_INVALID;
 static NameKeyType textEntryWaitTimeID = NAMEKEY_INVALID;
 static NameKeyType comboBoxNumPlayersID = NAMEKEY_INVALID;
 static NameKeyType comboBoxMaxPingID = NAMEKEY_INVALID;
@@ -129,9 +126,6 @@ GameWindow *GenOnlineQuickMatchTextWindow = nullptr;
 static GameWindow *listboxMapSelect = nullptr;
 // The playlist map position of each map list row. The list leaves out maps that are missing or too small.
 static std::vector<int> s_mapListPlaylistPositions;
-//static GameWindow *textEntryMaxDisconnects = nullptr;
-//static GameWindow *textEntryMaxPoints = nullptr;
-//static GameWindow *textEntryMinPoints = nullptr;
 static GameWindow *textEntryWaitTime = nullptr;
 static GameWindow *comboBoxNumPlayers = nullptr;
 static GameWindow *comboBoxMaxPing = nullptr;
@@ -586,7 +580,6 @@ static void populateQuickMatchMapSelectListbox( QuickMatchPreferences& pref )
 	}
 	NetworkLog(ELogVerbosity::LOG_DEBUG, "End Map Dump");
 
-	// TODO_QUICKMATCH
 	std::list<AsciiString> maps;
 	std::vector<int> mapPlaylistPositions;
 	Int numPlayers = 0;
@@ -745,18 +738,6 @@ static void saveQuickMatchOptions()
 
 	UnicodeString u;
 	AsciiString a;
-//	u = GadgetTextEntryGetText(textEntryMaxDisconnects);
-//	a.translate(u);
-//	pref.setMaxDisconnects(atoi(a.str()));
-//	u = GadgetTextEntryGetText(textEntryMaxPoints);
-//	a.translate(u);
-//	pref.setMaxPoints(max(100, atoi(a.str())));
-//	u = GadgetTextEntryGetText(textEntryMinPoints);
-//	a.translate(u);
-//	pref.setMinPoints(min(100, atoi(a.str())));
-	//u = GadgetTextEntryGetText(textEntryWaitTime);
-	//a.translate(u);
-	//pref.setWaitTime(atoi(a.str()));
 
 	GadgetComboBoxGetSelectedPos(comboBoxNumPlayers, &selected);
 	pref.setNumPlayers(selected);
@@ -811,9 +792,6 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	listboxMapSelectID = NAMEKEY( "WOLQuickMatchMenu.wnd:ListBoxMapSelect" );
 	buttonSelectAllMapsID = NAMEKEY( "WOLQuickMatchMenu.wnd:ButtonSelectAllMaps" );
 	buttonSelectNoMapsID = NAMEKEY( "WOLQuickMatchMenu.wnd:ButtonSelectNoMaps" );
-	//textEntryMaxDisconnectsID = NAMEKEY( "WOLQuickMatchMenu.wnd:TextEntryMaxDisconnects" );
-	//textEntryMaxPointsID = NAMEKEY( "WOLQuickMatchMenu.wnd:TextEntryMaxPointPercent" );
-	//textEntryMinPointsID = NAMEKEY( "WOLQuickMatchMenu.wnd:TextEntryMinPointPercent" );
 	textEntryWaitTimeID = NAMEKEY( "WOLQuickMatchMenu.wnd:TextEntryWaitTime" );
 	comboBoxMaxPingID = NAMEKEY( "WOLQuickMatchMenu.wnd:ComboBoxMaxPing" );
 	comboBoxNumPlayersID = NAMEKEY( "WOLQuickMatchMenu.wnd:ComboBoxNumPlayers" );
@@ -837,9 +815,6 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	}
 	SetListBoxRowAnimMode(GenOnlineQuickMatchTextWindow, LIST_ROW_ANIM_SLOT);
 	SetListBoxRowAnimMode(listboxMapSelect, LIST_ROW_ANIM_SLOT);
-	//textEntryMaxDisconnects = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, textEntryMaxDisconnectsID );
-	//textEntryMaxPoints = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, textEntryMaxPointsID );
-	//textEntryMinPoints = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, textEntryMinPointsID );
 	textEntryWaitTime = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, textEntryWaitTimeID );
 	comboBoxMaxPing = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, comboBoxMaxPingID );
 	comboBoxNumPlayers = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, comboBoxNumPlayersID );
@@ -922,14 +897,6 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 
 
 	UnicodeString s;
-//	s.format(L"%d", pref.getMaxDisconnects());
-//	GadgetTextEntrySetText(textEntryMaxDisconnects, s);
-//	s.format(L"%d", pref.getMaxPoints());
-//	GadgetTextEntrySetText(textEntryMaxPoints, s);
-//	s.format(L"%d", pref.getMinPoints());
-//	GadgetTextEntrySetText(textEntryMinPoints, s);
-	//s.format(L"%d", pref.getWaitTime());
-	//GadgetTextEntrySetText(textEntryWaitTime, s);
 	maxPoints= pref.getMaxPoints();
 	minPoints = pref.getMinPoints();
 
@@ -1149,6 +1116,15 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				matchStartCountdownLastSecond = countdownMs > 0 ? (countdownMs + 999) / 1000 : 0;
 			});
 
+		// A match that cannot start leaves the player in the queue screen with Back and Stop usable again.
+		static auto failedMatchStart = []()
+			{
+				Int index = GadgetListBoxAddEntryText(GenOnlineQuickMatchTextWindow, UnicodeString(L"The match could not start. Stop and search again."), GOUIColor(GOUICOLOR_NOTICE, GameMakeColor(255, 194, 25, 255)), -1, -1);
+				GadgetListBoxSetItemData(GenOnlineQuickMatchTextWindow, (void*)-1, index);
+				buttonBack->winEnable(TRUE);
+				buttonStop->winEnable(TRUE);
+			};
+
 		pLobbyInterface->RegisterForMatchmakingStartGameCallback([]()
 			{
 				matchFoundTimeoutStart = 0;
@@ -1158,6 +1134,7 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				if (!TheGenOnlineGame)
 				{
 					NetworkLog(ELogVerbosity::LOG_DEBUG, "[QUICKMATCH] NO GenOnline GAME INSTANCE");
+					failedMatchStart();
 					return;
 				}
 
@@ -1178,12 +1155,11 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
 
 				if (pLobbyInterface == nullptr || !myGame || !myGame->isInGame())
 				{
-					NetworkLog(ELogVerbosity::LOG_DEBUG, "[QUICKMATCH] Checks failed, %d, %d, %d", pLobbyInterface == nullptr, !myGame, !myGame->isInGame());
+					NetworkLog(ELogVerbosity::LOG_DEBUG, "[QUICKMATCH] Checks failed, %d, %d, %d", pLobbyInterface == nullptr, myGame == nullptr, myGame != nullptr && !myGame->isInGame());
+					failedMatchStart();
 					return;
 				}
 
-
-				// TODO_GENONLINE
 
 				GameWindow* buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
 				if (buttonBuddy)
@@ -1301,10 +1277,10 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
     if (pSocialInterface != nullptr)
     {
         // notifiactions callback
-        pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged([=](int numNotifications)
+        pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged([](int numNotifications)
             {
-                // update communicator button
-                if (buttonBuddies != nullptr)
+                GameWindow* button = TheWindowManager->winGetWindowFromId(nullptr, buttonBuddiesID);
+                if (button != nullptr)
                 {
                     UnicodeString buttonText;
                     if (numNotifications > 0)
@@ -1315,9 +1291,7 @@ void GenOnlineQuickMatchMenuInit( WindowLayout *layout, void *userData )
                     {
                         buttonText.format(L"%s", TheGameText->fetch("GUI:Buddies").str());
                     }
-					buttonBuddies->winSetText(buttonText);
-
-
+					button->winSetText(buttonText);
                 }
             });
     }
@@ -1361,6 +1335,12 @@ void GenOnlineQuickMatchMenuShutdown( WindowLayout *layout, void *userData )
 {
 	GenOnlineUserSectionHide();
 	++s_quickMatchMenuGeneration;
+
+	GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
+	if (pSocialInterface != nullptr)
+	{
+		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged(nullptr);
+	}
 
 
 	GenOnlineMatchmakingInterface* pMatchmakingInterface = GenOnlineServicesManager::GetInterface<GenOnlineMatchmakingInterface>();
@@ -1488,7 +1468,7 @@ void GenOnlineQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
         {
             bool bForceShutdown = true;
             GenOnlineQuickMatchMenuShutdown(layout, (void*)&bForceShutdown); // userdata is 'force shutdown'
-            TearDownGeneralsOnline();
+            TearDownGenOnline();
 
             TheShell->pop();
             return;

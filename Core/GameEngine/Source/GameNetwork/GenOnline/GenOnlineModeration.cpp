@@ -98,15 +98,6 @@ namespace
 			ban.reason,
 			context);
 	}
-
-	void ShowKickDialog(const std::string& reason)
-	{
-		ShowModerationDialog(
-			UnicodeString(L"Kicked"),
-			L"You have been kicked from Generals Online.",
-			reason,
-			EModerationDialogContext::ACTIVE_SESSION);
-	}
 }
 
 void ShowLoginBanDialog(const OnlineBanDetails& ban)
@@ -174,34 +165,6 @@ void ShowChatRateLimitNotice(const std::string& reason, const std::string& scope
 	if (roomsInterface != nullptr && roomsInterface->m_OnChatCallback != nullptr)
 	{
 		roomsInterface->m_OnChatCallback(message, color);
-	}
-}
-
-void HandleModerationDisconnect(EOnlineModerationAction action, const std::string& reason)
-{
-	GenOnlineServicesManager* manager = GenOnlineServicesManager::GetInstance();
-	if (manager == nullptr || IsModerationTeardownReason(manager->GetTeardownReason()))
-	{
-		return;
-	}
-
-	switch (action)
-	{
-	case EOnlineModerationAction::BAN:
-	{
-		// Without the expiry the dialog does not say how long the ban lasts.
-		OnlineBanDetails ban;
-		ban.reason = reason;
-		ban.bKnown = false;
-		manager->SetPendingFullTeardown(EGOTearDownReason::MODERATION_BAN);
-		ShowBanDialog(ban, EModerationDialogContext::ACTIVE_SESSION);
-		break;
-	}
-
-	case EOnlineModerationAction::KICK:
-		manager->SetPendingFullTeardown(EGOTearDownReason::MODERATION_KICK);
-		ShowKickDialog(reason);
-		break;
 	}
 }
 

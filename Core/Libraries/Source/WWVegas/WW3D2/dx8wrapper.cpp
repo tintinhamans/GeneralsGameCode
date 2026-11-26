@@ -36,9 +36,6 @@
  * 06/27/02 KM Render to shadow buffer texture support														*
  * 06/27/02 KM Shader system updates																				*
  * 08/05/02 KM Texture class redesign
- *---------------------------------------------------------------------------------------------*
- * Functions:                                                                                  *
- *   DX8Wrapper::_Update_Texture -- Copies a texture from system memory to video memory        *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 //#define CREATE_DX8_MULTI_THREADED
@@ -207,7 +204,9 @@ bool								DX8Wrapper::SceneDepthFromPrepass						= false;
 unsigned							DX8Wrapper::_MainThreadID								= 0;
 bool								DX8Wrapper::CurrentDX8LightEnables[MAX_LIGHTS];
 bool								DX8Wrapper::IsDeviceLost;
+#if defined(GENONLINE)
 bool								DX8Wrapper::DeviceResetFailed = false;
+#endif
 int								DX8Wrapper::ZBias;
 float								DX8Wrapper::ZNear;
 float								DX8Wrapper::ZFar;
@@ -1183,7 +1182,11 @@ void DX8Wrapper::Invalidate_Cached_Render_States()
 			SamplerStates[a][b] = 0x12345678;
 		}
 
+#if defined(GENONLINE)
+		if (pDev && !DeviceResetFailed) {
+#else
 		if (pDev) {
+#endif
 			pDev->SetTexture(a, nullptr);
 			DX8_RECORD_DX8_CALLS();
 		}
@@ -1293,7 +1296,9 @@ D3DPOOL DX8Wrapper::_Get_Managed_Pool(D3DPOOL pool, DWORD *usage)
 bool DX8Wrapper::Create_Device()
 {
 	WWASSERT(D3DDevice==nullptr);	// for now, once you've created a device, you're stuck with it!
+#if defined(GENONLINE)
 	DeviceResetFailed = false;
+#endif
 
 	D3DCAPS9 caps;
 	if
@@ -1471,6 +1476,13 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 		HRESULT hr=_Get_D3D_Device8()->TestCooperativeLevel();
 		if (hr != D3DERR_DEVICELOST )
 		{
+#if defined(GENONLINE)
+			// GenOnline @bugfix arcticdolphin 09/10/2026 Bound resources make Reset() fail.
+			// A device whose Reset() failed only accepts TestCooperativeLevel, Reset and Release.
+			if (!DeviceResetFailed) {
+				Unbind_Device_Buffers();
+			}
+#endif
 			if (IsEx)	// Ronin @feature 08/11/2026 DX9Ex: ResetEx takes the fullscreen mode; default-pool resources survive it
 			{
 				D3DDISPLAYMODEEX mode;
@@ -1480,6 +1492,9 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 			{
 				DX8CALL_HRES(Reset(&_PresentParameters),hr)
 			}
+#if defined(GENONLINE)
+			DeviceResetFailed = (hr != D3D_OK);
+#endif
 			if (hr != D3D_OK)
 				return false;	//reset failed.
 		}
@@ -1502,6 +1517,7 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 		return true;
 	}
 
+#if defined(GENONLINE)
 // Unbinds on the device because Set_Vertex_Buffer and Set_Index_Buffer are deferred.
 void DX8Wrapper::Unbind_Device_Buffers()
 {
@@ -1511,6 +1527,7 @@ void DX8Wrapper::Unbind_Device_Buffers()
 	}
 	DX8CALL(SetIndices(nullptr));
 }
+#endif
 
 void DX8Wrapper::Release_Device()
 {
@@ -1520,7 +1537,9 @@ void DX8Wrapper::Release_Device()
 		SceneDepthSupport = -1;
 		NullTargetSupport = -1;
 
+#if defined(GENONLINE)
 		if (!DeviceResetFailed)
+#endif
 		{
 		for (int a=0;a<MAX_TEXTURE_STAGES;++a)
 		{
@@ -1528,8 +1547,12 @@ void DX8Wrapper::Release_Device()
 			DX8CALL(SetTexture(a,nullptr));
 		}
 
+#if defined(GENONLINE)
+		Unbind_Device_Buffers();
+#else
 		DX8CALL(SetStreamSource(0, nullptr, 0, 0));	//release reference count on last rendered vertex buffer
 		DX8CALL(SetIndices(nullptr));	//release reference count on last rendered index buffer
+#endif
 		}
 
 
@@ -1559,6 +1582,7 @@ void DX8Wrapper::Release_Device()
 		D3DDevice=nullptr;
 	}
 }
+
 
 void DX8Wrapper::Enumerate_Devices()
 {
@@ -1778,6 +1802,7 @@ void DX8Wrapper::Resize_And_Position_Window()
 		// Resize the window to fit this resolution
 		if (!IsWindowed)
 		{
+#if defined(GENONLINE)
 #if defined(GENONLINE_WINDOWED_FULLSCREEN)
             // Assume hwnd is your application?s window handle
             LONG_PTR style = GetWindowLongPtr(_Hwnd, GWL_STYLE);
@@ -1801,6 +1826,9 @@ void DX8Wrapper::Resize_And_Position_Window()
             );
 #else
             ::SetWindowPos(_Hwnd, HWND_TOPMOST, 0, 0, width, height, SWP_NOSIZE | SWP_NOMOVE);
+#endif
+#else
+			::SetWindowPos(_Hwnd, HWND_TOPMOST, 0, 0, width, height, 0);
 #endif
 
 			DEBUG_LOG(("Window resized to w:%d h:%d", width, height));
@@ -1843,8 +1871,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	*/
 	if ((CurRenderDevice == -1) && (dev == -1)) {
 		CurRenderDevice = 0;
-	}
-	else if (dev != -1) {
+	} else if (dev != -1) {
 		CurRenderDevice = dev;
 	}
 
@@ -1888,8 +1915,12 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	//I changed this to discard all the time (even when full-screen) since that the most efficient. 07-16-03 MW:
 	_PresentParameters.SwapEffect = IsWindowed ? D3DSWAPEFFECT_COPY : D3DSWAPEFFECT_DISCARD;
 	_PresentParameters.hDeviceWindow = _Hwnd;
+#if defined(GENONLINE)
 #if defined(GENONLINE_WINDOWED_FULLSCREEN)
     _PresentParameters.Windowed = TRUE; // always windowed now
+#else
+	_PresentParameters.Windowed = IsWindowed;
+#endif
 #else
 	_PresentParameters.Windowed = IsWindowed;
 #endif
@@ -1954,8 +1985,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 			}
 		}
 
-	}
-	else {
+	} else {
 
 		/*
 		** Try to find a mode that matches the user's desired bit-depth.
@@ -2155,8 +2185,7 @@ bool DX8Wrapper::Set_Device_Resolution(int width,int height,int bits,int windowe
 #pragma message("TODO: support changing windowed status and changing the bit depth")
 		WWDEBUG_SAY(("DX8Wrapper::Set_Device_Resolution is resetting the device."));
 		return Reset_Device();
-	}
-	else {
+	} else {
 		return false;
 	}
 }
@@ -2359,8 +2388,7 @@ bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,D3DFORMAT 
 	if (BitDepth == 16) {
 		format_table = _formats16;
 		format_count = sizeof(_formats16) / sizeof(D3DFORMAT);
-	}
-	else {
+	} else {
 		format_table = _formats32;
 		format_count = sizeof(_formats32) / sizeof(D3DFORMAT);
 	}
@@ -2413,9 +2441,9 @@ bool DX8Wrapper::Find_Color_Mode(D3DFORMAT colorbuffer, int resx, int resy, UINT
 	// Ronin @build 28/10/2025 DX9: GetAdapterModeCount requires format parameter
 	modemax = D3DInterface->GetAdapterModeCount(D3DADAPTER_DEFAULT, colorbuffer);
 
-	i = 0;
+	i=0;
 
-	while (i < modemax && !found)
+	while (i<modemax && !found)
 	{
 		// Ronin @build 28/10/2025 DX9: EnumAdapterModes requires format parameter
 		D3DInterface->EnumAdapterModes(D3DADAPTER_DEFAULT, colorbuffer, i, &dmode);
@@ -2435,10 +2463,10 @@ bool DX8Wrapper::Find_Color_Mode(D3DFORMAT colorbuffer, int resx, int resy, UINT
 	}
 
 	// go to the highest refresh rate in this mode
-	bool stillok = true;
+	bool stillok=true;
 
-	j = i;
-	while (j < modemax && stillok)
+	j=i;
+	while (j<modemax && stillok)
 	{
 		// Ronin @build 28/10/2025 DX9: EnumAdapterModes requires format parameter
 		D3DInterface->EnumAdapterModes(D3DADAPTER_DEFAULT, colorbuffer, j, &dmode);
@@ -2450,8 +2478,8 @@ bool DX8Wrapper::Find_Color_Mode(D3DFORMAT colorbuffer, int resx, int resy, UINT
 		j++;
 	}
 
-	if (stillok == false) *mode = j - 2;
-	else *mode = i;
+	if (stillok==false) *mode=j-2;
+	else *mode=i;
 
 	return true;
 
@@ -2665,7 +2693,7 @@ void DX8Wrapper::End_Scene(bool flip_frames)
 
 		{
 			WWPROFILE("DX8Device::Present()");
-			hr = _Get_D3D_Device8()->Present(nullptr, nullptr, nullptr, nullptr);
+			hr=_Get_D3D_Device8()->Present(nullptr, nullptr, nullptr, nullptr);
 		}
 
 		DX8_RECORD_DX8_CALLS();
@@ -2676,7 +2704,7 @@ void DX8Wrapper::End_Scene(bool flip_frames)
 				::Sleep(stats.m_sleepTime);
 			}
 #endif
-			IsDeviceLost = false;
+			IsDeviceLost=false;
 			FrameCount++;
 		}
 		else {
@@ -2768,8 +2796,7 @@ void DX8Wrapper::Flip_To_Primary()
 					Reset_Device();
 					resetAttempts++;
 				}
-			}
-			else {
+			} else {
 				WWDEBUG_SAY(("Flipping: %ld", FrameCount));
 				hr = _Get_D3D_Device8()->Present(nullptr, nullptr, nullptr, nullptr);
 				DX8_RECORD_DX8_CALLS();
@@ -3186,20 +3213,20 @@ void DX8Wrapper::Set_Index_Buffer(const IndexBufferClass* ib,unsigned short inde
 }
 void DX8Wrapper::Set_Index_Buffer(const IndexBufferClass* ib, unsigned short index_base_offset, const char* callerTag)
 {
-	render_state.iba_offset = 0;
+	render_state.iba_offset=0;
 	if (render_state.index_buffer) {
 		render_state.index_buffer->Release_Engine_Ref();
 	}
-	REF_PTR_SET(render_state.index_buffer, const_cast<IndexBufferClass*>(ib));
-	render_state.index_base_offset = index_base_offset;
+	REF_PTR_SET(render_state.index_buffer,const_cast<IndexBufferClass*>(ib));
+	render_state.index_base_offset=index_base_offset;
 	if (ib) {
 		ib->Add_Engine_Ref();
-		render_state.index_buffer_type = ib->Type();
+		render_state.index_buffer_type=ib->Type();
 	}
 	else {
-		render_state.index_buffer_type = BUFFER_TYPE_INVALID;
+		render_state.index_buffer_type=BUFFER_TYPE_INVALID;
 	}
-	render_state_changed |= INDEX_BUFFER_CHANGED;
+	render_state_changed|=INDEX_BUFFER_CHANGED;
 }
 
 // ----------------------------------------------------------------------------
@@ -3277,13 +3304,13 @@ void DX8Wrapper::Set_Index_Buffer(const DynamicIBAccessClass& iba_, unsigned sho
 {
 	if (render_state.index_buffer) render_state.index_buffer->Release_Engine_Ref();
 
-	DynamicIBAccessClass& iba = const_cast<DynamicIBAccessClass&>(iba_);
-	render_state.index_base_offset = index_base_offset;
-	render_state.index_buffer_type = iba.Get_Type();
-	render_state.iba_offset = iba.IndexBufferOffset;
-	REF_PTR_SET(render_state.index_buffer, iba.IndexBuffer);
+	DynamicIBAccessClass& iba=const_cast<DynamicIBAccessClass&>(iba_);
+	render_state.index_base_offset=index_base_offset;
+	render_state.index_buffer_type=iba.Get_Type();
+	render_state.iba_offset=iba.IndexBufferOffset;
+	REF_PTR_SET(render_state.index_buffer,iba.IndexBuffer);
 	render_state.index_buffer->Add_Engine_Ref();
-	render_state_changed |= INDEX_BUFFER_CHANGED;
+	render_state_changed|=INDEX_BUFFER_CHANGED;
 }
 
 // ----------------------------------------------------------------------------
@@ -3398,7 +3425,7 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 	}
 #endif
 
-	DX8_RECORD_RENDER(polygon_count, vertex_count, render_state.shader);
+	DX8_RECORD_RENDER(polygon_count,vertex_count,render_state.shader);
 }
 
 // ----------------------------------------------------------------------------
@@ -3595,7 +3622,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 	unsigned mask = TEXTURE0_CHANGED;
 	for (int i = 0; i < CurrentCaps->Get_Max_Textures_Per_Pass(); ++i, mask <<= 1)
 	{
-		if (render_state_changed & mask)
+		if (render_state_changed&mask)
 		{
 			SNAPSHOT_SAY(("DX8 - apply texture %d", i));
 
@@ -3614,7 +3641,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 	if (render_state_changed & MATERIAL_CHANGED)
 	{
 		SNAPSHOT_SAY(("DX8 - apply material"));
-		VertexMaterialClass* material = const_cast<VertexMaterialClass*>(render_state.material);
+		VertexMaterialClass* material=const_cast<VertexMaterialClass*>(render_state.material);
 		if (material)
 		{
 			material->Apply();
@@ -3662,11 +3689,11 @@ void DX8Wrapper::Apply_Render_State_Changes()
 	// === TRANSFORMS ===
 	if (render_state_changed & WORLD_CHANGED) {
 		SNAPSHOT_SAY(("DX8 - apply world matrix"));
-		_Set_DX8_Transform(D3DTS_WORLD, render_state.world);
+		_Set_DX8_Transform(D3DTS_WORLD,render_state.world);
 	}
-	if (render_state_changed & VIEW_CHANGED) {
+	if (render_state_changed&VIEW_CHANGED) {
 		SNAPSHOT_SAY(("DX8 - apply view matrix"));
-		_Set_DX8_Transform(D3DTS_VIEW, render_state.view);
+		_Set_DX8_Transform(D3DTS_VIEW,render_state.view);
 	}
 
 	if (render_state_changed & VERTEX_BUFFER_CHANGED) {
@@ -3827,7 +3854,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 		}
 	}
 
-	render_state_changed &= ((unsigned)WORLD_IDENTITY | (unsigned)VIEW_IDENTITY);
+	render_state_changed&=((unsigned)WORLD_IDENTITY|(unsigned)VIEW_IDENTITY);
 
 	SNAPSHOT_SAY(("DX8Wrapper::Apply_Render_State_Changes() - finished"));
 }
@@ -4410,21 +4437,7 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
 }
 
 
-/***********************************************************************************************
- * DX8Wrapper::_Update_Texture -- Copies a texture from system memory to video memory          *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   4/26/2001  hy : Created.                                                                  *
- *=============================================================================================*/
+// Copies a texture from system memory to video memory.
 void DX8Wrapper::_Update_Texture(TextureClass *system, TextureClass *video)
 {
 	WWASSERT(system);

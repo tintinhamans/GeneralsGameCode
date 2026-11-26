@@ -47,7 +47,11 @@ public:
 	NetCommandList * getCommandList();
 	void setFrameCommandCount(UnsignedInt totalCommandCount);
 	UnsignedInt getFrameCommandCount();
+#if defined(GENONLINE)
 	Bool addCommand(NetCommandMsg *msg);	///< Returns FALSE when the command was already in the frame.
+#else
+	void addCommand(NetCommandMsg *msg);
+#endif
 	UnsignedInt getCommandCount();
 	void zeroFrame();
 	void destroyGameMessages();

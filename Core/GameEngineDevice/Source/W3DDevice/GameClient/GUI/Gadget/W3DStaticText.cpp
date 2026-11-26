@@ -50,7 +50,9 @@
 #include "Common/GlobalData.h"
 #include "GameClient/GameWindowGlobal.h"
 #include "GameClient/GameWindowManager.h"
+#if defined(GENONLINE)
 #include "GameClient/GadgetListBox.h"
+#endif
 #include "GameClient/GadgetStaticText.h"
 #include "W3DDevice/GameClient/W3DGameWindow.h"
 #include "W3DDevice/GameClient/W3DGadget.h"
@@ -92,8 +94,12 @@ static void drawStaticTextText( GameWindow *window, WinInstanceData *instData,
 	window->winGetSize( &size.x, &size.y );
 
 	// Set the text Wrap width
+#if defined(GENONLINE)
 	// GenOnline @tweak arcticdolphin 08/11/2026 The wrap margin scales with the screen height.
 	wordWrap = size.x - GameWindowManager::winScaleLayoutSize( 10 );
+#else
+	wordWrap = size.x - 10;
+#endif
 	//if(wordWrap == 89)
 	//	wordWrap = 95;
 	text->setWordWrap(wordWrap);
@@ -179,12 +185,18 @@ void W3DGadgetStaticTextDraw( GameWindow *window, WinInstanceData *instData )
 
 	}
 
+#if defined(GENONLINE)
 	// GenOnline @tweak arcticdolphin 08/11/2026 With the GO kit, a layout border in a kit or palette line colour draws at the kit line weight.
 	Color kitFrameColor;
 	Bool kitFrame = GadgetListBoxGetKitFrameColor( backBorder, &kitFrameColor );
 
+#endif
 	// draw the back border
+#if defined(GENONLINE)
 	if( backBorder != WIN_COLOR_UNDEFINED && kitFrame == FALSE )
+#else
+	if( backBorder != WIN_COLOR_UNDEFINED )
+#endif
 	{
 
 		start.x = origin.x;
@@ -208,9 +220,11 @@ void W3DGadgetStaticTextDraw( GameWindow *window, WinInstanceData *instData )
 																	 start.x, start.y, end.x, end.y );
 	}
 
+#if defined(GENONLINE)
 	if( kitFrame )
 		GadgetListBoxDrawKitFrame( kitFrameColor, origin.x, origin.y, size.x, size.y );
 
+#endif
 	// draw the text
   if( tData->text && (textColor != WIN_COLOR_UNDEFINED) )
 		drawStaticTextText( window, instData, textColor, textOutlineColor );

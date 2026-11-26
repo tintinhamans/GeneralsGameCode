@@ -33,7 +33,9 @@
 #include "Common/MessageStream.h"
 #include "Common/GameEngine.h"
 #include "Common/GlobalData.h"
+#if defined(GENONLINE)
 #include "Common/GOUIColors.h"
+#endif
 #include "Common/INI.h"
 #include "Common/OptionPreferences.h"
 
@@ -46,7 +48,9 @@
 #include "GameClient/Keyboard.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/GlobalLanguage.h"
+#if defined(GENONLINE)
 #include "GameClient/Shell.h"
+#endif
 
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/ScriptEngine.h"
@@ -67,7 +71,9 @@ const char *const Mouse::CursorCaptureBlockReasonNames[] = {
 	"CursorCaptureBlockReason_Paused",
 	"CursorCaptureBlockReason_Unfocused",
 	"CursorCaptureBlockReason_CursorIsOutside",
+#if defined(GENONLINE)
 	"CursorCaptureBlockReason_MovingWindow",
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -570,6 +576,7 @@ Mouse::~Mouse()
 
 }
 
+#if defined(GENONLINE)
 // GenOnline @feature arcticdolphin 09/11/2026 In the shell menus a tooltip colour the GO UI colour table sets replaces the Mouse INI one.
 static Color shellTooltipColor( GOUIColorRole role, Color iniColor )
 {
@@ -580,12 +587,14 @@ static Color shellTooltipColor( GOUIColorRole role, Color iniColor )
 	return value;
 }
 
+#endif
 /**Had to move this out of main init() because I need this data to properly initialize
 the Win32 version of the mouse (by preloading resources before D3D device is created).*/
 void Mouse::parseIni()
 {
 	INI ini;
 	ini.loadFileDirectory( "Data\\INI\\Mouse", INI_LOAD_OVERWRITE, nullptr );
+#if defined(GENONLINE)
 
 	// GenOnline @feature arcticdolphin 08/11/2026 Hand shows the Normal cursor when no INI defines it, and the model of Normal in W3D mode.
 	CursorInfo *hand = &m_cursorInfo[ HAND ];
@@ -600,6 +609,7 @@ void Mouse::parseIni()
 		hand->W3DScale = m_cursorInfo[ NORMAL ].W3DScale;
 		hand->loop = m_cursorInfo[ NORMAL ].loop;
 	}
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -713,6 +723,7 @@ void Mouse::update()
 
 }
 
+#if defined(GENONLINE)
 //-------------------------------------------------------------------------------------------------
 /** Release all buttons without an event, so no click or drag is created for a release the OS ate */
 //-------------------------------------------------------------------------------------------------
@@ -724,6 +735,7 @@ void Mouse::resetButtons()
 	m_prevMouse.leftEvent = m_prevMouse.middleEvent = m_prevMouse.rightEvent = MOUSE_EVENT_NONE;
 }
 
+#endif
 //-------------------------------------------------------------------------------------------------
 /** Given the current state of this input device, turn the raw input
 	* data into raw stream messages and place those messages on the stream.
@@ -1076,6 +1088,7 @@ void Mouse::regainFocus()
 	unblockCapture(CursorCaptureBlockReason_Unfocused);
 }
 
+#if defined(GENONLINE)
 // ------------------------------------------------------------------------------------------------
 void Mouse::onWindowMoveSizeBegin()
 {
@@ -1089,6 +1102,7 @@ void Mouse::onWindowMoveSizeEnd()
 	unblockCapture(CursorCaptureBlockReason_MovingWindow);
 }
 
+#endif
 // ------------------------------------------------------------------------------------------------
 void Mouse::onCursorMovedOutside()
 {
@@ -1226,53 +1240,100 @@ void Mouse::drawTooltip()
 		Int width, xPos;
 		Int height, yPos;
 		m_tooltipDisplayString->getSize(&width,&height);
+#if defined(GENONLINE)
 		// GenOnline @tweak arcticdolphin 08/11/2026 Keep the text clear of the box edges, scaled with the display height
 		const Int padX = max(2, (Int)REAL_TO_INT_CEIL(3.0f * TheDisplay->getHeight() / 600.0f));
 		const Int padY = max(1, (Int)REAL_TO_INT_CEIL(2.0f * TheDisplay->getHeight() / 600.0f));
+#endif
 		xPos = m_currMouse.pos.x + 20;
 		yPos = m_currMouse.pos.y;// + 20;
 
+#if defined(GENONLINE)
 		if( xPos + width + 2 * padX + 2 > m_maxX ) // +2 for spill
+#else
+		if( xPos + width + 4 > m_maxX ) // +4 for spill
+#endif
 		{
 			//xPos = m_maxX - width;
+#if defined(GENONLINE)
 			xPos -= 20 + width + 2 * padX;
+#else
+			xPos -= 20 + width;
+#endif
 		}
+#if defined(GENONLINE)
 		if( yPos + height + 2 * padY + 2 > m_maxY ) // +2 for spill
+#else
+		if( yPos + height + 4 > m_maxY ) // +4 for spill
+#endif
 		{
 			//yPos = m_maxY - height;
+#if defined(GENONLINE)
 			yPos -= /*40 +*/ height + 2 * padY;
+#else
+			yPos -= /*40 +*/ height;
+#endif
 		}
 
 		Int boxWidth = (m_tooltipAnimateBackground)?(min(width, m_highlightPos)):width;
 
 #define GMC(x) GameMakeColor(x.red, x.green, x.blue, x.alpha)
 #define COLOR(x) GMC(m_tooltipColor##x)
+#if defined(GENONLINE)
 		const Color backColor = shellTooltipColor( GOUICOLOR_TOOLTIP_FILL, GMC(m_tooltipBackColor) );
 		const Color borderColor = shellTooltipColor( GOUICOLOR_TOOLTIP_BORDER, COLOR(Border) );
 		const Color textColor = shellTooltipColor( GOUICOLOR_TOOLTIP_TEXT, GMC(m_tooltipTextColor) );
 		const Color highlightColor = shellTooltipColor( GOUICOLOR_TOOLTIP_SWEEP, COLOR(Highlight) );
 		TheDisplay->drawFillRect(xPos, yPos, boxWidth + 2 * padX, height + 2 * padY, backColor);//GameMakeColor(0,0,0,125));
 		TheDisplay->drawOpenRect(xPos, yPos, boxWidth + 2 * padX, height + 2 * padY, 1.0, borderColor);//GameMakeColor(20,20,20,255));
+#else
+		TheDisplay->drawFillRect(xPos, yPos, boxWidth + 2,height + 2, GMC(m_tooltipBackColor));//GameMakeColor(0,0,0,125));
+		TheDisplay->drawOpenRect(xPos, yPos, boxWidth + 2,height + 2, 1.0, COLOR(Border));//GameMakeColor(20,20,20,255));
+#endif
 
 		// build clip rect
+#if defined(GENONLINE)
 		const Int textX = xPos + padX;
 		const Int textY = yPos + padY;
+#endif
 		IRegion2D clipRegion;
+#if defined(GENONLINE)
 		clipRegion.lo.x = textX;
 		clipRegion.lo.y = textY;
 		clipRegion.hi.x = textX+m_highlightPos;
 		clipRegion.hi.y = textY+height;
+#else
+		clipRegion.lo.x = xPos+2;
+		clipRegion.lo.y = yPos+1;
+		clipRegion.hi.x = xPos+2+m_highlightPos;
+		clipRegion.hi.y = yPos+1+height;
+#endif
 		m_tooltipDisplayString->setClipRegion(&clipRegion);
+#if defined(GENONLINE)
 		m_tooltipDisplayString->draw(textX, textY, textColor, COLOR(Shadow));//GameMakeColor(220,220,220,255),GameMakeColor(20,20,20,125));
+#else
+		m_tooltipDisplayString->draw(xPos +2, yPos +1, GMC(m_tooltipTextColor), COLOR(Shadow));//GameMakeColor(220,220,220,255),GameMakeColor(20,20,20,125));
+#endif
 
 		// highlight section
 		const Int HIGHLIGHT_WIDTH = 15;
+#if defined(GENONLINE)
 		clipRegion.lo.x = textX+m_highlightPos-HIGHLIGHT_WIDTH;
 		clipRegion.lo.y = textY;
 		clipRegion.hi.x = textX+m_highlightPos;
 		clipRegion.hi.y = textY+height;
+#else
+		clipRegion.lo.x = xPos+2+m_highlightPos-HIGHLIGHT_WIDTH;
+		clipRegion.lo.y = yPos+1;
+		clipRegion.hi.x = xPos+2+m_highlightPos;
+		clipRegion.hi.y = yPos+1+height;
+#endif
 		m_tooltipDisplayString->setClipRegion(&clipRegion);
+#if defined(GENONLINE)
 		m_tooltipDisplayString->draw(textX, textY, highlightColor, COLOR(Shadow));//GameMakeColor(255,255,0,255),GameMakeColor(20,20,20,125));
+#else
+		m_tooltipDisplayString->draw(xPos +2, yPos +1, COLOR(Highlight), COLOR(Shadow));//GameMakeColor(255,255,0,255),GameMakeColor(20,20,20,125));
+#endif
 
 		// get ready for the next part of the anim
 		if (m_highlightPos < width + HIGHLIGHT_WIDTH)
@@ -1382,7 +1443,9 @@ Int Mouse::getCursorIndex(const AsciiString& name)
 		"PlaceChargeInvalid",
 		"Hack",
 		"ParticleUplinkCannon",
+#if defined(GENONLINE)
 		"Hand",
+#endif
 
 	};
 	static_assert(ARRAY_SIZE(CursorININames) == NUM_MOUSE_CURSORS, "Incorrect array size");

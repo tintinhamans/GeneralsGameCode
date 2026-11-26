@@ -24,8 +24,10 @@
 #include "Common/GameAudio.h"
 #include "mss/mss.h"
 #include "WWLib/mutex.h"
+#if defined(GENONLINE)
 #if defined(RTS_HAS_FFMPEG)
 #include "VideoDevice/FFmpeg/FFmpegAudioMetadata.h"
+#endif
 #endif
 
 class AudioEventRTS;
@@ -121,7 +123,9 @@ struct OpenAudioFile
 
 typedef std::hash_map< AsciiString, OpenAudioFile, rts::hash<AsciiString>, rts::equal_to<AsciiString>/**/> OpenFilesHash;
 typedef OpenFilesHash::iterator OpenFilesHashIt;
+#if defined(GENONLINE)
 typedef std::list<OpenAudioFile> OpenAudioFileList;
+#endif
 
 class AudioFileCache
 {
@@ -135,31 +139,51 @@ class AudioFileCache
 		void setMaxSize( UnsignedInt size );
 		// End Protected by mutex
 
+#if defined(GENONLINE)
 		// Main thread only. Stops the samples that still play evicted files and frees the ones no longer in use.
 		void releaseEvictedFiles();
 
+#endif
 		// Note: These functions should be used for informational purposes only. For speed reasons,
 		// they are not protected by the mutex, so they are not guaranteed to be valid if called from
 		// outside the audio cache. They should be used as a rough estimate only.
+#if defined(GENONLINE)
 		UnsignedInt getCurrentlyUsedSize() const { return m_currentlyUsedSize + m_evictedSize; }
+#else
+		UnsignedInt getCurrentlyUsedSize() const { return m_currentlyUsedSize; }
+#endif
 		UnsignedInt getMaxSize() const { return m_maxSize; }
 
 	protected:
+#if defined(GENONLINE)
 		void stopSamplesUsingFiles( const std::list<const void *>& filesToStop );
 		void freeOpenAudioFile( OpenAudioFile *fileToFree );
 		void freeOpenAudioFiles( OpenAudioFileList& filesToFree );
+#else
+		void releaseOpenAudioFile( OpenAudioFile *fileToRelease );
+#endif
 
 		// This function will return TRUE if it was able to free enough space, and FALSE otherwise.
+#if defined(GENONLINE)
 		Bool freeEnoughSpaceForSample(const OpenAudioFile& sampleThatNeedsSpace, OpenAudioFileList& filesToFree);
+#else
+		Bool freeEnoughSpaceForSample(const OpenAudioFile& sampleThatNeedsSpace);
+#endif
 
 		OpenFilesHash m_openFiles;
+#if defined(GENONLINE)
 		OpenAudioFileList m_evictedFiles; ///< Evicted files that are still in use, freed on the main thread once their samples stop.
 		UnsignedInt m_currentlyUsedSize; ///< Size of the files in m_openFiles. New files are admitted against it.
 		UnsignedInt m_evictedSize; ///< Size of the files in m_evictedFiles, still allocated until released.
+#else
+		UnsignedInt m_currentlyUsedSize;
+#endif
 		UnsignedInt m_maxSize;
 		HANDLE m_mutex;
 		const char *m_mutexName;
+#if defined(GENONLINE)
 		HANDLE m_readMutex;
+#endif
 };
 
 class MilesAudioManager : public AudioManager
@@ -263,13 +287,20 @@ class MilesAudioManager : public AudioManager
 		// Looping functions
 		Bool startNextLoop( PlayingAudio *playing );
 
+#if defined(GENONLINE)
 		void prepareStream( AudioEventRTS *event, HSTREAM stream );
+#endif
 		void playStream( AudioEventRTS *event, HSTREAM stream );
 		// Returns the file handle for attachment to the PlayingAudio structure
+#if defined(GENONLINE)
 		void *prepareSample( AudioEventRTS *event, HSAMPLE sample );
 		void *prepareSample3D( AudioEventRTS *event, H3DSAMPLE sample3D );
 		Bool playSample( PlayingAudio *playing );
 		Bool playSample3D( PlayingAudio *playing );
+#else
+		void *playSample( AudioEventRTS *event, HSAMPLE sample );
+		void *playSample3D( AudioEventRTS *event, H3DSAMPLE sample3D );
+#endif
 
 		void buildProviderList();
 		void createListener();
@@ -351,8 +382,10 @@ class MilesAudioManager : public AudioManager
 
 		AudioFileCache *m_audioCache;
 		PlayingAudio *m_binkHandle;
+#if defined(GENONLINE)
 #if defined(RTS_HAS_FFMPEG)
 		mutable FFmpegAudioMetadata m_metadata;
+#endif
 #endif
 		UnsignedInt m_num2DSamples;
 		UnsignedInt m_num3DSamples;
@@ -373,12 +406,16 @@ class MilesAudioManager : public AudioManager
 // TheSuperHackers @feature helmutbuhler 17/05/2025 AudioManager that does almost nothing. Useful for headless mode.
 // @bugfix Caball009 26/03/2026 Scripts may require the actual audio file length to function properly, which is important for the CRC computation.
 // The Miles AudioManager handles the device opening / closure, so that getFileLengthMS can function as intended.
+#if defined(GENONLINE)
 // FFmpeg builds read the file length from the source metadata without a Miles device.
+#endif
 class MilesAudioManagerDummy : public MilesAudioManager
 {
+#if defined(GENONLINE)
 #if defined(RTS_HAS_FFMPEG)
 	virtual void init() override { AudioManager::init(); }
 	virtual void update() override { removeAllAudioRequests(); }
+#endif
 #endif
 #if defined(RTS_DEBUG)
 	virtual void audioDebugDisplay(DebugDisplayInterface* dd, void* userData, FILE* fp) override {}

@@ -55,13 +55,17 @@
 #include "Common/AddonCompat.h"
 #include "Common/INI.h"
 #include "Common/Registry.h"
+#if defined(GENONLINE)
 #include "Common/ArchiveFileSystem.h"
+#endif
 #include "Common/FileSystem.h"
 #include "Common/OptionPreferences.h"
 
 #include "GameClient/Display.h"
 #include "GameClient/GlobalLanguage.h"
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"
 #endif
@@ -138,7 +142,9 @@ GlobalLanguage::GlobalLanguage()
 	m_militaryCaptionDelayMS = 750;
 
 	m_userResolutionFontSizeAdjustment = -1.0f;
+#if defined(GENONLINE)
 	m_uiFontRegistered = FALSE;
+#endif
 }
 
 GlobalLanguage::~GlobalLanguage()
@@ -151,8 +157,10 @@ GlobalLanguage::~GlobalLanguage()
 		//SendMessage( HWND_BROADCAST, WM_FONTCHANGE, 0, 0);
 		++it;
 	}
+#if defined(GENONLINE)
 
 	unregisterUIFonts();
+#endif
 }
 
 void GlobalLanguage::init()
@@ -188,7 +196,9 @@ void GlobalLanguage::init()
 		registerUIFonts();
 	}
 #endif
+#if defined(GENONLINE)
 
+#endif
 	// override values with user preferences
 	OptionPreferences optionPref;
 	m_userResolutionFontSizeAdjustment = optionPref.getResolutionFontAdjustment();
@@ -196,6 +206,7 @@ void GlobalLanguage::init()
 
 void GlobalLanguage::reset()
 {
+#if defined(GENONLINE)
 }
 
 #if defined(GENONLINE)
@@ -298,6 +309,7 @@ void GlobalLanguage::unregisterUIFonts()
 	}
 	m_uiFontHandles.clear();
 	m_uiFontRegistered = FALSE;
+#endif
 }
 
 void GlobalLanguage::parseFontDesc(INI *ini, void *instance, void *store, const void *userData)

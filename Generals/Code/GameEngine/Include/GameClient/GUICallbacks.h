@@ -342,6 +342,7 @@ extern void ShowInGameChat( Bool immediate = TRUE );
 void ResetInGameChat();
 void SetInGameChatType( InGameChatType chatType );
 Bool IsInGameChatActive();
+#if defined(GENONLINE)
 Bool SubmitInGameChatLine( const UnicodeString& text, InGameChatType chatType );
 // GenOnline @feature arcticdolphin 21/11/2026 The stats pipe drives the setup screens and the chat of the LAN menus.
 Bool LanLobbyMenuSubmitChatLine( UnicodeString text );
@@ -349,6 +350,7 @@ Bool LanGameOptionsMenuSubmitChatLine( UnicodeString text );
 struct StatsLobbyScreen;
 Bool SkirmishGameOptionsMenuStatsLobby( StatsLobbyScreen& out );
 Bool LanGameOptionsMenuStatsLobby( StatsLobbyScreen& out );
+#endif
 
 
 // Diplomacy Controls --------------------------------------------------------------------------------

@@ -217,7 +217,11 @@ public:
 	virtual void closeOpenSlots();						///< close all slots that are currently unoccupied.
 
 	// CRC checking hack
+#if defined(GENONLINE)
 	void setCRCInterval( Int val ) { m_crcInterval = (val > 0 && val < 100) ? val : 100; }
+#else
+	void setCRCInterval( Int val ) { m_crcInterval = (val<100)?val:100; }
+#endif
 	Int getCRCInterval() const { return m_crcInterval; }
 
 	Bool haveWeSurrendered() { return m_surrendered; }

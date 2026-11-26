@@ -63,7 +63,9 @@
 #include "GameLogic/Module/StickyBombUpdate.h"
 #include "GameLogic/Module/StealthUpdate.h"
 #include "GameLogic/Module/ContainModule.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
+#endif
 
 
 
@@ -736,7 +738,7 @@ void SpecialAbilityUpdate::startPacking(Bool success)
   const SpecialAbilityUpdateModuleData* data = getSpecialAbilityUpdateModuleData();
   m_packingState = STATE_PACKING;
   Real variation = GameLogicRandomValueReal( 1.0f - data->m_packUnpackVariationFactor, 1.0f + data->m_packUnpackVariationFactor );
-  m_animFrames = data->m_unpackTime * variation;
+  m_animFrames = data->m_packTime * variation;
 
   //Set the animation state
   getObject()->clearAndSetModelConditionFlags(
@@ -1028,7 +1030,7 @@ void SpecialAbilityUpdate::startPreparation()
                                                    MAKE_MODELCONDITION_MASK( MODELCONDITION_RAISING_FLAG ) );
       Drawable* draw = getObject()->getDrawable();
       if (draw)
-          draw->setAnimationCompletionTime(data->m_preparationFrames);
+        draw->setAnimationCompletionTime(data->m_preparationFrames);
 
       //Warn the victim so he might have a chance to react!
       if( target && target->isLocallyViewed() )
@@ -1219,7 +1221,11 @@ Bool SpecialAbilityUpdate::continuePreparation()
 
           Real denominator = MAX(1, data->m_preparationFrames);
           Real increment = 1.0f - ((Real)m_prepFrames / denominator );
+#if defined(GENONLINE)
           m_captureFlashPhase += increment / (3.0f * LOGICFRAMES_PER_BASEFRAME);
+#else
+          m_captureFlashPhase += increment / 3.0f;
+#endif
 
           Bool thisPhase = ( ((Int)m_captureFlashPhase) & 1 );// are we in a flashy phase this frame?
 
@@ -1476,6 +1482,7 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
       }
 
       object->getControllingPlayer()->getAcademyStats()->recordBuildingCapture();
+#if defined(GENONLINE)
 
       // success point for building-capture powers, excluded from SpecialPowerModule::triggerSpecialPower()
       LocalApiLiveAbilityUse(
@@ -1485,6 +1492,7 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
         target->getTemplate(),
         nullptr,
         nullptr );
+#endif
       break;
     }
     case SPECIAL_BLACKLOTUS_STEAL_CASH_HACK:

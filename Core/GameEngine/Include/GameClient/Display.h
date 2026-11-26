@@ -121,9 +121,13 @@ public:
 	// Drawing management
 	virtual void setClipRegion( IRegion2D *region ) = 0;	///< Set clip rectangle for 2D draw operations.
 	virtual	Bool isClippingEnabled() = 0;
-	virtual	void enableClipping( Bool onoff ) = 0;
+#if defined(GENONLINE)
+	virtual	void enableClipping(Bool onoff) = 0;
 	// GenOnline @feature arcticdolphin 08/11/2026 Read back the clip rectangle so a draw can restore it.
 	virtual Bool getClipRegion(IRegion2D* /*region*/) { return FALSE; }	///< Fill the clip rectangle, FALSE when the display does not track one.
+#else
+	virtual	void enableClipping( Bool onoff ) = 0;
+#endif
 
 	// TheSuperHackers @performance Batching 2D draw operations to reduce state changes and draw call overhead.
 	virtual void beginBatch(); 									///< start batching 2D draw operations.

@@ -98,7 +98,11 @@ UpdateSleepTime DeployStyleAIUpdate::update()
 	// when we have a pending command...
 	Object *self = getObject();
 	Weapon *weapon = self->getCurrentWeapon();
+#if defined(GENONLINE)
 	UnsignedInt now = TheGameLogic->getFrameLegacy();
+#else
+	UnsignedInt now = TheGameLogic->getFrame();
+#endif
 	const DeployStyleAIUpdateModuleData *data = getDeployStyleAIUpdateModuleData();
 
 	//Are we attempting to move? If so we can't do it unless we are undeployed.
@@ -283,7 +287,11 @@ void DeployStyleAIUpdate::setMyState( DeployStateTypes stateID, Bool reverseDepl
 {
 	m_state = stateID;
 	Object *self = getObject();
+#if defined(GENONLINE)
 	UnsignedInt now = TheGameLogic->getFrameLegacy();
+#else
+	UnsignedInt now = TheGameLogic->getFrame();
+#endif
 	const DeployStyleAIUpdateModuleData *data = getDeployStyleAIUpdateModuleData();
 
 	switch( stateID )

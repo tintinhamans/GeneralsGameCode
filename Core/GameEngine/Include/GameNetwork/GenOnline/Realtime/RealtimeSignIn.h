@@ -545,25 +545,4 @@ struct AuthSessionResult : WireObject
 	}
 };
 
-// An error of the game API. The spec form is error and params. Older services add a message, and put
-// the reason and expires_at of a play ban at the top level, where a null expires_at is permanent.
-// Callers read failures through ParseApiError of RealtimeRest.h, which accepts every shape.
-struct ApiError : WireObject
-{
-	std::optional<std::string> message;
-	std::string error;
-	std::optional<nlohmann::json> params;
-	std::optional<std::string> reason;
-	std::optional<Nullable<std::string> > expires_at;
-
-	template <class V> void Fields(V& v)
-	{
-		v("message", message);
-		v("error", error);
-		v("params", params);
-		v("reason", reason);
-		v("expires_at", expires_at);
-	}
-};
-
 } // namespace GenOnlineRealtime

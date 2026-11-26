@@ -46,19 +46,25 @@
 //----------------------------------------------------------------------------
 
 #include "PreRTS.h"
+#if defined(GENONLINE)
 #include <algorithm>
 #include <cctype>
 #include <vector>
 #include <set>
 #include <string>
+#endif
 #include "Common/ArchiveFile.h"
 #include "Common/ArchiveFileSystem.h"
 #include "Common/AsciiString.h"
+#if defined(GENONLINE)
 #include "Common/LocalFileSystem.h"
+#endif
 #include "Common/PerfTimer.h"
+#if defined(GENONLINE)
 #include "Common/Registry.h"
 #include "../GenOnlineInclude.h"
 #include "../GenOnlineInit.h"
+#endif
 #if defined(GENONLINE)
 #include "gitinfo.h"
 #endif
@@ -104,6 +110,7 @@ ArchiveFileSystem *TheArchiveFileSystem = nullptr;
 //         Private Functions
 //----------------------------------------------------------------------------
 
+#if defined(GENONLINE)
 static AsciiString getBaseFilename(const AsciiString& path)
 {
 	const char* str = path.str();
@@ -113,6 +120,7 @@ static AsciiString getBaseFilename(const AsciiString& path)
 	return sep ? AsciiString(sep + 1) : path;
 }
 
+#endif
 
 
 //----------------------------------------------------------------------------
@@ -134,15 +142,23 @@ ArchiveFileSystem::~ArchiveFileSystem()
 		delete file;
 		iter++;
 	}
+#if defined(GENONLINE)
 	for (size_t i = 0; i < m_unmountedArchives.size(); ++i)
 	{
 		delete m_unmountedArchives[i];
 	}
+#endif
 }
 
+#if defined(GENONLINE)
 void ArchiveFileSystem::loadIntoDirectoryTree(ArchiveFile *archiveFile, Int priority)
+#else
+void ArchiveFileSystem::loadIntoDirectoryTree(ArchiveFile *archiveFile, Bool overwrite)
+#endif
 {
+#if defined(GENONLINE)
 	archiveFile->setPriority(priority);
+#endif
 
 	FilenameList filenameList;
 
@@ -180,6 +196,7 @@ void ArchiveFileSystem::loadIntoDirectoryTree(ArchiveFile *archiveFile, Int prio
 			tokenizer.nextToken(&token, "\\/");
 		}
 
+#if defined(GENONLINE)
 		// Insert behind every archive of the same or a lower priority number, so the first one mounted wins on equal priority.
 		// A plain insert goes to the end of the range of equal keys, the range is rebuilt when the new archive belongs in front of others.
 		std::pair<ArchivedFileLocationMap::iterator, ArchivedFileLocationMap::iterator> range = dirInfo->m_files.equal_range(token);
@@ -192,17 +209,32 @@ void ArchiveFileSystem::loadIntoDirectoryTree(ArchiveFile *archiveFile, Int prio
 			++position;
 
 		if (position == ordered.size())
+#else
+		ArchivedFileLocationMap::iterator fileIt;
+		if (overwrite)
+#endif
 		{
+#if defined(GENONLINE)
 			dirInfo->m_files.insert(std::make_pair(token, archiveFile));
+#else
+			// When overwriting, try place the new value at the beginning of the key list.
+			fileIt = dirInfo->m_files.find(token);
+#endif
 		}
 		else
 		{
+#if defined(GENONLINE)
 			ordered.insert(ordered.begin() + position, archiveFile);
 			dirInfo->m_files.erase(range.first, range.second);
 			for (size_t k = 0; k < ordered.size(); ++k)
 				dirInfo->m_files.insert(std::make_pair(token, ordered[k]));
+#else
+			// Append to the end of the key list.
+			fileIt = dirInfo->m_files.end();
+#endif
 		}
 
+#if defined(GENONLINE)
 		DEBUG_LOG(("ArchiveFileSystem::loadIntoDirectoryTree - adding file %s, archived in %s, priority %d", it->str(), archiveFile->getName().str(), priority));
 
 		it++;
@@ -432,14 +464,21 @@ void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int p
 		for (FilenameListIter it = files.begin(); it != files.end(); ++it)
 			bigPaths.push_back(it->str());
 	}
+#else
+		dirInfo->m_files.insert(fileIt, std::make_pair(token, archiveFile));
+#endif
 
+#if defined(GENONLINE)
 	Int mountedCount = 0;
 	for (const std::string& bigPath : bigPaths)
 	{
 		if (!TheLocalFileSystem->doesFileExist(bigPath.c_str()))
 			continue;
 		if (m_archiveFileMap.find(AsciiString(bigPath.c_str())) != m_archiveFileMap.end())
+#endif
+#if defined(GENONLINE)
 		{
+#if defined(GENONLINE)
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s is already mounted", bigPath.c_str());
 			continue;
 		}
@@ -458,19 +497,34 @@ void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int p
 	}
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s at priority %d: %d archives", fullPath.c_str(), priority, mountedCount);
 }
+#else
+			const stl::const_range<ArchivedFileLocationMap> range = stl::get_range(dirInfo->m_files, token, 0);
+			if (range.distance() >= 2)
+			{
+				ArchivedFileLocationMap::const_iterator rangeIt0;
+				ArchivedFileLocationMap::const_iterator rangeIt1;
+#endif
 
-// A GO menu layout: Window/Menus without the screens shown during a match (the list of GenOnline/tools/go_wnd_layouts.py IN_MATCH_MENUS),
+#if defined(GENONLINE)
+// A GO menu layout: Window/Menus without the screens shown during a match (the list of GenOnline/tools/genonline_wnd_layouts.py IN_MATCH_MENUS),
 // or the GO header templates those layouts use
 static Bool isGenOnlineShellLayout(const char* path)
 {
 	static const char* const inGameLayouts[] = {
 		"crcmismatch.wnd", "defeat.wnd", "disconnectscreen.wnd", "localdefeat.wnd", "observerquit.wnd", "popupsaveload.wnd",
 		"quitmenu.wnd", "quitmessagebox.wnd", "quitnosave.wnd", "saveload.wnd", "victorious.wnd" };
+#else
+				if (overwrite)
+				{
+					rangeIt0 = range.begin;
+					rangeIt1 = std::next(rangeIt0);
+#endif
 
+#if defined(GENONLINE)
 	AsciiString lower(path);
 	lower.toLower();
 	const char* name = lower.str();
-	if (strcmp(name, "data/generalsonline/headertemplate.ini") == 0 || strcmp(name, "data\\generalsonline\\headertemplate.ini") == 0)
+	if (strcmp(name, "data/genonline/headertemplate.ini") == 0 || strcmp(name, "data\\genonline\\headertemplate.ini") == 0)
 	{
 		return TRUE;
 	}
@@ -499,6 +553,20 @@ static Bool isGenOnlineShellLayout(const char* path)
 	}
 	return TRUE;
 }
+#else
+					DEBUG_LOG(("ArchiveFileSystem::loadIntoDirectoryTree - adding file %s, archived in %s, overwriting same file in %s",
+						it->str(),
+						rangeIt0->second->getName().str(),
+						rangeIt1->second->getName().str()
+					));
+				}
+				else
+				{
+					rangeIt1 = std::prev(range.end);
+					rangeIt0 = std::prev(rangeIt1);
+#endif
+#if defined(GENONLINE)
+#endif
 
 void ArchiveFileSystem::mountGenOnlineMenus(const std::vector<AsciiString>& genOnlineArchives)
 {
@@ -527,22 +595,19 @@ static Bool isNotGenOnlineInterfaceFile(const char* path)
 {
 	static const char* const prefixes[] = { "fonts/" };
 	static const char* const files[] = {
-		"art/textures/generalsonline_uikit.tga",
-		"art/textures/generalsonline_loadingbar.tga",
-		"art/textures/generalsonline_loadlogo.tga",
-		"art/textures/generalsonline_van.tga",
-		"art/textures/generalsonline_loadroad.tga",
-		"art/textures/generalsonline_loadbubble.tga",
-		"data/ini/mappedimages/texturesize_512/zz_generalsonline_uikit.ini",
-		"data/ini/mappedimages/texturesize_512/zz_generalsonline_loadingbar.ini",
-		"data/ini/mappedimages/texturesize_512/zz_generalsonline_loadlogo.ini",
-		"data/ini/mappedimages/texturesize_512/zz_generalsonline_van.ini",
-		"data/ini/mappedimages/texturesize_512/zz_generalsonline_loadroad.ini",
-		"data/ini/mappedimages/texturesize_512/zz_generalsonline_loadbubble.ini",
-		"data/ini/mappedimages/texturesize_512/zz_generalsonline_checkboxsliderart.ini",
-		"data/ini/mappedimages/texturesize_512/zz_generalsonline_logo.ini",
+		"art/textures/genonline_uikit.tga",
+		"art/textures/genonline_loadlogo.tga",
+		"art/textures/genonline_van.tga",
+		"art/textures/genonline_loadroad.tga",
+		"art/textures/genonline_loadbubble.tga",
+		"data/ini/mappedimages/texturesize_512/zz_genonline_uikit.ini",
+		"data/ini/mappedimages/texturesize_512/zz_genonline_loadlogo.ini",
+		"data/ini/mappedimages/texturesize_512/zz_genonline_van.ini",
+		"data/ini/mappedimages/texturesize_512/zz_genonline_loadroad.ini",
+		"data/ini/mappedimages/texturesize_512/zz_genonline_loadbubble.ini",
+		"data/ini/mappedimages/texturesize_512/zz_genonline_logo.ini",
 		"data/ini/gouicolors.ini",
-		"data/generalsonline/headertemplate.ini" };
+		"data/genonline/headertemplate.ini" };
 
 	// paths in a BIG use backslashes, the lists above use slashes
 	AsciiString lower;
@@ -693,6 +758,7 @@ void ArchiveFileSystem::mountDataPacks(const std::vector<std::string>* include)
 }
 #endif
 
+#if defined(GENONLINE)
 void ArchiveFileSystem::applyDataExcludes(const std::vector<std::string>& excludes)
 {
 	if (TheFileSystem == nullptr)
@@ -746,9 +812,13 @@ void ArchiveFileSystem::removeUnmountedFiles(ArchivedDirectoryInfo& dirInfo, con
 	for (ArchivedDirectoryInfoMap::iterator directory = dirInfo.m_directories.begin(); directory != dirInfo.m_directories.end(); ++directory)
 	{
 		removeUnmountedFiles(directory->second, unmounted);
+#else
+		it++;
+#endif
 	}
 }
 
+#if defined(GENONLINE)
 void ArchiveFileSystem::mountPackFolderFiles(const std::string& folder, Int priority)
 {
 	AsciiString root(folder.c_str());
@@ -803,6 +873,7 @@ void ArchiveFileSystem::mountPackFolderFiles(const std::string& folder, Int prio
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack folder %s: %d loose files at priority %d", folder.c_str(), count, priority);
 }
 
+#endif
 Bool ArchiveFileSystem::doesFileExist(const Char *filename, FileInstance instance) const
 {
 	ArchivedDirectoryInfoResult result = const_cast<ArchiveFileSystem*>(this)->getArchivedDirectoryInfo(filename);
@@ -832,6 +903,79 @@ ArchiveFileSystem::ArchivedDirectoryInfoResult ArchiveFileSystem::getArchivedDir
 	tokenizer.toLower();
 	tokenizer.nextToken(&token, "\\/");
 
+#else
+#if defined(DEBUG_LOGGING) && ENABLE_FILESYSTEM_LOGGING
+		{
+			const stl::const_range<ArchivedFileLocationMap> range = stl::get_range(dirInfo->m_files, token, 0);
+			if (range.distance() >= 2)
+			{
+				ArchivedFileLocationMap::const_iterator rangeIt0;
+				ArchivedFileLocationMap::const_iterator rangeIt1;
+
+				if (overwrite)
+				{
+					rangeIt0 = range.begin;
+					rangeIt1 = std::next(rangeIt0);
+
+					DEBUG_LOG(("ArchiveFileSystem::loadIntoDirectoryTree - adding file %s, archived in %s, overwriting same file in %s",
+						it->str(),
+						rangeIt0->second->getName().str(),
+						rangeIt1->second->getName().str()
+					));
+				}
+				else
+				{
+					rangeIt1 = std::prev(range.end);
+					rangeIt0 = std::prev(rangeIt1);
+
+					DEBUG_LOG(("ArchiveFileSystem::loadIntoDirectoryTree - adding file %s, archived in %s, overwritten by same file in %s",
+						it->str(),
+						rangeIt1->second->getName().str(),
+						rangeIt0->second->getName().str()
+					));
+				}
+			}
+			else
+			{
+				DEBUG_LOG(("ArchiveFileSystem::loadIntoDirectoryTree - adding file %s, archived in %s", it->str(), archiveFile->getName().str()));
+			}
+		}
+#endif
+
+		it++;
+	}
+}
+
+Bool ArchiveFileSystem::doesFileExist(const Char *filename, FileInstance instance) const
+{
+	ArchivedDirectoryInfoResult result = const_cast<ArchiveFileSystem*>(this)->getArchivedDirectoryInfo(filename);
+
+	if (!result.valid())
+		return false;
+
+	stl::const_range<ArchivedFileLocationMap> range = stl::get_range(result.dirInfo->m_files, result.lastToken, instance);
+
+	return range.valid();
+}
+
+ArchivedDirectoryInfo* ArchiveFileSystem::friend_getArchivedDirectoryInfo(const Char* directory)
+{
+	ArchivedDirectoryInfoResult result = getArchivedDirectoryInfo(directory);
+
+	return result.dirInfo;
+}
+
+ArchiveFileSystem::ArchivedDirectoryInfoResult ArchiveFileSystem::getArchivedDirectoryInfo(const Char* directory)
+{
+	ArchivedDirectoryInfoResult result;
+	ArchivedDirectoryInfo* dirInfo = &m_rootDirectory;
+
+	AsciiString token;
+	AsciiString tokenizer = directory;
+	tokenizer.toLower();
+	tokenizer.nextToken(&token, "\\/");
+
+#endif
 	while (!tokenizer.isEmpty())
 	{
 		ArchivedDirectoryInfoMap::iterator tempiter = dirInfo->m_directories.find(token);
@@ -861,6 +1005,7 @@ File * ArchiveFileSystem::openFile(const Char *filename, Int access, FileInstanc
 	if (archive == nullptr)
 		return nullptr;
 
+#if defined(GENONLINE)
 	// a loose file of a pack folder is read from the folder, which is never written
 	std::map<ArchiveFile*, AsciiString>::const_iterator folder = m_packFolderArchives.find(archive);
 	if (folder != m_packFolderArchives.end())
@@ -874,6 +1019,7 @@ File * ArchiveFileSystem::openFile(const Char *filename, Int access, FileInstanc
 		return TheLocalFileSystem->openFile(path.str(), access);
 	}
 
+#endif
 	File* file = archive->openFile(filename, access);
 	if (file != nullptr)
 	{
@@ -903,6 +1049,7 @@ Bool ArchiveFileSystem::getFileInfo(const AsciiString& filename, FileInfo *fileI
 	if (archive == nullptr)
 		return FALSE;
 
+#if defined(GENONLINE)
 	std::map<ArchiveFile*, AsciiString>::const_iterator folder = m_packFolderArchives.find(archive);
 	if (folder != m_packFolderArchives.end())
 	{
@@ -911,6 +1058,7 @@ Bool ArchiveFileSystem::getFileInfo(const AsciiString& filename, FileInfo *fileI
 		return TheLocalFileSystem->getFileInfo(path, fileInfo);
 	}
 
+#endif
 	return archive->getFileInfo(filename, fileInfo);
 }
 

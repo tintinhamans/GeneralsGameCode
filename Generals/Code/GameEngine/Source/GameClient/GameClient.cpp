@@ -84,8 +84,10 @@
 #include "GameLogic/Object.h"
 #include "GameLogic/ScriptEngine.h"		// For TheScriptEngine - jkmcd
 
+#if defined(GENONLINE)
 #include <chrono>
 
+#endif
 #define DRAWABLE_HASH_SIZE	8192
 
 /// The GameClient singleton instance
@@ -105,7 +107,9 @@ GameClient::GameClient()
 	m_textBearingDrawableList.clear();
 
 	m_frame = 0;
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	m_legacyFrameMSAccured = 0;
 	m_frameLegacy = 0;
@@ -181,6 +185,7 @@ GameClient::~GameClient()
 	delete TheFontLibrary;
 	TheFontLibrary = nullptr;
 
+	TheMouse->reset();
 	delete TheMouse;
 	TheMouse = nullptr;
 
@@ -527,9 +532,13 @@ void GameClient::update()
 	TheAnim2DCollection->UPDATE();
 
 	// update the keyboard
+#if defined(GENONLINE)
 	const Bool inputSuspended = TheGameEngine != nullptr && TheGameEngine->isInputSuspended();
 
 	if( TheKeyboard && !inputSuspended )
+#else
+	if( TheKeyboard )
+#endif
 	{
 		TheKeyboard->UPDATE();
 		TheKeyboard->createStreamMessages();
@@ -540,7 +549,11 @@ void GameClient::update()
 	TheEva->UPDATE();
 
 	// update the mouse
+#if defined(GENONLINE)
 	if( TheMouse && !inputSuspended )
+#else
+	if( TheMouse )
+#endif
 	{
 		TheMouse->UPDATE();
 		TheMouse->createStreamMessages();
@@ -565,10 +578,7 @@ void GameClient::update()
 		TheVideoPlayer->UPDATE();
 	}
 
-	Bool freezeTime = TheTacticalView->isTimeFrozen() && !TheTacticalView->isCameraMovementFinished();
-	freezeTime = freezeTime || TheScriptEngine->isTimeFrozenDebug();
-	freezeTime = freezeTime || TheScriptEngine->isTimeFrozenScript();
-	freezeTime = freezeTime || TheGameLogic->isGamePaused();
+	const Bool freezeTime = TheGameEngine->isTimeFrozen() || TheGameEngine->isGameHalted();
 
 	const Int localPlayerIndex = rts::getObservedOrLocalPlayer()->getPlayerIndex();
 
@@ -708,7 +718,9 @@ void GameClient::update()
 		// update the in game UI
 		TheInGameUI->UPDATE();
 	}
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 

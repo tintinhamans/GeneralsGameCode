@@ -29,7 +29,9 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/Registry.h"
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 #include <filesystem>
 #include <map>

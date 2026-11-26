@@ -28,9 +28,11 @@
 
 #pragma once
 
+#if defined(GENONLINE)
 #include <string>
 #include <vector>
 
+#endif
 class CommandLine
 {
 public:
@@ -42,7 +44,9 @@ public:
 	// Returns true if command-line parsing consumed the zero-based argument index.
 	// The index excludes the executable name.
 	static bool wasCommandLineArgumentParsed(int argIndex);
+#if defined(GENONLINE)
 
 	// -settings <file or JSON>, repeatable: overlays on settings.client.json in the order given, later ones win.
 	static const std::vector<std::string>& getSettingsOverlays();
+#endif
 };

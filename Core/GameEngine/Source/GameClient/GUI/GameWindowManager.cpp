@@ -32,7 +32,9 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/Debug.h"
+#if defined(GENONLINE)
 #include "Common/GameDefines.h"
+#endif
 #include "Common/Language.h"
 #include "GameClient/Display.h"
 #include "GameClient/GameWindowManager.h"
@@ -55,9 +57,13 @@
 #include "GameClient/GameWindowTransitions.h"
 #include "GameClient/RmlUiMessageBoxHook.h"	// Ronin @feature 31/10/2026 DX9: the RmlUi screens' placeholders and message box
 #include "GameClient/RmlUiScreenRegistry.h"
+#if defined(GENONLINE)
 #include "GameClient/Shell.h"
+#endif
 #include "Common/NameKeyGenerator.h"
+#if defined(GENONLINE)
 #include "GameLogic/GameLogic.h"
+#endif
 
 // PUBLIC DATA ////////////////////////////////////////////////////////////////////////////////////
 GameWindowManager *TheWindowManager = nullptr;
@@ -104,9 +110,15 @@ void GameWindowManager::processDestroyList()
 		// send the destroy message to the window we're about to kill
 		winSendSystemMsg( doDestroy, GWM_DESTROY, 0, 0 );
 
+#if defined(GENONLINE)
 		DEBUG_ASSERTCRASH( m_mouseCaptor != doDestroy && m_keyboardFocus != doDestroy &&
 			m_currMouseRgn != doDestroy && m_grabWindow != doDestroy && m_loneWindow != doDestroy,
 			("processDestroyList: manager still points at a window being destroyed") );
+#else
+		DEBUG_ASSERTCRASH( m_mouseCaptor != doDestroy && m_keyboardFocus != doDestroy &&
+			m_currMouseRgn != doDestroy && m_grabWindow != doDestroy,
+			("processDestroyList: manager still points at a window being destroyed") );
+#endif
 
 		DEBUG_ASSERTCRASH(doDestroy->winGetUserData() == nullptr, ("Win user data is expected to be deleted now"));
 
@@ -186,8 +198,10 @@ GameWindowManager::GameWindowManager()
 
 	m_cursorBitmap = nullptr;
 	m_captureFlags = 0;
+#if defined(GENONLINE)
 	m_handCursorShown = FALSE;
 	m_cursorBeforeHand = Mouse::ARROW;
+#endif
 
 }
 
@@ -238,6 +252,7 @@ void GameWindowManager::update()
 	processDestroyList();
 	if(TheTransitionHandler)
 		TheTransitionHandler->update();
+#if defined(GENONLINE)
 
 	updateHandCursor();
 }
@@ -340,6 +355,7 @@ Bool GameWindowManager::isHandCursorWindow(GameWindow* window, Int mouseX, Int m
 	}
 
 	return FALSE;
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1088,6 +1104,7 @@ WinInputReturnCode GameWindowManager::winProcessMouseEvent( GameWindowMessage ms
 
 			}
 
+#if defined(GENONLINE)
 			// GenOnline @bugfix arcticdolphin 08/11/2026 Keep a held slider value tooltip up while dragging.
 			// the grab window is gone when the release closed its layout
 			GameWindow *tipWindow = m_grabWindow;
@@ -1101,6 +1118,7 @@ WinInputReturnCode GameWindowManager::winProcessMouseEvent( GameWindowMessage ms
 				tipWindow->winGetTooltipFunc()(tipWindow, tipWindow->winGetInstanceData(), packedMouseCoords);
 			}
 
+#endif
 			// mark event handled
 			returnCode = WIN_INPUT_USED;
 
@@ -1164,10 +1182,15 @@ WinInputReturnCode GameWindowManager::winProcessMouseEvent( GameWindowMessage ms
 					if( m_loneWindow && m_loneWindow == oldLoneWindow &&
 					( msg == GWM_LEFT_UP || msg == GWM_MIDDLE_UP || msg == GWM_RIGHT_UP || tempWin))
 					{
+#if defined(GENONLINE)
 						// GenOnline @bugfix arcticdolphin 08/11/2026 A combo that toggled its own list on this click stays open, winIsChild is false for itself.
 						const Bool comboToggled = msg == GWM_LEFT_UP && tempWin == m_loneWindow && BitIsSet(tempWin->winGetStyle(), GWS_COMBO_BOX);
 						if (!comboToggled && !m_loneWindow->winIsChild(tempWin))
 							winSetLoneWindow( nullptr );
+#else
+						if(!m_loneWindow->winIsChild(tempWin))
+							winSetLoneWindow( nullptr );
+#endif
 						/*
 								ComboBoxData *cData = (ComboBoxData *)m_comboBoxOpen->winGetUserData();
 															// verify that the window that ate the message wasn't one of our own
@@ -1288,6 +1311,7 @@ WinInputReturnCode GameWindowManager::winProcessMouseEvent( GameWindowMessage ms
 
 }
 
+#if defined(GENONLINE)
 // GenOnline @tweak arcticdolphin 08/11/2026 Layout scaling helpers shared by the window scripts and the gadgets.
 Int GameWindowManager::winScaleRounded(Int value, Int numerator, Int denominator)
 {
@@ -1341,6 +1365,7 @@ Bool GameWindowManager::winUseLegacyLayoutFonts()
 		TheGlobalLanguageData->m_resolutionFontSizeMethod == GlobalLanguage::ResolutionFontSizeMethod_Classic;
 }
 
+#endif
 bool GameWindowManager::isMouseWithinWindow(GameWindow* window, const ICoord2D* mousePos, unsigned int requiredStatusMask, unsigned int forbiddenStatusMask)
 {
 	return ((BitIsSet(window->m_status, requiredStatusMask) || requiredStatusMask == 0) &&
@@ -1595,10 +1620,12 @@ Int GameWindowManager::winDestroy( GameWindow *window )
 	if( m_currMouseRgn == window )
 		m_currMouseRgn = nullptr;
 
+#if defined(GENONLINE)
 	// GenOnline @bugfix arcticdolphin 17/11/2026 A lone window destroyed by its own button, such as a right-click menu, no longer stays the lone window the next one sends GGM_CLOSE to.
 	if( m_loneWindow == window )
 		m_loneWindow = nullptr;
 
+#endif
 	if( m_grabWindow == window )
 		m_grabWindow = nullptr;
 
@@ -1817,6 +1844,7 @@ GameWindow *GameWindowManager::gogoMessageBox(Int x, Int y, Int width, Int heigh
 
 	GameWindow *trueParent = nullptr;
 	//Changed by Chris
+#if defined(GENONLINE)
 	if(useLogo)
 	{
 		// GenOnline @feature arcticdolphin 09/11/2026 The shell opens the GO copy of the quit box, and the match, the Retail style and a missing copy open the retail one.
@@ -1825,6 +1853,10 @@ GameWindow *GameWindowManager::gogoMessageBox(Int x, Int y, Int width, Int heigh
 		if (trueParent == nullptr)
 		trueParent = winCreateFromScript( "Menus/QuitMessageBox.wnd" );
 	}
+#else
+	if(useLogo)
+		trueParent = winCreateFromScript( "Menus/QuitMessageBox.wnd" );
+#endif
 	else
 		trueParent = winCreateFromScript( "Menus/MessageBox.wnd" );
 	//Added By Chris
@@ -2339,7 +2371,9 @@ GameWindow *GameWindowManager::gogoGadgetListBox( GameWindow *parent,
 	// GenOnline @bugfix arcticdolphin 22/11/2026 The last row stays inside the area the list text is drawn in.
 	listboxData->displayHeight -= GadgetListBoxGetTextInset( listbox );
 #endif
+#if defined(GENONLINE)
 
+#endif
   // Set display position to the top of the list
   listboxData->displayPos = 0;
   listboxData->selectPos = -1;
@@ -2491,14 +2525,21 @@ GameWindow *GameWindowManager::gogoGadgetSlider( GameWindow *parent,
 	if( BitIsSet( instData->getStyle(), GWS_MOUSE_TRACK ) )
 		BitSet( buttonInstData.m_style, GWS_MOUSE_TRACK );
 
+#if defined(GENONLINE)
 	// GenOnline @tweak arcticdolphin 08/11/2026 The horizontal thumb scales with the screen height and keeps its shape.
 	if( BitIsSet( instData->getStyle(), GWS_HORZ_SLIDER ) )
 		button = gogoGadgetPushButton(slider, statusFlags, 0, GadgetHorizontalSliderThumbTop(height, winScaleLayoutSize(HORIZONTAL_SLIDER_THUMB_HEIGHT)),
 			winScaleLayoutSize(HORIZONTAL_SLIDER_THUMB_WIDTH), winScaleLayoutSize(HORIZONTAL_SLIDER_THUMB_HEIGHT), &buttonInstData, nullptr, TRUE);
+#else
+	if( BitIsSet( instData->getStyle(), GWS_HORZ_SLIDER ) )
+		button = gogoGadgetPushButton( slider, statusFlags, 0, HORIZONTAL_SLIDER_THUMB_POSITION,
+											 						 HORIZONTAL_SLIDER_THUMB_WIDTH, HORIZONTAL_SLIDER_THUMB_HEIGHT, &buttonInstData, nullptr, TRUE );
+#endif
 	else
 		button = gogoGadgetPushButton( slider, statusFlags, 0, 0,
 																	 width, width+1, &buttonInstData, nullptr, TRUE );
 
+#if defined(GENONLINE)
 	// Check if button creation failed
 	if( button == nullptr )
 	{
@@ -2508,19 +2549,31 @@ GameWindow *GameWindowManager::gogoGadgetSlider( GameWindow *parent,
 		return nullptr;
 	}
 
+#endif
 	// Protect against divide by zero
 	if( sliderData->maxVal == sliderData->minVal )
 		sliderData->maxVal = sliderData->minVal + 1;
 
 	if( BitIsSet( instData->getStyle(), GWS_HORZ_SLIDER ) )
 	{
+#if defined(GENONLINE)
 		sliderData->numTicks = (float)(width - winScaleLayoutSize(HORIZONTAL_SLIDER_THUMB_WIDTH)) /
 													 (float)(sliderData->maxVal - sliderData->minVal);
 	}
 	else
+#else
+		sliderData->numTicks = (float)(width - HORIZONTAL_SLIDER_THUMB_WIDTH) /
+													 (float)(sliderData->maxVal - sliderData->minVal);
+	} else
+#endif
 	{
+#if defined(GENONLINE)
 		sliderData->numTicks = (float)(height - winScaleLayoutSize(GADGET_SIZE)) /
 													 (float)(sliderData->maxVal - sliderData->minVal);
+#else
+		sliderData->numTicks = (float)(height - GADGET_SIZE) /
+													 (float)(sliderData->maxVal - sliderData->minVal);
+#endif
 	}
 
 	data = NEW SliderData;
@@ -2627,6 +2680,7 @@ GameWindow *GameWindowManager::gogoGadgetComboBox( GameWindow *parent,
 	// size of button
 	buttonWidth = 21;
 	buttonHeight = 22;
+#if defined(GENONLINE)
 	// GenOnline @bugfix arcticdolphin 08/11/2026 The drop down button keeps the proportions of its art
 	// when the layout scales the combo box taller, instead of stretching it to the scaled height at a fixed width.
 	if (height > buttonHeight)
@@ -2635,6 +2689,7 @@ GameWindow *GameWindowManager::gogoGadgetComboBox( GameWindow *parent,
 		const Int layoutHeight = winScaleRounded(height, DEFAULT_DISPLAY_HEIGHT, screenHeight);
 		buttonWidth = winScaleRounded(buttonWidth * layoutHeight, screenHeight, buttonHeight * DEFAULT_DISPLAY_HEIGHT);
 	}
+#endif
 
 	// ----------------------------------------------------------------------
 	// Create Drop Down Button
@@ -2746,6 +2801,7 @@ GameWindow *GameWindowManager::gogoGadgetComboBox( GameWindow *parent,
 	// assign the default images/colors
 	assignDefaultGadgetLook( comboBox, defaultFont, defaultVisual );
 
+#if defined(GENONLINE)
 	// GenOnline @tweak arcticdolphin 08/11/2026 A combo a layout creates disabled also disables its button and edit box and shows no placeholder text, like winEnable( FALSE ).
 	if( !comboBox->winGetEnabled() )
 	{
@@ -2754,6 +2810,9 @@ GameWindow *GameWindowManager::gogoGadgetComboBox( GameWindow *parent,
 	}
 
   return comboBox;
+#else
+  return comboBox;
+#endif
 
 }
 
@@ -2955,8 +3014,10 @@ GameWindow *GameWindowManager::gogoGadgetTextEntry( GameWindow *parent,
 	data->text = TheDisplayStringManager->newDisplayString();
 	data->sText = TheDisplayStringManager->newDisplayString();
 	data->constructText = TheDisplayStringManager->newDisplayString();
+#if defined(GENONLINE)
 	data->completionHint = TheDisplayStringManager->newDisplayString();
 	data->completionEnabled = FALSE;
+#endif
 
 	// set the max for the text lengths
 //	data->text->allocateFixed( ENTRY_TEXT_LEN );

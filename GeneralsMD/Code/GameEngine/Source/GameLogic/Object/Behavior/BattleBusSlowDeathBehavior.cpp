@@ -164,8 +164,10 @@ void BattleBusSlowDeathBehavior::beginSlowDeath( const DamageInfo *damageInfo )
 			Coord3D throwForce;
 			throwForce.x = 0;
 			throwForce.y = 0;
+#if defined(GENONLINE)
 
 			// applyShock already scales the force to the logic rate.
+#endif
 			throwForce.z = data->m_throwForce;
 			me->getPhysics()->applyShock(&throwForce);
 			me->getPhysics()->applyRandomRotation();

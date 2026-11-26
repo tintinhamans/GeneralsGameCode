@@ -70,7 +70,9 @@ GlobalData* TheWritableGlobalData = nullptr;				///< The global data singleton
 
 //-------------------------------------------------------------------------------------------------
 GlobalData* GlobalData::m_theOriginal = nullptr;
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 // GenOnline @bugfix arcticdolphin 21/11/2026 Keep non ASCII characters of the documents folder path working with the char file APIs.
 #ifndef WC_NO_BEST_FIT_CHARS
@@ -679,7 +681,9 @@ GlobalData::GlobalData()
 	m_useTreeSway = TRUE;
 	m_useDrawModuleLOD = FALSE;
 	m_useHeatEffects = TRUE;
+#if defined(GENONLINE)
 	m_adaptiveQualityLevel = 0;
+#endif
 	m_useFpsLimit = FALSE;
 	m_dumpAssetUsage = FALSE;
 	m_framesPerSecondLimit = 0;
@@ -689,8 +693,8 @@ GlobalData::GlobalData()
 	m_exportStats = FALSE;
 #endif
 	m_windowed = 0;
-	m_xResolution = 800;
-	m_yResolution = 600;
+	m_xResolution = DEFAULT_DISPLAY_WIDTH;
+	m_yResolution = DEFAULT_DISPLAY_HEIGHT;
 	m_maxShellScreens = 0;
 	m_useCloudMap = FALSE;
 	m_use3WayTerrainBlends = 1;
@@ -1009,16 +1013,22 @@ GlobalData::GlobalData()
 	m_gameTimeFontSize = 8;
 	m_playerInfoListFontSize = 8;
 
+#if defined(GENONLINE)
 	m_observerStatsFontSize = 7;
 	m_observerNotificationFontSize = 10;
 	m_observerNotificationSpecialPowerUsage = TRUE;
 	m_observerNotificationSpecialPowerPurchase = TRUE;
 	m_observerNotificationMilestone = TRUE;
 
+#endif
 	m_showMoneyPerMinute = FALSE;
 	m_allowMoneyPerMinuteForPlayer = FALSE;
 
+#if defined(GENONLINE)
 	m_gameWindowTransitionSpeedMultiplier = 2.5f;
+#else
+	m_gameWindowTransitionSpeedMultiplier = 1.0f;
+#endif
 
 	m_debugShowGraphicalFramerate = FALSE;
 
@@ -1103,9 +1113,11 @@ GlobalData::GlobalData()
 	m_forceBenchmark = FALSE;	///<forces running of CPU detection benchmark, even on known cpu's.
 
 	m_keyboardCameraRotateSpeed = 0.1f;
+#if defined(GENONLINE)
 	m_cameraRotateFactor = 0.5f;
 	m_cameraPitchFactor = 0.5f;
 	m_cameraZoomFactor = 0.5f;
+#endif
 
 	m_useAlternateMouse = FALSE;
 #if RTS_GENERALS
@@ -1131,8 +1143,12 @@ GlobalData::~GlobalData()
 {
 	DEBUG_ASSERTCRASH( TheWritableGlobalData->m_next == nullptr, ("~GlobalData: theOriginal is not original") );
 
+#if defined(GENONLINE)
 	if (m_weaponBonusSet)
 		deleteInstance(m_weaponBonusSet);
+#else
+	deleteInstance(m_weaponBonusSet);
+#endif
 
 	if( m_theOriginal == this )	{
 		m_theOriginal = nullptr;
@@ -1333,7 +1349,9 @@ void GlobalData::applyGenOnlineClientSettings()
 	m_observerNotificationMilestone = genOnlineSettings.Observer_NotificationMilestone();
 }
 #endif
+#if defined(GENONLINE)
 
+#endif
 void GlobalData::parseCustomDefinition()
 {
 	if (addon::HasFullviewportDat())
@@ -1416,12 +1434,6 @@ UnsignedInt GlobalData::generateExeCRC()
 
 	DEBUG_LOG(("EXE+Version(%d.%d)+SCB CRC is 0x%8.8X", version >> 16, version & 0xffff, exeCRC.get()));
 
-	// the exe CRC this build is compatible with, set by RTS_EXE_CRC
-	if (RTS_EXE_CRC != 0)
-	{
-		DEBUG_LOG(("Exe CRC set to 0x%8.8X by RTS_EXE_CRC", (UnsignedInt)RTS_EXE_CRC));
-		return (UnsignedInt)RTS_EXE_CRC;
-	}
 	return exeCRC.get();
 }
 

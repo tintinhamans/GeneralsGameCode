@@ -167,6 +167,8 @@ struct DirectChatLine
 	uint32_t key = 0;
 	ChatMessage message;
 	std::wstring note;
+	// A lobby invite note holds the lobby id of the invite, every other line holds 0.
+	int64_t inviteLobbyID = 0;
 
 	bool IsNote() const { return key == 0; }
 };
@@ -224,10 +226,11 @@ public:
 		return bAdded;
 	}
 
-	void AddNote(const std::wstring& note)
+	void AddNote(const std::wstring& note, int64_t inviteLobbyID = 0)
 	{
 		DirectChatLine line;
 		line.note = note;
+		line.inviteLobbyID = inviteLobbyID;
 		m_lines.push_back(line);
 	}
 

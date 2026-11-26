@@ -43,7 +43,9 @@
 #include "GameClient/InGameUI.h"
 #include "GameLogic/ExperienceTracker.h"
 #include "GameLogic/Object.h"
+#if defined(GENONLINE)
 #include "Common/LocalApiLive.h"
+#endif
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -198,16 +200,21 @@ Bool SalvageCrateCollide::testLevelChance()
 // ------------------------------------------------------------------------------------------------
 void SalvageCrateCollide::doWeaponSet( Object *other )
 {
+#if defined(GENONLINE)
 	Int reachedTier;
+#endif
 	if( other->testWeaponSetFlag( WEAPONSET_CRATEUPGRADE_ONE ) )
 	{
 		other->clearWeaponSetFlag( WEAPONSET_CRATEUPGRADE_ONE );
 		other->setWeaponSetFlag( WEAPONSET_CRATEUPGRADE_TWO );
+#if defined(GENONLINE)
 		reachedTier = 2;
+#endif
 	}
 	else
 	{
 		other->setWeaponSetFlag( WEAPONSET_CRATEUPGRADE_ONE );
+#if defined(GENONLINE)
 		reachedTier = 1;
 	}
 
@@ -216,26 +223,32 @@ void SalvageCrateCollide::doWeaponSet( Object *other )
 	{
 		LocalApiLiveSalvageUpgrade(
 			statsController->getPlayerIndex(), other->getTemplate(), "WEAPON", reachedTier );
+#endif
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void SalvageCrateCollide::doArmorSet( Object *other )
 {
+#if defined(GENONLINE)
 	Int reachedTier;
+#endif
 	if( other->testArmorSetFlag( ARMORSET_CRATE_UPGRADE_ONE ) )
 	{
 		other->clearArmorSetFlag( ARMORSET_CRATE_UPGRADE_ONE );
 		other->setArmorSetFlag( ARMORSET_CRATE_UPGRADE_TWO );
 
 		other->clearAndSetModelConditionState(MODELCONDITION_ARMORSET_CRATEUPGRADE_ONE, MODELCONDITION_ARMORSET_CRATEUPGRADE_TWO);
+#if defined(GENONLINE)
 		reachedTier = 2;
+#endif
 	}
 	else
 	{
 		other->setArmorSetFlag( ARMORSET_CRATE_UPGRADE_ONE );
 
 		other->setModelConditionState(MODELCONDITION_ARMORSET_CRATEUPGRADE_ONE);
+#if defined(GENONLINE)
 		reachedTier = 1;
 	}
 
@@ -244,6 +257,7 @@ void SalvageCrateCollide::doArmorSet( Object *other )
 	{
 		LocalApiLiveSalvageUpgrade(
 			statsController->getPlayerIndex(), other->getTemplate(), "ARMOR", reachedTier );
+#endif
 	}
 }
 

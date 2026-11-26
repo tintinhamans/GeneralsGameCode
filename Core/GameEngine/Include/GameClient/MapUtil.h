@@ -59,7 +59,9 @@ struct MapPreviewMarker
 };
 typedef std::list<MapPreviewMarker> MapPreviewMarkerList;
 #endif
+#if defined(GENONLINE)
 
+#endif
 class TechAndSupplyImages
 {
 public:
@@ -86,7 +88,9 @@ public:
 };
 
 typedef std::list <Coord3D> Coord3DList;
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 // GenOnline @feature arcticdolphin 08/11/2026 Typed supply and tech objects of a map for the preview icons and mapcache.json.
 struct MapTypedObject
@@ -152,8 +156,13 @@ public:
 
 	void updateCache();
 
+#if defined(GENONLINE)
 	AsciiString getMapDir(bool bCustomMapDebug = false) const;
 	AsciiString getUserMapDir(bool bCustomMapDebug = false) const;
+#else
+	AsciiString getMapDir() const;
+	AsciiString getUserMapDir() const;
+#endif
 	AsciiString getMapExtension() const;
 
 	const MapMetaData *findMap(AsciiString mapName);
@@ -165,7 +174,11 @@ private:
 	static AsciiString getCachePath(const AsciiString &mapDir);
 	void prepareUnseenMaps(const AsciiString &mapDir);
 	Bool clearUnseenMaps(const AsciiString &mapDir);
+#if defined(GENONLINE)
 	Bool loadMapsFromMapCacheINI(const AsciiString &mapDir); // returns false if the cache file was unreadable
+#else
+	void loadMapsFromMapCacheINI(const AsciiString &mapDir);
+#endif
 	Bool loadMapsFromDisk(const AsciiString &mapDir, Bool isOfficial, Bool filterByAllowedMaps = FALSE); // returns true if we needed to (re)parse a map
 	Bool addMap(const AsciiString &mapDir, const AsciiString &fname, const AsciiString &lowerFname, FileInfo &fileInfo, Bool isOfficial); ///< returns true if it had to (re)parse the map
 	void writeCacheINI(const AsciiString &mapDir);
@@ -195,4 +208,6 @@ Bool parseMapPreviewChunk(DataChunkInput &file, DataChunkInfo *info, void *userD
 void findDrawPositions( Int startX, Int startY, Int width, Int height, Region3D extent,
 															 ICoord2D *ul, ICoord2D *lr );
 Bool WouldMapTransfer( const AsciiString& mapName );
+#if defined(GENONLINE)
 UnicodeString getMapNameFromPath( const AsciiString& mapPath ); ///< Map file name without folders or the .map extension
+#endif

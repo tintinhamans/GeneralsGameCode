@@ -52,7 +52,7 @@ community patch, stays Zero Hour only.
 
 - GenOnline code targets C++20, as the upstream non-VC6 builds do (`cxx_std_20` in `cmake/config-build.cmake`).
   VC6 builds stay C++98 and do not build GenOnline.
-- Use the `win32-vcpkg-release` preset with MSVC from Visual Studio 18, toolset 14.44 (`vcvars32.bat -vcvars_ver=14.44`).
+- Use the `win32-vcpkg-release` preset with MSVC from Visual Studio 18, toolset 14.44 (`vcvarsamd64_x86.bat -vcvars_ver=14.44`).
   The executables must run on the VC++ runtime 14.44.35211, `GenOnline/release/CheckImports.ps1` checks the imports.
 - Pass `-DVCPKG_INSTALL_OPTIONS="--clean-buildtrees-after-build;--clean-packages-after-build"`.
 - Build into a folder outside the repository and never share a `vcpkg_installed` folder between builds.

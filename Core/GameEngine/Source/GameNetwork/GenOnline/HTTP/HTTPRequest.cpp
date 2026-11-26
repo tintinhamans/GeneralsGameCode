@@ -52,7 +52,7 @@ void HTTPRequest::SetPostData(const char* szPostData)
 	// TODO_HTTP: Error if verb isnt post
 	m_strPostData = std::string(szPostData);
 
-	if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+	if (GenOnlineServicesManager::Settings.Debug_Enabled())
 	{
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "[%p|%s|Verb %d] Transfer is created: Body is %zu bytes", this, m_strURI.c_str(), m_httpVerb, m_strPostData.size());
 	}
@@ -72,7 +72,7 @@ void HTTPRequest::StartRequest()
 
 	m_currentBufSize_Used = 0;
 
-	if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+	if (GenOnlineServicesManager::Settings.Debug_Enabled())
 	{
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "[%p|%s|Verb %d] Transfer is starting: Body is %zu bytes", this, m_strURI.c_str(), m_httpVerb, m_strPostData.size());
 	}
@@ -248,7 +248,7 @@ void HTTPRequest::Threaded_SetComplete(CURLcode result)
 	long protocol = 0;
 	curl_easy_getinfo(m_pCURL, CURLINFO_HTTP_VERSION, &protocol);
 	const bool success = m_setupFailurePhase.empty() && result == CURLE_OK && m_responseCode >= 200 && m_responseCode < 300;
-	if (!success || g_LogVerbosity == ELogVerbosity::LOG_DEBUG || GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+	if (!success || g_LogVerbosity == ELogVerbosity::LOG_DEBUG || GenOnlineServicesManager::Settings.Debug_Enabled())
 	{
 		const char* method = "UNKNOWN";
 		switch (m_httpVerb)
@@ -272,7 +272,7 @@ void HTTPRequest::Threaded_SetComplete(CURLcode result)
 				ServiceConnection::ProtocolName(protocol), m_currentBufSize_Used);
 		}
 
-		if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+		if (GenOnlineServicesManager::Settings.Debug_Enabled())
 		{
 			std::string strResponse(reinterpret_cast<const char*>(m_vecBuffer.data()), m_currentBufSize_Used);
 
@@ -367,7 +367,7 @@ void HTTPRequest::PlatformStartRequest()
 	option(CURLOPT_URL, m_strURI.c_str());
 	option(CURLOPT_WRITEDATA, static_cast<void*>(this));
 	option(CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-	option(CURLOPT_USERAGENT, "GeneralsOnline Client");
+	option(CURLOPT_USERAGENT, "GenOnline Client");
 	// proxy lookup and earlier routes share the request deadline
 	const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - m_setupStarted).count();
 	const long remaining = static_cast<long>(std::max<int64_t>(1, m_timeoutMS - elapsed));

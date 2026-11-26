@@ -29,7 +29,9 @@
 
 #pragma once
 
+#if defined(GENONLINE)
 #include "AdaptiveQualityLevels.h"
+#endif
 #include "Common/GameCommon.h"	// ensure we get DUMP_PERF_STATS, or not
 #include "Common/AsciiString.h"
 #include "Common/GameType.h"
@@ -93,12 +95,14 @@ public:
 	Bool setTimeOfDay( TimeOfDay tod );		///< Use this function to set the Time of day;
 
 	static void parseGameDataDefinition( INI* ini );
+#if defined(GENONLINE)
 
 	// the options with the adaptive quality reduction applied, for the renderers
 	Bool drawsHeatEffects() const { return m_useHeatEffects && !AdaptiveQualityLevels::heatEffectsOff(m_adaptiveQualityLevel); }
 	Bool drawsShadowVolumes() const { return m_useShadowVolumes && !AdaptiveQualityLevels::shadowVolumesOff(m_adaptiveQualityLevel); }
 	Bool drawsShadowDecals() const { return m_useShadowDecals && !AdaptiveQualityLevels::shadowDecalsOff(m_adaptiveQualityLevel); }
 	Int getEffectiveMaxParticleCount() const { return AdaptiveQualityLevels::particleCap(m_maxParticleCount, m_adaptiveQualityLevel); }
+#endif
 	void parseCustomDefinition();
 #if defined(GENONLINE)
 	// Copies the camera factors and the observer overlay settings of settings.client.json into the global data.
@@ -125,7 +129,9 @@ public:
 	Bool m_useTreeSway;
 	Bool m_useDrawModuleLOD;
 	Bool m_useHeatEffects;
+#if defined(GENONLINE)
 	Int m_adaptiveQualityLevel;	///< client only reduction on top of the options below, set by the adaptive quality and never saved.
+#endif
 	Bool m_useFpsLimit;
 	Bool m_dumpAssetUsage;
 	Int m_framesPerSecondLimit;
@@ -134,7 +140,9 @@ public:
 	// TheSuperHackers @feature helmutbuhler 11/04/2025
 	// Run game without graphics, input or audio.
 	Bool m_headless;
+#if defined(GENONLINE)
 
+#endif
 #if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 21/11/2026 Export game stats as JSON alongside the replay file, and the URL that receives them.
 	Bool m_exportStats;
@@ -450,6 +458,7 @@ public:
 	// TheSuperHackers @feature bobtista 28/06/2026 user-configurable speed multiplier for game window transitions
 	Real m_gameWindowTransitionSpeedMultiplier;
 
+#if defined(GENONLINE)
 	// Generals Online @feature 11/01/2026 allow the observer stats font size to be set, a size of zero disables it
 	Int m_observerStatsFontSize;
 
@@ -458,6 +467,7 @@ public:
 	Bool m_observerNotificationSpecialPowerUsage;
 	Bool m_observerNotificationSpecialPowerPurchase;
 	Bool m_observerNotificationMilestone;
+#endif
 	Real m_shakeSubtleIntensity;			///< Intensity for shaking a camera with SHAKE_SUBTLE
 	Real m_shakeNormalIntensity;			///< Intensity for shaking a camera with SHAKE_NORMAL
 	Real m_shakeStrongIntensity;			///< Intensity for shaking a camera with SHAKE_STRONG
@@ -523,9 +533,11 @@ public:
 	UnsignedInt	m_networkDisconnectScreenNotifyTime; ///< The number of milliseconds between when the disconnect screen comes up and when the other players are notified that we are on the disconnect screen.
 
 	Real				m_keyboardCameraRotateSpeed;    ///< How fast the camera rotates when rotated via keyboard controls.
+#if defined(GENONLINE)
 	Real				m_cameraRotateFactor;           ///< User scale for keyboard camera rotate speed, camera.rotate_factor of settings.client.json / 100.
 	Real				m_cameraPitchFactor;            ///< User scale for keyboard camera pitch speed, camera.pitch_factor of settings.client.json / 100.
 	Real				m_cameraZoomFactor;             ///< User scale for keyboard and mouse wheel zoom speed, camera.zoom_factor of settings.client.json / 100.
+#endif
   Int					m_playStats;									///< Int whether we want to log play stats or not, if <= 0 then we don't log
 
 #if defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)

@@ -397,11 +397,6 @@ public:
 		return m_state;
 	}
 
-	size_t PendingInvocations() const
-	{
-		return m_tracker.PendingCount();
-	}
-
 	// The retry_after_ms of the last ServerSwitching of this connection, for the server.switching close that follows.
 	std::optional<int64_t> ServerSwitchingRetryAfterMs() const
 	{

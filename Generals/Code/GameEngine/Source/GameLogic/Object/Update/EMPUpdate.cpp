@@ -134,8 +134,12 @@ UpdateSleepTime EMPUpdate::update()
 	Drawable *dr = obj->getDrawable();
 	UnsignedInt now = TheGameLogic->getFrame();
 
+#if defined(GENONLINE)
 	// TODO_GENONLINE: Use a frame time delta here instead of assuming 60 Hz.
 	m_currentScale += ( m_targetScale - m_currentScale ) * (0.05f / LOGICFRAMES_PER_BASEFRAME);
+#else
+	m_currentScale += ( m_targetScale - m_currentScale ) * 0.05f;
+#endif
 	dr->setInstanceScale( m_currentScale );
 
 	if ( now < m_tintEnvPlayFrame)

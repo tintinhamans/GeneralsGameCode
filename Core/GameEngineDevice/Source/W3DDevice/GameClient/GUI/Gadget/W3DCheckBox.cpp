@@ -320,12 +320,20 @@ void W3DGadgetCheckBoxImageDraw( GameWindow *window, WinInstanceData *instData )
 	if( boxImage )
 	{
 
+#if defined(GENONLINE)
 		// GenOnline @tweak arcticdolphin 08/11/2026 The box inset scales with the screen height.
 		const Int boxInset = GameWindowManager::winScaleLayoutSize( 3 );
+#endif
 		start.x = origin.x + instData->m_imageOffset.x + checkOffsetFromLeft;
+#if defined(GENONLINE)
 		start.y = origin.y +  boxInset;
 		end.x = start.x + (size.y - 2 * boxInset);
 		end.y = start.y + (size.y - 2 * boxInset);
+#else
+		start.y = origin.y +  3;
+		end.x = start.x + (size.y - 6);
+		end.y = start.y + (size.y - 6);
+#endif
 		TheWindowManager->winDrawImage( boxImage, start.x, start.y,
 																	  end.x, end.y );
 

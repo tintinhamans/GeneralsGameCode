@@ -550,8 +550,10 @@ static PoolSizeRec PoolSizes[] =
 	{ "NetProgressCommandMsg", 32, 32 },
 	{ "NetLoadCompleteCommandMsg", 32, 32 },
 	{ "NetTimeOutGameStartCommandMsg", 32, 32 },
+#if defined(GENONLINE)
 	{ "NetSignedFrameCommandMsg", 32, 32 },
 	{ "NetSignaturesCommandMsg", 32, 32 },
+#endif
 	{ "NetWrapperCommandMsg", 32, 32 },
 	{ "NetFileCommandMsg", 32, 32 },
 	{ "NetFileAnnounceCommandMsg", 32, 32 },
