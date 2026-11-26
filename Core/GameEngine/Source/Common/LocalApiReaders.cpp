@@ -20,12 +20,14 @@
 #include "Common/GlobalData.h"
 #include "LocalApi.pb.h"
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"	// NetworkLog
-#include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
+#include "GameNetwork/GenOnline/GenOnlineLocalApiPipe.h"
 #include "GameNetwork/GenOnline/GenOnlineRealtimeBridge.h"
 #include "GameNetwork/GenOnline/GenOnlineLobbyInterface.h"
+#include "GameNetwork/GenOnline/GenOnlineInit.h"
+#include "GameNetwork/GenOnline/GenOnlineAuth.h"
+#include "GameNetwork/LANAPICallbacks.h"
 #include "GameLogic/GameLogic.h"
-
-#include <GenOnlinePluginApi.h>
+#include "Common/LocalApiControl.h"
 
 #include <deque>
 
@@ -129,65 +131,116 @@ namespace
 		return 0;
 	}
 
-	int32_t frameClassOf(UnsignedByte frameType)
+	GenOnlineLocalApi::FrameClass frameClassOf(UnsignedByte frameType)
 	{
 		switch (frameType)
 		{
 			case LOCAL_API_FRAME_HELLO:
-				return GENONLINE_PLUGIN_LOCAL_API_FRAME_HELLO;
+				return GenOnlineLocalApi::FrameClass::Hello;
 			case LOCAL_API_FRAME_STATS_SNAPSHOT:
 			case LOCAL_API_FRAME_EVENTS:
 			case LOCAL_API_FRAME_CAMERA:
 			case LOCAL_API_FRAME_VIEW_STATS:
 			case LOCAL_API_FRAME_INTEREST_MAP:
-				return GENONLINE_PLUGIN_LOCAL_API_FRAME_PERIODIC;
+				return GenOnlineLocalApi::FrameClass::Periodic;
 			default:
-				return GENONLINE_PLUGIN_LOCAL_API_FRAME_LIFECYCLE;
+				return GenOnlineLocalApi::FrameClass::Lifecycle;
 		}
 	}
 
-	/// LocalApiSink over the tool table of the caster plugin. The plugin owns the readers and their queues, and this class
-	/// keeps the slot table of the readers, the feed configs and the decoding of inbound frames. The slot table is guarded by a
+	const char* const s_permissionNames[LOCAL_API_PERMISSION_COUNT] =
+	{
+		"local_api.match",
+		"local_api.stats",
+		"local_api.events",
+		"local_api.interest",
+		"local_api.camera.read",
+		"local_api.chat.read",
+		"local_api.chat.send",
+		"local_api.query",
+		"local_api.camera.control",
+		"local_api.replay.control",
+		"local_api.observe",
+		"local_api.lobby.read",
+		"local_api.lobby.control",
+	};
+
+	const UnsignedInt ALL_PERMISSIONS = (1u << LOCAL_API_PERMISSION_COUNT) - 1;
+
+	/// The permission an outbound frame type needs, or -1 for Hello and Response, which always pass.
+	Int framePermission(UnsignedByte frameType)
+	{
+		switch (frameType)
+		{
+			case LOCAL_API_FRAME_MATCH_INFO:
+			case LOCAL_API_FRAME_MATCH_SUMMARY:
+			case LOCAL_API_FRAME_UI_STATE:
+				return LOCAL_API_PERMISSION_MATCH;
+			case LOCAL_API_FRAME_STATS_SNAPSHOT:
+			case LOCAL_API_FRAME_VIEW_STATS:
+				return LOCAL_API_PERMISSION_STATS;
+			case LOCAL_API_FRAME_EVENTS:
+				return LOCAL_API_PERMISSION_EVENTS;
+			case LOCAL_API_FRAME_INTEREST_MAP:
+				return LOCAL_API_PERMISSION_INTEREST;
+			case LOCAL_API_FRAME_CAMERA:
+				return LOCAL_API_PERMISSION_CAMERA_READ;
+			case LOCAL_API_FRAME_CHAT_MESSAGE:
+				return LOCAL_API_PERMISSION_CHAT_READ;
+			case LOCAL_API_FRAME_LOBBY_STATE:
+				return LOCAL_API_PERMISSION_LOBBY_READ;
+			default:
+				return -1;
+		}
+	}
+
+	/// LocalApiSink over the local API pipe. The pipe owns the readers and their queues, and this class keeps the slot table of
+	/// the readers, the feed configs, the access rules and the decoding of inbound frames. The slot table is guarded by a
 	/// critical section because isConnected, getReaders and enqueueFrame run on any thread. Reader events and inbound frames are
 	/// taken on the main thread only.
-	class PluginLocalApiSink : public LocalApiSink
+	class PipeLocalApiSink : public LocalApiSink
 	{
 	public:
-		static PluginLocalApiSink& TheInstance()
+		static PipeLocalApiSink& TheInstance()
 		{
-			static PluginLocalApiSink s_instance;
+			static PipeLocalApiSink s_instance;
 			return s_instance;
 		}
 
 		Bool start()
 		{
-			if (m_stopped)
+			if (m_stopped || m_startFailed)
 			{
 				return FALSE;
 			}
-			if (m_api == NULL)
+			if (!m_listening)
 			{
-				// The plugin may load after the first call, so a missing plugin is not remembered.
-				const GenOnlinePluginLocalApi* api = GenOnlinePluginHost::GetLocalApi();
-				if (api == NULL)
+				if (!GenOnlineServicesManager::Settings.GetLocalApiEnabled())
 				{
 					return FALSE;
 				}
-				m_api = api;
-				m_listening = m_api->StartListener((uint32_t)LOCAL_API_MAX_READERS) != GENONLINE_PLUGIN_FALSE;
+				m_listening = m_server.Start((uint32_t)LOCAL_API_MAX_READERS);
 				if (!m_listening)
 				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[Stats] ERROR: The caster plugin could not start its listener, the live stats readers stays off");
+					m_startFailed = TRUE;
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[LocalApi] ERROR: The pipe could not start, the live stats readers stay off");
+					return FALSE;
 				}
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[LocalApi] Listening on %s", GenOnlineLocalApi::PipeName().c_str());
 			}
 			return m_listening;
+		}
+
+		Bool permitted(LocalApiPermission permission) const
+		{
+			return (m_permitted & (1u << permission)) != 0;
 		}
 
 		void shutdown()
 		{
 			m_stopped = TRUE;
 			m_listening = FALSE;
-			m_api = NULL;
+			m_server.Stop();
 			m_chats.clear();
 			m_requests.clear();
 			EnterCriticalSection(&m_lock);
@@ -201,7 +254,7 @@ namespace
 
 		virtual Bool isConnected() const
 		{
-			return m_listening && m_allowed && m_api->IsConnected() != GENONLINE_PLUGIN_FALSE;
+			return m_listening && m_allowed && m_table.IsConnected();
 		}
 
 		virtual void getReaders(LocalApiReaders& out) const
@@ -211,7 +264,7 @@ namespace
 
 		virtual void getUnwelcomedReaders(LocalApiReaders& out) const
 		{
-			m_allowed = onlineUseAllowed();
+			refreshAccess();
 			pumpReaderEvents();
 			collectReaders(FALSE, out);
 		}
@@ -240,6 +293,11 @@ namespace
 			{
 				return FALSE;
 			}
+			const Int permission = framePermission(frameType);
+			if (permission >= 0 && !permitted((LocalApiPermission)permission))
+			{
+				return FALSE;
+			}
 			uint32_t ids[LOCAL_API_MAX_READERS];
 			EnterCriticalSection(&m_lock);
 			for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
@@ -253,9 +311,10 @@ namespace
 			const UnsignedInt64 now = LocalApiNowMicros();
 			for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
 			{
-				if (ids[i] != 0 && m_api->EnqueueFrame(frameType, frameClassOf(frameType), body, bodyLength, now, ids[i]) != GENONLINE_PLUGIN_FALSE)
+				if (ids[i] != 0 && m_table.EnqueueFrame(frameType, frameClassOf(frameType), body, bodyLength, now, ids[i]))
 				{
 					queued = TRUE;
+					m_server.Wake();
 				}
 			}
 			return queued;
@@ -315,8 +374,14 @@ namespace
 
 		virtual Bool takeChatSend(LocalApiChatSend& out)
 		{
+			refreshAccess();
 			pumpReaderEvents();
 			pumpInbound();
+			if (!m_allowed || !permitted(LOCAL_API_PERMISSION_CHAT_SEND))
+			{
+				m_chats.clear();
+				return FALSE;
+			}
 			while (!m_chats.empty())
 			{
 				const Int slot = m_chats.front().slot;
@@ -336,8 +401,14 @@ namespace
 
 		virtual Bool takeRequest(LocalApiQueuedRequest& out)
 		{
+			refreshAccess();
 			pumpReaderEvents();
 			pumpInbound();
+			if (!m_allowed)
+			{
+				m_requests.clear();
+				return FALSE;
+			}
 			while (!m_requests.empty())
 			{
 				QueuedRequest& entry = m_requests.front();
@@ -377,7 +448,7 @@ namespace
 			std::string body;	///< the Request message, still encoded
 		};
 
-		/// A reader id of 0 marks a free slot, because the plugin reserves 0 for all readers.
+		/// A reader id of 0 marks a free slot, because the pipe reserves 0 for all readers.
 		struct Slot
 		{
 			Slot() : readerId(0), epoch(0), welcomed(FALSE) {}
@@ -386,7 +457,7 @@ namespace
 			Bool welcomed;
 		};
 
-		PluginLocalApiSink() : m_api(NULL), m_listening(FALSE), m_allowed(TRUE), m_stopped(FALSE), m_nextEpoch(1)
+		PipeLocalApiSink() : m_server(m_table), m_listening(FALSE), m_startFailed(FALSE), m_allowed(TRUE), m_permitted(ALL_PERMISSIONS), m_stopped(FALSE), m_nextEpoch(1)
 		{
 			InitializeCriticalSection(&m_lock);
 			for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
@@ -394,8 +465,8 @@ namespace
 				m_feedEpoch[i] = 0;
 			}
 		}
-		PluginLocalApiSink(const PluginLocalApiSink&);
-		PluginLocalApiSink& operator=(const PluginLocalApiSink&);
+		PipeLocalApiSink(const PipeLocalApiSink&);
+		PipeLocalApiSink& operator=(const PipeLocalApiSink&);
 
 		UnsignedInt newEpoch() const
 		{
@@ -406,19 +477,55 @@ namespace
 			return m_nextEpoch++;
 		}
 
-		/// Welcomed readers when welcomed is TRUE, the others otherwise. Any thread.
-		/// Online games and online lobbies need the local_api client feature, LAN, skirmish and replays stay open. Main thread only, the result is cached in m_allowed.
-		static Bool onlineUseAllowed()
+		/// Main thread only, the results are cached in m_allowed and m_permitted for the other threads.
+		/// The pipe is closed while the local player is an active player in a LAN or online match. LAN and online games and their
+		/// lobbies also need a signed in account with the local_api client feature and a local_api permission per capability.
+		/// Skirmish, single player, challenge and replays need no account.
+		void refreshAccess() const
 		{
-			Bool online = TheGameLogic != NULL && TheGameLogic->getGameMode() == GAME_INTERNET;
-			if (!online)
+			const GameMode mode = TheGameLogic != NULL ? TheGameLogic->getGameMode() : GAME_NONE;
+			Bool needsAccount = mode == GAME_INTERNET || mode == GAME_LAN || TheLAN != NULL;
+			if (!needsAccount)
 			{
 				GenOnlineLobbyInterface* lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-				online = lobby != NULL && lobby->IsInLobby();
+				needsAccount = lobby != NULL && lobby->IsInLobby();
 			}
-			return !online || GenOnlineRealtimeBridge::HasClientFeature("local_api");
+			GenOnlineAuthInterface* auth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+			const Bool signedIn = auth != NULL && auth->IsLoggedIn();
+
+			UnsignedInt mask = ALL_PERMISSIONS;
+			if (needsAccount)
+			{
+				mask = 0;
+				for (Int i = 0; signedIn && i < LOCAL_API_PERMISSION_COUNT; ++i)
+				{
+					if (GenOnlineRealtimeBridge::HasPermission(s_permissionNames[i]))
+					{
+						mask |= 1u << i;
+					}
+				}
+			}
+			const Bool gainedPermission = (mask & ~m_permitted) != 0;
+			m_permitted = mask;
+
+			const Bool allowed = LocalApiGatedPlayerIndex() < 0 && (!needsAccount || (signedIn && GenOnlineRealtimeBridge::HasClientFeature("local_api")));
+			if (allowed && (!m_allowed || gainedPermission) && m_listening)
+			{
+				// A reader missed what was held back, so it starts over with a new Hello.
+				EnterCriticalSection(&m_lock);
+				for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
+				{
+					if (m_slots[i].readerId != 0)
+					{
+						resyncSlot(i);
+					}
+				}
+				LeaveCriticalSection(&m_lock);
+			}
+			m_allowed = allowed;
 		}
 
+		/// Welcomed readers when welcomed is TRUE, the others otherwise. Any thread.
 		void collectReaders(Bool welcomed, LocalApiReaders& out) const
 		{
 			out.clear();
@@ -469,8 +576,8 @@ namespace
 				return;
 			}
 			uint32_t readerId = 0;
-			int32_t event = 0;
-			while (m_api->TakeReaderEvent(&readerId, &event) != GENONLINE_PLUGIN_FALSE)
+			GenOnlineLocalApi::ReaderEvent event = GenOnlineLocalApi::ReaderEvent::HelloNeeded;
+			while (m_table.TakeReaderEvent(&readerId, &event))
 			{
 				if (readerId == 0)
 				{
@@ -478,7 +585,7 @@ namespace
 				}
 				EnterCriticalSection(&m_lock);
 				const Int known = findSlot(readerId);
-				if (event == GENONLINE_PLUGIN_LOCAL_API_READER_HELLO_NEEDED)
+				if (event == GenOnlineLocalApi::ReaderEvent::HelloNeeded)
 				{
 					if (known >= 0)
 					{
@@ -496,7 +603,7 @@ namespace
 						}
 					}
 				}
-				else if (event == GENONLINE_PLUGIN_LOCAL_API_READER_GONE && known >= 0)
+				else if (event == GenOnlineLocalApi::ReaderEvent::Gone && known >= 0)
 				{
 					m_slots[known] = Slot();
 					m_feedEpoch[known] = 0;
@@ -511,24 +618,19 @@ namespace
 			{
 				return;
 			}
-			uint32_t readerId = 0;
-			uint8_t frameType = 0;
-			uint32_t flags = 0;
-			const uint8_t* body = NULL;
-			uint32_t bodyLength = 0;
-			while (m_api->TakeInbound(&readerId, &frameType, &flags, &body, &bodyLength) != GENONLINE_PLUGIN_FALSE)
+			GenOnlineLocalApi::TakenInbound taken;
+			while (m_table.TakeInbound(&taken))
 			{
 				EnterCriticalSection(&m_lock);
-				const Int slot = findSlot(readerId);
+				const Int slot = findSlot(taken.readerId);
 				const UnsignedInt epoch = slot >= 0 ? m_slots[slot].epoch : 0;
 				LeaveCriticalSection(&m_lock);
-				if (slot >= 0 && epoch != 0 && (body != NULL || bodyLength == 0))
+				// A frame that arrives while the pipe is closed is dropped, so it never runs once the pipe opens again.
+				if (m_allowed && slot >= 0 && epoch != 0 && (taken.body || taken.bodyLength == 0))
 				{
-					handleInbound(frameType, slot, epoch, flags, body, bodyLength);
+					handleInbound(taken.frameType, slot, epoch, taken.flags, taken.body.get(), taken.bodyLength);
 				}
-				m_api->FreeInbound(body);
-				body = NULL;
-				bodyLength = 0;
+				taken = GenOnlineLocalApi::TakenInbound();
 			}
 		}
 
@@ -536,7 +638,7 @@ namespace
 		{
 			if (frameType == LOCAL_API_INBOUND_REQUEST)
 			{
-				if ((flags & GENONLINE_PLUGIN_LOCAL_API_INBOUND_RATE_LIMITED) != 0 || m_requests.size() >= (size_t)REQUEST_QUEUE_SLOTS)
+				if ((flags & GenOnlineLocalApi::kInboundRateLimited) != 0 || m_requests.size() >= (size_t)REQUEST_QUEUE_SLOTS)
 				{
 					queueRefusal(slot, epoch, extractRequestId(body, bodyLength), localapi::RESPONSE_STATUS_RATE_LIMITED, "too many requests");
 					return;
@@ -586,9 +688,12 @@ namespace
 			enqueueFrame(LOCAL_API_FRAME_RESPONSE, (const UnsignedByte*)body.data(), (UnsignedInt)body.size(), to);
 		}
 
-		const GenOnlinePluginLocalApi* m_api;
+		mutable GenOnlineLocalApi::ReaderTable m_table;	///< thread safe on its own, so const members may take events and frames from it
+		GenOnlineLocalApi::PipeServer m_server;
 		Bool m_listening;
-		mutable volatile Bool m_allowed;	///< FALSE while an online game or lobby lacks the local_api client feature
+		Bool m_startFailed;	///< set when the pipe could not start, so it is not retried every frame
+		mutable volatile Bool m_allowed;	///< FALSE while the local player plays a LAN or online match or an online game or lobby lacks the local_api client feature
+		mutable volatile UnsignedInt m_permitted;	///< bit per LocalApiPermission
 		Bool m_stopped;	///< set by shutdown() and never cleared, so the sink does not restart during engine teardown
 		mutable CRITICAL_SECTION m_lock;	///< guards m_slots, m_feed, m_feedEpoch and m_nextEpoch
 		mutable Slot m_slots[LOCAL_API_MAX_READERS];
@@ -623,7 +728,7 @@ LocalApiSink* LocalApiReadersGetSink()
 	{
 		return NULL;
 	}
-	PluginLocalApiSink& sink = PluginLocalApiSink::TheInstance();
+	PipeLocalApiSink& sink = PipeLocalApiSink::TheInstance();
 	return sink.start() ? &sink : NULL;
 }
 
@@ -634,5 +739,15 @@ void LocalApiReadersStart()
 
 void LocalApiReadersShutdown()
 {
-	PluginLocalApiSink::TheInstance().shutdown();
+	PipeLocalApiSink::TheInstance().shutdown();
+}
+
+const char* LocalApiPermissionName(LocalApiPermission permission)
+{
+	return (permission >= 0 && permission < LOCAL_API_PERMISSION_COUNT) ? s_permissionNames[permission] : "";
+}
+
+Bool LocalApiPermitted(LocalApiPermission permission)
+{
+	return permission >= 0 && permission < LOCAL_API_PERMISSION_COUNT && PipeLocalApiSink::TheInstance().permitted(permission);
 }

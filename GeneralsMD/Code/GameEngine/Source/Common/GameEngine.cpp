@@ -116,7 +116,6 @@
 #endif
 #if defined(GENONLINE)
 #include "GameNetwork/GenOnline/GenOnlineInit.h"
-#include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
 #endif
 
 #include "Common/version.h"
@@ -274,10 +273,6 @@ GameEngine::~GameEngine()
 #if defined(GENONLINE)
 	// stop the stats readers feed before the state it samples is torn down
 	LocalApiReadersShutdown();
-#if defined(GENONLINE)
-	// GenOnline @feature arcticdolphin 21/11/2026 The caster plugin unloads after the sink stopped using it
-	GenOnlinePluginHost::UnloadToolPlugin();
-#endif
 
 #endif
 	//extern std::vector<std::string>	preloadTextureNamesGlobalHack;
@@ -487,8 +482,6 @@ void GameEngine::init()
 
 #if defined(GENONLINE)
 		TheWritableGlobalData->applyGenOnlineClientSettings();
-		// GenOnline @feature arcticdolphin 21/11/2026 The caster plugin loads before the first stats call and also in headless runs for -exportStats
-		GenOnlinePluginHost::LoadToolPlugin();
 #endif
 #if defined(GENONLINE)
 
@@ -1012,10 +1005,6 @@ void GameEngine::update()
 #if defined(GENONLINE)
 		// keeps the stats readers feed up so a reader can connect from the shell
 		LocalApiReadersStart();
-#if defined(GENONLINE)
-		// GenOnline @feature arcticdolphin 21/11/2026 Runs the caster plugin once per frame
-		GenOnlinePluginHost::TickToolPlugin();
-#endif
 		LocalApiLiveTick();
 
 #endif

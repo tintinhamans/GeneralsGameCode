@@ -914,6 +914,31 @@ namespace
 		}
 	}
 
+	/// The permission a query needs, or -1 for resync and feed_config, which only shape what the other permissions allow.
+	Int queryPermission(localapi::Request::QueryCase query)
+	{
+		switch (query)
+		{
+			case localapi::Request::kCatalog:
+			case localapi::Request::kObject:
+			case localapi::Request::kObjects:
+			case localapi::Request::kPlayer:
+			case localapi::Request::kMap:
+				return LOCAL_API_PERMISSION_QUERY;
+			case localapi::Request::kCameraControl:
+			case localapi::Request::kCameraFollow:
+				return LOCAL_API_PERMISSION_CAMERA_CONTROL;
+			case localapi::Request::kReplayControl:
+				return LOCAL_API_PERMISSION_REPLAY_CONTROL;
+			case localapi::Request::kObserve:
+				return LOCAL_API_PERMISSION_OBSERVE;
+			case localapi::Request::kLobbyControl:
+				return LOCAL_API_PERMISSION_LOBBY_CONTROL;
+			default:
+				return -1;
+		}
+	}
+
 	void answerRequest(LocalApiSink* sink, const LocalApiQueuedRequest& queued)
 	{
 		static std::string s_result;
@@ -946,7 +971,13 @@ namespace
 		else
 		{
 			id = request.id();
-			switch (request.query_case())
+			const Int needed = queryPermission(request.query_case());
+			if (needed >= 0 && !LocalApiPermitted((LocalApiPermission)needed))
+			{
+				status = localapi::RESPONSE_STATUS_NOT_ALLOWED;
+				message = std::string("needs the ") + LocalApiPermissionName((LocalApiPermission)needed) + " permission";
+			}
+			else switch (request.query_case())
 			{
 				case localapi::Request::kCatalog:
 					resultField = kResultCatalog;

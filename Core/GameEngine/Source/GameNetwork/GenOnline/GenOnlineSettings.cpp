@@ -52,6 +52,8 @@
 #define SETTINGS_KEY_DEBUG "debug"
 #define SETTINGS_KEY_STATS "stats"
 #define SETTINGS_KEY_STATS_EXPORT "export"
+#define SETTINGS_KEY_LOCAL_API "local_api"
+#define SETTINGS_KEY_LOCAL_API_ENABLED "enabled"
 #define SETTINGS_KEY_DEBUG_ENABLED "enabled"
 
 #define SETTINGS_KEY_NETWORK "network"
@@ -66,7 +68,6 @@
 #define SETTINGS_KEY_PLUGINS "plugins"
 #define SETTINGS_KEY_PLUGINS_ANTICHEAT "anticheat"
 #define SETTINGS_KEY_PLUGINS_TRANSPORT "transport"
-#define SETTINGS_KEY_PLUGINS_CASTER "caster"
 #define SETTINGS_KEY_PLUGINS_SETTINGS "settings"
 
 #define SETTINGS_KEY_MAPS "maps"
@@ -210,6 +211,8 @@ static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_MENUS, ValueType::Boolean },
 		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_NOTIFICATIONS_PLAYER_SENDS_REQUEST_GAMEPLAY, ValueType::Boolean },
 		{ SETTINGS_KEY_SOCIAL "." SETTINGS_KEY_SOCIAL_PRESENCE_STATUS, ValueType::String },
+		{ SETTINGS_KEY_LOCAL_API, ValueType::Object },
+		{ SETTINGS_KEY_LOCAL_API "." SETTINGS_KEY_LOCAL_API_ENABLED, ValueType::Boolean },
 		{ SETTINGS_KEY_DEBUG, ValueType::Object },
 		{ SETTINGS_KEY_DEBUG "." SETTINGS_KEY_DEBUG_ENABLED, ValueType::Boolean },
 		{ SETTINGS_KEY_NETWORK, ValueType::Object },
@@ -223,7 +226,6 @@ static const std::vector<GenOnlineClientFile::KnownKey>& ClientFileKeys()
 		{ SETTINGS_KEY_PLUGINS, ValueType::Object },
 		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_ANTICHEAT, ValueType::Array },
 		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_TRANSPORT, ValueType::Array },
-		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_CASTER, ValueType::String },
 		{ SETTINGS_KEY_PLUGINS "." SETTINGS_KEY_PLUGINS_SETTINGS, ValueType::Object },
 		{ SETTINGS_KEY_DATA, ValueType::Object },
 		{ SETTINGS_KEY_DATA "." SETTINGS_KEY_DATA_INCLUDE, ValueType::Array },
@@ -521,6 +523,16 @@ void GenOnlineSettings::Load(void)
 				}
 			}
 
+			if (jsonSettings.contains(SETTINGS_KEY_LOCAL_API))
+			{
+				const auto& localApiSettings = jsonSettings[SETTINGS_KEY_LOCAL_API];
+
+				if (localApiSettings.is_object() && localApiSettings.contains(SETTINGS_KEY_LOCAL_API_ENABLED) && localApiSettings[SETTINGS_KEY_LOCAL_API_ENABLED].is_boolean())
+				{
+					m_bLocalApiEnabled = localApiSettings[SETTINGS_KEY_LOCAL_API_ENABLED];
+				}
+			}
+
 			if (jsonSettings.contains(SETTINGS_KEY_DEBUG))
 			{
 				auto debugSettings = jsonSettings[SETTINGS_KEY_DEBUG];
@@ -596,7 +608,6 @@ void GenOnlineSettings::Load(void)
             }
 
 			m_Plugins_Transport.clear();
-			m_Plugin_Caster.clear();
 			if (jsonSettings.contains(SETTINGS_KEY_PLUGINS))
 			{
 				auto pluginSettings = jsonSettings[SETTINGS_KEY_PLUGINS];
@@ -608,10 +619,6 @@ void GenOnlineSettings::Load(void)
 				if (pluginSettings.contains(SETTINGS_KEY_PLUGINS_TRANSPORT))
 				{
 					m_Plugins_Transport = ReadPluginList(pluginSettings[SETTINGS_KEY_PLUGINS_TRANSPORT], SETTINGS_KEY_PLUGINS_TRANSPORT);
-				}
-				if (pluginSettings.contains(SETTINGS_KEY_PLUGINS_CASTER) && pluginSettings[SETTINGS_KEY_PLUGINS_CASTER].is_string())
-				{
-					m_Plugin_Caster = pluginSettings[SETTINGS_KEY_PLUGINS_CASTER].get<std::string>();
 				}
 			}
 
@@ -864,6 +871,13 @@ bool GenOnlineSettings::Save()
 		},
 
 		{
+			SETTINGS_KEY_LOCAL_API,
+				{
+					{SETTINGS_KEY_LOCAL_API_ENABLED, m_bLocalApiEnabled},
+				}
+		},
+
+		{
 			SETTINGS_KEY_DEBUG,
 				{
 					{SETTINGS_KEY_DEBUG_ENABLED, m_bDebugMode},
@@ -889,8 +903,7 @@ bool GenOnlineSettings::Save()
 			SETTINGS_KEY_PLUGINS,
                 {
                     {SETTINGS_KEY_PLUGINS_ANTICHEAT, m_Plugins_Anticheat},
-                    {SETTINGS_KEY_PLUGINS_TRANSPORT, m_Plugins_Transport},
-                    {SETTINGS_KEY_PLUGINS_CASTER, m_Plugin_Caster}
+                    {SETTINGS_KEY_PLUGINS_TRANSPORT, m_Plugins_Transport}
                 }
         },
 

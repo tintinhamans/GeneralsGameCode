@@ -5,10 +5,10 @@ The Generals Online client streams live match data to out-of-process readers ove
 ## Transport
 
 - Pipe name: `\.\pipe\genonline-caster-<pid>`, where `<pid>` is the game process id. List `\.\pipe\` and match the prefix to find running games.
-- The caster plugin in the game process is the pipe server (overlapped, byte mode, duplex). The readers are the clients. Up to **4 readers** can be connected at once, each with its own outbound queue, sequence numbers, resync state and feed configuration (see Multiple readers). A fifth connect attempt fails (`ERROR_PIPE_BUSY`) until a reader leaves.
+- The game process is the pipe server (overlapped, byte mode, duplex). The readers are the clients. Up to **4 readers** can be connected at once, each with its own outbound queue, sequence numbers, resync state and feed configuration (see Multiple readers). A fifth connect attempt fails (`ERROR_PIPE_BUSY`) until a reader leaves.
 - Access: the pipe rejects remote clients (`PIPE_REJECT_REMOTE_CLIENTS`) and carries an explicit security descriptor whose only entry grants full access to the user the game runs as (the user SID of the process token). Other accounts cannot open it; neither can a reader at a lower integrity level than the game, as for any object created by a process at a higher one. If the descriptor cannot be built the pipe is not created.
-- The pipe comes from the `genonline_caster` plugin (repository genonline-caster-plugin), which ships with the client in `plugins\genonline_caster\` and is off by default. It loads at startup when `%LOCALAPPDATA%\genonline\settings.client.json` sets `"plugins": { "caster": "genonline_caster" }`. Without the plugin, and in headless runs and replay-simulation processes, no pipe exists. The game encodes and decodes every message, and the plugin only carries the frames.
-- Live recording is off by default and is switched on by `-exportStats` or `"stats": { "export": true }` in settings.client.json. It needs no plugin. The game then records every game it writes a replay for and writes `<replay>.stats.json.gz` beside that replay when recording stops, and `-replay -headless -exportStats` produces the same file. With `-statsUrl` the headless run also posts it. For played matches the file is also uploaded to the service like the replay, through a presigned URL, under its own `telemetry.stats_upload` service flag (default on). That upload is independent of `-statsUrl` and of the replay upload.
+- The pipe is off by default. The game opens it when `%LOCALAPPDATA%\genonline\settings.client.json` sets `"local_api": { "enabled": true }`. In headless runs and replay-simulation processes no pipe exists. See Gating for when the open pipe carries data.
+- Live recording is off by default and is switched on by `-exportStats` or `"stats": { "export": true }` in settings.client.json. It needs no pipe. The game then records every game it writes a replay for and writes `<replay>.stats.json.gz` beside that replay when recording stops, and `-replay -headless -exportStats` produces the same file. With `-statsUrl` the headless run also posts it. For played matches the file is also uploaded to the service like the replay, through a presigned URL, under its own `telemetry.stats_upload` service flag (default on). That upload is independent of `-statsUrl` and of the replay upload.
 - A reader that disconnects is simply dropped; the game keeps running and accepts the next reader. Readers should reconnect with backoff.
 
 ## Framing
@@ -101,7 +101,7 @@ Frames that are the same for everyone are built once and queued for every reader
 
 A reader sends a `Request { id, query }` (inbound type 0x11) and receives a `Response { id, status, message, result }` (outbound type 0x0A) carrying the same `id`. The reader chooses the `id`; use a distinct one for every request in flight (0 is allowed but cannot be told apart from "unknown" when a request cannot be decoded).
 
-- **Threading.** The plugin's reader thread only decodes the framing, rate limits and queues the request. The main thread answers it once per render frame (at most 4 per frame, the rest wait), reading game state and changing nothing (the camera, replay and observer commands below change client-side state only, and lobby control operates the game setup screen, see there): no random numbers are drawn, no commands are issued, no object is touched. Because of that, a query is answered also while the game is paused or in a menu, and the answer describes the state of the moment it ran.
+- **Threading.** The pipe's reader thread only decodes the framing, rate limits and queues the request. The main thread answers it once per render frame (at most 4 per frame, the rest wait), reading game state and changing nothing (the camera, replay and observer commands below change client-side state only, and lobby control operates the game setup screen, see there): no random numbers are drawn, no commands are issued, no object is touched. Because of that, a query is answered also while the game is paused or in a menu, and the answer describes the state of the moment it ran.
 - **Statuses.** `OK`; `BAD_REQUEST` (undecodable, no query set, a value out of range); `NOT_FOUND` (no such object, player or template); `RATE_LIMITED` (the reader exceeded its rate or has 16 requests waiting; nothing was done, retry later); `UNAVAILABLE` (the data does not exist right now: no match running, no map loaded); `TOO_LARGE` (the result would not fit a frame: ask for a smaller page); `NOT_ALLOWED` (the command is refused in the situation the game is in, see Camera, replay and observer control and Lobby control: nothing was changed). `message` carries a short reason for any status other than OK. A request that cannot be decoded is answered with id 0.
 - **Rate limit.** A token bucket per reader: 20 requests per second sustained, bursts up to 40. Requests are answered in arrival order per reader and in turn between readers. There is no answer to a request that arrives before the Hello was queued, and none when the reader's queue is full (the sequence shows the gap), so readers should time requests out.
 - **Paging.** Queries that can return many rows take a `PageRequest { cursor, page_size }` and answer with a `PageInfo { has_more, next_cursor, total }`. Start with cursor 0, pass `next_cursor` back while `has_more`. The cursor is opaque: a template index for the catalog, an object id for objects. `page_size` 0 means the default, anything above `Hello.max_page_size` is lowered to it.
@@ -154,7 +154,7 @@ Intervals are rounded to whole logic frames (at least 1). A setting out of range
 
 A reader can steer the local client's view. These commands change **client-side state only**: the camera, the pacing of a replay playback and the observer's point of view. None of them is a game command, none reaches the simulation or another client, and none draws a random number, so a live game and a replay stay deterministic. They are answered on the main thread like every request.
 
-**When they are allowed.** Camera and follow commands: **any running match**, so also while the local player plays, but a gated match follows only the local player's own objects (see Gating). Observe commands: the local player is an **observer** of a match, or the game is **playing back a replay**; otherwise the answer is `NOT_ALLOWED` with a message. Replay commands (pause, speed, fast forward): a **replay playback** only; in a live network game pausing or changing the pace would break the synchronization, so they too answer `NOT_ALLOWED`. With no match running the answer is `UNAVAILABLE`.
+**When they are allowed.** Camera and follow commands: **any running match** the pipe serves (see Gating). Observe commands: the local player is an **observer** of a match, or the game is **playing back a replay**; otherwise the answer is `NOT_ALLOWED` with a message. Replay commands (pause, speed, fast forward): a **replay playback** only; in a live network game pausing or changing the pace would break the synchronization, so they too answer `NOT_ALLOWED`. With no match running the answer is `UNAVAILABLE`.
 
 - **Camera** (`CameraControlQuery`). Any subset of `x`/`y` (both or neither), `zoom`, `angle` (radians), `pitch` (radians; the game clamps it to its own limits). `reset` first puts angle, pitch and zoom back to the game's defaults, as the reset camera key does; the position stays. `duration_ms` 0 applies everything at once; above 0 (up to 60000) the values move from where they are to the targets over that much wall-clock time, with `easing` NONE (constant speed) or EASE_IN_OUT, running from the render loop so a paused game still pans; angles turn the short way round. A new command replaces a running transition; `cancel_transition` stops it where it is. A user camera action also ends it. A position releases a lock on a unit. Values must be finite; `zoom` is 0.05 to 20, `x`/`y` within a million. The zoom is applied through the game's own zoom setter, which is relative to the terrain height under the camera, so the `zoom` in the next `Camera` frame can differ a little from the one asked for on uneven ground.
 - **Follow** (`CameraFollowQuery`). `object_id` locks the camera on a unit: mode FOLLOW keeps it centered (the camera glides to the unit, `snap` jumps), mode TETHER trails it and lets it move around inside a slack area; `tether_distance` (above 0, at most 100) is the game's own tether strength (the camera creeps toward the unit by 1% of it per frame inside the slack area, the slack area itself is one partition cell). `object_id` 0 releases the lock. `NOT_FOUND` for an unknown or dead object. The lock is the game's own camera lock, the one a user makes by selecting a unit and pressing the camera lock key.
@@ -165,13 +165,27 @@ A reader can steer the local client's view. These commands change **client-side 
 
 ## Gating
 
-The game gates a LAN or online match in which the local player is an active player, until the local player is defeated or the local alliance wins (the game then reveals the map anyway). Observers, replay playback, single player and skirmish are never gated. While gated:
+**Role gate.** The pipe carries nothing while the local player is an active player in a LAN or online match, until the local player is defeated or the local alliance wins (the game then reveals the map anyway). Readers stay connected but get no frames, their requests and ChatSend frames are dropped without an answer, and when the gate opens every reader gets a new `Hello` and starts over as after a resync. Observers, replay playback, single player and skirmish are never gated, and neither are the shell and the lobbies.
 
-- `StatsSnapshot` holds only the local player's entry, without `supply` and `tech`.
-- `ViewStats` holds only the local player. `InterestMap` is not sent.
-- `Events` carries the local player's own events, `PLAYER_LEFT` and `PLAYER_DEFEATED`, and captures of the local player's structures.
-- `ObjectQuery`, `PlayerQuery` and `CameraFollowQuery` answer `NOT_ALLOWED` for anything the local player does not own, unknown ids included. `ObjectsQuery` lists only the local player's objects.
-- `MapQuery`, `CatalogQuery`, camera control, `MatchInfo`, `MatchSummary` and chat are unchanged.
+**Account access.** LAN and online games and their lobbies need a signed in Generals Online account, the `local_api` client feature of the service and a permission per capability, which the service grants per account or through a role. Without the account and the feature the pipe carries nothing there. Skirmish, single player, Generals Challenge and replay playback need no account and allow every capability.
+
+| Permission | Allows |
+|---|---|
+| `local_api.match` | `MatchInfo`, `MatchSummary` and `UiState` frames |
+| `local_api.stats` | `StatsSnapshot` and `ViewStats` frames |
+| `local_api.events` | `Events` frames |
+| `local_api.interest` | `InterestMap` frames |
+| `local_api.camera.read` | `Camera` frames |
+| `local_api.chat.read` | `ChatMessage` frames |
+| `local_api.chat.send` | `ChatSend` |
+| `local_api.query` | `CatalogQuery`, `ObjectQuery`, `ObjectsQuery`, `PlayerQuery` and `MapQuery` |
+| `local_api.camera.control` | `CameraControlQuery` and `CameraFollowQuery` |
+| `local_api.replay.control` | `ReplayControlQuery` |
+| `local_api.observe` | `ObserveQuery` |
+| `local_api.lobby.read` | `LobbyState` frames |
+| `local_api.lobby.control` | `LobbyControlQuery` |
+
+`Hello`, `Response`, `ResyncQuery` and `FeedConfigQuery` need no permission. A frame type without its permission is not sent, and a query without its permission is answered `NOT_ALLOWED` with a message that names the permission.
 
 ## In-view statistics
 
@@ -220,7 +234,7 @@ Which frames wait for STARTED:
 - **Resync.** One-shot frames (`Hello`, `MatchInfo`, `MatchSummary`, `UiState`, `LobbyState`) and responses may use the whole outbound queue of a reader, periodic frames (snapshots, events, camera, view statistics, interest map) may not use its last 64 KiB. If a one-shot frame is still dropped because a slow reader filled its queue, the game remembers it for that reader and, once the queue has drained to half empty, sends that reader `UiState` again, resends STARTED (a repeated STARTED for the running match; treat it as idempotent), sends `LobbyState` again if the user is in a lobby and a full snapshot. A reader can ask for the same with a `ResyncQuery`. A dropped `MatchSummary` or ENDED cannot be repeated.
 - A superweapon or special power is reported when the player owns the required science, or when the power requires none; a structure still under construction is not reported until it is complete.
 - **Live objects.** Everything that is computed from the object list (army value, class value and counts, live template counts, worker, harvester and idle worker counts, heroes, readiness, superweapons, production, the position grids) excludes objects that are effectively dead (destroyed and waiting for removal). A structure under construction counts as live for army value, class counts, template counts, the superweapon structure count and the grids, but not for readiness or superweapon timers.
-- **Omniscient outside gating.** The stats are not filtered by what the local player can see, except while gated (see Gating): they come from the simulation, which every client runs identically, so a snapshot shows every player's economy, army, production and positions regardless of fog of war. Only the local client's own selection, camera and speed numbers are client-side.
+- **Omniscient outside gating.** The stats are not filtered by what the local player can see: the pipe serves no active player of a LAN or online match (see Gating), and they come from the simulation, which every client runs identically, so a snapshot shows every player's economy, army, production and positions regardless of fog of war. Only the local client's own selection, camera and speed numbers are client-side.
 - Build and spend counts (`units_built`, `buildings_built`, `spent_*`, and the BUILD events) are the engine's ScoreKeeper counts and therefore also include objects the engine creates for a player other than through production (replacements, spawned units, objects created by object creation lists), in addition to what a player pays for, but not the starting buildings and units placed at map load.
 - Chat is independent of the match phase and flows in menus, lobbies and rooms.
 
@@ -349,7 +363,7 @@ The template buckets (`category` for kill, loss, build, sell, capture, evacuate,
 
 ## Scope and known limitations
 
-- Stats are the simulation's and are not filtered by fog of war. While the local player plays a LAN or online match, the game therefore holds back everything about other players (see Gating). Observers and replays get every player's economy, army, production and positions.
+- Stats are the simulation's and are not filtered by fog of war. While the local player plays a LAN or online match, the pipe therefore carries nothing (see Gating). Observers and replays get every player's economy, army, production and positions.
 - Campaign and solo games have no lobby slots to map players to and get no per-player snapshots (events, camera, UiState and the MatchInfo frames still flow).
 - The exporter runs in Generals and Zero Hour alike (`MatchInfo.game` and `Hello.game` say which). Generals has no battle plans, Strategy Centers, power sabotage, salvage armor upgrades, challenge generals or sub faction base sides, so those fields and events stay at their defaults there, the base side is the side, and the lobby prediction and the superweapon highlights only cover what Generals has (a single particle cannon, start positions without the Zero Hour team grouping). Zero Hour only special powers are never reported by Generals. Generals counts the cost of a finished unit as money spent for its score screen and for the `Spend` events, as Zero Hour does.
 - Online identity data (match id, user ids, IPs) is exported exactly as the client knows it; fields are 0 or empty when unknown.
@@ -1069,7 +1083,7 @@ The first frame of every connection (sequence 0). Everything a reader needs to k
 | 6 | `capabilities` | repeated string | feature names, see GenOnline/docs/local-api.md; unknown ones can be ignored |
 | 7 | `max_requests_per_second` | uint32 | sustained Request rate per reader; faster requests get RATE_LIMITED |
 | 8 | `reader_slot` | uint32 | this connection's slot, 0 .. max_readers - 1 |
-| 9 | `max_readers` | uint32 | simultaneous readers the plugin serves |
+| 9 | `max_readers` | uint32 | simultaneous readers the game serves |
 | 10 | `epoch_unix_ms` | uint64 | wall clock (ms since the Unix epoch) at frame timestamp 0 |
 | 11 | `max_request_burst` | uint32 | requests that may arrive at once before the rate limit bites |
 | 12 | `max_page_size` | uint32 | the largest page_size a paged query honours |

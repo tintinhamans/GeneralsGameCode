@@ -9,6 +9,7 @@ set(COREI_GOOGLETEST_SRC
     GameEngine/GameLogic/PathfindHierarchyTest.cpp
     GameEngine/GameLogic/PathfindTieBreakingTest.cpp
     GameEngine/GameNetwork/GenOnline/GenOnlineSlotValidationTest.cpp
+    GameEngine/GameNetwork/GenOnline/GenOnlineLocalApiPipeTest.cpp
     GameEngine/GameNetwork/NetCommandWrapperListTest.cpp
     GameEngineDevice/StdDevice/Common/StdLocalFileSystemTest.cpp
     Libraries/Compression/CompressionManagerTest.cpp

@@ -144,6 +144,7 @@ list(APPEND GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/AntiCheat/GenOnlineAntiCheat.h
     Include/GameNetwork/GenOnline/Provider/GenOnlineGameHooks.h
     Include/GameNetwork/GenOnline/Provider/GenOnlineNetworkOverlay.h
+    Include/GameNetwork/GenOnline/GenOnlineLocalApiPipe.h
     Include/GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h
     Include/GameNetwork/GenOnline/Provider/GenOnlinePluginKeys.h
     Include/GameNetwork/GenOnline/Provider/GenOnlinePluginPlatform.h
@@ -190,6 +191,7 @@ list(APPEND GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/Provider/GenOnlineGameHooks.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlineNetworkOverlay.cpp
     Source/GameNetwork/GenOnline/AntiCheat/GenOnlineAntiCheat.cpp
+    Source/GameNetwork/GenOnline/GenOnlineLocalApiPipe.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlinePluginHost.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlinePluginPlatformWin32.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlinePluginTrust.cpp

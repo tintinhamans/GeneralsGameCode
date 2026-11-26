@@ -16,15 +16,16 @@
 */
 
 // Protocol reference: GenOnline/docs/local-api.md
-// Live match stats for out-of-process readers. The caster plugin (settings.client.json plugins.caster) owns the named pipe
-// (\\.\pipe\genonline-caster-<pid>), its framing and its per reader queues, and the game encodes and decodes every frame body.
-// Without the plugin, in headless runs and in replay-simulation processes there is no sink.
+// Live match stats for out-of-process readers. The game serves the named pipe (\\.\pipe\genonline-caster-<pid>) when
+// settings.client.json local_api.enabled is true (GenOnlineLocalApiPipe.h). Without it, in headless runs and in replay-simulation
+// processes there is no sink. An active player in a LAN or online match gets nothing (LocalApiGatedPlayerIndex), and LAN and
+// online need a signed in account with the local_api permission of each capability.
 //
 // Up to LOCAL_API_MAX_READERS readers connect. A slow reader loses its own frames and never stalls the game or another reader.
 // Outbound frame envelope: u32 little-endian body length + u8 type + u32 sequence + u64 timestamp in microseconds (see LocalApi.proto).
 // The sequence counts the frames queued for that reader and a dropped frame still uses its number, so readers see gaps.
 // Inbound frame envelope: u32 little-endian body length + u8 type. Inbound types: 0x10 ChatSend, 0x11 Request (rate limited by
-// the plugin and answered on the main thread), other types are skipped, and a bad length drops the reader.
+// the pipe and answered on the main thread), other types are skipped, and a bad length drops the reader.
 #pragma once
 
 #include "Lib/BaseType.h"
@@ -274,11 +275,36 @@ public:
 	virtual Bool takeRequest(LocalApiQueuedRequest& out) = 0;
 };
 
-/// The sink over the caster plugin, or NULL in headless runs, without the plugin or when its listener could not start. Starts the listener on first use.
+/// The sink over the local API pipe, or NULL in headless runs, while local_api.enabled is off or when the pipe could not start. Starts the pipe on first use.
 LocalApiSink* LocalApiReadersGetSink();
 
-/// Starts the listener. Cheap and idempotent, and lets a reader connect from the shell.
+/// Starts the pipe. Cheap and idempotent, and lets a reader connect from the shell.
 void LocalApiReadersStart();
 
-/// Detaches the sink from the plugin before the plugin unloads, a no-op if it never started.
+/// Stops the pipe and forgets every reader, a no-op if it never started.
 void LocalApiReadersShutdown();
+
+/// The capabilities a LAN or online session needs a service permission for. Skirmish, single player and replays allow every capability.
+enum LocalApiPermission
+{
+	LOCAL_API_PERMISSION_MATCH,				///< local_api.match: MatchInfo, MatchSummary and UiState frames
+	LOCAL_API_PERMISSION_STATS,				///< local_api.stats: StatsSnapshot and ViewStats frames
+	LOCAL_API_PERMISSION_EVENTS,			///< local_api.events: Events frames
+	LOCAL_API_PERMISSION_INTEREST,			///< local_api.interest: InterestMap frames
+	LOCAL_API_PERMISSION_CAMERA_READ,		///< local_api.camera.read: Camera frames
+	LOCAL_API_PERMISSION_CHAT_READ,			///< local_api.chat.read: ChatMessage frames
+	LOCAL_API_PERMISSION_CHAT_SEND,			///< local_api.chat.send: ChatSend
+	LOCAL_API_PERMISSION_QUERY,				///< local_api.query: catalog, object, objects, player and map queries
+	LOCAL_API_PERMISSION_CAMERA_CONTROL,	///< local_api.camera.control: camera_control and camera_follow queries
+	LOCAL_API_PERMISSION_REPLAY_CONTROL,	///< local_api.replay.control: replay_control queries
+	LOCAL_API_PERMISSION_OBSERVE,			///< local_api.observe: observe queries
+	LOCAL_API_PERMISSION_LOBBY_READ,		///< local_api.lobby.read: LobbyState frames
+	LOCAL_API_PERMISSION_LOBBY_CONTROL,		///< local_api.lobby.control: lobby_control queries
+	LOCAL_API_PERMISSION_COUNT
+};
+
+/// The service permission name of a capability, such as "local_api.stats".
+const char* LocalApiPermissionName(LocalApiPermission permission);
+
+/// TRUE when the readers may use the capability. Any thread, the answer is refreshed on the main thread.
+Bool LocalApiPermitted(LocalApiPermission permission);

@@ -1,5 +1,5 @@
 // Protocol reference: GenOnline/docs/local-api.md
-// Wire schema for the live stats frames that the caster plugin serves to readers over its named pipe (\\.\pipe\genonline-caster-<pid>), protocol version 2.
+// Wire schema for the live stats frames that the game serves to readers over its named pipe (\\.\pipe\genonline-caster-<pid>), protocol version 2.
 // Up to 4 readers can be connected at once; each has its own queue, sequence numbers, resync and feed config.
 // Outbound frames (game -> reader) carry a 17 byte little-endian header, then the protobuf body:
 //     u32 body length | u8 type | u32 sequence | u64 timestamp_us
@@ -697,7 +697,7 @@ message Hello
 	repeated string capabilities = 6;	// feature names, see GenOnline/docs/local-api.md, and unknown ones can be ignored
 	uint32 max_requests_per_second = 7;	// sustained Request rate per reader; faster requests get RATE_LIMITED
 	uint32 reader_slot = 8;			// this connection's slot, 0 .. max_readers - 1
-	uint32 max_readers = 9;			// simultaneous readers the plugin serves
+	uint32 max_readers = 9;			// simultaneous readers the game serves
 	uint64 epoch_unix_ms = 10;		// wall clock (ms since the Unix epoch) at frame timestamp 0
 	uint32 max_request_burst = 11;	// requests that may arrive at once before the rate limit bites
 	uint32 max_page_size = 12;		// the largest page_size a paged query honours

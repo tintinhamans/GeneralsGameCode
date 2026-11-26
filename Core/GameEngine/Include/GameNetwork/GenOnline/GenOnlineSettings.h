@@ -68,8 +68,6 @@ public:
 	std::string GetAnticheatPlugin() const;
 	// The plugin transports tried in order after a direct connection fails and before Cloudflare TURN.
 	std::vector<std::string> GetTransportPlugins() const;
-	// The caster plugin, empty when the live stats readers and the stats export are off.
-	const std::string& GetCasterPlugin() const { return m_Plugin_Caster; }
 	bool Social_Notifications_FriendComesOnline_Menus() { return m_Social_Notification_FriendComesOnline_Menus; }
 	bool Social_Notifications_FriendComesOnline_Gameplay() { return m_Social_Notification_FriendComesOnline_Gameplay; }
 	bool Social_Notifications_FriendGoesOffline_Menus() { return m_Social_Notification_FriendGoesOffline_Menus; }
@@ -86,6 +84,8 @@ public:
 	// Debug mode turns on verbose logs and full crash dumps.
 	bool Debug_Enabled() const { return m_bDebugMode; }
 	bool GetStatsExport() const { return m_bStatsExport; }
+	// True when the game serves the local API pipe to caster overlays and stats tools. Off by default.
+	bool GetLocalApiEnabled() const { return m_bLocalApiEnabled; }
 
 	int GetChatLifeSeconds() const { return std::max<int>(m_Chat_LifeSeconds, 10); }
 
@@ -137,6 +137,7 @@ private:
 
 	bool m_bDebugMode = false;
 	bool m_bStatsExport = false;
+	bool m_bLocalApiEnabled = false;
 
 	bool m_Render_LimitFramerate = true;
 	bool m_Render_AdaptiveQuality = true;
@@ -163,7 +164,6 @@ private:
 	// The default names GenOnline Anti-Cheat, GENONLINE_ANTICHEAT_PLUGIN_NAME.
 	std::vector<std::string> m_Plugins_Anticheat = { "genonline_anticheat" };
 	std::vector<std::string> m_Plugins_Transport;
-	std::string m_Plugin_Caster;
 
 	mutable std::mutex m_NetworkMutex;
 	ServiceConnectionSettings m_ConnectionSettings;
