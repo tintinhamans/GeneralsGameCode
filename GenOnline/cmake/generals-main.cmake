@@ -18,6 +18,11 @@ macro(genonline_generals_main_targets)
                 "${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/GenOnline/Vendor/DiscordRPC/LICENSE.txt"
                 "$<TARGET_FILE_DIR:g_generals>/discord-rpc-LICENSE.txt"
         )
+        if(TARGET Microsoft::D3DX9)
+            add_custom_command(TARGET g_generals POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Microsoft::D3DX9>" "$<TARGET_FILE_DIR:g_generals>"
+            )
+        endif()
 
         if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/sentry-crash.exe")
             # Sentry's crash daemon runs beside the game as CrashReportHandler.exe, the name InitSentry passes to sentry.
@@ -43,6 +48,9 @@ macro(genonline_generals_install)
             set(DISCORD_RPC_DIR "${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/GenOnline/Vendor/DiscordRPC")
             install(FILES "${DISCORD_RPC_DIR}/discord-rpc.dll" DESTINATION "${RTS_INSTALL_PREFIX_GENERALS}")
             install(FILES "${DISCORD_RPC_DIR}/LICENSE.txt" DESTINATION "${RTS_INSTALL_PREFIX_GENERALS}" RENAME discord-rpc-LICENSE.txt)
+            if(TARGET Microsoft::D3DX9)
+                install(FILES "$<TARGET_FILE:Microsoft::D3DX9>" DESTINATION "${RTS_INSTALL_PREFIX_GENERALS}")
+            endif()
         endif()
     endif()
 endmacro()
