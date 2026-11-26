@@ -107,9 +107,10 @@ namespace
 		return delta;
 	}
 
+	/// The same rule as the control bar, which gives an observer and a defeated player the observer panel.
 	Bool localPlayerIsObserver()
 	{
-		return ThePlayerList != NULL && ThePlayerList->getLocalPlayer() != NULL && ThePlayerList->getLocalPlayer()->isPlayerObserver();
+		return ThePlayerList != NULL && ThePlayerList->getLocalPlayer() != NULL && !ThePlayerList->getLocalPlayer()->isPlayerActive();
 	}
 
 	Bool inReplayPlayback()

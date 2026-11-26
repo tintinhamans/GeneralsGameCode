@@ -1111,7 +1111,7 @@ message ReplayState
 	bool speed_capped = 4;		// the requested ratio was higher than the frame rate limit allows
 }
 
-// The observer's point of view: whose units, shroud and radar the local view shows. Observers and replay playback only.
+// The observer's point of view: whose units, shroud and radar the local view shows. Observers, defeated players and replay playback only.
 message ObserveQuery
 {
 	int32 player_index = 1;		// a player of the match; -1 = back to the all-seeing observer
