@@ -212,8 +212,15 @@ static uint16_t SlotStateFromWire(const std::string& state)
 }
 
 // The map path the map cache knows, from the path a lobby carries.
-static std::string GameMapPath(const std::string& mapPath, bool bOfficial)
+static std::string GameMapPath(std::string mapPath, bool bOfficial)
 {
+	// The lobby carries the map file name the host sent, and a map sits in a folder of the same name.
+	if (!mapPath.empty() && mapPath.find_first_of("\\/") == std::string::npos)
+	{
+		const size_t dot = mapPath.find_last_of('.');
+		mapPath = std::format("{}\\{}", mapPath.substr(0, dot), mapPath);
+	}
+
 	// correct map path
 	if (bOfficial)
 	{
