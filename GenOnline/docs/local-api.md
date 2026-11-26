@@ -46,13 +46,14 @@ A protobuf message whose fields all hold their default values encodes to zero by
 | 0x02 | game to reader | `StatsSnapshot` | light every 100 ms of game time, full every 500 ms by default, during a match (after STARTED) |
 | 0x03 | game to reader | `MatchSummary` | end of match, scores |
 | 0x04 | game to reader | `ChatMessage` | each chat line shown to the local player |
-| 0x05 | game to reader | `UiState` | the screen the game is on; the first frame after the Hello |
+| 0x05 | game to reader | `UiState` | the screen the game is on; the first frame after the Hello and the AccessState |
 | 0x06 | game to reader | `LobbyState` | game setup lobby changes; `in_lobby = false` on leaving |
 | 0x07 | game to reader | `Events` | the discrete events of one logic frame, sent at the end of that frame (after STARTED) |
 | 0x08 | game to reader | `Camera` | the local camera and minimap view box, from the render loop whenever it changed (after STARTED) |
 | 0x0A | game to reader | `Response` | the answer to one `Request`, sent only to the reader that asked |
 | 0x0B | game to reader | `ViewStats` | what is inside the local camera's view, per player, about four times a second by default (after STARTED) |
 | 0x0C | game to reader | `InterestMap` | the interest grid and the pending highlights, only for readers that switched `interest` on (after STARTED) |
+| 0x0D | game to reader | `AccessState` | whether the pipe carries data and which permissions apply; right after the Hello and on every change (see Gating) |
 | 0x10 | reader to game | `ChatSend` | send a chat line |
 | 0x11 | reader to game | `Request` | a query (see Requests and responses) |
 
@@ -75,8 +76,9 @@ The first frame on every connection is a `Hello` (type 0x09, sequence 0). The ga
 | `reader_slot`, `max_readers` | this connection's slot (0..3) and the number of slots (4) |
 | `epoch_unix_ms` | the wall clock in milliseconds since the Unix epoch at frame timestamp 0, so a reader can turn frame timestamps into wall-clock times |
 | `queue_capacity_bytes` | the outbound queue of this reader (1 MiB); a reader that falls this far behind loses frames |
+| `permissions` | the `local_api` permissions in force when the Hello was sent (see Gating); later changes arrive as `AccessState` |
 
-Capabilities in this version: `frame.sequence`, `frame.timestamp`, `multi_reader`, `chat.send`, `request.catalog`, `request.object`, `request.objects`, `request.player`, `request.map`, `request.resync`, `request.feed_config`, `map.minimap_rgba`, `event.object_ids`, `event.kill_detail`, `feed.per_reader`, and, added without a protocol change, `camera.control`, `camera.follow`, `camera.source`, `replay.control`, `observe.player`, `view_stats`, `interest_map`, `status.not_allowed`, `lobby.control` (see Camera, replay and observer control, In-view statistics, Interest map and Lobby control). A capability is a promise that the matching frame, field or request exists; a later version can add names without changing `protocol_version`.
+Capabilities in this version: `frame.sequence`, `frame.timestamp`, `multi_reader`, `chat.send`, `request.catalog`, `request.object`, `request.objects`, `request.player`, `request.map`, `request.resync`, `request.feed_config`, `map.minimap_rgba`, `event.object_ids`, `event.kill_detail`, `feed.per_reader`, and, added without a protocol change, `camera.control`, `camera.follow`, `camera.source`, `replay.control`, `observe.player`, `view_stats`, `interest_map`, `status.not_allowed`, `lobby.control`, `access_state` (see Camera, replay and observer control, In-view statistics, Interest map and Lobby control). A capability is a promise that the matching frame, field or request exists; a later version can add names without changing `protocol_version`.
 
 ## Sequence numbers and timestamps
 
@@ -165,7 +167,7 @@ A reader can steer the local client's view. These commands change **client-side 
 
 ## Gating
 
-**Role gate.** The pipe carries nothing while the local player is an active player in a LAN or online match, until the local player is defeated or the local alliance wins (the game then reveals the map anyway). Readers stay connected but get no frames, their requests and ChatSend frames are dropped without an answer, and when the gate opens every reader gets a new `Hello` and starts over as after a resync. Observers, replay playback, single player and skirmish are never gated, and neither are the shell and the lobbies.
+**Role gate.** The pipe carries nothing while the local player is an active player in a LAN or online match, until the local player is defeated or the local alliance wins (the game then reveals the map anyway). Readers stay connected and get only their `Hello` and an `AccessState` with `open = false` and the reason. Their requests and ChatSend frames are dropped without an answer, and when the gate opens every reader gets a new `Hello` and starts over as after a resync. Observers, replay playback, single player and skirmish are never gated, and neither are the shell and the lobbies.
 
 **Account access.** LAN and online games and their lobbies need a signed in Generals Online account, the `local_api` client feature of the service and a permission per capability, which the service grants per account or through a role. Without the account and the feature the pipe carries nothing there. Skirmish, single player, Generals Challenge and replay playback need no account and allow every capability.
 
@@ -1089,6 +1091,26 @@ The first frame of every connection (sequence 0). Everything a reader needs to k
 | 12 | `max_page_size` | uint32 | the largest page_size a paged query honours |
 | 13 | `queue_capacity_bytes` | uint32 | outbound queue per reader; a reader that falls this far behind loses frames (visible as sequence gaps) |
 | 14 | `game` | string | "zerohour" or "generals", the game this client runs |
+| 15 | `permissions` | repeated string | the local_api permissions in force when the Hello was sent |
+
+#### `AccessState`
+
+Sent right after the Hello and whenever the access of the readers changes. While `open` is false only `Hello` and `AccessState` arrive.
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `open` | bool | the pipe carries match data |
+| 2 | `reason` | AccessReason | why it does not, `ACCESS_REASON_NONE` while open |
+| 3 | `permissions` | repeated string | the local_api permissions in force |
+
+#### enum `AccessReason`
+
+| Value | Name | Meaning |
+|---|---|---|
+| 0 | `ACCESS_REASON_NONE` | the pipe is open |
+| 1 | `ACCESS_REASON_ACTIVE_PLAYER` | the local player plays a LAN or online match |
+| 2 | `ACCESS_REASON_SIGNED_OUT` | a LAN or online session without a signed in Generals Online account |
+| 3 | `ACCESS_REASON_FEATURE_OFF` | the service has the local_api client feature switched off |
 
 #### enum `ResponseStatus`
 

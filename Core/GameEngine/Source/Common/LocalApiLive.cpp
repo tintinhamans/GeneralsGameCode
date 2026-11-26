@@ -1178,7 +1178,7 @@ namespace
 			"frame.sequence", "frame.timestamp", "multi_reader", "chat.send",
 			"request.catalog", "request.object", "request.objects", "request.player", "request.map", "request.resync", "request.feed_config",
 			"map.minimap_rgba", "event.object_ids", "event.kill_detail", "feed.per_reader",
-			"camera.control", "camera.follow", "camera.source", "replay.control", "observe.player", "view_stats", "interest_map", "status.not_allowed", "lobby.control"
+			"camera.control", "camera.follow", "camera.source", "replay.control", "observe.player", "view_stats", "interest_map", "status.not_allowed", "lobby.control", "access_state"
 		};
 
 		localapi::Hello& hello = helloMessage();
@@ -1205,6 +1205,13 @@ namespace
 		hello.set_max_request_burst(LOCAL_API_REQUEST_BURST);
 		hello.set_max_page_size(LOCAL_API_MAX_PAGE_SIZE);
 		hello.set_queue_capacity_bytes(LOCAL_API_QUEUE_CAPACITY_BYTES);
+		for (Int permission = 0; permission < LOCAL_API_PERMISSION_COUNT; ++permission)
+		{
+			if (LocalApiPermitted((LocalApiPermission)permission))
+			{
+				hello.add_permissions(LocalApiPermissionName((LocalApiPermission)permission));
+			}
+		}
 #if RTS_ZEROHOUR
 		hello.set_game("zerohour");
 #else
@@ -2588,7 +2595,7 @@ void LocalApiLiveUpdate()
 
 	// Static player data lives only in MatchInfo, so the snapshots of a reader wait until its STARTED has been queued.
 	const Readers started = startedReaders(readers);
-	if (started.empty())
+	if (started.empty() || !LocalApiPermitted(LOCAL_API_PERMISSION_STATS))
 	{
 		return;
 	}
@@ -4401,7 +4408,7 @@ namespace
 		}
 
 		// Readers with the same settings share one build.
-		Readers remaining = viewDue;
+		Readers remaining = LocalApiPermitted(LOCAL_API_PERMISSION_STATS) ? viewDue : Readers();
 		while (!remaining.empty())
 		{
 			Int first = 0;
@@ -4424,7 +4431,7 @@ namespace
 		}
 
 		// The interest map weighs every army and every launch on the map, so it is not sent at all while gated.
-		if (!interestDue.empty() && LocalApiRevealsHiddenState() && computeInterest(now))
+		if (!interestDue.empty() && LocalApiRevealsHiddenState() && LocalApiPermitted(LOCAL_API_PERMISSION_INTEREST) && computeInterest(now))
 		{
 			remaining = interestDue;
 			while (!remaining.empty())

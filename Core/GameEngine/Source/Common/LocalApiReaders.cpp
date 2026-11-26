@@ -167,7 +167,7 @@ namespace
 
 	const UnsignedInt ALL_PERMISSIONS = (1u << LOCAL_API_PERMISSION_COUNT) - 1;
 
-	/// The permission an outbound frame type needs, or -1 for Hello and Response, which always pass.
+	/// The permission an outbound frame type needs, or -1 for Hello, Response and AccessState, which always pass.
 	Int framePermission(UnsignedByte frameType)
 	{
 		switch (frameType)
@@ -285,11 +285,17 @@ namespace
 				}
 			}
 			LeaveCriticalSection(&m_lock);
+			sendAccessState(readers);
 		}
 
 		virtual Bool enqueueFrame(UnsignedByte frameType, const UnsignedByte* body, UnsignedInt bodyLength, const LocalApiReaders& to)
 		{
-			if (!m_listening || !m_allowed || body == NULL || bodyLength == 0 || bodyLength > LOCAL_API_MAX_BODY_BYTES)
+			if (!m_listening || body == NULL || bodyLength == 0 || bodyLength > LOCAL_API_MAX_BODY_BYTES)
+			{
+				return FALSE;
+			}
+			// A closed pipe still greets a reader and tells it why nothing else arrives.
+			if (!m_allowed && frameType != LOCAL_API_FRAME_HELLO && frameType != LOCAL_API_FRAME_ACCESS_STATE)
 			{
 				return FALSE;
 			}
@@ -457,7 +463,7 @@ namespace
 			Bool welcomed;
 		};
 
-		PipeLocalApiSink() : m_server(m_table), m_listening(FALSE), m_startFailed(FALSE), m_allowed(TRUE), m_permitted(ALL_PERMISSIONS), m_stopped(FALSE), m_nextEpoch(1)
+		PipeLocalApiSink() : m_server(m_table), m_listening(FALSE), m_startFailed(FALSE), m_allowed(TRUE), m_permitted(ALL_PERMISSIONS), m_reason(localapi::ACCESS_REASON_NONE), m_sentMask(ALL_PERMISSIONS), m_stopped(FALSE), m_nextEpoch(1)
 		{
 			InitializeCriticalSection(&m_lock);
 			for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
@@ -508,7 +514,24 @@ namespace
 			const Bool gainedPermission = (mask & ~m_permitted) != 0;
 			m_permitted = mask;
 
-			const Bool allowed = LocalApiGatedPlayerIndex() < 0 && (!needsAccount || (signedIn && GenOnlineRealtimeBridge::HasClientFeature("local_api")));
+			Int reason = localapi::ACCESS_REASON_NONE;
+			if (LocalApiGatedPlayerIndex() >= 0)
+			{
+				reason = localapi::ACCESS_REASON_ACTIVE_PLAYER;
+			}
+			else if (needsAccount && !signedIn)
+			{
+				reason = localapi::ACCESS_REASON_SIGNED_OUT;
+			}
+			else if (needsAccount && !GenOnlineRealtimeBridge::HasClientFeature("local_api"))
+			{
+				reason = localapi::ACCESS_REASON_FEATURE_OFF;
+			}
+			const Bool changed = reason != m_reason || mask != m_sentMask;
+			m_reason = reason;
+			m_sentMask = mask;
+
+			const Bool allowed = reason == localapi::ACCESS_REASON_NONE;
 			if (allowed && (!m_allowed || gainedPermission) && m_listening)
 			{
 				// A reader missed what was held back, so it starts over with a new Hello.
@@ -523,13 +546,54 @@ namespace
 				LeaveCriticalSection(&m_lock);
 			}
 			m_allowed = allowed;
+
+			if (changed && m_listening)
+			{
+				LocalApiReaders welcomed;
+				EnterCriticalSection(&m_lock);
+				for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
+				{
+					if (m_slots[i].readerId != 0 && m_slots[i].welcomed)
+					{
+						welcomed.add(i, m_slots[i].epoch);
+					}
+				}
+				LeaveCriticalSection(&m_lock);
+				sendAccessState(welcomed);
+			}
+		}
+
+		void sendAccessState(const LocalApiReaders& to) const
+		{
+			if (to.empty())
+			{
+				return;
+			}
+			localapi::AccessState state;
+			state.set_open(m_reason == localapi::ACCESS_REASON_NONE);
+			state.set_reason((localapi::AccessReason)m_reason);
+			for (Int i = 0; i < LOCAL_API_PERMISSION_COUNT; ++i)
+			{
+				if (permitted((LocalApiPermission)i))
+				{
+					state.add_permissions(s_permissionNames[i]);
+				}
+			}
+			std::string body;
+			if (!state.SerializeToString(&body) || body.empty())
+			{
+				return;
+			}
+			// The sink is a single mutable instance, the const only marks the main thread accessors.
+			const_cast<PipeLocalApiSink*>(this)->enqueueFrame(LOCAL_API_FRAME_ACCESS_STATE, (const UnsignedByte*)body.data(), (UnsignedInt)body.size(), to);
 		}
 
 		/// Welcomed readers when welcomed is TRUE, the others otherwise. Any thread.
 		void collectReaders(Bool welcomed, LocalApiReaders& out) const
 		{
 			out.clear();
-			if (!m_allowed)
+			// Unwelcomed readers are listed also while the pipe is closed, so each gets its Hello and AccessState.
+			if (welcomed && !m_allowed)
 			{
 				return;
 			}
@@ -694,6 +758,8 @@ namespace
 		Bool m_startFailed;	///< set when the pipe could not start, so it is not retried every frame
 		mutable volatile Bool m_allowed;	///< FALSE while the local player plays a LAN or online match or an online game or lobby lacks the local_api client feature
 		mutable volatile UnsignedInt m_permitted;	///< bit per LocalApiPermission
+		mutable Int m_reason;	///< the localapi::AccessReason of the last refreshAccess, main thread only
+		mutable UnsignedInt m_sentMask;	///< the permissions the last AccessState reported, main thread only
 		Bool m_stopped;	///< set by shutdown() and never cleared, so the sink does not restart during engine teardown
 		mutable CRITICAL_SECTION m_lock;	///< guards m_slots, m_feed, m_feedEpoch and m_nextEpoch
 		mutable Slot m_slots[LOCAL_API_MAX_READERS];

@@ -15,11 +15,12 @@
 //     0x08 Camera         the local tactical camera and the minimap view box, sent from the render loop whenever it changed; waits for STARTED
 //     0x03 MatchSummary   end-of-match scores
 //     0x04 ChatMessage    a chat line as shown to the local player (in-match, game lobby or room)
-//     0x05 UiState        the screen the game is on; the first frame after the Hello
+//     0x05 UiState        the screen the game is on; the first frame after the Hello and the AccessState
 //     0x06 LobbyState     the game setup lobby the local user sits in; sent on change, and with in_lobby = false on leaving
 //     0x0A Response       the answer to one Request, sent only to the reader that asked
 //     0x0B ViewStats      what is inside the local camera's view, per player, at the cadence of FeedConfig.view_stats_interval_ms; waits for STARTED
 //     0x0C InterestMap    the interest grid and the pending highlights for an automatic camera director, off unless FeedConfig.interest is set; waits for STARTED
+//     0x0D AccessState    whether the pipe carries data and which permissions the account holds; right after the Hello and on every change
 //   inbound types (reader -> game):
 //     0x10 ChatSend       send a chat line through the game's own typed-line path, commands included
 //     0x11 Request        a query; answered with a Response of the same id
@@ -703,6 +704,25 @@ message Hello
 	uint32 max_page_size = 12;		// the largest page_size a paged query honours
 	uint32 queue_capacity_bytes = 13;	// outbound queue per reader; a reader that falls this far behind loses frames (visible as sequence gaps)
 	string game = 14;				// "zerohour" or "generals", the game this client runs
+	repeated string permissions = 15;	// the local_api permissions in force when the Hello was sent, see AccessState for changes
+}
+
+// Why the pipe carries no match data right now.
+enum AccessReason
+{
+	ACCESS_REASON_NONE = 0;			// the pipe is open
+	ACCESS_REASON_ACTIVE_PLAYER = 1;	// the local player plays a LAN or online match
+	ACCESS_REASON_SIGNED_OUT = 2;		// a LAN or online session without a signed in Generals Online account
+	ACCESS_REASON_FEATURE_OFF = 3;		// the service has the local_api client feature switched off
+}
+
+// Sent right after the Hello and whenever the access of the readers changes. While open is false only Hello and AccessState arrive,
+// requests and ChatSend frames are dropped, and when it turns true again every reader gets a new Hello.
+message AccessState
+{
+	bool open = 1;
+	AccessReason reason = 2;
+	repeated string permissions = 3;	// the local_api permissions in force, the same names as in local-api.md
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
