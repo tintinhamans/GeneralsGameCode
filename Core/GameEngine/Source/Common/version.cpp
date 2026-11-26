@@ -387,7 +387,12 @@ UnicodeString Version::getUnicodeProductVersionHashString() const
 	if (!productString.isEmpty())
 	{
 		str.concat(productString);
+#if defined(GENONLINE)
+		// GenOnline @tweak arcticdolphin 26/11/2026 The hashes go on a second line so the label stays narrow.
+		str.concat(L"\n");
+#else
 		str.concat(L" | ");
+#endif
 	}
 	str.concat(gameHash);
 	str.concat(L" ");

@@ -742,7 +742,7 @@ static void addVersionLabel(WindowLayout *screen)
 	// GenOnline @tweak arcticdolphin 24/11/2026 The label keeps to the left so it stays clear of the dock in the bottom right.
 	ICoord2D labelSize;
 	label->winGetSize(&labelSize.x, &labelSize.y);
-	label->winSetSize(labelSize.x * 3 / 10, labelSize.y);
+	label->winSetSize(labelSize.x * 2 / 5, labelSize.y);
 	if (TheVersion != nullptr)
 	{
 		GadgetStaticTextSetText(label, TheVersion->getUnicodeProductVersionHashString());
