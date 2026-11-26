@@ -1546,7 +1546,7 @@ static void editLobbyButtonDraw(GameWindow *window, WinInstanceData *instData)
 	TheWindowManager->winFillRect(color, 1.0f, x, y + frameWidth, x + frameWidth, y + height - frameWidth);
 	TheWindowManager->winFillRect(color, 1.0f, x + width - frameWidth, y + frameWidth, x + width, y + height - frameWidth);
 
-	// the pencil points to the bottom left: a tip, a shaft of two parallel lines and a flat end
+	// the pencil points to the bottom left: a tip, a shaft of two parallel lines, an eraser band and a flat end
 	const Real centerX = x + width * 0.5f;
 	const Real centerY = y + height * 0.5f;
 	const Real reach = (std::min)(width, height) * 0.3f;
@@ -1554,7 +1554,8 @@ static void editLobbyButtonDraw(GameWindow *window, WinInstanceData *instData)
 	const Real tipX = centerX - reach, tipY = centerY + reach;
 	const Real neckX = tipX + reach * 0.55f, neckY = tipY - reach * 0.55f;
 	const Real endX = centerX + reach, endY = centerY - reach;
-	const Real thickness = 1.5f;
+	const Real bandX = endX - reach * 0.35f, bandY = endY + reach * 0.35f;
+	const Real thickness = (std::max)(1.5f, (Real)frameWidth * 1.5f);
 	const auto line = [&](Real ax, Real ay, Real bx, Real by)
 	{
 		TheDisplay->drawLine((Int)(ax + 0.5f), (Int)(ay + 0.5f), (Int)(bx + 0.5f), (Int)(by + 0.5f), thickness, color);
@@ -1565,6 +1566,7 @@ static void editLobbyButtonDraw(GameWindow *window, WinInstanceData *instData)
 	line(neckX - half, neckY - half, endX - half, endY - half);
 	line(neckX + half, neckY + half, endX + half, endY + half);
 	line(endX - half, endY - half, endX + half, endY + half);
+	line(bandX - half, bandY - half, bandX + half, bandY + half);
 }
 
 static void populateCameraHeightCombo(Int current)
