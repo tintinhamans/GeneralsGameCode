@@ -31,6 +31,7 @@
 #include "GameClient/View.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Object.h"
+#include "GameLogic/Module/StealthUpdate.h"
 #include "GameLogic/VictoryConditions.h"
 #include "GameNetwork/NetworkInterface.h"
 
@@ -280,6 +281,65 @@ Bool LocalApiRevealsHiddenState()
 	return LocalApiGatedPlayerIndex() < 0;
 }
 
+Bool LocalApiObjectVisibleToGated(const Object* obj)
+{
+	const Int gated = LocalApiGatedPlayerIndex();
+	if (gated < 0)
+	{
+		return TRUE;
+	}
+	const Player* local = (gated < ThePlayerList->getPlayerCount()) ? ThePlayerList->getNthPlayer(gated) : NULL;
+	if (obj == NULL || local == NULL)
+	{
+		return FALSE;
+	}
+	const Player* owner = obj->getControllingPlayer();
+	if (owner == local || (obj->getTeam() != NULL && local->getRelationship(obj->getTeam()) == ALLIES))
+	{
+		return TRUE;
+	}
+	// A contained object has no partition data and reports itself clear, and the game never draws it on its own.
+	if (obj->getContainedBy() != NULL)
+	{
+		return FALSE;
+	}
+	// The same test the client uses to draw an object.
+	const ObjectShroudStatus shroud = obj->getShroudedStatus(gated);
+	if (shroud != OBJECTSHROUD_CLEAR && shroud != OBJECTSHROUD_PARTIAL_CLEAR)
+	{
+		return FALSE;
+	}
+	// The enemy side of StealthUpdate::calcStealthedStatusForPlayer: a dying object always shows, a disguised one shows its disguise,
+	// and a stealthed one hides until detected.
+	if (obj->isEffectivelyDead())
+	{
+		return TRUE;
+	}
+	const StealthUpdate* stealth = obj->getStealth();
+	if (stealth != NULL && stealth->isDisguised())
+	{
+		return TRUE;
+	}
+	return !obj->getStatusBits().test(OBJECT_STATUS_STEALTHED) || obj->getStatusBits().test(OBJECT_STATUS_DETECTED);
+}
+
+const ThingTemplate* LocalApiApparentTemplate(const Object* obj)
+{
+	if (obj == NULL)
+	{
+		return NULL;
+	}
+	const Int gated = LocalApiGatedPlayerIndex();
+	const Player* local = (gated >= 0 && gated < ThePlayerList->getPlayerCount()) ? ThePlayerList->getNthPlayer(gated) : NULL;
+	StealthUpdate* stealth = obj->getStealth();
+	if (local != NULL && stealth != NULL && stealth->isDisguised() && obj->getStatusBits().test(OBJECT_STATUS_STEALTHED)
+		&& (obj->getTeam() == NULL || local->getRelationship(obj->getTeam()) != ALLIES) && stealth->getDisguisedTemplate() != NULL)
+	{
+		return stealth->getDisguisedTemplate();
+	}
+	return obj->getTemplate();
+}
+
 void LocalApiControlCameraFrame(LocalApiCameraReport& report)
 {
 	if (TheTacticalView == NULL)
@@ -432,7 +492,8 @@ int LocalApiControlCamera(const localapi::CameraControlQuery& query, std::string
 	}
 	if (query.has_zoom())
 	{
-		t.zoom1 = query.zoom();
+		// The view applies a zoom without the height limit the player's own zoom keeps, so player mode stops at the game's farthest zoom.
+		t.zoom1 = (LocalApiGatedPlayerIndex() >= 0 && query.zoom() > 1.0f) ? 1.0f : query.zoom();
 		t.hasZoom = TRUE;
 	}
 	if (query.has_angle())

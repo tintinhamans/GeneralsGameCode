@@ -383,7 +383,11 @@ namespace
 			const Object* victim = ai->getCurrentVictim();
 			if (victim != NULL)
 			{
-				out.set_target_object_id(victim->getID());
+				// In player mode a target that went into the fog is neither named nor placed.
+				if (LocalApiObjectVisibleToGated(victim))
+				{
+					out.set_target_object_id(victim->getID());
+				}
 			}
 			else
 			{

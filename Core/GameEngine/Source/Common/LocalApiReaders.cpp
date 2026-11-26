@@ -167,6 +167,12 @@ namespace
 
 	const UnsignedInt ALL_PERMISSIONS = (1u << LOCAL_API_PERMISSION_COUNT) - 1;
 
+	/// Player mode leaves out the map wide interest grid, replay control and the observer point of view.
+	const UnsignedInt PLAYER_MODE_PERMISSIONS = ALL_PERMISSIONS
+		& ~(1u << LOCAL_API_PERMISSION_INTEREST)
+		& ~(1u << LOCAL_API_PERMISSION_REPLAY_CONTROL)
+		& ~(1u << LOCAL_API_PERMISSION_OBSERVE);
+
 	/// The permission an outbound frame type needs, or -1 for Hello, Response and AccessState, which always pass.
 	Int framePermission(UnsignedByte frameType)
 	{
@@ -463,7 +469,7 @@ namespace
 			Bool welcomed;
 		};
 
-		PipeLocalApiSink() : m_server(m_table), m_listening(FALSE), m_startFailed(FALSE), m_allowed(TRUE), m_permitted(ALL_PERMISSIONS), m_reason(localapi::ACCESS_REASON_NONE), m_sentMask(ALL_PERMISSIONS), m_stopped(FALSE), m_nextEpoch(1)
+		PipeLocalApiSink() : m_server(m_table), m_listening(FALSE), m_startFailed(FALSE), m_allowed(TRUE), m_permitted(ALL_PERMISSIONS), m_reason(localapi::ACCESS_REASON_NONE), m_playerMode(FALSE), m_sentMask(ALL_PERMISSIONS), m_stopped(FALSE), m_nextEpoch(1)
 		{
 			InitializeCriticalSection(&m_lock);
 			for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
@@ -484,9 +490,6 @@ namespace
 		}
 
 		/// Main thread only, the results are cached in m_allowed and m_permitted for the other threads.
-		/// The pipe is closed while the local player is an active player in a LAN or online match. LAN and online games and their
-		/// lobbies also need a signed in account with the local_api client feature and a local_api permission per capability.
-		/// Skirmish, single player, challenge and replays need no account.
 		void refreshAccess() const
 		{
 			const GameMode mode = TheGameLogic != NULL ? TheGameLogic->getGameMode() : GAME_NONE;
@@ -511,15 +514,18 @@ namespace
 					}
 				}
 			}
+			const Bool playerMode = LocalApiGatedPlayerIndex() >= 0;
+			if (playerMode)
+			{
+				mask &= PLAYER_MODE_PERMISSIONS;
+			}
 			const Bool gainedPermission = (mask & ~m_permitted) != 0;
+			const Bool modeChanged = playerMode != m_playerMode;
 			m_permitted = mask;
+			m_playerMode = playerMode;
 
 			Int reason = localapi::ACCESS_REASON_NONE;
-			if (LocalApiGatedPlayerIndex() >= 0)
-			{
-				reason = localapi::ACCESS_REASON_ACTIVE_PLAYER;
-			}
-			else if (needsAccount && !signedIn)
+			if (needsAccount && !signedIn)
 			{
 				reason = localapi::ACCESS_REASON_SIGNED_OUT;
 			}
@@ -527,14 +533,14 @@ namespace
 			{
 				reason = localapi::ACCESS_REASON_FEATURE_OFF;
 			}
-			const Bool changed = reason != m_reason || mask != m_sentMask;
+			const Bool changed = reason != m_reason || mask != m_sentMask || modeChanged;
 			m_reason = reason;
 			m_sentMask = mask;
 
 			const Bool allowed = reason == localapi::ACCESS_REASON_NONE;
-			if (allowed && (!m_allowed || gainedPermission) && m_listening)
+			if (allowed && (!m_allowed || gainedPermission || modeChanged) && m_listening)
 			{
-				// A reader missed what was held back, so it starts over with a new Hello.
+				// A reader missed what was held back, or sees a different scope now, so it starts over with a new Hello.
 				EnterCriticalSection(&m_lock);
 				for (Int i = 0; i < LOCAL_API_MAX_READERS; ++i)
 				{
@@ -572,6 +578,7 @@ namespace
 			localapi::AccessState state;
 			state.set_open(m_reason == localapi::ACCESS_REASON_NONE);
 			state.set_reason((localapi::AccessReason)m_reason);
+			state.set_player_mode(m_playerMode);
 			for (Int i = 0; i < LOCAL_API_PERMISSION_COUNT; ++i)
 			{
 				if (permitted((LocalApiPermission)i))
@@ -759,6 +766,7 @@ namespace
 		mutable volatile Bool m_allowed;	///< FALSE while the local player plays a LAN or online match or an online game or lobby lacks the local_api client feature
 		mutable volatile UnsignedInt m_permitted;	///< bit per LocalApiPermission
 		mutable Int m_reason;	///< the localapi::AccessReason of the last refreshAccess, main thread only
+		mutable Bool m_playerMode;	///< the local player plays a LAN or online match, main thread only
 		mutable UnsignedInt m_sentMask;	///< the permissions the last AccessState reported, main thread only
 		Bool m_stopped;	///< set by shutdown() and never cleared, so the sink does not restart during engine teardown
 		mutable CRITICAL_SECTION m_lock;	///< guards m_slots, m_feed, m_feedEpoch and m_nextEpoch

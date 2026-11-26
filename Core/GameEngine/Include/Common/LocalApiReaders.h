@@ -18,7 +18,7 @@
 // Protocol reference: GenOnline/docs/local-api.md
 // Live match stats for out-of-process readers. The game serves the named pipe (\\.\pipe\genonline-caster-<pid>) when
 // settings.client.json local_api.enabled is true (GenOnlineLocalApiPipe.h). Without it, in headless runs and in replay-simulation
-// processes there is no sink. An active player in a LAN or online match gets nothing (LocalApiGatedPlayerIndex), and LAN and
+// processes there is no sink. An active player in a LAN or online match gets only what that player sees (LocalApiGatedPlayerIndex), and LAN and
 // online need a signed in account with the local_api permission of each capability.
 //
 // Up to LOCAL_API_MAX_READERS readers connect. A slow reader loses its own frames and never stalls the game or another reader.

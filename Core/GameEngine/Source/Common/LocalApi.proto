@@ -711,9 +711,8 @@ message Hello
 enum AccessReason
 {
 	ACCESS_REASON_NONE = 0;			// the pipe is open
-	ACCESS_REASON_ACTIVE_PLAYER = 1;	// the local player plays a LAN or online match
-	ACCESS_REASON_SIGNED_OUT = 2;		// a LAN or online session without a signed in Generals Online account
-	ACCESS_REASON_FEATURE_OFF = 3;		// the service has the local_api client feature switched off
+	ACCESS_REASON_SIGNED_OUT = 1;		// a LAN or online session without a signed in Generals Online account
+	ACCESS_REASON_FEATURE_OFF = 2;		// the service has the local_api client feature switched off
 }
 
 // Sent right after the Hello and whenever the access of the readers changes. While open is false only Hello and AccessState arrive,
@@ -723,6 +722,7 @@ message AccessState
 	bool open = 1;
 	AccessReason reason = 2;
 	repeated string permissions = 3;	// the local_api permissions in force, the same names as in local-api.md
+	bool player_mode = 4;			// the local player plays a LAN or online match, so frames carry only what that player can see
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

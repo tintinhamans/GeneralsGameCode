@@ -325,6 +325,9 @@ namespace
 	UnsignedInt s_valueDestroyed[16];
 	UnsignedInt s_valueLost[16];
 	UnsignedInt s_kills[16][4];		// by victim category: infantry, vehicle, aircraft, structure
+	// The part of the two counters above that the killing player could not see, left out of the snapshot in player mode.
+	UnsignedInt s_hiddenValueDestroyed[16];
+	UnsignedInt s_hiddenKills[16][4];
 	UnsignedInt s_losses[16][4];
 	UnsignedInt s_spent[16][4];		// units, structures, upgrades (cash), sciences (general points)
 
@@ -675,6 +678,8 @@ namespace
 		memset(s_valueDestroyed, 0, sizeof(s_valueDestroyed));
 		memset(s_valueLost, 0, sizeof(s_valueLost));
 		memset(s_kills, 0, sizeof(s_kills));
+		memset(s_hiddenValueDestroyed, 0, sizeof(s_hiddenValueDestroyed));
+		memset(s_hiddenKills, 0, sizeof(s_hiddenKills));
 		memset(s_losses, 0, sizeof(s_losses));
 		memset(s_spent, 0, sizeof(s_spent));
 		memset(s_playerLeft, 0, sizeof(s_playerLeft));
@@ -972,7 +977,7 @@ namespace
 		s_hasOnlineMatch = TRUE;
 	}
 
-	void fillConnection(localapi::OnlineConnection* out, int64_t userId, PlayerConnection& connection)
+	void fillConnection(localapi::OnlineConnection* out, int64_t userId, PlayerConnection& connection, Bool revealEndpoint)
 	{
 		out->set_user_id(userId);
 		out->set_latency_ms(connection.GetLatency());
@@ -983,7 +988,8 @@ namespace
 		{
 			out->mutable_endpoint()->set_relayed(true);	// the address the client holds would be the relay's, so none is exported
 		}
-		else if (connection.GetSteamConnection() != k_HSteamNetConnection_Invalid)
+		// The addresses of the other players are of no use to a player and could aim at their connections.
+		else if (connection.GetSteamConnection() != k_HSteamNetConnection_Invalid && revealEndpoint)
 		{
 			SteamNetConnectionInfo_t info;
 			if (SteamNetworkingSockets()->GetConnectionInfo(connection.GetSteamConnection(), &info) && !info.m_addrRemote.IsIPv6AllZeros())
@@ -1048,7 +1054,7 @@ namespace
 	}
 
 	template <typename ConnectionList>
-	void fillConnections(ConnectionList* list)
+	void fillConnections(ConnectionList* list, Bool revealEndpoints)
 	{
 		NetworkMesh* mesh = GenOnlineServicesManager::GetNetworkMesh();
 		if (mesh == nullptr)
@@ -1061,7 +1067,7 @@ namespace
 		{
 			if (it->second.IsValid())
 			{
-				fillConnection(list->add_connections(), it->first, it->second);
+				fillConnection(list->add_connections(), it->first, it->second, revealEndpoints);
 			}
 		}
 	}
@@ -1296,11 +1302,24 @@ namespace
 		return index >= 0 && index < kMaxCounterPlayers && s_playerLeft[index];
 	}
 
+	// The players of a loading match do not exist yet, so player mode is read from the local slot of a LAN or online game.
+	Bool loadingAsPlayer(const GameInfo* game)
+	{
+		if (game == NULL || (s_matchMode != localapi::MATCH_MODE_LAN && s_matchMode != localapi::MATCH_MODE_ONLINE))
+		{
+			return FALSE;
+		}
+		const GameSlot* local = (game->getLocalSlotNum() >= 0) ? game->getConstSlot(game->getLocalSlotNum()) : NULL;
+		return local == NULL || local->getOriginalPlayerTemplate() != PLAYERTEMPLATE_OBSERVER;
+	}
+
 	// Per-slot MatchPlayer builder. Results are UNKNOWN (OBSERVER for observers) until `ended`. On ENDED a decisive result
 	// (`completed`) gives the victorious alliance WON and everyone else LOST, and without one a player who left is LEFT, a defeated
 	// player LOST and any other UNKNOWN.
 	void buildMatchPlayers(localapi::MatchInfo& info, Bool ended, Bool completed)
 	{
+		// In player mode a slot shows what the game shows that player, so a random side or start of an opponent stays random.
+		const Bool apparent = LocalApiGatedPlayerIndex() >= 0;
 		for (Int slot = 0; slot < MAX_SLOTS; ++slot)
 		{
 			Player* player = playerFromSlot(slot);
@@ -1328,12 +1347,17 @@ namespace
 				const GameSlot* gameSlot = (lobbySlot >= 0) ? TheGameInfo->getConstSlot(lobbySlot) : NULL;
 				if (gameSlot != NULL)
 				{
+					const Int startPos = apparent ? gameSlot->getApparentStartPos() : gameSlot->getStartPos();
 					p->set_team(gameSlot->getTeamNumber());
-					p->set_start_position(gameSlot->getStartPos());
-					if (TheTerrainLogic != NULL && gameSlot->getStartPos() >= 0)
+					p->set_start_position(startPos);
+					if (apparent && gameSlot->getApparentPlayerTemplate() == PLAYERTEMPLATE_RANDOM)
+					{
+						p->set_side("Random");
+					}
+					if (TheTerrainLogic != NULL && startPos >= 0)
 					{
 						AsciiString waypointName;
-						waypointName.format("Player_%d_Start", gameSlot->getStartPos() + 1);	// start waypoints are 1-based
+						waypointName.format("Player_%d_Start", startPos + 1);	// start waypoints are 1-based
 						const Waypoint* waypoint = TheTerrainLogic->getWaypointByName(waypointName);
 						if (waypoint != NULL)
 						{
@@ -1342,7 +1366,8 @@ namespace
 							p->set_start_y(waypoint->getLocation()->y);
 						}
 					}
-					if (s_matchMode == localapi::MATCH_MODE_LAN && gameSlot->getIP() != 0)
+					// The addresses of the other players are of no use to a player and could aim at their connections.
+					if (!apparent && s_matchMode == localapi::MATCH_MODE_LAN && gameSlot->getIP() != 0)
 					{
 						char ip[32];
 						sprintf(ip, "%u.%u.%u.%u", PRINTF_IP_AS_4_INTS(gameSlot->getIP()));
@@ -1737,7 +1762,9 @@ void LocalApiLiveKill(Int playerIndex, const Object* killer, const Object* victi
 		return;
 	}
 
-	const ThingTemplate* victimTmpl = victim->getTemplate();
+	// The visibility is taken now because the victim is gone when the events leave.
+	const Bool unseen = playerIndex >= 0 && playerIndex == LocalApiGatedPlayerIndex() && !LocalApiObjectVisibleToGated(victim);
+	const ThingTemplate* victimTmpl = LocalApiApparentTemplate(victim);
 	PendingEvent event;
 	event.playerIndex = playerIndex;
 	event.kind = localapi::STATEVENT_KILL;
@@ -1760,18 +1787,29 @@ void LocalApiLiveKill(Int playerIndex, const Object* killer, const Object* victi
 		{
 			++s_kills[playerIndex][category];
 		}
+		if (unseen)
+		{
+			s_hiddenValueDestroyed[playerIndex] += event.cost;
+			if (category >= 0)
+			{
+				++s_hiddenKills[playerIndex][category];
+			}
+		}
 	}
 	if (viewTrackingActive())
 	{
 		const Coord3D* where = victim->getPosition();
 		const UnsignedInt now = TheGameLogic->getFrame();
 		addInterest(where->x, where->y, (Real)event.cost * kInterestKillWeight, now);
-		if (playerIndex >= 0 && playerIndex < kMaxCounterPlayers && pointInView(where->x, where->y))
+		if (!unseen && playerIndex >= 0 && playerIndex < kMaxCounterPlayers && pointInView(where->x, where->y))
 		{
 			windowBucket(now).killed[playerIndex] += event.cost;
 		}
 	}
-	pushPendingEvent(event);
+	if (!unseen)
+	{
+		pushPendingEvent(event);
+	}
 }
 
 void LocalApiLiveLoss(Int playerIndex, const Object* victim, const Object* killer)
@@ -1788,10 +1826,11 @@ void LocalApiLiveLoss(Int playerIndex, const Object* victim, const Object* kille
 	event.category = classifyThingTemplateCategory(victimTmpl);
 	event.primaryName = templateName(victimTmpl);
 	event.objectId = victim->getID();
-	if (killer != NULL)
+	// In player mode the killer of an own unit is named only when the local player can see it, and as the disguise it shows.
+	if (killer != NULL && (playerIndex != LocalApiGatedPlayerIndex() || LocalApiObjectVisibleToGated(killer)))
 	{
 		event.killerObjectId = killer->getID();
-		event.killerTemplate = templateName(killer->getTemplate());
+		event.killerTemplate = templateName(LocalApiApparentTemplate(killer));
 		event.weapon = lastFiredWeaponName(killer);
 	}
 	event.cost = (victimTmpl != NULL) ? (UnsignedInt)victimTmpl->friend_getBuildCost() : 0;
@@ -1897,7 +1936,9 @@ void LocalApiLiveDamage(const Object* victim, ObjectID attackerId, Real healthRe
 	const UnsignedInt now = TheGameLogic->getFrame();
 	addInterest(where->x, where->y, healthRemoved * kInterestDamageWeight, now);
 	const Int attackerIndex = attackerOwner->getPlayerIndex();
-	if (attackerIndex >= 0 && attackerIndex < kMaxCounterPlayers && pointInView(where->x, where->y))
+	// In player mode damage on a target the local player cannot see would reveal that target.
+	const Bool unseen = attackerIndex == LocalApiGatedPlayerIndex() && !LocalApiObjectVisibleToGated(victim);
+	if (!unseen && attackerIndex >= 0 && attackerIndex < kMaxCounterPlayers && pointInView(where->x, where->y))
 	{
 		windowBucket(now).damage[attackerIndex] += healthRemoved;
 	}
@@ -2063,11 +2104,15 @@ namespace
 			p->set_total_money_earned(scoreKeeper->getTotalMoneyEarned());
 			p->set_units_built(scoreKeeper->getTotalUnitsBuilt());
 			p->set_units_lost(scoreKeeper->getTotalUnitsLost());
-			p->set_units_destroyed(scoreKeeper->getTotalUnitsDestroyed());
 			p->set_buildings_built(scoreKeeper->getTotalBuildingsBuilt());
 			p->set_buildings_lost(scoreKeeper->getTotalBuildingsLost());
-			p->set_buildings_destroyed(scoreKeeper->getTotalBuildingsDestroyed());
-			p->set_score(scoreKeeper->calculateScore());
+			// The score keeper counts kills in the fog too, so these stay out in player mode, use kills instead.
+			if (gated < 0)
+			{
+				p->set_units_destroyed(scoreKeeper->getTotalUnitsDestroyed());
+				p->set_buildings_destroyed(scoreKeeper->getTotalBuildingsDestroyed());
+				p->set_score(scoreKeeper->calculateScore());
+			}
 
 			// Deposits over the last 60 seconds, kept by Money whether or not a HUD shows it
 			p->set_money_per_minute(player->getMoney()->getCashPerMinute());
@@ -2120,14 +2165,15 @@ namespace
 			{
 				p->set_actions_total(s_actionsTotal[counterIndex]);
 				p->set_apm_current(actionsPerMinute(counterIndex, now));
-				p->set_value_destroyed(s_valueDestroyed[counterIndex]);
+				const Bool hideUnseen = gated >= 0;
+				p->set_value_destroyed(s_valueDestroyed[counterIndex] - (hideUnseen ? s_hiddenValueDestroyed[counterIndex] : 0));
 				p->set_value_lost(s_valueLost[counterIndex]);
 
 				localapi::CategoryCounts* kills = p->mutable_kills();
-				kills->set_infantry(s_kills[counterIndex][0]);
-				kills->set_vehicle(s_kills[counterIndex][1]);
-				kills->set_aircraft(s_kills[counterIndex][2]);
-				kills->set_structure(s_kills[counterIndex][3]);
+				kills->set_infantry(s_kills[counterIndex][0] - (hideUnseen ? s_hiddenKills[counterIndex][0] : 0));
+				kills->set_vehicle(s_kills[counterIndex][1] - (hideUnseen ? s_hiddenKills[counterIndex][1] : 0));
+				kills->set_aircraft(s_kills[counterIndex][2] - (hideUnseen ? s_hiddenKills[counterIndex][2] : 0));
+				kills->set_structure(s_kills[counterIndex][3] - (hideUnseen ? s_hiddenKills[counterIndex][3] : 0));
 				localapi::CategoryCounts* losses = p->mutable_losses();
 				losses->set_infantry(s_losses[counterIndex][0]);
 				losses->set_vehicle(s_losses[counterIndex][1]);
@@ -2464,7 +2510,8 @@ namespace
 				for (DrawableList::const_iterator it = selected->begin(); it != selected->end() && (size_t)snapshot.selected_object_ids_size() < kMaxSelectedObjects; ++it)
 				{
 					const Object* selectedObject = (*it != NULL) ? (*it)->getObject() : NULL;
-					if (selectedObject != NULL)
+					// A selected enemy stays selected when it walks into the fog, so player mode lists it only while it is seen.
+					if (selectedObject != NULL && LocalApiObjectVisibleToGated(selectedObject))
 					{
 						snapshot.add_selected_object_ids(selectedObject->getID());
 					}
@@ -2502,7 +2549,7 @@ namespace
 
 			if (s_hasOnlineMatch)
 			{
-				fillConnections(&snapshot);
+				fillConnections(&snapshot, LocalApiRevealsHiddenState());
 			}
 		}
 
@@ -3688,8 +3735,12 @@ namespace
 			}
 		}
 		const LobbyPrediction& prediction = s_prediction;
-		out.set_prediction_valid(prediction.valid);
-		out.set_prediction_start_positions_valid(prediction.valid && prediction.startPositionsValid);
+		// A player of a LAN or online lobby never learns the random outcomes of the match ahead, nor the addresses of the others.
+		const GameSlot* localSlot = (game->getLocalSlotNum() >= 0) ? game->getConstSlot(game->getLocalSlotNum()) : NULL;
+		const Bool asPlayer = (kind == localapi::LOBBY_KIND_LAN || kind == localapi::LOBBY_KIND_ONLINE)
+			&& (localSlot == NULL || localSlot->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER);
+		out.set_prediction_valid(prediction.valid && !asPlayer);
+		out.set_prediction_start_positions_valid(prediction.valid && prediction.startPositionsValid && !asPlayer);
 		s_predictionValid = prediction.valid;
 		s_predictionStartPositionsValid = prediction.valid && prediction.startPositionsValid;
 		s_predictionSeed = game->getSeed();
@@ -3702,7 +3753,7 @@ namespace
 		}
 		s_predictedCameraSet = s_predictionStartPositionsValid && prediction.cameraSet;
 		s_predictedCameraStartPos = s_predictedCameraSet ? prediction.cameraStartPos : -1;
-		if (s_predictedCameraSet)
+		if (s_predictedCameraSet && !asPlayer)
 		{
 			localapi::ObserverCamera* camera = out.mutable_predicted_observer_camera();
 			camera->set_start_position(prediction.cameraStartPos);
@@ -3731,7 +3782,7 @@ namespace
 			ls->set_has_map(slot->hasMap());
 			ls->set_is_ready(slot->isAccepted());
 			ls->set_start_position(slot->getStartPos());
-			if (s_predictionValid && slot->isOccupied())
+			if (s_predictionValid && !asPlayer && slot->isOccupied())
 			{
 				const Int templateIndex = s_predictedSlots[i].templateIndex;
 				if (templateIndex == PLAYERTEMPLATE_OBSERVER)
@@ -3801,7 +3852,7 @@ namespace
 			{
 				// LAN and skirmish: the host is slot 0, and a LAN slot carries its address.
 				ls->set_is_host(i == 0);
-				if (kind == localapi::LOBBY_KIND_LAN && slot->getIP() != 0)
+				if (!asPlayer && kind == localapi::LOBBY_KIND_LAN && slot->getIP() != 0)
 				{
 					char ip[32];
 					sprintf(ip, "%u.%u.%u.%u", PRINTF_IP_AS_4_INTS(slot->getIP()));
@@ -3812,7 +3863,7 @@ namespace
 
 		if (kind == localapi::LOBBY_KIND_ONLINE)
 		{
-			fillConnections(&out);
+			fillConnections(&out, !asPlayer);
 		}
 		return true;
 	}
@@ -4741,6 +4792,7 @@ namespace
 		info.set_replay_path("");
 		info.set_local_player_index(-1);
 
+		const Bool apparent = loadingAsPlayer(game);
 		for (Int i = 0; i < MAX_SLOTS; ++i)
 		{
 			const GameSlot* slot = game->getConstSlot(i);
@@ -4755,12 +4807,12 @@ namespace
 			p->set_name(toUtf8(slot->getName()));
 			p->set_is_human(slot->isHuman());
 			p->set_team(slot->getTeamNumber());
-			p->set_start_position(slot->getStartPos());
+			p->set_start_position(apparent ? slot->getApparentStartPos() : slot->getStartPos());
 			p->set_is_color_random(slot->getOriginalColor() < 0);
 			p->set_is_side_random(slot->getOriginalPlayerTemplate() == PLAYERTEMPLATE_RANDOM);
 			p->set_result(localapi::PLAYER_RESULT_UNKNOWN);
 
-			const Int templateIndex = slot->getPlayerTemplate();
+			const Int templateIndex = apparent ? slot->getApparentPlayerTemplate() : slot->getPlayerTemplate();
 			p->set_is_observer(templateIndex == PLAYERTEMPLATE_OBSERVER);
 			if (templateIndex == PLAYERTEMPLATE_OBSERVER)
 			{
@@ -4772,13 +4824,14 @@ namespace
 				p->set_side((playerTemplate != NULL) ? playerTemplate->getSide().str() : "Random");
 			}
 
-			const Int colorIndex = slot->getColor();
+			// getApparentColor gives an observer slot a packed colour instead of an index, so observers keep their own index.
+			const Int colorIndex = (apparent && slot->getOriginalPlayerTemplate() != PLAYERTEMPLATE_OBSERVER) ? slot->getApparentColor() : slot->getColor();
 			if (TheMultiplayerSettings != NULL && colorIndex >= 0 && colorIndex < TheMultiplayerSettings->getNumColors())
 			{
 				p->set_color((uint32_t)TheMultiplayerSettings->getColor(colorIndex)->getColor());
 			}
 
-			if (s_matchMode == localapi::MATCH_MODE_LAN && slot->getIP() != 0)
+			if (!apparent && s_matchMode == localapi::MATCH_MODE_LAN && slot->getIP() != 0)
 			{
 				char ip[32];
 				sprintf(ip, "%u.%u.%u.%u", PRINTF_IP_AS_4_INTS(slot->getIP()));
@@ -5016,6 +5069,15 @@ void LocalApiLiveCapture(const Object* captured, const Player* oldOwner, const P
 	}
 	event.cost = bonus;
 	event.objectId = captured->getID();
+	// In player mode a lost building does not tell the local player the capture bonus of the enemy, nor who took it out of sight.
+	if (event.intValue1 == LocalApiGatedPlayerIndex())
+	{
+		event.cost = 0;
+		if (!LocalApiObjectVisibleToGated(captured))
+		{
+			event.playerIndex = -1;
+		}
+	}
 	pushPendingEvent(event);
 }
 

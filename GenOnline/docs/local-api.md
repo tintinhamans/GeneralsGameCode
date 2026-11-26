@@ -167,7 +167,15 @@ A reader can steer the local client's view. These commands change **client-side 
 
 ## Gating
 
-**Role gate.** The pipe carries nothing while the local player is an active player in a LAN or online match, until the local player is defeated or the local alliance wins (the game then reveals the map anyway). Readers stay connected and get only their `Hello` and an `AccessState` with `open = false` and the reason. Their requests and ChatSend frames are dropped without an answer, and when the gate opens every reader gets a new `Hello` and starts over as after a resync. Observers, replay playback, single player and skirmish are never gated, and neither are the shell and the lobbies.
+**Player mode.** While the local player is an active player in a LAN or online match, until the local player is defeated or the local alliance wins (the game then reveals the map anyway), the pipe carries only what that player can see in the game. `AccessState.player_mode` is true, and when the game enters or leaves player mode every reader gets a new `Hello` and starts over as after a resync. Observers, replay playback, single player and skirmish never run in player mode. In player mode:
+
+- `InterestMap`, `ReplayControlQuery` and `ObserveQuery` are not available, whatever the permissions.
+- `StatsSnapshot` and `ViewStats` hold only the local player's entry. Supply sources and tech structures are left out. `kills` and `value_destroyed` count only kills of objects the local player could see, and `units_destroyed`, `buildings_destroyed` and `score` are not sent.
+- `Events` carries the local player's own events, `PLAYER_LEFT`, `PLAYER_DEFEATED` and captures of the local player's structures. A kill of an object the local player could not see is not reported. A loss names its killer only when the local player could see it. A captured structure never carries the capture bonus, and names its new owner only while the structure is in sight.
+- An enemy object counts as seen when it is outside any container, not fogged or shrouded for the local player and not invisible by stealth. A disguised enemy is reported as its disguise.
+- `ObjectQuery`, `ObjectsQuery` and `PlayerQuery` answer only for the local player's objects and player. An own unit's target is named only while it is in sight. `CameraFollowQuery` follows only own objects, and `CameraControlQuery` zooms no farther than the game's own farthest zoom.
+- `MatchInfo` shows an opponent who chose a random side or start as random, as the game does. `LobbyState` in a LAN or online lobby carries no predictions when the local user joined as a player. In player mode and in such a lobby the network addresses of the other players are not sent.
+- `selected_object_ids` lists a selected enemy only while it is in sight.
 
 **Account access.** LAN and online games and their lobbies need a signed in Generals Online account, the `local_api` client feature of the service and a permission per capability, which the service grants per account or through a role. Without the account and the feature the pipe carries nothing there. Skirmish, single player, Generals Challenge and replay playback need no account and allow every capability.
 
@@ -236,7 +244,7 @@ Which frames wait for STARTED:
 - **Resync.** One-shot frames (`Hello`, `MatchInfo`, `MatchSummary`, `UiState`, `LobbyState`) and responses may use the whole outbound queue of a reader, periodic frames (snapshots, events, camera, view statistics, interest map) may not use its last 64 KiB. If a one-shot frame is still dropped because a slow reader filled its queue, the game remembers it for that reader and, once the queue has drained to half empty, sends that reader `UiState` again, resends STARTED (a repeated STARTED for the running match; treat it as idempotent), sends `LobbyState` again if the user is in a lobby and a full snapshot. A reader can ask for the same with a `ResyncQuery`. A dropped `MatchSummary` or ENDED cannot be repeated.
 - A superweapon or special power is reported when the player owns the required science, or when the power requires none; a structure still under construction is not reported until it is complete.
 - **Live objects.** Everything that is computed from the object list (army value, class value and counts, live template counts, worker, harvester and idle worker counts, heroes, readiness, superweapons, production, the position grids) excludes objects that are effectively dead (destroyed and waiting for removal). A structure under construction counts as live for army value, class counts, template counts, the superweapon structure count and the grids, but not for readiness or superweapon timers.
-- **Omniscient outside gating.** The stats are not filtered by what the local player can see: the pipe serves no active player of a LAN or online match (see Gating), and they come from the simulation, which every client runs identically, so a snapshot shows every player's economy, army, production and positions regardless of fog of war. Only the local client's own selection, camera and speed numbers are client-side.
+- **Omniscient outside gating.** The stats are not filtered by what the local player can see, except in player mode (see Gating): they come from the simulation, which every client runs identically, so a snapshot shows every player's economy, army, production and positions regardless of fog of war. Only the local client's own selection, camera and speed numbers are client-side.
 - Build and spend counts (`units_built`, `buildings_built`, `spent_*`, and the BUILD events) are the engine's ScoreKeeper counts and therefore also include objects the engine creates for a player other than through production (replacements, spawned units, objects created by object creation lists), in addition to what a player pays for, but not the starting buildings and units placed at map load.
 - Chat is independent of the match phase and flows in menus, lobbies and rooms.
 
@@ -365,7 +373,7 @@ The template buckets (`category` for kill, loss, build, sell, capture, evacuate,
 
 ## Scope and known limitations
 
-- Stats are the simulation's and are not filtered by fog of war. While the local player plays a LAN or online match, the pipe therefore carries nothing (see Gating). Observers and replays get every player's economy, army, production and positions.
+- Stats are the simulation's and are not filtered by fog of war. While the local player plays a LAN or online match, the pipe therefore runs in player mode (see Gating). Observers and replays get every player's economy, army, production and positions.
 - Campaign and solo games have no lobby slots to map players to and get no per-player snapshots (events, camera, UiState and the MatchInfo frames still flow).
 - The exporter runs in Generals and Zero Hour alike (`MatchInfo.game` and `Hello.game` say which). Generals has no battle plans, Strategy Centers, power sabotage, salvage armor upgrades, challenge generals or sub faction base sides, so those fields and events stay at their defaults there, the base side is the side, and the lobby prediction and the superweapon highlights only cover what Generals has (a single particle cannon, start positions without the Zero Hour team grouping). Zero Hour only special powers are never reported by Generals. Generals counts the cost of a finished unit as money spent for its score screen and for the `Spend` events, as Zero Hour does.
 - Online identity data (match id, user ids, IPs) is exported exactly as the client knows it; fields are 0 or empty when unknown.
@@ -1102,15 +1110,15 @@ Sent right after the Hello and whenever the access of the readers changes. While
 | 1 | `open` | bool | the pipe carries match data |
 | 2 | `reason` | AccessReason | why it does not, `ACCESS_REASON_NONE` while open |
 | 3 | `permissions` | repeated string | the local_api permissions in force |
+| 4 | `player_mode` | bool | the local player plays a LAN or online match, so frames carry only what that player can see (see Gating) |
 
 #### enum `AccessReason`
 
 | Value | Name | Meaning |
 |---|---|---|
 | 0 | `ACCESS_REASON_NONE` | the pipe is open |
-| 1 | `ACCESS_REASON_ACTIVE_PLAYER` | the local player plays a LAN or online match |
-| 2 | `ACCESS_REASON_SIGNED_OUT` | a LAN or online session without a signed in Generals Online account |
-| 3 | `ACCESS_REASON_FEATURE_OFF` | the service has the local_api client feature switched off |
+| 1 | `ACCESS_REASON_SIGNED_OUT` | a LAN or online session without a signed in Generals Online account |
+| 2 | `ACCESS_REASON_FEATURE_OFF` | the service has the local_api client feature switched off |
 
 #### enum `ResponseStatus`
 

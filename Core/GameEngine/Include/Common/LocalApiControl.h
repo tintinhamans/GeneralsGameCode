@@ -24,6 +24,9 @@
 #include "Lib/BaseType.h"
 #include <string>
 
+class Object;
+class ThingTemplate;
+
 namespace localapi
 {
 	class CameraControlQuery;
@@ -64,6 +67,13 @@ Int LocalApiGatedPlayerIndex();
 
 /// TRUE when LocalApiGatedPlayerIndex() is -1.
 Bool LocalApiRevealsHiddenState();
+
+/// TRUE when nothing is gated, for own and allied objects, and for an enemy object outside any container that is neither fogged nor
+/// shrouded for the local player nor invisible by stealth.
+Bool LocalApiObjectVisibleToGated(const Object* obj);
+
+/// The template the local player sees for the object, the disguise of a disguised enemy while gated, else its own template.
+const ThingTemplate* LocalApiApparentTemplate(const Object* obj);
 
 /// The query handlers return a localapi::ResponseStatus value, fill `result` with the serialized result message and `message` with the reason of a refusal.
 int LocalApiControlCamera(const localapi::CameraControlQuery& query, std::string& result, std::string& message);
