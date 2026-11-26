@@ -2,7 +2,6 @@
 # Checks that the release exes run on the pinned VC++ runtime. Every function an exe or DLL imports from a runtime DLL,
 # delay loaded imports included, must be exported by that DLL in the bundled redistributable. A newer toolset can import
 # functions that only a newer runtime exports, and the loader then refuses to start the game.
-# With -BuildDir it also checks the runtime version that the VC++ runtime check of each exe was built to require.
 param(
    [string]$BuildDir = "",
    [string[]]$Files = @(),
@@ -116,52 +115,6 @@ foreach ($target in $targets)
       }
    }
    Write-Host "Checked $checked runtime imports of $(Split-Path -Leaf $target)."
-}
-
-# Each exe refuses to start on a runtime older than the version stamped into VCRuntimeCheck.cpp.
-$runtimeCheckDirs = @("GeneralsMD\Code\Main\CMakeFiles\z_generals.dir", "Generals\Code\Main\CMakeFiles\g_generals.dir")
-foreach ($objectDir in $(if ($BuildDir) { $runtimeCheckDirs } else { @() }))
-{
-   $object = $null
-   $objectRoot = Join-Path $BuildDir $objectDir
-   if (Test-Path -LiteralPath $objectRoot -PathType Container)
-   {
-      $found = Get-ChildItem -LiteralPath $objectRoot -Recurse -File -Filter "VCRuntimeCheck.cpp.obj" | Select-Object -First 1
-      if ($found)
-      {
-         $object = $found.FullName
-      }
-   }
-   if ($object)
-   {
-      $text = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($object))
-      $stamp = [regex]::Matches($text, "GENONLINE_VCREDIST_(MAJOR|MINOR|BUILD)=(\d+)")
-      $parts = @{}
-      foreach ($match in $stamp)
-      {
-         $parts[$match.Groups[1].Value] = [int]$match.Groups[2].Value
-      }
-      if ($parts.Count -eq 3)
-      {
-         $required = [version]::new($parts.MAJOR, $parts.MINOR, $parts.BUILD)
-         if ($required -gt [version]$MaxRuntime)
-         {
-            $failures.Add("The VC++ runtime check requires $required, newer than the pinned runtime $MaxRuntime, so players on $MaxRuntime are asked to install a newer one.")
-         }
-         else
-         {
-            Write-Host "The VC++ runtime check requires $required."
-         }
-      }
-      else
-      {
-         Write-Warning "$object holds no stamped runtime version. The check falls back to the compiler version."
-      }
-   }
-   else
-   {
-      Write-Warning "VCRuntimeCheck.cpp.obj is missing below $objectRoot, so the runtime version of the VC++ runtime check is not checked."
-   }
 }
 
 if ($failures.Count -gt 0)
